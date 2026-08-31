@@ -1,0 +1,9 @@
+--- can we keep full q8_0 KV at 128k? ---
+128k-q8kv-mtp-ub256              FAILED
+--- how far with q5_1 KV? ---
+160k-q5_1kv-mtp-ub256            LOADED  vram=23376 MiB  headroom=671 MiB
+192k-q5_1kv-mtp-ub256            FAILED
+256k-q4_0kv-mtp-ub256            FAILED
+
+=== prefill cost of small ubatch (llama-bench, pp8192) ===
+DONE

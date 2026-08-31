@@ -447,6 +447,12 @@ llama-bench -m "$MODEL" -ngl 99 -fa 1 -p 8192 -n 64 -ub 256,512 -r 2
 **Always re-measure after changing a global flag.** Section 5 exists because that
 step was skipped once.
 
+The actual harnesses are checked in under [`benchmarks/`](../benchmarks/), and
+the raw output every number here came from is under the combination's
+[`benchmarks/`](../combinations/qwen/3.8/27b/ubuntu/24GB/llamacpp-opencode/benchmarks/)
+directory, server logs included. Prefer re-running those to reconstructing the
+commands above by hand.
+
 ---
 
 ## 10. Open questions
@@ -456,9 +462,12 @@ Not investigated; noted so nobody assumes they were.
 - **`--spec-draft-n-max` is untuned.** Left at 2. Acceptance ranged 0.70–0.92,
   suggesting the draft is rarely wrong and could go deeper. 2 vs 4 vs 6 was never
   benchmarked.
-- **q4_0 KV quality is unmeasured.** It fits and q8_0 does not; the cost to
-  long-context retrieval — exactly where a coding agent lives — is unknown.
-  `PROFILE=balanced` (96k, q8_0) is the conservative fallback.
+- **q4_0 KV quality is only floor-tested.** Section 8b since measured it against
+  needle-in-a-haystack retrieval — 8/8 at 64k and at 128k, matching an `f16`
+  control — but that is verbatim recall of a distinctive string, the easiest
+  long-context task there is. Reasoning over dispersed facts and code
+  comprehension remain unmeasured. `PROFILE=balanced` (96k, q8_0) is still the
+  conservative fallback.
 - **Smaller quants unbenchmarked for quality.** `UD-Q3_K_XL` would free 4,275 MiB
   (~240k tokens at q4_0) but no quality comparison against `UD-Q4_K_XL` was run.
 - **Prefill at large context unmeasured.** `llama-bench` was run at pp2048. The

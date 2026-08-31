@@ -1,0 +1,18 @@
+0.00.059.447 I cmn  common_param: common_params_print_info: verbosity = 3 (adjust with the `-lv N` CLI arg)
+0.00.137.714 W srv  llama_server: -----------------
+0.00.137.715 W srv  llama_server: CORS is set to allow all origins ('*') and no API key is set
+0.00.137.715 W srv  llama_server: this can be a security risk (cross-origin attacks)
+0.00.137.716 W srv  llama_server: more info: https://github.com/ggml-org/llama.cpp/pull/25655
+0.00.137.716 W srv  llama_server: -----------------
+0.00.138.945 I srv    load_model: loading model '/home/julian/.local/share/qwen38-27b/models/Qwen3.8-27B-GGUF/Qwen3.8-27B-UD-Q4_K_XL.gguf'
+0.00.727.779 W common_fit_params: failed to fit params to free device memory: n_gpu_layers already set by user to 99, abort
+0.02.578.354 I cmn          init: llama threadpool init, n_threads = 8
+0.02.625.563 I common_speculative_init_result: loading draft model '/home/julian/.local/share/qwen38-27b/models/Qwen3.8-27B-GGUF/mtp-Qwen3.8-27B-Q4_0.gguf'
+0.02.978.641 E ggml_backend_cuda_buffer_type_alloc_buffer: allocating 904.27 MiB on device 0: cudaMalloc failed: out of memory
+0.02.978.646 E ggml_gallocr_reserve_n_impl: failed to allocate CUDA0 buffer of size 948199552
+0.02.978.646 E graph_reserve: failed to allocate compute buffers
+0.02.978.832 E llama_init_from_model: failed to initialize the context: failed to allocate compute pp buffers
+0.02.978.835 E common_speculative_init_result: failed to create MTP context
+0.02.978.839 E srv    load_model: failed to create MTP context
+0.02.978.842 I srv    operator(): operator(): cleaning up before exit...
+0.02.981.025 E srv  llama_server: exiting due to model loading error
