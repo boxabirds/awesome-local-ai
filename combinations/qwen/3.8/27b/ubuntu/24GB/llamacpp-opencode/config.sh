@@ -60,6 +60,18 @@ SAFE_KV_TYPES="f16 bf16 q8_0 q4_0"
 SAMPLING_THINKING="--temp 1.0 --top-p 0.95 --top-k 20 --min-p 0.0"
 SAMPLING_INSTRUCT="--temp 0.7 --top-p 0.80 --top-k 20 --min-p 0.0 --presence-penalty 1.5"
 
+# Reasoning effort. The Qwen3.8 chat template defaults to xhigh whenever the
+# field is unset -- verified in the template itself:
+#   {%- set resolved_reasoning_effort = reasoning_effort|default('xhigh') %}
+# xhigh instructs the model to validate assumptions and weigh alternatives,
+# which is the right call for hard problems and a poor one for the routine
+# edits that make up most agent traffic. Default to low and let callers raise
+# it. The template accepts xhigh, medium and low, aliases high -> xhigh, and
+# RAISES on anything else -- so the launcher rejects unsupported values rather
+# than letting every request fail.
+REASONING_EFFORT_DEFAULT="low"
+REASONING_EFFORTS="default low medium high xhigh"
+
 SPEC_DRAFT_N_MAX=2
 IMAGE_MIN_TOKENS=1024                     # llama.cpp's recommendation for Qwen-VL grounding
 

@@ -8,8 +8,12 @@ prompt, one variable changed:
 
 | Directory | Server setting |
 |---|---|
-| `meteor-rush/` | thinking on (default, `reasoning_effort=xhigh`) |
+| `meteor-rush/` | thinking on, `reasoning_effort=xhigh` |
 | `meteor-rush-no-thinking/` | `THINKING=0` |
+
+`xhigh` was the launcher default when these were generated; it is now `low`,
+so reproducing the left-hand column today needs
+`REASONING_EFFORT=xhigh`.
 
 Open either `index.html` directly in a browser — no build step, no CDN, no
 Three.js. The 3D is hand-rolled on a 2D canvas: icosahedron subdivision for the

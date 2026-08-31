@@ -47,6 +47,7 @@ ENVIRONMENT OVERRIDES
   KV_TYPE=q4_0|q8_0|f16                 VISION=0|1
   NP=<slots>         UB=<micro-batch>
   THINKING=1|0       THINKING_BUDGET=<tokens>
+  REASONING_EFFORT=low|medium|xhigh|default
   QWEN38_ROOT=<dir>  MODEL=<file>       MODEL_ALIAS=<id>
 
 THINKING
@@ -59,11 +60,35 @@ THINKING
   thinking without that swap: the card warns the thinking preset causes
   repetition on the non-thinking path.
 
-  Measured on a simple coding prompt: thinking off is ~2.5x fewer output
-  tokens and 3-5x faster, at the cost of reasoning quality.
+  Measured over three prompts: thinking off is ~2.7x fewer output tokens
+  than thinking on at the default effort, at the cost of reasoning quality.
 
   THINKING_BUDGET=N caps thinking at N tokens instead of disabling it --
   useful for bounding the max_tokens trap below while keeping reasoning.
+  Unlike REASONING_EFFORT, this is a hard cap, not an instruction.
+
+REASONING EFFORT                                  (default here: low)
+  The Qwen3.8 chat template defaults reasoning_effort to 'xhigh' whenever
+  the field is unset. xhigh tells the model to validate assumptions and
+  weigh alternatives -- right for hard problems, wasteful for the routine
+  edits that are most of an agent's traffic. This launcher ships 'low'
+  instead. Supported: low, medium, xhigh ('high' is an alias for xhigh;
+  'default' leaves the template's own choice, i.e. xhigh).
+
+  Measured here -- 5 prompts, greedy (temp 0, top_k 1), one server load:
+
+      effort    reasoning chars   completion tokens
+      low                  4026                2632
+      medium               5039                3579
+      xhigh               14004                5230
+
+  So xhigh is 3.5x the reasoning and 2.0x the total output of low. It does
+  NOT change generation rate -- ~80-91 tok/s either way. You are paying in
+  tokens and latency, not throughput.
+
+  Raise it for a hard problem:  REASONING_EFFORT=xhigh qwen38-27b-server
+  OpenAI-compatible clients can also override it per request by sending
+  "reasoning_effort" in the request body.
 
 WHY THESE NUMBERS
   * Only 16 of this model's 65 layers hold a KV cache
@@ -97,6 +122,7 @@ FURTHER READING
 EXAMPLES
   qwen38-27b-server                                  # 128k coding default
   # API: http://127.0.0.1:8080/v1  model id: qwen3.8-27b
+  REASONING_EFFORT=xhigh qwen38-27b-server           # think hard, ~2x the tokens
   PROFILE=vision qwen38-27b-server                   # images, 96k
   PROFILE=balanced qwen38-27b-server                 # 96k, full q8_0 KV
   CTX=65536 KV_TYPE=q8_0 qwen38-27b-server           # hand-tuned

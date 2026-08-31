@@ -187,6 +187,22 @@ if [[ "$THINKING" == "0" ]]; then
 else
   # shellcheck disable=SC2206
   ARGS+=(${SAMPLING_THINKING})
+
+  # Reasoning effort. Chat templates that support it typically default to
+  # their most expensive level when the field is unset, which is a lot of
+  # tokens for routine work -- so the combination picks the default and the
+  # user can raise it per run. An unsupported level is fatal rather than a
+  # warning: the template raises on it, so every request would fail.
+  REASONING_EFFORT="${REASONING_EFFORT:-${REASONING_EFFORT_DEFAULT:-default}}"
+  if [[ "$REASONING_EFFORT" != "default" ]]; then
+    if [[ -n "${REASONING_EFFORTS:-}" && " $REASONING_EFFORTS " != *" $REASONING_EFFORT "* ]]; then
+      echo "${SERVER_CMD}: REASONING_EFFORT='$REASONING_EFFORT' is not supported by this model." >&2
+      echo "         Supported: ${REASONING_EFFORTS} (or 'default' for the template's own)." >&2
+      exit 1
+    fi
+    ARGS+=(--reasoning-effort "$REASONING_EFFORT")
+  fi
+
   # Cap thinking without disabling it: bounds the max_tokens trap.
   [[ -n "$THINKING_BUDGET" ]] && ARGS+=(--reasoning-budget "$THINKING_BUDGET")
 fi
