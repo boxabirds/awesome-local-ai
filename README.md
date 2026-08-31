@@ -1,422 +1,129 @@
-# Qwen3.8-27B on a 24GB NVIDIA GPU (Ubuntu)
+# awesome-local-ai
 
-A one-command, re-runnable installer that puts **Qwen3.8-27B** on a 24GB NVIDIA
-GPU as a local OpenAI-compatible API — with speculative decoding, optional
-vision, and a **128k context window** tuned for coding agents.
+One-command installers for running capable models **locally**, as an
+OpenAI-compatible API with a coding agent already wired up.
+
+Every combination is a *tested pairing* of model, hardware and stack. Every
+performance and memory number in this repo was **measured on real hardware**,
+not estimated — and where a figure is extrapolated, it says so.
 
 ```bash
-git clone https://github.com/boxabirds/qwen-3.8-27b-nvidia-24GB-ubuntu.git
-cd qwen-3.8-27b-nvidia-24GB-ubuntu
-./scripts/setup.sh          # build + download + verify (~20 min first run)
-qwen38-27b-server           # serve on 127.0.0.1:8080 with 128k context
+git clone https://github.com/boxabirds/awesome-local-ai.git
+cd awesome-local-ai
+./install-qwen-3.8-27b-ubuntu-24GB-llamacpp-opencode.sh
+qwen38-27b-opencode      # server starts on demand, stops when you're done
 ```
 
-Every performance and VRAM number in this repo was **measured on real hardware**,
-not estimated. Where a figure is extrapolated, it says so.
+---
+
+## Combinations
+
+Pick the row that matches your hardware and run its script from the repo root.
+The installer refuses to run on hardware it was not measured on, rather than
+half-installing.
+
+| Model | OS | Memory | Stack | Install | Details |
+|---|---|---|---|---|---|
+| Qwen3.8-27B | Ubuntu 22.04 | 24GB NVIDIA | llama.cpp + OpenCode | [`install-qwen-3.8-27b-ubuntu-24GB-llamacpp-opencode.sh`](install-qwen-3.8-27b-ubuntu-24GB-llamacpp-opencode.sh) | [README](combinations/qwen/3.8/27b/ubuntu/24GB/llamacpp-opencode/README.md) |
+
+**Want one that isn't here?** See
+[docs/adding-a-combination.md](docs/adding-a-combination.md). A new combination
+that reuses the existing adapters costs four files and no shell logic. macOS
+(including the `mtplx` stack) is documented there as an explicit, unclaimed
+piece of work — with the exact contracts to implement.
 
 ---
 
-## Who this is for
+## What a combination gives you
 
-**You want this if you are:**
+Using the one combination that exists today as the example:
 
-- Running **coding agents locally** and need a large context window — 128k on a
-  single consumer GPU, enough to hold a real repository.
-- Someone with **exactly this hardware**: a 24GB NVIDIA card (RTX 4090, 3090,
-  4090D, A5000) on Ubuntu. The setup is deliberately narrow and refuses to run
-  outside it rather than half-installing.
-- Tired of **guessing at llama.cpp flags**. The tuning here is empirical: five
-  measured profiles and a [discovery log](docs/discovery.md) showing every
-  configuration tried, including the ones that OOM'd.
-- Wanting **tool-calling and vision** from one local endpoint, without paying
-  per token or sending code to a third party.
-
-**You do not want this if:**
-
-- Your GPU has **less than 24GB** — the script will refuse. It prints a quant
-  table for 16GB cards, but those figures are extrapolated and unverified.
-- You are on **Windows, macOS, or a non-Debian distro** — nothing here is
-  portable. macOS users want plain llama.cpp with Metal.
-- You need **multi-GPU, batch serving, or high concurrency** — this is a
-  single-GPU, single-user setup. Look at vLLM or SGLang.
-- You want to **fine-tune** — inference only.
-- You need an **exposed or shared endpoint** — this binds to localhost with no
-  authentication by design.
-
-**Assumed knowledge:** comfortable with a terminal and `systemd`. You do *not*
-need to know llama.cpp — the flags are chosen and explained for you.
+- **128k context** on a single 24GB consumer GPU — enough to hold a real repo.
+- **~92 tok/s generation**, roughly double, via MTP speculative decoding —
+  and the installer *asserts* speculative decoding is actually live rather
+  than assuming it.
+- **Tool calling and vision** from one local endpoint.
+- **On-demand lifecycle**: the server starts when your agent needs it and shuts
+  down 5 minutes after you stop, so 22 GB is not parked on your GPU all day.
+- **A smoke test that means something**: loads the model, generates over the
+  API, and checks draft acceptance appeared in the log.
 
 ---
 
-## What this is for
+## How the repo is laid out
 
-Running a capable 27B model locally as an **agent backend** — the kind of
-workload that needs a large context window, fast generation, and an
-OpenAI-compatible endpoint you can point existing tooling at.
+```
+install-<combination>.sh      root pointer scripts — ~8 lines, no logic
+lib/                          ALL the logic, shared by every combination
+combinations/<family>/<version>/<size>/<os>/<memory>/<stack>/
+                              config.sh, profiles.tsv, help.txt, README.md
+docs/                         measurements, methodology, contributor guide
+samples/                      things models built here, kept as worked examples
+```
 
-Concretely, it is tuned for:
+The point of the split is that **nothing is duplicated between combinations**.
+A combination is data — a config file, a table of measured profiles, and its
+help text. Adding one does not add shell code:
 
-- **Coding agents** that load large repository context (128k default)
-- **Tool-calling agents** — `--jinja` is on, so tool-call parsing works
-- **Multimodal work** — screenshots, UI debugging, diagrams (`PROFILE=vision`)
-- **Always-on local inference** via a systemd user service
+```
+install-qwen-3.8-27b-ubuntu-24GB-llamacpp-opencode.sh   ← 8 lines
+  └─ lib/bootstrap.sh          resolves the config, orders the install
+       ├─ lib/os.sh            OS qualification
+       ├─ lib/deps.sh          packages and build tools
+       ├─ lib/accel/cuda.sh    device qualification + build flags   ← swap per accelerator
+       ├─ lib/llamacpp.sh      clone, update, build                 ← swap per backend
+       ├─ lib/hf.sh            weights
+       ├─ lib/model.sh         asset download
+       ├─ lib/launcher.sh      writes the manifest + command shims
+       ├─ lib/smoke.sh         proves it works
+       └─ lib/summary.sh       the closing report
+```
 
-### What this is *not*
+At run time the same idea holds. **One** launcher and **one** lifecycle manager
+serve every combination:
 
-- Not a fine-tuning or training setup — inference only.
-- Not multi-GPU. Single-GPU, all layers offloaded.
-- Not a hosted/shared deployment. Binds to `127.0.0.1` with **no
-  authentication**. Do not expose it without putting a proxy in front.
-- Not portable beyond Ubuntu + NVIDIA CUDA. The script refuses to run elsewhere
-  rather than half-installing (see [Requirements](#requirements)).
-
----
-
-## Requirements
-
-**Hard requirements — the script checks and refuses if unmet:**
-
-| | Requirement | Bypass |
+| Installed as | From | Shared? |
 |---|---|---|
-| OS | Ubuntu (22.04 validated) | `ALLOW_UNSUPPORTED_OS=1` |
-| GPU | NVIDIA CUDA, **≥24GB VRAM** | `ALLOW_LOW_VRAM=1` |
-| Driver | ≥550 (580 validated) | — |
-| CUDA | 12.x toolkit (12.3 validated) | — |
-| Disk | ~40 GB (20 GB models, ~2 GB build) | — |
-| RAM | 16 GB+ | — |
+| `~/.local/bin/local-ai-server` | `lib/runtime/server.sh` | yes, all combinations |
+| `~/.local/bin/local-ai-session` | `lib/runtime/session.sh` | yes, all combinations |
+| `~/.local/bin/qwen38-27b-server` | generated | 2-line shim |
+| `~/.local/bin/qwen38-27b-opencode` | generated | 2-line shim |
 
-Validated on: RTX 4090 24GB, Ubuntu 22.04.5, driver 580.159.03, CUDA 12.3.
+Everything that varies — model filenames, profiles, safe KV types, sampling
+presets, client details — is read at run time from a small manifest
+(`install.env`) written next to the weights. The shipped scripts contain **no
+machine-specific paths**: they resolve from `$HOME`, so the same file works for
+any user on any machine and can be pasted into a bug report without leaking a
+username.
 
-**Existing installs are reused.** The script detects and upgrades rather than
-reinstalling — your CUDA toolkit, Python, and `hf` CLI are left alone if usable.
+Three extension points, each one file with a small documented contract:
 
-### Under 24GB?
-
-`UD-Q4_K_XL` is 17,092 MiB of weights and will not fit alongside a usable KV
-cache on a 16GB card. The script refuses and prints a quant table. Short version:
-
-```bash
-QUANT=UD-Q3_K_XL ALLOW_LOW_VRAM=1 ./scripts/setup.sh
-CTX=32768 KV_TYPE=q4_0 VISION=0 qwen38-27b-server
-```
-
-Those 16GB figures are **extrapolated, not measured** — see
-[docs/discovery.md §8](docs/discovery.md).
+- **Accelerator** — `lib/accel/<name>.sh` (`cuda` today; `metal` is spec'd, unwritten)
+- **Backend** — `lib/<name>.sh` (`llamacpp` today)
+- **Client** — `lib/clients/<name>.sh` (`opencode` today, ~50 lines)
 
 ---
 
-## Install
+## Docs
 
-```bash
-git clone https://github.com/boxabirds/qwen-3.8-27b-nvidia-24GB-ubuntu.git
-cd qwen-3.8-27b-nvidia-24GB-ubuntu
-./scripts/setup.sh
-```
-
-The script is **idempotent** — re-running only upgrades what is outdated. It:
-
-1. Qualifies OS, GPU, VRAM, driver, CUDA
-2. Installs missing apt packages (falls back to pip `cmake`/`ninja` if no sudo)
-3. Builds llama.cpp with CUDA for your GPU's arch (auto-detected)
-4. Downloads the model, MTP head, and vision projector (~20 GB)
-5. Generates the launcher and a systemd user unit
-6. **Smoke-tests**: loads the model, generates, and asserts MTP is active
-
-If `sudo` needs a password it will not hang — it tells you the one command to run
-and continues with userspace fallbacks.
-
-Skip the model load at the end with `SKIP_SMOKE_TEST=1`.
+- **[docs/discovery.md](docs/discovery.md)** — the full investigation behind
+  the Qwen3.8-27B tuning: why only 16 of 65 layers hold a KV cache, why
+  `-ub 256` matters more than any KV setting, the complete measurement table
+  with every OOM, and reproduction steps. Read it before changing quant,
+  context or speculative-decoding settings.
+- **[docs/adding-a-combination.md](docs/adding-a-combination.md)** — the
+  contract for contributing a combination, accelerator, backend or client.
+- **[samples/](samples/)** — a 3D game written end-to-end by the local model
+  through OpenCode, in thinking and non-thinking variants. A worked example of
+  what this setup produces, not maintained software.
 
 ---
 
-## Usage
-
-```bash
-qwen38-27b-server                 # coding profile: 128k context
-qwen38-27b-server --help          # all profiles, with caveats
-```
-
-Then point any OpenAI client at `http://127.0.0.1:8080/v1`:
-
-```bash
-curl http://127.0.0.1:8080/v1/chat/completions \
-  -H 'Content-Type: application/json' \
-  -d '{"messages":[{"role":"user","content":"Explain this repo"}],"max_tokens":2048}'
-```
-
-### Profiles
-
-Select with `PROFILE=<name>`. **All VRAM figures measured on a 24GB RTX 4090.**
-
-| Profile | Context | KV | Vision | VRAM | Free | Prefill | Use for |
-|---|---|---|---|---|---|---|---|
-| **`coding`** *(default)* | 128k | q4_0 | — | 22,398 | 1,649 | 2309 t/s | Coding agents |
-| `balanced` | 96k | q8_0 | — | 23,130 | 917 | 2303 t/s | Max KV fidelity |
-| `vision` | 96k | q4_0 | ✓ | 22,634 | 1,413 | 2309 t/s | Images + long context |
-| `vision-max` | 128k | q4_0 | ✓ | 23,534 | **513** ⚠ | 2317 t/s | Foreground only |
-| `max` | 160k | q4_0 | — | 23,298 | **749** ⚠ | 2303 t/s | Foreground only |
-
-`coding` is the default because it has both the most context and the most
-headroom. Needle-in-a-haystack retrieval scores 8/8 at 64k and at a
-nearly-full 128k, matching an unquantised `f16` control — so 4-bit KV shows no
-measurable retrieval penalty ([details](docs/discovery.md)). That is a floor
-test though; if you suspect quality in real use, `balanced` runs `q8_0`.
-
-⚠ Under ~700 MiB of headroom. These load and serve, but a browser tab or a second
-CUDA process will OOM them mid-run. **Do not point systemd at these.**
-
-### Overrides
-
-Any profile value can be overridden:
-
-```bash
-PORT=8081 qwen38-27b-server                        # different port
-CTX=65536 KV_TYPE=q8_0 qwen38-27b-server           # hand-tuned
-VISION=1 qwen38-27b-server                         # vision on any profile
-HOST=0.0.0.0 qwen38-27b-server                     # expose on LAN (see Security)
-qwen38-27b-server --spec-draft-n-max 4             # passthrough to llama-server
-```
-
-| Variable | Default | Meaning |
-|---|---|---|
-| `PROFILE` | `coding` | Profile name |
-| `PORT` / `HOST` | `8080` / `127.0.0.1` | Bind address |
-| `CTX` | per profile | Context window in tokens |
-| `KV_TYPE` | per profile | `q4_0` \| `q8_0` \| `f16` — see warning below |
-| `VISION` | per profile | `0` \| `1` |
-| `NP` / `UB` | `1` / `256` | Parallel slots / micro-batch |
-| `MODEL_ALIAS` | `qwen3.8-27b` | Model id advertised at `/v1/models` |
-| `QWEN38_ROOT` | `$HOME/.local/share/qwen38-27b` | Install location |
-| `MODEL` / `MMPROJ` / `MTP` | derived | Explicit `.gguf` paths |
-
-Unrecognised arguments pass straight through to `llama-server`.
-
-The launcher contains **no machine-specific paths** — it resolves everything
-from `$HOME` at runtime (falling back to the passwd entry if `HOME` is unset),
-so the same file works for any user on any machine. The systemd unit uses
-systemd's `%h` specifier for the same reason. If your install lives elsewhere,
-set `QWEN38_ROOT`.
-
-### One-command OpenCode session (recommended)
-
-`scripts/run-opencode.sh` starts the server on demand, launches OpenCode
-against it, and shuts the server down once you stop using it — so a 22 GB
-model is not sitting on your GPU all day.
-
-```bash
-scripts/run-opencode.sh              # start server if needed, then OpenCode
-scripts/run-opencode.sh --status     # server, watcher, clients, idle timer
-scripts/run-opencode.sh --stop       # stop now
-scripts/run-opencode.sh --server-only    # server + watcher, no client
-scripts/run-opencode.sh -- run "explain this repo"   # pass args to opencode
-```
-
-How the lifecycle works:
-
-- Starts `llama-server` only if nothing is already serving on `$PORT`.
-- Registers the session as a client, then runs OpenCode in the foreground.
-- A single detached watcher shuts the server down once **no client has been
-  alive for 5 minutes** (`IDLE_TIMEOUT`, seconds).
-- Running the script again registers another client, which **resets the idle
-  countdown** and reuses the running server — so a second terminal is instant,
-  and quitting one session does not kill the other.
-- It only ever stops a server it started. One you launched yourself is left
-  alone.
-
-| Variable | Default | |
-|---|---|---|
-| `IDLE_TIMEOUT` | `300` | Seconds with zero clients before shutdown |
-| `POLL_INTERVAL` | `10` | Watcher poll frequency |
-| `PROFILE` | `coding` | Passed to the server launcher |
-| `PORT` | `8080` | |
-| `PROVIDER` / `MODEL_ID` | `qwen38-local` / `qwen3.8-27b` | Must match your opencode config |
-
-State lives in `~/.local/state/qwen38-27b/` (pids, client registrations, logs).
-Writes `~/.config/opencode/opencode.json` if you do not already have one; an
-existing config is never overwritten.
-
-### Manual control
-
-### Connecting a coding agent
-
-The server speaks the OpenAI API at `http://127.0.0.1:8080/v1` and advertises a
-stable model id of **`qwen3.8-27b`** (override with `MODEL_ALIAS=`). Any
-OpenAI-compatible client works; two good terminal agents:
-
-#### Pi ([pi.dev](https://pi.dev))
-
-Minimal, MIT-licensed, and it has **built-in llama.cpp support**.
-
-```bash
-npm install -g @earendil-works/pi-coding-agent
-```
-
-Add to `~/.pi/agent/models.json`:
-
-```json
-{
-  "providers": {
-    "qwen38-local": {
-      "baseUrl": "http://127.0.0.1:8080/v1",
-      "api": "openai-completions",
-      "apiKey": "local",
-      "models": [
-        {
-          "id": "qwen3.8-27b",
-          "name": "Qwen3.8-27B (local)",
-          "input": ["text"],
-          "contextWindow": 131072,
-          "maxTokens": 32768,
-          "reasoning": true
-        }
-      ]
-    }
-  }
-}
-```
-
-Then `pi` and pick the model with `/model`. `apiKey` is required but ignored —
-any placeholder works.
-
-#### OpenCode ([opencode.ai](https://opencode.ai))
-
-Create `opencode.json` in your project (or `~/.config/opencode/`):
-
-```json
-{
-  "$schema": "https://opencode.ai/config.json",
-  "provider": {
-    "qwen38-local": {
-      "npm": "@ai-sdk/openai-compatible",
-      "name": "Qwen3.8-27B (local)",
-      "options": { "baseURL": "http://127.0.0.1:8080/v1" },
-      "models": {
-        "qwen3.8-27b": {
-          "name": "Qwen3.8-27B (local)",
-          "limit": { "context": 131072, "output": 32768 }
-        }
-      }
-    }
-  }
-}
-```
-
-The model key **must** match what `/v1/models` returns — `qwen3.8-27b`.
-
-#### Anything else
-
-```bash
-export OPENAI_BASE_URL=http://127.0.0.1:8080/v1
-export OPENAI_API_KEY=local          # required by most clients, ignored here
-```
-
-Works with the OpenAI Python/JS SDKs, Aider, Continue, Cline, LangChain, and
-similar. Point them at the base URL and use model `qwen3.8-27b`.
-
-> **Set a generous output limit.** Thinking mode bills reasoning against
-> `max_tokens`; too small a budget returns empty content. See
-> [Thinking mode](#thinking-mode-consumes-max_tokens).
-
-> **Do not set `KV_TYPE` to `q5_1`, `q5_0`, `q4_1` or `iq4_nl`.** Those have no
-> CUDA flash-attention kernel for this model and silently fall back to **CPU
-> attention** — measured 48 tok/s prefill versus 2300, with the GPU at 1% and
-> eight CPU cores pegged. An agent sending an 8k system prompt waits four
-> minutes instead of four seconds. Only `q4_0`, `q8_0`, `f16` and `bf16` run on
-> the GPU. The launcher warns you. Details in
-> [docs/discovery.md §2b](docs/discovery.md).
-
-### Run as a service
-
-```bash
-systemctl --user enable --now qwen38-27b
-journalctl --user -u qwen38-27b -f
-```
-
-Uses the default `coding` profile. To change it, add
-`Environment=PROFILE=vision` to `~/.config/systemd/user/qwen38-27b.service`.
-
----
-
-## Important behaviours
-
-### Thinking mode consumes `max_tokens`
-
-Thinking is **on by default** and the reasoning block bills against
-`max_tokens`. Too small a budget returns an **empty `content`** with
-`finish_reason: "length"` — not an error. A bare "reply OK" costs ~33 tokens.
-
-**Give agents a generous `max_tokens`.** Reasoning is returned separately in
-`reasoning_content`.
-
-### Speculative decoding (MTP)
-
-Enabled by default and roughly doubles generation speed. Measured **0.70–0.92
-draft acceptance**; ~92 tok/s generation with it, ~44 without.
-
-The MTP head comes from `ggml-org/Qwen3.8-27B-GGUF` because **Unsloth ships none
-for Qwen3.8**. Mixing the two repos is deliberate and verified. If speculative
-decoding ever appears inactive, check for `draft acceptance` in the server log —
-llama.cpp starts happily with it silently disabled.
-
-### Security
-
-Binds to `127.0.0.1` with **no authentication**. `HOST=0.0.0.0` exposes an
-unauthenticated model server to your entire network. Put a reverse proxy with
-auth in front if you need remote access.
-
----
-
-## Performance
-
-RTX 4090, `UD-Q4_K_XL`, `coding` profile:
-
-| Metric | Value |
-|---|---|
-| Generation (MTP on) | ~92 tok/s |
-| Generation (MTP off) | ~44 tok/s |
-| Prefill (pp2048, `-ub 256`) | ~2700 tok/s |
-| Prefill (pp2048, `-ub 512`) | ~2915 tok/s |
-| Model load (warm cache) | ~4 s |
-| VRAM | 22,464 MiB |
-
----
-
-## Layout
-
-```
-scripts/setup.sh    installer (idempotent, self-verifying)
-scripts/setup.log   run log
-docs/discovery.md   measurements, blind alleys, methodology
-README.md           this file
-
-~/.local/share/qwen38-27b/          llama.cpp source + build, models
-~/.local/bin/qwen38-27b-server      generated launcher
-~/.local/bin/llama-server           symlink to the build
-~/.config/systemd/user/qwen38-27b.service
-```
-
----
-
-## Troubleshooting
-
-**CUDA OOM on startup** — something else is using the GPU. The launcher
-pre-flights this and names the offending processes. Check `nvidia-smi`, or drop
-to `PROFILE=balanced`.
-
-**Empty responses** — `max_tokens` too small; the reasoning block consumed it.
-See [Thinking mode](#thinking-mode-consumes-max_tokens).
-
-**Generation feels slow** — MTP may be inactive. Look for `draft acceptance` in
-the log; absent means speculative decoding is off.
-
-**`sudo: command not found: <package>`** — a shell mangled a `&&` chain. Run the
-`apt-get install` line on its own.
-
-**Rebuild from scratch** — `rm -rf ~/.local/share/qwen38-27b/llama.cpp/build`
-then re-run `setup.sh`. Models are cached separately and will not re-download.
-
-**Want more context than 160k?** Not possible at this quant on 24GB. Use a
-smaller one (`QUANT=UD-Q3_K_XL`); each GiB freed buys ~57k tokens at q4_0.
+## Security
+
+Servers bind to `127.0.0.1` with **no authentication**. `HOST=0.0.0.0` exposes
+an unauthenticated model server to your entire network. Put a reverse proxy
+with auth in front if you need remote access.
 
 ---
 
@@ -424,18 +131,7 @@ smaller one (`QUANT=UD-Q3_K_XL`); each GiB freed buys ~57k tokens at q4_0.
 
 This repository is Apache 2.0 (see [LICENSE](LICENSE)).
 
-The model weights are licensed separately by their publishers — Qwen3.8-27B is
+Model weights are licensed separately by their publishers — Qwen3.8-27B is
 Apache 2.0 per the [Qwen model card](https://huggingface.co/Qwen/Qwen3.8-27B),
-and llama.cpp is MIT. This repo contains no weights; `setup.sh` downloads them
-from Hugging Face at install time.
-
----
-
-## Further reading
-
-**[docs/discovery.md](docs/discovery.md)** — the full investigation: why only 16
-of 65 layers hold a KV cache, why `-ub 256` matters more than any KV setting, the
-complete measurement table with every OOM, the mis-measurement that made vision
-look 4x more expensive than it is, and reproduction steps.
-
-Read it before changing quant, context, or speculative-decoding settings.
+and llama.cpp is MIT. This repo contains no weights; the installers download
+them from Hugging Face at install time.

@@ -218,7 +218,7 @@ slot print_timing: draft acceptance = 0.90000 (18 accepted / 20 generated), mean
 ```
 
 No `draft acceptance` line ⇒ speculative decoding is inactive, regardless of what
-you passed. `setup.sh`'s smoke test now asserts this.
+you passed. The installer's smoke test now asserts this.
 
 ### Flag names that changed
 
@@ -359,7 +359,7 @@ Use `q4_0` KV, not `q5_1` -- see 2b. q4_0 is both faster (GPU vs CPU) and
 smaller (18 vs 24 KiB/token), so these are better than the earlier estimates.
 
 ```bash
-QUANT=UD-Q3_K_XL ALLOW_LOW_VRAM=1 ./scripts/setup.sh
+QUANT=UD-Q3_K_XL ALLOW_LOW_VRAM=1 ./install-qwen-3.8-27b-ubuntu-24GB-llamacpp-opencode.sh
 CTX=32768 KV_TYPE=q4_0 VISION=0 qwen38-27b-server
 ```
 
