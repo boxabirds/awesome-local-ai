@@ -80,6 +80,7 @@ and change the values. Required variables (`lib/bootstrap.sh` enforces these):
 | `MODEL_SUBDIR`, `MODEL_ASSETS` | where weights live and what to fetch |
 | `MODEL_ALIAS_DEFAULT` | the stable id advertised at `/v1/models` |
 | `DEFAULT_PROFILE`, `SAFE_KV_TYPES`, `SAMPLING_THINKING` | serving defaults |
+| `REASONING_EFFORT_DEFAULT`, `REASONING_EFFORTS` | *(optional)* default effort level, and the levels the model's template accepts. Check the template before setting these — Qwen3.8's defaults to `xhigh` when the field is unset and **raises** on a level it does not know, so an unvalidated value breaks every request |
 | `DEFAULT_PROVIDER`, `CONTEXT_LIMIT`, `OUTPUT_LIMIT` | client config values |
 
 `MODEL_ASSETS` is one `repo|filename|role|approx-size` record per line. Role
@@ -233,6 +234,7 @@ This repo's whole value is that its numbers are real. Two rules:
 
 ```bash
 bash -n install-<combination>.sh lib/*.sh lib/*/*.sh   # syntax
+./run.sh --list                                        # is it discoverable?
 SKIP_SMOKE_TEST=1 ./install-<combination>.sh           # everything but the model load
 ./install-<combination>.sh                             # full run, asserts generation
 <install-id>-server --help                             # profile table renders

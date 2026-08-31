@@ -11,8 +11,12 @@ not estimated — and where a figure is extrapolated, it says so.
 git clone https://github.com/boxabirds/awesome-local-ai.git
 cd awesome-local-ai
 ./install-qwen-3.8-27b-ubuntu-24GB-llamacpp-opencode.sh
-qwen38-27b-opencode      # server starts on demand, stops when you're done
+./run.sh                 # server starts on demand, stops when you're done
 ```
+
+`run.sh` reads the manifests the installer left behind, so it runs whatever
+this machine actually has — no arguments needed for the common case, and a
+clear prompt to choose when more than one combination is installed.
 
 ---
 
@@ -54,6 +58,7 @@ Using the one combination that exists today as the example:
 
 ```
 install-<combination>.sh      root pointer scripts — ~8 lines, no logic
+run.sh                        runs whatever is installed, discovered from its manifest
 lib/                          ALL the logic, shared by every combination
 combinations/<family>/<version>/<size>/<os>/<memory>/<stack>/
                               config.sh, profiles.tsv, help.txt, README.md
