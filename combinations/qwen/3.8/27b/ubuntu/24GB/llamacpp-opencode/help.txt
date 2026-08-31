@@ -1,0 +1,103 @@
+PROFILE DETAIL
+  Every VRAM and prefill figure was MEASURED on this hardware (RTX 4090 24GB,
+  24047 MiB usable), not estimated. "free" is what was left over.
+
+  coding     128k ctx   q4_0 KV   vision off   22398 MiB  1649 free  2309 tok/s
+      >> DEFAULT. Smoke-tested end-to-end: loads, serves, MTP active.
+      The right choice for coding agents -- 128k holds a real repo context.
+      CAVEAT: KV is q4_0. q8_0 has higher fidelity but does not fit at 128k.
+
+  balanced    96k ctx   q8_0 KV   vision off   23130 MiB   917 free  2303 tok/s
+      Highest-fidelity KV cache that still runs on the GPU. Use when
+      long-context retrieval accuracy matters more than the last 32k.
+      CAVEAT: only 917 MiB spare.
+
+  vision      96k ctx   q4_0 KV   vision ON    22634 MiB  1413 free  2309 tok/s
+      The only profiles that read images/video. Adds --image-min-tokens 1024,
+      which llama.cpp recommends for Qwen-VL grounding accuracy.
+      Vision costs ~0.87 GiB of weights, about 32k of context.
+      CAVEAT: every image costs >=1024 context tokens regardless of size.
+
+  vision-max 128k ctx   q4_0 KV   vision ON    23534 MiB   513 free  2317 tok/s
+      Full 128k context AND images. Verified to load and serve.
+      CAVEAT: ONLY 513 MiB SPARE -- the tightest profile here. Anything else
+              touching the GPU will OOM it mid-run. Foreground use only; do
+              NOT point systemd at this one.
+
+  max        160k ctx   q4_0 KV   vision off   23298 MiB   749 free  2303 tok/s
+      The hard ceiling for this quant. 192k q4_0 OOMs.
+      CAVEAT: 749 MiB spare. Foreground use only.
+
+KV CACHE TYPES -- READ THIS BEFORE CHANGING KV_TYPE
+  Only f16, bf16, q8_0 and q4_0 have CUDA flash-attention kernels for this
+  model. Everything else (q4_1, q5_0, q5_1, iq4_nl) silently falls back to
+  CPU attention. llama.cpp prints no warning; you just get, measured here:
+
+      q4_0 / q8_0 / f16 / bf16   ~2300-2675 tok/s prefill   GPU busy
+      q4_1                             79 tok/s
+      iq4_nl                           59 tok/s
+      q5_0                             51 tok/s
+      q5_1                             48 tok/s   GPU at 1%, 8 CPU cores pegged
+
+  That is up to 55x slower, and it hurts prompt processing most -- exactly
+  what a coding agent does most of. The launcher warns if you pick one.
+
+ENVIRONMENT OVERRIDES
+  PORT=8080          HOST=127.0.0.1     CTX=<tokens>
+  KV_TYPE=q4_0|q8_0|f16                 VISION=0|1
+  NP=<slots>         UB=<micro-batch>
+  THINKING=1|0       THINKING_BUDGET=<tokens>
+  QWEN38_ROOT=<dir>  MODEL=<file>       MODEL_ALIAS=<id>
+
+THINKING
+  On by default -- it is the model's own default and what Qwen tuned the
+  agentic and coding gains around. Reasoning is returned separately in
+  reasoning_content, so it does not pollute content.
+
+  THINKING=0 disables it AND swaps to the model card's instruct sampling
+  preset (temp 0.7, top_p 0.80, presence_penalty 1.5). Do not disable
+  thinking without that swap: the card warns the thinking preset causes
+  repetition on the non-thinking path.
+
+  Measured on a simple coding prompt: thinking off is ~2.5x fewer output
+  tokens and 3-5x faster, at the cost of reasoning quality.
+
+  THINKING_BUDGET=N caps thinking at N tokens instead of disabling it --
+  useful for bounding the max_tokens trap below while keeping reasoning.
+
+WHY THESE NUMBERS
+  * Only 16 of this model's 65 layers hold a KV cache
+    (full_attention_interval=4; the rest are Gated DeltaNet with fixed-size
+    recurrent state). That is ~34 KiB/token at q8_0 -- unusually cheap. The
+    binding constraint is static weights (~19 GiB), not context.
+  * -ub 256 is what makes anything above 64k fit: llama.cpp sizes its prompt
+    compute buffer from the micro-batch, and the default 512 wants ~720 MiB
+    at 128k. Measured cost of halving it: 7.3% prefill, ~0% generation.
+  * Each GiB of weights freed buys roughly 30k tokens of context. To go past
+    160k you must drop quant: IQ4_XS (-2.06 GiB) or UD-Q3_K_XL (-4.17 GiB).
+  * MTP speculative decoding runs at 0.7-0.9 draft acceptance here. The head
+    is ggml-org's -- Unsloth ships no MTP head for Qwen3.8.
+
+GOTCHA: THINKING MODE AND max_tokens
+  Thinking is ON by default, and the reasoning block is billed against
+  max_tokens. A request with a small max_tokens returns an EMPTY content
+  string with finish_reason "length" -- the budget was spent reasoning before
+  any answer was emitted. Measured here: a bare "reply OK" costs ~33 tokens.
+  Give agents a generous max_tokens, or disable thinking per-request.
+
+SECURITY
+  HOST defaults to 127.0.0.1 and there is NO authentication. Setting
+  HOST=0.0.0.0 exposes an unauthenticated model server to your whole network.
+
+FURTHER READING
+  docs/discovery.md -- full measurement table (every OOM included), why only
+  16 of 65 layers hold a KV cache, and the reproduction steps. Read it before
+  changing quant, context or speculative-decoding settings.
+
+EXAMPLES
+  qwen38-27b-server                                  # 128k coding default
+  # API: http://127.0.0.1:8080/v1  model id: qwen3.8-27b
+  PROFILE=vision qwen38-27b-server                   # images, 96k
+  PROFILE=balanced qwen38-27b-server                 # 96k, full q8_0 KV
+  CTX=65536 KV_TYPE=q8_0 qwen38-27b-server           # hand-tuned
+  PORT=8081 qwen38-27b-server --spec-draft-n-max 4   # deeper MTP draft

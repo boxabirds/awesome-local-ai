@@ -1,0 +1,17 @@
+# name|ctx|kv_type|vision|np|ub|need_mib|summary
+#
+# Every figure MEASURED on a 24GB RTX 4090 (24047 MiB usable), not estimated.
+# need_mib is the server-only footprint (measured total minus the ~595 MiB the
+# desktop held during measurement); the launcher pre-flights against it.
+#
+#   profile      measured VRAM   headroom   prefill
+#   coding          22398 MiB    1649 MiB   2309 tok/s
+#   balanced        23130 MiB     917 MiB   2303 tok/s
+#   vision          22634 MiB    1413 MiB   2309 tok/s
+#   vision-max      23534 MiB     513 MiB   2317 tok/s
+#   max             23298 MiB     749 MiB   2303 tok/s
+coding|131072|q4_0|0|1|256|21905|default; most context AND most headroom
+balanced|98304|q8_0|0|1|256|22635|highest-fidelity KV that still runs on GPU
+vision|98304|q4_0|1|1|256|22140|images and video, 96k context
+vision-max|131072|q4_0|1|1|256|23040|images at full 128k; 513 MiB spare, foreground only
+max|163840|q4_0|0|1|256|22805|hard ceiling for this quant; 749 MiB spare
