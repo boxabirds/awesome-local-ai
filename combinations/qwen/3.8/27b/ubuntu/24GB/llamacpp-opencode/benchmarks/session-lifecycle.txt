@@ -1,0 +1,10 @@
+1) start server-only
+   up: yes
+2) register a fake opencode client (lives 100s)
+   client pid 98860, cmdline: opencode-fakeclient 100 
+   status clients: clients   : 1
+3) wait 70s (> 45s idle timeout) -- server must STAY UP because client is alive
+   PASS: server still up at 70s with a live client
+4) kill the client, expect shutdown ~45s later
+   PASS: server shut down 45s after client exit
+ALLDONE

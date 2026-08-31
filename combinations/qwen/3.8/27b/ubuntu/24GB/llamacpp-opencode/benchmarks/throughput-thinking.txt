@@ -1,0 +1,17 @@
+=== THINKING=1 ===
+  p0:  298 tok    3.48s    85.7 tok/s  reasoning=  398c
+  p1:  104 tok    1.73s    60.0 tok/s  reasoning=  242c
+  p2: 1200 tok   16.69s    71.9 tok/s  reasoning= 3932c
+  TOTAL: 1602 tok in 21.9s  ->  73.1 tok/s aggregate
+  server-reported eval: 283.00 91.22 127.78 72.46 148.04 73.38
+  draft acceptance: 0.83482 0.56122 0.56294
+
+=== THINKING=0 ===
+  p0:  248 tok    2.86s    86.7 tok/s  reasoning=    0c
+  p1:  155 tok    2.23s    69.6 tok/s  reasoning=    0c
+  p2:  218 tok    2.79s    78.2 tok/s  reasoning=    0c
+  TOTAL: 621 tok in 7.9s  ->  78.9 tok/s aggregate
+  server-reported eval: 173.15 90.54 212.85 76.37 245.10 84.16
+  draft acceptance: 0.93103 0.70000 0.80723
+
+BENCHDONE

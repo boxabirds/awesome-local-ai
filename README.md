@@ -57,6 +57,7 @@ install-<combination>.sh      root pointer scripts — ~8 lines, no logic
 lib/                          ALL the logic, shared by every combination
 combinations/<family>/<version>/<size>/<os>/<memory>/<stack>/
                               config.sh, profiles.tsv, help.txt, README.md
+benchmarks/                   the harnesses behind every measured number
 docs/                         measurements, methodology, contributor guide
 samples/                      things models built here, kept as worked examples
 ```
@@ -113,6 +114,9 @@ Three extension points, each one file with a small documented contract:
   context or speculative-decoding settings.
 - **[docs/adding-a-combination.md](docs/adding-a-combination.md)** — the
   contract for contributing a combination, accelerator, backend or client.
+- **[benchmarks/](benchmarks/)** — the harnesses behind the numbers, so they can
+  be re-derived rather than taken on trust. Results are stored with the
+  combination they were measured on.
 - **[samples/](samples/)** — a 3D game written end-to-end by the local model
   through OpenCode, in thinking and non-thinking variants. A worked example of
   what this setup produces, not maintained software.

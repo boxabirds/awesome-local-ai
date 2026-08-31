@@ -1,0 +1,10 @@
+--- q8_0 KV, MTP, no vision: find ceiling ---
+80k-q8kv-mtp                       LOADED  vram=23732 MiB
+96k-q8kv-mtp                       FAILED  allocating 384.00 MiB 
+96k-q8kv-mtp-ub256                 LOADED  vram=22920 MiB
+--- cheaper KV quant to reach 128k ---
+128k-q5_1kv-mtp-ub256              LOADED  vram=22464 MiB
+128k-q4_0kv-mtp-ub256              LOADED  vram=22248 MiB
+--- sacrifice MTP instead ---
+128k-q8kv-nomtp-ub256              LOADED  vram=22196 MiB
+DONE

@@ -1,0 +1,8 @@
+=== re-fitting with GPU-supported KV types only ===
+coding-128k-q4_0           ctx=131072  kv=q4_0  vram=22398  free=1649  prefill=2309.13 tok/s
+balanced-96k-q8_0          ctx=98304   kv=q8_0  vram=23130  free=917   prefill=2303.44 tok/s
+max-160k-q4_0              ctx=163840  kv=q4_0  vram=23298  free=749   prefill=2303.16 tok/s
+max-192k-q4_0              FAILED (OOM)
+vision-96k-q4_0            ctx=98304   kv=q4_0  vram=22634  free=1413  prefill=2308.78 tok/s
+vision-128k-q4_0           ctx=131072  kv=q4_0  vram=23534  free=513   prefill=2316.56 tok/s
+DONE

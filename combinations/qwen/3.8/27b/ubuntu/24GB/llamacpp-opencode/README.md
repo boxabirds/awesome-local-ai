@@ -415,6 +415,12 @@ smaller one (`QUANT=UD-Q3_K_XL`); each GiB freed buys ~57k tokens at q4_0.
 
 ## Further reading
 
+**[benchmarks/](benchmarks/)** — the raw output every number on this page came
+from: the needle-in-a-haystack retrieval runs, the throughput comparison, the
+context-fitting probes and the `llama-server` logs behind each. The harnesses
+that produced them are in [`benchmarks/`](../../../../../../../benchmarks/) at
+the repo root.
+
 **[docs/discovery.md](../../../../../../../docs/discovery.md)** — the full
 investigation: why only 16 of 65 layers hold a KV cache, why `-ub 256` matters
 more than any KV setting, the complete measurement table with every OOM, the

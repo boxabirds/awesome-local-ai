@@ -2,9 +2,14 @@
 install.log
 *.log
 
+# ...except archived benchmark evidence, which is the point of keeping it
+!combinations/**/benchmarks/logs/*.log
+
 # Models and build trees live outside the repo, but guard against stray copies
 *.gguf
 build/
+benchmarks/results/
 
 # macOS / editor cruft
 .DS_Store
+__pycache__/

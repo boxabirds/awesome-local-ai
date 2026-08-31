@@ -1,0 +1,46 @@
+==============================================================
+KV = q8_0   (ctx 65536, haystack ~60000 tokens)
+==============================================================
+vram: 21695 MiB
+haystack: 854 paragraphs, 63116 tokens, 8 needles
+  depth 0.04  HIT   want=491978  got='491978'  (34.8s)
+  depth 0.13  HIT   want=475628  got='475628'  (1.9s)
+  depth 0.27  HIT   want=707850  got='707850'  (1.9s)
+  depth 0.41  HIT   want=611184  got='611184'  (1.9s)
+  depth 0.55  HIT   want=734043  got='734043'  (1.8s)
+  depth 0.68  HIT   want=296765  got='296765'  (2.0s)
+  depth 0.82  HIT   want=557739  got='557739'  (1.8s)
+  depth 0.95  HIT   want=290523  got='290523'  (1.8s)
+{"score": 8, "total": 8, "haystack_tokens": 63116, "results": [{"city": "Trondheim", "code": "491978", "depth": 0.04, "hit": true, "reply": "491978", "s": 34.8, "prompt_tokens": 63189}, {"city": "Valparaiso", "code": "475628", "depth": 0.13, "hit": true, "reply": "475628", "s": 1.9, "prompt_tokens": 63191}, {"city": "Kaohsiung", "code": "707850", "depth": 0.27, "hit": true, "reply": "707850", "s": 1.9, "prompt_tokens": 63191}, {"city": "Ljubljana", "code": "611184", "depth": 0.41, "hit": true, "reply": "611184", "s": 1.9, "prompt_tokens": 63191}, {"city": "Mombasa", "code": "734043", "depth": 0.55, "hit": true, "reply": "734043", "s": 1.8, "prompt_tokens": 63190}, {"city": "Yekaterinburg", "code": "296765", "depth": 0.68, "hit": true, "reply": "296765", "s": 2.0, "prompt_tokens": 63192}, {"city": "Fortaleza", "code": "557739", "depth": 0.82, "hit": true, "reply": "557739", "s": 1.8, "prompt_tokens": 63188}, {"city": "Hakodate", "code": "290523", "depth": 0.95, "hit": true, "reply": "290523", "s": 1.8, "prompt_tokens": 63189}]}
+
+==============================================================
+KV = q4_0   (ctx 65536, haystack ~60000 tokens)
+==============================================================
+vram: 20607 MiB
+haystack: 854 paragraphs, 63116 tokens, 8 needles
+  depth 0.04  HIT   want=491978  got='491978'  (34.4s)
+  depth 0.13  HIT   want=475628  got='475628'  (1.8s)
+  depth 0.27  HIT   want=707850  got='707850'  (1.8s)
+  depth 0.41  HIT   want=611184  got='611184'  (1.9s)
+  depth 0.55  HIT   want=734043  got='734043'  (1.7s)
+  depth 0.68  HIT   want=296765  got='296765'  (1.8s)
+  depth 0.82  HIT   want=557739  got='557739'  (1.7s)
+  depth 0.95  HIT   want=290523  got='290523'  (1.7s)
+{"score": 8, "total": 8, "haystack_tokens": 63116, "results": [{"city": "Trondheim", "code": "491978", "depth": 0.04, "hit": true, "reply": "491978", "s": 34.4, "prompt_tokens": 63189}, {"city": "Valparaiso", "code": "475628", "depth": 0.13, "hit": true, "reply": "475628", "s": 1.8, "prompt_tokens": 63191}, {"city": "Kaohsiung", "code": "707850", "depth": 0.27, "hit": true, "reply": "707850", "s": 1.8, "prompt_tokens": 63191}, {"city": "Ljubljana", "code": "611184", "depth": 0.41, "hit": true, "reply": "611184", "s": 1.9, "prompt_tokens": 63191}, {"city": "Mombasa", "code": "734043", "depth": 0.55, "hit": true, "reply": "734043", "s": 1.7, "prompt_tokens": 63190}, {"city": "Yekaterinburg", "code": "296765", "depth": 0.68, "hit": true, "reply": "296765", "s": 1.8, "prompt_tokens": 63192}, {"city": "Fortaleza", "code": "557739", "depth": 0.82, "hit": true, "reply": "557739", "s": 1.7, "prompt_tokens": 63188}, {"city": "Hakodate", "code": "290523", "depth": 0.95, "hit": true, "reply": "290523", "s": 1.7, "prompt_tokens": 63189}]}
+
+==============================================================
+KV = f16   (ctx 65536, haystack ~60000 tokens)
+==============================================================
+vram: 23237 MiB
+haystack: 854 paragraphs, 63116 tokens, 8 needles
+  depth 0.04  HIT   want=491978  got='491978'  (33.5s)
+  depth 0.13  HIT   want=475628  got='475628'  (1.8s)
+  depth 0.27  HIT   want=707850  got='707850'  (1.8s)
+  depth 0.41  HIT   want=611184  got='611184'  (1.7s)
+  depth 0.55  HIT   want=734043  got='734043'  (1.6s)
+  depth 0.68  HIT   want=296765  got='296765'  (1.8s)
+  depth 0.82  HIT   want=557739  got='557739'  (1.6s)
+  depth 0.95  HIT   want=290523  got='290523'  (1.6s)
+{"score": 8, "total": 8, "haystack_tokens": 63116, "results": [{"city": "Trondheim", "code": "491978", "depth": 0.04, "hit": true, "reply": "491978", "s": 33.5, "prompt_tokens": 63189}, {"city": "Valparaiso", "code": "475628", "depth": 0.13, "hit": true, "reply": "475628", "s": 1.8, "prompt_tokens": 63191}, {"city": "Kaohsiung", "code": "707850", "depth": 0.27, "hit": true, "reply": "707850", "s": 1.8, "prompt_tokens": 63191}, {"city": "Ljubljana", "code": "611184", "depth": 0.41, "hit": true, "reply": "611184", "s": 1.7, "prompt_tokens": 63191}, {"city": "Mombasa", "code": "734043", "depth": 0.55, "hit": true, "reply": "734043", "s": 1.6, "prompt_tokens": 63190}, {"city": "Yekaterinburg", "code": "296765", "depth": 0.68, "hit": true, "reply": "296765", "s": 1.8, "prompt_tokens": 63192}, {"city": "Fortaleza", "code": "557739", "depth": 0.82, "hit": true, "reply": "557739", "s": 1.6, "prompt_tokens": 63188}, {"city": "Hakodate", "code": "290523", "depth": 0.95, "hit": true, "reply": "290523", "s": 1.6, "prompt_tokens": 63189}]}
+
+ALLDONE

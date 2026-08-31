@@ -1,0 +1,11 @@
+=== baseline (current launcher settings) ===
+32k+vision+mtp               LOADED   vram=22786 MiB  
+=== drop vision ===
+64k+mtp-novision             LOADED   vram=23028 MiB  
+128k+mtp-novision            FAILED                       <OOM>
+=== drop vision, single slot, smaller batch ===
+128k+mtp-np1-ub256           FAILED                       <OOM>
+192k+mtp-np1-ub256           FAILED                       <OOM>
+=== drop MTP too (max context) ===
+256k-nomtp-np1               FAILED                       <OOM>
+DONE
