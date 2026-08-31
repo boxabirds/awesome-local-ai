@@ -1,0 +1,26 @@
+=== reasoning_effort cost, RTX 4090 24GB, 2026-08-31 ===
+harness: benchmarks/effort.sh
+5 prompts, greedy (temperature 0, top_k 1), one server load
+
+effort    reasoning chars  completion tokens
+low                  4026               2632
+medium               5039               3579
+xhigh               14004               5230
+
+xhigh vs low:  reasoning 3.48x   total output 1.99x
+
+Notes
+  * The Qwen3.8 chat template defaults reasoning_effort to 'xhigh' when the
+    field is unset. This combination now ships 'low' as the server default;
+    xhigh is one env var away (REASONING_EFFORT=xhigh).
+  * The levels are prompt instructions, not a hard token budget -- the template
+    injects "Reasoning effort is set to <level>..." into the system prompt.
+    THINKING_BUDGET is the hard cap.
+  * Levels were applied per request, which is itself the finding that an
+    OpenAI-compatible client can override the server default per call.
+  * Greedy on purpose: the thinking sampling preset is temp 1.0, and an earlier
+    3-prompt run at that temperature put 'low' ABOVE 'xhigh' on total tokens --
+    sampling noise swamped the effect. Do not re-measure this at temp 1.0
+    without many more samples.
+  * Generation RATE is unaffected: ~80-91 tok/s aggregate at either level in
+    throughput-thinking.txt. Effort changes volume, not speed.

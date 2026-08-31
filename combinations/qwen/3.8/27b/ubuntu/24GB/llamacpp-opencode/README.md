@@ -171,6 +171,7 @@ qwen38-27b-server --spec-draft-n-max 4             # passthrough to llama-server
 | `VISION` | per profile | `0` \| `1` |
 | `NP` / `UB` | `1` / `256` | Parallel slots / micro-batch |
 | `THINKING` / `THINKING_BUDGET` | `1` / unset | Reasoning on/off, or capped |
+| `REASONING_EFFORT` | `low` | `low` \| `medium` \| `xhigh` \| `default` |
 | `MODEL_ALIAS` | `qwen3.8-27b` | Model id advertised at `/v1/models` |
 | `QWEN38_ROOT` | `$HOME/.local/share/qwen38-27b` | Install location |
 | `MODEL` / `MMPROJ` / `MTP` | derived | Explicit `.gguf` paths |
@@ -332,6 +333,43 @@ Thinking is **on by default** and the reasoning block bills against
 
 **Give agents a generous `max_tokens`.** Reasoning is returned separately in
 `reasoning_content`.
+
+### Reasoning effort defaults to `low`, not the template's `xhigh`
+
+The Qwen3.8 chat template sets `reasoning_effort` to **`xhigh`** whenever the
+field is unset — verified in the template itself:
+
+```jinja
+{%- set resolved_reasoning_effort = reasoning_effort|default('xhigh') %}
+```
+
+`xhigh` instructs the model to validate assumptions and weigh alternatives.
+That is the right call for a hard problem and the wrong one for the routine
+edits that make up most of an agent's traffic, so this combination ships
+**`low`** and lets you raise it.
+
+Measured here — 5 prompts, greedy (`temperature=0, top_k=1`), one server load
+([raw](benchmarks/reasoning-effort.txt)):
+
+| Effort | Reasoning chars | Completion tokens |
+|---|---|---|
+| **`low`** *(default)* | 4,026 | 2,632 |
+| `medium` | 5,039 | 3,579 |
+| `xhigh` *(template default)* | 14,004 | 5,230 |
+
+`xhigh` is **3.5× the reasoning and 2.0× the total output** of `low`. It does
+not change generation *rate* — ~80–91 tok/s either way. You pay in tokens and
+latency, not throughput.
+
+```bash
+REASONING_EFFORT=xhigh qwen38-27b-server     # for a hard problem
+REASONING_EFFORT=default qwen38-27b-server   # whatever the template wants
+```
+
+The levels are prompt instructions, not a budget — the template injects
+`Reasoning effort is set to <level>...` into the system prompt. `THINKING_BUDGET`
+is the hard cap. OpenAI-compatible clients can also send `reasoning_effort` in
+the request body to override the server default per call.
 
 ### Speculative decoding (MTP)
 

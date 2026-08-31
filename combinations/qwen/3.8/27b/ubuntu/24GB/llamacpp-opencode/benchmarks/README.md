@@ -19,6 +19,7 @@ in this repo is not traceable to a file here, treat it as unverified.
 | [`ctx-probe-2.txt`](ctx-probe-2.txt) | `ctxprobe2.sh` | the q8_0 ceiling, and `-ub 256` turning a 96k OOM into a load |
 | [`ctx-probe-3.txt`](ctx-probe-3.txt) | `ctxprobe3.sh` | the hard ceiling: 160k loads, 192k does not |
 | [`profile-refit.txt`](profile-refit.txt) | `refit.sh` | the shipped profile table — VRAM, headroom and real prefill per profile |
+| [`reasoning-effort.txt`](reasoning-effort.txt) | `effort.sh` | what each `reasoning_effort` level costs: `xhigh` is 3.5x the reasoning and 2.0x the total output of `low`, at the same tok/s |
 | [`session-lifecycle.txt`](session-lifecycle.txt) | `lifecycle-test.sh` | idle-shutdown behaviour: server stays up with a live client, exits 45s after the last one |
 | [`logs/`](logs) | all | raw `llama-server` output, including the OOM messages the failures are read from |
 
@@ -45,7 +46,8 @@ best-case single-request figure, not the aggregate you see here.
 
 ## Re-verification
 
-`lifecycle-test.sh` was re-run on **2026-08-31** against the restructured
+`effort.sh` was run on **2026-08-31**, after the default reasoning effort moved
+from the template's `xhigh` to `low`. `lifecycle-test.sh` was re-run the same day against the restructured
 `local-ai-session` and reproduced the original result exactly — server held up
 past the 45s idle timeout by a live client, shut down 45s after it exited. The
 retrieval and throughput runs have not been re-run since 2026-08-16; they

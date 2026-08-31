@@ -20,6 +20,7 @@ CTX=131072 HAY=120000 KVS=q4_0 ./run-niah.sh   # the same at the 128k default
 ./ctxprobe.sh && ./ctxprobe2.sh && ./ctxprobe3.sh   # how much context fits
 ./refit.sh                                     # profile table: VRAM + real prefill
 ./vprobe.sh                                    # the same with vision enabled
+./effort.sh                                    # reasoning_effort cost, one model load
 ./lifecycle-test.sh                            # idle-shutdown regression test (~3 min, 1 model load)
 ```
 
@@ -50,6 +51,7 @@ that is the figure the headroom columns subtract from.
 | `ctxprobe3.sh` | the hard ceiling, plus `llama-bench` prefill cost of the small micro-batch |
 | `refit.sh` | the shipped profile table: VRAM *and* real prefill throughput per profile |
 | `vprobe.sh` | the same with the vision projector loaded |
+| `effort.sh` | what does each `reasoning_effort` level actually cost in tokens? greedy, so the levels separate from sampling noise |
 | `lifecycle-test.sh` | does a live client hold the server up, and does it shut down once the last one exits? |
 
 ## A note on the duplication

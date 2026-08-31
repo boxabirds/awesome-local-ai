@@ -89,9 +89,10 @@ server_healthy() { curl -sf --max-time 3 "http://127.0.0.1:${PORT}/health" >/dev
 # invocation asking for something different is told, rather than silently
 # handed a server configured the old way.
 server_config_sig() {
-  printf 'PROFILE=%s CTX=%s KV_TYPE=%s VISION=%s THINKING=%s THINKING_BUDGET=%s NP=%s UB=%s' \
+  printf 'PROFILE=%s CTX=%s KV_TYPE=%s VISION=%s THINKING=%s EFFORT=%s THINKING_BUDGET=%s NP=%s UB=%s' \
     "$PROFILE" "${CTX:-default}" "${KV_TYPE:-default}" "${VISION:-default}" \
-    "${THINKING:-1}" "${THINKING_BUDGET:-none}" "${NP:-default}" "${UB:-default}"
+    "${THINKING:-1}" "${REASONING_EFFORT:-${REASONING_EFFORT_DEFAULT:-default}}" \
+    "${THINKING_BUDGET:-none}" "${NP:-default}" "${UB:-default}"
 }
 
 # A registered pid counts as a live client if it is alive AND looks like the
