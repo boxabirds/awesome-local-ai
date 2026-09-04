@@ -147,6 +147,33 @@ back to a labelled 75% estimate.
 Note `maxBufferLength` (80.6 GiB) is *below* the working set: Flash-Next's
 77.3 GB of weights fits, but not by much.
 
+## 6b. Resident size is not footprint, for a MoE
+
+The installer's smoke test reports the server process tree's RSS, which is the
+right number for sizing a dense model and the wrong one for a sparse one.
+
+Measured on the same machine, both at 131072 context:
+
+| Pack | Weights | Smoke-test RSS | Machine-wide delta |
+|---|---|---|---|
+| Qwen3.8-27B (dense) | 27.9 GB | 29,303 MiB | — |
+| Qwen3.8-Flash-Next (512 experts, 10 active) | 77.3 GB | **30,821 MiB** | ~51 GB |
+
+The dense pack's RSS matches its weights plus a KV cache, as expected. The MoE
+pack's does not, and is out by 48 GB. A two-token smoke generation routes to a
+handful of experts; the rest are mapped but never faulted in, so they never
+appear in RSS. Under a real agent session the same pack was measured wired at
+77.3 GB.
+
+The consequence for this repo: `need_mib` for the MoE combination comes from
+the real session, not from the smoke test. Sizing it from RSS would let the
+model start on a machine with 48 GB less than it needs, and the failure mode is
+not a clean error — it is the machine swapping itself to a standstill.
+
+More generally: any "how much memory does this model need?" measurement taken
+under a trivial workload is wrong for a sparse model, and wrong in the
+dangerous direction.
+
 ## 7. Environment gotchas
 
 - **`mtplx models --json` does not check weight shards.** It validates the

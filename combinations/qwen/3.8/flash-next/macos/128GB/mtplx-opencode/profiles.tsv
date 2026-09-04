@@ -4,11 +4,22 @@
 # 2026-09-01. Metal's recommendedMaxWorkingSetSize on this machine is 110,100
 # MiB; the pack wired 77.3 GB (79,155 MiB) at the `coding` settings.
 #
-# need_mib is the WEIGHTS footprint measured with `ps -o rss`, not weights plus
-# KV cache -- the KV cache was not separately instrumented. It is therefore a
-# floor, and the launcher's pre-flight against it is a warning, not a gate.
-# The 29.8 GB n-gram table is streamed from SSD and is NOT resident, so it is
-# not counted here.
+# need_mib is the 77.3 GB (79,155 MiB) this pack was measured WIRED at during a
+# real agent session. It is deliberately NOT the resident size the installer's
+# smoke test reports.
+#
+# Those two numbers disagree by 48 GB, and the reason matters. This is a
+# 512-expert MoE with 10 active per token. A two-token smoke generation touches
+# a handful of experts, so the server tree's RSS reads ~30,821 MiB -- while the
+# machine-wide figure moves by ~51 GB over the same load. Sizing the pre-flight
+# from that RSS would under-warn by 48 GB and let the model be started on a
+# machine that then swaps itself to a standstill.
+#
+# So: measured under real work, not under the smoke test. The dense 27B pack
+# has no such gap and does use its measured RSS.
+#
+# The 29.8 GB n-gram table streams from SSD and is not wired, so it is not
+# counted here. The KV cache was not separately instrumented.
 #
 #   profile     ctx      measured decode   effective   ttft
 #   coding      131072   49.8 tok/s        38.8 tok/s  2.0 s
