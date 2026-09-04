@@ -138,16 +138,45 @@ accel_build_key() { printf 'metal=%s' "$ACCEL_ARCH"; }
 # rather than trust the build log.
 accel_probe_binary() { "$1" --list-devices 2>&1 | grep -qi 'metal'; }
 
-# "<used_mib> <free_mib>" against the GPU budget, not against system RAM.
-# vm_stat is the only cross-version way to ask macOS what is resident.
-accel_report_mem() {
-  local free_mib
-  free_mib="$(vm_stat 2>/dev/null | awk '
-    /page size of/ { for (i=1;i<=NF;i++) if ($i+0 > 0 && $i ~ /^[0-9]+$/) ps=$i }
+# How much memory a model could actually claim right now.
+#
+# `free + inactive` is far too pessimistic on macOS: it ignores purgeable and
+# speculative pages, and ignores that most file-backed memory is reclaimable on
+# demand. On a 128 GB machine with a 30 GB model loadable it reported 26 GB,
+# which made the pre-flight warn on every single launch -- and a check that
+# always fires is worse than no check, because people learn to ignore it.
+#
+# `memory_pressure` reports the OS's own view as a percentage, so prefer it and
+# keep the page arithmetic as a fallback for when it is unavailable.
+_macos_available_mib() {
+  local total_mib pct
+  total_mib=$(( $(sysctl -n hw.memsize 2>/dev/null || echo 0) / 1048576 ))
+  (( total_mib > 0 )) || return 1
+
+  pct="$(memory_pressure 2>/dev/null \
+        | sed -nE 's/.*free percentage: *([0-9]+)%.*/\1/p' | head -1)"
+  if [[ -n "$pct" ]] && (( pct > 0 )); then
+    printf '%s' $(( total_mib * pct / 100 ))
+    return 0
+  fi
+
+  vm_stat 2>/dev/null | awk '
+    /page size of/    { for (i=1;i<=NF;i++) if ($i+0 > 0 && $i ~ /^[0-9]+$/) ps=$i }
     /Pages free/      { gsub(/\./,"",$3); f=$3 }
     /Pages inactive/  { gsub(/\./,"",$3); v=$3 }
-    END { if (ps=="") ps=16384; printf "%d", (f+v)*ps/1048576 }')"
+    /Pages purgeable/ { gsub(/\./,"",$3); p=$3 }
+    /Pages speculative/ { gsub(/\./,"",$3); s=$3 }
+    END { if (ps=="") ps=16384; printf "%d", (f+v+p+s)*ps/1048576 }'
+}
+
+# "<used_mib> <free_mib>" against the GPU budget, not against system RAM.
+accel_report_mem() {
+  local free_mib
+  free_mib="$(_macos_available_mib)" || return 1
   [[ -n "$free_mib" && "$free_mib" -gt 0 ]] || return 1
-  local used_mib=$(( ACCEL_MEM_MIB > free_mib ? ACCEL_MEM_MIB - free_mib : 0 ))
+  # Cap at the GPU's budget: more system memory than Metal will wire is not
+  # headroom this model can use.
+  (( free_mib > ACCEL_MEM_MIB )) && free_mib="$ACCEL_MEM_MIB"
+  local used_mib=$(( ACCEL_MEM_MIB - free_mib ))
   printf '%s %s' "$used_mib" "$free_mib"
 }

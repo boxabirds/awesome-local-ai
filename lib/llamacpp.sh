@@ -50,7 +50,7 @@ backend_smoke_assert() {
   local acc
   acc=$(grep -oE 'draft acceptance = [0-9.]+' "$smoke_log" | tail -1 | grep -oE '[0-9.]+$')
   if [[ -n "$acc" ]]; then
-    SMOKE_ACC="$acc"
+    SMOKE_ACC="draft acceptance ${acc}"
     ok "MTP speculative decoding active (draft acceptance ${acc})."
   else
     warn "MTP head was loaded but no draft acceptance was reported -- speculative decoding may be inactive."
