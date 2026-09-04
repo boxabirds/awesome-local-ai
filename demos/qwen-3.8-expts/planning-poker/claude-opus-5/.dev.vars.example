@@ -1,0 +1,4 @@
+# Local-only secrets for `wrangler dev`. Copy to .dev.vars (git-ignored).
+# Nothing here is required today: the app has no accounts and no third-party APIs.
+# WEB_APP_URL is only needed if you serve the SPA from a different origin than the API.
+# WEB_APP_URL="http://localhost:5173"

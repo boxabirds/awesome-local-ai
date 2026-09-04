@@ -1,0 +1,32 @@
+{
+  "name": "planning-poker",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev:worker": "wrangler dev",
+    "smoke": "node scripts/smoke.mjs",
+    "dev:frontend": "vite",
+    "build": "vite build",
+    "deploy": "npm run build && wrangler deploy",
+    "test": "vitest run && vitest run -c vitest.frontend.config.ts",
+    "typecheck": "tsc --noEmit && tsc -p frontend/tsconfig.json --noEmit && tsc -p frontend/test/tsconfig.json --noEmit && tsc -p test/tsconfig.json --noEmit"
+  },
+  "devDependencies": {
+    "@cloudflare/vitest-pool-workers": "^0.5.2",
+    "@cloudflare/workers-types": "^5.20260831.1",
+    "@testing-library/dom": "^10.4.1",
+    "@testing-library/react": "^16.3.3",
+    "@types/react": "^18.3.3",
+    "@types/react-dom": "^18.3.0",
+    "@vitejs/plugin-react": "^4.3.1",
+    "jsdom": "^30.0.1",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "react-router-dom": "^6.26.0",
+    "typescript": "^5.5.4",
+    "vite": "^5.4.0",
+    "vitest": "^2.1.0",
+    "wrangler": "^4.127.1"
+  }
+}
