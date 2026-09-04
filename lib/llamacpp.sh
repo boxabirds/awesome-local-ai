@@ -17,6 +17,7 @@
 BACKEND_NEEDS_BUILD_TOOLS=1
 BACKEND_NEEDS_HF=1
 BACKEND_REQUIRED_VARS="MODEL_SUBDIR MODEL_ASSETS SAFE_KV_TYPES"
+PROFILE_SCHEMA="name|ctx|kv_type|vision|np|ub|need_mib|summary"
 
 # The checkout is this backend's business; nothing outside it needs the path.
 LLAMA_DIR="${LLAMA_DIR:-${INSTALL_ROOT}/llama.cpp}"

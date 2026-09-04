@@ -54,6 +54,33 @@ that is the figure the headroom columns subtract from.
 | `effort.sh` | what does each `reasoning_effort` level actually cost in tokens? greedy, so the levels separate from sampling noise |
 | `lifecycle-test.sh` | does a live client hold the server up, and does it shut down once the last one exits? |
 
+## MTPLX harnesses (macOS)
+
+| Script | Question |
+|---|---|
+| `mtplx-throughput.sh` | How much does native MTP actually buy at a realistic context? Runs each context in both `mtp` and `ar` mode against one loaded model. |
+| `mtplx-ab.sh` | Which of two installed MTPLX combinations is faster, controlling for thermal state and context band? Serial blocks, cooled to `nominal` between. |
+| `mtplx_session_report.py` | What did a real agent session actually cost? Post-hoc analysis of MTPLX's request log, with a noise-floor gate that refuses to call a winner. |
+| `mtplx_thermal_log.py` | Background sampler: thermal transitions to `~/.mtplx/logs/thermal.jsonl`, joined per request by the reporter. |
+| `thermal.py` | Thermal pressure and the drift/IQR floors. Imported by the above; vendored so this repo has no dependency on a private checkout. |
+
+Two things about the MTPLX harnesses are worth copying rather than
+rediscovering. `ar` is the **only** per-request MTP kill switch — `enable_mtp`
+and `mtp` are accepted and silently ignored. And the reporter's headline is
+*effective* tok/s (completion over TTFT + decode), not decode: decode alone
+ranks models the way a user would not.
+
+```bash
+# one combination
+LOCAL_AI_INSTALL_REL=.local/share/mtplx-qwen38-27b ./mtplx-throughput.sh
+
+# two, head to head
+./mtplx-ab.sh mtplx-qwen38-27b mtplx-qwen38-flash-next
+
+# what a real session cost
+python3 mtplx_session_report.py --since 3h --compare --by-thermal --by-context
+```
+
 ## A note on the duplication
 
 `ctxprobe*.sh`, `refit.sh` and `vprobe.sh` each carry their own near-identical

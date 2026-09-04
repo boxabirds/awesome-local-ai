@@ -1,0 +1,41 @@
+{
+  "label": "smoke",
+  "model_id": "mtplx-qwen38-27b-optimized-quality",
+  "decode_tokens": 256,
+  "runs": [
+    {
+      "mode": "mtp",
+      "wall_s": 7.61,
+      "prompt_tokens": 1011,
+      "cached_tokens": 0,
+      "completion_tokens": 256,
+      "ttft_s": 1.4822256248444319,
+      "prefill_tok_s": 684.7046709056797,
+      "decode_tok_s": 42.696153136204096,
+      "mtp_depth": 3,
+      "verify_calls": 87,
+      "accepted_by_depth": [
+        68,
+        53,
+        41
+      ],
+      "generation_mode": "mtp",
+      "target_ctx": 1000
+    },
+    {
+      "mode": "ar",
+      "wall_s": 17.92,
+      "prompt_tokens": 1011,
+      "cached_tokens": 0,
+      "completion_tokens": 256,
+      "ttft_s": 1.4886791668832302,
+      "prefill_tok_s": 682.7111082513763,
+      "decode_tok_s": 17.017311595767076,
+      "mtp_depth": 0,
+      "verify_calls": 0,
+      "accepted_by_depth": [],
+      "generation_mode": "ar",
+      "target_ctx": 1000
+    }
+  ]
+}

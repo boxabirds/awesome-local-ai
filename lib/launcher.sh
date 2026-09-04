@@ -34,7 +34,7 @@ install_runtime() {
 
   cat > "${INSTALL_ROOT}/install.env" <<EOF
 # Written by awesome-local-ai. Combination: ${COMBINATION}
-# Read by local-ai-server and local-ai-session. Contains no absolute paths.
+# Read by local-ai-${BACKEND}-server and local-ai-session. No absolute paths.
 INSTALL_ID="${INSTALL_ID}"
 COMBINATION="${COMBINATION}"
 DISPLAY_NAME="${DISPLAY_NAME}"

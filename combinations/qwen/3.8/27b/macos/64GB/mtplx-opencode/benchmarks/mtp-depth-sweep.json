@@ -1,0 +1,555 @@
+{
+  "action": "tune",
+  "artifacts": {
+    "root": "$HOME/tools/mtplx/outputs/cli/tune/tune-20260822-015409",
+    "summary": "$HOME/tools/mtplx/outputs/cli/tune/tune-20260822-015409/tune.json"
+  },
+  "backend": {
+    "custom_qmv_or_qmm_env": {},
+    "mlx_core_path": "$HOME/.local/share/uv/tools/mtplx/lib/python3.13/site-packages/mlx/core.cpython-313-darwin.so",
+    "mlx_lm_version": "0.31.3",
+    "mlx_version": "0.32.1",
+    "stock_mlx_likely": true
+  },
+  "best": {
+    "control_field": "depth",
+    "depth": 3,
+    "draft_block_size": null,
+    "mode": "D3",
+    "multiplier_vs_ar": 3.145059083609,
+    "tok_s": 53.58792130909426
+  },
+  "best_multiplier": {
+    "acceptance_collapsed": [],
+    "ar_tok_s": 17.038764577866488,
+    "available": true,
+    "failure_reasons": [],
+    "quality_rejected": [],
+    "raw_winner": {
+      "control_field": "depth",
+      "depth": 2,
+      "draft_block_size": null,
+      "mode": "D2",
+      "multiplier_vs_ar": 3.2058583558288274,
+      "tok_s": 54.623865794953524
+    },
+    "tie_breaker": {
+      "applied": true,
+      "prefer_deeper_within_pct": 2.0
+    },
+    "verdict": "mtp_depth_wins",
+    "winner": {
+      "control_field": "depth",
+      "depth": 3,
+      "draft_block_size": null,
+      "mode": "D3",
+      "multiplier_vs_ar": 3.145059083609,
+      "tok_s": 53.58792130909426
+    }
+  },
+  "control_field": "depth",
+  "diagnostics": {
+    "fans_pinned": false,
+    "model_source_notes": [],
+    "telemetry_enabled": false,
+    "telemetry_env": "MTPLX_BENCH_TUNE_TELEMETRY"
+  },
+  "fans_note": "Tuned with fans on auto; pinned-fan timing was unavailable. Results are valid for how this Mac actually runs.",
+  "fans_pinned": false,
+  "hardware": {
+    "arm64": 1,
+    "chip": "Apple M5 Max",
+    "chip_family": "Apple M5 Max",
+    "efficiency_cores": 12,
+    "hw_model": "Mac17,7",
+    "logical_cpu": 18,
+    "machine": "arm64",
+    "macos_build": "25E246",
+    "macos_version": "26.4",
+    "memory_gib": 128.0,
+    "perf_cores": 6,
+    "physical_cpu": 18,
+    "platform": "macOS-26.4-arm64-arm-64bit-Mach-O",
+    "system": "Darwin"
+  },
+  "model": "$HOME/.mtplx/models/Youssofal--Qwen3.8-27B-MTPLX-Optimized-Quality",
+  "profile": "turbo",
+  "results": [
+    {
+      "artifact": "$HOME/tools/mtplx/outputs/cli/tune/tune-20260822-015409/ar.json",
+      "candidate": "ar",
+      "command": [
+        "$HOME/.local/share/uv/tools/mtplx/bin/python",
+        "-m",
+        "mtplx.cli",
+        "tune",
+        "--_candidate",
+        "ar",
+        "--_candidate-output",
+        "$HOME/tools/mtplx/outputs/cli/tune/tune-20260822-015409/ar.json",
+        "--model",
+        "$HOME/.mtplx/models/Youssofal--Qwen3.8-27B-MTPLX-Optimized-Quality",
+        "--profile",
+        "turbo",
+        "--max-tokens",
+        "512",
+        "--limit",
+        "1",
+        "--seed",
+        "0",
+        "--depths",
+        "1,2,3",
+        "--yes",
+        "--mtp-cache-policy",
+        "persistent",
+        "--mtp-history-policy",
+        "committed",
+        "--temperature",
+        "1.0",
+        "--top-p",
+        "0.95",
+        "--top-k",
+        "20"
+      ],
+      "control_field": "depth",
+      "decode_elapsed_s": 30.049126957543194,
+      "decode_tok_s": 17.038764577866488,
+      "depth": null,
+      "draft_block_size": null,
+      "elapsed_s": 30.363851208239794,
+      "end_to_end_tok_s": 16.86215613719841,
+      "finish_reasons": {
+        "length": 1
+      },
+      "generated_tokens": 512,
+      "generation_window_s": 30.364309310913086,
+      "generation_windows": [
+        {
+          "duration_s": 30.364309310913086,
+          "end": 1787360090.283312,
+          "start": 1787360059.9190028
+        }
+      ],
+      "hit_token_budget": true,
+      "hit_token_budget_count": 1,
+      "mode": "AR",
+      "multiplier_vs_ar": 1.0,
+      "prompt_eval_time_s": 0.3147242506965995,
+      "quality_failure_validations": [],
+      "quality_inconclusive_validations": [],
+      "quality_passed": true,
+      "returncode": 0,
+      "stdout": "$HOME/tools/mtplx/outputs/cli/tune/tune-20260822-015409/ar.log",
+      "tok_s": 17.038764577866488,
+      "validations_passed": 2,
+      "validations_total": 2,
+      "verify_ms_per_call": null
+    },
+    {
+      "acceptance_by_depth": [
+        0.9732620320855615
+      ],
+      "acceptance_percent_by_depth": [
+        97.32620320855615
+      ],
+      "accepted_by_depth": [
+        182
+      ],
+      "artifact": "$HOME/tools/mtplx/outputs/cli/tune/tune-20260822-015409/d1.json",
+      "candidate": "1",
+      "command": [
+        "$HOME/.local/share/uv/tools/mtplx/bin/python",
+        "-m",
+        "mtplx.cli",
+        "tune",
+        "--_candidate",
+        "1",
+        "--_candidate-output",
+        "$HOME/tools/mtplx/outputs/cli/tune/tune-20260822-015409/d1.json",
+        "--model",
+        "$HOME/.mtplx/models/Youssofal--Qwen3.8-27B-MTPLX-Optimized-Quality",
+        "--profile",
+        "turbo",
+        "--max-tokens",
+        "512",
+        "--limit",
+        "1",
+        "--seed",
+        "0",
+        "--depths",
+        "1,2,3",
+        "--yes",
+        "--mtp-cache-policy",
+        "persistent",
+        "--mtp-history-policy",
+        "committed",
+        "--temperature",
+        "1.0",
+        "--top-p",
+        "0.95",
+        "--top-k",
+        "20"
+      ],
+      "control_field": "depth",
+      "decode_elapsed_s": 12.281418666243553,
+      "decode_tok_s": 41.68899488845473,
+      "depth": 1,
+      "draft_block_size": null,
+      "drafted_by_depth": [
+        187
+      ],
+      "elapsed_s": 12.603530749678612,
+      "end_to_end_tok_s": 40.623537179298424,
+      "finish_reasons": {
+        "length": 1
+      },
+      "generated_tokens": 512,
+      "generation_window_s": 12.604212760925293,
+      "generation_windows": [
+        {
+          "duration_s": 12.604212760925293,
+          "end": 1787360112.414351,
+          "start": 1787360099.8101382
+        }
+      ],
+      "hit_token_budget": true,
+      "hit_token_budget_count": 1,
+      "mean_accept_probability_by_depth": [
+        0.9673216828094472
+      ],
+      "mode": "D1",
+      "multiplier_vs_ar": 2.4467146487022373,
+      "prompt_eval_time_s": 0.3221120834350586,
+      "quality_failure_validations": [],
+      "quality_inconclusive_validations": [
+        {
+          "detail": "unclosed delimiter(s): (",
+          "name": "balanced_delimiters",
+          "row_index": 0
+        }
+      ],
+      "quality_passed": true,
+      "returncode": 0,
+      "stdout": "$HOME/tools/mtplx/outputs/cli/tune/tune-20260822-015409/d1.log",
+      "tok_s": 41.68899488845473,
+      "validations_passed": 1,
+      "validations_total": 2,
+      "verify_calls": 194,
+      "verify_eval_ms_per_call": 6.42058321457241,
+      "verify_forward_ms_per_call": 53.57714070333648,
+      "verify_hidden_eval_ms_per_call": 5.455833557301883,
+      "verify_ms_per_call": 59.99772391790889,
+      "verify_time_s": 11.639558440074325
+    },
+    {
+      "acceptance_by_depth": [
+        0.992,
+        0.96
+      ],
+      "acceptance_percent_by_depth": [
+        99.2,
+        96.0
+      ],
+      "accepted_by_depth": [
+        124,
+        120
+      ],
+      "artifact": "$HOME/tools/mtplx/outputs/cli/tune/tune-20260822-015409/d2.json",
+      "candidate": "2",
+      "command": [
+        "$HOME/.local/share/uv/tools/mtplx/bin/python",
+        "-m",
+        "mtplx.cli",
+        "tune",
+        "--_candidate",
+        "2",
+        "--_candidate-output",
+        "$HOME/tools/mtplx/outputs/cli/tune/tune-20260822-015409/d2.json",
+        "--model",
+        "$HOME/.mtplx/models/Youssofal--Qwen3.8-27B-MTPLX-Optimized-Quality",
+        "--profile",
+        "turbo",
+        "--max-tokens",
+        "512",
+        "--limit",
+        "1",
+        "--seed",
+        "0",
+        "--depths",
+        "1,2,3",
+        "--yes",
+        "--mtp-cache-policy",
+        "persistent",
+        "--mtp-history-policy",
+        "committed",
+        "--temperature",
+        "1.0",
+        "--top-p",
+        "0.95",
+        "--top-k",
+        "20"
+      ],
+      "control_field": "depth",
+      "decode_elapsed_s": 9.373192331753671,
+      "decode_tok_s": 54.623865794953524,
+      "depth": 2,
+      "draft_block_size": null,
+      "drafted_by_depth": [
+        125,
+        125
+      ],
+      "elapsed_s": 9.710237957537174,
+      "end_to_end_tok_s": 52.7278530391298,
+      "finish_reasons": {
+        "length": 1
+      },
+      "generated_tokens": 512,
+      "generation_window_s": 9.710956811904907,
+      "generation_windows": [
+        {
+          "duration_s": 9.710956811904907,
+          "end": 1787360130.3954718,
+          "start": 1787360120.684515
+        }
+      ],
+      "hit_token_budget": true,
+      "hit_token_budget_count": 1,
+      "mean_accept_probability_by_depth": [
+        0.9820968322533445,
+        0.9528538461464162
+      ],
+      "mode": "D2",
+      "multiplier_vs_ar": 3.2058583558288274,
+      "prompt_eval_time_s": 0.33704562578350306,
+      "quality_failure_validations": [],
+      "quality_inconclusive_validations": [],
+      "quality_passed": true,
+      "returncode": 0,
+      "stdout": "$HOME/tools/mtplx/outputs/cli/tune/tune-20260822-015409/d2.log",
+      "tok_s": 54.623865794953524,
+      "validations_passed": 2,
+      "validations_total": 2,
+      "verify_calls": 132,
+      "verify_eval_ms_per_call": 6.947137676461628,
+      "verify_forward_ms_per_call": 57.515706344874516,
+      "verify_hidden_eval_ms_per_call": 5.575606677060326,
+      "verify_ms_per_call": 64.46284402133615,
+      "verify_time_s": 8.509095410816371
+    },
+    {
+      "acceptance_by_depth": [
+        0.9214285714285714,
+        0.8357142857142857,
+        0.75
+      ],
+      "acceptance_percent_by_depth": [
+        92.14285714285714,
+        83.57142857142857,
+        75.0
+      ],
+      "accepted_by_depth": [
+        129,
+        117,
+        105
+      ],
+      "artifact": "$HOME/tools/mtplx/outputs/cli/tune/tune-20260822-015409/d3.json",
+      "candidate": "3",
+      "command": [
+        "$HOME/.local/share/uv/tools/mtplx/bin/python",
+        "-m",
+        "mtplx.cli",
+        "tune",
+        "--_candidate",
+        "3",
+        "--_candidate-output",
+        "$HOME/tools/mtplx/outputs/cli/tune/tune-20260822-015409/d3.json",
+        "--model",
+        "$HOME/.mtplx/models/Youssofal--Qwen3.8-27B-MTPLX-Optimized-Quality",
+        "--profile",
+        "turbo",
+        "--max-tokens",
+        "512",
+        "--limit",
+        "1",
+        "--seed",
+        "0",
+        "--depths",
+        "1,2,3",
+        "--yes",
+        "--mtp-cache-policy",
+        "persistent",
+        "--mtp-history-policy",
+        "committed",
+        "--temperature",
+        "1.0",
+        "--top-p",
+        "0.95",
+        "--top-k",
+        "20"
+      ],
+      "control_field": "depth",
+      "decode_elapsed_s": 9.554391875863075,
+      "decode_tok_s": 53.58792130909426,
+      "depth": 3,
+      "draft_block_size": null,
+      "drafted_by_depth": [
+        140,
+        140,
+        140
+      ],
+      "elapsed_s": 9.893011875450611,
+      "end_to_end_tok_s": 51.753703164000214,
+      "finish_reasons": {
+        "length": 1
+      },
+      "generated_tokens": 512,
+      "generation_window_s": 9.893699884414673,
+      "generation_windows": [
+        {
+          "duration_s": 9.893699884414673,
+          "end": 1787360148.97891,
+          "start": 1787360139.08521
+        }
+      ],
+      "hit_token_budget": true,
+      "hit_token_budget_count": 1,
+      "mean_accept_probability_by_depth": [
+        0.920444509093515,
+        0.8299772244808814,
+        0.7514681012746791
+      ],
+      "mode": "D3",
+      "multiplier_vs_ar": 3.145059083609,
+      "prompt_eval_time_s": 0.33861999958753586,
+      "quality_failure_validations": [],
+      "quality_inconclusive_validations": [],
+      "quality_passed": true,
+      "returncode": 0,
+      "stdout": "$HOME/tools/mtplx/outputs/cli/tune/tune-20260822-015409/d3.log",
+      "tok_s": 53.58792130909426,
+      "validations_passed": 2,
+      "validations_total": 2,
+      "verify_calls": 141,
+      "verify_eval_ms_per_call": 6.866915309999851,
+      "verify_forward_ms_per_call": 52.37784068238862,
+      "verify_hidden_eval_ms_per_call": 5.193831214139648,
+      "verify_ms_per_call": 59.24475599238847,
+      "verify_time_s": 8.353510594926775
+    }
+  ],
+  "run_id": "tune-20260822-015409",
+  "saved": true,
+  "settings": {
+    "base_hidden_variant": null,
+    "candidate_settle_s": 5.0,
+    "concat_order": null,
+    "control_field": "depth",
+    "depths": "1,2,3",
+    "draft_core": null,
+    "draft_temperature": null,
+    "draft_top_k": null,
+    "draft_top_p": null,
+    "limit": 1,
+    "max_tokens": 512,
+    "mtp_cache_policy": "persistent",
+    "mtp_hidden_variant": null,
+    "mtp_history_policy": "committed",
+    "profile": "turbo",
+    "seed": 0,
+    "suite": "cold-long-code-192",
+    "temperature": 1.0,
+    "thinking": "disabled",
+    "tie_prefer_deeper_within_pct": 2.0,
+    "top_k": 20,
+    "top_p": 0.95
+  },
+  "software": {
+    "git_branch": "not a git worktree",
+    "git_status": "not a git worktree",
+    "mlx_lm_version": "0.31.3",
+    "mlx_version": "0.32.1",
+    "mtplx_version": "2.9.0",
+    "numpy_version": "2.5.2",
+    "python_executable": "$HOME/.local/share/uv/tools/mtplx/bin/python",
+    "python_version": "3.13.7 (main, Aug 14 2025, 11:12:11) [Clang 17.0.0 (clang-1700.0.13.3)]"
+  },
+  "state_key": "d92206dc014d22b4b3a11bd4482881368214b126064fc64e585e6c768ba615f7",
+  "state_path": "$HOME/.mtplx/tuning.json",
+  "suite": "cold-long-code-192",
+  "thermal": {
+    "enabled": false,
+    "recovery": {
+      "recovered": false,
+      "stale_pid": null,
+      "still_running": false
+    },
+    "restore": {
+      "after": {
+        "fans": [],
+        "max_rpm": null,
+        "min_rpm": null,
+        "ok": false,
+        "raw": {
+          "detection": {
+            "available": false,
+            "clock_anchor_enabled": false,
+            "clock_anchor_policy": "explicit experimental only; never used for product claims",
+            "instructions": "Run `mtplx max --install` to install ThermalForge automatically, or install TG Pro manually if you prefer. MTPLX will continue without fan control when --max is requested and no supported tool is present.",
+            "selected": null,
+            "tools": []
+          },
+          "ok": false,
+          "status": null
+        }
+      },
+      "message": "fan restore was attempted but not verified",
+      "ok": false,
+      "profile": "silent",
+      "set_result": {
+        "attempts": [],
+        "detection": {
+          "available": false,
+          "clock_anchor_enabled": false,
+          "clock_anchor_policy": "explicit experimental only; never used for product claims",
+          "instructions": "Run `mtplx max --install` to install ThermalForge automatically, or install TG Pro manually if you prefer. MTPLX will continue without fan control when --max is requested and no supported tool is present.",
+          "selected": null,
+          "tools": []
+        },
+        "dry_run": false,
+        "message": "Run `mtplx max --install` to install ThermalForge automatically, or install TG Pro manually if you prefer. MTPLX will continue without fan control when --max is requested and no supported tool is present.",
+        "ok": false,
+        "profile": "silent"
+      }
+    },
+    "start": {
+      "detection": {
+        "available": false,
+        "clock_anchor_enabled": false,
+        "clock_anchor_policy": "explicit experimental only; never used for product claims",
+        "instructions": "Run `mtplx max --install` to install ThermalForge automatically, or install TG Pro manually if you prefer. MTPLX will continue without fan control when --max is requested and no supported tool is present.",
+        "selected": null,
+        "tools": []
+      },
+      "ok": false
+    },
+    "verified": {
+      "actionable": "run `mtplx max --install` to auto-install ThermalForge",
+      "after": null,
+      "baseline": null,
+      "message": "Run `mtplx max --install` to install ThermalForge automatically, or install TG Pro manually if you prefer. MTPLX will continue without fan control when --max is requested and no supported tool is present.",
+      "ok": false,
+      "profile": "performance",
+      "set_result": {
+        "detection": {
+          "available": false,
+          "clock_anchor_enabled": false,
+          "clock_anchor_policy": "explicit experimental only; never used for product claims",
+          "instructions": "Run `mtplx max --install` to install ThermalForge automatically, or install TG Pro manually if you prefer. MTPLX will continue without fan control when --max is requested and no supported tool is present.",
+          "selected": null,
+          "tools": []
+        },
+        "ok": false
+      }
+    }
+  }
+}

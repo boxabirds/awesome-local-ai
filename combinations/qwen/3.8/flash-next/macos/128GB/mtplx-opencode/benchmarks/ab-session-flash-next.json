@@ -1,0 +1,54 @@
+{
+  "arm": "flash-next",
+  "model_id": "mtplx-flash-next-optimized-speed",
+  "model_path": "Youssofal--Qwen3.8-Flash-Next-MTPLX-Optimized-Speed",
+  "config": {
+    "quant": "4-bit MoE g32, 512 experts / 10 active",
+    "weights_gb": 77.3,
+    "ngram_table_gb": 29.8,
+    "ngram_resident": false,
+    "mtp_depth": 3,
+    "reasoning_effort": "low",
+    "context_window": 131072,
+    "max_response_tokens": 32768,
+    "profile": "turbo",
+    "scheduler": "serial"
+  },
+  "window": {
+    "start_iso": "2026-09-01T04:50:00",
+    "end_iso": "2026-09-01T05:14:21.532237",
+    "requests_logged": 69,
+    "requests_scored": 65
+  },
+  "results": {
+    "output_tokens": 46682,
+    "decode_median": 49.8,
+    "effective_median": 38.8,
+    "ttft_median": 2.0,
+    "restored_median": 0.988,
+    "context_median": 53066,
+    "context_max": 78244
+  },
+  "thermal": {
+    "nominal": {
+      "n": 12,
+      "decode_median": 52.4
+    },
+    "moderate": {
+      "n": 6,
+      "decode_median": 61.0
+    },
+    "heavy": {
+      "n": 47,
+      "decode_median": 47.9
+    }
+  },
+  "vs_27b_matched": {
+    "note": "heavy thermal, matched context bands; see --by-thermal --by-context",
+    "20-45k": 2.16,
+    "45-75k": 1.65,
+    "75-130k": 1.98,
+    "all_heavy_decode": 1.92
+  },
+  "notes": "Session bank held 93-100% restored throughout, contradicting the earlier prediction that the macOS pressure guard would zero it -- the 131072 window (vs 262144 on the first load) left enough headroom. Draft acceptance ~60% vs the 27B's ~78%, but MoE memory traffic wins regardless."
+}
