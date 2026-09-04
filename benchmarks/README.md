@@ -62,6 +62,7 @@ that is the figure the headroom columns subtract from.
 | `mtplx-ab.sh` | Which of two installed MTPLX combinations is faster, controlling for thermal state and context band? Serial blocks, cooled to `nominal` between. |
 | `mtplx_session_report.py` | What did a real agent session actually cost? Post-hoc analysis of MTPLX's request log, with a noise-floor gate that refuses to call a winner. |
 | `mtplx_thermal_log.py` | Background sampler: thermal transitions to `~/.mtplx/logs/thermal.jsonl`, joined per request by the reporter. |
+| `mtplx-version-compare.py` | Did upgrading MTPLX change anything? Takes two `mtplx-throughput.sh` result files and reports per-cell deltas against this machine's drift floor. Refuses to compare different models. |
 | `thermal.py` | Thermal pressure and the drift/IQR floors. Imported by the above; vendored so this repo has no dependency on a private checkout. |
 
 Two things about the MTPLX harnesses are worth copying rather than
@@ -79,7 +80,29 @@ LOCAL_AI_INSTALL_REL=.local/share/mtplx-qwen38-27b ./mtplx-throughput.sh
 
 # what a real session cost
 python3 mtplx_session_report.py --since 3h --compare --by-thermal --by-context
+
+# before/after an upgrade -- baseline FIRST, the old version is gone afterwards
+LOCAL_AI_INSTALL_REL=.local/share/mtplx-qwen38-27b REPEATS=3 LABEL=before ./mtplx-throughput.sh
+uv tool upgrade mtplx
+LOCAL_AI_INSTALL_REL=.local/share/mtplx-qwen38-27b REPEATS=3 LABEL=after  ./mtplx-throughput.sh
+python3 mtplx-version-compare.py results/before.json results/after.json
 ```
+
+### Comparing versions honestly
+
+`REPEATS` defaults to 1, which is fine for "does this work" and useless for
+"is this faster". With `REPEATS>1` the harness discards the first sample as
+warm-up and reports a median with its spread; `mtplx-version-compare.py` then
+holds both against the two floors in `thermal.py`:
+
+- a cell whose spread exceeds `MAX_IQR_PCT` (25%) is **unusable**, not a datum;
+- a delta smaller than `DRIFT_FLOOR_PCT` (20%) is **not a change**, because
+  repeat runs of an identical request on this machine have drifted that far on
+  their own.
+
+Expect "no measurable difference" from a point release, and treat that as the
+result rather than a failed experiment. A comparison that reports "+3% faster"
+from two single samples is noise with a sign on it.
 
 ## A note on the duplication
 

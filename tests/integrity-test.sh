@@ -59,4 +59,14 @@ assert_ok    "3.0    >= 2.10.0"  _version_ge 3.0    2.10.0
 assert_fails "2.1.0  >= 2.10.0"  _version_ge 2.1.0  2.10.0
 assert_ok    "2.10   >= 2.10.0"  _version_ge 2.10   2.10.0
 
+# The 2.10 -> 2.11 step is the case a naive string or single-digit compare gets
+# wrong, and it is the floor every MTPLX combination currently ships. Pinned
+# here so a rewrite of _version_ge cannot regress it silently.
+assert_ok    "2.11.1 >= 2.10.0"  _version_ge 2.11.1 2.10.0
+assert_ok    "2.11   >= 2.10.0"  _version_ge 2.11   2.10.0
+assert_fails "2.10.1 >= 2.11.0"  _version_ge 2.10.1 2.11.0
+assert_ok    "2.11.1 >= 2.11.0"  _version_ge 2.11.1 2.11.0
+assert_fails "2.11.0 >= 2.11.1"  _version_ge 2.11.0 2.11.1
+assert_ok    "2.11.1 >= 2.11.1"  _version_ge 2.11.1 2.11.1
+
 finish
