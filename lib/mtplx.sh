@@ -91,6 +91,19 @@ ensure_mtplx() {
   ok "Model cache: ${MTPLX_CACHE_DIR}"
 }
 
+# The MTP head ships inside the model pack rather than as a separate asset, so
+# the generic "MTP head: not installed" line would be actively wrong here.
+BACKEND_MTP_INTERNAL=1
+
+backend_install_summary() {
+  local size="-"
+  [[ -d "${MODEL_ARTIFACT:-}" ]] && size="$(du -sh "$MODEL_ARTIFACT" 2>/dev/null | cut -f1)"
+  printf '  %-11s %s  (%s)\n' "Model pack" "$(basename "${MODEL_ARTIFACT:-?}")" "$size"
+  printf '  %-11s %s\n' "MTP head" "inside the pack, verified by 'mtplx inspect --require-mtp'"
+  printf '  %-11s %s\n' "Vision" "not available in this pack -- text only"
+  printf '  %-11s %s\n' "Cache" "\$HOME/${MODEL_SUBDIR:-.mtplx/models}"
+}
+
 mtplx_sha() { "${MTPLX_BIN:-mtplx}" --version 2>/dev/null | awk '{print $NF}' || echo "?"; }
 
 # ---- weights --------------------------------------------------------------
@@ -290,7 +303,7 @@ backend_smoke_assert() {
   depth="$(printf '%s' "$health" | python3 -c 'import sys,json;print(json.load(sys.stdin).get("depth"))' 2>/dev/null)"
 
   if [[ "$enabled" == "True" || "$enabled" == "true" ]]; then
-    SMOKE_ACC="depth ${depth}"
+    SMOKE_ACC="native MTP, depth ${depth}"
     ok "Native MTP speculative decoding active (depth ${depth})."
   else
     warn "MTP is NOT active (mtp_enabled=${enabled:-unknown})."

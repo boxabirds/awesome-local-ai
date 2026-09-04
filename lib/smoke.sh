@@ -58,6 +58,14 @@ smoke_test() {
       warn "Server is up but generation failed."
       rc=1
     fi
+    # Binding a port is not evidence, and neither is loading a draft head:
+    # every backend here can start happily with speculative decoding silently
+    # off. The backend knows where its own proof lives, so it does the
+    # asserting -- while the server is still up, because for some backends the
+    # proof is an endpoint rather than a line in the log.
+    if declare -F backend_smoke_assert >/dev/null; then
+      backend_smoke_assert "$smoke_log" "$port" || true
+    fi
   else
     warn "Server did not become healthy in ${SMOKE_TIMEOUT:-180}s."
     rc=1
@@ -65,12 +73,5 @@ smoke_test() {
 
   kill "$pid" 2>/dev/null || true
   wait "$pid" 2>/dev/null || true
-
-  # Binding a port is not evidence, and neither is loading a draft head: every
-  # backend here can start happily with speculative decoding silently off. The
-  # backend knows where its own proof lives, so it does the asserting.
-  if declare -F backend_smoke_assert >/dev/null; then
-    backend_smoke_assert "$smoke_log" "$port" || true
-  fi
   return $rc
 }

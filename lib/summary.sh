@@ -20,16 +20,24 @@ print_summary() {
   say "  OS          ${OS_PRETTY}"
   say ""
   say "${BOLD}WHAT WAS INSTALLED${NC}"
-  say "  Model       $(basename "$MODEL_GGUF")  ($(human_size "$MODEL_GGUF"))"
-  if [[ -n "$MTP_HEAD" ]]; then
-    say "  MTP head    $(basename "$MTP_HEAD")  ($(human_size "$MTP_HEAD"))  -> ~2x faster generation"
+  # What "the weights" look like is backend-specific: separate files with
+  # optional sidecars for llama.cpp, one self-contained pack for mtplx. A
+  # backend that ships its MTP head inside the pack must not be reported as
+  # having no speculative decoding.
+  if declare -F backend_install_summary >/dev/null; then
+    backend_install_summary | while IFS= read -r l; do say "$l"; done
   else
-    say "  MTP head    ${YELLOW}not installed${NC} -- no speculative decoding"
-  fi
-  if [[ -n "$MMPROJ" ]]; then
-    say "  Vision      $(basename "$MMPROJ")  ($(human_size "$MMPROJ"))  -> a vision profile"
-  else
-    say "  Vision      ${YELLOW}not installed${NC} -- text only"
+    say "  Model       $(basename "$MODEL_GGUF")  ($(human_size "$MODEL_GGUF"))"
+    if [[ -n "$MTP_HEAD" ]]; then
+      say "  MTP head    $(basename "$MTP_HEAD")  ($(human_size "$MTP_HEAD"))  -> ~2x faster generation"
+    else
+      say "  MTP head    ${YELLOW}not installed${NC} -- no speculative decoding"
+    fi
+    if [[ -n "$MMPROJ" ]]; then
+      say "  Vision      $(basename "$MMPROJ")  ($(human_size "$MMPROJ"))  -> a vision profile"
+    else
+      say "  Vision      ${YELLOW}not installed${NC} -- text only"
+    fi
   fi
   local backend_sha="?"
   declare -F "${BACKEND}_sha" >/dev/null && backend_sha="$("${BACKEND}_sha")"
@@ -44,8 +52,8 @@ print_summary() {
     [[ -n "$SMOKE_CTX"  ]] && say "  [${tick}] loads at ${SMOKE_CTX} context, using ${SMOKE_MEM} MiB (${SMOKE_FREE} MiB free)"
     [[ "$SMOKE_GEN" == "ok" ]] && say "  [${tick}] generates text over the API"
     if [[ -n "$SMOKE_ACC" ]]; then
-      say "  [${tick}] speculative decoding live (draft acceptance ${SMOKE_ACC})"
-    elif [[ -n "$MTP_HEAD" ]]; then
+      say "  [${tick}] speculative decoding live (${SMOKE_ACC})"
+    elif [[ -n "$MTP_HEAD" || "${BACKEND_MTP_INTERNAL:-0}" == "1" ]]; then
       say "  [${cross}] speculative decoding NOT confirmed -- check ${INSTALL_ROOT}/smoke.log"
     fi
     say ""

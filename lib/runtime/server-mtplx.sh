@@ -163,12 +163,39 @@ fi
 # and the machine becomes unusable for minutes. Check first, name the fix.
 # Skipped when the user has hand-tuned the sizing, since D_NEED no longer
 # describes what they asked for.
+# How much memory a model could actually claim right now.
+#
+# `free + inactive` is far too pessimistic on macOS: it ignores purgeable and
+# speculative pages, and ignores that most file-backed memory is reclaimable on
+# demand. On a 128 GB machine with a 30 GB model loadable it reported 26 GB,
+# which made the pre-flight warn on every single launch -- and a check that
+# always fires is worse than no check, because people learn to ignore it.
+#
+# `memory_pressure` reports the OS's own view as a percentage, so prefer it and
+# keep the page arithmetic as a fallback for when it is unavailable.
+_macos_available_mib() {
+  local total_mib pct
+  total_mib=$(( $(sysctl -n hw.memsize 2>/dev/null || echo 0) / 1048576 ))
+  (( total_mib > 0 )) || return 1
+
+  pct="$(memory_pressure 2>/dev/null \
+        | sed -nE 's/.*free percentage: *([0-9]+)%.*/\1/p' | head -1)"
+  if [[ -n "$pct" ]] && (( pct > 0 )); then
+    printf '%s' $(( total_mib * pct / 100 ))
+    return 0
+  fi
+
+  vm_stat 2>/dev/null | awk '
+    /page size of/    { for (i=1;i<=NF;i++) if ($i+0 > 0 && $i ~ /^[0-9]+$/) ps=$i }
+    /Pages free/      { gsub(/\./,"",$3); f=$3 }
+    /Pages inactive/  { gsub(/\./,"",$3); v=$3 }
+    /Pages purgeable/ { gsub(/\./,"",$3); p=$3 }
+    /Pages speculative/ { gsub(/\./,"",$3); s=$3 }
+    END { if (ps=="") ps=16384; printf "%d", (f+v+p+s)*ps/1048576 }'
+}
+
 if [[ "$ACCEL" == "metal" ]] && [[ -z "$USER_TUNED" ]] && command -v vm_stat >/dev/null 2>&1; then
-  free_mib="$(vm_stat 2>/dev/null | awk '
-    /page size of/ { for (i=1;i<=NF;i++) if ($i+0 > 0 && $i ~ /^[0-9]+$/) ps=$i }
-    /Pages free/     { gsub(/\./,"",$3); f=$3 }
-    /Pages inactive/ { gsub(/\./,"",$3); v=$3 }
-    END { if (ps=="") ps=16384; printf "%d", (f+v)*ps/1048576 }')"
+  free_mib="$(_macos_available_mib || true)"
   if [[ -n "$free_mib" ]] && (( free_mib < D_NEED )); then
     echo "WARNING: profile '$PROFILE' needs ~${D_NEED} MiB but only ${free_mib} MiB is free." >&2
     echo "         Close what you can, or pick a smaller profile:" >&2
