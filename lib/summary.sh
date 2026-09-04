@@ -49,7 +49,7 @@ print_summary() {
 
   if [[ -n "$SMOKE_CTX" || -n "$SMOKE_GEN" ]]; then
     say "${BOLD}VERIFIED ON THIS MACHINE${NC}"
-    [[ -n "$SMOKE_CTX"  ]] && say "  [${tick}] loads at ${SMOKE_CTX} context, using ${SMOKE_MEM} MiB (${SMOKE_FREE} MiB free)"
+    [[ -n "$SMOKE_CTX"  ]] && say "  [${tick}] loads at ${SMOKE_CTX} context, server RSS ${SMOKE_RSS:-?} MiB (${SMOKE_FREE} MiB free)"
     [[ "$SMOKE_GEN" == "ok" ]] && say "  [${tick}] generates text over the API"
     if [[ -n "$SMOKE_ACC" ]]; then
       say "  [${tick}] speculative decoding live (${SMOKE_ACC})"

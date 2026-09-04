@@ -5,7 +5,29 @@
 # asserts it generates, and -- because it is the piece most likely to fail
 # silently -- asserts speculative decoding actually drafted tokens.
 
-SMOKE_CTX=""; SMOKE_MEM=""; SMOKE_FREE=""; SMOKE_GEN=""; SMOKE_ACC=""
+SMOKE_CTX=""; SMOKE_MEM=""; SMOKE_FREE=""; SMOKE_GEN=""; SMOKE_ACC=""; SMOKE_RSS=""
+
+# Resident size of a process and everything it forked, in MiB.
+#
+# This is the number profiles.tsv's need_mib is supposed to hold, and the only
+# one that can be compared across machines. A backend that execs its server
+# (llama.cpp) is one process; one that spawns a Python child (mtplx) is a tree,
+# so walk it rather than reading the launcher's own RSS and reporting ~0.
+_process_tree_rss_mib() {
+  local root="$1" pids
+  pids="$(_descendants "$root")"
+  [[ -n "$pids" ]] || return 1
+  # shellcheck disable=SC2086
+  ps -o rss= -p $(printf '%s' "$pids" | tr '\n' ' ') 2>/dev/null \
+    | awk '{t+=$1} END {if (t>0) printf "%d", t/1024; else exit 1}'
+}
+
+_descendants() {
+  local p="$1" kids k
+  printf '%s\n' "$p"
+  kids="$(pgrep -P "$p" 2>/dev/null || true)"
+  for k in $kids; do _descendants "$k"; done
+}
 
 smoke_test() {
   info "Smoke-testing the server (this loads the full model)..."
@@ -41,7 +63,12 @@ smoke_test() {
     else
       SMOKE_CTX="?"
     fi
-    info "Profile '${PROFILE:-$DEFAULT_PROFILE}': n_ctx=${SMOKE_CTX}, memory ${SMOKE_MEM:-?} MiB used / ${SMOKE_FREE:-?} MiB free"
+    # The server's OWN footprint, which is what profiles.tsv's need_mib means.
+    # accel_report_mem is machine-wide and includes whatever else is resident,
+    # so reporting it as the model's usage would overstate it -- badly, on a
+    # machine that is already serving something else.
+    SMOKE_RSS="$(_process_tree_rss_mib "$pid" 2>/dev/null || true)"
+    info "Profile '${PROFILE:-$DEFAULT_PROFILE}': n_ctx=${SMOKE_CTX}, server RSS ${SMOKE_RSS:-?} MiB (machine-wide: ${SMOKE_MEM:-?} MiB used / ${SMOKE_FREE:-?} MiB free)"
     [[ -n "$SMOKE_FREE" ]] && (( SMOKE_FREE < 500 )) && \
       warn "Only ${SMOKE_FREE} MiB headroom -- consider a smaller profile."
 
