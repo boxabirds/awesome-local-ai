@@ -1,0 +1,117 @@
+#:schema node_modules/wrangler/config-schema.json
+name = "pointing-poker"
+main = "worker/index.ts"
+compatibility_date = "2025-09-23"
+
+# ---------------------------------------------------------------------------
+# Base = local development. `wrangler dev` uses everything below as-is.
+# ---------------------------------------------------------------------------
+
+[vars]
+ENVIRONMENT = "local"
+APP_VERSION = "1.0.0"
+GIT_SHA = "dev"
+DEPLOYED_AT = "1970-01-01T00:00:00Z"
+
+[assets]
+directory = "./dist"
+binding = "ASSETS"
+# Deep links like /room/abc-def-ghi are client-routed.
+not_found_handling = "single-page-application"
+# Without this the asset server would answer /api/* with index.html.
+run_worker_first = ["/api/*", "/health"]
+
+[[durable_objects.bindings]]
+name = "POKER_ROOM"
+class_name = "PokerRoom"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["PokerRoom"]
+
+[[d1_databases]]
+binding = "DB"
+database_name = "pointing-poker-local"
+database_id = "local-placeholder-id"
+migrations_dir = "migrations"
+
+# ---------------------------------------------------------------------------
+# Staging
+# ---------------------------------------------------------------------------
+
+[env.staging]
+name = "pointing-poker-staging"
+logpush = true
+
+[env.staging.vars]
+ENVIRONMENT = "staging"
+APP_VERSION = "1.0.0"
+GIT_SHA = "unknown"
+DEPLOYED_AT = "unknown"
+
+[env.staging.observability]
+enabled = true
+
+[env.staging.assets]
+directory = "./dist"
+binding = "ASSETS"
+not_found_handling = "single-page-application"
+run_worker_first = ["/api/*", "/health"]
+
+[[env.staging.durable_objects.bindings]]
+name = "POKER_ROOM"
+class_name = "PokerRoom"
+
+[[env.staging.migrations]]
+tag = "v1"
+new_sqlite_classes = ["PokerRoom"]
+
+[[env.staging.d1_databases]]
+binding = "DB"
+database_name = "pointing-poker-staging"
+# TODO: replace with the id from `wrangler d1 create pointing-poker-staging`.
+database_id = "REPLACE_WITH_STAGING_DATABASE_ID"
+migrations_dir = "migrations"
+
+# ---------------------------------------------------------------------------
+# Production
+# ---------------------------------------------------------------------------
+
+[env.production]
+name = "pointing-poker"
+logpush = true
+
+[env.production.vars]
+ENVIRONMENT = "production"
+APP_VERSION = "1.0.0"
+GIT_SHA = "unknown"
+DEPLOYED_AT = "unknown"
+
+[env.production.observability]
+enabled = true
+
+[env.production.assets]
+directory = "./dist"
+binding = "ASSETS"
+not_found_handling = "single-page-application"
+run_worker_first = ["/api/*", "/health"]
+
+[[env.production.durable_objects.bindings]]
+name = "POKER_ROOM"
+class_name = "PokerRoom"
+
+[[env.production.migrations]]
+tag = "v1"
+new_sqlite_classes = ["PokerRoom"]
+
+[[env.production.d1_databases]]
+binding = "DB"
+database_name = "pointing-poker-production"
+# TODO: replace with the id from `wrangler d1 create pointing-poker-production`.
+database_id = "REPLACE_WITH_PRODUCTION_DATABASE_ID"
+migrations_dir = "migrations"
+
+# Uncomment once the zone is on the account.
+# [[env.production.routes]]
+# pattern = "poker.example.com"
+# custom_domain = true

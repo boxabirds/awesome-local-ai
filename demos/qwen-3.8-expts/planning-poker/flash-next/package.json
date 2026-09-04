@@ -1,0 +1,34 @@
+{
+  "name": "flash-next",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "setup": "node scripts/install.mjs",
+    "dev": "node scripts/dev.mjs",
+    "start": "node scripts/start.mjs",
+    "stop": "node scripts/stop.mjs",
+    "dev:server": "node server/server.js",
+    "dev:client": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "test": "node --test --test-force-exit \"server/*.test.mjs\" && vitest run",
+    "test:server": "node --test --test-force-exit \"server/*.test.mjs\"",
+    "test:client": "vitest run"
+  },
+  "dependencies": {
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0",
+    "ws": "^8.18.0"
+  },
+  "devDependencies": {
+    "@tailwindcss/vite": "^4.1.11",
+    "@testing-library/dom": "^10.4.1",
+    "@testing-library/react": "^16.3.3",
+    "@vitejs/plugin-react": "^4.6.0",
+    "jsdom": "^30.0.1",
+    "tailwindcss": "^4.1.11",
+    "vite": "^7.0.0",
+    "vitest": "^4.1.11"
+  }
+}

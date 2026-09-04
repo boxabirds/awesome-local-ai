@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no" />
+<title>Meteor Storm</title>
+<style>
+  :root {
+    --ink: #dfe9ff;
+    --dim: #7d8db3;
+    --cyan: #7de3ff;
+    --danger: #ff5d7e;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { width: 100%; height: 100%; overflow: hidden; background: #04050c; }
+  body {
+    font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    color: var(--ink);
+    user-select: none;
+    -webkit-user-select: none;
+    touch-action: none;
+  }
+  #app { position: fixed; inset: 0; }
+  #app canvas { display: block; }
+
+  #vignette {
+    position: fixed; inset: 0; pointer-events: none; z-index: 5;
+    background: radial-gradient(ellipse at center, transparent 55%, rgba(2,3,10,0.75) 100%);
+  }
+
+  #hud {
+    position: fixed; inset: 0; pointer-events: none; z-index: 10;
+    display: none;
+  }
+  #hud.on { display: block; }
+  .hud-left, .hud-right {
+    position: absolute; top: 18px; display: flex; flex-direction: column; gap: 4px;
+  }
+  .hud-left { left: 22px; }
+  .hud-right { right: 22px; text-align: right; }
+  .hud-label {
+    font-size: 10px; letter-spacing: 0.35em; color: var(--dim);
+  }
+  .hud-value {
+    font-size: 30px; letter-spacing: 0.12em; color: var(--ink);
+    text-shadow: 0 0 14px rgba(125, 227, 255, 0.55);
+  }
+  #lives { position: absolute; bottom: 24px; left: 22px; display: flex; gap: 9px; }
+  #lives span {
+    width: 11px; height: 11px; transform: rotate(45deg);
+    background: var(--danger); box-shadow: 0 0 10px rgba(255, 93, 126, 0.8);
+  }
+  #lives span.off { background: #232841; box-shadow: none; }
+  #wave-badge {
+    position: absolute; top: 20px; left: 50%; transform: translateX(-50%);
+    font-size: 11px; letter-spacing: 0.45em; color: var(--dim);
+  }
+
+  #toast {
+    position: fixed; top: 16%; left: 50%; z-index: 15; pointer-events: none;
+    transform: translate(-50%, -14px); opacity: 0;
+    font-size: 34px; letter-spacing: 0.5em; color: var(--ink);
+    text-shadow: 0 0 24px rgba(100, 170, 255, 0.9);
+    transition: opacity 0.45s ease, transform 0.45s ease;
+  }
+  #toast.show { opacity: 1; transform: translate(-50%, 0); }
+
+  #hint {
+    position: fixed; bottom: 10px; left: 50%; transform: translateX(-50%);
+    z-index: 10; pointer-events: none;
+    font-size: 10px; letter-spacing: 0.28em; color: var(--dim); opacity: 0.55;
+    display: none; white-space: nowrap;
+  }
+  #hint.on { display: block; }
+
+  #overlay {
+    position: fixed; inset: 0; z-index: 20; pointer-events: none;
+    display: flex; align-items: center; justify-content: center; text-align: center;
+  }
+  #overlay-box { animation: floatIn 0.6s ease both; }
+  #overlay h1 {
+    font-size: 52px; letter-spacing: 0.4em; margin-left: 0.4em; font-weight: 700;
+    color: var(--ink);
+    text-shadow: 0 0 18px rgba(90, 180, 255, 0.85), 0 0 70px rgba(60, 120, 255, 0.45);
+  }
+  #overlay h1.small { font-size: 40px; }
+  #overlay .sub {
+    margin-top: 18px; font-size: 13px; letter-spacing: 0.3em; color: var(--dim); line-height: 2;
+  }
+  #overlay .sub .accent { color: var(--cyan); text-shadow: 0 0 12px rgba(125, 227, 255, 0.7); }
+  #overlay .go {
+    margin-top: 40px; font-size: 15px; letter-spacing: 0.4em; color: var(--ink);
+    animation: pulse 1.4s ease-in-out infinite;
+  }
+  #overlay .controls {
+    margin: 26px auto 0; font-size: 11px; letter-spacing: 0.22em;
+    color: var(--dim); line-height: 2.4;
+  }
+  #overlay .controls b { color: var(--ink); font-weight: 400; }
+  @keyframes pulse { 0%, 100% { opacity: 0.35; } 50% { opacity: 1; } }
+  @keyframes floatIn { from { opacity: 0; transform: translateY(18px); } to { opacity: 1; transform: none; } }
+
+  @media (max-width: 640px) {
+    #overlay h1 { font-size: 32px; }
+    .hud-value { font-size: 22px; }
+    #toast { font-size: 22px; }
+    #hint { display: none !important; }
+  }
+</style>
+</head>
+<body>
+<div id="app"></div>
+<div id="vignette"></div>
+
+<div id="hud">
+  <div class="hud-left">
+    <span class="hud-label">SCORE</span>
+    <span class="hud-value" id="score">000000</span>
+  </div>
+  <div class="hud-right">
+    <span class="hud-label">BEST</span>
+    <span class="hud-value" id="high">000000</span>
+  </div>
+  <span id="wave-badge">WAVE 1</span>
+  <div id="lives"></div>
+</div>
+
+<div id="toast"></div>
+
+<div id="overlay">
+  <div id="overlay-box">
+    <h1 id="overlay-title">METEOR STORM</h1>
+    <div class="sub" id="overlay-sub"></div>
+    <div class="controls" id="overlay-controls">
+      <b>WASD / ARROWS</b> STEER<br />
+      <b>SPACE / CLICK</b> FIRE &nbsp;·&nbsp; <b>P</b> PAUSE &nbsp;·&nbsp; <b>M</b> MUTE
+    </div>
+    <div class="go" id="overlay-go">CLICK OR PRESS SPACE TO LAUNCH</div>
+  </div>
+</div>
+
+<div id="hint">WASD / ARROWS MOVE · SPACE FIRE · P PAUSE · M MUTE</div>
+
+<script src="js/three.min.js"></script>
+<script src="js/audio.js"></script>
+<script src="js/game.js"></script>
+</body>
+</html>

@@ -1,0 +1,23 @@
+# Dependencies — ~950 MB across the variants, reinstallable from each lockfile.
+node_modules/
+
+# Build output
+dist/
+build/
+
+# Local Cloudflare / Miniflare state (includes local D1 databases and trace stores)
+.wrangler/
+
+# Local secrets
+.dev.vars
+.env
+.env.*
+
+# Local tooling state
+.ceetrix/
+.pytest_cache/
+*.log
+.deploy-log.csv
+
+# macOS
+.DS_Store
