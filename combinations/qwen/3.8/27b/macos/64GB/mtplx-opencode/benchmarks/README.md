@@ -13,14 +13,25 @@ with more headroom than the one the combination targets.
 | File | Harness | What it shows |
 |---|---|---|
 | `ab-session-27b.json` | `benchmarks/mtplx_session_report.py` | A real OpenCode session: 63 requests logged, 52 scored; and a clean 31-request window used as the like-for-like arm against Flash-Next |
-| `logs/ab-session-27b-requests.jsonl` | MTPLX request log | The raw rows behind it, 333 fields per request, including per-depth draft acceptance and session-bank accounting |
 | `throughput-ctx1k.json` | `benchmarks/mtplx-throughput.sh` | MTP vs autoregressive at 1k context: 42.7 vs 17.0 tok/s |
 | `throughput-ctx1k-32k.json` | `benchmarks/mtplx-throughput.sh` | The same at 1k and 32k: 34.6 vs 15.7 tok/s at 32k |
 | `mtp-depth-sweep.json` | `mtplx tune` | Depth sweep AR/D1–D3; best D3 at 53.59 tok/s, 3.145x over AR |
-| `logs/mtp-depth-*.json` | `mtplx tune` | Per-depth acceptance curves behind that verdict |
+| `mtp-depth-{ar,d1,d2,d3}.json` | `mtplx tune` | Per-depth acceptance curves behind that verdict |
 
 If a figure elsewhere in this repo is not traceable to a file here, treat it
 as unverified.
+
+**Per-request rows are not committed.** The session figures above were derived
+from MTPLX's own request log, which records 333 fields per request from a real
+coding session. That is telemetry from someone's private work, and this repo is
+for anyone, so it is not published here. To re-derive the numbers on your own
+machine after your own session:
+
+```bash
+python3 benchmarks/mtplx_session_report.py --since 3h --compare --by-thermal --by-context
+```
+
+reading `~/.mtplx/logs/request-log-<port>.jsonl`.
 
 ## Reading the throughput numbers
 
