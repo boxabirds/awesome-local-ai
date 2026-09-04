@@ -16,9 +16,15 @@ from __future__ import annotations
 
 import argparse
 import json
+import statistics
+import subprocess
+import sys
 import time
 import urllib.request
 from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from thermal import MAX_IQR_PCT, thermal_pressure  # noqa: E402
 
 # Set from --port in main(). The request log is per-port, so these must move
 # together or the harness reads another server's numbers.
@@ -123,6 +129,58 @@ def run(model_id: str, prompt: str, mode: str) -> dict:
     }
 
 
+def mtplx_version() -> str:
+    """The version under test. Recorded because it is the thing being compared."""
+    try:
+        out = subprocess.run(["mtplx", "--version"], capture_output=True,
+                             text=True, timeout=30).stdout
+        return out.strip().split()[-1]
+    except Exception:                                 # noqa: BLE001
+        return "unknown"
+
+
+def summarise(samples: list[dict], mode: str) -> dict:
+    """Median of the kept samples, with the spread that says whether to trust it.
+
+    A median without its spread invites a conclusion the data cannot support,
+    so iqr_pct travels with it and is compared against the same MAX_IQR_PCT the
+    session reporter uses.
+    """
+    ok = [s for s in samples if "error" not in s and s.get("decode_tok_s")]
+    if not ok:
+        return {"mode": mode, "n": 0,
+                "error": samples[0].get("error", "no usable samples") if samples else "no samples"}
+
+    def med(field):
+        vals = [s[field] for s in ok if isinstance(s.get(field), (int, float))]
+        return round(statistics.median(vals), 3) if vals else None
+
+    decodes = sorted(s["decode_tok_s"] for s in ok)
+    m = statistics.median(decodes)
+    if len(decodes) >= 4:
+        q1, q3 = statistics.quantiles(decodes, n=4)[0], statistics.quantiles(decodes, n=4)[2]
+        iqr_pct = round((q3 - q1) / m * 100, 1) if m else None
+    else:
+        iqr_pct = round((decodes[-1] - decodes[0]) / m * 100, 1) if m and len(decodes) > 1 else 0.0
+
+    return {
+        "mode": mode,
+        "n": len(ok),
+        "decode_tok_s": round(m, 3),
+        "decode_samples": [round(d, 3) for d in decodes],
+        "iqr_pct": iqr_pct,
+        "iqr_exceeds_floor": (iqr_pct is not None and iqr_pct > MAX_IQR_PCT),
+        "prefill_tok_s": med("prefill_tok_s"),
+        "ttft_s": med("ttft_s"),
+        "wall_s": med("wall_s"),
+        "prompt_tokens": ok[0].get("prompt_tokens"),
+        "completion_tokens": med("completion_tokens"),
+        "mtp_depth": ok[0].get("mtp_depth"),
+        "generation_mode": ok[0].get("generation_mode"),
+        "accepted_by_depth": ok[0].get("accepted_by_depth"),
+    }
+
+
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--port", type=int, default=PORT,
@@ -130,6 +188,9 @@ def main() -> int:
     ap.add_argument("--model-id", required=True)
     ap.add_argument("--label", required=True)
     ap.add_argument("--contexts", default="1000,100000")
+    ap.add_argument("--repeats", type=int, default=1,
+                    help="samples per (context, mode). >1 discards the first as "
+                         "warm-up and reports a median with its spread")
     ap.add_argument("--outdir", default=str(Path(__file__).resolve().parent / "results"),
                     help="where to write results (default: benchmarks/results, gitignored)")
     args = ap.parse_args()
@@ -138,16 +199,30 @@ def main() -> int:
     targets = [int(x) for x in args.contexts.split(",")]
     text = corpus()
     out = {"label": args.label, "model_id": args.model_id,
-           "decode_tokens": DECODE_TOKENS, "runs": []}
+           "decode_tokens": DECODE_TOKENS,
+           "mtplx_version": mtplx_version(),
+           "repeats": args.repeats,
+           "thermal_start": thermal_pressure(),
+           "runs": []}
 
     for target in targets:
         prompt = make_prompt(text, target)
         for mode in ("mtp", "ar"):
-            print(f"  [{args.label}] ctx~{target} mode={mode} ...", flush=True)
-            try:
-                r = run(args.model_id, prompt, mode)
-            except Exception as e:                    # noqa: BLE001
-                r = {"mode": mode, "error": str(e)[:200]}
+            # With repeats, the first sample is a warm-up and is discarded: the
+            # first generation after a load pays for cache warming that has
+            # nothing to do with what is being compared.
+            n = args.repeats + 1 if args.repeats > 1 else 1
+            samples = []
+            for i in range(n):
+                tag = " (warm-up)" if args.repeats > 1 and i == 0 else ""
+                print(f"  [{args.label}] ctx~{target} mode={mode} {i+1}/{n}{tag} ...", flush=True)
+                try:
+                    samples.append(run(args.model_id, prompt, mode))
+                except Exception as e:                # noqa: BLE001
+                    samples.append({"mode": mode, "error": str(e)[:200]})
+            kept = samples[1:] if args.repeats > 1 else samples
+            r = summarise(kept, mode)
+            r["thermal"] = thermal_pressure()
             r["target_ctx"] = target
             out["runs"].append(r)
             print(f"      prompt={r.get('prompt_tokens')} "

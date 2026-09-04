@@ -15,6 +15,8 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PORT="${PORT:-18092}"
 CONTEXTS="${CONTEXTS:-1000,32000}"
 LABEL="${LABEL:-$(basename "$MODEL")}"
+# Samples per cell. A version comparison needs more than one.
+REPEATS="${REPEATS:-1}"
 
 [[ "${BACKEND:-}" == "mtplx" ]] || {
   echo "This harness measures an MTPLX install; \$BACKEND is '${BACKEND:-unset}'." >&2
@@ -37,7 +39,7 @@ done
 
 python3 -u "$SCRIPT_DIR/mtplx_throughput.py" \
   --model-id "$MODEL_ALIAS_DEFAULT" --label "$LABEL" \
-  --contexts "$CONTEXTS" --outdir "$OUT" --port "$PORT"
+  --contexts "$CONTEXTS" --outdir "$OUT" --port "$PORT" --repeats "$REPEATS"
 
 kill $pid 2>/dev/null; wait $pid 2>/dev/null; sleep 3
 echo BENCHDONE
