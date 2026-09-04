@@ -30,12 +30,17 @@ smoke_test() {
   done
 
   if curl -sf "http://127.0.0.1:${port}/health" >/dev/null 2>&1; then
-    if [[ "$ACCEL" == "cuda" ]]; then
-      SMOKE_MEM=$(nvidia-smi --query-gpu=memory.used --format=csv,noheader,nounits | head -1)
-      SMOKE_FREE=$(nvidia-smi --query-gpu=memory.free --format=csv,noheader,nounits | head -1)
+    # nvidia-smi has no cross-platform equivalent, so the accelerator reports
+    # its own memory if it can. Absent hook -> unknown, which prints as '?'.
+    if declare -F accel_report_mem >/dev/null; then
+      read -r SMOKE_MEM SMOKE_FREE < <(accel_report_mem || echo " ")
     fi
-    SMOKE_CTX=$(curl -s "http://127.0.0.1:${port}/props" \
-      | python3 -c 'import sys,json;print(json.load(sys.stdin)["default_generation_settings"]["n_ctx"])' 2>/dev/null || echo "?")
+    # Where the served context window is advertised differs per backend.
+    if declare -F backend_smoke_context >/dev/null; then
+      SMOKE_CTX=$(backend_smoke_context "$port" 2>/dev/null || echo "?")
+    else
+      SMOKE_CTX="?"
+    fi
     info "Profile '${PROFILE:-$DEFAULT_PROFILE}': n_ctx=${SMOKE_CTX}, memory ${SMOKE_MEM:-?} MiB used / ${SMOKE_FREE:-?} MiB free"
     [[ -n "$SMOKE_FREE" ]] && (( SMOKE_FREE < 500 )) && \
       warn "Only ${SMOKE_FREE} MiB headroom -- consider a smaller profile."
@@ -61,17 +66,11 @@ smoke_test() {
   kill "$pid" 2>/dev/null || true
   wait "$pid" 2>/dev/null || true
 
-  # llama.cpp starts happily with speculative decoding silently disabled, so
-  # assert it actually drafted tokens rather than trusting that the head loaded.
-  if [[ -n "$MTP_HEAD" ]]; then
-    local acc
-    acc=$(grep -oE 'draft acceptance = [0-9.]+' "$smoke_log" | tail -1 | grep -oE '[0-9.]+$')
-    if [[ -n "$acc" ]]; then
-      SMOKE_ACC="$acc"
-      ok "MTP speculative decoding active (draft acceptance ${acc})."
-    else
-      warn "MTP head was loaded but no draft acceptance was reported -- speculative decoding may be inactive."
-    fi
+  # Binding a port is not evidence, and neither is loading a draft head: every
+  # backend here can start happily with speculative decoding silently off. The
+  # backend knows where its own proof lives, so it does the asserting.
+  if declare -F backend_smoke_assert >/dev/null; then
+    backend_smoke_assert "$smoke_log" "$port" || true
   fi
   return $rc
 }

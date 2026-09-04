@@ -4,15 +4,15 @@
 0.00.141.261 W srv  llama_server: this can be a security risk (cross-origin attacks)
 0.00.141.262 W srv  llama_server: more info: https://github.com/ggml-org/llama.cpp/pull/25655
 0.00.141.262 W srv  llama_server: -----------------
-0.00.142.504 I srv    load_model: loading model '/home/julian/.local/share/qwen38-27b/models/Qwen3.8-27B-GGUF/Qwen3.8-27B-UD-Q4_K_XL.gguf'
+0.00.142.504 I srv    load_model: loading model '$HOME/.local/share/qwen38-27b/models/Qwen3.8-27B-GGUF/Qwen3.8-27B-UD-Q4_K_XL.gguf'
 0.00.711.361 W common_fit_params: failed to fit params to free device memory: n_gpu_layers already set by user to 99, abort
 0.02.544.866 I cmn          init: llama threadpool init, n_threads = 8
-0.02.594.422 I common_speculative_init_result: loading draft model '/home/julian/.local/share/qwen38-27b/models/Qwen3.8-27B-GGUF/mtp-Qwen3.8-27B-Q4_0.gguf'
+0.02.594.422 I common_speculative_init_result: loading draft model '$HOME/.local/share/qwen38-27b/models/Qwen3.8-27B-GGUF/mtp-Qwen3.8-27B-Q4_0.gguf'
 0.02.873.123 E ggml_backend_cuda_buffer_type_alloc_buffer: allocating 909.96 MiB on device 0: cudaMalloc failed: out of memory
 0.02.873.126 E alloc_tensor_range: failed to allocate CUDA0 buffer of size 954165248
 0.02.922.986 E llama_model_load: error loading model: unable to allocate CUDA0 buffer
 0.02.922.991 E llama_model_load_from_file_impl: failed to load model
-0.02.922.992 E common_speculative_init_result: failed to load draft model, '/home/julian/.local/share/qwen38-27b/models/Qwen3.8-27B-GGUF/mtp-Qwen3.8-27B-Q4_0.gguf'
-0.02.922.998 E srv    load_model: failed to load draft model, '/home/julian/.local/share/qwen38-27b/models/Qwen3.8-27B-GGUF/mtp-Qwen3.8-27B-Q4_0.gguf'
+0.02.922.992 E common_speculative_init_result: failed to load draft model, '$HOME/.local/share/qwen38-27b/models/Qwen3.8-27B-GGUF/mtp-Qwen3.8-27B-Q4_0.gguf'
+0.02.922.998 E srv    load_model: failed to load draft model, '$HOME/.local/share/qwen38-27b/models/Qwen3.8-27B-GGUF/mtp-Qwen3.8-27B-Q4_0.gguf'
 0.02.923.005 I srv    operator(): operator(): cleaning up before exit...
 0.02.924.144 E srv  llama_server: exiting due to model loading error

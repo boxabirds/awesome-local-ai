@@ -1,0 +1,40 @@
+NOTES FOR THIS COMBINATION
+
+  PROVENANCE. Every throughput number here was measured on a 128 GB
+  Apple M5 Max, not on a 64 GB machine. The pack wires 27.9 GB and fits
+  a 64 GB Mac comfortably, so the rates should carry across -- but they
+  were not verified there. Rows that depend on the 64 GB claim say so.
+
+  Context is capped at 131072, not the 262144 the model advertises.
+  Measured: a session run out to 202k returned zero-token responses, and
+  decode had already fallen from ~35 tok/s at 27k to ~11-18 at 200k.
+
+  CONTEXT_LIMIT and the client must agree. The server enforces the
+  ceiling, but only the client-side `limit.context` makes OpenCode
+  compact its history before it arrives.
+
+  Reasoning effort is a SERVER flag, not a request field. OpenCode drops
+  `reasoning_effort` and `chat_template_kwargs` from an agent's options
+  block. Use REASONING_EFFORT=... here, and confirm with:
+
+    curl -s http://127.0.0.1:8010/health | python3 -m json.tool
+
+  Two headline numbers, both true. `mtplx tune` reports 53.6 tok/s at
+  depth 3 (3.145x over autoregressive); a real agent session at ~53k
+  context gives 26.2 tok/s decode and 21.8 effective. The first is a
+  short generation on a warm prefix; the second is what the work feels
+  like. This repo quotes the second.
+
+EXAMPLES
+
+  mtplx-qwen38-27b-server                     # coding profile
+  PROFILE=fast mtplx-qwen38-27b-server        # 64k ctx, more headroom
+  REASONING_EFFORT=xhigh mtplx-qwen38-27b-server
+  THINKING=0 mtplx-qwen38-27b-server          # instruct sampling
+  CTX=32768 mtplx-qwen38-27b-server           # hand-sized, no pre-flight
+
+SEE ALSO
+
+  docs/discovery-macos-mtplx.md   why these numbers are what they are
+  combinations/qwen/3.8/flash-next/macos/128GB/mtplx-opencode/
+                                  the other arm of the A/B, ~1.9x faster

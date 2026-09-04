@@ -84,6 +84,16 @@ _ensure_nvcc() {
   fi
 }
 
+# "<used_mib> <free_mib>" for the smoke report. Optional part of the
+# accelerator contract: a device that cannot report this simply omits it.
+accel_report_mem() {
+  need_cmd nvidia-smi || return 1
+  local used free
+  used=$(nvidia-smi --query-gpu=memory.used --format=csv,noheader,nounits | head -1)
+  free=$(nvidia-smi --query-gpu=memory.free --format=csv,noheader,nounits | head -1)
+  printf '%s %s' "$used" "$free"
+}
+
 accel_cmake_args() {
   printf '%s\n' -DGGML_CUDA=ON -DCMAKE_CUDA_ARCHITECTURES="${ACCEL_ARCH}"
 }

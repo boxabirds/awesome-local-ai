@@ -1,0 +1,18 @@
+# name|ctx|mtp_depth|effort|max_tokens|need_mib|summary
+#
+# Throughput MEASURED on Apple M5 Max / 128 GB / macOS 26.4 / MLX 0.32.1 /
+# mtplx 2.10.1, 2026-09-01. NOT MEASURED ON A 64 GB MACHINE.
+#
+# need_mib is the measured WEIGHTS footprint (27.9 GB = 28,570 MiB), not
+# weights plus KV cache -- the KV cache was not separately instrumented. It is
+# a floor, and the launcher's pre-flight against it is a warning, not a gate.
+#
+#   profile     ctx      measured decode   effective   ttft
+#   coding      131072   26.2 tok/s        21.8 tok/s  2.78 s
+#   fast         65536   EXTRAPOLATED -- less KV, expected faster; NOT MEASURED
+#
+# `coding` is the row with a measured session behind it. `fast` halves the
+# context to buy headroom on a smaller machine; its sizing is arithmetic, not
+# a measurement, and it is labelled so.
+coding|131072|3|low|32768|28570|default; the measured configuration -- 128k ctx, effort low
+fast|65536|3|low|32768|28570|EXTRAPOLATED sizing; half the context for headroom on 64GB
