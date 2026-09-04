@@ -26,6 +26,10 @@ BACKEND_NEEDS_HF=0
 # MTPLX cache at fetch time and written into the manifest then.
 BACKEND_REQUIRED_VARS="MODEL_REPO"
 
+# The column layout of this backend's profiles.tsv. Recorded in the manifest so
+# a reader can tell the shapes apart without guessing from the header comment.
+PROFILE_SCHEMA="name|ctx|mtp_depth|effort|max_tokens|need_mib|summary"
+
 # No KV-type switch to guard: MTPLX quantises its own KV cache per profile.
 SAFE_KV_TYPES="${SAFE_KV_TYPES:-n/a}"
 

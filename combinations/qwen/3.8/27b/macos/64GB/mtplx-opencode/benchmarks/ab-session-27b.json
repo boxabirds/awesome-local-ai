@@ -1,0 +1,39 @@
+{
+  "arm": "27b",
+  "model_id": "mtplx-qwen38-27b-optimized-quality",
+  "model_path": "Youssofal--Qwen3.8-27B-MTPLX-Optimized-Quality",
+  "config": {
+    "quant": "8-bit affine g64",
+    "weights_gb": 27.9,
+    "mtp_depth": 3,
+    "reasoning_effort": "low",
+    "profile": "turbo",
+    "scheduler": "serial"
+  },
+  "window": {
+    "start_iso": "2026-08-31T22:50:00",
+    "end_iso": "2026-09-01T04:42:19.593296",
+    "requests_logged": 63,
+    "requests_scored": 52
+  },
+  "results": {
+    "output_tokens": 54521,
+    "decode_median": 23.6,
+    "effective_median": 18.7,
+    "ttft_median": 4.68,
+    "context_median": 68208,
+    "context_max": 201779
+  },
+  "notes": "Server-side --reasoning-effort low (opencode drops client-side effort). Context window 262144 for part of the run after a rescue restart; the conversational session itself stayed under 50k.",
+  "fresh_session": {
+    "note": "The clean session started 04:19 after abandoning the 202k one. This is the like-for-like window to compare Flash-Next against.",
+    "start_iso": "2026-09-01T04:19:00",
+    "requests_scored": 31,
+    "output_tokens": 32531,
+    "decode_median": 26.2,
+    "effective_median": 21.8,
+    "ttft_median": 2.78,
+    "context_median": 53102,
+    "context_max": 71163
+  }
+}

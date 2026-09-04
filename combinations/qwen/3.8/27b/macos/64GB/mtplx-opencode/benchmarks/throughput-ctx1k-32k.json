@@ -1,0 +1,75 @@
+{
+  "label": "27b-quality-redo",
+  "model_id": "mtplx-qwen38-27b-optimized-quality",
+  "decode_tokens": 256,
+  "runs": [
+    {
+      "mode": "mtp",
+      "wall_s": 16.27,
+      "prompt_tokens": 1011,
+      "cached_tokens": 1006,
+      "completion_tokens": 256,
+      "ttft_s": 10.293428624980152,
+      "prefill_tok_s": 37.897652694520154,
+      "decode_tok_s": 37.77328408648445,
+      "mtp_depth": 3,
+      "verify_calls": 83,
+      "accepted_by_depth": [
+        71,
+        54,
+        38
+      ],
+      "generation_mode": "mtp",
+      "target_ctx": 1000
+    },
+    {
+      "mode": "ar",
+      "wall_s": 16.74,
+      "prompt_tokens": 1011,
+      "cached_tokens": 0,
+      "completion_tokens": 256,
+      "ttft_s": 1.4763366654515266,
+      "prefill_tok_s": 687.5870245629707,
+      "decode_tok_s": 17.128575381566694,
+      "mtp_depth": 0,
+      "verify_calls": 0,
+      "accepted_by_depth": [],
+      "generation_mode": "ar",
+      "target_ctx": 1000
+    },
+    {
+      "mode": "mtp",
+      "wall_s": 51.69,
+      "prompt_tokens": 28647,
+      "cached_tokens": 768,
+      "completion_tokens": 256,
+      "ttft_s": 44.03986795805395,
+      "prefill_tok_s": 633.5512045630968,
+      "decode_tok_s": 34.584330101407986,
+      "mtp_depth": 3,
+      "verify_calls": 84,
+      "accepted_by_depth": [
+        63,
+        56,
+        44
+      ],
+      "generation_mode": "mtp",
+      "target_ctx": 32000
+    },
+    {
+      "mode": "ar",
+      "wall_s": 109.29,
+      "prompt_tokens": 28647,
+      "cached_tokens": 0,
+      "completion_tokens": 256,
+      "ttft_s": 45.35736908297986,
+      "prefill_tok_s": 631.9656449367151,
+      "decode_tok_s": 15.717521070981249,
+      "mtp_depth": 0,
+      "verify_calls": 0,
+      "accepted_by_depth": [],
+      "generation_mode": "ar",
+      "target_ctx": 32000
+    }
+  ]
+}

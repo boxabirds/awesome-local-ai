@@ -116,6 +116,17 @@ row="$(profile_row "$PROFILE")" || {
   exit 1; }
 IFS='|' read -r _ D_CTX D_DEPTH D_EFFORT D_MAXTOK D_NEED _ <<< "$row"
 
+# Validate before doing anything slow. An unsupported effort is fatal, not a
+# warning: the chat template raises on a level it does not know, so every
+# request would fail after a two-minute model load.
+REASONING_EFFORT="${REASONING_EFFORT:-${D_EFFORT:-${REASONING_EFFORT_DEFAULT:-auto}}}"
+if [[ "$REASONING_EFFORT" != "default" && -n "${REASONING_EFFORTS:-}" ]] \
+   && [[ " $REASONING_EFFORTS " != *" $REASONING_EFFORT "* ]]; then
+  echo "${SERVER_CMD}: REASONING_EFFORT='$REASONING_EFFORT' is not supported by this model." >&2
+  echo "         Supported: ${REASONING_EFFORTS} (or 'default' for the server's own)." >&2
+  exit 1
+fi
+
 # Whether the user sized this by hand. Must be read before the profile
 # defaults are applied, and it turns the pre-flight off: need_mib describes the
 # profile, not whatever they asked for.
@@ -129,6 +140,24 @@ MAX_RESPONSE_TOKENS="${MAX_RESPONSE_TOKENS:-$D_MAXTOK}"
 THINKING="${THINKING:-1}"
 
 # ---- pre-flight -----------------------------------------------------------
+# An already-serving port is both the commonest failure and the commonest
+# reason free memory looks short -- the other server is holding the weights.
+# Name that specifically rather than letting the memory check blame the user's
+# browser for it.
+if command -v curl >/dev/null 2>&1 \
+   && curl -sf --max-time 2 "http://127.0.0.1:${PORT}/health" >/dev/null 2>&1; then
+  serving="$(curl -sf --max-time 2 "http://127.0.0.1:${PORT}/v1/models" 2>/dev/null \
+    | python3 -c 'import sys,json;d=json.load(sys.stdin);print((d.get("data") or [{}])[0].get("id",""))' 2>/dev/null || true)"
+  echo "${SERVER_CMD}: something is already serving on :${PORT}${serving:+ (${serving})}." >&2
+  if [[ "$serving" == "${MODEL_ALIAS:-$MODEL_ALIAS_DEFAULT}" ]]; then
+    echo "         That is this combination's model -- you can use it as it is." >&2
+  else
+    echo "         Stop it first:  mtplx stop --port ${PORT}" >&2
+    echo "         Or serve elsewhere:  PORT=<other> ${SERVER_CMD}" >&2
+  fi
+  exit 1
+fi
+
 # Apple silicon reports free memory system-wide, not per-device. Loading a
 # 77 GB pack when the machine has 20 GB free does not fail fast -- it swaps,
 # and the machine becomes unusable for minutes. Check first, name the fix.
@@ -205,13 +234,8 @@ else
   # server's default. The flag is the only lever that verifiably applies, and
   # /health reports what it resolved to. An unsupported level is fatal rather
   # than a warning: the template raises on it, so every request would fail.
-  REASONING_EFFORT="${REASONING_EFFORT:-${D_EFFORT:-${REASONING_EFFORT_DEFAULT:-auto}}}"
+  # Already validated above, before the slow checks.
   if [[ "$REASONING_EFFORT" != "default" ]]; then
-    if [[ -n "${REASONING_EFFORTS:-}" && " $REASONING_EFFORTS " != *" $REASONING_EFFORT "* ]]; then
-      echo "${SERVER_CMD}: REASONING_EFFORT='$REASONING_EFFORT' is not supported by this model." >&2
-      echo "         Supported: ${REASONING_EFFORTS} (or 'default' for the server's own)." >&2
-      exit 1
-    fi
     ARGS+=(--reasoning-effort "$REASONING_EFFORT")
   fi
 fi

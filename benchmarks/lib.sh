@@ -18,11 +18,20 @@ ROOT="${LOCAL_AI_ROOT:-$HOME/$LOCAL_AI_INSTALL_REL}"
 if [[ -f "$ROOT/install.env" ]]; then
   # shellcheck disable=SC1091
   . "$ROOT/install.env"
-  M="$ROOT/$MODEL_SUBDIR"
+  # A backend that fetches single files keeps them under the install root; one
+  # with its own model cache records a $HOME-relative path to it instead. The
+  # artefact is a file in the first case and a directory in the second.
+  if [[ -n "${MODEL_CACHE_ENV_VAR:-}" && -n "${!MODEL_CACHE_ENV_VAR:-}" ]]; then
+    M="${!MODEL_CACHE_ENV_VAR}"
+  elif [[ -d "$HOME/$MODEL_SUBDIR" ]]; then
+    M="$HOME/$MODEL_SUBDIR"
+  else
+    M="$ROOT/$MODEL_SUBDIR"
+  fi
   MODEL="$M/$MODEL_FILE"
   MMPROJ="${MMPROJ_FILE:+$M/$MMPROJ_FILE}"
   MTP="${MTP_FILE:+$M/$MTP_FILE}"
-  SERVER_CMD="${SERVER_CMD:-local-ai-server}"
+  SERVER_CMD="${SERVER_CMD:-local-ai-${BACKEND:-llamacpp}-server}"
 else
   echo "benchmarks: no install manifest at $ROOT/install.env" >&2
   echo "Run the combination's install-*.sh first, or set LOCAL_AI_INSTALL_REL." >&2

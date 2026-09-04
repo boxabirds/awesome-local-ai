@@ -69,11 +69,6 @@ done
 # describe a backend that is compiled locally and fetches single files from the
 # Hub (llama.cpp); one that ships as a prebuilt package and pulls whole model
 # repos itself (mtplx) turns both off.
-# Column layout of this combination's profiles.tsv, recorded in the manifest so
-# the runtime and any future tooling can tell the shapes apart. The backend
-# owns the default; a combination may override it.
-PROFILE_SCHEMA="${PROFILE_SCHEMA:-name|ctx|kv_type|vision|np|ub|need_mib|summary}"
-
 # The port this combination was measured on and whose number goes into the
 # client config. Overridable per run with PORT.
 DEFAULT_PORT="${DEFAULT_PORT:-8080}"
@@ -81,6 +76,21 @@ DEFAULT_PORT="${DEFAULT_PORT:-8080}"
 # Set by a backend whose model cache lives outside the install root, so the
 # runtime can resolve it from $HOME without a path being baked in.
 MODEL_CACHE_ENV_VAR="${MODEL_CACHE_ENV_VAR:-}"
+
+# Optional manifest fields. A combination only declares what its backend
+# actually uses, but the manifest has one shape, so default the rest here
+# rather than letting `set -u` abort the install on a field that is simply not
+# applicable to this backend.
+SAMPLING_INSTRUCT="${SAMPLING_INSTRUCT:-}"
+REASONING_EFFORT_DEFAULT="${REASONING_EFFORT_DEFAULT:-default}"
+REASONING_EFFORTS="${REASONING_EFFORTS:-}"
+SAFE_KV_TYPES="${SAFE_KV_TYPES:-n/a}"       # llama.cpp: which KV types have a kernel
+SPEC_DRAFT_N_MAX="${SPEC_DRAFT_N_MAX:-}"    # llama.cpp: draft tokens per step
+IMAGE_MIN_TOKENS="${IMAGE_MIN_TOKENS:-}"    # llama.cpp: vision grounding floor
+
+# Column layout of this combination's profiles.tsv. The backend declares it,
+# since the backend is what reads the columns; a combination may override.
+PROFILE_SCHEMA="${PROFILE_SCHEMA:-unknown}"
 
 BACKEND_NEEDS_BUILD_TOOLS="${BACKEND_NEEDS_BUILD_TOOLS:-1}"
 BACKEND_NEEDS_HF="${BACKEND_NEEDS_HF:-1}"
