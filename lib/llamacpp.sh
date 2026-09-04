@@ -62,9 +62,7 @@ ensure_llama_cpp() {
 
   local need_rebuild=0
   local stamp="${LLAMA_DIR}/.build-stamp"
-  local curl_state="off"
-  _have_curl_dev && curl_state="on"
-  local build_key="$(accel_build_key);curl=${curl_state}"
+  local build_key; build_key="$(_llamacpp_build_key)"
 
   if [[ -d "$LLAMA_DIR/.git" ]]; then
     # SKIP_BACKEND_UPDATE=1 pins the checkout you already have. Re-running the
@@ -114,42 +112,132 @@ ensure_llama_cpp() {
   fi
 
   if (( need_rebuild )); then
-    info "Building llama.cpp with ${ACCEL} (several minutes)..."
-    local cmake_args=(
-      -B "${LLAMA_DIR}/build" -S "$LLAMA_DIR"
-      -DCMAKE_BUILD_TYPE=Release
-      -DLLAMA_BUILD_TESTS=OFF
-      -DLLAMA_BUILD_EXAMPLES=OFF
-      -DLLAMA_BUILD_TOOLS=ON        # llama-server lives under tools/
-      -DLLAMA_BUILD_SERVER=ON
-    )
-    local flag
-    while IFS= read -r flag; do cmake_args+=("$flag"); done < <(accel_cmake_args)
-
-    # libcurl headers are root-only to install; drop CURL support if absent.
-    # We download models with the hf CLI anyway, so only llama-server's own
-    # -hf flag is lost.
-    if ! _have_curl_dev; then
-      warn "libcurl dev headers missing -> building with -DLLAMA_CURL=OFF."
-      cmake_args+=(-DLLAMA_CURL=OFF)
-    fi
-    need_cmd ninja && cmake_args+=(-G Ninja)
-
-    # Wipe only the CMake cache, not the whole tree: object files stay warm so
-    # subsequent re-runs are incremental instead of a full rebuild.
-    rm -f "${LLAMA_DIR}/build/CMakeCache.txt"
-    cmake "${cmake_args[@]}"
-    cmake --build "${LLAMA_DIR}/build" --config Release -j"$(_nproc)"
-    echo "${head_sha} ${build_key}" > "$stamp"
-    ok "llama.cpp built."
+    _llamacpp_build || err "Could not build llama.cpp; see ${LOG_FILE}."
   else
     ok "llama.cpp binary is current and ${ACCEL}-capable."
   fi
 
+  _llamacpp_link
+}
+
+# What the build depends on besides the source: rebuild when it changes.
+_llamacpp_build_key() {
+  local curl_state="off"
+  _have_curl_dev && curl_state="on"
+  printf '%s;curl=%s' "$(accel_build_key)" "$curl_state"
+}
+
+# Build whatever the checkout currently holds. Kept separate from
+# ensure_llama_cpp because returning to a known-good commit needs exactly this
+# and none of the update logic that got us there.
+_llamacpp_build() {
+  local head_sha build_key
+  head_sha="$(git -C "$LLAMA_DIR" rev-parse HEAD)"
+  build_key="$(_llamacpp_build_key)"
+
+  info "Building llama.cpp with ${ACCEL} (several minutes)..."
+  local cmake_args=(
+    -B "${LLAMA_DIR}/build" -S "$LLAMA_DIR"
+    -DCMAKE_BUILD_TYPE=Release
+    -DLLAMA_BUILD_TESTS=OFF
+    -DLLAMA_BUILD_EXAMPLES=OFF
+    -DLLAMA_BUILD_TOOLS=ON        # llama-server lives under tools/
+    -DLLAMA_BUILD_SERVER=ON
+  )
+  local flag
+  while IFS= read -r flag; do cmake_args+=("$flag"); done < <(accel_cmake_args)
+
+  # libcurl headers are root-only to install; drop CURL support if absent.
+  # We download models with the hf CLI anyway, so only llama-server's own
+  # -hf flag is lost.
+  if ! _have_curl_dev; then
+    warn "libcurl dev headers missing -> building with -DLLAMA_CURL=OFF."
+    cmake_args+=(-DLLAMA_CURL=OFF)
+  fi
+  need_cmd ninja && cmake_args+=(-G Ninja)
+
+  # Wipe only the CMake cache, not the whole tree: object files stay warm so
+  # subsequent re-runs are incremental instead of a full rebuild.
+  rm -f "${LLAMA_DIR}/build/CMakeCache.txt"
+
+  # Check both steps explicitly. `set -e` cannot be relied on here: this runs
+  # under lib/verify.sh, and a function called from an `if` or a `||` list has
+  # errexit suppressed for its whole call tree. Without these checks a failed
+  # build reports success, writes a stamp saying the new source is built, and
+  # leaves the PREVIOUS binary in place -- so a rollback would announce that it
+  # recovered while still running the build that failed.
+  local bin="${LLAMA_DIR}/build/bin/llama-server"
+  if ! cmake "${cmake_args[@]}"; then
+    rm -f "${LLAMA_DIR}/.build-stamp"
+    warn "cmake could not configure llama.cpp."
+    return 1
+  fi
+  if ! cmake --build "${LLAMA_DIR}/build" --config Release -j"$(_nproc)"; then
+    rm -f "${LLAMA_DIR}/.build-stamp"
+    warn "llama.cpp failed to build."
+    return 1
+  fi
+  if [[ ! -x "$bin" ]]; then
+    rm -f "${LLAMA_DIR}/.build-stamp"
+    warn "llama.cpp reported success but produced no llama-server binary."
+    return 1
+  fi
+  if ! accel_probe_binary "$bin"; then
+    rm -f "${LLAMA_DIR}/.build-stamp"
+    warn "The llama-server just built reports no ${ACCEL} device."
+    return 1
+  fi
+
+  # Stamped only once the build is known good, so a failure leaves the tree
+  # looking un-built and the next run rebuilds instead of trusting it.
+  echo "${head_sha} ${build_key}" > "${LLAMA_DIR}/.build-stamp"
+  ok "llama.cpp built."
+}
+
+_llamacpp_link() {
   ln -sfn "${LLAMA_DIR}/build/bin/llama-server" "${BIN_DIR}/llama-server"
   [[ -x "${LLAMA_DIR}/build/bin/llama-cli" ]] && \
     ln -sfn "${LLAMA_DIR}/build/bin/llama-cli" "${BIN_DIR}/llama-cli"
   ok "llama-server -> ${BIN_DIR}/llama-server"
+}
+
+# ---- recovery -------------------------------------------------------------
+# Optional backend hooks, used by lib/verify.sh. A backend that cannot return
+# to an earlier version simply does not define them, and verification then
+# fails without attempting recovery.
+
+# The exact commit that is built right now.
+backend_current_ref() { git -C "$LLAMA_DIR" rev-parse HEAD 2>/dev/null || printf ''; }
+
+# Short, human-facing form of a ref.
+backend_ref_label() {
+  git -C "$LLAMA_DIR" rev-parse --short "${1:-HEAD}" 2>/dev/null || printf '%s' "${1:0:12}"
+}
+
+# Return the checkout to a specific commit and rebuild there. This is what
+# makes floating on upstream safe: master moves every day, and when a newer
+# llama.cpp fails verification the user still ends up with the last one that
+# worked on this machine rather than a broken install.
+backend_rollback_to() {
+  local ref="$1"
+  [[ -n "$ref" ]] || return 1
+
+  # A shallow clone may no longer hold the object; ask origin for it directly.
+  if ! git -C "$LLAMA_DIR" rev-parse --verify -q "${ref}^{commit}" >/dev/null 2>&1; then
+    info "Fetching llama.cpp ${ref} from origin..."
+    git -C "$LLAMA_DIR" fetch --depth 1 origin "$ref" >/dev/null 2>&1 || {
+      warn "llama.cpp ${ref} is no longer available from origin; cannot roll back."
+      return 1; }
+  fi
+
+  git -C "$LLAMA_DIR" checkout -q --detach "$ref" 2>/dev/null || {
+    warn "Could not check out llama.cpp ${ref}."
+    return 1; }
+
+  # A rollback that cannot build is a failed rollback, and must say so rather
+  # than leaving the previous binary in place under a new commit's name.
+  _llamacpp_build || return 1
+  _llamacpp_link
 }
 
 llamacpp_sha() { git -C "$LLAMA_DIR" rev-parse --short HEAD 2>/dev/null || echo "?"; }

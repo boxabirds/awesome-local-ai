@@ -6,13 +6,45 @@
 # combination add its own lines: combination_performance and
 # combination_troubleshooting.
 
+# Refs are backend-specific; ask the backend when it can shorten one.
+_summary_ref_label() {
+  [[ -n "${1:-}" ]] || { printf '?'; return; }
+  if declare -F backend_ref_label >/dev/null; then
+    backend_ref_label "$1"
+  else
+    printf '%s' "$1"
+  fi
+}
+
 print_summary() {
   local tick="${GREEN}OK${NC}" cross="${YELLOW}--${NC}"
 
+  # The headline is a claim about this machine, so it follows what
+  # verification actually observed. Saying "ready" after a failed smoke test is
+  # the one thing that would make the rest of this report untrustworthy.
   say ""
-  say "${GREEN}==============================================================${NC}"
-  say "${GREEN}  ${DISPLAY_NAME} is installed and ready${NC}"
-  say "${GREEN}==============================================================${NC}"
+  case "${VERIFY_STATUS:-skipped}" in
+    failed)
+      say "${RED}==============================================================${NC}"
+      say "${RED}  ${DISPLAY_NAME} is installed but DID NOT WORK here${NC}"
+      say "${RED}==============================================================${NC}"
+      ;;
+    recovered)
+      say "${YELLOW}==============================================================${NC}"
+      say "${YELLOW}  ${DISPLAY_NAME} is ready -- on an earlier ${BACKEND}${NC}"
+      say "${YELLOW}==============================================================${NC}"
+      ;;
+    skipped)
+      say "${YELLOW}==============================================================${NC}"
+      say "${YELLOW}  ${DISPLAY_NAME} is installed -- NOT verified${NC}"
+      say "${YELLOW}==============================================================${NC}"
+      ;;
+    *)
+      say "${GREEN}==============================================================${NC}"
+      say "${GREEN}  ${DISPLAY_NAME} is installed and ready${NC}"
+      say "${GREEN}==============================================================${NC}"
+      ;;
+  esac
   say ""
   say "${BOLD}COMBINATION${NC}"
   say "  ${COMBINATION}"
@@ -46,6 +78,30 @@ print_summary() {
   say "  Files in    ${INSTALL_ROOT}"
   say "  Commands    ${BIN_DIR}/${SERVER_CMD}, ${BIN_DIR}/${SESSION_CMD}"
   say ""
+
+  if [[ "${VERIFY_STATUS:-}" == "recovered" ]]; then
+    say "${BOLD}${YELLOW}A NEWER ${BACKEND} DID NOT WORK HERE${NC}"
+    say "  ${BACKEND} $(_summary_ref_label "$ROLLED_BACK_FROM") failed verification on this machine,"
+    say "  so the last build that passed was rebuilt and used instead:"
+    say "    now running   $(_summary_ref_label "$ROLLED_BACK_TO")"
+    say "    failed        $(_summary_ref_label "$ROLLED_BACK_FROM")"
+    say "  Everything below was verified against the build you are running."
+    say "  Please report this upstream -- see ${INSTALL_ROOT}/smoke.log."
+    say ""
+  fi
+
+  if [[ "${VERIFY_STATUS:-}" == "failed" ]]; then
+    say "${BOLD}${RED}WHAT WENT WRONG${NC}"
+    say "  The install completed but the server did not pass verification, so"
+    say "  this configuration is NOT known to work on this machine."
+    say "  Log         ${INSTALL_ROOT}/smoke.log"
+    say ""
+    say "  Most common causes, in order:"
+    say "    * something else is holding the device -- check it, then re-run"
+    say "    * the profile does not fit -- try PROFILE=balanced"
+    say "    * the weights are incomplete -- delete them and re-run"
+    say ""
+  fi
 
   if [[ -n "$SMOKE_CTX" || -n "$SMOKE_GEN" ]]; then
     say "${BOLD}VERIFIED ON THIS MACHINE${NC}"
