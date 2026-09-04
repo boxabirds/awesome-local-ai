@@ -61,18 +61,15 @@ print_summary() {
   say "  systemctl --user enable --now ${INSTALL_ID}   # run it as a service"
   say ""
   say "${BOLD}CONNECT A CLIENT${NC}  (OpenAI-compatible)"
-  say "  Endpoint    http://127.0.0.1:8080/v1"
+  say "  Endpoint    http://127.0.0.1:${DEFAULT_PORT}/v1"
   say "  Model id    ${MODEL_ALIAS_DEFAULT}"
   say "  API key     any value -- it is ignored"
-  say "  Check it    curl http://127.0.0.1:8080/v1/models"
+  say "  Check it    curl http://127.0.0.1:${DEFAULT_PORT}/v1/models"
   say ""
   say "${BOLD}CHOOSE A PROFILE${NC}  PROFILE=<name> ${SERVER_CMD}"
-  local name ctx kv vision np ub need summary
-  while IFS='|' read -r name ctx kv vision np ub need summary; do
-    [[ -z "${name// }" || "$name" == \#* ]] && continue
-    say "$(printf '  %-11s %7s ctx  %-4s KV  vision %-3s  %s' \
-        "$name" "$ctx" "$kv" "$( [[ "$vision" == 1 ]] && echo on || echo off )" "$summary")"
-  done < "${COMBO_DIR}/profiles.tsv"
+  # The columns of profiles.tsv are the backend's business -- another backend
+  # has no KV type and no vision flag to show -- so it renders its own table.
+  backend_profile_table "${COMBO_DIR}/profiles.tsv" | while IFS= read -r l; do say "$l"; done
   say ""
 
   if declare -F combination_performance >/dev/null; then

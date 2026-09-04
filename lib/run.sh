@@ -43,11 +43,22 @@ health_of() {
     local model
     # shellcheck disable=SC1091
     . "${root}/install.env" 2>/dev/null
-    model="${root}/${MODEL_SUBDIR}/${MODEL_FILE}"
-    [[ -f "$model" ]] || { echo "weights missing"; exit 0; }
+    # A backend that fetches single files keeps them under the install root; one
+    # with its own model cache (mtplx) records a $HOME-relative path to it. Both
+    # are resolved the same way, but the artefact is a file in the first case
+    # and a directory in the second, so accept either.
+    if [[ -n "${MODEL_CACHE_ENV_VAR:-}" && -n "${!MODEL_CACHE_ENV_VAR:-}" ]]; then
+      model="${!MODEL_CACHE_ENV_VAR}/${MODEL_FILE}"
+    elif [[ -d "${HOME}/${MODEL_SUBDIR}" ]]; then
+      model="${HOME}/${MODEL_SUBDIR}/${MODEL_FILE}"
+    else
+      model="${root}/${MODEL_SUBDIR}/${MODEL_FILE}"
+    fi
+    [[ -e "$model" ]] || { echo "weights missing"; exit 0; }
     [[ -x "${HOME}/.local/bin/${server_cmd}"  ]] || { echo "command ${server_cmd} missing"; exit 0; }
     [[ -x "${HOME}/.local/bin/${session_cmd}" ]] || { echo "command ${session_cmd} missing"; exit 0; }
-    [[ -x "${HOME}/.local/bin/local-ai-server" ]] || { echo "runtime missing"; exit 0; }
+    # The launcher is per-backend now; the shim points at whichever one applies.
+    [[ -x "${HOME}/.local/bin/local-ai-${BACKEND}-server" ]] || { echo "runtime missing"; exit 0; }
     echo ok
   )
 }
@@ -144,7 +155,9 @@ while (( $# )); do
 done
 
 # ---- select ---------------------------------------------------------------
-mapfile -t INSTALLS < <(discover)
+# Not `mapfile`: that is bash 4+, and stock macOS still ships bash 3.2.
+INSTALLS=()
+while IFS= read -r _line; do INSTALLS+=("$_line"); done < <(discover)
 (( ${#INSTALLS[@]} )) || { [[ "$ACTION" == "list" ]] && { echo "Nothing is installed yet."; exit 0; }; no_installs; }
 
 if [[ "$ACTION" == "list" ]]; then

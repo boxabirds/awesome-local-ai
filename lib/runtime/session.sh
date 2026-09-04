@@ -58,7 +58,7 @@ ROOT="${LOCAL_AI_ROOT:-$HOME/$LOCAL_AI_INSTALL_REL}"
 
 export PATH="$HOME/.local/bin:$PATH"
 
-PORT="${PORT:-8080}"
+PORT="${PORT:-${DEFAULT_PORT:-8080}}"
 PROFILE="${PROFILE:-$DEFAULT_PROFILE}"
 IDLE_TIMEOUT="${IDLE_TIMEOUT:-300}"     # seconds with zero clients before shutdown
 POLL_INTERVAL="${POLL_INTERVAL:-10}"
@@ -82,6 +82,20 @@ SELF="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/$(basename "${BASH_SOURCE[0]
 log() { printf '[%s] %s\n' "$(date '+%Y-%m-%d %H:%M:%S')" "$*" >> "$LOG_FILE"; }
 say() { printf '%s\n' "$*" >&2; }
 now() { date +%s; }
+
+# Run a command detached from our controlling terminal so it survives the
+# client exiting. setsid does that properly, but macOS has no setsid -- there,
+# nohup leaves the process in our group and merely immune to SIGHUP, which is
+# enough: the idle watcher stops the server explicitly rather than relying on
+# signal delivery. One helper, so a new call site cannot reintroduce the
+# unguarded form.
+detached() {
+  if command -v setsid >/dev/null 2>&1; then
+    setsid "$@"
+  else
+    nohup "$@"
+  fi
+}
 
 server_healthy() { curl -sf --max-time 3 "http://127.0.0.1:${PORT}/health" >/dev/null 2>&1; }
 
@@ -170,8 +184,9 @@ start_server() {
   log "starting server PROFILE=$PROFILE PORT=$PORT"
   server_config_sig > "$CONFIG_FILE"
   # Everything else (CTX, KV_TYPE, VISION, THINKING, ...) is inherited from
-  # this script's environment by setsid.
-  PORT="$PORT" PROFILE="$PROFILE" setsid "$SERVER_CMD" >>"$SERVER_LOG" 2>&1 < /dev/null &
+  # this script's environment.
+  #
+  PORT="$PORT" PROFILE="$PROFILE" detached "$SERVER_CMD" >>"$SERVER_LOG" 2>&1 < /dev/null &
   local pid=$!
   echo "$pid" > "$SERVER_PID_FILE"
   : > "$OWNED_FLAG"
@@ -197,7 +212,7 @@ start_watcher() {
     wp="$(cat "$WATCHER_PID_FILE" 2>/dev/null || true)"
     [[ -n "$wp" ]] && kill -0 "$wp" 2>/dev/null && return 0   # already watching
   fi
-  LOCAL_AI_INSTALL_REL="$LOCAL_AI_INSTALL_REL" setsid "$SELF" --watcher >/dev/null 2>&1 < /dev/null &
+  LOCAL_AI_INSTALL_REL="$LOCAL_AI_INSTALL_REL" detached "$SELF" --watcher >/dev/null 2>&1 < /dev/null &
   log "watcher started pid $!"
 }
 
@@ -237,8 +252,9 @@ show_status() {
     echo "server    : running on :${PORT}$( [[ -n "$sp" ]] && echo " (pid $sp, managed)" || echo " (not managed by this script)" )"
     echo "model     : $(curl -s --max-time 3 "http://127.0.0.1:${PORT}/v1/models" \
         | python3 -c 'import sys,json;d=json.load(sys.stdin);print((d.get("models") or d.get("data"))[0].get("model") or (d.get("models") or d.get("data"))[0].get("id"))' 2>/dev/null || echo '?')"
-    [[ "$ACCEL" == "cuda" ]] && \
+    if [[ "$ACCEL" == "cuda" ]] && command -v nvidia-smi >/dev/null 2>&1; then
       echo "vram      : $(nvidia-smi --query-gpu=memory.used --format=csv,noheader 2>/dev/null | head -1)"
+    fi
   else
     echo "server    : not running"
   fi

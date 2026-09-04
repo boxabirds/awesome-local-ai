@@ -13,3 +13,4 @@ benchmarks/results/
 # macOS / editor cruft
 .DS_Store
 __pycache__/
+.ceetrix/

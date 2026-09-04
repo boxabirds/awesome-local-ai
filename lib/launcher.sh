@@ -12,8 +12,8 @@
 #   $ROOT/profiles.tsv   copied from the combination
 #   $ROOT/help.txt       copied from the combination
 #   $ROOT/client.sh      copied from lib/clients/$CLIENT.sh
-#   $BIN_DIR/local-ai-server    generic launcher (shared)
-#   $BIN_DIR/local-ai-session   generic lifecycle manager (shared)
+#   $BIN_DIR/local-ai-<backend>-server  launcher, shared by that backend
+#   $BIN_DIR/local-ai-session           generic lifecycle manager (shared)
 #   $BIN_DIR/$SERVER_CMD        shim -> local-ai-server
 #   $BIN_DIR/$SESSION_CMD       shim -> local-ai-session
 
@@ -29,8 +29,8 @@ install_runtime() {
   # users, and keeps the invoking user's name out of files people paste into
   # bug reports.
   local mmproj_name="" mtp_name=""
-  [[ -n "$MMPROJ"   ]] && mmproj_name="$(basename "$MMPROJ")"
-  [[ -n "$MTP_HEAD" ]] && mtp_name="$(basename "$MTP_HEAD")"
+  if [[ -n "$MMPROJ"   ]]; then mmproj_name="$(basename "$MMPROJ")"; fi
+  if [[ -n "$MTP_HEAD" ]]; then mtp_name="$(basename "$MTP_HEAD")"; fi
 
   cat > "${INSTALL_ROOT}/install.env" <<EOF
 # Written by awesome-local-ai. Combination: ${COMBINATION}
@@ -43,19 +43,23 @@ ACCEL="${ACCEL}"
 ROOT_ENV_VAR="${ROOT_ENV_VAR}"
 
 MODEL_SUBDIR="${MODEL_SUBDIR}"
-MODEL_FILE="$(basename "$MODEL_GGUF")"
+MODEL_FILE="$(basename "$MODEL_ARTIFACT")"
 MMPROJ_FILE="${mmproj_name}"
 MTP_FILE="${mtp_name}"
 MODEL_ALIAS_DEFAULT="${MODEL_ALIAS_DEFAULT}"
+MODEL_CACHE_ENV_VAR="${MODEL_CACHE_ENV_VAR:-}"
 
 DEFAULT_PROFILE="${DEFAULT_PROFILE}"
 SAFE_KV_TYPES="${SAFE_KV_TYPES}"
+PROFILE_SCHEMA="${PROFILE_SCHEMA}"
 REASONING_EFFORT_DEFAULT="${REASONING_EFFORT_DEFAULT}"
 REASONING_EFFORTS="${REASONING_EFFORTS}"
 SAMPLING_THINKING="${SAMPLING_THINKING}"
 SAMPLING_INSTRUCT="${SAMPLING_INSTRUCT}"
 SPEC_DRAFT_N_MAX="${SPEC_DRAFT_N_MAX}"
 IMAGE_MIN_TOKENS="${IMAGE_MIN_TOKENS}"
+
+DEFAULT_PORT="${DEFAULT_PORT}"
 
 CLIENT="${CLIENT}"
 DEFAULT_PROVIDER="${DEFAULT_PROVIDER}"
@@ -67,10 +71,15 @@ SESSION_CMD="${SESSION_CMD}"
 EOF
   ok "Manifest: ${INSTALL_ROOT}/install.env"
 
-  install -m 755 "${LIB_DIR}/runtime/server.sh"  "${BIN_DIR}/local-ai-server"
+  local runtime_src="${LIB_DIR}/runtime/server-${BACKEND}.sh"
+  [[ -f "$runtime_src" ]] || err \
+    "Backend '${BACKEND}' has no runtime launcher (expected lib/runtime/server-${BACKEND}.sh).
+       A backend that is not llama.cpp needs its own; see docs/adding-a-combination.md."
+
+  install -m 755 "$runtime_src"                  "${BIN_DIR}/local-ai-${BACKEND}-server"
   install -m 755 "${LIB_DIR}/runtime/session.sh" "${BIN_DIR}/local-ai-session"
 
-  _write_shim "$SERVER_CMD"  local-ai-server
+  _write_shim "$SERVER_CMD"  "local-ai-${BACKEND}-server"
   _write_shim "$SESSION_CMD" local-ai-session
   ok "Commands: ${SERVER_CMD}, ${SESSION_CMD}"
 }

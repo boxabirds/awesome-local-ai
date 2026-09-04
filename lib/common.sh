@@ -39,6 +39,17 @@ run_as_root() {
 
 human_size() { [[ -f "$1" ]] && du -h "$1" 2>/dev/null | cut -f1 || echo "-"; }
 
+# Every combination directory, as a `family/version/size/os/memory/stack` path.
+# BSD find has no -printf, so derive the directory from the config path instead
+# of asking find to print it.
+list_combinations() {
+  local d="${REPO_ROOT}/combinations"
+  [[ -d "$d" ]] || return 0
+  find "$d" -name config.sh 2>/dev/null \
+    | sed -e "s|^${d}/||" -e 's|/config\.sh$||' \
+    | sort
+}
+
 # Every value a config declares is required to be non-empty; catching a typo
 # here is much cheaper than catching it 20 GB into a download.
 require_vars() {

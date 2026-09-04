@@ -4,6 +4,57 @@
 # Backend-agnostic: the accelerator module supplies the cmake flags, the build
 # cache key and the "can this binary see the device?" probe. Adding a new
 # backend means adding lib/accel/<name>.sh, not touching this file.
+#
+# Backend contract (see docs/adding-a-combination.md):
+#   ensure_backend          install/build the serving binary
+#   backend_profile_table   render profiles.tsv for --help and the summary
+#   <backend>_sha           version string for the summary
+# plus the optional BACKEND_NEEDS_* switches read by lib/bootstrap.sh.
+
+# llama.cpp is compiled here and its weights are single files from the Hub, so
+# both generic steps apply. Named explicitly rather than left to the default,
+# because they are a property of the backend, not of the installer.
+BACKEND_NEEDS_BUILD_TOOLS=1
+BACKEND_NEEDS_HF=1
+BACKEND_REQUIRED_VARS="MODEL_SUBDIR MODEL_ASSETS SAFE_KV_TYPES"
+
+# The checkout is this backend's business; nothing outside it needs the path.
+LLAMA_DIR="${LLAMA_DIR:-${INSTALL_ROOT}/llama.cpp}"
+
+ensure_backend() { ensure_llama_cpp; }
+
+# profiles.tsv for this backend is name|ctx|kv_type|vision|np|ub|need_mib|summary.
+# Rendering lives with the backend because the columns do: another backend has
+# no KV type and no vision flag to print.
+backend_profile_table() {
+  awk -F'|' '!/^[[:space:]]*(#|$)/ {
+    vis = ($4 == "1") ? "on " : "off";
+    printf "  %-11s %6s ctx  %-5s KV  vision %s   %s\n", $1, $2, $3, vis, $8
+  }' "$1"
+}
+
+# llama-server advertises the context it actually served at /props, which is
+# the number worth reporting -- it reflects what the profile achieved, not what
+# was requested.
+backend_smoke_context() {
+  curl -s "http://127.0.0.1:${1}/props" \
+    | python3 -c 'import sys,json;print(json.load(sys.stdin)["default_generation_settings"]["n_ctx"])' 2>/dev/null
+}
+
+# llama.cpp starts happily with speculative decoding silently disabled, so
+# assert it actually drafted tokens rather than trusting that the head loaded.
+backend_smoke_assert() {
+  local smoke_log="$1"
+  [[ -n "$MTP_HEAD" ]] || return 0
+  local acc
+  acc=$(grep -oE 'draft acceptance = [0-9.]+' "$smoke_log" | tail -1 | grep -oE '[0-9.]+$')
+  if [[ -n "$acc" ]]; then
+    SMOKE_ACC="$acc"
+    ok "MTP speculative decoding active (draft acceptance ${acc})."
+  else
+    warn "MTP head was loaded but no draft acceptance was reported -- speculative decoding may be inactive."
+  fi
+}
 
 ensure_llama_cpp() {
   info "Ensuring up-to-date llama.cpp (${ACCEL} backend)..."

@@ -4,15 +4,15 @@
 0.00.188.825 W srv  llama_server: this can be a security risk (cross-origin attacks)
 0.00.188.825 W srv  llama_server: more info: https://github.com/ggml-org/llama.cpp/pull/25655
 0.00.188.826 W srv  llama_server: -----------------
-0.00.190.055 I srv    load_model: loading model '/home/julian/.local/share/qwen38-27b/models/Qwen3.8-27B-GGUF/Qwen3.8-27B-UD-Q4_K_XL.gguf'
+0.00.190.055 I srv    load_model: loading model '$HOME/.local/share/qwen38-27b/models/Qwen3.8-27B-GGUF/Qwen3.8-27B-UD-Q4_K_XL.gguf'
 0.00.799.383 W common_fit_params: failed to fit params to free device memory: n_gpu_layers already set by user to 99, abort
 0.02.664.582 I cmn          init: llama threadpool init, n_threads = 8
-0.02.709.508 I common_speculative_init_result: loading draft model '/home/julian/.local/share/qwen38-27b/models/Qwen3.8-27B-GGUF/mtp-Qwen3.8-27B-Q4_0.gguf'
+0.02.709.508 I common_speculative_init_result: loading draft model '$HOME/.local/share/qwen38-27b/models/Qwen3.8-27B-GGUF/mtp-Qwen3.8-27B-Q4_0.gguf'
 0.03.083.523 W load_hparams: Qwen-VL models require at minimum 1024 image tokens to function correctly on grounding tasks
 0.03.083.526 W load_hparams: if you encounter problems with accuracy, try adding --image-min-tokens 1024
 0.03.083.526 W load_hparams: more info: https://github.com/ggml-org/llama.cpp/issues/16842
 
-0.03.274.092 I srv    load_model: loaded multimodal model, '/home/julian/.local/share/qwen38-27b/models/Qwen3.8-27B-GGUF/mmproj-F16.gguf'
+0.03.274.092 I srv    load_model: loaded multimodal model, '$HOME/.local/share/qwen38-27b/models/Qwen3.8-27B-GGUF/mmproj-F16.gguf'
 0.03.308.916 I srv    load_model: initializing, n_slots = 1, n_ctx_slot = 65536, kv_unified = 'false'
 0.03.330.491 I srv          init: chat template supports preserving reasoning, consider enabling it via --reasoning-preserve
 0.03.330.514 I srv  llama_server: model loaded

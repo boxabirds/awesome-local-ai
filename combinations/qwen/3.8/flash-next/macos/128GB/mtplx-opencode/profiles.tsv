@@ -1,0 +1,22 @@
+# name|ctx|mtp_depth|effort|max_tokens|need_mib|summary
+#
+# MEASURED on Apple M5 Max / 128 GB / macOS 26.4 / MLX 0.32.1 / mtplx 2.10.1,
+# 2026-09-01. Metal's recommendedMaxWorkingSetSize on this machine is 110,100
+# MiB; the pack wired 77.3 GB (79,155 MiB) at the `coding` settings.
+#
+# need_mib is the WEIGHTS footprint measured with `ps -o rss`, not weights plus
+# KV cache -- the KV cache was not separately instrumented. It is therefore a
+# floor, and the launcher's pre-flight against it is a warning, not a gate.
+# The 29.8 GB n-gram table is streamed from SSD and is NOT resident, so it is
+# not counted here.
+#
+#   profile     ctx      measured decode   effective   ttft
+#   coding      131072   49.8 tok/s        38.8 tok/s  2.0 s
+#   long        131072   (same settings, effort raised -- not separately timed)
+#
+# `coding` is the only row with an end-to-end measured session behind it.
+# `long` differs from it ONLY in reasoning effort, which changes token volume
+# rather than rate; it is listed because it is useful, not because it was
+# timed independently.
+coding|131072|3|low|32768|79155|default; the measured configuration -- 128k ctx, effort low
+long|131072|3|medium|32768|79155|same sizing, more deliberation per turn; slower in wall-clock

@@ -1,0 +1,41 @@
+NOTES FOR THIS COMBINATION
+
+  Context is capped at 131072, not the 262144 the model advertises.
+  This is deliberate and measured: a session run out to 202k returned
+  zero-token responses, and decode had already fallen from ~35 tok/s at
+  27k to ~11-18 tok/s at 200k. The cap is where the model is still fast
+  enough to be worth using.
+
+  CONTEXT_LIMIT and the client must agree. The server enforces the
+  ceiling, but only the client-side `limit.context` makes OpenCode
+  compact its history before it arrives. If you raise CTX here, raise it
+  in the OpenCode provider config too, or you will hit the wall instead
+  of compacting into it.
+
+  Reasoning effort is a SERVER flag, not a request field. OpenCode drops
+  `reasoning_effort` and `chat_template_kwargs` from an agent's options
+  block, so setting it client-side does nothing. Use REASONING_EFFORT=...
+  on this command, and check what the server resolved:
+
+    curl -s http://127.0.0.1:8010/health | python3 -m json.tool
+
+  The n-gram table is 29.8 GB and streams from SSD. It is not wired, so
+  it does not count against the memory budget, but it does mean this pack
+  wants to live on fast local storage -- not an external spinning disk.
+
+  Memory. 77.3 GB of weights is most of a 128 GB machine's GPU budget
+  (Metal allows 107.5 GiB). Expect the pre-flight to complain if a
+  browser with many tabs is already resident, and believe it.
+
+EXAMPLES
+
+  mtplx-qwen38-flash-next-server                     # coding profile
+  PROFILE=long mtplx-qwen38-flash-next-server        # more deliberation
+  REASONING_EFFORT=xhigh mtplx-qwen38-flash-next-server
+  THINKING=0 mtplx-qwen38-flash-next-server          # instruct sampling
+  CTX=65536 mtplx-qwen38-flash-next-server           # hand-sized, no pre-flight
+
+SEE ALSO
+
+  docs/discovery-macos-mtplx.md   why these numbers are what they are
+  mtplx trace                     per-session timelines and TPS curves

@@ -4,10 +4,10 @@
 0.00.139.793 W srv  llama_server: this can be a security risk (cross-origin attacks)
 0.00.139.793 W srv  llama_server: more info: https://github.com/ggml-org/llama.cpp/pull/25655
 0.00.139.793 W srv  llama_server: -----------------
-0.00.141.015 I srv    load_model: loading model '/home/julian/.local/share/qwen38-27b/models/Qwen3.8-27B-GGUF/Qwen3.8-27B-UD-Q4_K_XL.gguf'
+0.00.141.015 I srv    load_model: loading model '$HOME/.local/share/qwen38-27b/models/Qwen3.8-27B-GGUF/Qwen3.8-27B-UD-Q4_K_XL.gguf'
 0.00.719.727 W common_fit_params: failed to fit params to free device memory: n_gpu_layers already set by user to 99, abort
 0.02.610.888 I cmn          init: llama threadpool init, n_threads = 8
-0.02.659.187 I common_speculative_init_result: loading draft model '/home/julian/.local/share/qwen38-27b/models/Qwen3.8-27B-GGUF/mtp-Qwen3.8-27B-Q4_0.gguf'
+0.02.659.187 I common_speculative_init_result: loading draft model '$HOME/.local/share/qwen38-27b/models/Qwen3.8-27B-GGUF/mtp-Qwen3.8-27B-Q4_0.gguf'
 0.03.011.350 E ggml_backend_cuda_buffer_type_alloc_buffer: allocating 768.00 MiB on device 0: cudaMalloc failed: out of memory
 0.03.011.353 E alloc_tensor_range: failed to allocate CUDA0 buffer of size 805306368
 0.03.011.436 E llama_init_from_model: failed to initialize the context: failed to allocate buffer for kv cache
