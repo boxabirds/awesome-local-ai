@@ -89,11 +89,18 @@ now() { date +%s; }
 # enough: the idle watcher stops the server explicitly rather than relying on
 # signal delivery. One helper, so a new call site cannot reintroduce the
 # unguarded form.
+# NOTE the exec. Without it, `detached cmd &` records the wrong pid: because
+# detached is a shell function, bash cannot turn the background job into a
+# plain fork+exec, so $! is a leftover bash wrapper while setsid puts the real
+# process in a new pid, process group AND session. Killing the wrapper then
+# leaves the model server running -- ~22 GB parked on the accelerator, which is
+# the one thing this lifecycle exists to prevent. exec makes the subshell
+# become setsid, which becomes the server, so $! is the process we started.
 detached() {
   if command -v setsid >/dev/null 2>&1; then
-    setsid "$@"
+    exec setsid "$@"
   else
-    nohup "$@"
+    exec nohup "$@"
   fi
 }
 
@@ -138,11 +145,73 @@ owned_server_pid() {
   [[ -n "$p" ]] && kill -0 "$p" 2>/dev/null && printf '%s' "$p"
 }
 
+# Which pid is listening on our port. Asked only to verify our own stop, never
+# to adopt a server we did not start.
+listener_pid() {
+  local p=""
+  if command -v lsof >/dev/null 2>&1; then
+    p="$(lsof -ti "tcp:${PORT}" -sTCP:LISTEN 2>/dev/null | head -1)"
+  fi
+  if [[ -z "$p" ]] && command -v ss >/dev/null 2>&1; then
+    p="$(ss -H -ltnp "sport = :${PORT}" 2>/dev/null | sed -n 's/.*pid=\([0-9]*\).*/\1/p' | head -1)"
+  fi
+  printf '%s' "$p"
+}
+
+# Is this pid serving OUR model? Checked before signalling anything we did not
+# get a pid for directly, so a stale ownership flag can never make us kill
+# somebody else's server that happens to be on the same port.
+_is_our_server_pid() {
+  local pid="$1" cmd=""
+  [[ -n "${MODEL_FILE:-}" ]] || return 1
+  if [[ -r "/proc/$pid/cmdline" ]]; then
+    cmd="$(tr '\0' ' ' < "/proc/$pid/cmdline" 2>/dev/null)"
+  else
+    cmd="$(ps -o command= -p "$pid" 2>/dev/null)"
+  fi
+  case "$cmd" in
+    *"$MODEL_FILE"*) return 0 ;;
+  esac
+  return 1
+}
+
+# Killing the recorded pid is not proof the server is gone. Verify against the
+# port, and finish the job if our model server outlived the signal.
+_verify_stopped() {
+  server_healthy || return 0
+  local lp; lp="$(listener_pid)"
+  if [[ -z "$lp" ]]; then
+    log "still serving on ${PORT} after stop, listener unknown"
+    say "WARNING: something is still serving on :${PORT}; it could not be identified."
+    return 0
+  fi
+  if ! _is_our_server_pid "$lp"; then
+    log "still serving on ${PORT} by pid ${lp}, not our model -- leaving it alone"
+    return 0
+  fi
+  log "our server ${lp} outlived the stop; terminating it"
+  kill "$lp" 2>/dev/null || true
+  for _ in $(seq 1 30); do server_healthy || break; sleep 1; done
+  if server_healthy; then
+    kill -9 "$lp" 2>/dev/null || true
+    for _ in $(seq 1 10); do server_healthy || break; sleep 1; done
+  fi
+  if server_healthy; then
+    say "WARNING: a server is still running on :${PORT} (pid ${lp}); stop it by hand."
+  else
+    log "cleaned up leaked server ${lp}"
+  fi
+}
+
 stop_server() {
-  local pid
+  local pid owned=0
+  [[ -f "$OWNED_FLAG" ]] && owned=1
   if ! pid="$(owned_server_pid)"; then
     log "no owned server to stop"
     rm -f "$SERVER_PID_FILE" "$OWNED_FLAG"
+    # The flag without a live pid is the signature of a leak: the process we
+    # recorded is gone but the server it started may not be.
+    (( owned )) && _verify_stopped
     return 0
   fi
   log "stopping server pid $pid"
@@ -150,6 +219,7 @@ stop_server() {
   for _ in $(seq 1 30); do kill -0 "$pid" 2>/dev/null || break; sleep 1; done
   kill -0 "$pid" 2>/dev/null && { log "server did not exit, SIGKILL"; kill -9 "$pid" 2>/dev/null || true; }
   rm -f "$SERVER_PID_FILE" "$OWNED_FLAG" "$CONFIG_FILE"
+  _verify_stopped
   log "server stopped"
 }
 
