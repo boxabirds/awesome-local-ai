@@ -49,7 +49,7 @@ SESSION_CMD="${SESSION_CMD:-${INSTALL_ID}-${CLIENT}}"
 ROOT_ENV_VAR="${ROOT_ENV_VAR:-LOCAL_AI_ROOT}"
 
 # ---- modules --------------------------------------------------------------
-for m in os deps hf model launcher service smoke summary; do
+for m in os deps hf model launcher service smoke verify summary; do
   # shellcheck source=/dev/null
   . "${LIB_DIR}/${m}.sh"
 done
@@ -130,11 +130,17 @@ main() {
   install_runtime
   create_service
 
-  if [[ "${SKIP_SMOKE_TEST:-0}" != "1" ]]; then
-    smoke_test || warn "Smoke test did not pass; see ${INSTALL_ROOT}/smoke.log"
-  fi
+  # Verification is a gate, not a footnote. The promise this repo makes is
+  # that the configuration it installs is the right one for your hardware --
+  # so an install that could not demonstrate that must not report success.
+  # verify_install also recovers a working backend where it can; see
+  # lib/verify.sh.
+  verify_install || true
 
   print_summary
+
+  [[ "$VERIFY_STATUS" == "failed" ]] && return 1
+  return 0
 }
 
 main "$@"
