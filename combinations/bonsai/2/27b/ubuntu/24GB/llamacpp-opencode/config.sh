@@ -98,14 +98,24 @@ SAFE_KV_TYPES="f16 q8_0 q4_0"
 SAMPLING_THINKING="--temp 1.0 --top-p 0.95 --top-k 20 --min-p 0.0"
 SAMPLING_INSTRUCT="--temp 0.7 --top-p 0.80 --top-k 20 --min-p 0.0 --presence-penalty 1.5"
 
-# Bonsai 2 defaults to xhigh and its card recommends medium "for shorter
-# responses and a balance of speed and accuracy", so medium is the default here.
-# This is the one place this combination deliberately differs from its Qwen
-# sibling, which ships low: the card states low is NOT supported and behaves
-# close to xhigh. `low` is still listed because the template accepts it without
-# error -- see help.txt for what was and was not measured.
+# Bonsai 2 defaults to xhigh. Its card states low is NOT supported and behaves
+# close to xhigh, and benchmarks/effort.sh confirms it on this hardware --
+# 5 prompts, greedy, one load:
+#
+#   effort    reasoning chars   completion tokens
+#   low                 14532                5774
+#   medium               6364                3258
+#   xhigh               14637                4546
+#
+# low is 1.01x xhigh's reasoning: the level is accepted and then ignored.
+# MEDIUM IS BOTH THE FLOOR AND THE CHEAPEST -- less than half either of the
+# others, which is unusual enough to be worth stating plainly. So medium is the
+# default, and low is deliberately NOT in REASONING_EFFORTS: the launcher then
+# refuses it with a message, which is better than accepting it and silently
+# charging xhigh. This is where this combination differs from its Qwen sibling,
+# whose template does honour low (4026 chars against xhigh's 14004).
 REASONING_EFFORT_DEFAULT="medium"
-REASONING_EFFORTS="default low medium high xhigh"
+REASONING_EFFORTS="default medium high xhigh"
 
 IMAGE_MIN_TOKENS=1024                     # llama.cpp's recommendation for Qwen-VL grounding
 

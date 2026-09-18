@@ -163,13 +163,29 @@ default reasoning effort is higher:
 | 600 | `stop` | 331 | 354 |
 | 4,096 | `stop` | 375 | 302 |
 
-*Reasoning effort* — `low`, `medium` and `xhigh` were all accepted without
-error, contradicting nothing but establishing nothing either: at n=1 and
-temperature 1.0 the token counts were within noise of each other and `low`
-produced *fewer* reasoning characters than `medium`, which is the opposite of
-what the model card implies. **Not settled.** The right instrument is
-[`benchmarks/effort.sh`](../../../../../../../../benchmarks/effort.sh), 5 prompts,
-greedy, one model load; it has not been run against this combination.
+*Reasoning effort* — `logs/reasoning-effort.txt`, from
+[`benchmarks/effort.sh`](../../../../../../../../benchmarks/effort.sh): 5 prompts,
+greedy (temperature 0, top_k 1), one model load.
+
+| effort | reasoning chars | completion tokens |
+|---|---|---|
+| low | 14,532 | 5,774 |
+| medium | **6,364** | **3,258** |
+| xhigh | 14,637 | 4,546 |
+
+**The model card is right and an earlier n=1 test here was wrong.** `low` is
+1.01x `xhigh`'s reasoning: the level is accepted and then ignored. An initial
+single-prompt check at temperature 1.0 had suggested `low` was honoured; five
+greedy prompts say otherwise, which is the whole reason this harness exists.
+
+`medium` is not a middle setting, it is the floor *and* the cheapest by a wide
+margin — under half of either other level. `low` was therefore removed from
+`REASONING_EFFORTS`, so the launcher refuses it rather than accepting it and
+silently charging `xhigh`.
+
+For contrast, the Qwen sibling's template does honour `low`: 4,026 reasoning
+chars against `xhigh`'s 14,004. Same base model, different templates — so this
+is a property of the Bonsai 2 packaging, not of Qwen3.8.
 
 ### Two servers on one card
 
@@ -193,7 +209,6 @@ Listed so the gaps are visible rather than implied:
   the publisher's.
 - `bf16` KV.
 - Retrieval quality at 262k (`run-niah.sh` exists and was not run).
-- `effort.sh` against this model.
 - One server with `NP=2` versus two servers.
 - Any card other than a 24GB RTX 4090.
 - `PACKING=PTQ1_0` end-to-end through the installer; the depth and fit numbers

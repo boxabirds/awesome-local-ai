@@ -119,13 +119,26 @@ REASONING EFFORT                               (default here: medium)
       "low reasoning effort is not supported and when selected the model will
        behave close to xhigh"
 
-  So this combination ships MEDIUM, unlike its Qwen sibling which ships low.
-  `low` is still an accepted value because the template takes it without
-  raising -- verified here. Whether it actually behaves like xhigh was NOT
-  established: a single prompt at temp 1.0 produced fewer reasoning characters
-  at low than at medium, which contradicts the card but proves nothing at
-  n=1. Run ../../../../../../../benchmarks/effort.sh (5 prompts, greedy, one
-  model load) before trusting either claim.
+  Measured here with benchmarks/effort.sh -- 5 prompts, greedy (temp 0,
+  top_k 1), one model load:
+
+      effort    reasoning chars   completion tokens
+      low                 14532                5774
+      medium               6364                3258
+      xhigh               14637                4546
+
+  low is 1.01x xhigh. The card is right: asking for low gets you xhigh, with
+  no error. So low is NOT in the accepted list here and the launcher refuses
+  it -- being told no beats being charged 2.3x silently.
+
+  MEDIUM IS THE CHEAPEST LEVEL AVAILABLE, not a middle setting. It is less
+  than half of either other level on both counts. There is nothing below it.
+
+  If medium is still too much -- on a slow machine a long think can cost a
+  minute -- use THINKING_BUDGET, which is a hard cap rather than an
+  instruction. Measured on one trivial prompt, the complete answer appeared
+  49% of the way through the reasoning block and the remaining 51% re-derived
+  it twice; a budget near half the typical block is often free.
 
 GOTCHA: THINKING MODE AND max_tokens
   Worse here than on the Qwen sibling, because the default effort is higher.
