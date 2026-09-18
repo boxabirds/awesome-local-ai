@@ -1,0 +1,27 @@
+# name|ctx|kv_type|vision|np|ub|need_mib|summary
+#
+# Every figure MEASURED on a 24GB RTX 4090 (24047 MiB usable) with PrismML fork
+# build 5d80cff and the default PQ2_0 packing, not estimated. need_mib is the
+# server-only footprint (measured total minus the 463 MiB the desktop held
+# during measurement); the launcher pre-flights against it.
+#
+#   profile      measured VRAM   headroom   prefill
+#   coding          10663 MiB   13384 MiB   3016 tok/s
+#   balanced        12711 MiB   11336 MiB   3022 tok/s
+#   max             13607 MiB   10440 MiB   3013 tok/s
+#   vision          11515 MiB   12532 MiB   3019 tok/s
+#   vision-max      14459 MiB    9588 MiB   3031 tok/s
+#   dual             8454 MiB   15593 MiB   3015 tok/s
+#
+# Measured ceiling: 262144 ctx at f16 KV does NOT fit -- cudaMalloc fails
+# reserving the compute buffer. q4_0 at 262144 has 10 GB to spare, so the
+# constraint is the KV type, not the context. See benchmarks/README.md.
+#
+# ub is 512 here, not the 256 its Qwen sibling needs: that combination shrinks
+# the micro-batch to make 128k fit at all, and this one has no such pressure.
+coding|131072|q4_0|0|1|512|10200|default; 128k context with 13.4 GB still free
+balanced|131072|q8_0|0|1|512|12248|highest-fidelity KV measured to keep a GPU kernel
+max|262144|q4_0|0|1|512|13144|the model's full 262k context, 10.4 GB free
+vision|131072|q4_0|1|1|512|11052|images and video at 128k
+vision-max|262144|q4_0|1|1|512|13996|images at the full 262k context
+dual|32768|q4_0|0|1|512|7991|small footprint; two of these fit on one 24GB card

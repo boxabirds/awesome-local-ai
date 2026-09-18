@@ -1,0 +1,20 @@
+0.00.063.823 I cmn  common_param: common_params_print_info: verbosity = 3 (adjust with the `-lv N` CLI arg)
+0.00.064.167 W srv  llama_server: -----------------
+0.00.064.169 W srv  llama_server: CORS is set to allow all origins ('*') and no API key is set
+0.00.064.169 W srv  llama_server: this can be a security risk (cross-origin attacks)
+0.00.064.169 W srv  llama_server: more info: https://github.com/ggml-org/llama.cpp/pull/25655
+0.00.064.169 W srv  llama_server: -----------------
+0.00.065.439 I srv    load_model: loading model '$HOME/.local/share/bonsai2-27b/models/Ternary-Bonsai-2-27B-PQ2_0.gguf'
+0.01.395.958 I cmn          init: llama threadpool init, n_threads = 8
+0.01.480.169 I srv    load_model: initializing, n_slots = 1, n_ctx_slot = 32768, kv_unified = 'false'
+0.01.482.863 I srv          init: chat template supports preserving reasoning, consider enabling it via --reasoning-preserve
+0.01.482.914 I srv  llama_server: model loaded
+0.01.482.917 I srv  llama_server: listening on http://127.0.0.1:18099
+0.02.104.919 I slot get_availabl: id  0 | task -1 | selected slot by LRU, t_last = -1
+0.02.104.964 I slot launch_slot_: id  0 | task 0 | processing task, is_child = 0
+0.04.475.625 I slot print_timing: id  0 | task 0 | prompt eval time =    2273.65 ms /  6855 tokens (    0.33 ms per token,  3014.98 tokens per second)
+0.04.475.627 I slot print_timing: id  0 | task 0 |        eval time =      96.99 ms /     8 tokens (   13.86 ms per token,    72.17 tokens per second)
+0.04.475.628 I slot print_timing: id  0 | task 0 |       total time =    2370.64 ms /  6863 tokens
+0.04.475.630 I slot print_timing: id  0 | task 0 |    graphs reused =          7
+0.04.475.746 I slot      release: id  0 | task 0 | stop processing: n_tokens = 6862, truncated = 0
+0.04.566.418 I srv    operator(): operator(): cleaning up before exit...

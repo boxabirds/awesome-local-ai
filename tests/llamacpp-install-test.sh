@@ -115,8 +115,17 @@ assert_eq "renders exactly 5 rows" "5" "$(printf '%s\n' "$TABLE" | grep -c .)"
 echo
 echo "the llamacpp runtime launcher is installable and self-consistent"
 assert_ok "lib/runtime/server-llamacpp.sh exists" test -f "$REPO_ROOT/lib/runtime/server-llamacpp.sh"
-assert_ok "it still execs llama-server" \
-  grep -q 'exec llama-server' "$REPO_ROOT/lib/runtime/server-llamacpp.sh"
+# It must exec the binary belonging to ITS OWN install, not whatever
+# ~/.local/bin/llama-server currently points at -- that symlink is shared by
+# every llama.cpp combination and the last installer wins, so resolving it from
+# PATH let one combination run on another's binary. That matters most when one
+# of them is a fork (bonsai/2/27b tracks PrismML's llama.cpp, not upstream).
+assert_ok "it execs a resolved llama-server path" \
+  grep -q 'exec "\$LLAMA_SERVER_BIN"' "$REPO_ROOT/lib/runtime/server-llamacpp.sh"
+assert_ok "it resolves that path from its own install root" \
+  grep -q 'LLAMA_SERVER_BIN="\${ROOT}/llama.cpp/build/bin/llama-server"' "$REPO_ROOT/lib/runtime/server-llamacpp.sh"
+assert_ok "it does not exec bare llama-server from PATH" \
+  bash -c '! grep -qE "^exec llama-server" "'"$REPO_ROOT"'/lib/runtime/server-llamacpp.sh"' 
 assert_ok "it still reads SAFE_KV_TYPES" \
   grep -q 'SAFE_KV_TYPES' "$REPO_ROOT/lib/runtime/server-llamacpp.sh"
 assert_ok "it still emits --spec-type draft-mtp" \

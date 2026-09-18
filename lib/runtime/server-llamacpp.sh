@@ -226,4 +226,20 @@ if [[ "$VISION" == "1" && -n "$MMPROJ" && -f "$MMPROJ" ]]; then
   ARGS+=(--mmproj "$MMPROJ" --image-min-tokens "${IMAGE_MIN_TOKENS:-1024}")
 fi
 
-exec llama-server "${ARGS[@]}" "$@"
+# Resolve the binary from THIS install, not from PATH. ~/.local/bin/llama-server
+# is a single shared symlink that the most recently installed llama.cpp
+# combination takes over, so trusting PATH means a combination can silently run
+# on another one's binary -- which matters a great deal when one of them is a
+# fork (see combinations/bonsai/2/27b/ubuntu/24GB/llamacpp-opencode). Fall back
+# to PATH only when this install has no binary of its own.
+LLAMA_SERVER_BIN="${ROOT}/llama.cpp/build/bin/llama-server"
+if [[ ! -x "$LLAMA_SERVER_BIN" ]]; then
+  LLAMA_SERVER_BIN="$(command -v llama-server 2>/dev/null || true)"
+  [[ -n "$LLAMA_SERVER_BIN" ]] || {
+    echo "${SERVER_CMD}: no llama-server found for this install (${ROOT})." >&2
+    echo "         Re-run the combination's installer." >&2
+    exit 1; }
+  echo "${SERVER_CMD}: warning: using ${LLAMA_SERVER_BIN} from PATH; this install has no binary of its own." >&2
+fi
+
+exec "$LLAMA_SERVER_BIN" "${ARGS[@]}" "$@"

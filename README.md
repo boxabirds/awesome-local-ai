@@ -45,6 +45,17 @@ half-installing.
 | Qwen3.8-27B | Ubuntu 22.04 | 24GB NVIDIA | llama.cpp + OpenCode | [`install-qwen-3.8-27b-ubuntu-24GB-llamacpp-opencode.sh`](install-qwen-3.8-27b-ubuntu-24GB-llamacpp-opencode.sh) | [README](combinations/qwen/3.8/27b/ubuntu/24GB/llamacpp-opencode/README.md) |
 | Qwen3.8-27B | macOS 26 | 64GB Apple silicon ¹ | MTPLX + OpenCode | [`install-qwen-3.8-27b-macos-64GB-mtplx-opencode.sh`](install-qwen-3.8-27b-macos-64GB-mtplx-opencode.sh) | [README](combinations/qwen/3.8/27b/macos/64GB/mtplx-opencode/README.md) |
 | Qwen3.8-Flash-Next | macOS 26 | 128GB Apple silicon | MTPLX + OpenCode | [`install-qwen-3.8-flash-next-macos-128GB-mtplx-opencode.sh`](install-qwen-3.8-flash-next-macos-128GB-mtplx-opencode.sh) | [README](combinations/qwen/3.8/flash-next/macos/128GB/mtplx-opencode/README.md) |
+| Ternary Bonsai 2 27B ² | Ubuntu 22.04 | 24GB NVIDIA | llama.cpp *(fork)* + OpenCode | [`install-bonsai-2-27b-ubuntu-24GB-llamacpp-opencode.sh`](install-bonsai-2-27b-ubuntu-24GB-llamacpp-opencode.sh) | [README](combinations/bonsai/2/27b/ubuntu/24GB/llamacpp-opencode/README.md) |
+
+² **The Bonsai row does not use upstream llama.cpp.** Bonsai 2 is Qwen3.8-27B
+re-quantised to ternary weights (~1.72 bits/weight, 6.7 GB), and its GGUF types
+sit past upstream's `GGML_TYPE_COUNT` — stock llama.cpp refuses the file. That
+combination tracks the [PrismML fork](https://github.com/PrismML-Eng/llama.cpp)
+instead, which is the one place in this repo where a combination does not float
+on upstream. Measured on the same 4090 as the Qwen row: 2.1x the decode rate at
+depth 0, 1.6x at 128k, 1.3x the prefill, in 6.7 GB instead of 16.7 — and no
+speculative decoding exists for it. Full numbers and the trade-offs:
+[its benchmarks README](combinations/bonsai/2/27b/ubuntu/24GB/llamacpp-opencode/benchmarks/README.md).
 
 ¹ **The 64GB row is extrapolated, not measured.** Both macOS combinations were
 measured on a 128 GB M5 Max. The 27B pack wires 27.9 GB and fits a 64 GB
