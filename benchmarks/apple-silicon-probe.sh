@@ -150,7 +150,7 @@ PQ2="$(find "$DEMO/models" -name '*Bonsai-2*PQ2_0.gguf' -type f 2>/dev/null | he
 PTQ1_PATH="$(find "$DEMO/models" -name "*$PTQ1" -type f 2>/dev/null | head -1)"
 
 if [ -z "$PTQ1_PATH" ]; then
-  _info "fetching the smaller packing ($PTQ1, 5.95 GB) -- the one that matters on 16 GB"
+  _info "fetching $PTQ1 (5.95 GB) as the secondary packing"
   mkdir -p "$DEMO/models"
   PTQ1_PATH="$DEMO/models/$PTQ1"
   curl -L -C - --fail --progress-bar \
@@ -158,9 +158,28 @@ if [ -z "$PTQ1_PATH" ]; then
     || { _warn "download failed; continuing with PQ2_0 only"; PTQ1_PATH=""; }
 fi
 
-[ -n "$PQ2" ] || _warn "no PQ2_0 file found (setup.sh may have chosen a different band)"
+if [ -z "$PQ2" ]; then
+  _info "fetching Ternary-Bonsai-2-27B-PQ2_0.gguf (7.21 GB) -- the packing that"
+  _info "prefills fastest, which is the bottleneck on Apple silicon"
+  PQ2="$DEMO/models/Ternary-Bonsai-2-27B-PQ2_0.gguf"
+  curl -L -C - --fail --progress-bar \
+    "https://huggingface.co/$REPO/resolve/main/Ternary-Bonsai-2-27B-PQ2_0.gguf" -o "$PQ2" \
+    || { _warn "PQ2_0 download failed; falling back to PTQ1_0"; PQ2=""; }
+fi
 [ -n "$PTQ1_PATH" ] || [ -n "$PQ2" ] || _die "no usable .gguf found at all."
-PRIMARY="${PTQ1_PATH:-$PQ2}"
+# PQ2_0 is the primary, NOT the smaller PTQ1_0, and the reason is worth stating
+# because the first version of this probe got it backwards.
+#
+# PTQ1_0 was chosen originally to save 1.26 GB on a 16 GB machine. But memory is
+# not what binds here: the measured M2 run held a 262144 context in 7032 MiB and
+# left ~9 GB unused. What binds is PREFILL, which is compute-bound -- and
+# PTQ1_0's dense base-3 trit packing has to be unpacked with arithmetic, in
+# exactly the phase that has no arithmetic to spare. Measured on a 4090, that
+# costs it half its prefill: 1597 tok/s against PQ2_0's 3016.
+#
+# So a machine short on compute should run the packing that is cheaper to
+# decode, not the one that is smaller on disk.
+PRIMARY="${PQ2:-$PTQ1_PATH}"
 _info "primary model: $(basename "$PRIMARY")"
 [ -n "$PQ2" ] && _info "also found:    $(basename "$PQ2")"
 
