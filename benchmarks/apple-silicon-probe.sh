@@ -197,7 +197,20 @@ say '```'
 sed "s|$HOME|\$HOME|g" "$SAMPLE" | tail -40 | tee -a "$RESULT"
 say '```' 
 say ""
-if grep -qE '\bdef \b|return ' "$SAMPLE"; then
+# An empty capture and a coherent-but-code-free answer are different failures
+# and must not print the same warning. On a 16 GB M2 the sample came back
+# 0 bytes while the very same prompt, run by hand, generated fine -- so the
+# plumbing is the suspect here, not the weights.
+if [ ! -s "$SAMPLE" ]; then
+  _warn "The sample file is EMPTY -- llama-cli wrote nothing to it. This is a"
+  _warn "capture failure, NOT evidence about the model. Run the same command by"
+  _warn "hand, without the redirect, before you conclude anything:"
+  _warn "  $BIN/llama-cli -m $PRIMARY -ngl 99 -fa on -c 4096 --single-turn \\"
+  _warn "    -n 700 --reasoning-effort medium -p 'Write a Python function that"
+  _warn "    reverses a linked list. Code only.'"
+  say "_Automated heuristic: **capture was empty** -- the probe recorded nothing,"
+  say "which says nothing about the model. Re-run the prompt by hand._"
+elif grep -qE '\bdef \b|return ' "$SAMPLE"; then
   _info "looks like code -- good sign"
   say "_Automated heuristic: found Python-shaped output._"
 else

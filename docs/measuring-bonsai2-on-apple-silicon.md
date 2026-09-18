@@ -48,9 +48,12 @@ One first-party run, on a fanless MacBook Air M2:
 
 It corroborates the fanless story above — a 44.6% fall first-to-last, against
 PR #164's 47% — and it is the first of these rows that is actually Bonsai 2.
-It is **not** a combination yet: the probe's coherence check came back empty,
-so the rate is confirmed and the output quality is not. See that report's
-README for what still has to be closed.
+
+The generation is coherent: the blank section A in that report is a capture
+bug, confirmed by running the prompt by hand. But the output is verbose and
+repeats the same code three times, so the *useful* rate is roughly a third of
+the figure above. The MLX rows are not known to be repetition-matched, which
+is one more reason not to read this table as a league table.
 
 ## Why those numbers are still not good enough
 

@@ -23,21 +23,34 @@ The thermal decline is the finding. A fanless M2 gives up nearly half its rate
 by the fifth consecutive run, which matches the M3 Air column in the
 third-party table and not the fan-cooled M1 one.
 
-## This is not yet a combination
+## Coherence: checked by hand, and it passes
 
-**Section A, the coherence check, came back empty.** The probe captured no
-output and flagged it for a human. Until someone confirms this model emits
-sensible text on this machine, every tok/s figure above is a rate for tokens
-of unverified content — and `measuring-bonsai2-on-apple-silicon.md` is explicit
-that coherence is checked *before* any throughput number is recorded.
+Section A of the report is blank because the probe captured nothing —
+`.sample.txt` came back 0 bytes. That is a **capture failure, not a model
+failure**, and the automated heuristic below it cried wolf. The probe has since
+been taught to tell those two cases apart.
 
-Still open, from the probe's own operator notes:
+The operator ran the same prompt by hand. The model generates correctly. Two
+observations worth carrying forward:
 
-- Was the section A output actually sensible prose/code?
-- Any stalls, beachballs or memory pressure?
+- The output is **verbose**.
+- It emits **the same code three times** in one answer.
+
+That second point is the one with teeth. At 3.83 tok/s, tripling the answer
+triples the wait: the *useful* rate on this machine is nearer **1.3 tok/s
+equivalent** for a single copy of the code. Any comparison against the
+third-party MLX numbers above has to say whether those runs were similarly
+repetitive, or it is not comparing like with like.
+
+Still unanswered, and only the operator can:
+
+- Any stalls, beachballs or memory pressure during the soak?
 - Did the chassis get hot, and what else was running?
 
-So this lives in `docs/research/` as evidence, not in
-`combinations/bonsai/2/27b/macos/16GB/`. Promoting it needs the coherence
-gap closed and the `config.sh` / `profiles.tsv` / `help.txt` / installer set
-that [adding a combination](../../adding-a-combination.md) requires.
+## Why this is still not a combination
+
+Coherence is settled; the rest of the furniture is not. Promoting this to
+`combinations/bonsai/2/27b/macos/16GB/` needs the `config.sh` /
+`profiles.tsv` / `help.txt` / installer set that
+[adding a combination](../../adding-a-combination.md) requires — plus a view on
+whether a model that triples its output is worth shipping a profile for.
