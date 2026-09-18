@@ -12,7 +12,11 @@
 #
 #   ./apple-silicon-probe.sh              full run
 #   ./apple-silicon-probe.sh --quick      skip the thermal soak (first look only)
+#   ./apple-silicon-probe.sh --only ceiling,kv    just those sections
 #   ./apple-silicon-probe.sh --help
+#
+# Sections: coherence, headline, thermal, ceiling, kv  (default: all of these)
+#           depth                                        (opt-in; slow, prefills)
 #
 # bash 3.2 compatible: stock macOS /bin/bash is 3.2.57.
 
@@ -25,9 +29,17 @@ THERMAL_RUNS="${THERMAL_RUNS:-5}"
 QUICK=0
 REPO="prism-ml/Ternary-Bonsai-2-27B-gguf"
 PTQ1="Ternary-Bonsai-2-27B-PTQ1_0.gguf"
+# `depth` is deliberately NOT in the default set: it is the only section that
+# prefills a long context, and on Apple silicon that is minutes to tens of
+# minutes. Add it explicitly with --only depth when you actually want it.
+ONLY="coherence,headline,thermal,ceiling,kv"
+
+# wanted <section> -- is this section in the --only list?
+wanted() { case ",$ONLY," in *",$1,"*) return 0 ;; *) return 1 ;; esac; }
 
 while [ $# -gt 0 ]; do
   case "$1" in
+    --only) ONLY="${2:-}"; [ -n "$ONLY" ] || { echo "--only needs a list" >&2; exit 2; }; shift 2 ;;
     --quick) QUICK=1; COOLDOWN=10; THERMAL_RUNS=3; shift ;;
     --help|-h)
       sed -n '2,20p' "$0" | sed 's/^# \{0,1\}//'
@@ -47,14 +59,31 @@ _die()  { printf '\033[31mFATAL: %s\033[0m\n' "$*" >&2; exit 1; }
 # Everything that lands in the report goes through here, so the scrub is not
 # something anyone has to remember.
 say() { printf '%s\n' "$*" >> "$RESULT"; }
+# Run a command, tee its output into the report, and print a heartbeat while it
+# works. Without the heartbeat a slow step is indistinguishable from a hang --
+# which is exactly how the first version of this script looked on a Mac.
 run_into_report() {
   # run_into_report <label> <cmd...>
   local label="$1"; shift
-  _info "$label"
+  local t0 out rc
+  t0=$(date +%s)
+  out="$WORK/.step.$$"
+  _info "$label (running; a dot every 15s)"
+  "$@" > "$out" 2>&1 &
+  local pid=$!
+  while kill -0 "$pid" 2>/dev/null; do
+    sleep 15
+    printf '.'
+  done
+  wait "$pid"; rc=$?
+  printf ' %ss\n' "$(( $(date +%s) - t0 ))"
   say '```'
-  "$@" 2>&1 | sed "s|$HOME|\$HOME|g" | tee -a "$RESULT" | grep -E '^\||error|Error|failed' || true
+  sed "s|$HOME|\$HOME|g" "$out" >> "$RESULT"
   say '```'
   say ""
+  grep -E '^\||error|Error|failed' "$out" | head -8
+  rm -f "$out"
+  return $rc
 }
 
 # ---- preflight ------------------------------------------------------------
@@ -144,6 +173,7 @@ say '```'
 say ""
 
 # ---- 3. does it generate sense? -------------------------------------------
+if wanted coherence; then
 _step "3/6  Coherence check -- READ THIS OUTPUT YOURSELF"
 say "## A. Coherence check"
 say ""
@@ -172,6 +202,9 @@ fi
 say ""
 
 # ---- 4. headline throughput ----------------------------------------------
+fi
+
+if wanted headline; then
 _step "4/6  Headline throughput"
 say "## B. Headline (pp512 / tg128)"
 say ""
@@ -182,6 +215,9 @@ else
 fi
 
 # ---- 5. thermals ----------------------------------------------------------
+fi
+
+if wanted thermal; then
 _step "5/6  Thermal soak -- ${THERMAL_RUNS} consecutive runs"
 say "## C. Thermal soak"
 say ""
@@ -241,17 +277,67 @@ say '```'
 say ""
 
 # ---- 6. context ceiling and KV types --------------------------------------
+fi
+
+if wanted ceiling; then
 _step "6/6  Context ceiling and KV types"
 say "## D. Context ceiling"
 say ""
-say "First entry that fails is the ceiling on this machine."
+say "Whether a context ALLOCATES, which is what decides the profile table. This"
+say "deliberately does not prefill: filling 128k on a Mac at ~50 tok/s prompt"
+say "rate would take the better part of an hour per row and measure decode"
+say "decay, not whether the context fits."
 say ""
-for CTX in 8192 32768 65536 131072; do
-  say "**ctx target $CTX**"
-  run_into_report "ctx $CTX" "$BIN/llama-bench" -m "$PRIMARY" -n 128 -p 0 \
-      -d $((CTX - 256)) -fa 1 -ngl 99 -r 1 -ctk q4_0 -ctv q4_0
+CEILING="none"
+for CTX in 8192 32768 65536 131072 262144; do
+  _info "ctx $CTX: loading..."
+  SRV_LOG="$WORK/.srv-$CTX.txt"
+  "$BIN/llama-server" -m "$PRIMARY" -ngl 99 -fa on -c "$CTX" \
+      -ctk q4_0 -ctv q4_0 -np 1 --host 127.0.0.1 --port 18099 > "$SRV_LOG" 2>&1 &
+  SRV=$!
+  ok_load=0
+  w=0
+  while [ "$w" -lt 180 ]; do
+    kill -0 "$SRV" 2>/dev/null || break
+    if curl -sf http://127.0.0.1:18099/health >/dev/null 2>&1; then ok_load=1; break; fi
+    sleep 2; w=$((w + 2))
+  done
+  if [ "$ok_load" -eq 1 ]; then
+    RSS=$(ps -o rss= -p "$SRV" 2>/dev/null | awk '{printf "%.0f", $1/1024}')
+    say "- ctx **$CTX**: OK, resident ${RSS} MiB"
+    _info "ctx $CTX: OK (${RSS} MiB resident)"
+    CEILING="$CTX"
+  else
+    say "- ctx **$CTX**: FAILED"
+    say '```'
+    grep -iE 'error|out of memory|alloc|failed' "$SRV_LOG" | head -4 >> "$RESULT"
+    say '```'
+    _warn "ctx $CTX FAILED -- this is the ceiling"
+    kill "$SRV" 2>/dev/null; wait "$SRV" 2>/dev/null
+    break
+  fi
+  kill "$SRV" 2>/dev/null; wait "$SRV" 2>/dev/null
+  sleep 3
 done
+say ""
+say "Largest context that loaded: **$CEILING**"
+say ""
 
+if wanted depth; then
+say "### Decode at depth"
+say ""
+say "OPT-IN (--only depth). Prefilling is slow on Apple silicon -- at ~50 tok/s"
+say "prompt rate an 8k sample costs minutes and a 128k one costs most of an"
+say "hour -- so no default run does it."
+say ""
+run_into_report "decode at depth 8192 (slow: prefills 8k tokens)" \
+    "$BIN/llama-bench" -m "$PRIMARY" -n 128 -p 0 \
+    -d 8192 -fa 1 -ngl 99 -r 1 -ctk q4_0 -ctv q4_0
+fi
+
+fi
+
+if wanted kv; then
 say "## E. KV cache types"
 say ""
 say "On CUDA, q5_1 fell off a cliff -- 28 tok/s against 3015 -- with no warning,"
@@ -263,6 +349,8 @@ for KV in f16 q8_0 q4_0 q5_1; do
 done
 
 # ---- close ----------------------------------------------------------------
+fi
+
 say "## Notes from the operator"
 say ""
 say "The thermal decline and the coherence sample are both above; whoever or"
