@@ -83,6 +83,7 @@ and change the values. Required variables (`lib/bootstrap.sh` enforces these):
 | `DEFAULT_PROFILE`, `SAFE_KV_TYPES`, `SAMPLING_THINKING` | serving defaults |
 | `REASONING_EFFORT_DEFAULT`, `REASONING_EFFORTS` | *(optional)* default effort level, and the levels the model's template accepts. Check the template before setting these — Qwen3.8's defaults to `xhigh` when the field is unset and **raises** on a level it does not know, so an unvalidated value breaks every request |
 | `DEFAULT_PROVIDER`, `CONTEXT_LIMIT`, `OUTPUT_LIMIT` | client config values |
+| `LLAMA_REPO_URL`, `LLAMA_BRANCH` | *(optional, `llamacpp` backend)* where to get llama.cpp. Defaults to `ggml-org/llama.cpp` + `master`. Set them only when the weights need kernels that are not upstream — `bonsai/2/27b/ubuntu/24GB/llamacpp-opencode` does, because stock llama.cpp refuses its GGUF types outright. A combination that sets these stops floating on upstream, and `lib/verify.sh`'s rollback returns it to the last verified commit *of that fork*. Changing them re-keys the build, so the checkout is re-pointed and rebuilt rather than silently updated from the wrong remote |
 
 `MODEL_ASSETS` is one `repo|filename|role|approx-size` record per line. Role
 `model` is required; `mmproj` (vision) and `mtp` (speculative decoding) are

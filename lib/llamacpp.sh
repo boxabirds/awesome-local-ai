@@ -22,6 +22,19 @@ PROFILE_SCHEMA="name|ctx|kv_type|vision|np|ub|need_mib|summary"
 # The checkout is this backend's business; nothing outside it needs the path.
 LLAMA_DIR="${LLAMA_DIR:-${INSTALL_ROOT}/llama.cpp}"
 
+# WHERE llama.cpp comes from. Upstream by default, but a combination may point
+# at a fork when its weights need kernels that are not upstream yet -- see
+# combinations/bonsai/2/27b/ubuntu/24GB/llamacpp-opencode, whose ternary types
+# stock llama.cpp refuses outright. Keeping this a variable rather than a
+# second backend module is what docs/adding-a-combination.md asks for: the
+# thing that varies is data, not logic.
+#
+# A combination that sets these owns the consequence: it no longer floats on
+# upstream, and the rollback in lib/verify.sh returns it to the last verified
+# commit OF THAT FORK.
+LLAMA_REPO_URL="${LLAMA_REPO_URL:-https://github.com/ggml-org/llama.cpp.git}"
+LLAMA_BRANCH="${LLAMA_BRANCH:-master}"
+
 ensure_backend() { ensure_llama_cpp; }
 
 # profiles.tsv for this backend is name|ctx|kv_type|vision|np|ub|need_mib|summary.
@@ -72,14 +85,23 @@ ensure_llama_cpp() {
     if [[ "${SKIP_BACKEND_UPDATE:-0}" == "1" ]]; then
       info "SKIP_BACKEND_UPDATE=1 -- keeping the existing llama.cpp checkout."
     else
-      info "Existing llama.cpp source found. Updating..."
-      git -C "$LLAMA_DIR" fetch --depth 1 origin master --prune
-      git -C "$LLAMA_DIR" checkout -q master 2>/dev/null || true
-      git -C "$LLAMA_DIR" reset --hard -q origin/master
+      # A checkout made before the combination changed its source would
+      # otherwise be updated from the WRONG repository, silently building
+      # upstream where a fork was asked for. Re-point it instead.
+      local have_url; have_url="$(git -C "$LLAMA_DIR" remote get-url origin 2>/dev/null || true)"
+      if [[ "$have_url" != "$LLAMA_REPO_URL" ]]; then
+        info "llama.cpp remote is ${have_url:-unset}; re-pointing at ${LLAMA_REPO_URL}."
+        git -C "$LLAMA_DIR" remote set-url origin "$LLAMA_REPO_URL"
+        need_rebuild=1
+      fi
+      info "Existing llama.cpp source found. Updating (${LLAMA_BRANCH})..."
+      git -C "$LLAMA_DIR" fetch --depth 1 origin "$LLAMA_BRANCH" --prune
+      git -C "$LLAMA_DIR" checkout -q "$LLAMA_BRANCH" 2>/dev/null || true
+      git -C "$LLAMA_DIR" reset --hard -q "origin/${LLAMA_BRANCH}"
     fi
   else
-    info "Cloning llama.cpp..."
-    git clone --depth 1 https://github.com/ggml-org/llama.cpp.git "$LLAMA_DIR"
+    info "Cloning llama.cpp from ${LLAMA_REPO_URL} (${LLAMA_BRANCH})..."
+    git clone --depth 1 --branch "$LLAMA_BRANCH" "$LLAMA_REPO_URL" "$LLAMA_DIR"
     need_rebuild=1
   fi
 
@@ -124,7 +146,7 @@ ensure_llama_cpp() {
 _llamacpp_build_key() {
   local curl_state="off"
   _have_curl_dev && curl_state="on"
-  printf '%s;curl=%s' "$(accel_build_key)" "$curl_state"
+  printf '%s;curl=%s;src=%s#%s' "$(accel_build_key)" "$curl_state" "$LLAMA_REPO_URL" "$LLAMA_BRANCH"
 }
 
 # Build whatever the checkout currently holds. Kept separate from
@@ -194,11 +216,19 @@ _llamacpp_build() {
   ok "llama.cpp built."
 }
 
+# Convenience symlinks for interactive use. These are SHARED across every
+# llama.cpp combination and the most recent install wins, so they are not what
+# the runtime resolves -- lib/runtime/server-llamacpp.sh uses the binary inside
+# its own install root. Per-install names are also linked so a second
+# combination does not leave you without a way to reach the first one's build.
 _llamacpp_link() {
-  ln -sfn "${LLAMA_DIR}/build/bin/llama-server" "${BIN_DIR}/llama-server"
-  [[ -x "${LLAMA_DIR}/build/bin/llama-cli" ]] && \
-    ln -sfn "${LLAMA_DIR}/build/bin/llama-cli" "${BIN_DIR}/llama-cli"
-  ok "llama-server -> ${BIN_DIR}/llama-server"
+  local b
+  for b in llama-server llama-cli llama-bench; do
+    [[ -x "${LLAMA_DIR}/build/bin/${b}" ]] || continue
+    ln -sfn "${LLAMA_DIR}/build/bin/${b}" "${BIN_DIR}/${b}"
+    ln -sfn "${LLAMA_DIR}/build/bin/${b}" "${BIN_DIR}/${b}-${INSTALL_ID}"
+  done
+  ok "llama-server -> ${BIN_DIR}/llama-server (shared; also ${BIN_DIR}/llama-server-${INSTALL_ID})"
 }
 
 # ---- recovery -------------------------------------------------------------
@@ -224,7 +254,7 @@ backend_rollback_to() {
 
   # A shallow clone may no longer hold the object; ask origin for it directly.
   if ! git -C "$LLAMA_DIR" rev-parse --verify -q "${ref}^{commit}" >/dev/null 2>&1; then
-    info "Fetching llama.cpp ${ref} from origin..."
+    info "Fetching llama.cpp ${ref} from ${LLAMA_REPO_URL}..."
     git -C "$LLAMA_DIR" fetch --depth 1 origin "$ref" >/dev/null 2>&1 || {
       warn "llama.cpp ${ref} is no longer available from origin; cannot roll back."
       return 1; }

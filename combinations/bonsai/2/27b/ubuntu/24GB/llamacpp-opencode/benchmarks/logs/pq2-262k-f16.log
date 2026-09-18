@@ -1,0 +1,17 @@
+0.00.064.473 I cmn  common_param: common_params_print_info: verbosity = 3 (adjust with the `-lv N` CLI arg)
+0.00.064.809 W srv  llama_server: -----------------
+0.00.064.811 W srv  llama_server: CORS is set to allow all origins ('*') and no API key is set
+0.00.064.811 W srv  llama_server: this can be a security risk (cross-origin attacks)
+0.00.064.811 W srv  llama_server: more info: https://github.com/ggml-org/llama.cpp/pull/25655
+0.00.064.811 W srv  llama_server: -----------------
+0.00.066.068 I srv    load_model: loading model '$HOME/.local/share/bonsai2-27b/models/Ternary-Bonsai-2-27B-PQ2_0.gguf'
+0.00.441.107 W common_fit_params: failed to fit params to free device memory: n_gpu_layers already set by user to 99, abort
+0.01.415.150 E ggml_backend_cuda_buffer_type_alloc_buffer: allocating 390.02 MiB on device 0: cudaMalloc failed: out of memory
+0.01.415.154 E ggml_gallocr_reserve_n_impl: failed to allocate CUDA0 buffer of size 408961280
+0.01.415.154 E graph_reserve: failed to allocate compute buffers
+0.01.421.371 E llama_init_from_model: failed to initialize the context: failed to allocate compute pp buffers
+0.01.421.375 E cmn  common_init_: failed to create context with model '$HOME/.local/share/bonsai2-27b/models/Ternary-Bonsai-2-27B-PQ2_0.gguf'
+0.01.421.377 E cmn  common_init_: failed to create context with model '$HOME/.local/share/bonsai2-27b/models/Ternary-Bonsai-2-27B-PQ2_0.gguf'
+0.01.421.380 E srv    load_model: failed to create_context with model '$HOME/.local/share/bonsai2-27b/models/Ternary-Bonsai-2-27B-PQ2_0.gguf'
+0.01.421.382 I srv    operator(): operator(): cleaning up before exit...
+0.01.422.416 E srv  llama_server: exiting due to model loading error

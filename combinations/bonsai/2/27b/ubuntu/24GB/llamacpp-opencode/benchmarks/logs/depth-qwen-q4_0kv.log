@@ -1,0 +1,10 @@
+ggml_cuda_init: found 1 CUDA devices (Total VRAM: 24047 MiB):
+  Device 0: NVIDIA GeForce RTX 4090, compute capability 8.9, VMM: yes, VRAM: 24047 MiB
+| model                          |       size |     params | backend    | ngl | n_ubatch | type_k | type_v |  fa |            test |                  t/s |
+| ------------------------------ | ---------: | ---------: | ---------- | --: | -------: | -----: | -----: | --: | --------------: | -------------------: |
+| qwen35 27B Q4_K - Small        |  16.68 GiB |    27.32 B | CUDA       |  99 |      256 |   q4_0 |   q4_0 |   1 |           tg128 |         46.05 ± 0.15 |
+| qwen35 27B Q4_K - Small        |  16.68 GiB |    27.32 B | CUDA       |  99 |      256 |   q4_0 |   q4_0 |   1 |   tg128 @ d8192 |         44.86 ± 0.22 |
+| qwen35 27B Q4_K - Small        |  16.68 GiB |    27.32 B | CUDA       |  99 |      256 |   q4_0 |   q4_0 |   1 |  tg128 @ d32768 |         41.63 ± 0.11 |
+| qwen35 27B Q4_K - Small        |  16.68 GiB |    27.32 B | CUDA       |  99 |      256 |   q4_0 |   q4_0 |   1 | tg128 @ d131072 |         32.38 ± 0.04 |
+
+build: 972d231 (1)
