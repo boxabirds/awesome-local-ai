@@ -37,6 +37,21 @@ the sustained one (~6). The fan-cooled M1 reports no throttling at all.
 So on a fanless Air, expect the first minute to flatter the machine, and treat
 any single average as suspect.
 
+## What this repo has measured on 16 GB
+
+One first-party run, on a fanless MacBook Air M2:
+[probe report, 2026-09-18](research/20260918-bonsai2-apple-silicon-m2-16gb/).
+
+| machine | cooling | model | runtime | generation |
+|---|---|---|---|---|
+| MacBook Air M2 16GB | **fanless** | Bonsai 2 27B PTQ1_0 | llama.cpp / Metal | 3.83 ± 0.28 tok/s tg128; 7.63 → 4.23 over five soak runs |
+
+It corroborates the fanless story above — a 44.6% fall first-to-last, against
+PR #164's 47% — and it is the first of these rows that is actually Bonsai 2.
+It is **not** a combination yet: the probe's coherence check came back empty,
+so the rate is confirmed and the output quality is not. See that report's
+README for what still has to be closed.
+
 ## Why those numbers are still not good enough
 
 - **None of them is Bonsai 2.** It is a different build at 5.9-7.2 GB against
