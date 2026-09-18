@@ -123,9 +123,6 @@ for evidence:
 
 - `bf16` KV is absent from `SAFE_KV_TYPES` because it was not measured, not
   because it is known bad.
-- Whether `low` reasoning effort really behaves like `xhigh` (the card says so)
-  was not established — one prompt at temperature 1.0 suggested otherwise,
-  which proves nothing. Run [`benchmarks/effort.sh`](../../../../../../../benchmarks/effort.sh).
 - Retrieval quality at 262k was not measured. The context *fits*; whether the
   model uses it well is a separate question, and
   [`benchmarks/run-niah.sh`](../../../../../../../benchmarks/run-niah.sh) is the
