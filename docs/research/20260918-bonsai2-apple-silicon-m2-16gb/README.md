@@ -140,6 +140,48 @@ is where it now binds. That is the same conclusion the 24GB combination reached
 from the other direction, when two co-resident servers turned out to be limited
 by compute rather than VRAM.
 
+## Why 27 tok/s, when the machine has 100 GB/s
+
+Because 100 GB/s is a statement about decode, and the number that hurts is
+prefill. They are bound by different things.
+
+**Decode is bandwidth-bound and behaves exactly as the spec predicts.** Batch-1
+decoding streams every weight once per token — 5.94 GB — so the ceiling is
+100 / 5.94 = **16.8 tok/s**. The cold 7.63 tok/s is 45.3 GB/s of effective
+bandwidth, about 65% of what a base M2's GPU realistically reaches. Unremarkable.
+
+**Prefill is compute-bound and bandwidth says nothing about it.** Processing 512
+tokens loads each weight once and reuses it across all 512, so arithmetic
+intensity is ~512x higher and FLOPS is the ceiling:
+
+| | achieved | share of peak |
+|---|---|---|
+| M2 Air, sustained | 1.46 TFLOPS | 21% |
+| M2 Air, cold | 2.27 TFLOPS | 32% |
+| RTX 4090 | 88.8 TFLOPS | 54% |
+
+Raw FLOPS gap 24x (≈7 against ≈165 TFLOPS fp16), utilisation gap 2.6x, product
+**61x** — against a measured PTQ1_0 gap of 1645/27 = **61x**. The arithmetic
+closes, so nothing here is unexplained.
+
+## The packing was the wrong one, and for an instructive reason
+
+This run used `PTQ1_0`, chosen because it is 1.26 GB smaller and the machine has
+only 16 GB. That reasoning was wrong, and the run above is what proves it:
+memory never came close to binding — 262144 of context fitted in 7032 MiB with
+~9 GB spare.
+
+Meanwhile `PTQ1_0` packs trits densely in base 3 and has to unpack them with
+arithmetic, in the one phase that has no arithmetic to spare. Measured on the
+4090, that costs half the prefill rate: **1597 tok/s against PQ2_0's 3016**.
+
+So the slowest-prefilling packing was benchmarked on the most prefill-starved
+machine, to save memory that was not scarce. If the same ratio holds on Metal,
+`PQ2_0` would put this machine nearer 40-55 tok/s of prefill and a 32k prompt
+nearer 10-13 minutes. That does not change the verdict — it is still not an
+agent — but the 27 tok/s figure should not be quoted as Bonsai 2's prefill rate
+on an M2. The probe now downloads `PQ2_0` and makes it primary.
+
 ## Why this is still not a combination
 
 Coherence is settled and the furniture is buildable: `config.sh` /
