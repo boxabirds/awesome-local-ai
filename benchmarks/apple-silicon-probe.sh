@@ -15,7 +15,7 @@
 #   ./apple-silicon-probe.sh --only ceiling,kv    just those sections
 #   ./apple-silicon-probe.sh --help
 #
-# Sections: coherence, headline, thermal, ceiling, kv  (default: all of these)
+# Sections: coherence, headline, thermal, ceiling, kv, power  (default: all)
 #           depth                                        (opt-in; slow, prefills)
 #
 # bash 3.2 compatible: stock macOS /bin/bash is 3.2.57.
@@ -32,7 +32,7 @@ PTQ1="Ternary-Bonsai-2-27B-PTQ1_0.gguf"
 # `depth` is deliberately NOT in the default set: it is the only section that
 # prefills a long context, and on Apple silicon that is minutes to tens of
 # minutes. Add it explicitly with --only depth when you actually want it.
-ONLY="coherence,headline,thermal,ceiling,kv"
+ONLY="coherence,headline,thermal,ceiling,kv,power"
 
 # wanted <section> -- is this section in the --only list?
 wanted() { case ",$ONLY," in *",$1,"*) return 0 ;; *) return 1 ;; esac; }
@@ -119,6 +119,7 @@ say '```'
   echo "macos:     $(sw_vers -productVersion 2>/dev/null)"
   echo "model:     $(sysctl -n hw.model 2>/dev/null)"
   echo "wired_limit_mb: $(sysctl -n iogpu.wired_limit_mb 2>/dev/null || echo unset)"
+  echo "gpu_cores: $(system_profiler SPDisplaysDataType 2>/dev/null | awk -F': ' '/Total Number of Cores/{print $2; exit}' || echo unknown)"
 } | tee -a "$RESULT"
 say '```'
 say ""
@@ -404,6 +405,69 @@ for KV in f16 q8_0 q4_0 q5_1; do
 done
 
 # ---- close ----------------------------------------------------------------
+fi
+
+if wanted power; then
+_step "Power -- what the chip is actually allowed to spend"
+say "## F. Power and energy per token"
+say ""
+say "Joules per token is the number that makes a laptop and a desktop GPU"
+say "comparable. A 27B forward pass costs what it costs; the difference between"
+say "machines is largely how many watts they are permitted to spend on it."
+say "For reference, Prism ML publish 2.58 J/token for an RTX 4090 (91.1 tok/s"
+say "at roughly 235 W board power)."
+say ""
+PM_LOG="$WORK/.powermetrics.txt"
+if ! command -v powermetrics >/dev/null 2>&1; then
+  say "_powermetrics not available; skipped._"
+  _warn "powermetrics not found -- skipping the power section"
+elif ! sudo -n true 2>/dev/null; then
+  say "_Skipped: powermetrics needs sudo and no cached credential was available._"
+  say "_Run \`sudo -v\` then re-run with \`--only power\` to fill this in._"
+  _warn "powermetrics needs sudo. Run 'sudo -v' first, then: $0 --only power"
+else
+  _info "sampling GPU power while generating (about 90s)"
+  sudo -n powermetrics --samplers gpu_power -i 1000 -n 120 > "$PM_LOG" 2>&1 &
+  PM=$!
+  "$BIN/llama-bench" -m "$PRIMARY" -p 0 -n 128 -fa 1 -ngl 99 -r 3 > "$WORK/.pwr-bench.txt" 2>&1
+  kill "$PM" 2>/dev/null; wait "$PM" 2>/dev/null
+
+  say '```'
+  sed "s|$HOME|\$HOME|g" "$WORK/.pwr-bench.txt" | grep -E '^\|' | tee -a "$RESULT"
+  say '```'
+  say ""
+  # mW or W, whichever this macOS prints
+  python3 - "$PM_LOG" "$WORK/.pwr-bench.txt" 2>/dev/null <<'PYEOF' | tee -a "$RESULT"
+import re, sys
+pm = open(sys.argv[1], errors="ignore").read()
+vals = [float(m) for m in re.findall(r'GPU Power:\s*([0-9.]+)\s*mW', pm)]
+unit = "mW"
+if not vals:
+    vals = [float(m)*1000 for m in re.findall(r'GPU Power:\s*([0-9.]+)\s*W', pm)]
+    unit = "W"
+comb = [float(m) for m in re.findall(r'Combined Power \(CPU \+ GPU \+ ANE\):\s*([0-9.]+)\s*mW', pm)]
+bench = open(sys.argv[2], errors="ignore").read()
+tg = re.search(r'tg128\s*\|\s*([0-9.]+)', bench)
+print("```")
+if not vals:
+    print("  powermetrics produced no GPU Power samples; see .powermetrics.txt")
+else:
+    busy = sorted(vals)[len(vals)//2:]          # upper half: the samples under load
+    w = sum(busy)/len(busy)/1000.0
+    print("  GPU power under load : %.1f W   (median-upper of %d samples)" % (w, len(vals)))
+    if comb:
+        cbusy = sorted(comb)[len(comb)//2:]
+        print("  CPU+GPU+ANE          : %.1f W" % (sum(cbusy)/len(cbusy)/1000.0))
+    if tg:
+        t = float(tg.group(1))
+        print("  generation           : %.2f tok/s" % t)
+        print("  ENERGY PER TOKEN     : %.2f J/token   (GPU rail only)" % (w/t))
+        print("  RTX 4090 reference   : 2.58 J/token at 91.1 tok/s (~235 W)")
+        print("  ratio                : this machine spends %.2fx the energy per token" % ((w/t)/2.58))
+print("```")
+PYEOF
+  say ""
+fi
 fi
 
 say "## Notes from the operator"
