@@ -22,7 +22,18 @@
 
 set -uo pipefail
 
+# Two locations, deliberately different things.
+#
+# WORK holds the llama.cpp clone and 13+ GB of weights. It stays OUT of the
+# repo -- .gitignore blocks *.gguf and build/ for good reason, and nobody wants
+# a git status full of model files.
+#
+# RESULT is the one small artefact worth keeping, so it lands IN the repo, next
+# to this script, where the person who ran it will actually find it. It
+# defaulted to the work directory once and cost two people a hunt through the
+# filesystem. Not benchmarks/results/ either -- .gitignore excludes that.
 WORK="${BONSAI_PROBE_DIR:-$HOME/bonsai2-probe}"
+PROBE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)"
 DEMO="$WORK/Bonsai-demo"
 COOLDOWN="${COOLDOWN:-180}"
 THERMAL_RUNS="${THERMAL_RUNS:-5}"
@@ -48,7 +59,7 @@ while [ $# -gt 0 ]; do
   esac
 done
 
-RESULT="$WORK/bonsai2-$(hostname -s 2>/dev/null || echo mac)-$(date +%Y%m%d-%H%M).md"
+RESULT="${RESULT:-$PROBE_DIR/bonsai2-$(hostname -s 2>/dev/null || echo mac)-$(date +%Y%m%d-%H%M).md}"
 
 # ---- output helpers -------------------------------------------------------
 _step() { printf '\n\033[36m==> %s\033[0m\n' "$*"; }
@@ -99,7 +110,8 @@ FREE_GB=$(df -g "$HOME" 2>/dev/null | awk 'NR==2{print $4}')
 if [ -n "${FREE_GB:-}" ] && [ "$FREE_GB" -lt 25 ] 2>/dev/null; then
   _warn "Only ${FREE_GB} GB free on \$HOME; this needs about 25 GB. Continuing anyway."
 fi
-_info "work dir: $WORK"
+_info "report  -> $RESULT"
+_info "scratch -> $WORK   (clone + weights, stays out of the repo)"
 mkdir -p "$WORK" || _die "cannot create $WORK"
 
 # ---- report header --------------------------------------------------------
@@ -516,6 +528,7 @@ say ""
 
 _step "Done"
 _info "Report: $RESULT"
+_info "  (in the repo, next to this script -- commit it or paste it)"
 _info ""
 _info "Please fill in the 'Notes from the operator' section at the bottom --"
 _info "the thermal question in particular cannot be measured from inside."
