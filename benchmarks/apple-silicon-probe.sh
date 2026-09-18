@@ -187,39 +187,46 @@ say "show a reasoning block and no code, and the heuristic below would cry wolf.
 say "Its card states \`low\` is not supported, so \`medium\` is the floor."
 say ""
 SAMPLE="$WORK/.sample.txt"
-"$BIN/llama-cli" -m "$PRIMARY" -ngl 99 -fa on -c 4096 --single-turn -n 700 \
-  --reasoning-effort medium \
-  --temp 1.0 --top-p 0.95 --top-k 20 \
-  -p "Write a Python function that reverses a linked list. Code only." \
-  > "$SAMPLE" 2>&1
-# tee to stdout AND the report; /dev/tty would break under redirection.
-say '```'
-sed "s|$HOME|\$HOME|g" "$SAMPLE" | tail -40 | tee -a "$RESULT"
-say '```' 
-say ""
-# An empty capture and a coherent-but-code-free answer are different failures
-# and must not print the same warning. On a 16 GB M2 the sample came back
-# 0 bytes while the very same prompt, run by hand, generated fine -- so the
-# plumbing is the suspect here, not the weights.
-if [ ! -s "$SAMPLE" ]; then
-  _warn "The sample file is EMPTY -- llama-cli wrote nothing to it. This is a"
-  _warn "capture failure, NOT evidence about the model. Run the same command by"
-  _warn "hand, without the redirect, before you conclude anything:"
-  _warn "  $BIN/llama-cli -m $PRIMARY -ngl 99 -fa on -c 4096 --single-turn \\"
-  _warn "    -n 700 --reasoning-effort medium -p 'Write a Python function that"
-  _warn "    reverses a linked list. Code only.'"
-  say "_Automated heuristic: **capture was empty** -- the probe recorded nothing,"
-  say "which says nothing about the model. Re-run the prompt by hand._"
-elif grep -qE '\bdef \b|return ' "$SAMPLE"; then
-  _info "looks like code -- good sign"
-  say "_Automated heuristic: found Python-shaped output._"
+# Driven through llama-server, not llama-cli. llama-cli renders its chat to the
+# terminal and a plain redirect captured ZERO bytes on a 16 GB M2 while the same
+# prompt worked by hand -- see docs/research/20260918-bonsai2-apple-silicon-m2-16gb.
+# The server returns JSON, which either parses or does not.
+"$BIN/llama-server" -m "$PRIMARY" -a probe -ngl 99 -fa on -c 4096 --jinja \
+    -np 1 --host 127.0.0.1 --port 18098 > "$WORK/.coh-server.log" 2>&1 &
+COH=$!
+w=0; up=0
+while [ "$w" -lt 240 ]; do
+  kill -0 "$COH" 2>/dev/null || break
+  curl -sf http://127.0.0.1:18098/health >/dev/null 2>&1 && { up=1; break; }
+  sleep 3; w=$((w + 3))
+done
+if [ "$up" -eq 1 ]; then
+  curl -s http://127.0.0.1:18098/v1/chat/completions \
+    -H 'Content-Type: application/json' \
+    -d '{"model":"probe","max_tokens":700,"reasoning_effort":"medium",
+         "messages":[{"role":"user","content":"Write a Python function that reverses a linked list. Code only."}]}' \
+    > "$WORK/.coh.json" 2>&1
+  python3 - "$WORK/.coh.json" > "$SAMPLE" 2>&1 <<'PYEOF'
+import json, sys
+try:
+    d = json.load(open(sys.argv[1]))
+except Exception as e:
+    print("COULD NOT PARSE SERVER RESPONSE: %s" % e); raise SystemExit
+m = d["choices"][0]["message"]
+r = m.get("reasoning_content") or ""
+c = m.get("content") or ""
+u = d.get("usage", {})
+print("finish_reason: %s" % d["choices"][0].get("finish_reason"))
+print("reasoning_chars: %d   content_chars: %d   completion_tokens: %s"
+      % (len(r), len(c), u.get("completion_tokens")))
+print("\n--- reasoning (first 600 chars) ---\n%s" % r[:600])
+print("\n--- answer ---\n%s" % c)
+PYEOF
 else
-  _warn "NO code-shaped text found. With effort pinned to medium and a 700-token"
-  _warn "budget this is more likely the silent-gibberish failure (binary too old"
-  _warn "for these weights) than an over-long reasoning block -- but check."
-  _warn "READ the output above. If it is word salad, stop and report that."
-  say "_Automated heuristic: **no** Python-shaped output found -- needs a human look._"
+  echo "server did not start; see .coh-server.log" > "$SAMPLE"
+  grep -iE 'error|failed' "$WORK/.coh-server.log" | head -5 >> "$SAMPLE"
 fi
+kill "$COH" 2>/dev/null; wait "$COH" 2>/dev/null; sleep 2
 say ""
 
 # ---- 4. headline throughput ----------------------------------------------
@@ -227,8 +234,16 @@ fi
 
 if wanted headline; then
 _step "4/6  Headline throughput"
-say "## B. Headline (pp512 / tg128)"
+say "## B. Headline (pp512 / tg128), measured COLD"
 say ""
+say "Taken after a ${COOLDOWN}s idle period. The first version of this probe"
+say "measured the headline immediately after the download and the coherence"
+say "check, on an already-warm machine, and reported 3.83 tok/s where a cold"
+say "run of the same benchmark gave 7.63 -- the headline was really a thermal"
+say "result. Both numbers were true; only one was labelled."
+say ""
+_info "cooling down ${COOLDOWN}s so the headline is a cold number..."
+sleep "$COOLDOWN"
 if [ -n "$PTQ1_PATH" ] && [ -n "$PQ2" ]; then
   run_into_report "both packings" "$BIN/llama-bench" -m "$PTQ1_PATH" -m "$PQ2" -p 512 -n 128 -fa 1 -ngl 99 -r 3
 else
