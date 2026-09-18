@@ -57,6 +57,7 @@ The vSR repo was read with a source audit. The claims this doc's conclusions res
   - Images are 250 MB compressed for the router and 170 MB for the dashboard, plus classifier models whose sizes aren't stated.
 - **Switching agent doesn't help. MEASURED.** omp, DeepSeek Harness and Cline all send native tools on agent turns, so NadirClaw forces them to cloud just like OpenCode. vSR accepts their requests on the plain OpenAI-compatible path, but still rejects the local servers' responses. DeepSeek Harness's own default adapter fails both routers. See [Does switching coding agent change anything?](#measured-does-switching-coding-agent-change-anything)
 - **Neither removes the real blocker:** there is no written routing policy and no labelled data on where the local models fail.
+- **Promising direction:** route by role and at turn boundaries on deterministic signals, not per request on prompt text. Switching mid-session costs a cold prefill (at least ~43 s for 100k tokens on the 4090) plus lost cloud cache, and a single-slot llama-server can be evicted by side requests. See [Techniques worth pursuing](#techniques-worth-pursuing) and [Switching cost: context caching](#switching-cost-context-caching).
 
 ---
 
@@ -304,6 +305,93 @@ vSR GitHub issues:
 
 ---
 
+## Techniques worth pursuing
+
+What the research supports is moving routing decisions off guesses about each prompt's text and onto things you can observe: the agent's role, turn boundaries, context size, backend health and observed failures. Labels as elsewhere: **MEASURED**, **CODE**, **DOCS**. **KNOWN** marks general practice from outside this research that wasn't verified here.
+
+### From this research
+
+1. **Route by role, not by prompt text.**
+   - Agents already split their traffic. OpenCode's title request is a separate, tool-less request, and it was the only OpenCode request NadirClaw sent local (MEASURED). DeepSeek Harness sends a separate title request too (MEASURED).
+   - Background work is the natural local candidate: titles, summaries, compaction, exploration, subagents. Planning and architecture are the cloud candidates.
+   - NadirClaw's opt-in agent-role detection (exploration → cheap model, planning → reasoning model; `routing.py:614-1037`, CODE) is the right idea, tuned for Claude Code and off by default.
+2. **Decide once per user turn, then stick.**
+   - Switching inside a tool loop throws away the prefix cache (see the next section).
+   - vSR keeps classifying the original prompt through a whole tool loop (CODE), which for local backends is a feature: one decision per task.
+3. **Prefer cheap, deterministic signals over classifiers.**
+   - Context size: each combination has measured degradation bands, and MTPLX returns zero tokens past about 200k.
+   - Backend health and failover.
+   - Explicit user choice, such as model aliases or a keyword rule.
+   - A 22M-parameter MiniLM deciding what a far larger model can handle is the weakest signal here.
+4. **Escalate on observable failure, not predicted difficulty.**
+   - Verifying before replying costs a full local generation: about 26 s on Flash-Next, about 11 s on the 4090 (arithmetic from this repo's benchmarks).
+   - Agent loops produce free, deterministic failure signals: malformed or text-imitation tool calls (reported in vSR's OpenCode guide, DOCS), repeated failing tool calls or tests, empty replies where thinking used up `max_tokens`, and hitting the context limit.
+   - Escalation must follow the switching rules below.
+5. **Classify the right text.** omp and DeepSeek Harness put injected boilerplate in the last user message: a `<system-reminder>` with date and working directory, or a runtime-context snapshot (MEASURED). Strip it before classifying. NadirClaw has `NADIRCLAW_CLASSIFIER_STRIP_PATTERNS` for this (CODE, untested).
+6. **Get the plumbing right.** Both routers failed here, not on intelligence:
+   - Per-backend endpoint and key scoping (NadirClaw leaked keys, MEASURED).
+   - Full parameter passthrough (NadirClaw dropped `chat_template_kwargs` and `top_k`, MEASURED).
+   - Tolerate or strip vendor response extensions (vSR rejects `timings` and `mtplx_stats`, MEASURED).
+   - Auth on by default, bound to localhost (both bind `0.0.0.0` with no auth).
+7. **Evaluate by replay and shadow mode before enforcing anything.**
+   - The harness already captures real bodies, replays them through a router and records the decision.
+   - Shadow mode on live sessions: log what the router *would* pick, without enforcing it.
+   - Pair those logs with outcome labels (did local succeed?). That's the dataset any threshold or trained router needs.
+
+### General practice (KNOWN, not verified here; treat names as pointers to look up)
+
+- **Shipping coding tools route by role.** Aider's architect/editor split, Cline's separate Plan and Act models, Claude Code's small fast model for background tasks, and OpenCode's `small_model` setting all work this way. This is the dominant pattern in shipped tools, far more than per-request classifiers. Confirm each tool's current config syntax.
+- **Learned routers are trained on outcome data and judged on cost-versus-quality curves.** RouteLLM (LMSYS) trains routers on preference data. Hybrid LLM (Ding et al.) predicts the quality gap between a small and a large model. Neither relies on hand-labelled "simple/complex" prompts.
+- **Verify-then-escalate cascades assume the cheap model is fast.** FrugalGPT and AutoMix both work this way (vSR's `automix_entailment` comes from AutoMix). With slow local models, that assumption fails.
+- **Serving stacks route sessions to where their KV cache lives.** Examples are prefix-cache-aware routing in llm-d and the vLLM production stack.
+- **RouterBench and RouterArena measure prompt-level routing**, not agent sessions. Their numbers don't carry over to coding-agent loops.
+
+---
+
+## Switching cost: context caching
+
+Every switch throws away a cache. At long contexts that costs more than most routing decisions save.
+
+### Where the cost comes from
+
+1. **The target backend starts cold.** A session moving to another backend must reprocess its whole context there.
+   - **4090 box:** prefill is 2,309 tok/s (MEASURED, `combinations/qwen/3.8/27b/ubuntu/24GB/llamacpp-opencode/profiles.tsv`). A 100k-token session moving onto it waits at least **~43 s** before the first token, and prefill slows as context grows (arithmetic).
+   - **Mac:** Flash-Next's warm median time to first token is 2.0 s, helped by a 98.8% session-bank restore (MEASURED). The repo has no measured cold-prefill rate for it.
+2. **The source backend may lose the session while it's away.**
+   - **The llama.cpp combination runs a single slot:** every profile uses `-np 1` (`profiles.tsv`). Any *other* conversation on that server replaces the main session's KV cache in that slot: a title request, a subagent, a compaction call (CODE-level reasoning, not measured).
+   - Current llama-server keeps an **8 GiB prompt cache in system RAM** by default (`--cache-ram`, `common/common.h:632` at `b49650a`; CODE). The combination doesn't change it. **Untested:** whether it restores this hybrid Qwen3.8 model's state after eviction.
+   - MTPLX's session bank is designed for multiple sessions and held 93–100% through a real OpenCode session (MEASURED, `docs/discovery-macos-mtplx.md` §4). Whether that session included side conversations wasn't checked.
+3. **Cloud caches have short lifetimes.**
+   - Anthropic's prompt cache defaults to a 5-minute TTL. A cache write costs more than normal input and a read much less (KNOWN: about 1.25× and 0.1× of base input; check current pricing).
+   - Flapping loses both ways: coming back to cloud after the TTL means paying for a full cache write again, and coming back locally after an eviction means a cold prefill again.
+
+### What this means for each technique
+
+| Technique | Cache impact | Verdict |
+|---|---|---|
+| Per-request routing (NadirClaw, vSR as designed) | can switch mid tool loop, invalidating caches on both sides | **worst**; avoid |
+| Role split: side work on a *different* backend or slot | the main session's cache is untouched; side conversations are short and cheap to prefill | **safe** |
+| Role split onto the *same* single-slot llama-server | every side request can evict the main session's KV | **harmful** on the 4090 combination as configured; use `-np 2` (VRAM is tight) or send side work elsewhere |
+| Mid-task escalation on failure, carrying full history | one cold prefill on the target plus uncached cloud input; the local cache goes stale | **acceptable only if it's one-way and rare** |
+| Decide at the start of a task, while context is short | cold prefill of a small context is cheap | **best** |
+
+### Switching rules
+
+1. **Switch only at natural boundaries:** the start of a new task, right after compaction (context just shrank), or a subagent handoff that carries a summary instead of the full history. Never switch inside a tool loop.
+2. **One-way within a task.** Once a task goes to cloud, it stays there until it ends or is compacted. That keeps the cloud cache warm and prevents flapping.
+3. **Hysteresis.** Require a minimum number of turns before any switch back, and require a failure signal to repeat, not fire once.
+4. **Cost the switch explicitly:** switch cost ≈ context tokens ÷ target prefill rate, plus cloud input cost for those tokens (uncached). Only switch when the expected gain is larger. Early decisions are cheap; late ones are expensive.
+5. **Prefer decisions you can make upfront.** Role, explicit user choice and the task type at the start beat late failure-based escalation, which happens exactly when context is longest.
+6. **Late escalation hands over a summary.** Compact first, then send the short summary to cloud, rather than replaying the full history.
+7. **Give side work its own capacity:** a second slot, a small separate local model, or cloud for titles and summaries, so the main session's cache is never evicted.
+
+### Not yet measured
+
+1. **4090 eviction.** Does a title or subagent request evict the main session with `-np 1`, and does `--cache-ram` restore this hybrid model's state? Measure time to first token on the main session's next turn, with and without a side request in between.
+2. **Cold vs warm TTFT** at 20k, 50k and 100k on both machines, so rule 4 uses measured switch costs instead of arithmetic.
+
+---
+
 ## Verdict
 
 1. **Neither router works as a local-first router for coding agents on llama.cpp or MTPLX today.**
@@ -327,12 +415,19 @@ vSR's YAML decisions would be a good *place to put* that policy later. They don'
 ### Recommendations, in order
 
 1. **Don't put a router in front of the agents yet.**
-2. **Write the routing policy per combination:** local by default, cloud on stated conditions (context band, task type, local server health). Apply it through the agent's own per-agent model config. OpenCode's current per-agent syntax still needs confirming.
-3. **Label real sessions.** For each turn, did the local model succeed, or did it need cloud? Any router's classifiers or thresholds need this data, and it's what shows whether automatic routing is worth building.
-4. **If automatic routing is still wanted, use vSR on the Ubuntu box.**
+2. **Split by role in the agent's own config, without breaking the main session's cache.**
+   - Background work (titles, summaries, compaction, exploration, subagents) goes to capacity that *doesn't share a slot* with the main session: a second llama-server slot, a small separate local model, or cloud. On the 4090 combination as configured (`-np 1`), sending it to the same server can evict the main session.
+   - Planning and architecture go to cloud if wanted.
+   - Confirm OpenCode's current per-agent and `small_model` syntax.
+3. **Write the per-combination escalation policy using the switching rules above.**
+   - Local by default. Escalate on deterministic signals: context band, malformed or text-imitation tool calls, repeated tool failures, empty replies, local server health.
+   - Escalation happens only at turn boundaries, is one-way within a task, and hands over a compacted summary when context is long.
+4. **Measure switching cost:** 4090 eviction with `-np 1` and `--cache-ram`, plus cold vs warm TTFT at 20k, 50k and 100k on both machines.
+5. **Label real sessions in shadow mode.** Log what a router would pick, and whether local actually succeeded. Any classifier or threshold needs this data, and it shows whether per-turn routing beyond the role split adds anything.
+6. **Only if step 5 shows a real gap, use vSR on the Ubuntu box.**
    - First get unknown upstream response fields handled per backend: an upstream issue (attach the llama-server captures and `vsr_protocol_probe_test.go`) or a local patch.
    - Then run a real OpenCode session through it and measure the routing split, added TTFT, memory and the admin/auth defaults above.
-5. **Untested alternative:** vSR with **vLLM** instead of llama.cpp on the 4090 might avoid the strictness problem without a patch. Unverified: that vLLM's responses pass the decoder, and whether the 27B fits in 24 GB with usable context and speculative decoding. It would also give up this repo's measured llama.cpp configuration.
+7. **Untested alternative:** vSR with **vLLM** instead of llama.cpp on the 4090 might avoid the strictness problem without a patch. Unverified: that vLLM's responses pass the decoder, and whether the 27B fits in 24 GB with usable context and speculative decoding. It would also give up this repo's measured llama.cpp configuration.
 
 ## Reproduce
 
