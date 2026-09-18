@@ -1,8 +1,22 @@
 # Bonsai 2 27B on a 16 GB MacBook Air M2 (2026-09-18)
 
+> **Ternary quantisation solved the memory problem and handed the bill to
+> prefill.** The 27B fits a 16 GB laptop with room to spare — 262k of context
+> in 7 GB — and then takes **20 minutes to read a 32k prompt**. Not enough
+> memory was never the problem; not enough compute is, and a fanless chassis
+> gives up another third of it to heat.
+
 One run of [`benchmarks/apple-silicon-probe.sh`](../../../benchmarks/apple-silicon-probe.sh),
 the first measurement this repo has of Bonsai 2 on Apple silicon rather than
 [the third-party reports](../../measuring-bonsai2-on-apple-silicon.md#what-others-have-reported-on-16-gb).
+
+Which of prefill and generation binds depends on the workload, and for this
+repo's purpose it is prefill. A coding agent's turn is characteristically a big
+read and a small write — put 20k of files in front of the model, get 1k of
+edits back — which at the measured sustained rates is **12 minutes reading
+against 4 minutes writing**. For chat, short prompt and long answer, the
+ordering reverses and generation is what hurts. The 27B is not unusable here;
+it is unusable *as an agent*.
 
 | | |
 |---|---|
