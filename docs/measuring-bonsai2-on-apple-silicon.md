@@ -11,23 +11,76 @@ written with measured values instead of extrapolated ones.
 macOS Qwen row is the cautionary example: it is extrapolated, and every line
 that depends on it says so.
 
-## What we expect, and why that is not good enough
+## What others have reported on 16 GB
 
-The 24GB CUDA combination measured PTQ1_0 at **5.53 GiB of weights**, and the
-publisher reports 27B Bonsai variants running on 18-24 GB Macs. A 16 GB machine
-is below anything reported anywhere. Two things could go wrong and only a run
-will say which:
+Third-party reports, none of them measured by this repo and **none of them
+Bonsai 2** — every one is the previous ternary generation or the 1-bit family.
+They establish that a 27B ternary model fits in 16 GB, not how Bonsai 2 behaves
+there.
 
+| machine | cooling | model | runtime | generation |
+|---|---|---|---|---|
+| MacBook Pro M1 16GB | fan | Ternary-Bonsai-27B 2-bit | MLX | 16.3 tok/s |
+| MacBook Air M3 16GB | **fanless** | Ternary-Bonsai-27B 2-bit | MLX | 9.1 avg, 5.8 by trial 5 |
+| MacBook Air M3 16GB | **fanless** | Bonsai-27B 1-bit | MLX | 18.3 tok/s |
+| Mac mini M4 16GB | fan | Bonsai-27B 1-bit | MLX | reported to run |
+
+Sources: [M1 write-up](https://dev.to/lbobylev/bonsai-27b-2-bit-on-a-macbook-m1-big-model-small-memory-mixed-results-5b3o),
+[Bonsai-demo PR #164](https://github.com/PrismML-Eng/Bonsai-demo/pull/164) (M3 Air, unmerged at time of writing).
+
+**The fanless rows are the ones to read carefully.** PR #164's five consecutive
+trials of the 27B ternary model on the M3 Air run
+`10.964, 11.013, 9.829, 7.991, 5.800` — a 47% fall while the benchmark is still
+running. The headline "9.119 average" describes neither the cold rate (~11) nor
+the sustained one (~6). The fan-cooled M1 reports no throttling at all.
+
+So on a fanless Air, expect the first minute to flatter the machine, and treat
+any single average as suspect.
+
+## Why those numbers are still not good enough
+
+- **None of them is Bonsai 2.** It is a different build at 5.9-7.2 GB against
+  the v1 2-bit's 8.5 GB, and no 16 GB Apple result exists for it at all.
 - **Metal's working set, not the machine's RAM, is the ceiling.** On Apple
   silicon `recommendedMaxWorkingSetSize` is what constrains a model — see
-  `lib/accel/metal.sh`. On a 16 GB machine that is well under 16 GB.
-- **Bandwidth, not capacity, sets the speed.** The M2 Air is a base-tier chip
-  with no fan. Published community numbers for the *previous* ternary 27B:
-  M3 Pro (18 GB) 12.6 tok/s, M4 24 GB 12.7 tok/s via MLX, M1 Pro 32 GB 15.0
-  tok/s via MLX. A base M2 should land below all of these, and sustained runs
-  may thermally throttle in a fanless chassis.
+  `lib/accel/metal.sh`. On a 16 GB machine that is well under 16 GB. The M3 Air
+  run peaked at 8.83 GB for the 2-bit 27B, which is most of that budget.
+- **The M1 write-up's verdict was mixed**: "Qwen3 14B 4-bit was about 1.9 times
+  faster" and more reliable on a deterministic calculation task, where Bonsai
+  returned an empty list. Worth reproducing before recommending the combination
+  to anyone.
 
-Neither number is in this repo, and neither should be quoted as if it were.
+## Which backend a macOS combination would use — not MTPLX
+
+Both existing macOS combinations use `BACKEND=mtplx`, and **MTPLX cannot serve
+Bonsai 2**. It is not a matter of configuration:
+
+- it serves its own pack format from its own repos (`MODEL_REPO`, e.g.
+  `Youssofal/Qwen3.8-27B-MTPLX-Optimized-Quality`) and fetches them itself
+  (`BACKEND_NEEDS_HF=0`), so there is nowhere to hand it a GGUF;
+- it verifies an MTP head is present (`mtplx inspect --require-mtp`), and
+  Bonsai 2 ships no drafter of any kind;
+- it has no ternary kernels and no Hadamard activation transform, which is the
+  thing that makes these weights readable at all.
+
+That leaves two candidates, and the measurement decides between them:
+
+**1. `llamacpp` + `metal` + the fork — costs a config file.** Since
+`lib/llamacpp.sh` takes `LLAMA_REPO_URL`/`LLAMA_BRANCH` and `lib/accel/metal.sh`
+already implements `accel_cmake_args` for a compiled backend, this pairing needs
+**no new shell logic** — the same four files any combination needs. The Metal
+kernels for `PQ2_0` and `PTQ1_0` are in the fork per the publisher's backend
+table.
+
+**2. MLX via PrismML's MLX fork — costs a new backend module.** On the previous
+ternary generation MLX was nearly twice as fast as llama.cpp Metal on the *same*
+M1 Pro: **15.0 vs 8.4 tok/s**. If that gap holds on Bonsai 2, option 1 is
+leaving half the machine's performance unused, and `lib/mlx-prism.sh` plus
+`lib/runtime/server-mlx-prism.sh` would be worth writing (see
+[adding-a-combination.md](adding-a-combination.md#adding-a-new-accelerator-backend-or-client)).
+
+So run **both** paths below. The point of the exercise is not only "does it
+run" but "which backend should the combination declare".
 
 ## Kit
 
@@ -119,7 +172,9 @@ Enough for a `profiles.tsv` row and an honest `help.txt`:
 | B | `llama-bench` tables verbatim, including the depth sweep |
 | C | the largest context that loaded, and the first that failed |
 | D | the KV table, flagging any type that collapses |
-| Thermals | whether a second consecutive run of B was slower than the first |
+| Thermals | **five** consecutive runs of B, each one's number, not the average |
 
 That last row matters more on a fanless Air than on any machine in this repo so
-far, and no existing combination measures it.
+far, and no existing combination measures it. Report every trial: the M3 Air
+submission above would have looked like a 9 tok/s machine if it had reported
+only its mean, and like an 11 tok/s machine if it had reported only its best.
