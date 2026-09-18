@@ -247,6 +247,39 @@ else
   grep -iE 'error|failed' "$WORK/.coh-server.log" | head -5 >> "$SAMPLE"
 fi
 kill "$COH" 2>/dev/null; wait "$COH" 2>/dev/null; sleep 2
+
+# Show it. This section exists to be read by a human, so printing it is the
+# whole point -- an earlier edit replaced the generator and took the display
+# and the verdict with it, leaving step 3 silent.
+say '```'
+sed "s|$HOME|\$HOME|g" "$SAMPLE" | tail -60 | tee -a "$RESULT"
+say '```'
+say ""
+
+# Distinguish the failure modes. They are NOT the same thing and must not
+# print the same warning: a silent model, a broken pipe and a dead server each
+# need a different next step.
+if [ ! -s "$SAMPLE" ]; then
+  _warn "The sample is EMPTY -- nothing was captured at all. That says nothing"
+  _warn "about the model. Re-run with: $0 --only coherence"
+  say "_Verdict: **empty capture** — the probe recorded nothing. Not evidence about the model._"
+elif grep -q 'COULD NOT PARSE SERVER RESPONSE' "$SAMPLE"; then
+  _warn "The server replied with something that is not JSON. See .coh.json"
+  say "_Verdict: **unparseable server response** — see \`.coh.json\`._"
+elif grep -q 'server did not start' "$SAMPLE"; then
+  _warn "The server never became healthy. See .coh-server.log"
+  say "_Verdict: **server did not start** — the weights or the binary, not the prompt._"
+elif grep -qE '\bdef \b|return ' "$SAMPLE"; then
+  _info "generated Python-shaped output -- good sign"
+  say "_Verdict: **Python-shaped output found.** Read it anyway: coherent-looking"
+  say "tokens are exactly what a too-old binary produces._"
+else
+  _warn "No code-shaped text. With effort pinned to medium and a 700-token budget"
+  _warn "this points at the silent-gibberish failure (binary too old for these"
+  _warn "weights) rather than an unfinished thought -- but READ the text above."
+  say "_Verdict: **no code-shaped output** — read the text; this may be the"
+  say "silent-gibberish failure a too-old binary produces._"
+fi
 say ""
 
 # ---- 4. headline throughput ----------------------------------------------
