@@ -195,12 +195,50 @@ if [ "$QUICK" -eq 1 ]; then
 fi
 _info "cooling down for ${COOLDOWN}s so run 1 starts cold..."
 sleep "$COOLDOWN"
+
+say "Thermal pressure before the soak:"
+say '```'
+(pmset -g therm 2>/dev/null || echo "pmset -g therm: unavailable") | tee -a "$RESULT"
+say '```'
+say ""
+
+# Keep each run's tg128 so the report can state the decline itself rather than
+# leaving it as arithmetic for whoever reads it.
+TG_SERIES="$WORK/.tg_series"
+: > "$TG_SERIES"
 i=1
 while [ "$i" -le "$THERMAL_RUNS" ]; do
   say "**run $i**"
-  run_into_report "thermal run $i/$THERMAL_RUNS" "$BIN/llama-bench" -m "$PRIMARY" -p 512 -n 128 -fa 1 -ngl 99 -r 1
+  RUN_LOG="$WORK/.thermal-$i.txt"
+  "$BIN/llama-bench" -m "$PRIMARY" -p 512 -n 128 -fa 1 -ngl 99 -r 1 > "$RUN_LOG" 2>&1
+  sed "s|$HOME|\$HOME|g" "$RUN_LOG" | tee -a "$RESULT" | grep -E '^\|' || true
+  say ""
+  # "| model | ... | tg128 | 12.61 ± 0.58 |" -> 12.61
+  awk -F'|' '/tg128/ { n=split($(NF-1), a, " "); print a[1] }' "$RUN_LOG" >> "$TG_SERIES"
   i=$((i + 1))
 done
+
+say "Thermal pressure after the soak:"
+say '```'
+(pmset -g therm 2>/dev/null || echo "pmset -g therm: unavailable") | tee -a "$RESULT"
+say '```'
+say ""
+
+say "### Thermal verdict"
+say ""
+say '```'
+awk 'NR==1{first=$1} {last=$1; n++; printf "  run %d: %s tok/s\n", NR, $1}
+     END{
+       if (n>1 && first>0) {
+         printf "\n  first %.2f -> last %.2f  (%+.1f%%)\n", first, last, (last-first)/first*100
+         if ((first-last)/first > 0.15)
+           print "  VERDICT: throttling -- the sustained rate is NOT the headline rate."
+         else
+           print "  VERDICT: no significant throttling across these runs."
+       } else { print "  (not enough runs to judge)" }
+     }' "$TG_SERIES" | tee -a "$RESULT"
+say '```'
+say ""
 
 # ---- 6. context ceiling and KV types --------------------------------------
 _step "6/6  Context ceiling and KV types"
@@ -227,10 +265,13 @@ done
 # ---- close ----------------------------------------------------------------
 say "## Notes from the operator"
 say ""
-say "- Did the chassis get hot? "
-say "- Was the last thermal run slower than the first? "
-say "- Was the coherence output in A actually sensible? "
-say "- Anything else that happened: "
+say "The thermal decline and the coherence sample are both above; whoever or"
+say "whatever ran this can answer the first two from the report itself. The"
+say "third needs a person in the room."
+say ""
+say "- Was the coherence output in section A actually sensible prose/code? "
+say "- Did anything behave oddly (stalls, beachballs, memory pressure)? "
+say "- Did the chassis get physically hot, and was anything else running? "
 say ""
 
 _step "Done"
