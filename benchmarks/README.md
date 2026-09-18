@@ -65,6 +65,12 @@ that is the figure the headroom columns subtract from.
 | `mtplx-version-compare.py` | Did upgrading MTPLX change anything? Takes two `mtplx-throughput.sh` result files and reports per-cell deltas against this machine's drift floor. Refuses to compare different models. |
 | `thermal.py` | Thermal pressure and the drift/IQR floors. Imported by the above; vendored so this repo has no dependency on a private checkout. |
 
+The scoring rules behind those reports — the short-request filter, the context
+bands, how a thermal level is attributed to a request, and the minimum cell
+size — are written out in
+[`docs/20260904-effective-tokens-per-second.md`](../docs/20260904-effective-tokens-per-second.md#method--how-a-request-becomes-a-cell),
+next to the numbers they produced.
+
 Two things about the MTPLX harnesses are worth copying rather than
 rediscovering. `ar` is the **only** per-request MTP kill switch — `enable_mtp`
 and `mtp` are accepted and silently ignored. And the reporter's headline is

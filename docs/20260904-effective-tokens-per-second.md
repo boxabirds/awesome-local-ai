@@ -175,6 +175,79 @@ whether the answers are as good.
 sessions; the underlying telemetry is not published. Re-derive from your own
 sessions with the reporter.
 
+## Method — how a request becomes a cell
+
+Everything above is an aggregate over real requests. This is the rule set that
+turns those requests into the cells, written out so another agent can re-derive
+the tables rather than trust them. All of it lives in
+[`mtplx_session_report.py`](../benchmarks/mtplx_session_report.py); the
+constants are named so you can grep for them.
+
+**The two rates.** Both come per request; only the second is derived.
+
+```
+decode    = decode_tok_s                                      (as logged)
+effective = completion_tokens / (ttft_s + decode_elapsed_s)   (derived)
+```
+
+`effective` is the headline for the reason at the top of this doc. Note that
+the denominator is TTFT *plus* decode, not wall-clock between log lines: queue
+time and the client's own latency are excluded, so this is the server's share
+of the wait, not the user's total.
+
+**The source.** `~/.mtplx/logs/request-log-<port>.jsonl` — one JSON object per
+request, ~330 fields, written by MTPLX itself. No instrumentation is added by
+this repo. Each line carries `served_model_id`, so several models sharing one
+port separate cleanly at read time and no per-arm port pinning is needed. The
+thermal axis comes from a second file,
+`~/.mtplx/logs/thermal.jsonl`, written by
+[`mtplx_thermal_log.py`](../benchmarks/mtplx_thermal_log.py).
+
+**The scoring rules**, in the order they are applied:
+
+| Step | Rule | Constant |
+|---|---|---|
+| Drop short requests | `completion_tokens < 100` is excluded. Over a handful of tokens the rate is dominated by per-request overhead and reads far too high — this filter is the difference between "112 tok/s" and the truth | `MIN_COMPLETION_TOKENS` |
+| Assign a context band | by `prompt_tokens` — the context *used*, not the window configured — into 0–20k / 20–45k / 45–75k / 75–130k / 130k+ | `CONTEXT_BANDS` |
+| Assign a thermal level | the **worst** level seen over `[end - (ttft_s + decode_elapsed_s), end]`, i.e. across the request's own span, not at a single instant | `thermal_over()` |
+| Warm vs cold prefix | `cached_tokens >= 500` counts as a session-bank restore; below that it is a few tokens of shared system prompt, not the warm path | `MIN_CACHED_TOKENS` |
+| Drop thin cells | a `(thermal, band)` cell with fewer than 3 scored requests prints `—` and is excluded from any ratio | `MIN_CELL` |
+| Reduce a cell | **median**, not mean, of both rates within the cell | |
+| Ratio between arms | `median(effective, arm B) / median(effective, arm A)`, computed only inside a matched cell | |
+
+**Three details that are easy to get wrong when reimplementing this:**
+
+1. **The thermal sampler writes transitions only.** The level in force at a
+   request's start is therefore the last sample *at or before* it, not the
+   first sample inside the window. Reading only samples inside the span makes
+   long requests at a stable level read `unsampled`.
+2. **`unsampled` is not a thermal level.** Requests predating the sampler are
+   *unknown*, and folding them in as a fourth level made every historical
+   window report a spurious `MIXED moderate>unsampled` transition. They are
+   counted for coverage and excluded from the worst-level calculation. The
+   dropped 0–20k row in the table above is exactly this failure surviving into
+   a published number.
+3. **A cell showing `—` is missing data, not a zero.** It means `n < 3`. Two
+   arms cannot be ratioed unless *both* sides of the cell clear that bar.
+
+**Why both axes, and not a flat median.** Two model arms cannot co-reside in
+128 GB, so they cannot be interleaved — they run as separate blocks, hours or
+days apart, at whatever thermal level the machine was in. This machine's noise
+floors say numerically how bad that is: 20% run-to-run drift, 25% IQR
+([`thermal.py`](../benchmarks/thermal.py)). Holding thermal state *and* context
+band fixed is the only thing that makes the comparison mean anything, and it is
+what turned a "NOT CONCLUSIVE" +121% into a defensible 1.9x on the earlier
+27B-vs-Flash-Next run.
+
+**What the tool will and will not assert.** `--compare` alone prints the flat
+table and appends an explicit `CONCLUSIVE` / `NOT CONCLUSIVE` verdict against
+those two floors, listing every blocker it found (gap under the drift floor,
+spread over the IQR ceiling, mixed thermal within an arm, arms at different
+thermal levels). The stratified views (`--by-thermal`, `--by-context`)
+deliberately print **no** verdict, because per-cell `n` is usually too small
+for the gate to be meaningful — read those tables as shape, and take the
+verdict from the controlled harness instead.
+
 ## Reproducing
 
 ```sh

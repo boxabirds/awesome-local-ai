@@ -4,8 +4,8 @@
 **Install:** `./install-qwen-3.8-27b-ubuntu-24GB-llamacpp-opencode.sh` (from the repo root)
 
 Qwen3.8-27B on a 24GB NVIDIA GPU as a local OpenAI-compatible API — with
-speculative decoding, optional vision, and a **128k context window** tuned for
-coding agents.
+speculative decoding, the model's native vision tower, and a **128k context
+window** tuned for coding agents.
 
 ```bash
 git clone https://github.com/boxabirds/awesome-local-ai.git
@@ -92,7 +92,7 @@ The installer is **idempotent** — re-running only upgrades what is outdated. I
 1. Qualifies OS, GPU, VRAM, driver, CUDA
 2. Installs missing apt packages (falls back to pip `cmake`/`ninja` if no sudo)
 3. Builds llama.cpp with CUDA for your GPU's arch (auto-detected)
-4. Downloads the model, MTP head, and vision projector (~20 GB)
+4. Downloads the model, the MTP draft head, and the vision projector (~20 GB)
 5. Writes the install manifest, the `qwen38-27b-*` commands and a systemd unit
 6. **Smoke-tests**: loads the model, generates, and asserts MTP is active
 
@@ -149,6 +149,29 @@ second CUDA process will OOM them mid-run. **Do not point systemd at these.**
 The machine-readable version of this table is
 [`profiles.tsv`](profiles.tsv) — the launcher reads it at run time, so editing
 that file changes the profiles without touching any code.
+
+### Why vision is a profile and not always on
+
+Qwen3.8's vision tower is **part of the model**, not an add-on. It looks
+optional here because of how llama.cpp packages and loads it, and because of
+what it costs on a 24GB card:
+
+- **Packaging.** GGUF conversion emits the vision tower and multimodal
+  projector as a separate file (`mmproj-F16.gguf`, 891 MiB) rather than fusing
+  them into the weights. It ships *with* the Unsloth pack — its HF manifest
+  lists a `vnd.ollama.image.projector` layer alongside the model. Contrast the
+  MTP head, which genuinely does come from a different repo because Unsloth
+  ships none.
+- **Loading.** `llama-server` reads it only when passed `--mmproj`, so the
+  capability is present in the weights and dormant until asked for.
+- **Cost.** 891 MiB ≈ 49k tokens of q4_0 KV. Measured, the real price is **32k
+  of context**: 128k → 96k. On a card with ~1.6 GiB of headroom that is a trade
+  worth making deliberately, which is what the `vision` profiles are for.
+
+So `VISION=0` does not disable a feature the model lacks — it declines to spend
+context on one it has. See
+[discovery.md §5](../../../../../../../docs/discovery.md), which also records
+the mis-measurement that made vision look four times more expensive than it is.
 
 ### Overrides
 

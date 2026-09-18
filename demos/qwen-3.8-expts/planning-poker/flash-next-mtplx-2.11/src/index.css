@@ -1,0 +1,113 @@
+@import 'tailwindcss';
+
+:root {
+  --flip-duration: 650ms;
+  --reveal-stagger: 90ms;
+  --flip-distance: 40px;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  font-family: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto,
+    sans-serif;
+  background: radial-gradient(120% 120% at 50% 0%, #0f172a 0%, #020617 70%);
+  color: #e2e8f0;
+  overscroll-behavior: none;
+}
+
+/* ---- Table card 3D flip ---- */
+.card-scene {
+  perspective: 1000px;
+}
+
+.card-inner {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  transform-style: preserve-3d;
+  transition: transform var(--flip-duration) cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.card-inner.is-flipped {
+  transform: rotateY(180deg);
+}
+
+.card-face {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  border-radius: 16px;
+  backface-visibility: hidden;
+  box-shadow: 0 12px 28px -12px rgba(0, 0, 0, 0.7);
+}
+
+.card-face.front {
+  transform: rotateY(180deg);
+}
+
+.card-inner.revealing {
+  animation: flip-in var(--flip-duration) cubic-bezier(0.2, 0.8, 0.2, 1)
+    backwards;
+}
+
+@keyframes flip-in {
+  0% {
+    transform: translateY(var(--flip-distance)) rotateY(180deg) scale(1.08);
+  }
+  100% {
+    transform: translateY(0) rotateY(360deg) scale(1);
+  }
+}
+
+/* selected deck card lift */
+.deck-card {
+  transition: transform 180ms ease, box-shadow 180ms ease;
+}
+
+.deck-card:hover {
+  transform: translateY(-10px) rotate(-1deg);
+}
+
+.deck-card[data-selected='true'] {
+  transform: translateY(-14px) scale(1.05);
+  box-shadow: 0 16px 30px -10px rgba(56, 189, 248, 0.6);
+}
+
+/* deck card fan-in on mount */
+.deck-card.fan-in {
+  animation: fan-in 420ms ease backwards;
+}
+
+@keyframes fan-in {
+  from {
+    opacity: 0;
+    transform: translateY(40px) rotate(8deg) scale(0.6);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) rotate(0) scale(1);
+  }
+}
+
+@keyframes pulse-ring {
+  0% {
+    box-shadow: 0 0 0 0 rgba(52, 211, 153, 0.5);
+  }
+  70% {
+    box-shadow: 0 0 0 10px rgba(52, 211, 153, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(52, 211, 153, 0);
+  }
+}
+
+.voted-dot {
+  animation: pulse-ring 1.8s ease-out infinite;
+}

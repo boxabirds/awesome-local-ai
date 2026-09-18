@@ -70,17 +70,54 @@ that reuses the existing adapters costs four files and no shell logic.
 
 ## What a combination gives you
 
-Using the one combination that exists today as the example:
+Some of this is shared by every row; some belongs to exactly one. The
+difference matters — "a combination gives you vision" was true when there was
+one combination and is false now — so it is marked.
 
-- **128k context** on a single 24GB consumer GPU — enough to hold a real repo.
-- **~92 tok/s generation**, roughly double, via MTP speculative decoding —
-  and the installer *asserts* speculative decoding is actually live rather
-  than assuming it.
-- **Tool calling and vision** from one local endpoint.
+**Every combination:**
+
+- **128k context** — the window every row is tuned to, though what it costs
+  differs per row.
+- **An OpenAI-compatible endpoint with tool calling**, and OpenCode already
+  pointed at it.
 - **On-demand lifecycle**: the server starts when your agent needs it and shuts
-  down 5 minutes after you stop, so 22 GB is not parked on your GPU all day.
-- **A smoke test that means something**: loads the model, generates over the
-  API, and checks draft acceptance appeared in the log.
+  down 5 minutes after you stop, so the weights are not parked in memory all day.
+- **A smoke test that means something**: loads the model and generates over the
+  API, rather than checking a file exists.
+- **Speed claims that are checked, not assumed**: where a row's headline rate
+  depends on speculative decoding, the installer proves the drafter is live
+  before calling the install good. One row has no drafter at all, and says so
+  rather than inheriting the claim.
+
+**Qwen3.8-27B — Ubuntu 22.04 / 24GB NVIDIA:**
+
+- **~92 tok/s generation** against ~44 with MTP off, on one consumer GPU — and
+  the installer asserts draft acceptance appeared in the log.
+- **Vision.** Qwen3.8's vision tower is native to the model; GGUF conversion
+  emits it as a separate `mmproj` file that llama.cpp loads only when asked.
+  Loading it costs 32k of context on a 24GB card (128k → 96k), which is why it
+  is off outside the `vision` profiles — a VRAM trade, not a missing capability.
+
+**Ternary Bonsai 2 27B — Ubuntu 22.04 / 24GB NVIDIA:**
+
+- **92.2 tok/s generation with no drafter at all**, and 3,016 tok/s prefill:
+  the decode rate the Qwen row needs MTP to reach, from 6.7 GB of weights
+  instead of 16.7.
+- **No speculative decoding.** None ships for this model, and pointing the Qwen
+  MTP head at it was measured a net loss — 0.62 draft acceptance, 95.8 → 92.6
+  tok/s. The installer's draft-acceptance assertion does not apply to this row,
+  because there is nothing to assert.
+- **Vision that costs no context.** The `vision` profile still holds 128k and
+  adds ~850 MiB, because at 10.7 GB the card was never the constraint — 13.4 GB
+  is still free at 128k.
+- **A fork, not upstream** — see the footnote above.
+
+**Qwen3.8-Flash-Next — macOS 26 / 128GB Apple silicon:**
+
+- **49.8 tok/s decode, 38.8 tok/s effective**, measured across 65 scored
+  requests from a real OpenCode session rather than a synthetic loop.
+- **No vision** — neither MTPLX pack in this repo ships a projector. The
+  limitation is in the pack, not the model.
 
 ---
 
