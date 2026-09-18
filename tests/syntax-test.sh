@@ -18,7 +18,8 @@ done
 echo
 echo "bash 3.2 (stock macOS /bin/bash)"
 if [[ -x /bin/bash ]]; then
-  for f in install.sh start.sh run.sh lib/run.sh lib/select.sh lib/common.sh; do
+  for f in install.sh start.sh run.sh lib/run.sh lib/select.sh lib/common.sh \
+           benchmarks/apple-silicon-probe.sh; do
     assert_ok "parses under bash 3.2: $f" /bin/bash -n "$f"
   done
 else

@@ -82,6 +82,29 @@ leaving half the machine's performance unused, and `lib/mlx-prism.sh` plus
 So run **both** paths below. The point of the exercise is not only "does it
 run" but "which backend should the combination declare".
 
+## Just run the script
+
+There is a harness for all of this:
+
+```bash
+git clone https://github.com/boxabirds/awesome-local-ai
+cd awesome-local-ai/benchmarks
+./apple-silicon-probe.sh            # or --quick for a first look, no thermal soak
+```
+
+It installs the demo's prebuilt Metal binaries (no source build -- compiling
+would heat the machine before it is measured), fetches the smaller `PTQ1_0`
+packing, and runs every measurement below, writing one report file with your
+username already scrubbed out. It needs no sudo and touches nothing outside its
+own work directory (`~/bonsai2-probe`, override with `BONSAI_PROBE_DIR`).
+
+The one thing it cannot do is judge the output, so it prints the generated text
+and asks you to confirm it is coherent -- a binary too old for these weights
+returns wrong text rather than an error.
+
+The rest of this page is what the script does and why, for anyone who would
+rather run the steps by hand or check what they are agreeing to.
+
 ## Kit
 
 The publisher's own [Bonsai-demo](https://github.com/PrismML-Eng/Bonsai-demo)
