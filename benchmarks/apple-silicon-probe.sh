@@ -177,11 +177,18 @@ if wanted coherence; then
 _step "3/6  Coherence check -- READ THIS OUTPUT YOURSELF"
 say "## A. Coherence check"
 say ""
-say "Prompt: reverse a linked list, code only. Thinking is on by default, so the"
-say "answer may follow a reasoning block."
+say "Prompt: reverse a linked list, code only, at reasoning effort \`medium\`."
+say ""
+say "The effort is set explicitly. Bonsai 2 defaults to \`xhigh\`, which spends"
+say "most of a small token budget reasoning before it answers -- measured"
+say "elsewhere in this repo, a 200-token budget returned 731 characters of"
+say "reasoning and 9 of content. Left at the default, this check would often"
+say "show a reasoning block and no code, and the heuristic below would cry wolf."
+say "Its card states \`low\` is not supported, so \`medium\` is the floor."
 say ""
 SAMPLE="$WORK/.sample.txt"
-"$BIN/llama-cli" -m "$PRIMARY" -ngl 99 -fa on -c 4096 --single-turn -n 500 \
+"$BIN/llama-cli" -m "$PRIMARY" -ngl 99 -fa on -c 4096 --single-turn -n 700 \
+  --reasoning-effort medium \
   --temp 1.0 --top-p 0.95 --top-k 20 \
   -p "Write a Python function that reverses a linked list. Code only." \
   > "$SAMPLE" 2>&1
@@ -194,8 +201,9 @@ if grep -qE '\bdef \b|return ' "$SAMPLE"; then
   _info "looks like code -- good sign"
   say "_Automated heuristic: found Python-shaped output._"
 else
-  _warn "NO code-shaped text found. This may be the silent-gibberish failure"
-  _warn "(binary too old for these weights) -- or just a long reasoning block."
+  _warn "NO code-shaped text found. With effort pinned to medium and a 700-token"
+  _warn "budget this is more likely the silent-gibberish failure (binary too old"
+  _warn "for these weights) than an over-long reasoning block -- but check."
   _warn "READ the output above. If it is word salad, stop and report that."
   say "_Automated heuristic: **no** Python-shaped output found -- needs a human look._"
 fi
