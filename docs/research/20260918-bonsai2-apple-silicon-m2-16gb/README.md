@@ -42,10 +42,9 @@ equivalent** for a single copy of the code. Any comparison against the
 third-party MLX numbers above has to say whether those runs were similarly
 repetitive, or it is not comparing like with like.
 
-Still unanswered, and only the operator can:
-
-- Any stalls, beachballs or memory pressure during the soak?
-- Did the chassis get hot, and what else was running?
+Answered by the operator: **the chassis got really hot.** Which is what the
+-44.6% across five runs already implied, and confirms the throttling reading
+rather than, say, a background process stealing the GPU.
 
 ## Two artefacts of the probe, now fixed
 
@@ -92,6 +91,40 @@ operator observed containing the same function three times.
 (These rows are arithmetic on the measured rates, not separate measurements.
 Nothing here prefilled a long context — doing so would have taken most of an
 afternoon, which is rather the point.)
+
+## It is not the 16 GB
+
+The obvious conclusion from this run is "16 GB is not enough for a 27B". That
+is the wrong lesson, and it matters because it points at the wrong fix.
+
+**Memory was never the binding constraint here.** The model loaded a 262144
+context in 7032 MiB and left roughly 9 GB of the machine unused. Ternary
+quantisation did exactly what it claims: it solved the memory problem
+completely. What it cannot do is change how much compute a 27B forward pass
+costs, or how much of it a fanless laptop can sustain.
+
+Prefill is the discriminator, and it tracks the chip class, not the RAM:
+
+| machine | prefill tok/s | 32k prompt | generation |
+|---|---|---|---|
+| M2 Air 16GB — sustained *(measured here)* | 27 | **20.2 min** | 4.2 |
+| M2 Air 16GB — cold *(measured here)* | 42 | 13.0 min | 7.6 |
+| M3 Pro 18GB, v1 ternary *(community)* | 79 | 6.9 min | 12.6 |
+| M5 Pro, Bonsai 2 *(publisher)* | 387 | 1.4 min | 28.1 |
+| M5 Max, v1 ternary *(publisher)* | 765 | 0.7 min | 47.0 |
+| RTX 4090 24GB *(measured here)* | 3016 | **0.2 min** | 92.2 |
+
+Reading a 32k prompt inside a minute needs about **546 tok/s** of prefill. Only
+the Max-class part and the discrete GPU clear it, and the rows above are not
+separated by memory: an M2 Air with 64 GB, had Apple built one, would be
+exactly this slow. A fan would help — the Air gives up a third of its rate to
+heat within five runs — but a fan does not close a 14x gap to the M5 Pro.
+
+So the finding is not about 16 GB. It is that **ternary quantisation moves the
+constraint from memory to compute**, and having moved it, laptop-class silicon
+is where it now binds. That is the same conclusion the 24GB combination reached
+from the other direction, when two co-resident servers turned out to be limited
+by compute rather than VRAM.
 
 ## Why this is still not a combination
 
