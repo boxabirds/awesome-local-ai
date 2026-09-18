@@ -84,7 +84,20 @@ run" but "which backend should the combination declare".
 
 ## Kit
 
-Everything lands in a scratch directory; nothing touches your system.
+The publisher's own [Bonsai-demo](https://github.com/PrismML-Eng/Bonsai-demo)
+is the supported path and is the fastest way to a first result: `./setup.sh`
+downloads **Bonsai 2 27B by default**, fetches prebuilt Metal binaries rather
+than building the fork, and picks a RAM-tiered context automatically
+(`BONSAI_CTX` overrides it). Run that first if you just want to see it work:
+
+```bash
+git clone https://github.com/PrismML-Eng/Bonsai-demo && cd Bonsai-demo
+./setup.sh
+```
+
+The kit below builds from source instead, because the numbers this repo needs
+must come from a build whose flags are known. Everything lands in a scratch
+directory; nothing touches your system.
 
 ```bash
 mkdir -p ~/bonsai2-probe && cd ~/bonsai2-probe
@@ -149,16 +162,46 @@ done
 ### Also worth running: the MLX path
 
 macOS has a second option this repo does not use on CUDA — the
-[MLX build](https://huggingface.co/prism-ml/Ternary-Bonsai-2-27B-mlx-2bit) via
-PrismML's [MLX fork](https://github.com/PrismML-Eng/mlx). On the previous
-ternary generation MLX beat llama.cpp Metal on the same M1 Pro (15.0 vs 8.4
-tok/s). If that holds on the M2, a macOS combination should probably use MLX,
-not llama.cpp — which would make it a **new backend module**, not a config file.
+[MLX pack](https://huggingface.co/prism-ml/Ternary-Bonsai-2-27B-mlx-2bit). On
+the previous ternary generation MLX beat llama.cpp Metal on the same M1 Pro
+(15.0 vs 8.4 tok/s). If that holds on Bonsai 2, a macOS combination should use
+MLX rather than llama.cpp — which would make it a **new backend module**, not a
+config file.
+
+**Do not benchmark it with `mlx_lm.benchmark` directly.** The pack declares
+`model_type: prism_hadamard_qwen35` and requires the loader bundled in its own
+`runtime/` directory. Per the model card:
+
+> Ordinary MLX loaders skip the activation transform and the inverse embedding
+> lookup, so they return **wrong output rather than an error**.
+
+That is the same silent-gibberish failure mode as the GGUF `Q2_0` band, and it
+is why the community MLX numbers for the *previous* generation cannot simply be
+repeated here: those models load on stock loaders, and Bonsai 2 does not.
+No fork is needed — stock MLX packages plus the bundled loader.
 
 ```bash
-pip install mlx-lm
-python -m mlx_lm.benchmark --model prism-ml/Ternary-Bonsai-2-27B-mlx-2bit -p 512 -g 128
+hf download prism-ml/Ternary-Bonsai-2-27B-mlx-2bit --local-dir bonsai2-27b-mlx
+pip install -r bonsai2-27b-mlx/runtime/requirements.txt
+# then drive it through bonsai2-27b-mlx/runtime/ as the model card's
+# Quickstart shows, and time it yourself -- sanity-check that the text is
+# COHERENT before recording any tok/s figure.
 ```
+
+### Sizing: MLX is the heavier option on a 16 GB machine
+
+Same weights, four containers:
+
+| pack | bits/weight | on disk | vision tower |
+|---|---|---|---|
+| GGUF `PTQ1_0` | 1.75 | **5.95 GB** | separate, optional |
+| GGUF `PQ2_0` | 2.13 | 7.21 GB | separate, optional |
+| MLX 2-bit | 2.25 | 7.67 GB | **bundled, +0.92 GB = 8.60 GB** |
+
+MLX's container stores a scale *and* a bias per group, and the pack always
+carries the FP16 vision tower. So on a 16 GB machine `PTQ1_0` is the lightest
+path by ~2.6 GB, and that gap is most of what is left after Metal's working set
+is accounted for. Try `PTQ1_0` first; treat MLX as the speed experiment.
 
 ## What to report
 
