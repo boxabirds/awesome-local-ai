@@ -122,8 +122,10 @@ one combination and is false now — so it is marked.
 
 - **49.8 tok/s decode, 38.8 tok/s effective**, measured across 65 scored
   requests from a real OpenCode session rather than a synthetic loop.
-- **No vision** — neither MTPLX pack in this repo ships a projector. The
-  limitation is in the pack, not the model.
+- **Vision ships, unmeasured.** Both MTPLX packs carry their vision tower
+  (`model-vision.safetensors`, plus `vision_config` and the preprocessor
+  sidecars), and MTPLX serves images from 2.10.0 — the minimum both macOS
+  rows pin. No vision profile and no numbers on this path: nobody has run it.
 
 ---
 
