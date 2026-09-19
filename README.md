@@ -110,6 +110,12 @@ one combination and is false now — so it is marked.
 - **Vision that costs no context.** The `vision` profile still holds 128k and
   adds ~850 MiB, because at 10.7 GB the card was never the constraint — 13.4 GB
   is still free at 128k.
+- **About a quarter of the agentic coding ability, gone.** The publisher's
+  own whitepaper puts Bonsai 2 at 52.8 on Terminal-Bench 2.1 and 60.8 on
+  SWE-bench Verified, against 69.7 and 80.6 for full-precision Qwen3.8-27B.
+  Its 14-benchmark average hides this; the speed numbers above are real, and
+  so is this price. Quoted in full in
+  [the combination README](combinations/bonsai/2/27b/ubuntu/24GB/llamacpp-opencode/README.md#the-agentic-coding-gap).
 - **A fork, not upstream** — see the footnote above.
 
 **Qwen3.8-Flash-Next — macOS 26 / 128GB Apple silicon:**

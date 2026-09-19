@@ -27,8 +27,9 @@ size, speed, and the runtime it needs.
 Publisher's benchmark claim, which this repo has **not** independently
 verified: 84.78 average across 14 thinking-mode benchmarks, against 85.18 for
 the UD-Q4_K_XL build this repo's Qwen combination installs, and 72.59 for a
-conventional IQ2_XXS build at a larger footprint. What *was* verified here is
-everything below.
+conventional IQ2_XXS build at a larger footprint. That average conceals the
+one result that matters most here — see [The agentic coding gap](#the-agentic-coding-gap).
+What *was* verified here is everything below.
 
 ## Why you might want it
 
@@ -62,8 +63,60 @@ doing.
 - **No speculative decoding exists for it.** See below.
 - **The quality claim is the publisher's.** This repo measured speed, memory
   and behaviour, not benchmark scores.
+- **Agentic coding takes about a 25% hit.** The publisher's own report puts
+  Bonsai 2 at roughly three quarters of full-precision Qwen3.8-27B on
+  Terminal-Bench 2.1 and SWE-bench Verified. This is the cost that the
+  headline average hides: [The agentic coding gap](#the-agentic-coding-gap).
 - **Reasoning is expensive by default.** The model defaults to `xhigh`; this
   combination ships `medium`.
+
+## The agentic coding gap
+
+The publisher's own whitepaper is where this combination's cost shows up.
+It is worth quoting at length, because the fourteen-benchmark average above
+does not show it at all:
+
+> Long-context and coding performance. This release also delivers on the
+> roadmap set out in our initial Bonsai 27B release [2], where we identified
+> long-horizon, tool-driven software engineering as the next major capability
+> to improve. With Ternary Bonsai 2 27B, that progress now shows up directly
+> in agentic performance. Evaluated for the first time on Terminal-Bench 2.1
+> and SWE-bench Verified, the Ternary Bonsai 2 27B reaches 52.8 and 60.8,
+> respectively, compared with 69.7 and 80.6 for Qwen 3.8-27B, retaining
+> roughly three quarters of the full-precision performance on both benchmarks.
+
+— [Ternary Bonsai 2 27B whitepaper](https://github.com/PrismML-Eng/Bonsai-demo/blob/main/bonsai-2-27b-whitepaper.pdf),
+*Long-context and coding performance*.
+
+| | Bonsai 2 27B | Qwen3.8-27B | retained |
+|---|---|---|---|
+| Terminal-Bench 2.1 | 52.8 | 69.7 | 76% |
+| SWE-bench Verified | 60.8 | 80.6 | 75% |
+| 14-benchmark thinking average | 84.78 | 85.18 | 99.5% |
+
+Read the last row against the first two. An average over fourteen benchmarks
+says the ternary weights cost essentially nothing. The two benchmarks that
+measure long-horizon, tool-driven software engineering say they cost a
+quarter. This repo exists for coding agents, so the second reading is the one
+that applies here — and it is the publisher's own number, offered as progress
+rather than buried.
+
+Two things that stop this being a verdict:
+
+- **The baseline is full-precision Qwen3.8-27B**, not the UD-Q4_K_XL build the
+  [Qwen combination](../../../../../../qwen/3.8/27b/ubuntu/24GB/llamacpp-opencode/README.md)
+  actually installs on this card. That build is itself quantised, so the gap
+  against what you would really be running is smaller than these figures by an
+  amount nobody here has measured.
+- **Neither side was verified here.** Like every score on this page, these are
+  the publisher's numbers, on the publisher's harness. This repo measured
+  speed, memory and behaviour.
+
+What it does not change: every speed and footprint figure above was measured
+here and still stands. What it changes is the framing. This is not "the same
+model at a third of the size" — it is a trade with a price that is now visible
+on the axis this repo cares about: 2.1x the decode rate and 13 GB of headroom,
+against roughly three quarters of the agentic coding ability.
 
 ## Speculative decoding: a measured negative result
 
