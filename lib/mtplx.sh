@@ -278,7 +278,8 @@ _version_ge() {
 # profiles.tsv for this backend is
 #   name|ctx|mtp_depth|effort|max_tokens|need_mib|summary
 # There is no KV type and no vision flag to show: MTPLX quantises its own KV
-# cache per profile, and neither of these model packs ships a projector.
+# cache per profile, and it serves the vision tower inside the pack itself --
+# there is no projector for this repo to switch on or off.
 backend_profile_table() {
   awk -F'|' '!/^[[:space:]]*(#|$)/ {
     printf "  %-11s %7s ctx  depth %-2s  effort %-7s  max %-6s  %s\n", $1, $2, $3, $4, $5, $7

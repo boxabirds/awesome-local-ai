@@ -12,8 +12,11 @@ unified memory while it runs.
 **You do not want this if** your Mac has less than 128 GB — the pack wires
 77.3 GB and will not fit; use
 [the 27B combination](../../../../27b/macos/64GB/mtplx-opencode/README.md)
-instead. Also not if you need vision: neither MTPLX pack in this repo ships a
-projector.
+instead.
+
+**On vision**: the pack carries its vision tower (`model-vision.safetensors`)
+and MTPLX serves images from 2.10.0, the minimum this combination pins. This
+repo ships no vision profile for the MTPLX backend and has measured nothing.
 
 **Assumed knowledge**: a terminal, and that `~/.local/bin` is on your `PATH`.
 
