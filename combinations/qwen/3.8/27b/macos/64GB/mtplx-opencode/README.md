@@ -75,11 +75,12 @@ interrupted download resumes with a delta update rather than starting over.
 ### One-command OpenCode session (recommended)
 
 ```bash
-./start.sh
+./start.sh --opencode
 ```
 
 Starts the server on demand, launches OpenCode against it, and stops the server
-five minutes after you stop using it.
+five minutes after you stop using it. (Plain `./start.sh` just runs the server
+and leaves it up until you stop it.)
 
 ### Connecting a coding agent by hand
 

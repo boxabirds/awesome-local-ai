@@ -110,22 +110,25 @@ USAGE
   pass any unambiguous part of the install id or combination path.
 
 COMMANDS
-  (none)          start the server on demand and launch the client, then shut
-                  the server down once you stop using it            [default]
-  --server        run the server in the foreground, no client
-  --server-only   start the server and its idle watcher, then return
-  --status        server, watcher, clients, idle timer
-  --stop          stop the watcher and the server it started
-  --list          what is installed on this machine
-  --help          this text
+   (none)          run the server in the foreground like a normal server: it
+                   stays up until you stop it, no client, no idle shutdown     [default]
+   --opencode      start the server on demand, launch OpenCode, then shut the
+                   server down once you stop using it
+   --server        run the server in the foreground, no client (same as default)
+   --server-only   start the server and its idle watcher, then return
+   --status        server, watcher, clients, idle timer
+   --stop          stop the watcher and the server it started
+   --list          what is installed on this machine
+   --help          this text
 
 EXAMPLES
-  ./run.sh                             # the common case
-  ./run.sh --status
-  PROFILE=vision ./run.sh              # env passes through to the server
-  THINKING=0 ./run.sh
-  ./run.sh -- run "explain this repo"  # pass arguments to the client
-  ./run.sh qwen38-27b --server         # pick an install explicitly
+   ./run.sh                             # the common case: a normal, persistent server
+   ./run.sh --opencode                  # launch OpenCode; server idles out when you quit
+   ./run.sh --status
+   PROFILE=vision ./run.sh              # env passes through to the server
+   THINKING=0 ./run.sh
+   ./run.sh --opencode -- run "explain this repo"   # pass arguments to OpenCode
+   ./run.sh qwen38-27b --opencode       # pick an install explicitly
 
 Environment understood by the server (PROFILE, PORT, CTX, KV_TYPE, VISION,
 THINKING, THINKING_BUDGET, NP, UB) is passed straight through. See
@@ -135,7 +138,7 @@ HELP
 
 # ---- argument parsing -----------------------------------------------------
 SELECTOR=""
-ACTION="session"
+ACTION="server"
 PASSTHRU=()
 
 while (( $# )); do
@@ -143,6 +146,7 @@ while (( $# )); do
     --help|-h)     usage; exit 0 ;;
     --list)        ACTION="list"; shift ;;
     --server)      ACTION="server"; shift ;;
+    --opencode)    ACTION="session"; shift ;;
     --server-only) ACTION="server-only"; shift ;;
     --status)      ACTION="status"; shift ;;
     --stop)        ACTION="stop"; shift ;;
@@ -239,7 +243,12 @@ export PATH="${BIN_DIR}:${PATH}"
 
 # ---- run ------------------------------------------------------------------
 case "$ACTION" in
-  server)       exec "${BIN_DIR}/${SERVER_CMD}"  "${PASSTHRU[@]}" ;;
+  server)
+    if (( ${#PASSTHRU[@]} )); then
+      exec "${BIN_DIR}/${SERVER_CMD}" "${PASSTHRU[@]}"
+    else
+      exec "${BIN_DIR}/${SERVER_CMD}"
+    fi ;;
   server-only)  exec "${BIN_DIR}/${SESSION_CMD}" --server-only ;;
   status)       exec "${BIN_DIR}/${SESSION_CMD}" --status ;;
   stop)         exec "${BIN_DIR}/${SESSION_CMD}" --stop ;;
