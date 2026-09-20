@@ -125,10 +125,22 @@ COMMANDS
    --list          what is installed on this machine
    --help          this text
 
+SERVER   (where the server listens, plus generation tuning; each also works as
+           an env var)
+    --host <addr>   listen on this address. 127.0.0.1 (default) = only this
+                    machine can reach it; 0.0.0.0 = every interface, so other
+                    machines on your network or tailnet can reach the server
+    --port <port>   listen on this port (default 8080)
+    --max <n>       max MTP draft tokens per step (default 2). Raise it while
+                    draft acceptance stays high for more speed; lower it once
+                    acceptance starts dropping. (SPEC_DRAFT_N_MAX)
+
 EXAMPLES
    ./run.sh                             # the common case: a normal, persistent server
    ./run.sh pi                          # launch Pi; server idles out when you quit
    ./run.sh --opencode                  # launch OpenCode instead
+   ./run.sh --host 0.0.0.0              # or HOST=0.0.0.0 ./run.sh: reachable from
+                                        # other machines on your network
    ./run.sh qwen38-27b --pi             # pick an install, then a client
    ./run.sh --status
    PROFILE=vision ./run.sh              # env passes through to the server
@@ -136,9 +148,9 @@ EXAMPLES
    ./run.sh pi -- "explain this repo"   # pass arguments to Pi
    ./run.sh qwen38-27b --opencode       # pick an install explicitly
 
-Environment understood by the server (PROFILE, PORT, CTX, KV_TYPE, VISION,
-THINKING, THINKING_BUDGET, NP, UB) is passed straight through. See
-`<install-id>-server --help` for the profile table.
+Environment understood by the server (PROFILE, HOST, PORT, CTX, KV_TYPE,
+VISION, THINKING, THINKING_BUDGET, NP, UB, SPEC_DRAFT_N_MAX) is passed straight
+through. See `<install-id>-server --help` for the profile table.
 HELP
 }
 
@@ -161,6 +173,13 @@ while (( $# )); do
     --server-only) ACTION="server-only"; shift ;;
     --status)      ACTION="status"; shift ;;
     --stop)        ACTION="stop"; shift ;;
+    --host)        [[ $# -ge 2 ]] || { echo "run.sh: --host needs an address (e.g. 0.0.0.0)" >&2; exit 2; }
+                   HOST="$2"; shift 2 ;;
+    --port)        [[ $# -ge 2 ]] || { echo "run.sh: --port needs a number (e.g. 8080)" >&2; exit 2; }
+                    PORT="$2"; shift 2 ;;
+    --max)         [[ $# -ge 2 ]] || { echo "run.sh: --max needs a number (e.g. 3)" >&2; exit 2; }
+                    [[ "$2" =~ ^[1-9][0-9]*$ ]] || { echo "run.sh: --max must be a positive whole number, got '$2'" >&2; exit 2; }
+                    SPEC_DRAFT_N_MAX="$2"; shift 2 ;;
     --)            shift; PASSTHRU=("$@"); break ;;
     -*)            echo "run.sh: unknown option '$1' (try --help)" >&2; exit 2 ;;
     *)
@@ -175,6 +194,14 @@ while (( $# )); do
       esac ;;
   esac
 done
+
+# Server-facing flags become the env vars the launchers read (HOST, PORT,
+# SPEC_DRAFT_N_MAX). The env vars also work directly (HOST=0.0.0.0 ./run.sh);
+# the flags exist so that --host does what people expect. A flag wins over an
+# inherited env var, since it is the more explicit of the two.
+if [[ -n "${HOST:-}" ]]; then export HOST; fi
+if [[ -n "${PORT:-}" ]]; then export PORT; fi
+if [[ -n "${SPEC_DRAFT_N_MAX:-}" ]]; then export SPEC_DRAFT_N_MAX; fi
 
 # ---- select ---------------------------------------------------------------
 # Not `mapfile`: that is bash 4+, and stock macOS still ships bash 3.2.
