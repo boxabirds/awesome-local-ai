@@ -19,7 +19,7 @@ ROOT_ENV_VAR="MTPLX_FLASH_NEXT_ROOT"
 TARGET_OS="macos"
 ACCEL="metal"                             # -> lib/accel/metal.sh
 BACKEND="mtplx"                           # -> lib/mtplx.sh
-CLIENT="opencode"                         # -> lib/clients/opencode.sh
+CLIENT="${CLIENT:-opencode}"              # default client (overridable: --client pi / CLIENT=pi); all clients are installed and selectable at run time
 
 # MTPLX installs via `uv tool`, so there is nothing to compile and no system
 # packages to fetch. uv itself is checked for by lib/mtplx.sh.

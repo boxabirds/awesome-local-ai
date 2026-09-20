@@ -104,16 +104,20 @@ usage() {
 run.sh -- run whatever this machine has installed.
 
 USAGE
-  ./run.sh [selector] [command] [-- client args...]
+   ./run.sh [client] [selector] [command] [-- client args...]
 
-  With one combination installed, the selector is optional. With several,
-  pass any unambiguous part of the install id or combination path.
+   With one combination installed, the selector is optional. With several,
+   pass any unambiguous part of the install id or combination path. A client
+   and a selector may appear in either order.
+
+CLIENTS   (start the server on demand, launch the agent, stop it when idle)
+   pi | --pi       launch Pi
+   --opencode      launch OpenCode
+   (none)          do not launch a client (see COMMANDS)
 
 COMMANDS
    (none)          run the server in the foreground like a normal server: it
                    stays up until you stop it, no client, no idle shutdown     [default]
-   --opencode      start the server on demand, launch OpenCode, then shut the
-                   server down once you stop using it
    --server        run the server in the foreground, no client (same as default)
    --server-only   start the server and its idle watcher, then return
    --status        server, watcher, clients, idle timer
@@ -123,11 +127,13 @@ COMMANDS
 
 EXAMPLES
    ./run.sh                             # the common case: a normal, persistent server
-   ./run.sh --opencode                  # launch OpenCode; server idles out when you quit
+   ./run.sh pi                          # launch Pi; server idles out when you quit
+   ./run.sh --opencode                  # launch OpenCode instead
+   ./run.sh qwen38-27b --pi             # pick an install, then a client
    ./run.sh --status
    PROFILE=vision ./run.sh              # env passes through to the server
    THINKING=0 ./run.sh
-   ./run.sh --opencode -- run "explain this repo"   # pass arguments to OpenCode
+   ./run.sh pi -- "explain this repo"   # pass arguments to Pi
    ./run.sh qwen38-27b --opencode       # pick an install explicitly
 
 Environment understood by the server (PROFILE, PORT, CTX, KV_TYPE, VISION,
@@ -137,8 +143,12 @@ HELP
 }
 
 # ---- argument parsing -----------------------------------------------------
+# A "client" names which coding agent to launch (pi, opencode, ...). It is
+# orthogonal to the selector, which names WHICH install to use. Either token may
+# appear in either order: `./start.sh qwen38-27b --pi` == `./start.sh pi qwen38-27b`.
 SELECTOR=""
 ACTION="server"
+RUN_CLIENT=""
 PASSTHRU=()
 
 while (( $# )); do
@@ -146,15 +156,23 @@ while (( $# )); do
     --help|-h)     usage; exit 0 ;;
     --list)        ACTION="list"; shift ;;
     --server)      ACTION="server"; shift ;;
-    --opencode)    ACTION="session"; shift ;;
+    --pi)          ACTION="session"; RUN_CLIENT="pi"; shift ;;
+    --opencode)    ACTION="session"; RUN_CLIENT="opencode"; shift ;;
     --server-only) ACTION="server-only"; shift ;;
     --status)      ACTION="status"; shift ;;
     --stop)        ACTION="stop"; shift ;;
     --)            shift; PASSTHRU=("$@"); break ;;
     -*)            echo "run.sh: unknown option '$1' (try --help)" >&2; exit 2 ;;
     *)
-      [[ -n "$SELECTOR" ]] && { echo "run.sh: more than one selector given ('$SELECTOR', '$1')" >&2; exit 2; }
-      SELECTOR="$1"; shift ;;
+      # A bare client name selects a client rather than an install: install ids
+      # and combination paths never equal "pi" or "opencode", so this is
+      # unambiguous and steals no legitimate selector.
+      case "$1" in
+        pi|opencode) ACTION="session"; RUN_CLIENT="$1"; shift ;;
+        *)
+          [[ -n "$SELECTOR" ]] && { echo "run.sh: more than one selector given ('$SELECTOR', '$1')" >&2; exit 2; }
+          SELECTOR="$1"; shift ;;
+      esac ;;
   esac
 done
 
@@ -241,6 +259,14 @@ case ":${PATH}:" in
 esac
 export PATH="${BIN_DIR}:${PATH}"
 
+# The session command to hand off to. A selected client has its own command
+# (<install-id>-<client>); the default is the manifest's $SESSION_CMD.
+if [[ -n "$RUN_CLIENT" ]]; then
+  SESSION_CMD_USE="${ID}-${RUN_CLIENT}"
+else
+  SESSION_CMD_USE="$SESSION_CMD"
+fi
+
 # ---- run ------------------------------------------------------------------
 case "$ACTION" in
   server)
@@ -249,13 +275,18 @@ case "$ACTION" in
     else
       exec "${BIN_DIR}/${SERVER_CMD}"
     fi ;;
-  server-only)  exec "${BIN_DIR}/${SESSION_CMD}" --server-only ;;
-  status)       exec "${BIN_DIR}/${SESSION_CMD}" --status ;;
-  stop)         exec "${BIN_DIR}/${SESSION_CMD}" --stop ;;
+  server-only)  exec "${BIN_DIR}/${SESSION_CMD_USE}" --server-only ;;
+  status)       exec "${BIN_DIR}/${SESSION_CMD_USE}" --status ;;
+  stop)         exec "${BIN_DIR}/${SESSION_CMD_USE}" --stop ;;
   session)
+    if [[ ! -x "${BIN_DIR}/${SESSION_CMD_USE}" ]]; then
+      echo "run.sh: ${SESSION_CMD_USE} is not installed for '${ID}'." >&2
+      echo "Re-run the installer to add it (it is idempotent and safe)." >&2
+      exit 1
+    fi
     if (( ${#PASSTHRU[@]} )); then
-      exec "${BIN_DIR}/${SESSION_CMD}" -- "${PASSTHRU[@]}"
+      exec "${BIN_DIR}/${SESSION_CMD_USE}" -- "${PASSTHRU[@]}"
     else
-      exec "${BIN_DIR}/${SESSION_CMD}"
+      exec "${BIN_DIR}/${SESSION_CMD_USE}"
     fi ;;
 esac

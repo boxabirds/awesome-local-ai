@@ -116,9 +116,25 @@ print_summary() {
   fi
 
   say "${BOLD}START IT${NC}"
-  local w=$(( ${#SERVER_CMD} + 7 ))
-  (( ${#SESSION_CMD} > w )) && w=${#SESSION_CMD}
-  say "  ${GREEN}$(printf "%-${w}s" "$SESSION_CMD")${NC}  # start server on demand + ${CLIENT}, stop when idle"
+  # One line per installed client: the launcher writes a client-<name>.sh per
+  # client, so this scales as clients are added without touching the summary.
+  local w=$(( ${#SERVER_CMD} + 7 )) c sess cn disp
+  shopt -s nullglob
+  for c in "${INSTALL_ROOT}"/client-*.sh; do
+    cn="$(basename "$c" .sh)"
+    sess="${INSTALL_ID}-${cn}"
+    (( ${#sess} > w )) && w=${#sess}
+  done
+  shopt -u nullglob
+  shopt -s nullglob
+  for c in "${INSTALL_ROOT}"/client-*.sh; do
+    cn="$(basename "$c" .sh)"
+    sess="${INSTALL_ID}-${cn}"
+    disp="$(sed -n 's/^CLIENT_DISPLAY_NAME=\{0,1\}\([^"]*\)"\{0,1\}$/\1/p' "$c" | head -1)"
+    [[ -n "$disp" ]] || disp="$cn"
+    say "  ${GREEN}$(printf "%-${w}s" "$sess")${NC}  # start server on demand + ${disp}, stop when idle"
+  done
+  shopt -u nullglob
   say "$(printf "  %-${w}s  # just the server, in the foreground" "$SERVER_CMD")"
   say "$(printf "  %-${w}s  # all profiles, with caveats" "$SERVER_CMD --help")"
   (( SERVICE_CREATED )) && \

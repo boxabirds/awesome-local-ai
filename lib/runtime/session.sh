@@ -4,11 +4,13 @@
 # Starts the model server when a client needs it and shuts it down once nobody
 # is using it, so a 20 GB model is not sitting on the accelerator all day.
 #
-# ONE implementation serves every combination and every client. The lifecycle
-# (locking, client registry, idle reaper, config-drift warning) lives here;
-# the ~40 lines that differ per client -- how to write its provider config and
-# how to launch it -- live in $ROOT/client.sh, installed from
-# lib/clients/<client>.sh.
+ # ONE implementation serves every combination and every client. The lifecycle
+ # (locking, client registry, idle reaper, config-drift warning) lives here;
+ # the ~40 lines that differ per client -- how to write its provider config and
+ # how to launch it -- live in $ROOT/client-<client>.sh, installed from
+ # lib/clients/<client>.sh. The client to run is named by LOCAL_AI_CLIENT
+ # (exported by the per-client command, e.g. <install-id>-pi), falling back to
+ # the $CLIENT default baked into the manifest.
 #
 # Behaviour:
 #   * Starts the server only if one is not already serving on $PORT.
@@ -60,8 +62,18 @@ ROOT="${LOCAL_AI_ROOT:-$HOME/$LOCAL_AI_INSTALL_REL}"
   echo "local-ai-session: no install manifest at $ROOT/install.env" >&2; exit 1; }
 # shellcheck disable=SC1091
 . "$ROOT/install.env"
-# shellcheck disable=SC1091
-. "$ROOT/client.sh"
+
+# Which client adapter to load: the one the invoking command pinned, or the
+# default baked into the manifest. Newer installs ship a client-<name>.sh per
+# client; older ones ship only client.sh, so fall back to it.
+RUN_CLIENT="${LOCAL_AI_CLIENT:-$CLIENT}"
+if [[ -f "$ROOT/client-${RUN_CLIENT}.sh" ]]; then
+  # shellcheck disable=SC1090
+  . "$ROOT/client-${RUN_CLIENT}.sh"
+else
+  # shellcheck disable=SC1091
+  . "$ROOT/client.sh"
+fi
 
 export PATH="$HOME/.local/bin:$PATH"
 

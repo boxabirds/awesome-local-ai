@@ -6,6 +6,7 @@
 #   ./install.sh --dry-run       show the choice, install nothing
 #   ./install.sh llama           restrict to a model family
 #   ./install.sh <combination>   install exactly this one
+#   ./install.sh --client pi     make Pi the default client for the install
 #
 # Selection reads the combinations/ tree and probes the host; it does not carry
 # a registry, so it keeps working as combinations are added. It narrows the
@@ -38,10 +39,16 @@ SELECTOR
   all                 consider every family, not just the default
 
 OPTIONS
-  --list      show what fits this machine and what does not, then exit
-  --dry-run   show what would be installed, then exit
-  --yes       do not ask for confirmation
-  --help      this text
+   --list             show what fits this machine and what does not, then exit
+   --dry-run          show what would be installed, then exit
+   --yes              do not ask for confirmation
+   --client <name>    which coding agent to make the default (pi, opencode)
+   --help             this text
+
+Every client adapter is installed either way; --client only picks the default
+(the one `./start.sh <id>` launches with no client name). Any client can be
+selected at run time, e.g. `./start.sh <id> --pi`. The environment form
+`CLIENT=pi ./install.sh` is equivalent.
 
 Anything else is passed through to the combination's installer, so the
 environment overrides documented there still work:
@@ -54,6 +61,7 @@ HELP
 ACTION="install"
 ASSUME_YES=0
 SELECTOR=""
+CLIENT_CHOICE=""
 
 while (( $# )); do
   case "$1" in
@@ -61,12 +69,24 @@ while (( $# )); do
     --list)     ACTION="list"; shift ;;
     --dry-run)  ACTION="dry-run"; shift ;;
     --yes|-y)   ASSUME_YES=1; shift ;;
+    --client)
+      [[ $# -ge 2 ]] || { echo "install.sh: --client needs a name (e.g. pi, opencode)" >&2; exit 2; }
+      CLIENT_CHOICE="$2"; shift 2 ;;
     -*)         echo "install.sh: unknown option '$1' (try --help)" >&2; exit 2 ;;
     *)
       [[ -n "$SELECTOR" ]] && { echo "install.sh: more than one selector given ('$SELECTOR', '$1')" >&2; exit 2; }
       SELECTOR="$1"; shift ;;
   esac
 done
+
+# The client to make the default for this install. Validated now, exported so
+# the combination's config.sh (CLIENT="${CLIENT:-opencode}") picks it up. The
+# CLIENT=pi ./install.sh environment form works too; --client is just sugar.
+if [[ -n "$CLIENT_CHOICE" ]]; then
+  [[ -f "${REPO_ROOT}/lib/clients/${CLIENT_CHOICE}.sh" ]] || err \
+    "No client adapter for --client '${CLIENT_CHOICE}' (expected lib/clients/${CLIENT_CHOICE}.sh)."
+  export CLIENT="$CLIENT_CHOICE"
+fi
 
 detect_host
 

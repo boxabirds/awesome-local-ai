@@ -7,18 +7,81 @@
 #
 # Contract -- a client adapter must define:
 #   CLIENT_DISPLAY_NAME       name shown in messages
-#   client_ensure_installed   fail with an install hint if the binary is absent
+#   client_ensure_installed   locate an existing opencode (PATH, then the common
+#                             global-npm dirs) or fail with an install hint
 #   client_write_config       add the provider config (merging into any existing one)
 #   client_matches_pid        does this pid look like the client?
-#   client_exec               exec the client against the local server
+#   client_exec               exec the located client against the local server
 
 CLIENT_DISPLAY_NAME="OpenCode"
 
 _oc_config() { printf '%s/opencode/opencode.json' "${XDG_CONFIG_HOME:-$HOME/.config}"; }
 
+# Find an already-installed opencode. Prefer what is on PATH (the user's active
+# node -- the least surprising choice); if it is not there, look in the common
+# global-npm locations so an opencode that is installed but not on this shell's
+# PATH is still used instead of prompting for a second, competing install.
+# Prints the path of the first one found; returns 1 if none.
+_oc_find() {
+  local p c dflt
+  if p="$(command -v opencode 2>/dev/null)"; then
+    printf '%s' "$p"; return 0
+  fi
+  # nvm: the node version set as the default, else any installed version.
+  dflt=""
+  if [[ -f "$HOME/.nvm/alias/default" ]]; then
+    dflt="$(tr -d '[:space:]' < "$HOME/.nvm/alias/default")"
+  fi
+  case "$dflt" in
+    v*)
+      if [[ -x "$HOME/.nvm/versions/node/$dflt/bin/opencode" ]]; then
+        printf '%s' "$HOME/.nvm/versions/node/$dflt/bin/opencode"; return 0
+      fi ;;
+  esac
+  for c in "$HOME"/.nvm/versions/node/*/bin/opencode; do
+    if [[ -x "$c" ]]; then printf '%s' "$c"; return 0; fi
+  done
+  # asdf (shim first, then per-version installs)
+  for c in "$HOME"/.asdf/shims/opencode "$HOME"/.asdf/installs/nodejs/*/bin/opencode; do
+    if [[ -x "$c" ]]; then printf '%s' "$c"; return 0; fi
+  done
+  # fnm (default alias, then installations)
+  for c in "$HOME"/.fnm/aliases/default/bin/opencode \
+           "$HOME"/.local/share/fnm/node-versions/*/installation/bin/opencode; do
+    if [[ -x "$c" ]]; then printf '%s' "$c"; return 0; fi
+  done
+  # volta
+  if [[ -x "$HOME/.volta/bin/opencode" ]]; then
+    printf '%s' "$HOME/.volta/bin/opencode"; return 0
+  fi
+  # homebrew / system
+  for c in /opt/homebrew/bin/opencode /usr/local/bin/opencode /usr/bin/opencode; do
+    if [[ -x "$c" ]]; then printf '%s' "$c"; return 0; fi
+  done
+  # wherever the active npm's global prefix points
+  if command -v npm >/dev/null 2>&1; then
+    p="$(npm prefix -g 2>/dev/null)/bin/opencode"
+    if [[ -x "$p" ]]; then printf '%s' "$p"; return 0; fi
+  fi
+  return 1
+}
+
 client_ensure_installed() {
-  command -v opencode >/dev/null 2>&1 || {
-    echo "opencode not found. Install with: npm install -g opencode-ai" >&2; exit 1; }
+  local bin
+  if bin="$(_oc_find)"; then
+    OPENCODE_BIN="$bin"
+    case ":${PATH}:" in
+      *":$(dirname "$bin"):"*) ;;   # already reachable on PATH
+      *)
+        # Not on PATH: put its directory first so opencode's own subprocesses
+        # resolve their node runtime too, and say so.
+        export PATH="$(dirname "$bin"):${PATH}"
+        echo "Using existing opencode at ${bin} (not on PATH)." >&2 ;;
+    esac
+    return 0
+  fi
+  echo "opencode not found. Install with: npm install -g opencode-ai" >&2
+  exit 1
 }
 
 # The provider block this install needs, on its own, so it can be written into
@@ -143,7 +206,7 @@ client_matches_pid() {
   fi
 }
 
-client_exec() { exec opencode --model "${PROVIDER}/${MODEL_ID}" "$@"; }
+client_exec() { exec "${OPENCODE_BIN}" --model "${PROVIDER}/${MODEL_ID}" "$@"; }
 
 # Printed by the installer so the summary can tell the user how to connect by
 # hand if they prefer not to use the session wrapper.
