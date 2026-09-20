@@ -11,7 +11,8 @@ not estimated — and where a figure is extrapolated, it says so.
 git clone https://github.com/boxabirds/awesome-local-ai.git
 cd awesome-local-ai
 ./install.sh             # picks the combination that suits this machine
-./start.sh               # server starts on demand, stops when you're done
+./start.sh               # run the server; it stays up until you stop it
+./start.sh --opencode    # or launch OpenCode, and let the server idle out
 ```
 
 `install.sh` probes the host and reads the combinations tree, whose path

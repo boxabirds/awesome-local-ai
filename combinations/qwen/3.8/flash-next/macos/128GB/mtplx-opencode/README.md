@@ -75,12 +75,13 @@ already cached and valid is left alone and no network call is made.
 ### One-command OpenCode session (recommended)
 
 ```bash
-./start.sh
+./start.sh --opencode
 ```
 
 Starts the server if one is not already up, launches OpenCode against it, and
 shuts the server down five minutes after you stop using it — so 77 GB is not
-parked in memory all day.
+parked in memory all day. (Plain `./start.sh` just runs the server and leaves
+it up until you stop it.)
 
 ### Connecting a coding agent by hand
 
