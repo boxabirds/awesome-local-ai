@@ -11,7 +11,9 @@ not estimated — and where a figure is extrapolated, it says so.
 git clone https://github.com/boxabirds/awesome-local-ai.git
 cd awesome-local-ai
 ./install.sh             # picks the combination that suits this machine
-./start.sh               # server starts on demand, stops when you're done
+./start.sh               # run the server; it stays up until you stop it
+./start.sh --opencode    # or launch OpenCode against it, and let the server idle out
+./start.sh --pi          # or Pi (pi.dev) instead
 ```
 
 `install.sh` probes the host and reads the combinations tree, whose path
@@ -110,14 +112,22 @@ one combination and is false now — so it is marked.
 - **Vision that costs no context.** The `vision` profile still holds 128k and
   adds ~850 MiB, because at 10.7 GB the card was never the constraint — 13.4 GB
   is still free at 128k.
+- **About a quarter of the agentic coding ability, gone.** The publisher's
+  own whitepaper puts Bonsai 2 at 52.8 on Terminal-Bench 2.1 and 60.8 on
+  SWE-bench Verified, against 69.7 and 80.6 for full-precision Qwen3.8-27B.
+  Its 14-benchmark average hides this; the speed numbers above are real, and
+  so is this price. Quoted in full in
+  [the combination README](combinations/bonsai/2/27b/ubuntu/24GB/llamacpp-opencode/README.md#the-agentic-coding-gap).
 - **A fork, not upstream** — see the footnote above.
 
 **Qwen3.8-Flash-Next — macOS 26 / 128GB Apple silicon:**
 
 - **49.8 tok/s decode, 38.8 tok/s effective**, measured across 65 scored
   requests from a real OpenCode session rather than a synthetic loop.
-- **No vision** — neither MTPLX pack in this repo ships a projector. The
-  limitation is in the pack, not the model.
+- **Vision ships, unmeasured.** Both MTPLX packs carry their vision tower
+  (`model-vision.safetensors`, plus `vision_config` and the preprocessor
+  sidecars), and MTPLX serves images from 2.10.0 — the minimum both macOS
+  rows pin. No vision profile and no numbers on this path: nobody has run it.
 
 ---
 
@@ -175,7 +185,7 @@ Three extension points, each one file with a small documented contract:
 
 - **Accelerator** — `lib/accel/<name>.sh` (`cuda`, `metal`)
 - **Backend** — `lib/<name>.sh` (`llamacpp`, `mtplx`)
-- **Client** — `lib/clients/<name>.sh` (`opencode` today, ~50 lines)
+- **Client** — `lib/clients/<name>.sh` (`opencode`, `pi`) — the client is an orthogonal axis: every one is installed and you pick at run time (`./start.sh --pi`), while `CLIENT` in a combination's `config.sh` only names the default
 
 ---
 

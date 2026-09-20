@@ -253,13 +253,26 @@ OpenAI-compatible client works; two good terminal agents:
 
 #### Pi ([pi.dev](https://pi.dev))
 
-Minimal, MIT-licensed, and it has **built-in llama.cpp support**.
+Minimal, MIT-licensed, and it has **built-in llama.cpp support**. It is a
+first-class client here — pick it at install time and it is configured for you:
 
 ```bash
-npm install -g @earendil-works/pi-coding-agent
+./install.sh --client pi        # or: CLIENT=pi ./install-...sh
 ```
 
-Add to `~/.pi/agent/models.json`:
+That writes `~/.pi/agent/models.json` (merging into it if you already have one)
+and adds a `qwen38-27b-pi` command. Launch Pi with the server started on demand
+and shut down when you stop using it:
+
+```bash
+./start.sh pi                   # or: ./start.sh qwen38-27b --pi
+qwen38-27b-pi                   # the generated command, directly
+```
+
+**By hand.** `npm install -g @earendil-works/pi-coding-agent`, then add to
+`~/.pi/agent/models.json`. The `compat` block is load-bearing: this server wants
+a `system` role (not `developer`) and applies its own reasoning effort, so both
+flags must be `false` or Pi's first request is rejected.
 
 ```json
 {
@@ -275,7 +288,11 @@ Add to `~/.pi/agent/models.json`:
           "input": ["text"],
           "contextWindow": 131072,
           "maxTokens": 32768,
-          "reasoning": true
+          "reasoning": true,
+          "compat": {
+            "supportsDeveloperRole": false,
+            "supportsReasoningEffort": false
+          }
         }
       ]
     }
@@ -283,8 +300,8 @@ Add to `~/.pi/agent/models.json`:
 }
 ```
 
-Then `pi` and pick the model with `/model`. `apiKey` is required but ignored —
-any placeholder works.
+Then `pi` and pick the model with `/model` (or `pi --model qwen38-local/qwen3.8-27b`).
+`apiKey` is required but ignored — any placeholder works.
 
 #### OpenCode ([opencode.ai](https://opencode.ai))
 

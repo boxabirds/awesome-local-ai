@@ -26,6 +26,7 @@ lib/                                  ALL the logic, shared by every combination
   llamacpp.sh  mtplx.sh               backend adapters     (BACKEND=...)
   accel/cuda.sh  accel/metal.sh       accelerator adapters (ACCEL=...)
   clients/opencode.sh                 client adapter       (CLIENT=opencode)
+  clients/pi.sh                       client adapter       (CLIENT=pi)
   runtime/server-<backend>.sh         launcher, installed as local-ai-<backend>-server
   runtime/session.sh                  generic lifecycle mgr, installed as local-ai-session
 combinations/<family>/<version>/<size>/<os>/<memory>/<stack>/
@@ -76,7 +77,7 @@ and change the values. Required variables (`lib/bootstrap.sh` enforces these):
 | `TARGET_OS` (+ `TARGET_OS_VERSION`) | which OS qualification path to take |
 | `ACCEL` | selects `lib/accel/<ACCEL>.sh` |
 | `BACKEND` | selects `lib/<BACKEND>.sh` |
-| `CLIENT` | selects `lib/clients/<CLIENT>.sh` |
+| `CLIENT` | the DEFAULT `lib/clients/<CLIENT>.sh` (the one `./start.sh <id>` launches with no client name). Overridable at install time with `--client <name>` or `CLIENT=<name>`. Every client adapter is installed regardless, so any of them can be selected at run time: `./start.sh <id> --pi` |
 | `SYSTEM_PACKAGES` | array of packages for the OS's package manager |
 | `MODEL_SUBDIR`, `MODEL_ASSETS` | where weights live and what to fetch |
 | `MODEL_ALIAS_DEFAULT` | the stable id advertised at `/v1/models` |
@@ -191,6 +192,17 @@ Selected by `CLIENT=<name>`. Must define:
 `lib/clients/opencode.sh` is ~50 lines and is the reference. The whole
 lifecycle — locking, client registry, idle watcher, config-drift warning — is
 shared in `lib/runtime/session.sh` and you get it for free.
+
+There is more than one client, and they are an orthogonal axis: the installer
+copies **every** `lib/clients/<name>.sh` into the install root as
+`client-<name>.sh` (plus a `client.sh` holding the default) and writes a session
+command per client, `<install-id>-<name>`. `CLIENT` in `config.sh` only names
+the *default*; at run time `lib/run.sh` picks the adapter from the client you
+ask for — `./start.sh <id> --pi` or the `<install-id>-pi` command — and
+`lib/runtime/session.sh` loads `client-<name>.sh` accordingly. `pi.sh` is a
+second worked example; note in particular `client_matches_pid`, which the idle
+reaper relies on to tell a live client from the dead, and `client_write_config`,
+which must merge into (never clobber) a config the user already has.
 
 ---
 

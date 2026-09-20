@@ -20,7 +20,7 @@ TARGET_OS="ubuntu"
 TARGET_OS_VERSION="22.04"
 ACCEL="cuda"                              # -> lib/accel/cuda.sh
 BACKEND="llamacpp"                        # -> lib/llamacpp.sh
-CLIENT="opencode"                         # -> lib/clients/opencode.sh
+CLIENT="${CLIENT:-opencode}"              # default client (overridable: --client pi / CLIENT=pi); all clients are installed and selectable at run time
 
 SYSTEM_PACKAGES=(build-essential git curl wget cmake ninja-build libcurl4-openssl-dev pciutils)
 

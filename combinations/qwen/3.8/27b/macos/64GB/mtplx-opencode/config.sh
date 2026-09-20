@@ -24,7 +24,7 @@ ROOT_ENV_VAR="MTPLX_QWEN38_27B_ROOT"
 TARGET_OS="macos"
 ACCEL="metal"                             # -> lib/accel/metal.sh
 BACKEND="mtplx"                           # -> lib/mtplx.sh
-CLIENT="opencode"                         # -> lib/clients/opencode.sh
+CLIENT="${CLIENT:-opencode}"              # default client (overridable: --client pi / CLIENT=pi); all clients are installed and selectable at run time
 
 SYSTEM_PACKAGES=()
 
