@@ -108,6 +108,28 @@ row="$(profile_row "$PROFILE")" || {
   exit 1; }
 IFS='|' read -r _ D_CTX D_KV D_VISION D_NP D_UB D_NEED _ <<< "$row"
 
+PORT="${PORT:-8080}"
+
+# ---- pre-flight: already running ------------------------------------------
+# The commonest failure, and the commonest reason free memory looks short: a
+# server is already holding the port (and the weights). Detect it before
+# loading the model, say so plainly, and stop -- rather than burn two minutes
+# and 20 GB only to die on the bind. Checked first so it does not fall through
+# to the VRAM warning below, which would sleep and add noise.
+if command -v curl >/dev/null 2>&1 \
+   && curl -sf --max-time 2 "http://127.0.0.1:${PORT}/health" >/dev/null 2>&1; then
+  serving="$(curl -sf --max-time 2 "http://127.0.0.1:${PORT}/v1/models" 2>/dev/null \
+    | python3 -c 'import sys,json;d=json.load(sys.stdin);m=(d.get("models") or d.get("data") or [{}])[0];print(m.get("id") or m.get("model") or "")' 2>/dev/null || true)"
+  echo "${SERVER_CMD}: already running on :${PORT}${serving:+ (${serving})}." >&2
+  if [[ "$serving" == "${MODEL_ALIAS:-$MODEL_ALIAS_DEFAULT}" ]]; then
+    echo "         That is this combination's model -- you can use it as it is." >&2
+  else
+    echo "         Something else is on that port. Stop it, or serve elsewhere:" >&2
+    echo "           PORT=<other> ${SERVER_CMD}" >&2
+  fi
+  exit 1
+fi
+
 # ---- pre-flight -----------------------------------------------------------
 # A device OOM two minutes into loading a 17 GB model is a miserable way to
 # find out another process is holding memory. Check first, name the fix.
@@ -137,7 +159,6 @@ if [[ "$ACCEL" == "cuda" ]] && command -v nvidia-smi >/dev/null 2>&1 \
   fi
 fi
 
-PORT="${PORT:-8080}"
 HOST="${HOST:-127.0.0.1}"
 CTX="${CTX:-$D_CTX}"
 KV_TYPE="${KV_TYPE:-$D_KV}"
