@@ -12,7 +12,8 @@ git clone https://github.com/boxabirds/awesome-local-ai.git
 cd awesome-local-ai
 ./install.sh             # picks the combination that suits this machine
 ./start.sh               # run the server; it stays up until you stop it
-./start.sh --opencode    # or launch OpenCode, and let the server idle out
+./start.sh --opencode    # or launch OpenCode against it, and let the server idle out
+./start.sh --pi          # or Pi (pi.dev) instead
 ```
 
 `install.sh` probes the host and reads the combinations tree, whose path
@@ -184,7 +185,7 @@ Three extension points, each one file with a small documented contract:
 
 - **Accelerator** — `lib/accel/<name>.sh` (`cuda`, `metal`)
 - **Backend** — `lib/<name>.sh` (`llamacpp`, `mtplx`)
-- **Client** — `lib/clients/<name>.sh` (`opencode` today, ~50 lines)
+- **Client** — `lib/clients/<name>.sh` (`opencode`, `pi`) — the client is an orthogonal axis: every one is installed and you pick at run time (`./start.sh --pi`), while `CLIENT` in a combination's `config.sh` only names the default
 
 ---
 
