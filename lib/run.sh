@@ -104,38 +104,63 @@ usage() {
 run.sh -- run whatever this machine has installed.
 
 USAGE
-  ./run.sh [selector] [command] [-- client args...]
+   ./run.sh [client] [selector] [command] [-- client args...]
 
-  With one combination installed, the selector is optional. With several,
-  pass any unambiguous part of the install id or combination path.
+   With one combination installed, the selector is optional. With several,
+   pass any unambiguous part of the install id or combination path. A client
+   and a selector may appear in either order.
+
+CLIENTS   (start the server on demand, launch the agent, stop it when idle)
+   pi | --pi       launch Pi
+   --opencode      launch OpenCode
+   (none)          do not launch a client (see COMMANDS)
 
 COMMANDS
-  (none)          start the server on demand and launch the client, then shut
-                  the server down once you stop using it            [default]
-  --server        run the server in the foreground, no client
-  --server-only   start the server and its idle watcher, then return
-  --status        server, watcher, clients, idle timer
-  --stop          stop the watcher and the server it started
-  --list          what is installed on this machine
-  --help          this text
+   (none)          run the server in the foreground like a normal server: it
+                   stays up until you stop it, no client, no idle shutdown     [default]
+   --server        run the server in the foreground, no client (same as default)
+   --server-only   start the server and its idle watcher, then return
+   --status        server, watcher, clients, idle timer
+   --stop          stop the watcher and the server it started
+   --list          what is installed on this machine
+   --help          this text
+
+SERVER   (where the server listens, plus generation tuning; each also works as
+           an env var)
+    --host <addr>   listen on this address. 127.0.0.1 (default) = only this
+                    machine can reach it; 0.0.0.0 = every interface, so other
+                    machines on your network or tailnet can reach the server
+    --port <port>   listen on this port (default 8080)
+    --max <n>       max MTP draft tokens per step (default 2). Raise it while
+                    draft acceptance stays high for more speed; lower it once
+                    acceptance starts dropping. (SPEC_DRAFT_N_MAX)
 
 EXAMPLES
-  ./run.sh                             # the common case
-  ./run.sh --status
-  PROFILE=vision ./run.sh              # env passes through to the server
-  THINKING=0 ./run.sh
-  ./run.sh -- run "explain this repo"  # pass arguments to the client
-  ./run.sh qwen38-27b --server         # pick an install explicitly
+   ./run.sh                             # the common case: a normal, persistent server
+   ./run.sh pi                          # launch Pi; server idles out when you quit
+   ./run.sh --opencode                  # launch OpenCode instead
+   ./run.sh --host 0.0.0.0              # or HOST=0.0.0.0 ./run.sh: reachable from
+                                        # other machines on your network
+   ./run.sh qwen38-27b --pi             # pick an install, then a client
+   ./run.sh --status
+   PROFILE=vision ./run.sh              # env passes through to the server
+   THINKING=0 ./run.sh
+   ./run.sh pi -- "explain this repo"   # pass arguments to Pi
+   ./run.sh qwen38-27b --opencode       # pick an install explicitly
 
-Environment understood by the server (PROFILE, PORT, CTX, KV_TYPE, VISION,
-THINKING, THINKING_BUDGET, NP, UB) is passed straight through. See
-`<install-id>-server --help` for the profile table.
+Environment understood by the server (PROFILE, HOST, PORT, CTX, KV_TYPE,
+VISION, THINKING, THINKING_BUDGET, NP, UB, SPEC_DRAFT_N_MAX) is passed straight
+through. See `<install-id>-server --help` for the profile table.
 HELP
 }
 
 # ---- argument parsing -----------------------------------------------------
+# A "client" names which coding agent to launch (pi, opencode, ...). It is
+# orthogonal to the selector, which names WHICH install to use. Either token may
+# appear in either order: `./start.sh qwen38-27b --pi` == `./start.sh pi qwen38-27b`.
 SELECTOR=""
-ACTION="session"
+ACTION="server"
+RUN_CLIENT=""
 PASSTHRU=()
 
 while (( $# )); do
@@ -143,16 +168,40 @@ while (( $# )); do
     --help|-h)     usage; exit 0 ;;
     --list)        ACTION="list"; shift ;;
     --server)      ACTION="server"; shift ;;
+    --pi)          ACTION="session"; RUN_CLIENT="pi"; shift ;;
+    --opencode)    ACTION="session"; RUN_CLIENT="opencode"; shift ;;
     --server-only) ACTION="server-only"; shift ;;
     --status)      ACTION="status"; shift ;;
     --stop)        ACTION="stop"; shift ;;
+    --host)        [[ $# -ge 2 ]] || { echo "run.sh: --host needs an address (e.g. 0.0.0.0)" >&2; exit 2; }
+                   HOST="$2"; shift 2 ;;
+    --port)        [[ $# -ge 2 ]] || { echo "run.sh: --port needs a number (e.g. 8080)" >&2; exit 2; }
+                    PORT="$2"; shift 2 ;;
+    --max)         [[ $# -ge 2 ]] || { echo "run.sh: --max needs a number (e.g. 3)" >&2; exit 2; }
+                    [[ "$2" =~ ^[1-9][0-9]*$ ]] || { echo "run.sh: --max must be a positive whole number, got '$2'" >&2; exit 2; }
+                    SPEC_DRAFT_N_MAX="$2"; shift 2 ;;
     --)            shift; PASSTHRU=("$@"); break ;;
     -*)            echo "run.sh: unknown option '$1' (try --help)" >&2; exit 2 ;;
     *)
-      [[ -n "$SELECTOR" ]] && { echo "run.sh: more than one selector given ('$SELECTOR', '$1')" >&2; exit 2; }
-      SELECTOR="$1"; shift ;;
+      # A bare client name selects a client rather than an install: install ids
+      # and combination paths never equal "pi" or "opencode", so this is
+      # unambiguous and steals no legitimate selector.
+      case "$1" in
+        pi|opencode) ACTION="session"; RUN_CLIENT="$1"; shift ;;
+        *)
+          [[ -n "$SELECTOR" ]] && { echo "run.sh: more than one selector given ('$SELECTOR', '$1')" >&2; exit 2; }
+          SELECTOR="$1"; shift ;;
+      esac ;;
   esac
 done
+
+# Server-facing flags become the env vars the launchers read (HOST, PORT,
+# SPEC_DRAFT_N_MAX). The env vars also work directly (HOST=0.0.0.0 ./run.sh);
+# the flags exist so that --host does what people expect. A flag wins over an
+# inherited env var, since it is the more explicit of the two.
+if [[ -n "${HOST:-}" ]]; then export HOST; fi
+if [[ -n "${PORT:-}" ]]; then export PORT; fi
+if [[ -n "${SPEC_DRAFT_N_MAX:-}" ]]; then export SPEC_DRAFT_N_MAX; fi
 
 # ---- select ---------------------------------------------------------------
 # Not `mapfile`: that is bash 4+, and stock macOS still ships bash 3.2.
@@ -237,16 +286,34 @@ case ":${PATH}:" in
 esac
 export PATH="${BIN_DIR}:${PATH}"
 
+# The session command to hand off to. A selected client has its own command
+# (<install-id>-<client>); the default is the manifest's $SESSION_CMD.
+if [[ -n "$RUN_CLIENT" ]]; then
+  SESSION_CMD_USE="${ID}-${RUN_CLIENT}"
+else
+  SESSION_CMD_USE="$SESSION_CMD"
+fi
+
 # ---- run ------------------------------------------------------------------
 case "$ACTION" in
-  server)       exec "${BIN_DIR}/${SERVER_CMD}"  "${PASSTHRU[@]}" ;;
-  server-only)  exec "${BIN_DIR}/${SESSION_CMD}" --server-only ;;
-  status)       exec "${BIN_DIR}/${SESSION_CMD}" --status ;;
-  stop)         exec "${BIN_DIR}/${SESSION_CMD}" --stop ;;
-  session)
+  server)
     if (( ${#PASSTHRU[@]} )); then
-      exec "${BIN_DIR}/${SESSION_CMD}" -- "${PASSTHRU[@]}"
+      exec "${BIN_DIR}/${SERVER_CMD}" "${PASSTHRU[@]}"
     else
-      exec "${BIN_DIR}/${SESSION_CMD}"
+      exec "${BIN_DIR}/${SERVER_CMD}"
+    fi ;;
+  server-only)  exec "${BIN_DIR}/${SESSION_CMD_USE}" --server-only ;;
+  status)       exec "${BIN_DIR}/${SESSION_CMD_USE}" --status ;;
+  stop)         exec "${BIN_DIR}/${SESSION_CMD_USE}" --stop ;;
+  session)
+    if [[ ! -x "${BIN_DIR}/${SESSION_CMD_USE}" ]]; then
+      echo "run.sh: ${SESSION_CMD_USE} is not installed for '${ID}'." >&2
+      echo "Re-run the installer to add it (it is idempotent and safe)." >&2
+      exit 1
+    fi
+    if (( ${#PASSTHRU[@]} )); then
+      exec "${BIN_DIR}/${SESSION_CMD_USE}" -- "${PASSTHRU[@]}"
+    else
+      exec "${BIN_DIR}/${SESSION_CMD_USE}"
     fi ;;
 esac
