@@ -1,0 +1,3 @@
+profile_name	total_ctx	slots	per_slot_limit	mtp_len	description
+engineering-deep	131072	1	131072	3	"Single-user deep coding session with high-fidelity 128k context window."
+agentic-loop	131072	2	65536	2	"Dual concurrent slots at 65k context for parallel automated agent tools."
