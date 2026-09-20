@@ -31,7 +31,14 @@
 #   THINKING=0 <cmd>       disable reasoning (faster, terser)
 #   PROFILE=vision <cmd>   enable image input
 #
-# Env: PORT PROFILE IDLE_TIMEOUT MODEL_ID PROVIDER
+# Server flags (only take effect when a server is actually started):
+#   <cmd> --host <addr>    which address the server listens on.
+#                          127.0.0.1 (default) = only this machine can reach it.
+#                          0.0.0.0 = every interface, so other machines on your
+#                          network or tailnet can reach it too.
+#   <cmd> --port <port>    which port to listen on (default 8080)
+#
+# Env: PORT PROFILE IDLE_TIMEOUT MODEL_ID PROVIDER HOST
 #      plus anything the server launcher understands -- CTX, KV_TYPE, VISION,
 #      THINKING, THINKING_BUDGET, NP, UB -- which is passed straight through.
 #      NOTE: these only apply when a server is actually started. If one is
@@ -110,10 +117,10 @@ server_healthy() { curl -sf --max-time 3 "http://127.0.0.1:${PORT}/health" >/dev
 # invocation asking for something different is told, rather than silently
 # handed a server configured the old way.
 server_config_sig() {
-  printf 'PROFILE=%s CTX=%s KV_TYPE=%s VISION=%s THINKING=%s EFFORT=%s THINKING_BUDGET=%s NP=%s UB=%s' \
+  printf 'PROFILE=%s CTX=%s KV_TYPE=%s VISION=%s THINKING=%s EFFORT=%s THINKING_BUDGET=%s NP=%s UB=%s HOST=%s' \
     "$PROFILE" "${CTX:-default}" "${KV_TYPE:-default}" "${VISION:-default}" \
     "${THINKING:-1}" "${REASONING_EFFORT:-${REASONING_EFFORT_DEFAULT:-default}}" \
-    "${THINKING_BUDGET:-none}" "${NP:-default}" "${UB:-default}"
+    "${THINKING_BUDGET:-none}" "${NP:-default}" "${UB:-default}" "${HOST:-127.0.0.1}"
 }
 
 # A registered pid counts as a live client if it is alive AND looks like the
@@ -156,6 +163,20 @@ listener_pid() {
     p="$(ss -H -ltnp "sport = :${PORT}" 2>/dev/null | sed -n 's/.*pid=\([0-9]*\).*/\1/p' | head -1)"
   fi
   printf '%s' "$p"
+}
+
+# The address:port the server is actually bound to, for --status. Read from the
+# live listener rather than from config, so it reflects reality even for a
+# server this script did not start. Match the field that ends in the port
+# (the local address) rather than a fixed column: ss drops columns when a
+# filter is given, so positions are not stable.
+listen_addr() {
+  local a=""
+  if command -v ss >/dev/null 2>&1; then
+    a="$(ss -H -ltn "sport = :${PORT}" 2>/dev/null \
+      | awk -v p=":${PORT}" '{for(i=1;i<=NF;i++) if ($i ~ p"$") {print $i; exit}}')"
+  fi
+  printf '%s' "${a:-${HOST:-127.0.0.1}:${PORT}}"
 }
 
 # Is this pid serving OUR model? Checked before signalling anything we did not
@@ -315,11 +336,17 @@ watcher_loop() {
 }
 
 show_status() {
-  local n sp
+  local n sp addr reach
   n="$(count_clients)"
   if server_healthy; then
     sp="$(owned_server_pid || echo '')"
-    echo "server    : running on :${PORT}$( [[ -n "$sp" ]] && echo " (pid $sp, managed)" || echo " (not managed by this script)" )"
+    addr="$(listen_addr)"
+    case "$addr" in
+      0.0.0.0:*|*"[::]"*) reach="all interfaces" ;;
+      127.0.0.1:*|localhost:*) reach="this machine only" ;;
+      *) reach="one interface only" ;;
+    esac
+    echo "server    : running on ${addr} [${reach}]$( [[ -n "$sp" ]] && echo " (pid $sp, managed)" || echo " (not managed by this script)" )"
     echo "model     : $(curl -s --max-time 3 "http://127.0.0.1:${PORT}/v1/models" \
         | python3 -c 'import sys,json;d=json.load(sys.stdin);print((d.get("models") or d.get("data"))[0].get("model") or (d.get("models") or d.get("data"))[0].get("id"))' 2>/dev/null || echo '?')"
     if [[ "$ACCEL" == "cuda" ]] && command -v nvidia-smi >/dev/null 2>&1; then
@@ -354,13 +381,32 @@ case "${1:-}" in
       say "Stopped."
       exit 0 ;;
   -h|--help)
-      sed -n '2,40p' "$SELF" | sed 's/^# \{0,1\}//' | sed "s|<cmd>|$SERVER_CMD_SESSION|g"
+      # Print the leading comment block (everything up to the first code line),
+      # so the help keeps working as the header grows or shrinks.
+      awk 'NR==1{next} /^set -euo pipefail/{exit} {print}' "$SELF" \
+        | sed 's/^# \{0,1\}//' | sed "s|<cmd>|$SERVER_CMD_SESSION|g"
       exit 0 ;;
 esac
 
 SERVER_ONLY=0
 [[ "${1:-}" == "--server-only" ]] && { SERVER_ONLY=1; shift; }
 [[ "${1:-}" == "--" ]] && shift
+
+# Server-facing flags: pull them out of the argument list and turn them into
+# the environment the server launcher reads. Everything left over is the
+# client's own arguments. Without this, e.g. `--host` would leak through to
+# the client (which has no such flag) and the server would keep its default.
+CLIENT_ARGS=()
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --host) [[ $# -ge 2 ]] || { say "--host needs an address (e.g. 0.0.0.0)"; exit 1; }
+            HOST="$2"; shift 2 ;;
+    --port) [[ $# -ge 2 ]] || { say "--port needs a number"; exit 1; }
+            PORT="$2"; shift 2 ;;
+    *)      CLIENT_ARGS+=("$1"); shift ;;
+  esac
+done
+export HOST PORT
 
 # Serialise startup so two simultaneous invocations cannot both launch a server.
 exec 9>"$LOCK_FILE"
@@ -388,4 +434,6 @@ flock -u 9
 exec 9>&-
 
 say "Launching ${CLIENT_DISPLAY_NAME} with ${PROVIDER}/${MODEL_ID} (server stops ${IDLE_TIMEOUT}s after last client exits)."
-client_exec "$@"
+# ${arr[@]+"${arr[@]}"} expands to nothing when empty; a bare "${arr[@]}" is an
+# unbound-variable error under `set -u` on bash < 4.4 (macOS ships 3.2).
+client_exec "${CLIENT_ARGS[@]+"${CLIENT_ARGS[@]}"}"
