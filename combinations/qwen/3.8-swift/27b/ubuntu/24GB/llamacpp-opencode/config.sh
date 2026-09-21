@@ -79,7 +79,7 @@ REASONING_EFFORTS="default low medium high xhigh"
 # 3 matches Swift's 3-layer head and is what the A/B measured spec decoding
 # live on.
 SPEC_BUILTIN=1
-SPEC_DRAFT_N_MAX=3
+SPEC_DRAFT_N_MAX=4   # was 3; mean accepted draft len ran >3 in the A/B, so a 4th draft token has headroom
 IMAGE_MIN_TOKENS=1024                       # llama.cpp's recommendation for Qwen-VL grounding
 
 # ---- client ---------------------------------------------------------------
