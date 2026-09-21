@@ -40,21 +40,32 @@ discover() {
 health_of() {
   local root="$1" server_cmd="$2" session_cmd="$3"
   ( set +u
-    local model
+    local model c
     # shellcheck disable=SC1091
     . "${root}/install.env" 2>/dev/null
-    # A backend that fetches single files keeps them under the install root; one
-    # with its own model cache (mtplx) records a $HOME-relative path to it. Both
-    # are resolved the same way, but the artefact is a file in the first case
-    # and a directory in the second, so accept either.
+    # Where the weights live depends on the backend.  A backend that fetches
+    # single files (llamacpp) keeps them under the install root
+    # ($root/$MODEL_SUBDIR); one with its own model cache (mtplx) keeps them in
+    # a shared cache ($MODEL_CACHE_ENV_VAR dir, else $HOME/$MODEL_SUBDIR).
+    # The old code picked $HOME/$MODEL_SUBDIR whenever that directory happened
+    # to exist, which misfired if a stray ~/models/ was present on the box (it
+    # looked for the weights there and reported them missing).  Resolve by
+    # trying each documented location in order and taking the first that
+    # actually exists.
+    model=""
     if [[ -n "${MODEL_CACHE_ENV_VAR:-}" && -n "${!MODEL_CACHE_ENV_VAR:-}" ]]; then
-      model="${!MODEL_CACHE_ENV_VAR}/${MODEL_FILE}"
-    elif [[ -d "${HOME}/${MODEL_SUBDIR}" ]]; then
-      model="${HOME}/${MODEL_SUBDIR}/${MODEL_FILE}"
+      for c in "${!MODEL_CACHE_ENV_VAR}/${MODEL_FILE}" \
+               "${HOME}/${MODEL_SUBDIR}/${MODEL_FILE}" \
+               "${root}/${MODEL_SUBDIR}/${MODEL_FILE}"; do
+        [[ -e "$c" ]] && { model="$c"; break; }
+      done
     else
-      model="${root}/${MODEL_SUBDIR}/${MODEL_FILE}"
+      for c in "${root}/${MODEL_SUBDIR}/${MODEL_FILE}" \
+               "${HOME}/${MODEL_SUBDIR}/${MODEL_FILE}"; do
+        [[ -e "$c" ]] && { model="$c"; break; }
+      done
     fi
-    [[ -e "$model" ]] || { echo "weights missing"; exit 0; }
+    [[ -n "$model" ]] || { echo "weights missing"; exit 0; }
     [[ -x "${HOME}/.local/bin/${server_cmd}"  ]] || { echo "command ${server_cmd} missing"; exit 0; }
     [[ -x "${HOME}/.local/bin/${session_cmd}" ]] || { echo "command ${session_cmd} missing"; exit 0; }
     # The launcher is per-backend now; the shim points at whichever one applies.
@@ -131,9 +142,10 @@ SERVER   (where the server listens, plus generation tuning; each also works as
                     machine can reach it; 0.0.0.0 = every interface, so other
                     machines on your network or tailnet can reach the server
     --port <port>   listen on this port (default 8080)
-    --max <n>       max MTP draft tokens per step (default 2). Raise it while
-                    draft acceptance stays high for more speed; lower it once
-                    acceptance starts dropping. (SPEC_DRAFT_N_MAX)
+    --max <n>       max MTP draft tokens per step. Defaults to the combo's
+                    SPEC_DRAFT_N_MAX (3 for both the baseline and Swift combos
+                    today). Raise it while draft acceptance stays high for more
+                    speed; lower it once acceptance starts dropping.
 
 EXAMPLES
    ./run.sh                             # the common case: a normal, persistent server

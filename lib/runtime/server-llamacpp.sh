@@ -228,9 +228,17 @@ else
   [[ -n "$THINKING_BUDGET" ]] && ARGS+=(--reasoning-budget "$THINKING_BUDGET")
 fi
 
-# Speculative decoding via the multi-token-prediction head. llama.cpp only
-# auto-discovers MTP sidecars on the -hf path, so point at it explicitly.
-if [[ -n "$MTP" && -f "$MTP" ]]; then
+# Speculative decoding via the multi-token-prediction head. Two shapes:
+#   SPEC_BUILTIN -- the MTP head is already inside the target GGUF (e.g. the
+#     Swift quant). No -md, no draft-n-gl, no draft KV type: the head shares
+#     the target's weights and KV. It engages with just --spec-type draft-mtp
+#     and a draft depth; verified live ("creating MTP draft context" followed
+#     by a "draft acceptance" line).
+#   otherwise -- a separate sidecar head file, which llama.cpp will not
+#     auto-discover on the plain path, so point at it explicitly.
+if [[ "${SPEC_BUILTIN:-0}" == "1" ]]; then
+  ARGS+=(--spec-type draft-mtp --spec-draft-n-max "${SPEC_DRAFT_N_MAX:-3}")
+elif [[ -n "$MTP" && -f "$MTP" ]]; then
   ARGS+=(
     -md "$MTP"
     --spec-type draft-mtp
