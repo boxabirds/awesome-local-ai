@@ -33,7 +33,7 @@ USAGE
   ./install.sh [--list|--dry-run|--yes] [selector]
 
 SELECTOR
-  (none)              the best fit for this machine, default family
+  (none)              on a terminal: an interactive menu; otherwise the best fit
   <family>            e.g. qwen, llama -- best fit within that family
   <combination path>  e.g. qwen/3.8/27b/macos/64GB/mtplx-opencode
   all                 consider every family, not just the default
@@ -56,6 +56,62 @@ environment overrides documented there still work:
   QUANT=UD-Q3_K_XL ./install.sh
   SKIP_SMOKE_TEST=1 ./install.sh
 HELP
+}
+
+# Interactive menu for a bare `./install.sh` (no selector, a TTY, not --yes).
+# Lists every combination, annotates each against this machine, and lets the
+# user pick one by number. The best fit is line 1 and the default; 'q' cancels.
+# Sets PICKED_COMBO and returns 0 on a pick, 1 on cancel. Picking something
+# that won't fit is allowed -- the combination's own installer then refuses
+# with measured numbers (selection narrows, qualification decides).
+pick_combination_interactive() {
+  local best compatible combo default
+  local -a ordered=()
+  best="$(best_for_host '' || true)"
+  compatible="$(candidates_for_host '' | cut -d'|' -f2 || true)"
+
+  # Order: best fit, then the rest of the compatible set, then everything else.
+  if [[ -n "$best" ]]; then ordered+=("$best"); fi
+  while IFS= read -r combo; do
+    if [[ -n "$combo" && "$combo" != "$best" ]]; then ordered+=("$combo"); fi
+  done < <(printf '%s\n' "$compatible")
+  while IFS= read -r combo; do
+    [[ -n "$combo" ]] || continue
+    if ! grep -qxF "$combo" <<<"$compatible"; then ordered+=("$combo"); fi
+  done < <(list_combinations)
+
+  default="${ordered[0]:-}"
+  printf 'Combinations for %s (%s)\n\n' "$HOST_OS_PRETTY" "$HOST_MEM_DESC"
+  local i=1
+  for combo in "${ordered[@]}"; do
+    local fit="won't fit"
+    if [[ "$combo" == "$best" ]]; then
+      fit="best fit"
+    elif grep -qxF "$combo" <<<"$compatible"; then
+      fit="compatible"
+    fi
+    local note="$fit"
+    if [[ "$combo" == "$default" ]]; then note="$fit, default"; fi
+    printf '  %2d) %-58s [%s]\n' "$i" "$combo" "$note"
+    i=$((i+1))
+  done
+  printf '\n'
+
+  local choice
+  read -r -p "Install which? [1-$((i-1)), default 1, q to cancel] " choice
+  case "$choice" in
+    '')        PICKED_COMBO="$default" ;;
+    [qQ]*)     return 1 ;;
+    *[!0-9]*)  echo "install.sh: enter a number (1-$((i-1))) or q" >&2; return 1 ;;
+    *)
+      if (( choice >= 1 && choice <= i-1 )); then
+        PICKED_COMBO="${ordered[choice-1]}"
+      else
+        echo "install.sh: $choice is out of range (1-$((i-1)))" >&2; return 1
+      fi
+      ;;
+  esac
+  return 0
 }
 
 ACTION="install"
@@ -90,6 +146,9 @@ fi
 
 detect_host
 
+PICKED_VIA_MENU=0
+PICKED_COMBO=""
+
 # A selector containing a slash is a full combination path: the user has
 # already decided, so selection steps out of the way entirely.
 if [[ "$SELECTOR" == */* ]]; then
@@ -99,6 +158,18 @@ if [[ "$SELECTOR" == */* ]]; then
 $(list_combinations | sed 's|^|         |')"
   CHOSEN="$SELECTOR"
   REASON="named explicitly"
+elif [[ -z "$SELECTOR" && "$ACTION" == "install" && -t 0 ]] && (( ASSUME_YES == 0 )); then
+  # Bare `./install.sh` on a terminal: show a menu instead of picking silently.
+  # A selector, --yes, --dry-run or --list keeps the automatic (scriptable) path.
+  if pick_combination_interactive; then
+    CHOSEN="$PICKED_COMBO"
+    REASON="chosen from the menu"
+    PICKED_VIA_MENU=1
+    FAMILY=""
+  else
+    echo "Nothing was installed."
+    exit 0
+  fi
 else
   case "$SELECTOR" in
     ""|default) FAMILY="$DEFAULT_FAMILY" ;;
@@ -162,7 +233,7 @@ if [[ "$ACTION" == "dry-run" ]]; then
   exit 0
 fi
 
-if (( ! ASSUME_YES )) && [[ -t 0 ]]; then
+if (( ! ASSUME_YES )) && [[ -t 0 ]] && (( ! PICKED_VIA_MENU )); then
   echo
   read -r -p "Install this combination? [Y/n] " reply
   case "${reply:-y}" in

@@ -121,14 +121,14 @@ print_summary() {
   local w=$(( ${#SERVER_CMD} + 7 )) c sess cn disp
   shopt -s nullglob
   for c in "${INSTALL_ROOT}"/client-*.sh; do
-    cn="$(basename "$c" .sh)"
+    cn="$(basename "$c" .sh)"; cn="${cn#client-}"   # client-opencode.sh -> opencode
     sess="${INSTALL_ID}-${cn}"
     (( ${#sess} > w )) && w=${#sess}
   done
   shopt -u nullglob
   shopt -s nullglob
   for c in "${INSTALL_ROOT}"/client-*.sh; do
-    cn="$(basename "$c" .sh)"
+    cn="$(basename "$c" .sh)"; cn="${cn#client-}"   # client-opencode.sh -> opencode
     sess="${INSTALL_ID}-${cn}"
     disp="$(sed -n 's/^CLIENT_DISPLAY_NAME=\{0,1\}\([^"]*\)"\{0,1\}$/\1/p' "$c" | head -1)"
     [[ -n "$disp" ]] || disp="$cn"

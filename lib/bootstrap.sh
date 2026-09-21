@@ -86,6 +86,7 @@ REASONING_EFFORT_DEFAULT="${REASONING_EFFORT_DEFAULT:-default}"
 REASONING_EFFORTS="${REASONING_EFFORTS:-}"
 SAFE_KV_TYPES="${SAFE_KV_TYPES:-n/a}"       # llama.cpp: which KV types have a kernel
 SPEC_DRAFT_N_MAX="${SPEC_DRAFT_N_MAX:-}"    # llama.cpp: draft tokens per step
+SPEC_BUILTIN="${SPEC_BUILTIN:-}"            # llama.cpp: MTP head is inside the GGUF (no -md sidecar)
 IMAGE_MIN_TOKENS="${IMAGE_MIN_TOKENS:-}"    # llama.cpp: vision grounding floor
 
 # Column layout of this combination's profiles.tsv. The backend declares it,

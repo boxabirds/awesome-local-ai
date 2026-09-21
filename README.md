@@ -23,6 +23,10 @@ to that combination's own installer — which still qualifies the hardware with
 measured thresholds and refuses with numbers if it falls short. Selection
 narrows; qualification decides.
 
+On an interactive terminal a bare `./install.sh` first offers a menu of what
+fits this machine to choose from; pass a selector (or `--list`, `--dry-run` or
+`--yes`) and it skips straight to the automatic pick.
+
 ```bash
 ./install.sh --list      # what fits this machine, and why the rest do not
 ./install.sh --dry-run   # show the choice, install nothing
@@ -45,6 +49,7 @@ half-installing.
 | Model | OS | Memory | Stack | Install | Details |
 |---|---|---|---|---|---|
 | Qwen3.8-27B | Ubuntu 22.04 | 24GB NVIDIA | llama.cpp + OpenCode | [`install-qwen-3.8-27b-ubuntu-24GB-llamacpp-opencode.sh`](install-qwen-3.8-27b-ubuntu-24GB-llamacpp-opencode.sh) | [README](combinations/qwen/3.8/27b/ubuntu/24GB/llamacpp-opencode/README.md) |
+| Swift-Qwen3.8-27B | Ubuntu 22.04 | 24GB NVIDIA | llama.cpp + OpenCode | [`install-qwen-3.8-swift-27b-ubuntu-24GB-llamacpp-opencode.sh`](install-qwen-3.8-swift-27b-ubuntu-24GB-llamacpp-opencode.sh) | [README](combinations/qwen/3.8-swift/27b/ubuntu/24GB/llamacpp-opencode/README.md) |
 | Qwen3.8-27B | macOS 26 | 64GB Apple silicon ¹ | MTPLX + OpenCode | [`install-qwen-3.8-27b-macos-64GB-mtplx-opencode.sh`](install-qwen-3.8-27b-macos-64GB-mtplx-opencode.sh) | [README](combinations/qwen/3.8/27b/macos/64GB/mtplx-opencode/README.md) |
 | Qwen3.8-Flash-Next | macOS 26 | 128GB Apple silicon | MTPLX + OpenCode | [`install-qwen-3.8-flash-next-macos-128GB-mtplx-opencode.sh`](install-qwen-3.8-flash-next-macos-128GB-mtplx-opencode.sh) | [README](combinations/qwen/3.8/flash-next/macos/128GB/mtplx-opencode/README.md) |
 | Ternary Bonsai 2 27B ² | Ubuntu 22.04 | 24GB NVIDIA | llama.cpp *(fork)* + OpenCode | [`install-bonsai-2-27b-ubuntu-24GB-llamacpp-opencode.sh`](install-bonsai-2-27b-ubuntu-24GB-llamacpp-opencode.sh) | [README](combinations/bonsai/2/27b/ubuntu/24GB/llamacpp-opencode/README.md) |
@@ -99,6 +104,20 @@ one combination and is false now — so it is marked.
   emits it as a separate `mmproj` file that llama.cpp loads only when asked.
   Loading it costs 32k of context on a 24GB card (128k → 96k), which is why it
   is off outside the `vision` profiles — a VRAM trade, not a missing capability.
+
+**Swift-Qwen3.8-27B — Ubuntu 22.04 / 24GB NVIDIA:**
+
+- **The fast-of-the-two on identical hardware.** Measured against the baseline
+  above on the same 4090, same binary and prompts: 1.37–1.51× faster end-to-end
+  across the low/medium/xhigh sweep, with 23–39% fewer reasoning chars
+  ([A/B report](docs/20260921-swift-qwen38-27b-ab.md)). A retrained Qwen3.8-27B
+  that thinks less, so routine agent turns come back sooner.
+- **MTP head baked into the weights.** Swift's draft head is Q8_0 inside the
+  GGUF (no separate 1.57 GiB sidecar, no `-md`), run at `--spec-draft-n-max 3`
+  — which also leaves ~1.5 GiB more room for context than the baseline.
+- **The cut is deliberation, not capability.** The A/B measures speed and token
+  count, not answer quality — the report says so, and it is the honest limit of
+  this comparison.
 
 **Ternary Bonsai 2 27B — Ubuntu 22.04 / 24GB NVIDIA:**
 

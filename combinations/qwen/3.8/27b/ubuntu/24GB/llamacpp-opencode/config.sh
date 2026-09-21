@@ -72,7 +72,7 @@ SAMPLING_INSTRUCT="--temp 0.7 --top-p 0.80 --top-k 20 --min-p 0.0 --presence-pen
 REASONING_EFFORT_DEFAULT="low"
 REASONING_EFFORTS="default low medium high xhigh"
 
-SPEC_DRAFT_N_MAX=2
+SPEC_DRAFT_N_MAX=3   # was 2; 3 measured faster here (deeper MTP draft) -- number recorded in benchmarks/
 IMAGE_MIN_TOKENS=1024                     # llama.cpp's recommendation for Qwen-VL grounding
 
 # ---- client ---------------------------------------------------------------

@@ -1,0 +1,139 @@
+PROFILE DETAIL
+  need_mib is a CONSERVATIVE BOUND carried from the baseline combination's
+  measured footprint at the same ctx/kv (that baseline carried a 1.57 GiB MTP
+  sidecar Swift does not). Swift's real headroom is ~1.5 GiB better than
+  shown. Re-run the context probe to replace the bounds with real numbers
+  (see benchmarks/README.md). "free" below is against the bound, so real free
+  is higher.
+
+  coding     128k ctx   q4_0 KV   vision off   ~22.4 GiB bound  (baseline)
+      >> DEFAULT. 128k holds a real repo context; the most headroom.
+      CAVEAT: KV is q4_0. q8_0 has higher fidelity but does not fit at 128k.
+
+  balanced    96k ctx   q8_0 KV   vision off   ~23.1 GiB bound  (baseline)
+      Highest-fidelity KV cache that still runs on the GPU.
+
+  vision      96k ctx   q4_0 KV   vision ON    ~22.6 GiB bound  (baseline)
+      Reads images/video. Adds --image-min-tokens 1024 (Qwen-VL grounding).
+      Vision costs ~0.86 GiB of weights, about 32k of context.
+
+  vision-max 128k ctx   q4_0 KV   vision ON    ~23.5 GiB bound  (baseline)
+      Full 128k AND images. TIGHTEST profile -- foreground only; do NOT point
+      systemd at it.
+
+  max        160k ctx   q4_0 KV   vision off   ~23.3 GiB bound  (baseline)
+      The ceiling at this quant. Because Swift is ~1.5 GiB lighter than the
+      baseline, 160k (and possibly more) should fit comfortably -- re-measure
+      before relying on the very top end. Foreground use.
+
+WHY THIS MODEL (Swift)
+  Swift is a retrained Qwen3.8-27B that thinks less. Local A/B on this card
+  (docs/20260921-swift-qwen38-27b-ab.md), same binary/config/prompts, 5
+  prompts greedy, one run:
+
+      effort    base rch  swift rch   reasoning   wall speedup
+      low          4366       3035      -30.5%      1.37x
+      medium       5789       4442      -23.3%      1.38x
+      xhigh        9717       5967      -38.6%      1.51x
+
+  Across the sweep: ~1.42x faster end-to-end, ~a third fewer reasoning chars.
+  The cut grows with effort, and Swift's xhigh costs it little extra (24.7 s
+  wall vs 23.4 s at low) -- its "think harder" mode is far more token-efficient
+  than the baseline's. This is a throughput/deliberation result, NOT a quality
+  result: the vendor's own numbers show Swift trading a little on hard math
+  (AIME -4.7, a BF16 prior, not reproduced here) for the speed.
+
+KV CACHE TYPES -- READ THIS BEFORE CHANGING KV_TYPE
+  Only f16, bf16, q8_0 and q4_0 have CUDA flash-attention kernels for this
+  model (the qwen35 hybrid, same as the baseline). Everything else (q4_1,
+  q5_0, q5_1, iq4_nl) silently falls back to CPU attention -- measured on the
+  baseline arch: ~48-79 tok/s prefill vs ~2300. The launcher warns if you pick
+  one.
+
+ENVIRONMENT OVERRIDES
+  PORT=8080          HOST=127.0.0.1     CTX=<tokens>
+  KV_TYPE=q4_0|q8_0|f16                 VISION=0|1
+  NP=<slots>         UB=<micro-batch>
+  THINKING=1|0       THINKING_BUDGET=<tokens>
+  REASONING_EFFORT=low|medium|xhigh|default
+  SWIFT_QWEN38_ROOT=<dir>  MODEL=<file>  MODEL_ALIAS=<id>
+
+THINKING
+  On by default -- it is the model's own default. Reasoning is returned
+  separately in reasoning_content, so it does not pollute content.
+
+  THINKING=0 disables it AND swaps to the model card's instruct sampling
+  preset (temp 0.7, top_p 0.80, presence_penalty 1.5). Do not disable thinking
+  without that swap: the card warns the thinking preset causes repetition on
+  the non-thinking path.
+
+  THINKING_BUDGET=N caps thinking at N tokens instead of disabling it -- a
+  hard cap, unlike REASONING_EFFORT (which is an instruction).
+
+REASONING EFFORT                                  (default here: low)
+  The Qwen3.8 chat template defaults reasoning_effort to 'xhigh' when the
+  field is unset. This launcher ships 'low'. Supported: low, medium, xhigh
+  ('high' aliases xhigh; 'default' leaves the template's own choice).
+
+  Swift-specific: because it thinks less, each level costs fewer tokens than
+  the same level on the baseline. Measured here (5 prompts, greedy):
+
+      effort    reasoning chars   completion tokens   wall
+      low                 3035                2346    23.4 s
+      medium              4442                2905    28.3 s
+      xhigh               5967                2235    24.7 s
+
+  So even Swift's xhigh is cheaper (in tokens and wall) than the baseline's
+  medium. Raise it for a hard problem:  REASONING_EFFORT=xhigh swift-qwen38-27b-server
+
+MTP / SPECULATIVE DECODING
+  Swift carries its MTP head INSIDE the GGUF (Q8_0), so there is no separate
+  sidecar file to fetch. The launcher engages it with SPEC_BUILTIN=1: just
+  --spec-type draft-mtp and --spec-draft-n-max 3 -- no -md, no draft-n-gl, no
+  draft KV type.
+
+  Two things to know:
+   * At install you will see "MTP head missing (speculative decoding
+     disabled)". That is EXPECTED for Swift -- it reports the absence of a
+     sidecar file this model never had. Spec decoding is still on.
+   * To confirm it is live at run time, grep the server log for
+     "creating MTP draft context" and "draft acceptance". If either is absent,
+     speculative decoding is silently off. Measured acceptance: 0.62-0.86,
+     mean accepted length 2.87-3.58 (higher mean length than the baseline's
+     Q4_0 sidecar -- the in-file Q8_0 head accepts longer draft runs).
+
+WHY THESE NUMBERS
+  * Only 16 of this model's 65 layers hold a KV cache
+    (full_attention_interval=4; the rest are Gated DeltaNet with fixed-size
+    recurrent state). The binding constraint is static weights (~16.8 GiB),
+    not context.
+  * -ub 256 is what makes anything above 64k fit: llama.cpp sizes its prompt
+    compute buffer from the micro-batch.
+  * Because Swift has no 1.57 GiB sidecar, it has ~1.5 GiB more room for KV
+    than the baseline at the same ctx -- the profiles above reserve against
+    the baseline anyway (the safe direction).
+
+GOTCHA: THINKING MODE AND max_tokens
+  Thinking is ON by default, and the reasoning block is billed against
+  max_tokens. A request with a small max_tokens returns an EMPTY content
+  string with finish_reason "length" -- the budget was spent reasoning before
+  any answer was emitted. Give agents a generous max_tokens, or disable
+  thinking per-request.
+
+SECURITY
+  HOST defaults to 127.0.0.1 and there is NO authentication. Setting
+  HOST=0.0.0.0 exposes an unauthenticated model server to your whole network.
+
+FURTHER READING
+  docs/20260921-swift-qwen38-27b-ab.md  -- the A/B that justifies this
+                                           combination (method, table, caveats)
+  combinations/qwen/3.8/27b/ubuntu/24GB/llamacpp-opencode/  -- the baseline
+  docs/discovery.md  -- the baseline's full measurement methodology
+
+EXAMPLES
+  swift-qwen38-27b-server                                  # 128k coding default
+  # API: http://127.0.0.1:8080/v1  model id: qwen3.8-swift-27b
+  REASONING_EFFORT=xhigh swift-qwen38-27b-server           # think hard
+  PROFILE=vision swift-qwen38-27b-server                   # images, 96k
+  CTX=65536 KV_TYPE=q8_0 swift-qwen38-27b-server           # hand-tuned
+  PORT=8081 swift-qwen38-27b-server --spec-draft-n-max 4   # deeper MTP draft
