@@ -276,7 +276,7 @@ def tool_hang_check(events: Path, ws: Path, idle_s: float = TOOL_HANG_S) -> bool
         return False
     if _last_event_type(events) not in TOOL_EVENT_TYPES:
         return False
-    subprocess.run(["pkill", "-f", str(ws)], capture_output=True)
+    kill_pids(workspace_pids(ws, spare_agent=True))
     return True
 
 
@@ -356,9 +356,43 @@ def run_story_agent(client, ws: Path, env: dict, model_id: str, prompt: str, eve
             "ended_in_error": bool(attempts[-1]["error"]), "sessions": [a["session"] for a in attempts]}
 
 
+# Processes that ARE the agent (or its sandbox wrapper): never killed while a story runs.
+AGENT_PROC_MARKERS = ("pi-coding-agent", "sandbox-exec", "opencode")
+
+
+def workspace_pids(ws: Path, spare_agent: bool = False) -> set[int]:
+    """Processes running in the workspace: its path in their command line OR their working directory
+    inside it. Agents start servers with relative paths (`node node_modules/vite/bin/vite.js preview`),
+    so the command line alone misses them."""
+    root = str(ws.resolve())
+    pids = {int(x) for x in subprocess.run(["pgrep", "-f", root], capture_output=True, text=True).stdout.split()}
+    out = subprocess.run(["lsof", "-d", "cwd", "-Fpn"], capture_output=True, text=True).stdout
+    pid = None
+    for line in out.splitlines():
+        if line.startswith("p"):
+            pid = int(line[1:])
+        elif line.startswith("n") and pid and (line[1:] == root or line[1:].startswith(root + "/")):
+            pids.add(pid)
+    pids.discard(os.getpid())
+    if spare_agent:
+        def is_agent(p: int) -> bool:
+            cmd = subprocess.run(["ps", "-o", "command=", "-p", str(p)], capture_output=True, text=True).stdout.strip()
+            return cmd == "pi" or cmd.startswith("pi ") or any(m in cmd for m in AGENT_PROC_MARKERS)
+        pids = {p for p in pids if not is_agent(p)}
+    return pids
+
+
+def kill_pids(pids: set[int]) -> None:
+    for p in pids:
+        try:
+            os.kill(p, signal.SIGTERM)
+        except (ProcessLookupError, PermissionError):
+            pass
+
+
 def kill_strays(ws: Path) -> None:
-    """Dev servers or test runners the agent left running would skew the next story."""
-    subprocess.run(["pkill", "-f", str(ws)], capture_output=True)
+    """Dev servers or test runners the agent left running would skew the gates and the next story."""
+    kill_pids(workspace_pids(ws))
 
 
 def _median(xs):
