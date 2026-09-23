@@ -1,0 +1,18 @@
+{
+  "name": "canvas",
+  "description": "Epic 'Infinite canvas and content' (stories 1, 2, 7-12) plus the stories it depends on (3 live sync, 4 persistence, 5 board links).",
+  "stories": [
+    { "id": 1,  "dir": "001-pan-and-zoom-around-an-infinite-board" },
+    { "id": 2,  "dir": "002-capture-ideas-on-sticky-notes-and-rearrange-them" },
+    { "id": 3,  "dir": "003-see-other-people-s-edits-appear-live-on-the-same-b" },
+    { "id": 4,  "dir": "004-return-to-a-board-and-find-everything-as-it-was-le" },
+    { "id": 5,  "dir": "005-share-a-board-with-others-using-a-link" },
+    { "id": 7,  "dir": "007-select-move-resize-and-delete-several-objects-at-o" },
+    { "id": 8,  "dir": "008-undo-and-redo-my-own-changes-without-undoing-anyon" },
+    { "id": 9,  "dir": "009-write-free-text-anywhere-on-the-board" },
+    { "id": 10, "dir": "010-draw-shapes-and-connect-them-with-arrows-that-foll" },
+    { "id": 11, "dir": "011-sketch-freehand-with-a-pen" },
+    { "id": 12, "dir": "012-drop-images-onto-the-board" }
+  ],
+  "out_of_scope_note": "Stories 6 and 13-17 are NOT part of this build. Where a design mentions them (presence, offline device copies, sign-in, dashboard, comments, export), leave the hook out; do not implement those stories."
+}
