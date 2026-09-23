@@ -94,8 +94,13 @@ def sandboxed(cmd: list[str], own_dir: Path) -> list[str]:
     though it sits under WORK_ROOT.
     """
     deny = " ".join(f"(subpath {_sb_quote(p)})" for p in [*SANDBOX_DENY, WORK_ROOT])
+    # Tools resolve real paths by lstat()ing every ancestor of a path (node's realpath, the
+    # wrangler watcher). Allow metadata only -- stat, not reading or listing -- on the
+    # ancestors of own_dir, so path resolution works while siblings stay hidden.
+    ancestors = " ".join(f"(literal {_sb_quote(a)})" for a in own_dir.resolve().parents)
     profile = (f"(version 1)(allow default)"
                f"(deny file-read* file-write* {deny})"
+               f"(allow file-read-metadata {ancestors})"
                f"(allow file-read* file-write* (subpath {_sb_quote(own_dir)}))")
     return ["sandbox-exec", "-p", profile, *cmd]
 
