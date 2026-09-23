@@ -1,3 +1,15 @@
+commit 8a9bc6d72bb0b1e62328912d4d95b25f0f67b3b5
+vidi-agent  Wed Sep 23 23:45:44 2026 +0100
+
+    harness: snapshot after story 2 (uncommitted agent work)
+
+
+ package-lock.json              |  51 ++++++-
+ package.json                   |   5 +-
+ src/shared/board-model.ts      |  63 +++++++++
+ src/shared/config.ts           |  39 ++++++
+ tests/unit/board-model.test.ts | 308 +++++++++++++++++++++++++++++++++++++++++
+ 5 files changed, 463 insertions(+), 3 deletions(-)
 commit 55ef673e145dc4f1c394af812067edae9fc6b475
 vidi-agent  Wed Sep 23 23:37:30 2026 +0100
 
