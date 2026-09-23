@@ -1,4 +1,5 @@
 """uv run --with pytest pytest harness/test_drive.py"""
+import json
 from drive import LoopDetector, LOOP_REPEAT_LIMIT
 
 
@@ -277,3 +278,28 @@ def test_tool_hang_guard_interrupts_only_a_silent_tool_call(tmp_path):
     finally:
         for p in (hung, bystander):
             p.kill()
+
+
+def test_sandbox_allows_realpath_of_own_workspace():
+    """wrangler/node resolve real paths by lstat()ing every ancestor. Denying the work root's
+    own directory entry made `wrangler dev` fail inside the sandbox with EPERM (canvas-pi-01)."""
+    import os, shutil
+    from drive import WORK_ROOT
+    work = WORK_ROOT / "_test_realpath"
+    (work / "workspace" / "dist" / "client").mkdir(parents=True, exist_ok=True)
+    try:
+        js = ("const fs=require('fs');"
+              f"console.log(fs.realpathSync({json.dumps(str(work / 'workspace' / 'dist' / 'client'))}));"
+              f"fs.watch({json.dumps(str(work / 'workspace'))}).close();")
+        r = subprocess.run(sandboxed(["node", "-e", js], own_dir=work), capture_output=True, text=True,
+                           cwd=work / "workspace", env={**os.environ, "PWD": str(work / "workspace")})
+        assert r.returncode == 0, r.stderr
+        # ...while a sibling run's files stay unreadable.
+        sib = WORK_ROOT / "_test_realpath_sibling"
+        sib.mkdir(exist_ok=True)
+        (sib / "secret.txt").write_text("x")
+        r2 = subprocess.run(sandboxed(["cat", str(sib / "secret.txt")], own_dir=work), capture_output=True, text=True)
+        assert r2.returncode != 0
+        shutil.rmtree(sib, ignore_errors=True)
+    finally:
+        shutil.rmtree(work, ignore_errors=True)
