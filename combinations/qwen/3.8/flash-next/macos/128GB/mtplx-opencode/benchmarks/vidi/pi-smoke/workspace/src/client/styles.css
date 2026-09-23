@@ -1,0 +1,14 @@
+:root {
+  --board-bg: #f7f7f8;
+  --grid-dot: #c9ccd1;
+  --fg: #1a1a1a;
+  --panel-bg: rgba(255, 255, 255, 0.92);
+  --panel-border: rgba(0, 0, 0, 0.12);
+}
+* { box-sizing: border-box; }
+html, body, #root { height: 100%; margin: 0; }
+body {
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  color: var(--fg);
+  overflow: hidden;
+}
