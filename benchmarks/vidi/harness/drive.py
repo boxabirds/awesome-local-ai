@@ -164,6 +164,14 @@ def record_story(repo_root: Path, run: Path, message: str, git: list[str] | None
     out["commit"] = subprocess.run([*git, "rev-parse", "--short", "HEAD"], cwd=repo_root,
                                    capture_output=True, text=True).stdout.strip()
     push = subprocess.run([*git, "push", "-q", "origin", "HEAD"], cwd=repo_root, capture_output=True, text=True)
+    if push.returncode != 0:
+        # The remote moved during a long run: replay our commit on top, keeping any
+        # uncommitted work in the repo exactly as it was, then try once more.
+        branch = subprocess.run([*git, "rev-parse", "--abbrev-ref", "HEAD"], cwd=repo_root,
+                                capture_output=True, text=True).stdout.strip()
+        subprocess.run([*git, "pull", "-q", "--rebase", "--autostash", "origin", branch],
+                       cwd=repo_root, capture_output=True, text=True)
+        push = subprocess.run([*git, "push", "-q", "origin", "HEAD"], cwd=repo_root, capture_output=True, text=True)
     out["pushed"] = push.returncode == 0
     if not out["pushed"]:
         out["error"] = push.stderr[-500:]
