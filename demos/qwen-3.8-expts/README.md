@@ -50,11 +50,31 @@ MTP is actually on, and measured before/after decode throughput on the author's 
 
 The `-mtplx` suffix on a variant directory means it was produced with that setup enabled.
 
+## `how-qwen-works.html`
+
+A single-file interactive explainer of what actually happens when Qwen3.8-27B
+generates a token on your machine: tokenisation and embedding lookup, where the
+time goes between memory bandwidth and compute, and what MTP speculative
+decoding changes. Open it in a browser; there is nothing to build. Every caption
+has a plain-English and a technical register, toggled in the page.
+
+**Its numbers are a roofline model, not measurements.** The page says so in its
+own footnotes, and it is worth repeating here: decode time is estimated as
+`max(bytes/(0.8·BW), FLOPs/(0.35·peak))` plus launch overhead, the token IDs and
+embedding values shown are illustrative rather than the real vocabulary, and the
+M5 Max column is extrapolated. It is a guide to *where* the time goes. For
+figures taken off real hardware, see `docs/mtp.md` and the combination
+`benchmarks/` directories.
+
+It loads Three.js and Instrument Sans from CDNs, so it needs a network
+connection — the one thing in this repo that does.
+
 ## Layout
 
 ```
 bench_util.py            scratch helper, not a harness
 docs/mtp.md              the MTP speculative-decoding write-up
+how-qwen-works.html      interactive explainer of the decode pipeline
 meteor-storm/            Three.js browser game, one attempt
 planning-poker/          three attempts at the same brief
   27b-mtplx/
