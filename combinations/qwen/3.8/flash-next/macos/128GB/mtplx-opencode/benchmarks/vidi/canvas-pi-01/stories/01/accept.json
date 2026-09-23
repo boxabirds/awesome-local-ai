@@ -1,0 +1,75 @@
+{
+  "build_exit": 0,
+  "runner_exit": 1,
+  "runner_tail": "",
+  "passed": 0,
+  "total": 6,
+  "by_story": {
+    "01": {
+      "passed": 0,
+      "total": 6
+    }
+  },
+  "tests": [
+    {
+      "file": "story-01.spec.ts",
+      "title": "golden path: controls and hint visible at 100% @ref prd:golden-path",
+      "status": "failed",
+      "error": "Error: page.goto: net::ERR_CONNECTION_REFUSED at http://127.0.0.1:18787/\nCall log:\n\u001b[2m  - navigating to \"http://127.0.0.1:18787/\", waiting until \"load\"\u001b[22m\n"
+    },
+    {
+      "file": "story-01.spec.ts",
+      "title": "zoom buttons step 100 \u2192 125 \u2192 100 @ref prd:zoom.step",
+      "status": "failed",
+      "error": "Error: page.goto: net::ERR_CONNECTION_REFUSED at http://127.0.0.1:18787/\nCall log:\n\u001b[2m  - navigating to \"http://127.0.0.1:18787/\", waiting until \"load\"\u001b[22m\n"
+    },
+    {
+      "file": "story-01.spec.ts",
+      "title": "zoom limits clamp and disable buttons @ref prd:zoom.limits",
+      "status": "failed",
+      "error": "Error: page.goto: net::ERR_CONNECTION_REFUSED at http://127.0.0.1:18787/\nCall log:\n\u001b[2m  - navigating to \"http://127.0.0.1:18787/\", waiting until \"load\"\u001b[22m\n"
+    },
+    {
+      "file": "story-01.spec.ts",
+      "title": "keyboard zoom and reset do not zoom the page @ref prd:zoom.no_page_zoom",
+      "status": "failed",
+      "error": "Error: page.goto: net::ERR_CONNECTION_REFUSED at http://127.0.0.1:18787/\nCall log:\n\u001b[2m  - navigating to \"http://127.0.0.1:18787/\", waiting until \"load\"\u001b[22m\n"
+    },
+    {
+      "file": "story-01.spec.ts",
+      "title": "ctrl+wheel zooms the board @ref prd:zoom.pointer",
+      "status": "failed",
+      "error": "Error: page.goto: net::ERR_CONNECTION_REFUSED at http://127.0.0.1:18787/\nCall log:\n\u001b[2m  - navigating to \"http://127.0.0.1:18787/\", waiting until \"load\"\u001b[22m\n"
+    },
+    {
+      "file": "story-01.spec.ts",
+      "title": "hint disappears after first pan and stays gone @ref prd:nav.hint",
+      "status": "failed",
+      "error": "Error: page.goto: net::ERR_CONNECTION_REFUSED at http://127.0.0.1:18787/\nCall log:\n\u001b[2m  - navigating to \"http://127.0.0.1:18787/\", waiting until \"load\"\u001b[22m\n"
+    },
+    {
+      "file": "story-01.spec.ts",
+      "title": "drag pans content exactly with the pointer @ref prd:pan.drag",
+      "status": "skipped",
+      "error": ""
+    },
+    {
+      "file": "story-01.spec.ts",
+      "title": "wheel scroll pans in scroll direction @ref prd:pan.scroll",
+      "status": "skipped",
+      "error": ""
+    },
+    {
+      "file": "story-01.spec.ts",
+      "title": "zoom keeps the point under the pointer fixed @ref prd:zoom.pointer",
+      "status": "skipped",
+      "error": ""
+    },
+    {
+      "file": "story-01.spec.ts",
+      "title": "reset view returns to 100% with origin centred @ref prd:view.reset",
+      "status": "skipped",
+      "error": ""
+    }
+  ]
+}
