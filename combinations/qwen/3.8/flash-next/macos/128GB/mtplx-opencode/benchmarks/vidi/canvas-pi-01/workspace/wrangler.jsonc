@@ -1,0 +1,12 @@
+{
+  // Cloudflare Worker application. Story 1 serves the built client as static
+  // assets only; the Worker `main` entry and Durable Objects arrive in story 3.
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "vidi6",
+  "compatibility_date": "2026-09-01",
+  "assets": {
+    "directory": "./dist/client",
+    "binding": "ASSETS",
+    "not_found_handling": "single-page-application"
+  }
+}

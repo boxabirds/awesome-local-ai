@@ -1,0 +1,139 @@
+:root {
+  color-scheme: light;
+  --board-background: #f7f8fa;
+  --control-background: #ffffff;
+  --control-border: #d5dae2;
+  --control-text: #1c2430;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  overflow: hidden;
+}
+
+.board-stage {
+  position: fixed;
+  inset: 0;
+  overflow: hidden;
+  background: var(--board-background);
+}
+
+.board-root {
+  position: absolute;
+  inset: 0;
+}
+
+/* The input surface: drag to pan, wheel/pinch to zoom, never the page. */
+.board-viewport {
+  position: absolute;
+  inset: 0;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+/* Content layer: children are positioned in world coordinates. */
+.world-layer {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 0;
+  height: 0;
+  transform-origin: 0 0;
+  pointer-events: none;
+}
+
+.origin-marker {
+  position: absolute;
+  width: 12px;
+  height: 12px;
+  pointer-events: none;
+  background-image:
+    linear-gradient(var(--marker-color, #e0457b), var(--marker-color, #e0457b)),
+    linear-gradient(var(--marker-color, #e0457b), var(--marker-color, #e0457b));
+  background-size:
+    12px 1px,
+    1px 12px;
+  background-position:
+    0 5px,
+    5px 0;
+  background-repeat: no-repeat;
+}
+
+/* Bottom-right zoom control: − / % / + / Reset view */
+.zoom-controls {
+  position: fixed;
+  right: 16px;
+  bottom: 16px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px;
+  background: var(--control-background);
+  border: 1px solid var(--control-border);
+  border-radius: 8px;
+  box-shadow: 0 1px 4px rgb(16 24 40 / 12%);
+}
+
+.zoom-controls button {
+  min-width: 28px;
+  height: 28px;
+  padding: 0 8px;
+  font: inherit;
+  font-size: 14px;
+  color: var(--control-text);
+  background: transparent;
+  border: 0;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.zoom-controls button.zoom-reset {
+  font-size: 13px;
+}
+
+.zoom-controls button:hover:not(:disabled) {
+  background: #eef1f5;
+}
+
+.zoom-controls button:focus-visible {
+  outline: 2px solid #2f6fed;
+  outline-offset: 1px;
+}
+
+.zoom-controls button:disabled {
+  color: #9aa4b2;
+  cursor: default;
+}
+
+.zoom-label {
+  min-width: 46px;
+  padding: 0 4px;
+  font-size: 13px;
+  color: var(--control-text);
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Bottom-centre first-use hint. */
+.nav-hint {
+  position: fixed;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 6px 12px;
+  font-size: 13px;
+  color: #44506a;
+  background: rgb(255 255 255 / 92%);
+  border: 1px solid var(--control-border);
+  border-radius: 999px;
+  pointer-events: none;
+  white-space: nowrap;
+}
