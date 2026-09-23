@@ -248,3 +248,32 @@ def test_record_story_rebases_when_remote_moved(tmp_path):
     res = record_story(repo, run, "story 1 done", git=g)
     assert res["pushed"], res
     assert (repo / "dirty.txt").read_text() == "uncommitted user work"
+
+
+def test_tool_hang_guard_interrupts_only_a_silent_tool_call(tmp_path):
+    """pi's bash tool has no default timeout; a backgrounded server holding its pipe hangs it forever."""
+    import json, os, subprocess, time
+    from drive import tool_hang_check
+    ws = tmp_path / "workspace"
+    ws.mkdir()
+    events = tmp_path / "agent-events.jsonl"
+    hung = subprocess.Popen(["/bin/sh", "-c", f"sleep 300; true # {ws}"])  # cmdline carries the workspace path
+    bystander = subprocess.Popen(["/bin/sh", "-c", "sleep 300; true # elsewhere"])
+    try:
+        events.write_text(json.dumps({"type": "tool_execution_start", "toolName": "bash"}) + "\n")
+        old = time.time() - 700
+        os.utime(events, (old, old))
+        assert tool_hang_check(events, ws, idle_s=600) is True
+        time.sleep(0.5)
+        assert hung.poll() is not None, "hung tool process should have been killed"
+        assert bystander.poll() is None, "processes outside the workspace must be untouched"
+        # A silent model generation (last event not a tool) is never interrupted.
+        events.write_text(json.dumps({"type": "message_start"}) + "\n")
+        os.utime(events, (old, old))
+        assert tool_hang_check(events, ws, idle_s=600) is False
+        # A recent tool event is not a hang.
+        events.write_text(json.dumps({"type": "tool_execution_update"}) + "\n")
+        assert tool_hang_check(events, ws, idle_s=600) is False
+    finally:
+        for p in (hung, bystander):
+            p.kill()
