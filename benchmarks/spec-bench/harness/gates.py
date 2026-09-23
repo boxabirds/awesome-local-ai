@@ -1,12 +1,12 @@
 # /// script
 # requires-python = ">=3.11"
 # ///
-"""Post-story checks on a workspace: the agent's own gate, then the held-out suite.
+"""Post-story checks on a workspace: the agent's own gate, then the pack's held-out suite (if it has one).
 
 Usable standalone, e.g. to re-score a finished run after an acceptance-suite fix:
 
-    uv run gates.py accept <workspace> --done 1,2,3 --out <dir>
-    uv run gates.py gate   <workspace> --out <dir>
+    uv run gates.py accept <workspace> --pack benchmarks/vidi --done 1,2,3 --out <dir>
+    uv run gates.py gate   <workspace> --pack benchmarks/vidi --out <dir>
 """
 from __future__ import annotations
 
@@ -18,14 +18,13 @@ import subprocess
 import time
 from pathlib import Path
 
+import pack as packmod
+
 HARNESS = Path(__file__).resolve().parent
-ACCEPTANCE = HARNESS.parent / "acceptance"
 STEP_TIMEOUT_S = 20 * 60
 ACCEPT_TIMEOUT_S = 60 * 60
 OUTPUT_TAIL_CHARS = 4000
 
-# Scripts the spec (story 1 tasks.md) tells the agent to define, run in this order.
-GATE_STEPS = ["build", "typecheck", "test:unit", "test:component", "test:integration", "test:e2e"]
 
 VITEST_RE = re.compile(r"Tests\s+(?:(\d+)\s+failed\s*\|\s*)?(?:(\d+)\s+passed)?", re.I)
 PW_PASSED_RE = re.compile(r"(\d+)\s+passed", re.I)
@@ -62,8 +61,8 @@ def install(ws: Path) -> dict:
     return _run(cmd, ws, STEP_TIMEOUT_S)
 
 
-def gate(ws: Path) -> dict:
-    """Run the agent's own scripts. Never modifies source files."""
+def gate(ws: Path, steps: list[str] = packmod.DEFAULT_GATE) -> dict:
+    """Run the agent's own package scripts named by the pack, in order. Never modifies source files."""
     result: dict = {"steps": {}}
     pkg = ws / "package.json"
     if not pkg.exists():
@@ -71,7 +70,7 @@ def gate(ws: Path) -> dict:
         return result
     scripts = json.loads(pkg.read_text()).get("scripts", {})
     result["steps"]["install"] = install(ws)
-    for step in GATE_STEPS:
+    for step in steps:
         if step not in scripts:
             result["steps"][step] = {"exit": "missing"}
             continue
@@ -99,17 +98,22 @@ def _walk(suite: dict):
         yield from _walk(child)
 
 
-def accept(ws: Path, done: list[int], out: Path) -> dict:
-    """Build the workspace and run the held-out suite for every implemented story."""
+def accept(ws: Path, done: list[int], out: Path, acceptance: Path | None, serve: str | None = None) -> dict:
+    """Build the workspace and run the held-out suite for every implemented story.
+
+    A pack without a suite gets no acceptance score, and the result says so rather than 0/0."""
     out.mkdir(parents=True, exist_ok=True)
+    if acceptance is None:
+        return {"skipped": True, "reason": "pack has no acceptance suite", "passed": None, "total": None,
+                "by_story": {}, "tests": []}
     build = _run(["npm", "run", "build"], ws, STEP_TIMEOUT_S)
     report = out / "accept-report.json"
     report.unlink(missing_ok=True)
-    env = {"WORKSPACE": str(ws), "DONE_STORIES": ",".join(map(str, done)),
+    env = {"WORKSPACE": str(ws), "DONE_STORIES": ",".join(map(str, done)), "ACCEPT_SERVE_CMD": serve or "",
            "ACCEPT_JSON": str(report), "ACCEPT_ARTIFACTS": str(out / "artifacts"),
            "SHOT_DIR": str(out / "screenshots")}
-    files = [f"tests/story-{s:02d}.spec.ts" for s in done if (ACCEPTANCE / f"tests/story-{s:02d}.spec.ts").exists()]
-    run = _run(["npx", "playwright", "test", *files], ACCEPTANCE, ACCEPT_TIMEOUT_S, env)
+    files = [f"tests/story-{s:02d}.spec.ts" for s in done if (acceptance / f"tests/story-{s:02d}.spec.ts").exists()]
+    run = _run(["npx", "playwright", "test", *files], acceptance, ACCEPT_TIMEOUT_S, env)
     tests = []
     if report.exists():
         doc = json.loads(report.read_text())
@@ -139,13 +143,15 @@ def main() -> None:
     ap.add_argument("what", choices=["gate", "accept"])
     ap.add_argument("workspace", type=Path)
     ap.add_argument("--done", default="")
+    ap.add_argument("--pack", type=Path, default=HARNESS.parent.parent / "vidi")
     ap.add_argument("--out", type=Path, required=True)
     a = ap.parse_args()
     ws = a.workspace.resolve()
+    pk = packmod.load(a.pack)
     if a.what == "gate":
-        res = gate(ws)
+        res = gate(ws, pk.gate)
     else:
-        res = accept(ws, [int(x) for x in a.done.split(",") if x], a.out)
+        res = accept(ws, [int(x) for x in a.done.split(",") if x], a.out, pk.acceptance, pk.serve)
     a.out.mkdir(parents=True, exist_ok=True)
     (a.out / f"{a.what}.json").write_text(json.dumps(res, indent=2))
     print(json.dumps({k: v for k, v in res.items() if k not in ("tests", "steps")}, indent=2))

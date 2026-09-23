@@ -1,6 +1,3 @@
-acceptance/node_modules/
+acceptance/node_modules
 acceptance/test-results/
 acceptance/accept-results.json
-harness/__pycache__/
-harness/.pytest_cache/
-.pytest_cache/

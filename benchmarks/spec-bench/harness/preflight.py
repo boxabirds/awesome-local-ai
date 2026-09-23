@@ -78,11 +78,11 @@ def main() -> None:
                 time.sleep(1)
         print("  ok  wrangler dev serves over HTTP")
         step("chromium loads the page", ["node", "browse.mjs"], env, ws)
-        leak = subprocess.run(sandboxed(["ls", str(REPO_ROOT / "benchmarks" / "vidi" / "acceptance")], own_dir=PROBE),
+        leak = subprocess.run(sandboxed(["ls", str(REPO_ROOT / "benchmarks")], own_dir=PROBE),
                               capture_output=True, text=True)
         if leak.returncode == 0:
-            raise SystemExit("PREFLIGHT FAILED: the sandbox can read the held-out acceptance suite")
-        print("  ok  held-out suite is hidden")
+            raise SystemExit("PREFLIGHT FAILED: the sandbox can read the repo's benchmarks (held-out suites)")
+        print("  ok  repo and held-out suites are hidden")
     finally:
         subprocess.run(["pkill", "-f", str(ws)], capture_output=True)
         if server:

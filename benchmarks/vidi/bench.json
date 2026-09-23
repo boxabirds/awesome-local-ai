@@ -1,0 +1,15 @@
+{
+  "name": "vidi",
+  "app_line": "You are implementing the web app \"vidi6\" (a collaborative whiteboard) in the current directory, one story at a time.",
+  "readme": "# vidi6\n\nA shared board for thinking together.\n",
+  "rules": [
+    "Follow the design: its repository layout, file names, named settings in `src/shared/config.ts`, exported interfaces, and the exact UI text and `aria-label`s the PRD and design specify.",
+    "Work through tasks.md in order. Write the tests the design lists (unit, component, integration, e2e) and make them pass. Do not delete or weaken tests to make them pass.",
+    "Before you finish, run `npm run build`, `npm run typecheck` and every `npm run test:*` script that exists, and fix failures. For e2e, Chromium is sufficient if other browsers are not installed.",
+    "Do not ask questions; there is nobody to answer. Make a reasonable decision, note it in `NOTES.md`, and continue.",
+    "When the story is complete, commit all work with git using the message `story {{ID}}: {{TITLE}}`."
+  ],
+  "stack": "node-web",
+  "gate": ["build", "typecheck", "test:unit", "test:component", "test:integration", "test:e2e"],
+  "serve": "npx wrangler dev --port {port} --ip 127.0.0.1 --persist-to {persist} --log-level warn --show-interactive-dev-session=false"
+}

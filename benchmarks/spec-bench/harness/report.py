@@ -36,7 +36,7 @@ def totals(m: dict) -> dict:
         "completion_tokens": sum(s["requests"].get("completion_tokens", 0) for s in ss),
         "stalled": sum(bool(s["agent"]["stalled"]) for s in ss),
         "gate_green": sum(bool(s["gate"].get("all_green")) for s in ss),
-        "accept_final": f"{acc.get('passed', 0)}/{acc.get('total', 0)}",
+        "accept_final": "n/a (no suite)" if acc.get("skipped") else f"{acc.get('passed', 0)}/{acc.get('total', 0)}",
         "loc": last.get("loc", {}).get("lines"),
     }
 
@@ -53,7 +53,7 @@ def conditions_cell(c: dict) -> str:
 def summary(run: Path) -> str:
     meta, m = load(run)
     t = totals(m)
-    lines = [f"# Vidi run — {meta.get('combination', run.parent.parent.parent.name)}", "",
+    lines = [f"# {meta.get('pack', run.parent.name)} run — {meta.get('combination', run.parent.parent.parent.name)}", "",
              f"Model `{meta.get('model_id')}`, scope `{meta.get('scope')}`, effort `{meta.get('reasoning_effort')}`, "
              f"client {meta.get('client', 'opencode')} {meta.get('client_version') or meta.get('opencode', '')}, "
              f"host {meta.get('host')}.", "",
@@ -65,7 +65,8 @@ def summary(run: Path) -> str:
             f"| {sid} | {s['title']} | {s['agent']['seconds'] / SECONDS_PER_MINUTE:.1f} | {r.get('requests')} | "
             f"{r.get('prompt_tokens')} | {r.get('completion_tokens')} | {fmt(r.get('ttft_median_s'))} | "
             f"{fmt(r.get('decode_tok_s_median'))} | {'green' if s['gate'].get('all_green') else 'red'} | "
-            f"{a.get('passed')}/{a.get('total')} | {'yes' if s['agent']['stalled'] else ''} | "
+            f"{'n/a (no suite)' if a.get('skipped') else str(a.get('passed')) + '/' + str(a.get('total'))} | "
+            f"{'yes' if s['agent']['stalled'] else ''} | "
             f"{s['agent'].get('resumes', 0)}{' (ended in error)' if s['agent'].get('ended_in_error') else ''} | "
             f"{s['agent'].get('compactions', 0)} | {r.get('max_context', '—')} | "
             f"{conditions_cell(s.get('conditions', {}))} |")

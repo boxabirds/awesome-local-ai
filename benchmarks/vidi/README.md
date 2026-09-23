@@ -1,83 +1,22 @@
-# Vidi: how does this setup build real software?
+# Vidi — a spec-bench pack
 
-A benchmark that runs a local coding setup (model + inference stack + OpenCode)
-through a real specification, one story at a time. It records time and tokens,
-checks the result with a **held-out** acceptance suite, and finishes with a blind
-code-quality judgement. It answers one question for any combination in this
-repo: *how does this setup implement Vidi?*
-
-The spec (`spec/`) is a Miro-style collaborative whiteboard ("vidi6"): 17 stories
-in 3 epics, each with a PRD, a technical design and ordered tasks.
-
-## Run it
+A Miro-style collaborative whiteboard ("vidi6"): 17 stories in 3 epics
+(real-time collaboration; infinite canvas and content; boards, sharing and
+output), each with a PRD, a technical design and ordered tasks. Stack: Vite +
+React + TypeScript on Cloudflare Workers (Durable Objects, R2), Yjs for sync.
 
 ```bash
-# any installed combination; results land in combinations/<COMBINATION>/benchmarks/vidi/<run-id>/
-benchmarks/vidi/harness/run.sh <install-id> [--scope canvas] [--run-id ID] [--only 1,2]
-
-# resume an interrupted run (continues at the first unfinished story)
-benchmarks/vidi/harness/run.sh <install-id> --run-id <same ID>
-
-# compare runs
-uv run benchmarks/vidi/harness/report.py --compare <run-dir> <run-dir> ...
+benchmarks/spec-bench/harness/run.sh <install-id> --pack benchmarks/vidi --record   # scope defaults to canvas
 ```
-
-A combination qualifies if it installs `<install-id>-server` (honouring `PORT`
-and `REASONING_EFFORT`) and serves an OpenAI-compatible `/v1` with tool calling.
-Nothing in the harness is specific to a backend.
-
-## What happens
-
-1. **Server:** waits for thermal `nominal`, then starts the combination's own launcher on `BENCH_PORT` (18010).
-2. **Meter:** `meter_proxy.py` sits in front of the server and logs one line per request: TTFT, decode tok/s, prompt/completion/cached tokens, tool calls, finish reason. The same client-side meter is used for every backend.
-3. **Agent:** for each story in `scope/<scope>.json`, `drive.py` runs `opencode run` in a **fresh session**, with the same prompt (`prompts/story.md.tmpl`) and an isolated `HOME`, so none of your own config, skills or plugins leak in. Stories run in dependency order and build on each other.
-4. **Loop guard:** there is no time or token cap. A story stops early only if the agent makes the identical tool call 8 times in a row (`stalled`).
-5. **Crash resume:** if OpenCode exits on an error (a server stall, a 409, a dropped stream), the harness waits 60s and forks the session (same history, new session id, because MTPLX can leave a session id locked after a stall) and continues with "Continue with the task from where you left off.", up to 3 times. Every resume and its error go into `metrics.json` and the report: they are part of the result, not hidden.
-6. **Run conditions:** before each story the harness pauses until the Mac is on AC power, not in Low Power Mode, and at thermal `nominal`, so every story starts cool. It samples every 30s during the story. Losing AC or entering Low Power Mode marks the story `DEGRADED` (re-run it). Thermal throttling *under load* is not a fault: sustained 27B decoding heats the machine on its own, and that is how the setup really performs. It is reported per story as `throttled N%`.
-7. **Gates, after each story:**
-   - `gate`: the agent's own `build`, `typecheck` and `test:*` scripts.
-   - `accept`: the held-out Playwright suite in `acceptance/` against `wrangler dev`, for every story built so far (so regressions count).
-8. **Snapshot:** anything the agent left uncommitted is committed as `harness: snapshot after story N`, and `metrics.json` is checkpointed.
-9. **Report:** `summary.md` in the run directory.
-
-## Scopes
 
 | Scope | Stories | Why |
 |---|---|---|
-| `canvas` | 1, 2, 3, 4, 5, 7, 8, 9, 10, 11, 12 | The "Infinite canvas and content" epic, plus stories 3–5, which its designs depend on |
+| `canvas` | 1, 2, 3, 4, 5, 7, 8, 9, 10, 11, 12 | the canvas epic plus stories 3–5 its designs build on |
 
-## The held-out acceptance suite
+The held-out suite (`acceptance/`) has 75 black-box Playwright tests across
+those 11 stories, using only the spec's UI text, aria-labels, roles, shortcuts
+and routes (`/b/<22-char id>`). It is validated one way only: against an empty
+stub app all 75 fail and none hang.
 
-`acceptance/` is **never copied into a workspace**. It has 75 black-box tests, one file per story. They use only what the spec pins down: PRD UI copy, the designs' `aria-label`s and roles, keyboard shortcuts and routes (`/b/<22-char id>`). Each test is tagged `@ref prd:<anchor>` so a failure traces back to a requirement. A test only runs once every story it depends on has been built.
-
-It has been validated in one direction only: against an empty stub app, all 75 fail and none hang. **No implementation has yet proven every test passable.** A test that fails for *every* setup is triaged by hand against the spec, then either fixed (and every run re-scored with `harness/gates.py accept`) or marked a suite defect.
-
-## Judging
-
-```bash
-uv run benchmarks/vidi/harness/judge_prep.py <run-1> <run-2> --out /tmp/vidi-judge --seed 1
-```
-
-This builds an anonymised A/B bundle; the label→run key is written *outside* it. Judges score with `harness/judge.md` (spec adherence, architecture, test quality, code quality, product quality, each with file-path evidence). Run it twice with swapped labels to check for position bias.
-
-## Caveats you must quote with any result
-
-- It compares **setups**, not models: quantisation, runtime, speculative decoding and memory footprint all differ at once.
-- Thinking is on at effort `low` for every arm, set **server-side** (OpenCode drops a client-side `reasoning_effort`). A backend without an equivalent knob runs at its default, and the run says so.
-- If a backend omits `usage` from streamed responses, its token totals are a lower bound. `summary.md` flags this.
-- One run per setup. There are no repeats yet, so small differences are noise.
-
-## Files
-
-| Path | Role |
-|---|---|
-| `spec/` | the specification (read-only in each workspace) |
-| `scope/*.json` | which stories, in which order |
-| `prompts/story.md.tmpl` | the identical per-story instruction |
-| `acceptance/` | held-out Playwright suite |
-| `harness/run.sh` | one-command entry point |
-| `harness/meter_proxy.py` | client-side request meter (tests: `test_meter_proxy.py`) |
-| `harness/drive.py` | per-story agent driver, loop guard, checkpoints (tests: `test_drive.py`) |
-| `harness/gates.py` | agent gate + acceptance runner, usable standalone for re-scoring |
-| `harness/report.py` | `summary.md` and cross-run comparison |
-| `harness/judge_prep.py`, `harness/judge.md` | blind A/B judging |
+Results: `combinations/<combination>/benchmarks/vidi/<run-id>/`. See
+[`../spec-bench/`](../spec-bench/) for how runs work.

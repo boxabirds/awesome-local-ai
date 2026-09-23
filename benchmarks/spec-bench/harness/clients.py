@@ -102,7 +102,7 @@ class OpenCodeClient:
             "share": "disabled",
             "permission": {"edit": "allow", "bash": "allow", "webfetch": "deny", "external_directory": "deny"},
             "provider": {PROVIDER: {
-                "npm": "@ai-sdk/openai-compatible", "name": "vidi local",
+                "npm": "@ai-sdk/openai-compatible", "name": "spec-bench local",
                 "options": {"baseURL": base_url, "apiKey": "local"},
                 "models": {model_id: {"name": model_id, "limit": {"context": ctx, "output": out}}},
             }},

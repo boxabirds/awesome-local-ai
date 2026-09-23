@@ -19,8 +19,9 @@ import shutil
 import subprocess
 from pathlib import Path
 
+import pack as packmod
+
 HARNESS = Path(__file__).resolve().parent
-VIDI = HARNESS.parent
 PER_STORY_FILES = ("accept.json", "gate.json")
 
 
@@ -42,6 +43,7 @@ def main() -> None:
     ap.add_argument("runs", nargs=2, type=Path)
     ap.add_argument("--out", type=Path, required=True)
     ap.add_argument("--seed", type=int, default=None)
+    ap.add_argument("--pack", type=Path, default=HARNESS.parent.parent / "vidi")
     a = ap.parse_args()
     runs = [r.resolve() for r in a.runs]
     random.Random(a.seed).shuffle(runs)
@@ -50,9 +52,11 @@ def main() -> None:
         shutil.rmtree(out)
     for label, run in zip("AB", runs):
         copy_run(run, out / label)
-    shutil.copytree(VIDI / "spec", out / "spec")
-    scope = json.loads((runs[0] / "metrics.json").read_text()).get("scope", "canvas")
-    shutil.copy(VIDI / "scope" / f"{scope}.json", out / "scope.json")
+    pk = packmod.load(a.pack)
+    shutil.copytree(pk.spec, out / "spec")
+    scope = json.loads((runs[0] / "metrics.json").read_text()).get("scope", "all")
+    ids = sorted(int(k) for k in json.loads((runs[0] / "metrics.json").read_text())["stories"])
+    (out / "scope.json").write_text(json.dumps({"scope": scope, "stories": [{"id": i} for i in ids]}, indent=2))
     shutil.copy(HARNESS / "judge.md", out / "judge.md")
     out.with_suffix(".key.json").write_text(json.dumps({"A": str(runs[0]), "B": str(runs[1])}, indent=2))
     print(out)

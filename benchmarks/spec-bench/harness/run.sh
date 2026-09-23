@@ -1,13 +1,15 @@
 #!/usr/bin/env bash
-# run.sh -- "how does this setup implement Vidi?" for any installed combination.
+# run.sh -- "how does this setup build this spec?" for any installed combination and benchmark pack.
 #
-#   benchmarks/vidi/harness/run.sh <install-id> [--client pi|opencode] [--scope canvas] [--run-id ID] [--only 1,2] [--record] [--meter]
+#   benchmarks/spec-bench/harness/run.sh <install-id> [--pack benchmarks/vidi]
+#       [--scope canvas | --epic <slug> | --stories 1,2] [--client pi|opencode]
+#       [--run-id ID] [--only 1,2] [--record] [--meter]
 #
 # Starts the combination's own server launcher (<install-id>-server) on a bench
 # port and drives a coding agent (pi by default) through the scope one story at
 # a time (drive.py). Per-request timing comes from the server's own log where it
 # keeps one (MTPLX). Results land next to the combination:
-#   combinations/<COMBINATION>/benchmarks/vidi/<run-id>/
+#   combinations/<COMBINATION>/benchmarks/<pack-name>/<run-id>/
 # Re-running with the same --run-id resumes at the first unfinished story.
 set -euo pipefail
 
@@ -20,14 +22,18 @@ SERVER_READY_TIMEOUT_S=900
 POLL_S=5
 THERMAL_TIMEOUT_S=1800
 
-usage() { sed -n '2,11p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'; }
+usage() { sed -n '2,13p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'; }
 
 [[ $# -ge 1 && "$1" != -h && "$1" != --help ]] || { usage; exit 0; }
 INSTALL_ID="$1"; shift
-SCOPE=canvas; RUN_ID="$(date +%Y%m%d-%H%M)"; ONLY=""; METER=0; CLIENT_NAME=pi; RECORD=""
+PACK="$REPO_ROOT/benchmarks/vidi"; SCOPE=""; EPIC=""; STORIES=""
+RUN_ID="$(date +%Y%m%d-%H%M)"; ONLY=""; METER=0; CLIENT_NAME=pi; RECORD=""
 while [[ $# -gt 0 ]]; do
   case "$1" in
+    --pack) PACK="$(cd "$2" && pwd)"; shift 2 ;;
     --scope) SCOPE="$2"; shift 2 ;;
+    --epic) EPIC="$2"; shift 2 ;;
+    --stories) STORIES="$2"; shift 2 ;;
     --run-id) RUN_ID="$2"; shift 2 ;;
     --only) ONLY="$2"; shift 2 ;;
     --client) CLIENT_NAME="$2"; shift 2 ;;
@@ -52,7 +58,12 @@ CONTEXT_LIMIT="$(cfg CONTEXT_LIMIT)"; OUTPUT_LIMIT="$(cfg OUTPUT_LIMIT)"
 SERVER_CMD="$INSTALL_ID-server"
 command -v "$SERVER_CMD" >/dev/null || { echo "no $SERVER_CMD on PATH" >&2; exit 1; }
 
-RUN_DIR="$COMBO_DIR/benchmarks/vidi/$RUN_ID"
+[[ -d "$PACK/spec/stories" ]] || { echo "not a benchmark pack: $PACK (no spec/stories)" >&2; exit 1; }
+PACK_NAME="$(python3 -c "import json,sys,os; p=sys.argv[1]; f=os.path.join(p,'bench.json'); print(json.load(open(f)).get('name', os.path.basename(p)) if os.path.exists(f) else os.path.basename(p))" "$PACK")"
+PACK_STACK="$(python3 -c "import json,sys,os; f=os.path.join(sys.argv[1],'bench.json'); print(json.load(open(f)).get('stack','node-web') if os.path.exists(f) else 'node-web')" "$PACK")"
+# A pack with a named scope of this name uses it by default (vidi: canvas).
+if [[ -z "$SCOPE$EPIC$STORIES" && -f "$PACK/scope/canvas.json" ]]; then SCOPE=canvas; fi
+RUN_DIR="$COMBO_DIR/benchmarks/$PACK_NAME/$RUN_ID"
 mkdir -p "$RUN_DIR"
 echo "run dir: $RUN_DIR"
 
@@ -67,8 +78,12 @@ if curl -s -m 2 "127.0.0.1:$BENCH_PORT/v1/models" >/dev/null; then
   echo "port $BENCH_PORT already serving; refusing to benchmark against an unknown server" >&2; exit 1
 fi
 
-echo "sandbox preflight (agent toolchain inside the sandbox)"
-(cd "$HARNESS" && uv run --quiet preflight.py) || { echo "preflight failed; not starting the run" >&2; exit 1; }
+if [[ "$PACK_STACK" == node-web ]]; then
+  echo "sandbox preflight (agent toolchain inside the sandbox)"
+  (cd "$HARNESS" && uv run --quiet preflight.py) || { echo "preflight failed; not starting the run" >&2; exit 1; }
+else
+  echo "no sandbox preflight for stack '$PACK_STACK' yet -- toolchain problems will surface mid-story" >&2
+fi
 
 echo "cooling to thermal nominal"
 python3 -c "
@@ -115,14 +130,15 @@ curl -s -m 5 "127.0.0.1:$BENCH_PORT/health" > "$RUN_DIR/server-health.json" || t
 [[ -f "$RUN_DIR/run.json" ]] && { tr -d '\n' < "$RUN_DIR/run.json"; echo; } >> "$RUN_DIR/run-history.jsonl"
 cat > "$RUN_DIR/run.json" <<JSON
 {"install_id": "$INSTALL_ID", "combination": "$COMBINATION", "model_id": "$MODEL_ID",
- "scope": "$SCOPE", "metered": $METER, "reasoning_effort": "$REASONING_EFFORT", "context_limit": $CONTEXT_LIMIT,
+ "pack": "$PACK_NAME", "scope": "${SCOPE:-${EPIC:+epic:$EPIC}${STORIES:+stories:$STORIES}}", "metered": $METER, "reasoning_effort": "$REASONING_EFFORT", "context_limit": $CONTEXT_LIMIT,
  "output_limit": $OUTPUT_LIMIT, "mtplx_memory_limit_bytes": "${MTPLX_MEMORY_LIMIT_BYTES:-default (75% of RAM)}", "client": "$CLIENT_NAME", "client_version": "$CLIENT_VERSION", "backend": "$BACKEND", "host": "$(sysctl -n machdep.cpu.brand_string) $(( $(sysctl -n hw.memsize) / 1073741824 ))GB",
  "harness_commit": "$(git -C "$REPO_ROOT" rev-parse --short HEAD)", "started_at": "$(date -u +%Y-%m-%dT%H:%M:%SZ)"}
 JSON
 
 cd "$HARNESS"
-uv run --quiet drive.py --run-dir "$RUN_DIR" --base-url "$AGENT_URL" --client "$CLIENT_NAME" \
+uv run --quiet drive.py --run-dir "$RUN_DIR" --base-url "$AGENT_URL" --client "$CLIENT_NAME" --pack "$PACK" \
+  ${SCOPE:+--scope "$SCOPE"} ${EPIC:+--epic "$EPIC"} ${STORIES:+--stories "$STORIES"} \
   ${SERVER_LOG:+--server-log "$SERVER_LOG"} \
-  --model-id "$MODEL_ID" --scope "$SCOPE" --context-limit "$CONTEXT_LIMIT" --output-limit "$OUTPUT_LIMIT" \
+  --model-id "$MODEL_ID" --context-limit "$CONTEXT_LIMIT" --output-limit "$OUTPUT_LIMIT" \
   ${ONLY:+--only "$ONLY"} ${RECORD:+--record}
 uv run --quiet report.py "$RUN_DIR"

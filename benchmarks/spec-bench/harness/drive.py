@@ -1,7 +1,7 @@
 # /// script
 # requires-python = ">=3.11"
 # ///
-"""Drive a coding agent (OpenCode) through a Vidi scope, one story per fresh session.
+"""Drive a coding agent (pi or OpenCode) through a benchmark pack's stories, one fresh session per story.
 
 Expects a model server behind the metering proxy (run.sh starts both). For each
 story: render the prompt, run `opencode run` in the workspace with an isolated
@@ -9,7 +9,8 @@ HOME/config, watch for loops, then run the agent's own gate and the held-out
 acceptance suite, snapshot the workspace in git, and checkpoint metrics.json.
 
     uv run drive.py --run-dir <dir> --base-url http://127.0.0.1:18010/v1 --model-id <id> \
-        [--client pi|opencode] [--scope canvas] [--context-limit 131072] [--output-limit 32768] \
+        [--pack benchmarks/vidi] [--scope canvas | --epic <slug> | --stories 1,2] [--client pi|opencode] \
+        [--context-limit 131072] [--output-limit 32768] \
         [--server-log ~/.mtplx/logs/request-log-18010.jsonl]
 """
 from __future__ import annotations
@@ -28,13 +29,15 @@ from collections import deque
 from pathlib import Path
 
 import gates
+import pack
 from clients import CLIENTS, empty_state
 
 HARNESS = Path(__file__).resolve().parent
-VIDI = HARNESS.parent
-REPO_ROOT = VIDI.parent.parent
+REPO_ROOT = HARNESS.parent.parent.parent       # benchmarks/spec-bench/harness -> repo
+DEFAULT_PACK = REPO_ROOT / "benchmarks" / "vidi"
 # Agents work OUTSIDE the repo: inside it, the harness and the held-out suite are a `cd ..` away.
-WORK_ROOT = Path(os.environ.get("VIDI_WORK_ROOT", Path.home() / ".vidi-bench" / "work")).resolve()
+WORK_ROOT = Path(os.environ.get("SPEC_BENCH_WORK_ROOT", os.environ.get("VIDI_WORK_ROOT",
+                 Path.home() / ".vidi-bench" / "work"))).resolve()
 # Nothing the agent runs may read these: the harness + held-out suite, the user's own agent
 # config/skills/sessions, and other runs' work directories (WORK_ROOT minus the agent's own).
 SANDBOX_DENY = [REPO_ROOT, *(Path.home() / p for p in
@@ -42,12 +45,11 @@ SANDBOX_DENY = [REPO_ROOT, *(Path.home() / p for p in
 CONTEXT_BANDS = [(0, 16_000), (16_000, 32_000), (32_000, 64_000), (64_000, 100_000), (100_000, 10**9)]
 CONDITION_POLL_S = 30        # how often run conditions are sampled during a story / while waiting
 # The mirror is committed into the outer repo: no nested .git (it would become a
-# broken gitlink), no copy of the spec (it lives in benchmarks/vidi/spec), no build output.
+# broken gitlink), no copy of the spec (it lives in the pack), no build output.
 MIRROR_EXCLUDES = [".git", "spec", "node_modules", "dist", ".wrangler", "test-results", "playwright-report"]
 # Per-token stream deltas are ~99% of an agent event log and carry nothing the report uses.
 STREAM_DELTA_EVENTS = {"message_update", "tool_execution_update"}
-SPEC = VIDI / "spec"
-PROMPT_TMPL = VIDI / "prompts" / "story.md.tmpl"
+PROMPT_TMPL = HARNESS.parent / "prompts" / "story.md.tmpl"
 LOOP_REPEAT_LIMIT = 8        # identical consecutive tool calls that mark a story as stalled
 KILL_GRACE_S = 10
 # If OpenCode dies on an error (server stall, 409, dropped stream) the same session is resumed,
@@ -63,8 +65,8 @@ TOOL_HANG_S = 10 * 60
 TOOL_HANG_POLL_S = 30
 TOOL_EVENT_TYPES = {"tool_execution_start", "tool_execution_update", "tool_use"}
 EVENT_TAIL_BYTES = 64 * 1024
-GIT_IDENTITY = {"GIT_AUTHOR_NAME": "vidi-agent", "GIT_AUTHOR_EMAIL": "agent@vidi.invalid",
-                "GIT_COMMITTER_NAME": "vidi-agent", "GIT_COMMITTER_EMAIL": "agent@vidi.invalid"}
+GIT_IDENTITY = {"GIT_AUTHOR_NAME": "bench-agent", "GIT_AUTHOR_EMAIL": "agent@spec-bench.invalid",
+                "GIT_COMMITTER_NAME": "bench-agent", "GIT_COMMITTER_EMAIL": "agent@spec-bench.invalid"}
 
 
 def sh(cmd: list[str], cwd: Path, env: dict | None = None, check: bool = True) -> str:
@@ -109,7 +111,7 @@ def combination_label(run: Path) -> str:
     """e.g. qwen/3.8/flash-next/macos/128GB/mtplx-opencode for a run under that combination."""
     try:
         rel = run.resolve().relative_to(REPO_ROOT / "combinations")
-        return "/".join(rel.parts[:-3])  # drop benchmarks/vidi/<run-id>
+        return "/".join(rel.parts[:-3])  # drop benchmarks/<pack>/<run-id>
     except ValueError:
         return run.name
 
@@ -148,7 +150,7 @@ def compact_events(raw: Path) -> Path:
     return out
 
 
-RUN_GITIGNORE = """# Written by benchmarks/vidi/harness/drive.py. Raw agent logs are kept compacted
+RUN_GITIGNORE = """# Written by benchmarks/spec-bench/harness/drive.py. Raw agent logs are kept compacted
 # (agent-events.compact.jsonl.gz); machine-local bookkeeping stays out of git.
 stories/*/agent-events.jsonl
 current_story
@@ -200,13 +202,13 @@ def save_metrics(run: Path, m: dict) -> None:
     (run / "metrics.json").write_text(json.dumps(m, indent=2))
 
 
-def setup_workspace(ws: Path) -> None:
-    """Fresh repo containing only README.md (as story 1's design assumes) plus the read-only spec."""
+def setup_workspace(ws: Path, pk: "pack.Pack") -> None:
+    """Fresh repo containing only README.md (as a first story's design usually assumes) plus the read-only spec."""
     if (ws / ".git").exists():
         return
     ws.mkdir(parents=True)
-    (ws / "README.md").write_text("# vidi6\n\nA shared board for thinking together.\n")
-    shutil.copytree(SPEC, ws / "spec")
+    (ws / "README.md").write_text(pk.readme)
+    shutil.copytree(pk.spec, ws / "spec")
     # Files read-only as a hint; directories stay writable so runs can be mirrored and
     # deleted. Real protection is the hash check + restore after every story.
     for f in (ws / "spec").rglob("*"):
@@ -237,22 +239,6 @@ def agent_env(work: Path) -> dict:
         "WRANGLER_SEND_METRICS": "false",
         **GIT_IDENTITY,
     }
-
-
-def render_prompt(story: dict, title: str, done: list[int], scope: dict) -> str:
-    story_dir = f"spec/stories/{story['dir']}"
-    return (PROMPT_TMPL.read_text()
-            .replace("{{ID}}", str(story["id"]))
-            .replace("{{TITLE}}", title)
-            .replace("{{SPEC_DIR}}", "spec/")
-            .replace("{{STORY_DIR}}", story_dir)
-            .replace("{{DONE}}", ", ".join(map(str, done)) if done else "none (empty repository)")
-            .replace("{{SCOPE_NOTE}}", scope.get("out_of_scope_note", "")))
-
-
-def story_title(story: dict) -> str:
-    first = (SPEC / "stories" / story["dir"] / "story.md").read_text().splitlines()[0]
-    return first.lstrip("# ").strip()
 
 
 class LoopDetector:
@@ -483,7 +469,7 @@ def summarise_conditions(samples: int, bad: list[dict]) -> dict:
 def thermal() -> str:
     try:
         import sys
-        sys.path.insert(0, str(VIDI.parent))
+        sys.path.insert(0, str(REPO_ROOT / "benchmarks"))
         from thermal import thermal_pressure  # benchmarks/thermal.py
         return thermal_pressure()
     except Exception as e:  # noqa: BLE001 - informational only
@@ -492,12 +478,17 @@ def thermal() -> str:
 
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("--run-dir", type=Path, required=True)
-    ap.add_argument("--base-url", required=True, help="OpenAI-compatible /v1 the agent talks to")
+    ap.add_argument("--run-dir", type=Path)
+    ap.add_argument("--base-url", help="OpenAI-compatible /v1 the agent talks to")
     ap.add_argument("--client", choices=sorted(CLIENTS), default="pi")
     ap.add_argument("--server-log", type=Path, help="server's own per-request JSONL log (MTPLX)")
-    ap.add_argument("--model-id", required=True)
-    ap.add_argument("--scope", default="canvas")
+    ap.add_argument("--model-id")
+    ap.add_argument("--dry-run", action="store_true",
+                    help="validate a pack: list the stories in order and print the first prompt, then exit")
+    ap.add_argument("--pack", type=Path, default=DEFAULT_PACK, help="benchmark pack dir (spec/, bench.json, ...)")
+    ap.add_argument("--scope", help="named story list in <pack>/scope/<name>.json")
+    ap.add_argument("--epic", help="the stories listed in <pack>/spec/epics/<slug>.md")
+    ap.add_argument("--stories", help="explicit comma list of story ids, in order")
     ap.add_argument("--context-limit", type=int, default=131072)
     ap.add_argument("--output-limit", type=int, default=32768)
     ap.add_argument("--only", help="comma list of story ids to run (smoke tests)")
@@ -505,23 +496,36 @@ def main() -> None:
                     help="after each story, commit this run's directory and push (a per-story record)")
     a = ap.parse_args()
 
+    pk = pack.load(a.pack)
+    scope = pk.resolve_scope(scope=a.scope, epic=a.epic,
+                             ids=[int(x) for x in a.stories.split(",")] if a.stories else None)
+    stories = scope["stories"]
+    template = PROMPT_TMPL.read_text()
+    if a.dry_run:
+        print(f"pack {pk.name} at {pk.dir}")
+        print(f"acceptance suite: {pk.acceptance or 'none (gate-only scoring)'}; gate steps: {', '.join(pk.gate)}")
+        for s_ in stories:
+            print(f"  story {s_['id']:>3}  {pk.title(s_['id'])}  ({s_['dir']})")
+        print("\n--- first prompt ---\n" + pk.render_prompt(stories[0]["id"], [], scope["out_of_scope_note"], template))
+        return
+    if not (a.run_dir and a.base_url and a.model_id):
+        ap.error("--run-dir, --base-url and --model-id are required unless --dry-run")
     run = a.run_dir.resolve()
     run.mkdir(parents=True, exist_ok=True)
-    scope = json.loads((VIDI / "scope" / f"{a.scope}.json").read_text())
-    stories = scope["stories"]
     if a.only:
         wanted = {int(x) for x in a.only.split(",")}
         stories = [s for s in stories if s["id"] in wanted]
     work = work_dir_for(run)
     ws = work / "workspace"
-    setup_workspace(ws)
+    setup_workspace(ws, pk)
     (run / "work_dir.txt").write_text(str(work))
     spec_hash = tree_hash(ws / "spec")
     env = agent_env(work)
     client = CLIENTS[a.client](work)
     client.write_config(a.base_url, a.model_id, a.context_limit, a.output_limit)
     metrics = load_metrics(run)
-    metrics.update({"scope": a.scope, "model_id": a.model_id, "client": a.client})
+    metrics.update({"pack": pk.name, "scope": a.scope or (f"epic:{a.epic}" if a.epic else a.stories or "all"),
+                    "model_id": a.model_id, "client": a.client})
     done = [int(k) for k, v in metrics["stories"].items() if v.get("finished")]
 
     for story in stories:
@@ -531,8 +535,8 @@ def main() -> None:
         sdir = run / "stories" / f"{sid:02d}"
         sdir.mkdir(parents=True, exist_ok=True)
         (run / "current_story").write_text(str(sid))
-        title = story_title(story)
-        prompt = render_prompt(story, title, done, scope)
+        title = pk.title(sid)
+        prompt = pk.render_prompt(sid, done, scope["out_of_scope_note"], template)
         (sdir / "prompt.md").write_text(prompt)
         print(f"[story {sid}] {title} — agent starting", flush=True)
         rec: dict = {"title": title, "conditions_start": wait_for_conditions(), "started": time.time()}
@@ -555,10 +559,10 @@ def main() -> None:
         rec["agent_commits"] = int(sh(["git", "rev-list", "--count", f"{head_before}..HEAD"], ws).strip())
 
         print(f"[story {sid}] agent done in {rec['agent']['seconds']}s; running gates", flush=True)
-        rec["gate"] = gates.gate(ws)
+        rec["gate"] = gates.gate(ws, pk.gate)
         (sdir / "gate.json").write_text(json.dumps(rec["gate"], indent=2))
         kill_strays(ws)
-        acc = gates.accept(ws, done + [sid], sdir)
+        acc = gates.accept(ws, done + [sid], sdir, pk.acceptance, pk.serve)
         (sdir / "accept.json").write_text(json.dumps(acc, indent=2))
         rec["accept"] = {k: v for k, v in acc.items() if k != "tests"}
 
@@ -578,13 +582,14 @@ def main() -> None:
             (run / "summary.md").write_text(report.summary(run))
             compact_events(sdir / "agent-events.jsonl")
             label = combination_label(run)
-            rec["record"] = record_story(REPO_ROOT, run, f"vidi {label} {run.name}: story {sid} done")
+            rec["record"] = record_story(REPO_ROOT, run, f"{pk.name} {label} {run.name}: story {sid} done")
             save_metrics(run, metrics)
             r = rec["record"]
             print(f"[story {sid}] recorded: commit {r.get('commit', '-')} pushed={r['pushed']}"
                   f"{'  ' + r['error'][:200] if r.get('error') else ''}", flush=True)
         print(f"[story {sid}] gate green={rec['gate'].get('all_green')} "
-              f"accept {acc['passed']}/{acc['total']} stalled={rec['agent']['stalled']}"
+              f"accept {'n/a' if acc.get('skipped') else str(acc['passed']) + '/' + str(acc['total'])} "
+              f"stalled={rec['agent']['stalled']}"
               f"{' DEGRADED (power/thermal) — timing not comparable' if rec['conditions']['degraded'] else ''}",
               flush=True)
 

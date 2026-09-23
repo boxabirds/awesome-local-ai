@@ -27,7 +27,7 @@ def test_same_tool_different_input_is_progress():
 import subprocess
 from pathlib import Path
 
-from drive import sandboxed, VIDI
+from drive import sandboxed, DEFAULT_PACK as VIDI
 
 SECRET = VIDI / "acceptance" / "package.json"
 
