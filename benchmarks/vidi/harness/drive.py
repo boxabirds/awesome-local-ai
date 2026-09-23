@@ -55,6 +55,14 @@ KILL_GRACE_S = 10
 MAX_AGENT_RESUMES = 3
 RESUME_BACKOFF_S = 60
 RESUME_PROMPT = "Continue with the task from where you left off."
+# pi's bash tool has no default timeout. An agent that backgrounds a server inside a tool call
+# (`(wrangler dev &)`) leaves children holding the tool's output pipe and the call never returns.
+# After this long with the last event a tool call and nothing streamed, the harness does what a
+# person would: Ctrl-C the processes under the workspace. The agent then sees the tool end.
+TOOL_HANG_S = 10 * 60
+TOOL_HANG_POLL_S = 30
+TOOL_EVENT_TYPES = {"tool_execution_start", "tool_execution_update", "tool_use"}
+EVENT_TAIL_BYTES = 64 * 1024
 GIT_IDENTITY = {"GIT_AUTHOR_NAME": "vidi-agent", "GIT_AUTHOR_EMAIL": "agent@vidi.invalid",
                 "GIT_COMMITTER_NAME": "vidi-agent", "GIT_COMMITTER_EMAIL": "agent@vidi.invalid"}
 
@@ -256,6 +264,53 @@ class LoopDetector:
         return len(self.recent) == self.recent.maxlen and len(set(self.recent)) == 1
 
 
+def _last_event_type(events: Path) -> str | None:
+    with events.open("rb") as f:
+        f.seek(0, os.SEEK_END)
+        f.seek(max(0, f.tell() - EVENT_TAIL_BYTES))
+        for line in reversed(f.read().decode(errors="replace").splitlines()):
+            try:
+                return json.loads(line).get("type")
+            except (json.JSONDecodeError, AttributeError):
+                continue
+    return None
+
+
+def tool_hang_check(events: Path, ws: Path, idle_s: float = TOOL_HANG_S) -> bool:
+    """Interrupt a tool call that has been silent for idle_s; True if it did.
+
+    Kills only processes whose command line contains the workspace path. The agent
+    itself (pi retitles its process to "pi") and anything outside the workspace survive."""
+    if not events.exists() or time.time() - events.stat().st_mtime < idle_s:
+        return False
+    if _last_event_type(events) not in TOOL_EVENT_TYPES:
+        return False
+    subprocess.run(["pkill", "-f", str(ws)], capture_output=True)
+    return True
+
+
+class ToolHangGuard(threading.Thread):
+    def __init__(self, events: Path, ws: Path, log: Path):
+        super().__init__(daemon=True)
+        self.events, self.ws, self.log = events, ws, log
+        self.interruptions = 0
+        self._halt = threading.Event()
+
+    def run(self):
+        while not self._halt.wait(TOOL_HANG_POLL_S):
+            if tool_hang_check(self.events, self.ws):
+                self.interruptions += 1
+                with self.log.open("a") as f:
+                    f.write(f"{time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime())} {self.events.parent.name}: "
+                            f"interrupted a tool call silent for {TOOL_HANG_S}s (killed processes under the workspace)\n")
+                print(f"    tool call silent {TOOL_HANG_S // 60} min — interrupted (Ctrl-C equivalent)", flush=True)
+
+    def stop(self) -> int:
+        self._halt.set()
+        self.join()
+        return self.interruptions
+
+
 def run_agent(client, ws: Path, env: dict, model_id: str, prompt: str, events_path: Path,
               resume_from: str | None = None) -> dict:
     """Run (or fork-resume) one sandboxed agent session; returns counts, session id, error and loop flag."""
@@ -292,6 +347,8 @@ def run_agent(client, ws: Path, env: dict, model_id: str, prompt: str, events_pa
 def run_story_agent(client, ws: Path, env: dict, model_id: str, prompt: str, events_path: Path) -> dict:
     """First attempt plus up to MAX_AGENT_RESUMES fork-resumes after an error exit."""
     events_path.unlink(missing_ok=True)
+    guard = ToolHangGuard(events_path, ws, events_path.parent.parent.parent / "interventions.log")
+    guard.start()
     attempts = [run_agent(client, ws, env, model_id, prompt, events_path)]
     while (attempts[-1]["error"] and not attempts[-1]["stalled"] and attempts[-1]["session"]
            and len(attempts) <= MAX_AGENT_RESUMES):
@@ -299,7 +356,9 @@ def run_story_agent(client, ws: Path, env: dict, model_id: str, prompt: str, eve
         time.sleep(RESUME_BACKOFF_S)
         attempts.append(run_agent(client, ws, env, model_id, RESUME_PROMPT, events_path,
                                   resume_from=attempts[-1]["session"]))
+    interruptions = guard.stop()
     total = {k: sum(a[k] for a in attempts) for k in ("seconds", "steps", "tool_calls", "compactions")}
+    total["tool_interruptions"] = interruptions
     total["tokens"] = {k: sum(a["tokens"][k] for a in attempts) for k in attempts[0]["tokens"]}
     return {**total, "exit": attempts[-1]["exit"], "stalled": attempts[-1]["stalled"],
             "resumes": len(attempts) - 1, "errors": [a["error"] for a in attempts if a["error"]],
