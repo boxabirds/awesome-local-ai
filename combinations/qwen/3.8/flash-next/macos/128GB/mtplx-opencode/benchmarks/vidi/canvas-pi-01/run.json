@@ -1,4 +1,4 @@
 {"install_id": "mtplx-qwen38-flash-next", "combination": "qwen/3.8/flash-next/macos/128GB/mtplx-opencode", "model_id": "mtplx-flash-next-optimized-speed",
  "scope": "canvas", "metered": 0, "reasoning_effort": "low", "context_limit": 131072,
  "output_limit": 32768, "mtplx_memory_limit_bytes": "default (75% of RAM)", "client": "pi", "client_version": "0.86.0", "backend": "mtplx", "host": "Apple M5 Max 128GB",
- "harness_commit": "41c739b", "started_at": "2026-09-23T21:42:50Z"}
+ "harness_commit": "abbeee2", "started_at": "2026-09-23T22:42:12Z"}

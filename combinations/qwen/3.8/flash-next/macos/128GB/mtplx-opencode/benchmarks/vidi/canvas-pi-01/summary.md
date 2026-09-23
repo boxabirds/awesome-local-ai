@@ -5,15 +5,16 @@ Model `mtplx-flash-next-optimized-speed`, scope `canvas`, effort `low`, client p
 | Story | Title | Agent min | Requests | Prompt tok | Completion tok | TTFT med s | Decode tok/s med | Gate | Accept (cumulative) | Stalled | Resumes | Compactions | Max ctx | Conditions |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
 | 1 | Pan and zoom around an infinite board | 55.4 | 137 | 9872492 | 149984 | 1.2 | 59.3 | red | 0/6 |  | 0 | 1 | 114803 | throttled 97% |
+| 2 | Capture ideas on sticky notes and rearrange them | 3.0 | 28 | 947219 | 8522 | 1.9 | 80.2 | red | 0/20 |  | 0 | 0 | 49332 | throttled 50% |
 
-**Totals:** 1 stories, 55 agent-minutes, 137 requests, 9,872,492 prompt / 149,984 completion tokens, gate green 0/1, final acceptance 0/6, stalled 0, 2457 lines in src+tests.
+**Totals:** 2 stories, 58 agent-minutes, 165 requests, 10,819,711 prompt / 158,506 completion tokens, gate green 0/2, final acceptance 0/20, stalled 0, 2867 lines in src+tests.
 
 ### Decode tok/s by context (server log, all stories)
 
 | Context | Requests | Decode tok/s (request-weighted median of per-story medians) |
 |---|---|---|
-| 0-16k | 7 | 79.0 |
-| 16-32k | 3 | 59.1 |
-| 32-64k | 43 | 59.9 |
+| 0-16k | 10 | 79.0 |
+| 16-32k | 10 | 70.8 |
+| 32-64k | 61 | 59.9 |
 | 64-100k | 56 | 59.3 |
 | 100-+k | 28 | 58.3 |

@@ -686,21 +686,21 @@
           "install": {
             "cmd": "npm ci",
             "exit": 0,
-            "seconds": 2.6,
-            "tail": "\nadded 135 packages, and audited 136 packages in 3s\n\n28 packages are looking for funding\n  run `npm fund` for details\n\nfound 0 vulnerabilities\nnpm warn allow-scripts 3 packages have install scripts not yet covered by allowScripts:\nnpm warn allow-scripts   esbuild@0.28.1 (postinstall: node install.js)\nnpm warn allow-scripts   fsevents@2.3.3 (install: (install scripts present))\nnpm warn allow-scripts   workerd@1.20260921.1 (postinstall: node install.js)\nnpm warn allow-scripts\nnpm warn allow-scripts Run `npm approve-scripts --allow-scripts-pending` to review, or `npm approve-scripts <pkg>` to allow.\n"
+            "seconds": 2.2,
+            "tail": "\nadded 135 packages, and audited 136 packages in 2s\n\n28 packages are looking for funding\n  run `npm fund` for details\n\nfound 0 vulnerabilities\nnpm warn allow-scripts 3 packages have install scripts not yet covered by allowScripts:\nnpm warn allow-scripts   esbuild@0.28.1 (postinstall: node install.js)\nnpm warn allow-scripts   fsevents@2.3.3 (install: (install scripts present))\nnpm warn allow-scripts   workerd@1.20260921.1 (postinstall: node install.js)\nnpm warn allow-scripts\nnpm warn allow-scripts Run `npm approve-scripts --allow-scripts-pending` to review, or `npm approve-scripts <pkg>` to allow.\n"
           },
           "build": {
             "cmd": "npm run build",
             "exit": 0,
-            "seconds": 0.7,
-            "tail": "\n> vidi6@0.0.0 build\n> vite build\n\n\u001b[36mvite v8.3.0 \u001b[32mbuilding client environment for production...\u001b[36m\u001b[39m\ntransforming...\n\u2713 23 modules transformed.\nrendering chunks...\ncomputing gzip size...\ndist/client/index.html                   0.39 kB \u2502 gzip:  0.26 kB\ndist/client/assets/index-WACH3Pcm.css    1.99 kB \u2502 gzip:  0.84 kB\ndist/client/assets/index-ehp45uSC.js   227.37 kB \u2502 gzip: 71.31 kB\n\n\u001b[32m\u2713 built in 193ms\u001b[39m\n",
+            "seconds": 0.8,
+            "tail": "\n> vidi6@0.0.0 build\n> vite build\n\n\u001b[36mvite v8.3.0 \u001b[32mbuilding client environment for production...\u001b[36m\u001b[39m\ntransforming...\n\u2713 23 modules transformed.\nrendering chunks...\ncomputing gzip size...\ndist/client/index.html                   0.39 kB \u2502 gzip:  0.26 kB\ndist/client/assets/index-WACH3Pcm.css    1.99 kB \u2502 gzip:  0.84 kB\ndist/client/assets/index-ehp45uSC.js   227.37 kB \u2502 gzip: 71.31 kB\n\n\u001b[32m\u2713 built in 212ms\u001b[39m\n",
             "passed": null,
             "failed": null
           },
           "typecheck": {
             "cmd": "npm run typecheck",
             "exit": 0,
-            "seconds": 0.8,
+            "seconds": 0.7,
             "tail": "\n> vidi6@0.0.0 typecheck\n> tsc --noEmit\n\n",
             "passed": null,
             "failed": null
@@ -709,15 +709,15 @@
             "cmd": "npm run test:unit",
             "exit": 0,
             "seconds": 0.4,
-            "tail": "\n> vidi6@0.0.0 test:unit\n> vitest run --project unit\n\n\n RUN  v5.0.1 /Users/julian/.vidi-bench/work/qwen__3.8__flash-next__macos__128GB__mtplx-opencode__benchmarks__vidi__canvas-pi-01/workspace\n\n\n Test Files  1 passed (1)\n      Tests  19 passed (19)\n   Start at  23:38:22\n   Duration  87ms (transform 43%, tests 40%, import 13%, worker 4%)\n\n",
+            "tail": "\n> vidi6@0.0.0 test:unit\n> vitest run --project unit\n\n\n RUN  v5.0.1 /Users/julian/.vidi-bench/work/qwen__3.8__flash-next__macos__128GB__mtplx-opencode__benchmarks__vidi__canvas-pi-01/workspace\n\n\n Test Files  1 passed (1)\n      Tests  19 passed (19)\n   Start at  23:40:28\n   Duration  81ms (transform 43%, tests 40%, import 13%, worker 3%)\n\n",
             "passed": 19,
             "failed": 0
           },
           "test:component": {
             "cmd": "npm run test:component",
             "exit": 0,
-            "seconds": 1.0,
-            "tail": "\n> vidi6@0.0.0 test:component\n> vitest run --project component\n\n\n RUN  v5.0.1 /Users/julian/.vidi-bench/work/qwen__3.8__flash-next__macos__128GB__mtplx-opencode__benchmarks__vidi__canvas-pi-01/workspace\n\n\n Test Files  3 passed (3)\n      Tests  22 passed (22)\n   Start at  23:38:22\n   Duration  773ms (tests 44%, environment 42%, setup 7%, transform 6%, import 1%)\n\n",
+            "seconds": 0.9,
+            "tail": "\n> vidi6@0.0.0 test:component\n> vitest run --project component\n\n\n RUN  v5.0.1 /Users/julian/.vidi-bench/work/qwen__3.8__flash-next__macos__128GB__mtplx-opencode__benchmarks__vidi__canvas-pi-01/workspace\n\n\n Test Files  3 passed (3)\n      Tests  22 passed (22)\n   Start at  23:40:28\n   Duration  734ms (tests 45%, environment 41%, setup 7%, transform 6%, import 1%)\n\n",
             "passed": 22,
             "failed": 0
           },
@@ -727,8 +727,8 @@
           "test:e2e": {
             "cmd": "npm run test:e2e",
             "exit": 1,
-            "seconds": 0.5,
-            "tail": "\n> vidi6@0.0.0 test:e2e\n> npm run build:test && playwright test\n\n\n> vidi6@0.0.0 build:test\n> vite build --mode test\n\n\u001b[36mvite v8.3.0 \u001b[32mbuilding client environment for test...\u001b[36m\u001b[39m\ntransforming...\n\u2713 23 modules transformed.\nrendering chunks...\ncomputing gzip size...\ndist/client/index.html                   0.39 kB \u2502 gzip:  0.26 kB\ndist/client/assets/index-WACH3Pcm.css    1.99 kB \u2502 gzip:  0.84 kB\ndist/client/assets/index-LvIJNFZS.js   227.37 kB \u2502 gzip: 71.31 kB\n\n\u001b[32m\u2713 built in 52ms\u001b[39m\nError: http://localhost:8787 is already used, make sure that nothing is running on the port/url or set reuseExistingServer:true in config.webServer.\n\n",
+            "seconds": 1.0,
+            "tail": "\n> vidi6@0.0.0 test:e2e\n> npm run build:test && playwright test\n\n\n> vidi6@0.0.0 build:test\n> vite build --mode test\n\n\u001b[36mvite v8.3.0 \u001b[32mbuilding client environment for test...\u001b[36m\u001b[39m\ntransforming...\n\u2713 23 modules transformed.\nrendering chunks...\ncomputing gzip size...\ndist/client/index.html                   0.39 kB \u2502 gzip:  0.26 kB\ndist/client/assets/index-WACH3Pcm.css    1.99 kB \u2502 gzip:  0.84 kB\ndist/client/assets/index-LvIJNFZS.js   227.37 kB \u2502 gzip: 71.31 kB\n\n\u001b[32m\u2713 built in 51ms\u001b[39m\n[WebServer] \n[WebServer]  \u26c5\ufe0f wrangler 4.137.0\n[WebServer] \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\n[WebServer] Your Worker has access to the following bindings:\n[WebServer] Binding            Resource      Mode\n[WebServer] env.ASSETS         Assets        local\n[WebServer] \n[WebServer] \nError: Process from config.webServer was not able to start. Exit code: 1\n\n[WebServer] \u2718 [ERROR] Cannot use assets with a binding in an assets-only Worker.\n[WebServer] \n[WebServer]   Please remove the asset binding from your configuration file, or provide a Worker script in your configuration file (`main`).\n[WebServer] \n[WebServer] \n[WebServer] \ud83e\udeb5  Logs were written to \"/Users/julian/.wrangler/logs/wrangler-2026-09-23_22-40-32_007.log\"\n",
             "passed": null,
             "failed": null
           }
@@ -785,7 +785,226 @@
         "files": 17,
         "lines": 2457
       },
-      "finished": 1790203115.2415612
+      "finished": 1790203115.2415612,
+      "record": {
+        "committed": true,
+        "pushed": true,
+        "commit": "45e90bd"
+      },
+      "gate_original": {
+        "steps": {
+          "install": {
+            "cmd": "npm ci",
+            "exit": 0,
+            "seconds": 2.6,
+            "tail": "\nadded 135 packages, and audited 136 packages in 3s\n\n28 packages are looking for funding\n  run `npm fund` for details\n\nfound 0 vulnerabilities\nnpm warn allow-scripts 3 packages have install scripts not yet covered by allowScripts:\nnpm warn allow-scripts   esbuild@0.28.1 (postinstall: node install.js)\nnpm warn allow-scripts   fsevents@2.3.3 (install: (install scripts present))\nnpm warn allow-scripts   workerd@1.20260921.1 (postinstall: node install.js)\nnpm warn allow-scripts\nnpm warn allow-scripts Run `npm approve-scripts --allow-scripts-pending` to review, or `npm approve-scripts <pkg>` to allow.\n"
+          },
+          "build": {
+            "cmd": "npm run build",
+            "exit": 0,
+            "seconds": 0.7,
+            "tail": "\n> vidi6@0.0.0 build\n> vite build\n\n\u001b[36mvite v8.3.0 \u001b[32mbuilding client environment for production...\u001b[36m\u001b[39m\ntransforming...\n\u2713 23 modules transformed.\nrendering chunks...\ncomputing gzip size...\ndist/client/index.html                   0.39 kB \u2502 gzip:  0.26 kB\ndist/client/assets/index-WACH3Pcm.css    1.99 kB \u2502 gzip:  0.84 kB\ndist/client/assets/index-ehp45uSC.js   227.37 kB \u2502 gzip: 71.31 kB\n\n\u001b[32m\u2713 built in 193ms\u001b[39m\n",
+            "passed": null,
+            "failed": null
+          },
+          "typecheck": {
+            "cmd": "npm run typecheck",
+            "exit": 0,
+            "seconds": 0.8,
+            "tail": "\n> vidi6@0.0.0 typecheck\n> tsc --noEmit\n\n",
+            "passed": null,
+            "failed": null
+          },
+          "test:unit": {
+            "cmd": "npm run test:unit",
+            "exit": 0,
+            "seconds": 0.4,
+            "tail": "\n> vidi6@0.0.0 test:unit\n> vitest run --project unit\n\n\n RUN  v5.0.1 /Users/julian/.vidi-bench/work/qwen__3.8__flash-next__macos__128GB__mtplx-opencode__benchmarks__vidi__canvas-pi-01/workspace\n\n\n Test Files  1 passed (1)\n      Tests  19 passed (19)\n   Start at  23:38:22\n   Duration  87ms (transform 43%, tests 40%, import 13%, worker 4%)\n\n",
+            "passed": 19,
+            "failed": 0
+          },
+          "test:component": {
+            "cmd": "npm run test:component",
+            "exit": 0,
+            "seconds": 1.0,
+            "tail": "\n> vidi6@0.0.0 test:component\n> vitest run --project component\n\n\n RUN  v5.0.1 /Users/julian/.vidi-bench/work/qwen__3.8__flash-next__macos__128GB__mtplx-opencode__benchmarks__vidi__canvas-pi-01/workspace\n\n\n Test Files  3 passed (3)\n      Tests  22 passed (22)\n   Start at  23:38:22\n   Duration  773ms (tests 44%, environment 42%, setup 7%, transform 6%, import 1%)\n\n",
+            "passed": 22,
+            "failed": 0
+          },
+          "test:integration": {
+            "exit": "missing"
+          },
+          "test:e2e": {
+            "cmd": "npm run test:e2e",
+            "exit": 1,
+            "seconds": 0.5,
+            "tail": "\n> vidi6@0.0.0 test:e2e\n> npm run build:test && playwright test\n\n\n> vidi6@0.0.0 build:test\n> vite build --mode test\n\n\u001b[36mvite v8.3.0 \u001b[32mbuilding client environment for test...\u001b[36m\u001b[39m\ntransforming...\n\u2713 23 modules transformed.\nrendering chunks...\ncomputing gzip size...\ndist/client/index.html                   0.39 kB \u2502 gzip:  0.26 kB\ndist/client/assets/index-WACH3Pcm.css    1.99 kB \u2502 gzip:  0.84 kB\ndist/client/assets/index-LvIJNFZS.js   227.37 kB \u2502 gzip: 71.31 kB\n\n\u001b[32m\u2713 built in 52ms\u001b[39m\nError: http://localhost:8787 is already used, make sure that nothing is running on the port/url or set reuseExistingServer:true in config.webServer.\n\n",
+            "passed": null,
+            "failed": null
+          }
+        },
+        "all_green": false
+      },
+      "gate_rescored_note": "Gate re-run after the story with ports clear: the original e2e step failed on a port held by an agent-started 'vite preview' the harness failed to clean up (fixed). Re-run e2e fails on the agent's own wrangler.jsonc (ASSETS binding without main). Outcome unchanged: gate red, acceptance 0/6."
+    },
+    "2": {
+      "title": "Capture ideas on sticky notes and rearrange them",
+      "conditions_start": {
+        "ac": true,
+        "low_power": false,
+        "thermal": "nominal"
+      },
+      "started": 1790203332.5845492,
+      "agent": {
+        "seconds": 180.6,
+        "steps": 28,
+        "tool_calls": 33,
+        "compactions": 0,
+        "tool_interruptions": 0,
+        "tokens": {
+          "input": 38762,
+          "output": 8522,
+          "reasoning": 2149,
+          "cache_read": 908457,
+          "cache_write": 0
+        },
+        "exit": 0,
+        "stalled": false,
+        "resumes": 0,
+        "errors": [],
+        "ended_in_error": false,
+        "sessions": [
+          "01a0d06f-0887-739b-964e-52fab0c9e8ab"
+        ]
+      },
+      "agent_finished": 1790203513.2206988,
+      "conditions": {
+        "samples": 6,
+        "degraded": false,
+        "throttled_share": 0.5,
+        "bad_samples": [
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "moderate",
+            "t": 1790203452.71738
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790203482.737159
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790203512.767228
+          }
+        ]
+      },
+      "agent_commits": 0,
+      "gate": {
+        "steps": {
+          "install": {
+            "cmd": "npm ci",
+            "exit": 0,
+            "seconds": 3.2,
+            "tail": "\nadded 138 packages, and audited 139 packages in 3s\n\n31 packages are looking for funding\n  run `npm fund` for details\n\nfound 0 vulnerabilities\nnpm warn allow-scripts 3 packages have install scripts not yet covered by allowScripts:\nnpm warn allow-scripts   esbuild@0.28.1 (postinstall: node install.js)\nnpm warn allow-scripts   fsevents@2.3.3 (install: (install scripts present))\nnpm warn allow-scripts   workerd@1.20260921.1 (postinstall: node install.js)\nnpm warn allow-scripts\nnpm warn allow-scripts Run `npm approve-scripts --allow-scripts-pending` to review, or `npm approve-scripts <pkg>` to allow.\n"
+          },
+          "build": {
+            "cmd": "npm run build",
+            "exit": 0,
+            "seconds": 0.8,
+            "tail": "\n> vidi6@0.0.0 build\n> vite build\n\n\u001b[36mvite v8.3.0 \u001b[32mbuilding client environment for production...\u001b[36m\u001b[39m\ntransforming...\n\u2713 23 modules transformed.\nrendering chunks...\ncomputing gzip size...\ndist/client/index.html                   0.39 kB \u2502 gzip:  0.26 kB\ndist/client/assets/index-WACH3Pcm.css    1.99 kB \u2502 gzip:  0.84 kB\ndist/client/assets/index-ehp45uSC.js   227.37 kB \u2502 gzip: 71.31 kB\n\n\u001b[32m\u2713 built in 240ms\u001b[39m\n",
+            "passed": null,
+            "failed": null
+          },
+          "typecheck": {
+            "cmd": "npm run typecheck",
+            "exit": 0,
+            "seconds": 1.0,
+            "tail": "\n> vidi6@0.0.0 typecheck\n> tsc --noEmit\n\n",
+            "passed": null,
+            "failed": null
+          },
+          "test:unit": {
+            "cmd": "npm run test:unit",
+            "exit": 1,
+            "seconds": 0.5,
+            "tail": "ected and changes nothing\nError: not implemented\n \u276f initDoc src/shared/board-model.ts:26:9\n     24|\n     25| export function initDoc(_doc: Y.Doc): void {\n     26|   throw new Error('not implemented');\n       |         ^\n     27| }\n     28|\n \u276f freshDoc tests/unit/board-model.test.ts:33:3\n \u276f tests/unit/board-model.test.ts:194:17\n\n\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af[9/17]\u23af\n\n FAIL  |unit| tests/unit/board-model.test.ts > deleteObject > TC-07: removes a note\nError: not implemented\n \u276f initDoc src/shared/board-model.ts:26:9\n     24|\n     25| export function initDoc(_doc: Y.Doc): void {\n     26|   throw new Error('not implemented');\n       |         ^\n     27| }\n     28|\n \u276f freshDoc tests/unit/board-model.test.ts:33:3\n \u276f tests/unit/board-model.test.ts:209:17\n\n\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af[10/17]\u23af\n\n FAIL  |unit| tests/unit/board-model.test.ts > deleteObject > TC-08: a stale id is rejected with no update\nError: not implemented\n \u276f initDoc src/shared/board-model.ts:26:9\n     24|\n     25| export function initDoc(_doc: Y.Doc): void {\n     26|   throw new Error('not implemented');\n       |         ^\n     27| }\n     28|\n \u276f freshDoc tests/unit/board-model.test.ts:33:3\n \u276f tests/unit/board-model.test.ts:222:17\n\n\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af[11/17]\u23af\n\n FAIL  |unit| tests/unit/board-model.test.ts > bringToFront > TC-09: raises the lowest of three notes to the top\nError: not implemented\n \u276f initDoc src/shared/board-model.ts:26:9\n     24|\n     25| export function initDoc(_doc: Y.Doc): void {\n     26|   throw new Error('not implemented');\n       |         ^\n     27| }\n     28|\n \u276f freshDoc tests/unit/board-model.test.ts:33:3\n \u276f tests/unit/board-model.test.ts:232:17\n\n\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af[12/17]\u23af\n\n FAIL  |unit| tests/unit/board-model.test.ts > bringToFront > TC-10: bringing the top note to front is a no-op (no update)\nError: not implemented\n \u276f initDoc src/shared/board-model.ts:26:9\n     24|\n     25| export function initDoc(_doc: Y.Doc): void {\n     26|   throw new Error('not implemented');\n       |         ^\n     27| }\n     28|\n \u276f freshDoc tests/unit/board-model.test.ts:33:3\n \u276f tests/unit/board-model.test.ts:247:17\n\n\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af[13/17]\u23af\n\n FAIL  |unit| tests/unit/board-model.test.ts > snapshot ordering and forward-compatibility > TC-11: equal z values are ordered by id, stably\nError: not implemented\n \u276f initDoc src/shared/board-model.ts:26:9\n     24|\n     25| export function initDoc(_doc: Y.Doc): void {\n     26|   throw new Error('not implemented');\n       |         ^\n     27| }\n     28|\n \u276f freshDoc tests/unit/board-model.test.ts:33:3\n \u276f tests/unit/board-model.test.ts:261:17\n\n\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af[14/17]\u23af\n\n FAIL  |unit| tests/unit/board-model.test.ts > snapshot ordering and forward-compatibility > TC-12: skips unknown object types without throwing\nError: not implemented\n \u276f initDoc src/shared/board-model.ts:26:9\n     24|\n     25| export function initDoc(_doc: Y.Doc): void {\n     26|   throw new Error('not implemented');\n       |         ^\n     27| }\n     28|\n \u276f freshDoc tests/unit/board-model.test.ts:33:3\n \u276f tests/unit/board-model.test.ts:274:17\n\n\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af[15/17]\u23af\n\n FAIL  |unit| tests/unit/board-model.test.ts > getStickyText > returns the Y.Text for a note and undefined otherwise\nError: not implemented\n \u276f initDoc src/shared/board-model.ts:26:9\n     24|\n     25| export function initDoc(_doc: Y.Doc): void {\n     26|   throw new Error('not implemented');\n       |         ^\n     27| }\n     28|\n \u276f freshDoc tests/unit/board-model.test.ts:33:3\n \u276f tests/unit/board-model.test.ts:289:17\n\n\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af[16/17]\u23af\n\n FAIL  |unit| tests/unit/board-model.test.ts > LOCAL_ORIGIN > is used as the transaction origin for successful mutations\nError: not implemented\n \u276f initDoc src/shared/board-model.ts:26:9\n     24|\n     25| export function initDoc(_doc: Y.Doc): void {\n     26|   throw new Error('not implemented');\n       |         ^\n     27| }\n     28|\n \u276f freshDoc tests/unit/board-model.test.ts:33:3\n \u276f tests/unit/board-model.test.ts:301:17\n\n\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af[17/17]\u23af\n\n",
+            "passed": null,
+            "failed": null
+          },
+          "test:component": {
+            "cmd": "npm run test:component",
+            "exit": 0,
+            "seconds": 1.1,
+            "tail": "\n> vidi6@0.0.0 test:component\n> vitest run --project component\n\n\n RUN  v5.0.1 /Users/julian/.vidi-bench/work/qwen__3.8__flash-next__macos__128GB__mtplx-opencode__benchmarks__vidi__canvas-pi-01/workspace\n\n\n Test Files  3 passed (3)\n      Tests  22 passed (22)\n   Start at  23:45:19\n   Duration  868ms (environment 45%, tests 40%, setup 8%, transform 6%, import 1%)\n\n",
+            "passed": 22,
+            "failed": 0
+          },
+          "test:integration": {
+            "exit": "missing"
+          },
+          "test:e2e": {
+            "cmd": "npm run test:e2e",
+            "exit": 1,
+            "seconds": 1.2,
+            "tail": "\n> vidi6@0.0.0 test:e2e\n> npm run build:test && playwright test\n\n\n> vidi6@0.0.0 build:test\n> vite build --mode test\n\n\u001b[36mvite v8.3.0 \u001b[32mbuilding client environment for test...\u001b[36m\u001b[39m\ntransforming...\n\u2713 23 modules transformed.\nrendering chunks...\ncomputing gzip size...\ndist/client/index.html                   0.39 kB \u2502 gzip:  0.26 kB\ndist/client/assets/index-WACH3Pcm.css    1.99 kB \u2502 gzip:  0.84 kB\ndist/client/assets/index-LvIJNFZS.js   227.37 kB \u2502 gzip: 71.31 kB\n\n\u001b[32m\u2713 built in 59ms\u001b[39m\n[WebServer] \n[WebServer]  \u26c5\ufe0f wrangler 4.137.0\n[WebServer] \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\n[WebServer] Your Worker has access to the following bindings:\n[WebServer] Binding            Resource      Mode\n[WebServer] env.ASSETS         Assets        local\n[WebServer] \n[WebServer] \nError: Process from config.webServer was not able to start. Exit code: 1\n\n[WebServer] \u2718 [ERROR] Cannot use assets with a binding in an assets-only Worker.\n[WebServer] \n[WebServer]   Please remove the asset binding from your configuration file, or provide a Worker script in your configuration file (`main`).\n[WebServer] \n[WebServer] \n[WebServer] \ud83e\udeb5  Logs were written to \"/Users/julian/.wrangler/logs/wrangler-2026-09-23_22-45-22_780.log\"\n",
+            "passed": null,
+            "failed": null
+          }
+        },
+        "all_green": false
+      },
+      "accept": {
+        "build_exit": 0,
+        "runner_exit": 1,
+        "runner_tail": "",
+        "passed": 0,
+        "total": 20,
+        "by_story": {
+          "01": {
+            "passed": 0,
+            "total": 10
+          },
+          "02": {
+            "passed": 0,
+            "total": 10
+          }
+        }
+      },
+      "commit": "8a9bc6d72bb0b1e62328912d4d95b25f0f67b3b5",
+      "requests": {
+        "requests": 28,
+        "prompt_tokens": 947219,
+        "completion_tokens": 8522,
+        "cached_tokens": 908457,
+        "ttft_median_s": 1.9343601251021028,
+        "prefill_tok_s_median": 469.77108607607335,
+        "decode_tok_s_median": 80.19103559332699,
+        "max_context": 49332,
+        "decode_by_context": {
+          "0-16k": {
+            "requests": 3,
+            "decode_tok_s_median": 84.22819592867317
+          },
+          "16-32k": {
+            "requests": 7,
+            "decode_tok_s_median": 70.83650175433499
+          },
+          "32-64k": {
+            "requests": 18,
+            "decode_tok_s_median": 80.32280211313557
+          }
+        }
+      },
+      "loc": {
+        "files": 19,
+        "lines": 2867
+      },
+      "finished": 1790203544.461757
     }
   },
   "scope": "canvas",
