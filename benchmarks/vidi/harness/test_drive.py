@@ -303,3 +303,50 @@ def test_sandbox_allows_realpath_of_own_workspace():
         shutil.rmtree(sib, ignore_errors=True)
     finally:
         shutil.rmtree(work, ignore_errors=True)
+
+
+def test_kill_strays_catches_processes_by_working_directory(tmp_path):
+    """canvas-pi-01 story 1: `node node_modules/vite/bin/vite.js preview` (relative path, cwd in the
+    workspace) survived kill_strays and held port 8787 through the gate's e2e run."""
+    import subprocess, time
+    from drive import kill_strays
+    ws = tmp_path / "workspace"
+    ws.mkdir()
+    by_cwd = subprocess.Popen(["/bin/sh", "-c", "sleep 300; true"], cwd=ws)          # no path in its cmdline
+    by_cmd = subprocess.Popen(["/bin/sh", "-c", f"sleep 300; true # {ws}"])
+    bystander = subprocess.Popen(["/bin/sh", "-c", "sleep 300; true"], cwd=tmp_path)
+    try:
+        time.sleep(0.3)
+        kill_strays(ws)
+        time.sleep(0.5)
+        assert by_cwd.poll() is not None, "process running in the workspace must be killed"
+        assert by_cmd.poll() is not None
+        assert bystander.poll() is None
+    finally:
+        for p in (by_cwd, by_cmd, bystander):
+            p.kill()
+
+
+def test_hang_guard_spares_the_agent_whose_cwd_is_the_workspace(tmp_path):
+    import json as _json, os, subprocess, time
+    from drive import tool_hang_check, kill_strays
+    ws = tmp_path / "workspace"
+    ws.mkdir()
+    # one process, like pi itself (its tool children are separate processes)
+    agent = subprocess.Popen(["python3", "-c", "import time; time.sleep(300)", "pi-coding-agent/dist/cli.js"], cwd=ws)
+    tool = subprocess.Popen(["/bin/sh", "-c", "sleep 300; true"], cwd=ws)
+    events = tmp_path / "agent-events.jsonl"
+    events.write_text(_json.dumps({"type": "tool_execution_start"}) + "\n")
+    old = time.time() - 700
+    os.utime(events, (old, old))
+    try:
+        time.sleep(0.3)
+        assert tool_hang_check(events, ws, idle_s=600)
+        time.sleep(0.5)
+        assert tool.poll() is not None and agent.poll() is None, "guard must kill the tool, not the agent"
+        kill_strays(ws)          # after the story, everything in the workspace goes
+        time.sleep(0.5)
+        assert agent.poll() is not None
+    finally:
+        for p in (agent, tool):
+            p.kill()
