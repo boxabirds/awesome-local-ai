@@ -225,3 +225,26 @@ def test_record_story_commits_only_the_run_dir_and_pushes(tmp_path):
                            capture_output=True, text=True).stdout
     assert "vidi x r1: story 1 done" in files and "metrics.json" in files
     assert "unrelated.txt" not in files and "agent-events.jsonl" not in files and "work_dir.txt" not in files
+
+
+def test_record_story_rebases_when_remote_moved(tmp_path):
+    import subprocess
+    from drive import record_story
+    g = ["git", "-c", "user.name=t", "-c", "user.email=t@t"]
+    remote = tmp_path / "remote.git"
+    subprocess.run(["git", "init", "-q", "--bare", "-b", "main", str(remote)], check=True)
+    repo, other = tmp_path / "repo", tmp_path / "other"
+    for d in (repo, other):
+        subprocess.run(["git", "clone", "-q", str(remote), str(d)], check=True)
+    (other / "elsewhere.md").write_text("someone else's commit")
+    subprocess.run([*g, "add", "-A"], cwd=other, check=True)
+    subprocess.run([*g, "commit", "-qm", "other"], cwd=other, check=True)
+    subprocess.run(["git", "push", "-q", "origin", "HEAD:main"], cwd=other, check=True)
+    subprocess.run([*g, "commit", "-q", "--allow-empty", "-m", "base"], cwd=repo, check=True)  # diverged history
+    run = repo / "c" / "benchmarks" / "vidi" / "r"
+    run.mkdir(parents=True)
+    (run / "metrics.json").write_text("{}")
+    (repo / "dirty.txt").write_text("uncommitted user work")
+    res = record_story(repo, run, "story 1 done", git=g)
+    assert res["pushed"], res
+    assert (repo / "dirty.txt").read_text() == "uncommitted user work"
