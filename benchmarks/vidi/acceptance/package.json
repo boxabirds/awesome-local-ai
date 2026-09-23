@@ -1,0 +1,14 @@
+{
+  "name": "vidi-acceptance",
+  "private": true,
+  "type": "module",
+  "description": "Held-out black-box acceptance suite for vidi6 implementations. Never copied into a workspace.",
+  "scripts": {
+    "test": "playwright test"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.55.0",
+    "@types/node": "^22.0.0",
+    "pngjs": "^7.0.0"
+  }
+}
