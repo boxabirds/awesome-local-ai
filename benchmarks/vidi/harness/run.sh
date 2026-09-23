@@ -67,6 +67,9 @@ if curl -s -m 2 "127.0.0.1:$BENCH_PORT/v1/models" >/dev/null; then
   echo "port $BENCH_PORT already serving; refusing to benchmark against an unknown server" >&2; exit 1
 fi
 
+echo "sandbox preflight (agent toolchain inside the sandbox)"
+(cd "$HARNESS" && uv run --quiet preflight.py) || { echo "preflight failed; not starting the run" >&2; exit 1; }
+
 echo "cooling to thermal nominal"
 python3 -c "
 import sys; sys.path.insert(0, '$REPO_ROOT/benchmarks')
