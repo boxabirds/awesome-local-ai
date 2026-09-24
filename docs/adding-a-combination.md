@@ -23,7 +23,7 @@ lib/                                  ALL the logic, shared by every combination
   model.sh  launcher.sh  service.sh
   smoke.sh   summary.sh
   select.sh                           host probe + combination selection (install.sh)
-  llamacpp.sh  mtplx.sh               backend adapters     (BACKEND=...)
+  llamacpp.sh  mtplx.sh  sglang.sh    backend adapters     (BACKEND=...)
   accel/cuda.sh  accel/metal.sh       accelerator adapters (ACCEL=...)
   clients/opencode.sh                 client adapter       (CLIENT=opencode)
   clients/pi.sh                       client adapter       (CLIENT=pi)
@@ -291,6 +291,39 @@ but the sidecar — which is exactly what an interrupted download looks like. So
 `lib/mtplx.sh` walks the index's weight map itself. If you add a backend with
 its own cache, assume its validator is necessary and not sufficient until you
 have tested it against a half-finished download.
+
+## Adding a container-backed combination (SGLang)
+
+`lib/sglang.sh` is the third backend, and the first that runs its engine from a
+container image rather than a binary on the host. Two exist:
+`qwen/3.8/27b/ubuntu/24GB/sglang-opencode` and
+`qwen/3.6/35b-a3b/ubuntu/24GB/sglang-opencode`, both transcribed from a
+published recipe and **not yet measured by this repo**.
+
+A combination on this backend supplies, as data in `config.sh`:
+
+| Variable | What it is |
+|---|---|
+| `SGLANG_IMAGE` | `repo@sha256:<digest>` — refused unless pinned by digest |
+| `MODEL_REPO`, `MODEL_REVISION` | Hugging Face repo and a **commit** (not a branch) |
+| `MODEL_WEIGHTS_DIR`, `SGLANG_CONTAINER_MODEL_DIR` | host cache subdir, and where the recipe's argv expects it inside the container (mounted read-only) |
+| `MODEL_SHA256` | optional `sha256  file` lines; verified after download |
+| `SGLANG_ENV`, `SGLANG_BASE_ARGS` | the recipe's environment and argv, verbatim, minus the flags a profile owns |
+| `SGLANG_CONTAINER_PORT`, `SGLANG_SHM_SIZE`, `SGLANG_MIN_HOST_CUDA` | container port, `--shm-size`, the image's CUDA floor checked against `nvidia-smi` |
+
+`profiles.tsv` for this backend is
+`name|ctx|mem_frac|prefill_graph|need_mib|basis|summary`; `basis` says where
+each row came from (`RECIPE-…` or `EXTRAPOLATED`).
+
+Five generic hooks came with it, each opt-in:
+
+| Hook | Where | What |
+|---|---|---|
+| `ACCEL_ARCHS_VERIFIED` | `lib/accel/cuda.sh` | compute capabilities (e.g. `"86"`) the build was run on; anything else warns loudly, with the combination's `arch_advice`, instead of refusing |
+| `BACKEND_NEEDS_BUILD_TOOLS=0` | `lib/accel/cuda.sh` | also skips the `nvcc` requirement — a prebuilt image compiles nothing |
+| `backend_manifest_extra` | `lib/launcher.sh` | a backend appends its own `KEY=value` lines to `install.env` |
+| `SMOKE_REQUEST_EXTRA` | `lib/smoke.sh` | extra JSON fields for the smoke chat request (SGLang turns thinking off for it) |
+| `AUTO_SELECT=0` | `lib/select.sh` | the combination is listed as compatible but ranks below every other in its tier, so `./install.sh` never picks it silently |
 
 ## Honesty
 

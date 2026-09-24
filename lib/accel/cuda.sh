@@ -37,7 +37,32 @@ qualify_accel() {
   ok "GPU: ${ACCEL_DESC}"
 
   _qualify_vram "$gpu_name"
-  _ensure_nvcc
+  _qualify_arch "$gpu_name"
+  # A backend that ships prebuilt kernels (a container image, say) compiles
+  # nothing on this machine, so it has no use for nvcc and must not be refused
+  # for lacking one.
+  if [[ "${BACKEND_NEEDS_BUILD_TOOLS:-1}" == "1" ]]; then _ensure_nvcc; fi
+}
+
+# A combination whose kernels were built ahead of time for specific GPU
+# architectures declares the ones anyone has actually run it on, as compute
+# capabilities without the dot ("86" for an RTX 3090). On anything else this
+# warns loudly rather than refusing: "untested" is not "cannot work", and the
+# person with the other card is exactly who can find out. The combination may
+# explain what is known in arch_advice.
+_qualify_arch() {
+  local gpu_name="$1"
+  [[ -n "${ACCEL_ARCHS_VERIFIED:-}" ]] || return 0
+  if [[ " ${ACCEL_ARCHS_VERIFIED} " == *" ${ACCEL_ARCH} "* ]]; then
+    ok "Compute capability sm_${ACCEL_ARCH} is one this combination was run on."
+    return 0
+  fi
+  warn "=============================================================="
+  warn " UNTESTED GPU ARCHITECTURE: ${gpu_name} is sm_${ACCEL_ARCH}."
+  warn " This combination has only been run on: sm_${ACCEL_ARCHS_VERIFIED// /, sm_}."
+  warn "=============================================================="
+  if declare -F arch_advice >/dev/null; then arch_advice "$ACCEL_ARCH"; fi
+  warn " Continuing. If it works, please report back -- see the combination README."
 }
 
 # Every profile and every context figure in a combination was measured against

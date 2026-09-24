@@ -1,0 +1,28 @@
+# name|ctx|mem_frac|prefill_graph|need_mib|basis|summary
+#
+# NOTHING HERE WAS MEASURED BY THIS REPO. Sources, per profile:
+#
+#   full     the argv merged in 0xSero/local-ai-registry PR #83. Every number
+#            in README.md comes from this configuration, measured by the recipe
+#            author on a BARE RTX 3090: sweep peak device memory 24,739,011,624
+#            bytes = 23,593 MiB, KV pool 272,369 tokens, ladder OK to 258k.
+#   graphs   the argv on the registry's main branch after PR #92: prefill CUDA
+#            graphs back on, which only fit at 204,800 tokens and 0.80. Author
+#            check on the bare card: KV pool 212,823 tokens, 93-137 tok/s on
+#            short answers, 41k and 152k prompts answered. No sweep; need_mib is
+#            the 'full' profile's peak reused, NOT a measurement of this one.
+#   desktop  EXTRAPOLATED, never run by anyone. For a card that also drives a
+#            desktop (the recipe says "~5 GB used" there and that such a card
+#            "cannot hold the 262k window; lower --context-length there").
+#            Arithmetic: fp8 KV is 16 full-attention layers x 4 KV heads x 256
+#            dims x 2 (K,V) x 1 byte = 32 KiB/token, i.e. ~32k tokens per GiB.
+#            SGLang sizes the pool from memory free at start, so 5 GB (4.66
+#            GiB) held by a desktop takes ~153k tokens off the 'graphs' pool of
+#            212,823 -> ~60k left. 49,152 leaves a margin. need_mib = 23,593 -
+#            5,120. Report the real pool size back (see README 'First run').
+#
+# need_mib is the free VRAM on the GPU at launch that the profile assumes; the
+# launcher warns (and suggests a smaller profile) when less is free.
+full|262144|0.88|0|23593|RECIPE-#83|default; full window, author's acceptance run (bare card)
+graphs|204800|0.80|1|23593|RECIPE-#92|registry's current argv; prefill graphs on (bare card)
+desktop|49152|0.80|1|18473|EXTRAPOLATED|GPU that also drives a desktop (~5 GB used); never run

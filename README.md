@@ -55,6 +55,8 @@ half-installing.
 | Ternary Bonsai 2 27B ² | Ubuntu 22.04 | 24GB NVIDIA | llama.cpp *(fork)* + OpenCode | [`install-bonsai-2-27b-ubuntu-24GB-llamacpp-opencode.sh`](install-bonsai-2-27b-ubuntu-24GB-llamacpp-opencode.sh) | [README](combinations/bonsai/2/27b/ubuntu/24GB/llamacpp-opencode/README.md) |
 | MiMo-V2.6-Qwen-9B ³ | macOS 26 | 16GB Apple silicon, M3+ ⁴ | MTPLX + OpenCode | [`install-mimo-2.6-9b-macos-16GB-mtplx-opencode.sh`](install-mimo-2.6-9b-macos-16GB-mtplx-opencode.sh) | [README](combinations/mimo/2.6/9b/macos/16GB/mtplx-opencode/README.md) |
 | Qwen3.5-9B FP16 ³ | macOS 26 | 16GB Apple silicon, M1/M2 ⁴ | MTPLX + OpenCode | [`install-qwen-3.5-9b-fp16-macos-16GB-mtplx-opencode.sh`](install-qwen-3.5-9b-fp16-macos-16GB-mtplx-opencode.sh) | [README](combinations/qwen/3.5/9b-fp16/macos/16GB/mtplx-opencode/README.md) |
+| Qwen3.8-27B EXL3 3.0bpw ⁵ | Ubuntu (Docker) | 24GB NVIDIA, RTX 3090 (sm_86) | SGLang *(container)* + OpenCode | [`install-qwen-3.8-27b-ubuntu-24GB-sglang-opencode.sh`](install-qwen-3.8-27b-ubuntu-24GB-sglang-opencode.sh) | [README](combinations/qwen/3.8/27b/ubuntu/24GB/sglang-opencode/README.md) |
+| Qwen3.6-35B-A3B EXL3 3.0bpw ⁵ | Ubuntu (Docker) | 24GB NVIDIA, RTX 3090 (sm_86) | SGLang *(container)* + OpenCode | [`install-qwen-3.6-35b-a3b-ubuntu-24GB-sglang-opencode.sh`](install-qwen-3.6-35b-a3b-ubuntu-24GB-sglang-opencode.sh) | [README](combinations/qwen/3.6/35b-a3b/ubuntu/24GB/sglang-opencode/README.md) |
 
 ² **The Bonsai row does not use upstream llama.cpp.** Bonsai 2 is Qwen3.8-27B
 re-quantised to ternary weights (~1.72 bits/weight, 6.7 GB), and its GGUF types
@@ -84,6 +86,16 @@ M3/M4/M5 only; it runs on M1/M2 but without native BF16, and the slowdown is
 unmeasured. On M1/M2, MTPLX's pick is the Qwen3.5-9B FP16 build. `install.sh`
 selects by memory alone, so on any 16 GB Mac `./install.sh` (and its menu's
 default) is the FP16 row; use `./install.sh mimo` for MiMo.
+
+⁵ **The two SGLang rows are unmeasured by this repo.** They transcribe a
+merged recipe, [0xSero/local-ai-registry PR #83](https://github.com/0xSero/local-ai-registry/pull/83),
+whose numbers the recipe author measured on a *bare* RTX 3090: 262k context,
+MTP on, ~99 (27B) and ~252 (35B-A3B) tok/s prose decode. Nobody has run them
+through these installers yet. They run SGLang from a digest-pinned container
+image whose kernels are built only for sm_86; an RTX 4090 or 5090 is untested
+(the installer warns). Both are 3.0 bits per weight, so their speed is not a
+like-for-like comparison with the 4-bit-class llama.cpp rows. `./install.sh`
+never picks them on its own; name them to install them.
 
 **Want one that isn't here?** See
 [docs/adding-a-combination.md](docs/adding-a-combination.md). A new combination
@@ -219,7 +231,7 @@ username.
 Three extension points, each one file with a small documented contract:
 
 - **Accelerator** — `lib/accel/<name>.sh` (`cuda`, `metal`)
-- **Backend** — `lib/<name>.sh` (`llamacpp`, `mtplx`)
+- **Backend** — `lib/<name>.sh` (`llamacpp`, `mtplx`, `sglang`)
 - **Client** — `lib/clients/<name>.sh` (`opencode`, `pi`) — the client is an orthogonal axis: every one is installed and you pick at run time (`./start.sh --pi`), while `CLIENT` in a combination's `config.sh` only names the default
 
 ---
