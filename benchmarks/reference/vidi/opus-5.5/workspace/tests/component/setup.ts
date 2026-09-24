@@ -4,7 +4,36 @@ import { afterEach, beforeEach, vi } from 'vitest';
 /** Board area size used by component tests (jsdom has no layout). */
 export const TEST_VIEWPORT = { width: 1280, height: 800 } as const;
 
+/**
+ * The app connects to its board room over a WebSocket. Component tests have no server: this
+ * socket never opens, so the board stays "Connecting…" and fully usable locally.
+ */
+class OfflineWebSocket extends EventTarget {
+  static readonly CONNECTING = 0;
+  static readonly OPEN = 1;
+  static readonly CLOSING = 2;
+  static readonly CLOSED = 3;
+  readonly CONNECTING = 0;
+  readonly OPEN = 1;
+  readonly CLOSING = 2;
+  readonly CLOSED = 3;
+  readyState = OfflineWebSocket.CONNECTING;
+  binaryType = 'arraybuffer';
+  onopen: unknown = null;
+  onmessage: unknown = null;
+  onclose: unknown = null;
+  onerror: unknown = null;
+  constructor(readonly url: string) {
+    super();
+  }
+  send(): void {}
+  close(): void {
+    this.readyState = OfflineWebSocket.CLOSED;
+  }
+}
+
 beforeEach(() => {
+  vi.stubGlobal('WebSocket', OfflineWebSocket);
   vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(
     () =>
       ({
@@ -24,5 +53,6 @@ beforeEach(() => {
 afterEach(() => {
   cleanup();
   vi.restoreAllMocks();
+  vi.unstubAllGlobals();
   vi.useRealTimers();
 });

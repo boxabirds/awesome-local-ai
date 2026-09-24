@@ -101,3 +101,77 @@ Decisions made while building without anyone to ask.
   covered only with synthetic composition events in jsdom, not a real input method.
 - **E2E browsers.** As in story 1, WebKit cannot launch on the build machine; e2e verified with
   `E2E_BROWSERS=chromium,firefox`.
+
+## Story 3: See other people's edits appear live on the same board
+
+- **Vitest downgraded 5 → 4.1.** `@cloudflare/vitest-pool-workers` (latest 0.22.0) requires
+  `vitest ^4.1`; with vitest 5 npm refuses to install it. The design requires real workerd
+  integration tests via the pool, so vitest is pinned to `^4.1.11`. All story 1–2 unit and
+  component tests pass unchanged on it. The root `extends: true` was replaced by per-project
+  plugins (react for unit/component, `cloudflareTest` for integration).
+- **Integration compatibility date.** The workerd bundled with the pool supports dates up to
+  2026-08-22, older than `wrangler.jsonc`'s 2026-09-01, so the integration project overrides the
+  compatibility date (`POOL_WORKERD_COMPATIBILITY_DATE` in `vitest.config.ts`). `wrangler dev`
+  (e2e) and deploy use the real date.
+- **`test:integration` builds first** (`vite build && vitest run --project integration`): TC-06
+  checks the Worker's SPA fallback, which needs `dist/client/index.html`.
+- **Binary frames.** At this compatibility date workerd delivers binary WebSocket frames as
+  `Blob` by default; the room sets `server.binaryType = 'arraybuffer'`. (Before that, every
+  frame was rejected with 1003.)
+- **Room handles sync messages itself** instead of `readSyncMessage`: y-protocols catches
+  `applyUpdate` errors internally (and logs them), which would make the design's "invalid Yjs
+  update → close 1003" impossible. A malformed SyncStep1 state vector is also closed with 1003
+  (extra TC-15 run). `decodeMessage` validates the whole frame (known sync sub-type, complete
+  varUint8Array, no trailing bytes); its `sync` payload starts at the sync sub-type.
+- **`run_worker_first: ["/api/*"]`** added to `wrangler.jsonc` assets so room connections always
+  reach the Worker, never the SPA fallback. `assets.binding: ASSETS` per tasks.md.
+- **Separate `tsconfig.worker.json`** (workers types, no DOM) for `src/worker`, `src/shared` and
+  `tests/integration`; the main tsconfig excludes those two folders. `npm run typecheck` runs
+  both.
+- **`connectBoard` takes an optional 4th argument** (provider factory) so component tests drive
+  the state mapping with a fake event emitter (TC-19–21). The factory's `BoardProvider`
+  interface is the subset of `WebsocketProvider` used.
+- **Browser offline/online events.** Playwright's `context.setOffline(true)` (like a real Wi-Fi
+  drop on an idle socket) does not close an open WebSocket; y-websocket would only notice after
+  its 30 s no-message timeout. `connectBoard` therefore restarts the provider on the window
+  `offline` event (badge turns "Reconnecting…" at once, retries continue with backoff) and on
+  `online` when not connected (reconnects at once instead of waiting for the backoff).
+- **State mapping details.** Before the first sync, failed attempts keep "Connecting…" (never
+  "Reconnecting…"). The socket opening is not "connected"; the first SyncStep2 (`sync` event)
+  is. A drop during the green confirmation cancels its timer.
+- **Badge** is `role="status"` with `aria-label="Connection status"` (the zoom label is also a
+  status region, so the badge needs its own name) and `data-state`; it renders nothing when
+  connected. Colours: neutral for Connecting…, amber Reconnecting…, green Connected.
+- **Remote typing into an open editor.** Story 2's editor only read the Y.Text when editing
+  started; with live edits its next local diff would have deleted other people's text. The
+  editor now observes its Y.Text and applies non-local changes to the textarea, mapping the
+  caret/selection through the delta (`transformIndex`, unit tested; insertions exactly at the
+  caret land after it). Known limit: a remote change to the same note during an IME
+  composition may interrupt that composition (the text is kept).
+- **Addresses.** `/b/:boardId` with a valid id opens that board; anything else (including `/`
+  and malformed ids) is replaced via `history.replaceState` (no reload) with a new
+  `/b/<newBoardId()>`. Temporary until story 5.
+- **Test hook** `window.__vidi6.connectionState` (test builds only; production bundle verified
+  to contain no `__vidi6`).
+- **Component tests stub `WebSocket`** globally (`tests/component/setup.ts`) with a socket that
+  never opens, so the app stays "Connecting…" and fully usable; an extra component test proves
+  notes can be created in that state (no lockout).
+- **Integration test client** (`tests/integration/ws-client.ts`) speaks the same framing as
+  y-websocket and has `hold()`/`release()` to create truly concurrent edits and `barrier()` (a
+  SyncStep1 round trip) to prove "no echo" deterministically. Text edits in integration tests
+  use `Y.Text.insert` in a `LOCAL_ORIGIN` transaction (the editor's `applyTextDiff` lives in a
+  DOM-typed module).
+- **TC-18 restart** is a real restart of the same object (`state.abort()` via
+  `runInDurableObject`) rather than a new object id; the test first proves the restarted room is
+  empty. workerd logs the abort as an "uncaught exception … restart" line; that is expected.
+- **Nightly suite.** `npm run test:e2e:nightly` (`E2E_NIGHTLY=1`, project `nightly`, Chromium)
+  runs TC-29 and TC-30; the default `test:e2e` projects ignore `*.nightly.spec.ts`. Last run:
+  TC-30 10,880 deliveries, p50 9 ms, p95 24 ms, max 90 ms. TC-30's "no reconnect attempts after
+  close" point is not asserted: closing a context kills the page, so nothing can be observed
+  afterwards; `destroy()` on unmount is covered by a component test instead.
+- **E2E browsers.** WebKit still cannot launch on the build machine; e2e verified with
+  `E2E_BROWSERS=chromium,firefox` (all live-collaboration tests pass in both).
+- **`npm run dev`** is still Vite only (no Worker), so it shows "Connecting…"; use
+  `npm run build && npx wrangler dev` for a live board.
+- **Red phase.** Task 1's unit tests were run red against "not implemented" stubs (12/12 failed)
+  before implementing; not committed separately (single story commit).

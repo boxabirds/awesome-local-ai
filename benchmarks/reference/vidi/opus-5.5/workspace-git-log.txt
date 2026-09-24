@@ -1,3 +1,48 @@
+commit c7b638a6da8118cf4cf8a6232b1db8fa6f67a9e0
+Author: opus-5.5-reference <reference@vidi.invalid>
+Date:   Thu Sep 24 22:48:52 2026 +0100
+
+    story 3: See other people's edits appear live on the same board
+    
+    Co-Authored-By: Claude Opus 5.5 (1M context) <noreply@anthropic.com>
+
+ NOTES.md                                     |   74 ++
+ package-lock.json                            | 1089 ++++++++++++++++++++++++--
+ package.json                                 |   13 +-
+ playwright.config.ts                         |   23 +-
+ src/client/App.tsx                           |   29 +-
+ src/client/board/useBoardDoc.ts              |   36 +-
+ src/client/canvas/testHooks.ts               |    3 +
+ src/client/objects/StickyText.ts             |   29 +
+ src/client/objects/StickyTextEditor.tsx      |   25 +-
+ src/client/styles.css                        |   31 +
+ src/client/sync/ConnectionStatus.tsx         |   28 +
+ src/client/sync/connectBoard.ts              |  117 +++
+ src/shared/board-id.ts                       |   38 +
+ src/shared/config.ts                         |   13 +
+ src/shared/protocol.ts                       |   63 ++
+ src/worker/board-room.ts                     |  156 ++++
+ src/worker/index.ts                          |   37 +
+ tests/component/ConnectionStatus.test.tsx    |  215 +++++
+ tests/component/StickyTextEditor.test.tsx    |   24 +-
+ tests/component/setup.ts                     |   30 +
+ tests/e2e/helpers/participants.ts            |  110 +++
+ tests/e2e/live-collaboration.nightly.spec.ts |  215 +++++
+ tests/e2e/live-collaboration.spec.ts         |  312 ++++++++
+ tests/integration/board-room.test.ts         |  317 ++++++++
+ tests/integration/env.d.ts                   |    7 +
+ tests/integration/random-ops.ts              |   81 ++
+ tests/integration/worker.test.ts             |   89 +++
+ tests/integration/ws-client.ts               |  199 +++++
+ tests/unit/board-id.test.ts                  |   37 +
+ tests/unit/protocol.test.ts                  |  108 +++
+ tests/unit/sticky-text.test.ts               |   38 +-
+ tsconfig.json                                |    3 +-
+ tsconfig.worker.json                         |   17 +
+ vitest.config.ts                             |   28 +-
+ wrangler.jsonc                               |   14 +-
+ 35 files changed, 3559 insertions(+), 89 deletions(-)
+
 commit 0d03e2b757f6991a8bfd4f7c60d5c4d078b3637c
 Author: opus-5.5-reference <reference@vidi.invalid>
 Date:   Thu Sep 24 22:26:28 2026 +0100

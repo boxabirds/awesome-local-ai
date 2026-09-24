@@ -1,9 +1,9 @@
-import { useLayoutEffect, useRef, useState, type KeyboardEvent } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState, type KeyboardEvent } from 'react';
 import type * as Y from 'yjs';
 import { LOCAL_ORIGIN } from '../../shared/board-model';
 import { STICKY_TEXT_MAX_CHARS } from '../../shared/config';
 import type { EndEditNext } from '../board/useSelection';
-import { applyTextDiff, clampToLimit, counterVisible } from './StickyText';
+import { applyTextDiff, clampToLimit, counterVisible, transformIndex, type TextDeltaOp } from './StickyText';
 
 export interface StickyTextEditorProps {
   ytext: Y.Text;
@@ -41,6 +41,27 @@ export function StickyTextEditor({ ytext, fontPx, onEnd }: StickyTextEditorProps
   }, [ytext]);
 
   useLayoutEffect(fitHeight, [fontPx]);
+
+  // Other people's typing in this note (story 3) appears in the textarea as it arrives, with
+  // this person's caret and selection kept in place. Local input is already in the textarea.
+  useEffect(() => {
+    const onRemote = (event: Y.YTextEvent, transaction: Y.Transaction) => {
+      if (transaction.origin === LOCAL_ORIGIN) return;
+      const el = ref.current;
+      if (!el) return;
+      const next = ytext.toString();
+      if (el.value === next) return;
+      const delta = event.delta as TextDeltaOp[];
+      const start = transformIndex(el.selectionStart, delta);
+      const end = transformIndex(el.selectionEnd, delta);
+      el.value = next;
+      el.setSelectionRange(start, end);
+      setLength(next.length);
+      fitHeight();
+    };
+    ytext.observe(onRemote);
+    return () => ytext.unobserve(onRemote);
+  }, [ytext]);
 
   const commit = () => {
     const el = ref.current;

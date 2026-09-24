@@ -1,5 +1,6 @@
 import type * as Y from 'yjs';
 import type { StickySnapshot } from '../../shared/board-model';
+import type { ConnectionState } from '../sync/connectBoard';
 import type { Camera } from './camera';
 
 /**
@@ -14,6 +15,8 @@ export interface Vidi6TestHooks {
   getNotes(): readonly StickySnapshot[];
   /** The board document itself, for tests that change it the way another client would. */
   getDoc(): Y.Doc;
+  /** The mapped connection state behind the status badge (story 3). */
+  connectionState: ConnectionState;
 }
 
 declare global {

@@ -6,6 +6,7 @@ import {
   snapshot,
   type StickySnapshot,
 } from '../shared/board-model';
+import { isValidBoardId, newBoardId } from '../shared/board-id';
 import { STICKY_SIZE_WORLD, type StickyColor } from '../shared/config';
 import { Toolbar } from './board/Toolbar';
 import { useBoardDoc } from './board/useBoardDoc';
@@ -26,8 +27,24 @@ import { installTestHooks } from './canvas/testHooks';
 import { useCamera } from './canvas/useCamera';
 import { NoteToolbar } from './objects/NoteToolbar';
 import { StickyNote } from './objects/StickyNote';
+import { ConnectionStatus } from './sync/ConnectionStatus';
 
 const UNMEASURED: Size = { width: 0, height: 0 };
+const BOARD_PATH = /^\/b\/([^/]+)\/?$/;
+
+/**
+ * The board this page shows: `/b/:boardId`. Any other address (including `/` and malformed
+ * ids) is replaced, without a reload, by a new board's address. Temporary until story 5
+ * creates boards on the server.
+ */
+export function resolveBoardId(): string {
+  const match = BOARD_PATH.exec(window.location.pathname);
+  const id = match?.[1];
+  if (id !== undefined && isValidBoardId(id)) return id;
+  const fresh = newBoardId();
+  window.history.replaceState(window.history.state, '', `/b/${fresh}`);
+  return fresh;
+}
 const HALF = 2;
 
 /** Keys typed into these elements belong to them, never to board shortcuts. */
@@ -45,14 +62,16 @@ export function App() {
   const [viewport, setViewport] = useState<Size>(UNMEASURED);
   const controller = useCamera(viewport);
   const { camera } = controller;
-  const { doc, notes } = useBoardDoc();
+  const [boardId] = useState(resolveBoardId);
+  const { doc, notes, connection } = useBoardDoc(boardId);
   const { selectedId, editingId, select, startEdit, endEdit } = useSelection();
   const [draggingId, setDraggingId] = useState<string | null>(null);
 
   const stateRef = useRef({ selectedId, editingId, camera, viewport });
   stateRef.current = { selectedId, editingId, camera, viewport };
 
-  // A note removed while selected, edited or dragged (stale id) simply ends the interaction.
+  // A note removed while selected, edited or dragged (stale id) simply ends the interaction:
+  // this is also how a note deleted by someone else ends my typing or dragging, silently.
   useEffect(() => {
     const present = new Set(notes.map((n) => n.id));
     if (selectedId !== null && !present.has(selectedId)) select(null);
@@ -63,6 +82,11 @@ export function App() {
     if (import.meta.env.MODE !== 'test') return undefined;
     return installTestHooks({ getNotes: () => snapshot(doc), getDoc: () => doc });
   }, [doc]);
+
+  useEffect(() => {
+    if (import.meta.env.MODE !== 'test') return undefined;
+    return installTestHooks({ connectionState: connection });
+  }, [connection]);
 
   const createAt = useCallback(
     (world: Point) => {
@@ -164,6 +188,7 @@ export function App() {
         />
       )}
       <NavigationHint visible={!controller.hasNavigated} />
+      <ConnectionStatus state={connection} />
       <ZoomControls
         zoomPercent={zoomPercent(camera)}
         canZoomIn={canZoomIn(camera)}
