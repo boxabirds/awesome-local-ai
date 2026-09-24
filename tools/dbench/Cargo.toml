@@ -1,0 +1,27 @@
+[package]
+name = "dbench"
+version = "0.1.0"
+edition = "2021"
+description = "Remote control for the awesome-local-ai benchmark harness: one server per machine, a CLI anywhere."
+publish = false
+
+[[bin]]
+name = "dbench"
+path = "src/main.rs"
+
+[dependencies]
+anyhow = "1"
+axum = { version = "0.8", default-features = false, features = ["http1", "json", "query", "tokio"] }
+clap = { version = "4", features = ["derive"] }
+# Already a transitive dependency of axum; used for the streaming log body and join_all.
+futures-util = { version = "0.3", default-features = false, features = ["std"] }
+libc = "0.2"
+reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "process", "fs", "io-util", "time", "sync", "net", "signal"] }
+toml = "0.8"
+
+[profile.release]
+strip = true
+lto = "thin"
