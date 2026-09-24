@@ -83,6 +83,7 @@ mod tests {
         let dir = temp_dir("rt");
         let spec = JobSpec {
             install_id: "i".into(),
+            combination: None,
             pack: "benchmarks/vidi".into(),
             scope: Some("canvas".into()),
             stories: Some(vec![1, 2]),

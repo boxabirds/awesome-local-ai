@@ -118,7 +118,7 @@ git pull                                           # results, as each story is r
 |---|---|
 | `GET /v1/health` | `{"ok":true,"version":…}`. No token needed. |
 | `GET /v1/node` | hostname, os, arch, cpus, `total_ram_bytes`, `cpu_brand`, `gpus` (nvidia-smi; on macOS the chip with unified memory), installed `combinations` (INSTALL_ID/COMBINATION/BACKEND), `tools` (node, pi, git, uv versions, using the prepended PATH), `dbench_version`, `repo_head`, `current_job` |
-| `PUT /v1/jobs/{id}` | body: `{install_id, pack, scope?, stories?, run_id, client: "pi"\|"opencode", record}`. Returns 201 if created, 200 if the same id and spec already exist, 409 if the id exists with a different spec, and 400 if a name is invalid, the install is missing or there's no harness for the pack. |
+| `PUT /v1/jobs/{id}` | body: `{install_id \| combination, pack, scope?, stories?, run_id, client: "pi"\|"opencode", record}`. `combination` is a directory under the node's `<repo>/combinations/` (a leading `combinations/` and trailing `/` are fine); the node reads `INSTALL_ID` from its `config.sh` and stores the job by install id, so both forms name the same job. Returns 201 if created, 200 if the same id and spec already exist, 409 if the id exists with a different spec, and 400 if a name is invalid, the combination isn't a whole directory in the repo or its install is of a different combination, the install is missing, or there's no harness for the pack. |
 | `GET /v1/jobs` | all jobs, newest first, each with `progress` |
 | `GET /v1/jobs/{id}` | `spec`, `state` (`queued` / `running{pid,pgid,attempt,started_at}` / `done{exit_code}` / `failed{reason,exit_code}` / `cancelled`), `attempt`, `history` (restarts, recoveries, pull failures), `last_pull`, and `progress`. `progress` holds `run_dir`, `current_story`, `stories` (finished stories with their accept passed/total) and `log_tail` (last 20 lines). |
 | `POST /v1/jobs/{id}/cancel` | A queued job is cancelled at once (200). A running job gets SIGTERM to its process group and SIGKILL after 20 s (202), then becomes `cancelled`. A finished job returns 409. |
@@ -129,8 +129,9 @@ git pull                                           # results, as each story is r
 
 ```sh
 dbench nodes                                   # every node in parallel; unreachable ones say so
-dbench submit gruntus --id canvas-pi-02 --install-id qwen38-27b \
+dbench submit gruntus --id canvas-pi-02 --combination qwen/3.8/27b/ubuntu/24GB/llamacpp-opencode \
   --pack benchmarks/vidi --scope canvas --run-id canvas-pi-02 [--client pi] [--stories 1,2] [--no-record]
+                                               # or --install-id qwen38-27b: the name the node installed it under
 dbench status                                  # all jobs on all nodes
 dbench status gruntus                          # one node
 dbench status gruntus canvas-pi-02             # one job: state, stories, history, log tail
