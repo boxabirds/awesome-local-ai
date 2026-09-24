@@ -419,3 +419,25 @@ def test_sampler_aborts_when_swap_grows(monkeypatch):
     res = s.stop()
     assert res["aborted_swap"] and s.aborted.is_set() and killed and drive.RUN_ABORT.is_set()
     drive.RUN_ABORT.clear()
+
+
+def test_nudges_are_unlimited_but_stop_when_a_nudge_makes_no_progress():
+    """User decision (24 Sep): no cap on nudges. Only a nudged session that makes zero model calls stops it."""
+    from drive import keep_nudging
+    progressing = {"stalled": False, "error": None, "session": "s", "steps": 5}
+    assert keep_nudging(progressing, commits=0, nudges=50) is True          # no cap
+    assert keep_nudging(progressing, commits=1, nudges=0) is False          # it committed
+    assert keep_nudging({**progressing, "steps": 0}, commits=0, nudges=3) is False  # no progress on a nudge
+
+
+def test_last_session_is_found_so_a_restarted_story_continues_it(tmp_path):
+    """After a harness restart mid-story, continue the agent's own session instead of starting over."""
+    import json as _json
+    from drive import last_session
+    from clients import PiClient
+    ev = tmp_path / "agent-events.jsonl"
+    ev.write_text("\n".join(_json.dumps(e) for e in [
+        {"type": "session", "id": "first"}, {"type": "message_update"},
+        {"type": "session", "id": "second"}, {"type": "tool_execution_start", "toolName": "bash", "args": {}}]))
+    assert last_session(PiClient(tmp_path), ev) == "second"
+    assert last_session(PiClient(tmp_path), tmp_path / "missing.jsonl") is None
