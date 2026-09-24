@@ -19,7 +19,7 @@ pub const DEFAULT_SHARE_DIR: &str = ".local/share";
 #[derive(Parser, Debug)]
 #[command(
     name = "dbench",
-    version,
+    version = crate::VERSION,
     about = "Run and watch benchmark harness jobs on remote machines"
 )]
 pub struct Cli {
