@@ -120,10 +120,41 @@ async function waitForReady(
   }
 }
 
-/** Start one `wrangler dev` on a free port and wait for it to serve. */
+/**
+ * Start one `wrangler dev` on a free port and wait for it to serve.
+ *
+ * A port the OS handed out a moment ago can be taken again before workerd
+ * binds it (three browser projects × nine workers all spawn servers here), so
+ * a collision is retried on a freshly reserved port instead of failing the
+ * test: the race is with the machine, not with the feature under test.
+ */
 export async function startBoardProcess(options: StartOptions = {}): Promise<BoardProcess> {
   const persistTo = options.persistTo ?? mkdtempSync(join(tmpdir(), 'vidi6-board-'));
-  const port = options.port ?? (await reserveFreePort());
+  const attempts = options.port === undefined ? 3 : 1;
+  let lastError: unknown;
+  for (let attempt = 0; attempt < attempts; attempt += 1) {
+    const port = options.port ?? (await reserveFreePort());
+    try {
+      return await startOnPort(port, persistTo, options.args ?? []);
+    } catch (error) {
+      lastError = error;
+      if (!isPortRace(error)) throw error;
+    }
+  }
+  throw lastError;
+}
+
+/** True when the failure was "the port was busy", i.e. safe to retry. */
+function isPortRace(error: unknown): boolean {
+  const message = error instanceof Error ? error.message : String(error);
+  return message.includes('already taken by another process');
+}
+
+async function startOnPort(
+  port: number,
+  persistTo: string,
+  extraArgs: string[],
+): Promise<BoardProcess> {
   const argv = [
     'wrangler',
     'dev',
@@ -133,7 +164,7 @@ export async function startBoardProcess(options: StartOptions = {}): Promise<Boa
     String(port),
     '--persist-to',
     persistTo,
-    ...(options.args ?? []),
+    ...extraArgs,
   ];
 
   const url = `http://127.0.0.1:${port}`;

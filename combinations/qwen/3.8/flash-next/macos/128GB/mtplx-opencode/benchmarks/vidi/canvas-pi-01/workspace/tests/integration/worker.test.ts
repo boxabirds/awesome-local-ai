@@ -61,6 +61,22 @@ class TestSocket {
   }
 }
 
+/**
+ * Create the board behind a room path before connecting.
+ *
+ * Story 5 removed the behaviour these tests originally relied on: a room used
+ * to come into existence when someone connected to it. Connecting to an address
+ * with no board behind it is now a `404` (PRD share.not_found), so a relay test
+ * has to create the board first — through the same `initialize()` RPC the home
+ * page's `POST /api/boards` uses.
+ */
+async function createRoom(roomId: string): Promise<void> {
+  const namespace = env.BOARD_ROOM;
+  if (namespace === undefined) throw new Error('BOARD_ROOM binding missing');
+  const stub = namespace.get(namespace.idFromName(roomId));
+  await (stub as unknown as { initialize(): Promise<string> }).initialize();
+}
+
 async function openClient(path: string): Promise<TestSocket> {
   const response = await worker.fetch(upgradeRequest(path), env);
   if (response.status !== 101 || response.webSocket === undefined) {
@@ -80,15 +96,32 @@ describe('Worker routing (design §4)', () => {
     expect(response.status).toBe(426);
   });
 
-  it('answers a WebSocket upgrade to a malformed room id with 426', async () => {
+  it('answers a WebSocket upgrade to a malformed room id with 404', async () => {
     const response = await worker.fetch(
       upgradeRequest('/api/rooms/not-a-valid-board-id'),
       env,
     );
-    expect(response.status).toBe(426);
+    // Story 5: a malformed id and an unknown id answer the same way, so the
+    // status does not leak which of the two happened (design HTTP contract).
+    expect(response.status).toBe(404);
+    expect(response.webSocket).toBeFalsy();
+  });
+
+  it('answers an upgrade to a well-formed but unknown room id with 404', async () => {
+    // A valid id that was never created: no socket, and no board created by
+    // the attempt (PRD share.not_found).
+    const unknown = 'BrBlp1Y8fVzQ2m7NcK5tRw';
+    const response = await worker.fetch(upgradeRequest(`/api/rooms/${unknown}`), env);
+    expect(response.status).toBe(404);
+    expect(response.webSocket).toBeFalsy();
+    const namespace = env.BOARD_ROOM;
+    const stub = namespace!.get(namespace!.idFromName(unknown));
+    const exists = await (stub as unknown as { exists(): Promise<boolean> }).exists();
+    expect(exists).toBe(false);
   });
 
   it('opens a WebSocket upgrade to a valid room id with 101', async () => {
+    await createRoom(VALID_ROOM);
     const response = await worker.fetch(
       upgradeRequest(`/api/rooms/${VALID_ROOM}`),
       env,
@@ -106,6 +139,7 @@ describe('Worker routing (design §4)', () => {
 
 describe('BoardRoom relay (design §5)', () => {
   it('relays an awareness frame from one socket to the other on the same room', async () => {
+    await createRoom(VALID_ROOM);
     const room = `/api/rooms/${VALID_ROOM}`;
     const a = await openClient(room);
     const b = await openClient(room);
@@ -137,6 +171,8 @@ describe('BoardRoom relay (design §5)', () => {
   it('keeps rooms isolated: a frame in one room is not seen in another', async () => {
     const roomA = '/api/rooms/AAAAAAAAAAAAAAAAAAAAAA';
     const roomB = '/api/rooms/BBBBBBBBBBBBBBBBBBBBBB';
+    await createRoom('AAAAAAAAAAAAAAAAAAAAAA');
+    await createRoom('BBBBBBBBBBBBBBBBBBBBBB');
     const a = await openClient(roomA);
     const b = await openClient(roomB);
     await a.waitForFrames(1);

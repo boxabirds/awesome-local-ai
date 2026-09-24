@@ -1,12 +1,14 @@
 /**
  * Story 4 · test-only hooks (design "Test hooks and failure injection").
+ * Story 5 adds a third, for the legacy-board fixture.
  *
- * Two HTTP routes exist so an end-to-end test can put a board into a state no
- * UI action can produce — a snapshot that cannot be decoded — and then put it
- * back:
+ * These routes exist so an end-to-end test can put a board into a state no
+ * UI action can produce — a snapshot that cannot be decoded, or data written
+ * before the creation marker existed — and then put it back:
  *
  *   POST /__test/boards/:id/corrupt-snapshot
  *   POST /__test/boards/:id/repair-snapshot
+ *   POST /__test/boards/:id/seed-legacy
  *
  * They are registered **only** when `TEST_HOOKS=1` in the worker environment,
  * which is set in the e2e wrangler environment and nowhere else; production
@@ -24,7 +26,7 @@ export const TEST_PATH_PREFIX = '/__test/boards/';
 /** KV key under which the pre-corruption copy of chunk 0 is kept. */
 export const ORIGINAL_CHUNK_KEY = '__test/original-chunk0';
 
-export type TestHookAction = 'corrupt-snapshot' | 'repair-snapshot';
+export type TestHookAction = 'corrupt-snapshot' | 'repair-snapshot' | 'seed-legacy';
 
 export interface TestHookRequest {
   boardId: string;
@@ -42,7 +44,13 @@ export function parseTestHook(pathname: string): TestHookRequest | null {
   if (slash < 0) return null;
   const boardId = decodeURIComponent(rest.slice(0, slash));
   const action = rest.slice(slash + 1);
-  if (action !== 'corrupt-snapshot' && action !== 'repair-snapshot') return null;
+  if (
+    action !== 'corrupt-snapshot' &&
+    action !== 'repair-snapshot' &&
+    action !== 'seed-legacy'
+  ) {
+    return null;
+  }
   if (!BOARD_ID_PATTERN.test(boardId)) return null;
   return { boardId, action };
 }
@@ -111,6 +119,61 @@ export async function corruptSnapshot(
   }
   sql.exec(`UPDATE snapshot_chunks SET data = ? WHERE idx = ?`, garbage.buffer, rows[0]['idx']);
   return { ok: true, detail: `corrupted chunk 0 of ${rows.length}` };
+}
+
+/**
+ * Write a *legacy* board: real update rows in the log, and deliberately **no**
+ * `created_at` marker in `storage_meta` (PRD share.legacy_boards, e2e TC-31).
+ *
+ * That shape is what a board written before story 5 looks like, and it is the
+ * case the existence rule must not break: the marker cannot be the only proof
+ * of existence, so seeding without it is the only honest way to test the rule.
+ * The `updates` table is created if it is missing (a test fixture, not a
+ * production path — the Worker never creates tables for an unknown id), the
+ * bytes are genuine Yjs updates built by `tests/fixtures/boards.ts`, and
+ * `storage_meta` is left alone either way.
+ */
+export function seedLegacy(sql: SqlRunnerLike, updates: Uint8Array[]): HookResult {
+  if (updates.length === 0) return { ok: false, detail: 'no updates to seed' };
+  try {
+    sql.exec(
+      `CREATE TABLE IF NOT EXISTS updates
+       (seq INTEGER PRIMARY KEY AUTOINCREMENT, data BLOB NOT NULL, bytes INTEGER NOT NULL)`,
+    );
+    for (const update of updates) {
+      sql.exec(
+        `INSERT INTO updates (data, bytes) VALUES (?, ?)`,
+        update.buffer.slice(update.byteOffset, update.byteOffset + update.byteLength),
+        update.byteLength,
+      );
+    }
+    const rows = sql.exec(`SELECT COUNT(*) AS cnt FROM updates`).toArray()[0];
+    return { ok: true, detail: `seeded ${rows?.['cnt'] ?? 0} update rows, no created_at` };
+  } catch (e) {
+    return { ok: false, detail: e instanceof Error ? e.message : String(e) };
+  }
+}
+
+/**
+ * Decode a seed body (`{"updates": [base64, …]}`) into byte arrays. Anything
+ * that is not a decodable update is dropped, so a malformed body cannot write
+ * junk the room would then quarantine on load.
+ */
+export function decodeSeed(body: { updates?: unknown }): Uint8Array[] {
+  if (!Array.isArray(body.updates)) return [];
+  const decoded: Uint8Array[] = [];
+  for (const item of body.updates) {
+    if (typeof item !== 'string') continue;
+    try {
+      const binary = atob(item);
+      const bytes = new Uint8Array(binary.length);
+      for (let i = 0; i < binary.length; i += 1) bytes[i] = binary.charCodeAt(i);
+      if (bytes.byteLength > 0) decoded.push(bytes);
+    } catch {
+      // Not base64: skip it.
+    }
+  }
+  return decoded;
 }
 
 /** Restore the saved chunk 0; the next load reads the board again. */

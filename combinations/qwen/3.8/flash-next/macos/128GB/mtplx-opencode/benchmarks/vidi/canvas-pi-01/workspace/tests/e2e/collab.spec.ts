@@ -13,6 +13,7 @@
  */
 import { expect, test, type Page } from '@playwright/test';
 import { settle } from './helpers/board';
+import { createBoardViaApi, waitForBoard } from './helpers/boards';
 import { LIVE_UPDATE_LATENCY_BUDGET_MS } from '../../src/shared/config';
 
 /** Read the current connection state from the page's test hook. */
@@ -29,33 +30,31 @@ async function snapshotsMatch(pageA: Page, pageB: Page): Promise<boolean> {
   return a === b && a !== 'null' && a !== undefined;
 }
 
-/** Read the current board URL, waiting for the `/b/<id>` rewrite. */
-async function boardUrl(page: Page): Promise<string> {
-  await page.waitForURL(/\/b\/[A-Za-z0-9_-]{22}/, { timeout: 15_000 });
-  return page.url();
-}
-
-test('the home route redirects to a fresh, valid board and stays interactive', async ({
-  page,
-}) => {
+test('the home page opens a fresh board, and a made-up address does not', async ({ page }) => {
+  // Story 5: `/` is a home page, not a board. It offers one button, and that
+  // button creates a real board through the Worker.
   await page.goto('/');
-  // `/` mints a board id and rewrites the address (temporary routing, story 3).
+  await page.getByTestId('create-board').click();
   await page.waitForURL(/\/b\/[A-Za-z0-9_-]{22}/, { timeout: 15_000 });
-  // A board with no server yet must not lock the canvas: creating a note works
-  // regardless of the badge (TC-21 — "the badge never blocks the board").
   await page.getByTestId('create-sticky').click();
   await expect(page.getByTestId('origin-marker')).toBeVisible();
+
+  // A mistyped address is "Board not found" — it no longer mints a board.
+  await page.goto('/b/AAAAAAAAAAAAAAAAAAAAAA');
+  await expect(page.getByTestId('not-found-page')).toBeVisible();
 });
 
 test('a note created on one board is visible on another that joined the same room', async ({
   context,
 }) => {
   const pageA = await context.newPage();
-  await pageA.goto('/');
-  const url = await boardUrl(pageA);
-  const urlB = new URL(url);
+  // One room, two clients: the board is created once and both pages navigate
+  // to the same address (that is what a shared link is).
+  const boardId = await createBoardViaApi(pageA.request);
+  await pageA.goto(`/b/${boardId}`);
+  await waitForBoard(pageA);
   const pageB = await context.newPage();
-  await pageB.goto(urlB.toString());
+  await pageB.goto(`/b/${boardId}`);
   await settle(pageA);
   await settle(pageB);
 
@@ -74,11 +73,13 @@ test('a note created on one board is visible on another that joined the same roo
 
 test('two concurrent edits to one note converge to the same document', async ({ context }) => {
   const pageA = await context.newPage();
-  await pageA.goto('/');
-  const url = await boardUrl(pageA);
-  const urlB = new URL(url);
+  // One room, two clients: the board is created once and both pages navigate
+  // to the same address (that is what a shared link is).
+  const boardId = await createBoardViaApi(pageA.request);
+  await pageA.goto(`/b/${boardId}`);
+  await waitForBoard(pageA);
   const pageB = await context.newPage();
-  await pageB.goto(urlB.toString());
+  await pageB.goto(`/b/${boardId}`);
   await settle(pageA);
   await settle(pageB);
 

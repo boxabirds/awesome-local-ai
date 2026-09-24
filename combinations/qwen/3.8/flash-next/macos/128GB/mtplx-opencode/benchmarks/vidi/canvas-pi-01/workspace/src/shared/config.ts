@@ -93,6 +93,29 @@ export const CATCH_UP_TEST_OUTAGE_MS = 30_000;
  */
 export const ROOM_PATH_PREFIX = '/api/rooms/';
 
+/* ---- Story 5 · sharing (design "Named settings added") ------------------
+ * These are the story-5 product settings for board creation and sharing.
+ * BOARD_CREATE_PERIOD_SECONDS must mirror the `BOARD_CREATE_LIMITER` period in
+ * `wrangler.jsonc`; TC-03 asserts they stay equal. */
+
+/** Boards a single visitor may create within the window (PRD share.rate_limit). */
+export const BOARD_CREATE_LIMIT = 10;
+
+/** Window for the creation limit, in seconds (matches wrangler ratelimits). */
+export const BOARD_CREATE_PERIOD_SECONDS = 60;
+
+/** How many fresh ids `createWithRetries` will try before giving up. */
+export const CREATE_ID_MAX_ATTEMPTS = 3;
+
+/** PRD share.create — the create-and-open budget for a typical connection. */
+export const CREATE_BUDGET_MS = 2000;
+
+/** How long the Share panel shows "Link copied" (PRD share.copy). */
+export const LINK_COPIED_MS = 2000;
+
+/** First backoff interval when a board-existence check cannot reach the service. Doubles up to RECONNECT_MAX_BACKOFF_MS. */
+export const BOARD_CHECK_RETRY_BASE_MS = 1000;
+
 /* ---- Story 4 · persistence (design "Named settings added") --------------
  * These are the story-4 product settings for board persistence. */
 

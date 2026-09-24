@@ -42,15 +42,15 @@ import {
 } from '../shared/protocol';
 import { BoardStore, LOAD_ORIGIN, loadRetryIntervalMs } from './board-store';
 import { closeCodeForState, nextRoomState, type RoomState } from './room-state';
+import { Env } from './env';
 import {
   corruptSnapshot,
+  decodeSeed,
   parseTestHook,
   repairSnapshot,
+  seedLegacy,
+  type SqlRunnerLike,
 } from './test-hooks';
-
-interface Env {
-  [key: string]: unknown;
-}
 
 export class BoardRoom extends DurableObject<Env> {
   /** Room lifecycle state; see `room-state.ts` (starts unloaded). */
@@ -68,11 +68,79 @@ export class BoardRoom extends DurableObject<Env> {
 
   constructor(ctx: DurableObjectState, env: Env) {
     super(ctx, env);
-    // Design: the constructor reloads the doc inside `blockConcurrencyWhile`,
-    // so no message or connection is handled before the load settles.
-    this.ctx.blockConcurrencyWhile(async () => {
+    // Story 5: the constructor reads *nothing*. Whether this id holds a board
+    // is decided per request (PRD share.not_found), and a probe of a random
+    // link must leave no tables, no doc and no state behind — so a never-
+    // created instance stays completely idle until something reaches it. The
+    // doc is loaded by the first request or message that needs it (design
+    // "Story 4 change": `migrate()` no longer runs on construct).
+    void env;
+  }
+
+  /**
+   * Load the doc if this instance does not have one. Returns whether the board
+   * can be served. The retry-interval gate from story 4 still applies, so a
+   * broken board is not re-read on every connection (persist.load_failure).
+   */
+  private async ensureLoaded(): Promise<boolean> {
+    if (this.ready) return true;
+    const interval = loadRetryIntervalMs();
+    // A room that has never loaded in this instance wakes normally; only a room
+    // that already *failed* a load is subject to the retry gate.
+    const event =
+      this.roomState === 'hibernated'
+        ? 'wake'
+        : this.roomState === 'storage-failed'
+          ? 'wake'
+          : Date.now() - this.lastLoadAttemptAt >= interval
+            ? 'retry-load'
+            : 'retry-load-early';
+    const nextState = nextRoomState(this.roomState, event);
+    if (nextState === 'loading') {
+      this.roomState = nextState;
       await this.loadDoc();
+    }
+    return this.ready;
+  }
+
+  // ---- existence (story 5) ------------------------------------------------
+
+  /**
+   * Does this id hold a board? Pure read: `storage_meta.created_at`, or any
+   * `updates`/`snapshot_chunks` row (a legacy board from before the marker).
+   * Never creates a table or a row — that is the whole point of routing the
+   * "board not found" decision through here.
+   */
+  private storageHasBoard(): boolean {
+    return new BoardStore(this.ctx.storage).existsReadOnly();
+  }
+
+  /**
+   * RPC: create the board. Migrate the schema and write the `created_at`
+   * marker if it is absent. A board that already exists — freshly created *or*
+   * legacy data — is left byte-for-byte untouched and reported `exists`, which
+   * is how `createBoard` retries a collided id (TC-11, TC-15). A DO RPC method
+   * is input-gated like `fetch`, so the write is a single transaction and two
+   * concurrent creates on one id cannot both report `created`.
+   */
+  async initialize(): Promise<'created' | 'exists'> {
+    const created = this.ctx.storage.transactionSync(() => {
+      const store = new BoardStore(this.ctx.storage);
+      if (store.existsReadOnly()) return false; // taken: change nothing
+      store.migrate();
+      store.markCreated(Date.now());
+      return true;
     });
+    await this.loadDoc();
+    return created ? 'created' : 'exists';
+  }
+
+  /**
+   * RPC: is there a board here? Read-only (no tables created), so a probe of a
+   * random link leaves nothing behind (TC-06).
+   */
+  async exists(): Promise<boolean> {
+    return this.storageHasBoard();
   }
 
   // ---- loading -----------------------------------------------------------
@@ -205,6 +273,10 @@ export class BoardRoom extends DurableObject<Env> {
     // otherwise; the e2e environment is the only place that sets it.
     const hook = parseTestHook(pathname);
     if (hook !== null) {
+      // A board that was never created has no tables, and `sqlite_master` is
+      // the only honest way to know that: querying a missing table throws
+      // rather than returning nothing.
+      const hasTables = new BoardStore(this.ctx.storage).hasTables();
       const kv = {
         get: (key: string, type: 'arrayBuffer') =>
           this.ctx.storage.get<ArrayBuffer>(key, { type: 'arrayBuffer' }),
@@ -216,26 +288,43 @@ export class BoardRoom extends DurableObject<Env> {
         exec: (query: string, ...bindings: unknown[]) =>
           this.ctx.storage.sql.exec(query, ...bindings),
       };
+      const guarded: SqlRunnerLike = hasTables
+        ? sql
+        : { exec: () => ({ toArray: () => [] }) };
 
       let result;
-      if (hook.action === 'corrupt-snapshot') {
+      if (hook.action === 'seed-legacy') {
+        // A legacy-shaped board: real update rows in the log and deliberately
+        // no `created_at` marker (PRD share.legacy_boards). It is written with
+        // the raw SQL runner because `seedLegacy` creates the table it needs —
+        // a fixture path, never the Worker's unknown-id path.
+        const body = (await request.json().catch(() => ({}))) as { updates?: unknown };
+        result = seedLegacy(sql, decodeSeed(body));
+      } else if (hook.action === 'corrupt-snapshot') {
         // A small live board has no snapshot yet (compaction is threshold
         // driven), so give the test something to damage first.
         const store = this.store;
         const doc = this.ydoc;
-        const existing = sql.exec(`SELECT COUNT(*) AS cnt FROM snapshot_chunks`).toArray()[0];
+        const existing = hasTables
+          ? sql.exec(`SELECT COUNT(*) AS cnt FROM snapshot_chunks`).toArray()[0]
+          : undefined;
         if (store !== null && doc !== null && Number(existing?.['cnt'] ?? 0) === 0) {
           store.compactIfNeeded(doc, true);
         }
-        result = await corruptSnapshot(kv, sql);
+        result = await corruptSnapshot(kv, guarded);
       } else {
-        result = await repairSnapshot(kv, sql);
+        result = await repairSnapshot(kv, guarded);
       }
 
       // The hooks only mean anything if the room stops serving the copy it
       // already has: forget it, then either fail honestly or reload at once.
       this.discardDoc();
-      if (hook.action === 'corrupt-snapshot') {
+      if (hook.action === 'seed-legacy') {
+        // Seed, like repair: reload at once, so the very next connection is
+        // served from what is now in storage.
+        this.roomState = 'loading';
+        await this.loadDoc();
+      } else if (hook.action === 'corrupt-snapshot') {
         // Behave exactly like a room that just tried to load and could not:
         // every connection is told 4500, and the retry gate starts now.
         this.roomState = nextRoomState('loading', 'load-failed');
@@ -264,24 +353,19 @@ export class BoardRoom extends DurableObject<Env> {
       return new Response('Upgrade Required', { status: 426 });
     }
 
-    if (!this.ready) {
-      // A room without a doc retries the load. `storage-failed` reloads on the
-      // next connection straight away (design: StorageFailed → Loading); a
-      // `load-failed` room only retries once LOAD_RETRY_MIN_INTERVAL_MS has
-      // passed, so a broken board is not hammered (persist.load_failure).
-      const interval = loadRetryIntervalMs();
-      const event =
-        this.roomState === 'storage-failed'
-          ? 'wake'
-          : Date.now() - this.lastLoadAttemptAt >= interval
-            ? 'retry-load'
-            : 'retry-load-early';
-      const nextState = nextRoomState(this.roomState, event);
-      if (nextState === 'loading') {
-        this.roomState = nextState;
-        await this.loadDoc();
-      }
+    // Story 5 (PRD share.not_found): a connection to an address that holds no
+    // board is a plain 404, before any socket exists. The check is a read of
+    // `sqlite_master` and at most two `LIMIT 1` probes, so guessing at the
+    // namespace creates no board, no doc and no tables — which is the whole
+    // point of not letting a connect invent a board.
+    if (!this.storageHasBoard()) {
+      return new Response(JSON.stringify({ error: 'not_found' }), {
+        status: 404,
+        headers: { 'content-type': 'application/json' },
+      });
     }
+
+    await this.ensureLoaded();
 
     if (!this.ready) {
       // Honest failure: accept so the client learns *why*, then close. The
@@ -308,7 +392,10 @@ export class BoardRoom extends DurableObject<Env> {
     return new Response(null, { status: 101, webSocket: client });
   }
 
-  override webSocketMessage(ws: WebSocket, message: ArrayBuffer | string): void {
+  override async webSocketMessage(ws: WebSocket, message: ArrayBuffer | string): Promise<void> {
+    // A hibernated socket can deliver a frame after the instance was evicted,
+    // so the doc may be gone even though the board exists: reload first.
+    if (!this.ready) await this.ensureLoaded();
     if (!this.ready) {
       // A room that cannot serve the board says so instead of pretending:
       // 4500 for a load failure, 1011 for a storage failure (the client keeps

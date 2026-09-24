@@ -323,3 +323,141 @@ body {
 .sticky-note[data-editable='false'] {
   cursor: default;
 }
+
+/* ---- Story 5 · pages -------------------------------------------------- */
+
+/* Home and not-found share one centred column: title, one line of help, one
+   action. Nothing on these pages scrolls, so `overflow: hidden` on the body
+   from story 1 still holds. */
+.page-stack {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 24px;
+  text-align: center;
+  background: var(--board-background);
+}
+
+.page-title {
+  margin: 0;
+  font-size: 30px;
+  letter-spacing: 0.5px;
+}
+
+.page-tagline {
+  margin: 0;
+  max-width: 40ch;
+  color: #55606e;
+  font-size: 15px;
+  line-height: 1.45;
+}
+
+.primary-action {
+  margin-top: 8px;
+  padding: 10px 18px;
+  border: 1px solid var(--control-border);
+  border-radius: 10px;
+  background: var(--control-background);
+  color: var(--control-text);
+  font-size: 15px;
+  cursor: pointer;
+}
+
+.primary-action:disabled {
+  color: #9aa3af;
+  cursor: default;
+}
+
+.link-action {
+  padding: 4px 8px;
+  border: 0;
+  background: none;
+  color: #4a5568;
+  font-size: 13px;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.page-message {
+  margin: 0;
+  max-width: 40ch;
+  color: #b3261e;
+  font-size: 13px;
+}
+
+/* ---- Story 5 · Share panel -------------------------------------------- */
+
+/* Top-right slot, above the canvas. `pointer-events` stays on: unlike the
+   connection badge this one is meant to be clicked. */
+.board-top-right {
+  position: absolute;
+  top: 12px;
+  right: 16px;
+  z-index: 4;
+}
+
+.share-closed {
+  position: relative;
+}
+
+.share-button {
+  padding: 6px 12px;
+  border: 1px solid var(--control-border);
+  border-radius: 999px;
+  background: var(--control-background);
+  color: var(--control-text);
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.share-panel {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 320px;
+  padding: 12px;
+  border: 1px solid var(--control-border);
+  border-radius: 12px;
+  background: var(--control-background);
+  box-shadow: 0 6px 20px rgb(16 24 40 / 14%);
+}
+
+.share-field {
+  padding: 8px 10px;
+  border: 1px solid var(--control-border);
+  border-radius: 8px;
+  font-size: 13px;
+  font-family: inherit;
+  color: var(--control-text);
+  background: #f4f6f9;
+}
+
+.share-copy {
+  padding: 8px 10px;
+  border: 1px solid var(--control-border);
+  border-radius: 8px;
+  background: var(--control-background);
+  color: var(--control-text);
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.share-note {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.4;
+  color: #55606e;
+}
+
+.share-manual {
+  margin: 0;
+  font-size: 12px;
+  color: #b3261e;
+}

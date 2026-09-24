@@ -62,6 +62,16 @@ function exec(storage: StorageLike, query: string, ...bindings: unknown[]): SqlC
   return storage.sql.exec(query, ...bindings);
 }
 
+/**
+ * A SQL read that is *not* counted by the `failNextSql` seam. The existence
+ * probe is a pure read that must never create tables (PRD share.legacy_boards
+ * / share.not_found): an injected failure is aimed at the write path, so the
+ * probe bypasses the seam and talks to SQLite directly.
+ */
+function peek(storage: StorageLike, query: string, ...bindings: unknown[]): SqlCursorLike {
+  return storage.sql.exec(query, ...bindings);
+}
+
 export interface SqlCursorLike {
   toArray(): Record<string, unknown>[];
   one(): Record<string, unknown> | undefined;
@@ -144,8 +154,85 @@ export class BoardStore {
     return exec(this.storage, query, ...bindings);
   }
 
+  /** A read that bypasses the `failNextSql` seam (see `peek`). */
+  private readSql(query: string, ...bindings: unknown[]): SqlCursorLike {
+    return peek(this.storage, query, ...bindings);
+  }
+
+  /** Is one of our tables present? A read of `sqlite_master`, never a write. */
+  private tableExists(name: string): boolean {
+    const row = this.readSql(
+      `SELECT name FROM sqlite_master WHERE type = 'table' AND name = ?`,
+      name,
+    ).toArray()[0];
+    return row !== undefined;
+  }
+
+  /** Do the board's tables exist? A read of `sqlite_master`, never a write. */
+  hasTables(): boolean {
+    return this.tableExists('updates');
+  }
+
+  /**
+   * Read-only existence test (design "Existence rule"). A board exists when it
+   * has a `created_at` marker, **or** (legacy boards, PRD share.legacy_boards)
+   * any row in `updates` or `snapshot_chunks`. It queries `sqlite_master`
+   * first and creates nothing: for an id that was never created there are no
+   * tables at all and this returns false without writing (PRD share.not_found,
+   * TC-06 / TC-09). Each table is checked for before it is queried, so a
+   * partially-built board cannot throw its way into a wrong answer, and a SQL
+   * error is read as "does not exist" so a probe can never be served a
+   * misleadingly empty board.
+   */
+  existsReadOnly(): boolean {
+    try {
+      if (
+        this.tableExists('storage_meta') &&
+        this.readSql(`SELECT value FROM storage_meta WHERE key = 'created_at'`)
+          .toArray()[0] !== undefined
+      ) {
+        return true;
+      }
+      if (
+        this.tableExists('updates') &&
+        this.readSql(`SELECT 1 FROM updates LIMIT 1`).toArray()[0] !== undefined
+      ) {
+        return true;
+      }
+      if (
+        this.tableExists('snapshot_chunks') &&
+        this.readSql(`SELECT 1 FROM snapshot_chunks LIMIT 1`).toArray()[0] !== undefined
+      ) {
+        return true;
+      }
+      return false;
+    } catch {
+      return false;
+    }
+  }
+
+  /** The board's creation time, in epoch ms, or `undefined` if not created. */
+  createdAt(): number | undefined {
+    const row = this.readSql(
+      `SELECT value FROM storage_meta WHERE key = 'created_at'`,
+    ).toArray()[0];
+    return row === undefined ? undefined : Number(row['value']);
+  }
+
+  /**
+   * Record the creation marker (called only from `initialize`, inside a write
+   * transaction after `migrate`). Idempotent: a second call keeps the original
+   * timestamp (TC-15). Returns whether this call created the board.
+   */
+  markCreated(now: number): boolean {
+    const before = this.createdAt();
+    if (before !== undefined) return false;
+    this.sql(`INSERT INTO storage_meta (key, value) VALUES ('created_at', ?)`, String(now));
+    return true;
+  }
+
   private get throughSeq(): number {
-    const row = this.sql(`SELECT value FROM storage_meta WHERE key = 'snapshot_through_seq'`).one();
+    const row = this.sql(`SELECT value FROM storage_meta WHERE key = 'snapshot_through_seq'`).toArray()[0];
     return row ? Number.parseInt(String(row['value']), 10) : 0;
   }
 
@@ -188,7 +275,7 @@ export class BoardStore {
       const row = this.sql(
         `SELECT COUNT(*) AS cnt, COALESCE(SUM(bytes), 0) AS total FROM updates WHERE seq > ?`,
         this.throughSeq,
-      ).one();
+      ).toArray()[0];
       this.rowCount = row ? Number(row['cnt']) : 0;
       this.byteTotal = row ? Number(row['total']) : 0;
     } catch {
@@ -202,6 +289,10 @@ export class BoardStore {
    * itself — design "Storage failure resets the room").
    */
   append(update: Uint8Array): void {
+    // Lazy migrate: a board that already has tables (created via `initialize`,
+    // or a legacy board) is not migrated again; one that somehow has no tables
+    // gets them now, before its first write.
+    if (!this.hasTables()) this.migrate();
     this.sql(`INSERT INTO updates (data, bytes) VALUES (?, ?)`, asBlob(update), update.byteLength);
     this.rowCount += 1;
     this.byteTotal += update.byteLength;
@@ -215,6 +306,9 @@ export class BoardStore {
    */
   load(doc: Y.Doc): LoadResult {
     testHooks.loadAttempts += 1;
+    // Missing tables = a board that was never created and holds no data. Treat
+    // it as an empty board WITHOUT creating anything (design "Story 4 change").
+    if (!this.hasTables()) return { ok: true, quarantined: 0 };
     try {
       const sql = { exec: (query: string, ...bindings: unknown[]) => this.sql(query, ...bindings) };
 
@@ -294,7 +388,7 @@ export class BoardStore {
       if (chunks.length === 0) return false;
 
       const through = this.throughSeq;
-      const row = this.sql(`SELECT MAX(seq) AS maxSeq FROM updates WHERE seq > ?`, through).one();
+      const row = this.sql(`SELECT MAX(seq) AS maxSeq FROM updates WHERE seq > ?`, through).toArray()[0];
       const maxSeq = row ? row['maxSeq'] : null;
       if (maxSeq === null || maxSeq === undefined) return false;
       const truncateTo = Number(maxSeq);

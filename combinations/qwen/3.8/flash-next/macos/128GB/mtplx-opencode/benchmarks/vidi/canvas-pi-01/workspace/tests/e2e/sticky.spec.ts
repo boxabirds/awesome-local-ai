@@ -9,6 +9,7 @@
  */
 import { expect, test } from '@playwright/test';
 import { getCamera, setCamera } from './helpers/board';
+import { openFreshBoard } from './helpers/boards';
 import { LONG_TEXT } from '../fixtures/texts';
 import {
   backgroundColorOf,
@@ -37,7 +38,7 @@ async function noteCount(page: import('@playwright/test').Page): Promise<number>
 }
 
 test('TC-30 golden path: double-click → type → recolour → delete', async ({ page }) => {
-  await page.goto('/');
+  await openFreshBoard(page);
   await settle(page);
 
   // A real double-click on empty board creates a note centred under the
@@ -77,7 +78,7 @@ test('TC-30 golden path: double-click → type → recolour → delete', async (
 test('TC-31: at 50% zoom a (100,50) drag keeps the grabbed point under the pointer', async ({
   page,
 }) => {
-  await page.goto('/');
+  await openFreshBoard(page);
   await settle(page);
 
   await setCamera(page, { x: 0, y: 0, zoom: 0.5 });
@@ -112,7 +113,7 @@ test('TC-31: at 50% zoom a (100,50) drag keeps the grabbed point under the point
 test('TC-32: at 200% zoom a (100,50) drag moves world (+50,+25) and raises the note', async ({
   page,
 }) => {
-  await page.goto('/');
+  await openFreshBoard(page);
   await settle(page);
 
   await setCamera(page, { x: 0, y: 0, zoom: 2 });
@@ -156,7 +157,7 @@ test('TC-32: at 200% zoom a (100,50) drag moves world (+50,+25) and raises the n
 test('TC-33: long text shrinks to fit then fades, and nothing overflows the note', async ({
   page,
 }) => {
-  await page.goto('/');
+  await openFreshBoard(page);
   await settle(page);
 
   // A short note renders at the maximum font size.
@@ -203,7 +204,7 @@ test('TC-33: long text shrinks to fit then fades, and nothing overflows the note
 test('TC-34: the Sticky note button creates a centred note even when panned far away', async ({
   page,
 }) => {
-  await page.goto('/');
+  await openFreshBoard(page);
   await settle(page);
 
   // Jump the camera a long way from the origin (test-only hook).

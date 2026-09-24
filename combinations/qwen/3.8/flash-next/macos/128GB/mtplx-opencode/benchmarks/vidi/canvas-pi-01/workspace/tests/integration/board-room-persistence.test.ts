@@ -64,6 +64,30 @@ function stubFor(name: string) {
   return ns.get(ns.idFromName(roomId(name)));
 }
 
+/**
+ * Create the board before anyone connects.
+ *
+ * Story 5 changed the contract: a room is no longer created by connecting to
+ * it (PRD share.not_found), so a persistence test that wants a live board must
+ * create it first, exactly as the home page does. This goes through the same
+ * `initialize()` RPC the Worker calls, so the fixture and the product take the
+ * same path.
+ */
+async function createRoom(name: string): Promise<void> {
+  const stub = stubFor(name);
+  const created = await (stub as unknown as { initialize(): Promise<string> })
+    .initialize();
+  if (created !== 'created' && created !== 'exists') {
+    throw new Error(`could not create board for ${name}`);
+  }
+}
+
+/** Create the board, then open a client on it. */
+async function openSeededClient(name: string, doc?: Y.Doc): Promise<RoomClient> {
+  await createRoom(name);
+  return openClient(name, doc);
+}
+
 /** Run `fn` with the room's real storage (creating the object if needed). */
 function withStorage<T>(name: string, fn: (storage: StorageLike) => T): Promise<T> {
   return runInDurableObject(stubFor(name), (_instance, state) =>
@@ -102,6 +126,7 @@ function evict(name: string): Promise<void> {
 
 describe('write before broadcast (TC-12)', () => {
   it('TC-12: a note B can see is already stored, and storage reloads into it', async () => {
+    await createRoom('tc12');
     const a = await openClient('tc12');
     const b = await openClient('tc12');
     // Both greet each other with SyncStep1 before any traffic.
@@ -139,6 +164,7 @@ describe('reopen after everyone leaves (TC-13)', () => {
     const expected = JSON.stringify(snapshot(original));
 
     // Phase "before": one client writes the whole board, then everybody leaves.
+    await createRoom('tc13');
     const a = await openClient('tc13');
     await a.waitForFrames(1);
     // One frame holding the whole fixture (the 4,011 transactions of the board
@@ -164,6 +190,7 @@ describe('reopen after everyone leaves (TC-13)', () => {
 
 describe('storage failure (TC-14)', () => {
   it('TC-14: a failed write is not broadcast, and a reconnect re-sends it', async () => {
+    await createRoom('tc14');
     const a = await openClient('tc14');
     const b = await openClient('tc14');
     expect(await a.waitForFrames(1)).toBe(true);
@@ -278,6 +305,7 @@ describe('load failure (TC-15, TC-16, TC-26)', () => {
 
 describe('rejected input (TC-17)', () => {
   it('TC-17: garbage is refused with 1003 and never stored', async () => {
+    await createRoom('tc17');
     const client = await openClient('tc17');
     expect(await client.waitForFrames(1)).toBe(true);
 
@@ -297,6 +325,7 @@ describe('rejected input (TC-17)', () => {
 
 describe('hibernation (TC-18)', () => {
   it('TC-18: after the object is rebuilt, a change still reaches the sockets accepted before it', async () => {
+    await createRoom('tc18');
     const a = await openClient('tc18');
     const b = await openClient('tc18');
     expect(await a.waitForFrames(1)).toBe(true);

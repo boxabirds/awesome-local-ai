@@ -7,6 +7,16 @@
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "vidi6",
   "main": "src/worker/index.ts",
+  "ratelimits": [
+    {
+      "name": "BOARD_CREATE_LIMITER",
+      "namespace_id": "1001",
+      "simple": {
+        "limit": 10,
+        "period": 60
+      }
+    }
+  ],
   // Kept at or below the workerd runtime bundled with
   // `@cloudflare/vitest-pool-workers` so `wrangler dev` and the integration
   // tests share one compatible date.
@@ -39,6 +49,51 @@
       "vars": {
         "TEST_HOOKS": "1"
       },
+      // The shared e2e server is one visitor to every browser project at
+      // once, so the create limiter is raised here; TC-30 exercises the real
+      // 10-per-minute limit against its own server (`e2e_limited` below).
+      "ratelimits": [
+        {
+          "name": "BOARD_CREATE_LIMITER",
+          "namespace_id": "1002",
+          "simple": {
+            "limit": 2000,
+            "period": 60
+          }
+        }
+      ],
+      "durable_objects": {
+        "bindings": [
+          {
+            "name": "BOARD_ROOM",
+            "class_name": "BoardRoom"
+          }
+        ]
+      },
+      "migrations": [
+        {
+          "tag": "v1",
+          "new_sqlite_classes": ["BoardRoom"]
+        }
+      ]
+    },
+    // TC-30's dedicated environment: the production create limit (10 a
+    // minute), so the 11th board in one test is a real 429 rather than a
+    // stubbed one. Started with `wrangler dev --env e2e_limited`.
+    "e2e_limited": {
+      "vars": {
+        "TEST_HOOKS": "1"
+      },
+      "ratelimits": [
+        {
+          "name": "BOARD_CREATE_LIMITER",
+          "namespace_id": "1003",
+          "simple": {
+            "limit": 10,
+            "period": 60
+          }
+        }
+      ],
       "durable_objects": {
         "bindings": [
           {

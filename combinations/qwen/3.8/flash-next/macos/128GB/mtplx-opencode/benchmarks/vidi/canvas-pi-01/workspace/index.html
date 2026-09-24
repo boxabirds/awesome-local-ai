@@ -2,6 +2,10 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
+    <!-- Privacy (story 5, PRD Constraints): a board link is the only thing that
+         grants access to a board, so it must never leak. The board page has no
+         external embeds, and this makes that explicit for the browser. -->
+    <meta name="referrer" content="no-referrer" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>vidi6</title>
   </head>
