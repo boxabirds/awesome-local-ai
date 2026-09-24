@@ -1,0 +1,53 @@
+# Page snapshot
+
+```yaml
+- generic [ref=e3]:
+  - generic [ref=e4]:
+    - generic [ref=e5]:
+      - generic:
+        - group "rect shape" [ref=e6]:
+          - img
+        - img "Connector to shape":
+          - img
+        - group "rect shape" [active] [ref=e8]:
+          - img
+          - toolbar "Shape actions" [ref=e10]:
+            - generic [ref=e11]:
+              - button "None fill" [ref=e12] [cursor=pointer]
+              - button "White fill" [pressed] [ref=e13] [cursor=pointer]
+              - button "Blue fill" [ref=e14] [cursor=pointer]
+              - button "Green fill" [ref=e15] [cursor=pointer]
+              - button "Yellow fill" [ref=e16] [cursor=pointer]
+              - button "Pink fill" [ref=e17] [cursor=pointer]
+              - button "Grey fill" [ref=e18] [cursor=pointer]
+            - generic [ref=e19]:
+              - button "Dark outline" [pressed] [ref=e20] [cursor=pointer]
+              - button "Blue outline" [ref=e21] [cursor=pointer]
+              - button "Green outline" [ref=e22] [cursor=pointer]
+              - button "Orange outline" [ref=e23] [cursor=pointer]
+              - button "Red outline" [ref=e24] [cursor=pointer]
+              - button "Grey outline" [ref=e25] [cursor=pointer]
+    - toolbar "Board tools" [ref=e26]:
+      - button "Select (V)" [pressed] [ref=e27] [cursor=pointer]:
+        - generic [ref=e28]: 🖱️
+      - button "Text (T)" [ref=e29] [cursor=pointer]:
+        - generic [ref=e30]: T
+      - button "Shape (S)" [ref=e32] [cursor=pointer]:
+        - generic [ref=e33]: ▦
+      - button "Connector (L)" [ref=e34] [cursor=pointer]:
+        - generic [ref=e35]: →
+      - button "Sticky note" [ref=e36] [cursor=pointer]:
+        - generic [ref=e37]: 📝
+      - generic [ref=e38]:
+        - button "Undo" [ref=e39] [cursor=pointer]:
+          - generic [ref=e40]: ↶
+        - button "Redo" [disabled] [ref=e41]:
+          - generic [ref=e42]: ↷
+    - generic [ref=e43]:
+      - button "Zoom out" [ref=e44] [cursor=pointer]: −
+      - status [ref=e45]: 100%
+      - button "Zoom in" [ref=e46] [cursor=pointer]: +
+      - button "Reset view" [ref=e47] [cursor=pointer]
+    - generic: Drag to move around · Ctrl/Cmd + scroll or pinch to zoom
+  - button "Share" [ref=e50] [cursor=pointer]
+```

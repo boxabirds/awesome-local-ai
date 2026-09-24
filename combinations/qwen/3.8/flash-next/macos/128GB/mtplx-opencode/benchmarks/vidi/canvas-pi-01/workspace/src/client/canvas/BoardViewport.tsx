@@ -61,11 +61,16 @@ export interface BoardViewportProps {
   /** Called when a marquee is released, with the ids entirely inside the box. */
   onMarquee?(ids: readonly string[]): void;
   /**
-   * The active tool (story 9). While `'text'` the surface shows a text cursor
-   * and an empty-space click creates a text object instead of panning or
-   * marquee-selecting. Defaults to `'select'`.
+   * The active tool (story 9, widened by story 10). While a creating tool is
+   * active the surface shows its cursor and the `toolOverlay` below owns every
+   * pointer gesture, so nothing under it can be picked up.
    */
   tool?: Tool;
+  /**
+   * Story 10: a screen-space layer rendered above the world layer while a
+   * creating tool is active (the Shape / Connector tools).
+   */
+  toolOverlay?: ReactNode;
   /** A click (pointer-down then up, no drag) while the Text tool is active. */
   onTextClick?(world: Point): void;
 }
@@ -107,6 +112,7 @@ export function BoardViewport({
   getSnapshot,
   onMarquee,
   tool = 'select',
+  toolOverlay,
   onTextClick,
 }: BoardViewportProps) {
   const api = useCameraApi();
@@ -385,7 +391,14 @@ export function BoardViewport({
       -camera.y * camera.zoom,
       spacing,
     )}px`,
-    cursor: panning ? 'grabbing' : tool === 'text' ? 'text' : 'default',
+    cursor:
+      panning
+        ? 'grabbing'
+        : tool === 'text'
+          ? 'text'
+          : tool === 'shape' || tool === 'connector'
+            ? 'crosshair'
+            : 'default',
   };
 
   const origin = worldToScreen(camera, { x: 0, y: 0 });
@@ -426,6 +439,11 @@ export function BoardViewport({
           top: `${origin.y - MARKER_SIZE / 2}px`,
         }}
       />
+      {tool !== 'select' && toolOverlay
+        ? // Screen-space tool layer, above the world layer: it captures every
+          // pointer gesture while a creating tool is active (TC-28).
+          toolOverlay
+        : null}
     </div>
   );
 }

@@ -196,17 +196,19 @@ describe('allObjectIds (select-all)', () => {
     initDoc(doc);
     const sticky = createSticky(doc, { x: 0, y: 0 });
     // A newer client's object type: forward-compatible, must not be selectable.
-    const shape = new Y.Map<unknown>();
-    shape.set('type', 'shape');
-    shape.set('x', 500);
-    shape.set('y', 500);
-    shape.set('z', 1);
-    shape.set('createdAt', 0);
-    doc.getMap<Y.Map<unknown>>('objects').set('shape-1', shape);
+    // (`shape` and `connector` became real types in story 10, so the stand-in is
+    // a name this client genuinely does not know.)
+    const widget = new Y.Map<unknown>();
+    widget.set('type', 'widget-from-the-future');
+    widget.set('x', 500);
+    widget.set('y', 500);
+    widget.set('z', 1);
+    widget.set('createdAt', 0);
+    doc.getMap<Y.Map<unknown>>('objects').set('widget-1', widget);
 
     const ids = allObjectIds(snapshot(doc));
     expect(ids).toContain(sticky);
-    expect(ids).not.toContain('shape-1');
+    expect(ids).not.toContain('widget-1');
   });
 
   it('TC-33 basis: a sticky is snapshotted with its default size when none is stored', () => {

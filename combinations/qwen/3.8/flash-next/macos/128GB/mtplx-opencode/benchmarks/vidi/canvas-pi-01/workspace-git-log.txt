@@ -1,3 +1,43 @@
+commit e36dc1253e37f3563c201088a60898c4fe2c8e92
+vidi-agent  Thu Sep 24 23:03:09 2026 +0100
+
+    feat(shapes): draw shapes and connect them with arrows that follow
+
+
+ src/client/board/BoardShell.tsx           |  83 ++++++
+ src/client/board/Toolbar.tsx              |  97 +++++-
+ src/client/board/useBoardKeys.ts          |  27 +-
+ src/client/board/useTool.ts               |  67 ++++-
+ src/client/canvas/BoardViewport.tsx       |  26 +-
+ src/client/objects/ConnectorObject.tsx    | 288 ++++++++++++++++++
+ src/client/objects/ShapeObject.tsx        | 269 +++++++++++++++++
+ src/client/objects/ShapeToolbar.tsx       |  83 ++++++
+ src/client/objects/registry.tsx           |  86 +++++-
+ src/client/tools/ConnectorTool.tsx        | 269 +++++++++++++++++
+ src/client/tools/ShapeTool.tsx            | 214 ++++++++++++++
+ src/shared/board-model.ts                 | 142 ++++++---
+ src/shared/config.ts                      |  74 +++++
+ src/shared/doc.ts                         |  97 ++++++
+ src/shared/geometry/connector-geometry.ts | 133 +++++++++
+ src/shared/geometry/polyline.ts           |  57 ++++
+ src/shared/objects/connector.ts           | 264 +++++++++++++++++
+ src/shared/objects/shape.ts               | 218 ++++++++++++++
+ tests/component/ConnectorFollow.test.tsx  | 135 +++++++++
+ tests/component/ConnectorTool.test.tsx    | 388 ++++++++++++++++++++++++
+ tests/component/ShapeTool.test.tsx        | 263 +++++++++++++++++
+ tests/component/useActiveTool.test.tsx    | 176 +++++++++++
+ tests/e2e/connectors.spec.ts              | 176 +++++++++++
+ tests/e2e/helpers/shapes.ts               | 227 ++++++++++++++
+ tests/e2e/shapes.spec.ts                  | 151 ++++++++++
+ tests/fixtures/checkout-flow.ts           | 142 +++++++++
+ tests/unit/board-model-group.test.ts      |  18 +-
+ tests/unit/board-model.test.ts            |  10 +-
+ tests/unit/connector-model.test.ts        | 473 ++++++++++++++++++++++++++++++
+ tests/unit/registry.test.ts               |  73 ++++-
+ tests/unit/shape-connector-select.test.ts | 110 +++++++
+ tests/unit/shape-model.test.ts            | 185 ++++++++++++
+ tests/unit/shape-visuals.test.ts          | 153 ++++++++++
+ 33 files changed, 5076 insertions(+), 98 deletions(-)
 commit 4e49f1c0c682efec5563867d7cae4554f6a45245
 vidi-agent  Thu Sep 24 19:59:10 2026 +0100
 

@@ -13,8 +13,15 @@
  */
 import type { ObjectSnapshot } from '../../shared/board-model';
 import { objectBounds } from '../../shared/board-model';
-import { STICKY_MIN_SIZE_WORLD, STICKY_SIZE_WORLD, TEXT_MIN_WIDTH_WORLD } from '../../shared/config';
+import {
+  CONNECTOR_HIT_TOLERANCE_PX,
+  SHAPE_MIN_SIZE_WORLD,
+  STICKY_MIN_SIZE_WORLD,
+  STICKY_SIZE_WORLD,
+  TEXT_MIN_WIDTH_WORLD,
+} from '../../shared/config';
 import { rectContains, type Point } from '../../shared/geometry';
+import { distanceToPolyline } from '../../shared/geometry/polyline';
 
 export interface ObjectTypeSpec {
   /** Whether the selection shows resize handles for this type. */
@@ -32,8 +39,15 @@ export interface ObjectTypeSpec {
    * and is never dragged directly (design Key decision 2).
    */
   handles?: 'all' | 'horizontal';
-  /** True when `worldPoint` lies on the object's footprint. */
-  hitTest(obj: ObjectSnapshot, worldPoint: Point): boolean;
+  /**
+   * True when `worldPoint` lies on the object's footprint.
+   *
+   * `zoom` (screen pixels per world unit, 1 when the caller has no camera) lets
+   * a type whose footprint is a *line* keep its tolerance in screen pixels: an
+   * arrow stays just as easy to hit at 20 % as at 200 % (PRD
+   * `shape.connector_precise`).
+   */
+  hitTest(obj: ObjectSnapshot, worldPoint: Point, zoom?: number): boolean;
 }
 
 const registry = new Map<string, ObjectTypeSpec>();
@@ -111,3 +125,67 @@ registerObjectType(TEXT_TYPE, {
 
 /** The default rectangular footprint for an object with no stored size. */
 export const DEFAULT_OBJECT_SIZE = STICKY_SIZE_WORLD;
+
+/**
+ * Shapes (story 10): resizable in both axes, no aspect lock (a dragged ellipse
+ * may be wide or tall), and they carry a centred label, so they own editable
+   text. Their footprint is the bounding box, which is what the PRD asks for
+ * (`shape.create_drag` selects a shape by its box, not by its exact outline).
+ */
+export const SHAPE_TYPE = 'shape';
+
+registerObjectType(SHAPE_TYPE, {
+  resizable: true,
+  aspectLocked: false,
+  minSize: SHAPE_MIN_SIZE_WORLD,
+  editableText: true,
+  handles: 'all',
+  hitTest: rectangularHitTest,
+});
+
+/**
+ * Connectors (story 10): not resizable and not aspect-locked — an arrow's shape
+ * is decided by what its ends point at, so there is nothing to drag. Its
+ * footprint is deliberately *not* its bounding box: a click inside the box but
+ * far from the line must not select it (PRD `shape.arrow_select`), so the test
+ * is a distance to the drawn line, kept at {@link CONNECTOR_HIT_TOLERANCE_PX}
+ * screen pixels by dividing the zoom out.
+ */
+export const CONNECTOR_TYPE = 'connector';
+
+registerObjectType(CONNECTOR_TYPE, {
+  resizable: false,
+  aspectLocked: false,
+  minSize: 0,
+  editableText: false,
+  handles: 'all',
+  hitTest: (obj, worldPoint, zoom = 1) => {
+    const ends = obj.ends;
+    if (!ends) return false;
+    const tolerance = CONNECTOR_HIT_TOLERANCE_PX / (zoom > 0 ? zoom : 1);
+    return distanceToPolyline([ends.from, ends.to], worldPoint) <= tolerance;
+  },
+});
+
+/**
+ * The topmost object whose footprint contains `worldPoint`, or `null`.
+ *
+ * Used by the Connector tool and by an arrow's end handle: both need to know
+ * what is *under the pointer*, which is a question about the model (the DOM may
+ * have a tool overlay in the way). `snapshot` is in z order, so the scan runs
+ * back to front. `zoom` defaults to 1 — a tool that cares about a screen-pixel
+ * tolerance passes its camera.
+ */
+export function hitTestAt(
+  snapshot: readonly ObjectSnapshot[],
+  worldPoint: Point,
+  zoom = 1,
+): ObjectSnapshot | null {
+  for (let i = snapshot.length - 1; i >= 0; i--) {
+    const obj = snapshot[i];
+    const spec = getObjectType(obj.type);
+    if (!spec) continue;
+    if (spec.hitTest(obj, worldPoint, zoom)) return obj;
+  }
+  return null;
+}

@@ -8467,7 +8467,991 @@
         "files": 124,
         "lines": 19904
       },
-      "finished": 1790276753.480201
+      "finished": 1790276753.480201,
+      "record": {
+        "committed": true,
+        "pushed": true,
+        "over_size_limit": [],
+        "commit": "427359f"
+      }
+    },
+    "10": {
+      "title": "Draw shapes and connect them with arrows that follow when moved",
+      "conditions_start": {
+        "ac": true,
+        "low_power": false,
+        "thermal": "nominal"
+      },
+      "started": 1790283429.428742,
+      "continued_session": "01a0d4cf-6c88-7136-b397-cd0ef4573f73",
+      "agent": {
+        "seconds": 4019.0,
+        "steps": 253,
+        "tool_calls": 251,
+        "compactions": 4,
+        "tool_interruptions": 0,
+        "tokens": {
+          "input": 284923,
+          "output": 132825,
+          "reasoning": 73337,
+          "cache_read": 16971415,
+          "cache_write": 0
+        },
+        "exit": 0,
+        "stalled": false,
+        "resumes": 0,
+        "nudges": 1,
+        "errors": [],
+        "ended_in_error": false,
+        "sessions": [
+          "01a0d4cf-6c88-7136-b397-cd0ef4573f73",
+          "01a0d4cf-6c88-7136-b397-cd0ef4573f73"
+        ]
+      },
+      "agent_finished": 1790287449.119078,
+      "conditions": {
+        "samples": 132,
+        "degraded": false,
+        "throttled_share": 0.99,
+        "bad_samples": [
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "moderate",
+            "t": 1790283489.741706
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "moderate",
+            "t": 1790283520.014861
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790283550.283031
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790283580.569806
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790283610.9184299
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790283641.2219589
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790283671.528502
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790283701.8274071
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790283732.129948
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790283762.403532
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790283792.712854
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790283823.0264902
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790283853.314711
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790283883.626324
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790283913.9300008
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790283944.231659
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790283974.546425
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790284004.849901
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790284035.126863
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790284065.4330392
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790284095.74677
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790284126.056833
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790284156.3639581
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790284186.642493
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790284216.9173949
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790284247.21732
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790284277.546571
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790284307.834177
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790284338.2088509
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790284368.5403452
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790284398.84669
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790284429.146494
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790284459.449148
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790284489.757047
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790284520.069418
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790284550.401348
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790284580.721586
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790284611.011928
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790284641.305357
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790284671.626792
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790284702.188432
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790284732.4855108
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790284762.805614
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790284793.133856
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790284823.465627
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790284853.7850099
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790284884.099871
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790284914.418933
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790284944.7364779
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790284975.050027
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790285005.3455691
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790285035.65753
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790285065.977448
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790285096.294175
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790285126.626961
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790285156.944043
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790285187.262843
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790285217.597483
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790285247.962718
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790285278.296171
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790285308.6292841
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790285338.9308329
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790285369.2287412
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790285399.544319
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790285429.887243
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790285460.1948879
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790285490.496499
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790285520.814562
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790285551.148013
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790285581.461227
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790285611.777784
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790285642.113333
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790285672.4796648
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790285702.8150358
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790285733.162341
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790285763.4676008
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790285793.805801
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790285824.136998
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790285854.4423418
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790285884.777587
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790285915.132604
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790285945.4869728
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790285975.8356092
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790286006.188938
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790286036.528374
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790286066.8912158
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790286097.2714071
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790286127.5914161
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790286157.9267251
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790286188.257847
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790286218.5873191
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790286249.672099
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790286279.974758
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "moderate",
+            "t": 1790286310.2829828
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "moderate",
+            "t": 1790286340.591646
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "moderate",
+            "t": 1790286370.910391
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "moderate",
+            "t": 1790286401.223022
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "moderate",
+            "t": 1790286431.529463
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "moderate",
+            "t": 1790286461.835011
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "moderate",
+            "t": 1790286492.123025
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790286522.399549
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790286552.69031
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790286583.0162911
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790286613.324519
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790286643.6426399
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790286673.92398
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790286704.2005372
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790286734.515032
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790286764.806187
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790286795.129062
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790286825.433556
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790286855.7625651
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790286886.0825422
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790286916.401432
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790286946.7482328
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790286977.067399
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790287007.4005618
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790287037.940328
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790287068.261426
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790287098.609715
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790287128.967366
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790287159.4743922
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790287189.824072
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790287220.108452
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790287250.417707
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790287280.72244
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790287311.0371258
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790287341.355654
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790287371.641727
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790287401.915649
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790287432.1874838
+          }
+        ],
+        "swap_start_gb": 0.51,
+        "swap_max_gb": 0.51,
+        "aborted_swap": false,
+        "aborted_memory": false,
+        "free_min_pct": 18.0,
+        "server_footprint_max_gb": 104.0,
+        "server_footprint_peak_gb": 106.0
+      },
+      "agent_commits": 1,
+      "gate": {
+        "steps": {
+          "install": {
+            "cmd": "npm ci",
+            "exit": 0,
+            "seconds": 4.9,
+            "tail": "\nadded 160 packages, and audited 161 packages in 5s\n\n42 packages are looking for funding\n  run `npm fund` for details\n\n4 high severity vulnerabilities\n\nTo address all issues (including breaking changes), run:\n  npm audit fix --force\n\nRun `npm audit` for details.\nnpm warn allow-scripts 4 packages have install scripts not yet covered by allowScripts:\nnpm warn allow-scripts   workerd@1.20260815.1 (postinstall: node install.js)\nnpm warn allow-scripts   esbuild@0.28.1 (postinstall: node install.js)\nnpm warn allow-scripts   fsevents@2.3.3 (install: (install scripts present))\nnpm warn allow-scripts   workerd@1.20260921.1 (postinstall: node install.js)\nnpm warn allow-scripts\nnpm warn allow-scripts Run `npm approve-scripts --allow-scripts-pending` to review, or `npm approve-scripts <pkg>` to allow.\n"
+          },
+          "build": {
+            "cmd": "npm run build",
+            "exit": 0,
+            "seconds": 0.8,
+            "tail": "\n> vidi6@0.0.0 build\n> vite build\n\n\u001b[36mvite v8.3.0 \u001b[32mbuilding client environment for production...\u001b[36m\u001b[39m\ntransforming...\n\u2713 118 modules transformed.\nrendering chunks...\ncomputing gzip size...\ndist/client/index.html                   0.67 kB \u2502 gzip:   0.41 kB\ndist/client/assets/index-DHyZKFPl.css    6.14 kB \u2502 gzip:   1.68 kB\ndist/client/assets/index-BxswUtHs.js   385.78 kB \u2502 gzip: 119.25 kB\n\n\u001b[32m\u2713 built in 209ms\u001b[39m\n",
+            "passed": null,
+            "failed": null
+          },
+          "typecheck": {
+            "cmd": "npm run typecheck",
+            "exit": 0,
+            "seconds": 1.8,
+            "tail": "\n> vidi6@0.0.0 typecheck\n> tsc --noEmit && tsc --noEmit -p tsconfig.worker.json\n\n",
+            "passed": null,
+            "failed": null
+          },
+          "test:unit": {
+            "cmd": "npm run test:unit",
+            "exit": 0,
+            "seconds": 1.9,
+            "tail": "\n> vidi6@0.0.0 test:unit\n> vitest run --project unit\n\n\n RUN  v4.1.11 ~/.vidi-bench/work/qwen__3.8__flash-next__macos__128GB__mtplx-opencode__benchmarks__vidi__canvas-pi-01/workspace\n\n\n Test Files  22 passed (22)\n      Tests  280 passed (280)\n   Start at  23:04:17\n   Duration  1.08s (transform 1.26s, setup 0ms, import 1.94s, tests 1.38s, environment 1ms)\n\n",
+            "passed": 280,
+            "failed": 0
+          },
+          "test:component": {
+            "cmd": "npm run test:component",
+            "exit": 0,
+            "seconds": 2.2,
+            "tail": "\n> vidi6@0.0.0 test:component\n> vitest run --project component\n\n\n RUN  v4.1.11 ~/.vidi-bench/work/qwen__3.8__flash-next__macos__128GB__mtplx-opencode__benchmarks__vidi__canvas-pi-01/workspace\n\n\n Test Files  19 passed (19)\n      Tests  146 passed (146)\n   Start at  23:04:19\n   Duration  1.59s (transform 2.94s, setup 2.12s, import 4.87s, tests 3.50s, environment 10.71s)\n\nNot implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package\nNot implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package\nNot implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package\n",
+            "passed": 146,
+            "failed": 0
+          },
+          "test:integration": {
+            "cmd": "npm run test:integration",
+            "exit": 0,
+            "seconds": 2.9,
+            "tail": "\n> vidi6@0.0.0 test:integration\n> vitest run --project integration\n\n\n RUN  v4.1.11 ~/.vidi-bench/work/qwen__3.8__flash-next__macos__128GB__mtplx-opencode__benchmarks__vidi__canvas-pi-01/workspace\n\n\n Test Files  5 passed (5)\n      Tests  45 passed (45)\n   Start at  23:04:21\n   Duration  2.27s (transform 684ms, setup 0ms, import 1.50s, tests 2.16s, environment 0ms)\n\n",
+            "passed": 45,
+            "failed": 0
+          },
+          "test:e2e": {
+            "cmd": "npm run test:e2e -- --project=chromium",
+            "exit": 1,
+            "seconds": 20.1,
+            "tail": "witching Protocols (3ms)\n  \u2713  43 [chromium] \u203a tests/e2e/text.spec.ts:23:1 \u203a click-to-place: Text tool + click wraps long text, never a second object (1.3s)\n[WebServer] [wrangler:info] GET / 200 OK (2ms)\n[WebServer] [wrangler:info] GET /assets/index-BX2Z86g_.js 200 OK (1ms)\n[WebServer] [wrangler:info] GET /assets/index-DHyZKFPl.css 200 OK (1ms)\n[WebServer] [wrangler:info] POST /api/boards 201 Created (6ms)\n[WebServer] [wrangler:info] GET /api/boards/PRD2sp7CEGGFnto5BdvW4Q 200 OK (2ms)\n[WebServer] [wrangler:info] GET /api/rooms/PRD2sp7CEGGFnto5BdvW4Q 101 Switching Protocols (2ms)\n  \u2713  48 [chromium] \u203a tests/e2e/undo.spec.ts:70:1 \u203a TC-22b Ctrl+Z inside a note undoes the whole typing burst (814ms)\n[WebServer] [wrangler:info] POST /api/boards 201 Created (8ms)\n[WebServer] [wrangler:info] GET /b/X-Tj44dbAKcaaWuqYVQ64Q 200 OK (2ms) `Sec-Fetch-Mode: navigate` header present - using `not_found_handling` behavior\n[WebServer] [wrangler:info] GET /assets/index-BX2Z86g_.js 200 OK (1ms)\n[WebServer] [wrangler:info] GET /assets/index-DHyZKFPl.css 200 OK (8ms)\n[WebServer] [wrangler:info] GET /api/boards/X-Tj44dbAKcaaWuqYVQ64Q 200 OK (2ms)\n[WebServer] [wrangler:info] GET /api/rooms/X-Tj44dbAKcaaWuqYVQ64Q 101 Switching Protocols (1ms)\n[WebServer] [wrangler:info] GET /b/X-Tj44dbAKcaaWuqYVQ64Q 304 Not Modified (2ms) `Sec-Fetch-Mode: navigate` header present - using `not_found_handling` behavior\n[WebServer] [wrangler:info] GET /assets/index-BX2Z86g_.js 304 Not Modified (2ms)\n[WebServer] [wrangler:info] GET /assets/index-DHyZKFPl.css 304 Not Modified (1ms)\n[WebServer] [wrangler:info] GET /api/boards/X-Tj44dbAKcaaWuqYVQ64Q 200 OK (2ms)\n[WebServer] [wrangler:info] GET /api/rooms/X-Tj44dbAKcaaWuqYVQ64Q 101 Switching Protocols (2ms)\n[WebServer] [wrangler:info] GET /b/PRD2sp7CEGGFnto5BdvW4Q 200 OK (4ms) `Sec-Fetch-Mode: navigate` header present - using `not_found_handling` behavior\n[WebServer] [wrangler:info] GET /assets/index-DHyZKFPl.css 304 Not Modified (2ms)\n[WebServer] [wrangler:info] GET /assets/index-BX2Z86g_.js 304 Not Modified (2ms)\n[WebServer] [wrangler:info] GET /api/boards/PRD2sp7CEGGFnto5BdvW4Q 200 OK (2ms)\n[WebServer] [wrangler:info] GET /api/rooms/PRD2sp7CEGGFnto5BdvW4Q 101 Switching Protocols (1ms)\n  \u2713  49 [chromium] \u203a tests/e2e/undo.spec.ts:90:1 \u203a TC-23 a page reload clears the history (564ms)\n  \u2713  46 [chromium] \u203a tests/e2e/undo.spec.ts:37:1 \u203a TC-22 golden path: drag then Ctrl+Z reverts the drag; Ctrl+Shift+Z redoes it (1.3s)\n  \u2713  50 [chromium] \u203a tests/e2e/undo.spec.ts:117:1 \u203a TC-24 the history is per-user: one profile cannot undo another profile's change (643ms)\nTC-21: 2000 notes on screen in 130ms (story budget 3000ms, rendered 2000)\n  \u2713  47 [chromium] \u203a tests/e2e/persistence.spec.ts:196:1 \u203a TC-21: a 2,000-note board opens inside the budget after a restart (4.0s)\n\n\n  1) [chromium] \u203a tests/e2e/sticky.spec.ts:113:1 \u203a TC-32: at 200% zoom a (100,50) drag moves world (+50,+25) and raises the note \n\n    Error: expected 6.25 to be within 1.5px of 50.00\n\n    expect(received).toBeLessThanOrEqual(expected)\n\n    Expected: <= 1.5\n    Received:    43.75\n\n       at helpers/sticky.ts:79\n\n      77 |     Math.abs(actual - expected),\n      78 |     `expected ${actual.toFixed(2)} to be within ${tolerance}px of ${expected.toFixed(2)}`,\n    > 79 |   ).toBeLessThanOrEqual(tolerance);\n         |     ^\n      80 | }\n      81 |\n      82 | /**\n        at expectClose (~/.vidi-bench/work/qwen__3.8__flash-next__macos__128GB__mtplx-opencode__benchmarks__vidi__canvas-pi-01/workspace/tests/e2e/helpers/sticky.ts:79:5)\n        at ~/.vidi-bench/work/qwen__3.8__flash-next__macos__128GB__mtplx-opencode__benchmarks__vidi__canvas-pi-01/workspace/tests/e2e/sticky.spec.ts:146:3\n\n    Error Context: test-results/sticky-TC-32-at-200-zoom-a-88b16-d-50-25-and-raises-the-note-chromium/error-context.md\n\n  1 failed\n    [chromium] \u203a tests/e2e/sticky.spec.ts:113:1 \u203a TC-32: at 200% zoom a (100,50) drag moves world (+50,+25) and raises the note \n  49 passed (19.5s)\n",
+            "passed": 49,
+            "failed": 1
+          }
+        },
+        "all_green": false
+      },
+      "accept": {
+        "build_exit": 0,
+        "runner_exit": 1,
+        "runner_tail": "",
+        "passed": 50,
+        "total": 65,
+        "by_story": {
+          "01": {
+            "passed": 9,
+            "total": 10
+          },
+          "02": {
+            "passed": 9,
+            "total": 10
+          },
+          "03": {
+            "passed": 5,
+            "total": 7
+          },
+          "04": {
+            "passed": 3,
+            "total": 4
+          },
+          "05": {
+            "passed": 5,
+            "total": 5
+          },
+          "07": {
+            "passed": 5,
+            "total": 8
+          },
+          "08": {
+            "passed": 7,
+            "total": 7
+          },
+          "09": {
+            "passed": 3,
+            "total": 6
+          },
+          "10": {
+            "passed": 4,
+            "total": 8
+          }
+        }
+      },
+      "commit": "e36dc1253e37f3563c201088a60898c4fe2c8e92",
+      "requests": {
+        "requests": 259,
+        "prompt_tokens": 17517017,
+        "completion_tokens": 157392,
+        "cached_tokens": 16971415,
+        "ttft_median_s": 1.2128065830038395,
+        "prefill_tok_s_median": 585.0107959498456,
+        "decode_tok_s_median": 53.82614237742562,
+        "max_context": 114947,
+        "decode_by_context": {
+          "0-16k": {
+            "requests": 1,
+            "decode_tok_s_median": 40.49184963908911
+          },
+          "16-32k": {
+            "requests": 2,
+            "decode_tok_s_median": 62.85816763232102
+          },
+          "32-64k": {
+            "requests": 121,
+            "decode_tok_s_median": 54.83000920618143
+          },
+          "64-100k": {
+            "requests": 96,
+            "decode_tok_s_median": 51.696889540750455
+          },
+          "100-+k": {
+            "requests": 39,
+            "decode_tok_s_median": 54.62752097370236
+          }
+        }
+      },
+      "loc": {
+        "files": 146,
+        "lines": 24882
+      },
+      "finished": 1790287884.3495219
     }
   },
   "scope": "canvas",
