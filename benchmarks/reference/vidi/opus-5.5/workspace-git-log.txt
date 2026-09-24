@@ -1,3 +1,42 @@
+commit 95d58903314d84d965d600d02792c734d6ed1afb
+Author: opus-5.5-reference <reference@vidi.invalid>
+Date:   Thu Sep 24 23:24:56 2026 +0100
+
+    story 4: Return to a board and find everything as it was left
+    
+    Co-Authored-By: Claude Opus 5.5 (1M context) <noreply@anthropic.com>
+
+ NOTES.md                                         |  85 +++++++
+ playwright.config.ts                             |  28 ++-
+ src/client/App.tsx                               |  41 +++-
+ src/client/board/Toolbar.tsx                     |   5 +-
+ src/client/objects/StickyNote.tsx                |  16 +-
+ src/client/styles.css                            |  17 ++
+ src/client/sync/ConnectionStatus.tsx             |   4 +-
+ src/client/sync/connectBoard.ts                  |  20 +-
+ src/shared/config.ts                             |  20 ++
+ src/shared/protocol.ts                           |   4 +
+ src/worker/board-room.ts                         | 273 ++++++++++++++++------
+ src/worker/board-store.ts                        | 253 ++++++++++++++++++++
+ src/worker/index.ts                              |   5 +-
+ src/worker/room-state.ts                         |  62 +++++
+ src/worker/test-hooks.ts                         |  46 ++++
+ tests/component/ConnectionStatus.test.tsx        |  62 ++++-
+ tests/component/LoadFailed.test.tsx              | 202 ++++++++++++++++
+ tests/e2e/broken-board.spec.ts                   |  73 ++++++
+ tests/e2e/helpers/seed.ts                        |  69 ++++++
+ tests/e2e/helpers/wrangler-process.ts            | 120 ++++++++++
+ tests/e2e/persistence.spec.ts                    | 183 +++++++++++++++
+ tests/fixtures/boards.ts                         | 187 +++++++++++++++
+ tests/integration/board-room-persistence.test.ts | 273 ++++++++++++++++++++++
+ tests/integration/board-room.test.ts             |  17 +-
+ tests/integration/board-store.test.ts            | 284 +++++++++++++++++++++++
+ tests/integration/storage.ts                     |  90 +++++++
+ tests/unit/board-store-chunks.test.ts            |  58 +++++
+ tests/unit/room-state.test.ts                    |  76 ++++++
+ wrangler.jsonc                                   |   5 +-
+ 29 files changed, 2481 insertions(+), 97 deletions(-)
+
 commit c7b638a6da8118cf4cf8a6232b1db8fa6f67a9e0
 Author: opus-5.5-reference <reference@vidi.invalid>
 Date:   Thu Sep 24 22:48:52 2026 +0100
