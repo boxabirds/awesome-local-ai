@@ -1,0 +1,53 @@
+NOTES FOR THIS COMBINATION
+
+  NOT MEASURED BY THIS REPO. Every memory figure above is an ESTIMATE from
+  the pack's file sizes; every speed you may have read is the model
+  author's (M4 Max, mlx-serve 26.8.11). See the combination README.
+
+  One model server at a time. This pack is ~70 GiB of weights. A 128 GB Mac
+  kernel-panicked on 24 Sep 2026 running MTPLX's build of this model at a
+  97 GiB peak with a leaking 10 GB process beside it. So this launcher
+  REFUSES to start while MTPLX, llama-server, another mlx-serve or the
+  MLX-Serve app is running (ALLOW_COEXIST=1 overrides), and refuses when
+  free memory is below the profile's estimate + headroom (FORCE_LOW_MEM=1
+  overrides). Keep other heavy apps closed. Do not raise
+  iogpu.wired_limit_mb to make it fit.
+
+  The model loads AFTER the port opens: /health answers at once, and
+  /v1/models shows "state":"ready" when loading is done. A client started
+  in between may see errors; wait for ready.
+
+  Thinking is ON by default, set server-side: the launcher serves the pack
+  through $ROOT/served/<model id>/, links to the pack plus a
+  generation_config.json carrying default_chat_template_kwargs.
+  enable_thinking. Without it mlx-serve would serve OpenCode's requests with
+  thinking OFF (its default for this architecture). THINKING=0 turns it off
+  and switches to the instruct sampler.
+
+  Reasoning effort is NOT settable server-side on mlx-serve. A request that
+  names no effort -- every OpenCode request -- runs at 'low' with a
+  2048-token thinking budget. REASONING_BUDGET=<tokens> changes the budget
+  (--reasoning-budget); REASONING_EFFORT accepts only 'low' or 'default'.
+
+  CONTEXT_LIMIT and the client must agree. If you raise CTX, raise
+  limit.context in the OpenCode provider config (or contextWindow for pi)
+  too, or the client runs into the wall instead of compacting.
+
+VARIABLES
+
+  PROFILE             agent | serial | lean
+  PORT, HOST          default 8011, 127.0.0.1 (non-loopback needs MLXSERVE_API_KEY)
+  CTX, KV_QUANT, MTP  override the profile (disables the memory refusal)
+  THINKING            1 (default) or 0
+  REASONING_BUDGET    thinking-token budget; unset = mlx-serve's 2048 for 'low'
+  VISION              1 to load the vision tower (+0.84 GiB); off by default
+  OS_RESERVE_GIB      free RAM mlx-serve plans around (default 16)
+  MODEL, MLXSERVE_BIN a different pack directory / binary
+
+EXAMPLES
+
+  mlxserve-qwen38-flash-next-server                   # agent profile
+  PROFILE=serial mlxserve-qwen38-flash-next-server    # MTP off
+  THINKING=0 mlxserve-qwen38-flash-next-server        # no thinking
+  curl -s http://127.0.0.1:8011/v1/models | python3 -m json.tool
+  curl -s http://127.0.0.1:8011/props | python3 -m json.tool

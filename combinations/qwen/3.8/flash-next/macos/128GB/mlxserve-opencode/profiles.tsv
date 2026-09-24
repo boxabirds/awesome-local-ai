@@ -1,0 +1,25 @@
+# name|ctx|mtp|kv_quant|max_tokens|need_mib|basis|summary
+#
+# NOTHING IN THIS FILE WAS MEASURED. need_mib is ESTIMATED from the pack's file
+# sizes and config.json at revision 7eaef0fa (arithmetic in README.md), with
+# vision off (the launcher's default):
+#
+#   weights   100 shards, 74,405,350,320 B               70,958 MiB
+#   KV        12 full-attention layers x 2 KV heads x 256 dims x bf16 x K+V
+#             = 24,576 B/token, + MTP head 2,048 + sparse-attention indexer
+#             768 = 27,392 B/token                        3,424 MiB at 131072
+#   GDN       36 linear-attention layers, fixed f32 state   108 MiB
+#   prefix    mlx-serve's default --prefix-cache-mem cap  2,048 MiB
+#
+# NOT included: the prefill working set (unmeasured; the launcher demands
+# MLXSERVE_PREFLIGHT_HEADROOM_MIB on top), and the 29.8 GiB n-gram table, which
+# mlx-serve mmaps and never makes resident (the pack's card: "its cost is page
+# cache, which the OS evicts as needed").
+#
+# For comparison: the MTPLX pack of this model was MEASURED at 77.3 GB wired,
+# and a session there reached a 97 GiB peak at ~115k context. An estimate of
+# weights + KV would have said ~75 GiB for that too, so treat these rows as a
+# floor, not a ceiling.
+agent|131072|1|off|32768|76538|ESTIMATED|default; 128k ctx, native MTP head on (author: +41% decode on code)
+serial|131072|0|off|32768|76538|ESTIMATED|same, MTP off (author: MTP is a few percent slower on prose)
+lean|65536|1|8|32768|74024|ESTIMATED|64k ctx, 8-bit KV cache; the smallest footprint here

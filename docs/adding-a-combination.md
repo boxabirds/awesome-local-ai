@@ -24,6 +24,7 @@ lib/                                  ALL the logic, shared by every combination
   smoke.sh   summary.sh
   select.sh                           host probe + combination selection (install.sh)
   llamacpp.sh  mtplx.sh  sglang.sh    backend adapters     (BACKEND=...)
+  mlxserve.sh
   accel/cuda.sh  accel/metal.sh       accelerator adapters (ACCEL=...)
   clients/opencode.sh                 client adapter       (CLIENT=opencode)
   clients/pi.sh                       client adapter       (CLIENT=pi)
@@ -324,6 +325,51 @@ Five generic hooks came with it, each opt-in:
 | `backend_manifest_extra` | `lib/launcher.sh` | a backend appends its own `KEY=value` lines to `install.env` |
 | `SMOKE_REQUEST_EXTRA` | `lib/smoke.sh` | extra JSON fields for the smoke chat request (SGLang turns thinking off for it) |
 | `AUTO_SELECT=0` | `lib/select.sh` | the combination is listed as compatible but ranks below every other in its tier, so `./install.sh` never picks it silently |
+
+The pinned-revision weight helpers it introduced (marker, shard check, sha256
+verification) now live in `lib/hf.sh` as `hf_pinned_state`,
+`hf_shards_present`, `hf_verify_sha256` and `hf_write_marker`, shared with the
+mlx-serve backend below; `lib/sglang.sh` keeps its old names as aliases.
+
+## Adding an mlx-serve combination
+
+`lib/mlxserve.sh` is the fourth backend: [mlx-serve](https://github.com/ddalcu/mlx-serve),
+a native Zig/MLX server for Apple silicon (not the PyPI package of the same
+name). One exists, `qwen/3.8/flash-next/macos/128GB/mlxserve-opencode`, and it
+is **not yet measured by this repo**.
+
+A combination on this backend supplies, as data in `config.sh`:
+
+| Variable | What it is |
+|---|---|
+| `MLXSERVE_VERSION`, `MLXSERVE_TARBALL_SHA256` | the release to fall back to, and the sha256 GitHub publishes for its `mlx-serve-bin-macos-arm64.tar.gz`. An installed `mlx-serve` at least this new is used instead; an older one is left alone |
+| `MODEL_REPO`, `MODEL_REVISION`, `MODEL_WEIGHTS_DIR`, `MODEL_SHA256`, `MODEL_DISK_KB` | as for SGLang; the weights go into mlx-serve's own store, `~/.mlx-serve/models/<MODEL_WEIGHTS_DIR>`, and disk space is checked before downloading |
+| `MLXSERVE_OS_RESERVE_GIB`, `MLXSERVE_PREFLIGHT_HEADROOM_MIB` | `--os-reserve-gib`, and the room the launcher's memory refusal demands above `need_mib` |
+
+`profiles.tsv` for this backend is
+`name|ctx|mtp|kv_quant|max_tokens|need_mib|basis|summary`.
+
+Two mlx-serve behaviours shaped the launcher, both read from its source:
+
+- **The model id is the model directory's basename**, and there is **no
+  server-side thinking default** — a request naming neither `enable_thinking`
+  nor `reasoning_effort` gets the architecture's default, which for Qwen3.8
+  Flash-Next is off, unless the checkpoint's `generation_config.json` declares
+  `default_chat_template_kwargs.enable_thinking`. OpenCode sends neither. So
+  `lib/runtime/server-mlxserve.sh` serves `$ROOT/served/<alias>/`: symlinks to
+  the pack plus a `generation_config.json` carrying that key from `THINKING`.
+  The pack is never modified.
+- **There is no server-side reasoning effort.** `REASONING_EFFORTS` lists only
+  what the server does with a request that names none (`low` for Qwen3.8),
+  and anything else is refused rather than silently ignored.
+
+Because a 128 GB Mac kernel-panicked with two large MLX workloads resident,
+this launcher **refuses** (rather than warns) when another model server is
+running or free memory is short; `ALLOW_COEXIST=1` and `FORCE_LOW_MEM=1`
+override. `/health` answers before the model has loaded, so the smoke test
+waits for `"state":"ready"` in `/v1/models`, then checks MTP via `/props`,
+prefix-cache reuse via `cached_tokens`, and a structured tool call.
+`tests/mlxserve-test.sh` covers all of it against stubs.
 
 ## Honesty
 
