@@ -28,6 +28,15 @@ import { useCamera } from './canvas/useCamera';
 import { NoteToolbar } from './objects/NoteToolbar';
 import { StickyNote } from './objects/StickyNote';
 import { ConnectionStatus } from './sync/ConnectionStatus';
+import type { ConnectionState } from './sync/connectBoard';
+
+/**
+ * Whether the board may be edited. False only while its saved state cannot be loaded: an
+ * empty stand-in must not be edited as if it were the board (PRD persist.load_failure).
+ */
+export function canEdit(state: ConnectionState): boolean {
+  return state !== 'load_failed';
+}
 
 const UNMEASURED: Size = { width: 0, height: 0 };
 const BOARD_PATH = /^\/b\/([^/]+)\/?$/;
@@ -64,11 +73,25 @@ export function App() {
   const { camera } = controller;
   const [boardId] = useState(resolveBoardId);
   const { doc, notes, connection } = useBoardDoc(boardId);
-  const { selectedId, editingId, select, startEdit, endEdit } = useSelection();
+  const { selectedId, editingId, select, startEdit: beginEdit, endEdit } = useSelection();
   const [draggingId, setDraggingId] = useState<string | null>(null);
+  const editable = canEdit(connection);
 
-  const stateRef = useRef({ selectedId, editingId, camera, viewport });
-  stateRef.current = { selectedId, editingId, camera, viewport };
+  const stateRef = useRef({ selectedId, editingId, camera, viewport, editable });
+  stateRef.current = { selectedId, editingId, camera, viewport, editable };
+
+  // Every edit entry point goes through these guards: no board-model mutation while !editable.
+  const startEdit = useCallback(
+    (id: string) => {
+      if (stateRef.current.editable) beginEdit(id);
+    },
+    [beginEdit],
+  );
+
+  // Losing the board mid-edit ends the edit (text typed so far is already in the document).
+  useEffect(() => {
+    if (!editable && stateRef.current.editingId !== null) endEdit('selected');
+  }, [editable, endEdit]);
 
   // A note removed while selected, edited or dragged (stale id) simply ends the interaction:
   // this is also how a note deleted by someone else ends my typing or dragging, silently.
@@ -90,6 +113,7 @@ export function App() {
 
   const createAt = useCallback(
     (world: Point) => {
+      if (!stateRef.current.editable) return;
       const id = createSticky(doc, world);
       if (id) startEdit(id);
     },
@@ -118,7 +142,7 @@ export function App() {
 
   const deleteSelected = useCallback(() => {
     const id = stateRef.current.selectedId;
-    if (id === null) return;
+    if (id === null || !stateRef.current.editable) return;
     deleteObject(doc, id);
     select(null);
   }, [doc, select]);
@@ -146,7 +170,7 @@ export function App() {
   const domOrder = useMemo(() => [...notes].sort(byCreation), [notes]);
 
   const selectedNote = selectedId === null ? undefined : notes.find((n) => n.id === selectedId);
-  const showNoteToolbar = selectedNote !== undefined && editingId === null && draggingId === null;
+  const showNoteToolbar = editable && selectedNote !== undefined && editingId === null && draggingId === null;
   let noteToolbarStyle: CSSProperties | undefined;
   if (selectedNote) {
     const anchor = worldToScreen(camera, { x: selectedNote.x + STICKY_SIZE_WORLD / HALF, y: selectedNote.y });
@@ -175,15 +199,18 @@ export function App() {
             onStartEdit={startEdit}
             onEndEdit={endEdit}
             onDragChange={onDragChange}
+            readOnly={!editable}
           />
         ))}
       </BoardViewport>
-      <Toolbar onCreateSticky={onCreateSticky} />
+      <Toolbar onCreateSticky={onCreateSticky} disabled={!editable} />
       {showNoteToolbar && selectedNote && (
         <NoteToolbar
           color={selectedNote.color}
           style={noteToolbarStyle}
-          onColor={(c: StickyColor) => setStickyColor(doc, selectedNote.id, c)}
+          onColor={(c: StickyColor) => {
+            if (stateRef.current.editable) setStickyColor(doc, selectedNote.id, c);
+          }}
           onDelete={deleteSelected}
         />
       )}

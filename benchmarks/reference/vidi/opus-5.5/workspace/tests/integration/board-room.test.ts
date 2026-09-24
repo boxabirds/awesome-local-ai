@@ -30,6 +30,11 @@ const CONCURRENT_X = { a: 100, b: 300 } as const;
 const INVALID_YJS_UPDATE = new Uint8Array([255, 255, 255, 255, 255]);
 const UNKNOWN_TYPE = 9;
 const AWARENESS_BYTES = new Uint8Array([MESSAGE_AWARENESS, 3, 1, 2, 3]);
+/**
+ * Since story 4 every update is written to storage before it is broadcast, and each write's
+ * commit gates the room's output: 1,000 random ops take seconds rather than milliseconds.
+ */
+const RANDOM_OPS_TIMEOUT_MS = 60_000;
 
 function closeAll(...clients: TestClient[]): void {
   clients.forEach((c) => c.close());
@@ -192,7 +197,7 @@ describe('sync.room merging', () => {
     const expectedIds = [...log.created].filter((id) => !log.deleted.has(id)).sort();
     expect(snapshot(clients[0]!.doc).map((n) => n.id).sort()).toEqual(expectedIds);
     closeAll(...clients);
-  });
+  }, RANDOM_OPS_TIMEOUT_MS);
 
   it(`TC-14 a late joiner receives all ${LATE_JOIN_NOTES} notes`, async () => {
     const { a, b, boardId } = await pair();
@@ -267,7 +272,9 @@ describe('sync.room errors and relays', () => {
     closeAll(a, b);
   });
 
-  it('TC-18 after a room restart the first reconnecting client repopulates it; B converges', async () => {
+  // Story 4 changed the restart half of this case: the restarted room now reloads the board
+  // from storage instead of starting empty. Repopulation of what the room lacks is unchanged.
+  it('TC-18 after a room restart the room reloads the board; a reconnecting client adds what it lacks; B converges', async () => {
     const { a, b, boardId } = await pair();
     createSticky(a.doc, NOTE_AT);
     await converged(a, b);
@@ -282,9 +289,9 @@ describe('sync.room errors and relays', () => {
         // abort() throws in the calling context by design.
       }
     }).catch(() => undefined);
-    const empty = await join(boardId);
-    expect(snapshot(empty.doc)).toHaveLength(0);
-    empty.close();
+    const reloaded = await join(boardId);
+    expect(docJson(reloaded.doc)).toEqual(docJson(a.doc));
+    reloaded.close();
 
     // B changed something while disconnected, which A lacks.
     const extra = createSticky(b.doc, { x: 300, y: 300 });

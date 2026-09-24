@@ -6,12 +6,19 @@
  *   connected   — synced; badge hidden
  *   reconnecting — the connection was lost after having been connected (edits stay local)
  *   confirmed   — synced again after reconnecting; shown for CONNECTED_CONFIRMATION_MS
+ *   load_failed — the room closed with CLOSE_BOARD_LOAD_FAILED: its saved board cannot be
+ *                 loaded. Editing is disabled; the provider keeps retrying with its backoff and
+ *                 the first successful sync goes to `connected` (story 4).
+ *
+ * A close with CLOSE_STORAGE_FAILURE (1011) is an ordinary lost connection (`reconnecting`):
+ * the board is readable and unsaved changes are re-sent when the connection is re-established.
  */
 import { WebsocketProvider } from 'y-websocket';
 import type * as Y from 'yjs';
 import { CONNECTED_CONFIRMATION_MS, RECONNECT_MAX_BACKOFF_MS } from '../../shared/config';
+import { CLOSE_BOARD_LOAD_FAILED } from '../../shared/protocol';
 
-export type ConnectionState = 'connecting' | 'connected' | 'reconnecting' | 'confirmed';
+export type ConnectionState = 'connecting' | 'connected' | 'reconnecting' | 'confirmed' | 'load_failed';
 
 export const ROOMS_PATH = '/api/rooms';
 
@@ -21,6 +28,8 @@ type ProviderStatus = 'connecting' | 'connected' | 'disconnected';
 export interface BoardProvider {
   on(event: 'status', handler: (event: { status: ProviderStatus }) => void): void;
   on(event: 'sync', handler: (synced: boolean) => void): void;
+  /** `event` is null when the provider closed the socket itself. */
+  on(event: 'connection-close', handler: (event: { code: number } | null) => void): void;
   /** True while the socket is open. */
   readonly wsconnected: boolean;
   connect(): void;
@@ -67,7 +76,7 @@ export function connectBoard(
 
   provider.on('sync', (synced) => {
     if (!synced) return;
-    if (state === 'connecting') {
+    if (state === 'connecting' || state === 'load_failed') {
       set('connected');
     } else if (state === 'reconnecting') {
       set('confirmed');
@@ -76,6 +85,13 @@ export function connectBoard(
         confirmTimer = null;
         set('connected');
       }, CONNECTED_CONFIRMATION_MS);
+    }
+  });
+
+  provider.on('connection-close', (event) => {
+    if (event?.code === CLOSE_BOARD_LOAD_FAILED) {
+      clearConfirm();
+      set('load_failed');
     }
   });
 

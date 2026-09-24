@@ -180,6 +180,12 @@ html, body, #root {
   cursor: default;
   outline: 0 solid var(--focus);
   touch-action: none;
+  /*
+   * Fixed-size box: its content never affects the rest of the page. Containment makes each
+   * note its own relayout root, so fitting one note's font (forced layouts) does not reflow
+   * the whole board — without it a 2,000-note board takes seconds to open (story 4).
+   */
+  contain: layout size style;
 }
 
 .sticky-note:focus-visible:not(.sticky-note--selected) {
@@ -353,4 +359,15 @@ html, body, #root {
   background: #e8f5e9;
   border-color: #66bb6a;
   color: #1b5e20;
+}
+
+.connection-status--load_failed {
+  background: #fdecea;
+  border-color: #e57373;
+  color: #b71c1c;
+}
+
+.toolbar__button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
 }

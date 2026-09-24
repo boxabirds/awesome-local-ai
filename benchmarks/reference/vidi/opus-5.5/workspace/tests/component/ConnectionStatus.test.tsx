@@ -9,6 +9,9 @@ import {
   type ConnectionState,
 } from '../../src/client/sync/connectBoard';
 import { CONNECTED_CONFIRMATION_MS } from '../../src/shared/config';
+import { CLOSE_BOARD_LOAD_FAILED, CLOSE_STORAGE_FAILURE } from '../../src/shared/protocol';
+
+const LOAD_FAILED_TEXT = "This board couldn't be loaded. Retrying…";
 
 type Status = 'connecting' | 'connected' | 'disconnected';
 
@@ -16,13 +19,27 @@ type Status = 'connecting' | 'connected' | 'disconnected';
 class FakeProvider implements BoardProvider {
   private statusHandlers: ((e: { status: Status }) => void)[] = [];
   private syncHandlers: ((synced: boolean) => void)[] = [];
+  private closeHandlers: ((e: { code: number } | null) => void)[] = [];
   destroyed = false;
   wsconnected = false;
   restarts = 0;
 
-  on(event: 'status' | 'sync', handler: never): void {
+  on(event: 'status' | 'sync' | 'connection-close', handler: never): void {
     if (event === 'status') this.statusHandlers.push(handler);
-    else this.syncHandlers.push(handler);
+    else if (event === 'sync') this.syncHandlers.push(handler);
+    else this.closeHandlers.push(handler);
+  }
+
+  /** What y-websocket emits when the server accepts and then closes with `code`. */
+  serverClose(code: number): void {
+    const wasConnected = this.wsconnected;
+    this.wsconnected = true;
+    this.status('connected');
+    act(() => this.closeHandlers.forEach((h) => h({ code })));
+    this.wsconnected = false;
+    if (wasConnected) this.synced(false);
+    this.status('disconnected');
+    this.status('connecting');
   }
 
   destroy(): void {
@@ -211,5 +228,46 @@ describe('sync.client: no lockout while not connected', () => {
     expect(editor()).not.toBeNull();
     expect(notes()).toHaveLength(1);
     expect(badge()?.textContent).toBe('Connecting…');
+  });
+});
+
+describe('persist.client_status: load failure', () => {
+  it('TC-22 load_failed renders the red message with role status', () => {
+    render(<ConnectionStatus state="load_failed" />);
+    const el = badge();
+    expect(el?.textContent).toBe(LOAD_FAILED_TEXT);
+    expect(el?.getAttribute('data-state')).toBe('load_failed');
+    expect(el?.className).toContain('connection-status--load_failed');
+  });
+
+  it('close 4500 → load_failed; retries keep it; a later sync → connected (no reload)', () => {
+    render(<Harness />);
+    provider.serverClose(CLOSE_BOARD_LOAD_FAILED);
+    expect(badge()?.textContent).toBe(LOAD_FAILED_TEXT);
+    // Retrying (backoff) and failing again keeps the message.
+    provider.serverClose(CLOSE_BOARD_LOAD_FAILED);
+    provider.status('disconnected');
+    provider.status('connecting');
+    expect(badge()?.textContent).toBe(LOAD_FAILED_TEXT);
+    provider.connectAndSync();
+    expect(badge()).toBeNull();
+    expect(states).toEqual(['connecting', 'load_failed', 'connected']);
+  });
+
+  it('close 4500 after having been connected → load_failed', () => {
+    render(<Harness />);
+    provider.connectAndSync();
+    provider.serverClose(CLOSE_BOARD_LOAD_FAILED);
+    expect(badge()?.textContent).toBe(LOAD_FAILED_TEXT);
+  });
+
+  it('close 1011 (storage failure) → reconnecting, not load_failed', () => {
+    render(<Harness />);
+    provider.connectAndSync();
+    provider.serverClose(CLOSE_STORAGE_FAILURE);
+    expect(badge()?.textContent).toBe('Reconnecting…');
+    expect(states).not.toContain('load_failed');
+    provider.connectAndSync();
+    expect(badge()?.textContent).toBe('Connected');
   });
 });

@@ -4,12 +4,15 @@
  */
 import { isValidBoardId } from '../shared/board-id';
 import type { BoardRoom } from './board-room';
+import { handleTestHook } from './test-hooks';
 
 export { BoardRoom } from './board-room';
 
 export interface Env {
   BOARD_ROOM: DurableObjectNamespace<BoardRoom>;
   ASSETS: Fetcher;
+  /** '1' only in e2e test servers: enables the routes in test-hooks.ts. Never set in production. */
+  TEST_HOOKS?: string;
 }
 
 const ROOMS_PREFIX = '/api/rooms/';
@@ -19,7 +22,7 @@ const HTTP_UPGRADE_REQUIRED = 426;
 export default {
   async fetch(req: Request, env: Env): Promise<Response> {
     const { pathname } = new URL(req.url);
-    if (!pathname.startsWith(ROOMS_PREFIX)) return env.ASSETS.fetch(req);
+    if (!pathname.startsWith(ROOMS_PREFIX)) return (await handleTestHook(req, env)) ?? env.ASSETS.fetch(req);
 
     const boardId = pathname.slice(ROOMS_PREFIX.length);
     // Checked before any Durable Object is addressed, so junk ids never create an instance.

@@ -3,10 +3,12 @@ export const STICKY_BUTTON_TOOLTIP = 'Sticky note – or double-click the board'
 
 export interface ToolbarProps {
   onCreateSticky(): void;
+  /** True while the board cannot be edited (its saved state could not be loaded). */
+  disabled?: boolean;
 }
 
 /** Left-side vertical tool bar. */
-export function Toolbar({ onCreateSticky }: ToolbarProps) {
+export function Toolbar({ onCreateSticky, disabled = false }: ToolbarProps) {
   return (
     <div
       className="toolbar"
@@ -21,6 +23,7 @@ export function Toolbar({ onCreateSticky }: ToolbarProps) {
         className="toolbar__button"
         aria-label={STICKY_BUTTON_LABEL}
         title={STICKY_BUTTON_TOOLTIP}
+        disabled={disabled}
         onClick={onCreateSticky}
       >
         <svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
