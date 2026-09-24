@@ -5,5 +5,6 @@ Model `qwen3.8-27b`, scope `canvas`, effort `low`, client pi 0.86.0, host 13th G
 | Story | Title | Agent min | Requests | Prompt tok | Completion tok | TTFT med s | Decode tok/s med | Gate | Accept (cumulative) | Stalled | Resumes / nudges | Compactions | Max ctx | Conditions |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
 | 1 | Pan and zoom around an infinite board | 50.2 | None | None | None | — | — | green | 5/6 |  | 0 / 1 | 1 | — | throttled 0%, server peak 18 GB |
+| 2 | Capture ideas on sticky notes and rearrange them | 43.0 | None | None | None | — | — | green | 18/20 |  | 0 / 0 | 2 | — | throttled 0%, server peak 18 GB |
 
-**Totals:** 1 stories, 50 agent-minutes, 0 requests, 0 prompt / 0 completion tokens, gate green 1/1, final acceptance 5/6, stalled 0, 1694 lines in src+tests.
+**Totals:** 2 stories, 93 agent-minutes, 0 requests, 0 prompt / 0 completion tokens, gate green 2/2, final acceptance 18/20, stalled 0, 4288 lines in src+tests.
