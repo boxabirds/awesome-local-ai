@@ -20,6 +20,8 @@ import { screenToWorld, worldToScreen } from './camera';
 import type { Point } from './camera';
 import { useCameraApi } from './useCamera';
 import { useNavigationTestHooks } from './testHooks';
+import { MarqueeRect, type Marquee } from '../board/Marquee';
+import type { ObjectSnapshot } from '../../shared/board-model';
 
 /** Pixels for one `deltaMode === LINE` wheel step. */
 const WHEEL_LINE_PIXELS = 16;
@@ -48,6 +50,15 @@ export interface BoardViewportProps {
    * cursor so the parent can create a note centred there. Story 2.
    */
   onEmptyDoubleClick?(world: Point): void;
+  /**
+   * The board-wide marquee controller (Story 7). When supplied, a drag that
+   * starts on empty space while Shift is held boxes-select instead of panning.
+   */
+  marquee?: Marquee;
+  /** The live object snapshot, read only when a marquee is released. */
+  getSnapshot?(): readonly ObjectSnapshot[];
+  /** Called when a marquee is released, with the ids entirely inside the box. */
+  onMarquee?(ids: readonly string[]): void;
 }
 
 function mod(value: number, range: number): number {
@@ -79,7 +90,14 @@ interface ScaleEvent extends Event {
   clientY?: number;
 }
 
-export function BoardViewport({ children, onEmptyClick, onEmptyDoubleClick }: BoardViewportProps) {
+export function BoardViewport({
+  children,
+  onEmptyClick,
+  onEmptyDoubleClick,
+  marquee,
+  getSnapshot,
+  onMarquee,
+}: BoardViewportProps) {
   const api = useCameraApi();
   useNavigationTestHooks();
 
@@ -87,10 +105,14 @@ export function BoardViewport({ children, onEmptyClick, onEmptyDoubleClick }: Bo
   const surfaceRef = useRef<HTMLDivElement>(null);
   const apiRef = useRef(api);
   const panningRef = useRef(false);
+  const marqueeRef = useRef(false);
   const dragMovedRef = useRef(false);
   const downPointRef = useRef<Point>({ x: 0, y: 0 });
   const gestureScaleRef = useRef(1);
   const [panning, setPanning] = useState(false);
+  // A counter bumped on every marquee move so the rectangle re-renders; the
+  // controller keeps the rect itself (no React state in it).
+  const [, forceTick] = useState(0);
 
   useEffect(() => {
     apiRef.current = api;
@@ -196,20 +218,45 @@ export function BoardViewport({ children, onEmptyClick, onEmptyDoubleClick }: Bo
     } catch {
       // jsdom (and any engine without pointer capture) just skips it.
     }
-    panningRef.current = true;
-    dragMovedRef.current = false;
     const rect = surface.getBoundingClientRect();
     downPointRef.current = { x: event.clientX - rect.left, y: event.clientY - rect.top };
+    dragMovedRef.current = false;
+
+    // Shift held on a box-drag over empty space: this is a marquee, not a pan
+    // (design "Marquee selection"). An ordinary drag still pans, unchanged.
+    if (event.shiftKey && marquee && marqueeRef.current === false) {
+      marqueeRef.current = true;
+      marquee.begin(downPointRef.current);
+      forceTick((n) => n + 1);
+      return;
+    }
+
+    panningRef.current = true;
     setPanning(true);
     api.beginPan({ x: event.clientX - rect.left, y: event.clientY - rect.top });
   };
 
   const onPointerMove = (event: ReactPointerEvent<HTMLDivElement>) => {
-    if (!panningRef.current) return;
     const surface = surfaceRef.current;
     if (!surface) return;
     const rect = surface.getBoundingClientRect();
     const point = { x: event.clientX - rect.left, y: event.clientY - rect.top };
+
+    if (marqueeRef.current && marquee) {
+      if (
+        Math.hypot(point.x - downPointRef.current.x, point.y - downPointRef.current.y) >=
+        DRAG_THRESHOLD_PX
+      ) {
+        dragMovedRef.current = true;
+      }
+      // The controller converts both corners to world with the live camera, so
+      // zooming mid-drag cannot distort the box.
+      marquee.move(point);
+      forceTick((n) => n + 1);
+      return;
+    }
+
+    if (!panningRef.current) return;
     if (
       Math.hypot(point.x - downPointRef.current.x, point.y - downPointRef.current.y) >=
       DRAG_THRESHOLD_PX
@@ -228,6 +275,19 @@ export function BoardViewport({ children, onEmptyClick, onEmptyDoubleClick }: Bo
         // ignore: capture may already be gone
       }
     }
+
+    // A released marquee selects whatever lies entirely inside the box; the
+    // board decides what to do with those ids.
+    if (marqueeRef.current) {
+      marqueeRef.current = false;
+      dragMovedRef.current = false;
+      const cancelled = event.type === 'pointercancel' || event.type === 'lostpointercapture';
+      const ids = cancelled || !marquee ? [] : marquee.end(getSnapshot?.() ?? []);
+      if (!cancelled) onMarquee?.(ids);
+      forceTick((n) => n + 1);
+      return;
+    }
+
     const wasPanning = panningRef.current;
     const wasClick = wasPanning && !dragMovedRef.current;
     panningRef.current = false;
@@ -295,6 +355,7 @@ export function BoardViewport({ children, onEmptyClick, onEmptyDoubleClick }: Bo
         }}
       >
         {children}
+        <MarqueeRect rect={marquee ? marquee.rect : null} />
       </div>
       <div
         data-testid="origin-marker"

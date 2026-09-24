@@ -2,33 +2,24 @@
  * Story 2 · task 5 — the sticky note (design "Sticky note interaction").
  *
  * One note is an absolutely positioned `div[role=group][aria-label="Sticky
- * note"]` in the (scaled) world layer at world `(x, y)`. It owns a small local
- * interaction state machine — Pressed → Dragging → Selected — and drives the
- * board model: a drag raises the note once and moves it in world units (the
- * screen delta divided by zoom), so the grabbed point stays under the pointer
- * at any zoom. Pointer-down stops propagation so the board neither pans nor
- * creates a note. Selection and editing are the parent's concern (props in,
- * callbacks out); if the note disappears mid-gesture the interaction simply
- * ends.
+ * note"]` in the (scaled) world layer at world `(x, y)`. Its pointer behaviour
+ * comes from {@link useObjectInteraction}, the same generic hook the test-only
+ * rectangle uses: a press selects (or, when the note is already part of a
+ * multi-selection, keeps the group), and a drag past the threshold hands the
+ * whole selection to the board's shared transform controller. Selection and
+ * editing stay the parent's concern (props in, callbacks out); if a note
+ * disappears mid-gesture the interaction simply ends.
+ *
+ * The note's text box is sized from the object's own `width`/`height` (which
+ * default to the sticky size for documents that predate explicit sizes), so a
+ * group resize written by the controller is reflected here without any
+ * sticky-specific transform code.
  */
-import {
-  useEffect,
-  useLayoutEffect,
-  useRef,
-  useState,
-  type JSX,
-  type PointerEvent as ReactPointerEvent,
-} from 'react';
+import { useEffect, useLayoutEffect, useState, type JSX } from 'react';
 import type * as Y from 'yjs';
+import { getStickyText, setStickyColor, type ObjectSnapshot } from '../../shared/board-model';
 import {
-  bringToFront,
-  getStickyText,
-  moveObject,
-  setStickyColor,
-  type StickySnapshot,
-} from '../../shared/board-model';
-import {
-  DRAG_THRESHOLD_PX,
+  DEFAULT_STICKY_COLOR,
   STICKY_COLORS,
   STICKY_FONT_MAX_PX,
   STICKY_SIZE_WORLD,
@@ -37,20 +28,27 @@ import {
 import { NoteToolbar } from './NoteToolbar';
 import { StickyTextEditor } from './StickyTextEditor';
 import { fitText } from './StickyText';
+import { useObjectInteraction } from './useObjectInteraction';
+import type { TransformController } from '../board/transformController';
 
 export interface StickyNoteProps {
-  note: StickySnapshot;
+  note: ObjectSnapshot;
   doc: Y.Doc;
   zoom: number;
   selected: boolean;
   editing: boolean;
   /**
    * False while the board is read-only (story 4: `load_failed`). Drag, text
-   * editing, colour and delete all become no-ops; the note stays perfectly
-   * legible and the board underneath still pans.
+   * editing, colour and delete all become no-ops; the note stays legible and
+   * the board underneath still pans.
    */
   editable?: boolean;
-  onSelect(id: string): void;
+  /** The board-wide transform controller (shared by every object). */
+  controller: TransformController;
+  /** The current selection, so a press can decide single-vs-group drag. */
+  selection: readonly string[];
+  /** Select this object alone, or (with `additive`) toggle it in the set. */
+  onSelect(id: string, additive: boolean): void;
   onStartEdit(id: string): void;
   onEndEdit(next: 'selected' | 'unselected'): void;
   /** Clear the selection after the delete button removes this note. */
@@ -60,106 +58,54 @@ export interface StickyNoteProps {
 /** Padding between the note edge and its text, in world units. */
 const PADDING = 14;
 
-type Phase = 'idle' | 'pressed' | 'dragging';
-
-interface DragState {
-  startX: number;
-  startY: number;
-  originX: number;
-  originY: number;
-  raised: boolean;
-  phase: Phase;
-}
-
 export function StickyNote(props: StickyNoteProps): JSX.Element {
   const { note, doc, zoom, selected, editing, onSelect, onStartEdit, onDelete } = props;
-  const { id, x, y, color, text } = note;
+  const { id, x, y } = note;
+  const color: StickyColor = note.color ?? DEFAULT_STICKY_COLOR;
+  const text = note.text ?? '';
+  const width = note.width || STICKY_SIZE_WORLD;
+  const height = note.height || STICKY_SIZE_WORLD;
   const editable = props.editable ?? true;
 
-  const [phase, setPhase] = useState<Phase>('idle');
   const [displayFont, setDisplayFont] = useState<{ fontPx: number; overflow: boolean }>({
     fontPx: STICKY_FONT_MAX_PX,
     overflow: false,
   });
 
-  const dragRef = useRef<DragState | null>(null);
-
   // A note deleted (via the model) mid-gesture ends its interaction silently:
   // no move after it is gone, and no re-creation (TC-37).
+  const controller = props.controller;
+  const selection = props.selection;
+  const interaction = useObjectInteraction({
+    id,
+    isEditable: () => editable,
+    isEditing: () => editing,
+    getSelection: () => selection,
+    onSelect: (objId, additive) => onSelect(objId, additive),
+    getController: () => controller,
+  });
+
   useEffect(() => {
-    if (getStickyText(doc, id) === undefined) {
-      dragRef.current = null;
-      setPhase('idle');
-    }
+    if (getStickyText(doc, id) === undefined) interaction.onPointerEnd({} as never);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [doc, id, text]);
 
   // Auto-fit the *display* text (the editor fits its own textarea instead).
   useLayoutEffect(() => {
     if (editing) return;
-    setDisplayFont(fitText(text, STICKY_SIZE_WORLD - PADDING * 2, STICKY_SIZE_WORLD - PADDING * 2));
-  }, [text, editing]);
+    setDisplayFont(fitText(text, width - PADDING * 2, height - PADDING * 2));
+  }, [text, editing, width, height]);
 
-  const onPointerDown = (event: ReactPointerEvent<HTMLDivElement>) => {
-    // The note owns its pointer: the board must not pan or create underneath.
-    event.stopPropagation();
-    // Read-only board: a note can still be looked at, it cannot be picked up,
-    // selected or opened (and its toolbar never appears).
-    if (!editable) return;
-    if (editing) return; // a click inside an editing note stays in the editor
-    if (event.button !== 0) return;
-
-    try {
-      event.currentTarget.setPointerCapture(event.pointerId);
-    } catch {
-      // jsdom / engines without pointer capture: capture is skipped.
-    }
-    onSelect(id);
-    dragRef.current = {
-      startX: event.clientX,
-      startY: event.clientY,
-      originX: x,
-      originY: y,
-      raised: false,
-      phase: 'pressed',
-    };
-    setPhase('pressed');
-  };
-
-  const onPointerMove = (event: ReactPointerEvent<HTMLDivElement>) => {
-    if (editing) return;
-    const drag = dragRef.current;
-    if (!drag) return;
-
-    const dx = event.clientX - drag.startX;
-    const dy = event.clientY - drag.startY;
-
-    if (drag.phase === 'pressed') {
-      if (Math.hypot(dx, dy) < DRAG_THRESHOLD_PX) return; // still a press
-      // Crossed the threshold: this is a drag. Raise once, then move.
-      bringToFront(doc, id);
-      drag.raised = true;
-      drag.phase = 'dragging';
-      setPhase('dragging');
-    }
-
-    // Convert the screen delta to world units at the current zoom.
-    const worldX = drag.originX + dx / zoom;
-    const worldY = drag.originY + dy / zoom;
-    moveObject(doc, id, worldX, worldY);
-  };
-
-  const endInteraction = () => {
-    dragRef.current = null;
-    setPhase('idle');
-  };
-
-  const onDoubleClick = (event: ReactPointerEvent<HTMLDivElement>) => {
+  const onDoubleClick = (event: React.PointerEvent<HTMLDivElement>) => {
     event.stopPropagation();
     if (!editable) return;
     if (!editing) onStartEdit(id);
   };
 
-  const showToolbar = selected && !editing && phase === 'idle' && editable;
+  // A lone selected note gets its own colour/delete toolbar; a group is handled
+  // by the board-level selection bar instead.
+  const groupSize = selection.length;
+  const showToolbar = selected && groupSize <= 1 && !editing && interaction.phase === 'idle' && editable;
   const inverse = zoom > 0 ? 1 / zoom : 1;
   const ytext = editing ? getStickyText(doc, id) : undefined;
 
@@ -169,7 +115,7 @@ export function StickyNote(props: StickyNoteProps): JSX.Element {
       aria-label="Sticky note"
       data-testid={`note-${id}`}
       data-note-id={id}
-      data-phase={phase}
+      data-phase={interaction.phase}
       data-selected={selected ? 'true' : 'false'}
       data-editable={editable ? 'true' : 'false'}
       data-x={x}
@@ -180,26 +126,26 @@ export function StickyNote(props: StickyNoteProps): JSX.Element {
         position: 'absolute',
         left: `${x}px`,
         top: `${y}px`,
-        width: `${STICKY_SIZE_WORLD}px`,
-        height: `${STICKY_SIZE_WORLD}px`,
+        width: `${width}px`,
+        height: `${height}px`,
         backgroundColor: STICKY_COLORS[color],
         pointerEvents: 'auto',
         touchAction: 'none',
         boxShadow: '0 6px 16px rgba(16, 24, 40, 0.18)',
         outline: selected ? '2px solid #2f6fed' : 'none',
       }}
-      onPointerDown={onPointerDown}
-      onPointerMove={onPointerMove}
-      onPointerUp={endInteraction}
-      onPointerCancel={endInteraction}
-      onLostPointerCapture={endInteraction}
+      onPointerDown={interaction.onPointerDown}
+      onPointerMove={interaction.onPointerMove}
+      onPointerUp={interaction.onPointerEnd}
+      onPointerCancel={interaction.onPointerEnd}
+      onLostPointerCapture={interaction.onPointerEnd}
       onDoubleClick={onDoubleClick}
     >
       {editing && ytext ? (
         <StickyTextEditor
           ytext={ytext}
           initial={text}
-          box={STICKY_SIZE_WORLD - PADDING * 2}
+          box={Math.min(width, height) - PADDING * 2}
           padding={PADDING}
           fontPx={STICKY_FONT_MAX_PX}
           onEnd={props.onEndEdit}

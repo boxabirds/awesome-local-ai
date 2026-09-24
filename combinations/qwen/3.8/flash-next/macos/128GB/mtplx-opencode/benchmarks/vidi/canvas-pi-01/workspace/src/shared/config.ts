@@ -60,6 +60,28 @@ export type StickyColor = keyof typeof STICKY_COLORS;
 /** Colour of a freshly created note. */
 export const DEFAULT_STICKY_COLOR: StickyColor = 'yellow';
 
+/*
+ * Story 7 · multi-select, move, resize, nudge and delete (design "Named
+ * settings added"). These are the story-7 product settings, defined once here
+ * so a designer can retune selection and transform behaviour without a
+ * redesign (PRD "Settings").
+ */
+
+/** Resize-handle edge length in screen pixels (constant at any zoom). */
+export const HANDLE_SIZE_PX = 8;
+
+/** Smallest sticky-note edge in world units (a note cannot shrink below it). */
+export const STICKY_MIN_SIZE_WORLD = 50;
+
+/** Largest any board object may grow to, in world units (a PRD upper bound). */
+export const MAX_OBJECT_SIZE_WORLD = 20_000;
+
+/** One arrow-key nudge, in world units. */
+export const NUDGE_STEP_WORLD = 1;
+
+/** A Shift+arrow nudge, in world units. */
+export const NUDGE_LARGE_STEP_WORLD = 10;
+
 /* ---- Story 3 · live collaboration (design "Named settings") --------------
  * These are the story-3 product settings, defined once here so a designer can
  * retune live sync without a redesign (PRD "Constraints"). Tests must use
