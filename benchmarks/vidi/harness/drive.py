@@ -419,7 +419,7 @@ def run_story_agent(client, ws: Path, env: dict, model_id: str, prompt: str, eve
     head = sh(["git", "rev-parse", "HEAD"], ws).strip()
     attempts = [run_agent(client, ws, env, model_id, prompt, events_path)]
     resumes = nudges = 0
-    while True:
+    while not RUN_ABORT.is_set():
         last = attempts[-1]
         if last["error"] and not last["stalled"] and last["session"] and resumes < MAX_AGENT_RESUMES:
             resumes += 1
@@ -554,13 +554,38 @@ def wait_for_conditions() -> dict:
     return c
 
 
-class ConditionSampler(threading.Thread):
-    """Samples run conditions while a story runs; any bad sample marks the story as degraded."""
+# 24 Sep: a leaking process pushed the Mac into swap while MTPLX held ~90 GB of GPU memory, and
+# the machine kernel-panicked (watchdog timeout). If swap grows this much during a story, the
+# harness stops the agent and the run before memory pressure can take the machine down.
+SWAP_ABORT_GROWTH_GB = 4.0
+MIB_PER_GIB = 1024
 
-    def __init__(self):
+
+def parse_swap_gb(sysctl_swapusage: str) -> float:
+    m = re.search(r"used = ([\d.]+)M", sysctl_swapusage)
+    return float(m.group(1)) / MIB_PER_GIB if m else 0.0
+
+
+def swap_used_gb() -> float:
+    return parse_swap_gb(subprocess.run(["sysctl", "-n", "vm.swapusage"], capture_output=True, text=True).stdout)
+
+
+# Set by the swap guard; the resume/nudge loop must not restart an agent the guard just stopped.
+RUN_ABORT = threading.Event()
+
+
+class ConditionSampler(threading.Thread):
+    """Samples run conditions while a story runs; any bad sample marks the story as degraded.
+    Swap growth past SWAP_ABORT_GROWTH_GB kills the agent's processes and sets `aborted`."""
+
+    def __init__(self, ws: Path | None = None):
         super().__init__(daemon=True)
         self.bad: list[dict] = []
         self.samples = 0
+        self.ws = ws
+        self.swap_start = swap_used_gb()
+        self.swap_max = self.swap_start
+        self.aborted = threading.Event()
         self._halt = threading.Event()
 
     def run(self):
@@ -569,11 +594,21 @@ class ConditionSampler(threading.Thread):
             self.samples += 1
             if not conditions_ok(c):
                 self.bad.append({**c, "t": time.time()})
+            swap = swap_used_gb()
+            self.swap_max = max(self.swap_max, swap)
+            if swap - self.swap_start > SWAP_ABORT_GROWTH_GB and not self.aborted.is_set():
+                self.aborted.set()
+                RUN_ABORT.set()
+                print(f"    SWAP GUARD: swap grew {swap - self.swap_start:.1f} GB during the story "
+                      f"({self.swap_start:.1f} -> {swap:.1f} GB) — stopping the agent to protect the machine", flush=True)
+                if self.ws:
+                    kill_pids(workspace_pids(self.ws))
 
     def stop(self) -> dict:
         self._halt.set()
         self.join()
-        return summarise_conditions(self.samples, self.bad)
+        return {**summarise_conditions(self.samples, self.bad), "swap_start_gb": round(self.swap_start, 2),
+                "swap_max_gb": round(self.swap_max, 2), "aborted_swap": self.aborted.is_set()}
 
 
 def summarise_conditions(samples: int, bad: list[dict]) -> dict:
@@ -645,11 +680,16 @@ def main() -> None:
         print(f"[story {sid}] {title} — agent starting", flush=True)
         rec: dict = {"title": title, "conditions_start": wait_for_conditions(), "started": time.time()}
         head_before = sh(["git", "rev-parse", "HEAD"], ws).strip()
-        sampler = ConditionSampler()
+        sampler = ConditionSampler(ws)
         sampler.start()
         rec["agent"] = run_story_agent(client, ws, env, a.model_id, prompt, sdir / "agent-events.jsonl")
         rec["agent_finished"] = time.time()
         rec["conditions"] = sampler.stop()
+        if rec["conditions"]["aborted_swap"]:
+            kill_strays(ws)
+            (run / "current_story").write_text("")
+            raise SystemExit(f"[story {sid}] stopped by the swap guard (swap {rec['conditions']['swap_start_gb']} -> "
+                             f"{rec['conditions']['swap_max_gb']} GB). Not checkpointed; check memory before resuming.")
         kill_strays(ws)
         (run / "current_story").write_text("")
         if rec["agent"]["steps"] == 0:

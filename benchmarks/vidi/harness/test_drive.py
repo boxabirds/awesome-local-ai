@@ -393,3 +393,27 @@ def test_make_publishable_redacts_home_and_keeps_event_logs_small(tmp_path):
     assert gz.stat().st_size < PUBLISH_MAX_BYTES
     assert not (run / "superseded" / "agent-events.jsonl").exists()          # raw log replaced by its compact form
     assert (run / "superseded" / "agent-events.compact.jsonl.gz").exists()
+
+
+def test_parse_swap_used():
+    from drive import parse_swap_gb
+    assert parse_swap_gb("total = 22528.00M  used = 21304.88M  free = 1223.12M  (encrypted)") == 21304.88 / 1024
+    assert parse_swap_gb("total = 0.00M  used = 0.00M  free = 0.00M") == 0.0
+
+
+def test_sampler_aborts_when_swap_grows(monkeypatch):
+    """A leak that pushes the Mac into swap preceded the 24 Sep kernel panic; stop before that."""
+    import time, drive
+    monkeypatch.setattr(drive, "CONDITION_POLL_S", 0.01)
+    killed = []
+    monkeypatch.setattr(drive, "kill_pids", lambda pids: killed.append(pids))
+    monkeypatch.setattr(drive, "workspace_pids", lambda ws, spare_agent=False: {123})
+    swaps = iter([1.0] + [1.0 + drive.SWAP_ABORT_GROWTH_GB + 0.5] * 1000)
+    monkeypatch.setattr(drive, "swap_used_gb", lambda: next(swaps))
+    monkeypatch.setattr(drive, "conditions", lambda: {"ac": True, "low_power": False, "thermal": "nominal"})
+    s = drive.ConditionSampler(ws=drive.Path("/tmp/ws"))
+    s.start()
+    time.sleep(0.1)
+    res = s.stop()
+    assert res["aborted_swap"] and s.aborted.is_set() and killed and drive.RUN_ABORT.is_set()
+    drive.RUN_ABORT.clear()
