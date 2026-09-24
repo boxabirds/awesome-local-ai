@@ -304,7 +304,7 @@ def agent_env(work: Path) -> dict:
         "XDG_STATE_HOME": str(home / ".local" / "state"),
         # Shared caches only: identical for every run and they hold no instructions.
         "npm_config_cache": str(real_home / ".npm"),
-        "PLAYWRIGHT_BROWSERS_PATH": str(real_home / "Library" / "Caches" / "ms-playwright"),
+        "PLAYWRIGHT_BROWSERS_PATH": str(hostenv.playwright_cache(real_home)),
         "WRANGLER_SEND_METRICS": "false",
         **GIT_IDENTITY,
     }
