@@ -13,7 +13,7 @@
  */
 import type { ObjectSnapshot } from '../../shared/board-model';
 import { objectBounds } from '../../shared/board-model';
-import { STICKY_MIN_SIZE_WORLD, STICKY_SIZE_WORLD } from '../../shared/config';
+import { STICKY_MIN_SIZE_WORLD, STICKY_SIZE_WORLD, TEXT_MIN_WIDTH_WORLD } from '../../shared/config';
 import { rectContains, type Point } from '../../shared/geometry';
 
 export interface ObjectTypeSpec {
@@ -25,6 +25,13 @@ export interface ObjectTypeSpec {
   minSize: number;
   /** Whether the object owns editable text (drives the text editor). */
   editableText: boolean;
+  /**
+   * Which resize handles the selection offers. `'all'` (the default) is the
+   * eight-edge sticky behaviour; `'horizontal'` (free text) shows only the east
+   * and west handles, because a text box's height is derived from its content
+   * and is never dragged directly (design Key decision 2).
+   */
+  handles?: 'all' | 'horizontal';
   /** True when `worldPoint` lies on the object's footprint. */
   hitTest(obj: ObjectSnapshot, worldPoint: Point): boolean;
 }
@@ -46,6 +53,11 @@ export function registerObjectType(type: string, spec: ObjectTypeSpec): void {
 /** The spec for a type, or `undefined` when it is unknown to this client. */
 export function getObjectType(type: string): ObjectTypeSpec | undefined {
   return registry.get(type);
+}
+
+/** The handles a type offers (defaults to `'all'` when unset / unknown). */
+export function getHandles(type: string): 'all' | 'horizontal' {
+  return registry.get(type)?.handles ?? 'all';
 }
 
 /** True when the type is known to this client (used to filter snapshots). */
@@ -76,6 +88,24 @@ registerObjectType(STICKY_TYPE, {
   aspectLocked: true,
   minSize: STICKY_MIN_SIZE_WORLD,
   editableText: true,
+  handles: 'all',
+  hitTest: rectangularHitTest,
+});
+
+/**
+ * Free text (story 9): resizable, not aspect-locked, editable, and with
+ * **horizontal-only** handles (its height follows the wrapped content). The
+ * resize maths therefore runs in `'width'` mode for a lone text box and its
+ * minimum width is `TEXT_MIN_WIDTH_WORLD`.
+ */
+export const TEXT_TYPE = 'text';
+
+registerObjectType(TEXT_TYPE, {
+  resizable: true,
+  aspectLocked: false,
+  minSize: TEXT_MIN_WIDTH_WORLD,
+  editableText: true,
+  handles: 'horizontal',
   hitTest: rectangularHitTest,
 });
 

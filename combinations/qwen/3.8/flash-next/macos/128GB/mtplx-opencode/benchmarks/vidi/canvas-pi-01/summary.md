@@ -11,15 +11,16 @@ Model `mtplx-flash-next-optimized-speed`, scope `canvas`, effort `low`, client p
 | 5 | Share a board with others using a link | 77.9 | 248 | 16886861 | 191276 | 1.3 | 64.3 | red | 26/36 |  | 0 / 0 | 4 | 115307 | throttled 93% |
 | 7 | Select, move, resize and delete several objects at once | 161.8 | 510 | 33484710 | 408257 | 1.6 | 58.9 | red | 36/44 |  | 2 / 2 | 18 | 130921 | throttled 96% |
 | 8 | Undo and redo my own changes without undoing anyone else's | 47.9 | 184 | 12269053 | 131201 | 1.0 | 63.2 | red | 43/51 |  | 0 / 0 | 2 | 114869 | throttled 98%, server peak 104 GB |
+| 9 | Write free text anywhere on the board | 61.5 | 308 | 22109883 | 152183 | 1.4 | 68.9 | red | 46/57 |  | 1 / 0 | 5 | 115677 | throttled 85%, server peak 109 GB |
 
-**Totals:** 7 stories, 568 agent-minutes, 1846 requests, 124,437,866 prompt / 1,506,770 completion tokens, gate green 0/7, final acceptance 43/51, stalled 0, 17656 lines in src+tests.
+**Totals:** 8 stories, 629 agent-minutes, 2154 requests, 146,547,749 prompt / 1,658,953 completion tokens, gate green 0/8, final acceptance 46/57, stalled 0, 19904 lines in src+tests.
 
 ### Decode tok/s by context (server log, all stories)
 
 | Context | Requests | Decode tok/s (request-weighted median of per-story medians) |
 |---|---|---|
-| 0-16k | 54 | 0.0 |
-| 16-32k | 140 | 68.7 |
-| 32-64k | 665 | 64.6 |
-| 64-100k | 674 | 63.1 |
-| 100-+k | 313 | 61.0 |
+| 0-16k | 58 | 0.0 |
+| 16-32k | 156 | 68.7 |
+| 32-64k | 778 | 65.9 |
+| 64-100k | 787 | 63.3 |
+| 100-+k | 375 | 62.5 |

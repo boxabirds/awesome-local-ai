@@ -16,15 +16,16 @@ import {
   STICKY_FONT_MIN_PX,
   STICKY_TEXT_MAX_CHARS,
 } from '../../shared/config';
+import { applyTextDiff as diffShared, clampToLimit as clampShared } from '../../shared/text-edit';
 
-/** Cut a value at the character limit, never in the middle of a surrogate pair. */
+/**
+ * Story 9: the limit and the minimal diff now live in `shared/text-edit.ts` so
+ * sticky notes and free-text objects share one implementation. These thin
+ * wrappers keep the story-2 sticky API (a default limit of
+ * `STICKY_TEXT_MAX_CHARS`) and every existing caller / unit test unchanged.
+ */
 export function clampToLimit(next: string, max: number = STICKY_TEXT_MAX_CHARS): string {
-  if (next.length <= max) return next;
-  let cut = max;
-  // Do not leave a lone high surrogate at the end (would split a pair).
-  const before = next.charCodeAt(cut - 1);
-  if (before >= 0xd800 && before <= 0xdbff) cut -= 1;
-  return next.slice(0, cut);
+  return clampShared(next, max);
 }
 
 /** True when the counter should show: the remaining budget is within the threshold. */
@@ -32,63 +33,11 @@ export function counterVisible(length: number): boolean {
   return STICKY_TEXT_MAX_CHARS - length <= STICKY_COUNTER_THRESHOLD_CHARS;
 }
 
-function isHighSurrogate(code: number): boolean {
-  return code >= 0xd800 && code <= 0xdbff;
-}
-
-/** Back an index off a split surrogate pair (index sitting between the two units). */
-function snapBack(text: string, index: number): number {
-  if (index > 0 && index < text.length && isHighSurrogate(text.charCodeAt(index - 1))) {
-    return index - 1;
-  }
-  return index;
-}
-
-/**
- * Apply `next` to a `Y.Text` with the smallest change: one delete and/or one
- * insert covering only the differing middle. A no-op (`current === next`)
- * opens no transaction. Safe under concurrent edits, unlike a full replace.
- */
+/** @see `shared/text-edit.applyTextDiff` — the shared minimal diff. */
 export function applyTextDiff(ytext: Y.Text, next: string, origin: unknown): void {
-  const current = ytext.toString();
-  if (current === next) return;
-  const doc = ytext.doc;
-  if (!doc) {
-    // Detached text (only happens in isolated unit tests): still make it correct.
-    ytext.delete(0, current.length);
-    if (next.length > 0) ytext.insert(0, next);
-    return;
-  }
-  const minLen = Math.min(current.length, next.length);
-
-  let start = 0;
-  while (start < minLen && current.charCodeAt(start) === next.charCodeAt(start)) start += 1;
-
-  let endCurrent = current.length;
-  let endNext = next.length;
-  while (
-    endCurrent > start &&
-    endNext > start &&
-    current.charCodeAt(endCurrent - 1) === next.charCodeAt(endNext - 1)
-  ) {
-    endCurrent -= 1;
-    endNext -= 1;
-  }
-
-  // Keep surrogate pairs whole at both edges of the changed middle.
-  start = snapBack(current, start);
-  start = snapBack(next, start);
-  endCurrent = snapBack(current, endCurrent);
-  endNext = snapBack(next, endNext);
-
-  const deleteLength = endCurrent - start;
-  const inserted = next.slice(start, endNext);
-
-  doc.transact(() => {
-    if (deleteLength > 0) ytext.delete(start, deleteLength);
-    if (inserted.length > 0) ytext.insert(start, inserted);
-  }, origin);
+  diffShared(ytext, next, origin);
 }
+
 
 /**
  * The largest integer font size, between `STICKY_FONT_MIN_PX` and
