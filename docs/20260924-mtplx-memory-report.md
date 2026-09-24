@@ -30,7 +30,7 @@ The first version of this section said memory "overshot the budget". That was wr
 
 **It behaves as designed:**
 - It clears the allocator cache and admits the prompt when the projection after clearing is within the limit.
-- It has refused one prompt so far: 75,961 tokens, projected 96.5 GiB after clearing. The client forked the session and carried on.
+- It has refused two prompts so far, both in one agent session: 75,961 tokens projected 96.5 GiB after clearing, and a later prompt projected 97.4 GiB. Each time the client forked the session and carried on.
 
 **What climbs steadily: `host_overhang_bytes`.** Selected events, in order:
 
