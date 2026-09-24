@@ -34,6 +34,8 @@ class OfflineWebSocket extends EventTarget {
 
 beforeEach(() => {
   vi.stubGlobal('WebSocket', OfflineWebSocket);
+  // jsdom has no canvas (it logs "not implemented"); text measurement uses its estimate (story 9).
+  vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue(null);
   vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(
     () =>
       ({

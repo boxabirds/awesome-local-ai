@@ -7,7 +7,8 @@ import {
   snapshot,
   type ObjectSnapshot,
 } from '../../shared/board-model';
-import type { StickyColor } from '../../shared/config';
+import type { StickyColor, TextSize } from '../../shared/config';
+import { createText, setTextSize } from '../../shared/objects/text';
 import { MarqueeRect, useMarquee } from './Marquee';
 import { SelectionBar } from './SelectionBar';
 import { SelectionOverlay } from './SelectionOverlay';
@@ -15,6 +16,7 @@ import { Toolbar } from './Toolbar';
 import { useBoardDoc } from './useBoardDoc';
 import { useBoardKeys } from './useBoardKeys';
 import { useSelection, type EndEditNext } from './useSelection';
+import { useTool } from './useTool';
 import { useTransformGesture } from './useTransformGesture';
 import { UndoContext, useUndo, useUndoController, type UndoFactory } from './useUndo';
 import { BoardViewport } from '../canvas/BoardViewport';
@@ -24,6 +26,8 @@ import { canZoomIn, canZoomOut, screenToWorld, zoomPercent, type Point, type Siz
 import { installTestHooks } from '../canvas/testHooks';
 import { useCamera } from '../canvas/useCamera';
 import { getObjectType } from '../objects/registry';
+import { textMeasurer } from '../objects/textLayout';
+import { remeasureText } from '../objects/useTextBoxSync';
 import { ConnectionStatus } from '../sync/ConnectionStatus';
 import type { ConnectionState } from '../sync/connectBoard';
 
@@ -36,6 +40,13 @@ export function canEdit(state: ConnectionState): boolean {
 }
 
 const UNMEASURED: Size = { width: 0, height: 0 };
+/**
+ * Recorded as `createdBy` on new text objects. Identity (story 6) is not part of this build, so
+ * each tab gets an anonymous guest id.
+ */
+function newGuestId(): string {
+  return `g_${crypto.randomUUID()}`;
+}
 const HALF = 2;
 
 /** Creation order: a stable DOM order, so stacking changes never move an object's element. */
@@ -66,9 +77,12 @@ export function Board({ boardId, children, createUndoController }: BoardProps) {
   // Story 8: this tab's own history for this board document (session only).
   const history = useUndoController(doc, createUndoController);
   const undoControls = useUndo(history, editable);
+  // Story 9: this viewer's active tool (Select or Text).
+  const { tool, setTool } = useTool(editable);
+  const [authorId] = useState(newGuestId);
 
-  const stateRef = useRef({ selection, camera, viewport, editable, history });
-  stateRef.current = { selection, camera, viewport, editable, history };
+  const stateRef = useRef({ selection, camera, viewport, editable, history, authorId });
+  stateRef.current = { selection, camera, viewport, editable, history, authorId };
 
   /** Runs one user action as exactly one undo step (undo.steps). */
   const asStep = useCallback(<T,>(action: () => T): T => {
@@ -100,16 +114,6 @@ export function Board({ boardId, children, createUndoController }: BoardProps) {
     },
     [beginEdit],
   );
-
-  useBoardKeys({
-    doc,
-    selection,
-    snapshot: objects,
-    canEdit: editable,
-    onStartEdit: startEdit,
-    undo: undoControls,
-    boundary: history.boundary,
-  });
 
   // Losing the board mid-edit ends the edit (text typed so far is already in the document).
   useEffect(() => {
@@ -150,6 +154,43 @@ export function Board({ boardId, children, createUndoController }: BoardProps) {
     createAt(screenToWorld(cam, { x: size.width / HALF, y: size.height / HALF }));
   }, [createAt]);
 
+  // Text tool click (text.create): new size M text with its top-left at the point, being edited;
+  // the tool goes back to Select.
+  const onToolClick = useCallback(
+    (point: Point) => {
+      const { camera: cam, editable: canWrite, authorId: author } = stateRef.current;
+      setTool('select');
+      if (!canWrite) return;
+      const id = asStep(() => createText(doc, screenToWorld(cam, point), author));
+      if (id) startEdit(id);
+    },
+    [doc, startEdit, asStep, setTool],
+  );
+
+  const onTextSize = useCallback(
+    (id: string, size: TextSize) => {
+      if (!stateRef.current.editable) return;
+      // Size and the re-measured box are one step; the top-left stays put (text.size).
+      asStep(() => {
+        if (setTextSize(doc, id, size)) remeasureText(doc, id, textMeasurer());
+      });
+    },
+    [doc, asStep],
+  );
+
+  useBoardKeys({
+    doc,
+    selection,
+    snapshot: objects,
+    canEdit: editable,
+    onStartEdit: startEdit,
+    undo: undoControls,
+    boundary: history.boundary,
+    tool,
+    setTool,
+    onCreateSticky,
+  });
+
   const onEmptyPointerDown = useCallback(() => {
     if (stateRef.current.selection.editingId !== null) endEdit('unselected');
   }, [endEdit]);
@@ -184,6 +225,8 @@ export function Board({ boardId, children, createUndoController }: BoardProps) {
           onEmptyClick={clear}
           onEmptyDoubleClick={onEmptyDoubleClick}
           marquee={marquee}
+          tool={tool}
+          onToolClick={onToolClick}
         >
           {domOrder.map((obj) => {
             const spec = getObjectType(obj.type);
@@ -218,13 +261,20 @@ export function Board({ boardId, children, createUndoController }: BoardProps) {
             hideHandles={!editable}
           />
         )}
-        <Toolbar onCreateSticky={onCreateSticky} disabled={!editable} undo={undoControls} />
+        <Toolbar
+          onCreateSticky={onCreateSticky}
+          disabled={!editable}
+          undo={undoControls}
+          tool={tool}
+          onTool={setTool}
+        />
         <SelectionBar
           ids={selectedIds}
           snapshot={objects}
           camera={camera}
           onDelete={deleteSelected}
           onColor={onColor}
+          onTextSize={onTextSize}
           readOnly={!editable}
           hidden={editingId !== null || gestureActive}
         />

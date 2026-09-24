@@ -25,6 +25,7 @@ const INERT: UndoController = {
   beginGesture: () => undefined,
   endGesture: () => undefined,
   lastStep: () => null,
+  joinLastStep: (action) => action(),
 };
 
 /**

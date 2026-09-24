@@ -6,6 +6,8 @@ import { worldToScreen, type Camera } from '../canvas/camera';
 import { getObjectType } from '../objects/registry';
 
 const HALF = 2;
+/** Left and right only: for types whose height is never set directly (story 9 text). */
+export const HORIZONTAL_HANDLES: readonly Handle[] = ['e', 'w'];
 
 export const HANDLE_LABELS: Record<Handle, string> = {
   nw: 'Resize top-left',
@@ -58,19 +60,22 @@ export interface SelectionOverlayProps {
 
 /**
  * Screen-space bounding box around the selection with 8 resize handles of HANDLE_SIZE_PX at
- * every zoom. Handles are hidden when no selected type is resizable. The box itself never
+ * every zoom (only left and right when every selected type has `handles: 'horizontal'`). Handles are hidden when no selected type is resizable. The box itself never
  * takes pointer events, so objects under it stay clickable.
  */
 export function SelectionOverlay({ ids, snapshot, camera, onHandlePointerDown, hideHandles = false }: SelectionOverlayProps) {
   const box = selectionScreenBox(ids, snapshot, camera);
   if (!box) return null;
-  const resizable = selectedObjects(ids, snapshot).some((o) => getObjectType(o.type)?.resizable);
+  const selected = selectedObjects(ids, snapshot);
+  const resizable = selected.some((o) => getObjectType(o.type)?.resizable);
+  // Story 9: only the side handles when every selected type's height follows its content.
+  const handles = selected.every((o) => getObjectType(o.type)?.handles === 'horizontal') ? HORIZONTAL_HANDLES : HANDLES;
   const style: CSSProperties = { left: box.x, top: box.y, width: box.width, height: box.height };
   return (
     <div className="selection-overlay" data-testid="selection-box" style={style}>
       {resizable &&
         !hideHandles &&
-        HANDLES.map((h) => {
+        handles.map((h) => {
           const [fx, fy] = HANDLE_POSITION[h];
           const handleStyle: CSSProperties = {
             left: fx * box.width - HANDLE_SIZE_PX / HALF,

@@ -20,7 +20,7 @@ import {
   type Rect,
 } from '../../shared/geometry';
 import type { Camera } from '../canvas/camera';
-import { getObjectType } from '../objects/registry';
+import { getObjectType, type ResizeBehavior } from '../objects/registry';
 import type { Selection } from './useSelection';
 
 /** Only the primary (left) mouse button selects, moves or resizes. */
@@ -142,26 +142,46 @@ export function useTransformGesture(opts: TransformGestureOptions): TransformGes
     }
     const box = press.startBox;
     if (!box || press.handle === null) return;
+    const byId = new Map(snapshot.map((o) => [o.id, o]));
     const types = new Map(snapshot.map((o) => [o.id, getObjectType(o.type)]));
     const specs = alive.map(([id]) => types.get(id));
-    const aspect = latest.shift || specs.some((s) => s?.aspectLocked);
-    const resizable = alive.filter(([id]) => types.get(id)?.resizable);
+    const single = alive.length === 1;
+    const behaviorOf = (id: string): ResizeBehavior => {
+      const spec = types.get(id);
+      const obj = byId.get(id);
+      if (!spec?.resizable || !obj) return 'position';
+      return spec.resizeBehavior?.(obj, single) ?? 'size';
+    };
+    // Types whose height follows their content (story 9 text) never lock the aspect ratio.
+    const horizontalOnly = specs.every((spec) => spec?.handles === 'horizontal');
+    const aspect = !horizontalOnly && (latest.shift || specs.some((s) => s?.aspectLocked));
+    // Limits come from what actually changes size: a 'width' object constrains only its width.
+    const limited: [string, Rect][] = [];
+    for (const [id, r] of alive) {
+      const behavior = behaviorOf(id);
+      if (behavior === 'size') limited.push([id, r]);
+      else if (behavior === 'width') limited.push([id, { ...r, height: 0 }]);
+    }
     const wanted = scaleBetween(box, resizeRect(box, press.handle, latest.delta, aspect));
     const scale = clampScale(
       wanted,
-      resizable.map(([, r]) => r),
-      resizable.map(([id]) => types.get(id)?.minSize ?? 0),
+      limited.map(([, r]) => r),
+      limited.map(([id]) => types.get(id)?.minSize ?? 0),
       MAX_OBJECT_SIZE_WORLD,
     );
     const target = anchoredRect(box, press.handle, scale);
     const rects = new Map<string, Rect>();
     const positions = new Map<string, Point>();
+    const widths: [string, Rect][] = [];
     for (const [id, r] of alive) {
       const scaled = scaleWithin(r, box, target);
-      if (types.get(id)?.resizable) rects.set(id, scaled);
+      const behavior = behaviorOf(id);
+      if (behavior === 'size') rects.set(id, scaled);
+      else if (behavior === 'width') widths.push([id, scaled]);
       else positions.set(id, { x: scaled.x, y: scaled.y });
     }
     resizeObjects(doc, rects);
+    for (const [id, rect] of widths) types.get(id)?.resizeWidth?.(doc, id, rect);
     if (positions.size > 0) moveObjects(doc, positions);
   }, []);
 

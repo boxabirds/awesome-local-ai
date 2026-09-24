@@ -7,11 +7,20 @@ export interface CameraState { x: number; y: number; zoom: number }
 /** e2e pixel tolerance from the PRD (±1 px). */
 export const PIXEL_TOLERANCE = 1;
 
+/** See seed.ts: wrangler dev's proxy may drop an idle pooled POST; `initialize` is idempotent. */
+const STALE_CONNECTION = 'Network connection lost';
+const INITIALIZE_ATTEMPTS = 3;
+
 /** Opens a new empty board, created through the TEST_HOOKS-only route (story 5). */
 export async function openBoard(page: Page): Promise<void> {
   const boardId = newBoardId();
-  const res = await page.request.post(`/__test/boards/${boardId}/initialize`);
-  expect(res.ok()).toBe(true);
+  for (let attempt = 1; ; attempt += 1) {
+    const res = await page.request.post(`/__test/boards/${boardId}/initialize`);
+    if (res.ok()) break;
+    const body = await res.text();
+    if (attempt < INITIALIZE_ATTEMPTS && body.includes(STALE_CONNECTION)) continue;
+    expect(res.ok(), body.slice(0, 500)).toBe(true);
+  }
   await page.goto(`/b/${boardId}`);
   await expect(page.getByTestId('board-viewport')).toBeVisible();
   await expect(zoomLabel(page)).toHaveText('100%');

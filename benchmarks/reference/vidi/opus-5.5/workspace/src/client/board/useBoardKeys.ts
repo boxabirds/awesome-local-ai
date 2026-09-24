@@ -6,6 +6,7 @@ import type { Point } from '../../shared/geometry';
 import { getObjectType, isRegisteredType } from '../objects/registry';
 import { undoKey } from './undo';
 import type { Selection } from './useSelection';
+import type { Tool } from './useTool';
 
 /** Undo/redo for the shortcuts (story 8): this tab's own history. */
 export interface UndoShortcuts {
@@ -24,6 +25,11 @@ export interface BoardKeysOptions {
   undo?: UndoShortcuts;
   /** Closes the current undo step; called around each delete and nudge (story 8). */
   boundary?(): void;
+  /** The active tool and how to change it (story 9: V, T and Escape). */
+  tool?: Tool;
+  setTool?(t: Tool): void;
+  /** N: a sticky note in the centre of the view (story 9 shortcut for the Sticky note button). */
+  onCreateSticky?(): void;
 }
 
 
@@ -53,6 +59,8 @@ function isButtonTarget(target: EventTarget | null): boolean {
  * mutating keys do nothing when the board cannot be edited. Handled keys are preventDefault-ed
  * (no page text selection, no page scroll, no board pan). Story 8: Ctrl/Cmd+Z undoes and
  * Ctrl/Cmd+Shift+Z / Ctrl+Y redo this person's own steps (not while the board is read-only).
+ * Story 9 tool shortcuts: V Select, T Text (only while editable), N new sticky note at the view
+ * centre, Escape with a tool other than Select back to Select (without clearing the selection).
  */
 export function useBoardKeys(opts: BoardKeysOptions): void {
   const optsRef = useRef(opts);
@@ -61,7 +69,8 @@ export function useBoardKeys(opts: BoardKeysOptions): void {
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.defaultPrevented || e.altKey) return;
-      const { doc, selection, snapshot, canEdit, onStartEdit, undo, boundary } = optsRef.current;
+      const { doc, selection, snapshot, canEdit, onStartEdit, undo, boundary, tool, setTool, onCreateSticky } =
+        optsRef.current;
       // While a note is edited its editor handles undo itself (typing steps in that note).
       if (selection.editingId !== null || isEditableTarget(e.target)) return;
       const ctrlOrMeta = e.ctrlKey || e.metaKey;
@@ -83,7 +92,24 @@ export function useBoardKeys(opts: BoardKeysOptions): void {
       if (ctrlOrMeta) return;
 
       if (e.key === 'Escape') {
+        if (tool !== undefined && tool !== 'select' && setTool) {
+          setTool('select');
+          return;
+        }
         if (selection.ids.size > 0) selection.clear();
+        return;
+      }
+      const letter = e.key.length === 1 ? e.key.toLowerCase() : '';
+      if (letter === 'v' && setTool) {
+        setTool('select');
+        return;
+      }
+      if (letter === 't' && setTool) {
+        if (canEdit) setTool('text');
+        return;
+      }
+      if (letter === 'n' && onCreateSticky) {
+        if (canEdit && !e.repeat) onCreateSticky();
         return;
       }
       if (isButtonTarget(e.target)) return;

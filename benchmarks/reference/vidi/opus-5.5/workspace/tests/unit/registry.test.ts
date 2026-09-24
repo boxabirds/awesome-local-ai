@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { STICKY_MIN_SIZE_WORLD, STICKY_SIZE_WORLD } from '../../src/shared/config';
+import { STICKY_MIN_SIZE_WORLD, STICKY_SIZE_WORLD, TEXT_MIN_WIDTH_WORLD } from '../../src/shared/config';
+import { TextObject } from '../../src/client/objects/TextObject';
 import { getObjectType, registerObjectType } from '../../src/client/objects/registry';
 import { StickyNote } from '../../src/client/objects/StickyNote';
 import type { ObjectSnapshot } from '../../src/shared/board-model';
@@ -44,5 +45,28 @@ describe('sel.registry', () => {
       minSize: TESTBOX_MIN_SIZE,
       editableText: false,
     });
+  });
+});
+
+describe('text registration (story 9)', () => {
+  it('text: resizable, not aspect-locked, TEXT_MIN_WIDTH_WORLD, editable, horizontal handles only', () => {
+    expect(getObjectType('text')).toMatchObject({
+      Component: TextObject,
+      resizable: true,
+      aspectLocked: false,
+      minSize: TEXT_MIN_WIDTH_WORLD,
+      editableText: true,
+      handles: 'horizontal',
+    });
+    expect(getObjectType('sticky')?.handles ?? 'all').toBe('all');
+  });
+
+  it('text resizes its width alone or when fixed-width; auto-width text in a group only moves', () => {
+    const spec = getObjectType('text')!;
+    const auto: ObjectSnapshot = { id: 't', type: 'text', x: 0, y: 0, z: 1, createdAt: 0, widthMode: 'auto' };
+    const fixed: ObjectSnapshot = { ...auto, widthMode: 'fixed' };
+    expect(spec.resizeBehavior?.(auto, true)).toBe('width');
+    expect(spec.resizeBehavior?.(auto, false)).toBe('position');
+    expect(spec.resizeBehavior?.(fixed, false)).toBe('width');
   });
 });

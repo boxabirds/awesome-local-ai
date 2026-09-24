@@ -485,3 +485,83 @@ Decisions made while building without anyone to ask.
   TC-30 alone with this story: p50 252/263 ms, p95 439/421 ms, max 800/697 ms — passed twice;
   without this story (stashed): p50 246 ms, p95 419 ms, max 690 ms. Same distribution; the outlier
   is the local hibernation latency recorded in story 4.
+
+## Story 9: Write free text anywhere on the board
+
+- **Snapshot fields.** `board-model.ts` reads text objects itself (it cannot import
+  `objects/text.ts`, which imports it): `ObjectSnapshot` gained optional `createdBy`, `size` and
+  `widthMode`, and `text` now also applies to text objects. `TextSnapshot` (in `objects/text.ts`)
+  narrows `width`/`height` to required; a malformed text entry without them reads as one empty line.
+  `KNOWN_OBJECT_TYPES` now includes `text`. `objectOf` and `maxZ` are exported for the per-type
+  module. Older clients skip `text` objects (story 7's unknown-type rule), so boards stay compatible.
+- **Extra exports** beyond the contract: `readTextLayoutInput` (text.ts); `remeasureText(doc, id,
+  measure)` and `resizeTextWidth(doc, id, rect, measure)` (useTextBoxSync.ts, the pure parts of the
+  hook used by the toolbar and the gesture); `estimateMeasurer`, `textMeasurer()` (one shared canvas
+  measurer), `fontPxOf`, `linesHeight` (textLayout.ts).
+- **Extra named setting `TEXT_AUTO_WIDTH_PADDING_WORLD = 4`.** TC-07 says auto width is "measured
+  line + padding"; the design names no value. Auto width = min(longest line incl. trailing spaces +
+  padding, TEXT_MAX_AUTO_WIDTH_WORLD); lines wrap only when wider than TEXT_MAX_AUTO_WIDTH_WORLD, so a
+  line of exactly 600 stays one line at width 600 (TC-09). The padding gives the caret room and
+  absorbs canvas-vs-DOM rounding. Estimate fallback ratio `ESTIMATE_GLYPH_WIDTH_RATIO = 0.55`.
+- **Rendering.** The stored box is rendered as is and the browser wraps (`pre-wrap`,
+  `overflow-wrap: break-word`), matching `layoutText`'s greedy word wrap. e2e compares the rendered
+  text height with the stored height in Chromium and Firefox (within 2 units). A trailing newline
+  gets a zero-width space in the display copy so it shows as a line, like in the editor.
+- **Registry.** Besides `handles?: 'all' | 'horizontal'`, `ObjectTypeSpec` gained optional
+  `resizeBehavior(obj, single)` ('size' | 'width' | 'position', default 'size') and
+  `resizeWidth(doc, id, rect)`. Text: alone → 'width' (fixed width, height re-measured, one
+  transaction); in a mixed selection fixed-width text → 'width', auto-width text → 'position'. A
+  'width' object constrains only the width in `clampScale` (its height is passed as 0, so short text
+  never blocks shrinking a group); an all-horizontal selection never locks the aspect ratio (Shift
+  ignored), so a side-handle drag never moves the text vertically.
+- **`TextObject` props** are the registry's `ObjectProps` (it narrows `object` with `isText`), not
+  `ObjectProps & { note: TextSnapshot }`, because the board renders every type the same way.
+- **`TextEditor`** takes the contract's props plus optional `className`, `ariaLabel` and
+  `onLengthChange` (the sticky counter). `StickyTextEditor` is a thin wrapper; story 2's editor tests
+  pass unchanged. `onInput` fires only when the Y.Text actually changed. The text editor is a
+  textarea named "Text".
+- **Empty text removal and undo.** Removal runs when editing ends however it ends (Escape, a click
+  elsewhere, selecting something else), in the text object's layout effect. It must join the edit's
+  last step (key decision 3), but the editor closes the step on unmount and the capture timeout may
+  have passed, so `UndoController` gained `joinLastStep(action)` (re-opens the newest step by setting
+  `Y.UndoManager.lastChange`, suspends timeout grouping, closes the step afterwards). Erasing all
+  characters then leaving → one undo brings the text back with its characters. A new text abandoned
+  without typing: creation and removal are one step with no net effect, so undo never restores an
+  invisible object (that press consumes the empty step, as story 8's "one press = one step").
+  Nothing is removed while the board cannot be edited.
+- **Tool shortcuts** (V, T, N, Escape) are in `useBoardKeys`, ignored while any text is edited, when
+  focus is in a form field, and with Ctrl/Cmd/Alt (Ctrl+V stays paste). **N did not exist before**
+  (story 2 only had the button and double-click); it is added here as the PRD describes it, creating a
+  note at the view centre (key repeat ignored). Escape with the Text tool returns to Select without
+  clearing the selection; otherwise Escape clears the selection as before.
+- **Text tool click.** `BoardViewport` takes the press in the capture phase (so presses on objects
+  never reach them: no selection, drag, pan or marquee) and creates on release at the pressed point,
+  so the new editor's focus is not taken away by the press. Creating switches the tool back to Select
+  first; a click with the board not editable creates nothing.
+- **Toolbar.** Select (V) and Text (T) buttons above Sticky note, `aria-pressed`, Text disabled when
+  the board cannot be edited. Story 8's TC-18 checked the exact button list of the Tools bar; its
+  expectation now includes the two new buttons (nothing else changed). The Sticky note button keeps
+  its name and tooltip.
+- **Text toolbar.** `role="toolbar"` named "Text"; size buttons' accessible names are their visible
+  labels S, M, L, XL (with `aria-pressed`) and tooltips "Small text" … "Extra large text"; "Delete text".
+  Hidden while the board cannot be edited (like the note toolbar); the size change and its re-measure
+  are one undo step.
+- **Accessibility.** Text objects are `role="group"`, `aria-roledescription="text"`, named by their
+  content ("Empty text" while a new one has no characters), Tab-focusable (focus selects).
+- **`createdBy`.** Identity (story 6) is not in this build; each tab records an anonymous
+  `g_<uuid>` guest id.
+- **Component tests** stub `HTMLCanvasElement.getContext` (jsdom has no canvas and logs "not
+  implemented"), so board-level tests use the estimate measurer; unit/hook tests use a fake measurer.
+- **Test helper change.** e2e `openBoard` retries the idempotent `initialize` hook on wrangler dev's
+  "Network connection lost" proxy error (as `seed.ts` already did), which failed TC-31 once.
+- **E2E results.** `tests/e2e/text.spec.ts` (TC-26–TC-31) passes in Chromium and Firefox (TC-29/30
+  included); WebKit still cannot launch on the build machine. In the first full run one text test
+  timed out in the shared `openBoard` helper with the page stuck on "Opening board…" for 5 s (board
+  existence check under load on the single local workerd); the full re-run passed 86/86 (+3 existing
+  skips).
+- **Red phase not observed.** Tests were written alongside the implementation and first run against
+  it, not against "not implemented" stubs; single story commit as before.
+- **Not covered** (design): font loading flashes, IME in text objects (shares the editor code with
+  stickies), right-to-left text. Remote clients render the stored box; if two people type into the
+  same text the last box written wins, which can briefly differ from the merged text until the next
+  local change.

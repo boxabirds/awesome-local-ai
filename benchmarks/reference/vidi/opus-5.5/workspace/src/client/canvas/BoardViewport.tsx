@@ -1,5 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import { DRAG_THRESHOLD_PX, GRID_SPACING_WORLD } from '../../shared/config';
+import type { Tool } from '../board/useTool';
 import type { Point, Size } from './camera';
 import type { CameraController } from './useCamera';
 
@@ -43,6 +44,13 @@ export interface BoardViewportProps {
   onEmptyDoubleClick?(point: Point): void;
   /** Shift+press on empty board space draws a selection rectangle instead of panning. */
   marquee?: MarqueeHandlers;
+  /** The active tool (story 9). With a creation tool the board shows its cursor and never pans. */
+  tool?: Tool;
+  /**
+   * A click (press and release) anywhere on the board, objects included, while a creation tool
+   * is active; `point` is where it was pressed, relative to the board area's top-left.
+   */
+  onToolClick?(point: Point): void;
 }
 
 function positiveModulo(value: number, modulus: number): number {
@@ -65,7 +73,11 @@ function isEditableTarget(target: EventTarget | null): boolean {
  * a world layer positioned by the camera, and pointer / wheel / pinch / keyboard navigation.
  */
 export function BoardViewport(props: BoardViewportProps) {
-  const { controller, onResize, children, onEmptyPointerDown, onEmptyClick, onEmptyDoubleClick, marquee } = props;
+  const { controller, onResize, children, onEmptyPointerDown, onEmptyClick, onEmptyDoubleClick, marquee, tool = 'select', onToolClick } =
+    props;
+  const creating = tool !== 'select' && onToolClick !== undefined;
+  /** A press made with a creation tool, waiting for its release. */
+  const toolPressRef = useRef<{ pointerId: number; point: Point } | null>(null);
   const elementRef = useRef<HTMLDivElement>(null);
   const [mode, setMode] = useState<Mode>('idle');
   const pointerIdRef = useRef<number | null>(null);
@@ -195,6 +207,28 @@ export function BoardViewport(props: BoardViewportProps) {
     modeRef.current = 'idle';
   };
 
+  // Creation tools take every press on the board first, even on top of objects (text.create):
+  // no pan, no marquee, no object selection or drag.
+  const onPointerDownCapture = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (!creating) return;
+    e.stopPropagation();
+    if (e.button !== PRIMARY_BUTTON || toolPressRef.current !== null) return;
+    toolPressRef.current = { pointerId: e.pointerId, point: localPoint(e) };
+    try {
+      e.currentTarget.setPointerCapture?.(e.pointerId);
+    } catch {
+      // The release still arrives at the board without capture.
+    }
+  };
+
+  const onPointerUpCapture = (e: React.PointerEvent<HTMLDivElement>) => {
+    const press = toolPressRef.current;
+    if (!press || press.pointerId !== e.pointerId) return;
+    e.stopPropagation();
+    toolPressRef.current = null;
+    if (e.type === 'pointerup' && creating) onToolClick?.(press.point);
+  };
+
   const onPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
     // Only empty board space starts a pan; objects in later stories handle their own presses.
     if (e.target !== elementRef.current) return;
@@ -277,11 +311,15 @@ export function BoardViewport(props: BoardViewportProps) {
   return (
     <div
       ref={elementRef}
-      className={`board-viewport board-viewport--${mode}`}
+      className={`board-viewport board-viewport--${mode}${creating ? ` board-viewport--tool-${tool}` : ''}`}
       data-testid="board-viewport"
       data-mode={mode}
+      data-tool={tool}
       role="application"
       aria-label="Board"
+      onPointerDownCapture={onPointerDownCapture}
+      onPointerUpCapture={onPointerUpCapture}
+      onPointerCancelCapture={onPointerUpCapture}
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}
       onPointerUp={onPointerEnd}

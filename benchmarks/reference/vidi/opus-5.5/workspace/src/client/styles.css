@@ -597,3 +597,105 @@ html, body, #root {
   font-size: 13px;
   color: var(--muted);
 }
+
+/* ---- Tools and free text (story 9) ---- */
+
+.toolbar__button[aria-pressed='true'] {
+  background: #e3ebfd;
+  border-color: var(--focus);
+  color: var(--focus);
+}
+
+/* Text tool: a text cursor everywhere over the board, objects included. */
+.board-viewport--tool-text,
+.board-viewport--tool-text * {
+  cursor: text !important;
+}
+
+/* Plain text, no fill, border or shadow. Box = stored width/height (inline); font inline. */
+.text-object {
+  position: absolute;
+  left: 0;
+  top: 0;
+  cursor: default;
+  outline: 0 solid var(--focus);
+  touch-action: none;
+  color: var(--ink);
+  -webkit-font-smoothing: antialiased;
+}
+
+.text-object:focus-visible:not(.text-object--selected) {
+  outline: 2px dashed var(--focus);
+  outline-offset: 2px;
+}
+
+.text-object--selected {
+  outline-style: solid;
+  outline-color: var(--focus);
+}
+
+.text-object--dragging { cursor: grabbing; }
+
+.text-object__text,
+.text-object__editor {
+  margin: 0;
+  padding: 0;
+  font: inherit;
+  line-height: inherit;
+  letter-spacing: normal;
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
+  word-break: normal;
+  text-align: left;
+}
+
+.text-object__text {
+  width: 100%;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.text-object--editing .text-object__text { visibility: hidden; }
+
+.text-object__editor {
+  position: absolute;
+  left: 0;
+  top: 0;
+  display: block;
+  border: 0;
+  outline: none;
+  resize: none;
+  overflow: hidden;
+  background: transparent;
+  color: inherit;
+  user-select: text;
+  -webkit-user-select: text;
+  cursor: text;
+}
+
+.text-toolbar__size {
+  min-width: 28px;
+  height: 28px;
+  padding: 0 6px;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ink);
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.text-toolbar__size:hover { background: #efefec; }
+
+.text-toolbar__size[aria-pressed='true'] {
+  background: #e3ebfd;
+  border-color: var(--focus);
+  color: var(--focus);
+}
+
+.text-toolbar__size:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 1px;
+}

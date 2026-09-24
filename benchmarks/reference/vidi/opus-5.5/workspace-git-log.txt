@@ -1,3 +1,50 @@
+commit 54f342b94c76bd3ec1fc39a53577fcc460a6926a
+Author: opus-5.5-reference <reference@vidi.invalid>
+Date:   Fri Sep 25 00:58:55 2026 +0100
+
+    story 9: Write free text anywhere on the board
+    
+    Co-Authored-By: Claude Opus 5.5 (1M context) <noreply@anthropic.com>
+
+ NOTES.md                                |  80 ++++++++
+ src/client/board/Board.tsx              |  78 ++++++--
+ src/client/board/SelectionBar.tsx       |  25 ++-
+ src/client/board/SelectionOverlay.tsx   |  11 +-
+ src/client/board/Toolbar.tsx            |  49 ++++-
+ src/client/board/undo.ts                |  19 ++
+ src/client/board/useBoardKeys.ts        |  28 ++-
+ src/client/board/useTool.ts             |  29 +++
+ src/client/board/useTransformGesture.ts |  32 +++-
+ src/client/board/useUndo.ts             |   1 +
+ src/client/canvas/BoardViewport.tsx     |  42 +++-
+ src/client/objects/StickyText.ts        |  62 +-----
+ src/client/objects/StickyTextEditor.tsx | 153 ++-------------
+ src/client/objects/TextEditor.tsx       | 179 +++++++++++++++++
+ src/client/objects/TextObject.tsx       | 164 ++++++++++++++++
+ src/client/objects/TextToolbar.tsx      |  69 +++++++
+ src/client/objects/registry.tsx         |  38 +++-
+ src/client/objects/textLayout.ts        | 165 ++++++++++++++++
+ src/client/objects/useTextBoxSync.ts    |  54 ++++++
+ src/client/styles.css                   | 102 ++++++++++
+ src/shared/board-model.ts               |  60 +++++-
+ src/shared/config.ts                    |  22 +++
+ src/shared/objects/text.ts              | 163 ++++++++++++++++
+ src/shared/text-edit.ts                 |  64 +++++++
+ tests/component/TextBoxSync.test.tsx    | 171 +++++++++++++++++
+ tests/component/TextObject.test.tsx     | 305 +++++++++++++++++++++++++++++
+ tests/component/Tool.test.tsx           | 185 ++++++++++++++++++
+ tests/component/UndoControls.test.tsx   |   5 +-
+ tests/component/setup.ts                |   2 +
+ tests/component/textHelpers.tsx         |  83 ++++++++
+ tests/e2e/helpers/board.ts              |  13 +-
+ tests/e2e/text.spec.ts                  | 327 ++++++++++++++++++++++++++++++++
+ tests/fixtures/texts.ts                 |  17 ++
+ tests/unit/registry.test.ts             |  26 ++-
+ tests/unit/text-layout.test.ts          | 121 ++++++++++++
+ tests/unit/text-model.test.ts           | 166 ++++++++++++++++
+ tests/unit/undo-boundaries.test.ts      |  27 +++
+ 37 files changed, 2903 insertions(+), 234 deletions(-)
+
 commit 9b054f976b8af8b6894555f82446625028811a1a
 Author: opus-5.5-reference <reference@vidi.invalid>
 Date:   Fri Sep 25 00:34:35 2026 +0100

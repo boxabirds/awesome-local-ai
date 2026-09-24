@@ -1,10 +1,14 @@
 import type { ComponentType, PointerEvent as ReactPointerEvent } from 'react';
 import type * as Y from 'yjs';
 import { objectBounds, type ObjectSnapshot } from '../../shared/board-model';
-import { STICKY_MIN_SIZE_WORLD } from '../../shared/config';
-import type { Point } from '../../shared/geometry';
+import { STICKY_MIN_SIZE_WORLD, TEXT_MIN_WIDTH_WORLD } from '../../shared/config';
+import type { Point, Rect } from '../../shared/geometry';
+import { isText, TEXT_TYPE } from '../../shared/objects/text';
 import type { EndEditNext } from '../board/useSelection';
 import { StickyNote } from './StickyNote';
+import { TextObject } from './TextObject';
+import { textMeasurer } from './textLayout';
+import { resizeTextWidth } from './useTextBoxSync';
 
 /**
  * Props every object component receives from the board. Selection, moving, resizing and
@@ -31,6 +35,13 @@ export interface ObjectProps {
   onEndEdit(next: EndEditNext): void;
 }
 
+/**
+ * How a resize gesture changes one object: 'size' scales its box (default for resizable
+ * types), 'width' scales only its width and lets the type set the height (resizeWidth),
+ * 'position' only repositions it proportionally.
+ */
+export type ResizeBehavior = 'size' | 'width' | 'position';
+
 /** The only per-type knobs; everything else about selection and transforms is shared. */
 export interface ObjectTypeSpec {
   Component: ComponentType<ObjectProps>;
@@ -39,6 +50,12 @@ export interface ObjectTypeSpec {
   /** Smallest width and height (world units) a resize may produce. */
   minSize: number;
   editableText: boolean;
+  /** Which selection handles the type offers (story 9): all 8 (default) or left/right only. */
+  handles?: 'all' | 'horizontal';
+  /** Per-object resize behaviour; `single` is true when it is the only object resized. Default 'size'. */
+  resizeBehavior?(obj: ObjectSnapshot, single: boolean): ResizeBehavior;
+  /** Applies a 'width' resize: top-left and width from `rect` (its height is ignored). */
+  resizeWidth?(doc: Y.Doc, id: string, rect: Rect): void;
   hitTest(obj: ObjectSnapshot, worldPoint: Point): boolean;
 }
 
@@ -71,5 +88,22 @@ registerObjectType('sticky', {
   aspectLocked: true,
   minSize: STICKY_MIN_SIZE_WORLD,
   editableText: true,
+  hitTest: boundsHitTest,
+});
+
+/**
+ * Free text (story 9). Height always follows the content, so only the side handles show. Alone,
+ * a side-handle drag fixes the width; in a mixed selection text is repositioned and only
+ * fixed-width text has its width scaled. Font size never changes through handles.
+ */
+registerObjectType(TEXT_TYPE, {
+  Component: TextObject,
+  resizable: true,
+  aspectLocked: false,
+  minSize: TEXT_MIN_WIDTH_WORLD,
+  editableText: true,
+  handles: 'horizontal',
+  resizeBehavior: (obj, single) => (single || (isText(obj) && obj.widthMode === 'fixed') ? 'width' : 'position'),
+  resizeWidth: (doc, id, rect) => resizeTextWidth(doc, id, rect, textMeasurer()),
   hitTest: boundsHitTest,
 });
