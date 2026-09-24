@@ -146,13 +146,18 @@ def mirror(ws: Path, dest: Path) -> None:
     (dest.parent / "workspace-git-log.txt").write_text(log)
 
 
-def _truncate(v):
-    if isinstance(v, str) and len(v) > EVENT_STRING_MAX:
-        return v[:EVENT_STRING_MAX] + f"…[truncated {len(v) - EVENT_STRING_MAX} chars]"
+# If a compacted log is still over PUBLISH_MAX_BYTES, strings are cut further, in these steps;
+# every event is kept, only long strings get shorter.
+EVENT_STRING_STEPS = (EVENT_STRING_MAX, 500, 200, 80)
+
+
+def _truncate(v, limit: int = EVENT_STRING_MAX):
+    if isinstance(v, str) and len(v) > limit:
+        return v[:limit] + f"…[truncated {len(v) - limit} chars]"
     if isinstance(v, dict):
-        return {k: _truncate(x) for k, x in v.items()}
+        return {k: _truncate(x, limit) for k, x in v.items()}
     if isinstance(v, list):
-        return [_truncate(x) for x in v]
+        return [_truncate(x, limit) for x in v]
     return v
 
 
@@ -190,9 +195,12 @@ def make_publishable(run: Path) -> list[str]:
             continue
         if f.name.endswith(".compact.jsonl.gz"):
             with gzip.open(f, "rt") as src:
-                lines = [_redact(json.dumps(_truncate(json.loads(l)))) for l in src if l.strip()]
-            with gzip.open(f, "wt") as dst:
-                dst.write("\n".join(lines) + "\n")
+                events = [json.loads(l) for l in src if l.strip()]
+            for limit in EVENT_STRING_STEPS:
+                with gzip.open(f, "wt") as dst:
+                    dst.write("\n".join(_redact(json.dumps(_truncate(e, limit))) for e in events) + "\n")
+                if f.stat().st_size <= PUBLISH_MAX_BYTES:
+                    break
         elif f.suffix in TEXT_SUFFIXES:
             try:
                 t = f.read_text()
