@@ -450,3 +450,20 @@ def test_parse_footprint_reads_current_and_peak():
     assert parse_footprint_gb(out) == (92.0, 99.0)
     assert parse_footprint_gb("    phys_footprint: 1264 KB\n    phys_footprint_peak: 512 MB\n") == (1264 / 1024 ** 2, 0.5)
     assert parse_footprint_gb("") == (None, None)
+
+
+def test_oversized_compact_log_is_shrunk_below_the_limit(tmp_path):
+    """canvas-pi-01 story 4: 408 steps compacted to 836 KB, over the 512 KB repo limit."""
+    import gzip, json as _json, os
+    from drive import make_publishable, PUBLISH_MAX_BYTES
+    run = tmp_path / "run"
+    (run / "stories" / "04").mkdir(parents=True)
+    gz = run / "stories" / "04" / "agent-events.compact.jsonl.gz"
+    with gzip.open(gz, "wt") as f:
+        for i in range(4000):
+            f.write(_json.dumps({"type": "message_end", "i": i, "text": os.urandom(900).hex()[:1900]}) + "\n")
+    assert gz.stat().st_size > PUBLISH_MAX_BYTES
+    assert make_publishable(run) == []
+    assert gz.stat().st_size <= PUBLISH_MAX_BYTES
+    kept = [_json.loads(l) for l in gzip.open(gz, "rt")]
+    assert len(kept) == 4000 and all(e["type"] == "message_end" for e in kept)   # every event kept, strings shortened
