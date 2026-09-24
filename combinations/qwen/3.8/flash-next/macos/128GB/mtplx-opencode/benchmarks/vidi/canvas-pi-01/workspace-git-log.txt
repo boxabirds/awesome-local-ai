@@ -1,3 +1,35 @@
+commit c1c81d62c3e725617f299cbb95b40b9aea6958b7
+vidi-agent  Thu Sep 24 17:38:29 2026 +0100
+
+    Story 7: multi-select, group move, group delete, keyboard + e2e
+
+
+ .../tasks.md                                       |  57 +++-
+ src/client/board/BoardShell.tsx                    | 195 +++++++++---
+ src/client/board/Marquee.tsx                       | 106 +++++++
+ src/client/board/SelectionBar.tsx                  |  52 ++++
+ src/client/board/selectionReducer.ts               | 130 ++++++++
+ src/client/board/transformController.ts            | 273 ++++++++++++++++
+ src/client/board/useSelection.ts                   | 116 ++++---
+ src/client/canvas/BoardViewport.tsx                |  69 ++++-
+ src/client/objects/StickyNote.tsx                  | 176 ++++-------
+ src/client/objects/registry.tsx                    |  83 +++++
+ src/client/objects/useObjectInteraction.ts         | 144 +++++++++
+ src/shared/board-model.ts                          | 235 +++++++++++++-
+ src/shared/config.ts                               |  22 ++
+ src/shared/geometry.ts                             | 178 +++++++++++
+ tests/component/multiselect.test.tsx               | 344 +++++++++++++++++++++
+ tests/e2e/multiselect-full-capacity.spec.ts        | 221 +++++++++++++
+ tests/e2e/multiselect.spec.ts                      | 320 +++++++++++++++++++
+ tests/fixtures/testbox.tsx                         |  44 +++
+ tests/story-7/README.md                            |  78 +++++
+ tests/story-7/tc-cases.json                        |  51 +++
+ tests/story-7/tc-cases.md                          |  67 ++++
+ tests/unit/board-model-group.test.ts               | 221 +++++++++++++
+ tests/unit/geometry.test.ts                        | 178 +++++++++++
+ tests/unit/registry.test.ts                        |  73 +++++
+ tests/unit/selection-reducer.test.ts               | 106 +++++++
+ 25 files changed, 3296 insertions(+), 243 deletions(-)
 commit b4f106d85ca58ebb040e19a773deec2891e95f14
 vidi-agent  Thu Sep 24 14:51:42 2026 +0100
 
