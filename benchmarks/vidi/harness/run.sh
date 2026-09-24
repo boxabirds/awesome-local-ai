@@ -19,6 +19,7 @@ REASONING_EFFORT="${REASONING_EFFORT:-low}"
 SERVER_READY_TIMEOUT_S=900
 POLL_S=5
 THERMAL_TIMEOUT_S=1800
+KIB_PER_GIB=1048576
 
 usage() { sed -n '2,11p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'; }
 
@@ -70,11 +71,13 @@ fi
 echo "sandbox preflight (agent toolchain inside the sandbox)"
 (cd "$HARNESS" && uv run --quiet preflight.py) || { echo "preflight failed; not starting the run" >&2; exit 1; }
 
-echo "cooling to thermal nominal"
-python3 -c "
+if [[ "$(uname)" == Darwin ]]; then
+  echo "cooling to thermal nominal"
+  python3 -c "
 import sys; sys.path.insert(0, '$REPO_ROOT/benchmarks')
 from thermal import wait_for_thermal
 print('  thermal=' + wait_for_thermal('nominal', timeout_s=$THERMAL_TIMEOUT_S))"
+fi  # elsewhere the driver waits for fit conditions (hostenv) before every story
 
 echo "starting $SERVER_CMD on :$BENCH_PORT (effort=$REASONING_EFFORT)"
 # New session so the whole server process tree can be stopped (macOS has no setsid(1)).
@@ -102,6 +105,13 @@ else
   AGENT_URL="http://127.0.0.1:$BENCH_PORT/v1"
 fi
 
+if [[ "$(uname)" == Darwin ]]; then
+  HOST_DESC="$(sysctl -n machdep.cpu.brand_string) $(( $(sysctl -n hw.memsize) / 1073741824 ))GB"
+else
+  GPU_DESC="$(nvidia-smi --query-gpu=name,memory.total --format=csv,noheader 2>/dev/null | head -1 | tr -d ',')"
+  HOST_DESC="$(lscpu | sed -n 's/^Model name: *//p') $(( $(awk '/MemTotal/ {print $2}' /proc/meminfo) / KIB_PER_GIB ))GB${GPU_DESC:+, $GPU_DESC}"
+fi
+
 SERVER_LOG=""
 [[ "$BACKEND" == mtplx ]] && SERVER_LOG="$HOME/.mtplx/logs/request-log-$BENCH_PORT.jsonl"
 case "$CLIENT_NAME" in
@@ -116,7 +126,7 @@ curl -s -m 5 "127.0.0.1:$BENCH_PORT/health" > "$RUN_DIR/server-health.json" || t
 cat > "$RUN_DIR/run.json" <<JSON
 {"install_id": "$INSTALL_ID", "combination": "$COMBINATION", "model_id": "$MODEL_ID",
  "scope": "$SCOPE", "metered": $METER, "reasoning_effort": "$REASONING_EFFORT", "context_limit": $CONTEXT_LIMIT,
- "output_limit": $OUTPUT_LIMIT, "backend_version": "$( [[ "$BACKEND" == mtplx ]] && mtplx --version 2>/dev/null | awk '{print $NF}' )", "mtplx_memory_limit_bytes": "${MTPLX_MEMORY_LIMIT_BYTES:-default (75% of RAM)}", "compact_at": "${COMPACT_AT:-client default}", "client": "$CLIENT_NAME", "client_version": "$CLIENT_VERSION", "backend": "$BACKEND", "host": "$(sysctl -n machdep.cpu.brand_string) $(( $(sysctl -n hw.memsize) / 1073741824 ))GB",
+ "output_limit": $OUTPUT_LIMIT, "backend_version": "$( [[ "$BACKEND" == mtplx ]] && mtplx --version 2>/dev/null | awk '{print $NF}' )", "mtplx_memory_limit_bytes": "$( [[ "$BACKEND" == mtplx ]] && echo "${MTPLX_MEMORY_LIMIT_BYTES:-default}" )", "compact_at": "${COMPACT_AT:-client default}", "client": "$CLIENT_NAME", "client_version": "$CLIENT_VERSION", "backend": "$BACKEND", "host": "$HOST_DESC",
  "harness_commit": "$(git -C "$REPO_ROOT" rev-parse --short HEAD)", "started_at": "$(date -u +%Y-%m-%dT%H:%M:%SZ)"}
 JSON
 

@@ -467,3 +467,30 @@ def test_oversized_compact_log_is_shrunk_below_the_limit(tmp_path):
     assert gz.stat().st_size <= PUBLISH_MAX_BYTES
     kept = [_json.loads(l) for l in gzip.open(gz, "rt")]
     assert len(kept) == 4000 and all(e["type"] == "message_end" for e in kept)   # every event kept, strings shortened
+
+
+def test_sampler_aborts_when_free_memory_runs_out(monkeypatch):
+    """The external watchdog's free-memory stop, now inside the harness (24 Sep design: no operator loop)."""
+    import time, drive
+    monkeypatch.setattr(drive, "CONDITION_POLL_S", 0.01)
+    killed = []
+    monkeypatch.setattr(drive, "kill_pids", lambda pids: killed.append(pids))
+    monkeypatch.setattr(drive, "workspace_pids", lambda ws, spare_agent=False: {123})
+    monkeypatch.setattr(drive, "swap_used_gb", lambda: 1.0)
+    monkeypatch.setattr(drive, "mem_free_pct", lambda: drive.MEM_FREE_ABORT_PCT - 1)
+    monkeypatch.setattr(drive, "conditions", lambda: {"ac": True, "low_power": False, "thermal": "nominal"})
+    s = drive.ConditionSampler(ws=drive.Path("/tmp/ws"))
+    s.start()
+    time.sleep(0.1)
+    res = s.stop()
+    assert res["aborted_memory"] and killed and drive.RUN_ABORT.is_set()
+    assert res["free_min_pct"] == drive.MEM_FREE_ABORT_PCT - 1
+    drive.RUN_ABORT.clear()
+
+
+def test_unmonitored_thermal_is_fit_and_not_throttled():
+    """A Linux host with no thermal source must neither block every story nor count as throttled."""
+    from drive import conditions_ok, summarise_conditions
+    c = {"ac": True, "low_power": False, "thermal": "unmonitored"}
+    assert conditions_ok(c)
+    assert summarise_conditions(2, [])["throttled_share"] == 0.0
