@@ -1,0 +1,14 @@
+{
+  "model": "claude-opus-5-5 (Claude Code subagent)",
+  "scope": "canvas",
+  "stories": {
+    "1": {
+      "started": 1790283861.463107,
+      "agent_minutes": 7.9,
+      "subagent_tokens": 120500,
+      "tool_uses": 28,
+      "commit": "709644d",
+      "finished": 1790284337.233662
+    }
+  }
+}
