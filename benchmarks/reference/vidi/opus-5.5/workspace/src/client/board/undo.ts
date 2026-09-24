@@ -41,6 +41,12 @@ export interface UndoController {
   endGesture(): void;
   /** Identity of the newest undo step (null when empty); stable until that step is undone or dropped. */
   lastStep(): object | null;
+  /**
+   * Runs `action` so that its changes join the newest undo step instead of starting a new one
+   * (story 9: removing text left empty belongs to the edit that emptied it, so one undo brings
+   * the text back). Closes the step afterwards.
+   */
+  joinLastStep<T>(action: () => T): T;
 }
 
 export interface UndoOptions {
@@ -157,5 +163,18 @@ export function createUndo(doc: Y.Doc, opts: UndoOptions = {}): UndoController {
       manager.stopCapturing();
     },
     lastStep: () => (destroyed ? null : (manager.undoStack[manager.undoStack.length - 1] ?? null)),
+    joinLastStep<T>(action: () => T): T {
+      const saved = inGesture;
+      // Y.UndoManager appends to the newest stack item while lastChange > 0 (the capture
+      // timeout is infinite); stopCapturing() sets it to 0. Re-open the newest step.
+      if (!destroyed && manager.undoStack.length > 0) manager.lastChange = Date.now();
+      inGesture = true;
+      try {
+        return action();
+      } finally {
+        inGesture = saved;
+        manager.stopCapturing();
+      }
+    },
   };
 }

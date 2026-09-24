@@ -1,6 +1,8 @@
 import type { CSSProperties } from 'react';
 import { isSticky, type ObjectSnapshot } from '../../shared/board-model';
-import type { StickyColor } from '../../shared/config';
+import type { StickyColor, TextSize } from '../../shared/config';
+import { isText } from '../../shared/objects/text';
+import { TextToolbar } from '../objects/TextToolbar';
 import type { Camera } from '../canvas/camera';
 import { NoteToolbar } from '../objects/NoteToolbar';
 import { selectedObjects, selectionScreenBox } from './SelectionOverlay';
@@ -21,6 +23,8 @@ export interface SelectionBarProps {
   camera: Camera;
   /** Recolours the single selected sticky (story 2 note toolbar). */
   onColor(id: string, color: StickyColor): void;
+  /** Changes the single selected text object's size (story 9 text toolbar). */
+  onTextSize?(id: string, size: TextSize): void;
   /** Board cannot be edited: no note toolbar, and the Delete button is disabled. */
   readOnly?: boolean;
   /** Hidden while a move/resize is in progress or text is being edited (announcer stays). */
@@ -29,10 +33,19 @@ export interface SelectionBarProps {
 
 /**
  * Above the selection: "N selected" and a Delete button, or story 2's note toolbar when exactly
- * one sticky note is selected. A visually hidden polite live region announces the count
+ * one sticky note is selected, or story 9's text toolbar when exactly one text object is. A visually hidden polite live region announces the count
  * whenever the selection changes.
  */
-export function SelectionBar({ ids, snapshot, onDelete, camera, onColor, readOnly = false, hidden = false }: SelectionBarProps) {
+export function SelectionBar({
+  ids,
+  snapshot,
+  onDelete,
+  camera,
+  onColor,
+  onTextSize,
+  readOnly = false,
+  hidden = false,
+}: SelectionBarProps) {
   const selected = selectedObjects(ids, snapshot);
   const count = selected.length;
   const box = selectionScreenBox(ids, snapshot, camera);
@@ -45,6 +58,12 @@ export function SelectionBar({ ids, snapshot, onDelete, camera, onColor, readOnl
       if (!readOnly) {
         bar = (
           <NoteToolbar color={single.color} style={style} onColor={(c) => onColor(single.id, c)} onDelete={onDelete} />
+        );
+      }
+    } else if (single && isText(single) && onTextSize) {
+      if (!readOnly) {
+        bar = (
+          <TextToolbar size={single.size} style={style} onSize={(s) => onTextSize(single.id, s)} onDelete={onDelete} />
         );
       }
     } else {

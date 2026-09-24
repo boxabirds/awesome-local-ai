@@ -8,6 +8,9 @@
  *     meta:    Y.Map { schemaVersion: 1 }
  *     objects: Y.Map<id, Y.Map { type: 'sticky', x, y, width?, height?, color, text: Y.Text, z, createdAt }>
  *
+ * Story 9 adds `type: 'text'` objects (text: Y.Text, size, widthMode, createdBy; see
+ * objects/text.ts). Clients that do not know a type skip it.
+ *
  * Story 7: every object type shares x, y, width, height, z and createdAt. `width`/`height` are
  * additive: stickies saved before story 7 have neither and are STICKY_SIZE_WORLD square; the
  * first resize writes both. Group operations (move, resize, stack, delete) are type-agnostic.
@@ -17,7 +20,17 @@
  * transaction, so they emit no update. Nothing here throws for user-driven input.
  */
 import * as Y from 'yjs';
-import { DEFAULT_STICKY_COLOR, STICKY_COLORS, STICKY_SIZE_WORLD, type StickyColor } from './config';
+import {
+  DEFAULT_STICKY_COLOR,
+  DEFAULT_TEXT_SIZE,
+  STICKY_COLORS,
+  STICKY_SIZE_WORLD,
+  TEXT_AUTO_WIDTH_PADDING_WORLD,
+  TEXT_LINE_HEIGHT,
+  TEXT_SIZES,
+  type StickyColor,
+  type TextSize,
+} from './config';
 import { rectContains, type Point, type Rect } from './geometry';
 
 /** Transaction origin for changes made by this client (story 3 uses it to avoid echo, story 8 for undo). */
@@ -27,12 +40,14 @@ export const SCHEMA_VERSION = 1;
 const META_KEY = 'meta';
 const OBJECTS_KEY = 'objects';
 const STICKY_TYPE = 'sticky';
+/** Free text (story 9); created and changed by objects/text.ts. */
+export const TEXT_TYPE = 'text';
 const HALF = 2;
 /** z of the first object on an empty board is FIRST_Z. */
 const FIRST_Z = 1;
 
 /** Object types this module knows how to read and create (the client registry may add more). */
-export const KNOWN_OBJECT_TYPES: ReadonlySet<string> = new Set([STICKY_TYPE]);
+export const KNOWN_OBJECT_TYPES: ReadonlySet<string> = new Set([STICKY_TYPE, TEXT_TYPE]);
 
 /** Any object on the board. `width`/`height` are present only once written (see objectBounds). */
 export interface ObjectSnapshot {
@@ -44,11 +59,20 @@ export interface ObjectSnapshot {
   height?: number;
   z: number;
   createdAt: number;
+  /** Who created it (story 9 onwards), when recorded. */
+  createdBy?: string;
   /** Sticky notes only. */
   color?: StickyColor;
-  /** Sticky notes only. */
+  /** Sticky notes and text objects. */
   text?: string;
+  /** Text objects only (story 9). */
+  size?: TextSize;
+  /** Text objects only (story 9). */
+  widthMode?: TextWidthMode;
 }
+
+/** 'auto': as wide as the longest line up to TEXT_MAX_AUTO_WIDTH_WORLD; 'fixed': set by a side handle. */
+export type TextWidthMode = 'auto' | 'fixed';
 
 export interface StickySnapshot extends ObjectSnapshot {
   type: 'sticky';
@@ -66,7 +90,8 @@ function objectsOf(doc: Y.Doc): Y.Map<ObjectMap> {
   return doc.getMap<ObjectMap>(OBJECTS_KEY);
 }
 
-function objectOf(doc: Y.Doc, id: string): ObjectMap | undefined {
+/** The Y.Map of one object, or undefined for stale ids (for the per-type modules in objects/). */
+export function objectOf(doc: Y.Doc, id: string): ObjectMap | undefined {
   const value: unknown = objectsOf(doc).get(id);
   return value instanceof Y.Map ? (value as ObjectMap) : undefined;
 }
@@ -80,7 +105,7 @@ function finiteNumber(value: unknown): number | undefined {
 }
 
 /** Highest z among all objects, or FIRST_Z - 1 when the board is empty. */
-function maxZ(doc: Y.Doc): number {
+export function maxZ(doc: Y.Doc): number {
   let max = FIRST_Z - 1;
   objectsOf(doc).forEach((value) => {
     if (!(value instanceof Y.Map)) return;
@@ -182,6 +207,8 @@ function readBase(id: string, value: unknown): ObjectSnapshot | undefined {
     z: finiteNumber(value.get('z')) ?? FIRST_Z - 1,
     createdAt: finiteNumber(value.get('createdAt')) ?? 0,
   };
+  const createdBy = value.get('createdBy');
+  if (typeof createdBy === 'string') base.createdBy = createdBy;
   const width = positiveNumber(value.get('width'));
   const height = positiveNumber(value.get('height'));
   if (width !== undefined) base.width = width;
@@ -189,9 +216,30 @@ function readBase(id: string, value: unknown): ObjectSnapshot | undefined {
   return base;
 }
 
+export function isTextSize(size: string): size is TextSize {
+  return Object.prototype.hasOwnProperty.call(TEXT_SIZES, size);
+}
+
+function readText(base: ObjectSnapshot, value: Y.Map<unknown>): ObjectSnapshot {
+  const text = value.get('text');
+  const rawSize = value.get('size');
+  const size = typeof rawSize === 'string' && isTextSize(rawSize) ? rawSize : DEFAULT_TEXT_SIZE;
+  return {
+    ...base,
+    // Always written by createText; a malformed entry falls back to one empty line.
+    width: base.width ?? TEXT_AUTO_WIDTH_PADDING_WORLD,
+    height: base.height ?? TEXT_SIZES[size] * TEXT_LINE_HEIGHT,
+    text: text instanceof Y.Text ? text.toString() : '',
+    size,
+    widthMode: value.get('widthMode') === 'fixed' ? 'fixed' : 'auto',
+  };
+}
+
 function readObject(id: string, value: unknown): ObjectSnapshot | undefined {
   const base = readBase(id, value);
-  if (!base || base.type !== STICKY_TYPE || !(value instanceof Y.Map)) return base;
+  if (!base || !(value instanceof Y.Map)) return base;
+  if (base.type === TEXT_TYPE) return readText(base, value);
+  if (base.type !== STICKY_TYPE) return base;
   const rawColor = value.get('color');
   const text = value.get('text');
   const sticky: StickySnapshot = {

@@ -31,3 +31,20 @@ if (PROSE.length < 1200) throw new Error(`prose fixture too short: ${PROSE.lengt
 export const PROSE_1000 = PROSE.slice(0, 1000);
 /** Exactly 1,200 characters of prose (a paste over the limit). */
 export const PROSE_1200 = PROSE.slice(0, 1200);
+
+// ---- Free text (story 9) ----
+
+/** Retro section headings. */
+export const HEADINGS = ['Went well', 'To improve'] as const;
+
+const ANNOTATION = [
+  'Note for next sprint: the checkout tests failed on three separate days because the payment',
+  'sandbox rate-limits parallel runs. Before we add more retries, split the suite so that only',
+  'the card flows hit the sandbox, run them serially overnight, and keep everything else on the',
+  'mocked gateway so pull requests get feedback in minutes rather than hours.',
+].join(' ');
+
+if (ANNOTATION.length < 300) throw new Error(`annotation fixture too short: ${ANNOTATION.length}`);
+
+/** A 300-character English annotation (one paragraph, no line breaks). */
+export const ANNOTATION_300 = ANNOTATION.slice(0, 300);

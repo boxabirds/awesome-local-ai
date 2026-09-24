@@ -131,4 +131,31 @@ describe('undo.boundaries (capture timeout)', () => {
     ctl.undo();
     expect(ctl.lastStep()).toBe(first);
   });
+
+  it('joinLastStep adds a change to the newest step even after a boundary and a long pause (story 9)', () => {
+    const start = snapshot(doc)[0]!;
+    ctl.boundary();
+    type(WORD);
+    ctl.boundary();
+    wait(LONG_PAUSE_MS);
+    const step = ctl.lastStep();
+    expect(ctl.joinLastStep(() => moveObject(doc, noteId, 50, 60))).toBe(true);
+    expect(ctl.lastStep()).toBe(step);
+    // ...and closes it: the next change is a new step.
+    type('!');
+    expect(ctl.lastStep()).not.toBe(step);
+    ctl.undo();
+    expect(ytext.toString()).toBe(WORD);
+    ctl.undo();
+    expect(ytext.toString()).toBe('');
+    expect(snapshot(doc)[0]).toMatchObject({ x: start.x, y: start.y });
+    expect(ctl.canUndo()).toBe(false);
+  });
+
+  it('joinLastStep with an empty history starts the first step', () => {
+    ctl.joinLastStep(() => moveObject(doc, noteId, 50, 60));
+    expect(ctl.canUndo()).toBe(true);
+    ctl.undo();
+    expect(ctl.canUndo()).toBe(false);
+  });
 });

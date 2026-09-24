@@ -108,3 +108,25 @@ export const NUDGE_LARGE_STEP_WORLD = 10;
 export const UNDO_CAPTURE_TIMEOUT_MS = 500;
 /** Each person's undo history keeps at most this many steps; the oldest is dropped first. */
 export const UNDO_MAX_STEPS = 200;
+
+// ---- Free text (story 9) ----
+
+/** Auto-width text grows to its longest line up to this width (world units), then wraps. */
+export const TEXT_MAX_AUTO_WIDTH_WORLD = 600;
+/** Narrowest fixed width a side-handle drag can set (world units). */
+export const TEXT_MIN_WIDTH_WORLD = 40;
+/** Maximum number of characters (UTF-16 code units) in one text object. */
+export const TEXT_MAX_CHARS = 5000;
+/** Text size presets: font size in world units (px at 100% zoom). */
+export const TEXT_SIZES = { S: 14, M: 20, L: 32, XL: 56 } as const;
+export type TextSize = keyof typeof TEXT_SIZES;
+export const DEFAULT_TEXT_SIZE: TextSize = 'M';
+/** Line height as a multiple of the font size. */
+export const TEXT_LINE_HEIGHT = 1.3;
+/** The board's standard sans-serif font for text objects (CSS font-family). */
+export const TEXT_FONT_FAMILY = 'Inter, system-ui, sans-serif';
+/**
+ * Extra width (world units) an auto-width box gets beyond its longest line, so the caret at the
+ * end of the line has room and small font-rendering differences never wrap a line early.
+ */
+export const TEXT_AUTO_WIDTH_PADDING_WORLD = 4;

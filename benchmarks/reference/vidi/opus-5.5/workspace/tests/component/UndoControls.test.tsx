@@ -35,6 +35,7 @@ function fakeController(initial = { canUndo: true, canRedo: true }): FakeControl
     beginGesture: vi.fn(),
     endGesture: vi.fn(),
     lastStep: () => null,
+    joinLastStep: (action) => action(),
     set(next) {
       state = next;
       act(() => listeners.forEach((cb) => cb()));
@@ -123,10 +124,10 @@ describe('undo.controls: buttons', () => {
     }
     expect(undoButton().title).toBe('Undo (Ctrl/Cmd+Z)');
     expect(redoButton().title).toBe('Redo (Ctrl/Cmd+Shift+Z)');
-    // The buttons sit in the left tool bar, below the tools.
+    // The buttons sit in the left tool bar, below the tools (story 9 added Select and Text).
     const toolbar = screen.getByRole('toolbar', { name: 'Tools' });
     const buttons = Array.from(toolbar.querySelectorAll('button')).map((b) => b.getAttribute('aria-label'));
-    expect(buttons).toEqual(['Sticky note', 'Undo', 'Redo']);
+    expect(buttons).toEqual(['Select (V)', 'Text (T)', 'Sticky note', 'Undo', 'Redo']);
   });
 
   it('buttons follow the controller state and call it when clicked', () => {
