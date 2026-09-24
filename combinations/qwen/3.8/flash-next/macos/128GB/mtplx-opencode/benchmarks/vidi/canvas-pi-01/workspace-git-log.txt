@@ -1,3 +1,35 @@
+commit 72e32e9fdde7cd5f52623d99d4d0db1d505031e9
+vidi-agent  Thu Sep 24 07:20:25 2026 +0100
+
+    story 3: live collaboration over a Durable Object room relay
+
+
+ package-lock.json                          | 1088 ++++++++++++++++++++++++++--
+ package.json                               |   11 +-
+ src/client/App.tsx                         |   82 ++-
+ src/client/board/useBoardDoc.ts            |   49 +-
+ src/client/board/useSelection.ts           |   39 +-
+ src/client/canvas/testHooks.ts             |    2 +-
+ src/client/sync/ConnectionStatus.tsx       |   38 +
+ src/client/sync/connectBoard.ts            |   77 ++
+ src/client/sync/connectionState.ts         |  123 ++++
+ src/client/sync/testHooks.ts               |   80 ++
+ src/shared/board-id.ts                     |   79 ++
+ src/shared/config.ts                       |   57 ++
+ src/shared/protocol.ts                     |   87 +++
+ src/worker/board-room.ts                   |  154 ++++
+ src/worker/index.ts                        |   92 +++
+ tests/component/connection-status.test.tsx |   39 +
+ tests/e2e/collab.spec.ts                   |   97 +++
+ tests/integration/worker.test.ts           |  155 ++++
+ tests/unit/board-id.test.ts                |   92 +++
+ tests/unit/connectionState.test.ts         |  109 +++
+ tests/unit/protocol.test.ts                |  113 +++
+ tsconfig.json                              |    6 +-
+ tsconfig.worker.json                       |   19 +
+ vitest.config.ts                           |   31 +-
+ wrangler.jsonc                             |   30 +-
+ 25 files changed, 2665 insertions(+), 84 deletions(-)
 commit 51ef0cf95e017235c31f86b3fe32b734b8442ef9
 vidi-agent  Thu Sep 24 06:21:18 2026 +0100
 

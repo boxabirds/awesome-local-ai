@@ -1,0 +1,59 @@
+{
+  "steps": {
+    "install": {
+      "cmd": "npm ci",
+      "exit": 0,
+      "seconds": 4.2,
+      "tail": "\nadded 160 packages, and audited 161 packages in 4s\n\n42 packages are looking for funding\n  run `npm fund` for details\n\n4 high severity vulnerabilities\n\nTo address all issues (including breaking changes), run:\n  npm audit fix --force\n\nRun `npm audit` for details.\nnpm warn allow-scripts 4 packages have install scripts not yet covered by allowScripts:\nnpm warn allow-scripts   workerd@1.20260815.1 (postinstall: node install.js)\nnpm warn allow-scripts   esbuild@0.28.1 (postinstall: node install.js)\nnpm warn allow-scripts   fsevents@2.3.3 (install: (install scripts present))\nnpm warn allow-scripts   workerd@1.20260921.1 (postinstall: node install.js)\nnpm warn allow-scripts\nnpm warn allow-scripts Run `npm approve-scripts --allow-scripts-pending` to review, or `npm approve-scripts <pkg>` to allow.\n"
+    },
+    "build": {
+      "cmd": "npm run build",
+      "exit": 0,
+      "seconds": 1.1,
+      "tail": "\n> vidi6@0.0.0 build\n> vite build\n\n\u001b[36mvite v8.3.0 \u001b[32mbuilding client environment for production...\u001b[36m\u001b[39m\ntransforming...\n\u2713 78 modules transformed.\nrendering chunks...\ncomputing gzip size...\ndist/client/index.html                   0.39 kB \u2502 gzip:   0.26 kB\ndist/client/assets/index-B9q0u44v.css    3.95 kB \u2502 gzip:   1.24 kB\ndist/client/assets/index-TsNu0Zth.js   328.33 kB \u2502 gzip: 102.55 kB\n\n\u001b[32m\u2713 built in 216ms\u001b[39m\n",
+      "passed": null,
+      "failed": null
+    },
+    "typecheck": {
+      "cmd": "npm run typecheck",
+      "exit": 0,
+      "seconds": 1.6,
+      "tail": "\n> vidi6@0.0.0 typecheck\n> tsc --noEmit && tsc --noEmit -p tsconfig.worker.json\n\n",
+      "passed": null,
+      "failed": null
+    },
+    "test:unit": {
+      "cmd": "npm run test:unit",
+      "exit": 0,
+      "seconds": 1.2,
+      "tail": "\n> vidi6@0.0.0 test:unit\n> vitest run --project unit\n\n\n RUN  v4.1.11 /Users/julian/.vidi-bench/work/qwen__3.8__flash-next__macos__128GB__mtplx-opencode__benchmarks__vidi__canvas-pi-01/workspace\n\n\n Test Files  6 passed (6)\n      Tests  79 passed (79)\n   Start at  07:20:52\n   Duration  352ms (transform 185ms, setup 0ms, import 285ms, tests 293ms, environment 0ms)\n\n",
+      "passed": 79,
+      "failed": 0
+    },
+    "test:component": {
+      "cmd": "npm run test:component",
+      "exit": 0,
+      "seconds": 2.0,
+      "tail": "\n> vidi6@0.0.0 test:component\n> vitest run --project component\n\n\n RUN  v4.1.11 /Users/julian/.vidi-bench/work/qwen__3.8__flash-next__macos__128GB__mtplx-opencode__benchmarks__vidi__canvas-pi-01/workspace\n\n\n Test Files  7 passed (7)\n      Tests  45 passed (45)\n   Start at  07:20:53\n   Duration  1.27s (transform 487ms, setup 816ms, import 692ms, tests 1.20s, environment 4.00s)\n\n",
+      "passed": 45,
+      "failed": 0
+    },
+    "test:integration": {
+      "cmd": "npm run test:integration",
+      "exit": 0,
+      "seconds": 1.2,
+      "tail": "\n> vidi6@0.0.0 test:integration\n> vitest run --project integration\n\n\n RUN  v4.1.11 /Users/julian/.vidi-bench/work/qwen__3.8__flash-next__macos__128GB__mtplx-opencode__benchmarks__vidi__canvas-pi-01/workspace\n\n\n Test Files  1 passed (1)\n      Tests  6 passed (6)\n   Start at  07:20:55\n   Duration  516ms (transform 112ms, setup 0ms, import 231ms, tests 45ms, environment 1ms)\n\n",
+      "passed": 6,
+      "failed": 0
+    },
+    "test:e2e": {
+      "cmd": "npm run test:e2e",
+      "exit": 1,
+      "seconds": 2.0,
+      "tail": "\n> vidi6@0.0.0 test:e2e\n> npm run build:test && playwright test\n\n\n> vidi6@0.0.0 build:test\n> vite build --mode test\n\n\u001b[36mvite v8.3.0 \u001b[32mbuilding client environment for test...\u001b[36m\u001b[39m\ntransforming...\n\u2713 78 modules transformed.\nrendering chunks...\ncomputing gzip size...\ndist/client/index.html                   0.39 kB \u2502 gzip:   0.26 kB\ndist/client/assets/index-B9q0u44v.css    3.95 kB \u2502 gzip:   1.24 kB\ndist/client/assets/index-Dtg7akod.js   328.33 kB \u2502 gzip: 102.54 kB\n\n\u001b[32m\u2713 built in 60ms\u001b[39m\n[WebServer] \n[WebServer]  \u26c5\ufe0f wrangler 4.137.0\n[WebServer] \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\n[WebServer] Your Worker has access to the following bindings:\n[WebServer] Binding                         Resource            Mode\n[WebServer] env.BOARD_ROOM (BoardRoom)      Durable Object      local\n[WebServer] env.ASSETS                      Assets              local\n[WebServer] \n[WebServer] \u2394 Starting local server...\n[WebServer] Wrangler detected this dev session is running in an AI agent.\n[WebServer] The Local Explorer API is available at http://localhost:8787/cdn-cgi/local/explorer/api\n[WebServer] Useful routes:\n[WebServer]   GET http://localhost:8787/cdn-cgi/local/explorer/api/local/workers - local Workers and bindings\n[WebServer]   GET http://localhost:8787/cdn-cgi/local/explorer/api/storage/kv/namespaces - KV namespaces\n[WebServer]   GET http://localhost:8787/cdn-cgi/local/explorer/api/d1/database - D1 databases\n[WebServer]   GET http://localhost:8787/cdn-cgi/local/explorer/api/r2/buckets - R2 buckets\n[WebServer]   GET http://localhost:8787/cdn-cgi/local/explorer/api/workers/durable_objects/namespaces - Durable Object namespaces\n[WebServer]   GET http://localhost:8787/cdn-cgi/local/explorer/api/workflows - Workflows\n[WebServer]   POST http://localhost:8787/cdn-cgi/local/explorer/api/local/observability/query - run a read-only SQL query (SELECT/WITH only) over captured request traces and console logs. Tables: spans, logs (read attributes via json(attributes)). Example:\n[WebServer]     curl -X POST http://localhost:8787/cdn-cgi/local/explorer/api/local/observability/query -H 'Content-Type: application/json' -d '{\"sql\":\"SELECT service, name, outcome, duration_ms FROM spans WHERE parent_id IS NULL LIMIT 20\"}'\n[WebServer]   POST http://localhost:8787/cdn-cgi/local/explorer/api/local/observability/clear - clear all captured traces and logs\n[WebServer] If the routes above don't cover what you need, fetch the full OpenAPI schema (large - use only as a last resort):\n[WebServer]   GET http://localhost:8787/cdn-cgi/local/explorer/api - OpenAPI schema\n[WebServer] \n[WebServer] If you think this is a bug then please create an issue at https://github.com/cloudflare/workers-sdk/issues/new/choose\nError: Process from config.webServer was not able to start. Exit code: 1\n\n[WebServer] \u2718 [ERROR] service core:user:vidi6: Uncaught TypeError: Incorrect type for map entry 'ROOM_PATH_PREFIX': the provided value is not of type 'function or ExportedHandler'.\n[WebServer] \n[WebServer] \n[WebServer] \u2718 [ERROR] The Workers runtime failed to start. There was likely a problem with the workerd binary or your configuration.\n[WebServer] \n[WebServer]   Runtime stderr:\n[WebServer]   {\"timestamp\":\"1790230859354\",\"level\":\"error\",\"source\":\"src/workerd/server/json-logger.c++:127\",\"message\":\"service core:user:vidi6: Uncaught TypeError: Incorrect type for map entry 'ROOM_PATH_PREFIX': the provided value is not of type 'function or ExportedHandler'.\",\"context_depth\":0}\n[WebServer] \n[WebServer] \n[WebServer] \ud83e\udeb5  Logs were written to \"/Users/julian/.wrangler/logs/wrangler-2026-09-24_06-20-59_164.log\"\n",
+      "passed": null,
+      "failed": null
+    }
+  },
+  "all_green": false
+}
