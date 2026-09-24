@@ -44,6 +44,69 @@ pub fn signal_group(pgid: i32, sig: i32) -> bool {
     unsafe { libc::kill(-pgid, sig) == 0 }
 }
 
+/// Send a signal to one process. Refuses pids 0 and 1.
+pub fn signal_pid(pid: i32, sig: i32) -> bool {
+    if pid <= 1 {
+        return false;
+    }
+    // SAFETY: plain kill(2).
+    unsafe { libc::kill(pid, sig) == 0 }
+}
+
+/// Words in `ps -o lstart` under LC_ALL=C: "Thu Sep 24 22:27:07 2026".
+const LSTART_WORDS: usize = 5;
+
+/// One row of the process table. `started` tells a process from a later one that reuses its pid.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct Proc {
+    pub pid: i32,
+    pub ppid: i32,
+    pub pgid: i32,
+    pub started: String,
+    pub name: String,
+}
+
+/// The output of `ps -A -o pid= -o ppid= -o pgid= -o lstart= -o comm=` (LC_ALL=C), which
+/// Linux and macOS print alike. Unparseable lines are skipped.
+pub fn parse_ps(text: &str) -> Vec<Proc> {
+    text.lines()
+        .filter_map(|line| {
+            let mut w = line.split_whitespace();
+            let pid = w.next()?.parse().ok()?;
+            let ppid = w.next()?.parse().ok()?;
+            let pgid = w.next()?.parse().ok()?;
+            let started: Vec<&str> = w.by_ref().take(LSTART_WORDS).collect();
+            if started.len() != LSTART_WORDS {
+                return None;
+            }
+            let name = w.collect::<Vec<_>>().join(" ");
+            let name = name.rsplit('/').next().unwrap_or_default().to_string();
+            Some(Proc {
+                pid,
+                ppid,
+                pgid,
+                started: started.join(" "),
+                name,
+            })
+        })
+        .collect()
+}
+
+/// Every process below `root` in the table (not `root` itself).
+pub fn descendants(table: &[Proc], root: i32) -> Vec<Proc> {
+    let mut out: Vec<Proc> = Vec::new();
+    let mut parents = vec![root];
+    while let Some(parent) = parents.pop() {
+        for p in table.iter().filter(|p| p.ppid == parent && p.pid != root) {
+            if !out.iter().any(|o| o.pid == p.pid) {
+                parents.push(p.pid);
+                out.push(p.clone());
+            }
+        }
+    }
+    out
+}
+
 pub fn hostname() -> String {
     let mut buf = [0u8; HOSTNAME_BUF];
     // SAFETY: buf is valid for HOSTNAME_BUF bytes.
@@ -170,5 +233,27 @@ mod tests {
         assert!(!signal_group(0, 0));
         assert!(!signal_group(1, 0));
         assert!(!group_alive(1));
+        assert!(!signal_pid(0, 0));
+        assert!(!signal_pid(1, 0));
+    }
+
+    #[test]
+    fn process_table_and_descendants() {
+        let table = parse_ps(
+            "  100     1   100 Thu Sep 24 22:27:07 2026 /usr/bin/bash\n\
+             \x20 101   100   100 Thu Sep 24 22:27:08 2026 python3\n\
+             \x20 102   100   102 Thu Sep 24 22:27:09 2026 /opt/llama.cpp/build/bin/llama-server\n\
+             \x20 103   101   103 Thu Sep 24 22:27:10 2026 bwrap\n\
+             \x20 104   103   103 Thu Sep 24 22:27:10 2026 pi\n\
+             \x20 200     1   200 Thu Sep 24 20:00:00 2026 unrelated\n\
+             garbage line\n",
+        );
+        assert_eq!(table.len(), 6);
+        assert_eq!(table[2].name, "llama-server");
+        assert_eq!(table[2].started, "Thu Sep 24 22:27:09 2026");
+        let mut pids: Vec<i32> = descendants(&table, 100).iter().map(|p| p.pid).collect();
+        pids.sort();
+        assert_eq!(pids, vec![101, 102, 103, 104]);
+        assert!(descendants(&table, 104).is_empty());
     }
 }

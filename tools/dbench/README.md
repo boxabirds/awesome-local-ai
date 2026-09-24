@@ -43,6 +43,7 @@ dbench serve --bind 100.x.y.z:7717 --repo ~/awesome-local-ai \
   - Output goes to `<home>/jobs/<id>.log`.
 - A non-zero exit is restarted at the front of the queue after 30 s, up to `--max-restarts` times. After that the job is `failed`.
 - When the harness exits, anything left in its process group is stopped.
+  - So is anything else it started that is still running, even in its own session: for example the model server run.sh starts under `setsid`, or pi under bwrap. The server samples the harness's process tree every 3 s while it runs, then sends SIGTERM, and SIGKILL after the cancel grace. The job only reaches its final state, and the next job only starts, once those processes are gone, so a leftover server can't keep holding the GPU.
 - Stopping dbench leaves the harness running.
   - On start, a job still marked `running` whose process group is alive (and the machine hasn't rebooted since) is adopted. When it ends, it's requeued to resume.
   - If the harness is gone, the job is requeued as the next attempt, or marked `failed` if it has used all its restarts.
