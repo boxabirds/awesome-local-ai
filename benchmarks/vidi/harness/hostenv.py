@@ -47,7 +47,8 @@ def bwrap_wrap(cmd: list[str], own_dir: Path, deny: list[Path]) -> list[str]:
     masked (a directory by an empty tmpfs, a file by /dev/null); own_dir is then bound back on
     top. bwrap applies mounts in order, so own_dir must come after the mask that covers it.
     Paths that don't exist are skipped: masking them would create them on the host."""
-    args = ["bwrap", "--die-with-parent", "--bind", "/", "/"]
+    # --bind / / is mounted nodev; bind the real /dev back so /dev/null, /dev/shm and ptys work.
+    args = ["bwrap", "--die-with-parent", "--bind", "/", "/", "--dev-bind", "/dev", "/dev"]
     for p in deny:
         if p.is_dir():
             args += ["--tmpfs", str(p.resolve())]
