@@ -127,8 +127,73 @@ cache is ever reinstalled, repeat the copy: `libavif13_0.9.3-3`,
 
 ## What is deliberately NOT built (later stories)
 
-- No rooms, Worker, persistence, cursors, objects, selection, or sync
-  (stories 2-17). The test hook exists only because task 4/7 of this story
-  need deterministic camera state.
+- (Story 2, now built: sticky notes, selection, drag, toolbar, Yjs doc.)
+- No rooms, Worker, persistence, cursors, other object types, or sync
+  (stories 3-17). The test hook exists because task 4/7 of story 1 need
+  deterministic camera state; story 2 extended it with a notes hook.
 - The app shell is a plain client bundle; `wrangler.jsonc` is assets-only
   until story 3 introduces the Worker.
+
+---
+
+# Story 2 — Capture ideas on sticky notes and rearrange them: implementation notes
+
+## New dependency
+
+- **`yjs@13.6.33`** (pinned). The only new dependency in the repo. The
+  client keeps the single `Y.Doc` for the whole board (`useBoardDoc`);
+  every object is a `Y.Map` in `doc.getMap('objects')`, note text is a
+  `Y.Text` inside each sticky's map. The doc is the source of truth for
+  the e2e `__vidi6.notes` snapshot hook.
+
+## Deviations / non-obvious decisions
+
+1. **Surrogate-pair bug in Y.Text diffing (fixed in `StickyText`).**
+   `Y.Text.applyDiff` computed `insert.length` in UTF-16 code units but
+   `Y.Text.insert(index, str)` indexes in **code points**. Inserting at a
+   boundary of a surrogate pair (e.g. emoji) silently corrupted the text
+   (lone surrogates). `applyTextDiff` now walks the diff in code points
+   (via `Array.from` / `for...of`) and translates code-point offsets to
+   Y.Text offsets before calling. Covered by the unit tests
+   (`sticky-text.test.ts`: "inserting at/after a surrogate pair" cases).
+
+2. **`bringToFront` returns `false` when the note is already on top**, in
+   addition to the spec'd "stale id" case. TC-10 only requires "no update
+   emitted"; the `false` return is what lets the component distinguish
+   "disappeared" (abort drag) from "already front" (fine). Callers that
+   need "still exists" use `hasObject(doc, id)` instead of the return
+   value.
+
+3. **No `onLostPointerCapture` handler on the note root.** Chrome fires
+   `lostpointercapture` when the captured element is *moved in the DOM* —
+   which is exactly what React does when `bringToFront` re-sorts the notes
+   by z mid-drag. Ending the drag on that event killed every drag of a
+   non-top note after its first pointermove. A stale `dragRef` is harmless:
+   the next `pointerdown` replaces it and the unmount cleanup cancels any
+   pending rAF. (Reproduced on Chromium; Firefox/WebKit never fired it.)
+
+4. **Camera *and* notes test hooks.** `testHooks.ts` now exposes
+   `installNotesHook(getNotes)`; `useBoardDoc` installs it with a
+   `snapshot(doc)` closure. E2E reads `__vidi6.notes` for model-level
+   assertions (position/color/z/text) alongside DOM assertions.
+
+5. **Counter format is `{length}/{max}` with no spaces** — the PRD's
+   verification says "the counter shows 1000/1000".
+
+6. **Creation is always in edit mode** (textarea focused, empty), matching
+   TC-28/30. Clicking a note selects; double-click (or Enter when selected)
+   enters edit mode. Escape ends edit → selected; Escape again deselects
+   (App-level, when the note is not editing).
+
+7. **Drag is rAF-throttled** with an immediate final flush on
+   pointerup/cancel, so e2e geometry assertions land on exact values.
+   `bringToFront` runs once at drag *start* (the note under the pointer
+   comes to the front, PRD "Regrouping").
+
+8. **E2E camera math** (documented in the spec file): world (wx,wy) renders
+   at screen ((wx−cam.x)·zoom, (wy−cam.y)·zoom); a note centred on the
+   viewport has top-left (centre−100, centre−100). TC-31 (50%: drag
+   (100,50) → world +200,+100) and TC-32 (200%: → +50,+25, drawn above the
+   overlapped note) are both covered, plus TC-30 (dblclick at (400,300)),
+   TC-33 (24px → 10px + fade on 1,000 pasted chars) and TC-34 (button
+   creates at screen centre when panned far away).

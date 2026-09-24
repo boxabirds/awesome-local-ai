@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import type { CameraApi } from './useCamera';
-import { GRID_SPACING_WORLD } from '../../shared/config';
+import type { Point } from './camera';
+import { DRAG_THRESHOLD_PX, GRID_SPACING_WORLD } from '../../shared/config';
 
 /** Pixel sizes used to convert wheel deltaMode LINE/PAGE values to pixels. */
 const WHEEL_LINE_PX = 16;
@@ -15,6 +16,10 @@ export interface BoardViewportProps {
   children?: ReactNode;
   /** Camera API from `useCamera`; App owns the single camera instance. */
   api: CameraApi;
+  /** Double-click on empty board space: create an object centred on the point. */
+  onCreateStickyAt?: (p: Point) => void;
+  /** A click (press without movement) on empty board space: clear the selection. */
+  onEmptyClick?: () => void;
 }
 
 /**
@@ -22,14 +27,17 @@ export interface BoardViewportProps {
  * (CSS transform) and the origin marker.
  *
  * Drag starts only on empty board space (the viewport or world layer
- * element); later object stories can stopPropagation on their elements.
+ * element); objects stopPropagation on their elements. A double-click on
+ * empty space creates a sticky note at that point; a click (press without
+ * movement) on empty space clears the selection.
  */
-export function BoardViewport({ children, api }: BoardViewportProps) {
+export function BoardViewport({ children, api, onCreateStickyAt, onEmptyClick }: BoardViewportProps) {
   const viewportRef = useRef<HTMLDivElement>(null);
   const worldRef = useRef<HTMLDivElement>(null);
   const [panning, setPanning] = useState(false);
   const panningRef = useRef(false);
   const gestureScaleRef = useRef(1);
+  const emptyPressRef = useRef<Point | null>(null);
   const apiRef = useRef(api);
   apiRef.current = api;
 
@@ -47,7 +55,9 @@ export function BoardViewport({ children, api }: BoardViewportProps) {
     viewportRef.current?.setPointerCapture?.(e.pointerId);
     panningRef.current = true;
     setPanning(true);
-    apiRef.current.beginPan(toPoint(e.clientX, e.clientY));
+    const start = toPoint(e.clientX, e.clientY);
+    emptyPressRef.current = { x: e.clientX, y: e.clientY };
+    apiRef.current.beginPan(start);
   };
 
   const onPointerMove = (e: React.PointerEvent) => {
@@ -59,6 +69,16 @@ export function BoardViewport({ children, api }: BoardViewportProps) {
     if (!panningRef.current) return;
     panningRef.current = false;
     setPanning(false);
+    const pressStart = emptyPressRef.current;
+    emptyPressRef.current = null;
+    // A press on empty space that never moved is a click: clear the selection.
+    if (
+      pressStart !== null &&
+      e !== undefined &&
+      Math.hypot(e.clientX - pressStart.x, e.clientY - pressStart.y) < DRAG_THRESHOLD_PX
+    ) {
+      onEmptyClick?.();
+    }
     if (e?.pointerId !== undefined) {
       try {
         viewportRef.current?.releasePointerCapture?.(e.pointerId);
@@ -67,6 +87,14 @@ export function BoardViewport({ children, api }: BoardViewportProps) {
       }
     }
     apiRef.current.endPan();
+  };
+
+  const onDoubleClick = (e: React.MouseEvent) => {
+    // Only a genuine double-click on empty space creates a note; notes and
+    // toolbars stopPropagation (and their elements are never the target).
+    const target = e.target as Node;
+    if (target !== viewportRef.current && target !== worldRef.current) return;
+    onCreateStickyAt?.(toPoint(e.clientX, e.clientY));
   };
 
   // ----- wheel (non-passive so the page never scrolls/zooms) -----
@@ -174,6 +202,7 @@ export function BoardViewport({ children, api }: BoardViewportProps) {
       onPointerUp={(e) => stopPan(e)}
       onPointerCancel={(e) => stopPan(e)}
       onLostPointerCapture={() => stopPan()}
+      onDoubleClick={onDoubleClick}
     >
       <div
         ref={worldRef}

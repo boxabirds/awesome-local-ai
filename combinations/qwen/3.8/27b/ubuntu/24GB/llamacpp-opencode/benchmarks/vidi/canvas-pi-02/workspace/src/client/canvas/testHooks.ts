@@ -1,10 +1,27 @@
+import type { StickySnapshot } from '../../shared/board-model';
 import type { Camera } from './camera';
 
 declare global {
   interface Window {
-    /** Test-only camera hook; present only in test builds (`--mode test`). */
-    __vidi6?: { setCamera(cam: Camera): void };
+    /** Test-only hooks; present only in test builds (`--mode test`). */
+    __vidi6?: {
+      setCamera(cam: Camera): void;
+      getNotes(): readonly StickySnapshot[];
+    };
   }
+}
+
+const stateRef = {
+  setCamera: undefined as ((cam: Camera) => void) | undefined,
+  getNotes: undefined as (() => readonly StickySnapshot[]) | undefined,
+};
+
+function publish(): void {
+  if (import.meta.env.MODE !== 'test') return;
+  window.__vidi6 = {
+    setCamera: (cam: Camera) => stateRef.setCamera?.(cam),
+    getNotes: () => stateRef.getNotes?.() ?? [],
+  };
 }
 
 /**
@@ -14,7 +31,15 @@ declare global {
  */
 export function installTestHook(setCamera: (cam: Camera) => void): void {
   if (import.meta.env.MODE !== 'test') return;
-  window.__vidi6 = { setCamera };
+  stateRef.setCamera = setCamera;
+  publish();
+}
+
+/** Registers the note snapshot getter (board doc, story 2). */
+export function installNotesHook(getNotes: () => readonly StickySnapshot[]): void {
+  if (import.meta.env.MODE !== 'test') return;
+  stateRef.getNotes = getNotes;
+  publish();
 }
 
 export function removeTestHook(): void {
