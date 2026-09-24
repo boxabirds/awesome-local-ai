@@ -68,7 +68,7 @@ panic(cpu 6 caller 0xfffffe003c321d7c): watchdog timeout: no checkins from watch
 - **What I think is plausible, but unproven:** the model's working set plus a ~10 GB leak left too little room for the rest of the system.
 - **Earlier warnings:** JetsamEvent reports on 18 Sep 15:00, 23 Sep 13:51 and 23 Sep 17:31, all on earlier MTPLX versions, show ~82 GiB wired and 0.4 GiB free.
 
-Why I'm raising it anyway: on 2.12.0 at stock, the process footprint reaches 107–109 GiB (section 1). That is well above the 2.11.3 pre-panic readings, so on a 128 GB machine there is little margin for anything else the user runs.
+Why I'm raising it anyway: on 2.12.0 at stock, the process footprint reaches 107–109 GiB (section 1). I have no footprint readings from 2.11.3 to compare it with, only the engine's own peak. Either way, a 109 GiB process on a 128 GB machine leaves little margin for anything else the user runs, such as a 10 GB leak.
 
 ## 3. 2.12.0 with `MTPLX_MEMORY_LIMIT_BYTES=88G` (measured, confounded)
 
