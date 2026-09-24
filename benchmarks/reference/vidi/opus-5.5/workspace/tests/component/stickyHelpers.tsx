@@ -2,7 +2,8 @@ import { act, fireEvent, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { expect, vi } from 'vitest';
 import type * as Y from 'yjs';
-import { App } from '../../src/client/App';
+import { Board } from '../../src/client/board/Board';
+import { newBoardId } from '../../src/shared/board-id';
 import type { Camera } from '../../src/client/canvas/camera';
 import type { StickySnapshot } from '../../src/shared/board-model';
 
@@ -24,7 +25,7 @@ export function flushFrame(): void {
  */
 export function renderBoard(): void {
   vi.useFakeTimers({ toFake: ['requestAnimationFrame', 'cancelAnimationFrame'] });
-  render(<App />);
+  render(<Board boardId={newBoardId()} />);
   flushFrame();
 }
 

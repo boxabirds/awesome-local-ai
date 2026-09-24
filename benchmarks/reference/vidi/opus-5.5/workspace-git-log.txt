@@ -1,3 +1,47 @@
+commit 90faa0119a78880d7f5ff394370a2b7df0368406
+Author: opus-5.5-reference <reference@vidi.invalid>
+Date:   Thu Sep 24 23:44:25 2026 +0100
+
+    story 5: Share a board with others using a link
+    
+    Co-Authored-By: Claude Opus 5.5 (1M context) <noreply@anthropic.com>
+
+ NOTES.md                                         |  69 ++++++
+ index.html                                       |   2 +
+ src/client/App.tsx                               | 239 ++------------------
+ src/client/api.ts                                |  36 +++
+ src/client/board/Board.tsx                       | 217 ++++++++++++++++++
+ src/client/pages/BoardPage.tsx                   |  72 ++++++
+ src/client/pages/HomePage.tsx                    |  62 ++++++
+ src/client/pages/NotFoundPage.tsx                |  26 +++
+ src/client/router.ts                             |  45 ++++
+ src/client/share/SharePanel.tsx                  | 152 +++++++++++++
+ src/client/styles.css                            | 151 +++++++++++++
+ src/shared/config.ts                             |  15 ++
+ src/worker/board-room.ts                         |  35 ++-
+ src/worker/board-store.ts                        |  62 +++++-
+ src/worker/create-board.ts                       |  65 ++++++
+ src/worker/index.ts                              |  86 ++++++--
+ src/worker/test-hooks.ts                         |  11 +-
+ tests/component/BoardViewport.test.tsx           |   5 +-
+ tests/component/LoadFailed.test.tsx              |   2 +-
+ tests/component/NavigationHint.test.tsx          |   5 +-
+ tests/component/SharePanel.test.tsx              | 184 ++++++++++++++++
+ tests/component/pages.test.tsx                   | 245 +++++++++++++++++++++
+ tests/component/stickyHelpers.tsx                |   5 +-
+ tests/e2e/helpers/board.ts                       |   7 +-
+ tests/e2e/helpers/participants.ts                |   3 +
+ tests/e2e/helpers/seed.ts                        |  56 ++++-
+ tests/e2e/persistence.spec.ts                    |   3 +-
+ tests/e2e/share.spec.ts                          | 233 ++++++++++++++++++++
+ tests/integration/board-api.test.ts              | 268 +++++++++++++++++++++++
+ tests/integration/board-room-persistence.test.ts |   3 +-
+ tests/integration/worker.test.ts                 |  12 +-
+ tests/integration/ws-client.ts                   |  12 +-
+ tests/unit/create-board.test.ts                  | 135 ++++++++++++
+ wrangler.jsonc                                   |   5 +
+ 34 files changed, 2260 insertions(+), 268 deletions(-)
+
 commit 95d58903314d84d965d600d02792c734d6ed1afb
 Author: opus-5.5-reference <reference@vidi.invalid>
 Date:   Thu Sep 24 23:24:56 2026 +0100

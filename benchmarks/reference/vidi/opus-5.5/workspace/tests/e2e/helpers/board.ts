@@ -1,4 +1,5 @@
 import { expect, type Page } from '@playwright/test';
+import { newBoardId } from '../../../src/shared/board-id';
 
 export interface Box { x: number; y: number }
 export interface CameraState { x: number; y: number; zoom: number }
@@ -6,8 +7,12 @@ export interface CameraState { x: number; y: number; zoom: number }
 /** e2e pixel tolerance from the PRD (±1 px). */
 export const PIXEL_TOLERANCE = 1;
 
+/** Opens a new empty board, created through the TEST_HOOKS-only route (story 5). */
 export async function openBoard(page: Page): Promise<void> {
-  await page.goto('/');
+  const boardId = newBoardId();
+  const res = await page.request.post(`/__test/boards/${boardId}/initialize`);
+  expect(res.ok()).toBe(true);
+  await page.goto(`/b/${boardId}`);
   await expect(page.getByTestId('board-viewport')).toBeVisible();
   await expect(zoomLabel(page)).toHaveText('100%');
 }

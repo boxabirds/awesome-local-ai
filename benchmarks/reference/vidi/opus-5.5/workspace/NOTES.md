@@ -260,3 +260,72 @@ Decisions made while building without anyone to ask.
 - **Not covered** (per design): output-gate ordering under real disk latency, production
   eviction/hibernation timing, storage quota exhaustion, load time over real internet latency,
   boards larger than `PERSIST_TESTED_NOTES`.
+
+## Story 5: Share a board with others using a link
+
+- **Board UI moved to `src/client/board/Board.tsx`** (`Board({ boardId, children })`, plus
+  `canEdit`). `App.tsx` now only renders the router, as the design says; `BoardPage` mounts
+  `Board` (with `SharePanel` as a child) once the link check says the board exists. Story 1–4
+  component tests render `<Board boardId={newBoardId()} />` instead of `<App />` (no assertion
+  changed). The story 3 `/` → random-id redirect (`resolveBoardId`) is deleted.
+- **Existence and storage.** `created_at` is a `storage_meta` row (epoch ms). `BoardStore.load()`
+  treats missing tables as an empty board without creating them; `migrate()` runs in
+  `initialize()` and lazily before the first `append()`/`compact()`. `initialize()` returns
+  `'exists'` for legacy boards too (data but no `created_at`) and writes nothing to them, so a
+  generated id that happens to match a legacy board is never handed out as new.
+- **`createBoard(env, visitorKey, deps?)`**: the optional third argument (`generate`,
+  `initialize`, `limiter`) is the injection seam for TC-11/TC-12; production passes none. Its env
+  parameter is structural (`CreateBoardEnv`) so the unit tests type-check under DOM types.
+  Missing `CF-Connecting-IP` (local tools only) is keyed as `unknown`.
+- **HTTP details beyond the contract:** `GET /api/boards/:id` also accepts `HEAD`; 405 responses
+  carry an `Allow` header and `{"error":"method_not_allowed"}`. The WebSocket route checks the id
+  format, then the Upgrade header (426), then the room answers 404 for unknown boards.
+- **Rate limiter: real binding in both integration and e2e.** Miniflare implements `ratelimits`
+  locally (`wrangler dev` lists it as "10 requests/60s"), so TC-13 uses the real
+  `BOARD_CREATE_LIMITER`. Miniflare keeps a client-supplied `CF-Connecting-IP`, so every
+  integration test and every e2e test that creates boards through the UI sends its own random
+  visitor address; parallel tests never share a budget.
+- **Test board creation.** Tests that do not exercise creation create boards through a new
+  TEST_HOOKS-only route `POST /__test/boards/:id/initialize` (no rate limit; all e2e traffic comes
+  from 127.0.0.1). `openBoard`, `openParticipants`, `seedBoard` and the persistence spec now create
+  their board first. Integration `connect()` calls `ensureBoard()` (RPC `initialize()`, idempotent)
+  before upgrading; new story 5 tests use the raw `upgrade()` to test unknown boards. TC-31's
+  legacy board is seeded by `POST /__test/boards/:id/seed-legacy` (body: a Yjs update, stored as a
+  log row without `created_at`).
+- **Story 3/4 tests changed by this story's behaviour:** integration TC-04 now expects 404
+  instead of 400 for a malformed id (design: "story 3's 400 for malformed becomes 404");
+  worker TC-13 and persistence TC-26 create their board before upgrading / before damaging its
+  tables (tables no longer exist before creation).
+- **`wrangler dev` proxy and idle POSTs.** Persistence TC-19 failed deterministically with
+  `500 Network connection lost` on the second `initialize` hook call: wrangler's dev ProxyWorker
+  logged "Error inside ProxyWorker … POST … (failed after 1 attempt): Network connection lost" —
+  a pooled connection went stale while idle, and the proxy retries GETs but not POSTs; the Worker
+  never saw the request, and an immediate retry succeeded. The e2e hook helper retries the
+  idempotent `initialize` hook up to 3 times on exactly that message. This is dev tooling, not
+  app behaviour (production has no proxy), but in `wrangler dev` a real "Create a board" POST
+  could hit the same thing and show "Couldn't create a board" once.
+- **Clipboard.** Copy uses `navigator.clipboard.writeText`; missing API, a synchronous throw or a
+  rejection all go to the manual-copy state (input focused, whole value selected). The tick in
+  "Link copied" is `aria-hidden`, so the button's accessible name is exactly "Link copied". On
+  open, focus moves to Copy link; on close (Escape or outside pointerdown) it returns to Share.
+  Closing clears the "Link copied" timer; reopening starts at "Copy link".
+- **Home link text** on Board not found (the PRD only says "link back to the home page"):
+  "Go to the home page".
+- **TC-04 distribution check.** A chi-square over 64⁴ four-character prefixes is meaningless for
+  10,000 samples, so TC-04 checks (a) per-position uniformity of each of the first 4 characters
+  (chi-square, 63 df, critical 103.44 at p = 0.001) and (b) shared 4-character prefixes: pairs
+  ≤ 11 (Poisson λ ≈ 2.98, p < 0.001 beyond) and no prefix shared by more than 3 ids.
+- **TC-22 "full https link".** jsdom's origin is `http://localhost:3000`; the component test
+  checks the copied text equals `${location.origin}/b/<id>` and the field value, and
+  `boardLink('https://…', id)` is checked separately. TC-26 (real Chromium clipboard) checks the
+  pasted text is the page's full URL and opens the same board in a new context.
+- **TC-26 is Chromium-only** (clipboard read/write permissions cannot be granted in Firefox);
+  skipped there. TC-27/TC-29 run in Chromium and Firefox; WebKit still cannot launch on the build
+  machine.
+- **Flaky under load (not caused by this story):** one full Chromium+Firefox e2e run missed story
+  3's 1 s live-update budget in Firefox's 5-person TC-26 (contention on the single local workerd,
+  see story 4 notes); the next full run passed 58/58 (+1 skipped).
+- **Red phase.** Unit tests were written before the Worker changes but `createWithRetries` was
+  implemented in the same step, so they were not observed failing against a stub. Instead, after
+  the fact, two mutations were checked: removing the room's existence check fails integration
+  TC-09, and removing the manual-copy selection fails component TC-23 and TC-24.

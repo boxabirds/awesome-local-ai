@@ -1,7 +1,7 @@
 import { act, fireEvent, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import * as Y from 'yjs';
-import { canEdit } from '../../src/client/App';
+import { canEdit } from '../../src/client/board/Board';
 import * as model from '../../src/shared/board-model';
 import { CLOSE_BOARD_LOAD_FAILED } from '../../src/shared/protocol';
 import {

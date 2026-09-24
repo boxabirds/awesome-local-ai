@@ -16,7 +16,7 @@ import { BoardRoom } from '../../src/worker/board-room';
 import type { BoardStore } from '../../src/worker/board-store';
 import { RETRO_NOTES, retroLog, truncated } from '../fixtures/boards';
 import { blobRows, count, inRoom, overwrite, reload, restartRoom, writeLog } from './storage';
-import { ORIGIN, connect, docJson, eventually, join, type TestClient } from './ws-client';
+import { ORIGIN, connect, docJson, ensureBoard, eventually, join, type TestClient } from './ws-client';
 
 const NOTE_AT = { x: 40, y: 60 } as const;
 /** Margin past LOAD_RETRY_MIN_INTERVAL_MS so the retry is clearly after the interval. */
@@ -242,6 +242,7 @@ describe('persist.room: failures', () => {
 
   it('TC-26 an SQL error while loading → clients closed 4500', async () => {
     const boardId = newBoardId();
+    await ensureBoard(boardId); // story 5: tables exist only once the board was created
     await inRoom(boardId, (storage) => {
       // A table the loader cannot read (real SQLite error: no such column).
       storage.sql.exec('DROP TABLE snapshot_chunks');

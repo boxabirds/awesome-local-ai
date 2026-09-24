@@ -5,18 +5,19 @@ import { createSticky, snapshot } from '../../src/shared/board-model';
 import { newBoardId } from '../../src/shared/board-id';
 import { MAX_CONCURRENT_EDITORS } from '../../src/shared/config';
 import worker, { type Env } from '../../src/worker/index';
-import { ORIGIN, docJson, eventually, join, upgrade } from './ws-client';
+import { ORIGIN, docJson, ensureBoard, eventually, join, upgrade } from './ws-client';
 
 const HTTP_OK = 200;
 const HTTP_SWITCHING_PROTOCOLS = 101;
-const HTTP_BAD_REQUEST = 400;
+const HTTP_NOT_FOUND = 404;
 const HTTP_UPGRADE_REQUIRED = 426;
 const NOTE_AT = { x: 10, y: 20 } as const;
 
 describe('sync.worker_entry routing', () => {
-  it('TC-04 invalid board id → 400 and no Durable Object is addressed', async () => {
+  // Story 5 changed the malformed-id status from 400 to 404 (same answer as an unknown board).
+  it('TC-04 invalid board id → 404 and no Durable Object is addressed', async () => {
     const res = await upgrade('bad!id');
-    expect(res.status).toBe(HTTP_BAD_REQUEST);
+    expect(res.status).toBe(HTTP_NOT_FOUND);
 
     // Same handler with a spying namespace: validation happens before any stub exists.
     const idFromName = vi.fn();
@@ -26,7 +27,7 @@ describe('sync.worker_entry routing', () => {
       new Request(`${ORIGIN}/api/rooms/bad!id`, { headers: { Upgrade: 'websocket' } }),
       spyEnv,
     );
-    expect(direct.status).toBe(HTTP_BAD_REQUEST);
+    expect(direct.status).toBe(HTTP_NOT_FOUND);
     expect(idFromName).not.toHaveBeenCalled();
     expect(get).not.toHaveBeenCalled();
   });
@@ -48,6 +49,7 @@ describe('sync.worker_entry routing', () => {
 
   it('TC-13 MAX_CONCURRENT_EDITORS + 1 sockets are all accepted and all receive a note', async () => {
     const boardId = newBoardId();
+    await ensureBoard(boardId);
     const participants = MAX_CONCURRENT_EDITORS + 1;
     const statuses: number[] = [];
     const clients = [];
