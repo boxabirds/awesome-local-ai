@@ -51,7 +51,12 @@
       "finished": 1790291321.624448
     },
     "8": {
-      "started": 1790291311.1980748
+      "started": 1790291311.1980748,
+      "agent_minutes": 26.0,
+      "subagent_tokens": 228674,
+      "tool_uses": 65,
+      "commit": "9b054f9",
+      "finished": 1790292900.443104
     }
   }
 }
