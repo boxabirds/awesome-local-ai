@@ -18,6 +18,20 @@
 import * as Y from 'yjs';
 import { DEFAULT_STICKY_COLOR, STICKY_COLORS, STICKY_SIZE_WORLD, type StickyColor } from './config';
 import { rectContains, type Rect } from './geometry';
+import { connectorBBox, resolveEndpoints } from './geometry/connector-geometry';
+import {
+  LOCAL_ORIGIN,
+  finite,
+  newId,
+  objectsOf,
+  readSize,
+  rectOfRecord,
+  recordIsType,
+  topZ,
+} from './doc';
+import { readConnector, detachConnectorsTo, type ConnectorSnap } from './objects/connector';
+import type { ShapeKind } from './objects/shape';
+import type { ShapeFill, ShapeStroke } from './config';
 
 /**
  * The object types the board renderer knows how to show. Select-all and
@@ -25,14 +39,16 @@ import { rectContains, type Rect } from './geometry';
  * client (stories 9–12) never becomes selectable or resolvable until its
  * registry entry is registered here (PRD `sel.all_types`, TC-08).
  */
-const KNOWN_TYPES: ReadonlySet<string> = new Set(['sticky', 'text']);
+const KNOWN_TYPES: ReadonlySet<string> = new Set(['sticky', 'text', 'shape', 'connector']);
 
 /**
  * Transaction origin for local edits. Story 8's undo manager and story 3's
  * provider distinguish local from remote changes by origin, so every local
- * mutation is tagged with this single symbol.
+ * mutation is tagged with this single symbol. It now lives in `doc.ts` (the
+ * object modules need it too) and is re-exported here — the SAME symbol, since
+ * undo and the provider filter on its identity.
  */
-export const LOCAL_ORIGIN: unique symbol = Symbol('vidi6.local');
+export { LOCAL_ORIGIN } from './doc';
 
 /**
  * An immutable view of one board object, safe to hand to React.
@@ -62,45 +78,39 @@ export interface ObjectSnapshot {
   widthMode?: 'auto' | 'fixed';
   /** Story 9 · who created this object (the identity id at create time). */
   createdBy?: string;
+  /** Story 10 · shape: which of the three kinds to draw. */
+  kind?: ShapeKind;
+  /** Story 10 · shape: the fill colour token (`'none'` included). */
+  fill?: ShapeFill;
+  /** Story 10 · shape: the outline colour token. */
+  stroke?: ShapeStroke;
+  /** Story 10 · connector: the two stored endpoints… */
+  from?: ConnectorSnap['from'];
+  /** See {@link ConnectorSnapshot#from}. */
+  to?: ConnectorSnap['to'];
+  /**
+   * Story 10 · connector: the two *resolved* points, so a hit test and a draw
+   * share one answer (`distanceToPolyline` reads these).
+   */
+  ends?: { from: { x: number; y: number }; to: { x: number; y: number } };
 }
 
 /** @deprecated Kept for source compatibility; use {@link ObjectSnapshot}. */
 export type StickySnapshot = ObjectSnapshot;
 
+/** Story 10 · a connector snapshot carries derived geometry, not stored size. */
+export type ConnectorSnapshot = ConnectorSnap;
+
 const META_KEY = 'meta';
-const OBJECTS_KEY = 'objects';
 
 type StickyRecord = Y.Map<unknown>;
 
 function objects(doc: Y.Doc): Y.Map<StickyRecord> {
-  return doc.getMap<StickyRecord>(OBJECTS_KEY);
+  return objectsOf(doc);
 }
 
 function isSticky(record: StickyRecord | undefined): record is StickyRecord {
-  return record !== undefined && record.get('type') === 'sticky';
-}
-
-/** Highest `z` currently in the document (0 when empty). */
-function maxZ(doc: Y.Doc): number {
-  let top = 0;
-  objects(doc).forEach((record) => {
-    if (!isSticky(record)) return;
-    const z = record.get('z');
-    if (typeof z === 'number' && z > top) top = z;
-  });
-  return top;
-}
-
-function finite(...values: number[]): boolean {
-  return values.every((value) => Number.isFinite(value));
-}
-
-/** A stable identifier. Falls back where `crypto.randomUUID` is unavailable. */
-function newId(): string {
-  const c = globalThis.crypto;
-  if (c && typeof c.randomUUID === 'function') return c.randomUUID();
-  // Fallback for exotic runtimes; still effectively unique.
-  return `id-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
+  return recordIsType(record, 'sticky');
 }
 
 /** Ensure the document metadata exists (idempotent: only writes once). */
@@ -123,7 +133,7 @@ export function createSticky(
   color: StickyColor = DEFAULT_STICKY_COLOR,
 ): string {
   const id = newId();
-  const top = maxZ(doc) + 1;
+  const top = topZ(doc) + 1;
   const half = STICKY_SIZE_WORLD / 2;
   doc.transact(() => {
     const note = new Y.Map<unknown>();
@@ -164,7 +174,7 @@ export function bringToFront(doc: Y.Doc, id: string): boolean {
   if (!isSticky(record)) return false;
   const current = record.get('z');
   if (typeof current !== 'number') return false;
-  const top = maxZ(doc);
+  const top = topZ(doc);
   if (current >= top) return false;
   doc.transact(() => {
     record.set('z', top + 1);
@@ -278,6 +288,12 @@ export function deleteObjects(doc: Y.Doc, ids: readonly string[]): number {
   }
   if (present.length === 0) return 0;
   doc.transact(() => {
+    // Arrows survive the object they pointed at (PRD connector.target_deleted):
+    // every end that touched a deleted object becomes `free` at the point it was
+    // attached. Done first, while the doomed rectangles still exist, so the
+    // anchor can be measured; still ONE transaction, so the delete and its
+    // detachments are one update and one undo step (TC-13).
+    detachConnectorsTo(doc, present);
     for (const id of present) map.delete(id);
   }, LOCAL_ORIGIN);
   return present.length;
@@ -338,9 +354,23 @@ export function bringObjectsToFront(doc: Y.Doc, ids: readonly string[]): number 
 export function snapshot(doc: Y.Doc): readonly ObjectSnapshot[] {
   const result: ObjectSnapshot[] = [];
   const allowed = allowedTypes();
-  objects(doc).forEach((record, id) => {
+  const map = objects(doc);
+
+  // Pass 1 — every object that is not an arrow, plus a live rect map. An arrow's
+  // geometry is defined by what it points at, so those rectangles have to exist
+  // before its own entry can be built.
+  const rects = new Map<string, Rect>();
+  const connectors: Array<[string, StickyRecord]> = [];
+  map.forEach((record, id) => {
     const type = record.get('type');
     if (typeof type !== 'string' || !allowed.has(type)) return;
+    if (type === 'connector') {
+      connectors.push([id, record]);
+      return;
+    }
+    const rect = rectOfRecord(record);
+    if (rect) rects.set(id, rect);
+
     const entry: ObjectSnapshot = {
       id,
       type,
@@ -362,18 +392,58 @@ export function snapshot(doc: Y.Doc): readonly ObjectSnapshot[] {
       entry.widthMode = record.get('widthMode') as 'auto' | 'fixed';
       const createdBy = record.get('createdBy');
       if (typeof createdBy === 'string') entry.createdBy = createdBy;
+    } else if (type === 'shape') {
+      const label = record.get('label');
+      entry.kind = record.get('kind') as ShapeKind;
+      entry.fill = record.get('fill') as ShapeFill;
+      entry.stroke = record.get('stroke') as ShapeStroke;
+      entry.text = label instanceof Y.Text ? label.toString() : '';
+      const createdBy = record.get('createdBy');
+      if (typeof createdBy === 'string') entry.createdBy = createdBy;
     }
     result.push(entry);
   });
+
+  // Pass 2 — the arrows. The stored `x`/`y`/`width`/`height` are zeros (the box
+  // is derived), so this is where a connector gets a real bounding box: the
+  // frame around its two resolved ends. An arrow whose target vanished draws at
+  // the endpoint's stored fallback point instead of disappearing.
+  for (const [id, record] of connectors) {
+    const ends = readConnector(record);
+    if (ends === null) continue;
+    const resolved = resolveEndpoints(ends, rects);
+    if (
+      !Number.isFinite(resolved.from.x) ||
+      !Number.isFinite(resolved.from.y) ||
+      !Number.isFinite(resolved.to.x) ||
+      !Number.isFinite(resolved.to.y)
+    ) {
+      continue;
+    }
+    const box = connectorBBox(resolved.from, resolved.to);
+    const createdBy = record.get('createdBy');
+    const entry: ObjectSnapshot = {
+      id,
+      type: 'connector',
+      x: box.x,
+      y: box.y,
+      z: record.get('z') as number,
+      width: box.width,
+      height: box.height,
+      createdAt: record.get('createdAt') as number,
+      from: ends.from,
+      to: ends.to,
+      ends: resolved,
+    };
+    if (typeof createdBy === 'string') entry.createdBy = createdBy;
+    result.push(entry);
+  }
+
   result.sort((a, b) => (a.z !== b.z ? a.z - b.z : a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
   return result;
 }
 
 /* ---- Story 7 · multi-object reads and group operations -------------------- */
-
-function readSize(value: unknown): number {
-  return typeof value === 'number' && Number.isFinite(value) ? value : STICKY_SIZE_WORLD;
-}
 
 /**
  * The set of types the current runtime can resolve: the production registry

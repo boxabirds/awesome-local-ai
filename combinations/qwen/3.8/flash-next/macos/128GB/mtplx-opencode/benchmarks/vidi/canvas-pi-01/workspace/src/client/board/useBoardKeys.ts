@@ -23,7 +23,7 @@
  */
 import { useEffect } from 'react';
 import { NUDGE_LARGE_STEP_WORLD, NUDGE_STEP_WORLD } from '../../shared/config';
-import type { Tool } from './useTool';
+import { TOOL_SHORTCUTS, type Tool } from './useTool';
 import type { TransformController } from './transformController';
 import type { UndoController } from './undo';
 
@@ -103,21 +103,20 @@ export function useBoardKeys(getDeps: () => BoardKeyDeps): void {
       if (isTypingTarget(event.target)) return; // keys belong to the editor
       if (!deps.isEditable()) return;
 
-      // 3a. Tool shortcuts (V / T) and the sticky-create shortcut (N). These are
-      // board-level and only reached with no modifier, nothing focused and an
-      // editable board (the guards above). `T` is a tool switch, never a typed
-      // character: a focused editor never reaches here (TC-16).
-      if (event.key === 'v' || event.key === 'V') {
+      // 3a. Tool shortcuts (V / T / S / L) and the sticky-create shortcut (N).
+      // These are board-level and only reached with no modifier, nothing focused
+      // and an editable board (the guards above). A letter is never a typed
+      // character here: a focused editor never reaches this point (TC-16). The
+      // mapping lives in `useTool` so the toolbar, the hook and this handler
+      // cannot drift apart; a letter that is not in it is ignored.
+      const shortcut = TOOL_SHORTCUTS[event.key.toLowerCase()];
+      if (shortcut !== undefined) {
         if (editing !== null) return;
+        // Select is always available; every creating tool needs an editable board
+        // (`useTool.setTool` refuses it too — this only skips the preventDefault).
+        if (shortcut !== 'select' && !deps.isEditable()) return;
         event.preventDefault();
-        deps.setTool('select');
-        return;
-      }
-      if (event.key === 't' || event.key === 'T') {
-        if (editing !== null) return;
-        if (!deps.isEditable()) return; // Text is unavailable while read-only (TC-15)
-        event.preventDefault();
-        deps.setTool('text');
+        deps.setTool(shortcut);
         return;
       }
       if (event.key === 'n' || event.key === 'N') {

@@ -82,6 +82,80 @@ export const NUDGE_STEP_WORLD = 1;
 /** A Shift+arrow nudge, in world units. */
 export const NUDGE_LARGE_STEP_WORLD = 10;
 
+/* ---- Story 10 · shapes and connectors (design "Named settings added") ----
+ * The story-10 product settings, defined once here so a designer can retune
+ * shapes and arrows without a redesign (PRD "Settings"). Colours are *tokens*:
+ * the model stores the token and the renderer looks the colour up in the map,
+ * so a recolour is a short sync message rather than a hex string.
+ */
+
+/** The three shape kinds this build draws, in the order the Shape menu lists. */
+export const SHAPE_KINDS = ['rect', 'ellipse', 'diamond'] as const;
+
+/** A click, or a drag below the minimum size, drops a shape this wide/tall. */
+export const SHAPE_DEFAULT_SIZE_WORLD = 160;
+
+/** The smallest shape a drag may size; anything smaller uses the default. */
+export const SHAPE_MIN_SIZE_WORLD = 20;
+
+/** A shape label is clamped to this many characters (PRD shape.label_limit). */
+export const SHAPE_LABEL_MAX_CHARS = 500;
+
+/** Shape outline thickness, in world units. */
+export const SHAPE_STROKE_WIDTH_WORLD = 2;
+
+/** The six shape fills plus `none` (transparent), keyed by accessible name. */
+export const SHAPE_FILL_COLORS = {
+  none: 'transparent',
+  white: '#FFFFFF',
+  blue: '#BBDEFB',
+  green: '#C8E6C9',
+  yellow: '#FFF9C4',
+  pink: '#F8BBD0',
+  grey: '#E0E0E0',
+} as const;
+
+/** The six outline colours offered beside the fills. */
+export const SHAPE_STROKE_COLORS = {
+  dark: '#263238',
+  blue: '#1E88E5',
+  green: '#43A047',
+  orange: '#FB8C00',
+  red: '#E53935',
+  grey: '#9E9E9E',
+} as const;
+
+/** A fill token (including `none`); a shape's style stores one of these. */
+export type ShapeFill = keyof typeof SHAPE_FILL_COLORS;
+
+/** An outline token. */
+export type ShapeStroke = keyof typeof SHAPE_STROKE_COLORS;
+
+/** The fill a new shape gets: a plain white shape … */
+export const DEFAULT_SHAPE_FILL: ShapeFill = 'white';
+
+/** … and the dark outline that keeps it readable (PRD "with a dark outline"). */
+export const DEFAULT_SHAPE_STROKE: ShapeStroke = 'dark';
+
+/**
+ * How far from a connector's line a click still selects it, in *screen* pixels
+ * (PRD shape.arrow_select: 5 px selects, 7 px does not). Divided by the zoom to
+ * get the world-space tolerance, so precision does not depend on the zoom level.
+ */
+export const CONNECTOR_HIT_TOLERANCE_PX = 6;
+
+/** A connector shorter than this is refused (PRD conn.short_drag). */
+export const CONNECTOR_MIN_LENGTH_WORLD = 8;
+
+/** Connector line thickness, in world units. */
+export const CONNECTOR_STROKE_WIDTH_WORLD = 2;
+
+/** The arrowhead's stem length, in world units. */
+export const CONNECTOR_ARROWHEAD_SIZE_WORLD = 10;
+
+/** The radius of the four attachment dots, in screen px (constant at any zoom). */
+export const CONNECTOR_DOT_RADIUS_PX = 4;
+
 /* ---- Story 3 · live collaboration (design "Named settings") --------------
  * These are the story-3 product settings, defined once here so a designer can
  * retune live sync without a redesign (PRD "Constraints"). Tests must use

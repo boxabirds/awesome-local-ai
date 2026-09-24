@@ -233,10 +233,12 @@ describe('snapshot ordering and forward compatibility', () => {
 
     doc.transact(() => {
       const objects = doc.getMap<Y.Map<unknown>>('objects');
-      const shape = new Y.Map<unknown>();
-      shape.set('type', 'shape');
-      shape.set('x', 10);
-      objects.set('shape-1', shape);
+      // Story 10 made `shape` a real type, so the forward-compatibility case is
+      // now an object type this client has never heard of.
+      const widget = new Y.Map<unknown>();
+      widget.set('type', 'widget-from-the-future');
+      widget.set('x', 10);
+      objects.set('widget-1', widget);
     });
 
     const snap = snapshot(doc);

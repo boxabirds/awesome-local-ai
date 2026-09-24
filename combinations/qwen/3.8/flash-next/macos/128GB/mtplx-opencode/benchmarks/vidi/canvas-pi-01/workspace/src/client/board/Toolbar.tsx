@@ -1,19 +1,22 @@
 /**
  * Story 2 · task 6 — the left tool palette (design "Toolbars: create, colour,
  * delete"). Story 8 · task 5 adds the Undo / Redo buttons; story 9 · task 6 adds
- * the two tool-mode buttons (Select / Text).
+ * the two tool-mode buttons (Select / Text); story 10 · task 11 adds the Shape
+ * button (with its kind menu) and the Connector button.
  *
- * A fixed vertical strip on the left of the board. The two tool buttons switch
- * the board's per-client tool mode (Select or Text); the Text tool is really
- * `disabled` on a read-only board. Clicking the sticky-note create tool makes a
- * note at the centre of the visible board (the parent owns the camera); the
- * history buttons undo / redo *this person's* own steps and sit disabled while
- * the personal stack is empty (PRD undo.empty). Pointer events are stopped so a
- * click never reaches the board surface underneath.
+ * A fixed vertical strip on the left of the board. The tool buttons switch the
+ * board's per-client tool mode; the creating tools are genuinely `disabled` on a
+ * read-only board. Clicking the sticky-note create tool makes a note at the
+ * centre of the visible board (the parent owns the camera); the history buttons
+ * undo / redo *this person's* own steps and sit disabled while the personal stack
+ * is empty (PRD undo.empty). Pointer events are stopped so a click never reaches
+ * the board surface underneath.
  */
 import type { MouseEvent, PointerEvent as ReactPointerEvent } from 'react';
 import { UndoButtons } from './UndoButtons';
+import { SHAPE_KINDS } from '../../shared/config';
 import type { Tool } from './useTool';
+import type { ShapeKind } from '../../shared/objects/shape';
 
 export interface ToolbarProps {
   onCreateSticky(): void;
@@ -25,8 +28,12 @@ export interface ToolbarProps {
   disabled?: boolean;
   /** The active tool (story 9). Drives the `aria-pressed` state. */
   tool?: Tool;
-  /** Switch the tool (Select / Text). */
+  /** Switch the tool (Select / Text / Shape / Connector). */
   onSelectTool?(tool: Tool): void;
+  /** The kind the Shape tool will draw (story 10, persistent across drags). */
+  shapeKind?: ShapeKind;
+  /** Choose the kind from the Shape menu. */
+  onSelectShapeKind?(kind: ShapeKind): void;
   /** Personal-history state for the Undo / Redo buttons (story 8). */
   history?: {
     canUndo: boolean;
@@ -39,11 +46,20 @@ export interface ToolbarProps {
 /** Exact PRD tooltip / accessible description for the sticky-note button. */
 export const STICKY_BUTTON_TITLE = 'Sticky note \u2013 or double-click the board';
 
+/** The kind menu's accessible names, in `SHAPE_KINDS` order. */
+export const SHAPE_KIND_NAMES: Record<ShapeKind, string> = {
+  rect: 'Rectangle',
+  ellipse: 'Ellipse',
+  diamond: 'Diamond',
+};
+
 export function Toolbar({
   onCreateSticky,
   disabled = false,
   tool = 'select',
   onSelectTool,
+  shapeKind = 'rect',
+  onSelectShapeKind,
   history,
 }: ToolbarProps) {
   const stop = (event: ReactPointerEvent | MouseEvent) => {
@@ -55,6 +71,8 @@ export function Toolbar({
     if (disabled) return;
     onSelectTool?.(next);
   };
+
+  const shapeActive = tool === 'shape';
 
   return (
     <div
@@ -88,6 +106,65 @@ export function Toolbar({
       >
         <span aria-hidden="true">T</span>
       </button>
+
+      {/* Story 10 · Shape. Active state is pressed; the kind menu appears beside
+          it while the tool is active (PRD `shape.create_drag`). */}
+      <div className="tool-with-menu" data-testid="tool-shape-wrap">
+        <button
+          type="button"
+          className="tool-button"
+          data-testid="tool-shape"
+          aria-label="Shape (S)"
+          aria-pressed={shapeActive}
+          aria-expanded={shapeActive}
+          disabled={disabled}
+          onPointerDown={stop}
+          onClick={(event) => pickTool(event, 'shape')}
+        >
+          <span aria-hidden="true">{'\u25A6'}</span>
+        </button>
+        {shapeActive ? (
+          <div
+            className="shape-kind-menu"
+            data-testid="shape-kind-menu"
+            role="group"
+            aria-label="Shape kind"
+            onPointerDown={stop}
+          >
+            {SHAPE_KINDS.map((kind) => (
+              <button
+                key={kind}
+                type="button"
+                className="shape-kind-button"
+                data-testid={`shape-kind-${kind}`}
+                aria-label={SHAPE_KIND_NAMES[kind]}
+                aria-pressed={shapeKind === kind}
+                onPointerDown={stop}
+                onClick={(event) => {
+                  stop(event);
+                  onSelectShapeKind?.(kind);
+                }}
+              >
+                {SHAPE_KIND_NAMES[kind]}
+              </button>
+            ))}
+          </div>
+        ) : null}
+      </div>
+
+      <button
+        type="button"
+        className="tool-button"
+        data-testid="tool-connector"
+        aria-label="Connector (L)"
+        aria-pressed={tool === 'connector'}
+        disabled={disabled}
+        onPointerDown={stop}
+        onClick={(event) => pickTool(event, 'connector')}
+      >
+        <span aria-hidden="true">{'\u2192'}</span>
+      </button>
+
       <button
         type="button"
         className="tool-button"

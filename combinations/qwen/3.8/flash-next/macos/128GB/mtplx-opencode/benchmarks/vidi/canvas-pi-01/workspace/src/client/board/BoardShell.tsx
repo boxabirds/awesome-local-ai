@@ -40,12 +40,17 @@ import { useUndo } from './useUndo';
 import { useBoardKeys, type BoardKeyDeps } from './useBoardKeys';
 import { StickyNote } from '../objects/StickyNote';
 import { TextObject } from '../objects/TextObject';
+import { ShapeObject } from '../objects/ShapeObject';
+import { ConnectorObject } from '../objects/ConnectorObject';
+import { ShapeTool } from '../tools/ShapeTool';
+import { ConnectorTool } from '../tools/ConnectorTool';
 import { SelectionBar } from './SelectionBar';
 import { ConnectionStatus } from '../sync/ConnectionStatus';
 import type { ConnectionState } from '../sync/connectionState';
 import { useLiveTestHooks } from '../sync/testHooks';
 import { allObjectIds, createSticky, deleteObjects, moveObjects } from '../../shared/board-model';
 import { createText } from '../../shared/objects/text';
+import { setShapeStyle } from '../../shared/objects/shape';
 import { getHandles } from '../objects/registry';
 
 
@@ -233,6 +238,30 @@ export function BoardShell({
     [selection],
   );
 
+  // Story 10: the Shape and Connector tools own the whole gesture and report the
+  // id they created. Selecting it and dropping back to Select happens here, so
+  // the new object can be adjusted straight away (PRD tools.return_to_select).
+  const onToolCreated = useCallback(
+    (id: string) => {
+      selection.click(id);
+      toolState.setTool('select');
+    },
+    [selection, toolState],
+  );
+
+  // A shape recolour is its own undo step, separate from any drag that just
+  // ended (same rule as the sticky-note colours).
+  const styleShape = useCallback(
+    (id: string, style: { fill?: string; stroke?: string }) => {
+      if (!editableRef.current) return;
+      const apply = () => {
+        setShapeStyle(boardDoc, id, style);
+      };
+      undoRef.current.step(apply);
+    },
+    [boardDoc],
+  );
+
   // Nudge the whole selection by a world delta (arrow keys): one nudge, one step.
   const nudgeSelection = useCallback(
     (dx: number, dy: number) => {
@@ -296,6 +325,28 @@ export function BoardShell({
           onMarquee={onMarquee}
           tool={toolState.tool}
           onTextClick={createTextAtWorld}
+          toolOverlay={
+            toolState.tool === 'shape' ? (
+              <ShapeTool
+                kind={toolState.shapeKind}
+                camera={camera}
+                doc={boardDoc}
+                by={identity.id}
+                undo={undoController}
+                onCreated={onToolCreated}
+              />
+            ) : toolState.tool === 'connector' ? (
+              <ConnectorTool
+                camera={camera}
+                getSnapshot={getSnapshot}
+                size={viewport}
+                doc={boardDoc}
+                by={identity.id}
+                undo={undoController}
+                onCreated={onToolCreated}
+              />
+            ) : undefined
+          }
         >
           {notes.map((note) =>
             note.type === 'text' ? (
@@ -314,6 +365,36 @@ export function BoardShell({
                 onStartEdit={(id) => selection.startEdit(id)}
                 onEndEdit={() => selection.endEdit()}
                 onDelete={deleteOne}
+              />
+            ) : note.type === 'shape' ? (
+              <ShapeObject
+                key={note.id}
+                obj={note}
+                doc={boardDoc}
+                zoom={camera.zoom}
+                editable={editable}
+                selected={selection.ids.has(note.id)}
+                editing={selection.editingId === note.id}
+                controller={controller}
+                undo={undoController}
+                selection={selectedIds}
+                onSelect={onSelect}
+                onStartEdit={(id) => selection.startEdit(id)}
+                onEndEdit={() => selection.endEdit()}
+                onStyle={(style) => styleShape(note.id, style)}
+                onDelete={deleteOne}
+              />
+            ) : note.type === 'connector' ? (
+              <ConnectorObject
+                key={note.id}
+                conn={note}
+                doc={boardDoc}
+                zoom={camera.zoom}
+                editable={editable}
+                selected={selection.ids.has(note.id)}
+                getSnapshot={getSnapshot}
+                onSelect={onSelect}
+                undo={undoController}
               />
             ) : (
               <StickyNote
@@ -344,6 +425,8 @@ export function BoardShell({
           disabled={!editable}
           tool={toolState.tool}
           onSelectTool={(next) => toolState.setTool(next)}
+          shapeKind={toolState.shapeKind}
+          onSelectShapeKind={(next) => toolState.setShapeKind(next)}
           history={{
             canUndo: undoController.canUndo(),
             canRedo: undoController.canRedo(),
