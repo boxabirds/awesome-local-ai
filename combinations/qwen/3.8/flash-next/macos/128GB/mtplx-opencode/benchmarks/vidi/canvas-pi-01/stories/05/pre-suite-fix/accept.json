@@ -2,7 +2,7 @@
   "build_exit": 0,
   "runner_exit": 1,
   "runner_tail": "",
-  "passed": 32,
+  "passed": 26,
   "total": 36,
   "by_story": {
     "01": {
@@ -10,15 +10,15 @@
       "total": 10
     },
     "02": {
-      "passed": 9,
+      "passed": 7,
       "total": 10
     },
     "03": {
-      "passed": 5,
+      "passed": 2,
       "total": 7
     },
     "04": {
-      "passed": 4,
+      "passed": 3,
       "total": 4
     },
     "05": {
@@ -90,14 +90,14 @@
     {
       "file": "story-02.spec.ts",
       "title": "golden path: create, type, select, recolour, delete @ref prd:golden-path",
-      "status": "passed",
-      "error": ""
+      "status": "failed",
+      "error": "TimeoutError: page.waitForURL: Timeout 15000ms exceeded.\n=========================== logs ===========================\nwaiting for navigation until \"load\"\n============================================================"
     },
     {
       "file": "story-02.spec.ts",
       "title": "double-click creates note centred on the point @ref prd:sticky.create_dblclick",
-      "status": "passed",
-      "error": ""
+      "status": "failed",
+      "error": "TimeoutError: page.waitForURL: Timeout 15000ms exceeded.\n=========================== logs ===========================\nwaiting for navigation until \"load\"\n============================================================"
     },
     {
       "file": "story-02.spec.ts",
@@ -163,25 +163,25 @@
       "file": "story-03.spec.ts",
       "title": "simultaneous typing keeps both people's characters @ref prd:live.concurrent_text",
       "status": "failed",
-      "error": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoHaveText\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m)\u001b[22m failed\n\nLocator: locator('[role=\"group\"][aria-label=\"Sticky note\"]').first()\nExpected pattern: \u001b[32m/^\\s*red green blue\\s*$/\u001b[39m\nReceived string:  \u001b[31m\"green blue\ud83d\uddd1\"\u001b[39m\nTimeout: 2000ms\n\nCall log:\n\u001b[2m  - Expect \"toHaveText\" with timeout 2000ms\u001b[22m\n\u001b[2m  - waiting for locator('[role=\"group\"][aria-label=\"Sticky note\"]').first()\u001b[22m\n\u001b[2m    6 \u00d7 locator resolved to <div role=\"group\" tabindex=\"0\" "
+      "error": "TimeoutError: page.waitForURL: Timeout 15000ms exceeded.\n=========================== logs ===========================\nwaiting for navigation until \"load\"\n============================================================"
     },
     {
       "file": "story-03.spec.ts",
       "title": "boards stay separate @ref prd:live.isolation",
-      "status": "passed",
-      "error": ""
+      "status": "failed",
+      "error": "TimeoutError: page.waitForURL: Timeout 15000ms exceeded.\n=========================== logs ===========================\nwaiting for navigation until \"load\"\n============================================================"
     },
     {
       "file": "story-03.spec.ts",
       "title": "selection stays personal @ref prd:live.local_selection",
-      "status": "passed",
-      "error": ""
+      "status": "failed",
+      "error": "TimeoutError: page.waitForURL: Timeout 15000ms exceeded.\n=========================== logs ===========================\nwaiting for navigation until \"load\"\n============================================================"
     },
     {
       "file": "story-03.spec.ts",
       "title": "server restart shows Reconnecting\u2026 then Connected, notes kept @ref prd:live.status",
-      "status": "passed",
-      "error": ""
+      "status": "failed",
+      "error": "TimeoutError: page.waitForURL: Timeout 15000ms exceeded.\n=========================== logs ===========================\nwaiting for navigation until \"load\"\n============================================================"
     },
     {
       "file": "story-03.spec.ts",
@@ -192,8 +192,8 @@
     {
       "file": "story-04.spec.ts",
       "title": "board is intact after everyone leaves @ref prd:persist.reopen",
-      "status": "passed",
-      "error": ""
+      "status": "failed",
+      "error": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoHaveCount\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m)\u001b[22m failed\n\nLocator:  locator('[role=\"group\"][aria-label=\"Sticky note\"]')\nExpected: \u001b[32m2\u001b[39m\nReceived: \u001b[31m1\u001b[39m\nTimeout:  5000ms\n\nCall log:\n\u001b[2m  - Expect \"toHaveCount\" with timeout 5000ms\u001b[22m\n\u001b[2m  - waiting for locator('[role=\"group\"][aria-label=\"Sticky note\"]')\u001b[22m\n\u001b[2m    9 \u00d7 locator resolved to 1 element\u001b[22m\n\u001b[2m      - unexpected value \"1\"\u001b[22m\n"
     },
     {
       "file": "story-04.spec.ts",

@@ -1,5 +1,5 @@
 // Story 5 — Share a board with others using a link.
-import { test, expect, requires, openBoard, joinBoard, notes, createNote, hint, shot, BOARD_URL_RE } from './fixtures';
+import { test, expect, requires, openBoard, joinBoard, notes, createNote, hint, shot, createBoard } from './fixtures';
 
 const LINK_COPIED_MS = 2_000;
 const LIVE_MS = 2_000;
@@ -13,9 +13,7 @@ test.describe('story 5 @s05', () => {
     await page.goto('/');
     await expect(page.getByText('A shared board for thinking together')).toBeVisible();
     await shot(page, 's05-home');
-    const t0 = Date.now();
-    await page.getByRole('button', { name: 'Create a board' }).click();
-    await page.waitForURL(BOARD_URL_RE);
+    const t0 = await createBoard(page);
     await expect(hint(page)).toBeVisible();
     expect(Date.now() - t0).toBeLessThan(CREATE_MS * 2);
   });
@@ -62,8 +60,7 @@ test.describe('story 5 @s05', () => {
     const BOARDS = 3;
     for (let i = 0; i < BOARDS; i++) {
       await page.goto('/');
-      await page.getByRole('button', { name: 'Create a board' }).click();
-      await page.waitForURL(BOARD_URL_RE);
+      await createBoard(page);
       seen.add(page.url());
     }
     expect(seen.size).toBe(BOARDS);

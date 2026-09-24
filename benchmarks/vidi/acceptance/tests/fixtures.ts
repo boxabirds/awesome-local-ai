@@ -5,7 +5,8 @@
 // implementation's internal structure, so the suite runs unchanged against any
 // combination's workspace.
 import { test as base, expect, type Page, type Locator, type BrowserContext } from '@playwright/test';
-import { mkdirSync } from 'node:fs';
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { APP_URL, CONTROL_URL } from './app-server';
 
@@ -53,15 +54,47 @@ export { expect };
 export const BOARD_URL_RE = /\/b\/[A-Za-z0-9_-]{22}$/;
 export const BOARD_CENTRE = { x: 640, y: 400 };
 
+// PRD share.rate_limit: more than 10 boards per visitor per minute is refused.
+// The suite is one visitor creating a board per test, so it paces itself to stay
+// inside that setting instead of tripping it (which a correct app must do).
+const CREATE_LIMIT = 10;
+const CREATE_WINDOW_MS = 60_000;
+const CREATE_WINDOW_MARGIN_MS = 2_000;
+// Kept on disk: Playwright replaces the worker process after any failed test,
+// which would silently reset an in-memory count. Stale entries age out below.
+const CREATE_TIMES_FILE = join(tmpdir(), `vidi-accept-creates-${new URL(APP_URL).port}.json`);
+
+function readCreateTimes(): number[] {
+  try { return JSON.parse(readFileSync(CREATE_TIMES_FILE, 'utf8')); } catch { return []; }
+}
+
+async function paceCreate(page: Page) {
+  const span = CREATE_WINDOW_MS + CREATE_WINDOW_MARGIN_MS;
+  const now = Date.now();
+  const times = readCreateTimes().filter((t) => now - t < span);
+  if (times.length >= CREATE_LIMIT) {
+    const waitMs = times[times.length - CREATE_LIMIT] + span - now;
+    test.info().setTimeout(test.info().timeout + waitMs);
+    await page.waitForTimeout(waitMs);
+  }
+  writeFileSync(CREATE_TIMES_FILE, JSON.stringify([...times, Date.now()]));
+}
+
+// Click "Create a board" on the home page and wait for the new board's address.
+// Returns when the click happened, so timing checks exclude any pacing wait.
+export async function createBoard(page: Page): Promise<number> {
+  await paceCreate(page);
+  const clickedAt = Date.now();
+  await page.getByRole('button', { name: 'Create a board' }).click();
+  await page.waitForURL(BOARD_URL_RE);
+  return clickedAt;
+}
+
 // Open a fresh board. Before story 5 the app shows (or redirects to) a board
 // at '/'; from story 5 on '/' is the home page with "Create a board".
 export async function openBoard(page: Page): Promise<string> {
   await page.goto('/');
-  const create = page.getByRole('button', { name: 'Create a board' });
-  if (DONE.has(5)) {
-    await create.click();
-    await page.waitForURL(BOARD_URL_RE);
-  }
+  if (DONE.has(5)) await createBoard(page);
   await expect(zoomLabel(page)).toBeVisible();
   if (DONE.has(3)) await waitConnected(page);
   return page.url();

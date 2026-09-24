@@ -4780,7 +4780,7 @@
         "build_exit": 0,
         "runner_exit": 1,
         "runner_tail": "",
-        "passed": 26,
+        "passed": 32,
         "total": 36,
         "by_story": {
           "01": {
@@ -4788,15 +4788,15 @@
             "total": 10
           },
           "02": {
-            "passed": 7,
+            "passed": 9,
             "total": 10
           },
           "03": {
-            "passed": 2,
+            "passed": 5,
             "total": 7
           },
           "04": {
-            "passed": 3,
+            "passed": 4,
             "total": 4
           },
           "05": {
@@ -4838,7 +4838,16 @@
         "files": 81,
         "lines": 13061
       },
-      "finished": 1790258107.032098
+      "finished": 1790258107.032098,
+      "record": {
+        "committed": true,
+        "pushed": true,
+        "over_size_limit": [
+          "~/expts/awesome-local-ai/combinations/qwen/3.8/flash-next/macos/128GB/mtplx-opencode/benchmarks/vidi/canvas-pi-01/stories/05/agent-events.compact.jsonl.gz"
+        ],
+        "commit": "11c1831"
+      },
+      "accept_rescored": "suite fix: board-creation pacing (see interventions.md); original in stories/05/pre-suite-fix"
     }
   },
   "scope": "canvas",

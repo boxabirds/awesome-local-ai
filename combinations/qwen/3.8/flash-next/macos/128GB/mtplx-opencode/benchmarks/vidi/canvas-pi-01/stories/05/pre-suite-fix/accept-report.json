@@ -16,7 +16,7 @@
     "preserveOutput": "always",
     "projects": [
       {
-        "outputDir": "<story-5 re-score dir>/out/artifacts",
+        "outputDir": "~/expts/awesome-local-ai/combinations/qwen/3.8/flash-next/macos/128GB/mtplx-opencode/benchmarks/vidi/canvas-pi-01/stories/05/artifacts",
         "repeatEach": 1,
         "retries": 0,
         "metadata": {
@@ -41,7 +41,7 @@
       [
         "json",
         {
-          "outputFile": "<story-5 re-score dir>/out/accept-report.json"
+          "outputFile": "~/expts/awesome-local-ai/combinations/qwen/3.8/flash-next/macos/128GB/mtplx-opencode/benchmarks/vidi/canvas-pi-01/stories/05/accept-report.json"
         }
       ]
     ],
@@ -91,12 +91,12 @@
                       "workerIndex": 0,
                       "parallelIndex": 0,
                       "status": "passed",
-                      "duration": 402,
+                      "duration": 357,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2026-09-24T14:00:37.660Z",
+                      "startTime": "2026-09-24T13:52:23.229Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -128,12 +128,12 @@
                       "workerIndex": 0,
                       "parallelIndex": 0,
                       "status": "passed",
-                      "duration": 443,
+                      "duration": 425,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2026-09-24T14:00:38.565Z",
+                      "startTime": "2026-09-24T13:52:24.062Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -165,7 +165,7 @@
                       "workerIndex": 0,
                       "parallelIndex": 0,
                       "status": "failed",
-                      "duration": 5539,
+                      "duration": 5404,
                       "error": {
                         "message": "TimeoutError: locator.click: Timeout 5000ms exceeded.\nCall log:\n\u001b[2m  - waiting for getByRole('button', { name: 'Zoom out' })\u001b[22m\n\u001b[2m    - locator resolved to <button type=\"button\" aria-label=\"Zoom out\">−</button>\u001b[22m\n\u001b[2m  - attempting click action\u001b[22m\n\u001b[2m    2 × waiting for element to be visible, enabled and stable\u001b[22m\n\u001b[2m      - element is not enabled\u001b[22m\n\u001b[2m    - retrying click action\u001b[22m\n\u001b[2m    - waiting 20ms\u001b[22m\n\u001b[2m    2 × waiting for element to be visible, enabled and stable\u001b[22m\n\u001b[2m      - element is not enabled\u001b[22m\n\u001b[2m    - retrying click action\u001b[22m\n\u001b[2m      - waiting 100ms\u001b[22m\n\u001b[2m    10 × waiting for element to be visible, enabled and stable\u001b[22m\n\u001b[2m       - element is not enabled\u001b[22m\n\u001b[2m     - retrying click action\u001b[22m\n\u001b[2m       - waiting 500ms\u001b[22m\n",
                         "stack": "TimeoutError: locator.click: Timeout 5000ms exceeded.\nCall log:\n\u001b[2m  - waiting for getByRole('button', { name: 'Zoom out' })\u001b[22m\n\u001b[2m    - locator resolved to <button type=\"button\" aria-label=\"Zoom out\">−</button>\u001b[22m\n\u001b[2m  - attempting click action\u001b[22m\n\u001b[2m    2 × waiting for element to be visible, enabled and stable\u001b[22m\n\u001b[2m      - element is not enabled\u001b[22m\n\u001b[2m    - retrying click action\u001b[22m\n\u001b[2m    - waiting 20ms\u001b[22m\n\u001b[2m    2 × waiting for element to be visible, enabled and stable\u001b[22m\n\u001b[2m      - element is not enabled\u001b[22m\n\u001b[2m    - retrying click action\u001b[22m\n\u001b[2m      - waiting 100ms\u001b[22m\n\u001b[2m    10 × waiting for element to be visible, enabled and stable\u001b[22m\n\u001b[2m       - element is not enabled\u001b[22m\n\u001b[2m     - retrying click action\u001b[22m\n\u001b[2m       - waiting 500ms\u001b[22m\n\n    at ~/expts/awesome-local-ai/benchmarks/vidi/acceptance/tests/story-01.spec.ts:36:76",
@@ -189,18 +189,18 @@
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2026-09-24T14:00:39.019Z",
+                      "startTime": "2026-09-24T13:52:24.491Z",
                       "annotations": [],
                       "attachments": [
                         {
                           "name": "screenshot",
                           "contentType": "image/png",
-                          "path": "<story-5 re-score dir>/out/artifacts/story-01-story-1-s01-zoom--9209c-buttons-ref-prd-zoom-limits-chromium/test-failed-1.png"
+                          "path": "~/expts/awesome-local-ai/combinations/qwen/3.8/flash-next/macos/128GB/mtplx-opencode/benchmarks/vidi/canvas-pi-01/stories/05/artifacts/story-01-story-1-s01-zoom--9209c-buttons-ref-prd-zoom-limits-chromium/test-failed-1.png"
                         },
                         {
                           "name": "error-context",
                           "contentType": "text/markdown",
-                          "path": "<story-5 re-score dir>/out/artifacts/story-01-story-1-s01-zoom--9209c-buttons-ref-prd-zoom-limits-chromium/error-context.md"
+                          "path": "~/expts/awesome-local-ai/combinations/qwen/3.8/flash-next/macos/128GB/mtplx-opencode/benchmarks/vidi/canvas-pi-01/stories/05/artifacts/story-01-story-1-s01-zoom--9209c-buttons-ref-prd-zoom-limits-chromium/error-context.md"
                         }
                       ],
                       "errorLocation": {
@@ -237,12 +237,12 @@
                       "workerIndex": 1,
                       "parallelIndex": 0,
                       "status": "passed",
-                      "duration": 335,
+                      "duration": 348,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2026-09-24T14:00:45.127Z",
+                      "startTime": "2026-09-24T13:52:30.273Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -274,12 +274,12 @@
                       "workerIndex": 1,
                       "parallelIndex": 0,
                       "status": "passed",
-                      "duration": 283,
+                      "duration": 221,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2026-09-24T14:00:45.787Z",
+                      "startTime": "2026-09-24T13:52:30.829Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -311,12 +311,12 @@
                       "workerIndex": 1,
                       "parallelIndex": 0,
                       "status": "passed",
-                      "duration": 399,
+                      "duration": 329,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2026-09-24T14:00:46.076Z",
+                      "startTime": "2026-09-24T13:52:31.053Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -348,12 +348,12 @@
                       "workerIndex": 1,
                       "parallelIndex": 0,
                       "status": "passed",
-                      "duration": 422,
+                      "duration": 338,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2026-09-24T14:00:46.482Z",
+                      "startTime": "2026-09-24T13:52:31.386Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -385,12 +385,12 @@
                       "workerIndex": 1,
                       "parallelIndex": 0,
                       "status": "passed",
-                      "duration": 330,
+                      "duration": 252,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2026-09-24T14:00:46.911Z",
+                      "startTime": "2026-09-24T13:52:31.729Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -422,12 +422,12 @@
                       "workerIndex": 1,
                       "parallelIndex": 0,
                       "status": "passed",
-                      "duration": 335,
+                      "duration": 251,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2026-09-24T14:00:47.248Z",
+                      "startTime": "2026-09-24T13:52:31.985Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -459,12 +459,12 @@
                       "workerIndex": 1,
                       "parallelIndex": 0,
                       "status": "passed",
-                      "duration": 589,
+                      "duration": 472,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2026-09-24T14:00:47.590Z",
+                      "startTime": "2026-09-24T13:52:32.239Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -496,14 +496,14 @@
           "specs": [
             {
               "title": "golden path: create, type, select, recolour, delete @ref prd:golden-path",
-              "ok": true,
+              "ok": false,
               "tags": [
                 "s02",
                 "ref"
               ],
               "tests": [
                 {
-                  "timeout": 96991,
+                  "timeout": 45000,
                   "annotations": [],
                   "expectedStatus": "passed",
                   "projectId": "chromium",
@@ -512,18 +512,53 @@
                     {
                       "workerIndex": 1,
                       "parallelIndex": 0,
-                      "status": "passed",
-                      "duration": 52363,
-                      "errors": [],
+                      "status": "failed",
+                      "duration": 15092,
+                      "error": {
+                        "message": "TimeoutError: page.waitForURL: Timeout 15000ms exceeded.\n=========================== logs ===========================\nwaiting for navigation until \"load\"\n============================================================",
+                        "stack": "TimeoutError: page.waitForURL: Timeout 15000ms exceeded.\n=========================== logs ===========================\nwaiting for navigation until \"load\"\n============================================================\n    at openBoard (~/expts/awesome-local-ai/benchmarks/vidi/acceptance/tests/fixtures.ts:63:16)\n    at ~/expts/awesome-local-ai/benchmarks/vidi/acceptance/tests/story-02.spec.ts:14:5",
+                        "location": {
+                          "file": "~/expts/awesome-local-ai/benchmarks/vidi/acceptance/tests/fixtures.ts",
+                          "column": 16,
+                          "line": 63
+                        },
+                        "snippet": "   at fixtures.ts:63\n\n\u001b[0m \u001b[90m 61 |\u001b[39m   \u001b[36mif\u001b[39m (\u001b[33mDONE\u001b[39m\u001b[33m.\u001b[39mhas(\u001b[35m5\u001b[39m)) {\n \u001b[90m 62 |\u001b[39m     \u001b[36mawait\u001b[39m create\u001b[33m.\u001b[39mclick()\u001b[33m;\u001b[39m\n\u001b[31m\u001b[1m>\u001b[22m\u001b[39m\u001b[90m 63 |\u001b[39m     \u001b[36mawait\u001b[39m page\u001b[33m.\u001b[39mwaitForURL(\u001b[33mBOARD_URL_RE\u001b[39m)\u001b[33m;\u001b[39m\n \u001b[90m    |\u001b[39m                \u001b[31m\u001b[1m^\u001b[22m\u001b[39m\n \u001b[90m 64 |\u001b[39m   }\n \u001b[90m 65 |\u001b[39m   \u001b[36mawait\u001b[39m expect(zoomLabel(page))\u001b[33m.\u001b[39mtoBeVisible()\u001b[33m;\u001b[39m\n \u001b[90m 66 |\u001b[39m   \u001b[36mif\u001b[39m (\u001b[33mDONE\u001b[39m\u001b[33m.\u001b[39mhas(\u001b[35m3\u001b[39m)) \u001b[36mawait\u001b[39m waitConnected(page)\u001b[33m;\u001b[39m\u001b[0m"
+                      },
+                      "errors": [
+                        {
+                          "location": {
+                            "file": "~/expts/awesome-local-ai/benchmarks/vidi/acceptance/tests/fixtures.ts",
+                            "column": 16,
+                            "line": 63
+                          },
+                          "message": "TimeoutError: page.waitForURL: Timeout 15000ms exceeded.\n=========================== logs ===========================\nwaiting for navigation until \"load\"\n============================================================\n\n   at fixtures.ts:63\n\n  61 |   if (DONE.has(5)) {\n  62 |     await create.click();\n> 63 |     await page.waitForURL(BOARD_URL_RE);\n     |                ^\n  64 |   }\n  65 |   await expect(zoomLabel(page)).toBeVisible();\n  66 |   if (DONE.has(3)) await waitConnected(page);\n    at openBoard (~/expts/awesome-local-ai/benchmarks/vidi/acceptance/tests/fixtures.ts:63:16)\n    at ~/expts/awesome-local-ai/benchmarks/vidi/acceptance/tests/story-02.spec.ts:14:5"
+                        }
+                      ],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2026-09-24T14:00:48.204Z",
+                      "startTime": "2026-09-24T13:52:32.721Z",
                       "annotations": [],
-                      "attachments": []
+                      "attachments": [
+                        {
+                          "name": "screenshot",
+                          "contentType": "image/png",
+                          "path": "~/expts/awesome-local-ai/combinations/qwen/3.8/flash-next/macos/128GB/mtplx-opencode/benchmarks/vidi/canvas-pi-01/stories/05/artifacts/story-02-story-2-s02-golde-d3ece--delete-ref-prd-golden-path-chromium/test-failed-1.png"
+                        },
+                        {
+                          "name": "error-context",
+                          "contentType": "text/markdown",
+                          "path": "~/expts/awesome-local-ai/combinations/qwen/3.8/flash-next/macos/128GB/mtplx-opencode/benchmarks/vidi/canvas-pi-01/stories/05/artifacts/story-02-story-2-s02-golde-d3ece--delete-ref-prd-golden-path-chromium/error-context.md"
+                        }
+                      ],
+                      "errorLocation": {
+                        "file": "~/expts/awesome-local-ai/benchmarks/vidi/acceptance/tests/fixtures.ts",
+                        "column": 16,
+                        "line": 63
+                      }
                     }
                   ],
-                  "status": "expected"
+                  "status": "unexpected"
                 }
               ],
               "id": "c926f64a76cbce2cafa8-85012f1311a2f6087cd6",
@@ -533,34 +568,69 @@
             },
             {
               "title": "double-click creates note centred on the point @ref prd:sticky.create_dblclick",
-              "ok": true,
+              "ok": false,
               "tags": [
                 "s02",
                 "ref"
               ],
               "tests": [
                 {
-                  "timeout": 45037,
+                  "timeout": 45000,
                   "annotations": [],
                   "expectedStatus": "passed",
                   "projectId": "chromium",
                   "projectName": "chromium",
                   "results": [
                     {
-                      "workerIndex": 1,
+                      "workerIndex": 2,
                       "parallelIndex": 0,
-                      "status": "passed",
-                      "duration": 199,
-                      "errors": [],
+                      "status": "failed",
+                      "duration": 15113,
+                      "error": {
+                        "message": "TimeoutError: page.waitForURL: Timeout 15000ms exceeded.\n=========================== logs ===========================\nwaiting for navigation until \"load\"\n============================================================",
+                        "stack": "TimeoutError: page.waitForURL: Timeout 15000ms exceeded.\n=========================== logs ===========================\nwaiting for navigation until \"load\"\n============================================================\n    at openBoard (~/expts/awesome-local-ai/benchmarks/vidi/acceptance/tests/fixtures.ts:63:16)\n    at ~/expts/awesome-local-ai/benchmarks/vidi/acceptance/tests/story-02.spec.ts:36:5",
+                        "location": {
+                          "file": "~/expts/awesome-local-ai/benchmarks/vidi/acceptance/tests/fixtures.ts",
+                          "column": 16,
+                          "line": 63
+                        },
+                        "snippet": "   at fixtures.ts:63\n\n\u001b[0m \u001b[90m 61 |\u001b[39m   \u001b[36mif\u001b[39m (\u001b[33mDONE\u001b[39m\u001b[33m.\u001b[39mhas(\u001b[35m5\u001b[39m)) {\n \u001b[90m 62 |\u001b[39m     \u001b[36mawait\u001b[39m create\u001b[33m.\u001b[39mclick()\u001b[33m;\u001b[39m\n\u001b[31m\u001b[1m>\u001b[22m\u001b[39m\u001b[90m 63 |\u001b[39m     \u001b[36mawait\u001b[39m page\u001b[33m.\u001b[39mwaitForURL(\u001b[33mBOARD_URL_RE\u001b[39m)\u001b[33m;\u001b[39m\n \u001b[90m    |\u001b[39m                \u001b[31m\u001b[1m^\u001b[22m\u001b[39m\n \u001b[90m 64 |\u001b[39m   }\n \u001b[90m 65 |\u001b[39m   \u001b[36mawait\u001b[39m expect(zoomLabel(page))\u001b[33m.\u001b[39mtoBeVisible()\u001b[33m;\u001b[39m\n \u001b[90m 66 |\u001b[39m   \u001b[36mif\u001b[39m (\u001b[33mDONE\u001b[39m\u001b[33m.\u001b[39mhas(\u001b[35m3\u001b[39m)) \u001b[36mawait\u001b[39m waitConnected(page)\u001b[33m;\u001b[39m\u001b[0m"
+                      },
+                      "errors": [
+                        {
+                          "location": {
+                            "file": "~/expts/awesome-local-ai/benchmarks/vidi/acceptance/tests/fixtures.ts",
+                            "column": 16,
+                            "line": 63
+                          },
+                          "message": "TimeoutError: page.waitForURL: Timeout 15000ms exceeded.\n=========================== logs ===========================\nwaiting for navigation until \"load\"\n============================================================\n\n   at fixtures.ts:63\n\n  61 |   if (DONE.has(5)) {\n  62 |     await create.click();\n> 63 |     await page.waitForURL(BOARD_URL_RE);\n     |                ^\n  64 |   }\n  65 |   await expect(zoomLabel(page)).toBeVisible();\n  66 |   if (DONE.has(3)) await waitConnected(page);\n    at openBoard (~/expts/awesome-local-ai/benchmarks/vidi/acceptance/tests/fixtures.ts:63:16)\n    at ~/expts/awesome-local-ai/benchmarks/vidi/acceptance/tests/story-02.spec.ts:36:5"
+                        }
+                      ],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2026-09-24T14:01:40.573Z",
+                      "startTime": "2026-09-24T13:52:48.196Z",
                       "annotations": [],
-                      "attachments": []
+                      "attachments": [
+                        {
+                          "name": "screenshot",
+                          "contentType": "image/png",
+                          "path": "~/expts/awesome-local-ai/combinations/qwen/3.8/flash-next/macos/128GB/mtplx-opencode/benchmarks/vidi/canvas-pi-01/stories/05/artifacts/story-02-story-2-s02-doubl-82929--prd-sticky-create-dblclick-chromium/test-failed-1.png"
+                        },
+                        {
+                          "name": "error-context",
+                          "contentType": "text/markdown",
+                          "path": "~/expts/awesome-local-ai/combinations/qwen/3.8/flash-next/macos/128GB/mtplx-opencode/benchmarks/vidi/canvas-pi-01/stories/05/artifacts/story-02-story-2-s02-doubl-82929--prd-sticky-create-dblclick-chromium/error-context.md"
+                        }
+                      ],
+                      "errorLocation": {
+                        "file": "~/expts/awesome-local-ai/benchmarks/vidi/acceptance/tests/fixtures.ts",
+                        "column": 16,
+                        "line": 63
+                      }
                     }
                   ],
-                  "status": "expected"
+                  "status": "unexpected"
                 }
               ],
               "id": "c926f64a76cbce2cafa8-f53d2276f30a43e3ef3c",
@@ -577,22 +647,22 @@
               ],
               "tests": [
                 {
-                  "timeout": 45268,
+                  "timeout": 45000,
                   "annotations": [],
                   "expectedStatus": "passed",
                   "projectId": "chromium",
                   "projectName": "chromium",
                   "results": [
                     {
-                      "workerIndex": 1,
+                      "workerIndex": 3,
                       "parallelIndex": 0,
                       "status": "passed",
-                      "duration": 551,
+                      "duration": 262,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2026-09-24T14:01:40.777Z",
+                      "startTime": "2026-09-24T13:53:03.985Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -614,22 +684,22 @@
               ],
               "tests": [
                 {
-                  "timeout": 51130,
+                  "timeout": 45000,
                   "annotations": [],
                   "expectedStatus": "passed",
                   "projectId": "chromium",
                   "projectName": "chromium",
                   "results": [
                     {
-                      "workerIndex": 1,
+                      "workerIndex": 3,
                       "parallelIndex": 0,
                       "status": "passed",
-                      "duration": 6423,
+                      "duration": 254,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2026-09-24T14:01:41.333Z",
+                      "startTime": "2026-09-24T13:53:04.529Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -651,22 +721,22 @@
               ],
               "tests": [
                 {
-                  "timeout": 45041,
+                  "timeout": 45000,
                   "annotations": [],
                   "expectedStatus": "passed",
                   "projectId": "chromium",
                   "projectName": "chromium",
                   "results": [
                     {
-                      "workerIndex": 1,
+                      "workerIndex": 3,
                       "parallelIndex": 0,
                       "status": "passed",
-                      "duration": 298,
+                      "duration": 233,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2026-09-24T14:01:47.760Z",
+                      "startTime": "2026-09-24T13:53:04.787Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -688,17 +758,17 @@
               ],
               "tests": [
                 {
-                  "timeout": 45021,
+                  "timeout": 45000,
                   "annotations": [],
                   "expectedStatus": "passed",
                   "projectId": "chromium",
                   "projectName": "chromium",
                   "results": [
                     {
-                      "workerIndex": 1,
+                      "workerIndex": 3,
                       "parallelIndex": 0,
                       "status": "failed",
-                      "duration": 436,
+                      "duration": 350,
                       "error": {
                         "message": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoBeLessThan\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m)\u001b[22m\n\nExpected: < \u001b[32m1.5\u001b[39m\nReceived:   \u001b[31m137.5\u001b[39m",
                         "stack": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoBeLessThan\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m)\u001b[22m\n\nExpected: < \u001b[32m1.5\u001b[39m\nReceived:   \u001b[31m137.5\u001b[39m\n    at ~/expts/awesome-local-ai/benchmarks/vidi/acceptance/tests/story-02.spec.ts:90:50",
@@ -722,18 +792,18 @@
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2026-09-24T14:01:48.063Z",
+                      "startTime": "2026-09-24T13:53:05.027Z",
                       "annotations": [],
                       "attachments": [
                         {
                           "name": "screenshot",
                           "contentType": "image/png",
-                          "path": "<story-5 re-score dir>/out/artifacts/story-02-story-2-s02-dragg-7b875-icky-move-prd-sticky-no-pan-chromium/test-failed-1.png"
+                          "path": "~/expts/awesome-local-ai/combinations/qwen/3.8/flash-next/macos/128GB/mtplx-opencode/benchmarks/vidi/canvas-pi-01/stories/05/artifacts/story-02-story-2-s02-dragg-7b875-icky-move-prd-sticky-no-pan-chromium/test-failed-1.png"
                         },
                         {
                           "name": "error-context",
                           "contentType": "text/markdown",
-                          "path": "<story-5 re-score dir>/out/artifacts/story-02-story-2-s02-dragg-7b875-icky-move-prd-sticky-no-pan-chromium/error-context.md"
+                          "path": "~/expts/awesome-local-ai/combinations/qwen/3.8/flash-next/macos/128GB/mtplx-opencode/benchmarks/vidi/canvas-pi-01/stories/05/artifacts/story-02-story-2-s02-dragg-7b875-icky-move-prd-sticky-no-pan-chromium/error-context.md"
                         }
                       ],
                       "errorLocation": {
@@ -767,15 +837,15 @@
                   "projectName": "chromium",
                   "results": [
                     {
-                      "workerIndex": 2,
+                      "workerIndex": 4,
                       "parallelIndex": 0,
                       "status": "passed",
-                      "duration": 405,
+                      "duration": 381,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2026-09-24T14:01:49.124Z",
+                      "startTime": "2026-09-24T13:53:05.749Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -804,15 +874,15 @@
                   "projectName": "chromium",
                   "results": [
                     {
-                      "workerIndex": 2,
+                      "workerIndex": 4,
                       "parallelIndex": 0,
                       "status": "passed",
-                      "duration": 289,
+                      "duration": 228,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2026-09-24T14:01:49.932Z",
+                      "startTime": "2026-09-24T13:53:06.346Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -841,15 +911,15 @@
                   "projectName": "chromium",
                   "results": [
                     {
-                      "workerIndex": 2,
+                      "workerIndex": 4,
                       "parallelIndex": 0,
                       "status": "passed",
-                      "duration": 336,
+                      "duration": 254,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2026-09-24T14:01:50.227Z",
+                      "startTime": "2026-09-24T13:53:06.578Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -878,15 +948,15 @@
                   "projectName": "chromium",
                   "results": [
                     {
-                      "workerIndex": 2,
+                      "workerIndex": 4,
                       "parallelIndex": 0,
                       "status": "passed",
-                      "duration": 333,
+                      "duration": 255,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2026-09-24T14:01:50.569Z",
+                      "startTime": "2026-09-24T13:53:06.836Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -925,22 +995,22 @@
               ],
               "tests": [
                 {
-                  "timeout": 96236,
+                  "timeout": 45000,
                   "annotations": [],
                   "expectedStatus": "passed",
                   "projectId": "chromium",
                   "projectName": "chromium",
                   "results": [
                     {
-                      "workerIndex": 2,
+                      "workerIndex": 4,
                       "parallelIndex": 0,
                       "status": "passed",
-                      "duration": 51944,
+                      "duration": 574,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2026-09-24T14:01:50.918Z",
+                      "startTime": "2026-09-24T13:53:07.100Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -969,15 +1039,15 @@
                   "projectName": "chromium",
                   "results": [
                     {
-                      "workerIndex": 2,
+                      "workerIndex": 4,
                       "parallelIndex": 0,
                       "status": "passed",
-                      "duration": 570,
+                      "duration": 433,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2026-09-24T14:02:42.868Z",
+                      "startTime": "2026-09-24T13:53:07.677Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -1006,56 +1076,56 @@
                   "projectName": "chromium",
                   "results": [
                     {
-                      "workerIndex": 2,
+                      "workerIndex": 4,
                       "parallelIndex": 0,
                       "status": "failed",
-                      "duration": 2734,
+                      "duration": 15128,
                       "error": {
-                        "message": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoHaveText\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m)\u001b[22m failed\n\nLocator: locator('[role=\"group\"][aria-label=\"Sticky note\"]').first()\nExpected pattern: \u001b[32m/^\\s*red green blue\\s*$/\u001b[39m\nReceived string:  \u001b[31m\"green blue🗑\"\u001b[39m\nTimeout: 2000ms\n\nCall log:\n\u001b[2m  - Expect \"toHaveText\" with timeout 2000ms\u001b[22m\n\u001b[2m  - waiting for locator('[role=\"group\"][aria-label=\"Sticky note\"]').first()\u001b[22m\n\u001b[2m    6 × locator resolved to <div role=\"group\" tabindex=\"0\" data-x=\"-240\" data-y=\"-150\" data-phase=\"idle\" class=\"sticky-note\" data-selected=\"true\" data-editable=\"true\" aria-label=\"Sticky note\" data-note-id=\"eba09145-1a6e-4909-a6d4-ba4f54ce5310\" data-testid=\"note-eba09145-1a6e-4909-a6d4-ba4f54ce5310\">…</div>\u001b[22m\n\u001b[2m      - unexpected value \"green blue🗑\"\u001b[22m\n",
-                        "stack": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoHaveText\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m)\u001b[22m failed\n\nLocator: locator('[role=\"group\"][aria-label=\"Sticky note\"]').first()\nExpected pattern: \u001b[32m/^\\s*red green blue\\s*$/\u001b[39m\nReceived string:  \u001b[31m\"green blue🗑\"\u001b[39m\nTimeout: 2000ms\n\nCall log:\n\u001b[2m  - Expect \"toHaveText\" with timeout 2000ms\u001b[22m\n\u001b[2m  - waiting for locator('[role=\"group\"][aria-label=\"Sticky note\"]').first()\u001b[22m\n\u001b[2m    6 × locator resolved to <div role=\"group\" tabindex=\"0\" data-x=\"-240\" data-y=\"-150\" data-phase=\"idle\" class=\"sticky-note\" data-selected=\"true\" data-editable=\"true\" aria-label=\"Sticky note\" data-note-id=\"eba09145-1a6e-4909-a6d4-ba4f54ce5310\" data-testid=\"note-eba09145-1a6e-4909-a6d4-ba4f54ce5310\">…</div>\u001b[22m\n\u001b[2m      - unexpected value \"green blue🗑\"\u001b[22m\n\n    at ~/expts/awesome-local-ai/benchmarks/vidi/acceptance/tests/story-03.spec.ts:67:38",
+                        "message": "TimeoutError: page.waitForURL: Timeout 15000ms exceeded.\n=========================== logs ===========================\nwaiting for navigation until \"load\"\n============================================================",
+                        "stack": "TimeoutError: page.waitForURL: Timeout 15000ms exceeded.\n=========================== logs ===========================\nwaiting for navigation until \"load\"\n============================================================\n    at openBoard (~/expts/awesome-local-ai/benchmarks/vidi/acceptance/tests/fixtures.ts:63:16)\n    at ~/expts/awesome-local-ai/benchmarks/vidi/acceptance/tests/story-03.spec.ts:54:17",
                         "location": {
-                          "file": "~/expts/awesome-local-ai/benchmarks/vidi/acceptance/tests/story-03.spec.ts",
-                          "column": 38,
-                          "line": 67
+                          "file": "~/expts/awesome-local-ai/benchmarks/vidi/acceptance/tests/fixtures.ts",
+                          "column": 16,
+                          "line": 63
                         },
-                        "snippet": "\u001b[0m \u001b[90m 65 |\u001b[39m     \u001b[36mawait\u001b[39m sam\u001b[33m.\u001b[39mkeyboard\u001b[33m.\u001b[39mpress(\u001b[32m'Escape'\u001b[39m)\u001b[33m;\u001b[39m\n \u001b[90m 66 |\u001b[39m     \u001b[36mfor\u001b[39m (\u001b[36mconst\u001b[39m p \u001b[36mof\u001b[39m [alex\u001b[33m,\u001b[39m sam]) {\n\u001b[31m\u001b[1m>\u001b[22m\u001b[39m\u001b[90m 67 |\u001b[39m       \u001b[36mawait\u001b[39m expect(notes(p)\u001b[33m.\u001b[39mfirst())\u001b[33m.\u001b[39mtoHaveText(\u001b[35m/^\\s*red green blue\\s*$/\u001b[39m\u001b[33m,\u001b[39m { timeout\u001b[33m:\u001b[39m \u001b[33mLIVE_MS\u001b[39m })\u001b[33m;\u001b[39m\n \u001b[90m    |\u001b[39m                                      \u001b[31m\u001b[1m^\u001b[22m\u001b[39m\n \u001b[90m 68 |\u001b[39m     }\n \u001b[90m 69 |\u001b[39m   })\u001b[33m;\u001b[39m\n \u001b[90m 70 |\u001b[39m\u001b[0m"
+                        "snippet": "   at fixtures.ts:63\n\n\u001b[0m \u001b[90m 61 |\u001b[39m   \u001b[36mif\u001b[39m (\u001b[33mDONE\u001b[39m\u001b[33m.\u001b[39mhas(\u001b[35m5\u001b[39m)) {\n \u001b[90m 62 |\u001b[39m     \u001b[36mawait\u001b[39m create\u001b[33m.\u001b[39mclick()\u001b[33m;\u001b[39m\n\u001b[31m\u001b[1m>\u001b[22m\u001b[39m\u001b[90m 63 |\u001b[39m     \u001b[36mawait\u001b[39m page\u001b[33m.\u001b[39mwaitForURL(\u001b[33mBOARD_URL_RE\u001b[39m)\u001b[33m;\u001b[39m\n \u001b[90m    |\u001b[39m                \u001b[31m\u001b[1m^\u001b[22m\u001b[39m\n \u001b[90m 64 |\u001b[39m   }\n \u001b[90m 65 |\u001b[39m   \u001b[36mawait\u001b[39m expect(zoomLabel(page))\u001b[33m.\u001b[39mtoBeVisible()\u001b[33m;\u001b[39m\n \u001b[90m 66 |\u001b[39m   \u001b[36mif\u001b[39m (\u001b[33mDONE\u001b[39m\u001b[33m.\u001b[39mhas(\u001b[35m3\u001b[39m)) \u001b[36mawait\u001b[39m waitConnected(page)\u001b[33m;\u001b[39m\u001b[0m"
                       },
                       "errors": [
                         {
                           "location": {
-                            "file": "~/expts/awesome-local-ai/benchmarks/vidi/acceptance/tests/story-03.spec.ts",
-                            "column": 38,
-                            "line": 67
+                            "file": "~/expts/awesome-local-ai/benchmarks/vidi/acceptance/tests/fixtures.ts",
+                            "column": 16,
+                            "line": 63
                           },
-                          "message": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoHaveText\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m)\u001b[22m failed\n\nLocator: locator('[role=\"group\"][aria-label=\"Sticky note\"]').first()\nExpected pattern: \u001b[32m/^\\s*red green blue\\s*$/\u001b[39m\nReceived string:  \u001b[31m\"green blue🗑\"\u001b[39m\nTimeout: 2000ms\n\nCall log:\n\u001b[2m  - Expect \"toHaveText\" with timeout 2000ms\u001b[22m\n\u001b[2m  - waiting for locator('[role=\"group\"][aria-label=\"Sticky note\"]').first()\u001b[22m\n\u001b[2m    6 × locator resolved to <div role=\"group\" tabindex=\"0\" data-x=\"-240\" data-y=\"-150\" data-phase=\"idle\" class=\"sticky-note\" data-selected=\"true\" data-editable=\"true\" aria-label=\"Sticky note\" data-note-id=\"eba09145-1a6e-4909-a6d4-ba4f54ce5310\" data-testid=\"note-eba09145-1a6e-4909-a6d4-ba4f54ce5310\">…</div>\u001b[22m\n\u001b[2m      - unexpected value \"green blue🗑\"\u001b[22m\n\n\n  65 |     await sam.keyboard.press('Escape');\n  66 |     for (const p of [alex, sam]) {\n> 67 |       await expect(notes(p).first()).toHaveText(/^\\s*red green blue\\s*$/, { timeout: LIVE_MS });\n     |                                      ^\n  68 |     }\n  69 |   });\n  70 |\n    at ~/expts/awesome-local-ai/benchmarks/vidi/acceptance/tests/story-03.spec.ts:67:38"
+                          "message": "TimeoutError: page.waitForURL: Timeout 15000ms exceeded.\n=========================== logs ===========================\nwaiting for navigation until \"load\"\n============================================================\n\n   at fixtures.ts:63\n\n  61 |   if (DONE.has(5)) {\n  62 |     await create.click();\n> 63 |     await page.waitForURL(BOARD_URL_RE);\n     |                ^\n  64 |   }\n  65 |   await expect(zoomLabel(page)).toBeVisible();\n  66 |   if (DONE.has(3)) await waitConnected(page);\n    at openBoard (~/expts/awesome-local-ai/benchmarks/vidi/acceptance/tests/fixtures.ts:63:16)\n    at ~/expts/awesome-local-ai/benchmarks/vidi/acceptance/tests/story-03.spec.ts:54:17"
                         }
                       ],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2026-09-24T14:02:43.443Z",
+                      "startTime": "2026-09-24T13:53:08.114Z",
                       "annotations": [],
                       "attachments": [
                         {
                           "name": "screenshot",
                           "contentType": "image/png",
-                          "path": "<story-5 re-score dir>/out/artifacts/story-03-story-3-s03-simul-7a799-ef-prd-live-concurrent-text-chromium/test-failed-1.png"
+                          "path": "~/expts/awesome-local-ai/combinations/qwen/3.8/flash-next/macos/128GB/mtplx-opencode/benchmarks/vidi/canvas-pi-01/stories/05/artifacts/story-03-story-3-s03-simul-7a799-ef-prd-live-concurrent-text-chromium/test-failed-1.png"
                         },
                         {
                           "name": "screenshot",
                           "contentType": "image/png",
-                          "path": "<story-5 re-score dir>/out/artifacts/story-03-story-3-s03-simul-7a799-ef-prd-live-concurrent-text-chromium/test-failed-2.png"
+                          "path": "~/expts/awesome-local-ai/combinations/qwen/3.8/flash-next/macos/128GB/mtplx-opencode/benchmarks/vidi/canvas-pi-01/stories/05/artifacts/story-03-story-3-s03-simul-7a799-ef-prd-live-concurrent-text-chromium/test-failed-2.png"
                         },
                         {
                           "name": "error-context",
                           "contentType": "text/markdown",
-                          "path": "<story-5 re-score dir>/out/artifacts/story-03-story-3-s03-simul-7a799-ef-prd-live-concurrent-text-chromium/error-context.md"
+                          "path": "~/expts/awesome-local-ai/combinations/qwen/3.8/flash-next/macos/128GB/mtplx-opencode/benchmarks/vidi/canvas-pi-01/stories/05/artifacts/story-03-story-3-s03-simul-7a799-ef-prd-live-concurrent-text-chromium/error-context.md"
                         }
                       ],
                       "errorLocation": {
-                        "file": "~/expts/awesome-local-ai/benchmarks/vidi/acceptance/tests/story-03.spec.ts",
-                        "column": 38,
-                        "line": 67
+                        "file": "~/expts/awesome-local-ai/benchmarks/vidi/acceptance/tests/fixtures.ts",
+                        "column": 16,
+                        "line": 63
                       }
                     }
                   ],
@@ -1069,34 +1139,74 @@
             },
             {
               "title": "boards stay separate @ref prd:live.isolation",
-              "ok": true,
+              "ok": false,
               "tags": [
                 "s03",
                 "ref"
               ],
               "tests": [
                 {
-                  "timeout": 47474,
+                  "timeout": 45000,
                   "annotations": [],
                   "expectedStatus": "passed",
                   "projectId": "chromium",
                   "projectName": "chromium",
                   "results": [
                     {
-                      "workerIndex": 3,
+                      "workerIndex": 5,
                       "parallelIndex": 0,
-                      "status": "passed",
-                      "duration": 4927,
-                      "errors": [],
+                      "status": "failed",
+                      "duration": 15161,
+                      "error": {
+                        "message": "TimeoutError: page.waitForURL: Timeout 15000ms exceeded.\n=========================== logs ===========================\nwaiting for navigation until \"load\"\n============================================================",
+                        "stack": "TimeoutError: page.waitForURL: Timeout 15000ms exceeded.\n=========================== logs ===========================\nwaiting for navigation until \"load\"\n============================================================\n    at openBoard (~/expts/awesome-local-ai/benchmarks/vidi/acceptance/tests/fixtures.ts:63:16)\n    at ~/expts/awesome-local-ai/benchmarks/vidi/acceptance/tests/story-03.spec.ts:74:5",
+                        "location": {
+                          "file": "~/expts/awesome-local-ai/benchmarks/vidi/acceptance/tests/fixtures.ts",
+                          "column": 16,
+                          "line": 63
+                        },
+                        "snippet": "   at fixtures.ts:63\n\n\u001b[0m \u001b[90m 61 |\u001b[39m   \u001b[36mif\u001b[39m (\u001b[33mDONE\u001b[39m\u001b[33m.\u001b[39mhas(\u001b[35m5\u001b[39m)) {\n \u001b[90m 62 |\u001b[39m     \u001b[36mawait\u001b[39m create\u001b[33m.\u001b[39mclick()\u001b[33m;\u001b[39m\n\u001b[31m\u001b[1m>\u001b[22m\u001b[39m\u001b[90m 63 |\u001b[39m     \u001b[36mawait\u001b[39m page\u001b[33m.\u001b[39mwaitForURL(\u001b[33mBOARD_URL_RE\u001b[39m)\u001b[33m;\u001b[39m\n \u001b[90m    |\u001b[39m                \u001b[31m\u001b[1m^\u001b[22m\u001b[39m\n \u001b[90m 64 |\u001b[39m   }\n \u001b[90m 65 |\u001b[39m   \u001b[36mawait\u001b[39m expect(zoomLabel(page))\u001b[33m.\u001b[39mtoBeVisible()\u001b[33m;\u001b[39m\n \u001b[90m 66 |\u001b[39m   \u001b[36mif\u001b[39m (\u001b[33mDONE\u001b[39m\u001b[33m.\u001b[39mhas(\u001b[35m3\u001b[39m)) \u001b[36mawait\u001b[39m waitConnected(page)\u001b[33m;\u001b[39m\u001b[0m"
+                      },
+                      "errors": [
+                        {
+                          "location": {
+                            "file": "~/expts/awesome-local-ai/benchmarks/vidi/acceptance/tests/fixtures.ts",
+                            "column": 16,
+                            "line": 63
+                          },
+                          "message": "TimeoutError: page.waitForURL: Timeout 15000ms exceeded.\n=========================== logs ===========================\nwaiting for navigation until \"load\"\n============================================================\n\n   at fixtures.ts:63\n\n  61 |   if (DONE.has(5)) {\n  62 |     await create.click();\n> 63 |     await page.waitForURL(BOARD_URL_RE);\n     |                ^\n  64 |   }\n  65 |   await expect(zoomLabel(page)).toBeVisible();\n  66 |   if (DONE.has(3)) await waitConnected(page);\n    at openBoard (~/expts/awesome-local-ai/benchmarks/vidi/acceptance/tests/fixtures.ts:63:16)\n    at ~/expts/awesome-local-ai/benchmarks/vidi/acceptance/tests/story-03.spec.ts:74:5"
+                        }
+                      ],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2026-09-24T14:02:46.786Z",
+                      "startTime": "2026-09-24T13:53:23.616Z",
                       "annotations": [],
-                      "attachments": []
+                      "attachments": [
+                        {
+                          "name": "screenshot",
+                          "contentType": "image/png",
+                          "path": "~/expts/awesome-local-ai/combinations/qwen/3.8/flash-next/macos/128GB/mtplx-opencode/benchmarks/vidi/canvas-pi-01/stories/05/artifacts/story-03-story-3-s03-board-7c3ae-rate-ref-prd-live-isolation-chromium/test-failed-1.png"
+                        },
+                        {
+                          "name": "screenshot",
+                          "contentType": "image/png",
+                          "path": "~/expts/awesome-local-ai/combinations/qwen/3.8/flash-next/macos/128GB/mtplx-opencode/benchmarks/vidi/canvas-pi-01/stories/05/artifacts/story-03-story-3-s03-board-7c3ae-rate-ref-prd-live-isolation-chromium/test-failed-2.png"
+                        },
+                        {
+                          "name": "error-context",
+                          "contentType": "text/markdown",
+                          "path": "~/expts/awesome-local-ai/combinations/qwen/3.8/flash-next/macos/128GB/mtplx-opencode/benchmarks/vidi/canvas-pi-01/stories/05/artifacts/story-03-story-3-s03-board-7c3ae-rate-ref-prd-live-isolation-chromium/error-context.md"
+                        }
+                      ],
+                      "errorLocation": {
+                        "file": "~/expts/awesome-local-ai/benchmarks/vidi/acceptance/tests/fixtures.ts",
+                        "column": 16,
+                        "line": 63
+                      }
                     }
                   ],
-                  "status": "expected"
+                  "status": "unexpected"
                 }
               ],
               "id": "30f3d3dfc0d9061a88db-fccbbd5a9d610ad1bf08",
@@ -1106,7 +1216,7 @@
             },
             {
               "title": "selection stays personal @ref prd:live.local_selection",
-              "ok": true,
+              "ok": false,
               "tags": [
                 "s03",
                 "ref"
@@ -1120,20 +1230,60 @@
                   "projectName": "chromium",
                   "results": [
                     {
-                      "workerIndex": 3,
+                      "workerIndex": 6,
                       "parallelIndex": 0,
-                      "status": "passed",
-                      "duration": 1496,
-                      "errors": [],
+                      "status": "failed",
+                      "duration": 15145,
+                      "error": {
+                        "message": "TimeoutError: page.waitForURL: Timeout 15000ms exceeded.\n=========================== logs ===========================\nwaiting for navigation until \"load\"\n============================================================",
+                        "stack": "TimeoutError: page.waitForURL: Timeout 15000ms exceeded.\n=========================== logs ===========================\nwaiting for navigation until \"load\"\n============================================================\n    at openBoard (~/expts/awesome-local-ai/benchmarks/vidi/acceptance/tests/fixtures.ts:63:16)\n    at ~/expts/awesome-local-ai/benchmarks/vidi/acceptance/tests/story-03.spec.ts:85:17",
+                        "location": {
+                          "file": "~/expts/awesome-local-ai/benchmarks/vidi/acceptance/tests/fixtures.ts",
+                          "column": 16,
+                          "line": 63
+                        },
+                        "snippet": "   at fixtures.ts:63\n\n\u001b[0m \u001b[90m 61 |\u001b[39m   \u001b[36mif\u001b[39m (\u001b[33mDONE\u001b[39m\u001b[33m.\u001b[39mhas(\u001b[35m5\u001b[39m)) {\n \u001b[90m 62 |\u001b[39m     \u001b[36mawait\u001b[39m create\u001b[33m.\u001b[39mclick()\u001b[33m;\u001b[39m\n\u001b[31m\u001b[1m>\u001b[22m\u001b[39m\u001b[90m 63 |\u001b[39m     \u001b[36mawait\u001b[39m page\u001b[33m.\u001b[39mwaitForURL(\u001b[33mBOARD_URL_RE\u001b[39m)\u001b[33m;\u001b[39m\n \u001b[90m    |\u001b[39m                \u001b[31m\u001b[1m^\u001b[22m\u001b[39m\n \u001b[90m 64 |\u001b[39m   }\n \u001b[90m 65 |\u001b[39m   \u001b[36mawait\u001b[39m expect(zoomLabel(page))\u001b[33m.\u001b[39mtoBeVisible()\u001b[33m;\u001b[39m\n \u001b[90m 66 |\u001b[39m   \u001b[36mif\u001b[39m (\u001b[33mDONE\u001b[39m\u001b[33m.\u001b[39mhas(\u001b[35m3\u001b[39m)) \u001b[36mawait\u001b[39m waitConnected(page)\u001b[33m;\u001b[39m\u001b[0m"
+                      },
+                      "errors": [
+                        {
+                          "location": {
+                            "file": "~/expts/awesome-local-ai/benchmarks/vidi/acceptance/tests/fixtures.ts",
+                            "column": 16,
+                            "line": 63
+                          },
+                          "message": "TimeoutError: page.waitForURL: Timeout 15000ms exceeded.\n=========================== logs ===========================\nwaiting for navigation until \"load\"\n============================================================\n\n   at fixtures.ts:63\n\n  61 |   if (DONE.has(5)) {\n  62 |     await create.click();\n> 63 |     await page.waitForURL(BOARD_URL_RE);\n     |                ^\n  64 |   }\n  65 |   await expect(zoomLabel(page)).toBeVisible();\n  66 |   if (DONE.has(3)) await waitConnected(page);\n    at openBoard (~/expts/awesome-local-ai/benchmarks/vidi/acceptance/tests/fixtures.ts:63:16)\n    at ~/expts/awesome-local-ai/benchmarks/vidi/acceptance/tests/story-03.spec.ts:85:17"
+                        }
+                      ],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2026-09-24T14:02:52.100Z",
+                      "startTime": "2026-09-24T13:53:39.437Z",
                       "annotations": [],
-                      "attachments": []
+                      "attachments": [
+                        {
+                          "name": "screenshot",
+                          "contentType": "image/png",
+                          "path": "~/expts/awesome-local-ai/combinations/qwen/3.8/flash-next/macos/128GB/mtplx-opencode/benchmarks/vidi/canvas-pi-01/stories/05/artifacts/story-03-story-3-s03-selec-de26d-ef-prd-live-local-selection-chromium/test-failed-2.png"
+                        },
+                        {
+                          "name": "screenshot",
+                          "contentType": "image/png",
+                          "path": "~/expts/awesome-local-ai/combinations/qwen/3.8/flash-next/macos/128GB/mtplx-opencode/benchmarks/vidi/canvas-pi-01/stories/05/artifacts/story-03-story-3-s03-selec-de26d-ef-prd-live-local-selection-chromium/test-failed-1.png"
+                        },
+                        {
+                          "name": "error-context",
+                          "contentType": "text/markdown",
+                          "path": "~/expts/awesome-local-ai/combinations/qwen/3.8/flash-next/macos/128GB/mtplx-opencode/benchmarks/vidi/canvas-pi-01/stories/05/artifacts/story-03-story-3-s03-selec-de26d-ef-prd-live-local-selection-chromium/error-context.md"
+                        }
+                      ],
+                      "errorLocation": {
+                        "file": "~/expts/awesome-local-ai/benchmarks/vidi/acceptance/tests/fixtures.ts",
+                        "column": 16,
+                        "line": 63
+                      }
                     }
                   ],
-                  "status": "expected"
+                  "status": "unexpected"
                 }
               ],
               "id": "30f3d3dfc0d9061a88db-760643e56c30cbbd7f51",
@@ -1143,7 +1293,7 @@
             },
             {
               "title": "server restart shows Reconnecting… then Connected, notes kept @ref prd:live.status",
-              "ok": true,
+              "ok": false,
               "tags": [
                 "s03",
                 "ref"
@@ -1157,20 +1307,55 @@
                   "projectName": "chromium",
                   "results": [
                     {
-                      "workerIndex": 3,
+                      "workerIndex": 7,
                       "parallelIndex": 0,
-                      "status": "passed",
-                      "duration": 7395,
-                      "errors": [],
+                      "status": "failed",
+                      "duration": 15127,
+                      "error": {
+                        "message": "TimeoutError: page.waitForURL: Timeout 15000ms exceeded.\n=========================== logs ===========================\nwaiting for navigation until \"load\"\n============================================================",
+                        "stack": "TimeoutError: page.waitForURL: Timeout 15000ms exceeded.\n=========================== logs ===========================\nwaiting for navigation until \"load\"\n============================================================\n    at openBoard (~/expts/awesome-local-ai/benchmarks/vidi/acceptance/tests/fixtures.ts:63:16)\n    at ~/expts/awesome-local-ai/benchmarks/vidi/acceptance/tests/story-03.spec.ts:97:17",
+                        "location": {
+                          "file": "~/expts/awesome-local-ai/benchmarks/vidi/acceptance/tests/fixtures.ts",
+                          "column": 16,
+                          "line": 63
+                        },
+                        "snippet": "   at fixtures.ts:63\n\n\u001b[0m \u001b[90m 61 |\u001b[39m   \u001b[36mif\u001b[39m (\u001b[33mDONE\u001b[39m\u001b[33m.\u001b[39mhas(\u001b[35m5\u001b[39m)) {\n \u001b[90m 62 |\u001b[39m     \u001b[36mawait\u001b[39m create\u001b[33m.\u001b[39mclick()\u001b[33m;\u001b[39m\n\u001b[31m\u001b[1m>\u001b[22m\u001b[39m\u001b[90m 63 |\u001b[39m     \u001b[36mawait\u001b[39m page\u001b[33m.\u001b[39mwaitForURL(\u001b[33mBOARD_URL_RE\u001b[39m)\u001b[33m;\u001b[39m\n \u001b[90m    |\u001b[39m                \u001b[31m\u001b[1m^\u001b[22m\u001b[39m\n \u001b[90m 64 |\u001b[39m   }\n \u001b[90m 65 |\u001b[39m   \u001b[36mawait\u001b[39m expect(zoomLabel(page))\u001b[33m.\u001b[39mtoBeVisible()\u001b[33m;\u001b[39m\n \u001b[90m 66 |\u001b[39m   \u001b[36mif\u001b[39m (\u001b[33mDONE\u001b[39m\u001b[33m.\u001b[39mhas(\u001b[35m3\u001b[39m)) \u001b[36mawait\u001b[39m waitConnected(page)\u001b[33m;\u001b[39m\u001b[0m"
+                      },
+                      "errors": [
+                        {
+                          "location": {
+                            "file": "~/expts/awesome-local-ai/benchmarks/vidi/acceptance/tests/fixtures.ts",
+                            "column": 16,
+                            "line": 63
+                          },
+                          "message": "TimeoutError: page.waitForURL: Timeout 15000ms exceeded.\n=========================== logs ===========================\nwaiting for navigation until \"load\"\n============================================================\n\n   at fixtures.ts:63\n\n  61 |   if (DONE.has(5)) {\n  62 |     await create.click();\n> 63 |     await page.waitForURL(BOARD_URL_RE);\n     |                ^\n  64 |   }\n  65 |   await expect(zoomLabel(page)).toBeVisible();\n  66 |   if (DONE.has(3)) await waitConnected(page);\n    at openBoard (~/expts/awesome-local-ai/benchmarks/vidi/acceptance/tests/fixtures.ts:63:16)\n    at ~/expts/awesome-local-ai/benchmarks/vidi/acceptance/tests/story-03.spec.ts:97:17"
+                        }
+                      ],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2026-09-24T14:02:53.601Z",
+                      "startTime": "2026-09-24T13:53:55.231Z",
                       "annotations": [],
-                      "attachments": []
+                      "attachments": [
+                        {
+                          "name": "screenshot",
+                          "contentType": "image/png",
+                          "path": "~/expts/awesome-local-ai/combinations/qwen/3.8/flash-next/macos/128GB/mtplx-opencode/benchmarks/vidi/canvas-pi-01/stories/05/artifacts/story-03-story-3-s03-serve-42e75-es-kept-ref-prd-live-status-chromium/test-failed-1.png"
+                        },
+                        {
+                          "name": "error-context",
+                          "contentType": "text/markdown",
+                          "path": "~/expts/awesome-local-ai/combinations/qwen/3.8/flash-next/macos/128GB/mtplx-opencode/benchmarks/vidi/canvas-pi-01/stories/05/artifacts/story-03-story-3-s03-serve-42e75-es-kept-ref-prd-live-status-chromium/error-context.md"
+                        }
+                      ],
+                      "errorLocation": {
+                        "file": "~/expts/awesome-local-ai/benchmarks/vidi/acceptance/tests/fixtures.ts",
+                        "column": 16,
+                        "line": 63
+                      }
                     }
                   ],
-                  "status": "expected"
+                  "status": "unexpected"
                 }
               ],
               "id": "30f3d3dfc0d9061a88db-9b97bce6d18167febb92",
@@ -1194,10 +1379,10 @@
                   "projectName": "chromium",
                   "results": [
                     {
-                      "workerIndex": 3,
+                      "workerIndex": 8,
                       "parallelIndex": 0,
                       "status": "failed",
-                      "duration": 30489,
+                      "duration": 30400,
                       "error": {
                         "message": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoBeVisible\u001b[2m(\u001b[22m\u001b[2m)\u001b[22m failed\n\nLocator: getByText('Reconnecting…')\nExpected: visible\nTimeout: 30000ms\nError: element(s) not found\n\nCall log:\n\u001b[2m  - Expect \"toBeVisible\" with timeout 30000ms\u001b[22m\n\u001b[2m  - waiting for getByText('Reconnecting…')\u001b[22m\n",
                         "stack": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoBeVisible\u001b[2m(\u001b[22m\u001b[2m)\u001b[22m failed\n\nLocator: getByText('Reconnecting…')\nExpected: visible\nTimeout: 30000ms\nError: element(s) not found\n\nCall log:\n\u001b[2m  - Expect \"toBeVisible\" with timeout 30000ms\u001b[22m\n\u001b[2m  - waiting for getByText('Reconnecting…')\u001b[22m\n\n    at ~/expts/awesome-local-ai/benchmarks/vidi/acceptance/tests/story-03.spec.ts:117:51",
@@ -1221,23 +1406,23 @@
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2026-09-24T14:03:01.002Z",
+                      "startTime": "2026-09-24T13:54:10.949Z",
                       "annotations": [],
                       "attachments": [
                         {
                           "name": "screenshot",
                           "contentType": "image/png",
-                          "path": "<story-5 re-score dir>/out/artifacts/story-03-story-3-s03-offli-a5349-nnect-ref-prd-live-catch-up-chromium/test-failed-1.png"
+                          "path": "~/expts/awesome-local-ai/combinations/qwen/3.8/flash-next/macos/128GB/mtplx-opencode/benchmarks/vidi/canvas-pi-01/stories/05/artifacts/story-03-story-3-s03-offli-a5349-nnect-ref-prd-live-catch-up-chromium/test-failed-1.png"
                         },
                         {
                           "name": "screenshot",
                           "contentType": "image/png",
-                          "path": "<story-5 re-score dir>/out/artifacts/story-03-story-3-s03-offli-a5349-nnect-ref-prd-live-catch-up-chromium/test-failed-2.png"
+                          "path": "~/expts/awesome-local-ai/combinations/qwen/3.8/flash-next/macos/128GB/mtplx-opencode/benchmarks/vidi/canvas-pi-01/stories/05/artifacts/story-03-story-3-s03-offli-a5349-nnect-ref-prd-live-catch-up-chromium/test-failed-2.png"
                         },
                         {
                           "name": "error-context",
                           "contentType": "text/markdown",
-                          "path": "<story-5 re-score dir>/out/artifacts/story-03-story-3-s03-offli-a5349-nnect-ref-prd-live-catch-up-chromium/error-context.md"
+                          "path": "~/expts/awesome-local-ai/combinations/qwen/3.8/flash-next/macos/128GB/mtplx-opencode/benchmarks/vidi/canvas-pi-01/stories/05/artifacts/story-03-story-3-s03-offli-a5349-nnect-ref-prd-live-catch-up-chromium/error-context.md"
                         }
                       ],
                       "errorLocation": {
@@ -1274,7 +1459,7 @@
           "specs": [
             {
               "title": "board is intact after everyone leaves @ref prd:persist.reopen",
-              "ok": true,
+              "ok": false,
               "tags": [
                 "s04",
                 "ref"
@@ -1288,20 +1473,55 @@
                   "projectName": "chromium",
                   "results": [
                     {
-                      "workerIndex": 4,
+                      "workerIndex": 9,
                       "parallelIndex": 0,
-                      "status": "passed",
-                      "duration": 3361,
-                      "errors": [],
+                      "status": "failed",
+                      "duration": 5280,
+                      "error": {
+                        "message": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoHaveCount\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m)\u001b[22m failed\n\nLocator:  locator('[role=\"group\"][aria-label=\"Sticky note\"]')\nExpected: \u001b[32m2\u001b[39m\nReceived: \u001b[31m1\u001b[39m\nTimeout:  5000ms\n\nCall log:\n\u001b[2m  - Expect \"toHaveCount\" with timeout 5000ms\u001b[22m\n\u001b[2m  - waiting for locator('[role=\"group\"][aria-label=\"Sticky note\"]')\u001b[22m\n\u001b[2m    9 × locator resolved to 1 element\u001b[22m\n\u001b[2m      - unexpected value \"1\"\u001b[22m\n",
+                        "stack": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoHaveCount\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m)\u001b[22m failed\n\nLocator:  locator('[role=\"group\"][aria-label=\"Sticky note\"]')\nExpected: \u001b[32m2\u001b[39m\nReceived: \u001b[31m1\u001b[39m\nTimeout:  5000ms\n\nCall log:\n\u001b[2m  - Expect \"toHaveCount\" with timeout 5000ms\u001b[22m\n\u001b[2m  - waiting for locator('[role=\"group\"][aria-label=\"Sticky note\"]')\u001b[22m\n\u001b[2m    9 × locator resolved to 1 element\u001b[22m\n\u001b[2m      - unexpected value \"1\"\u001b[22m\n\n    at createNote (~/expts/awesome-local-ai/benchmarks/vidi/acceptance/tests/fixtures.ts:114:29)\n    at ~/expts/awesome-local-ai/benchmarks/vidi/acceptance/tests/story-04.spec.ts:20:7",
+                        "location": {
+                          "file": "~/expts/awesome-local-ai/benchmarks/vidi/acceptance/tests/fixtures.ts",
+                          "column": 29,
+                          "line": 114
+                        },
+                        "snippet": "   at fixtures.ts:114\n\n\u001b[0m \u001b[90m 112 |\u001b[39m   \u001b[36mconst\u001b[39m before \u001b[33m=\u001b[39m \u001b[36mawait\u001b[39m notes(page)\u001b[33m.\u001b[39mcount()\u001b[33m;\u001b[39m\n \u001b[90m 113 |\u001b[39m   \u001b[36mawait\u001b[39m page\u001b[33m.\u001b[39mmouse\u001b[33m.\u001b[39mdblclick(at\u001b[33m.\u001b[39mx\u001b[33m,\u001b[39m at\u001b[33m.\u001b[39my)\u001b[33m;\u001b[39m\n\u001b[31m\u001b[1m>\u001b[22m\u001b[39m\u001b[90m 114 |\u001b[39m   \u001b[36mawait\u001b[39m expect(notes(page))\u001b[33m.\u001b[39mtoHaveCount(before \u001b[33m+\u001b[39m \u001b[35m1\u001b[39m)\u001b[33m;\u001b[39m\n \u001b[90m     |\u001b[39m                             \u001b[31m\u001b[1m^\u001b[22m\u001b[39m\n \u001b[90m 115 |\u001b[39m   \u001b[36mif\u001b[39m (text) \u001b[36mawait\u001b[39m page\u001b[33m.\u001b[39mkeyboard\u001b[33m.\u001b[39mtype(text)\u001b[33m;\u001b[39m\n \u001b[90m 116 |\u001b[39m   \u001b[36mawait\u001b[39m page\u001b[33m.\u001b[39mkeyboard\u001b[33m.\u001b[39mpress(\u001b[32m'Escape'\u001b[39m)\u001b[33m;\u001b[39m\n \u001b[90m 117 |\u001b[39m   \u001b[36mconst\u001b[39m note \u001b[33m=\u001b[39m text \u001b[33m?\u001b[39m notes(page)\u001b[33m.\u001b[39mfilter({ hasText\u001b[33m:\u001b[39m text }) \u001b[33m:\u001b[39m notes(page)\u001b[33m.\u001b[39mnth(before)\u001b[33m;\u001b[39m\u001b[0m"
+                      },
+                      "errors": [
+                        {
+                          "location": {
+                            "file": "~/expts/awesome-local-ai/benchmarks/vidi/acceptance/tests/fixtures.ts",
+                            "column": 29,
+                            "line": 114
+                          },
+                          "message": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoHaveCount\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m)\u001b[22m failed\n\nLocator:  locator('[role=\"group\"][aria-label=\"Sticky note\"]')\nExpected: \u001b[32m2\u001b[39m\nReceived: \u001b[31m1\u001b[39m\nTimeout:  5000ms\n\nCall log:\n\u001b[2m  - Expect \"toHaveCount\" with timeout 5000ms\u001b[22m\n\u001b[2m  - waiting for locator('[role=\"group\"][aria-label=\"Sticky note\"]')\u001b[22m\n\u001b[2m    9 × locator resolved to 1 element\u001b[22m\n\u001b[2m      - unexpected value \"1\"\u001b[22m\n\n\n   at fixtures.ts:114\n\n  112 |   const before = await notes(page).count();\n  113 |   await page.mouse.dblclick(at.x, at.y);\n> 114 |   await expect(notes(page)).toHaveCount(before + 1);\n      |                             ^\n  115 |   if (text) await page.keyboard.type(text);\n  116 |   await page.keyboard.press('Escape');\n  117 |   const note = text ? notes(page).filter({ hasText: text }) : notes(page).nth(before);\n    at createNote (~/expts/awesome-local-ai/benchmarks/vidi/acceptance/tests/fixtures.ts:114:29)\n    at ~/expts/awesome-local-ai/benchmarks/vidi/acceptance/tests/story-04.spec.ts:20:7"
+                        }
+                      ],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2026-09-24T14:03:32.486Z",
+                      "startTime": "2026-09-24T13:54:41.989Z",
                       "annotations": [],
-                      "attachments": []
+                      "attachments": [
+                        {
+                          "name": "screenshot",
+                          "contentType": "image/png",
+                          "path": "~/expts/awesome-local-ai/combinations/qwen/3.8/flash-next/macos/128GB/mtplx-opencode/benchmarks/vidi/canvas-pi-01/stories/05/artifacts/story-04-story-4-s04-board-4e1fb-aves-ref-prd-persist-reopen-chromium/test-failed-1.png"
+                        },
+                        {
+                          "name": "error-context",
+                          "contentType": "text/markdown",
+                          "path": "~/expts/awesome-local-ai/combinations/qwen/3.8/flash-next/macos/128GB/mtplx-opencode/benchmarks/vidi/canvas-pi-01/stories/05/artifacts/story-04-story-4-s04-board-4e1fb-aves-ref-prd-persist-reopen-chromium/error-context.md"
+                        }
+                      ],
+                      "errorLocation": {
+                        "file": "~/expts/awesome-local-ai/benchmarks/vidi/acceptance/tests/fixtures.ts",
+                        "column": 29,
+                        "line": 114
+                      }
                     }
                   ],
-                  "status": "expected"
+                  "status": "unexpected"
                 }
               ],
               "id": "61866d84c033292fbd27-8d3234b191825ce37a15",
@@ -1325,15 +1545,15 @@
                   "projectName": "chromium",
                   "results": [
                     {
-                      "workerIndex": 4,
+                      "workerIndex": 10,
                       "parallelIndex": 0,
                       "status": "passed",
-                      "duration": 4842,
+                      "duration": 4636,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2026-09-24T14:03:36.385Z",
+                      "startTime": "2026-09-24T13:54:47.956Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -1355,22 +1575,22 @@
               ],
               "tests": [
                 {
-                  "timeout": 47985,
+                  "timeout": 45000,
                   "annotations": [],
                   "expectedStatus": "passed",
                   "projectId": "chromium",
                   "projectName": "chromium",
                   "results": [
                     {
-                      "workerIndex": 4,
+                      "workerIndex": 10,
                       "parallelIndex": 0,
                       "status": "passed",
-                      "duration": 9500,
+                      "duration": 6441,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2026-09-24T14:03:41.233Z",
+                      "startTime": "2026-09-24T13:54:52.879Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -1399,15 +1619,15 @@
                   "projectName": "chromium",
                   "results": [
                     {
-                      "workerIndex": 4,
+                      "workerIndex": 10,
                       "parallelIndex": 0,
                       "status": "passed",
-                      "duration": 253,
+                      "duration": 204,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2026-09-24T14:03:50.739Z",
+                      "startTime": "2026-09-24T13:54:59.324Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -1453,15 +1673,15 @@
                   "projectName": "chromium",
                   "results": [
                     {
-                      "workerIndex": 4,
+                      "workerIndex": 10,
                       "parallelIndex": 0,
                       "status": "passed",
-                      "duration": 286,
+                      "duration": 212,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2026-09-24T14:03:51.007Z",
+                      "startTime": "2026-09-24T13:54:59.536Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -1483,22 +1703,22 @@
               ],
               "tests": [
                 {
-                  "timeout": 45162,
+                  "timeout": 45000,
                   "annotations": [],
                   "expectedStatus": "passed",
                   "projectId": "chromium",
                   "projectName": "chromium",
                   "results": [
                     {
-                      "workerIndex": 4,
+                      "workerIndex": 10,
                       "parallelIndex": 0,
                       "status": "passed",
-                      "duration": 3462,
+                      "duration": 3242,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2026-09-24T14:03:51.301Z",
+                      "startTime": "2026-09-24T13:54:59.753Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -1508,7 +1728,7 @@
               ],
               "id": "74299ab9b312ae2c221a-f2a1339f3afad173968c",
               "file": "story-05.spec.ts",
-              "line": 21,
+              "line": 23,
               "column": 3
             },
             {
@@ -1527,15 +1747,15 @@
                   "projectName": "chromium",
                   "results": [
                     {
-                      "workerIndex": 4,
+                      "workerIndex": 10,
                       "parallelIndex": 0,
                       "status": "passed",
-                      "duration": 467,
+                      "duration": 413,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2026-09-24T14:03:54.767Z",
+                      "startTime": "2026-09-24T13:55:02.999Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -1545,7 +1765,7 @@
               ],
               "id": "74299ab9b312ae2c221a-7168882a49f2883001b9",
               "file": "story-05.spec.ts",
-              "line": 37,
+              "line": 39,
               "column": 3
             },
             {
@@ -1564,15 +1784,15 @@
                   "projectName": "chromium",
                   "results": [
                     {
-                      "workerIndex": 4,
+                      "workerIndex": 10,
                       "parallelIndex": 0,
                       "status": "passed",
-                      "duration": 179,
+                      "duration": 120,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2026-09-24T14:03:55.238Z",
+                      "startTime": "2026-09-24T13:55:03.416Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -1582,7 +1802,7 @@
               ],
               "id": "74299ab9b312ae2c221a-cdbf5fdc8f5318565c26",
               "file": "story-05.spec.ts",
-              "line": 46,
+              "line": 48,
               "column": 3
             },
             {
@@ -1594,22 +1814,22 @@
               ],
               "tests": [
                 {
-                  "timeout": 52490,
+                  "timeout": 45000,
                   "annotations": [],
                   "expectedStatus": "passed",
                   "projectId": "chromium",
                   "projectName": "chromium",
                   "results": [
                     {
-                      "workerIndex": 4,
+                      "workerIndex": 10,
                       "parallelIndex": 0,
                       "status": "passed",
-                      "duration": 7741,
+                      "duration": 175,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2026-09-24T14:03:55.422Z",
+                      "startTime": "2026-09-24T13:55:03.540Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -1619,7 +1839,7 @@
               ],
               "id": "74299ab9b312ae2c221a-292114e68e58a69f9e7d",
               "file": "story-05.spec.ts",
-              "line": 58,
+              "line": 60,
               "column": 3
             }
           ]
@@ -1629,11 +1849,11 @@
   ],
   "errors": [],
   "stats": {
-    "startTime": "2026-09-24T14:00:35.638Z",
-    "duration": 210565.57,
-    "expected": 32,
+    "startTime": "2026-09-24T13:52:21.807Z",
+    "duration": 164935.117,
+    "expected": 26,
     "skipped": 0,
-    "unexpected": 4,
+    "unexpected": 10,
     "flaky": 0
   }
 }
