@@ -47,7 +47,9 @@ def conditions_cell(c: dict) -> str:
     power = any(not b["ac"] or b["low_power"] for b in bad)
     n = c.get("samples") or 0
     share = sum(b["thermal"] != "nominal" for b in bad) / n if n else 0.0
-    return ("DEGRADED (power) " if power else "") + f"throttled {share:.0%}"
+    fp = c.get("server_footprint_peak_gb")
+    return (("DEGRADED (power) " if power else "") + f"throttled {share:.0%}"
+            + (f", server peak {fp:.0f} GB" if fp else "") + (" SWAP-ABORT" if c.get("aborted_swap") else ""))
 
 
 def summary(run: Path) -> str:

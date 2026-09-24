@@ -441,3 +441,12 @@ def test_last_session_is_found_so_a_restarted_story_continues_it(tmp_path):
         {"type": "session", "id": "second"}, {"type": "tool_execution_start", "toolName": "bash", "args": {}}]))
     assert last_session(PiClient(tmp_path), ev) == "second"
     assert last_session(PiClient(tmp_path), tmp_path / "missing.jsonl") is None
+
+
+def test_parse_footprint_reads_current_and_peak():
+    from drive import parse_footprint_gb
+    out = ("Python [58822]: 64-bit    Footprint: 92 GB (16384 bytes per page)\n"
+           "    phys_footprint: 92 GB\n    phys_footprint_peak: 99 GB\n")
+    assert parse_footprint_gb(out) == (92.0, 99.0)
+    assert parse_footprint_gb("    phys_footprint: 1264 KB\n    phys_footprint_peak: 512 MB\n") == (1264 / 1024 ** 2, 0.5)
+    assert parse_footprint_gb("") == (None, None)

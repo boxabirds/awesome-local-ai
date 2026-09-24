@@ -24,6 +24,7 @@ import subprocess
 import time
 import re
 import threading
+from urllib.parse import urlparse
 from collections import deque
 from pathlib import Path
 
@@ -600,6 +601,30 @@ def parse_swap_gb(sysctl_swapusage: str) -> float:
     return float(m.group(1)) / MIB_PER_GIB if m else 0.0
 
 
+FOOTPRINT_UNITS = {"KB": 1 / 1024 ** 2, "MB": 1 / 1024, "GB": 1.0, "TB": 1024.0}
+
+
+def parse_footprint_gb(footprint_out: str) -> tuple[float | None, float | None]:
+    """(phys_footprint, phys_footprint_peak) in GB from macOS `footprint -p <pid>` output."""
+    def grab(key):
+        m = re.search(rf"^\s*{key}:\s*([\d.]+)\s*(KB|MB|GB|TB)", footprint_out, re.M)
+        return float(m.group(1)) * FOOTPRINT_UNITS[m.group(2)] if m else None
+    return grab("phys_footprint"), grab("phys_footprint_peak")
+
+
+def server_pid(port: int) -> int | None:
+    """The process listening on the model server's port, whatever the backend."""
+    out = subprocess.run(["lsof", "-nP", "-t", f"-iTCP:{port}", "-sTCP:LISTEN"], capture_output=True, text=True).stdout.split()
+    return int(out[0]) if out else None
+
+
+def server_footprint_gb(port: int | None) -> tuple[float | None, float | None]:
+    pid = server_pid(port) if port else None
+    if not pid:
+        return None, None
+    return parse_footprint_gb(subprocess.run(["footprint", "-p", str(pid)], capture_output=True, text=True).stdout)
+
+
 def swap_used_gb() -> float:
     return parse_swap_gb(subprocess.run(["sysctl", "-n", "vm.swapusage"], capture_output=True, text=True).stdout)
 
@@ -612,8 +637,11 @@ class ConditionSampler(threading.Thread):
     """Samples run conditions while a story runs; any bad sample marks the story as degraded.
     Swap growth past SWAP_ABORT_GROWTH_GB kills the agent's processes and sets `aborted`."""
 
-    def __init__(self, ws: Path | None = None):
+    def __init__(self, ws: Path | None = None, server_port: int | None = None):
         super().__init__(daemon=True)
+        self.server_port = server_port
+        self.footprint_max = None
+        self.footprint_peak = None
         self.bad: list[dict] = []
         self.samples = 0
         self.ws = ws
@@ -630,6 +658,10 @@ class ConditionSampler(threading.Thread):
                 self.bad.append({**c, "t": time.time()})
             swap = swap_used_gb()
             self.swap_max = max(self.swap_max, swap)
+            fp, fp_peak = server_footprint_gb(self.server_port)
+            if fp is not None:
+                self.footprint_max = max(self.footprint_max or 0.0, fp)
+                self.footprint_peak = max(self.footprint_peak or 0.0, fp_peak or 0.0)
             if swap - self.swap_start > SWAP_ABORT_GROWTH_GB and not self.aborted.is_set():
                 self.aborted.set()
                 RUN_ABORT.set()
@@ -642,7 +674,8 @@ class ConditionSampler(threading.Thread):
         self._halt.set()
         self.join()
         return {**summarise_conditions(self.samples, self.bad), "swap_start_gb": round(self.swap_start, 2),
-                "swap_max_gb": round(self.swap_max, 2), "aborted_swap": self.aborted.is_set()}
+                "swap_max_gb": round(self.swap_max, 2), "aborted_swap": self.aborted.is_set(),
+                "server_footprint_max_gb": self.footprint_max, "server_footprint_peak_gb": self.footprint_peak}
 
 
 def summarise_conditions(samples: int, bad: list[dict]) -> dict:
@@ -714,7 +747,7 @@ def main() -> None:
         print(f"[story {sid}] {title} — agent starting", flush=True)
         rec: dict = {"title": title, "conditions_start": wait_for_conditions(), "started": time.time()}
         head_before = sh(["git", "rev-parse", "HEAD"], ws).strip()
-        sampler = ConditionSampler(ws)
+        sampler = ConditionSampler(ws, server_port=urlparse(a.base_url).port)
         sampler.start()
         prior = last_session(client, sdir / "agent-events.jsonl")
         if prior:
