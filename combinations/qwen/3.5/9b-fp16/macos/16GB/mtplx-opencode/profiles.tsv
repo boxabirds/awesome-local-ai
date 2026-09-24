@@ -1,0 +1,22 @@
+# name|ctx|mtp_depth|effort|max_tokens|need_mib|summary
+#
+# NOTHING IN THIS FILE WAS MEASURED BY THIS REPO. NO 16 GB MACHINE WAS USED.
+#
+# Sources:
+#   need_mib   10752   the MTPLX 2.12.0 catalog's peak_memory_gib for this
+#                      pack, 10.5 GiB. How and where the catalog measured it
+#                      is not stated alongside it.
+#   mtp_depth  2       the pack's recommended_mtp_depth (mtplx_runtime.json)
+#
+# EXTRAPOLATED: ctx 20480. No source states MTPLX's 16 GB window for THIS
+# pack; 20,480 is the release notes' 16 GB figure for its BF16 sibling. See
+# CONTEXT_LIMIT in config.sh.
+#
+# EXTRAPOLATED: max_tokens 8192 is this repo's choice, not a measurement --
+# see OUTPUT_LIMIT in config.sh.
+#
+# effort is "default" because the pack's chat template has no reasoning-effort
+# variable; no --reasoning-effort flag is passed.
+#
+# No throughput columns: nothing was measured for this build on 16 GB.
+coding|20480|2|default|8192|10752|default; EXTRAPOLATED 20k ctx, depth 2. NOTHING MEASURED on 16 GB

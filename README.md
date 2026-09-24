@@ -53,6 +53,8 @@ half-installing.
 | Qwen3.8-27B | macOS 26 | 64GB Apple silicon ¹ | MTPLX + OpenCode | [`install-qwen-3.8-27b-macos-64GB-mtplx-opencode.sh`](install-qwen-3.8-27b-macos-64GB-mtplx-opencode.sh) | [README](combinations/qwen/3.8/27b/macos/64GB/mtplx-opencode/README.md) |
 | Qwen3.8-Flash-Next | macOS 26 | 128GB Apple silicon | MTPLX + OpenCode | [`install-qwen-3.8-flash-next-macos-128GB-mtplx-opencode.sh`](install-qwen-3.8-flash-next-macos-128GB-mtplx-opencode.sh) | [README](combinations/qwen/3.8/flash-next/macos/128GB/mtplx-opencode/README.md) |
 | Ternary Bonsai 2 27B ² | Ubuntu 22.04 | 24GB NVIDIA | llama.cpp *(fork)* + OpenCode | [`install-bonsai-2-27b-ubuntu-24GB-llamacpp-opencode.sh`](install-bonsai-2-27b-ubuntu-24GB-llamacpp-opencode.sh) | [README](combinations/bonsai/2/27b/ubuntu/24GB/llamacpp-opencode/README.md) |
+| MiMo-V2.6-Qwen-9B ³ | macOS 26 | 16GB Apple silicon, M3+ ⁴ | MTPLX + OpenCode | [`install-mimo-2.6-9b-macos-16GB-mtplx-opencode.sh`](install-mimo-2.6-9b-macos-16GB-mtplx-opencode.sh) | [README](combinations/mimo/2.6/9b/macos/16GB/mtplx-opencode/README.md) |
+| Qwen3.5-9B FP16 ³ | macOS 26 | 16GB Apple silicon, M1/M2 ⁴ | MTPLX + OpenCode | [`install-qwen-3.5-9b-fp16-macos-16GB-mtplx-opencode.sh`](install-qwen-3.5-9b-fp16-macos-16GB-mtplx-opencode.sh) | [README](combinations/qwen/3.5/9b-fp16/macos/16GB/mtplx-opencode/README.md) |
 
 ² **The Bonsai row does not use upstream llama.cpp.** Bonsai 2 is Qwen3.8-27B
 re-quantised to ternary weights (~1.72 bits/weight, 6.7 GB), and its GGUF types
@@ -68,6 +70,20 @@ speculative decoding exists for it. Full numbers and the trade-offs:
 measured on a 128 GB M5 Max. The 27B pack wires 27.9 GB and fits a 64 GB
 machine, but nobody has run it on one; every line that depends on that claim
 says so. See its [benchmarks README](combinations/qwen/3.8/27b/macos/64GB/mtplx-opencode/benchmarks/README.md).
+
+³ **The two 16GB rows are unmeasured.** Nothing in them was run by this repo,
+and no 16 GB machine was used: their figures come from the MTPLX 2.12.0 release
+notes, its model catalog and the packs' own metadata, and no tok/s figure is
+quoted for either. Their context window is **20,480 tokens** (MTPLX's 16 GB
+plan; extrapolated for the FP16 pack), so coding agents compact often, and Pi
+needs a per-model compaction override to work well at all — see each README.
+
+⁴ **Chip generation, not just memory.** MTPLX offers MiMo V2.6 Qwen 9B (a
+coding/agent fine-tune by Xiaomi MiMo, BF16 vision tower and draft head) on
+M3/M4/M5 only; it runs on M1/M2 but without native BF16, and the slowdown is
+unmeasured. On M1/M2, MTPLX's pick is the Qwen3.5-9B FP16 build. `install.sh`
+selects by memory alone, so on any 16 GB Mac `./install.sh` (and its menu's
+default) is the FP16 row; use `./install.sh mimo` for MiMo.
 
 **Want one that isn't here?** See
 [docs/adding-a-combination.md](docs/adding-a-combination.md). A new combination
