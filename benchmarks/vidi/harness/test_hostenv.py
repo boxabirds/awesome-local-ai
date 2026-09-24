@@ -48,6 +48,12 @@ def test_linux_power_laptop_on_battery_and_low_power():
     assert hostenv.parse_linux_power([bat, mains_on], platform_profile="low-power") == {"ac": True, "low_power": True}
 
 
+def test_playwright_cache_is_per_os():
+    home = Path("/home/u")
+    expected = "Library/Caches/ms-playwright" if hostenv.IS_MAC else ".cache/ms-playwright"
+    assert hostenv.playwright_cache(home) == home / expected
+
+
 def test_bwrap_masks_then_reopens_own_dir(tmp_path):
     work_root = tmp_path / "work"
     own = work_root / "run-a"
