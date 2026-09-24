@@ -29,11 +29,25 @@ vi.mock('../../src/shared/board-model', async (importOriginal) => {
     bringToFront: vi.fn(real.bringToFront),
     setStickyColor: vi.fn(real.setStickyColor),
     deleteObject: vi.fn(real.deleteObject),
+    moveObjects: vi.fn(real.moveObjects),
+    resizeObjects: vi.fn(real.resizeObjects),
+    bringObjectsToFront: vi.fn(real.bringObjectsToFront),
+    deleteObjects: vi.fn(real.deleteObjects),
   };
 });
 
 const LOAD_FAILED_TEXT = "This board couldn't be loaded. Retrying…";
-const MUTATIONS = ['createSticky', 'moveObject', 'bringToFront', 'setStickyColor', 'deleteObject'] as const;
+const MUTATIONS = [
+  'createSticky',
+  'moveObject',
+  'bringToFront',
+  'setStickyColor',
+  'deleteObject',
+  'moveObjects',
+  'resizeObjects',
+  'bringObjectsToFront',
+  'deleteObjects',
+] as const;
 
 /**
  * Stands in for the browser WebSocket so the real y-websocket provider can be driven: tests
@@ -159,6 +173,46 @@ describe('persist.client_status: App while the board cannot be loaded (TC-23)', 
     fireEvent.doubleClick(el);
     fireEvent.keyDown(window, { key: 'Enter' });
     expect(editor()).toBeNull();
+
+    expect(notes()).toEqual(before);
+    expectNoMutations();
+  });
+
+  it('TC-25 (story 7) a multi-selection still works for viewing, but cannot be moved, resized, nudged or deleted', () => {
+    renderBoard();
+    const a = createSelectedNote(400, 300);
+    const b = createSelectedNote(700, 300);
+    vi.mocked(model.createSticky).mockClear();
+    latestSocket().acceptThenClose(CLOSE_BOARD_LOAD_FAILED);
+    expect(badgeText()).toBe(LOAD_FAILED_TEXT);
+    const before = notes();
+    countDocUpdates();
+
+    // Selecting still works: click a, Shift-click b.
+    press(a, 400, 300);
+    release(a, 400, 300);
+    fireEvent.pointerDown(b, { pointerId: 1, button: 0, clientX: 700, clientY: 300, shiftKey: true });
+    fireEvent.pointerUp(b, { pointerId: 1, button: 0, clientX: 700, clientY: 300, shiftKey: true });
+    expect(a.dataset.selected).toBe('true');
+    expect(b.dataset.selected).toBe('true');
+    expect(screen.getByRole('toolbar', { name: 'Selection' }).textContent).toContain('2 selected');
+
+    // Group drag.
+    press(a, 400, 300);
+    move(a, 480, 360);
+    flushFrame();
+    release(a, 480, 360);
+    flushFrame();
+    // No resize handles are offered.
+    expect(screen.queryByRole('button', { name: 'Resize bottom-right' })).toBeNull();
+    // Nudge and delete keys.
+    fireEvent.keyDown(window, { key: 'ArrowRight' });
+    fireEvent.keyDown(window, { key: 'ArrowDown', shiftKey: true });
+    fireEvent.keyDown(window, { key: 'Delete' });
+    // The bar's Delete button is disabled.
+    const del = screen.getByRole('button', { name: 'Delete selection' }) as HTMLButtonElement;
+    expect(del.disabled).toBe(true);
+    fireEvent.click(del);
 
     expect(notes()).toEqual(before);
     expectNoMutations();

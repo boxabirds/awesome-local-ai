@@ -1,5 +1,5 @@
 import type * as Y from 'yjs';
-import type { StickySnapshot } from '../../shared/board-model';
+import type { ObjectSnapshot, StickySnapshot } from '../../shared/board-model';
 import type { ConnectionState } from '../sync/connectBoard';
 import type { Camera } from './camera';
 
@@ -13,6 +13,10 @@ export interface Vidi6TestHooks {
   getCamera(): Camera;
   /** Board objects as stored in the document (story 2). */
   getNotes(): readonly StickySnapshot[];
+  /** Every object of any type (story 7). */
+  getObjects(): readonly ObjectSnapshot[];
+  /** This page's selected object ids (story 7; local state, never in the document). */
+  getSelection(): string[];
   /** The board document itself, for tests that change it the way another client would. */
   getDoc(): Y.Doc;
   /** The mapped connection state behind the status badge (story 3). */

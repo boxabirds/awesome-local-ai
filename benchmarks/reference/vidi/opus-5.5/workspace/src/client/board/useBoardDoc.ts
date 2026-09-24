@@ -1,37 +1,32 @@
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import * as Y from 'yjs';
-import { initDoc, snapshot, type StickySnapshot } from '../../shared/board-model';
+import { initDoc, objectSnapshot, type ObjectSnapshot } from '../../shared/board-model';
 import { connectBoard, type ConnectionState, type ProviderFactory } from '../sync/connectBoard';
 
 export interface BoardDoc {
   doc: Y.Doc;
-  /** Immutable notes sorted by (z, id). Unchanged notes keep their object identity. */
-  notes: readonly StickySnapshot[];
+  /** Immutable objects of every type sorted by (z, id). Unchanged objects keep their identity. */
+  objects: readonly ObjectSnapshot[];
   /** Connection to the board's room, for the status badge. */
   connection: ConnectionState;
 }
 
-function sameNote(a: StickySnapshot, b: StickySnapshot): boolean {
-  return (
-    a.x === b.x &&
-    a.y === b.y &&
-    a.color === b.color &&
-    a.text === b.text &&
-    a.z === b.z &&
-    a.createdAt === b.createdAt
-  );
+function sameObject(a: ObjectSnapshot, b: ObjectSnapshot): boolean {
+  const aKeys = Object.keys(a) as (keyof ObjectSnapshot)[];
+  if (aKeys.length !== Object.keys(b).length) return false;
+  return aKeys.every((k) => a[k] === b[k]);
 }
 
 /**
  * Reuses the previous object for every note whose fields did not change, so memoised
  * note components skip re-rendering while another note is dragged (500-note boards).
  */
-function reconcile(prev: readonly StickySnapshot[], next: readonly StickySnapshot[]): readonly StickySnapshot[] {
+function reconcile(prev: readonly ObjectSnapshot[], next: readonly ObjectSnapshot[]): readonly ObjectSnapshot[] {
   const byId = new Map(prev.map((n) => [n.id, n]));
   let changed = prev.length !== next.length;
   const out = next.map((note, i) => {
     const old = byId.get(note.id);
-    const keep = old !== undefined && sameNote(old, note) ? old : note;
+    const keep = old !== undefined && sameObject(old, note) ? old : note;
     if (keep !== prev[i]) changed = true;
     return keep;
   });
@@ -51,7 +46,7 @@ export function useBoardDoc(boardId: string, createProvider?: ProviderFactory): 
     return d;
     // A new board gets a new document.
   }, [boardId]);
-  const cacheRef = useRef<{ doc: Y.Doc; notes: readonly StickySnapshot[] } | null>(null);
+  const cacheRef = useRef<{ doc: Y.Doc; notes: readonly ObjectSnapshot[] } | null>(null);
   const [connection, setConnection] = useState<ConnectionState>('connecting');
 
   useEffect(() => {
@@ -60,7 +55,7 @@ export function useBoardDoc(boardId: string, createProvider?: ProviderFactory): 
   }, [doc, boardId, createProvider]);
 
   const getSnapshot = useCallback(() => {
-    if (cacheRef.current?.doc !== doc) cacheRef.current = { doc, notes: snapshot(doc) };
+    if (cacheRef.current?.doc !== doc) cacheRef.current = { doc, notes: objectSnapshot(doc) };
     return cacheRef.current.notes;
   }, [doc]);
 
@@ -69,7 +64,7 @@ export function useBoardDoc(boardId: string, createProvider?: ProviderFactory): 
       const objects = doc.getMap('objects');
       const onDeep = () => {
         const prev = cacheRef.current?.doc === doc ? cacheRef.current.notes : [];
-        cacheRef.current = { doc, notes: reconcile(prev, snapshot(doc)) };
+        cacheRef.current = { doc, notes: reconcile(prev, objectSnapshot(doc)) };
         onChange();
       };
       objects.observeDeep(onDeep);
@@ -80,6 +75,6 @@ export function useBoardDoc(boardId: string, createProvider?: ProviderFactory): 
     [doc],
   );
 
-  const notes = useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
-  return { doc, notes, connection };
+  const objects = useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
+  return { doc, objects, connection };
 }

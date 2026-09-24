@@ -329,3 +329,82 @@ Decisions made while building without anyone to ask.
   implemented in the same step, so they were not observed failing against a stub. Instead, after
   the fact, two mutations were checked: removing the room's existence check fails integration
   TC-09, and removing the manual-copy selection fails component TC-23 and TC-24.
+
+## Story 7: Select, move, resize and delete several objects at once
+
+- **`snapshot(doc)` stays stickies-only; new `objectSnapshot(doc)` returns every object.** Story 2's
+  TC-12 requires `snapshot` to skip unknown types, and many earlier tests use it as the note list.
+  The board (`useBoardDoc`, now `objects`) renders `objectSnapshot` through the registry; unregistered
+  types are skipped. `ObjectSnapshot` has the shared fields plus optional `width`/`height` (present
+  only once stored) and sticky-only `color`/`text`; `StickySnapshot` extends it; `isSticky()` narrows.
+- **Known types in the shared model.** `board-model.ts` is framework-free (the Worker imports it), so
+  it cannot see the client registry. `objectsInRect` and `allObjectIds` take an optional
+  `isKnownType(type)` predicate defaulting to `KNOWN_OBJECT_TYPES` (`sticky`); the client passes
+  `isRegisteredType` from the registry, so the test-only `testbox` is selectable in component tests.
+- **New stickies are created with explicit `width`/`height`** (= STICKY_SIZE_WORLD), per the design's
+  state diagram ("object created after this story → ExplicitSize"). Older stickies without the fields
+  render at STICKY_SIZE_WORLD; the first resize writes both. No migration.
+- **Extra geometry exports** beyond the contract: `HANDLES`, `anchoredRect(start, handle, scale)` and
+  `scaleBetween(from, to)`. The gesture computes the wanted scale with `resizeRect`, clamps it with
+  `clampScale`, then re-anchors with `anchoredRect` so a clamped box still stays pinned to the opposite
+  edge/corner. With aspect lock, corners follow the axis dragged furthest (TC-01: +100/+40 → ×1.5);
+  edge handles scale the other dimension about its centre. Sizes never flip below zero.
+- **`clampScale` semantics.** A uniform scale (x === y, i.e. aspect-locked) is clamped once for the
+  whole selection (key decision 2). A free scale is clamped per axis. An object already outside its
+  limits (possible only for data written elsewhere) may not move further out but is not forced back.
+- **`resizeObjects`** rejects the whole call for any non-finite value or non-positive size;
+  `moveObjects` for any non-finite value. Both skip missing ids and unchanged entries; 0 means no
+  transaction. `bringObjectsToFront` is a no-op when the selection is already strictly above every
+  other object (so repeated drags do not churn z); otherwise `z = maxUnselected + rank`. Story 2's
+  `moveObject`, `bringToFront` and `deleteObject` are now thin wrappers; their story 2 tests pass
+  unchanged.
+- **Registry** (`src/client/objects/registry.tsx`) also exports `isRegisteredType` and
+  `boundsHitTest`, and defines `ObjectProps` (object, doc, zoom, stackIndex, selected, editing,
+  dragging, readOnly, onPointerDown, onSelect, onStartEdit, onEndEdit). `StickyNote` takes
+  `ObjectProps` (was `note: StickySnapshot`); its own drag code is gone.
+- **`useSelection(snapshot)`**: `click`, `toggle` and `setMany` ignore ids not in the snapshot;
+  `startEdit` is not checked (a note just created is edited before the next render shows it; prune
+  ends the edit if it vanished). `endEdit(next?)` keeps story 2's optional `'unselected'`. Prune runs
+  in a layout effect so a remotely deleted object never paints a stale bar/box.
+- **Press semantics.** Pressing an unselected object selects only it immediately (so a drag moves
+  only it). Pressing an already-selected object keeps the selection until release: a click without
+  movement then selects only it; Shift-click toggles. Shift-press on an unselected object adds it
+  on release, or when a drag starts (then the whole selection including it moves). A press that
+  travelled DRAG_THRESHOLD_PX is never treated as a click, also on a read-only board (so a failed
+  drag attempt there does not collapse the selection).
+- **Gesture listeners** (`useTransformGesture`) are on `window` (pointer capture on the pressed
+  element retargets events, which still bubble to window); lost capture/pointercancel ends the
+  gesture keeping the last applied frame. The hook also returns `activeIds` (objects being moved or
+  resized) so objects render their dragging style and the bar hides mid-gesture. Resize of a mixed
+  selection: non-resizable objects keep their size and only their position scales (no such type yet).
+  `onGestureStart`/`onGestureEnd` exist for story 8; `Board` passes none yet.
+- **Selection bar.** Two or more objects → "N selected" + Delete selection. Exactly one sticky →
+  story 2's note toolbar. **Exactly one non-sticky object → "1 selected" bar** (the PRD does not cover
+  this case; it keeps a delete button available for types from stories 9–12). The polite live region
+  (`data-testid="selection-announcer"`, visually hidden) always exists and reads "N selected" (empty
+  at 0). While the board cannot be edited (story 4): note toolbar hidden (as before), bar shown with a
+  disabled Delete button, no resize handles, arrows/Delete do nothing, drags write nothing.
+- **Overlay.** Bounding box and 8 handles are a fixed, screen-space overlay (like the note toolbar), so
+  handles are HANDLE_SIZE_PX at any zoom; the box never takes pointer events, handles are
+  `role="button"` with "Resize top-left" … "Resize left". The overlay is hidden while text is edited.
+  Objects keep their own 2 px outline (`data-selected`).
+- **Marquee.** Shift+press on empty space in `BoardViewport` enters mode `marquee` (story 1's pan is
+  unchanged without Shift). Escape during a marquee is caught in the capture phase on window, so it
+  discards the rectangle without also clearing the selection. A marquee that encloses nothing leaves
+  the selection unchanged. `MarqueeRect` gets a `zIndex` above every object.
+- **Keyboard** (`useBoardKeys`) replaced story 2's handler in `Board.tsx`. Keys aimed at inputs,
+  textareas, selects and contenteditable are ignored; Delete/arrows/Enter aimed at buttons (e.g. a
+  focused swatch) are also left to the button, as in story 2. Ctrl/Cmd+A works from anywhere else.
+- **Test hooks** gained `getObjects()` and `getSelection()` (test builds only).
+- **TC-36 is Chromium-only.** In Firefox, simultaneous mouse input to five windows is delivered to
+  only some of them (and selecting by Shift+drag in background windows fails), so the concurrent drags
+  do not actually happen; the test skips there. The selection set-up in TC-36 is done one person at a
+  time (`bringToFront`); the drags themselves are simultaneous (all press, all move, all release).
+  All other story 7 e2e tests pass in Chromium and Firefox; WebKit still cannot launch on the build
+  machine.
+- **Red phase not observed.** The unit tests were written after the implementation, not run against
+  "not implemented" stubs. Instead two mutations were checked: removing `clampScale`'s uniform clamp
+  fails TC-02, TC-03 and two other geometry tests; making `prune` keep deleted ids fails unit TC-15 and
+  component TC-15/TC-16. Both reverted.
+- **Not covered** (per design): the 200-object performance run (manual), touch input, types from
+  stories 9–12. Other people's selections are not shown (story 6 is not part of this build).
