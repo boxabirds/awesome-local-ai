@@ -66,7 +66,7 @@ RESUME_PROMPT = "Continue with the task from where you left off."
 # A reasoning model can end a turn with thinking only and no tool call; the agent then exits 0 as
 # if finished (canvas-pi-01 story 2: 3 minutes, one task in). If a session ends with no commit, the
 # harness continues the same session with RESUME_PROMPT, as a person would. Counted as nudges.
-MAX_NUDGES = 3
+# No cap (user decision, 24 Sep): the only stop is a nudge that makes no model call at all.
 # pi's bash tool has no default timeout. An agent that backgrounds a server inside a tool call
 # (`(wrangler dev &)`) leaves children holding the tool's output pipe and the call never returns.
 # After this long with the last event a tool call and nothing streamed, the harness does what a
@@ -378,6 +378,13 @@ def needs_nudge(attempt: dict, commits: int) -> bool:
     return commits == 0 and not attempt["stalled"] and not attempt["error"] and bool(attempt["session"])
 
 
+def keep_nudging(attempt: dict, commits: int, nudges: int) -> bool:
+    """Nudge again unless the agent committed, or the previous nudge made no progress (zero model calls)."""
+    if nudges > 0 and attempt.get("steps", 0) == 0:
+        return False
+    return needs_nudge(attempt, commits)
+
+
 def commits_since(ws: Path, head: str) -> int:
     return int(sh(["git", "rev-list", "--count", f"{head}..HEAD"], ws).strip())
 
@@ -415,13 +422,36 @@ def run_agent(client, ws: Path, env: dict, model_id: str, prompt: str, events_pa
     return {"exit": proc.returncode, "seconds": round(time.monotonic() - t0, 1), "stalled": stalled, **st}
 
 
-def run_story_agent(client, ws: Path, env: dict, model_id: str, prompt: str, events_path: Path) -> dict:
-    """First attempt plus up to MAX_AGENT_RESUMES fork-resumes after an error exit."""
-    events_path.unlink(missing_ok=True)
+def last_session(client, events_path: Path) -> str | None:
+    """The most recent agent session id in a story's event log (None if there is none)."""
+    if not events_path.exists():
+        return None
+    sid = None
+    for line in events_path.open():
+        try:
+            e = json.loads(line)
+        except json.JSONDecodeError:
+            continue
+        st = empty_state()
+        client.scan(e, st)
+        sid = st["session"] or sid
+    return sid
+
+
+def run_story_agent(client, ws: Path, env: dict, model_id: str, prompt: str, events_path: Path,
+                    continue_session: str | None = None) -> dict:
+    """First attempt plus fork-resumes after errors and nudges after no-commit stops. With
+    continue_session (a harness restart mid-story), the agent's own session is continued."""
+    if not continue_session:
+        events_path.unlink(missing_ok=True)
     guard = ToolHangGuard(events_path, ws, events_path.parent.parent.parent / "interventions.md")
     guard.start()
     head = sh(["git", "rev-parse", "HEAD"], ws).strip()
-    attempts = [run_agent(client, ws, env, model_id, prompt, events_path)]
+    if continue_session:
+        attempts = [run_agent(client, ws, env, model_id, RESUME_PROMPT, events_path,
+                              resume_from=continue_session, fork=False)]
+    else:
+        attempts = [run_agent(client, ws, env, model_id, prompt, events_path)]
     resumes = nudges = 0
     while not RUN_ABORT.is_set():
         last = attempts[-1]
@@ -431,9 +461,9 @@ def run_story_agent(client, ws: Path, env: dict, model_id: str, prompt: str, eve
             time.sleep(RESUME_BACKOFF_S)
             attempts.append(run_agent(client, ws, env, model_id, RESUME_PROMPT, events_path,
                                       resume_from=last["session"], fork=True))
-        elif needs_nudge(last, commits_since(ws, head)) and nudges < MAX_NUDGES:
+        elif keep_nudging(last, commits_since(ws, head), nudges):
             nudges += 1
-            print(f"    agent stopped without committing — nudge {nudges}/{MAX_NUDGES}: continuing the session", flush=True)
+            print(f"    agent stopped without committing — nudge {nudges}: continuing the session", flush=True)
             attempts.append(run_agent(client, ws, env, model_id, RESUME_PROMPT, events_path,
                                       resume_from=last["session"], fork=False))
         else:
@@ -686,7 +716,12 @@ def main() -> None:
         head_before = sh(["git", "rev-parse", "HEAD"], ws).strip()
         sampler = ConditionSampler(ws)
         sampler.start()
-        rec["agent"] = run_story_agent(client, ws, env, a.model_id, prompt, sdir / "agent-events.jsonl")
+        prior = last_session(client, sdir / "agent-events.jsonl")
+        if prior:
+            print(f"[story {sid}] continuing the agent's own session {prior} after a harness restart", flush=True)
+            rec["continued_session"] = prior
+        rec["agent"] = run_story_agent(client, ws, env, a.model_id, prompt, sdir / "agent-events.jsonl",
+                                       continue_session=prior)
         rec["agent_finished"] = time.time()
         rec["conditions"] = sampler.stop()
         if rec["conditions"]["aborted_swap"]:
