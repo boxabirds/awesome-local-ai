@@ -33,7 +33,7 @@ class PiClient:
     def env(self) -> dict:
         return {"PI_CODING_AGENT_DIR": str(self.agent_dir), "PI_OFFLINE": "1"}
 
-    def write_config(self, base_url: str, model_id: str, ctx: int, out: int) -> None:
+    def write_config(self, base_url: str, model_id: str, ctx: int, out: int, compact_at: int | None = None) -> None:
         self.agent_dir.mkdir(parents=True, exist_ok=True)
         self.session_dir.mkdir(parents=True, exist_ok=True)
         # Same shape as lib/clients/pi.sh _pi_provider_block: MTPLX wants "system" not
@@ -46,8 +46,11 @@ class PiClient:
         }}}
         (self.agent_dir / "models.json").write_text(json.dumps(models, indent=2))
         # pi's own defaults for compaction and retries, except timeouts (see CLIENT_IDLE_TIMEOUT_MS).
-        settings = {"quietStartup": True, "httpIdleTimeoutMs": CLIENT_IDLE_TIMEOUT_MS,
-                    "retry": {"provider": {"timeoutMs": CLIENT_IDLE_TIMEOUT_MS}}}
+        settings: dict = {"quietStartup": True, "httpIdleTimeoutMs": CLIENT_IDLE_TIMEOUT_MS,
+                          "retry": {"provider": {"timeoutMs": CLIENT_IDLE_TIMEOUT_MS}}}
+        if compact_at:
+            # pi compacts once context > window - reserveTokens.
+            settings["compaction"] = {"reserveTokens": ctx - compact_at}
         (self.agent_dir / "settings.json").write_text(json.dumps(settings, indent=2))
 
     def command(self, model_id: str, prompt: str, resume_from: str | None = None, fork: bool = True) -> list[str]:
@@ -95,7 +98,8 @@ class OpenCodeClient:
     def env(self) -> dict:
         return {}
 
-    def write_config(self, base_url: str, model_id: str, ctx: int, out: int) -> None:
+    def write_config(self, base_url: str, model_id: str, ctx: int, out: int, compact_at: int | None = None) -> None:
+        # compact_at is not supported for OpenCode (no documented setting); it compacts near its limit.
         self.cfg_dir.mkdir(parents=True, exist_ok=True)
         cfg = {
             "$schema": "https://opencode.ai/config.json",

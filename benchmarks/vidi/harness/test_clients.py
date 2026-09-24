@@ -48,3 +48,14 @@ def test_pi_config_written_isolated(tmp_path):
     assert c.env()["PI_CODING_AGENT_DIR"] == str(tmp_path / "pi-agent")
     settings = json.loads((tmp_path / "pi-agent" / "settings.json").read_text())
     assert settings["httpIdleTimeoutMs"] > 300_000
+
+
+def test_pi_compacts_at_the_requested_context(tmp_path):
+    """canvas-pi-01 story 4: the Mac panicked with MTPLX at 112-115k context. pi compacts when
+    context > window - reserveTokens, so compacting at N means reserve = window - N."""
+    c = PiClient(tmp_path)
+    c.write_config("http://127.0.0.1:1/v1", "m", 131072, 32768, compact_at=90_000)
+    s = json.loads((tmp_path / "pi-agent" / "settings.json").read_text())
+    assert s["compaction"]["reserveTokens"] == 131072 - 90_000
+    c.write_config("http://127.0.0.1:1/v1", "m", 131072, 32768)
+    assert "compaction" not in json.loads((tmp_path / "pi-agent" / "settings.json").read_text())
