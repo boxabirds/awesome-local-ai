@@ -29,6 +29,8 @@ from collections import deque
 from pathlib import Path
 
 import gates
+import hostenv
+from hostenv import IS_MAC, THERMAL_OK, mem_free_pct
 from clients import CLIENTS, empty_state
 
 HARNESS = Path(__file__).resolve().parent
@@ -39,7 +41,8 @@ WORK_ROOT = Path(os.environ.get("VIDI_WORK_ROOT", Path.home() / ".vidi-bench" / 
 # Nothing the agent runs may read these: the harness + held-out suite, the user's own agent
 # config/skills/sessions, and other runs' work directories (WORK_ROOT minus the agent's own).
 SANDBOX_DENY = [REPO_ROOT, *(Path.home() / p for p in
-                (".claude", ".agents", ".codex", ".config/opencode", ".local/share/opencode", ".mtplx"))]
+                (".claude", ".agents", ".codex", ".config/opencode", ".local/share/opencode", ".mtplx",
+                 ".dbench/token", ".dbench/jobs"))]
 CONTEXT_BANDS = [(0, 16_000), (16_000, 32_000), (32_000, 64_000), (64_000, 100_000), (100_000, 10**9)]
 CONDITION_POLL_S = 30        # how often run conditions are sampled during a story / while waiting
 # The mirror is committed into the outer repo: no nested .git (it would become a
@@ -101,11 +104,13 @@ def _sb_quote(p: Path) -> str:
 
 
 def sandboxed(cmd: list[str], own_dir: Path) -> list[str]:
-    """Wrap cmd in a macOS sandbox that hides everything in SANDBOX_DENY except own_dir.
+    """Wrap cmd in a sandbox that hides everything in SANDBOX_DENY except own_dir.
 
-    SBPL applies the last matching rule, so the final allow re-opens own_dir even
-    though it sits under WORK_ROOT.
+    macOS: sandbox-exec; SBPL applies the last matching rule, so the final allow re-opens
+    own_dir even though it sits under WORK_ROOT. Linux: bubblewrap (see hostenv.bwrap_wrap).
     """
+    if not IS_MAC:
+        return hostenv.bwrap_wrap(cmd, own_dir, [*SANDBOX_DENY, WORK_ROOT])
     deny = " ".join(f"(subpath {_sb_quote(p)})" for p in [*SANDBOX_DENY, WORK_ROOT])
     # Tools resolve real paths by lstat()ing every ancestor of a path (node's realpath, the
     # wrangler watcher). Allow metadata only -- stat, not reading or listing -- on the
@@ -577,13 +582,15 @@ def parse_power(pmset_batt: str, pmset_g: str) -> dict:
 
 
 def conditions() -> dict:
+    if not IS_MAC:
+        return {**hostenv.linux_power(), "thermal": hostenv.linux_thermal()}
     batt = subprocess.run(["pmset", "-g", "batt"], capture_output=True, text=True).stdout
     g = subprocess.run(["pmset", "-g"], capture_output=True, text=True).stdout
     return {**parse_power(batt, g), "thermal": thermal()}
 
 
 def conditions_ok(c: dict) -> bool:
-    return c["ac"] and not c["low_power"] and c["thermal"] == "nominal"
+    return c["ac"] and not c["low_power"] and c["thermal"] in THERMAL_OK
 
 
 def wait_for_conditions() -> dict:
@@ -601,6 +608,8 @@ def wait_for_conditions() -> dict:
 # the machine kernel-panicked (watchdog timeout). If swap grows this much during a story, the
 # harness stops the agent and the run before memory pressure can take the machine down.
 SWAP_ABORT_GROWTH_GB = 4.0
+# Free memory below this share stops the run the same way (was an external watchdog loop).
+MEM_FREE_ABORT_PCT = 8
 MIB_PER_GIB = 1024
 
 
@@ -630,10 +639,14 @@ def server_footprint_gb(port: int | None) -> tuple[float | None, float | None]:
     pid = server_pid(port) if port else None
     if not pid:
         return None, None
+    if not IS_MAC:
+        return hostenv.linux_process_gb(pid)
     return parse_footprint_gb(subprocess.run(["footprint", "-p", str(pid)], capture_output=True, text=True).stdout)
 
 
 def swap_used_gb() -> float:
+    if not IS_MAC:
+        return hostenv.linux_swap_used_gb()
     return parse_swap_gb(subprocess.run(["sysctl", "-n", "vm.swapusage"], capture_output=True, text=True).stdout)
 
 
@@ -656,6 +669,8 @@ class ConditionSampler(threading.Thread):
         self.swap_start = swap_used_gb()
         self.swap_max = self.swap_start
         self.aborted = threading.Event()
+        self.aborted_memory = False
+        self.free_min_pct: float | None = None
         self._halt = threading.Event()
 
     def run(self):
@@ -670,19 +685,32 @@ class ConditionSampler(threading.Thread):
             if fp is not None:
                 self.footprint_max = max(self.footprint_max or 0.0, fp)
                 self.footprint_peak = max(self.footprint_peak or 0.0, fp_peak or 0.0)
-            if swap - self.swap_start > SWAP_ABORT_GROWTH_GB and not self.aborted.is_set():
-                self.aborted.set()
-                RUN_ABORT.set()
-                print(f"    SWAP GUARD: swap grew {swap - self.swap_start:.1f} GB during the story "
-                      f"({self.swap_start:.1f} -> {swap:.1f} GB) — stopping the agent to protect the machine", flush=True)
-                if self.ws:
-                    kill_pids(workspace_pids(self.ws))
+            free = mem_free_pct()
+            if free is not None:
+                self.free_min_pct = free if self.free_min_pct is None else min(self.free_min_pct, free)
+            if self.aborted.is_set():
+                continue
+            if swap - self.swap_start > SWAP_ABORT_GROWTH_GB:
+                self._abort(f"SWAP GUARD: swap grew {swap - self.swap_start:.1f} GB during the story "
+                            f"({self.swap_start:.1f} -> {swap:.1f} GB)")
+            elif free is not None and free < MEM_FREE_ABORT_PCT:
+                self.aborted_memory = True
+                self._abort(f"MEMORY GUARD: free memory {free:.0f}% < {MEM_FREE_ABORT_PCT}%")
+
+    def _abort(self, why: str) -> None:
+        self.aborted.set()
+        RUN_ABORT.set()
+        print(f"    {why} — stopping the agent to protect the machine", flush=True)
+        if self.ws:
+            kill_pids(workspace_pids(self.ws))
 
     def stop(self) -> dict:
         self._halt.set()
         self.join()
         return {**summarise_conditions(self.samples, self.bad), "swap_start_gb": round(self.swap_start, 2),
-                "swap_max_gb": round(self.swap_max, 2), "aborted_swap": self.aborted.is_set(),
+                "swap_max_gb": round(self.swap_max, 2),
+                "aborted_swap": self.aborted.is_set() and not self.aborted_memory,
+                "aborted_memory": self.aborted_memory, "free_min_pct": self.free_min_pct,
                 "server_footprint_max_gb": self.footprint_max, "server_footprint_peak_gb": self.footprint_peak}
 
 
@@ -691,7 +719,7 @@ def summarise_conditions(samples: int, bad: list[dict]) -> dict:
     Thermal throttling under sustained load is how the setup really performs, so it is
     reported as a share of samples, not treated as a fault. Every story starts at nominal."""
     power_bad = [b for b in bad if not b["ac"] or b["low_power"]]
-    throttled = [b for b in bad if b["thermal"] != "nominal"]
+    throttled = [b for b in bad if b["thermal"] not in THERMAL_OK]
     return {"samples": samples, "degraded": bool(power_bad),
             "throttled_share": round(len(throttled) / samples, 2) if samples else 0.0,
             "bad_samples": bad}
