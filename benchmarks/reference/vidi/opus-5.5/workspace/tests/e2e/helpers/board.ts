@@ -85,3 +85,32 @@ export async function drag(page: Page, from: Box, dx: number, dy: number): Promi
   await page.mouse.up();
   await nextFrames(page);
 }
+
+export interface NoteState {
+  id: string;
+  x: number;
+  y: number;
+  color: string;
+  text: string;
+  z: number;
+}
+
+/** Notes as stored in the board document, sorted bottom to top. */
+export async function getNotes(page: Page): Promise<NoteState[]> {
+  return page.evaluate(() => {
+    if (!window.__vidi6) throw new Error('test hook missing');
+    return window.__vidi6.getNotes().map((n) => ({ ...n }));
+  });
+}
+
+export function noteLocator(page: Page, id?: string) {
+  return id === undefined
+    ? page.getByRole('group', { name: 'Sticky note' })
+    : page.locator(`[role="group"][aria-label="Sticky note"][data-id="${id}"]`);
+}
+
+export async function boxOf(page: Page, id: string): Promise<{ x: number; y: number; width: number; height: number }> {
+  const box = await noteLocator(page, id).boundingBox();
+  if (!box) throw new Error(`note ${id} not rendered`);
+  return box;
+}

@@ -1,3 +1,38 @@
+commit 0d03e2b757f6991a8bfd4f7c60d5c4d078b3637c
+Author: opus-5.5-reference <reference@vidi.invalid>
+Date:   Thu Sep 24 22:26:28 2026 +0100
+
+    story 2: Capture ideas on sticky notes and rearrange them
+    
+    Co-Authored-By: Claude Opus 5.5 (1M context) <noreply@anthropic.com>
+
+ NOTES.md                                  |  56 ++++++
+ package-lock.json                         |  51 +++++-
+ package.json                              |   3 +-
+ src/client/App.tsx                        | 154 ++++++++++++++++-
+ src/client/board/Toolbar.tsx              |  39 +++++
+ src/client/board/useBoardDoc.ts           |  73 ++++++++
+ src/client/board/useSelection.ts          |  49 ++++++
+ src/client/canvas/BoardViewport.tsx       |  31 +++-
+ src/client/canvas/testHooks.ts            |  23 ++-
+ src/client/objects/NoteToolbar.tsx        |  65 +++++++
+ src/client/objects/StickyNote.tsx         | 271 ++++++++++++++++++++++++++++++
+ src/client/objects/StickyText.ts          |  99 +++++++++++
+ src/client/objects/StickyTextEditor.tsx   | 101 +++++++++++
+ src/client/styles.css                     | 192 +++++++++++++++++++++
+ src/shared/board-model.ts                 | 191 +++++++++++++++++++++
+ src/shared/config.ts                      |  26 +++
+ tests/component/StickyNote.test.tsx       | 248 +++++++++++++++++++++++++++
+ tests/component/StickyTextEditor.test.tsx | 141 ++++++++++++++++
+ tests/component/Toolbars.test.tsx         | 100 +++++++++++
+ tests/component/stickyHelpers.tsx         | 114 +++++++++++++
+ tests/e2e/helpers/board.ts                |  29 ++++
+ tests/e2e/sticky-notes.spec.ts            | 249 +++++++++++++++++++++++++++
+ tests/fixtures/texts.ts                   |  33 ++++
+ tests/unit/board-model.test.ts            | 250 +++++++++++++++++++++++++++
+ tests/unit/sticky-text.test.ts            | 125 ++++++++++++++
+ 25 files changed, 2702 insertions(+), 11 deletions(-)
+
 commit 709644dc22dfbb1da75517d37fbc6ec1f361ded2
 Author: opus-5.5-reference <reference@vidi.invalid>
 Date:   Thu Sep 24 22:11:47 2026 +0100

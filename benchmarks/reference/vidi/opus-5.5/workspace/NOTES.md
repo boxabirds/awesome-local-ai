@@ -45,3 +45,59 @@ Decisions made while building without anyone to ask.
   pinch (handler logic covered by TC-17 in jsdom), touch input. Headless browsers do not apply
   browser-level page zoom to synthetic Ctrl+= keys, so TC-31 additionally asserts the page
   called `preventDefault` on each shortcut.
+
+## Story 2: Capture ideas on sticky notes and rearrange them
+
+- **Stacking via CSS `z-index`, stable DOM order.** Notes are rendered in creation order
+  (`createdAt`, then id) and stacked with `z-index` = rank in the model's `(z, id)` order.
+  Rendering in `(z, id)` order would make React move the dragged element in the DOM when
+  `bringToFront` runs at drag start, which drops its pointer capture (and focus) mid-drag.
+  `StickyNote` therefore has one extra optional prop, `stackIndex`.
+- **Extra optional `onDragChange(id, dragging)` prop on `StickyNote`.** The note toolbar is
+  hidden while dragging, and it is rendered by `App` (see next point), so the note reports drags.
+- **Note toolbar placement.** `NoteToolbar` is rendered by `App` as a fixed, screen-space overlay
+  above the selected note (via `worldToScreen`), not inside the note element. Inside the world
+  layer it would scale with zoom and could be covered by notes stacked above the selected one.
+- **Selection outline** is 2 screen px at every zoom (`outline-width = 2 / zoom` world px).
+- **Selecting on press.** The design's state diagram selects on pointer-up; that is what the code
+  does. In addition, keyboard focus (Tab) on an unselected note selects it, so "reachable with Tab
+  and editable with Enter" works. Focus caused by a mouse press does not select early.
+- **Clicking outside while editing.** A press on empty board space ends editing and clears the
+  selection immediately (on pointer-down); a press on another note selects that note. Presses
+  on the note being edited (outside its textarea) keep focus in the textarea.
+- **Empty-space click** clears the selection only when the pointer moved less than
+  `DRAG_THRESHOLD_PX`; panning the board keeps the selection.
+- **Keyboard.** Enter / Delete / Backspace act on the selected note only when no note is being
+  edited and the key is not aimed at an input, textarea, select, button or editable element
+  (so Enter on a focused swatch or toolbar button just activates that button).
+- **`createSticky` with non-finite coordinates** returns `''` (the contract's return type is
+  `string`) and opens no transaction. The model also exports `hasObject(doc, id)`; drags use it to
+  detect a note deleted mid-drag, because `moveObject` also returns `false` for a same-position
+  no-op.
+- **`moveObject` / `setStickyColor` same-value calls** return `false` with no update (no-ops).
+- **`bringToFront`** returns `false` only when the note is strictly above every other object; a
+  note tied for the top `z` (possible once story 3 syncs) is lifted to `max + 1`.
+- **Text limit** is enforced twice: the textarea's `maxLength` and `clampToLimit` on every input
+  (which also avoids splitting an emoji surrogate pair at the limit).
+- **Edit layout.** While editing, the display text stays in layout (hidden) and is what font fit
+  measures; a transparent, auto-height textarea is centred over it with the same font size. When
+  text overflows at the minimum size, the textarea scrolls (so the caret stays visible) and the
+  display text is clipped with a bottom fade.
+- **Empty notes** render nothing (no placeholder), per the PRD.
+- **Test hooks.** `window.__vidi6` (test mode only) gained `getNotes()` and `getDoc()`. Hooks are
+  merged, since camera and board install theirs from different components. `getDoc` lets
+  component tests delete a note "remotely" (TC-37).
+- **Component tests fake only animation frames**, not `setTimeout`: Testing Library's async
+  wrapper (used by user-event) waits on a real `setTimeout(0)` and only auto-advances Jest's fake
+  timers, not Vitest's, so faking `setTimeout` hangs every user-event test.
+- **Red phase.** Tasks 1 and 3 were run red against stubs that threw "not implemented" (20/20 and
+  12/12 failures) before implementing; not committed separately (single story commit).
+- **One model test assumption corrected.** The emoji-diff test first expected Yjs to report
+  `insert` before `delete` in the delta; Yjs reports them the other way round. The property under
+  test (the whole surrogate pair is replaced, nothing else) is unchanged; the assertion is now
+  order-independent.
+- **Not done (per design "Not covered").** The 500-note performance run is a manual script, not
+  run here; notes are memoised and unchanged notes keep object identity to support it. IME was
+  covered only with synthetic composition events in jsdom, not a real input method.
+- **E2E browsers.** As in story 1, WebKit cannot launch on the build machine; e2e verified with
+  `E2E_BROWSERS=chromium,firefox`.
