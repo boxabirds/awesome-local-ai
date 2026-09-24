@@ -1,3 +1,40 @@
+commit b1d1ea19fdd614f41fa62a4dff0cfef05986f3a4
+Author: opus-5.5-reference <reference@vidi.invalid>
+Date:   Fri Sep 25 00:08:06 2026 +0100
+
+    story 7: Select, move, resize and delete several objects at once
+    
+    Co-Authored-By: Claude Opus 5.5 (1M context) <noreply@anthropic.com>
+
+ NOTES.md                                |  79 +++++
+ src/client/board/Board.tsx              | 201 +++++------
+ src/client/board/Marquee.tsx            |  81 +++++
+ src/client/board/SelectionBar.tsx       |  94 +++++
+ src/client/board/SelectionOverlay.tsx   | 100 ++++++
+ src/client/board/useBoardDoc.ts         |  33 +-
+ src/client/board/useBoardKeys.ts        |  99 ++++++
+ src/client/board/useSelection.ts        | 131 +++++--
+ src/client/board/useTransformGesture.ts | 356 +++++++++++++++++++
+ src/client/canvas/BoardViewport.tsx     |  64 +++-
+ src/client/canvas/testHooks.ts          |   6 +-
+ src/client/objects/StickyNote.tsx       | 194 ++---------
+ src/client/objects/registry.tsx         |  75 ++++
+ src/client/styles.css                   |  65 +++-
+ src/shared/board-model.ts               | 250 +++++++++++---
+ src/shared/config.ts                    |  13 +
+ src/shared/geometry.ts                  | 170 ++++++++++
+ tests/component/LoadFailed.test.tsx     |  56 ++-
+ tests/component/Selection.test.tsx      | 584 ++++++++++++++++++++++++++++++++
+ tests/e2e/helpers/board.ts              |   3 +
+ tests/e2e/selection.spec.ts             | 370 ++++++++++++++++++++
+ tests/fixtures/boards.ts                |  35 +-
+ tests/fixtures/testbox.tsx              |  64 ++++
+ tests/unit/board-model-group.test.ts    | 190 +++++++++++
+ tests/unit/geometry.test.ts             | 132 ++++++++
+ tests/unit/registry.test.ts             |  48 +++
+ tests/unit/selection.test.ts            |  73 ++++
+ 27 files changed, 3185 insertions(+), 381 deletions(-)
+
 commit 90faa0119a78880d7f5ff394370a2b7df0368406
 Author: opus-5.5-reference <reference@vidi.invalid>
 Date:   Thu Sep 24 23:44:25 2026 +0100

@@ -98,6 +98,9 @@ export interface NoteState {
   color: string;
   text: string;
   z: number;
+  /** Present once written (story 7): new notes and resized notes. */
+  width?: number;
+  height?: number;
 }
 
 /** Notes as stored in the board document, sorted bottom to top. */

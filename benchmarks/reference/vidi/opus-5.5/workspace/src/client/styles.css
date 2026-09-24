@@ -181,7 +181,7 @@ html, body, #root {
   outline: 0 solid var(--focus);
   touch-action: none;
   /*
-   * Fixed-size box: its content never affects the rest of the page. Containment makes each
+   * Explicitly sized box (width/height inline): its content never affects the rest of the page. Containment makes each
    * note its own relayout root, so fitting one note's font (forced layouts) does not reflow
    * the whole board — without it a 2,000-note board takes seconds to open (story 4).
    */
@@ -272,6 +272,69 @@ html, body, #root {
   font-variant-numeric: tabular-nums;
   pointer-events: none;
 }
+
+/* ---- Multi-select (story 7) ---- */
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* Shift+drag selection rectangle, world layer; border width is set inline (1 screen px). */
+.marquee {
+  position: absolute;
+  left: 0;
+  top: 0;
+  border: 1px solid var(--focus);
+  background: rgb(47 111 235 / 0.12);
+  pointer-events: none;
+}
+
+/* Bounding box around the selection, screen space. Only the handles take pointer events. */
+.selection-overlay {
+  position: fixed;
+  border: 1px solid var(--focus);
+  pointer-events: none;
+}
+
+.selection-handle {
+  position: absolute;
+  background: var(--panel-bg);
+  border: 1px solid var(--focus);
+  pointer-events: auto;
+  touch-action: none;
+}
+
+.selection-handle--nw, .selection-handle--se { cursor: nwse-resize; }
+.selection-handle--ne, .selection-handle--sw { cursor: nesw-resize; }
+.selection-handle--n, .selection-handle--s { cursor: ns-resize; }
+.selection-handle--e, .selection-handle--w { cursor: ew-resize; }
+
+.selection-bar {
+  position: fixed;
+  transform: translate(-50%, calc(-100% - 10px));
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 6px 4px 10px;
+  background: var(--panel-bg);
+  border: 1px solid var(--panel-border);
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgb(0 0 0 / 0.12);
+  white-space: nowrap;
+  font-size: 13px;
+}
+
+.selection-bar__count { font-variant-numeric: tabular-nums; }
+
+.note-toolbar__delete:disabled { color: #b4b8bd; cursor: default; }
 
 /* ---- Floating note toolbar: screen space, does not scale with zoom ---- */
 

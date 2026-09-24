@@ -20,7 +20,7 @@ import {
   snapshot,
   type StickySnapshot,
 } from '../../src/shared/board-model';
-import { PERSIST_TESTED_NOTES, STICKY_COLORS, type StickyColor } from '../../src/shared/config';
+import { PERSIST_TESTED_NOTES, STICKY_COLORS, STICKY_SIZE_WORLD, type StickyColor } from '../../src/shared/config';
 
 export const RETRO_NOTES = 25;
 /** Bytes cut from the end of an update to damage it. */
@@ -184,4 +184,37 @@ export function randomLike(update: Uint8Array, seed = 7): Uint8Array {
 /** Notes compared by everything the PRD calls "identical": text, colour, position, stacking. */
 export function boardState(doc: Y.Doc): Pick<StickySnapshot, 'id' | 'text' | 'color' | 'x' | 'y' | 'z'>[] {
   return snapshot(doc).map(({ id, text, color, x, y, z }) => ({ id, text, color, x, y, z }));
+}
+
+// ---- Story 7: the 20-note retro board for multi-select ----
+
+export const SELECTION_RETRO_NOTES = 20;
+/** Notes per cluster; the board has two clusters. */
+export const SELECTION_CLUSTER_NOTES = 10;
+const SELECTION_CLUSTER_COLUMNS = 5;
+/** Neighbours are closer than a note's width, so notes in a cluster overlap. */
+const SELECTION_NOTE_SPACING = 150;
+/** World x of the left edge of each cluster's first note (clusters far apart). */
+export const SELECTION_CLUSTER_X = [-1800, 1200] as const;
+export const SELECTION_CLUSTER_Y = -300;
+/** createSticky takes the centre; the fixture is laid out by top-left corners. */
+const TO_CENTRE = STICKY_SIZE_WORLD / 2;
+
+/**
+ * 20 realistic retro notes in two clusters of 10 (2 rows × 5, overlapping neighbours), created
+ * in one document; the first cluster's third note is lifted above its neighbours.
+ */
+export function selectionRetroBoard(): Y.Doc {
+  const doc = new Y.Doc();
+  initDoc(doc);
+  for (let i = 0; i < SELECTION_RETRO_NOTES; i += 1) {
+    const cluster = Math.floor(i / SELECTION_CLUSTER_NOTES);
+    const k = i % SELECTION_CLUSTER_NOTES;
+    const x = SELECTION_CLUSTER_X[cluster]! + (k % SELECTION_CLUSTER_COLUMNS) * SELECTION_NOTE_SPACING;
+    const y = SELECTION_CLUSTER_Y + Math.floor(k / SELECTION_CLUSTER_COLUMNS) * SELECTION_NOTE_SPACING;
+    const id = createSticky(doc, { x: x + TO_CENTRE, y: y + TO_CENTRE }, COLORS[i % COLORS.length]);
+    setText(doc, id, RETRO_TEXTS[i % RETRO_TEXTS.length]!);
+  }
+  bringToFront(doc, snapshot(doc)[2]!.id);
+  return doc;
 }

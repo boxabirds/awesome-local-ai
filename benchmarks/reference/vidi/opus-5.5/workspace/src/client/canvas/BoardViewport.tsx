@@ -12,7 +12,15 @@ const WHEEL_LINE_HEIGHT_PX = 16;
 const PRIMARY_BUTTON = 0;
 const HALF = 2;
 
-type Mode = 'idle' | 'panning';
+type Mode = 'idle' | 'panning' | 'marquee';
+
+/** Shift+drag selection rectangle handlers (story 7); points are relative to the board area. */
+export interface MarqueeHandlers {
+  begin(point: Point): void;
+  move(point: Point): void;
+  end(): void;
+  cancel(): void;
+}
 
 /** Safari's non-standard GestureEvent (trackpad pinch). */
 interface GestureLikeEvent extends UIEvent {
@@ -33,6 +41,8 @@ export interface BoardViewportProps {
   onEmptyClick?(): void;
   /** Double-click on empty board space, at a point relative to the board area's top-left. */
   onEmptyDoubleClick?(point: Point): void;
+  /** Shift+press on empty board space draws a selection rectangle instead of panning. */
+  marquee?: MarqueeHandlers;
 }
 
 function positiveModulo(value: number, modulus: number): number {
@@ -55,7 +65,7 @@ function isEditableTarget(target: EventTarget | null): boolean {
  * a world layer positioned by the camera, and pointer / wheel / pinch / keyboard navigation.
  */
 export function BoardViewport(props: BoardViewportProps) {
-  const { controller, onResize, children, onEmptyPointerDown, onEmptyClick, onEmptyDoubleClick } = props;
+  const { controller, onResize, children, onEmptyPointerDown, onEmptyClick, onEmptyDoubleClick, marquee } = props;
   const elementRef = useRef<HTMLDivElement>(null);
   const [mode, setMode] = useState<Mode>('idle');
   const pointerIdRef = useRef<number | null>(null);
@@ -63,6 +73,10 @@ export function BoardViewport(props: BoardViewportProps) {
   const pressMovedRef = useRef(false);
   const controllerRef = useRef(controller);
   controllerRef.current = controller;
+  const marqueeRef = useRef(marquee);
+  marqueeRef.current = marquee;
+  const modeRef = useRef<Mode>('idle');
+  modeRef.current = mode;
   const { camera } = controller;
 
   // Board-area size: measured before first paint, then kept current by ResizeObserver.
@@ -152,11 +166,33 @@ export function BoardViewport(props: BoardViewportProps) {
     return () => window.removeEventListener('keydown', onKeyDown);
   }, []);
 
+  // Escape during a marquee discards it; the selection stays as it was (not cleared).
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape' || modeRef.current !== 'marquee') return;
+      e.preventDefault();
+      e.stopImmediatePropagation();
+      pointerIdRef.current = null;
+      pressStartRef.current = null;
+      marqueeRef.current?.cancel();
+      setMode('idle');
+      modeRef.current = 'idle';
+    };
+    window.addEventListener('keydown', onKeyDown, true);
+    return () => window.removeEventListener('keydown', onKeyDown, true);
+  }, []);
+
+  const localPoint = (e: { clientX: number; clientY: number }): Point => {
+    const rect = elementRef.current?.getBoundingClientRect();
+    return { x: e.clientX - (rect?.left ?? 0), y: e.clientY - (rect?.top ?? 0) };
+  };
+
   const stopPanning = () => {
     if (pointerIdRef.current === null) return;
     pointerIdRef.current = null;
     controllerRef.current.endPan();
     setMode('idle');
+    modeRef.current = 'idle';
   };
 
   const onPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
@@ -172,12 +208,23 @@ export function BoardViewport(props: BoardViewportProps) {
     pressStartRef.current = { x: e.clientX, y: e.clientY };
     pressMovedRef.current = false;
     onEmptyPointerDown?.();
+    if (e.shiftKey && marquee) {
+      marquee.begin(localPoint(e));
+      setMode('marquee');
+      modeRef.current = 'marquee';
+      return;
+    }
     controller.beginPan({ x: e.clientX, y: e.clientY });
     setMode('panning');
+    modeRef.current = 'panning';
   };
 
   const onPointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
     if (pointerIdRef.current !== e.pointerId) return;
+    if (modeRef.current === 'marquee') {
+      marqueeRef.current?.move(localPoint(e));
+      return;
+    }
     const start = pressStartRef.current;
     if (start && Math.hypot(e.clientX - start.x, e.clientY - start.y) >= DRAG_THRESHOLD_PX) {
       pressMovedRef.current = true;
@@ -187,6 +234,19 @@ export function BoardViewport(props: BoardViewportProps) {
 
   const onPointerEnd = (e: React.PointerEvent<HTMLDivElement>) => {
     if (pointerIdRef.current !== e.pointerId) return;
+    if (modeRef.current === 'marquee') {
+      pointerIdRef.current = null;
+      pressStartRef.current = null;
+      if (e.type === 'pointerup') {
+        marqueeRef.current?.move(localPoint(e));
+        marqueeRef.current?.end();
+      } else {
+        marqueeRef.current?.cancel();
+      }
+      setMode('idle');
+      modeRef.current = 'idle';
+      return;
+    }
     const isClick = e.type === 'pointerup' && !pressMovedRef.current;
     pressStartRef.current = null;
     stopPanning();
