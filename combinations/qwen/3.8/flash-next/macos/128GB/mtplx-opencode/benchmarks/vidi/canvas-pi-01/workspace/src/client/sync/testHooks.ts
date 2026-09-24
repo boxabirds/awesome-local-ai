@@ -15,7 +15,7 @@
  */
 import { useEffect } from 'react';
 import * as Y from 'yjs';
-import { snapshot } from '../../shared/board-model';
+import { createSticky, snapshot } from '../../shared/board-model';
 import { isTestMode } from '../canvas/testHooks';
 
 declare global {
@@ -24,6 +24,12 @@ declare global {
       connectionState: () => string;
       snapshot: () => unknown;
       waitForStableDoc: (stableMs?: number, timeoutMs?: number) => Promise<unknown>;
+      /**
+       * Build a board of `count` notes in one go, each in its own transaction
+       * (so the update log grows the way a real busy board's does). Used by the
+       * story 4 tests that need a board worth compacting; returns the snapshot.
+       */
+      seedNotes: (count: number, seed?: number) => unknown;
     };
   }
 }
@@ -45,11 +51,24 @@ export function useLiveTestHooks(doc: Y.Doc, connectionState: string): void {
   useEffect(() => {
     if (!isTestMode() || typeof window === 'undefined') return;
     const snapshotOf = () => boardFingerprint(doc);
+    const seedNotes = (count: number, seed = 1) => {
+      // Deterministic pseudo-random layout, one transaction per note.
+      let state = seed >>> 0 || 1;
+      const random = () => {
+        state = (state * 1664525 + 1013904223) >>> 0;
+        return state / 0xffffffff;
+      };
+      for (let i = 0; i < count; i += 1) {
+        createSticky(doc, { x: (random() - 0.5) * 4000, y: (random() - 0.5) * 4000 });
+      }
+      return boardFingerprint(doc);
+    };
     // Re-installed on every render (no dependency list) so `connectionState`
     // is always the current value when the e2e helper reads it back.
     window.__vidi6Live = {
       connectionState: () => connectionState,
       snapshot: snapshotOf,
+      seedNotes,
       waitForStableDoc: (stableMs = 600, timeoutMs = 8000) =>
         new Promise<unknown>((resolve, reject) => {
           const pollMs = 100;

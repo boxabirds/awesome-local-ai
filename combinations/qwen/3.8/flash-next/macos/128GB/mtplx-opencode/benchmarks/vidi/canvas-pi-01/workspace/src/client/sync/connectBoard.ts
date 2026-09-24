@@ -1,10 +1,10 @@
 /**
  * Story 3 · client connection (design "Client connection and status").
  *
- * Wraps the `y-websocket` `WebsocketProvider` and translates its `status` +
- * `sync` events into the UI's `ConnectionState` via the pure
- * `createConnectionMachine`. Kept separate from React so a browser tab (and
- * the e2e tests) drive the real provider while the component tests drive a
+ * Wraps the `y-websocket` `WebsocketProvider` and translates its `status`,
+ * `sync` and `connection-close` events into the UI's `ConnectionState` via the
+ * pure `createConnectionMachine`. Kept separate from React so a browser tab
+ * (and the e2e tests) drive the real provider while the component tests drive a
  * fake one through the same machine.
  */
 import * as Y from 'yjs';
@@ -63,14 +63,22 @@ export function connectBoard(
   const onProviderSync = (isSynced: boolean): void => {
     machine.sync(isSynced);
   };
+  // The close code is the only place the room's honest failure (4500) shows up:
+  // a board that could not be load is reported once, then the provider retries
+  // with the same backoff as any other drop.
+  const onConnectionClose = (event: { code: number } | null): void => {
+    machine.close(event?.code ?? 1006);
+  };
 
   provider.on('status', onProviderStatus);
   provider.on('sync', onProviderSync);
+  provider.on('connection-close', onConnectionClose);
 
   return {
     destroy(): void {
       provider.off('status', onProviderStatus);
       provider.off('sync', onProviderSync);
+      provider.off('connection-close', onConnectionClose);
       provider.destroy();
     },
   };

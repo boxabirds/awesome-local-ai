@@ -31,9 +31,21 @@ import { useBoardDoc } from './board/useBoardDoc';
 import { useSelection } from './board/useSelection';
 import { StickyNote } from './objects/StickyNote';
 import { ConnectionStatus } from './sync/ConnectionStatus';
+import type { ConnectionState } from './sync/connectionState';
 import { useLiveTestHooks } from './sync/testHooks';
 import { createSticky, deleteObject } from '../shared/board-model';
 import { isBoardId, newBoardId } from '../shared/board-id';
+
+/**
+ * Is the board editable right now? False only for `load_failed` (story 4):
+ * while the room cannot read the board, everything typed here would be a
+ * second, unrelated version of it. Every other state — including a storage
+ * failure, where the board is readable and unsaved changes are re-sent — keeps
+ * the canvas live.
+ */
+export function canEdit(state: ConnectionState): boolean {
+  return state !== 'load_failed';
+}
 
 /**
  * The board, given the size of the area it occupies. Split out from `App` so
@@ -45,15 +57,27 @@ export function BoardShell({
   viewport,
   doc,
   boardId,
+  connectionState: connectionOverride,
 }: {
   viewport: Size;
   doc?: Y.Doc;
   boardId?: string;
+  /**
+   * Component tests drive the five connection states without a server by
+   * supplying the state directly; production leaves it undefined and follows
+   * the live provider.
+   */
+  connectionState?: ConnectionState;
 }) {
   const api = useCamera(viewport);
   const camera = api.camera;
-  const { doc: boardDoc, notes, connectionState } = useBoardDoc(doc, boardId);
+  const { doc: boardDoc, notes, connectionState: liveState } = useBoardDoc(doc, boardId);
+  const connectionState = connectionOverride ?? liveState;
   const selection = useSelection(boardDoc);
+
+  // The single editing switch (design `persist.client_status`): a board that
+  // could not be loaded is read-only until a sync succeeds.
+  const editable = canEdit(connectionState);
 
   useLiveTestHooks(boardDoc, connectionState);
 
@@ -61,11 +85,14 @@ export function BoardShell({
   // being re-bound on every render.
   const selectedRef = useRef(selection.selectedId);
   const editingRef = useRef(selection.editingId);
+  const editableRef = useRef(editable);
   selectedRef.current = selection.selectedId;
   editingRef.current = selection.editingId;
+  editableRef.current = editable;
 
   const createAtWorld = useCallback(
     (world: { x: number; y: number }) => {
+      if (!editableRef.current) return;
       const id = createSticky(boardDoc, world);
       selection.startEdit(id);
     },
@@ -84,6 +111,7 @@ export function BoardShell({
 
   const onDeleteNote = useCallback(
     (id: string) => {
+      if (!editableRef.current) return;
       deleteObject(boardDoc, id);
       selection.select(null);
     },
@@ -103,6 +131,9 @@ export function BoardShell({
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.ctrlKey || event.metaKey || event.altKey) return; // zoom shortcuts
       if (isTypingTarget(event.target)) return; // keys belong to the editor
+      // A read-only board answers no editing keys either (only the ones that
+      // would change the doc: Enter and Delete stay with the board).
+      if (!editableRef.current) return;
 
       if (event.key === 'Enter') {
         if (editingRef.current !== null) return;
@@ -138,6 +169,7 @@ export function BoardShell({
               note={note}
               doc={boardDoc}
               zoom={camera.zoom}
+              editable={editable}
               selected={selection.selectedId === note.id}
               editing={selection.editingId === note.id}
               onSelect={(id) => selection.select(id)}
@@ -147,7 +179,7 @@ export function BoardShell({
             />
           ))}
         </BoardViewport>
-        <Toolbar onCreateSticky={createAtCentre} />
+        <Toolbar onCreateSticky={createAtCentre} disabled={!editable} />
         <ZoomControls
           zoomPercent={zoomPercent(camera)}
           canZoomIn={canZoomIn(camera)}

@@ -17,10 +17,23 @@
  *     `CONNECTED_CONFIRMATION_MS`, then `connected`;
  *   - a close during that confirmation window → straight back to
  *     `reconnecting` (TC-21).
+ *
+ * Story 4 adds the fifth state: a close with `CLOSE_BOARD_LOAD_FAILED` (4500)
+ * means the room could not read the board at all, which is different from "not
+ * connected right now": the board must not be edited while its real content may
+ * be sitting in storage (`load_failed`). Only a successful sync leaves it.
+ * `CLOSE_STORAGE_FAILURE` (1011) stays a `reconnecting`: the board is readable
+ * and the unsaved change is re-sent when the provider retries.
  */
+import { CLOSE_BOARD_LOAD_FAILED } from '../../shared/protocol';
 
-/** The four states the badge can be in. `connected` renders nothing. */
-export type ConnectionState = 'connecting' | 'connected' | 'reconnecting' | 'confirmed';
+/** The five states the badge can be in. `connected` renders nothing. */
+export type ConnectionState =
+  | 'connecting'
+  | 'connected'
+  | 'reconnecting'
+  | 'confirmed'
+  | 'load_failed';
 
 /** The y-websocket provider `status` values. */
 export type ProviderStatus = 'connecting' | 'connected' | 'disconnected';
@@ -40,6 +53,8 @@ export interface ConnectionMachine {
   readonly state: ConnectionState;
   status(status: ProviderStatus): void;
   sync(isSynced: boolean): void;
+  /** A socket closed: the close code decides whether the board is editable. */
+  close(code: number): void;
 }
 
 /**
@@ -85,6 +100,14 @@ export function createConnectionMachine(
 
   // Shared "online" handler: called whenever the socket is open and synced.
   const onOnline = (): void => {
+    if (state === 'load_failed') {
+      // The retry reached a room that could read its board: editing is back on
+      // immediately, without the confirmation detour (design: "the first
+      // successful sync switches back to connected").
+      everSynced = true;
+      emit('connected');
+      return;
+    }
     if (state === 'reconnecting') {
       emit('confirmed');
       startConfirmation();
@@ -103,6 +126,9 @@ export function createConnectionMachine(
         socketOpen = false;
         synced = false;
         clearTimer();
+        // `load_failed` is only lifted by a successful sync, never by the
+        // disconnect that follows the close which caused it.
+        if (state === 'load_failed') return;
         // A drop after we had been live is a reconnection; a failure before we
         // ever synced is just the initial connection still being retried.
         emit(everSynced ? 'reconnecting' : 'connecting');
@@ -118,6 +144,19 @@ export function createConnectionMachine(
     sync(isSynced: boolean): void {
       synced = isSynced;
       if (isSynced && socketOpen) onOnline();
+    },
+    close(code: number): void {
+      if (code === CLOSE_BOARD_LOAD_FAILED) {
+        emit('load_failed');
+        return;
+      }
+      // Everything else — 1011 (storage failure) included — keeps the board
+      // editable: it is readable, and unsaved changes are re-sent on the next
+      // sync. A close while we are already told `load_failed` (the retry hit
+      // the same broken board) changes nothing: no flicker, no downgrade.
+      if (state === 'load_failed') return;
+      clearTimer();
+      emit(everSynced ? 'reconnecting' : 'connecting');
     },
   };
 }

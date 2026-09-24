@@ -20,6 +20,12 @@ export const MESSAGE_QUERY_AWARENESS = 3;
 /** WebSocket close code sent for a non-binary / undecodable / unknown frame. */
 export const CLOSE_UNSUPPORTED_DATA = 1003;
 
+/** WebSocket close code sent when a board cannot be loaded (story 4). */
+export const CLOSE_BOARD_LOAD_FAILED = 4500;
+
+/** WebSocket close code sent when storage write fails (story 4). */
+export const CLOSE_STORAGE_FAILURE = 1011;
+
 export type Decoded =
   | { kind: 'sync'; payload: Uint8Array }
   | { kind: 'awareness'; payload: Uint8Array }

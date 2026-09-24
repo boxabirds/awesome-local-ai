@@ -1,0 +1,59 @@
+{
+  "steps": {
+    "install": {
+      "cmd": "npm ci",
+      "exit": 0,
+      "seconds": 4.9,
+      "tail": "\nadded 160 packages, and audited 161 packages in 5s\n\n42 packages are looking for funding\n  run `npm fund` for details\n\n4 high severity vulnerabilities\n\nTo address all issues (including breaking changes), run:\n  npm audit fix --force\n\nRun `npm audit` for details.\nnpm warn allow-scripts 4 packages have install scripts not yet covered by allowScripts:\nnpm warn allow-scripts   workerd@1.20260815.1 (postinstall: node install.js)\nnpm warn allow-scripts   esbuild@0.28.1 (postinstall: node install.js)\nnpm warn allow-scripts   fsevents@2.3.3 (install: (install scripts present))\nnpm warn allow-scripts   workerd@1.20260921.1 (postinstall: node install.js)\nnpm warn allow-scripts\nnpm warn allow-scripts Run `npm approve-scripts --allow-scripts-pending` to review, or `npm approve-scripts <pkg>` to allow.\n"
+    },
+    "build": {
+      "cmd": "npm run build",
+      "exit": 0,
+      "seconds": 0.8,
+      "tail": "\n> vidi6@0.0.0 build\n> vite build\n\n\u001b[36mvite v8.3.0 \u001b[32mbuilding client environment for production...\u001b[36m\u001b[39m\ntransforming...\n\u2713 79 modules transformed.\nrendering chunks...\ncomputing gzip size...\ndist/client/index.html                   0.39 kB \u2502 gzip:   0.26 kB\ndist/client/assets/index-C34zV09K.css    4.37 kB \u2502 gzip:   1.34 kB\ndist/client/assets/index-DOf-mpRn.js   329.08 kB \u2502 gzip: 102.86 kB\n\n\u001b[32m\u2713 built in 212ms\u001b[39m\n",
+      "passed": null,
+      "failed": null
+    },
+    "typecheck": {
+      "cmd": "npm run typecheck",
+      "exit": 0,
+      "seconds": 1.6,
+      "tail": "\n> vidi6@0.0.0 typecheck\n> tsc --noEmit && tsc --noEmit -p tsconfig.worker.json\n\n",
+      "passed": null,
+      "failed": null
+    },
+    "test:unit": {
+      "cmd": "npm run test:unit",
+      "exit": 0,
+      "seconds": 1.7,
+      "tail": "\n> vidi6@0.0.0 test:unit\n> vitest run --project unit\n\n\n RUN  v4.1.11 ~/.vidi-bench/work/qwen__3.8__flash-next__macos__128GB__mtplx-opencode__benchmarks__vidi__canvas-pi-01/workspace\n\n\n Test Files  9 passed (9)\n      Tests  131 passed (131)\n   Start at  12:32:51\n   Duration  954ms (transform 357ms, setup 0ms, import 542ms, tests 1.13s, environment 0ms)\n\n",
+      "passed": 131,
+      "failed": 0
+    },
+    "test:component": {
+      "cmd": "npm run test:component",
+      "exit": 0,
+      "seconds": 1.6,
+      "tail": "\n> vidi6@0.0.0 test:component\n> vitest run --project component\n\n\n RUN  v4.1.11 ~/.vidi-bench/work/qwen__3.8__flash-next__macos__128GB__mtplx-opencode__benchmarks__vidi__canvas-pi-01/workspace\n\n\n Test Files  8 passed (8)\n      Tests  55 passed (55)\n   Start at  12:32:52\n   Duration  960ms (transform 540ms, setup 494ms, import 789ms, tests 1.40s, environment 2.56s)\n\n",
+      "passed": 55,
+      "failed": 0
+    },
+    "test:integration": {
+      "cmd": "npm run test:integration",
+      "exit": 0,
+      "seconds": 2.8,
+      "tail": "\n> vidi6@0.0.0 test:integration\n> vitest run --project integration\n\n\n RUN  v4.1.11 ~/.vidi-bench/work/qwen__3.8__flash-next__macos__128GB__mtplx-opencode__benchmarks__vidi__canvas-pi-01/workspace\n\n\n Test Files  4 passed (4)\n      Tests  29 passed (29)\n   Start at  12:32:54\n   Duration  2.13s (transform 494ms, setup 0ms, import 1.04s, tests 2.06s, environment 0ms)\n\n",
+      "passed": 29,
+      "failed": 0
+    },
+    "test:e2e": {
+      "cmd": "npm run test:e2e -- --project=chromium",
+      "exit": 1,
+      "seconds": 11.5,
+      "tail": "inks to fit then fades, and nothing overflows the note (410ms)\n  \u2718  17 [chromium] \u203a tests/e2e/sticky.spec.ts:112:1 \u203a TC-32: at 200% zoom a (100,50) drag moves world (+50,+25) and raises the note (693ms)\n  \u2713  19 [chromium] \u203a tests/e2e/sticky.spec.ts:203:1 \u203a TC-34: the Sticky note button creates a centred note even when panned far away (390ms)\n  \u2713  12 [chromium] \u203a tests/e2e/collab.spec.ts:50:1 \u203a a note created on one board is visible on another that joined the same room (1.6s)\n  \u2713  13 [chromium] \u203a tests/e2e/collab.spec.ts:75:1 \u203a two concurrent edits to one note converge to the same document (1.7s)\nTC-19: state files: miniflare-CacheObject/metadata.sqlite, miniflare-CacheObject/metadata.sqlite-shm, miniflare-CacheObject/metadata.sqlite-wal, miniflare-D1DatabaseObject/metadata.sqlite, miniflare-D1DatabaseObject/metadata.sqlite-shm, miniflare-D1DatabaseObject/metadata.sqlite-wal, miniflare-KVNamespaceObject/metadata.sqlite, miniflare-KVNamespaceObject/metadata.sqlite-shm, miniflare-KVNamespaceObject/metadata.sqlite-wal, miniflare-R2BucketObject/metadata.sqlite, miniflare-R2BucketObject/metadata.sqlite-shm, miniflare-R2BucketObject/metadata.sqlite-wal, miniflare-wobs-trace-store/a590acd76969f996ec6e4b599c3c09f58c283a76f2d61392b5d3046caf557602.sqlite, miniflare-wobs-trace-store/a590acd76969f996ec6e4b599c3c09f58c283a76f2d61392b5d3046caf557602.sqlite-shm, miniflare-wobs-trace-store/a590acd76969f996ec6e4b599c3c09f58c283a76f2d61392b5d3046caf557602.sqlite-wal, miniflare-wobs-trace-store/metadata.sqlite, miniflare-wobs-trace-store/metadata.sqlite-shm, miniflare-wobs-trace-store/metadata.sqlite-wal, vidi6-BoardRoom/31ae87aec83ceed163c57ae6f0803ee8867ea0f368c7f26aeac2fa6aea831006.sqlite, vidi6-BoardRoom/31ae87aec83ceed163c57ae6f0803ee8867ea0f368c7f26aeac2fa6aea831006.sqlite-shm, vidi6-BoardRoom/31ae87aec83ceed163c57ae6f0803ee8867ea0f368c7f26aeac2fa6aea831006.sqlite-wal, vidi6-BoardRoom/metadata.sqlite, vidi6-BoardRoom/metadata.sqlite-shm, vidi6-BoardRoom/metadata.sqlite-wal\n[WebServer] [wrangler:info] POST /__test/boards/eWvtrjKWgjZ-uSXR9lnHJw/repair-snapshot 200 OK (3ms)\n[WebServer] [wrangler:info] GET /api/rooms/eWvtrjKWgjZ-uSXR9lnHJw 101 Switching Protocols (3ms)\n  \u2713   3 [chromium] \u203a tests/e2e/broken-board.spec.ts:62:1 \u203a a board whose snapshot cannot be read says so, locks editing, and recovers on its own (3.2s)\n  \u2713  14 [chromium] \u203a tests/e2e/persistence.spec.ts:96:1 \u203a TC-19: a board left on a server that then dies comes back unchanged (2.6s)\n  \u2713  20 [chromium] \u203a tests/e2e/persistence.spec.ts:145:1 \u203a TC-20: the last change is on disk before it is broadcast (1.8s)\nTC-21: 2000 notes on screen in 164ms (story budget 3000ms, rendered 2000)\n  \u2713  21 [chromium] \u203a tests/e2e/persistence.spec.ts:185:1 \u203a TC-21: a 2,000-note board opens inside the budget after a restart (3.6s)\n\n\n  1) [chromium] \u203a tests/e2e/sticky.spec.ts:112:1 \u203a TC-32: at 200% zoom a (100,50) drag moves world (+50,+25) and raises the note \n\n    Error: expected 6.25 to be within 1.5px of 50.00\n\n    expect(received).toBeLessThanOrEqual(expected)\n\n    Expected: <= 1.5\n    Received:    43.75\n\n       at helpers/sticky.ts:79\n\n      77 |     Math.abs(actual - expected),\n      78 |     `expected ${actual.toFixed(2)} to be within ${tolerance}px of ${expected.toFixed(2)}`,\n    > 79 |   ).toBeLessThanOrEqual(tolerance);\n         |     ^\n      80 | }\n      81 |\n      82 | /**\n        at expectClose (~/.vidi-bench/work/qwen__3.8__flash-next__macos__128GB__mtplx-opencode__benchmarks__vidi__canvas-pi-01/workspace/tests/e2e/helpers/sticky.ts:79:5)\n        at ~/.vidi-bench/work/qwen__3.8__flash-next__macos__128GB__mtplx-opencode__benchmarks__vidi__canvas-pi-01/workspace/tests/e2e/sticky.spec.ts:145:3\n\n    Error Context: test-results/sticky-TC-32-at-200-zoom-a-88b16-d-50-25-and-raises-the-note-chromium/error-context.md\n\n  1 failed\n    [chromium] \u203a tests/e2e/sticky.spec.ts:112:1 \u203a TC-32: at 200% zoom a (100,50) drag moves world (+50,+25) and raises the note \n  20 passed (10.9s)\n",
+      "passed": 20,
+      "failed": 1
+    }
+  },
+  "all_green": false
+}
