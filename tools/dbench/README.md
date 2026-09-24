@@ -1,0 +1,125 @@
+# dbench
+
+Runs and watches benchmark jobs on remote machines. It's a single binary: `dbench serve` runs on each benchmark machine, and the client commands can run on any machine.
+
+## Three layers
+
+| Layer | What it is | dbench's part |
+|---|---|---|
+| **Configuration under test** | model + inference backend + coding agent (for example pi), installed from a `combinations/…` entry into `~/.local/share/<install-id>/` | none; dbench only reads `install.env` |
+| **Benchmark harness** | `<pack>/harness/run.sh <install-id> --run-id R …` (or `benchmarks/spec-bench/harness/run.sh … --pack <pack>` once that exists). It drives the agent story by story, scores each story and records results under `combinations/<COMBINATION>/benchmarks/<pack>/<run-id>/`. Re-running the same run id resumes. | none; dbench runs it as is |
+| **dbench** | controls the harness on its machine: a FIFO queue that runs one job at a time, restarts, cancel, recovery after a restart or reboot, status, logs and events | all of it |
+
+Design: `docs/20260924-distributed-bench-design.md` (§3 and §5). dbench is the "benchd + bench CLI" part of that design, built as one binary.
+
+## Build
+
+```sh
+cd tools/dbench
+cargo build --release                 # native: target/release/dbench
+cargo test                            # unit tests, plus end-to-end tests against the real binary
+./build-linux.sh                      # Linux x86_64 glibc from a Mac, via zig (brew install zig;
+                                      #   rustup target add x86_64-unknown-linux-gnu)
+                                      # -> target/x86_64-unknown-linux-gnu/release/dbench
+```
+
+On a Linux box, `cargo build --release` works natively. TLS is rustls, so there's no OpenSSL.
+
+## Run the server
+
+```sh
+dbench serve --bind 100.x.y.z:7717 --repo ~/awesome-local-ai \
+  [--home ~/.dbench] [--share-dir ~/.local/share] \
+  [--path-prepend ~/.local/bin --path-prepend ~/node20/bin] \
+  [--max-restarts 3] [--no-pull]
+```
+
+- On first start it creates `<home>/token` (32 random bytes as hex, mode 0600) and prints where it put it.
+- Before each job it runs `git -C <repo> pull --ff-only`, unless `--no-pull` is set. If the pull fails, the job still runs and the failure is recorded in the job.
+- A job runs `bash <run.sh> <install-id> [--pack P] --run-id R [--scope S] [--only 1,2] --client C [--record]`.
+  - The working directory is the repo.
+  - The job gets its own process group.
+  - PATH is the `--path-prepend` directories, then the server's PATH.
+  - Output goes to `<home>/jobs/<id>.log`.
+- A non-zero exit is restarted at the front of the queue after 30 s, up to `--max-restarts` times. After that the job is `failed`.
+- When the harness exits, anything left in its process group is stopped.
+- Stopping dbench leaves the harness running.
+  - On start, a job still marked `running` whose process group is alive (and the machine hasn't rebooted since) is adopted. When it ends, it's requeued to resume.
+  - If the harness is gone, the job is requeued as the next attempt, or marked `failed` if it has used all its restarts.
+
+### Linux: systemd user unit
+
+```sh
+dbench service-unit --kind systemd --bind 100.x.y.z:7717 --repo ~/awesome-local-ai \
+  > ~/.config/systemd/user/dbench.service
+systemctl --user daemon-reload && systemctl --user enable --now dbench
+sudo loginctl enable-linger $USER    # needs sudo: keeps user services running with nobody logged in, and starts them at boot
+```
+
+The unit has `KillMode=process`, so restarting dbench doesn't kill the harness. It also records the PATH of the shell that generated it.
+
+### macOS: launchd agent
+
+```sh
+dbench service-unit --kind launchd --bind 100.x.y.z:7717 --repo ~/awesome-local-ai \
+  > ~/Library/LaunchAgents/com.awesome-local-ai.dbench.plist
+launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.awesome-local-ai.dbench.plist
+```
+
+The plist sets `KeepAlive` and `AbandonProcessGroup`, and records your current PATH. Its log is `<home>/dbench.log`.
+
+## Client setup
+
+Create `~/.config/dbench/nodes.toml`, or pass `--config FILE`:
+
+```toml
+[nodes.gruntus]
+url = "http://gruntus:7717"
+token = "<contents of gruntus:~/.dbench/token>"
+
+[nodes.quintus]
+url = "http://quintus:7717"
+token = "..."
+```
+
+## Security model
+
+- **Trusted network only.** Bind to the Tailscale or LAN address, never `0.0.0.0` on a network you don't control. The API is plain HTTP.
+- **The token guards against mistakes; it is not a security boundary.** Every endpoint except `/v1/health` needs `Authorization: Bearer <token>`.
+- **Named jobs only.**
+  - A job names an installed combination, a pack directory in the repo, a run id, a scope and a client. All are checked against `[A-Za-z0-9._-]`.
+  - The pack must be a relative path with no `..`.
+  - The server builds the argv itself and never runs a shell string it was sent. Unknown JSON fields are rejected.
+- **What still runs as code:** a pack's harness and acceptance suite (Playwright). That code comes from the repo checkout at whatever `git pull` brought in, so anyone who can push to the repo can run code on the nodes.
+
+## API
+
+| Method and path | What it does |
+|---|---|
+| `GET /v1/health` | `{"ok":true,"version":…}`. No token needed. |
+| `GET /v1/node` | hostname, os, arch, cpus, `total_ram_bytes`, `cpu_brand`, `gpus` (nvidia-smi; on macOS the chip with unified memory), installed `combinations` (INSTALL_ID/COMBINATION/BACKEND), `tools` (node, pi, git, uv versions, using the prepended PATH), `dbench_version`, `repo_head`, `current_job` |
+| `PUT /v1/jobs/{id}` | body: `{install_id, pack, scope?, stories?, run_id, client: "pi"\|"opencode", record}`. Returns 201 if created, 200 if the same id and spec already exist, 409 if the id exists with a different spec, and 400 if a name is invalid, the install is missing or there's no harness for the pack. |
+| `GET /v1/jobs` | all jobs, newest first, each with `progress` |
+| `GET /v1/jobs/{id}` | `spec`, `state` (`queued` / `running{pid,pgid,attempt,started_at}` / `done{exit_code}` / `failed{reason,exit_code}` / `cancelled`), `attempt`, `history` (restarts, recoveries, pull failures), `last_pull`, and `progress`. `progress` holds `run_dir`, `current_story`, `stories` (finished stories with their accept passed/total) and `log_tail` (last 20 lines). |
+| `POST /v1/jobs/{id}/cancel` | A queued job is cancelled at once (200). A running job gets SIGTERM to its process group and SIGKILL after 20 s (202), then becomes `cancelled`. A finished job returns 409. |
+| `GET /v1/jobs/{id}/log?from=N&follow=1` | the log as plain text from byte N. With `follow=1` it keeps streaming until the job finishes. |
+| `GET /v1/jobs/{id}/events` | `{"events":[{line, story, kind, …}]}`. The kinds are `story_start`, `story_continue`, `agent_error`, `nudge`, `agent_done`, `recorded`, `scored`, `hang_interrupt` and `crash`. |
+
+## CLI examples
+
+```sh
+dbench nodes                                   # every node in parallel; unreachable ones say so
+dbench submit gruntus --id canvas-pi-02 --install-id qwen38-27b \
+  --pack benchmarks/vidi --scope canvas --run-id canvas-pi-02 [--client pi] [--stories 1,2] [--no-record]
+dbench status                                  # all jobs on all nodes
+dbench status gruntus                          # one node
+dbench status gruntus canvas-pi-02             # one job: state, stories, history, log tail
+dbench logs gruntus canvas-pi-02 -f            # follow; reconnects from the last byte if the connection drops
+dbench events gruntus canvas-pi-02
+dbench cancel gruntus canvas-pi-02
+dbench --json status gruntus canvas-pi-02      # --json: nodes, submit, status, events, cancel
+```
+
+## Not built yet (from the design)
+
+Conditions gate and `blocked` state, memory guard, offline push retry and `unpushed_commits`, previews, rescore, `PUT /v1/binary` self-update, `deploy`, `doctor`, and follow for events.
