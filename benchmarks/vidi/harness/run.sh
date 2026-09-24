@@ -116,7 +116,7 @@ curl -s -m 5 "127.0.0.1:$BENCH_PORT/health" > "$RUN_DIR/server-health.json" || t
 cat > "$RUN_DIR/run.json" <<JSON
 {"install_id": "$INSTALL_ID", "combination": "$COMBINATION", "model_id": "$MODEL_ID",
  "scope": "$SCOPE", "metered": $METER, "reasoning_effort": "$REASONING_EFFORT", "context_limit": $CONTEXT_LIMIT,
- "output_limit": $OUTPUT_LIMIT, "mtplx_memory_limit_bytes": "${MTPLX_MEMORY_LIMIT_BYTES:-default (75% of RAM)}", "client": "$CLIENT_NAME", "client_version": "$CLIENT_VERSION", "backend": "$BACKEND", "host": "$(sysctl -n machdep.cpu.brand_string) $(( $(sysctl -n hw.memsize) / 1073741824 ))GB",
+ "output_limit": $OUTPUT_LIMIT, "backend_version": "$( [[ "$BACKEND" == mtplx ]] && mtplx --version 2>/dev/null | awk '{print $NF}' )", "mtplx_memory_limit_bytes": "${MTPLX_MEMORY_LIMIT_BYTES:-default (75% of RAM)}", "client": "$CLIENT_NAME", "client_version": "$CLIENT_VERSION", "backend": "$BACKEND", "host": "$(sysctl -n machdep.cpu.brand_string) $(( $(sysctl -n hw.memsize) / 1073741824 ))GB",
  "harness_commit": "$(git -C "$REPO_ROOT" rev-parse --short HEAD)", "started_at": "$(date -u +%Y-%m-%dT%H:%M:%SZ)"}
 JSON
 
