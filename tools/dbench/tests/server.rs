@@ -12,6 +12,7 @@ const POLL: Duration = Duration::from_millis(100);
 const MAX_RESTARTS: u32 = 2;
 const BACKOFF_MS: &str = "100";
 const GRACE_MS: &str = "1000";
+const TREE_POLL_MS: &str = "100";
 const INSTALL_ID: &str = "fake-install";
 const COMBINATION: &str = "test/combo/fake";
 const OTHER_COMBINATION: &str = "test/combo/other";
@@ -79,6 +80,14 @@ echo "sleep-pid: $!"
 wait
 "#;
 
+/// Starts a "server" in its own session, as run.sh does with setsid, so it is outside the
+/// harness's process group; then either exits (leakpack) or waits to be cancelled (leakwaitpack).
+const LEAK_BODY: &str = r#"perl -e 'use POSIX; POSIX::setsid(); exec @ARGV' sleep 300 &
+echo "server-pid: $!"
+sleep 1
+echo "[story 1] Leaky story — agent starting"
+"#;
+
 struct Env {
     root: TempRoot,
     repo: PathBuf,
@@ -99,6 +108,8 @@ fn setup() -> Env {
         ("failpack", FAIL_BODY),
         ("slowpack", SLOW_BODY),
         ("stubbornpack", STUBBORN_BODY),
+        ("leakpack", &format!("{LEAK_BODY}exit 0\n")),
+        ("leakwaitpack", &format!("{LEAK_BODY}sleep 300 &\nwait\n")),
     ] {
         let dir = repo.join(pack).join("harness");
         std::fs::create_dir_all(&dir).unwrap();
@@ -166,6 +177,8 @@ fn start(env: &Env, pull: bool) -> Server {
             BACKOFF_MS,
             "--cancel-grace-ms",
             GRACE_MS,
+            "--tree-poll-ms",
+            TREE_POLL_MS,
         ])
         .env("HOME", &env.user_home)
         .stdout(Stdio::piped())
@@ -668,4 +681,52 @@ async fn submit_by_combination_reads_the_install_id_from_the_repo() {
 
     srv.wait_status("c1", "done").await;
     drop(env.root);
+}
+
+/// The harness's own session children (a model server under setsid) are outside its process
+/// group; dbench still stops them once the harness is gone, whether it exited or was cancelled.
+async fn leftovers_are_stopped(pack: &str, cancel: bool) {
+    let env = setup();
+    let srv = start(&env, false);
+    assert_eq!(srv.submit("leak", &spec(pack, "run-leak")).await.0, 201);
+    srv.wait_status("leak", "running").await;
+    let start = Instant::now();
+    let server_pid = loop {
+        let log = srv.log("leak").await;
+        if log.contains("agent starting") {
+            break logged_pid(&log, "server-pid: ");
+        }
+        assert!(start.elapsed() < DEADLINE, "{log}");
+        tokio::time::sleep(POLL).await;
+    };
+    if cancel {
+        assert!(pid_alive(server_pid));
+        assert_eq!(srv.cancel("leak").await.0, 202);
+        srv.wait_status("leak", "cancelled").await;
+    } else {
+        srv.wait_status("leak", "done").await;
+    }
+    // The job reaches its final state only after the leftovers are gone.
+    assert!(
+        !pid_alive(server_pid),
+        "the setsid'd server must be stopped"
+    );
+    let log = srv.log("leak").await;
+    assert!(
+        log.contains(&format!(
+            "stopping processes the harness left running: sleep ({server_pid})"
+        )),
+        "{log}"
+    );
+    drop(env.root);
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn leftovers_are_stopped_when_the_harness_exits() {
+    leftovers_are_stopped("leakpack", false).await;
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn leftovers_are_stopped_when_the_job_is_cancelled() {
+    leftovers_are_stopped("leakwaitpack", true).await;
 }

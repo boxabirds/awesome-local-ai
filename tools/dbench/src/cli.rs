@@ -13,6 +13,8 @@ pub const DEFAULT_MAX_RESTARTS: u32 = 3;
 pub const DEFAULT_RESTART_BACKOFF_MS: u64 = 30_000;
 /// Time between SIGTERM and SIGKILL when cancelling.
 pub const DEFAULT_CANCEL_GRACE_MS: u64 = 20_000;
+/// How often a running harness's process tree is sampled (see `runner::track_tree`).
+pub const DEFAULT_TREE_POLL_MS: u64 = 3_000;
 pub const DEFAULT_HOME_DIR: &str = ".dbench";
 pub const DEFAULT_SHARE_DIR: &str = ".local/share";
 
@@ -52,7 +54,11 @@ pub enum Cmd {
         #[arg(long)]
         id: String,
         /// The install to run, as it is named on the node. Either this or --combination.
-        #[arg(long, required_unless_present = "combination", conflicts_with = "combination")]
+        #[arg(
+            long,
+            required_unless_present = "combination",
+            conflicts_with = "combination"
+        )]
         install_id: Option<String>,
         /// The combination to run: its directory under combinations/ in the repo,
         /// e.g. qwen/3.8/27b/ubuntu/24GB/llamacpp-opencode. The node reads the
@@ -144,6 +150,8 @@ pub struct ServeArgs {
     pub restart_backoff_ms: u64,
     #[arg(long, default_value_t = DEFAULT_CANCEL_GRACE_MS, hide = true)]
     pub cancel_grace_ms: u64,
+    #[arg(long, default_value_t = DEFAULT_TREE_POLL_MS, hide = true)]
+    pub tree_poll_ms: u64,
 }
 
 fn home_dir() -> Result<PathBuf> {
@@ -173,6 +181,7 @@ pub struct ServerConfig {
     pub pull: bool,
     pub restart_backoff: Duration,
     pub cancel_grace: Duration,
+    pub tree_poll: Duration,
 }
 
 impl ServeArgs {
@@ -206,6 +215,7 @@ impl ServeArgs {
             pull: !self.no_pull,
             restart_backoff: Duration::from_millis(self.restart_backoff_ms),
             cancel_grace: Duration::from_millis(self.cancel_grace_ms),
+            tree_poll: Duration::from_millis(self.tree_poll_ms),
         })
     }
 }
@@ -240,6 +250,12 @@ impl ServerConfig {
             a.extend([
                 "--cancel-grace-ms".into(),
                 self.cancel_grace.as_millis().to_string().into(),
+            ]);
+        }
+        if self.tree_poll != Duration::from_millis(DEFAULT_TREE_POLL_MS) {
+            a.extend([
+                "--tree-poll-ms".into(),
+                self.tree_poll.as_millis().to_string().into(),
             ]);
         }
         a

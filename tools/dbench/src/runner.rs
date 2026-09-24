@@ -1,8 +1,9 @@
 //! The job runner: one harness at a time, first in first out, with restarts.
 
+use std::collections::HashMap;
 use std::os::unix::process::ExitStatusExt;
 use std::process::Stdio;
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 use tokio::process::Command;
 
@@ -55,6 +56,115 @@ fn take_next(st: &Shared) -> Option<String> {
     None
 }
 
+/// Processes the harness started, by pid, as last seen in the process table.
+type Seen = Arc<Mutex<HashMap<i32, sys::Proc>>>;
+
+/// `ps` suffix for a process that has exited but not been reaped; there's nothing left to stop.
+const DEFUNCT: &str = "<defunct>";
+
+async fn process_table() -> Vec<sys::Proc> {
+    let out = Command::new("ps")
+        .args([
+            "-A", "-o", "pid=", "-o", "ppid=", "-o", "pgid=", "-o", "lstart=", "-o", "comm=",
+        ])
+        .env("LC_ALL", "C")
+        .stdin(Stdio::null())
+        .kill_on_drop(true)
+        .output()
+        .await;
+    match out {
+        Ok(o) if o.status.success() => sys::parse_ps(&String::from_utf8_lossy(&o.stdout)),
+        _ => Vec::new(),
+    }
+}
+
+/// Sample the harness's process tree until aborted. The harness starts some processes in
+/// their own session (llama-server via setsid, pi under bwrap), outside its process group, so
+/// they are orphaned rather than stopped if it dies; remembering them lets `stop_leftovers`
+/// find them afterwards. A process started and orphaned between two samples is missed.
+async fn track_tree(root: i32, seen: Seen, every: Duration) {
+    loop {
+        let found = sys::descendants(&process_table().await, root);
+        if let Ok(mut s) = seen.lock() {
+            for p in found {
+                s.insert(p.pid, p);
+            }
+        }
+        tokio::time::sleep(every).await;
+    }
+}
+
+/// Of the tracked processes, those still running (same pid and start time).
+fn still_running(tracked: &[sys::Proc], table: &[sys::Proc]) -> Vec<sys::Proc> {
+    tracked
+        .iter()
+        .filter(|t| {
+            table
+                .iter()
+                .any(|p| p.pid == t.pid && p.started == t.started && !p.name.ends_with(DEFUNCT))
+        })
+        .cloned()
+        .collect()
+}
+
+/// Signal each process, and the process group of each that leads one (so a server's own
+/// children go too). Never our own group.
+fn signal_procs(procs: &[sys::Proc], sig: i32) {
+    // SAFETY: getpgrp has no memory effects.
+    let own_group = unsafe { libc::getpgrp() };
+    for p in procs {
+        if p.pgid == p.pid && p.pgid != own_group {
+            sys::signal_group(p.pgid, sig);
+        }
+        sys::signal_pid(p.pid, sig);
+    }
+}
+
+/// Once the harness has exited, stop whatever it started that is still running: SIGTERM,
+/// then SIGKILL after the cancel grace. Also waits for them to go, so the next job doesn't
+/// start while, say, the last one's model server still holds the GPU.
+async fn stop_leftovers(st: &Shared, id: &str, seen: &Seen) {
+    let tracked: Vec<sys::Proc> = seen
+        .lock()
+        .map(|s| s.values().cloned().collect())
+        .unwrap_or_default();
+    if tracked.is_empty() {
+        return;
+    }
+    let left = still_running(&tracked, &process_table().await);
+    if left.is_empty() {
+        return;
+    }
+    let names: Vec<String> = left
+        .iter()
+        .map(|p| format!("{} ({})", p.name, p.pid))
+        .collect();
+    st.log_line(
+        id,
+        &format!(
+            "stopping processes the harness left running: {}",
+            names.join(", ")
+        ),
+    );
+    signal_procs(&left, libc::SIGTERM);
+    let deadline = Instant::now() + st.cfg.cancel_grace;
+    loop {
+        tokio::time::sleep(KILL_POLL).await;
+        let left = still_running(&tracked, &process_table().await);
+        if left.is_empty() {
+            return;
+        }
+        if Instant::now() >= deadline {
+            st.log_line(
+                id,
+                &format!("{} still running after SIGTERM; SIGKILL", left.len()),
+            );
+            signal_procs(&left, libc::SIGKILL);
+            return;
+        }
+    }
+}
+
 /// SIGTERM the group, wait up to `grace` for it to go, then SIGKILL it.
 pub async fn terminate_group(pgid: i32, grace: Duration) {
     if !sys::signal_group(pgid, libc::SIGTERM) {
@@ -74,12 +184,16 @@ pub async fn terminate_group(pgid: i32, grace: Duration) {
 /// requeue it (exit code unknown; the harness resumes, so re-running is safe).
 async fn supervise_adopted(st: &Arc<Shared>, id: &str, pgid: i32) {
     st.lock().current = Some(id.to_string());
+    let seen = Seen::default();
+    let tracker = tokio::spawn(track_tree(pgid, seen.clone(), st.cfg.tree_poll));
     if st.lock().jobs.get(id).is_some_and(|j| j.cancel_requested) {
         tokio::spawn(terminate_group(pgid, st.cfg.cancel_grace));
     }
     while sys::group_alive(pgid) {
         tokio::time::sleep(ADOPT_POLL).await;
     }
+    tracker.abort();
+    stop_leftovers(st, id, &seen).await;
     let mut requeued = false;
     st.update(id, |j, inner| {
         if j.cancel_requested {
@@ -248,6 +362,8 @@ async fn run_one(st: &Arc<Shared>, id: &str) -> bool {
         (child, pid)
     };
 
+    let seen = Seen::default();
+    let tracker = tokio::spawn(track_tree(pgid, seen.clone(), st.cfg.tree_poll));
     let code = match child.wait().await {
         Ok(s) => s
             .code()
@@ -264,6 +380,8 @@ async fn run_one(st: &Arc<Shared>, id: &str) -> bool {
         );
         terminate_group(pgid, st.cfg.cancel_grace).await;
     }
+    tracker.abort();
+    stop_leftovers(st, id, &seen).await;
 
     let max = st.cfg.max_restarts;
     let mut requeued = false;
