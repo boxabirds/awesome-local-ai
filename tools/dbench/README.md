@@ -82,6 +82,26 @@ url = "http://quintus:7717"
 token = "..."
 ```
 
+### Any number of clients, from any machine
+
+Nothing ties a node to the machine that set it up.
+- **State:** all of a node's state (queue, job states, logs, token) lives in the node's `~/.dbench/`.
+- **Results:** the harness pushes results to the git remote, not to a client.
+- **What a client needs:** a route to the node's address and its token. For example, to add a second client on another Mac (such as the M2):
+
+```sh
+cd tools/dbench && cargo build --release          # or copy the binary from another Mac (same target)
+mkdir -p ~/.config/dbench && ssh gruntus cat .dbench/token   # paste into nodes.toml as above
+./target/release/dbench nodes                      # status of every node
+./target/release/dbench status gruntus vidi-canvas-4090-01
+./target/release/dbench logs gruntus vidi-canvas-4090-01 -f
+git pull                                           # results, as each story is recorded
+```
+
+- **Several clients at once:** submits are idempotent by job id, and each node runs its queue in order.
+- **Raw HTTP:** the API is plain HTTP+JSON, so `curl -H "Authorization: Bearer $TOKEN" http://gruntus:7717/v1/jobs` works without the client.
+- **Staying up:** a node's service survives the client going away. On Linux it only runs with no one logged in on the node, and starts at boot, if linger is enabled (see above).
+
 ## Security model
 
 - **Trusted network only.** Bind to the Tailscale or LAN address, never `0.0.0.0` on a network you don't control. The API is plain HTTP.
