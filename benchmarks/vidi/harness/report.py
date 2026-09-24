@@ -46,10 +46,10 @@ def conditions_cell(c: dict) -> str:
     bad = c.get("bad_samples", [])
     power = any(not b["ac"] or b["low_power"] for b in bad)
     n = c.get("samples") or 0
-    share = sum(b["thermal"] != "nominal" for b in bad) / n if n else 0.0
+    share = sum(b["thermal"] not in ("nominal", "unmonitored") for b in bad) / n if n else 0.0
     fp = c.get("server_footprint_peak_gb")
     return (("DEGRADED (power) " if power else "") + f"throttled {share:.0%}"
-            + (f", server peak {fp:.0f} GB" if fp else "") + (" SWAP-ABORT" if c.get("aborted_swap") else ""))
+            + (f", server peak {fp:.0f} GB" if fp else "") + (" SWAP-ABORT" if c.get("aborted_swap") else "") + (" MEMORY-ABORT" if c.get("aborted_memory") else ""))
 
 
 def summary(run: Path) -> str:
