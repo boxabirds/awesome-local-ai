@@ -51,6 +51,8 @@ PUBLISH_MAX_BYTES = 512 * 1024
 # Whole file bodies the agent read or wrote are kept as a marked prefix; the record keeps the
 # conversation's shape, tool calls and timings, not every byte of every file.
 EVENT_STRING_MAX = 2000
+# Git-ignored bookkeeping read by local tools; must keep real absolute paths.
+LOCAL_ONLY_FILES = {"work_dir.txt", "current_story"}
 TEXT_SUFFIXES = {".json", ".jsonl", ".md", ".txt", ".log", ".ts", ".tsx", ".js", ".mjs", ".css", ".html", ".jsonc", ".sh"}
 SPEC = VIDI / "spec"
 PROMPT_TMPL = VIDI / "prompts" / "story.md.tmpl"
@@ -182,6 +184,8 @@ def make_publishable(run: Path) -> list[str]:
             raw.unlink()
     for f in run.rglob("*"):
         if not f.is_file() or ".git" in f.parts or "node_modules" in f.parts:
+            continue
+        if f.name in LOCAL_ONLY_FILES:          # git-ignored, machine-local: keep real paths
             continue
         if f.name.endswith(".compact.jsonl.gz"):
             with gzip.open(f, "rt") as src:

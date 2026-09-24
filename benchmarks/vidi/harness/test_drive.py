@@ -386,7 +386,9 @@ def test_make_publishable_redacts_home_and_keeps_event_logs_small(tmp_path):
     gz = compact_events(raw)
     (run / "superseded").mkdir()
     (run / "superseded" / "agent-events.jsonl").write_text(raw.read_text())
+    (run / "work_dir.txt").write_text(f"{home}/.vidi-bench/work/x")
     make_publishable(run)
+    assert (run / "work_dir.txt").read_text() == f"{home}/.vidi-bench/work/x"   # local-only file untouched
     assert home not in (run / "metrics.json").read_text() and "~/.vidi-bench" in (run / "metrics.json").read_text()
     text = gzip.open(gz, "rt").read()
     assert home not in text and "truncated" in text
