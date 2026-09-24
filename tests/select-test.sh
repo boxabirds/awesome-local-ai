@@ -51,6 +51,22 @@ assert_eq "RTX 4090 reporting 24564 still qualifies for the 24GB tier" \
 assert_eq "a 12GB card does not" "" "$(pick ubuntu x86_64 cuda 12282 qwen)"
 
 echo
+echo "unmeasured combinations (AUTO_SELECT=0) are never the silent pick"
+assert_eq "a 24GB NVIDIA card still defaults to the measured llama.cpp 27B, not SGLang" \
+  "qwen/3.8/27b/ubuntu/24GB/llamacpp-opencode" "$(pick ubuntu x86_64 cuda 24576 qwen)"
+assert_eq "across all families too" \
+  "qwen/3.8/27b/ubuntu/24GB/llamacpp-opencode" "$(pick ubuntu x86_64 cuda 24576 '')"
+HOST_OS=ubuntu; HOST_ARCH=x86_64; HOST_ACCEL=cuda; HOST_MEM_MIB=24576
+compat="$(candidates_for_host qwen | cut -d'|' -f2)"
+assert_ok "the SGLang 27B is still listed as compatible" \
+  grep -qxF "qwen/3.8/27b/ubuntu/24GB/sglang-opencode" <<< "$compat"
+assert_ok "the SGLang 35B-A3B is still listed as compatible" \
+  grep -qxF "qwen/3.6/35b-a3b/ubuntu/24GB/sglang-opencode" <<< "$compat"
+assert_eq "an opted-out combination ranks last in its tier" \
+  "qwen/3.6/35b-a3b/ubuntu/24GB/sglang-opencode" \
+  "$(candidates_for_host qwen | head -1 | cut -d'|' -f2)"
+
+echo
 echo "OS families"
 assert_eq "Pop!_OS is offered the Ubuntu combination" \
   "qwen/3.8/27b/ubuntu/24GB/llamacpp-opencode" "$(pick pop x86_64 cuda 24564 qwen)"

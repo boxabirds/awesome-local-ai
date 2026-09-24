@@ -109,8 +109,15 @@ candidates_for_host() {
 
     # Score is the memory tier: the largest combination this machine can hold
     # is the one tuned for the most capable machine of its class, and is what
-    # someone running the default installer wants.
-    printf '%s|%s\n' "$tier" "$combo"
+    # someone running the default installer wants. Within a tier, a
+    # combination that opts out of automatic selection (AUTO_SELECT=0 in its
+    # config -- e.g. one this repo has not measured) ranks below every one
+    # that has not, so it is listed as compatible but never the silent pick.
+    local rank=1
+    if grep -qE '^AUTO_SELECT=0([^0-9]|$)' "${REPO_ROOT}/combinations/${combo}/config.sh" 2>/dev/null; then
+      rank=0
+    fi
+    printf '%s|%s\n' "$(( tier * 2 + rank ))" "$combo"
   done < <(list_combinations) | sort -t'|' -k1,1n
 }
 

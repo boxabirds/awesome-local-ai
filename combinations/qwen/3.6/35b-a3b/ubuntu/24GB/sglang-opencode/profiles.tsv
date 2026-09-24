@@ -1,0 +1,24 @@
+# name|ctx|mem_frac|prefill_graph|need_mib|basis|summary
+#
+# NOTHING HERE WAS MEASURED BY THIS REPO.
+#
+#   full     the recipe's argv (PR #83), measured by the recipe author on a
+#            BARE RTX 3090: sweep peak device memory 23,514,945,945 bytes =
+#            22,426 MiB, KV pool 406,145 tokens, ladder OK to 257,971 tokens.
+#            The registry marks this recipe "candidate": after PR #92 its trust
+#            rule forbids --disable-prefill-cuda-graph, which this argv uses.
+#   desktop  EXTRAPOLATED, never run by anyone, and may not start at all. For
+#            a card with ~5 GB taken by a desktop (the recipe's figure).
+#            Arithmetic: fp8 KV is 10 full-attention layers x 2 KV heads x 256
+#            dims x 2 (K,V) x 1 byte = 10 KiB/token (~105k tokens per GiB;
+#            ignores the MTP draft layer's own KV). The bare pool of 406,145
+#            tokens is only ~3.9 GiB, LESS than the ~4.66 GiB a desktop holds,
+#            so at the recipe's 0.85 there would be no KV pool left. Raising
+#            --mem-fraction-static to 0.92 moves ~1.7 GiB from SGLang's
+#            activation reserve into the pool -> ~90k tokens by arithmetic,
+#            but leaves ~1.9 GiB of reserve where the recipe had ~3.6 GiB,
+#            which nobody has tested. 32,768 ctx. need_mib = 22,426 - 5,120.
+#
+# need_mib is the free VRAM on the GPU at launch that the profile assumes.
+full|262144|0.85|0|22426|RECIPE-#83|default; full window, author's acceptance run (bare card)
+desktop|32768|0.92|0|17306|EXTRAPOLATED|GPU that also drives a desktop; never run, may OOM
