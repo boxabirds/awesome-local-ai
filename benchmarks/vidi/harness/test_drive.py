@@ -350,3 +350,22 @@ def test_hang_guard_spares_the_agent_whose_cwd_is_the_workspace(tmp_path):
     finally:
         for p in (agent, tool):
             p.kill()
+
+
+def test_needs_nudge_only_when_agent_quit_without_committing():
+    """canvas-pi-01 story 2: the model ended a turn with reasoning only, pi exited 0 after 3 minutes, no commit."""
+    from drive import needs_nudge
+    clean = {"stalled": False, "error": None, "session": "s1"}
+    assert needs_nudge(clean, commits=0) is True
+    assert needs_nudge(clean, commits=2) is False                      # it committed: trust it finished
+    assert needs_nudge({**clean, "stalled": True}, commits=0) is False  # loops are not nudged
+    assert needs_nudge({**clean, "error": "boom"}, commits=0) is False  # errors go through fork-resume
+    assert needs_nudge({**clean, "session": None}, commits=0) is False  # nothing to continue
+
+
+def test_continue_uses_the_same_session_not_a_fork(tmp_path):
+    from clients import PiClient, OpenCodeClient
+    pi = PiClient(tmp_path).command("m", "go on", resume_from="abc", fork=False)
+    assert pi[pi.index("--session") + 1] == "abc" and "--fork" not in pi
+    oc = OpenCodeClient(tmp_path).command("m", "go on", resume_from="ses", fork=False)
+    assert oc[oc.index("--session") + 1] == "ses" and "--fork" not in oc
