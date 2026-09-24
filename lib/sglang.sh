@@ -266,100 +266,16 @@ backend_fetch_model() {
   MMPROJ=""; MTP_HEAD=""
 }
 
-_sglang_marker() { printf '%s/.awesome-local-ai-verified' "$1"; }
-
-# valid | stale | absent
-_sglang_weights_state() {
-  local dir="$1" m
-  m="$(_sglang_marker "$dir")"
-  [[ -f "$m" ]] || { echo absent; return; }
-  python3 - "$dir" "$m" "$MODEL_REVISION" <<'PY'
-import json, os, sys
-d, m, rev = sys.argv[1:4]
-try:
-    doc = json.load(open(m))
-except Exception:
-    print("stale"); sys.exit(0)
-if doc.get("revision") != rev:
-    print("stale"); sys.exit(0)
-for name, size in (doc.get("sizes") or {}).items():
-    p = os.path.join(d, name)
-    if not os.path.isfile(p) or os.path.getsize(p) != size:
-        print("stale"); sys.exit(0)
-print("valid" if doc.get("sizes") else "stale")
-PY
-}
-
-# Every shard named in the index exists and is non-empty.
-_sglang_shards_present() {
-  python3 - "$1" <<'PY'
-import json, pathlib, sys
-d = pathlib.Path(sys.argv[1])
-idx = d / "model.safetensors.index.json"
-if not idx.exists():
-    print("no model.safetensors.index.json"); sys.exit(1)
-try:
-    want = set(json.loads(idx.read_text())["weight_map"].values())
-except Exception as e:
-    print(f"unreadable index ({e})"); sys.exit(1)
-missing = [f for f in sorted(want) if not (d / f).exists() or (d / f).stat().st_size == 0]
-if missing:
-    print(f"{len(missing)}/{len(want)} shards missing: {', '.join(missing[:4])}"); sys.exit(1)
-PY
-}
-
-# MODEL_SHA256 is one "<sha256>  <file>" line per file, as sha256sum prints.
-# A mismatch deletes nothing -- it refuses, and says how to re-fetch.
-_sglang_verify_hashes() {
-  local dir="$1"
-  if [[ -z "${MODEL_SHA256// }" ]]; then
-    warn "No published hashes in this combination's config; weights not hash-verified."
-    return 0
-  fi
-  info "Verifying sha256 of the weight shards (reads every byte once)..."
-  local sum want file have
-  sum="$(command -v sha256sum || true)"
-  while read -r want file; do
-    [[ -n "$want" ]] || continue
-    [[ -f "${dir}/${file}" ]] || err "Expected ${file} in ${dir}, not found."
-    if [[ -n "$sum" ]]; then have="$(sha256sum "${dir}/${file}" | cut -d' ' -f1)"
-    else have="$(shasum -a 256 "${dir}/${file}" | cut -d' ' -f1)"; fi
-    [[ "$have" == "$want" ]] || err "sha256 mismatch for ${file}:
-         expected ${want}
-         got      ${have}
-       Delete it and re-run to re-fetch:  rm '${dir}/${file}'"
-    ok "sha256 OK: ${file}"
-  done <<< "$MODEL_SHA256"
-}
-
-_sglang_write_marker() {
-  local dir="$1"
-  python3 - "$dir" "$(_sglang_marker "$dir")" "$MODEL_REPO" "$MODEL_REVISION" \
-            "$([[ -n "${MODEL_SHA256// }" ]] && echo 1 || echo 0)" <<'PY'
-import json, os, sys, time
-d, m, repo, rev, hashed = sys.argv[1:6]
-sizes = {}
-for root, dirs, files in os.walk(d):
-    dirs[:] = [x for x in dirs if not x.startswith(".")]
-    for f in files:
-        if f.startswith("."):
-            continue
-        p = os.path.join(root, f)
-        sizes[os.path.relpath(p, d)] = os.path.getsize(p)
-json.dump({"repo": repo, "revision": rev, "sha256_verified": hashed == "1",
-           "checked_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
-           "sizes": sizes}, open(m, "w"), indent=1)
-PY
-}
-
-_sglang_marker_summary() {
-  python3 - "$(_sglang_marker "$1")" <<'PY' 2>/dev/null || echo "?"
-import json, sys
-d = json.load(open(sys.argv[1]))
-print(("sha256 verified" if d.get("sha256_verified") else "present, not hash-verified")
-      + f" at {d.get('revision','?')[:8]} ({d.get('checked_at','?')})")
-PY
-}
+# The weight-cache helpers are shared with every pinned-revision backend and
+# live in lib/hf.sh; these names are kept so existing callers and tests read
+# the same. hf.sh is sourced here too so this file works when loaded alone.
+declare -F hf_pinned_state >/dev/null || . "$(dirname "${BASH_SOURCE[0]}")/hf.sh"
+_sglang_marker()         { hf_pinned_marker "$@"; }
+_sglang_weights_state()  { hf_pinned_state "$@"; }
+_sglang_shards_present() { hf_shards_present "$@"; }
+_sglang_verify_hashes()  { hf_verify_sha256 "$@"; }
+_sglang_write_marker()   { hf_write_marker "$@"; }
+_sglang_marker_summary() { hf_marker_summary "$@"; }
 
 # ---- serving --------------------------------------------------------------
 

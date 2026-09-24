@@ -52,6 +52,7 @@ half-installing.
 | Swift-Qwen3.8-27B | Ubuntu 22.04 | 24GB NVIDIA | llama.cpp + OpenCode | [`install-qwen-3.8-swift-27b-ubuntu-24GB-llamacpp-opencode.sh`](install-qwen-3.8-swift-27b-ubuntu-24GB-llamacpp-opencode.sh) | [README](combinations/qwen/3.8-swift/27b/ubuntu/24GB/llamacpp-opencode/README.md) |
 | Qwen3.8-27B | macOS 26 | 64GB Apple silicon ¹ | MTPLX + OpenCode | [`install-qwen-3.8-27b-macos-64GB-mtplx-opencode.sh`](install-qwen-3.8-27b-macos-64GB-mtplx-opencode.sh) | [README](combinations/qwen/3.8/27b/macos/64GB/mtplx-opencode/README.md) |
 | Qwen3.8-Flash-Next | macOS 26 | 128GB Apple silicon | MTPLX + OpenCode | [`install-qwen-3.8-flash-next-macos-128GB-mtplx-opencode.sh`](install-qwen-3.8-flash-next-macos-128GB-mtplx-opencode.sh) | [README](combinations/qwen/3.8/flash-next/macos/128GB/mtplx-opencode/README.md) |
+| Qwen3.8-Flash-Next mixed 4/8-bit ⁶ | macOS 26.2+ | 128GB Apple silicon | mlx-serve + OpenCode | [`install-qwen-3.8-flash-next-macos-128GB-mlxserve-opencode.sh`](install-qwen-3.8-flash-next-macos-128GB-mlxserve-opencode.sh) | [README](combinations/qwen/3.8/flash-next/macos/128GB/mlxserve-opencode/README.md) |
 | Ternary Bonsai 2 27B ² | Ubuntu 22.04 | 24GB NVIDIA | llama.cpp *(fork)* + OpenCode | [`install-bonsai-2-27b-ubuntu-24GB-llamacpp-opencode.sh`](install-bonsai-2-27b-ubuntu-24GB-llamacpp-opencode.sh) | [README](combinations/bonsai/2/27b/ubuntu/24GB/llamacpp-opencode/README.md) |
 | MiMo-V2.6-Qwen-9B ³ | macOS 26 | 16GB Apple silicon, M3+ ⁴ | MTPLX + OpenCode | [`install-mimo-2.6-9b-macos-16GB-mtplx-opencode.sh`](install-mimo-2.6-9b-macos-16GB-mtplx-opencode.sh) | [README](combinations/mimo/2.6/9b/macos/16GB/mtplx-opencode/README.md) |
 | Qwen3.5-9B FP16 ³ | macOS 26 | 16GB Apple silicon, M1/M2 ⁴ | MTPLX + OpenCode | [`install-qwen-3.5-9b-fp16-macos-16GB-mtplx-opencode.sh`](install-qwen-3.5-9b-fp16-macos-16GB-mtplx-opencode.sh) | [README](combinations/qwen/3.5/9b-fp16/macos/16GB/mtplx-opencode/README.md) |
@@ -96,6 +97,16 @@ image whose kernels are built only for sm_86; an RTX 4090 or 5090 is untested
 (the installer warns). Both are 3.0 bits per weight, so their speed is not a
 like-for-like comparison with the 4-bit-class llama.cpp rows. `./install.sh`
 never picks them on its own; name them to install them.
+
+⁶ **The mlx-serve row is unmeasured by this repo.** It serves the model
+author's own pack ([ddalcu/Qwen3.8-Flash-Next-MLX-Serve-mixed-4-8bit](https://huggingface.co/ddalcu/Qwen3.8-Flash-Next-MLX-Serve-mixed-4-8bit))
+with [mlx-serve](https://github.com/ddalcu/mlx-serve) 26.9.5+. Its memory
+figures are estimates from file sizes (~70 GiB of weights, ~75 GiB at 128k);
+its speeds are the author's (M4 Max: ~60 tok/s serial, 78 with MTP). Tool
+calling is supported per mlx-serve's source and is checked by the smoke test,
+not yet observed here. Run it only with no other model server up — the
+launcher refuses otherwise. `./install.sh` never picks it over the measured
+MTPLX row.
 
 **Want one that isn't here?** See
 [docs/adding-a-combination.md](docs/adding-a-combination.md). A new combination
@@ -231,7 +242,7 @@ username.
 Three extension points, each one file with a small documented contract:
 
 - **Accelerator** — `lib/accel/<name>.sh` (`cuda`, `metal`)
-- **Backend** — `lib/<name>.sh` (`llamacpp`, `mtplx`, `sglang`)
+- **Backend** — `lib/<name>.sh` (`llamacpp`, `mtplx`, `sglang`, `mlxserve`)
 - **Client** — `lib/clients/<name>.sh` (`opencode`, `pi`) — the client is an orthogonal axis: every one is installed and you pick at run time (`./start.sh --pi`), while `CLIENT` in a combination's `config.sh` only names the default
 
 ---

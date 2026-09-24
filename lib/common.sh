@@ -58,3 +58,14 @@ require_vars() {
     [[ -n "${!v:-}" ]] || err "Combination config is missing required variable: ${v}"
   done
 }
+
+# Dotted numeric versions, field by field: "26.10.1" >= "26.9.5", without
+# assuming GNU sort -V exists. Missing fields count as 0. A leading "v" is
+# ignored, so release tags compare the same as the versions they carry.
+version_ge() {
+  awk -v a="${1#v}" -v b="${2#v}" 'BEGIN {
+    n = split(a, x, "."); m = split(b, y, ".")
+    k = (n > m ? n : m)
+    for (i = 1; i <= k; i++) { if ((x[i]+0) > (y[i]+0)) exit 0; if ((x[i]+0) < (y[i]+0)) exit 1 }
+    exit 0 }'
+}
