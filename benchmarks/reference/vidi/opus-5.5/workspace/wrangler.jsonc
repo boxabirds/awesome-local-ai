@@ -14,6 +14,11 @@
   "durable_objects": {
     "bindings": [{ "name": "BOARD_ROOM", "class_name": "BoardRoom" }]
   },
+  // Board creation limit per visitor (CF-Connecting-IP). limit/period mirror BOARD_CREATE_LIMIT and
+  // BOARD_CREATE_PERIOD_SECONDS in src/shared/config.ts (unit test TC-03 asserts they match).
+  "ratelimits": [
+    { "name": "BOARD_CREATE_LIMITER", "namespace_id": "1001", "simple": { "limit": 10, "period": 60 } }
+  ],
   // SQLite-backed from the start so story 4 (persistence) needs no class migration.
   "migrations": [{ "tag": "v1", "new_sqlite_classes": ["BoardRoom"] }]
 }

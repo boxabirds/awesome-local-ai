@@ -14,6 +14,9 @@
  * - Storage failure (append throws): the change is not broadcast, every socket is closed with
  *   CLOSE_STORAGE_FAILURE and the doc is discarded; reconnecting clients re-send what the
  *   reloaded room lacks through the SyncStep1/SyncStep2 exchange.
+ * - Existence (story 5): boards are created only by `initialize()` (RPC from POST /api/boards).
+ *   `exists()` and `fetch` only read; a connection to an unknown board gets 404 and nothing is
+ *   written, so links cannot create boards.
  */
 import { DurableObject } from 'cloudflare:workers';
 import * as decoding from 'lib0/decoding';
@@ -33,6 +36,7 @@ import type { Env } from './index';
 import { nextRoomState, type RoomEvent, type RoomLifecycle } from './room-state';
 
 const HTTP_SWITCHING_PROTOCOLS = 101;
+const HTTP_NOT_FOUND = 404;
 const HTTP_UPGRADE_REQUIRED = 426;
 /** Encoder length of a reply that contains only the message type (nothing to send). */
 const EMPTY_REPLY_LENGTH = 1;
@@ -99,7 +103,6 @@ export class BoardRoom extends DurableObject<Env> {
     const doc = new Y.Doc();
     let result;
     try {
-      this.store.migrate();
       result = this.store.load(doc);
     } catch (error) {
       result = { ok: false as const, reason: 'sql-error' as const, error: String(error) };
@@ -115,10 +118,25 @@ export class BoardRoom extends DurableObject<Env> {
     this.transition({ type: 'loaded', quarantined: result.quarantined });
   }
 
+  /**
+   * RPC: creates this board (tables + created_at) unless it already exists, legacy boards
+   * included. 'exists' means the id is taken and must not be handed out as a new board.
+   */
+  initialize(): 'created' | 'exists' {
+    return this.store.initialize();
+  }
+
+  /** RPC: whether this board exists. Read-only: an unknown board stays without storage. */
+  exists(): boolean {
+    return this.store.existsReadOnly();
+  }
+
   async fetch(req: Request): Promise<Response> {
     if (req.headers.get('Upgrade')?.toLowerCase() !== 'websocket') {
       return new Response('Expected a WebSocket upgrade', { status: HTTP_UPGRADE_REQUIRED });
     }
+    // Checked again here (not only by GET /api/boards/:id): connecting never creates a board.
+    if (!this.store.existsReadOnly()) return new Response('Board not found', { status: HTTP_NOT_FOUND });
     const pair = new WebSocketPair();
     const client = pair[0];
     const server = pair[1];
@@ -258,6 +276,21 @@ export class BoardRoom extends DurableObject<Env> {
   }
 
   // ---- Test hooks (used only when env.TEST_HOOKS === '1'; see test-hooks.ts) ----
+
+  /**
+   * Writes `update` as a log row without created_at: a board as saved before story 5 (legacy).
+   * The room reloads so it serves the seeded content.
+   */
+  testSeedLegacy(update: Uint8Array): boolean {
+    this.assertTestHooks();
+    if (this.store.existsReadOnly()) return false;
+    Y.decodeUpdate(update);
+    this.store.migrate();
+    this.store.append(update);
+    for (const ws of this.ctx.getWebSockets()) closeQuietly(ws, CLOSE_STORAGE_FAILURE, 'Reloading');
+    this.load();
+    return true;
+  }
 
   /** Forces compaction of the current board. */
   testCompact(): boolean {

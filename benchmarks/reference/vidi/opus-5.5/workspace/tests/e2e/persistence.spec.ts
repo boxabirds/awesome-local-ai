@@ -9,7 +9,7 @@ import { BOARD_LOAD_BUDGET_MS, PERSIST_TESTED_NOTES } from '../../src/shared/con
 import { largeBoard } from '../fixtures/boards';
 import { getNotes, noteLocator, type NoteState } from './helpers/board';
 import { boardUrl, editingNoteId, renderedNote, renderedNotes, waitConnected } from './helpers/participants';
-import { compactBoard, seedBoard } from './helpers/seed';
+import { compactBoard, initializeBoard, seedBoard } from './helpers/seed';
 import { wranglerServer, type WranglerServer } from './helpers/wrangler-process';
 
 /** Each test gets its own port and inspector port (tests may run in parallel). */
@@ -45,6 +45,7 @@ async function openBoard(browser: Browser, base: string, boardId: string): Promi
   const { viewport } = test.info().project.use;
   const context = await browser.newContext({ baseURL: base, viewport });
   const page = await context.newPage();
+  await initializeBoard(base, boardId);
   await page.goto(boardUrl(boardId));
   await waitConnected(page);
   return { context, page };

@@ -1,6 +1,7 @@
 import { expect, test, type Browser, type BrowserContext, type Page } from '@playwright/test';
 import { newBoardId } from '../../../src/shared/board-id';
 import { LIVE_UPDATE_LATENCY_BUDGET_MS } from '../../../src/shared/config';
+import { initializeBoard } from './seed';
 
 /** Poll often: the latency budget is what is under test, not the polling interval. */
 const POLL_INTERVALS_MS = [10];
@@ -45,6 +46,8 @@ export async function openParticipants(
   boardId: string = newBoardId(),
 ): Promise<Participant[]> {
   const { baseURL, viewport } = test.info().project.use;
+  if (!baseURL) throw new Error('baseURL is not configured');
+  await initializeBoard(baseURL, boardId);
   return Promise.all(
     names.map(async (name) => {
       const context = await browser.newContext({ baseURL, viewport });

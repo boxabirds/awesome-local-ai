@@ -3,7 +3,7 @@
  * from the Worker's upgrade response — the same framing as the browser's WebsocketProvider
  * (SyncStep1 on open, SyncStep2 in reply to the server's SyncStep1, updates as they happen).
  */
-import { SELF } from 'cloudflare:test';
+import { env, SELF } from 'cloudflare:test';
 import * as decoding from 'lib0/decoding';
 import * as encoding from 'lib0/encoding';
 import { vi } from 'vitest';
@@ -58,7 +58,17 @@ export async function upgrade(boardId: string): Promise<Response> {
   return SELF.fetch(`${ORIGIN}/api/rooms/${boardId}`, { headers: { Upgrade: 'websocket' } });
 }
 
+/**
+ * Makes sure the board exists (story 5: connecting no longer creates boards). Idempotent: an
+ * existing board, including one whose storage a test wrote directly, is left untouched.
+ */
+export async function ensureBoard(boardId: string): Promise<'created' | 'exists'> {
+  return env.BOARD_ROOM.get(env.BOARD_ROOM.idFromName(boardId)).initialize();
+}
+
+/** Connects to a board, creating it first if needed (see ensureBoard). */
 export async function connect(boardId: string, doc: Y.Doc = new Y.Doc()): Promise<TestClient> {
+  await ensureBoard(boardId);
   const res = await upgrade(boardId);
   if (res.status !== HTTP_SWITCHING_PROTOCOLS || !res.webSocket) {
     throw new Error(`upgrade failed: ${res.status}`);

@@ -1,6 +1,7 @@
 import { act, fireEvent, render, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { App } from '../../src/client/App';
+import { Board } from '../../src/client/board/Board';
+import { newBoardId } from '../../src/shared/board-id';
 import { NAVIGATION_HINT_TEXT } from '../../src/client/canvas/NavigationHint';
 import { resetCamera, type Camera } from '../../src/client/canvas/camera';
 import {
@@ -62,7 +63,7 @@ const INITIAL = resetCamera(TEST_VIEWPORT);
 describe('viewport.input', () => {
   beforeEach(() => {
     vi.useFakeTimers({ toFake: ['requestAnimationFrame', 'cancelAnimationFrame', 'setTimeout'] });
-    render(<App />);
+    render(<Board boardId={newBoardId()} />);
     flushFrame();
   });
 

@@ -1,6 +1,7 @@
 import { act, fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
-import { App } from '../../src/client/App';
+import { Board } from '../../src/client/board/Board';
+import { newBoardId } from '../../src/shared/board-id';
 import { NAVIGATION_HINT_TEXT, NavigationHint } from '../../src/client/canvas/NavigationHint';
 
 const FRAME_MS = 20;
@@ -23,7 +24,7 @@ describe('nav.hint_display', () => {
 
   it('TC-22 visible → hidden after first camera change → stays hidden after another', () => {
     vi.useFakeTimers({ toFake: ['requestAnimationFrame', 'cancelAnimationFrame', 'setTimeout'] });
-    render(<App />);
+    render(<Board boardId={newBoardId()} />);
     const board = screen.getByTestId('board-viewport');
     expect(screen.queryByText(NAVIGATION_HINT_TEXT)).not.toBeNull();
 

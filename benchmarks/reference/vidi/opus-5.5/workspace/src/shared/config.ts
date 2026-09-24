@@ -73,3 +73,18 @@ export const PERSIST_TESTED_NOTES = 2000;
 export const BOARD_LOAD_BUDGET_MS = 3000;
 /** Version of the room's SQLite tables (the Yjs document has its own meta.schemaVersion). */
 export const STORAGE_SCHEMA_VERSION = 1;
+
+// ---- Sharing (story 5) ----
+
+/** Boards one visitor may create per BOARD_CREATE_PERIOD_SECONDS (PRD share.rate_limit). */
+export const BOARD_CREATE_LIMIT = 10;
+/** Rate-limit window. Must match wrangler.jsonc `ratelimits` (unit test TC-03 asserts equality). */
+export const BOARD_CREATE_PERIOD_SECONDS = 60;
+/** New ids tried before board creation gives up (a collision of 128-bit ids is practically impossible). */
+export const CREATE_ID_MAX_ATTEMPTS = 3;
+/** A new board opens within this time of clicking Create a board (PRD share.create). */
+export const CREATE_BUDGET_MS = 2000;
+/** How long the Copy link button says "Link copied" (PRD share.copy). */
+export const LINK_COPIED_MS = 2000;
+/** First retry delay when a board link cannot be checked; doubles up to RECONNECT_MAX_BACKOFF_MS. */
+export const BOARD_CHECK_RETRY_BASE_MS = 1000;
