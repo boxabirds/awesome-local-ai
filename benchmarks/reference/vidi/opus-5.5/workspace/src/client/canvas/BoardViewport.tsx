@@ -1,5 +1,5 @@
 import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react';
-import { GRID_SPACING_WORLD } from '../../shared/config';
+import { DRAG_THRESHOLD_PX, GRID_SPACING_WORLD } from '../../shared/config';
 import type { Point, Size } from './camera';
 import type { CameraController } from './useCamera';
 
@@ -27,6 +27,12 @@ export interface BoardViewportProps {
   onResize(size: Size): void;
   /** Content rendered in world coordinates. */
   children?: ReactNode;
+  /** Any press on empty board space (before a possible pan). */
+  onEmptyPointerDown?(): void;
+  /** A press and release on empty board space that moved less than DRAG_THRESHOLD_PX. */
+  onEmptyClick?(): void;
+  /** Double-click on empty board space, at a point relative to the board area's top-left. */
+  onEmptyDoubleClick?(point: Point): void;
 }
 
 function positiveModulo(value: number, modulus: number): number {
@@ -48,10 +54,13 @@ function isEditableTarget(target: EventTarget | null): boolean {
  * Full-size input surface for the infinite board: a dot-grid background attached to the board,
  * a world layer positioned by the camera, and pointer / wheel / pinch / keyboard navigation.
  */
-export function BoardViewport({ controller, onResize, children }: BoardViewportProps) {
+export function BoardViewport(props: BoardViewportProps) {
+  const { controller, onResize, children, onEmptyPointerDown, onEmptyClick, onEmptyDoubleClick } = props;
   const elementRef = useRef<HTMLDivElement>(null);
   const [mode, setMode] = useState<Mode>('idle');
   const pointerIdRef = useRef<number | null>(null);
+  const pressStartRef = useRef<Point | null>(null);
+  const pressMovedRef = useRef(false);
   const controllerRef = useRef(controller);
   controllerRef.current = controller;
   const { camera } = controller;
@@ -160,18 +169,35 @@ export function BoardViewport({ controller, onResize, children }: BoardViewportP
     } catch {
       // Capture can fail if the pointer is already gone; the drag still works in-window.
     }
+    pressStartRef.current = { x: e.clientX, y: e.clientY };
+    pressMovedRef.current = false;
+    onEmptyPointerDown?.();
     controller.beginPan({ x: e.clientX, y: e.clientY });
     setMode('panning');
   };
 
   const onPointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
     if (pointerIdRef.current !== e.pointerId) return;
+    const start = pressStartRef.current;
+    if (start && Math.hypot(e.clientX - start.x, e.clientY - start.y) >= DRAG_THRESHOLD_PX) {
+      pressMovedRef.current = true;
+    }
     controller.panMove({ x: e.clientX, y: e.clientY });
   };
 
   const onPointerEnd = (e: React.PointerEvent<HTMLDivElement>) => {
     if (pointerIdRef.current !== e.pointerId) return;
+    const isClick = e.type === 'pointerup' && !pressMovedRef.current;
+    pressStartRef.current = null;
     stopPanning();
+    if (isClick) onEmptyClick?.();
+  };
+
+  const onDoubleClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    // Double-clicks on objects are handled (and stopped) by the objects themselves.
+    if (e.target !== elementRef.current || !onEmptyDoubleClick) return;
+    const rect = e.currentTarget.getBoundingClientRect();
+    onEmptyDoubleClick({ x: e.clientX - rect.left, y: e.clientY - rect.top });
   };
 
   const spacing = GRID_SPACING_WORLD * camera.zoom;
@@ -201,6 +227,7 @@ export function BoardViewport({ controller, onResize, children }: BoardViewportP
       onPointerUp={onPointerEnd}
       onPointerCancel={onPointerEnd}
       onLostPointerCapture={onPointerEnd}
+      onDoubleClick={onDoubleClick}
       style={gridStyle}
     >
       <div className="board-world" data-testid="board-world" style={worldStyle}>
