@@ -1,0 +1,127 @@
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  background: #f7f8fa;
+  color: #1f242c;
+  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  overflow: hidden;
+}
+
+/* Full-window board area (the viewport element fills it). */
+.vidi6-shell {
+  position: fixed;
+  inset: 0;
+  overflow: hidden;
+}
+
+.vidi6-viewport {
+  position: absolute;
+  inset: 0;
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+  background-color: #f7f8fa;
+}
+
+.vidi6-viewport--panning {
+  cursor: grabbing;
+}
+
+/* World layer: CSS-transformed so pan/zoom never trigger reflow. */
+.vidi6-world {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 0;
+  height: 0;
+  transform-origin: 0 0;
+}
+
+/* Origin crosshair at world (0,0); decorative and click-through. */
+.vidi6-origin-marker {
+  position: absolute;
+  left: -8px;
+  top: -8px;
+  width: 16px;
+  height: 16px;
+  pointer-events: none;
+  opacity: 0.9;
+}
+
+/* Bottom-right zoom control. */
+.vidi6-zoom-controls {
+  position: fixed;
+  right: 16px;
+  bottom: 16px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 8px;
+  background: #ffffff;
+  border: 1px solid #d3d9e0;
+  border-radius: 10px;
+  box-shadow: 0 1px 4px rgba(15, 23, 42, 0.12);
+  z-index: 10;
+}
+
+.vidi6-zoom-button,
+.vidi6-reset-button {
+  font: inherit;
+  font-size: 14px;
+  line-height: 1;
+  color: #1f242c;
+  background: #ffffff;
+  border: 1px solid #cfd6de;
+  border-radius: 7px;
+  padding: 6px 10px;
+  cursor: pointer;
+}
+
+.vidi6-zoom-button {
+  min-width: 34px;
+  font-size: 16px;
+}
+
+.vidi6-zoom-button:hover:enabled,
+.vidi6-reset-button:hover {
+  background: #f1f4f8;
+}
+
+.vidi6-zoom-button:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.vidi6-zoom-button:focus-visible,
+.vidi6-reset-button:focus-visible {
+  outline: 2px solid #3b82f6;
+  outline-offset: 2px;
+}
+
+.vidi6-zoom-label {
+  min-width: 52px;
+  text-align: center;
+  font-size: 14px;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Bottom-centre first-use hint. */
+.vidi6-hint {
+  position: fixed;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 7px 14px;
+  background: rgba(255, 255, 255, 0.92);
+  border: 1px solid #d3d9e0;
+  border-radius: 10px;
+  color: #4b5563;
+  font-size: 14px;
+  pointer-events: none;
+  z-index: 10;
+}

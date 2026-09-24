@@ -1,0 +1,10 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "vidi6",
+  "compatibility_date": "2025-06-01",
+  // Story 1 is client-only: the Worker `main` arrives in story 3. Until then
+  // `wrangler dev` serves the static client build straight from assets.
+  "assets": {
+    "directory": "dist/client"
+  }
+}

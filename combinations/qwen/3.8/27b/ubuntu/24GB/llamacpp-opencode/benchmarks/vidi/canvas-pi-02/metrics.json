@@ -1,0 +1,130 @@
+{
+  "stories": {
+    "1": {
+      "title": "Pan and zoom around an infinite board",
+      "conditions_start": {
+        "ac": true,
+        "low_power": false,
+        "thermal": "nominal"
+      },
+      "started": 1790285934.7289152,
+      "agent": {
+        "seconds": 3010.8999999999996,
+        "steps": 127,
+        "tool_calls": 145,
+        "compactions": 1,
+        "tool_interruptions": 0,
+        "tokens": {
+          "input": 146604,
+          "output": 165888,
+          "reasoning": 0,
+          "cache_read": 8983119,
+          "cache_write": 0
+        },
+        "exit": 0,
+        "stalled": false,
+        "resumes": 0,
+        "nudges": 1,
+        "errors": [],
+        "ended_in_error": false,
+        "sessions": [
+          "01a0d55b-7135-71aa-9728-2a18905997c7",
+          "01a0d55b-7135-71aa-9728-2a18905997c7"
+        ]
+      },
+      "agent_finished": 1790288945.6590748,
+      "conditions": {
+        "samples": 99,
+        "degraded": false,
+        "throttled_share": 0.0,
+        "bad_samples": [],
+        "swap_start_gb": 0.29,
+        "swap_max_gb": 0.81,
+        "aborted_swap": false,
+        "aborted_memory": false,
+        "free_min_pct": 50.6352967184862,
+        "server_footprint_max_gb": 18.232749938964844,
+        "server_footprint_peak_gb": 18.232749938964844
+      },
+      "agent_commits": 1,
+      "gate": {
+        "steps": {
+          "install": {
+            "cmd": "npm ci",
+            "exit": 0,
+            "seconds": 1.4,
+            "tail": "\nadded 193 packages, and audited 194 packages in 1s\n\n34 packages are looking for funding\n  run `npm fund` for details\n\n2 moderate severity vulnerabilities\n\nTo address all issues (including breaking changes), run:\n  npm audit fix --force\n\nRun `npm audit` for details.\nnpm warn deprecated whatwg-encoding@3.1.1: Use @exodus/bytes instead for a more spec-conformant and faster implementation\n"
+          },
+          "build": {
+            "cmd": "npm run build",
+            "exit": 0,
+            "seconds": 0.6,
+            "tail": "\n> vidi6@0.1.0 build\n> vite build\n\n\u001b[36mvite v7.3.6 \u001b[32mbuilding client environment for production...\u001b[36m\u001b[39m\ntransforming...\n\u001b[32m\u2713\u001b[39m 36 modules transformed.\nrendering chunks...\ncomputing gzip size...\n\u001b[2mdist/client/\u001b[22m\u001b[32mindex.html                 \u001b[39m\u001b[1m\u001b[2m  0.39 kB\u001b[22m\u001b[1m\u001b[22m\u001b[2m \u2502 gzip:  0.26 kB\u001b[22m\n\u001b[2mdist/client/\u001b[22m\u001b[2massets/\u001b[22m\u001b[35mindex-CUGT_9-D.css  \u001b[39m\u001b[1m\u001b[2m  1.59 kB\u001b[22m\u001b[1m\u001b[22m\u001b[2m \u2502 gzip:  0.70 kB\u001b[22m\n\u001b[2mdist/client/\u001b[22m\u001b[2massets/\u001b[22m\u001b[36mindex-DqSIue_v.js   \u001b[39m\u001b[1m\u001b[2m229.07 kB\u001b[22m\u001b[1m\u001b[22m\u001b[2m \u2502 gzip: 71.73 kB\u001b[22m\n\u001b[32m\u2713 built in 420ms\u001b[39m\n",
+            "passed": null,
+            "failed": null
+          },
+          "typecheck": {
+            "cmd": "npm run typecheck",
+            "exit": 0,
+            "seconds": 0.8,
+            "tail": "\n> vidi6@0.1.0 typecheck\n> tsc --noEmit\n\n",
+            "passed": null,
+            "failed": null
+          },
+          "test:unit": {
+            "cmd": "npm run test:unit",
+            "exit": 0,
+            "seconds": 0.8,
+            "tail": "\n> vidi6@0.1.0 test:unit\n> vitest run --project unit\n\n\n\u001b[1m\u001b[46m RUN \u001b[49m\u001b[22m \u001b[36mv3.2.7 \u001b[39m\u001b[90m~/.vidi-bench/work/qwen__3.8__27b__ubuntu__24GB__llamacpp-opencode__benchmarks__vidi__canvas-pi-02/workspace\u001b[39m\n\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[42m unit \u001b[49m\u001b[39m tests/unit/camera.test.ts \u001b[2m(\u001b[22m\u001b[2m15 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 14\u001b[2mms\u001b[22m\u001b[39m\n\n\u001b[2m Test Files \u001b[22m \u001b[1m\u001b[32m1 passed\u001b[39m\u001b[22m\u001b[90m (1)\u001b[39m\n\u001b[2m      Tests \u001b[22m \u001b[1m\u001b[32m15 passed\u001b[39m\u001b[22m\u001b[90m (15)\u001b[39m\n\u001b[2m   Start at \u001b[22m 23:29:09\n\u001b[2m   Duration \u001b[22m 213ms\u001b[2m (transform 38ms, setup 0ms, collect 36ms, tests 14ms, environment 0ms, prepare 58ms)\u001b[22m\n\n",
+            "passed": 15,
+            "failed": 0
+          },
+          "test:component": {
+            "cmd": "npm run test:component",
+            "exit": 0,
+            "seconds": 1.0,
+            "tail": "\n> vidi6@0.1.0 test:component\n> vitest run --project component\n\n\n\u001b[1m\u001b[46m RUN \u001b[49m\u001b[22m \u001b[36mv3.2.7 \u001b[39m\u001b[90m~/.vidi-bench/work/qwen__3.8__27b__ubuntu__24GB__llamacpp-opencode__benchmarks__vidi__canvas-pi-02/workspace\u001b[39m\n\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[45m component \u001b[49m\u001b[39m tests/component/NavigationHint.test.tsx \u001b[2m(\u001b[22m\u001b[2m2 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 64\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[45m component \u001b[49m\u001b[39m tests/component/BoardViewport.test.tsx \u001b[2m(\u001b[22m\u001b[2m8 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 64\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[45m component \u001b[49m\u001b[39m tests/component/ZoomControls.test.tsx \u001b[2m(\u001b[22m\u001b[2m8 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 79\u001b[2mms\u001b[22m\u001b[39m\n\n\u001b[2m Test Files \u001b[22m \u001b[1m\u001b[32m3 passed\u001b[39m\u001b[22m\u001b[90m (3)\u001b[39m\n\u001b[2m      Tests \u001b[22m \u001b[1m\u001b[32m18 passed\u001b[39m\u001b[22m\u001b[90m (18)\u001b[39m\n\u001b[2m   Start at \u001b[22m 23:29:10\n\u001b[2m   Duration \u001b[22m 466ms\u001b[2m (transform 74ms, setup 124ms, collect 118ms, tests 207ms, environment 463ms, prepare 175ms)\u001b[22m\n\n",
+            "passed": 18,
+            "failed": 0
+          },
+          "test:integration": {
+            "exit": "missing"
+          },
+          "test:e2e": {
+            "cmd": "npm run test:e2e -- --project=chromium",
+            "exit": 0,
+            "seconds": 3.2,
+            "tail": "\n> vidi6@0.1.0 test:e2e\n> playwright test --project=chromium\n\n\nRunning 7 tests using 7 workers\n\n  \u2713  3 [chromium] \u203a tests/e2e/navigation.spec.ts:56:3 \u203a story 1: pan and zoom around an infinite board \u203a TC-24 Ctrl+wheel zooms around the pointer without zooming the page (248ms)\n  \u2713  4 [chromium] \u203a tests/e2e/navigation.spec.ts:119:3 \u203a story 1: pan and zoom around an infinite board \u203a TC-26 Reset view from far away returns to 100% centred on the start point (236ms)\n  \u2713  7 [chromium] \u203a tests/e2e/navigation.spec.ts:164:3 \u203a story 1: pan and zoom around an infinite board \u203a TC-31 board zoom gestures never change the page zoom (243ms)\n  \u2713  2 [chromium] \u203a tests/e2e/navigation.spec.ts:139:3 \u203a story 1: pan and zoom around an infinite board \u203a TC-27 far travel (1,000,000 units): drags stay exact and the grid spacing is preserved (404ms)\n  \u2713  6 [chromium] \u203a tests/e2e/navigation.spec.ts:23:3 \u203a story 1: pan and zoom around an infinite board \u203a TC-28 first-visit hint is shown and dismissed after the first navigation (345ms)\n  \u2713  1 [chromium] \u203a tests/e2e/navigation.spec.ts:34:3 \u203a story 1: pan and zoom around an infinite board \u203a TC-23 a drag moves the board by exactly the pointer distance (425ms)\n  \u2713  5 [chromium] \u203a tests/e2e/navigation.spec.ts:83:3 \u203a story 1: pan and zoom around an infinite board \u203a TC-25 clicking + until disabled ends at 400% with a disabled button (596ms)\n\n  7 passed (2.9s)\n",
+            "passed": 7,
+            "failed": 0
+          }
+        },
+        "all_green": true
+      },
+      "accept": {
+        "build_exit": 0,
+        "runner_exit": 1,
+        "runner_tail": "",
+        "passed": 5,
+        "total": 6,
+        "by_story": {
+          "01": {
+            "passed": 5,
+            "total": 6
+          }
+        }
+      },
+      "commit": "5c07a76e672e8cb90f5d6f98bb4fc272a4004235",
+      "requests": {},
+      "loc": {
+        "files": 20,
+        "lines": 1694
+      },
+      "finished": 1790288968.7130125
+    }
+  },
+  "scope": "canvas",
+  "model_id": "qwen3.8-27b",
+  "client": "pi",
+  "compact_at": null
+}
