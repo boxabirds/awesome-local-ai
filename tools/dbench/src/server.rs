@@ -2,7 +2,7 @@
 
 use anyhow::{Context, Result};
 use axum::body::{Body, Bytes};
-use axum::extract::{Path as UrlPath, Query, Request, State};
+use axum::extract::{ConnectInfo, Path as UrlPath, Query, Request, State};
 use axum::http::{header, HeaderMap, StatusCode};
 use axum::middleware::{self, Next};
 use axum::response::{IntoResponse, Response};
@@ -12,6 +12,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::json;
 use std::collections::{HashMap, VecDeque};
 use std::io::Write;
+use std::net::SocketAddr;
 use std::os::unix::fs::OpenOptionsExt;
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex, MutexGuard};
@@ -303,6 +304,7 @@ async fn get_job(State(st): State<Arc<Shared>>, UrlPath(id): UrlPath<String>) ->
 
 async fn submit(
     State(st): State<Arc<Shared>>,
+    ConnectInfo(peer): ConnectInfo<SocketAddr>,
     UrlPath(id): UrlPath<String>,
     Json(spec): Json<JobSpec>,
 ) -> Response {
@@ -366,12 +368,17 @@ async fn submit(
         inner.queue.push_back(id.clone());
         job
     };
-    st.log_line(&id, "submitted");
+    st.log_line(&id, &format!("submitted by {}", peer.ip()));
     st.wake.notify_one();
     (StatusCode::CREATED, Json(st.view(job))).into_response()
 }
 
-async fn cancel(State(st): State<Arc<Shared>>, UrlPath(id): UrlPath<String>) -> Response {
+async fn cancel(
+    State(st): State<Arc<Shared>>,
+    ConnectInfo(peer): ConnectInfo<SocketAddr>,
+    UrlPath(id): UrlPath<String>,
+) -> Response {
+    let by = peer.ip();
     let Some(job) = st.job(&id) else {
         return err(StatusCode::NOT_FOUND, format!("no job {id}"));
     };
@@ -379,19 +386,20 @@ async fn cancel(State(st): State<Arc<Shared>>, UrlPath(id): UrlPath<String>) -> 
         JobState::Queued => {
             let j = st.update(&id, |j, inner| {
                 j.state = JobState::Cancelled;
-                j.note(now_secs(), "cancelled while queued");
+                j.note(now_secs(), format!("cancelled while queued by {by}"));
                 inner.queue.retain(|q| q != &id);
             });
-            st.log_line(&id, "cancelled while queued");
+            st.log_line(&id, &format!("cancelled while queued by {by}"));
             (StatusCode::OK, Json(st.view(j.expect("job")))).into_response()
         }
         JobState::Running { pgid, .. } => {
             let j = st.update(&id, |j, _| {
                 if !j.cancel_requested {
-                    j.note(now_secs(), "cancel requested");
+                    j.note(now_secs(), format!("cancel requested by {by}"));
                 }
                 j.cancel_requested = true;
             });
+            st.log_line(&id, &format!("cancel requested by {by}"));
             st.log_line(&id, &format!("cancel: SIGTERM to process group {pgid}"));
             tokio::spawn(crate::runner::terminate_group(pgid, st.cfg.cancel_grace));
             (StatusCode::ACCEPTED, Json(st.view(j.expect("job")))).into_response()
@@ -502,7 +510,10 @@ pub async fn serve(cfg: ServerConfig) -> Result<()> {
     // No graceful drain: followed logs would hold it open forever, and the harness
     // is unaffected either way.
     tokio::select! {
-        r = axum::serve(listener, router(shared)) => r?,
+        r = axum::serve(
+            listener,
+            router(shared).into_make_service_with_connect_info::<SocketAddr>(),
+        ) => r?,
         _ = shutdown_signal() => eprintln!("dbench: stopping; any running harness keeps running and is adopted on restart"),
     }
     Ok(())

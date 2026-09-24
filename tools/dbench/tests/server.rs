@@ -518,6 +518,12 @@ async fn cancel_kills_group(pack: &str, exit: i32) {
         .unwrap();
     assert!(followed.contains("story — agent starting"), "{followed}");
     assert!(followed.contains("cancel: SIGTERM"), "{followed}");
+    // Who did it: several clients can control a node, so submit and cancel record the caller.
+    assert!(followed.contains("submitted by 127.0.0.1"), "{followed}");
+    assert!(
+        followed.contains("cancel requested by 127.0.0.1"),
+        "{followed}"
+    );
     assert!(
         followed.contains(&format!("harness exited {exit}; job cancelled")),
         "{followed}"
