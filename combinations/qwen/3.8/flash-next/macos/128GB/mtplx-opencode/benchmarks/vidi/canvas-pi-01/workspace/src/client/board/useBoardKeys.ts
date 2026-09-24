@@ -23,6 +23,7 @@
  */
 import { useEffect } from 'react';
 import { NUDGE_LARGE_STEP_WORLD, NUDGE_STEP_WORLD } from '../../shared/config';
+import type { Tool } from './useTool';
 import type { TransformController } from './transformController';
 import type { UndoController } from './undo';
 
@@ -42,6 +43,12 @@ export interface BoardKeyDeps {
   deleteSelection(): void;
   /** Nudge the selection by a world delta (arrow keys). */
   nudge(dx: number, dy: number): void;
+  /** The active tool right now (Select or Text). */
+  getTool(): Tool;
+  /** Switch tools (Text is ignored by the caller while read-only). */
+  setTool(tool: Tool): void;
+  /** Create a sticky at the centre of the view (the story-2 `N` shortcut). */
+  createStickyAtCentre(): void;
 }
 
 /** True when the key should be handled by a focused text field, not the board. */
@@ -96,6 +103,30 @@ export function useBoardKeys(getDeps: () => BoardKeyDeps): void {
       if (isTypingTarget(event.target)) return; // keys belong to the editor
       if (!deps.isEditable()) return;
 
+      // 3a. Tool shortcuts (V / T) and the sticky-create shortcut (N). These are
+      // board-level and only reached with no modifier, nothing focused and an
+      // editable board (the guards above). `T` is a tool switch, never a typed
+      // character: a focused editor never reaches here (TC-16).
+      if (event.key === 'v' || event.key === 'V') {
+        if (editing !== null) return;
+        event.preventDefault();
+        deps.setTool('select');
+        return;
+      }
+      if (event.key === 't' || event.key === 'T') {
+        if (editing !== null) return;
+        if (!deps.isEditable()) return; // Text is unavailable while read-only (TC-15)
+        event.preventDefault();
+        deps.setTool('text');
+        return;
+      }
+      if (event.key === 'n' || event.key === 'N') {
+        if (editing !== null) return;
+        event.preventDefault();
+        deps.createStickyAtCentre();
+        return;
+      }
+
       if (event.key === 'Enter') {
         if (editing !== null) return;
         if (selected.length === 1) {
@@ -113,6 +144,13 @@ export function useBoardKeys(getDeps: () => BoardKeyDeps): void {
           return;
         }
         if (editing !== null) return; // the editor owns Escape itself
+        // An active Text tool: Escape returns to Select and leaves the selection
+        // alone (TC-14). Only when a tool is active; otherwise it deselects.
+        if (deps.getTool() !== 'select') {
+          event.preventDefault();
+          deps.setTool('select');
+          return;
+        }
         if (selected.length > 0) {
           event.preventDefault();
           deps.clearSelection();

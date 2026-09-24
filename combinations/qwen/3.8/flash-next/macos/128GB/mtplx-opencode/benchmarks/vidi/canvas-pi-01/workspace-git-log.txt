@@ -1,3 +1,34 @@
+commit 4e49f1c0c682efec5563867d7cae4554f6a45245
+vidi-agent  Thu Sep 24 19:59:10 2026 +0100
+
+    feat(text): free-text objects placeable and editable anywhere on the board
+
+
+ src/client/board/BoardShell.tsx      | 113 ++++++++++++++----
+ src/client/board/Toolbar.tsx         |  53 ++++++++-
+ src/client/board/useBoardKeys.ts     |  38 ++++++
+ src/client/board/useIdentity.ts      |  23 ++++
+ src/client/board/useTool.ts          |  47 ++++++++
+ src/client/canvas/BoardViewport.tsx  |  61 +++++++++-
+ src/client/objects/StickyText.ts     |  73 ++----------
+ src/client/objects/TextEditor.tsx    | 209 +++++++++++++++++++++++++++++++++
+ src/client/objects/TextObject.tsx    | 219 ++++++++++++++++++++++++++++++++++
+ src/client/objects/TextToolbar.tsx   |  70 +++++++++++
+ src/client/objects/registry.tsx      |  32 ++++-
+ src/client/objects/textLayout.ts     | 173 +++++++++++++++++++++++++++
+ src/client/objects/useTextBoxSync.ts |  77 ++++++++++++
+ src/shared/board-model.ts            |  17 ++-
+ src/shared/config.ts                 |  33 ++++++
+ src/shared/objects/text.ts           | 222 +++++++++++++++++++++++++++++++++++
+ src/shared/text-edit.ts              |  82 +++++++++++++
+ tests/component/TextBoxSync.test.tsx | 113 ++++++++++++++++++
+ tests/component/TextObject.test.tsx  | 186 +++++++++++++++++++++++++++++
+ tests/component/TextTool.test.tsx    | 155 ++++++++++++++++++++++++
+ tests/e2e/helpers/text.ts            |  51 ++++++++
+ tests/e2e/text.spec.ts               |  84 +++++++++++++
+ tests/unit/text-layout.test.ts       | 102 ++++++++++++++++
+ tests/unit/text-model.test.ts        | 197 +++++++++++++++++++++++++++++++
+ 24 files changed, 2339 insertions(+), 91 deletions(-)
 commit c455444c6af23a7eb6ccaf791856ef5efc63ce5b
 vidi-agent  Thu Sep 24 18:50:27 2026 +0100
 

@@ -162,6 +162,39 @@ export const BOARD_LOAD_BUDGET_MS = 3000;
 /** Storage schema version for the SQLite tables. */
 export const STORAGE_SCHEMA_VERSION = 1;
 
+/* ---- Story 9 · free text objects (design "Named settings added") --------
+ * These are the story-9 product settings for free text written anywhere on the
+ * board, defined once here so a designer can retune text without a redesign. */
+
+/** The largest an auto-width text box may grow to, in world units. */
+export const TEXT_MAX_AUTO_WIDTH_WORLD = 600;
+
+/** The narrowest a fixed-width text box may be dragged to, in world units. */
+export const TEXT_MIN_WIDTH_WORLD = 40;
+
+/** Maximum characters kept in one text object; extra characters are dropped. */
+export const TEXT_MAX_CHARS = 5000;
+
+/** The four font-size presets, keyed by their accessible name. */
+export const TEXT_SIZES = { S: 14, M: 20, L: 32, XL: 56 } as const;
+
+export type TextSize = keyof typeof TEXT_SIZES;
+
+/** The size a freshly created text object starts at. */
+export const DEFAULT_TEXT_SIZE: TextSize = 'M';
+
+/** Line height as a multiple of the font size (drives the box height). */
+export const TEXT_LINE_HEIGHT = 1.3;
+
+/** The font a text object is measured and rendered with. */
+export const TEXT_FONT_FAMILY = 'Inter, system-ui, sans-serif';
+
+/**
+ * Average glyph width as a fraction of the font size, used only when no canvas
+ * is available to measure real text (jsdom unit tests, headless fallbacks).
+ */
+export const TEXT_GLYPH_WIDTH_RATIO = 0.5;
+
 /* ---- Story 8 · undo / redo (design "Named settings") --------------------
  * These are the story-8 product settings, defined once here so a designer can
  * retune the personal history without a redesign (PRD "Settings"). */

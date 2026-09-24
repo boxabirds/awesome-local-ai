@@ -21,6 +21,7 @@ import type { Point } from './camera';
 import { useCameraApi } from './useCamera';
 import { useNavigationTestHooks } from './testHooks';
 import { MarqueeRect, type Marquee } from '../board/Marquee';
+import type { Tool } from '../board/useTool';
 import type { ObjectSnapshot } from '../../shared/board-model';
 
 /** Pixels for one `deltaMode === LINE` wheel step. */
@@ -59,6 +60,14 @@ export interface BoardViewportProps {
   getSnapshot?(): readonly ObjectSnapshot[];
   /** Called when a marquee is released, with the ids entirely inside the box. */
   onMarquee?(ids: readonly string[]): void;
+  /**
+   * The active tool (story 9). While `'text'` the surface shows a text cursor
+   * and an empty-space click creates a text object instead of panning or
+   * marquee-selecting. Defaults to `'select'`.
+   */
+  tool?: Tool;
+  /** A click (pointer-down then up, no drag) while the Text tool is active. */
+  onTextClick?(world: Point): void;
 }
 
 function mod(value: number, range: number): number {
@@ -97,6 +106,8 @@ export function BoardViewport({
   marquee,
   getSnapshot,
   onMarquee,
+  tool = 'select',
+  onTextClick,
 }: BoardViewportProps) {
   const api = useCameraApi();
   useNavigationTestHooks();
@@ -107,6 +118,7 @@ export function BoardViewport({
   const panningRef = useRef(false);
   const marqueeRef = useRef(false);
   const dragMovedRef = useRef(false);
+  const textClickRef = useRef(false);
   const downPointRef = useRef<Point>({ x: 0, y: 0 });
   const gestureScaleRef = useRef(1);
   const [panning, setPanning] = useState(false);
@@ -213,6 +225,23 @@ export function BoardViewport({
     if (!isBoardSurface(event.target)) return;
     const surface = surfaceRef.current;
     if (!surface) return;
+
+    // The Text tool owns an empty-space press: no pan and no marquee. The click
+    // is resolved on pointer-up (so a drag never drops a stray text box). The
+    // pointer still captures so the follow-up events reach this surface.
+    if (tool === 'text') {
+      try {
+        surface.setPointerCapture(event.pointerId);
+      } catch {
+        // jsdom: capture is skipped.
+      }
+      const rect = surface.getBoundingClientRect();
+      downPointRef.current = { x: event.clientX - rect.left, y: event.clientY - rect.top };
+      dragMovedRef.current = false;
+      textClickRef.current = true;
+      return;
+    }
+
     try {
       surface.setPointerCapture(event.pointerId);
     } catch {
@@ -256,6 +285,17 @@ export function BoardViewport({
       return;
     }
 
+    // A Text-tool press tracks travel so a drag (not a click) creates nothing.
+    if (textClickRef.current) {
+      if (
+        Math.hypot(point.x - downPointRef.current.x, point.y - downPointRef.current.y) >=
+        DRAG_THRESHOLD_PX
+      ) {
+        dragMovedRef.current = true;
+      }
+      return;
+    }
+
     if (!panningRef.current) return;
     if (
       Math.hypot(point.x - downPointRef.current.x, point.y - downPointRef.current.y) >=
@@ -274,6 +314,25 @@ export function BoardViewport({
       } catch {
         // ignore: capture may already be gone
       }
+    }
+
+    // A released Text-tool click creates a text object at the pointer, but only
+    // if the pointer did not travel (a drag over empty space is ignored, so a
+    // near-miss click never drops a stray box). This is checked before the
+    // marquee / pan branches because the Text tool started neither.
+    if (textClickRef.current) {
+      textClickRef.current = false;
+      const cancelled = event.type === 'pointercancel' || event.type === 'lostpointercapture';
+      if (!cancelled && !dragMovedRef.current && isBoardSurface(event.target) && onTextClick) {
+        const rect = surface!.getBoundingClientRect();
+        const world = screenToWorld(camera, {
+          x: event.clientX - rect.left,
+          y: event.clientY - rect.top,
+        });
+        onTextClick(world);
+      }
+      dragMovedRef.current = false;
+      return;
     }
 
     // A released marquee selects whatever lies entirely inside the box; the
@@ -326,7 +385,7 @@ export function BoardViewport({
       -camera.y * camera.zoom,
       spacing,
     )}px`,
-    cursor: panning ? 'grabbing' : 'default',
+    cursor: panning ? 'grabbing' : tool === 'text' ? 'text' : 'default',
   };
 
   const origin = worldToScreen(camera, { x: 0, y: 0 });

@@ -25,7 +25,7 @@ import { rectContains, type Rect } from './geometry';
  * client (stories 9–12) never becomes selectable or resolvable until its
  * registry entry is registered here (PRD `sel.all_types`, TC-08).
  */
-const KNOWN_TYPES: ReadonlySet<string> = new Set(['sticky']);
+const KNOWN_TYPES: ReadonlySet<string> = new Set(['sticky', 'text']);
 
 /**
  * Transaction origin for local edits. Story 8's undo manager and story 3's
@@ -56,6 +56,12 @@ export interface ObjectSnapshot {
   createdAt: number;
   color?: StickyColor;
   text?: string;
+  /** Story 9 · free text: the font-size preset key. */
+  size?: string;
+  /** Story 9 · free text: how the box width is derived. */
+  widthMode?: 'auto' | 'fixed';
+  /** Story 9 · who created this object (the identity id at create time). */
+  createdBy?: string;
 }
 
 /** @deprecated Kept for source compatibility; use {@link ObjectSnapshot}. */
@@ -345,10 +351,17 @@ export function snapshot(doc: Y.Doc): readonly ObjectSnapshot[] {
       height: readSize(record.get('height')),
       createdAt: record.get('createdAt') as number,
     };
-    if (isSticky(record)) {
+    if (type === 'sticky') {
       const text = record.get('text');
       entry.color = record.get('color') as StickyColor;
       entry.text = text instanceof Y.Text ? text.toString() : '';
+    } else if (type === 'text') {
+      const text = record.get('text');
+      entry.text = text instanceof Y.Text ? text.toString() : '';
+      entry.size = record.get('size') as string;
+      entry.widthMode = record.get('widthMode') as 'auto' | 'fixed';
+      const createdBy = record.get('createdBy');
+      if (typeof createdBy === 'string') entry.createdBy = createdBy;
     }
     result.push(entry);
   });

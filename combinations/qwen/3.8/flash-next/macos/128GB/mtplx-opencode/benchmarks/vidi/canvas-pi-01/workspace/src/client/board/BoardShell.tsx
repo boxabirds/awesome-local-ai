@@ -21,7 +21,7 @@
  * fresh controller, so a failed-then-retried board starts with an empty history
  * (PRD undo.session_only).
  */
-import { useCallback, useRef } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 import type * as Y from 'yjs';
 import { canZoomIn, canZoomOut, screenToWorld, zoomPercent } from '../canvas/camera';
 import type { Size } from '../canvas/camera';
@@ -30,6 +30,8 @@ import { NavigationHint } from '../canvas/NavigationHint';
 import { ZoomControls } from '../canvas/ZoomControls';
 import { CameraApiContext, useCamera } from '../canvas/useCamera';
 import { Toolbar } from './Toolbar';
+import { useTool } from './useTool';
+import { useIdentity } from './useIdentity';
 import { useBoardDoc } from './useBoardDoc';
 import { useSelection } from './useSelection';
 import { useMarquee } from './Marquee';
@@ -37,11 +39,14 @@ import { createTransformController, type ResizeMode } from './transformControlle
 import { useUndo } from './useUndo';
 import { useBoardKeys, type BoardKeyDeps } from './useBoardKeys';
 import { StickyNote } from '../objects/StickyNote';
+import { TextObject } from '../objects/TextObject';
 import { SelectionBar } from './SelectionBar';
 import { ConnectionStatus } from '../sync/ConnectionStatus';
 import type { ConnectionState } from '../sync/connectionState';
 import { useLiveTestHooks } from '../sync/testHooks';
 import { allObjectIds, createSticky, deleteObjects, moveObjects } from '../../shared/board-model';
+import { createText } from '../../shared/objects/text';
+import { getHandles } from '../objects/registry';
 
 
 export function canEdit(state: ConnectionState): boolean {
@@ -80,6 +85,14 @@ export function BoardShell({
   // could not be loaded is read-only until a sync succeeds.
   const editable = canEdit(connectionState);
 
+  // Story 9: the per-client tool mode (Select / Text) and this tab's identity
+  // (recorded as `createdBy` on a new text object). The tool reads editability
+  // through a getter so a board that turns read-only drops an active Text tool.
+  const identity = useIdentity();
+  const toolState = useTool(() => editableRef.current);
+  const toolRef = useRef(toolState.tool);
+  toolRef.current = toolState.tool;
+
   useLiveTestHooks(boardDoc, connectionState);
 
   // The one transform controller (design Key decision 1). It reads live values
@@ -96,6 +109,12 @@ export function BoardShell({
   liveRef.current.camera = camera;
   liveRef.current.snapshot = notes;
   liveRef.current.canEdit = editable;
+  // A text box only resizes horizontally (its height follows the content), so a
+  // lone selected text box runs the gesture in `'width'` mode; everything else
+  // keeps the eight-handle `'both'` behaviour. Read from the registry so the
+  // transform code stays generic.
+  liveRef.current.resizeMode = (type: string): ResizeMode =>
+    getHandles(type) === 'horizontal' ? 'width' : 'both';
   const controllerRef = useRef<ReturnType<typeof createTransformController> | null>(null);
   // One personal history per document. A reload swaps `boardDoc`, so `useUndo`
   // builds a fresh controller over an empty stack (undo.session_only).
@@ -146,6 +165,24 @@ export function BoardShell({
       selection.startEdit(id);
     },
     [boardDoc, selection],
+  );
+
+  // The Text tool's empty-space click: create a text object at the pointer, put
+  // it in the editor, and drop back to Select (a single Text placement, so a
+  // near-miss second click never drops a second box). The whole create is one
+  // undo step: a single Ctrl+Z removes the just-created text.
+  const createTextAtWorld = useCallback(
+    (world: { x: number; y: number }) => {
+      if (!editableRef.current) return;
+      const id = undoRef.current.step(() =>
+        createText(boardDoc, world, identity.id),
+      );
+      if (id === null) return;
+      selection.click(id);
+      selection.startEdit(id);
+      toolState.setTool('select');
+    },
+    [boardDoc, selection, identity, toolState],
   );
 
   const createAtCentre = useCallback(() => {
@@ -229,11 +266,24 @@ export function BoardShell({
       setMany: (ids, additive) => selection.setMany(ids, additive),
       deleteSelection,
       nudge: nudgeSelection,
+      getTool: () => toolRef.current,
+      setTool: (next) => toolState.setTool(next),
+      createStickyAtCentre: createAtCentre,
     }),
-    [selection, deleteSelection, nudgeSelection],
+    [selection, deleteSelection, nudgeSelection, toolState, createAtCentre],
   );
 
   useBoardKeys(getKeyboardDeps);
+
+  // Story 9: an active Text tool does not survive a new document (a reload or a
+  // retried board starts back on Select), and a board that turns read-only drops
+  // the tool immediately. `toolState.tool` is only ever `'text'` while editable,
+  // because `useTool` refuses the switch when `canEdit` is false.
+  useEffect(() => {
+    toolState.setTool('select');
+    // Only re-run when the document changes, not on every render.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [boardDoc]);
 
   return (
     <CameraApiContext.Provider value={api}>
@@ -244,25 +294,46 @@ export function BoardShell({
           marquee={marquee}
           getSnapshot={getSnapshot}
           onMarquee={onMarquee}
+          tool={toolState.tool}
+          onTextClick={createTextAtWorld}
         >
-          {notes.map((note) => (
-            <StickyNote
-              key={note.id}
-              note={note}
-              doc={boardDoc}
-              zoom={camera.zoom}
-              editable={editable}
-              selected={selection.ids.has(note.id)}
-              editing={selection.editingId === note.id}
-              controller={controller}
-              undo={undoController}
-              selection={selectedIds}
-              onSelect={onSelect}
-              onStartEdit={(id) => selection.startEdit(id)}
-              onEndEdit={() => selection.endEdit()}
-              onDelete={deleteOne}
-            />
-          ))}
+          {notes.map((note) =>
+            note.type === 'text' ? (
+              <TextObject
+                key={note.id}
+                obj={note}
+                doc={boardDoc}
+                zoom={camera.zoom}
+                editable={editable}
+                selected={selection.ids.has(note.id)}
+                editing={selection.editingId === note.id}
+                controller={controller}
+                undo={undoController}
+                selection={selectedIds}
+                onSelect={onSelect}
+                onStartEdit={(id) => selection.startEdit(id)}
+                onEndEdit={() => selection.endEdit()}
+                onDelete={deleteOne}
+              />
+            ) : (
+              <StickyNote
+                key={note.id}
+                note={note}
+                doc={boardDoc}
+                zoom={camera.zoom}
+                editable={editable}
+                selected={selection.ids.has(note.id)}
+                editing={selection.editingId === note.id}
+                controller={controller}
+                undo={undoController}
+                selection={selectedIds}
+                onSelect={onSelect}
+                onStartEdit={(id) => selection.startEdit(id)}
+                onEndEdit={() => selection.endEdit()}
+                onDelete={deleteOne}
+              />
+            ),
+          )}
         </BoardViewport>
         <SelectionBar
           count={selectedIds.length}
@@ -271,6 +342,8 @@ export function BoardShell({
         <Toolbar
           onCreateSticky={createAtCentre}
           disabled={!editable}
+          tool={toolState.tool}
+          onSelectTool={(next) => toolState.setTool(next)}
           history={{
             canUndo: undoController.canUndo(),
             canRedo: undoController.canRedo(),
