@@ -306,13 +306,37 @@ async fn submit(
     State(st): State<Arc<Shared>>,
     ConnectInfo(peer): ConnectInfo<SocketAddr>,
     UrlPath(id): UrlPath<String>,
-    Json(spec): Json<JobSpec>,
+    Json(mut spec): Json<JobSpec>,
 ) -> Response {
     if !valid_id(&id) {
         return err(StatusCode::BAD_REQUEST, format!("invalid job id {id:?}"));
     }
     if let Err(e) = spec.validate() {
         return err(StatusCode::BAD_REQUEST, e);
+    }
+    // Before the idempotency check, so the same job submitted by combination and
+    // by install id compares equal instead of conflicting.
+    if let Some(combination) = spec.combination.take() {
+        let found = match progress::repo_combination(&st.cfg.repo, &combination) {
+            Ok(found) => found,
+            Err(e) => return err(StatusCode::BAD_REQUEST, e),
+        };
+        // Results are filed under the COMBINATION in install.env; if the install
+        // is of a different one, they would land somewhere other than asked.
+        if let Some(env) = progress::read_install_env(&st.cfg.share_dir, &found.install_id) {
+            if env.get("COMBINATION") != Some(&found.combination) {
+                return err(
+                    StatusCode::BAD_REQUEST,
+                    format!(
+                        "{} is installed as {:?}, not {:?}",
+                        found.install_id,
+                        env.get("COMBINATION").map_or("(no COMBINATION)", String::as_str),
+                        found.combination
+                    ),
+                );
+            }
+        }
+        spec.install_id = found.install_id;
     }
     let existing = st.job(&id);
     match submit_decision(existing.as_ref().map(|j| &j.spec), &spec) {

@@ -14,6 +14,7 @@ const BACKOFF_MS: &str = "100";
 const GRACE_MS: &str = "1000";
 const INSTALL_ID: &str = "fake-install";
 const COMBINATION: &str = "test/combo/fake";
+const OTHER_COMBINATION: &str = "test/combo/other";
 const SIGTERM_EXIT: i32 = 128 + libc::SIGTERM;
 const SIGKILL_EXIT: i32 = 128 + libc::SIGKILL;
 
@@ -102,6 +103,17 @@ fn setup() -> Env {
         let dir = repo.join(pack).join("harness");
         std::fs::create_dir_all(&dir).unwrap();
         std::fs::write(dir.join("run.sh"), format!("{HEADER}{body}")).unwrap();
+    }
+    // combinations/<COMBINATION>/config.sh names the install, as in the real repo.
+    // A second combination claims the same install id, which install.env contradicts.
+    for (combination, install_id) in [(COMBINATION, INSTALL_ID), (OTHER_COMBINATION, INSTALL_ID)] {
+        let dir = repo.join("combinations").join(combination);
+        std::fs::create_dir_all(&dir).unwrap();
+        std::fs::write(
+            dir.join("config.sh"),
+            format!("# fake\nINSTALL_ID=\"{install_id}\"   # install dir\n"),
+        )
+        .unwrap();
     }
     let user_home = root.join("userhome");
     let share = user_home.join(".local/share").join(INSTALL_ID);
@@ -610,5 +622,50 @@ async fn server_restart_requeues_a_dead_harness() {
     assert!(history.contains("requeued to resume"), "{history}");
     assert_eq!(b.cancel("long").await.0, 202);
     b.wait_status("long", "cancelled").await;
+    drop(env.root);
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn submit_by_combination_reads_the_install_id_from_the_repo() {
+    let env = setup();
+    let srv = start(&env, false);
+    let by_combination = |run_id: &str, combination: &str| {
+        let mut s = spec("fakepack", run_id);
+        s.as_object_mut().unwrap().remove("install_id");
+        s["combination"] = json!(combination);
+        s
+    };
+
+    // Resolved from combinations/<COMBINATION>/config.sh, stored by install id.
+    let (code, v) = srv.submit("c1", &by_combination("rc", COMBINATION)).await;
+    assert_eq!(code, 201, "{v}");
+    assert_eq!(v["spec"]["install_id"], INSTALL_ID, "{v}");
+    assert!(v["spec"].get("combination").is_none(), "{v}");
+    // The same job by install id, or by a tab-completed path, is the same job.
+    assert_eq!(srv.submit("c1", &spec("fakepack", "rc")).await.0, 200);
+    let completed = by_combination("rc", &format!("combinations/{COMBINATION}/"));
+    assert_eq!(srv.submit("c1", &completed).await.0, 200);
+
+    // Each rejection says why.
+    for (combination, why) in [
+        ("test/combo/nope", "no combination"),
+        ("test/combo", "has no config.sh"),
+        ("../..", "is not a combination"),
+        (OTHER_COMBINATION, "is installed as"),
+    ] {
+        let (code, v) = srv.submit("c2", &by_combination("rx", combination)).await;
+        assert_eq!(code, 400, "{combination}: {v}");
+        let e = v["error"].as_str().unwrap_or_default();
+        assert!(e.contains(why), "{combination}: {e}");
+    }
+    // Exactly one of the two.
+    let mut both = spec("fakepack", "rx");
+    both["combination"] = json!(COMBINATION);
+    assert_eq!(srv.submit("c2", &both).await.0, 400);
+    let mut neither = spec("fakepack", "rx");
+    neither.as_object_mut().unwrap().remove("install_id");
+    assert_eq!(srv.submit("c2", &neither).await.0, 400);
+
+    srv.wait_status("c1", "done").await;
     drop(env.root);
 }

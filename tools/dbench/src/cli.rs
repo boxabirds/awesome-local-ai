@@ -51,8 +51,14 @@ pub enum Cmd {
         node: String,
         #[arg(long)]
         id: String,
+        /// The install to run, as it is named on the node. Either this or --combination.
+        #[arg(long, required_unless_present = "combination", conflicts_with = "combination")]
+        install_id: Option<String>,
+        /// The combination to run: its directory under combinations/ in the repo,
+        /// e.g. qwen/3.8/27b/ubuntu/24GB/llamacpp-opencode. The node reads the
+        /// install id from that directory's config.sh.
         #[arg(long)]
-        install_id: String,
+        combination: Option<String>,
         /// Repo-relative pack directory, e.g. benchmarks/vidi.
         #[arg(long)]
         pack: String,
