@@ -201,6 +201,7 @@ lib/                          ALL the logic, shared by every combination
 combinations/<family>/<version>/<size>/<os>/<memory>/<stack>/
                               config.sh, profiles.tsv, help.txt, README.md
 benchmarks/                   the harnesses behind every measured number
+tools/dbench/                 runs those harnesses on remote machines (server + client, Rust)
 tests/                        the checks that need no hardware
 docs/                         measurements, methodology, contributor guide
 samples/                      things models built here, kept as worked examples
@@ -269,6 +270,7 @@ Three extension points, each one file with a small documented contract:
 - **[benchmarks/](benchmarks/)** — the harnesses behind the numbers, so they can
   be re-derived rather than taken on trust. Results are stored with the
   combination they were measured on.
+- **[tools/dbench/](tools/dbench/)**: runs a benchmark harness remotely, on any number of machines, driven from any machine. `dbench serve` goes on each benchmark box; the client, from anywhere, submits, watches, cancels and reads events. Each node carries on by itself (restarts, recovery after reboot), and results arrive through git. The design is in [docs/20260924-distributed-bench-design.md](docs/20260924-distributed-bench-design.md).
 - **[samples/](samples/)** — a 3D game written end-to-end by the local model
   through OpenCode, in thinking and non-thinking variants. A worked example of
   what this setup produces, not maintained software.
@@ -280,6 +282,8 @@ Three extension points, each one file with a small documented contract:
 Servers bind to `127.0.0.1` with **no authentication**. `HOST=0.0.0.0` exposes
 a model server to your entire network. Put a reverse proxy with auth in front
 if you need remote access.
+
+`dbench serve` should bind to a LAN or Tailscale address. It requires a bearer token on every endpoint except `/v1/health`, and it only runs jobs made of named, validated parts, never a command string it was sent. The benchmark packs it runs are still code from this repo, so anyone who can push here can run code on your nodes.
 
 The MTPLX launcher passes `--no-auth` only when the bind address is a loopback
 one; MTPLX itself still requires an API key on any other interface, so a
