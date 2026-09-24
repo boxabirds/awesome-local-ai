@@ -408,3 +408,80 @@ Decisions made while building without anyone to ask.
   component TC-15/TC-16. Both reverted.
 - **Not covered** (per design): the 200-object performance run (manual), touch input, types from
   stories 9–12. Other people's selections are not shown (story 6 is not part of this build).
+
+## Story 8: Undo and redo my own changes without undoing anyone else's
+
+- **Controller lives in `Board.tsx`, not `App.tsx`.** Since story 5 the board document is owned by
+  `Board` (`useBoardDoc`), and `App` only routes. `useUndoController(doc)` (in `useUndo.ts`) creates
+  one controller per board document in an effect and destroys it on unmount/board change, so React
+  StrictMode's mount/unmount/mount leaves exactly one live controller (an inert stand-in is used
+  for the first render). `Board` takes an optional `createUndoController` prop, the seam the
+  component tests use for a fake controller (like `connectBoard`'s provider factory).
+- **Extra `UndoController` methods beyond the contract:** `beginGesture()` / `endGesture()` and
+  `lastStep()`. The design passes `boundary` as `onGestureStart/End` and relies on frames being
+  < UNDO_CAPTURE_TIMEOUT_MS apart, but frames are only produced while the pointer moves: holding a
+  drag still for 0.5 s would split it into two steps (PRD: one complete drag = one step). A gesture
+  therefore suspends timeout grouping until it ends (it still starts and ends with a boundary,
+  including on pointercancel). `lastStep()` lets the text editor stop at the step that was newest
+  when editing began (see below). Also exported: `undoKey(event)`, the shortcut matcher shared by
+  the board keys and the editor.
+- **Capture timeout is measured by the controller, not by `Y.UndoManager`.** Yjs reads the clock via
+  lib0's `Date.now` reference captured at module load, which fake clocks cannot control, so TC-13's
+  exact boundary (500 ms → two steps, 499 ms → one) could not be tested against it. The manager runs
+  with `captureTimeout = Infinity`; the controller's `captureTransaction` hook calls
+  `stopCapturing()` when this person's previous tracked change is at least
+  `UNDO_CAPTURE_TIMEOUT_MS` old. Same semantics, testable.
+- **One press = one step, also for steps with no effect.** `Y.UndoManager.undo()` keeps popping
+  while a step has no effect (e.g. a move of a note someone else deleted), so it would silently also
+  undo the step below it. PRD undo.safe says nothing visible happens and the *next* undo continues
+  normally, so the controller exposes only the top step to the manager for each undo/redo and puts
+  the rest of the stack back afterwards. Unit TC-07 and e2e TC-23 assert the earlier step survives
+  the first press. `undo()`/`redo()` return true when a step was consumed (even without effect).
+- **Undo inside the note editor** (Ctrl/Cmd+Z, Ctrl/Cmd+Shift+Z, Ctrl+Y, always `preventDefault` so
+  the textarea's native history never diverges from the Y.Text) only walks back steps made during
+  this edit: it stops at the step that was newest when editing started (so it can never undo the
+  note's own creation or an earlier move while you type). Redo inside the editor only re-applies
+  steps undone inside that editor (a new keystroke clears them). After leaving the note, board-level
+  undo continues through everything. Undo/redo arrive at the editor like remote changes (origin is
+  the UndoManager, not LOCAL_ORIGIN), so the existing observer updates the textarea and keeps the
+  caret. During IME composition the shortcut is left to the input method.
+- **Where the controller reaches the editor:** `UndoContext` (React context provided by `Board`);
+  object components keep the registry's generic `ObjectProps`.
+- **Boundaries:** `Board` wraps note creation (button and double-click), colour change and the bar /
+  toolbar delete in `boundary()` before and after; `useBoardKeys` does the same around Delete and
+  each arrow-key nudge (each nudge is its own step). Edit start and end are boundaries (editor
+  mount/unmount).
+- **Shortcuts:** Ctrl/Cmd+Z undo; Ctrl/Cmd+Shift+Z and Ctrl+Y redo (Cmd+Y is not redo: it is the
+  browser's history shortcut on macOS). Alt combinations are ignored. They work from anywhere on the
+  board including a focused toolbar button, but not in inputs/textareas/contenteditable (e.g. the
+  share link field). While the board failed to load, shortcuts are ignored without
+  `preventDefault` and both buttons are disabled.
+- **Buttons** sit in the left `Tools` toolbar below the Sticky note button, in a `History` group with
+  a divider, with `disabled` and `aria-disabled`, tooltips "Undo (Ctrl/Cmd+Z)" and
+  "Redo (Ctrl/Cmd+Shift+Z)".
+- **History trimming** drops `undoStack[0]` while longer than UNDO_MAX_STEPS. Yjs's private
+  `keepItem` release is not exported, so the items of a dropped step stay un-garbage-collected in
+  this tab's document until reload (local memory only; the room's copy is unaffected).
+- **Redo is not cleared by other people's changes**, only by this person's own new changes
+  (unit TC-06b).
+- **E2E fixture** `undoRetroBoard()` (12 notes, varied colours and sizes, 2 × 4 cluster of 8) in
+  `tests/fixtures/boards.ts`. TC-24 is Chromium-only for the same reason as story 7's TC-36 (Firefox
+  delivers simultaneous input to only some of several windows); TC-22 and TC-23 pass in Chromium and
+  Firefox. WebKit still cannot launch on the build machine.
+- **Firefox flakiness under load (story 3 tests).** One full Chromium+Firefox run failed story 3's
+  Firefox TC-24 and TC-26 (1 s live-update budget / concurrent drag in two windows). Re-runs: with
+  this story, the two tests alone 6/6 and the whole live-collaboration file ×2 14/14; without it
+  (stashed) 6/6 and 14/14. Treated as the known contention on the single local workerd (story 4/5
+  notes), not a regression, but noted because the first failing run was with this story's code.
+- **Red phase.** Unit TC-01–TC-13 were run against a `createUndo` stub throwing "not implemented"
+  (all failed) before implementing; not committed separately (single story commit). Component
+  boundary tests were checked by mutation: passing `boundary` instead of `beginGesture/endGesture`
+  fails the held-still drag test, and removing the editor's start-of-edit stop fails TC-16.
+- **Not covered** (per design): object types from stories 9–12 and comments (story 16) — the
+  controller tracks the whole `objects` map, so they need no undo code; IME with the capture timeout
+  (manual). Presence (story 6) is not part of this build.
+- **Nightly soak (TC-30).** The first `npm run test:e2e:nightly` run with this story failed TC-30 on
+  its maximum (one delivery 1,173 ms > 1 s; p50 266 ms, p95 403 ms) while TC-29 ran alongside it.
+  TC-30 alone with this story: p50 252/263 ms, p95 439/421 ms, max 800/697 ms — passed twice;
+  without this story (stashed): p50 246 ms, p95 419 ms, max 690 ms. Same distribution; the outlier
+  is the local hibernation latency recorded in story 4.

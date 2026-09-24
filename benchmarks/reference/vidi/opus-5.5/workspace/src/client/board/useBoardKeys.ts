@@ -4,7 +4,14 @@ import { allObjectIds, deleteObjects, moveObjects, type ObjectSnapshot } from '.
 import { NUDGE_LARGE_STEP_WORLD, NUDGE_STEP_WORLD } from '../../shared/config';
 import type { Point } from '../../shared/geometry';
 import { getObjectType, isRegisteredType } from '../objects/registry';
+import { undoKey } from './undo';
 import type { Selection } from './useSelection';
+
+/** Undo/redo for the shortcuts (story 8): this tab's own history. */
+export interface UndoShortcuts {
+  undo(): void;
+  redo(): void;
+}
 
 export interface BoardKeysOptions {
   doc: Y.Doc;
@@ -13,7 +20,12 @@ export interface BoardKeysOptions {
   canEdit: boolean;
   /** Enter on a single selected object with editable text (story 2). */
   onStartEdit?(id: string): void;
+  /** Ctrl/Cmd+Z, Ctrl/Cmd+Shift+Z and Ctrl+Y (story 8). */
+  undo?: UndoShortcuts;
+  /** Closes the current undo step; called around each delete and nudge (story 8). */
+  boundary?(): void;
 }
+
 
 /** Unit direction per arrow key. */
 const ARROWS: Record<string, Point> = {
@@ -39,7 +51,8 @@ function isButtonTarget(target: EventTarget | null): boolean {
  * clear, arrows nudge (Shift: larger step), Delete/Backspace delete the selection, Enter edit a
  * single selected sticky. Ignored while text is being edited or focus is in a form field; the
  * mutating keys do nothing when the board cannot be edited. Handled keys are preventDefault-ed
- * (no page text selection, no page scroll, no board pan).
+ * (no page text selection, no page scroll, no board pan). Story 8: Ctrl/Cmd+Z undoes and
+ * Ctrl/Cmd+Shift+Z / Ctrl+Y redo this person's own steps (not while the board is read-only).
  */
 export function useBoardKeys(opts: BoardKeysOptions): void {
   const optsRef = useRef(opts);
@@ -48,9 +61,19 @@ export function useBoardKeys(opts: BoardKeysOptions): void {
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.defaultPrevented || e.altKey) return;
-      const { doc, selection, snapshot, canEdit, onStartEdit } = optsRef.current;
+      const { doc, selection, snapshot, canEdit, onStartEdit, undo, boundary } = optsRef.current;
+      // While a note is edited its editor handles undo itself (typing steps in that note).
       if (selection.editingId !== null || isEditableTarget(e.target)) return;
       const ctrlOrMeta = e.ctrlKey || e.metaKey;
+
+      const history = undoKey(e);
+      if (history !== null) {
+        if (!canEdit || !undo) return;
+        e.preventDefault();
+        if (history === 'undo') undo.undo();
+        else undo.redo();
+        return;
+      }
 
       if (ctrlOrMeta && (e.key === 'a' || e.key === 'A')) {
         e.preventDefault();
@@ -76,13 +99,17 @@ export function useBoardKeys(opts: BoardKeysOptions): void {
         for (const obj of snapshot) {
           if (selection.ids.has(obj.id)) positions.set(obj.id, { x: obj.x + arrow.x * step, y: obj.y + arrow.y * step });
         }
+        boundary?.();
         moveObjects(doc, positions);
+        boundary?.();
         return;
       }
       if (e.key === 'Delete' || e.key === 'Backspace') {
         e.preventDefault();
         if (!canEdit) return;
+        boundary?.();
         deleteObjects(doc, ids);
+        boundary?.();
         selection.clear();
         return;
       }
