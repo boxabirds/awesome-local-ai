@@ -29,6 +29,7 @@ async fn main() -> Result<()> {
             node,
             id,
             install_id,
+            combination,
             pack,
             scope,
             stories,
@@ -37,7 +38,8 @@ async fn main() -> Result<()> {
             no_record,
         } => {
             let spec = JobSpec {
-                install_id,
+                install_id: install_id.unwrap_or_default(),
+                combination,
                 pack: pack.trim_end_matches('/').to_string(),
                 scope,
                 stories,

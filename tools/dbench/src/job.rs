@@ -31,7 +31,17 @@ impl AgentClient {
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq)]
 #[serde(deny_unknown_fields)]
 pub struct JobSpec {
+    /// The install to run, as `<share-dir>/<install-id>/install.env` names it.
+    /// Either this or `combination`.
+    #[serde(default)]
     pub install_id: String,
+    /// Input alias for `install_id`: a combination's directory under
+    /// `<repo>/combinations/`, whose config.sh sets the install id. The node
+    /// resolves it at submit time and clears it, so a stored spec is always
+    /// keyed by install id however it was submitted -- which keeps the two
+    /// forms idempotent with each other.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub combination: Option<String>,
     pub pack: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub scope: Option<String>,
@@ -46,8 +56,16 @@ pub struct JobSpec {
 impl JobSpec {
     /// Checks that only depend on the spec itself (no filesystem).
     pub fn validate(&self) -> Result<(), String> {
-        if !valid_id(&self.install_id) {
-            return Err(format!("invalid install_id {:?}", self.install_id));
+        match (self.install_id.as_str(), self.combination.as_deref()) {
+            ("", None | Some("")) => return Err("give install_id or combination".into()),
+            (id, Some(c)) if !id.is_empty() => {
+                return Err(format!(
+                    "give install_id or combination, not both (got {id:?} and {c:?})"
+                ))
+            }
+            (id, None) if !valid_id(id) => return Err(format!("invalid install_id {id:?}")),
+            // A combination is a path; the node checks it against its repo checkout.
+            _ => {}
         }
         if !valid_id(&self.run_id) {
             return Err(format!("invalid run_id {:?}", self.run_id));
@@ -249,6 +267,7 @@ mod tests {
     pub fn spec() -> JobSpec {
         JobSpec {
             install_id: "mtplx-qwen38-27b".into(),
+            combination: None,
             pack: "benchmarks/vidi".into(),
             scope: Some("canvas".into()),
             stories: None,
