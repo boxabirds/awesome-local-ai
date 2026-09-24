@@ -1,0 +1,74 @@
+READ THIS FIRST -- NOT MEASURED BY THIS REPO
+  Every number here is the recipe author's, measured on a BARE RTX 3090
+  24 GB (0xSero/local-ai-registry PR #83). Nobody has run this combination
+  through this installer yet. If you are the first, see README 'First run'.
+
+  * Architecture: the image's kernels are built only for sm_86 (RTX 3090 /
+    Ampere GA102; image env TORCH_CUDA_ARCH_LIST=8.6). An RTX 4090 (sm_89)
+    or 5090 (sm_120) is UNTESTED; the launcher warns on anything but sm_86.
+  * Quantization: 3.00 bpw EXL3. That is fewer bits than the llama.cpp 27B
+    combination's UD-Q4_K_XL, so its speed is not like-for-like on quality.
+  * The 262k window needs a bare card. A GPU that also drives a desktop
+    cannot hold it: use PROFILE=desktop (EXTRAPOLATED, never run).
+
+PROFILE DETAIL
+  full     262,144 ctx  --mem-fraction-static 0.88  prefill graphs off
+      >> DEFAULT. The PR #83 argv. Author's acceptance run on a bare 3090:
+      correctness gate, coherence ladder to a 258,040-token prompt (TTFT
+      544 s), 10-minute soak at 32k (14 requests, 0 failures).
+      Per-stream decode at C1, MTP on, fp8 KV:
+          prose, thinking off      98.8 tok/s
+          code,  thinking off     143.3 tok/s
+          prose, thinking on      146.6 tok/s
+          prose, 32k prompt        89.6 tok/s   cold prefill 904 tok/s
+      Peak device memory 23.04 GiB.
+
+  graphs   204,800 ctx  --mem-fraction-static 0.80  prefill graphs on
+      The registry's current argv (PR #92): prefill CUDA graph capture needs
+      1.37 GB, which only fits at this context and fraction. Author check on
+      the bare card: 93-137 tok/s on short answers, 41k and 152k prompts
+      answered. No full sweep was published for it.
+
+  desktop   49,152 ctx  --mem-fraction-static 0.80  prefill graphs on
+      EXTRAPOLATED -- arithmetic only (see profiles.tsv). For a card with
+      ~5 GB already taken by a desktop. The recipe itself only says to
+      lower --context-length there.
+
+HOW IT RUNS
+  <this command> starts the digest-pinned image with docker run --gpus,
+  publishes HOST:PORT -> 30000 in the container, mounts the weights
+  read-only at /models/turboderp-Qwen3.8-27B-exl3-3.00bpw, and passes the
+  recipe's environment and argv. Ctrl-C / SIGTERM runs `docker stop`.
+
+ENVIRONMENT OVERRIDES
+  PORT=30000         HOST=127.0.0.1     GPU_DEVICE=0 (index or UUID)
+  CTX=<tokens>       MEM_FRACTION=<0-1> (either one skips the VRAM pre-flight)
+  THINKING=1|0       REASONING_EFFORT=low|medium|xhigh|default
+  MODEL_ALIAS=<id>   SGLANG_MODEL_CACHE=<dir>   QWEN38_EXL3_ROOT=<dir>
+
+THINKING AND REASONING EFFORT
+  On by default. SGLang's qwen3 reasoning parser returns reasoning in
+  reasoning_content, separate from content.
+
+  Effort is set SERVER-side (--default-chat-template-kwargs), because
+  OpenCode drops a per-request effort. This install defaults to 'low'.
+  The template at this revision accepts xhigh (its default), medium and
+  low, and RAISES on anything else ('high' is not an alias here), so the
+  launcher refuses an unknown value before loading. A client that sends
+  chat_template_kwargs per request still overrides the default.
+  The recipe's own thinking-on numbers ran at the template default, xhigh.
+
+  THINKING=0 sets enable_thinking=false server-side. No sampling preset is
+  swapped: SGLang uses the checkpoint's generation_config.json.
+
+SECURITY
+  HOST defaults to 127.0.0.1 and there is NO authentication. HOST=0.0.0.0
+  publishes an unauthenticated model server to your network.
+
+EXAMPLES
+  qwen38-27b-exl3-sglang-server                         # 262k, bare card
+  # API: http://127.0.0.1:30000/v1  model id: turboderp-Qwen3.8-27B-exl3-3.00bpw
+  PROFILE=graphs qwen38-27b-exl3-sglang-server          # 200k, prefill graphs
+  PROFILE=desktop qwen38-27b-exl3-sglang-server         # card also drives a desktop
+  GPU_DEVICE=1 qwen38-27b-exl3-sglang-server            # second GPU
+  REASONING_EFFORT=xhigh qwen38-27b-exl3-sglang-server  # the template's default

@@ -80,6 +80,11 @@ OUTPUT_LIMIT="${OUTPUT_LIMIT}"
 SERVER_CMD="${SERVER_CMD}"
 SESSION_CMD="${SESSION_CMD}"
 EOF
+  # Backend-specific manifest fields (e.g. a container image digest and argv),
+  # printed by the backend as ready-quoted KEY=value lines.
+  if declare -F backend_manifest_extra >/dev/null; then
+    backend_manifest_extra >> "${INSTALL_ROOT}/install.env"
+  fi
   ok "Manifest: ${INSTALL_ROOT}/install.env"
 
   local runtime_src="${LIB_DIR}/runtime/server-${BACKEND}.sh"

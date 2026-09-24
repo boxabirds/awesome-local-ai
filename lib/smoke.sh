@@ -72,12 +72,15 @@ smoke_test() {
     [[ -n "$SMOKE_FREE" ]] && (( SMOKE_FREE < 500 )) && \
       warn "Only ${SMOKE_FREE} MiB headroom -- consider a smaller profile."
 
-    # Generation must actually work, not just bind a port.
+    # Generation must actually work, not just bind a port. A backend may add
+    # request fields (SMOKE_REQUEST_EXTRA, a JSON fragment) -- e.g. to turn
+    # thinking off, so a model whose template defaults to long reasoning does
+    # not spend all 256 tokens thinking and return an empty answer.
     local reply
     reply=$(curl -sf "http://127.0.0.1:${port}/v1/chat/completions" \
       -H 'Content-Type: application/json' \
-      -d '{"messages":[{"role":"user","content":"Reply with exactly: OK"}],"max_tokens":256}' \
-      | python3 -c 'import sys,json;print(json.load(sys.stdin)["choices"][0]["message"]["content"].strip())' 2>/dev/null || echo "")
+      -d '{"messages":[{"role":"user","content":"Reply with exactly: OK"}],"max_tokens":256'"${SMOKE_REQUEST_EXTRA:+,${SMOKE_REQUEST_EXTRA}}"'}' \
+      | python3 -c 'import sys,json;print((json.load(sys.stdin)["choices"][0]["message"]["content"] or "").strip())' 2>/dev/null || echo "")
     if [[ -n "$reply" ]]; then
       SMOKE_GEN="ok"
       ok "Generation OK (model replied: '${reply:0:40}')"

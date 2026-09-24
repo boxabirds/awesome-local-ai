@@ -1,0 +1,63 @@
+READ THIS FIRST -- NOT MEASURED BY THIS REPO
+  Every number here is the recipe author's, measured on a BARE RTX 3090
+  24 GB (0xSero/local-ai-registry PR #83). The registry lists this recipe
+  as "candidate", not "validated". Nobody has run this combination through
+  this installer yet. If you are the first, see README 'First run'.
+
+  * Architecture: the image's kernels are built only for sm_86 (RTX 3090 /
+    Ampere GA102; image env TORCH_CUDA_ARCH_LIST=8.6). An RTX 4090 (sm_89)
+    or 5090 (sm_120) is UNTESTED; the launcher warns on anything but sm_86.
+  * Quantization: 3.00 bpw EXL3 (5-bit head). Its speed is not comparable
+    on quality with any 4-bit build, and no quality measurement exists.
+  * The 262k window needs a bare card. PROFILE=desktop is EXTRAPOLATED and
+    may not start at all.
+  * PR #83 stated the published v0.5.1 image had not been booted with these
+    exact argv at merge time; the registry records no boot for this recipe
+    since.
+
+PROFILE DETAIL
+  full     262,144 ctx  --mem-fraction-static 0.85  prefill graphs off
+      >> DEFAULT. The recipe argv. Author's acceptance run on a bare 3090:
+      coherence ladder to a 257,971-token prompt (TTFT 172 s), 10-minute
+      soak at 32k with two streams (63 requests, 0 failures).
+      Per-stream decode at C1, MTP on, fp8 KV:
+          prose, thinking off     251.9 tok/s
+          code,  thinking off     352.1 tok/s
+          prose, thinking on      329.4 tok/s
+          prose, 32k prompt       214.3 tok/s   cold prefill ~4.5k tok/s
+      Two streams, aggregate: 388.5 prose / 531.5 code (thinking off).
+      Peak device memory 21.90 GiB.
+
+  desktop   32,768 ctx  --mem-fraction-static 0.92  prefill graphs off
+      EXTRAPOLATED -- arithmetic only (see profiles.tsv). With ~5 GB taken by
+      a desktop, the recipe's 0.85 leaves no KV pool at all by that
+      arithmetic, so this raises the static fraction and shrinks SGLang's
+      activation reserve. Untested; it may OOM at start or on a long prompt.
+
+HOW IT RUNS
+  <this command> starts the digest-pinned image with docker run --gpus,
+  publishes HOST:PORT -> 30000 in the container, mounts the weights
+  read-only at /models/Qwen3.6-35B-A3B-EXL3-3.00bpw-H5, and passes the
+  recipe's environment and argv. Ctrl-C / SIGTERM runs `docker stop`.
+
+ENVIRONMENT OVERRIDES
+  PORT=30000         HOST=127.0.0.1     GPU_DEVICE=0 (index or UUID)
+  CTX=<tokens>       MEM_FRACTION=<0-1> (either one skips the VRAM pre-flight)
+  THINKING=1|0       MODEL_ALIAS=<id>
+  SGLANG_MODEL_CACHE=<dir>              QWEN36_EXL3_ROOT=<dir>
+
+THINKING
+  On by default; reasoning is returned in reasoning_content. This
+  revision's chat template has no reasoning_effort at all -- only
+  enable_thinking -- so REASONING_EFFORT is not supported here.
+  THINKING=0 sets enable_thinking=false server-side
+  (--default-chat-template-kwargs), which OpenCode cannot do per request.
+
+SECURITY
+  HOST defaults to 127.0.0.1 and there is NO authentication.
+
+EXAMPLES
+  qwen36-35b-a3b-exl3-sglang-server                  # 262k, bare card
+  # API: http://127.0.0.1:30000/v1  model id: Qwen3.6-35B-A3B-EXL3-3.00bpw-H5
+  THINKING=0 qwen36-35b-a3b-exl3-sglang-server       # no reasoning
+  GPU_DEVICE=1 qwen36-35b-a3b-exl3-sglang-server     # second GPU
