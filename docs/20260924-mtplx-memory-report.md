@@ -19,26 +19,39 @@ Each item is labelled:
 | Client | pi 0.86.0, one agent session per task; context grows to ~115k, then pi compacts |
 | Workload | coding-agent benchmark: many tool calls per session, prompt-prefix reuse via the session bank |
 
-## 1. 2.12.0 at stock: process memory runs past the engine budget (measured)
+## 1. 2.12.0 at stock: the guard works, but host overhang climbs all session (measured)
 
-This covers 562 requests over about 1.5 hours of continuous agent use after 11:30. There were no 507 refusals.
+The first version of this section said memory "overshot the budget". That was wrong: it read the process footprint without the host allowance. The guard's own events give the real picture.
 
-| Context band | Requests | Max `active_memory_bytes` | Max `peak_memory_bytes` |
-|---|---|---|---|
-| 0–32k | 48 | 97.6 GiB | 98.0 GiB |
-| 32–64k | 193 | 95.1 GiB | 98.0 GiB |
-| 64–96k | 192 | 96.0 GiB | 100.4 GiB |
-| 96k+ | 129 | 100.4 GiB | 100.4 GiB |
+**What the guard reports.** The server logged 23 `prefill_admission_shed` events since it last started, covering stories 5 and 7 of the run with continuous agent use. Every one shows the same settings:
+- `limit_bytes` 96.0 GiB;
+- `threshold_bytes` 93.1 GiB;
+- `host_allowance_bytes` 16.0 GiB.
 
-- 516 of the 562 requests logged `peak_memory_bytes` above 96 GiB, at contexts from 2.6k to 128.6k.
-- The highest reading was active = peak = 100.4 GiB, at context 128,606.
-- macOS `footprint -p` on the server's Python process, sampled every 15 s, read 92–102 GB. `phys_footprint_peak` was 104 GB.
-- The machine stayed healthy: swap flat at ~0.6 GB, free memory at 24–28%.
+**It behaves as designed:**
+- It clears the allocator cache and admits the prompt when the projection after clearing is within the limit.
+- It has refused one prompt so far: 75,961 tokens, projected 96.5 GiB after clearing. The client forked the session and carried on.
 
-**Question:** what is the default engine limit on a 128 GB machine, and which number does the guard compare against it?
-- I had understood the default to be 75% of RAM (96 GiB).
-- If that is right, active memory went 4.4 GiB over it and the guard never refused anything.
-- If the limit excludes something by design (the weights, the n-gram table mapping, the session bank's 15.8 GB ceiling), it would help to know what is excluded, so users can size headroom.
+**What climbs steadily: `host_overhang_bytes`.** Selected events, in order:
+
+| Event | Prompt tokens | `active_bytes` | `host_overhang_bytes` | `phys_footprint_bytes` |
+|---|---|---|---|---|
+| 1st | 34,794 | 88.4 GiB | 1.0 GiB | 92.3 GiB |
+| 4th | 97,583 | 88.1 GiB | 1.9 GiB | 97.8 GiB |
+| 10th | 109,971 | 81.8 GiB | 10.9 GiB | 100.6 GiB |
+| 15th | 24,210 | 89.7 GiB | 13.1 GiB | 107.6 GiB |
+| 21st (the refusal) | 75,961 | 93.3 GiB | 13.2 GiB | 109.2 GiB |
+| 23rd | 31,113 | 86.0 GiB | 13.3 GiB | 107.4 GiB |
+
+- The GPU-side `active_bytes` stays in an 82–93 GiB band throughout.
+- `host_overhang_bytes` rises from 1.0 to 13.3 GiB and never comes back down. Pi compacts several times in this span, and cache clears happen too.
+- One raw event reported `phys_footprint_bytes` at 115.3 GB (107.4 GiB), which fell to 109.5 GB once the cache was cleared.
+- The machine stayed healthy: swap flat at 0.6–1.6 GB, and free memory mostly 20–28%, dipping to 16%.
+
+**Questions:**
+1. What is the host overhang made of, and is it meant to grow without bound until it reaches the 16 GiB allowance? Candidates I can think of: n-gram table pages streamed from SSD, the session bank's cold tier, or Python-side buffers. What happens when it reaches 16 GiB?
+2. Is 96 GiB GPU plus 16 GiB host (about 120 GB) the intended ceiling on a 128 GB machine? That leaves about 8 GB for macOS and everything else.
+3. The request log's `active_memory_bytes`/`peak_memory_bytes` reached 100.4 GiB, at context 128,606, while no guard event ever saw `active_bytes` above 93.3 GiB. Is the request-log figure taken at a different point, such as the peak during decode or MTP verify? If so, are transients above the 96 GiB limit expected?
 
 Health at startup: `session_bank.max_bytes` 16.8 GB, `effective_max_bytes` 15.8 GB, `per_session_max_bytes` 8.4 GB, `max_entries` 48.
 
@@ -55,7 +68,7 @@ panic(cpu 6 caller 0xfffffe003c321d7c): watchdog timeout: no checkins from watch
 - **What I think is plausible, but unproven:** the model's working set plus a ~10 GB leak left too little room for the rest of the system.
 - **Earlier warnings:** JetsamEvent reports on 18 Sep 15:00, 23 Sep 13:51 and 23 Sep 17:31, all on earlier MTPLX versions, show ~82 GiB wired and 0.4 GiB free.
 
-Why I'm raising it anyway: 2.12.0 at stock (section 1) runs about 3 GiB higher than the 2.11.3 pre-panic readings. On a 128 GB machine that leaves little margin for anything else the user runs.
+Why I'm raising it anyway: on 2.12.0 at stock, the process footprint reaches 107–109 GiB (section 1). That is well above the 2.11.3 pre-panic readings, so on a 128 GB machine there is little margin for anything else the user runs.
 
 ## 3. 2.12.0 with `MTPLX_MEMORY_LIMIT_BYTES=88G` (measured, confounded)
 
