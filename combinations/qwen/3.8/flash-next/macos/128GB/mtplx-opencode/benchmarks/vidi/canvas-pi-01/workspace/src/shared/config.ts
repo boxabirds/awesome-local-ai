@@ -23,22 +23,20 @@ export const GRID_SPACING_WORLD = 24;
 /** How far the unbounded-board requirement is tested (world units). */
 export const UNBOUNDED_PAN_TESTED_EXTENT = 1_000_000;
 
-/* --------------------------------------------------------------------------
- * Story 2 · sticky notes. All the tunables the design names live here so a
- * designer can change note geometry, colours, text limits and the font range
- * in one place (PRD "Settings").
- * ------------------------------------------------------------------------ */
+/* ---- Story 2 · sticky notes (design "Named settings") --------------------
+ * These are the story-2 product settings, defined once here so a designer can
+ * retune notes without a redesign (PRD "Settings"). */
 
-/** Sticky note edge length in world units (a square note). */
+/** Sticky note edge length in world units (notes are square). */
 export const STICKY_SIZE_WORLD = 200;
 
-/** Maximum number of characters kept in a note. */
+/** Maximum characters kept in one note; extra characters are dropped. */
 export const STICKY_TEXT_MAX_CHARS = 1000;
 
-/** The character counter appears once this few characters remain. */
+/** The character counter appears once the remaining budget is <= this. */
 export const STICKY_COUNTER_THRESHOLD_CHARS = 50;
 
-/** Largest note font size (px at 100% zoom). */
+/** Largest note font size, in world units (at 100% zoom). */
 export const STICKY_FONT_MAX_PX = 24;
 
 /** Smallest note font size before text is clipped with a fade. */
@@ -47,7 +45,7 @@ export const STICKY_FONT_MIN_PX = 10;
 /** Pointer travel (screen px) before a press becomes a drag. */
 export const DRAG_THRESHOLD_PX = 3;
 
-/** The six sticky colours (design "Change colour"). */
+/** The six preset note colours, keyed by their accessible name. */
 export const STICKY_COLORS = {
   yellow: '#FFF59D',
   orange: '#FFCC80',

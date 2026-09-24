@@ -854,6 +854,605 @@
         "low_power": false,
         "thermal": "nominal"
       },
+      "started": 1790224803.535155,
+      "agent": {
+        "seconds": 2447.9,
+        "steps": 115,
+        "tool_calls": 130,
+        "compactions": 1,
+        "tool_interruptions": 0,
+        "tokens": {
+          "input": 135457,
+          "output": 124781,
+          "reasoning": 72759,
+          "cache_read": 7752554,
+          "cache_write": 0
+        },
+        "exit": 0,
+        "stalled": false,
+        "resumes": 0,
+        "nudges": 0,
+        "errors": [],
+        "ended_in_error": false,
+        "sessions": [
+          "01a0d1b6-a796-74d7-b8d3-620424e0055b"
+        ]
+      },
+      "agent_finished": 1790227251.528833,
+      "conditions": {
+        "samples": 81,
+        "degraded": false,
+        "throttled_share": 0.91,
+        "bad_samples": [
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "moderate",
+            "t": 1790225043.73385
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790225073.764092
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790225103.788615
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790225133.81867
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790225163.8456671
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790225193.868351
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790225223.890128
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790225253.921865
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790225283.950711
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790225313.972922
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790225343.998348
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790225374.0236
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790225404.054156
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790225434.084079
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790225464.113733
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790225494.134441
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790225524.1636999
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790225554.1981518
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790225584.227813
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790225614.2619982
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790225644.290118
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790225674.3217611
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790225704.350235
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790225734.3770611
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790225764.4049568
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790225794.4287
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790225824.4576828
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790225854.489578
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790225884.522217
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790225914.555146
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790225944.575309
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790225974.604522
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790226004.634569
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790226034.664122
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790226064.714606
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790226094.7417028
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790226124.774245
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790226154.8058891
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790226184.835757
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790226214.8693602
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790226244.901435
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790226274.9591832
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790226304.993113
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790226335.023346
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790226365.041887
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790226395.071446
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790226425.091883
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790226455.1222541
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790226485.1511302
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790226515.171923
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790226545.2071471
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790226575.2366478
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790226605.263297
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790226635.294127
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790226665.324765
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790226695.362668
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790226725.384269
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790226755.4138901
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790226785.443302
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790226815.4730518
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790226845.507762
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790226875.5339751
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790226905.560098
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790226935.590079
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790226965.623528
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790226995.644543
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "moderate",
+            "t": 1790227025.6709068
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "moderate",
+            "t": 1790227055.697453
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "moderate",
+            "t": 1790227085.729323
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "moderate",
+            "t": 1790227115.7588422
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "moderate",
+            "t": 1790227145.7893171
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790227175.821026
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790227205.854795
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790227235.888916
+          }
+        ]
+      },
+      "agent_commits": 3,
+      "gate": {
+        "steps": {
+          "install": {
+            "cmd": "npm ci",
+            "exit": 0,
+            "seconds": 2.8,
+            "tail": "\nadded 138 packages, and audited 139 packages in 3s\n\n31 packages are looking for funding\n  run `npm fund` for details\n\nfound 0 vulnerabilities\nnpm warn allow-scripts 3 packages have install scripts not yet covered by allowScripts:\nnpm warn allow-scripts   esbuild@0.28.1 (postinstall: node install.js)\nnpm warn allow-scripts   fsevents@2.3.3 (install: (install scripts present))\nnpm warn allow-scripts   workerd@1.20260921.1 (postinstall: node install.js)\nnpm warn allow-scripts\nnpm warn allow-scripts Run `npm approve-scripts --allow-scripts-pending` to review, or `npm approve-scripts <pkg>` to allow.\n"
+          },
+          "build": {
+            "cmd": "npm run build",
+            "exit": 0,
+            "seconds": 0.9,
+            "tail": "\n> vidi6@0.0.0 build\n> vite build\n\n\u001b[36mvite v8.3.0 \u001b[32mbuilding client environment for production...\u001b[36m\u001b[39m\ntransforming...\n\u2713 67 modules transformed.\nrendering chunks...\ncomputing gzip size...\ndist/client/index.html                   0.39 kB \u2502 gzip:  0.26 kB\ndist/client/assets/index-B9q0u44v.css    3.95 kB \u2502 gzip:  1.24 kB\ndist/client/assets/index-BnSmH6Qj.js   300.07 kB \u2502 gzip: 93.91 kB\n\n\u001b[32m\u2713 built in 210ms\u001b[39m\n",
+            "passed": null,
+            "failed": null
+          },
+          "typecheck": {
+            "cmd": "npm run typecheck",
+            "exit": 0,
+            "seconds": 1.0,
+            "tail": "\n> vidi6@0.0.0 typecheck\n> tsc --noEmit\n\n",
+            "passed": null,
+            "failed": null
+          },
+          "test:unit": {
+            "cmd": "npm run test:unit",
+            "exit": 0,
+            "seconds": 0.6,
+            "tail": "\n> vidi6@0.0.0 test:unit\n> vitest run --project unit\n\n\n RUN  v5.0.1 /Users/julian/.vidi-bench/work/qwen__3.8__flash-next__macos__128GB__mtplx-opencode__benchmarks__vidi__canvas-pi-01/workspace\n\n\n Test Files  3 passed (3)\n      Tests  53 passed (53)\n   Start at  06:20:56\n   Duration  132ms (transform 49%, import 29%, tests 19%, worker 3%)\n\n",
+            "passed": 53,
+            "failed": 0
+          },
+          "test:component": {
+            "cmd": "npm run test:component",
+            "exit": 0,
+            "seconds": 1.3,
+            "tail": "\n> vidi6@0.0.0 test:component\n> vitest run --project component\n\n\n RUN  v5.0.1 /Users/julian/.vidi-bench/work/qwen__3.8__flash-next__macos__128GB__mtplx-opencode__benchmarks__vidi__canvas-pi-01/workspace\n\n\n Test Files  6 passed (6)\n      Tests  40 passed (40)\n   Start at  06:20:57\n   Duration  1.06s (environment 48%, tests 27%, transform 11%, setup 10%, import 3%)\n\n",
+            "passed": 40,
+            "failed": 0
+          },
+          "test:integration": {
+            "exit": "missing"
+          },
+          "test:e2e": {
+            "cmd": "npm run test:e2e -- --project=chromium",
+            "exit": 1,
+            "seconds": 3.7,
+            "tail": " /assets/index-CDOmDTX0.js 200 OK (42ms)\n[WebServer] [wrangler:info] GET /assets/index-B9q0u44v.css 200 OK (41ms)\n[WebServer] [wrangler:info] GET /assets/index-B9q0u44v.css 200 OK (41ms)\n[WebServer] [wrangler:info] GET /assets/index-B9q0u44v.css 200 OK (41ms)\n[WebServer] [wrangler:info] GET /assets/index-CDOmDTX0.js 200 OK (42ms)\n  \u2713   4 [chromium] \u203a tests/e2e/board.spec.ts:340:1 \u203a TC-30: Ctrl + scroll over the zoom control does not zoom the board (537ms)\n[WebServer] [wrangler:info] GET / 200 OK (2ms)\n[WebServer] [wrangler:info] GET /assets/index-CDOmDTX0.js 200 OK (2ms)\n  \u2713   3 [chromium] \u203a tests/e2e/board.spec.ts:113:1 \u203a TC-24: Ctrl + scroll zooms about the pointer and the dot under it stays put (589ms)\n[WebServer] [wrangler:info] GET /assets/index-B9q0u44v.css 200 OK (8ms)\n  \u2713   6 [chromium] \u203a tests/e2e/board.spec.ts:183:1 \u203a TC-26: reset view recentres after a long jump at 400% (596ms)\n[WebServer] [wrangler:info] GET / 200 OK (2ms)\n[WebServer] [wrangler:info] GET / 200 OK (2ms)\n[WebServer] [wrangler:info] GET /assets/index-CDOmDTX0.js 200 OK (4ms)\n[WebServer] [wrangler:info] GET /assets/index-B9q0u44v.css 200 OK (3ms)\n  \u2713   2 [chromium] \u203a tests/e2e/board.spec.ts:31:1 \u203a the first-use hint is shown and the first drag removes it (647ms)\n[WebServer] [wrangler:info] GET /assets/index-CDOmDTX0.js 200 OK (7ms)\n[WebServer] [wrangler:info] GET /assets/index-B9q0u44v.css 200 OK (7ms)\n[WebServer] [wrangler:info] GET / 200 OK (2ms)\n[WebServer] [wrangler:info] GET /assets/index-CDOmDTX0.js 200 OK (3ms)\n[WebServer] [wrangler:info] GET /assets/index-B9q0u44v.css 200 OK (8ms)\n  \u2713   9 [chromium] \u203a tests/e2e/sticky.spec.ts:39:1 \u203a TC-30 golden path: double-click \u2192 type \u2192 recolour \u2192 delete (802ms)\n  \u2713   5 [chromium] \u203a tests/e2e/board.spec.ts:52:1 \u203a TC-23: a drag of (200,100) moves the marker and the dot grid by exactly that delta (968ms)\n  \u2713   7 [chromium] \u203a tests/e2e/board.spec.ts:210:1 \u203a TC-27: panning far from the origin keeps exact movement and grid spacing (1.0s)\n  \u2713  12 [chromium] \u203a tests/e2e/sticky.spec.ts:156:1 \u203a TC-33: long text shrinks to fit then fades, and nothing overflows the note (413ms)\n  \u2713  13 [chromium] \u203a tests/e2e/sticky.spec.ts:203:1 \u203a TC-34: the Sticky note button creates a centred note even when panned far away (394ms)\n  \u2713   8 [chromium] \u203a tests/e2e/board.spec.ts:265:1 \u203a TC-31: board gestures drive the board and never zoom or scroll the page (1.1s)\n  \u2713  10 [chromium] \u203a tests/e2e/sticky.spec.ts:77:1 \u203a TC-31: at 50% zoom a (100,50) drag keeps the grabbed point under the pointer (675ms)\n  \u2718  11 [chromium] \u203a tests/e2e/sticky.spec.ts:112:1 \u203a TC-32: at 200% zoom a (100,50) drag moves world (+50,+25) and raises the note (681ms)\n  \u2713   1 [chromium] \u203a tests/e2e/board.spec.ts:142:1 \u203a TC-25: the zoom-in button disables at 400% and the board stops zooming (1.5s)\n\n\n  1) [chromium] \u203a tests/e2e/sticky.spec.ts:112:1 \u203a TC-32: at 200% zoom a (100,50) drag moves world (+50,+25) and raises the note \n\n    Error: expected 6.25 to be within 1.5px of 50.00\n\n    expect(received).toBeLessThanOrEqual(expected)\n\n    Expected: <= 1.5\n    Received:    43.75\n\n       at helpers/sticky.ts:79\n\n      77 |     Math.abs(actual - expected),\n      78 |     `expected ${actual.toFixed(2)} to be within ${tolerance}px of ${expected.toFixed(2)}`,\n    > 79 |   ).toBeLessThanOrEqual(tolerance);\n         |     ^\n      80 | }\n      81 |\n      82 | /**\n        at expectClose (/Users/julian/.vidi-bench/work/qwen__3.8__flash-next__macos__128GB__mtplx-opencode__benchmarks__vidi__canvas-pi-01/workspace/tests/e2e/helpers/sticky.ts:79:5)\n        at /Users/julian/.vidi-bench/work/qwen__3.8__flash-next__macos__128GB__mtplx-opencode__benchmarks__vidi__canvas-pi-01/workspace/tests/e2e/sticky.spec.ts:145:3\n\n    Error Context: test-results/sticky-TC-32-at-200-zoom-a-88b16-d-50-25-and-raises-the-note-chromium/error-context.md\n\n  1 failed\n    [chromium] \u203a tests/e2e/sticky.spec.ts:112:1 \u203a TC-32: at 200% zoom a (100,50) drag moves world (+50,+25) and raises the note \n  12 passed (2.9s)\n",
+            "passed": 12,
+            "failed": 1
+          }
+        },
+        "all_green": false
+      },
+      "accept": {
+        "build_exit": 0,
+        "runner_exit": 1,
+        "runner_tail": "",
+        "passed": 18,
+        "total": 20,
+        "by_story": {
+          "01": {
+            "passed": 9,
+            "total": 10
+          },
+          "02": {
+            "passed": 9,
+            "total": 10
+          }
+        }
+      },
+      "commit": "51ef0cf95e017235c31f86b3fe32b734b8442ef9",
+      "requests": {
+        "requests": 116,
+        "prompt_tokens": 7956044,
+        "completion_tokens": 126418,
+        "cached_tokens": 7752554,
+        "ttft_median_s": 1.179316584020853,
+        "prefill_tok_s_median": 448.52247991245457,
+        "decode_tok_s_median": 65.8892473979823,
+        "max_context": 115633,
+        "decode_by_context": {
+          "0-16k": {
+            "requests": 2,
+            "decode_tok_s_median": 84.6914400498311
+          },
+          "16-32k": {
+            "requests": 8,
+            "decode_tok_s_median": 71.9615406003836
+          },
+          "32-64k": {
+            "requests": 40,
+            "decode_tok_s_median": 64.60294156187958
+          },
+          "64-100k": {
+            "requests": 48,
+            "decode_tok_s_median": 65.8892473979823
+          },
+          "100-+k": {
+            "requests": 18,
+            "decode_tok_s_median": 66.77860400529995
+          }
+        }
+      },
+      "loc": {
+        "files": 34,
+        "lines": 5166
+      },
+      "finished": 1790227278.444905
+    }
+  },
+  "scope": "canvas",
+  "model_id": "mtplx-flash-next-optimized-speed",
+  "client": "pi",
+  "superseded": {
+    "2": {
+      "title": "Capture ideas on sticky notes and rearrange them",
+      "conditions_start": {
+        "ac": true,
+        "low_power": false,
+        "thermal": "nominal"
+      },
       "started": 1790203332.5845492,
       "agent": {
         "seconds": 180.6,
@@ -1004,10 +1603,12 @@
         "files": 19,
         "lines": 2867
       },
-      "finished": 1790203544.461757
+      "finished": 1790203544.461757,
+      "record": {
+        "committed": true,
+        "pushed": true,
+        "commit": "a36d154"
+      }
     }
-  },
-  "scope": "canvas",
-  "model_id": "mtplx-flash-next-optimized-speed",
-  "client": "pi"
+  }
 }

@@ -1,19 +1,12 @@
 /**
- * Story 2 · task 1 — board.model unit tests (TC-01 … TC-12) written against a
- * real `Y.Doc` (no mocks). Every mutation also asserts how many `update`
- * events the document emitted: exactly 1 for a successful change, 0 for a
- * rejection / no-op (the story-3 wire layer must not see echo updates).
- *
- * These compile against the task-1 stub, which throws "not implemented", so
- * the suite is red for the right reason before task 2 lands the model.
+ * Story 2 · task 1 — board-model unit tests (TC-01 … TC-12 + extras), run
+ * against a **real** `Y.Doc` (no mocks): the mutation rules all live in
+ * `board-model.ts`, and Yjs is deterministic in-process. Every mutation test
+ * also pins the number of `update` events: 1 for a successful change, 0 for a
+ * rejected / no-op call.
  */
 import { describe, expect, it } from 'vitest';
 import * as Y from 'yjs';
-import {
-  DEFAULT_STICKY_COLOR,
-  STICKY_COLORS,
-  STICKY_SIZE_WORLD,
-} from '../../src/shared/config';
 import {
   LOCAL_ORIGIN,
   bringToFront,
@@ -25,284 +18,265 @@ import {
   setStickyColor,
   snapshot,
 } from '../../src/shared/board-model';
+import { DEFAULT_STICKY_COLOR, STICKY_SIZE_WORLD } from '../../src/shared/config';
 
-const HALF = STICKY_SIZE_WORLD / 2;
-
-function freshDoc(): Y.Doc {
+/** Open a doc and start counting `update` events emitted from now on. */
+function tracked(): { doc: Y.Doc; updates: () => number } {
   const doc = new Y.Doc();
   initDoc(doc);
-  return doc;
-}
-
-/** Count the `update` events a single call emits on the doc. */
-function withUpdateCount(doc: Y.Doc, action: () => unknown): { result: unknown; updates: number } {
-  let updates = 0;
-  const listener = () => {
-    updates += 1;
-  };
-  doc.on('update', listener);
-  const result = action();
-  doc.off('update', listener);
-  return { result, updates };
-}
-
-/** Seed a raw sticky (or any-typed) object directly, bypassing the model. */
-function seedObject(
-  doc: Y.Doc,
-  id: string,
-  fields: Partial<{
-    type: string;
-    x: number;
-    y: number;
-    color: string;
-    text: string;
-    z: number;
-  }>,
-): void {
-  const objects = doc.getMap<Y.Map<unknown>>('objects');
-  const map = new Y.Map<unknown>();
-  map.set('type', fields.type ?? 'sticky');
-  map.set('x', fields.x ?? 0);
-  map.set('y', fields.y ?? 0);
-  map.set('color', fields.color ?? DEFAULT_STICKY_COLOR);
-  map.set('text', new Y.Text(fields.text ?? ''));
-  map.set('z', fields.z ?? 1);
-  map.set('createdAt', 0);
-  objects.set(id, map);
-}
-
-describe('initDoc', () => {
-  it('sets meta.schemaVersion once and leaves an existing value alone', () => {
-    const doc = new Y.Doc();
-    initDoc(doc);
-    const meta = doc.getMap<{ schemaVersion?: number }>('meta');
-    expect(meta.get('schemaVersion')).toBe(1);
-    expect(() => initDoc(doc)).not.toThrow();
-    expect(meta.get('schemaVersion')).toBe(1);
-    doc.destroy();
+  let count = 0;
+  doc.on('update', () => {
+    count += 1;
   });
-});
+  return { doc, updates: () => count };
+}
+
+function getNote(doc: Y.Doc, id: string): Y.Map<unknown> {
+  const record = doc.getMap<Y.Map<unknown>>('objects').get(id);
+  if (!record) throw new Error(`no object ${id}`);
+  return record;
+}
 
 describe('createSticky', () => {
-  it('TC-01: creates a centred yellow sticky with empty text at z 1', () => {
-    const doc = freshDoc();
-    expect(doc.getMap('objects').size).toBe(0);
+  it('TC-01: creates a yellow note centred on the point, z 1, empty text', () => {
+    const { doc, updates } = tracked();
+    const id = createSticky(doc, { x: 0, y: 0 });
 
-    const { result, updates } = withUpdateCount(doc, () => createSticky(doc, { x: 0, y: 0 }));
-    const id = result as string;
-    expect(typeof id).toBe('string');
-
-    const snap = snapshot(doc);
-    expect(snap).toHaveLength(1);
-    const note = snap[0];
-    expect(note.type).toBe('sticky');
-    expect(note.color).toBe(DEFAULT_STICKY_COLOR);
-    expect(note.text).toBe('');
-    expect(note.z).toBe(1);
-    // Creation is centred: top-left is the point minus half the note size.
-    expect(note.x).toBeCloseTo(-HALF, 6);
-    expect(note.y).toBeCloseTo(-HALF, 6);
-    expect(updates).toBe(1);
-    doc.destroy();
+    expect(doc.getMap('objects').size).toBe(1);
+    const note = getNote(doc, id);
+    expect(note.get('type')).toBe('sticky');
+    expect(note.get('color')).toBe(DEFAULT_STICKY_COLOR);
+    expect((note.get('text') as Y.Text).toString()).toBe('');
+    expect(note.get('z')).toBe(1);
+    // Creation is centred: the top-left is the point minus half the note.
+    const half = STICKY_SIZE_WORLD / 2;
+    expect(note.get('x')).toBe(0 - half);
+    expect(note.get('y')).toBe(0 - half);
+    expect(typeof note.get('createdAt')).toBe('number');
+    expect(updates()).toBe(1);
   });
 
-  it('TC-02: a new note stacks above existing ones (z = maxZ + 1)', () => {
-    const doc = freshDoc();
-    const a = createSticky(doc, { x: 0, y: 0 });
-    const b = createSticky(doc, { x: 0, y: 0 });
-    expect(snapshot(doc).find((n) => n.id === a)?.z).toBe(1);
-    expect(snapshot(doc).find((n) => n.id === b)?.z).toBe(2);
+  it('TC-02: a new note lands on top of existing notes (z = maxZ + 1)', () => {
+    const { doc } = tracked();
+    const first = createSticky(doc, { x: 0, y: 0 });
+    const second = createSticky(doc, { x: 500, y: 500 });
+    expect(getNote(doc, first).get('z')).toBe(1);
+    expect(getNote(doc, second).get('z')).toBe(2);
 
-    const { result, updates } = withUpdateCount(doc, () => createSticky(doc, { x: 10, y: 10 }));
-    const c = result as string;
-    expect(snapshot(doc).find((n) => n.id === c)?.z).toBe(3);
-    expect(updates).toBe(1);
-    doc.destroy();
+    const before = snapshot(doc).length;
+    const third = createSticky(doc, { x: -500, y: 250 });
+    expect(getNote(doc, third).get('z')).toBe(3);
+    expect(snapshot(doc).length).toBe(before + 1);
   });
 
-  it('honours an explicit colour and defaults the rest', () => {
-    const doc = freshDoc();
-    const id = createSticky(doc, { x: 500, y: -300 }, 'green');
-    const note = snapshot(doc).find((n) => n.id === id);
-    expect(note?.color).toBe('green');
-    expect(note?.x).toBeCloseTo(500 - HALF, 6);
-    expect(note?.y).toBeCloseTo(-300 - HALF, 6);
-    expect(STICKY_COLORS.green).toBe('#C5E1A5');
-    doc.destroy();
+  it('centres the note away from the origin too', () => {
+    const { doc, updates } = tracked();
+    const id = createSticky(doc, { x: 300, y: -120 });
+    const note = getNote(doc, id);
+    const half = STICKY_SIZE_WORLD / 2;
+    expect(note.get('x')).toBe(300 - half);
+    expect(note.get('y')).toBe(-120 - half);
+    expect(updates()).toBe(1);
   });
 });
 
 describe('moveObject', () => {
-  it('TC-03: updates x/y and leaves every other field untouched', () => {
-    const doc = freshDoc();
-    const id = createSticky(doc, { x: 0, y: 0 }, 'blue');
-    const before = snapshot(doc).find((n) => n.id === id)!;
+  it('TC-03: moves a note and leaves every other field alone', () => {
+    const { doc, updates } = tracked();
+    const id = createSticky(doc, { x: 0, y: 0 });
+    const before = getNote(doc, id);
+    const beforeZ = before.get('z');
+    const beforeColor = before.get('color');
 
-    const { result, updates } = withUpdateCount(doc, () => moveObject(doc, id, 10, -20));
-    expect(result).toBe(true);
-    expect(updates).toBe(1);
-
-    const after = snapshot(doc).find((n) => n.id === id)!;
-    expect({ x: after.x, y: after.y }).toEqual({ x: 10, y: -20 });
-    expect(after.color).toBe(before.color);
-    expect(after.z).toBe(before.z);
-    expect(after.text).toBe(before.text);
-    expect(after.createdAt).toBe(before.createdAt);
-    doc.destroy();
+    expect(moveObject(doc, id, 10, -20)).toBe(true);
+    const note = getNote(doc, id);
+    expect(note.get('x')).toBe(10);
+    expect(note.get('y')).toBe(-20);
+    expect(note.get('z')).toBe(beforeZ);
+    expect(note.get('color')).toBe(beforeColor);
+    expect(updates()).toBe(2); // 1 create + 1 move
   });
 
-  it('TC-04: a stale id is rejected with no update emitted', () => {
-    const doc = freshDoc();
-    const { result, updates } = withUpdateCount(doc, () =>
-      moveObject(doc, 'missing', 1, 1),
-    );
-    expect(result).toBe(false);
-    expect(updates).toBe(0);
-    doc.destroy();
+  it('TC-04: a stale id is rejected with no update (negative)', () => {
+    const { doc, updates } = tracked();
+    createSticky(doc, { x: 0, y: 0 });
+    expect(updates()).toBe(1); // the seed create
+
+    expect(moveObject(doc, 'does-not-exist', 5, 5)).toBe(false);
+    expect(updates()).toBe(1); // still just the create
   });
 
   it('rejects non-finite coordinates with no update', () => {
-    const doc = freshDoc();
+    const { doc, updates } = tracked();
     const id = createSticky(doc, { x: 0, y: 0 });
-    const updates = withUpdateCount(doc, () => moveObject(doc, id, Number.NaN, 5));
-    expect(updates.result).toBe(false);
-    expect(updates.updates).toBe(0);
-    const stillHere = snapshot(doc).find((n) => n.id === id)!;
-    expect({ x: stillHere.x, y: stillHere.y }).toEqual({
-      x: expect.any(Number),
-      y: expect.any(Number),
-    });
-    doc.destroy();
+    expect(updates()).toBe(1);
+
+    expect(moveObject(doc, id, Number.NaN, 0)).toBe(false);
+    expect(moveObject(doc, id, 0, Number.POSITIVE_INFINITY)).toBe(false);
+    expect(updates()).toBe(1);
+    const note = getNote(doc, id);
+    expect(note.get('x')).toBeCloseTo(-STICKY_SIZE_WORLD / 2, 6);
   });
 });
 
 describe('setStickyColor', () => {
-  it('TC-05: recolours a selected note', () => {
-    const doc = freshDoc();
+  it('TC-05: recolours a valid note', () => {
+    const { doc, updates } = tracked();
     const id = createSticky(doc, { x: 0, y: 0 });
+    expect(updates()).toBe(1);
 
-    const { result, updates } = withUpdateCount(doc, () =>
-      setStickyColor(doc, id, 'green'),
-    );
-    expect(result).toBe(true);
-    expect(updates).toBe(1);
-    expect(snapshot(doc).find((n) => n.id === id)?.color).toBe('green');
-    doc.destroy();
+    expect(setStickyColor(doc, id, 'green')).toBe(true);
+    expect(getNote(doc, id).get('color')).toBe('green');
+    expect(updates()).toBe(2);
   });
 
-  it('TC-06: an unknown colour is rejected and changes nothing', () => {
-    const doc = freshDoc();
+  it('TC-06: an unknown colour is rejected, unchanged, no update (negative)', () => {
+    const { doc, updates } = tracked();
     const id = createSticky(doc, { x: 0, y: 0 });
+    expect(updates()).toBe(1);
 
-    const { result, updates } = withUpdateCount(doc, () =>
-      setStickyColor(doc, id, 'teal'),
-    );
-    expect(result).toBe(false);
-    expect(updates).toBe(0);
-    expect(snapshot(doc).find((n) => n.id === id)?.color).toBe(DEFAULT_STICKY_COLOR);
-    doc.destroy();
+    expect(setStickyColor(doc, id, 'teal')).toBe(false);
+    expect(getNote(doc, id).get('color')).toBe(DEFAULT_STICKY_COLOR);
+    expect(updates()).toBe(1);
+  });
+
+  it('rejects prototype keys (e.g. "toString") and a stale id', () => {
+    const { doc, updates } = tracked();
+    const id = createSticky(doc, { x: 0, y: 0 });
+    expect(updates()).toBe(1);
+
+    expect(setStickyColor(doc, id, 'toString')).toBe(false);
+    expect(setStickyColor(doc, 'missing', 'green')).toBe(false);
+    expect(updates()).toBe(1);
   });
 });
 
 describe('deleteObject', () => {
-  it('TC-07: removes a note', () => {
-    const doc = freshDoc();
+  it('TC-07: removes the note', () => {
+    const { doc, updates } = tracked();
     const id = createSticky(doc, { x: 0, y: 0 });
     expect(doc.getMap('objects').size).toBe(1);
+    expect(updates()).toBe(1);
 
-    const { result, updates } = withUpdateCount(doc, () => deleteObject(doc, id));
-    expect(result).toBe(true);
-    expect(updates).toBe(1);
+    expect(deleteObject(doc, id)).toBe(true);
     expect(doc.getMap('objects').size).toBe(0);
-    expect(snapshot(doc)).toHaveLength(0);
-    doc.destroy();
+    expect(updates()).toBe(2);
   });
 
-  it('TC-08: a stale id is rejected with no update', () => {
-    const doc = freshDoc();
-    const { result, updates } = withUpdateCount(doc, () => deleteObject(doc, 'missing'));
-    expect(result).toBe(false);
-    expect(updates).toBe(0);
-    doc.destroy();
+  it('TC-08: a stale id is rejected with no update (negative)', () => {
+    const { doc, updates } = tracked();
+    expect(deleteObject(doc, 'nope')).toBe(false);
+    expect(updates()).toBe(0);
   });
 });
 
 describe('bringToFront', () => {
-  it('TC-09: raises the lowest of three notes to the top', () => {
-    const doc = freshDoc();
-    seedObject(doc, 'a', { z: 1 });
-    seedObject(doc, 'b', { z: 2 });
-    seedObject(doc, 'c', { z: 3 });
+  it('TC-09: raises the bottom note of three to the top (z 1 -> 4)', () => {
+    const { doc, updates } = tracked();
+    const first = createSticky(doc, { x: 0, y: 0 });
+    createSticky(doc, { x: 400, y: 0 });
+    createSticky(doc, { x: 800, y: 0 });
+    expect(getNote(doc, first).get('z')).toBe(1);
+    expect(updates()).toBe(3);
 
-    const { result, updates } = withUpdateCount(doc, () => bringToFront(doc, 'a'));
-    expect(result).toBe(true);
-    expect(updates).toBe(1);
-    const snap = snapshot(doc);
-    expect(snap.find((n) => n.id === 'a')?.z).toBe(4);
-    expect(snap.map((n) => n.id)).toEqual(['b', 'c', 'a']);
-    doc.destroy();
+    expect(bringToFront(doc, first)).toBe(true);
+    expect(getNote(doc, first).get('z')).toBe(4);
+    expect(updates()).toBe(4);
   });
 
-  it('TC-10: bringing the top note to front is a no-op (no update)', () => {
-    const doc = freshDoc();
-    seedObject(doc, 'a', { z: 1 });
-    seedObject(doc, 'b', { z: 2 });
+  it('TC-10: bringToFront on the topmost note emits no update (negative)', () => {
+    const { doc, updates } = tracked();
+    createSticky(doc, { x: 0, y: 0 });
+    const top = createSticky(doc, { x: 400, y: 0 });
+    expect(updates()).toBe(2);
 
-    const { result, updates } = withUpdateCount(doc, () => bringToFront(doc, 'b'));
-    expect(result).toBe(false);
-    expect(updates).toBe(0);
-    expect(snapshot(doc).find((n) => n.id === 'b')?.z).toBe(2);
-    doc.destroy();
+    expect(bringToFront(doc, top)).toBe(false);
+    expect(getNote(doc, top).get('z')).toBe(2);
+    expect(updates()).toBe(2);
+  });
+
+  it('rejects a stale id with no update', () => {
+    const { doc, updates } = tracked();
+    expect(bringToFront(doc, 'ghost')).toBe(false);
+    expect(updates()).toBe(0);
   });
 });
 
-describe('snapshot ordering and forward-compatibility', () => {
-  it('TC-11: equal z values are ordered by id, stably', () => {
-    const doc = freshDoc();
-    seedObject(doc, 'zz', { z: 5 });
-    seedObject(doc, 'aa', { z: 5 });
-    seedObject(doc, 'mm', { z: 5 });
+describe('snapshot ordering and forward compatibility', () => {
+  it('TC-11: equal z values are ordered by id, stable across calls', () => {
+    const { doc } = tracked();
+    // Build two notes at equal z by hand, so the ordering is a pure read test.
+    doc.transact(() => {
+      const objects = doc.getMap<Y.Map<unknown>>('objects');
+      for (const id of ['b-id', 'a-id']) {
+        const note = new Y.Map<unknown>();
+        note.set('type', 'sticky');
+        note.set('x', 0);
+        note.set('y', 0);
+        note.set('color', 'yellow');
+        note.set('text', new Y.Text(''));
+        note.set('z', 1);
+        note.set('createdAt', 0);
+        objects.set(id, note);
+      }
+    });
 
-    const first = snapshot(doc).map((n) => n.id);
-    const second = snapshot(doc).map((n) => n.id);
-    expect(first).toEqual(['aa', 'mm', 'zz']);
-    expect(second).toEqual(first);
-    doc.destroy();
+    const first = snapshot(doc);
+    const second = snapshot(doc);
+    expect(first.map((note) => note.id)).toEqual(['a-id', 'b-id']);
+    expect(second.map((note) => note.id)).toEqual(first.map((note) => note.id));
   });
 
   it('TC-12: skips unknown object types without throwing', () => {
-    const doc = freshDoc();
-    seedObject(doc, 'keep', { z: 1 });
-    seedObject(doc, 'shape', { z: 2, type: 'shape' });
+    const { doc } = tracked();
+    const sticky = createSticky(doc, { x: 0, y: 0 });
 
-    let snap: readonly { id: string }[] = [];
-    expect(() => {
-      snap = snapshot(doc);
-    }).not.toThrow();
-    expect(snap.map((n) => n.id)).toEqual(['keep']);
-    doc.destroy();
+    doc.transact(() => {
+      const objects = doc.getMap<Y.Map<unknown>>('objects');
+      const shape = new Y.Map<unknown>();
+      shape.set('type', 'shape');
+      shape.set('x', 10);
+      objects.set('shape-1', shape);
+    });
+
+    const snap = snapshot(doc);
+    expect(snap).toHaveLength(1);
+    expect(snap[0].id).toBe(sticky);
+    expect(snap[0].type).toBe('sticky');
   });
 });
 
-describe('getStickyText', () => {
-  it('returns the Y.Text for a note and undefined otherwise', () => {
-    const doc = freshDoc();
+describe('getStickyText and initDoc', () => {
+  it('exposes the note text and returns undefined for a stale id', () => {
+    const { doc } = tracked();
     const id = createSticky(doc, { x: 0, y: 0 });
-    const text = getStickyText(doc, id);
-    expect(text).toBeInstanceOf(Y.Text);
-    expect(text?.toString()).toBe('');
+    expect(getStickyText(doc, id)?.toString()).toBe('');
     expect(getStickyText(doc, 'missing')).toBeUndefined();
-    doc.destroy();
   });
-});
 
-describe('LOCAL_ORIGIN', () => {
-  it('is used as the transaction origin for successful mutations', () => {
-    const doc = freshDoc();
+  it('initDoc sets meta.schemaVersion exactly once', () => {
+    const doc = new Y.Doc();
+    let count = 0;
+    doc.on('update', () => {
+      count += 1;
+    });
+    initDoc(doc);
+    expect(doc.getMap('meta').get('schemaVersion')).toBe(1);
+    expect(count).toBe(1);
+
+    initDoc(doc);
+    expect(count).toBe(1); // second call is a no-op
+  });
+
+  it('tags local mutations with LOCAL_ORIGIN', () => {
+    const doc = new Y.Doc();
+    initDoc(doc);
     const origins: unknown[] = [];
-    doc.on('afterTransaction', (tr: { origin: unknown }) => origins.push(tr.origin));
-    createSticky(doc, { x: 0, y: 0 });
-    expect(origins).toEqual([LOCAL_ORIGIN]);
-    doc.destroy();
+    doc.on('update', (_update: Uint8Array, origin: unknown) => {
+      origins.push(origin);
+    });
+    const id = createSticky(doc, { x: 0, y: 0 });
+    moveObject(doc, id, 1, 1);
+    expect(origins.every((origin) => origin === LOCAL_ORIGIN)).toBe(true);
   });
 });

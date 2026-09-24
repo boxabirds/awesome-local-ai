@@ -2,15 +2,15 @@
   "build_exit": 0,
   "runner_exit": 1,
   "runner_tail": "",
-  "passed": 0,
+  "passed": 18,
   "total": 20,
   "by_story": {
     "01": {
-      "passed": 0,
+      "passed": 9,
       "total": 10
     },
     "02": {
-      "passed": 0,
+      "passed": 9,
       "total": 10
     }
   },
@@ -18,122 +18,122 @@
     {
       "file": "story-01.spec.ts",
       "title": "golden path: controls and hint visible at 100% @ref prd:golden-path",
-      "status": "failed",
-      "error": "Error: page.goto: net::ERR_CONNECTION_REFUSED at http://127.0.0.1:18787/\nCall log:\n\u001b[2m  - navigating to \"http://127.0.0.1:18787/\", waiting until \"load\"\u001b[22m\n"
+      "status": "passed",
+      "error": ""
     },
     {
       "file": "story-01.spec.ts",
       "title": "zoom buttons step 100 \u2192 125 \u2192 100 @ref prd:zoom.step",
-      "status": "failed",
-      "error": "Error: page.goto: net::ERR_CONNECTION_REFUSED at http://127.0.0.1:18787/\nCall log:\n\u001b[2m  - navigating to \"http://127.0.0.1:18787/\", waiting until \"load\"\u001b[22m\n"
+      "status": "passed",
+      "error": ""
     },
     {
       "file": "story-01.spec.ts",
       "title": "zoom limits clamp and disable buttons @ref prd:zoom.limits",
       "status": "failed",
-      "error": "Error: page.goto: net::ERR_CONNECTION_REFUSED at http://127.0.0.1:18787/\nCall log:\n\u001b[2m  - navigating to \"http://127.0.0.1:18787/\", waiting until \"load\"\u001b[22m\n"
+      "error": "TimeoutError: locator.click: Timeout 5000ms exceeded.\nCall log:\n\u001b[2m  - waiting for getByRole('button', { name: 'Zoom out' })\u001b[22m\n\u001b[2m    - locator resolved to <button type=\"button\" aria-label=\"Zoom out\">\u2212</button>\u001b[22m\n\u001b[2m  - attempting click action\u001b[22m\n\u001b[2m    2 \u00d7 waiting for element to be visible, enabled and stable\u001b[22m\n\u001b[2m      - element is not enabled\u001b[22m\n\u001b[2m    - retrying click action\u001b[22m\n\u001b[2m    - waiting 20ms\u001b[22m\n\u001b[2m    2 \u00d7 waiting for element to be visible, enabled and stable\u001b"
     },
     {
       "file": "story-01.spec.ts",
       "title": "keyboard zoom and reset do not zoom the page @ref prd:zoom.no_page_zoom",
-      "status": "failed",
-      "error": "Error: page.goto: net::ERR_CONNECTION_REFUSED at http://127.0.0.1:18787/\nCall log:\n\u001b[2m  - navigating to \"http://127.0.0.1:18787/\", waiting until \"load\"\u001b[22m\n"
+      "status": "passed",
+      "error": ""
     },
     {
       "file": "story-01.spec.ts",
       "title": "ctrl+wheel zooms the board @ref prd:zoom.pointer",
-      "status": "failed",
-      "error": "Error: page.goto: net::ERR_CONNECTION_REFUSED at http://127.0.0.1:18787/\nCall log:\n\u001b[2m  - navigating to \"http://127.0.0.1:18787/\", waiting until \"load\"\u001b[22m\n"
+      "status": "passed",
+      "error": ""
     },
     {
       "file": "story-01.spec.ts",
       "title": "hint disappears after first pan and stays gone @ref prd:nav.hint",
-      "status": "failed",
-      "error": "Error: page.goto: net::ERR_CONNECTION_REFUSED at http://127.0.0.1:18787/\nCall log:\n\u001b[2m  - navigating to \"http://127.0.0.1:18787/\", waiting until \"load\"\u001b[22m\n"
+      "status": "passed",
+      "error": ""
     },
     {
       "file": "story-01.spec.ts",
       "title": "drag pans content exactly with the pointer @ref prd:pan.drag",
-      "status": "failed",
-      "error": "Error: page.goto: net::ERR_CONNECTION_REFUSED at http://127.0.0.1:18787/\nCall log:\n\u001b[2m  - navigating to \"http://127.0.0.1:18787/\", waiting until \"load\"\u001b[22m\n"
+      "status": "passed",
+      "error": ""
     },
     {
       "file": "story-01.spec.ts",
       "title": "wheel scroll pans in scroll direction @ref prd:pan.scroll",
-      "status": "failed",
-      "error": "Error: page.goto: net::ERR_CONNECTION_REFUSED at http://127.0.0.1:18787/\nCall log:\n\u001b[2m  - navigating to \"http://127.0.0.1:18787/\", waiting until \"load\"\u001b[22m\n"
+      "status": "passed",
+      "error": ""
     },
     {
       "file": "story-01.spec.ts",
       "title": "zoom keeps the point under the pointer fixed @ref prd:zoom.pointer",
-      "status": "failed",
-      "error": "Error: page.goto: net::ERR_CONNECTION_REFUSED at http://127.0.0.1:18787/\nCall log:\n\u001b[2m  - navigating to \"http://127.0.0.1:18787/\", waiting until \"load\"\u001b[22m\n"
+      "status": "passed",
+      "error": ""
     },
     {
       "file": "story-01.spec.ts",
       "title": "reset view returns to 100% with origin centred @ref prd:view.reset",
-      "status": "failed",
-      "error": "Error: page.goto: net::ERR_CONNECTION_REFUSED at http://127.0.0.1:18787/\nCall log:\n\u001b[2m  - navigating to \"http://127.0.0.1:18787/\", waiting until \"load\"\u001b[22m\n"
+      "status": "passed",
+      "error": ""
     },
     {
       "file": "story-02.spec.ts",
       "title": "golden path: create, type, select, recolour, delete @ref prd:golden-path",
-      "status": "failed",
-      "error": "Error: page.goto: net::ERR_CONNECTION_REFUSED at http://127.0.0.1:18787/\nCall log:\n\u001b[2m  - navigating to \"http://127.0.0.1:18787/\", waiting until \"load\"\u001b[22m\n"
+      "status": "passed",
+      "error": ""
     },
     {
       "file": "story-02.spec.ts",
       "title": "double-click creates note centred on the point @ref prd:sticky.create_dblclick",
-      "status": "failed",
-      "error": "Error: page.goto: net::ERR_CONNECTION_REFUSED at http://127.0.0.1:18787/\nCall log:\n\u001b[2m  - navigating to \"http://127.0.0.1:18787/\", waiting until \"load\"\u001b[22m\n"
+      "status": "passed",
+      "error": ""
     },
     {
       "file": "story-02.spec.ts",
       "title": "toolbar button creates note in view centre @ref prd:sticky.create_button",
-      "status": "failed",
-      "error": "Error: page.goto: net::ERR_CONNECTION_REFUSED at http://127.0.0.1:18787/\nCall log:\n\u001b[2m  - navigating to \"http://127.0.0.1:18787/\", waiting until \"load\"\u001b[22m\n"
+      "status": "passed",
+      "error": ""
     },
     {
       "file": "story-02.spec.ts",
       "title": "escape and outside click keep typed text; Enter re-edits at end @ref prd:sticky.edit_end",
-      "status": "failed",
-      "error": "Error: page.goto: net::ERR_CONNECTION_REFUSED at http://127.0.0.1:18787/\nCall log:\n\u001b[2m  - navigating to \"http://127.0.0.1:18787/\", waiting until \"load\"\u001b[22m\n"
+      "status": "passed",
+      "error": ""
     },
     {
       "file": "story-02.spec.ts",
       "title": "pasting over the limit keeps exactly 1000 characters @ref prd:sticky.text_limit",
-      "status": "failed",
-      "error": "Error: page.goto: net::ERR_CONNECTION_REFUSED at http://127.0.0.1:18787/\nCall log:\n\u001b[2m  - navigating to \"http://127.0.0.1:18787/\", waiting until \"load\"\u001b[22m\n"
+      "status": "passed",
+      "error": ""
     },
     {
       "file": "story-02.spec.ts",
       "title": "dragging a note moves it, not the board @ref prd:sticky.move prd:sticky.no_pan",
       "status": "failed",
-      "error": "Error: page.goto: net::ERR_CONNECTION_REFUSED at http://127.0.0.1:18787/\nCall log:\n\u001b[2m  - navigating to \"http://127.0.0.1:18787/\", waiting until \"load\"\u001b[22m\n"
+      "error": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoBeLessThan\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m)\u001b[22m\n\nExpected: < \u001b[32m1.5\u001b[39m\nReceived:   \u001b[31m137.5\u001b[39m"
     },
     {
       "file": "story-02.spec.ts",
       "title": "dragged note is drawn above the note it overlaps @ref prd:sticky.move",
-      "status": "failed",
-      "error": "Error: page.goto: net::ERR_CONNECTION_REFUSED at http://127.0.0.1:18787/\nCall log:\n\u001b[2m  - navigating to \"http://127.0.0.1:18787/\", waiting until \"load\"\u001b[22m\n"
+      "status": "passed",
+      "error": ""
     },
     {
       "file": "story-02.spec.ts",
       "title": "Delete while editing edits text, not the note @ref prd:sticky.delete",
-      "status": "failed",
-      "error": "Error: page.goto: net::ERR_CONNECTION_REFUSED at http://127.0.0.1:18787/\nCall log:\n\u001b[2m  - navigating to \"http://127.0.0.1:18787/\", waiting until \"load\"\u001b[22m\n"
+      "status": "passed",
+      "error": ""
     },
     {
       "file": "story-02.spec.ts",
       "title": "delete button on note toolbar removes note @ref prd:sticky.delete",
-      "status": "failed",
-      "error": "Error: page.goto: net::ERR_CONNECTION_REFUSED at http://127.0.0.1:18787/\nCall log:\n\u001b[2m  - navigating to \"http://127.0.0.1:18787/\", waiting until \"load\"\u001b[22m\n"
+      "status": "passed",
+      "error": ""
     },
     {
       "file": "story-02.spec.ts",
       "title": "clicking empty board clears selection @ref prd:sticky.select",
-      "status": "failed",
-      "error": "Error: page.goto: net::ERR_CONNECTION_REFUSED at http://127.0.0.1:18787/\nCall log:\n\u001b[2m  - navigating to \"http://127.0.0.1:18787/\", waiting until \"load\"\u001b[22m\n"
+      "status": "passed",
+      "error": ""
     }
   ]
 }

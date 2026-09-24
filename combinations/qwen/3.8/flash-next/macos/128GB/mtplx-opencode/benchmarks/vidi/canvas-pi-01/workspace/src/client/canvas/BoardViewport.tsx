@@ -11,11 +11,13 @@ import {
   useRef,
   useState,
   type CSSProperties,
+  type MouseEvent as ReactMouseEvent,
   type PointerEvent as ReactPointerEvent,
   type ReactNode,
 } from 'react';
-import { GRID_SPACING_WORLD } from '../../shared/config';
-import { worldToScreen } from './camera';
+import { DRAG_THRESHOLD_PX, GRID_SPACING_WORLD } from '../../shared/config';
+import { screenToWorld, worldToScreen } from './camera';
+import type { Point } from './camera';
 import { useCameraApi } from './useCamera';
 import { useNavigationTestHooks } from './testHooks';
 
@@ -36,6 +38,16 @@ const GRID_DOT_COLOR = '#b7bfcc';
 
 export interface BoardViewportProps {
   children?: ReactNode;
+  /**
+   * A pointer-up on empty board space with no drag: clears the selection (and
+   * ends any note editing). Story 2.
+   */
+  onEmptyClick?(): void;
+  /**
+   * A double-click on empty board space. Given the world point under the
+   * cursor so the parent can create a note centred there. Story 2.
+   */
+  onEmptyDoubleClick?(world: Point): void;
 }
 
 function mod(value: number, range: number): number {
@@ -67,7 +79,7 @@ interface ScaleEvent extends Event {
   clientY?: number;
 }
 
-export function BoardViewport({ children }: BoardViewportProps) {
+export function BoardViewport({ children, onEmptyClick, onEmptyDoubleClick }: BoardViewportProps) {
   const api = useCameraApi();
   useNavigationTestHooks();
 
@@ -75,6 +87,8 @@ export function BoardViewport({ children }: BoardViewportProps) {
   const surfaceRef = useRef<HTMLDivElement>(null);
   const apiRef = useRef(api);
   const panningRef = useRef(false);
+  const dragMovedRef = useRef(false);
+  const downPointRef = useRef<Point>({ x: 0, y: 0 });
   const gestureScaleRef = useRef(1);
   const [panning, setPanning] = useState(false);
 
@@ -183,8 +197,10 @@ export function BoardViewport({ children }: BoardViewportProps) {
       // jsdom (and any engine without pointer capture) just skips it.
     }
     panningRef.current = true;
-    setPanning(true);
+    dragMovedRef.current = false;
     const rect = surface.getBoundingClientRect();
+    downPointRef.current = { x: event.clientX - rect.left, y: event.clientY - rect.top };
+    setPanning(true);
     api.beginPan({ x: event.clientX - rect.left, y: event.clientY - rect.top });
   };
 
@@ -193,7 +209,14 @@ export function BoardViewport({ children }: BoardViewportProps) {
     const surface = surfaceRef.current;
     if (!surface) return;
     const rect = surface.getBoundingClientRect();
-    api.panMove({ x: event.clientX - rect.left, y: event.clientY - rect.top });
+    const point = { x: event.clientX - rect.left, y: event.clientY - rect.top };
+    if (
+      Math.hypot(point.x - downPointRef.current.x, point.y - downPointRef.current.y) >=
+      DRAG_THRESHOLD_PX
+    ) {
+      dragMovedRef.current = true;
+    }
+    api.panMove(point);
   };
 
   const endDrag = (event: ReactPointerEvent<HTMLDivElement>) => {
@@ -205,10 +228,30 @@ export function BoardViewport({ children }: BoardViewportProps) {
         // ignore: capture may already be gone
       }
     }
-    if (!panningRef.current) return;
+    const wasPanning = panningRef.current;
+    const wasClick = wasPanning && !dragMovedRef.current;
     panningRef.current = false;
+    dragMovedRef.current = false;
     setPanning(false);
     api.endPan();
+    // A click on empty space with no drag clears the selection (story 2).
+    if (wasClick && isBoardSurface(event.target)) {
+      onEmptyClick?.();
+    }
+  };
+
+  const onDoubleClick = (event: ReactMouseEvent<HTMLDivElement>) => {
+    // Only the empty board surface creates a note; a double-click on a note is
+    // handled (and stopped) by the note itself.
+    if (!isBoardSurface(event.target)) return;
+    const surface = surfaceRef.current;
+    if (!surface) return;
+    const rect = surface.getBoundingClientRect();
+    const world = screenToWorld(camera, {
+      x: event.clientX - rect.left,
+      y: event.clientY - rect.top,
+    });
+    onEmptyDoubleClick?.(world);
   };
 
   const spacing = GRID_SPACING_WORLD * camera.zoom;
@@ -241,6 +284,7 @@ export function BoardViewport({ children }: BoardViewportProps) {
       onPointerUp={endDrag}
       onPointerCancel={endDrag}
       onLostPointerCapture={endDrag}
+      onDoubleClick={onDoubleClick}
     >
       <div
         data-testid="world-layer"
