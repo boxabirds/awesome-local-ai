@@ -1,3 +1,30 @@
+commit 9b054f976b8af8b6894555f82446625028811a1a
+Author: opus-5.5-reference <reference@vidi.invalid>
+Date:   Fri Sep 25 00:34:35 2026 +0100
+
+    story 8: Undo and redo my own changes without undoing anyone else's
+    
+    Co-Authored-By: Claude Opus 5.5 (1M context) <noreply@anthropic.com>
+
+ NOTES.md                                |  77 +++++++++
+ src/client/board/Board.tsx              | 187 +++++++++++++--------
+ src/client/board/Toolbar.tsx            |   8 +-
+ src/client/board/UndoButtons.tsx        |  54 ++++++
+ src/client/board/undo.ts                | 161 ++++++++++++++++++
+ src/client/board/useBoardKeys.ts        |  31 +++-
+ src/client/board/useUndo.ts             |  81 +++++++++
+ src/client/objects/StickyTextEditor.tsx |  44 ++++-
+ src/client/styles.css                   |  12 ++
+ src/shared/config.ts                    |   7 +
+ tests/component/UndoBoundaries.test.tsx | 272 ++++++++++++++++++++++++++++++
+ tests/component/UndoControls.test.tsx   | 231 ++++++++++++++++++++++++++
+ tests/e2e/undo.spec.ts                  | 284 +++++++++++++++++++++++++++++++
+ tests/fixtures/boards.ts                |  46 +++++
+ tests/unit/helpers/peer.ts              |  42 +++++
+ tests/unit/undo-boundaries.test.ts      | 134 +++++++++++++++
+ tests/unit/undo-history.test.ts         | 286 ++++++++++++++++++++++++++++++++
+ 17 files changed, 1880 insertions(+), 77 deletions(-)
+
 commit b1d1ea19fdd614f41fa62a4dff0cfef05986f3a4
 Author: opus-5.5-reference <reference@vidi.invalid>
 Date:   Fri Sep 25 00:08:06 2026 +0100

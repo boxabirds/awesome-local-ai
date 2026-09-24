@@ -16,6 +16,7 @@ import {
   initDoc,
   LOCAL_ORIGIN,
   moveObject,
+  resizeObjects,
   setStickyColor,
   snapshot,
   type StickySnapshot,
@@ -216,5 +217,50 @@ export function selectionRetroBoard(): Y.Doc {
     setText(doc, id, RETRO_TEXTS[i % RETRO_TEXTS.length]!);
   }
   bringToFront(doc, snapshot(doc)[2]!.id);
+  return doc;
+}
+
+// ---- Story 8: the 12-note retro board for undo ----
+
+export const UNDO_RETRO_NOTES = 12;
+/** Notes in the cluster that is deleted and restored (TC-22). */
+export const UNDO_CLUSTER_NOTES = 8;
+const UNDO_CLUSTER_COLUMNS = 4;
+/** Top-left (world) of the cluster's first note; neighbours UNDO_CLUSTER_SPACING apart. */
+export const UNDO_CLUSTER_ORIGIN = { x: -600, y: -300 } as const;
+export const UNDO_CLUSTER_SPACING = 200;
+/** Cluster notes are smaller than the default and differ slightly, so none overlap. */
+const UNDO_CLUSTER_SIZES = [170, 160, 180, 150] as const;
+/** The other four notes: top-left and size (world), right of the cluster. */
+export const UNDO_OTHER_NOTES = [
+  { x: 220, y: -300, width: 150, height: 150 },
+  { x: 430, y: -300, width: 180, height: 140 },
+  { x: 220, y: 0, width: 200, height: 160 },
+  { x: 440, y: 0, width: 160, height: 190 },
+] as const;
+
+/**
+ * 12 realistic retro notes in varied colours and sizes: a 2 × 4 cluster of 8 (top-left
+ * UNDO_CLUSTER_ORIGIN, no overlaps) and four more to its right. Created in one document.
+ */
+export function undoRetroBoard(): Y.Doc {
+  const doc = new Y.Doc();
+  initDoc(doc);
+  const rects: { x: number; y: number; width: number; height: number }[] = [];
+  for (let i = 0; i < UNDO_CLUSTER_NOTES; i += 1) {
+    const size = UNDO_CLUSTER_SIZES[i % UNDO_CLUSTER_SIZES.length]!;
+    rects.push({
+      x: UNDO_CLUSTER_ORIGIN.x + (i % UNDO_CLUSTER_COLUMNS) * UNDO_CLUSTER_SPACING,
+      y: UNDO_CLUSTER_ORIGIN.y + Math.floor(i / UNDO_CLUSTER_COLUMNS) * UNDO_CLUSTER_SPACING,
+      width: size,
+      height: size,
+    });
+  }
+  rects.push(...UNDO_OTHER_NOTES);
+  rects.forEach((r, i) => {
+    const id = createSticky(doc, { x: 0, y: 0 }, COLORS[i % COLORS.length]);
+    setText(doc, id, RETRO_TEXTS[i % RETRO_TEXTS.length]!);
+    resizeObjects(doc, new Map([[id, r]]));
+  });
   return doc;
 }

@@ -1,3 +1,6 @@
+import { UndoButtons } from './UndoButtons';
+import type { UndoControls } from './useUndo';
+
 export const STICKY_BUTTON_LABEL = 'Sticky note';
 export const STICKY_BUTTON_TOOLTIP = 'Sticky note – or double-click the board';
 
@@ -5,10 +8,12 @@ export interface ToolbarProps {
   onCreateSticky(): void;
   /** True while the board cannot be edited (its saved state could not be loaded). */
   disabled?: boolean;
+  /** Undo and Redo buttons below the tools (story 8); omitted when absent. */
+  undo?: UndoControls;
 }
 
 /** Left-side vertical tool bar. */
-export function Toolbar({ onCreateSticky, disabled = false }: ToolbarProps) {
+export function Toolbar({ onCreateSticky, disabled = false, undo }: ToolbarProps) {
   return (
     <div
       className="toolbar"
@@ -37,6 +42,7 @@ export function Toolbar({ onCreateSticky, disabled = false }: ToolbarProps) {
           <path d="M20 15h-5v5" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" />
         </svg>
       </button>
+      {undo && <UndoButtons {...undo} />}
     </div>
   );
 }

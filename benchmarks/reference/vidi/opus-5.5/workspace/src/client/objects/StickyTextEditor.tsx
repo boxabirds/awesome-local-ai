@@ -1,8 +1,10 @@
-import { useEffect, useLayoutEffect, useRef, useState, type KeyboardEvent } from 'react';
+import { useContext, useEffect, useLayoutEffect, useRef, useState, type KeyboardEvent } from 'react';
 import type * as Y from 'yjs';
 import { LOCAL_ORIGIN } from '../../shared/board-model';
 import { STICKY_TEXT_MAX_CHARS } from '../../shared/config';
+import { undoKey } from '../board/undo';
 import type { EndEditNext } from '../board/useSelection';
+import { UndoContext } from '../board/useUndo';
 import { applyTextDiff, clampToLimit, counterVisible, transformIndex, type TextDeltaOp } from './StickyText';
 
 export interface StickyTextEditorProps {
@@ -20,6 +22,21 @@ export function StickyTextEditor({ ytext, fontPx, onEnd }: StickyTextEditorProps
   const ref = useRef<HTMLTextAreaElement>(null);
   const composingRef = useRef(false);
   const [length, setLength] = useState(() => ytext.length);
+  const undo = useContext(UndoContext);
+  /** The newest undo step when editing started: undo inside the editor stops there. */
+  const baselineRef = useRef<object | null>(null);
+  /** Steps undone inside this editor that may still be redone here. */
+  const redoableRef = useRef(0);
+
+  // Edit start and end are undo boundaries: typing never merges with the actions around it
+  // (story 8). Within the edit, typing groups into bursts by UNDO_CAPTURE_TIMEOUT_MS.
+  useEffect(() => {
+    if (!undo) return undefined;
+    undo.boundary();
+    baselineRef.current = undo.lastStep();
+    redoableRef.current = 0;
+    return () => undo.boundary();
+  }, [undo, ytext]);
 
   const fitHeight = () => {
     const el = ref.current;
@@ -72,12 +89,37 @@ export function StickyTextEditor({ ytext, fontPx, onEnd }: StickyTextEditorProps
       el.value = clamped;
       el.setSelectionRange(clamped.length, clamped.length);
     }
+    const before = ytext.toString();
     applyTextDiff(ytext, clamped, LOCAL_ORIGIN);
+    // A new change clears redo (undo.redo_cleared).
+    if (ytext.toString() !== before) redoableRef.current = 0;
     setLength(clamped.length);
     fitHeight();
   };
 
+  /**
+   * Ctrl/Cmd+Z undoes this edit's typing and Ctrl/Cmd+Shift+Z / Ctrl+Y redoes it, through the
+   * board's history, never the textarea's own (which would diverge from the shared text). The
+   * change arrives like a remote one: the observer above updates the textarea and caret.
+   */
+  const onHistoryKey = (kind: 'undo' | 'redo') => {
+    if (!undo) return;
+    commit();
+    if (kind === 'undo') {
+      if (undo.lastStep() === null || undo.lastStep() === baselineRef.current) return;
+      if (undo.undo()) redoableRef.current += 1;
+    } else if (redoableRef.current > 0 && undo.redo()) {
+      redoableRef.current -= 1;
+    }
+  };
+
   const onKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
+    const history = undoKey(e);
+    if (history !== null && !composingRef.current) {
+      e.preventDefault();
+      onHistoryKey(history);
+      return;
+    }
     if (e.key === 'Escape') {
       e.preventDefault();
       e.stopPropagation();

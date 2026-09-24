@@ -168,6 +168,18 @@ html, body, #root {
   outline-offset: 1px;
 }
 
+.toolbar__button:disabled { color: #b4b8bd; cursor: default; }
+.toolbar__button:disabled:hover { background: transparent; }
+
+/* Undo / Redo (story 8): below the tools, after a divider. */
+.toolbar__group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding-top: 4px;
+  border-top: 1px solid var(--panel-border);
+}
+
 /* ---- Sticky notes (story 2). Sizes are world px: they scale with the board. ---- */
 
 .sticky-note {
