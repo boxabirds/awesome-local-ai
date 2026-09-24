@@ -3,11 +3,16 @@
  *
  * A presentational `role="status"` region that reflects the current
  * `ConnectionState`. It is deliberately inert: it renders text and nothing
- * else, so it can never lock the board. The board stays editable in every
- * state (TC-21) — this component has no pointer-events and no overlay.
+ * else, so it can never itself lock the board (the editing gate lives in
+ * `App.canEdit`).
  *
  * Hidden while `connected`: a healthy connection shows nothing (the badge only
- * exists to say "connecting", "reconnecting" or the brief green confirmation).
+ * exists to say "connecting", "reconnecting", the brief green confirmation, or
+ * that the board could not be loaded).
+ *
+ * `load_failed` (story 4) renders in red and is the one state that goes with a
+ * locked canvas: the room could not read this board, so typing into it would
+ * invent a second version of it.
  */
 import type { ConnectionState } from './connectionState';
 
@@ -20,6 +25,7 @@ const LABEL: Record<ConnectionState, string> = {
   reconnecting: 'Reconnecting…',
   confirmed: 'Connected',
   connected: '',
+  load_failed: 'This board couldn’t be loaded. Retrying…',
 };
 
 export function ConnectionStatus({ state }: ConnectionStatusProps) {

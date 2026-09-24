@@ -48,11 +48,24 @@ export default defineConfig({
       },
     },
   ],
-  webServer: {
-    command: 'npx wrangler dev --port 8787',
-    url: 'http://localhost:8787',
-    reuseExistingServer: !process.env.CI,
-    timeout: 120_000,
-    stdout: 'pipe',
-  },
+  webServer: [
+    {
+      // `--env e2e` turns on the /__test/* storage routes (wrangler.jsonc
+      // `env.e2e.vars.TEST_HOOKS`); it is the only place they exist.
+      command: 'npx wrangler dev --env e2e --port 8787',
+      url: 'http://localhost:8787',
+      reuseExistingServer: !process.env.CI,
+      timeout: 120_000,
+      stdout: 'pipe',
+    },
+    {
+      // The same app with the default environment, where `TEST_HOOKS` is not
+      // set: used only to prove the storage routes are not reachable there.
+      command: 'npx wrangler dev --port 8788',
+      url: 'http://localhost:8788',
+      reuseExistingServer: !process.env.CI,
+      timeout: 120_000,
+      stdout: 'pipe',
+    },
+  ],
 });

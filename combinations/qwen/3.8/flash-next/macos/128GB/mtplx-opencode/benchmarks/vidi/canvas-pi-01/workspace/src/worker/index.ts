@@ -18,31 +18,15 @@
  * document — exactly the Story 3 scope.
  */
 import { BoardRoom } from './board-room';
+import { isTestPath, ROOM_PATH_PREFIX, parseRoomRequest } from './routing';
+import { parseTestHook, testHooksEnabled } from './test-hooks';
 
 // Re-exported so the Workers runtime can resolve the `durable_objects`
-// `class_name: "BoardRoom"` binding against this module's exports.
+// `class_name: "BoardRoom"` binding against this module's exports. The rule
+// this file follows: only the default handler and DO classes are exported — a
+// plain value export here is read as a service entrypoint and stops workerd
+// from booting (see `routing.ts`).
 export { BoardRoom };
-
-/** The path a board's room lives under (must match `config.ROOM_PATH_PREFIX`). */
-export const ROOM_PATH_PREFIX = '/api/rooms/';
-
-/** A 16-byte board id rendered as URL-safe base64 (22 characters). */
-const BOARD_ID_PATTERN =
-  /^[a-zA-Z0-9_-]{22}(?:[a-zA-Z0-9_-]{2}==)?$/;
-
-/**
- * True when `pathname` is a room upgrade for a syntactically valid board id.
- * Kept cheap and dependency-free; the `BoardRoom` re-validates the payload, and
- * a malformed id never reaches a room so it cannot be used to probe the DO.
- */
-export function parseRoomRequest(
-  pathname: string,
-): { ok: true; boardId: string } | { ok: false } {
-  if (!pathname.startsWith(ROOM_PATH_PREFIX)) return { ok: false };
-  const boardId = decodeURIComponent(pathname.slice(ROOM_PATH_PREFIX.length));
-  if (!BOARD_ID_PATTERN.test(boardId)) return { ok: false };
-  return { ok: true, boardId };
-}
 
 /**
  * The Durable Object namespace binding. Declared as an optional, loosely-typed
@@ -63,6 +47,29 @@ export default {
     const isUpgrade =
       request.headers.get('Upgrade')?.toLowerCase() === 'websocket';
     const room = parseRoomRequest(url.pathname);
+
+    // Test-only routes (story 4). When `TEST_HOOKS` is not set they do not
+    // exist: the request falls through to the single-page app, so a production
+    // build cannot be walked into a room's storage by guessing the path.
+    if (isTestPath(url.pathname)) {
+      const hook = parseTestHook(url.pathname);
+      const namespace = env.BOARD_ROOM;
+      if (
+        request.method !== 'POST' ||
+        hook === null ||
+        !testHooksEnabled(env) ||
+        namespace === undefined
+      ) {
+        return env.ASSETS !== undefined
+          ? env.ASSETS.fetch(request)
+          : new Response('Not Found', { status: 404 });
+      }
+      const stub = namespace.get(namespace.idFromName(hook.boardId));
+      const forwarded = new Request(`https://room${url.pathname}`, {
+        method: 'POST',
+      });
+      return stub.fetch(forwarded);
+    }
 
     // A WebSocket upgrade on a valid room path is a collab connection: forward
     // it to that board's Durable Object, which accepts the socket and relays.

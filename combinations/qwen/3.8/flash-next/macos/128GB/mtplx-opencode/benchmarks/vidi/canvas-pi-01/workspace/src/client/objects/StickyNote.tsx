@@ -44,6 +44,12 @@ export interface StickyNoteProps {
   zoom: number;
   selected: boolean;
   editing: boolean;
+  /**
+   * False while the board is read-only (story 4: `load_failed`). Drag, text
+   * editing, colour and delete all become no-ops; the note stays perfectly
+   * legible and the board underneath still pans.
+   */
+  editable?: boolean;
   onSelect(id: string): void;
   onStartEdit(id: string): void;
   onEndEdit(next: 'selected' | 'unselected'): void;
@@ -68,6 +74,7 @@ interface DragState {
 export function StickyNote(props: StickyNoteProps): JSX.Element {
   const { note, doc, zoom, selected, editing, onSelect, onStartEdit, onDelete } = props;
   const { id, x, y, color, text } = note;
+  const editable = props.editable ?? true;
 
   const [phase, setPhase] = useState<Phase>('idle');
   const [displayFont, setDisplayFont] = useState<{ fontPx: number; overflow: boolean }>({
@@ -95,6 +102,9 @@ export function StickyNote(props: StickyNoteProps): JSX.Element {
   const onPointerDown = (event: ReactPointerEvent<HTMLDivElement>) => {
     // The note owns its pointer: the board must not pan or create underneath.
     event.stopPropagation();
+    // Read-only board: a note can still be looked at, it cannot be picked up,
+    // selected or opened (and its toolbar never appears).
+    if (!editable) return;
     if (editing) return; // a click inside an editing note stays in the editor
     if (event.button !== 0) return;
 
@@ -145,10 +155,11 @@ export function StickyNote(props: StickyNoteProps): JSX.Element {
 
   const onDoubleClick = (event: ReactPointerEvent<HTMLDivElement>) => {
     event.stopPropagation();
+    if (!editable) return;
     if (!editing) onStartEdit(id);
   };
 
-  const showToolbar = selected && !editing && phase === 'idle';
+  const showToolbar = selected && !editing && phase === 'idle' && editable;
   const inverse = zoom > 0 ? 1 / zoom : 1;
   const ytext = editing ? getStickyText(doc, id) : undefined;
 
@@ -160,6 +171,7 @@ export function StickyNote(props: StickyNoteProps): JSX.Element {
       data-note-id={id}
       data-phase={phase}
       data-selected={selected ? 'true' : 'false'}
+      data-editable={editable ? 'true' : 'false'}
       data-x={x}
       data-y={y}
       tabIndex={0}
@@ -222,6 +234,7 @@ export function StickyNote(props: StickyNoteProps): JSX.Element {
           <NoteToolbar
             color={color}
             onColor={(next: StickyColor) => {
+              if (!editable) return;
               setStickyColor(doc, id, next);
             }}
             onDelete={() => onDelete(id)}

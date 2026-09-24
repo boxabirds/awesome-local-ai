@@ -1,3 +1,41 @@
+commit dd6472eef0fac5a8e44792c580d15cf5af2fd4de
+vidi-agent  Thu Sep 24 12:34:27 2026 +0100
+
+    harness: snapshot after story 4 (uncommitted agent work)
+
+
+ README.md                                        |  58 +++
+ playwright.config.ts                             |  27 +-
+ src/client/App.tsx                               |  36 +-
+ src/client/board/Toolbar.tsx                     |  12 +-
+ src/client/objects/StickyNote.tsx                |  15 +-
+ src/client/styles.css                            |  34 ++
+ src/client/sync/ConnectionStatus.tsx             |  12 +-
+ src/client/sync/connectBoard.ts                  |  16 +-
+ src/client/sync/connectionState.ts               |  43 +-
+ src/client/sync/testHooks.ts                     |  21 +-
+ src/shared/config.ts                             |  24 ++
+ src/shared/protocol.ts                           |   6 +
+ src/worker/board-room.ts                         | 483 ++++++++++++++++++-----
+ src/worker/board-store.ts                        | 329 +++++++++++++++
+ src/worker/index.ts                              |  51 +--
+ src/worker/room-state.ts                         | 125 ++++++
+ src/worker/routing.ts                            |  40 ++
+ src/worker/test-hooks.ts                         | 133 +++++++
+ tests/component/load-failure.test.tsx            | 236 +++++++++++
+ tests/e2e/broken-board.spec.ts                   | 176 +++++++++
+ tests/e2e/helpers/wrangler-process.ts            | 233 +++++++++++
+ tests/e2e/persistence.spec.ts                    | 233 +++++++++++
+ tests/fixtures/boards.ts                         | 137 +++++++
+ tests/integration/board-room-persistence.test.ts | 318 +++++++++++++++
+ tests/integration/board-store.test.ts            | 339 ++++++++++++++++
+ tests/integration/helpers/room-client.ts         | 131 ++++++
+ tests/integration/test-hooks.test.ts             | 164 ++++++++
+ tests/unit/board-store-chunks.test.ts            |  72 ++++
+ tests/unit/connection-close-code.test.ts         | 106 +++++
+ tests/unit/room-state.test.ts                    | 116 ++++++
+ wrangler.jsonc                                   |  25 ++
+ 31 files changed, 3602 insertions(+), 149 deletions(-)
 commit 72e32e9fdde7cd5f52623d99d4d0db1d505031e9
 vidi-agent  Thu Sep 24 07:20:25 2026 +0100
 

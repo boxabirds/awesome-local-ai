@@ -93,6 +93,30 @@ export const CATCH_UP_TEST_OUTAGE_MS = 30_000;
  */
 export const ROOM_PATH_PREFIX = '/api/rooms/';
 
+/* ---- Story 4 · persistence (design "Named settings added") --------------
+ * These are the story-4 product settings for board persistence. */
+
+/** Compact when this many update log rows exist. */
+export const COMPACTION_UPDATE_COUNT = 500;
+
+/** Or when log bytes reach this. */
+export const COMPACTION_BYTES = 4 * 1024 * 1024;
+
+/** Snapshot chunk size — keeps every row well under the platform per-row limit. */
+export const SNAPSHOT_CHUNK_BYTES = 512 * 1024;
+
+/** LoadFailed room retries load at most this often (ms). */
+export const LOAD_RETRY_MIN_INTERVAL_MS = 5000;
+
+/** PRD persist.large_board — tested board size. */
+export const PERSIST_TESTED_NOTES = 2000;
+
+/** PRD persist.large_board — open-time target (ms). */
+export const BOARD_LOAD_BUDGET_MS = 3000;
+
+/** Storage schema version for the SQLite tables. */
+export const STORAGE_SCHEMA_VERSION = 1;
+
 /**
  * Derive the room WebSocket **server base** for a board from the page origin,
  * so development, preview and production all reach the same Worker. `ws`/`wss`

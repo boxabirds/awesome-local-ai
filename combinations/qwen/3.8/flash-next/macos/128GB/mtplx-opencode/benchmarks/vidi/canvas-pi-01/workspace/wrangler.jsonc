@@ -29,5 +29,30 @@
     "directory": "./dist/client",
     "binding": "ASSETS",
     "not_found_handling": "single-page-application"
+  },
+  "env": {
+    // `wrangler dev --env e2e` (what playwright.config.ts starts): the only
+    // environment where the /__test/* storage-surgery routes exist. Wrangler
+    // does not inherit `durable_objects` into an environment, so the room
+    // binding and its migration are repeated here.
+    "e2e": {
+      "vars": {
+        "TEST_HOOKS": "1"
+      },
+      "durable_objects": {
+        "bindings": [
+          {
+            "name": "BOARD_ROOM",
+            "class_name": "BoardRoom"
+          }
+        ]
+      },
+      "migrations": [
+        {
+          "tag": "v1",
+          "new_sqlite_classes": ["BoardRoom"]
+        }
+      ]
+    }
   }
 }

@@ -289,3 +289,37 @@ body {
 .note-delete:hover {
   background: #f1d7dc;
 }
+
+/* Connection badge (story 3; the red `load_failed` variant is story 4).
+   Sits above the board chrome and never intercepts pointer events, so a badge
+   can never block the canvas — the read-only state is enforced by `canEdit`. */
+.connection-status {
+  position: absolute;
+  top: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 6px 12px;
+  border-radius: 999px;
+  font-size: 13px;
+  color: var(--control-text);
+  background: #fff;
+  box-shadow: 0 1px 4px rgb(16 24 40 / 12%);
+  pointer-events: none;
+  z-index: 3;
+}
+
+.connection-status--load_failed {
+  color: #b3261e;
+  background: #fdeceb;
+}
+
+.tool-button:disabled {
+  color: #9aa3af;
+  background: transparent;
+  cursor: not-allowed;
+}
+
+/* A read-only note still shows its content, but gives no editing affordances. */
+.sticky-note[data-editable='false'] {
+  cursor: default;
+}
