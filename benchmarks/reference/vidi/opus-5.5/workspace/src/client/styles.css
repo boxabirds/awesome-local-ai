@@ -1,0 +1,133 @@
+:root {
+  --board-bg: #f7f7f5;
+  --grid-dot: #c9c9c4;
+  --ink: #1f2328;
+  --muted: #5b616b;
+  --panel-bg: #ffffff;
+  --panel-border: #d8d8d3;
+  --focus: #2f6feb;
+  --origin: #9aa0a6;
+  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  color: var(--ink);
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+
+html, body, #root {
+  margin: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  overscroll-behavior: none;
+}
+
+.app {
+  position: fixed;
+  inset: 0;
+}
+
+.board-viewport {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  background-color: var(--board-bg);
+  background-image: radial-gradient(circle, var(--grid-dot) 1px, transparent 1.5px);
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.board-viewport--panning { cursor: grabbing; }
+
+.board-world {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 0;
+  height: 0;
+}
+
+/* Small crosshair at world (0,0): the board's starting point. */
+.origin-marker {
+  position: absolute;
+  left: -8px;
+  top: -8px;
+  width: 16px;
+  height: 16px;
+  pointer-events: none;
+  background:
+    linear-gradient(var(--origin), var(--origin)) center / 16px 1px no-repeat,
+    linear-gradient(var(--origin), var(--origin)) center / 1px 16px no-repeat;
+}
+
+.zoom-controls {
+  position: fixed;
+  right: 16px;
+  bottom: 16px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px;
+  background: var(--panel-bg);
+  border: 1px solid var(--panel-border);
+  border-radius: 8px;
+  box-shadow: 0 1px 3px rgb(0 0 0 / 0.08);
+  font-size: 14px;
+}
+
+.zoom-controls__button,
+.zoom-controls__reset {
+  font: inherit;
+  color: var(--ink);
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  cursor: pointer;
+  height: 32px;
+}
+
+.zoom-controls__button {
+  width: 32px;
+  font-size: 18px;
+  line-height: 1;
+}
+
+.zoom-controls__reset { padding: 0 10px; }
+
+.zoom-controls__button:hover:not(:disabled),
+.zoom-controls__reset:hover { background: #efefec; }
+
+.zoom-controls__button:disabled {
+  color: #b4b8bd;
+  cursor: default;
+}
+
+.zoom-controls__button:focus-visible,
+.zoom-controls__reset:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 1px;
+}
+
+.zoom-controls__label {
+  min-width: 48px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+.navigation-hint {
+  position: fixed;
+  left: 50%;
+  bottom: 24px;
+  transform: translateX(-50%);
+  max-width: calc(100% - 32px);
+  padding: 8px 14px;
+  border-radius: 999px;
+  background: rgb(31 35 40 / 0.82);
+  color: #fff;
+  font-size: 13px;
+  pointer-events: none;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
