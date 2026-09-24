@@ -369,3 +369,27 @@ def test_continue_uses_the_same_session_not_a_fork(tmp_path):
     assert pi[pi.index("--session") + 1] == "abc" and "--fork" not in pi
     oc = OpenCodeClient(tmp_path).command("m", "go on", resume_from="ses", fork=False)
     assert oc[oc.index("--session") + 1] == "ses" and "--fork" not in oc
+
+
+def test_make_publishable_redacts_home_and_keeps_event_logs_small(tmp_path):
+    """tests/privacy-test.sh: no /Users/<name> paths and no benchmark file over 512K may be committed."""
+    import gzip, json as _json
+    from pathlib import Path as _P
+    from drive import make_publishable, compact_events, PUBLISH_MAX_BYTES
+    home = str(_P.home())
+    run = tmp_path / "run"
+    (run / "stories" / "01").mkdir(parents=True)
+    (run / "metrics.json").write_text(_json.dumps({"tail": f"error at {home}/.vidi-bench/work/x"}))
+    raw = run / "stories" / "01" / "agent-events.jsonl"
+    big = "x" * 50_000
+    raw.write_text("\n".join(_json.dumps({"type": "message_end", "path": f"{home}/w", "content": big}) for _ in range(60)))
+    gz = compact_events(raw)
+    (run / "superseded").mkdir()
+    (run / "superseded" / "agent-events.jsonl").write_text(raw.read_text())
+    make_publishable(run)
+    assert home not in (run / "metrics.json").read_text() and "~/.vidi-bench" in (run / "metrics.json").read_text()
+    text = gzip.open(gz, "rt").read()
+    assert home not in text and "truncated" in text
+    assert gz.stat().st_size < PUBLISH_MAX_BYTES
+    assert not (run / "superseded" / "agent-events.jsonl").exists()          # raw log replaced by its compact form
+    assert (run / "superseded" / "agent-events.compact.jsonl.gz").exists()

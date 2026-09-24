@@ -26,7 +26,7 @@
       "cmd": "npm run test:unit",
       "exit": 0,
       "seconds": 0.4,
-      "tail": "\n> vidi6@0.0.0 test:unit\n> vitest run --project unit\n\n\n RUN  v5.0.1 /Users/julian/.vidi-bench/work/qwen__3.8__flash-next__macos__128GB__mtplx-opencode__benchmarks__vidi__canvas-pi-01/workspace\n\n\n Test Files  1 passed (1)\n      Tests  19 passed (19)\n   Start at  23:38:22\n   Duration  87ms (transform 43%, tests 40%, import 13%, worker 4%)\n\n",
+      "tail": "\n> vidi6@0.0.0 test:unit\n> vitest run --project unit\n\n\n RUN  v5.0.1 ~/.vidi-bench/work/qwen__3.8__flash-next__macos__128GB__mtplx-opencode__benchmarks__vidi__canvas-pi-01/workspace\n\n\n Test Files  1 passed (1)\n      Tests  19 passed (19)\n   Start at  23:38:22\n   Duration  87ms (transform 43%, tests 40%, import 13%, worker 4%)\n\n",
       "passed": 19,
       "failed": 0
     },
@@ -34,7 +34,7 @@
       "cmd": "npm run test:component",
       "exit": 0,
       "seconds": 1.0,
-      "tail": "\n> vidi6@0.0.0 test:component\n> vitest run --project component\n\n\n RUN  v5.0.1 /Users/julian/.vidi-bench/work/qwen__3.8__flash-next__macos__128GB__mtplx-opencode__benchmarks__vidi__canvas-pi-01/workspace\n\n\n Test Files  3 passed (3)\n      Tests  22 passed (22)\n   Start at  23:38:22\n   Duration  773ms (tests 44%, environment 42%, setup 7%, transform 6%, import 1%)\n\n",
+      "tail": "\n> vidi6@0.0.0 test:component\n> vitest run --project component\n\n\n RUN  v5.0.1 ~/.vidi-bench/work/qwen__3.8__flash-next__macos__128GB__mtplx-opencode__benchmarks__vidi__canvas-pi-01/workspace\n\n\n Test Files  3 passed (3)\n      Tests  22 passed (22)\n   Start at  23:38:22\n   Duration  773ms (tests 44%, environment 42%, setup 7%, transform 6%, import 1%)\n\n",
       "passed": 22,
       "failed": 0
     },

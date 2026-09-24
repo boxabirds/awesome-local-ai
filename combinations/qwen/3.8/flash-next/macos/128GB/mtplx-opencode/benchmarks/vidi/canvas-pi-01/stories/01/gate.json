@@ -26,7 +26,7 @@
       "cmd": "npm run test:unit",
       "exit": 0,
       "seconds": 0.4,
-      "tail": "\n> vidi6@0.0.0 test:unit\n> vitest run --project unit\n\n\n RUN  v5.0.1 /Users/julian/.vidi-bench/work/qwen__3.8__flash-next__macos__128GB__mtplx-opencode__benchmarks__vidi__canvas-pi-01/workspace\n\n\n Test Files  1 passed (1)\n      Tests  19 passed (19)\n   Start at  23:40:28\n   Duration  81ms (transform 43%, tests 40%, import 13%, worker 3%)\n\n",
+      "tail": "\n> vidi6@0.0.0 test:unit\n> vitest run --project unit\n\n\n RUN  v5.0.1 ~/.vidi-bench/work/qwen__3.8__flash-next__macos__128GB__mtplx-opencode__benchmarks__vidi__canvas-pi-01/workspace\n\n\n Test Files  1 passed (1)\n      Tests  19 passed (19)\n   Start at  23:40:28\n   Duration  81ms (transform 43%, tests 40%, import 13%, worker 3%)\n\n",
       "passed": 19,
       "failed": 0
     },
@@ -34,7 +34,7 @@
       "cmd": "npm run test:component",
       "exit": 0,
       "seconds": 0.9,
-      "tail": "\n> vidi6@0.0.0 test:component\n> vitest run --project component\n\n\n RUN  v5.0.1 /Users/julian/.vidi-bench/work/qwen__3.8__flash-next__macos__128GB__mtplx-opencode__benchmarks__vidi__canvas-pi-01/workspace\n\n\n Test Files  3 passed (3)\n      Tests  22 passed (22)\n   Start at  23:40:28\n   Duration  734ms (tests 45%, environment 41%, setup 7%, transform 6%, import 1%)\n\n",
+      "tail": "\n> vidi6@0.0.0 test:component\n> vitest run --project component\n\n\n RUN  v5.0.1 ~/.vidi-bench/work/qwen__3.8__flash-next__macos__128GB__mtplx-opencode__benchmarks__vidi__canvas-pi-01/workspace\n\n\n Test Files  3 passed (3)\n      Tests  22 passed (22)\n   Start at  23:40:28\n   Duration  734ms (tests 45%, environment 41%, setup 7%, transform 6%, import 1%)\n\n",
       "passed": 22,
       "failed": 0
     },
@@ -45,7 +45,7 @@
       "cmd": "npm run test:e2e",
       "exit": 1,
       "seconds": 1.0,
-      "tail": "\n> vidi6@0.0.0 test:e2e\n> npm run build:test && playwright test\n\n\n> vidi6@0.0.0 build:test\n> vite build --mode test\n\n\u001b[36mvite v8.3.0 \u001b[32mbuilding client environment for test...\u001b[36m\u001b[39m\ntransforming...\n\u2713 23 modules transformed.\nrendering chunks...\ncomputing gzip size...\ndist/client/index.html                   0.39 kB \u2502 gzip:  0.26 kB\ndist/client/assets/index-WACH3Pcm.css    1.99 kB \u2502 gzip:  0.84 kB\ndist/client/assets/index-LvIJNFZS.js   227.37 kB \u2502 gzip: 71.31 kB\n\n\u001b[32m\u2713 built in 51ms\u001b[39m\n[WebServer] \n[WebServer]  \u26c5\ufe0f wrangler 4.137.0\n[WebServer] \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\n[WebServer] Your Worker has access to the following bindings:\n[WebServer] Binding            Resource      Mode\n[WebServer] env.ASSETS         Assets        local\n[WebServer] \n[WebServer] \nError: Process from config.webServer was not able to start. Exit code: 1\n\n[WebServer] \u2718 [ERROR] Cannot use assets with a binding in an assets-only Worker.\n[WebServer] \n[WebServer]   Please remove the asset binding from your configuration file, or provide a Worker script in your configuration file (`main`).\n[WebServer] \n[WebServer] \n[WebServer] \ud83e\udeb5  Logs were written to \"/Users/julian/.wrangler/logs/wrangler-2026-09-23_22-40-32_007.log\"\n",
+      "tail": "\n> vidi6@0.0.0 test:e2e\n> npm run build:test && playwright test\n\n\n> vidi6@0.0.0 build:test\n> vite build --mode test\n\n\u001b[36mvite v8.3.0 \u001b[32mbuilding client environment for test...\u001b[36m\u001b[39m\ntransforming...\n\u2713 23 modules transformed.\nrendering chunks...\ncomputing gzip size...\ndist/client/index.html                   0.39 kB \u2502 gzip:  0.26 kB\ndist/client/assets/index-WACH3Pcm.css    1.99 kB \u2502 gzip:  0.84 kB\ndist/client/assets/index-LvIJNFZS.js   227.37 kB \u2502 gzip: 71.31 kB\n\n\u001b[32m\u2713 built in 51ms\u001b[39m\n[WebServer] \n[WebServer]  \u26c5\ufe0f wrangler 4.137.0\n[WebServer] \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\n[WebServer] Your Worker has access to the following bindings:\n[WebServer] Binding            Resource      Mode\n[WebServer] env.ASSETS         Assets        local\n[WebServer] \n[WebServer] \nError: Process from config.webServer was not able to start. Exit code: 1\n\n[WebServer] \u2718 [ERROR] Cannot use assets with a binding in an assets-only Worker.\n[WebServer] \n[WebServer]   Please remove the asset binding from your configuration file, or provide a Worker script in your configuration file (`main`).\n[WebServer] \n[WebServer] \n[WebServer] \ud83e\udeb5  Logs were written to \"~/.wrangler/logs/wrangler-2026-09-23_22-40-32_007.log\"\n",
       "passed": null,
       "failed": null
     }
