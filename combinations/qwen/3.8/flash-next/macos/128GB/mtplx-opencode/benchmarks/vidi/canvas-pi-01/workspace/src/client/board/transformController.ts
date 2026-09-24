@@ -16,6 +16,14 @@
  * drive it by dispatching events directly). A read-only board (`canEdit` false)
  * refuses every gesture, and objects deleted by someone else mid-drag are simply
  * skipped by the model.
+ *
+ * Story 8 · task 3 adds the two pieces undo needs. A whole drag is ONE undo step,
+ * so `createTransformController` takes optional `onGestureStart` / `onGestureEnd`
+ * boundary hooks (BoardShell wires them to the undo controller): a boundary opens
+ * when the first gesture frame is captured and closes when it ends, so a drag
+ * never merges with the change before or after it. `isActive()` already answers
+ * the keyboard handler's "am I mid-drag?" — Escape during a gesture is swallowed
+ * rather than deselecting halfway (task 11).
  */
 import * as Y from 'yjs';
 import {
@@ -94,6 +102,7 @@ export const HANDLES: readonly Handle[] = ['nw', 'n', 'ne', 'e', 'se', 's', 'sw'
  */
 export function createTransformController(
   getContext: () => TransformContext,
+  boundaries?: { onStart?: () => void; onEnd?: () => void },
 ): TransformController {
   const state: { gesture: Gesture } = { gesture: null };
 
@@ -107,6 +116,9 @@ export function createTransformController(
       if (obj) start.set(id, { x: obj.x, y: obj.y });
     }
     if (start.size === 0) return false;
+    // Opening a gesture is an undo boundary: it closes the previous step so the
+    // frames that follow are their own single step (whole drag = one step).
+    boundaries?.onStart?.();
     // Raise the whole selection above everything unselected (one transaction),
     // then start the move (design Key decision 4).
     bringObjectsToFront(ctx.doc, ids);
@@ -148,7 +160,6 @@ export function createTransformController(
     if (objects.length === 0) return false;
     // A resize is only offered when every selected type is resizable.
     if (objects.some((o) => getObjectType(o.type)?.resizable !== true)) return false;
-
     const startRects = new Map<string, Rect>();
     const minSizes = new Map<string, number>();
     const rectList: Rect[] = [];
@@ -161,6 +172,8 @@ export function createTransformController(
     }
     const startBox = unionRects(rectList);
     if (startBox === null) return false;
+    // A resize is its own undo step too (Task 9): open the boundary here.
+    boundaries?.onStart?.();
 
     // Every object shares one mode; the first selected type decides it (design:
     // a mixed selection resolves to one clamped transform).
@@ -228,7 +241,12 @@ export function createTransformController(
   };
 
   const end = () => {
-    state.gesture = null;
+    // Only a live gesture closes a boundary; a stray pointerup must not split an
+    // unrelated step in two.
+    if (state.gesture !== null) {
+      state.gesture = null;
+      boundaries?.onEnd?.();
+    }
   };
 
   return {

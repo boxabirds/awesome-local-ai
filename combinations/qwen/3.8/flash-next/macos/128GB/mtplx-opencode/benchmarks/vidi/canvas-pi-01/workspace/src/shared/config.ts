@@ -162,6 +162,20 @@ export const BOARD_LOAD_BUDGET_MS = 3000;
 /** Storage schema version for the SQLite tables. */
 export const STORAGE_SCHEMA_VERSION = 1;
 
+/* ---- Story 8 · undo / redo (design "Named settings") --------------------
+ * These are the story-8 product settings, defined once here so a designer can
+ * retune the personal history without a redesign (PRD "Settings"). */
+
+/**
+ * The typing pause that ends a burst: consecutive edits to one object that are
+ * `UNDO_CAPTURE_TIMEOUT_MS` or more apart start a fresh undo step, while a
+ * faster run merges into the current step (PRD undo.typing).
+ */
+export const UNDO_CAPTURE_TIMEOUT_MS = 500;
+
+/** How many undo steps a personal history keeps before the oldest is dropped. */
+export const UNDO_MAX_STEPS = 200;
+
 /**
  * Derive the room WebSocket **server base** for a board from the page origin,
  * so development, preview and production all reach the same Worker. `ws`/`wss`

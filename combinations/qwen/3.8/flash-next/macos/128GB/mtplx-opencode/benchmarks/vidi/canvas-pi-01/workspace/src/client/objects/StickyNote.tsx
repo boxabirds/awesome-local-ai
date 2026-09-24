@@ -30,6 +30,7 @@ import { StickyTextEditor } from './StickyTextEditor';
 import { fitText } from './StickyText';
 import { useObjectInteraction } from './useObjectInteraction';
 import type { TransformController } from '../board/transformController';
+import type { UndoController } from '../board/undo';
 
 export interface StickyNoteProps {
   note: ObjectSnapshot;
@@ -45,6 +46,8 @@ export interface StickyNoteProps {
   editable?: boolean;
   /** The board-wide transform controller (shared by every object). */
   controller: TransformController;
+  /** The board-wide personal undo history (shared; story 8). */
+  undo?: UndoController;
   /** The current selection, so a press can decide single-vs-group drag. */
   selection: readonly string[];
   /** Select this object alone, or (with `additive`) toggle it in the set. */
@@ -149,6 +152,7 @@ export function StickyNote(props: StickyNoteProps): JSX.Element {
           padding={PADDING}
           fontPx={STICKY_FONT_MAX_PX}
           onEnd={props.onEndEdit}
+          undo={props.undo}
         />
       ) : (
         <div
@@ -181,7 +185,10 @@ export function StickyNote(props: StickyNoteProps): JSX.Element {
             color={color}
             onColor={(next: StickyColor) => {
               if (!editable) return;
-              setStickyColor(doc, id, next);
+              // A recolour is its own undo step, separate from a drag that may
+              // have just ended (TC-15: gesture + colour = two steps).
+              if (props.undo) props.undo.step(() => setStickyColor(doc, id, next));
+              else setStickyColor(doc, id, next);
             }}
             onDelete={() => onDelete(id)}
           />

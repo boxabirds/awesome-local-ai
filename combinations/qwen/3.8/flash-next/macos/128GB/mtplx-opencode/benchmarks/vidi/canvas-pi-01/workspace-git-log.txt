@@ -1,3 +1,25 @@
+commit c455444c6af23a7eb6ccaf791856ef5efc63ce5b
+vidi-agent  Thu Sep 24 18:50:27 2026 +0100
+
+    Story 8: per-user undo/redo with explicit step boundaries
+
+
+ src/client/board/BoardShell.tsx         | 159 ++++++------
+ src/client/board/Toolbar.tsx            |  33 ++-
+ src/client/board/UndoButtons.tsx        |  85 +++++++
+ src/client/board/transformController.ts |  22 +-
+ src/client/board/undo.ts                | 179 ++++++++++++++
+ src/client/board/useBoardKeys.ts        | 143 +++++++++++
+ src/client/board/useUndo.ts             |  55 +++++
+ src/client/objects/StickyNote.tsx       |   9 +-
+ src/client/objects/StickyTextEditor.tsx |  77 +++++-
+ src/shared/config.ts                    |  14 ++
+ tests/component/undo.test.tsx           | 423 ++++++++++++++++++++++++++++++++
+ tests/e2e/undo.spec.ts                  | 156 ++++++++++++
+ tests/unit/peer.ts                      |  51 ++++
+ tests/unit/undo-boundaries.test.ts      | 109 ++++++++
+ tests/unit/undo-history.test.ts         | 254 +++++++++++++++++++
+ 15 files changed, 1672 insertions(+), 97 deletions(-)
 commit c1c81d62c3e725617f299cbb95b40b9aea6958b7
 vidi-agent  Thu Sep 24 17:38:29 2026 +0100
 
