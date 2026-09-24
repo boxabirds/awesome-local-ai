@@ -3,7 +3,7 @@
 Decisions and deviations made while implementing "Pan and zoom around an infinite board".
 
 ## Environment (sandbox) notes — how the toolchain is run
-- This working directory sits under an ancestor (`/Users/julian/.vidi-bench/work`) that Node
+- This working directory sits under an ancestor (`~/.vidi-bench/work`) that Node
   cannot `realpath` (EPERM). Any tool that resolves modules from this path fails. To verify the
   build/tests I ran `tsc`, `vite build`, `vitest` and `playwright` from a mirror of the project
   at a path with readable ancestors, using the same `package.json` scripts and configs. The

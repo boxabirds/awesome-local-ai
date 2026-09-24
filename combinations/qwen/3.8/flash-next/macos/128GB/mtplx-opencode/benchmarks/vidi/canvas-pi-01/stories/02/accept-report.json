@@ -1,10 +1,10 @@
 {
   "config": {
-    "configFile": "/Users/julian/expts/awesome-local-ai/benchmarks/vidi/acceptance/playwright.config.ts",
-    "rootDir": "/Users/julian/expts/awesome-local-ai/benchmarks/vidi/acceptance/tests",
+    "configFile": "~/expts/awesome-local-ai/benchmarks/vidi/acceptance/playwright.config.ts",
+    "rootDir": "~/expts/awesome-local-ai/benchmarks/vidi/acceptance/tests",
     "forbidOnly": false,
     "fullyParallel": false,
-    "globalSetup": "/Users/julian/expts/awesome-local-ai/benchmarks/vidi/acceptance/tests/global-setup.ts",
+    "globalSetup": "~/expts/awesome-local-ai/benchmarks/vidi/acceptance/tests/global-setup.ts",
     "globalTeardown": null,
     "globalTimeout": 0,
     "grep": {},
@@ -16,7 +16,7 @@
     "preserveOutput": "always",
     "projects": [
       {
-        "outputDir": "/Users/julian/expts/awesome-local-ai/combinations/qwen/3.8/flash-next/macos/128GB/mtplx-opencode/benchmarks/vidi/canvas-pi-01/stories/02/artifacts",
+        "outputDir": "~/expts/awesome-local-ai/combinations/qwen/3.8/flash-next/macos/128GB/mtplx-opencode/benchmarks/vidi/canvas-pi-01/stories/02/artifacts",
         "repeatEach": 1,
         "retries": 0,
         "metadata": {
@@ -24,7 +24,7 @@
         },
         "id": "chromium",
         "name": "chromium",
-        "testDir": "/Users/julian/expts/awesome-local-ai/benchmarks/vidi/acceptance/tests",
+        "testDir": "~/expts/awesome-local-ai/benchmarks/vidi/acceptance/tests",
         "testIgnore": [],
         "testMatch": [
           "**/*.@(spec|test).?(c|m)[jt]s?(x)"
@@ -41,7 +41,7 @@
       [
         "json",
         {
-          "outputFile": "/Users/julian/expts/awesome-local-ai/combinations/qwen/3.8/flash-next/macos/128GB/mtplx-opencode/benchmarks/vidi/canvas-pi-01/stories/02/accept-report.json"
+          "outputFile": "~/expts/awesome-local-ai/combinations/qwen/3.8/flash-next/macos/128GB/mtplx-opencode/benchmarks/vidi/canvas-pi-01/stories/02/accept-report.json"
         }
       ]
     ],
@@ -168,9 +168,9 @@
                       "duration": 5291,
                       "error": {
                         "message": "TimeoutError: locator.click: Timeout 5000ms exceeded.\nCall log:\n\u001b[2m  - waiting for getByRole('button', { name: 'Zoom out' })\u001b[22m\n\u001b[2m    - locator resolved to <button type=\"button\" aria-label=\"Zoom out\">−</button>\u001b[22m\n\u001b[2m  - attempting click action\u001b[22m\n\u001b[2m    2 × waiting for element to be visible, enabled and stable\u001b[22m\n\u001b[2m      - element is not enabled\u001b[22m\n\u001b[2m    - retrying click action\u001b[22m\n\u001b[2m    - waiting 20ms\u001b[22m\n\u001b[2m    2 × waiting for element to be visible, enabled and stable\u001b[22m\n\u001b[2m      - element is not enabled\u001b[22m\n\u001b[2m    - retrying click action\u001b[22m\n\u001b[2m      - waiting 100ms\u001b[22m\n\u001b[2m    10 × waiting for element to be visible, enabled and stable\u001b[22m\n\u001b[2m       - element is not enabled\u001b[22m\n\u001b[2m     - retrying click action\u001b[22m\n\u001b[2m       - waiting 500ms\u001b[22m\n",
-                        "stack": "TimeoutError: locator.click: Timeout 5000ms exceeded.\nCall log:\n\u001b[2m  - waiting for getByRole('button', { name: 'Zoom out' })\u001b[22m\n\u001b[2m    - locator resolved to <button type=\"button\" aria-label=\"Zoom out\">−</button>\u001b[22m\n\u001b[2m  - attempting click action\u001b[22m\n\u001b[2m    2 × waiting for element to be visible, enabled and stable\u001b[22m\n\u001b[2m      - element is not enabled\u001b[22m\n\u001b[2m    - retrying click action\u001b[22m\n\u001b[2m    - waiting 20ms\u001b[22m\n\u001b[2m    2 × waiting for element to be visible, enabled and stable\u001b[22m\n\u001b[2m      - element is not enabled\u001b[22m\n\u001b[2m    - retrying click action\u001b[22m\n\u001b[2m      - waiting 100ms\u001b[22m\n\u001b[2m    10 × waiting for element to be visible, enabled and stable\u001b[22m\n\u001b[2m       - element is not enabled\u001b[22m\n\u001b[2m     - retrying click action\u001b[22m\n\u001b[2m       - waiting 500ms\u001b[22m\n\n    at /Users/julian/expts/awesome-local-ai/benchmarks/vidi/acceptance/tests/story-01.spec.ts:36:76",
+                        "stack": "TimeoutError: locator.click: Timeout 5000ms exceeded.\nCall log:\n\u001b[2m  - waiting for getByRole('button', { name: 'Zoom out' })\u001b[22m\n\u001b[2m    - locator resolved to <button type=\"button\" aria-label=\"Zoom out\">−</button>\u001b[22m\n\u001b[2m  - attempting click action\u001b[22m\n\u001b[2m    2 × waiting for element to be visible, enabled and stable\u001b[22m\n\u001b[2m      - element is not enabled\u001b[22m\n\u001b[2m    - retrying click action\u001b[22m\n\u001b[2m    - waiting 20ms\u001b[22m\n\u001b[2m    2 × waiting for element to be visible, enabled and stable\u001b[22m\n\u001b[2m      - element is not enabled\u001b[22m\n\u001b[2m    - retrying click action\u001b[22m\n\u001b[2m      - waiting 100ms\u001b[22m\n\u001b[2m    10 × waiting for element to be visible, enabled and stable\u001b[22m\n\u001b[2m       - element is not enabled\u001b[22m\n\u001b[2m     - retrying click action\u001b[22m\n\u001b[2m       - waiting 500ms\u001b[22m\n\n    at ~/expts/awesome-local-ai/benchmarks/vidi/acceptance/tests/story-01.spec.ts:36:76",
                         "location": {
-                          "file": "/Users/julian/expts/awesome-local-ai/benchmarks/vidi/acceptance/tests/story-01.spec.ts",
+                          "file": "~/expts/awesome-local-ai/benchmarks/vidi/acceptance/tests/story-01.spec.ts",
                           "column": 76,
                           "line": 36
                         },
@@ -179,11 +179,11 @@
                       "errors": [
                         {
                           "location": {
-                            "file": "/Users/julian/expts/awesome-local-ai/benchmarks/vidi/acceptance/tests/story-01.spec.ts",
+                            "file": "~/expts/awesome-local-ai/benchmarks/vidi/acceptance/tests/story-01.spec.ts",
                             "column": 76,
                             "line": 36
                           },
-                          "message": "TimeoutError: locator.click: Timeout 5000ms exceeded.\nCall log:\n\u001b[2m  - waiting for getByRole('button', { name: 'Zoom out' })\u001b[22m\n\u001b[2m    - locator resolved to <button type=\"button\" aria-label=\"Zoom out\">−</button>\u001b[22m\n\u001b[2m  - attempting click action\u001b[22m\n\u001b[2m    2 × waiting for element to be visible, enabled and stable\u001b[22m\n\u001b[2m      - element is not enabled\u001b[22m\n\u001b[2m    - retrying click action\u001b[22m\n\u001b[2m    - waiting 20ms\u001b[22m\n\u001b[2m    2 × waiting for element to be visible, enabled and stable\u001b[22m\n\u001b[2m      - element is not enabled\u001b[22m\n\u001b[2m    - retrying click action\u001b[22m\n\u001b[2m      - waiting 100ms\u001b[22m\n\u001b[2m    10 × waiting for element to be visible, enabled and stable\u001b[22m\n\u001b[2m       - element is not enabled\u001b[22m\n\u001b[2m     - retrying click action\u001b[22m\n\u001b[2m       - waiting 500ms\u001b[22m\n\n\n  34 |     const out = page.getByRole('button', { name: 'Zoom out' });\n  35 |     const inn = page.getByRole('button', { name: 'Zoom in' });\n> 36 |     for (let i = 0; i < MAX_STEPS && await out.isEnabled(); i++) await out.click();\n     |                                                                            ^\n  37 |     await expect(zoomLabel(page)).toHaveText(`${ZOOM_MIN_PCT}%`);\n  38 |     await expect(out).toBeDisabled();\n  39 |     for (let i = 0; i < MAX_STEPS && await inn.isEnabled(); i++) await inn.click();\n    at /Users/julian/expts/awesome-local-ai/benchmarks/vidi/acceptance/tests/story-01.spec.ts:36:76"
+                          "message": "TimeoutError: locator.click: Timeout 5000ms exceeded.\nCall log:\n\u001b[2m  - waiting for getByRole('button', { name: 'Zoom out' })\u001b[22m\n\u001b[2m    - locator resolved to <button type=\"button\" aria-label=\"Zoom out\">−</button>\u001b[22m\n\u001b[2m  - attempting click action\u001b[22m\n\u001b[2m    2 × waiting for element to be visible, enabled and stable\u001b[22m\n\u001b[2m      - element is not enabled\u001b[22m\n\u001b[2m    - retrying click action\u001b[22m\n\u001b[2m    - waiting 20ms\u001b[22m\n\u001b[2m    2 × waiting for element to be visible, enabled and stable\u001b[22m\n\u001b[2m      - element is not enabled\u001b[22m\n\u001b[2m    - retrying click action\u001b[22m\n\u001b[2m      - waiting 100ms\u001b[22m\n\u001b[2m    10 × waiting for element to be visible, enabled and stable\u001b[22m\n\u001b[2m       - element is not enabled\u001b[22m\n\u001b[2m     - retrying click action\u001b[22m\n\u001b[2m       - waiting 500ms\u001b[22m\n\n\n  34 |     const out = page.getByRole('button', { name: 'Zoom out' });\n  35 |     const inn = page.getByRole('button', { name: 'Zoom in' });\n> 36 |     for (let i = 0; i < MAX_STEPS && await out.isEnabled(); i++) await out.click();\n     |                                                                            ^\n  37 |     await expect(zoomLabel(page)).toHaveText(`${ZOOM_MIN_PCT}%`);\n  38 |     await expect(out).toBeDisabled();\n  39 |     for (let i = 0; i < MAX_STEPS && await inn.isEnabled(); i++) await inn.click();\n    at ~/expts/awesome-local-ai/benchmarks/vidi/acceptance/tests/story-01.spec.ts:36:76"
                         }
                       ],
                       "stdout": [],
@@ -195,16 +195,16 @@
                         {
                           "name": "screenshot",
                           "contentType": "image/png",
-                          "path": "/Users/julian/expts/awesome-local-ai/combinations/qwen/3.8/flash-next/macos/128GB/mtplx-opencode/benchmarks/vidi/canvas-pi-01/stories/02/artifacts/story-01-story-1-s01-zoom--9209c-buttons-ref-prd-zoom-limits-chromium/test-failed-1.png"
+                          "path": "~/expts/awesome-local-ai/combinations/qwen/3.8/flash-next/macos/128GB/mtplx-opencode/benchmarks/vidi/canvas-pi-01/stories/02/artifacts/story-01-story-1-s01-zoom--9209c-buttons-ref-prd-zoom-limits-chromium/test-failed-1.png"
                         },
                         {
                           "name": "error-context",
                           "contentType": "text/markdown",
-                          "path": "/Users/julian/expts/awesome-local-ai/combinations/qwen/3.8/flash-next/macos/128GB/mtplx-opencode/benchmarks/vidi/canvas-pi-01/stories/02/artifacts/story-01-story-1-s01-zoom--9209c-buttons-ref-prd-zoom-limits-chromium/error-context.md"
+                          "path": "~/expts/awesome-local-ai/combinations/qwen/3.8/flash-next/macos/128GB/mtplx-opencode/benchmarks/vidi/canvas-pi-01/stories/02/artifacts/story-01-story-1-s01-zoom--9209c-buttons-ref-prd-zoom-limits-chromium/error-context.md"
                         }
                       ],
                       "errorLocation": {
-                        "file": "/Users/julian/expts/awesome-local-ai/benchmarks/vidi/acceptance/tests/story-01.spec.ts",
+                        "file": "~/expts/awesome-local-ai/benchmarks/vidi/acceptance/tests/story-01.spec.ts",
                         "column": 76,
                         "line": 36
                       }
@@ -701,9 +701,9 @@
                       "duration": 221,
                       "error": {
                         "message": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoBeLessThan\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m)\u001b[22m\n\nExpected: < \u001b[32m1.5\u001b[39m\nReceived:   \u001b[31m137.5\u001b[39m",
-                        "stack": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoBeLessThan\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m)\u001b[22m\n\nExpected: < \u001b[32m1.5\u001b[39m\nReceived:   \u001b[31m137.5\u001b[39m\n    at /Users/julian/expts/awesome-local-ai/benchmarks/vidi/acceptance/tests/story-02.spec.ts:90:50",
+                        "stack": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoBeLessThan\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m)\u001b[22m\n\nExpected: < \u001b[32m1.5\u001b[39m\nReceived:   \u001b[31m137.5\u001b[39m\n    at ~/expts/awesome-local-ai/benchmarks/vidi/acceptance/tests/story-02.spec.ts:90:50",
                         "location": {
-                          "file": "/Users/julian/expts/awesome-local-ai/benchmarks/vidi/acceptance/tests/story-02.spec.ts",
+                          "file": "~/expts/awesome-local-ai/benchmarks/vidi/acceptance/tests/story-02.spec.ts",
                           "column": 50,
                           "line": 90
                         },
@@ -712,11 +712,11 @@
                       "errors": [
                         {
                           "location": {
-                            "file": "/Users/julian/expts/awesome-local-ai/benchmarks/vidi/acceptance/tests/story-02.spec.ts",
+                            "file": "~/expts/awesome-local-ai/benchmarks/vidi/acceptance/tests/story-02.spec.ts",
                             "column": 50,
                             "line": 90
                           },
-                          "message": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoBeLessThan\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m)\u001b[22m\n\nExpected: < \u001b[32m1.5\u001b[39m\nReceived:   \u001b[31m137.5\u001b[39m\n\n  88 |     await drag(page, grab, { x: grab.x + 150, y: grab.y + 80 });\n  89 |     const aAfter = await box(a);\n> 90 |     expect(Math.abs(aAfter.x - aBefore.x - 150)).toBeLessThan(PIXEL_TOLERANCE);\n     |                                                  ^\n  91 |     expect(Math.abs(aAfter.y - aBefore.y - 80)).toBeLessThan(PIXEL_TOLERANCE);\n  92 |     const bAfter = await box(b);\n  93 |     expect(Math.abs(bAfter.x - bBefore.x)).toBeLessThan(PIXEL_TOLERANCE);\n    at /Users/julian/expts/awesome-local-ai/benchmarks/vidi/acceptance/tests/story-02.spec.ts:90:50"
+                          "message": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoBeLessThan\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m)\u001b[22m\n\nExpected: < \u001b[32m1.5\u001b[39m\nReceived:   \u001b[31m137.5\u001b[39m\n\n  88 |     await drag(page, grab, { x: grab.x + 150, y: grab.y + 80 });\n  89 |     const aAfter = await box(a);\n> 90 |     expect(Math.abs(aAfter.x - aBefore.x - 150)).toBeLessThan(PIXEL_TOLERANCE);\n     |                                                  ^\n  91 |     expect(Math.abs(aAfter.y - aBefore.y - 80)).toBeLessThan(PIXEL_TOLERANCE);\n  92 |     const bAfter = await box(b);\n  93 |     expect(Math.abs(bAfter.x - bBefore.x)).toBeLessThan(PIXEL_TOLERANCE);\n    at ~/expts/awesome-local-ai/benchmarks/vidi/acceptance/tests/story-02.spec.ts:90:50"
                         }
                       ],
                       "stdout": [],
@@ -728,16 +728,16 @@
                         {
                           "name": "screenshot",
                           "contentType": "image/png",
-                          "path": "/Users/julian/expts/awesome-local-ai/combinations/qwen/3.8/flash-next/macos/128GB/mtplx-opencode/benchmarks/vidi/canvas-pi-01/stories/02/artifacts/story-02-story-2-s02-dragg-7b875-icky-move-prd-sticky-no-pan-chromium/test-failed-1.png"
+                          "path": "~/expts/awesome-local-ai/combinations/qwen/3.8/flash-next/macos/128GB/mtplx-opencode/benchmarks/vidi/canvas-pi-01/stories/02/artifacts/story-02-story-2-s02-dragg-7b875-icky-move-prd-sticky-no-pan-chromium/test-failed-1.png"
                         },
                         {
                           "name": "error-context",
                           "contentType": "text/markdown",
-                          "path": "/Users/julian/expts/awesome-local-ai/combinations/qwen/3.8/flash-next/macos/128GB/mtplx-opencode/benchmarks/vidi/canvas-pi-01/stories/02/artifacts/story-02-story-2-s02-dragg-7b875-icky-move-prd-sticky-no-pan-chromium/error-context.md"
+                          "path": "~/expts/awesome-local-ai/combinations/qwen/3.8/flash-next/macos/128GB/mtplx-opencode/benchmarks/vidi/canvas-pi-01/stories/02/artifacts/story-02-story-2-s02-dragg-7b875-icky-move-prd-sticky-no-pan-chromium/error-context.md"
                         }
                       ],
                       "errorLocation": {
-                        "file": "/Users/julian/expts/awesome-local-ai/benchmarks/vidi/acceptance/tests/story-02.spec.ts",
+                        "file": "~/expts/awesome-local-ai/benchmarks/vidi/acceptance/tests/story-02.spec.ts",
                         "column": 50,
                         "line": 90
                       }
