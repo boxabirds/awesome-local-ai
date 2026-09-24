@@ -77,6 +77,7 @@ def main() -> None:
                     raise SystemExit("PREFLIGHT FAILED at wrangler dev:\n" + (PROBE / "wrangler.log").read_text()[-1500:])
                 time.sleep(1)
         print("  ok  wrangler dev serves over HTTP")
+        step("playwright browsers", ["npx", "playwright", "install", "chromium"], env, ws)
         step("chromium loads the page", ["node", "browse.mjs"], env, ws)
         leak = subprocess.run(sandboxed(["ls", str(REPO_ROOT / "benchmarks" / "vidi" / "acceptance")], own_dir=PROBE),
                               capture_output=True, text=True)

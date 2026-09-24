@@ -28,6 +28,11 @@ NVIDIA_THERMAL_FIELDS = ("clocks_event_reasons.hw_thermal_slowdown,clocks_event_
                          "clocks_throttle_reasons.hw_thermal_slowdown,clocks_throttle_reasons.sw_thermal_slowdown")
 
 
+def playwright_cache(real_home: Path) -> Path:
+    """Where Playwright keeps its browsers by default on this OS (shared with the agent's isolated HOME)."""
+    return real_home / ("Library/Caches" if IS_MAC else ".cache") / "ms-playwright"
+
+
 def _out(cmd: list[str]) -> str:
     try:
         return subprocess.run(cmd, capture_output=True, text=True).stdout
