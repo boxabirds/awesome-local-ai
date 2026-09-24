@@ -1,15 +1,15 @@
 {
   "build_exit": 0,
   "runner_exit": 1,
-  "passed": 18,
+  "passed": 0,
   "total": 20,
   "by_story": {
     "01": {
-      "passed": 9,
+      "passed": 0,
       "total": 10
     },
     "02": {
-      "passed": 9,
+      "passed": 0,
       "total": 10
     }
   }

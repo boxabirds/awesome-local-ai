@@ -1,15 +1,59 @@
-commit 8a9bc6d72bb0b1e62328912d4d95b25f0f67b3b5
-vidi-agent  Wed Sep 23 23:45:44 2026 +0100
+commit 51ef0cf95e017235c31f86b3fe32b734b8442ef9
+vidi-agent  Thu Sep 24 06:21:18 2026 +0100
 
     harness: snapshot after story 2 (uncommitted agent work)
 
 
- package-lock.json              |  51 ++++++-
- package.json                   |   5 +-
- src/shared/board-model.ts      |  63 +++++++++
- src/shared/config.ts           |  39 ++++++
- tests/unit/board-model.test.ts | 308 +++++++++++++++++++++++++++++++++++++++++
- 5 files changed, 463 insertions(+), 3 deletions(-)
+ src/client/objects/StickyNote.tsx         |   8 +-
+ src/client/objects/StickyText.ts          |  85 ++++++++---
+ src/client/objects/StickyTextEditor.tsx   |  21 ++-
+ tests/component/StickyNote.test.tsx       | 219 +++++++++++++++++++++++++++++
+ tests/component/StickyTextEditor.test.tsx | 144 +++++++++++++++++++
+ tests/component/Toolbars.test.tsx         |  88 ++++++++++++
+ tests/component/helpers.tsx               |  77 ++++++++++
+ tests/e2e/helpers/sticky.ts               | 122 ++++++++++++++++
+ tests/e2e/sticky.spec.ts                  | 225 ++++++++++++++++++++++++++++++
+ wrangler.jsonc                            |   1 -
+ 10 files changed, 954 insertions(+), 36 deletions(-)
+commit 9a49245d2bd306351293f6ce98e93e18055bf90e
+vidi-agent  Thu Sep 24 05:58:25 2026 +0100
+
+    story 2: sticky note interaction, text editor, toolbars and app wiring
+
+
+ package-lock.json                       |  51 ++++++-
+ src/client/App.tsx                      | 112 ++++++++++++++-
+ src/client/board/Toolbar.tsx            |  48 +++++++
+ src/client/canvas/BoardViewport.tsx     |  56 +++++++-
+ src/client/objects/NoteToolbar.tsx      |  73 ++++++++++
+ src/client/objects/StickyNote.tsx       | 237 ++++++++++++++++++++++++++++++++
+ src/client/objects/StickyTextEditor.tsx | 136 ++++++++++++++++++
+ src/client/styles.css                   | 152 ++++++++++++++++++++
+ tests/unit/sticky-text.test.ts          |  27 ++--
+ 9 files changed, 868 insertions(+), 24 deletions(-)
+commit 43803d34ee0b4938d238f4c291735bc603cba6c9
+vidi-agent  Thu Sep 24 05:50:23 2026 +0100
+
+    story 2: sticky text logic (clamp, min-diff, counter, font fit) + unit tests
+
+
+ src/client/objects/StickyText.ts | 121 ++++++++++++++++++++++
+ tests/fixtures/texts.ts          |  30 ++++++
+ tests/unit/sticky-text.test.ts   | 216 +++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 367 insertions(+)
+commit 30a811d63e725a372e8ba5ef792eeae882ff5822
+vidi-agent  Thu Sep 24 05:47:40 2026 +0100
+
+    story 2: board model + unit tests + useBoardDoc hook
+
+
+ package.json                     |   3 +-
+ src/client/board/useBoardDoc.ts  |  67 ++++++++++
+ src/client/board/useSelection.ts |  42 ++++++
+ src/shared/board-model.ts        | 200 +++++++++++++++++++++++++++
+ src/shared/config.ts             |  37 +++++
+ tests/unit/board-model.test.ts   | 282 +++++++++++++++++++++++++++++++++++++++
+ 6 files changed, 630 insertions(+), 1 deletion(-)
 commit 55ef673e145dc4f1c394af812067edae9fc6b475
 vidi-agent  Wed Sep 23 23:37:30 2026 +0100
 
