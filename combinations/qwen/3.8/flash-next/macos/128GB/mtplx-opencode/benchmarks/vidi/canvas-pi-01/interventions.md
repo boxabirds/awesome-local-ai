@@ -1,0 +1,8 @@
+# Interventions
+
+Every manual or automatic intervention in this run, oldest first. The run's numbers should be read with these in mind.
+
+- 2026-09-23T22:41:15Z story 1: gate re-run with ports clear after harness stray-cleanup fix (agent's 'vite preview' on :8787 survived kill_strays). Result unchanged: e2e and acceptance fail on the agent's wrangler.jsonc (ASSETS binding, no main). Original gate kept as stories/01/gate.original.json.
+- 2026-09-24T04:39:14Z story 2: model ended a turn with reasoning only (no tool call) after 3 min, one task in; pi exited 0 with no commit. Harness gained a recorded 'nudge' policy (continue same session if no commit, max 3). Story 2 redone from story-1 commit 55ef673; the early-stop attempt is kept in superseded/story-02-early-stop and metrics.superseded.
+- 2026-09-24T07:20:43Z story 4: the Mac kernel-panicked mid-story (panic(cpu 6): "watchdog timeout: no checkins from watchdogd in 92 seconds") at 08:05 local while MTPLX 2.11.3 served a 112-115k-token context with GPU peak memory 97.2 GiB, over its 96 GiB budget (a memory-guard bug fixed in 2.12.0); prior JetsamEvents (18 Sep, 23 Sep x2) show 82 GiB wired / 0.4 GiB free. Story 4 is redone from the story-3 commit 72e32e9fdde7cd5f52623d99d4d0db1d505031e9; the partial attempt is in superseded/story-04-kernel-panic.
+- 2026-09-24T07:20:43Z setup change from story 4 on (user decision; stories 1-3 ran without these): MTPLX 2.11.3 -> 2.12.0 (same Flash-Next pack, only its README differs upstream); MTPLX_MEMORY_LIMIT_BYTES=88G (was the 96 GiB default); pi compacts at 90,000 tokens of context (was ~114,688). Timings are not comparable across this boundary; quality is the primary measure.
