@@ -1,0 +1,23 @@
+# name|ctx|mtp_depth|effort|max_tokens|need_mib|summary
+#
+# NOTHING IN THIS FILE WAS MEASURED BY THIS REPO. NO 16 GB MACHINE WAS USED.
+#
+# Sources, all from the MTPLX 2.12.0 release notes (2026-09-24) and the pack's
+# own mtplx_runtime.json:
+#   ctx        20480   MTPLX's memory plan for this pack on a 16 GB Mac
+#   mtp_depth  2       the pack's mtp_depth_default
+#   need_mib   8909    8.70 GiB peak at a 15K-token context, measured by the
+#                      MTPLX author on an M5 Max
+#
+# EXTRAPOLATED: need_mib is a peak taken at 15K tokens, applied here to a
+# 20,480-token profile. The extra ~5K tokens of KV cache is not counted, so
+# treat it as a floor. It was not taken on 16 GB hardware.
+#
+# EXTRAPOLATED: max_tokens 8192 is this repo's choice, not a measurement --
+# see OUTPUT_LIMIT in config.sh for the reasoning.
+#
+# effort is "default" because the pack's chat template has no reasoning-effort
+# variable; no --reasoning-effort flag is passed.
+#
+# No throughput columns: no tok/s figure exists for this pack from anyone.
+coding|20480|2|default|8192|8909|default; MTPLX's 16 GB plan -- 20k ctx, depth 2. NOTHING MEASURED on 16 GB
