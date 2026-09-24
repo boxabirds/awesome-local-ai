@@ -13,6 +13,7 @@
  */
 import {
   useCallback,
+  useEffect,
   useLayoutEffect,
   useRef,
   useState,
@@ -23,6 +24,7 @@ import * as Y from 'yjs';
 import { LOCAL_ORIGIN } from '../../shared/board-model';
 import { STICKY_TEXT_MAX_CHARS } from '../../shared/config';
 import { applyTextDiff, clampToLimit, counterVisible, fitText } from './StickyText';
+import type { UndoController } from '../board/undo';
 
 export interface StickyTextEditorProps {
   ytext: Y.Text;
@@ -35,10 +37,18 @@ export interface StickyTextEditorProps {
   /** Font size to start from, in world units. */
   fontPx: number;
   onEnd(next: 'selected' | 'unselected'): void;
+  /**
+   * The personal undo history (story 8). A whole editing session is one step: a
+   * boundary is opened on mount and closed on unmount, and every keystroke is
+   * marked with `typingEdit` so a run of typing merges into one undo step. With
+   * no controller (read-only / unit tests) the editor still writes but owns no
+   * history.
+   */
+  undo?: UndoController;
 }
 
 export function StickyTextEditor(props: StickyTextEditorProps): JSX.Element {
-  const { ytext, initial, box, padding, fontPx, onEnd } = props;
+  const { ytext, initial, box, padding, fontPx, onEnd, undo } = props;
 
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const [value, setValue] = useState(initial);
@@ -47,6 +57,18 @@ export function StickyTextEditor(props: StickyTextEditorProps): JSX.Element {
     overflow: false,
   });
   const composingRef = useRef(false);
+  const undoRef = useRef(undo);
+  undoRef.current = undo;
+
+  // Editing a note is ONE undo step: open a boundary here (a fresh step, separate
+  // from whatever came before) and close it on unmount so the next action is its
+  // own step. Typing inside the session merges via `typingEdit` below.
+  useLayoutEffect(() => {
+    undoRef.current?.boundary();
+    return () => {
+      undoRef.current?.boundary();
+    };
+  }, []);
 
   // On mount: focus the textarea and place the caret at the end of the text
   // (PRD "cursor at the end"), then fit once to the current content.
@@ -64,10 +86,45 @@ export function StickyTextEditor(props: StickyTextEditorProps): JSX.Element {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Keep the visible text in sync with the underlying `Y.Text`. Typing already
+  // pushes `value` → `Y.Text`, but an *external* change — an undo/redo driven by
+  // Ctrl+Z here, the toolbar, or the board — rewrites the `Y.Text` without going
+  // through this field. Without this observer the data would revert while the
+  // textarea kept showing the old string. We only rewrite when the string
+  // actually differs (so our own keystrokes, which already set `value`, are
+  // unaffected) and drop the caret at the end.
+  useEffect(() => {
+    const observer = (event: Y.YTextEvent, origin: unknown) => {
+      if (origin === LOCAL_ORIGIN) return; // our own keystroke: value is already current
+      void event;
+      const next = ytext.toString();
+      setValue((prev) => {
+        if (prev === next) return prev;
+        const el = textareaRef.current;
+        if (el) {
+          requestAnimationFrame(() => {
+            try {
+              el.setSelectionRange(next.length, next.length);
+            } catch {
+              // ignore selection on a non-focused control
+            }
+          });
+        }
+        return next;
+      });
+      setFont(fitText(next, box, box));
+    };
+    ytext.observe(observer);
+    return () => ytext.unobserve(observer);
+  }, [ytext, box]);
+
   const commit = useCallback(
     (next: string) => {
       const el = textareaRef.current;
       const clamped = clampToLimit(next);
+      // Mark the keystroke on the history clock before writing, so a continuous
+      // burst stays one step and a pause after 500 ms starts a new one.
+      undoRef.current?.typingEdit();
       applyTextDiff(ytext, clamped, LOCAL_ORIGIN);
       setValue(clamped);
       setFont(fitText(clamped, box, box));
@@ -94,6 +151,24 @@ export function StickyTextEditor(props: StickyTextEditorProps): JSX.Element {
       event.preventDefault();
       event.stopPropagation();
       onEnd('selected');
+      return;
+    }
+    // Ctrl/Cmd+Z inside the field drives the *personal history*, not the
+    // browser's textarea undo (criterion 10): we preventDefault to stop the
+    // native undo and route to the controller, and stopPropagation so the
+    // board-level handler does not also fire.
+    if ((event.ctrlKey || event.metaKey) && !event.altKey) {
+      const key = event.key.toLowerCase();
+      const isUndo = key === 'z' && !event.shiftKey;
+      const isRedo = (key === 'z' && event.shiftKey) || key === 'y';
+      if (isUndo || isRedo) {
+        const undo = undoRef.current;
+        if (!undo) return;
+        event.preventDefault();
+        event.stopPropagation();
+        if (isUndo) undo.undo();
+        else undo.redo();
+      }
     }
     // Enter is intentionally not intercepted: it inserts a newline.
   };
