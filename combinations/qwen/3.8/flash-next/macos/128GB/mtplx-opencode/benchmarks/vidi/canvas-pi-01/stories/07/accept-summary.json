@@ -1,0 +1,32 @@
+{
+  "build_exit": 0,
+  "runner_exit": 1,
+  "passed": 36,
+  "total": 44,
+  "by_story": {
+    "01": {
+      "passed": 9,
+      "total": 10
+    },
+    "02": {
+      "passed": 9,
+      "total": 10
+    },
+    "03": {
+      "passed": 5,
+      "total": 7
+    },
+    "04": {
+      "passed": 3,
+      "total": 4
+    },
+    "05": {
+      "passed": 5,
+      "total": 5
+    },
+    "07": {
+      "passed": 5,
+      "total": 8
+    }
+  }
+}
