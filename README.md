@@ -46,18 +46,18 @@ Pick the row that matches your hardware and run its script from the repo root.
 The installer refuses to run on hardware it was not measured on, rather than
 half-installing.
 
-| Model | OS | Memory | Stack | Install | Details |
-|---|---|---|---|---|---|
-| Qwen3.8-27B | Ubuntu 22.04 | 24GB NVIDIA | llama.cpp + OpenCode | [`install-qwen-3.8-27b-ubuntu-24GB-llamacpp-opencode.sh`](install-qwen-3.8-27b-ubuntu-24GB-llamacpp-opencode.sh) | [README](combinations/qwen/3.8/27b/ubuntu/24GB/llamacpp-opencode/README.md) |
-| Swift-Qwen3.8-27B | Ubuntu 22.04 | 24GB NVIDIA | llama.cpp + OpenCode | [`install-qwen-3.8-swift-27b-ubuntu-24GB-llamacpp-opencode.sh`](install-qwen-3.8-swift-27b-ubuntu-24GB-llamacpp-opencode.sh) | [README](combinations/qwen/3.8-swift/27b/ubuntu/24GB/llamacpp-opencode/README.md) |
-| Qwen3.8-27B | macOS 26 | 64GB Apple silicon ¹ | MTPLX + OpenCode | [`install-qwen-3.8-27b-macos-64GB-mtplx-opencode.sh`](install-qwen-3.8-27b-macos-64GB-mtplx-opencode.sh) | [README](combinations/qwen/3.8/27b/macos/64GB/mtplx-opencode/README.md) |
-| Qwen3.8-Flash-Next | macOS 26 | 128GB Apple silicon | MTPLX + OpenCode | [`install-qwen-3.8-flash-next-macos-128GB-mtplx-opencode.sh`](install-qwen-3.8-flash-next-macos-128GB-mtplx-opencode.sh) | [README](combinations/qwen/3.8/flash-next/macos/128GB/mtplx-opencode/README.md) |
-| Qwen3.8-Flash-Next mixed 4/8-bit ⁶ | macOS 26.2+ | 128GB Apple silicon | mlx-serve + OpenCode | [`install-qwen-3.8-flash-next-macos-128GB-mlxserve-opencode.sh`](install-qwen-3.8-flash-next-macos-128GB-mlxserve-opencode.sh) | [README](combinations/qwen/3.8/flash-next/macos/128GB/mlxserve-opencode/README.md) |
-| Ternary Bonsai 2 27B ² | Ubuntu 22.04 | 24GB NVIDIA | llama.cpp *(fork)* + OpenCode | [`install-bonsai-2-27b-ubuntu-24GB-llamacpp-opencode.sh`](install-bonsai-2-27b-ubuntu-24GB-llamacpp-opencode.sh) | [README](combinations/bonsai/2/27b/ubuntu/24GB/llamacpp-opencode/README.md) |
-| MiMo-V2.6-Qwen-9B ³ | macOS 26 | 16GB Apple silicon, M3+ ⁴ | MTPLX + OpenCode | [`install-mimo-2.6-9b-macos-16GB-mtplx-opencode.sh`](install-mimo-2.6-9b-macos-16GB-mtplx-opencode.sh) | [README](combinations/mimo/2.6/9b/macos/16GB/mtplx-opencode/README.md) |
-| Qwen3.5-9B FP16 ³ | macOS 26 | 16GB Apple silicon, M1/M2 ⁴ | MTPLX + OpenCode | [`install-qwen-3.5-9b-fp16-macos-16GB-mtplx-opencode.sh`](install-qwen-3.5-9b-fp16-macos-16GB-mtplx-opencode.sh) | [README](combinations/qwen/3.5/9b-fp16/macos/16GB/mtplx-opencode/README.md) |
-| Qwen3.8-27B EXL3 3.0bpw ⁵ | Ubuntu (Docker) | 24GB NVIDIA, RTX 3090 (sm_86) | SGLang *(container)* + OpenCode | [`install-qwen-3.8-27b-ubuntu-24GB-sglang-opencode.sh`](install-qwen-3.8-27b-ubuntu-24GB-sglang-opencode.sh) | [README](combinations/qwen/3.8/27b/ubuntu/24GB/sglang-opencode/README.md) |
-| Qwen3.6-35B-A3B EXL3 3.0bpw ⁵ | Ubuntu (Docker) | 24GB NVIDIA, RTX 3090 (sm_86) | SGLang *(container)* + OpenCode | [`install-qwen-3.6-35b-a3b-ubuntu-24GB-sglang-opencode.sh`](install-qwen-3.6-35b-a3b-ubuntu-24GB-sglang-opencode.sh) | [README](combinations/qwen/3.6/35b-a3b/ubuntu/24GB/sglang-opencode/README.md) |
+| Model | OS | Memory | Stack | Context | Install | Details |
+|---|---|---|---|---|---|---|
+| Qwen3.8-27B | Ubuntu 22.04 | 24GB NVIDIA | llama.cpp + OpenCode | 128k | [`install-qwen-3.8-27b-ubuntu-24GB-llamacpp-opencode.sh`](install-qwen-3.8-27b-ubuntu-24GB-llamacpp-opencode.sh) | [README](combinations/qwen/3.8/27b/ubuntu/24GB/llamacpp-opencode/README.md) |
+| Swift-Qwen3.8-27B | Ubuntu 22.04 | 24GB NVIDIA | llama.cpp + OpenCode | 128k | [`install-qwen-3.8-swift-27b-ubuntu-24GB-llamacpp-opencode.sh`](install-qwen-3.8-swift-27b-ubuntu-24GB-llamacpp-opencode.sh) | [README](combinations/qwen/3.8-swift/27b/ubuntu/24GB/llamacpp-opencode/README.md) |
+| Qwen3.8-27B | macOS 26 | 64GB Apple silicon ¹ | MTPLX + OpenCode | 128k | [`install-qwen-3.8-27b-macos-64GB-mtplx-opencode.sh`](install-qwen-3.8-27b-macos-64GB-mtplx-opencode.sh) | [README](combinations/qwen/3.8/27b/macos/64GB/mtplx-opencode/README.md) |
+| Qwen3.8-Flash-Next | macOS 26 | 128GB Apple silicon | MTPLX + OpenCode | 128k | [`install-qwen-3.8-flash-next-macos-128GB-mtplx-opencode.sh`](install-qwen-3.8-flash-next-macos-128GB-mtplx-opencode.sh) | [README](combinations/qwen/3.8/flash-next/macos/128GB/mtplx-opencode/README.md) |
+| Qwen3.8-Flash-Next mixed 4/8-bit ⁶ | macOS 26.2+ | 128GB Apple silicon | mlx-serve + OpenCode | 128k | [`install-qwen-3.8-flash-next-macos-128GB-mlxserve-opencode.sh`](install-qwen-3.8-flash-next-macos-128GB-mlxserve-opencode.sh) | [README](combinations/qwen/3.8/flash-next/macos/128GB/mlxserve-opencode/README.md) |
+| Ternary Bonsai 2 27B ² | Ubuntu 22.04 | 24GB NVIDIA | llama.cpp *(fork)* + OpenCode | 128k | [`install-bonsai-2-27b-ubuntu-24GB-llamacpp-opencode.sh`](install-bonsai-2-27b-ubuntu-24GB-llamacpp-opencode.sh) | [README](combinations/bonsai/2/27b/ubuntu/24GB/llamacpp-opencode/README.md) |
+| MiMo-V2.6-Qwen-9B ³ | macOS 26 | 16GB Apple silicon, M3+ ⁴ | MTPLX + OpenCode | **20k** | [`install-mimo-2.6-9b-macos-16GB-mtplx-opencode.sh`](install-mimo-2.6-9b-macos-16GB-mtplx-opencode.sh) | [README](combinations/mimo/2.6/9b/macos/16GB/mtplx-opencode/README.md) |
+| Qwen3.5-9B FP16 ³ | macOS 26 | 16GB Apple silicon, M1/M2 ⁴ | MTPLX + OpenCode | **20k** | [`install-qwen-3.5-9b-fp16-macos-16GB-mtplx-opencode.sh`](install-qwen-3.5-9b-fp16-macos-16GB-mtplx-opencode.sh) | [README](combinations/qwen/3.5/9b-fp16/macos/16GB/mtplx-opencode/README.md) |
+| Qwen3.8-27B EXL3 3.0bpw ⁵ | Ubuntu (Docker) | 24GB NVIDIA, RTX 3090 (sm_86) | SGLang *(container)* + OpenCode | 262k | [`install-qwen-3.8-27b-ubuntu-24GB-sglang-opencode.sh`](install-qwen-3.8-27b-ubuntu-24GB-sglang-opencode.sh) | [README](combinations/qwen/3.8/27b/ubuntu/24GB/sglang-opencode/README.md) |
+| Qwen3.6-35B-A3B EXL3 3.0bpw ⁵ | Ubuntu (Docker) | 24GB NVIDIA, RTX 3090 (sm_86) | SGLang *(container)* + OpenCode | 262k | [`install-qwen-3.6-35b-a3b-ubuntu-24GB-sglang-opencode.sh`](install-qwen-3.6-35b-a3b-ubuntu-24GB-sglang-opencode.sh) | [README](combinations/qwen/3.6/35b-a3b/ubuntu/24GB/sglang-opencode/README.md) |
 
 ² **The Bonsai row does not use upstream llama.cpp.** Bonsai 2 is Qwen3.8-27B
 re-quantised to ternary weights (~1.72 bits/weight, 6.7 GB), and its GGUF types
@@ -122,8 +122,10 @@ one combination and is false now — so it is marked.
 
 **Every combination:**
 
-- **128k context** — the window every row is tuned to, though what it costs
-  differs per row.
+- **A context window tuned to its memory tier** — see the Context column: 128k
+  on most rows, 20k on the 16 GB rows (all a 16 GB Mac can hold next to the
+  weights; coding agents compact often there), 262k on the SGLang rows (the
+  recipe author's bare-card setup). What each window costs differs per row.
 - **An OpenAI-compatible endpoint with tool calling**, and OpenCode already
   pointed at it.
 - **On-demand lifecycle**: the server starts when your agent needs it and shuts
