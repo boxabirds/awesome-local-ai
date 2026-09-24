@@ -55,6 +55,21 @@ The first version of this section said memory "overshot the budget". That was wr
 
 Health at startup: `session_bank.max_bytes` 16.8 GB, `effective_max_bytes` 15.8 GB, `per_session_max_bytes` 8.4 GB, `max_entries` 48.
 
+## 1b. 2.12.0 at stock: the guard deadlocks a client's compaction (measured)
+
+This was the worst effect of the guard, because it stops a session outright: nothing in it can move again.
+
+**Sequence** (story 10 of the benchmark, one pi session):
+1. The session reached 128,433 prompt tokens of the 131,072 window. Every agent turn was capped at `effective_max_tokens` 1 and came back `length` after 1 token.
+2. pi then compacts on overflow. It does this by sending a **new, uncached** summary request: 73,663 prompt tokens, `reusable_prefix_tokens` 0.
+3. The guard refused that request 8 times in a row, each with 507 `memory_refusal`: "this prompt projects 96.9 GiB against the engine's 96.0 GiB limit (0.9 GiB over) after the allocator cache and the session bank were reclaimed".
+4. At the time, `active_bytes` was about 98.4 GB (91.6 GiB), mostly the 128k session's own KV. `host_overhang_bytes` was 14.2–14.8 GiB.
+5. **Result:** the client can't compact because the guard refuses the summary, and it can't continue because the context is full. Only restarting the server cleared it.
+
+**Questions:**
+1. When a prompt is refused, could the guard evict the KV of sessions that aren't in flight (the one being compacted is idle) before refusing?
+2. Could a refusal tell the client that retrying will never succeed, so that it stops retrying?
+
 ## 2. 2.11.3: kernel panic during a long session (measured, confounded)
 
 Panic string:
