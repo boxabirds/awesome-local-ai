@@ -64,6 +64,9 @@ def test_bwrap_masks_then_reopens_own_dir(tmp_path):
     secret_file.write_text("x")
     cmd = hostenv.bwrap_wrap(["pi", "-p"], own_dir=own, deny=[work_root, secret_file, missing])
     assert cmd[0] == "bwrap" and cmd[-2:] == ["pi", "-p"]
+    # `--bind / /` is nodev: without the real /dev, /dev/null can't be opened and every
+    # child spawned with ignored stdio (Chromium via Playwright) fails with EACCES.
+    assert "--dev-bind /dev /dev" in " ".join(cmd)
     joined = " ".join(cmd)
     assert f"--tmpfs {work_root.resolve()}" in joined          # directories: masked by an empty tmpfs
     assert f"--ro-bind /dev/null {secret_file.resolve()}" in joined  # files: masked by /dev/null
