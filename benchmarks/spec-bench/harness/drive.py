@@ -57,6 +57,10 @@ KILL_GRACE_S = 10
 MAX_AGENT_RESUMES = 3
 RESUME_BACKOFF_S = 60
 RESUME_PROMPT = "Continue with the task from where you left off."
+# A reasoning model can end a turn with thinking only and no tool call; the agent then exits 0 as
+# if finished (canvas-pi-01 story 2: 3 minutes, one task in). If a session ends with no commit, the
+# harness continues the same session with RESUME_PROMPT, as a person would. Counted as nudges.
+MAX_NUDGES = 3
 # pi's bash tool has no default timeout. An agent that backgrounds a server inside a tool call
 # (`(wrangler dev &)`) leaves children holding the tool's output pipe and the call never returns.
 # After this long with the last event a tool call and nothing streamed, the harness does what a
@@ -302,10 +306,19 @@ class ToolHangGuard(threading.Thread):
         return self.interruptions
 
 
+def needs_nudge(attempt: dict, commits: int) -> bool:
+    """The agent quit cleanly without committing anything: continue it rather than accept an early stop."""
+    return commits == 0 and not attempt["stalled"] and not attempt["error"] and bool(attempt["session"])
+
+
+def commits_since(ws: Path, head: str) -> int:
+    return int(sh(["git", "rev-list", "--count", f"{head}..HEAD"], ws).strip())
+
+
 def run_agent(client, ws: Path, env: dict, model_id: str, prompt: str, events_path: Path,
-              resume_from: str | None = None) -> dict:
-    """Run (or fork-resume) one sandboxed agent session; returns counts, session id, error and loop flag."""
-    cmd = sandboxed(client.command(model_id, prompt, resume_from), own_dir=ws.parent)
+              resume_from: str | None = None, fork: bool = True) -> dict:
+    """Run (or resume) one sandboxed agent session; returns counts, session id, error and loop flag."""
+    cmd = sandboxed(client.command(model_id, prompt, resume_from, fork=fork), own_dir=ws.parent)
     t0 = time.monotonic()
     proc = subprocess.Popen(cmd, cwd=ws, env={**os.environ, **env, **client.env()}, stdin=subprocess.DEVNULL,
                             stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, start_new_session=True)
@@ -340,19 +353,30 @@ def run_story_agent(client, ws: Path, env: dict, model_id: str, prompt: str, eve
     events_path.unlink(missing_ok=True)
     guard = ToolHangGuard(events_path, ws, events_path.parent.parent.parent / "interventions.log")
     guard.start()
+    head = sh(["git", "rev-parse", "HEAD"], ws).strip()
     attempts = [run_agent(client, ws, env, model_id, prompt, events_path)]
-    while (attempts[-1]["error"] and not attempts[-1]["stalled"] and attempts[-1]["session"]
-           and len(attempts) <= MAX_AGENT_RESUMES):
-        print(f"    agent error: {attempts[-1]['error'][:160]} — fork-resuming session in {RESUME_BACKOFF_S}s", flush=True)
-        time.sleep(RESUME_BACKOFF_S)
-        attempts.append(run_agent(client, ws, env, model_id, RESUME_PROMPT, events_path,
-                                  resume_from=attempts[-1]["session"]))
+    resumes = nudges = 0
+    while True:
+        last = attempts[-1]
+        if last["error"] and not last["stalled"] and last["session"] and resumes < MAX_AGENT_RESUMES:
+            resumes += 1
+            print(f"    agent error: {last['error'][:160]} — fork-resuming session in {RESUME_BACKOFF_S}s", flush=True)
+            time.sleep(RESUME_BACKOFF_S)
+            attempts.append(run_agent(client, ws, env, model_id, RESUME_PROMPT, events_path,
+                                      resume_from=last["session"], fork=True))
+        elif needs_nudge(last, commits_since(ws, head)) and nudges < MAX_NUDGES:
+            nudges += 1
+            print(f"    agent stopped without committing — nudge {nudges}/{MAX_NUDGES}: continuing the session", flush=True)
+            attempts.append(run_agent(client, ws, env, model_id, RESUME_PROMPT, events_path,
+                                      resume_from=last["session"], fork=False))
+        else:
+            break
     interruptions = guard.stop()
     total = {k: sum(a[k] for a in attempts) for k in ("seconds", "steps", "tool_calls", "compactions")}
     total["tool_interruptions"] = interruptions
     total["tokens"] = {k: sum(a["tokens"][k] for a in attempts) for k in attempts[0]["tokens"]}
     return {**total, "exit": attempts[-1]["exit"], "stalled": attempts[-1]["stalled"],
-            "resumes": len(attempts) - 1, "errors": [a["error"] for a in attempts if a["error"]],
+            "resumes": resumes, "nudges": nudges, "errors": [a["error"] for a in attempts if a["error"]],
             "ended_in_error": bool(attempts[-1]["error"]), "sessions": [a["session"] for a in attempts]}
 
 
