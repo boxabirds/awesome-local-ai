@@ -12,8 +12,7 @@
  * board reappears on the *same* page, through the provider's own retry, with
  * editing switched back on.
  */
-import { expect, test, type Page } from '@playwright/test';
-import { randomBytes } from 'node:crypto';
+import { expect, test, type Page, type APIRequestContext } from '@playwright/test';
 
 /** The five states; mirrors `ConnectionState`. */
 type LiveHook = {
@@ -25,9 +24,18 @@ type LiveHook = {
 
 const LOAD_FAILED_TEXT = 'This board couldn\u2019t be loaded. Retrying…';
 
-/** A fresh, well-formed board id: no state can leak in from an earlier run. */
-function newBoardId(): string {
-  return randomBytes(16).toString('base64url');
+/**
+ * A fresh board, created the way the app creates one.
+ *
+ * Story 5 removed "any address is a board": a made-up id is now a *not found*
+ * page, so a test that wants a working room has to create it first. Each call
+ * makes a brand-new board, which is also what keeps state from leaking between
+ * cases.
+ */
+async function newBoard(request: APIRequestContext): Promise<string> {
+  const response = await request.post('/api/boards');
+  expect(response.status(), 'the board must be created before it can be opened').toBe(201);
+  return (await response.json()).id as string;
 }
 
 /** The connection state the page currently reports (test hook). */
@@ -64,7 +72,7 @@ test('a board whose snapshot cannot be read says so, locks editing, and recovers
   request,
 }) => {
   test.setTimeout(180_000);
-  const boardId = newBoardId();
+  const boardId = await newBoard(request);
 
   // ---- a board with real content, stored and compacted --------------------
   const seedContext = await browser.newContext();
@@ -143,12 +151,12 @@ test('the storage routes do not exist without TEST_HOOKS, and leave data alone',
   browser,
 }) => {
   test.setTimeout(120_000);
-  const boardId = newBoardId();
   const production = 'http://localhost:8788';
 
   // A board with content, on the plain server.
   const context = await browser.newContext({ baseURL: production });
   const page = await context.newPage();
+  const boardId = await newBoard(page.request);
   await openBoard(page, boardId);
   await page.evaluate(() => {
     const hook = (window as unknown as { __vidi6Live?: LiveHook }).__vidi6Live;

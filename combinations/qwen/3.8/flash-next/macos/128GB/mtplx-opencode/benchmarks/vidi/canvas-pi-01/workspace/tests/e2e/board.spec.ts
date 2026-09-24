@@ -20,6 +20,7 @@ import {
   type Camera,
   type Point,
 } from './helpers/board';
+import { openFreshBoard } from './helpers/boards';
 import { GRID_SPACING_WORLD, UNBOUNDED_PAN_TESTED_EXTENT } from '../../src/shared/config';
 
 /** Where a world point is painted on screen for the given camera. */
@@ -29,7 +30,7 @@ const project = (camera: Camera, world: Point): Point => ({
 });
 
 test('the first-use hint is shown and the first drag removes it', async ({ page }) => {
-  await page.goto('/');
+  await openFreshBoard(page);
   const hint = page.getByTestId('navigation-hint');
   await expect(hint).toBeVisible();
   await expect(hint).toHaveText('Drag to move around · Ctrl/Cmd + scroll or pinch to zoom');
@@ -52,7 +53,7 @@ test('the first-use hint is shown and the first drag removes it', async ({ page 
 test('TC-23: a drag of (200,100) moves the marker and the dot grid by exactly that delta', async ({
   page,
 }) => {
-  await page.goto('/');
+  await openFreshBoard(page);
   await settle(page);
 
   const viewport = await viewportSize(page);
@@ -113,7 +114,7 @@ test('TC-23: a drag of (200,100) moves the marker and the dot grid by exactly th
 test('TC-24: Ctrl + scroll zooms about the pointer and the dot under it stays put', async ({
   page,
 }) => {
-  await page.goto('/');
+  await openFreshBoard(page);
   await settle(page);
 
   const cameraBefore = await getCamera(page);
@@ -142,7 +143,7 @@ test('TC-24: Ctrl + scroll zooms about the pointer and the dot under it stays pu
 test('TC-25: the zoom-in button disables at 400% and the board stops zooming', async ({
   page,
 }) => {
-  await page.goto('/');
+  await openFreshBoard(page);
   await settle(page);
 
   const zoomIn = page.getByRole('button', { name: 'Zoom in' });
@@ -181,7 +182,7 @@ test('TC-25: the zoom-in button disables at 400% and the board stops zooming', a
 });
 
 test('TC-26: reset view recentres after a long jump at 400%', async ({ page }) => {
-  await page.goto('/');
+  await openFreshBoard(page);
   await settle(page);
 
   await setCamera(page, { x: 12345, y: -9876, zoom: 4 });
@@ -210,7 +211,7 @@ test('TC-26: reset view recentres after a long jump at 400%', async ({ page }) =
 test('TC-27: panning far from the origin keeps exact movement and grid spacing', async ({
   page,
 }) => {
-  await page.goto('/');
+  await openFreshBoard(page);
   await settle(page);
 
   const far = {
@@ -265,7 +266,7 @@ test('TC-27: panning far from the origin keeps exact movement and grid spacing',
 test('TC-31: board gestures drive the board and never zoom or scroll the page', async ({
   page,
 }) => {
-  await page.goto('/');
+  await openFreshBoard(page);
   await settle(page);
 
   const initial = await page.evaluate(() => ({
@@ -338,7 +339,7 @@ test('TC-31: board gestures drive the board and never zoom or scroll the page', 
 });
 
 test('TC-30: Ctrl + scroll over the zoom control does not zoom the board', async ({ page }) => {
-  await page.goto('/');
+  await openFreshBoard(page);
   await settle(page);
 
   const cameraBefore = await getCamera(page);

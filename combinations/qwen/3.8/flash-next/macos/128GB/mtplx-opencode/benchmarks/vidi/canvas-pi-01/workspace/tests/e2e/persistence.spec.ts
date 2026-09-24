@@ -21,7 +21,6 @@
  * on every run, which is what the task asked for ("timings printed").
  */
 import { expect, test, type Page } from '@playwright/test';
-import { randomBytes } from 'node:crypto';
 import { BOARD_LOAD_BUDGET_MS, PERSIST_TESTED_NOTES } from '../../src/shared/config';
 import { createNoteAt } from './helpers/sticky';
 import {
@@ -54,8 +53,19 @@ type LiveHook = {
  */
 type Win = { __vidi6Live?: LiveHook };
 
-function newBoardId(): string {
-  return randomBytes(16).toString('base64url');
+/**
+ * A board has to be created before it can be opened (story 5). The id comes
+ * from the same server the browsers are about to talk to, which is the honest
+ * shape: creation writes through the Durable Object, and after a restart a
+ * *different* id proves the store is not simply shared.
+ */
+async function createBoard(server: BoardProcess): Promise<string> {
+  const response = await fetch(`${server.url}/api/boards`, { method: 'POST' });
+  if (response.status !== 201) {
+    throw new Error(`could not create a board: ${response.status}`);
+  }
+  const body = (await response.json()) as { id: string };
+  return body.id;
 }
 
 async function waitState(page: Page, state: string, timeout = 60_000): Promise<void> {
@@ -97,8 +107,8 @@ test('TC-19: a board left on a server that then dies comes back unchanged', asyn
   browser,
 }) => {
   test.setTimeout(240_000);
-  const boardId = newBoardId();
   let server = await startBoardProcess();
+  const boardId = await createBoard(server);
 
   // A board built and abandoned on the first process: 25 notes with mixed
   // colours, stacking and z-order, which is the shape the story is about.
@@ -134,7 +144,8 @@ test('TC-19: a board left on a server that then dies comes back unchanged', asyn
   // board id on the same restarted server starts empty, so the match above is
   // a restored board rather than a cache that happens to still be around.
   const control = await reopened.newPage();
-  await openBoard(control, server.url, newBoardId());
+  const controlId = await createBoard(server);
+  await openBoard(control, server.url, controlId);
   expect(await noteCount(control)).toBe(0);
 
   await reopened.close();
@@ -144,8 +155,8 @@ test('TC-19: a board left on a server that then dies comes back unchanged', asyn
 
 test('TC-20: the last change is on disk before it is broadcast', async ({ browser }) => {
   test.setTimeout(240_000);
-  const boardId = newBoardId();
   let server = await startBoardProcess();
+  const boardId = await createBoard(server);
 
   const context = await browser.newContext();
   const pageA = await context.newPage();
@@ -186,8 +197,8 @@ test('TC-21: a 2,000-note board opens inside the budget after a restart', async 
   browser,
 }) => {
   test.setTimeout(300_000);
-  const boardId = newBoardId();
   let server = await startBoardProcess();
+  const boardId = await createBoard(server);
 
   // Built with one transaction per note, so the log passes the compaction
   // threshold on the way in: the returning visitor reads one snapshot rather
@@ -216,7 +227,7 @@ test('TC-21: a 2,000-note board opens inside the budget after a restart', async 
   // lets the same assertion hold while other browsers and servers are running.
   const started = Date.now();
   await fresh.goto(`${server.url}/b/${boardId}`);
-  const rendered = await waitForRenderedNotes(fresh, PERSIST_TESTED_NOTES, 60_000);
+  const rendered = await waitForRenderedNotes(fresh, PERSIST_TESTED_NOTES, 150_000);
   const elapsedMs = Date.now() - started;
   console.log(
     `TC-21: ${PERSIST_TESTED_NOTES} notes on screen in ${elapsedMs}ms ` +

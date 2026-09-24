@@ -1,0 +1,59 @@
+{
+  "steps": {
+    "install": {
+      "cmd": "npm ci",
+      "exit": 0,
+      "seconds": 4.0,
+      "tail": "\nadded 160 packages, and audited 161 packages in 4s\n\n42 packages are looking for funding\n  run `npm fund` for details\n\n4 high severity vulnerabilities\n\nTo address all issues (including breaking changes), run:\n  npm audit fix --force\n\nRun `npm audit` for details.\nnpm warn allow-scripts 4 packages have install scripts not yet covered by allowScripts:\nnpm warn allow-scripts   workerd@1.20260815.1 (postinstall: node install.js)\nnpm warn allow-scripts   esbuild@0.28.1 (postinstall: node install.js)\nnpm warn allow-scripts   fsevents@2.3.3 (install: (install scripts present))\nnpm warn allow-scripts   workerd@1.20260921.1 (postinstall: node install.js)\nnpm warn allow-scripts\nnpm warn allow-scripts Run `npm approve-scripts --allow-scripts-pending` to review, or `npm approve-scripts <pkg>` to allow.\n"
+    },
+    "build": {
+      "cmd": "npm run build",
+      "exit": 0,
+      "seconds": 0.8,
+      "tail": "\n> vidi6@0.0.0 build\n> vite build\n\n\u001b[36mvite v8.3.0 \u001b[32mbuilding client environment for production...\u001b[36m\u001b[39m\ntransforming...\n\u2713 88 modules transformed.\nrendering chunks...\ncomputing gzip size...\ndist/client/index.html                   0.67 kB \u2502 gzip:   0.41 kB\ndist/client/assets/index-DHyZKFPl.css    6.14 kB \u2502 gzip:   1.68 kB\ndist/client/assets/index-DhrzzUT5.js   335.34 kB \u2502 gzip: 104.61 kB\n\n\u001b[32m\u2713 built in 210ms\u001b[39m\n",
+      "passed": null,
+      "failed": null
+    },
+    "typecheck": {
+      "cmd": "npm run typecheck",
+      "exit": 0,
+      "seconds": 1.6,
+      "tail": "\n> vidi6@0.0.0 typecheck\n> tsc --noEmit && tsc --noEmit -p tsconfig.worker.json\n\n",
+      "passed": null,
+      "failed": null
+    },
+    "test:unit": {
+      "cmd": "npm run test:unit",
+      "exit": 0,
+      "seconds": 1.7,
+      "tail": "\n> vidi6@0.0.0 test:unit\n> vitest run --project unit\n\n\n RUN  v4.1.11 ~/.vidi-bench/work/qwen__3.8__flash-next__macos__128GB__mtplx-opencode__benchmarks__vidi__canvas-pi-01/workspace\n\n\n Test Files  10 passed (10)\n      Tests  141 passed (141)\n   Start at  14:52:01\n   Duration  961ms (transform 429ms, setup 0ms, import 637ms, tests 1.34s, environment 0ms)\n\n",
+      "passed": 141,
+      "failed": 0
+    },
+    "test:component": {
+      "cmd": "npm run test:component",
+      "exit": 0,
+      "seconds": 1.7,
+      "tail": "\n> vidi6@0.0.0 test:component\n> vitest run --project component\n\n\n RUN  v4.1.11 ~/.vidi-bench/work/qwen__3.8__flash-next__macos__128GB__mtplx-opencode__benchmarks__vidi__canvas-pi-01/workspace\n\n\n Test Files  10 passed (10)\n      Tests  77 passed (77)\n   Start at  14:52:03\n   Duration  1.01s (transform 1.02s, setup 666ms, import 1.41s, tests 1.57s, environment 3.22s)\n\n",
+      "passed": 77,
+      "failed": 0
+    },
+    "test:integration": {
+      "cmd": "npm run test:integration",
+      "exit": 0,
+      "seconds": 2.9,
+      "tail": "\n> vidi6@0.0.0 test:integration\n> vitest run --project integration\n\n\n RUN  v4.1.11 ~/.vidi-bench/work/qwen__3.8__flash-next__macos__128GB__mtplx-opencode__benchmarks__vidi__canvas-pi-01/workspace\n\n\n Test Files  5 passed (5)\n      Tests  45 passed (45)\n   Start at  14:52:05\n   Duration  2.25s (transform 702ms, setup 0ms, import 1.53s, tests 2.14s, environment 0ms)\n\n",
+      "passed": 45,
+      "failed": 0
+    },
+    "test:e2e": {
+      "cmd": "npm run test:e2e -- --project=chromium",
+      "exit": 1,
+      "seconds": 13.5,
+      "tail": " (1ms)\n[WebServer] [wrangler:info] GET /assets/index-D66oxZ9g.js 200 OK (2ms)\n[WebServer] [wrangler:info] GET /assets/index-DHyZKFPl.css 200 OK (9ms)\n[WebServer] [wrangler:info] POST /api/boards 201 Created (5ms)\n[WebServer] [wrangler:info] GET /api/boards/mTQUp1Sdx9hETbvKzkiJUQ 200 OK (2ms)\n[WebServer] [wrangler:info] GET /api/rooms/mTQUp1Sdx9hETbvKzkiJUQ 101 Switching Protocols (2ms)\n  \u2713  22 [chromium] \u203a tests/e2e/sticky.spec.ts:40:1 \u203a TC-30 golden path: double-click \u2192 type \u2192 recolour \u2192 delete (572ms)\n[WebServer] [wrangler:info] GET / 200 OK (2ms)\n[WebServer] [wrangler:info] GET /assets/index-D66oxZ9g.js 200 OK (2ms)\n[WebServer] [wrangler:info] GET /assets/index-DHyZKFPl.css 200 OK (8ms)\n[WebServer] [wrangler:info] POST /api/boards 201 Created (5ms)\n[WebServer] [wrangler:info] GET /api/boards/um_C_lJq8RziJZPnOIZ4SQ 200 OK (2ms)\n[WebServer] [wrangler:info] GET /api/rooms/um_C_lJq8RziJZPnOIZ4SQ 101 Switching Protocols (1ms)\n  \u2713  15 [chromium] \u203a tests/e2e/share.spec.ts:68:3 \u203a create, share, join \u203a TC-26 Maya copies a link and Sam opens it (2.7s)\n[WebServer] [wrangler:info] GET / 200 OK (2ms)\n[WebServer] [wrangler:info] GET /assets/index-D66oxZ9g.js 200 OK (2ms)\n[WebServer] [wrangler:info] GET /assets/index-DHyZKFPl.css 200 OK (1ms)\n  \u2713  23 [chromium] \u203a tests/e2e/sticky.spec.ts:78:1 \u203a TC-31: at 50% zoom a (100,50) drag keeps the grabbed point under the pointer (736ms)\n[WebServer] [wrangler:info] GET / 200 OK (2ms)\n[WebServer] [wrangler:info] POST /api/boards 201 Created (6ms)\n[WebServer] [wrangler:info] GET /assets/index-D66oxZ9g.js 200 OK (2ms)\n[WebServer] [wrangler:info] GET /assets/index-DHyZKFPl.css 200 OK (9ms)\n[WebServer] [wrangler:info] GET /api/boards/zJ6weiG9-Ux-u35gj5oc_Q 200 OK (2ms)\n[WebServer] [wrangler:info] GET /api/rooms/zJ6weiG9-Ux-u35gj5oc_Q 101 Switching Protocols (3ms)\n[WebServer] [wrangler:info] POST /api/boards 201 Created (5ms)\n[WebServer] [wrangler:info] GET /api/boards/cD9TnCrhh4mQKR0jNR3agw 200 OK (3ms)\n[WebServer] [wrangler:info] GET /api/rooms/cD9TnCrhh4mQKR0jNR3agw 101 Switching Protocols (2ms)\n  \u2713  19 [chromium] \u203a tests/e2e/persistence.spec.ts:156:1 \u203a TC-20: the last change is on disk before it is broadcast (1.8s)\n  \u2713  25 [chromium] \u203a tests/e2e/sticky.spec.ts:157:1 \u203a TC-33: long text shrinks to fit then fades, and nothing overflows the note (477ms)\n  \u2718  24 [chromium] \u203a tests/e2e/sticky.spec.ts:113:1 \u203a TC-32: at 200% zoom a (100,50) drag moves world (+50,+25) and raises the note (722ms)\n  \u2713  26 [chromium] \u203a tests/e2e/sticky.spec.ts:204:1 \u203a TC-34: the Sticky note button creates a centred note even when panned far away (473ms)\nTC-21: 2000 notes on screen in 129ms (story budget 3000ms, rendered 2000)\n  \u2713  27 [chromium] \u203a tests/e2e/persistence.spec.ts:196:1 \u203a TC-21: a 2,000-note board opens inside the budget after a restart (3.6s)\n\n\n  1) [chromium] \u203a tests/e2e/sticky.spec.ts:113:1 \u203a TC-32: at 200% zoom a (100,50) drag moves world (+50,+25) and raises the note \n\n    Error: expected 6.25 to be within 1.5px of 50.00\n\n    expect(received).toBeLessThanOrEqual(expected)\n\n    Expected: <= 1.5\n    Received:    43.75\n\n       at helpers/sticky.ts:79\n\n      77 |     Math.abs(actual - expected),\n      78 |     `expected ${actual.toFixed(2)} to be within ${tolerance}px of ${expected.toFixed(2)}`,\n    > 79 |   ).toBeLessThanOrEqual(tolerance);\n         |     ^\n      80 | }\n      81 |\n      82 | /**\n        at expectClose (~/.vidi-bench/work/qwen__3.8__flash-next__macos__128GB__mtplx-opencode__benchmarks__vidi__canvas-pi-01/workspace/tests/e2e/helpers/sticky.ts:79:5)\n        at ~/.vidi-bench/work/qwen__3.8__flash-next__macos__128GB__mtplx-opencode__benchmarks__vidi__canvas-pi-01/workspace/tests/e2e/sticky.spec.ts:146:3\n\n    Error Context: test-results/sticky-TC-32-at-200-zoom-a-88b16-d-50-25-and-raises-the-note-chromium/error-context.md\n\n  1 failed\n    [chromium] \u203a tests/e2e/sticky.spec.ts:113:1 \u203a TC-32: at 200% zoom a (100,50) drag moves world (+50,+25) and raises the note \n  26 passed (12.9s)\n",
+      "passed": 26,
+      "failed": 1
+    }
+  },
+  "all_green": false
+}
