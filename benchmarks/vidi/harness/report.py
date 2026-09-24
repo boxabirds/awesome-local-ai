@@ -57,7 +57,7 @@ def summary(run: Path) -> str:
              f"Model `{meta.get('model_id')}`, scope `{meta.get('scope')}`, effort `{meta.get('reasoning_effort')}`, "
              f"client {meta.get('client', 'opencode')} {meta.get('client_version') or meta.get('opencode', '')}, "
              f"host {meta.get('host')}.", "",
-             "| Story | Title | Agent min | Requests | Prompt tok | Completion tok | TTFT med s | Decode tok/s med | Gate | Accept (cumulative) | Stalled | Resumes | Compactions | Max ctx | Conditions |",
+             "| Story | Title | Agent min | Requests | Prompt tok | Completion tok | TTFT med s | Decode tok/s med | Gate | Accept (cumulative) | Stalled | Resumes / nudges | Compactions | Max ctx | Conditions |",
              "|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|"]
     for sid, s in m["stories"].items():
         r, a = s["requests"], s["accept"]
@@ -66,7 +66,7 @@ def summary(run: Path) -> str:
             f"{r.get('prompt_tokens')} | {r.get('completion_tokens')} | {fmt(r.get('ttft_median_s'))} | "
             f"{fmt(r.get('decode_tok_s_median'))} | {'green' if s['gate'].get('all_green') else 'red'} | "
             f"{a.get('passed')}/{a.get('total')} | {'yes' if s['agent']['stalled'] else ''} | "
-            f"{s['agent'].get('resumes', 0)}{' (ended in error)' if s['agent'].get('ended_in_error') else ''} | "
+            f"{s['agent'].get('resumes', 0)} / {s['agent'].get('nudges', 0)}{' (ended in error)' if s['agent'].get('ended_in_error') else ''} | "
             f"{s['agent'].get('compactions', 0)} | {r.get('max_context', '—')} | "
             f"{conditions_cell(s.get('conditions', {}))} |")
     lines += ["", f"**Totals:** {t['stories']} stories, {t['agent_minutes']:.0f} agent-minutes, "

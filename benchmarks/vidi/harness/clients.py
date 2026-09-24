@@ -50,8 +50,9 @@ class PiClient:
                     "retry": {"provider": {"timeoutMs": CLIENT_IDLE_TIMEOUT_MS}}}
         (self.agent_dir / "settings.json").write_text(json.dumps(settings, indent=2))
 
-    def command(self, model_id: str, prompt: str, resume_from: str | None = None) -> list[str]:
-        resume = ["--fork", resume_from] if resume_from else []
+    def command(self, model_id: str, prompt: str, resume_from: str | None = None, fork: bool = True) -> list[str]:
+        # fork: after an error (new id, same history). Not fork: a nudge continues the same session.
+        resume = (["--fork", resume_from] if fork else ["--session", resume_from]) if resume_from else []
         return ["pi", "-p", "--mode", "json", "--model", f"{PROVIDER}/{model_id}",
                 "--no-extensions", "--no-skills", "--no-prompt-templates", "--no-context-files",
                 "--no-approve", "--session-dir", str(self.session_dir), *resume, "--", prompt]
@@ -109,10 +110,11 @@ class OpenCodeClient:
         }
         (self.cfg_dir / "opencode.json").write_text(json.dumps(cfg, indent=2))
 
-    def command(self, model_id: str, prompt: str, resume_from: str | None = None) -> list[str]:
-        # A resume forks: same history, new session id. MTPLX leaves a session id locked
-        # ("already in flight") after a stream stall, so reusing the id can never succeed.
-        resume = ["--session", resume_from, "--fork"] if resume_from else []
+    def command(self, model_id: str, prompt: str, resume_from: str | None = None, fork: bool = True) -> list[str]:
+        # A resume after an error forks: same history, new session id. MTPLX leaves a session id
+        # locked ("already in flight") after a stream stall, so reusing the id can never succeed.
+        # A nudge (no error) continues the same session.
+        resume = (["--session", resume_from] + (["--fork"] if fork else [])) if resume_from else []
         return ["opencode", "run", "--pure", "--format", "json", "--model", f"{PROVIDER}/{model_id}", *resume, prompt]
 
     def scan(self, e: dict, st: dict) -> str | None:
