@@ -414,7 +414,7 @@ def run_agent(client, ws: Path, env: dict, model_id: str, prompt: str, events_pa
 def run_story_agent(client, ws: Path, env: dict, model_id: str, prompt: str, events_path: Path) -> dict:
     """First attempt plus up to MAX_AGENT_RESUMES fork-resumes after an error exit."""
     events_path.unlink(missing_ok=True)
-    guard = ToolHangGuard(events_path, ws, events_path.parent.parent.parent / "interventions.log")
+    guard = ToolHangGuard(events_path, ws, events_path.parent.parent.parent / "interventions.md")
     guard.start()
     head = sh(["git", "rev-parse", "HEAD"], ws).strip()
     attempts = [run_agent(client, ws, env, model_id, prompt, events_path)]
@@ -607,6 +607,7 @@ def main() -> None:
     ap.add_argument("--scope", default="canvas")
     ap.add_argument("--context-limit", type=int, default=131072)
     ap.add_argument("--output-limit", type=int, default=32768)
+    ap.add_argument("--compact-at", type=int, help="tokens of context at which the agent compacts (pi only)")
     ap.add_argument("--only", help="comma list of story ids to run (smoke tests)")
     ap.add_argument("--record", action="store_true",
                     help="after each story, commit this run's directory and push (a per-story record)")
@@ -626,9 +627,9 @@ def main() -> None:
     spec_hash = tree_hash(ws / "spec")
     env = agent_env(work)
     client = CLIENTS[a.client](work)
-    client.write_config(a.base_url, a.model_id, a.context_limit, a.output_limit)
+    client.write_config(a.base_url, a.model_id, a.context_limit, a.output_limit, compact_at=a.compact_at)
     metrics = load_metrics(run)
-    metrics.update({"scope": a.scope, "model_id": a.model_id, "client": a.client})
+    metrics.update({"scope": a.scope, "model_id": a.model_id, "client": a.client, "compact_at": a.compact_at})
     done = [int(k) for k, v in metrics["stories"].items() if v.get("finished")]
 
     for story in stories:
