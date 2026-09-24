@@ -10,8 +10,15 @@
  * selection / editing state, and the two toolbars. Notes are rendered inside
  * the world layer; create-by-double-click, create-by-button, keyboard editing
  * and keyboard delete are wired here.
+ *
+ * Story 3 adds routing + live collaboration. `/` redirects to a freshly minted
+ * `/b/<boardId>` (temporary, replaced by real navigation in story 5); `/b/:id`
+ * renders the board and attaches the `WebsocketProvider` for that room. A board
+ * change remounts the shell (via `key`) so one board's document, provider and
+ * selection never leak into another (PRD live.isolation). The connection badge
+ * is the only new chrome.
  */
-import { useCallback, useEffect, useRef } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import type * as Y from 'yjs';
 import { canZoomIn, canZoomOut, screenToWorld, zoomPercent } from './canvas/camera';
 import type { Size } from './canvas/camera';
@@ -23,18 +30,32 @@ import { Toolbar } from './board/Toolbar';
 import { useBoardDoc } from './board/useBoardDoc';
 import { useSelection } from './board/useSelection';
 import { StickyNote } from './objects/StickyNote';
+import { ConnectionStatus } from './sync/ConnectionStatus';
+import { useLiveTestHooks } from './sync/testHooks';
 import { createSticky, deleteObject } from '../shared/board-model';
+import { isBoardId, newBoardId } from '../shared/board-id';
 
 /**
  * The board, given the size of the area it occupies. Split out from `App` so
  * component tests can render the real tree with a fixed viewport size (and a
- * pre-seeded document).
+ * pre-seeded document). With no `boardId` there is no network provider — the
+ * board runs purely locally, which is what those tests want.
  */
-export function BoardShell({ viewport, doc }: { viewport: Size; doc?: Y.Doc }) {
+export function BoardShell({
+  viewport,
+  doc,
+  boardId,
+}: {
+  viewport: Size;
+  doc?: Y.Doc;
+  boardId?: string;
+}) {
   const api = useCamera(viewport);
   const camera = api.camera;
-  const { doc: boardDoc, notes } = useBoardDoc(doc);
-  const selection = useSelection();
+  const { doc: boardDoc, notes, connectionState } = useBoardDoc(doc, boardId);
+  const selection = useSelection(boardDoc);
+
+  useLiveTestHooks(boardDoc, connectionState);
 
   // Refs so the window keydown listener always reads the latest state without
   // being re-bound on every render.
@@ -136,18 +157,67 @@ export function BoardShell({ viewport, doc }: { viewport: Size; doc?: Y.Doc }) {
           onReset={() => api.reset()}
         />
         <NavigationHint visible={!api.hasNavigated} />
+        {boardId !== undefined && <ConnectionStatus state={connectionState} />}
       </div>
     </CameraApiContext.Provider>
   );
 }
 
+/** Parse a board id out of a path like `/b/<id>`; `null` if none. */
+function boardIdFromPath(pathname: string): string | null {
+  const match = /^\/b\/([^/]+)\/?$/.exec(pathname);
+  if (match === null) return null;
+  const candidate = decodeURIComponent(match[1] as string);
+  return isBoardId(candidate) ? candidate : null;
+}
+
+function currentPathname(): string {
+  return typeof window !== 'undefined' && window.location
+    ? window.location.pathname
+    : '/';
+}
+
+/**
+ * A minimal board router. React Router is not a dependency yet, and this story
+ * needs only one fact from the URL — which board — so a pathname hook is
+ * enough: `/` (and any non-board path) mints a fresh board id and rewrites the
+ * address, `/b/:id` is read back. The id is computed once per mount (not per
+ * render) so the board is stable, and the returned `key` remounts the shell on
+ * a board change so one board's document, provider and selection never leak
+ * into another (PRD live.isolation).
+ */
+function useBoardRoute(): string {
+  const initialPath = currentPathname();
+  const [boardId, setBoardId] = useState<string>(
+    () => boardIdFromPath(initialPath) ?? newBoardId(),
+  );
+
+  useEffect(() => {
+    // Adopt a fresh address only when the current path is not already a valid
+    // board (`/`, or a hand-edited board id that failed validation).
+    if (boardIdFromPath(currentPathname()) === null) {
+      window.history.replaceState(null, '', `/b/${boardId}`);
+    }
+    const onPop = () => {
+      const next = boardIdFromPath(currentPathname());
+      if (next !== null) setBoardId(next);
+    };
+    window.addEventListener('popstate', onPop);
+    return () => window.removeEventListener('popstate', onPop);
+  }, [boardId]);
+
+  return boardId;
+}
+
 export function App() {
   const stageRef = useRef<HTMLDivElement>(null);
   const viewport = useViewportSize(stageRef);
+  const boardId = useBoardRoute();
 
   return (
     <div ref={stageRef} className="board-root" data-testid="board-stage">
-      <BoardShell viewport={viewport} />
+      {/* `key` remounts per board: a fresh document, provider and selection. */}
+      <BoardShell key={boardId} viewport={viewport} boardId={boardId} />
     </div>
   );
 }

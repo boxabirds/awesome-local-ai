@@ -59,3 +59,60 @@ export type StickyColor = keyof typeof STICKY_COLORS;
 
 /** Colour of a freshly created note. */
 export const DEFAULT_STICKY_COLOR: StickyColor = 'yellow';
+
+/* ---- Story 3 · live collaboration (design "Named settings") --------------
+ * These are the story-3 product settings, defined once here so a designer can
+ * retune live sync without a redesign (PRD "Constraints"). Tests must use
+ * these rather than hard-coded numbers (PRD "Capacity setting"). */
+
+/**
+ * Soft simultaneous-editor capacity. Design + test target only; never
+ * enforced (PRD live.over_capacity — a 6th person is not turned away).
+ */
+export const MAX_CONCURRENT_EDITORS = 5;
+
+/**
+ * Change-delivery budget: sender screen → receiver screen (PRD
+ * live.propagate / live.converge). Used as the e2e `expect.poll` timeout.
+ */
+export const LIVE_UPDATE_LATENCY_BUDGET_MS = 1000;
+
+/** Reconnect backoff ceiling, passed to the y-websocket provider. */
+export const RECONNECT_MAX_BACKOFF_MS = 10_000;
+
+/** How long the green "Connected" confirmation shows after a reconnection. */
+export const CONNECTED_CONFIRMATION_MS = 2000;
+
+/** The outage length used by the flaky-Wi-Fi catch-up test (PRD live.catch_up). */
+export const CATCH_UP_TEST_OUTAGE_MS = 30_000;
+
+/**
+ * The WebSocket path prefix a board's room lives under. The Worker forwards
+ * `/api/rooms/<id>` (with a well-formed id) to the board's Durable Object and
+ * serves everything else from assets.
+ */
+export const ROOM_PATH_PREFIX = '/api/rooms/';
+
+/**
+ * Derive the room WebSocket **server base** for a board from the page origin,
+ * so development, preview and production all reach the same Worker. `ws`/`wss`
+ * is chosen from the page protocol. When a `VITE_BOARD_WS_ORIGIN` override is
+ * set (preview/dev pointing at an external `wrangler dev`), its origin is used
+ * instead of the page's.
+ *
+ * Returned **without** the board id: this is the first argument to
+ * `WebsocketProvider`, which appends `/<roomname>` itself (design "Client
+ * connection and status").
+ */
+export function boardWsServer(boardId: string): string {
+  void boardId;
+  const override = import.meta.env?.VITE_BOARD_WS_ORIGIN as string | undefined;
+  const pageUrl =
+    typeof window !== 'undefined' && window.location
+      ? new URL(window.location.href)
+      : new URL('http://localhost:5173/');
+  const target = override && override.length > 0 ? new URL(override) : pageUrl;
+  const scheme = target.protocol === 'https:' ? 'wss:' : 'ws:';
+  // Trim the trailing slash: `WebsocketProvider` joins `serverUrl + '/' + room`.
+  return `${scheme}//${target.host}${ROOM_PATH_PREFIX}`.replace(/\/$/, '');
+}

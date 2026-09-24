@@ -1,11 +1,33 @@
 {
-  // Cloudflare Worker application. Story 1 serves the built client as static
-  // assets only; the Worker `main` entry and Durable Objects arrive in story 3.
+  // Cloudflare Worker application. Story 3 adds the Worker `main` entry and
+  // the BoardRoom Durable Object on top of the static-asset serving from
+  // story 1. The same file is read by `wrangler dev` (e2e) and by the
+  // `@cloudflare/vitest-pool-workers` integration project, so tests exercise
+  // the real deploy shape (design "Mock vs real boundaries").
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "vidi6",
-  "compatibility_date": "2026-09-01",
+  "main": "src/worker/index.ts",
+  // Kept at or below the workerd runtime bundled with
+  // `@cloudflare/vitest-pool-workers` so `wrangler dev` and the integration
+  // tests share one compatible date.
+  "compatibility_date": "2026-08-15",
+  "durable_objects": {
+    "bindings": [
+      {
+        "name": "BOARD_ROOM",
+        "class_name": "BoardRoom"
+      }
+    ]
+  },
+  "migrations": [
+    {
+      "tag": "v1",
+      "new_sqlite_classes": ["BoardRoom"]
+    }
+  ],
   "assets": {
     "directory": "./dist/client",
+    "binding": "ASSETS",
     "not_found_handling": "single-page-application"
   }
 }

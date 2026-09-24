@@ -8,18 +8,23 @@
     "build": "vite build",
     "build:test": "vite build --mode test",
     "preview": "wrangler dev",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "tsc --noEmit && tsc --noEmit -p tsconfig.worker.json",
     "test:unit": "vitest run --project unit",
     "test:component": "vitest run --project component",
+    "test:integration": "vitest run --project integration",
     "test": "vitest run",
     "test:e2e": "npm run build:test && playwright test"
   },
   "dependencies": {
     "react": "^19.3.0",
     "react-dom": "^19.3.0",
+    "y-protocols": "^1.0.7",
+    "y-websocket": "^3.1.0",
     "yjs": "^13.6.33"
   },
   "devDependencies": {
+    "@cloudflare/vitest-pool-workers": "0.22.0",
+    "@cloudflare/workers-types": "^5.20260924.1",
     "@playwright/test": "^1.63.0",
     "@testing-library/dom": "^10.0.0",
     "@testing-library/react": "^16.3.3",
@@ -31,7 +36,7 @@
     "jsdom": "^30.1.1",
     "typescript": "~5.9.3",
     "vite": "^8.3.0",
-    "vitest": "^5.0.1",
+    "vitest": "^4.1.11",
     "wrangler": "^4.137.0"
   }
 }
