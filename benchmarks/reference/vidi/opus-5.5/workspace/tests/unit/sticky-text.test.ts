@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import * as Y from 'yjs';
-import { applyTextDiff, clampToLimit, counterVisible } from '../../src/client/objects/StickyText';
+import {
+  applyTextDiff,
+  clampToLimit,
+  counterVisible,
+  transformIndex,
+} from '../../src/client/objects/StickyText';
 import { STICKY_COUNTER_THRESHOLD_CHARS, STICKY_TEXT_MAX_CHARS } from '../../src/shared/config';
 import { PROSE_1000, PROSE_1200, RETRO_ITEM, SHORT_PHRASE } from '../fixtures/texts';
 
@@ -121,5 +126,36 @@ describe('sticky.text counter', () => {
     expect(counterVisible(threshold + 1)).toBe(true);
     expect(counterVisible(0)).toBe(false);
     expect(counterVisible(STICKY_TEXT_MAX_CHARS)).toBe(true);
+  });
+});
+
+describe('sticky.text transformIndex (remote edits keep the caret in place)', () => {
+  const CARET = 5;
+  it('insert before the caret shifts it right', () => {
+    expect(transformIndex(CARET, [{ insert: 'red ' }])).toBe(CARET + 4);
+  });
+  it('insert after the caret leaves it', () => {
+    expect(transformIndex(CARET, [{ retain: 7 }, { insert: ' blue' }])).toBe(CARET);
+  });
+  it('insert exactly at the caret lands after it', () => {
+    expect(transformIndex(CARET, [{ retain: CARET }, { insert: 'x' }])).toBe(CARET);
+  });
+  it('delete before the caret shifts it left; delete spanning it moves it to the start', () => {
+    expect(transformIndex(CARET, [{ delete: 2 }])).toBe(CARET - 2);
+    expect(transformIndex(CARET, [{ retain: 3 }, { delete: 4 }])).toBe(3);
+    expect(transformIndex(CARET, [{ retain: CARET }, { delete: 3 }])).toBe(CARET);
+  });
+  it('matches a real Y.Text delta', () => {
+    const doc = new Y.Doc();
+    const text = doc.getText('t');
+    text.insert(0, 'green');
+    let delta: { insert?: string; retain?: number; delete?: number }[] = [];
+    text.observe((e) => {
+      delta = e.delta as typeof delta;
+    });
+    text.insert(0, 'red ');
+    // Caret after "gre" (index 3) is now after "red gre".
+    expect(transformIndex(3, delta)).toBe(7);
+    expect(text.toString().slice(0, transformIndex(3, delta))).toBe('red gre');
   });
 });

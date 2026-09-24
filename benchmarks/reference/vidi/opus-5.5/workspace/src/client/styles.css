@@ -323,3 +323,34 @@ html, body, #root {
   outline: 2px solid var(--focus);
   outline-offset: 1px;
 }
+
+/* Connection status badge (story 3): top centre, never blocks the board. */
+.connection-status {
+  position: fixed;
+  top: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 4px 12px;
+  border-radius: 999px;
+  border: 1px solid var(--panel-border);
+  background: var(--panel-bg);
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 500;
+  box-shadow: 0 1px 3px rgb(0 0 0 / 0.08);
+  pointer-events: none;
+  z-index: 20;
+  white-space: nowrap;
+}
+
+.connection-status--reconnecting {
+  background: #fff4e0;
+  border-color: #f0b44c;
+  color: #8a5300;
+}
+
+.connection-status--confirmed {
+  background: #e8f5e9;
+  border-color: #66bb6a;
+  color: #1b5e20;
+}

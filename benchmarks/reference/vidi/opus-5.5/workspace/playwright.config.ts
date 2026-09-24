@@ -5,6 +5,9 @@ const BASE_URL = `http://127.0.0.1:${PORT}`;
 const WEB_SERVER_TIMEOUT_MS = 120_000;
 const VIEWPORT = { width: 1280, height: 800 } as const;
 const ALL_BROWSERS = ['chromium', 'firefox', 'webkit'] as const;
+/** Long-running checks (idle stability, capacity soak) run only via `npm run test:e2e:nightly`. */
+const NIGHTLY = /\.nightly\.spec\.ts$/;
+const nightlyEnabled = process.env.E2E_NIGHTLY === '1';
 
 /**
  * E2E_BROWSERS (comma-separated) limits the browser projects, e.g. on machines
@@ -31,10 +34,22 @@ export default defineConfig({
     baseURL: BASE_URL,
     trace: 'retain-on-failure',
   },
-  projects: ALL_BROWSERS.filter((b) => selected.includes(b)).map((name) => ({
-    name,
-    use: { ...deviceFor[name], viewport: VIEWPORT, deviceScaleFactor: 1 },
-  })),
+  projects: [
+    ...ALL_BROWSERS.filter((b) => selected.includes(b)).map((name) => ({
+      name,
+      testIgnore: NIGHTLY,
+      use: { ...deviceFor[name], viewport: VIEWPORT, deviceScaleFactor: 1 },
+    })),
+    ...(nightlyEnabled
+      ? [
+          {
+            name: 'nightly',
+            testMatch: NIGHTLY,
+            use: { ...deviceFor.chromium, viewport: VIEWPORT, deviceScaleFactor: 1 },
+          },
+        ]
+      : []),
+  ],
   webServer: {
     // The test-mode build includes the window.__vidi6 test hook; wrangler dev serves
     // dist/client exactly as production will.

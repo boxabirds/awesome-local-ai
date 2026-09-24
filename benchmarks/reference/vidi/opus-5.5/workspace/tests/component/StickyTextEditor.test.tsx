@@ -1,9 +1,11 @@
-import { fireEvent } from '@testing-library/react';
+import { act, fireEvent } from '@testing-library/react';
 import { beforeEach, describe, expect, it } from 'vitest';
+import { getStickyText } from '../../src/shared/board-model';
 import { STICKY_COUNTER_THRESHOLD_CHARS, STICKY_TEXT_MAX_CHARS } from '../../src/shared/config';
 import { PROSE_1000, PROSE_1200, RETRO_ITEM, SHORT_PHRASE } from '../fixtures/texts';
 import {
   clickEmptyBoard,
+  doc,
   doubleClickBoard,
   editor,
   notes,
@@ -137,5 +139,25 @@ describe('sticky.text editor', () => {
     fireEvent.change(textarea, { target: { value: '日本' } });
     fireEvent.compositionEnd(textarea);
     expect(textOf()).toBe('日本');
+  });
+
+  it("someone else's typing appears in the open editor; my caret and my next keys stay put", async () => {
+    const u = user();
+    doubleClickBoard(AT.x, AT.y);
+    await u.keyboard('green');
+    const textarea = editor()!;
+    const id = notes()[0]!.id;
+    const ytext = getStickyText(doc(), id)!;
+    // Remote edits (any origin other than this page's) at the start and at the end.
+    act(() => {
+      doc().transact(() => ytext.insert(0, 'red '), 'remote');
+      doc().transact(() => ytext.insert(ytext.length, ' blue'), 'remote');
+    });
+    expect(textarea.value).toBe('red green blue');
+    // Caret was after "green": still right after it.
+    expect(textarea.selectionStart).toBe('red green'.length);
+    expect(textarea.selectionEnd).toBe('red green'.length);
+    await u.keyboard('!');
+    expect(textOf()).toBe('red green! blue');
   });
 });

@@ -97,3 +97,32 @@ export function fitFontSize(el: HTMLElement, box: number): { fontPx: number; ove
   el.style.fontSize = `${lo}px`;
   return { fontPx: lo, overflow: false };
 }
+
+/** One Yjs text delta operation (as in `YTextEvent.delta`). */
+export interface TextDeltaOp {
+  insert?: string | object;
+  retain?: number;
+  delete?: number;
+}
+
+/**
+ * Maps a caret index in the text before a change to the same place after it. Insertions
+ * exactly at the caret land after it (the caret stays before them), so the person typing
+ * keeps typing where they were while someone else's words appear next to theirs.
+ */
+export function transformIndex(index: number, delta: readonly TextDeltaOp[]): number {
+  let oldPos = 0;
+  let result = index;
+  for (const op of delta) {
+    if (op.retain !== undefined) {
+      oldPos += op.retain;
+    } else if (op.insert !== undefined) {
+      const length = typeof op.insert === 'string' ? op.insert.length : 1;
+      if (oldPos < index) result += length;
+    } else if (op.delete !== undefined) {
+      result -= Math.min(Math.max(index - oldPos, 0), op.delete);
+      oldPos += op.delete;
+    }
+  }
+  return result;
+}
