@@ -5,11 +5,17 @@ import { useCamera } from './canvas/useCamera';
 import { BoardViewport } from './canvas/BoardViewport';
 import { ZoomControls } from './canvas/ZoomControls';
 import { NavigationHint } from './canvas/NavigationHint';
+import { useBoardDoc } from './board/useBoardDoc';
+import { useSelection } from './board/useSelection';
+import { useBoardActions } from './board/useBoardActions';
+import { useBoardKeyboard } from './board/useBoardKeyboard';
+import { Toolbar } from './board/Toolbar';
+import { StickyNote } from './objects/StickyNote';
 
 /**
- * Top-level layout: full-window board plus the zoom controls and the
- * first-use hint. The single camera instance lives here and is shared with
- * every canvas piece.
+ * Top-level layout: full-window board plus the toolbars, the zoom controls
+ * and the first-use hint. The camera, the Y.Doc and the local selection
+ * each live in one hook instance shared by every piece.
  */
 export function App() {
   const shellRef = useRef<HTMLDivElement>(null);
@@ -33,10 +39,29 @@ export function App() {
   }, []);
 
   const api = useCamera(size);
+  const { doc, notes } = useBoardDoc();
+  const selection = useSelection();
+  const actions = useBoardActions({ doc, api, size, selection });
+  useBoardKeyboard({ doc, selection });
 
   return (
     <div className="vidi6-shell" ref={shellRef}>
-      <BoardViewport api={api} />
+      <BoardViewport api={api} onCreateStickyAt={actions.createAtScreenPoint} onEmptyClick={() => selection.select(null)}>
+        {notes.map((note) => (
+          <StickyNote
+            key={note.id}
+            note={note}
+            doc={doc}
+            zoom={api.camera.zoom}
+            selected={selection.selectedId === note.id}
+            editing={selection.editingId === note.id}
+            onSelect={selection.select}
+            onStartEdit={selection.startEdit}
+            onEndEdit={selection.endEdit}
+          />
+        ))}
+      </BoardViewport>
+      <Toolbar onCreateSticky={actions.createAtCentre} />
       <ZoomControls
         zoomPercent={zoomPercent(api.camera)}
         canZoomIn={canZoomIn(api.camera)}

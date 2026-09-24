@@ -125,3 +125,192 @@ body {
   pointer-events: none;
   z-index: 10;
 }
+
+/* --- Sticky notes (story 2) --------------------------------------------- */
+
+/* Fixed left-side board toolbar. */
+.vidi6-toolbar {
+  position: fixed;
+  left: 16px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px;
+  background: #ffffff;
+  border: 1px solid #d3d9e0;
+  border-radius: 12px;
+  box-shadow: 0 1px 4px rgba(15, 23, 42, 0.12);
+  z-index: 10;
+}
+
+.vidi6-toolbar__button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  background: #ffffff;
+  border: 1px solid #cfd6de;
+  border-radius: 9px;
+  cursor: pointer;
+  color: #1f242c;
+}
+
+.vidi6-toolbar__button:hover {
+  background: #f1f4f8;
+}
+
+.vidi6-toolbar__button:focus-visible {
+  outline: 2px solid #3b82f6;
+  outline-offset: 2px;
+}
+
+/* One sticky note in the world layer (scales with the board zoom). */
+.vidi6-sticky {
+  position: absolute;
+  box-shadow: 0 2px 6px rgba(15, 23, 42, 0.22);
+  cursor: grab;
+  user-select: none;
+}
+
+.vidi6-sticky--dragging {
+  cursor: grabbing;
+  box-shadow: 0 6px 16px rgba(15, 23, 42, 0.3);
+}
+
+/* Blue selection outline. */
+.vidi6-sticky--selected {
+  outline: 3px solid #3b82f6;
+  outline-offset: 2px;
+}
+
+.vidi6-sticky:focus-visible {
+  outline: 3px solid #3b82f6;
+  outline-offset: 2px;
+}
+
+/* Shared text metrics: display text, editing textarea and the hidden
+   measurement twin must wrap identically for the font fit to be exact. */
+.vidi6-sticky__text,
+.vidi6-sticky__textarea,
+.vidi6-sticky__measure {
+  padding: 12px;
+  box-sizing: border-box;
+  font-family: inherit;
+  font-weight: 500;
+  line-height: 1.35;
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
+}
+
+.vidi6-sticky__text {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  justify-content: center;
+  text-align: center;
+  overflow: hidden;
+}
+
+.vidi6-sticky__textarea {
+  position: absolute;
+  inset: 0;
+  resize: none;
+  border: none;
+  background: transparent;
+  color: inherit;
+  outline: none;
+  cursor: text;
+  user-select: text;
+}
+
+.vidi6-sticky__measure {
+  position: absolute;
+  inset: 0;
+  visibility: hidden;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+/* Bottom fade: the note's own colour, shown when the text overflows at the
+   minimum font size. */
+.vidi6-sticky__fade {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 48px;
+  background: linear-gradient(to top, var(--sticky-color), transparent);
+  pointer-events: none;
+}
+
+/* Character counter while editing near the limit. */
+.vidi6-sticky__counter {
+  position: absolute;
+  right: 8px;
+  bottom: 6px;
+  font-size: 11px;
+  line-height: 1;
+  color: rgba(31, 36, 44, 0.65);
+  pointer-events: none;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Floating toolbar above the selected note (unscaled into screen space). */
+.vidi6-sticky__toolbar {
+  position: absolute;
+  left: 50%;
+  top: 0;
+  transform-origin: 50% 100%;
+}
+
+.vidi6-note-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 6px 8px;
+  background: #ffffff;
+  border: 1px solid #d3d9e0;
+  border-radius: 10px;
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.18);
+}
+
+.vidi6-swatch {
+  width: 20px;
+  height: 20px;
+  border: 1px solid rgba(15, 23, 42, 0.25);
+  border-radius: 6px;
+  cursor: pointer;
+  padding: 0;
+}
+
+.vidi6-swatch[aria-pressed='true'] {
+  outline: 2px solid #3b82f6;
+  outline-offset: 1px;
+}
+
+.vidi6-swatch:focus-visible,
+.vidi6-delete:focus-visible {
+  outline: 2px solid #3b82f6;
+  outline-offset: 2px;
+}
+
+.vidi6-delete {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  margin-left: 2px;
+  background: #ffffff;
+  border: 1px solid #cfd6de;
+  border-radius: 7px;
+  cursor: pointer;
+  color: #b91c1c;
+}
+
+.vidi6-delete:hover {
+  background: #fef2f2;
+}

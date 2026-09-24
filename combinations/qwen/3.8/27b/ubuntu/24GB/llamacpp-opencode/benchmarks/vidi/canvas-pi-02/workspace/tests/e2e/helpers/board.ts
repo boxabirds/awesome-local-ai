@@ -40,6 +40,28 @@ export async function dragBy(
   await page.mouse.up();
 }
 
+/** One sticky note as read from the board doc via the test hook. */
+export interface NoteInfo {
+  id: string;
+  text: string;
+  x: number;
+  y: number;
+  z: number;
+  color: string;
+}
+
+/** Read all sticky notes (positions in world units, sorted by (z, id)). */
+export async function getNotes(page: Page): Promise<NoteInfo[]> {
+  return page.evaluate(() => [...(window.__vidi6?.getNotes() ?? [])] as NoteInfo[]);
+}
+
+/** The single note on an otherwise empty board. */
+export async function getTheNote(page: Page): Promise<NoteInfo> {
+  const notes = await getNotes(page);
+  if (notes.length !== 1) throw new Error(`expected exactly 1 note, got ${notes.length}`);
+  return notes[0];
+}
+
 /** Parsed inline backgroundPosition of the viewport (the dot grid anchor). */
 export async function gridBackgroundPosition(page: Page): Promise<{ x: number; y: number }> {
   return page.evaluate(() => {
