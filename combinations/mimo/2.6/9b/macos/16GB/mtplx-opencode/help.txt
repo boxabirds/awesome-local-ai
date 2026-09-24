@@ -1,0 +1,77 @@
+NOTES FOR THIS COMBINATION
+
+  PROVENANCE. Nothing here was measured by this repo, and no 16 GB Mac
+  was used. Figures come from the MTPLX 2.12.0 release notes and the
+  pack's own mtplx_runtime.json. The one memory figure (8.70 GiB peak at
+  a 15K-token context) was taken on an M5 Max. No tok/s figure exists
+  for this pack from anyone, so none is quoted.
+
+  M1 / M2 MACS. MTPLX 2.12.0 does not offer this pack on M1 or M2: its
+  catalog lists it for M3/M4/M5 only. The reason is BF16 -- M1/M2 GPUs
+  have no native BF16, this pack keeps its vision tower and draft head
+  in BF16, and there is no FP16 sibling (for the plain Qwen3.5 9B, MTPLX
+  steers M1/M2 to an FP16 build instead). "Not offered" means not listed
+  or recommended; nothing seen blocks pulling it by repo id and serving
+  it, which is what this installer does. Expect it to run slower on
+  M1/M2 than on M3+. How much slower has not been measured by anyone.
+
+  THE WINDOW IS 20,480 TOKENS. That is MTPLX's own memory plan for this
+  pack on 16 GB (18 GB gets 45,056; 24 GB gets 192,512). The pack's card
+  recommends 18 GB+ for agent clients such as OpenCode. Coding agents
+  will compact often: a system prompt, tool schemas and a couple of file
+  reads can fill it.
+
+  CONTEXT_LIMIT=20480 and OUTPUT_LIMIT=8192 go into the client's
+  provider config (provider "mtplx-mimo"), written by the session
+  command the first time each client is launched. For each client:
+
+  OpenCode: limit.context 20480, limit.output 8192. OpenCode compacts
+    from these; how much headroom it keeps back was NOT verified against
+    the installed OpenCode.
+
+  Pi: its compaction reserve DOES NOT FIT this window by default. Pi
+    compacts when context > contextWindow - reserveTokens, and the
+    default reserveTokens is 16384 -- so at 20,480 it compacts past ~4k
+    tokens, i.e. almost every turn, and its default keepRecentTokens
+    (20000) is the whole window. The installer does not touch Pi's
+    settings. Add a per-model override to ~/.pi/agent/settings.json:
+
+      "compaction": {
+        "modelOverrides": {
+          "mtplx-mimo/mtplx-mimo-v26-qwen-9b-optimized-speed": {
+            "reserveTokens": 8192,
+            "keepRecentTokens": 4096
+          }
+        }
+      }
+
+    Those two values are a starting point matched to OUTPUT_LIMIT, NOT a
+    tested setting.
+
+  Thinking tokens count against max_tokens (8192). Empty replies mean
+  the budget went inside <think>. Raising MAX_RESPONSE_TOKENS costs
+  history room; THINKING=0 turns thinking off instead.
+
+  REASONING_EFFORT does nothing for this model: its chat template reads
+  only enable_thinking. Any value other than 'default' is rejected.
+
+  VISION. The pack ships Xiaomi's vision tower (BF16). This repo's
+  client configs declare text input only, and the installer's summary
+  line "Vision: not available in this pack" is wrong for this pack.
+
+  ON M1/M2, MTPLX's own pick is the base model's FP16 build, installed
+  by combinations/qwen/3.5/9b-fp16/macos/16GB/mtplx-opencode.
+
+  CREDIT. Model: Xiaomi MiMo, MiMo-V2.6-Distill-Qwen-9B (MIT), a
+  fine-tune of Qwen3.5-9B (Apache 2.0). MTPLX pack: Youssofal.
+
+EXAMPLES
+
+  mtplx-mimo-v26-qwen-9b-server                 # coding profile
+  THINKING=0 mtplx-mimo-v26-qwen-9b-server      # no thinking tokens
+  MAX_RESPONSE_TOKENS=12288 mtplx-mimo-v26-qwen-9b-server
+  DEPTH=3 mtplx-mimo-v26-qwen-9b-server         # pack allows up to 3; untested
+
+SEE ALSO
+
+  combinations/mimo/2.6/9b/macos/16GB/mtplx-opencode/README.md

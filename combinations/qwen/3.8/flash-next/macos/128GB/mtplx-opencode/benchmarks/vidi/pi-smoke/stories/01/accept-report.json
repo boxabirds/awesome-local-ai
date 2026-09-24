@@ -1,10 +1,10 @@
 {
   "config": {
-    "configFile": "/Users/julian/expts/awesome-local-ai/benchmarks/vidi/acceptance/playwright.config.ts",
-    "rootDir": "/Users/julian/expts/awesome-local-ai/benchmarks/vidi/acceptance/tests",
+    "configFile": "~/expts/awesome-local-ai/benchmarks/vidi/acceptance/playwright.config.ts",
+    "rootDir": "~/expts/awesome-local-ai/benchmarks/vidi/acceptance/tests",
     "forbidOnly": false,
     "fullyParallel": false,
-    "globalSetup": "/Users/julian/expts/awesome-local-ai/benchmarks/vidi/acceptance/tests/global-setup.ts",
+    "globalSetup": "~/expts/awesome-local-ai/benchmarks/vidi/acceptance/tests/global-setup.ts",
     "globalTeardown": null,
     "globalTimeout": 0,
     "grep": {},
@@ -16,7 +16,7 @@
     "preserveOutput": "always",
     "projects": [
       {
-        "outputDir": "/Users/julian/expts/awesome-local-ai/combinations/qwen/3.8/flash-next/macos/128GB/mtplx-opencode/benchmarks/vidi/pi-smoke/stories/01/artifacts",
+        "outputDir": "~/expts/awesome-local-ai/combinations/qwen/3.8/flash-next/macos/128GB/mtplx-opencode/benchmarks/vidi/pi-smoke/stories/01/artifacts",
         "repeatEach": 1,
         "retries": 0,
         "metadata": {
@@ -24,7 +24,7 @@
         },
         "id": "chromium",
         "name": "chromium",
-        "testDir": "/Users/julian/expts/awesome-local-ai/benchmarks/vidi/acceptance/tests",
+        "testDir": "~/expts/awesome-local-ai/benchmarks/vidi/acceptance/tests",
         "testIgnore": [],
         "testMatch": [
           "**/*.@(spec|test).?(c|m)[jt]s?(x)"
@@ -41,7 +41,7 @@
       [
         "json",
         {
-          "outputFile": "/Users/julian/expts/awesome-local-ai/combinations/qwen/3.8/flash-next/macos/128GB/mtplx-opencode/benchmarks/vidi/pi-smoke/stories/01/accept-report.json"
+          "outputFile": "~/expts/awesome-local-ai/combinations/qwen/3.8/flash-next/macos/128GB/mtplx-opencode/benchmarks/vidi/pi-smoke/stories/01/accept-report.json"
         }
       ]
     ],
@@ -94,9 +94,9 @@
                       "duration": 226,
                       "error": {
                         "message": "Error: page.goto: net::ERR_CONNECTION_REFUSED at http://127.0.0.1:18787/\nCall log:\n\u001b[2m  - navigating to \"http://127.0.0.1:18787/\", waiting until \"load\"\u001b[22m\n",
-                        "stack": "Error: page.goto: net::ERR_CONNECTION_REFUSED at http://127.0.0.1:18787/\nCall log:\n\u001b[2m  - navigating to \"http://127.0.0.1:18787/\", waiting until \"load\"\u001b[22m\n\n    at openBoard (/Users/julian/expts/awesome-local-ai/benchmarks/vidi/acceptance/tests/fixtures.ts:59:14)\n    at /Users/julian/expts/awesome-local-ai/benchmarks/vidi/acceptance/tests/story-01.spec.ts:15:11",
+                        "stack": "Error: page.goto: net::ERR_CONNECTION_REFUSED at http://127.0.0.1:18787/\nCall log:\n\u001b[2m  - navigating to \"http://127.0.0.1:18787/\", waiting until \"load\"\u001b[22m\n\n    at openBoard (~/expts/awesome-local-ai/benchmarks/vidi/acceptance/tests/fixtures.ts:59:14)\n    at ~/expts/awesome-local-ai/benchmarks/vidi/acceptance/tests/story-01.spec.ts:15:11",
                         "location": {
-                          "file": "/Users/julian/expts/awesome-local-ai/benchmarks/vidi/acceptance/tests/fixtures.ts",
+                          "file": "~/expts/awesome-local-ai/benchmarks/vidi/acceptance/tests/fixtures.ts",
                           "column": 14,
                           "line": 59
                         },
@@ -105,11 +105,11 @@
                       "errors": [
                         {
                           "location": {
-                            "file": "/Users/julian/expts/awesome-local-ai/benchmarks/vidi/acceptance/tests/fixtures.ts",
+                            "file": "~/expts/awesome-local-ai/benchmarks/vidi/acceptance/tests/fixtures.ts",
                             "column": 14,
                             "line": 59
                           },
-                          "message": "Error: page.goto: net::ERR_CONNECTION_REFUSED at http://127.0.0.1:18787/\nCall log:\n\u001b[2m  - navigating to \"http://127.0.0.1:18787/\", waiting until \"load\"\u001b[22m\n\n\n   at fixtures.ts:59\n\n  57 | // at '/'; from story 5 on '/' is the home page with \"Create a board\".\n  58 | export async function openBoard(page: Page): Promise<string> {\n> 59 |   await page.goto('/');\n     |              ^\n  60 |   const create = page.getByRole('button', { name: 'Create a board' });\n  61 |   if (DONE.has(5)) {\n  62 |     await create.click();\n    at openBoard (/Users/julian/expts/awesome-local-ai/benchmarks/vidi/acceptance/tests/fixtures.ts:59:14)\n    at /Users/julian/expts/awesome-local-ai/benchmarks/vidi/acceptance/tests/story-01.spec.ts:15:11"
+                          "message": "Error: page.goto: net::ERR_CONNECTION_REFUSED at http://127.0.0.1:18787/\nCall log:\n\u001b[2m  - navigating to \"http://127.0.0.1:18787/\", waiting until \"load\"\u001b[22m\n\n\n   at fixtures.ts:59\n\n  57 | // at '/'; from story 5 on '/' is the home page with \"Create a board\".\n  58 | export async function openBoard(page: Page): Promise<string> {\n> 59 |   await page.goto('/');\n     |              ^\n  60 |   const create = page.getByRole('button', { name: 'Create a board' });\n  61 |   if (DONE.has(5)) {\n  62 |     await create.click();\n    at openBoard (~/expts/awesome-local-ai/benchmarks/vidi/acceptance/tests/fixtures.ts:59:14)\n    at ~/expts/awesome-local-ai/benchmarks/vidi/acceptance/tests/story-01.spec.ts:15:11"
                         }
                       ],
                       "stdout": [],
@@ -121,11 +121,11 @@
                         {
                           "name": "screenshot",
                           "contentType": "image/png",
-                          "path": "/Users/julian/expts/awesome-local-ai/combinations/qwen/3.8/flash-next/macos/128GB/mtplx-opencode/benchmarks/vidi/pi-smoke/stories/01/artifacts/story-01-story-1-s01-golde-91d47--at-100-ref-prd-golden-path-chromium/test-failed-1.png"
+                          "path": "~/expts/awesome-local-ai/combinations/qwen/3.8/flash-next/macos/128GB/mtplx-opencode/benchmarks/vidi/pi-smoke/stories/01/artifacts/story-01-story-1-s01-golde-91d47--at-100-ref-prd-golden-path-chromium/test-failed-1.png"
                         }
                       ],
                       "errorLocation": {
-                        "file": "/Users/julian/expts/awesome-local-ai/benchmarks/vidi/acceptance/tests/fixtures.ts",
+                        "file": "~/expts/awesome-local-ai/benchmarks/vidi/acceptance/tests/fixtures.ts",
                         "column": 14,
                         "line": 59
                       }
@@ -161,9 +161,9 @@
                       "duration": 85,
                       "error": {
                         "message": "Error: page.goto: net::ERR_CONNECTION_REFUSED at http://127.0.0.1:18787/\nCall log:\n\u001b[2m  - navigating to \"http://127.0.0.1:18787/\", waiting until \"load\"\u001b[22m\n",
-                        "stack": "Error: page.goto: net::ERR_CONNECTION_REFUSED at http://127.0.0.1:18787/\nCall log:\n\u001b[2m  - navigating to \"http://127.0.0.1:18787/\", waiting until \"load\"\u001b[22m\n\n    at openBoard (/Users/julian/expts/awesome-local-ai/benchmarks/vidi/acceptance/tests/fixtures.ts:59:14)\n    at /Users/julian/expts/awesome-local-ai/benchmarks/vidi/acceptance/tests/story-01.spec.ts:25:11",
+                        "stack": "Error: page.goto: net::ERR_CONNECTION_REFUSED at http://127.0.0.1:18787/\nCall log:\n\u001b[2m  - navigating to \"http://127.0.0.1:18787/\", waiting until \"load\"\u001b[22m\n\n    at openBoard (~/expts/awesome-local-ai/benchmarks/vidi/acceptance/tests/fixtures.ts:59:14)\n    at ~/expts/awesome-local-ai/benchmarks/vidi/acceptance/tests/story-01.spec.ts:25:11",
                         "location": {
-                          "file": "/Users/julian/expts/awesome-local-ai/benchmarks/vidi/acceptance/tests/fixtures.ts",
+                          "file": "~/expts/awesome-local-ai/benchmarks/vidi/acceptance/tests/fixtures.ts",
                           "column": 14,
                           "line": 59
                         },
@@ -172,11 +172,11 @@
                       "errors": [
                         {
                           "location": {
-                            "file": "/Users/julian/expts/awesome-local-ai/benchmarks/vidi/acceptance/tests/fixtures.ts",
+                            "file": "~/expts/awesome-local-ai/benchmarks/vidi/acceptance/tests/fixtures.ts",
                             "column": 14,
                             "line": 59
                           },
-                          "message": "Error: page.goto: net::ERR_CONNECTION_REFUSED at http://127.0.0.1:18787/\nCall log:\n\u001b[2m  - navigating to \"http://127.0.0.1:18787/\", waiting until \"load\"\u001b[22m\n\n\n   at fixtures.ts:59\n\n  57 | // at '/'; from story 5 on '/' is the home page with \"Create a board\".\n  58 | export async function openBoard(page: Page): Promise<string> {\n> 59 |   await page.goto('/');\n     |              ^\n  60 |   const create = page.getByRole('button', { name: 'Create a board' });\n  61 |   if (DONE.has(5)) {\n  62 |     await create.click();\n    at openBoard (/Users/julian/expts/awesome-local-ai/benchmarks/vidi/acceptance/tests/fixtures.ts:59:14)\n    at /Users/julian/expts/awesome-local-ai/benchmarks/vidi/acceptance/tests/story-01.spec.ts:25:11"
+                          "message": "Error: page.goto: net::ERR_CONNECTION_REFUSED at http://127.0.0.1:18787/\nCall log:\n\u001b[2m  - navigating to \"http://127.0.0.1:18787/\", waiting until \"load\"\u001b[22m\n\n\n   at fixtures.ts:59\n\n  57 | // at '/'; from story 5 on '/' is the home page with \"Create a board\".\n  58 | export async function openBoard(page: Page): Promise<string> {\n> 59 |   await page.goto('/');\n     |              ^\n  60 |   const create = page.getByRole('button', { name: 'Create a board' });\n  61 |   if (DONE.has(5)) {\n  62 |     await create.click();\n    at openBoard (~/expts/awesome-local-ai/benchmarks/vidi/acceptance/tests/fixtures.ts:59:14)\n    at ~/expts/awesome-local-ai/benchmarks/vidi/acceptance/tests/story-01.spec.ts:25:11"
                         }
                       ],
                       "stdout": [],
@@ -188,11 +188,11 @@
                         {
                           "name": "screenshot",
                           "contentType": "image/png",
-                          "path": "/Users/julian/expts/awesome-local-ai/combinations/qwen/3.8/flash-next/macos/128GB/mtplx-opencode/benchmarks/vidi/pi-smoke/stories/01/artifacts/story-01-story-1-s01-zoom--feea7-125-→-100-ref-prd-zoom-step-chromium/test-failed-1.png"
+                          "path": "~/expts/awesome-local-ai/combinations/qwen/3.8/flash-next/macos/128GB/mtplx-opencode/benchmarks/vidi/pi-smoke/stories/01/artifacts/story-01-story-1-s01-zoom--feea7-125-→-100-ref-prd-zoom-step-chromium/test-failed-1.png"
                         }
                       ],
                       "errorLocation": {
-                        "file": "/Users/julian/expts/awesome-local-ai/benchmarks/vidi/acceptance/tests/fixtures.ts",
+                        "file": "~/expts/awesome-local-ai/benchmarks/vidi/acceptance/tests/fixtures.ts",
                         "column": 14,
                         "line": 59
                       }
@@ -228,9 +228,9 @@
                       "duration": 79,
                       "error": {
                         "message": "Error: page.goto: net::ERR_CONNECTION_REFUSED at http://127.0.0.1:18787/\nCall log:\n\u001b[2m  - navigating to \"http://127.0.0.1:18787/\", waiting until \"load\"\u001b[22m\n",
-                        "stack": "Error: page.goto: net::ERR_CONNECTION_REFUSED at http://127.0.0.1:18787/\nCall log:\n\u001b[2m  - navigating to \"http://127.0.0.1:18787/\", waiting until \"load\"\u001b[22m\n\n    at openBoard (/Users/julian/expts/awesome-local-ai/benchmarks/vidi/acceptance/tests/fixtures.ts:59:14)\n    at /Users/julian/expts/awesome-local-ai/benchmarks/vidi/acceptance/tests/story-01.spec.ts:33:11",
+                        "stack": "Error: page.goto: net::ERR_CONNECTION_REFUSED at http://127.0.0.1:18787/\nCall log:\n\u001b[2m  - navigating to \"http://127.0.0.1:18787/\", waiting until \"load\"\u001b[22m\n\n    at openBoard (~/expts/awesome-local-ai/benchmarks/vidi/acceptance/tests/fixtures.ts:59:14)\n    at ~/expts/awesome-local-ai/benchmarks/vidi/acceptance/tests/story-01.spec.ts:33:11",
                         "location": {
-                          "file": "/Users/julian/expts/awesome-local-ai/benchmarks/vidi/acceptance/tests/fixtures.ts",
+                          "file": "~/expts/awesome-local-ai/benchmarks/vidi/acceptance/tests/fixtures.ts",
                           "column": 14,
                           "line": 59
                         },
@@ -239,11 +239,11 @@
                       "errors": [
                         {
                           "location": {
-                            "file": "/Users/julian/expts/awesome-local-ai/benchmarks/vidi/acceptance/tests/fixtures.ts",
+                            "file": "~/expts/awesome-local-ai/benchmarks/vidi/acceptance/tests/fixtures.ts",
                             "column": 14,
                             "line": 59
                           },
-                          "message": "Error: page.goto: net::ERR_CONNECTION_REFUSED at http://127.0.0.1:18787/\nCall log:\n\u001b[2m  - navigating to \"http://127.0.0.1:18787/\", waiting until \"load\"\u001b[22m\n\n\n   at fixtures.ts:59\n\n  57 | // at '/'; from story 5 on '/' is the home page with \"Create a board\".\n  58 | export async function openBoard(page: Page): Promise<string> {\n> 59 |   await page.goto('/');\n     |              ^\n  60 |   const create = page.getByRole('button', { name: 'Create a board' });\n  61 |   if (DONE.has(5)) {\n  62 |     await create.click();\n    at openBoard (/Users/julian/expts/awesome-local-ai/benchmarks/vidi/acceptance/tests/fixtures.ts:59:14)\n    at /Users/julian/expts/awesome-local-ai/benchmarks/vidi/acceptance/tests/story-01.spec.ts:33:11"
+                          "message": "Error: page.goto: net::ERR_CONNECTION_REFUSED at http://127.0.0.1:18787/\nCall log:\n\u001b[2m  - navigating to \"http://127.0.0.1:18787/\", waiting until \"load\"\u001b[22m\n\n\n   at fixtures.ts:59\n\n  57 | // at '/'; from story 5 on '/' is the home page with \"Create a board\".\n  58 | export async function openBoard(page: Page): Promise<string> {\n> 59 |   await page.goto('/');\n     |              ^\n  60 |   const create = page.getByRole('button', { name: 'Create a board' });\n  61 |   if (DONE.has(5)) {\n  62 |     await create.click();\n    at openBoard (~/expts/awesome-local-ai/benchmarks/vidi/acceptance/tests/fixtures.ts:59:14)\n    at ~/expts/awesome-local-ai/benchmarks/vidi/acceptance/tests/story-01.spec.ts:33:11"
                         }
                       ],
                       "stdout": [],
@@ -255,11 +255,11 @@
                         {
                           "name": "screenshot",
                           "contentType": "image/png",
-                          "path": "/Users/julian/expts/awesome-local-ai/combinations/qwen/3.8/flash-next/macos/128GB/mtplx-opencode/benchmarks/vidi/pi-smoke/stories/01/artifacts/story-01-story-1-s01-zoom--9209c-buttons-ref-prd-zoom-limits-chromium/test-failed-1.png"
+                          "path": "~/expts/awesome-local-ai/combinations/qwen/3.8/flash-next/macos/128GB/mtplx-opencode/benchmarks/vidi/pi-smoke/stories/01/artifacts/story-01-story-1-s01-zoom--9209c-buttons-ref-prd-zoom-limits-chromium/test-failed-1.png"
                         }
                       ],
                       "errorLocation": {
-                        "file": "/Users/julian/expts/awesome-local-ai/benchmarks/vidi/acceptance/tests/fixtures.ts",
+                        "file": "~/expts/awesome-local-ai/benchmarks/vidi/acceptance/tests/fixtures.ts",
                         "column": 14,
                         "line": 59
                       }
@@ -295,9 +295,9 @@
                       "duration": 85,
                       "error": {
                         "message": "Error: page.goto: net::ERR_CONNECTION_REFUSED at http://127.0.0.1:18787/\nCall log:\n\u001b[2m  - navigating to \"http://127.0.0.1:18787/\", waiting until \"load\"\u001b[22m\n",
-                        "stack": "Error: page.goto: net::ERR_CONNECTION_REFUSED at http://127.0.0.1:18787/\nCall log:\n\u001b[2m  - navigating to \"http://127.0.0.1:18787/\", waiting until \"load\"\u001b[22m\n\n    at openBoard (/Users/julian/expts/awesome-local-ai/benchmarks/vidi/acceptance/tests/fixtures.ts:59:14)\n    at /Users/julian/expts/awesome-local-ai/benchmarks/vidi/acceptance/tests/story-01.spec.ts:46:11",
+                        "stack": "Error: page.goto: net::ERR_CONNECTION_REFUSED at http://127.0.0.1:18787/\nCall log:\n\u001b[2m  - navigating to \"http://127.0.0.1:18787/\", waiting until \"load\"\u001b[22m\n\n    at openBoard (~/expts/awesome-local-ai/benchmarks/vidi/acceptance/tests/fixtures.ts:59:14)\n    at ~/expts/awesome-local-ai/benchmarks/vidi/acceptance/tests/story-01.spec.ts:46:11",
                         "location": {
-                          "file": "/Users/julian/expts/awesome-local-ai/benchmarks/vidi/acceptance/tests/fixtures.ts",
+                          "file": "~/expts/awesome-local-ai/benchmarks/vidi/acceptance/tests/fixtures.ts",
                           "column": 14,
                           "line": 59
                         },
@@ -306,11 +306,11 @@
                       "errors": [
                         {
                           "location": {
-                            "file": "/Users/julian/expts/awesome-local-ai/benchmarks/vidi/acceptance/tests/fixtures.ts",
+                            "file": "~/expts/awesome-local-ai/benchmarks/vidi/acceptance/tests/fixtures.ts",
                             "column": 14,
                             "line": 59
                           },
-                          "message": "Error: page.goto: net::ERR_CONNECTION_REFUSED at http://127.0.0.1:18787/\nCall log:\n\u001b[2m  - navigating to \"http://127.0.0.1:18787/\", waiting until \"load\"\u001b[22m\n\n\n   at fixtures.ts:59\n\n  57 | // at '/'; from story 5 on '/' is the home page with \"Create a board\".\n  58 | export async function openBoard(page: Page): Promise<string> {\n> 59 |   await page.goto('/');\n     |              ^\n  60 |   const create = page.getByRole('button', { name: 'Create a board' });\n  61 |   if (DONE.has(5)) {\n  62 |     await create.click();\n    at openBoard (/Users/julian/expts/awesome-local-ai/benchmarks/vidi/acceptance/tests/fixtures.ts:59:14)\n    at /Users/julian/expts/awesome-local-ai/benchmarks/vidi/acceptance/tests/story-01.spec.ts:46:11"
+                          "message": "Error: page.goto: net::ERR_CONNECTION_REFUSED at http://127.0.0.1:18787/\nCall log:\n\u001b[2m  - navigating to \"http://127.0.0.1:18787/\", waiting until \"load\"\u001b[22m\n\n\n   at fixtures.ts:59\n\n  57 | // at '/'; from story 5 on '/' is the home page with \"Create a board\".\n  58 | export async function openBoard(page: Page): Promise<string> {\n> 59 |   await page.goto('/');\n     |              ^\n  60 |   const create = page.getByRole('button', { name: 'Create a board' });\n  61 |   if (DONE.has(5)) {\n  62 |     await create.click();\n    at openBoard (~/expts/awesome-local-ai/benchmarks/vidi/acceptance/tests/fixtures.ts:59:14)\n    at ~/expts/awesome-local-ai/benchmarks/vidi/acceptance/tests/story-01.spec.ts:46:11"
                         }
                       ],
                       "stdout": [],
@@ -322,11 +322,11 @@
                         {
                           "name": "screenshot",
                           "contentType": "image/png",
-                          "path": "/Users/julian/expts/awesome-local-ai/combinations/qwen/3.8/flash-next/macos/128GB/mtplx-opencode/benchmarks/vidi/pi-smoke/stories/01/artifacts/story-01-story-1-s01-keybo-00965-e-ref-prd-zoom-no-page-zoom-chromium/test-failed-1.png"
+                          "path": "~/expts/awesome-local-ai/combinations/qwen/3.8/flash-next/macos/128GB/mtplx-opencode/benchmarks/vidi/pi-smoke/stories/01/artifacts/story-01-story-1-s01-keybo-00965-e-ref-prd-zoom-no-page-zoom-chromium/test-failed-1.png"
                         }
                       ],
                       "errorLocation": {
-                        "file": "/Users/julian/expts/awesome-local-ai/benchmarks/vidi/acceptance/tests/fixtures.ts",
+                        "file": "~/expts/awesome-local-ai/benchmarks/vidi/acceptance/tests/fixtures.ts",
                         "column": 14,
                         "line": 59
                       }
@@ -362,9 +362,9 @@
                       "duration": 83,
                       "error": {
                         "message": "Error: page.goto: net::ERR_CONNECTION_REFUSED at http://127.0.0.1:18787/\nCall log:\n\u001b[2m  - navigating to \"http://127.0.0.1:18787/\", waiting until \"load\"\u001b[22m\n",
-                        "stack": "Error: page.goto: net::ERR_CONNECTION_REFUSED at http://127.0.0.1:18787/\nCall log:\n\u001b[2m  - navigating to \"http://127.0.0.1:18787/\", waiting until \"load\"\u001b[22m\n\n    at openBoard (/Users/julian/expts/awesome-local-ai/benchmarks/vidi/acceptance/tests/fixtures.ts:59:14)\n    at /Users/julian/expts/awesome-local-ai/benchmarks/vidi/acceptance/tests/story-01.spec.ts:59:11",
+                        "stack": "Error: page.goto: net::ERR_CONNECTION_REFUSED at http://127.0.0.1:18787/\nCall log:\n\u001b[2m  - navigating to \"http://127.0.0.1:18787/\", waiting until \"load\"\u001b[22m\n\n    at openBoard (~/expts/awesome-local-ai/benchmarks/vidi/acceptance/tests/fixtures.ts:59:14)\n    at ~/expts/awesome-local-ai/benchmarks/vidi/acceptance/tests/story-01.spec.ts:59:11",
                         "location": {
-                          "file": "/Users/julian/expts/awesome-local-ai/benchmarks/vidi/acceptance/tests/fixtures.ts",
+                          "file": "~/expts/awesome-local-ai/benchmarks/vidi/acceptance/tests/fixtures.ts",
                           "column": 14,
                           "line": 59
                         },
@@ -373,11 +373,11 @@
                       "errors": [
                         {
                           "location": {
-                            "file": "/Users/julian/expts/awesome-local-ai/benchmarks/vidi/acceptance/tests/fixtures.ts",
+                            "file": "~/expts/awesome-local-ai/benchmarks/vidi/acceptance/tests/fixtures.ts",
                             "column": 14,
                             "line": 59
                           },
-                          "message": "Error: page.goto: net::ERR_CONNECTION_REFUSED at http://127.0.0.1:18787/\nCall log:\n\u001b[2m  - navigating to \"http://127.0.0.1:18787/\", waiting until \"load\"\u001b[22m\n\n\n   at fixtures.ts:59\n\n  57 | // at '/'; from story 5 on '/' is the home page with \"Create a board\".\n  58 | export async function openBoard(page: Page): Promise<string> {\n> 59 |   await page.goto('/');\n     |              ^\n  60 |   const create = page.getByRole('button', { name: 'Create a board' });\n  61 |   if (DONE.has(5)) {\n  62 |     await create.click();\n    at openBoard (/Users/julian/expts/awesome-local-ai/benchmarks/vidi/acceptance/tests/fixtures.ts:59:14)\n    at /Users/julian/expts/awesome-local-ai/benchmarks/vidi/acceptance/tests/story-01.spec.ts:59:11"
+                          "message": "Error: page.goto: net::ERR_CONNECTION_REFUSED at http://127.0.0.1:18787/\nCall log:\n\u001b[2m  - navigating to \"http://127.0.0.1:18787/\", waiting until \"load\"\u001b[22m\n\n\n   at fixtures.ts:59\n\n  57 | // at '/'; from story 5 on '/' is the home page with \"Create a board\".\n  58 | export async function openBoard(page: Page): Promise<string> {\n> 59 |   await page.goto('/');\n     |              ^\n  60 |   const create = page.getByRole('button', { name: 'Create a board' });\n  61 |   if (DONE.has(5)) {\n  62 |     await create.click();\n    at openBoard (~/expts/awesome-local-ai/benchmarks/vidi/acceptance/tests/fixtures.ts:59:14)\n    at ~/expts/awesome-local-ai/benchmarks/vidi/acceptance/tests/story-01.spec.ts:59:11"
                         }
                       ],
                       "stdout": [],
@@ -389,11 +389,11 @@
                         {
                           "name": "screenshot",
                           "contentType": "image/png",
-                          "path": "/Users/julian/expts/awesome-local-ai/combinations/qwen/3.8/flash-next/macos/128GB/mtplx-opencode/benchmarks/vidi/pi-smoke/stories/01/artifacts/story-01-story-1-s01-ctrl--68b81--board-ref-prd-zoom-pointer-chromium/test-failed-1.png"
+                          "path": "~/expts/awesome-local-ai/combinations/qwen/3.8/flash-next/macos/128GB/mtplx-opencode/benchmarks/vidi/pi-smoke/stories/01/artifacts/story-01-story-1-s01-ctrl--68b81--board-ref-prd-zoom-pointer-chromium/test-failed-1.png"
                         }
                       ],
                       "errorLocation": {
-                        "file": "/Users/julian/expts/awesome-local-ai/benchmarks/vidi/acceptance/tests/fixtures.ts",
+                        "file": "~/expts/awesome-local-ai/benchmarks/vidi/acceptance/tests/fixtures.ts",
                         "column": 14,
                         "line": 59
                       }
@@ -429,9 +429,9 @@
                       "duration": 89,
                       "error": {
                         "message": "Error: page.goto: net::ERR_CONNECTION_REFUSED at http://127.0.0.1:18787/\nCall log:\n\u001b[2m  - navigating to \"http://127.0.0.1:18787/\", waiting until \"load\"\u001b[22m\n",
-                        "stack": "Error: page.goto: net::ERR_CONNECTION_REFUSED at http://127.0.0.1:18787/\nCall log:\n\u001b[2m  - navigating to \"http://127.0.0.1:18787/\", waiting until \"load\"\u001b[22m\n\n    at openBoard (/Users/julian/expts/awesome-local-ai/benchmarks/vidi/acceptance/tests/fixtures.ts:59:14)\n    at /Users/julian/expts/awesome-local-ai/benchmarks/vidi/acceptance/tests/story-01.spec.ts:68:11",
+                        "stack": "Error: page.goto: net::ERR_CONNECTION_REFUSED at http://127.0.0.1:18787/\nCall log:\n\u001b[2m  - navigating to \"http://127.0.0.1:18787/\", waiting until \"load\"\u001b[22m\n\n    at openBoard (~/expts/awesome-local-ai/benchmarks/vidi/acceptance/tests/fixtures.ts:59:14)\n    at ~/expts/awesome-local-ai/benchmarks/vidi/acceptance/tests/story-01.spec.ts:68:11",
                         "location": {
-                          "file": "/Users/julian/expts/awesome-local-ai/benchmarks/vidi/acceptance/tests/fixtures.ts",
+                          "file": "~/expts/awesome-local-ai/benchmarks/vidi/acceptance/tests/fixtures.ts",
                           "column": 14,
                           "line": 59
                         },
@@ -440,11 +440,11 @@
                       "errors": [
                         {
                           "location": {
-                            "file": "/Users/julian/expts/awesome-local-ai/benchmarks/vidi/acceptance/tests/fixtures.ts",
+                            "file": "~/expts/awesome-local-ai/benchmarks/vidi/acceptance/tests/fixtures.ts",
                             "column": 14,
                             "line": 59
                           },
-                          "message": "Error: page.goto: net::ERR_CONNECTION_REFUSED at http://127.0.0.1:18787/\nCall log:\n\u001b[2m  - navigating to \"http://127.0.0.1:18787/\", waiting until \"load\"\u001b[22m\n\n\n   at fixtures.ts:59\n\n  57 | // at '/'; from story 5 on '/' is the home page with \"Create a board\".\n  58 | export async function openBoard(page: Page): Promise<string> {\n> 59 |   await page.goto('/');\n     |              ^\n  60 |   const create = page.getByRole('button', { name: 'Create a board' });\n  61 |   if (DONE.has(5)) {\n  62 |     await create.click();\n    at openBoard (/Users/julian/expts/awesome-local-ai/benchmarks/vidi/acceptance/tests/fixtures.ts:59:14)\n    at /Users/julian/expts/awesome-local-ai/benchmarks/vidi/acceptance/tests/story-01.spec.ts:68:11"
+                          "message": "Error: page.goto: net::ERR_CONNECTION_REFUSED at http://127.0.0.1:18787/\nCall log:\n\u001b[2m  - navigating to \"http://127.0.0.1:18787/\", waiting until \"load\"\u001b[22m\n\n\n   at fixtures.ts:59\n\n  57 | // at '/'; from story 5 on '/' is the home page with \"Create a board\".\n  58 | export async function openBoard(page: Page): Promise<string> {\n> 59 |   await page.goto('/');\n     |              ^\n  60 |   const create = page.getByRole('button', { name: 'Create a board' });\n  61 |   if (DONE.has(5)) {\n  62 |     await create.click();\n    at openBoard (~/expts/awesome-local-ai/benchmarks/vidi/acceptance/tests/fixtures.ts:59:14)\n    at ~/expts/awesome-local-ai/benchmarks/vidi/acceptance/tests/story-01.spec.ts:68:11"
                         }
                       ],
                       "stdout": [],
@@ -456,11 +456,11 @@
                         {
                           "name": "screenshot",
                           "contentType": "image/png",
-                          "path": "/Users/julian/expts/awesome-local-ai/combinations/qwen/3.8/flash-next/macos/128GB/mtplx-opencode/benchmarks/vidi/pi-smoke/stories/01/artifacts/story-01-story-1-s01-hint--c53f4-stays-gone-ref-prd-nav-hint-chromium/test-failed-1.png"
+                          "path": "~/expts/awesome-local-ai/combinations/qwen/3.8/flash-next/macos/128GB/mtplx-opencode/benchmarks/vidi/pi-smoke/stories/01/artifacts/story-01-story-1-s01-hint--c53f4-stays-gone-ref-prd-nav-hint-chromium/test-failed-1.png"
                         }
                       ],
                       "errorLocation": {
-                        "file": "/Users/julian/expts/awesome-local-ai/benchmarks/vidi/acceptance/tests/fixtures.ts",
+                        "file": "~/expts/awesome-local-ai/benchmarks/vidi/acceptance/tests/fixtures.ts",
                         "column": 14,
                         "line": 59
                       }
@@ -489,7 +489,7 @@
                       "type": "skip",
                       "description": "needs stories 2",
                       "location": {
-                        "file": "/Users/julian/expts/awesome-local-ai/benchmarks/vidi/acceptance/tests/fixtures.ts",
+                        "file": "~/expts/awesome-local-ai/benchmarks/vidi/acceptance/tests/fixtures.ts",
                         "line": 21,
                         "column": 8
                       }
@@ -514,7 +514,7 @@
                           "type": "skip",
                           "description": "needs stories 2",
                           "location": {
-                            "file": "/Users/julian/expts/awesome-local-ai/benchmarks/vidi/acceptance/tests/fixtures.ts",
+                            "file": "~/expts/awesome-local-ai/benchmarks/vidi/acceptance/tests/fixtures.ts",
                             "line": 21,
                             "column": 8
                           }
@@ -546,7 +546,7 @@
                       "type": "skip",
                       "description": "needs stories 2",
                       "location": {
-                        "file": "/Users/julian/expts/awesome-local-ai/benchmarks/vidi/acceptance/tests/fixtures.ts",
+                        "file": "~/expts/awesome-local-ai/benchmarks/vidi/acceptance/tests/fixtures.ts",
                         "line": 21,
                         "column": 8
                       }
@@ -571,7 +571,7 @@
                           "type": "skip",
                           "description": "needs stories 2",
                           "location": {
-                            "file": "/Users/julian/expts/awesome-local-ai/benchmarks/vidi/acceptance/tests/fixtures.ts",
+                            "file": "~/expts/awesome-local-ai/benchmarks/vidi/acceptance/tests/fixtures.ts",
                             "line": 21,
                             "column": 8
                           }
@@ -603,7 +603,7 @@
                       "type": "skip",
                       "description": "needs stories 2",
                       "location": {
-                        "file": "/Users/julian/expts/awesome-local-ai/benchmarks/vidi/acceptance/tests/fixtures.ts",
+                        "file": "~/expts/awesome-local-ai/benchmarks/vidi/acceptance/tests/fixtures.ts",
                         "line": 21,
                         "column": 8
                       }
@@ -628,7 +628,7 @@
                           "type": "skip",
                           "description": "needs stories 2",
                           "location": {
-                            "file": "/Users/julian/expts/awesome-local-ai/benchmarks/vidi/acceptance/tests/fixtures.ts",
+                            "file": "~/expts/awesome-local-ai/benchmarks/vidi/acceptance/tests/fixtures.ts",
                             "line": 21,
                             "column": 8
                           }
@@ -660,7 +660,7 @@
                       "type": "skip",
                       "description": "needs stories 2",
                       "location": {
-                        "file": "/Users/julian/expts/awesome-local-ai/benchmarks/vidi/acceptance/tests/fixtures.ts",
+                        "file": "~/expts/awesome-local-ai/benchmarks/vidi/acceptance/tests/fixtures.ts",
                         "line": 21,
                         "column": 8
                       }
@@ -685,7 +685,7 @@
                           "type": "skip",
                           "description": "needs stories 2",
                           "location": {
-                            "file": "/Users/julian/expts/awesome-local-ai/benchmarks/vidi/acceptance/tests/fixtures.ts",
+                            "file": "~/expts/awesome-local-ai/benchmarks/vidi/acceptance/tests/fixtures.ts",
                             "line": 21,
                             "column": 8
                           }

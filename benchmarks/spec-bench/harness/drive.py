@@ -50,6 +50,12 @@ MIRROR_EXCLUDES = [".git", "spec", "node_modules", "dist", ".wrangler", "test-re
 # Per-token stream deltas are ~99% of an agent event log and carry nothing the report uses.
 STREAM_DELTA_EVENTS = {"message_update", "tool_execution_update"}
 PROMPT_TMPL = HARNESS.parent / "prompts" / "story.md.tmpl"
+# tests/privacy-test.sh: committed benchmark files stay under 512 KB and carry no home paths.
+PUBLISH_MAX_BYTES = 512 * 1024
+# Whole file bodies the agent read or wrote are kept as a marked prefix; the record keeps the
+# conversation's shape, tool calls and timings, not every byte of every file.
+EVENT_STRING_MAX = 2000
+TEXT_SUFFIXES = {".json", ".jsonl", ".md", ".txt", ".log", ".ts", ".tsx", ".js", ".mjs", ".css", ".html", ".jsonc", ".sh"}
 LOOP_REPEAT_LIMIT = 8        # identical consecutive tool calls that mark a story as stalled
 KILL_GRACE_S = 10
 # If OpenCode dies on an error (server stall, 409, dropped stream) the same session is resumed,
@@ -139,8 +145,22 @@ def mirror(ws: Path, dest: Path) -> None:
     (dest.parent / "workspace-git-log.txt").write_text(log)
 
 
+def _truncate(v):
+    if isinstance(v, str) and len(v) > EVENT_STRING_MAX:
+        return v[:EVENT_STRING_MAX] + f"…[truncated {len(v) - EVENT_STRING_MAX} chars]"
+    if isinstance(v, dict):
+        return {k: _truncate(x) for k, x in v.items()}
+    if isinstance(v, list):
+        return [_truncate(x) for x in v]
+    return v
+
+
+def _redact(text: str) -> str:
+    return text.replace(str(Path.home()), "~")
+
+
 def compact_events(raw: Path) -> Path:
-    """Gzip the agent event log without per-token stream deltas; returns the new path."""
+    """Gzip the agent event log without stream deltas, long strings truncated, home redacted."""
     import gzip
     out = raw.with_name(raw.stem + ".compact.jsonl.gz")
     with raw.open() as src, gzip.open(out, "wt") as dst:
@@ -150,8 +170,36 @@ def compact_events(raw: Path) -> Path:
             except json.JSONDecodeError:
                 continue
             if isinstance(e, dict) and e.get("type") not in STREAM_DELTA_EVENTS:
-                dst.write(json.dumps(e) + "\n")
+                dst.write(_redact(json.dumps(_truncate(e))) + "\n")
     return out
+
+
+def make_publishable(run: Path) -> list[str]:
+    """Make a run dir safe to commit: redact home paths everywhere, compact any raw event log that
+    is not git-ignored, and recompact oversized compact logs. Returns files still over the limit."""
+    import gzip
+    for raw in run.rglob("agent-events.jsonl"):
+        if raw.parent.parent.name != "stories":        # stories/*/agent-events.jsonl is git-ignored
+            compact_events(raw)
+            raw.unlink()
+    for f in run.rglob("*"):
+        if not f.is_file() or ".git" in f.parts or "node_modules" in f.parts:
+            continue
+        if f.name.endswith(".compact.jsonl.gz"):
+            with gzip.open(f, "rt") as src:
+                lines = [_redact(json.dumps(_truncate(json.loads(l)))) for l in src if l.strip()]
+            with gzip.open(f, "wt") as dst:
+                dst.write("\n".join(lines) + "\n")
+        elif f.suffix in TEXT_SUFFIXES:
+            try:
+                t = f.read_text()
+            except UnicodeDecodeError:
+                continue
+            if str(Path.home()) in t:
+                f.write_text(_redact(t))
+    return [str(f) for f in run.rglob("*") if f.is_file() and ".git" not in f.parts and "node_modules" not in f.parts
+            and not (f.name == "agent-events.jsonl" and f.parent.parent.name == "stories")
+            and f.stat().st_size > PUBLISH_MAX_BYTES]
 
 
 RUN_GITIGNORE = """# Written by benchmarks/spec-bench/harness/drive.py. Raw agent logs are kept compacted
@@ -170,8 +218,9 @@ def record_story(repo_root: Path, run: Path, message: str, git: list[str] | None
     A failed push is reported, never fatal: the benchmark carries on."""
     git = git or ["git"]
     (run / ".gitignore").write_text(RUN_GITIGNORE)
+    too_big = make_publishable(run)
     rel = str(run.resolve().relative_to(repo_root.resolve()))
-    out: dict = {"committed": False, "pushed": False}
+    out: dict = {"committed": False, "pushed": False, "over_size_limit": too_big}
     add = subprocess.run([*git, "add", "--", rel], cwd=repo_root, capture_output=True, text=True)
     if add.returncode != 0:
         return {**out, "error": add.stderr[-500:]}

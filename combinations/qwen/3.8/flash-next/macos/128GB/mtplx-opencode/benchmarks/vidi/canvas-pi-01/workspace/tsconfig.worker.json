@@ -1,0 +1,19 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    // The Worker and its integration tests run in workerd, not the browser.
+    // They get the Workers ambient types instead of the browser DOM lib so the
+    // Cloudflare globals (`Fetcher`, `DurableObjectNamespace`, `WebSocketPair`,
+    // the `cloudflare:workers` / `cloudflare:test` modules, …) resolve. Kept in
+    // a separate project because those globals deliberately replace the DOM
+    // ones and would otherwise collide with the client's `lib`.
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "types": ["@cloudflare/workers-types/experimental", "@cloudflare/vitest-pool-workers", "vite/client"],
+    "jsx": "react-jsx"
+  },
+  "include": [
+    "src/worker",
+    "src/shared",
+    "tests/integration"
+  ]
+}
