@@ -53,3 +53,23 @@ export const RECONNECT_MAX_BACKOFF_MS = 10_000;
 export const CONNECTED_CONFIRMATION_MS = 2000;
 /** Length of the network outage in the catch-up verification (PRD live.catch_up). */
 export const CATCH_UP_TEST_OUTAGE_MS = 30_000;
+
+// ---- Persistence (story 4) ----
+
+/** Compact the update log into a snapshot when this many log rows exist... */
+export const COMPACTION_UPDATE_COUNT = 500;
+/** ...or when the log's bytes reach this. */
+export const COMPACTION_BYTES = 4 * 1024 * 1024;
+/**
+ * Snapshot rows are at most this big. Cloudflare documents a 2 MB maximum string/BLOB/row size
+ * for SQLite-backed Durable Objects (checked 2026-09); this stays far below it.
+ */
+export const SNAPSHOT_CHUNK_BYTES = 512 * 1024;
+/** A room whose saved board could not be loaded retries loading at most this often. */
+export const LOAD_RETRY_MIN_INTERVAL_MS = 5000;
+/** Largest board size tested and guaranteed to open within BOARD_LOAD_BUDGET_MS (PRD persist.large_board). */
+export const PERSIST_TESTED_NOTES = 2000;
+/** A board of PERSIST_TESTED_NOTES notes shows all of them within this time of navigating (PRD persist.large_board). */
+export const BOARD_LOAD_BUDGET_MS = 3000;
+/** Version of the room's SQLite tables (the Yjs document has its own meta.schemaVersion). */
+export const STORAGE_SCHEMA_VERSION = 1;

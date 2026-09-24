@@ -45,6 +45,8 @@ export interface StickyNoteProps {
   onEndEdit(next: EndEditNext): void;
   /** Reports when a drag of this note starts and ends (the note toolbar hides while dragging). */
   onDragChange?(id: string, dragging: boolean): void;
+  /** The board cannot be edited: presses still select, but never drag or start editing. */
+  readOnly?: boolean;
 }
 
 interface Press {
@@ -67,13 +69,16 @@ type Fit = { fontPx: number; overflow: boolean };
  * dragging a note never pans.
  */
 function StickyNoteImpl(props: StickyNoteProps) {
-  const { note, doc, zoom, stackIndex, selected, editing, onSelect, onStartEdit, onEndEdit, onDragChange } = props;
+  const { note, doc, zoom, stackIndex, selected, editing, onSelect, onStartEdit, onEndEdit, onDragChange, readOnly = false } =
+    props;
   const rootRef = useRef<HTMLDivElement>(null);
   const bodyRef = useRef<HTMLDivElement>(null);
   const pressRef = useRef<Press | null>(null);
   const pointerFocusRef = useRef(false);
   const zoomRef = useRef(zoom);
   zoomRef.current = zoom;
+  const readOnlyRef = useRef(readOnly);
+  readOnlyRef.current = readOnly;
   const [fit, setFit] = useState<Fit>({ fontPx: STICKY_FONT_MAX_PX, overflow: false });
   const [dragging, setDragging] = useState(false);
 
@@ -151,10 +156,15 @@ function StickyNoteImpl(props: StickyNoteProps) {
   const onPointerMove = (e: ReactPointerEvent<HTMLDivElement>) => {
     const press = pressRef.current;
     if (!press || press.pointerId !== e.pointerId) return;
+    if (press.dragging && readOnlyRef.current) {
+      // Editing was disabled mid-drag: the note stays where it was last shown.
+      finish(false);
+      return;
+    }
     const dx = e.clientX - press.startX;
     const dy = e.clientY - press.startY;
     if (!press.dragging) {
-      if (Math.hypot(dx, dy) < DRAG_THRESHOLD_PX) return;
+      if (readOnlyRef.current || Math.hypot(dx, dy) < DRAG_THRESHOLD_PX) return;
       if (!hasObject(doc, note.id)) {
         finish(false);
         return;
@@ -194,7 +204,7 @@ function StickyNoteImpl(props: StickyNoteProps) {
 
   const onDoubleClick = (e: ReactMouseEvent<HTMLDivElement>) => {
     e.stopPropagation();
-    if (!editing) onStartEdit(note.id);
+    if (!editing && !readOnly) onStartEdit(note.id);
   };
 
   const onMouseDown = (e: ReactMouseEvent<HTMLDivElement>) => {

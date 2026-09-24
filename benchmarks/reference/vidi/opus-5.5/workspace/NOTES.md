@@ -175,3 +175,88 @@ Decisions made while building without anyone to ask.
   `npm run build && npx wrangler dev` for a live board.
 - **Red phase.** Task 1's unit tests were run red against "not implemented" stubs (12/12 failed)
   before implementing; not committed separately (single story commit).
+
+## Story 4: Return to a board and find everything as it was left
+
+- **Measured latency regression from the hibernation API (local `wrangler dev`).** Design key
+  decision 4 (hibernatable sockets) is implemented as specified, but locally it is the dominant
+  cost. Story 3's 5-person 60 s soak (TC-30, `npm run test:e2e:nightly`, Chromium):
+
+  | room | p50 | p95 | deliveries |
+  |---|---|---|---|
+  | story 3 (`accept()`, no storage) | 9 ms | 24 ms | 10,880 |
+  | `accept()` + write-before-broadcast | 33 ms | 119 ms | 7,348 |
+  | hibernation, no storage writes | 139 ms | 287 ms | 4,524 |
+  | hibernation + storage (shipped, per design) | 272 ms | 430 ms | 3,020 |
+
+  Caching the socket set instead of calling `ctx.getWebSockets()` per broadcast changed nothing
+  (p50 253 ms), so the cost is in how local workerd delivers hibernatable-socket events, not in the
+  room code. Production latency was not measured (not available here). The PRD cost constraint
+  only covers boards with *nobody connected*, which non-hibernating sockets also meet (the object
+  is evicted when its last socket closes); if production shows the same overhead, reverting to
+  `server.accept()` is a small change in `board-room.ts` (TC-18 would then need rewriting).
+- **E2E workers capped at 2** (`E2E_WORKERS` in `playwright.config.ts`). All tests share one local
+  workerd; with Playwright's default (16 workers here) story 3's multi-person tests missed their
+  1 s live-update budget purely from contention (at 4 workers one 5-person test still failed once).
+  Assertions are unchanged. Two consecutive full runs at 2 workers: 45/45.
+- **`E2E_PORT`** overrides the shared e2e server port (default 8787). Another project on the shared
+  build machine was holding 8787; final e2e runs used `E2E_PORT=8877`.
+- **Story 3 tests changed by this story's behaviour:** integration TC-18 expected a restarted room
+  to be empty; it now expects the reloaded board (repopulation of what the room lacks is still
+  asserted). TC-12 (1,000 random ops with round trips) got a 60 s timeout: each write's commit
+  gates output, so it takes ~7 s instead of ~0.2 s. No assertion was removed.
+- **Large boards and CSS containment.** TC-21 first measured 7.9 s for 2,000 notes. The server side
+  was 86 ms (cold wake + load + SyncStep2); the rest was one 7.7 s client task: every note's font
+  fit (binary search over forced layouts) reflowed the whole 2,000-note document. `.sticky-note`
+  now has `contain: layout size style` (it is a fixed-size box), making each note its own relayout
+  root: 1.1–1.5 s. No virtualisation was needed.
+- **Validation before apply.** `applyCheckedUpdate` runs `Y.decodeUpdate` before `Y.applyUpdate`:
+  `applyUpdate` alone can integrate the structs of a truncated update and then throw on its delete
+  set, which would store/serve half an update. Used by the room (incoming updates, closed 1003) and
+  the loader (quarantine). Integration TC-17 includes a truncated real update.
+- **Oversized updates.** Cloudflare's documented limit (checked 2026-09): 2 MB per row/BLOB;
+  incoming WebSocket messages up to 32 MiB. An applied update larger than `SNAPSHOT_CHUNK_BYTES`
+  is saved by compacting immediately (the snapshot is chunked) instead of as one log row; if that
+  fails the room takes the storage-failure path.
+- **Damage is local only per client.** The quarantine keeps the rest of the board, but in Yjs a
+  missing update leaves a clock gap for its author: that author's *later* saved changes stay
+  pending until the author reconnects and re-sends. The fixture therefore logs each change from its
+  own client (as when several people edit), which is what TC-09 exercises.
+- **`BoardStore(storage, options?)`**: the constructor takes a structural `SqlStorageLike` (the part
+  of `DurableObjectStorage` used) so the pure functions can be unit-tested under DOM types, plus an
+  optional `snapshotChunkBytes` (TC-08 also checks the multi-chunk path at 64 KiB). Public
+  `compact(doc)` (forced) and `logSize()` were added; `sql()` is the single SQL entry point that
+  TC-11 wraps to inject a failure after `DELETE FROM snapshot_chunks`.
+- **Room state.** `room-state.ts` holds `nextRoomState` over the full lifecycle diagram (TC-27).
+  Hibernated/wake are modelled for completeness only: the object cannot observe its own eviction.
+  `BoardRoom.state` exposes the contract's `'ready' | 'load-failed' | 'storage-failed'`;
+  `loadAttempts` and `loaded` (the `blockConcurrencyWhile` promise) exist for tests.
+- **Load failure handling.** A LoadFailed connection is accepted then closed with 4500 before the
+  room sends anything; messages from it are closed 4500 and never stored. y-websocket counts an
+  accept-then-close as an unsuccessful attempt, so the client backs off (up to
+  `RECONNECT_MAX_BACKOFF_MS`) rather than hammering the room; 4500 is outside its terminal range
+  (4400–4499). The first successful sync switches `load_failed` → `connected`.
+- **Edit lock.** `canEdit(state)` is false only for `load_failed`. Then: double-click and Enter
+  create/edit nothing, the Sticky note button is disabled, notes do not drag (`readOnly` prop on
+  `StickyNote`), the note toolbar (colours, delete) is hidden, Delete/Backspace do nothing, and an
+  open editor closes. Selection still works (it is not an edit).
+- **Test hooks.** `POST /__test/boards/:id/{compact,corrupt-snapshot,repair}` exist only when
+  `env.TEST_HOOKS === '1'` (e2e `wrangler dev --var TEST_HOOKS:1`); the DO methods also refuse
+  otherwise. `/__test/*` was added to `run_worker_first` so the Worker can hand those paths back to
+  the assets when hooks are off; integration verifies a hook request is not handled without the
+  var. `corrupt-snapshot` saves chunk 0 in a `test_saved_chunks` table, halves it, closes sockets
+  and reloads (→ LoadFailed). Production client bundle verified to contain no `__vidi6`/`__test`.
+- **Persistence e2e project.** `persistence` (Chromium) runs `persistence.spec.ts`; each test starts
+  its own `wrangler dev --persist-to <tmp>` on its own port and SIGKILLs the process group to
+  restart. The shared webServer still runs because it builds the test-mode client these serve.
+  Last timings: TC-20 leave + kill issued 1–2 ms after Sam saw the note; TC-21 2,000 notes rendered
+  1.1–1.5 s after navigation start (budget 3 s). The PRD's "wait 5 minutes" before reopening was not
+  reproduced; a process kill is the stronger condition for memory loss.
+- **Opening a board writes one tiny row.** Each browser's `initDoc` sets `meta.schemaVersion`
+  before syncing, so every visit by a new page appends one small update. Harmless (compaction
+  absorbs it); TC-25 checks that a sync-only visit writes nothing.
+- **Red phase.** Task 1's unit tests were run red against "not implemented" stubs (all failed)
+  before implementing; not committed separately (single story commit), as in earlier stories.
+- **Not covered** (per design): output-gate ordering under real disk latency, production
+  eviction/hibernation timing, storage quota exhaustion, load time over real internet latency,
+  boards larger than `PERSIST_TESTED_NOTES`.
