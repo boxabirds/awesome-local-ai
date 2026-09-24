@@ -20,4 +20,4 @@ pub mod store;
 pub mod sys;
 pub mod timefmt;
 
-pub const VERSION: &str = env!("CARGO_PKG_VERSION");
+pub const VERSION: &str = env!("DBENCH_VERSION");
