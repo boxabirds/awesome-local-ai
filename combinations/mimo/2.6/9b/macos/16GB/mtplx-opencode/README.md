@@ -10,22 +10,31 @@ the slowdown is unmeasured). On an M1/M2, MTPLX's own pick is the base model's
 FP16 build:
 [Qwen 3.5 9B Optimized Speed FP16](../../../../../../qwen/3.5/9b-fp16/macos/16GB/mtplx-opencode/README.md).
 
+> **Tested on a MacBook Air M2 16 GB (2026-09-24): not workable for agentic
+> coding.** The context window is 20,480 tokens, set by 16 GB of memory rather
+> than by the chip, so an M3/M4 16 GB gets the same window. In a real pi session
+> it prefilled at **~55 tok/s** and decoded at **~5 tok/s** (3.7–6.1): `create a
+> fibonacci function in python` took **5 min 43 s over three turns** and used a
+> quarter of the window, and the first reply took 1½ minutes. The first install
+> attempt froze the Mac. Full numbers: [the test report](../../../../../../../docs/20260924-mimo-9b-macbook-air-m2-16gb.md).
+
 | | This (MiMo V2.6 Qwen 9B) | [Qwen 3.5 9B FP16](../../../../../../qwen/3.5/9b-fp16/macos/16GB/mtplx-opencode/README.md) |
 |---|---|---|
 | Model | Xiaomi's coding/agent fine-tune of Qwen3.5-9B | the base Qwen3.5-9B |
 | MTPLX offers it on | M3, M4, M5 | M1, M2 |
 | Precision of float tensors | BF16 (vision tower, draft head) | FP16, so M1/M2 run it at full speed |
 | Vision | vision tower in the pack | text only |
-| Measured by this repo | nothing | nothing |
+| Measured by this repo | install, a pi session and its speeds, on a MacBook Air M2 16 GB ([report](../../../../../../../docs/20260924-mimo-9b-macbook-air-m2-16gb.md)) | nothing |
 
-> **Provenance: nothing here was measured by this repo.** No 16 GB machine was
-> used. Every figure is quoted from the MTPLX 2.12.0 release notes (2026-09-24)
-> or read from the pack's own `mtplx_runtime.json`, `README.md` and
-> `chat_template.jinja` on Hugging Face (metadata only, no weights downloaded).
-> The single memory measurement that exists was taken by the MTPLX author on an
-> M5 Max. **No tok/s figure exists for this pack from anyone**, so this page
-> quotes none. Lines that go beyond the published facts are labelled
-> `EXTRAPOLATED`.
+> **Provenance.** One test by this repo, on a MacBook Air M2 16 GB: install, a
+> short pi session, and its prefill and decode speeds
+> ([report](../../../../../../../docs/20260924-mimo-9b-macbook-air-m2-16gb.md)). Those figures are an M2's; MTPLX recommends
+> this pack for M3+. Everything else on this page is quoted from the MTPLX
+> 2.12.0 release notes (2026-09-24) or read from the pack's own
+> `mtplx_runtime.json`, `README.md` and `chat_template.jinja` on Hugging Face,
+> and the published memory figure was taken by the MTPLX author on an M5 Max.
+> No M3+ tok/s figure exists. Lines that go beyond the published facts are
+> labelled `EXTRAPOLATED`.
 
 > **M1 / M2: MTPLX does not offer this pack.** See
 > [M1 and M2 Macs](#m1-and-m2-macs) before you install on one.
@@ -37,6 +46,9 @@ and want a local coding model that fits it at all.
 
 **You should know first:**
 
+- **Tested on a MacBook Air M2 16 GB, it is not workable for agentic coding**
+  ([report](../../../../../../../docs/20260924-mimo-9b-macbook-air-m2-16gb.md)). Treat this combination as a way to try a
+  local model on a small Mac, not as a coding setup.
 - **The context window is 20,480 tokens.** That is MTPLX's own memory plan for
   this pack on 16 GB. Coding agents compact often at this size; see
   [The 20,480-token window](#the-20480-token-window).
@@ -129,8 +141,9 @@ What MTPLX 2.12.0 does, from its catalog source:
   what this installer does (`mtplx pull <repo>`, then `mtplx serve --model`).
 - On M1/M2 its BF16 tensors run without native BF16 support, so **expect it to
   be slower than on M3+**. The size of that slowdown has not been measured by
-  anyone. This repo does not claim M2 support; it will install there, and what
-  you get is unmeasured.
+  anyone. On a MacBook Air M2 16 GB it installs, serves and answers pi, at
+  ~55 tok/s prefill and ~5 tok/s decode ([report](../../../../../../../docs/20260924-mimo-9b-macbook-air-m2-16gb.md)); with no
+  M3 figure to compare, how much of that is the missing BF16 is unknown.
 
 ## Usage
 
@@ -255,8 +268,23 @@ Binds `127.0.0.1` with `--no-auth`, which MTPLX applies to loopback binds only.
 
 ## Performance
 
+Measured on a **MacBook Air M2 16 GB** (M2, 10-core GPU, macOS 26.6.2, MTPLX
+2.12.0, pi 0.86.0), one pi session, `create a fibonacci function in python`.
+Prefill is derived: total time minus output ÷ decode rate, over the tokens pi
+did not reuse from cache ([how, and the rest of the data](../../../../../../../docs/20260924-mimo-9b-macbook-air-m2-16gb.md)).
+
+| # | prompt | cached | prefilled | prefill tok/s | output | decode tok/s | total s |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| 1 | 3,231 | 0 | 3,231 | 55.1 | 118 | 3.69 | 90.7 |
+| 2 | 4,649 | 3,231 | 1,418 | 55.0 | 606 | 4.78 | 152.6 |
+| 3 | 5,280 | 4,649 | 631 | 30.5 | 481 | 6.06 | 100.1 |
+
 ```
-NOT MEASURED -- by this repo or, for tok/s, by anyone.
+Prefill        50.2 tok/s overall (5,280 tokens in 105.1 s); 55 tok/s cold
+Decode         5.06 tok/s overall (1,205 tokens in 238.2 s); 3.7-6.1 per request
+Model load     4.9-5.4 s (weights already on disk), server ready in 15 s
+Memory         MTPLX plan: 12.0 GiB engine budget, 8.1 GiB weights, 0.67 GiB KV
+               ~1.9 GB left for the rest of the machine under load; no swap
 
 Published (MTPLX 2.12.0 release notes, M5 Max, not a 16 GB Mac):
   Peak memory              8.70 GiB at a 15K-token context
@@ -264,8 +292,9 @@ Published (MTPLX 2.12.0 release notes, M5 Max, not a 16 GB Mac):
   Default MTP depth        2
 ```
 
-If you run it, a measured row here — especially from an M2 16 GB — is the most
-useful contribution this combination can get.
+These are an M2's numbers, without native BF16. An M3+ figure is still the most
+useful thing this combination could get, and would not change the 20,480-token
+window.
 
 ## What this combination installs
 
