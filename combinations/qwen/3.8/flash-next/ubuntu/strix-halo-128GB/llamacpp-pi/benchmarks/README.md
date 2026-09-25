@@ -15,7 +15,7 @@ with anyone else's Strix Halo:
 - kernel, Mesa / RADV version, `linux-firmware` version
 - GTT limit, BIOS carve-out, RAM
 - GPU performance level (`auto` or `high`)
-- llama.cpp commit and `GPU_API`
+- llama.cpp commit, `GPU_API` (what was built) and `GPU_BACKEND` (what ran)
 
 ## What to measure, in order
 
@@ -24,7 +24,7 @@ with anyone else's Strix Halo:
 | 1 | **Cold load time**, `--no-mmap` | the 900 s load allowance, the 30 min idle timer | `measure.sh load` (drops the page cache; needs sudo) |
 | 2 | **Server memory per profile** | every `need_mib` in `profiles.tsv` | `measure.sh profiles`: RSS and GTT used after load and after a 100k-token prompt |
 | 3 | **Decode and prefill at depth 0, 32k, 128k** | `combination_performance` in `config.sh` | `measure.sh bench` (llama-bench, `-mmp 0 -fa 1 -ub 512 -b 2048`) |
-| 4 | **Vulkan vs ROCm**, same file | which `GPU_API` is the default | rebuild with `GPU_API=rocm`, rerun 3 and 5–8. On ROCm, also check perplexity against Vulkan (correctness, #28211) and run a multi-turn agent session looking for earlier replies leaking into later ones (#29092) |
+| 4 | **Vulkan vs ROCm**, same file | which `GPU_BACKEND_DEFAULT` is | same build, `GPU_BACKEND=rocm`: rerun 3 and 5–8. Name runs by backend (e.g. `canvas-vk-01`, `canvas-rocm-01`) so the two do not share a run id. On ROCm, also check perplexity against Vulkan (correctness, #28211) and run a multi-turn agent session looking for earlier replies leaking into later ones (#29092) |
 | 5 | **MTP on and off**, decode at 8k / 32k / 64k / 128k of *filled* context, split by workload (new code, file rewrite, prose) | the "17 vs 32–61 tok/s" figures, and whether 40 tok/s holds at 128k | `benchmarks/perf/tokbench.sh` (repo root) with `SPEC_MTP=0` and without. `llama-bench` cannot measure speculation; it has to go through the server |
 | 6 | **MTP acceptance on your own traffic** | the 2.5–3 accepted tokens per step the speed estimate assumes | the `draft acceptance … mean len` line in the server log after a real agent session |
 | 7 | **Greedy output identical with and without MTP** | the claim that MTP does not change output | same prompts at temperature 0, `SPEC_MTP=0` against default; compare the token streams (open issue #25618 reports divergence on quantised targets) |

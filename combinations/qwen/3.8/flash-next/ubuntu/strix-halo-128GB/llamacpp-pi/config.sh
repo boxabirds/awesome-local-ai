@@ -36,7 +36,13 @@ TESTED_ON=""
 # ---- platform -------------------------------------------------------------
 TARGET_OS="ubuntu"
 TARGET_OS_VERSION="26.04"                 # kernel 7.0: gfx1151 fixes and RTL8127 10GbE in-tree
-ACCEL="strix-halo"                        # -> lib/accel/strix-halo.sh (GPU_API=vulkan or rocm)
+ACCEL="strix-halo"                        # -> lib/accel/strix-halo.sh
+
+# Vulkan and ROCm are both compiled in, and GPU_BACKEND=vulkan|rocm picks one
+# per server start -- the A/B needs no rebuild, and both arms run the same
+# build. GPU_API=vulkan or rocm builds just one (switching then rebuilds).
+GPU_API="${GPU_API:-both}"
+GPU_BACKEND_DEFAULT="vulkan"
 BACKEND="llamacpp"                        # -> lib/llamacpp.sh
 # pi by default: its system prompt is a fraction of OpenCode's, and at a few
 # hundred tok/s prefill every prompt token is felt on the first turn. Needs
@@ -51,6 +57,11 @@ CLIENT="${CLIENT:-pi}"
 # Ubuntu's; not yet confirmed as a set on 26.04.
 SYSTEM_PACKAGES=(build-essential git curl wget cmake ninja-build libcurl4-openssl-dev pciutils
                  libvulkan-dev glslc spirv-headers mesa-vulkan-drivers vulkan-tools pipx)
+# ROCm from Ubuntu's own archive (7.1 on 26.04); its rocBLAS is built for
+# gfx1151. Only when the build includes HIP.
+if [[ "$GPU_API" != vulkan ]]; then
+  SYSTEM_PACKAGES+=(rocm hipcc libamdhip64-dev librocblas-dev libhipblas-dev)
+fi
 
 # What the GPU must be able to address (GTT). ESTIMATE: the default profile's
 # need_mib plus room for the compute graph to grow. A stock kernel offers
