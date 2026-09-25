@@ -1,12 +1,22 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useCameraContext } from './CameraContext';
+import { screenToWorld, type Point } from './camera';
 import { GRID_SPACING_WORLD, WHEEL_ZOOM_SENSITIVITY } from '@/shared/config';
 
-export function BoardViewport(props: { children?: React.ReactNode }) {
+export interface BoardViewportProps {
+  children?: React.ReactNode;
+  /** Double-click on empty board space: create an object at this world point. */
+  onCreateStickyAt?: (world: Point) => void;
+  /** Click (press without movement) on empty board space: clear the selection. */
+  onClearSelection?: () => void;
+}
+
+export function BoardViewport(props: BoardViewportProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const { camera, beginPan, panMove, endPan, wheel, zoomStep, reset } = useCameraContext();
 
   const isPanningRef = useRef(false);
+  const downPosRef = useRef<Point | null>(null);
   const [cursorStyle, setCursorStyle] = useState('default');
 
   // ResizeObserver for viewport size
@@ -35,6 +45,7 @@ export function BoardViewport(props: { children?: React.ReactNode }) {
       const target = e.target as HTMLElement;
       if (target.dataset?.noPan) return;
       isPanningRef.current = true;
+      downPosRef.current = { x: e.clientX, y: e.clientY };
       setCursorStyle('grabbing');
       (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
       beginPan({ x: e.clientX, y: e.clientY });
@@ -58,9 +69,15 @@ export function BoardViewport(props: { children?: React.ReactNode }) {
       try {
         (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId);
       } catch { /* ignore */ }
+      const down = downPosRef.current;
+      downPosRef.current = null;
       endPan();
+      // A press on empty space without movement is a click: clear the selection.
+      if (down !== null && down.x === e.clientX && down.y === e.clientY) {
+        props.onClearSelection?.();
+      }
     },
-    [endPan],
+    [endPan, props.onClearSelection],
   );
 
   const handlePointerCancel = useCallback(
@@ -141,6 +158,20 @@ export function BoardViewport(props: { children?: React.ReactNode }) {
     };
   }, [wheel]);
 
+  // Double-click on empty board space creates a sticky note centred on the
+  // point (notes stop propagation of their own dblclick, so this only fires
+  // for the viewport/grid background).
+  const handleDoubleClick = useCallback(
+    (e: React.MouseEvent) => {
+      if (e.target !== containerRef.current) return;
+      const create = props.onCreateStickyAt;
+      if (!create) return;
+      const rect = containerRef.current.getBoundingClientRect();
+      create(screenToWorld(camera, { x: e.clientX - rect.left, y: e.clientY - rect.top }));
+    },
+    [camera, props.onCreateStickyAt],
+  );
+
   // Keyboard shortcuts
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
@@ -184,6 +215,7 @@ export function BoardViewport(props: { children?: React.ReactNode }) {
       onPointerUp={handlePointerUp}
       onPointerCancel={handlePointerCancel}
       onLostPointerCapture={handlePointerCancel}
+      onDoubleClick={handleDoubleClick}
     >
       <div
         data-testid="world-layer"

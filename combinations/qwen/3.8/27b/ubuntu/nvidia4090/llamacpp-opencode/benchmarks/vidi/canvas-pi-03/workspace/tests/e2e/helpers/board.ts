@@ -1,4 +1,4 @@
-import { type Page } from '@playwright/test';
+import { expect, type Page } from '@playwright/test';
 
 export async function getOriginMarkerPosition(page: Page): Promise<{ x: number; y: number }> {
   const marker = page.locator('[data-testid="origin-marker"]');
@@ -21,4 +21,39 @@ export async function setCamera(page: Page, cam: { x: number; y: number; zoom: n
 export async function getHintVisible(page: Page): Promise<boolean> {
   const hint = page.locator('[data-testid="navigation-hint"]');
   return await hint.isVisible();
+}
+
+export interface NoteSnapshot {
+  id: string;
+  type: string;
+  x: number;
+  y: number;
+  color: string;
+  text: string;
+  z: number;
+  createdAt: number;
+}
+
+/** Story 2: the board's sticky notes, read through the test hooks. */
+export async function getNotes(page: Page): Promise<NoteSnapshot[]> {
+  return page.evaluate(() => {
+    const h = (window as any).__vidi6;
+    return h ? h.getNotes() : [];
+  });
+}
+
+/** Waits until the note's bounding box matches the expected screen rect. */
+export async function waitForNoteBox(page: Page, noteId: string, expected: { x: number; y: number; width: number; height: number }): Promise<void> {
+  await expect
+    .poll(async () => {
+      const box = await page.locator(`[data-id="${noteId}"]`).boundingBox();
+      if (!box) return false;
+      return (
+        Math.abs(box.x - expected.x) < 2 &&
+        Math.abs(box.y - expected.y) < 2 &&
+        Math.abs(box.width - expected.width) < 2 &&
+        Math.abs(box.height - expected.height) < 2
+      );
+    })
+    .toBeTruthy();
 }
