@@ -1,13 +1,13 @@
 You are implementing the web app "vidi6" (a collaborative whiteboard) in the current directory, one story at a time.
 
-This session's job: implement **story 7 — Select, move, resize and delete several objects at once**.
+This session's job: implement **story 10 — Draw shapes and connect them with arrows that follow when moved**.
 
 The full specification is at `spec/` (read-only; do not modify it). For this story read, in this order:
-- `spec/stories/007-select-move-resize-and-delete-several-objects-at-o/prd.md` — what the user must experience (requirements, exact UI text)
-- `spec/stories/007-select-move-resize-and-delete-several-objects-at-o/design.md` — how to build it (files, named settings, interfaces, test cases)
-- `spec/stories/007-select-move-resize-and-delete-several-objects-at-o/tasks.md` — the ordered tasks, each with a "Done when"
+- `spec/stories/010-draw-shapes-and-connect-them-with-arrows-that-foll/prd.md` — what the user must experience (requirements, exact UI text)
+- `spec/stories/010-draw-shapes-and-connect-them-with-arrows-that-foll/design.md` — how to build it (files, named settings, interfaces, test cases)
+- `spec/stories/010-draw-shapes-and-connect-them-with-arrows-that-foll/tasks.md` — the ordered tasks, each with a "Done when"
 
-Stories already implemented in this repository, in order: 1, 2, 3, 4, 5.
+Stories already implemented in this repository, in order: 1, 2, 3, 4, 5, 7, 8, 9.
 Stories 6 and 13-17 are NOT part of this build. Where a design mentions them (presence, offline device copies, sign-in, dashboard, comments, export), leave the hook out; do not implement those stories.
 
 Rules:
@@ -15,4 +15,4 @@ Rules:
 2. Work through tasks.md in order. Write the tests the design lists (unit, component, integration, e2e) and make them pass. Do not delete or weaken tests to make them pass.
 3. Before you finish, run `npm run build`, `npm run typecheck` and every `npm run test:*` script that exists, and fix failures. For e2e, Chromium is sufficient if other browsers are not installed.
 4. Do not ask questions; there is nobody to answer. Make a reasonable decision, note it in `NOTES.md`, and continue.
-5. When the story is complete, commit all work with git using the message `story 7: Select, move, resize and delete several objects at once`.
+5. When the story is complete, commit all work with git using the message `story 10: Draw shapes and connect them with arrows that follow when moved`.

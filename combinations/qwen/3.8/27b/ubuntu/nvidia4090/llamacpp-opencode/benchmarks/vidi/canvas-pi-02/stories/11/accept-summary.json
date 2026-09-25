@@ -1,8 +1,8 @@
 {
   "build_exit": 0,
   "runner_exit": 1,
-  "passed": 41,
-  "total": 44,
+  "passed": 61,
+  "total": 70,
   "on_partial": {
     "passed": 0,
     "total": 0
@@ -31,6 +31,22 @@
     "07": {
       "passed": 8,
       "total": 8
+    },
+    "08": {
+      "passed": 7,
+      "total": 7
+    },
+    "09": {
+      "passed": 3,
+      "total": 6
+    },
+    "10": {
+      "passed": 5,
+      "total": 8
+    },
+    "11": {
+      "passed": 5,
+      "total": 5
     }
   }
 }
