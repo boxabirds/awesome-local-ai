@@ -215,7 +215,8 @@ argv="$(launch env)"
 has() { grep -qxF -- "$1" <<< "$argv"; }
 assert_ok "loads the first shard from its subdirectory" \
   grep -q 'UD-IQ4_XS/Qwen3.8-Flash-Next-UD-IQ4_XS-00001-of-00003.gguf$' <<< "$argv"
-assert_ok "passes --no-mmap"                 has --no-mmap
+assert_eq "loads with direct I/O"            "dio" "$(grep -A1 -x -- -lm <<< "$argv" | tail -1)"
+assert_fails "not --no-mmap, which llama.cpp removed (#28334)" has --no-mmap
 assert_ok "passes --ctx-checkpoints"         has --ctx-checkpoints
 assert_ok "uses the combination's -b 2048"   grep -qx -- 2048 <<< "$(grep -A1 -x -- -b <<< "$argv")"
 assert_ok "KV is f16"                        grep -qx -- f16 <<< "$(grep -A1 -x -- --cache-type-k <<< "$argv")"

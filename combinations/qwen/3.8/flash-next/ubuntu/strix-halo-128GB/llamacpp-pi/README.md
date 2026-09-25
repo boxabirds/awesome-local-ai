@@ -60,7 +60,7 @@ It builds llama.cpp from the MTP pull request's branch (below) for Vulkan,
 downloads ~97.4 GB (the three `UD-IQ4_XS` shards, the MTP head and the vision
 projector), writes the runtime, loads
 the model once and checks it generates. The first load reads all 94 GB with
-`--no-mmap`; expect minutes.
+direct I/O (`-lm dio`); expect minutes.
 
 | Override | Effect |
 |---|---|
@@ -104,7 +104,8 @@ behind each flag. The choices that differ from the NVIDIA combinations:
   ([#29092](https://github.com/ggml-org/llama.cpp/issues/29092)). Vulkan's is
   the 2 s GPU watchdog on Linux 7.x; qualification warns until
   `amdgpu.lockup_timeout` is set.
-- **`--no-mmap --ctx-checkpoints 8`**, `-b 2048 -ub 512`. Checkpoints let a
+- **`-lm dio --ctx-checkpoints 8`**, `-b 2048 -ub 512`. Direct I/O rather than
+  mmap: drluoto measured mmap 9–12% slower decode on this chip. Checkpoints let a
   returning agent turn resume, since the Gated DeltaNet layers cannot roll
   back. `-ub 512` is unverified: a larger value has been reported to halve
   real decode, but drluoto runs `-ub 2048`. The benchmarks settle it.

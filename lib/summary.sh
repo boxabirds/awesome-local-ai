@@ -16,6 +16,37 @@ _summary_ref_label() {
   fi
 }
 
+# The first line of the smoke log that reads as an error, so the report names
+# the actual cause before the generic ones.
+SMOKE_ERROR_MAX_CHARS=200
+_smoke_first_error() {
+  [[ -r "$1" ]] || return 0
+  grep -m1 -E '(^|[[:space:]])(error|ERROR|Error)[: ]|GGML_ASSERT|failed|FAILED|[Aa]bort|terminate called|out of memory' "$1" \
+    | cut -c1-"$SMOKE_ERROR_MAX_CHARS"
+}
+
+# What a failed verification says: the server's own error when it printed
+# one, then the usual causes. Profile advice names this combination's profiles.
+_summary_what_went_wrong() { # smoke_log profiles_tsv
+  local first profiles
+  first="$(_smoke_first_error "$1")"
+  profiles="$(awk -F'|' '!/^#/ && NF > 1 {print $1}' "$2" 2>/dev/null | paste -sd, - | sed 's/,/, /g')"
+  say "${BOLD}${RED}WHAT WENT WRONG${NC}"
+  say "  The install completed but the server did not pass verification, so"
+  say "  this configuration is NOT known to work on this machine."
+  say "  Log         $1"
+  if [[ -n "$first" ]]; then
+    say ""
+    say "  The server said: ${first}"
+  fi
+  say ""
+  say "  Other common causes:"
+  say "    * something else is holding the device -- check it, then re-run"
+  say "    * the profile does not fit -- try a smaller PROFILE (${profiles:-see --help})"
+  say "    * the weights are incomplete -- delete them and re-run"
+  say ""
+}
+
 print_summary() {
   local tick="${GREEN}OK${NC}" cross="${YELLOW}--${NC}"
 
@@ -91,16 +122,7 @@ print_summary() {
   fi
 
   if [[ "${VERIFY_STATUS:-}" == "failed" ]]; then
-    say "${BOLD}${RED}WHAT WENT WRONG${NC}"
-    say "  The install completed but the server did not pass verification, so"
-    say "  this configuration is NOT known to work on this machine."
-    say "  Log         ${INSTALL_ROOT}/smoke.log"
-    say ""
-    say "  Most common causes, in order:"
-    say "    * something else is holding the device -- check it, then re-run"
-    say "    * the profile does not fit -- try PROFILE=balanced"
-    say "    * the weights are incomplete -- delete them and re-run"
-    say ""
+    _summary_what_went_wrong "${INSTALL_ROOT}/smoke.log" "${COMBO_DIR}/profiles.tsv"
   fi
 
   if [[ -n "$SMOKE_CTX" || -n "$SMOKE_GEN" ]]; then

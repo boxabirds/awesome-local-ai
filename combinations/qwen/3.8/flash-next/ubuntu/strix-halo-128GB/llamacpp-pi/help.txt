@@ -67,7 +67,7 @@ VULKAN OR ROCm
   kernel command line, or long runs die with DeviceLostError.
 
 LOAD TIME AND THE IDLE TIMER
-  --no-mmap reads all 94 GB into memory up front. That is minutes from a cold
+  -lm dio reads all 94 GB into memory up front. That is minutes from a cold
   page cache, so the session manager here waits up to 15 minutes for a load
   and keeps the server for 30 minutes after the last client, not 5. Override
   per run: IDLE_TIMEOUT=300, SERVER_START_TIMEOUT=1200.
