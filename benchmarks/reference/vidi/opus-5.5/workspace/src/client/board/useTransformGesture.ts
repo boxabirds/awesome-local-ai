@@ -2,9 +2,12 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import type * as Y from 'yjs';
 import {
   bringObjectsToFront,
+  CONNECTOR_TYPE,
+  LOCAL_ORIGIN,
   moveObjects,
   objectBounds,
   resizeObjects,
+  transformConnectorEnds,
   type ObjectSnapshot,
 } from '../../shared/board-model';
 import { DRAG_THRESHOLD_PX, MAX_OBJECT_SIZE_WORLD } from '../../shared/config';
@@ -72,6 +75,8 @@ interface Press {
   /** The pointer travelled DRAG_THRESHOLD_PX (a drag, even when nothing could be moved). */
   moved: boolean;
   startRects: Map<string, Rect>;
+  /** Arrows among the moved objects as they were at the start (story 10: their free ends move). */
+  startArrows: ObjectSnapshot[];
   startBox: Rect | null;
   latest: { delta: Point; shift: boolean } | null;
   frame: number | null;
@@ -125,65 +130,87 @@ export function useTransformGesture(opts: TransformGestureOptions): TransformGes
     return rects;
   }, []);
 
-  const apply = useCallback((press: Press) => {
-    press.frame = null;
-    const latest = press.latest;
-    press.latest = null;
-    if (!latest || !optsRef.current.canEdit) return;
-    const { doc, snapshot } = optsRef.current;
-    const present = new Set(snapshot.map((o) => o.id));
-    const alive = [...press.startRects].filter(([id]) => present.has(id));
-    if (alive.length === 0) return;
-    if (press.kind === 'move') {
+  /** Writes one frame of a move or resize (inside the caller's transaction). */
+  const applyFrame = useCallback(
+    (press: Press, latest: { delta: Point; shift: boolean }, alive: [string, Rect][], arrows: ObjectSnapshot[]) => {
+      const { doc, snapshot } = optsRef.current;
+      if (press.kind === 'move') {
+        const positions = new Map<string, Point>();
+        for (const [id, r] of alive) positions.set(id, { x: r.x + latest.delta.x, y: r.y + latest.delta.y });
+        moveObjects(doc, positions);
+        // Arrows move their free ends with the selection; attached ends follow their objects.
+        transformConnectorEnds(doc, arrows, (p) => ({ x: p.x + latest.delta.x, y: p.y + latest.delta.y }));
+        return;
+      }
+      const box = press.startBox;
+      if (!box || press.handle === null) return;
+      const byId = new Map(snapshot.map((o) => [o.id, o]));
+      const types = new Map(snapshot.map((o) => [o.id, getObjectType(o.type)]));
+      const specs = alive.map(([id]) => types.get(id));
+      const single = alive.length === 1;
+      const behaviorOf = (id: string): ResizeBehavior => {
+        const spec = types.get(id);
+        const obj = byId.get(id);
+        if (!spec?.resizable || !obj) return 'position';
+        return spec.resizeBehavior?.(obj, single) ?? 'size';
+      };
+      // Types whose height follows their content (story 9 text) never lock the aspect ratio.
+      const horizontalOnly = specs.every((spec) => spec?.handles === 'horizontal');
+      const aspect = !horizontalOnly && (latest.shift || specs.some((s) => s?.aspectLocked));
+      // Limits come from what actually changes size: a 'width' object constrains only its width.
+      const limited: [string, Rect][] = [];
+      for (const [id, r] of alive) {
+        const behavior = behaviorOf(id);
+        if (behavior === 'size') limited.push([id, r]);
+        else if (behavior === 'width') limited.push([id, { ...r, height: 0 }]);
+      }
+      const wanted = scaleBetween(box, resizeRect(box, press.handle, latest.delta, aspect));
+      const scale = clampScale(
+        wanted,
+        limited.map(([, r]) => r),
+        limited.map(([id]) => types.get(id)?.minSize ?? 0),
+        MAX_OBJECT_SIZE_WORLD,
+      );
+      const target = anchoredRect(box, press.handle, scale);
+      const rects = new Map<string, Rect>();
       const positions = new Map<string, Point>();
-      for (const [id, r] of alive) positions.set(id, { x: r.x + latest.delta.x, y: r.y + latest.delta.y });
-      moveObjects(doc, positions);
-      return;
-    }
-    const box = press.startBox;
-    if (!box || press.handle === null) return;
-    const byId = new Map(snapshot.map((o) => [o.id, o]));
-    const types = new Map(snapshot.map((o) => [o.id, getObjectType(o.type)]));
-    const specs = alive.map(([id]) => types.get(id));
-    const single = alive.length === 1;
-    const behaviorOf = (id: string): ResizeBehavior => {
-      const spec = types.get(id);
-      const obj = byId.get(id);
-      if (!spec?.resizable || !obj) return 'position';
-      return spec.resizeBehavior?.(obj, single) ?? 'size';
-    };
-    // Types whose height follows their content (story 9 text) never lock the aspect ratio.
-    const horizontalOnly = specs.every((spec) => spec?.handles === 'horizontal');
-    const aspect = !horizontalOnly && (latest.shift || specs.some((s) => s?.aspectLocked));
-    // Limits come from what actually changes size: a 'width' object constrains only its width.
-    const limited: [string, Rect][] = [];
-    for (const [id, r] of alive) {
-      const behavior = behaviorOf(id);
-      if (behavior === 'size') limited.push([id, r]);
-      else if (behavior === 'width') limited.push([id, { ...r, height: 0 }]);
-    }
-    const wanted = scaleBetween(box, resizeRect(box, press.handle, latest.delta, aspect));
-    const scale = clampScale(
-      wanted,
-      limited.map(([, r]) => r),
-      limited.map(([id]) => types.get(id)?.minSize ?? 0),
-      MAX_OBJECT_SIZE_WORLD,
-    );
-    const target = anchoredRect(box, press.handle, scale);
-    const rects = new Map<string, Rect>();
-    const positions = new Map<string, Point>();
-    const widths: [string, Rect][] = [];
-    for (const [id, r] of alive) {
-      const scaled = scaleWithin(r, box, target);
-      const behavior = behaviorOf(id);
-      if (behavior === 'size') rects.set(id, scaled);
-      else if (behavior === 'width') widths.push([id, scaled]);
-      else positions.set(id, { x: scaled.x, y: scaled.y });
-    }
-    resizeObjects(doc, rects);
-    for (const [id, rect] of widths) types.get(id)?.resizeWidth?.(doc, id, rect);
-    if (positions.size > 0) moveObjects(doc, positions);
-  }, []);
+      const widths: [string, Rect][] = [];
+      for (const [id, r] of alive) {
+        const scaled = scaleWithin(r, box, target);
+        const behavior = behaviorOf(id);
+        if (behavior === 'size') rects.set(id, scaled);
+        else if (behavior === 'width') widths.push([id, scaled]);
+        else positions.set(id, { x: scaled.x, y: scaled.y });
+      }
+      resizeObjects(doc, rects);
+      for (const [id, rect] of widths) types.get(id)?.resizeWidth?.(doc, id, rect);
+      if (positions.size > 0) moveObjects(doc, positions);
+      // Arrows' free ends scale with the box like everything else in it.
+      transformConnectorEnds(doc, arrows, (p) => {
+        const s = scaleBetween(box, target);
+        return { x: target.x + (p.x - box.x) * s.x, y: target.y + (p.y - box.y) * s.y };
+      });
+    },
+    [],
+  );
+
+  const apply = useCallback(
+    (press: Press) => {
+      press.frame = null;
+      const latest = press.latest;
+      press.latest = null;
+      if (!latest || !optsRef.current.canEdit) return;
+      const { doc, snapshot } = optsRef.current;
+      const present = new Set(snapshot.map((o) => o.id));
+      const arrowIds = new Set(press.startArrows.map((a) => a.id));
+      const arrows = press.startArrows.filter((a) => present.has(a.id));
+      const alive = [...press.startRects].filter(([id]) => present.has(id) && !arrowIds.has(id));
+      if (alive.length === 0 && arrows.length === 0) return;
+      // One frame is one update, arrows included.
+      doc.transact(() => applyFrame(press, latest, alive, arrows), LOCAL_ORIGIN);
+    },
+    [applyFrame],
+  );
 
   const finish = useCallback(
     (commit: boolean) => {
@@ -213,6 +240,7 @@ export function useTransformGesture(opts: TransformGestureOptions): TransformGes
       if (press.addOnDrag && press.objectId !== null) selection.setMany([press.objectId], true);
       press.active = true;
       press.startRects = rects;
+      press.startArrows = optsRef.current.snapshot.filter((o) => rects.has(o.id) && o.type === CONNECTOR_TYPE);
       press.startBox = unionRects([...rects.values()]);
       optsRef.current.onGestureStart?.();
       if (press.kind === 'move') bringObjectsToFront(doc, [...rects.keys()]);
@@ -337,6 +365,7 @@ export function useTransformGesture(opts: TransformGestureOptions): TransformGes
       active: false,
       moved: false,
       startRects: new Map(),
+      startArrows: [],
       startBox: null,
       latest: null,
       frame: null,
@@ -361,6 +390,7 @@ export function useTransformGesture(opts: TransformGestureOptions): TransformGes
       active: false,
       moved: false,
       startRects: new Map(),
+      startArrows: [],
       startBox: null,
       latest: null,
       frame: null,

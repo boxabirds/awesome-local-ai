@@ -1,7 +1,9 @@
 import type { CSSProperties } from 'react';
 import { isSticky, type ObjectSnapshot } from '../../shared/board-model';
-import type { StickyColor, TextSize } from '../../shared/config';
+import type { FillColor, StickyColor, StrokeColor, TextSize } from '../../shared/config';
+import { isShape } from '../../shared/objects/shape';
 import { isText } from '../../shared/objects/text';
+import { ShapeToolbar } from '../objects/ShapeToolbar';
 import { TextToolbar } from '../objects/TextToolbar';
 import type { Camera } from '../canvas/camera';
 import { NoteToolbar } from '../objects/NoteToolbar';
@@ -25,6 +27,8 @@ export interface SelectionBarProps {
   onColor(id: string, color: StickyColor): void;
   /** Changes the single selected text object's size (story 9 text toolbar). */
   onTextSize?(id: string, size: TextSize): void;
+  /** Recolours the single selected shape (story 10 shape toolbar). */
+  onShapeStyle?(id: string, style: { fill?: FillColor; stroke?: StrokeColor }): void;
   /** Board cannot be edited: no note toolbar, and the Delete button is disabled. */
   readOnly?: boolean;
   /** Hidden while a move/resize is in progress or text is being edited (announcer stays). */
@@ -33,7 +37,8 @@ export interface SelectionBarProps {
 
 /**
  * Above the selection: "N selected" and a Delete button, or story 2's note toolbar when exactly
- * one sticky note is selected, or story 9's text toolbar when exactly one text object is. A visually hidden polite live region announces the count
+ * one sticky note is selected, story 9's text toolbar when exactly one text object is, or
+ * story 10's shape toolbar when exactly one shape is. A visually hidden polite live region announces the count
  * whenever the selection changes.
  */
 export function SelectionBar({
@@ -43,6 +48,7 @@ export function SelectionBar({
   camera,
   onColor,
   onTextSize,
+  onShapeStyle,
   readOnly = false,
   hidden = false,
 }: SelectionBarProps) {
@@ -58,6 +64,19 @@ export function SelectionBar({
       if (!readOnly) {
         bar = (
           <NoteToolbar color={single.color} style={style} onColor={(c) => onColor(single.id, c)} onDelete={onDelete} />
+        );
+      }
+    } else if (single && isShape(single) && onShapeStyle) {
+      if (!readOnly) {
+        bar = (
+          <ShapeToolbar
+            fill={single.fill}
+            stroke={single.stroke}
+            style={style}
+            onFill={(fill) => onShapeStyle(single.id, { fill })}
+            onStroke={(stroke) => onShapeStyle(single.id, { stroke })}
+            onDelete={onDelete}
+          />
         );
       }
     } else if (single && isText(single) && onTextSize) {

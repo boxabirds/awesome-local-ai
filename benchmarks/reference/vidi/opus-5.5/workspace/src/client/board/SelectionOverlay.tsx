@@ -67,6 +67,8 @@ export function SelectionOverlay({ ids, snapshot, camera, onHandlePointerDown, h
   const box = selectionScreenBox(ids, snapshot, camera);
   if (!box) return null;
   const selected = selectedObjects(ids, snapshot);
+  // Arrows draw their own selection (end handles); a box around them alone would only get in the way.
+  if (selected.every((o) => getObjectType(o.type)?.selectionBox === false)) return null;
   const resizable = selected.some((o) => getObjectType(o.type)?.resizable);
   // Story 9: only the side handles when every selected type's height follows its content.
   const handles = selected.every((o) => getObjectType(o.type)?.handles === 'horizontal') ? HORIZONTAL_HANDLES : HANDLES;

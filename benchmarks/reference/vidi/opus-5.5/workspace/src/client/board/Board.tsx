@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import {
+  CONNECTOR_TYPE,
   createSticky,
   deleteObjects,
   objectSnapshot,
@@ -7,7 +8,8 @@ import {
   snapshot,
   type ObjectSnapshot,
 } from '../../shared/board-model';
-import type { StickyColor, TextSize } from '../../shared/config';
+import type { FillColor, StickyColor, StrokeColor, TextSize } from '../../shared/config';
+import { setShapeStyle } from '../../shared/objects/shape';
 import { createText, setTextSize } from '../../shared/objects/text';
 import { MarqueeRect, useMarquee } from './Marquee';
 import { SelectionBar } from './SelectionBar';
@@ -16,7 +18,6 @@ import { Toolbar } from './Toolbar';
 import { useBoardDoc } from './useBoardDoc';
 import { useBoardKeys } from './useBoardKeys';
 import { useSelection, type EndEditNext } from './useSelection';
-import { useTool } from './useTool';
 import { useTransformGesture } from './useTransformGesture';
 import { UndoContext, useUndo, useUndoController, type UndoFactory } from './useUndo';
 import { BoardViewport } from '../canvas/BoardViewport';
@@ -25,7 +26,11 @@ import { ZoomControls } from '../canvas/ZoomControls';
 import { canZoomIn, canZoomOut, screenToWorld, zoomPercent, type Point, type Size } from '../canvas/camera';
 import { installTestHooks } from '../canvas/testHooks';
 import { useCamera } from '../canvas/useCamera';
-import { getObjectType } from '../objects/registry';
+import { BoardObjectsContext } from '../objects/boardObjects';
+import { getObjectType, topObjectAt } from '../objects/registry';
+import { ConnectorTool } from '../tools/ConnectorTool';
+import { ShapeTool } from '../tools/ShapeTool';
+import { useActiveTool } from '../tools/useActiveTool';
 import { textMeasurer } from '../objects/textLayout';
 import { remeasureText } from '../objects/useTextBoxSync';
 import { ConnectionStatus } from '../sync/ConnectionStatus';
@@ -77,8 +82,11 @@ export function Board({ boardId, children, createUndoController }: BoardProps) {
   // Story 8: this tab's own history for this board document (session only).
   const history = useUndoController(doc, createUndoController);
   const undoControls = useUndo(history, editable);
-  // Story 9: this viewer's active tool (Select or Text).
-  const { tool, setTool } = useTool(editable);
+  // Story 9/10: this viewer's active tool; creating a shape or arrow selects it and returns to Select.
+  const { tool, setTool, shapeKind, setShapeKind, toolCreated } = useActiveTool({
+    canEdit: editable,
+    onSelect: selection.adopt,
+  });
   const [authorId] = useState(newGuestId);
 
   const stateRef = useRef({ selection, camera, viewport, editable, history, authorId });
@@ -211,85 +219,149 @@ export function Board({ boardId, children, createUndoController }: BoardProps) {
 
   const onEndEdit = useCallback((next: EndEditNext) => endEdit(next), [endEdit]);
 
+  const onShapeStyle = useCallback(
+    (id: string, style: { fill?: FillColor; stroke?: StrokeColor }) => {
+      if (stateRef.current.editable) asStep(() => setShapeStyle(doc, id, style));
+    },
+    [doc, asStep],
+  );
+
+  // Arrows take no pointer events of their own: a press within CONNECTOR_HIT_TOLERANCE_PX of an
+  // arrow's line selects (and drags) it, unless an object stacked above the arrow was pressed
+  // (connector.select).
+  const objectsRef = useRef(objects);
+  objectsRef.current = objects;
+  const getObjects = useCallback(() => objectsRef.current, []);
+  const onPressCapture = useCallback(
+    (e: React.PointerEvent<HTMLDivElement>, point: Point): boolean => {
+      const target = e.target instanceof Element ? e.target : null;
+      if (target?.closest('[data-connector-handle]')) return false;
+      const { camera: cam, selection: sel } = stateRef.current;
+      const list = objectsRef.current;
+      const pressedId = target?.closest<HTMLElement>('[data-id]')?.dataset.id;
+      if (pressedId !== undefined && pressedId === sel.editingId) return false;
+      const pressedIndex = pressedId === undefined ? -1 : list.findIndex((o) => o.id === pressedId);
+      const above = pressedIndex < 0 ? list : list.slice(pressedIndex + 1);
+      const arrow = topObjectAt(above, screenToWorld(cam, point), cam.zoom, (o) => o.type === CONNECTOR_TYPE);
+      if (!arrow) return false;
+      if (sel.editingId !== null) endEdit('selected');
+      gesture.onObjectPointerDown(e, arrow.id);
+      return true;
+    },
+    [gesture, endEdit],
+  );
+
+  let toolLayer: ReactNode = null;
+  if (editable && tool === 'shape') {
+    toolLayer = (
+      <ShapeTool
+        kind={shapeKind}
+        camera={camera}
+        doc={doc}
+        createdBy={authorId}
+        onCreated={toolCreated}
+        step={asStep}
+      />
+    );
+  } else if (editable && tool === 'connector') {
+    toolLayer = (
+      <ConnectorTool
+        camera={camera}
+        snapshot={objects}
+        doc={doc}
+        createdBy={authorId}
+        onCreated={toolCreated}
+        step={asStep}
+      />
+    );
+  }
+
   const stackIndex = useMemo(() => new Map(objects.map((o, i) => [o.id, i + 1])), [objects]);
   const domOrder = useMemo(() => [...objects].sort(byCreation), [objects]);
   const gestureActive = gesture.activeIds.size > 0;
 
   return (
     <UndoContext.Provider value={history}>
-      <main className="app">
-        <BoardViewport
-          controller={controller}
-          onResize={setViewport}
-          onEmptyPointerDown={onEmptyPointerDown}
-          onEmptyClick={clear}
-          onEmptyDoubleClick={onEmptyDoubleClick}
-          marquee={marquee}
-          tool={tool}
-          onToolClick={onToolClick}
-        >
-          {domOrder.map((obj) => {
-            const spec = getObjectType(obj.type);
-            if (!spec) return null;
-            const { Component } = spec;
-            return (
-              <Component
-                key={obj.id}
-                object={obj}
-                doc={doc}
-                zoom={camera.zoom}
-                stackIndex={stackIndex.get(obj.id) ?? 0}
-                selected={selectedIds.has(obj.id)}
-                editing={obj.id === editingId}
-                dragging={gesture.activeIds.has(obj.id)}
-                readOnly={!editable}
-                onPointerDown={gesture.onObjectPointerDown}
-                onSelect={selectOnly}
-                onStartEdit={startEdit}
-                onEndEdit={onEndEdit}
-              />
-            );
-          })}
-          <MarqueeRect rect={marquee.rect} camera={camera} zIndex={objects.length + 1} />
-        </BoardViewport>
-        {editingId === null && (
-          <SelectionOverlay
+      <BoardObjectsContext.Provider value={getObjects}>
+        <main className="app">
+          <BoardViewport
+            controller={controller}
+            onResize={setViewport}
+            onEmptyPointerDown={onEmptyPointerDown}
+            onEmptyClick={clear}
+            onEmptyDoubleClick={onEmptyDoubleClick}
+            marquee={marquee}
+            tool={tool}
+            onToolClick={onToolClick}
+            overlay={toolLayer}
+            onPressCapture={onPressCapture}
+          >
+            {domOrder.map((obj) => {
+              const spec = getObjectType(obj.type);
+              if (!spec) return null;
+              const { Component } = spec;
+              return (
+                <Component
+                  key={obj.id}
+                  object={obj}
+                  doc={doc}
+                  zoom={camera.zoom}
+                  stackIndex={stackIndex.get(obj.id) ?? 0}
+                  selected={selectedIds.has(obj.id)}
+                  editing={obj.id === editingId}
+                  dragging={gesture.activeIds.has(obj.id)}
+                  readOnly={!editable}
+                  onPointerDown={gesture.onObjectPointerDown}
+                  onSelect={selectOnly}
+                  onStartEdit={startEdit}
+                  onEndEdit={onEndEdit}
+                />
+              );
+            })}
+            <MarqueeRect rect={marquee.rect} camera={camera} zIndex={objects.length + 1} />
+          </BoardViewport>
+          {editingId === null && (
+            <SelectionOverlay
+              ids={selectedIds}
+              snapshot={objects}
+              camera={camera}
+              onHandlePointerDown={gesture.onHandlePointerDown}
+              hideHandles={!editable}
+            />
+          )}
+          <Toolbar
+            onCreateSticky={onCreateSticky}
+            disabled={!editable}
+            undo={undoControls}
+            tool={tool}
+            onTool={setTool}
+            shapeKind={shapeKind}
+            onShapeKind={setShapeKind}
+          />
+          <SelectionBar
             ids={selectedIds}
             snapshot={objects}
             camera={camera}
-            onHandlePointerDown={gesture.onHandlePointerDown}
-            hideHandles={!editable}
+            onDelete={deleteSelected}
+            onColor={onColor}
+            onTextSize={onTextSize}
+            onShapeStyle={onShapeStyle}
+            readOnly={!editable}
+            hidden={editingId !== null || gestureActive}
           />
-        )}
-        <Toolbar
-          onCreateSticky={onCreateSticky}
-          disabled={!editable}
-          undo={undoControls}
-          tool={tool}
-          onTool={setTool}
-        />
-        <SelectionBar
-          ids={selectedIds}
-          snapshot={objects}
-          camera={camera}
-          onDelete={deleteSelected}
-          onColor={onColor}
-          onTextSize={onTextSize}
-          readOnly={!editable}
-          hidden={editingId !== null || gestureActive}
-        />
-        <NavigationHint visible={!controller.hasNavigated} />
-        <ConnectionStatus state={connection} />
-        <ZoomControls
-          zoomPercent={zoomPercent(camera)}
-          canZoomIn={canZoomIn(camera)}
-          canZoomOut={canZoomOut(camera)}
-          onZoomIn={() => controller.zoomStep('in')}
-          onZoomOut={() => controller.zoomStep('out')}
-          onReset={controller.reset}
-        />
-        {children}
-      </main>
+          <NavigationHint visible={!controller.hasNavigated} />
+          <ConnectionStatus state={connection} />
+          <ZoomControls
+            zoomPercent={zoomPercent(camera)}
+            canZoomIn={canZoomIn(camera)}
+            canZoomOut={canZoomOut(camera)}
+            onZoomIn={() => controller.zoomStep('in')}
+            onZoomOut={() => controller.zoomStep('out')}
+            onReset={controller.reset}
+          />
+          {children}
+        </main>
+      </BoardObjectsContext.Provider>
     </UndoContext.Provider>
   );
 }

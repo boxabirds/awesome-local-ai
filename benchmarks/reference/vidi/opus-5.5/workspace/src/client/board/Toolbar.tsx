@@ -1,6 +1,28 @@
+import type { ShapeKind } from '../../shared/board-model';
+import { SHAPE_KINDS } from '../../shared/config';
+import {
+  CONNECTOR_TOOL_LABEL,
+  SHAPE_KIND_LABELS,
+  SHAPE_TOOL_LABEL,
+} from '../tools/useActiveTool';
 import { UndoButtons } from './UndoButtons';
 import type { UndoControls } from './useUndo';
 import { SELECT_TOOL_LABEL, TEXT_TOOL_LABEL, type Tool } from './useTool';
+
+/** Accessible name of the shape kind menu shown next to the Shape button. */
+export const SHAPE_MENU_LABEL = 'Shape kind';
+
+/** Small icon per shape kind (toolbar button and menu). */
+function ShapeKindIcon({ kind }: { kind: ShapeKind }) {
+  const common = { fill: 'none', stroke: 'currentColor', strokeWidth: 1.8, strokeLinejoin: 'round' as const };
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+      {kind === 'rect' && <rect x="4" y="6" width="16" height="12" rx="1" {...common} />}
+      {kind === 'ellipse' && <ellipse cx="12" cy="12" rx="8.5" ry="6.5" {...common} />}
+      {kind === 'diamond' && <path d="M12 3l9 9-9 9-9-9z" {...common} />}
+    </svg>
+  );
+}
 
 export const STICKY_BUTTON_LABEL = 'Sticky note';
 export const STICKY_BUTTON_TOOLTIP = 'Sticky note – or double-click the board';
@@ -15,10 +37,21 @@ export interface ToolbarProps {
   tool?: Tool;
   /** Chooses a tool; without it the Select and Text buttons are not shown. */
   onTool?(t: Tool): void;
+  /** The Shape tool's kind (story 10); without `onShapeKind` the Shape and Connector buttons are not shown. */
+  shapeKind?: ShapeKind;
+  onShapeKind?(k: ShapeKind): void;
 }
 
 /** Left-side vertical tool bar. */
-export function Toolbar({ onCreateSticky, disabled = false, undo, tool = 'select', onTool }: ToolbarProps) {
+export function Toolbar({
+  onCreateSticky,
+  disabled = false,
+  undo,
+  tool = 'select',
+  onTool,
+  shapeKind = SHAPE_KINDS[0],
+  onShapeKind,
+}: ToolbarProps) {
   return (
     <div
       className="toolbar"
@@ -68,6 +101,62 @@ export function Toolbar({ onCreateSticky, disabled = false, undo, tool = 'select
               />
             </svg>
           </button>
+          {onShapeKind && (
+            <>
+              <div className="toolbar__anchor">
+                <button
+                  type="button"
+                  className="toolbar__button"
+                  aria-label={SHAPE_TOOL_LABEL}
+                  title={SHAPE_TOOL_LABEL}
+                  aria-pressed={tool === 'shape'}
+                  aria-haspopup="menu"
+                  aria-expanded={tool === 'shape'}
+                  disabled={disabled}
+                  onClick={() => onTool('shape')}
+                >
+                  <ShapeKindIcon kind={shapeKind} />
+                </button>
+                {tool === 'shape' && (
+                  <div className="toolbar__menu" role="menu" aria-label={SHAPE_MENU_LABEL}>
+                    {SHAPE_KINDS.map((k) => (
+                      <button
+                        key={k}
+                        type="button"
+                        role="menuitemradio"
+                        className="toolbar__menu-item"
+                        aria-checked={k === shapeKind}
+                        onClick={() => onShapeKind(k)}
+                      >
+                        <ShapeKindIcon kind={k} />
+                        <span>{SHAPE_KIND_LABELS[k]}</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+              <button
+                type="button"
+                className="toolbar__button"
+                aria-label={CONNECTOR_TOOL_LABEL}
+                title={CONNECTOR_TOOL_LABEL}
+                aria-pressed={tool === 'connector'}
+                disabled={disabled}
+                onClick={() => onTool('connector')}
+              >
+                <svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                  <path
+                    d="M5 19L18 6M11 6h7v7"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.8"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </svg>
+              </button>
+            </>
+          )}
         </>
       )}
       <button

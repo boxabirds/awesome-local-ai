@@ -11,10 +11,17 @@ export interface BoardDoc {
   connection: ConnectionState;
 }
 
+/** Equal primitives, or equal plain JSON values (story 10 arrow endpoints and drawn points). */
+function sameValue(a: unknown, b: unknown): boolean {
+  if (a === b) return true;
+  if (typeof a !== 'object' || typeof b !== 'object' || a === null || b === null) return false;
+  return JSON.stringify(a) === JSON.stringify(b);
+}
+
 function sameObject(a: ObjectSnapshot, b: ObjectSnapshot): boolean {
   const aKeys = Object.keys(a) as (keyof ObjectSnapshot)[];
   if (aKeys.length !== Object.keys(b).length) return false;
-  return aKeys.every((k) => a[k] === b[k]);
+  return aKeys.every((k) => sameValue(a[k], b[k]));
 }
 
 /**
