@@ -3347,7 +3347,15 @@
           "found": 4,
           "total": 4
         }
-      ]
+      ],
+      "record": {
+        "committed": true,
+        "pushed": true,
+        "over_size_limit": [
+          "~/expts/awesome-local-ai/benchmarks/reference/vidi/opus-5.5/run-3/workspace/tests/fixtures/images/photo.jpg"
+        ],
+        "commit": "5f35d40"
+      }
     }
   },
   "scope": "canvas",
