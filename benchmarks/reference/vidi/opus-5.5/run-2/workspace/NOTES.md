@@ -95,3 +95,54 @@ Decisions taken where the spec was silent or ambiguous:
   `tests/fixtures/board500.ts` but there is no in-app way to load it yet, and the run was not done.
 - IME composition is covered by a jsdom test of the composition events only; a real macOS
   Japanese IME check was not possible on this machine.
+
+## Story 3 — See other people's edits appear live on the same board
+
+Decisions taken where the spec was silent or ambiguous:
+
+1. **Vitest downgraded 5 → 4.1.** `@cloudflare/vitest-pool-workers` (0.22, the design's
+   integration runner) requires vitest ^4.1 and fails to start its pool under vitest 5. All
+   existing unit/component tests pass unchanged on vitest 4.1.
+2. **Compatibility date 2026-08-15** (was 2026-09-01): the workerd binary bundled with the pool
+   supports dates up to 2026-08-22 only.
+3. **`binaryType = 'arraybuffer'`** is set on the room's server sockets (and the integration
+   client's): at this compatibility date workerd delivers binary frames as `Blob` by default.
+4. **`assets.run_worker_first: ["/api/*"]`** in `wrangler.jsonc`, otherwise the
+   single-page-application fallback would answer room upgrades with `index.html`.
+5. **Two TypeScript projects.** `tsconfig.worker.json` (Workers runtime types, no DOM) covers
+   `src/worker`, `src/shared` and `tests/integration`; `npm run typecheck` runs both.
+6. **`npm run test:integration` builds the client first** (`vite build`) because TC-06 checks
+   that `/b/<id>` is served `index.html` from `dist/client`.
+7. **Routing.** `main.tsx` calls `resolveBoardRoute()` (in `App.tsx`): a valid `/b/:boardId` is
+   used as is; any other address, including `/` and `/b/<invalid id>`, is replaced with
+   `/b/<newBoardId()>` via `history.replaceState`. Temporary until story 5.
+8. **`App` props.** `App` takes `boardId`, and optionally `doc` and `createProvider` (a
+   provider factory, so component tests can inject a fake y-websocket provider). Without
+   `boardId` the board is local-only and the badge stays hidden (existing component tests).
+   `useBoardDoc` takes an options object `{ boardId, doc, createProvider }` and also returns
+   the mapped `connection` state.
+9. **State mapping details.** The provider's `connected` status only counts once `sync(true)`
+   follows. A first attempt that fails before ever syncing stays "Connecting…". A drop during
+   the green confirmation cancels its timer and shows "Reconnecting…" at once.
+10. **Deleted-note handling** needed no change: story 2 already clears selection/editing for
+    a note that disappears, and a note's drag ends when its component unmounts (TC-25).
+11. **Test hook.** In test builds `window.__vidi6.connectionState` and `connectionLog` expose
+    the mapped state (nightly TC-29/TC-30). They are not in the production bundle.
+12. **Outage simulation (TC-27).** Chromium's `context.setOffline(true)` blocks new requests
+    but does not cut an already open WebSocket. The e2e helper therefore also proxies board
+    sockets with `context.routeWebSocket`: going offline drops them and refuses reconnections
+    until the network is back. The server path is still the real one (`connectToServer`).
+13. **Nightly specs** are `tests/e2e/**/*.nightly.spec.ts`, run with `npm run test:e2e:nightly`
+    and excluded from `npm run test:e2e`. Last local TC-30 run: 3,132 deliveries, p50 29 ms,
+    p95 65 ms, max 139 ms.
+14. **Multi-context e2e cases beyond TC-22/TC-23 skip in Firefox/WebKit** (design: Chromium is
+    sufficient). On this run Firefox and WebKit were not installed, so e2e ran with
+    `E2E_BROWSERS=chromium`.
+15. **`vite dev` proxy.** `npm run dev` forwards `/api` (including WebSockets) to a
+    `wrangler dev` on port 8787, so live sync also works in the Vite dev server.
+16. **Every tab calls `initDoc`** before syncing. Concurrent sets of the same schema version
+    converge, so this is harmless.
+
+### Not covered
+- Real-internet latency and a true production Durable Object restart (design "Not covered");
+  TC-18 simulates the restart with a fresh object instance.

@@ -10,7 +10,10 @@ import { Toolbar } from './board/Toolbar';
 import { useBoardDoc } from './board/useBoardDoc';
 import { useSelection } from './board/useSelection';
 import { StickyNote } from './objects/StickyNote';
+import { ConnectionStatus } from './sync/ConnectionStatus';
+import type { ProviderFactory } from './sync/connectBoard';
 import { createSticky, deleteObject } from '../shared/board-model';
+import { isValidBoardId, newBoardId } from '../shared/board-id';
 
 const HALF = 2;
 
@@ -24,12 +27,38 @@ function isInteractiveTarget(target: EventTarget | null): boolean {
   return target.isContentEditable || target.closest('input, textarea, select, button, [contenteditable="true"]') !== null;
 }
 
-export function App(props: { doc?: Y.Doc } = {}): React.JSX.Element {
+const BOARD_ROUTE = /^\/b\/([^/]+)\/?$/;
+
+/**
+ * Reads the board id from `/b/:boardId`. Any other address (including `/`) is replaced
+ * by a fresh board address — temporary until story 5 creates boards on the server.
+ */
+export function resolveBoardRoute(): string {
+  const match = BOARD_ROUTE.exec(window.location.pathname);
+  const id = match?.[1];
+  if (id !== undefined && isValidBoardId(id)) return id;
+  const fresh = newBoardId();
+  window.history.replaceState(null, '', `/b/${fresh}`);
+  return fresh;
+}
+
+export interface AppProps {
+  /** Board to join live. Omitted: a local-only board (component tests). */
+  boardId?: string;
+  doc?: Y.Doc;
+  createProvider?: ProviderFactory;
+}
+
+export function App(props: AppProps = {}): React.JSX.Element {
   const [viewport, setViewport] = useState<Size>(windowSize);
   const board = useCamera(viewport);
   const context = useMemo<BoardContextValue>(() => ({ board, setViewport }), [board]);
   const { camera } = board;
-  const { doc, notes } = useBoardDoc(props.doc);
+  const { doc, notes, connection } = useBoardDoc({
+    boardId: props.boardId,
+    doc: props.doc,
+    createProvider: props.createProvider,
+  });
   const selection = useSelection();
   // DOM order never changes when a note is brought to front (moving a DOM node would drop
   // its pointer capture mid-drag); stacking comes from each note's z-index instead.
@@ -108,6 +137,7 @@ export function App(props: { doc?: Y.Doc } = {}): React.JSX.Element {
           onReset={board.reset}
         />
         <NavigationHint visible={!board.hasNavigated} />
+        <ConnectionStatus state={connection} />
       </main>
     </BoardContext.Provider>
   );

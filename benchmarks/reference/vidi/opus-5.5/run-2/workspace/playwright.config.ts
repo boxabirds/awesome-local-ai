@@ -21,8 +21,16 @@ const deviceFor: Record<string, (typeof devices)[string]> = {
   webkit: devices['Desktop Safari'],
 };
 
+/**
+ * Long-running specs (`*.nightly.spec.ts`: idle stability, capacity soak) run only via
+ * `npm run test:e2e:nightly`, which sets E2E_NIGHTLY=1; the default run excludes them.
+ */
+const nightly = process.env.E2E_NIGHTLY === '1';
+const NIGHTLY_SPECS = '**/*.nightly.spec.ts';
+
 export default defineConfig({
   testDir: 'tests/e2e',
+  ...(nightly ? { testMatch: NIGHTLY_SPECS } : { testIgnore: NIGHTLY_SPECS }),
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
   retries: 0,
