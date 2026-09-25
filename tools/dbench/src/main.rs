@@ -36,6 +36,7 @@ async fn main() -> Result<()> {
             run_id,
             client: c,
             no_record,
+            server_env,
             repeat,
             repeat_from,
         } => {
@@ -52,6 +53,7 @@ async fn main() -> Result<()> {
                     run_id: job_run_id,
                     client: c.into(),
                     record: !no_record,
+                    server_env: server_env.iter().cloned().collect(),
                 };
                 spec.validate()
                     .map_err(anyhow::Error::msg)

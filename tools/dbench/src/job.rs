@@ -1,6 +1,7 @@
 //! Job spec, job state, and the idempotent-submit rule.
 
 use serde::{Deserialize, Serialize};
+use std::collections::BTreeMap;
 use std::ffi::OsString;
 use std::path::{Path, PathBuf};
 
@@ -11,6 +12,47 @@ use crate::ids::{valid_id, valid_pack};
 pub const SPEC_BENCH_ENTRY: &str = "benchmarks/spec-bench/harness/run.sh";
 /// Path of a pack's own entry point, relative to the pack directory.
 pub const PACK_ENTRY: &str = "harness/run.sh";
+
+/// Environment a job may set for its harness, and through it the model server
+/// run.sh starts: which GPU backend a multi-backend build runs on, and the
+/// speculation and profile settings the launchers read at run time. Only these
+/// keys, each with its values checked, so a job still names what it runs and
+/// can't reach PATH, LD_PRELOAD or the like.
+pub const SERVER_ENV_KEYS: [&str; 5] = [
+    "GPU_BACKEND",
+    "SPEC_MTP",
+    "SPEC_DRAFT_N_MAX",
+    "SPEC_DRAFT_P_MIN",
+    "PROFILE",
+];
+pub const GPU_BACKENDS: [&str; 2] = ["vulkan", "rocm"];
+pub const MAX_DRAFT_N: u32 = 16;
+
+fn valid_server_env(key: &str, value: &str) -> Result<(), String> {
+    let ok = match key {
+        "GPU_BACKEND" => GPU_BACKENDS.contains(&value),
+        "SPEC_MTP" => value == "0" || value == "1",
+        "SPEC_DRAFT_N_MAX" => value
+            .parse::<u32>()
+            .is_ok_and(|n| (1..=MAX_DRAFT_N).contains(&n)),
+        "SPEC_DRAFT_P_MIN" => {
+            value.chars().all(|c| c.is_ascii_digit() || c == '.')
+                && value.parse::<f64>().is_ok_and(|p| (0.0..=1.0).contains(&p))
+        }
+        "PROFILE" => valid_id(value),
+        _ => {
+            return Err(format!(
+                "server_env key {key:?} is not allowed (allowed: {})",
+                SERVER_ENV_KEYS.join(", ")
+            ))
+        }
+    };
+    if ok {
+        Ok(())
+    } else {
+        Err(format!("invalid server_env value {key}={value:?}"))
+    }
+}
 
 #[derive(Serialize, Deserialize, Clone, Copy, Debug, PartialEq, Eq)]
 #[serde(rename_all = "lowercase")]
@@ -54,6 +96,10 @@ pub struct JobSpec {
     pub run_id: String,
     pub client: AgentClient,
     pub record: bool,
+    /// Set in the harness's environment (see SERVER_ENV_KEYS). Part of the
+    /// job's identity: the same id with a different server_env is a conflict.
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub server_env: BTreeMap<String, String>,
 }
 
 impl JobSpec {
@@ -88,6 +134,9 @@ impl JobSpec {
             if stories.is_empty() || stories.contains(&0) {
                 return Err("stories must be a non-empty list of story numbers from 1".into());
             }
+        }
+        for (k, v) in &self.server_env {
+            valid_server_env(k, v)?;
         }
         Ok(())
     }
@@ -277,6 +326,7 @@ mod tests {
             run_id: "canvas-pi-01".into(),
             client: AgentClient::Pi,
             record: true,
+            server_env: Default::default(),
         }
     }
 
@@ -307,6 +357,58 @@ mod tests {
         )
         .unwrap();
         assert_eq!(submit_decision(Some(&a), &b), SubmitOutcome::Existing);
+    }
+
+    #[test]
+    fn server_env_allows_listed_keys_with_valid_values() {
+        let mut s = spec();
+        s.server_env = [
+            ("GPU_BACKEND", "rocm"),
+            ("SPEC_MTP", "0"),
+            ("SPEC_DRAFT_N_MAX", "4"),
+            ("SPEC_DRAFT_P_MIN", "0.75"),
+            ("PROFILE", "agents"),
+        ]
+        .into_iter()
+        .map(|(k, v)| (k.to_string(), v.to_string()))
+        .collect();
+        assert_eq!(s.validate(), Ok(()));
+        for (k, v) in [
+            ("LD_PRELOAD", "/tmp/x.so"),
+            ("PATH", "/tmp"),
+            ("GPU_BACKEND", "cuda"),
+            ("GPU_BACKEND", "rocm; rm -rf /"),
+            ("SPEC_MTP", "2"),
+            ("SPEC_DRAFT_N_MAX", "0"),
+            ("SPEC_DRAFT_N_MAX", "17"),
+            ("SPEC_DRAFT_N_MAX", "x"),
+            ("SPEC_DRAFT_P_MIN", "1.5"),
+            ("SPEC_DRAFT_P_MIN", "-0.1"),
+            ("PROFILE", "a b"),
+        ] {
+            let mut s = spec();
+            s.server_env.insert(k.into(), v.into());
+            assert!(s.validate().is_err(), "{k}={v} should be refused");
+        }
+    }
+
+    #[test]
+    fn server_env_is_part_of_the_job_identity() {
+        let a = spec();
+        let mut b = a.clone();
+        b.server_env.insert("GPU_BACKEND".into(), "rocm".into());
+        assert_eq!(submit_decision(Some(&a), &b), SubmitOutcome::Conflict);
+        // Absent and empty are the same job, so older clients stay idempotent.
+        let c: JobSpec = serde_json::from_str(
+            r#"{"install_id":"x","pack":"p","run_id":"r","client":"pi","record":true}"#,
+        )
+        .unwrap();
+        let d: JobSpec = serde_json::from_str(
+            r#"{"install_id":"x","pack":"p","run_id":"r","client":"pi","record":true,"server_env":{}}"#,
+        )
+        .unwrap();
+        assert_eq!(submit_decision(Some(&c), &d), SubmitOutcome::Existing);
+        assert!(!serde_json::to_string(&c).unwrap().contains("server_env"));
     }
 
     #[test]

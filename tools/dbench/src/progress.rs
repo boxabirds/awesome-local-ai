@@ -839,6 +839,7 @@ mod tests {
             run_id: "r1".into(),
             client: crate::job::AgentClient::Pi,
             record: false,
+            server_env: Default::default(),
         };
         let repo = root.join("repo");
         let dir = run_dir(&repo, "a/b", &spec);

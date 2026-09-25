@@ -320,6 +320,7 @@ async fn run_one(st: &Arc<Shared>, id: &str) -> bool {
     cmd.args(&args)
         .current_dir(&st.cfg.repo)
         .env("PATH", st.cfg.child_path())
+        .envs(&spec.server_env)
         .stdin(Stdio::null())
         .stdout(out)
         .stderr(errf)
