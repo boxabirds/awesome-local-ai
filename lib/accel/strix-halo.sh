@@ -20,19 +20,27 @@
 # Changing that limit needs a kernel parameter and a reboot, so this adapter
 # reports and refuses; it never edits the boot configuration itself.
 #
-# Two GPU APIs build for this device, and neither is measured here yet; the
-# combination's benchmarks run both. Set GPU_API at install time; the build
-# key changes, so switching rebuilds rather than mixing.
-#   GPU_API=vulkan  (default) RADV. Needs nothing beyond Mesa, and is where
-#                   the published Strix Halo decode figures come from.
+# Two GPU APIs build for this device, and neither is measured here yet.
+# GPU_API picks what is compiled in; the build key changes with it, so
+# switching rebuilds rather than mixing.
+#   GPU_API=vulkan  RADV. Needs nothing beyond Mesa, and is where the
+#                   published Strix Halo decode figures come from.
 #   GPU_API=rocm    HIP. Needs a host ROCm install (hipconfig). llama.cpp
 #                   before 2026-09-08 (#28604) returns wrong logits on gfx1151
 #                   for prompts longer than the ubatch; the combination's
 #                   MIN_LLAMA_COMMIT_DATE must be later than that.
+#   GPU_API=both    one binary with both. It then sees the same GPU twice
+#                   (Vulkan0, ROCm0), so the launcher always pins one with
+#                   --device; GPU_BACKEND=vulkan|rocm picks it per run, with
+#                   no rebuild. ACCEL_GPU_BACKENDS tells the manifest which.
 
 ACCEL_DESC=""; ACCEL_ARCH="gfx1151"; ACCEL_MEM_MIB=0
 ACCEL_RAM_MIB=0; ACCEL_VRAM_MIB=0; ACCEL_MEM_SOURCE=""
 GPU_API="${GPU_API:-vulkan}"
+case "$GPU_API" in
+  both) ACCEL_GPU_BACKENDS="vulkan rocm" ;;
+  *)    ACCEL_GPU_BACKENDS="$GPU_API" ;;
+esac
 
 # Strix Halo's integrated GPU is PCI 1002:1586. SYSFS_PCI (and PROC_MEMINFO,
 # PROC_CMDLINE) are overridable so tests can fake a machine.
@@ -57,8 +65,8 @@ _sh_mib() {
 qualify_accel() {
   info "Checking AMD Strix Halo GPU (${GPU_API})..."
   case "$GPU_API" in
-    vulkan|rocm) ;;
-    *) err "GPU_API='${GPU_API}' is not one this adapter builds. Use vulkan (default) or rocm." ;;
+    vulkan|rocm|both) ;;
+    *) err "GPU_API='${GPU_API}' is not one this adapter builds. Use vulkan, rocm or both." ;;
   esac
 
   local gpu
@@ -81,7 +89,7 @@ qualify_accel() {
   _sh_qualify_budget
   _sh_report_perf_level "$gpu"
   _sh_report_machine
-  if [[ "$GPU_API" == "rocm" ]]; then _sh_ensure_hip; fi
+  if [[ "$GPU_API" == rocm || "$GPU_API" == both ]]; then _sh_ensure_hip; fi
 }
 
 # Kernels before 6.18.4 have a gfx1151 stability bug (the KFD fixes AMD lists
@@ -277,8 +285,9 @@ _sh_ensure_hip() {
     export PATH="/opt/rocm/bin:${PATH}"
   fi
   need_cmd hipconfig || err \
-    "GPU_API=rocm needs a ROCm install (hipconfig not found).
-       Ubuntu 26.04: sudo apt install rocm   -- or use the default GPU_API=vulkan."
+    "GPU_API=${GPU_API} needs a ROCm install (hipconfig not found).
+       Ubuntu 26.04: sudo apt install rocm hipcc libamdhip64-dev librocblas-dev libhipblas-dev
+       -- or GPU_API=vulkan to build without ROCm."
   HIPCXX="$(hipconfig -l)/clang"; HIP_PATH="$(hipconfig -R)"
   export HIPCXX HIP_PATH
   ok "ROCm: $(hipconfig --version 2>/dev/null | head -1) at ${HIP_PATH}"
@@ -302,6 +311,7 @@ accel_report_mem() {
 accel_cmake_args() {
   case "$GPU_API" in
     rocm)   printf '%s\n' -DGGML_HIP=ON -DGPU_TARGETS=gfx1151 -DAMDGPU_TARGETS=gfx1151 ;;
+    both)   printf '%s\n' -DGGML_VULKAN=ON -DGGML_HIP=ON -DGPU_TARGETS=gfx1151 -DAMDGPU_TARGETS=gfx1151 ;;
     *)      printf '%s\n' -DGGML_VULKAN=ON ;;
   esac
 }
@@ -314,6 +324,8 @@ accel_build_key() { printf 'strix-halo=%s;%s' "$GPU_API" "$ACCEL_ARCH"; }
 accel_probe_binary() {
   case "$GPU_API" in
     rocm) "$1" --list-devices 2>&1 | grep -qiE 'ROCm|HIP' ;;
+    both) local d; d="$("$1" --list-devices 2>&1)"
+          grep -qiE 'Vulkan|RADV' <<< "$d" && grep -qiE 'ROCm|HIP' <<< "$d" ;;
     *)    "$1" --list-devices 2>&1 | grep -qiE 'Vulkan|RADV' ;;
   esac
 }

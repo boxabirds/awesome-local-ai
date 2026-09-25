@@ -65,7 +65,7 @@ the model once and checks it generates. The first load reads all 94 GB with
 | Override | Effect |
 |---|---|
 | `QUANT=UD-Q4_K_XL` | the 111 GB quant: best quality, tight on memory (see `help.txt`) |
-| `GPU_API=rocm` | build HIP instead of Vulkan; needs a host ROCm. Both are unmeasured here, and the benchmarks run both |
+| `GPU_API=vulkan` or `rocm` | build one backend instead of both (default `both`: Vulkan and HIP in one binary, ROCm from Ubuntu's packages). At run time `GPU_BACKEND=rocm` switches a two-backend build to ROCm; Vulkan is the default |
 | `MTP_QUANT=shared-Q4_K_M` | the 1.91 GB draft head instead of the 2.79 GB `shared-Q8_0` |
 | `SKIP_SMOKE_TEST=1` | everything but the model load |
 | `SKIP_BACKEND_UPDATE=1` | keep the llama.cpp checkout you have |

@@ -38,7 +38,7 @@ FAKE_SWAP_MIB=0
 
 # Run adapter functions in a clean shell with the combination's config.
 adapter() {
-  SYSFS_PCI="$SCRATCH/pci" SYSFS_TTM="$SCRATCH/ttm" SYSFS_DMI="$SCRATCH/dmi" PROC_MEMINFO="$SCRATCH/meminfo" PROC_CMDLINE="$SCRATCH/cmdline" bash -c '
+  SCRATCH="$SCRATCH" SYSFS_PCI="$SCRATCH/pci" SYSFS_TTM="$SCRATCH/ttm" SYSFS_DMI="$SCRATCH/dmi" PROC_MEMINFO="$SCRATCH/meminfo" PROC_CMDLINE="$SCRATCH/cmdline" bash -c '
     set -uo pipefail
     REPO_ROOT="'"$REPO_ROOT"'"; LOG_FILE=/dev/null
     . "$REPO_ROOT/lib/common.sh"
@@ -51,11 +51,26 @@ echo "accelerator contract"
 for sym in qualify_accel accel_cmake_args accel_build_key accel_probe_binary accel_report_mem; do
   assert_ok "strix-halo defines $sym" grep -q "^${sym}()" "$REPO_ROOT/lib/accel/strix-halo.sh"
 done
-assert_eq "Vulkan is the default build"      "-DGGML_VULKAN=ON" "$(adapter 'accel_cmake_args')"
-assert_ok "GPU_API=rocm builds HIP for gfx1151" \
-  bash -c "GPU_API=rocm; $(declare -f adapter); SCRATCH=$SCRATCH; COMBO=$COMBO; REPO_ROOT=$REPO_ROOT; adapter 'GPU_API=rocm; accel_cmake_args' | grep -qx -- '-DGPU_TARGETS=gfx1151'"
-assert_eq "the build key says which API"     "strix-halo=vulkan;gfx1151" "$(adapter 'accel_build_key')"
-assert_eq "...so switching API rebuilds"     "strix-halo=rocm;gfx1151"   "$(adapter 'GPU_API=rocm; accel_build_key')"
+assert_eq "the combination builds both backends" "both" "$(adapter 'echo "$GPU_API"')"
+args="$(adapter 'accel_cmake_args')"
+assert_ok "...Vulkan"                          grep -qx -- -DGGML_VULKAN=ON <<< "$args"
+assert_ok "...and HIP for gfx1151"             grep -qx -- -DGGML_HIP=ON <<< "$args"
+assert_ok "...targeting gfx1151"               grep -qx -- -DGPU_TARGETS=gfx1151 <<< "$args"
+assert_eq "...and the runtime can pick either" "vulkan rocm" "$(adapter 'echo "$ACCEL_GPU_BACKENDS"')"
+assert_eq "GPU_API=vulkan builds Vulkan only"  "-DGGML_VULKAN=ON" "$(GPU_API=vulkan adapter 'accel_cmake_args')"
+assert_eq "...with one backend to run"         "vulkan" "$(GPU_API=vulkan adapter 'echo "$ACCEL_GPU_BACKENDS"')"
+assert_ok "GPU_API=rocm builds HIP only"       grep -qx -- -DGGML_HIP=ON <<< "$(GPU_API=rocm adapter 'accel_cmake_args')"
+assert_fails "...without Vulkan"               grep -q VULKAN <<< "$(GPU_API=rocm adapter 'accel_cmake_args')"
+assert_eq "the build key says which API"       "strix-halo=both;gfx1151"   "$(adapter 'accel_build_key')"
+assert_eq "...so switching API rebuilds"       "strix-halo=rocm;gfx1151"   "$(GPU_API=rocm adapter 'accel_build_key')"
+assert_fails "an unknown GPU_API is refused"   adapter 'GPU_API=metal; qualify_accel'
+fake_bin() { printf '#!/bin/bash\necho "%s"\n' "$1" > "$SCRATCH/lsd"; chmod +x "$SCRATCH/lsd"; }
+fake_bin "Available devices: Vulkan0: AMD Radeon 8060S (RADV GFX1151)  ROCm0: AMD Radeon 8060S"
+assert_ok "a two-backend binary passes the probe" adapter 'accel_probe_binary "$SCRATCH/lsd"'
+fake_bin "Available devices: Vulkan0: AMD Radeon 8060S (RADV GFX1151)"
+assert_fails "...one missing ROCm fails it, so it rebuilds" adapter 'accel_probe_binary "$SCRATCH/lsd"'
+assert_ok "...though a Vulkan-only build accepts it" adapter 'GPU_API=vulkan; accel_probe_binary "$SCRATCH/lsd"'
+
 
 echo
 echo "the GTT budget is read, not assumed"
@@ -137,6 +152,12 @@ assert_eq "QUANT=UD-Q4_K_XL has four shards" "4" \
 assert_fails "an unlisted QUANT is refused" cfg 'true' 'QUANT=UD-Q2_K_XL;'
 assert_eq "f16 is the only safe KV type" "f16" "$(cfg 'echo "$SAFE_KV_TYPES"')"
 assert_eq "it asks for the Strix Halo adapter" "strix-halo" "$(cfg 'echo "$ACCEL"')"
+assert_ok "a two-backend build pulls Ubuntu's ROCm (gfx1151 rocBLAS)" \
+  grep -qw librocblas-dev <<< "$(cfg 'echo "${SYSTEM_PACKAGES[*]}"')"
+assert_fails "...a Vulkan-only build does not" \
+  grep -qw librocblas-dev <<< "$(cfg 'echo "${SYSTEM_PACKAGES[*]}"' 'GPU_API=vulkan;')"
+assert_eq "Vulkan is the backend it runs unless told" "vulkan" "$(cfg 'echo "$GPU_BACKEND_DEFAULT"')"
+assert_ok "the manifest carries the backends the build has" grep -q '^GPU_BACKENDS=' "$REPO_ROOT/lib/launcher.sh"
 assert_ok "it is marked unmeasured"  grep -qE '^AUTO_SELECT=0' "$REPO_ROOT/combinations/$COMBO/config.sh"
 assert_eq "CONTEXT_LIMIT matches the default profile" \
   "$(cfg 'echo "$CONTEXT_LIMIT"')" \
@@ -183,12 +204,13 @@ MODEL_ALIAS_DEFAULT="$MODEL_ALIAS_DEFAULT"; DEFAULT_PROFILE="$DEFAULT_PROFILE"; 
 REASONING_EFFORT_DEFAULT="$REASONING_EFFORT_DEFAULT"; REASONING_EFFORTS="$REASONING_EFFORTS"
 SAMPLING_THINKING="$SAMPLING_THINKING"; SAMPLING_INSTRUCT="$SAMPLING_INSTRUCT"; SPEC_DRAFT_N_MAX="$SPEC_DRAFT_N_MAX"; SPEC_DRAFT_P_MIN="$SPEC_DRAFT_P_MIN"; SPEC_BUILTIN=""
 LLAMA_BATCH="$LLAMA_BATCH"; LLAMA_EXTRA_ARGS="$LLAMA_EXTRA_ARGS"; SPEC_NGRAM_ARGS="$SPEC_NGRAM_ARGS"
+GPU_BACKENDS="vulkan rocm"; GPU_BACKEND_DEFAULT="$GPU_BACKEND_DEFAULT"
 SERVER_CMD="${INSTALL_ID}-server"
 EOF' > "$R/install.env"
 
 launch() { HOME="$FH" LOCAL_AI_INSTALL_REL=".local/share/qwen38-flash-next-strix" PORT=1 "$@" \
              bash "$REPO_ROOT/lib/runtime/server-llamacpp.sh" 2>&1; }
-fake_server "usage ... --spec-ngram-mod-n-max N ..."
+fake_server "usage ... --spec-ngram-mod-n-max N ... --spec-draft-device <dev> ..."
 argv="$(launch env)"
 has() { grep -qxF -- "$1" <<< "$argv"; }
 assert_ok "loads the first shard from its subdirectory" \
@@ -209,6 +231,18 @@ assert_eq "...and so does a run-time p-min"                 "0.5" "$(after --spe
 argv="$(launch env SPEC_MTP=0)"
 assert_fails "SPEC_MTP=0 runs without the draft head, for an A/B" has draft-mtp
 assert_fails "...and passes no -md"                        has -md
+assert_eq "with MTP off, the model is still pinned" "Vulkan0" "$(after --device)"
+assert_fails "...and no draft device is passed"      has --spec-draft-device
+argv="$(launch env)"
+assert_eq "a two-backend build runs on one device: Vulkan by default" "Vulkan0" "$(after --device)"
+assert_eq "...and so does the MTP draft head"  "Vulkan0" "$(after --spec-draft-device)"
+assert_ok "...and says which"                  grep -q 'GPU backend: vulkan (Vulkan0)' <<< "$argv"
+argv="$(launch env GPU_BACKEND=rocm)"
+assert_eq "GPU_BACKEND=rocm switches the model to ROCm" "ROCm0" "$(after --device)"
+assert_eq "...and the draft head with it"      "ROCm0" "$(after --spec-draft-device)"
+argv="$(launch env GPU_BACKEND=cuda)"; rc=$?
+assert_ok "a backend the build lacks is refused, naming what it has" grep -q "GPU_BACKEND=cuda.*vulkan rocm" <<< "$argv"
+assert_fails "...and nothing is started"       grep -qx -- --device <<< "$argv"
 argv="$(launch env PROFILE=agents)"
 assert_ok "the agents profile runs three slots" grep -qx -- 3 <<< "$(grep -A1 -x -- -np <<< "$argv")"
 
@@ -217,7 +251,9 @@ echo "the launcher's n-gram fallback, for a combination without an MTP head"
 cp "$R/install.env" "$R/install.env.mtp"
 sed -i.bak -e 's|MTP_FILE="[^"]*"|MTP_FILE=""|' \
   -e 's|SPEC_NGRAM_ARGS="[^"]*"|SPEC_NGRAM_ARGS="--spec-type ngram-mod --spec-ngram-mod-n-max 64"|' "$R/install.env"
+sed -i.bak -e 's|GPU_BACKENDS="[^"]*"|GPU_BACKENDS="vulkan"|' "$R/install.env"
 argv="$(launch env)"
+assert_fails "a one-backend build passes no --device" has --device
 assert_ok "turns on n-gram speculation when the build knows it" has ngram-mod
 assert_ok "...and says so"                   grep -q 'speculation: n-gram' <<< "$argv"
 assert_fails "p-min is only passed with an MTP draft" has --spec-draft-p-min

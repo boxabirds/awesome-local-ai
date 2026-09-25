@@ -55,13 +55,14 @@ SPECULATIVE DECODING
   loss, so check it on PROFILE=agents.
 
 VULKAN OR ROCm
-  Built with Vulkan (RADV) unless GPU_API=rocm. Neither is measured here yet.
-  RADV needs nothing beyond Mesa. ROCm needs a host ROCm install; it gave
-  wrong logits on this chip before llama.cpp #28604 (8 Sep 2026), and has
-  open reports of a load hang (#29149) and of state leaking between requests
-  on a reused slot (#29092). To build the other one:
-      GPU_API=rocm SKIP_SMOKE_TEST=1 ./install-qwen-3.8-flash-next-ubuntu-strix-halo-128GB-llamacpp-pi.sh
-  Switching rebuilds; switching back rebuilds again.
+  Both are compiled into one llama-server; pick per start, no rebuild:
+      <server>                        # Vulkan (RADV), the default
+      GPU_BACKEND=rocm <server>       # ROCm (HIP)
+  Neither is measured here yet. ROCm (Ubuntu's 7.1 packages, installed for
+  you) gave wrong logits on this chip before llama.cpp #28604 (8 Sep 2026),
+  and has open reports of a load hang (#29149) and of state leaking between
+  requests on a reused slot (#29092). To build only one backend, install with
+  GPU_API=vulkan or GPU_API=rocm.
   On Linux 7.x set amdgpu.lockup_timeout=10000,60000,10000,10000 on the
   kernel command line, or long runs die with DeviceLostError.
 
