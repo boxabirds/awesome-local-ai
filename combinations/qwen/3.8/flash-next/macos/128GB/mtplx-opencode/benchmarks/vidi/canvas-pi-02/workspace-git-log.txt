@@ -1,3 +1,37 @@
+commit 568ebac1967cb1f520f0634b0584dfbe067daee4
+vidi-agent  Fri Sep 25 12:05:37 2026 +0100
+
+    Story 3: See other people's edits appear live on the same board
+
+
+ package-lock.json                         | 1929 +++++++++++++++++++++++++++++
+ package.json                              |    8 +-
+ src/client/App.tsx                        |  100 +-
+ src/client/canvas/testHooks.ts            |   63 +-
+ src/client/sync/ConnectionStatus.tsx      |   61 +
+ src/client/sync/boardSession.ts           |  171 +++
+ src/client/sync/connectBoard.ts           |  241 ++++
+ src/shared/board-id.ts                    |  122 ++
+ src/shared/config.ts                      |   27 +
+ src/shared/protocol.ts                    |  165 +++
+ src/worker/board-room.ts                  |  215 ++++
+ src/worker/env.ts                         |   14 +
+ src/worker/index.ts                       |   75 ++
+ tests/component/appHarness.tsx            |   20 +-
+ tests/component/connection-badge.test.tsx |  297 +++++
+ tests/e2e/sync.spec.ts                    |  264 ++++
+ tests/fixtures/random-ops.ts              |  174 +++
+ tests/integration/board-room.test.ts      |  365 ++++++
+ tests/integration/globals.d.ts            |    6 +
+ tests/integration/helpers/ws-client.ts    |  320 +++++
+ tests/integration/worker.test.ts          |  198 +++
+ tests/unit/board-id.test.ts               |   95 ++
+ tests/unit/protocol.test.ts               |  191 +++
+ tsconfig.json                             |   26 +-
+ tsconfig.worker.json                      |   22 +
+ vitest.config.ts                          |   35 +-
+ wrangler.jsonc                            |    9 +-
+ 27 files changed, 5174 insertions(+), 39 deletions(-)
 commit a0bad7fc673140997573225ae5c97256fc63eac1
 vidi-agent  Fri Sep 25 09:58:36 2026 +0100
 
