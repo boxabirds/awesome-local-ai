@@ -23,7 +23,7 @@ Everything else is public: this harness, dbench, the audit method, and all run r
 
 **Want to run the benchmark on your own hardware** (a 3090, a DGX, anything else)? Ask the repo owner (Julian Harris) for access to the private repo. With access:
 1. Clone it next to this repo.
-2. Run `benchmarks/vidi/harness/setup-node.sh`, which checks your tools, pins the pack to the current bench version (`vidi-v1`) and proves the sandbox hides the suite.
+2. Run `benchmarks/spec-bench/harness/setup-node.sh`, which checks your tools, pins the pack to the current bench version (`vidi-v1`) and proves the sandbox hides the suite.
 3. Run your setup with `run.sh` or dbench.
 
 Results are only comparable within one bench version.
@@ -36,13 +36,13 @@ Two secrets never go in either repo:
 
 ```bash
 # any installed combination; results land in combinations/<COMBINATION>/benchmarks/vidi/<run-id>/
-benchmarks/vidi/harness/run.sh <install-id> [--scope canvas] [--run-id ID] [--only 1,2]
+benchmarks/spec-bench/harness/run.sh <install-id> [--scope canvas] [--run-id ID] [--only 1,2]
 
 # resume an interrupted run (continues at the first unfinished story)
-benchmarks/vidi/harness/run.sh <install-id> --run-id <same ID>
+benchmarks/spec-bench/harness/run.sh <install-id> --run-id <same ID>
 
 # compare runs
-uv run benchmarks/vidi/harness/report.py --compare <run-dir> <run-dir> ...
+uv run benchmarks/spec-bench/harness/report.py --compare <run-dir> <run-dir> ...
 ```
 
 A combination qualifies if it installs `<install-id>-server` (honouring `PORT`
@@ -100,7 +100,7 @@ The reference stack runs through the same harness as the local setups: the same 
 2. **Register the stack (once per machine):** `benchmarks/reference/install-stack.sh benchmarks/reference/vidi/opus-5.5`
 3. **Run it:**
    ```sh
-   benchmarks/vidi/harness/run.sh claude-code-opus-5-5 --client claude --run-id run-3 --record
+   benchmarks/spec-bench/harness/run.sh claude-code-opus-5-5 --client claude --run-id run-3 --record
    # or queued and repeated on a node:
    dbench submit <node> --id opus --install-id claude-code-opus-5-5 --client claude --pack benchmarks/vidi \
      --scope canvas --run-id opus --repeat 3
@@ -111,11 +111,11 @@ The reference stack runs through the same harness as the local setups: the same 
 ```sh
 cd ~/expts/awesome-local-ai && git pull                                        # public repo, with push access
 benchmarks/reference/save-claude-token.sh                                       # `claude setup-token`, saved with mode 600
-benchmarks/vidi/harness/setup-node.sh --stack benchmarks/reference/vidi/opus-5.5   # tools, private pack, preflight -> "ready"
-benchmarks/vidi/harness/fetch-work.sh quintus benchmarks/reference/vidi/opus-5.5/run-2   # only to continue a run begun elsewhere
-benchmarks/vidi/harness/run-series.sh claude-code-opus-5-5 --client claude --runs run-2,run-3 --background
-benchmarks/vidi/harness/run-series.sh --status      # or: tail -f ~/.vidi-bench/series.log
-benchmarks/vidi/harness/run-series.sh --stop        # stops; the same command later resumes where it stopped
+benchmarks/spec-bench/harness/setup-node.sh --stack benchmarks/reference/vidi/opus-5.5   # tools, private pack, preflight -> "ready"
+benchmarks/spec-bench/harness/fetch-work.sh quintus benchmarks/reference/vidi/opus-5.5/run-2   # only to continue a run begun elsewhere
+benchmarks/spec-bench/harness/run-series.sh claude-code-opus-5-5 --client claude --runs run-2,run-3 --background
+benchmarks/spec-bench/harness/run-series.sh --status      # or: tail -f ~/.vidi-bench/series.log
+benchmarks/spec-bench/harness/run-series.sh --stop        # stops; the same command later resumes where it stopped
 ```
 - `run-series.sh` runs the listed runs **strictly one after another**, never in parallel: run-3 starts only when run-2 has finished, and a failed run stops the series.
 - `--background` detaches it and keeps a Mac awake (`caffeinate -i`). Keep the machine on mains power: the harness pauses stories while on battery, and closing a laptop's lid sleeps it.
@@ -151,12 +151,12 @@ made it (`harness/grading_package.py`).
 
 ```bash
 # 1. On the judging machine: extract the package (the private repo's checkout never moves) and print the kick-off message.
-benchmarks/vidi/harness/judge-setup.sh vidi-v1
+benchmarks/spec-bench/harness/judge-setup.sh vidi-v1
 #    Start the judge in <private repo>/judging/vidi-v1/ (that folder only, if its tool allows) and give it the message.
 # 2. When it has written build-A.jsonl, build-B.jsonl, test-faults.jsonl and summary.md: push them, with its transcript.
-benchmarks/vidi/harness/judge-submit.sh vidi-v1 gpt-5.6 --transcript <session file>
+benchmarks/spec-bench/harness/judge-submit.sh vidi-v1 gpt-5.6 --transcript <session file>
 # 3. On the machine with the key: check the rows and the transcript (any read outside the package is a peek), un-blind, compare.
-uv run benchmarks/vidi/harness/judge_collect.py vidi-v1 gpt-5.6 \
+uv run benchmarks/spec-bench/harness/judge_collect.py vidi-v1 gpt-5.6 \
     --audit opus=benchmarks/reference/vidi/opus-5.5/run-1/audit.jsonl \
     --audit flash-next=combinations/qwen/3.8/flash-next/macos/128GB/mtplx-opencode/benchmarks/vidi/canvas-pi-01/audit.jsonl
 ```
@@ -168,7 +168,7 @@ ports a run uses. Give the judge no access to this repo: it holds our audits of 
 ### Pairwise quality judge
 
 ```bash
-uv run benchmarks/vidi/harness/judge_prep.py <run-1> <run-2> --out /tmp/vidi-judge --seed 1
+uv run benchmarks/spec-bench/harness/judge_prep.py <run-1> <run-2> --out /tmp/vidi-judge --seed 1
 ```
 
 This builds an anonymised A/B bundle; the label→run key is written *outside* it. Judges score with `harness/judge.md` (spec adherence, architecture, test quality, code quality, product quality, each with file-path evidence). Run it twice with swapped labels to check for position bias.

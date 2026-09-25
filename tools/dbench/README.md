@@ -155,7 +155,7 @@ dbench --json status gruntus canvas-pi-02      # --json: nodes, submit, status, 
 
 ## Stories and tasks in `status`
 
-The harness keeps `progress.json` in the run dir: every story in scope with its status (`pending`, `running`, `DONE`, `PARTIAL`), agent time, calls, output tokens, acceptance result, last commit, its tasks, baselines from earlier runs and its latest activity. The contract, with the full shape, is `benchmarks/vidi/harness/CONTROL.md`. dbench serves it as `progress.stories`. Every field is optional, and a field of the wrong type reads as missing. Without a `progress.json` (an older harness), `stories` is the finished stories from `metrics.json` as before.
+The harness keeps `progress.json` in the run dir: every story in scope with its status (`pending`, `running`, `DONE`, `PARTIAL`), agent time, calls, output tokens, acceptance result, last commit, its tasks, baselines from earlier runs and its latest activity. The contract, with the full shape, is `benchmarks/spec-bench/harness/CONTROL.md`. dbench serves it as `progress.stories`. Every field is optional, and a field of the wrong type reads as missing. Without a `progress.json` (an older harness), `stories` is the finished stories from `metrics.json` as before.
 
 `dbench status <node> <job>` prints one line per story, for example:
 

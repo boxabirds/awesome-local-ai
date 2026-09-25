@@ -28,8 +28,9 @@ def test_same_tool_different_input_is_progress():
 import subprocess
 from pathlib import Path
 
-from drive import sandboxed, VIDI
+from drive import sandboxed, REPO_ROOT
 
+VIDI = REPO_ROOT / "benchmarks" / "vidi"   # the in-repo copy of the pack, which the sandbox must hide
 SECRET = VIDI / "acceptance" / "package.json"
 
 
