@@ -36,21 +36,29 @@ async fn main() -> Result<()> {
             run_id,
             client: c,
             no_record,
+            repeat,
+            repeat_from,
         } => {
-            let spec = JobSpec {
-                install_id: install_id.unwrap_or_default(),
-                combination,
-                pack: pack.trim_end_matches('/').to_string(),
-                scope,
-                stories,
-                run_id,
-                client: c.into(),
-                record: !no_record,
-            };
-            spec.validate()
-                .map_err(anyhow::Error::msg)
-                .context("job spec")?;
-            client::cmd_submit(&Ctx::load(cli.config, cli.json)?, &node, &id, spec).await
+            let ctx = Ctx::load(cli.config, cli.json)?;
+            let jobs = dbench::ids::expand_repeats(&id, &run_id, repeat, repeat_from)
+                .map_err(anyhow::Error::msg)?;
+            for (job_id, job_run_id) in jobs {
+                let spec = JobSpec {
+                    install_id: install_id.clone().unwrap_or_default(),
+                    combination: combination.clone(),
+                    pack: pack.trim_end_matches('/').to_string(),
+                    scope: scope.clone(),
+                    stories: stories.clone(),
+                    run_id: job_run_id,
+                    client: c.into(),
+                    record: !no_record,
+                };
+                spec.validate()
+                    .map_err(anyhow::Error::msg)
+                    .context("job spec")?;
+                client::cmd_submit(&ctx, &node, &job_id, spec).await?;
+            }
+            Ok(())
         }
         Cmd::Status { node, id } => {
             client::cmd_status(

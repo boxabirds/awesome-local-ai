@@ -134,6 +134,10 @@ dbench nodes                                   # every node in parallel; unreach
 dbench submit gruntus --id canvas-pi-02 --combination qwen/3.8/27b/ubuntu/24GB/llamacpp-opencode \
   --pack benchmarks/vidi --scope canvas --run-id canvas-pi-02 [--client pi] [--stories 1,2] [--no-record]
                                                # or --install-id qwen38-27b: the name the node installed it under
+dbench submit gruntus --id vidi-4090 --install-id qwen38-27b --pack benchmarks/vidi --run-id canvas-pi --repeat 3
+                                               # 3 queued jobs vidi-4090-r1..r3 / runs canvas-pi-r1..r3, run one after
+                                               # another; each keeps its own record, resume and status
+dbench submit … --repeat 2 --repeat-from 4     # add runs r4, r5 to an existing series
 dbench status                                  # all jobs on all nodes
 dbench status gruntus                          # one node
 dbench status gruntus canvas-pi-02             # one job: state, stories, history, log tail
