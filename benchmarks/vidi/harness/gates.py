@@ -37,7 +37,7 @@ PW_FAILED_RE = re.compile(r"(\d+)\s+failed", re.I)
 def _run(cmd: list[str], cwd: Path, timeout: int, env: dict | None = None) -> dict:
     t0 = time.monotonic()
     try:
-        p = subprocess.run(cmd, cwd=cwd, capture_output=True, text=True, timeout=timeout,
+        p = subprocess.run(cmd, cwd=cwd, capture_output=True, text=True, errors="replace", timeout=timeout,
                            env={**os.environ, "CI": "1", **(env or {})})
         code, out = p.returncode, p.stdout + p.stderr
     except subprocess.TimeoutExpired as e:

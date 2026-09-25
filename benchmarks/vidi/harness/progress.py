@@ -74,7 +74,7 @@ def parse_tasks(tasks_md: Path) -> list[dict]:
 
 def _git(ws: Path, *args: str) -> str:
     # No optional locks: the agent is using the same repository while the harness reads it.
-    p = subprocess.run(["git", *args], cwd=ws, capture_output=True, text=True,
+    p = subprocess.run(["git", *args], cwd=ws, capture_output=True, text=True, errors="replace",
                        env={**os.environ, "GIT_OPTIONAL_LOCKS": "0"})
     return p.stdout if p.returncode == 0 else ""
 
