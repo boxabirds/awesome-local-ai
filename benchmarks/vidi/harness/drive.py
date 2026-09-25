@@ -99,7 +99,7 @@ GIT_IDENTITY = {"GIT_AUTHOR_NAME": "vidi-agent", "GIT_AUTHOR_EMAIL": "agent@vidi
 
 
 def sh(cmd: list[str], cwd: Path, env: dict | None = None, check: bool = True) -> str:
-    p = subprocess.run(cmd, cwd=cwd, capture_output=True, text=True, env={**os.environ, **(env or {})})
+    p = subprocess.run(cmd, cwd=cwd, capture_output=True, text=True, errors="replace", env={**os.environ, **(env or {})})
     if check and p.returncode != 0:
         raise RuntimeError(f"{' '.join(cmd)} failed: {p.stderr}")
     return p.stdout
@@ -173,7 +173,7 @@ def mirror(ws: Path, dest: Path) -> None:
     excludes = [f"--exclude=/{e}" for e in MIRROR_EXCLUDES]
     subprocess.run(["rsync", "-a", "--delete", *excludes, f"{ws}/", f"{dest}/"], check=True)
     log = subprocess.run(["git", "log", "--stat", "--format=commit %H%n%an  %ad%n%n    %s%n"], cwd=ws,
-                         capture_output=True, text=True).stdout
+                         capture_output=True, text=True, errors="replace").stdout
     (dest.parent / "workspace-git-log.txt").write_text(log)
 
 
