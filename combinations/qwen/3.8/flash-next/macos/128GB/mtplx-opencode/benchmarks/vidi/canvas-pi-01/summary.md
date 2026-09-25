@@ -13,8 +13,9 @@ Model `mtplx-flash-next-optimized-speed`, scope `canvas`, effort `low`, client p
 | 8 | Undo and redo my own changes without undoing anyone else's | 47.9 | 184 | 12269053 | 131201 | 1.0 | 63.2 | red | 43/51 |  | 0 / 0 | 2 | 114869 | throttled 98%, server peak 104 GB |
 | 9 | Write free text anywhere on the board | 61.5 | 308 | 22109883 | 152183 | 1.4 | 68.9 | red | 46/57 |  | 1 / 0 | 5 | 115677 | throttled 85%, server peak 109 GB |
 | 10 | Draw shapes and connect them with arrows that follow when moved | 67.0 | 259 | 17517017 | 157392 | 1.2 | 53.8 | red | 50/65 |  | 0 / 1 | 4 | 114947 | throttled 99%, server peak 106 GB |
+| 11 | Sketch freehand with a pen | 0.8 | 2 | 112338 | 34 | 45.4 | 99.9 | green | 59/70 |  | 0 / 1 | 0 | 56205 | throttled 0%, server peak 96 GB |
 
-**Totals:** 9 stories, 696 agent-minutes, 2413 requests, 164,064,766 prompt / 1,816,345 completion tokens, gate green 0/9, final acceptance 50/65, stalled 0, 24882 lines in src+tests.
+**Totals:** 10 stories, 697 agent-minutes, 2415 requests, 164,177,104 prompt / 1,816,379 completion tokens, gate green 1/10, final acceptance 59/70, stalled 0, 28448 lines in src+tests.
 
 ### Decode tok/s by context (server log, all stories)
 
@@ -22,6 +23,6 @@ Model `mtplx-flash-next-optimized-speed`, scope `canvas`, effort `low`, client p
 |---|---|---|
 | 0-16k | 59 | 0.0 |
 | 16-32k | 158 | 68.7 |
-| 32-64k | 899 | 64.6 |
+| 32-64k | 901 | 64.6 |
 | 64-100k | 883 | 63.1 |
 | 100-+k | 414 | 62.5 |

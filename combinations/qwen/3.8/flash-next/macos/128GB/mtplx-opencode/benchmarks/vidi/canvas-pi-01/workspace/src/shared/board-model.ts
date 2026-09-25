@@ -30,6 +30,7 @@ import {
   topZ,
 } from './doc';
 import { readConnector, detachConnectorsTo, type ConnectorSnap } from './objects/connector';
+import { STROKE_TYPE, strokeSnapshot, type PenColor, type PenThickness } from './objects/stroke';
 import type { ShapeKind } from './objects/shape';
 import type { ShapeFill, ShapeStroke } from './config';
 
@@ -39,7 +40,13 @@ import type { ShapeFill, ShapeStroke } from './config';
  * client (stories 9–12) never becomes selectable or resolvable until its
  * registry entry is registered here (PRD `sel.all_types`, TC-08).
  */
-const KNOWN_TYPES: ReadonlySet<string> = new Set(['sticky', 'text', 'shape', 'connector']);
+const KNOWN_TYPES: ReadonlySet<string> = new Set([
+  'sticky',
+  'text',
+  'shape',
+  'connector',
+  STROKE_TYPE,
+]);
 
 /**
  * Transaction origin for local edits. Story 8's undo manager and story 3's
@@ -93,6 +100,23 @@ export interface ObjectSnapshot {
    * share one answer (`distanceToPolyline` reads these).
    */
   ends?: { from: { x: number; y: number }; to: { x: number; y: number } };
+  /**
+   * Story 11 · stroke: the recorded path, flattened `[x0, y0, …]` relative to
+   * the object's own box; absent for every other type.
+   */
+  points?: readonly number[];
+  /** Story 11 · stroke: the box size that path was recorded against. */
+  baseWidth?: number;
+  /** See {@link ObjectSnapshot#baseWidth}. */
+  baseHeight?: number;
+  /** Story 11 · stroke: the pen width token. */
+  thickness?: PenThickness;
+  /**
+   * Story 11 · stroke: the ink token. Kept apart from {@link
+   * ObjectSnapshot#color}, which names a *sticky* colour, so neither list can
+   * grow into the other.
+   */
+  ink?: PenColor;
 }
 
 /** @deprecated Kept for source compatibility; use {@link ObjectSnapshot}. */
@@ -400,6 +424,26 @@ export function snapshot(doc: Y.Doc): readonly ObjectSnapshot[] {
       entry.text = label instanceof Y.Text ? label.toString() : '';
       const createdBy = record.get('createdBy');
       if (typeof createdBy === 'string') entry.createdBy = createdBy;
+    } else if (type === STROKE_TYPE) {
+      // The path is read here rather than in the renderer, so a damaged or empty
+      // recording never reaches React at all (design "Stroke model": errors are
+      // rejected at the model boundary).
+      const stroke = strokeSnapshot(record, {
+        id,
+        x: entry.x,
+        y: entry.y,
+        z: entry.z,
+        width: entry.width,
+        height: entry.height,
+        createdAt: entry.createdAt,
+      });
+      if (stroke === null) return;
+      entry.points = stroke.points;
+      entry.baseWidth = stroke.baseWidth;
+      entry.baseHeight = stroke.baseHeight;
+      entry.ink = stroke.color;
+      entry.thickness = stroke.thickness;
+      if (stroke.createdBy !== undefined) entry.createdBy = stroke.createdBy;
     }
     result.push(entry);
   });

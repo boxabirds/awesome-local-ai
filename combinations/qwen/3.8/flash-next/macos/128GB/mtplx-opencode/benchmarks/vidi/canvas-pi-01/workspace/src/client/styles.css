@@ -461,3 +461,84 @@ body {
   font-size: 12px;
   color: #b3261e;
 }
+
+/* ---- Story 11 · the pen --------------------------------------------------
+ * The Pen tool layer and the two places the pen options appear. Screen-constant
+ * sizes are set inline (divided by the zoom); these rules only carry colour and
+ * layout, so the sketch itself is never restyled by a stylesheet edit.
+ */
+
+.tool-overlay {
+  pointer-events: auto;
+  touch-action: none;
+  cursor: crosshair;
+}
+
+.pen-tool-layer {
+  z-index: 6;
+}
+
+.stroke {
+  pointer-events: none;
+}
+
+.stroke-selected {
+  outline-color: #2f6fed;
+}
+
+.stroke-resize-handle {
+  fill: #ffffff;
+  stroke: #2f6fed;
+  pointer-events: all;
+}
+
+.pen-toolbar {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 6px 8px;
+  background: #ffffff;
+  border: 1px solid #d8dee9;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgb(0 0 0 / 12%);
+}
+
+.pen-swatches {
+  display: flex;
+  gap: 4px;
+}
+
+.pen-widths {
+  display: flex;
+  gap: 4px;
+}
+
+.pen-width-button {
+  width: 26px;
+  height: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #f5f7fa;
+  border: 1px solid #d8dee9;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.pen-width-button[aria-pressed='true'] {
+  border-color: #2f6fed;
+  background: #e8f0fe;
+}
+
+.pen-width-sample {
+  width: 18px;
+  background: #212121;
+  border-radius: 2px;
+}
+
+.pen-options-menu {
+  position: absolute;
+  left: calc(100% + 8px);
+  top: 0;
+  z-index: 7;
+}

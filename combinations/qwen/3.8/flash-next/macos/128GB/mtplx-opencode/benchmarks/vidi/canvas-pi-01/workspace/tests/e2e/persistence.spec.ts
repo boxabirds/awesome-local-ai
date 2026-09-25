@@ -23,6 +23,7 @@
 import { expect, test, type Page } from '@playwright/test';
 import { BOARD_LOAD_BUDGET_MS, PERSIST_TESTED_NOTES } from '../../src/shared/config';
 import { createNoteAt } from './helpers/sticky';
+import { drawStroke } from './helpers/pen';
 import {
   listStateFiles,
   startBoardProcess,
@@ -239,6 +240,50 @@ test('TC-21: a 2,000-note board opens inside the budget after a restart', async 
   expect(rendered).toBe(PERSIST_TESTED_NOTES);
 
   await opened.close();
+  await server.stop();
+  server.removeState();
+});
+
+test('TC-22: a drawn sketch is on disk before it is broadcast, and comes back after a restart', async ({
+  browser,
+}) => {
+  test.setTimeout(240_000);
+  let server = await startBoardProcess();
+  const boardId = await createBoard(server);
+
+  const context = await browser.newContext();
+  const page = await context.newPage();
+  await openBoard(page, server.url, boardId);
+
+  // One sketch, drawn through the real Pen tool rather than seeded: the point of
+  // the case is that a *drawing* takes the same durable path as a note, so it has
+  // to be made the way a person makes it.
+  await drawStroke(page, [
+    [220, 260],
+    [260, 220],
+    [310, 275],
+    [360, 215],
+    [410, 270],
+  ]);
+  await page.evaluate(() => (window as unknown as Win).__vidi6Live?.waitForStableDoc());
+
+  const before = await snapshotOf(page);
+  expect(JSON.parse(before)).toHaveLength(1);
+  expect(await page.locator('[data-stroke-id]').count()).toBe(1);
+
+  server = await restart(server);
+
+  const reopened = await browser.newContext();
+  const again = await reopened.newPage();
+  await openBoard(again, server.url, boardId);
+
+  // Identical, byte for byte, out of SQLite: the simplified points, the bounds and
+  // the ink tokens all survived the round trip, and the stroke is painted again.
+  expect(await snapshotOf(again)).toBe(before);
+  await again.waitForSelector('[data-stroke-id]', { timeout: 15_000 });
+  expect(await again.locator('[data-stroke-id]').count()).toBe(1);
+
+  await reopened.close();
   await server.stop();
   server.removeState();
 });

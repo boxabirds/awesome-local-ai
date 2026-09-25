@@ -1,0 +1,41 @@
+# Page snapshot
+
+```yaml
+- generic [ref=e3]:
+  - generic [ref=e4]:
+    - group "Sticky note" [active] [ref=e6]:
+      - generic [ref=e7]: grow
+      - toolbar "Note actions" [ref=e9]:
+        - button "Yellow colour" [pressed] [ref=e10] [cursor=pointer]
+        - button "Orange colour" [ref=e11] [cursor=pointer]
+        - button "Green colour" [ref=e12] [cursor=pointer]
+        - button "Blue colour" [ref=e13] [cursor=pointer]
+        - button "Pink colour" [ref=e14] [cursor=pointer]
+        - button "Violet colour" [ref=e15] [cursor=pointer]
+        - button "Delete note" [ref=e16] [cursor=pointer]: 🗑
+    - toolbar "Board tools" [ref=e17]:
+      - button "Select (V)" [pressed] [ref=e18] [cursor=pointer]:
+        - generic [ref=e19]: 🖱️
+      - button "Text (T)" [ref=e20] [cursor=pointer]:
+        - generic [ref=e21]: T
+      - button "Shape (S)" [ref=e23] [cursor=pointer]:
+        - generic [ref=e24]: ▦
+      - button "Connector (L)" [ref=e25] [cursor=pointer]:
+        - generic [ref=e26]: →
+      - button "Pen (P)" [ref=e28] [cursor=pointer]:
+        - generic [ref=e29]: ✎
+      - button "Sticky note" [ref=e30] [cursor=pointer]:
+        - generic [ref=e31]: 📝
+      - generic [ref=e32]:
+        - button "Undo" [ref=e33] [cursor=pointer]:
+          - generic [ref=e34]: ↶
+        - button "Redo" [disabled] [ref=e35]:
+          - generic [ref=e36]: ↷
+    - generic [ref=e37]:
+      - button "Zoom out" [ref=e38] [cursor=pointer]: −
+      - status [ref=e39]: 100%
+      - button "Zoom in" [ref=e40] [cursor=pointer]: +
+      - button "Reset view" [ref=e41] [cursor=pointer]
+    - generic: Drag to move around · Ctrl/Cmd + scroll or pinch to zoom
+  - button "Share" [ref=e44] [cursor=pointer]
+```

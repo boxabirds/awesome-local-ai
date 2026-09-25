@@ -1,3 +1,37 @@
+commit b22633bdd1f6f82619f5bd73f8e6442829f334c0
+vidi-agent  Fri Sep 25 04:13:43 2026 +0100
+
+    harness: snapshot after story 11 (uncommitted agent work)
+
+
+ src/client/board/BoardShell.tsx             |  59 +++
+ src/client/board/Toolbar.tsx                |  39 ++
+ src/client/board/transformController.ts     |  16 +-
+ src/client/board/useTool.ts                 |   5 +-
+ src/client/canvas/BoardViewport.tsx         |   2 +-
+ src/client/objects/PenToolbar.tsx           |  97 +++++
+ src/client/objects/StrokeObject.tsx         | 260 ++++++++++++
+ src/client/objects/registry.tsx             |  31 ++
+ src/client/objects/useObjectInteraction.ts  |  15 +-
+ src/client/styles.css                       |  81 ++++
+ src/client/tools/PenTool.tsx                | 334 +++++++++++++++
+ src/client/tools/usePenOptions.ts           |  53 +++
+ src/shared/board-model.ts                   |  46 +-
+ src/shared/config.ts                        |  64 +++
+ src/shared/geometry/simplify.ts             | 165 ++++++++
+ src/shared/objects/stroke.ts                | 311 ++++++++++++++
+ tests/component/ConnectorTool.test.tsx      |   9 +-
+ tests/component/PenTool.test.tsx            | 623 ++++++++++++++++++++++++++++
+ tests/component/StrokeObject.test.tsx       | 195 +++++++++
+ tests/e2e/helpers/pen.ts                    | 126 ++++++
+ tests/e2e/multiselect-full-capacity.spec.ts |  89 ++--
+ tests/e2e/pen.spec.ts                       | 475 +++++++++++++++++++++
+ tests/e2e/persistence.spec.ts               |  45 ++
+ tests/e2e/sticky.spec.ts                    |  18 +-
+ tests/fixtures/pen-paths.ts                 |  93 +++++
+ tests/unit/stroke-geometry.test.ts          | 168 ++++++++
+ tests/unit/stroke-model.test.ts             | 251 +++++++++++
+ 27 files changed, 3618 insertions(+), 52 deletions(-)
 commit e36dc1253e37f3563c201088a60898c4fe2c8e92
 vidi-agent  Thu Sep 24 23:03:09 2026 +0100
 

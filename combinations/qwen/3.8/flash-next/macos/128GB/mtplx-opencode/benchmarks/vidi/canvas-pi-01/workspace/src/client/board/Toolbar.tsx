@@ -11,12 +11,20 @@
  * undo / redo *this person's* own steps and sit disabled while the personal stack
  * is empty (PRD undo.empty). Pointer events are stopped so a click never reaches
  * the board surface underneath.
+ *
+ * Story 11 · task 17: the Pen button carries the ink / width row, which is shown
+ * beside it for as long as the Pen tool is active — six colours and three widths,
+ * always reachable without a second gesture (PRD pen.options, Structure: "Pen
+ * toolbar (visible while Pen is active)"). Picking one applies to the *next*
+ * strokes and never repaints what is already on the board.
  */
 import type { MouseEvent, PointerEvent as ReactPointerEvent } from 'react';
 import { UndoButtons } from './UndoButtons';
 import { SHAPE_KINDS } from '../../shared/config';
 import type { Tool } from './useTool';
 import type { ShapeKind } from '../../shared/objects/shape';
+import { PenToolbar } from '../objects/PenToolbar';
+import type { PenColor, PenThickness } from '../../shared/config';
 
 export interface ToolbarProps {
   onCreateSticky(): void;
@@ -34,6 +42,8 @@ export interface ToolbarProps {
   shapeKind?: ShapeKind;
   /** Choose the kind from the Shape menu. */
   onSelectShapeKind?(kind: ShapeKind): void;
+  /** This tab's pen ink and width (story 11), shown while the Pen tool is active. */
+  pen?: { color: string; thickness: string; onColor(color: PenColor): void; onThickness(t: PenThickness): void };
   /** Personal-history state for the Undo / Redo buttons (story 8). */
   history?: {
     canUndo: boolean;
@@ -60,6 +70,7 @@ export function Toolbar({
   onSelectTool,
   shapeKind = 'rect',
   onSelectShapeKind,
+  pen,
   history,
 }: ToolbarProps) {
   const stop = (event: ReactPointerEvent | MouseEvent) => {
@@ -164,6 +175,34 @@ export function Toolbar({
       >
         <span aria-hidden="true">{'\u2192'}</span>
       </button>
+
+      {/* Story 11 · Pen. The ink / width row sits beside the button for as long as
+          the Pen tool is active, and the same row reappears beside a single
+          selected sketch, where it restyles that sketch (PRD pen.options). */}
+      <div className="tool-with-menu" data-testid="tool-pen-wrap">
+        <button
+          type="button"
+          className="tool-button"
+          data-testid="tool-pen"
+          aria-label="Pen (P)"
+          aria-pressed={tool === 'pen'}
+          disabled={disabled}
+          onPointerDown={stop}
+          onClick={(event) => pickTool(event, 'pen')}
+        >
+          <span aria-hidden="true">{'\u270E'}</span>
+        </button>
+        {tool === 'pen' && pen ? (
+          <div className="pen-options-menu" data-testid="pen-options-menu" onPointerDown={stop}>
+            <PenToolbar
+              color={pen.color}
+              thickness={pen.thickness}
+              onColor={pen.onColor}
+              onThickness={pen.onThickness}
+            />
+          </div>
+        ) : null}
+      </div>
 
       <button
         type="button"

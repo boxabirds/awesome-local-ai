@@ -9451,7 +9451,192 @@
         "files": 146,
         "lines": 24882
       },
-      "finished": 1790287884.3495219
+      "finished": 1790287884.3495219,
+      "record": {
+        "committed": true,
+        "pushed": true,
+        "over_size_limit": [],
+        "commit": "71d849d"
+      }
+    },
+    "11": {
+      "title": "Sketch freehand with a pen",
+      "conditions_start": {
+        "ac": true,
+        "low_power": false,
+        "thermal": "nominal"
+      },
+      "started": 1790305485.2196841,
+      "continued_session": "01a0d5a6-02dc-75cb-904d-7bb924cb1b4f",
+      "agent": {
+        "seconds": 48.1,
+        "steps": 2,
+        "tool_calls": 0,
+        "compactions": 0,
+        "tool_interruptions": 0,
+        "tokens": {
+          "input": 56171,
+          "output": 34,
+          "reasoning": 16,
+          "cache_read": 56167,
+          "cache_write": 0
+        },
+        "exit": 0,
+        "stalled": false,
+        "resumes": 0,
+        "nudges": 1,
+        "errors": [],
+        "ended_in_error": false,
+        "sessions": [
+          "01a0d5a6-02dc-75cb-904d-7bb924cb1b4f",
+          "01a0d5a6-02dc-75cb-904d-7bb924cb1b4f"
+        ]
+      },
+      "agent_finished": 1790305534.3948438,
+      "conditions": {
+        "samples": 1,
+        "degraded": false,
+        "throttled_share": 0.0,
+        "bad_samples": [],
+        "swap_start_gb": 0.59,
+        "swap_max_gb": 0.59,
+        "aborted_swap": false,
+        "aborted_memory": false,
+        "free_min_pct": 27.0,
+        "server_footprint_max_gb": 86.0,
+        "server_footprint_peak_gb": 96.0
+      },
+      "agent_commits": 0,
+      "gate": {
+        "steps": {
+          "install": {
+            "cmd": "npm ci",
+            "exit": 0,
+            "seconds": 4.7,
+            "tail": "\nadded 160 packages, and audited 161 packages in 5s\n\n42 packages are looking for funding\n  run `npm fund` for details\n\n4 high severity vulnerabilities\n\nTo address all issues (including breaking changes), run:\n  npm audit fix --force\n\nRun `npm audit` for details.\nnpm warn allow-scripts 4 packages have install scripts not yet covered by allowScripts:\nnpm warn allow-scripts   workerd@1.20260815.1 (postinstall: node install.js)\nnpm warn allow-scripts   esbuild@0.28.1 (postinstall: node install.js)\nnpm warn allow-scripts   fsevents@2.3.3 (install: (install scripts present))\nnpm warn allow-scripts   workerd@1.20260921.1 (postinstall: node install.js)\nnpm warn allow-scripts\nnpm warn allow-scripts Run `npm approve-scripts --allow-scripts-pending` to review, or `npm approve-scripts <pkg>` to allow.\n"
+          },
+          "build": {
+            "cmd": "npm run build",
+            "exit": 0,
+            "seconds": 0.9,
+            "tail": "\n> vidi6@0.0.0 build\n> vite build\n\n\u001b[36mvite v8.3.0 \u001b[32mbuilding client environment for production...\u001b[36m\u001b[39m\ntransforming...\n\u2713 124 modules transformed.\nrendering chunks...\ncomputing gzip size...\ndist/client/index.html                   0.67 kB \u2502 gzip:   0.41 kB\ndist/client/assets/index-DyZUueVY.css    6.96 kB \u2502 gzip:   1.90 kB\ndist/client/assets/index-UsIVg8bd.js   398.71 kB \u2502 gzip: 122.86 kB\n\n\u001b[32m\u2713 built in 240ms\u001b[39m\n",
+            "passed": null,
+            "failed": null
+          },
+          "typecheck": {
+            "cmd": "npm run typecheck",
+            "exit": 0,
+            "seconds": 2.2,
+            "tail": "\n> vidi6@0.0.0 typecheck\n> tsc --noEmit && tsc --noEmit -p tsconfig.worker.json\n\n",
+            "passed": null,
+            "failed": null
+          },
+          "test:unit": {
+            "cmd": "npm run test:unit",
+            "exit": 0,
+            "seconds": 2.1,
+            "tail": "\n> vidi6@0.0.0 test:unit\n> vitest run --project unit\n\n\n RUN  v4.1.11 ~/.vidi-bench/work/qwen__3.8__flash-next__macos__128GB__mtplx-opencode__benchmarks__vidi__canvas-pi-01/workspace\n\n\n Test Files  24 passed (24)\n      Tests  301 passed (301)\n   Start at  04:05:43\n   Duration  1.23s (transform 1.74s, setup 0ms, import 2.56s, tests 1.70s, environment 1ms)\n\n",
+            "passed": 301,
+            "failed": 0
+          },
+          "test:component": {
+            "cmd": "npm run test:component",
+            "exit": 0,
+            "seconds": 2.4,
+            "tail": "\n> vidi6@0.0.0 test:component\n> vitest run --project component\n\n\n RUN  v4.1.11 ~/.vidi-bench/work/qwen__3.8__flash-next__macos__128GB__mtplx-opencode__benchmarks__vidi__canvas-pi-01/workspace\n\n\n Test Files  21 passed (21)\n      Tests  172 passed (172)\n   Start at  04:05:45\n   Duration  1.65s (transform 3.65s, setup 1.46s, import 5.22s, tests 3.93s, environment 8.55s)\n\nNot implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package\nNot implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package\nNot implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package\n",
+            "passed": 172,
+            "failed": 0
+          },
+          "test:integration": {
+            "cmd": "npm run test:integration",
+            "exit": 0,
+            "seconds": 3.0,
+            "tail": "\n> vidi6@0.0.0 test:integration\n> vitest run --project integration\n\n\n RUN  v4.1.11 ~/.vidi-bench/work/qwen__3.8__flash-next__macos__128GB__mtplx-opencode__benchmarks__vidi__canvas-pi-01/workspace\n\n\n Test Files  5 passed (5)\n      Tests  45 passed (45)\n   Start at  04:05:47\n   Duration  2.29s (transform 718ms, setup 0ms, import 1.55s, tests 2.13s, environment 0ms)\n\n",
+            "passed": 45,
+            "failed": 0
+          },
+          "test:e2e": {
+            "cmd": "npm run test:e2e -- --project=chromium",
+            "exit": 0,
+            "seconds": 27.7,
+            "tail": "ler:info] GET /api/rooms/aHdQN0C0zL2j2vSj-Lq7iw 101 Switching Protocols (428ms)\n[WebServer] [wrangler:info] GET / 200 OK (111ms)\n[WebServer] [wrangler:info] GET /assets/index-DcOqQ5CG.js 200 OK (3ms)\n[WebServer] [wrangler:info] GET /assets/index-DyZUueVY.css 200 OK (9ms)\n[WebServer] [wrangler:info] POST /api/boards 201 Created (8ms)\n[WebServer] [wrangler:info] GET /api/boards/rP_HLYmuFJoEoCbLaKKPEw 200 OK (6ms)\n[WebServer] [wrangler:info] GET /api/rooms/rP_HLYmuFJoEoCbLaKKPEw 101 Switching Protocols (3ms)\n  \u2713  53 [chromium] \u203a tests/e2e/text.spec.ts:23:1 \u203a click-to-place: Text tool + click wraps long text, never a second object (1.2s)\n[WebServer] [wrangler:info] GET / 200 OK (1ms)\n[WebServer] [wrangler:info] GET /assets/index-DcOqQ5CG.js 200 OK (2ms)\n[WebServer] [wrangler:info] GET /assets/index-DyZUueVY.css 200 OK (8ms)\n[WebServer] [wrangler:info] POST /api/boards 201 Created (7ms)\n[WebServer] [wrangler:info] GET /api/boards/lKLU75U05xoKZ9F3DLH5og 200 OK (3ms)\n[WebServer] [wrangler:info] GET /api/rooms/lKLU75U05xoKZ9F3DLH5og 101 Switching Protocols (1ms)\n  \u2713  55 [chromium] \u203a tests/e2e/text.spec.ts:70:1 \u203a three-dot paste does not create a new object (995ms)\n[WebServer] [wrangler:info] GET / 200 OK (1ms)\n[WebServer] [wrangler:info] GET /assets/index-DcOqQ5CG.js 200 OK (1ms)\n[WebServer] [wrangler:info] GET /assets/index-DyZUueVY.css 200 OK (11ms)\n[WebServer] [wrangler:info] POST /api/boards 201 Created (5ms)\n[WebServer] [wrangler:info] GET /api/boards/oButdNy3-riRkNF0Xlp9Gg 200 OK (1ms)\n[WebServer] [wrangler:info] GET /api/rooms/oButdNy3-riRkNF0Xlp9Gg 101 Switching Protocols (1ms)\n  \u2713  57 [chromium] \u203a tests/e2e/undo.spec.ts:70:1 \u203a TC-22b Ctrl+Z inside a note undoes the whole typing burst (421ms)\n[WebServer] [wrangler:info] POST /api/boards 201 Created (5ms)\n[WebServer] [wrangler:info] GET /b/ZM6JtMuf30pjE_lAdRq6Fg 200 OK (1ms) `Sec-Fetch-Mode: navigate` header present - using `not_found_handling` behavior\n[WebServer] [wrangler:info] GET /assets/index-DcOqQ5CG.js 200 OK (1ms)\n[WebServer] [wrangler:info] GET /assets/index-DyZUueVY.css 200 OK (7ms)\n[WebServer] [wrangler:info] GET /api/boards/ZM6JtMuf30pjE_lAdRq6Fg 200 OK (2ms)\n[WebServer] [wrangler:info] GET /api/rooms/ZM6JtMuf30pjE_lAdRq6Fg 101 Switching Protocols (1ms)\n[WebServer] [wrangler:info] GET /b/oButdNy3-riRkNF0Xlp9Gg 200 OK (2ms) `Sec-Fetch-Mode: navigate` header present - using `not_found_handling` behavior\n[WebServer] [wrangler:info] GET /assets/index-DyZUueVY.css 304 Not Modified (3ms)\n[WebServer] [wrangler:info] GET /assets/index-DcOqQ5CG.js 304 Not Modified (3ms)\n  \u2713  56 [chromium] \u203a tests/e2e/undo.spec.ts:37:1 \u203a TC-22 golden path: drag then Ctrl+Z reverts the drag; Ctrl+Shift+Z redoes it (929ms)\n[WebServer] [wrangler:info] GET /api/boards/oButdNy3-riRkNF0Xlp9Gg 200 OK (3ms)\n[WebServer] [wrangler:info] GET /api/rooms/oButdNy3-riRkNF0Xlp9Gg 101 Switching Protocols (2ms)\n[WebServer] [wrangler:info] GET /b/ZM6JtMuf30pjE_lAdRq6Fg 304 Not Modified (1ms) `Sec-Fetch-Mode: navigate` header present - using `not_found_handling` behavior\n[WebServer] [wrangler:info] GET /assets/index-DyZUueVY.css 304 Not Modified (1ms)\n[WebServer] [wrangler:info] GET /assets/index-DcOqQ5CG.js 304 Not Modified (1ms)\n[WebServer] [wrangler:info] GET /api/boards/ZM6JtMuf30pjE_lAdRq6Fg 200 OK (2ms)\n[WebServer] [wrangler:info] GET /api/rooms/ZM6JtMuf30pjE_lAdRq6Fg 101 Switching Protocols (2ms)\n  \u2713  58 [chromium] \u203a tests/e2e/undo.spec.ts:90:1 \u203a TC-23 a page reload clears the history (544ms)\n  \u2713  59 [chromium] \u203a tests/e2e/undo.spec.ts:117:1 \u203a TC-24 the history is per-user: one profile cannot undo another profile's change (658ms)\nTC-21: 2000 notes on screen in 124ms (story budget 3000ms, rendered 2000)\n  \u2713  50 [chromium] \u203a tests/e2e/persistence.spec.ts:197:1 \u203a TC-21: a 2,000-note board opens inside the budget after a restart (3.7s)\n  \u2713  60 [chromium] \u203a tests/e2e/persistence.spec.ts:247:1 \u203a TC-22: a drawn sketch is on disk before it is broadcast, and comes back after a restart (3.5s)\n\n  60 passed (27.2s)\n",
+            "passed": 60,
+            "failed": 0
+          }
+        },
+        "all_green": true
+      },
+      "accept": {
+        "build_exit": 0,
+        "runner_exit": 1,
+        "runner_tail": "",
+        "passed": 59,
+        "total": 70,
+        "by_story": {
+          "01": {
+            "passed": 10,
+            "total": 10
+          },
+          "02": {
+            "passed": 10,
+            "total": 10
+          },
+          "03": {
+            "passed": 5,
+            "total": 7
+          },
+          "04": {
+            "passed": 4,
+            "total": 4
+          },
+          "05": {
+            "passed": 5,
+            "total": 5
+          },
+          "07": {
+            "passed": 5,
+            "total": 8
+          },
+          "08": {
+            "passed": 7,
+            "total": 7
+          },
+          "09": {
+            "passed": 4,
+            "total": 6
+          },
+          "10": {
+            "passed": 5,
+            "total": 8
+          },
+          "11": {
+            "passed": 4,
+            "total": 5
+          }
+        }
+      },
+      "commit": "b22633bdd1f6f82619f5bd73f8e6442829f334c0",
+      "requests": {
+        "requests": 2,
+        "prompt_tokens": 112338,
+        "completion_tokens": 34,
+        "cached_tokens": 56167,
+        "ttft_median_s": 45.40557187500235,
+        "prefill_tok_s_median": 1579.4925624102802,
+        "decode_tok_s_median": 99.88515675240717,
+        "max_context": 56205,
+        "decode_by_context": {
+          "32-64k": {
+            "requests": 2,
+            "decode_tok_s_median": 99.88515675240717
+          }
+        }
+      },
+      "loc": {
+        "files": 159,
+        "lines": 28448
+      },
+      "finished": 1790306024.126583
     }
   },
   "scope": "canvas",

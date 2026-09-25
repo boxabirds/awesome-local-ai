@@ -23,12 +23,24 @@ import {
 } from './helpers/sticky';
 import { STICKY_FONT_MAX_PX, STICKY_FONT_MIN_PX } from '../../src/shared/config';
 
-/** Drag a note from a screen point by a screen delta (button held). */
+/**
+ * Drag a note from a screen point by a screen delta (button held).
+ *
+ * Travelled in short hops with a repaint between them. Dispatched as two long
+ * batches, the pointer moves outrun the app's per-frame handling and the drag
+ * lands a fraction of the way (it did at 200% zoom, where a 100 px drag is only
+ * 50 world units), which reads like a wrong transform and is not one. Same reason
+ * the pen helper pauses between its strokes: a drag has to be *seen* frame by
+ * frame to be measured frame by frame.
+ */
 async function dragBy(page: import('@playwright/test').Page, from: { x: number; y: number }, dx: number, dy: number) {
   await page.mouse.move(from.x, from.y);
   await page.mouse.down();
-  await page.mouse.move(from.x + dx / 2, from.y + dy / 2, { steps: 4 });
-  await page.mouse.move(from.x + dx, from.y + dy, { steps: 6 });
+  const hops = 6;
+  for (let i = 1; i <= hops; i += 1) {
+    await page.mouse.move(from.x + (dx * i) / hops, from.y + (dy * i) / hops);
+    await settle(page);
+  }
   await page.mouse.up();
   await settle(page);
 }

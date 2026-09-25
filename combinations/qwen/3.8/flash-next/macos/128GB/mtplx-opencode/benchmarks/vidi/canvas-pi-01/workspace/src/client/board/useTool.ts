@@ -24,8 +24,8 @@
 import { useCallback, useState } from 'react';
 import type { ShapeKind } from '../../shared/objects/shape';
 
-/** The tools the board currently offers. */
-export type Tool = 'select' | 'text' | 'shape' | 'connector';
+/** The tools the board currently offers (story 11 adds the pen). */
+export type Tool = 'select' | 'text' | 'shape' | 'connector' | 'pen';
 
 /**
  * Single-letter shortcuts (design `tools.active_tool`). Matched case-insensitively
@@ -38,6 +38,7 @@ export const TOOL_SHORTCUTS: Readonly<Record<string, Tool>> = {
   t: 'text',
   s: 'shape',
   l: 'connector',
+  p: 'pen',
 };
 
 /** Tools that create something, and so need an editable board. */
