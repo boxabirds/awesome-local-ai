@@ -72,7 +72,11 @@ SAMPLING_INSTRUCT="--temp 0.7 --top-p 0.80 --top-k 20 --min-p 0.0 --presence-pen
 REASONING_EFFORT_DEFAULT="low"
 REASONING_EFFORTS="default low medium high xhigh"
 
-SPEC_DRAFT_N_MAX=3   # was 2; 3 measured faster here (deeper MTP draft) -- number recorded in benchmarks/
+# Was 2. Raised on reasoning, not a measurement: the Swift A/B
+# (docs/20260921-swift-qwen38-27b-ab.md) ran Swift at 3 against this at 2, and
+# n-max is not capped by the head's layer count. 2 vs 3 on this combination
+# has not been measured; benchmarks/perf/ scripts still pass 2 explicitly.
+SPEC_DRAFT_N_MAX=3
 IMAGE_MIN_TOKENS=1024                     # llama.cpp's recommendation for Qwen-VL grounding
 
 # ---- client ---------------------------------------------------------------
