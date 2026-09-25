@@ -1,3 +1,47 @@
+commit 66764c9348413c544350bb3905804835573b6753
+vidi-agent  Fri Sep 25 09:58:34 2026 +0100
+
+    story 5: Share a board with others using a link
+
+
+ NOTES.md                                         |  52 ++++++
+ index.html                                       |   2 +
+ playwright.config.ts                             |   6 +-
+ src/client/App.tsx                               |  37 ++--
+ src/client/api.ts                                |  35 ++++
+ src/client/main.tsx                              |   4 +-
+ src/client/pages/BoardPage.tsx                   |  72 ++++++++
+ src/client/pages/HomePage.tsx                    |  20 +++
+ src/client/pages/NotFoundPage.tsx                |  33 ++++
+ src/client/pages/useCreateBoard.ts               |  46 +++++
+ src/client/router.ts                             |  38 ++++
+ src/client/share/SharePanel.tsx                  | 140 +++++++++++++++
+ src/client/styles.css                            | 139 +++++++++++++++
+ src/shared/config.ts                             |  14 ++
+ src/worker/board-room.ts                         |  36 +++-
+ src/worker/board-store.ts                        |  52 +++++-
+ src/worker/create-board.ts                       | 100 +++++++++++
+ src/worker/index.ts                              |  25 ++-
+ src/worker/test-hooks.ts                         |  18 +-
+ tests/component/SharePanel.test.tsx              | 157 +++++++++++++++++
+ tests/component/pages.test.tsx                   | 215 +++++++++++++++++++++++
+ tests/e2e/broken-board.spec.ts                   |   5 +-
+ tests/e2e/helpers/board.ts                       |   5 +-
+ tests/e2e/helpers/participants.ts                |  12 +-
+ tests/e2e/helpers/seed.ts                        |  25 ++-
+ tests/e2e/helpers/server.ts                      |   4 +
+ tests/e2e/persistence.spec.ts                    |   9 +-
+ tests/e2e/share.spec.ts                          | 181 +++++++++++++++++++
+ tests/integration/board-api.test.ts              | 212 ++++++++++++++++++++++
+ tests/integration/board-room-persistence.test.ts |  19 +-
+ tests/integration/board-room.test.ts             |   9 +-
+ tests/integration/helpers/ws-client.ts           |  14 +-
+ tests/integration/worker.test.ts                 |  14 +-
+ tests/unit/create-board.test.ts                  | 121 +++++++++++++
+ tsconfig.json                                    |   2 +-
+ tsconfig.worker.json                             |   3 +-
+ wrangler.jsonc                                   |   5 +
+ 37 files changed, 1807 insertions(+), 74 deletions(-)
 commit b604c11f39aba224bce41374a16fd6e438670bcc
 vidi-agent  Fri Sep 25 09:45:07 2026 +0100
 
