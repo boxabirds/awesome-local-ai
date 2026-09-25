@@ -78,8 +78,9 @@ start_server() { # bin kv
   until curl -sf -m 2 "127.0.0.1:$PORT/v1/models" >/dev/null; do
     sleep 2
     kill -0 "$SPID" 2>/dev/null || { echo "server exited:"; tail -5 "$WORK/server.log"; return 1; }
-    (( $(date +%s) - t0 > LOAD_TIMEOUT_S )) && { echo "no response in ${LOAD_TIMEOUT_S}s"; return 1; }
+    if (( $(date +%s) - t0 > LOAD_TIMEOUT_S )); then echo "no response in ${LOAD_TIMEOUT_S}s"; return 1; fi
   done
+  return 0   # an until loop's status is its body's last command, which is false while all is well
 }
 
 stop_server() { kill -- "-$SPID" 2>/dev/null; while pgrep -f "llama-server.*--port $PORT" >/dev/null; do sleep 1; done; SPID=""; }
