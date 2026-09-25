@@ -1,12 +1,15 @@
 #!/usr/bin/env bash
-# install-collector.sh [--env-file PATH] [--uninstall] -- run collector.py as a background service.
+# install.sh [--env-file PATH] [--uninstall] -- build power-collector and run it as a background service
+# that starts with the machine.
 #
-#   benchmarks/perf/power/install-collector.sh                           # macOS: launchd agent; Linux: systemd user service
-#   benchmarks/perf/power/install-collector.sh --env-file ~/.hermes/.env # credentials kept elsewhere
-#   benchmarks/perf/power/install-collector.sh --uninstall
+#   tools/power-collector/install.sh                           # macOS: launchd agent; Linux: systemd user service
+#   tools/power-collector/install.sh --env-file ~/.hermes/.env # Tapo credentials kept elsewhere
+#   tools/power-collector/install.sh --uninstall
 #
-# Needs ~/.config/awesome-local-ai/power.json (see collector.py). Takes one reading first and refuses
-# to install if that fails. Runs from this checkout; data goes to ~/.local/share/awesome-local-ai/power/.
+# Needs ~/.config/awesome-local-ai/power.json (see README.md). Builds with cargo, installs the binary to
+# ~/.local/bin/power-collector only if it changed (a firewall such as Little Snitch asks again for a
+# changed binary), takes one reading from every source and refuses to install if any fails.
+# Data goes to ~/.local/share/awesome-local-ai/power/.
 set -euo pipefail
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 LABEL="com.awesome-local-ai.power-collector"
@@ -18,7 +21,7 @@ while [[ $# -gt 0 ]]; do
   case "$1" in
     --env-file) ENV_FILE="$2"; shift 2 ;;
     --uninstall) UNINSTALL=1; shift ;;
-    -h|--help) sed -n '2,9p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'; exit 0 ;;
+    -h|--help) sed -n '2,12p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'; exit 0 ;;
     *) echo "unknown option $1" >&2; exit 2 ;;
   esac
 done
@@ -31,13 +34,16 @@ if [[ "$UNINSTALL" == 1 ]]; then
   echo "uninstalled (data kept in $OUT)"; exit 0
 fi
 
-UV="$(command -v uv || true)"
-for c in "$HOME/.local/bin/uv" "$HOME/.dbench/tools/bin/uv" /opt/homebrew/bin/uv; do [[ -n "$UV" ]] || { [[ -x "$c" ]] && UV="$c"; }; done
-[[ -n "$UV" ]] || { echo "uv not found (brew install uv, or curl -LsSf https://astral.sh/uv/install.sh | sh)" >&2; exit 1; }
-CMD=("$UV" run --quiet "$HERE/collector.py" run --env-file "$ENV_FILE" --out "$OUT")
+BIN="$HOME/.local/bin/power-collector"
+command -v cargo >/dev/null || { echo "cargo not found (https://rustup.rs)" >&2; exit 1; }
+(cd "$HERE" && cargo build --release --quiet)
+mkdir -p "$(dirname "$BIN")"
+if cmp -s "$HERE/target/release/power-collector" "$BIN"; then echo "binary unchanged: $BIN"
+else cp "$HERE/target/release/power-collector" "$BIN.new" && mv "$BIN.new" "$BIN"; echo "installed binary: $BIN"; fi
+CMD=("$BIN" run --env-file "$ENV_FILE" --out "$OUT")
 
 echo "one reading first:"
-"$UV" run --quiet "$HERE/collector.py" once --env-file "$ENV_FILE" || { echo "not installing: a source above gave no reading" >&2; exit 1; }
+"$BIN" once --env-file "$ENV_FILE" || { echo "not installing: a source above gave no reading" >&2; exit 1; }
 mkdir -p "$OUT"
 
 if [[ "$(uname)" == Darwin ]]; then
