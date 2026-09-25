@@ -53,7 +53,7 @@ assert_fails "a changed shard fails hash verification" bash -c "
 
 echo
 echo "combination configs"
-for c in qwen/3.8/27b/ubuntu/24GB/sglang-opencode qwen/3.6/35b-a3b/ubuntu/24GB/sglang-opencode; do
+for c in qwen/3.8/27b/ubuntu/nvidia3090/sglang-opencode qwen/3.6/35b-a3b/ubuntu/nvidia3090/sglang-opencode; do
   cfg="$REPO_ROOT/combinations/$c/config.sh"
   assert_ok "$c: image pinned by digest" grep -qE '^SGLANG_IMAGE="[^"]+@sha256:[0-9a-f]{64}"' "$cfg"
   assert_ok "$c: revision is a full commit" grep -qE '^MODEL_REVISION="[0-9a-f]{40}"' "$cfg"
@@ -118,7 +118,7 @@ ARGV="$WORK/argv"
 
 echo
 echo "launcher: Qwen3.8-27B"
-make_install qwen/3.8/27b/ubuntu/24GB/sglang-opencode
+make_install qwen/3.8/27b/ubuntu/nvidia3090/sglang-opencode
 rm -f "$ARGV"; launch
 assert_ok "default profile runs the pinned image" \
   has_arg "ghcr.io/0xsero/sglang-exl3@sha256:84f75f3424c99a3d63392a4e0348292bdeba9cf7efba2ff1aa9b85c8fc0131e8"
@@ -154,7 +154,7 @@ assert_fails "an unknown profile is refused" launch PROFILE=nope
 
 echo
 echo "launcher: Qwen3.6-35B-A3B"
-make_install qwen/3.6/35b-a3b/ubuntu/24GB/sglang-opencode
+make_install qwen/3.6/35b-a3b/ubuntu/nvidia3090/sglang-opencode
 rm -f "$ARGV"; launch
 assert_ok    "full: --context-length 262144"        has_pair --context-length 262144
 assert_ok    "full: --mem-fraction-static 0.85"     has_pair --mem-fraction-static 0.85

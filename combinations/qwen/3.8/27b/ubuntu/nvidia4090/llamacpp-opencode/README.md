@@ -1,7 +1,7 @@
 # Qwen3.8-27B · Ubuntu · 24GB NVIDIA · llama.cpp + OpenCode
 
-**Combination:** `qwen/3.8/27b/ubuntu/24GB/llamacpp-opencode`
-**Install:** `./install-qwen-3.8-27b-ubuntu-24GB-llamacpp-opencode.sh` (from the repo root)
+**Combination:** `qwen/3.8/27b/ubuntu/nvidia4090/llamacpp-opencode`
+**Install:** `./install-qwen-3.8-27b-ubuntu-nvidia4090-llamacpp-opencode.sh` (from the repo root)
 
 Qwen3.8-27B on a 24GB NVIDIA GPU as a local OpenAI-compatible API — with
 speculative decoding, the model's native vision tower, and a **128k context
@@ -10,7 +10,7 @@ window** tuned for coding agents.
 ```bash
 git clone https://github.com/boxabirds/awesome-local-ai.git
 cd awesome-local-ai
-./install-qwen-3.8-27b-ubuntu-24GB-llamacpp-opencode.sh   # ~20 min first run
+./install-qwen-3.8-27b-ubuntu-nvidia4090-llamacpp-opencode.sh   # ~20 min first run
 qwen38-27b-opencode                                       # server on demand + OpenCode
 ```
 
@@ -76,7 +76,7 @@ cache on a 16GB card. The installer refuses and prints a quant table. Short
 version:
 
 ```bash
-QUANT=UD-Q3_K_XL ALLOW_LOW_VRAM=1 ./install-qwen-3.8-27b-ubuntu-24GB-llamacpp-opencode.sh
+QUANT=UD-Q3_K_XL ALLOW_LOW_VRAM=1 ./install-qwen-3.8-27b-ubuntu-nvidia4090-llamacpp-opencode.sh
 CTX=32768 KV_TYPE=q4_0 VISION=0 qwen38-27b-server
 ```
 

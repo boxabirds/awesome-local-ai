@@ -48,15 +48,15 @@ half-installing.
 
 | Model | OS | Memory | Stack | Context | Install | Details |
 |---|---|---|---|---|---|---|
-| Qwen3.8-27B | Ubuntu 22.04 | 24GB NVIDIA | llama.cpp + OpenCode | 128k | [`install-qwen-3.8-27b-ubuntu-24GB-llamacpp-opencode.sh`](install-qwen-3.8-27b-ubuntu-24GB-llamacpp-opencode.sh) | [README](combinations/qwen/3.8/27b/ubuntu/24GB/llamacpp-opencode/README.md) |
-| Swift-Qwen3.8-27B | Ubuntu 22.04 | 24GB NVIDIA | llama.cpp + OpenCode | 128k | [`install-qwen-3.8-swift-27b-ubuntu-24GB-llamacpp-opencode.sh`](install-qwen-3.8-swift-27b-ubuntu-24GB-llamacpp-opencode.sh) | [README](combinations/qwen/3.8-swift/27b/ubuntu/24GB/llamacpp-opencode/README.md) |
+| Qwen3.8-27B | Ubuntu 22.04 | RTX 4090 (24GB) | llama.cpp + OpenCode | 128k | [`install-qwen-3.8-27b-ubuntu-nvidia4090-llamacpp-opencode.sh`](install-qwen-3.8-27b-ubuntu-nvidia4090-llamacpp-opencode.sh) | [README](combinations/qwen/3.8/27b/ubuntu/nvidia4090/llamacpp-opencode/README.md) |
+| Swift-Qwen3.8-27B | Ubuntu 22.04 | RTX 4090 (24GB) | llama.cpp + OpenCode | 128k | [`install-qwen-3.8-swift-27b-ubuntu-nvidia4090-llamacpp-opencode.sh`](install-qwen-3.8-swift-27b-ubuntu-nvidia4090-llamacpp-opencode.sh) | [README](combinations/qwen/3.8-swift/27b/ubuntu/nvidia4090/llamacpp-opencode/README.md) |
 | Qwen3.8-27B | macOS 26 | 64GB Apple silicon ¹ | MTPLX + OpenCode | 128k | [`install-qwen-3.8-27b-macos-64GB-mtplx-opencode.sh`](install-qwen-3.8-27b-macos-64GB-mtplx-opencode.sh) | [README](combinations/qwen/3.8/27b/macos/64GB/mtplx-opencode/README.md) |
 | Qwen3.8-Flash-Next | macOS 26 | 128GB Apple silicon | MTPLX + OpenCode | 128k | [`install-qwen-3.8-flash-next-macos-128GB-mtplx-opencode.sh`](install-qwen-3.8-flash-next-macos-128GB-mtplx-opencode.sh) | [README](combinations/qwen/3.8/flash-next/macos/128GB/mtplx-opencode/README.md) |
 | Qwen3.8-Flash-Next mixed 4/8-bit ⁶ | macOS 26.2+ | 128GB Apple silicon | mlx-serve + OpenCode | 128k | [`install-qwen-3.8-flash-next-macos-128GB-mlxserve-opencode.sh`](install-qwen-3.8-flash-next-macos-128GB-mlxserve-opencode.sh) | [README](combinations/qwen/3.8/flash-next/macos/128GB/mlxserve-opencode/README.md) |
-| Ternary Bonsai 2 27B ² | Ubuntu 22.04 | 24GB NVIDIA | llama.cpp *(fork)* + OpenCode | 128k | [`install-bonsai-2-27b-ubuntu-24GB-llamacpp-opencode.sh`](install-bonsai-2-27b-ubuntu-24GB-llamacpp-opencode.sh) | [README](combinations/bonsai/2/27b/ubuntu/24GB/llamacpp-opencode/README.md) |
+| Ternary Bonsai 2 27B ² | Ubuntu 22.04 | RTX 4090 (24GB) | llama.cpp *(fork)* + OpenCode | 128k | [`install-bonsai-2-27b-ubuntu-nvidia4090-llamacpp-opencode.sh`](install-bonsai-2-27b-ubuntu-nvidia4090-llamacpp-opencode.sh) | [README](combinations/bonsai/2/27b/ubuntu/nvidia4090/llamacpp-opencode/README.md) |
 | MiMo-V2.6-Qwen-9B ³ | macOS 26 | 16GB Apple silicon, M3+ ⁴ | MTPLX + OpenCode | **20k**: too small for agentic coding ([tested](docs/20260924-mimo-9b-macbook-air-m2-16gb.md)) | [`install-mimo-2.6-9b-macos-16GB-mtplx-opencode.sh`](install-mimo-2.6-9b-macos-16GB-mtplx-opencode.sh) | [README](combinations/mimo/2.6/9b/macos/16GB/mtplx-opencode/README.md) |
-| Qwen3.8-27B EXL3 3.0bpw ⁵ | Ubuntu (Docker) | 24GB NVIDIA, RTX 3090 (sm_86) | SGLang *(container)* + OpenCode | 262k | [`install-qwen-3.8-27b-ubuntu-24GB-sglang-opencode.sh`](install-qwen-3.8-27b-ubuntu-24GB-sglang-opencode.sh) | [README](combinations/qwen/3.8/27b/ubuntu/24GB/sglang-opencode/README.md) |
-| Qwen3.6-35B-A3B EXL3 3.0bpw ⁵ | Ubuntu (Docker) | 24GB NVIDIA, RTX 3090 (sm_86) | SGLang *(container)* + OpenCode | 262k | [`install-qwen-3.6-35b-a3b-ubuntu-24GB-sglang-opencode.sh`](install-qwen-3.6-35b-a3b-ubuntu-24GB-sglang-opencode.sh) | [README](combinations/qwen/3.6/35b-a3b/ubuntu/24GB/sglang-opencode/README.md) |
+| Qwen3.8-27B EXL3 3.0bpw ⁵ | Ubuntu (Docker) | RTX 3090 (24GB, sm_86) | SGLang *(container)* + OpenCode | 262k | [`install-qwen-3.8-27b-ubuntu-nvidia3090-sglang-opencode.sh`](install-qwen-3.8-27b-ubuntu-nvidia3090-sglang-opencode.sh) | [README](combinations/qwen/3.8/27b/ubuntu/nvidia3090/sglang-opencode/README.md) |
+| Qwen3.6-35B-A3B EXL3 3.0bpw ⁵ | Ubuntu (Docker) | RTX 3090 (24GB, sm_86) | SGLang *(container)* + OpenCode | 262k | [`install-qwen-3.6-35b-a3b-ubuntu-nvidia3090-sglang-opencode.sh`](install-qwen-3.6-35b-a3b-ubuntu-nvidia3090-sglang-opencode.sh) | [README](combinations/qwen/3.6/35b-a3b/ubuntu/nvidia3090/sglang-opencode/README.md) |
 
 ² **The Bonsai row does not use upstream llama.cpp.** Bonsai 2 is Qwen3.8-27B
 re-quantised to ternary weights (~1.72 bits/weight, 6.7 GB), and its GGUF types
@@ -66,7 +66,7 @@ instead, which is the one place in this repo where a combination does not float
 on upstream. Measured on the same 4090 as the Qwen row: 2.1x the decode rate at
 depth 0, 1.6x at 128k, 1.3x the prefill, in 6.7 GB instead of 16.7 — and no
 speculative decoding exists for it. Full numbers and the trade-offs:
-[its benchmarks README](combinations/bonsai/2/27b/ubuntu/24GB/llamacpp-opencode/benchmarks/README.md).
+[its benchmarks README](combinations/bonsai/2/27b/ubuntu/nvidia4090/llamacpp-opencode/benchmarks/README.md).
 
 ¹ **The 64GB row is extrapolated, not measured.** Both macOS combinations were
 measured on a 128 GB M5 Max. The 27B pack wires 27.9 GB and fits a 64 GB
@@ -141,7 +141,7 @@ one combination and is false now — so it is marked.
   before calling the install good. One row has no drafter at all, and says so
   rather than inheriting the claim.
 
-**Qwen3.8-27B — Ubuntu 22.04 / 24GB NVIDIA:**
+**Qwen3.8-27B — Ubuntu 22.04 / RTX 4090 (24GB):**
 
 - **~92 tok/s generation** against ~44 with MTP off, on one consumer GPU — and
   the installer asserts draft acceptance appeared in the log.
@@ -150,7 +150,7 @@ one combination and is false now — so it is marked.
   Loading it costs 32k of context on a 24GB card (128k → 96k), which is why it
   is off outside the `vision` profiles — a VRAM trade, not a missing capability.
 
-**Swift-Qwen3.8-27B — Ubuntu 22.04 / 24GB NVIDIA:**
+**Swift-Qwen3.8-27B — Ubuntu 22.04 / RTX 4090 (24GB):**
 
 - **The fast-of-the-two on identical hardware.** Measured against the baseline
   above on the same 4090, same binary and prompts: 1.37–1.51× faster end-to-end
@@ -164,7 +164,7 @@ one combination and is false now — so it is marked.
   count, not answer quality — the report says so, and it is the honest limit of
   this comparison.
 
-**Ternary Bonsai 2 27B — Ubuntu 22.04 / 24GB NVIDIA:**
+**Ternary Bonsai 2 27B — Ubuntu 22.04 / RTX 4090 (24GB):**
 
 - **92.2 tok/s generation with no drafter at all**, and 3,016 tok/s prefill:
   the decode rate the Qwen row needs MTP to reach, from 6.7 GB of weights
@@ -181,7 +181,7 @@ one combination and is false now — so it is marked.
   SWE-bench Verified, against 69.7 and 80.6 for full-precision Qwen3.8-27B.
   Its 14-benchmark average hides this; the speed numbers above are real, and
   so is this price. Quoted in full in
-  [the combination README](combinations/bonsai/2/27b/ubuntu/24GB/llamacpp-opencode/README.md#the-agentic-coding-gap).
+  [the combination README](combinations/bonsai/2/27b/ubuntu/nvidia4090/llamacpp-opencode/README.md#the-agentic-coding-gap).
 - **A fork, not upstream** — see the footnote above.
 
 **Qwen3.8-Flash-Next — macOS 26 / 128GB Apple silicon:**
@@ -216,7 +216,7 @@ A combination is data — a config file, a table of measured profiles, and its
 help text. Adding one does not add shell code:
 
 ```
-install-qwen-3.8-27b-ubuntu-24GB-llamacpp-opencode.sh   ← 8 lines
+install-qwen-3.8-27b-ubuntu-nvidia4090-llamacpp-opencode.sh   ← 8 lines
   └─ lib/bootstrap.sh          resolves the config, orders the install
        ├─ lib/os.sh            OS qualification
        ├─ lib/deps.sh          packages and build tools

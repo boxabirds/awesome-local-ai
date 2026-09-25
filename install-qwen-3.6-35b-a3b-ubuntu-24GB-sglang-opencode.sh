@@ -1,9 +1,7 @@
 #!/usr/bin/env bash
-# Qwen3.6-35B-A3B EXL3 3.00bpw-H5  |  Ubuntu  |  24GB NVIDIA (RTX 3090)  |  SGLang (Docker) + OpenCode
-#
-# A pointer, nothing more. The config lives in combinations/<this path>/ and
-# every line of logic lives in lib/. NOT measured by this repo -- see its README.
+# DEPRECATED NAME -- kept so existing links and notes keep working.
+# The machine segment now names the GPU the numbers were measured on, so this
+# combination moved to install-qwen-3.6-35b-a3b-ubuntu-nvidia3090-sglang-opencode.sh. Remove this alias once nothing points here.
 set -euo pipefail
-REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-COMBINATION="qwen/3.6/35b-a3b/ubuntu/24GB/sglang-opencode"
-. "${REPO_ROOT}/lib/bootstrap.sh"
+echo "note: install-qwen-3.6-35b-a3b-ubuntu-24GB-sglang-opencode.sh was renamed to install-qwen-3.6-35b-a3b-ubuntu-nvidia3090-sglang-opencode.sh" >&2
+exec "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/install-qwen-3.6-35b-a3b-ubuntu-nvidia3090-sglang-opencode.sh" "$@"

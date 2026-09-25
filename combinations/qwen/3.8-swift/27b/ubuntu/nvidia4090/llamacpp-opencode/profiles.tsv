@@ -1,7 +1,7 @@
 # name|ctx|kv_type|vision|np|ub|need_mib|summary
 #
 # need_mib here is carried from the sibling BASELINE combination's MEASURED
-# footprint at the same ctx/kv (combinations/qwen/3.8/27b/ubuntu/24GB/
+# footprint at the same ctx/kv (combinations/qwen/3.8/27b/ubuntu/nvidia4090/
 # llamacpp-opencode/profiles.tsv). It is a CONSERVATIVE bound, not a Swift
 # measurement: that baseline carried a 1.57 GiB MTP sidecar that Swift does not
 # (Swift's MTP head is built into the GGUF), so Swift's real headroom at each

@@ -359,7 +359,7 @@ Use `q4_0` KV, not `q5_1` -- see 2b. q4_0 is both faster (GPU vs CPU) and
 smaller (18 vs 24 KiB/token), so these are better than the earlier estimates.
 
 ```bash
-QUANT=UD-Q3_K_XL ALLOW_LOW_VRAM=1 ./install-qwen-3.8-27b-ubuntu-24GB-llamacpp-opencode.sh
+QUANT=UD-Q3_K_XL ALLOW_LOW_VRAM=1 ./install-qwen-3.8-27b-ubuntu-nvidia4090-llamacpp-opencode.sh
 CTX=32768 KV_TYPE=q4_0 VISION=0 qwen38-27b-server
 ```
 
@@ -449,7 +449,7 @@ step was skipped once.
 
 The actual harnesses are checked in under [`benchmarks/`](../benchmarks/perf/), and
 the raw output every number here came from is under the combination's
-[`benchmarks/`](../combinations/qwen/3.8/27b/ubuntu/24GB/llamacpp-opencode/benchmarks/)
+[`benchmarks/`](../combinations/qwen/3.8/27b/ubuntu/nvidia4090/llamacpp-opencode/benchmarks/)
 directory, server logs included. Prefer re-running those to reconstructing the
 commands above by hand.
 

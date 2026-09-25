@@ -265,7 +265,7 @@ These are concrete steps, in order. Each one produces a result that can be check
 ## 9. Open questions
 
 1. Which combinations should gruntus run?
-   - Installed today: `qwen/3.8/27b/ubuntu/24GB/llamacpp-opencode` and the swift variant.
+   - Installed today: `qwen/3.8/27b/ubuntu/nvidia4090/llamacpp-opencode` and the swift variant.
    - The SGLang EXL3 combos written for the 3090 also fit the 4090.
 2. Git credentials on the nodes: a deploy key per node (can be revoked one at a time) or one fine-grained token? I'd use per-node deploy keys.
 3. tritus doesn't resolve from quintus yet (`ssh tritus` fails). Is it on the tailnet?
