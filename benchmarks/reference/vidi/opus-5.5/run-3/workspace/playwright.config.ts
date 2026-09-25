@@ -21,7 +21,9 @@ export default defineConfig({
   },
   // Long idle / soak specs live in tests/e2e/nightly and run only in the `nightly` project
   // (`npm run test:e2e:nightly`); `npm run test:e2e` runs the browser projects, which ignore them.
-  testIgnore: '**/nightly/**',
+  // tests/e2e/persistence.spec.ts starts and kills its own `wrangler dev --persist-to` processes and runs only in
+  // the `persistence` project (chromium).
+  testIgnore: ['**/nightly/**', '**/persistence.spec.ts'],
   projects: [
     { name: 'chromium', use: { ...devices['Desktop Chrome'], viewport: { width: 1280, height: 800 } } },
     {
@@ -37,6 +39,12 @@ export default defineConfig({
     },
     { name: 'webkit', use: { ...devices['Desktop Safari'], viewport: { width: 1280, height: 800 } } },
     {
+      name: 'persistence',
+      testIgnore: '**/nightly/**',
+      testMatch: '**/persistence.spec.ts',
+      use: { ...devices['Desktop Chrome'], viewport: { width: 1280, height: 800 } },
+    },
+    {
       name: 'nightly',
       testIgnore: [],
       testMatch: '**/nightly/**/*.spec.ts',
@@ -44,8 +52,9 @@ export default defineConfig({
     },
   ],
   // `npm run test:e2e` builds the client in test mode (enables window.__vidi6) before this runs.
+  // TEST_HOOKS=1 enables the test-only storage hooks (/__test/*) used by the broken-board spec.
   webServer: {
-    command: `npx wrangler dev --port ${PORT} --ip 127.0.0.1`,
+    command: `npx wrangler dev --port ${PORT} --ip 127.0.0.1 --var TEST_HOOKS:1`,
     url: `http://localhost:${PORT}`,
     reuseExistingServer: !process.env.CI,
     timeout: 60_000,

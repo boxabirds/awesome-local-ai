@@ -140,6 +140,10 @@ body {
   cursor: default;
   outline: none;
   color: #1f2330;
+  /* Fixed-size box: each note is its own relayout boundary, so fitting one note's font does not lay out the
+     whole board again (a 2,000-note board opens within BOARD_LOAD_BUDGET_MS). No paint containment: the
+     selection outline is drawn outside the box. */
+  contain: size layout style;
 }
 
 .sticky-note:focus-visible {
@@ -369,4 +373,10 @@ body {
   background: #dcf5e1;
   color: #1d6b32;
   border-color: #8fd19e;
+}
+
+.connection-status--load_failed {
+  background: #fde2e1;
+  color: #a4161a;
+  border-color: #f1a7a5;
 }

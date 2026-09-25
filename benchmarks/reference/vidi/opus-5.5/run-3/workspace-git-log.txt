@@ -1,3 +1,40 @@
+commit 6d66bd3bb9e54c18bf77cfe5006facee7e578963
+vidi-agent  Fri Sep 25 13:39:06 2026 +0100
+
+    story 4: Return to a board and find everything as it was left
+
+
+ NOTES.md                                         |  59 +++++
+ package.json                                     |   2 +-
+ playwright.config.ts                             |  13 +-
+ src/client/App.tsx                               |  28 ++-
+ src/client/board/Toolbar.tsx                     |   3 +-
+ src/client/objects/StickyNote.tsx                |  11 +-
+ src/client/styles.css                            |  10 +
+ src/client/sync/ConnectionStatus.tsx             |   3 +-
+ src/client/sync/connectBoard.ts                  |  26 +-
+ src/shared/config.ts                             |  17 ++
+ src/shared/protocol.ts                           |   4 +
+ src/worker/board-room.ts                         | 223 +++++++++++++----
+ src/worker/board-store.ts                        | 250 +++++++++++++++++++
+ src/worker/index.ts                              |   7 +-
+ src/worker/room-state.ts                         |  51 ++++
+ src/worker/test-hooks.ts                         |  57 +++++
+ tests/component/ConnectionStatus.test.tsx        |  37 +--
+ tests/component/LoadFailed.test.tsx              | 210 ++++++++++++++++
+ tests/component/fakeProvider.ts                  |  44 ++++
+ tests/e2e/broken-board.spec.ts                   |  63 +++++
+ tests/e2e/helpers/wrangler-process.ts            |  99 ++++++++
+ tests/e2e/persistence.spec.ts                    | 163 +++++++++++++
+ tests/fixtures/boards.ts                         | 137 +++++++++++
+ tests/integration/board-room-persistence.test.ts | 290 +++++++++++++++++++++++
+ tests/integration/board-store.test.ts            | 289 ++++++++++++++++++++++
+ tests/integration/worker.test.ts                 |  16 ++
+ tests/integration/ws-client.ts                   |  16 +-
+ tests/unit/board-store-chunks.test.ts            |  48 ++++
+ tests/unit/room-state.test.ts                    |  65 +++++
+ wrangler.jsonc                                   |   5 +-
+ 30 files changed, 2138 insertions(+), 108 deletions(-)
 commit 4cb2ada6089f79e09954c01f6756fdf73799f4bf
 vidi-agent  Fri Sep 25 13:15:43 2026 +0100
 

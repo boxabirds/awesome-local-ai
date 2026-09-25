@@ -4,9 +4,10 @@ const LABELS: Record<Exclude<ConnectionState, 'connected'>, string> = {
   connecting: 'Connecting…',
   reconnecting: 'Reconnecting…',
   confirmed: 'Connected',
+  load_failed: "This board couldn't be loaded. Retrying…",
 };
 
-/** Top-centre connection badge. Hidden while connected normally; never blocks editing. */
+/** Top-centre connection badge. Hidden while connected normally. */
 export function ConnectionStatus(props: { state: ConnectionState }) {
   if (props.state === 'connected') return null;
   return (

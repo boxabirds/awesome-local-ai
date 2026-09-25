@@ -10,6 +10,12 @@ import { StickyNote } from './objects/StickyNote';
 import { createSticky, deleteObject, snapshot } from '../shared/board-model';
 import { isValidBoardId, newBoardId } from '../shared/board-id';
 import { ConnectionStatus } from './sync/ConnectionStatus';
+import type { ConnectionState } from './sync/connectBoard';
+
+/** Whether the board may be edited: not while its saved state cannot be loaded (never over an empty stand-in). */
+export function canEdit(state: ConnectionState): boolean {
+  return state !== 'load_failed';
+}
 
 function isTextField(t: EventTarget | null): boolean {
   if (!(t instanceof HTMLElement)) return false;
@@ -47,11 +53,12 @@ export function App(props: { boardId?: string; doc?: Y.Doc } = {}) {
   const { doc, notes, connection } = useBoardDoc(props.boardId, props.doc);
   const selection = useSelection();
   const { select, startEdit, endEdit } = selection;
+  const editable = canEdit(connection);
 
   // A selected or edited note that no longer exists (deleted) is simply no longer selected.
   const exists = (id: string | null) => id !== null && notes.some((n) => n.id === id);
   const selectedId = exists(selection.selectedId) ? selection.selectedId : null;
-  const editingId = exists(selection.editingId) ? selection.editingId : null;
+  const editingId = editable && exists(selection.editingId) ? selection.editingId : null;
   useEffect(() => {
     if (selection.selectedId !== null && selectedId === null) select(null);
   }, [selection.selectedId, selectedId, select]);
@@ -64,11 +71,16 @@ export function App(props: { boardId?: string; doc?: Y.Doc } = {}) {
     return byId.map((note) => ({ note, stackIndex: rank.get(note.id)! }));
   }, [notes]);
 
-  const state = useRef({ selectedId, editingId });
-  state.current = { selectedId, editingId };
+  useEffect(() => {
+    if (!editable && selection.editingId !== null) endEdit('selected');
+  }, [editable, selection.editingId, endEdit]);
+
+  const state = useRef({ selectedId, editingId, editable });
+  state.current = { selectedId, editingId, editable };
 
   const createAt = useCallback(
     (world: Point) => {
+      if (!state.current.editable) return;
       const id = createSticky(doc, world);
       if (id) startEdit(id);
     },
@@ -78,8 +90,8 @@ export function App(props: { boardId?: string; doc?: Y.Doc } = {}) {
   // Enter edits the selected note; Delete/Backspace delete it. Never while typing.
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
-      const { selectedId: sel, editingId: editing } = state.current;
-      if (sel === null || editing !== null) return;
+      const { selectedId: sel, editingId: editing, editable: canChange } = state.current;
+      if (sel === null || editing !== null || !canChange) return;
       if (e.ctrlKey || e.metaKey || e.altKey || isTextField(e.target)) return;
       if (e.key === 'Enter') {
         if (e.target instanceof HTMLButtonElement || e.target instanceof HTMLAnchorElement) return;
@@ -104,7 +116,10 @@ export function App(props: { boardId?: string; doc?: Y.Doc } = {}) {
       onEmptyClick={() => select(null)}
       overlay={({ camera, size }) => (
         <>
-          <Toolbar onCreateSticky={() => createAt(screenToWorld(camera, { x: size.width / 2, y: size.height / 2 }))} />
+          <Toolbar
+            disabled={!editable}
+            onCreateSticky={() => createAt(screenToWorld(camera, { x: size.width / 2, y: size.height / 2 }))}
+          />
           <ConnectionStatus state={connection} />
         </>
       )}
@@ -119,6 +134,7 @@ export function App(props: { boardId?: string; doc?: Y.Doc } = {}) {
             zoom={camera.zoom}
             selected={note.id === selectedId}
             editing={note.id === editingId}
+            editable={editable}
             onSelect={select}
             onStartEdit={startEdit}
             onEndEdit={endEdit}
