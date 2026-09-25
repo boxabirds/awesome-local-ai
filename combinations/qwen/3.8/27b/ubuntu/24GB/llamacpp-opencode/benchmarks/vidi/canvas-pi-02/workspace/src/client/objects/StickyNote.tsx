@@ -34,7 +34,7 @@ const stopEvent = (e: { stopPropagation(): void }): void => {
  * the measurement twin stopPropagation so presses on them never hit the note.
  */
 export const StickyNote = memo(function StickyNote(props: ObjectProps): React.JSX.Element {
-  const { obj, doc, zoom, selected, editing, editable, onObjectPointerDown, onSelect, onStartEdit, onEndEdit } = props;
+  const { obj, doc, zoom, selected, editing, editable, undo, onObjectPointerDown, onSelect, onStartEdit, onEndEdit } = props;
   const rootRef = useRef<HTMLDivElement>(null);
   const measureRef = useRef<HTMLDivElement>(null);
   const [fit, setFit] = useState<FontFit>({ fontPx: STICKY_FONT_MAX_PX, overflow: false });
@@ -139,7 +139,7 @@ export const StickyNote = memo(function StickyNote(props: ObjectProps): React.JS
       </div>
 
       {editing && ytext !== undefined ? (
-        <StickyTextEditor ytext={ytext} fontPx={fit.fontPx} onEnd={() => onEndEdit()} />
+        <StickyTextEditor ytext={ytext} fontPx={fit.fontPx} onEnd={() => onEndEdit()} undo={undo} />
       ) : (
         <div
           className="vidi6-sticky__text"

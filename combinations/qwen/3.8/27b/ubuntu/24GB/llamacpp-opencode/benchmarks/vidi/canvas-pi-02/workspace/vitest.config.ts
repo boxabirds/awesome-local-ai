@@ -14,6 +14,10 @@ export default defineConfig({
           name: 'unit',
           environment: 'node',
           include: ['tests/unit/**/*.test.ts'],
+          // Transform (not externalize) Yjs + lib0 so vi.mock can reach
+          // their internal imports (undo tests re-point lib0/time's
+          // getUnixTime at the fakable global Date.now).
+          server: { deps: { inline: ['yjs', 'lib0'] } },
         },
       },
       {

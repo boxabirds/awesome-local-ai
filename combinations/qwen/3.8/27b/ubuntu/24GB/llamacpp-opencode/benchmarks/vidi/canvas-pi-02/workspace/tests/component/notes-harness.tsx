@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react';
 import type { RefObject } from 'react';
 import { act, render } from '@testing-library/react';
 import * as Y from 'yjs';
@@ -11,6 +12,9 @@ import type { Selection } from '../../src/client/board/useSelection';
 import { useBoardActions } from '../../src/client/board/useBoardActions';
 import { useBoardKeys } from '../../src/client/board/useBoardKeys';
 import { useTransformGesture } from '../../src/client/board/useTransformGesture';
+import { createUndo } from '../../src/client/board/undo';
+import type { UndoController } from '../../src/client/board/undo';
+import { useUndo } from '../../src/client/board/useUndo';
 import { useMarquee, MarqueeRect } from '../../src/client/board/Marquee';
 import { SelectionOverlay } from '../../src/client/board/SelectionOverlay';
 import { SelectionBar } from '../../src/client/board/SelectionBar';
@@ -31,6 +35,8 @@ export function NotesHarness({
   docRef,
   apiRef,
   selectionRef,
+  undoRef,
+  undo,
   editable = true,
   onGestureStart,
   onGestureEnd,
@@ -38,6 +44,13 @@ export function NotesHarness({
   docRef: RefObject<Y.Doc | null>;
   apiRef: RefObject<CameraApi | null>;
   selectionRef?: RefObject<Selection | null>;
+  /** The active undo controller (real or injected) for assertions. */
+  undoRef?: RefObject<UndoController | null>;
+  /**
+   * Inject a (fake) undo controller instead of the real one (story 8,
+   * TC-18 to TC-21). Absent: a real controller is created for the doc.
+   */
+  undo?: UndoController;
   /** persist.client_status: false simulates a locked (load_failed) board. */
   editable?: boolean;
   /** Gesture boundaries (story 8 undo hooks; asserted in TC-26). */
@@ -47,6 +60,13 @@ export function NotesHarness({
   const size = DEFAULT_SIZE;
   const api = useCamera(size);
   const { doc, notes } = useBoardDoc();
+  // Story 8: a real per-user controller per doc unless a test injects one.
+  const [internalUndo] = useState(() => createUndo(doc));
+  useEffect(() => () => internalUndo.destroy(), [internalUndo]);
+  const controller = undo ?? internalUndo;
+  if (undoRef) undoRef.current = controller;
+  const boundary = () => controller.boundary();
+  const undoState = useUndo(controller, editable);
   const selection = useSelection(notes, (id) => hasObject(doc, id));
   const actions = useBoardActions({ doc, api, size, selection, editable });
   const gesture = useTransformGesture({
@@ -55,18 +75,37 @@ export function NotesHarness({
     selection,
     snapshot: notes,
     canEdit: editable,
-    onGestureStart,
-    onGestureEnd,
+    onGestureStart: () => {
+      boundary();
+      onGestureStart?.();
+    },
+    onGestureEnd: () => {
+      boundary();
+      onGestureEnd?.();
+    },
   });
-  useBoardKeys({ doc, selection, snapshot: notes, canEdit: editable });
+  useBoardKeys({ doc, selection, snapshot: notes, canEdit: editable, undo: controller });
   const marquee = useMarquee(api.camera, notes, (ids) => selection.setMany(ids, true));
   if (docRef) docRef.current = doc;
   if (apiRef) apiRef.current = api;
   if (selectionRef) selectionRef.current = selection;
 
+  const createStickyAt = (p: { x: number; y: number }) => {
+    boundary();
+    actions.createAtScreenPoint(p);
+    boundary();
+  };
+  const createStickyCentre = () => {
+    boundary();
+    actions.createAtCentre();
+    boundary();
+  };
+
   const deleteSelection = () => {
     if (!editable) return;
+    boundary();
     if (deleteObjects(doc, [...selection.ids]) > 0) selection.clear();
+    boundary();
   };
 
   const selectedObjects = notes.filter((o) => selection.ids.has(o.id));
@@ -81,7 +120,7 @@ export function NotesHarness({
     <div className="vidi6-shell">
       <BoardViewport
         api={api}
-        onCreateStickyAt={actions.createAtScreenPoint}
+        onCreateStickyAt={createStickyAt}
         onEmptyClick={() => selection.clear()}
         marquee={marquee}
       >
@@ -102,6 +141,7 @@ export function NotesHarness({
               onSelect={selection.click}
               onStartEdit={selection.startEdit}
               onEndEdit={selection.endEdit}
+              undo={controller}
             />
           );
         })}
@@ -124,10 +164,11 @@ export function NotesHarness({
             doc={doc}
             editable={editable}
             onDelete={deleteSelection}
+            boundary={boundary}
           />
         </div>
       )}
-      <Toolbar onCreateSticky={actions.createAtCentre} />
+      <Toolbar onCreateSticky={createStickyCentre} undo={undoState} />
     </div>
   );
 }
@@ -137,6 +178,8 @@ export interface NotesHarnessHandle {
   apiRef: RefObject<CameraApi | null>;
   /** The live selection state (ids + editingId). */
   selectionRef: RefObject<Selection | null>;
+  /** The active undo controller (story 8). */
+  undoRef: RefObject<UndoController | null>;
   /** The board viewport element (empty board space). */
   viewport: HTMLElement;
 }
@@ -147,23 +190,28 @@ export function renderNotesHarness(
     editable?: boolean;
     onGestureStart?: () => void;
     onGestureEnd?: () => void;
+    /** Inject a (fake) undo controller instead of the real one (TC-18 to TC-21). */
+    undo?: UndoController;
   },
 ): NotesHarnessHandle {
   const docRef: RefObject<Y.Doc | null> = { current: null };
   const apiRef: RefObject<CameraApi | null> = { current: null };
   const selectionRef: RefObject<Selection | null> = { current: null };
+  const undoRef: RefObject<UndoController | null> = { current: null };
   render(
     <NotesHarness
       docRef={docRef}
       apiRef={apiRef}
       selectionRef={selectionRef}
+      undoRef={undoRef}
       editable={props?.editable ?? true}
       onGestureStart={props?.onGestureStart}
       onGestureEnd={props?.onGestureEnd}
+      undo={props?.undo}
     />,
   );
   const viewport = document.querySelector('.vidi6-viewport') as HTMLElement;
-  return { docRef, apiRef, selectionRef, viewport };
+  return { docRef, apiRef, selectionRef, undoRef, viewport };
 }
 
 /** Create a note from test code (outside React events), flushed synchronously. */

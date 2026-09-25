@@ -4,6 +4,7 @@ import * as Y from 'yjs';
 import { LOCAL_ORIGIN } from '../../shared/board-model';
 import { STICKY_TEXT_MAX_CHARS } from '../../shared/config';
 import { applyTextDelta, applyTextDiff, clampToLimit, counterVisible } from './StickyText';
+import type { UndoController } from '../board/undo';
 
 export interface StickyTextEditorProps {
   /** The note's live Y.Text; every input is written to it immediately. */
@@ -12,6 +13,13 @@ export interface StickyTextEditorProps {
   fontPx: number;
   /** Escape -> 'selected'; pointerdown outside the note -> 'unselected'. */
   onEnd(next: 'selected' | 'unselected'): void;
+  /**
+   * The tab's undo controller (story 8, undo.boundaries).
+   * `boundary()` on mount and on end isolates the typing burst from the
+   * surrounding steps; Ctrl/Cmd+Z / Ctrl/Cmd+Shift+Z / Ctrl+Y are
+   * intercepted so the native textarea history never diverges from Y.Text.
+   */
+  undo: UndoController;
 }
 
 /**
@@ -27,7 +35,7 @@ export interface StickyTextEditorProps {
  * - Enter inserts a newline (never intercepted).
  */
 export function StickyTextEditor(props: StickyTextEditorProps): JSX.Element {
-  const { ytext, fontPx, onEnd } = props;
+  const { ytext, fontPx, onEnd, undo } = props;
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const composingRef = useRef(false);
   const endedRef = useRef(false);
@@ -48,10 +56,14 @@ export function StickyTextEditor(props: StickyTextEditorProps): JSX.Element {
     if (endedRef.current) return;
     endedRef.current = true;
     syncToYText(); // defensive flush; inputs are normally already written
+    undo.boundary(); // end of the typing session: a later action is a new step
     onEnd(next);
   };
 
   useEffect(() => {
+    // Starting a session is a step boundary (undo.boundaries): the typing
+    // burst must never merge with the step that preceded the double-click.
+    undo.boundary();
     const ta = textareaRef.current;
     if (!ta) return;
     const text = ytext.toString();
@@ -102,6 +114,22 @@ export function StickyTextEditor(props: StickyTextEditorProps): JSX.Element {
           if (e.key === 'Escape') {
             e.preventDefault();
             finish('selected');
+            return;
+          }
+          // Undo/redo run against the Y.Text history (story 8): the native
+          // textarea history is never touched, so the two can't diverge.
+          if ((e.ctrlKey || e.metaKey) && !e.altKey) {
+            const key = e.key.toLowerCase();
+            if (key === 'z' && !e.shiftKey) {
+              e.preventDefault();
+              undo.undo();
+              return;
+            }
+            if ((key === 'z' && e.shiftKey) || key === 'y') {
+              e.preventDefault();
+              undo.redo();
+              return;
+            }
           }
           // Enter is deliberately not intercepted: it inserts a newline.
         }}

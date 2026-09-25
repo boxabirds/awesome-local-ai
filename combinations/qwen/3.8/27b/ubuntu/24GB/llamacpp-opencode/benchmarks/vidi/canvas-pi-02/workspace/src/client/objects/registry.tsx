@@ -1,6 +1,7 @@
 import * as React from 'react';
 import * as Y from 'yjs';
 import { STICKY_MIN_SIZE_WORLD, STICKY_SIZE_WORLD } from '../../shared/config';
+import type { UndoController } from '../board/undo';
 import { objectBounds } from '../../shared/board-model';
 import { pointInRect } from '../../shared/geometry';
 import type { ObjectSnapshot } from '../../shared/board-model';
@@ -32,6 +33,8 @@ export interface ObjectProps {
   editing: boolean;
   /** persist.client_status: false while the board is locked (view-only). */
   editable: boolean;
+  /** The tab's undo controller (story 8; the text editor uses it). */
+  undo: UndoController;
   /** Generic object press (story 7 transform gesture; window-level). */
   onObjectPointerDown: (e: PointerEvent, id: string) => void;
   /** Tab focus selects the object (so Enter can then edit it). */

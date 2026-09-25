@@ -5,6 +5,7 @@ import type { ObjectSnapshot } from '../../shared/board-model';
 import { NUDGE_LARGE_STEP_WORLD, NUDGE_STEP_WORLD } from '../../shared/config';
 import type { Point } from '../canvas/camera';
 import type { Selection } from './useSelection';
+import type { UndoController } from './undo';
 
 function isTypingTarget(target: EventTarget | null): boolean {
   if (!(target instanceof HTMLElement)) return false;
@@ -23,16 +24,21 @@ function isTypingTarget(target: EventTarget | null): boolean {
  *    NUDGE_LARGE_STEP_WORLD with Shift; preventDefault so the page neither
  *    scrolls nor pans the board;
  *  - Delete/Backspace (with a selection, editable board): delete everything
- *    selected, then clear.
+ *    selected, then clear;
+ *  - Ctrl/Cmd+Z → undo; Ctrl/Cmd+Shift+Z and Ctrl/Cmd+Y → redo (story 8,
+ *    undo.controls): preventDefault, ignored while locked (`canEdit ===
+ *    false`).
  *
  * Ignored while `editingId` is set or focus is in an input/textarea/button,
- * so typing in a note (or on a toolbar button) keeps its native behaviour.
+ * so typing in a note (or on a toolbar button) keeps its native behaviour
+ * (the sticky editor handles its own undo/redo keys).
  */
 export function useBoardKeys(opts: {
   doc: Y.Doc;
   selection: Selection;
   snapshot: readonly ObjectSnapshot[];
   canEdit: boolean;
+  undo: UndoController;
 }): void {
   const docRef = useRef(opts.doc);
   docRef.current = opts.doc;
@@ -42,6 +48,8 @@ export function useBoardKeys(opts: {
   snapshotRef.current = opts.snapshot;
   const canEditRef = useRef(opts.canEdit);
   canEditRef.current = opts.canEdit;
+  const undoRef = useRef(opts.undo);
+  undoRef.current = opts.undo;
 
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent): void => {
@@ -62,9 +70,27 @@ export function useBoardKeys(opts: {
         return;
       }
 
+      // Ctrl/Cmd+Z / Ctrl/Cmd+Shift+Z / Ctrl/Cmd+Y: undo and redo (story 8).
+      // Each nudge/delete below is one step, so the undo keys must work
+      // without a selection too.
+      if (e.ctrlKey || e.metaKey) {
+        const key = e.key.toLowerCase();
+        const isUndo = key === 'z' && !e.shiftKey && !e.altKey;
+        const isRedo = (key === 'z' && e.shiftKey && !e.altKey) || (key === 'y' && !e.shiftKey && !e.altKey);
+        if (isUndo || isRedo) {
+          if (canEditRef.current) {
+            e.preventDefault();
+            if (isUndo) undoRef.current.undo();
+            else undoRef.current.redo();
+          }
+          return;
+        }
+      }
+
       if (selection.ids.size === 0) return; // the rest needs a selection
 
-      // Arrow keys: nudge (no page scroll, no board pan).
+      // Arrow keys: nudge (no page scroll, no board pan). Each nudge is one
+      // undo step (story 8): boundaries bracket the single model call.
       if (e.key === 'ArrowRight' || e.key === 'ArrowLeft' || e.key === 'ArrowUp' || e.key === 'ArrowDown') {
         if (!canEditRef.current) return;
         e.preventDefault();
@@ -76,14 +102,18 @@ export function useBoardKeys(opts: {
         for (const o of snapshot) {
           if (selection.ids.has(o.id)) positions.set(o.id, { x: o.x + dx, y: o.y + dy });
         }
+        undoRef.current.boundary();
         moveObjects(docRef.current, positions);
+        undoRef.current.boundary();
         return;
       }
 
       if (e.key === 'Delete' || e.key === 'Backspace') {
         if (!canEditRef.current) return;
         e.preventDefault();
+        undoRef.current.boundary();
         if (deleteObjects(docRef.current, [...selection.ids]) > 0) selection.clear();
+        undoRef.current.boundary();
         return;
       }
 

@@ -39,6 +39,8 @@ import { useSelection } from '../board/useSelection';
 import { useBoardActions } from '../board/useBoardActions';
 import { useBoardKeys } from '../board/useBoardKeys';
 import { useTransformGesture } from '../board/useTransformGesture';
+import { createUndo } from '../board/undo';
+import { useUndo } from '../board/useUndo';
 import { useMarquee, MarqueeRect } from '../board/Marquee';
 import { SelectionOverlay } from '../board/SelectionOverlay';
 import { SelectionBar } from '../board/SelectionBar';
@@ -118,8 +120,10 @@ function BoardPageInner({ id }: { id: string }) {
     );
   }
 
-  // state === 'ready': render the board UI
-  return <BoardContent id={id} />;
+  // state === 'ready': render the board UI. The key remounts the whole
+  // content (fresh doc connection AND a fresh per-user undo history) when
+  // navigating between boards.
+  return <BoardContent key={id} id={id} />;
 }
 
 /**
@@ -146,8 +150,14 @@ function BoardContent({ id }: { id: string }) {
 
   const api = useCamera(size);
   const { doc, notes, connectionPhase } = useBoardDoc(id);
+  // One per-user undo controller per doc (story 8, undo.history). Session
+  // only: destroyed on unmount, a fresh one starts empty (undo.session_only).
+  const [undo] = useState(() => createUndo(doc));
+  useEffect(() => () => undo.destroy(), [undo]);
   const selection = useSelection(notes, (id) => hasObject(doc, id));
   const editable = canEdit(connectionPhase);
+  const undoState = useUndo(undo, editable);
+  const boundary = useCallback(() => undo.boundary(), [undo]);
   const actions = useBoardActions({ doc, api, size, selection, editable });
   const gesture = useTransformGesture({
     doc,
@@ -155,13 +165,30 @@ function BoardContent({ id }: { id: string }) {
     selection,
     snapshot: notes,
     canEdit: editable,
+    // Step boundaries (story 8, undo.boundaries): one gesture = one step.
+    onGestureStart: boundary,
+    onGestureEnd: boundary,
   });
-  useBoardKeys({ doc, selection, snapshot: notes, canEdit: editable });
+  useBoardKeys({ doc, selection, snapshot: notes, canEdit: editable, undo });
   const marquee = useMarquee(api.camera, notes, (ids) => selection.setMany(ids, true));
+
+  // Creation and deletion are single steps (story 8, undo.boundaries).
+  const createStickyAt = (point: Parameters<typeof actions.createAtScreenPoint>[0]) => {
+    boundary();
+    actions.createAtScreenPoint(point);
+    boundary();
+  };
+  const createStickyCentre = () => {
+    boundary();
+    actions.createAtCentre();
+    boundary();
+  };
 
   const deleteSelection = () => {
     if (!editable) return;
+    boundary();
     if (deleteObjects(doc, [...selection.ids]) > 0) selection.clear();
+    boundary();
   };
 
   // Bounding box of the selection (world units) → the bar's anchor (screen).
@@ -177,7 +204,7 @@ function BoardContent({ id }: { id: string }) {
     <div className="vidi6-shell" ref={shellRef}>
       <BoardViewport
         api={api}
-        onCreateStickyAt={actions.createAtScreenPoint}
+        onCreateStickyAt={createStickyAt}
         onEmptyClick={() => selection.clear()}
         marquee={marquee}
       >
@@ -199,6 +226,7 @@ function BoardContent({ id }: { id: string }) {
               onSelect={selection.click}
               onStartEdit={selection.startEdit}
               onEndEdit={selection.endEdit}
+              undo={undo}
             />
           );
         })}
@@ -221,10 +249,11 @@ function BoardContent({ id }: { id: string }) {
             doc={doc}
             editable={editable}
             onDelete={deleteSelection}
+            boundary={boundary}
           />
         </div>
       )}
-      <Toolbar onCreateSticky={actions.createAtCentre} disabled={!editable} />
+      <Toolbar onCreateSticky={createStickyCentre} disabled={!editable} undo={undoState} />
       <ConnectionStatus phase={connectionPhase} />
       <ZoomControls
         zoomPercent={zoomPercent(api.camera)}
