@@ -3,6 +3,7 @@
 use serde::{Deserialize, Serialize};
 
 const STORY_PREFIX: &str = "[story ";
+const GATE_MARKER: &str = "gate green=";
 const MINUTE_S: u64 = 60;
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
@@ -97,7 +98,9 @@ pub fn parse_line(line: &str) -> Option<(Option<u32>, EventKind)> {
                 commit: s.split_whitespace().next()?.to_string(),
                 pushed: kv(s, "pushed").and_then(py_bool),
             }
-        } else if rest.starts_with("gate green=") {
+        } else if let Some(at) = rest.find(GATE_MARKER) {
+            // "[story N] DONE gate green=…" — anything before the marker is the story's status.
+            let rest = &rest[at..];
             let accept = rest.split_once(" accept ")?.1.split_whitespace().next()?;
             let (p, tot) = accept.split_once('/')?;
             EventKind::Scored {
@@ -293,6 +296,21 @@ RuntimeError: boom
             Some((
                 Some(3),
                 EventKind::Scored { green: None, passed: 0, total: 12, stalled: Some(true), degraded: true }
+            ))
+        );
+        // Since the story status was added, the harness prints it before the gate result.
+        assert_eq!(
+            parse_line("[story 4] DONE gate green=True accept 4/4 stalled=False"),
+            Some((
+                Some(4),
+                EventKind::Scored { green: Some(true), passed: 4, total: 4, stalled: Some(false), degraded: false }
+            ))
+        );
+        assert_eq!(
+            parse_line("[story 6] PARTIAL verdict incomplete gate green=False accept 2/9 stalled=False"),
+            Some((
+                Some(6),
+                EventKind::Scored { green: Some(false), passed: 2, total: 9, stalled: Some(false), degraded: false }
             ))
         );
         for noise in [
