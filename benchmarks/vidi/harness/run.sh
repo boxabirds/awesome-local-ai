@@ -78,9 +78,10 @@ fi
 ACCEPTANCE="$(python3 "$HARNESS/packdir.py" acceptance)"  # private pack repo, or benchmarks/vidi
 if [[ ! -d "$ACCEPTANCE/node_modules" || "$ACCEPTANCE/package-lock.json" -nt "$ACCEPTANCE/node_modules" ]]; then
   echo "installing the acceptance suite's dependencies"
-  (cd "$ACCEPTANCE" && npm ci --no-audit --no-fund --silent && npx playwright install chromium >/dev/null) \
-    || { echo "acceptance suite install failed" >&2; exit 1; }
+  (cd "$ACCEPTANCE" && npm ci --no-audit --no-fund --silent) || { echo "acceptance suite install failed" >&2; exit 1; }
 fi
+# Every run: the browser matching the suite's Playwright version (a no-op when it's already there).
+(cd "$ACCEPTANCE" && npx playwright install chromium >/dev/null) || { echo "playwright browser install failed" >&2; exit 1; }
 
 echo "sandbox preflight (agent toolchain inside the sandbox)"
 (cd "$HARNESS" && uv run --quiet preflight.py --client "$CLIENT_NAME") || { echo "preflight failed; not starting the run" >&2; exit 1; }

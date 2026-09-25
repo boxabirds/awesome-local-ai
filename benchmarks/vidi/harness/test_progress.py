@@ -43,7 +43,7 @@ def test_parse_tasks_reads_the_table_and_expands_tc_ranges():
 
 
 def test_every_story_in_the_spec_has_a_parseable_task_table():
-    for d in (SPEC / "stories").iterdir():
+    for d in (p for p in (SPEC / "stories").iterdir() if p.is_dir()):
         tasks = progress.parse_tasks(d / "tasks.md")
         assert tasks, d.name
         assert all(t["tcs"] for t in tasks if t["type"] != "implementation"), d.name
