@@ -326,3 +326,37 @@ body,
   outline: 2px solid var(--focus);
   outline-offset: 1px;
 }
+
+/* ---- Story 3: connection status badge ---- */
+.connection-status {
+  position: fixed;
+  left: 50%;
+  top: 12px;
+  transform: translateX(-50%);
+  padding: 4px 12px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 500;
+  pointer-events: none;
+  white-space: nowrap;
+  border: 1px solid transparent;
+  z-index: 10;
+}
+
+.connection-status[data-state='connecting'] {
+  background: #eaeef2;
+  border-color: var(--panel-border);
+  color: var(--ink);
+}
+
+.connection-status[data-state='reconnecting'] {
+  background: #fff8c5;
+  border-color: #d4a72c;
+  color: #7d4e00;
+}
+
+.connection-status[data-state='confirmed'] {
+  background: #dafbe1;
+  border-color: #4ac26b;
+  color: #116329;
+}

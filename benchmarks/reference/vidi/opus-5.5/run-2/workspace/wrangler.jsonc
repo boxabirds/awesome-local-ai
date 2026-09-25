@@ -1,10 +1,18 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "vidi6",
-  "compatibility_date": "2026-09-01",
-  // Static client only in story 1. The Worker `main` arrives in story 3.
+  "main": "src/worker/index.ts",
+  "compatibility_date": "2026-08-15",
   "assets": {
     "directory": "dist/client",
+    "binding": "ASSETS",
+    // Room sockets must reach the Worker, not the single-page-application fallback.
+    "run_worker_first": ["/api/*"],
     "not_found_handling": "single-page-application"
-  }
+  },
+  "durable_objects": {
+    "bindings": [{ "name": "BOARD_ROOM", "class_name": "BoardRoom" }]
+  },
+  // SQLite-backed from the start so story 4 (persistence) needs no class migration.
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["BoardRoom"] }]
 }

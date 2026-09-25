@@ -1,16 +1,20 @@
 /**
  * Owns the board's Y.Doc and exposes an immutable snapshot of its notes to React via
- * useSyncExternalStore (anchor: board.model). Story 3 attaches a network provider to
- * the same document; story 4 persists it.
+ * useSyncExternalStore (anchor: board.model). With a `boardId` it also connects the
+ * document to that board's room (anchor: sync.client); remote updates re-render through
+ * the same observeDeep path as local changes. Story 4 persists it.
  */
-import { useMemo, useState, useSyncExternalStore } from 'react';
+import { useEffect, useMemo, useState, useSyncExternalStore } from 'react';
 import * as Y from 'yjs';
 import { initDoc, observeObjects, snapshot, type StickySnapshot } from '../../shared/board-model';
+import { connectBoard, type ConnectionState, type ProviderFactory } from '../sync/connectBoard';
 
 export interface BoardDocApi {
   doc: Y.Doc;
   /** Notes sorted by (z, id). Unchanged notes keep their object identity between updates. */
   notes: readonly StickySnapshot[];
+  /** Sync connection state; 'connected' (badge hidden) when the board is local-only. */
+  connection: ConnectionState;
 }
 
 function sameNote(a: StickySnapshot, b: StickySnapshot): boolean {
@@ -72,14 +76,35 @@ function createNotesStore(doc: Y.Doc): NotesStore {
   };
 }
 
-/** Uses `existing` when given (tests, later: a synced doc), otherwise creates one Y.Doc. */
-export function useBoardDoc(existing?: Y.Doc): BoardDocApi {
+export interface BoardDocOptions {
+  /** Board to connect to. Omitted: a local-only document (component tests). */
+  boardId?: string;
+  /** Uses this document instead of creating one (tests). */
+  doc?: Y.Doc;
+  /** Replaces the y-websocket provider (component tests). */
+  createProvider?: ProviderFactory;
+}
+
+export function useBoardDoc(options: BoardDocOptions = {}): BoardDocApi {
+  const { boardId, createProvider } = options;
   const [doc] = useState<Y.Doc>(() => {
-    const d = existing ?? new Y.Doc();
+    const d = options.doc ?? new Y.Doc();
+    // Every tab may set the same schema version concurrently; the sets converge.
     initDoc(d);
     return d;
   });
   const store = useMemo(() => createNotesStore(doc), [doc]);
   const notes = useSyncExternalStore(store.subscribe, store.getSnapshot, store.getSnapshot);
-  return { doc, notes };
+  const [connection, setConnection] = useState<ConnectionState>(boardId === undefined ? 'connected' : 'connecting');
+
+  useEffect(() => {
+    if (boardId === undefined) {
+      setConnection('connected');
+      return undefined;
+    }
+    const connection = connectBoard(doc, boardId, setConnection, createProvider);
+    return () => connection.destroy();
+  }, [doc, boardId, createProvider]);
+
+  return { doc, notes, connection };
 }

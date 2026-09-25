@@ -55,3 +55,15 @@ export const STICKY_PADDING_WORLD = 16;
 export const STICKY_LINE_HEIGHT = 1.25;
 /** Gap between a selected note and its floating toolbar, in screen pixels. */
 export const NOTE_TOOLBAR_GAP_PX = 8;
+
+// ---- Story 3: live collaboration ----
+/** Soft capacity: simultaneous editors the board is designed and tested for. Never enforced. */
+export const MAX_CONCURRENT_EDITORS = 5;
+/** A change must appear on every other screen within this time (PRD live.propagate). */
+export const LIVE_UPDATE_LATENCY_BUDGET_MS = 1000;
+/** Longest wait between reconnection attempts (WebsocketProvider maxBackoffTime). */
+export const RECONNECT_MAX_BACKOFF_MS = 10_000;
+/** How long the green "Connected" badge stays after a reconnection. */
+export const CONNECTED_CONFIRMATION_MS = 2000;
+/** Outage length used by the catch-up verification (PRD live.catch_up). */
+export const CATCH_UP_TEST_OUTAGE_MS = 30_000;

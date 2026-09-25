@@ -61,6 +61,296 @@
           "peek_paths": []
         }
       }
+    },
+    "3": {
+      "title": "See other people's edits appear live on the same board",
+      "conditions_start": {
+        "ac": true,
+        "low_power": false,
+        "thermal": "nominal"
+      },
+      "started": 1790322615.355956,
+      "agent": {
+        "seconds": 1280.7,
+        "steps": 68,
+        "tool_calls": 70,
+        "compactions": 0,
+        "tool_interruptions": 0,
+        "tokens": {
+          "input": 136,
+          "output": 69355,
+          "reasoning": 0,
+          "cache_read": 6873291,
+          "cache_write": 151268
+        },
+        "exit": 0,
+        "stalled": false,
+        "resumes": 0,
+        "nudges": 0,
+        "errors": [],
+        "ended_by_operator": false,
+        "ended_in_error": false,
+        "sessions": [
+          "e3e1cbb0-defd-41ca-8834-60d567f6a2ef"
+        ]
+      },
+      "agent_finished": 1790323896.1111739,
+      "conditions": {
+        "samples": 42,
+        "degraded": false,
+        "throttled_share": 0.0,
+        "bad_samples": [],
+        "swap_start_gb": 0.15,
+        "swap_max_gb": 0.15,
+        "aborted_swap": false,
+        "aborted_memory": false,
+        "free_min_pct": 79.0,
+        "server_footprint_max_gb": null,
+        "server_footprint_peak_gb": null
+      },
+      "agent_commits": 1,
+      "gate": {
+        "steps": {
+          "install": {
+            "cmd": "npm ci",
+            "exit": 0,
+            "seconds": 5.7,
+            "tail": "\nadded 173 packages, and audited 174 packages in 6s\n\n42 packages are looking for funding\n  run `npm fund` for details\n\n4 high severity vulnerabilities\n\nTo address all issues (including breaking changes), run:\n  npm audit fix --force\n\nRun `npm audit` for details.\n"
+          },
+          "build": {
+            "cmd": "npm run build",
+            "exit": 0,
+            "seconds": 1.1,
+            "tail": "\n> vidi6@0.1.0 build\n> vite build\n\n\u001b[36mvite v8.3.1 \u001b[32mbuilding client environment for production...\u001b[36m\u001b[39m\ntransforming...\n\u2713 77 modules transformed.\nrendering chunks...\ncomputing gzip size...\ndist/client/index.html                   0.39 kB \u2502 gzip:   0.26 kB\ndist/client/assets/index-QCoDfIxz.css    5.20 kB \u2502 gzip:   1.56 kB\ndist/client/assets/index-DvVvGqwG.js   329.23 kB \u2502 gzip: 102.84 kB\n\n\u001b[32m\u2713 built in 292ms\u001b[39m\n",
+            "passed": null,
+            "failed": null
+          },
+          "typecheck": {
+            "cmd": "npm run typecheck",
+            "exit": 0,
+            "seconds": 0.8,
+            "tail": "\n> vidi6@0.1.0 typecheck\n> tsc --noEmit -p tsconfig.json && tsc --noEmit -p tsconfig.worker.json\n\n",
+            "passed": null,
+            "failed": null
+          },
+          "test:unit": {
+            "cmd": "npm run test:unit",
+            "exit": 0,
+            "seconds": 1.2,
+            "tail": "\n> vidi6@0.1.0 test:unit\n> vitest run --project unit\n\n\n\u001b[1m\u001b[30m\u001b[46m RUN \u001b[49m\u001b[39m\u001b[22m \u001b[36mv4.1.11 \u001b[39m\u001b[90m~/.vidi-bench/work/benchmarks__reference__vidi__opus-5.5__run-2/workspace\u001b[39m\n\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[42m unit \u001b[49m\u001b[39m tests/unit/protocol.test.ts \u001b[2m(\u001b[22m\u001b[2m7 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 5\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[42m unit \u001b[49m\u001b[39m tests/unit/camera.test.ts \u001b[2m(\u001b[22m\u001b[2m20 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 33\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[42m unit \u001b[49m\u001b[39m tests/unit/sticky-text.test.ts \u001b[2m(\u001b[22m\u001b[2m20 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 8\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[42m unit \u001b[49m\u001b[39m tests/unit/board-model.test.ts \u001b[2m(\u001b[22m\u001b[2m21 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 48\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[42m unit \u001b[49m\u001b[39m tests/unit/board-id.test.ts \u001b[2m(\u001b[22m\u001b[2m3 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 80\u001b[2mms\u001b[22m\u001b[39m\n\n\u001b[2m Test Files \u001b[22m \u001b[1m\u001b[32m5 passed\u001b[39m\u001b[22m\u001b[90m (5)\u001b[39m\n\u001b[2m      Tests \u001b[22m \u001b[1m\u001b[32m71 passed\u001b[39m\u001b[22m\u001b[90m (71)\u001b[39m\n\u001b[2m   Start at \u001b[22m 09:11:44\n\u001b[2m   Duration \u001b[22m 210ms\u001b[2m (transform 194ms, setup 0ms, import 306ms, tests 174ms, environment 0ms)\u001b[22m\n\n",
+            "passed": 71,
+            "failed": 0
+          },
+          "test:component": {
+            "cmd": "npm run test:component",
+            "exit": 0,
+            "seconds": 2.2,
+            "tail": "\n> vidi6@0.1.0 test:component\n> vitest run --project component\n\n\n\u001b[1m\u001b[30m\u001b[46m RUN \u001b[49m\u001b[39m\u001b[22m \u001b[36mv4.1.11 \u001b[39m\u001b[90m~/.vidi-bench/work/benchmarks__reference__vidi__opus-5.5__run-2/workspace\u001b[39m\n\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[45m component \u001b[49m\u001b[39m tests/component/BoardViewport.test.tsx \u001b[2m(\u001b[22m\u001b[2m15 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 131\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[45m component \u001b[49m\u001b[39m tests/component/NavigationHint.test.tsx \u001b[2m(\u001b[22m\u001b[2m4 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 184\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[45m component \u001b[49m\u001b[39m tests/component/ConnectionStatus.test.tsx \u001b[2m(\u001b[22m\u001b[2m7 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 191\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[45m component \u001b[49m\u001b[39m tests/component/ZoomControls.test.tsx \u001b[2m(\u001b[22m\u001b[2m8 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[33m 312\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[45m component \u001b[49m\u001b[39m tests/component/Toolbars.test.tsx \u001b[2m(\u001b[22m\u001b[2m7 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[33m 326\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[45m component \u001b[49m\u001b[39m tests/component/StickyNote.test.tsx \u001b[2m(\u001b[22m\u001b[2m21 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[33m 391\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[45m component \u001b[49m\u001b[39m tests/component/StickyTextEditor.test.tsx \u001b[2m(\u001b[22m\u001b[2m13 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[33m 440\u001b[2mms\u001b[22m\u001b[39m\n\n\u001b[2m Test Files \u001b[22m \u001b[1m\u001b[32m7 passed\u001b[39m\u001b[22m\u001b[90m (7)\u001b[39m\n\u001b[2m      Tests \u001b[22m \u001b[1m\u001b[32m75 passed\u001b[39m\u001b[22m\u001b[90m (75)\u001b[39m\n\u001b[2m   Start at \u001b[22m 09:11:46\n\u001b[2m   Duration \u001b[22m 1.37s\u001b[2m (transform 552ms, setup 605ms, import 1.02s, tests 1.97s, environment 3.82s)\u001b[22m\n\n",
+            "passed": 75,
+            "failed": 0
+          },
+          "test:integration": {
+            "cmd": "npm run test:integration",
+            "exit": 0,
+            "seconds": 2.6,
+            "tail": "\n> vidi6@0.1.0 test:integration\n> vite build && vitest run --project integration\n\n\u001b[36mvite v8.3.1 \u001b[32mbuilding client environment for production...\u001b[36m\u001b[39m\ntransforming...\n\u2713 77 modules transformed.\nrendering chunks...\ncomputing gzip size...\ndist/client/index.html                   0.39 kB \u2502 gzip:   0.26 kB\ndist/client/assets/index-QCoDfIxz.css    5.20 kB \u2502 gzip:   1.56 kB\ndist/client/assets/index-DvVvGqwG.js   329.23 kB \u2502 gzip: 102.84 kB\n\n\u001b[32m\u2713 built in 74ms\u001b[39m\n\n\u001b[1m\u001b[30m\u001b[46m RUN \u001b[49m\u001b[39m\u001b[22m \u001b[36mv4.1.11 \u001b[39m\u001b[90m~/.vidi-bench/work/benchmarks__reference__vidi__opus-5.5__run-2/workspace\u001b[39m\n\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[45m integration \u001b[49m\u001b[39m tests/integration/worker.test.ts \u001b[2m(\u001b[22m\u001b[2m5 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 192\u001b[2mms\u001b[22m\u001b[39m\n\u001b[90mstdout\u001b[2m | tests/integration/board-room.test.ts\u001b[2m > \u001b[22m\u001b[2mBoardRoom (sync.room)\u001b[2m > \u001b[22m\u001b[2mTC-12 5 clients x 200 seeded random ops converge\n\u001b[22m\u001b[39mTC-12 seed 909467\n\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[45m integration \u001b[49m\u001b[39m tests/integration/board-room.test.ts \u001b[2m(\u001b[22m\u001b[2m17 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[33m 899\u001b[2mms\u001b[22m\u001b[39m\n\n\u001b[2m Test Files \u001b[22m \u001b[1m\u001b[32m2 passed\u001b[39m\u001b[22m\u001b[90m (2)\u001b[39m\n\u001b[2m      Tests \u001b[22m \u001b[1m\u001b[32m22 passed\u001b[39m\u001b[22m\u001b[90m (22)\u001b[39m\n\u001b[2m   Start at \u001b[22m 09:11:48\n\u001b[2m   Duration \u001b[22m 1.58s\u001b[2m (transform 292ms, setup 0ms, import 633ms, tests 1.09s, environment 0ms)\u001b[22m\n\n\u001b[90mstderr\u001b[2m | tests/integration/board-room.test.ts\u001b[2m > \u001b[22m\u001b[2mBoardRoom (sync.room)\u001b[2m > \u001b[22m\u001b[2mTC-15 malformed traffic closes only the sender and leaves the doc unchanged\u001b[2m > \u001b[22m\u001b[2minvalid Yjs update\n\u001b[22m\u001b[39mCaught error while handling a Yjs update Error: Unexpected end of array\n    at Module.create (~/.vidi-bench/work/benchmarks__reference__vidi__opus-5.5__run-2/workspace/node_modules/\u001b[4mlib0\u001b[24m/error.js:12:28)\n    at ~/.vidi-bench/work/benchmarks__reference__vidi__opus-5.5__run-2/workspace/node_modules/\u001b[4mlib0\u001b[24m/decoding.js:36:41\n    at VitestModuleEvaluator._runInlinedModule (Users/julian/.vidi-bench/work/benchmarks__reference__vidi__opus-5.5__run-2/workspace/node_modules/\u001b[4mvitest\u001b[24m/dist/module-evaluator.js:206:4)\n    at VitestModuleRunner.directRequest (Users/julian/.vidi-bench/work/benchmarks__reference__vidi__opus-5.5__run-2/workspace/node_modules/\u001b[4mvite\u001b[24m/dist/node/module-runner.js:1272:59)\n    at VitestModuleRunner.cachedRequest (Users/julian/.vidi-bench/work/benchmarks__reference__vidi__opus-5.5__run-2/workspace/node_modules/\u001b[4mvite\u001b[24m/dist/node/module-runner.js:1179:73)\n    at ~/.vidi-bench/work/benchmarks__reference__vidi__opus-5.5__run-2/workspace/node_modules/\u001b[4my-protocols\u001b[24m/sync.js:6:1\n    at VitestModuleEvaluator._runInlinedModule (Users/julian/.vidi-bench/work/benchmarks__reference__vidi__opus-5.5__run-2/workspace/node_modules/\u001b[4mvitest\u001b[24m/dist/module-evaluator.js:206:4)\n    at VitestModuleRunner.directRequest (Users/julian/.vidi-bench/work/benchmarks__reference__vidi__opus-5.5__run-2/workspace/node_modules/\u001b[4mvite\u001b[24m/dist/node/module-runner.js:1272:59)\n    at VitestModuleRunner.cachedRequest (Users/julian/.vidi-bench/work/benchmarks__reference__vidi__opus-5.5__run-2/workspace/node_modules/\u001b[4mvite\u001b[24m/dist/node/module-runner.js:1179:73)\n    at ~/.vidi-bench/work/benchmarks__reference__vidi__opus-5.5__run-2/workspace/tests/integration/board-room.test.ts:4:1\n\n",
+            "passed": 22,
+            "failed": 0
+          },
+          "test:e2e": {
+            "cmd": "npm run test:e2e -- --project=chromium",
+            "exit": 0,
+            "seconds": 39.8,
+            "tail": "\n> vidi6@0.1.0 test:e2e\n> playwright test --project=chromium\n\n\nRunning 19 tests using 4 workers\n\n  \u2713   4 [chromium] \u203a tests/e2e/live-collaboration.spec.ts:76:3 \u203a Two-person workshop \u203a TC-23 simultaneous typing in one note keeps every character (1.0s)\n  \u2713   3 [chromium] \u203a tests/e2e/live-collaboration.spec.ts:40:3 \u203a Two-person workshop \u203a TC-22 every kind of change appears for the other person within the budget (1.3s)\n  \u2713   2 [chromium] \u203a tests/e2e/live-collaboration.spec.ts:98:3 \u203a Two-person workshop \u203a TC-24 two people dragging one note settle on the same position (1.3s)\n  \u2713   1 [chromium] \u203a tests/e2e/live-collaboration.spec.ts:114:3 \u203a Two-person workshop \u203a TC-25 deleting a note someone is typing in ends their editing cleanly (2.2s)\n  \u2713   5 [chromium] \u203a tests/e2e/live-collaboration.spec.ts:140:3 \u203a Two-person workshop \u203a TC-28 my selection and editing stay on my screen (1.7s)\n  \u2713   8 [chromium] \u203a tests/e2e/navigation.spec.ts:41:3 \u203a Workflow 1: first visit navigation \u203a TC-28 \u2192 TC-23 \u2192 TC-24: hint, exact drag, zoom around the pointer (659ms)\n  \u2713   9 [chromium] \u203a tests/e2e/navigation.spec.ts:91:3 \u203a Workflow 1: first visit navigation \u203a plain wheel scrolling pans the board in the scroll direction (346ms)\n  \u2713  10 [chromium] \u203a tests/e2e/navigation.spec.ts:107:3 \u203a Workflow 2: limits and recovery \u203a TC-25 \u2192 TC-26: zoom to the maximum, then Reset view from far away (885ms)\n  \u2713  12 [chromium] \u203a tests/e2e/navigation.spec.ts:162:5 \u203a Workflow 2: limits and recovery \u203a at 1920x1080 \u203a Ctrl/Cmd + 0 resets to 100% centred (252ms)\n  \u2713  11 [chromium] \u203a tests/e2e/navigation.spec.ts:140:3 \u203a Workflow 2: limits and recovery \u203a zoom out stops at 10% and disables \u2212 (1.0s)\n  \u2713  14 [chromium] \u203a tests/e2e/navigation.spec.ts:199:1 \u203a TC-31 board zoom gestures and shortcuts never change the page zoom (344ms)\n  \u2713  13 [chromium] \u203a tests/e2e/navigation.spec.ts:174:3 \u203a Workflow 3: far travel \u203a TC-27 a million units away the grid is even and panning is exact (529ms)\n  \u2713  15 [chromium] \u203a tests/e2e/navigation.spec.ts:218:1 \u203a Ctrl/Cmd + = and \u2212 step the zoom around the centre (281ms)\n  \u2713  16 [chromium] \u203a tests/e2e/sticky-notes.spec.ts:83:3 \u203a Workflow 1: brainstorm golden path \u203a TC-30 \u2192 TC-31 \u2192 recolour \u2192 delete (964ms)\n  \u2713  17 [chromium] \u203a tests/e2e/sticky-notes.spec.ts:158:1 \u203a TC-32 at 200% a drag moves the note by half the screen distance and draws it above the note it overlaps (938ms)\n  \u2713  18 [chromium] \u203a tests/e2e/sticky-notes.spec.ts:206:1 \u203a TC-33 text fits: one word at the maximum size, 1,000 characters clipped at the minimum with a fade (401ms)\n  \u2713  19 [chromium] \u203a tests/e2e/sticky-notes.spec.ts:252:1 \u203a TC-34 Sticky note button creates a visible note at the screen centre when panned far away (388ms)\n  \u2713   6 [chromium] \u203a tests/e2e/live-collaboration.spec.ts:161:3 \u203a Full-capacity session \u203a TC-26 5 people create and move notes; everyone sees every change (7.1s)\n  \u2713   7 [chromium] \u203a tests/e2e/live-collaboration.spec.ts:203:3 \u203a Flaky Wi-Fi \u203a TC-27 edits made during an outage reach everyone after reconnecting (35.6s)\n\n  19 passed (39.3s)\n",
+            "passed": 19,
+            "failed": 0
+          }
+        },
+        "all_green": true
+      },
+      "accept": {
+        "build_exit": 0,
+        "runner_exit": 1,
+        "runner_tail": "",
+        "passed": 0,
+        "total": 27,
+        "on_partial": {
+          "passed": 0,
+          "total": 0
+        },
+        "by_story": {
+          "01": {
+            "passed": 0,
+            "total": 10
+          },
+          "02": {
+            "passed": 0,
+            "total": 10
+          },
+          "03": {
+            "passed": 0,
+            "total": 7
+          }
+        }
+      },
+      "commit": "e5a881075ecbfaa6419a900abb62b02f9f3be4c3",
+      "requests": {},
+      "loc": {
+        "files": 53,
+        "lines": 6343
+      },
+      "finished": 1790323974.5642471,
+      "status": "DONE",
+      "ended_by": "agent",
+      "partial_base": [],
+      "tasks": [
+        {
+          "n": 1,
+          "title": "Write board id and protocol decode unit tests first (TC-01 to TC-03)",
+          "type": "test:unit",
+          "implements": [
+            "sync.worker_entry",
+            "sync.room"
+          ],
+          "tcs": [
+            "TC-01",
+            "TC-02",
+            "TC-03"
+          ],
+          "status": "verified",
+          "found": 3,
+          "total": 3
+        },
+        {
+          "n": 2,
+          "title": "Implement Worker entry: /api/rooms/:boardId routing to BoardRoom, static assets fallback",
+          "type": "implementation",
+          "implements": [
+            "sync.worker_entry"
+          ],
+          "tcs": [],
+          "status": "verified",
+          "found": null,
+          "total": null
+        },
+        {
+          "n": 3,
+          "title": "Implement BoardRoom Durable Object: Yjs sync relay, awareness relay, malformed-message handling",
+          "type": "implementation",
+          "implements": [
+            "sync.room"
+          ],
+          "tcs": [],
+          "status": "verified",
+          "found": null,
+          "total": null
+        },
+        {
+          "n": 4,
+          "title": "Implement client connection: y-websocket provider, /b/:boardId route, connection status badge",
+          "type": "implementation",
+          "implements": [
+            "sync.client"
+          ],
+          "tcs": [],
+          "status": "verified",
+          "found": null,
+          "total": null
+        },
+        {
+          "n": 5,
+          "title": "Integration tests for Worker routing in workerd (TC-04 to TC-06, TC-13, TC-17)",
+          "type": "test:integration",
+          "implements": [
+            "sync.worker_entry"
+          ],
+          "tcs": [
+            "TC-04",
+            "TC-05",
+            "TC-06",
+            "TC-13",
+            "TC-17"
+          ],
+          "status": "verified",
+          "found": 5,
+          "total": 5
+        },
+        {
+          "n": 6,
+          "title": "Integration tests for BoardRoom merging, broadcast and error handling (TC-07 to TC-12, TC-14 to TC-16, TC-18, TC-31)",
+          "type": "test:integration",
+          "implements": [
+            "sync.room"
+          ],
+          "tcs": [
+            "TC-07",
+            "TC-08",
+            "TC-09",
+            "TC-10",
+            "TC-11",
+            "TC-12",
+            "TC-14",
+            "TC-15",
+            "TC-16",
+            "TC-18",
+            "TC-31"
+          ],
+          "status": "verified",
+          "found": 11,
+          "total": 11
+        },
+        {
+          "n": 7,
+          "title": "Component tests for connection status badge (TC-19 to TC-21)",
+          "type": "test:ui-component",
+          "implements": [
+            "sync.client"
+          ],
+          "tcs": [
+            "TC-19",
+            "TC-20",
+            "TC-21"
+          ],
+          "status": "verified",
+          "found": 3,
+          "total": 3
+        },
+        {
+          "n": 8,
+          "title": "E2E live collaboration with multiple browser contexts (TC-22 to TC-28)",
+          "type": "test:e2e",
+          "implements": [
+            "sync.client"
+          ],
+          "tcs": [
+            "TC-22",
+            "TC-23",
+            "TC-24",
+            "TC-25",
+            "TC-26",
+            "TC-27",
+            "TC-28"
+          ],
+          "status": "verified",
+          "found": 7,
+          "total": 7
+        },
+        {
+          "n": 9,
+          "title": "Nightly e2e: idle connection stability and 60-second capacity soak (TC-29, TC-30)",
+          "type": "test:e2e",
+          "implements": [
+            "sync.client"
+          ],
+          "tcs": [
+            "TC-29",
+            "TC-30"
+          ],
+          "status": "verified",
+          "found": 2,
+          "total": 2
+        }
+      ]
     }
   },
   "processed": [
@@ -75,8 +365,215 @@
       "title": "Capture ideas on sticky notes and rearrange them",
       "status": "DONE",
       "ended_by": "agent"
+    },
+    {
+      "id": 3,
+      "title": "See other people's edits appear live on the same board",
+      "status": "DONE",
+      "ended_by": "agent",
+      "started_at": 1790322615.355956,
+      "ended_at": 1790323896.1111739,
+      "agent_minutes": 21.3,
+      "calls": 68,
+      "output_tokens": 69355,
+      "compactions": 0,
+      "last_commit_at": 1790323885.0,
+      "accept": {
+        "passed": 0,
+        "total": 7
+      },
+      "partial_base": [],
+      "tasks": [
+        {
+          "n": 1,
+          "title": "Write board id and protocol decode unit tests first (TC-01 to TC-03)",
+          "type": "test:unit",
+          "implements": [
+            "sync.worker_entry",
+            "sync.room"
+          ],
+          "tcs": [
+            "TC-01",
+            "TC-02",
+            "TC-03"
+          ],
+          "status": "verified",
+          "found": 3,
+          "total": 3
+        },
+        {
+          "n": 2,
+          "title": "Implement Worker entry: /api/rooms/:boardId routing to BoardRoom, static assets fallback",
+          "type": "implementation",
+          "implements": [
+            "sync.worker_entry"
+          ],
+          "tcs": [],
+          "status": "verified",
+          "found": null,
+          "total": null
+        },
+        {
+          "n": 3,
+          "title": "Implement BoardRoom Durable Object: Yjs sync relay, awareness relay, malformed-message handling",
+          "type": "implementation",
+          "implements": [
+            "sync.room"
+          ],
+          "tcs": [],
+          "status": "verified",
+          "found": null,
+          "total": null
+        },
+        {
+          "n": 4,
+          "title": "Implement client connection: y-websocket provider, /b/:boardId route, connection status badge",
+          "type": "implementation",
+          "implements": [
+            "sync.client"
+          ],
+          "tcs": [],
+          "status": "verified",
+          "found": null,
+          "total": null
+        },
+        {
+          "n": 5,
+          "title": "Integration tests for Worker routing in workerd (TC-04 to TC-06, TC-13, TC-17)",
+          "type": "test:integration",
+          "implements": [
+            "sync.worker_entry"
+          ],
+          "tcs": [
+            "TC-04",
+            "TC-05",
+            "TC-06",
+            "TC-13",
+            "TC-17"
+          ],
+          "status": "verified",
+          "found": 5,
+          "total": 5
+        },
+        {
+          "n": 6,
+          "title": "Integration tests for BoardRoom merging, broadcast and error handling (TC-07 to TC-12, TC-14 to TC-16, TC-18, TC-31)",
+          "type": "test:integration",
+          "implements": [
+            "sync.room"
+          ],
+          "tcs": [
+            "TC-07",
+            "TC-08",
+            "TC-09",
+            "TC-10",
+            "TC-11",
+            "TC-12",
+            "TC-14",
+            "TC-15",
+            "TC-16",
+            "TC-18",
+            "TC-31"
+          ],
+          "status": "verified",
+          "found": 11,
+          "total": 11
+        },
+        {
+          "n": 7,
+          "title": "Component tests for connection status badge (TC-19 to TC-21)",
+          "type": "test:ui-component",
+          "implements": [
+            "sync.client"
+          ],
+          "tcs": [
+            "TC-19",
+            "TC-20",
+            "TC-21"
+          ],
+          "status": "verified",
+          "found": 3,
+          "total": 3
+        },
+        {
+          "n": 8,
+          "title": "E2E live collaboration with multiple browser contexts (TC-22 to TC-28)",
+          "type": "test:e2e",
+          "implements": [
+            "sync.client"
+          ],
+          "tcs": [
+            "TC-22",
+            "TC-23",
+            "TC-24",
+            "TC-25",
+            "TC-26",
+            "TC-27",
+            "TC-28"
+          ],
+          "status": "verified",
+          "found": 7,
+          "total": 7
+        },
+        {
+          "n": 9,
+          "title": "Nightly e2e: idle connection stability and 60-second capacity soak (TC-29, TC-30)",
+          "type": "test:e2e",
+          "implements": [
+            "sync.client"
+          ],
+          "tcs": [
+            "TC-29",
+            "TC-30"
+          ],
+          "status": "verified",
+          "found": 2,
+          "total": 2
+        }
+      ],
+      "baselines": [
+        {
+          "source": "reference opus-5.5",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 22.1,
+          "calls": 62,
+          "output_tokens": 94890,
+          "accept": {
+            "passed": 6,
+            "total": 7
+          }
+        },
+        {
+          "source": "qwen/3.8/27b/ubuntu/24GB/llamacpp-opencode canvas-pi-02",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 204.3,
+          "calls": 599,
+          "output_tokens": 551749,
+          "accept": {
+            "passed": 5,
+            "total": 7
+          }
+        },
+        {
+          "source": "qwen/3.8/flash-next/macos/128GB/mtplx-opencode canvas-pi-01",
+          "status": "DONE",
+          "gate_green": false,
+          "agent_minutes": 58.4,
+          "calls": 234,
+          "output_tokens": 158653,
+          "accept": {
+            "passed": 0,
+            "total": 7
+          }
+        }
+      ]
     }
   ],
   "imported_from": "claude-code-subagent",
-  "scope": "canvas"
+  "scope": "canvas",
+  "model_id": "claude-opus-5-5",
+  "client": "claude",
+  "compact_at": null
 }
