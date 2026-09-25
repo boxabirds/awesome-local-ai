@@ -26,11 +26,17 @@ fake_gpu() { # gtt_total_mib vram_total_mib
   printf '%s\n' $(( 100 * 1048576 )) > "$g/mem_info_vram_used"
   printf 'auto\n' > "$g/power_dpm_force_performance_level"
   printf '%s\n' $(( $1 * 256 )) > "$SCRATCH/ttm/pages_limit"
+  # 128 GB less a 512 MiB carve-out, as MemTotal reports it. Less is available
+  # than GTT headroom, so the MemAvailable bound is what the test sees.
+  printf 'MemTotal:       %s kB\nMemAvailable:   %s kB\n' \
+    $(( (FAKE_RAM_MIB - 512) * 1024 )) $(( FAKE_AVAIL_MIB * 1024 )) > "$SCRATCH/meminfo"
 }
+FAKE_RAM_MIB=131072
+FAKE_AVAIL_MIB=100000
 
 # Run adapter functions in a clean shell with the combination's config.
 adapter() {
-  SYSFS_PCI="$SCRATCH/pci" SYSFS_TTM="$SCRATCH/ttm" SYSFS_DMI="$SCRATCH/dmi" bash -c '
+  SYSFS_PCI="$SCRATCH/pci" SYSFS_TTM="$SCRATCH/ttm" SYSFS_DMI="$SCRATCH/dmi" PROC_MEMINFO="$SCRATCH/meminfo" bash -c '
     set -uo pipefail
     REPO_ROOT="'"$REPO_ROOT"'"; LOG_FILE=/dev/null
     . "$REPO_ROOT/lib/common.sh"
@@ -71,7 +77,7 @@ assert_ok "a 96GB BIOS carve-out is flagged"   grep -q 'UMA Frame Buffer Size = 
 
 fake_gpu 122880 512
 assert_eq "free memory is GTT headroom, bounded by MemAvailable" "ok" \
-  "$(adapter 'read -r used free < <(accel_report_mem); avail=$(( $(awk "/^MemAvailable:/ {print \$2}" /proc/meminfo) / 1024 )); want=$(( 122880 - 2048 )); (( avail < want )) && want=$avail; [[ "$used" == 2148 && "$free" == "$want" ]] && echo ok || echo "used=$used free=$free want=$want"')"
+  "$(adapter 'read -r used free < <(accel_report_mem); avail='"$FAKE_AVAIL_MIB"'; want=$(( 122880 - 2048 )); (( avail < want )) && want=$avail; [[ "$used" == 2148 && "$free" == "$want" ]] && echo ok || echo "used=$used free=$free want=$want"')"
 
 echo
 echo "the machine is named against TESTED_ON"
