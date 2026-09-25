@@ -236,9 +236,12 @@ describe('Connector selection (TC-20)', () => {
       render(<BoardShell viewport={VIEWPORT} doc={doc} />);
       const hit = screen.getByTestId('connector-hit') as unknown as SVGLineElement;
       setCamera({ x: -400, y: -300, zoom });
-      // The camera settles on the next frame; wait for the arrow to be drawn at
-      // the new zoom before measuring anything.
-      await waitFor(() => {
+      // Wait for the camera to be *applied* and the arrow to be redrawn at it:
+      // the measurements below are screen-pixel offsets, so a stale zoom makes
+      // them mean nothing. Watching only the stroke width let this pass while the
+      // camera was still at 1, which is the failure, not the fix.
+      await waitFor(async () => {
+        expect(window.__vidi6?.getCamera().zoom).toBe(zoom);
         expect(Number(hit.getAttribute('stroke-width'))).not.toBe(12);
       });
       expect(window.__vidi6?.getCamera().zoom).toBe(zoom);

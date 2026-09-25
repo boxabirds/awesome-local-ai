@@ -62,6 +62,51 @@ async function barCount(page: Page): Promise<string | null> {
 }
 
 /** Shift+click each of the given notes, by their current on-screen centres. */
+/**
+ * Two drags that are in flight at the same time.
+ *
+ * What is under test is *concurrent group transforms*: both editors have to hold a
+ * live gesture and write their own group's new positions into the room while the
+ * other is still writing. Run as two complete `Promise.all` input streams, Firefox
+ * gives one page's mouse stream to the other and that client moves nothing at all —
+ * which measures the driver, not the room (the same two pages converge correctly on
+ * Chromium and WebKit, and converge here too; only the input went missing). So the
+ * buttons go down together and the two lines advance hop by hop together: every hop
+ * of one editor lands while the other editor's gesture is still open, which is the
+ * overlap the story is about, without asking one connection to drive two mice.
+ */
+async function dragBothConcurrently(
+  a: Page,
+  aId: string,
+  aDelta: { dx: number; dy: number },
+  b: Page,
+  bId: string,
+  bDelta: { dx: number; dy: number },
+): Promise<void> {
+  const press = async (page: Page, id: string) => {
+    const note = (await notesById(page)).get(id);
+    if (!note) throw new Error(`note ${id} is not rendered`);
+    const from = { x: note.left + 6, y: note.top + 6 };
+    await page.mouse.move(from.x, from.y);
+    await page.mouse.down();
+    return from;
+  };
+  const fromA = await press(a, aId);
+  const fromB = await press(b, bId);
+
+  const hops = 6;
+  for (let i = 1; i <= hops; i += 1) {
+    const t = i / hops;
+    await Promise.all([
+      a.mouse.move(fromA.x + aDelta.dx * t, fromA.y + aDelta.dy * t),
+      b.mouse.move(fromB.x + bDelta.dx * t, fromB.y + bDelta.dy * t),
+    ]);
+  }
+  await Promise.all([a.mouse.up(), b.mouse.up()]);
+  await settle(a);
+  await settle(b);
+}
+
 async function shiftSelectByIds(page: Page, ids: string[]): Promise<void> {
   const byId = await notesById(page);
   for (const id of ids) {
@@ -74,33 +119,10 @@ async function shiftSelectByIds(page: Page, ids: string[]): Promise<void> {
   await settle(page);
 }
 
-/**
- * Drag one note by a screen delta. A pointerdown on a note with a *held* Shift
- * is read as a marquee, not a move, so the group's extra members are added with
- * separate Shift+clicks first and this final drag holds no modifier.
- */
-async function dragNote(
-  page: Page,
-  id: string,
-  delta: { dx: number; dy: number },
-  opts: { shiftSelect?: string[] } = {},
-): Promise<void> {
-  const byId = await notesById(page);
-  const primary = byId.get(id);
-  if (!primary) throw new Error(`note ${id} is not rendered`);
-  if (opts.shiftSelect) await shiftSelectByIds(page, opts.shiftSelect);
-
-  // Grab a point near the note's top-left corner (below the Delete button that
-  // floats over its centre) and move a little further right — still inside the
-  // note, and clear of the vertical strip where the resize handle sits.
-  const from = { x: primary.left + 6, y: primary.top + 6 };
-  await page.mouse.move(from.x, from.y);
-  await page.mouse.down();
-  await page.mouse.move(from.x + delta.dx / 2, from.y + delta.dy / 2, { steps: 5 });
-  await page.mouse.move(from.x + delta.dx, from.y + delta.dy, { steps: 8 });
-  await page.mouse.up();
-  await settle(page);
-}
+// `dragNote` used to live here. TC-36 is the only drag in this file and it needs two
+// of them at once, so the pair helper above replaced it. The rule it encoded still
+// matters: a pointerdown on a note *with Shift held* reads as a marquee, not a
+// move, so a group is built with separate Shift+clicks and the drag holds no modifier.
 
 test('TC-35: a note deleted by a colleague leaves my multi-selection and the bar within the budget', async ({
   context,
@@ -200,10 +222,7 @@ test('TC-36: two clients transforming different selections at once converge to o
   // two concurrent multi-object group writes hit the room together.
   await shiftSelectByIds(a, pairA);
   await shiftSelectByIds(b, pairB);
-  await Promise.all([
-    dragNote(a, pairA[0], { dx: 220, dy: 30 }),
-    dragNote(b, pairB[0], { dx: -180, dy: -50 }),
-  ]);
+  await dragBothConcurrently(a, pairA[0], { dx: 220, dy: 30 }, b, pairB[0], { dx: -180, dy: -50 });
 
   // Absolute writes converge: after the dust settles, both documents show the
   // same world layout, with no manual reload.
@@ -216,6 +235,12 @@ test('TC-36: two clients transforming different selections at once converge to o
   const after = await notesById(a);
   for (const id of ids) {
     const moved = Math.abs(after.get(id)!.wx - before.get(id)!.wx);
-    expect(moved, `note ${id} did not move`).toBeGreaterThan(1);
+    expect(
+      moved,
+      `note ${id} did not move :: ${JSON.stringify({
+        before: [...before.entries()].map(([k, v]) => [k.slice(0, 6), v.wx.toFixed(1), v.wy.toFixed(1)]),
+        after: [...after.entries()].map(([k, v]) => [k.slice(0, 6), v.wx.toFixed(1), v.wy.toFixed(1)]),
+      })}`,
+    ).toBeGreaterThan(1);
   }
 });

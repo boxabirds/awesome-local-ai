@@ -269,6 +269,70 @@ export const TEXT_FONT_FAMILY = 'Inter, system-ui, sans-serif';
  */
 export const TEXT_GLYPH_WIDTH_RATIO = 0.5;
 
+/* ---- Story 11 · the pen (design "Named settings added") ------------------
+ * The story-11 product settings for freehand sketching, defined once here so a
+ * designer can retune the pen without a redesign (PRD "Settings"). Colours and
+ * widths are *tokens*: a stroke stores the token and the renderer looks the
+ * paint up in these maps, so a recolour is a short sync message rather than a
+ * hex string.
+ */
+
+/** The six pen inks, keyed by their accessible name. */
+export const PEN_COLORS = {
+  black: '#212121',
+  blue: '#1E88E5',
+  red: '#E53935',
+  green: '#43A047',
+  orange: '#FB8C00',
+  purple: '#8E24AA',
+} as const;
+
+/** A pen ink token; a stroke stores one of these. */
+export type PenColor = keyof typeof PEN_COLORS;
+
+/** The three pen widths, in world units (the ink is never scaled on resize). */
+export const PEN_THICKNESS_WORLD = { thin: 2, medium: 4, thick: 8 } as const;
+
+/** A pen width token. */
+export type PenThickness = keyof typeof PEN_THICKNESS_WORLD;
+
+/** The ink a fresh stroke starts with. */
+export const DEFAULT_PEN_COLOR: PenColor = 'black';
+
+/** The width a fresh stroke starts with. */
+export const DEFAULT_PEN_THICKNESS: PenThickness = 'medium';
+
+/**
+ * Ramer–Douglas–Peucker tolerance for a finished stroke, in *screen* pixels:
+ * divided by the zoom, so a sketch cleaned up at 200 % keeps twice the detail
+ * of one drawn at 100 % (PRD pen.smooth).
+ */
+export const STROKE_SIMPLIFY_TOLERANCE_PX = 1;
+
+/**
+ * How many recorded points one stroke may hold. A drag that reaches the limit
+ * commits what it has and keeps drawing from the last point, so one gesture can
+ * never grow an unbounded object (PRD pen.long_stroke).
+ */
+export const STROKE_MAX_POINTS = 5000;
+
+/**
+ * How far from a stroke's line a click still selects it, in *screen* pixels.
+ * The registry takes the larger of this and half the ink width, and divides the
+ * pixel figure by the zoom (PRD pen.select).
+ */
+export const STROKE_HIT_TOLERANCE_PX = 6;
+
+/** The smallest a stroke's box may be resized to, in world units. */
+export const STROKE_MIN_SIZE_WORLD = 4;
+
+/**
+ * The ceiling on a stored `points` array: two coordinates per point at
+ * {@link STROKE_MAX_POINTS}. Anything longer is treated as damaged input and
+ * skipped rather than rendered.
+ */
+export const STROKE_MAX_COORDS = STROKE_MAX_POINTS * 2;
+
 /* ---- Story 8 · undo / redo (design "Named settings") --------------------
  * These are the story-8 product settings, defined once here so a designer can
  * retune the personal history without a redesign (PRD "Settings"). */

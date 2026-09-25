@@ -44,10 +44,15 @@ export interface ObjectInteractionOptions {
 
 export interface ObjectInteraction {
   phase: ObjectPhase;
-  onPointerDown(event: ReactPointerEvent<HTMLElement>): void;
-  onPointerMove(event: ReactPointerEvent<HTMLElement>): void;
+  /**
+   * Widened to `Element` rather than `HTMLElement` so an SVG target can use the
+   * same handlers as an HTML one: a sketch's press lands on its hit *path*, and
+   * React types a handler's event by the element it sits on.
+   */
+  onPointerDown(event: ReactPointerEvent<Element>): void;
+  onPointerMove(event: ReactPointerEvent<Element>): void;
   /** Release, cancel and lost-capture all route here: the gesture just ends. */
-  onPointerEnd(event: ReactPointerEvent<HTMLElement>): void;
+  onPointerEnd(event: ReactPointerEvent<Element>): void;
 }
 
 interface PendingDrag {
@@ -77,7 +82,7 @@ export function useObjectInteraction(options: ObjectInteractionOptions): ObjectI
   }, [phase]);
 
   const onPointerDown = useCallback(
-    (event: ReactPointerEvent<HTMLElement>) => {
+    (event: ReactPointerEvent<Element>) => {
       // The object owns its pointer: the board must not pan or create beneath.
       event.stopPropagation();
       if (!options.isEditable()) return;
@@ -120,7 +125,7 @@ export function useObjectInteraction(options: ObjectInteractionOptions): ObjectI
   );
 
   const onPointerMove = useCallback(
-    (event: ReactPointerEvent<HTMLElement>) => {
+    (event: ReactPointerEvent<Element>) => {
       if (options.isEditing()) return;
       const drag = dragRef.current;
       if (drag === null) return;

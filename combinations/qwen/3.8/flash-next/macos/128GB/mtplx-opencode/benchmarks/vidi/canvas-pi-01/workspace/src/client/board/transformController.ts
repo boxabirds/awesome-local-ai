@@ -116,12 +116,11 @@ export function createTransformController(
       if (obj) start.set(id, { x: obj.x, y: obj.y });
     }
     if (start.size === 0) return false;
-    // Opening a gesture is an undo boundary: it closes the previous step so the
-    // frames that follow are their own single step (whole drag = one step).
+    // The raise is deferred to the end of the gesture (see `end`). Doing it here
+    // re-parents the dragged node mid-drag, which drops the pointer capture that
+    // started on it: only the first move after the threshold ever reached the
+    // controller, so a drag over another object travelled a fraction of the way.
     boundaries?.onStart?.();
-    // Raise the whole selection above everything unselected (one transaction),
-    // then start the move (design Key decision 4).
-    bringObjectsToFront(ctx.doc, ids);
     state.gesture = {
       kind: 'move',
       ids: [...ids],
@@ -244,7 +243,14 @@ export function createTransformController(
     // Only a live gesture closes a boundary; a stray pointerup must not split an
     // unrelated step in two.
     if (state.gesture !== null) {
+      const gesture = state.gesture;
       state.gesture = null;
+      // Raise the moved selection above everything it passed, still inside the
+      // gesture's own undo step. Done on release rather than on pick-up so the
+      // dragged node is never re-parented while the pointer is being tracked —
+      // the paint order is right where anyone measures it, and the drag keeps its
+      // full travel.
+      if (gesture.kind === 'move') bringObjectsToFront(getContext().doc, gesture.ids);
       boundaries?.onEnd?.();
     }
   };

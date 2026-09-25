@@ -44,6 +44,10 @@ import { ShapeObject } from '../objects/ShapeObject';
 import { ConnectorObject } from '../objects/ConnectorObject';
 import { ShapeTool } from '../tools/ShapeTool';
 import { ConnectorTool } from '../tools/ConnectorTool';
+import { PenTool } from '../tools/PenTool';
+import { StrokeObject } from '../objects/StrokeObject';
+import { usePenOptions } from '../tools/usePenOptions';
+import { setStrokeStyle } from '../../shared/objects/stroke';
 import { SelectionBar } from './SelectionBar';
 import { ConnectionStatus } from '../sync/ConnectionStatus';
 import type { ConnectionState } from '../sync/connectionState';
@@ -97,6 +101,9 @@ export function BoardShell({
   const toolState = useTool(() => editableRef.current);
   const toolRef = useRef(toolState.tool);
   toolRef.current = toolState.tool;
+  // Story 11: this tab's pen ink and width. Session state like the tool itself —
+  // never written to the document, so it cannot restyle a sketch already drawn.
+  const pen = usePenOptions();
 
   useLiveTestHooks(boardDoc, connectionState);
 
@@ -249,6 +256,29 @@ export function BoardShell({
     [selection, toolState],
   );
 
+  // A finished sketch is selected so its options appear straight away, but the
+  // tool stays a Pen: a person sketching several marks should not have to keep
+  // re-selecting the tool (PRD pen.draw).
+  const onPenCreated = useCallback(
+    (id: string) => {
+      selection.click(id);
+    },
+    [selection],
+  );
+
+  // Restyling a sketch replaces the paint of the object that already exists — no
+  // second object, and one undo step (PRD pen.options).
+  const styleStroke = useCallback(
+    (id: string, style: { color?: string; thickness?: string }) => {
+      if (!editableRef.current) return;
+      const apply = () => {
+        setStrokeStyle(boardDoc, id, style);
+      };
+      undoRef.current.step(apply);
+    },
+    [boardDoc],
+  );
+
   // A shape recolour is its own undo step, separate from any drag that just
   // ended (same rule as the sticky-note colours).
   const styleShape = useCallback(
@@ -335,6 +365,17 @@ export function BoardShell({
                 undo={undoController}
                 onCreated={onToolCreated}
               />
+            ) : toolState.tool === 'pen' ? (
+              <PenTool
+                camera={camera}
+                size={viewport}
+                doc={boardDoc}
+                by={identity.id}
+                color={pen.color}
+                thickness={pen.thickness}
+                undo={undoController}
+                onCreated={onPenCreated}
+              />
             ) : toolState.tool === 'connector' ? (
               <ConnectorTool
                 camera={camera}
@@ -384,6 +425,18 @@ export function BoardShell({
                 onStyle={(style) => styleShape(note.id, style)}
                 onDelete={deleteOne}
               />
+            ) : note.type === 'stroke' ? (
+              <StrokeObject
+                key={note.id}
+                obj={note}
+                zoom={camera.zoom}
+                selected={selection.ids.has(note.id)}
+                editable={editable}
+                controller={controller}
+                selection={selectedIds}
+                onSelect={onSelect}
+                onStyle={(style) => styleStroke(note.id, style)}
+              />
             ) : note.type === 'connector' ? (
               <ConnectorObject
                 key={note.id}
@@ -427,6 +480,12 @@ export function BoardShell({
           onSelectTool={(next) => toolState.setTool(next)}
           shapeKind={toolState.shapeKind}
           onSelectShapeKind={(next) => toolState.setShapeKind(next)}
+          pen={{
+            color: pen.color,
+            thickness: pen.thickness,
+            onColor: pen.setColor,
+            onThickness: pen.setThickness,
+          }}
           history={{
             canUndo: undoController.canUndo(),
             canRedo: undoController.canRedo(),

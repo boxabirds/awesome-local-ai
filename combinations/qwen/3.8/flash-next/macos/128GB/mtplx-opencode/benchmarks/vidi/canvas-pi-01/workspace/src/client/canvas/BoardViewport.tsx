@@ -396,7 +396,7 @@ export function BoardViewport({
         ? 'grabbing'
         : tool === 'text'
           ? 'text'
-          : tool === 'shape' || tool === 'connector'
+          : tool === 'shape' || tool === 'connector' || tool === 'pen'
             ? 'crosshair'
             : 'default',
   };

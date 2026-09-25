@@ -15,13 +15,17 @@ import type { ObjectSnapshot } from '../../shared/board-model';
 import { objectBounds } from '../../shared/board-model';
 import {
   CONNECTOR_HIT_TOLERANCE_PX,
+  PEN_THICKNESS_WORLD,
   SHAPE_MIN_SIZE_WORLD,
   STICKY_MIN_SIZE_WORLD,
   STICKY_SIZE_WORLD,
+  STROKE_HIT_TOLERANCE_PX,
+  STROKE_MIN_SIZE_WORLD,
   TEXT_MIN_WIDTH_WORLD,
 } from '../../shared/config';
 import { rectContains, type Point } from '../../shared/geometry';
 import { distanceToPolyline } from '../../shared/geometry/polyline';
+import { scaledPoints, STROKE_TYPE } from '../../shared/objects/stroke';
 
 export interface ObjectTypeSpec {
   /** Whether the selection shows resize handles for this type. */
@@ -164,6 +168,33 @@ registerObjectType(CONNECTOR_TYPE, {
     if (!ends) return false;
     const tolerance = CONNECTOR_HIT_TOLERANCE_PX / (zoom > 0 ? zoom : 1);
     return distanceToPolyline([ends.from, ends.to], worldPoint) <= tolerance;
+  },
+});
+
+/**
+ * Strokes (story 11): resizable, and aspect-locked — a sketch is a drawing, so
+ * stretching one out of proportion is never what the drag meant (PRD
+ * `pen.resize`). Its footprint is again *not* the bounding box: the ink is a
+ * line, and a click in the empty half of a loop must fall through to whatever is
+ * under it (PRD `pen.select`), so the test is a distance to the drawn path.
+ * That distance is the larger of half the ink width and
+ * {@link STROKE_HIT_TOLERANCE_PX} screen pixels, both divided by the zoom so a
+ * thin sketch is as easy to pick at 20 % as at 200 %.
+ */
+registerObjectType(STROKE_TYPE, {
+  resizable: true,
+  aspectLocked: true,
+  minSize: STROKE_MIN_SIZE_WORLD,
+  editableText: false,
+  handles: 'all',
+  hitTest: (obj, worldPoint, zoom = 1) => {
+    if (!obj.points || obj.points.length < 2) return false;
+    const width = PEN_THICKNESS_WORLD[obj.thickness ?? 'medium'] ?? 4;
+    const tolerance = Math.max(
+      width / 2,
+      STROKE_HIT_TOLERANCE_PX / (zoom > 0 ? zoom : 1),
+    );
+    return distanceToPolyline(scaledPoints(obj), worldPoint) <= tolerance;
   },
 });
 
