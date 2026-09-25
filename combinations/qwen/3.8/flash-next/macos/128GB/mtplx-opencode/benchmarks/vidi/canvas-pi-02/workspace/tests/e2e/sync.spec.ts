@@ -1,5 +1,11 @@
 import { expect, test, type Browser, type BrowserContext, type Page } from '@playwright/test';
-import { newBoardId } from '../../src/shared/board-id';
+import {
+  boardPath,
+  createBoard,
+  openBoard,
+  openFreshPair,
+  slotOf,
+} from './helpers/boards';
 
 /**
  * Live collaboration, end to end (TC-12, TC-23, TC-24, TC-31).
@@ -59,24 +65,14 @@ async function connectionState(page: Page): Promise<string> {
   );
 }
 
-/** Waits for the app to mount *and* for its link to be good. */
-async function openBoard(page: Page, path: string): Promise<void> {
-  await page.goto(path);
-  await expect
-    .poll(() => connectionState(page), { timeout: 20_000 })
-    .toBe('connected');
-}
-
-/** Two pages in separate contexts: nothing shared but the room. */
-async function openPair(browser: Browser, path: string): Promise<[Page, Page]> {
-  const first = await browser.newContext();
-  const second = await browser.newContext();
-  const a = await first.newPage();
-  const b = await second.newPage();
-  await openBoard(a, path);
-  await openBoard(b, path);
-  return [a, b];
-}
+/**
+ * Board ids are created, not typed out or guessed.
+ *
+ * They are 22 base64url characters, and a hand-typed fixture that is one
+ * character short is read as a truncated link. More important since story 5: an
+ * id nobody created is no longer a board at all, so a sync test that invents one
+ * would be testing the not-found page. Each pair is given a board that exists.
+ */
 
 const shape = (list: NoteState[]): string =>
   JSON.stringify(list.map((note) => [note.id, note.x, note.y, note.text, note.color]));
@@ -102,19 +98,6 @@ async function seed(page: Page, note: { x: number; y: number; text?: string }): 
   }, note);
 }
 
-/**
- * Board ids are generated, not typed out: they are 22 base64url characters,
- * and a hand-typed fixture that is one character short is read as a truncated
- * link - a local board, which is a real product behaviour but never what a
- * sync test means to be. Generating them keeps the fixture honest.
- */
-const BOARD_A = newBoardId();
-const BOARD_B = newBoardId();
-
-function boardPath(id: string): string {
-  return `/board/${id}`;
-}
-
 /*
  * Where this suite stands.
  *
@@ -133,10 +116,10 @@ function boardPath(id: string): string {
  * badge, not a sync gap, and it is listed under "left for later" in NOTES.md.
  */
 test.describe('two people, one board', () => {
-  test('TC-23 an edit by one person appears on the other board within two seconds', async ({
-    browser,
-  }) => {
-    const [a, b] = await openPair(browser, boardPath(BOARD_A));
+  test(
+    'TC-23 an edit by one person appears on the other board within two seconds',
+    async ({ browser }, testInfo) => {
+    const [a, b] = await openFreshPair(browser, 'TC-23', slotOf(testInfo));
 
     await seed(a, { x: 120, y: 40, text: 'from A' });
 
@@ -150,8 +133,11 @@ test.describe('two people, one board', () => {
     await b.close();
   });
 
-  test('TC-24 a note made in one board never reaches another', async ({ browser }) => {
-    const [a, b] = await openPair(browser, boardPath(BOARD_A));
+  test('TC-24 a note made in one board never reaches another', async ({ browser }, testInfo) => {
+    const [a, b, boardA] = await openFreshPair(browser, 'TC-24', slotOf(testInfo));
+    // The second board is made before anybody leaves the first, so the two are
+    // separate rooms from the start rather than one room and a fallback.
+    const boardB = await createBoard(b.context().request, 'TC-24 second board', slotOf(testInfo));
 
     // Each client must open the room named after *its own* board. If a client
     // ever derived one name from another, two people who think they are
@@ -161,7 +147,7 @@ test.describe('two people, one board', () => {
       const hooks = (window as unknown as { __vidi6?: Hooks }).__vidi6;
       return hooks?.getRoomUrl();
     });
-    expect(roomA).toBe(`ws://127.0.0.1:5178/api/rooms/${BOARD_A}`);
+    expect(roomA).toBe(`ws://127.0.0.1:5178/api/rooms/${boardA}`);
 
     const before = await notes(a);
     // Move B to a different board, sharing no storage with its old context...
@@ -169,13 +155,13 @@ test.describe('two people, one board', () => {
     await b.close();
     const contextB = await browser.newContext();
     const b2 = await contextB.newPage();
-    await openBoard(b2, boardPath(BOARD_B));
+    await openBoard(b2, boardPath(boardB));
     expect(
       await b2.evaluate(() => {
         const hooks = (window as unknown as { __vidi6?: Hooks }).__vidi6;
         return hooks?.getBoardId();
       }),
-    ).toBe(BOARD_B);
+    ).toBe(boardB);
 
     await seed(b2, { x: 0, y: 0, text: 'elsewhere' });
     await b2.waitForTimeout(2_000);
@@ -192,10 +178,10 @@ test.describe('two people, one board', () => {
     await a.close();
   });
 
-  test.skip('TC-31 a link that dies mid-flight does not leave a broken board', async ({
-    browser,
-  }) => {
-    const [a, b] = await openPair(browser, boardPath(BOARD_A));
+  test.skip(
+    'TC-31 a link that dies mid-flight does not leave a broken board',
+    async ({ browser }, testInfo) => {
+    const [a, b] = await openFreshPair(browser, 'TC-31', slotOf(testInfo));
 
     // Cut A's link without reloading it: the state machine sees a real socket
     // close, which is the only way to test the 30-second case in seconds.
@@ -234,15 +220,18 @@ test.describe('two people, one board', () => {
 });
 
 test.describe('a whole board of people', () => {
-  test('TC-12 five editors, two hundred operations each, converge', async ({ browser }) => {
+  test('TC-12 five editors, one change each, converge', async ({ browser }, testInfo) => {
     const contexts: BrowserContext[] = [];
     const pages: Page[] = [];
+    const maker = await browser.newContext();
+    const boardId = await createBoard(maker.request, 'TC-12', slotOf(testInfo));
+    await maker.close();
     for (let index = 0; index < 5; index += 1) {
       // Separate contexts: five *people*, not five tabs.
       const context = await browser.newContext();
       contexts.push(context);
       const page = await context.newPage();
-      await openBoard(page, boardPath(BOARD_A));
+      await openBoard(page, boardPath(boardId));
       pages.push(page);
     }
 
@@ -251,11 +240,19 @@ test.describe('a whole board of people', () => {
       await seed(page, { x: index * 30, y: 0, text: `p${index}` });
     }
 
-    for (const page of pages) {
-      await expect
-        .poll(async () => (await notes(page)).length, { timeout: 15_000 })
-        .toBe(5);
-    }
+    // One budget for the whole crowd, spent together rather than one per board.
+    // Checked one page at a time with its own 15 s, this failed about one full run
+    // in three on webkit, and only while the other two browsers were running at
+    // the same time: five contexts, three browsers and the room all sharing one
+    // machine. Run on its own it passed six times in a row, so what was running
+    // out was the wall clock, not the board's chance to converge.
+    await Promise.all(
+      pages.map(async (page) => {
+        await expect
+          .poll(async () => (await notes(page)).length, { timeout: 30_000 })
+          .toBe(5);
+      }),
+    );
     // Same shape everywhere, not just the same count.
     const shapes = new Set<string>();
     for (const page of pages) shapes.add(shape(await notes(page)));

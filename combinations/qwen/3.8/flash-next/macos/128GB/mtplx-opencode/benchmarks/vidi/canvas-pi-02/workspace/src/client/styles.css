@@ -298,3 +298,202 @@ output:focus-visible {
   white-space: nowrap;
   pointer-events: none;
 }
+
+/*
+ * Story 5: the pages, and the board's top bar.
+ *
+ * `.board-area` is `position: fixed; inset: 0`, which means the canvas covers
+ * the whole window — including anything laid out before it. The Share button
+ * lived in a plain-flow header and was invisible to a click: the viewport
+ * intercepted it on every browser. So the top bar is taken out of the flow and
+ * given a stacking level of its own, and everything in it keeps
+ * `pointer-events` on purpose.
+ */
+.board-page {
+  position: fixed;
+  inset: 0;
+  overflow: hidden;
+}
+
+.board-topbar {
+  position: fixed;
+  top: 12px;
+  right: 16px;
+  z-index: 3;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.connection-area {
+  position: fixed;
+  top: 12px;
+  left: 16px;
+  z-index: 2;
+}
+
+/* The participant stack, top-right: opposite the badge so neither covers the
+   other, and out of the pointer's way. */
+.presence-area {
+  /* Top-right, under the Share row. The exact corner belongs to Share (story 5),
+     and an avatar stack that sits *on* the Share button cannot be clicked: the
+     overflow list and the rename field both need to be reachable, so the stack
+     takes the corner's second row rather than covering the first. */
+  position: fixed;
+  top: 52px;
+  right: 16px;
+  z-index: 3;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6px;
+  max-width: 40vw;
+}
+
+.share {
+  position: relative;
+}
+
+.share-trigger {
+  padding: 6px 12px;
+  color: var(--chrome-text);
+  font: inherit;
+  background: var(--chrome-background);
+  border: 1px solid var(--chrome-border);
+  border-radius: 8px;
+  box-shadow: 0 1px 3px rgba(24, 28, 35, 0.12);
+  cursor: pointer;
+}
+
+.share-trigger:hover {
+  background: #eef0f4;
+}
+
+.share-panel {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: 320px;
+  max-width: calc(100vw - 32px);
+  padding: 10px;
+  background: var(--chrome-background);
+  border: 1px solid var(--chrome-border);
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(24, 28, 35, 0.18);
+}
+
+.share-panel input,
+.link-line input {
+  width: 100%;
+  padding: 6px 8px;
+  font: inherit;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  color: var(--chrome-text);
+  background: #f6f7f9;
+  border: 1px solid var(--chrome-border);
+  border-radius: 6px;
+}
+
+.share-copy {
+  align-self: flex-start;
+  padding: 6px 10px;
+  color: var(--chrome-text);
+  font: inherit;
+  background: #ffffff;
+  border: 1px solid var(--chrome-border);
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.share-copy:hover {
+  background: #eef0f4;
+}
+
+.share-note,
+.share-manual {
+  margin: 0;
+  color: #57606a;
+}
+
+.share-manual {
+  padding: 6px 8px;
+  color: #24292f;
+  background: #fff4e5;
+  border: 1px solid #f0c98a;
+  border-radius: 6px;
+}
+
+/* The Home page and the "Board not found" page. */
+.page {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100%;
+  padding: 24px;
+}
+
+.page-card {
+  width: 100%;
+  max-width: 420px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 24px;
+  background: var(--chrome-background);
+  border: 1px solid var(--chrome-border);
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(24, 28, 35, 0.12);
+}
+
+.page-title {
+  margin: 0;
+  font-size: 22px;
+}
+
+.page-lead {
+  margin: 0;
+  color: #57606a;
+}
+
+.link-line {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 0;
+}
+
+.link-line-label {
+  color: #57606a;
+  font-size: 11px;
+}
+
+.primary-button {
+  align-self: flex-start;
+  padding: 8px 14px;
+  color: #ffffff;
+  font: inherit;
+  background: #2f6feb;
+  border: 0;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.primary-button:disabled {
+  background: #9aa1ab;
+  cursor: default;
+}
+
+.page-note {
+  margin: 0;
+  padding: 8px 10px;
+  color: #24292f;
+  background: #fff4e5;
+  border: 1px solid #f0c98a;
+  border-radius: 6px;
+}
+
+.page-links {
+  margin: 0;
+}

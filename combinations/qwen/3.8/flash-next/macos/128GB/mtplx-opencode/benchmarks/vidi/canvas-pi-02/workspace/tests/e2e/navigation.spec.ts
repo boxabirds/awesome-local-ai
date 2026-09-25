@@ -1,4 +1,5 @@
-import { expect, test, type Page } from '@playwright/test';
+import { type Page } from '@playwright/test';
+import { expect, test } from './helpers/boardTest';
 import {
   GRID_SPACING_WORLD,
   UNBOUNDED_PAN_TESTED_EXTENT,
@@ -36,8 +37,7 @@ test.describe('workflow 1: first visit navigation', () => {
   test('TC-28 the hint is shown, dismissed by the first drag, and stays gone', async ({
     page,
   }) => {
-    await page.goto('/');
-    const hint = page.getByTestId('navigation-hint');
+      const hint = page.getByTestId('navigation-hint');
     await expect(hint).toBeVisible();
     expect(await hint.textContent()).toBe(HINT_TEXT);
 
@@ -58,8 +58,7 @@ test.describe('workflow 1: first visit navigation', () => {
   test('TC-23 a 200x100 drag moves the board exactly 200x100 pixels', async ({
     page,
   }) => {
-    await page.goto('/');
-    await settle(page);
+      await settle(page);
 
     const cameraBefore = await readCamera(page);
     const markerBefore = await markerCentre(page);
@@ -93,8 +92,7 @@ test.describe('workflow 1: first visit navigation', () => {
   });
 
   test('plain scroll pans the board and never scrolls the page', async ({ page }) => {
-    await page.goto('/');
-    await settle(page);
+      await settle(page);
     const markerBefore = await markerCentre(page);
 
     await page.mouse.move(640, 400);
@@ -119,8 +117,7 @@ test.describe('workflow 1: first visit navigation', () => {
   test('TC-24 Ctrl + wheel zooms around the pointer and does not zoom the page', async ({
     page,
   }) => {
-    await page.goto('/');
-    // Put the origin crosshair exactly under the pointer at zoom 1.
+      // Put the origin crosshair exactly under the pointer at zoom 1.
     await setCamera(page, { x: -640, y: -400, zoom: 1 });
     const pointer = { x: 640, y: 400 };
     await page.mouse.move(pointer.x, pointer.y);
@@ -153,8 +150,7 @@ test.describe('workflow 2: limits and recovery', () => {
   test('TC-25 zooming in by steps stops at 400% and disables the + button', async ({
     page,
   }) => {
-    await page.goto('/');
-    const plus = zoomInButton(page);
+      const plus = zoomInButton(page);
     await expect(plus).toBeEnabled();
     await expect(zoomLabel(page)).toHaveText('100%');
 
@@ -188,8 +184,7 @@ test.describe('workflow 2: limits and recovery', () => {
   });
 
   test('the zoom-out button disables at 10%', async ({ page }) => {
-    await page.goto('/');
-    const minus = zoomOutButton(page);
+      const minus = zoomOutButton(page);
     for (let i = 0; i < 40; i += 1) {
       if (!(await minus.isEnabled())) break;
       await minus.click();
@@ -209,8 +204,7 @@ test.describe('workflow 2: limits and recovery', () => {
   test('TC-26 Reset view returns to 100% with the start point centred', async ({
     page,
   }) => {
-    await page.goto('/');
-    await setCamera(page, {
+      await setCamera(page, {
       x: UNBOUNDED_PAN_TESTED_EXTENT,
       y: UNBOUNDED_PAN_TESTED_EXTENT,
       zoom: 4,
@@ -234,8 +228,7 @@ test.describe('workflow 2: limits and recovery', () => {
   });
 
   test('Ctrl + 0 resets the view from the keyboard', async ({ page }) => {
-    await page.goto('/');
-    await setCamera(page, { x: 1234, y: 567, zoom: 3 });
+      await setCamera(page, { x: 1234, y: 567, zoom: 3 });
     await page.keyboard.press('Control+Digit0');
     await settle(page);
     await expect(zoomLabel(page)).toHaveText('100%');
@@ -252,8 +245,7 @@ test.describe('workflow 3: far travel', () => {
   test('TC-27 a million units out the grid keeps its pitch and panning stays exact', async ({
     page,
   }) => {
-    await page.goto('/');
-    const zoom = ZOOM_STEP_FACTOR;
+      const zoom = ZOOM_STEP_FACTOR;
     await setCamera(page, {
       x: UNBOUNDED_PAN_TESTED_EXTENT,
       y: UNBOUNDED_PAN_TESTED_EXTENT,
@@ -287,8 +279,7 @@ test.describe('workflow 3: far travel', () => {
   });
 
   test('a click without movement leaves the view alone', async ({ page }) => {
-    await page.goto('/');
-    await settle(page);
+      await settle(page);
     const before = await readCamera(page);
     await page.mouse.click(500, 300);
     await settle(page);
@@ -301,8 +292,7 @@ test.describe('negative: board gestures do not zoom the page (TC-31)', () => {
   test('Ctrl/Cmd gestures and shortcuts over the board leave page zoom alone', async ({
     page,
   }) => {
-    await page.goto('/');
-    const before = await page.evaluate(() => ({
+      const before = await page.evaluate(() => ({
       scale: window.visualViewport?.scale ?? 1,
       dpr: window.devicePixelRatio,
       labelHeight: document
@@ -350,8 +340,7 @@ test.describe('negative: board gestures do not zoom the page (TC-31)', () => {
   test('TC-30 Ctrl + wheel over the zoom control does not zoom the board', async ({
     page,
   }) => {
-    await page.goto('/');
-    const controls = page.getByTestId('zoom-controls');
+      const controls = page.getByTestId('zoom-controls');
     await controls.hover();
     const cameraBefore = await readCamera(page);
     await page.keyboard.down('Control');

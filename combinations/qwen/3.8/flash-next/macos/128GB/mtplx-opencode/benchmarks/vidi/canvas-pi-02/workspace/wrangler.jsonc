@@ -6,6 +6,17 @@
   "durable_objects": {
     "bindings": [{ "name": "BOARD_ROOM", "class_name": "BoardRoom" }]
   },
+  "ratelimits": [
+    {
+      "name": "BOARD_CREATE_LIMITER",
+      "namespace_id": "board-create",
+      // These two mirror BOARD_CREATE_LIMIT and BOARD_CREATE_PERIOD_SECONDS in
+      // src/shared/config.ts. TC-03 in tests/unit/create-board.test.ts fails if
+      // the two drift, because a limit written down twice is a limit that
+      // silently changes when only one copy is edited.
+      "simple": { "limit": 10, "period": 60 }
+    }
+  ],
   "migrations": [{ "tag": "v1", "new_sqlite_classes": ["BoardRoom"] }],
   "assets": {
     "directory": "./dist/client",

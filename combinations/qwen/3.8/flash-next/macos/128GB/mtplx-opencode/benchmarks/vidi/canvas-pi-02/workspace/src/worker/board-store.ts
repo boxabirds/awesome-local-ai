@@ -26,7 +26,52 @@ import type { SqlStorage } from '@cloudflare/workers-types/experimental';
  * that is already awake — and what makes "the load happens before the answer" a
  * property of the code rather than of the scheduler.
  */
+/** Where the board's bytes live. */
 export const STATE_TABLE = 'board_blobs';
+
+/**
+ * Where a board's own facts live, one row per fact.
+ *
+ * `created_at` is written once, by an explicit create, and it is what makes a
+ * board *exist* rather than merely *have bytes*. Story 4's storage predates the
+ * idea, so a board with bytes but no `created_at` is a legacy board: it still
+ * opens, because somebody's work is in there (PRD share.legacy_boards).
+ */
+export const META_TABLE = 'storage_meta';
+
+/** The meta key that marks a board as created. */
+export const CREATED_AT_KEY = 'created_at';
+
+/** The tables a prepared database has. Order matters for {@link migrate}. */
+const TABLES = [STATE_TABLE, META_TABLE];
+
+/**
+ * Whether a table exists, read straight out of `sqlite_master`.
+ *
+ * This is the only way to ask "has anybody ever made a board here?" without
+ * answering it. `CREATE TABLE IF NOT EXISTS` also says "no", and then leaves a
+ * pair of empty tables behind — so probing a mistyped link would write storage
+ * for a board that does not exist. Reading the schema is how that is kept apart.
+ */
+export function hasTable(sql: SqlStorage, name: string): boolean {
+  return (
+    sql
+      .exec(`SELECT name FROM sqlite_master WHERE type = 'table' AND name = ?1`, name)
+      .toArray().length > 0
+  );
+}
+
+/** The statements that prepare a database. Run together, never one at a time. */
+export function migrationSql(): string {
+  return (
+    `CREATE TABLE IF NOT EXISTS ${STATE_TABLE} (` +
+    'board_id TEXT NOT NULL, '
+    + 'chunk INTEGER NOT NULL, '
+    + 'blob BLOB NOT NULL, '
+    + 'PRIMARY KEY (board_id, chunk)); '
+    + `CREATE TABLE IF NOT EXISTS ${META_TABLE} (key TEXT PRIMARY KEY, value TEXT NOT NULL)`
+  );
+}
 
 /** One row's worth of bytes. SQLite's own limit is 400 000; we stay under it. */
 export const DEFAULT_CHUNK_BYTES = 96 * 1024;
@@ -94,6 +139,9 @@ function copyFrom(buffer: ArrayBuffer): Uint8Array {
 export class RoomStore {
   #chunkBytes: number;
 
+  /** Whether this object's database has its tables. See {@link migrate}. */
+  #prepared: boolean;
+
   #fail: FailureMode = 'none';
 
   #delayMs = 0;
@@ -103,31 +151,95 @@ export class RoomStore {
     options: { chunkBytes?: number } = {},
   ) {
     this.#chunkBytes = options.chunkBytes ?? DEFAULT_CHUNK_BYTES;
-    if (this.sql === undefined) {
-      throw new Error(
-        'RoomStore needs the object storage SQLite API; `ctx.storage.sql` is missing',
-      );
-    }
-    this.#prepare();
+    // Whether the tables exist is read from the database, not assumed. A fresh
+    // object and a woken one land here the same way, and only the woken one has
+    // tables; `#prepared` is the difference between them.
+    this.#prepared = hasTable(this.sql!, STATE_TABLE) && hasTable(this.sql!, META_TABLE);
+    void this.#prepared;
   }
 
   /**
-   * One statement, run once per instance, before anything reads.
+   * Prepare the database, if it is not prepared.
+   *
+   * Called by an explicit create, and lazily before the first write. Not called
+   * by the constructor and not called by a read: an unknown id must leave no
+   * tables behind, which is the only way "probing a link wrote nothing" is true.
+   */
+  migrate(): void {
+    if (this.#prepared) return;
+    this.sql!.exec(migrationSql());
+    this.#prepared = true;
+  }
+
+  /** Whether this board has anywhere to keep bytes yet. */
+  get prepared(): boolean {
+    return this.#prepared;
+  }
+
+  /**
+   * Does this board exist? Reads only, and creates nothing.
+   *
+   * Two answers count as existing, for different reasons: a `created_at`, which
+   * is a board somebody made on purpose; and any stored bytes at all, which is a
+   * board made before `created_at` existed. Everything else is "no", including an
+   * id whose tables were never made — and the schema is looked at first precisely
+   * so that the common case, a mistyped link, costs one cheap lookup.
+   */
+  existsReadOnly(boardId: string): boolean {
+    if (!hasTable(this.sql!, STATE_TABLE)) return false;
+    if (this.#created_at()) return true;
+    const rows = this.sql!
+      .exec(`SELECT 1 FROM ${STATE_TABLE} WHERE board_id = ?1 LIMIT 1`, boardId)
+      .toArray();
+    return rows.length > 0;
+  }
+
+  /** This board's `created_at`, or `undefined` if it was never created. */
+  createdAt(): string | undefined {
+    return this.#created_at();
+  }
+
+  /** Does this board exist? The room's own answer, for the room's own tests. */
+  exists(boardId: string): boolean {
+    return this.existsReadOnly(boardId);
+  }
+  #created_at(): string | undefined {
+    if (!hasTable(this.sql!, META_TABLE)) return undefined;
+    const row = this.sql!
+      .exec(`SELECT value FROM ${META_TABLE} WHERE key = ?1`, CREATED_AT_KEY)
+      .toArray()[0];
+    return row === undefined ? undefined : (row.value as string);
+  }
+
+  /**
+   * Mark this board as created, keeping the original stamp.
+   * `true` if this call is what created it, `false` if it already was.
+   */
+  markCreated(boardId: string, at: number): boolean {
+    // Storage that cannot be trusted does not get a board written to it. This
+    // keeps "the storage is broken" arriving at the room as a failure rather
+    // than as a successful create of a board nobody can read back.
+    if (this.#fail === 'throw') throw new Error('storage write threw');
+    const already = this.#created_at();
+    if (already !== undefined) return false;
+    this.migrate();
+    this.sql!.exec(
+      `INSERT INTO ${META_TABLE} (key, value) VALUES (?1, ?2)`,
+      CREATED_AT_KEY,
+      String(at),
+    );
+    return true;
+  }
+
+  /**
+   * One statement, run before anything is *written*.
    *
    * `IF NOT EXISTS` rather than "assume the migration ran": a test worker and a
-   * deployed worker both land here with a database nobody prepared, and the first
-   * read of a board must not depend on somebody else having run a migration by
-   * hand.
+   * deployed worker both land here with a database nobody prepared. It is not run
+   * on construct and not run on a read, because doing so would answer "does this
+   * board exist?" by making tables, which makes every probe of a mistyped link
+   * write storage.
    */
-  #prepare(): void {
-    this.sql!.exec(
-      `CREATE TABLE IF NOT EXISTS ${STATE_TABLE} (` +
-        'board_id TEXT NOT NULL, ' +
-        'chunk INTEGER NOT NULL, ' +
-        'blob BLOB NOT NULL, ' +
-        'PRIMARY KEY (board_id, chunk))',
-    );
-  }
 
   /** Test hook: make the next reads behave as if storage were broken. */
   failAs(mode: FailureMode, delayMs = 0): void {
@@ -144,6 +256,11 @@ export class RoomStore {
    */
   read(boardId: string): LoadResult {
     if (this.#fail === 'throw') throw new Error('storage read threw');
+    // No tables means no board, and this answers before running a real query, so
+    // a stranger's mistyped link cannot manufacture a database. `null` is
+    // deliberately the same answer a prepared-but-empty board gives: story 4's
+    // room starts a fresh board from `null`, and story 5 refuses it separately.
+    if (!this.#prepared) return null;
     if (this.#fail === 'timeout') {
       // Burn the clock so the room's deadline is what notices, then refuse.
       this.#burn(this.#delayMs);
@@ -170,6 +287,8 @@ export class RoomStore {
   /** Replace everything stored for a board. */
   write(boardId: string, bytes: Uint8Array): void {
     if (this.#fail === 'throw') throw new Error('storage write threw');
+    // The write is the first place a board is allowed to prepare its database.
+    this.migrate();
     const chunks = splitState(bytes, this.#chunkBytes);
     // Delete first: a board that shrank must not keep the tail of its old bytes,
     // which would come back glued on to the end of the new state.
@@ -186,6 +305,7 @@ export class RoomStore {
 
   /** How much room a board is taking, chunk by chunk. */
   footprint(boardId: string): BoardFootprint {
+    if (!this.#prepared) return { bytes: 0, chunks: 0, largest: 0 };
     const rows = this.sql!
       .exec(`SELECT blob FROM ${STATE_TABLE} WHERE board_id = ?1`, boardId)
       .toArray();
@@ -201,6 +321,7 @@ export class RoomStore {
 
   /** Write raw bytes with no version byte. Test-only: it manufactures damage. */
   writeDamaged(boardId: string, bytes: Uint8Array): void {
+    this.migrate();
     this.sql!.exec(`DELETE FROM ${STATE_TABLE} WHERE board_id = ?1`, boardId);
     this.sql!.exec(
       `INSERT INTO ${STATE_TABLE} (board_id, chunk, blob) VALUES (?1, 0, ?2)`,

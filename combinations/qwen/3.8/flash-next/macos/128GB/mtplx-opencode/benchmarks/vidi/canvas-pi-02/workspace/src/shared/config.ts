@@ -145,3 +145,109 @@ export const FLUSH_INTERVAL_MS = 500;
  * it is the reason the room never has to reason about a giant buffer.
  */
 export const MAX_MESSAGE_BYTES = 128 * 1024;
+
+/* --------------------------------------------------------------------- *
+ * Story 5: sharing a board with a link.
+ * --------------------------------------------------------------------- */
+
+/** How many boards one visitor may create within the window below. */
+export const BOARD_CREATE_LIMIT = 10;
+
+/** The creation window, in seconds. Must match `wrangler.jsonc`'s ratelimit. */
+export const BOARD_CREATE_PERIOD_SECONDS = 60;
+
+/** How many id attempts board creation makes before it gives up (500). */
+export const CREATE_ID_MAX_ATTEMPTS = 3;
+
+/** The create-a-board budget, from click to open board (PRD share.create). */
+export const CREATE_BUDGET_MS = 2000;
+
+/** How long the "Link copied" confirmation stays up. */
+export const LINK_COPIED_MS = 2000;
+
+/**
+ * The first backoff for the "does this board exist" check. It doubles on every
+ * retry up to `RECONNECT_MAX_BACKOFF_MS`, the same ceiling story 3's provider
+ * uses, so a link check and a socket retry behave alike.
+ */
+export const BOARD_CHECK_RETRY_BASE_MS = 1000;
+
+/* --------------------------------------------------------------------- *
+ * Story 6: presence - who is here, where they are pointing.
+ * --------------------------------------------------------------------- */
+
+/**
+ * The palette people are drawn in, in order.
+ *
+ * Its length is a constraint, not a preference: while the board is at its
+ * simultaneous-editor capacity, every person must get a different colour, so
+ * there have to be at least `MAX_CONCURRENT_EDITORS` entries here. The unit
+ * test that reads both constants is what keeps them from drifting apart.
+ */
+export const PRESENCE_COLORS = [
+  '#E53935',
+  '#1E88E5',
+  '#43A047',
+  '#FB8C00',
+  '#8E24AA',
+  '#00897B',
+  '#F4511E',
+  '#3949AB',
+] as const;
+
+/** How many avatars the stack shows before it collapses the rest into "+N". */
+export const MAX_AVATARS_SHOWN = MAX_CONCURRENT_EDITORS;
+
+/**
+ * How often one person's cursor may be published.
+ *
+ * A pointer generates a move every frame; a board with five moving people
+ * would otherwise spend its bandwidth on arrows. Fifty milliseconds is twenty
+ * updates a second, which is above what the eye resolves and far below the
+ * delivery budget below.
+ */
+export const CURSOR_BROADCAST_INTERVAL_MS = 50;
+
+/** The cursor delivery budget, from one screen to another (PRD presence.cursors). */
+export const CURSOR_LATENCY_BUDGET_MS = 500;
+
+/** How far a cursor may be from the point it names, in screen pixels. */
+export const CURSOR_POSITION_TOLERANCE_PX = 2;
+
+/** How long a newcomer may take to appear on everyone else's screens. */
+export const PRESENCE_JOIN_BUDGET_MS = 1000;
+
+/** How long idle people may take to appear on a newcomer's screen. */
+export const PRESENCE_EXISTING_VISIBLE_BUDGET_MS = 2000;
+
+/** How long a person who closed the tab may keep being drawn. */
+export const PRESENCE_CLOSE_REMOVAL_BUDGET_MS = 3000;
+
+/**
+ * How long a person whose connection died silently may keep being drawn.
+ *
+ * `y-protocols` forgets a peer thirty seconds after its last update; the extra
+ * five seconds is the margin for the clock that measures it, so a test of this
+ * budget is a test of the product, not of two timers racing.
+ */
+export const PRESENCE_STALE_REMOVAL_BUDGET_MS = 35_000;
+
+/**
+ * How long the people drawn on a board are held onto after the link to the
+ * room drops, before the board is rebuilt from what the room actually says.
+ *
+ * A wobble in the connection is not a room emptying. While the link is down the
+ * names, arrows and outlines stay where they were — a board that loses everyone
+ * for a second and gets them back teaches people to distrust the stack — and
+ * when the link comes back the board asks the room who is here and corrects
+ * itself inside this window, so a person who really did go is not drawn
+ * forever. This is the same hundred milliseconds as the join budget, spent in
+ * the other direction.
+ */
+export const PRESENCE_RECONNECT_RECONCILE_MS = 1000;
+
+/** The longest name a person may choose, in characters. */
+export const NAME_MAX_CHARS = 32;
+
+/** Where a guest name and colour are kept between visits (per browser). */
+export const IDENTITY_STORAGE_KEY = 'vidi6.identity';

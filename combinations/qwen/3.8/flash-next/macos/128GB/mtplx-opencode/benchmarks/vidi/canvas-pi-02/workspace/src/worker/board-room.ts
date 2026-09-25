@@ -2,8 +2,15 @@ import * as Y from 'yjs';
 import { DurableObject } from 'cloudflare:workers';
 
 import { FLUSH_INTERVAL_MS, LOAD_TIMEOUT_MS } from '../shared/config';
+import { queryAwarenessMessage } from '../shared/protocol';
 import { RoomStore } from './board-store';
 import { frameShape, frameToReply } from './board-protocol';
+import {
+  clientsFromAttachment,
+  encodeAwarenessRemoval,
+  mergeTracked,
+  readOwnAnnouncement,
+} from './awareness-tracker';
 import { CLOSE_LOAD_FAILED, RoomMachine } from './room-machine';
 import type { RoomHost } from './room-state';
 import type { Env } from './env';
@@ -58,6 +65,20 @@ const BOARD_STATE_KEY = 'board';
 
 /** How long a wedged storage read takes, for the tests that need one. */
 const SPIN_MS = LOAD_TIMEOUT_MS + 1;
+
+/**
+ * What a socket carries with it, and what survives the room going to sleep.
+ *
+ * `awareness` is the presence this socket speaks for: the client ids it announced
+ * and the last clock seen for each, which is what a removal has to be sent at.
+ * The object is spread rather than replaced when it is rewritten, because a
+ * socket's attachment is shared with whatever else the room learns to remember
+ * (story 13's sync counter), and a room that rewrites presence by building a
+ * fresh object would silently drop it.
+ */
+interface SocketAttachment {
+  awareness?: Record<string, number>;
+}
 
 export class BoardRoom extends DurableObject<Env> {
   /** What makes `this.state.storage.sql` exist at all. */
@@ -119,6 +140,39 @@ export class BoardRoom extends DurableObject<Env> {
   }
 
   /* ------------------------------------------------------------------ *
+   * Board existence
+   * ------------------------------------------------------------------ */
+
+  /**
+   * Make this board exist. Called only by `POST /api/boards`.
+   *
+   * Answers `exists` for a board that already has a `created_at` *or* already has
+   * bytes, and writes nothing in that case: the difference between "this id is
+   * free" and "somebody is already working here" is the whole reason creation
+   * retries, and a retry that overwrote the first board would be worse than no
+   * retry at all.
+   */
+  async initialize(): Promise<'created' | 'exists'> {
+    if (this.#store.existsReadOnly(BOARD_STATE_KEY)) return 'exists';
+    this.#store.migrate();
+    // Stamped before any bytes exist: a board is created by being asked for, not
+    // by being written to, and an empty board is a board somebody started.
+    const created = this.#store.markCreated(BOARD_STATE_KEY, Date.now());
+    return created ? 'created' : 'exists';
+  }
+
+  /**
+   * Does this board exist? Reads only.
+   *
+   * True for a created board and for a legacy one that has bytes but predates
+   * `created_at` (PRD share.legacy_boards) — somebody's work is in there, and
+   * showing them a blank board instead would be the quiet kind of data loss.
+   */
+  async exists(): Promise<boolean> {
+    return this.#store.existsReadOnly(BOARD_STATE_KEY);
+  }
+
+  /* ------------------------------------------------------------------ *
    * Requests
    * ------------------------------------------------------------------ */
 
@@ -134,6 +188,15 @@ export class BoardRoom extends DurableObject<Env> {
     const upgrade = request.headers.get('Upgrade');
     if (upgrade === null || upgrade.toLowerCase() !== 'websocket') {
       return new Response('Upgrade Required', { status: 426 });
+    }
+
+    // A room that does not know this board refuses the socket rather than
+    // accepting it and serving an empty document. The Worker entry has usually
+    // answered this already; it is checked again here because the object is the
+    // one that could answer without being asked, and a wake-up from sleep must
+    // not become a way to talk to a board that was never made.
+    if (!this.#store.existsReadOnly(BOARD_STATE_KEY)) {
+      return new Response('Not Found', { status: 404 });
     }
 
     if (this.#outage) {
@@ -160,6 +223,13 @@ export class BoardRoom extends DurableObject<Env> {
     // A greeting sent here instead would be answered twice by every client: once
     // for the greeting and once for its own step-1, which is how one keystroke
     // ends up on the board three times.
+
+    // Everybody already here is asked who they are. A client never asks the room
+    // "who is here?" — `y-websocket` sends its own state on connect and then only
+    // when it changes — so without this a newcomer would see an empty board until
+    // somebody's cursor happened to move. The answers come back as ordinary
+    // presence traffic a turn later, and are relayed like any other frame.
+    this.#askAboutNewcomer(server);
 
     return new Response(null, { status: 101, webSocket: client });
   }
@@ -257,6 +327,7 @@ export class BoardRoom extends DurableObject<Env> {
       case 'relay': {
         // The bytes the machine says go out, framed the way they arrived.
         const frame = frameToReply(shape, decision.frame);
+        if (decision.presence !== null) this.#notePresence(socket, decision.presence);
         const members = this.#members();
         for (const member of members) {
           // A document update is never sent back to the socket it came from: the
@@ -292,15 +363,23 @@ export class BoardRoom extends DurableObject<Env> {
    * performance preference.
    */
   async webSocketClose(socket: WebSocket): Promise<void> {
+    this.#announceDeparture(socket);
     this.#machine.forgetSync(socket);
     if (this.socketCount() <= 1) await this.#flush();
   }
 
-  /** A hibernated socket failed. Nothing to rescue; the next message decides. */
-  webSocketError(): void {
-    // The runtime guarantees the socket is already gone, and the room keeps no
-    // bookkeeping of its own to unwind — which is the point of taking membership
-    // from `getWebSockets` instead of a set.
+  /**
+   * A hibernated socket failed: nobody can speak for its presence any more.
+   *
+   * The runtime guarantees the socket is already off the member list, so the
+   * removal that goes out here has nowhere to be swallowed: the people still
+   * connected are exactly the ones who still have the ghost on screen. A socket
+   * that dies mid-flight is the common way somebody leaves — a laptop lid, a
+   * dropped radio, a phone locked in a pocket — and a room that only cleans up on
+   * a *clean* close is a room where half the avatars are decoration.
+   */
+  webSocketError(socket: WebSocket): void {
+    this.#announceDeparture(socket);
   }
 
   /* ------------------------------------------------------------------ *
@@ -310,6 +389,86 @@ export class BoardRoom extends DurableObject<Env> {
   /** How many sockets the runtime is holding for this board. */
   socketCount(): number {
     return this.#members().length;
+  }
+
+  /**
+   * What each member's socket has been told about who is here, one entry per
+   * socket, in the order they joined.
+   *
+   * This exists for the tests, and it reads the sockets rather than a field
+   * because that is where the answer lives: a room that kept its presence book in
+   * instance memory would answer `[]` here while still removing people correctly,
+   * and would start answering wrongly the first time it slept.
+   */
+  presenceSnapshot(): Record<string, number>[] {
+    return this.#members().map((member) => this.#presenceOf(member));
+  }
+
+  /**
+   * What this socket has told the room about who is here.
+   *
+   * Read from the attachment, not from a field on the instance: the whole point of
+   * keeping it on the socket is that a room which slept, was torn down and woke up
+   * on a message still knows whose presence to take away. An in-memory `Map`
+   * would be empty at exactly the moment it mattered.
+   */
+  #presenceOf(socket: WebSocket): Record<string, number> {
+    const attachment = socket.deserializeAttachment() as SocketAttachment | null;
+    return attachment?.awareness ?? {};
+  }
+
+  /**
+   * Remember the presence a socket announced.
+   *
+   * Only what a socket says about *itself* is charged to it — see
+   * {@link readOwnAnnouncement}. A frame that cannot be read is relayed and left
+   * alone: the room has no basis for removing anybody on the strength of bytes it
+   * could not parse, and it has no basis for believing them either.
+   */
+  #notePresence(socket: WebSocket, update: Uint8Array): void {
+    const announced = readOwnAnnouncement(update);
+    if (announced === null) return;
+    const attachment = (socket.deserializeAttachment() as SocketAttachment | null) ?? {};
+    const known = attachment.awareness ?? {};
+    const merged = mergeTracked(known, announced);
+    try {
+      socket.serializeAttachment({ ...attachment, awareness: merged });
+    } catch {
+      // The socket is on its way out: serialising to a socket the runtime has
+      // already dropped is the one way this call can throw, and a person whose
+      // avatar goes stale in thirty seconds is a better outcome than a relay that
+      // stopped on a `TypeError`.
+    }
+  }
+
+  /**
+   * Tell the members still here that this socket's people have gone.
+   *
+   * One frame for everybody the socket was the only voice for, at the clocks they
+   * were last seen: `y-protocols` treats a `null` state at a known clock as a
+   * removal, and at any other clock as an old message it can drop. Sending one
+   * frame instead of one per person keeps a five-person board's departure at one
+   * relay rather than four, and every receiver either has the person or does not,
+   * which is a decision it makes for itself.
+   */
+  #announceDeparture(socket: WebSocket): void {
+    const gone = clientsFromAttachment(this.#presenceOf(socket));
+    if (gone.size === 0) return;
+    const frame = encodeAwarenessRemoval(gone);
+    for (const member of this.#members()) this.#send(member, frame);
+  }
+
+  /**
+   * Ask the members already here who they are.
+   *
+   * The newcomer is excluded: it has nothing to report yet, and answering itself
+   * would be a round trip that returns its own cursor to itself.
+   */
+  #askAboutNewcomer(newcomer: WebSocket): void {
+    for (const member of this.#members()) {
+      if (member === newcomer) continue;
+      this.#send(member, queryAwarenessMessage());
+    }
   }
 
   /**
@@ -333,6 +492,17 @@ export class BoardRoom extends DurableObject<Env> {
    */
   get doc(): Y.Doc | null {
     return this.#machine.doc;
+  }
+
+  /**
+   * This board's storage, for the tests that have to speak to it directly.
+   *
+   * Seed-and-then-open cases need to put a board into a state no client can put
+   * it in — bytes with no `created_at`, which is what a story-4 board looks like
+   * to a story-5 link check. The Worker never routes to this.
+   */
+  get store(): RoomStore {
+    return this.#store;
   }
 
   /** Write what the room is holding. A failure here is logged, not thrown. */

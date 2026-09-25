@@ -1,5 +1,5 @@
 import { expect, test, type Browser, type BrowserContext, type Page } from '@playwright/test';
-import { newBoardId } from '../../src/shared/board-id';
+import { boardPath, createBoard, openBoardIn, slotOf } from './helpers/boards';
 
 /**
  * Coming back to a board (story 4, TC-19 to TC-24 in the browser).
@@ -49,16 +49,12 @@ async function connectionState(page: Page): Promise<string> {
   );
 }
 
-/** Open a board in a context of its own and wait for the room's answer. */
-async function openBoard(browser: Browser, path: string): Promise<[Page, BrowserContext]> {
-  const context = await browser.newContext();
-  const page = await context.newPage();
-  await page.goto(path);
-  await expect
-    .poll(() => connectionState(page), { timeout: 20_000 })
-    .toBe('connected');
-  return [page, context];
-}
+/**
+ * Since story 5 a board has to be *created* before a page can be opened on it:
+ * an address nobody made is not a board, and the whole point of these tests is
+ * coming back to a board that really holds something. `openBoardIn` opens one in
+ * a context of its own and waits for the room's answer.
+ */
 
 /** Wait until nobody is on the board any more, and give the room a chance to write. */
 async function leaveTheRoom(page: Page): Promise<void> {
@@ -68,9 +64,12 @@ async function leaveTheRoom(page: Page): Promise<void> {
 const shape = (list: NoteState[]): string =>
   JSON.stringify(list.map((note) => [note.id, note.x, note.y, note.text]));
 
-test('TC-19 a board you left is the board you come back to', async ({ browser }) => {
-  const id = newBoardId();
-  const [writer, writerContext] = await openBoard(browser, `/board/${id}`);
+test('TC-19 a board you left is the board you come back to', async ({
+    browser,
+    request,
+  }, testInfo) => {
+  const id = await createBoard(request, 'TC-19', slotOf(testInfo));
+  const [writer, writerContext] = await openBoardIn(browser, boardPath(id));
 
   for (const [index, text] of ['retro', 'action', 'ask'].entries()) {
     await writer.evaluate((entry) => {
@@ -87,7 +86,7 @@ test('TC-19 a board you left is the board you come back to', async ({ browser })
   await writerContext.close();
 
   // A page with no memory: fresh context, nothing cached, same address.
-  const [reader, readerContext] = await openBoard(browser, `/board/${id}`);
+  const [reader, readerContext] = await openBoardIn(browser, boardPath(id));
   await expect
     .poll(() => notes(reader).then((list) => list.length), { timeout: 15_000 })
     .toBe(3);
@@ -100,9 +99,9 @@ test('TC-19 a board you left is the board you come back to', async ({ browser })
   await readerContext.close();
 });
 
-test('TC-20 a reload finds the board once, not twice', async ({ browser }) => {
-  const id = newBoardId();
-  const [first, firstContext] = await openBoard(browser, `/board/${id}`);
+test('TC-20 a reload finds the board once, not twice', async ({ browser, request }, testInfo) => {
+  const id = await createBoard(request, 'TC-20', slotOf(testInfo));
+  const [first, firstContext] = await openBoardIn(browser, boardPath(id));
   await first.evaluate(() => {
     const hooks = (window as unknown as { __vidi6?: Hooks }).__vidi6;
     hooks?.seedNote({ x: 0, y: 0, text: 'once' });
@@ -121,10 +120,11 @@ test('TC-20 a reload finds the board once, not twice', async ({ browser }) => {
 });
 
 test('TC-21 eight people open a board that was written while nobody was there', async ({
-  browser,
-}) => {
-  const id = newBoardId();
-  const [seedPage, seedContext] = await openBoard(browser, `/board/${id}`);
+    browser,
+    request,
+  }, testInfo) => {
+  const id = await createBoard(request, 'TC-21', slotOf(testInfo));
+  const [seedPage, seedContext] = await openBoardIn(browser, boardPath(id));
   await seedPage.evaluate(() => {
     const hooks = (window as unknown as { __vidi6?: Hooks }).__vidi6;
     hooks?.seedNote({ x: 0, y: 0, text: 'seed' });
@@ -137,7 +137,7 @@ test('TC-21 eight people open a board that was written while nobody was there', 
   const contexts: BrowserContext[] = [];
   const pages: Page[] = [];
   for (let index = 0; index < 8; index += 1) {
-    const [page, context] = await openBoard(browser, `/board/${id}`);
+    const [page, context] = await openBoardIn(browser, boardPath(id));
     contexts.push(context);
     pages.push(page);
   }

@@ -12,8 +12,12 @@ import { useSelection } from './board/useSelection';
 import { StickyNote } from './objects/StickyNote';
 import { createSticky, deleteObject } from '../shared/board-model';
 import { isValidBoardId, parseBoardPath } from '../shared/board-id';
+import { STICKY_SIZE_WORLD } from '../shared/config';
 import { useBoardSession, type BoardSession } from './sync/boardSession';
 import { ConnectionStatus, useConnectionState } from './sync/ConnectionStatus';
+import { PresenceIdentity, PresenceStack, RemoteCursors, RemoteSelections } from './presence/Presence';
+import { toScreenPeople, usePresence } from './presence/usePresence';
+import type { Person } from './presence/people';
 import type { ProviderLike } from './sync/connectBoard';
 import * as Y from 'yjs';
 
@@ -121,6 +125,13 @@ function BoardSurface({
   viewportRef.current = viewport;
   const cameraRef = useRef<{ camera: Camera }>(cameraApi);
   cameraRef.current = cameraApi;
+
+  // Who else is on this board, and the channel that says so. Read through a
+  // ref below because the pointer listener is bound once per board.
+  const presence = usePresence(session, cameraRef);
+  const presenceRef = useRef(presence);
+  presenceRef.current = presence;
+
   const apiRef = useRef(cameraApi);
   useEffect(() => {
     apiRef.current = cameraApi;
@@ -135,6 +146,41 @@ function BoardSurface({
       () => sessionRef.current,
     );
     return () => removeBoardTestHooks();
+  }, []);
+
+  // My pointer, published. The listener is on the board area rather than the
+  // window so a move over the toolbar or the zoom control is not reported as a
+  // point at nothing, and the position handed over is relative to the area the
+  // overlay draws into.
+  useEffect(() => {
+    const area = boardAreaRef.current;
+    if (area === null) return;
+    const onPointerMove = (event: PointerEvent): void => {
+      const rect = area.getBoundingClientRect();
+      presenceRef.current.publish({
+        x: event.clientX - rect.left,
+        y: event.clientY - rect.top,
+      });
+    };
+    area.addEventListener('pointermove', onPointerMove);
+
+    // And the two ways a pointer stops meaning anything: it left the board, or
+    // the whole tab went to the background. Both say "I am not here right now",
+    // and an arrow that keeps pointing at a note I stopped looking at is a wrong
+    // answer about where I am, told for another two seconds.
+    const onPointerLeave = (): void => {
+      presenceRef.current.hide();
+    };
+    const onVisibility = (): void => {
+      if (document.visibilityState === 'hidden') presenceRef.current.hide();
+    };
+    area.addEventListener('pointerleave', onPointerLeave);
+    document.addEventListener('visibilitychange', onVisibility);
+    return () => {
+      area.removeEventListener('pointermove', onPointerMove);
+      area.removeEventListener('pointerleave', onPointerLeave);
+      document.removeEventListener('visibilitychange', onVisibility);
+    };
   }, []);
 
   /** Put a sticky at a world point and start typing straight away. */
@@ -192,10 +238,37 @@ function BoardSurface({
 
   const camera = cameraApi.camera;
 
+  /**
+   * Everyone the stack shows, this browser included.
+   *
+   * `presence.board` rather than `presence.people`: the names and colours a
+   * person is *called* are settled by a pass over the whole board, and the
+   * stack is one of the two places people read them. Handing it the raw list
+   * would draw two people in one colour and let a tab whose own name is taken
+   * keep wearing it, which is the exact thing five people opening a shared link
+   * produce. The person looking at the board is part of the board.
+   *
+   * Nobody is hidden for being still. The stack answers "who is on this board",
+   * and a person who is reading rather than clicking is on the board: awareness
+   * drops them when their connection does, which is the honest answer, while a
+   * thirty-second timer would quietly delete a quiet reader and call it a
+   * departure. Cursors fade, because a place somebody looked at two seconds ago
+   * is a claim about where they are; a dot makes no such claim.
+   */
+  const stackPeople: readonly Person[] = presence.board;
+
   const handleSurfaceClick = useCallback(() => {
     // Clicking empty board space drops the selection and any open editor.
     selection.select(null);
   }, [selection]);
+
+  // What this screen has picked up, said out loud.
+  useEffect(() => {
+    // One line, one channel: the other four have to see that a note is being
+    // typed in at the same moment it happens here, and an outline left over from
+    // a note I have already dropped is worse than no outline.
+    presenceRef.current.setSelection(selection.selectedId);
+  }, [selection.selectedId]);
 
   const handleSurfaceDoubleClick = useCallback(
     (point: Point) => {
@@ -258,6 +331,28 @@ function BoardSurface({
             />
           ))}
         </BoardViewport>
+        {/* Who is holding what, drawn under the cursors and above the notes: an
+            outline is a notice, not a lock, so it never intercepts a click. */}
+        <RemoteSelections
+          people={presence.selections}
+          objects={notes}
+          camera={camera}
+          size={STICKY_SIZE_WORLD}
+        />
+        {/* The resolved board, minus this screen's own pointer: what a cursor is
+            *called* has to be what the stack calls the same person. */}
+        <RemoteCursors
+          people={toScreenPeople(presence.cursors, camera)}
+          now={presence.now}
+          viewport={viewport}
+        />
+        <div className="presence-area" data-testid="presence-area">
+          <PresenceStack people={stackPeople} now={presence.now} selfId={presence.selfId} />
+          <PresenceIdentity
+            name={presence.self.name}
+            onRename={(raw) => presenceRef.current.rename(raw)}
+          />
+        </div>
         <Toolbar onCreateSticky={createStickyInViewCentre} />
         <div className="connection-area">
           {broken ? (
