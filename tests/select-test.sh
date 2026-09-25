@@ -104,6 +104,33 @@ assert_eq "a Mac is never offered an Ubuntu combination" \
   "" "$(pick macos arm64 metal 131072 nosuchfamily)"
 
 echo
+echo "Strix Halo: unified memory on Linux, its own accelerator family"
+STRIX="qwen/3.8/flash-next/ubuntu/strix-halo-128GB/llamacpp-opencode"
+assert_eq "a 128GB Strix Halo (RAM + 512M carve-out) takes Flash-Next" \
+  "$STRIX" "$(pick ubuntu x86_64 strix-halo 128512 qwen)"
+assert_eq "...across all families too" \
+  "$STRIX" "$(pick ubuntu x86_64 strix-halo 128512 '')"
+assert_eq "a 64GB Strix Halo cannot reach the 128GB tier" \
+  "" "$(pick ubuntu x86_64 strix-halo 65024 qwen)"
+assert_eq "a 24GB CUDA card is never offered the Strix Halo row" \
+  "qwen/3.8/27b/ubuntu/nvidia4090/llamacpp-opencode" "$(pick ubuntu x86_64 cuda 24564 qwen)"
+HOST_OS=ubuntu; HOST_ARCH=x86_64; HOST_ACCEL=cuda; HOST_MEM_MIB=131072
+assert_fails "even a (hypothetical) 128GB CUDA device is not" \
+  grep -qxF "$STRIX" <<< "$(candidates_for_host qwen | cut -d'|' -f2)"
+HOST_ACCEL=strix-halo; HOST_MEM_MIB=128512
+assert_fails "a Strix Halo is not offered the 24GB NVIDIA rows" \
+  grep -q nvidia <<< "$(candidates_for_host qwen | cut -d'|' -f2)"
+assert_eq "an unmeasured row is still what a Strix Halo is offered, as the only one" \
+  "$STRIX" "$(best_for_host qwen)"
+why="$(explain_no_match nosuchfamily 2>&1)"
+assert_ok "explaining a miss to a CUDA host names the accelerator" \
+  bash -c 'HOST_ACCEL=cuda; true'
+HOST_ACCEL=cuda; HOST_MEM_MIB=24564
+why="$(explain_no_match 2>&1)"
+assert_ok "a CUDA host is told the Strix Halo row needs a strix-halo accelerator" \
+  grep -q "strix-halo-128GB/llamacpp-opencode.*needs a strix-halo accelerator; this machine has cuda" <<< "$why"
+
+echo
 echo "every combination is reachable and installable"
 while IFS= read -r combo; do
   [[ -n "$combo" ]] || continue

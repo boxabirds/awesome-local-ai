@@ -39,8 +39,8 @@ install_runtime() {
   # users, and keeps the invoking user's name out of files people paste into
   # bug reports.
   local mmproj_name="" mtp_name=""
-  if [[ -n "$MMPROJ"   ]]; then mmproj_name="$(basename "$MMPROJ")"; fi
-  if [[ -n "$MTP_HEAD" ]]; then mtp_name="$(basename "$MTP_HEAD")"; fi
+  if [[ -n "$MMPROJ"   ]]; then mmproj_name="$(_model_rel "$MMPROJ")"; fi
+  if [[ -n "$MTP_HEAD" ]]; then mtp_name="$(_model_rel "$MTP_HEAD")"; fi
 
   cat > "${INSTALL_ROOT}/install.env" <<EOF
 # Written by awesome-local-ai. Combination: ${COMBINATION}
@@ -53,7 +53,7 @@ ACCEL="${ACCEL}"
 ROOT_ENV_VAR="${ROOT_ENV_VAR}"
 
 MODEL_SUBDIR="${MODEL_SUBDIR}"
-MODEL_FILE="$(basename "$MODEL_ARTIFACT")"
+MODEL_FILE="$(_model_rel "$MODEL_ARTIFACT")"
 MMPROJ_FILE="${mmproj_name}"
 MTP_FILE="${mtp_name}"
 MODEL_ALIAS_DEFAULT="${MODEL_ALIAS_DEFAULT}"
@@ -113,6 +113,21 @@ EOF
     _write_shim "${INSTALL_ID}-${cn}" local-ai-session "$cn"
   done
   ok "Commands: ${SERVER_CMD}, ${session_cmds}"
+}
+
+# An asset's name relative to MODEL_DIR. Usually that is just the file name,
+# but a Hub repo may keep a quant's shards in a subdirectory
+# ("UD-IQ4_XS/...-00001-of-00003.gguf"), and flattening it to the basename
+# would point the runtime at a file that is not there. Anything outside
+# MODEL_DIR (a backend's own cache) keeps its basename, as before, so no
+# absolute path is ever baked in.
+_model_rel() {
+  local p="$1"
+  if [[ -n "${MODEL_DIR:-}" && "$p" == "${MODEL_DIR}/"* ]]; then
+    printf '%s' "${p#"${MODEL_DIR}"/}"
+  else
+    basename "$p"
+  fi
 }
 
 # A shim is a couple of lines of intent: which install to use, (optionally)
