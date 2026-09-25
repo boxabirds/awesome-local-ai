@@ -2,8 +2,10 @@ import { useEffect, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import type { CameraApi } from './useCamera';
 import type { Point } from './camera';
-import { DRAG_THRESHOLD_PX, GRID_SPACING_WORLD } from '../../shared/config';
+import { DRAG_THRESHOLD_PX, GRID_SPACING_WORLD, SHAPE_MIN_SIZE_WORLD } from '../../shared/config';
 import type { MarqueeApi } from '../board/Marquee';
+import type { Tool } from '../board/useTool';
+import type { Rect } from '../../shared/geometry';
 
 /** Pixel sizes used to convert wheel deltaMode LINE/PAGE values to pixels. */
 const WHEEL_LINE_PX = 16;
@@ -26,6 +28,23 @@ export interface BoardViewportProps {
    * panning. Without it, Shift+drag pans like any other drag.
    */
   marquee?: MarqueeApi;
+  /** Current tool (story 9/10). */
+  tool?: Tool;
+  /**
+   * Click on empty board space with the text tool active: create a text
+   * object at the screen point (story 9).
+   */
+  onCreateTextAt?: (p: Point) => void;
+  /**
+   * Shape tool (story 10): drag on empty board space creates a shape.
+   * `rect` is null for a click (default size).
+   */
+  onCreateShapeAt?: (rect: Rect | null, at: Point, square: boolean) => void;
+  /**
+   * Connector tool (story 10): drag on empty board space starts a connector.
+   * Called with the start and end world points on pointer up.
+   */
+  onConnectorDragEnd?: (from: Point, to: Point) => void;
 }
 
 /**
@@ -37,7 +56,7 @@ export interface BoardViewportProps {
  * empty space creates a sticky note at that point; a click (press without
  * movement) on empty space clears the selection.
  */
-export function BoardViewport({ children, api, onCreateStickyAt, onEmptyClick, marquee }: BoardViewportProps) {
+export function BoardViewport({ children, api, onCreateStickyAt, onEmptyClick, marquee, tool, onCreateTextAt, onCreateShapeAt, onConnectorDragEnd }: BoardViewportProps) {
   const viewportRef = useRef<HTMLDivElement>(null);
   const worldRef = useRef<HTMLDivElement>(null);
   const [panning, setPanning] = useState(false);
@@ -50,9 +69,38 @@ export function BoardViewport({ children, api, onCreateStickyAt, onEmptyClick, m
   const marqueeApiRef = useRef(marquee);
   marqueeApiRef.current = marquee;
 
+  // Tool drag state (story 10).
+  const shapeDragRef = useRef<{ start: Point; current: Point; shift: boolean } | null>(null);
+  const connectorDragRef = useRef<{ start: Point; current: Point } | null>(null);
+  const [shapePreview, setShapePreview] = useState<Rect | null>(null);
+  const [connectorPreview, setConnectorPreview] = useState<{ from: Point; to: Point } | null>(null);
+
   const toPoint = (clientX: number, clientY: number) => {
     const rect = viewportRef.current?.getBoundingClientRect();
     return { x: clientX - (rect?.left ?? 0), y: clientY - (rect?.top ?? 0) };
+  };
+
+  const toWorld = (clientX: number, clientY: number): Point => {
+    const screen = toPoint(clientX, clientY);
+    const cam = apiRef.current.camera;
+    return { x: screen.x / cam.zoom + cam.x, y: screen.y / cam.zoom + cam.y };
+  };
+
+  /** Compute the shape drag rect from start and current world points. */
+  const shapeDragRect = (s: Point, c: Point, shift: boolean): Rect => {
+    let x = Math.min(s.x, c.x);
+    let y = Math.min(s.y, c.y);
+    let w = Math.abs(c.x - s.x);
+    let h = Math.abs(c.y - s.y);
+    if (shift) {
+      const size = Math.max(w, h);
+      // Anchor at the start corner (top-left of the drag direction).
+      x = c.x > s.x ? s.x : s.x - size;
+      y = c.y > s.y ? s.y : s.y - size;
+      w = size;
+      h = size;
+    }
+    return { x, y, width: w, height: h };
   };
 
   // ----- pointer drag (Idle -> Panning -> Idle) -----
@@ -61,8 +109,29 @@ export function BoardViewport({ children, api, onCreateStickyAt, onEmptyClick, m
     if (e.button !== 0) return;
     const target = e.target as Node;
     if (target !== viewportRef.current && target !== worldRef.current) return;
+    // Pen tool (story 11): pointerdowns are routed to the Pen tool (which
+    // intercepts them at the window capture phase, including over objects);
+    // they never start a pan here.
+    if (tool === 'pen') return;
     viewportRef.current?.setPointerCapture?.(e.pointerId);
     const point = toPoint(e.clientX, e.clientY);
+
+    // Shape tool (story 10): drag on empty space creates a shape.
+    if (tool === 'shape') {
+      const world = toWorld(e.clientX, e.clientY);
+      shapeDragRef.current = { start: world, current: world, shift: e.shiftKey };
+      setShapePreview({ x: world.x, y: world.y, width: 0, height: 0 });
+      return;
+    }
+
+    // Connector tool (story 10): drag on empty space starts a connector.
+    if (tool === 'connector') {
+      const world = toWorld(e.clientX, e.clientY);
+      connectorDragRef.current = { start: world, current: world };
+      setConnectorPreview({ from: world, to: world });
+      return;
+    }
+
     // Shift+drag on empty space: marquee selection (story 7) instead of pan.
     if (e.shiftKey && marqueeApiRef.current) {
       marqueeRef.current = true;
@@ -80,6 +149,23 @@ export function BoardViewport({ children, api, onCreateStickyAt, onEmptyClick, m
       marqueeApiRef.current?.move(toPoint(e.clientX, e.clientY));
       return;
     }
+
+    // Shape tool drag (story 10).
+    if (shapeDragRef.current) {
+      const world = toWorld(e.clientX, e.clientY);
+      shapeDragRef.current = { ...shapeDragRef.current, current: world, shift: e.shiftKey };
+      setShapePreview(shapeDragRect(shapeDragRef.current.start, world, e.shiftKey));
+      return;
+    }
+
+    // Connector tool drag (story 10).
+    if (connectorDragRef.current) {
+      const world = toWorld(e.clientX, e.clientY);
+      connectorDragRef.current = { ...connectorDragRef.current, current: world };
+      setConnectorPreview({ from: connectorDragRef.current.start, to: world });
+      return;
+    }
+
     if (!panningRef.current) return;
     apiRef.current.panMove(toPoint(e.clientX, e.clientY));
   };
@@ -97,13 +183,18 @@ export function BoardViewport({ children, api, onCreateStickyAt, onEmptyClick, m
     setPanning(false);
     const pressStart = emptyPressRef.current;
     emptyPressRef.current = null;
-    // A press on empty space that never moved is a click: clear the selection.
+    // A press on empty space that never moved is a click.
     if (
       pressStart !== null &&
       e !== undefined &&
       Math.hypot(e.clientX - pressStart.x, e.clientY - pressStart.y) < DRAG_THRESHOLD_PX
     ) {
-      onEmptyClick?.();
+      if (tool === 'text') {
+        // Text tool: create a text at the click point (story 9).
+        onCreateTextAt?.(toPoint(e.clientX, e.clientY));
+      } else {
+        onEmptyClick?.();
+      }
     }
     if (e?.pointerId !== undefined) {
       try {
@@ -115,11 +206,46 @@ export function BoardViewport({ children, api, onCreateStickyAt, onEmptyClick, m
     apiRef.current.endPan();
   };
 
+  /** End the shape tool drag (story 10). */
+  const endShapeDrag = (e?: React.PointerEvent) => {
+    if (!shapeDragRef.current) return;
+    const { start, current, shift } = shapeDragRef.current;
+    shapeDragRef.current = null;
+    setShapePreview(null);
+    if (e?.pointerId !== undefined) {
+      try { viewportRef.current?.releasePointerCapture?.(e.pointerId); } catch { /* */ }
+    }
+    // A click (no movement) creates a default-size shape.
+    const zoom = apiRef.current.camera.zoom;
+    const dist = Math.hypot(current.x - start.x, current.y - start.y) * zoom;
+    if (dist < DRAG_THRESHOLD_PX) {
+      onCreateShapeAt?.(null, start, false);
+    } else {
+      const rect = shapeDragRect(start, current, shift);
+      onCreateShapeAt?.(rect, start, shift);
+    }
+  };
+
+  /** End the connector tool drag (story 10). */
+  const endConnectorDrag = (e?: React.PointerEvent) => {
+    if (!connectorDragRef.current) return;
+    const { start, current } = connectorDragRef.current;
+    connectorDragRef.current = null;
+    setConnectorPreview(null);
+    if (e?.pointerId !== undefined) {
+      try { viewportRef.current?.releasePointerCapture?.(e.pointerId); } catch { /* */ }
+    }
+    onConnectorDragEnd?.(start, current);
+  };
+
   const onDoubleClick = (e: React.MouseEvent) => {
     // Only a genuine double-click on empty space creates a note; notes and
     // toolbars stopPropagation (and their elements are never the target).
     const target = e.target as Node;
     if (target !== viewportRef.current && target !== worldRef.current) return;
+    // Pen tool (story 11): a double-click while drawing just adds dots; it
+    // never creates a sticky note.
+    if (tool === 'pen') return;
     onCreateStickyAt?.(toPoint(e.clientX, e.clientY));
   };
 
@@ -129,6 +255,8 @@ export function BoardViewport({ children, api, onCreateStickyAt, onEmptyClick, m
       viewportRef.current?.releasePointerCapture?.(e.pointerId);
       return;
     }
+    if (shapeDragRef.current) { endShapeDrag(e); return; }
+    if (connectorDragRef.current) { endConnectorDrag(e); return; }
     stopPan(e);
   };
 
@@ -138,11 +266,15 @@ export function BoardViewport({ children, api, onCreateStickyAt, onEmptyClick, m
       viewportRef.current?.releasePointerCapture?.(e.pointerId);
       return;
     }
+    if (shapeDragRef.current) { endShapeDrag(e); return; }
+    if (connectorDragRef.current) { endConnectorDrag(e); return; }
     stopPan(e);
   };
 
   const onLostPointerCapture = () => {
     if (marqueeRef.current) stopMarquee(true);
+    else if (shapeDragRef.current) endShapeDrag();
+    else if (connectorDragRef.current) endConnectorDrag();
     else stopPan();
   };
 
@@ -237,6 +369,9 @@ export function BoardViewport({ children, api, onCreateStickyAt, onEmptyClick, m
   const bgPosX = -camera.x * camera.zoom;
   const bgPosY = -camera.y * camera.zoom;
 
+  // Tool-specific cursor (story 10).
+  const toolCursor = tool === 'text' ? 'text' : tool === 'shape' ? 'crosshair' : tool === 'connector' ? 'crosshair' : undefined;
+
   return (
     <div
       ref={viewportRef}
@@ -245,6 +380,7 @@ export function BoardViewport({ children, api, onCreateStickyAt, onEmptyClick, m
         backgroundImage: 'radial-gradient(circle, #c7cdd6 1.1px, transparent 1.1px)',
         backgroundSize: `${spacing}px ${spacing}px`,
         backgroundPosition: `${bgPosX}px ${bgPosY}px`,
+        cursor: toolCursor,
       }}
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}
@@ -260,6 +396,42 @@ export function BoardViewport({ children, api, onCreateStickyAt, onEmptyClick, m
       >
         <OriginMarker />
         {children}
+        {/* Shape tool drag preview (story 10). */}
+        {shapePreview && shapePreview.width > 0 && shapePreview.height > 0 && (
+          <div
+            data-testid="shape-drag-preview"
+            style={{
+              position: 'absolute',
+              left: shapePreview.x,
+              top: shapePreview.y,
+              width: shapePreview.width,
+              height: shapePreview.height,
+              border: '2px dashed #4285F4',
+              borderRadius: 2,
+              pointerEvents: 'none',
+              zIndex: 9999,
+            }}
+          />
+        )}
+        {/* Connector tool drag preview (story 10). */}
+        {connectorPreview && (
+          <svg
+            data-testid="connector-drag-preview"
+            style={{ position: 'absolute', top: 0, left: 0, width: 0, height: 0, overflow: 'visible', pointerEvents: 'none', zIndex: 9999 }}
+          >
+            <line
+              x1={connectorPreview.from.x}
+              y1={connectorPreview.from.y}
+              x2={connectorPreview.to.x}
+              y2={connectorPreview.to.y}
+              stroke="#4285F4"
+              strokeWidth={2}
+              strokeDasharray="6 3"
+            />
+            <circle cx={connectorPreview.from.x} cy={connectorPreview.from.y} r={4} fill="#4285F4" />
+            <circle cx={connectorPreview.to.x} cy={connectorPreview.to.y} r={4} fill="#4285F4" />
+          </svg>
+        )}
       </div>
     </div>
   );

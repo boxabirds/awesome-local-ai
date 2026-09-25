@@ -1,8 +1,10 @@
 import { useEffect, useRef } from 'react';
 import * as Y from 'yjs';
-import { DRAG_THRESHOLD_PX, MAX_OBJECT_SIZE_WORLD } from '../../shared/config';
+import { DRAG_THRESHOLD_PX, MAX_OBJECT_SIZE_WORLD, TEXT_MIN_WIDTH_WORLD } from '../../shared/config';
 import { bringObjectsToFront, moveObjects, objectBounds, resizeObjects } from '../../shared/board-model';
 import type { ObjectSnapshot } from '../../shared/board-model';
+import { setTextWidthFixed } from '../../shared/objects/text';
+import { LOCAL_ORIGIN } from '../../shared/board-model';
 import {
   anchorBox,
   clampScale,
@@ -162,6 +164,44 @@ export function useTransformGesture(opts: {
     if (moveObjects(docRef.current, positions) === 0) abortGesture();
   };
 
+  /**
+   * Single text object with e/w handle (story 9): set the fixed width and
+   * anchor x directly, bypassing the generic group resize.
+   */
+  const applyTextResize = (g: Gesture): void => {
+    const box = g.startBox;
+    const handle = g.handle;
+    const p = g.pending;
+    if (box === null || handle === null || p === null) return;
+    const sel = selectionRef.current;
+    if (sel.ids.size !== 1) return;
+    const id = [...sel.ids][0]!;
+    const zoom = cameraRef.current.zoom;
+    const dx = p.x / zoom;
+
+    let newWidth: number;
+    let newX: number;
+
+    if (handle === 'e') {
+      // Right edge moves: width changes, x stays.
+      newWidth = box.width + dx;
+      newX = box.x;
+    } else {
+      // Left edge moves: width changes, x changes.
+      newWidth = box.width - dx;
+      newX = box.x + dx;
+    }
+
+    // Clamp to minimum width.
+    newWidth = Math.max(newWidth, TEXT_MIN_WIDTH_WORLD);
+    if (handle === 'w') {
+      // Adjust x so the right edge stays put.
+      newX = box.x + box.width - newWidth;
+    }
+
+    setTextWidthFixed(docRef.current, LOCAL_ORIGIN, id, newWidth, newX);
+  };
+
   const applyResize = (g: Gesture): void => {
     const startRects = g.startRects;
     const box = g.startBox;
@@ -178,6 +218,17 @@ export function useTransformGesture(opts: {
       abortGesture();
       return;
     }
+
+    // Special case: single text object with e/w handle (story 9).
+    if (live.size === 1 && (handle === 'e' || handle === 'w')) {
+      const [id] = live.keys();
+      const obj = snapshotById(id);
+      if (obj?.type === 'text') {
+        applyTextResize(g);
+        return;
+      }
+    }
+
     const zoom = cameraRef.current.zoom;
     const delta: Point = { x: p.x / zoom, y: p.y / zoom };
     // Aspect locked when Shift is held or any selected spec keeps proportions.
@@ -265,12 +316,18 @@ export function useTransformGesture(opts: {
     const onUp = (e: PointerEvent): void => finish(e, false);
     const onCancel = (e: PointerEvent): void => finish(e, true);
     window.addEventListener('pointermove', onPointerMove);
-    window.addEventListener('pointerup', onUp);
-    window.addEventListener('pointercancel', onCancel);
+    // The finishing pointer events are listened for in the CAPTURE phase:
+    // a handler further down the tree may stopPropagation on pointerup
+    // (the resize handles do, and a release over a handle is the normal
+    // case when dragging a corner), which would swallow a bubble-phase
+    // listener and leak the gesture state (the next press is then
+    // refused because gestureRef is still set).
+    window.addEventListener('pointerup', onUp, true);
+    window.addEventListener('pointercancel', onCancel, true);
     return () => {
       window.removeEventListener('pointermove', onPointerMove);
-      window.removeEventListener('pointerup', onUp);
-      window.removeEventListener('pointercancel', onCancel);
+      window.removeEventListener('pointerup', onUp, true);
+      window.removeEventListener('pointercancel', onCancel, true);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);

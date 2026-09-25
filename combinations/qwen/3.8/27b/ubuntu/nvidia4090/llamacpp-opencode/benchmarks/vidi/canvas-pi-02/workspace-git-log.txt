@@ -1,3 +1,101 @@
+commit 2be635e3b4be0f25b75a2cc29b84bed9c04f1ef2
+vidi-agent  Fri Sep 25 16:11:44 2026 +0100
+
+    story 11: Sketch freehand with a pen
+
+
+ .../011-sketch-freehand-with-a-pen/NOTES.md        |  88 ++++++
+ src/client/board/Toolbar.tsx                       |  21 ++
+ src/client/board/useBoardKeys.ts                   |   8 +
+ src/client/board/useTool.ts                        |  10 +-
+ src/client/board/useTransformGesture.ts            |  14 +-
+ src/client/canvas/BoardViewport.tsx                |   7 +
+ src/client/objects/StrokeObject.tsx                | 105 +++++++
+ src/client/objects/registry.tsx                    |  45 ++-
+ src/client/pages/BoardPage.tsx                     |  32 +-
+ src/client/styles.css                              |  61 ++++
+ src/client/tools/PenTool.tsx                       | 333 +++++++++++++++++++++
+ src/client/tools/PenToolbar.tsx                    |  83 +++++
+ src/client/tools/useActiveTool.ts                  |   2 +-
+ src/client/tools/usePenOptions.ts                  |  28 ++
+ src/shared/board-model.ts                          |  44 ++-
+ src/shared/config.ts                               |  35 +++
+ src/shared/geometry/simplify.ts                    | 140 +++++++++
+ src/shared/objects/stroke.ts                       | 190 ++++++++++++
+ tests/component/PenTool.test.tsx                   | 306 +++++++++++++++++++
+ tests/component/StrokeObject.test.tsx              | 130 ++++++++
+ tests/e2e/pen.spec.ts                              | 264 ++++++++++++++++
+ tests/fixtures/pen-paths.ts                        |  69 +++++
+ tests/unit/stroke.test.ts                          | 187 ++++++++++++
+ 23 files changed, 2184 insertions(+), 18 deletions(-)
+commit 42339686e1366d896a33bc502e8001c5ed30af21
+vidi-agent  Fri Sep 25 15:16:09 2026 +0100
+
+    story 10: Draw shapes and connect them with arrows that follow when moved
+
+
+ src/client/board/Toolbar.tsx               | 135 +++++++++++-
+ src/client/board/useBoardKeys.ts           |  25 ++-
+ src/client/board/useTool.ts                |  21 +-
+ src/client/canvas/BoardViewport.tsx        | 159 +++++++++++++-
+ src/client/objects/ConnectorObject.tsx     |  85 ++++++++
+ src/client/objects/ShapeObject.tsx         | 121 +++++++++++
+ src/client/objects/ShapeToolbar.tsx        | 133 ++++++++++++
+ src/client/objects/registry.tsx            |  45 ++++
+ src/client/pages/BoardPage.tsx             | 175 ++++++++++++++-
+ src/client/tools/useActiveTool.ts          |  25 +++
+ src/shared/board-model.ts                  | 132 +++++++++++-
+ src/shared/config.ts                       |  62 ++++++
+ src/shared/geometry/connector-geometry.ts  | 120 +++++++++++
+ src/shared/geometry/polyline.ts            |  37 ++++
+ src/shared/objects/connector.ts            | 327 +++++++++++++++++++++++++++++
+ src/shared/objects/shape.ts                | 183 ++++++++++++++++
+ tests/component/shapes-connectors.test.tsx | 301 ++++++++++++++++++++++++++
+ tests/e2e/shapes-connectors.spec.ts        | 200 ++++++++++++++++++
+ tests/unit/board-model-group.test.ts       |  10 +-
+ tests/unit/board-model.test.ts             |  18 +-
+ tests/unit/connector-model.test.ts         | 267 +++++++++++++++++++++++
+ tests/unit/shape-model.test.ts             | 224 ++++++++++++++++++++
+ 22 files changed, 2761 insertions(+), 44 deletions(-)
+commit 4605ff00da75e1b8e645e9b8e64017cc26088f0e
+vidi-agent  Fri Sep 25 14:46:56 2026 +0100
+
+    story 9: Write free text anywhere on the board
+
+
+ NOTES.md                                |  58 +++++++
+ src/client/board/SelectionBar.tsx       |  47 ++++--
+ src/client/board/SelectionOverlay.tsx   |  26 ++--
+ src/client/board/Toolbar.tsx            |  54 ++++++-
+ src/client/board/useBoardDoc.ts         |  15 +-
+ src/client/board/useBoardKeys.ts        |  36 +++++
+ src/client/board/useTool.ts             |  30 ++++
+ src/client/board/useTransformGesture.ts |  53 ++++++-
+ src/client/canvas/BoardViewport.tsx     |  20 ++-
+ src/client/canvas/testHooks.ts          |  12 ++
+ src/client/objects/StickyText.ts        | 166 +-------------------
+ src/client/objects/TextEditor.tsx       | 141 +++++++++++++++++
+ src/client/objects/TextObject.tsx       | 119 ++++++++++++++
+ src/client/objects/TextToolbar.tsx      |  96 ++++++++++++
+ src/client/objects/registry.tsx         |  43 ++++--
+ src/client/objects/textLayout.ts        | 180 ++++++++++++++++++++++
+ src/client/objects/useTextBoxSync.ts    |  67 ++++++++
+ src/client/pages/BoardPage.tsx          |  56 ++++++-
+ src/client/styles.css                   | 116 ++++++++++++++
+ src/shared/board-model.ts               |  24 ++-
+ src/shared/config.ts                    |  25 +++
+ src/shared/objects/text.ts              | 265 ++++++++++++++++++++++++++++++++
+ src/shared/text-edit.ts                 | 133 ++++++++++++++++
+ tests/component/notes-harness.tsx       |  76 +++++++--
+ tests/component/text-object.test.tsx    | 223 +++++++++++++++++++++++++++
+ tests/component/text-tool.test.tsx      | 138 +++++++++++++++++
+ tests/e2e/text.spec.ts                  | 241 +++++++++++++++++++++++++++++
+ tests/fixtures/testbox.tsx              |   1 +
+ tests/fixtures/texts.ts                 |   3 +
+ tests/unit/registry.test.ts             |   1 +
+ tests/unit/text-layout.test.ts          | 121 +++++++++++++++
+ tests/unit/text-model.test.ts           | 138 +++++++++++++++++
+ 32 files changed, 2504 insertions(+), 220 deletions(-)
 commit 9e6c30cc71b0672899ad116a5305f925e50934a4
 vidi-agent  Fri Sep 25 13:47:38 2026 +0100
 

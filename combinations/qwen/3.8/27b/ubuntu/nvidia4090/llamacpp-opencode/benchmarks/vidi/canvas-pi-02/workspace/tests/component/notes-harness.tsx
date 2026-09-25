@@ -1,8 +1,8 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo, useCallback } from 'react';
 import type { RefObject } from 'react';
 import { act, render } from '@testing-library/react';
 import * as Y from 'yjs';
-import { createSticky, getStickyText, hasObject } from '../../src/shared/board-model';
+import { createSticky, getStickyText, hasObject, LOCAL_ORIGIN } from '../../src/shared/board-model';
 import { BoardViewport } from '../../src/client/canvas/BoardViewport';
 import { useCamera } from '../../src/client/canvas/useCamera';
 import type { CameraApi } from '../../src/client/canvas/useCamera';
@@ -11,6 +11,7 @@ import { useSelection } from '../../src/client/board/useSelection';
 import type { Selection } from '../../src/client/board/useSelection';
 import { useBoardActions } from '../../src/client/board/useBoardActions';
 import { useBoardKeys } from '../../src/client/board/useBoardKeys';
+import { useTool } from '../../src/client/board/useTool';
 import { useTransformGesture } from '../../src/client/board/useTransformGesture';
 import { createUndo } from '../../src/client/board/undo';
 import type { UndoController } from '../../src/client/board/undo';
@@ -20,9 +21,12 @@ import { SelectionOverlay } from '../../src/client/board/SelectionOverlay';
 import { SelectionBar } from '../../src/client/board/SelectionBar';
 import { Toolbar } from '../../src/client/board/Toolbar';
 import { getObjectType } from '../../src/client/objects/registry';
+import { createMeasurer } from '../../src/client/objects/textLayout';
+import { createText, getTextYText, deleteIfEmpty, isEmptyText } from '../../src/shared/objects/text';
 import { deleteObjects, objectBounds } from '../../src/shared/board-model';
 import { unionRects } from '../../src/shared/geometry';
-import { worldToScreen } from '../../src/client/canvas/camera';
+import { worldToScreen, screenToWorld } from '../../src/client/canvas/camera';
+import { DEFAULT_TEXT_SIZE } from '../../src/shared/config';
 import { DEFAULT_SIZE } from './test-utils';
 
 /**
@@ -84,22 +88,49 @@ export function NotesHarness({
       onGestureEnd?.();
     },
   });
-  useBoardKeys({ doc, selection, snapshot: notes, canEdit: editable, undo: controller });
+  const { tool, setTool } = useTool(editable);
+  const measurer = useMemo(() => createMeasurer(), []);
+  const createStickyAtRef = (p: { x: number; y: number }) => {
+    boundary();
+    actions.createAtScreenPoint(p);
+    boundary();
+  };
+  const createStickyCentreRef = () => {
+    boundary();
+    actions.createAtCentre();
+    boundary();
+  };
+  useBoardKeys({ doc, selection, snapshot: notes, canEdit: editable, undo: controller, tool, setTool, onCreateStickyCentre: createStickyCentreRef });
   const marquee = useMarquee(api.camera, notes, (ids) => selection.setMany(ids, true));
   if (docRef) docRef.current = doc;
   if (apiRef) apiRef.current = api;
   if (selectionRef) selectionRef.current = selection;
 
-  const createStickyAt = (p: { x: number; y: number }) => {
+  const createStickyAt = createStickyAtRef;
+  const createStickyCentre = createStickyCentreRef;
+
+  const createTextAt = useCallback((screenPoint: { x: number; y: number }) => {
+    if (!editable) return;
     boundary();
-    actions.createAtScreenPoint(p);
+    const world = screenToWorld(api.camera, screenPoint);
+    const id = createText(doc, LOCAL_ORIGIN, world, DEFAULT_TEXT_SIZE);
+    if (id) {
+      selection.setMany([id], false);
+      selection.startEdit(id);
+    }
     boundary();
-  };
-  const createStickyCentre = () => {
-    boundary();
-    actions.createAtCentre();
-    boundary();
-  };
+    setTool('select');
+  }, [doc, api, editable, selection, setTool]);
+
+  const handleEndEdit = useCallback(() => {
+    const editingId = selection.editingId;
+    if (editingId !== null && isEmptyText(doc, editingId)) {
+      deleteIfEmpty(doc, LOCAL_ORIGIN, editingId);
+      selection.clear();
+      return;
+    }
+    selection.endEdit();
+  }, [doc, selection]);
 
   const deleteSelection = () => {
     if (!editable) return;
@@ -123,6 +154,8 @@ export function NotesHarness({
         onCreateStickyAt={createStickyAt}
         onEmptyClick={() => selection.clear()}
         marquee={marquee}
+        tool={tool}
+        onCreateTextAt={createTextAt}
       >
         {notes.map((note) => {
           const spec = getObjectType(note.type);
@@ -140,8 +173,9 @@ export function NotesHarness({
               onObjectPointerDown={gesture.onObjectPointerDown}
               onSelect={selection.click}
               onStartEdit={selection.startEdit}
-              onEndEdit={selection.endEdit}
+              onEndEdit={handleEndEdit}
               undo={controller}
+              measurer={measurer}
             />
           );
         })}
@@ -168,7 +202,7 @@ export function NotesHarness({
           />
         </div>
       )}
-      <Toolbar onCreateSticky={createStickyCentre} undo={undoState} />
+      <Toolbar onCreateSticky={createStickyCentre} undo={undoState} tool={tool} onToolChange={setTool} disabled={!editable} />
     </div>
   );
 }
@@ -227,5 +261,21 @@ export function createNote(doc: Y.Doc, x: number, y: number): string {
 export function seedNoteText(doc: Y.Doc, id: string, text: string): void {
   act(() => {
     getStickyText(doc, id)!.insert(0, text);
+  });
+}
+
+/** Create a text object from test code (outside React events). */
+export function createTextObject(doc: Y.Doc, x: number, y: number): string {
+  let id = '';
+  act(() => {
+    id = createText(doc, LOCAL_ORIGIN, { x, y }, DEFAULT_TEXT_SIZE);
+  });
+  return id;
+}
+
+/** Seed a text object's content from test code. */
+export function seedTextContent(doc: Y.Doc, id: string, text: string): void {
+  act(() => {
+    getTextYText(doc, id)!.insert(0, text);
   });
 }

@@ -170,11 +170,11 @@ describe('allObjectIds (TC-08)', () => {
     const doc = freshDoc();
     const a = createSticky(doc, { x: 0, y: 0 });
     const b = createSticky(doc, { x: 10, y: 10 });
-    const shape = new Y.Map();
-    shape.set('type', 'shape');
-    shape.set('x', 5);
-    shape.set('y', 5);
-    doc.getMap('objects').set('shape-1', shape);
+    const widget = new Y.Map();
+    widget.set('type', 'widget');
+    widget.set('x', 5);
+    widget.set('y', 5);
+    doc.getMap('objects').set('widget-1', widget);
 
     const ids = allObjectIds(snapshot(doc));
     expect(ids.sort()).toEqual([a, b].sort());

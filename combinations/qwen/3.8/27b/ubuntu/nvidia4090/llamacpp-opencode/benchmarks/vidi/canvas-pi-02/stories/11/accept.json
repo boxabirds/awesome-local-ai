@@ -1,0 +1,545 @@
+{
+  "build_exit": 0,
+  "runner_exit": 1,
+  "runner_tail": "",
+  "passed": 61,
+  "total": 70,
+  "on_partial": {
+    "passed": 0,
+    "total": 0
+  },
+  "by_story": {
+    "01": {
+      "passed": 10,
+      "total": 10
+    },
+    "02": {
+      "passed": 9,
+      "total": 10
+    },
+    "03": {
+      "passed": 5,
+      "total": 7
+    },
+    "04": {
+      "passed": 4,
+      "total": 4
+    },
+    "05": {
+      "passed": 5,
+      "total": 5
+    },
+    "07": {
+      "passed": 8,
+      "total": 8
+    },
+    "08": {
+      "passed": 7,
+      "total": 7
+    },
+    "09": {
+      "passed": 3,
+      "total": 6
+    },
+    "10": {
+      "passed": 5,
+      "total": 8
+    },
+    "11": {
+      "passed": 5,
+      "total": 5
+    }
+  },
+  "tests": [
+    {
+      "file": "story-01.spec.ts",
+      "title": "golden path: controls and hint visible at 100% @ref prd:golden-path",
+      "status": "passed",
+      "error": "",
+      "on_partial": null
+    },
+    {
+      "file": "story-01.spec.ts",
+      "title": "zoom buttons step 100 \u2192 125 \u2192 100 @ref prd:zoom.step",
+      "status": "passed",
+      "error": "",
+      "on_partial": null
+    },
+    {
+      "file": "story-01.spec.ts",
+      "title": "zoom limits clamp and disable buttons @ref prd:zoom.limits",
+      "status": "passed",
+      "error": "",
+      "on_partial": null
+    },
+    {
+      "file": "story-01.spec.ts",
+      "title": "keyboard zoom and reset do not zoom the page @ref prd:zoom.no_page_zoom",
+      "status": "passed",
+      "error": "",
+      "on_partial": null
+    },
+    {
+      "file": "story-01.spec.ts",
+      "title": "ctrl+wheel zooms the board @ref prd:zoom.pointer",
+      "status": "passed",
+      "error": "",
+      "on_partial": null
+    },
+    {
+      "file": "story-01.spec.ts",
+      "title": "hint disappears after first pan and stays gone @ref prd:nav.hint",
+      "status": "passed",
+      "error": "",
+      "on_partial": null
+    },
+    {
+      "file": "story-01.spec.ts",
+      "title": "drag pans content exactly with the pointer @ref prd:pan.drag",
+      "status": "passed",
+      "error": "",
+      "on_partial": null
+    },
+    {
+      "file": "story-01.spec.ts",
+      "title": "wheel scroll pans in scroll direction @ref prd:pan.scroll",
+      "status": "passed",
+      "error": "",
+      "on_partial": null
+    },
+    {
+      "file": "story-01.spec.ts",
+      "title": "zoom keeps the point under the pointer fixed @ref prd:zoom.pointer",
+      "status": "passed",
+      "error": "",
+      "on_partial": null
+    },
+    {
+      "file": "story-01.spec.ts",
+      "title": "reset view returns to 100% with origin centred @ref prd:view.reset",
+      "status": "passed",
+      "error": "",
+      "on_partial": null
+    },
+    {
+      "file": "story-02.spec.ts",
+      "title": "golden path: create, type, select, recolour, delete @ref prd:golden-path",
+      "status": "failed",
+      "error": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoHaveCount\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m)\u001b[22m failed\n\nLocator:  locator('[role=\"group\"][aria-label=\"Sticky note\"]')\nExpected: \u001b[32m0\u001b[39m\nReceived: \u001b[31m1\u001b[39m\nTimeout:  5000ms\n\nCall log:\n\u001b[2m  - Expect \"toHaveCount\" with timeout 5000ms\u001b[22m\n\u001b[2m  - waiting for locator('[role=\"group\"][aria-label=\"Sticky note\"]')\u001b[22m\n\u001b[2m    9 \u00d7 locator resolved to 1 element\u001b[22m\n\u001b[2m      - unexpected value \"1\"\u001b[22m\n",
+      "on_partial": null
+    },
+    {
+      "file": "story-02.spec.ts",
+      "title": "double-click creates note centred on the point @ref prd:sticky.create_dblclick",
+      "status": "passed",
+      "error": "",
+      "on_partial": null
+    },
+    {
+      "file": "story-02.spec.ts",
+      "title": "toolbar button creates note in view centre @ref prd:sticky.create_button",
+      "status": "passed",
+      "error": "",
+      "on_partial": null
+    },
+    {
+      "file": "story-02.spec.ts",
+      "title": "escape and outside click keep typed text; Enter re-edits at end @ref prd:sticky.edit_end",
+      "status": "passed",
+      "error": "",
+      "on_partial": null
+    },
+    {
+      "file": "story-02.spec.ts",
+      "title": "pasting over the limit keeps exactly 1000 characters @ref prd:sticky.text_limit",
+      "status": "passed",
+      "error": "",
+      "on_partial": null
+    },
+    {
+      "file": "story-02.spec.ts",
+      "title": "dragging a note moves it, not the board @ref prd:sticky.move prd:sticky.no_pan",
+      "status": "passed",
+      "error": "",
+      "on_partial": null
+    },
+    {
+      "file": "story-02.spec.ts",
+      "title": "dragged note is drawn above the note it overlaps @ref prd:sticky.move",
+      "status": "passed",
+      "error": "",
+      "on_partial": null
+    },
+    {
+      "file": "story-02.spec.ts",
+      "title": "Delete while editing edits text, not the note @ref prd:sticky.delete",
+      "status": "passed",
+      "error": "",
+      "on_partial": null
+    },
+    {
+      "file": "story-02.spec.ts",
+      "title": "delete button on note toolbar removes note @ref prd:sticky.delete",
+      "status": "passed",
+      "error": "",
+      "on_partial": null
+    },
+    {
+      "file": "story-02.spec.ts",
+      "title": "clicking empty board clears selection @ref prd:sticky.select",
+      "status": "passed",
+      "error": "",
+      "on_partial": null
+    },
+    {
+      "file": "story-03.spec.ts",
+      "title": "create, type, move, recolour and delete reach the other person @ref prd:live.propagate",
+      "status": "failed",
+      "error": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoHaveCount\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m)\u001b[22m failed\n\nLocator:  locator('[role=\"group\"][aria-label=\"Sticky note\"]')\nExpected: \u001b[32m0\u001b[39m\nReceived: \u001b[31m1\u001b[39m\nTimeout:  2000ms\n\nCall log:\n\u001b[2m  - Expect \"toHaveCount\" with timeout 2000ms\u001b[22m\n\u001b[2m  - waiting for locator('[role=\"group\"][aria-label=\"Sticky note\"]')\u001b[22m\n\u001b[2m    6 \u00d7 locator resolved to 1 element\u001b[22m\n\u001b[2m      - unexpected value \"1\"\u001b[22m\n",
+      "on_partial": null
+    },
+    {
+      "file": "story-03.spec.ts",
+      "title": "late joiner sees current notes @ref prd:live.join_state",
+      "status": "passed",
+      "error": "",
+      "on_partial": null
+    },
+    {
+      "file": "story-03.spec.ts",
+      "title": "simultaneous typing keeps both people's characters @ref prd:live.concurrent_text",
+      "status": "failed",
+      "error": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoHaveText\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m)\u001b[22m failed\n\nLocator: locator('[role=\"group\"][aria-label=\"Sticky note\"]').first()\nExpected pattern: \u001b[32m/^\\s*red green blue\\s*$/\u001b[39m\nReceived string:  \u001b[31m\"red green bluered green blue\"\u001b[39m\nTimeout: 2000ms\n\nCall log:\n\u001b[2m  - Expect \"toHaveText\" with timeout 2000ms\u001b[22m\n\u001b[2m  - waiting for locator('[role=\"group\"][aria-label=\"Sticky note\"]').first()\u001b[22m\n\u001b[2m    6 \u00d7 locator resolved to <div role=\"gro",
+      "on_partial": null
+    },
+    {
+      "file": "story-03.spec.ts",
+      "title": "boards stay separate @ref prd:live.isolation",
+      "status": "passed",
+      "error": "",
+      "on_partial": null
+    },
+    {
+      "file": "story-03.spec.ts",
+      "title": "selection stays personal @ref prd:live.local_selection",
+      "status": "passed",
+      "error": "",
+      "on_partial": null
+    },
+    {
+      "file": "story-03.spec.ts",
+      "title": "server restart shows Reconnecting\u2026 then Connected, notes kept @ref prd:live.status",
+      "status": "passed",
+      "error": "",
+      "on_partial": null
+    },
+    {
+      "file": "story-03.spec.ts",
+      "title": "offline edits catch up on reconnect @ref prd:live.catch_up",
+      "status": "passed",
+      "error": "",
+      "on_partial": null
+    },
+    {
+      "file": "story-04.spec.ts",
+      "title": "board is intact after everyone leaves @ref prd:persist.reopen",
+      "status": "passed",
+      "error": "",
+      "on_partial": null
+    },
+    {
+      "file": "story-04.spec.ts",
+      "title": "change seen by another person survives immediate leave + restart @ref prd:persist.seen_is_saved",
+      "status": "passed",
+      "error": "",
+      "on_partial": null
+    },
+    {
+      "file": "story-04.spec.ts",
+      "title": "survives restart with nobody connected @ref prd:persist.restart",
+      "status": "passed",
+      "error": "",
+      "on_partial": null
+    },
+    {
+      "file": "story-04.spec.ts",
+      "title": "no save button or saved indicator @ref prd:persist.automatic",
+      "status": "passed",
+      "error": "",
+      "on_partial": null
+    },
+    {
+      "file": "story-05.spec.ts",
+      "title": "home page and create a board @ref prd:share.create",
+      "status": "passed",
+      "error": "",
+      "on_partial": null
+    },
+    {
+      "file": "story-05.spec.ts",
+      "title": "share panel copies full link and shows Link copied @ref prd:share.copy",
+      "status": "passed",
+      "error": "",
+      "on_partial": null
+    },
+    {
+      "file": "story-05.spec.ts",
+      "title": "opening a shared link gives full editing @ref prd:share.open_link",
+      "status": "passed",
+      "error": "",
+      "on_partial": null
+    },
+    {
+      "file": "story-05.spec.ts",
+      "title": "unknown or malformed link shows Board not found and creates nothing @ref prd:share.not_found",
+      "status": "passed",
+      "error": "",
+      "on_partial": null
+    },
+    {
+      "file": "story-05.spec.ts",
+      "title": "distinct 22-character links @ref prd:share.unguessable",
+      "status": "passed",
+      "error": "",
+      "on_partial": null
+    },
+    {
+      "file": "story-07.spec.ts",
+      "title": "golden path: marquee selects enclosed notes, bar shows count @ref prd:sel.marquee prd:sel.bar",
+      "status": "passed",
+      "error": "",
+      "on_partial": null
+    },
+    {
+      "file": "story-07.spec.ts",
+      "title": "partly enclosed note is not selected @ref prd:sel.marquee",
+      "status": "passed",
+      "error": "",
+      "on_partial": null
+    },
+    {
+      "file": "story-07.spec.ts",
+      "title": "shift-click toggles membership @ref prd:sel.shift_toggle",
+      "status": "passed",
+      "error": "",
+      "on_partial": null
+    },
+    {
+      "file": "story-07.spec.ts",
+      "title": "select all, escape clears, delete removes all @ref prd:sel.all prd:sel.clear prd:sel.group_delete",
+      "status": "passed",
+      "error": "",
+      "on_partial": null
+    },
+    {
+      "file": "story-07.spec.ts",
+      "title": "dragging one selected note moves the whole selection @ref prd:sel.group_move",
+      "status": "passed",
+      "error": "",
+      "on_partial": null
+    },
+    {
+      "file": "story-07.spec.ts",
+      "title": "dragging an unselected note moves only it @ref prd:sel.drag_unselected",
+      "status": "passed",
+      "error": "",
+      "on_partial": null
+    },
+    {
+      "file": "story-07.spec.ts",
+      "title": "arrow keys nudge 1, shift+arrow 10, board does not pan @ref prd:sel.nudge",
+      "status": "passed",
+      "error": "",
+      "on_partial": null
+    },
+    {
+      "file": "story-07.spec.ts",
+      "title": "corner resize keeps sticky square; minimum size enforced @ref prd:sel.resize prd:sel.aspect prd:sel.size_limits",
+      "status": "passed",
+      "error": "",
+      "on_partial": null
+    },
+    {
+      "file": "story-08.spec.ts",
+      "title": "buttons disabled with empty history @ref prd:undo.buttons",
+      "status": "passed",
+      "error": "",
+      "on_partial": null
+    },
+    {
+      "file": "story-08.spec.ts",
+      "title": "golden path: undo group delete restores all, redo deletes again @ref prd:golden-path",
+      "status": "passed",
+      "error": "",
+      "on_partial": null
+    },
+    {
+      "file": "story-08.spec.ts",
+      "title": "a whole drag is one step @ref prd:undo.steps",
+      "status": "passed",
+      "error": "",
+      "on_partial": null
+    },
+    {
+      "file": "story-08.spec.ts",
+      "title": "new change clears redo @ref prd:undo.redo_cleared",
+      "status": "passed",
+      "error": "",
+      "on_partial": null
+    },
+    {
+      "file": "story-08.spec.ts",
+      "title": "typing bursts undo separately while editing @ref prd:undo.typing",
+      "status": "passed",
+      "error": "",
+      "on_partial": null
+    },
+    {
+      "file": "story-08.spec.ts",
+      "title": "undo does not reverse other people's changes @ref prd:undo.own_only",
+      "status": "passed",
+      "error": "",
+      "on_partial": null
+    },
+    {
+      "file": "story-08.spec.ts",
+      "title": "history does not survive reload @ref prd:undo.no_reload",
+      "status": "passed",
+      "error": "",
+      "on_partial": null
+    },
+    {
+      "file": "story-09.spec.ts",
+      "title": "T activates Text tool; Escape returns to Select without creating @ref prd:text.tool",
+      "status": "passed",
+      "error": "",
+      "on_partial": null
+    },
+    {
+      "file": "story-09.spec.ts",
+      "title": "golden path: place text, type, tool returns to Select, XL keeps top-left @ref prd:golden-path",
+      "status": "failed",
+      "error": "TimeoutError: locator.click: Timeout 5000ms exceeded.\nCall log:\n\u001b[2m  - waiting for getByRole('button', { name: /^XL( size)?$/ })\u001b[22m\n",
+      "on_partial": null
+    },
+    {
+      "file": "story-09.spec.ts",
+      "title": "auto width wraps at 600 units @ref prd:text.autowidth",
+      "status": "failed",
+      "error": "TimeoutError: locator.boundingBox: Timeout 5000ms exceeded.\nCall log:\n\u001b[2m  - waiting for getByText(/word0 word1/).first()\u001b[22m\n",
+      "on_partial": null
+    },
+    {
+      "file": "story-09.spec.ts",
+      "title": "empty text is removed when editing ends @ref prd:text.empty_removed",
+      "status": "passed",
+      "error": "",
+      "on_partial": null
+    },
+    {
+      "file": "story-09.spec.ts",
+      "title": "selected text shows only left and right handles; side handle sets width @ref prd:text.fixed_width",
+      "status": "failed",
+      "error": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoBeGreaterThan\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m)\u001b[22m\n\nExpected: > \u001b[32m26\u001b[39m\nReceived:   \u001b[31m26\u001b[39m",
+      "on_partial": null
+    },
+    {
+      "file": "story-09.spec.ts",
+      "title": "text behaves like other objects: select all + delete + undo @ref prd:text.like_objects",
+      "status": "passed",
+      "error": "",
+      "on_partial": null
+    },
+    {
+      "file": "story-10.spec.ts",
+      "title": "drag creates a shape exactly covering the dragged area, then Select is active @ref prd:shape.drag",
+      "status": "passed",
+      "error": "",
+      "on_partial": null
+    },
+    {
+      "file": "story-10.spec.ts",
+      "title": "click drops a standard 160\u00d7160 shape centred on the point @ref prd:shape.click",
+      "status": "passed",
+      "error": "",
+      "on_partial": null
+    },
+    {
+      "file": "story-10.spec.ts",
+      "title": "shift constrains new shape to a square @ref prd:shape.shift",
+      "status": "passed",
+      "error": "",
+      "on_partial": null
+    },
+    {
+      "file": "story-10.spec.ts",
+      "title": "double-click labels a shape @ref prd:shape.label",
+      "status": "failed",
+      "error": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoBeVisible\u001b[2m(\u001b[22m\u001b[2m)\u001b[22m failed\n\nLocator: getByText('Checkout', { exact: true })\nExpected: visible\nTimeout: 5000ms\nError: element(s) not found\n\nCall log:\n\u001b[2m  - Expect \"toBeVisible\" with timeout 5000ms\u001b[22m\n\u001b[2m  - waiting for getByText('Checkout', { exact: true })\u001b[22m\n",
+      "on_partial": null
+    },
+    {
+      "file": "story-10.spec.ts",
+      "title": "fill and outline swatches exist for a selected shape @ref prd:shape.colour",
+      "status": "failed",
+      "error": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoHaveCount\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m)\u001b[22m failed\n\nLocator:  locator('button[aria-label$=\" fill\" i]')\nExpected: \u001b[32m7\u001b[39m\nReceived: \u001b[31m0\u001b[39m\nTimeout:  5000ms\n\nCall log:\n\u001b[2m  - Expect \"toHaveCount\" with timeout 5000ms\u001b[22m\n\u001b[2m  - waiting for locator('button[aria-label$=\" fill\" i]')\u001b[22m\n\u001b[2m    9 \u00d7 locator resolved to 0 elements\u001b[22m\n\u001b[2m      - unexpected value \"0\"\u001b[22m\n",
+      "on_partial": null
+    },
+    {
+      "file": "story-10.spec.ts",
+      "title": "golden path: connector joins two shapes and follows when moved @ref prd:connector.follow",
+      "status": "failed",
+      "error": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoBeGreaterThan\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m)\u001b[22m\n\nExpected: > \u001b[32m3\u001b[39m\nReceived:   \u001b[31m3\u001b[39m\n\nCall Log:\n- Timeout 5000ms exceeded while waiting on the predicate",
+      "on_partial": null
+    },
+    {
+      "file": "story-10.spec.ts",
+      "title": "connector drag of a few pixels creates nothing @ref prd:connector.no_accidental",
+      "status": "passed",
+      "error": "",
+      "on_partial": null
+    },
+    {
+      "file": "story-10.spec.ts",
+      "title": "Escape with Shape tool returns to Select without creating @ref prd:tool.return",
+      "status": "passed",
+      "error": "",
+      "on_partial": null
+    },
+    {
+      "file": "story-11.spec.ts",
+      "title": "golden path: P shows pen toolbar, drag draws, pen stays active @ref prd:pen.draw prd:pen.stays",
+      "status": "passed",
+      "error": "",
+      "on_partial": null
+    },
+    {
+      "file": "story-11.spec.ts",
+      "title": "click without moving draws a dot @ref prd:pen.dot",
+      "status": "passed",
+      "error": "",
+      "on_partial": null
+    },
+    {
+      "file": "story-11.spec.ts",
+      "title": "pen drag over a note neither pans nor moves the note @ref prd:pen.navigation",
+      "status": "passed",
+      "error": "",
+      "on_partial": null
+    },
+    {
+      "file": "story-11.spec.ts",
+      "title": "finished strokes reach the other person @ref prd:pen.share",
+      "status": "passed",
+      "error": "",
+      "on_partial": null
+    },
+    {
+      "file": "story-11.spec.ts",
+      "title": "stroke is selectable, deletable and undoable @ref prd:pen.select",
+      "status": "passed",
+      "error": "",
+      "on_partial": null
+    }
+  ]
+}

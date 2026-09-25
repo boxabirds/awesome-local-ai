@@ -1,0 +1,66 @@
+# Page snapshot
+
+```yaml
+- generic [ref=e3]:
+  - generic [ref=e4]:
+    - generic:
+      - generic:
+        - img
+      - img [ref=e6]
+      - img
+  - generic:
+    - button "Resize top-left" [ref=e8]
+    - button "Resize top" [ref=e9]
+    - button "Resize top-right" [ref=e10]
+    - button "Resize right" [ref=e11]
+    - button "Resize bottom-right" [ref=e12]
+    - button "Resize bottom" [ref=e13]
+    - button "Resize bottom-left" [ref=e14]
+    - button "Resize left" [ref=e15]
+  - generic [ref=e17]:
+    - generic [ref=e18]: 1 selected
+    - button "Delete selection" [ref=e19] [cursor=pointer]:
+      - img [ref=e20]
+  - generic [ref=e22]:
+    - generic [ref=e23]:
+      - 'button "Fill: none" [ref=e24] [cursor=pointer]'
+      - 'button "Fill: white" [ref=e25] [cursor=pointer]'
+      - 'button "Fill: blue" [ref=e26] [cursor=pointer]'
+      - 'button "Fill: green" [ref=e27] [cursor=pointer]'
+      - 'button "Fill: yellow" [ref=e28] [cursor=pointer]'
+      - 'button "Fill: pink" [ref=e29] [cursor=pointer]'
+      - 'button "Fill: grey" [ref=e30] [cursor=pointer]'
+    - generic [ref=e32]:
+      - 'button "Outline: dark" [ref=e33] [cursor=pointer]'
+      - 'button "Outline: blue" [ref=e34] [cursor=pointer]'
+      - 'button "Outline: green" [ref=e35] [cursor=pointer]'
+      - 'button "Outline: orange" [ref=e36] [cursor=pointer]'
+      - 'button "Outline: red" [ref=e37] [cursor=pointer]'
+      - 'button "Outline: grey" [ref=e38] [cursor=pointer]'
+    - button "Delete" [ref=e40] [cursor=pointer]
+  - toolbar "Tools" [ref=e41]:
+    - button "Select (V)" [pressed] [ref=e42] [cursor=pointer]:
+      - img [ref=e43]
+    - button "Sticky note" [ref=e45] [cursor=pointer]:
+      - img [ref=e46]
+    - button "Text (T)" [ref=e49] [cursor=pointer]:
+      - img [ref=e50]:
+        - generic [ref=e51]: T
+    - 'button "Shape: rect (S)" [ref=e53] [cursor=pointer]':
+      - img [ref=e54]
+    - button "Pen (P)" [ref=e56] [cursor=pointer]:
+      - img [ref=e57]
+    - button "Connector (L)" [ref=e60] [cursor=pointer]:
+      - img [ref=e61]
+    - button "Undo" [ref=e64] [cursor=pointer]:
+      - img [ref=e65]
+    - button "Redo" [disabled] [ref=e68] [cursor=pointer]:
+      - img [ref=e69]
+  - generic [ref=e72]:
+    - button "Zoom out" [ref=e73] [cursor=pointer]: −
+    - status [ref=e74]: 100%
+    - button "Zoom in" [ref=e75] [cursor=pointer]: +
+    - button "Reset view" [ref=e76] [cursor=pointer]
+  - status: Drag to move around · Ctrl/Cmd + scroll or pinch to zoom
+  - button "Share" [ref=e77] [cursor=pointer]
+```

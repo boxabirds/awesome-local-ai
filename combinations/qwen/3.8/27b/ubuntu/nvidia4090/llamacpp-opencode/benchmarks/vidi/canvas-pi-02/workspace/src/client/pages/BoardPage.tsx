@@ -8,7 +8,7 @@
  *   not_found       → NotFoundPage
  *   unreachable     → "Couldn't reach vidi6. Retrying…" with backoff
  */
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { isValidBoardId } from '../../shared/board-id';
 import {
   BOARD_CHECK_RETRY_BASE_MS,
@@ -28,7 +28,7 @@ import type { ConnectionState } from '../sync/connectBoard';
 export function canEdit(phase: ConnectionState | null): boolean {
   return phase !== 'load_failed';
 }
-import { canZoomIn, canZoomOut, worldToScreen, zoomPercent } from '../canvas/camera';
+import { canZoomIn, canZoomOut, zoomPercent } from '../canvas/camera';
 import { useCamera } from '../canvas/useCamera';
 import { BoardViewport } from '../canvas/BoardViewport';
 import { ZoomControls } from '../canvas/ZoomControls';
@@ -39,6 +39,7 @@ import { useSelection } from '../board/useSelection';
 import { useBoardActions } from '../board/useBoardActions';
 import { useBoardKeys } from '../board/useBoardKeys';
 import { useTransformGesture } from '../board/useTransformGesture';
+import { useTool } from '../board/useTool';
 import { createUndo } from '../board/undo';
 import { useUndo } from '../board/useUndo';
 import { useMarquee, MarqueeRect } from '../board/Marquee';
@@ -46,8 +47,26 @@ import { SelectionOverlay } from '../board/SelectionOverlay';
 import { SelectionBar } from '../board/SelectionBar';
 import { Toolbar } from '../board/Toolbar';
 import { getObjectType } from '../objects/registry';
+import { createMeasurer, type Measurer } from '../objects/textLayout';
 import { deleteObjects, hasObject, objectBounds } from '../../shared/board-model';
 import { unionRects } from '../../shared/geometry';
+import { createText, deleteIfEmpty, isEmptyText } from '../../shared/objects/text';
+import { createShape, setShapeStyle, getShapeLabel } from '../../shared/objects/shape';
+import { createConnector, setConnectorEndpoint, type Endpoint } from '../../shared/objects/connector';
+import { LOCAL_ORIGIN } from '../../shared/board-model';
+import { DEFAULT_TEXT_SIZE, SHAPE_MIN_SIZE_WORLD } from '../../shared/config';
+import { screenToWorld, worldToScreen } from '../canvas/camera';
+import type { Point } from '../canvas/camera';
+
+import { ShapeToolbar } from '../objects/ShapeToolbar';
+import { ConnectorObject } from '../objects/ConnectorObject';
+import { resolveEndpoints } from '../../shared/geometry/connector-geometry';
+import type { Rect } from '../../shared/geometry';
+import { objectBounds as getBounds } from '../../shared/board-model';
+import { PenTool } from '../tools/PenTool';
+import { PenToolbar } from '../tools/PenToolbar';
+import { usePenOptions } from '../tools/usePenOptions';
+import { getSessionId } from '../../shared/objects/text';
 
 type BoardPageState = 'checking' | 'ready' | 'not_found' | 'unreachable';
 
@@ -169,8 +188,11 @@ function BoardContent({ id }: { id: string }) {
     onGestureStart: boundary,
     onGestureEnd: boundary,
   });
-  useBoardKeys({ doc, selection, snapshot: notes, canEdit: editable, undo });
-  const marquee = useMarquee(api.camera, notes, (ids) => selection.setMany(ids, true));
+  const { tool, setTool, shapeKind, setShapeKind } = useTool(editable);
+  // Story 11: pen options (session state) and the identity for createdBy.
+  const pen = usePenOptions();
+  const identityId = useMemo(() => getSessionId(), []);
+  const measurer = useMemo(() => createMeasurer(), []);
 
   // Creation and deletion are single steps (story 8, undo.boundaries).
   const createStickyAt = (point: Parameters<typeof actions.createAtScreenPoint>[0]) => {
@@ -183,6 +205,110 @@ function BoardContent({ id }: { id: string }) {
     actions.createAtCentre();
     boundary();
   };
+
+  useBoardKeys({
+    doc, selection, snapshot: notes, canEdit: editable, undo,
+    tool, setTool, onCreateStickyCentre: createStickyCentre, shapeKind,
+  });
+  const marquee = useMarquee(api.camera, notes, (ids) => selection.setMany(ids, true));
+
+  // Story 9: create a text at a screen point (text tool click).
+  const createTextAt = useCallback((screenPoint: Point) => {
+    if (!editable) return;
+    boundary();
+    const world = screenToWorld(api.camera, screenPoint);
+    const id = createText(doc, LOCAL_ORIGIN, world, DEFAULT_TEXT_SIZE);
+    if (id) {
+      selection.setMany([id], false);
+      selection.startEdit(id);
+    }
+    boundary();
+    setTool('select');
+  }, [doc, api, editable, selection, setTool]);
+
+  // Story 10: shape tool - create a shape from a drag or click.
+  const createShapeAt = useCallback((rect: Rect | null, at: Point, square: boolean) => {
+    if (!editable) return;
+    boundary();
+    const id = createShape(doc, { kind: shapeKind, rect, at, square });
+    if (id) {
+      selection.setMany([id], false);
+    }
+    boundary();
+    setTool('select');
+  }, [doc, editable, selection, setTool, shapeKind]);
+
+  // Story 10: connector tool - create a connector from a drag.
+  const handleConnectorDragEnd = useCallback((from: Point, to: Point) => {
+    if (!editable) return;
+    // Hit-test: find the object under the start and end points.
+    const hitFrom = findObjectAtPoint(notes, from);
+    const hitTo = findObjectAtPoint(notes, to);
+
+    const fromEp: Endpoint = hitFrom
+      ? { kind: 'attached', objectId: hitFrom, fallback: from }
+      : { kind: 'free', x: from.x, y: from.y };
+    const toEp: Endpoint = hitTo
+      ? { kind: 'attached', objectId: hitTo, fallback: to }
+      : { kind: 'free', x: to.x, y: to.y };
+
+    boundary();
+    const id = createConnector(doc, fromEp, toEp);
+    if (id) {
+      selection.setMany([id], false);
+    }
+    boundary();
+    setTool('select');
+  }, [doc, notes, editable, selection, setTool]);
+
+  // Story 10: find the object at a world point (hit-testing for connector tool).
+  // Story 11: pass the zoom so line hit tolerances (strokes) scale in screen px.
+  const findObjectAtPoint = useCallback((snapshot: typeof notes, p: Point): string | null => {
+    for (const o of snapshot) {
+      const spec = getObjectType(o.type);
+      if (!spec) continue;
+      if (o.type === 'connector') continue; // Don't hit-test connectors for connector creation.
+      if (spec.hitTest(o, p, api.camera.zoom)) return o.id;
+    }
+    return null;
+  }, [api.camera.zoom]);
+
+  // Story 10: shape style changes (from the ShapeToolbar).
+  const handleShapeFillChange = useCallback((color: string) => {
+    if (!editable || selection.ids.size !== 1) return;
+    const id = [...selection.ids][0]!;
+    boundary();
+    setShapeStyle(doc, id, { fill: color });
+    boundary();
+  }, [doc, editable, selection, boundary]);
+
+  const handleShapeStrokeChange = useCallback((color: string) => {
+    if (!editable || selection.ids.size !== 1) return;
+    const id = [...selection.ids][0]!;
+    boundary();
+    setShapeStyle(doc, id, { stroke: color });
+    boundary();
+  }, [doc, editable, selection, boundary]);
+
+  // Story 10: shape label editing (double-click / Enter).
+  const handleShapeLabelEdit = useCallback((id: string) => {
+    // For now, shape label editing uses the same Y.Text mechanism as text.
+    // The ShapeObject component handles the editing UI.
+  }, []);
+
+  // Story 10: connector reconnection (drag endpoint while selected).
+  // This is handled in a future story; for now, the connector is not
+  // resizable or reconnectable via the selection bar.
+
+  const handleEndEdit = useCallback(() => {
+    const editingId = selection.editingId;
+    if (editingId !== null && isEmptyText(doc, editingId)) {
+      deleteIfEmpty(doc, LOCAL_ORIGIN, editingId);
+      selection.clear();
+      return;
+    }
+    selection.endEdit();
+  }, [doc, selection]);
 
   const deleteSelection = () => {
     if (!editable) return;
@@ -200,6 +326,36 @@ function BoardContent({ id }: { id: string }) {
     barAnchor = { x: topLeft.x + (box.width * api.camera.zoom) / 2, y: topLeft.y - 8 };
   }
 
+  // Story 10: connector overlay - resolve endpoints and render connectors.
+  const rectsMap = useMemo(() => {
+    const m = new Map<string, Rect>();
+    for (const o of notes) {
+      const b = getBounds(o);
+      m.set(o.id, { x: b.x, y: b.y, width: b.width, height: b.height });
+    }
+    return m;
+  }, [notes]);
+
+  const connectors = notes.filter((o) => o.type === 'connector' && o.from && o.to);
+
+  // Story 10: connection dots for the connector tool.
+  const connectionDots = useMemo(() => {
+    if (tool !== 'connector') return [];
+    const dots: Array<{ x: number; y: number; objectId: string }> = [];
+    for (const o of notes) {
+      if (o.type === 'connector') continue;
+      const b = getBounds(o);
+      // Show a dot at the centre of each object.
+      dots.push({ x: b.x + b.width / 2, y: b.y + b.height / 2, objectId: o.id });
+    }
+    return dots;
+  }, [notes, tool]);
+
+  // Story 10: shape toolbar state.
+  const selectedShape = selectedObjects.find((o) => o.type === 'shape');
+  const selectedConnector = selectedObjects.find((o) => o.type === 'connector');
+  const showShapeToolbar = (selectedShape || selectedConnector) && selection.ids.size === 1 && selection.editingId === null && editable;
+
   return (
     <div className="vidi6-shell" ref={shellRef}>
       <BoardViewport
@@ -207,11 +363,17 @@ function BoardContent({ id }: { id: string }) {
         onCreateStickyAt={createStickyAt}
         onEmptyClick={() => selection.clear()}
         marquee={marquee}
+        tool={tool}
+        onCreateTextAt={createTextAt}
+        onCreateShapeAt={createShapeAt}
+        onConnectorDragEnd={handleConnectorDragEnd}
       >
         {notes.map((note) => {
           // Unknown object types stay in the doc untouched (no renderer yet).
           const spec = getObjectType(note.type);
           if (spec === undefined) return null;
+          // Connectors are rendered in the SVG overlay below, not in their own container.
+          if (note.type === 'connector') return null;
           const Component = spec.Component;
           return (
             <Component
@@ -225,11 +387,40 @@ function BoardContent({ id }: { id: string }) {
               onObjectPointerDown={gesture.onObjectPointerDown}
               onSelect={selection.click}
               onStartEdit={selection.startEdit}
-              onEndEdit={selection.endEdit}
+              onEndEdit={handleEndEdit}
               undo={undo}
+              measurer={measurer}
             />
           );
         })}
+        {/* Story 10: connector SVG overlay */}
+        <svg
+          style={{ position: 'absolute', top: 0, left: 0, width: 0, height: 0, overflow: 'visible', pointerEvents: 'none' }}
+        >
+          {connectors.map((c) => {
+            if (!c.from || !c.to) return null;
+            const resolved = resolveEndpoints({ from: c.from, to: c.to }, rectsMap);
+            return (
+              <g key={c.id} style={{ pointerEvents: 'auto', cursor: 'pointer' }}
+                 onPointerDown={(e) => { e.stopPropagation(); selection.click(c.id); }}
+              >
+                <ConnectorObject from={resolved.from} to={resolved.to} selected={selection.ids.has(c.id)} />
+              </g>
+            );
+          })}
+          {/* Story 10: connection dots for the connector tool */}
+          {connectionDots.map((d) => (
+            <circle
+              key={`dot-${d.objectId}`}
+              cx={d.x}
+              cy={d.y}
+              r={4}
+              fill="#4285F4"
+              opacity={0.7}
+              pointerEvents="none"
+            />
+          ))}
+        </svg>
       </BoardViewport>
       <SelectionOverlay
         ids={selection.ids}
@@ -237,6 +428,17 @@ function BoardContent({ id }: { id: string }) {
         camera={api.camera}
         onHandlePointerDown={gesture.onHandlePointerDown}
       />
+      {/* Story 11: pen tool — preview + capture while the Pen is active. */}
+      {tool === 'pen' && editable && (
+        <PenTool
+          camera={api.camera}
+          color={pen.color}
+          thickness={pen.thickness}
+          doc={doc}
+          identityId={identityId}
+          undo={undo}
+        />
+      )}
       <MarqueeRect rect={marquee.rect} camera={api.camera} />
       {barAnchor !== null && selection.editingId === null && (
         <div
@@ -253,7 +455,44 @@ function BoardContent({ id }: { id: string }) {
           />
         </div>
       )}
-      <Toolbar onCreateSticky={createStickyCentre} disabled={!editable} undo={undoState} />
+      {/* Story 10: shape/connector toolbar */}
+      {showShapeToolbar && selectedShape && (
+        <ShapeToolbar
+          fill={selectedShape.fill ?? 'white'}
+          stroke={selectedShape.stroke ?? 'dark'}
+          onFillChange={handleShapeFillChange}
+          onStrokeChange={handleShapeStrokeChange}
+          onDelete={deleteSelection}
+        />
+      )}
+      {showShapeToolbar && selectedConnector && (
+        <ShapeToolbar
+          fill="white"
+          stroke="dark"
+          onFillChange={() => {}}
+          onStrokeChange={() => {}}
+          onDelete={deleteSelection}
+          isConnector
+        />
+      )}
+      <Toolbar
+        onCreateSticky={createStickyCentre}
+        disabled={!editable}
+        undo={undoState}
+        tool={tool}
+        onToolChange={setTool}
+        shapeKind={shapeKind}
+        onShapeKindChange={setShapeKind}
+      />
+      {/* Story 11: pen options, next to the left toolbar, Pen tool only. */}
+      {tool === 'pen' && (
+        <PenToolbar
+          color={pen.color}
+          thickness={pen.thickness}
+          onColor={pen.setColor}
+          onThickness={pen.setThickness}
+        />
+      )}
       <ConnectionStatus phase={connectionPhase} />
       <ZoomControls
         zoomPercent={zoomPercent(api.camera)}

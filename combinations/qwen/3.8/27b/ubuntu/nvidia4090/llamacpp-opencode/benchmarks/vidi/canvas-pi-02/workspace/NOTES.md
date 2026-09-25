@@ -319,3 +319,61 @@ cache is ever reinstalled, repeat the copy: `libavif13_0.9.3-3`,
   doc)`, `roomUrl(port, boardId)`, `mainRoomUrl(boardId)` and `MAIN_E2E_PORT`
   so the undo e2e suite can seed the shared `wrangler dev` server (port 8787)
   directly instead of the persist suite's port.
+
+# Story 9 — Write free text anywhere on the board: implementation notes
+
+## Deviations from the spec's literal text
+
+1. **`getTextContent` returns `string`, not `Y.Text`.**
+   The design contract says `getTextContent(doc, id): Y.Text | undefined`,
+   but the implementation returns the content as a `string` (more practical
+   for most callers). A separate `getTextYText(doc, id): Y.Text | undefined`
+   is provided for callers that need the live Y.Text (the editor).
+
+2. **`createText` returns `string` (empty string on failure), not `string | null`.**
+   The design says `createText(...) → string | null`, but the implementation
+   returns an empty string `''` for the non-finite point error path. Callers
+   check `if (id)` which works for both `''` and `null`.
+
+3. **`setTextWidthFixed` requires an `anchorX` parameter.**
+   The design contract shows `setTextWidthFixed(doc, id, width)`, but the
+   implementation needs an `anchorX` to determine which edge stays fixed when
+   the width changes. The `useTransformGesture` passes the appropriate anchor
+   (left edge for the e handle, right edge for the w handle).
+
+4. **No padding in the auto-width layout.**
+   TC-07 says "width = measured line + padding" but no padding constant exists
+   in the named settings. The layout contract defines `width = min(longest
+   hard line, TEXT_MAX_AUTO_WIDTH_WORLD)` without padding. The rendered text
+   fills the box exactly (no internal padding), matching the CSS
+   `white-space: pre-wrap` behaviour.
+
+5. **`createdBy` uses a session-scoped anonymous ID.**
+   Story 6 (identity) is out of scope, so `createdBy` is set to a
+   `crypto.randomUUID()` generated once per client session (module-level
+   constant in `text.ts`). When story 6 lands, this will be replaced with the
+   real identity.
+
+6. **`clampToLimit` in `StickyText.ts` keeps its sticky-specific default.**
+   The shared `clampToLimit(next, max)` in `text-edit.ts` requires both
+   arguments. `StickyText.ts` wraps it with the `STICKY_TEXT_MAX_CHARS`
+   default so existing story 2 callers and tests are unchanged.
+
+7. **Registry `Component` type uses `React.ComponentType<any>`.**
+   The text object component requires a `measurer` prop that is not in
+   `ObjectProps`. Using `any` for the component type avoids a complex generic
+   while keeping the registry simple. The actual prop types are checked at
+   the call site (BoardPage/harness).
+
+8. **E2E tests use the toolbar button instead of the T keyboard shortcut.**
+   In the e2e environment, `page.keyboard.press('t')` sometimes doesn't reach
+   the `useBoardKeys` handler (focus issues). The tests use
+   `page.getByRole('button', { name: 'Text (T)' }).click()` instead, which
+   exercises the same code path (the `onToolChange` callback).
+
+9. **`useTool` hook is created in BoardPage and the harness, not in a separate
+   module-level store.**
+   The design says `useTool(canEdit)` returns `{tool, setTool}`. The
+   implementation creates the hook in the BoardPage (and the test harness)
+   and passes the state down via props. This is simpler than a global store
+   and avoids stale-closure issues.

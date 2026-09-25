@@ -263,11 +263,11 @@ describe('board.model: render order and reads', () => {
     const doc = freshDoc();
     const stickyId = createSticky(doc, { x: 0, y: 0 });
     const objects = doc.getMap('objects');
-    const shape = new Y.Map();
-    shape.set('type', 'shape');
-    shape.set('x', 10);
-    shape.set('y', 10);
-    objects.set('shape-1', shape);
+    const widget = new Y.Map();
+    widget.set('type', 'widget');
+    widget.set('x', 10);
+    widget.set('y', 10);
+    objects.set('widget-1', widget);
 
     expect(() => notes(doc)).not.toThrow();
     const all = notes(doc);
@@ -275,10 +275,10 @@ describe('board.model: render order and reads', () => {
     // survives with its generic fields (nothing lost) so the renderer can
     // skip it without the doc diverging from the snapshot.
     expect(all).toHaveLength(2);
-    const shapeSnap = all.find((n) => n.id === 'shape-1')!;
-    expect(shapeSnap.type).toBe('shape');
-    expect(shapeSnap.x).toBe(10);
-    expect(shapeSnap.y).toBe(10);
+    const widgetSnap = all.find((n) => n.id === 'widget-1')!;
+    expect(widgetSnap.type).toBe('widget');
+    expect(widgetSnap.x).toBe(10);
+    expect(widgetSnap.y).toBe(10);
     // Selection queries (Ctrl+A, marquee) only cover known types.
     expect(allObjectIds(all)).toEqual([stickyId]);
     expect(objectsInRect(all, { x: -1000, y: -1000, width: 2000, height: 2000 })).toEqual([stickyId]);

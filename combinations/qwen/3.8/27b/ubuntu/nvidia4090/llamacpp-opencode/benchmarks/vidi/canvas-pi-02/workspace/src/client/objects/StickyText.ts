@@ -6,174 +6,18 @@ import {
   STICKY_TEXT_MAX_CHARS,
 } from '../../shared/config';
 
-/**
- * Pure sticky-note text logic: length clamping, the minimal Y.Text diff and
- * the font-fit measurement. All of it is framework-free so it can be unit
- * tested against a real Y.Text.
- *
- * Y.Text indices in Yjs 13 are UTF-16 code units, so the diff works in
- * code units; a change that touches a surrogate pair always deletes/inserts
- * whole pairs (the diff never starts or ends mid-pair in practice because
- * the textarea edits whole code units too).
- */
+// Re-export shared text-edit utilities so existing imports keep working.
+export { applyTextDiff, applyTextDelta, type TextDeltaOp } from '../../shared/text-edit';
+import { clampToLimit as _clampToLimit } from '../../shared/text-edit';
 
-/** Keep at most `max` characters (default STICKY_TEXT_MAX_CHARS); the tail is dropped. */
+/** Keep at most STICKY_TEXT_MAX_CHARS characters (the sticky default). */
 export function clampToLimit(next: string, max: number = STICKY_TEXT_MAX_CHARS): string {
-  return next.length > max ? next.slice(0, max) : next;
+  return _clampToLimit(next, max);
 }
 
 /** The counter shows once the note is within STICKY_COUNTER_THRESHOLD_CHARS of the limit. */
 export function counterVisible(length: number): boolean {
   return STICKY_TEXT_MAX_CHARS - length <= STICKY_COUNTER_THRESHOLD_CHARS;
-}
-
-function isHighSurrogate(code: number): boolean {
-  return code >= 0xd800 && code <= 0xdbff;
-}
-
-/**
- * Apply the minimal change that turns `ytext` into `next`: common prefix and
- * suffix are kept, leaving at most one delete and one insert in a single
- * transaction. A full replace would destroy concurrent typing once story 3
- * ships, so the minimal diff is required.
- *
- * The diff boundaries are nudged back over a leading high surrogate when the
- * common prefix/suffix would end mid surrogate pair: Yjs corrupts the text
- * if a delete or insert lands between the two halves of a pair, so the
- * changed span always covers whole pairs.
- */
-export function applyTextDiff(ytext: Y.Text, next: string, origin: unknown): void {
-  const current = ytext.toString();
-  if (current === next) return;
-
-  const minLen = Math.min(current.length, next.length);
-  let prefix = 0;
-  while (prefix < minLen && current.charCodeAt(prefix) === next.charCodeAt(prefix)) prefix += 1;
-  // Never end the prefix between the two halves of a pair in `current`.
-  if (prefix > 0 && isHighSurrogate(current.charCodeAt(prefix - 1))) prefix -= 1;
-
-  let suffix = 0;
-  while (
-    suffix < minLen - prefix &&
-    current.charCodeAt(current.length - 1 - suffix) === next.charCodeAt(next.length - 1 - suffix)
-  ) {
-    suffix += 1;
-  }
-  // Never start the suffix between the two halves of a pair in `current`.
-  const endBefore = current.length - suffix;
-  if (endBefore > 0 && isHighSurrogate(current.charCodeAt(endBefore - 1))) suffix += 1;
-
-  const deleteLength = current.length - prefix - suffix;
-  const runInTransaction = (fn: () => void): void => {
-    // A doc-bound Y.Text gets one transaction (one update, one undo step).
-    // An unbound Y.Text has no doc; each op is then its own transaction.
-    if (ytext.doc) {
-      ytext.doc.transact(fn, origin);
-    } else {
-      fn();
-    }
-  };
-
-  if (deleteLength < 0) {
-    // Degenerate (invalid) input: fall back to a full replace.
-    runInTransaction(() => {
-      ytext.delete(0, current.length);
-      ytext.insert(0, next);
-    });
-    return;
-  }
-  const insertText = next.slice(prefix, next.length - suffix);
-
-  runInTransaction(() => {
-    if (deleteLength > 0) ytext.delete(prefix, deleteLength);
-    if (insertText.length > 0) ytext.insert(prefix, insertText);
-  });
-}
-
-/**
- * One Quill-style text delta operation, as produced by Yjs
- * `YTextEvent.delta` (and the `applyDelta` format). `insert` is a string for
- * plain text (an object embed is possible in Yjs but the sticky editor never
- * uses one). At most one of `retain`/`insert`/`delete` is set per op.
- */
-export interface TextDeltaOp {
-  retain?: number;
-  insert?: string | object;
-  delete?: number;
-}
-
-/**
- * Apply a Yjs text delta to a plain string, preserving the editor's
- * selection (caret or range).
- *
- * This is the remote-to-local half of text sync: it lets the textarea absorb
- * another editor's change without clobbering the local caret, so that the
- * next local diff is computed against the true merged text rather than a
- * stale local view. Without this, two people typing into one note clobber
- * each other's characters (live.concurrent_text).
- *
- * `text` is the string before the delta (the textarea's current value) and
- * `delta` transforms it into the new text. `selStart`/`selEnd` are the
- * selection in `text` (UTF-16 code units); the returned `start`/`end` are the
- * corresponding selection in the resulting text. The caret adjustment rules:
- * - retain shifts nothing;
- * - an insert at position p pushes a selection at/after p right by its length;
- * - a delete of [p, p+n) clamps a selection strictly inside to p, shifts a
- *   selection at/after the block left by n, and leaves one before p alone.
- */
-export function applyTextDelta(
-  text: string,
-  delta: readonly TextDeltaOp[],
-  selStart: number,
-  selEnd: number,
-): { text: string; start: number; end: number } {
-  // Build the resulting text: retain copies, delete skips, insert appends.
-  let out = '';
-  let consumed = 0;
-  for (const op of delta) {
-    if (typeof op.retain === 'number') {
-      out += text.slice(consumed, consumed + op.retain);
-      consumed += op.retain;
-    } else if (typeof op.delete === 'number') {
-      consumed += op.delete;
-    } else if (typeof op.insert === 'string') {
-      out += op.insert;
-    }
-    // A non-string insert (embed) is ignored: the sticky editor is plain text.
-  }
-  out += text.slice(consumed);
-
-  // Map one position from `text` coordinates to `out` coordinates. Intervals
-  // are right-open, so a position sitting exactly at the end of a retain/delete
-  // is resolved by the *next* op: a trailing insert at that same point then
-  // pushes the caret past it (a replaced selection ends up selecting the
-  // replacement), which is the caret behaviour editors expect.
-  const mapPos = (p: number): number => {
-    let idx = 0; // offset consumed in `text`
-    let nidx = 0; // offset built in `out`
-    for (const op of delta) {
-      if (typeof op.retain === 'number') {
-        const n = op.retain;
-        if (idx + n > p) return nidx + (p - idx);
-        idx += n;
-        nidx += n;
-      } else if (typeof op.delete === 'number') {
-        const n = op.delete;
-        if (idx + n > p) return nidx;
-        idx += n;
-      } else if (typeof op.insert === 'string') {
-        if (idx <= p) nidx += op.insert.length;
-      }
-    }
-    // Characters beyond the last explicit op are implicitly retained (see the
-    // `out += text.slice(consumed)` above). Reaching the end of the loop means
-    // the caret sits at/after the explicitly-changed region (idx <= p), so its
-    // trailing offset (p - idx) must be added, or a caret at the end of a long
-    // note would collapse to the change point after a remote edit elsewhere.
-    return nidx + (p - idx);
-  };
-
-  return { text: out, start: mapPos(selStart), end: mapPos(selEnd) };
 }
 
 export interface FontFit {

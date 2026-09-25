@@ -1,0 +1,55 @@
+# Page snapshot
+
+```yaml
+- generic [ref=e3]:
+  - generic [ref=e4]:
+    - generic:
+      - generic:
+        - img
+      - group "Sticky note" [ref=e5]:
+        - generic [ref=e6]: Pricing
+      - img
+  - generic:
+    - button "Resize top-left" [ref=e7]
+    - button "Resize top" [ref=e8]
+    - button "Resize top-right" [ref=e9]
+    - button "Resize right" [ref=e10]
+    - button "Resize bottom-right" [ref=e11]
+    - button "Resize bottom" [ref=e12]
+    - button "Resize bottom-left" [ref=e13]
+    - button "Resize left" [ref=e14]
+  - toolbar "Note options" [ref=e16]:
+    - button "Yellow colour" [ref=e17] [cursor=pointer]
+    - button "Orange colour" [ref=e18] [cursor=pointer]
+    - button "Green colour" [ref=e19] [cursor=pointer]
+    - button "Blue colour" [ref=e20] [cursor=pointer]
+    - button "Pink colour" [active] [pressed] [ref=e21] [cursor=pointer]
+    - button "Violet colour" [ref=e22] [cursor=pointer]
+    - button "Delete note" [ref=e23] [cursor=pointer]:
+      - img [ref=e24]
+  - toolbar "Tools" [ref=e26]:
+    - button "Select (V)" [pressed] [ref=e27] [cursor=pointer]:
+      - img [ref=e28]
+    - button "Sticky note" [ref=e30] [cursor=pointer]:
+      - img [ref=e31]
+    - button "Text (T)" [ref=e34] [cursor=pointer]:
+      - img [ref=e35]:
+        - generic [ref=e36]: T
+    - 'button "Shape: rect (S)" [ref=e38] [cursor=pointer]':
+      - img [ref=e39]
+    - button "Pen (P)" [ref=e41] [cursor=pointer]:
+      - img [ref=e42]
+    - button "Connector (L)" [ref=e45] [cursor=pointer]:
+      - img [ref=e46]
+    - button "Undo" [ref=e49] [cursor=pointer]:
+      - img [ref=e50]
+    - button "Redo" [disabled] [ref=e53] [cursor=pointer]:
+      - img [ref=e54]
+  - generic [ref=e57]:
+    - button "Zoom out" [ref=e58] [cursor=pointer]: −
+    - status [ref=e59]: 100%
+    - button "Zoom in" [ref=e60] [cursor=pointer]: +
+    - button "Reset view" [ref=e61] [cursor=pointer]
+  - status: Drag to move around · Ctrl/Cmd + scroll or pinch to zoom
+  - button "Share" [ref=e62] [cursor=pointer]
+```

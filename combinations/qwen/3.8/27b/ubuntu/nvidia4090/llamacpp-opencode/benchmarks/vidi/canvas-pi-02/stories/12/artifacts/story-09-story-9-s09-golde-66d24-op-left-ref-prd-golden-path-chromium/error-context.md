@@ -1,0 +1,51 @@
+# Page snapshot
+
+```yaml
+- generic [ref=e3]:
+  - generic [ref=e4]:
+    - generic:
+      - generic:
+        - img
+      - group "Text" [ref=e5]:
+        - generic [ref=e6]: Went well
+      - img
+  - generic:
+    - button "Resize right" [ref=e7]
+    - button "Resize left" [ref=e8]
+  - generic [ref=e10]:
+    - generic [ref=e11]:
+      - button "Size S" [ref=e12] [cursor=pointer]: S
+      - button "Size M" [pressed] [ref=e13] [cursor=pointer]: M
+      - button "Size L" [ref=e14] [cursor=pointer]: L
+      - button "Size XL" [ref=e15] [cursor=pointer]: XL
+      - spinbutton "Width" [ref=e17]
+    - button "Delete text" [ref=e18] [cursor=pointer]:
+      - img [ref=e19]
+  - toolbar "Tools" [ref=e21]:
+    - button "Select (V)" [pressed] [ref=e22] [cursor=pointer]:
+      - img [ref=e23]
+    - button "Sticky note" [ref=e25] [cursor=pointer]:
+      - img [ref=e26]
+    - button "Image" [ref=e29] [cursor=pointer]:
+      - img [ref=e30]
+    - button "Text (T)" [ref=e34] [cursor=pointer]:
+      - img [ref=e35]:
+        - generic [ref=e36]: T
+    - 'button "Shape: rect (S)" [ref=e38] [cursor=pointer]':
+      - img [ref=e39]
+    - button "Pen (P)" [ref=e41] [cursor=pointer]:
+      - img [ref=e42]
+    - button "Connector (L)" [ref=e45] [cursor=pointer]:
+      - img [ref=e46]
+    - button "Undo" [ref=e49] [cursor=pointer]:
+      - img [ref=e50]
+    - button "Redo" [disabled] [ref=e53] [cursor=pointer]:
+      - img [ref=e54]
+  - generic [ref=e57]:
+    - button "Zoom out" [ref=e58] [cursor=pointer]: −
+    - status [ref=e59]: 100%
+    - button "Zoom in" [ref=e60] [cursor=pointer]: +
+    - button "Reset view" [ref=e61] [cursor=pointer]
+  - status: Drag to move around · Ctrl/Cmd + scroll or pinch to zoom
+  - button "Share" [ref=e62] [cursor=pointer]
+```

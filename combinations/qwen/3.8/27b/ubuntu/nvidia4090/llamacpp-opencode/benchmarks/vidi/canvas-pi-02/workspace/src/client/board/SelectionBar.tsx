@@ -5,17 +5,15 @@ import type { ObjectSnapshot } from '../../shared/board-model';
 import { DEFAULT_STICKY_COLOR } from '../../shared/config';
 import type { StickyColor } from '../../shared/config';
 import { NoteToolbar } from '../objects/NoteToolbar';
+import { TextToolbar } from '../objects/TextToolbar';
 
 /**
- * The bar above the selection's bounding box (story 7, sel.bar).
+ * The bar above the selection's bounding box (story 7, sel.bar; extended
+ * in story 9 for text objects).
  *
- *  - two or more objects (or one non-sticky object): "N selected" plus a
- *    Delete button (`aria-label="Delete selection"`); the count lives in an
- *    aria-live region so screen readers hear selection changes;
- *  - exactly one sticky: the story 2 NoteToolbar (colours + delete) instead.
- *
- * The bar never writes to the doc itself; mutations come from its callbacks
- * (deleteObjects + clear in the page, setStickyColor here for the swatches).
+ *  - exactly one sticky: the story 2 NoteToolbar (colours + delete);
+ *  - exactly one text: the TextToolbar (size buttons + width input);
+ *  - two or more objects: "N selected" plus a Delete button.
  */
 export interface SelectionBarProps {
   ids: ReadonlySet<string>;
@@ -26,7 +24,7 @@ export interface SelectionBarProps {
   editable: boolean;
   /** Remove every selected object (and clear the selection). */
   onDelete: () => void;
-  /** Step boundary (story 8): brackets the single-sticky colour write. */
+  /** Step boundary (story 8): brackets a single mutation. */
   boundary?: () => void;
 }
 
@@ -35,7 +33,7 @@ export function SelectionBar(props: SelectionBarProps): JSX.Element | null {
   if (ids.size === 0) return null;
 
   const selected = snapshot.filter((o) => ids.has(o.id));
-  if (selected.length === 0) return null; // pruned out of band; the page hides us
+  if (selected.length === 0) return null;
 
   // Exactly one sticky: story 2's note toolbar takes over.
   if (selected.length === 1 && selected[0]!.type === 'sticky') {
@@ -46,7 +44,6 @@ export function SelectionBar(props: SelectionBarProps): JSX.Element | null {
         disabled={!editable}
         onColor={(c) => {
           if (!editable) return;
-          // Each swatch click is one undo step (story 8).
           boundary?.();
           setStickyColor(doc, note.id, c);
           boundary?.();
@@ -55,6 +52,34 @@ export function SelectionBar(props: SelectionBarProps): JSX.Element | null {
           if (editable) onDelete();
         }}
       />
+    );
+  }
+
+  // Exactly one text: the text toolbar (story 9).
+  if (selected.length === 1 && selected[0]!.type === 'text') {
+    const text = selected[0]!;
+    return (
+      <div className="vidi6-selection-bar" data-testid="selection-bar">
+        <TextToolbar doc={doc} obj={text} editable={editable} boundary={boundary} />
+        <button
+          type="button"
+          className="vidi6-delete"
+          aria-label="Delete text"
+          title="Delete text"
+          disabled={!editable}
+          onClick={onDelete}
+        >
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+            <path
+              d="M2.5 4h11M6.5 4V2.5h3V4M4 4l.7 9.3a1 1 0 0 0 1 .95h4.6a1 1 0 0 0 1-.95L12 4M6.5 7v4M9.5 7v4"
+              stroke="currentColor"
+              strokeWidth="1.2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </svg>
+        </button>
+      </div>
     );
   }
 
