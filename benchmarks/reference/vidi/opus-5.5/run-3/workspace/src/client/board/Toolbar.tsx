@@ -25,9 +25,9 @@ export const STICKY_BUTTON_TOOLTIP = 'Sticky note – or double-click the board'
 const stop = (e: SyntheticEvent) => e.stopPropagation();
 
 /**
- * Fixed left-side toolbar: the Select and Text tools (story 9) and the Shape and Connector tools (story 10) when
- * `tool` is given, the Sticky note button, then Undo and Redo (story 8) when `undo` is given. The active tool's
- * button is pressed. While the Shape tool is active a small menu next to its button chooses the kind.
+ * Fixed left-side toolbar: the Select and Text tools (story 9), the Shape and Connector tools (story 10) and the
+ * Pen (story 11) when `tool` is given, the Sticky note button, then Undo and Redo (story 8) when `undo` is given.
+ * The active tool's button is pressed. While the Shape tool is active a small menu next to its button chooses the kind.
  */
 export function Toolbar(props: {
   onCreateSticky(): void;
@@ -133,6 +133,26 @@ export function Toolbar(props: {
             <svg width="22" height="22" viewBox="0 0 22 22" aria-hidden="true">
               <path d="M4.5 17.5L16 6" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
               <path d="M10.5 5.5h6v6" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          </button>
+          <button
+            type="button"
+            className="toolbar__button"
+            aria-label="Pen (P)"
+            title="Pen (P)"
+            aria-pressed={props.tool === 'pen'}
+            disabled={props.disabled}
+            onClick={() => props.onTool?.('pen')}
+          >
+            <svg width="22" height="22" viewBox="0 0 22 22" aria-hidden="true">
+              <path
+                d="M14.5 4.5l3 3L8 17l-4 1 1-4z"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.6"
+                strokeLinejoin="round"
+              />
+              <path d="M12.5 6.5l3 3" fill="none" stroke="currentColor" strokeWidth="1.6" />
             </svg>
           </button>
         </>

@@ -81,8 +81,8 @@ describe('active tool and return to Select (tools.active_tool)', () => {
       return <input aria-label="Field" />;
     }
     render(<Probe />);
-    expect(key('p', document.body)).toBe(false);
     expect(key('i', document.body)).toBe(false);
+    expect(key('c', document.body)).toBe(false);
     expect(current!.tool).toBe('select');
     expect(key('s', screen.getByLabelText('Field'))).toBe(false);
     expect(current!.tool).toBe('select');

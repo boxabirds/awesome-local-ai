@@ -95,4 +95,11 @@ describe('geometry (sel.geometry_ops)', () => {
     expect(unionRects([])).toBeNull();
     expect(normalizeRect({ x: 10, y: 50 }, { x: -10, y: 0 })).toEqual({ x: -10, y: 0, width: 20, height: 50 });
   });
+
+  it('clampScale does not force a side already below its minimum to grow (story 11 thin straight strokes)', () => {
+    // A thin horizontal stroke: 200 x 2 with a minimum side of 4.
+    const thin = { x: 0, y: 0, width: 200, height: 2 };
+    expect(clampScale({ x: 1.1, y: 1.1 }, [thin], [4], MAX_OBJECT_SIZE_WORLD)).toEqual({ x: 1.1, y: 1.1 });
+    expect(clampScale({ x: 0.5, y: 0.5 }, [thin], [4], MAX_OBJECT_SIZE_WORLD)).toEqual({ x: 1, y: 1 });
+  });
 });

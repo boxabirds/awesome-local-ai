@@ -16,6 +16,9 @@ import { getObjectType, type ObjectGesturePhase } from './objects/registry';
 import { useActiveTool } from './tools/useActiveTool';
 import { ShapeTool } from './tools/ShapeTool';
 import { ConnectorTool } from './tools/ConnectorTool';
+import { PenTool } from './tools/PenTool';
+import { PenToolbar } from './tools/PenToolbar';
+import { usePenOptions } from './tools/usePenOptions';
 import { BoardContext, type BoardContextValue } from './board/BoardContext';
 import { createSticky, deleteObjects, objectSnapshot, snapshot } from '../shared/board-model';
 import { createText } from '../shared/objects/text';
@@ -60,6 +63,8 @@ export function App(props: { boardId?: string; doc?: Y.Doc } = {}) {
   const viewSizeRef = useRef<Size>({ width: 0, height: 0 });
   const tool = useActiveTool({ canEdit: editable, onSelectCreated: selection.selectNew, isEditing: editingId !== null });
   const { setTool } = tool;
+  // Pen colour and thickness: remembered until the page is reloaded (pen.options).
+  const pen = usePenOptions();
   // Client-to-world conversion for objects (arrow end handles), from the viewport as last rendered.
   const toWorldRef = useRef<(x: number, y: number) => Point>((x, y) => ({ x, y }));
   const boardContext = useMemo<BoardContextValue>(
@@ -203,6 +208,15 @@ export function App(props: { boardId?: string; doc?: Y.Doc } = {}) {
                 onCreated={tool.toolCreated}
               />
             )}
+            {tool.tool === 'pen' && (
+              <PenTool
+                camera={camera}
+                color={pen.color}
+                thickness={pen.thickness}
+                doc={doc}
+                identityId={LOCAL_AUTHOR}
+              />
+            )}
             <SelectionOverlay
               ids={editingId !== null ? new Set<string>() : selection.ids}
               snapshot={objects}
@@ -219,6 +233,14 @@ export function App(props: { boardId?: string; doc?: Y.Doc } = {}) {
               onShapeKind={tool.setShapeKind}
               onCreateSticky={() => createAt(screenToWorld(camera, { x: size.width / 2, y: size.height / 2 }))}
             />
+            {tool.tool === 'pen' && (
+              <PenToolbar
+                color={pen.color}
+                thickness={pen.thickness}
+                onColor={pen.setColor}
+                onThickness={pen.setThickness}
+              />
+            )}
             <ConnectionStatus state={connection} />
           </>
         )}
