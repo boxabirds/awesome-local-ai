@@ -1,8 +1,9 @@
-# Qwen3.8-Flash-Next · Ubuntu 26.04 · Strix Halo 128GB · llama.cpp (Vulkan) + OpenCode
+# Qwen3.8-Flash-Next · Ubuntu 26.04 · Strix Halo 128GB · llama.cpp (Vulkan or ROCm) + MTP + OpenCode
 
 Qwen3.8-Flash-Next (125B total, about 6B active per token) from Unsloth's
-dynamic GGUF quants, served by upstream llama.cpp on Vulkan (RADV) on an AMD
-Ryzen AI Max+ 395 with 128 GB of unified memory, driven by OpenCode or pi.
+dynamic GGUF quants, with its MTP draft head, served by llama.cpp on Vulkan
+(RADV) or ROCm on an AMD Ryzen AI Max+ 395 with 128 GB of unified memory,
+driven by OpenCode or pi.
 
 > **NOT MEASURED BY THIS REPO YET.** This combination was written for a
 > Minisforum MS-S1 MAX before it had been run through the installer. Every
@@ -46,15 +47,17 @@ faster on a unified-memory chip.
 ./install-qwen-3.8-flash-next-ubuntu-strix-halo-128GB-llamacpp-opencode.sh
 ```
 
-It builds llama.cpp master with `-DGGML_VULKAN=ON`, downloads ~94.6 GB (the
-three `UD-IQ4_XS` shards and the vision projector), writes the runtime, loads
+It builds llama.cpp from the MTP pull request's branch (below) for Vulkan,
+downloads ~97.4 GB (the three `UD-IQ4_XS` shards, the MTP head and the vision
+projector), writes the runtime, loads
 the model once and checks it generates. The first load reads all 94 GB with
 `--no-mmap`; expect minutes.
 
 | Override | Effect |
 |---|---|
 | `QUANT=UD-Q4_K_XL` | the 111 GB quant: best quality, tight on memory (see `help.txt`) |
-| `GPU_API=rocm` | build HIP instead of Vulkan, for an A/B; needs a host ROCm; experimental |
+| `GPU_API=rocm` | build HIP instead of Vulkan; needs a host ROCm. Both are unmeasured here, and the benchmarks run both |
+| `MTP_QUANT=shared-Q4_K_M` | the 1.91 GB draft head instead of the 2.79 GB `shared-Q8_0` |
 | `SKIP_SMOKE_TEST=1` | everything but the model load |
 | `SKIP_BACKEND_UPDATE=1` | keep the llama.cpp checkout you have |
 
@@ -73,14 +76,29 @@ behind each flag. The choices that differ from the NVIDIA combinations:
 - **KV cache is f16 only.** bf16 crashes on gfx1151, and quantised KV has been
   reported to break tool calling on this model. With two KV heads the cache is
   small anyway.
-- **No MTP head.** Upstream llama.cpp cannot load a qwen4exp MTP head yet
-  (PRs #27836, #28243), and fails at startup if given one, so the installer
-  does not download it. The launcher turns on **n-gram speculation** instead,
-  after checking the build knows the flags.
+- **The MTP draft head, from a pull request.** It is most of this model's
+  speed on this chip: ~17 tok/s without it, 32–61 with it in drluoto's fork.
+  Stock llama.cpp cannot load a qwen4exp head, so this combination builds
+  [#28243](https://github.com/ggml-org/llama.cpp/pull/28243)'s branch
+  (`danielhanchen/llama.cpp`, `qwen4exp/mtp`) until it merges, with Unsloth's
+  `shared-Q8_0` head, 3 draft tokens a step and `p-min 0`. A shared head logs
+  one `borrow_shared_tensor` error at startup and then works. MTP helps one
+  request at a time; Unsloth measured it a net loss at 8 concurrent, so
+  check it on the `agents` profile. `SPEC_MTP=0` runs without it.
+- **No n-gram speculation.** On this chip each n-gram verification costs
+  230–480 ms, and drluoto found it lost on everything but prose.
+- **Vulkan or ROCm.** ROCm on gfx1151 returned wrong logits for long prompts
+  until llama.cpp #28604 (8 Sep 2026); the build is newer than that. Open
+  ROCm risks for this model are a load hang
+  ([#29149](https://github.com/ggml-org/llama.cpp/issues/29149)) and state
+  leaking between requests on a reused slot
+  ([#29092](https://github.com/ggml-org/llama.cpp/issues/29092)). Vulkan's is
+  the 2 s GPU watchdog on Linux 7.x; qualification warns until
+  `amdgpu.lockup_timeout` is set.
 - **`--no-mmap --ctx-checkpoints 8`**, `-b 2048 -ub 512`. Checkpoints let a
   returning agent turn resume, since the Gated DeltaNet layers cannot roll
-  back; a larger `-ub` has been reported to win `llama-bench` and halve real
-  decode.
+  back. `-ub 512` is unverified: a larger value has been reported to halve
+  real decode, but drluoto runs `-ub 2048`. The benchmarks settle it.
 - **A 30-minute idle timer**, not 5, and a 15-minute load allowance, because
   reloading 94 GB is the expensive part.
 
@@ -92,12 +110,57 @@ machines, for orientation only:
 | Stack | Decode | Prefill | Source |
 |---|---|---|---|
 | llama.cpp, UD-IQ4_XS, no speculation | ~17 tok/s at 8k, ~15 at 24k | ~340 tok/s empty, ~200 at 24k | drluoto, llama.cpp discussion #27950 |
-| drluoto's Vulkan fork, MTP draft | ~30 (prose) to ~58 (file rewrite) | ~510 at 8k | drluoto/flash-next-strix-halo |
+| drluoto's Vulkan fork, his Q5_K MTP head | 32 (prose), 43 (new code), 56 (file rewrite) at 8k; 38 and 49 at 32k | ~510 at 8k, ~390 at 32k | drluoto/flash-next-strix-halo, 20 Sep 2026 |
 | Mainline Vulkan vs ROCm, UD-Q4_K_XL, partial offload | 11.50 vs 1.79 tok/s | | Soothill, 27 Aug 2026 |
 
 The MS-S1 MAX runs a higher power limit (up to 160 W in its Performance mode)
 than most Strix Halo boxes, so its numbers may differ. Record the BIOS power
 mode with every measurement.
+
+## Why not the Windows these boxes ship with?
+
+Short answer: as of September 2026 there is no equivalent path on Windows.
+It fails on memory before speed comes into it, and the three things this
+combination's performance rests on (the IQ4_XS quant, the MTP draft head and
+context checkpoints) are the three things Windows breaks. Keep Windows if you
+want it, and dual-boot Ubuntu from a second drive or partition (300 GB or more:
+each quant is 94–111 GB).
+
+- **The model does not fit.** On Windows the GPU gets only the fixed slice the
+  BIOS reserves for it (a llama.cpp Vulkan maintainer confirms this in
+  [#26089](https://github.com/ggml-org/llama.cpp/issues/26089)), and AMD caps
+  that slice at 96 GB on 128 GB machines. On Linux the GPU reaches about 120 GB
+  through GTT. UD-IQ4_XS (93.7 GB) + MTP head (2.7 GB) + a 128k KV cache
+  (3.2 GB) + compute buffers is about 100 GB. UD-Q3_K_XL (90 GB) is marginal;
+  UD-IQ3_XXS (82 GB) fits, but it is a lower-quality model, so no longer
+  equivalent. *Untested:* about 29 GB of each file is the n-gram embedding
+  table, which may not need to be in GPU memory; if it can stay in system
+  memory, the fit changes.
+- **Vulkan on Windows is a different driver.** It is AMD's own driver, not
+  Mesa's RADV. Every Strix Halo figure on this page is from RADV on Linux; we
+  found no Windows measurements of this model.
+- **Context checkpoints crash Windows Vulkan**
+  ([#27560](https://github.com/ggml-org/llama.cpp/issues/27560)). The
+  workaround, `--ctx-checkpoints 0`, means the Gated DeltaNet layers cannot
+  resume, so every agent turn re-reads its whole prompt: minutes per turn at
+  128k.
+- **ROCm on Windows is a preview** (AMD's TheRock builds). Open issues include
+  a gfx1151 crash on the unfused Gated DeltaNet path
+  ([#27557](https://github.com/ggml-org/llama.cpp/issues/27557)) and a release
+  missing `hipblas.dll`
+  ([#26996](https://github.com/ggml-org/llama.cpp/issues/26996)).
+- **Windows has its own 2-second GPU watchdog** (TDR), the same problem as
+  `amdgpu.lockup_timeout` on Linux, fixed through the registry instead of the
+  kernel command line.
+- **None of this repo's tooling runs there.** The installer, session manager
+  and benchmarks are bash for Linux and macOS. WSL2 is not a way round it:
+  Vulkan inside WSL2 goes through a Direct3D translation layer, so its numbers
+  would say nothing about the hardware.
+
+**Revisit this** when Windows lets the GPU address more than the BIOS slice,
+when AMD's Windows ROCm leaves preview, or when the Windows Vulkan checkpoint
+crash is fixed. Any one of those reopens the question, and Windows' local-AI
+stack is expected to change through 2027.
 
 ## Machines
 

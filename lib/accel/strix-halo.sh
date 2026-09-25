@@ -20,20 +20,22 @@
 # Changing that limit needs a kernel parameter and a reboot, so this adapter
 # reports and refuses; it never edits the boot configuration itself.
 #
-# Two GPU APIs build for this device:
-#   GPU_API=vulkan  (default) RADV. Fastest decode for Qwen3.8-Flash-Next with
-#                   current llama.cpp, and needs nothing beyond Mesa.
-#   GPU_API=rocm    HIP. Needs a host ROCm install (hipcc). EXPERIMENTAL here:
-#                   no combination has been measured on it yet. Set it at
-#                   install time to build the other backend for an A/B run;
-#                   the build key changes, so it rebuilds rather than mixing.
+# Two GPU APIs build for this device, and neither is measured here yet; the
+# combination's benchmarks run both. Set GPU_API at install time; the build
+# key changes, so switching rebuilds rather than mixing.
+#   GPU_API=vulkan  (default) RADV. Needs nothing beyond Mesa, and is where
+#                   the published Strix Halo decode figures come from.
+#   GPU_API=rocm    HIP. Needs a host ROCm install (hipconfig). llama.cpp
+#                   before 2026-09-08 (#28604) returns wrong logits on gfx1151
+#                   for prompts longer than the ubatch; the combination's
+#                   MIN_LLAMA_COMMIT_DATE must be later than that.
 
 ACCEL_DESC=""; ACCEL_ARCH="gfx1151"; ACCEL_MEM_MIB=0
 ACCEL_RAM_MIB=0; ACCEL_VRAM_MIB=0; ACCEL_MEM_SOURCE=""
 GPU_API="${GPU_API:-vulkan}"
 
-# Strix Halo's integrated GPU is PCI 1002:1586. SYSFS_PCI (and PROC_MEMINFO)
-# are overridable so tests can fake a machine.
+# Strix Halo's integrated GPU is PCI 1002:1586. SYSFS_PCI (and PROC_MEMINFO,
+# PROC_CMDLINE) are overridable so tests can fake a machine.
 _sh_gpu_dir() {
   local d
   for d in "${SYSFS_PCI:-/sys/bus/pci/devices}"/*; do
@@ -75,6 +77,7 @@ qualify_accel() {
   info "  GPU budget from ${ACCEL_MEM_SOURCE}."
 
   _sh_qualify_carveout
+  _sh_qualify_lockup_timeout
   _sh_qualify_budget
   _sh_report_perf_level "$gpu"
   _sh_report_machine
@@ -237,13 +240,29 @@ _sh_report_machine() {
   }
 }
 
+# Since Linux 7.0 amdgpu kills a compute job after 2 s (it was 60 s), and a
+# long Vulkan dispatch on a big model can take that long: the server dies
+# with vk::DeviceLostError a few turns in (llama.cpp #25664, #27076). The fix
+# is a kernel parameter, so report it; never edit the boot configuration.
+_sh_qualify_lockup_timeout() {
+  local cmdline
+  cmdline="$(cat "${PROC_CMDLINE:-/proc/cmdline}" 2>/dev/null || true)"
+  if [[ "$cmdline" == *amdgpu.lockup_timeout=* ]]; then
+    ok "amdgpu.lockup_timeout is set on the kernel command line."
+    return 0
+  fi
+  warn "amdgpu.lockup_timeout is not set. Since Linux 7.0 a GPU job is killed after 2 s,"
+  warn "  which crashes long runs with vk::DeviceLostError. Add to the kernel command line:"
+  warn "    amdgpu.lockup_timeout=10000,60000,10000,10000"
+  warn "  (/etc/default/grub.d/, then sudo update-grub && sudo reboot)"
+}
+
 _sh_slug() { printf '%s' "$1" | tr 'A-Z' 'a-z' | sed -E 's/[^a-z0-9]+/-/g; s/^-+|-+$//g'; }
 
 # ROCm needs a host HIP toolchain. The Ubuntu archive carries one; AMD's own
 # repository carries newer. Neither is installed for you: which ROCm is a
-# decision, and this path is not measured yet.
+# decision.
 _sh_ensure_hip() {
-  warn "GPU_API=rocm is EXPERIMENTAL: no combination has been measured on it."
   if ! need_cmd hipconfig && [[ -x /opt/rocm/bin/hipconfig ]]; then
     export PATH="/opt/rocm/bin:${PATH}"
   fi

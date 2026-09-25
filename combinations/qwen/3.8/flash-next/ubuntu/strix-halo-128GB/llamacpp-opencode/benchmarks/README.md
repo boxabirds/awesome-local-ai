@@ -24,10 +24,14 @@ with anyone else's Strix Halo:
 | 1 | **Cold load time**, `--no-mmap` | the 900 s load allowance, the 30 min idle timer | `measure.sh load` (drops the page cache; needs sudo) |
 | 2 | **Server memory per profile** | every `need_mib` in `profiles.tsv` | `measure.sh profiles`: RSS and GTT used after load and after a 100k-token prompt |
 | 3 | **Decode and prefill at depth 0, 32k, 128k** | `combination_performance` in `config.sh` | `measure.sh bench` (llama-bench, `-mmp 0 -fa 1 -ub 512 -b 2048`) |
-| 4 | **Vulkan vs ROCm**, same file | the "Vulkan by default" claim in `help.txt` | rebuild with `GPU_API=rocm`, rerun 3 |
-| 5 | **n-gram speculation on and off** | the `SPEC_NGRAM_ARGS` default | `benchmarks/perf/tokbench.sh` (repo root) with `SPEC_NGRAM=0` and without |
-| 6 | **Clock `auto` vs `high`** | the clock advice in `help.txt` | rerun 3 after `echo high \| sudo tee .../power_dpm_force_performance_level` |
-| 7 | **Does the vision profile load?** | the "unverified" note on `vision` | `PROFILE=vision qwen38-flash-next-strix-server`, send one image |
+| 4 | **Vulkan vs ROCm**, same file | which `GPU_API` is the default | rebuild with `GPU_API=rocm`, rerun 3 and 5–8. On ROCm, also check perplexity against Vulkan (correctness, #28211) and run a multi-turn agent session looking for earlier replies leaking into later ones (#29092) |
+| 5 | **MTP on and off**, decode at 8k / 32k / 64k / 128k of *filled* context, split by workload (new code, file rewrite, prose) | the "17 vs 32–61 tok/s" figures, and whether 40 tok/s holds at 128k | `benchmarks/perf/tokbench.sh` (repo root) with `SPEC_MTP=0` and without. `llama-bench` cannot measure speculation; it has to go through the server |
+| 6 | **MTP acceptance on your own traffic** | the 2.5–3 accepted tokens per step the speed estimate assumes | the `draft acceptance … mean len` line in the server log after a real agent session |
+| 7 | **Greedy output identical with and without MTP** | the claim that MTP does not change output | same prompts at temperature 0, `SPEC_MTP=0` against default; compare the token streams (open issue #25618 reports divergence on quantised targets) |
+| 8 | **Draft depth 2 vs 3, head Q8_0 vs Q4_K_M, p-min 0 vs default** | `SPEC_DRAFT_N_MAX`, `SPEC_DRAFT_P_MIN`, `MTP_QUANT` | rerun 5 with `SPEC_DRAFT_N_MAX=2`, `SPEC_DRAFT_P_MIN=`, then `MTP_QUANT=shared-Q4_K_M` (a reinstall) |
+| 9 | **MTP on the `agents` profile**, three concurrent requests | whether that profile should run MTP at all | `PROFILE=agents`, 3 parallel `tokbench.sh` runs, MTP on and off |
+| 10 | **Clock `auto` vs `high`** | the clock advice in `help.txt` | rerun 3 after `echo high \| sudo tee .../power_dpm_force_performance_level` |
+| 11 | **Does the vision profile load?** | the "unverified" note on `vision` | `PROFILE=vision qwen38-flash-next-strix-server`, send one image |
 
 Harnesses that read `nvidia-smi` (`refit.sh`, `ctxprobe*.sh`, `vprobe.sh`,
 `run-niah.sh`) do not work here yet; `tokbench.sh`, `effort.sh` and
