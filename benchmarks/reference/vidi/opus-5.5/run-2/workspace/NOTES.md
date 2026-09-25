@@ -575,3 +575,87 @@ Decisions taken where the spec was silent or ambiguous:
 ### Not covered
 - Drawing latency on low-end hardware and the typical compression ratio (manual, per design).
 - TC-17 was not run in Firefox or WebKit (not installed).
+
+## Story 12 — Drop images onto the board
+
+Decisions taken where the spec was silent or ambiguous:
+
+1. **Uploader identity without story 6.** `uploaderId` is story 9's per-tab `g_<uuid>`
+   (`createdBy`). A reload therefore makes the uploader "someone else" for their own failed
+   images, so they see "Image unavailable" rather than Retry/Remove. The failed image can still
+   be selected and deleted. This matches the design's "file lost on reload, only Remove". Story 6
+   would make identity survive reloads.
+2. **Image tool is a command, not a mode.** `setTool('image')` (the "Image (I)" button or the I
+   key) opens the file picker and leaves Select active. `useActiveTool` got an
+   `onOpenImagePicker` option, and `useBoardKeys` passes I through to it. The picker is a hidden
+   `<input type=file multiple accept="image/png,image/jpeg,image/gif,image/webp"
+   data-testid="image-picker">` that `useImageInsert` appends to `document.body`. While offline
+   the picker does not open; the offline message shows instead.
+3. **`useImageInsert` contract extensions.** The hook also takes `viewport` (for the view centre),
+   `notify` (the toast) and `history` (undo boundaries around the placeholder transaction). It
+   also returns `onDragEnter`, `onDragLeave` and `dragging` for the drop highlight. An
+   enter/leave depth counter keeps the highlight steady while dragging across child elements.
+   `App` registers `onPaste` on `window`. A paste is ignored while focus or the event target is a
+   text field, textarea or contenteditable, and when the clipboard holds no image files, so text
+   paste is unchanged.
+4. **Validation order.** Unsupported and too-large files are dropped first. The count limit then
+   applies to the remaining supported files (PRD: "more than 20 *supported* files"). All messages
+   from one action are shown together in one toast, one line each. A file the browser cannot
+   decode (`createImageBitmap` rejects) gets the type message. That is how a PDF renamed `.png`
+   is refused on the client; the Worker sniffs the content again.
+5. **Offline gate.** Adding is allowed only in `connected`/`confirmed`. `connecting` and
+   `reconnecting` show the offline message. `load_failed` (story 4 read-only board) adds nothing
+   and shows no message. Retry is gated the same way.
+6. **Undo.** The placeholders of one action are one `LOCAL_ORIGIN` transaction between
+   `history.boundary()` calls. Status updates use `UPLOAD_ORIGIN`, which the UndoManager does not
+   track. Verified in TC-05: undo removes every placeholder of the action. Redo restores them, and
+   an image whose upload had already finished comes back `ready` with its `assetKey`
+   (Y.UndoManager restores the map with its later, untracked content). This settles the design's
+   "Not covered" question. Remove (on failed and unfinished images) is one undo step
+   (`deleteObjects`).
+7. **Status rules.** `markImageFailed` does nothing to an image that is already `ready` or
+   `failed`. `markImageRetrying` does nothing to a `ready` image. A stored `ready` without an
+   `assetKey` reads as `failed`. `createImagePlaceholders` returns ids in item order, with `''`
+   for a skipped (non-finite or non-positive) item, following story 2's convention.
+8. **Clock.** `useImageClock` (in `ImageObject.tsx`) re-reads `Date.now()` every
+   `IMAGE_CLOCK_TICK_MS` (30 s, new named setting) while any image is `uploading`. `unfinished`
+   compares the viewer's clock with the uploader's `uploadStartedAt`, so clock skew between
+   machines shifts the 5 minutes slightly. Leaving the board aborts this tab's running uploads.
+9. **Rendering.** `.image-object` (`role="group"`, `aria-roledescription="image"`, name "Image",
+   `data-status` = uploading / ready / failed / unfinished / unavailable). The `<img alt="Image">`
+   has `pointer-events: none`, so presses reach the object and the generic move gesture. Status
+   text and buttons use `calc(13px / var(--zoom))`, so they keep their screen size. Retry/Remove
+   stop `pointerdown` so they never start a move. A load error switches only that object to
+   "Image unavailable"; a new `assetKey` gets a fresh attempt. Upload progress is a
+   `role="progressbar"` ("Upload progress") plus the percentage text. The toast
+   (`src/client/ui/Toast.tsx`, `role="status"`, `TOAST_DURATION_MS` = 5 s, new named setting) is
+   only rendered while it has messages, so existing `getByRole('status')` tests are unaffected.
+10. **Worker.** Routes are matched before the board routes: `POST /api/boards/:id/assets` (other
+    methods 405) and `GET|HEAD /api/assets/:boardId/:assetId`. Error bodies are JSON
+    `{error}`. Served images also carry the R2 `ETag`. The rate-limit key is `CF-Connecting-IP`.
+    The integration tests use the real `ratelimits` binding (Miniflare supports it) and real
+    Miniflare R2. TC-15 calls `handleUpload` directly with a bucket whose `put` rejects. A
+    literal `/api/assets/../x` is normalised by URL parsing before it reaches the Worker, so TC-16
+    also calls `handleServe(env, '../x')` directly.
+11. **Fixtures.** `tests/fixtures/images/` holds files generated with ImageMagick (PNG
+    1440×900, JPEG 4032×3024, about 0.8 MB rather than ~3 MB because generated content compresses
+    well, animated GIF, WebP, a small PNG, an SVG with a script, a PDF renamed `.png`, and a
+    truncated PNG). `tests/fixtures/image-bytes.ts` embeds the small ones as base64 so they also
+    load inside workerd, and generates the exact-`IMAGE_MAX_BYTES` JPEG and the +1 file.
+    The e2e 11 MB JPEG is generated in the spec.
+12. **Existing e2e adjusted.** The Image button makes the Tools toolbar taller. The open Shape
+    kind menu now covers (200, 300), where story 10's `connectors.spec.ts` TC-25/TC-27 started
+    dragging rectangle A. Those tests now draw A from its opposite corner: same rectangle, same
+    assertions. Story 10's "unknown shortcuts" component test still checks that I does not
+    change the active tool; only its comment changed.
+13. **Browsers.** Only Chromium is installed here (the Firefox and WebKit executables are
+    missing), so e2e ran with `E2E_BROWSERS=chromium`. TC-26 and TC-27 are browser-neutral and
+    should also be run in Firefox and WebKit where available. TC-25 and TC-28 are multi-context
+    and skip outside Chromium.
+
+### Not covered
+- A board with 100 images (manual, per design) was not measured. Images use `loading="lazy"`
+  and `decoding="async"`.
+- Clipboard image paste is covered by component tests only (TC-18). There is no real-clipboard
+  e2e.
+- Garbage collection of stored files for deleted images (out of scope).

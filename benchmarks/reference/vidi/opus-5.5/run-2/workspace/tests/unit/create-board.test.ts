@@ -3,7 +3,13 @@ import { readFileSync } from 'node:fs';
 import { describe, expect, it, vi } from 'vitest';
 import { createWithRetries } from '../../src/worker/create-board';
 import { BOARD_ID_BYTES, BOARD_ID_PATTERN, newBoardId } from '../../src/shared/board-id';
-import { BOARD_CREATE_LIMIT, BOARD_CREATE_PERIOD_SECONDS, CREATE_ID_MAX_ATTEMPTS } from '../../src/shared/config';
+import {
+  BOARD_CREATE_LIMIT,
+  BOARD_CREATE_PERIOD_SECONDS,
+  CREATE_ID_MAX_ATTEMPTS,
+  IMAGE_UPLOAD_LIMIT,
+  IMAGE_UPLOAD_PERIOD_SECONDS,
+} from '../../src/shared/config';
 
 const GENERATED = 10_000;
 const BASE64URL = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_';
@@ -82,6 +88,18 @@ describe('rate limit settings (share.rate_limit)', () => {
     expect(limiter).toBeDefined();
     expect(limiter!.simple.limit).toBe(BOARD_CREATE_LIMIT);
     expect(limiter!.simple.period).toBe(BOARD_CREATE_PERIOD_SECONDS);
+  });
+
+  it('story 12: ASSET_UPLOAD_LIMITER mirrors IMAGE_UPLOAD_LIMIT and IMAGE_UPLOAD_PERIOD_SECONDS; R2 bucket bound', () => {
+    const config = JSON.parse(stripJsonComments(readFileSync('wrangler.jsonc', 'utf8'))) as {
+      ratelimits?: { name: string; simple: { limit: number; period: number } }[];
+      r2_buckets?: { binding: string; bucket_name: string }[];
+    };
+    const limiter = config.ratelimits?.find((r) => r.name === 'ASSET_UPLOAD_LIMITER');
+    expect(limiter).toBeDefined();
+    expect(limiter!.simple.limit).toBe(IMAGE_UPLOAD_LIMIT);
+    expect(limiter!.simple.period).toBe(IMAGE_UPLOAD_PERIOD_SECONDS);
+    expect(config.r2_buckets).toContainEqual({ binding: 'ASSETS_BUCKET', bucket_name: 'vidi6-assets' });
   });
 });
 

@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import type * as Y from 'yjs';
 import { BoardContext, type BoardContextValue } from './canvas/BoardContext';
 import { BoardViewport } from './canvas/BoardViewport';
@@ -23,6 +23,10 @@ import { MarqueeRect, useMarquee } from './board/Marquee';
 import { SelectionOverlay } from './board/SelectionOverlay';
 import { SelectionBar } from './board/SelectionBar';
 import { getObjectType } from './objects/registry';
+import { ImageContext, useImageClock, type ImageBoardContext } from './objects/ImageObject';
+import { useImageInsert } from './images/useImageInsert';
+import { DropHighlight } from './images/DropHighlight';
+import { Toast, useToast } from './ui/Toast';
 import { ConnectionStatus } from './sync/ConnectionStatus';
 import type { ConnectionState, ProviderFactory } from './sync/connectBoard';
 import { createSticky, deleteObjects, objectBounds, setStickyColor } from '../shared/board-model';
@@ -74,7 +78,56 @@ export function App(props: AppProps = {}): React.JSX.Element {
   const [localAuthor] = useState(() => `g_${crypto.randomUUID()}`);
   const selection = useSelection(objects);
   const { ids: selectedIds, click, clear, setMany, startEdit, endEdit } = selection;
-  const tools = useActiveTool({ canEdit: editable, onSelect: selection.selectCreated });
+
+  // One undo history per board doc, for this tab only (story 8).
+  const history = useUndoController(doc);
+  const undoApi = useUndo(history, editable);
+  /** Runs one model call as exactly one undo step. */
+  const step = useCallback(
+    <T,>(fn: () => T): T => {
+      history.boundary();
+      try {
+        return fn();
+      } finally {
+        history.boundary();
+      }
+    },
+    [history],
+  );
+
+  // Story 12: drop, paste and pick images; status messages in the bottom toast.
+  const toast = useToast();
+  const images = useImageInsert({
+    doc,
+    boardId: props.boardId ?? '',
+    camera,
+    connection,
+    identityId: localAuthor,
+    viewport,
+    notify: toast.show,
+    history,
+  });
+  const { onPaste } = images;
+  useEffect(() => {
+    window.addEventListener('paste', onPaste);
+    return () => window.removeEventListener('paste', onPaste);
+  }, [onPaste]);
+  const now = useImageClock(objects);
+  const imageContext = useMemo<ImageBoardContext>(
+    () => ({
+      identityId: localAuthor,
+      progress: images.progress,
+      canRetry: images.canRetry,
+      retry: images.retry,
+      remove: (id) => {
+        if (editable) step(() => deleteObjects(doc, [id]));
+      },
+      now,
+    }),
+    [localAuthor, images.progress, images.canRetry, images.retry, editable, step, doc, now],
+  );
+
+  const tools = useActiveTool({ canEdit: editable, onSelect: selection.selectCreated, onOpenImagePicker: images.openPicker });
   const { tool, setTool } = tools;
   const pen = usePenOptions();
   // Arrows resolve their attached ends against these rects (story 10).
@@ -92,22 +145,6 @@ export function App(props: AppProps = {}): React.JSX.Element {
         .filter((o) => getObjectType(o.type) !== undefined)
         .sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0)),
     [objects],
-  );
-
-  // One undo history per board doc, for this tab only (story 8).
-  const history = useUndoController(doc);
-  const undoApi = useUndo(history, editable);
-  /** Runs one model call as exactly one undo step. */
-  const step = useCallback(
-    <T,>(fn: () => T): T => {
-      history.boundary();
-      try {
-        return fn();
-      } finally {
-        history.boundary();
-      }
-    },
-    [history],
   );
 
   const transform = useTransformGesture({
@@ -211,6 +248,7 @@ export function App(props: AppProps = {}): React.JSX.Element {
         onTextSize={onTextSize}
         onShapeStyle={onShapeStyle}
       />
+      <DropHighlight visible={images.dragging} />
     </>
   );
 
@@ -218,6 +256,7 @@ export function App(props: AppProps = {}): React.JSX.Element {
     <BoardContext.Provider value={context}>
       <UndoContext.Provider value={history}>
       <BoardObjectsContext.Provider value={boardObjects}>
+      <ImageContext.Provider value={imageContext}>
       <main className="app">
         <BoardViewport
           onBackgroundClick={clear}
@@ -225,6 +264,10 @@ export function App(props: AppProps = {}): React.JSX.Element {
           marquee={marquee}
           overlay={overlay}
           onPlace={tool === 'text' ? placeText : undefined}
+          onDragEnter={images.onDragEnter}
+          onDragOver={images.onDragOver}
+          onDragLeave={images.onDragLeave}
+          onDrop={images.onDrop}
         >
           {renderOrder.map((obj) => {
             const { Component } = getObjectType(obj.type)!;
@@ -269,7 +312,9 @@ export function App(props: AppProps = {}): React.JSX.Element {
         />
         <NavigationHint visible={!board.hasNavigated} />
         <ConnectionStatus state={connection} />
+        <Toast messages={toast.messages} />
       </main>
+      </ImageContext.Provider>
       </BoardObjectsContext.Provider>
       </UndoContext.Provider>
     </BoardContext.Provider>

@@ -22,11 +22,14 @@
  *   `overlay` covers the board and takes every press, including presses over objects, so
  *   nothing pans or moves; wheel and pinch events bubble to the listeners here, so the board
  *   still pans and zooms while drawing.
+ * - Story 12: files dragged over and dropped on the board go to the `onDrag*` / `onDrop`
+ *   handlers (image.drop).
  */
 import {
   useEffect,
   useRef,
   type CSSProperties,
+  type DragEvent,
   type MouseEvent,
   type PointerEvent,
   type ReactNode,
@@ -81,6 +84,11 @@ export interface BoardViewportProps {
   overlay?: ReactNode;
   /** Set while a placing tool (Text) is active: a press on the board places at this world point. */
   onPlace?(world: Point): void;
+  /** Story 12: file drag and drop onto the board. */
+  onDragEnter?(e: DragEvent<HTMLDivElement>): void;
+  onDragOver?(e: DragEvent<HTMLDivElement>): void;
+  onDragLeave?(e: DragEvent<HTMLDivElement>): void;
+  onDrop?(e: DragEvent<HTMLDivElement>): void;
 }
 
 export function BoardViewport(props: BoardViewportProps): React.JSX.Element {
@@ -283,6 +291,10 @@ export function BoardViewport(props: BoardViewportProps): React.JSX.Element {
       onPointerCancel={onPointerEnd}
       onLostPointerCapture={onPointerEnd}
       onDoubleClick={onDoubleClick}
+      onDragEnter={props.onDragEnter}
+      onDragOver={props.onDragOver}
+      onDragLeave={props.onDragLeave}
+      onDrop={props.onDrop}
     >
       <div className="board-world" data-testid="world-layer" style={worldStyle}>
         <div className="origin-marker" data-testid="origin-marker" aria-hidden="true" />

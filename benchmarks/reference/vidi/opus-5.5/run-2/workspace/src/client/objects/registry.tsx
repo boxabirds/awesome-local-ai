@@ -17,6 +17,7 @@ import {
 import { isTextSnapshot, setTextWidthFixed } from '../../shared/objects/text';
 import { isShapeSnap } from '../../shared/objects/shape';
 import { isStrokeSnap, scaledPoints, STROKE_TYPE } from '../../shared/objects/stroke';
+import { IMAGE_TYPE, isImageSnap } from '../../shared/objects/image';
 import {
   CONNECTOR_TYPE,
   isConnectorSnap,
@@ -26,6 +27,7 @@ import {
 } from '../../shared/objects/connector';
 import {
   CONNECTOR_HIT_TOLERANCE_PX,
+  IMAGE_MIN_SIZE_WORLD,
   PEN_THICKNESS_WORLD,
   SHAPE_MIN_SIZE_WORLD,
   STICKY_MIN_SIZE_WORLD,
@@ -37,6 +39,7 @@ import { rectContains, type Point, type Rect } from '../../shared/geometry';
 import { distanceToPolyline } from '../../shared/geometry/polyline';
 import { BoardObjectsContext } from './BoardObjectsContext';
 import { ConnectorObject } from './ConnectorObject';
+import { ImageContext, ImageObject } from './ImageObject';
 import { ShapeObject } from './ShapeObject';
 import { StickyNote } from './StickyNote';
 import { StrokeObject } from './StrokeObject';
@@ -271,4 +274,33 @@ registerObjectType(STROKE_TYPE, {
     isStrokeSnap(obj) &&
     distanceToPolyline(scaledPoints(obj), p) <=
       Math.max(PEN_THICKNESS_WORLD[obj.thickness] / 2, STROKE_HIT_TOLERANCE_PX / zoom),
+});
+
+function ImageEntry(props: ObjectProps): React.JSX.Element | null {
+  const { object, ...rest } = props;
+  // Only images read the upload state (progress, retry, clock) of the board.
+  const ctx = useContext(ImageContext);
+  if (!isImageSnap(object)) return null;
+  return (
+    <ImageObject
+      {...rest}
+      image={object}
+      isUploader={ctx.identityId !== '' && object.uploaderId === ctx.identityId}
+      progress={ctx.progress.get(object.id)}
+      canRetry={ctx.canRetry(object.id)}
+      now={ctx.now}
+      onRetry={() => ctx.retry(object.id)}
+      onRemove={() => ctx.remove(object.id)}
+    />
+  );
+}
+
+registerObjectType(IMAGE_TYPE, {
+  Component: ImageEntry,
+  resizable: true,
+  // image.aspect_resize: proportional, never smaller than IMAGE_MIN_SIZE_WORLD on either side.
+  aspectLocked: true,
+  minSize: IMAGE_MIN_SIZE_WORLD,
+  editableText: false,
+  hitTest: boundsHitTest,
 });

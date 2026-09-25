@@ -11,7 +11,8 @@
  * - Tool shortcuts (TOOL_SHORTCUTS): V selects the Select tool; T Text, S Shape and
  *   L Connector (stories 9, 10; only while the board can be edited); Escape returns from
  *   any other tool to Select without creating anything (the selection is kept); N creates
- *   a sticky note in the centre of the view (story 2's button).
+ *   a sticky note in the centre of the view (story 2's button); I opens the image file
+ *   picker (story 12).
  * Delete and each nudge are one undo step: the history's boundary is closed around them.
  * Nothing is handled while text is being edited or focus is in a text field; the mutating
  * keys are also ignored while the board is read-only (story 4 load failure).
@@ -95,6 +96,11 @@ export function useBoardKeys(opts: BoardKeysOptions): void {
         if (shortcut !== undefined && shortcut !== 'sticky' && isModeTool(shortcut)) {
           e.preventDefault();
           if (shortcut === 'select' || canEdit) tools.setTool(shortcut);
+          return;
+        }
+        if (shortcut === 'image') {
+          e.preventDefault();
+          if (canEdit) tools.setTool('image');
           return;
         }
         if (e.key === 'Escape' && tools.tool !== 'select') {
