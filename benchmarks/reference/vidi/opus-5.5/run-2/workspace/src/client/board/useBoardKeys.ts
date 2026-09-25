@@ -8,21 +8,22 @@
  * - Enter edits a single selected object with editable text (story 2);
  * - Ctrl/Cmd+Z undoes, Ctrl/Cmd+Shift+Z and Ctrl+Y redo (anchor: undo.shortcuts). While a
  *   note is being edited its editor handles these itself.
- * - Story 9 tool shortcuts: V selects the Select tool, T the Text tool (only while the
- *   board can be edited), Escape returns from the Text tool to Select (the selection is
- *   kept), N creates a sticky note in the centre of the view (story 2's button).
+ * - Tool shortcuts (TOOL_SHORTCUTS): V selects the Select tool; T Text, S Shape and
+ *   L Connector (stories 9, 10; only while the board can be edited); Escape returns from
+ *   any other tool to Select without creating anything (the selection is kept); N creates
+ *   a sticky note in the centre of the view (story 2's button).
  * Delete and each nudge are one undo step: the history's boundary is closed around them.
  * Nothing is handled while text is being edited or focus is in a text field; the mutating
  * keys are also ignored while the board is read-only (story 4 load failure).
  */
 import { useEffect, useRef } from 'react';
 import type * as Y from 'yjs';
-import { allObjectIds, deleteObjects, moveObjects, type ObjectSnapshot } from '../../shared/board-model';
+import { allObjectIds, deleteObjects, type ObjectSnapshot } from '../../shared/board-model';
 import { NUDGE_LARGE_STEP_WORLD, NUDGE_STEP_WORLD } from '../../shared/config';
 import type { Point } from '../../shared/geometry';
-import { getObjectType } from '../objects/registry';
+import { getObjectType, moveSnapshots } from '../objects/registry';
 import type { SelectionApi } from './useSelection';
-import type { ToolApi } from './useTool';
+import { isModeTool, TOOL_SHORTCUTS, type ActiveToolApi } from '../tools/useActiveTool';
 
 export interface BoardKeysOptions {
   doc: Y.Doc;
@@ -32,7 +33,7 @@ export interface BoardKeysOptions {
   /** This tab's undo history (story 8). */
   history?: BoardKeysHistory;
   /** Active tool (story 9): V / T / Escape switch it. */
-  tools?: ToolApi;
+  tools?: Pick<ActiveToolApi, 'tool' | 'setTool'>;
   /** N: creates a sticky note in the centre of the view. */
   onCreateSticky?(): void;
 }
@@ -90,14 +91,10 @@ export function useBoardKeys(opts: BoardKeysOptions): void {
       if (ctrlOrMeta) return;
 
       if (tools !== undefined) {
-        if (key === 'v') {
+        const shortcut = TOOL_SHORTCUTS[key];
+        if (shortcut !== undefined && shortcut !== 'sticky' && isModeTool(shortcut)) {
           e.preventDefault();
-          tools.setTool('select');
-          return;
-        }
-        if (key === 't') {
-          e.preventDefault();
-          if (canEdit) tools.setTool('text');
+          if (shortcut === 'select' || canEdit) tools.setTool(shortcut);
           return;
         }
         if (e.key === 'Escape' && tools.tool !== 'select') {
@@ -125,7 +122,7 @@ export function useBoardKeys(opts: BoardKeysOptions): void {
         if (!canEdit) return;
         const step = e.shiftKey ? NUDGE_LARGE_STEP_WORLD : NUDGE_STEP_WORLD;
         history?.boundary();
-        moveObjects(doc, new Map(selected.map((o) => [o.id, { x: o.x + arrow.x * step, y: o.y + arrow.y * step }])));
+        moveSnapshots(doc, selected, { x: arrow.x * step, y: arrow.y * step });
         history?.boundary();
         return;
       }

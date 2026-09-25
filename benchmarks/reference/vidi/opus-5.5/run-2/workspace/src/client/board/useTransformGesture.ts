@@ -16,14 +16,13 @@ import type { Camera } from '../canvas/camera';
 import {
   bringObjectsToFront,
   LOCAL_ORIGIN,
-  moveObjects,
   objectBounds,
   resizeObjects,
   type ObjectSnapshot,
 } from '../../shared/board-model';
 import { DRAG_THRESHOLD_PX, MAX_OBJECT_SIZE_WORLD } from '../../shared/config';
 import { applyScale, clampScale, resizeScale, scaleWithin, unionRects, type Handle, type Point, type Rect } from '../../shared/geometry';
-import { getObjectType, type ObjectTypeSpec, type ResizeMode } from '../objects/registry';
+import { getObjectType, moveSnapshots, type ObjectTypeSpec, type ResizeMode } from '../objects/registry';
 import type { SelectionApi } from './useSelection';
 
 const PRIMARY_BUTTON = 0;
@@ -75,6 +74,8 @@ interface Press {
   handle: Handle | null;
   active: boolean;
   starts: Map<string, Rect>;
+  /** Each object's snapshot when the gesture started (story 10 arrows move from it). */
+  startObjs: Map<string, ObjectSnapshot>;
   startBox: Rect | null;
   pending: { dx: number; dy: number; shift: boolean } | null;
   frame: number | null;
@@ -109,9 +110,7 @@ export function useTransformGesture(opts: TransformGestureOptions): TransformGes
     const { doc, snapshot } = latest.current;
     const d = { x: next.dx / p.zoom, y: next.dy / p.zoom };
     if (p.kind === 'move') {
-      const positions = new Map<string, Point>();
-      p.starts.forEach((r, id) => positions.set(id, { x: r.x + d.x, y: r.y + d.y }));
-      moveObjects(doc, positions);
+      moveSnapshots(doc, [...p.startObjs.values()], d);
       return;
     }
     const box = p.startBox;
@@ -140,9 +139,10 @@ export function useTransformGesture(opts: TransformGestureOptions): TransformGes
       const scaled = scaleWithin(r, box, to);
       const spec = specs[i];
       const obj = byId.get(id);
-      if (spec?.applyResize !== undefined && obj !== undefined) {
+      const start = p.startObjs.get(id);
+      if (spec?.applyResize !== undefined && obj !== undefined && start !== undefined) {
         const apply = spec.applyResize;
-        custom.push(() => apply(doc, obj, scaled, r, mode));
+        custom.push(() => apply(doc, obj, scaled, r, mode, start));
         return;
       }
       // Objects that cannot be resized keep their size and follow the layout.
@@ -173,7 +173,9 @@ export function useTransformGesture(opts: TransformGestureOptions): TransformGes
       const byId = new Map(snapshot.map((o) => [o.id, o]));
       for (const id of p.ids) {
         const obj = byId.get(id);
-        if (obj !== undefined) p.starts.set(id, objectBounds(obj));
+        if (obj === undefined) continue;
+        p.starts.set(id, objectBounds(obj));
+        p.startObjs.set(id, obj);
       }
       if (p.starts.size === 0) return false;
       p.startBox = unionRects([...p.starts.values()]);
@@ -199,6 +201,7 @@ export function useTransformGesture(opts: TransformGestureOptions): TransformGes
         zoom: latest.current.camera.zoom,
         active: false,
         starts: new Map(),
+        startObjs: new Map(),
         startBox: null,
         pending: null,
         frame: null,

@@ -141,3 +141,52 @@ export const TEXT_FONT_FAMILY = 'Inter, system-ui, sans-serif';
 export const TEXT_AUTO_WIDTH_PADDING_WORLD = 2;
 /** Average glyph width relative to the font size, used when text cannot be measured. */
 export const TEXT_AVG_GLYPH_WIDTH_RATIO = 0.55;
+
+// ---- Story 10: shapes and connectors ----
+export const SHAPE_KINDS = ['rect', 'ellipse', 'diamond'] as const;
+/** Width and height of a shape dropped by a click (or a drag smaller than the minimum), in world units. */
+export const SHAPE_DEFAULT_SIZE_WORLD = 160;
+/** A drag smaller than this in either direction creates a default-size shape instead. */
+export const SHAPE_MIN_SIZE_WORLD = 20;
+/** Maximum number of characters in a shape's label. */
+export const SHAPE_LABEL_MAX_CHARS = 500;
+/** Outline width of a shape, in world units. */
+export const SHAPE_STROKE_WIDTH_WORLD = 2;
+export const SHAPE_FILL_COLORS = {
+  none: 'transparent',
+  white: '#FFFFFF',
+  blue: '#BBDEFB',
+  green: '#C8E6C9',
+  yellow: '#FFF9C4',
+  pink: '#F8BBD0',
+  grey: '#E0E0E0',
+} as const;
+export const SHAPE_STROKE_COLORS = {
+  dark: '#263238',
+  blue: '#1E88E5',
+  green: '#43A047',
+  orange: '#FB8C00',
+  red: '#E53935',
+  grey: '#9E9E9E',
+} as const;
+export type FillColor = keyof typeof SHAPE_FILL_COLORS;
+export type StrokeColor = keyof typeof SHAPE_STROKE_COLORS;
+export const DEFAULT_SHAPE_FILL: FillColor = 'white';
+export const DEFAULT_SHAPE_STROKE: StrokeColor = 'dark';
+/** Font size of shape labels, in world units (CSS px at 100% zoom). */
+export const SHAPE_LABEL_FONT_PX = 16;
+/** Line height of shape labels, relative to the font size. */
+export const SHAPE_LABEL_LINE_HEIGHT = 1.3;
+/** Space between a shape's label box and its outline, in world units. */
+export const SHAPE_LABEL_PADDING_WORLD = 8;
+/** A connector drag shorter than this (world units) creates no arrow. */
+export const CONNECTOR_MIN_LENGTH_WORLD = 8;
+/** A click within this many screen pixels of an arrow's line selects it. */
+export const CONNECTOR_HIT_TOLERANCE_PX = 6;
+export const CONNECTOR_STROKE_WIDTH_WORLD = 2;
+/** Length of the arrowhead, in world units. */
+export const CONNECTOR_ARROWHEAD_SIZE_WORLD = 10;
+/** Radius of a connection dot, in screen pixels. */
+export const CONNECTOR_DOT_RADIUS_PX = 4;
+/** Arrow line colour. */
+export const CONNECTOR_COLOR = '#263238';

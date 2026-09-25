@@ -22,7 +22,8 @@ export type SelectionAction =
   | { type: 'setMany'; ids: string[]; additive: boolean }
   | { type: 'clear' }
   | { type: 'prune'; presentIds: ReadonlySet<string> }
-  | { type: 'edit'; id: string | null };
+  | { type: 'edit'; id: string | null }
+  | { type: 'created'; id: string };
 
 const EMPTY: ReadonlySet<string> = new Set();
 
@@ -72,6 +73,10 @@ export function selectionReducer(state: SelectionState, action: SelectionAction)
       const editingId = state.editingId !== null && present.has(state.editingId) ? state.editingId : null;
       return { ...withIds(state, ids, editingId), present };
     }
+    case 'created':
+      // Like 'edit', a just-created object is not in the last snapshot yet; the next prune
+      // drops it if it never appears.
+      return withIds(state, new Set([action.id]), null);
     case 'edit': {
       // A just-created object may not be in the last snapshot yet, so editing is not checked;
       // the next prune ends it if the object never appears.
@@ -89,6 +94,8 @@ export interface SelectionApi {
   setMany(ids: string[], additive: boolean): void;
   clear(): void;
   startEdit(id: string): void;
+  /** Selects only an object this tab has just created (story 10 return to Select). */
+  selectCreated(id: string): void;
   /** Ends editing; the object stays selected unless `next` is 'unselected'. */
   endEdit(next?: 'selected' | 'unselected'): void;
 }
@@ -116,12 +123,13 @@ export function useSelection(snapshot: readonly ObjectSnapshot[]): SelectionApi 
   const setMany = useCallback((list: string[], additive: boolean) => dispatch({ type: 'setMany', ids: list, additive }), []);
   const clear = useCallback(() => dispatch({ type: 'clear' }), []);
   const startEdit = useCallback((id: string) => dispatch({ type: 'edit', id }), []);
+  const selectCreated = useCallback((id: string) => dispatch({ type: 'created', id }), []);
   const endEdit = useCallback((next: 'selected' | 'unselected' = 'selected') => {
     dispatch(next === 'selected' ? { type: 'edit', id: null } : { type: 'clear' });
   }, []);
 
   return useMemo(
-    () => ({ ids, editingId, click, toggle, setMany, clear, startEdit, endEdit }),
-    [ids, editingId, click, toggle, setMany, clear, startEdit, endEdit],
+    () => ({ ids, editingId, click, toggle, setMany, clear, startEdit, selectCreated, endEdit }),
+    [ids, editingId, click, toggle, setMany, clear, startEdit, selectCreated, endEdit],
   );
 }
