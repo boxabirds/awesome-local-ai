@@ -27,6 +27,11 @@ const deviceFor: Record<string, (typeof devices)[string]> = {
  */
 const nightly = process.env.E2E_NIGHTLY === '1';
 const NIGHTLY_SPECS = '**/*.nightly.spec.ts';
+/**
+ * Story 4 restart specs start and kill their own `wrangler dev --persist-to` processes
+ * (tests/e2e/helpers/wrangler-process.ts); they run in their own chromium project.
+ */
+const PERSISTENCE_SPECS = '**/persistence.spec.ts';
 
 export default defineConfig({
   testDir: 'tests/e2e',
@@ -40,13 +45,26 @@ export default defineConfig({
     viewport: { width: 1280, height: 800 },
     trace: 'retain-on-failure',
   },
-  projects: browsers.map((name) => ({
-    name,
-    use: { ...deviceFor[name], viewport: { width: 1280, height: 800 } },
-  })),
+  projects: [
+    ...browsers.map((name) => ({
+      name,
+      testIgnore: nightly ? undefined : [NIGHTLY_SPECS, PERSISTENCE_SPECS],
+      use: { ...deviceFor[name], viewport: { width: 1280, height: 800 } },
+    })),
+    ...(nightly
+      ? []
+      : [
+          {
+            name: 'persistence',
+            testMatch: PERSISTENCE_SPECS,
+            use: { ...devices['Desktop Chrome'], viewport: { width: 1280, height: 800 } },
+          },
+        ]),
+  ],
   webServer: {
     // Test-mode build so the window.__vidi6 test hook exists; served by wrangler like production.
-    command: `npm run build:test && npx wrangler dev --port ${port} --ip 127.0.0.1 --show-interactive-dev-session=false`,
+    // TEST_HOOKS enables the story 4 storage corruption/repair routes; never set in wrangler.jsonc.
+    command: `npm run build:test && npx wrangler dev --port ${port} --ip 127.0.0.1 --var TEST_HOOKS:1 --show-interactive-dev-session=false`,
     url: baseURL,
     reuseExistingServer: !process.env.CI,
     timeout: SERVER_START_TIMEOUT_MS,

@@ -89,8 +89,9 @@ export function useBoardDoc(options: BoardDocOptions = {}): BoardDocApi {
   const { boardId, createProvider } = options;
   const [doc] = useState<Y.Doc>(() => {
     const d = options.doc ?? new Y.Doc();
-    // Every tab may set the same schema version concurrently; the sets converge.
-    initDoc(d);
+    // A live board is initialised after its first sync (below), so reopening a saved board
+    // stores nothing new. Concurrent first sets of the same version converge.
+    if (options.boardId === undefined) initDoc(d);
     return d;
   });
   const store = useMemo(() => createNotesStore(doc), [doc]);
@@ -102,7 +103,11 @@ export function useBoardDoc(options: BoardDocOptions = {}): BoardDocApi {
       setConnection('connected');
       return undefined;
     }
-    const connection = connectBoard(doc, boardId, setConnection, createProvider);
+    const onState = (state: ConnectionState) => {
+      if (state === 'connected') initDoc(doc); // no-op once the saved board carries a version
+      setConnection(state);
+    };
+    const connection = connectBoard(doc, boardId, onState, createProvider);
     return () => connection.destroy();
   }, [doc, boardId, createProvider]);
 

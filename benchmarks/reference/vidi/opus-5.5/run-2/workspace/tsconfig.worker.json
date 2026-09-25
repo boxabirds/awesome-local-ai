@@ -15,5 +15,12 @@
     "noEmit": true,
     "types": ["@cloudflare/workers-types", "@cloudflare/vitest-pool-workers/types"]
   },
-  "include": ["src/worker", "src/shared", "tests/integration"]
+  "include": [
+    "src/worker",
+    "src/shared",
+    "tests/integration",
+    // Unit tests of worker modules (run in Node, typed against the Workers runtime).
+    "tests/unit/board-store-chunks.test.ts",
+    "tests/unit/room-state.test.ts"
+  ]
 }

@@ -11,7 +11,7 @@ import { useBoardDoc } from './board/useBoardDoc';
 import { useSelection } from './board/useSelection';
 import { StickyNote } from './objects/StickyNote';
 import { ConnectionStatus } from './sync/ConnectionStatus';
-import type { ProviderFactory } from './sync/connectBoard';
+import type { ConnectionState, ProviderFactory } from './sync/connectBoard';
 import { createSticky, deleteObject } from '../shared/board-model';
 import { isValidBoardId, newBoardId } from '../shared/board-id';
 
@@ -42,6 +42,14 @@ export function resolveBoardRoute(): string {
   return fresh;
 }
 
+/**
+ * Whether the board may be changed (anchor: persist.client_status). False only while the
+ * saved board cannot be loaded: editing an empty stand-in would look like lost work.
+ */
+export function canEdit(state: ConnectionState): boolean {
+  return state !== 'load_failed';
+}
+
 export interface AppProps {
   /** Board to join live. Omitted: a local-only board (component tests). */
   boardId?: string;
@@ -59,6 +67,7 @@ export function App(props: AppProps = {}): React.JSX.Element {
     doc: props.doc,
     createProvider: props.createProvider,
   });
+  const editable = canEdit(connection);
   const selection = useSelection();
   // DOM order never changes when a note is brought to front (moving a DOM node would drop
   // its pointer capture mid-drag); stacking comes from each note's z-index instead.
@@ -68,17 +77,18 @@ export function App(props: AppProps = {}): React.JSX.Element {
   // A note that no longer exists (deleted here or, later, by someone else) cannot stay selected.
   const selectedExists = selection.selectedId !== null && notes.some((n) => n.id === selection.selectedId);
   const selectedId = selectedExists ? selection.selectedId : null;
-  const editingId = selectedExists && selection.editingId === selectedId ? selection.editingId : null;
+  const editingId = editable && selectedExists && selection.editingId === selectedId ? selection.editingId : null;
   useEffect(() => {
     if (selection.selectedId !== null && !selectedExists) select(null);
   }, [selection.selectedId, selectedExists, select]);
 
   const createAt = useCallback(
     (world: Point) => {
+      if (!editable) return;
       const id = createSticky(doc, world);
       if (id !== '') startEdit(id);
     },
-    [doc, startEdit],
+    [doc, startEdit, editable],
   );
 
   const onCreateSticky = useCallback(() => {
@@ -88,12 +98,12 @@ export function App(props: AppProps = {}): React.JSX.Element {
   const onBackgroundClick = useCallback(() => select(null), [select]);
 
   // Enter edits the selected note; Delete/Backspace delete it (never while editing text).
-  const keyState = useRef({ selectedId, editingId });
-  keyState.current = { selectedId, editingId };
+  const keyState = useRef({ selectedId, editingId, editable });
+  keyState.current = { selectedId, editingId, editable };
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
-      const { selectedId: sel, editingId: edit } = keyState.current;
-      if (sel === null || edit !== null || e.defaultPrevented) return;
+      const { selectedId: sel, editingId: edit, editable: canChange } = keyState.current;
+      if (sel === null || edit !== null || !canChange || e.defaultPrevented) return;
       if (e.ctrlKey || e.metaKey || e.altKey) return;
       if (isInteractiveTarget(e.target)) return;
       if (e.key === 'Enter') {
@@ -124,10 +134,11 @@ export function App(props: AppProps = {}): React.JSX.Element {
               onSelect={select}
               onStartEdit={startEdit}
               onEndEdit={endEdit}
+              editable={editable}
             />
           ))}
         </BoardViewport>
-        <Toolbar onCreateSticky={onCreateSticky} />
+        <Toolbar onCreateSticky={onCreateSticky} disabled={!editable} />
         <ZoomControls
           zoomPercent={zoomPercent(camera)}
           canZoomIn={canZoomIn(camera)}

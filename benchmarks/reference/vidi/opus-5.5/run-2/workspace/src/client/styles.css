@@ -171,6 +171,8 @@ body,
     0 4px 12px rgb(0 0 0 / 0.1);
   cursor: default;
   font-family: inherit;
+  /* Fixed-size note: its text-fit measurements re-lay out only this note (story 4 large boards). */
+  contain: layout size style;
 }
 
 .sticky-note:focus {
@@ -359,4 +361,18 @@ body,
   background: #dafbe1;
   border-color: #4ac26b;
   color: #116329;
+}
+
+/* ---- Story 4: saved board cannot be loaded ---- */
+.connection-status[data-state='load_failed'] {
+  background: #ffebe9;
+  border-color: #cf222e;
+  color: #a40e26;
+}
+
+.board-toolbar button:disabled,
+.board-toolbar button:disabled:hover {
+  background: transparent;
+  opacity: 0.4;
+  cursor: not-allowed;
 }
