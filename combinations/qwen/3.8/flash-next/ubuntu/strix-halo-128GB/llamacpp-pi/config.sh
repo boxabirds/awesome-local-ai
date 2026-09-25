@@ -166,14 +166,15 @@ LLAMA_BATCH=2048
 # saved checkpoints a returning agent turn re-reads its whole prompt.
 LLAMA_EXTRA_ARGS="-lm dio --ctx-checkpoints 8"
 
-# MTP: draft 3 tokens a step and keep every one the head proposes (p-min 0),
-# the setting drluoto measured on this chip with his own head. Unsloth's
-# default for their heads is 2; A/B both. MTP is a win for one request at a
-# time and was measured a net loss (0.81-0.87x) at 8 concurrent, so the
-# agents profile needs its own check. No n-gram fallback: on this chip each
-# n-gram verification costs 230-480 ms and it lost on everything but prose
-# (drluoto).
-SPEC_DRAFT_N_MAX=3
+# MTP: draft 4 tokens a step and keep every one the head proposes (p-min 0).
+# 4, not drluoto's 3: at depth 3 a pi coding session on tritus accepted 0.86-0.89
+# of drafts, 3.6 tokens a step of a possible 4, so most steps used every draft.
+# Chosen to watch in the canvas run, not yet measured against 3 (Unsloth's
+# default for their heads is 2). MTP is a win for one request at a time and was
+# measured a net loss (0.81-0.87x) at 8 concurrent, so the agents profile needs
+# its own check. No n-gram fallback: on this chip each n-gram verification costs
+# 230-480 ms and it lost on everything but prose (drluoto).
+SPEC_DRAFT_N_MAX=4
 SPEC_DRAFT_P_MIN=0.0
 
 # A 94 GB load takes minutes, not seconds. ESTIMATES until measured: give the
