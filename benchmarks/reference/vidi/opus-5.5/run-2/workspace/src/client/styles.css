@@ -179,10 +179,18 @@ body,
   outline: none;
 }
 
-.sticky-note:focus-visible,
-.sticky-note[data-selected='true'] {
+/* Selected objects are outlined by the selection overlay (story 7); focus keeps its own ring. */
+.sticky-note:focus-visible {
   outline: calc(2px / var(--zoom, 1)) solid var(--selection);
   outline-offset: calc(2px / var(--zoom, 1));
+}
+
+/* Laid out at the story 2 size and scaled to the note's width/height (story 7). */
+.sticky-body {
+  position: absolute;
+  left: 0;
+  top: 0;
+  transform-origin: 0 0;
 }
 
 .sticky-note[data-state='dragging'] {
@@ -217,7 +225,7 @@ body,
   left: 0;
   right: 0;
   bottom: 0;
-  height: calc(var(--sticky-padding) * 2.5);
+  height: calc(var(--sticky-padding) * 2.5 * var(--note-scale, 1));
   background: linear-gradient(to bottom, transparent, var(--note-bg) 70%);
   pointer-events: none;
 }
@@ -258,19 +266,6 @@ body,
   font-variant-numeric: tabular-nums;
   opacity: 0.7;
   pointer-events: none;
-}
-
-.note-toolbar-anchor {
-  position: absolute;
-  width: 0;
-  height: 0;
-  transform-origin: 0 0;
-}
-
-.note-toolbar-position {
-  position: absolute;
-  left: 0;
-  transform: translateX(-50%);
 }
 
 .note-toolbar {
@@ -514,4 +509,114 @@ body,
   margin: 8px 0 0;
   font-size: 0.85rem;
   color: #57606a;
+}
+
+/* ---- Story 7: multi-selection ---- */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.selection-overlay {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 5;
+}
+
+.selection-outline {
+  position: absolute;
+  box-sizing: border-box;
+  border: 1px solid var(--selection);
+  pointer-events: none;
+}
+
+.selection-box {
+  position: absolute;
+  box-sizing: border-box;
+  border: 1.5px solid var(--selection);
+  pointer-events: none;
+}
+
+.selection-handle {
+  position: absolute;
+  box-sizing: border-box;
+  transform: translate(-50%, -50%);
+  background: #ffffff;
+  border: 1.5px solid var(--selection);
+  border-radius: 1px;
+  pointer-events: auto;
+  touch-action: none;
+}
+
+/* Larger invisible hit area around each handle. */
+.selection-handle::before {
+  content: '';
+  position: absolute;
+  inset: -5px;
+}
+
+.selection-handle-nw,
+.selection-handle-se {
+  cursor: nwse-resize;
+}
+
+.selection-handle-ne,
+.selection-handle-sw {
+  cursor: nesw-resize;
+}
+
+.selection-handle-n,
+.selection-handle-s {
+  cursor: ns-resize;
+}
+
+.selection-handle-e,
+.selection-handle-w {
+  cursor: ew-resize;
+}
+
+.selection-bar-anchor {
+  position: absolute;
+  transform: translate(-50%, -100%);
+  pointer-events: auto;
+}
+
+.selection-bar {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 6px 4px 10px;
+  background: var(--panel-bg);
+  border: 1px solid var(--panel-border);
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgb(0 0 0 / 0.15);
+  font-size: 14px;
+  white-space: nowrap;
+}
+
+.selection-count {
+  font-variant-numeric: tabular-nums;
+}
+
+.selection-bar button:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 1px;
+}
+
+.board-world > .marquee {
+  position: absolute;
+  box-sizing: border-box;
+  border-style: solid;
+  border-color: var(--selection);
+  background: rgb(38 132 255 / 0.12);
+  pointer-events: none;
+  z-index: 2147483647;
 }

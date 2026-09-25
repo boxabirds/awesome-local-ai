@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import type * as Y from 'yjs';
 import { BoardContext, type BoardContextValue } from './canvas/BoardContext';
 import { BoardViewport } from './canvas/BoardViewport';
@@ -9,10 +9,16 @@ import { useCamera } from './canvas/useCamera';
 import { Toolbar } from './board/Toolbar';
 import { useBoardDoc } from './board/useBoardDoc';
 import { useSelection } from './board/useSelection';
-import { StickyNote } from './objects/StickyNote';
+import { useBoardKeys } from './board/useBoardKeys';
+import { useTransformGesture } from './board/useTransformGesture';
+import { MarqueeRect, useMarquee } from './board/Marquee';
+import { SelectionOverlay } from './board/SelectionOverlay';
+import { SelectionBar } from './board/SelectionBar';
+import { getObjectType } from './objects/registry';
 import { ConnectionStatus } from './sync/ConnectionStatus';
 import type { ConnectionState, ProviderFactory } from './sync/connectBoard';
-import { createSticky, deleteObject } from '../shared/board-model';
+import { createSticky, deleteObjects, setStickyColor } from '../shared/board-model';
+import type { StickyColor } from '../shared/config';
 import { BoardPage } from './pages/BoardPage';
 import { HomePage } from './pages/HomePage';
 import { NotFoundPage } from './pages/NotFoundPage';
@@ -22,12 +28,6 @@ const HALF = 2;
 
 function windowSize(): Size {
   return { width: window.innerWidth, height: window.innerHeight };
-}
-
-/** True when keyboard focus is somewhere that consumes typing or activation keys. */
-function isInteractiveTarget(target: EventTarget | null): boolean {
-  if (!(target instanceof HTMLElement)) return false;
-  return target.isContentEditable || target.closest('input, textarea, select, button, [contenteditable="true"]') !== null;
 }
 
 /**
@@ -50,25 +50,29 @@ export function App(props: AppProps = {}): React.JSX.Element {
   const board = useCamera(viewport);
   const context = useMemo<BoardContextValue>(() => ({ board, setViewport }), [board]);
   const { camera } = board;
-  const { doc, notes, connection } = useBoardDoc({
+  const { doc, objects, connection } = useBoardDoc({
     boardId: props.boardId,
     doc: props.doc,
     createProvider: props.createProvider,
   });
   const editable = canEdit(connection);
-  const selection = useSelection();
-  // DOM order never changes when a note is brought to front (moving a DOM node would drop
-  // its pointer capture mid-drag); stacking comes from each note's z-index instead.
-  const renderOrder = useMemo(() => [...notes].sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0)), [notes]);
-  const { select, startEdit, endEdit } = selection;
+  const selection = useSelection(objects);
+  const { ids: selectedIds, click, clear, setMany, startEdit, endEdit } = selection;
+  const editingId = editable ? selection.editingId : null;
+  // DOM order never changes when objects are brought to front (moving a DOM node would drop
+  // its pointer capture mid-drag); stacking comes from each object's z-index instead.
+  const renderOrder = useMemo(
+    () =>
+      objects
+        .filter((o) => getObjectType(o.type) !== undefined)
+        .sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0)),
+    [objects],
+  );
 
-  // A note that no longer exists (deleted here or, later, by someone else) cannot stay selected.
-  const selectedExists = selection.selectedId !== null && notes.some((n) => n.id === selection.selectedId);
-  const selectedId = selectedExists ? selection.selectedId : null;
-  const editingId = editable && selectedExists && selection.editingId === selectedId ? selection.editingId : null;
-  useEffect(() => {
-    if (selection.selectedId !== null && !selectedExists) select(null);
-  }, [selection.selectedId, selectedExists, select]);
+  const transform = useTransformGesture({ doc, camera, selection, snapshot: objects, canEdit: editable });
+  const { gesture } = transform;
+  const marquee = useMarquee(camera, objects, useCallback((ids: string[]) => setMany(ids, true), [setMany]));
+  useBoardKeys({ doc, selection, snapshot: objects, canEdit: editable });
 
   const createAt = useCallback(
     (world: Point) => {
@@ -83,48 +87,63 @@ export function App(props: AppProps = {}): React.JSX.Element {
     createAt(screenToWorld(camera, { x: viewport.width / HALF, y: viewport.height / HALF }));
   }, [camera, viewport, createAt]);
 
-  const onBackgroundClick = useCallback(() => select(null), [select]);
+  const onDeleteSelection = useCallback(() => {
+    if (!editable) return;
+    deleteObjects(doc, [...selectedIds]);
+    clear();
+  }, [doc, selectedIds, clear, editable]);
+  const onColor = useCallback((id: string, c: StickyColor) => setStickyColor(doc, id, c), [doc]);
 
-  // Enter edits the selected note; Delete/Backspace delete it (never while editing text).
-  const keyState = useRef({ selectedId, editingId, editable });
-  keyState.current = { selectedId, editingId, editable };
-  useEffect(() => {
-    const onKeyDown = (e: KeyboardEvent) => {
-      const { selectedId: sel, editingId: edit, editable: canChange } = keyState.current;
-      if (sel === null || edit !== null || !canChange || e.defaultPrevented) return;
-      if (e.ctrlKey || e.metaKey || e.altKey) return;
-      if (isInteractiveTarget(e.target)) return;
-      if (e.key === 'Enter') {
-        e.preventDefault();
-        startEdit(sel);
-      } else if (e.key === 'Delete' || e.key === 'Backspace') {
-        e.preventDefault();
-        deleteObject(doc, sel);
-        select(null);
-      }
-    };
-    window.addEventListener('keydown', onKeyDown);
-    return () => window.removeEventListener('keydown', onKeyDown);
-  }, [doc, select, startEdit]);
+  const overlay = (
+    <>
+      <SelectionOverlay
+        ids={selectedIds}
+        snapshot={objects}
+        camera={camera}
+        onHandlePointerDown={transform.onHandlePointerDown}
+        showHandles={editable && editingId === null}
+      />
+      <SelectionBar
+        ids={selectedIds}
+        snapshot={objects}
+        camera={camera}
+        editable={editable}
+        hidden={editingId !== null || gesture.kind !== 'idle'}
+        onDelete={onDeleteSelection}
+        onColor={onColor}
+      />
+    </>
+  );
 
   return (
     <BoardContext.Provider value={context}>
       <main className="app">
-        <BoardViewport onBackgroundClick={onBackgroundClick} onBackgroundDoubleClick={createAt}>
-          {renderOrder.map((note) => (
-            <StickyNote
-              key={note.id}
-              note={note}
-              doc={doc}
-              zoom={camera.zoom}
-              selected={note.id === selectedId}
-              editing={note.id === editingId}
-              onSelect={select}
-              onStartEdit={startEdit}
-              onEndEdit={endEdit}
-              editable={editable}
-            />
-          ))}
+        <BoardViewport
+          onBackgroundClick={clear}
+          onBackgroundDoubleClick={createAt}
+          marquee={marquee}
+          overlay={overlay}
+        >
+          {renderOrder.map((obj) => {
+            const { Component } = getObjectType(obj.type)!;
+            return (
+              <Component
+                key={obj.id}
+                object={obj}
+                doc={doc}
+                zoom={camera.zoom}
+                selected={selectedIds.has(obj.id)}
+                editing={obj.id === editingId}
+                transforming={gesture.ids.has(obj.id)}
+                editable={editable}
+                onPointerDown={transform.onObjectPointerDown}
+                onSelect={click}
+                onStartEdit={startEdit}
+                onEndEdit={endEdit}
+              />
+            );
+          })}
+          <MarqueeRect rect={marquee.rect} camera={camera} />
         </BoardViewport>
         <Toolbar onCreateSticky={onCreateSticky} disabled={!editable} />
         <ZoomControls
