@@ -90,7 +90,7 @@ behind each flag. The choices that differ from the NVIDIA combinations:
   Stock llama.cpp cannot load a qwen4exp head, so this combination builds
   [#28243](https://github.com/ggml-org/llama.cpp/pull/28243)'s branch
   (`danielhanchen/llama.cpp`, `qwen4exp/mtp`) until it merges, with Unsloth's
-  `shared-Q8_0` head, 3 draft tokens a step and `p-min 0`. A shared head logs
+  `shared-Q8_0` head, 4 draft tokens a step and `p-min 0`. A shared head logs
   one `borrow_shared_tensor` error at startup and then works. MTP helps one
   request at a time; Unsloth measured it a net loss at 8 concurrent, so
   check it on the `agents` profile. `SPEC_MTP=0` runs without it.
@@ -115,7 +115,7 @@ behind each flag. The choices that differ from the NVIDIA combinations:
 ## Expected performance
 
 **First measurements on a Minisforum MS-S1 MAX** (BIOS Performance mode, UMA
-1G, `-lm dio`, MTP depth 3, pi). Shallow context only: the 32k–128k numbers,
+1G, `-lm dio`, MTP depth 3 (the default is now 4; those numbers are pending), pi). Shallow context only: the 32k–128k numbers,
 the memory per profile and the long-prompt prefill are still to come
 ([measurement plan](benchmarks/README.md)).
 

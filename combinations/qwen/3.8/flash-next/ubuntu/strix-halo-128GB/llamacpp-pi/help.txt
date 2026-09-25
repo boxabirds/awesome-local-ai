@@ -46,7 +46,7 @@ SPECULATIVE DECODING
   pass; the output is unchanged. On this chip it is the difference between
   ~17 tok/s and 32-61 (drluoto, a fork, his own head). Stock llama.cpp cannot
   load a qwen4exp head, so this install builds PR #28243's branch with
-  Unsloth's shared-Q8_0 head: 3 draft tokens a step, p-min 0. Look for a
+  Unsloth's shared-Q8_0 head: 4 draft tokens a step, p-min 0. Look for a
   "draft acceptance" line in the log; one "borrow_shared_tensor" error at
   startup is expected with a shared head.
       SPEC_MTP=0 <server>             # without the head, for an A/B
