@@ -21,6 +21,7 @@
     "tests/integration",
     // Unit tests of worker modules (run in Node, typed against the Workers runtime).
     "tests/unit/board-store-chunks.test.ts",
-    "tests/unit/room-state.test.ts"
+    "tests/unit/room-state.test.ts",
+    "tests/unit/create-board.test.ts"
   ]
 }

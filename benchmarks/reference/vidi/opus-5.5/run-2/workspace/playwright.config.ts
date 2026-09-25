@@ -1,9 +1,9 @@
 import { defineConfig, devices } from '@playwright/test';
+import { E2E_BASE_URL, E2E_PORT } from './tests/e2e/helpers/server';
 
 /** Port for the e2e `wrangler dev` server; override with E2E_PORT when it is taken. */
-const DEFAULT_E2E_PORT = 8795;
-const port = Number(process.env.E2E_PORT ?? DEFAULT_E2E_PORT);
-const baseURL = `http://127.0.0.1:${port}`;
+const port = E2E_PORT;
+const baseURL = E2E_BASE_URL;
 const SERVER_START_TIMEOUT_MS = 120_000;
 
 /**

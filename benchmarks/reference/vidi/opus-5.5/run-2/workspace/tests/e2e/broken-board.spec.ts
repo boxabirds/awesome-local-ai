@@ -6,11 +6,10 @@
  */
 import { expect, test } from '@playwright/test';
 import * as Y from 'yjs';
-import { newBoardId } from '../../src/shared/board-id';
 import { LOAD_RETRY_MIN_INTERVAL_MS, RECONNECT_MAX_BACKOFF_MS } from '../../src/shared/config';
 import { RETRO_NOTES, buildRetroBoard } from '../fixtures/boards';
 import { closeAll, notes, openParticipant, type Participant } from './helpers/participants';
-import { compactBoard, corruptSnapshot, repairSnapshot, seedBoard } from './helpers/seed';
+import { compactBoard, createBoard, corruptSnapshot, repairSnapshot, seedBoard } from './helpers/seed';
 
 const LOAD_FAILED_TEXT = "This board couldn't be loaded. Retrying…";
 const FIRST_MESSAGE_TIMEOUT_MS = 15_000;
@@ -26,7 +25,7 @@ test.afterEach(async () => {
 test('TC-24 broken board: honest message, no editing, recovery without reload', async ({ browser, baseURL }) => {
   test.setTimeout(90_000);
   const origin = baseURL!;
-  const boardId = newBoardId();
+  const boardId = await createBoard(origin);
   const doc = new Y.Doc();
   buildRetroBoard(doc);
   await seedBoard(origin, boardId, doc);

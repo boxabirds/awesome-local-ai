@@ -6,7 +6,6 @@
  */
 import { expect, test, type Browser, type Page } from '@playwright/test';
 import * as Y from 'yjs';
-import { newBoardId } from '../../src/shared/board-id';
 import { BOARD_LOAD_BUDGET_MS, PERSIST_TESTED_NOTES } from '../../src/shared/config';
 import { buildLargeBoard } from '../fixtures/boards';
 import {
@@ -21,7 +20,7 @@ import {
   openParticipant,
   type Participant,
 } from './helpers/participants';
-import { compactBoard, seedBoard } from './helpers/seed';
+import { compactBoard, createBoard, seedBoard } from './helpers/seed';
 import { startWrangler, type WranglerServer } from './helpers/wrangler-process';
 
 const PORT_BASE = Number(process.env.E2E_PERSIST_PORT_BASE ?? 8810);
@@ -96,7 +95,7 @@ async function leave(p: Participant): Promise<void> {
 }
 
 test('TC-19 overnight return: 25 varied notes survive everyone leaving and a process restart', async () => {
-  const boardId = newBoardId();
+  const boardId = await createBoard(server!.baseURL);
   const alex = await open(boardId, 'Alex');
   const page = alex.page;
   for (let i = 0; i < ZOOM_OUT_STEPS; i++) await page.getByRole('button', { name: 'Zoom out' }).click();
@@ -133,7 +132,7 @@ test('TC-19 overnight return: 25 varied notes survive everyone leaving and a pro
 });
 
 test('TC-20 leave immediately: a change another person saw survives an instant exit and kill', async () => {
-  const boardId = newBoardId();
+  const boardId = await createBoard(server!.baseURL);
   const alex = await open(boardId, 'Alex');
   const sam = await open(boardId, 'Sam');
   const id = await createNoteAt(alex.page, { x: 640, y: 400 }, 'Seen by Sam');
@@ -150,7 +149,7 @@ test('TC-20 leave immediately: a change another person saw survives an instant e
 });
 
 test(`TC-21 big board: ${PERSIST_TESTED_NOTES} saved notes open within BOARD_LOAD_BUDGET_MS`, async ({ browser }) => {
-  const boardId = newBoardId();
+  const boardId = await createBoard(server!.baseURL);
   const doc = new Y.Doc();
   buildLargeBoard(doc);
   await seedBoard(server!.baseURL, boardId, doc);

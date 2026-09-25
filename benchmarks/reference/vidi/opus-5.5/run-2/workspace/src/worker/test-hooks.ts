@@ -6,15 +6,18 @@
  *   POST /__test/boards/:id/compact           fold the update log into a snapshot
  *   POST /__test/boards/:id/corrupt-snapshot  save chunk 0 aside, overwrite it, reload the room
  *   POST /__test/boards/:id/repair            restore the saved chunk 0
+ *   POST /__test/boards/:id/seed-legacy       body = one Yjs update, stored as a board saved
+ *                                             before story 5 (log rows, no created_at; TC-31)
  *
  * Without the variable these paths fall through to the static client like any other URL.
  */
 import { isValidBoardId } from '../shared/board-id';
+import { BoardStore } from './board-store';
 import type { Env } from './index';
 
 export class TestHookError extends Error {}
 
-const ROUTE = /^\/__test\/boards\/([^/]+)\/(compact|corrupt-snapshot|repair)$/;
+const ROUTE = /^\/__test\/boards\/([^/]+)\/(compact|corrupt-snapshot|repair|seed-legacy)$/;
 const BACKUP_TABLE = 'CREATE TABLE IF NOT EXISTS test_hook_backup (idx INTEGER PRIMARY KEY, data BLOB NOT NULL)';
 const OK = 200;
 const BAD_REQUEST = 400;
@@ -43,6 +46,15 @@ export function repairSnapshot(storage: DurableObjectStorage): void {
   });
 }
 
+/** Writes `update` as the only log row of a board that has no `created_at`. */
+export function seedLegacyBoard(storage: DurableObjectStorage, update: Uint8Array): void {
+  new BoardStore(storage).migrate();
+  storage.transactionSync(() => {
+    storage.sql.exec("DELETE FROM storage_meta WHERE key = 'created_at'");
+    storage.sql.exec('INSERT INTO updates (data, bytes) VALUES (?, ?)', update, update.length);
+  });
+}
+
 /** Handles a test hook request, or returns null when hooks are disabled or the path is not a hook. */
 export async function handleTestHook(req: Request, env: Env): Promise<Response | null> {
   if (env.TEST_HOOKS !== '1' || req.method !== 'POST') return null;
@@ -57,7 +69,9 @@ export async function handleTestHook(req: Request, env: Env): Promise<Response |
         ? await room.testCompact()
         : action === 'corrupt-snapshot'
           ? await room.testCorruptSnapshot()
-          : await room.testRepairSnapshot();
+          : action === 'seed-legacy'
+            ? await room.testSeedLegacy(new Uint8Array(await req.arrayBuffer()))
+            : await room.testRepairSnapshot();
     return Response.json({ ok: true, result }, { status: OK });
   } catch (err) {
     return Response.json({ ok: false, error: err instanceof Error ? err.message : String(err) }, { status: CONFLICT });

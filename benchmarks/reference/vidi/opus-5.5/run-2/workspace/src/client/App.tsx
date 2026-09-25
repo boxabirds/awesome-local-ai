@@ -13,7 +13,10 @@ import { StickyNote } from './objects/StickyNote';
 import { ConnectionStatus } from './sync/ConnectionStatus';
 import type { ConnectionState, ProviderFactory } from './sync/connectBoard';
 import { createSticky, deleteObject } from '../shared/board-model';
-import { isValidBoardId, newBoardId } from '../shared/board-id';
+import { BoardPage } from './pages/BoardPage';
+import { HomePage } from './pages/HomePage';
+import { NotFoundPage } from './pages/NotFoundPage';
+import { useRoute } from './router';
 
 const HALF = 2;
 
@@ -25,21 +28,6 @@ function windowSize(): Size {
 function isInteractiveTarget(target: EventTarget | null): boolean {
   if (!(target instanceof HTMLElement)) return false;
   return target.isContentEditable || target.closest('input, textarea, select, button, [contenteditable="true"]') !== null;
-}
-
-const BOARD_ROUTE = /^\/b\/([^/]+)\/?$/;
-
-/**
- * Reads the board id from `/b/:boardId`. Any other address (including `/`) is replaced
- * by a fresh board address — temporary until story 5 creates boards on the server.
- */
-export function resolveBoardRoute(): string {
-  const match = BOARD_ROUTE.exec(window.location.pathname);
-  const id = match?.[1];
-  if (id !== undefined && isValidBoardId(id)) return id;
-  const fresh = newBoardId();
-  window.history.replaceState(null, '', `/b/${fresh}`);
-  return fresh;
 }
 
 /**
@@ -152,4 +140,21 @@ export function App(props: AppProps = {}): React.JSX.Element {
       </main>
     </BoardContext.Provider>
   );
+}
+
+/**
+ * The page for the current address (anchor: share.pages): `/` home, `/b/:id` the board
+ * (after an existence check), anything else Board not found. Boards are created only by
+ * the Create a board action; no address creates one by being opened.
+ */
+export function Routes(): React.JSX.Element {
+  const route = useRoute();
+  switch (route.name) {
+    case 'home':
+      return <HomePage />;
+    case 'board':
+      return <BoardPage key={route.id} id={route.id} />;
+    case 'not_found':
+      return <NotFoundPage />;
+  }
 }

@@ -1,11 +1,12 @@
 /**
  * Multi-person e2e helpers (design E2E): each participant is an isolated browser context
- * on the same `/b/<newBoardId()>`, talking to the real `wrangler dev` BoardRoom.
+ * on the same board (created through POST /api/boards), talking to the real `wrangler dev` BoardRoom.
  */
 import { expect, type Browser, type BrowserContext, type Locator, type Page, type WebSocketRoute } from '@playwright/test';
-import { newBoardId } from '../../../src/shared/board-id';
 import { LIVE_UPDATE_LATENCY_BUDGET_MS } from '../../../src/shared/config';
 import type { Point } from '../../../src/client/canvas/camera';
+import { createBoard } from './seed';
+import { E2E_BASE_URL } from './server';
 
 /** Poll often so the measured latency is not dominated by the polling interval. */
 const POLL_INTERVAL_MS = 10;
@@ -78,9 +79,10 @@ export async function openParticipant(browser: Browser, boardId: string, name: s
   return p;
 }
 
-/** Opens `names.length` participants on one fresh board. */
-export async function openParticipants(browser: Browser, names: string[], boardId = newBoardId()): Promise<Participant[]> {
-  return Promise.all(names.map((n) => openParticipant(browser, boardId, n)));
+/** Opens `names.length` participants on one fresh board (created unless `boardId` is given). */
+export async function openParticipants(browser: Browser, names: string[], boardId?: string): Promise<Participant[]> {
+  const id = boardId ?? (await createBoard(E2E_BASE_URL));
+  return Promise.all(names.map((n) => openParticipant(browser, id, n)));
 }
 
 export async function closeAll(participants: Participant[]): Promise<void> {

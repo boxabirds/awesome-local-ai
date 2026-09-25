@@ -3,7 +3,6 @@ import * as Y from 'yjs';
 import * as encoding from 'lib0/encoding';
 import * as syncProtocol from 'y-protocols/sync';
 import * as awarenessProtocol from 'y-protocols/awareness';
-import { newBoardId } from '../../src/shared/board-id';
 import { MAX_CONCURRENT_EDITORS } from '../../src/shared/config';
 import {
   LOCAL_ORIGIN,
@@ -15,7 +14,7 @@ import {
 } from '../../src/shared/board-model';
 import { CLOSE_UNSUPPORTED_DATA, MESSAGE_AWARENESS, MESSAGE_SYNC } from '../../src/shared/protocol';
 import { randomOp, seededRandom, type OpLog } from '../fixtures/random-ops';
-import { TestClient, sameState, sleep, waitConverged, waitUntil } from './helpers/ws-client';
+import { TestClient, createdBoardId, sameState, sleep, waitConverged, waitUntil } from './helpers/ws-client';
 
 const QUIET_MS = 100;
 const OPS_PER_CLIENT = 200;
@@ -33,7 +32,7 @@ async function join(boardId: string, doc?: Y.Doc): Promise<TestClient> {
 }
 
 async function pair(): Promise<[TestClient, TestClient, string]> {
-  const boardId = newBoardId();
+  const boardId = await createdBoardId();
   const a = await join(boardId);
   const b = await join(boardId);
   await waitConverged([a, b]);
@@ -167,7 +166,7 @@ describe('BoardRoom (sync.room)', () => {
   it(`TC-12 ${MAX_CONCURRENT_EDITORS} clients x ${OPS_PER_CLIENT} seeded random ops converge`, async () => {
     const seed = Date.now() % 1_000_000;
     console.log(`TC-12 seed ${seed}`);
-    const boardId = newBoardId();
+    const boardId = await createdBoardId();
     const clients: TestClient[] = [];
     for (let i = 0; i < MAX_CONCURRENT_EDITORS; i++) clients.push(await join(boardId));
     const log: OpLog = { created: new Set(), deleted: new Set() };
@@ -250,7 +249,7 @@ describe('BoardRoom (sync.room)', () => {
     b.close();
     // B has a change the room never saw (made while the room was down).
     createSticky(b.doc, { x: 400, y: 0 }, 'green');
-    const fresh = newBoardId(); // a fresh object instance stands in for the restarted room
+    const fresh = await createdBoardId(); // a fresh object instance stands in for the restarted room
     const a2 = await join(fresh, a.doc);
     const probe = await join(fresh);
     expect(sameState(probe.doc, a.doc)).toBe(true);

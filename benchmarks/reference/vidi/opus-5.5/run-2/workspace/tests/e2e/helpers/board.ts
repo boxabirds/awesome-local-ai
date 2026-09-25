@@ -1,10 +1,13 @@
 import { expect, type Page } from '@playwright/test';
 import type { Camera, Point } from '../../../src/client/canvas/camera';
+import { createBoard } from './seed';
+import { E2E_BASE_URL } from './server';
 
 export const PIXEL_TOLERANCE = 1;
 
+/** Opens a freshly created board (story 5: boards are created, never opened into being). */
 export async function openBoard(page: Page): Promise<void> {
-  await page.goto('/');
+  await page.goto(`/b/${await createBoard(E2E_BASE_URL)}`);
   await expect(page.getByTestId('board-viewport')).toBeVisible();
   await page.waitForFunction(() => window.__vidi6 !== undefined);
 }

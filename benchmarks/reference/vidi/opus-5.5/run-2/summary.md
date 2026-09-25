@@ -8,5 +8,6 @@ Model `claude-opus-5-5`, scope `canvas`, effort `low`, client claude 2.1.282 (Cl
 | 2 | Capture ideas on sticky notes and rearrange them | DONE | 16.9 | None | None | None | — | — | red | None/None |  | 0 / 0 | 0 | — | throttled 0% |
 | 3 | See other people's edits appear live on the same board | DONE | 21.3 | None | None | None | — | — | green | 0/27 |  | 0 / 0 | 0 | — | throttled 0% |
 | 4 | Return to a board and find everything as it was left | DONE | 32.3 | None | None | None | — | — | green | 0/31 |  | 0 / 2 | 0 | — | throttled 0% |
+| 5 | Share a board with others using a link | DONE | 12.0 | None | None | None | — | — | green | 0/36 |  | 0 / 0 | 0 | — | throttled 0% |
 
-**Totals:** 4 stories, 78 agent-minutes, 0 requests, 0 prompt / 0 completion tokens, gate green 2/4, final acceptance 0/31, stalled 0, partial 0, 8415 lines in src+tests.
+**Totals:** 5 stories, 90 agent-minutes, 0 requests, 0 prompt / 0 completion tokens, gate green 3/5, final acceptance 0/36, stalled 0, partial 0, 10088 lines in src+tests.
