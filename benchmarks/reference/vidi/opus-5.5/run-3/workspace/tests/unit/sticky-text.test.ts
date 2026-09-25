@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import * as Y from 'yjs';
-import { applyTextDiff, clampToLimit, counterVisible, limitEdit } from '../../src/client/objects/StickyText';
+import { applyTextDiff, clampToLimit, counterVisible, limitEdit, transformIndex } from '../../src/client/objects/StickyText';
 import { LOCAL_ORIGIN } from '../../src/shared/board-model';
 import { STICKY_COUNTER_THRESHOLD_CHARS, STICKY_TEXT_MAX_CHARS } from '../../src/shared/config';
 import { SHORT_TEXT, prose } from '../fixtures/texts';
@@ -121,5 +121,18 @@ describe('counterVisible (character counter)', () => {
     expect(counterVisible(951)).toBe(true);
     expect(counterVisible(0)).toBe(false);
     expect(counterVisible(STICKY_TEXT_MAX_CHARS)).toBe(true);
+  });
+});
+
+describe('transformIndex (caret under remote edits)', () => {
+  it.each([
+    ['insert before the caret shifts it', [{ insert: 'red ' }], 5, 9],
+    ['insert after the caret leaves it', [{ retain: 5 }, { insert: ' blue' }], 3, 3],
+    ['insert exactly at the caret goes after it', [{ retain: 3 }, { insert: 'xx' }], 3, 3],
+    ['delete before the caret pulls it back', [{ delete: 2 }], 5, 3],
+    ['delete spanning the caret moves it to the cut', [{ retain: 1 }, { delete: 5 }], 3, 1],
+    ['delete after the caret leaves it', [{ retain: 4 }, { delete: 1 }], 2, 2],
+  ])('%s', (_label, delta, index, expected) => {
+    expect(transformIndex(delta, index)).toBe(expected);
   });
 });

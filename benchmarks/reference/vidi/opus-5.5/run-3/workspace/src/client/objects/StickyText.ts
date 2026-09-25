@@ -111,3 +111,27 @@ export function fitFontSize(el: HTMLElement, box: number): { fontPx: number; ove
   el.style.fontSize = `${lo}px`;
   return { fontPx: lo, overflow: false };
 }
+
+/**
+ * Where caret position `index` ends up after a remote Y.Text change described by `delta`, so other
+ * people's typing does not move my caret relative to my own text. Text inserted exactly at the caret
+ * goes after it.
+ */
+export function transformIndex(delta: ReadonlyArray<{ insert?: unknown; retain?: number; delete?: number }>, index: number): number {
+  let pos = 0; // position in the old text
+  let result = index;
+  for (const op of delta) {
+    if (pos > index) break;
+    if (op.retain !== undefined) {
+      pos += op.retain;
+    } else if (op.insert !== undefined) {
+      const len = typeof op.insert === 'string' ? op.insert.length : 1;
+      if (pos < index) result += len;
+    } else if (op.delete !== undefined) {
+      const removed = Math.min(op.delete, Math.max(0, index - pos));
+      result -= removed;
+      pos += op.delete;
+    }
+  }
+  return result;
+}

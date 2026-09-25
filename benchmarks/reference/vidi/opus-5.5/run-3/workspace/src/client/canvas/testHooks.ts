@@ -1,11 +1,14 @@
 import type { Camera } from './camera';
 import type { StickySnapshot } from '../../shared/board-model';
+import type { ConnectionState } from '../sync/connectBoard';
 
 export interface Vidi6TestHooks {
   setCamera(cam: Camera): void;
   getCamera(): Camera;
   /** Current notes in render order (installed by App). */
   notes?(): readonly StickySnapshot[];
+  /** Current mapped connection state (installed by App). */
+  connectionState?: ConnectionState;
 }
 
 declare global {
@@ -26,7 +29,7 @@ export function installTestHooks(hooks: Partial<Vidi6TestHooks>): () => void {
   return () => {
     const current = window.__vidi6 as unknown as Record<string, unknown> | undefined;
     if (!current) return;
-    for (const [key, fn] of Object.entries(hooks)) if (current[key] === fn) delete current[key];
+    for (const [key, value] of Object.entries(hooks)) if (current[key] === value) delete current[key];
     if (Object.keys(current).length === 0) delete window.__vidi6;
   };
 }

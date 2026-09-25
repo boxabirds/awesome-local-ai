@@ -1,0 +1,217 @@
+{
+  "build_exit": 0,
+  "runner_exit": 0,
+  "runner_tail": "",
+  "passed": 27,
+  "total": 27,
+  "on_partial": {
+    "passed": 0,
+    "total": 0
+  },
+  "by_story": {
+    "01": {
+      "passed": 10,
+      "total": 10
+    },
+    "02": {
+      "passed": 10,
+      "total": 10
+    },
+    "03": {
+      "passed": 7,
+      "total": 7
+    }
+  },
+  "harness_fault": null,
+  "tests": [
+    {
+      "file": "story-01.spec.ts",
+      "title": "golden path: controls and hint visible at 100% @ref prd:golden-path",
+      "status": "passed",
+      "error": "",
+      "on_partial": null
+    },
+    {
+      "file": "story-01.spec.ts",
+      "title": "zoom buttons step 100 \u2192 125 \u2192 100 @ref prd:zoom.step",
+      "status": "passed",
+      "error": "",
+      "on_partial": null
+    },
+    {
+      "file": "story-01.spec.ts",
+      "title": "zoom limits clamp and disable buttons @ref prd:zoom.limits",
+      "status": "passed",
+      "error": "",
+      "on_partial": null
+    },
+    {
+      "file": "story-01.spec.ts",
+      "title": "keyboard zoom and reset do not zoom the page @ref prd:zoom.no_page_zoom",
+      "status": "passed",
+      "error": "",
+      "on_partial": null
+    },
+    {
+      "file": "story-01.spec.ts",
+      "title": "ctrl+wheel zooms the board @ref prd:zoom.pointer",
+      "status": "passed",
+      "error": "",
+      "on_partial": null
+    },
+    {
+      "file": "story-01.spec.ts",
+      "title": "hint disappears after first pan and stays gone @ref prd:nav.hint",
+      "status": "passed",
+      "error": "",
+      "on_partial": null
+    },
+    {
+      "file": "story-01.spec.ts",
+      "title": "drag pans content exactly with the pointer @ref prd:pan.drag",
+      "status": "passed",
+      "error": "",
+      "on_partial": null
+    },
+    {
+      "file": "story-01.spec.ts",
+      "title": "wheel scroll pans in scroll direction @ref prd:pan.scroll",
+      "status": "passed",
+      "error": "",
+      "on_partial": null
+    },
+    {
+      "file": "story-01.spec.ts",
+      "title": "zoom keeps the point under the pointer fixed @ref prd:zoom.pointer",
+      "status": "passed",
+      "error": "",
+      "on_partial": null
+    },
+    {
+      "file": "story-01.spec.ts",
+      "title": "reset view returns to 100% with origin centred @ref prd:view.reset",
+      "status": "passed",
+      "error": "",
+      "on_partial": null
+    },
+    {
+      "file": "story-02.spec.ts",
+      "title": "golden path: create, type, select, recolour, delete @ref prd:golden-path",
+      "status": "passed",
+      "error": "",
+      "on_partial": null
+    },
+    {
+      "file": "story-02.spec.ts",
+      "title": "double-click creates note centred on the point @ref prd:sticky.create_dblclick",
+      "status": "passed",
+      "error": "",
+      "on_partial": null
+    },
+    {
+      "file": "story-02.spec.ts",
+      "title": "toolbar button creates note in view centre @ref prd:sticky.create_button",
+      "status": "passed",
+      "error": "",
+      "on_partial": null
+    },
+    {
+      "file": "story-02.spec.ts",
+      "title": "escape and outside click keep typed text; Enter re-edits at end @ref prd:sticky.edit_end",
+      "status": "passed",
+      "error": "",
+      "on_partial": null
+    },
+    {
+      "file": "story-02.spec.ts",
+      "title": "pasting over the limit keeps exactly 1000 characters @ref prd:sticky.text_limit",
+      "status": "passed",
+      "error": "",
+      "on_partial": null
+    },
+    {
+      "file": "story-02.spec.ts",
+      "title": "dragging a note moves it, not the board @ref prd:sticky.move prd:sticky.no_pan",
+      "status": "passed",
+      "error": "",
+      "on_partial": null
+    },
+    {
+      "file": "story-02.spec.ts",
+      "title": "dragged note is drawn above the note it overlaps @ref prd:sticky.move",
+      "status": "passed",
+      "error": "",
+      "on_partial": null
+    },
+    {
+      "file": "story-02.spec.ts",
+      "title": "Delete while editing edits text, not the note @ref prd:sticky.delete",
+      "status": "passed",
+      "error": "",
+      "on_partial": null
+    },
+    {
+      "file": "story-02.spec.ts",
+      "title": "delete button on note toolbar removes note @ref prd:sticky.delete",
+      "status": "passed",
+      "error": "",
+      "on_partial": null
+    },
+    {
+      "file": "story-02.spec.ts",
+      "title": "clicking empty board clears selection @ref prd:sticky.select",
+      "status": "passed",
+      "error": "",
+      "on_partial": null
+    },
+    {
+      "file": "story-03.spec.ts",
+      "title": "create, type, move, recolour and delete reach the other person @ref prd:live.propagate",
+      "status": "passed",
+      "error": "",
+      "on_partial": null
+    },
+    {
+      "file": "story-03.spec.ts",
+      "title": "late joiner sees current notes @ref prd:live.join_state",
+      "status": "passed",
+      "error": "",
+      "on_partial": null
+    },
+    {
+      "file": "story-03.spec.ts",
+      "title": "simultaneous typing keeps both people's characters @ref prd:live.concurrent_text",
+      "status": "passed",
+      "error": "",
+      "on_partial": null
+    },
+    {
+      "file": "story-03.spec.ts",
+      "title": "boards stay separate @ref prd:live.isolation",
+      "status": "passed",
+      "error": "",
+      "on_partial": null
+    },
+    {
+      "file": "story-03.spec.ts",
+      "title": "selection stays personal @ref prd:live.local_selection",
+      "status": "passed",
+      "error": "",
+      "on_partial": null
+    },
+    {
+      "file": "story-03.spec.ts",
+      "title": "server restart shows Reconnecting\u2026 then Connected, notes kept @ref prd:live.status",
+      "status": "passed",
+      "error": "",
+      "on_partial": null
+    },
+    {
+      "file": "story-03.spec.ts",
+      "title": "offline edits catch up on reconnect @ref prd:live.catch_up",
+      "status": "passed",
+      "error": "",
+      "on_partial": null
+    }
+  ]
+}

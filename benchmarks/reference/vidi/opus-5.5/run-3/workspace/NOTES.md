@@ -89,3 +89,59 @@ Decisions made where the spec left room:
   commit per story.
 - **Manual checks not done here.** IME input on a real keyboard (the composition guard is covered by a
   component test) and the 500-note performance run are manual, as the design's "Not covered" section says.
+
+## Story 3 — See other people's edits appear live on the same board
+
+Decisions made where the spec left room:
+
+- **Vitest 4.1 instead of 5.** `@cloudflare/vitest-pool-workers` (0.22, the newest) supports only `vitest ^4.1`; with
+  vitest 5 its runner fails to start inside workerd. Vitest was moved to 4.1.11 for the whole repo. All earlier unit
+  and component tests pass unchanged.
+- **Integration tests** have their own config, `vitest.integration.config.ts` (`npm run test:integration`), because
+  the Workers pool takes over the whole project. The script builds the client first, because TC-06 reads
+  `index.html` from the assets. The pool's own workerd is a few days older than wrangler's, so the test config sets
+  `compatibilityDate: '2026-08-22'` and `nodejs_compat` (the test runner needs it). This affects only the tests,
+  not `wrangler.jsonc`.
+- **Type checking.** The Worker, the Durable Object and the integration tests use Workers runtime types, not the DOM,
+  so they have their own `tsconfig.worker.json`. `npm run typecheck` runs both configs.
+- **Binary frames.** At our compatibility date, workerd delivers binary WebSocket frames as `Blob`. So the room and
+  the test client set `binaryType = 'arraybuffer'`.
+- **Rejected updates.** `y-protocols`' `readSyncMessage` logs and swallows an update that Yjs rejects. The room
+  therefore reads sync messages itself (`BoardRoom.readSync`, same behaviour otherwise), so an invalid update closes
+  the sender with 1003, as the design says.
+- **`run_worker_first: ["/api/*"]`** in `wrangler.jsonc`: only `/api/*` reaches the Worker. Other paths are served
+  straight from the assets (SPA fallback), and the Worker also falls back to `env.ASSETS` for anything else.
+- **Routing.** Any path that isn't a valid `/b/:boardId` (including `/`) is replaced (`history.replaceState`) with
+  `/b/<newBoardId()>`. `Root` mounts `App` keyed by the board id, so each board gets a fresh `Y.Doc` and provider.
+  `App` still accepts a `doc` (tests) and an optional `boardId`. Without a `boardId` it is offline and the badge is
+  hidden.
+- **Badge accessible name.** The zoom label is an `<output>`, which also has the `status` role. So the badge has
+  `aria-label="Connection status"`, and tests find it with `getByRole('status', { name: 'Connection status' })`. It
+  never intercepts pointer input.
+- **State mapping** lives in `trackConnectionState(provider, onState)`, exported from `connectBoard.ts` so the
+  component tests can drive it with a fake provider. A connection that fails before the first sync stays
+  "Connecting…" (PRD alternate flow). Only a loss after having been connected shows "Reconnecting…".
+- **Browser offline/online events.** When the browser reports `offline`, `connectBoard` closes the socket, so the
+  badge shows "Reconnecting…" right away. Otherwise that would only happen after y-websocket's 30 s no-message
+  timeout. On `online` it reconnects at once instead of waiting out the backoff.
+- **Caret under remote typing.** When someone else's change arrives while I'm typing, the editor moves my caret
+  with the Yjs delta (`transformIndex` in `StickyText.ts`). My caret stays next to my own text, so simultaneous
+  typing never interleaves mid-word. Known gap: a remote change that arrives during an IME composition is written
+  over by the diff when the composition ends. This is rare, and it is covered properly by moving to a Yjs-bound
+  editor later.
+- **Delete during edit/drag** needed no new state: `App` already drops a selected or edited id that is no longer in
+  the snapshot. A deleted note's `StickyNote` unmounts, which cancels its drag. `moveObject` on a missing id is a
+  no-op, so nothing comes back.
+- **Nightly tests** live in `tests/e2e/nightly/` and run only in the `nightly` Playwright project
+  (`npm run test:e2e:nightly`). `npm run test:e2e` runs the chromium/firefox/webkit projects, which ignore that
+  folder. TC-29 counts `WebSocket` constructions to show there were no reconnect attempts while idle. The teardown
+  point (`destroy()` on unmount) is covered by the component test, which checks `destroy` runs exactly once on
+  unmount. Measured on this machine (TC-30): p50 17 ms, p95 40 ms, max 88 ms over ~5,500 deliveries.
+- **E2E latency** is measured from the test runner (poll every 10 ms, timeout `LIVE_UPDATE_LATENCY_BUDGET_MS`), so it
+  is an upper bound on the real delay.
+- **Browser-specific skips.** TC-27 (outage) is skipped on WebKit, because Playwright's WebKit offline emulation does
+  not block WebSockets. The drag variant of TC-25 is skipped on Firefox, because Playwright Firefox stalls input to
+  one window while another window holds a mouse button down. Both run on Chromium (and TC-27 on Firefox). TC-22 and
+  TC-23 run on all three browsers.
+- **Dev server.** `npm run dev` proxies `/api` (including WebSockets) to `wrangler dev` on port 8787. `npm run
+  preview` (wrangler dev) serves everything by itself.

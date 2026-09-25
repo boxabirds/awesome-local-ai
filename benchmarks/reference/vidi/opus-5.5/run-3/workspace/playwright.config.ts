@@ -19,6 +19,9 @@ export default defineConfig({
     viewport: { width: 1280, height: 800 },
     trace: 'retain-on-failure',
   },
+  // Long idle / soak specs live in tests/e2e/nightly and run only in the `nightly` project
+  // (`npm run test:e2e:nightly`); `npm run test:e2e` runs the browser projects, which ignore them.
+  testIgnore: '**/nightly/**',
   projects: [
     { name: 'chromium', use: { ...devices['Desktop Chrome'], viewport: { width: 1280, height: 800 } } },
     {
@@ -33,6 +36,12 @@ export default defineConfig({
       },
     },
     { name: 'webkit', use: { ...devices['Desktop Safari'], viewport: { width: 1280, height: 800 } } },
+    {
+      name: 'nightly',
+      testIgnore: [],
+      testMatch: '**/nightly/**/*.spec.ts',
+      use: { ...devices['Desktop Chrome'], viewport: { width: 1280, height: 800 } },
+    },
   ],
   // `npm run test:e2e` builds the client in test mode (enables window.__vidi6) before this runs.
   webServer: {
