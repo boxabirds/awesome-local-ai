@@ -1,13 +1,13 @@
 import { act, render } from '@testing-library/react';
 import { Profiler, StrictMode, createElement } from 'react';
 import * as Y from 'yjs';
-import { App } from '../../src/client/App';
-import { BoardDocProvider, createBoardDoc, type BoardDoc } from '../../src/client/board/useBoardDoc';
+import { App, type AppProps } from '../../src/client/App';
 import type { Camera } from '../../src/client/canvas/camera';
 import { dispatch } from './harness';
 import {
   createSticky,
   getStickyText,
+  initDoc,
   setStickyColor,
   snapshot,
   type StickySnapshot,
@@ -62,7 +62,7 @@ export function renderApp(
   options: AppHarnessOptions = {},
 ): AppHarness {
   const doc = new Y.Doc();
-  const board: BoardDoc = createBoardDoc(doc);
+  initDoc(doc);
 
   for (const note of seed) {
     // The harness speaks in corners, the model in centres.
@@ -72,7 +72,10 @@ export function renderApp(
     if (note.text) getStickyText(doc, id)?.insert(0, note.text);
   }
 
-  const app = createElement(App, null);
+  // The explicit type argument is not decoration: `App` takes its props with a
+  // default value, and React's `createElement` inference gives up on that
+  // signature, so the props would otherwise be checked against `unknown`.
+  const app = createElement<Partial<AppProps>>(App, { doc });
   const tree = options.profile
     ? createElement(
         Profiler,
@@ -84,12 +87,11 @@ export function renderApp(
       )
     : app;
 
+  // The document goes in as a prop, not as a provider: App owns the session
+  // (document plus connection) and a harness that injected a session would not
+  // be testing the thing the app actually builds.
   const rendered = render(
-    createElement(
-      BoardDocProvider,
-      { value: board },
-      options.strict === false ? tree : createElement(StrictMode, null, tree),
-    ),
+    options.strict === false ? tree : createElement(StrictMode, null, tree),
   );
 
   const container = rendered.container;

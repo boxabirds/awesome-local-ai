@@ -75,3 +75,30 @@ export type StickyColor = keyof typeof STICKY_COLORS;
 
 /** Colour of a freshly created note. */
 export const DEFAULT_STICKY_COLOR: StickyColor = 'yellow';
+
+/* --------------------------------------------------------------------- *
+ * Story 3: live collaboration.
+ * --------------------------------------------------------------------- */
+
+/**
+ * How many people a board is designed and tested for at the same time. This
+ * is a soft number: it sizes the tests and the design, it never refuses a
+ * connection (PRD live.over_capacity).
+ */
+export const MAX_CONCURRENT_EDITORS = 5;
+
+/**
+ * The change-delivery budget, measured from the moment a change appears on
+ * the sender's screen to the moment it appears on a receiver's (PRD
+ * live.propagate).
+ */
+export const LIVE_UPDATE_LATENCY_BUDGET_MS = 1_000;
+
+/** Upper bound of the provider's reconnect backoff, in milliseconds. */
+export const RECONNECT_MAX_BACKOFF_MS = 10_000;
+
+/** How long the green "Connected" badge stays up after a reconnection. */
+export const CONNECTED_CONFIRMATION_MS = 2_000;
+
+/** The outage a catch-up test cuts, matching the PRD's live.catch_up check. */
+export const CATCH_UP_TEST_OUTAGE_MS = 30_000;

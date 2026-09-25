@@ -9,6 +9,8 @@ import {
 import type { StickyColor } from '../../shared/config';
 import type { Camera } from './camera';
 import type { CameraApi } from './useCamera';
+import type { ConnectionState } from '../sync/connectBoard';
+import type { BoardSession } from '../sync/boardSession';
 
 /**
  * Test-only handle on the live app (design "Test seams").
@@ -18,6 +20,10 @@ import type { CameraApi } from './useCamera';
  * gesture - two overlapping notes, a note with a 1,000 character text - by
  * going through the very same model functions the app uses, so the fixture is
  * subject to the same rules as real input.
+ *
+ * The connection part (story 3) lets a test cut a live link and watch the
+ * board catch up afterwards, which is the only way to test the PRD's 30-second
+ * outage without waiting 30 seconds in every run.
  *
  * Installed only when `import.meta.env.MODE === 'test'`: production builds
  * contain no hook.
@@ -54,6 +60,17 @@ export interface BoardTestHooks {
   /** Removes a note while the pointer is still down, for interruption tests. */
   removeNote(id: string): boolean;
   getDoc(): Y.Doc | null;
+  /** The room this board is shared in, or `'local'`. */
+  getBoardId(): string;
+  /** The socket URL of the room, or `null` for a local board. */
+  getRoomUrl(): string | null;
+  /** The connection state the badge is showing. */
+  getConnectionState(): ConnectionState;
+  /**
+   * Cuts the live link without unmounting the board, so a test can watch the
+   * reconnect and the catch-up. Returns false when there is no link to cut.
+   */
+  dropConnection(): boolean;
 }
 
 declare global {
@@ -64,7 +81,7 @@ declare global {
 
 export function installBoardTestHooks(
   getApi: () => CameraApi | null,
-  getDoc: () => Y.Doc | null = () => null,
+  getSession: () => BoardSession | null = () => null,
 ): void {
   if (typeof window === 'undefined') return;
   if (import.meta.env.MODE !== 'test') return;
@@ -81,9 +98,9 @@ export function installBoardTestHooks(
       return getApi()?.camera ?? { x: 0, y: 0, zoom: 1 };
     },
     getNotes() {
-      const doc = getDoc();
-      if (!doc) return [];
-      return snapshot(doc).map((row) => ({
+      const session = getSession();
+      if (!session) return [];
+      return snapshot(session.doc).map((row) => ({
         id: row.id,
         type: row.type,
         x: row.x,
@@ -94,20 +111,40 @@ export function installBoardTestHooks(
       }));
     },
     seedNote(note: SeedNote) {
-      const doc = getDoc();
-      if (!doc) return '';
-      const id = createSticky(doc, { x: note.x, y: note.y }, note.color);
+      const session = getSession();
+      if (!session) return '';
+      const id = createSticky(session.doc, { x: note.x, y: note.y }, note.color);
       if (!id) return '';
-      if (note.color) setStickyColor(doc, id, note.color);
-      if (note.text) getStickyText(doc, id)?.insert(0, note.text);
+      if (note.color) setStickyColor(session.doc, id, note.color);
+      if (note.text) getStickyText(session.doc, id)?.insert(0, note.text);
       return id;
     },
     removeNote(id: string) {
-      const doc = getDoc();
-      if (!doc) return false;
-      return deleteObject(doc, id);
+      const session = getSession();
+      if (!session) return false;
+      return deleteObject(session.doc, id);
     },
-    getDoc,
+    getDoc() {
+      return getSession()?.doc ?? null;
+    },
+    getBoardId() {
+      return getSession()?.boardId ?? 'local';
+    },
+    getRoomUrl() {
+      return getSession()?.url ?? null;
+    },
+    getConnectionState() {
+      return getSession()?.connection?.getState() ?? 'connected';
+    },
+    dropConnection() {
+      const provider = getSession()?.connection?.provider as
+        | { ws?: { close(): void } }
+        | undefined;
+      const socket = provider?.ws;
+      if (!socket) return false;
+      socket.close();
+      return true;
+    },
   };
 
   window.__vidi6 = hooks;
