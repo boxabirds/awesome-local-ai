@@ -11,7 +11,7 @@ DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$DIR/.." && pwd)"
 . "$DIR/lib.sh"
 
-COMBO="qwen/3.8/flash-next/ubuntu/strix-halo-128GB/llamacpp-opencode"
+COMBO="qwen/3.8/flash-next/ubuntu/strix-halo-128GB/llamacpp-pi"
 SCRATCH="$(mktemp -d)"
 trap 'rm -rf "$SCRATCH"' EXIT
 
