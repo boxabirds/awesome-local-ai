@@ -19,7 +19,7 @@ import type { Env } from './index';
  * dispatches the operation without touching a WebSocket.
  */
 
-const HOOK_PATH = /^\/__test\/boards\/([^/]+)\/(corrupt-snapshot|repair|hibernate)$/;
+const HOOK_PATH = /^\/__test\/boards\/([^/]+)\/(corrupt-snapshot|repair|hibernate|seed-legacy)$/;
 
 /** Hostname of the forwarded internal requests (never seen on public paths). */
 export const TEST_HOOK_HOST = 'vidi6-test.local';

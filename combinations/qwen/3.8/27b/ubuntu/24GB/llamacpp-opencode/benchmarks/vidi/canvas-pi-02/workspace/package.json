@@ -32,6 +32,7 @@
     "@cloudflare/workers-types": "^5.20260924.1",
     "@playwright/test": "1.63.0",
     "@testing-library/dom": "^10.4.0",
+    "@testing-library/jest-dom": "^7.0.1",
     "@testing-library/react": "^16.3.0",
     "@testing-library/user-event": "^14.6.1",
     "@types/node": "^24.0.0",

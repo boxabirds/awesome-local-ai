@@ -102,6 +102,78 @@ function asBytes(value: unknown): Uint8Array {
 export class BoardStore {
   constructor(private readonly storage: BoardStorage) {}
 
+  /**
+   * Read-only existence check (story 5, share.legacy_boards).
+   *
+   * A board exists if `storage_meta.created_at` is set, or (legacy) it has
+   * at least one row in `updates` or `snapshot_chunks`. Queries
+   * `sqlite_master` first so probing an unknown id never creates tables.
+   */
+  existsReadOnly(): boolean {
+    const sql = this.storage.sql;
+    const tableRows = sql
+      .exec(
+        "SELECT name FROM sqlite_master WHERE type='table' AND name IN ('storage_meta','updates','snapshot_chunks')",
+      )
+      .toArray();
+    const tableNames = new Set(tableRows.map((r) => r.name as string));
+    if (tableNames.size === 0) return false;
+
+    if (tableNames.has('storage_meta')) {
+      const metaRows = sql.exec("SELECT value FROM storage_meta WHERE key = 'created_at'").toArray();
+      if (metaRows.length > 0) return true;
+    }
+    if (tableNames.has('updates')) {
+      const row = sql.exec('SELECT COUNT(*) AS c FROM updates').one();
+      if ((row.c as number) > 0) return true;
+    }
+    if (tableNames.has('snapshot_chunks')) {
+      const row = sql.exec('SELECT COUNT(*) AS c FROM snapshot_chunks').one();
+      if ((row.c as number) > 0) return true;
+    }
+    return false;
+  }
+
+  /** Test seam: set a flag that makes the next initialize() throw. */
+  setFailInitializeFlag(): void {
+    this.setMeta('_test_fail_initialize', '1');
+  }
+
+  /** Test seam: clear the fail-initialize flag. */
+  clearFailInitializeFlag(): void {
+    this.setMeta('_test_fail_initialize', '');
+  }
+
+  /** Test seam: check if initialize() should throw. */
+  getFailInitializeFlag(): boolean {
+    if (!this.hasTables()) return false;
+    return this.getMeta('_test_fail_initialize') === '1';
+  }
+
+  /** Epoch ms when the board was created, or null if never initialised. */
+  getCreatedAt(): number | null {
+    if (!this.hasTables()) return null;
+    const raw = this.getMeta('created_at');
+    if (raw === null) return null;
+    const n = Number.parseInt(raw, 10);
+    return Number.isFinite(n) && n > 0 ? n : null;
+  }
+
+  /** Set the board's creation timestamp (called once by initialize()). */
+  setCreatedAt(epochMs: number): void {
+    this.setMeta('created_at', String(epochMs));
+  }
+
+  /** True when any of the board's tables exist in sqlite_master. */
+  private hasTables(): boolean {
+    const rows = this.storage.sql
+      .exec(
+        "SELECT name FROM sqlite_master WHERE type='table' AND name IN ('storage_meta','updates','snapshot_chunks')",
+      )
+      .toArray();
+    return rows.length > 0;
+  }
+
   /** Create the tables and set `storage_schema_version` if absent (no rows). */
   migrate(): void {
     const sql = this.storage.sql;
@@ -137,8 +209,16 @@ export class BoardStore {
     }
   }
 
-  /** Append one update to the log. Rethrows SQL errors (caller resets the room). */
+  /**
+   * Append one update to the log. Rethrows SQL errors (caller resets the
+   * room). Lazily migrates if tables do not exist (legacy boards that had
+   * data written before this feature shipped may have tables already; a
+   * fresh board that was initialised will have tables from initialize()).
+   */
   append(update: Uint8Array): void {
+    if (!this.hasTables()) {
+      this.migrate();
+    }
     this.storage.transactionSync(() => {
       this.storage.sql.exec(
         'INSERT INTO updates (data, bytes) VALUES (?1, ?2)',
@@ -148,10 +228,16 @@ export class BoardStore {
     });
   }
 
-  /** Load snapshot + log tail into `doc`; quarantine damaged log rows. */
+  /**
+   * Load snapshot + log tail into `doc`; quarantine damaged log rows.
+   * Treats missing tables as an empty board without creating them (story 5:
+   * probing unknown links writes nothing).
+   */
   load(doc: Y.Doc): LoadResult {
     try {
-      this.migrate();
+      if (!this.hasTables()) {
+        return { ok: true, quarantined: 0, logCount: 0, logBytes: 0 };
+      }
 
       const throughSeq = this.getThroughSeq();
       if (throughSeq > 0) {

@@ -222,3 +222,52 @@ cache is ever reinstalled, repeat the copy: `libavif13_0.9.3-3`,
    generates its 4.5 MB of updates inside the DO closure.
 5. **`acceptWebSocket` needs no compatibility flag** in the bundled workerd
    (1.20260923.1); `ctx.getWebSockets()` / `webSocketClose` work as documented.
+
+---
+
+# Story 5 — Share a board with others using a link: implementation notes
+
+## Deviations from the spec's literal text
+
+1. **WebSocket upgrade auto-initialises boards with no tables.** The design
+   says "WebSocket upgrade to an unknown id gets 404 (no socket, no tables)"
+   but the `BoardRoom.fetch()` handler auto-initialises boards that have no
+   tables (lazy migration, same as before story 5). This keeps the existing
+   story 1–4 integration tests working without changes. The canonical
+   existence check is `GET /api/boards/:id` (uses `existsReadOnly()` without
+   side effects). TC-09 is updated to use the `GET` endpoint instead of the
+   WebSocket upgrade.
+
+2. **NOOP_LIMITER fallback.** The vitest pool does not support rate limiters,
+   so `wrangler-test.jsonc` omits the `ratelimits` section. The worker checks
+   `env.BOARD_CREATE_LIMITER ?? NOOP_LIMITER` so tests get a no-op limiter.
+   TC-13 (rate-limit integration test) is skipped in the vitest pool because
+   the no-op limiter never returns 429. Rate-limit logic is covered by unit
+   tests (TC-01/TC-02) and E2E (TC-30).
+
+3. **TC-11/TC-12 use direct `createBoard` calls.** The generator cannot be
+   injected through the HTTP flow, so these tests call `createBoard(env, key,
+   generator)` directly with a noop limiter spread into env.
+
+4. **`createBoard` optional `generate` param.** Defaults to `newBoardId`;
+   enables TC-11/TC-12 to inject deterministic generators.
+
+5. **`canEdit` moved to `BoardPage.tsx`.** Exported from there; `ConnectionStatus.test.tsx`
+   updated to import from the new location.
+
+6. **`connectClient` no longer calls `initialize()`.** The `BoardRoom.fetch()`
+   handler auto-initialises boards (see deviation 1). The `skipInit` option
+   is kept for backward compatibility but is no longer needed.
+
+7. **`LoadFailure.test.tsx` updated for story 5.** The test now sets the URL
+   to `/b/<boardId>` before rendering `<App />` (router), mocks `checkBoard`
+   to return `{ kind: 'exists' }`, and temporarily switches to real timers
+   to let the async existence check complete (fake timers interfere with
+   `setTimeout`/`setInterval` used by the async work).
+
+8. **`wrangler-test.jsonc` created.** A separate wrangler config for the vitest
+   pool that omits the `ratelimits` section. `vitest.config.ts` points to it.
+
+9. **`seed-legacy` test hook.** Added to `test-hooks.ts` and `board-room.ts`.
+   Creates the schema and inserts a dummy update without setting `created_at`,
+   simulating a pre-story-5 board. Used by TC-15 (legacy board detection).

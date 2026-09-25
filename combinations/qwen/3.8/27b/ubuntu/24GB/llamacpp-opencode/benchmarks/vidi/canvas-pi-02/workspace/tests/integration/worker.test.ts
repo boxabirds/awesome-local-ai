@@ -7,19 +7,20 @@ import { describe, expect, it } from 'vitest';
  * SPA-fallback behaviour the client relies on).
  */
 describe('sync.worker_entry', () => {
-  it('TC-04 invalid board id with Upgrade -> 400, and no object instance is created', async () => {
+  it('TC-04 invalid board id with Upgrade -> 404, and no object instance is created', async () => {
     // Ids that survive URL normalisation (no real '/' or '..' segments) and
     // therefore reach the room route; the Worker must reject them there.
     // (A literal `../` in the path is normalised away by the URL parser
     // before the Worker sees it, so traversal cannot reach a room id.)
     // "No object instance" is shown by the namespace listing staying put,
     // which implies idFromName/fetch were never called for these ids.
+    // Story 5: malformed ids now get 404 (was 400 in story 3).
     const before = await listDurableObjectIds(env.BOARD_ROOM);
     for (const bad of ['..%2Fx', '%2e%2e%2f', 'abc', 'aaaaaaaaaaaaaaaaaaaaaa!', 'aaaaaaaaaaaaaaaaaaaaaaa']) {
       const res = await SELF.fetch(`http://localhost/api/rooms/${bad}`, {
         headers: { Upgrade: 'websocket', Connection: 'Upgrade' },
       });
-      expect(res.status, `id ${bad}`).toBe(400);
+      expect(res.status, `id ${bad}`).toBe(404);
     }
     const after = await listDurableObjectIds(env.BOARD_ROOM);
     expect(after).toEqual(before);

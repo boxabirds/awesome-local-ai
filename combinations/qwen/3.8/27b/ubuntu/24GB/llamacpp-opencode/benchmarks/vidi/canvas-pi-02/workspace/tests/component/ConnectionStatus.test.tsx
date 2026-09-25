@@ -4,7 +4,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { ConnectionStatus } from '../../src/client/sync/ConnectionStatus';
 import { createConnectionStateMachine } from '../../src/client/sync/connectBoard';
 import type { ConnectionState } from '../../src/client/sync/connectBoard';
-import { canEdit } from '../../src/client/App';
+import { canEdit } from '../../src/client/pages/BoardPage';
 import { CONNECTED_CONFIRMATION_MS } from '../../src/shared/config';
 
 /**

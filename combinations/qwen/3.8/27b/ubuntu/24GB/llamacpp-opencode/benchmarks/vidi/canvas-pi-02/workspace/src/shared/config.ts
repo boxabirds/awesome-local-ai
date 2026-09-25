@@ -94,3 +94,23 @@ export const BOARD_LOAD_BUDGET_MS = 3000;
 
 /** Version of the storage tables (storage_meta.storage_schema_version). */
 export const STORAGE_SCHEMA_VERSION = 1;
+
+// --- Sharing (story 5) -------------------------------------------------------
+
+/** Maximum boards one visitor may create per BOARD_CREATE_PERIOD_SECONDS. */
+export const BOARD_CREATE_LIMIT = 10;
+
+/** Rate-limit window for board creation (must match wrangler.jsonc ratelimits). */
+export const BOARD_CREATE_PERIOD_SECONDS = 60;
+
+/** How many times createBoard retries when it hits an id collision. */
+export const CREATE_ID_MAX_ATTEMPTS = 3;
+
+/** PRD share.create: board creation budget in ms. */
+export const CREATE_BUDGET_MS = 2000;
+
+/** How long "Link copied" stays visible on the Share panel button. */
+export const LINK_COPIED_MS = 2000;
+
+/** Base backoff for board existence check retries (doubles each attempt). */
+export const BOARD_CHECK_RETRY_BASE_MS = 1000;

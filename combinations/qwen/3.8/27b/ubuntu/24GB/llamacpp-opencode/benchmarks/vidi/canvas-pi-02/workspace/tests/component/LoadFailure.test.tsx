@@ -1,7 +1,14 @@
-import { act, fireEvent, render, screen } from '@testing-library/react';
-import { afterEach, describe, expect, it } from 'vitest';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import * as Y from 'yjs';
 import type { WebsocketProvider } from 'y-websocket';
+
+// Story 5: mock the api module so the BoardPage existence check passes
+vi.mock('../../src/client/api', () => ({
+  createBoardRequest: vi.fn(),
+  checkBoard: vi.fn().mockResolvedValue({ kind: 'exists' }),
+}));
+
 import { App } from '../../src/client/App';
 import { setProviderFactoryForTest } from '../../src/client/sync/connectBoard';
 import { createSticky, getStickyText } from '../../src/shared/board-model';
@@ -83,7 +90,7 @@ describe('persist.client_status App edit lock (story 4, TC-23)', () => {
     setProviderFactoryForTest(null); // restore the real WebsocketProvider
   });
 
-  it('4500 locks every mutation entry point; the next sync re-enables editing without reload', () => {
+  it('4500 locks every mutation entry point; the next sync re-enables editing without reload', async () => {
     enableFakeFrameTimers();
     const fake = new FakeProvider();
     // The factory also captures the doc so the fake can seed "remote" state.
@@ -92,7 +99,19 @@ describe('persist.client_status App edit lock (story 4, TC-23)', () => {
       return fake as unknown as WebsocketProvider;
     });
 
+    // Story 5: App now uses a router. Set the URL to a board path.
+    window.history.pushState(null, '', '/b/testboardid12345678901');
+
     render(<App />);
+
+    // Wait for the board to connect (fake.doc to be set).
+    // Temporarily switch to real timers to let the async existence check
+    // and connectBoard complete, then switch back to fake timers.
+    vi.useRealTimers();
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 50));
+    });
+    vi.useFakeTimers({ toFake: ['requestAnimationFrame', 'cancelAnimationFrame', 'setTimeout', 'clearTimeout', 'setInterval', 'clearInterval'] });
 
     // The room holds one note; the client has synced it.
     seedNote(fake, 0, 0, 'keep me');

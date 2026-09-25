@@ -1,0 +1,39 @@
+{
+  // Test-specific wrangler config: same as wrangler.jsonc but without the
+  // `ratelimits` section (the vitest pool does not support local rate
+  // limiters). The worker uses an in-memory fake when the binding is absent.
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "vidi6",
+  "main": "src/worker/index.ts",
+  "compatibility_date": "2025-06-01",
+  "durable_objects": {
+    "bindings": [
+      {
+        "name": "BOARD_ROOM",
+        "class_name": "BoardRoom"
+      }
+    ]
+  },
+  "migrations": [
+    {
+      "tag": "v1",
+      "new_sqlite_classes": ["BoardRoom"]
+    }
+  ],
+  "assets": {
+    "directory": "dist/client",
+    "binding": "ASSETS",
+    "not_found_handling": "single-page-application"
+  },
+  "env": {
+    "e2e": {
+      "vars": {
+        "TEST_HOOKS": "1"
+      },
+      "durable_objects": {
+        "bindings": [{ "name": "BOARD_ROOM", "class_name": "BoardRoom" }]
+      },
+      "migrations": [{ "tag": "v1", "new_sqlite_classes": ["BoardRoom"] }]
+    }
+  }
+}
