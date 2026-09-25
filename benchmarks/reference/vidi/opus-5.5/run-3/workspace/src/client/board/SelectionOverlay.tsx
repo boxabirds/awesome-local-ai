@@ -56,6 +56,8 @@ export function SelectionOverlay(props: {
   const width = box.width * camera.zoom;
   const height = box.height * camera.zoom;
   const selected = snapshot.filter((o) => ids.has(o.id));
+  // Arrows alone show their own end handles instead of a box.
+  if (selected.every((o) => getObjectType(o.type)?.ownSelectionUi)) return null;
   const showHandles = props.resizable !== false && selected.some((o) => getObjectType(o.type)?.resizable);
   const handles = onlyHorizontalHandles(selected) ? SIDE_HANDLES : HANDLES;
   return (

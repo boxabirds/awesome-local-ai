@@ -723,3 +723,194 @@ body {
 .board-viewport--placing .board-world > :not(.board-world-overlay) * {
   cursor: text;
 }
+
+/* Story 10 — shapes and connectors. */
+.shape-object {
+  position: absolute;
+  box-sizing: border-box;
+  color: #1f2330;
+  cursor: default;
+  outline: none;
+}
+
+.shape-object:focus-visible {
+  outline: calc(2px / var(--zoom)) solid rgba(59, 108, 246, 0.5);
+  outline-offset: calc(2px / var(--zoom));
+}
+
+.shape-object--selected,
+.shape-object--selected:focus-visible {
+  outline: calc(2px / var(--zoom)) solid #3b6cf6;
+  outline-offset: calc(2px / var(--zoom));
+}
+
+.shape-object--dragging {
+  cursor: grabbing;
+}
+
+.shape-object__svg {
+  position: absolute;
+  left: 0;
+  top: 0;
+  overflow: visible;
+  pointer-events: none;
+}
+
+.shape-object__label {
+  position: absolute;
+  box-sizing: border-box;
+  padding: var(--label-padding);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  line-height: var(--label-line-height);
+  text-align: center;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.shape-object__content {
+  margin: auto 0;
+}
+
+.shape-object--editing .shape-object__label {
+  visibility: hidden;
+}
+
+.shape-object__editor-box {
+  position: absolute;
+}
+
+.shape-object__editor {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  box-sizing: border-box;
+  margin: 0;
+  padding: var(--label-padding);
+  border: 0;
+  outline: none;
+  resize: none;
+  background: transparent;
+  color: inherit;
+  font-family: inherit;
+  line-height: var(--label-line-height);
+  text-align: center;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  overflow-x: hidden;
+  overflow-y: auto;
+  scrollbar-width: none;
+  cursor: text;
+  user-select: text;
+  -webkit-user-select: text;
+}
+
+.shape-toolbar__swatch--none {
+  background-image: linear-gradient(135deg, transparent 45%, #e53935 45%, #e53935 55%, transparent 55%);
+}
+
+.shape-toolbar__outline {
+  background: #fff;
+  border-width: 4px;
+  border-style: solid;
+}
+
+/* An arrow's box never takes pointer input: only its (invisible, tolerance-wide) hit line does. */
+.connector-object {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 0;
+  height: 0;
+  outline: none;
+  pointer-events: none;
+}
+
+.connector-object__svg {
+  position: absolute;
+  overflow: visible;
+  pointer-events: none;
+}
+
+.connector-object__hit {
+  pointer-events: stroke;
+  cursor: default;
+}
+
+.connector-handle {
+  position: absolute;
+  width: calc(var(--dot-radius) * 2);
+  height: calc(var(--dot-radius) * 2);
+  box-sizing: border-box;
+  border: 1.5px solid #3b6cf6;
+  border-radius: 50%;
+  background: #fff;
+  transform: translate(-50%, -50%) scale(calc(1 / var(--zoom)));
+  cursor: move;
+  pointer-events: auto;
+}
+
+.connector-handle::before {
+  content: '';
+  position: absolute;
+  inset: -4px;
+  border-radius: 50%;
+}
+
+/* A creating tool (Shape, Connector) owns every press on the board. */
+.tool-surface {
+  position: absolute;
+  inset: 0;
+  cursor: crosshair;
+  touch-action: none;
+}
+
+.shape-preview {
+  position: absolute;
+  overflow: visible;
+  pointer-events: none;
+}
+
+.connector-tool__layer {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  pointer-events: none;
+}
+
+.connection-dot {
+  fill: #fff;
+  stroke: #3b6cf6;
+  stroke-width: 1.5;
+}
+
+.connection-dot--highlighted {
+  fill: #3b6cf6;
+}
+
+.toolbar__group {
+  position: relative;
+}
+
+.toolbar__menu {
+  position: absolute;
+  left: calc(100% + 8px);
+  top: 0;
+  display: flex;
+  gap: 2px;
+  padding: 4px;
+  background: #fff;
+  border: 1px solid #dcdfe8;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(20, 24, 40, 0.08);
+}
+
+.toolbar__menu-item[aria-checked='true'] {
+  background: #e3eaff;
+  color: #2350d8;
+}

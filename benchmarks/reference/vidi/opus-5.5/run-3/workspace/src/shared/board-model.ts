@@ -6,6 +6,9 @@
 //   objects: Y.Map<id, Y.Map { type: 'sticky', x, y, width?, height?, color, text: Y.Text, z, createdAt }>
 //   objects: Y.Map<id, Y.Map { type: 'text', x, y, width, height, z, createdAt, createdBy, text: Y.Text, size,
 //                              widthMode }>   (story 9, src/shared/objects/text.ts)
+//   objects: Y.Map<id, Y.Map { type: 'shape', ... kind, fill, stroke, label: Y.Text }>   (story 10, objects/shape.ts)
+//   objects: Y.Map<id, Y.Map { type: 'connector', x: 0, y: 0, width: 0, height: 0, z, from, to }>
+//                              (story 10, objects/connector.ts; the box is derived from the ends in objectSnapshot)
 //
 // `width`/`height` were added in story 7. Notes saved before that have neither and are STICKY_SIZE_WORLD square;
 // the first resize writes both. Every object type (stories 9-12) has at least type, x, y, width, height and z.
@@ -55,6 +58,37 @@ const snapshotReaders = new Map<string, SnapshotReader>();
 /** Lets an object type's model module (src/shared/objects/*) add its fields to `objectSnapshot`. */
 export function registerSnapshotReader(type: string, reader: SnapshotReader): void {
   snapshotReaders.set(type, reader);
+}
+
+/**
+ * Runs once over the whole list after every object is read, before sorting. Lets a type derive fields from other
+ * objects (story 10: a connector's ends and box follow the objects it is attached to). Returns the new list.
+ */
+export type SnapshotFinisher = (objects: readonly ObjectSnapshot[]) => ObjectSnapshot[];
+const snapshotFinishers: SnapshotFinisher[] = [];
+
+export function registerSnapshotFinisher(finish: SnapshotFinisher): void {
+  snapshotFinishers.push(finish);
+}
+
+/**
+ * How an object type is moved when its position is not simply its stored x and y (story 10: a connector's free
+ * ends move, its attached ends stay with their objects). Given the object's current snapshot and the wanted
+ * top-left, returns the writes to make (run inside the move's transaction) or null when nothing changes.
+ */
+export type PositionPlanner = (obj: Y.Map<unknown>, current: ObjectSnapshot, to: Point) => (() => void) | null;
+const positionPlanners = new Map<string, PositionPlanner>();
+
+export function registerPositionPlanner(type: string, plan: PositionPlanner): void {
+  positionPlanners.set(type, plan);
+}
+
+/** Runs inside `deleteObjects`' transaction, before the objects are removed (story 10: connectors detach). */
+export type DeleteHook = (doc: Y.Doc, ids: readonly string[]) => void;
+const deleteHooks: DeleteHook[] = [];
+
+export function registerDeleteHook(hook: DeleteHook): void {
+  deleteHooks.push(hook);
 }
 
 export function isKnownObjectType(type: string): boolean {
@@ -224,8 +258,10 @@ export function objectSnapshot(doc: Y.Doc): readonly ObjectSnapshot[] {
     const s = readObject(id, obj);
     if (s) out.push(s);
   });
-  out.sort(compareStacking);
-  return Object.freeze(out);
+  let list: ObjectSnapshot[] = out;
+  for (const finish of snapshotFinishers) list = finish(list);
+  list.sort(compareStacking);
+  return Object.freeze(list);
 }
 
 // Story 7 — group operations. Each mutating call rejects non-finite values and empty id lists with 0 and no
@@ -234,7 +270,9 @@ export function objectSnapshot(doc: Y.Doc): readonly ObjectSnapshot[] {
 
 /** An object's world rectangle. */
 export function objectBounds(obj: ObjectSnapshot): Rect {
-  return { x: obj.x, y: obj.y, width: sizeOf(obj.width), height: sizeOf(obj.height) };
+  // A snapshot's size is already resolved; zero is a real size (a horizontal or vertical connector).
+  const size = (v: number) => (isFiniteNumber(v) && v >= 0 ? v : STICKY_SIZE_WORLD);
+  return { x: obj.x, y: obj.y, width: size(obj.width), height: size(obj.height) };
 }
 
 /** Ids of known objects lying entirely inside `rect` (partly inside does not count), in stacking order. */
@@ -253,38 +291,72 @@ function knownObject(doc: Y.Doc, id: string): ObjectMap | undefined {
   return obj && typeof type === 'string' && knownTypes.has(type) ? obj : undefined;
 }
 
+/**
+ * Writes for the objects whose type has a position planner, planned against the board as it is now (before any
+ * write). `rest` receives the ids of every other object.
+ */
+function planPositions(doc: Y.Doc, targets: ReadonlyMap<string, Point>, rest: Set<string>): Array<() => void> {
+  const planned: Array<() => void> = [];
+  let current: Map<string, ObjectSnapshot> | null = null;
+  for (const [id, p] of targets) {
+    const obj = knownObject(doc, id);
+    if (!obj) continue;
+    const plan = positionPlanners.get(obj.get('type') as string);
+    if (!plan) {
+      rest.add(id);
+      continue;
+    }
+    current ??= new Map(objectSnapshot(doc).map((o) => [o.id, o]));
+    const snap = current.get(id);
+    const write = snap ? plan(obj, snap, p) : null;
+    if (write) planned.push(write);
+  }
+  return planned;
+}
+
 /** Moves each object's top-left to its absolute world position. */
 export function moveObjects(doc: Y.Doc, positions: ReadonlyMap<string, Point>): number {
   for (const p of positions.values()) if (!isFiniteNumber(p.x) || !isFiniteNumber(p.y)) return 0;
+  const plain = new Set<string>();
+  const planned = planPositions(doc, positions, plain);
   const changes: Array<[ObjectMap, Point]> = [];
   for (const [id, p] of positions) {
+    if (!plain.has(id)) continue;
     const obj = knownObject(doc, id);
     if (obj && (obj.get('x') !== p.x || obj.get('y') !== p.y)) changes.push([obj, p]);
   }
-  if (changes.length === 0) return 0;
+  if (changes.length === 0 && planned.length === 0) return 0;
   doc.transact(() => {
+    planned.forEach((write) => write());
     for (const [obj, p] of changes) {
       obj.set('x', p.x);
       obj.set('y', p.y);
     }
   }, LOCAL_ORIGIN);
-  return changes.length;
+  return changes.length + planned.length;
 }
 
 /** Sets each object's position and size (writing width and height even for notes that had neither). */
 export function resizeObjects(doc: Y.Doc, rects: ReadonlyMap<string, Rect>): number {
-  for (const r of rects.values()) {
-    if (![r.x, r.y, r.width, r.height].every(isFiniteNumber) || r.width <= 0 || r.height <= 0) return 0;
+  for (const r of rects.values()) if (![r.x, r.y, r.width, r.height].every(isFiniteNumber)) return 0;
+  // Types with a position planner (connectors) have no size of their own: they only move, and their size may be 0.
+  const plain = new Set<string>();
+  for (const [id, r] of rects) {
+    const type = knownObject(doc, id)?.get('type');
+    if (!positionPlanners.has(type as string) && (r.width <= 0 || r.height <= 0)) return 0;
   }
+  const planned = planPositions(doc, rects, plain);
   const changes: Array<[ObjectMap, Rect]> = [];
   for (const [id, r] of rects) {
+    if (!plain.has(id)) continue;
     const obj = knownObject(doc, id);
     if (!obj) continue;
     const same = obj.get('x') === r.x && obj.get('y') === r.y && obj.get('width') === r.width && obj.get('height') === r.height;
     if (!same) changes.push([obj, r]);
   }
-  if (changes.length === 0) return 0;
+  if (changes.length === 0 && planned.length === 0) return 0;
   doc.transact(() => {
+    planned.forEach((write) => write());
     for (const [obj, r] of changes) {
       obj.set('x', r.x);
       obj.set('y', r.y);
@@ -292,7 +364,7 @@ export function resizeObjects(doc: Y.Doc, rects: ReadonlyMap<string, Rect>): num
       obj.set('height', r.height);
     }
   }, LOCAL_ORIGIN);
-  return changes.length;
+  return changes.length + planned.length;
 }
 
 /**
@@ -315,11 +387,14 @@ export function bringObjectsToFront(doc: Y.Doc, ids: readonly string[]): number 
   return selected.length;
 }
 
-/** Removes the objects. */
+/** Removes the objects. Connectors attached to them keep their ends where they were (story 10 delete hook). */
 export function deleteObjects(doc: Y.Doc, ids: readonly string[]): number {
   const objects = objectsOf(doc);
   const present = [...new Set(ids)].filter((id) => objects.has(id));
   if (present.length === 0) return 0;
-  doc.transact(() => present.forEach((id) => objects.delete(id)), LOCAL_ORIGIN);
+  doc.transact(() => {
+    deleteHooks.forEach((hook) => hook(doc, present));
+    present.forEach((id) => objects.delete(id));
+  }, LOCAL_ORIGIN);
   return present.length;
 }

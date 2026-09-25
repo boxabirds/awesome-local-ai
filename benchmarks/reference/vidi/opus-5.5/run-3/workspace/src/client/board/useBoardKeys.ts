@@ -7,7 +7,7 @@ import { getObjectType } from '../objects/registry';
 import type { Selection } from './useSelection';
 import type { UndoController } from './undo';
 import { asStep } from './useUndo';
-import type { Tool } from './useTool';
+import type { ToolId } from '../tools/useActiveTool';
 
 const ARROWS: Record<string, Point> = {
   ArrowLeft: { x: -1, y: 0 },
@@ -24,8 +24,9 @@ export function isTextField(t: EventTarget | null): boolean {
 /**
  * Board keyboard commands (sel.keyboard): Ctrl/Cmd+A selects everything, Escape clears, arrows nudge
  * (Shift: further), Delete/Backspace delete the selection, Enter edits a single selected note.
- * Ctrl/Cmd+Z undoes, Ctrl/Cmd+Shift+Z and Ctrl+Y redo (story 8). V selects the Select tool, T the Text tool,
- * Escape leaves the Text tool (before it clears the selection), N creates a sticky note in the centre (story 9).
+ * Ctrl/Cmd+Z undoes, Ctrl/Cmd+Shift+Z and Ctrl+Y redo (story 8). N creates a sticky note in the centre (story 9).
+ * Tool shortcuts (V, T, S, L) and leaving a tool with Escape are useActiveTool's; an Escape that leaves a tool
+ * does not also clear the selection.
  * Ignored while text is being edited (the editor handles its own undo) or focus is in a text field;
  * changing keys also need `canEdit`. Delete runs as one undo step of its own.
  */
@@ -37,7 +38,7 @@ export function useBoardKeys(opts: {
   /** This tab's undo actions and controller (story 8). */
   undo?: { undo(): void; redo(): void; controller: UndoController };
   /** The active tool (story 9). */
-  tool?: { tool: Tool; setTool(t: Tool): void };
+  tool?: { tool: ToolId; setTool(t: ToolId): void };
   /** N: create a sticky note in the centre of the view. */
   onCreateSticky?(): void;
 }): void {
@@ -66,22 +67,9 @@ export function useBoardKeys(opts: {
         return;
       }
       if (e.key === 'Escape') {
-        if (tool && tool.tool !== 'select') {
-          tool.setTool('select');
-          return;
-        }
+        if (tool && tool.tool !== 'select') return; // useActiveTool returns to Select
+
         if (selection.ids.size > 0) selection.clear();
-        return;
-      }
-      if (!e.shiftKey && (e.key === 'v' || e.key === 'V') && tool) {
-        e.preventDefault();
-        tool.setTool('select');
-        return;
-      }
-      if (!e.shiftKey && (e.key === 't' || e.key === 'T') && tool) {
-        if (!canEdit) return;
-        e.preventDefault();
-        tool.setTool('text');
         return;
       }
       if (!e.shiftKey && (e.key === 'n' || e.key === 'N') && latest.current.onCreateSticky) {

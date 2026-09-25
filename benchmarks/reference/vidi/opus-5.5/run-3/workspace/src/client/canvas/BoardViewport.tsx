@@ -57,6 +57,8 @@ export interface BoardView {
   camera: Camera;
   /** Viewport size in screen px. */
   size: Size;
+  /** The world point under a pointer's client coordinates, with the camera as it is now. */
+  toWorld(clientX: number, clientY: number): Point;
 }
 
 export interface BoardViewportProps {
@@ -217,7 +219,11 @@ export function BoardViewport(props: BoardViewportProps) {
   };
 
   const grid = gridBackground(camera);
-  const view: BoardView = { camera, size };
+  const view: BoardView = {
+    camera,
+    size,
+    toWorld: (clientX, clientY) => screenToWorld(apiRef.current.camera, toLocalRef.current(clientX, clientY)),
+  };
 
   /** Board space: empty space or the objects in the world layer, not toolbars or other overlays. */
   const isBoardTarget = (t: EventTarget | null) =>

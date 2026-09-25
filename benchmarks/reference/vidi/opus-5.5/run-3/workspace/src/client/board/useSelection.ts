@@ -10,6 +10,7 @@ export interface SelectionState {
 
 export type SelectionAction =
   | { type: 'click'; id: string }
+  | { type: 'selectNew'; id: string }
   | { type: 'toggle'; id: string }
   | { type: 'setMany'; ids: string[]; additive: boolean }
   | { type: 'clear' }
@@ -45,6 +46,9 @@ export function selectionReducer(state: SelectionState, action: SelectionAction)
     case 'click':
       if (!state.present.has(action.id)) return state;
       return withIds(state, new Set([action.id]));
+    case 'selectNew':
+      // An object this client has just created: it may not be in `present` until the next prune.
+      return withIds(state, new Set([action.id]));
     case 'toggle': {
       if (!state.present.has(action.id)) return state;
       const next = new Set(state.ids);
@@ -78,6 +82,8 @@ export interface Selection {
   ids: ReadonlySet<string>;
   editingId: string | null;
   click(id: string): void;
+  /** Selects only `id`, an object this client has just created (story 10 tools). */
+  selectNew(id: string): void;
   toggle(id: string): void;
   setMany(ids: string[], additive: boolean): void;
   clear(): void;
@@ -105,6 +111,7 @@ export function useSelection(snapshot: readonly ObjectSnapshot[]): Selection {
   const editingId = state.editingId !== null && presentIds.has(state.editingId) ? state.editingId : null;
 
   const click = useCallback((id: string) => dispatch({ type: 'click', id }), []);
+  const selectNew = useCallback((id: string) => dispatch({ type: 'selectNew', id }), []);
   const toggle = useCallback((id: string) => dispatch({ type: 'toggle', id }), []);
   const setMany = useCallback((list: string[], additive: boolean) => dispatch({ type: 'setMany', ids: list, additive }), []);
   const clear = useCallback(() => dispatch({ type: 'clear' }), []);
@@ -115,7 +122,7 @@ export function useSelection(snapshot: readonly ObjectSnapshot[]): Selection {
   }, []);
 
   return useMemo(
-    () => ({ ids, editingId, click, toggle, setMany, clear, startEdit, endEdit }),
-    [ids, editingId, click, toggle, setMany, clear, startEdit, endEdit],
+    () => ({ ids, editingId, click, selectNew, toggle, setMany, clear, startEdit, endEdit }),
+    [ids, editingId, click, selectNew, toggle, setMany, clear, startEdit, endEdit],
   );
 }

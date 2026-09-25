@@ -13,7 +13,10 @@ import { SelectionBar } from './board/SelectionBar';
 import { createUndo, NO_UNDO, type UndoController } from './board/undo';
 import { asStep, UndoContext, useUndo } from './board/useUndo';
 import { getObjectType, type ObjectGesturePhase } from './objects/registry';
-import { useTool } from './board/useTool';
+import { useActiveTool } from './tools/useActiveTool';
+import { ShapeTool } from './tools/ShapeTool';
+import { ConnectorTool } from './tools/ConnectorTool';
+import { BoardContext, type BoardContextValue } from './board/BoardContext';
 import { createSticky, deleteObjects, objectSnapshot, snapshot } from '../shared/board-model';
 import { createText } from '../shared/objects/text';
 import { ConnectionStatus } from './sync/ConnectionStatus';
@@ -55,8 +58,14 @@ export function App(props: { boardId?: string; doc?: Y.Doc } = {}) {
   // The camera lives in BoardViewport; the gesture reads the one last rendered, at event time.
   const cameraRef = useRef<Camera>({ x: 0, y: 0, zoom: 1 });
   const viewSizeRef = useRef<Size>({ width: 0, height: 0 });
-  const tool = useTool(editable);
+  const tool = useActiveTool({ canEdit: editable, onSelectCreated: selection.selectNew, isEditing: editingId !== null });
   const { setTool } = tool;
+  // Client-to-world conversion for objects (arrow end handles), from the viewport as last rendered.
+  const toWorldRef = useRef<(x: number, y: number) => Point>((x, y) => ({ x, y }));
+  const boardContext = useMemo<BoardContextValue>(
+    () => ({ objects, toWorld: (x, y) => toWorldRef.current(x, y) }),
+    [objects],
+  );
   const liveCamera = useMemo<Camera>(
     () => ({
       get x() {
@@ -176,6 +185,24 @@ export function App(props: { boardId?: string; doc?: Y.Doc } = {}) {
         onPlace={tool.tool === 'text' ? createTextAt : undefined}
         overlay={({ camera, size }) => (
           <>
+            {tool.tool === 'shape' && (
+              <ShapeTool
+                kind={tool.shapeKind}
+                camera={camera}
+                doc={doc}
+                by={LOCAL_AUTHOR}
+                onCreated={tool.toolCreated}
+              />
+            )}
+            {tool.tool === 'connector' && (
+              <ConnectorTool
+                camera={camera}
+                snapshot={objects}
+                doc={doc}
+                by={LOCAL_AUTHOR}
+                onCreated={tool.toolCreated}
+              />
+            )}
             <SelectionOverlay
               ids={editingId !== null ? new Set<string>() : selection.ids}
               snapshot={objects}
@@ -188,17 +215,20 @@ export function App(props: { boardId?: string; doc?: Y.Doc } = {}) {
               undo={undo}
               tool={tool.tool}
               onTool={setTool}
+              shapeKind={tool.shapeKind}
+              onShapeKind={tool.setShapeKind}
               onCreateSticky={() => createAt(screenToWorld(camera, { x: size.width / 2, y: size.height / 2 }))}
             />
             <ConnectionStatus state={connection} />
           </>
         )}
       >
-        {({ camera, size }) => {
+        {({ camera, size, toWorld }) => {
           cameraRef.current = camera;
           viewSizeRef.current = size;
+          toWorldRef.current = toWorld;
           return (
-            <>
+            <BoardContext.Provider value={boardContext}>
               {stacked.map(({ object, stackIndex }) => {
                 const spec = getObjectType(object.type);
                 if (!spec) return null;
@@ -230,7 +260,7 @@ export function App(props: { boardId?: string; doc?: Y.Doc } = {}) {
                 hidden={editingId !== null || moving}
                 onDelete={deleteSelection}
               />
-            </>
+            </BoardContext.Provider>
           );
         }}
       </BoardViewport>
