@@ -1,0 +1,20 @@
+# name|ctx|kv_type|vision|np|ub|need_mib|summary
+#
+# NOT MEASURED BY THIS REPO. Every need_mib below is an ESTIMATE, built from:
+#   weights   UD-IQ4_XS = 93,682,584,224 bytes on the Hub = 89,342 MiB
+#   KV cache  two KV heads: a Strix Halo report puts 128k -> 256k at ~5 GB
+#   total     drluoto reports weights + 262k + vision at ~106 GB (~101,000 MiB)
+#   compute   ~3,000 MiB allowance for graph buffers at -ub 512 (a guess)
+# need_mib is meant to be the server-only footprint; replace each figure with
+# the smoke test's "server RSS" and amdgpu_top's GTT once measured, and delete
+# this paragraph.
+#
+#   profile   ctx      slots  vision  need (EST)
+#   coding    131072   1      off     ~97,500 MiB
+#   vision    131072   1      on      ~98,400 MiB
+#   agents    393216   3      off     ~107,500 MiB   (-c is shared: 3 x 128k)
+#   max       262144   1      off     ~101,000 MiB
+coding|131072|f16|0|1|512|97500|default; 128k, one agent -- ESTIMATE, not measured
+vision|131072|f16|1|1|512|98400|128k plus image input -- ESTIMATE; qwen4exp vision upstream unverified
+agents|393216|f16|0|3|512|107500|3 slots x 128k: an agent plus background calls -- ESTIMATE
+max|262144|f16|0|1|512|101000|the model's native context -- ESTIMATE

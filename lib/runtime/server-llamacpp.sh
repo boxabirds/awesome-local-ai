@@ -135,14 +135,42 @@ fi
 # find out another process is holding memory. Check first, name the fix.
 # Skipped when the user has hand-tuned the sizing, since D_NEED no longer
 # describes what they asked for.
-if [[ "$ACCEL" == "cuda" ]] && command -v nvidia-smi >/dev/null 2>&1 \
-   && [[ -z "${CTX:-}${KV_TYPE:-}${VISION:-}" ]]; then
-  free_mib=$(nvidia-smi --query-gpu=memory.free --format=csv,noheader,nounits | head -1)
+# Free device memory in MiB, or empty when this accelerator cannot say.
+device_free_mib() {
+  case "$ACCEL" in
+    cuda)
+      command -v nvidia-smi >/dev/null 2>&1 || return 0
+      nvidia-smi --query-gpu=memory.free --format=csv,noheader,nounits | head -1 ;;
+    strix-halo)
+      # Unified memory: the GPU's headroom is GTT total minus GTT used, but
+      # Linux can only hand out MemAvailable, and 'GTT free' ignores what the
+      # rest of the machine holds. The smaller of the two is the truth.
+      local d total used avail
+      for d in /sys/bus/pci/devices/*; do
+        [[ "$(cat "$d/device" 2>/dev/null)" == "0x1586" && -r "$d/mem_info_gtt_total" ]] || continue
+        total=$(( $(cat "$d/mem_info_gtt_total") / 1048576 ))
+        used=$(( $(cat "$d/mem_info_gtt_used") / 1048576 ))
+        break
+      done
+      [[ -n "${total:-}" ]] || return 0
+      avail=$(( $(awk '/^MemAvailable:/ {print $2}' /proc/meminfo) / 1024 ))
+      (( avail < total - used )) && echo "$avail" || echo $(( total - used )) ;;
+  esac
+}
+
+if [[ -z "${CTX:-}${KV_TYPE:-}${VISION:-}" ]]; then
+  free_mib="$(device_free_mib)"
   if [[ -n "$free_mib" ]] && (( free_mib < D_NEED )); then
     echo "WARNING: profile '$PROFILE' needs ~${D_NEED} MiB but only ${free_mib} MiB is free." >&2
     echo "         Something else is using the GPU:" >&2
-    nvidia-smi --query-compute-apps=pid,used_memory,process_name \
-               --format=csv,noheader 2>/dev/null | sed 's/^/           /' >&2
+    if [[ "$ACCEL" == "cuda" ]]; then
+      nvidia-smi --query-compute-apps=pid,used_memory,process_name \
+                 --format=csv,noheader 2>/dev/null | sed 's/^/           /' >&2
+    else
+      # No per-process GPU accounting on an APU; the big resident processes
+      # are the usual suspects.
+      ps -eo pid,rss,comm --sort=-rss 2>/dev/null | head -6 | sed 's/^/           /' >&2
+    fi
     # Name the largest profile that would still fit.
     suggestion=""
     while IFS='|' read -r n c k v np ub need rest; do
@@ -193,7 +221,7 @@ ARGS=(
   --cache-type-v "$KV_TYPE"
   -np "$NP"
   -ub "$UB"
-  -b 1024
+  -b "${BATCH:-${LLAMA_BATCH:-1024}}"
   --host "$HOST"
   --port "$PORT"
 )
@@ -250,16 +278,11 @@ elif [[ -n "$MTP" && -f "$MTP" ]]; then
   )
 fi
 
-# Vision weights cost context. Off outside the vision profiles.
-if [[ "$VISION" == "1" && -n "$MMPROJ" && -f "$MMPROJ" ]]; then
-  ARGS+=(--mmproj "$MMPROJ" --image-min-tokens "${IMAGE_MIN_TOKENS:-1024}")
-fi
-
 # Resolve the binary from THIS install, not from PATH. ~/.local/bin/llama-server
 # is a single shared symlink that the most recently installed llama.cpp
 # combination takes over, so trusting PATH means a combination can silently run
 # on another one's binary -- which matters a great deal when one of them is a
-# fork (see combinations/bonsai/2/27b/ubuntu/24GB/llamacpp-opencode). Fall back
+# fork (see combinations/bonsai/2/27b/ubuntu/nvidia4090/llamacpp-opencode). Fall back
 # to PATH only when this install has no binary of its own.
 LLAMA_SERVER_BIN="${ROOT}/llama.cpp/build/bin/llama-server"
 if [[ ! -x "$LLAMA_SERVER_BIN" ]]; then
@@ -269,6 +292,40 @@ if [[ ! -x "$LLAMA_SERVER_BIN" ]]; then
     echo "         Re-run the combination's installer." >&2
     exit 1; }
   echo "${SERVER_CMD}: warning: using ${LLAMA_SERVER_BIN} from PATH; this install has no binary of its own." >&2
+fi
+
+# N-gram speculation drafts from text already in the context: no draft
+# model, no memory, and a large win on the file rewrites agents do. It is the
+# fallback when there is no MTP head (llama.cpp's qwen4exp MTP is unmerged,
+# so Flash-Next has none upstream). The flags are newer than some builds, and
+# llama-server refuses to start on a flag it does not know -- so probe the
+# help text rather than letting an older checkout fail to launch.
+SPEC_ACTIVE=0
+for a in "${ARGS[@]}"; do [[ "$a" == "--spec-type" ]] && SPEC_ACTIVE=1; done
+if [[ -n "${SPEC_NGRAM_ARGS:-}" && "$SPEC_ACTIVE" == "0" && "${SPEC_NGRAM:-1}" != "0" ]]; then
+  # shellcheck disable=SC2206
+  ngram=(${SPEC_NGRAM_ARGS})
+  probe_flag=""
+  for a in "${ngram[@]}"; do [[ "$a" == --spec-ngram* ]] && { probe_flag="$a"; break; }; done
+  if "$LLAMA_SERVER_BIN" --help 2>&1 | grep -q -- "${probe_flag:---spec-type}"; then
+    ARGS+=("${ngram[@]}")
+    echo "${SERVER_CMD}: speculation: n-gram (${SPEC_NGRAM_ARGS})" >&2
+  else
+    echo "${SERVER_CMD}: speculation: off -- this llama-server does not know ${probe_flag}" >&2
+  fi
+fi
+
+# Flags a combination always wants for its model on this backend (for example
+# --no-mmap and --ctx-checkpoints for a hybrid model on unified memory). Data
+# in config.sh, carried in the manifest; the command line still overrides.
+if [[ -n "${LLAMA_EXTRA_ARGS:-}" ]]; then
+  # shellcheck disable=SC2206
+  ARGS+=(${LLAMA_EXTRA_ARGS})
+fi
+
+# Vision weights cost context. Off outside the vision profiles.
+if [[ "$VISION" == "1" && -n "$MMPROJ" && -f "$MMPROJ" ]]; then
+  ARGS+=(--mmproj "$MMPROJ" --image-min-tokens "${IMAGE_MIN_TOKENS:-1024}")
 fi
 
 exec "$LLAMA_SERVER_BIN" "${ARGS[@]}" "$@"

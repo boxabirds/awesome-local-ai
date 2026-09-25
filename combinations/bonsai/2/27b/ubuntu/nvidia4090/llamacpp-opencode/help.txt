@@ -1,0 +1,184 @@
+PROFILE DETAIL
+  Every VRAM and prefill figure was MEASURED on this hardware (RTX 4090 24GB,
+  24047 MiB usable, PrismML fork 5d80cff, PQ2_0 packing), not estimated.
+  "free" is what was left over.
+
+  coding     128k ctx   q4_0 KV   vision off   10663 MiB  13384 free  3016 tok/s
+      >> DEFAULT. The right choice for coding agents: 128k holds a real repo
+      and still leaves 13 GB of the card unused.
+
+  balanced   128k ctx   q8_0 KV   vision off   12711 MiB  11336 free  3022 tok/s
+      Higher-fidelity KV cache at the same context. On the Qwen sibling this
+      trade costs 32k of context; here it costs nothing but memory you are
+      not using anyway.
+
+  max        262k ctx   q4_0 KV   vision off   13607 MiB  10440 free  3013 tok/s
+      The model's full advertised context. No other profile in this repo
+      reaches 262144. Generation at that depth is roughly half the depth-0
+      rate -- see GENERATION AT DEPTH below.
+
+  vision     128k ctx   q4_0 KV   vision ON    11515 MiB  12532 free  3019 tok/s
+  vision-max 262k ctx   q4_0 KV   vision ON    14459 MiB   9588 free  3031 tok/s
+      Images and video. The vision tower costs only ~850 MiB measured here,
+      so unlike the Qwen sibling there is no reason to trade context for it.
+      Adds --image-min-tokens 1024, which llama.cpp recommends for Qwen-VL.
+      CAVEAT: every image costs >=1024 context tokens regardless of size.
+
+  dual        32k ctx   q4_0 KV   vision off    8454 MiB  15593 free  3015 tok/s
+      Sized so that TWO servers fit on one 24GB card. See MULTIPLE SESSIONS.
+
+KV CACHE TYPES -- READ THIS BEFORE CHANGING KV_TYPE
+  Measured here at 32k, PQ2_0, by prefill rate:
+
+      f16    3041 tok/s      q8_0   3015 tok/s      q4_0   3015 tok/s
+      q5_1     28 tok/s   <-- no kernel: silent fallback to CPU attention
+
+  That is a 106x collapse, and llama.cpp prints no warning. The launcher warns
+  for anything outside f16/q8_0/q4_0. bf16 is NOT in that list because it was
+  not measured here, not because it is known bad.
+
+  q4_0 costs about 2% of decode against f16 (95.9 vs 98.5 tok/s at depth 0,
+  PTQ1_0) and roughly a third of the KV memory, which is why every default
+  profile uses it.
+
+GENERATION AT DEPTH -- THE NUMBER THAT ACTUALLY MATTERS
+  Decode rate falls as context fills. Measured with llama-bench, fa on,
+  f16 KV, on this card:
+
+      depth        PQ2_0    PTQ1_0     Qwen3.8-27B UD-Q4_K_XL (q4_0 KV)
+      0            92.2      98.5      46.1
+      8192         87.6      92.8      44.9
+      32768        76.0      80.0      41.6
+      131072       49.9      51.7      32.4
+
+  So a 27B at 1.72 bits/weight runs 2.1x faster than the same model at 5.2
+  bits/weight at depth 0, and still 1.6x faster with 128k of context loaded.
+  The relative decay is steeper here (-46% vs -30%) because streaming the
+  weights is so cheap that attention dominates sooner -- but the absolute rate
+  is higher at every depth measured.
+
+  The Qwen column has speculative decoding OFF. With its MTP head it roughly
+  doubles, which is how that combination reaches its ~92 tok/s headline.
+
+PACKINGS
+  PACKING=PQ2_0    2.13 bpw, 6.71 GiB   prefill 3016   decode 92.2   DEFAULT
+  PACKING=PTQ1_0   1.75 bpw, 5.54 GiB   prefill 1597   decode 98.5
+
+  PTQ1_0 is denser and decodes ~6% faster on this Ada-generation card, exactly
+  as the model card predicts. It also prefills at HALF the rate. A coding agent
+  reads far more than it writes, so PQ2_0 is the default; PTQ1_0 is the pick if
+  you are memory-constrained or mostly chatting.
+
+  Changing PACKING re-runs the installer's download step for the new file.
+
+SPECULATIVE DECODING -- NONE, AND THAT IS MEASURED
+  Bonsai 2 ships no drafter. Three paths were investigated and none is
+  recommended today:
+
+  * PrismML's own path is a dspark drafter (--spec-type draft-dspark), which
+    their docs measure at 1.8-2.4x on CUDA -- for the PREVIOUS ternary 27B.
+    No drafter is published for Bonsai 2.
+  * Two third-party drafters appeared the day Bonsai 2 did
+    (ProCreations/...-MTP and ...-DFlash2). Both need a further patch on top of
+    this fork and ship binaries for sm120; neither was tested here.
+  * Borrowing the Qwen3.8-27B MTP head this repo already downloads DOES work --
+    the architecture is unchanged -- and was measured here at 0.62 draft
+    acceptance. It made generation SLOWER: 95.8 -> 92.6 tok/s. The ternary
+    target is cheap enough that a 1.6 GiB drafter costs more than it saves.
+
+  That last one is the interesting negative result: speculative decoding is a
+  trade against target cost, and this target is too cheap for it to pay.
+
+MULTIPLE SESSIONS ON ONE CARD
+  Measured: two independent servers, PROFILE=coding (128k each), both live:
+
+      one server      10663 MiB
+      two servers     20860 MiB     3187 MiB free
+      solo decode      87.6 tok/s
+      both at once     41.4 tok/s each
+
+  So memory is no longer the constraint -- compute is. Aggregate throughput is
+  flat; you are dividing one GPU, not multiplying it. Two 128k sessions at 41
+  tok/s each is still more total throughput than the Qwen sibling's single
+  session, but do not expect two full-speed agents.
+
+  If you want concurrency rather than isolation, prefer ONE server with more
+  slots (NP=2), which loads the weights once instead of twice.
+
+THINKING
+  On by default -- it is the model's own default. Reasoning is returned
+  separately in reasoning_content, so it does not pollute content.
+
+  THINKING=0 disables it AND swaps to the model card's instruct sampling
+  preset (temp 0.7, top_p 0.80, presence_penalty 1.5).
+
+REASONING EFFORT                               (default here: medium)
+  Bonsai 2's card states the model defaults to xhigh, recommends medium "for
+  shorter responses and a balance of speed and accuracy", and says:
+
+      "low reasoning effort is not supported and when selected the model will
+       behave close to xhigh"
+
+  Measured here with benchmarks/perf/effort.sh -- 5 prompts, greedy (temp 0,
+  top_k 1), one model load:
+
+      effort    reasoning chars   completion tokens
+      low                 14532                5774
+      medium               6364                3258
+      xhigh               14637                4546
+
+  low is 1.01x xhigh. The card is right: asking for low gets you xhigh, with
+  no error. So low is NOT in the accepted list here and the launcher refuses
+  it -- being told no beats being charged 2.3x silently.
+
+  MEDIUM IS THE CHEAPEST LEVEL AVAILABLE, not a middle setting. It is less
+  than half of either other level on both counts. There is nothing below it.
+
+  If medium is still too much -- on a slow machine a long think can cost a
+  minute -- use THINKING_BUDGET, which is a hard cap rather than an
+  instruction. Measured on one trivial prompt, the complete answer appeared
+  49% of the way through the reasoning block and the remaining 51% re-derived
+  it twice; a budget near half the typical block is often free.
+
+GOTCHA: THINKING MODE AND max_tokens
+  Worse here than on the Qwen sibling, because the default effort is higher.
+  Measured: a request with max_tokens=200 returned finish_reason "length",
+  731 characters of reasoning and NINE characters of content. At 600 it
+  answered normally. Give agents a generous max_tokens.
+
+THE FORK IS NOT OPTIONAL
+  These weights do not load on stock llama.cpp. Verified here against the
+  build this repo installs for Qwen:
+
+      gguf_init_from_reader: tensor 'output.weight' has invalid ggml type 143.
+                             should be in [0, 43)
+
+  That is the safe failure, and both shipped packings fail that way. The Q2_0
+  band published in the -dev repo does NOT: mainline loads it silently and
+  produces gibberish, which is why this combination never fetches it.
+
+  The consequence to accept: this combination does not float on upstream
+  llama.cpp. It tracks the fork's `prism` branch, whose ggml base (0.21.0) is
+  behind mainline (0.24.0 at the time of writing).
+
+ENVIRONMENT OVERRIDES
+  PORT=8080          HOST=127.0.0.1     CTX=<tokens>
+  KV_TYPE=q4_0|q8_0|f16                 VISION=0|1
+  NP=<slots>         UB=<micro-batch>
+  THINKING=1|0       THINKING_BUDGET=<tokens>
+  REASONING_EFFORT=medium|xhigh|default
+  PACKING=PQ2_0|PTQ1_0                  (install time, not run time)
+  BONSAI2_ROOT=<dir> MODEL=<file>       MODEL_ALIAS=<id>
+
+SECURITY
+  HOST defaults to 127.0.0.1 and there is NO authentication. Setting
+  HOST=0.0.0.0 exposes an unauthenticated model server to your whole network.
+
+EXAMPLES
+  bonsai2-27b-server                                 # 128k coding default
+  # API: http://127.0.0.1:8080/v1  model id: bonsai2-27b
+  PROFILE=max bonsai2-27b-server                     # the full 262k context
+  PROFILE=vision bonsai2-27b-server                  # images, 128k
+  PROFILE=dual PORT=8080 bonsai2-27b-server          # and a second on 8081
+  REASONING_EFFORT=xhigh bonsai2-27b-server          # think harder
+  PACKING=PTQ1_0 ./install-bonsai-2-27b-ubuntu-nvidia4090-llamacpp-opencode.sh

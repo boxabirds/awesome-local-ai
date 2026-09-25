@@ -74,7 +74,7 @@ print_summary() {
   local backend_sha="?"
   declare -F "${BACKEND}_sha" >/dev/null && backend_sha="$("${BACKEND}_sha")"
   say "$(printf '  %-11s %s  (%s%s)' "$BACKEND" "$backend_sha" "$ACCEL" \
-        "$( [[ -n "${ACCEL_ARCH:-}" ]] && echo " sm_${ACCEL_ARCH}" )")"
+        "$( [[ -n "${ACCEL_ARCH:-}" ]] && { [[ "$ACCEL" == "cuda" ]] && echo " sm_${ACCEL_ARCH}" || echo " ${ACCEL_ARCH}"; } )")"
   say "  Files in    ${INSTALL_ROOT}"
   say "  Commands    ${BIN_DIR}/${SERVER_CMD}, ${BIN_DIR}/${SESSION_CMD}"
   say ""
@@ -111,6 +111,8 @@ print_summary() {
       say "  [${tick}] speculative decoding live (${SMOKE_ACC})"
     elif [[ -n "$MTP_HEAD" || "${BACKEND_MTP_INTERNAL:-0}" == "1" ]]; then
       say "  [${cross}] speculative decoding NOT confirmed -- check ${INSTALL_ROOT}/smoke.log"
+    elif [[ -n "${SMOKE_SPEC_NOTE:-}" ]]; then
+      say "  [-] speculative decoding: ${SMOKE_SPEC_NOTE} -- configured, not exercised by the smoke prompt"
     fi
     say ""
   fi

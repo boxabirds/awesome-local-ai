@@ -1,7 +1,7 @@
 # Adding a combination
 
 A *combination* is one tested pairing of **model family / version / size / OS /
-memory budget / stack**. This document is the contract: follow it and a new
+machine / stack**. This document is the contract: follow it and a new
 combination costs a config file, a profile table and a help file — no new shell
 logic.
 
@@ -26,11 +26,12 @@ lib/                                  ALL the logic, shared by every combination
   llamacpp.sh  mtplx.sh  sglang.sh    backend adapters     (BACKEND=...)
   mlxserve.sh
   accel/cuda.sh  accel/metal.sh       accelerator adapters (ACCEL=...)
+  accel/strix-halo.sh
   clients/opencode.sh                 client adapter       (CLIENT=opencode)
   clients/pi.sh                       client adapter       (CLIENT=pi)
   runtime/server-<backend>.sh         launcher, installed as local-ai-<backend>-server
   runtime/session.sh                  generic lifecycle mgr, installed as local-ai-session
-combinations/<family>/<version>/<size>/<os>/<memory>/<stack>/
+combinations/<family>/<version>/<size>/<os>/<machine>/<stack>/
   config.sh                           DATA ONLY
   profiles.tsv                        the measured profile table
   help.txt                            prose for `--help`
@@ -45,15 +46,27 @@ The **path segments** are, in order:
 | version | family version | `3.8`, `4`, `3` |
 | size | parameter count, or a variant name when there is no clean size | `27b`, `8b`, `flash-next` |
 | os | operating system, lowercase | `ubuntu`, `macos` |
-| memory | the memory budget that constrains the model — VRAM on a discrete GPU, unified memory on Apple silicon | `24GB`, `64GB`, `128GB` |
+| machine | the hardware the combination was **measured on**: a device name when it comes in one memory size, `<accel>-<memory>` when it comes in several, or (legacy) memory alone | `nvidia4090`, `strix-halo-128GB`, `64GB` |
 | stack | inference backend + client, hyphenated | `llamacpp-opencode`, `mtplx-opencode` |
 
 The root script's filename is those segments joined with `-`:
 
 ```
-combinations/qwen/3.8/27b/ubuntu/24GB/llamacpp-opencode/
-        ->  install-qwen-3.8-27b-ubuntu-24GB-llamacpp-opencode.sh
+combinations/qwen/3.8/27b/ubuntu/nvidia4090/llamacpp-opencode/
+        ->  install-qwen-3.8-27b-ubuntu-nvidia4090-llamacpp-opencode.sh
 ```
+
+The machine segment records where the numbers came from, not the only machine
+allowed to run them. `lib/select.sh` reads it as an accelerator **family** plus
+a memory tier — `nvidia4090` is `cuda` with 24 GB, `strix-halo-128GB` is
+`strix-halo` with 128 GB — so a 3090 is offered the `nvidia4090` combination,
+and the accelerator adapter is what says the exact device was not measured. A
+device with one memory size needs a line in `_fixed_device_mib` in
+`lib/select.sh`; a new accelerator family needs a line in `_accel_family` and a
+host probe in `_detect_linux`. Which exact box (vendor, power profile, BIOS) a
+number came from is metadata in the combination's `config.sh` and benchmarks,
+not a path segment: machines sharing a chip and memory size share a
+combination.
 
 Not every combination needs every segment to be distinct — a model that has one
 size only still gets a size directory, so the tree stays uniform and scriptable.
@@ -68,7 +81,7 @@ If your combination is llama.cpp + CUDA + OpenCode on a Linux distro, you write
 ### 1. `combinations/<path>/config.sh`
 
 Data only. Copy
-[`combinations/qwen/3.8/27b/ubuntu/24GB/llamacpp-opencode/config.sh`](../combinations/qwen/3.8/27b/ubuntu/24GB/llamacpp-opencode/config.sh)
+[`combinations/qwen/3.8/27b/ubuntu/nvidia4090/llamacpp-opencode/config.sh`](../combinations/qwen/3.8/27b/ubuntu/nvidia4090/llamacpp-opencode/config.sh)
 and change the values. Required variables (`lib/bootstrap.sh` enforces these):
 
 | Variable | What it is |
@@ -85,7 +98,7 @@ and change the values. Required variables (`lib/bootstrap.sh` enforces these):
 | `DEFAULT_PROFILE`, `SAFE_KV_TYPES`, `SAMPLING_THINKING` | serving defaults |
 | `REASONING_EFFORT_DEFAULT`, `REASONING_EFFORTS` | *(optional)* default effort level, and the levels the model's template accepts. Check the template before setting these — Qwen3.8's defaults to `xhigh` when the field is unset and **raises** on a level it does not know, so an unvalidated value breaks every request |
 | `DEFAULT_PROVIDER`, `CONTEXT_LIMIT`, `OUTPUT_LIMIT` | client config values |
-| `LLAMA_REPO_URL`, `LLAMA_BRANCH` | *(optional, `llamacpp` backend)* where to get llama.cpp. Defaults to `ggml-org/llama.cpp` + `master`. Set them only when the weights need kernels that are not upstream — `bonsai/2/27b/ubuntu/24GB/llamacpp-opencode` does, because stock llama.cpp refuses its GGUF types outright. A combination that sets these stops floating on upstream, and `lib/verify.sh`'s rollback returns it to the last verified commit *of that fork*. Changing them re-keys the build, so the checkout is re-pointed and rebuilt rather than silently updated from the wrong remote |
+| `LLAMA_REPO_URL`, `LLAMA_BRANCH` | *(optional, `llamacpp` backend)* where to get llama.cpp. Defaults to `ggml-org/llama.cpp` + `master`. Set them only when the weights need kernels that are not upstream — `bonsai/2/27b/ubuntu/nvidia4090/llamacpp-opencode` does, because stock llama.cpp refuses its GGUF types outright. A combination that sets these stops floating on upstream, and `lib/verify.sh`'s rollback returns it to the last verified commit *of that fork*. Changing them re-keys the build, so the checkout is re-pointed and rebuilt rather than silently updated from the wrong remote |
 
 `MODEL_ASSETS` is one `repo|filename|role|approx-size` record per line. Role
 `model` is required; `mmproj` (vision) and `mtp` (speculative decoding) are
@@ -297,8 +310,8 @@ have tested it against a half-finished download.
 
 `lib/sglang.sh` is the third backend, and the first that runs its engine from a
 container image rather than a binary on the host. Two exist:
-`qwen/3.8/27b/ubuntu/24GB/sglang-opencode` and
-`qwen/3.6/35b-a3b/ubuntu/24GB/sglang-opencode`, both transcribed from a
+`qwen/3.8/27b/ubuntu/nvidia3090/sglang-opencode` and
+`qwen/3.6/35b-a3b/ubuntu/nvidia3090/sglang-opencode`, both transcribed from a
 published recipe and **not yet measured by this repo**.
 
 A combination on this backend supplies, as data in `config.sh`:
@@ -370,6 +383,47 @@ override. `/health` answers before the model has loaded, so the smoke test
 waits for `"state":"ready"` in `/v1/models`, then checks MTP via `/props`,
 prefix-cache reuse via `cached_tokens`, and a structured tool call.
 `tests/mlxserve-test.sh` covers all of it against stubs.
+
+## Adding a Strix Halo combination
+
+`lib/accel/strix-halo.sh` is the third accelerator: AMD's Ryzen AI Max
+(Radeon 8060S, gfx1151), unified memory on Linux. One combination uses it,
+`qwen/3.8/flash-next/ubuntu/strix-halo-128GB/llamacpp-opencode`, **not yet
+measured by this repo**. What is different from CUDA:
+
+- **`ACCEL_MEM_MIB` is the GTT limit**, not RAM and not the BIOS "VRAM"
+  figure. The GPU reaches system memory through GTT, capped by the kernel's
+  TTM page limit, which defaults to about half of RAM. The adapter reads
+  amdgpu's `mem_info_gtt_total` (falling back to `ttm.pages_limit`), refuses
+  below `MIN_DEVICE_MEM_MIB` with the exact fix (`amd-ttm --set N`, or the
+  `ttm.pages_limit` value), and never edits boot configuration itself.
+- **`GPU_API`** picks the build: `vulkan` (default, `-DGGML_VULKAN=ON`) or
+  `rocm` (HIP for gfx1151, needs a host ROCm, experimental). It is part of the
+  build key, so switching rebuilds.
+- **`TESTED_ON`** lists the machines (`<vendor>-<product>` slugs) a
+  combination's numbers came from. The adapter matches the running machine's
+  DMI product name against it and says so plainly when it is a different box
+  with the same chip. The path's machine segment covers every Strix Halo of
+  that memory size; this is where the exact box is recorded.
+- Also read: `MIN_KERNEL_VERSION` (default 6.18.4), `MIN_OS_RESERVE_MIB`,
+  `STRIX_HALO_GTT_TARGET_GIB` (what the refusal tells you to set).
+
+Five optional llama.cpp hooks came with it, each defaulting to the previous
+behaviour, and carried to the runtime through `install.env`:
+
+| Hook | What |
+|---|---|
+| `LLAMA_BATCH` | `-b` for llama-server; was hard-coded to 1024 |
+| `LLAMA_EXTRA_ARGS` | flags a combination always passes (`--no-mmap --ctx-checkpoints 8` here) |
+| `SPEC_NGRAM_ARGS` | n-gram speculation when there is no MTP head. The launcher probes `llama-server --help` for the flag first and starts without it on an older build; `SPEC_NGRAM=0` turns it off per run |
+| `IDLE_TIMEOUT_DEFAULT`, `SERVER_START_TIMEOUT_DEFAULT` | session defaults for a model that takes minutes to load |
+
+A Hub repo that keeps a quant's shards in a subdirectory works as it is: list
+the first shard as the `model` asset and the rest under any other role, with
+the subdirectory in the filename. The manifest keeps paths relative to
+`MODEL_DIR` (`_model_rel` in `lib/launcher.sh`) rather than flattening them to
+a basename. `tests/strix-halo-test.sh` covers all of this against a faked
+sysfs and a llama-server that echoes its argv.
 
 ## Honesty
 
