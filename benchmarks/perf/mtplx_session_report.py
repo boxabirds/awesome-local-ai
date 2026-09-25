@@ -41,7 +41,7 @@ except ImportError:  # harness not present; report without the verdict gate
 LOG_DIR = Path.home() / ".mtplx" / "logs"
 THERMAL_LOG = LOG_DIR / "thermal.jsonl"
 # Ordered worst-last so a mixed window reports the worst level it saw, matching
-# ThermalWatch.level in benchmarks/thermal.py.
+# ThermalWatch.level in benchmarks/perf/thermal.py.
 THERMAL_ORDER = ["nominal", "moderate", "heavy", "trapping", "sleeping"]
 
 # A request shorter than this is a warmup ping or a one-word reply: decode rate
@@ -323,7 +323,7 @@ def verdict(ranked: list[tuple[str, dict]]) -> None:
     """State whether the top two are actually distinguishable.
 
     These arms are necessarily blocked (the models cannot co-reside, so they
-    cannot be interleaved), which is the design benchmarks/thermal.py warns produces or
+    cannot be interleaved), which is the design benchmarks/perf/thermal.py warns produces or
     erases differences the size of the drift. A gap that does not clear the
     machine's measured floors is a coin flip, and saying so is the point.
     """

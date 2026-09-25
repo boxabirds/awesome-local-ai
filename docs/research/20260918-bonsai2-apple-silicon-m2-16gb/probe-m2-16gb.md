@@ -1,6 +1,6 @@
 # Bonsai 2 27B on Apple silicon -- probe report
 
-Produced by `benchmarks/apple-silicon-probe.sh` from awesome-local-ai.
+Produced by `benchmarks/perf/apple-silicon-probe.sh` from awesome-local-ai.
 Every number below is from this machine. Paths are scrubbed to $HOME.
 
 ## Machine

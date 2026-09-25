@@ -55,7 +55,7 @@ be the most interesting entry in the table and is not what it looks like.
 | Opus 5 | hosted API | 1 Sep | **not reproduced here — see below** |
 
 The three local columns were re-derived with
-[`mtplx_session_report.py`](../benchmarks/mtplx_session_report.py) reading
+[`mtplx_session_report.py`](../benchmarks/perf/mtplx_session_report.py) reading
 `~/.mtplx/logs/request-log-<port>.jsonl`, splitting the arms on the MTPLX
 upgrade timestamp. The 27B and Flash-Next 2.10.x columns reproduce the
 2026-09-01 run exactly.
@@ -127,7 +127,7 @@ the well-sampled part and carries the argument.
 
 Controlling for thermal state, one cell clears both of this repo's gates
 (`DRIFT_FLOOR_PCT` 20%, `MAX_IQR_PCT` 25% — see
-[`thermal.py`](../benchmarks/thermal.py)):
+[`thermal.py`](../benchmarks/perf/thermal.py)):
 
 | Thermal | 2.10.x decode | 2.11.1 decode | Delta | Verdict |
 |---|---|---|---|---|
@@ -151,7 +151,7 @@ make this durable, and its absence is why the arms had to be cut by hand.
 **These are session logs, not a controlled comparison.** Every request has a
 different prompt, completion length and cache-hit rate, so within-population
 spread is 20–70%. The controlled harness
-([`mtplx-throughput.sh`](../benchmarks/mtplx-throughput.sh)) produced 1.2–8.4%
+([`mtplx-throughput.sh`](../benchmarks/perf/mtplx-throughput.sh)) produced 1.2–8.4%
 spread on the same machine the same day. Session logs answer "what did this
 cost me"; only the harness answers "did the version change anything", and the
 2.10.1 arm no longer exists on this machine to run it against.
@@ -180,7 +180,7 @@ sessions with the reporter.
 Everything above is an aggregate over real requests. This is the rule set that
 turns those requests into the cells, written out so another agent can re-derive
 the tables rather than trust them. All of it lives in
-[`mtplx_session_report.py`](../benchmarks/mtplx_session_report.py); the
+[`mtplx_session_report.py`](../benchmarks/perf/mtplx_session_report.py); the
 constants are named so you can grep for them.
 
 **The two rates.** Both come per request; only the second is derived.
@@ -201,7 +201,7 @@ this repo. Each line carries `served_model_id`, so several models sharing one
 port separate cleanly at read time and no per-arm port pinning is needed. The
 thermal axis comes from a second file,
 `~/.mtplx/logs/thermal.jsonl`, written by
-[`mtplx_thermal_log.py`](../benchmarks/mtplx_thermal_log.py).
+[`mtplx_thermal_log.py`](../benchmarks/perf/mtplx_thermal_log.py).
 
 **The scoring rules**, in the order they are applied:
 
@@ -234,7 +234,7 @@ thermal axis comes from a second file,
 128 GB, so they cannot be interleaved — they run as separate blocks, hours or
 days apart, at whatever thermal level the machine was in. This machine's noise
 floors say numerically how bad that is: 20% run-to-run drift, 25% IQR
-([`thermal.py`](../benchmarks/thermal.py)). Holding thermal state *and* context
+([`thermal.py`](../benchmarks/perf/thermal.py)). Holding thermal state *and* context
 band fixed is the only thing that makes the comparison mean anything, and it is
 what turned a "NOT CONCLUSIVE" +121% into a defensible 1.9x on the earlier
 27B-vs-Flash-Next run.
@@ -252,12 +252,12 @@ verdict from the controlled harness instead.
 
 ```sh
 # per-context and per-thermal medians for a live or past session
-python3 benchmarks/mtplx_session_report.py --port 8010 --since 7d --by-context
-python3 benchmarks/mtplx_session_report.py --port 8010 --since 7d --by-thermal
+python3 benchmarks/perf/mtplx_session_report.py --port 8010 --since 7d --by-context
+python3 benchmarks/perf/mtplx_session_report.py --port 8010 --since 7d --by-thermal
 
 # controlled version comparison -- baseline FIRST, the old build is gone after
-LABEL=before REPEATS=3 ./benchmarks/mtplx-throughput.sh
+LABEL=before REPEATS=3 ./benchmarks/perf/mtplx-throughput.sh
 uv tool upgrade mtplx
-LABEL=after  REPEATS=3 ./benchmarks/mtplx-throughput.sh
-python3 benchmarks/mtplx-version-compare.py results/before.json results/after.json
+LABEL=after  REPEATS=3 ./benchmarks/perf/mtplx-throughput.sh
+python3 benchmarks/perf/mtplx-version-compare.py results/before.json results/after.json
 ```

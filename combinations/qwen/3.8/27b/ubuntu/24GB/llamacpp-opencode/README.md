@@ -496,7 +496,7 @@ smaller one (`QUANT=UD-Q3_K_XL`); each GiB freed buys ~57k tokens at q4_0.
 **[benchmarks/](benchmarks/)** — the raw output every number on this page came
 from: the needle-in-a-haystack retrieval runs, the throughput comparison, the
 context-fitting probes and the `llama-server` logs behind each. The harnesses
-that produced them are in [`benchmarks/`](../../../../../../../benchmarks/) at
+that produced them are in [`benchmarks/`](../../../../../../../benchmarks/perf/) at
 the repo root.
 
 **[docs/discovery.md](../../../../../../../docs/discovery.md)** — the full

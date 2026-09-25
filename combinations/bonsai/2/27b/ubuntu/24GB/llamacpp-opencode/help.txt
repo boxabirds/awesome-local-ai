@@ -119,7 +119,7 @@ REASONING EFFORT                               (default here: medium)
       "low reasoning effort is not supported and when selected the model will
        behave close to xhigh"
 
-  Measured here with benchmarks/effort.sh -- 5 prompts, greedy (temp 0,
+  Measured here with benchmarks/perf/effort.sh -- 5 prompts, greedy (temp 0,
   top_k 1), one model load:
 
       effort    reasoning chars   completion tokens
