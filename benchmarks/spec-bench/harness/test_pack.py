@@ -109,3 +109,20 @@ def test_vidi_renders_exactly_the_prompts_its_runs_recorded(sid):
 def test_vidi_defaults_to_its_canvas_scope():
     pk = pack.load("benchmarks/vidi")
     assert pk.name == "vidi" and pk.default_scope == "canvas" and pk.pack_ref == "vidi-v1"
+
+
+def test_a_public_spec_scores_against_a_private_held_out_suite(tmp_path, monkeypatch):
+    import packdir
+    repo = tmp_path / "awesome-local-ai"
+    monkeypatch.setattr(packdir, "REPO_ROOT", repo)
+    for env in (packdir.ENV, *packdir.LEGACY_ENV.values()):
+        monkeypatch.delenv(env, raising=False)
+    public = repo / "benchmarks" / "todoo"
+    spec_only_pack(repo / "benchmarks")
+    private = tmp_path / packdir.PRIVATE_REPO / "packs" / "todoo"
+    (private / "acceptance" / "tests").mkdir(parents=True)
+    (private / "GRADING.md").write_text("brief")
+    pk = pack.load("benchmarks/todoo")
+    assert pk.dir == public and pk.spec == public / "spec"
+    assert pk.acceptance == private / "acceptance"
+    assert pk.grading == private / "GRADING.md"

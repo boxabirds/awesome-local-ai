@@ -114,16 +114,16 @@ mod tests {
             "--bind",
             "100.1.2.3:7717",
             "--repo",
-            "/home/j/my repo",
+            "/home/user/my repo",
         ]
         .map(Into::into)
         .to_vec();
         let u = systemd(
-            Path::new("/home/j/.local/bin/dbench"),
+            Path::new("/home/user/.local/bin/dbench"),
             &argv,
             "/usr/bin:/bin",
         );
-        assert!(u.contains("ExecStart=/home/j/.local/bin/dbench serve --bind 100.1.2.3:7717 --repo \"/home/j/my repo\"\n"), "{u}");
+        assert!(u.contains("ExecStart=/home/user/.local/bin/dbench serve --bind 100.1.2.3:7717 --repo \"/home/user/my repo\"\n"), "{u}");
         assert!(u.contains("KillMode=process"));
         assert!(u.contains("Environment=\"PATH=/usr/bin:/bin\""));
         assert_eq!(systemd_quote("50%"), "\"50%%\"");
