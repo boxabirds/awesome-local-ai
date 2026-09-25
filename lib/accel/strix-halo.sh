@@ -32,8 +32,8 @@ ACCEL_DESC=""; ACCEL_ARCH="gfx1151"; ACCEL_MEM_MIB=0
 ACCEL_RAM_MIB=0; ACCEL_VRAM_MIB=0; ACCEL_MEM_SOURCE=""
 GPU_API="${GPU_API:-vulkan}"
 
-# Strix Halo's integrated GPU is PCI 1002:1586. SYSFS_PCI is overridable so
-# tests can fake a machine.
+# Strix Halo's integrated GPU is PCI 1002:1586. SYSFS_PCI (and PROC_MEMINFO)
+# are overridable so tests can fake a machine.
 _sh_gpu_dir() {
   local d
   for d in "${SYSFS_PCI:-/sys/bus/pci/devices}"/*; do
@@ -134,7 +134,7 @@ _sh_qualify_render_node() {
 # the setting people change -- so report both.
 _sh_gtt_budget() {
   local gpu="$1" pages ttm_mib gtt_mib
-  ACCEL_RAM_MIB=$(( $(awk '/^MemTotal:/ {print $2}' /proc/meminfo) / 1024 ))
+  ACCEL_RAM_MIB=$(( $(awk '/^MemTotal:/ {print $2}' "${PROC_MEMINFO:-/proc/meminfo}") / 1024 ))
   ACCEL_VRAM_MIB="$(_sh_mib "$gpu" mem_info_vram_total)"; ACCEL_VRAM_MIB="${ACCEL_VRAM_MIB:-0}"
   gtt_mib="$(_sh_mib "$gpu" mem_info_gtt_total)"
   pages="$(cat "${SYSFS_TTM:-/sys/module/ttm/parameters}/pages_limit" 2>/dev/null || echo 0)"
@@ -263,7 +263,7 @@ accel_report_mem() {
   used_gtt="$(_sh_mib "$gpu" mem_info_gtt_used)"
   used_vram="$(_sh_mib "$gpu" mem_info_vram_used)"
   total_gtt="$(_sh_mib "$gpu" mem_info_gtt_total)"
-  avail=$(( $(awk '/^MemAvailable:/ {print $2}' /proc/meminfo) / 1024 ))
+  avail=$(( $(awk '/^MemAvailable:/ {print $2}' "${PROC_MEMINFO:-/proc/meminfo}") / 1024 ))
   [[ -n "$used_gtt" && -n "$total_gtt" ]] || return 1
   local free=$(( total_gtt - used_gtt ))
   (( avail < free )) && free="$avail"
