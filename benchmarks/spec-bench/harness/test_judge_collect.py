@@ -18,11 +18,11 @@ def test_malformed_rows_are_reported():
 
 def test_reads_outside_the_package_into_our_records_are_peeks():
     transcript = "\n".join([
-        "cat /Users/j/expts/awesome-local-ai-bench-private/judging/vidi-v1/build-A/workspace/src/App.tsx",
-        "ls /Users/j/expts/awesome-local-ai/benchmarks/reference/vidi/opus-5.5/run-1/AUDIT.md",
+        "cat /Users/user/expts/awesome-local-ai-bench-private/judging/vidi-v1/build-A/workspace/src/App.tsx",
+        "ls /Users/user/expts/awesome-local-ai/benchmarks/reference/vidi/opus-5.5/run-1/AUDIT.md",
         "cat ~/.vidi-bench/keys/vidi-v1.json",
-        "cat /Users/j/expts/awesome-local-ai-bench-private/packs/vidi/acceptance/tests/story-03.spec.ts",
-        "ls /Users/j/Downloads/unrelated.txt",
+        "cat /Users/user/expts/awesome-local-ai-bench-private/packs/vidi/acceptance/tests/story-03.spec.ts",
+        "ls /Users/user/Downloads/unrelated.txt",
     ])
     found = jc.peeks(transcript, "judging/vidi-v1")
     assert len(found) == 3

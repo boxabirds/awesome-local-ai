@@ -20,7 +20,9 @@ names a pack (`dbench submit … --pack benchmarks/<name>`).
 A pack is named by its directory here, `benchmarks/<name>/`. Its contents are found by
 [`packdir.py`](harness/packdir.py): `$SPEC_BENCH_PACK_DIR`, then `packs/<name>` in the private repo
 (`awesome-local-ai-bench-private`, checked out next to this one, so held-out tests stay out of public
-training data), then `benchmarks/<name>/` itself.
+training data), then `benchmarks/<name>/` itself. A pack can also be split: a public spec here and
+only its held-out parts (`acceptance/`, `GRADING.md`) in the private repo's `packs/<name>/`, which
+is how [todoodle](../todoodle/) is laid out.
 
 | Path | Needed | What |
 |---|---|---|
@@ -29,6 +31,7 @@ training data), then `benchmarks/<name>/` itself.
 | `scope/<name>.json` | for `--scope` | `{"stories": [{"id": 1}, …], "out_of_scope_note": "…"}` |
 | `prompts/story.md.tmpl` | no | the pack's own story prompt; otherwise [`prompts/story.md.tmpl`](prompts/story.md.tmpl) |
 | `acceptance/tests/story-NN.spec.ts` | no | the held-out Playwright suite; without it acceptance is reported **n/a**, not 0/0 |
+| `GRADING.md` | no | the brief an independent grader follows |
 | `bench.json` (in `benchmarks/<name>/`) | no | `name`, `default_scope`, `pack_ref` (the private repo tag to pin), `gate` (npm scripts every story must pass), `app_line` and `rules` (for the generic prompt) |
 
 With none of the optional parts, a pack runs every story, gates each on the default npm scripts

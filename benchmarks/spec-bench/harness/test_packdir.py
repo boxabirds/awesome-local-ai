@@ -62,3 +62,32 @@ def test_private_root_is_the_checkout_to_hide(tmp_path, monkeypatch):
     pack = make_pack(tmp_path / packdir.PRIVATE_REPO)
     assert packdir.private_root(pack) == tmp_path / packdir.PRIVATE_REPO
     assert packdir.private_root(repo / "benchmarks" / "vidi") is None  # the repo itself is already hidden
+
+
+def test_a_public_spec_takes_its_held_out_parts_from_the_private_repo(tmp_path, monkeypatch):
+    """todoodle: the spec is public (benchmarks/todoodle/spec), the held-out suite and the grading
+    brief are private (packs/todoodle/acceptance, packs/todoodle/GRADING.md)."""
+    repo = public_repo(tmp_path, monkeypatch)
+    public = repo / "benchmarks" / "todoodle"
+    (public / "spec").mkdir(parents=True)
+    private = tmp_path / packdir.PRIVATE_REPO / "packs" / "todoodle"
+    (private / "acceptance" / "tests").mkdir(parents=True)
+    (private / "GRADING.md").write_text("brief")
+    assert packdir.resolve("benchmarks/todoodle") == public            # the spec stays public
+    assert packdir.part("benchmarks/todoodle", "acceptance") == private / "acceptance"
+    assert packdir.part("benchmarks/todoodle", "GRADING.md") == private / "GRADING.md"
+    assert packdir.part("benchmarks/todoodle", "spec") == public / "spec"
+
+
+def test_a_pack_s_own_part_wins_over_the_private_repo(tmp_path, monkeypatch):
+    repo = public_repo(tmp_path, monkeypatch)
+    public = repo / "benchmarks" / "todoodle"
+    (public / "acceptance").mkdir(parents=True)
+    (tmp_path / packdir.PRIVATE_REPO / "packs" / "todoodle" / "acceptance").mkdir(parents=True)
+    assert packdir.part("benchmarks/todoodle", "acceptance") == public / "acceptance"
+
+
+def test_a_part_nobody_has_is_the_pack_s_own_path(tmp_path, monkeypatch):
+    repo = public_repo(tmp_path, monkeypatch)
+    (repo / "benchmarks" / "todoodle" / "spec").mkdir(parents=True)
+    assert packdir.part("benchmarks/todoodle", "acceptance") == repo / "benchmarks" / "todoodle" / "acceptance"

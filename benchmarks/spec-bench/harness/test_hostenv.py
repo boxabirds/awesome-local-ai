@@ -49,7 +49,7 @@ def test_linux_power_laptop_on_battery_and_low_power():
 
 
 def test_playwright_cache_is_per_os():
-    home = Path("/home/u")
+    home = Path("/home/user")
     expected = "Library/Caches/ms-playwright" if hostenv.IS_MAC else ".cache/ms-playwright"
     assert hostenv.playwright_cache(home) == home / expected
 
