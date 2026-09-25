@@ -12,5 +12,6 @@ Model `claude-opus-5-5`, scope `canvas`, effort `client default`, client claude 
 | 7 | Select, move, resize and delete several objects at once | DONE | 18.1 | None | None | None | — | — | red | 44/44 |  | 0 / 0 | 0 | — | throttled 0% |
 | 8 | Undo and redo my own changes without undoing anyone else's | DONE | 9.5 | None | None | None | — | — | red | 51/51 |  | 0 / 0 | 0 | — | throttled 0% |
 | 9 | Write free text anywhere on the board | DONE | 19.2 | None | None | None | — | — | red | 56/57 |  | 0 / 1 | 0 | — | throttled 0% |
+| 10 | Draw shapes and connect them with arrows that follow when moved | DONE | 17.5 | None | None | None | — | — | red | 64/65 |  | 0 / 0 | 0 | — | throttled 0% |
 
-**Totals:** 8 stories, 140 agent-minutes, 0 requests, 0 prompt / 0 completion tokens, gate green 2/8, final acceptance 56/57, stalled 0, partial 0, 15511 lines in src+tests.
+**Totals:** 9 stories, 157 agent-minutes, 0 requests, 0 prompt / 0 completion tokens, gate green 2/9, final acceptance 64/65, stalled 0, partial 0, 18550 lines in src+tests.
