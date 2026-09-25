@@ -27,7 +27,8 @@ UNIFIED MEMORY: WHAT "FITS" MEANS HERE
   limit -- about half of RAM unless you raise it. The installer refuses when
   the limit is too low and prints the fix:
       pipx install amd-debug-tools && amd-ttm --set 120 && sudo reboot
-  Keep the BIOS "UMA Frame Buffer Size" at 512M. A big carve-out is taken
+  Keep the BIOS "UMA Frame Buffer Size" at its smallest (512M, or 1G on the
+  MS-S1 MAX). A big carve-out is taken
   from Linux for good and makes the GPU no faster.
 
   Budget from MemAvailable, not from "GTT free": on unified memory, GTT free

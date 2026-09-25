@@ -161,9 +161,10 @@ _sh_gtt_budget() {
 _sh_qualify_carveout() {
   (( ACCEL_VRAM_MIB > 4096 )) || return 0
   warn "The BIOS reserves ${ACCEL_VRAM_MIB} MiB as dedicated VRAM; Linux cannot use it for anything else."
-  warn "  On Strix Halo it gives the GPU no speed advantage. Set it to 512M:"
+  warn "  On Strix Halo it gives the GPU no speed advantage. Set it to the smallest offered"
+  warn "  (512M where the BIOS has it; 1G is the floor on the MS-S1 MAX):"
   warn "  BIOS -> Advanced -> AMD CBS -> NBIO Common Options -> GFX Configuration"
-  warn "    iGPU Configuration = UMA_Specified, UMA Frame Buffer Size = 512M"
+  warn "    iGPU Configuration = UMA_Specified, UMA Frame Buffer Size = 512M (or 1G)"
   warn "  then raise the GTT limit instead (see below if it is short)."
 }
 
