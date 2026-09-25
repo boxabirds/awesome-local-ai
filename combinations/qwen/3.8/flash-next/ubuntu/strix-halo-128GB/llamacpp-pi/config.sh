@@ -223,7 +223,8 @@ combination_troubleshooting() {
   cat <<'TXT'
 Refused at qualification  read the GTT fix it printed; reboot after amd-ttm
 Very slow first load      expected: 94 GB from disk. Check it once, then idle stays long
-Slow decode               pin the GPU clock: echo high | sudo tee .../power_dpm_force_performance_level
+Slow decode               BIOS power mode Performance? GPU_BACKEND=vulkan (faster here)? MTP draft
+                          acceptance in the log? Pinning the GPU clock gave only 1-2% here
 Tool calls go wrong       KV must be f16; do not quantise it on this model
 Server will not start     'unknown model architecture qwen4exp' = llama.cpp too old; re-run
 DeviceLostError mid-run   set amdgpu.lockup_timeout; qualification prints the line

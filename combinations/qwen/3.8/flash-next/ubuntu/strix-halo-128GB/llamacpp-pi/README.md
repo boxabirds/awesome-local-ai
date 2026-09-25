@@ -6,11 +6,11 @@ dynamic GGUF quants, with its MTP draft head, served by llama.cpp on Vulkan
 driven by pi by default (a much smaller system prompt than OpenCode, which
 matters at this prefill speed) or OpenCode.
 
-> **NOT MEASURED BY THIS REPO YET.** This combination was written for a
-> Minisforum MS-S1 MAX before it had been run through the installer. Every
-> memory figure in [`profiles.tsv`](profiles.tsv) is an **ESTIMATE** with its
-> arithmetic shown; every speed below is a community figure from a different
-> Strix Halo box, quoted with its source. It is marked `AUTO_SELECT=0`, so it
+> **PARTLY MEASURED.** Installed and verified on a Minisforum MS-S1 MAX
+> (tritus), with decode speeds at shallow context measured there (see
+> Expected performance). Every memory figure in [`profiles.tsv`](profiles.tsv)
+> is still an **ESTIMATE** with its arithmetic shown, and nothing past a few
+> thousand tokens of context has been measured yet. It is marked `AUTO_SELECT=0`, so it
 > ranks below any measured combination for the same machine; today it is the
 > only Strix Halo one, so `./install.sh` offers it on a 128GB Strix Halo.
 > [`benchmarks/README.md`](benchmarks/README.md) is the
@@ -114,8 +114,23 @@ behind each flag. The choices that differ from the NVIDIA combinations:
 
 ## Expected performance
 
-**Not measured here.** Published figures from other 128 GB Strix Halo
-machines, for orientation only:
+**First measurements on a Minisforum MS-S1 MAX** (BIOS Performance mode, UMA
+1G, `-lm dio`, MTP depth 3, pi). Shallow context only: the 32k–128k numbers,
+the memory per profile and the long-prompt prefill are still to come
+([measurement plan](benchmarks/README.md)).
+
+| Workload | Vulkan decode | ROCm decode | MTP drafts accepted |
+|---|---|---|---|
+| New code | 47.5 tok/s | 42.3 | 77–80% |
+| File rewrite | 55.8 | 50.0 | 100% |
+| Prose | 36–41 | 34–35 | 52–63% |
+| A pi coding session, ~7k context | 50–52 | – | 86–89% |
+
+Vulkan is the default because it decodes 10–17% faster here, with identical
+output at temperature 0. Source: [`benchmarks/backend-ab/`](benchmarks/backend-ab/)
+and the server log of the pi session.
+
+Published figures from other 128 GB Strix Halo machines, for orientation:
 
 | Stack | Decode | Prefill | Source |
 |---|---|---|---|
@@ -126,6 +141,25 @@ machines, for orientation only:
 The MS-S1 MAX runs a higher power limit (up to 160 W in its Performance mode)
 than most Strix Halo boxes, so its numbers may differ. Record the BIOS power
 mode with every measurement.
+
+### BIOS and GPU clock
+
+- **Power mode: Performance** (the MS-S1 MAX offers Performance, Balance and
+  Quiet). Linux cannot read it, so benchmarks take it as `POWER_MODE=`.
+- **UMA Frame Buffer Size: the smallest offered** (see Before you install).
+- **GPU clock: leave it on `auto` for daily use.** Pinning it to `high` bought
+  **1–2%** decode on the MS-S1 MAX in Performance mode (code 47.0 → 47.5,
+  rewrite 55.1 → 55.8, prose 35.3 → 36.0 tok/s, identical output), not the ~20%
+  reported on another box: decode here is mostly memory-bound, which the clock
+  does not change. Pin it while benchmarking, so runs are comparable; it resets
+  at reboot:
+
+  ```bash
+  echo high | sudo tee /sys/bus/pci/devices/0000:bd:00.0/power_dpm_force_performance_level
+  ```
+
+  (The PCI address is the GPU's on the MS-S1 MAX; `grep -l 0x1586
+  /sys/bus/pci/devices/*/device` finds it on another box.)
 
 ## Why not the Windows these boxes ship with?
 
