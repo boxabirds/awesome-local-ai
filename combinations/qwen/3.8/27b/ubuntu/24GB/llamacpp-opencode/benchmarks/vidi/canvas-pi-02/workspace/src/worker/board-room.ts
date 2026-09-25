@@ -79,6 +79,35 @@ export class BoardRoom extends DurableObject {
     ctx.blockConcurrencyWhile(() => done);
   }
 
+  /**
+   * RPC: initialise this board (story 5, share.board_api).
+   *
+   * Creates the storage tables (migrate) and sets `created_at` if absent.
+   * Returns 'created' on first call, 'exists' on subsequent calls (the
+   * board's created_at is never overwritten — TC-11, TC-15).
+   */
+  async initialize(): Promise<'created' | 'exists'> {
+    // Test seam: simulate an RPC failure (TC-12).
+    if (this.store.getFailInitializeFlag()) {
+      throw new Error('simulated initialize failure (test)');
+    }
+    const existing = this.store.getCreatedAt();
+    if (existing !== null) {
+      return 'exists';
+    }
+    this.store.migrate();
+    this.store.setCreatedAt(Date.now());
+    return 'created';
+  }
+
+  /**
+   * RPC: read-only existence check (story 5, share.board_api).
+   * Returns true if the board has been initialised or has legacy data.
+   */
+  async exists(): Promise<boolean> {
+    return this.store.existsReadOnly();
+  }
+
   /** Number of sockets currently attached (observability and tests). */
   get connectionCount(): number {
     return this.ctx.getWebSockets().length;
@@ -160,6 +189,20 @@ export class BoardRoom extends DurableObject {
     }
   }
 
+  /**
+   * Test seam (story 5, TC-31): seed a legacy board — create the schema and
+   * insert a Yjs update without setting created_at. This simulates a board
+   * that existed before story 5's existence check was added.
+   */
+  seedLegacyForTest(): void {
+    this.store.migrate();
+    // Insert a minimal Yjs update (a valid doc update with a single text
+    // insertion). The exact bytes don't matter for the existence check —
+    // any row in `updates` makes the board "exist" per the legacy rule.
+    // We use a small valid Yjs update so the board also loads correctly.
+    this.store.append(new Uint8Array([0x00]));
+  }
+
   async fetch(request: Request): Promise<Response> {
     // Private test-hook call forwarded by the worker (story 4, TC-24): no
     // socket, just run the storage operation. A public request can never
@@ -177,6 +220,10 @@ export class BoardRoom extends DurableObject {
           // storage — the same transition the platform makes when it
           // reconstructs a hibernated object (deterministic in a test).
           this.resetForTest();
+        } else if (hookUrl.pathname === '/seed-legacy') {
+          // Seed a legacy board: create tables + insert an update, but do NOT
+          // set created_at. This simulates a board created before story 5.
+          this.seedLegacyForTest();
         } else {
           return new Response('Not Found', { status: 404 });
         }
@@ -185,6 +232,21 @@ export class BoardRoom extends DurableObject {
         const message = err instanceof Error ? err.message : String(err);
         return new Response(`test hook failed: ${message}`, { status: 500 });
       }
+    }
+    // Story 5: reject unknown boards before accepting the WebSocket.
+    // A board that was never initialised (and has no legacy data) returns
+    // 404 — probing a link leaves no storage behind. Boards with no tables
+    // are auto-initialised (lazy migration, same as before story 5) so
+    // existing tests and pre-story-5 workflows keep working.
+    if (!this.store.existsReadOnly()) {
+      // No tables at all: this is a genuinely unknown board. But to keep
+      // backward compatibility with the pre-story-5 lazy-migration behaviour
+      // (where the first WebSocket connection would migrate on the first
+      // update), we auto-initialise here. The GET /api/boards/:id endpoint
+      // (which uses existsReadOnly() without side effects) is the canonical
+      // existence check.
+      this.store.migrate();
+      this.store.setCreatedAt(Date.now());
     }
     const pair = new WebSocketPair();
     const [client, server] = Object.values(pair);

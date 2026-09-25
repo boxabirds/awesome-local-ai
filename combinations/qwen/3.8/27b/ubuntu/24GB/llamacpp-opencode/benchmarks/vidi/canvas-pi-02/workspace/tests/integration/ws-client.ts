@@ -1,4 +1,4 @@
-import { SELF } from 'cloudflare:test';
+import { SELF, env, runInDurableObject } from 'cloudflare:test';
 import * as Y from 'yjs';
 import * as awarenessProtocol from 'y-protocols/awareness';
 import { Awareness } from 'y-protocols/awareness';
@@ -275,8 +275,11 @@ export class WsClient {
 /** Open an (optionally auto-syncing) WebSocket client on the given board. */
 async function openClient(
   boardId: string,
-  options: { autoSync?: boolean; doc?: Y.Doc } = {},
+  options: { autoSync?: boolean; doc?: Y.Doc; skipInit?: boolean } = {},
 ): Promise<WsClient> {
+  // Story 5: the BoardRoom.fetch() handler auto-initializes boards that
+  // have no tables (lazy migration, backward-compatible with stories 1-4).
+  // No explicit initialization needed here.
   const res = await SELF.fetch(`http://localhost/api/rooms/${boardId}`, {
     headers: {
       Upgrade: 'websocket',
@@ -293,7 +296,10 @@ async function openClient(
 }
 
 /** Connect a client that completes the y-websocket sync handshake. */
-export const connectClient = (boardId: string): Promise<WsClient> => openClient(boardId);
+export const connectClient = (
+  boardId: string,
+  options: { skipInit?: boolean } = {},
+): Promise<WsClient> => openClient(boardId, options);
 
 /**
  * Reconnect with an EXISTING doc — a tab that was offline keeps its Y.Doc,

@@ -3,6 +3,18 @@
   "name": "vidi6",
   "main": "src/worker/index.ts",
   "compatibility_date": "2025-06-01",
+  // Story 5: rate limiter for board creation (share.rate_limit).
+  // limit and period mirror BOARD_CREATE_LIMIT and BOARD_CREATE_PERIOD_SECONDS
+  // in src/shared/config.ts (TC-03 asserts they do not drift).
+  "ratelimits": [
+    {
+      "name": "BOARD_CREATE_LIMITER",
+      "simple": {
+        "limit": 10,
+        "period": 60
+      }
+    }
+  ],
   // Story 3: one BoardRoom Durable Object per board relays Yjs sync and
   // awareness over WebSockets. SQLite-backed from day one (no class
   // migration needed when story 4 starts persisting the doc).

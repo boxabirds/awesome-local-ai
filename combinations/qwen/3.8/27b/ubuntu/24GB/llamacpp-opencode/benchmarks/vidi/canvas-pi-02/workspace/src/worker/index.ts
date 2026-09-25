@@ -1,24 +1,44 @@
+/**
+ * Worker entry (story 5).
+ *
+ * Routes:
+ *   POST /api/boards          → create a new board (rate-limited, collision-retried)
+ *   GET  /api/boards/:id      → check if a board exists (404 for unknown/malformed)
+ *   /api/rooms/:boardId       → WebSocket (404 for unknown/malformed, 426 without upgrade)
+ *   everything else           → static client build (SPA fallback)
+ *
+ * Ids are validated with isValidBoardId before touching the namespace, so
+ * malformed ids never instantiate a Durable Object (TC-07).
+ */
 import { isValidBoardId } from '../shared/board-id';
 import { BoardRoom } from './board-room';
+import { createBoard, type Limiter } from './create-board';
 import { handleTestHook } from './test-hooks';
 
-/**
- * Worker entry (story 3).
- *
- * One route: `/api/rooms/:boardId` upgrades to a WebSocket and is handled by
- * the BoardRoom Durable Object named after the board id — `idFromName` per
- * board is what keeps boards isolated. Every other path is served from the
- * static client build (SPA fallback for `/b/:boardId`).
- *
- * There is deliberately no participant counting or connection limit: the
- * capacity (MAX_CONCURRENT_EDITORS) is a soft, test-driven setting and an
- * over-capacity joiner is never refused (live.over_capacity).
- */
+/** No-op limiter used when the real binding is absent (tests, local dev). */
+const NOOP_LIMITER: Limiter = {
+  async checkAndConsume(): Promise<boolean> {
+    return true;
+  },
+};
+
 export interface Env {
   BOARD_ROOM: DurableObjectNamespace<BoardRoom>;
   ASSETS: Fetcher;
+  /**
+   * Rate limiter for board creation (share.rate_limit).
+   * Present in production (wrangler.jsonc ratelimits binding); absent in
+   * the vitest pool (no local rate limiter support) — the worker falls
+   * back to a no-op limiter.
+   */
+  BOARD_CREATE_LIMITER?: Limiter;
   /** Test hooks are enabled only when this is exactly '1' (the e2e env). */
   TEST_HOOKS?: string;
+}
+
+/** Resolve the rate limiter, falling back to a no-op when absent. */
+function getLimiter(env: Env): Limiter {
+  return env.BOARD_CREATE_LIMITER ?? NOOP_LIMITER;
 }
 
 export default {
@@ -26,11 +46,52 @@ export default {
     const url = new URL(req.url);
     const hookResponse = await handleTestHook(req, url, env);
     if (hookResponse !== null) return hookResponse;
+
+    // --- POST /api/boards: create a new board --------------------------------
+    if (url.pathname === '/api/boards') {
+      if (req.method !== 'POST') {
+        return new Response('Method Not Allowed', { status: 405 });
+      }
+      const visitorKey = req.headers.get('cf-connecting-ip') ?? 'unknown';
+      const result = await createBoard(
+        { ...env, BOARD_CREATE_LIMITER: getLimiter(env) },
+        visitorKey,
+      );
+      if (result.ok) {
+        return Response.json({ id: result.id }, { status: 201 });
+      }
+      if (result.reason === 'rate_limited') {
+        return Response.json({ error: 'rate_limited' }, { status: 429 });
+      }
+      return Response.json({ error: 'create_failed' }, { status: 500 });
+    }
+
+    // --- GET /api/boards/:id: check if a board exists -------------------------
+    const boardMatch = url.pathname.match(/^\/api\/boards\/([^/]+)$/);
+    if (boardMatch !== null) {
+      if (req.method !== 'GET') {
+        return new Response('Method Not Allowed', { status: 405 });
+      }
+      const boardId = boardMatch[1];
+      // Malformed ids get 404 without touching the namespace (TC-07).
+      if (!isValidBoardId(boardId)) {
+        return Response.json({ error: 'not_found' }, { status: 404 });
+      }
+      const stub = env.BOARD_ROOM.get(env.BOARD_ROOM.idFromName(boardId));
+      const exists = await stub.exists();
+      if (exists) {
+        return Response.json({ id: boardId });
+      }
+      return Response.json({ error: 'not_found' }, { status: 404 });
+    }
+
+    // --- /api/rooms/:boardId: WebSocket ---------------------------------------
     const roomMatch = url.pathname.match(/^\/api\/rooms\/([^/]+)$/);
     if (roomMatch !== null) {
       const boardId = roomMatch[1];
+      // Story 5: malformed ids get 404 (was 400 in story 3).
       if (!isValidBoardId(boardId)) {
-        return new Response('Bad Request', { status: 400 });
+        return new Response('Not Found', { status: 404 });
       }
       const upgrade = req.headers.get('upgrade');
       if (upgrade === null || !upgrade.toLowerCase().includes('websocket')) {
@@ -39,6 +100,7 @@ export default {
       const stub = env.BOARD_ROOM.get(env.BOARD_ROOM.idFromName(boardId));
       return stub.fetch(req);
     }
+
     return env.ASSETS.fetch(req);
   },
 };

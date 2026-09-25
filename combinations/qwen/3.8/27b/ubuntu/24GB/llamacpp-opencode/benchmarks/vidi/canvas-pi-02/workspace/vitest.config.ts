@@ -30,7 +30,7 @@ export default defineConfig({
           pool: '@cloudflare/vitest-pool-workers',
           poolOptions: {
             workers: {
-              wrangler: { configPath: './wrangler.jsonc' },
+              wrangler: { configPath: './wrangler-test.jsonc' },
               // Per-test storage isolation cannot be popped while a Durable
               // Object still holds an open WebSocket; the tests use unique
               // board ids, so they do not rely on it.
