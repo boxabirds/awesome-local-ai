@@ -13,7 +13,7 @@ import {
   initDoc,
   moveObject,
   snapshot,
-  type StickySnapshot,
+  type ObjectSnapshot,
 } from '../../src/shared/board-model';
 import { STICKY_COLORS, type StickyColor } from '../../src/shared/config';
 
@@ -28,7 +28,7 @@ export interface NoteBoardFixture {
   /** The client's final document (source of truth for assertions). */
   doc: Y.Doc;
   /** `snapshot(doc)` at the end of the build. */
-  notes: readonly StickySnapshot[];
+  notes: readonly ObjectSnapshot[];
   /** The note ids in creation order. */
   ids: string[];
 }

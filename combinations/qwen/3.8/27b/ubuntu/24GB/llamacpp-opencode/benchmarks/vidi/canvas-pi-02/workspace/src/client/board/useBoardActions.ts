@@ -38,7 +38,8 @@ export function useBoardActions(
       const world = screenToWorld(apiRef.current.camera, p);
       const id = createSticky(doc, world);
       if (id !== '') {
-        selection.select(id);
+        // Story 7: selection is a set; `click` selects just this note.
+        selection.click(id);
         selection.startEdit(id);
       }
     },

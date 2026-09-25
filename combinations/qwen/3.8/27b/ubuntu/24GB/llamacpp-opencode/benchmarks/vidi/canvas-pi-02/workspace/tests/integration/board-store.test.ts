@@ -13,7 +13,7 @@ import {
   createSticky,
   getStickyText,
   snapshot,
-  type StickySnapshot,
+  type ObjectSnapshot,
 } from '../../src/shared/board-model';
 import { newBoardId } from '../../src/shared/board-id';
 import {
@@ -55,7 +55,7 @@ async function appendFixture(boardId: string, fixture: NoteBoardFixture): Promis
 }
 
 /** Expected end state: apply the given updates to a fresh doc (test scope). */
-function expectedNotes(updates: Uint8Array[]): StickySnapshot[] {
+function expectedNotes(updates: Uint8Array[]): ObjectSnapshot[] {
   const doc = new Y.Doc();
   for (const update of updates) Y.applyUpdate(doc, update);
   return snapshot(doc);
@@ -70,7 +70,7 @@ function compactInDo(
   chunkSizes: number[];
   throughSeq: string | null;
   loaded: LoadResult;
-  notes: StickySnapshot[];
+  notes: ObjectSnapshot[];
 }> {
   return withStore(boardId, (store, sql) => {
     const doc = new Y.Doc();

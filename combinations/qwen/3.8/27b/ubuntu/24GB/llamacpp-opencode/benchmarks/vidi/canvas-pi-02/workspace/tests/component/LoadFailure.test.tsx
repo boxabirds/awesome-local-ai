@@ -12,6 +12,7 @@ vi.mock('../../src/client/api', () => ({
 import { App } from '../../src/client/App';
 import { setProviderFactoryForTest } from '../../src/client/sync/connectBoard';
 import { createSticky, getStickyText } from '../../src/shared/board-model';
+import type { ObjectSnapshot } from '../../src/shared/board-model';
 import { enableFakeFrameTimers, flushFrames } from './test-utils';
 
 /**
@@ -71,8 +72,7 @@ class FakeProvider {
   }
 }
 
-const notes = (): readonly { id: string; x: number; y: number; text: string; color: string }[] =>
-  window.__vidi6!.getNotes();
+const notes = (): readonly ObjectSnapshot[] => window.__vidi6!.getNotes();
 
 const viewport = () => document.querySelector('.vidi6-viewport') as HTMLElement;
 const noteEl = () => screen.getByRole('group', { name: 'Sticky note' }) as HTMLElement;

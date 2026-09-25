@@ -95,6 +95,18 @@ test.describe('sync.two-person workshop', () => {
       await alex.page.getByRole('button', { name: 'Sticky note' }).click();
       await alex.page.keyboard.type('green');
       await expectNoteCountWithin(sam, 1);
+      // The concurrent phase below anchors each side's cursor to its local
+      // copy of the seed text, so both replicas must hold the COMPLETE text
+      // first: if Sam still only has 'gre', his Ctrl+End lands inside the
+      // word and the merge is 'red gre blueen', not 'red green blue'.
+      for (const p of [alex, sam]) {
+        await expect
+          .poll(async () => (await getNotes(p.page))[0]?.text ?? '', {
+            timeout: 5000,
+            intervals: [50],
+          })
+          .toBe('green');
+      }
       await alex.page.keyboard.press('Escape');
 
       // Both enter edit mode on the same note. Non-overlapping concurrent

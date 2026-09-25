@@ -1,6 +1,8 @@
 import * as Y from 'yjs';
 import { DEFAULT_STICKY_COLOR, STICKY_COLORS, STICKY_SIZE_WORLD } from './config';
 import type { StickyColor } from './config';
+import type { Point } from '../client/canvas/camera';
+import { rectContains, isValidRect, type Rect } from './geometry';
 
 /**
  * Board document model (story 2).
@@ -41,6 +43,49 @@ export interface StickySnapshot {
   text: string;
   z: number;
   createdAt: number;
+  /** Set once a group resize (story 7) changes the note's size. */
+  width?: number;
+  height?: number;
+}
+
+/**
+ * A generic board object (story 7). `sticky` is the first registered type;
+ * `width`/`height` are optional because the sticky default
+ * (STICKY_SIZE_WORLD) predates them. Objects of unregistered types keep
+ * their raw record in `data` so nothing is lost before their code arrives.
+ */
+export interface ObjectSnapshot {
+  readonly id: string;
+  readonly type: string;
+  readonly x: number;
+  readonly y: number;
+  readonly z: number;
+  readonly createdAt: number;
+  readonly text?: string;
+  readonly color?: string;
+  readonly width?: number;
+  readonly height?: number;
+  readonly data?: Readonly<Record<string, unknown>>;
+}
+
+/** A read-only view of the whole board, sorted for rendering. */
+export type Snapshot = readonly ObjectSnapshot[];
+
+/**
+ * Object types this build renders and can reason about (selection, marquee,
+ * Ctrl+A). Objects of other types remain in the doc untouched, but generic
+ * operations skip them (the registry keeps them out of the renderer too).
+ */
+export const KNOWN_OBJECT_TYPES: readonly string[] = ['sticky'];
+
+/** Top-left of an object's world-space bounding box (default sticky size when unset). */
+export function objectBounds(o: ObjectSnapshot): Rect {
+  return {
+    x: o.x,
+    y: o.y,
+    width: o.width ?? STICKY_SIZE_WORLD,
+    height: o.height ?? STICKY_SIZE_WORLD,
+  };
 }
 
 /** Current schema version (the persisted and wire contract). */
@@ -56,6 +101,8 @@ const Y_KEY = 'y';
 const COLOR_KEY = 'color';
 const TEXT_KEY = 'text';
 const Z_KEY = 'z';
+const WIDTH_KEY = 'width';
+const HEIGHT_KEY = 'height';
 const CREATED_AT_KEY = 'createdAt';
 
 const STICKY_TYPE = 'sticky';
@@ -111,17 +158,11 @@ export function createSticky(doc: Y.Doc, at: { x: number; y: number }, color?: S
 
 /**
  * Move a note's top-left to (x, y). Returns false for a stale id or
- * non-finite coordinates (no transaction opened).
+ * non-finite coordinates (no transaction opened). Story 7: a thin wrapper
+ * over the generic moveObjects.
  */
 export function moveObject(doc: Y.Doc, id: string, x: number, y: number): boolean {
-  if (!Number.isFinite(x) || !Number.isFinite(y)) return false;
-  const obj = objects(doc).get(id);
-  if (!obj) return false;
-  doc.transact(() => {
-    obj.set(X_KEY, x);
-    obj.set(Y_KEY, y);
-  }, LOCAL_ORIGIN);
-  return true;
+  return moveObjects(doc, new Map([[id, { x, y }]])) === 1;
 }
 
 /** True when the object exists in the board doc. */
@@ -160,14 +201,9 @@ export function setStickyColor(doc: Y.Doc, id: string, color: string): boolean {
   return true;
 }
 
-/** Remove a note from the board. Returns false for a stale id. */
+/** Remove a note from the board. Returns false for a stale id. Story 7: a thin wrapper over deleteObjects. */
 export function deleteObject(doc: Y.Doc, id: string): boolean {
-  const obj = objects(doc).get(id);
-  if (!obj) return false;
-  doc.transact(() => {
-    objects(doc).delete(id);
-  }, LOCAL_ORIGIN);
-  return true;
+  return deleteObjects(doc, [id]) === 1;
 }
 
 /** The note's Y.Text, if the note exists; undefined for a stale id. */
@@ -178,33 +214,147 @@ export function getStickyText(doc: Y.Doc, id: string): Y.Text | undefined {
   return text instanceof Y.Text ? text : undefined;
 }
 
-/**
- * Immutable snapshots of every sticky note, sorted by (z, id) so concurrent
- * equal z values (possible once story 3 syncs) give every client the same
- * render order. Objects with an unknown `type` are skipped.
- */
 function asNumber(value: unknown, fallback: number): number {
   return typeof value === 'number' && Number.isFinite(value) ? value : fallback;
 }
 
-export function snapshot(doc: Y.Doc): readonly StickySnapshot[] {
-  const out: StickySnapshot[] = [];
+/**
+ * Immutable snapshots of every board object (story 7: any registered type),
+ * sorted by (z, id) so concurrent equal z values (possible once story 3
+ * syncs) give every client the same render order.
+ *
+ * Optional fields appear only when the object stores them: `width`/`height`
+ * (written by the first group resize, Key decision 5), `color`/`text`
+ * (sticky). Objects of unknown types keep their generic fields so the
+ * renderer can skip them without data loss in the doc.
+ */
+export function snapshot(doc: Y.Doc): Snapshot {
+  const out: ObjectSnapshot[] = [];
   objects(doc).forEach((obj, id) => {
-    if (obj.get(TYPE_KEY) !== STICKY_TYPE) return; // unknown type: forward compatible
+    const type = obj.get(TYPE_KEY);
+    if (typeof type !== 'string') return;
+    const width = obj.get(WIDTH_KEY);
+    const height = obj.get(HEIGHT_KEY);
     const color = obj.get(COLOR_KEY);
     const text = obj.get(TEXT_KEY);
     out.push({
       id,
-      type: STICKY_TYPE,
+      type,
       x: asNumber(obj.get(X_KEY), 0),
       y: asNumber(obj.get(Y_KEY), 0),
-      color: isStickyColor(color) ? color : DEFAULT_STICKY_COLOR,
-      text: text instanceof Y.Text ? text.toString() : '',
       z: asNumber(obj.get(Z_KEY), 0),
       createdAt: asNumber(obj.get(CREATED_AT_KEY), 0),
+      width: Number.isFinite(width) ? (width as number) : undefined,
+      height: Number.isFinite(height) ? (height as number) : undefined,
+      color: typeof color === 'string' ? color : undefined,
+      text: text instanceof Y.Text ? text.toString() : undefined,
     });
   });
   // (z, id) gives every client the same order even with concurrent equal z values.
   out.sort((a, b) => (a.z - b.z) || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
+  return out;
+}
+
+// --- Generic group operations (story 7) -------------------------------------
+
+/**
+ * Move several objects' top-left corners. Stale ids and non-finite positions
+ * are skipped. Returns the number of objects actually moved (0 = no
+ * transaction opened, so no update is emitted).
+ */
+export function moveObjects(doc: Y.Doc, positions: Map<string, Point>): number {
+  const map = objects(doc);
+  const entries: Array<[Y.Map<any>, number, number]> = [];
+  positions.forEach((p, id) => {
+    if (!Number.isFinite(p.x) || !Number.isFinite(p.y)) return;
+    const obj = map.get(id);
+    if (!obj) return;
+    entries.push([obj, p.x, p.y]);
+  });
+  if (entries.length === 0) return 0;
+  doc.transact(() => {
+    for (const [obj, x, y] of entries) {
+      obj.set(X_KEY, x);
+      obj.set(Y_KEY, y);
+    }
+  }, LOCAL_ORIGIN);
+  return entries.length;
+}
+
+/**
+ * Place several objects at explicit world-space rects. Stale ids and
+ * non-finite rects are skipped. Returns the number of objects actually
+ * changed (0 = no transaction opened, so no update is emitted).
+ */
+export function resizeObjects(doc: Y.Doc, rects: Map<string, Rect>): number {
+  const map = objects(doc);
+  const entries: Array<[Y.Map<any>, Rect]> = [];
+  rects.forEach((r, id) => {
+    if (!isValidRect(r)) return;
+    const obj = map.get(id);
+    if (!obj) return;
+    entries.push([obj, r]);
+  });
+  if (entries.length === 0) return 0;
+  doc.transact(() => {
+    for (const [obj, r] of entries) {
+      obj.set(X_KEY, r.x);
+      obj.set(Y_KEY, r.y);
+      obj.set(WIDTH_KEY, r.width);
+      obj.set(HEIGHT_KEY, r.height);
+    }
+  }, LOCAL_ORIGIN);
+  return entries.length;
+}
+
+/**
+ * Raise the given ids above every other object, in the given order (the last
+ * id ends on top). Stale ids are skipped. Returns the number raised
+ * (0 = no transaction opened).
+ */
+export function bringObjectsToFront(doc: Y.Doc, ids: readonly string[]): number {
+  const live = ids.filter((id) => objects(doc).get(id) !== undefined);
+  if (live.length === 0) return 0;
+  const top = maxZ(doc);
+  doc.transact(() => {
+    live.forEach((id, i) => {
+      objects(doc).get(id)!.set(Z_KEY, top + i + 1);
+    });
+  }, LOCAL_ORIGIN);
+  return live.length;
+}
+
+/**
+ * Delete several objects in one transaction. Stale ids are skipped. Returns
+ * the number actually deleted (0 = no transaction opened).
+ */
+export function deleteObjects(doc: Y.Doc, ids: readonly string[]): number {
+  const map = objects(doc);
+  const live = ids.filter((id) => map.get(id) !== undefined);
+  if (live.length === 0) return 0;
+  doc.transact(() => {
+    for (const id of live) map.delete(id);
+  }, LOCAL_ORIGIN);
+  return live.length;
+}
+
+// --- Selection queries over a snapshot (story 7) ----------------------------
+
+/** The ids of every known object in the snapshot (Ctrl+A). */
+export function allObjectIds(snapshot: readonly ObjectSnapshot[]): string[] {
+  const out: string[] = [];
+  for (const o of snapshot) {
+    if (KNOWN_OBJECT_TYPES.includes(o.type)) out.push(o.id);
+  }
+  return out;
+}
+
+/** Ids of known objects whose bounds lie fully inside `rect` (marquee). */
+export function objectsInRect(snapshot: readonly ObjectSnapshot[], rect: Rect): string[] {
+  const out: string[] = [];
+  for (const o of snapshot) {
+    if (!KNOWN_OBJECT_TYPES.includes(o.type)) continue;
+    if (rectContains(rect, objectBounds(o))) out.push(o.id);
+  }
   return out;
 }

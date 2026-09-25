@@ -2,7 +2,7 @@ import { defineConfig, devices } from '@playwright/test';
 import { PERSIST_URL } from './tests/e2e/helpers/wrangler-process';
 
 /**
- * Story 4 persistence e2e (TC-19..TC-21).
+ * Story 4 persistence e2e (TC-19..TC-21) + story 5 share e2e (TC-26..TC-31).
  *
  * Unlike the main config there is NO shared webServer: each test drives its
  * own `wrangler dev --persist-to <tmp dir>` process
@@ -12,7 +12,10 @@ import { PERSIST_URL } from './tests/e2e/helpers/wrangler-process';
  */
 export default defineConfig({
   testDir: './tests/e2e',
-  testMatch: ['persist.spec.ts'],
+  // share.spec.ts (story 5) also runs here: it targets PERSIST_URL and drives
+  // its own wrangler process(es) — TC-30 needs the real rate limiter that only
+  // wrangler.jsonc provides.
+  testMatch: ['persist.spec.ts', 'share.spec.ts'],
   fullyParallel: false,
   workers: 1,
   retries: 1,

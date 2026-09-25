@@ -16,9 +16,12 @@ import {
   BOARD_CREATE_LIMIT,
   CREATE_BUDGET_MS,
 } from '../../src/shared/config';
-import { newBoardId } from '../../src/shared/board-id';
+import { BOARD_ID_PATTERN, newBoardId } from '../../src/shared/board-id';
+
+/** /b/<id> where <id> is exactly one board id (single source of truth: shared). */
+const BOARD_PATH_RE = new RegExp(`/b/${BOARD_ID_PATTERN.source.slice(1, -1)}`);
 import { getNotes } from './helpers/board';
-import { PERSIST_URL } from './helpers/wrangler-process';
+import { PERSIST_URL, WranglerProcess } from './helpers/wrangler-process';
 import { expectConnected, expectNoteCountWithin, expectWithin } from './helpers/participants';
 
 // --- helpers ------------------------------------------------------------------
@@ -31,7 +34,7 @@ async function createBoardFromHome(
   await page.goto(PERSIST_URL + '/');
   await page.getByRole('button', { name: 'Create a board' }).click();
   // Wait for navigation to /b/<id>
-  await page.waitForURL(/\/b\/[0-9a-f]{23}/, { timeout: CREATE_BUDGET_MS });
+  await page.waitForURL(BOARD_PATH_RE, { timeout: CREATE_BUDGET_MS });
   const boardId = new URL(page.url()).pathname.slice(3);
   await expectConnected(page);
   return { page, boardId };
@@ -59,6 +62,81 @@ async function waitForBoardReady(page: Page, timeoutMs = 30_000): Promise<void> 
     )
     .toBe('connected');
 }
+
+// --- TC-30: Abuse guard --------------------------------------------------------
+//
+// TC-30 needs the REAL rate limiter (only wrangler.jsonc defines the
+// ratelimits binding). It runs FIRST in this file, on its own fresh wrangler
+// process, so its 60-second window contains only its own
+// BOARD_CREATE_LIMIT + 1 creations — no other test can contaminate it.
+// The remaining cases get a second, separate process (fresh limiter), which
+// also keeps their creations out of TC-30's window.
+
+let rateLimitServer: WranglerProcess;
+
+test.describe('TC-30 Abuse guard', () => {
+  test.describe.configure({ timeout: 180_000 });
+
+  test.beforeAll(async () => {
+    rateLimitServer = new WranglerProcess({ testHooks: true });
+    await rateLimitServer.start();
+  });
+
+  test.afterAll(async () => {
+    await rateLimitServer.dispose();
+  });
+
+  test('BOARD_CREATE_LIMIT + 1 creations: last shows rate-limit message', async ({
+    browser,
+  }) => {
+    test.setTimeout(60_000);
+    const context = await browser.newContext({ viewport: { width: 1280, height: 800 } });
+
+    // Make BOARD_CREATE_LIMIT direct API calls (same IP as the browser)
+    const page = await context.newPage();
+    await page.goto(PERSIST_URL + '/');
+
+    for (let i = 0; i < BOARD_CREATE_LIMIT; i++) {
+      const status = await page.evaluate(() =>
+        fetch('/api/boards', { method: 'POST' }).then((r) => r.status),
+      );
+      expect(status, `API call ${i + 1}`).toBe(201);
+    }
+
+    // Now use the UI: click Create a board
+    await page.getByRole('button', { name: 'Create a board' }).click();
+
+    // The rate-limit message is shown
+    await expect(page.getByTestId('rate-limit-error')).toBeVisible({ timeout: 5000 });
+    await expect(page.getByTestId('rate-limit-error')).toContainText(
+      "You're creating boards too quickly. Wait a minute and try again.",
+    );
+
+    // Button is still enabled
+    await expect(page.getByRole('button', { name: 'Create a board' })).toBeEnabled();
+
+    await context.close();
+  });
+});
+
+// --- TC-26..TC-29, TC-31 -------------------------------------------------------
+//
+// Everything except TC-30 runs against a second wrangler process (fresh rate
+// limiter; test hooks enabled for TC-31's /__test seed route).
+
+let shareServer: WranglerProcess;
+
+test.describe('share (all cases but TC-30)', () => {
+  test.describe.configure({ timeout: 180_000 });
+
+  test.beforeAll(async () => {
+    shareServer = new WranglerProcess({ testHooks: true });
+    await shareServer.start();
+  });
+
+  test.afterAll(async () => {
+    await shareServer.dispose();
+  });
 
 // --- TC-26: Create, share, join -----------------------------------------------
 
@@ -113,7 +191,7 @@ test.describe('TC-26 Create, share, join', () => {
     expect(samNotes[0].text).toBe('Hello Sam');
 
     // Sam edits the note: click on it and type
-    const samNoteEl = samPage.locator('[data-testid^="sticky-note-"]').first();
+    const samNoteEl = samPage.locator('.vidi6-sticky').first();
     await samNoteEl.click();
     await samNoteEl.dblclick();
     await samPage.keyboard.press('End');
@@ -154,8 +232,13 @@ test.describe('TC-27 Bad link recovery', () => {
     // Click "Create a new board"
     await page.getByTestId('create-new-board-button').click();
 
-    // Wait for a new board
-    await page.waitForURL(/\/b\/[0-9a-f]{23}/, { timeout: CREATE_BUDGET_MS });
+    // Wait for a new board. The current URL already matches BOARD_PATH_RE
+    // (/b/<unknownId>), so waitForURL would resolve immediately — wait for
+    // the pathname to actually change instead.
+    await page.waitForURL(
+      (url) => !url.pathname.endsWith(unknownId),
+      { timeout: CREATE_BUDGET_MS },
+    );
     const newId = new URL(page.url()).pathname.slice(3);
     expect(newId).not.toBe(unknownId);
 
@@ -258,42 +341,6 @@ test.describe('TC-29 Clipboard blocked shows manual-copy', () => {
   });
 });
 
-// --- TC-30: Abuse guard --------------------------------------------------------
-
-test.describe('TC-30 Abuse guard', () => {
-  test('BOARD_CREATE_LIMIT + 1 creations: last shows rate-limit message', async ({
-    browser,
-  }) => {
-    test.setTimeout(60_000);
-    const context = await browser.newContext({ viewport: { width: 1280, height: 800 } });
-
-    // Make BOARD_CREATE_LIMIT direct API calls (same IP as the browser)
-    const page = await context.newPage();
-    await page.goto(PERSIST_URL + '/');
-
-    for (let i = 0; i < BOARD_CREATE_LIMIT; i++) {
-      const status = await page.evaluate(() =>
-        fetch('/api/boards', { method: 'POST' }).then((r) => r.status),
-      );
-      expect(status, `API call ${i + 1}`).toBe(201);
-    }
-
-    // Now use the UI: click Create a board
-    await page.getByRole('button', { name: 'Create a board' }).click();
-
-    // The rate-limit message is shown
-    await expect(page.getByTestId('rate-limit-error')).toBeVisible({ timeout: 5000 });
-    await expect(page.getByTestId('rate-limit-error')).toContainText(
-      "You're creating boards too quickly. Wait a minute and try again.",
-    );
-
-    // Button is still enabled
-    await expect(page.getByRole('button', { name: 'Create a board' })).toBeEnabled();
-
-    await context.close();
-  });
-});
-
 // --- TC-31: Pre-existing (legacy) board ----------------------------------------
 
 test.describe('TC-31 Pre-existing (legacy) board', () => {
@@ -324,4 +371,5 @@ test.describe('TC-31 Pre-existing (legacy) board', () => {
 
     await context.close();
   });
+});
 });

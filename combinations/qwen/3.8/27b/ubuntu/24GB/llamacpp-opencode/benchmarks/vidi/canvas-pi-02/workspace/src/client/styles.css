@@ -175,11 +175,6 @@ body {
   user-select: none;
 }
 
-.vidi6-sticky--dragging {
-  cursor: grabbing;
-  box-shadow: 0 6px 16px rgba(15, 23, 42, 0.3);
-}
-
 /* Blue selection outline. */
 .vidi6-sticky--selected {
   outline: 3px solid #3b82f6;
@@ -256,14 +251,6 @@ body {
   color: rgba(31, 36, 44, 0.65);
   pointer-events: none;
   font-variant-numeric: tabular-nums;
-}
-
-/* Floating toolbar above the selected note (unscaled into screen space). */
-.vidi6-sticky__toolbar {
-  position: absolute;
-  left: 50%;
-  top: 0;
-  transform-origin: 50% 100%;
 }
 
 .vidi6-note-toolbar {
@@ -558,4 +545,70 @@ body {
   font-size: 12px;
   color: #b45309;
   margin: 0;
+}
+
+/* --- Story 7: multi-selection, group transform ---------------------------- */
+
+/* Body cursor while a group gesture is in flight (the transform hook
+   toggles the class on document.body). */
+.vidi6-body-dragging,
+.vidi6-body-dragging * {
+  cursor: grabbing !important;
+}
+
+/* Screen-space selection chrome: bounding box + 8 resize handles.
+   Sibling of the viewport, so it sits above the world layer. */
+.vidi6-selection-overlay {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 5;
+}
+
+.vidi6-selection-box {
+  position: absolute;
+  border: 2px solid #3b82f6;
+  pointer-events: none;
+}
+
+.vidi6-handle {
+  position: absolute;
+  background: #ffffff;
+  border: 1px solid #3b82f6;
+  border-radius: 2px;
+  pointer-events: auto;
+}
+
+/* The bar anchored above the selection's bounding box (centred, above). */
+.vidi6-selection-bar-anchor {
+  position: absolute;
+  transform: translate(-50%, -100%);
+  z-index: 6;
+}
+
+.vidi6-selection-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  background: #ffffff;
+  border: 1px solid #d3d9e0;
+  border-radius: 10px;
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.18);
+  white-space: nowrap;
+}
+
+.vidi6-selection-bar__count {
+  font-size: 13px;
+  color: #4b5563;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Translucent marquee rectangle (Shift+drag on empty space). */
+.vidi6-marquee {
+  position: absolute;
+  border: 1px solid #3b82f6;
+  background: rgba(59, 130, 246, 0.12);
+  pointer-events: none;
+  z-index: 5;
 }

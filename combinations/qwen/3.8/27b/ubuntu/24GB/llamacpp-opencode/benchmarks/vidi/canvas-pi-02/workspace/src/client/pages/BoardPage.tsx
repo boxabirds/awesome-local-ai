@@ -28,7 +28,7 @@ import type { ConnectionState } from '../sync/connectBoard';
 export function canEdit(phase: ConnectionState | null): boolean {
   return phase !== 'load_failed';
 }
-import { canZoomIn, canZoomOut, zoomPercent } from '../canvas/camera';
+import { canZoomIn, canZoomOut, worldToScreen, zoomPercent } from '../canvas/camera';
 import { useCamera } from '../canvas/useCamera';
 import { BoardViewport } from '../canvas/BoardViewport';
 import { ZoomControls } from '../canvas/ZoomControls';
@@ -37,9 +37,15 @@ import { ConnectionStatus } from '../sync/ConnectionStatus';
 import { useBoardDoc } from '../board/useBoardDoc';
 import { useSelection } from '../board/useSelection';
 import { useBoardActions } from '../board/useBoardActions';
-import { useBoardKeyboard } from '../board/useBoardKeyboard';
+import { useBoardKeys } from '../board/useBoardKeys';
+import { useTransformGesture } from '../board/useTransformGesture';
+import { useMarquee, MarqueeRect } from '../board/Marquee';
+import { SelectionOverlay } from '../board/SelectionOverlay';
+import { SelectionBar } from '../board/SelectionBar';
 import { Toolbar } from '../board/Toolbar';
-import { StickyNote } from '../objects/StickyNote';
+import { getObjectType } from '../objects/registry';
+import { deleteObjects, hasObject, objectBounds } from '../../shared/board-model';
+import { unionRects } from '../../shared/geometry';
 
 type BoardPageState = 'checking' | 'ready' | 'not_found' | 'unreachable';
 
@@ -140,33 +146,84 @@ function BoardContent({ id }: { id: string }) {
 
   const api = useCamera(size);
   const { doc, notes, connectionPhase } = useBoardDoc(id);
-  const selection = useSelection();
+  const selection = useSelection(notes, (id) => hasObject(doc, id));
   const editable = canEdit(connectionPhase);
   const actions = useBoardActions({ doc, api, size, selection, editable });
-  useBoardKeyboard({ doc, selection, editable });
+  const gesture = useTransformGesture({
+    doc,
+    camera: api.camera,
+    selection,
+    snapshot: notes,
+    canEdit: editable,
+  });
+  useBoardKeys({ doc, selection, snapshot: notes, canEdit: editable });
+  const marquee = useMarquee(api.camera, notes, (ids) => selection.setMany(ids, true));
+
+  const deleteSelection = () => {
+    if (!editable) return;
+    if (deleteObjects(doc, [...selection.ids]) > 0) selection.clear();
+  };
+
+  // Bounding box of the selection (world units) → the bar's anchor (screen).
+  const selectedObjects = notes.filter((o) => selection.ids.has(o.id));
+  const box = unionRects(selectedObjects.map(objectBounds));
+  let barAnchor: { x: number; y: number } | null = null;
+  if (box !== null) {
+    const topLeft = worldToScreen(api.camera, { x: box.x, y: box.y });
+    barAnchor = { x: topLeft.x + (box.width * api.camera.zoom) / 2, y: topLeft.y - 8 };
+  }
 
   return (
     <div className="vidi6-shell" ref={shellRef}>
       <BoardViewport
         api={api}
         onCreateStickyAt={actions.createAtScreenPoint}
-        onEmptyClick={() => selection.select(null)}
+        onEmptyClick={() => selection.clear()}
+        marquee={marquee}
       >
-        {notes.map((note) => (
-          <StickyNote
-            key={note.id}
-            note={note}
-            doc={doc}
-            zoom={api.camera.zoom}
-            selected={selection.selectedId === note.id}
-            editing={selection.editingId === note.id}
-            editable={editable}
-            onSelect={selection.select}
-            onStartEdit={selection.startEdit}
-            onEndEdit={selection.endEdit}
-          />
-        ))}
+        {notes.map((note) => {
+          // Unknown object types stay in the doc untouched (no renderer yet).
+          const spec = getObjectType(note.type);
+          if (spec === undefined) return null;
+          const Component = spec.Component;
+          return (
+            <Component
+              key={note.id}
+              obj={note}
+              doc={doc}
+              zoom={api.camera.zoom}
+              selected={selection.ids.has(note.id)}
+              editing={selection.editingId === note.id}
+              editable={editable}
+              onObjectPointerDown={gesture.onObjectPointerDown}
+              onSelect={selection.click}
+              onStartEdit={selection.startEdit}
+              onEndEdit={selection.endEdit}
+            />
+          );
+        })}
       </BoardViewport>
+      <SelectionOverlay
+        ids={selection.ids}
+        snapshot={notes}
+        camera={api.camera}
+        onHandlePointerDown={gesture.onHandlePointerDown}
+      />
+      <MarqueeRect rect={marquee.rect} camera={api.camera} />
+      {barAnchor !== null && selection.editingId === null && (
+        <div
+          className="vidi6-selection-bar-anchor"
+          style={{ left: barAnchor.x, top: barAnchor.y }}
+        >
+          <SelectionBar
+            ids={selection.ids}
+            snapshot={notes}
+            doc={doc}
+            editable={editable}
+            onDelete={deleteSelection}
+          />
+        </div>
+      )}
       <Toolbar onCreateSticky={actions.createAtCentre} disabled={!editable} />
       <ConnectionStatus phase={connectionPhase} />
       <ZoomControls

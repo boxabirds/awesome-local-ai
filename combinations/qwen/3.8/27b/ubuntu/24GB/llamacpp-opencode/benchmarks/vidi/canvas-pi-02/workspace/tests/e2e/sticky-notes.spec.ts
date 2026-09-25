@@ -8,6 +8,7 @@ import {
   setCamera,
   zoomLabel,
 } from './helpers/board';
+import { createBoard } from './helpers/participants';
 
 /**
  * Story 2 e2e: capture ideas on sticky notes and rearrange them (TC-30..34
@@ -23,9 +24,24 @@ const HOME_CAMERA = { x: -640, y: -400, zoom: 1 };
 const notes = (page: Page) => page.locator('.vidi6-sticky');
 const textarea = (page: Page) => page.getByRole('textbox', { name: 'Sticky note text' });
 
-test.beforeEach(async ({ page }) => {
-  // Start every test at the same camera so all pixel math is stable.
-  await page.goto('/');
+test.beforeEach(async ({ page, request }) => {
+  // Since story 5 the app root is the landing page and a board must exist
+  // before it can be opened: create one per test, wait for the live
+  // connection, then park the camera so all pixel math is stable.
+  const boardId = await createBoard(request);
+  await page.goto(`/b/${boardId}`);
+  await expect
+    .poll(
+      () =>
+        page.evaluate(
+          () =>
+            (
+              window as unknown as { __vidi6?: { connectionState: string | null } }
+            ).__vidi6?.connectionState ?? null,
+        ),
+      { timeout: 15_000, intervals: [50], message: 'client should reach the connected state' },
+    )
+    .toBe('connected');
   await setCamera(page, HOME_CAMERA);
 });
 

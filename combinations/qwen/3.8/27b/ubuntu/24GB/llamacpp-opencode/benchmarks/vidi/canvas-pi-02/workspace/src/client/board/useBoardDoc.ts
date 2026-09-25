@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import * as Y from 'yjs';
 import { initDoc, snapshot } from '../../shared/board-model';
-import type { StickySnapshot } from '../../shared/board-model';
+import type { Snapshot } from '../../shared/board-model';
 import { installNotesHook, setConnectionState } from '../canvas/testHooks';
 import type { ConnectionState } from '../sync/connectBoard';
 import { connectBoard } from '../sync/connectBoard';
@@ -9,8 +9,8 @@ import { connectBoard } from '../sync/connectBoard';
 export interface BoardDoc {
   /** The in-memory board document (story 3 attaches the provider, story 4 persists it). */
   doc: Y.Doc;
-  /** Immutable snapshots of the sticky notes, sorted by (z, id). */
-  notes: readonly StickySnapshot[];
+  /** Immutable snapshots of the board objects, sorted by (z, id). */
+  notes: Snapshot;
   /** The live connection phase, or null in local-only mode (no board id). */
   connectionPhase: ConnectionState | null;
 }
@@ -32,7 +32,7 @@ export function useBoardDoc(boardId: string | null = null): BoardDoc {
   }
   const doc = docRef.current;
 
-  const cacheRef = useRef<{ dirty: boolean; value: readonly StickySnapshot[] } | null>(null);
+  const cacheRef = useRef<{ dirty: boolean; value: Snapshot } | null>(null);
   if (cacheRef.current === null) {
     cacheRef.current = { dirty: false, value: snapshot(doc) };
   }
@@ -51,7 +51,7 @@ export function useBoardDoc(boardId: string | null = null): BoardDoc {
     [doc],
   );
 
-  const getSnapshot = useCallback((): readonly StickySnapshot[] => {
+  const getSnapshot = useCallback((): Snapshot => {
     const cache = cacheRef.current!;
     if (cache.dirty) {
       cache.value = snapshot(doc);

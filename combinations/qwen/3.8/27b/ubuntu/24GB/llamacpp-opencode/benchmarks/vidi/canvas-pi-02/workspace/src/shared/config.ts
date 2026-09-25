@@ -114,3 +114,20 @@ export const LINK_COPIED_MS = 2000;
 
 /** Base backoff for board existence check retries (doubles each attempt). */
 export const BOARD_CHECK_RETRY_BASE_MS = 1000;
+
+// --- Multi-select, group move / resize / nudge / delete (story 7) ----------
+
+/** Small keyboard nudge step, world units (Arrow keys). */
+export const NUDGE_STEP_WORLD = 1;
+
+/** Large keyboard nudge step, world units (Shift+Arrow). */
+export const NUDGE_LARGE_STEP_WORLD = 10;
+
+/** A note resized by a group gesture never shrinks below this (world units). */
+export const STICKY_MIN_SIZE_WORLD = 50;
+
+/** Group resize never grows any object above this (world units). */
+export const MAX_OBJECT_SIZE_WORLD = 20_000;
+
+/** Screen-space size of a resize handle (its world-space size is `1 / zoom`). */
+export const HANDLE_SIZE_PX = 8;
