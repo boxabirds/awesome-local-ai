@@ -275,6 +275,7 @@ Three extension points, each one file with a small documented contract:
   be re-derived rather than taken on trust. Results are stored with the
   combination they were measured on.
 - **[tools/dbench/](tools/dbench/)**: runs a benchmark harness remotely, on any number of machines, driven from any machine. `dbench serve` goes on each benchmark box; the client, from anywhere, submits, watches, cancels and reads events. Each node carries on by itself (restarts, recovery after reboot), and results arrive through git. The design is in [docs/20260924-distributed-bench-design.md](docs/20260924-distributed-bench-design.md).
+- **[benchmarks/vidi/](benchmarks/vidi/)**: the Vidi build benchmark: a coding setup builds a real spec story by story, scored by a **held-out** suite. The spec and held-out suite are in a **private** repo; ask the owner for access to run it on your own hardware (a 3090, a DGX and so on). Details are in its README.
 - **[samples/](samples/)** — a 3D game written end-to-end by the local model
   through OpenCode, in thinking and non-thinking variants. A worked example of
   what this setup produces, not maintained software.
