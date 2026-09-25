@@ -6,7 +6,7 @@ from pathlib import Path
 import packdir
 
 SCRIPT = Path(__file__).parent / "check-browser.sh"
-ACCEPTANCE = packdir.resolve(Path(__file__).parent.parent) / "acceptance"
+ACCEPTANCE = packdir.resolve("vidi") / "acceptance"  # the one pack with a held-out suite
 
 
 def run(env_extra: dict) -> subprocess.CompletedProcess:
