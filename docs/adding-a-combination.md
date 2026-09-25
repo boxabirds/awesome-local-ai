@@ -1,7 +1,7 @@
 # Adding a combination
 
 A *combination* is one tested pairing of **model family / version / size / OS /
-memory budget / stack**. This document is the contract: follow it and a new
+machine / stack**. This document is the contract: follow it and a new
 combination costs a config file, a profile table and a help file — no new shell
 logic.
 
@@ -30,7 +30,7 @@ lib/                                  ALL the logic, shared by every combination
   clients/pi.sh                       client adapter       (CLIENT=pi)
   runtime/server-<backend>.sh         launcher, installed as local-ai-<backend>-server
   runtime/session.sh                  generic lifecycle mgr, installed as local-ai-session
-combinations/<family>/<version>/<size>/<os>/<memory>/<stack>/
+combinations/<family>/<version>/<size>/<os>/<machine>/<stack>/
   config.sh                           DATA ONLY
   profiles.tsv                        the measured profile table
   help.txt                            prose for `--help`
@@ -45,7 +45,7 @@ The **path segments** are, in order:
 | version | family version | `3.8`, `4`, `3` |
 | size | parameter count, or a variant name when there is no clean size | `27b`, `8b`, `flash-next` |
 | os | operating system, lowercase | `ubuntu`, `macos` |
-| memory | the memory budget that constrains the model — VRAM on a discrete GPU, unified memory on Apple silicon | `24GB`, `64GB`, `128GB` |
+| machine | the hardware the combination was **measured on**: a device name when it comes in one memory size, `<accel>-<memory>` when it comes in several, or (legacy) memory alone | `nvidia4090`, `strix-halo-128GB`, `64GB` |
 | stack | inference backend + client, hyphenated | `llamacpp-opencode`, `mtplx-opencode` |
 
 The root script's filename is those segments joined with `-`:
@@ -54,6 +54,18 @@ The root script's filename is those segments joined with `-`:
 combinations/qwen/3.8/27b/ubuntu/24GB/llamacpp-opencode/
         ->  install-qwen-3.8-27b-ubuntu-24GB-llamacpp-opencode.sh
 ```
+
+The machine segment records where the numbers came from, not the only machine
+allowed to run them. `lib/select.sh` reads it as an accelerator **family** plus
+a memory tier — `nvidia4090` is `cuda` with 24 GB, `strix-halo-128GB` is
+`strix-halo` with 128 GB — so a 3090 is offered the `nvidia4090` combination,
+and the accelerator adapter is what says the exact device was not measured. A
+device with one memory size needs a line in `_fixed_device_mib` in
+`lib/select.sh`; a new accelerator family needs a line in `_accel_family` and a
+host probe in `_detect_linux`. Which exact box (vendor, power profile, BIOS) a
+number came from is metadata in the combination's `config.sh` and benchmarks,
+not a path segment: machines sharing a chip and memory size share a
+combination.
 
 Not every combination needs every segment to be distinct — a model that has one
 size only still gets a size directory, so the tree stays uniform and scriptable.
