@@ -1,3 +1,52 @@
+commit 2212240acf6a2351f34c45e27ab06e4d372a1ea2
+vidi-agent  Fri Sep 25 11:59:39 2026 +0100
+
+    story 12: Drop images onto the board
+
+
+ NOTES.md                                      |  84 +++++++
+ src/client/App.tsx                            |  81 +++++--
+ src/client/board/Toolbar.tsx                  |  16 +-
+ src/client/board/useBoardKeys.ts              |   8 +-
+ src/client/canvas/BoardViewport.tsx           |  12 +
+ src/client/images/DropHighlight.tsx           |   5 +
+ src/client/images/uploadImage.ts              |  49 +++++
+ src/client/images/useImageInsert.ts           | 301 ++++++++++++++++++++++++++
+ src/client/images/validateFiles.ts            |  32 +++
+ src/client/objects/ImageObject.tsx            | 223 +++++++++++++++++++
+ src/client/objects/registry.tsx               |  32 +++
+ src/client/styles.css                         | 128 +++++++++++
+ src/client/tools/useActiveTool.ts             |  15 +-
+ src/client/ui/Toast.tsx                       |  55 +++++
+ src/shared/config.ts                          |  28 +++
+ src/shared/image-format.ts                    |  50 +++++
+ src/shared/objects/image.ts                   | 208 ++++++++++++++++++
+ src/worker/assets.ts                          |  67 ++++++
+ src/worker/index.ts                           |  22 ++
+ tests/component/ImageObject.test.tsx          | 217 +++++++++++++++++++
+ tests/component/imageHelpers.tsx              | 102 +++++++++
+ tests/component/useActiveTool.test.tsx        |   3 +-
+ tests/component/useImageInsert.test.tsx       | 222 +++++++++++++++++++
+ tests/e2e/connectors.spec.ts                  |   6 +-
+ tests/e2e/helpers/drop-files.ts               |  54 +++++
+ tests/e2e/images.spec.ts                      | 247 +++++++++++++++++++++
+ tests/fixtures/image-bytes.ts                 |  44 ++++
+ tests/fixtures/images/animated.gif            | Bin 0 -> 624 bytes
+ tests/fixtures/images/document-renamed.png    |   4 +
+ tests/fixtures/images/photo-4032x3024.jpg     | Bin 0 -> 775959 bytes
+ tests/fixtures/images/screenshot-1440x900.png | Bin 0 -> 42382 bytes
+ tests/fixtures/images/script.svg              |   1 +
+ tests/fixtures/images/sketch-640x480.webp     | Bin 0 -> 1768 bytes
+ tests/fixtures/images/small-400x300.png       | Bin 0 -> 339 bytes
+ tests/fixtures/images/tiny-64x48.jpg          | Bin 0 -> 304 bytes
+ tests/fixtures/images/truncated.png           | Bin 0 -> 200 bytes
+ tests/integration/assets.test.ts              | 164 ++++++++++++++
+ tests/unit/create-board.test.ts               |  20 +-
+ tests/unit/image-format.test.ts               |  68 ++++++
+ tests/unit/image-model.test.ts                | 154 +++++++++++++
+ tests/unit/validate-files.test.ts             |  57 +++++
+ wrangler.jsonc                                |   7 +-
+ 42 files changed, 2759 insertions(+), 27 deletions(-)
 commit 0e45b793baaa041ff25f59a6b57ebe79c6f51a50
 vidi-agent  Fri Sep 25 11:39:52 2026 +0100
 
