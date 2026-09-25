@@ -26,10 +26,12 @@ export interface SelectionBarProps {
   editable: boolean;
   /** Remove every selected object (and clear the selection). */
   onDelete: () => void;
+  /** Step boundary (story 8): brackets the single-sticky colour write. */
+  boundary?: () => void;
 }
 
 export function SelectionBar(props: SelectionBarProps): JSX.Element | null {
-  const { ids, snapshot, doc, editable, onDelete } = props;
+  const { ids, snapshot, doc, editable, onDelete, boundary } = props;
   if (ids.size === 0) return null;
 
   const selected = snapshot.filter((o) => ids.has(o.id));
@@ -43,7 +45,11 @@ export function SelectionBar(props: SelectionBarProps): JSX.Element | null {
         color={(note.color as StickyColor) ?? DEFAULT_STICKY_COLOR}
         disabled={!editable}
         onColor={(c) => {
-          if (editable) setStickyColor(doc, note.id, c);
+          if (!editable) return;
+          // Each swatch click is one undo step (story 8).
+          boundary?.();
+          setStickyColor(doc, note.id, c);
+          boundary?.();
         }}
         onDelete={() => {
           if (editable) onDelete();

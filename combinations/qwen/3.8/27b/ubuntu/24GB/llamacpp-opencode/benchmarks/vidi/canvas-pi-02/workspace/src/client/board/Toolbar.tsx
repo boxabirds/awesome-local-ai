@@ -1,10 +1,14 @@
 import type { JSX } from 'react';
+import { UndoButtons } from './UndoButtons';
+import type { UndoState } from './useUndo';
 
 export interface ToolbarProps {
   /** Create a sticky note centred in the visible board area, in edit mode. */
   onCreateSticky(): void;
   /** persist.client_status: disabled while the board is locked. */
   disabled?: boolean;
+  /** Undo / redo state (story 8); renders the UndoButtons below the tools. */
+  undo?: UndoState;
 }
 
 const STOP = (e: { stopPropagation(): void }): void => {
@@ -47,6 +51,7 @@ export function Toolbar(props: ToolbarProps): JSX.Element {
           <path d="M12.5 16.5v-4h4" fill="#FFF59D" stroke="#B9A83C" strokeWidth="1.2" strokeLinejoin="round" />
         </svg>
       </button>
+      {props.undo !== undefined && <UndoButtons {...props.undo} />}
     </div>
   );
 }

@@ -271,3 +271,51 @@ cache is ever reinstalled, repeat the copy: `libavif13_0.9.3-3`,
 9. **`seed-legacy` test hook.** Added to `test-hooks.ts` and `board-room.ts`.
    Creates the schema and inserts a dummy update without setting `created_at`,
    simulating a pre-story-5 board. Used by TC-15 (legacy board detection).
+
+# Story 8 — Undo and redo my own changes without undoing anyone else's: implementation notes
+
+## Deviations from the spec's literal text
+
+1. **The undo controller is owned by `BoardPage` (the board content), not `App`.**
+   The design sketch places it in `App`, but `App` is only the router; the
+   live `Y.Doc` is owned by the board content. The controller is created there
+   from the connected doc and destroyed on board navigation.
+
+2. **`BoardContent` is keyed by board id (`key={boardId}`).** Navigating between
+   boards unmounts/remounts the content, giving each board a fresh doc and a
+   fresh undo controller (per-board undo, as the PRD requires).
+
+3. **`undo()`/`redo()` always emit a change.** When the target of an undo has
+   already been deleted by a colleague, Yjs's `UndoManager` silently drains the
+   no-op stack items without firing `stack-item-popped` (its pop loop only
+   reports items that actually changed the doc). The controller still emits
+   after every `undo()`/`redo()` so the buttons' `canUndo`/`canRedo` stay in
+   sync with the (possibly fully drained) stack.
+
+4. **Every local write is bracketed with `boundary()` in the wiring** (create,
+   nudge, delete, colour, editor open/close), mirroring the design's "one undo
+   step per user action" and preventing the 500ms capture window from merging
+   distinct actions into one step.
+
+5. **The sticky text editor owns its own keyboard shortcuts.** Ctrl+Z / Ctrl+Shift+Z /
+   Ctrl+Y are intercepted inside the editor (preventing the browser's native text
+   undo from diverging from the board undo) and routed to the same controller.
+
+## Test-harness notes
+
+- **`TestPeer` does a full-state exchange on construction** (like a y-websocket
+  join). Yjs incremental updates are rejected by a doc that has not seen the
+  sender's clock-0 baseline ("missing earlier structs"), so each replica must
+  hold the other's initial state before any incremental update flows.
+- **Unit tests that rely on `vi.mock('lib0/time')` need `server.deps.inline`**
+  for `yjs`/`lib0` in the vitest unit project, otherwise Vitest externalises
+  the module and the mock never applies.
+- **TC-08 writes its seeded text with `LOCAL_ORIGIN`** so `TestPeer` relays it
+  to the peer. A null-origin write would never reach the peer replica, making
+  the peer's concurrent insert land at the same position as the local text and
+  leaving the merged order dependent on the (random) client ids — a flaky
+  assertion.
+- **`tests/e2e/helpers/seed-board.ts`** was refactored to expose `seedDoc(url,
+  doc)`, `roomUrl(port, boardId)`, `mainRoomUrl(boardId)` and `MAIN_E2E_PORT`
+  so the undo e2e suite can seed the shared `wrangler dev` server (port 8787)
+  directly instead of the persist suite's port.

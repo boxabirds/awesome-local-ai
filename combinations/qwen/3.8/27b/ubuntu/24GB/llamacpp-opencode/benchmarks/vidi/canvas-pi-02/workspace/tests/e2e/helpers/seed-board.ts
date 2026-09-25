@@ -22,18 +22,33 @@ import { PERSIST_PORT } from './wrangler-process';
  * produced the board. The board is a fresh Yjs doc built in Node, so the
  * bytes are real Yjs updates (design: "Fixtures").
  */
-export async function seedBoard(
-  boardId: string,
-  count: number,
+/** The shared e2e webServer port (playwright.config.ts) — undo.spec.ts seeds
+ *  boards there, not on the persist process. */
+export const MAIN_E2E_PORT = 8787;
+
+const roomUrl = (port: number, boardId: string): string =>
+  `ws://127.0.0.1:${port}/api/rooms/${boardId}`;
+
+/** Room URL on the shared e2e webServer (undo.spec.ts). */
+export const mainRoomUrl = (boardId: string): string => roomUrl(MAIN_E2E_PORT, boardId);
+
+/**
+ * Seed a room with an arbitrary Y.Doc's full state (one Step2 update), over a
+ * real WebSocket on the given port. Resolves once the Step2 has been sent and
+ * the room a moment to append it.
+ */
+export async function seedDoc(
+  url: string,
+  doc: Y.Doc,
   timeoutMs = 90_000,
+  label = 'board',
 ): Promise<void> {
-  const fixture = buildNoteBoard(boardId, count);
   await new Promise<void>((resolve, reject) => {
     const timer = setTimeout(
-      () => reject(new Error(`seeding ${count} notes timed out after ${timeoutMs}ms`)),
+      () => reject(new Error(`seeding ${label} timed out after ${timeoutMs}ms`)),
       timeoutMs,
     );
-    const ws = new WebSocket(`ws://127.0.0.1:${PERSIST_PORT}/api/rooms/${boardId}`);
+    const ws = new WebSocket(url);
     ws.binaryType = 'arraybuffer';
     const done = (): void => {
       clearTimeout(timer);
@@ -48,7 +63,7 @@ export async function seedBoard(
       // We hold the whole board; announce our state vector.
       const enc = createEncoder();
       writeVarUint(enc, MESSAGE_SYNC);
-      syncProtocol.writeSyncStep1(enc, fixture.doc);
+      syncProtocol.writeSyncStep1(enc, doc);
       ws.send(toUint8Array(enc));
     };
     ws.onmessage = (event) => {
@@ -63,7 +78,7 @@ export async function seedBoard(
           serverSv.length > 0 ? serverSv : Y.encodeStateVector(new Y.Doc());
         const enc = createEncoder();
         writeVarUint(enc, MESSAGE_SYNC);
-        syncProtocol.writeSyncStep2(enc, fixture.doc, sv);
+        syncProtocol.writeSyncStep2(enc, doc, sv);
         ws.send(toUint8Array(enc));
         // That Step2 carried the entire board (the room was empty). Give
         // the room's append a moment to land, then leave like any client
@@ -72,7 +87,7 @@ export async function seedBoard(
       } else if (syncType === SYNC_STEP2 || syncType === SYNC_UPDATE) {
         // The room's own state (empty on a fresh board) or a relay.
         const update = readVarUint8Array(decoder);
-        if (update.length > 0) Y.applyUpdate(fixture.doc, update, 'room');
+        if (update.length > 0) Y.applyUpdate(doc, update, 'room');
       }
     };
     ws.onerror = () => {
@@ -80,6 +95,15 @@ export async function seedBoard(
       reject(new Error('seed WebSocket error'));
     };
   });
+}
+
+export async function seedBoard(
+  boardId: string,
+  count: number,
+  timeoutMs = 90_000,
+): Promise<void> {
+  const fixture = buildNoteBoard(boardId, count);
+  return seedDoc(roomUrl(PERSIST_PORT, boardId), fixture.doc, timeoutMs, `${count} notes`);
 }
 
 /**

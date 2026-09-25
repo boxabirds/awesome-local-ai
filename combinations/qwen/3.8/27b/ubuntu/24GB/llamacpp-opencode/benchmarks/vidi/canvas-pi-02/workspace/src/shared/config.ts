@@ -131,3 +131,11 @@ export const MAX_OBJECT_SIZE_WORLD = 20_000;
 
 /** Screen-space size of a resize handle (its world-space size is `1 / zoom`). */
 export const HANDLE_SIZE_PX = 8;
+
+// --- Per-user undo / redo (story 8) -----------------------------------------
+
+/** Typing pause (ms) that ends a burst: own keystrokes closer together merge into one undo step. */
+export const UNDO_CAPTURE_TIMEOUT_MS = 500;
+
+/** Undo steps kept per user; the oldest step is dropped beyond this (undo.limit). */
+export const UNDO_MAX_STEPS = 200;
