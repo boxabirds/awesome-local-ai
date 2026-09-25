@@ -2,8 +2,9 @@
 # combinations/qwen/3.8/flash-next/ubuntu/strix-halo-128GB/llamacpp-opencode/config.sh
 #
 # Qwen3.8-Flash-Next (125B total, ~6B active, qwen4exp architecture) on a
-# 128GB AMD Strix Halo machine under Ubuntu 26.04, served by upstream
-# llama.cpp on Vulkan (RADV), driven by OpenCode.
+# 128GB AMD Strix Halo machine under Ubuntu 26.04, served by llama.cpp with
+# the qwen4exp MTP draft head (PR #28243) on Vulkan (RADV) or ROCm, driven by
+# OpenCode.
 #
 # This file is DATA. All the logic lives in lib/ (lib/accel/strix-halo.sh,
 # lib/llamacpp.sh, lib/runtime/server-llamacpp.sh).
@@ -35,7 +36,7 @@ TESTED_ON=""
 # ---- platform -------------------------------------------------------------
 TARGET_OS="ubuntu"
 TARGET_OS_VERSION="26.04"                 # kernel 7.0: gfx1151 fixes and RTL8127 10GbE in-tree
-ACCEL="strix-halo"                        # -> lib/accel/strix-halo.sh (GPU_API=vulkan by default)
+ACCEL="strix-halo"                        # -> lib/accel/strix-halo.sh (GPU_API=vulkan or rocm)
 BACKEND="llamacpp"                        # -> lib/llamacpp.sh
 CLIENT="${CLIENT:-opencode}"
 
@@ -49,14 +50,23 @@ SYSTEM_PACKAGES=(build-essential git curl wget cmake ninja-build libcurl4-openss
 # What the GPU must be able to address (GTT). ESTIMATE: the default profile's
 # need_mib plus room for the compute graph to grow. A stock kernel offers
 # about half of RAM (~62 GB here); amd-ttm --set 120 gives 122,880 MiB.
-MIN_DEVICE_MEM_MIB=102400
+MIN_DEVICE_MEM_MIB=105472
 STRIX_HALO_GTT_TARGET_GIB=120             # what the refusal tells you to set
 MIN_OS_RESERVE_MIB=6144                   # warn if the GPU may take more than RAM minus this
 MIN_KERNEL_VERSION="6.18.4"
 
-# qwen4exp support landed upstream in PR #27742 (merged 2026-08-27). A binary
-# older than that cannot load the model at all.
-MIN_LLAMA_COMMIT_DATE="2026-08-27"
+# The MTP draft head is most of this model's speed on this chip: 17 tok/s
+# without it, 32-61 with it (drluoto, same chip, a fork). Upstream llama.cpp
+# cannot load a qwen4exp MTP head yet; PR #28243 does, and its branch is
+# Unsloth's, who publish the weights below. It floats on that branch until
+# the PR merges; then point this back at upstream master. lib/verify.sh's
+# rollback returns to the last verified commit of this branch.
+LLAMA_REPO_URL="https://github.com/danielhanchen/llama.cpp.git"
+LLAMA_BRANCH="qwen4exp/mtp"
+
+# qwen4exp itself landed in #27742 (2026-08-27), but ROCm on gfx1151 gave
+# wrong logits for prompts longer than the ubatch until #28604 (2026-09-08).
+MIN_LLAMA_COMMIT_DATE="2026-09-08"
 
 # ---- weights --------------------------------------------------------------
 # Unsloth's dynamic quants. Sizes are the Hub's own byte counts, read
@@ -86,13 +96,25 @@ ${_R}|${_F}-00004-of-00004.gguf|shard|12.09 GB
 " ;;
   *) err "QUANT=${QUANT} is not one this combination lists (UD-IQ4_XS, UD-Q4_K_XL)." ;;
 esac
+# The MTP draft head, as a separate file (Unsloth's MTP/README.md is the
+# source for what follows). "shared" heads borrow the target's embedding and
+# output projection, saving ~1.3 GB, and draft identically to the
+# self-contained ones; PR #28243 loads them. shared-Q8_0 is Unsloth's pick
+# and the fastest of their set; shared-Q4_K_M is 1.91 GB at ~2 points less
+# acceptance. At startup a shared head logs one "borrow_shared_tensor" error
+# from the memory fit, then works; that line is expected.
+MTP_QUANT="${MTP_QUANT:-shared-Q8_0}"
+case "$MTP_QUANT" in
+  shared-Q8_0)   _M="2.79 GB" ;;
+  shared-Q4_K_M) _M="1.91 GB" ;;
+  *) err "MTP_QUANT=${MTP_QUANT} is not one this combination lists (shared-Q8_0, shared-Q4_K_M)." ;;
+esac
+MODEL_ASSETS="${MODEL_ASSETS}${_R}|MTP/mtp-Qwen3.8-Flash-Next-${MTP_QUANT}.gguf|mtp|${_M}
+"
 # Vision projector. Optional: a failed download disables the vision profile.
-# NOTE: no `mtp` asset, deliberately. The repo ships MTP heads, but upstream
-# llama.cpp cannot load a qwen4exp MTP head yet (PRs #27836 and #28243 are
-# open drafts) and fails at startup if handed one. Add it back when they merge.
 MODEL_ASSETS="${MODEL_ASSETS}${_R}|mmproj-F16.gguf|mmproj|904.0 MB
 "
-unset _R _F
+unset _R _F _M
 
 # ---- serving --------------------------------------------------------------
 MODEL_ALIAS_DEFAULT="qwen3.8-flash-next"  # stable id advertised at /v1/models
@@ -115,8 +137,9 @@ REASONING_EFFORTS="default low medium high xhigh"
 
 IMAGE_MIN_TOKENS=1024
 
-# -b 2048 with -ub 512 (the profile column). A larger -ub wins llama-bench's
-# prefill chart but has been measured to halve real decode on this model.
+# -b 2048 with -ub 512 (the profile column). UNVERIFIED: a larger -ub has been
+# reported to win llama-bench's prefill chart and halve real decode, but
+# drluoto's measured stack runs -ub 2048. benchmarks/ settles it.
 LLAMA_BATCH=2048
 
 # --no-mmap: page-cache mapping of a 94 GB file on unified memory is slow to
@@ -125,11 +148,15 @@ LLAMA_BATCH=2048
 # re-reads its whole prompt.
 LLAMA_EXTRA_ARGS="--no-mmap --ctx-checkpoints 8"
 
-# No MTP upstream, so draft from the context instead: free, and a large win on
-# the file rewrites agents do. 64/24 is the setting reported not to regress
-# prose. The launcher probes for the flags and starts without them if the
-# build is too old. SPEC_NGRAM=0 turns it off for an A/B.
-SPEC_NGRAM_ARGS="--spec-type ngram-mod --spec-ngram-mod-n-max 64 --spec-ngram-mod-n-match 24"
+# MTP: draft 3 tokens a step and keep every one the head proposes (p-min 0),
+# the setting drluoto measured on this chip with his own head. Unsloth's
+# default for their heads is 2; A/B both. MTP is a win for one request at a
+# time and was measured a net loss (0.81-0.87x) at 8 concurrent, so the
+# agents profile needs its own check. No n-gram fallback: on this chip each
+# n-gram verification costs 230-480 ms and it lost on everything but prose
+# (drluoto).
+SPEC_DRAFT_N_MAX=3
+SPEC_DRAFT_P_MIN=0.0
 
 # A 94 GB load takes minutes, not seconds. ESTIMATES until measured: give the
 # first load and the smoke test room, and do not throw the weights away after
@@ -165,7 +192,9 @@ combination_performance() {
 NOT MEASURED BY THIS REPO YET. Published community figures, other Strix Halo
 boxes, not this installer:
   Decode, UD-IQ4_XS, no speculation     ~17 tok/s at 8k, ~15 at 24k   (drluoto)
-  Decode, Vulkan fork with MTP draft    ~30 prose .. ~58 file rewrite  (drluoto)
+  Decode, Vulkan fork with MTP draft    ~32 prose .. ~56 file rewrite at 8k,
+                                        ~38..49 at 32k                 (drluoto)
+  This install uses PR #28243's MTP, not drluoto's fork: unmeasured.
   Prefill, UD-IQ4_XS                    ~340 tok/s empty, ~200 at 24k  (drluoto)
   Load, --no-mmap                       minutes; measure it here
 Measure: benchmarks/README.md in this combination.
@@ -179,5 +208,7 @@ Very slow first load      expected: 94 GB from disk. Check it once, then idle st
 Slow decode               pin the GPU clock: echo high | sudo tee .../power_dpm_force_performance_level
 Tool calls go wrong       KV must be f16; do not quantise it on this model
 Server will not start     'unknown model architecture qwen4exp' = llama.cpp too old; re-run
+DeviceLostError mid-run   set amdgpu.lockup_timeout; qualification prints the line
+No draft acceptance line  the MTP head did not load; check the server log for -md
 TXT
 }

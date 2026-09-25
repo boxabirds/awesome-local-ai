@@ -31,12 +31,13 @@ fake_gpu() { # gtt_total_mib vram_total_mib
   printf 'MemTotal:       %s kB\nMemAvailable:   %s kB\n' \
     $(( (FAKE_RAM_MIB - 512) * 1024 )) $(( FAKE_AVAIL_MIB * 1024 )) > "$SCRATCH/meminfo"
 }
+printf 'BOOT_IMAGE=/vmlinuz root=/dev/mapper/ubuntu--vg-ubuntu--lv ro\n' > "$SCRATCH/cmdline"
 FAKE_RAM_MIB=131072
 FAKE_AVAIL_MIB=100000
 
 # Run adapter functions in a clean shell with the combination's config.
 adapter() {
-  SYSFS_PCI="$SCRATCH/pci" SYSFS_TTM="$SCRATCH/ttm" SYSFS_DMI="$SCRATCH/dmi" PROC_MEMINFO="$SCRATCH/meminfo" bash -c '
+  SYSFS_PCI="$SCRATCH/pci" SYSFS_TTM="$SCRATCH/ttm" SYSFS_DMI="$SCRATCH/dmi" PROC_MEMINFO="$SCRATCH/meminfo" PROC_CMDLINE="$SCRATCH/cmdline" bash -c '
     set -uo pipefail
     REPO_ROOT="'"$REPO_ROOT"'"; LOG_FILE=/dev/null
     . "$REPO_ROOT/lib/common.sh"
@@ -80,6 +81,16 @@ assert_eq "free memory is GTT headroom, bounded by MemAvailable" "ok" \
   "$(adapter 'read -r used free < <(accel_report_mem); avail='"$FAKE_AVAIL_MIB"'; want=$(( 122880 - 2048 )); (( avail < want )) && want=$avail; [[ "$used" == 2148 && "$free" == "$want" ]] && echo ok || echo "used=$used free=$free want=$want"')"
 
 echo
+echo "the 2-second GPU watchdog is reported"
+out="$(adapter '_sh_qualify_lockup_timeout' 2>&1)"
+assert_ok "a stock kernel command line is warned about" grep -q 'amdgpu.lockup_timeout is not set' <<< "$out"
+assert_ok "...with the parameter to add"   grep -q 'amdgpu.lockup_timeout=10000,60000,10000,10000' <<< "$out"
+printf 'ro quiet amdgpu.lockup_timeout=10000,60000,10000,10000\n' > "$SCRATCH/cmdline"
+out="$(adapter '_sh_qualify_lockup_timeout' 2>&1)"
+assert_ok "a set parameter passes"         grep -q 'lockup_timeout is set' <<< "$out"
+printf 'BOOT_IMAGE=/vmlinuz ro\n' > "$SCRATCH/cmdline"
+
+echo
 echo "the machine is named against TESTED_ON"
 mkdir -p "$SCRATCH/dmi"
 printf 'Micro Computer (HK) Tech Limited\n' > "$SCRATCH/dmi/sys_vendor"
@@ -95,12 +106,20 @@ assert_eq "nothing is claimed while TESTED_ON is empty" "" "$out"
 echo
 echo "the combination's config"
 cfg() { bash -c 'LOG_FILE=/dev/null; . "'"$REPO_ROOT"'/lib/common.sh"; '"${2:-}"' . "'"$REPO_ROOT"'/combinations/'"$COMBO"'/config.sh"; '"$1"; }
-assert_eq "three IQ4_XS shards and a projector" "model shard shard mmproj" \
+assert_eq "three IQ4_XS shards, an MTP head and a projector" "model shard shard mtp mmproj" \
   "$(cfg 'printf "%s\n" "$MODEL_ASSETS" | awk -F"|" "NF==4 {printf \"%s%s\", s, \$3; s=\" \"}"')"
 assert_eq "shards keep the repo's subdirectory" "UD-IQ4_XS/Qwen3.8-Flash-Next-UD-IQ4_XS-00001-of-00003.gguf" \
   "$(cfg 'printf "%s\n" "$MODEL_ASSETS" | awk -F"|" "\$3==\"model\" {print \$2}"')"
-assert_eq "no MTP head: upstream cannot load a qwen4exp one yet" "0" \
-  "$(cfg 'printf "%s\n" "$MODEL_ASSETS" | grep -c "|mtp|"')"
+assert_eq "the MTP head is Unsloth's shared-Q8_0, from MTP/" "MTP/mtp-Qwen3.8-Flash-Next-shared-Q8_0.gguf" \
+  "$(cfg 'printf "%s\n" "$MODEL_ASSETS" | awk -F"|" "\$3==\"mtp\" {print \$2}"')"
+assert_eq "MTP_QUANT=shared-Q4_K_M swaps it" "MTP/mtp-Qwen3.8-Flash-Next-shared-Q4_K_M.gguf" \
+  "$(cfg 'printf "%s\n" "$MODEL_ASSETS" | awk -F"|" "\$3==\"mtp\" {print \$2}"' 'MTP_QUANT=shared-Q4_K_M;')"
+assert_fails "an unlisted MTP_QUANT is refused" cfg 'true' 'MTP_QUANT=BF16;'
+assert_eq "llama.cpp is the MTP PR's branch" "https://github.com/danielhanchen/llama.cpp.git qwen4exp/mtp" \
+  "$(cfg 'echo "$LLAMA_REPO_URL $LLAMA_BRANCH"')"
+assert_eq "...no older than the ROCm gfx1151 logits fix" "2026-09-08" "$(cfg 'echo "$MIN_LLAMA_COMMIT_DATE"')"
+assert_eq "draft depth 3, p-min 0"          "3 0.0" "$(cfg 'echo "$SPEC_DRAFT_N_MAX $SPEC_DRAFT_P_MIN"')"
+assert_eq "no n-gram speculation by default" "" "$(cfg 'echo "$SPEC_NGRAM_ARGS"')"
 assert_eq "QUANT=UD-Q4_K_XL has four shards" "4" \
   "$(cfg 'printf "%s\n" "$MODEL_ASSETS" | grep -c "UD-Q4_K_XL-0000"' 'QUANT=UD-Q4_K_XL;')"
 assert_fails "an unlisted QUANT is refused" cfg 'true' 'QUANT=UD-Q2_K_XL;'
@@ -114,7 +133,8 @@ while IFS='|' read -r repo file role size; do
   [[ -n "${repo// }" ]] || continue
   bytes="$(case "$file" in
     *00001-of-00003*) echo 10946624 ;; *00002-of-00003*) echo 49835229856 ;;
-    *00003-of-00003*) echo 43836407744 ;; mmproj-F16.gguf) echo 904004000 ;; esac)"
+    *00003-of-00003*) echo 43836407744 ;; mmproj-F16.gguf) echo 904004000 ;;
+    *shared-Q8_0.gguf) echo 2786568256 ;; esac)"
   truncate -s "$bytes" "$SCRATCH/asset"
   assert_ok "declared size '$size' accepts the Hub's $bytes bytes ($role)" bash -c '
     LOG_FILE=/dev/null; . "'"$REPO_ROOT"'/lib/common.sh"; . "'"$REPO_ROOT"'/lib/model.sh"
@@ -131,8 +151,9 @@ assert_eq "outside MODEL_DIR stays a basename" "pack"                           
 echo
 echo "the runtime launcher, against a llama-server that echoes its argv"
 FH="$SCRATCH/home"; R="$FH/.local/share/qwen38-flash-next-strix"
-mkdir -p "$R/models/Qwen3.8-Flash-Next-GGUF/UD-IQ4_XS" "$R/llama.cpp/build/bin" "$FH/.local/bin"
+mkdir -p "$R/models/Qwen3.8-Flash-Next-GGUF/UD-IQ4_XS" "$R/models/Qwen3.8-Flash-Next-GGUF/MTP" "$R/llama.cpp/build/bin" "$FH/.local/bin"
 : > "$R/models/Qwen3.8-Flash-Next-GGUF/UD-IQ4_XS/Qwen3.8-Flash-Next-UD-IQ4_XS-00001-of-00003.gguf"
+: > "$R/models/Qwen3.8-Flash-Next-GGUF/MTP/mtp-Qwen3.8-Flash-Next-shared-Q8_0.gguf"
 cp "$REPO_ROOT/combinations/$COMBO/profiles.tsv" "$REPO_ROOT/combinations/$COMBO/help.txt" "$R/"
 fake_server() { # help text to advertise
   cat > "$R/llama.cpp/build/bin/llama-server" <<EOF
@@ -145,10 +166,10 @@ EOF
 bash -c 'LOG_FILE=/dev/null; . "'"$REPO_ROOT"'/lib/common.sh"; . "'"$REPO_ROOT"'/combinations/'"$COMBO"'/config.sh"
 cat <<EOF
 INSTALL_ID="$INSTALL_ID"; DISPLAY_NAME="$DISPLAY_NAME"; BACKEND="$BACKEND"; ACCEL="$ACCEL"; ROOT_ENV_VAR="$ROOT_ENV_VAR"
-MODEL_SUBDIR="$MODEL_SUBDIR"; MODEL_FILE="UD-IQ4_XS/Qwen3.8-Flash-Next-UD-IQ4_XS-00001-of-00003.gguf"; MMPROJ_FILE=""; MTP_FILE=""
+MODEL_SUBDIR="$MODEL_SUBDIR"; MODEL_FILE="UD-IQ4_XS/Qwen3.8-Flash-Next-UD-IQ4_XS-00001-of-00003.gguf"; MMPROJ_FILE=""; MTP_FILE="MTP/mtp-Qwen3.8-Flash-Next-shared-Q8_0.gguf"
 MODEL_ALIAS_DEFAULT="$MODEL_ALIAS_DEFAULT"; DEFAULT_PROFILE="$DEFAULT_PROFILE"; SAFE_KV_TYPES="$SAFE_KV_TYPES"
 REASONING_EFFORT_DEFAULT="$REASONING_EFFORT_DEFAULT"; REASONING_EFFORTS="$REASONING_EFFORTS"
-SAMPLING_THINKING="$SAMPLING_THINKING"; SAMPLING_INSTRUCT="$SAMPLING_INSTRUCT"; SPEC_DRAFT_N_MAX=""; SPEC_BUILTIN=""
+SAMPLING_THINKING="$SAMPLING_THINKING"; SAMPLING_INSTRUCT="$SAMPLING_INSTRUCT"; SPEC_DRAFT_N_MAX="$SPEC_DRAFT_N_MAX"; SPEC_DRAFT_P_MIN="$SPEC_DRAFT_P_MIN"; SPEC_BUILTIN=""
 LLAMA_BATCH="$LLAMA_BATCH"; LLAMA_EXTRA_ARGS="$LLAMA_EXTRA_ARGS"; SPEC_NGRAM_ARGS="$SPEC_NGRAM_ARGS"
 SERVER_CMD="${INSTALL_ID}-server"
 EOF' > "$R/install.env"
@@ -164,15 +185,36 @@ assert_ok "passes --no-mmap"                 has --no-mmap
 assert_ok "passes --ctx-checkpoints"         has --ctx-checkpoints
 assert_ok "uses the combination's -b 2048"   grep -qx -- 2048 <<< "$(grep -A1 -x -- -b <<< "$argv")"
 assert_ok "KV is f16"                        grep -qx -- f16 <<< "$(grep -A1 -x -- --cache-type-k <<< "$argv")"
+after() { grep -A1 -x -- "$1" <<< "$argv" | tail -1; }
+assert_ok "passes the MTP head with -md"     grep -q 'MTP/mtp-Qwen3.8-Flash-Next-shared-Q8_0.gguf$' <<< "$(after -md)"
+assert_eq "as a draft-mtp speculator"        "draft-mtp" "$(after --spec-type)"
+assert_eq "drafting 3 tokens a step"         "3"   "$(after --spec-draft-n-max)"
+assert_eq "keeping every drafted token"      "0.0" "$(after --spec-draft-p-min)"
+assert_fails "no n-gram speculation alongside MTP" has ngram-mod
+argv="$(launch env SPEC_DRAFT_N_MAX=2 SPEC_DRAFT_P_MIN=0.5)"
+assert_eq "a run-time draft depth wins over the manifest's" "2"   "$(after --spec-draft-n-max)"
+assert_eq "...and so does a run-time p-min"                 "0.5" "$(after --spec-draft-p-min)"
+argv="$(launch env SPEC_MTP=0)"
+assert_fails "SPEC_MTP=0 runs without the draft head, for an A/B" has draft-mtp
+assert_fails "...and passes no -md"                        has -md
+argv="$(launch env PROFILE=agents)"
+assert_ok "the agents profile runs three slots" grep -qx -- 3 <<< "$(grep -A1 -x -- -np <<< "$argv")"
+
+echo
+echo "the launcher's n-gram fallback, for a combination without an MTP head"
+cp "$R/install.env" "$R/install.env.mtp"
+sed -i.bak -e 's|MTP_FILE="[^"]*"|MTP_FILE=""|' \
+  -e 's|SPEC_NGRAM_ARGS="[^"]*"|SPEC_NGRAM_ARGS="--spec-type ngram-mod --spec-ngram-mod-n-max 64"|' "$R/install.env"
+argv="$(launch env)"
 assert_ok "turns on n-gram speculation when the build knows it" has ngram-mod
 assert_ok "...and says so"                   grep -q 'speculation: n-gram' <<< "$argv"
+assert_fails "p-min is only passed with an MTP draft" has --spec-draft-p-min
 argv="$(launch env SPEC_NGRAM=0)"
 assert_fails "SPEC_NGRAM=0 turns it off"     has ngram-mod
 fake_server "usage ... (an older build)"
 argv="$(launch env)"
 assert_fails "an older build starts without the unknown flag" has ngram-mod
 assert_ok "...and says why"                  grep -q 'does not know --spec-ngram-mod-n-max' <<< "$argv"
-argv="$(launch env PROFILE=agents)"
-assert_ok "the agents profile runs three slots" grep -qx -- 3 <<< "$(grep -A1 -x -- -np <<< "$argv")"
+mv "$R/install.env.mtp" "$R/install.env"
 
 finish

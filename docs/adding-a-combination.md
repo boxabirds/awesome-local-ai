@@ -398,8 +398,11 @@ measured by this repo**. What is different from CUDA:
   below `MIN_DEVICE_MEM_MIB` with the exact fix (`amd-ttm --set N`, or the
   `ttm.pages_limit` value), and never edits boot configuration itself.
 - **`GPU_API`** picks the build: `vulkan` (default, `-DGGML_VULKAN=ON`) or
-  `rocm` (HIP for gfx1151, needs a host ROCm, experimental). It is part of the
-  build key, so switching rebuilds.
+  `rocm` (HIP for gfx1151, needs a host ROCm). It is part of the build key,
+  so switching rebuilds.
+- **`amdgpu.lockup_timeout`**: qualification warns when it is missing from
+  the kernel command line, because since Linux 7.0 amdgpu kills a GPU job
+  after 2 s and long Vulkan runs die with `DeviceLostError`.
 - **`TESTED_ON`** lists the machines (`<vendor>-<product>` slugs) a
   combination's numbers came from. The adapter matches the running machine's
   DMI product name against it and says so plainly when it is a different box
@@ -408,7 +411,7 @@ measured by this repo**. What is different from CUDA:
 - Also read: `MIN_KERNEL_VERSION` (default 6.18.4), `MIN_OS_RESERVE_MIB`,
   `STRIX_HALO_GTT_TARGET_GIB` (what the refusal tells you to set).
 
-Five optional llama.cpp hooks came with it, each defaulting to the previous
+Six optional llama.cpp hooks came with it, each defaulting to the previous
 behaviour, and carried to the runtime through `install.env`:
 
 | Hook | What |
@@ -416,6 +419,10 @@ behaviour, and carried to the runtime through `install.env`:
 | `LLAMA_BATCH` | `-b` for llama-server; was hard-coded to 1024 |
 | `LLAMA_EXTRA_ARGS` | flags a combination always passes (`--no-mmap --ctx-checkpoints 8` here) |
 | `SPEC_NGRAM_ARGS` | n-gram speculation when there is no MTP head. The launcher probes `llama-server --help` for the flag first and starts without it on an older build; `SPEC_NGRAM=0` turns it off per run |
+| `SPEC_DRAFT_P_MIN` | `--spec-draft-p-min` for an MTP draft: how sure the head must be before a drafted token is kept. Unset leaves llama.cpp's default |
+
+At run time, `SPEC_DRAFT_N_MAX` and `SPEC_DRAFT_P_MIN` override the values in
+`install.env`, and `SPEC_MTP=0` starts without the MTP head, for an A/B.
 | `IDLE_TIMEOUT_DEFAULT`, `SERVER_START_TIMEOUT_DEFAULT` | session defaults for a model that takes minutes to load |
 
 A Hub repo that keeps a quant's shards in a subdirectory works as it is: list

@@ -35,8 +35,15 @@ ROOT="${LOCAL_AI_ROOT:-$HOME/$LOCAL_AI_INSTALL_REL}"
   echo "Re-run the install-*.sh script for this combination." >&2
   exit 1; }
 
+# The manifest carries the combination's defaults. Speculation settings given
+# at run time (run.sh --spec-draft-n-max, or the env var) must win over them,
+# so keep them across the source.
+_rt_draft_n_max="${SPEC_DRAFT_N_MAX:-}"; _rt_draft_p_min="${SPEC_DRAFT_P_MIN:-}"
 # shellcheck disable=SC1091
 . "$ROOT/install.env"
+[[ -n "$_rt_draft_n_max" ]] && SPEC_DRAFT_N_MAX="$_rt_draft_n_max"
+[[ -n "$_rt_draft_p_min" ]] && SPEC_DRAFT_P_MIN="$_rt_draft_p_min"
+unset _rt_draft_n_max _rt_draft_p_min
 
 # Back-compat: each combination may declare its own root override variable
 # (e.g. QWEN38_ROOT) so existing docs and scripts keep working.
@@ -264,7 +271,10 @@ fi
 #     by a "draft acceptance" line).
 #   otherwise -- a separate sidecar head file, which llama.cpp will not
 #     auto-discover on the plain path, so point at it explicitly.
-if [[ "${SPEC_BUILTIN:-0}" == "1" ]]; then
+# SPEC_MTP=0 runs without the head, for an A/B against the same build.
+if [[ "${SPEC_MTP:-1}" == "0" ]]; then
+  echo "${SERVER_CMD}: speculation: MTP off (SPEC_MTP=0)" >&2
+elif [[ "${SPEC_BUILTIN:-0}" == "1" ]]; then
   ARGS+=(--spec-type draft-mtp --spec-draft-n-max "${SPEC_DRAFT_N_MAX:-3}")
 elif [[ -n "$MTP" && -f "$MTP" ]]; then
   ARGS+=(
@@ -276,6 +286,11 @@ elif [[ -n "$MTP" && -f "$MTP" ]]; then
     --spec-draft-type-k "$KV_TYPE"
     --spec-draft-type-v "$KV_TYPE"
   )
+fi
+# How sure the head must be before a drafted token is kept. Unset leaves
+# llama.cpp's default; a combination sets it when a value was measured better.
+if [[ -n "${SPEC_DRAFT_P_MIN:-}" ]] && printf '%s\n' "${ARGS[@]}" | grep -qx -- draft-mtp; then
+  ARGS+=(--spec-draft-p-min "$SPEC_DRAFT_P_MIN")
 fi
 
 # Resolve the binary from THIS install, not from PATH. ~/.local/bin/llama-server
@@ -295,11 +310,10 @@ if [[ ! -x "$LLAMA_SERVER_BIN" ]]; then
 fi
 
 # N-gram speculation drafts from text already in the context: no draft
-# model, no memory, and a large win on the file rewrites agents do. It is the
-# fallback when there is no MTP head (llama.cpp's qwen4exp MTP is unmerged,
-# so Flash-Next has none upstream). The flags are newer than some builds, and
-# llama-server refuses to start on a flag it does not know -- so probe the
-# help text rather than letting an older checkout fail to launch.
+# model and no memory. It only runs when there is no MTP head, and only for
+# a combination that sets SPEC_NGRAM_ARGS. The flags are newer than some
+# builds, and llama-server refuses to start on a flag it does not know -- so
+# probe the help text rather than letting an older checkout fail to launch.
 SPEC_ACTIVE=0
 for a in "${ARGS[@]}"; do [[ "$a" == "--spec-type" ]] && SPEC_ACTIVE=1; done
 if [[ -n "${SPEC_NGRAM_ARGS:-}" && "$SPEC_ACTIVE" == "0" && "${SPEC_NGRAM:-1}" != "0" ]]; then

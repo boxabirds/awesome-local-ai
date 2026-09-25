@@ -86,6 +86,7 @@ REASONING_EFFORT_DEFAULT="${REASONING_EFFORT_DEFAULT:-default}"
 REASONING_EFFORTS="${REASONING_EFFORTS:-}"
 SAFE_KV_TYPES="${SAFE_KV_TYPES:-n/a}"       # llama.cpp: which KV types have a kernel
 SPEC_DRAFT_N_MAX="${SPEC_DRAFT_N_MAX:-}"    # llama.cpp: draft tokens per step
+SPEC_DRAFT_P_MIN="${SPEC_DRAFT_P_MIN:-}"    # llama.cpp: drop draft tokens below this probability; unset = llama.cpp default
 SPEC_BUILTIN="${SPEC_BUILTIN:-}"            # llama.cpp: MTP head is inside the GGUF (no -md sidecar)
 IMAGE_MIN_TOKENS="${IMAGE_MIN_TOKENS:-}"    # llama.cpp: vision grounding floor
 LLAMA_BATCH="${LLAMA_BATCH:-}"              # llama.cpp: -b (logical batch); launcher default 1024
