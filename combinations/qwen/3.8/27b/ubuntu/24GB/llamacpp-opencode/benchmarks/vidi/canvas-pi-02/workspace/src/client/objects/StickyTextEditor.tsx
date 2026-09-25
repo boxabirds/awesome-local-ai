@@ -3,7 +3,7 @@ import type { JSX } from 'react';
 import * as Y from 'yjs';
 import { LOCAL_ORIGIN } from '../../shared/board-model';
 import { STICKY_TEXT_MAX_CHARS } from '../../shared/config';
-import { applyTextDiff, clampToLimit, counterVisible } from './StickyText';
+import { applyTextDelta, applyTextDiff, clampToLimit, counterVisible } from './StickyText';
 
 export interface StickyTextEditorProps {
   /** The note's live Y.Text; every input is written to it immediately. */
@@ -58,6 +58,23 @@ export function StickyTextEditor(props: StickyTextEditorProps): JSX.Element {
     ta.value = text;
     ta.focus();
     ta.setSelectionRange(text.length, text.length); // caret at the end of the text
+    // Remote -> local: absorb another editor's change into the textarea
+    // without clobbering the local caret (live.concurrent_text). Local writes
+    // are skipped (the textarea is their source of truth). The textarea always
+    // equals the doc's text between user actions, so the remote delta (old ->
+    // new) applies cleanly to the textarea's current value.
+    const onRemoteChange = (event: Y.YTextEvent, transaction: Y.Transaction): void => {
+      if (transaction.origin === LOCAL_ORIGIN) return;
+      const el = textareaRef.current;
+      if (!el) return;
+      const next = applyTextDelta(el.value, event.delta, el.selectionStart, el.selectionEnd);
+      el.value = next.text;
+      el.setSelectionRange(next.start, next.end);
+    };
+    ytext.observe(onRemoteChange);
+    return () => {
+      ytext.unobserve(onRemoteChange);
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 

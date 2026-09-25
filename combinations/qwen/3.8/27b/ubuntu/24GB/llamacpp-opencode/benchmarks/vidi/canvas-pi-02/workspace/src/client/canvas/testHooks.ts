@@ -1,4 +1,5 @@
 import type { StickySnapshot } from '../../shared/board-model';
+import type { ConnectionState } from '../sync/connectBoard';
 import type { Camera } from './camera';
 
 declare global {
@@ -7,6 +8,8 @@ declare global {
     __vidi6?: {
       setCamera(cam: Camera): void;
       getNotes(): readonly StickySnapshot[];
+      /** The client's mapped connection phase (story 3), or null locally. */
+      connectionState: ConnectionState | null;
     };
   }
 }
@@ -14,6 +17,7 @@ declare global {
 const stateRef = {
   setCamera: undefined as ((cam: Camera) => void) | undefined,
   getNotes: undefined as (() => readonly StickySnapshot[]) | undefined,
+  connectionState: null as ConnectionState | null,
 };
 
 function publish(): void {
@@ -21,6 +25,7 @@ function publish(): void {
   window.__vidi6 = {
     setCamera: (cam: Camera) => stateRef.setCamera?.(cam),
     getNotes: () => stateRef.getNotes?.() ?? [],
+    connectionState: stateRef.connectionState,
   };
 }
 
@@ -39,6 +44,13 @@ export function installTestHook(setCamera: (cam: Camera) => void): void {
 export function installNotesHook(getNotes: () => readonly StickySnapshot[]): void {
   if (import.meta.env.MODE !== 'test') return;
   stateRef.getNotes = getNotes;
+  publish();
+}
+
+/** Publishes the mapped connection phase (board connection, story 3). */
+export function setConnectionState(phase: ConnectionState | null): void {
+  if (import.meta.env.MODE !== 'test') return;
+  stateRef.connectionState = phase;
   publish();
 }
 

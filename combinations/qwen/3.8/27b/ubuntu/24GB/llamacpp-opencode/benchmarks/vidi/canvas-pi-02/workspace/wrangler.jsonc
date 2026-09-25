@@ -1,10 +1,31 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "vidi6",
+  "main": "src/worker/index.ts",
   "compatibility_date": "2025-06-01",
-  // Story 1 is client-only: the Worker `main` arrives in story 3. Until then
-  // `wrangler dev` serves the static client build straight from assets.
+  // Story 3: one BoardRoom Durable Object per board relays Yjs sync and
+  // awareness over WebSockets. SQLite-backed from day one (no class
+  // migration needed when story 4 starts persisting the doc).
+  "durable_objects": {
+    "bindings": [
+      {
+        "name": "BOARD_ROOM",
+        "class_name": "BoardRoom"
+      }
+    ]
+  },
+  "migrations": [
+    {
+      "tag": "v1",
+      "new_sqlite_classes": ["BoardRoom"]
+    }
+  ],
+  // Everything that is not the /api/rooms/:boardId WebSocket route is served
+  // from the client build; unknown paths fall back to index.html so the SPA
+  // can resolve /b/:boardId on the client.
   "assets": {
-    "directory": "dist/client"
+    "directory": "dist/client",
+    "binding": "ASSETS",
+    "not_found_handling": "single-page-application"
   }
 }

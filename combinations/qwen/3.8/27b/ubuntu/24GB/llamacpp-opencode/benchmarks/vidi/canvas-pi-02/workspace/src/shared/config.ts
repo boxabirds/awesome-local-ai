@@ -54,3 +54,20 @@ export type StickyColor = keyof typeof STICKY_COLORS;
 
 /** Colour of newly created sticky notes. */
 export const DEFAULT_STICKY_COLOR: StickyColor = 'yellow';
+
+// --- Live collaboration (story 3) -----------------------------------------
+
+/** Soft capacity: the number of simultaneous editors the product is designed and tested for. Never enforced (a 6th person is not turned away). */
+export const MAX_CONCURRENT_EDITORS = 5;
+
+/** PRD `live.propagate`: a change must appear on every other screen within this budget, measured sender-side to receiver-side. */
+export const LIVE_UPDATE_LATENCY_BUDGET_MS = 1000;
+
+/** Passed to the y-websocket provider's `maxBackoffTime`: longest pause between reconnect attempts. */
+export const RECONNECT_MAX_BACKOFF_MS = 10_000;
+
+/** How long the green "Connected" badge stays visible after a reconnection before it hides. */
+export const CONNECTED_CONFIRMATION_MS = 2000;
+
+/** PRD `live.catch_up` verification: the outage length used by the catch-up tests. */
+export const CATCH_UP_TEST_OUTAGE_MS = 30_000;
