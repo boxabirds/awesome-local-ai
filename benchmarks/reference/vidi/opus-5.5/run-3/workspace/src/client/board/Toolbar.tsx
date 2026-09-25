@@ -26,7 +26,8 @@ const stop = (e: SyntheticEvent) => e.stopPropagation();
 
 /**
  * Fixed left-side toolbar: the Select and Text tools (story 9), the Shape and Connector tools (story 10) and the
- * Pen (story 11) when `tool` is given, the Sticky note button, then Undo and Redo (story 8) when `undo` is given.
+ * Pen (story 11) when `tool` is given, the Image tool (story 12) when `onImage` is given, the Sticky note button,
+ * then Undo and Redo (story 8) when `undo` is given.
  * The active tool's button is pressed. While the Shape tool is active a small menu next to its button chooses the kind.
  */
 export function Toolbar(props: {
@@ -37,6 +38,8 @@ export function Toolbar(props: {
   onTool?(t: ToolId): void;
   shapeKind?: ShapeKind;
   onShapeKind?(k: ShapeKind): void;
+  /** Image tool (story 12): opens the file picker. */
+  onImage?(): void;
 }) {
   const shapeKind = props.shapeKind ?? SHAPE_KINDS[0];
   return (
@@ -156,6 +159,22 @@ export function Toolbar(props: {
             </svg>
           </button>
         </>
+      )}
+      {props.onImage && (
+        <button
+          type="button"
+          className="toolbar__button"
+          aria-label="Image (I)"
+          title="Image (I)"
+          disabled={props.disabled}
+          onClick={props.onImage}
+        >
+          <svg width="22" height="22" viewBox="0 0 22 22" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round">
+            <rect x="3" y="4" width="16" height="14" rx="1.5" />
+            <circle cx="8" cy="8.5" r="1.5" />
+            <path d="M3.5 16l4.5-4.5 3.5 3.5 2-2 4.5 4.5" />
+          </svg>
+        </button>
       )}
       <button
         type="button"

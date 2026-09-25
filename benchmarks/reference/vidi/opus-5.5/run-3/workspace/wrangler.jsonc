@@ -16,7 +16,13 @@
   },
   // Board creation limit per visitor (CF-Connecting-IP). Mirrors BOARD_CREATE_LIMIT / BOARD_CREATE_PERIOD_SECONDS
   // in src/shared/config.ts; tests/unit/create-board.test.ts fails if they drift apart.
-  "ratelimits": [{ "name": "BOARD_CREATE_LIMITER", "namespace_id": "1001", "simple": { "limit": 10, "period": 60 } }],
+  // Image uploads per visitor mirror IMAGE_UPLOAD_LIMIT / IMAGE_UPLOAD_PERIOD_SECONDS (tests/unit/image-format.test.ts).
+  "ratelimits": [
+    { "name": "BOARD_CREATE_LIMITER", "namespace_id": "1001", "simple": { "limit": 10, "period": 60 } },
+    { "name": "ASSET_UPLOAD_LIMITER", "namespace_id": "1002", "simple": { "limit": 60, "period": 60 } }
+  ],
+  // Uploaded images (story 12), keyed <boardId>/<assetId>.
+  "r2_buckets": [{ "binding": "ASSETS_BUCKET", "bucket_name": "vidi6-assets" }],
   // SQLite-backed from the start so story 4 (persistence) needs no class migration.
   "migrations": [{ "tag": "v1", "new_sqlite_classes": ["BoardRoom"] }]
 }

@@ -20,6 +20,14 @@ import { PenTool } from './tools/PenTool';
 import { PenToolbar } from './tools/PenToolbar';
 import { usePenOptions } from './tools/usePenOptions';
 import { BoardContext, type BoardContextValue } from './board/BoardContext';
+import { useImageInsert } from './images/useImageInsert';
+import { ImageContext, type ImageContextValue } from './images/ImageContext';
+import { DropHighlight } from './images/DropHighlight';
+import { tabUploaderId } from './images/uploaderId';
+import { useClock } from './objects/ImageObject';
+import { Toast } from './ui/Toast';
+import { IMAGE_STATUS_TICK_MS } from '../shared/config';
+import { isImage } from '../shared/objects/image';
 import { createSticky, deleteObjects, objectSnapshot, snapshot } from '../shared/board-model';
 import { createText } from '../shared/objects/text';
 import { ConnectionStatus } from './sync/ConnectionStatus';
@@ -52,8 +60,10 @@ export function Root() {
  * One board. With `boardId` it is live-synced with everyone else on that board.
  * `doc` lets tests supply their own document; the app creates one.
  */
-export function App(props: { boardId?: string; doc?: Y.Doc } = {}) {
+export function App(props: { boardId?: string; doc?: Y.Doc; identityId?: string } = {}) {
   const { doc, objects, connection } = useBoardDoc(props.boardId, props.doc);
+  // Uploader identity for images (no sign-in in this build: one id per browser tab).
+  const [identityId] = useState(() => props.identityId ?? tabUploaderId());
   const selection = useSelection(objects);
   const { startEdit, endEdit, clear, click, setMany } = selection;
   const editable = canEdit(connection);
@@ -61,7 +71,13 @@ export function App(props: { boardId?: string; doc?: Y.Doc } = {}) {
   // The camera lives in BoardViewport; the gesture reads the one last rendered, at event time.
   const cameraRef = useRef<Camera>({ x: 0, y: 0, zoom: 1 });
   const viewSizeRef = useRef<Size>({ width: 0, height: 0 });
-  const tool = useActiveTool({ canEdit: editable, onSelectCreated: selection.selectNew, isEditing: editingId !== null });
+  const openPickerRef = useRef(() => {});
+  const tool = useActiveTool({
+    canEdit: editable,
+    onSelectCreated: selection.selectNew,
+    isEditing: editingId !== null,
+    onImage: () => openPickerRef.current(),
+  });
   const { setTool } = tool;
   // Pen colour and thickness: remembered until the page is reloaded (pen.options).
   const pen = usePenOptions();
@@ -147,6 +163,54 @@ export function App(props: { boardId?: string; doc?: Y.Doc } = {}) {
     [doc, startEdit, setTool],
   );
 
+  const images = useImageInsert({
+    doc,
+    boardId: props.boardId,
+    connection,
+    identityId,
+    toWorld: (x, y) => toWorldRef.current(x, y),
+    viewCentre: () => {
+      const { width, height } = viewSizeRef.current;
+      return screenToWorld(cameraRef.current, { x: width / 2, y: height / 2 });
+    },
+    undo: undoController,
+    isEditing: editingId !== null,
+  });
+  openPickerRef.current = images.openPicker;
+  const anyUploading = objects.some((o) => isImage(o) && o.status === 'uploading');
+  const now = useClock(anyUploading, IMAGE_STATUS_TICK_MS);
+  const { progress, canRetry, retry, forget } = images;
+  const imageContext = useMemo<ImageContextValue>(
+    () => ({
+      identityId,
+      progress,
+      now,
+      editable,
+      canRetry,
+      retry: (id) => {
+        if (editableRef.current) retry(id);
+      },
+      remove: (id) => {
+        if (!editableRef.current) return;
+        forget(id);
+        asStep(undoRef.current, () => deleteObjects(doc, [id]));
+      },
+    }),
+    [identityId, progress, now, editable, canRetry, retry, forget, doc],
+  );
+  const dropTarget = useMemo(
+    () => ({
+      onDragEnter: images.onDragEnter,
+      onDragOver: images.onDragOver,
+      onDragLeave: images.onDragLeave,
+      onDrop: (e: Parameters<typeof images.onDrop>[0]) => {
+        if (editableRef.current) images.onDrop(e);
+        else e.preventDefault();
+      },
+    }),
+    [images.onDragEnter, images.onDragOver, images.onDragLeave, images.onDrop],
+  );
+
   useBoardKeys({
     doc,
     selection,
@@ -188,6 +252,7 @@ export function App(props: { boardId?: string; doc?: Y.Doc } = {}) {
         onEmptyClick={clear}
         marquee={marquee}
         onPlace={tool.tool === 'text' ? createTextAt : undefined}
+        dropTarget={dropTarget}
         overlay={({ camera, size }) => (
           <>
             {tool.tool === 'shape' && (
@@ -232,7 +297,14 @@ export function App(props: { boardId?: string; doc?: Y.Doc } = {}) {
               shapeKind={tool.shapeKind}
               onShapeKind={tool.setShapeKind}
               onCreateSticky={() => createAt(screenToWorld(camera, { x: size.width / 2, y: size.height / 2 }))}
+              onImage={() => {
+                setTool('select');
+                images.openPicker();
+              }}
             />
+            <input {...images.pickerInput} />
+            <DropHighlight active={images.dragging && editable} />
+            <Toast message={images.message} onDismiss={images.dismissMessage} />
             {tool.tool === 'pen' && (
               <PenToolbar
                 color={pen.color}
@@ -251,6 +323,7 @@ export function App(props: { boardId?: string; doc?: Y.Doc } = {}) {
           toWorldRef.current = toWorld;
           return (
             <BoardContext.Provider value={boardContext}>
+              <ImageContext.Provider value={imageContext}>
               {stacked.map(({ object, stackIndex }) => {
                 const spec = getObjectType(object.type);
                 if (!spec) return null;
@@ -282,6 +355,7 @@ export function App(props: { boardId?: string; doc?: Y.Doc } = {}) {
                 hidden={editingId !== null || moving}
                 onDelete={deleteSelection}
               />
+              </ImageContext.Provider>
             </BoardContext.Provider>
           );
         }}

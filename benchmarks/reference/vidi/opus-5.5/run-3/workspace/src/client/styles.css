@@ -1034,3 +1034,139 @@ body {
   pointer-events: stroke;
   cursor: default;
 }
+
+/* Story 12 — images. */
+.image-object {
+  position: absolute;
+  box-sizing: border-box;
+  cursor: default;
+  outline: none;
+  user-select: none;
+}
+
+.image-object:focus-visible {
+  outline: calc(2px / var(--zoom)) solid rgba(59, 108, 246, 0.5);
+  outline-offset: calc(2px / var(--zoom));
+}
+
+.image-object--selected,
+.image-object--selected:focus-visible {
+  outline: calc(2px / var(--zoom)) solid #3b6cf6;
+  outline-offset: calc(2px / var(--zoom));
+}
+
+.image-object--dragging {
+  cursor: grabbing;
+}
+
+.image-object__img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: fill;
+  pointer-events: none;
+  -webkit-user-drag: none;
+}
+
+.image-object__box {
+  box-sizing: border-box;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 8px;
+  background: #e6e8ee;
+  border: 1px solid #cfd3dd;
+  color: #4a5063;
+  font-size: 14px;
+  text-align: center;
+}
+
+.image-object__box--failed {
+  border: 2px solid #e53935;
+  background: #fdecec;
+  color: #a4161a;
+}
+
+.image-object__icon {
+  flex: none;
+  opacity: 0.7;
+}
+
+.image-object__progress {
+  width: min(160px, 80%);
+  height: 6px;
+  border-radius: 3px;
+  background: #cfd3dd;
+  overflow: hidden;
+}
+
+.image-object__progress-bar {
+  height: 100%;
+  background: #3b6cf6;
+  transition: width 0.15s linear;
+}
+
+.image-object__actions {
+  display: flex;
+  gap: 8px;
+}
+
+.image-object__button {
+  font: inherit;
+  font-size: 13px;
+  padding: 4px 10px;
+  border-radius: 6px;
+  border: 1px solid #b9bfcc;
+  background: #fff;
+  color: #1f2330;
+  cursor: pointer;
+}
+
+.image-object__button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+/* Files dragged over the board. */
+.drop-highlight {
+  position: absolute;
+  inset: 8px;
+  z-index: 30;
+  border: 3px dashed #3b6cf6;
+  border-radius: 12px;
+  background: rgba(59, 108, 246, 0.06);
+  pointer-events: none;
+}
+
+/* Bottom-centre status messages. */
+.toast {
+  position: fixed;
+  left: 50%;
+  bottom: 24px;
+  transform: translateX(-50%);
+  z-index: 40;
+  max-width: min(90vw, 520px);
+  pointer-events: none;
+}
+
+.toast--visible {
+  padding: 10px 16px;
+  border-radius: 8px;
+  background: #1f2330;
+  color: #fff;
+  font-size: 14px;
+  box-shadow: 0 4px 16px rgba(20, 24, 40, 0.25);
+}
+
+.toast__line {
+  margin: 0;
+}
+
+.toast__line + .toast__line {
+  margin-top: 4px;
+}

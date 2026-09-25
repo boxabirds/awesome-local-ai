@@ -2,11 +2,14 @@
 //   POST /api/boards             create a board (rate limited per visitor)
 //   GET  /api/boards/:boardId    does this board exist?
 //   GET  /api/rooms/:boardId     WebSocket to that board's BoardRoom (existing boards only)
+//   POST /api/boards/:boardId/assets        upload an image to an existing board (story 12, assets.ts)
+//   GET  /api/assets/:boardId/:assetId      a stored image
 // Everything else is the static client (and, only when TEST_HOOKS is enabled, /__test/* storage hooks for the
 // e2e suite). Malformed ids are answered 404 before any Durable Object is touched.
 import { isValidBoardId, newBoardId } from '../shared/board-id';
 import type { BoardRoom } from './board-room';
 import { createBoard } from './create-board';
+import { handleServe, handleUpload } from './assets';
 import { handleTestHook } from './test-hooks';
 
 export { BoardRoom } from './board-room';
@@ -14,6 +17,8 @@ export { BoardRoom } from './board-room';
 export interface Env {
   BOARD_ROOM: DurableObjectNamespace<BoardRoom>;
   BOARD_CREATE_LIMITER: RateLimit;
+  ASSET_UPLOAD_LIMITER: RateLimit;
+  ASSETS_BUCKET: R2Bucket;
   ASSETS: Fetcher;
   /** '1' enables the test-only storage hooks (e2e only; never set in wrangler.jsonc). */
   TEST_HOOKS?: string;
@@ -27,6 +32,8 @@ export interface Deps {
 const BOARDS_PATH = /^\/api\/boards\/?$/;
 const BOARD_PATH = /^\/api\/boards\/([^/]*)$/;
 const ROOM_PATH = /^\/api\/rooms\/([^/]*)$/;
+const UPLOAD_PATH = /^\/api\/boards\/([^/]*)\/assets$/;
+const ASSET_PATH = /^\/api\/assets\/(.*)$/;
 
 function json(body: unknown, status: number, headers: Record<string, string> = {}): Response {
   return Response.json(body, { status, headers: { 'Cache-Control': 'no-store', ...headers } });
@@ -44,6 +51,20 @@ export async function handleRequest(req: Request, env: Env, deps: Deps = {}): Pr
     const result = await createBoard(env, visitor, deps.generateId ?? newBoardId);
     if (result.ok) return json({ id: result.id }, 201);
     return result.reason === 'rate_limited' ? json({ error: 'rate_limited' }, 429) : json({ error: 'create_failed' }, 500);
+  }
+
+  const upload = UPLOAD_PATH.exec(url.pathname);
+  if (upload) {
+    if (req.method !== 'POST') return json({ error: 'method_not_allowed' }, 405, { Allow: 'POST' });
+    const boardId = decodeURIComponentSafe(upload[1]);
+    return boardId === null ? notFound() : handleUpload(req, env, boardId);
+  }
+
+  const asset = ASSET_PATH.exec(url.pathname);
+  if (asset) {
+    if (req.method !== 'GET' && req.method !== 'HEAD') return json({ error: 'method_not_allowed' }, 405, { Allow: 'GET' });
+    const key = decodeURIComponentSafe(asset[1]);
+    return key === null ? new Response('Not found', { status: 404 }) : handleServe(env, key);
   }
 
   const board = BOARD_PATH.exec(url.pathname);
