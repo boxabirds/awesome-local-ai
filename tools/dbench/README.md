@@ -121,8 +121,9 @@ git pull                                           # results, as each story is r
 | `GET /v1/node` | hostname, os, arch, cpus, `total_ram_bytes`, `cpu_brand`, `gpus` (nvidia-smi; on macOS the chip with unified memory), installed `combinations` (INSTALL_ID/COMBINATION/BACKEND), `tools` (node, pi, git, uv versions, using the prepended PATH), `dbench_version`, `repo_head`, `current_job` |
 | `PUT /v1/jobs/{id}` | body: `{install_id \| combination, pack, scope?, stories?, run_id, client: "pi"\|"opencode", record}`. `combination` is a directory under the node's `<repo>/combinations/` (a leading `combinations/` and trailing `/` are fine); the node reads `INSTALL_ID` from its `config.sh` and stores the job by install id, so both forms name the same job. Returns 201 if created, 200 if the same id and spec already exist, 409 if the id exists with a different spec, and 400 if a name is invalid, the combination isn't a whole directory in the repo or its install is of a different combination, the install is missing, or there's no harness for the pack. |
 | `GET /v1/jobs` | all jobs, newest first, each with `progress` |
-| `GET /v1/jobs/{id}` | `spec`, `state` (`queued` / `running{pid,pgid,attempt,started_at}` / `done{exit_code}` / `failed{reason,exit_code}` / `cancelled`), `attempt`, `history` (restarts, recoveries, pull failures), `last_pull`, and `progress`. `progress` holds `run_dir`, `current_story`, `stories` (finished stories with their accept passed/total) and `log_tail` (last 20 lines). |
+| `GET /v1/jobs/{id}` | `spec`, `state` (`queued` / `running{pid,pgid,attempt,started_at}` / `done{exit_code}` / `failed{reason,exit_code}` / `cancelled`), `attempt`, `history` (restarts, recoveries, pull failures, skip-story requests), `last_pull`, and `progress`. `progress` holds `run_dir`, `current_story`, `stories`, `stories_updated_at` and `log_tail` (last 20 lines). `stories` is every story in scope with its status, tasks, baselines and recent activity when the harness writes `progress.json`, and otherwise the finished stories from `metrics.json`; each always has `id`, `passed` and `total` (see below). |
 | `POST /v1/jobs/{id}/cancel` | A queued job is cancelled at once (200). A running job gets SIGTERM to its process group and SIGKILL after 20 s (202), then becomes `cancelled`. A finished job returns 409. |
+| `POST /v1/jobs/{id}/skip-story` | body: `{story, reason}`. Writes `control/skip-story.json` in the run dir for the harness and returns the job (202); the job keeps running. 404 for an unknown job, 400 for an empty reason, 409 if the job isn't running or `story` isn't the run's `current_story`. |
 | `GET /v1/jobs/{id}/log?from=N&follow=1` | the log as plain text from byte N. With `follow=1` it keeps streaming until the job finishes. |
 | `GET /v1/jobs/{id}/events` | `{"events":[{line, story, kind, …}]}`. The kinds are `story_start`, `story_continue`, `agent_error`, `nudge`, `agent_done`, `recorded`, `scored`, `hang_interrupt` and `crash`. |
 
@@ -139,8 +140,34 @@ dbench status gruntus canvas-pi-02             # one job: state, stories, histor
 dbench logs gruntus canvas-pi-02 -f            # follow; reconnects from the last byte if the connection drops
 dbench events gruntus canvas-pi-02
 dbench cancel gruntus canvas-pi-02
-dbench --json status gruntus canvas-pi-02      # --json: nodes, submit, status, events, cancel
+dbench skip-story gruntus canvas-pi-02 --story 3 --reason "3h, no commit for 107 min"
+                                               # end the running story as PARTIAL; the run goes on
+dbench --json status gruntus canvas-pi-02      # --json: nodes, submit, status, events, cancel, skip-story
 ```
+
+## Stories and tasks in `status`
+
+The harness keeps `progress.json` in the run dir: every story in scope with its status (`pending`, `running`, `DONE`, `PARTIAL`), agent time, calls, output tokens, acceptance result, last commit, its tasks, baselines from earlier runs and its latest activity. The contract, with the full shape, is `benchmarks/vidi/harness/CONTROL.md`. dbench serves it as `progress.stories`. Every field is optional, and a field of the wrong type reads as missing. Without a `progress.json` (an older harness), `stories` is the finished stories from `metrics.json` as before.
+
+`dbench status <node> <job>` prints one line per story, for example:
+
+```
+    3  running  See other people's edits appear live on the…  agent 3h07m  572 calls  527k tokens  8 compactions  accept 5/7  last commit 1h47m ago  tasks: 2 committed, 1 written, 1 not-started
+```
+
+A PARTIAL story also shows its verdict, who ended it and why. Below the list come the task table, baselines and last few activity lines of the running story (or, once nothing runs, of the last one started). Ages are worked out when you run the command. `dbench status` with no job shows the running story's line under each job.
+
+## Ending a story early: `skip-story`
+
+```sh
+dbench skip-story <node> <job> --story N --reason "<why>"
+```
+
+This ends the running story's work. The harness stops the agent (no resume, no nudge), records the story as PARTIAL with your reason, and the run continues with the next story. The job itself keeps running. Later stories may then build on incomplete work, so use it with care.
+
+- **Checks:** the node refuses (409) unless the job is running and `N` is the run's `current_story`. The error names the current story. The reason can't be empty.
+- **What it does:** dbench only writes `<run_dir>/control/skip-story.json` (`{story, reason, by, at}`, atomically). It records the request in the job's history and log, like a cancel. The harness checks for the file every few seconds and renames it to `skip-story-<N>.applied.json` once applied.
+- **Timing:** it takes effect within a few seconds. `dbench status` then shows the story as PARTIAL.
 
 ## Not built yet (from the design)
 

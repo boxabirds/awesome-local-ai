@@ -101,6 +101,23 @@ pub enum Cmd {
     Events { node: String, id: String },
     /// Cancel a job (SIGTERM, then SIGKILL, to its process group).
     Cancel { node: String, id: String },
+    /// End the running story as PARTIAL; the run continues with the next story.
+    ///
+    /// Ends the running story's work: the harness stops the agent, records the story
+    /// as PARTIAL with your reason, and the run continues with the next story (the job
+    /// keeps running). Later stories may then build on incomplete work, so use with care.
+    /// See benchmarks/vidi/harness/CONTROL.md.
+    #[command(name = "skip-story")]
+    SkipStory {
+        node: String,
+        id: String,
+        /// The story to end; it must be the one running now.
+        #[arg(long)]
+        story: u32,
+        /// Why, recorded with the PARTIAL story.
+        #[arg(long)]
+        reason: String,
+    },
 }
 
 #[derive(ValueEnum, Clone, Copy, Debug)]

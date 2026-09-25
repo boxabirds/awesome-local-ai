@@ -12,14 +12,30 @@ import { APP_URL, CONTROL_URL } from './app-server';
 
 const SHOT_DIR = process.env.SHOT_DIR ?? '';
 
-export const DONE = new Set(
-  (process.env.DONE_STORIES ?? '').split(',').filter(Boolean).map(Number),
+// Stories processed at this checkpoint, with their status: PROCESSED_STORIES="1:DONE,2:DONE,3:PARTIAL".
+// A PARTIAL story was ended before it was complete. The older DONE_STORIES="1,2" means all DONE.
+export const PROCESSED = new Map<number, string>(
+  process.env.PROCESSED_STORIES
+    ? process.env.PROCESSED_STORIES.split(',').filter(Boolean).map((e) => {
+        const [id, status] = e.split(':');
+        return [Number(id), status ?? 'DONE'] as [number, string];
+      })
+    : (process.env.DONE_STORIES ?? '').split(',').filter(Boolean).map((id) => [Number(id), 'DONE'] as [number, string]),
 );
 
-// Skip a test unless every story it depends on has been implemented at this checkpoint.
+// Skip a test unless every story it depends on has been processed at this checkpoint.
+// Story order is the only dependency the spec records, so a test built on any PARTIAL story at
+// or before its own still runs, annotated `on-partial`: its result is reported apart from
+// results on a fully DONE base.
 export function requires(...stories: number[]) {
-  const missing = stories.filter((s) => !DONE.has(s));
+  const missing = stories.filter((s) => !PROCESSED.has(s));
   base.skip(missing.length > 0, `needs stories ${missing.join(',')}`);
+  const latest = Math.max(...stories);
+  const partial = [...PROCESSED].filter(([id, status]) => status === 'PARTIAL' && id <= latest).map(([id]) => id);
+  const info = base.info();
+  if (partial.length > 0 && !info.annotations.some((a) => a.type === 'on-partial')) {
+    info.annotations.push({ type: 'on-partial', description: partial.join(',') });
+  }
 }
 
 // Handle on the server started by global-setup.ts.
@@ -94,9 +110,9 @@ export async function createBoard(page: Page): Promise<number> {
 // at '/'; from story 5 on '/' is the home page with "Create a board".
 export async function openBoard(page: Page): Promise<string> {
   await page.goto('/');
-  if (DONE.has(5)) await createBoard(page);
+  if (PROCESSED.has(5)) await createBoard(page);
   await expect(zoomLabel(page)).toBeVisible();
-  if (DONE.has(3)) await waitConnected(page);
+  if (PROCESSED.has(3)) await waitConnected(page);
   return page.url();
 }
 

@@ -74,8 +74,15 @@ pub fn repo_combination(repo: &Path, combination: &str) -> Result<RepoCombinatio
         .join(rel)
         .canonicalize()
         .map_err(|_| format!("no combination {combination:?} in {}", root.display()))?;
-    let Some(rel) = dir.strip_prefix(&root).ok().filter(|r| !r.as_os_str().is_empty()) else {
-        return Err(format!("{combination:?} is not a combination in {}", root.display()));
+    let Some(rel) = dir
+        .strip_prefix(&root)
+        .ok()
+        .filter(|r| !r.as_os_str().is_empty())
+    else {
+        return Err(format!(
+            "{combination:?} is not a combination in {}",
+            root.display()
+        ));
     };
     let config = dir.join(COMBINATION_CONFIG);
     let text = std::fs::read_to_string(&config).map_err(|_| {
@@ -86,7 +93,10 @@ pub fn repo_combination(repo: &Path, combination: &str) -> Result<RepoCombinatio
         .ok_or_else(|| format!("{} sets no INSTALL_ID", config.display()))?;
     // It becomes a path under the share dir and a harness argument.
     if !valid_id(&install_id) {
-        return Err(format!("{}: invalid INSTALL_ID {install_id:?}", config.display()));
+        return Err(format!(
+            "{}: invalid INSTALL_ID {install_id:?}",
+            config.display()
+        ));
     }
     Ok(RepoCombination {
         combination: rel.to_string_lossy().into_owned(),
@@ -109,13 +119,253 @@ pub fn run_dir(repo: &Path, combination: &str, spec: &JobSpec) -> PathBuf {
         .join(&spec.run_id)
 }
 
+/// The harness's live story and task status, rewritten atomically in the run dir.
+/// Its shape is `benchmarks/vidi/harness/CONTROL.md`.
+pub const PROGRESS_FILE: &str = "progress.json";
+pub const METRICS_FILE: &str = "metrics.json";
+pub const CURRENT_STORY_FILE: &str = "current_story";
+
+/// A field of the harness's progress.json. Any field may be null, missing or of
+/// an unexpected type; such a field reads as its default instead of failing the
+/// whole file.
+fn lenient<'de, D, T>(d: D) -> Result<T, D::Error>
+where
+    D: serde::Deserializer<'de>,
+    T: serde::de::DeserializeOwned + Default,
+{
+    let v = serde_json::Value::deserialize(d)?;
+    Ok(serde_json::from_value(v).unwrap_or_default())
+}
+
+/// A story id: a number in progress.json, a string key in metrics.json.
+fn id_string<'de, D: serde::Deserializer<'de>>(d: D) -> Result<String, D::Error> {
+    Ok(match serde_json::Value::deserialize(d)? {
+        serde_json::Value::String(s) => s,
+        serde_json::Value::Number(n) => n.to_string(),
+        _ => String::new(),
+    })
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug, Default, PartialEq)]
+pub struct Accept {
+    #[serde(default, deserialize_with = "lenient")]
+    pub passed: Option<u64>,
+    #[serde(default, deserialize_with = "lenient")]
+    pub total: Option<u64>,
+}
+
+/// One task of a story's plan, as the harness sees it in the workspace.
+#[derive(Serialize, Deserialize, Clone, Debug, Default, PartialEq)]
+pub struct TaskProgress {
+    #[serde(
+        default,
+        deserialize_with = "lenient",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub n: Option<u64>,
+    #[serde(
+        default,
+        deserialize_with = "lenient",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub title: Option<String>,
+    #[serde(
+        rename = "type",
+        default,
+        deserialize_with = "lenient",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub kind: Option<String>,
+    #[serde(
+        default,
+        deserialize_with = "lenient",
+        skip_serializing_if = "Vec::is_empty"
+    )]
+    pub implements: Vec<String>,
+    #[serde(
+        default,
+        deserialize_with = "lenient",
+        skip_serializing_if = "Vec::is_empty"
+    )]
+    pub tcs: Vec<String>,
+    /// `not-started` | `written` | `committed` | `verified`.
+    #[serde(
+        default,
+        deserialize_with = "lenient",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub status: Option<String>,
+    #[serde(
+        default,
+        deserialize_with = "lenient",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub found: Option<u64>,
+    #[serde(
+        default,
+        deserialize_with = "lenient",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub total: Option<u64>,
+}
+
+/// The same story in an earlier run, for comparison.
+#[derive(Serialize, Deserialize, Clone, Debug, Default, PartialEq)]
+pub struct Baseline {
+    #[serde(
+        default,
+        deserialize_with = "lenient",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub source: Option<String>,
+    #[serde(
+        default,
+        deserialize_with = "lenient",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub agent_minutes: Option<f64>,
+    #[serde(
+        default,
+        deserialize_with = "lenient",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub calls: Option<u64>,
+    #[serde(
+        default,
+        deserialize_with = "lenient",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub output_tokens: Option<u64>,
+    #[serde(
+        default,
+        deserialize_with = "lenient",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub status: Option<String>,
+}
+
+/// A story of the run. From metrics.json only `id`, `title`, `passed` and
+/// `total` are known; progress.json adds the rest. Times are Unix seconds.
 #[derive(Serialize, Deserialize, Clone, Debug, Default, PartialEq)]
 pub struct StoryProgress {
+    #[serde(default, deserialize_with = "id_string")]
     pub id: String,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(
+        default,
+        deserialize_with = "lenient",
+        skip_serializing_if = "Option::is_none"
+    )]
     pub title: Option<String>,
+    /// Acceptance tests passed / total: from `accept`, else from metrics.json.
+    #[serde(default, deserialize_with = "lenient")]
     pub passed: Option<u64>,
+    #[serde(default, deserialize_with = "lenient")]
     pub total: Option<u64>,
+    /// `pending` | `running` | `DONE` | `PARTIAL`.
+    #[serde(
+        default,
+        deserialize_with = "lenient",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub status: Option<String>,
+    #[serde(
+        default,
+        deserialize_with = "lenient",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub ended_by: Option<String>,
+    #[serde(
+        default,
+        deserialize_with = "lenient",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub reason: Option<String>,
+    /// `green` | `amber` | `red`, on PARTIAL stories only.
+    #[serde(
+        default,
+        deserialize_with = "lenient",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub verdict: Option<String>,
+    /// Earlier PARTIAL stories this one was built on.
+    #[serde(
+        default,
+        deserialize_with = "lenient",
+        skip_serializing_if = "Vec::is_empty"
+    )]
+    pub partial_base: Vec<serde_json::Value>,
+    #[serde(
+        default,
+        deserialize_with = "lenient",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub started_at: Option<f64>,
+    #[serde(
+        default,
+        deserialize_with = "lenient",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub ended_at: Option<f64>,
+    #[serde(
+        default,
+        deserialize_with = "lenient",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub agent_minutes: Option<f64>,
+    #[serde(
+        default,
+        deserialize_with = "lenient",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub calls: Option<u64>,
+    #[serde(
+        default,
+        deserialize_with = "lenient",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub output_tokens: Option<u64>,
+    #[serde(
+        default,
+        deserialize_with = "lenient",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub compactions: Option<u64>,
+    #[serde(
+        default,
+        deserialize_with = "lenient",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub last_commit_at: Option<f64>,
+    #[serde(
+        default,
+        deserialize_with = "lenient",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub last_task_change_at: Option<f64>,
+    #[serde(
+        default,
+        deserialize_with = "lenient",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub accept: Option<Accept>,
+    #[serde(
+        default,
+        deserialize_with = "lenient",
+        skip_serializing_if = "Vec::is_empty"
+    )]
+    pub tasks: Vec<TaskProgress>,
+    #[serde(
+        default,
+        deserialize_with = "lenient",
+        skip_serializing_if = "Vec::is_empty"
+    )]
+    pub baselines: Vec<Baseline>,
+    #[serde(
+        default,
+        deserialize_with = "lenient",
+        skip_serializing_if = "Vec::is_empty"
+    )]
+    pub recent_activity: Vec<String>,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, Default, PartialEq)]
@@ -123,11 +373,44 @@ pub struct Progress {
     pub combination: Option<String>,
     pub run_dir: Option<String>,
     pub current_story: Option<String>,
-    /// Stories with an acceptance result, in story order.
+    /// Every story in scope, in order, when the harness writes progress.json;
+    /// otherwise only the finished ones (with an acceptance result) from metrics.json.
     pub stories: Vec<StoryProgress>,
+    /// progress.json's `updated_at`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub stories_updated_at: Option<f64>,
     pub log_tail: Vec<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub error: Option<String>,
+}
+
+/// Stories from a progress.json value, with `passed`/`total` taken from each
+/// story's `accept`, or else from the same story in `finished` (metrics.json).
+/// None if it isn't a JSON object.
+pub fn progress_stories(
+    progress: &serde_json::Value,
+    finished: &[StoryProgress],
+) -> Option<(Vec<StoryProgress>, Option<f64>)> {
+    let obj = progress.as_object()?;
+    let updated_at = obj.get("updated_at").and_then(|v| v.as_f64());
+    let raw = obj.get("stories").and_then(|s| s.as_array());
+    let stories = raw
+        .into_iter()
+        .flatten()
+        .filter(|s| s.is_object())
+        .filter_map(|s| serde_json::from_value::<StoryProgress>(s.clone()).ok())
+        .map(|mut s| {
+            let done = finished.iter().find(|f| f.id == s.id);
+            let accept = s.accept.clone().unwrap_or_default();
+            s.passed = accept.passed.or(done.and_then(|f| f.passed));
+            s.total = accept.total.or(done.and_then(|f| f.total));
+            if s.title.is_none() {
+                s.title = done.and_then(|f| f.title.clone());
+            }
+            s
+        })
+        .collect();
+    Some((stories, updated_at))
 }
 
 /// Finished stories from a metrics.json value: those with an `accept` result.
@@ -144,6 +427,7 @@ pub fn finished_stories(metrics: &serde_json::Value) -> Vec<StoryProgress> {
                 title: s.get("title").and_then(|t| t.as_str()).map(String::from),
                 passed: accept.get("passed").and_then(|v| v.as_u64()),
                 total: accept.get("total").and_then(|v| v.as_u64()),
+                ..Default::default()
             })
         })
         .collect();
@@ -174,30 +458,66 @@ pub fn tail_lines(path: &Path, n: usize) -> Vec<String> {
     lines[skip..].iter().map(|l| l.to_string()).collect()
 }
 
+/// The run dir of a job and the combination it is filed under: install.env's
+/// COMBINATION, then `run_dir`.
+pub fn resolve_run_dir(
+    repo: &Path,
+    share_dir: &Path,
+    spec: &JobSpec,
+) -> Result<(String, PathBuf), String> {
+    let Some(env) = read_install_env(share_dir, &spec.install_id) else {
+        return Err(format!(
+            "{} not found",
+            install_env_path(share_dir, &spec.install_id).display()
+        ));
+    };
+    let Some(combination) = env.get("COMBINATION").cloned() else {
+        return Err("install.env has no COMBINATION".into());
+    };
+    let dir = run_dir(repo, &combination, spec);
+    Ok((combination, dir))
+}
+
+/// `<run_dir>/current_story`, trimmed. The harness leaves it empty between stories.
+pub fn read_current_story(dir: &Path) -> Option<String> {
+    std::fs::read_to_string(dir.join(CURRENT_STORY_FILE))
+        .ok()
+        .map(|s| s.trim().to_string())
+}
+
 pub fn compute(repo: &Path, share_dir: &Path, spec: &JobSpec, log: &Path) -> Progress {
     let mut p = Progress {
         log_tail: tail_lines(log, LOG_TAIL_LINES),
         ..Default::default()
     };
-    let Some(env) = read_install_env(share_dir, &spec.install_id) else {
-        p.error = Some(format!(
-            "{} not found",
-            install_env_path(share_dir, &spec.install_id).display()
-        ));
-        return p;
+    let (combination, dir) = match resolve_run_dir(repo, share_dir, spec) {
+        Ok(found) => found,
+        Err(e) => {
+            p.error = Some(e);
+            return p;
+        }
     };
-    let Some(combination) = env.get("COMBINATION").cloned() else {
-        p.error = Some("install.env has no COMBINATION".into());
-        return p;
-    };
-    let dir = run_dir(repo, &combination, spec);
-    p.current_story = std::fs::read_to_string(dir.join("current_story"))
-        .ok()
-        .map(|s| s.trim().to_string());
-    if let Ok(bytes) = std::fs::read(dir.join("metrics.json")) {
+    p.current_story = read_current_story(&dir);
+    if let Ok(bytes) = std::fs::read(dir.join(METRICS_FILE)) {
         match serde_json::from_slice::<serde_json::Value>(&bytes) {
             Ok(v) => p.stories = finished_stories(&v),
-            Err(e) => p.error = Some(format!("metrics.json: {e}")),
+            Err(e) => p.error = Some(format!("{METRICS_FILE}: {e}")),
+        }
+    }
+    // Written atomically, so a parse error is a real fault: say so, and keep
+    // the metrics.json stories.
+    if let Ok(bytes) = std::fs::read(dir.join(PROGRESS_FILE)) {
+        let parsed = serde_json::from_slice::<serde_json::Value>(&bytes)
+            .map_err(|e| e.to_string())
+            .and_then(|v| {
+                progress_stories(&v, &p.stories).ok_or_else(|| "not a JSON object".to_string())
+            });
+        match parsed {
+            Ok((stories, updated_at)) => {
+                p.stories = stories;
+                p.stories_updated_at = updated_at;
+            }
+            Err(e) => p.error = Some(format!("{PROGRESS_FILE}: {e}")),
         }
     }
     p.combination = Some(combination);
@@ -302,7 +622,12 @@ mod tests {
         let mut stack = vec![root.clone()];
         while let Some(dir) = stack.pop() {
             if dir.join(COMBINATION_CONFIG).is_file() {
-                let rel = dir.strip_prefix(&root).unwrap().to_str().unwrap().to_string();
+                let rel = dir
+                    .strip_prefix(&root)
+                    .unwrap()
+                    .to_str()
+                    .unwrap()
+                    .to_string();
                 let got = repo_combination(&repo, &rel).unwrap_or_else(|e| panic!("{rel}: {e}"));
                 assert_eq!(got.combination, rel);
                 found += 1;
@@ -331,6 +656,215 @@ mod tests {
             ["2", "10"]
         );
         assert_eq!((s[0].passed, s[0].total), (Some(5), Some(5)));
+    }
+
+    /// The example from benchmarks/vidi/harness/CONTROL.md, plus a finished and a pending story.
+    const PROGRESS_JSON: &str = r#"{
+      "updated_at": 1790302781.2,
+      "scope": "canvas",
+      "stories": [
+        {"id": 2, "title": "Draw shapes", "status": "PARTIAL", "ended_by": "operator",
+         "reason": "no commit for 107 min", "verdict": "amber", "partial_base": [],
+         "started_at": 1790280000.0, "ended_at": 1790291500.0, "agent_minutes": 150.2,
+         "calls": 400, "output_tokens": 300000, "compactions": 3,
+         "accept": {"passed": 4, "total": 6}, "tasks": [], "baselines": [], "recent_activity": []},
+        {
+          "id": 3,
+          "title": "See other people's edits appear live on the same board",
+          "status": "running",
+          "ended_by": null,
+          "reason": null,
+          "verdict": null,
+          "partial_base": [2],
+          "started_at": 1790291590.0,
+          "ended_at": null,
+          "agent_minutes": 187.4,
+          "calls": 572,
+          "output_tokens": 526585,
+          "compactions": 8,
+          "last_commit_at": 1790299920.0,
+          "last_task_change_at": 1790299920.0,
+          "accept": {"passed": 5, "total": 7},
+          "tasks": [
+            {"n": 8, "title": "E2E live collaboration with multiple browser contexts (TC-22 to TC-28)",
+             "type": "test:e2e", "implements": ["sync.client"], "tcs": ["TC-22", "TC-23"],
+             "status": "written", "found": 7, "total": 7}
+          ],
+          "baselines": [
+            {"source": "qwen/3.8/flash-next/macos/128GB/mtplx-opencode canvas-pi-01",
+             "agent_minutes": 58.4, "calls": 236, "output_tokens": 163933, "status": "DONE"}
+          ],
+          "recent_activity": ["bash: npx playwright test --config=playwright.nightly.config.ts …"]
+        },
+        {"id": 4, "title": "Undo", "status": "pending"}
+      ]
+    }"#;
+
+    #[test]
+    fn stories_from_progress_json() {
+        let v: serde_json::Value = serde_json::from_str(PROGRESS_JSON).unwrap();
+        let (s, updated_at) = progress_stories(&v, &[]).unwrap();
+        assert_eq!(updated_at, Some(1790302781.2));
+        assert_eq!(
+            s.iter().map(|s| s.id.as_str()).collect::<Vec<_>>(),
+            ["2", "3", "4"]
+        );
+        let run = &s[1];
+        assert_eq!(run.status.as_deref(), Some("running"));
+        assert_eq!((run.passed, run.total), (Some(5), Some(7)));
+        assert_eq!(
+            run.accept,
+            Some(Accept {
+                passed: Some(5),
+                total: Some(7)
+            })
+        );
+        assert_eq!(run.partial_base, [serde_json::json!(2)]);
+        assert_eq!(
+            (run.calls, run.output_tokens, run.compactions),
+            (Some(572), Some(526585), Some(8))
+        );
+        assert_eq!(run.agent_minutes, Some(187.4));
+        assert_eq!(run.last_commit_at, Some(1790299920.0));
+        assert_eq!(run.ended_at, None);
+        assert_eq!(
+            run.tasks,
+            [TaskProgress {
+                n: Some(8),
+                title: Some(
+                    "E2E live collaboration with multiple browser contexts (TC-22 to TC-28)".into()
+                ),
+                kind: Some("test:e2e".into()),
+                implements: vec!["sync.client".into()],
+                tcs: vec!["TC-22".into(), "TC-23".into()],
+                status: Some("written".into()),
+                found: Some(7),
+                total: Some(7),
+            }]
+        );
+        assert_eq!(run.baselines[0].calls, Some(236));
+        assert_eq!(run.baselines[0].status.as_deref(), Some("DONE"));
+        assert_eq!(run.recent_activity.len(), 1);
+        assert_eq!(s[0].verdict.as_deref(), Some("amber"));
+        assert_eq!(s[0].reason.as_deref(), Some("no commit for 107 min"));
+
+        // Served back: the task's "type" keeps its name, and empty or missing
+        // fields are left out, so a pending story is as small as before.
+        let out = serde_json::to_value(&s).unwrap();
+        assert_eq!(out[1]["tasks"][0]["type"], "test:e2e");
+        assert_eq!(
+            out[2],
+            serde_json::json!({"id": "4", "title": "Undo", "passed": null, "total": null, "status": "pending"})
+        );
+        // And the client reads what the server serves.
+        let back: Vec<StoryProgress> = serde_json::from_value(out).unwrap();
+        assert_eq!(back, s);
+    }
+
+    #[test]
+    fn progress_json_fields_are_optional_and_tolerant() {
+        let finished = finished_stories(
+            &serde_json::from_str(
+                r#"{"stories":{"1":{"title":"from metrics","accept":{"passed":2,"total":3}}}}"#,
+            )
+            .unwrap(),
+        );
+        let v: serde_json::Value = serde_json::from_str(
+            r#"{"stories": [
+                 {"id": 1},
+                 {"id": "2", "status": null, "calls": "many", "tasks": null, "accept": {"passed": 1},
+                  "tasks": [{"n": 1, "status": "committed", "found": "x"}, {}], "partial_base": null},
+                 "not a story",
+                 {"title": "no id"}
+               ]}"#,
+        )
+        .unwrap();
+        let (s, updated_at) = progress_stories(&v, &finished).unwrap();
+        assert_eq!(updated_at, None);
+        assert_eq!(s.len(), 3);
+        // Missing accept: passed/total and the title come from metrics.json.
+        assert_eq!(s[0].title.as_deref(), Some("from metrics"));
+        assert_eq!((s[0].passed, s[0].total), (Some(2), Some(3)));
+        // Wrong types and nulls read as absent; the rest of the story survives.
+        assert_eq!(s[1].id, "2");
+        assert_eq!((s[1].status.as_ref(), s[1].calls), (None, None));
+        assert_eq!((s[1].passed, s[1].total), (Some(1), None));
+        assert_eq!(s[1].tasks.len(), 2);
+        assert_eq!(s[1].tasks[0].found, None);
+        assert_eq!(s[1].tasks[0].status.as_deref(), Some("committed"));
+        assert!(s[1].partial_base.is_empty());
+        assert_eq!(s[2].id, "");
+
+        assert_eq!(
+            progress_stories(&serde_json::json!({}), &[]),
+            Some((vec![], None))
+        );
+        assert_eq!(progress_stories(&serde_json::json!([]), &[]), None);
+    }
+
+    /// A run dir with metrics.json, and progress.json when given.
+    fn compute_with(tag: &str, progress_json: Option<&str>) -> Progress {
+        let root =
+            std::env::temp_dir().join(format!("dbench-progress-{tag}-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&root);
+        let share = root.join("share");
+        std::fs::create_dir_all(share.join("inst")).unwrap();
+        std::fs::write(
+            share.join("inst").join(INSTALL_ENV),
+            "INSTALL_ID=\"inst\"\nCOMBINATION=\"a/b\"\n",
+        )
+        .unwrap();
+        let spec = JobSpec {
+            install_id: "inst".into(),
+            combination: None,
+            pack: "benchmarks/vidi".into(),
+            scope: None,
+            stories: None,
+            run_id: "r1".into(),
+            client: crate::job::AgentClient::Pi,
+            record: false,
+        };
+        let repo = root.join("repo");
+        let dir = run_dir(&repo, "a/b", &spec);
+        std::fs::create_dir_all(&dir).unwrap();
+        std::fs::write(dir.join(CURRENT_STORY_FILE), "3\n").unwrap();
+        std::fs::write(
+            dir.join(METRICS_FILE),
+            r#"{"stories":{"1":{"title":"one","accept":{"passed":3,"total":4}}}}"#,
+        )
+        .unwrap();
+        if let Some(text) = progress_json {
+            std::fs::write(dir.join(PROGRESS_FILE), text).unwrap();
+        }
+        let p = compute(&repo, &share, &spec, &root.join("no.log"));
+        std::fs::remove_dir_all(&root).unwrap();
+        p
+    }
+
+    #[test]
+    fn compute_prefers_progress_json_and_falls_back_to_metrics() {
+        let p = compute_with("full", Some(PROGRESS_JSON));
+        assert_eq!(p.current_story.as_deref(), Some("3"));
+        assert_eq!(p.stories.len(), 3);
+        assert_eq!(p.stories_updated_at, Some(1790302781.2));
+        assert_eq!(p.error, None);
+
+        let p = compute_with("none", None);
+        assert_eq!(p.stories.len(), 1);
+        assert_eq!(
+            (p.stories[0].id.as_str(), p.stories[0].passed),
+            ("1", Some(3))
+        );
+        assert_eq!(p.stories_updated_at, None);
+        assert_eq!(p.error, None);
+
+        // Broken: say so, and keep what metrics.json has.
+        let p = compute_with("broken", Some("{\"stories\": ["));
+        assert_eq!(p.stories.len(), 1);
+        assert!(
+            p.error.as_deref().unwrap().starts_with("progress.json: "),
+            "{p:?}"
+        );
     }
 
     #[test]
