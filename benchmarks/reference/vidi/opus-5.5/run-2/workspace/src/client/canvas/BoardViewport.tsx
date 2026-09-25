@@ -18,6 +18,10 @@
  *   primary press anywhere on the board, on empty space or on top of an object, reports
  *   `onPlace` with the world point instead of panning, selecting or starting a marquee.
  *   Toolbars and buttons in the overlay keep working.
+ * - Stories 10–11: while a creation tool (Shape, Connector, Pen) is active its tool layer in
+ *   `overlay` covers the board and takes every press, including presses over objects, so
+ *   nothing pans or moves; wheel and pinch events bubble to the listeners here, so the board
+ *   still pans and zooms while drawing.
  */
 import {
   useEffect,

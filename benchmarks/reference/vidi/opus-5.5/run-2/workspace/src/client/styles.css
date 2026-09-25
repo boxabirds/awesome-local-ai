@@ -900,3 +900,121 @@ body,
   border-width: 4px;
   border-style: solid;
 }
+
+/* Story 11: pen tool, pen toolbar and strokes. */
+.pen-tool {
+  cursor: none;
+  overflow: hidden;
+}
+
+.pen-preview {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  pointer-events: none;
+}
+
+.pen-cursor {
+  position: absolute;
+  left: 0;
+  top: 0;
+  box-sizing: border-box;
+  min-width: 4px;
+  min-height: 4px;
+  border: 1.5px solid;
+  border-radius: 50%;
+  background: rgb(255 255 255 / 0.4);
+  box-shadow: 0 0 0 1px rgb(255 255 255 / 0.8);
+  pointer-events: none;
+}
+
+.pen-toolbar {
+  position: fixed;
+  left: 72px;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 6;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 6px;
+  background: var(--panel-bg);
+  border: 1px solid var(--panel-border);
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgb(0 0 0 / 0.15);
+}
+
+.pen-colors {
+  display: grid;
+  grid-template-columns: repeat(2, 28px);
+  gap: 6px;
+}
+
+.pen-colors .swatch {
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 2px solid rgb(0 0 0 / 0.1);
+  border-radius: 50%;
+  cursor: pointer;
+}
+
+.pen-colors .swatch[aria-pressed='true'] {
+  box-shadow: 0 0 0 2px #ffffff, 0 0 0 4px var(--selection);
+}
+
+.pen-thicknesses {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding-top: 6px;
+  border-top: 1px solid var(--panel-border);
+}
+
+.pen-thicknesses button {
+  display: grid;
+  place-items: center;
+  width: 62px;
+  height: 30px;
+  padding: 0;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  cursor: pointer;
+}
+
+.pen-thicknesses button:hover {
+  background: #f0f2f4;
+}
+
+.pen-thicknesses button[aria-pressed='true'] {
+  background: #e3eefe;
+}
+
+.pen-toolbar button:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 1px;
+}
+
+.stroke-object {
+  position: absolute;
+  pointer-events: none;
+}
+
+.stroke-object:focus {
+  outline: none;
+}
+
+.stroke-svg {
+  position: absolute;
+  left: 0;
+  top: 0;
+  overflow: visible;
+}
+
+.stroke-hit {
+  pointer-events: stroke;
+  cursor: pointer;
+}

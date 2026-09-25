@@ -513,3 +513,65 @@ Decisions taken where the spec was silent or ambiguous:
 ### Not covered
 - Smoothness with 300 shapes and 300 arrows (manual, design "Not covered") was not measured.
 - Screen-reader wording was not checked with a real screen reader.
+
+## Story 11 — Sketch freehand with a pen
+
+Decisions taken where the spec was silent or ambiguous:
+
+1. **Routing via the tool layer.** Like story 10's Shape and Connector tools, `PenTool` is a
+   screen-space `.tool-layer` in the viewport's `overlay`. It takes every press, including
+   presses over objects, so a pen drag never pans or moves anything. Wheel and Safari gesture
+   events bubble to `BoardViewport`'s own listeners, so scrolling pans and Ctrl/Cmd+scroll or
+   pinch zooms while drawing. `BoardViewport` itself only needed a doc-comment change.
+2. **Pen shortcut.** `pen` joined the mode tools, so P now selects the Pen. Story 10's
+   "unknown shortcuts do nothing" component test no longer lists `p`; it still checks I and C.
+   The toolbar button is "Pen (P)", following the story 9 and 10 naming.
+3. **Pen toolbar.** `PenToolbar` (`role="toolbar"`, name "Pen") is fixed next to the Tools
+   toolbar rather than inside it, so the Tools toolbar's pressed buttons are still only tools.
+   Swatches are "Black pen" … "Purple pen". Thickness buttons are "Thin" / "Medium" /
+   "Thick". All of them are `aria-pressed` toggles.
+4. **Session options.** `usePenOptions` keeps colour and thickness in a module-level session
+   value as well as React state. The choice survives switching tools and opening another board
+   in the same page, and a reload resets it. `resetPenOptions()` exists for tests.
+5. **Commit and undo.** Each commit (release, cancel / lost capture, and each part of a split
+   stroke) is `history.boundary()` + `createStroke` + `history.boundary()`. That is story 8's
+   equivalent of `stopCapturing()`, so each part is its own undo step (TC-12 checks this).
+   A drag is a dot when the pointer never went `DRAG_THRESHOLD_PX` from the press.
+   Pressing Escape or choosing another tool mid-drag abandons the stroke, because the layer
+   unmounts. Only a lost pointer capture or a cancel keeps it (pen.interrupted).
+6. **Preview.** The preview is a screen-space SVG path. Its `d` is set straight on the DOM
+   node once per `requestAnimationFrame`, not through React state, and it is redrawn when the
+   camera moves mid-stroke. The round cursor (`.pen-cursor`) has a diameter of
+   thickness × zoom and follows the pointer (the layer uses `cursor: none`).
+7. **Smoothing faithfulness.** `simplify` (iterative RDP, tolerance
+   `STROKE_SIMPLIFY_TOLERANCE_PX / zoom`) guarantees that every drawn point is within 1
+   screen pixel of the stored polyline, and the unit tests assert this. `smoothPath` then draws
+   quadratic curves through the midpoints, which can round a sharp corner by more than that.
+   I read pen.smooth as applying to the stored stroke geometry.
+8. **Geometry storage.** `x/y/width/height` is the points' box padded by thickness/2. Points
+   are stored relative to that origin, with `baseWidth/baseHeight`. `scaledPoints` scales by
+   `width/baseWidth` and `height/baseHeight`, so the padding scales with a resize too. The
+   rendered thickness never changes.
+9. **Selecting by the line.** `StrokeObject`'s root `div` has `pointer-events: none`. Only a
+   transparent band path takes input, with width max(thickness, 2 × `STROKE_HIT_TOLERANCE_PX`
+   / zoom) and round caps and joins. Its pointerdown re-checks the registry `hitTest`, as story
+   10 arrows do. In jsdom TC-16 fires the press on the band first (rejected) and then on the
+   note underneath, which is where a real browser delivers it. The e2e TC-20 also clicks empty
+   space inside a loop in Chromium and confirms nothing is selected.
+10. **Accessibility.** The stroke's root is a focusable `role="group"` with
+    `aria-roledescription="drawing"` and name "Drawing". The visible path also carries
+    `aria-label="Drawing"`, per the design contract. A single selected stroke shows no
+    selection toolbar, like arrows; Delete and the multi-selection bar work.
+11. **Fixtures.** `tests/fixtures/pen-paths.ts` generates its "recorded" paths from a seeded
+    PRNG (jittery loop of 400 points, underline of 120, spiral of 5,010), so they are
+    deterministic without shipping large data.
+12. **E2E runs.** Only Chromium is installed here, so e2e ran with `E2E_BROWSERS=chromium`.
+    TC-17 and TC-19 are browser-neutral; TC-18 and TC-20 are multi-context and skip outside
+    Chromium. In one full run the story 4 `persistence` specs failed once with
+    "Address already in use" from their own parallel `wrangler dev` processes. They passed
+    with `--workers=1` and in the next full run (52/52). This is an environment port
+    collision; no code from this story is involved.
+
+### Not covered
+- Drawing latency on low-end hardware and the typical compression ratio (manual, per design).
+- TC-17 was not run in Firefox or WebKit (not installed).

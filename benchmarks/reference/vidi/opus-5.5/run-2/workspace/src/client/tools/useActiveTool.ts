@@ -5,7 +5,8 @@
  * Select is the default. Creation tools are only available while the board can be edited:
  * setting one is ignored otherwise, and an active one returns to Select when editing
  * becomes impossible (story 4 load failure). After a shape or arrow is created,
- * `toolCreated(id)` selects it and returns to Select (tools.return_to_select). The
+ * `toolCreated(id)` selects it and returns to Select (tools.return_to_select); the Pen
+ * (story 11) stays active after each stroke (pen.stay_active). The
  * single-letter shortcuts (TOOL_SHORTCUTS) and Escape are read by `useBoardKeys`, which
  * already knows when the keyboard belongs to a text editor.
  */
@@ -26,8 +27,8 @@ export const TOOL_SHORTCUTS: Record<string, ToolId> = {
   c: 'comment',
 };
 
-/** Tools this build has (stories 11, 12 and 16 are not part of it). */
-const MODE_TOOLS: ReadonlySet<ToolId> = new Set<ToolId>(['select', 'text', 'shape', 'connector']);
+/** Tools this build has (stories 12 and 16 are not part of it). */
+const MODE_TOOLS: ReadonlySet<ToolId> = new Set<ToolId>(['select', 'text', 'shape', 'connector', 'pen']);
 
 export function isModeTool(t: ToolId): boolean {
   return MODE_TOOLS.has(t);

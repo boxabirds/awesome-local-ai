@@ -15,6 +15,9 @@ import { useTransformGesture } from './board/useTransformGesture';
 import { useActiveTool } from './tools/useActiveTool';
 import { ShapeTool } from './tools/ShapeTool';
 import { ConnectorTool } from './tools/ConnectorTool';
+import { PenTool } from './tools/PenTool';
+import { PenToolbar } from './tools/PenToolbar';
+import { usePenOptions } from './tools/usePenOptions';
 import { BoardObjectsContext, type BoardObjects } from './objects/BoardObjectsContext';
 import { MarqueeRect, useMarquee } from './board/Marquee';
 import { SelectionOverlay } from './board/SelectionOverlay';
@@ -73,6 +76,7 @@ export function App(props: AppProps = {}): React.JSX.Element {
   const { ids: selectedIds, click, clear, setMany, startEdit, endEdit } = selection;
   const tools = useActiveTool({ canEdit: editable, onSelect: selection.selectCreated });
   const { tool, setTool } = tools;
+  const pen = usePenOptions();
   // Arrows resolve their attached ends against these rects (story 10).
   const boardObjects = useMemo<BoardObjects>(() => {
     const rects = new Map<string, Rect>();
@@ -183,6 +187,9 @@ export function App(props: AppProps = {}): React.JSX.Element {
       {editable && tool === 'shape' && (
         <ShapeTool kind={tools.shapeKind} camera={camera} onCreated={tools.toolCreated} doc={doc} createdBy={localAuthor} />
       )}
+      {editable && tool === 'pen' && (
+        <PenTool camera={camera} color={pen.color} thickness={pen.thickness} doc={doc} identityId={localAuthor} />
+      )}
       {editable && tool === 'connector' && (
         <ConnectorTool camera={camera} snapshot={objects} onCreated={tools.toolCreated} doc={doc} createdBy={localAuthor} />
       )}
@@ -249,6 +256,9 @@ export function App(props: AppProps = {}): React.JSX.Element {
           shapeKind={tools.shapeKind}
           onShapeKind={tools.setShapeKind}
         />
+        {tool === 'pen' && (
+          <PenToolbar color={pen.color} thickness={pen.thickness} onColor={pen.setColor} onThickness={pen.setThickness} />
+        )}
         <ZoomControls
           zoomPercent={zoomPercent(camera)}
           canZoomIn={canZoomIn(camera)}
