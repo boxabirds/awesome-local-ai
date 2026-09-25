@@ -1,0 +1,120 @@
+:root {
+  --board-bg: #fafafa;
+  --grid-dot: #c4c4c8;
+  --ink: #1f2328;
+  --panel-bg: #ffffff;
+  --panel-border: #d0d7de;
+  --focus: #0969da;
+  --origin: #9aa0a6;
+  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  color: var(--ink);
+}
+
+html,
+body,
+#root {
+  margin: 0;
+  height: 100%;
+  overflow: hidden;
+  overscroll-behavior: none;
+}
+
+.board-viewport {
+  position: fixed;
+  inset: 0;
+  overflow: hidden;
+  background-color: var(--board-bg);
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.board-world {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 0;
+  height: 0;
+  pointer-events: none;
+}
+
+.board-world > * {
+  pointer-events: auto;
+}
+
+.board-world > .origin-marker {
+  pointer-events: none;
+}
+
+/* Small crosshair at world (0,0); its centre is the start point. */
+.origin-marker {
+  position: absolute;
+  left: -8px;
+  top: -8px;
+  width: 16px;
+  height: 16px;
+  background:
+    linear-gradient(var(--origin), var(--origin)) center / 16px 1px no-repeat,
+    linear-gradient(var(--origin), var(--origin)) center / 1px 16px no-repeat;
+}
+
+.zoom-controls {
+  position: fixed;
+  right: 16px;
+  bottom: 16px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px;
+  background: var(--panel-bg);
+  border: 1px solid var(--panel-border);
+  border-radius: 8px;
+  box-shadow: 0 1px 3px rgb(0 0 0 / 0.12);
+  font-size: 14px;
+}
+
+.zoom-controls button {
+  min-width: 32px;
+  height: 32px;
+  padding: 0 8px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.zoom-controls button:hover:not(:disabled) {
+  background: #f0f2f4;
+}
+
+.zoom-controls button:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.zoom-controls button:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 1px;
+}
+
+.zoom-percent {
+  min-width: 48px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+.navigation-hint {
+  position: fixed;
+  left: 50%;
+  bottom: 24px;
+  transform: translateX(-50%);
+  padding: 8px 14px;
+  border-radius: 8px;
+  background: rgb(31 35 40 / 0.85);
+  color: #fff;
+  font-size: 14px;
+  pointer-events: none;
+  white-space: nowrap;
+}

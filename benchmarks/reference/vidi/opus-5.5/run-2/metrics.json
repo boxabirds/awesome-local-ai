@@ -1,0 +1,16 @@
+{
+  "model": "claude-opus-5-5 (Claude Code subagent)",
+  "scope": "canvas",
+  "bench": "vidi-v1",
+  "run": 2,
+  "stories": {
+    "1": {
+      "started": 1790319354.6528409,
+      "agent_minutes": 7.9,
+      "subagent_tokens": 120067,
+      "tool_uses": 23,
+      "commit": "a4af47c",
+      "finished": 1790319827.027166
+    }
+  }
+}
