@@ -63,12 +63,28 @@ RUN_DIR="$COMBO_DIR/benchmarks/vidi/$RUN_ID"
 mkdir -p "$RUN_DIR"
 echo "run dir: $RUN_DIR"
 
-SERVER_PID=""; PROXY_PID=""
+# With --record, the run's start, end and failures are pushed too (record_event.py), not only its
+# stories: a run that refuses to start or dies mid-story would otherwise commit nothing at all.
+ERR_LOG="$(mktemp)"
+exec 2> >(tee -a "$ERR_LOG" >&2)
+ERR_FLUSH_S=0.5      # let tee write the last error line before it's read
+ERR_REASON_LINES=3
+record_event() { [[ -n "$RECORD" ]] && (cd "$HARNESS" && uv run --quiet record_event.py "$RUN_DIR" "$@") || true; }
+
+SERVER_PID=""; PROXY_PID=""; STOPPED=""; FINISHED=""
 cleanup() {
+  local rc=$?
   [[ -n "$PROXY_PID" ]] && kill "$PROXY_PID" 2>/dev/null || true
   [[ -n "$SERVER_PID" ]] && { kill -TERM -- "-$SERVER_PID" 2>/dev/null || true; }
+  if [[ -z "$FINISHED" ]]; then
+    sleep "$ERR_FLUSH_S"
+    local why; why="exit $rc: $(tail -n "$ERR_REASON_LINES" "$ERR_LOG" | tr '\n' ' ')"
+    if [[ -n "$STOPPED" ]]; then record_event stopped "$why"; elif [[ $rc -ne 0 ]]; then record_event failed "$why"; fi
+  fi
+  rm -f "$ERR_LOG"
 }
-trap cleanup EXIT INT TERM
+trap cleanup EXIT
+trap 'STOPPED=1; exit 143' INT TERM
 
 if [[ "$CLOUD" == 0 ]] && curl -s -m 2 "127.0.0.1:$BENCH_PORT/v1/models" >/dev/null; then
   echo "port $BENCH_PORT already serving; refusing to benchmark against an unknown server" >&2; exit 1
@@ -162,8 +178,11 @@ cat > "$RUN_DIR/run.json" <<JSON
 JSON
 
 cd "$HARNESS"
+record_event started "harness $(git -C "$REPO_ROOT" rev-parse --short HEAD), client $CLIENT_NAME, model $MODEL_ID"
 uv run --quiet drive.py --run-dir "$RUN_DIR" --base-url "$AGENT_URL" --client "$CLIENT_NAME" \
   ${SERVER_LOG:+--server-log "$SERVER_LOG"} \
   --model-id "$MODEL_ID" --scope "$SCOPE" --context-limit "$CONTEXT_LIMIT" --output-limit "$OUTPUT_LIMIT" \
   ${ONLY:+--only "$ONLY"} ${RECORD:+--record} ${COMPACT_AT:+--compact-at "$COMPACT_AT"}
 uv run --quiet report.py "$RUN_DIR"
+FINISHED=1
+record_event finished
