@@ -33,6 +33,11 @@ export interface AppHarnessOptions {
   strict?: boolean;
   /** Records the duration of every React commit, for render-cost tests. */
   profile?: (actualDuration: number) => void;
+  /** Render the board read-only, the way a board that failed to load is. */
+  canEdit?: boolean;
+  /** Watches transform gestures (group move and resize). */
+  onGestureStart?(): void;
+  onGestureEnd?(): void;
 }
 
 export interface AppHarness {
@@ -75,7 +80,12 @@ export function renderApp(
   // The explicit type argument is not decoration: `App` takes its props with a
   // default value, and React's `createElement` inference gives up on that
   // signature, so the props would otherwise be checked against `unknown`.
-  const app = createElement<Partial<AppProps>>(App, { doc });
+  const app = createElement<Partial<AppProps>>(App, {
+    doc,
+    canEdit: options.canEdit,
+    onGestureStart: options.onGestureStart,
+    onGestureEnd: options.onGestureEnd,
+  });
   const tree = options.profile
     ? createElement(
         Profiler,
