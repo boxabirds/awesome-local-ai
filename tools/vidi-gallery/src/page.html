@@ -1,0 +1,151 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Vidi gallery</title>
+<style>
+  :root { --bg:#f7f7f5; --card:#fff; --ink:#1d1d1b; --muted:#6b6b66; --line:#e3e3de;
+          --pass:#2f8f4e; --part:#c98a12; --fail:#c0392b; --none:#b8b8b2; }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg:#161615; --card:#21211f; --ink:#ececea; --muted:#9a9a94; --line:#33332f;
+            --pass:#3fae63; --part:#e0a526; --fail:#e0584a; --none:#55554f; }
+  }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--bg); color:var(--ink); font:14px/1.45 system-ui,-apple-system,sans-serif; }
+  header { padding:16px 20px 8px; }
+  h1 { font-size:18px; margin:0 0 4px; }
+  header p { margin:0; color:var(--muted); font-size:13px; }
+  main { padding:8px 20px 40px; }
+  .setup { margin:18px 0; }
+  .setup h2 { font-size:14px; margin:0 0 8px; display:flex; align-items:center; gap:8px; }
+  .swatch { width:12px; height:12px; border-radius:3px; flex:none; }
+  .runs { display:grid; grid-template-columns:repeat(auto-fill,minmax(250px,1fr)); gap:10px; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:8px; padding:10px 12px; border-top:4px solid var(--c); }
+  .card h3 { font-size:13px; margin:0 0 6px; display:flex; justify-content:space-between; gap:6px; }
+  .tag { font-size:11px; font-weight:500; color:var(--muted); }
+  .total { font-size:22px; font-weight:650; font-variant-numeric:tabular-nums; }
+  .void { color:var(--fail); }
+  .strip { display:flex; gap:2px; margin:6px 0 8px; }
+  .strip span { flex:1; height:14px; border-radius:2px; background:var(--none); }
+  .row { display:flex; justify-content:space-between; font-size:12px; color:var(--muted); margin:2px 0; font-variant-numeric:tabular-nums; }
+  .row b { color:var(--ink); font-weight:600; }
+  .actions { display:flex; gap:6px; align-items:center; margin-top:8px; }
+  button { font:inherit; font-size:12px; padding:4px 10px; border-radius:6px; border:1px solid var(--line); background:var(--bg); color:var(--ink); cursor:pointer; }
+  button.primary { background:var(--c); color:#fff; border-color:transparent; }
+  .state { font-size:11px; color:var(--muted); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .state.failed { color:var(--fail); white-space:normal; }
+  table { border-collapse:collapse; font-size:12px; margin-top:6px; }
+  td, th { border-bottom:1px solid var(--line); padding:4px 10px 4px 0; text-align:left; font-variant-numeric:tabular-nums; }
+  .empty { color:var(--muted); }
+</style>
+</head>
+<body>
+<header>
+  <h1>Vidi gallery</h1>
+  <p>Final build of every run. Scoring: the held-out suite (per-story strip, own tests). Judging: counted audit rows. Open runs the build locally in its own window, labelled.</p>
+</header>
+<main id="main"><p class="empty">Loading…</p></main>
+<script>
+const STATUS_POLL_MS = 1500;
+const windows = {};
+let states = {};
+
+const fmt = (x, d = 0) => x == null ? "—" : Number(x).toLocaleString(undefined, { maximumFractionDigits: d });
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+
+function cellColour(s) {
+  if (!s.total) return "var(--none)";
+  if (s.passed === s.total) return "var(--pass)";
+  return s.passed === 0 ? "var(--fail)" : "var(--part)";
+}
+
+function judgingRows(j) {
+  if (!j) return `<div class="row"><span>judging</span><b>—</b></div>`;
+  const f = j.functional || {};
+  const other = Object.entries(j.by_category).filter(([k]) => k !== "functional").map(([k, v]) => `${k} ${v}`).join(", ") || "none";
+  const own = Object.entries(j.own_way || {}).map(([k, v]) => `${k} ${v}`).join(", ");
+  return `<div class="row"><span>functional faults (H/M/L)</span><b>${f.high ?? 0} / ${f.medium ?? 0} / ${f.low ?? 0}</b></div>
+          <div class="row"><span>other rows</span><b title="${esc(other)}">${esc(other.length > 34 ? other.slice(0, 33) + "…" : other)}</b></div>
+          ${own ? `<div class="row"><span>works own way</span><b>${esc(own)}</b></div>` : ""}`;
+}
+
+function card(r, colour) {
+  const s = r.score;
+  const total = s.void ? `<span class="void">VOID</span>` : (s.total ? `${s.passed}/${s.total}` : "—");
+  const strip = s.by_story.map(b => `<span title="story ${b.story}: ${b.passed}/${b.total}" style="background:${cellColour(b)}"></span>`).join("");
+  const progress = r.in_progress ? `in progress, ${r.stories_finished}/${r.stories_in_scope ?? "?"} stories` : `${r.stories_finished} stories`;
+  const c = r.cost;
+  return `<div class="card" style="--c:${colour}" id="card-${esc(r.slug)}">
+    <h3><span>${esc(r.run)}</span><span class="tag">${esc(progress)}</span></h3>
+    <div class="total" title="${esc(s.source || "")}">${total}</div>
+    <div class="strip">${strip}</div>
+    ${judgingRows(r.judging)}
+    <div class="row"><span>agent time</span><b>${fmt(c.agent_minutes / 60, 1)} h</b></div>
+    <div class="row"><span>model calls / output tokens</span><b>${fmt(c.calls)} / ${fmt(c.output_tokens)}</b></div>
+    <div class="actions">
+      <button class="primary" onclick="openBuild('${esc(r.slug)}')">Open</button>
+      <button onclick="stopBuild('${esc(r.slug)}')">Stop</button>
+      <span class="state" id="state-${esc(r.slug)}"></span>
+    </div>
+  </div>`;
+}
+
+function judgesTable(judges) {
+  if (!judges.length) return "";
+  const rows = judges.map(j => `<tr><td>${esc(j.package)}</td><td>${esc(j.judge)}</td><td>${esc(j.build ?? "build " + j.letter + " (blinded)")}</td>
+    <td>${j.judging.functional.high ?? 0} / ${j.judging.functional.medium ?? 0} / ${j.judging.functional.low ?? 0}</td><td>${j.judging.rows}</td>
+    <td>${esc(Object.entries(j.judging.own_way).map(([k, v]) => `${k} ${v}`).join(", ") || "—")}</td></tr>`).join("");
+  return `<section class="setup"><h2>Independent judging</h2><table><tr><th>package</th><th>judge</th><th>build</th><th>functional H/M/L</th><th>rows</th><th>own way</th></tr>${rows}</table></section>`;
+}
+
+async function load() {
+  const data = await (await fetch("/api/runs")).json();
+  const colours = Object.fromEntries(data.colours);
+  const bySetup = {};
+  for (const r of data.runs) (bySetup[r.setup] ||= []).push(r);
+  const html = Object.entries(bySetup).map(([setup, runs]) =>
+    `<section class="setup"><h2><span class="swatch" style="background:${colours[setup]}"></span>${esc(setup)}</h2>
+     <div class="runs">${runs.map(r => card(r, colours[setup])).join("")}</div></section>`).join("");
+  document.getElementById("main").innerHTML = (html || `<p class="empty">No runs found.</p>`) + judgesTable(data.judges);
+  paintStates();
+}
+
+function paintStates() {
+  for (const el of document.querySelectorAll(".state")) {
+    const slug = el.id.slice("state-".length);
+    const st = states[slug];
+    el.className = "state" + (st?.state === "failed" ? " failed" : "");
+    el.textContent = !st ? "" : st.state === "running" ? "running" : st.state === "preparing" ? st.step + "…" : st.error;
+    const w = windows[slug];
+    if (st?.state === "running" && w && !w.closed && !w.__navigated) { w.location = st.url; w.__navigated = true; }
+  }
+}
+
+async function poll() {
+  try { states = await (await fetch("/api/status")).json(); paintStates(); } catch (e) {}
+  setTimeout(poll, STATUS_POLL_MS);
+}
+
+async function openBuild(slug) {
+  // Open the window inside the click (popup blockers), then point it at the build when it's ready.
+  const w = window.open("", slug);
+  if (w && !w.__navigated) { w.document.title = "Starting " + slug; w.document.body.innerHTML = "<p style='font:14px system-ui;padding:20px'>Starting the build… (first time: installing and building, about a minute)</p>"; }
+  windows[slug] = w;
+  const st = await (await fetch("/api/open/" + encodeURIComponent(slug), { method: "POST" })).json();
+  states[slug] = st; paintStates();
+}
+
+async function stopBuild(slug) {
+  await fetch("/api/stop/" + encodeURIComponent(slug), { method: "POST" });
+  delete states[slug];
+  if (windows[slug] && !windows[slug].closed) windows[slug].close();
+  delete windows[slug];
+  paintStates();
+}
+
+load();
+poll();
+</script>
+</body>
+</html>
