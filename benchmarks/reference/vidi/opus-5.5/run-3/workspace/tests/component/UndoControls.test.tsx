@@ -29,6 +29,8 @@ function fakeController(state = { canUndo: true, canRedo: true }) {
     topUndo: () => null,
     topRedo: () => null,
     addScope: vi.fn(),
+    joinSince: <T,>(_mark: object | null, change: () => T) => change(),
+    topStepCreated: () => false,
     onChange(cb: () => void) {
       listeners.add(cb);
       return () => listeners.delete(cb);

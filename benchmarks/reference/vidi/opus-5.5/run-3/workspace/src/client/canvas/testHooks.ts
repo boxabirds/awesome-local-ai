@@ -1,5 +1,5 @@
 import type { Camera } from './camera';
-import type { StickySnapshot } from '../../shared/board-model';
+import type { ObjectSnapshot, StickySnapshot } from '../../shared/board-model';
 import type { ConnectionState } from '../sync/connectBoard';
 
 export interface Vidi6TestHooks {
@@ -7,6 +7,8 @@ export interface Vidi6TestHooks {
   getCamera(): Camera;
   /** Current notes in render order (installed by App). */
   notes?(): readonly StickySnapshot[];
+  /** Every object of a known type (notes, text) in render order (installed by App). */
+  objects?(): readonly ObjectSnapshot[];
   /** Ids of this client's selected objects, sorted (installed by App). */
   selection?(): string[];
   /** Current mapped connection state (installed by App). */

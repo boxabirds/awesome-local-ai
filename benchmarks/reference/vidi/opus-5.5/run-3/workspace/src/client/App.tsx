@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type * as Y from 'yjs';
 import { BoardViewport } from './canvas/BoardViewport';
-import { screenToWorld, type Camera, type Point } from './canvas/camera';
+import { screenToWorld, type Camera, type Point, type Size } from './canvas/camera';
 import { installTestHooks } from './canvas/testHooks';
 import { Toolbar } from './board/Toolbar';
 import { useBoardDoc } from './board/useBoardDoc';
@@ -13,7 +13,9 @@ import { SelectionBar } from './board/SelectionBar';
 import { createUndo, NO_UNDO, type UndoController } from './board/undo';
 import { asStep, UndoContext, useUndo } from './board/useUndo';
 import { getObjectType, type ObjectGesturePhase } from './objects/registry';
-import { createSticky, deleteObjects, snapshot } from '../shared/board-model';
+import { useTool } from './board/useTool';
+import { createSticky, deleteObjects, objectSnapshot, snapshot } from '../shared/board-model';
+import { createText } from '../shared/objects/text';
 import { ConnectionStatus } from './sync/ConnectionStatus';
 import type { ConnectionState } from './sync/connectBoard';
 import { useRoute } from './router';
@@ -25,6 +27,12 @@ import { NotFoundPage } from './pages/NotFoundPage';
 export function canEdit(state: ConnectionState): boolean {
   return state !== 'load_failed';
 }
+
+/**
+ * Author recorded on new text objects (`createdBy`). There is no identity in this build (story 6 is not part of
+ * it), so every object is created by the same anonymous author.
+ */
+export const LOCAL_AUTHOR = 'anonymous';
 
 /** Routes `/` to the home page, `/b/:boardId` to that board (or Board not found), anything else to not found. */
 export function Root() {
@@ -46,6 +54,9 @@ export function App(props: { boardId?: string; doc?: Y.Doc } = {}) {
   const editingId = editable ? selection.editingId : null;
   // The camera lives in BoardViewport; the gesture reads the one last rendered, at event time.
   const cameraRef = useRef<Camera>({ x: 0, y: 0, zoom: 1 });
+  const viewSizeRef = useRef<Size>({ width: 0, height: 0 });
+  const tool = useTool(editable);
+  const { setTool } = tool;
   const liveCamera = useMemo<Camera>(
     () => ({
       get x() {
@@ -97,14 +108,6 @@ export function App(props: { boardId?: string; doc?: Y.Doc } = {}) {
     onGestureStart: () => undoRef.current.beginStep(),
     onGestureEnd: () => undoRef.current.boundary(),
   });
-  useBoardKeys({
-    doc,
-    selection,
-    snapshot: objects,
-    canEdit: editable,
-    undo: { undo: undo.undo, redo: undo.redo, controller: undoController },
-  });
-
   const editableRef = useRef(editable);
   editableRef.current = editable;
   const createAt = useCallback(
@@ -115,6 +118,30 @@ export function App(props: { boardId?: string; doc?: Y.Doc } = {}) {
     },
     [doc, startEdit],
   );
+  const createAtCentre = useCallback(() => {
+    const { width, height } = viewSizeRef.current;
+    createAt(screenToWorld(cameraRef.current, { x: width / 2, y: height / 2 }));
+  }, [createAt]);
+  // Text tool click: new text with its top-left at the point, being edited; the tool goes back to Select.
+  const createTextAt = useCallback(
+    (world: Point) => {
+      setTool('select');
+      if (!editableRef.current) return;
+      const id = asStep(undoRef.current, () => createText(doc, world, LOCAL_AUTHOR));
+      if (id) startEdit(id);
+    },
+    [doc, startEdit, setTool],
+  );
+
+  useBoardKeys({
+    doc,
+    selection,
+    snapshot: objects,
+    canEdit: editable,
+    undo: { undo: undo.undo, redo: undo.redo, controller: undoController },
+    tool,
+    onCreateSticky: createAtCentre,
+  });
 
   const deleteSelection = useCallback(() => {
     if (!editableRef.current) return;
@@ -128,7 +155,7 @@ export function App(props: { boardId?: string; doc?: Y.Doc } = {}) {
     [objects, setMany],
   );
 
-  useEffect(() => installTestHooks({ notes: () => snapshot(doc) }), [doc]);
+  useEffect(() => installTestHooks({ notes: () => snapshot(doc), objects: () => objectSnapshot(doc) }), [doc]);
   useEffect(() => installTestHooks({ connectionState: connection }), [connection]);
   useEffect(() => installTestHooks({ selection: () => [...selection.ids].sort() }), [selection.ids]);
 
@@ -146,6 +173,7 @@ export function App(props: { boardId?: string; doc?: Y.Doc } = {}) {
         onDoubleClickEmpty={createAt}
         onEmptyClick={clear}
         marquee={marquee}
+        onPlace={tool.tool === 'text' ? createTextAt : undefined}
         overlay={({ camera, size }) => (
           <>
             <SelectionOverlay
@@ -158,14 +186,17 @@ export function App(props: { boardId?: string; doc?: Y.Doc } = {}) {
             <Toolbar
               disabled={!editable}
               undo={undo}
+              tool={tool.tool}
+              onTool={setTool}
               onCreateSticky={() => createAt(screenToWorld(camera, { x: size.width / 2, y: size.height / 2 }))}
             />
             <ConnectionStatus state={connection} />
           </>
         )}
       >
-        {({ camera }) => {
+        {({ camera, size }) => {
           cameraRef.current = camera;
+          viewSizeRef.current = size;
           return (
             <>
               {stacked.map(({ object, stackIndex }) => {

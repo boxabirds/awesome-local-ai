@@ -112,3 +112,25 @@ export const NUDGE_LARGE_STEP_WORLD = 10;
 export const UNDO_CAPTURE_TIMEOUT_MS = 500;
 /** Undo steps kept per person (per tab); the oldest is dropped when a new one is added. */
 export const UNDO_MAX_STEPS = 200;
+
+// Story 9 — free text.
+
+/** Auto-width text grows with its longest line up to this width (world units), then wraps. */
+export const TEXT_MAX_AUTO_WIDTH_WORLD = 600;
+/** Smallest fixed width a text object can be given with a side handle, in world units. */
+export const TEXT_MIN_WIDTH_WORLD = 40;
+/** Maximum number of characters (UTF-16 code units) in one text object. */
+export const TEXT_MAX_CHARS = 5000;
+/** Text size presets: font size in world units. */
+export const TEXT_SIZES = { S: 14, M: 20, L: 32, XL: 56 } as const;
+export type TextSize = keyof typeof TEXT_SIZES;
+export const DEFAULT_TEXT_SIZE: TextSize = 'M';
+/** Line height of text objects, as a multiple of the font size. */
+export const TEXT_LINE_HEIGHT = 1.3;
+/** The board's standard sans-serif font, used for text objects and their measurement. */
+export const TEXT_FONT_FAMILY = 'Inter, system-ui, sans-serif';
+/** Slack added to an auto-width box beyond its measured longest line (room for the caret and rounding), capped
+ *  at TEXT_MAX_AUTO_WIDTH_WORLD. */
+export const TEXT_PADDING_WORLD = 4;
+/** Without a canvas to measure with, a glyph is estimated at this fraction of the font size. */
+export const TEXT_AVG_GLYPH_WIDTH_RATIO = 0.55;

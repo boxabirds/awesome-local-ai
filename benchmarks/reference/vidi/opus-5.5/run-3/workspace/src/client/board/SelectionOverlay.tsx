@@ -3,7 +3,9 @@ import { objectBounds, type ObjectSnapshot } from '../../shared/board-model';
 import { HANDLE_SIZE_PX } from '../../shared/config';
 import { HANDLES, unionRects, type Handle } from '../../shared/geometry';
 import { worldToScreen, type Camera } from '../canvas/camera';
-import { getObjectType } from '../objects/registry';
+import { getObjectType, onlyHorizontalHandles } from '../objects/registry';
+
+const SIDE_HANDLES: readonly Handle[] = ['e', 'w'];
 
 export const HANDLE_NAMES: Record<Handle, string> = {
   nw: 'top-left',
@@ -36,7 +38,8 @@ export function selectionBounds(ids: ReadonlySet<string>, snapshot: readonly Obj
 /**
  * Bounding box around the whole selection with 8 resize handles, drawn in screen space so the handles keep
  * HANDLE_SIZE_PX at every zoom. Handles are hidden when no selected type is resizable, or `resizable` is false
- * (board not editable). Each selected object draws its own outline (`data-selected`).
+ * (board not editable). When every selected type offers only horizontal handles (text), only the left and right
+ * handles show. Each selected object draws its own outline (`data-selected`).
  */
 export function SelectionOverlay(props: {
   ids: ReadonlySet<string>;
@@ -52,8 +55,9 @@ export function SelectionOverlay(props: {
   const topLeft = worldToScreen(camera, box);
   const width = box.width * camera.zoom;
   const height = box.height * camera.zoom;
-  const showHandles =
-    props.resizable !== false && snapshot.some((o) => ids.has(o.id) && getObjectType(o.type)?.resizable);
+  const selected = snapshot.filter((o) => ids.has(o.id));
+  const showHandles = props.resizable !== false && selected.some((o) => getObjectType(o.type)?.resizable);
+  const handles = onlyHorizontalHandles(selected) ? SIDE_HANDLES : HANDLES;
   return (
     <div
       className="selection-box"
@@ -61,7 +65,7 @@ export function SelectionOverlay(props: {
       style={{ left: topLeft.x, top: topLeft.y, width, height }}
     >
       {showHandles &&
-        HANDLES.map((h) => {
+        handles.map((h) => {
           const [fx, fy] = HANDLE_POS[h];
           const style: CSSProperties = {
             left: fx * width - HANDLE_SIZE_PX / 2,
