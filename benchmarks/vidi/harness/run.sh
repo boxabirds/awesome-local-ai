@@ -121,6 +121,10 @@ else
   HOST_DESC="$(lscpu | sed -n 's/^Model name: *//p') $(( $(awk '/MemTotal/ {print $2}' /proc/meminfo) / KIB_PER_GIB ))GB${GPU_DESC:+, $GPU_DESC}"
 fi
 
+# Which bench this run belongs to: results only compare within one version (see the private repo README).
+PACK_DIR="$(python3 "$HARNESS/packdir.py")"
+PACK_VERSION="$(git -C "$PACK_DIR" describe --tags --always --dirty 2>/dev/null || echo "in-repo@$(git -C "$REPO_ROOT" rev-parse --short HEAD)")"
+
 SERVER_LOG=""
 [[ "$BACKEND" == mtplx ]] && SERVER_LOG="$HOME/.mtplx/logs/request-log-$BENCH_PORT.jsonl"
 case "$CLIENT_NAME" in
@@ -136,7 +140,7 @@ cat > "$RUN_DIR/run.json" <<JSON
 {"install_id": "$INSTALL_ID", "combination": "$COMBINATION", "model_id": "$MODEL_ID",
  "scope": "$SCOPE", "metered": $METER, "reasoning_effort": "$REASONING_EFFORT", "context_limit": $CONTEXT_LIMIT,
  "output_limit": $OUTPUT_LIMIT, "backend_version": "$( [[ "$BACKEND" == mtplx ]] && mtplx --version 2>/dev/null | awk '{print $NF}' )", "mtplx_memory_limit_bytes": "$( [[ "$BACKEND" == mtplx ]] && echo "${MTPLX_MEMORY_LIMIT_BYTES:-default}" )", "compact_at": "${COMPACT_AT:-client default}", "client": "$CLIENT_NAME", "client_version": "$CLIENT_VERSION", "backend": "$BACKEND", "host": "$HOST_DESC",
- "harness_commit": "$(git -C "$REPO_ROOT" rev-parse --short HEAD)", "started_at": "$(date -u +%Y-%m-%dT%H:%M:%SZ)"}
+ "harness_commit": "$(git -C "$REPO_ROOT" rev-parse --short HEAD)", "pack_version": "$PACK_VERSION", "started_at": "$(date -u +%Y-%m-%dT%H:%M:%SZ)"}
 JSON
 
 cd "$HARNESS"
