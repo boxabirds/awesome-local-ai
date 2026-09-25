@@ -7,8 +7,9 @@
     "directory": "dist/client",
     "binding": "ASSETS",
     "not_found_handling": "single-page-application",
-    // The Worker sees only /api/*; every other path is served straight from the assets.
-    "run_worker_first": ["/api/*"]
+    // The Worker sees only /api/* (and /__test/*, which is the static client unless TEST_HOOKS=1 enables the
+    // e2e storage hooks); every other path is served straight from the assets.
+    "run_worker_first": ["/api/*", "/__test/*"]
   },
   "durable_objects": {
     "bindings": [{ "name": "BOARD_ROOM", "class_name": "BoardRoom" }]

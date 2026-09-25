@@ -33,6 +33,7 @@ export class TestClient {
   closeCode: number | null = null;
   synced = false;
   private held: Uint8Array[] | null = null;
+  private detached = false;
   private readonly closed: Promise<number>;
   private resolveClosed!: (code: number) => void;
 
@@ -40,7 +41,7 @@ export class TestClient {
     this.doc = doc;
     this.closed = new Promise((r) => (this.resolveClosed = r));
     doc.on('update', (update: Uint8Array, origin: unknown) => {
-      if (origin === REMOTE) return;
+      if (origin === REMOTE || this.detached) return;
       const msg = encodeSync((e) => syncProtocol.writeUpdate(e, update));
       if (this.held) this.held.push(msg);
       else this.send(msg);
@@ -49,10 +50,21 @@ export class TestClient {
 
   /** Connects `doc` (default: a new one) to `boardId` and waits for the initial sync. */
   static async connect(boardId: string, doc: Y.Doc = new Y.Doc()): Promise<TestClient> {
-    const client = new TestClient(doc);
-    await client.attach(boardId);
+    const client = await TestClient.open(boardId, doc);
     await client.waitForSync();
     return client;
+  }
+
+  /** Connects without waiting for the initial sync (e.g. to a board that cannot be loaded). */
+  static async open(boardId: string, doc: Y.Doc = new Y.Doc()): Promise<TestClient> {
+    const client = new TestClient(doc);
+    await client.attach(boardId);
+    return client;
+  }
+
+  /** Stops sending this doc's local updates (after the socket was replaced by a new client on the same doc). */
+  detach(): void {
+    this.detached = true;
   }
 
   private async attach(boardId: string): Promise<void> {

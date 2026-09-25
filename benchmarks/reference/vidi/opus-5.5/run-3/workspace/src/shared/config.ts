@@ -60,3 +60,20 @@ export const RECONNECT_MAX_BACKOFF_MS = 10_000;
 export const CONNECTED_CONFIRMATION_MS = 2000;
 /** Length of the network outage in the catch-up verification (PRD live.catch_up). */
 export const CATCH_UP_TEST_OUTAGE_MS = 30_000;
+
+// Story 4 — persistence.
+
+/** Compact the update log into a snapshot when this many log rows exist... */
+export const COMPACTION_UPDATE_COUNT = 500;
+/** ...or when the log's total size reaches this many bytes. */
+export const COMPACTION_BYTES = 4 * 1024 * 1024;
+/** Size of one snapshot row; keeps every row well under the platform per-row size limit (2 MB). */
+export const SNAPSHOT_CHUNK_BYTES = 512 * 1024;
+/** A room whose board failed to load retries the load at most this often. */
+export const LOAD_RETRY_MIN_INTERVAL_MS = 5000;
+/** Board size a saved board is tested to open with (PRD persist.large_board). */
+export const PERSIST_TESTED_NOTES = 2000;
+/** A saved board of PERSIST_TESTED_NOTES notes shows all its notes within this time (PRD persist.large_board). */
+export const BOARD_LOAD_BUDGET_MS = 3000;
+/** Version of the board storage tables (not of the Yjs document schema). */
+export const STORAGE_SCHEMA_VERSION = 1;

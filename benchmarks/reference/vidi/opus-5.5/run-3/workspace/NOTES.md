@@ -145,3 +145,62 @@ Decisions made where the spec left room:
   TC-23 run on all three browsers.
 - **Dev server.** `npm run dev` proxies `/api` (including WebSockets) to `wrangler dev` on port 8787. `npm run
   preview` (wrangler dev) serves everything by itself.
+
+## Story 4 — Return to a board and find everything as it was left
+
+Decisions made where the spec left room:
+
+- **`BoardStore` takes a structural storage type.** The constructor accepts `BoardStorage` (`sql.exec` and
+  `transactionSync`), which a real `DurableObjectStorage` satisfies. The unit tests import `chunkBytes` /
+  `shouldCompact` from `board-store.ts` under the DOM tsconfig, where the Workers `DurableObjectStorage` type
+  does not exist. It also lets TC-11 and TC-26 wrap real storage to inject failures. `compact(doc)` (unconditional)
+  is exported next to `compactIfNeeded(doc)` for the tests and the seed hook.
+- **Per-row size limit.** SQLite-backed Durable Objects currently allow 2 MB per row/BLOB. `SNAPSHOT_CHUNK_BYTES`
+  (512 KiB) stays well under that. Our 2,000-note fixture encodes to ~574 KB, i.e. two chunks.
+- **Validation before apply.** Both the room and the loader run `Y.decodeUpdate` before `Y.applyUpdate`, so
+  malformed bytes throw before touching the doc.
+- **One damaged log row (persist.partial_damage).** Yjs updates from one client form an unbroken clock sequence,
+  so quarantining a single row would leave every *later* change by the same client pending forever. That would lose
+  far more than one change. After quarantining, the loader fills each resulting clock gap with a GC placeholder
+  struct (what Yjs itself uses for garbage-collected content): later changes integrate, and only content that was
+  built directly on the lost change is dropped. TC-09 checks all 25 notes survive and at most one differs.
+- **Room lifecycle.** `room-state.ts` holds the pure `nextRoomState` (TC-27). `BoardRoom` drives it. Its
+  `state` getter exposes the design's `RoomState` (`ready | load-failed | storage-failed`). Compaction is
+  synchronous, so `compacting` is never observable from outside.
+- **Load-failed rooms** accept the socket and close it at once with 4500, so the browser gets the code, not a
+  failed upgrade. A socket still open when a room ends up load-failed is closed with 4500 on its next message.
+  `LOAD_RETRY_MIN_INTERVAL_MS` is enforced from the time of the last failed load.
+- **Restarts in integration tests** use `state.abort()`: the next request constructs a new instance over the
+  same storage. TC-18 (hibernation) constructs a second `BoardRoom` over the same `DurableObjectState` and
+  calls its `webSocketMessage` with a socket accepted by the first instance. TC-16 moves `loadFailedAt` back by
+  the interval instead of sleeping 5 s.
+- **Test hooks.** `src/worker/test-hooks.ts` adds `POST /__test/boards/:id/{seed,compact,corrupt-snapshot,repair}`.
+  These routes work only when `env.TEST_HOOKS === '1'`. The e2e servers pass `--var TEST_HOOKS:1` on the
+  `wrangler dev` command line, so `wrangler.jsonc` never sets it. `/__test/*` was added to `run_worker_first`.
+  Without the variable the Worker hands these paths to the static assets (an integration test checks this). `seed`
+  (apply an update and compact) lets TC-21 and TC-24 start from a saved, snapshotted board without typing 2,000
+  notes. `corrupt-snapshot` also reloads the room at once, as a restart would.
+- **E2E process control.** `tests/e2e/persistence.spec.ts` runs in its own `persistence` Playwright project
+  (chromium, included in `npm run test:e2e`). The other projects ignore it. Each test starts its own
+  `wrangler dev --persist-to <tmp>` through `tests/e2e/helpers/wrangler-process.ts` on a per-worker port and kills
+  it with SIGKILL on the whole process group. Playwright's shared `webServer` still starts, but these tests
+  don't use it. TC-19 has a second person watch the board before everyone leaves, so every change was
+  confirmed by the server (PRD `persist.seen_is_saved`).
+- **Large boards (persist.large_board).** The first TC-21 run took ~4.9 s. The server synced in ~130 ms. The
+  rest went to font fitting: every note's measure forced a layout of the whole board, which is O(n²). Each note is
+  now its own layout boundary (`contain: size layout style` on `.sticky-note`; notes have a fixed size, and paint
+  is not contained so the selection outline still shows). The same board now renders in ~600 ms locally.
+- **Edit lock.** `canEdit(state)` (exported from `App.tsx`) is false only for `load_failed`. While it is false,
+  the Sticky note button is disabled, double-click create, Delete/Backspace and Enter are ignored,
+  `StickyNote` does not start drags, edits or show its colour/delete toolbar, and an open editor is closed.
+  Selection still works; it changes nothing.
+- **Close-code mapping.** `connection-close` 4500 → `load_failed`. The `disconnected` status that follows does
+  not override it, and retries that fail again keep it. Any other close code while `load_failed` → `reconnecting`
+  (or `connecting` if never synced). The first successful sync → `connected`. y-websocket treats only
+  4400–4499 as terminal, so it keeps retrying on 4500 with the story 3 backoff.
+- **Badge colour.** Red variant `connection-status--load_failed` (text `#a4161a` on `#fde2e1`). The text is
+  the PRD's exact string, with a straight apostrophe.
+- **Not covered here** (as the design says): output-gate ordering under real disk latency, production
+  eviction/hibernation timing, and load time over real internet latency. TC-21 timing is local.
+- **Nightly soak.** `npm run test:e2e:nightly` passed twice in a row (TC-30 p95 45–46 ms, max ≤ 116 ms). A run
+  before those timed out once in TC-30 inside a mouse click. It did not happen again and was not diagnosed further.

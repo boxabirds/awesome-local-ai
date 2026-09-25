@@ -3,44 +3,11 @@ import { act, render, screen } from '@testing-library/react';
 import { useEffect, useState } from 'react';
 import * as Y from 'yjs';
 import { ConnectionStatus } from '../../src/client/sync/ConnectionStatus';
-import {
-  trackConnectionState,
-  type ConnectionState,
-  type SyncProviderEvents,
-} from '../../src/client/sync/connectBoard';
+import { trackConnectionState, type ConnectionState } from '../../src/client/sync/connectBoard';
 import { CONNECTED_CONFIRMATION_MS } from '../../src/shared/config';
 import { snapshot } from '../../src/shared/board-model';
 import { noteElements } from './helpers';
-
-type Status = 'connected' | 'disconnected' | 'connecting';
-
-/** Stands in for WebsocketProvider: emits the same `status` and `sync` events. */
-class FakeProvider implements SyncProviderEvents {
-  private statusFns: Array<(e: { status: Status }) => void> = [];
-  private syncFns: Array<(s: boolean) => void> = [];
-  on(event: 'status', fn: (e: { status: Status }) => void): void;
-  on(event: 'sync', fn: (s: boolean) => void): void;
-  on(event: 'status' | 'sync', fn: ((e: { status: Status }) => void) | ((s: boolean) => void)) {
-    if (event === 'status') this.statusFns.push(fn as (e: { status: Status }) => void);
-    else this.syncFns.push(fn as (s: boolean) => void);
-  }
-  status(status: Status) {
-    act(() => this.statusFns.forEach((f) => f({ status })));
-  }
-  sync(synced: boolean) {
-    act(() => this.syncFns.forEach((f) => f(synced)));
-  }
-  /** What y-websocket does on a successful (re)connection. */
-  connect() {
-    this.status('connected');
-    this.sync(true);
-  }
-  drop() {
-    this.sync(false);
-    this.status('disconnected');
-    this.status('connecting');
-  }
-}
+import { FakeProvider } from './fakeProvider';
 
 function Harness(props: { provider: FakeProvider }) {
   const [state, setState] = useState<ConnectionState>('connecting');

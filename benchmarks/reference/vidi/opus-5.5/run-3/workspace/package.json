@@ -10,7 +10,7 @@
     "typecheck": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p tsconfig.worker.json",
     "test:unit": "vitest run --project unit",
     "test:component": "vitest run --project component",
-    "test:e2e": "npm run build:test && playwright test --project chromium --project firefox --project webkit",
+    "test:e2e": "npm run build:test && playwright test --project chromium --project firefox --project webkit --project persistence",
     "preview": "wrangler dev",
     "test:integration": "npm run build:test && vitest run --config vitest.integration.config.ts",
     "test:e2e:nightly": "npm run build:test && playwright test --project nightly"

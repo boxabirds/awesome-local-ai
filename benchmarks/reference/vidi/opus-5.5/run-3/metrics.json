@@ -834,6 +834,328 @@
           "found": 2,
           "total": 2
         }
+      ],
+      "record": {
+        "committed": true,
+        "pushed": true,
+        "over_size_limit": [],
+        "commit": "45697a6"
+      }
+    },
+    "4": {
+      "title": "Return to a board and find everything as it was left",
+      "conditions_start": {
+        "ac": true,
+        "low_power": false,
+        "thermal": "nominal"
+      },
+      "started": 1790338633.0444129,
+      "agent": {
+        "seconds": 1324.2,
+        "steps": 79,
+        "tool_calls": 81,
+        "compactions": 0,
+        "tool_interruptions": 0,
+        "tokens": {
+          "input": 158,
+          "output": 85940,
+          "reasoning": 0,
+          "cache_read": 10293927,
+          "cache_write": 182925
+        },
+        "exit": 0,
+        "stalled": false,
+        "resumes": 0,
+        "nudges": 0,
+        "errors": [],
+        "ended_by_operator": false,
+        "ended_in_error": false,
+        "sessions": [
+          "666aa551-6bb9-49c9-adad-f70ac302a991"
+        ]
+      },
+      "agent_finished": 1790339957.3748531,
+      "conditions": {
+        "samples": 44,
+        "degraded": false,
+        "throttled_share": 0.09,
+        "bad_samples": [
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "moderate",
+            "t": 1790339865.3757281
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "moderate",
+            "t": 1790339895.4308228
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790339925.492934
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790339955.567235
+          }
+        ],
+        "swap_start_gb": 0.14,
+        "swap_max_gb": 0.14,
+        "aborted_swap": false,
+        "aborted_memory": false,
+        "free_min_pct": 66.0,
+        "server_footprint_max_gb": null,
+        "server_footprint_peak_gb": null
+      },
+      "agent_commits": 1,
+      "gate": {
+        "steps": {
+          "install": {
+            "cmd": "npm ci",
+            "exit": 0,
+            "seconds": 5.7,
+            "tail": "\nadded 173 packages, and audited 174 packages in 6s\n\n42 packages are looking for funding\n  run `npm fund` for details\n\n4 high severity vulnerabilities\n\nTo address all issues (including breaking changes), run:\n  npm audit fix --force\n\nRun `npm audit` for details.\n"
+          },
+          "build": {
+            "cmd": "npm run build",
+            "exit": 0,
+            "seconds": 1.1,
+            "tail": "\n> vidi6@0.0.0 build\n> vite build\n\n\u001b[36mvite v8.3.1 \u001b[32mbuilding client environment for production...\u001b[36m\u001b[39m\ntransforming...\n\u2713 78 modules transformed.\nrendering chunks...\ncomputing gzip size...\ndist/client/index.html                   0.39 kB \u2502 gzip:   0.26 kB\ndist/client/assets/index-C6UZG5dr.css    5.37 kB \u2502 gzip:   1.60 kB\ndist/client/assets/index-Dq8Qti5e.js   330.34 kB \u2502 gzip: 102.88 kB\n\n\u001b[32m\u2713 built in 309ms\u001b[39m\n",
+            "passed": null,
+            "failed": null
+          },
+          "typecheck": {
+            "cmd": "npm run typecheck",
+            "exit": 0,
+            "seconds": 0.9,
+            "tail": "\n> vidi6@0.0.0 typecheck\n> tsc --noEmit -p tsconfig.json && tsc --noEmit -p tsconfig.worker.json\n\n",
+            "passed": null,
+            "failed": null
+          },
+          "test:unit": {
+            "cmd": "npm run test:unit",
+            "exit": 0,
+            "seconds": 0.7,
+            "tail": "\n> vidi6@0.0.0 test:unit\n> vitest run --project unit\n\n\n\u001b[1m\u001b[30m\u001b[46m RUN \u001b[49m\u001b[39m\u001b[22m \u001b[36mv4.1.11 \u001b[39m\u001b[90m~/.vidi-bench/work/benchmarks__reference__vidi__opus-5.5__run-3/workspace\u001b[39m\n\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[42m unit \u001b[49m\u001b[39m tests/unit/room-state.test.ts \u001b[2m(\u001b[22m\u001b[2m15 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 3\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[42m unit \u001b[49m\u001b[39m tests/unit/board-store-chunks.test.ts \u001b[2m(\u001b[22m\u001b[2m8 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 5\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[42m unit \u001b[49m\u001b[39m tests/unit/board-model.test.ts \u001b[2m(\u001b[22m\u001b[2m18 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 13\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[42m unit \u001b[49m\u001b[39m tests/unit/sticky-text.test.ts \u001b[2m(\u001b[22m\u001b[2m18 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 8\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[42m unit \u001b[49m\u001b[39m tests/unit/protocol.test.ts \u001b[2m(\u001b[22m\u001b[2m11 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 4\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[42m unit \u001b[49m\u001b[39m tests/unit/camera.test.ts \u001b[2m(\u001b[22m\u001b[2m18 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 34\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[42m unit \u001b[49m\u001b[39m tests/unit/board-id.test.ts \u001b[2m(\u001b[22m\u001b[2m8 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 81\u001b[2mms\u001b[22m\u001b[39m\n\n\u001b[2m Test Files \u001b[22m \u001b[1m\u001b[32m7 passed\u001b[39m\u001b[22m\u001b[90m (7)\u001b[39m\n\u001b[2m      Tests \u001b[22m \u001b[1m\u001b[32m96 passed\u001b[39m\u001b[22m\u001b[90m (96)\u001b[39m\n\u001b[2m   Start at \u001b[22m 13:39:25\n\u001b[2m   Duration \u001b[22m 237ms\u001b[2m (transform 243ms, setup 0ms, import 427ms, tests 148ms, environment 0ms)\u001b[22m\n\n",
+            "passed": 96,
+            "failed": 0
+          },
+          "test:component": {
+            "cmd": "npm run test:component",
+            "exit": 0,
+            "seconds": 2.2,
+            "tail": "\n> vidi6@0.0.0 test:component\n> vitest run --project component\n\n\n\u001b[1m\u001b[30m\u001b[46m RUN \u001b[49m\u001b[39m\u001b[22m \u001b[36mv4.1.11 \u001b[39m\u001b[90m~/.vidi-bench/work/benchmarks__reference__vidi__opus-5.5__run-3/workspace\u001b[39m\n\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[45m component \u001b[49m\u001b[39m tests/component/ZoomControls.test.tsx \u001b[2m(\u001b[22m\u001b[2m7 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 189\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[45m component \u001b[49m\u001b[39m tests/component/ConnectionStatus.test.tsx \u001b[2m(\u001b[22m\u001b[2m8 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[33m 397\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[45m component \u001b[49m\u001b[39m tests/component/LoadFailed.test.tsx \u001b[2m(\u001b[22m\u001b[2m10 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[33m 435\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[45m component \u001b[49m\u001b[39m tests/component/Toolbars.test.tsx \u001b[2m(\u001b[22m\u001b[2m6 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[33m 445\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[45m component \u001b[49m\u001b[39m tests/component/BoardViewport.test.tsx \u001b[2m(\u001b[22m\u001b[2m15 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[33m 517\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[45m component \u001b[49m\u001b[39m tests/component/StickyTextEditor.test.tsx \u001b[2m(\u001b[22m\u001b[2m10 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[33m 533\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[45m component \u001b[49m\u001b[39m tests/component/StickyNote.test.tsx \u001b[2m(\u001b[22m\u001b[2m19 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[33m 552\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[45m component \u001b[49m\u001b[39m tests/component/NavigationHint.test.tsx \u001b[2m(\u001b[22m\u001b[2m3 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 108\u001b[2mms\u001b[22m\u001b[39m\n\n\u001b[2m Test Files \u001b[22m \u001b[1m\u001b[32m8 passed\u001b[39m\u001b[22m\u001b[90m (8)\u001b[39m\n\u001b[2m      Tests \u001b[22m \u001b[1m\u001b[32m78 passed\u001b[39m\u001b[22m\u001b[90m (78)\u001b[39m\n\u001b[2m   Start at \u001b[22m 13:39:26\n\u001b[2m   Duration \u001b[22m 1.95s\u001b[2m (transform 639ms, setup 855ms, import 1.15s, tests 3.18s, environment 5.05s)\u001b[22m\n\n",
+            "passed": 78,
+            "failed": 0
+          },
+          "test:integration": {
+            "cmd": "npm run test:integration",
+            "exit": 0,
+            "seconds": 4.9,
+            "tail": "eral chunks and reloads identical \u001b[33m 529\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[45m integration \u001b[49m\u001b[39m tests/integration/board-room-persistence.test.ts \u001b[2m(\u001b[22m\u001b[2m8 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[33m 940\u001b[2mms\u001b[22m\u001b[39m\n\u001b[90mstdout\u001b[2m | tests/integration/board-room.test.ts\u001b[2m > \u001b[22m\u001b[2msync.room: concurrent edits\u001b[2m > \u001b[22m\u001b[2mTC-12 MAX_CONCURRENT_EDITORS clients making 200 seeded random ops each end identical\n\u001b[22m\u001b[39mTC-12 seed 971822\n\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[45m integration \u001b[49m\u001b[39m tests/integration/board-room.test.ts \u001b[2m(\u001b[22m\u001b[2m17 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[33m 2366\u001b[2mms\u001b[22m\u001b[39m\n     \u001b[33m\u001b[2m\u2713\u001b[22m\u001b[39m TC-12 MAX_CONCURRENT_EDITORS clients making 200 seeded random ops each end identical \u001b[33m 739\u001b[2mms\u001b[22m\u001b[39m\n\n\u001b[2m Test Files \u001b[22m \u001b[1m\u001b[32m4 passed\u001b[39m\u001b[22m\u001b[90m (4)\u001b[39m\n\u001b[2m      Tests \u001b[22m \u001b[1m\u001b[32m44 passed\u001b[39m\u001b[22m\u001b[90m (44)\u001b[39m\n\u001b[2m   Start at \u001b[22m 13:39:29\n\u001b[2m   Duration \u001b[22m 3.84s\u001b[2m (transform 1.09s, setup 0ms, import 3.51s, tests 4.24s, environment 0ms)\u001b[22m\n\n\u001b[90mstderr\u001b[2m | tests/integration/board-room-persistence.test.ts\u001b[2m > \u001b[22m\u001b[2mpersist.room\u001b[2m > \u001b[22m\u001b[2mTC-14 a failed save is not relayed; sockets close 1011 and the change is saved when its author reconnects\n\u001b[22m\u001b[39m{\"event\":\"board_append_failed\",\"error\":\"injected storage failure\"}\n\n\u001b[90mstderr\u001b[2m | tests/integration/board-room-persistence.test.ts\u001b[2m > \u001b[22m\u001b[2mpersist.room\u001b[2m > \u001b[22m\u001b[2mTC-15 a board whose snapshot is unreadable is closed with 4500 and stores nothing sent to it\n\u001b[22m\u001b[39m{\"event\":\"board_snapshot_unreadable\",\"error\":\"Unexpected end of array\"}\n{\"event\":\"board_load_failed\",\"reason\":\"snapshot-unreadable\",\"error\":\"Unexpected end of array\"}\n\n\u001b[90mstderr\u001b[2m | tests/integration/board-store.test.ts\u001b[2m > \u001b[22m\u001b[2mpersist.board_store\u001b[2m > \u001b[22m\u001b[2mTC-09 a damaged (truncated) log row is quarantined and everything else loads\n\u001b[22m\u001b[39m{\"event\":\"board_update_quarantined\",\"seq\":7,\"error\":\"Invalid typed array length: 45\"}\n{\"event\":\"board_gap_filled\",\"client\":1680114448,\"clock\":115,\"len\":45}\n\n\u001b[90mstderr\u001b[2m | tests/integration/board-store.test.ts\u001b[2m > \u001b[22m\u001b[2mpersist.board_store\u001b[2m > \u001b[22m\u001b[2mTC-09 a damaged (random) log row is quarantined and everything else loads\n\u001b[22m\u001b[39m{\"event\":\"board_update_quarantined\",\"seq\":7,\"error\":\"contentRefs[(info & __vite_ssr_import_10__.BITS5)] is not a function\"}\n{\"event\":\"board_gap_filled\",\"client\":2659406896,\"clock\":115,\"len\":45}\n\n\u001b[90mstderr\u001b[2m | tests/integration/board-store.test.ts\u001b[2m > \u001b[22m\u001b[2mpersist.board_store\u001b[2m > \u001b[22m\u001b[2mTC-10 a damaged (truncated) snapshot fails the load and nothing is deleted or quarantined\n\u001b[22m\u001b[39m{\"event\":\"board_snapshot_unreadable\",\"error\":\"Unexpected end of array\"}\n\n\u001b[90mstderr\u001b[2m | tests/integration/board-store.test.ts\u001b[2m > \u001b[22m\u001b[2mpersist.board_store\u001b[2m > \u001b[22m\u001b[2mTC-10 a damaged (random) snapshot fails the load and nothing is deleted or quarantined\n\u001b[22m\u001b[39m{\"event\":\"board_snapshot_unreadable\",\"error\":\"contentRefs[(info & __vite_ssr_import_10__.BITS5)] is not a function\"}\n\n\u001b[90mstderr\u001b[2m | tests/integration/board-store.test.ts\u001b[2m > \u001b[22m\u001b[2mpersist.board_store\u001b[2m > \u001b[22m\u001b[2mTC-11 a statement failing mid-compaction rolls back: previous snapshot and log unchanged\n\u001b[22m\u001b[39m{\"event\":\"board_compaction_failed\",\"error\":\"injected failure\"}\n\n\u001b[90mstderr\u001b[2m | tests/integration/board-room-persistence.test.ts\u001b[2m > \u001b[22m\u001b[2mpersist.room\u001b[2m > \u001b[22m\u001b[2mTC-16 a failed load is retried only after LOAD_RETRY_MIN_INTERVAL_MS, and then the board syncs\n\u001b[22m\u001b[39m{\"event\":\"board_snapshot_unreadable\",\"error\":\"Unexpected end of array\"}\n{\"event\":\"board_load_failed\",\"reason\":\"snapshot-unreadable\",\"error\":\"Unexpected end of array\"}\n\n\u001b[90mstderr\u001b[2m | tests/integration/board-room-persistence.test.ts\u001b[2m > \u001b[22m\u001b[2mpersist.room\u001b[2m > \u001b[22m\u001b[2mTC-26 an SQL error while loading closes clients with 4500\n\u001b[22m\u001b[39m{\"event\":\"board_load_sql_error\",\"error\":\"injected SQL read failure\"}\n{\"event\":\"board_load_failed\",\"reason\":\"sql-error\",\"error\":\"injected SQL read failure\"}\n\n",
+            "passed": 44,
+            "failed": 0
+          },
+          "test:e2e": {
+            "cmd": "npm run test:e2e -- --project=chromium",
+            "exit": 1,
+            "seconds": 38.1,
+            "tail": ": long text \u203a TC-33 one word is large; 1,000 characters shrink to the minimum and clip with a fade \n    [firefox] \u203a tests/e2e/sticky-notes.spec.ts:224:3 \u203a Workflow 3: long text \u203a pasting 1,200 characters keeps exactly the first 1,000 and shows 1000/1000 \n    [firefox] \u203a tests/e2e/sticky-notes.spec.ts:242:3 \u203a Workflow 2: create while far away \u203a TC-34 the Sticky note button puts the note in the middle of the screen \n    [webkit] \u203a tests/e2e/broken-board.spec.ts:20:3 \u203a Workflow \"Broken board\" \u203a TC-24 honest failure message, no editing, recovery without a reload \n    [webkit] \u203a tests/e2e/live-collaboration.spec.ts:49:3 \u203a Workflow 1: two-person workshop \u203a TC-22 \u2192 TC-23 \u2192 TC-24 \u2192 TC-25 every change reaches the other person within the budget \n    [webkit] \u203a tests/e2e/live-collaboration.spec.ts:118:3 \u203a Workflow 1: two-person workshop \u203a TC-25 a note deleted while someone drags it disappears and the drag ends quietly \n    [webkit] \u203a tests/e2e/live-collaboration.spec.ts:150:3 \u203a Workflow 1: two-person workshop \u203a TC-28 selecting and editing a note does not change anything on the other screen \n    [webkit] \u203a tests/e2e/live-collaboration.spec.ts:172:3 \u203a Workflow 2: full-capacity session \u203a TC-26 MAX_CONCURRENT_EDITORS people each create and move 5 notes; everyone sees everything \n    [webkit] \u203a tests/e2e/live-collaboration.spec.ts:214:3 \u203a Workflow 3: flaky Wi-Fi \u203a TC-27 edits made during an outage catch up in both directions \n    [webkit] \u203a tests/e2e/navigation.spec.ts:21:3 \u203a Workflow 1: first visit navigation \u203a TC-28 \u2192 TC-23 \u2192 TC-24 hint, exact drag, zoom around pointer \n    [webkit] \u203a tests/e2e/navigation.spec.ts:73:3 \u203a Workflow 1: first visit navigation \u203a plain wheel pans in the scroll direction \n    [webkit] \u203a tests/e2e/navigation.spec.ts:88:3 \u203a Workflow 2: limits and recovery \u203a TC-25 click + until disabled; label ends at 400% \n    [webkit] \u203a tests/e2e/navigation.spec.ts:105:3 \u203a Workflow 2: limits and recovery \u203a zoom out stops at 10% and disables \u2212 \n    [webkit] \u203a tests/e2e/navigation.spec.ts:117:5 \u203a Workflow 2: limits and recovery \u203a TC-26 Reset view from far away at max zoom (1280x800) \n    [webkit] \u203a tests/e2e/navigation.spec.ts:117:5 \u203a Workflow 2: limits and recovery \u203a TC-26 Reset view from far away at max zoom (1920x1080) \n    [webkit] \u203a tests/e2e/navigation.spec.ts:131:3 \u203a Workflow 2: limits and recovery \u203a Ctrl+0 resets the view \n    [webkit] \u203a tests/e2e/navigation.spec.ts:141:3 \u203a Workflow 3: far travel \u203a TC-27 at 1,000,000 units the board still pans exactly \n    [webkit] \u203a tests/e2e/navigation.spec.ts:161:1 \u203a TC-31 zoom gestures and shortcuts never change the page zoom \n    [webkit] \u203a tests/e2e/sticky-notes.spec.ts:36:3 \u203a Workflow 1: brainstorm golden path \u203a TC-30 \u2192 TC-31 create by double-click, type, move at 50%, recolour, delete \n    [webkit] \u203a tests/e2e/sticky-notes.spec.ts:101:3 \u203a Workflow 1: brainstorm golden path \u203a double-click on a note edits it; Enter edits a selected note; Backspace while editing edits text \n    [webkit] \u203a tests/e2e/sticky-notes.spec.ts:127:3 \u203a Workflow 1: brainstorm golden path \u203a dragging a note never pans the board \n    [webkit] \u203a tests/e2e/sticky-notes.spec.ts:144:1 \u203a TC-32 at 200% a drag moves by half the screen distance and brings the note to the front \n    [webkit] \u203a tests/e2e/sticky-notes.spec.ts:179:3 \u203a Workflow 3: long text \u203a TC-33 one word is large; 1,000 characters shrink to the minimum and clip with a fade \n    [webkit] \u203a tests/e2e/sticky-notes.spec.ts:224:3 \u203a Workflow 3: long text \u203a pasting 1,200 characters keeps exactly the first 1,000 and shows 1000/1000 \n    [webkit] \u203a tests/e2e/sticky-notes.spec.ts:242:3 \u203a Workflow 2: create while far away \u203a TC-34 the Sticky note button puts the note in the middle of the screen \n  25 passed (37.1s)\n[WebServer] \u2718 [ERROR] {\"event\":\"board_snapshot_unreadable\",\"error\":\"Unexpected end of array\"}\n[WebServer] \n[WebServer] \n[WebServer] \u2718 [ERROR] {\"event\":\"board_load_failed\",\"reason\":\"snapshot-unreadable\",\"error\":\"Unexpected end of array\"}\n[WebServer] \n[WebServer] \n",
+            "passed": 25,
+            "failed": 0
+          }
+        },
+        "all_green": false
+      },
+      "accept": {
+        "build_exit": 0,
+        "runner_exit": 0,
+        "runner_tail": "",
+        "passed": 31,
+        "total": 31,
+        "on_partial": {
+          "passed": 0,
+          "total": 0
+        },
+        "by_story": {
+          "01": {
+            "passed": 10,
+            "total": 10
+          },
+          "02": {
+            "passed": 10,
+            "total": 10
+          },
+          "03": {
+            "passed": 7,
+            "total": 7
+          },
+          "04": {
+            "passed": 4,
+            "total": 4
+          }
+        },
+        "harness_fault": null
+      },
+      "commit": "6d66bd3bb9e54c18bf77cfe5006facee7e578963",
+      "requests": {},
+      "loc": {
+        "files": 65,
+        "lines": 7993
+      },
+      "finished": 1790340050.200813,
+      "status": "DONE",
+      "ended_by": "agent",
+      "partial_base": [],
+      "tasks": [
+        {
+          "n": 1,
+          "title": "Write storage and room-state unit tests first (TC-01, TC-02, TC-27)",
+          "type": "test:unit",
+          "implements": [
+            "persist.board_store",
+            "persist.room"
+          ],
+          "tcs": [
+            "TC-01",
+            "TC-02",
+            "TC-27"
+          ],
+          "status": "verified",
+          "found": 3,
+          "total": 3
+        },
+        {
+          "n": 2,
+          "title": "Implement BoardStore: SQLite schema, append, load with quarantine, chunked compaction",
+          "type": "implementation",
+          "implements": [
+            "persist.board_store"
+          ],
+          "tcs": [],
+          "status": "verified",
+          "found": null,
+          "total": null
+        },
+        {
+          "n": 3,
+          "title": "Integration tests for BoardStore against real Durable Object SQLite (TC-03 to TC-11, TC-25)",
+          "type": "test:integration",
+          "implements": [
+            "persist.board_store"
+          ],
+          "tcs": [
+            "TC-03",
+            "TC-04",
+            "TC-05",
+            "TC-06",
+            "TC-07",
+            "TC-08",
+            "TC-09",
+            "TC-10",
+            "TC-11",
+            "TC-25"
+          ],
+          "status": "verified",
+          "found": 10,
+          "total": 10
+        },
+        {
+          "n": 4,
+          "title": "Make BoardRoom persistent: load on wake, store before broadcast, hibernation API, load/storage failure handling",
+          "type": "implementation",
+          "implements": [
+            "persist.room"
+          ],
+          "tcs": [],
+          "status": "committed",
+          "found": null,
+          "total": null
+        },
+        {
+          "n": 5,
+          "title": "Integration tests for persistent room: durability, failures, hibernation (TC-12 to TC-18, TC-26)",
+          "type": "test:integration",
+          "implements": [
+            "persist.room"
+          ],
+          "tcs": [
+            "TC-12",
+            "TC-13",
+            "TC-14",
+            "TC-15",
+            "TC-16",
+            "TC-17",
+            "TC-18",
+            "TC-26"
+          ],
+          "status": "verified",
+          "found": 8,
+          "total": 8
+        },
+        {
+          "n": 6,
+          "title": "E2E persistence across real process restarts and large-board load time (TC-19 to TC-21)",
+          "type": "test:e2e",
+          "implements": [
+            "persist.room"
+          ],
+          "tcs": [
+            "TC-19",
+            "TC-20",
+            "TC-21"
+          ],
+          "status": "committed",
+          "found": 3,
+          "total": 3
+        },
+        {
+          "n": 7,
+          "title": "Implement client load-failure state: red message and editing disabled",
+          "type": "implementation",
+          "implements": [
+            "persist.client_status"
+          ],
+          "tcs": [],
+          "status": "committed",
+          "found": null,
+          "total": null
+        },
+        {
+          "n": 8,
+          "title": "Component tests for load-failure badge and edit lock (TC-22, TC-23)",
+          "type": "test:ui-component",
+          "implements": [
+            "persist.client_status"
+          ],
+          "tcs": [
+            "TC-22",
+            "TC-23"
+          ],
+          "status": "verified",
+          "found": 2,
+          "total": 2
+        },
+        {
+          "n": 9,
+          "title": "E2E broken board: honest failure, edit lock, recovery without reload (TC-24)",
+          "type": "test:e2e",
+          "implements": [
+            "persist.client_status"
+          ],
+          "tcs": [
+            "TC-24"
+          ],
+          "status": "committed",
+          "found": 1,
+          "total": 1
+        }
       ]
     }
   },
@@ -1498,6 +1820,215 @@
           "accept": {
             "passed": 0,
             "total": 7
+          }
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "title": "Return to a board and find everything as it was left",
+      "status": "DONE",
+      "ended_by": "agent",
+      "started_at": 1790338633.0444129,
+      "ended_at": 1790339957.3748531,
+      "agent_minutes": 22.1,
+      "calls": 79,
+      "output_tokens": 85940,
+      "compactions": 0,
+      "last_commit_at": 1790339946.0,
+      "accept": {
+        "passed": 4,
+        "total": 4
+      },
+      "partial_base": [],
+      "tasks": [
+        {
+          "n": 1,
+          "title": "Write storage and room-state unit tests first (TC-01, TC-02, TC-27)",
+          "type": "test:unit",
+          "implements": [
+            "persist.board_store",
+            "persist.room"
+          ],
+          "tcs": [
+            "TC-01",
+            "TC-02",
+            "TC-27"
+          ],
+          "status": "verified",
+          "found": 3,
+          "total": 3
+        },
+        {
+          "n": 2,
+          "title": "Implement BoardStore: SQLite schema, append, load with quarantine, chunked compaction",
+          "type": "implementation",
+          "implements": [
+            "persist.board_store"
+          ],
+          "tcs": [],
+          "status": "verified",
+          "found": null,
+          "total": null
+        },
+        {
+          "n": 3,
+          "title": "Integration tests for BoardStore against real Durable Object SQLite (TC-03 to TC-11, TC-25)",
+          "type": "test:integration",
+          "implements": [
+            "persist.board_store"
+          ],
+          "tcs": [
+            "TC-03",
+            "TC-04",
+            "TC-05",
+            "TC-06",
+            "TC-07",
+            "TC-08",
+            "TC-09",
+            "TC-10",
+            "TC-11",
+            "TC-25"
+          ],
+          "status": "verified",
+          "found": 10,
+          "total": 10
+        },
+        {
+          "n": 4,
+          "title": "Make BoardRoom persistent: load on wake, store before broadcast, hibernation API, load/storage failure handling",
+          "type": "implementation",
+          "implements": [
+            "persist.room"
+          ],
+          "tcs": [],
+          "status": "committed",
+          "found": null,
+          "total": null
+        },
+        {
+          "n": 5,
+          "title": "Integration tests for persistent room: durability, failures, hibernation (TC-12 to TC-18, TC-26)",
+          "type": "test:integration",
+          "implements": [
+            "persist.room"
+          ],
+          "tcs": [
+            "TC-12",
+            "TC-13",
+            "TC-14",
+            "TC-15",
+            "TC-16",
+            "TC-17",
+            "TC-18",
+            "TC-26"
+          ],
+          "status": "verified",
+          "found": 8,
+          "total": 8
+        },
+        {
+          "n": 6,
+          "title": "E2E persistence across real process restarts and large-board load time (TC-19 to TC-21)",
+          "type": "test:e2e",
+          "implements": [
+            "persist.room"
+          ],
+          "tcs": [
+            "TC-19",
+            "TC-20",
+            "TC-21"
+          ],
+          "status": "committed",
+          "found": 3,
+          "total": 3
+        },
+        {
+          "n": 7,
+          "title": "Implement client load-failure state: red message and editing disabled",
+          "type": "implementation",
+          "implements": [
+            "persist.client_status"
+          ],
+          "tcs": [],
+          "status": "committed",
+          "found": null,
+          "total": null
+        },
+        {
+          "n": 8,
+          "title": "Component tests for load-failure badge and edit lock (TC-22, TC-23)",
+          "type": "test:ui-component",
+          "implements": [
+            "persist.client_status"
+          ],
+          "tcs": [
+            "TC-22",
+            "TC-23"
+          ],
+          "status": "verified",
+          "found": 2,
+          "total": 2
+        },
+        {
+          "n": 9,
+          "title": "E2E broken board: honest failure, edit lock, recovery without reload (TC-24)",
+          "type": "test:e2e",
+          "implements": [
+            "persist.client_status"
+          ],
+          "tcs": [
+            "TC-24"
+          ],
+          "status": "committed",
+          "found": 1,
+          "total": 1
+        }
+      ],
+      "baselines": [
+        {
+          "source": "reference opus-5.5 run-1",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 35.8,
+          "calls": 72,
+          "output_tokens": 121862,
+          "accept": {
+            "passed": 4,
+            "total": 4
+          }
+        },
+        {
+          "source": "reference opus-5.5 run-2",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 32.3,
+          "calls": 93,
+          "output_tokens": 86802,
+          "accept": null
+        },
+        {
+          "source": "qwen/3.8/27b/ubuntu/24GB/llamacpp-opencode canvas-pi-02",
+          "status": "DONE",
+          "gate_green": false,
+          "agent_minutes": 230.2,
+          "calls": 605,
+          "output_tokens": 469592,
+          "accept": {
+            "passed": 4,
+            "total": 4
+          }
+        },
+        {
+          "source": "qwen/3.8/flash-next/macos/128GB/mtplx-opencode canvas-pi-01",
+          "status": "DONE",
+          "gate_green": false,
+          "agent_minutes": 125.5,
+          "calls": 408,
+          "output_tokens": 317444,
+          "accept": {
+            "passed": 3,
+            "total": 4
           }
         }
       ]

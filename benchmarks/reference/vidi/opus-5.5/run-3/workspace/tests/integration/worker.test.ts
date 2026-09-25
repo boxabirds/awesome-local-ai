@@ -72,3 +72,19 @@ describe('sync.worker_entry', () => {
     [a, b, observer].forEach((c) => c.close());
   });
 });
+
+describe('test-only storage hooks', () => {
+  it('without TEST_HOOKS (production config) /__test/* is just the static client', async () => {
+    expect(env.TEST_HOOKS).toBeUndefined();
+    for (const action of ['seed', 'compact', 'corrupt-snapshot', 'repair']) {
+      const url = `http://vidi6.test/__test/boards/${newBoardId()}/${action}`;
+      // POST reaches the static assets, which do not serve POST; nothing touches a board.
+      const post = await SELF.fetch(url, { method: 'POST' });
+      expect(post.status, action).not.toBe(200);
+      expect(await post.text()).not.toBe('ok');
+      const get = await SELF.fetch(url);
+      expect(get.headers.get('content-type'), action).toContain('text/html');
+      expect(await get.text()).toContain('<div id="root">');
+    }
+  });
+});

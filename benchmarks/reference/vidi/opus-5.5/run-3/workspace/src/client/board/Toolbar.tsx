@@ -5,7 +5,7 @@ export const STICKY_BUTTON_TOOLTIP = 'Sticky note – or double-click the board'
 const stop = (e: SyntheticEvent) => e.stopPropagation();
 
 /** Fixed left-side toolbar. */
-export function Toolbar(props: { onCreateSticky(): void }) {
+export function Toolbar(props: { onCreateSticky(): void; disabled?: boolean }) {
   return (
     <div
       className="toolbar"
@@ -21,6 +21,7 @@ export function Toolbar(props: { onCreateSticky(): void }) {
         className="toolbar__button"
         aria-label="Sticky note"
         title={STICKY_BUTTON_TOOLTIP}
+        disabled={props.disabled}
         onClick={props.onCreateSticky}
       >
         <svg width="22" height="22" viewBox="0 0 22 22" aria-hidden="true">

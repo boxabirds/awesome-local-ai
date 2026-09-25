@@ -11,6 +11,10 @@ export const MESSAGE_AWARENESS = 1;
 export const MESSAGE_QUERY_AWARENESS = 3;
 /** WebSocket close code for frames the room cannot use (text, undecodable, unknown type, rejected update). */
 export const CLOSE_UNSUPPORTED_DATA = 1003;
+/** WebSocket close code: the board's saved state cannot be loaded; the client keeps retrying. */
+export const CLOSE_BOARD_LOAD_FAILED = 4500;
+/** WebSocket close code: a change could not be saved; the room reset itself and the client should reconnect. */
+export const CLOSE_STORAGE_FAILURE = 1011;
 
 export type Decoded =
   | { kind: 'sync'; payload: Uint8Array }

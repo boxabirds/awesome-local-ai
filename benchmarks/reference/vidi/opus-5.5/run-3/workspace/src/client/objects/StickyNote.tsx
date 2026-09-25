@@ -42,6 +42,8 @@ export interface StickyNoteProps {
   zoom: number;
   selected: boolean;
   editing: boolean;
+  /** False while the board cannot be edited: no drag, text edit, colour or delete. Default true. */
+  editable?: boolean;
   /** CSS stacking position (1 = bottom). Omitted: DOM order decides. */
   stackIndex?: number;
   onSelect(id: string): void;
@@ -51,6 +53,7 @@ export interface StickyNoteProps {
 
 function StickyNoteImpl(props: StickyNoteProps) {
   const { note, doc, zoom, selected, editing } = props;
+  const editable = props.editable ?? true;
   const rootRef = useRef<HTMLDivElement>(null);
   const textRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
@@ -78,6 +81,7 @@ function StickyNoteImpl(props: StickyNoteProps) {
     const p = pressRef.current;
     if (!p) return;
     p.frame = null;
+    if (latest.current.editable === false) return;
     moveObject(latest.current.doc, latest.current.note.id, p.targetX, p.targetY);
   }, []);
 
@@ -92,7 +96,7 @@ function StickyNoteImpl(props: StickyNoteProps) {
       cancelAnimationFrame(p.frame);
       p.frame = null;
     }
-    if (release && p.dragging) {
+    if (release && p.dragging && latest.current.editable !== false) {
       const zoom = latest.current.zoom;
       const x = p.originX + (release.clientX - p.startX) / zoom;
       const y = p.originY + (release.clientY - p.startY) / zoom;
@@ -144,7 +148,7 @@ function StickyNoteImpl(props: StickyNoteProps) {
     '--note-line-height': STICKY_LINE_HEIGHT,
   } as CSSProperties;
 
-  const showToolbar = selected && !editing && phase !== 'dragging';
+  const showToolbar = editable && selected && !editing && phase !== 'dragging';
   const toolbar = showToolbar ? (
     <div
       className="note-toolbar-anchor"
@@ -204,6 +208,7 @@ function StickyNoteImpl(props: StickyNoteProps) {
         const dx = e.clientX - p.startX;
         const dy = e.clientY - p.startY;
         if (!p.dragging) {
+          if (latest.current.editable === false) return;
           if (Math.hypot(dx, dy) < DRAG_THRESHOLD_PX) return;
           p.dragging = true;
           setPhase('dragging');
@@ -227,7 +232,7 @@ function StickyNoteImpl(props: StickyNoteProps) {
       }}
       onDoubleClick={(e) => {
         e.stopPropagation();
-        if (!editing) props.onStartEdit(note.id);
+        if (!editing && editable) props.onStartEdit(note.id);
       }}
     >
       <div
