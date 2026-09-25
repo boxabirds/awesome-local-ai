@@ -1,8 +1,47 @@
+commit e5a881075ecbfaa6419a900abb62b02f9f3be4c3
+vidi-agent  Fri Sep 25 09:11:25 2026 +0100
+
+    story 3: See other people's edits appear live on the same board
+
+
+ NOTES.md                                    |   51 ++
+ package-lock.json                           | 1089 +++++++++++++++++++++++++--
+ package.json                                |   13 +-
+ playwright.config.ts                        |    8 +
+ src/client/App.tsx                          |   34 +-
+ src/client/board/useBoardDoc.ts             |   39 +-
+ src/client/canvas/testHooks.ts              |   34 +-
+ src/client/main.tsx                         |    4 +-
+ src/client/styles.css                       |   34 +
+ src/client/sync/ConnectionStatus.tsx        |   21 +
+ src/client/sync/connectBoard.ts             |   94 +++
+ src/shared/board-id.ts                      |   18 +
+ src/shared/config.ts                        |   12 +
+ src/shared/protocol.ts                      |   52 ++
+ src/worker/board-room.ts                    |  130 ++++
+ src/worker/index.ts                         |   34 +
+ tests/component/ConnectionStatus.test.tsx   |  153 ++++
+ tests/e2e/helpers/participants.ts           |  162 ++++
+ tests/e2e/live-collaboration.spec.ts        |  233 ++++++
+ tests/e2e/nightly/live-soak.nightly.spec.ts |  186 +++++
+ tests/fixtures/random-ops.ts                |   90 +++
+ tests/integration/board-room.test.ts        |  273 +++++++
+ tests/integration/env.d.ts                  |    7 +
+ tests/integration/helpers/ws-client.ts      |  163 ++++
+ tests/integration/worker.test.ts            |   73 ++
+ tests/unit/board-id.test.ts                 |   31 +
+ tests/unit/protocol.test.ts                 |   99 +++
+ tsconfig.json                               |    3 +-
+ tsconfig.worker.json                        |   19 +
+ vite.config.ts                              |    6 +
+ vitest.config.ts                            |    9 +
+ wrangler.jsonc                              |   14 +-
+ 32 files changed, 3109 insertions(+), 79 deletions(-)
 commit eff0a5c7d488335044145837078f2340bcdb2059
-Author: opus-5.5-reference <reference@vidi.invalid>
-Date:   Fri Sep 25 08:20:31 2026 +0100
+opus-5.5-reference  Fri Sep 25 08:20:31 2026 +0100
 
     story 2: Capture ideas on sticky notes and rearrange them
+
 
  NOTES.md                                  |  50 +++++
  package-lock.json                         |  51 ++++-
@@ -29,14 +68,11 @@ Date:   Fri Sep 25 08:20:31 2026 +0100
  tests/unit/board-model.test.ts            | 243 ++++++++++++++++++++++++
  tests/unit/sticky-text.test.ts            | 202 ++++++++++++++++++++
  24 files changed, 2867 insertions(+), 12 deletions(-)
-
 commit a4af47cbdfac55ba0299079ef41163dd80011020
-Author: opus-5.5-reference <reference@vidi.invalid>
-Date:   Fri Sep 25 08:03:23 2026 +0100
+opus-5.5-reference  Fri Sep 25 08:03:23 2026 +0100
 
     story 1: Pan and zoom around an infinite board
-    
-    Co-Authored-By: Claude Opus 5.5 (1M context) <noreply@anthropic.com>
+
 
  .gitignore                              |    7 +
  NOTES.md                                |   47 +
@@ -68,12 +104,11 @@ Date:   Fri Sep 25 08:03:23 2026 +0100
  vitest.config.ts                        |   27 +
  wrangler.jsonc                          |   10 +
  29 files changed, 5873 insertions(+)
-
 commit 8977be6cec0b4dd2fe6358a374b24c5d0dfd4812
-Author: opus-5.5-reference <reference@vidi.invalid>
-Date:   Fri Sep 25 07:55:28 2026 +0100
+opus-5.5-reference  Fri Sep 25 07:55:28 2026 +0100
 
     harness: empty repository with spec
+
 
  README.md                                          |   3 +
  spec/.DS_Store                                     | Bin 0 -> 6148 bytes
