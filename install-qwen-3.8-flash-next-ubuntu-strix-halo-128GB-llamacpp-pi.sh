@@ -6,5 +6,5 @@
 # another.
 set -euo pipefail
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-COMBINATION="qwen/3.8/flash-next/ubuntu/strix-halo-128GB/llamacpp-opencode"
+COMBINATION="qwen/3.8/flash-next/ubuntu/strix-halo-128GB/llamacpp-pi"
 . "${REPO_ROOT}/lib/bootstrap.sh"

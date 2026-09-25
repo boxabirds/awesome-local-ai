@@ -53,7 +53,7 @@ faster on a unified-memory chip.
 ## Install
 
 ```bash
-./install-qwen-3.8-flash-next-ubuntu-strix-halo-128GB-llamacpp-opencode.sh
+./install-qwen-3.8-flash-next-ubuntu-strix-halo-128GB-llamacpp-pi.sh
 ```
 
 It builds llama.cpp from the MTP pull request's branch (below) for Vulkan,

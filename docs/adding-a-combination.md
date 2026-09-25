@@ -47,7 +47,7 @@ The **path segments** are, in order:
 | size | parameter count, or a variant name when there is no clean size | `27b`, `8b`, `flash-next` |
 | os | operating system, lowercase | `ubuntu`, `macos` |
 | machine | the hardware the combination was **measured on**: a device name when it comes in one memory size, `<accel>-<memory>` when it comes in several, or (legacy) memory alone | `nvidia4090`, `strix-halo-128GB`, `64GB` |
-| stack | inference backend + client, hyphenated | `llamacpp-opencode`, `mtplx-opencode` |
+| stack | inference backend + client (the default one), hyphenated | `llamacpp-opencode`, `mtplx-opencode`, `llamacpp-pi` |
 
 The root script's filename is those segments joined with `-`:
 
@@ -388,7 +388,7 @@ prefix-cache reuse via `cached_tokens`, and a structured tool call.
 
 `lib/accel/strix-halo.sh` is the third accelerator: AMD's Ryzen AI Max
 (Radeon 8060S, gfx1151), unified memory on Linux. One combination uses it,
-`qwen/3.8/flash-next/ubuntu/strix-halo-128GB/llamacpp-opencode`, **not yet
+`qwen/3.8/flash-next/ubuntu/strix-halo-128GB/llamacpp-pi`, **not yet
 measured by this repo**. What is different from CUDA:
 
 - **`ACCEL_MEM_MIB` is the GTT limit**, not RAM and not the BIOS "VRAM"
