@@ -91,6 +91,11 @@ KILL_GRACE_S = 10
 # If OpenCode dies on an error (server stall, 409, dropped stream) the same session is resumed,
 # as a person at the keyboard would. Same rule for every arm; every resume is recorded.
 MAX_AGENT_RESUMES = 3
+# Story cap (user decision, 25 Sep): across 51 finished stories none took over 3.84 h of agent time and
+# none that needed nudging needed more than 3 nudges. Past either limit a story ends as PARTIAL.
+SECONDS_PER_HOUR = 3600
+MAX_STORY_AGENT_S = 4 * SECONDS_PER_HOUR
+MAX_NUDGES = 5
 RESUME_BACKOFF_S = 60
 RESUME_PROMPT = "Continue with the task from where you left off."
 # A reasoning model can end a turn with thinking only and no tool call; the agent then exits 0 as
@@ -483,6 +488,15 @@ def needs_nudge(attempt: dict, commits: int) -> bool:
     return commits == 0 and not attempt["stalled"] and not attempt["error"] and bool(attempt["session"])
 
 
+def cap_reason(agent_s: float, nudges: int) -> str | None:
+    """Why the story must end now, or None: over MAX_STORY_AGENT_S of agent time, or MAX_NUDGES given."""
+    if agent_s >= MAX_STORY_AGENT_S:
+        return f"story cap: {agent_s / SECONDS_PER_HOUR:.1f} h of agent time (cap {MAX_STORY_AGENT_S / SECONDS_PER_HOUR:.1f} h)"
+    if nudges >= MAX_NUDGES:
+        return f"story cap: {nudges} nudges without committing (cap {MAX_NUDGES})"
+    return None
+
+
 def keep_nudging(attempt: dict, commits: int, nudges: int) -> bool:
     """Nudge again unless the agent committed, or the previous nudge made no progress: no model call,
     or only talk with no tool call (e.g. "Nothing left to do." — 3,066 times in canvas-pi-01 story 11)."""
@@ -550,7 +564,7 @@ def last_session(client, events_path: Path) -> str | None:
 
 
 def run_story_agent(client, ws: Path, env: dict, model_id: str, prompt: str, events_path: Path,
-                    continue_session: str | None = None) -> dict:
+                    continue_session: str | None = None, on_cap=None) -> dict:
     """First attempt plus fork-resumes after errors and nudges after no-commit stops. With
     continue_session (a harness restart mid-story), the agent's own session is continued."""
     if not continue_session:
@@ -573,6 +587,10 @@ def run_story_agent(client, ws: Path, env: dict, model_id: str, prompt: str, eve
             attempts.append(run_agent(client, ws, env, model_id, RESUME_PROMPT, events_path,
                                       resume_from=last["session"], fork=True))
         elif keep_nudging(last, commits_since(ws, head), nudges):
+            if nudges >= MAX_NUDGES:
+                if on_cap:
+                    on_cap(cap_reason(sum(a["seconds"] for a in attempts), nudges))
+                break
             nudges += 1
             print(f"    agent stopped without committing — nudge {nudges}: continuing the session", flush=True)
             attempts.append(run_agent(client, ws, env, model_id, RESUME_PROMPT, events_path,
@@ -874,20 +892,33 @@ class SkipWatcher(threading.Thread):
     """Watches for the operator's skip-story request for the running story; on one, stops the agent
     (every process in the workspace) and sets STORY_SKIP so nothing resumes or nudges it."""
 
-    def __init__(self, run: Path, sid: int, ws: Path):
+    def __init__(self, run: Path, sid: int, ws: Path, now=time.time, poll_s: float = SKIP_POLL_S):
         super().__init__(daemon=True)
         self.run_dir, self.sid, self.ws = run, sid, ws
+        self.now, self.poll_s = now, poll_s
+        self.started = now()
         self.request: dict | None = None
         self._halt = threading.Event()
 
+    def _end(self, req: dict, who: str) -> None:
+        self.request = req
+        STORY_SKIP.set()
+        print(f"    {who} ended story {self.sid} ({req.get('by')}): {req.get('reason')}", flush=True)
+        kill_pids(workspace_pids(self.ws))
+
+    def cap(self, reason: str) -> None:
+        """End the story at the story cap, exactly as an operator skip would."""
+        self._end({"story": self.sid, "reason": reason, "by": "harness (cap)", "at": self.now()}, "the story cap")
+
     def run(self):
-        while not self._halt.wait(SKIP_POLL_S):
+        while not self._halt.wait(self.poll_s):
             req = pending_skip(self.run_dir, self.sid)
             if req:
-                self.request = req
-                STORY_SKIP.set()
-                print(f"    operator ended story {self.sid} ({req.get('by')}): {req.get('reason')}", flush=True)
-                kill_pids(workspace_pids(self.ws))
+                self._end(req, "operator")
+                return
+            reason = cap_reason(self.now() - self.started, 0)
+            if reason:
+                self.cap(reason)
                 return
 
     def stop(self) -> dict | None:
@@ -1083,7 +1114,8 @@ def main() -> None:
             watcher.start()
             skipper = SkipWatcher(run, sid, ws)
             skipper.start()
-            rec["agent"] = run_story_agent(client, ws, env, a.model_id, prompt, events, continue_session=prior)
+            rec["agent"] = run_story_agent(client, ws, env, a.model_id, prompt, events, continue_session=prior,
+                                           on_cap=skipper.cap)
             rec["agent_finished"] = time.time()
             skip = skipper.stop()
             watcher.stop()

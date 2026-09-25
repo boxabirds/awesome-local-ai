@@ -499,7 +499,7 @@ def test_sampler_aborts_when_swap_grows(monkeypatch):
 
 
 def test_nudges_are_unlimited_but_stop_when_a_nudge_makes_no_progress():
-    """User decision (24 Sep): no cap on nudges. Only a nudged session that makes zero model calls stops it."""
+    """keep_nudging is about progress only. The story-level cap (25 Sep: 4 h or 5 nudges) is cap_reason's."""
     from drive import keep_nudging
     progressing = {"stalled": False, "error": None, "session": "s", "steps": 5, "tool_calls": 4}
     assert keep_nudging(progressing, commits=0, nudges=50) is True          # no cap
@@ -677,3 +677,47 @@ def test_sandbox_hides_all_bench_state_but_the_agents_own_run():
     finally:
         shutil.rmtree(mine, ignore_errors=True)
         shutil.rmtree(secret, ignore_errors=True)
+
+
+def test_a_story_is_capped_at_4_hours_or_5_nudges():
+    """User decision (25 Sep): across 51 finished stories none took over 3.84 h and none that needed
+    nudging needed more than 3; Flash-Next canvas-pi-02 story 5 ran 7.5 h and 20 nudges uncommitted."""
+    from drive import cap_reason, MAX_STORY_AGENT_S, MAX_NUDGES
+    assert (MAX_STORY_AGENT_S, MAX_NUDGES) == (4 * 3600, 5)
+    assert cap_reason(MAX_STORY_AGENT_S - 1, MAX_NUDGES - 1) is None
+    assert "4.0 h" in cap_reason(MAX_STORY_AGENT_S, 0)
+    assert "5 nudges" in cap_reason(60, MAX_NUDGES)
+
+
+def test_the_time_cap_ends_the_running_story_like_an_operator_skip(tmp_path):
+    import drive
+    clock = [1000.0]
+    w = drive.SkipWatcher(tmp_path, 5, tmp_path, now=lambda: clock[0], poll_s=0.01)
+    try:
+        clock[0] += drive.MAX_STORY_AGENT_S
+        w.start()
+        w.join(timeout=5)
+        req = w.stop()
+        assert req and req["story"] == 5 and req["by"] == "harness (cap)" and "4.0 h" in req["reason"]
+        assert drive.STORY_SKIP.is_set()
+    finally:
+        drive.STORY_SKIP.clear()
+
+
+def test_the_nudge_cap_ends_the_story_after_the_fifth_nudge(tmp_path, monkeypatch):
+    import drive
+    clean = {"stalled": False, "error": None, "session": "s", "steps": 3, "tool_calls": 2, "exit": 0,
+             "seconds": 60, "compactions": 0, "tokens": {"input": 1, "output": 1}}
+    monkeypatch.setattr(drive, "run_agent", lambda *a, **k: dict(clean))
+    monkeypatch.setattr(drive, "commits_since", lambda ws, head: 0)
+    monkeypatch.setattr(drive, "sh", lambda *a, **k: "HEAD")
+
+    class NoGuard:
+        def __init__(self, *a): pass
+        def start(self): pass
+        def stop(self): return 0
+    monkeypatch.setattr(drive, "ToolHangGuard", NoGuard)
+    capped = []
+    res = drive.run_story_agent(None, tmp_path, {}, "m", "go", tmp_path / "ev.jsonl", on_cap=capped.append)
+    assert res["nudges"] == drive.MAX_NUDGES
+    assert len(capped) == 1 and "5 nudges" in capped[0]
