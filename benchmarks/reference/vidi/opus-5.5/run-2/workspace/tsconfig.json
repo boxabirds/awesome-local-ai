@@ -16,5 +16,5 @@
     "types": ["vite/client", "node"]
   },
   "include": ["src", "tests", "vite.config.ts", "vitest.config.ts", "playwright.config.ts"],
-  "exclude": ["src/worker", "tests/integration"]
+  "exclude": ["src/worker", "tests/integration", "tests/unit/board-store-chunks.test.ts", "tests/unit/room-state.test.ts"]
 }

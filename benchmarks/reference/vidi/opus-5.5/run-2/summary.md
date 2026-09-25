@@ -7,5 +7,6 @@ Model `claude-opus-5-5`, scope `canvas`, effort `low`, client claude 2.1.282 (Cl
 | 1 | Pan and zoom around an infinite board | DONE | 7.9 | None | None | None | — | — | red | None/None |  | 0 / 0 | 0 | — | throttled 0% |
 | 2 | Capture ideas on sticky notes and rearrange them | DONE | 16.9 | None | None | None | — | — | red | None/None |  | 0 / 0 | 0 | — | throttled 0% |
 | 3 | See other people's edits appear live on the same board | DONE | 21.3 | None | None | None | — | — | green | 0/27 |  | 0 / 0 | 0 | — | throttled 0% |
+| 4 | Return to a board and find everything as it was left | DONE | 32.3 | None | None | None | — | — | green | 0/31 |  | 0 / 2 | 0 | — | throttled 0% |
 
-**Totals:** 3 stories, 46 agent-minutes, 0 requests, 0 prompt / 0 completion tokens, gate green 1/3, final acceptance 0/27, stalled 0, partial 0, 6343 lines in src+tests.
+**Totals:** 4 stories, 78 agent-minutes, 0 requests, 0 prompt / 0 completion tokens, gate green 2/4, final acceptance 0/31, stalled 0, partial 0, 8415 lines in src+tests.

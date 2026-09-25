@@ -3,7 +3,7 @@ import type { PointerEvent, WheelEvent } from 'react';
 
 export const STICKY_BUTTON_TOOLTIP = 'Sticky note – or double-click the board';
 
-export function Toolbar(props: { onCreateSticky(): void }): React.JSX.Element {
+export function Toolbar(props: { onCreateSticky(): void; disabled?: boolean }): React.JSX.Element {
   // The toolbar is not board space: pointer and wheel input here never reach the board.
   const stop = (e: PointerEvent | WheelEvent) => e.stopPropagation();
   return (
@@ -16,7 +16,13 @@ export function Toolbar(props: { onCreateSticky(): void }): React.JSX.Element {
       onPointerDown={stop}
       onWheel={stop}
     >
-      <button type="button" aria-label="Sticky note" title={STICKY_BUTTON_TOOLTIP} onClick={props.onCreateSticky}>
+      <button
+        type="button"
+        aria-label="Sticky note"
+        title={STICKY_BUTTON_TOOLTIP}
+        disabled={props.disabled === true}
+        onClick={props.onCreateSticky}
+      >
         <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" focusable="false">
           <path
             d="M4 4h16v10l-6 6H4z"

@@ -6,12 +6,15 @@
  */
 import { isValidBoardId } from '../shared/board-id';
 import type { BoardRoom } from './board-room';
+import { handleTestHook } from './test-hooks';
 
 export { BoardRoom } from './board-room';
 
 export interface Env {
   BOARD_ROOM: DurableObjectNamespace<BoardRoom>;
   ASSETS: Fetcher;
+  /** '1' only in the e2e `wrangler dev` command line; enables src/worker/test-hooks.ts. */
+  TEST_HOOKS?: string;
 }
 
 const ROOMS_PREFIX = '/api/rooms/';
@@ -29,6 +32,8 @@ export default {
       }
       return env.BOARD_ROOM.get(env.BOARD_ROOM.idFromName(boardId)).fetch(req);
     }
+    const hook = await handleTestHook(req, env);
+    if (hook !== null) return hook;
     return env.ASSETS.fetch(req);
   },
 } satisfies ExportedHandler<Env>;

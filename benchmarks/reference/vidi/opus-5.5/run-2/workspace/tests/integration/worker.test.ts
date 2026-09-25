@@ -71,3 +71,17 @@ describe('Worker routing (sync.worker_entry)', () => {
     expect(c.snapshot()).toEqual([]);
   });
 });
+
+describe('Test hooks (story 4 TC-24 support)', () => {
+  it('do not exist unless TEST_HOOKS is 1: hook paths fall through to the static client', async () => {
+    expect(env.TEST_HOOKS).toBeUndefined();
+    const id = newBoardId();
+    for (const action of ['compact', 'corrupt-snapshot', 'repair']) {
+      const res = await SELF.fetch(`http://vidi6.test/__test/boards/${id}/${action}`, { method: 'POST' });
+      const body = await res.text();
+      expect(body).not.toContain('"ok"');
+      expect(res.headers.get('content-type') ?? '').not.toContain('application/json');
+    }
+  });
+});
+

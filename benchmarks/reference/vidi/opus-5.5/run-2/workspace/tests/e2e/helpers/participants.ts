@@ -55,8 +55,9 @@ async function routeBoardSockets(context: BrowserContext): Promise<(online: bool
   };
 }
 
-export async function openParticipant(browser: Browser, boardId: string, name: string): Promise<Participant> {
-  const context = await browser.newContext({ viewport: { width: 1280, height: 800 } });
+/** `baseURL` targets another server than the shared one (story 4 restart tests). */
+export async function openParticipant(browser: Browser, boardId: string, name: string, baseURL?: string): Promise<Participant> {
+  const context = await browser.newContext({ viewport: { width: 1280, height: 800 }, ...(baseURL === undefined ? {} : { baseURL }) });
   const setSockets = await routeBoardSockets(context);
   const page = await context.newPage();
   const setOnline = async (online: boolean) => {

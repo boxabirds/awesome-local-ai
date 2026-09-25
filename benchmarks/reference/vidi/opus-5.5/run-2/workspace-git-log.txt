@@ -1,3 +1,43 @@
+commit b604c11f39aba224bce41374a16fd6e438670bcc
+vidi-agent  Fri Sep 25 09:45:07 2026 +0100
+
+    story 4: Return to a board and find everything as it was left
+
+
+ NOTES.md                                         |  57 ++++
+ playwright.config.ts                             |  28 +-
+ src/client/App.tsx                               |  27 +-
+ src/client/board/Toolbar.tsx                     |  10 +-
+ src/client/board/useBoardDoc.ts                  |  11 +-
+ src/client/objects/StickyNote.tsx                |  11 +-
+ src/client/styles.css                            |  16 ++
+ src/client/sync/ConnectionStatus.tsx             |   4 +-
+ src/client/sync/connectBoard.ts                  |  28 +-
+ src/shared/config.ts                             |  19 ++
+ src/shared/protocol.ts                           |   4 +
+ src/worker/board-room.ts                         | 222 +++++++++++----
+ src/worker/board-store.ts                        | 193 +++++++++++++
+ src/worker/index.ts                              |   5 +
+ src/worker/room-state.ts                         |  68 +++++
+ src/worker/test-hooks.ts                         |  65 +++++
+ tests/component/ConnectionStatus.test.tsx        |  54 +---
+ tests/component/LoadFailure.test.tsx             | 155 ++++++++++
+ tests/component/fakeProvider.ts                  |  69 +++++
+ tests/e2e/broken-board.spec.ts                   |  75 +++++
+ tests/e2e/helpers/participants.ts                |   5 +-
+ tests/e2e/helpers/seed.ts                        |  60 ++++
+ tests/e2e/helpers/wrangler-process.ts            | 111 ++++++++
+ tests/e2e/persistence.spec.ts                    | 182 ++++++++++++
+ tests/fixtures/boards.ts                         | 116 ++++++++
+ tests/integration/board-room-persistence.test.ts | 300 +++++++++++++++++++
+ tests/integration/board-store.test.ts            | 348 +++++++++++++++++++++++
+ tests/integration/worker.test.ts                 |  14 +
+ tests/unit/board-store-chunks.test.ts            |  45 +++
+ tests/unit/room-state.test.ts                    |  95 +++++++
+ tsconfig.json                                    |   2 +-
+ tsconfig.worker.json                             |   9 +-
+ wrangler.jsonc                                   |   4 +-
+ 33 files changed, 2283 insertions(+), 129 deletions(-)
 commit e5a881075ecbfaa6419a900abb62b02f9f3be4c3
 vidi-agent  Fri Sep 25 09:11:25 2026 +0100
 

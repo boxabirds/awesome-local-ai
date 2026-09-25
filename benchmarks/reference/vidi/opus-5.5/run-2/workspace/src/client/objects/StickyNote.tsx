@@ -65,6 +65,8 @@ export interface StickyNoteProps {
   onSelect(id: string): void;
   onStartEdit(id: string): void;
   onEndEdit(next: 'selected' | 'unselected'): void;
+  /** False while the board cannot be edited (story 4 load failure): no drag, edit, colour or delete. */
+  editable?: boolean;
 }
 
 interface Press {
@@ -79,6 +81,7 @@ interface Press {
 
 function StickyNoteImpl(props: StickyNoteProps): React.JSX.Element {
   const { note, doc, zoom, selected, editing, onSelect, onStartEdit, onEndEdit } = props;
+  const editable = props.editable ?? true;
   const rootRef = useRef<HTMLDivElement>(null);
   const textRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
@@ -165,7 +168,7 @@ function StickyNoteImpl(props: StickyNoteProps): React.JSX.Element {
     const dx = e.clientX - p.startX;
     const dy = e.clientY - p.startY;
     if (!p.dragging) {
-      if (Math.hypot(dx, dy) < DRAG_THRESHOLD_PX) return;
+      if (!editable || Math.hypot(dx, dy) < DRAG_THRESHOLD_PX) return;
       if (!hasObject(doc, note.id)) {
         endDrag();
         return;
@@ -202,7 +205,7 @@ function StickyNoteImpl(props: StickyNoteProps): React.JSX.Element {
 
   const onDoubleClick = (e: MouseEvent<HTMLDivElement>) => {
     e.stopPropagation();
-    if (!editing) onStartEdit(note.id);
+    if (!editing && editable) onStartEdit(note.id);
   };
 
   // Keyboard focus (Tab) selects the note; pointer focus is handled by pointerup.
@@ -236,7 +239,7 @@ function StickyNoteImpl(props: StickyNoteProps): React.JSX.Element {
     zIndex: NOTE_TOOLBAR_Z_INDEX,
     transform: `scale(${1 / zoom})`,
   };
-  const showToolbar = selected && !editing && !dragging && worldLayer !== null;
+  const showToolbar = editable && selected && !editing && !dragging && worldLayer !== null;
 
   const state = editing ? 'editing' : dragging ? 'dragging' : selected ? 'selected' : 'unselected';
 
@@ -270,7 +273,7 @@ function StickyNoteImpl(props: StickyNoteProps): React.JSX.Element {
           {note.text}
         </div>
       </div>
-      {editing && ytext !== undefined && (
+      {editing && editable && ytext !== undefined && (
         <StickyTextEditor ytext={ytext} fontPx={fit.fontPx} offsetTop={fit.offsetTop} onEnd={onEndEdit} />
       )}
       {showToolbar &&

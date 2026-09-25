@@ -6,8 +6,8 @@
   "assets": {
     "directory": "dist/client",
     "binding": "ASSETS",
-    // Room sockets must reach the Worker, not the single-page-application fallback.
-    "run_worker_first": ["/api/*"],
+    // Room sockets (and, in e2e runs only, test hooks) must reach the Worker, not the SPA fallback.
+    "run_worker_first": ["/api/*", "/__test/*"],
     "not_found_handling": "single-page-application"
   },
   "durable_objects": {

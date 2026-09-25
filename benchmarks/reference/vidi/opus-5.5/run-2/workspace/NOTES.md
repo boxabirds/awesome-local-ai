@@ -146,3 +146,60 @@ Decisions taken where the spec was silent or ambiguous:
 ### Not covered
 - Real-internet latency and a true production Durable Object restart (design "Not covered");
   TC-18 simulates the restart with a fresh object instance.
+
+## Story 4 — Return to a board and find everything as it was left
+
+Decisions taken where the spec was silent or ambiguous:
+
+1. **Per-row limit.** SQLite-backed Durable Objects allow 2 MB per row/BLOB (Cloudflare docs at
+   the time of writing); `SNAPSHOT_CHUNK_BYTES` stays at the design's 512 KiB.
+2. **Room lifecycle.** `src/worker/room-state.ts` (`nextRoomState`) is the single transition
+   function; `BoardRoom.lifecycle` holds its state and `BoardRoom.state` maps it to the contract's
+   `'ready' | 'load-failed' | 'storage-failed'`. Compaction runs synchronously inside the update
+   handler, so the room never observes `compacting` or `hibernated` in memory (both are covered by
+   the unit test only). `BoardStore.compact()` (unconditional) is public for the test hooks.
+3. **Refused sockets** (load-failed room) are accepted with `ctx.acceptWebSocket` and closed with
+   4500 straight away: accepting them with `server.accept()` made workerd log an uncaught
+   "Network connection lost" per refusal.
+4. **`load_failed` is sticky until a sync.** After a 4500 close the badge stays red (and editing
+   stays locked) through further failed attempts with other close codes (e.g. network errors),
+   because the board is still not loaded; the first successful sync switches to `connected`.
+   A 4500 close after the board was already open also locks it. 1011 is an ordinary
+   "Reconnecting…".
+5. **Edit lock.** `canEdit(state)` in `App.tsx` gates creation (double-click, disabled Sticky note
+   button), Enter/Delete/Backspace, and is passed to `StickyNote` as an optional `editable` prop
+   (no drag, no editor, no note toolbar with colours/delete). An editor that is open when the board
+   becomes `load_failed` closes. Component tests observe "no model mutation" as zero updates on the
+   real `Y.Doc` (every board-model mutation emits one), not spies on ESM exports.
+6. **No row per visit.** Story 3 called `initDoc` before connecting, so every page open added a
+   `meta.schemaVersion` update (one stored row per visit). A live board now calls `initDoc` after
+   its first successful sync (a no-op on a saved board); local-only boards still initialise at once.
+7. **Test hooks.** `src/worker/test-hooks.ts` adds `POST /__test/boards/:id/compact`,
+   `/corrupt-snapshot` and `/repair`, only when `env.TEST_HOOKS === '1'`. The variable is set only
+   on the e2e `wrangler dev` command lines (`--var TEST_HOOKS:1`), never in `wrangler.jsonc`; the
+   BoardRoom's RPC methods check it again. `/__test/*` is in `run_worker_first` so POSTs reach the
+   Worker; without the variable the Worker hands the request to the static assets (checked by an
+   integration test). Corrupt fills chunk 0 with 0xFF bytes after saving it in a
+   `test_hook_backup` table and reloads the room; repair restores it.
+8. **E2E layout.** `tests/e2e/persistence.spec.ts` (TC-19–TC-21) runs in its own `persistence`
+   project (chromium) and starts one `wrangler dev --persist-to <tmp>` per test on port
+   `E2E_PERSIST_PORT_BASE` (default 8810) + parallel index, killing the whole process group with
+   SIGKILL to "restart". It serves the test build produced by the shared webServer command.
+   TC-24 is `tests/e2e/broken-board.spec.ts` on the shared server. Large and retro boards are
+   seeded from Node through a real room socket (`tests/e2e/helpers/seed.ts`). TC-19 restarts the
+   process instead of waiting 5 minutes.
+9. **Large-board render.** TC-21 first measured ~7 s for 2,000 notes: the time was the client's
+   per-note text fitting, each forcing a layout of the whole world layer. `.sticky-note` now has
+   `contain: layout size style` (notes are fixed-size), so each measurement lays out one note:
+   2,000 notes render ~0.8–1.0 s after navigation start locally (budget 3 s). The board itself
+   arrives ~0.1 s after navigation start.
+10. **TC-09 fixture.** A damaged row is only "one missing change" when no later row depends on it;
+    rows written by the same Yjs client do (Yjs keeps them pending). TC-09 therefore writes each
+    note from a different client, as on a real shared board, and asserts the other 24 are intact.
+11. **TC-16 time.** The room reads time through a replaceable `now()`; the integration test moves
+    it forward by `LOAD_RETRY_MIN_INTERVAL_MS` instead of sleeping.
+
+### Not covered
+- Output-gate ordering, production hibernation/eviction timing and real Cloudflare restarts
+  (design "Not covered"); TC-18 uses the pool's `evictDurableObject` for hibernation.
+- Load time over real internet latency (TC-21 is local).

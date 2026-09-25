@@ -3,58 +3,14 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import * as Y from 'yjs';
 import { App } from '../../src/client/App';
 import { ConnectionStatus } from '../../src/client/sync/ConnectionStatus';
-import type { ProviderFactory, SyncProvider } from '../../src/client/sync/connectBoard';
+import { fakeProviders } from './fakeProvider';
 import { snapshot } from '../../src/shared/board-model';
 import { newBoardId } from '../../src/shared/board-id';
 import { CONNECTED_CONFIRMATION_MS } from '../../src/shared/config';
 
-type Status = 'connected' | 'disconnected' | 'connecting';
-
-/** Fake y-websocket provider: the test emits the events a real one would. */
-class FakeProvider implements SyncProvider {
-  private readonly handlers = { status: [] as ((e: { status: Status }) => void)[], sync: [] as ((s: boolean) => void)[] };
-  destroyed = false;
-  constructor(
-    readonly url: string,
-    readonly boardId: string,
-  ) {}
-  on(event: 'status' | 'sync', handler: never): void {
-    (this.handlers[event] as unknown[]).push(handler);
-  }
-  status(status: Status): void {
-    act(() => this.handlers.status.forEach((h) => h({ status })));
-  }
-  sync(synced: boolean): void {
-    act(() => this.handlers.sync.forEach((h) => h(synced)));
-  }
-  /** What y-websocket emits when a socket opens and completes the sync handshake. */
-  open(): void {
-    this.status('connecting');
-    this.status('connected');
-    this.sync(true);
-  }
-  /** What y-websocket emits when an open socket closes. */
-  drop(): void {
-    this.status('disconnected');
-    this.sync(false);
-  }
-  destroy(): void {
-    this.destroyed = true;
-  }
-}
-
-let providers: FakeProvider[] = [];
-const createProvider: ProviderFactory = (url, boardId) => {
-  const p = new FakeProvider(url, boardId);
-  providers.push(p);
-  return p;
-};
-
-function provider(): FakeProvider {
-  const p = providers.filter((x) => !x.destroyed).at(-1);
-  if (p === undefined) throw new Error('no live provider');
-  return p;
-}
+const fakes = fakeProviders();
+const { createProvider } = fakes;
+const provider = () => fakes.provider();
 
 /** The badge (the zoom percentage <output> also has the implicit status role). */
 function badge(): HTMLElement | null {
@@ -64,7 +20,7 @@ function badge(): HTMLElement | null {
 }
 
 beforeEach(() => {
-  providers = [];
+  fakes.reset();
   vi.useFakeTimers();
 });
 
