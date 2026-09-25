@@ -3,6 +3,7 @@ import { render, RenderResult, fireEvent } from '@testing-library/react';
 import { act } from 'react';
 import { App } from '@/client/App';
 import { createSticky, getStickyText, type StickySnapshot } from '@/shared/board-model';
+import { newBoardId } from '@/shared/board-id';
 
 export interface Vidi6Hooks {
   setCamera(cam: { x: number; y: number; zoom: number }): void;
@@ -18,8 +19,13 @@ export function hooks(): Vidi6Hooks {
   return h;
 }
 
-/** Renders the real <App /> (full story 2 wiring). */
+/**
+ * Renders the real <App /> (full story 2 wiring). Story 3 routes the board by
+ * URL, so point the (jsdom) location at a fresh /b/<id> first; the sync
+ * provider's WebSocket is stubbed in setup.ts so no network is attempted.
+ */
 export function renderFullApp(): RenderResult {
+  window.history.pushState({}, '', '/b/' + newBoardId());
   return render(<App />);
 }
 

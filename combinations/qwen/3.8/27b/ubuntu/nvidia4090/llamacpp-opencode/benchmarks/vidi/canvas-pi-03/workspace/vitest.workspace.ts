@@ -28,4 +28,24 @@ export default defineWorkspace([
       globals: true,
     },
   },
+  {
+    plugins: [react()],
+    resolve: { alias },
+    test: {
+      // Integration runs against a REAL `wrangler dev` (real worker + real
+      // Durable Object + real WebSockets). The Cloudflare vitest pool's
+      // bundled workerd drops WebSocket frames delivered through an
+      // in-worker DO stub, so WS assertions must go through the production
+      // workerd that `wrangler dev` uses. A single server is shared by all
+      // files (global setup) and files run serially.
+      name: 'integration',
+      environment: 'node',
+      include: ['tests/integration/**/*.test.{ts,tsx}'],
+      globalSetup: path.resolve(__dirname, 'tests/integration/global-setup.ts'),
+      fileParallelism: false,
+      globals: true,
+      testTimeout: 30_000,
+      hookTimeout: 60_000,
+    },
+  },
 ]);

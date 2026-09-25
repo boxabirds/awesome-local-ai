@@ -1,5 +1,24 @@
 import { expect, type Page } from '@playwright/test';
 
+/** Mirrors src/shared/board-id (e2e cannot use the `@` alias). */
+function newBoardId(): string {
+  const bytes = new Uint8Array(16);
+  crypto.getRandomValues(bytes);
+  let binary = '';
+  for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
+  return Buffer.from(binary, 'binary').toString('base64url');
+}
+
+/**
+ * Navigate to a fresh board and wait until it is rendered. The app redirects
+ * `/` to `/b/<id>` via a full-page reload, which would race the test's first
+ * action, so we go straight to a valid board URL instead.
+ */
+export async function gotoBoard(page: Page): Promise<void> {
+  await page.goto('/b/' + newBoardId());
+  await page.waitForSelector('[data-testid="board-viewport"]', { timeout: 15_000 });
+}
+
 export async function getOriginMarkerPosition(page: Page): Promise<{ x: number; y: number }> {
   const marker = page.locator('[data-testid="origin-marker"]');
   const box = await marker.boundingBox();

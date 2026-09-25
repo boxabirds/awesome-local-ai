@@ -1,28 +1,47 @@
-import { useCallback, useRef, useState, useSyncExternalStore } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import * as Y from 'yjs';
 import { initDoc, snapshot, type StickySnapshot } from '@/shared/board-model';
+import { connectBoard, type ConnectionState } from '../sync/connectBoard';
+import { registerConnectionTestHook } from '../canvas/testHooks';
 
 export interface BoardDoc {
-  /** The in-memory Yjs document (story 3 attaches a provider, story 4 persists it). */
+  /** The in-memory Yjs document (a fresh doc per board id). */
   doc: Y.Doc;
   /** Immutable snapshot of all sticky notes, sorted by (z, id). */
   notes: readonly StickySnapshot[];
+  /** Live connection state for the board's sync provider. */
+  connectionState: ConnectionState;
 }
 
 /**
  * Owns the board's Y.Doc for this page and exposes an immutable snapshot via
- * useSyncExternalStore. The snapshot is recomputed only when the `objects`
- * map changes (observeDeep), and getSnapshot returns a cached reference in
- * between, as required by useSyncExternalStore.
+ * useSyncExternalStore. The doc is created per `boardId` and a y-websocket
+ * provider is attached for the lifetime of the board (story 3), so local and
+ * remote edits both flow through `doc` and re-render via `observeDeep`.
  */
-export function useBoardDoc(): BoardDoc {
-  const [doc] = useState<Y.Doc>(() => {
+export function useBoardDoc(boardId: string): BoardDoc {
+  const doc = useMemo(() => {
     const d = new Y.Doc();
     initDoc(d);
     return d;
-  });
+  }, [boardId]);
+
+  // (Re)connect the sync provider whenever the doc/board changes.
+  const [connectionState, setConnectionState] = useState<ConnectionState>('connecting');
+  useEffect(() => {
+    setConnectionState('connecting');
+    const conn = connectBoard(doc, boardId, setConnectionState);
+    // Test-only: expose handles to drop/resume the connection (story 3 outage test).
+    if (import.meta.env.MODE === 'test') {
+      registerConnectionTestHook({ drop: () => conn.drop(), resume: () => conn.resume() });
+    }
+    return () => conn.destroy();
+  }, [doc, boardId]);
 
   const cacheRef = useRef<readonly StickySnapshot[] | null>(null);
+  useEffect(() => {
+    cacheRef.current = null;
+  }, [doc]);
 
   const getSnapshot = useCallback((): readonly StickySnapshot[] => {
     if (cacheRef.current === null) {
@@ -47,5 +66,5 @@ export function useBoardDoc(): BoardDoc {
   );
 
   const notes = useSyncExternalStore(subscribe, getSnapshot);
-  return { doc, notes };
+  return { doc, notes, connectionState };
 }

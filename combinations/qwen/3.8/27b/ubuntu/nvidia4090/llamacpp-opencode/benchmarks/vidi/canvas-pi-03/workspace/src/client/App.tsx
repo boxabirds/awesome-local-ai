@@ -10,10 +10,27 @@ import { useBoardDoc } from './board/useBoardDoc';
 import { useSelection } from './board/useSelection';
 import { Toolbar } from './board/Toolbar';
 import { StickyNote } from './objects/StickyNote';
+import { ConnectionStatus } from './sync/ConnectionStatus';
 import { createSticky, deleteObject, snapshot } from '@/shared/board-model';
+import { isValidBoardId, newBoardId } from '@/shared/board-id';
+
+/** Extracts the board id from `/b/:boardId`, or null when absent. */
+function parseBoardId(pathname: string): string | null {
+  const m = pathname.match(/^\/b\/([^/]+)/);
+  return m ? m[1] : null;
+}
 
 export function App() {
+  const [boardId] = useState<string | null>(() => parseBoardId(window.location.pathname));
   const [viewport, setViewport] = useState({ width: window.innerWidth, height: window.innerHeight });
+
+  // First visit (or an invalid id) lands on a fresh board. The SPA fallback
+  // serves index.html for any /b/<id>, so the client owns id validation here.
+  useEffect(() => {
+    if (!boardId || !isValidBoardId(boardId)) {
+      window.location.replace('/b/' + newBoardId());
+    }
+  }, [boardId]);
 
   const updateViewport = useCallback(() => {
     setViewport({ width: window.innerWidth, height: window.innerHeight });
@@ -25,7 +42,7 @@ export function App() {
   }, [updateViewport]);
 
   const cameraState = useCamera(viewport);
-  const { doc, notes } = useBoardDoc();
+  const { doc, notes, connectionState } = useBoardDoc(boardId ?? '');
   const { selectedId, editingId, select, startEdit, endEdit } = useSelection();
 
   useEffect(() => {
@@ -36,6 +53,11 @@ export function App() {
   useEffect(() => {
     registerBoardTestHooks(() => snapshot(doc), () => doc);
   }, [doc]);
+
+  // Test-only: keep the live connection state readable (story 3 tests).
+  useEffect(() => {
+    if (window.__vidi6) window.__vidi6.connectionState = connectionState;
+  }, [connectionState]);
 
   const createStickyAt = useCallback(
     (world: Point) => {
@@ -94,8 +116,11 @@ export function App() {
     (a, b) => a.createdAt - b.createdAt || a.id.localeCompare(b.id),
   );
 
+  if (!boardId) return null; // redirecting to a fresh board
+
   return (
     <CameraContext.Provider value={cameraState}>
+      <ConnectionStatus state={connectionState} />
       <BoardViewport onCreateStickyAt={createStickyAt} onClearSelection={() => select(null)}>
         {stableNotes.map((note) => (
           <StickyNote
