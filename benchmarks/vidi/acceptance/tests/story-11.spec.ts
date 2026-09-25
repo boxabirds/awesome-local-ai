@@ -6,7 +6,9 @@ const LIVE_MS = 2_000;
 const PIXEL_TOLERANCE = 1.5;
 const PEN_COLOURS = ['black', 'blue', 'red', 'green', 'orange', 'purple'];
 
-const strokes = (p: Page) => p.locator('[aria-label="Drawing"]');
+// What assistive tech sees: one "Drawing" per stroke. Labels inside aria-hidden subtrees
+// (e.g. an SVG path under a labelled wrapper) are not announced, so they don't count.
+const strokes = (p: Page) => p.locator('[aria-label="Drawing"]:not([aria-hidden="true"] *)');
 
 async function scribble(p: Page, x: number, y: number) {
   await p.mouse.move(x, y);

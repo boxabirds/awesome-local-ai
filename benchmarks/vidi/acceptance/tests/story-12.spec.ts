@@ -1,5 +1,5 @@
 // Story 12 — Drop images onto the board.
-import { test, expect, requires, openBoard, joinBoard, box, shot, mod } from './fixtures';
+import { test, expect, requires, openBoard, joinBoard, box, shot, mod, zoomOutBy, waitConnected } from './fixtures';
 import type { Page } from '@playwright/test';
 import { PNG } from 'pngjs';
 
@@ -24,10 +24,22 @@ const PDF_BYTES = Buffer.from('%PDF-1.4\n1 0 obj<<>>endobj\ntrailer<<>>\n%%EOF\n
 const images = (p: Page) => p.locator('img[alt="Image"]');
 const toast = (p: Page, text: string) => p.getByText(text);
 
+// PRD image.offline: until the board is connected, adding images is refused (with a message)
+// instead of opening the picker. A just-opened or just-reloaded page may not be connected yet,
+// and the connecting badge can lag the first render, so retry the shortcut a few times.
+const PICK_ATTEMPTS = 5;
+const PICK_WAIT_MS = 3_000;
+const PICK_RETRY_MS = 1_000;
+
 async function pick(p: Page, files: { name: string; mimeType: string; buffer: Buffer }[]) {
-  const chooser = p.waitForEvent('filechooser');
-  await p.keyboard.press('i');
-  await (await chooser).setFiles(files);
+  for (let attempt = 0; attempt < PICK_ATTEMPTS; attempt++) {
+    const chooser = p.waitForEvent('filechooser', { timeout: PICK_WAIT_MS }).catch(() => null);
+    await p.keyboard.press('i');
+    const c = await chooser;
+    if (c) return c.setFiles(files);
+    await p.waitForTimeout(PICK_RETRY_MS);
+  }
+  throw new Error(`pressing I never opened a file chooser (${PICK_ATTEMPTS} attempts)`);
 }
 
 // Synthesise an OS file drop at a screen point.
@@ -64,9 +76,7 @@ test.describe('story 12 @s12', () => {
 
   test('large image is scaled so its longest side is 800 units @ref prd:image.size', async ({ page }) => {
     await openBoard(page);
-    await page.getByRole('button', { name: 'Zoom out' }).click();
-    await page.getByRole('button', { name: 'Zoom out' }).click();
-    const zoom = Number((await page.getByText(/^\d+%$/).first().innerText()).replace('%', '')) / 100;
+    const zoom = await zoomOutBy(page, 2);
     await pick(page, [{ name: 'wide.png', mimeType: 'image/png', buffer: pngBytes(WIDE_W, WIDE_H) }]);
     await expect(images(page)).toHaveCount(1, { timeout: UPLOAD_MS });
     const b = await box(images(page).first());
@@ -106,6 +116,8 @@ test.describe('story 12 @s12', () => {
     await page.waitForTimeout(LIVE_MS);
     await page.reload();
     await expect(images(page)).toHaveCount(1, { timeout: UPLOAD_MS });
+    // Adding images is refused until the board is connected (PRD image.offline); wait for it.
+    await waitConnected(page);
     await pick(page, [{ name: 'undo.png', mimeType: 'image/png', buffer: pngBytes(SMALL_W, SMALL_H) }]);
     await expect(images(page)).toHaveCount(2, { timeout: UPLOAD_MS });
     await page.mouse.click(1100, 700);

@@ -1,5 +1,5 @@
 // Story 7 — Select, move, resize and delete several objects at once.
-import { test, expect, requires, openBoard, notes, createNote, clickEmpty, box, drag, shot, mod } from './fixtures';
+import { test, expect, requires, openBoard, notes, createNote, clickEmpty, box, drag, shot, mod, zoomOutBy } from './fixtures';
 
 const PIXEL_TOLERANCE = 1.5;
 const NUDGE_SMALL = 1;
@@ -15,8 +15,7 @@ test.describe('story 7 @s07', () => {
 
   test('golden path: marquee selects enclosed notes, bar shows count @ref prd:sel.marquee prd:sel.bar', async ({ page }) => {
     await openBoard(page);
-    await page.getByRole('button', { name: 'Zoom out' }).click();
-    await page.getByRole('button', { name: 'Zoom out' }).click();
+    await zoomOutBy(page, 2);
     const a = await createNote(page, { x: 350, y: 300 }, 'A');
     const b = await createNote(page, { x: 550, y: 300 }, 'B');
     const c = await createNote(page, { x: 950, y: 300 }, 'C');
@@ -37,6 +36,9 @@ test.describe('story 7 @s07', () => {
     const a = await createNote(page, { x: 300, y: 300 }, 'full');
     const b = await createNote(page, { x: 600, y: 300 }, 'half');
     const ab = await box(a), bb = await box(b);
+    // Box select adds to the current selection (PRD sel.marquee), and createNote leaves the
+    // last note selected, so start from an empty selection as the golden path does.
+    await clickEmpty(page, { x: 1100, y: 650 });
     await drag(page, { x: ab.x - 20, y: ab.y - 20 }, { x: bb.x + bb.width / 2, y: bb.y + bb.height + 20 }, { shift: true });
     await expect(page.getByRole('button', { name: 'Delete note' })).toBeVisible(); // exactly one sticky selected
     await page.keyboard.press('Delete');

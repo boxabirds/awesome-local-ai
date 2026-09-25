@@ -1,5 +1,5 @@
 // Story 4 — Return to a board and find everything as it was left.
-import { test, expect, requires, openBoard, joinBoard, notes, createNote, box, shot } from './fixtures';
+import { test, expect, requires, openBoard, joinBoard, notes, createNote, box, shot, zoomOutBy } from './fixtures';
 
 const LIVE_MS = 2_000;
 const PIXEL_TOLERANCE = 1.5;
@@ -13,8 +13,7 @@ test.describe('story 4 @s04', () => {
   test('board is intact after everyone leaves @ref prd:persist.reopen', async ({ newPerson }) => {
     const alex = await newPerson();
     const url = await openBoard(alex);
-    await alex.getByRole('button', { name: 'Zoom out' }).click();
-    await alex.getByRole('button', { name: 'Zoom out' }).click();
+    await zoomOutBy(alex, 2);
     for (let i = 0; i < LARGE_BOARD_NOTES; i++) {
       const col = i % NOTES_PER_ROW, row = Math.floor(i / NOTES_PER_ROW);
       await createNote(alex, { x: 300 + col * NOTE_SPACING_PX, y: 150 + row * NOTE_SPACING_PX }, `p${i}`);
@@ -29,8 +28,7 @@ test.describe('story 4 @s04', () => {
     await joinBoard(priya, url);
     await expect(notes(priya)).toHaveCount(LARGE_BOARD_NOTES, { timeout: LIVE_MS * 2 });
     // Same zoom as Alex had, so the saved position can be compared on screen.
-    await priya.getByRole('button', { name: 'Zoom out' }).click();
-    await priya.getByRole('button', { name: 'Zoom out' }).click();
+    await zoomOutBy(priya, 2);
     await expect(priya.getByText(/^\d+%$/).first()).toHaveText(refZoomed);
     const again = await box(notes(priya).filter({ hasText: 'p7' }));
     expect(Math.abs(again.x - ref.x)).toBeLessThan(PIXEL_TOLERANCE);

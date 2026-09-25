@@ -1,5 +1,5 @@
 // Story 9 — Write free text anywhere on the board.
-import { test, expect, requires, openBoard, notes, clickEmpty, box, drag, shot, mod } from './fixtures';
+import { test, expect, requires, openBoard, notes, clickEmpty, box, drag, shot, mod, zoomOutBy } from './fixtures';
 import type { Page } from '@playwright/test';
 
 const PIXEL_TOLERANCE = 1.5;
@@ -52,12 +52,10 @@ test.describe('story 9 @s09', () => {
 
   test('auto width wraps at 600 units @ref prd:text.autowidth', async ({ page }) => {
     await openBoard(page);
-    await page.getByRole('button', { name: 'Zoom out' }).click();
-    await page.getByRole('button', { name: 'Zoom out' }).click();
-    const zoom = Number((await page.getByText(/^\d+%$/).first().innerText()).replace('%', '')) / 100;
+    const zoom = await zoomOutBy(page, 2);
     const words = Array.from({ length: LONG_SENTENCE_CHARS / 6 }, (_, i) => `word${i % 10}`).join(' ');
     await placeText(page, { x: 200, y: 200 }, words);
-    await clickEmpty(page, { x: 1200, y: 750 });
+    await clickEmpty(page); // (1200,750) was the Reset view button, which reset the zoom
     const w = (await box(page.getByText(/word0 word1/).first())).width;
     expect(w).toBeLessThanOrEqual(TEXT_MAX_AUTO_WIDTH_WORLD * zoom + PIXEL_TOLERANCE * 4);
     expect(w).toBeGreaterThan(TEXT_MAX_AUTO_WIDTH_WORLD * zoom * 0.8);

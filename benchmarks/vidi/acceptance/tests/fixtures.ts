@@ -116,6 +116,19 @@ export const zoomLabel = (page: Page) => page.getByText(/^\d+%$/).first();
 export const notes = (page: Page): Locator => page.locator('[role="group"][aria-label="Sticky note"]');
 export const hint = (page: Page) => page.getByText('Drag to move around · Ctrl/Cmd + scroll or pinch to zoom');
 
+// The design lets the view (and its zoom label) update on the next animation frame, so a
+// test must wait for each step to land before clicking again or reading the zoom.
+export async function zoomStep(page: Page, name: 'Zoom in' | 'Zoom out') {
+  const before = await zoomLabel(page).innerText();
+  await page.getByRole('button', { name }).click();
+  await expect(zoomLabel(page)).not.toHaveText(before);
+}
+
+export async function zoomOutBy(page: Page, steps: number): Promise<number> {
+  for (let i = 0; i < steps; i++) await zoomStep(page, 'Zoom out');
+  return (await zoomPercent(page)) / 100;
+}
+
 export async function zoomPercent(page: Page): Promise<number> {
   return Number((await zoomLabel(page).innerText()).replace('%', ''));
 }

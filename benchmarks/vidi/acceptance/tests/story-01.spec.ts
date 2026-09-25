@@ -1,6 +1,6 @@
 // Story 1 — Pan and zoom around an infinite board.
 import { test, expect, requires, openBoard, zoomLabel, zoomPercent, hint, notes, createNote,
-         box, drag, shot, mod, BOARD_CENTRE } from './fixtures';
+         box, drag, shot, mod, BOARD_CENTRE, zoomStep } from './fixtures';
 
 const ZOOM_STEP_PCT = 125;
 const ZOOM_MIN_PCT = 10;
@@ -33,10 +33,10 @@ test.describe('story 1 @s01', () => {
     await openBoard(page);
     const out = page.getByRole('button', { name: 'Zoom out' });
     const inn = page.getByRole('button', { name: 'Zoom in' });
-    for (let i = 0; i < MAX_STEPS && await out.isEnabled(); i++) await out.click();
+    for (let i = 0; i < MAX_STEPS && await out.isEnabled(); i++) await zoomStep(page, 'Zoom out');
     await expect(zoomLabel(page)).toHaveText(`${ZOOM_MIN_PCT}%`);
     await expect(out).toBeDisabled();
-    for (let i = 0; i < MAX_STEPS && await inn.isEnabled(); i++) await inn.click();
+    for (let i = 0; i < MAX_STEPS && await inn.isEnabled(); i++) await zoomStep(page, 'Zoom in');
     await expect(zoomLabel(page)).toHaveText(`${ZOOM_MAX_PCT}%`);
     await expect(inn).toBeDisabled();
     await expect(out).toBeEnabled();
