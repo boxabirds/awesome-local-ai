@@ -88,6 +88,11 @@ SAFE_KV_TYPES="${SAFE_KV_TYPES:-n/a}"       # llama.cpp: which KV types have a k
 SPEC_DRAFT_N_MAX="${SPEC_DRAFT_N_MAX:-}"    # llama.cpp: draft tokens per step
 SPEC_BUILTIN="${SPEC_BUILTIN:-}"            # llama.cpp: MTP head is inside the GGUF (no -md sidecar)
 IMAGE_MIN_TOKENS="${IMAGE_MIN_TOKENS:-}"    # llama.cpp: vision grounding floor
+LLAMA_BATCH="${LLAMA_BATCH:-}"              # llama.cpp: -b (logical batch); launcher default 1024
+LLAMA_EXTRA_ARGS="${LLAMA_EXTRA_ARGS:-}"    # llama.cpp: flags this combination always passes
+SPEC_NGRAM_ARGS="${SPEC_NGRAM_ARGS:-}"      # llama.cpp: n-gram speculation when there is no MTP head
+IDLE_TIMEOUT_DEFAULT="${IDLE_TIMEOUT_DEFAULT:-}"                  # session: idle shutdown, seconds
+SERVER_START_TIMEOUT_DEFAULT="${SERVER_START_TIMEOUT_DEFAULT:-}"  # session: how long a load may take
 
 # Column layout of this combination's profiles.tsv. The backend declares it,
 # since the backend is what reads the columns; a combination may override.

@@ -48,7 +48,7 @@ _known_good_ref() {
 # smoke_test reports through globals, so clear them before a second attempt --
 # otherwise the summary could describe the failed run.
 _reset_smoke_state() {
-  SMOKE_CTX=""; SMOKE_MEM=""; SMOKE_FREE=""; SMOKE_GEN=""; SMOKE_ACC=""; SMOKE_RSS=""
+  SMOKE_CTX=""; SMOKE_MEM=""; SMOKE_FREE=""; SMOKE_GEN=""; SMOKE_ACC=""; SMOKE_RSS=""; SMOKE_SPEC_NOTE=""
 }
 
 _can_recover() {

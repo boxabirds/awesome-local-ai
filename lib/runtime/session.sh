@@ -79,11 +79,14 @@ export PATH="$HOME/.local/bin:$PATH"
 
 PORT="${PORT:-${DEFAULT_PORT:-8080}}"
 PROFILE="${PROFILE:-$DEFAULT_PROFILE}"
-IDLE_TIMEOUT="${IDLE_TIMEOUT:-300}"     # seconds with zero clients before shutdown
+# Seconds with zero clients before shutdown. A combination whose model takes
+# minutes to load sets a longer default in its manifest, since reloading 90 GB
+# after every five-minute pause costs more than keeping it resident.
+IDLE_TIMEOUT="${IDLE_TIMEOUT:-${IDLE_TIMEOUT_DEFAULT:-300}}"
 POLL_INTERVAL="${POLL_INTERVAL:-10}"
 MODEL_ID="${MODEL_ID:-$MODEL_ALIAS_DEFAULT}"
 PROVIDER="${PROVIDER:-$DEFAULT_PROVIDER}"
-SERVER_START_TIMEOUT="${SERVER_START_TIMEOUT:-300}"
+SERVER_START_TIMEOUT="${SERVER_START_TIMEOUT:-${SERVER_START_TIMEOUT_DEFAULT:-300}}"
 
 STATE_DIR="${XDG_STATE_HOME:-$HOME/.local/state}/$INSTALL_ID"
 CLIENTS_DIR="$STATE_DIR/clients"
@@ -381,6 +384,13 @@ show_status() {
         | python3 -c 'import sys,json;d=json.load(sys.stdin);print((d.get("models") or d.get("data"))[0].get("model") or (d.get("models") or d.get("data"))[0].get("id"))' 2>/dev/null || echo '?')"
     if [[ "$ACCEL" == "cuda" ]] && command -v nvidia-smi >/dev/null 2>&1; then
       echo "vram      : $(nvidia-smi --query-gpu=memory.used --format=csv,noheader 2>/dev/null | head -1)"
+    elif [[ "$ACCEL" == "strix-halo" ]]; then
+      local d
+      for d in /sys/bus/pci/devices/*; do
+        [[ "$(cat "$d/device" 2>/dev/null)" == "0x1586" && -r "$d/mem_info_gtt_used" ]] || continue
+        echo "gtt       : $(( $(cat "$d/mem_info_gtt_used") / 1048576 )) of $(( $(cat "$d/mem_info_gtt_total") / 1048576 )) MiB"
+        break
+      done
     fi
   else
     echo "server    : not running"
