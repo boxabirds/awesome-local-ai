@@ -143,6 +143,23 @@ assert_ok "a CUDA host is told the Strix Halo row needs a strix-halo accelerator
   grep -q "strix-halo-128GB/llamacpp-pi.*needs a strix-halo accelerator; this machine has cuda" <<< "$why"
 
 echo
+echo "the menu names why a combination does not suit this machine"
+MAC="qwen/3.8/27b/macos/64GB/mtplx-opencode"
+N4090="qwen/3.8/27b/ubuntu/nvidia4090/llamacpp-opencode"
+HOST_OS=ubuntu; HOST_ARCH=x86_64; HOST_ACCEL=strix-halo; HOST_MEM_MIB=126155
+assert_eq "tritus: its own row suits it"          ""                          "$(combo_misfit "$STRIX")"
+assert_eq "tritus: a macOS row needs a Mac"       "needs a Mac"               "$(combo_misfit "$MAC")"
+assert_eq "tritus: a 4090 row needs NVIDIA"       "needs an NVIDIA GPU"       "$(combo_misfit "$N4090")"
+HOST_MEM_MIB=65024
+assert_eq "a 64GB Strix Halo lacks RAM for the 128GB row" "not enough RAM (needs 128 GB)" "$(combo_misfit "$STRIX")"
+HOST_ACCEL=cuda; HOST_MEM_MIB=12288
+assert_eq "a 12GB NVIDIA card lacks VRAM"         "not enough VRAM (needs 24 GB)" "$(combo_misfit "$N4090")"
+assert_eq "...and the Strix row needs Strix Halo" "needs an AMD Strix Halo"   "$(combo_misfit "$STRIX")"
+HOST_OS=macos; HOST_ARCH=arm64; HOST_ACCEL=metal; HOST_MEM_MIB=65536
+assert_eq "a 64GB Mac: its row suits it"          ""                          "$(combo_misfit "$MAC")"
+assert_eq "a 64GB Mac: a Linux row needs Ubuntu"  "needs Ubuntu"              "$(combo_misfit "$N4090")"
+
+echo
 echo "every combination is reachable and installable"
 while IFS= read -r combo; do
   [[ -n "$combo" ]] || continue
