@@ -9,7 +9,7 @@
         [--out <dir>]   # default: <private repo>/gradings/<name>
 
 The builds become A and B in random order, and the name-to-letter key goes to --key, outside the
-package, in ~/.vidi-bench/grading-keys/<name>.json unless --key says otherwise. The key is never
+package, in ~/.vidi-bench/keys/<name>.json unless --key says otherwise. The key is never
 written inside the package or the private repo, where a grader could read it. Each build gets:
 - workspace/: git HEAD, without spec/ and without git history, so no author names;
 - commits.txt: messages and changed files, without authors;
@@ -29,6 +29,7 @@ import shutil
 import subprocess
 from pathlib import Path
 
+import hostenv
 import packdir
 
 HERE = Path(__file__).resolve().parent
@@ -69,7 +70,7 @@ def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--name", required=True, help="package name, e.g. vidi-v2")
     ap.add_argument("--out", type=Path, help="default: <private repo>/gradings/<name>")
-    ap.add_argument("--key", type=Path, help="default: ~/.vidi-bench/grading-keys/<name>.json")
+    ap.add_argument("--key", type=Path, help="default: ~/.vidi-bench/keys/<name>.json")
     ap.add_argument("--build", action="append", required=True, help="name=workspace:claims-dir:accept.json (exactly two)")
     ap.add_argument("--scope", default="canvas")
     a = ap.parse_args()
@@ -78,7 +79,7 @@ def main() -> None:
     pack = packdir.resolve(HERE.parent)
     private = packdir.private_root(pack)
     out = (a.out or ((private or HERE.parent) / "gradings" / a.name)).expanduser().resolve()
-    key_path = (a.key or Path.home() / ".vidi-bench" / "grading-keys" / f"{a.name}.json").expanduser().resolve()
+    key_path = (a.key or hostenv.bench_home() / "keys" / f"{a.name}.json").expanduser().resolve()
     for guarded in [out, *([private] if private else [])]:
         if key_path.is_relative_to(guarded):
             raise SystemExit(f"--key {key_path} is inside {guarded}, where a grader could read it")

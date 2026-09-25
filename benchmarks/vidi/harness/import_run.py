@@ -11,8 +11,8 @@ held-out suite, the pack, the repo or another run, nothing is imported. Otherwis
 `run.sh <install-id> --run-id <run> --client claude` then carries on at the next story.
 
     uv run import_run.py --run-dir benchmarks/reference/vidi/opus-5.5/run-2 \\
-        --workspace ~/.vidi-bench/reference/opus-5.5-run2/workspace \\
-        --transcripts ~/.vidi-bench/reference/opus-5.5-run2/agents.json \\
+        --workspace ~/.vidi-bench/reference/opus-5.5-run-2/workspace \\
+        --transcripts ~/.vidi-bench/reference/opus-5.5-run-2/agents.json \\
         --session-dir ~/.claude/projects/<project>/<session> \\
         [--allow <extra allowed path>]...
 """
