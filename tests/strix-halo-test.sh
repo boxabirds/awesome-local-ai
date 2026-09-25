@@ -145,7 +145,7 @@ assert_fails "an unlisted MTP_QUANT is refused" cfg 'true' 'MTP_QUANT=BF16;'
 assert_eq "llama.cpp is the MTP PR's branch" "https://github.com/danielhanchen/llama.cpp.git qwen4exp/mtp" \
   "$(cfg 'echo "$LLAMA_REPO_URL $LLAMA_BRANCH"')"
 assert_eq "...no older than the ROCm gfx1151 logits fix" "2026-09-08" "$(cfg 'echo "$MIN_LLAMA_COMMIT_DATE"')"
-assert_eq "draft depth 3, p-min 0"          "3 0.0" "$(cfg 'echo "$SPEC_DRAFT_N_MAX $SPEC_DRAFT_P_MIN"')"
+assert_eq "draft depth 4, p-min 0"          "4 0.0" "$(cfg 'echo "$SPEC_DRAFT_N_MAX $SPEC_DRAFT_P_MIN"')"
 assert_eq "no n-gram speculation by default" "" "$(cfg 'echo "$SPEC_NGRAM_ARGS"')"
 assert_eq "QUANT=UD-Q4_K_XL has four shards" "4" \
   "$(cfg 'printf "%s\n" "$MODEL_ASSETS" | grep -c "UD-Q4_K_XL-0000"' 'QUANT=UD-Q4_K_XL;')"
@@ -223,7 +223,7 @@ assert_ok "KV is f16"                        grep -qx -- f16 <<< "$(grep -A1 -x 
 after() { grep -A1 -x -- "$1" <<< "$argv" | tail -1; }
 assert_ok "passes the MTP head with -md"     grep -q 'MTP/mtp-Qwen3.8-Flash-Next-shared-Q8_0.gguf$' <<< "$(after -md)"
 assert_eq "as a draft-mtp speculator"        "draft-mtp" "$(after --spec-type)"
-assert_eq "drafting 3 tokens a step"         "3"   "$(after --spec-draft-n-max)"
+assert_eq "drafting 4 tokens a step"         "4"   "$(after --spec-draft-n-max)"
 assert_eq "keeping every drafted token"      "0.0" "$(after --spec-draft-p-min)"
 assert_fails "no n-gram speculation alongside MTP" has ngram-mod
 argv="$(launch env SPEC_DRAFT_N_MAX=2 SPEC_DRAFT_P_MIN=0.5)"
