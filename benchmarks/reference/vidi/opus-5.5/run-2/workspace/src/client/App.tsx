@@ -10,6 +10,7 @@ import { Toolbar } from './board/Toolbar';
 import { useBoardDoc } from './board/useBoardDoc';
 import { useSelection } from './board/useSelection';
 import { useBoardKeys } from './board/useBoardKeys';
+import { UndoContext, useUndo, useUndoController } from './board/useUndo';
 import { useTransformGesture } from './board/useTransformGesture';
 import { MarqueeRect, useMarquee } from './board/Marquee';
 import { SelectionOverlay } from './board/SelectionOverlay';
@@ -69,18 +70,46 @@ export function App(props: AppProps = {}): React.JSX.Element {
     [objects],
   );
 
-  const transform = useTransformGesture({ doc, camera, selection, snapshot: objects, canEdit: editable });
+  // One undo history per board doc, for this tab only (story 8).
+  const history = useUndoController(doc);
+  const undoApi = useUndo(history, editable);
+  /** Runs one model call as exactly one undo step. */
+  const step = useCallback(
+    <T,>(fn: () => T): T => {
+      history.boundary();
+      try {
+        return fn();
+      } finally {
+        history.boundary();
+      }
+    },
+    [history],
+  );
+
+  const transform = useTransformGesture({
+    doc,
+    camera,
+    selection,
+    snapshot: objects,
+    canEdit: editable,
+    onGestureStart: history.startGroup,
+    onGestureEnd: history.boundary,
+  });
   const { gesture } = transform;
   const marquee = useMarquee(camera, objects, useCallback((ids: string[]) => setMany(ids, true), [setMany]));
-  useBoardKeys({ doc, selection, snapshot: objects, canEdit: editable });
+  const keysHistory = useMemo(
+    () => ({ undo: undoApi.undo, redo: undoApi.redo, boundary: history.boundary }),
+    [undoApi.undo, undoApi.redo, history],
+  );
+  useBoardKeys({ doc, selection, snapshot: objects, canEdit: editable, history: keysHistory });
 
   const createAt = useCallback(
     (world: Point) => {
       if (!editable) return;
-      const id = createSticky(doc, world);
+      const id = step(() => createSticky(doc, world));
       if (id !== '') startEdit(id);
     },
-    [doc, startEdit, editable],
+    [doc, startEdit, editable, step],
   );
 
   const onCreateSticky = useCallback(() => {
@@ -89,10 +118,13 @@ export function App(props: AppProps = {}): React.JSX.Element {
 
   const onDeleteSelection = useCallback(() => {
     if (!editable) return;
-    deleteObjects(doc, [...selectedIds]);
+    step(() => deleteObjects(doc, [...selectedIds]));
     clear();
-  }, [doc, selectedIds, clear, editable]);
-  const onColor = useCallback((id: string, c: StickyColor) => setStickyColor(doc, id, c), [doc]);
+  }, [doc, selectedIds, clear, editable, step]);
+  const onColor = useCallback(
+    (id: string, c: StickyColor) => step(() => setStickyColor(doc, id, c)),
+    [doc, step],
+  );
 
   const overlay = (
     <>
@@ -117,6 +149,7 @@ export function App(props: AppProps = {}): React.JSX.Element {
 
   return (
     <BoardContext.Provider value={context}>
+      <UndoContext.Provider value={history}>
       <main className="app">
         <BoardViewport
           onBackgroundClick={clear}
@@ -145,7 +178,7 @@ export function App(props: AppProps = {}): React.JSX.Element {
           })}
           <MarqueeRect rect={marquee.rect} camera={camera} />
         </BoardViewport>
-        <Toolbar onCreateSticky={onCreateSticky} disabled={!editable} />
+        <Toolbar onCreateSticky={onCreateSticky} disabled={!editable} undo={undoApi} />
         <ZoomControls
           zoomPercent={zoomPercent(camera)}
           canZoomIn={canZoomIn(camera)}
@@ -157,6 +190,7 @@ export function App(props: AppProps = {}): React.JSX.Element {
         <NavigationHint visible={!board.hasNavigated} />
         <ConnectionStatus state={connection} />
       </main>
+      </UndoContext.Provider>
     </BoardContext.Provider>
   );
 }

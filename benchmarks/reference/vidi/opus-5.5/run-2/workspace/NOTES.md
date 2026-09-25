@@ -319,3 +319,47 @@ Decisions taken where the spec was silent or ambiguous:
 - The 200-object performance check is manual (design "Not covered") and was not run.
 - Touch input; types from stories 9–12 (only the test-only `testbox` type exercises the
   generic path).
+
+## Story 8 — Undo and redo my own changes without undoing anyone else's
+
+Decisions taken where the spec was silent or ambiguous:
+
+1. **One undo/redo = exactly one step.** Y.UndoManager on its own keeps popping until a step
+   has an effect, so undoing a move of a note someone else deleted would also undo the
+   step before it. `UndoController.undo/redo` hide the rest of the stack while popping, so a
+   step with no effect is consumed and nothing visible happens (PRD alternate flow, design
+   "no effect step consumed"); the next undo continues normally (TC-07, TC-23).
+2. **Contract extensions** on `UndoController` (all additive): `startGroup()` keeps one step
+   open until the next `boundary()` whatever the pauses (so a drag the user holds still for
+   more than UNDO_CAPTURE_TIMEOUT_MS is still one step); `undoIn(type)` / `redoIn(type)` undo
+   or redo only when the top step changed nothing but that Y.Text; `undoSize()` for tests.
+   `addScope` takes `Y.AbstractType<any>` because `Y.Text` is not assignable to
+   `Y.AbstractType<unknown>` under strict typing.
+3. **Gesture wiring.** `onGestureStart = startGroup`, `onGestureEnd = boundary` (the
+   design's `boundary` at start, plus the hold described above). Bring-to-front at drag
+   start is part of the drag's step, so undo restores stacking as well.
+4. **Ctrl/Cmd+Z while editing a note** undoes only typing in that note (PRD: "while typing
+   in a note, Ctrl/Cmd+Z undoes typing in that note; after leaving the note, undo continues
+   through earlier actions"). When the last step is not typing in that note, the shortcut
+   does nothing (the textarea's native undo is still suppressed so it never diverges from the
+   Y.Text). Ctrl/Cmd+Shift+Z and Ctrl+Y redo typing in the note the same way.
+5. **After every undo/redo the capture window is closed**, so typing straight after an undo
+   never merges into an older step.
+6. **Command steps.** Create (toolbar / double-click), colour, Delete (key and bar button) and
+   each arrow-key nudge are wrapped in `boundary()` before and after, i.e. one step each.
+7. **Controller lifetime.** `useUndoController(doc)` creates the controller in an effect and
+   destroys it on unmount / board change (StrictMode-safe); until then a no-op controller
+   (`NO_UNDO`) keeps the buttons disabled. The controller reaches the sticky text editor via
+   `UndoContext`, so `ObjectProps` did not change.
+8. **Shortcuts** are handled only when the board can be edited; then `preventDefault` is
+   always called (even with an empty stack) so the browser's own undo never runs on the board.
+   Cmd+Y is not a shortcut (PRD lists Ctrl+Y only). Shortcuts in inputs (share-link field)
+   are left to the browser.
+9. **Tests and the fake clock.** lib0 (used by Y.UndoManager) binds `Date.now` at import,
+   so `tests/unit/undo-boundaries.test.ts` installs the fake `Date` in `vi.hoisted` and keeps
+   it for the whole file. The unit "peer" helper uses its own load-origin symbol: the
+   worker's LOAD_ORIGIN cannot be imported into the DOM-typed test build, and any non-local
+   origin behaves the same for the controller.
+10. **Fixture.** `buildUndoBoard` in `tests/fixtures/boards.ts`: 12 notes in varied colours
+    and sizes, 8 of them in one cluster.
+11. **Browsers.** e2e ran with `E2E_BROWSERS=chromium`; multi-context cases skip elsewhere.

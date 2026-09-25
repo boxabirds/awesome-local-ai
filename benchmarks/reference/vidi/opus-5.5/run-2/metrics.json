@@ -1282,6 +1282,297 @@
           "found": 4,
           "total": 4
         }
+      ],
+      "record": {
+        "committed": true,
+        "pushed": true,
+        "over_size_limit": [],
+        "commit": "64a7eb2"
+      }
+    },
+    "8": {
+      "title": "Undo and redo my own changes without undoing anyone else's",
+      "conditions_start": {
+        "ac": true,
+        "low_power": false,
+        "thermal": "nominal"
+      },
+      "started": 1790328681.923879,
+      "agent": {
+        "seconds": 568.5,
+        "steps": 50,
+        "tool_calls": 52,
+        "compactions": 0,
+        "tool_interruptions": 0,
+        "tokens": {
+          "input": 100,
+          "output": 52393,
+          "reasoning": 0,
+          "cache_read": 4487622,
+          "cache_write": 135299
+        },
+        "exit": 0,
+        "stalled": false,
+        "resumes": 0,
+        "nudges": 0,
+        "errors": [],
+        "ended_by_operator": false,
+        "ended_in_error": false,
+        "sessions": [
+          "d4c7c0f1-3cdb-4025-a0bb-2e6c9df0051b"
+        ]
+      },
+      "agent_finished": 1790329250.425073,
+      "conditions": {
+        "samples": 18,
+        "degraded": false,
+        "throttled_share": 0.0,
+        "bad_samples": [],
+        "swap_start_gb": 0.15,
+        "swap_max_gb": 0.15,
+        "aborted_swap": false,
+        "aborted_memory": false,
+        "free_min_pct": 80.0,
+        "server_footprint_max_gb": null,
+        "server_footprint_peak_gb": null
+      },
+      "agent_commits": 1,
+      "gate": {
+        "steps": {
+          "install": {
+            "cmd": "npm ci",
+            "exit": 0,
+            "seconds": 5.5,
+            "tail": "\nadded 173 packages, and audited 174 packages in 5s\n\n42 packages are looking for funding\n  run `npm fund` for details\n\n4 high severity vulnerabilities\n\nTo address all issues (including breaking changes), run:\n  npm audit fix --force\n\nRun `npm audit` for details.\n"
+          },
+          "build": {
+            "cmd": "npm run build",
+            "exit": 0,
+            "seconds": 1.1,
+            "tail": "\n> vidi6@0.1.0 build\n> vite build\n\n\u001b[36mvite v8.3.1 \u001b[32mbuilding client environment for production...\u001b[36m\u001b[39m\ntransforming...\n\u2713 95 modules transformed.\nrendering chunks...\ncomputing gzip size...\ndist/client/index.html                   0.54 kB \u2502 gzip:   0.34 kB\ndist/client/assets/index-DVNmGH9n.css    8.78 kB \u2502 gzip:   2.28 kB\ndist/client/assets/index-BV4O-ITO.js   356.26 kB \u2502 gzip: 111.13 kB\n\n\u001b[32m\u2713 built in 305ms\u001b[39m\n",
+            "passed": null,
+            "failed": null
+          },
+          "typecheck": {
+            "cmd": "npm run typecheck",
+            "exit": 0,
+            "seconds": 0.9,
+            "tail": "\n> vidi6@0.1.0 typecheck\n> tsc --noEmit -p tsconfig.json && tsc --noEmit -p tsconfig.worker.json\n\n",
+            "passed": null,
+            "failed": null
+          },
+          "test:unit": {
+            "cmd": "npm run test:unit",
+            "exit": 0,
+            "seconds": 1.5,
+            "tail": "\u001b[36mv4.1.11 \u001b[39m\u001b[90m~/.vidi-bench/work/benchmarks__reference__vidi__opus-5.5__run-2/workspace\u001b[39m\n\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[42m unit \u001b[49m\u001b[39m tests/unit/board-model-group.test.ts \u001b[2m(\u001b[22m\u001b[2m8 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 8\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[42m unit \u001b[49m\u001b[39m tests/unit/geometry.test.ts \u001b[2m(\u001b[22m\u001b[2m12 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 4\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[42m unit \u001b[49m\u001b[39m tests/unit/camera.test.ts \u001b[2m(\u001b[22m\u001b[2m20 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 34\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[42m unit \u001b[49m\u001b[39m tests/unit/sticky-text.test.ts \u001b[2m(\u001b[22m\u001b[2m20 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 8\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[42m unit \u001b[49m\u001b[39m tests/unit/board-model.test.ts \u001b[2m(\u001b[22m\u001b[2m21 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 97\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[42m unit \u001b[49m\u001b[39m tests/unit/undo-history.test.ts \u001b[2m(\u001b[22m\u001b[2m12 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 87\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[42m unit \u001b[49m\u001b[39m tests/unit/room-state.test.ts \u001b[2m(\u001b[22m\u001b[2m53 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 5\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[42m unit \u001b[49m\u001b[39m tests/unit/selection.test.ts \u001b[2m(\u001b[22m\u001b[2m7 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 6\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[42m unit \u001b[49m\u001b[39m tests/unit/undo-boundaries.test.ts \u001b[2m(\u001b[22m\u001b[2m6 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 10\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[42m unit \u001b[49m\u001b[39m tests/unit/protocol.test.ts \u001b[2m(\u001b[22m\u001b[2m7 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 6\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[42m unit \u001b[49m\u001b[39m tests/unit/registry.test.ts \u001b[2m(\u001b[22m\u001b[2m4 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 3\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[42m unit \u001b[49m\u001b[39m tests/unit/board-store-chunks.test.ts \u001b[2m(\u001b[22m\u001b[2m7 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 12\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[42m unit \u001b[49m\u001b[39m tests/unit/create-board.test.ts \u001b[2m(\u001b[22m\u001b[2m7 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 297\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[42m unit \u001b[49m\u001b[39m tests/unit/board-id.test.ts \u001b[2m(\u001b[22m\u001b[2m3 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 73\u001b[2mms\u001b[22m\u001b[39m\n\n\u001b[2m Test Files \u001b[22m \u001b[1m\u001b[32m14 passed\u001b[39m\u001b[22m\u001b[90m (14)\u001b[39m\n\u001b[2m      Tests \u001b[22m \u001b[1m\u001b[32m187 passed\u001b[39m\u001b[22m\u001b[90m (187)\u001b[39m\n\u001b[2m   Start at \u001b[22m 10:40:59\n\u001b[2m   Duration \u001b[22m 495ms\u001b[2m (transform 391ms, setup 0ms, import 765ms, tests 648ms, environment 1ms)\u001b[22m\n\n\u001b[90mstderr\u001b[2m | tests/unit/create-board.test.ts\u001b[2m > \u001b[22m\u001b[2mcreateWithRetries (share.board_api, share.unique)\u001b[2m > \u001b[22m\u001b[2mTC-01 skips ids that are taken and returns the third, after 3 initialize calls\n\u001b[22m\u001b[39m{\"event\":\"create_board.id_collision\",\"attempt\":1}\n\n\u001b[90mstderr\u001b[2m | tests/unit/create-board.test.ts\u001b[2m > \u001b[22m\u001b[2mcreateWithRetries (share.board_api, share.unique)\u001b[2m > \u001b[22m\u001b[2mTC-01 skips ids that are taken and returns the third, after 3 initialize calls\n\u001b[22m\u001b[39m{\"event\":\"create_board.id_collision\",\"attempt\":2}\n\n\u001b[90mstderr\u001b[2m | tests/unit/create-board.test.ts\u001b[2m > \u001b[22m\u001b[2mcreateWithRetries (share.board_api, share.unique)\u001b[2m > \u001b[22m\u001b[2mTC-02 fails after exactly CREATE_ID_MAX_ATTEMPTS (3) collisions\n\u001b[22m\u001b[39m{\"event\":\"create_board.id_collision\",\"attempt\":1}\n\n\u001b[90mstderr\u001b[2m | tests/unit/create-board.test.ts\u001b[2m > \u001b[22m\u001b[2mcreateWithRetries (share.board_api, share.unique)\u001b[2m > \u001b[22m\u001b[2mTC-02 fails after exactly CREATE_ID_MAX_ATTEMPTS (3) collisions\n\u001b[22m\u001b[39m{\"event\":\"create_board.id_collision\",\"attempt\":2}\n\n\u001b[90mstderr\u001b[2m | tests/unit/create-board.test.ts\u001b[2m > \u001b[22m\u001b[2mcreateWithRetries (share.board_api, share.unique)\u001b[2m > \u001b[22m\u001b[2mTC-02 fails after exactly CREATE_ID_MAX_ATTEMPTS (3) collisions\n\u001b[22m\u001b[39m{\"event\":\"create_board.id_collision\",\"attempt\":3}\n\n\u001b[90mstderr\u001b[2m | tests/unit/create-board.test.ts\u001b[2m > \u001b[22m\u001b[2mcreateWithRetries (share.board_api, share.unique)\u001b[2m > \u001b[22m\u001b[2msucceeds on the last allowed attempt\n\u001b[22m\u001b[39m{\"event\":\"create_board.id_collision\",\"attempt\":1}\n\n\u001b[90mstderr\u001b[2m | tests/unit/create-board.test.ts\u001b[2m > \u001b[22m\u001b[2mcreateWithRetries (share.board_api, share.unique)\u001b[2m > \u001b[22m\u001b[2msucceeds on the last allowed attempt\n\u001b[22m\u001b[39m{\"event\":\"create_board.id_collision\",\"attempt\":2}\n\n",
+            "passed": 187,
+            "failed": 0
+          },
+          "test:component": {
+            "cmd": "npm run test:component",
+            "exit": 0,
+            "seconds": 3.2,
+            "tail": "\n> vidi6@0.1.0 test:component\n> vitest run --project component\n\n\n\u001b[1m\u001b[30m\u001b[46m RUN \u001b[49m\u001b[39m\u001b[22m \u001b[36mv4.1.11 \u001b[39m\u001b[90m~/.vidi-bench/work/benchmarks__reference__vidi__opus-5.5__run-2/workspace\u001b[39m\n\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[45m component \u001b[49m\u001b[39m tests/component/BoardViewport.test.tsx \u001b[2m(\u001b[22m\u001b[2m15 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 140\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[45m component \u001b[49m\u001b[39m tests/component/UndoControls.test.tsx \u001b[2m(\u001b[22m\u001b[2m7 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 285\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[45m component \u001b[49m\u001b[39m tests/component/pages.test.tsx \u001b[2m(\u001b[22m\u001b[2m11 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[33m 307\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[45m component \u001b[49m\u001b[39m tests/component/StickyNote.test.tsx \u001b[2m(\u001b[22m\u001b[2m21 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[33m 631\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[45m component \u001b[49m\u001b[39m tests/component/Selection.test.tsx \u001b[2m(\u001b[22m\u001b[2m24 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[33m 637\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[45m component \u001b[49m\u001b[39m tests/component/StickyTextEditor.test.tsx \u001b[2m(\u001b[22m\u001b[2m13 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[33m 783\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[45m component \u001b[49m\u001b[39m tests/component/UndoBoundaries.test.tsx \u001b[2m(\u001b[22m\u001b[2m5 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[33m 1024\u001b[2mms\u001b[22m\u001b[39m\n     \u001b[33m\u001b[2m\u2713\u001b[22m\u001b[39m TC-14 a 30-frame drag of a selection is one step that restores every start position \u001b[33m 389\u001b[2mms\u001b[22m\u001b[39m\n     \u001b[33m\u001b[2m\u2713\u001b[22m\u001b[39m TC-15 a drag and a colour change 200 ms later are two separate steps \u001b[33m 309\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[45m component \u001b[49m\u001b[39m tests/component/SharePanel.test.tsx \u001b[2m(\u001b[22m\u001b[2m10 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 206\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[45m component \u001b[49m\u001b[39m tests/component/LoadFailure.test.tsx \u001b[2m(\u001b[22m\u001b[2m7 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 236\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[45m component \u001b[49m\u001b[39m tests/component/Toolbars.test.tsx \u001b[2m(\u001b[22m\u001b[2m7 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 264\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[45m component \u001b[49m\u001b[39m tests/component/ConnectionStatus.test.tsx \u001b[2m(\u001b[22m\u001b[2m7 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 120\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[45m component \u001b[49m\u001b[39m tests/component/ZoomControls.test.tsx \u001b[2m(\u001b[22m\u001b[2m8 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 154\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[45m component \u001b[49m\u001b[39m tests/component/NavigationHint.test.tsx \u001b[2m(\u001b[22m\u001b[2m4 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 98\u001b[2mms\u001b[22m\u001b[39m\n\n\u001b[2m Test Files \u001b[22m \u001b[1m\u001b[32m13 passed\u001b[39m\u001b[22m\u001b[90m (13)\u001b[39m\n\u001b[2m      Tests \u001b[22m \u001b[1m\u001b[32m139 passed\u001b[39m\u001b[22m\u001b[90m (139)\u001b[39m\n\u001b[2m   Start at \u001b[22m 10:41:00\n\u001b[2m   Duration \u001b[22m 2.34s\u001b[2m (transform 818ms, setup 1.10s, import 1.78s, tests 4.88s, environment 5.61s)\u001b[22m\n\n",
+            "passed": 139,
+            "failed": 0
+          },
+          "test:integration": {
+            "cmd": "npm run test:integration",
+            "exit": 0,
+            "seconds": 3.8,
+            "tail": "reference__vidi__opus-5.5__run-2/workspace/node_modules/\u001b[4mlib0\u001b[24m/error.js:12:28)\n    at ~/.vidi-bench/work/benchmarks__reference__vidi__opus-5.5__run-2/workspace/node_modules/\u001b[4mlib0\u001b[24m/decoding.js:36:41\n    at VitestModuleEvaluator._runInlinedModule (Users/julian/.vidi-bench/work/benchmarks__reference__vidi__opus-5.5__run-2/workspace/node_modules/\u001b[4mvitest\u001b[24m/dist/module-evaluator.js:206:4)\n    at VitestModuleRunner.directRequest (Users/julian/.vidi-bench/work/benchmarks__reference__vidi__opus-5.5__run-2/workspace/node_modules/\u001b[4mvite\u001b[24m/dist/node/module-runner.js:1272:59)\n    at VitestModuleRunner.cachedRequest (Users/julian/.vidi-bench/work/benchmarks__reference__vidi__opus-5.5__run-2/workspace/node_modules/\u001b[4mvite\u001b[24m/dist/node/module-runner.js:1179:73)\n    at ~/.vidi-bench/work/benchmarks__reference__vidi__opus-5.5__run-2/workspace/node_modules/\u001b[4myjs\u001b[24m/dist/yjs.mjs:109:31\n    at VitestModuleEvaluator._runInlinedModule (Users/julian/.vidi-bench/work/benchmarks__reference__vidi__opus-5.5__run-2/workspace/node_modules/\u001b[4mvitest\u001b[24m/dist/module-evaluator.js:206:4)\n    at VitestModuleRunner.directRequest (Users/julian/.vidi-bench/work/benchmarks__reference__vidi__opus-5.5__run-2/workspace/node_modules/\u001b[4mvite\u001b[24m/dist/node/module-runner.js:1272:59)\n    at VitestModuleRunner.cachedRequest (Users/julian/.vidi-bench/work/benchmarks__reference__vidi__opus-5.5__run-2/workspace/node_modules/\u001b[4mvite\u001b[24m/dist/node/module-runner.js:1179:73)\n    at ~/.vidi-bench/work/benchmarks__reference__vidi__opus-5.5__run-2/workspace/src/worker/board-store.ts:19:1\n\n\u001b[90mstderr\u001b[2m | tests/integration/board-room-persistence.test.ts\u001b[2m > \u001b[22m\u001b[2mPersistent BoardRoom (persist.room)\u001b[2m > \u001b[22m\u001b[2mTC-26 a SQL error while loading closes clients with 4500\n\u001b[22m\u001b[39m{\"event\":\"board_store.load_sql_error\",\"error\":\"injected: SQLITE_IOERR\"}\n{\"event\":\"board_room.load_failed\",\"reason\":\"sql-error\",\"error\":\"injected: SQLITE_IOERR\"}\n\n\u001b[90mstderr\u001b[2m | tests/integration/board-room.test.ts\u001b[2m > \u001b[22m\u001b[2mBoardRoom (sync.room)\u001b[2m > \u001b[22m\u001b[2mTC-15 malformed traffic closes only the sender and leaves the doc unchanged\u001b[2m > \u001b[22m\u001b[2minvalid Yjs update\n\u001b[22m\u001b[39mCaught error while handling a Yjs update Error: Unexpected end of array\n    at Module.create (~/.vidi-bench/work/benchmarks__reference__vidi__opus-5.5__run-2/workspace/node_modules/\u001b[4mlib0\u001b[24m/error.js:12:28)\n    at ~/.vidi-bench/work/benchmarks__reference__vidi__opus-5.5__run-2/workspace/node_modules/\u001b[4mlib0\u001b[24m/decoding.js:36:41\n    at VitestModuleEvaluator._runInlinedModule (Users/julian/.vidi-bench/work/benchmarks__reference__vidi__opus-5.5__run-2/workspace/node_modules/\u001b[4mvitest\u001b[24m/dist/module-evaluator.js:206:4)\n    at VitestModuleRunner.directRequest (Users/julian/.vidi-bench/work/benchmarks__reference__vidi__opus-5.5__run-2/workspace/node_modules/\u001b[4mvite\u001b[24m/dist/node/module-runner.js:1272:59)\n    at VitestModuleRunner.cachedRequest (Users/julian/.vidi-bench/work/benchmarks__reference__vidi__opus-5.5__run-2/workspace/node_modules/\u001b[4mvite\u001b[24m/dist/node/module-runner.js:1179:73)\n    at ~/.vidi-bench/work/benchmarks__reference__vidi__opus-5.5__run-2/workspace/node_modules/\u001b[4my-protocols\u001b[24m/sync.js:6:1\n    at VitestModuleEvaluator._runInlinedModule (Users/julian/.vidi-bench/work/benchmarks__reference__vidi__opus-5.5__run-2/workspace/node_modules/\u001b[4mvitest\u001b[24m/dist/module-evaluator.js:206:4)\n    at VitestModuleRunner.directRequest (Users/julian/.vidi-bench/work/benchmarks__reference__vidi__opus-5.5__run-2/workspace/node_modules/\u001b[4mvite\u001b[24m/dist/node/module-runner.js:1272:59)\n    at VitestModuleRunner.cachedRequest (Users/julian/.vidi-bench/work/benchmarks__reference__vidi__opus-5.5__run-2/workspace/node_modules/\u001b[4mvite\u001b[24m/dist/node/module-runner.js:1179:73)\n    at ~/.vidi-bench/work/benchmarks__reference__vidi__opus-5.5__run-2/workspace/tests/integration/board-room.test.ts:4:1\n\n",
+            "passed": null,
+            "failed": null
+          },
+          "test:e2e": {
+            "cmd": "npm run test:e2e -- --project=chromium",
+            "exit": 0,
+            "seconds": 41.0,
+            "tail": "isables \u2212 (986ms)\n  \u2713  13 [chromium] \u203a tests/e2e/navigation.spec.ts:162:5 \u203a Workflow 2: limits and recovery \u203a at 1920x1080 \u203a Ctrl/Cmd + 0 resets to 100% centred (324ms)\n  \u2713  14 [chromium] \u203a tests/e2e/navigation.spec.ts:174:3 \u203a Workflow 3: far travel \u203a TC-27 a million units away the grid is even and panning is exact (577ms)\n  \u2713  15 [chromium] \u203a tests/e2e/navigation.spec.ts:199:1 \u203a TC-31 board zoom gestures and shortcuts never change the page zoom (276ms)\n  \u2713  16 [chromium] \u203a tests/e2e/navigation.spec.ts:218:1 \u203a Ctrl/Cmd + = and \u2212 step the zoom around the centre (193ms)\n  \u2713  17 [chromium] \u203a tests/e2e/selection.spec.ts:118:3 \u203a Reorganise a cluster \u203a TC-32 Shift+drag selects only the note fully inside the rectangle (310ms)\n  \u2713   7 [chromium] \u203a tests/e2e/live-collaboration.spec.ts:161:3 \u203a Full-capacity session \u203a TC-26 5 people create and move notes; everyone sees every change (6.4s)\n  \u2713  19 [chromium] \u203a tests/e2e/selection.spec.ts:219:3 \u203a Colleague deletes while I select \u203a TC-35 Sam deletes one of Lee's selected notes: Lee's selection drops by one (533ms)\n  \u2713   1 [chromium] \u203a tests/e2e/broken-board.spec.ts:25:1 \u203a TC-24 broken board: honest message, no editing, recovery without reload (8.4s)\n  \u2713  18 [chromium] \u203a tests/e2e/selection.spec.ts:132:3 \u203a Reorganise a cluster \u203a TC-33 / TC-34 six notes move together above others, resize proportionally, nudge and delete (1.0s)\nTC-26 board opened 99 ms after the click (budget 2000 ms)\n  \u2713  22 [chromium] \u203a tests/e2e/share.spec.ts:90:1 \u203a TC-27 bad link recovery: Board not found, then Create a new board (533ms)\n  \u2713  21 [chromium] \u203a tests/e2e/share.spec.ts:45:1 \u203a TC-26 create, share, join: Maya creates and shares, Sam opens the copied link and edits (891ms)\n  \u2713  24 [chromium] \u203a tests/e2e/share.spec.ts:133:1 \u203a TC-29 clipboard blocked: manual-copy message with the full link selected (335ms)\n  \u2713  20 [chromium] \u203a tests/e2e/selection.spec.ts:251:3 \u203a Full-capacity reorganisation \u203a TC-36 MAX_CONCURRENT_EDITORS people move different selections at once; every screen agrees (1.6s)\n  \u2713  26 [chromium] \u203a tests/e2e/share.spec.ts:171:1 \u203a TC-31 pre-existing board: a board saved before links were checked still opens (165ms)\n  \u2713  23 [chromium] \u203a tests/e2e/share.spec.ts:116:1 \u203a TC-28 flaky service on open: retry message, then the board opens without reload (1.5s)\n  \u2713  25 [chromium] \u203a tests/e2e/share.spec.ts:156:1 \u203a TC-30 abuse guard: creation 11 within a minute shows the rate-limit message (1.1s)\n  \u2713  27 [chromium] \u203a tests/e2e/sticky-notes.spec.ts:83:3 \u203a Workflow 1: brainstorm golden path \u203a TC-30 \u2192 TC-31 \u2192 recolour \u2192 delete (866ms)\n  \u2713  29 [chromium] \u203a tests/e2e/sticky-notes.spec.ts:206:1 \u203a TC-33 text fits: one word at the maximum size, 1,000 characters clipped at the minimum with a fade (341ms)\n  \u2713  30 [chromium] \u203a tests/e2e/sticky-notes.spec.ts:252:1 \u203a TC-34 Sticky note button creates a visible note at the screen centre when panned far away (265ms)\n  \u2713  28 [chromium] \u203a tests/e2e/sticky-notes.spec.ts:158:1 \u203a TC-32 at 200% a drag moves the note by half the screen distance and draws it above the note it overlaps (821ms)\n  \u2713  31 [chromium] \u203a tests/e2e/undo.spec.ts:111:3 \u203a undo.controls \u203a TC-22 Mia recovers an accidental delete while Raj adds a note; redo deletes again (1.0s)\n  \u2713  32 [chromium] \u203a tests/e2e/undo.spec.ts:167:3 \u203a undo.controls \u203a TC-23 undoing a move of a note Raj deleted does nothing visible; the next undo works (1.3s)\n  \u2713  33 [chromium] \u203a tests/e2e/undo.spec.ts:212:3 \u203a undo.controls \u203a TC-24 MAX_CONCURRENT_EDITORS people each undo only their own changes at once (2.0s)\n  \u2713   8 [chromium] \u203a tests/e2e/live-collaboration.spec.ts:203:3 \u203a Flaky Wi-Fi \u203a TC-27 edits made during an outage reach everyone after reconnecting (35.5s)\n\n  33 passed (40.5s)\n[WebServer] \u2718 [ERROR] {\"event\":\"board_store.snapshot_unreadable\",\"error\":\"Integer out of Range\"}\n[WebServer] \n[WebServer] \n[WebServer] \u2718 [ERROR] {\"event\":\"board_room.load_failed\",\"reason\":\"snapshot-unreadable\",\"error\":\"Integer out of Range\"}\n[WebServer] \n[WebServer] \n",
+            "passed": 33,
+            "failed": 0
+          }
+        },
+        "all_green": true
+      },
+      "accept": {
+        "build_exit": 0,
+        "runner_exit": 1,
+        "runner_tail": "",
+        "passed": 0,
+        "total": 51,
+        "on_partial": {
+          "passed": 0,
+          "total": 0
+        },
+        "by_story": {
+          "01": {
+            "passed": 0,
+            "total": 10
+          },
+          "02": {
+            "passed": 0,
+            "total": 10
+          },
+          "03": {
+            "passed": 0,
+            "total": 7
+          },
+          "04": {
+            "passed": 0,
+            "total": 4
+          },
+          "05": {
+            "passed": 0,
+            "total": 5
+          },
+          "07": {
+            "passed": 0,
+            "total": 8
+          },
+          "08": {
+            "passed": 0,
+            "total": 7
+          }
+        }
+      },
+      "commit": "8124de148bfe4934eba8a208681aa9802ab8661b",
+      "requests": {},
+      "loc": {
+        "files": 104,
+        "lines": 14028
+      },
+      "finished": 1790329348.276313,
+      "status": "DONE",
+      "ended_by": "agent",
+      "partial_base": [],
+      "tasks": [
+        {
+          "n": 2,
+          "title": "Implement per-user undo history controller",
+          "type": "implementation",
+          "implements": [
+            "undo.history"
+          ],
+          "tcs": [],
+          "status": "verified",
+          "found": null,
+          "total": null
+        },
+        {
+          "n": 5,
+          "title": "E2E: recover my mistakes while colleagues work (TC-22 to TC-24)",
+          "type": "test:e2e",
+          "implements": [
+            "undo.controls"
+          ],
+          "tcs": [
+            "TC-22",
+            "TC-23",
+            "TC-24"
+          ],
+          "status": "verified",
+          "found": 3,
+          "total": 3
+        },
+        {
+          "n": 6,
+          "title": "Write undo history unit tests first with a simulated remote peer (TC-01 to TC-11)",
+          "type": "test:unit",
+          "implements": [
+            "undo.history"
+          ],
+          "tcs": [
+            "TC-01",
+            "TC-02",
+            "TC-03",
+            "TC-04",
+            "TC-05",
+            "TC-06",
+            "TC-07",
+            "TC-08",
+            "TC-09",
+            "TC-10",
+            "TC-11"
+          ],
+          "status": "verified",
+          "found": 11,
+          "total": 11
+        },
+        {
+          "n": 7,
+          "title": "Write capture-timeout unit tests first (TC-12, TC-13)",
+          "type": "test:unit",
+          "implements": [
+            "undo.boundaries"
+          ],
+          "tcs": [
+            "TC-12",
+            "TC-13"
+          ],
+          "status": "verified",
+          "found": 2,
+          "total": 2
+        },
+        {
+          "n": 8,
+          "title": "Wire undo step boundaries into transform gestures, toolbars and the text editor",
+          "type": "implementation",
+          "implements": [
+            "undo.boundaries"
+          ],
+          "tcs": [],
+          "status": "verified",
+          "found": null,
+          "total": null
+        },
+        {
+          "n": 9,
+          "title": "Component tests: gesture and typing boundaries (TC-14 to TC-17)",
+          "type": "test:ui-component",
+          "implements": [
+            "undo.boundaries"
+          ],
+          "tcs": [
+            "TC-14",
+            "TC-15",
+            "TC-16",
+            "TC-17"
+          ],
+          "status": "verified",
+          "found": 4,
+          "total": 4
+        },
+        {
+          "n": 10,
+          "title": "Implement undo/redo shortcuts and toolbar buttons",
+          "type": "implementation",
+          "implements": [
+            "undo.controls"
+          ],
+          "tcs": [],
+          "status": "verified",
+          "found": null,
+          "total": null
+        },
+        {
+          "n": 11,
+          "title": "Component tests: undo shortcuts, buttons and edit lock (TC-18 to TC-21)",
+          "type": "test:ui-component",
+          "implements": [
+            "undo.controls"
+          ],
+          "tcs": [
+            "TC-18",
+            "TC-19",
+            "TC-20",
+            "TC-21"
+          ],
+          "status": "verified",
+          "found": 4,
+          "total": 4
+        }
       ]
     }
   },
@@ -2116,6 +2407,177 @@
           "accept": {
             "passed": 5,
             "total": 8
+          }
+        }
+      ]
+    },
+    {
+      "id": 8,
+      "title": "Undo and redo my own changes without undoing anyone else's",
+      "status": "DONE",
+      "ended_by": "agent",
+      "started_at": 1790328681.923879,
+      "ended_at": 1790329250.425073,
+      "agent_minutes": 9.5,
+      "calls": 50,
+      "output_tokens": 52393,
+      "compactions": 0,
+      "last_commit_at": 1790329240.0,
+      "accept": {
+        "passed": 0,
+        "total": 7
+      },
+      "partial_base": [],
+      "tasks": [
+        {
+          "n": 2,
+          "title": "Implement per-user undo history controller",
+          "type": "implementation",
+          "implements": [
+            "undo.history"
+          ],
+          "tcs": [],
+          "status": "verified",
+          "found": null,
+          "total": null
+        },
+        {
+          "n": 5,
+          "title": "E2E: recover my mistakes while colleagues work (TC-22 to TC-24)",
+          "type": "test:e2e",
+          "implements": [
+            "undo.controls"
+          ],
+          "tcs": [
+            "TC-22",
+            "TC-23",
+            "TC-24"
+          ],
+          "status": "verified",
+          "found": 3,
+          "total": 3
+        },
+        {
+          "n": 6,
+          "title": "Write undo history unit tests first with a simulated remote peer (TC-01 to TC-11)",
+          "type": "test:unit",
+          "implements": [
+            "undo.history"
+          ],
+          "tcs": [
+            "TC-01",
+            "TC-02",
+            "TC-03",
+            "TC-04",
+            "TC-05",
+            "TC-06",
+            "TC-07",
+            "TC-08",
+            "TC-09",
+            "TC-10",
+            "TC-11"
+          ],
+          "status": "verified",
+          "found": 11,
+          "total": 11
+        },
+        {
+          "n": 7,
+          "title": "Write capture-timeout unit tests first (TC-12, TC-13)",
+          "type": "test:unit",
+          "implements": [
+            "undo.boundaries"
+          ],
+          "tcs": [
+            "TC-12",
+            "TC-13"
+          ],
+          "status": "verified",
+          "found": 2,
+          "total": 2
+        },
+        {
+          "n": 8,
+          "title": "Wire undo step boundaries into transform gestures, toolbars and the text editor",
+          "type": "implementation",
+          "implements": [
+            "undo.boundaries"
+          ],
+          "tcs": [],
+          "status": "verified",
+          "found": null,
+          "total": null
+        },
+        {
+          "n": 9,
+          "title": "Component tests: gesture and typing boundaries (TC-14 to TC-17)",
+          "type": "test:ui-component",
+          "implements": [
+            "undo.boundaries"
+          ],
+          "tcs": [
+            "TC-14",
+            "TC-15",
+            "TC-16",
+            "TC-17"
+          ],
+          "status": "verified",
+          "found": 4,
+          "total": 4
+        },
+        {
+          "n": 10,
+          "title": "Implement undo/redo shortcuts and toolbar buttons",
+          "type": "implementation",
+          "implements": [
+            "undo.controls"
+          ],
+          "tcs": [],
+          "status": "verified",
+          "found": null,
+          "total": null
+        },
+        {
+          "n": 11,
+          "title": "Component tests: undo shortcuts, buttons and edit lock (TC-18 to TC-21)",
+          "type": "test:ui-component",
+          "implements": [
+            "undo.controls"
+          ],
+          "tcs": [
+            "TC-18",
+            "TC-19",
+            "TC-20",
+            "TC-21"
+          ],
+          "status": "verified",
+          "found": 4,
+          "total": 4
+        }
+      ],
+      "baselines": [
+        {
+          "source": "reference opus-5.5",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 26.0,
+          "calls": 63,
+          "output_tokens": 79399,
+          "accept": {
+            "passed": 7,
+            "total": 7
+          }
+        },
+        {
+          "source": "qwen/3.8/flash-next/macos/128GB/mtplx-opencode canvas-pi-01",
+          "status": "DONE",
+          "gate_green": false,
+          "agent_minutes": 47.9,
+          "calls": 181,
+          "output_tokens": 124334,
+          "accept": {
+            "passed": 7,
+            "total": 7
           }
         }
       ]

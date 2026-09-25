@@ -5,12 +5,19 @@
  * Every `input` event is written straight to the note's Y.Text with a minimal diff, so
  * ending editing needs no extra write and unmounting can never lose characters. During
  * IME composition nothing is written; the composed text is written on compositionend.
+ *
+ * Undo (anchor: undo.boundaries): editing starts and ends an undo step boundary, so typing
+ * never merges with other actions; bursts of typing are grouped by the history's capture
+ * timeout. Ctrl/Cmd+Z (redo: Ctrl/Cmd+Shift+Z, Ctrl+Y) undoes typing in this note through
+ * the shared history instead of the textarea's native undo, which would diverge from the
+ * Y.Text; it never reaches past the typing into earlier actions while the note is edited.
  */
-import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type KeyboardEvent } from 'react';
+import { useContext, useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type KeyboardEvent } from 'react';
 import type * as Y from 'yjs';
 import { isDetachedText, LOCAL_ORIGIN } from '../../shared/board-model';
 import { STICKY_TEXT_MAX_CHARS } from '../../shared/config';
 import { applyTextDiff, clampAtCaret, counterVisible } from './StickyText';
+import { UndoContext } from '../board/useUndo';
 
 /** Moves a caret index across a Y.Text delta made by someone else. */
 function shiftIndex(index: number, delta: Y.YTextEvent['delta']): number {
@@ -42,6 +49,13 @@ export function StickyTextEditor(props: {
   const ref = useRef<HTMLTextAreaElement>(null);
   const composing = useRef(false);
   const [length, setLength] = useState(() => ytext.length);
+  const history = useContext(UndoContext);
+
+  // Edit start and end are undo step boundaries.
+  useEffect(() => {
+    history.boundary();
+    return () => history.boundary();
+  }, [history]);
 
   const commit = () => {
     const el = ref.current;
@@ -98,6 +112,19 @@ export function StickyTextEditor(props: {
   const onKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
     // Keys typed into the note never trigger board shortcuts (Delete, Enter, ...).
     e.stopPropagation();
+    const key = e.key.toLowerCase();
+    const ctrlOrMeta = (e.ctrlKey || e.metaKey) && !e.altKey;
+    const isUndo = ctrlOrMeta && key === 'z' && !e.shiftKey;
+    const isRedo = (ctrlOrMeta && key === 'z' && e.shiftKey) || (e.ctrlKey && !e.metaKey && !e.altKey && key === 'y');
+    if (isUndo || isRedo) {
+      e.preventDefault();
+      if (composing.current) return;
+      commit();
+      history.boundary();
+      if (isUndo) history.undoIn(ytext);
+      else history.redoIn(ytext);
+      return;
+    }
     if (e.key === 'Escape') {
       e.preventDefault();
       commit();

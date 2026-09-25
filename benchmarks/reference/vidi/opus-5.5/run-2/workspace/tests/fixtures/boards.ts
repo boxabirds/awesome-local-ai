@@ -12,6 +12,7 @@ import {
   createSticky,
   getStickyText,
   moveObject,
+  resizeObjects,
 } from '../../src/shared/board-model';
 import { PERSIST_TESTED_NOTES, STICKY_COLORS, STICKY_SIZE_WORLD, type StickyColor } from '../../src/shared/config';
 import { seededRandom } from './random-ops';
@@ -146,4 +147,35 @@ export function buildSelectionBoard(doc: Y.Doc): { grid: string[]; row: string[]
     row: SELECTION_BOARD.row.map(make),
     right: SELECTION_BOARD.right.map(make),
   };
+}
+
+/**
+ * Story 8 fixture: a 12-note retro board in varied colours and sizes. `cluster` is 8 notes
+ * (4 × 2, 260 apart so sizes up to 240 never overlap) for the delete scenario; `others` are
+ * 4 notes in a row to the right.
+ */
+export const UNDO_BOARD = {
+  cluster: [0, 260].flatMap((y) => [0, 260, 520, 780].map((x) => ({ x, y }))),
+  others: [1500, 1720, 1940, 2160].map((x) => ({ x, y: 0 })),
+  /** Sizes cycled over the notes (world units, all ≤ 240). */
+  sizes: [
+    { width: 200, height: 200 },
+    { width: 240, height: 180 },
+    { width: 160, height: 220 },
+    { width: 220, height: 240 },
+    { width: 180, height: 160 },
+  ],
+};
+
+export function buildUndoBoard(doc: Y.Doc): { cluster: string[]; others: string[] } {
+  let n = 0;
+  const make = (p: { x: number; y: number }) => {
+    const id = createSticky(doc, { x: p.x + STICKY_SIZE_WORLD / 2, y: p.y + STICKY_SIZE_WORLD / 2 }, COLOURS[n % COLOURS.length]);
+    const size = UNDO_BOARD.sizes[n % UNDO_BOARD.sizes.length]!;
+    resizeObjects(doc, new Map([[id, { x: p.x, y: p.y, ...size }]]));
+    typeInto(doc, id, `${n + 1}. ${RETRO_TEXTS[n % RETRO_TEXTS.length]}`);
+    n += 1;
+    return id;
+  };
+  return { cluster: UNDO_BOARD.cluster.map(make), others: UNDO_BOARD.others.map(make) };
 }
