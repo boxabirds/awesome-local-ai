@@ -18,30 +18,30 @@ How it differs from a benchmark run:
 
 ## Results
 
-Held-out acceptance suite (`accept.json`), all stories built, compared with the Flash-Next run's latest scores (`combinations/qwen/3.8/flash-next/macos/128GB/mtplx-opencode/benchmarks/vidi/canvas-pi-01`, after its story 10):
+Held-out acceptance suite (`accept.json`), after the suite fix in `5756fe5`. That fix removed 7 faults in the tests themselves, found by this build's audit.
 
-| Story | Opus 5.5 reference | Flash-Next (MTPLX, pi) |
-|---|---|---|
-| 1 Pan and zoom | 9/10 | 9/10 |
-| 2 Sticky notes | 9/10 | 9/10 |
-| 3 Live editing | 6/7 | 5/7 |
-| 4 Saving | 3/4 | 3/4 |
-| 5 Sharing | 5/5 | 5/5 |
-| 7 Multi-select | 7/8 | 5/8 |
-| 8 Undo/redo | 7/7 | 7/7 |
-| 9 Free text | 5/6 | 3/6 |
-| 10 Shapes and arrows | 8/8 | 4/8 |
-| 11 Freehand pen | 1/5 | (running) |
-| 12 Images | 3/5 | (not yet) |
-| **Stories 1–10** | **59/65** | **50/65** |
-| **All** | **63/75** | — |
+| Story | Opus 5.5 held-out |
+|---|---|
+| 1 Pan and zoom | 10/10 |
+| 2 Sticky notes | 9/10 |
+| 3 Live editing | 6/7 |
+| 4 Saving | 4/4 |
+| 5 Sharing | 5/5 |
+| 7 Multi-select | 8/8 |
+| 8 Undo/redo | 7/7 |
+| 9 Free text | 6/6 |
+| 10 Shapes and arrows | 8/8 |
+| 11 Freehand pen | 5/5 |
+| 12 Images | 5/5 |
+| **All** | **73/75** |
 
-Agent effort per story:
+- **The two failures are one real bug:** Delete is ignored while a button has keyboard focus.
+- **Before the suite fix** this build scored 63/75. Ten of those failures were the suite's own faults, not the app's.
+- **Two full runs:** the second scored 72/75, because a story 12 file-chooser test timed out intermittently.
 
-| Story | 1 | 2 | 3 | 4 | 5 | 7 | 8 | 9 | 10 | 11 | 12 | Total |
-|---|---|---|---|---|---|---|---|---|---|---|---|---|
-| Minutes | 7.9 | 13.9 | 22.1 | 35.8 | 19.2 | 23.3 | 26.0 | 23.9 | 22.5 | 31.4 | 30.0 | 256 |
-| Subagent tokens (k) | 121 | 180 | 229 | 270 | 227 | 277 | 229 | 281 | 318 | 260 | 291 | 2,683 |
+**Delivery audit:** [AUDIT.md](AUDIT.md) lists 4 functional faults, 1 missing test, 9 design deviations and no false completion claims.
+
+**Flash-Next:** the comparison waits until its run finishes and every story has been re-scored with the fixed suite. Scores from the old suite don't compare.
 
 ### Efficiency: where the speed difference comes from
 
@@ -73,18 +73,6 @@ So the reference is not mainly faster per token. It needs fewer tokens and fewer
 
 Every story ended with the agent's own build, typecheck and unit, component and integration tests passing. The agents' own e2e passed in Chromium and Firefox, except for load-related flakes they reported.
 
-## The 12 held-out failures, first triage
-
-Not yet verified against the spec:
-
-- **Story 11 (4 failures): one cause.** The tests find 2 elements labelled "Drawing" per stroke instead of 1. Both a wrapper and the stroke carry the label. That is a real accessibility defect, since a screen reader would announce each drawing twice. It is not four missing features.
-- **Story 1, zoom limits: suspect test.** It fails on every setup so far.
-- **Stories 2, 3 and 4: "Sticky note" group count.** Two tests find 1 group after a delete where they expect 0, and the story 4 test finds 1 after reopening where it expects 2. Unverified: this could be a real delete or persistence bug, or a second element carrying the label.
-- **Story 7, partly enclosed note:** the note toolbar's "Delete note" button isn't visible.
-- **Story 9, auto width:** measured 550 where at most 486 was expected.
-- **Story 12, large image:** not scaled to an 800-unit longest side.
-- **Story 12, reload and undo:** the Image button didn't open a file chooser.
-
 ## Files
 
 | Path | What |
@@ -93,5 +81,7 @@ Not yet verified against the spec:
 | `workspace-git-log.txt` | the agent's commit history |
 | `prompts/` | the exact per-story prompt each subagent received |
 | `metrics.json` | minutes, subagent tokens, tool calls and commit per story |
-| `accept.json` | held-out suite results, per test |
+| `accept.json` | held-out suite results, per test (fixed suite) |
+| `AUDIT.md` | delivery audit: faults against the spec, one per row, and the held-out test faults |
+| `agent-reports/` | each story agent's final report (its own claims) |
 | `OMITTED.txt` | files left out for the repo's 512 KB limit (a synthetic test photo) |
