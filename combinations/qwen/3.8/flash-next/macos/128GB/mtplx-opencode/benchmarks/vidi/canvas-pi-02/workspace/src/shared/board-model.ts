@@ -1,5 +1,5 @@
 /**
- * The board document model (story 2).
+ * The board document model (stories 2 and 7).
  *
  * Sticky notes live in a Yjs document from day one: the same document story 3
  * puts on the network and story 4 persists. That is why the shape below is
@@ -22,6 +22,8 @@
  *       text: Y.Text
  *       z: number              // stacking, higher is on top
  *       createdAt: number      // epoch ms
+ *       width?: number         // added in story 7; default STICKY_SIZE_WORLD
+ *       height?: number        // added in story 7; default STICKY_SIZE_WORLD
  *     }
  * ```
  */
@@ -30,8 +32,13 @@ import {
   DEFAULT_STICKY_COLOR,
   STICKY_COLORS,
   STICKY_SIZE_WORLD,
+  MAX_OBJECT_SIZE_WORLD,
   type StickyColor,
 } from './config';
+import type { Rect, Point } from './geometry';
+import { rectContains } from './geometry';
+
+export type { Rect, Point };
 
 /**
  * Transaction origin for local mutations. Story 8 uses it to build undo
@@ -54,7 +61,14 @@ export interface StickySnapshot {
   text: string;
   z: number;
   createdAt: number;
+  /** Width (story 7); undefined means implicit STICKY_SIZE_WORLD. */
+  width?: number;
+  /** Height (story 7); undefined means implicit STICKY_SIZE_WORLD. */
+  height?: number;
 }
+
+/** Generic object snapshot for group operations. */
+export type ObjectSnapshot = StickySnapshot;
 
 type NoteMap = Y.Map<unknown>;
 
@@ -220,8 +234,179 @@ export function snapshot(doc: Y.Doc): readonly StickySnapshot[] {
       text: text instanceof Y.Text ? text.toString() : '',
       z: z as number,
       createdAt: typeof createdAt === 'number' ? createdAt : 0,
+      width: typeof value.get('width') === 'number' ? (value.get('width') as number) : undefined,
+      height: typeof value.get('height') === 'number' ? (value.get('height') as number) : undefined,
     });
   });
   notes.sort((a, b) => a.z - b.z || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
   return notes;
+}
+
+/* --------------------------------------------------------------------- *
+ * Story 7: group operations.
+ * --------------------------------------------------------------------- */
+
+/** Read an object's rect, using STICKY_SIZE_WORLD for implicit sizes. */
+export function objectBounds(obj: ObjectSnapshot): Rect {
+  return {
+    x: obj.x,
+    y: obj.y,
+    width: obj.width ?? STICKY_SIZE_WORLD,
+    height: obj.height ?? STICKY_SIZE_WORLD,
+  };
+}
+
+/** Return ids of objects whose bounds lie entirely within `rect`. */
+export function objectsInRect(
+  snapshot: readonly ObjectSnapshot[],
+  rect: Rect,
+): string[] {
+  return snapshot
+    .filter((obj) => rectContains(rect, objectBounds(obj)))
+    .map((obj) => obj.id);
+}
+
+/** Return ids of every recognised object (only registered types in snapshot). */
+export function allObjectIds(snapshot: readonly ObjectSnapshot[]): string[] {
+  // Snapshot already excludes unknown types; return all ids.
+  return snapshot.map((obj) => obj.id);
+}
+
+/**
+ * Move objects to absolute positions (world-unit top-left corners).
+ * Returns the count applied; non-finite values or missing ids are skipped.
+ */
+export function moveObjects(
+  doc: Y.Doc,
+  positions: ReadonlyMap<string, Point>,
+): number {
+  if (positions.size === 0) return 0;
+  // Validate: all positions must be finite.
+  for (const p of positions.values()) {
+    if (!Number.isFinite(p.x) || !Number.isFinite(p.y)) return 0;
+  }
+  const objects = objectsMap(doc);
+  let count = 0;
+  // Gather the notes first to verify they exist.
+  const updates: Array<{ note: NoteMap; x: number; y: number }> = [];
+  for (const [id, pos] of positions) {
+    const note = objects.get(id);
+    if (!isSticky(note)) continue;
+    updates.push({ note, x: pos.x, y: pos.y });
+  }
+  if (updates.length === 0) return 0;
+  doc.transact(() => {
+    for (const { note, x, y } of updates) {
+      note.set('x', x);
+      note.set('y', y);
+      count++;
+    }
+  }, LOCAL_ORIGIN);
+  return count;
+}
+
+/**
+ * Resize objects to absolute rects. Writes width and height.
+ * Returns the count applied.
+ */
+export function resizeObjects(
+  doc: Y.Doc,
+  rects: ReadonlyMap<string, Rect>,
+): number {
+  if (rects.size === 0) return 0;
+  // Validate: all rects must have finite positive dimensions.
+  for (const r of rects.values()) {
+    if (
+      !Number.isFinite(r.x) ||
+      !Number.isFinite(r.y) ||
+      !Number.isFinite(r.width) ||
+      !Number.isFinite(r.height) ||
+      r.width <= 0 ||
+      r.height <= 0
+    ) {
+      return 0;
+    }
+  }
+  const objects = objectsMap(doc);
+  let count = 0;
+  const updates: Array<{ note: NoteMap; r: Rect }> = [];
+  for (const [id, r] of rects) {
+    const note = objects.get(id);
+    if (!isSticky(note)) continue;
+    updates.push({ note, r });
+  }
+  if (updates.length === 0) return 0;
+  doc.transact(() => {
+    for (const { note, r } of updates) {
+      note.set('x', r.x);
+      note.set('y', r.y);
+      note.set('width', Math.min(r.width, MAX_OBJECT_SIZE_WORLD));
+      note.set('height', Math.min(r.height, MAX_OBJECT_SIZE_WORLD));
+      count++;
+    }
+  }, LOCAL_ORIGIN);
+  return count;
+}
+
+/**
+ * Raise selected objects above all unselected ones, preserving their relative
+ * z order. Returns the count changed.
+ */
+export function bringObjectsToFront(
+  doc: Y.Doc,
+  ids: readonly string[],
+): number {
+  if (ids.length === 0) return 0;
+  const objects = objectsMap(doc);
+  const selected = new Set(ids);
+
+  type Entry = { id: string; note: NoteMap; z: number };
+  const selectedEntries: Entry[] = [];
+  let maxUnselected = 0;
+
+  objects.forEach((value, key) => {
+    if (!isSticky(value)) return;
+    const z = value.get('z');
+    if (typeof z !== 'number' || !Number.isFinite(z)) return;
+    if (selected.has(key)) {
+      selectedEntries.push({ id: key, note: value, z });
+    } else {
+      if (z > maxUnselected) maxUnselected = z;
+    }
+  });
+
+  if (selectedEntries.length === 0) return 0;
+
+  // Sort by current z to preserve relative order.
+  selectedEntries.sort((a, b) => a.z - b.z);
+
+  // Check if any actually need to move.
+  const needsChange = selectedEntries.some((e) => e.z <= maxUnselected);
+  if (!needsChange) return 0;
+
+  let count = 0;
+  doc.transact(() => {
+    for (let i = 0; i < selectedEntries.length; i++) {
+      const newZ = maxUnselected + i + 1;
+      selectedEntries[i]!.note.set('z', newZ);
+      if (selectedEntries[i]!.z !== newZ) count++;
+    }
+  }, LOCAL_ORIGIN);
+  return count;
+}
+
+/**
+ * Delete multiple objects in one transaction. Returns the count deleted.
+ */
+export function deleteObjects(doc: Y.Doc, ids: readonly string[]): number {
+  if (ids.length === 0) return 0;
+  const objects = objectsMap(doc);
+  const existing = ids.filter((id) => isSticky(objects.get(id)));
+  if (existing.length === 0) return 0;
+  doc.transact(() => {
+    for (const id of existing) {
+      objects.delete(id);
+    }
+  }, LOCAL_ORIGIN);
+  return existing.length;
 }

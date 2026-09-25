@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef } from 'react';
-import { canZoomIn, canZoomOut, screenToWorld, zoomPercent } from './canvas/camera';
+import { canZoomIn, canZoomOut, screenToWorld, worldToScreen, zoomPercent } from './canvas/camera';
 import type { Camera, Point } from './canvas/camera';
 import { BoardViewport } from './canvas/BoardViewport';
 import { CameraContext, useCamera, useViewportSize } from './canvas/useCamera';
@@ -9,10 +9,22 @@ import { installBoardTestHooks, removeBoardTestHooks } from './canvas/testHooks'
 import { Toolbar } from './board/Toolbar';
 import { useBoardSnapshot } from './board/useBoardDoc';
 import { useSelection } from './board/useSelection';
+import { useTransformGesture } from './board/useTransformGesture';
+import { useBoardKeys } from './board/useBoardKeys';
+import { SelectionOverlay } from './board/SelectionOverlay';
+import { SelectionBar } from './board/SelectionBar';
+import { useMarquee, MarqueeRect } from './board/Marquee';
 import { StickyNote } from './objects/StickyNote';
-import { createSticky, deleteObject } from '../shared/board-model';
+import './objects/defaultTypes';
+import {
+  createSticky,
+  deleteObject,
+  deleteObjects,
+  objectBounds,
+} from '../shared/board-model';
 import { isValidBoardId, parseBoardPath } from '../shared/board-id';
 import { STICKY_SIZE_WORLD } from '../shared/config';
+import { unionRects } from '../shared/geometry';
 import { useBoardSession, type BoardSession } from './sync/boardSession';
 import { ConnectionStatus, useConnectionState } from './sync/ConnectionStatus';
 import { PresenceIdentity, PresenceStack, RemoteCursors, RemoteSelections } from './presence/Presence';
@@ -21,31 +33,9 @@ import type { Person } from './presence/people';
 import type { ProviderLike } from './sync/connectBoard';
 import * as Y from 'yjs';
 
-/** Tags that own their own keyboard input, so the board must not steal it. */
-const INPUT_TAGS = new Set(['input', 'textarea', 'select']);
-
 /** The prefix that marks a path as "someone is trying to open a board link". */
 const BOARD_PATH_PREFIX = '/board/';
 
-/**
- * True when the keystroke belongs to a text field. Both halves of the rule are
- * needed: `editingId` catches the note's own textarea, and the tag check
- * catches any other input (a future comment box, the browser's find bar) so a
- * Delete there never deletes a note.
- */
-function isTextInput(target: EventTarget | null): boolean {
-  if (!(target instanceof HTMLElement)) return false;
-  return INPUT_TAGS.has(target.tagName.toLowerCase()) || target.isContentEditable;
-}
-
-/**
- * Should this path be called out?
- *
- * Only a path that *looks like* a board link but is not one. `/` is the normal
- * way to arrive, and warning there would be noise; `/board/0123456789abcde`
- * (one character short) is a link that got truncated in Slack, and saying
- * nothing is how people end up editing the wrong board.
- */
 export function isBrokenBoardLink(path: string): boolean {
   if (!path.startsWith(BOARD_PATH_PREFIX)) return false;
   const last = path.split('/').filter((segment) => segment.length > 0).pop() ?? '';
@@ -53,52 +43,45 @@ export function isBrokenBoardLink(path: string): boolean {
 }
 
 export interface AppProps {
-  /** The path to render. Defaults to the browser's own location. */
   location?: string;
-  /** A document to render instead of the session's own (tests, story 4). */
   doc?: Y.Doc;
-  /** How to build the connection. Component tests pass a fake provider. */
   providerFactory?: (url: string, room: string, doc: Y.Doc) => ProviderLike;
-  /** Socket origin. Defaults to the page's own host. */
   origin?: string;
+  /**
+   * Whether this board accepts edits. True for a board that loaded, whether or
+   * not it is online (a dropped socket is never a lockout); a harness can put
+   * it to `false` to prove the transform and keyboard paths refuse to write.
+   */
+  canEdit?: boolean;
+  /** Called once when a transform gesture (group move or resize) begins. */
+  onGestureStart?(): void;
+  /** Called once when that gesture ends, is cancelled, or loses its objects. */
+  onGestureEnd?(): void;
 }
 
-/** The board's own document, with whatever is attached to it. */
 function useSessionFor(props: AppProps): BoardSession {
   const path =
     props.location ?? (typeof window === 'undefined' ? '/' : window.location.pathname);
   return useBoardSession(parseBoardPath(path), {
     doc: props.doc,
     providerFactory: props.providerFactory,
-    // No origin here on purpose: in a browser the room lives on the page's own
-    // host, and hard-coding one would send a deployed client to localhost.
     origin: props.origin,
   });
 }
 
-/**
- * Top-level layout: a full-window board area, the sticky tools on the left,
- * the zoom controls bottom-right, the connection badge top-right and the
- * first-use hint near the bottom centre.
- *
- * The one piece of shared state is the session, and the whole board is keyed
- * by it: a new board means a new document, so the selection and the camera are
- * rebuilt rather than carried over. What you would see if you opened someone
- * else's board is their board from their last change, not your last view.
- */
 export function App(props: AppProps = {}) {
   const session = useSessionFor(props);
   const path =
     props.location ?? (typeof window === 'undefined' ? '/' : window.location.pathname);
   const broken = isBrokenBoardLink(path);
-
   return (
     <BoardSurface
-      // The key is the board, not the component: switching rooms must not be
-      // able to reuse the old room's selection or camera.
       key={`${session.boardId}:${session.url ?? 'local'}`}
       session={session}
       broken={broken}
+      canEdit={props.canEdit ?? true}
+      onGestureStart={props.onGestureStart}
+      onGestureEnd={props.onGestureEnd}
     />
   );
 }
@@ -106,9 +89,15 @@ export function App(props: AppProps = {}) {
 function BoardSurface({
   session,
   broken,
+  canEdit,
+  onGestureStart,
+  onGestureEnd,
 }: {
   session: BoardSession;
   broken: boolean;
+  canEdit: boolean;
+  onGestureStart?(): void;
+  onGestureEnd?(): void;
 }) {
   const boardAreaRef = useRef<HTMLDivElement | null>(null);
   const viewport = useViewportSize(boardAreaRef);
@@ -118,7 +107,6 @@ function BoardSurface({
   const selection = useSelection();
   const connectionState = useConnectionState(session.connection);
 
-  // Listeners that are bound once read the live stores through these refs.
   const boardRef = useRef(board);
   boardRef.current = board;
   const viewportRef = useRef(viewport);
@@ -126,8 +114,6 @@ function BoardSurface({
   const cameraRef = useRef<{ camera: Camera }>(cameraApi);
   cameraRef.current = cameraApi;
 
-  // Who else is on this board, and the channel that says so. Read through a
-  // ref below because the pointer listener is bound once per board.
   const presence = usePresence(session, cameraRef);
   const presenceRef = useRef(presence);
   presenceRef.current = presence;
@@ -148,10 +134,7 @@ function BoardSurface({
     return () => removeBoardTestHooks();
   }, []);
 
-  // My pointer, published. The listener is on the board area rather than the
-  // window so a move over the toolbar or the zoom control is not reported as a
-  // point at nothing, and the position handed over is relative to the area the
-  // overlay draws into.
+  // Pointer publishing.
   useEffect(() => {
     const area = boardAreaRef.current;
     if (area === null) return;
@@ -163,14 +146,7 @@ function BoardSurface({
       });
     };
     area.addEventListener('pointermove', onPointerMove);
-
-    // And the two ways a pointer stops meaning anything: it left the board, or
-    // the whole tab went to the background. Both say "I am not here right now",
-    // and an arrow that keeps pointing at a note I stopped looking at is a wrong
-    // answer about where I am, told for another two seconds.
-    const onPointerLeave = (): void => {
-      presenceRef.current.hide();
-    };
+    const onPointerLeave = (): void => { presenceRef.current.hide(); };
     const onVisibility = (): void => {
       if (document.visibilityState === 'hidden') presenceRef.current.hide();
     };
@@ -183,6 +159,9 @@ function BoardSurface({
     };
   }, []);
 
+  const notesRef = useRef(notes);
+  notesRef.current = notes;
+
   /** Put a sticky at a world point and start typing straight away. */
   const createStickyAt = useCallback(
     (point: Point) => {
@@ -193,7 +172,6 @@ function BoardSurface({
     [selection],
   );
 
-  /** The toolbar button: a note in the middle of what I can see right now. */
   const createStickyInViewCentre = useCallback(() => {
     const camera = cameraRef.current.camera;
     const size = viewportRef.current;
@@ -202,73 +180,71 @@ function BoardSurface({
     );
   }, [createStickyAt]);
 
-  const notesRef = useRef(notes);
-  notesRef.current = notes;
-
-  /** The board's own key handling, shared by mouse and keyboard users. */
+  // Prune selection when snapshot changes.
   useEffect(() => {
-    const onKeyDown = (event: KeyboardEvent): void => {
-      if (isTextInput(event.target)) return;
-      const state = selection.current();
-      // While a note is being edited every key belongs to the textarea.
-      if (state.editingId !== null) return;
-      const id = state.selectedId;
-      if (id === null) return;
+    const present = new Set(notes.map((n) => n.id));
+    selection.prune(present);
+  }, [notes, selection]);
 
-      if (event.key === 'Enter') {
-        // A selected or Tab-focused note: start editing it.
-        event.preventDefault();
-        selection.startEdit(id);
-        return;
-      }
-      if (event.key === 'Delete' || event.key === 'Backspace') {
-        event.preventDefault();
-        deleteObject(boardRef.current.doc, id);
-        // Also true for a note that is already gone: the stale selection goes
-        // away either way.
-        selection.select(null);
-      }
-    };
+  // --- Transform gesture wiring ---
+  const gestureOptsRef = useRef<import('./board/useTransformGesture').TransformGestureOptions>({
+    doc: board.doc,
+    camera: cameraApi.camera,
+    selection,
+    snapshot: notes,
+    canEdit,
+  });
+  gestureOptsRef.current = {
+    doc: board.doc,
+    camera: cameraApi.camera,
+    selection,
+    snapshot: notes,
+    canEdit,
+    onGestureStart,
+    onGestureEnd,
+  };
 
-    // The one window listener of the story: the board, not the note, owns the
-    // keyboard, so a note does not have to be focused for Delete to work.
-    window.addEventListener('keydown', onKeyDown);
-    return () => window.removeEventListener('keydown', onKeyDown);
-  }, [selection]);
+  const gesture = useTransformGesture(gestureOptsRef);
+
+  // --- Keyboard ---
+  const keysOptsRef = useRef({
+    doc: board.doc,
+    selection,
+    snapshot: notes,
+    canEdit,
+  });
+  keysOptsRef.current = {
+    doc: board.doc,
+    selection,
+    snapshot: notes,
+    canEdit,
+  };
+  useBoardKeys(keysOptsRef);
+
+  // --- Marquee ---
+  const marquee = useMarquee(
+    { get current() { return cameraRef.current.camera; } },
+    { get current() { return notesRef.current; } },
+    useCallback((ids: string[]) => {
+      selection.setMany(ids, false);
+    }, [selection]),
+  );
+  const marqueeRef = useRef(marquee);
+  marqueeRef.current = marquee;
 
   const camera = cameraApi.camera;
 
-  /**
-   * Everyone the stack shows, this browser included.
-   *
-   * `presence.board` rather than `presence.people`: the names and colours a
-   * person is *called* are settled by a pass over the whole board, and the
-   * stack is one of the two places people read them. Handing it the raw list
-   * would draw two people in one colour and let a tab whose own name is taken
-   * keep wearing it, which is the exact thing five people opening a shared link
-   * produce. The person looking at the board is part of the board.
-   *
-   * Nobody is hidden for being still. The stack answers "who is on this board",
-   * and a person who is reading rather than clicking is on the board: awareness
-   * drops them when their connection does, which is the honest answer, while a
-   * thirty-second timer would quietly delete a quiet reader and call it a
-   * departure. Cursors fade, because a place somebody looked at two seconds ago
-   * is a claim about where they are; a dot makes no such claim.
-   */
   const stackPeople: readonly Person[] = presence.board;
 
   const handleSurfaceClick = useCallback(() => {
-    // Clicking empty board space drops the selection and any open editor.
-    selection.select(null);
+    selection.clear();
   }, [selection]);
 
-  // What this screen has picked up, said out loud.
+  // Publish selection for presence: single-selection only.
   useEffect(() => {
-    // One line, one channel: the other four have to see that a note is being
-    // typed in at the same moment it happens here, and an outline left over from
-    // a note I have already dropped is worse than no outline.
-    presenceRef.current.setSelection(selection.selectedId);
-  }, [selection.selectedId]);
+    const ids = [...selection.ids];
+    presenceRef.current.setSelection(ids.length === 1 ? ids[0]! : null);
+  }, [selection.ids]);
 
   const handleSurfaceDoubleClick = useCallback(
     (point: Point) => {
@@ -277,37 +253,38 @@ function BoardSurface({
     [createStickyAt],
   );
 
-  const selectNote = useCallback(
-    (id: string | null) => {
-      // A note that vanished mid-drag must not stay "selected": that would
-      // leave the keyboard holding a stale id.
-      if (id !== null && !notesRef.current.some((note) => note.id === id)) return;
-      selection.select(id);
-    },
-    [selection],
-  );
-
-  const startEditNote = useCallback(
-    (id: string) => {
-      selection.startEdit(id);
-    },
-    [selection],
-  );
-
-  const endEditNote = useCallback(
-    (next: 'selected' | 'unselected') => {
-      selection.endEdit(next);
-    },
-    [selection],
-  );
-
   const deleteNote = useCallback(
     (id: string) => {
       deleteObject(boardRef.current.doc, id);
-      selection.select(null);
+      selection.clear();
     },
     [selection],
   );
+
+  const handleDeleteSelection = useCallback(() => {
+    const ids = [...selection.ids];
+    if (ids.length > 0) {
+      deleteObjects(boardRef.current.doc, ids);
+      selection.clear();
+    }
+  }, [selection]);
+
+  // Screen-space bounding box for the selection bar.
+  const selectedCount = selection.ids.size;
+  let barTop = 0;
+  let barLeft = 0;
+  if (selectedCount > 0) {
+    const rects: ReturnType<typeof objectBounds>[] = [];
+    for (const n of notes) {
+      if (selection.ids.has(n.id)) rects.push(objectBounds(n));
+    }
+    const bb = unionRects(rects);
+    if (bb) {
+      const s = worldToScreen(camera, { x: bb.x, y: bb.y });
+      barTop = s.y;
+      barLeft = s.x;
+    }
+  }
 
   return (
     <CameraContext.Provider value={cameraApi}>
@@ -315,37 +292,65 @@ function BoardSurface({
         <BoardViewport
           onSurfaceClick={handleSurfaceClick}
           onSurfaceDoubleClick={handleSurfaceDoubleClick}
+          marqueeRef={marqueeRef}
         >
+          {/* Dispatches every object through StickyNote rather than through
+              getObjectType(obj.type); safe only while sticky is the sole type
+              the snapshot can contain. See registry.tsx before adding a type. */}
           {notes.map((note) => (
             <StickyNote
               key={note.id}
               note={note}
               doc={board.doc}
               zoom={camera.zoom}
-              selected={selection.selectedId === note.id}
+              selected={selection.ids.has(note.id)}
               editing={selection.editingId === note.id}
-              onSelect={selectNote}
-              onStartEdit={startEditNote}
-              onEndEdit={endEditNote}
+              multiSelected={selectedCount > 1 && selection.ids.has(note.id)}
+              onObjectPointerDown={gesture.onObjectPointerDown}
+              onToggleSelect={selection.toggle}
+              onSelect={(id) => selection.click(id)}
+              onStartEdit={(id) => selection.startEdit(id)}
+              onEndEdit={(next) => selection.endEdit(next)}
               onDelete={deleteNote}
             />
           ))}
         </BoardViewport>
-        {/* Who is holding what, drawn under the cursors and above the notes: an
-            outline is a notice, not a lock, so it never intercepts a click. */}
         <RemoteSelections
           people={presence.selections}
           objects={notes}
           camera={camera}
           size={STICKY_SIZE_WORLD}
         />
-        {/* The resolved board, minus this screen's own pointer: what a cursor is
-            *called* has to be what the stack calls the same person. */}
         <RemoteCursors
           people={toScreenPeople(presence.cursors, camera)}
           now={presence.now}
           viewport={viewport}
         />
+        {selection.ids.size > 0 ? (
+          <SelectionOverlay
+            ids={selection.ids}
+            snapshot={notes}
+            camera={camera}
+            onHandlePointerDown={gesture.onHandlePointerDown}
+          />
+        ) : null}
+        {selectedCount > 1 ? (
+          <div
+            data-testid="selection-bar-anchor"
+            style={{
+              position: 'absolute',
+              left: barLeft,
+              top: barTop,
+              pointerEvents: 'none',
+              width: 0,
+              height: 0,
+              zIndex: 30,
+            }}
+          >
+            <SelectionBar count={selectedCount} onDelete={handleDeleteSelection} />
+          </div>
+        ) : null}
+        <MarqueeRect rect={marquee.rect} camera={camera} />
         <div className="presence-area" data-testid="presence-area">
           <PresenceStack people={stackPeople} now={presence.now} selfId={presence.selfId} />
           <PresenceIdentity

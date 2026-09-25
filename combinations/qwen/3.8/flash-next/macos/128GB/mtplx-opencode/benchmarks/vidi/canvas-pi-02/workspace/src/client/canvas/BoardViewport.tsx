@@ -7,6 +7,7 @@ import {
 import { mod, screenToWorld, worldToScreen } from './camera';
 import type { Point } from './camera';
 import { useCameraApi, wheelDeltaToPixels } from './useCamera';
+import type { MarqueeApi } from '../board/Marquee';
 
 /**
  * The input surface of the board.
@@ -16,10 +17,8 @@ import { useCameraApi, wheelDeltaToPixels } from './useCamera';
  * board), and a "world layer" whose transform maps world coordinates to screen
  * pixels. Children are rendered in world coordinates.
  *
- * Story 2 adds two reports: a click and a double-click on *empty* board
- * surface, decided by `data-board-object` so a sticky note keeps its own
- * clicks. What they mean (clear the selection, create a note) is decided by
- * App, which owns the board model.
+ * Story 2 added click and double-click on empty surface.
+ * Story 7 adds: shift+drag on empty surface = marquee, not pan.
  */
 export interface BoardViewportProps {
   children?: ReactNode;
@@ -27,6 +26,8 @@ export interface BoardViewportProps {
   onSurfaceClick?(point: Point): void;
   /** A double-click on empty surface, in world coordinates. */
   onSurfaceDoubleClick?(point: Point): void;
+  /** Marquee state (story 7); shift+drag starts it instead of panning. */
+  marqueeRef?: { current: MarqueeApi };
 }
 
 interface GestureEventLike extends Event {
@@ -40,18 +41,16 @@ export function BoardViewport(props: BoardViewportProps) {
   const apiRef = useRef(api);
   const viewportRef = useRef<HTMLDivElement | null>(null);
   const panningRef = useRef(false);
+  const marqueeActiveRef = useRef(false);
   const gestureScaleRef = useRef(1);
   const [panning, setPanning] = useState(false);
-  // A press that travelled is a pan, never a click on empty surface.
+  const [marqueeing, setMarqueeing] = useState(false);
   const movedRef = useRef(false);
   const downPointRef = useRef<Point>({ x: 0, y: 0 });
 
-  // Listeners are bound once, so the callbacks are read through a ref.
   const propsRef = useRef<BoardViewportProps>(props);
   propsRef.current = props;
 
-  // Declared before the listeners effect so the bound-once listeners always
-  // see the newest camera api.
   useEffect(() => {
     apiRef.current = api;
   });
@@ -65,7 +64,6 @@ export function BoardViewport(props: BoardViewportProps) {
       return { x: clientX - rect.left, y: clientY - rect.top };
     };
 
-    /** True when the pointer is on empty board surface, not on a board object. */
     const isSurface = (target: EventTarget | null): boolean => {
       if (!(target instanceof Element)) return true;
       return target.closest('[data-board-object]') === null;
@@ -73,7 +71,6 @@ export function BoardViewport(props: BoardViewportProps) {
 
     const onPointerDown = (event: PointerEvent) => {
       if (event.button !== 0) return;
-      // Touch and pen navigation is out of scope for this story.
       if (event.pointerType !== 'mouse') return;
       if (!isSurface(event.target)) return;
       try {
@@ -81,16 +78,35 @@ export function BoardViewport(props: BoardViewportProps) {
       } catch {
         // jsdom and older browsers have no pointer capture; dragging still works.
       }
+      const local = localPoint(event.clientX, event.clientY);
+
+      // Shift+drag on empty surface = marquee selection instead of pan.
+      if (event.shiftKey && propsRef.current.marqueeRef) {
+        marqueeActiveRef.current = true;
+        panningRef.current = false;
+        setMarqueeing(true);
+        setPanning(false);
+        movedRef.current = true; // suppresses surface-click
+        propsRef.current.marqueeRef.current.begin(local);
+        event.preventDefault();
+        return;
+      }
+
       panningRef.current = true;
+      marqueeActiveRef.current = false;
       movedRef.current = false;
       downPointRef.current = { x: event.clientX, y: event.clientY };
       setPanning(true);
       apiRef.current.beginPan({ x: event.clientX, y: event.clientY });
-      // Stops text selection / native page scroll while dragging.
       event.preventDefault();
     };
 
     const onPointerMove = (event: PointerEvent) => {
+      if (marqueeActiveRef.current && propsRef.current.marqueeRef) {
+        const local = localPoint(event.clientX, event.clientY);
+        propsRef.current.marqueeRef.current.move(local);
+        return;
+      }
       if (!panningRef.current) return;
       const down = downPointRef.current;
       if (Math.abs(event.clientX - down.x) > 0.5 || Math.abs(event.clientY - down.y) > 0.5) {
@@ -99,28 +115,43 @@ export function BoardViewport(props: BoardViewportProps) {
       apiRef.current.panMove({ x: event.clientX, y: event.clientY });
     };
 
-    /** Idle is reached on pointerup, pointercancel and lostpointercapture. */
-    const endPan = () => {
+    const cancelGesture = () => {
+      if (marqueeActiveRef.current) {
+        marqueeActiveRef.current = false;
+        setMarqueeing(false);
+        propsRef.current.marqueeRef?.current.cancel();
+        return;
+      }
       if (!panningRef.current) return;
       panningRef.current = false;
       setPanning(false);
       apiRef.current.endPan();
     };
 
-    /**
-     * Releasing the board without having moved is a click on empty surface,
-     * which clears the selection. A release that moved was a pan.
-     */
+    const endPan = () => {
+      if (marqueeActiveRef.current) {
+        marqueeActiveRef.current = false;
+        setMarqueeing(false);
+        propsRef.current.marqueeRef?.current.end();
+        return;
+      }
+      if (!panningRef.current) return;
+      panningRef.current = false;
+      setPanning(false);
+      apiRef.current.endPan();
+    };
+
     const onPointerUp = (event: PointerEvent) => {
+      const wasMarquee = marqueeActiveRef.current;
       const wasClick = panningRef.current && !movedRef.current;
       endPan();
+      if (wasMarquee) return;
       if (!wasClick || !isSurface(event.target)) return;
       propsRef.current.onSurfaceClick?.(
         screenToWorld(apiRef.current.camera, localPoint(event.clientX, event.clientY)),
       );
     };
 
-    /** Double-click on empty surface: App decides what appears there. */
     const onDoubleClick = (event: MouseEvent) => {
       if (!isSurface(event.target)) return;
       propsRef.current.onSurfaceDoubleClick?.(
@@ -129,8 +160,6 @@ export function BoardViewport(props: BoardViewportProps) {
     };
 
     const onWheel = (event: WheelEvent) => {
-      // The board owns the wheel over the board: preventing the default stops
-      // both page scrolling and browser page zoom (Ctrl/Cmd + wheel).
       event.preventDefault();
       apiRef.current.wheel({
         deltaX: wheelDeltaToPixels(event.deltaX, event.deltaMode),
@@ -141,7 +170,6 @@ export function BoardViewport(props: BoardViewportProps) {
     };
 
     const onGestureStart = (event: Event) => {
-      // Safari's gesture scale is cumulative, so restart the ratio baseline.
       event.preventDefault();
       gestureScaleRef.current = 1;
     };
@@ -166,7 +194,7 @@ export function BoardViewport(props: BoardViewportProps) {
       if (!event.ctrlKey && !event.metaKey) return;
       const key = event.key;
       if (key === '=' || key === '+') {
-        event.preventDefault(); // would otherwise zoom the whole page
+        event.preventDefault();
         apiRef.current.zoomStep('in');
       } else if (key === '-' || key === '_') {
         event.preventDefault();
@@ -183,10 +211,9 @@ export function BoardViewport(props: BoardViewportProps) {
     el.addEventListener('pointerdown', onPointerDown);
     el.addEventListener('pointermove', onPointerMove);
     el.addEventListener('pointerup', onPointerUp);
-    el.addEventListener('pointercancel', endPan);
+    el.addEventListener('pointercancel', cancelGesture);
     el.addEventListener('lostpointercapture', endPan);
     el.addEventListener('dblclick', onDoubleClick);
-    // React's onWheel is passive, so the wheel listener is attached by hand.
     el.addEventListener('wheel', onWheel, { passive: false });
     el.addEventListener('gesturestart', onGestureStart, { passive: false });
     el.addEventListener('gesturechange', onGestureChangeAsListener, {
@@ -198,7 +225,7 @@ export function BoardViewport(props: BoardViewportProps) {
       el.removeEventListener('pointerdown', onPointerDown);
       el.removeEventListener('pointermove', onPointerMove);
       el.removeEventListener('pointerup', onPointerUp);
-      el.removeEventListener('pointercancel', endPan);
+      el.removeEventListener('pointercancel', cancelGesture);
       el.removeEventListener('lostpointercapture', endPan);
       el.removeEventListener('dblclick', onDoubleClick);
       el.removeEventListener('wheel', onWheel);
@@ -206,6 +233,7 @@ export function BoardViewport(props: BoardViewportProps) {
       el.removeEventListener('gesturechange', onGestureChangeAsListener);
       window.removeEventListener('keydown', onKeyDown);
       panningRef.current = false;
+      marqueeActiveRef.current = false;
     };
   }, []);
 
@@ -222,6 +250,7 @@ export function BoardViewport(props: BoardViewportProps) {
       className="board-viewport"
       data-testid="board-viewport"
       data-panning={panning ? 'true' : 'false'}
+      data-marqueeing={marqueeing ? 'true' : 'false'}
       data-camera={`${camera.x},${camera.y},${zoom}`}
       data-origin={`${origin.x},${origin.y}`}
       style={{

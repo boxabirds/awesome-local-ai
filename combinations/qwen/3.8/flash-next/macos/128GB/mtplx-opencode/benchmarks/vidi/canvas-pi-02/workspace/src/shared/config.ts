@@ -251,3 +251,22 @@ export const NAME_MAX_CHARS = 32;
 
 /** Where a guest name and colour are kept between visits (per browser). */
 export const IDENTITY_STORAGE_KEY = 'vidi6.identity';
+
+/* --------------------------------------------------------------------- *
+ * Story 7: select, move, resize and delete several objects at once.
+ * --------------------------------------------------------------------- */
+
+/** Handle size in screen pixels (constant at any zoom). */
+export const HANDLE_SIZE_PX = 8;
+
+/** Minimum size for a sticky note (world units). */
+export const STICKY_MIN_SIZE_WORLD = 50;
+
+/** Maximum size any object can be resized to (world units). */
+export const MAX_OBJECT_SIZE_WORLD = 20_000;
+
+/** Arrow-key nudge step in world units. */
+export const NUDGE_STEP_WORLD = 1;
+
+/** Shift+arrow nudge step in world units. */
+export const NUDGE_LARGE_STEP_WORLD = 10;

@@ -23,9 +23,9 @@ import { fitFontSize } from './StickyText';
  * One sticky note: the read-only face, the text editor and the pointer state
  * machine of a single note.
  *
- * The state machine from the design (Unselected, Pressed, Selected, Dragging,
- * Editing) lives here and is *local*: it is never written to the Y.Doc,
- * because another user must not see my selection as board data.
+ * Story 7 added `onObjectPointerDown`: when the parent provides it, the note
+ * forwards the pointerdown there and skips its own drag machinery. That is
+ * how a group drag works: the parent tracks all selected ids together.
  *
  * `data-board-object` marks the note as "not empty board surface", which is
  * how BoardViewport decides whether a pointer belongs to the board. The note
@@ -44,6 +44,15 @@ export interface StickyNoteProps {
   zoom: number;
   selected: boolean;
   editing: boolean;
+  /** True when 2+ notes are selected and this one is one of them. */
+  multiSelected?: boolean;
+  /**
+   * Handle a pointer press on the note body. Return true to take over the
+   * drag (the note then does not run its own state machine).
+   */
+  onObjectPointerDown?(event: PointerEvent, id: string): boolean | void;
+  /** Shift-click toggles the id in the group selection. */
+  onToggleSelect?(id: string): void;
   onSelect(id: string): void;
   onStartEdit(id: string): void;
   onEndEdit(next: 'selected' | 'unselected'): void;
@@ -110,19 +119,18 @@ function StickyNoteView(props: StickyNoteProps): JSX.Element {
       window.removeEventListener('pointercancel', onCancel);
     };
 
-    /** Watch the window for the rest of this gesture (see the note below). */
     const startTracking = (): void => {
       window.addEventListener('pointermove', onPointerMove);
       window.addEventListener('pointerup', onPointerUp);
       window.addEventListener('pointercancel', onCancel);
     };
 
-    /** Leave the drag: either apply the last position or freeze the last one. */
     const endDrag = (applyLastPosition: boolean): void => {
       const drag = dragRef.current;
       if (!drag) return;
       dragRef.current = null;
-      stopTracking();      if (drag.frame !== null) {
+      stopTracking();
+      if (drag.frame !== null) {
         cancelFrame(drag.frame);
         drag.frame = null;
       }
@@ -130,20 +138,32 @@ function StickyNoteView(props: StickyNoteProps): JSX.Element {
       drag.pending = null;
       if (applyLastPosition && pending) moveObject(doc, id, pending.x, pending.y);
       if (drag.moving) setDragging(false);
-      // Releasing a press selects the note (PRD: a short press without
-      // movement selects it).
       latest.current.onSelect(id);
     };
 
     const onPointerDown = (event: PointerEvent): void => {
-      // Mouse only, like the board itself (see touch-action in styles.css): a
-      // touch press is left alone rather than turned into a half-drag.
       if (event.button !== 0 || event.pointerType !== 'mouse') return;
-      // A note owns its pointer: no board pan, and no note created underneath.
       event.stopPropagation();
       const state = latest.current;
-      if (state.editing) return; // its body is the textarea while editing
-      if (isNoteUi(event.target)) return; // the note toolbar, not the note body
+      if (state.editing) return;
+      if (isNoteUi(event.target)) return;
+
+      // Shift-click toggles the id and never starts a drag.
+      if (event.shiftKey && state.onToggleSelect) {
+        state.onToggleSelect(id);
+        event.preventDefault();
+        return;
+      }
+
+      // The group-drag path: if the parent takes over, do nothing here.
+      if (state.onObjectPointerDown) {
+        const taken = state.onObjectPointerDown(event, id);
+        if (taken === true) {
+          event.preventDefault();
+          return;
+        }
+      }
+
       try {
         el.setPointerCapture(event.pointerId);
       } catch {
@@ -159,13 +179,7 @@ function StickyNoteView(props: StickyNoteProps): JSX.Element {
         pending: null,
         frame: null,
       };
-      // Stops the browser's native text selection while dragging.
       event.preventDefault();
-      // From here on the window is watched, not just the note: a fast drag
-      // leaves the 200-pixel square within one frame, and a note that loses
-      // the pointer mid-drag would end up somewhere the user never pointed.
-      // Pointer capture is asked for too, but it is not trusted: Chromium
-      // gives it up as soon as another note ends up under the cursor.
       startTracking();
     };
 
@@ -173,8 +187,6 @@ function StickyNoteView(props: StickyNoteProps): JSX.Element {
       const drag = dragRef.current;
       if (!drag || drag.pointerId !== event.pointerId) return;
       if (event.buttons === 0) {
-        // The release was never reported - the pointer left the window with the
-        // button down. Drop the drag instead of following an unheld pointer.
         dragRef.current = null;
         stopTracking();
         if (drag.moving) setDragging(false);
@@ -184,17 +196,12 @@ function StickyNoteView(props: StickyNoteProps): JSX.Element {
       const dy = event.clientY - drag.startY;
 
       if (!drag.moving) {
-        // Below the threshold the press is still a press, so a shaky click
-        // cannot nudge a note.
         if (Math.hypot(dx, dy) < DRAG_THRESHOLD_PX) return;
         drag.moving = true;
         setDragging(true);
-        // Whatever it overlaps while being dragged, it overlaps from above.
         bringToFront(doc, id);
       }
 
-      // Screen pixels are world units times the zoom: dividing by the zoom is
-      // what keeps the grabbed point under the pointer at any zoom level.
       const zoomNow = latest.current.zoom > 0 ? latest.current.zoom : 1;
       drag.pending = { x: drag.originX + dx / zoomNow, y: drag.originY + dy / zoomNow };
 
@@ -205,7 +212,6 @@ function StickyNoteView(props: StickyNoteProps): JSX.Element {
           const target = drag.pending;
           drag.pending = null;
           if (!target) return;
-          // A note deleted mid-drag ends the interaction silently (TC-37).
           if (!moveObject(doc, id, target.x, target.y)) dragRef.current = null;
         });
       }
@@ -215,7 +221,6 @@ function StickyNoteView(props: StickyNoteProps): JSX.Element {
       endDrag(true);
     };
 
-    /** Cancelled or lost: the note stays where it was last shown. */
     const onCancel = (): void => {
       endDrag(false);
     };
@@ -229,7 +234,6 @@ function StickyNoteView(props: StickyNoteProps): JSX.Element {
       event.preventDefault();
     };
 
-    /** Keyboard users reach a note with Tab; focus selects it. */
     const onFocus = (): void => {
       const state = latest.current;
       if (state.editing) return;
@@ -251,9 +255,6 @@ function StickyNoteView(props: StickyNoteProps): JSX.Element {
     };
   }, [doc, id]);
 
-  // Auto-fit: measure the rendered text and shrink it until it fits. Only when
-  // the text or the mode changes - the font is in world units, so zoom scales
-  // it uniformly and needs no remeasuring.
   useLayoutEffect(() => {
     const el = textRef.current;
     if (!el) return;
@@ -263,7 +264,7 @@ function StickyNoteView(props: StickyNoteProps): JSX.Element {
         ? previous
         : fitted,
     );
-  }, [note.text, editing]);
+  }, [note.text, editing, note.width, note.height]);
 
   const handleColor = useCallback(
     (color: StickyColor) => {
@@ -273,6 +274,9 @@ function StickyNoteView(props: StickyNoteProps): JSX.Element {
   );
 
   const ytext = editing ? getStickyText(doc, id) : undefined;
+
+  const width = note.width ?? STICKY_SIZE_WORLD;
+  const height = note.height ?? STICKY_SIZE_WORLD;
 
   return (
     <div
@@ -290,11 +294,10 @@ function StickyNoteView(props: StickyNoteProps): JSX.Element {
       style={{
         left: `${note.x}px`,
         top: `${note.y}px`,
-        width: `${STICKY_SIZE_WORLD}px`,
-        height: `${STICKY_SIZE_WORLD}px`,
+        width: `${width}px`,
+        height: `${height}px`,
         padding: `${TEXT_PADDING_WORLD}px`,
         backgroundColor: STICKY_COLORS[note.color],
-        // The selected note (and its toolbar) must draw over its neighbours.
         zIndex: selected ? 2 : 1,
       }}
     >
@@ -328,7 +331,7 @@ function StickyNoteView(props: StickyNoteProps): JSX.Element {
         </>
       )}
 
-      {selected && !editing && !dragging ? (
+      {selected && !editing && !dragging && !props.multiSelected ? (
         <NoteToolbar
           color={note.color}
           zoom={zoom}
