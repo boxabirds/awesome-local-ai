@@ -1,10 +1,12 @@
 import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
-import { canZoomIn, canZoomOut, zoomPercent, type Camera, type Point, type Size } from './camera';
+import { canZoomIn, canZoomOut, screenToWorld, zoomPercent, type Camera, type Point, type Size } from './camera';
 import { useCamera } from './useCamera';
 import { ZoomControls } from './ZoomControls';
 import { NavigationHint } from './NavigationHint';
 import { installTestHooks } from './testHooks';
+import { WorldOverlayContext } from './worldOverlay';
 import {
+  DRAG_THRESHOLD_PX,
   GRID_DOT_RADIUS_PX,
   GRID_FADE_BELOW_SPACING_PX,
   GRID_SPACING_WORLD,
@@ -48,8 +50,26 @@ interface GestureEventLike extends Event {
   clientY: number;
 }
 
+/** What board content needs to know about the current view. */
+export interface BoardView {
+  camera: Camera;
+  /** Viewport size in screen px. */
+  size: Size;
+}
+
+export interface BoardViewportProps {
+  /** Objects, rendered in the world layer (world coordinates). */
+  children?: ReactNode | ((view: BoardView) => ReactNode);
+  /** Fixed screen-space UI (toolbars), rendered above the world layer. */
+  overlay?: (view: BoardView) => ReactNode;
+  /** Double-click on empty board space, at that world point. */
+  onDoubleClickEmpty?(world: Point): void;
+  /** Press and release on empty board space without dragging. */
+  onEmptyClick?(): void;
+}
+
 /** Full-window board: input surface, dot grid and world layer, plus zoom controls and hint overlays. */
-export function BoardViewport(props: { children?: ReactNode }) {
+export function BoardViewport(props: BoardViewportProps) {
   const rootRef = useRef<HTMLDivElement>(null);
   const [size, setSize] = useState<Size>(windowSize);
   const api = useCamera(size);
@@ -58,6 +78,9 @@ export function BoardViewport(props: { children?: ReactNode }) {
   apiRef.current = api;
   const panningPointerRef = useRef<number | null>(null);
   const [panning, setPanning] = useState(false);
+  // Where the current press on empty space started (client px), and whether it has become a drag.
+  const pressRef = useRef<{ x: number; y: number; moved: boolean } | null>(null);
+  const [overlayEl, setOverlayEl] = useState<HTMLDivElement | null>(null);
 
   const toLocal = (clientX: number, clientY: number): Point => {
     const rect = rootRef.current?.getBoundingClientRect();
@@ -162,11 +185,13 @@ export function BoardViewport(props: { children?: ReactNode }) {
   const endPan = () => {
     if (panningPointerRef.current === null) return;
     panningPointerRef.current = null;
+    pressRef.current = null;
     setPanning(false);
     api.endPan();
   };
 
   const grid = gridBackground(camera);
+  const view: BoardView = { camera, size };
 
   return (
     <div
@@ -189,16 +214,28 @@ export function BoardViewport(props: { children?: ReactNode }) {
         e.preventDefault();
         e.currentTarget.focus({ preventScroll: true });
         panningPointerRef.current = e.pointerId;
+        pressRef.current = { x: e.clientX, y: e.clientY, moved: false };
         e.currentTarget.setPointerCapture?.(e.pointerId);
         setPanning(true);
         api.beginPan(toLocal(e.clientX, e.clientY));
       }}
       onPointerMove={(e) => {
         if (e.pointerId !== panningPointerRef.current) return;
+        const press = pressRef.current;
+        if (press && Math.hypot(e.clientX - press.x, e.clientY - press.y) >= DRAG_THRESHOLD_PX) press.moved = true;
         api.panMove(toLocal(e.clientX, e.clientY));
       }}
       onPointerUp={(e) => {
-        if (e.pointerId === panningPointerRef.current) endPan();
+        if (e.pointerId !== panningPointerRef.current) return;
+        const clicked = pressRef.current !== null && !pressRef.current.moved;
+        endPan();
+        if (clicked) props.onEmptyClick?.();
+      }}
+      onDoubleClick={(e) => {
+        // Only empty board space creates; objects handle their own double-clicks.
+        if (e.target !== e.currentTarget || !props.onDoubleClickEmpty) return;
+        e.preventDefault();
+        props.onDoubleClickEmpty(screenToWorld(camera, toLocal(e.clientX, e.clientY)));
       }}
       onPointerCancel={(e) => {
         if (e.pointerId === panningPointerRef.current) endPan();
@@ -216,8 +253,12 @@ export function BoardViewport(props: { children?: ReactNode }) {
         }}
       >
         <div className="board-origin-marker" data-testid="origin-marker" aria-hidden="true" />
-        {props.children}
+        <WorldOverlayContext.Provider value={overlayEl}>
+          {typeof props.children === 'function' ? props.children(view) : props.children}
+        </WorldOverlayContext.Provider>
+        <div ref={setOverlayEl} className="board-world-overlay" data-testid="board-world-overlay" />
       </div>
+      {props.overlay?.(view)}
       <ZoomControls
         zoomPercent={zoomPercent(camera)}
         canZoomIn={canZoomIn(camera)}

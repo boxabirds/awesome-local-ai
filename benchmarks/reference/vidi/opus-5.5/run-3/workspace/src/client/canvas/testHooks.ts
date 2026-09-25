@@ -1,8 +1,11 @@
 import type { Camera } from './camera';
+import type { StickySnapshot } from '../../shared/board-model';
 
 export interface Vidi6TestHooks {
   setCamera(cam: Camera): void;
   getCamera(): Camera;
+  /** Current notes in render order (installed by App). */
+  notes?(): readonly StickySnapshot[];
 }
 
 declare global {
@@ -12,14 +15,18 @@ declare global {
 }
 
 /**
- * Installs `window.__vidi6` in test builds only (`vite build --mode test`, Vitest).
+ * Adds `hooks` to `window.__vidi6` in test builds only (`vite build --mode test`, Vitest).
  * `import.meta.env.MODE` is replaced at build time, so production bundles drop this code.
- * Returns an uninstall function.
+ * Several components each install their part. Returns an uninstall function.
  */
-export function installTestHooks(hooks: Vidi6TestHooks): () => void {
+export function installTestHooks(hooks: Partial<Vidi6TestHooks>): () => void {
   if (import.meta.env.MODE !== 'test') return () => {};
-  window.__vidi6 = hooks;
+  const target = (window.__vidi6 ??= {} as Vidi6TestHooks) as unknown as Record<string, unknown>;
+  Object.assign(target, hooks);
   return () => {
-    if (window.__vidi6 === hooks) delete window.__vidi6;
+    const current = window.__vidi6 as unknown as Record<string, unknown> | undefined;
+    if (!current) return;
+    for (const [key, fn] of Object.entries(hooks)) if (current[key] === fn) delete current[key];
+    if (Object.keys(current).length === 0) delete window.__vidi6;
   };
 }
