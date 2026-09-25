@@ -1,5 +1,5 @@
 import { expect, type Browser, type BrowserContext, type Page } from '@playwright/test';
-import { newBoardId } from '../../../src/shared/board-id';
+import { createBoardAt } from './boards-api';
 import { LIVE_UPDATE_LATENCY_BUDGET_MS } from '../../../src/shared/config';
 
 export interface Participant {
@@ -10,14 +10,18 @@ export interface Participant {
   errors: string[];
 }
 
-/** Opens `names.length` isolated browser contexts on the same board and waits until each is connected. */
+/**
+ * Opens `names.length` isolated browser contexts on the same board (default: a newly created one) and waits
+ * until each is connected.
+ */
 export async function openParticipants(
   browser: Browser,
   names: string[],
-  boardId: string = newBoardId(),
+  boardIdOrNew?: string,
   /** Optional script run in every page before the app loads. */
   initScript?: () => void,
 ): Promise<{ boardId: string; people: Participant[] }> {
+  const boardId = boardIdOrNew ?? (await createBoardAt());
   const people = await Promise.all(
     names.map(async (name) => {
       const context = await browser.newContext({ viewport: { width: 1280, height: 800 } });

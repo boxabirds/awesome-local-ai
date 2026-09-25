@@ -3,6 +3,10 @@
 //
 // Sockets use the hibernation API: an idle board costs no compute, and after eviction the constructor reloads
 // the doc from storage while the sockets (`ctx.getWebSockets()`) stay connected.
+//
+// Boards exist only once created through `initialize()` (or, for boards from before board creation existed,
+// once they have saved content). Unknown boards are never created implicitly: `exists()` and a rejected
+// connection only read storage.
 import { DurableObject } from 'cloudflare:workers';
 import * as Y from 'yjs';
 import * as decoding from 'lib0/decoding';
@@ -52,7 +56,6 @@ export class BoardRoom extends DurableObject<Env> {
     const doc = new Y.Doc();
     let result: LoadResult;
     try {
-      this.store.migrate();
       result = this.store.load(doc);
     } catch (e) {
       result = { ok: false, reason: 'sql-error', error: e instanceof Error ? e.message : String(e) };
@@ -100,10 +103,22 @@ export class BoardRoom extends DurableObject<Env> {
     doc?.destroy();
   }
 
+  /** RPC: creates this board (tables and `created_at`); 'exists' if it already existed, which writes nothing. */
+  async initialize(): Promise<'created' | 'exists'> {
+    return this.store.initialize();
+  }
+
+  /** RPC: whether this board exists (created, or legacy with saved content). Read-only. */
+  async exists(): Promise<boolean> {
+    return this.store.existsReadOnly();
+  }
+
   async fetch(req: Request): Promise<Response> {
     if (req.headers.get('Upgrade')?.toLowerCase() !== 'websocket') {
       return new Response('Expected a WebSocket upgrade', { status: 426, headers: { Upgrade: 'websocket' } });
     }
+    // Connecting never creates a board.
+    if (!this.existsForConnection()) return new Response('Board not found', { status: 404 });
     this.reloadIfNeeded();
     const pair = new WebSocketPair();
     const [client, server] = [pair[0], pair[1]];
@@ -118,6 +133,19 @@ export class BoardRoom extends DurableObject<Env> {
       this.send(server, encodeSync((e) => syncProtocol.writeSyncStep1(e, this.doc!)));
     }
     return new Response(null, { status: 101, webSocket: client });
+  }
+
+  /**
+   * Whether a connection may proceed. If storage cannot even be read, the board is not declared missing: the
+   * connection goes ahead and learns that the board cannot be loaded (4500), as in story 4.
+   */
+  private existsForConnection(): boolean {
+    try {
+      return this.store.existsReadOnly();
+    } catch (e) {
+      console.error(JSON.stringify({ event: 'board_exists_check_failed', error: e instanceof Error ? e.message : String(e) }));
+      return true;
+    }
   }
 
   /** A new connection reloads a reset room, and retries a failed load at most once per interval. */
@@ -216,6 +244,12 @@ export class BoardRoom extends DurableObject<Env> {
         if (!this.doc || !body) return false;
         Y.applyUpdate(this.doc, new Uint8Array(body), null); // stored and relayed like any client update
         return this.doc !== null && this.store.compact(this.doc);
+      }
+      case 'seed-legacy': {
+        // A board as saved before board creation existed: log rows, no created_at (e2e TC-31).
+        if (!this.doc || !body || this.store.createdAt() !== null) return false;
+        Y.applyUpdate(this.doc, new Uint8Array(body), null);
+        return this.doc !== null;
       }
       case 'compact':
         return this.doc !== null && this.store.compact(this.doc);

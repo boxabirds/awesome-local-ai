@@ -1,10 +1,13 @@
 // A board's saved state in its Durable Object's SQLite database: an append-only log of Yjs updates plus a
 // chunked snapshot that compaction folds the log into.
 //
-//   storage_meta(key, value)                 storage_schema_version, snapshot_through_seq
+//   storage_meta(key, value)                 storage_schema_version, snapshot_through_seq, created_at
 //   updates(seq, data, bytes)                log rows newer than the snapshot
 //   snapshot_chunks(idx, data)               Y.encodeStateAsUpdate split into SNAPSHOT_CHUNK_BYTES pieces
 //   quarantined_updates(seq, data, error, quarantined_at)   log rows that could not be applied on load
+//
+// Tables are created only when a board is created (`initialize`) or first written to (`append`). Reading an
+// unknown board (existence check, load) never creates them, so probing links leaves no storage behind.
 import * as Y from 'yjs';
 import * as encoding from 'lib0/encoding';
 import {
@@ -118,8 +121,12 @@ function fillGaps(doc: Y.Doc): number {
   return filled;
 }
 
+const BOARD_TABLES = ['storage_meta', 'updates', 'snapshot_chunks'] as const;
+
 export class BoardStore {
   private readonly storage: BoardStorage;
+  /** Whether `migrate()` already ran in this instance (append migrates lazily). */
+  private migrated = false;
   /** Log rows (and their total bytes) newer than the snapshot; tracked in memory after `load`. */
   private logCount = 0;
   private logBytes = 0;
@@ -146,10 +153,53 @@ export class BoardStore {
       "INSERT OR IGNORE INTO storage_meta (key, value) VALUES ('storage_schema_version', ?)",
       String(STORAGE_SCHEMA_VERSION),
     );
+    this.migrated = true;
+  }
+
+  /** Which of the board tables exist. Reads sqlite_master only. */
+  private existingTables(): Set<string> {
+    const names = this.exec(
+      `SELECT name FROM sqlite_master WHERE type = 'table' AND name IN (${BOARD_TABLES.map(() => '?').join(', ')})`,
+      ...BOARD_TABLES,
+    );
+    return new Set(names.map((r) => String(r.name)));
+  }
+
+  /**
+   * Whether this board exists: it was created (`created_at`), or it is a legacy board from before board creation
+   * existed that has saved content (any log or snapshot row). Only reads; never creates tables.
+   */
+  existsReadOnly(): boolean {
+    const tables = this.existingTables();
+    if (tables.has('storage_meta') && this.exec("SELECT 1 FROM storage_meta WHERE key = 'created_at'").length > 0) return true;
+    if (tables.has('updates') && this.exec('SELECT 1 FROM updates LIMIT 1').length > 0) return true;
+    if (tables.has('snapshot_chunks') && this.exec('SELECT 1 FROM snapshot_chunks LIMIT 1').length > 0) return true;
+    return false;
+  }
+
+  /** When the board was created (epoch ms), or null for unknown and legacy boards. */
+  createdAt(): number | null {
+    if (!this.existingTables().has('storage_meta')) return null;
+    const row = this.exec("SELECT value FROM storage_meta WHERE key = 'created_at'")[0];
+    return row ? Number(row.value) : null;
+  }
+
+  /**
+   * Creates the board: tables plus `created_at`. Returns 'exists' (and writes nothing) if the board already
+   * exists, including legacy boards, so an existing board is never handed out as new.
+   */
+  initialize(now: number = Date.now()): 'created' | 'exists' {
+    if (this.existsReadOnly()) return 'exists';
+    this.storage.transactionSync(() => {
+      this.migrate();
+      this.exec("INSERT INTO storage_meta (key, value) VALUES ('created_at', ?)", String(now));
+    });
+    return 'created';
   }
 
   /** Appends one update to the log. Throws if the row cannot be written (the caller resets the room). */
   append(update: Uint8Array): void {
+    if (!this.migrated) this.migrate();
     this.exec('INSERT INTO updates (data, bytes) VALUES (?, ?)', update, update.length);
     this.logCount += 1;
     this.logBytes += update.length;
@@ -161,6 +211,13 @@ export class BoardStore {
    */
   load(doc: Y.Doc): LoadResult {
     try {
+      // A board that was never written to has no tables: it is empty, and loading it must not create them.
+      const tables = this.existingTables();
+      if (!BOARD_TABLES.every((t) => tables.has(t))) {
+        this.logCount = 0;
+        this.logBytes = 0;
+        return { ok: true, quarantined: 0 };
+      }
       const chunks = this.exec('SELECT data FROM snapshot_chunks ORDER BY idx').map((r) => toBytes(r.data));
       if (chunks.length > 0) {
         try {

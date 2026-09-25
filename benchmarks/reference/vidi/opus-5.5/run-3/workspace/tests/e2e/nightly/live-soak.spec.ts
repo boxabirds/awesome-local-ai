@@ -137,7 +137,9 @@ test('TC-30 capacity soak: MAX_CONCURRENT_EDITORS people edit for 60 s; every ch
       }
       const id = pick(mine);
       const centre = await centreOf(page, id).catch(() => null);
-      if (!centre || centre.x < 60 || centre.y < 60 || centre.x > 1220 || centre.y > 740) continue;
+      // Room above the note for its colour toolbar (at 50% a note reaches 50 px above its centre, the toolbar
+      // another ~50 px), and clear of the Share button in the top-right corner.
+      if (!centre || centre.x < 60 || centre.y < 120 || centre.x > 1220 || centre.y > 740) continue;
       if ((await noteAt(page, centre)) !== id) continue; // covered by another note
       await page.mouse.click(1270, 790); // start with nothing selected
       if (op === 'move') {

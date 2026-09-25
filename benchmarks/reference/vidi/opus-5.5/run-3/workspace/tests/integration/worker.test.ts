@@ -4,12 +4,12 @@ import worker from '../../src/worker/index';
 import { newBoardId } from '../../src/shared/board-id';
 import { createSticky } from '../../src/shared/board-model';
 import { MAX_CONCURRENT_EDITORS } from '../../src/shared/config';
-import { TestClient, converged, openSocket, quiet } from './ws-client';
+import { TestClient, converged, createdBoardId, openSocket, quiet } from './ws-client';
 
 describe('sync.worker_entry', () => {
-  it('TC-04 an invalid board id is rejected with 400 before any room is touched', async () => {
+  it('TC-04 an invalid board id is rejected (404 since story 5) before any room is touched', async () => {
     const res = await SELF.fetch('http://vidi6.test/api/rooms/bad!id', { headers: { Upgrade: 'websocket' } });
-    expect(res.status).toBe(400);
+    expect(res.status).toBe(404);
 
     // The same handler with a spied namespace: no object id is ever derived.
     const idFromName = vi.fn(env.BOARD_ROOM.idFromName.bind(env.BOARD_ROOM));
@@ -20,7 +20,7 @@ describe('sync.worker_entry', () => {
         new Request(`http://vidi6.test/api/rooms/${bad}`, { headers: { Upgrade: 'websocket' } }),
         spiedEnv,
       );
-      expect(r.status, bad).toBe(400);
+      expect(r.status, bad).toBe(404);
     }
     expect(idFromName).not.toHaveBeenCalled();
     expect(get).not.toHaveBeenCalled();
@@ -39,7 +39,7 @@ describe('sync.worker_entry', () => {
   });
 
   it('TC-13 one more than MAX_CONCURRENT_EDITORS can join and edit; nobody is refused', async () => {
-    const boardId = newBoardId();
+    const boardId = await createdBoardId();
     const clients: TestClient[] = [];
     for (let i = 0; i < MAX_CONCURRENT_EDITORS; i++) clients.push(await TestClient.connect(boardId));
 
@@ -57,8 +57,8 @@ describe('sync.worker_entry', () => {
   });
 
   it('TC-17 changes on one board never reach another board', async () => {
-    const room2 = newBoardId();
-    const a = await TestClient.connect(newBoardId());
+    const room2 = await createdBoardId();
+    const a = await TestClient.connect(await createdBoardId());
     const b = await TestClient.connect(room2);
     const updatesBefore = b.count('update');
     createSticky(a.doc, { x: 10, y: 10 });

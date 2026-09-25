@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef } from 'react';
 import type * as Y from 'yjs';
 import { BoardViewport } from './canvas/BoardViewport';
 import { screenToWorld, type Point } from './canvas/camera';
@@ -8,9 +8,12 @@ import { useBoardDoc } from './board/useBoardDoc';
 import { useSelection } from './board/useSelection';
 import { StickyNote } from './objects/StickyNote';
 import { createSticky, deleteObject, snapshot } from '../shared/board-model';
-import { isValidBoardId, newBoardId } from '../shared/board-id';
 import { ConnectionStatus } from './sync/ConnectionStatus';
 import type { ConnectionState } from './sync/connectBoard';
+import { useRoute } from './router';
+import { HomePage } from './pages/HomePage';
+import { BoardPage } from './pages/BoardPage';
+import { NotFoundPage } from './pages/NotFoundPage';
 
 /** Whether the board may be edited: not while its saved state cannot be loaded (never over an empty stand-in). */
 export function canEdit(state: ConnectionState): boolean {
@@ -22,27 +25,12 @@ function isTextField(t: EventTarget | null): boolean {
   return t.isContentEditable || t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT';
 }
 
-const BOARD_PATH = /^\/b\/([^/]+)\/?$/;
-
-/** The board id in a `/b/:boardId` path, or null. */
-export function boardIdFromPath(pathname: string): string | null {
-  const id = BOARD_PATH.exec(pathname)?.[1];
-  return id !== undefined && isValidBoardId(id) ? id : null;
-}
-
-/**
- * Routes `/b/:boardId` to that board. Any other address (including `/`) is sent to a fresh board id;
- * story 5 replaces this with server-side board creation.
- */
+/** Routes `/` to the home page, `/b/:boardId` to that board (or Board not found), anything else to not found. */
 export function Root() {
-  const [boardId] = useState(() => {
-    const id = boardIdFromPath(window.location.pathname);
-    if (id) return id;
-    const created = newBoardId();
-    window.history.replaceState(null, '', `/b/${created}`);
-    return created;
-  });
-  return <App key={boardId} boardId={boardId} />;
+  const route = useRoute();
+  if (route.name === 'home') return <HomePage />;
+  if (route.name === 'board') return <BoardPage key={route.id} id={route.id} />;
+  return <NotFoundPage />;
 }
 
 /**

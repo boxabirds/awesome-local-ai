@@ -6,7 +6,6 @@ import * as Y from 'yjs';
 import * as syncProtocol from 'y-protocols/sync';
 import { BoardRoom } from '../../src/worker/board-room';
 import { BoardStore, type BoardStorage } from '../../src/worker/board-store';
-import { newBoardId } from '../../src/shared/board-id';
 import { createSticky, snapshot, type StickySnapshot } from '../../src/shared/board-model';
 import { LOAD_RETRY_MIN_INTERVAL_MS } from '../../src/shared/config';
 import {
@@ -15,7 +14,7 @@ import {
   CLOSE_UNSUPPORTED_DATA,
   encodeSync,
 } from '../../src/shared/protocol';
-import { TestClient, converged, quiet, waitFor } from './ws-client';
+import { TestClient, converged, createdBoardId, quiet, waitFor } from './ws-client';
 import { recordBoard, retroBoard } from '../fixtures/boards';
 
 /** The room's private members the tests reach into (as story 3's tests read `doc`). */
@@ -82,7 +81,7 @@ async function storedMatches(boardId: string, expected: readonly StickySnapshot[
 
 /** A board with the 25-note retro board made by one client and compacted into a snapshot; all clients gone. */
 async function snapshottedRetroBoard() {
-  const boardId = newBoardId();
+  const boardId = await createdBoardId();
   const a = await join(boardId);
   retroBoard(a.doc);
   const expected = snapshot(a.doc);
@@ -111,7 +110,7 @@ function syncStep2With(build: (doc: Y.Doc) => void): Uint8Array {
 
 describe('persist.room', () => {
   it('TC-12 a change is stored by the time another client sees it, and survives everyone leaving', async () => {
-    const boardId = newBoardId();
+    const boardId = await createdBoardId();
     const a = await join(boardId);
     const b = await join(boardId);
     const rowsBefore = await storedRowCount(boardId);
@@ -127,7 +126,7 @@ describe('persist.room', () => {
   });
 
   it('TC-13 after everyone leaves and the object restarts, a new client gets the whole board', async () => {
-    const boardId = newBoardId();
+    const boardId = await createdBoardId();
     const a = await join(boardId);
     const b = await join(boardId);
     retroBoard(a.doc);
@@ -143,7 +142,7 @@ describe('persist.room', () => {
   });
 
   it('TC-14 a failed save is not relayed; sockets close 1011 and the change is saved when its author reconnects', async () => {
-    const boardId = newBoardId();
+    const boardId = await createdBoardId();
     const a = await join(boardId);
     const b = await join(boardId);
     await inRoom(boardId, (room) => {
@@ -224,7 +223,7 @@ describe('persist.room', () => {
   });
 
   it('TC-17 a garbage update closes the sender with 1003 and is not stored', async () => {
-    const boardId = newBoardId();
+    const boardId = await createdBoardId();
     const a = await join(boardId);
     createSticky(a.doc, { x: 0, y: 0 });
     await storedMatches(boardId, a.notes());
@@ -235,7 +234,7 @@ describe('persist.room', () => {
   });
 
   it('TC-18 a reconstructed room relays to sockets accepted by the previous instance (hibernation)', async () => {
-    const boardId = newBoardId();
+    const boardId = await createdBoardId();
     const a = await join(boardId);
     const b = await join(boardId);
     retroBoard(a.doc);
@@ -263,7 +262,7 @@ describe('persist.room', () => {
   });
 
   it('TC-26 an SQL error while loading closes clients with 4500', async () => {
-    const boardId = newBoardId();
+    const boardId = await createdBoardId();
     const a = await join(boardId);
     createSticky(a.doc, { x: 0, y: 0 });
     await storedMatches(boardId, a.notes());

@@ -380,3 +380,167 @@ body {
   color: #a4161a;
   border-color: #f1a7a5;
 }
+
+/* Story 5 — home, loading and Board not found pages. */
+.page {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 24px;
+  box-sizing: border-box;
+  text-align: center;
+}
+
+.page__title {
+  margin: 0;
+  font-size: 40px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.page__text {
+  margin: 0;
+  max-width: 32em;
+  font-size: 18px;
+  color: #4a5063;
+}
+
+.create-board {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-top: 12px;
+}
+
+.page__primary {
+  font: inherit;
+  font-size: 18px;
+  font-weight: 600;
+  min-width: 200px;
+  padding: 12px 24px;
+  color: #fff;
+  background: #3b6cf6;
+  border: 0;
+  border-radius: 10px;
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(59, 108, 246, 0.3);
+}
+
+.page__primary:hover:not(:disabled) {
+  background: #2f5ad6;
+}
+
+.page__primary:disabled {
+  cursor: progress;
+  opacity: 0.8;
+}
+
+.page__primary:focus-visible,
+.page__link:focus-visible {
+  outline: 2px solid #3b6cf6;
+  outline-offset: 2px;
+}
+
+.page__error {
+  margin: 12px 0 0;
+  min-height: 1.4em;
+  color: #a4161a;
+}
+
+.page__link {
+  color: #3b6cf6;
+}
+
+/* Share button and panel, top-right over the board. */
+.share {
+  position: fixed;
+  top: 12px;
+  right: 16px;
+  z-index: 20;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 8px;
+}
+
+.share__button,
+.share__copy {
+  font: inherit;
+  font-weight: 600;
+  padding: 8px 16px;
+  color: #fff;
+  background: #3b6cf6;
+  border: 0;
+  border-radius: 8px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.share__button {
+  box-shadow: 0 1px 4px rgba(31, 35, 48, 0.2);
+}
+
+.share__button:hover,
+.share__copy:hover {
+  background: #2f5ad6;
+}
+
+.share__button:focus-visible,
+.share__copy:focus-visible,
+.share__link:focus-visible {
+  outline: 2px solid #3b6cf6;
+  outline-offset: 2px;
+}
+
+.share__panel {
+  width: 420px;
+  max-width: calc(100vw - 32px);
+  box-sizing: border-box;
+  padding: 16px;
+  background: #fff;
+  border-radius: 10px;
+  box-shadow: 0 4px 24px rgba(31, 35, 48, 0.18);
+  user-select: text;
+  -webkit-user-select: text;
+}
+
+.share__row {
+  display: flex;
+  gap: 8px;
+}
+
+.share__link {
+  flex: 1;
+  min-width: 0;
+  font: inherit;
+  font-size: 14px;
+  padding: 8px;
+  color: #1f2330;
+  background: #f4f5f9;
+  border: 1px solid #d6d9e3;
+  border-radius: 6px;
+}
+
+.share__copy {
+  min-width: 120px;
+}
+
+.share__manual {
+  margin: 8px 0 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: #1f2330;
+}
+
+.share__manual:empty {
+  display: none;
+}
+
+.share__note {
+  margin: 8px 0 0;
+  font-size: 13px;
+  color: #4a5063;
+}

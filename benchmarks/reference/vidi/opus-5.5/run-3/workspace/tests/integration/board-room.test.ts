@@ -4,7 +4,6 @@ import * as Y from 'yjs';
 import * as syncProtocol from 'y-protocols/sync';
 import * as awarenessProtocol from 'y-protocols/awareness';
 import type { BoardRoom } from '../../src/worker/board-room';
-import { newBoardId } from '../../src/shared/board-id';
 import {
   LOCAL_ORIGIN,
   createSticky,
@@ -16,7 +15,7 @@ import {
 } from '../../src/shared/board-model';
 import { MAX_CONCURRENT_EDITORS } from '../../src/shared/config';
 import { CLOSE_UNSUPPORTED_DATA, encodeAwareness, encodeQueryAwareness, encodeSync } from '../../src/shared/protocol';
-import { TestClient, converged, quiet, waitFor } from './ws-client';
+import { TestClient, converged, createdBoardId, quiet, waitFor } from './ws-client';
 import { randomOp, seededRandom, type OpLog } from '../fixtures/random-ops';
 
 const open: TestClient[] = [];
@@ -49,7 +48,7 @@ function insertText(doc: Y.Doc, id: string, at: number, s: string) {
 }
 
 async function pairWithNote() {
-  const boardId = newBoardId();
+  const boardId = await createdBoardId();
   const a = await join(boardId);
   const b = await join(boardId);
   const id = createSticky(a.doc, { x: 0, y: 0 });
@@ -59,7 +58,7 @@ async function pairWithNote() {
 
 describe('sync.room: single writer', () => {
   it('TC-07 a created note reaches the other client as exactly one update', async () => {
-    const boardId = newBoardId();
+    const boardId = await createdBoardId();
     const a = await join(boardId);
     const b = await join(boardId);
     const before = b.count('update');
@@ -137,7 +136,7 @@ describe('sync.room: concurrent edits', () => {
   it('TC-12 MAX_CONCURRENT_EDITORS clients making 200 seeded random ops each end identical', async () => {
     const seed = Number(process.env.VIDI6_SEED ?? Date.now() % 1_000_000);
     console.info(`TC-12 seed ${seed}`);
-    const boardId = newBoardId();
+    const boardId = await createdBoardId();
     const clients: TestClient[] = [];
     for (let i = 0; i < MAX_CONCURRENT_EDITORS; i++) clients.push(await join(boardId));
     const log: OpLog = { created: [], deleted: [] };
@@ -155,7 +154,7 @@ describe('sync.room: concurrent edits', () => {
 
 describe('sync.room: joining, awareness, errors, restart', () => {
   it('TC-14 a late joiner receives the current board', async () => {
-    const boardId = newBoardId();
+    const boardId = await createdBoardId();
     const a = await join(boardId);
     const b = await join(boardId);
     for (let i = 0; i < 10; i++) {
@@ -224,7 +223,7 @@ describe('sync.room: joining, awareness, errors, restart', () => {
     b.close();
 
     // A fresh object instance (new object id) stands in for the restarted room.
-    const fresh = newBoardId();
+    const fresh = await createdBoardId();
     const a2 = await join(fresh, a.doc);
     await quiet(); // A's SyncStep2 answer to the room's SyncStep1
     expect(snapshot(a.doc)).toHaveLength(2);
@@ -237,7 +236,7 @@ describe('sync.room: joining, awareness, errors, restart', () => {
   });
 
   it('TC-31 a dead socket is dropped and the room keeps delivering', async () => {
-    const boardId = newBoardId();
+    const boardId = await createdBoardId();
     const a = await join(boardId);
     const b = await join(boardId);
     b.close();
