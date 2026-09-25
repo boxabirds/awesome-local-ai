@@ -1,4 +1,10 @@
-import { expect, type Browser, type BrowserContext, type Page } from '@playwright/test';
+import {
+  expect,
+  type APIRequestContext,
+  type Browser,
+  type BrowserContext,
+  type Page,
+} from '@playwright/test';
 import { LIVE_UPDATE_LATENCY_BUDGET_MS } from '../../../src/shared/config';
 import { newBoardId } from '../../../src/shared/board-id';
 import { getNotes, setCamera } from './board';
@@ -40,6 +46,51 @@ export function freshBoardId(): string {
  * `expectState: 'load_failed'` (TC-24) waits for the other end-state instead:
  * the room refused the connection with 4500 and the client is retrying.
  */
+/**
+ * POST /api/boards → create a board and return its (server-generated) id.
+ * Since story 5 a board must exist before it can be opened, so e2e tests
+ * create boards up front instead of just making up an id.
+ */
+export async function createBoard(request: APIRequestContext): Promise<string> {
+  const res = await request.post('/api/boards');
+  if (res.status() !== 201) {
+    throw new Error(`board creation failed: HTTP ${res.status()}`);
+  }
+  const body = (await res.json()) as { id: string };
+  return body.id;
+}
+
+/**
+ * Boards ensured by `join()` for this worker, keyed by the requested board
+ * id. The value is the PROMISE for the real (server-generated) id, not the
+ * id itself: parallel joins of the same fresh id (Promise.all of join() —
+ * every multi-participant test) must funnel through one GET+POST, otherwise
+ * each joiner creates its own board and the others watch empty boards.
+ */
+const ensuredBoards = new Map<string, Promise<string>>();
+
+/**
+ * Ensure `/api/boards/<boardId>` exists and resolve its real id: the
+ * requested id when the board already exists, the server-generated id of
+ * the board created for it otherwise. Concurrent callers share one flight.
+ */
+function ensureBoard(request: APIRequestContext, boardId: string): Promise<string> {
+  let pending = ensuredBoards.get(boardId);
+  if (pending === undefined) {
+    pending = (async () => {
+      const check = await request.get(`/api/boards/${boardId}`);
+      if (check.status() === 200) return boardId;
+      return createBoard(request);
+    })();
+    ensuredBoards.set(boardId, pending);
+    // Drop the entry on failure so a later join can retry.
+    void pending.catch(() => {
+      ensuredBoards.delete(boardId);
+    });
+  }
+  return pending;
+}
+
 export async function join(
   browser: Browser,
   boardId: string,
@@ -52,7 +103,16 @@ export async function join(
   page.on('pageerror', (err) => pageErrors.push(err as Error));
   page.on('console', (msg) => consoleLines.push(msg.text()));
 
-  await page.goto(`/b/${boardId}`);
+  // Since story 5 an unknown board id renders "Board not found" before any
+  // connection is attempted. For the connected path, a fresh id is created
+  // on the fly (the server generates the real id); repeated joins of the
+  // same fresh id within one worker reuse it.
+  let id = boardId;
+  if (opts.expectState !== 'load_failed') {
+    id = await ensureBoard(context.request, boardId);
+  }
+
+  await page.goto(`/b/${id}`);
   if (opts.expectState === 'load_failed') {
     await expectLoadFailed(page);
   } else {
@@ -62,7 +122,7 @@ export async function join(
   return {
     context,
     page,
-    boardId,
+    boardId: id,
     pageErrors,
     consoleLines,
     close: () => context.close(),

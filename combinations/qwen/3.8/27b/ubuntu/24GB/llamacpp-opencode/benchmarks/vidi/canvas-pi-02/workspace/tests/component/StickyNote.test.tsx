@@ -48,7 +48,7 @@ describe('sticky.interaction (jsdom, real Y.Doc)', () => {
     const before = snapshot(docRef.current!).find((n) => n.id === id)!;
 
     fireEvent.pointerDown(note, { button: 0, clientX: 640, clientY: 400, pointerId: 1 });
-    fireEvent.pointerMove(note, { clientX: 642, clientY: 400 }); // 2px < DRAG_THRESHOLD_PX
+    fireEvent.pointerMove(note, { clientX: 642, clientY: 400, pointerId: 1 }); // 2px < DRAG_THRESHOLD_PX
     fireEvent.pointerUp(note, { clientX: 642, clientY: 400, pointerId: 1 });
     flushFrames();
 
@@ -66,10 +66,11 @@ describe('sticky.interaction (jsdom, real Y.Doc)', () => {
     const cameraBefore = apiRef.current!.camera;
 
     fireEvent.pointerDown(note, { button: 0, clientX: 640, clientY: 400, pointerId: 1 });
-    fireEvent.pointerMove(note, { clientX: 643, clientY: 400 }); // 3px = DRAG_THRESHOLD_PX
+    fireEvent.pointerMove(note, { clientX: 643, clientY: 400, pointerId: 1 }); // 3px = DRAG_THRESHOLD_PX
     flushFrames();
 
-    expect(attr(note, 'data-dragging')).toBe('true');
+    // Crossing the threshold selects the (unselected) note and starts the move.
+    expect(attr(note, 'data-selected')).toBe('true');
     const after = snapshot(docRef.current!).find((n) => n.id === id)!;
     expect(after.x).toBe(-100 + 3 / 1); // world units = screen px / zoom(1)
     expect(after.y).toBe(-100);
@@ -83,7 +84,7 @@ describe('sticky.interaction (jsdom, real Y.Doc)', () => {
     const note = noteEl();
 
     fireEvent.pointerDown(note, { button: 0, clientX: 640, clientY: 400, pointerId: 1 });
-    fireEvent.pointerMove(note, { clientX: 650, clientY: 405 });
+    fireEvent.pointerMove(note, { clientX: 650, clientY: 405, pointerId: 1 });
     flushFrames(); // the move is applied
     fireEvent.pointerCancel(note, { pointerId: 1 });
 
@@ -168,7 +169,7 @@ describe('sticky.interaction (jsdom, real Y.Doc)', () => {
     const note = noteEl();
 
     fireEvent.pointerDown(note, { button: 0, clientX: 640, clientY: 400, pointerId: 1 });
-    fireEvent.pointerMove(note, { clientX: 660, clientY: 410 });
+    fireEvent.pointerMove(note, { clientX: 660, clientY: 410, pointerId: 1 });
     // The note is deleted before the rAF move is applied.
     act(() => {
       deleteObject(docRef.current!, id);

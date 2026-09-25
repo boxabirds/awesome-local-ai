@@ -9,6 +9,10 @@
   "ratelimits": [
     {
       "name": "BOARD_CREATE_LIMITER",
+      // wrangler 4.139+ requires a string namespace_id on every rate limit
+      // binding; locally miniflare only honours `simple`, so the id is a
+      // stable identifier (a real Cloudflare namespace id in production).
+      "namespace_id": "vidi6-board-create",
       "simple": {
         "limit": 10,
         "period": 60
@@ -50,9 +54,19 @@
         "TEST_HOOKS": "1"
       },
       // This wrangler version does not inherit the top-level Durable Object
-      // binding into env-specific configs (the binding silently disappears
-      // under `--env e2e`), so it is redeclared here, including the SQLite
-      // migration that makes the storage available.
+      // binding or the ratelimits binding into env-specific configs (both
+      // silently disappear under `--env e2e`), so they are redeclared here,
+      // including the SQLite migration that makes the storage available.
+      // TC-30 (share.e2e) needs the real limiter, so it must mirror the
+      // top-level limit/period (TC-03 guards the top level against
+      // BOARD_CREATE_LIMIT/BOARD_CREATE_PERIOD_SECONDS).
+      "ratelimits": [
+        {
+          "name": "BOARD_CREATE_LIMITER",
+          "namespace_id": "vidi6-board-create",
+          "simple": { "limit": 10, "period": 60 }
+        }
+      ],
       "durable_objects": {
         "bindings": [{ "name": "BOARD_ROOM", "class_name": "BoardRoom" }]
       },

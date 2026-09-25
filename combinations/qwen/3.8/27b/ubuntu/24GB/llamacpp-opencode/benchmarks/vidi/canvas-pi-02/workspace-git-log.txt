@@ -1,3 +1,50 @@
+commit 15ee01d615625b10cb83d24232d3c8ea87b95607
+vidi-agent  Fri Sep 25 11:59:46 2026 +0100
+
+    story 7: Select, move, resize and delete several objects at once
+
+
+ playwright.config.ts                    |  16 +-
+ playwright.persist.config.ts            |   7 +-
+ src/client/board/Marquee.tsx            | 112 +++++++++
+ src/client/board/SelectionBar.tsx       |  80 ++++++
+ src/client/board/SelectionOverlay.tsx   |  90 +++++++
+ src/client/board/useBoardActions.ts     |   3 +-
+ src/client/board/useBoardDoc.ts         |  10 +-
+ src/client/board/useBoardKeyboard.ts    |  58 -----
+ src/client/board/useBoardKeys.ts        | 111 +++++++++
+ src/client/board/useSelection.ts        | 200 ++++++++++++---
+ src/client/board/useTransformGesture.ts | 330 +++++++++++++++++++++++++
+ src/client/canvas/BoardViewport.tsx     |  61 ++++-
+ src/client/canvas/testHooks.ts          |   8 +-
+ src/client/objects/StickyNote.tsx       | 239 +++++-------------
+ src/client/objects/registry.tsx         |  93 +++++++
+ src/client/pages/BoardPage.tsx          |  93 +++++--
+ src/client/styles.css                   |  79 +++++-
+ src/shared/board-model.ts               | 204 +++++++++++++---
+ src/shared/config.ts                    |  17 ++
+ src/shared/geometry.ts                  | 166 +++++++++++++
+ tests/component/LoadFailure.test.tsx    |   4 +-
+ tests/component/Selection.test.tsx      | 407 +++++++++++++++++++++++++++++++
+ tests/component/StickyNote.test.tsx     |  11 +-
+ tests/component/notes-harness.tsx       | 142 +++++++++--
+ tests/e2e/collaboration.spec.ts         |  12 +
+ tests/e2e/helpers/participants.ts       |  66 ++++-
+ tests/e2e/navigation.spec.ts            |  41 +++-
+ tests/e2e/select-group.spec.ts          | 417 ++++++++++++++++++++++++++++++++
+ tests/e2e/share.spec.ts                 | 132 ++++++----
+ tests/e2e/sticky-notes.spec.ts          |  22 +-
+ tests/fixtures/note-updates.ts          |   4 +-
+ tests/fixtures/testbox.tsx              |  90 +++++++
+ tests/integration/board-store.test.ts   |   6 +-
+ tests/integration/random-ops.ts         |   4 +-
+ tests/unit/board-model-group.test.ts    | 201 +++++++++++++++
+ tests/unit/board-model.test.ts          |  23 +-
+ tests/unit/geometry.test.ts             | 157 ++++++++++++
+ tests/unit/registry.test.ts             |  79 ++++++
+ tests/unit/selection-reducer.test.ts    |  81 +++++++
+ wrangler.jsonc                          |  20 +-
+ 40 files changed, 3438 insertions(+), 458 deletions(-)
 commit 79540dd0d818183e4c35b70062a5b01fcb8d04e5
 vidi-agent  Fri Sep 25 09:03:51 2026 +0100
 

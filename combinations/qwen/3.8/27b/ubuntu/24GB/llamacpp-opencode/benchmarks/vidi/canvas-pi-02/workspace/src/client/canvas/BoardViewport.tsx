@@ -3,6 +3,7 @@ import type { ReactNode } from 'react';
 import type { CameraApi } from './useCamera';
 import type { Point } from './camera';
 import { DRAG_THRESHOLD_PX, GRID_SPACING_WORLD } from '../../shared/config';
+import type { MarqueeApi } from '../board/Marquee';
 
 /** Pixel sizes used to convert wheel deltaMode LINE/PAGE values to pixels. */
 const WHEEL_LINE_PX = 16;
@@ -20,6 +21,11 @@ export interface BoardViewportProps {
   onCreateStickyAt?: (p: Point) => void;
   /** A click (press without movement) on empty board space: clear the selection. */
   onEmptyClick?: () => void;
+  /**
+   * Shift+drag on empty board space starts the marquee (story 7) instead of
+   * panning. Without it, Shift+drag pans like any other drag.
+   */
+  marquee?: MarqueeApi;
 }
 
 /**
@@ -31,15 +37,18 @@ export interface BoardViewportProps {
  * empty space creates a sticky note at that point; a click (press without
  * movement) on empty space clears the selection.
  */
-export function BoardViewport({ children, api, onCreateStickyAt, onEmptyClick }: BoardViewportProps) {
+export function BoardViewport({ children, api, onCreateStickyAt, onEmptyClick, marquee }: BoardViewportProps) {
   const viewportRef = useRef<HTMLDivElement>(null);
   const worldRef = useRef<HTMLDivElement>(null);
   const [panning, setPanning] = useState(false);
   const panningRef = useRef(false);
+  const marqueeRef = useRef(false);
   const gestureScaleRef = useRef(1);
   const emptyPressRef = useRef<Point | null>(null);
   const apiRef = useRef(api);
   apiRef.current = api;
+  const marqueeApiRef = useRef(marquee);
+  marqueeApiRef.current = marquee;
 
   const toPoint = (clientX: number, clientY: number) => {
     const rect = viewportRef.current?.getBoundingClientRect();
@@ -53,16 +62,33 @@ export function BoardViewport({ children, api, onCreateStickyAt, onEmptyClick }:
     const target = e.target as Node;
     if (target !== viewportRef.current && target !== worldRef.current) return;
     viewportRef.current?.setPointerCapture?.(e.pointerId);
+    const point = toPoint(e.clientX, e.clientY);
+    // Shift+drag on empty space: marquee selection (story 7) instead of pan.
+    if (e.shiftKey && marqueeApiRef.current) {
+      marqueeRef.current = true;
+      marqueeApiRef.current.begin(point);
+      return;
+    }
     panningRef.current = true;
     setPanning(true);
-    const start = toPoint(e.clientX, e.clientY);
     emptyPressRef.current = { x: e.clientX, y: e.clientY };
-    apiRef.current.beginPan(start);
+    apiRef.current.beginPan(point);
   };
 
   const onPointerMove = (e: React.PointerEvent) => {
+    if (marqueeRef.current) {
+      marqueeApiRef.current?.move(toPoint(e.clientX, e.clientY));
+      return;
+    }
     if (!panningRef.current) return;
     apiRef.current.panMove(toPoint(e.clientX, e.clientY));
+  };
+
+  const stopMarquee = (cancelled: boolean): void => {
+    if (!marqueeRef.current) return;
+    marqueeRef.current = false;
+    if (cancelled) marqueeApiRef.current?.cancel();
+    else marqueeApiRef.current?.end();
   };
 
   const stopPan = (e?: React.PointerEvent) => {
@@ -95,6 +121,29 @@ export function BoardViewport({ children, api, onCreateStickyAt, onEmptyClick }:
     const target = e.target as Node;
     if (target !== viewportRef.current && target !== worldRef.current) return;
     onCreateStickyAt?.(toPoint(e.clientX, e.clientY));
+  };
+
+  const onPointerUp = (e: React.PointerEvent) => {
+    if (marqueeRef.current) {
+      stopMarquee(false);
+      viewportRef.current?.releasePointerCapture?.(e.pointerId);
+      return;
+    }
+    stopPan(e);
+  };
+
+  const onPointerCancel = (e: React.PointerEvent) => {
+    if (marqueeRef.current) {
+      stopMarquee(true);
+      viewportRef.current?.releasePointerCapture?.(e.pointerId);
+      return;
+    }
+    stopPan(e);
+  };
+
+  const onLostPointerCapture = () => {
+    if (marqueeRef.current) stopMarquee(true);
+    else stopPan();
   };
 
   // ----- wheel (non-passive so the page never scrolls/zooms) -----
@@ -199,9 +248,9 @@ export function BoardViewport({ children, api, onCreateStickyAt, onEmptyClick }:
       }}
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}
-      onPointerUp={(e) => stopPan(e)}
-      onPointerCancel={(e) => stopPan(e)}
-      onLostPointerCapture={() => stopPan()}
+      onPointerUp={onPointerUp}
+      onPointerCancel={onPointerCancel}
+      onLostPointerCapture={onLostPointerCapture}
       onDoubleClick={onDoubleClick}
     >
       <div

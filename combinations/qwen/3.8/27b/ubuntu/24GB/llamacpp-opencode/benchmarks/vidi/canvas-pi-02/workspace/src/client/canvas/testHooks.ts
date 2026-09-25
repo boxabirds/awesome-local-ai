@@ -1,4 +1,4 @@
-import type { StickySnapshot } from '../../shared/board-model';
+import type { ObjectSnapshot } from '../../shared/board-model';
 import type { ConnectionState } from '../sync/connectBoard';
 import type { Camera } from './camera';
 
@@ -7,7 +7,7 @@ declare global {
     /** Test-only hooks; present only in test builds (`--mode test`). */
     __vidi6?: {
       setCamera(cam: Camera): void;
-      getNotes(): readonly StickySnapshot[];
+      getNotes(): readonly ObjectSnapshot[];
       /** The client's mapped connection phase (story 3), or null locally. */
       connectionState: ConnectionState | null;
     };
@@ -16,7 +16,7 @@ declare global {
 
 const stateRef = {
   setCamera: undefined as ((cam: Camera) => void) | undefined,
-  getNotes: undefined as (() => readonly StickySnapshot[]) | undefined,
+  getNotes: undefined as (() => readonly ObjectSnapshot[]) | undefined,
   connectionState: null as ConnectionState | null,
 };
 
@@ -41,7 +41,7 @@ export function installTestHook(setCamera: (cam: Camera) => void): void {
 }
 
 /** Registers the note snapshot getter (board doc, story 2). */
-export function installNotesHook(getNotes: () => readonly StickySnapshot[]): void {
+export function installNotesHook(getNotes: () => readonly ObjectSnapshot[]): void {
   if (import.meta.env.MODE !== 'test') return;
   stateRef.getNotes = getNotes;
   publish();

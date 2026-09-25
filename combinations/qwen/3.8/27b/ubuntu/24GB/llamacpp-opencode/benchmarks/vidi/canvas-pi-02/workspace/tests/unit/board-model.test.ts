@@ -1,16 +1,18 @@
 import { describe, expect, it } from 'vitest';
 import * as Y from 'yjs';
 import {
+  allObjectIds,
   bringToFront,
   createSticky,
   deleteObject,
   getStickyText,
   initDoc,
   moveObject,
+  objectsInRect,
   setStickyColor,
   snapshot,
 } from '../../src/shared/board-model';
-import type { StickySnapshot } from '../../src/shared/board-model';
+import type { ObjectSnapshot, Snapshot } from '../../src/shared/board-model';
 import { DEFAULT_STICKY_COLOR, STICKY_SIZE_WORLD } from '../../src/shared/config';
 
 /** A document initialised the way the app initialises one. */
@@ -29,11 +31,11 @@ function countUpdates(doc: Y.Doc): () => number {
   return () => count;
 }
 
-function notes(doc: Y.Doc): readonly StickySnapshot[] {
+function notes(doc: Y.Doc): Snapshot {
   return snapshot(doc);
 }
 
-function note(doc: Y.Doc, id: string): StickySnapshot {
+function note(doc: Y.Doc, id: string): ObjectSnapshot {
   const found = notes(doc).find((n) => n.id === id);
   if (!found) throw new Error(`note ${id} not found`);
   return found;
@@ -257,7 +259,7 @@ describe('board.model: render order and reads', () => {
     expect(notes(doc).map((n) => n.id)).toEqual(first);
   });
 
-  it('TC-12 skips unknown object types without throwing', () => {
+  it('TC-12 keeps unknown object types forward-compatible (no throw; selection queries skip them)', () => {
     const doc = freshDoc();
     const stickyId = createSticky(doc, { x: 0, y: 0 });
     const objects = doc.getMap('objects');
@@ -269,8 +271,17 @@ describe('board.model: render order and reads', () => {
 
     expect(() => notes(doc)).not.toThrow();
     const all = notes(doc);
-    expect(all).toHaveLength(1);
-    expect(all[0].id).toBe(stickyId);
+    // Story 7: the snapshot is forward-compatible — an unregistered type
+    // survives with its generic fields (nothing lost) so the renderer can
+    // skip it without the doc diverging from the snapshot.
+    expect(all).toHaveLength(2);
+    const shapeSnap = all.find((n) => n.id === 'shape-1')!;
+    expect(shapeSnap.type).toBe('shape');
+    expect(shapeSnap.x).toBe(10);
+    expect(shapeSnap.y).toBe(10);
+    // Selection queries (Ctrl+A, marquee) only cover known types.
+    expect(allObjectIds(all)).toEqual([stickyId]);
+    expect(objectsInRect(all, { x: -1000, y: -1000, width: 2000, height: 2000 })).toEqual([stickyId]);
   });
 
   it('getStickyText returns the live Y.Text for a real id, undefined for a stale one', () => {

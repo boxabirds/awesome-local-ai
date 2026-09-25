@@ -7,10 +7,11 @@ import { defineConfig, devices } from '@playwright/test';
 export default defineConfig({
   testDir: './tests/e2e',
   // Nightly suites (task 9) run only via playwright.nightly.config.ts;
-  // persist.spec.ts (story 4) runs only via playwright.persist.config.ts,
-  // where each test drives its own wrangler process instead of this
-  // shared webServer.
-  testIgnore: ['**/nightly/**', 'persist.spec.ts'],
+  // persist.spec.ts (story 4) and share.spec.ts (story 5) run only via
+  // playwright.persist.config.ts, where each test drives its own wrangler
+  // process instead of this shared webServer (share.spec.ts targets
+  // PERSIST_URL and needs a real rate limiter for TC-30).
+  testIgnore: ['**/nightly/**', 'persist.spec.ts', 'share.spec.ts'],
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
   // A single retry absorbs intermittent flakes in the timing-sensitive e2e tests
@@ -45,7 +46,12 @@ export default defineConfig({
     },
   ],
   webServer: {
-    command: 'npm run build:e2e && npx wrangler dev --port 8787 --ip 127.0.0.1',
+    // wrangler-test.jsonc omits the ratelimits section (the vitest pool does
+    // not support local rate limiters): the worker then falls back to a no-op
+    // limiter, so the shared e2e server never 429s while ~30 tests each
+    // create boards. The real BOARD_CREATE_LIMIT boundary is exercised by
+    // TC-30, which runs against its own wrangler (playwright.persist.config.ts).
+    command: 'npm run build:e2e && npx wrangler dev --config wrangler-test.jsonc --port 8787 --ip 127.0.0.1',
     url: 'http://127.0.0.1:8787',
     reuseExistingServer: !process.env.CI,
     timeout: 240_000,

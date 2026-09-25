@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, test, type Page } from '@playwright/test';
 import {
   GRID_SPACING_WORLD,
   UNBOUNDED_PAN_TESTED_EXTENT,
@@ -19,11 +19,36 @@ import {
 /** Viewport is 1280x800 (see playwright.config.ts). */
 const CENTRE = { x: 640, y: 400 };
 
+/**
+ * Story 5 turned `/` into the landing page, so the navigation tests must
+ * open a real board: create one via the API, navigate to it, wait for the
+ * socket, and (unless `parkCamera` is false) park the camera at home so
+ * every test starts from the same frame the old `/` board gave them.
+ */
+async function openBoard(page: Page, parkCamera = true): Promise<void> {
+  const res = await page.request.post('/api/boards');
+  if (res.status() !== 201) {
+    throw new Error(`board creation failed: HTTP ${res.status()}`);
+  }
+  const { id } = await res.json();
+  await page.goto(`/b/${id}`);
+  await page.waitForFunction(
+    () => (window as unknown as { __vidi6?: { connectionState: string | null } }).__vidi6?.connectionState === 'connected',
+    null,
+    { timeout: 15_000 },
+  );
+  if (parkCamera) {
+    await setCamera(page, { x: -640, y: -400, zoom: 1 });
+  }
+}
+
 test.describe('story 1: pan and zoom around an infinite board', () => {
   test('TC-28 first-visit hint is shown and dismissed after the first navigation', async ({
     page,
   }) => {
-    await page.goto('/');
+    // No camera parking: the first-visit hint must still be up when we
+    // arrive (parking it would count as a camera interaction).
+    await openBoard(page, false);
     const hint = page.getByText(HINT_TEXT);
     await expect(hint).toBeVisible();
 
@@ -32,7 +57,7 @@ test.describe('story 1: pan and zoom around an infinite board', () => {
   });
 
   test('TC-23 a drag moves the board by exactly the pointer distance', async ({ page }) => {
-    await page.goto('/');
+    await openBoard(page);
     const marker = originMarker(page);
     const before = (await marker.boundingBox())!;
     const startX = before.x + before.width / 2;
@@ -54,7 +79,7 @@ test.describe('story 1: pan and zoom around an infinite board', () => {
   });
 
   test('TC-24 Ctrl+wheel zooms around the pointer without zooming the page', async ({ page }) => {
-    await page.goto('/');
+    await openBoard(page);
     const marker = originMarker(page);
     const box = (await marker.boundingBox())!;
     const px = box.x + box.width / 2;
@@ -81,7 +106,7 @@ test.describe('story 1: pan and zoom around an infinite board', () => {
   });
 
   test('TC-25 clicking + until disabled ends at 400% with a disabled button', async ({ page }) => {
-    await page.goto('/');
+    await openBoard(page);
     const plus = page.getByRole('button', { name: 'Zoom in' });
     const minus = page.getByRole('button', { name: 'Zoom out' });
     const label = zoomLabel(page);
@@ -119,7 +144,7 @@ test.describe('story 1: pan and zoom around an infinite board', () => {
   test('TC-26 Reset view from far away returns to 100% centred on the start point', async ({
     page,
   }) => {
-    await page.goto('/');
+    await openBoard(page);
     await setCamera(page, {
       x: UNBOUNDED_PAN_TESTED_EXTENT,
       y: UNBOUNDED_PAN_TESTED_EXTENT,
@@ -139,7 +164,7 @@ test.describe('story 1: pan and zoom around an infinite board', () => {
   test('TC-27 far travel (1,000,000 units): drags stay exact and the grid spacing is preserved', async ({
     page,
   }) => {
-    await page.goto('/');
+    await openBoard(page);
     await setCamera(page, {
       x: UNBOUNDED_PAN_TESTED_EXTENT,
       y: UNBOUNDED_PAN_TESTED_EXTENT,
@@ -162,7 +187,7 @@ test.describe('story 1: pan and zoom around an infinite board', () => {
   });
 
   test('TC-31 board zoom gestures never change the page zoom', async ({ page }) => {
-    await page.goto('/');
+    await openBoard(page);
     const before = await pageZoom(page);
 
     // Ctrl+wheel over the board.

@@ -8,7 +8,7 @@ import {
   setStickyColor,
 } from '../../src/shared/board-model';
 import { STICKY_COLORS } from '../../src/shared/config';
-import type { StickySnapshot } from '../../src/shared/board-model';
+import type { ObjectSnapshot } from '../../src/shared/board-model';
 
 /**
  * Seeded random-op generator for the merging/soak tests (TC-12, TC-30).
@@ -136,6 +136,6 @@ export function runRandomOps(
  * same logical notes: blank the id/createdAt fields before comparing.
  * z is unique per note, so the (z, id) sort order is identical anyway.
  */
-export function erasureSnapshots(snap: readonly StickySnapshot[]): Array<Record<string, unknown>> {
+export function erasureSnapshots(snap: readonly ObjectSnapshot[]): Array<Record<string, unknown>> {
   return snap.map(({ id, createdAt, ...rest }) => ({ ...rest, id: '', createdAt: 0 }));
 }
