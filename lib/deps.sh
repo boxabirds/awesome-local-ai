@@ -56,16 +56,18 @@ _deps_brew() {
   ok "System packages installed."
 }
 
-# cmake/ninja can come from pip wheels when the package manager is unavailable.
+# cmake/ninja can come from PyPI wheels, as uv tools, when the package manager
+# did not provide them.
 ensure_build_tools() {
   local t
   for t in cmake ninja; do
     if ! need_cmd "$t"; then
-      info "${t} not found; installing via pip (userspace)..."
-      python3 -m pip install --user -q -U "$t" || warn "pip install ${t} failed."
+      info "${t} not found; installing as a uv tool (userspace)..."
+      ensure_uv
+      uv tool install "$t" >/dev/null 2>&1 || warn "uv tool install ${t} failed."
       hash -r
     fi
   done
-  need_cmd cmake || err "cmake unavailable and pip install failed."
+  need_cmd cmake || err "cmake unavailable, and uv tool install cmake failed."
   ok "Build tools: cmake $(cmake --version | head -1 | awk '{print $3}'), ninja $(ninja --version 2>/dev/null || echo 'n/a')"
 }

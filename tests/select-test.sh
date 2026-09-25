@@ -105,7 +105,7 @@ assert_eq "a Mac is never offered an Ubuntu combination" \
 
 echo
 echo "Strix Halo: unified memory on Linux, its own accelerator family"
-STRIX="qwen/3.8/flash-next/ubuntu/strix-halo-128GB/llamacpp-opencode"
+STRIX="qwen/3.8/flash-next/ubuntu/strix-halo-128GB/llamacpp-pi"
 assert_eq "a 128GB Strix Halo (RAM + 512M carve-out) takes Flash-Next" \
   "$STRIX" "$(pick ubuntu x86_64 strix-halo 128512 qwen)"
 assert_eq "...across all families too" \
@@ -122,13 +122,42 @@ assert_fails "a Strix Halo is not offered the 24GB NVIDIA rows" \
   grep -q nvidia <<< "$(candidates_for_host qwen | cut -d'|' -f2)"
 assert_eq "an unmeasured row is still what a Strix Halo is offered, as the only one" \
   "$STRIX" "$(best_for_host qwen)"
+# tritus: a 128GB Strix Halo reports 126155 MiB, inside selection's 5% slack
+HOST_OS=ubuntu; HOST_ACCEL=strix-halo; HOST_MEM_MIB=126155
+assert_eq "a real 128GB Strix Halo (126155 MiB) is offered the 128GB row" "$STRIX" "$(best_for_host qwen)"
+why="$(explain_no_match pi 2>&1)"
+assert_fails "...so a miss on another selector does not blame its memory" \
+  grep -q "strix-halo-128GB/llamacpp-pi.*needs 131072 MiB" <<< "$why"
+assert_ok "...it says the row fits, and the selector is what excluded it" \
+  grep -q "strix-halo-128GB/llamacpp-pi.*fits this machine; family is qwen, not 'pi'" <<< "$why"
+HOST_ACCEL=strix-halo; HOST_MEM_MIB=65024
+why="$(explain_no_match 2>&1)"
+assert_ok "a 64GB Strix Halo is told the 128GB row needs more memory" \
+  grep -q "strix-halo-128GB/llamacpp-pi.*needs 131072 MiB; this machine has 65024 MiB" <<< "$why"
+HOST_ACCEL=cuda; HOST_MEM_MIB=24564
 why="$(explain_no_match nosuchfamily 2>&1)"
 assert_ok "explaining a miss to a CUDA host names the accelerator" \
-  bash -c 'HOST_ACCEL=cuda; true'
-HOST_ACCEL=cuda; HOST_MEM_MIB=24564
+  grep -q "Accelerator: cuda" <<< "$why"
 why="$(explain_no_match 2>&1)"
 assert_ok "a CUDA host is told the Strix Halo row needs a strix-halo accelerator" \
-  grep -q "strix-halo-128GB/llamacpp-opencode.*needs a strix-halo accelerator; this machine has cuda" <<< "$why"
+  grep -q "strix-halo-128GB/llamacpp-pi.*needs a strix-halo accelerator; this machine has cuda" <<< "$why"
+
+echo
+echo "the menu names why a combination does not suit this machine"
+MAC="qwen/3.8/27b/macos/64GB/mtplx-opencode"
+N4090="qwen/3.8/27b/ubuntu/nvidia4090/llamacpp-opencode"
+HOST_OS=ubuntu; HOST_ARCH=x86_64; HOST_ACCEL=strix-halo; HOST_MEM_MIB=126155
+assert_eq "tritus: its own row suits it"          ""                          "$(combo_misfit "$STRIX")"
+assert_eq "tritus: a macOS row needs a Mac"       "needs a Mac"               "$(combo_misfit "$MAC")"
+assert_eq "tritus: a 4090 row needs NVIDIA"       "needs an NVIDIA GPU"       "$(combo_misfit "$N4090")"
+HOST_MEM_MIB=65024
+assert_eq "a 64GB Strix Halo lacks RAM for the 128GB row" "not enough RAM (needs 128 GB)" "$(combo_misfit "$STRIX")"
+HOST_ACCEL=cuda; HOST_MEM_MIB=12288
+assert_eq "a 12GB NVIDIA card lacks VRAM"         "not enough VRAM (needs 24 GB)" "$(combo_misfit "$N4090")"
+assert_eq "...and the Strix row needs Strix Halo" "needs an AMD Strix Halo"   "$(combo_misfit "$STRIX")"
+HOST_OS=macos; HOST_ARCH=arm64; HOST_ACCEL=metal; HOST_MEM_MIB=65536
+assert_eq "a 64GB Mac: its row suits it"          ""                          "$(combo_misfit "$MAC")"
+assert_eq "a 64GB Mac: a Linux row needs Ubuntu"  "needs Ubuntu"              "$(combo_misfit "$N4090")"
 
 echo
 echo "every combination is reachable and installable"

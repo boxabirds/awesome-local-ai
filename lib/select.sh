@@ -171,6 +171,14 @@ _machine_segment() {
   printf 'unknown|0'
 }
 
+# Does the host hold a combination measured at <tier> MiB? A machine sold as
+# 128GB reports a little less (firmware and the GPU carve-out take some), so
+# allow 5%. Selection and the no-match explanation must agree on this.
+MEM_TIER_SLACK=0.95
+_mem_fits() {
+  awk -v h="$HOST_MEM_MIB" -v t="$1" -v s="$MEM_TIER_SLACK" 'BEGIN{exit !(h >= t*s)}'
+}
+
 # A combination's accelerator family against the detected one. The legacy
 # memory-only segment matches any accelerator, as it always has.
 _accel_matches() {
@@ -208,7 +216,7 @@ candidates_for_host() {
     IFS='|' read -r accel tier <<< "$(_machine_segment "$machine")"
     (( tier > 0 )) || continue
     _accel_matches "$accel" || continue
-    awk -v h="$HOST_MEM_MIB" -v t="$tier" 'BEGIN{exit !(h >= t*0.95)}' || continue
+    _mem_fits "$tier" || continue
 
     # Score is the memory tier: the largest combination this machine can hold
     # is the one tuned for the most capable machine of its class, and is what
@@ -231,6 +239,36 @@ best_for_host() {
 
 # combination path -> the root script that installs it
 installer_script_for() { printf 'install-%s.sh' "$(printf '%s' "$1" | tr '/' '-')"; }
+
+# Why one combination does not suit this machine, as a short label for the
+# install menu; empty when it does. The first mismatch wins: OS, then
+# accelerator, then memory -- the order a user would fix them in.
+MIB_PER_GB=1024
+combo_misfit() {
+  local family version size os machine stack accel tier
+  IFS='/' read -r family version size os machine stack <<< "$1"
+  IFS='|' read -r accel tier <<< "$(_machine_segment "$machine")"
+  if ! _os_matches "$os"; then
+    case "$os" in
+      macos) printf 'needs a Mac' ;;
+      ubuntu) printf 'needs Ubuntu' ;;
+      *) printf 'needs %s' "$os" ;;
+    esac
+  elif ! _accel_matches "$accel"; then
+    case "$accel" in
+      cuda) printf 'needs an NVIDIA GPU' ;;
+      strix-halo) printf 'needs an AMD Strix Halo' ;;
+      metal) printf 'needs Apple silicon' ;;
+      *) printf 'needs a %s accelerator' "$accel" ;;
+    esac
+  elif (( HOST_MEM_MIB > 0 )) && ! _mem_fits "$tier"; then
+    # On a discrete GPU the limit is its own memory; everywhere else it is the
+    # unified RAM the GPU shares.
+    local kind=RAM
+    [[ "$HOST_ACCEL" == cuda ]] && kind=VRAM
+    printf 'not enough %s (needs %s GB)' "$kind" "$(( tier / MIB_PER_GB ))"
+  fi
+}
 
 # Why nothing matched, in terms the user can act on.
 explain_no_match() {
@@ -255,8 +293,12 @@ explain_no_match() {
       why="targets ${os}; this machine is ${HOST_OS}"
     elif ! _accel_matches "$accel"; then
       why="needs a ${accel} accelerator; this machine has ${HOST_ACCEL}"
-    elif (( HOST_MEM_MIB > 0 )) && (( tier > HOST_MEM_MIB )); then
+    elif (( HOST_MEM_MIB > 0 )) && ! _mem_fits "$tier"; then
       why="needs ${tier} MiB; this machine has ${HOST_MEM_MIB} MiB"
+    elif [[ -n "$family_filter" && "$family" != "$family_filter" ]]; then
+      why="fits this machine; family is ${family}, not '${family_filter}'"
+    else
+      why="fits this machine"
     fi
     printf '    %-52s %s\n' "$combo" "$why" >&2
   done < <(list_combinations)
