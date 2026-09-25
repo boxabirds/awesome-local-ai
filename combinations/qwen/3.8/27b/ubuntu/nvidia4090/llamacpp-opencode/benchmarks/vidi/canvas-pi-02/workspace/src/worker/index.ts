@@ -14,6 +14,7 @@ import { isValidBoardId } from '../shared/board-id';
 import { BoardRoom } from './board-room';
 import { createBoard, type Limiter } from './create-board';
 import { handleTestHook } from './test-hooks';
+import { handleUpload, handleServe } from './assets';
 
 /** No-op limiter used when the real binding is absent (tests, local dev). */
 const NOOP_LIMITER: Limiter = {
@@ -32,6 +33,19 @@ export interface Env {
    * back to a no-op limiter.
    */
   BOARD_CREATE_LIMITER?: Limiter;
+  /**
+   * R2 bucket for image assets (story 12).
+   * Present in production and the vitest pool (wrangler r2_buckets binding).
+   */
+  ASSETS_BUCKET: R2Bucket;
+  /**
+   * Rate limiter for image uploads (story 12).
+   * Present in production; absent in the vitest pool — the worker falls
+   * back to a no-op limiter.
+   */
+  ASSET_UPLOAD_LIMITER?: {
+    limit(opts: { key: string }): Promise<{ success: boolean }>;
+  };
   /** Test hooks are enabled only when this is exactly '1' (the e2e env). */
   TEST_HOOKS?: string;
 }
@@ -83,6 +97,27 @@ export default {
         return Response.json({ id: boardId });
       }
       return Response.json({ error: 'not_found' }, { status: 404 });
+    }
+
+    // --- POST /api/boards/:boardId/assets: upload an image (story 12) ---------
+    const assetUploadMatch = url.pathname.match(/^\/api\/boards\/([^/]+)\/assets$/);
+    if (assetUploadMatch !== null) {
+      if (req.method !== 'POST') {
+        return new Response('Method Not Allowed', { status: 405 });
+      }
+      const boardId = assetUploadMatch[1];
+      const ip = req.headers.get('cf-connecting-ip') ?? 'unknown';
+      return handleUpload(req, env, boardId, ip);
+    }
+
+    // --- GET /api/assets/:boardId/:assetId: serve an image (story 12) --------
+    const assetServeMatch = url.pathname.match(/^\/api\/assets\/([^/]+)\/([^/]+)$/);
+    if (assetServeMatch !== null) {
+      if (req.method !== 'GET') {
+        return new Response('Method Not Allowed', { status: 405 });
+      }
+      const key = `${assetServeMatch[1]}/${assetServeMatch[2]}`;
+      return handleServe(env, key);
     }
 
     // --- /api/rooms/:boardId: WebSocket ---------------------------------------

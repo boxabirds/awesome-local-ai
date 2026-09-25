@@ -9,6 +9,7 @@ import { initDoc, snapshot } from '../../src/shared/board-model';
 import {
   MESSAGE_AWARENESS,
   MESSAGE_SYNC,
+  MESSAGE_SYNC_ACK,
   SYNC_STEP1,
   SYNC_STEP2,
   SYNC_UPDATE,
@@ -43,6 +44,8 @@ export class WsClient {
   readonly closed: Promise<ClosedInfo>;
   /** Every frame received, in order. */
   readonly received: ReceivedFrame[] = [];
+  /** Story 13: number of sync acks received. */
+  private ackCount = 0;
 
   private readonly ws: WebSocket;
   private readonly closeWaiters: Array<(info: ClosedInfo) => void> = [];
@@ -123,9 +126,18 @@ export class WsClient {
     return this.received.filter((f) => f.kind === 'awareness').map((f) => f.payload);
   }
 
+  /** Story 13: number of sync ack frames received. */
+  get syncAckCount(): number {
+    return this.ackCount;
+  }
+
   private onMessage(bytes: Uint8Array): void {
     const decoder = createDecoder(bytes);
     const type = readVarUint(decoder);
+    if (type === MESSAGE_SYNC_ACK) {
+      this.ackCount++;
+      return;
+    }
     if (type === MESSAGE_AWARENESS) {
       // Record only: the room tests assert the relayed bytes (TC-16), not
       // the applied presence state (that is story 6).

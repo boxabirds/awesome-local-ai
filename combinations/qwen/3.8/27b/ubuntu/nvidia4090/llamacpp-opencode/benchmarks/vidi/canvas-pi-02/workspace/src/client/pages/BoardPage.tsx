@@ -67,6 +67,9 @@ import { PenTool } from '../tools/PenTool';
 import { PenToolbar } from '../tools/PenToolbar';
 import { usePenOptions } from '../tools/usePenOptions';
 import { getSessionId } from '../../shared/objects/text';
+import { useImageInsert } from '../images/useImageInsert';
+import { DropHighlight } from '../images/DropHighlight';
+import { useToast, Toast } from '../ui/Toast';
 
 type BoardPageState = 'checking' | 'ready' | 'not_found' | 'unreachable';
 
@@ -194,6 +197,25 @@ function BoardContent({ id }: { id: string }) {
   const identityId = useMemo(() => getSessionId(), []);
   const measurer = useMemo(() => createMeasurer(), []);
 
+  // Story 12: image insertion (drop, paste, picker).
+  const { toast, showToast, dismissToast } = useToast();
+  const imageInsert = useImageInsert({
+    doc,
+    boardId: id,
+    camera: api.camera,
+    size,
+    connection: connectionPhase,
+    identityId,
+    showToast,
+  });
+
+  // Paste listener on window (story 12, image.paste).
+  useEffect(() => {
+    const handler = (e: ClipboardEvent) => imageInsert.onPaste(e);
+    window.addEventListener('paste', handler);
+    return () => window.removeEventListener('paste', handler);
+  }, [imageInsert.onPaste]);
+
   // Creation and deletion are single steps (story 8, undo.boundaries).
   const createStickyAt = (point: Parameters<typeof actions.createAtScreenPoint>[0]) => {
     boundary();
@@ -209,6 +231,7 @@ function BoardContent({ id }: { id: string }) {
   useBoardKeys({
     doc, selection, snapshot: notes, canEdit: editable, undo,
     tool, setTool, onCreateStickyCentre: createStickyCentre, shapeKind,
+    onOpenImagePicker: imageInsert.openPicker,
   });
   const marquee = useMarquee(api.camera, notes, (ids) => selection.setMany(ids, true));
 
@@ -367,6 +390,10 @@ function BoardContent({ id }: { id: string }) {
         onCreateTextAt={createTextAt}
         onCreateShapeAt={createShapeAt}
         onConnectorDragEnd={handleConnectorDragEnd}
+        onDragEnter={imageInsert.onDragEnter}
+        onDragOver={imageInsert.onDragOver}
+        onDragLeave={imageInsert.onDragLeave}
+        onDrop={imageInsert.onDrop}
       >
         {notes.map((note) => {
           // Unknown object types stay in the doc untouched (no renderer yet).
@@ -390,6 +417,13 @@ function BoardContent({ id }: { id: string }) {
               onEndEdit={handleEndEdit}
               undo={undo}
               measurer={measurer}
+              // Story 12: image-specific props.
+              isUploader={note.type === 'image' ? note.uploaderId === identityId : undefined}
+              progress={note.type === 'image' ? imageInsert.progress.get(note.id) : undefined}
+              canRetry={note.type === 'image' ? imageInsert.canRetry(note.id) : undefined}
+              now={Date.now()}
+              onRetry={note.type === 'image' ? (imgId: string) => imageInsert.retry(imgId) : undefined}
+              onRemove={note.type === 'image' ? (imgId: string) => { boundary(); if (deleteObjects(doc, [imgId]) > 0) selection.clear(); boundary(); } : undefined}
             />
           );
         })}
@@ -477,6 +511,7 @@ function BoardContent({ id }: { id: string }) {
       )}
       <Toolbar
         onCreateSticky={createStickyCentre}
+        onOpenImagePicker={imageInsert.openPicker}
         disabled={!editable}
         undo={undoState}
         tool={tool}
@@ -493,7 +528,13 @@ function BoardContent({ id }: { id: string }) {
           onThickness={pen.setThickness}
         />
       )}
-      <ConnectionStatus phase={connectionPhase} />
+      {/* Story 12: drop highlight while files are being dragged over. */}
+      {imageInsert.dragActive && <DropHighlight />}
+      {/* Story 12: toast for image insertion messages. */}
+      {toast.message !== null && (
+        <Toast key={toast.key} message={toast.message} onDismiss={dismissToast} />
+      )}
+      <ConnectionStatus phase={connectionPhase ?? undefined} />
       <ZoomControls
         zoomPercent={zoomPercent(api.camera)}
         canZoomIn={canZoomIn(api.camera)}

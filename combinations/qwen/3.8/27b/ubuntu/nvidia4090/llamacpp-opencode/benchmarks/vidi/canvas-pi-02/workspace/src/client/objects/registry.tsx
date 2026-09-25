@@ -5,6 +5,7 @@ import {
   STICKY_SIZE_WORLD,
   TEXT_MIN_WIDTH_WORLD,
   TEXT_SIZES,
+  IMAGE_MIN_SIZE_WORLD,
 } from '../../shared/config';
 import type { UndoController } from '../board/undo';
 import { objectBounds } from '../../shared/board-model';
@@ -18,6 +19,7 @@ import { ShapeObject } from './ShapeObject';
 import { SHAPE_MIN_SIZE_WORLD, STROKE_MIN_SIZE_WORLD, CONNECTOR_HIT_TOLERANCE_PX } from '../../shared/config';
 import { distanceToPolyline } from '../../shared/geometry/polyline';
 import type { Endpoint } from '../../shared/objects/connector';
+import { ImageObjectWrapper } from './ImageObject';
 import { scaledPoints, strokeHitTolerance, type StrokeSnap } from '../../shared/objects/stroke';
 import { StrokeObject } from './StrokeObject';
 
@@ -197,6 +199,32 @@ registerObjectType('stroke', {
     if (pts.length === 0) return false;
     return distanceToPolyline(pts, worldPoint) <= strokeHitTolerance(s, zoom);
   },
+});
+
+// --- The sixth object type: image (story 12) --------------------------------
+
+/**
+ * Image (story 12). Rendered as an <img> or a state box. Aspect-locked
+ * resize with a minimum size of IMAGE_MIN_SIZE_WORLD.
+ */
+registerObjectType('image', {
+  Component: (props: ObjectProps) => (
+    <ImageObjectWrapper
+      {...props}
+      isUploader={(props as any).isUploader ?? false}
+      progress={(props as any).progress}
+      canRetry={(props as any).canRetry ?? false}
+      now={(props as any).now ?? Date.now()}
+      onRetry={(id: string) => (props as any).onRetry?.(id)}
+      onRemove={(id: string) => (props as any).onRemove?.(id)}
+    />
+  ),
+  resizable: true,
+  handles: 'all',
+  aspectLocked: true,
+  minSize: IMAGE_MIN_SIZE_WORLD,
+  editableText: false,
+  hitTest: (obj, worldPoint) => pointInRect(objectBounds(obj), worldPoint),
 });
 
 /** Default world-space size for objects that do not store one (sticky). */

@@ -1,7 +1,7 @@
 {
   "build_exit": 0,
   "runner_exit": 1,
-  "passed": 63,
+  "passed": 62,
   "total": 75,
   "on_partial": {
     "passed": 0,
@@ -49,8 +49,9 @@
       "total": 5
     },
     "12": {
-      "passed": 2,
+      "passed": 1,
       "total": 5
     }
-  }
+  },
+  "harness_fault": null
 }

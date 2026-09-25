@@ -2,10 +2,18 @@
   // Test-specific wrangler config: same as wrangler.jsonc but without the
   // `ratelimits` section (the vitest pool does not support local rate
   // limiters). The worker uses an in-memory fake when the binding is absent.
+  // R2 is supported by the vitest pool (Miniflare R2), so the binding is
+  // included for the asset integration tests (TC-10..TC-16).
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "vidi6",
   "main": "src/worker/index.ts",
   "compatibility_date": "2025-06-01",
+  "r2_buckets": [
+    {
+      "binding": "ASSETS_BUCKET",
+      "bucket_name": "vidi6-assets"
+    }
+  ],
   "durable_objects": {
     "bindings": [
       {

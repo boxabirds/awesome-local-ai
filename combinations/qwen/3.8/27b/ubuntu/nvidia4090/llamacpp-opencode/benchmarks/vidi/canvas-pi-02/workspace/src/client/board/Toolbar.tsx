@@ -9,6 +9,8 @@ import { SHAPE_KINDS } from '../../shared/config';
 export interface ToolbarProps {
   /** Create a sticky note centred in the visible board area, in edit mode. */
   onCreateSticky(): void;
+  /** Open the image file picker (story 12). */
+  onOpenImagePicker?: () => void;
   /** persist.client_status: disabled while the board is locked. */
   disabled?: boolean;
   /** Undo / redo state (story 8); renders the UndoButtons below the tools. */
@@ -81,6 +83,21 @@ export function Toolbar(props: ToolbarProps): JSX.Element {
             strokeLinejoin="round"
           />
           <path d="M12.5 16.5v-4h4" fill="#FFF59D" stroke="#B9A83C" strokeWidth="1.2" strokeLinejoin="round" />
+        </svg>
+      </button>
+      {/* Image button (story 12) */}
+      <button
+        type="button"
+        className="vidi6-toolbar__button"
+        aria-label="Image"
+        title="Image – or press I"
+        disabled={props.disabled ?? false}
+        onClick={props.onOpenImagePicker}
+      >
+        <svg width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+          <rect x="3" y="3" width="14" height="14" rx="2" fill="#E8ECF1" stroke="#5A6B7F" strokeWidth="1.2" />
+          <path d="M3 13l4-4 3 3 4-4 3 3" stroke="#5A6B7F" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
+          <circle cx="7.5" cy="7.5" r="1.5" fill="#5A6B7F" />
         </svg>
       </button>
       <button

@@ -1,7 +1,7 @@
 import { WebsocketProvider } from 'y-websocket';
 import type * as Y from 'yjs';
 import { CONNECTED_CONFIRMATION_MS, RECONNECT_MAX_BACKOFF_MS } from '../../shared/config';
-import { CLOSE_BOARD_LOAD_FAILED } from '../../shared/protocol';
+import { CLOSE_BOARD_LOAD_FAILED, MESSAGE_SYNC, MESSAGE_SYNC_ACK } from '../../shared/protocol';
 
 /**
  * The client-side connection phases (design.md "Client connection state
@@ -139,11 +139,18 @@ export function createConnectionStateMachine(
   };
 }
 
+export interface SyncAckHandlers {
+  onSend(frame: ArrayBuffer | string): void;
+  onAck(): void;
+}
+
 export interface ConnectBoardOptions {
   boardId: string;
   doc: Y.Doc;
   /** WebSocket base URL, e.g. 'ws://localhost:8787'. Defaults to the page origin. */
   serverUrl?: string;
+  /** Story 13: handlers for the sync acknowledgement tracker. */
+  syncAck?: SyncAckHandlers;
 }
 
 export interface BoardConnection {
@@ -189,9 +196,22 @@ export function setProviderFactoryForTest(factory: ProviderFactory | null): void
  * (capped at RECONNECT_MAX_BACKOFF_MS) and re-sends state on every
  * (re)connect — which is what makes "the room's doc is in memory" safe.
  */
+/**
+ * Handle an incoming WebSocket frame: if it's a MESSAGE_SYNC_ACK, call
+ * onAck. All other frames pass through.
+ */
+function handleIncomingFrame(data: ArrayBuffer, ack: SyncAckHandlers): void {
+  const bytes = new Uint8Array(data);
+  if (bytes.length < 1) return;
+  if (bytes[0] === MESSAGE_SYNC_ACK) {
+    ack.onAck();
+  }
+}
+
 export function connectBoard(options: ConnectBoardOptions): BoardConnection {
   const { boardId, doc } = options;
   const serverUrl = options.serverUrl ?? defaultServerUrl();
+  const syncAck = options.syncAck;
 
   const provider = providerFactory(
     `${serverUrl.replace(/\/$/, '')}/api/rooms`,
@@ -202,6 +222,36 @@ export function connectBoard(options: ConnectBoardOptions): BoardConnection {
       disableBc: true, // WebSocket only; no BroadcastChannel in this story
     },
   );
+
+  // Story 13: wrap the provider's WebSocket to intercept messages for
+  // sync ack counting.
+  if (syncAck) {
+    const origConnect = (provider as unknown as { connect: () => void }).connect;
+    (provider as unknown as { connect: () => void }).connect = function () {
+      origConnect.call(this);
+      const socket = (provider as unknown as { socket?: WebSocket }).socket;
+      if (socket && !((socket as unknown as Record<string, unknown>).__wrapped)) {
+        const origOnMessage = socket.onmessage;
+        socket.onmessage = (event: MessageEvent) => {
+          if (typeof event.data !== 'string' && event.data instanceof ArrayBuffer) {
+            handleIncomingFrame(event.data, syncAck);
+          }
+          if (origOnMessage) origOnMessage.call(socket, event);
+        };
+        const origSend = socket.send.bind(socket);
+        socket.send = (data: string | ArrayBufferLike | Blob | ArrayBufferView) => {
+          if (typeof data !== 'string' && data instanceof ArrayBuffer) {
+            syncAck.onSend(data);
+          } else if (data && typeof data === 'object' && 'byteOffset' in data && 'byteLength' in data && 'buffer' in data) {
+            const view = data as { byteOffset: number; byteLength: number; buffer: ArrayBuffer };
+            syncAck.onSend(view.buffer.slice(view.byteOffset, view.byteOffset + view.byteLength));
+          }
+          return origSend(data);
+        };
+        (socket as unknown as Record<string, unknown>).__wrapped = true;
+      }
+    };
+  }
 
   const listeners = new Set<(phase: ConnectionState) => void>();
   const machine = createConnectionStateMachine((phase) => {
