@@ -43,6 +43,34 @@ Agent effort per story:
 | Minutes | 7.9 | 13.9 | 22.1 | 35.8 | 19.2 | 23.3 | 26.0 | 23.9 | 22.5 | 31.4 | 30.0 | 256 |
 | Subagent tokens (k) | 121 | 180 | 229 | 270 | 227 | 277 | 229 | 281 | 318 | 260 | 291 | 2,683 |
 
+### Efficiency: where the speed difference comes from
+
+Opus output tokens are the final usage of each API call, summed from the subagent transcripts. Wall time covers the whole story, including tool time: builds and tests ran on another machine over ssh.
+
+| Story | 1 | 2 | 3 | 4 | 5 | 7 | 8 | 9 | 10 | 11 | 12 | Total |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| API calls | 24 | 42 | 62 | 72 | 73 | 61 | 63 | 67 | 69 | 69 | 78 | 680 |
+| Output tokens (k) | 51 | 85 | 95 | 122 | 80 | 114 | 79 | 107 | 130 | 73 | 101 | 1,038 |
+| Output tok per wall-second | 108 | 102 | 72 | 57 | 70 | 82 | 51 | 75 | 97 | 39 | 56 | 68 |
+
+Compared with the Flash-Next run over the stories both had finished:
+
+| Stories 1–10 | Opus 5.5 | Flash-Next (MTPLX, pi) |
+|---|---|---|
+| Agent time | 195 min | 696 min recorded (understated, see below) |
+| Model calls | 587 | 2,413 |
+| Output tokens | 0.86M | 1.82M |
+| Output tokens per wall-second | ~74 | ~44 |
+| Held-out score | 59/65 | 50/65 |
+
+Flash-Next's figures come from MTPLX's own request log and the run's `metrics.json`. The recorded time leaves out work before harness restarts: story 5's first 56 minutes, and two compaction-deadlock segments in story 10.
+
+**How to read it.** The end-to-end gap (about 3.6×, more once the missing restart time is counted) has two parts:
+1. **Speed per token, about 1.7×.** Flash-Next generates at about 57–65 tok/s. Its server is busy 95–98% of the wall clock, and about 20% of that is spent reading prompts. Opus's pure generation speed is above its 74 tok/s wall rate, because that rate includes tool waits, but the transcripts don't let us separate the two.
+2. **Tokens needed, about 2×.** Flash-Next produced twice the output tokens and made about 4× the calls for the same stories: longer thinking, more retries and more rework. It also ended up with the lower score.
+
+So the reference is not mainly faster per token. It needs fewer tokens and fewer attempts to reach working code.
+
 Every story ended with the agent's own build, typecheck and unit, component and integration tests passing. The agents' own e2e passed in Chromium and Firefox, except for load-related flakes they reported.
 
 ## The 12 held-out failures, first triage
