@@ -14,6 +14,10 @@
  * - Story 7: Shift + drag on empty space draws a selection rectangle (`marquee`) instead
  *   of panning; `overlay` is drawn in screen space above the world layer (selection
  *   outlines, handles and bar).
+ * - Story 9: while `onPlace` is set (Text tool active) the cursor is a text cursor and a
+ *   primary press anywhere on the board, on empty space or on top of an object, reports
+ *   `onPlace` with the world point instead of panning, selecting or starting a marquee.
+ *   Toolbars and buttons in the overlay keep working.
  */
 import {
   useEffect,
@@ -71,6 +75,8 @@ export interface BoardViewportProps {
   marquee?: Pick<MarqueeApi, 'begin' | 'move' | 'end' | 'cancel'>;
   /** Screen-space layer above the world layer. */
   overlay?: ReactNode;
+  /** Set while a placing tool (Text) is active: a press on the board places at this world point. */
+  onPlace?(world: Point): void;
 }
 
 export function BoardViewport(props: BoardViewportProps): React.JSX.Element {
@@ -185,6 +191,15 @@ export function BoardViewport(props: BoardViewportProps): React.JSX.Element {
     return () => window.removeEventListener('keydown', onKeyDown);
   }, [zoomStep, reset]);
 
+  const onPointerDownCapture = (e: PointerEvent<HTMLDivElement>) => {
+    if (props.onPlace === undefined || e.button !== PRIMARY_BUTTON) return;
+    if (e.target instanceof Element && e.target.closest('button, [role="toolbar"], textarea') !== null) return;
+    // Nothing underneath sees this press: no pan, marquee, selection or drag.
+    e.stopPropagation();
+    e.preventDefault();
+    props.onPlace(screenToWorld(camera, localPoint(e.clientX, e.clientY)));
+  };
+
   const onPointerDown = (e: PointerEvent<HTMLDivElement>) => {
     if (e.button !== PRIMARY_BUTTON) return;
     // Only empty board space starts a pan or a marquee; objects stop propagation.
@@ -241,7 +256,7 @@ export function BoardViewport(props: BoardViewportProps): React.JSX.Element {
     backgroundSize: `${spacing}px ${spacing}px`,
     backgroundPosition: `${offsetX}px ${offsetY}px`,
     backgroundImage: `radial-gradient(circle, var(--grid-dot) ${GRID_DOT_RADIUS_PX}px, transparent ${GRID_DOT_RADIUS_PX + DOT_EDGE_PX}px)`,
-    cursor: board.isPanning ? 'grabbing' : 'grab',
+    cursor: props.onPlace !== undefined ? 'text' : board.isPanning ? 'grabbing' : 'grab',
   };
   const worldStyle: CSSProperties = {
     transform: `scale(${camera.zoom}) translate(${-camera.x}px, ${-camera.y}px)`,
@@ -254,8 +269,10 @@ export function BoardViewport(props: BoardViewportProps): React.JSX.Element {
       className="board-viewport"
       data-testid="board-viewport"
       data-state={board.isPanning ? 'panning' : 'idle'}
+      data-placing={props.onPlace !== undefined ? 'true' : undefined}
       data-grid-spacing={spacing}
       style={viewportStyle}
+      onPointerDownCapture={onPointerDownCapture}
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}
       onPointerUp={onPointerUp}

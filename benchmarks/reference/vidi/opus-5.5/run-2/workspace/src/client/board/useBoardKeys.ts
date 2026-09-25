@@ -8,6 +8,9 @@
  * - Enter edits a single selected object with editable text (story 2);
  * - Ctrl/Cmd+Z undoes, Ctrl/Cmd+Shift+Z and Ctrl+Y redo (anchor: undo.shortcuts). While a
  *   note is being edited its editor handles these itself.
+ * - Story 9 tool shortcuts: V selects the Select tool, T the Text tool (only while the
+ *   board can be edited), Escape returns from the Text tool to Select (the selection is
+ *   kept), N creates a sticky note in the centre of the view (story 2's button).
  * Delete and each nudge are one undo step: the history's boundary is closed around them.
  * Nothing is handled while text is being edited or focus is in a text field; the mutating
  * keys are also ignored while the board is read-only (story 4 load failure).
@@ -19,6 +22,7 @@ import { NUDGE_LARGE_STEP_WORLD, NUDGE_STEP_WORLD } from '../../shared/config';
 import type { Point } from '../../shared/geometry';
 import { getObjectType } from '../objects/registry';
 import type { SelectionApi } from './useSelection';
+import type { ToolApi } from './useTool';
 
 export interface BoardKeysOptions {
   doc: Y.Doc;
@@ -27,6 +31,10 @@ export interface BoardKeysOptions {
   canEdit: boolean;
   /** This tab's undo history (story 8). */
   history?: BoardKeysHistory;
+  /** Active tool (story 9): V / T / Escape switch it. */
+  tools?: ToolApi;
+  /** N: creates a sticky note in the centre of the view. */
+  onCreateSticky?(): void;
 }
 
 export interface BoardKeysHistory {
@@ -59,7 +67,7 @@ export function useBoardKeys(opts: BoardKeysOptions): void {
 
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
-      const { doc, selection, snapshot, canEdit, history } = latest.current;
+      const { doc, selection, snapshot, canEdit, history, tools, onCreateSticky } = latest.current;
       if (e.defaultPrevented || selection.editingId !== null || isTextTarget(e.target)) return;
       if (e.altKey) return;
       const ctrlOrMeta = e.ctrlKey || e.metaKey;
@@ -80,6 +88,28 @@ export function useBoardKeys(opts: BoardKeysOptions): void {
         return;
       }
       if (ctrlOrMeta) return;
+
+      if (tools !== undefined) {
+        if (key === 'v') {
+          e.preventDefault();
+          tools.setTool('select');
+          return;
+        }
+        if (key === 't') {
+          e.preventDefault();
+          if (canEdit) tools.setTool('text');
+          return;
+        }
+        if (e.key === 'Escape' && tools.tool !== 'select') {
+          tools.setTool('select');
+          return;
+        }
+      }
+      if (key === 'n' && onCreateSticky !== undefined) {
+        e.preventDefault();
+        if (canEdit) onCreateSticky();
+        return;
+      }
 
       if (e.key === 'Escape') {
         if (selection.ids.size > 0) selection.clear();

@@ -1,13 +1,16 @@
 /**
  * Bar above the selection (anchor: sel.bar): "N selected" and a Delete button when two or
- * more objects are selected; story 2's note toolbar when exactly one sticky note is. A
- * polite live region announces the count to screen readers whenever it changes.
+ * more objects are selected; story 2's note toolbar when exactly one sticky note is; story 9's
+ * text toolbar when exactly one text object is. A polite live region announces the count to
+ * screen readers whenever it changes.
  */
 import type { CSSProperties, SyntheticEvent } from 'react';
 import type { Camera } from '../canvas/camera';
 import { isStickySnapshot, type ObjectSnapshot } from '../../shared/board-model';
-import { NOTE_TOOLBAR_GAP_PX, type StickyColor } from '../../shared/config';
+import { NOTE_TOOLBAR_GAP_PX, type StickyColor, type TextSize } from '../../shared/config';
 import { NoteToolbar } from '../objects/NoteToolbar';
+import { TextToolbar } from '../objects/TextToolbar';
+import { isTextSnapshot } from '../../shared/objects/text';
 import { selectedObjects, selectionBounds, toScreenRect } from './SelectionOverlay';
 
 const HALF = 2;
@@ -20,6 +23,8 @@ export interface SelectionBarProps {
   camera?: Camera;
   /** Recolours a single selected sticky note (note toolbar). */
   onColor?(id: string, color: StickyColor): void;
+  /** Changes the size of a single selected text object (text toolbar, story 9). */
+  onTextSize?(id: string, size: TextSize): void;
   /** False while the board is read-only: no Delete button, no note toolbar. */
   editable?: boolean;
   /** Hides the bar (not the announcement) while editing text or moving/resizing. */
@@ -90,6 +95,9 @@ export function SelectionBar(props: SelectionBarProps): React.JSX.Element | null
       content = (
         <NoteToolbar color={single.color} onColor={(c) => props.onColor?.(id, c)} onDelete={props.onDelete} />
       );
+    } else if (single !== undefined && isTextSnapshot(single) && editable) {
+      const id = single.id;
+      content = <TextToolbar size={single.size} onSize={(s) => props.onTextSize?.(id, s)} onDelete={props.onDelete} />;
     }
   }
 

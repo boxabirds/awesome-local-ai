@@ -26,12 +26,21 @@ export interface UndoController {
   destroy(): void;
   /** Opens a step that stays open (whatever the pauses) until the next `boundary()`. */
   startGroup(): void;
-  /** Undoes the last step only if it changed nothing but `type` (typing while editing). */
-  undoIn(type: Y.AbstractType<any>): boolean;
-  /** Redoes the last undone step only if it changes nothing but `type`. */
-  redoIn(type: Y.AbstractType<any>): boolean;
+  /**
+   * Undoes the last step only if it changed nothing but `type` (typing while editing) and
+   * the optional `also` types (story 9: the text object's stored box).
+   */
+  undoIn(type: Y.AbstractType<any>, ...also: Y.AbstractType<any>[]): boolean;
+  /** Redoes the last undone step only if it changes nothing but `type` (and `also`). */
+  redoIn(type: Y.AbstractType<any>, ...also: Y.AbstractType<any>[]): boolean;
   /** Number of steps on the undo stack (tests). */
   undoSize(): number;
+  /**
+   * Runs `fn` so that its changes join the most recent step (story 9: an empty text removed
+   * when editing ends). A step left without net effect (text created and abandoned) is
+   * dropped, so Undo never spends a press on nothing.
+   */
+  amendLast(fn: () => void): void;
 }
 
 export interface UndoOptions {
@@ -39,13 +48,34 @@ export interface UndoOptions {
   maxSteps?: number;
 }
 
-/** StackItem meta key: the only type a step changed, or null when it changed several. */
-const ONLY_TYPE = 'vidi6.onlyType';
+/** StackItem meta key: the set of types a step changed. */
+const TARGETS = 'vidi6.targets';
 
 type StackItemEvent = {
   stackItem: { meta: Map<unknown, unknown> };
   changedParentTypes: Map<Y.AbstractType<Y.YEvent<any>>, Y.YEvent<any>[]>;
 };
+
+type DeleteSet = ReturnType<typeof Y.createDeleteSetFromStructStore>;
+
+/** True when undoing `item` would change nothing: all it inserted is gone and it removed only its own insertions. */
+function hasNoEffect(doc: Y.Doc, item: { insertions: DeleteSet; deletions: DeleteSet }): boolean {
+  const deletedNow = Y.createDeleteSetFromStructStore(doc.store);
+  const every = (ds: DeleteSet, test: (id: Y.ID) => boolean): boolean => {
+    for (const [client, ranges] of ds.clients) {
+      for (const r of ranges) {
+        for (let clock = r.clock; clock < r.clock + r.len; clock += 1) {
+          if (!test(Y.createID(client, clock))) return false;
+        }
+      }
+    }
+    return true;
+  };
+  return (
+    every(item.insertions, (id) => Y.isDeleted(deletedNow, id)) &&
+    every(item.deletions, (id) => Y.isDeleted(item.insertions, id))
+  );
+}
 
 function changedTargets(event: StackItemEvent): Set<unknown> {
   const targets = new Set<unknown>();
@@ -65,11 +95,9 @@ export function createUndo(doc: Y.Doc, opts: UndoOptions = {}): UndoController {
   let destroyed = false;
 
   const tag = (event: StackItemEvent, added: boolean) => {
-    const targets = changedTargets(event);
-    const only = targets.size === 1 ? [...targets][0] : null;
     const meta = event.stackItem.meta;
-    if (added || !meta.has(ONLY_TYPE)) meta.set(ONLY_TYPE, only);
-    else if (meta.get(ONLY_TYPE) !== only) meta.set(ONLY_TYPE, null);
+    const previous = added ? undefined : (meta.get(TARGETS) as Set<unknown> | undefined);
+    meta.set(TARGETS, new Set([...(previous ?? []), ...changedTargets(event)]));
   };
   um.on('stack-item-added', (event: StackItemEvent) => {
     tag(event, true);
@@ -81,12 +109,17 @@ export function createUndo(doc: Y.Doc, opts: UndoOptions = {}): UndoController {
   um.on('stack-cleared', notify);
 
   /** Pops exactly one step: a step with no effect is consumed instead of reaching further back. */
-  const popOne = (kind: 'undo' | 'redo', only?: Y.AbstractType<any>): boolean => {
+  const popOne = (kind: 'undo' | 'redo', only?: readonly Y.AbstractType<any>[]): boolean => {
     if (destroyed) return false;
     const stack = kind === 'undo' ? um.undoStack : um.redoStack;
     const top = stack[stack.length - 1];
     if (top === undefined) return false;
-    if (only !== undefined && top.meta.get(ONLY_TYPE) !== only) return false;
+    if (only !== undefined) {
+      const targets = top.meta.get(TARGETS) as Set<unknown> | undefined;
+      if (targets === undefined || targets.size === 0 || [...targets].some((t) => !only.includes(t as Y.AbstractType<any>))) {
+        return false;
+      }
+    }
     const earlier = stack.splice(0, stack.length - 1);
     try {
       if (kind === 'undo') um.undo();
@@ -103,8 +136,8 @@ export function createUndo(doc: Y.Doc, opts: UndoOptions = {}): UndoController {
   return {
     undo: () => popOne('undo'),
     redo: () => popOne('redo'),
-    undoIn: (type) => popOne('undo', type),
-    redoIn: (type) => popOne('redo', type),
+    undoIn: (type, ...also) => popOne('undo', [type, ...also]),
+    redoIn: (type, ...also) => popOne('redo', [type, ...also]),
     boundary() {
       um.captureTimeout = captureTimeout;
       um.stopCapturing();
@@ -116,6 +149,29 @@ export function createUndo(doc: Y.Doc, opts: UndoOptions = {}): UndoController {
     canUndo: () => !destroyed && um.undoStack.length > 0,
     canRedo: () => !destroyed && um.redoStack.length > 0,
     undoSize: () => um.undoStack.length,
+    amendLast(fn) {
+      if (destroyed) {
+        fn();
+        return;
+      }
+      const before = um.undoStack.length;
+      if (before > 0) {
+        // Any positive lastChange with an infinite timeout merges the next change into the top step.
+        um.lastChange = 1;
+        um.captureTimeout = Number.POSITIVE_INFINITY;
+      }
+      try {
+        fn();
+      } finally {
+        um.captureTimeout = captureTimeout;
+        um.stopCapturing();
+      }
+      const top = um.undoStack[um.undoStack.length - 1];
+      if (top !== undefined && um.undoStack.length === before && hasNoEffect(doc, top)) {
+        um.undoStack.pop();
+        notify();
+      }
+    },
     addScope(type) {
       um.addToScope(type);
     },

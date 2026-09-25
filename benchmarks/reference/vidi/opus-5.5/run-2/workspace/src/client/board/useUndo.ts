@@ -22,6 +22,7 @@ export const NO_UNDO: UndoController = {
   undoIn: () => false,
   redoIn: () => false,
   undoSize: () => 0,
+  amendLast: (fn) => fn(),
 };
 
 export const UndoContext = createContext<UndoController>(NO_UNDO);

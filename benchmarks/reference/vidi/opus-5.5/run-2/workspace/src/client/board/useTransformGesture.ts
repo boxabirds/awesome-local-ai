@@ -15,6 +15,7 @@ import type * as Y from 'yjs';
 import type { Camera } from '../canvas/camera';
 import {
   bringObjectsToFront,
+  LOCAL_ORIGIN,
   moveObjects,
   objectBounds,
   resizeObjects,
@@ -22,7 +23,7 @@ import {
 } from '../../shared/board-model';
 import { DRAG_THRESHOLD_PX, MAX_OBJECT_SIZE_WORLD } from '../../shared/config';
 import { applyScale, clampScale, resizeScale, scaleWithin, unionRects, type Handle, type Point, type Rect } from '../../shared/geometry';
-import { getObjectType, type ObjectTypeSpec } from '../objects/registry';
+import { getObjectType, type ObjectTypeSpec, type ResizeMode } from '../objects/registry';
 import type { SelectionApi } from './useSelection';
 
 const PRIMARY_BUTTON = 0;
@@ -115,25 +116,43 @@ export function useTransformGesture(opts: TransformGestureOptions): TransformGes
     }
     const box = p.startBox;
     if (box === null || p.handle === null) return;
-    const specs = [...p.starts.keys()].map((id) => specOf(snapshot, id));
+    const ids = [...p.starts.keys()];
+    const specs = ids.map((id) => specOf(snapshot, id));
+    const byId = new Map(snapshot.map((o) => [o.id, o]));
+    const mode: ResizeMode = specs.every((s) => s?.handles === 'horizontal') ? 'horizontal' : 'group';
     const locked = next.shift || specs.some((s) => s?.aspectLocked === true);
     const resizableRects: Rect[] = [];
     const minSizes: number[] = [];
     [...p.starts.values()].forEach((r, i) => {
       const spec = specs[i];
-      if (spec?.resizable !== true) return;
-      resizableRects.push(r);
+      const obj = byId.get(ids[i]!);
+      if (spec?.resizable !== true || obj === undefined) return;
+      // Axes an object does not scale on (e.g. text height) never limit the group.
+      const axes = spec.scalesWith?.(obj, mode) ?? { x: true, y: true };
+      resizableRects.push({ ...r, width: axes.x ? r.width : 0, height: axes.y ? r.height : 0 });
       minSizes.push(spec.minSize);
     });
     const scale = clampScale(resizeScale(box, p.handle, d, locked), resizableRects, minSizes, MAX_OBJECT_SIZE_WORLD);
     const to = applyScale(box, p.handle, scale);
     const rects = new Map<string, Rect>();
+    const custom: (() => void)[] = [];
     [...p.starts.entries()].forEach(([id, r], i) => {
       const scaled = scaleWithin(r, box, to);
+      const spec = specs[i];
+      const obj = byId.get(id);
+      if (spec?.applyResize !== undefined && obj !== undefined) {
+        const apply = spec.applyResize;
+        custom.push(() => apply(doc, obj, scaled, r, mode));
+        return;
+      }
       // Objects that cannot be resized keep their size and follow the layout.
-      rects.set(id, specs[i]?.resizable === true ? scaled : { ...r, x: scaled.x, y: scaled.y });
+      rects.set(id, spec?.resizable === true ? scaled : { ...r, x: scaled.x, y: scaled.y });
     });
-    resizeObjects(doc, rects);
+    // One update per frame, whatever each type writes.
+    doc.transact(() => {
+      resizeObjects(doc, rects);
+      custom.forEach((fn) => fn());
+    }, LOCAL_ORIGIN);
   }, []);
 
   const finish = useCallback((p: Press, keepPending: boolean) => {

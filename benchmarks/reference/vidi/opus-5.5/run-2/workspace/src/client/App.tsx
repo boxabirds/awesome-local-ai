@@ -12,6 +12,7 @@ import { useSelection } from './board/useSelection';
 import { useBoardKeys } from './board/useBoardKeys';
 import { UndoContext, useUndo, useUndoController } from './board/useUndo';
 import { useTransformGesture } from './board/useTransformGesture';
+import { useTool } from './board/useTool';
 import { MarqueeRect, useMarquee } from './board/Marquee';
 import { SelectionOverlay } from './board/SelectionOverlay';
 import { SelectionBar } from './board/SelectionBar';
@@ -19,7 +20,10 @@ import { getObjectType } from './objects/registry';
 import { ConnectionStatus } from './sync/ConnectionStatus';
 import type { ConnectionState, ProviderFactory } from './sync/connectBoard';
 import { createSticky, deleteObjects, setStickyColor } from '../shared/board-model';
-import type { StickyColor } from '../shared/config';
+import { createText, setTextSize } from '../shared/objects/text';
+import type { StickyColor, TextSize } from '../shared/config';
+import { defaultMeasurer } from './objects/textLayout';
+import { syncTextBox } from './objects/useTextBoxSync';
 import { BoardPage } from './pages/BoardPage';
 import { HomePage } from './pages/HomePage';
 import { NotFoundPage } from './pages/NotFoundPage';
@@ -57,6 +61,10 @@ export function App(props: AppProps = {}): React.JSX.Element {
     createProvider: props.createProvider,
   });
   const editable = canEdit(connection);
+  // Stands in for story 6's identity (not part of this build): one id per tab, for `createdBy`.
+  const [localAuthor] = useState(() => `g_${crypto.randomUUID()}`);
+  const tools = useTool(editable);
+  const { tool, setTool } = tools;
   const selection = useSelection(objects);
   const { ids: selectedIds, click, clear, setMany, startEdit, endEdit } = selection;
   const editingId = editable ? selection.editingId : null;
@@ -101,8 +109,6 @@ export function App(props: AppProps = {}): React.JSX.Element {
     () => ({ undo: undoApi.undo, redo: undoApi.redo, boundary: history.boundary }),
     [undoApi.undo, undoApi.redo, history],
   );
-  useBoardKeys({ doc, selection, snapshot: objects, canEdit: editable, history: keysHistory });
-
   const createAt = useCallback(
     (world: Point) => {
       if (!editable) return;
@@ -115,6 +121,36 @@ export function App(props: AppProps = {}): React.JSX.Element {
   const onCreateSticky = useCallback(() => {
     createAt(screenToWorld(camera, { x: viewport.width / HALF, y: viewport.height / HALF }));
   }, [camera, viewport, createAt]);
+
+  useBoardKeys({
+    doc,
+    selection,
+    snapshot: objects,
+    canEdit: editable,
+    history: keysHistory,
+    tools,
+    onCreateSticky,
+  });
+
+  /** Text tool: a press on the board creates text there and starts editing it (text.create). */
+  const placeText = useCallback(
+    (world: Point) => {
+      setTool('select');
+      if (!editable) return;
+      const id = step(() => createText(doc, world, localAuthor));
+      if (id !== null) startEdit(id);
+    },
+    [doc, editable, localAuthor, setTool, startEdit, step],
+  );
+
+  const onTextSize = useCallback(
+    (id: string, size: TextSize) =>
+      step(() => {
+        // Top-left stays; the box is remeasured at the new size in the same step.
+        if (setTextSize(doc, id, size)) syncTextBox(doc, id, defaultMeasurer());
+      }),
+    [doc, step],
+  );
 
   const onDeleteSelection = useCallback(() => {
     if (!editable) return;
@@ -143,6 +179,7 @@ export function App(props: AppProps = {}): React.JSX.Element {
         hidden={editingId !== null || gesture.kind !== 'idle'}
         onDelete={onDeleteSelection}
         onColor={onColor}
+        onTextSize={onTextSize}
       />
     </>
   );
@@ -156,6 +193,7 @@ export function App(props: AppProps = {}): React.JSX.Element {
           onBackgroundDoubleClick={createAt}
           marquee={marquee}
           overlay={overlay}
+          onPlace={tool === 'text' ? placeText : undefined}
         >
           {renderOrder.map((obj) => {
             const { Component } = getObjectType(obj.type)!;
@@ -178,7 +216,7 @@ export function App(props: AppProps = {}): React.JSX.Element {
           })}
           <MarqueeRect rect={marquee.rect} camera={camera} />
         </BoardViewport>
-        <Toolbar onCreateSticky={onCreateSticky} disabled={!editable} undo={undoApi} />
+        <Toolbar onCreateSticky={onCreateSticky} disabled={!editable} undo={undoApi} tool={tool} onTool={setTool} />
         <ZoomControls
           zoomPercent={zoomPercent(camera)}
           canZoomIn={canZoomIn(camera)}

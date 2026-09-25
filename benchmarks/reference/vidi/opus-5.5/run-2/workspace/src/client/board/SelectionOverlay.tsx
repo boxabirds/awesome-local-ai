@@ -1,5 +1,6 @@
 /**
- * Selection outlines, bounding box and 8 resize handles, drawn in screen space so outlines
+ * Selection outlines, bounding box and 8 resize handles (only left and right when every
+ * selected type has `handles: 'horizontal'`, story 9), drawn in screen space so outlines
  * and handles (HANDLE_SIZE_PX) keep their size at every zoom (anchor: sel.transform).
  * Only the handles take pointer input; everything else lets presses reach the board and
  * the objects underneath.
@@ -36,6 +37,8 @@ const HANDLE_POSITION: Record<Handle, [number, number]> = {
 
 const PERCENT = 100;
 
+const HORIZONTAL_HANDLES: readonly Handle[] = ['e', 'w'];
+
 /** Selected objects of known types, in snapshot order. */
 export function selectedObjects(ids: ReadonlySet<string>, snapshot: readonly ObjectSnapshot[]): ObjectSnapshot[] {
   return ids.size === 0 ? [] : snapshot.filter((o) => ids.has(o.id) && getObjectType(o.type) !== undefined);
@@ -71,6 +74,9 @@ export function SelectionOverlay(props: SelectionOverlayProps): React.JSX.Elemen
   if (box === null) return null;
   const resizable = objs.some((o) => getObjectType(o.type)?.resizable === true);
   const showHandles = (props.showHandles ?? true) && resizable;
+  // Types whose height follows their content (story 9 text) get only the side handles.
+  const horizontalOnly = objs.every((o) => getObjectType(o.type)?.handles === 'horizontal');
+  const handles = horizontalOnly ? HORIZONTAL_HANDLES : HANDLES;
   const screenBox = toScreenRect(camera, box);
   return (
     <div className="selection-overlay" data-testid="selection-overlay">
@@ -85,7 +91,7 @@ export function SelectionOverlay(props: SelectionOverlayProps): React.JSX.Elemen
       ))}
       <div className="selection-box" data-testid="selection-box" style={rectStyle(screenBox)}>
         {showHandles &&
-          HANDLES.map((h) => {
+          handles.map((h) => {
             const [fx, fy] = HANDLE_POSITION[h];
             return (
               <div

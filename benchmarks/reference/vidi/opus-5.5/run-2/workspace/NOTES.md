@@ -363,3 +363,66 @@ Decisions taken where the spec was silent or ambiguous:
 10. **Fixture.** `buildUndoBoard` in `tests/fixtures/boards.ts`: 12 notes in varied colours
     and sizes, 8 of them in one cluster.
 11. **Browsers.** e2e ran with `E2E_BROWSERS=chromium`; multi-context cases skip elsewhere.
+
+## Story 9 — Write free text anywhere on the board
+
+Decisions taken where the spec was silent or ambiguous:
+
+1. **`createdBy` without story 6.** Identity (story 6) is not part of this build, so `App` makes
+   one `g_<uuid>` per tab and passes it to `createText`.
+2. **N shortcut.** Story 2 had no N key (only the button and double-click). N now does what the
+   Sticky note button does (sticky at the view centre, editing), as the design asks. V, T, N and
+   Escape are ignored while editing text or with focus in a text field; T and N do nothing while
+   the board is load-failed. Escape with the Text tool active only returns to Select (the
+   selection is kept); otherwise it clears the selection as before.
+3. **Snapshots of text objects.** board-model gained `registerSnapshotReader(type, reader)`;
+   `src/shared/objects/text.ts` registers the reader for `text` (and so declares the type
+   known), so `snapshotObjects` carries `text`, `size`, `widthMode` without board-model
+   importing text code. Board-model also exports `nextZ(doc)`.
+4. **Layout details.** Auto width = longest line + `TEXT_AUTO_WIDTH_PADDING_WORLD` (2, caret
+   room), capped at 600; once any line wraps the box is exactly 600 (PRD: "a 300-character
+   sentence produces a 600-unit-wide box"). Greedy word wrap; words wider than the line break
+   between characters. The fallback estimate uses `TEXT_AVG_GLYPH_WIDTH_RATIO` (0.55). The
+   canvas measurer uses `OffscreenCanvas` only (none in jsdom/Node → estimate, no jsdom
+   "not implemented" noise). Stored boxes are rounded to 0.01.
+5. **Rendering.** Text objects render the lines computed by `layoutText` (`white-space: pre`
+   per line), so on-screen wrapping always matches the stored height; remote clients compute
+   lines locally for display but never write the box. The editor is a textarea over the box
+   (`pre-wrap`); in auto mode it is one em wider than the box (never wider than 600) so the
+   caret never forces a wrap.
+6. **Accessibility names.** Text object: `role="group"`, `aria-roledescription="text"`,
+   `aria-label` = its content ("Empty text" while empty), `tabIndex=0`. Editor textarea:
+   `aria-label="Text"`. Text toolbar: `role="toolbar" aria-label="Text"` with buttons showing
+   S/M/L/XL, named "Size S" … "Size XL" (title Small … Extra large), and "Delete text".
+7. **Text tool placement** happens on pointerdown (capture phase on the viewport), anywhere on the
+   board including on top of objects; toolbars, buttons and an open editor in the way keep their
+   own clicks. The text cursor is shown over the whole world layer while the tool is active.
+8. **Resize generalisation.** `ObjectTypeSpec` gained optional `handles`, `scalesWith(obj,
+   mode)` (which axes take part in group min/max limits — text never limits height, auto text
+   never limits width) and `applyResize(doc, obj, to, from, mode)` (text: reposition, fixed width
+   when a side handle is dragged or when already fixed in a group, then remeasure). A resize
+   frame is one transaction (nested model calls join it). An auto-width text narrower than 40
+   becomes 40 wide on its first side-handle drag (minimum fixed width).
+9. **Undo.** `UndoController.undoIn/redoIn` accept extra types (the text's object map), so
+   Ctrl/Cmd+Z while editing text undoes typing together with its stored box. New
+   `amendLast(fn)` appends a change to the most recent step: removing empty text at edit end
+   joins the last edit, and a step left with no net effect (text created and abandoned) is
+   dropped, so Undo stays disabled after TC-31. `NO_UNDO` and the story 8 fake controller got
+   the new method.
+10. **Text size change** is one undo step (size + remeasured box) and keeps x/y.
+11. **Text toolbar lets keys through** to the board (unlike the note toolbar), so V/T/N work right
+    after clicking a size button; Enter/Delete on buttons were already ignored by board keys.
+12. **Shared text helpers.** `clampToLimit`, `clampAtCaret` and `applyTextDiff` moved to
+    `src/shared/text-edit.ts` (limit parameter required); `StickyText.ts` re-exports them with
+    the sticky default. `StickyTextEditor` is a thin wrapper over `TextEditor` (limit, counter,
+    centring offset). The outside-click check now uses the editor's closest `[data-id]`.
+13. **Browsers.** Only Chromium is installed here (Firefox/WebKit executables missing), so e2e
+    ran with `E2E_BROWSERS=chromium`; TC-26 is written browser-neutral with a ±2 unit tolerance
+    and should be run in firefox/webkit where available. TC-29/TC-30 skip outside Chromium.
+
+### Not covered
+- Font loading flashes, IME composition in text objects and right-to-left layout (design
+  "Not covered"). The configured font is Inter with system fallbacks; no web font is loaded, so
+  the canvas and DOM use the same system font.
+- With two people typing into one text at once, the stored box is whichever client wrote last
+  and may lag the merged text slightly; rendering (lines computed locally) is unaffected.
