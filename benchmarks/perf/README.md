@@ -5,7 +5,7 @@ so the figures in [`docs/discovery.md`](../../docs/discovery.md) and in each
 combination's `profiles.tsv` can be re-derived rather than taken on trust.
 
 Results live with the combination they were measured on, not here — e.g.
-[`combinations/qwen/3.8/27b/ubuntu/24GB/llamacpp-opencode/benchmarks/`](../../combinations/qwen/3.8/27b/ubuntu/24GB/llamacpp-opencode/benchmarks/).
+[`combinations/qwen/3.8/27b/ubuntu/nvidia4090/llamacpp-opencode/benchmarks/`](../../combinations/qwen/3.8/27b/ubuntu/nvidia4090/llamacpp-opencode/benchmarks/).
 Same split as the rest of the repo: harness is shared, measurements are data.
 
 ## Running them

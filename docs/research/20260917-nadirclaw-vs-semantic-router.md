@@ -17,7 +17,7 @@ A router is judged by what it does with the servers this repo actually installs.
 |---|---|---|
 | `qwen/3.8/flash-next/macos/128GB/mtplx-opencode` | MTPLX 2.11.1 | Apple silicon, 128 GB |
 | `qwen/3.8/27b/macos/64GB/mtplx-opencode` | MTPLX 2.11.1 | Apple silicon, 64 GB |
-| `qwen/3.8/27b/ubuntu/24GB/llamacpp-opencode` | llama.cpp `llama-server`, built from `master` | Ubuntu 22.04, RTX 4090 24 GB |
+| `qwen/3.8/27b/ubuntu/nvidia4090/llamacpp-opencode` | llama.cpp `llama-server`, built from `master` | Ubuntu 22.04, RTX 4090 24 GB |
 
 All three are driven by OpenCode.
 
@@ -355,7 +355,7 @@ Every switch throws away a cache. At long contexts that costs more than most rou
 ### Where the cost comes from
 
 1. **The target backend starts cold.** A session moving to another backend must reprocess its whole context there.
-   - **4090 box:** prefill is 2,309 tok/s (MEASURED, `combinations/qwen/3.8/27b/ubuntu/24GB/llamacpp-opencode/profiles.tsv`). A 100k-token session moving onto it waits at least **~43 s** before the first token, and prefill slows as context grows (arithmetic).
+   - **4090 box:** prefill is 2,309 tok/s (MEASURED, `combinations/qwen/3.8/27b/ubuntu/nvidia4090/llamacpp-opencode/profiles.tsv`). A 100k-token session moving onto it waits at least **~43 s** before the first token, and prefill slows as context grows (arithmetic).
    - **Mac:** Flash-Next's warm median time to first token is 2.0 s, helped by a 98.8% session-bank restore (MEASURED). The repo has no measured cold-prefill rate for it.
 2. **The source backend may lose the session while it's away.**
    - **The llama.cpp combination runs a single slot:** every profile uses `-np 1` (`profiles.tsv`). Any *other* conversation on that server replaces the main session's KV cache in that slot: a title request, a subagent, a compaction call (CODE-level reasoning, not measured).
@@ -461,4 +461,4 @@ PROBE_RESPONSES=$OLDPWD/$H/llama-server-b49650a-responses \
 - [NadirRouter/NadirClaw](https://github.com/NadirRouter/NadirClaw) @ `8a9f55f` (see companion doc)
 - MTPLX 2.11.1 installed source: `mtplx/server/openai.py`
 - OpenCode 1.18.20; omp 18.2.4 ([can1357/oh-my-pi](https://github.com/can1357/oh-my-pi)); Cline CLI 3.0.62 ([cline/cline](https://github.com/cline/cline) @ `27fe60d`); DeepSeek Harness 0.1.6-alpha.2 ([deepseek-ai/deepseek-harness](https://github.com/deepseek-ai/deepseek-harness) @ `ddefc45`). Captured request bodies are in the harness folder.
-- This repo: `combinations/qwen/3.8/27b/ubuntu/24GB/llamacpp-opencode/config.sh`, `lib/runtime/server-llamacpp.sh`
+- This repo: `combinations/qwen/3.8/27b/ubuntu/nvidia4090/llamacpp-opencode/config.sh`, `lib/runtime/server-llamacpp.sh`

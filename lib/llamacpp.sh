@@ -24,7 +24,7 @@ LLAMA_DIR="${LLAMA_DIR:-${INSTALL_ROOT}/llama.cpp}"
 
 # WHERE llama.cpp comes from. Upstream by default, but a combination may point
 # at a fork when its weights need kernels that are not upstream yet -- see
-# combinations/bonsai/2/27b/ubuntu/24GB/llamacpp-opencode, whose ternary types
+# combinations/bonsai/2/27b/ubuntu/nvidia4090/llamacpp-opencode, whose ternary types
 # stock llama.cpp refuses outright. Keeping this a variable rather than a
 # second backend module is what docs/adding-a-combination.md asks for: the
 # thing that varies is data, not logic.
@@ -59,7 +59,15 @@ backend_smoke_context() {
 # assert it actually drafted tokens rather than trusting that the head loaded.
 backend_smoke_assert() {
   local smoke_log="$1"
-  [[ -n "$MTP_HEAD" ]] || return 0
+  if [[ -z "$MTP_HEAD" && "${SPEC_BUILTIN:-0}" != "1" ]]; then
+    # No MTP head: the launcher may have turned on n-gram speculation, and
+    # says which in the log. A one-line smoke prompt has nothing to draft
+    # from, so an acceptance figure is not expected here -- report, not assert.
+    local spec
+    spec="$(grep -oE 'speculation: [^(]*' "$smoke_log" | tail -1 | sed 's/ *$//')"
+    [[ -n "$spec" ]] && { SMOKE_SPEC_NOTE="${spec#speculation: }"; info "Speculative decoding: ${SMOKE_SPEC_NOTE}"; }
+    return 0
+  fi
   local acc
   acc=$(grep -oE 'draft acceptance = [0-9.]+' "$smoke_log" | tail -1 | grep -oE '[0-9.]+$')
   if [[ -n "$acc" ]]; then
