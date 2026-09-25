@@ -10080,6 +10080,15 @@
         },
         "heldout_floor": 1.0,
         "heldout_ok": true
+      },
+      "record": {
+        "committed": true,
+        "pushed": true,
+        "over_size_limit": [
+          "~/expts/awesome-local-ai/combinations/qwen/3.8/flash-next/macos/128GB/mtplx-opencode/benchmarks/vidi/canvas-pi-02/server.log",
+          "~/expts/awesome-local-ai/combinations/qwen/3.8/flash-next/macos/128GB/mtplx-opencode/benchmarks/vidi/canvas-pi-02/stories/05/agent-events.compact.jsonl.gz"
+        ],
+        "commit": "989a492"
       }
     }
   },
