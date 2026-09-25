@@ -29,8 +29,32 @@ export interface UndoController {
    *  not assignable to `AbstractType<unknown>` (its event type is invariant). */
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   addScope(type: Y.AbstractType<any>): void;
+  /**
+   * Runs `change` so that it and every step above `mark` on the undo stack (`mark` itself too with `including`)
+   * become one step, whatever the pauses or boundaries between them. `mark` null means the bottom of the stack.
+   * A joined step that no longer has any effect (it created and removed the same things) is dropped. Story 9 uses
+   * it to remove an abandoned empty text together with its creation or with the edit that emptied it, so undo
+   * never brings back an empty text.
+   */
+  joinSince<T>(mark: object | null, change: () => T, opts?: { including?: boolean }): T;
+  /** Whether the step on top of the undo stack created `type` (e.g. an object's Y.Map). */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  topStepCreated(type: Y.AbstractType<any>): boolean;
   onChange(cb: () => void): () => void;
   destroy(): void;
+}
+
+type DeleteSetLike = { clients: Map<number, Array<{ clock: number; len: number }>> };
+
+/** Whether every range in `inner` lies inside `outer` (both as Yjs keeps them: sorted, merged ranges). */
+function coveredBy(inner: DeleteSetLike, outer: DeleteSetLike): boolean {
+  for (const [client, ranges] of inner.clients) {
+    const cover = outer.clients.get(client) ?? [];
+    for (const r of ranges) {
+      if (!cover.some((c) => c.clock <= r.clock && r.clock + r.len <= c.clock + c.len)) return false;
+    }
+  }
+  return true;
 }
 
 export function createUndo(doc: Y.Doc, opts: { captureTimeoutMs?: number; maxSteps?: number } = {}): UndoController {
@@ -41,10 +65,11 @@ export function createUndo(doc: Y.Doc, opts: { captureTimeoutMs?: number; maxSte
   // UndoManager's, so it runs first for every transaction.
   let lastLocalChange = 0;
   let holding = false;
+  let joining = false;
   const onAfterTransaction = (tr: Y.Transaction) => {
     if (tr.origin !== LOCAL_ORIGIN) return;
     const now = Date.now();
-    if (!holding && now - lastLocalChange >= captureTimeout) um.stopCapturing();
+    if (!holding && !joining && now - lastLocalChange >= captureTimeout) um.stopCapturing();
     lastLocalChange = now;
   };
   doc.on('afterTransaction', onAfterTransaction);
@@ -100,6 +125,33 @@ export function createUndo(doc: Y.Doc, opts: { captureTimeoutMs?: number; maxSte
     topUndo: () => um.undoStack[um.undoStack.length - 1] ?? null,
     topRedo: () => um.redoStack[um.redoStack.length - 1] ?? null,
     addScope: (type) => um.addToScope(type),
+    joinSince(mark, change, opts = {}) {
+      const stack = um.undoStack;
+      const at = mark === null ? -1 : stack.indexOf(mark as (typeof stack)[number]);
+      const first = mark === null ? 0 : at < 0 ? 0 : opts.including ? at : at + 1;
+      if (first >= stack.length) return change();
+      const target = stack[first];
+      for (const item of stack.splice(first + 1)) {
+        target.insertions = Y.mergeDeleteSets([target.insertions, item.insertions]);
+        target.deletions = Y.mergeDeleteSets([target.deletions, item.deletions]);
+      }
+      joining = true;
+      // Any positive lastChange makes Y.UndoManager (infinite captureTimeout) merge into the top step.
+      um.lastChange = Math.max(1, um.lastChange);
+      try {
+        return change();
+      } finally {
+        joining = false;
+        um.stopCapturing();
+        if (stack[stack.length - 1] === target && coveredBy(target.deletions, target.insertions)) stack.pop();
+        emit();
+      }
+    },
+    topStepCreated(type) {
+      const top = um.undoStack[um.undoStack.length - 1];
+      const item = type._item;
+      return !!top && !!item && Y.isDeleted(top.insertions, item.id);
+    },
     onChange(cb) {
       listeners.add(cb);
       return () => listeners.delete(cb);
@@ -124,6 +176,8 @@ export const NO_UNDO: UndoController = {
   topUndo: () => null,
   topRedo: () => null,
   addScope() {},
+  joinSince: (_mark, change) => change(),
+  topStepCreated: () => false,
   onChange: () => () => {},
   destroy() {},
 };

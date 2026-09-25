@@ -73,6 +73,12 @@ export interface BoardViewportProps {
    * entirely inside go to `onSelect`. Without this prop Shift+drag pans like a plain drag.
    */
   marquee?: { snapshot: readonly ObjectSnapshot[]; onSelect(ids: string[]): void };
+  /**
+   * A placing tool is active (story 9 Text tool): the pointer is a text cursor over the board, and a primary click
+   * anywhere on the board, on top of objects too, calls this with the pressed world point instead of panning,
+   * drawing a marquee or reaching the objects.
+   */
+  onPlace?(world: Point): void;
 }
 
 const NO_OBJECTS: readonly ObjectSnapshot[] = [];
@@ -90,6 +96,9 @@ export function BoardViewport(props: BoardViewportProps) {
   // Where the current press on empty space started (client px), and whether it has become a drag.
   const pressRef = useRef<{ x: number; y: number; moved: boolean } | null>(null);
   const [overlayEl, setOverlayEl] = useState<HTMLDivElement | null>(null);
+  const worldRef = useRef<HTMLDivElement>(null);
+  // A press being placed by the active tool: pointer id and pressed point (viewport px).
+  const placeRef = useRef<{ pointerId: number; at: Point } | null>(null);
   const marqueePointerRef = useRef<number | null>(null);
   const onMarqueeSelect = props.marquee?.onSelect;
   const marquee = useMarquee(camera, props.marquee?.snapshot ?? NO_OBJECTS, (ids) => onMarqueeSelect?.(ids));
@@ -210,10 +219,19 @@ export function BoardViewport(props: BoardViewportProps) {
   const grid = gridBackground(camera);
   const view: BoardView = { camera, size };
 
+  /** Board space: empty space or the objects in the world layer, not toolbars or other overlays. */
+  const isBoardTarget = (t: EventTarget | null) =>
+    t === rootRef.current ||
+    (t instanceof Node && !!worldRef.current?.contains(t) && !(overlayEl?.contains(t) ?? false));
+
+  const className = ['board-viewport'];
+  if (panning) className.push('board-viewport--panning');
+  if (props.onPlace) className.push('board-viewport--placing');
+
   return (
     <div
       ref={rootRef}
-      className={panning ? 'board-viewport board-viewport--panning' : 'board-viewport'}
+      className={className.join(' ')}
       data-testid="board-viewport"
       data-state={panning ? 'panning' : marquee.rect ? 'marquee' : 'idle'}
       tabIndex={0}
@@ -222,6 +240,20 @@ export function BoardViewport(props: BoardViewportProps) {
         backgroundImage: grid.backgroundImage,
         backgroundSize: grid.backgroundSize,
         backgroundPosition: grid.backgroundPosition,
+      }}
+      onPointerDownCapture={(e) => {
+        if (!props.onPlace || e.button !== 0 || !isBoardTarget(e.target)) return;
+        // The placing tool owns this press: nothing below (objects, pan, marquee) sees it.
+        e.stopPropagation();
+        e.preventDefault();
+        placeRef.current = { pointerId: e.pointerId, at: toLocal(e.clientX, e.clientY) };
+      }}
+      onPointerUpCapture={(e) => {
+        const press = placeRef.current;
+        if (!press || press.pointerId !== e.pointerId) return;
+        placeRef.current = null;
+        e.stopPropagation();
+        props.onPlace?.(screenToWorld(camera, press.at));
       }}
       onPointerDown={(e) => {
         // Only empty board space starts a pan; objects (later stories) handle their own pointers.
@@ -284,6 +316,7 @@ export function BoardViewport(props: BoardViewportProps) {
       }}
     >
       <div
+        ref={worldRef}
         className="board-world"
         data-testid="board-world"
         style={{

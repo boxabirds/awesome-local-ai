@@ -372,3 +372,66 @@ Decisions made where the spec left room:
   origin. Its "load" helper uses its own symbol with the same role as the worker's `LOAD_ORIGIN`, so client unit
   tests don't import worker code.
 - **Browsers.** The story 8 e2e specs pass in Chromium, Firefox and WebKit (Chromium repeated 3× without flakes).
+
+## Story 9 — Write free text anywhere on the board
+
+Decisions made where the spec left room:
+
+- **No identity.** Story 6 is not part of this build, so `createText` gets `createdBy = LOCAL_AUTHOR` (`'anonymous'`,
+  exported from `App.tsx`) for every text object.
+- **Type-specific snapshot fields.** `board-model` gained `registerSnapshotReader(type, reader)`. `src/shared/objects/text.ts`
+  registers one, so `objectSnapshot` returns `TextSnapshot`s (`text`, `size`, `widthMode`) without board-model
+  importing the text module. `maxZ` is now exported for `createText`. `readText(doc, id)` is an extra export used by
+  box sync. `createText` starts with a one-empty-line box until the editing client measures it.
+- **Shared text helpers.** `clampToLimit`, `limitEdit`, `applyTextDiff` and `transformIndex` moved to
+  `src/shared/text-edit.ts` (the limit is a parameter there). `StickyText.ts` re-exports them with STICKY_TEXT_MAX_CHARS
+  as the default, so story 2 code and tests are unchanged. `StickyTextEditor.tsx` is now a thin wrapper around the
+  generalised `TextEditor.tsx`, which takes `undo` as a prop. It also has optional `className`, `ariaLabel`, `style` and
+  `renderExtra` (the note counter). The editor finds its object as the closest `[data-object-id]`.
+- **Layout rules.** Height is always lines × size × TEXT_LINE_HEIGHT, and an empty text counts as one line. Auto width
+  is the longest line *before wrapping*, plus a new `TEXT_PADDING_WORLD` (4) of slack for the caret and rounding,
+  capped at TEXT_MAX_AUTO_WIDTH_WORLD. So a text with a wrapped line is exactly 600 wide (TC-08/TC-26), and a line of
+  exactly 600 stays on one line at width 600 (TC-09). Lines wrap greedily at spaces, and a word longer than the line
+  breaks between characters (as `overflow-wrap: anywhere` does). The fallback estimate uses a new
+  `TEXT_AVG_GLYPH_WIDTH_RATIO` (0.55).
+- **Measuring with a canvas.** A document `<canvas>` is preferred over `OffscreenCanvas`: Firefox resolves
+  `system-ui` to a different font in an OffscreenCanvas (412 vs 460 px for the same string), which made its wrapping
+  differ from the DOM. In jsdom (no 2D context) the estimate is used directly, so component tests are deterministic
+  and don't log jsdom's "not implemented" error.
+- **Concurrent typing and the stored box.** As the design says, only the client that typed writes the box. When two
+  people type into the same text at once, the last box write wins and may be measured from a text without the other
+  person's latest characters. The text itself always merges. The box may then be a few units off until the next local
+  edit. Text is drawn with `overflow: visible`, so nothing is hidden.
+- **Resize through the registry.** `ObjectTypeSpec` gained `handles?: 'all' | 'horizontal'` and an optional
+  `resize(doc, obj, to, { horizontalOnly })`. The transform gesture calls it (inside the gesture's transaction) instead
+  of the generic write. So text needs no text-specific gesture code, and the registry keeps
+  `onlyHorizontalHandles(objects)` for the overlay and gesture. Text's `resize` moves the text. It sets a fixed width
+  when the drag is a side handle on text only (several texts: each gets its scaled width), and in mixed selections it
+  scales only fixed widths. Then it re-measures the height. Horizontal-only types are left out of the height limit in
+  `clampScale`, so a short text line never blocks shrinking a mixed group vertically.
+- **Abandoned empty text and undo.** `UndoController` gained `joinSince(mark, change, { including })` and
+  `topStepCreated(type)`. When editing ends with zero characters, the removal joins every step of that edit session
+  into one:
+  - For a text just created with the Text tool, the creation step joins too. The joined step then creates and removes
+    the same things, so it is dropped. Undo never brings back an empty, invisible text (TC-20/TC-31).
+  - For an existing text that was cleared, the joined step is the whole session. One undo brings the text back as it
+    was before editing.
+
+  `Y.UndoManager` merges into the top step while its `lastChange` is positive. `joinSince` relies on that, plus
+  `Y.mergeDeleteSets` for the steps in between.
+- **Text tool clicks.** `BoardViewport` has a new `onPlace(world)` prop. While it is set, capture-phase handlers own every
+  primary press on the board or its objects (not on toolbars or the world overlay), and the release creates the text
+  at the *pressed* point. Creating on release rather than on press keeps the browser's mousedown focus handling from
+  pulling focus away from the new editor. The viewport gets `board-viewport--placing` and a text cursor.
+- **Shortcuts.** V, T, N and Escape live in `useBoardKeys`. Escape with the Text tool active only returns to Select
+  (the selection is kept). N was not bound before this story, so it now does what the Sticky note button does (a note
+  in the centre of the view, being edited). The Sticky note button keeps its story 2 accessible name "Sticky note".
+- **UI text not given by the spec.** The text toolbar is `role="toolbar"` "Text" with buttons "Size S", "Size M",
+  "Size L", "Size XL" (showing S/M/L/XL, `aria-pressed`) and "Delete text". The editor textarea is named "Text". A
+  text object is `role="group"` with `aria-roledescription="text"` and its content as its accessible name ("Empty
+  text" while it is still empty). Tab reaches it, and focusing it selects it, as with notes.
+- **Test hooks.** `window.__vidi6.objects()` returns `objectSnapshot` (all known types). The e2e text specs use it.
+- **Browsers.** The story 9 e2e specs pass in Chromium, Firefox and WebKit. TC-26/27 compare the stored box height with
+  the rendered height (±half a line).
+- **Red phase.** As in earlier stories, there are no separate commits for the failing tests. This build uses one commit
+  per story.

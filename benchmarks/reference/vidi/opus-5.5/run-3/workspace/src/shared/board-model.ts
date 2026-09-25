@@ -4,6 +4,8 @@
 // Y.Doc
 //   meta: Y.Map { schemaVersion: 1 }
 //   objects: Y.Map<id, Y.Map { type: 'sticky', x, y, width?, height?, color, text: Y.Text, z, createdAt }>
+//   objects: Y.Map<id, Y.Map { type: 'text', x, y, width, height, z, createdAt, createdBy, text: Y.Text, size,
+//                              widthMode }>   (story 9, src/shared/objects/text.ts)
 //
 // `width`/`height` were added in story 7. Notes saved before that have neither and are STICKY_SIZE_WORLD square;
 // the first resize writes both. Every object type (stories 9-12) has at least type, x, y, width, height and z.
@@ -46,6 +48,15 @@ export function registerModelObjectType(type: string): void {
   knownTypes.add(type);
 }
 
+/** Reads a type's own snapshot fields (story 9 text: content, size, width mode). Null skips a malformed object. */
+export type SnapshotReader = (id: string, obj: Y.Map<unknown>, base: ObjectSnapshot) => ObjectSnapshot | null;
+const snapshotReaders = new Map<string, SnapshotReader>();
+
+/** Lets an object type's model module (src/shared/objects/*) add its fields to `objectSnapshot`. */
+export function registerSnapshotReader(type: string, reader: SnapshotReader): void {
+  snapshotReaders.set(type, reader);
+}
+
 export function isKnownObjectType(type: string): boolean {
   return knownTypes.has(type);
 }
@@ -78,8 +89,8 @@ function zOf(obj: ObjectMap): number {
   return isFiniteNumber(z) ? z : 0;
 }
 
-/** Highest z among all objects (0 when there are none). */
-function maxZ(doc: Y.Doc): number {
+/** Highest z among all objects (0 when there are none). New objects go at maxZ + 1. */
+export function maxZ(doc: Y.Doc): number {
   let max = 0;
   objectsOf(doc).forEach((obj) => {
     if (obj instanceof Y.Map) max = Math.max(max, zOf(obj));
@@ -159,7 +170,10 @@ function readObject(id: string, obj: ObjectMap): ObjectSnapshot | null {
   const x = obj.get('x');
   const y = obj.get('y');
   if (!isFiniteNumber(x) || !isFiniteNumber(y)) return null;
-  return Object.freeze({ id, type, x, y, width: sizeOf(obj.get('width')), height: sizeOf(obj.get('height')), z: zOf(obj) });
+  const base: ObjectSnapshot = { id, type, x, y, width: sizeOf(obj.get('width')), height: sizeOf(obj.get('height')), z: zOf(obj) };
+  const reader = snapshotReaders.get(type);
+  const out = reader ? reader(id, obj, base) : base;
+  return out && Object.freeze(out);
 }
 
 function readSticky(id: string, obj: ObjectMap): StickySnapshot | null {

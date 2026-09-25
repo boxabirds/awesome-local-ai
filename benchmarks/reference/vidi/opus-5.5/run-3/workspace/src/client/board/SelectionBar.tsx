@@ -4,6 +4,10 @@ import type * as Y from 'yjs';
 import { isSticky, setStickyColor, type ObjectSnapshot } from '../../shared/board-model';
 import { WorldOverlayContext } from '../canvas/worldOverlay';
 import { NoteToolbar } from '../objects/NoteToolbar';
+import { TextToolbar } from '../objects/TextToolbar';
+import { defaultMeasurer } from '../objects/textLayout';
+import { remeasureText } from '../objects/useTextBoxSync';
+import { isText, setTextSize } from '../../shared/objects/text';
 import { selectionBounds } from './SelectionOverlay';
 import { asStep, UndoContext } from './useUndo';
 
@@ -30,8 +34,8 @@ function BinIcon() {
 }
 
 /**
- * Above the selection: "N selected" and a Delete button when two or more objects are selected, or story 2's
- * note toolbar when exactly one sticky note is. Always renders a polite live region announcing the count.
+ * Above the selection: "N selected" and a Delete button when two or more objects are selected, story 2's
+ * note toolbar when exactly one sticky note is, or the text toolbar (story 9) when exactly one text object is. Always renders a polite live region announcing the count.
  * Drawn in the world overlay layer (above every object) and scaled by 1 / zoom to keep its screen size.
  */
 export function SelectionBar(props: {
@@ -53,6 +57,7 @@ export function SelectionBar(props: {
   const count = selected.length;
   const box = selectionBounds(ids, snapshot);
   const single = count === 1 && isSticky(selected[0]) ? selected[0] : null;
+  const singleText = count === 1 && isText(selected[0]) ? selected[0] : null;
 
   let bar = null;
   if (box && !props.hidden) {
@@ -62,6 +67,21 @@ export function SelectionBar(props: {
         <NoteToolbar
           color={single.color}
           onColor={(c) => doc && asStep(undo, () => setStickyColor(doc, single.id, c))}
+          onDelete={props.onDelete}
+        />
+      );
+    } else if (singleText && editable) {
+      const doc = props.doc;
+      bar = (
+        <TextToolbar
+          size={singleText.size}
+          // The size and the re-measured box are one undo step; the top-left stays put.
+          onSize={(size) =>
+            doc &&
+            asStep(undo, () => {
+              if (setTextSize(doc, singleText.id, size)) remeasureText(doc, singleText.id, defaultMeasurer());
+            })
+          }
           onDelete={props.onDelete}
         />
       );

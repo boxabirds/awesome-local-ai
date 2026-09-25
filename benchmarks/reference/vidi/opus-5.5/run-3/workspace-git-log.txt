@@ -1,3 +1,43 @@
+commit a0f185ae585e4487722c0977793e83ace5b019ce
+vidi-agent  Fri Sep 25 15:08:42 2026 +0100
+
+    story 9: Write free text anywhere on the board
+
+
+ NOTES.md                                |  63 +++++++
+ src/client/App.tsx                      |  55 +++++--
+ src/client/board/SelectionBar.tsx       |  24 ++-
+ src/client/board/SelectionOverlay.tsx   |  14 +-
+ src/client/board/Toolbar.tsx            |  55 ++++++-
+ src/client/board/undo.ts                |  56 ++++++-
+ src/client/board/useBoardKeys.ts        |  31 +++-
+ src/client/board/useTool.ts             |  23 +++
+ src/client/board/useTransformGesture.ts |  32 +++-
+ src/client/canvas/BoardViewport.tsx     |  35 +++-
+ src/client/canvas/testHooks.ts          |   4 +-
+ src/client/objects/StickyText.ts        | 108 ++----------
+ src/client/objects/StickyTextEditor.tsx | 161 +++---------------
+ src/client/objects/TextEditor.tsx       | 165 +++++++++++++++++++
+ src/client/objects/TextObject.tsx       | 157 ++++++++++++++++++
+ src/client/objects/TextToolbar.tsx      |  60 +++++++
+ src/client/objects/registry.tsx         |  35 +++-
+ src/client/objects/textLayout.ts        | 115 +++++++++++++
+ src/client/objects/useTextBoxSync.ts    |  30 ++++
+ src/client/styles.css                   |  91 ++++++++++
+ src/shared/board-model.ts               |  20 ++-
+ src/shared/config.ts                    |  22 +++
+ src/shared/objects/text.ts              | 181 ++++++++++++++++++++
+ src/shared/text-edit.ts                 | 104 ++++++++++++
+ tests/component/TextBoxSync.test.tsx    | 110 +++++++++++++
+ tests/component/TextObject.test.tsx     | 284 ++++++++++++++++++++++++++++++++
+ tests/component/Tool.test.tsx           | 170 +++++++++++++++++++
+ tests/component/UndoControls.test.tsx   |   2 +
+ tests/e2e/helpers/texts.ts              |  34 ++++
+ tests/e2e/text.spec.ts                  | 208 +++++++++++++++++++++++
+ tests/fixtures/texts.ts                 |  11 ++
+ tests/unit/text-layout.test.ts          |  81 +++++++++
+ tests/unit/text-model.test.ts           | 169 +++++++++++++++++++
+ 33 files changed, 2442 insertions(+), 268 deletions(-)
 commit f472dd02dfabf7821830826030d962ae6735519a
 vidi-agent  Fri Sep 25 14:43:03 2026 +0100
 

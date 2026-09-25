@@ -29,3 +29,14 @@ export function prose(length = 1000): string {
 }
 
 export const LONG_TEXT = prose(1000);
+
+// Story 9 — free text.
+
+/** Section headings on a retro board. */
+export const HEADINGS = ['Went well', 'To improve', 'Actions', 'Questions', 'Parking lot'];
+
+/** A 300-character English annotation: longer than one line at the maximum auto width. */
+export const ANNOTATION = prose(300);
+
+/** A pasted paragraph one character over the text object limit (TEXT_MAX_CHARS = 5,000). */
+export const OVER_LIMIT_PARAGRAPH = prose(5001);

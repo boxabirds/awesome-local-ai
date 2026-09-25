@@ -632,3 +632,94 @@ body {
   white-space: nowrap;
   border: 0;
 }
+
+/* Story 9 — free text. Plain text with no fill, border or shadow; sizes are world units, so it scales with zoom. */
+.text-object {
+  position: absolute;
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  color: #1f2330;
+  cursor: default;
+  outline: none;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  -webkit-font-smoothing: antialiased;
+}
+
+.text-object:focus-visible {
+  outline: calc(2px / var(--zoom)) solid rgba(59, 108, 246, 0.5);
+  outline-offset: calc(2px / var(--zoom));
+}
+
+.text-object--selected,
+.text-object--selected:focus-visible {
+  outline: calc(2px / var(--zoom)) solid #3b6cf6;
+  outline-offset: calc(2px / var(--zoom));
+}
+
+.text-object--dragging {
+  cursor: grabbing;
+}
+
+.text-object--editing .text-object__content {
+  visibility: hidden;
+}
+
+.text-object__editor {
+  position: absolute;
+  left: 0;
+  top: 0;
+  height: 100%;
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  outline: none;
+  resize: none;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  line-height: inherit;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  overflow: hidden;
+  cursor: text;
+  user-select: text;
+  -webkit-user-select: text;
+}
+
+.text-toolbar__size {
+  min-width: 28px;
+  height: 28px;
+  padding: 0 6px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: #1f2330;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.text-toolbar__size:hover {
+  background: #eef0f6;
+}
+
+.text-toolbar__size[aria-pressed='true'] {
+  background: #e3eaff;
+  color: #2350d8;
+}
+
+.toolbar__button[aria-pressed='true'] {
+  background: #e3eaff;
+  color: #2350d8;
+}
+
+/* A placing tool (Text) is active: a text cursor over the board and everything on it. */
+.board-viewport--placing,
+.board-viewport--placing .board-world > :not(.board-world-overlay),
+.board-viewport--placing .board-world > :not(.board-world-overlay) * {
+  cursor: text;
+}

@@ -7,6 +7,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import type * as Y from 'yjs';
 import {
   bringObjectsToFront,
+  LOCAL_ORIGIN,
   moveObjects,
   objectBounds,
   resizeObjects,
@@ -24,7 +25,7 @@ import {
   type Rect,
 } from '../../shared/geometry';
 import type { Camera } from '../canvas/camera';
-import { getObjectType } from '../objects/registry';
+import { getObjectType, onlyHorizontalHandles } from '../objects/registry';
 import type { Selection } from './useSelection';
 
 /** The parts of a pointer event the gesture reads (React and DOM pointer events both fit). */
@@ -104,24 +105,45 @@ export function useTransformGesture(opts: TransformGestureOptions): {
     const box = p.startBox;
     if (!box || !p.handle) return;
     const specs = new Map<string, ReturnType<typeof getObjectType>>();
-    for (const o of latest.current.snapshot) if (p.startRects.has(o.id)) specs.set(o.id, getObjectType(o.type));
+    const objects = new Map<string, ObjectSnapshot>();
+    for (const o of latest.current.snapshot) {
+      if (!p.startRects.has(o.id)) continue;
+      specs.set(o.id, getObjectType(o.type));
+      objects.set(o.id, o);
+    }
     const resizable = [...p.startRects].filter(([id]) => specs.get(id)?.resizable);
     const aspect = p.shiftKey || [...specs.values()].some((s) => s?.aspectLocked);
     const raw = handleScale(box, p.handle, { x: dx, y: dy }, aspect);
     const scale = clampScale(
       raw,
-      resizable.map(([, r]) => r),
+      // A type with horizontal handles only does not set its own height, so its height sets no limit.
+      resizable.map(([id, r]) => (specs.get(id)?.handles === 'horizontal' ? { ...r, height: 0 } : r)),
       resizable.map(([id]) => specs.get(id)!.minSize),
       MAX_OBJECT_SIZE_WORLD,
     );
     const to = scaleFromHandle(box, p.handle, scale);
+    const horizontalOnly = onlyHorizontalHandles([...objects.values()]) && (p.handle === 'e' || p.handle === 'w');
     const rects = new Map<string, Rect>();
+    const custom: Array<() => void> = [];
     for (const [id, r] of p.startRects) {
       const scaled = scaleWithin(r, box, to);
+      const spec = specs.get(id);
+      const obj = objects.get(id);
+      if (spec?.resize && obj) {
+        custom.push(() => spec.resize!(doc, obj, scaled, { horizontalOnly }));
+        continue;
+      }
       // An object that cannot be resized keeps its size; only its position follows the group.
-      rects.set(id, specs.get(id)?.resizable ? scaled : { ...scaled, width: r.width, height: r.height });
+      rects.set(id, spec?.resizable ? scaled : { ...scaled, width: r.width, height: r.height });
     }
-    resizeObjects(doc, rects);
+    if (custom.length === 0) {
+      resizeObjects(doc, rects);
+      return;
+    }
+    doc.transact(() => {
+      resizeObjects(doc, rects);
+      custom.forEach((write) => write());
+    }, LOCAL_ORIGIN);
   }, []);
 
   const finish = useCallback(
