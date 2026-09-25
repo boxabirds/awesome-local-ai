@@ -549,8 +549,8 @@ def test_reference_runs_get_distinct_labels_and_work_dirs():
     b = REPO_ROOT / "benchmarks" / "reference" / "vidi" / "sonnet-5" / "run-2"
     assert combination_label(a) == "reference/opus-5.5"
     assert work_dir_for(a) != work_dir_for(b) and work_dir_for(a).parent == WORK_ROOT
-    local = REPO_ROOT / "combinations" / "qwen" / "3.8" / "27b" / "ubuntu" / "24GB" / "llamacpp-opencode" / "benchmarks" / "vidi" / "canvas-pi-03"
-    assert combination_label(local) == "qwen/3.8/27b/ubuntu/24GB/llamacpp-opencode"
+    local = REPO_ROOT / "combinations" / "qwen" / "3.8" / "27b" / "ubuntu" / "nvidia4090" / "llamacpp-opencode" / "benchmarks" / "vidi" / "canvas-pi-03"
+    assert combination_label(local) == "qwen/3.8/27b/ubuntu/nvidia4090/llamacpp-opencode"
 
 
 def test_agent_browsers_are_kept_apart_from_the_held_out_suites(tmp_path: Path):

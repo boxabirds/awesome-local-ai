@@ -19,7 +19,7 @@ REPO_ROOT="$(cd "$DIR/.." && pwd)"
 FAKE_HOME="$(mktemp -d)"
 trap 'rm -rf "$FAKE_HOME"' EXIT
 
-COMBO="qwen/3.8/27b/ubuntu/24GB/llamacpp-opencode"
+COMBO="qwen/3.8/27b/ubuntu/nvidia4090/llamacpp-opencode"
 OUT="$FAKE_HOME/install-out.txt"
 
 # Run bootstrap with the hardware-dependent steps stubbed out. The stubs are
