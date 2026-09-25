@@ -120,7 +120,7 @@ pub fn run_dir(repo: &Path, combination: &str, spec: &JobSpec) -> PathBuf {
 }
 
 /// The harness's live story and task status, rewritten atomically in the run dir.
-/// Its shape is `benchmarks/vidi/harness/CONTROL.md`.
+/// Its shape is `benchmarks/spec-bench/harness/CONTROL.md`.
 pub const PROGRESS_FILE: &str = "progress.json";
 pub const METRICS_FILE: &str = "metrics.json";
 pub const CURRENT_STORY_FILE: &str = "current_story";
@@ -664,7 +664,7 @@ mod tests {
         assert_eq!((s[0].passed, s[0].total), (Some(5), Some(5)));
     }
 
-    /// The example from benchmarks/vidi/harness/CONTROL.md, plus a finished and a pending story.
+    /// The example from benchmarks/spec-bench/harness/CONTROL.md, plus a finished and a pending story.
     const PROGRESS_JSON: &str = r#"{
       "updated_at": 1790302781.2,
       "scope": "canvas",
