@@ -1,3 +1,93 @@
+commit f08de70a44635015527e9d75ac567857deb07ef4
+vidi-agent  Fri Sep 25 03:35:03 2026 +0100
+
+    feat: live multi-editor sync end-to-end + full e2e verification (tasks 4-9)
+
+
+ playwright.config.ts                      |  14 +-
+ playwright.nightly.config.ts              |  35 +++
+ src/client/objects/StickyText.ts          |  86 +++++++
+ src/client/objects/StickyTextEditor.tsx   |  19 +-
+ src/client/sync/connectBoard.ts           |  66 ++++-
+ src/worker/board-room.ts                  |  31 ++-
+ tests/component/ConnectionStatus.test.tsx |  55 +++++
+ tests/e2e/collaboration.spec.ts           | 397 ++++++++++++++++++++++++++++++
+ tests/e2e/helpers/participants.ts         | 112 +++++++++
+ tests/e2e/nightly/capacity-soak.spec.ts   | 392 +++++++++++++++++++++++++++++
+ tests/e2e/nightly/idle-stability.spec.ts  |  56 +++++
+ tests/integration/board-room.test.ts      |  34 ++-
+ tests/integration/ws-client.ts            |  63 ++---
+ tests/unit/sticky-text.test.ts            | 116 ++++++++-
+ 14 files changed, 1418 insertions(+), 58 deletions(-)
+commit 2c37a5f16943ffefe71d0d25fcf2508355c79c0b
+vidi-agent  Fri Sep 25 01:32:20 2026 +0100
+
+    feat(client): live board connection + status badge (tasks 4, 7)
+
+
+ src/client/App.tsx                        |  19 ++++-
+ src/client/board/useBoardDoc.ts           |  39 +++++++--
+ src/client/canvas/testHooks.ts            |  12 +++
+ src/client/styles.css                     |  43 ++++++++++
+ src/client/sync/ConnectionStatus.tsx      |  39 +++++++++
+ src/client/sync/connectBoard.ts           | 136 ++++++++++++++++++++++++++++++
+ tests/component/ConnectionStatus.test.tsx | 131 ++++++++++++++++++++++++++++
+ 7 files changed, 412 insertions(+), 7 deletions(-)
+commit 3fa66969afd69bab6436625ebfb08218514c607e
+vidi-agent  Fri Sep 25 01:24:12 2026 +0100
+
+    test(integration): align suite with task sheet TCs (TC-04..TC-18, TC-31)
+
+
+ tests/integration/board-room.test.ts | 462 ++++++++++++++++++++++++++---------
+ tests/integration/random-ops.ts      | 141 +++++++++++
+ tests/integration/worker.test.ts     |  34 +--
+ tests/integration/ws-client.ts       | 193 +++++++++++----
+ 4 files changed, 649 insertions(+), 181 deletions(-)
+commit 9df760c7a19e69634ef68888e784c8ccf029f098
+vidi-agent  Fri Sep 25 01:12:49 2026 +0100
+
+    feat(worker): BoardRoom relay with y-websocket protocol + integration tests
+
+
+ src/worker/board-room.ts             | 230 ++++++++++++++++++++++++++++++++-
+ tests/integration/board-room.test.ts | 220 +++++++++++++++++++++++++++++++
+ tests/integration/vitest.d.ts        |   9 ++
+ tests/integration/worker.test.ts     |  50 ++++++++
+ tests/integration/ws-client.ts       | 242 +++++++++++++++++++++++++++++++++++
+ vitest.config.ts                     |   4 +
+ 6 files changed, 749 insertions(+), 6 deletions(-)
+commit c46b962f1693bb577e2ee423804029e7a70b3dc2
+vidi-agent  Fri Sep 25 00:35:42 2026 +0100
+
+    story 3 tasks 1-2: board ids, protocol decode, worker entry, wrangler config, integration vitest project
+
+
+ package.json                |  7 ++++--
+ src/shared/board-id.ts      | 23 +++++++++++++++++--
+ src/shared/protocol.ts      | 54 ++++++++++++++++++++++++++++++++++++++++++++-
+ src/worker/board-room.ts    | 13 +++++++++++
+ src/worker/index.ts         | 41 ++++++++++++++++++++++++++++++++++
+ tests/unit/protocol.test.ts | 13 ++++++-----
+ tsconfig.json               |  3 ++-
+ tsconfig.worker.json        |  8 +++++++
+ vitest.config.ts            | 21 +++++++++++++++---
+ wrangler.jsonc              | 27 ++++++++++++++++++++---
+ 10 files changed, 193 insertions(+), 17 deletions(-)
+commit e6df042894938d36704bcc5dd73ed5e5b031759c
+vidi-agent  Fri Sep 25 00:28:37 2026 +0100
+
+    story 3 task 1: board id and protocol decode unit tests first (TC-01 to TC-03)
+
+
+ package-lock.json           | 1368 +++++++++++++++++++++++++++++++++++++++++++
+ package.json                |    5 +
+ src/shared/board-id.ts      |   25 +
+ src/shared/config.ts        |   17 +
+ src/shared/protocol.ts      |   47 ++
+ tests/unit/board-id.test.ts |   40 ++
+ tests/unit/protocol.test.ts |  125 ++++
+ 7 files changed, 1627 insertions(+)
 commit 6b657a0850d751488b0151a4c05dacc7153d562a
 vidi-agent  Fri Sep 25 00:12:18 2026 +0100
 
