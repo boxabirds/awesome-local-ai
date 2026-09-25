@@ -1,6 +1,6 @@
 {
   "state": "failed",
-  "reason": "exit 2: [--output-limit OUTPUT_LIMIT] [--compact-at COMPACT_AT] [--only ONLY] [--record] drive.py: error: argument --context-limit: invalid int value: \"131072 # must match the default profile's ctx\"",
-  "at": "2026-09-25T20:19:01Z",
+  "reason": "exit 143:",
+  "at": "2026-09-25T20:20:33Z",
   "host": "tritus"
 }
