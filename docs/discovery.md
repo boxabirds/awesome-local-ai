@@ -447,7 +447,7 @@ llama-bench -m "$MODEL" -ngl 99 -fa 1 -p 8192 -n 64 -ub 256,512 -r 2
 **Always re-measure after changing a global flag.** Section 5 exists because that
 step was skipped once.
 
-The actual harnesses are checked in under [`benchmarks/`](../benchmarks/), and
+The actual harnesses are checked in under [`benchmarks/`](../benchmarks/perf/), and
 the raw output every number here came from is under the combination's
 [`benchmarks/`](../combinations/qwen/3.8/27b/ubuntu/24GB/llamacpp-opencode/benchmarks/)
 directory, server logs included. Prefer re-running those to reconstructing the

@@ -26,7 +26,7 @@ share. The launcher pre-flights against that server-only figure.
 ## The harnesses
 
 `probe.sh` here is the profile prober: it is
-[`benchmarks/refit.sh`](../../../../../../../../benchmarks/refit.sh) with the
+[`benchmarks/perf/refit.sh`](../../../../../../../../benchmarks/perf/refit.sh) with the
 MTP/draft flags removed and the binary path pointed at the fork. It starts a
 server, waits for `/health`, reads `nvidia-smi`, sends a ~6,000-token prompt and
 reads the server's own prompt-eval rate, then kills it.
@@ -164,7 +164,7 @@ default reasoning effort is higher:
 | 4,096 | `stop` | 375 | 302 |
 
 *Reasoning effort* — `logs/reasoning-effort.txt`, from
-[`benchmarks/effort.sh`](../../../../../../../../benchmarks/effort.sh): 5 prompts,
+[`benchmarks/perf/effort.sh`](../../../../../../../../benchmarks/perf/effort.sh): 5 prompts,
 greedy (temperature 0, top_k 1), one model load.
 
 | effort | reasoning chars | completion tokens |
@@ -235,9 +235,9 @@ while there was only one.
 
 **Still open:**
 
-3. `benchmarks/refit.sh` hardcodes `-md "$MTP" --spec-type draft-mtp`, so a
+3. `benchmarks/perf/refit.sh` hardcodes `-md "$MTP" --spec-type draft-mtp`, so a
    combination with no drafter cannot use it unmodified — which is why
    `probe.sh` exists here. The draft flags should come from the manifest.
-4. `benchmarks/lib.sh` reaches into `$ROOT/llama.cpp/build/bin/llama-server`
+4. `benchmarks/perf/lib.sh` reaches into `$ROOT/llama.cpp/build/bin/llama-server`
    directly rather than going through the installed shims. Correct for both
    current combinations, but it is the same assumption that caused (1).

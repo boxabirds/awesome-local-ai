@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# benchmarks/lib.sh -- resolve an installed combination for the probe scripts.
+# benchmarks/perf/lib.sh -- resolve an installed combination for the probe scripts.
 #
 # The harnesses in this directory measure whatever awesome-local-ai has
 # installed. Rather than hardcoding model paths, they read the install manifest

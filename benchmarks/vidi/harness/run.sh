@@ -106,7 +106,7 @@ echo "sandbox preflight (agent toolchain inside the sandbox)"
 if [[ "$(uname)" == Darwin ]]; then
   echo "cooling to thermal nominal"
   python3 -c "
-import sys; sys.path.insert(0, '$REPO_ROOT/benchmarks')
+import sys; sys.path.insert(0, '$REPO_ROOT/benchmarks/perf')
 from thermal import wait_for_thermal
 print('  thermal=' + wait_for_thermal('nominal', timeout_s=$THERMAL_TIMEOUT_S))"
 fi  # elsewhere the driver waits for fit conditions (hostenv) before every story

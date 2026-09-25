@@ -1,6 +1,6 @@
 # Delivery audit: Claude Opus 5.5 reference
 
-This audit uses the rubric in [`benchmarks/vidi/audit.md`](../../../vidi/audit.md). Four auditors (fresh Opus 5.5 subagents) each covered a group of stories. They checked every task, every design test case and every PRD requirement against the code, triaged each held-out failure, and compared the agent's own completion claims with what they found. They used code reading, the held-out results, and their own runs in scratch copies.
+This audit uses the rubric in [`benchmarks/vidi/audit.md`](../../../../vidi/audit.md). Four auditors (fresh Opus 5.5 subagents) each covered a group of stories. They checked every task, every design test case and every PRD requirement against the code, triaged each held-out failure, and compared the agent's own completion claims with what they found. They used code reading, the held-out results, and their own runs in scratch copies.
 
 One reviewer then applied a single standard across **both** setups:
 - only faults present in the **delivered** (final) code count; faults fixed in a later story are listed separately;

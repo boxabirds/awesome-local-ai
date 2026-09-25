@@ -21,7 +21,7 @@ throughput not quality), and the baseline-reconciliation note live in
 Reproduce with:
 
 ```bash
-bash benchmarks/swift-ab.sh          # repo root -- stops the baseline, runs both,
+bash benchmarks/perf/swift-ab.sh          # repo root -- stops the baseline, runs both,
                                      # restores nothing (run swift-stop.sh after)
 ```
 

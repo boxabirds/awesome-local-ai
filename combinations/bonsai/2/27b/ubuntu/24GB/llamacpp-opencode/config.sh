@@ -99,7 +99,7 @@ SAMPLING_THINKING="--temp 1.0 --top-p 0.95 --top-k 20 --min-p 0.0"
 SAMPLING_INSTRUCT="--temp 0.7 --top-p 0.80 --top-k 20 --min-p 0.0 --presence-penalty 1.5"
 
 # Bonsai 2 defaults to xhigh. Its card states low is NOT supported and behaves
-# close to xhigh, and benchmarks/effort.sh confirms it on this hardware --
+# close to xhigh, and benchmarks/perf/effort.sh confirms it on this hardware --
 # 5 prompts, greedy, one load:
 #
 #   effort    reasoning chars   completion tokens

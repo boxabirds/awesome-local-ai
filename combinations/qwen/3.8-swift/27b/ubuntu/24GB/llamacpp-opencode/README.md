@@ -87,7 +87,7 @@ The installer is **idempotent** — re-running only upgrades what is outdated. I
 6. **Smoke-tests**: loads the model, generates, and checks the log for the
    built-in MTP engaging
 
-> If you already ran the A/B (`benchmarks/swift-ab.sh`), the model and mmproj
+> If you already ran the A/B (`benchmarks/perf/swift-ab.sh`), the model and mmproj
 > are already in `~/.local/share/swift-qwen38-27b/models/` and the install will
 > reuse them — no re-download.
 

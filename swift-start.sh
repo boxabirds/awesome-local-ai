@@ -6,7 +6,7 @@
 #   2. stop the installed baseline server to free the GPU -- this ends any agent
 #      session running on it (pi / opencode). That is the point; do it on purpose.
 #   3. wait, confirmed by nvidia-smi, until the VRAM is actually released
-#   4. launch benchmarks/swift-ab.sh detached under nohup (first run downloads
+#   4. launch benchmarks/perf/swift-ab.sh detached under nohup (first run downloads
 #      Swift Q4_K_M ~17 GB), logging to <repo>/logs/swift-ab.log
 #
 # Reverse it with ./swift-stop.sh (kills the bench, restores the baseline, and
@@ -31,7 +31,7 @@ while (( $# )); do
 done
 
 BASELINE_PAT='qwen38-27b/llama.cpp/build/bin/llama-server'
-BENCH_PAT='benchmarks/swift-ab.sh'
+BENCH_PAT='benchmarks/perf/swift-ab.sh'
 BENCH_PORT="${BENCH_PORT:-18099}"
 BASE_PORT="${BASE_PORT:-8080}"
 NEED_FREE_MIB="${NEED_FREE_MIB:-19000}"
@@ -92,7 +92,7 @@ echo
 # 4) launch the bench detached (stdin from /dev/null so no prompt can hang it)
 echo "Launching Swift A/B bench -> $LOG   (first run downloads Swift Q4_K_M)"
 bench_flags=(--yes); (( PASS_VERBOSE )) && bench_flags+=(--verbose)
-nohup bash "$REPO_ROOT/benchmarks/swift-ab.sh" "${bench_flags[@]}" </dev/null >"$LOG" 2>&1 &
+nohup bash "$REPO_ROOT/benchmarks/perf/swift-ab.sh" "${bench_flags[@]}" </dev/null >"$LOG" 2>&1 &
 echo "  bench PID: $!"
 echo
 echo "Watch it:         tail -f $LOG"

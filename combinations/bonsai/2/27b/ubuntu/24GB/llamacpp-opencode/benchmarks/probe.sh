@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Bonsai 2 27B profile probe -- same shape as awesome-local-ai's benchmarks/refit.sh,
+# Bonsai 2 27B profile probe -- same shape as awesome-local-ai's benchmarks/perf/refit.sh,
 # but pointed at the PrismML fork binary and with no MTP/draft flags.
 EVAL="$HOME/.local/share/bonsai2-27b"
 LS="$EVAL/llama.cpp/build/bin/llama-server"

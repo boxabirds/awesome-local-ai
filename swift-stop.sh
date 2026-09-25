@@ -23,7 +23,7 @@ case "${1:-}" in
 esac
 
 BASELINE_PAT='qwen38-27b/llama.cpp/build/bin/llama-server'
-BENCH_PAT='benchmarks/swift-ab.sh'
+BENCH_PAT='benchmarks/perf/swift-ab.sh'
 SWIFT_DL_PAT='ukisai/Swift-Qwen3.8-27B-GGUF'
 BENCH_PORT="${BENCH_PORT:-18099}"
 BASE_PORT="${BASE_PORT:-8080}"

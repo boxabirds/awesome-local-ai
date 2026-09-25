@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# benchmarks/apple-silicon-probe.sh -- measure Bonsai 2 27B on an Apple silicon Mac.
+# benchmarks/perf/apple-silicon-probe.sh -- measure Bonsai 2 27B on an Apple silicon Mac.
 #
 # Unlike its neighbours this harness does NOT source lib.sh and does not need
 # awesome-local-ai installed: it measures a machine that has no combination yet,
@@ -118,7 +118,7 @@ mkdir -p "$WORK" || _die "cannot create $WORK"
 : > "$RESULT"
 say "# Bonsai 2 27B on Apple silicon -- probe report"
 say ""
-say "Produced by \`benchmarks/apple-silicon-probe.sh\` from awesome-local-ai."
+say "Produced by \`benchmarks/perf/apple-silicon-probe.sh\` from awesome-local-ai."
 say "Every number below is from this machine. Paths are scrubbed to \$HOME."
 say ""
 say "## Machine"

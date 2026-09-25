@@ -1,5 +1,5 @@
 === reasoning_effort cost, RTX 4090 24GB, 2026-08-31 ===
-harness: benchmarks/effort.sh
+harness: benchmarks/perf/effort.sh
 5 prompts, greedy (temperature 0, top_k 1), one server load
 
 effort    reasoning chars  completion tokens
