@@ -9636,7 +9636,950 @@
         "files": 159,
         "lines": 28448
       },
-      "finished": 1790306024.126583
+      "finished": 1790306024.126583,
+      "record": {
+        "committed": true,
+        "pushed": true,
+        "over_size_limit": [
+          "~/expts/awesome-local-ai/combinations/qwen/3.8/flash-next/macos/128GB/mtplx-opencode/benchmarks/vidi/canvas-pi-01/stories/11/agent-events.compact.jsonl.gz"
+        ],
+        "commit": "69f3c15"
+      }
+    },
+    "12": {
+      "title": "Drop images onto the board",
+      "conditions_start": {
+        "ac": true,
+        "low_power": false,
+        "thermal": "nominal"
+      },
+      "started": 1790306034.418029,
+      "agent": {
+        "seconds": 4149.4,
+        "steps": 313,
+        "tool_calls": 324,
+        "compactions": 24,
+        "tool_interruptions": 0,
+        "tokens": {
+          "input": 531511,
+          "output": 155614,
+          "reasoning": 58732,
+          "cache_read": 23109484,
+          "cache_write": 0
+        },
+        "exit": 0,
+        "stalled": false,
+        "resumes": 1,
+        "nudges": 2,
+        "errors": [
+          "insufficient memory: this prompt projects 96.5 GiB against the engine's 96.0 GiB limit (0.5 GiB over) after the allocator cache and the session bank were reclaimed (120066 prompt tokens, 4263 not cached). The engine stays up and keeps its sessions; this request was refused before prefill instead of pushing the Mac into swap. Reduce the prompt, start a new conversation, close other apps, or use q8 KV quantization; --allow-swap admits it anyway."
+        ],
+        "ended_in_error": false,
+        "sessions": [
+          "01a0d68e-239c-7398-a958-3b5fae3dbbfb",
+          "01a0d69e-f006-7560-a31e-a563fd2638da",
+          "01a0d69e-f006-7560-a31e-a563fd2638da",
+          "01a0d69e-f006-7560-a31e-a563fd2638da"
+        ]
+      },
+      "agent_finished": 1790310244.082724,
+      "conditions": {
+        "samples": 138,
+        "degraded": false,
+        "throttled_share": 0.88,
+        "bad_samples": [
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "moderate",
+            "t": 1790306155.422636
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "moderate",
+            "t": 1790306185.737964
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790306216.067054
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790306246.400752
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790306276.716865
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790306307.025878
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790306337.327552
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790306367.645833
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790306398.048318
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790306428.369334
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790306458.6618738
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790306488.954999
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790306519.247914
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790306549.546654
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790306579.84256
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790306610.140855
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790306640.433303
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790306670.7178519
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790306701.011401
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790306731.297324
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790306761.586833
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790306791.867167
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "moderate",
+            "t": 1790306822.150934
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "moderate",
+            "t": 1790307246.326783
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790307276.643828
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790307306.99267
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790307337.3234491
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790307367.660523
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790307398.0024981
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790307428.309054
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790307458.6372962
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790307488.962964
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790307519.284671
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790307549.607291
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790307579.913588
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790307610.2122161
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790307640.4975512
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790307670.785355
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790307701.1113532
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790307731.41505
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790307761.726308
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790307791.999209
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790307822.304092
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790307852.608372
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790307882.907849
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790307913.22332
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790307943.550474
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790307973.871524
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790308004.182323
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790308034.502769
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790308064.826944
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790308095.1683688
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790308125.495865
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790308155.814938
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790308186.126831
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790308216.431344
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790308246.753143
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790308277.0732381
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790308307.383347
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790308337.693842
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790308368.033216
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790308398.3592231
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790308428.66356
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790308458.987527
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790308489.308785
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790308519.6317818
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790308549.9383838
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790308580.238584
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790308610.564733
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790308640.880346
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790308671.205486
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790308701.48573
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790308731.7816708
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790308762.0974011
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790308792.425439
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790308822.716576
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790308853.0140522
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "moderate",
+            "t": 1790308883.322079
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "moderate",
+            "t": 1790308913.602188
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "moderate",
+            "t": 1790308943.935751
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "moderate",
+            "t": 1790308974.254348
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "moderate",
+            "t": 1790309004.5867462
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790309034.9111218
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790309065.251133
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790309095.585758
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790309125.901979
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790309156.247765
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790309186.5939798
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790309216.927274
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790309247.257291
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790309277.546643
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790309307.904803
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790309338.221812
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790309368.588046
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790309400.487474
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "moderate",
+            "t": 1790309430.820957
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "moderate",
+            "t": 1790309461.132989
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "moderate",
+            "t": 1790309491.438463
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "moderate",
+            "t": 1790309521.744697
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "moderate",
+            "t": 1790309552.061815
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790309582.387691
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790309612.688949
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790309643.0102599
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790309673.3371782
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790309703.65489
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790309733.966491
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790309764.390937
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "moderate",
+            "t": 1790309794.684789
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "moderate",
+            "t": 1790309824.978667
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "moderate",
+            "t": 1790309855.255588
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "moderate",
+            "t": 1790309885.5682309
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790309915.870968
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790309946.170801
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790309976.476487
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790310006.77656
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790310037.087765
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790310067.390932
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790310097.695989
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "moderate",
+            "t": 1790310128.011827
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "moderate",
+            "t": 1790310158.3124712
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "moderate",
+            "t": 1790310188.672215
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "moderate",
+            "t": 1790310219.0018508
+          }
+        ],
+        "swap_start_gb": 0.59,
+        "swap_max_gb": 1.91,
+        "aborted_swap": false,
+        "aborted_memory": false,
+        "free_min_pct": 15.0,
+        "server_footprint_max_gb": 108.0,
+        "server_footprint_peak_gb": 109.0
+      },
+      "agent_commits": 0,
+      "gate": {
+        "steps": {
+          "install": {
+            "cmd": "npm ci",
+            "exit": 0,
+            "seconds": 4.1,
+            "tail": "\nadded 160 packages, and audited 161 packages in 4s\n\n42 packages are looking for funding\n  run `npm fund` for details\n\n4 high severity vulnerabilities\n\nTo address all issues (including breaking changes), run:\n  npm audit fix --force\n\nRun `npm audit` for details.\nnpm warn allow-scripts 4 packages have install scripts not yet covered by allowScripts:\nnpm warn allow-scripts   workerd@1.20260815.1 (postinstall: node install.js)\nnpm warn allow-scripts   esbuild@0.28.1 (postinstall: node install.js)\nnpm warn allow-scripts   fsevents@2.3.3 (install: (install scripts present))\nnpm warn allow-scripts   workerd@1.20260921.1 (postinstall: node install.js)\nnpm warn allow-scripts\nnpm warn allow-scripts Run `npm approve-scripts --allow-scripts-pending` to review, or `npm approve-scripts <pkg>` to allow.\n"
+          },
+          "build": {
+            "cmd": "npm run build",
+            "exit": 0,
+            "seconds": 0.8,
+            "tail": "\n> vidi6@0.0.0 build\n> vite build\n\n\u001b[36mvite v8.3.0 \u001b[32mbuilding client environment for production...\u001b[36m\u001b[39m\ntransforming...\n\u2713 130 modules transformed.\nrendering chunks...\ncomputing gzip size...\ndist/client/index.html                   0.67 kB \u2502 gzip:   0.41 kB\ndist/client/assets/index-DyZUueVY.css    6.96 kB \u2502 gzip:   1.90 kB\ndist/client/assets/index-CpK0Imvd.js   411.13 kB \u2502 gzip: 126.23 kB\n\n\u001b[32m\u2713 built in 214ms\u001b[39m\n",
+            "passed": null,
+            "failed": null
+          },
+          "typecheck": {
+            "cmd": "npm run typecheck",
+            "exit": 0,
+            "seconds": 2.0,
+            "tail": "\n> vidi6@0.0.0 typecheck\n> tsc --noEmit && tsc --noEmit -p tsconfig.worker.json\n\n",
+            "passed": null,
+            "failed": null
+          },
+          "test:unit": {
+            "cmd": "npm run test:unit",
+            "exit": 0,
+            "seconds": 1.9,
+            "tail": "\n> vidi6@0.0.0 test:unit\n> vitest run --project unit\n\n\n RUN  v4.1.11 ~/.vidi-bench/work/qwen__3.8__flash-next__macos__128GB__mtplx-opencode__benchmarks__vidi__canvas-pi-01/workspace\n\n\n Test Files  27 passed (27)\n      Tests  318 passed (318)\n   Start at  05:24:11\n   Duration  1.14s (transform 1.57s, setup 0ms, import 2.34s, tests 1.60s, environment 1ms)\n\n",
+            "passed": 318,
+            "failed": 0
+          },
+          "test:component": {
+            "cmd": "npm run test:component",
+            "exit": 0,
+            "seconds": 2.3,
+            "tail": "\n> vidi6@0.0.0 test:component\n> vitest run --project component\n\n\n RUN  v4.1.11 ~/.vidi-bench/work/qwen__3.8__flash-next__macos__128GB__mtplx-opencode__benchmarks__vidi__canvas-pi-01/workspace\n\n\n Test Files  23 passed (23)\n      Tests  193 passed (193)\n   Start at  05:24:13\n   Duration  1.62s (transform 3.02s, setup 1.59s, import 5.02s, tests 4.28s, environment 9.02s)\n\nNot implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package\nNot implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package\nNot implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package\n",
+            "passed": 193,
+            "failed": 0
+          },
+          "test:integration": {
+            "cmd": "npm run test:integration",
+            "exit": 0,
+            "seconds": 3.1,
+            "tail": "\n> vidi6@0.0.0 test:integration\n> vitest run --project integration\n\n\n RUN  v4.1.11 ~/.vidi-bench/work/qwen__3.8__flash-next__macos__128GB__mtplx-opencode__benchmarks__vidi__canvas-pi-01/workspace\n\n\n Test Files  6 passed (6)\n      Tests  59 passed (59)\n   Start at  05:24:16\n   Duration  2.37s (transform 836ms, setup 0ms, import 1.95s, tests 2.21s, environment 0ms)\n\n",
+            "passed": 59,
+            "failed": 0
+          },
+          "test:e2e": {
+            "cmd": "npm run test:e2e -- --project=chromium",
+            "exit": 0,
+            "seconds": 27.7,
+            "tail": "fQhxH.js 200 OK (6ms)\n[WebServer] [wrangler:info] GET /assets/index-DyZUueVY.css 200 OK (16ms)\n[WebServer] [wrangler:info] GET /api/boards/ewFXTHkHLCgvYw3HyAnh9g 200 OK (11ms)\n[WebServer] [wrangler:info] GET /api/rooms/ewFXTHkHLCgvYw3HyAnh9g 101 Switching Protocols (1ms)\n[WebServer] [wrangler:info] POST /api/boards 201 Created (15ms)\n[WebServer] [wrangler:info] GET /api/boards/HxT68sfeI8pHr0tSBPVCeg 200 OK (3ms)\n[WebServer] [wrangler:info] GET /api/rooms/HxT68sfeI8pHr0tSBPVCeg 101 Switching Protocols (1ms)\n  \u2713  53 [chromium] \u203a tests/e2e/text.spec.ts:23:1 \u203a click-to-place: Text tool + click wraps long text, never a second object (1.2s)\n[WebServer] [wrangler:info] GET / 200 OK (2ms)\n[WebServer] [wrangler:info] GET /assets/index-BT2fQhxH.js 200 OK (1ms)\n[WebServer] [wrangler:info] GET /assets/index-DyZUueVY.css 200 OK (7ms)\n[WebServer] [wrangler:info] POST /api/boards 201 Created (4ms)\n[WebServer] [wrangler:info] GET /api/boards/Pph2pgK-AWLLT1zBHaWYVg 200 OK (2ms)\n[WebServer] [wrangler:info] GET /api/rooms/Pph2pgK-AWLLT1zBHaWYVg 101 Switching Protocols (2ms)\n  \u2713  55 [chromium] \u203a tests/e2e/text.spec.ts:70:1 \u203a three-dot paste does not create a new object (962ms)\n[WebServer] [wrangler:info] GET / 200 OK (1ms)\n[WebServer] [wrangler:info] GET /assets/index-BT2fQhxH.js 200 OK (1ms)\n[WebServer] [wrangler:info] GET /assets/index-DyZUueVY.css 200 OK (7ms)\n[WebServer] [wrangler:info] POST /api/boards 201 Created (5ms)\n[WebServer] [wrangler:info] GET /api/boards/HXIHdecK0VKVKBqBy-sczA 200 OK (2ms)\n[WebServer] [wrangler:info] GET /api/rooms/HXIHdecK0VKVKBqBy-sczA 101 Switching Protocols (1ms)\n  \u2713  57 [chromium] \u203a tests/e2e/undo.spec.ts:70:1 \u203a TC-22b Ctrl+Z inside a note undoes the whole typing burst (436ms)\n[WebServer] [wrangler:info] POST /api/boards 201 Created (5ms)\n[WebServer] [wrangler:info] GET /b/aFnpo-rV0eaqtFz0yLl9tw 200 OK (1ms) `Sec-Fetch-Mode: navigate` header present - using `not_found_handling` behavior\n[WebServer] [wrangler:info] GET /assets/index-BT2fQhxH.js 200 OK (1ms)\n[WebServer] [wrangler:info] GET /assets/index-DyZUueVY.css 200 OK (7ms)\n[WebServer] [wrangler:info] GET /api/boards/aFnpo-rV0eaqtFz0yLl9tw 200 OK (2ms)\n[WebServer] [wrangler:info] GET /api/rooms/aFnpo-rV0eaqtFz0yLl9tw 101 Switching Protocols (2ms)\n[WebServer] [wrangler:info] GET /b/aFnpo-rV0eaqtFz0yLl9tw 304 Not Modified (2ms) `Sec-Fetch-Mode: navigate` header present - using `not_found_handling` behavior\n[WebServer] [wrangler:info] GET /assets/index-DyZUueVY.css 304 Not Modified (2ms)\n[WebServer] [wrangler:info] GET /assets/index-BT2fQhxH.js 304 Not Modified (2ms)\n  \u2713  56 [chromium] \u203a tests/e2e/undo.spec.ts:37:1 \u203a TC-22 golden path: drag then Ctrl+Z reverts the drag; Ctrl+Shift+Z redoes it (965ms)\n[WebServer] [wrangler:info] GET /b/HXIHdecK0VKVKBqBy-sczA 200 OK (1ms) `Sec-Fetch-Mode: navigate` header present - using `not_found_handling` behavior\n[WebServer] [wrangler:info] GET /assets/index-DyZUueVY.css 304 Not Modified (1ms)\n[WebServer] [wrangler:info] GET /assets/index-BT2fQhxH.js 304 Not Modified (3ms)\n[WebServer] [wrangler:info] GET /api/boards/aFnpo-rV0eaqtFz0yLl9tw 200 OK (3ms)\n[WebServer] [wrangler:info] GET /api/boards/HXIHdecK0VKVKBqBy-sczA 200 OK (2ms)\n[WebServer] [wrangler:info] GET /api/rooms/aFnpo-rV0eaqtFz0yLl9tw 101 Switching Protocols (2ms)\n[WebServer] [wrangler:info] GET /api/rooms/HXIHdecK0VKVKBqBy-sczA 101 Switching Protocols (2ms)\n  \u2713  58 [chromium] \u203a tests/e2e/undo.spec.ts:90:1 \u203a TC-23 a page reload clears the history (563ms)\n  \u2713  59 [chromium] \u203a tests/e2e/undo.spec.ts:117:1 \u203a TC-24 the history is per-user: one profile cannot undo another profile's change (659ms)\nTC-21: 2000 notes on screen in 127ms (story budget 3000ms, rendered 2000)\n  \u2713  49 [chromium] \u203a tests/e2e/persistence.spec.ts:197:1 \u203a TC-21: a 2,000-note board opens inside the budget after a restart (3.7s)\n  \u2713  60 [chromium] \u203a tests/e2e/persistence.spec.ts:247:1 \u203a TC-22: a drawn sketch is on disk before it is broadcast, and comes back after a restart (3.5s)\n\n  60 passed (27.0s)\n",
+            "passed": 60,
+            "failed": 0
+          }
+        },
+        "all_green": true
+      },
+      "accept": {
+        "build_exit": 0,
+        "runner_exit": 1,
+        "runner_tail": "",
+        "passed": 59,
+        "total": 75,
+        "by_story": {
+          "01": {
+            "passed": 10,
+            "total": 10
+          },
+          "02": {
+            "passed": 10,
+            "total": 10
+          },
+          "03": {
+            "passed": 5,
+            "total": 7
+          },
+          "04": {
+            "passed": 4,
+            "total": 4
+          },
+          "05": {
+            "passed": 5,
+            "total": 5
+          },
+          "07": {
+            "passed": 5,
+            "total": 8
+          },
+          "08": {
+            "passed": 7,
+            "total": 7
+          },
+          "09": {
+            "passed": 4,
+            "total": 6
+          },
+          "10": {
+            "passed": 5,
+            "total": 8
+          },
+          "11": {
+            "passed": 4,
+            "total": 5
+          },
+          "12": {
+            "passed": 0,
+            "total": 5
+          }
+        }
+      },
+      "commit": "2857e28cb840613b86e9255f4c127189ae12a33c",
+      "requests": {
+        "requests": 341,
+        "prompt_tokens": 25878177,
+        "completion_tokens": 172823,
+        "cached_tokens": 23357051,
+        "ttft_median_s": 1.389032542007044,
+        "prefill_tok_s_median": 719.6757631163582,
+        "decode_tok_s_median": 65.24793266905361,
+        "max_context": 130147,
+        "decode_by_context": {
+          "0-16k": {
+            "requests": 23,
+            "decode_tok_s_median": 0.0
+          },
+          "16-32k": {
+            "requests": 19,
+            "decode_tok_s_median": 72.25427089350117
+          },
+          "32-64k": {
+            "requests": 97,
+            "decode_tok_s_median": 69.57196471135062
+          },
+          "64-100k": {
+            "requests": 117,
+            "decode_tok_s_median": 64.27393181691335
+          },
+          "100-+k": {
+            "requests": 85,
+            "decode_tok_s_median": 63.90305604939274
+          }
+        }
+      },
+      "loc": {
+        "files": 187,
+        "lines": 564046
+      },
+      "finished": 1790310818.165472
     }
   },
   "scope": "canvas",

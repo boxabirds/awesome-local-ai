@@ -1,3 +1,50 @@
+commit 2857e28cb840613b86e9255f4c127189ae12a33c
+vidi-agent  Fri Sep 25 05:33:37 2026 +0100
+
+    harness: snapshot after story 12 (uncommitted agent work)
+
+
+ src/client/api.ts                             |  23 +++
+ src/client/board/BoardShell.tsx               | 149 +++++++++++++-
+ src/client/board/Toolbar.tsx                  |  25 +++
+ src/client/board/useBoardKeys.ts              |  13 ++
+ src/client/board/useTool.ts                   |  24 ++-
+ src/client/canvas/BoardViewport.tsx           |  54 +++++
+ src/client/images/uploadImage.ts              |  63 ++++++
+ src/client/images/useImageInsert.ts           | 282 ++++++++++++++++++++++++++
+ src/client/images/validateFiles.ts            |  81 ++++++++
+ src/client/objects/ImageObject.tsx            | 239 ++++++++++++++++++++++
+ src/client/objects/registry.tsx               |  19 ++
+ src/client/ui/Toast.tsx                       |  35 ++++
+ src/shared/assets-protocol.ts                 |  36 ++++
+ src/shared/board-model.ts                     |  32 +++
+ src/shared/config.ts                          |  39 ++++
+ src/shared/image-format.ts                    |  71 +++++++
+ src/shared/objects/image.ts                   | 272 +++++++++++++++++++++++++
+ src/worker/assets.ts                          | 202 ++++++++++++++++++
+ src/worker/env.ts                             |  31 +++
+ src/worker/index.ts                           |  30 +++
+ tests/component/ImageInsert.test.tsx          | 230 +++++++++++++++++++++
+ tests/component/ImageObject.test.tsx          | 261 ++++++++++++++++++++++++
+ tests/e2e/helpers/images.ts                   | 171 ++++++++++++++++
+ tests/fixtures/image-seed.ts                  |  76 +++++++
+ tests/fixtures/images.ts                      |  61 ++++++
+ tests/fixtures/images/gif-animated.gif        | Bin 0 -> 390 bytes
+ tests/fixtures/images/jpeg-at-limit.bin       | Bin 0 -> 10485760 bytes
+ tests/fixtures/images/jpeg-over-limit.bin     | Bin 0 -> 10485765 bytes
+ tests/fixtures/images/pdf-renamed.png         |   8 +
+ tests/fixtures/images/photo-tiny.jpg          | Bin 0 -> 306 bytes
+ tests/fixtures/images/png-corrupt.png         | Bin 0 -> 21 bytes
+ tests/fixtures/images/random-bytes.bin        | Bin 0 -> 3 bytes
+ tests/fixtures/images/screenshot-1440x900.png | Bin 0 -> 11373 bytes
+ tests/fixtures/images/svg-script.svg          |   1 +
+ tests/fixtures/images/webp-image.webp         | Bin 0 -> 3828 bytes
+ tests/integration/assets.test.ts              | 246 ++++++++++++++++++++++
+ tests/unit/image-format.test.ts               |  76 +++++++
+ tests/unit/image-model.test.ts                | 234 +++++++++++++++++++++
+ tests/unit/validate-files.test.ts             |  89 ++++++++
+ wrangler.jsonc                                |  42 ++++
+ 40 files changed, 3211 insertions(+), 4 deletions(-)
 commit b22633bdd1f6f82619f5bd73f8e6442829f334c0
 vidi-agent  Fri Sep 25 04:13:43 2026 +0100
 

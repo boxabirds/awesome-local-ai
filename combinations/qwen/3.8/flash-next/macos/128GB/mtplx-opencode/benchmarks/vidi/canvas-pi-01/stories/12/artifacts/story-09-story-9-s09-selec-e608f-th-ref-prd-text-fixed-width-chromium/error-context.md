@@ -1,0 +1,41 @@
+# Page snapshot
+
+```yaml
+- generic [ref=e3]:
+  - generic [ref=e4]:
+    - group "Text" [ref=e6]:
+      - generic [ref=e7]: alpha beta gamma delta
+      - toolbar "Text actions" [ref=e9]:
+        - button "S size" [ref=e10]: S
+        - button "M size" [pressed] [ref=e11]: M
+        - button "L size" [ref=e12]: L
+        - button "XL size" [ref=e13]: XL
+        - button "Delete text" [ref=e14]: 🗑
+    - toolbar "Board tools" [ref=e15]:
+      - button "Select (V)" [pressed] [ref=e16] [cursor=pointer]:
+        - generic [ref=e17]: 🖱️
+      - button "Text (T)" [ref=e18] [cursor=pointer]:
+        - generic [ref=e19]: T
+      - button "Shape (S)" [ref=e21] [cursor=pointer]:
+        - generic [ref=e22]: ▦
+      - button "Connector (L)" [ref=e23] [cursor=pointer]:
+        - generic [ref=e24]: →
+      - button "Pen (P)" [ref=e26] [cursor=pointer]:
+        - generic [ref=e27]: ✎
+      - button "Add images" [ref=e28] [cursor=pointer]:
+        - generic [ref=e29]: 🖼️
+      - button "Sticky note" [ref=e30] [cursor=pointer]:
+        - generic [ref=e31]: 📝
+      - generic [ref=e32]:
+        - button "Undo" [ref=e33] [cursor=pointer]:
+          - generic [ref=e34]: ↶
+        - button "Redo" [disabled] [ref=e35]:
+          - generic [ref=e36]: ↷
+    - generic [ref=e37]:
+      - button "Zoom out" [ref=e38] [cursor=pointer]: −
+      - status [ref=e39]: 100%
+      - button "Zoom in" [ref=e40] [cursor=pointer]: +
+      - button "Reset view" [ref=e41] [cursor=pointer]
+    - generic: Drag to move around · Ctrl/Cmd + scroll or pinch to zoom
+  - button "Share" [ref=e44] [cursor=pointer]
+```

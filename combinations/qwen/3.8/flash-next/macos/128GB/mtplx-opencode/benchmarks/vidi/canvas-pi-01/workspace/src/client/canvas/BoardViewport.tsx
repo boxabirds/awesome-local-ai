@@ -13,6 +13,7 @@ import {
   type CSSProperties,
   type MouseEvent as ReactMouseEvent,
   type PointerEvent as ReactPointerEvent,
+  type DragEvent as ReactDragEvent,
   type ReactNode,
 } from 'react';
 import { DRAG_THRESHOLD_PX, GRID_SPACING_WORLD } from '../../shared/config';
@@ -73,6 +74,13 @@ export interface BoardViewportProps {
   toolOverlay?: ReactNode;
   /** A click (pointer-down then up, no drag) while the Text tool is active. */
   onTextClick?(world: Point): void;
+  /**
+   * Story 12 · a file drop on the board. Given the dropped `File`s and the
+   * pointer position *relative to the surface* (screen pixels), so the parent can
+   * place the row under the cursor. Only fires when the drag actually carried
+   * files; a drag of anything else is left to the browser (PRD image.drop).
+   */
+  onDropFiles?(files: File[], point: Point): void;
 }
 
 function mod(value: number, range: number): number {
@@ -114,6 +122,7 @@ export function BoardViewport({
   tool = 'select',
   toolOverlay,
   onTextClick,
+  onDropFiles,
 }: BoardViewportProps) {
   const api = useCameraApi();
   useNavigationTestHooks();
@@ -128,6 +137,8 @@ export function BoardViewport({
   const downPointRef = useRef<Point>({ x: 0, y: 0 });
   const gestureScaleRef = useRef(1);
   const [panning, setPanning] = useState(false);
+  // True while a file drag hovers the surface, to paint the drop indicator.
+  const [fileDragOver, setFileDragOver] = useState(false);
   // A counter bumped on every marquee move so the rectangle re-renders; the
   // controller keeps the rect itself (no React state in it).
   const [, forceTick] = useState(0);
@@ -379,6 +390,45 @@ export function BoardViewport({
     onEmptyDoubleClick?.(world);
   };
 
+  // Story 12 · file drop. A drag is only "ours" when it carries files; anything
+  // else (text, a dragged shape) is left to the browser so we never claim a drag
+  // we cannot handle. `dragover` must be prevented for `drop` to fire.
+  const carriesFiles = (event: ReactDragEvent<HTMLDivElement>): boolean => {
+    const types = event.dataTransfer?.types;
+    if (!types) return false;
+    for (let i = 0; i < types.length; i++) {
+      if (types[i] === 'Files') return true;
+    }
+    return Array.from(event.dataTransfer?.files ?? []).length > 0;
+  };
+
+  const onDragOver = (event: ReactDragEvent<HTMLDivElement>) => {
+    if (!carriesFiles(event)) return;
+    event.preventDefault();
+    event.dataTransfer!.dropEffect = 'copy';
+    if (!fileDragOver) setFileDragOver(true);
+  };
+
+  const onDragLeave = (event: ReactDragEvent<HTMLDivElement>) => {
+    // Only clear when the pointer truly left the surface, not when it moved
+    // across a child element (which fires dragleave too).
+    if (event.currentTarget.contains(event.relatedTarget as Node | null)) return;
+    setFileDragOver(false);
+  };
+
+  const onDrop = (event: ReactDragEvent<HTMLDivElement>) => {
+    if (!carriesFiles(event)) return;
+    event.preventDefault();
+    setFileDragOver(false);
+    if (!onDropFiles) return;
+    const surface = surfaceRef.current;
+    if (!surface) return;
+    const rect = surface.getBoundingClientRect();
+    const files = Array.from(event.dataTransfer?.files ?? []);
+    if (files.length === 0) return;
+    onDropFiles(files, { x: event.clientX - rect.left, y: event.clientY - rect.top });
+  };
+
   const spacing = GRID_SPACING_WORLD * camera.zoom;
   const dotRadius = Math.min(
     GRID_DOT_MAX_PX,
@@ -409,8 +459,12 @@ export function BoardViewport({
       data-board-surface="true"
       data-testid="board-viewport"
       data-panning={panning ? 'true' : 'false'}
+      data-file-drag-over={fileDragOver ? 'true' : 'false'}
       className="board-viewport"
       style={surfaceStyle}
+      onDragOver={onDragOver}
+      onDragLeave={onDragLeave}
+      onDrop={onDrop}
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}
       onPointerUp={endDrag}

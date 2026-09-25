@@ -15,6 +15,20 @@
         "limit": 10,
         "period": 60
       }
+    },
+    {
+      "name": "ASSET_UPLOAD_LIMITER",
+      "namespace_id": "1011",
+      "simple": {
+        "limit": 30,
+        "period": 60
+      }
+    }
+  ],
+  "r2_buckets": [
+    {
+      "binding": "ASSETS_BUCKET",
+      "bucket_name": "vidi6-assets"
     }
   ],
   // Kept at or below the workerd runtime bundled with
@@ -60,6 +74,20 @@
             "limit": 2000,
             "period": 60
           }
+        },
+        {
+          "name": "ASSET_UPLOAD_LIMITER",
+          "namespace_id": "1012",
+          "simple": {
+            "limit": 2000,
+            "period": 60
+          }
+        }
+      ],
+      "r2_buckets": [
+        {
+          "binding": "ASSETS_BUCKET",
+          "bucket_name": "vidi6-assets"
         }
       ],
       "durable_objects": {
@@ -92,6 +120,20 @@
             "limit": 10,
             "period": 60
           }
+        },
+        {
+          "name": "ASSET_UPLOAD_LIMITER",
+          "namespace_id": "1013",
+          "simple": {
+            "limit": 30,
+            "period": 60
+          }
+        }
+      ],
+      "r2_buckets": [
+        {
+          "binding": "ASSETS_BUCKET",
+          "bucket_name": "vidi6-assets"
         }
       ],
       "durable_objects": {

@@ -24,8 +24,16 @@
 import { useCallback, useState } from 'react';
 import type { ShapeKind } from '../../shared/objects/shape';
 
-/** The tools the board currently offers (story 11 adds the pen). */
-export type Tool = 'select' | 'text' | 'shape' | 'connector' | 'pen';
+/**
+ * The tools the board currently offers (story 11 adds the pen; story 12 the
+ * image). `'image'` is different from the other creating tools: it is **not a
+ * mode**. Pressing `i` or clicking the Image button opens a file picker and the
+ * board stays on Select — there is no cursor mode to hold. It is listed here only
+ * so the toolbar button and the shortcut share the one tool channel; it is
+ * deliberately absent from {@link isCreatingTool}'s "keeps a mode" meaning, which
+ * is why it never appears as `aria-pressed`.
+ */
+export type Tool = 'select' | 'text' | 'shape' | 'connector' | 'pen' | 'image';
 
 /**
  * Single-letter shortcuts (design `tools.active_tool`). Matched case-insensitively
@@ -39,11 +47,23 @@ export const TOOL_SHORTCUTS: Readonly<Record<string, Tool>> = {
   s: 'shape',
   l: 'connector',
   p: 'pen',
+  // Story 12 · `i` opens the image picker (a one-shot action, not a mode).
+  i: 'image',
 };
 
 /** Tools that create something, and so need an editable board. */
 export function isCreatingTool(tool: Tool): boolean {
   return tool !== 'select';
+}
+
+/**
+ * Whether a tool is a held *mode* (a persistent cursor that owns gestures). The
+ * Image tool creates without entering a mode, so it is excluded here even though
+ * it is a creating tool — this is how the non-persistent-tool invariant is
+ * expressed (PRD tools.non_persistent, TC-28).
+ */
+export function isToolMode(tool: Tool): boolean {
+  return tool === 'text' || tool === 'shape' || tool === 'connector' || tool === 'pen';
 }
 
 export interface ToolState {

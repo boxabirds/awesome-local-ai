@@ -1,0 +1,51 @@
+# Page snapshot
+
+```yaml
+- generic [ref=e3]:
+  - generic [ref=e4]:
+    - group "rect shape" [ref=e6]:
+      - img
+      - toolbar "Shape actions" [ref=e8]:
+        - generic [ref=e9]:
+          - button "None fill" [ref=e10] [cursor=pointer]
+          - button "White fill" [pressed] [ref=e11] [cursor=pointer]
+          - button "Blue fill" [ref=e12] [cursor=pointer]
+          - button "Green fill" [ref=e13] [cursor=pointer]
+          - button "Yellow fill" [ref=e14] [cursor=pointer]
+          - button "Pink fill" [ref=e15] [cursor=pointer]
+          - button "Grey fill" [ref=e16] [cursor=pointer]
+        - generic [ref=e17]:
+          - button "Dark outline" [pressed] [ref=e18] [cursor=pointer]
+          - button "Blue outline" [ref=e19] [cursor=pointer]
+          - button "Green outline" [ref=e20] [cursor=pointer]
+          - button "Orange outline" [ref=e21] [cursor=pointer]
+          - button "Red outline" [ref=e22] [cursor=pointer]
+          - button "Grey outline" [ref=e23] [cursor=pointer]
+    - toolbar "Board tools" [ref=e24]:
+      - button "Select (V)" [pressed] [ref=e25] [cursor=pointer]:
+        - generic [ref=e26]: 🖱️
+      - button "Text (T)" [ref=e27] [cursor=pointer]:
+        - generic [ref=e28]: T
+      - button "Shape (S)" [ref=e30] [cursor=pointer]:
+        - generic [ref=e31]: ▦
+      - button "Connector (L)" [ref=e32] [cursor=pointer]:
+        - generic [ref=e33]: →
+      - button "Pen (P)" [ref=e35] [cursor=pointer]:
+        - generic [ref=e36]: ✎
+      - button "Add images" [ref=e37] [cursor=pointer]:
+        - generic [ref=e38]: 🖼️
+      - button "Sticky note" [ref=e39] [cursor=pointer]:
+        - generic [ref=e40]: 📝
+      - generic [ref=e41]:
+        - button "Undo" [ref=e42] [cursor=pointer]:
+          - generic [ref=e43]: ↶
+        - button "Redo" [disabled] [ref=e44]:
+          - generic [ref=e45]: ↷
+    - generic [ref=e46]:
+      - button "Zoom out" [ref=e47] [cursor=pointer]: −
+      - status [ref=e48]: 100%
+      - button "Zoom in" [ref=e49] [cursor=pointer]: +
+      - button "Reset view" [ref=e50] [cursor=pointer]
+    - generic: Drag to move around · Ctrl/Cmd + scroll or pinch to zoom
+  - button "Share" [ref=e53] [cursor=pointer]
+```

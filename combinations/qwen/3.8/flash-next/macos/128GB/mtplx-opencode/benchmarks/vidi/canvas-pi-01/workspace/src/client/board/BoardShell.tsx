@@ -21,7 +21,7 @@
  * fresh controller, so a failed-then-retried board starts with an empty history
  * (PRD undo.session_only).
  */
-import { useCallback, useEffect, useRef } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import type * as Y from 'yjs';
 import { canZoomIn, canZoomOut, screenToWorld, zoomPercent } from '../canvas/camera';
 import type { Size } from '../canvas/camera';
@@ -42,6 +42,7 @@ import { StickyNote } from '../objects/StickyNote';
 import { TextObject } from '../objects/TextObject';
 import { ShapeObject } from '../objects/ShapeObject';
 import { ConnectorObject } from '../objects/ConnectorObject';
+import { ImageObject } from '../objects/ImageObject';
 import { ShapeTool } from '../tools/ShapeTool';
 import { ConnectorTool } from '../tools/ConnectorTool';
 import { PenTool } from '../tools/PenTool';
@@ -56,6 +57,13 @@ import { allObjectIds, createSticky, deleteObjects, moveObjects } from '../../sh
 import { createText } from '../../shared/objects/text';
 import { setShapeStyle } from '../../shared/objects/shape';
 import { getHandles } from '../objects/registry';
+import { IMAGE_ACCEPTED_TYPES } from '../../shared/config';
+import type { ImageSnap } from '../../shared/objects/image';
+import { useImageInsert } from '../images/useImageInsert';
+import { assetReadUrl, assetsUploadUrl } from '../api';
+import { Toast } from '../ui/Toast';
+import type { ObjectSnapshot } from '../../shared/board-model';
+import type { Point } from '../canvas/camera';
 
 
 export function canEdit(state: ConnectionState): boolean {
@@ -155,6 +163,106 @@ export function BoardShell({
   const notesRef = useRef(notes);
   notesRef.current = notes;
   const getSnapshot = useCallback(() => notesRef.current, []);
+
+  // ---- Story 12 · images ---------------------------------------------------
+  // The one toast slot (about three seconds, no interaction). The timer lives in
+  // the shell, not in the Toast component, so a test can drive it and the message
+  // never becomes a focusable control.
+  const [toast, setToast] = useState<{ message: string; tone: 'info' | 'warning' } | null>(
+    null,
+  );
+  const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const showToast = useCallback((message: string, tone: 'info' | 'warning' = 'info') => {
+    setToast({ message, tone });
+    if (toastTimerRef.current !== null) clearTimeout(toastTimerRef.current);
+    toastTimerRef.current = setTimeout(() => setToast(null), 3000);
+  }, []);
+  useEffect(
+    () => () => {
+      if (toastTimerRef.current !== null) clearTimeout(toastTimerRef.current);
+    },
+    [],
+  );
+
+  // The camera and viewport, read through refs so the insert hook's callbacks (and
+  // the paste / drop handlers) never close over a stale camera.
+  const cameraRef2 = useRef(camera);
+  cameraRef2.current = camera;
+
+  // A hidden file input drives both the Image button and the `I` shortcut; one
+  // picker path means one place to reset `value` so the same file can be chosen
+  // twice in a row (design "The Image button is an <input type=file>").
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+
+  const imageInsert = useImageInsert({
+    getDoc: () => boardDoc,
+    getIdentityId: () => identity.id,
+    uploadUrl: () => (boardId !== undefined ? assetsUploadUrl(boardId) : '/api/boards/local/assets'),
+    canEdit: () => editableRef.current,
+    toast: (message, tone) => showToast(message, tone ?? 'warning'),
+    now: () => Date.now(),
+  });
+  const imageInsertRef = useRef(imageInsert);
+  imageInsertRef.current = imageInsert;
+
+  // Every image entry (its render state), kept out of the generic snapshot list.
+  const toImageSnap = (obj: ObjectSnapshot): ImageSnap => ({
+    id: obj.id,
+    type: 'image',
+    x: obj.x,
+    y: obj.y,
+    z: obj.z,
+    width: obj.width,
+    height: obj.height,
+    createdAt: obj.createdAt,
+    assetKey: obj.assetKey ?? null,
+    contentType: obj.contentType ?? 'image/png',
+    naturalWidth: obj.naturalWidth ?? obj.width,
+    naturalHeight: obj.naturalHeight ?? obj.height,
+    status: obj.status ?? 'uploading',
+    uploadStartedAt: obj.uploadStartedAt ?? 0,
+    uploaderId: obj.uploaderId ?? identity.id,
+  });
+
+  // A drop on the board: the files are inserted with their top-left at the
+  // cursor. `screenToWorld` and the viewport centre are passed so the hook stays
+  // camera-agnostic and testable.
+  const onDropFiles = useCallback(
+    (files: File[], point: Point) => {
+      const screenToWorldFn = (p: Point) => screenToWorld(cameraRef2.current, p);
+      const centre = { x: viewport.width / 2, y: viewport.height / 2 };
+      void imageInsertRef.current.insert(files, point, screenToWorldFn, centre);
+    },
+    [viewport.width, viewport.height],
+  );
+
+  // The shared read → place → upload path for the picker and Ctrl+V: a centred
+  // placement (a `null` point), unlike a drop which anchors under the cursor.
+  const insertImagesCentred = useCallback((files: File[]) => {
+    const screenToWorldFn = (p: Point) => screenToWorld(cameraRef2.current, p);
+    const centre = { x: viewport.width / 2, y: viewport.height / 2 };
+    void imageInsertRef.current.insert(files, null, screenToWorldFn, centre);
+  }, [viewport.width, viewport.height]);
+
+  const openImagePicker = useCallback(() => {
+    if (!editableRef.current) return;
+    fileInputRef.current?.click();
+  }, []);
+
+  // Paste: only when the clipboard actually carries image files, so a text paste
+  // is never swallowed (PRD image.paste).
+  useEffect(() => {
+    const onPaste = (event: ClipboardEvent) => {
+      const files = Array.from(event.clipboardData?.files ?? []).filter((f) =>
+        (IMAGE_ACCEPTED_TYPES as readonly string[]).includes(f.type),
+      );
+      if (files.length === 0) return;
+      event.preventDefault();
+      insertImagesCentred(files);
+    };
+    window.addEventListener('paste', onPaste);
+    return () => window.removeEventListener('paste', onPaste);
+  }, [insertImagesCentred]);
 
   // The current selection as a plain array, rebuilt each render for the object
   // interaction (a press needs it to decide single-vs-group drag).
@@ -328,8 +436,9 @@ export function BoardShell({
       getTool: () => toolRef.current,
       setTool: (next) => toolState.setTool(next),
       createStickyAtCentre: createAtCentre,
+      openImagePicker,
     }),
-    [selection, deleteSelection, nudgeSelection, toolState, createAtCentre],
+    [selection, deleteSelection, nudgeSelection, toolState, createAtCentre, openImagePicker],
   );
 
   useBoardKeys(getKeyboardDeps);
@@ -355,6 +464,7 @@ export function BoardShell({
           onMarquee={onMarquee}
           tool={toolState.tool}
           onTextClick={createTextAtWorld}
+          onDropFiles={onDropFiles}
           toolOverlay={
             toolState.tool === 'shape' ? (
               <ShapeTool
@@ -437,6 +547,25 @@ export function BoardShell({
                 onSelect={onSelect}
                 onStyle={(style) => styleStroke(note.id, style)}
               />
+            ) : note.type === 'image' ? (
+              <ImageObject
+                key={note.id}
+                image={toImageSnap(note)}
+                src={
+                  (note.status ?? 'uploading') === 'ready' && note.assetKey
+                    ? assetReadUrl(note.assetKey)
+                    : null
+                }
+                progress={imageInsert.getProgress(note.id)}
+                zoom={camera.zoom}
+                selected={selection.ids.has(note.id)}
+                editable={editable}
+                controller={controller}
+                selection={selectedIds}
+                onSelect={onSelect}
+                onRetry={(id) => void imageInsertRef.current.retry(id)}
+                onRemove={deleteOne}
+              />
             ) : note.type === 'connector' ? (
               <ConnectorObject
                 key={note.id}
@@ -475,6 +604,7 @@ export function BoardShell({
         />
         <Toolbar
           onCreateSticky={createAtCentre}
+          onAddImages={openImagePicker}
           disabled={!editable}
           tool={toolState.tool}
           onSelectTool={(next) => toolState.setTool(next)}
@@ -502,6 +632,21 @@ export function BoardShell({
           onReset={() => api.reset()}
         />
         <NavigationHint visible={!api.hasNavigated} />
+        {toast ? <Toast message={toast.message} tone={toast.tone} /> : null}
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept={IMAGE_ACCEPTED_TYPES.join(',')}
+          multiple
+          data-testid="image-file-input"
+          style={{ display: 'none' }}
+          onChange={(event) => {
+            const files = Array.from(event.currentTarget.files ?? []);
+            // Reset first so choosing the same file again still fires a change.
+            event.currentTarget.value = '';
+            if (files.length > 0) insertImagesCentred(files);
+          }}
+        />
         {boardId !== undefined && <ConnectionStatus state={connectionState} />}
       </div>
     </CameraApiContext.Provider>

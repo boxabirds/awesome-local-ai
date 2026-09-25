@@ -1,0 +1,62 @@
+# Page snapshot
+
+```yaml
+- generic [ref=e3]:
+  - generic [ref=e4]:
+    - generic [ref=e5]:
+      - generic:
+        - group "Drawing":
+          - img
+          - toolbar "Pen options" [ref=e16]:
+            - generic [ref=e17]:
+              - button "Black pen" [pressed] [ref=e18] [cursor=pointer]
+              - button "Blue pen" [ref=e19] [cursor=pointer]
+              - button "Red pen" [ref=e20] [cursor=pointer]
+              - button "Green pen" [ref=e21] [cursor=pointer]
+              - button "Orange pen" [ref=e22] [cursor=pointer]
+              - button "Purple pen" [ref=e23] [cursor=pointer]
+            - generic [ref=e24]:
+              - button "Thin" [ref=e25] [cursor=pointer]
+              - button "Medium" [pressed] [ref=e27] [cursor=pointer]
+              - button "Thick" [ref=e29] [cursor=pointer]
+    - toolbar "Board tools" [ref=e32]:
+      - button "Select (V)" [ref=e33] [cursor=pointer]:
+        - generic [ref=e34]: 🖱️
+      - button "Text (T)" [ref=e35] [cursor=pointer]:
+        - generic [ref=e36]: T
+      - button "Shape (S)" [ref=e38] [cursor=pointer]:
+        - generic [ref=e39]: ▦
+      - button "Connector (L)" [ref=e40] [cursor=pointer]:
+        - generic [ref=e41]: →
+      - generic [ref=e42]:
+        - button "Pen (P)" [pressed] [ref=e43] [cursor=pointer]:
+          - generic [ref=e44]: ✎
+        - toolbar "Pen options" [ref=e46]:
+          - generic [ref=e47]:
+            - button "Black pen" [pressed] [ref=e48] [cursor=pointer]
+            - button "Blue pen" [ref=e49] [cursor=pointer]
+            - button "Red pen" [ref=e50] [cursor=pointer]
+            - button "Green pen" [ref=e51] [cursor=pointer]
+            - button "Orange pen" [ref=e52] [cursor=pointer]
+            - button "Purple pen" [ref=e53] [cursor=pointer]
+          - generic [ref=e54]:
+            - button "Thin" [ref=e55] [cursor=pointer]
+            - button "Medium" [pressed] [ref=e57] [cursor=pointer]
+            - button "Thick" [ref=e59] [cursor=pointer]
+      - button "Add images" [ref=e61] [cursor=pointer]:
+        - generic [ref=e62]: 🖼️
+      - button "Sticky note" [ref=e63] [cursor=pointer]:
+        - generic [ref=e64]: 📝
+      - generic [ref=e65]:
+        - button "Undo" [ref=e66] [cursor=pointer]:
+          - generic [ref=e67]: ↶
+        - button "Redo" [disabled] [ref=e68]:
+          - generic [ref=e69]: ↷
+    - generic [ref=e70]:
+      - button "Zoom out" [ref=e71] [cursor=pointer]: −
+      - status [ref=e72]: 100%
+      - button "Zoom in" [ref=e73] [cursor=pointer]: +
+      - button "Reset view" [ref=e74] [cursor=pointer]
+    - generic: Drag to move around · Ctrl/Cmd + scroll or pinch to zoom
+  - button "Share" [ref=e77] [cursor=pointer]
+```
