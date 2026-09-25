@@ -526,3 +526,52 @@ Decisions made where the spec left room:
   because its objects are never below their minimum.
 - **Existing test update.** `useActiveTool.test.tsx` checked that P is ignored, because the Pen was not in the build.
   It now checks C instead, since the Pen is part of the build.
+
+## Story 12 — Drop images onto the board
+
+Decisions made where the spec left room:
+
+- **Uploader identity without sign-in.** Story 6 (identity) is not in this build, and story 9's `LOCAL_AUTHOR` is the
+  same for everyone, so it can't tell the uploader apart from others. Each browser tab gets a random id kept in
+  `sessionStorage` (`src/client/images/uploaderId.ts`), and it is written as `uploaderId`. A reload of the same tab
+  keeps the id: the uploader still sees "Upload failed", but only with Remove, because the file for Retry was in
+  memory. Other tabs and other people see "Image unavailable". `App` takes an optional `identityId` prop for tests.
+- **Hook inputs.** `useImageInsert` takes `toWorld(clientX, clientY)` and `viewCentre()` instead of the design's
+  `camera`, because the drop point needs the viewport's position as well. It also takes `undo` (placeholder creation
+  goes through `asStep`, so one add action is one undo step) and `isEditing`. Besides the contract, it returns
+  `onDragEnter`/`onDragLeave` (for the highlight), `pickerInput` (props for the one hidden `<input type=file>` rendered
+  on the board), `dragging`, `message`/`dismissMessage` (toast) and `forget(id)` (Remove drops the kept file).
+  `BoardViewport` gained a `dropTarget` prop that passes the drag events through.
+- **Image tool is an action, not a mode.** The Image button ("Image (I)") and the I key open the picker, and the
+  tool stays on (or returns to) Select. `useActiveTool` got an `onImage` option for the I key. The button and key
+  are off while the board can't be edited. While the board is connecting or reconnecting, they show the offline
+  toast instead of opening the picker. Uploads start only in `connected`/`confirmed`.
+- **Toasts.** One toast can list several messages, e.g. a type refusal and a size refusal from the same drop. It is
+  `role="status"` / `aria-live="polite"` at the bottom centre and disappears after the new `TOAST_DURATION_MS`
+  (5 s).
+- **Decode failure = type refusal.** The client checks `File.type`. A PDF renamed to .png passes that check but
+  fails `createImageBitmap`, so it gets the type message and no placeholder (TC-26, TC-29). The server sniffs the
+  content again anyway.
+- **Undo and redo.** The unit test confirms what the design left open: after undoing an insertion, `Y.UndoManager`
+  redo brings the images back together with the status that `UPLOAD_ORIGIN` wrote (`ready` and the asset key).
+- **Clock.** While any image is `uploading`, `useClock` re-renders every new `IMAGE_STATUS_TICK_MS` (30 s), so
+  "Image upload didn't finish" appears without any interaction. The uploader's own upload that is still running is
+  never shown as unfinished, however slow it is.
+- **Load errors.** An `<img>` error is remembered only for that asset key. A successful load, or a different key,
+  shows the image again.
+- **Accessible names.** An image object is `role="group"` with `aria-roledescription="image"` and the name "Image".
+  The `<img>` has `alt="Image"`. The uploader's progress bar is `role="progressbar"` "Upload progress". Buttons
+  are "Retry" and "Remove".
+- **Routes.** `/api/assets/*` falls under the existing `run_worker_first: ["/api/*"]`. A key is decoded before it is
+  checked, so `..%2Fx` gets 404. An unencoded `/api/assets/../x` is normalised by URL parsing before it reaches the
+  Worker.
+- **Rate limit** uses a second `ratelimits` binding, `ASSET_UPLOAD_LIMITER` (namespace 1002). A unit test checks it
+  against `IMAGE_UPLOAD_LIMIT`/`IMAGE_UPLOAD_PERIOD_SECONDS`, as story 5 does for its limiter. The integration test
+  uses the real local binding. The e2e specs give each browser context its own `CF-Connecting-IP`.
+- **Fixtures.** `tests/fixtures/images/` holds the generated fixtures: a 1440x900 PNG, a 4032x3024 JPEG (about
+  1.5 MB, not 3 MB, to keep the repository small), an animated GIF, a WebP, an SVG with a script, a PDF renamed to
+  .png and a truncated PNG. `tests/fixtures/images.ts` has small inline images for the Workers and jsdom runtimes,
+  plus `jpegOfSize` for the exact 10 MB boundary. The 11 MB e2e file is generated in the test.
+- **E2E TC-25** holds Leo's upload requests for 2 s with `page.route`, so the "Uploading…" state is on Sam's
+  screen long enough to observe it (local uploads finish too fast otherwise).
+- **Browsers.** All story 12 e2e specs pass in Chromium, Firefox and WebKit.

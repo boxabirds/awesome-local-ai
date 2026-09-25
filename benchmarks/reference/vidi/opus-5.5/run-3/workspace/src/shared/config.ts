@@ -206,3 +206,32 @@ export const STROKE_MAX_POINTS = 5000;
 export const STROKE_HIT_TOLERANCE_PX = 6;
 /** Smallest side a stroke can be resized to, in world units. */
 export const STROKE_MIN_SIZE_WORLD = 4;
+
+// Story 12 — images.
+
+/** Image types that can be added (judged by content on the server, by File.type on the client). */
+export const IMAGE_ACCEPTED_TYPES = ['image/png', 'image/jpeg', 'image/gif', 'image/webp'] as const;
+/** Largest image file that can be added, in bytes. */
+export const IMAGE_MAX_BYTES = 10 * 1024 * 1024;
+/** Images one drop, paste or pick may add; further files are skipped with a message. */
+export const IMAGE_MAX_FILES_PER_ADD = 20;
+/** An image is placed at its natural size, scaled down so its longest side is at most this (world units). */
+export const IMAGE_MAX_PLACE_SIZE_WORLD = 800;
+/** Smallest side an image can be resized to, in world units. */
+export const IMAGE_MIN_SIZE_WORLD = 16;
+/** Gap between images added together in a row, in world units. */
+export const IMAGE_LAYOUT_GAP_WORLD = 24;
+/** An upload still not finished after this long is shown to everyone as unfinished. */
+export const IMAGE_UPLOAD_STALE_MS = 5 * 60 * 1000;
+/** Uploads one visitor may make per IMAGE_UPLOAD_PERIOD_SECONDS (PRD image.rate_limit). */
+export const IMAGE_UPLOAD_LIMIT = 60;
+/** Upload rate-limit window; must match `ratelimits` in wrangler.jsonc (a unit test asserts equality). */
+export const IMAGE_UPLOAD_PERIOD_SECONDS = 60;
+/** Stored images never change (their keys are new for every upload), so they are cached for a year. */
+export const ASSET_CACHE_MAX_AGE_SECONDS = 31_536_000;
+/** Bytes read from the start of an upload to decide its type. */
+export const IMAGE_SNIFF_BYTES = 12;
+/** While any image is uploading, image states are re-checked this often (so 'unfinished' appears on its own). */
+export const IMAGE_STATUS_TICK_MS = 30_000;
+/** How long a toast message stays on screen. */
+export const TOAST_DURATION_MS = 5000;

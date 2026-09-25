@@ -5,13 +5,14 @@
 import type { ComponentType, PointerEvent as ReactPointerEvent } from 'react';
 import type * as Y from 'yjs';
 import { objectBounds, registerModelObjectType, type ObjectSnapshot } from '../../shared/board-model';
-import { SHAPE_MIN_SIZE_WORLD, STICKY_MIN_SIZE_WORLD, STROKE_MIN_SIZE_WORLD, TEXT_MIN_WIDTH_WORLD } from '../../shared/config';
+import { IMAGE_MIN_SIZE_WORLD, SHAPE_MIN_SIZE_WORLD, STICKY_MIN_SIZE_WORLD, STROKE_MIN_SIZE_WORLD, TEXT_MIN_WIDTH_WORLD } from '../../shared/config';
 import type { Point, Rect } from '../../shared/geometry';
 import { StickyNote } from './StickyNote';
 import { resizeText, TextObject } from './TextObject';
 import { ShapeObjectView } from './ShapeObject';
 import { connectorHitTest, ConnectorObjectView } from './ConnectorObject';
 import { strokeHitTest, StrokeObjectView } from './StrokeObject';
+import { ImageObjectView } from './ImageObject';
 
 /** How the transform gesture currently affects an object. */
 export type ObjectGesturePhase = 'idle' | 'pressed' | 'dragging';
@@ -131,6 +132,16 @@ registerObjectType('stroke', {
   minSize: STROKE_MIN_SIZE_WORLD,
   editableText: false,
   hitTest: strokeHitTest,
+});
+
+// Images keep their proportions when resized, down to IMAGE_MIN_SIZE_WORLD (image.aspect_resize).
+registerObjectType('image', {
+  Component: ImageObjectView,
+  resizable: true,
+  aspectLocked: true,
+  minSize: IMAGE_MIN_SIZE_WORLD,
+  editableText: false,
+  hitTest: boundsHitTest,
 });
 
 /** Whether every one of these objects offers only horizontal handles (and there is at least one). */

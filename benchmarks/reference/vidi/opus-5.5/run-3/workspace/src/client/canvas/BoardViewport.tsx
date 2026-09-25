@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState, type DragEvent as ReactDragEvent, type ReactNode } from 'react';
 import { canZoomIn, canZoomOut, screenToWorld, zoomPercent, type Camera, type Point, type Size } from './camera';
 import { useCamera } from './useCamera';
 import { ZoomControls } from './ZoomControls';
@@ -81,6 +81,13 @@ export interface BoardViewportProps {
    * drawing a marquee or reaching the objects.
    */
   onPlace?(world: Point): void;
+  /** Drag-and-drop of files onto the board (story 12 images). */
+  dropTarget?: {
+    onDragEnter(e: ReactDragEvent): void;
+    onDragOver(e: ReactDragEvent): void;
+    onDragLeave(e: ReactDragEvent): void;
+    onDrop(e: ReactDragEvent): void;
+  };
 }
 
 const NO_OBJECTS: readonly ObjectSnapshot[] = [];
@@ -247,6 +254,10 @@ export function BoardViewport(props: BoardViewportProps) {
         backgroundSize: grid.backgroundSize,
         backgroundPosition: grid.backgroundPosition,
       }}
+      onDragEnter={props.dropTarget?.onDragEnter}
+      onDragOver={props.dropTarget?.onDragOver}
+      onDragLeave={props.dropTarget?.onDragLeave}
+      onDrop={props.dropTarget?.onDrop}
       onPointerDownCapture={(e) => {
         if (!props.onPlace || e.button !== 0 || !isBoardTarget(e.target)) return;
         // The placing tool owns this press: nothing below (objects, pan, marquee) sees it.

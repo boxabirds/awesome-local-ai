@@ -3018,6 +3018,335 @@
           "found": 4,
           "total": 4
         }
+      ],
+      "record": {
+        "committed": true,
+        "pushed": true,
+        "over_size_limit": [],
+        "commit": "7f7049a"
+      }
+    },
+    "12": {
+      "title": "Drop images onto the board",
+      "conditions_start": {
+        "ac": true,
+        "low_power": false,
+        "thermal": "nominal"
+      },
+      "started": 1790351681.969192,
+      "agent": {
+        "seconds": 782.8,
+        "steps": 69,
+        "tool_calls": 73,
+        "compactions": 0,
+        "tool_interruptions": 0,
+        "tokens": {
+          "input": 138,
+          "output": 74042,
+          "reasoning": 0,
+          "cache_read": 9002247,
+          "cache_write": 185560
+        },
+        "exit": 0,
+        "stalled": false,
+        "resumes": 0,
+        "nudges": 0,
+        "errors": [],
+        "ended_by_operator": false,
+        "ended_in_error": false,
+        "sessions": [
+          "8d87128a-44ef-42c8-ae05-fa0a7ef7e408"
+        ]
+      },
+      "agent_finished": 1790352464.807366,
+      "conditions": {
+        "samples": 26,
+        "degraded": false,
+        "throttled_share": 0.0,
+        "bad_samples": [],
+        "swap_start_gb": 0.14,
+        "swap_max_gb": 0.14,
+        "aborted_swap": false,
+        "aborted_memory": false,
+        "free_min_pct": 62.0,
+        "server_footprint_max_gb": null,
+        "server_footprint_peak_gb": null
+      },
+      "agent_commits": 1,
+      "gate": {
+        "steps": {
+          "install": {
+            "cmd": "npm ci",
+            "exit": 0,
+            "seconds": 5.6,
+            "tail": "\nadded 173 packages, and audited 174 packages in 5s\n\n42 packages are looking for funding\n  run `npm fund` for details\n\n4 high severity vulnerabilities\n\nTo address all issues (including breaking changes), run:\n  npm audit fix --force\n\nRun `npm audit` for details.\n"
+          },
+          "build": {
+            "cmd": "npm run build",
+            "exit": 0,
+            "seconds": 1.1,
+            "tail": "\n> vidi6@0.0.0 build\n> vite build\n\n\u001b[36mvite v8.3.1 \u001b[32mbuilding client environment for production...\u001b[36m\u001b[39m\ntransforming...\n\u2713 129 modules transformed.\nrendering chunks...\ncomputing gzip size...\ndist/client/index.html                   0.54 kB \u2502 gzip:   0.33 kB\ndist/client/assets/index-BqWe-OKo.css   15.91 kB \u2502 gzip:   3.41 kB\ndist/client/assets/index-DpEg_k3r.js   415.26 kB \u2502 gzip: 127.55 kB\n\n\u001b[32m\u2713 built in 304ms\u001b[39m\n",
+            "passed": null,
+            "failed": null
+          },
+          "typecheck": {
+            "cmd": "npm run typecheck",
+            "exit": 0,
+            "seconds": 0.9,
+            "tail": "\n> vidi6@0.0.0 typecheck\n> tsc --noEmit -p tsconfig.json && tsc --noEmit -p tsconfig.worker.json\n\n",
+            "passed": null,
+            "failed": null
+          },
+          "test:unit": {
+            "cmd": "npm run test:unit",
+            "exit": 0,
+            "seconds": 1.1,
+            "tail": "\n> vidi6@0.0.0 test:unit\n> vitest run --project unit\n\n\n\u001b[1m\u001b[30m\u001b[46m RUN \u001b[49m\u001b[39m\u001b[22m \u001b[36mv4.1.11 \u001b[39m\u001b[90m~/.vidi-bench/work/benchmarks__reference__vidi__opus-5.5__run-3/workspace\u001b[39m\n\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[42m unit \u001b[49m\u001b[39m tests/unit/board-model.test.ts \u001b[2m(\u001b[22m\u001b[2m18 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 10\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[42m unit \u001b[49m\u001b[39m tests/unit/image-model.test.ts \u001b[2m(\u001b[22m\u001b[2m9 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 9\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[42m unit \u001b[49m\u001b[39m tests/unit/camera.test.ts \u001b[2m(\u001b[22m\u001b[2m18 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 33\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[42m unit \u001b[49m\u001b[39m tests/unit/connector-model.test.ts \u001b[2m(\u001b[22m\u001b[2m10 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 12\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[42m unit \u001b[49m\u001b[39m tests/unit/text-model.test.ts \u001b[2m(\u001b[22m\u001b[2m9 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 15\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[42m unit \u001b[49m\u001b[39m tests/unit/undo-history.test.ts \u001b[2m(\u001b[22m\u001b[2m12 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 58\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[42m unit \u001b[49m\u001b[39m tests/unit/board-model-group.test.ts \u001b[2m(\u001b[22m\u001b[2m10 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 8\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[42m unit \u001b[49m\u001b[39m tests/unit/sticky-text.test.ts \u001b[2m(\u001b[22m\u001b[2m18 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 7\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[42m unit \u001b[49m\u001b[39m tests/unit/stroke.test.ts \u001b[2m(\u001b[22m\u001b[2m9 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 128\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[42m unit \u001b[49m\u001b[39m tests/unit/shape-model.test.ts \u001b[2m(\u001b[22m\u001b[2m6 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 13\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[42m unit \u001b[49m\u001b[39m tests/unit/geometry.test.ts \u001b[2m(\u001b[22m\u001b[2m12 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 7\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[42m unit \u001b[49m\u001b[39m tests/unit/text-layout.test.ts \u001b[2m(\u001b[22m\u001b[2m8 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 8\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[42m unit \u001b[49m\u001b[39m tests/unit/selection.test.ts \u001b[2m(\u001b[22m\u001b[2m7 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 3\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[42m unit \u001b[49m\u001b[39m tests/unit/room-state.test.ts \u001b[2m(\u001b[22m\u001b[2m15 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 7\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[42m unit \u001b[49m\u001b[39m tests/unit/validate-files.test.ts \u001b[2m(\u001b[22m\u001b[2m5 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 7\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[42m unit \u001b[49m\u001b[39m tests/unit/undo-boundaries.test.ts \u001b[2m(\u001b[22m\u001b[2m6 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 9\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[42m unit \u001b[49m\u001b[39m tests/unit/protocol.test.ts \u001b[2m(\u001b[22m\u001b[2m11 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 12\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[42m unit \u001b[49m\u001b[39m tests/unit/image-format.test.ts \u001b[2m(\u001b[22m\u001b[2m4 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 4\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[42m unit \u001b[49m\u001b[39m tests/unit/board-store-chunks.test.ts \u001b[2m(\u001b[22m\u001b[2m8 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 6\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[42m unit \u001b[49m\u001b[39m tests/unit/create-board.test.ts \u001b[2m(\u001b[22m\u001b[2m4 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 241\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[42m unit \u001b[49m\u001b[39m tests/unit/registry.test.ts \u001b[2m(\u001b[22m\u001b[2m4 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 3\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[42m unit \u001b[49m\u001b[39m tests/unit/board-id.test.ts \u001b[2m(\u001b[22m\u001b[2m8 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 78\u001b[2mms\u001b[22m\u001b[39m\n\n\u001b[2m Test Files \u001b[22m \u001b[1m\u001b[32m22 passed\u001b[39m\u001b[22m\u001b[90m (22)\u001b[39m\n\u001b[2m      Tests \u001b[22m \u001b[1m\u001b[32m211 passed\u001b[39m\u001b[22m\u001b[90m (211)\u001b[39m\n\u001b[2m   Start at \u001b[22m 17:07:52\n\u001b[2m   Duration \u001b[22m 672ms\u001b[2m (transform 658ms, setup 0ms, import 1.27s, tests 681ms, environment 1ms)\u001b[22m\n\n",
+            "passed": 211,
+            "failed": 0
+          },
+          "test:component": {
+            "cmd": "npm run test:component",
+            "exit": 0,
+            "seconds": 4.7,
+            "tail": "t.tsx \u001b[2m(\u001b[22m\u001b[2m11 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[33m 965\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[45m component \u001b[49m\u001b[39m tests/component/PenTool.test.tsx \u001b[2m(\u001b[22m\u001b[2m8 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[33m 1030\u001b[2mms\u001b[22m\u001b[39m\n     \u001b[33m\u001b[2m\u2713\u001b[22m\u001b[39m TC-12 a drag of STROKE_MAX_POINTS + 10 moves commits two strokes; the second starts at the first one's end \u001b[33m 371\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[45m component \u001b[49m\u001b[39m tests/component/BoardViewport.test.tsx \u001b[2m(\u001b[22m\u001b[2m15 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 198\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[45m component \u001b[49m\u001b[39m tests/component/LoadFailed.test.tsx \u001b[2m(\u001b[22m\u001b[2m10 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[33m 436\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[45m component \u001b[49m\u001b[39m tests/component/UndoControls.test.tsx \u001b[2m(\u001b[22m\u001b[2m6 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[33m 335\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[45m component \u001b[49m\u001b[39m tests/component/pages.test.tsx \u001b[2m(\u001b[22m\u001b[2m11 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 252\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[45m component \u001b[49m\u001b[39m tests/component/ShapeTool.test.tsx \u001b[2m(\u001b[22m\u001b[2m5 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[33m 556\u001b[2mms\u001b[22m\u001b[39m\n     \u001b[33m\u001b[2m\u2713\u001b[22m\u001b[39m TC-15 S, drag: a preview follows the pointer, the release creates one shape exactly covering the drag and selects it \u001b[33m 315\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[45m component \u001b[49m\u001b[39m tests/component/Tool.test.tsx \u001b[2m(\u001b[22m\u001b[2m7 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[33m 598\u001b[2mms\u001b[22m\u001b[39m\n     \u001b[33m\u001b[2m\u2713\u001b[22m\u001b[39m TC-14 T makes Text active with its button pressed; Escape and V return to Select \u001b[33m 303\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[45m component \u001b[49m\u001b[39m tests/component/UndoBoundaries.test.tsx \u001b[2m(\u001b[22m\u001b[2m6 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[33m 639\u001b[2mms\u001b[22m\u001b[39m\n     \u001b[33m\u001b[2m\u2713\u001b[22m\u001b[39m TC-14 a 30-frame drag of a selection is one step; one undo restores every start position \u001b[33m 374\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[45m component \u001b[49m\u001b[39m tests/component/SharePanel.test.tsx \u001b[2m(\u001b[22m\u001b[2m10 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 201\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[45m component \u001b[49m\u001b[39m tests/component/StrokeObject.test.tsx \u001b[2m(\u001b[22m\u001b[2m6 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[33m 336\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[45m component \u001b[49m\u001b[39m tests/component/ConnectionStatus.test.tsx \u001b[2m(\u001b[22m\u001b[2m8 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[33m 344\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[45m component \u001b[49m\u001b[39m tests/component/TextBoxSync.test.tsx \u001b[2m(\u001b[22m\u001b[2m3 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 17\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[45m component \u001b[49m\u001b[39m tests/component/StickyTextEditor.test.tsx \u001b[2m(\u001b[22m\u001b[2m10 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[33m 550\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[45m component \u001b[49m\u001b[39m tests/component/Toolbars.test.tsx \u001b[2m(\u001b[22m\u001b[2m6 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 259\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[45m component \u001b[49m\u001b[39m tests/component/ZoomControls.test.tsx \u001b[2m(\u001b[22m\u001b[2m7 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 143\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[45m component \u001b[49m\u001b[39m tests/component/useActiveTool.test.tsx \u001b[2m(\u001b[22m\u001b[2m3 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 240\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[45m component \u001b[49m\u001b[39m tests/component/NavigationHint.test.tsx \u001b[2m(\u001b[22m\u001b[2m3 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 104\u001b[2mms\u001b[22m\u001b[39m\n\n\u001b[2m Test Files \u001b[22m \u001b[1m\u001b[32m23 passed\u001b[39m\u001b[22m\u001b[90m (23)\u001b[39m\n\u001b[2m      Tests \u001b[22m \u001b[1m\u001b[32m206 passed\u001b[39m\u001b[22m\u001b[90m (206)\u001b[39m\n\u001b[2m   Start at \u001b[22m 17:07:53\n\u001b[2m   Duration \u001b[22m 4.42s\u001b[2m (transform 1.55s, setup 1.91s, import 4.23s, tests 10.01s, environment 9.95s)\u001b[22m\n\n\u001b[90mstderr\u001b[2m | tests/component/Connector.test.tsx\u001b[2m > \u001b[22m\u001b[2mConnector tool and connector object (connector.ui)\u001b[2m > \u001b[22m\u001b[2mTC-20 at 50% a press 5 px from the arrow's line selects it; 7 px does not\n\u001b[22m\u001b[39mThe result of getSnapshot should be cached to avoid an infinite loop\n\n\u001b[90mstderr\u001b[2m | tests/component/StrokeObject.test.tsx\u001b[2m > \u001b[22m\u001b[2mstroke object rendering and selection (stroke.object)\u001b[2m > \u001b[22m\u001b[2mrenders a smoothed round-capped path in its colour and thickness, announced as Drawing\n\u001b[22m\u001b[39mThe result of getSnapshot should be cached to avoid an infinite loop\n\n",
+            "passed": 206,
+            "failed": 0
+          },
+          "test:integration": {
+            "cmd": "npm run test:integration",
+            "exit": 0,
+            "seconds": 5.1,
+            "tail": "s each end identical \u001b[33m 673\u001b[2mms\u001b[22m\u001b[39m\n\n\u001b[2m Test Files \u001b[22m \u001b[1m\u001b[32m6 passed\u001b[39m\u001b[22m\u001b[90m (6)\u001b[39m\n\u001b[2m      Tests \u001b[22m \u001b[1m\u001b[32m64 passed\u001b[39m\u001b[22m\u001b[90m (64)\u001b[39m\n\u001b[2m   Start at \u001b[22m 17:07:59\n\u001b[2m   Duration \u001b[22m 3.94s\u001b[2m (transform 1.05s, setup 0ms, import 5.21s, tests 5.09s, environment 0ms)\u001b[22m\n\n\u001b[90mstderr\u001b[2m | tests/integration/board-api.test.ts\u001b[2m > \u001b[22m\u001b[2mshare.board_api: collisions and failures\u001b[2m > \u001b[22m\u001b[2mTC-12 initialize throwing gives 500 create_failed\n\u001b[22m\u001b[39m{\"event\":\"board_create_failed\",\"error\":\"boom\"}\n\n\u001b[90mstderr\u001b[2m | tests/integration/board-room-persistence.test.ts\u001b[2m > \u001b[22m\u001b[2mpersist.room\u001b[2m > \u001b[22m\u001b[2mTC-14 a failed save is not relayed; sockets close 1011 and the change is saved when its author reconnects\n\u001b[22m\u001b[39m{\"event\":\"board_append_failed\",\"error\":\"injected storage failure\"}\n\n\u001b[90mstderr\u001b[2m | tests/integration/assets.test.ts\u001b[2m > \u001b[22m\u001b[2massets.api: upload\u001b[2m > \u001b[22m\u001b[2mTC-15 a storage failure is 500\n\u001b[22m\u001b[39m{\"event\":\"asset_store_failed\",\"error\":\"R2 unavailable\"}\n\n\u001b[90mstderr\u001b[2m | tests/integration/board-room-persistence.test.ts\u001b[2m > \u001b[22m\u001b[2mpersist.room\u001b[2m > \u001b[22m\u001b[2mTC-15 a board whose snapshot is unreadable is closed with 4500 and stores nothing sent to it\n\u001b[22m\u001b[39m{\"event\":\"board_snapshot_unreadable\",\"error\":\"Unexpected end of array\"}\n{\"event\":\"board_load_failed\",\"reason\":\"snapshot-unreadable\",\"error\":\"Unexpected end of array\"}\n\n\u001b[90mstderr\u001b[2m | tests/integration/board-store.test.ts\u001b[2m > \u001b[22m\u001b[2mpersist.board_store\u001b[2m > \u001b[22m\u001b[2mTC-09 a damaged (truncated) log row is quarantined and everything else loads\n\u001b[22m\u001b[39m{\"event\":\"board_update_quarantined\",\"seq\":7,\"error\":\"Invalid typed array length: 45\"}\n{\"event\":\"board_gap_filled\",\"client\":1842381622,\"clock\":121,\"len\":45}\n\n\u001b[90mstderr\u001b[2m | tests/integration/board-store.test.ts\u001b[2m > \u001b[22m\u001b[2mpersist.board_store\u001b[2m > \u001b[22m\u001b[2mTC-09 a damaged (random) log row is quarantined and everything else loads\n\u001b[22m\u001b[39m{\"event\":\"board_update_quarantined\",\"seq\":7,\"error\":\"contentRefs[(info & __vite_ssr_import_10__.BITS5)] is not a function\"}\n{\"event\":\"board_gap_filled\",\"client\":204780649,\"clock\":121,\"len\":45}\n\n\u001b[90mstderr\u001b[2m | tests/integration/board-store.test.ts\u001b[2m > \u001b[22m\u001b[2mpersist.board_store\u001b[2m > \u001b[22m\u001b[2mTC-10 a damaged (truncated) snapshot fails the load and nothing is deleted or quarantined\n\u001b[22m\u001b[39m{\"event\":\"board_snapshot_unreadable\",\"error\":\"Unexpected end of array\"}\n\n\u001b[90mstderr\u001b[2m | tests/integration/board-store.test.ts\u001b[2m > \u001b[22m\u001b[2mpersist.board_store\u001b[2m > \u001b[22m\u001b[2mTC-10 a damaged (random) snapshot fails the load and nothing is deleted or quarantined\n\u001b[22m\u001b[39m{\"event\":\"board_snapshot_unreadable\",\"error\":\"contentRefs[(info & __vite_ssr_import_10__.BITS5)] is not a function\"}\n\n\u001b[90mstderr\u001b[2m | tests/integration/board-store.test.ts\u001b[2m > \u001b[22m\u001b[2mpersist.board_store\u001b[2m > \u001b[22m\u001b[2mTC-11 a statement failing mid-compaction rolls back: previous snapshot and log unchanged\n\u001b[22m\u001b[39m{\"event\":\"board_compaction_failed\",\"error\":\"injected failure\"}\n\n\u001b[90mstderr\u001b[2m | tests/integration/board-room-persistence.test.ts\u001b[2m > \u001b[22m\u001b[2mpersist.room\u001b[2m > \u001b[22m\u001b[2mTC-16 a failed load is retried only after LOAD_RETRY_MIN_INTERVAL_MS, and then the board syncs\n\u001b[22m\u001b[39m{\"event\":\"board_snapshot_unreadable\",\"error\":\"Unexpected end of array\"}\n{\"event\":\"board_load_failed\",\"reason\":\"snapshot-unreadable\",\"error\":\"Unexpected end of array\"}\n\n\u001b[90mstderr\u001b[2m | tests/integration/board-room-persistence.test.ts\u001b[2m > \u001b[22m\u001b[2mpersist.room\u001b[2m > \u001b[22m\u001b[2mTC-26 an SQL error while loading closes clients with 4500\n\u001b[22m\u001b[39m{\"event\":\"board_load_sql_error\",\"error\":\"injected SQL read failure\"}\n{\"event\":\"board_load_failed\",\"reason\":\"sql-error\",\"error\":\"injected SQL read failure\"}\n\n\u001b[90mstderr\u001b[2m | tests/integration/board-room-persistence.test.ts\u001b[2m > \u001b[22m\u001b[2mpersist.room\u001b[2m > \u001b[22m\u001b[2mTC-26 an SQL error while loading closes clients with 4500\n\u001b[22m\u001b[39m{\"event\":\"board_exists_check_failed\",\"error\":\"injected SQL read failure\"}\n\n",
+            "passed": 64,
+            "failed": 0
+          },
+          "test:e2e": {
+            "cmd": "npm run test:e2e -- --project=chromium",
+            "exit": 1,
+            "seconds": 58.2,
+            "tail": "s \n    [webkit] \u203a tests/e2e/share.spec.ts:36:3 \u203a Workflow \"Create, share, join\" \u203a TC-26 Maya creates a board and copies its link; Sam opens it and both edit live \n    [webkit] \u203a tests/e2e/share.spec.ts:86:3 \u203a Workflow \"Bad link recovery\" \u203a TC-27 a link to a board that was never created shows Board not found; Create a new board recovers \n    [webkit] \u203a tests/e2e/share.spec.ts:106:3 \u203a Workflow \"Bad link recovery\" \u203a a malformed link shows Board not found; the home link goes home \n    [webkit] \u203a tests/e2e/share.spec.ts:116:3 \u203a Workflow \"Flaky service on open\" \u203a TC-28 while the link cannot be checked it says so and retries; the board opens without a reload \n    [webkit] \u203a tests/e2e/share.spec.ts:134:3 \u203a Workflow \"Clipboard blocked\" \u203a TC-29 when the browser refuses the copy, the whole link is selected with the manual-copy hint \n    [webkit] \u203a tests/e2e/share.spec.ts:164:3 \u203a Workflow \"Abuse guard\" \u203a TC-30 the creation after BOARD_CREATE_LIMIT within the period is refused with the rate-limit message \n    [webkit] \u203a tests/e2e/share.spec.ts:189:3 \u203a Workflow \"Pre-existing board\" \u203a TC-31 a board saved before board creation existed still opens with its notes \n    [webkit] \u203a tests/e2e/sticky-notes.spec.ts:36:3 \u203a Workflow 1: brainstorm golden path \u203a TC-30 \u2192 TC-31 create by double-click, type, move at 50%, recolour, delete \n    [webkit] \u203a tests/e2e/sticky-notes.spec.ts:101:3 \u203a Workflow 1: brainstorm golden path \u203a double-click on a note edits it; Enter edits a selected note; Backspace while editing edits text \n    [webkit] \u203a tests/e2e/sticky-notes.spec.ts:127:3 \u203a Workflow 1: brainstorm golden path \u203a dragging a note never pans the board \n    [webkit] \u203a tests/e2e/sticky-notes.spec.ts:144:1 \u203a TC-32 at 200% a drag moves by half the screen distance and brings the note to the front \n    [webkit] \u203a tests/e2e/sticky-notes.spec.ts:179:3 \u203a Workflow 3: long text \u203a TC-33 one word is large; 1,000 characters shrink to the minimum and clip with a fade \n    [webkit] \u203a tests/e2e/sticky-notes.spec.ts:224:3 \u203a Workflow 3: long text \u203a pasting 1,200 characters keeps exactly the first 1,000 and shows 1000/1000 \n    [webkit] \u203a tests/e2e/sticky-notes.spec.ts:242:3 \u203a Workflow 2: create while far away \u203a TC-34 the Sticky note button puts the note in the middle of the screen \n    [webkit] \u203a tests/e2e/text.spec.ts:22:3 \u203a Workflow \"Long annotation\" \u203a TC-26 a 300-character sentence makes a box as wide as the maximum with several lines; TC-27 a narrower fixed width rewraps it \n    [webkit] \u203a tests/e2e/text.spec.ts:64:3 \u203a Workflow \"Title a retro section\" \u203a TC-28 T, click above a cluster, \"Went well\", XL, drag over the cluster, Delete, undo restores it \n    [webkit] \u203a tests/e2e/text.spec.ts:118:3 \u203a Workflow \"Abandoned text\" \u203a TC-31 T, click, Escape without typing leaves no object; a marquee over the spot selects nothing \n    [webkit] \u203a tests/e2e/text.spec.ts:139:3 \u203a Workflow \"Two people edit one heading\" \u203a TC-29 both type into the same text at once: identical text with every character \n    [webkit] \u203a tests/e2e/text.spec.ts:180:3 \u203a Workflow \"Everyone adds headings\" \u203a TC-30 MAX_CONCURRENT_EDITORS people each place a heading at once: all headings on every screen \n    [webkit] \u203a tests/e2e/undo.spec.ts:60:3 \u203a Workflow \"Recover an accidental delete while a colleague works\" \u203a TC-22 Mia deletes 8 notes, Raj adds one, Mia undoes and redoes: Raj\u2019s note always stays \n    [webkit] \u203a tests/e2e/undo.spec.ts:119:3 \u203a Workflow \"Undo after a colleague deleted my object\" \u203a TC-23 undoing a move of a note Raj deleted does nothing, and the next undo still works \n    [webkit] \u203a tests/e2e/undo.spec.ts:165:3 \u203a Workflow \"Everyone undoing at once\" \u203a TC-24 MAX_CONCURRENT_EDITORS people each undo only their own move and typing \n  59 passed (57.4s)\n[WebServer] \u2718 [ERROR] {\"event\":\"board_snapshot_unreadable\",\"error\":\"Unexpected end of array\"}\n[WebServer] \n[WebServer] \n[WebServer] \u2718 [ERROR] {\"event\":\"board_load_failed\",\"reason\":\"snapshot-unreadable\",\"error\":\"Unexpected end of array\"}\n[WebServer] \n[WebServer] \n",
+            "passed": 59,
+            "failed": 0
+          }
+        },
+        "all_green": false
+      },
+      "accept": {
+        "build_exit": 0,
+        "runner_exit": 1,
+        "runner_tail": "",
+        "passed": 74,
+        "total": 75,
+        "on_partial": {
+          "passed": 0,
+          "total": 0
+        },
+        "by_story": {
+          "01": {
+            "passed": 10,
+            "total": 10
+          },
+          "02": {
+            "passed": 10,
+            "total": 10
+          },
+          "03": {
+            "passed": 7,
+            "total": 7
+          },
+          "04": {
+            "passed": 4,
+            "total": 4
+          },
+          "05": {
+            "passed": 5,
+            "total": 5
+          },
+          "07": {
+            "passed": 8,
+            "total": 8
+          },
+          "08": {
+            "passed": 7,
+            "total": 7
+          },
+          "09": {
+            "passed": 5,
+            "total": 6
+          },
+          "10": {
+            "passed": 8,
+            "total": 8
+          },
+          "11": {
+            "passed": 5,
+            "total": 5
+          },
+          "12": {
+            "passed": 5,
+            "total": 5
+          }
+        },
+        "harness_fault": null
+      },
+      "commit": "edde5fcb1492376fed83177d97a70c82990e1dca",
+      "requests": {},
+      "loc": {
+        "files": 175,
+        "lines": 67634
+      },
+      "finished": 1790353002.6565518,
+      "status": "DONE",
+      "ended_by": "agent",
+      "partial_base": [],
+      "tasks": [
+        {
+          "n": 1,
+          "title": "Write image format sniffing and file validation unit tests first (TC-01, TC-02, TC-08, TC-09)",
+          "type": "test:unit",
+          "implements": [
+            "assets.api",
+            "image.insert"
+          ],
+          "tcs": [
+            "TC-01",
+            "TC-02",
+            "TC-08",
+            "TC-09"
+          ],
+          "status": "verified",
+          "found": 4,
+          "total": 4
+        },
+        {
+          "n": 2,
+          "title": "Write image object model unit tests first (TC-03 to TC-07)",
+          "type": "test:unit",
+          "implements": [
+            "image.model"
+          ],
+          "tcs": [
+            "TC-03",
+            "TC-04",
+            "TC-05",
+            "TC-06",
+            "TC-07"
+          ],
+          "status": "verified",
+          "found": 5,
+          "total": 5
+        },
+        {
+          "n": 3,
+          "title": "Implement asset API: R2 binding, upload with sniffing/limits/rate limit, immutable serving",
+          "type": "implementation",
+          "implements": [
+            "assets.api"
+          ],
+          "tcs": [],
+          "status": "committed",
+          "found": null,
+          "total": null
+        },
+        {
+          "n": 4,
+          "title": "Integration tests for asset API with real R2 and BoardRoom (TC-10 to TC-16)",
+          "type": "test:integration",
+          "implements": [
+            "assets.api"
+          ],
+          "tcs": [
+            "TC-10",
+            "TC-11",
+            "TC-12",
+            "TC-13",
+            "TC-14",
+            "TC-15",
+            "TC-16"
+          ],
+          "status": "verified",
+          "found": 7,
+          "total": 7
+        },
+        {
+          "n": 5,
+          "title": "Implement image object model: placement, row layout, placeholders, status updates with untracked origin",
+          "type": "implementation",
+          "implements": [
+            "image.model"
+          ],
+          "tcs": [],
+          "status": "verified",
+          "found": null,
+          "total": null
+        },
+        {
+          "n": 6,
+          "title": "Implement adding images: drop highlight, paste, Image tool picker, validation toasts, XHR upload with progress, retry",
+          "type": "implementation",
+          "implements": [
+            "image.insert"
+          ],
+          "tcs": [],
+          "status": "committed",
+          "found": null,
+          "total": null
+        },
+        {
+          "n": 7,
+          "title": "Implement ImageObject render states and aspect-locked registry entry",
+          "type": "implementation",
+          "implements": [
+            "image.object"
+          ],
+          "tcs": [],
+          "status": "committed",
+          "found": null,
+          "total": null
+        },
+        {
+          "n": 8,
+          "title": "Component tests for image insert flows and ImageObject states (TC-17 to TC-24, TC-29)",
+          "type": "test:ui-component",
+          "implements": [
+            "image.insert",
+            "image.object"
+          ],
+          "tcs": [
+            "TC-17",
+            "TC-18",
+            "TC-19",
+            "TC-20",
+            "TC-21",
+            "TC-22",
+            "TC-23",
+            "TC-24",
+            "TC-29"
+          ],
+          "status": "verified",
+          "found": 9,
+          "total": 9
+        },
+        {
+          "n": 9,
+          "title": "E2E image workflows: moodboard with colleague, mixed picker batch, resize and revisit, flaky upload (TC-25 to TC-28)",
+          "type": "test:e2e",
+          "implements": [
+            "assets.api",
+            "image.insert",
+            "image.object"
+          ],
+          "tcs": [
+            "TC-25",
+            "TC-26",
+            "TC-27",
+            "TC-28"
+          ],
+          "status": "committed",
+          "found": 4,
+          "total": 4
+        }
       ]
     }
   },
@@ -5096,6 +5425,207 @@
           "output_tokens": 34,
           "accept": {
             "passed": 4,
+            "total": 5
+          }
+        }
+      ]
+    },
+    {
+      "id": 12,
+      "title": "Drop images onto the board",
+      "status": "DONE",
+      "ended_by": "agent",
+      "started_at": 1790351681.969192,
+      "ended_at": 1790352464.807366,
+      "agent_minutes": 13.0,
+      "calls": 69,
+      "output_tokens": 74042,
+      "compactions": 0,
+      "last_commit_at": 1790352453.0,
+      "accept": {
+        "passed": 5,
+        "total": 5
+      },
+      "partial_base": [],
+      "tasks": [
+        {
+          "n": 1,
+          "title": "Write image format sniffing and file validation unit tests first (TC-01, TC-02, TC-08, TC-09)",
+          "type": "test:unit",
+          "implements": [
+            "assets.api",
+            "image.insert"
+          ],
+          "tcs": [
+            "TC-01",
+            "TC-02",
+            "TC-08",
+            "TC-09"
+          ],
+          "status": "verified",
+          "found": 4,
+          "total": 4
+        },
+        {
+          "n": 2,
+          "title": "Write image object model unit tests first (TC-03 to TC-07)",
+          "type": "test:unit",
+          "implements": [
+            "image.model"
+          ],
+          "tcs": [
+            "TC-03",
+            "TC-04",
+            "TC-05",
+            "TC-06",
+            "TC-07"
+          ],
+          "status": "verified",
+          "found": 5,
+          "total": 5
+        },
+        {
+          "n": 3,
+          "title": "Implement asset API: R2 binding, upload with sniffing/limits/rate limit, immutable serving",
+          "type": "implementation",
+          "implements": [
+            "assets.api"
+          ],
+          "tcs": [],
+          "status": "committed",
+          "found": null,
+          "total": null
+        },
+        {
+          "n": 4,
+          "title": "Integration tests for asset API with real R2 and BoardRoom (TC-10 to TC-16)",
+          "type": "test:integration",
+          "implements": [
+            "assets.api"
+          ],
+          "tcs": [
+            "TC-10",
+            "TC-11",
+            "TC-12",
+            "TC-13",
+            "TC-14",
+            "TC-15",
+            "TC-16"
+          ],
+          "status": "verified",
+          "found": 7,
+          "total": 7
+        },
+        {
+          "n": 5,
+          "title": "Implement image object model: placement, row layout, placeholders, status updates with untracked origin",
+          "type": "implementation",
+          "implements": [
+            "image.model"
+          ],
+          "tcs": [],
+          "status": "verified",
+          "found": null,
+          "total": null
+        },
+        {
+          "n": 6,
+          "title": "Implement adding images: drop highlight, paste, Image tool picker, validation toasts, XHR upload with progress, retry",
+          "type": "implementation",
+          "implements": [
+            "image.insert"
+          ],
+          "tcs": [],
+          "status": "committed",
+          "found": null,
+          "total": null
+        },
+        {
+          "n": 7,
+          "title": "Implement ImageObject render states and aspect-locked registry entry",
+          "type": "implementation",
+          "implements": [
+            "image.object"
+          ],
+          "tcs": [],
+          "status": "committed",
+          "found": null,
+          "total": null
+        },
+        {
+          "n": 8,
+          "title": "Component tests for image insert flows and ImageObject states (TC-17 to TC-24, TC-29)",
+          "type": "test:ui-component",
+          "implements": [
+            "image.insert",
+            "image.object"
+          ],
+          "tcs": [
+            "TC-17",
+            "TC-18",
+            "TC-19",
+            "TC-20",
+            "TC-21",
+            "TC-22",
+            "TC-23",
+            "TC-24",
+            "TC-29"
+          ],
+          "status": "verified",
+          "found": 9,
+          "total": 9
+        },
+        {
+          "n": 9,
+          "title": "E2E image workflows: moodboard with colleague, mixed picker batch, resize and revisit, flaky upload (TC-25 to TC-28)",
+          "type": "test:e2e",
+          "implements": [
+            "assets.api",
+            "image.insert",
+            "image.object"
+          ],
+          "tcs": [
+            "TC-25",
+            "TC-26",
+            "TC-27",
+            "TC-28"
+          ],
+          "status": "committed",
+          "found": 4,
+          "total": 4
+        }
+      ],
+      "baselines": [
+        {
+          "source": "reference opus-5.5 run-1",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 30.0,
+          "calls": 78,
+          "output_tokens": 101448,
+          "accept": {
+            "passed": 3,
+            "total": 5
+          }
+        },
+        {
+          "source": "reference opus-5.5 run-2",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 17.8,
+          "calls": 83,
+          "output_tokens": 93796,
+          "accept": null
+        },
+        {
+          "source": "qwen/3.8/flash-next/macos/128GB/mtplx-opencode canvas-pi-01",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 69.2,
+          "calls": 313,
+          "output_tokens": 155614,
+          "accept": {
+            "passed": 0,
             "total": 5
           }
         }

@@ -9,6 +9,8 @@
 //   objects: Y.Map<id, Y.Map { type: 'shape', ... kind, fill, stroke, label: Y.Text }>   (story 10, objects/shape.ts)
 //   objects: Y.Map<id, Y.Map { type: 'connector', x: 0, y: 0, width: 0, height: 0, z, from, to }>
 //                              (story 10, objects/connector.ts; the box is derived from the ends in objectSnapshot)
+//   objects: Y.Map<id, Y.Map { type: 'stroke', ... points, color, thickness }>   (story 11, objects/stroke.ts)
+//   objects: Y.Map<id, Y.Map { type: 'image', ... assetKey, status, uploaderId }>   (story 12, objects/image.ts)
 //
 // `width`/`height` were added in story 7. Notes saved before that have neither and are STICKY_SIZE_WORLD square;
 // the first resize writes both. Every object type (stories 9-12) has at least type, x, y, width, height and z.
