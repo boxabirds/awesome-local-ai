@@ -1,3 +1,35 @@
+commit eff0a5c7d488335044145837078f2340bcdb2059
+Author: opus-5.5-reference <reference@vidi.invalid>
+Date:   Fri Sep 25 08:20:31 2026 +0100
+
+    story 2: Capture ideas on sticky notes and rearrange them
+
+ NOTES.md                                  |  50 +++++
+ package-lock.json                         |  51 ++++-
+ package.json                              |   3 +-
+ src/client/App.tsx                        |  87 ++++++++-
+ src/client/board/Toolbar.tsx              |  33 ++++
+ src/client/board/useBoardDoc.ts           |  85 +++++++++
+ src/client/board/useSelection.ts          |  49 +++++
+ src/client/canvas/BoardViewport.tsx       |  51 ++++-
+ src/client/objects/NoteToolbar.tsx        |  69 +++++++
+ src/client/objects/StickyNote.tsx         | 289 +++++++++++++++++++++++++++++
+ src/client/objects/StickyText.ts          | 128 +++++++++++++
+ src/client/objects/StickyTextEditor.tsx   | 144 +++++++++++++++
+ src/client/styles.css                     | 208 +++++++++++++++++++++
+ src/shared/board-model.ts                 | 191 +++++++++++++++++++
+ src/shared/config.ts                      |  30 +++
+ tests/component/StickyNote.test.tsx       | 296 ++++++++++++++++++++++++++++++
+ tests/component/StickyTextEditor.test.tsx | 176 ++++++++++++++++++
+ tests/component/Toolbars.test.tsx         | 106 +++++++++++
+ tests/component/boardHelpers.tsx          |  66 +++++++
+ tests/e2e/sticky-notes.spec.ts            | 265 ++++++++++++++++++++++++++
+ tests/fixtures/board500.ts                |  31 ++++
+ tests/fixtures/texts.ts                   |  26 +++
+ tests/unit/board-model.test.ts            | 243 ++++++++++++++++++++++++
+ tests/unit/sticky-text.test.ts            | 202 ++++++++++++++++++++
+ 24 files changed, 2867 insertions(+), 12 deletions(-)
+
 commit a4af47cbdfac55ba0299079ef41163dd80011020
 Author: opus-5.5-reference <reference@vidi.invalid>
 Date:   Fri Sep 25 08:03:23 2026 +0100
