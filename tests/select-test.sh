@@ -33,10 +33,10 @@ assert_eq "64GB Apple silicon takes the 27B" \
   "qwen/3.8/27b/macos/64GB/mtplx-opencode"         "$(pick macos arm64 metal 65536 qwen)"
 assert_eq "96GB cannot reach the 128GB tier" \
   "qwen/3.8/27b/macos/64GB/mtplx-opencode"         "$(pick macos arm64 metal 98304 qwen)"
-assert_eq "36GB Mac takes the 16GB Qwen3.5-9B FP16 (nothing larger fits)" \
-  "qwen/3.5/9b-fp16/macos/16GB/mtplx-opencode"      "$(pick macos arm64 metal 36864 qwen)"
-assert_eq "16GB Apple silicon takes the Qwen3.5-9B FP16 within qwen" \
-  "qwen/3.5/9b-fp16/macos/16GB/mtplx-opencode"      "$(pick macos arm64 metal 16384 qwen)"
+assert_eq "36GB Mac: no qwen combination fits below the 64GB tier" \
+  ""                                                "$(pick macos arm64 metal 36864 qwen)"
+assert_eq "16GB Apple silicon: no qwen combination (the untested Qwen3.5-9B FP16 was removed)" \
+  ""                                                "$(pick macos arm64 metal 16384 qwen)"
 assert_eq "16GB Apple silicon takes MiMo when asked for the mimo family" \
   "mimo/2.6/9b/macos/16GB/mtplx-opencode"           "$(pick macos arm64 metal 16384 mimo)"
 assert_eq "128GB Apple silicon never gets MiMo as best fit across all families" \
