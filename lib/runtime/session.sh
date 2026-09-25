@@ -123,6 +123,24 @@ detached() {
   fi
 }
 
+# Startup is serialised on fd 9, held open on $LOCK_FILE, so two simultaneous
+# invocations cannot both launch a server. flock(1) is util-linux and macOS has
+# none, so fall back to perl's flock(2) -- perl ships with macOS -- on the same
+# inherited descriptor. The lock belongs to the open file description, which our
+# fd 9 keeps alive after perl exits: exactly how `flock 9` itself works. One
+# pair of helpers, like detached(), so a new call site cannot reintroduce the
+# Linux-only form.
+_lock_fd9() { # LOCK_EX | LOCK_UN
+  if command -v flock >/dev/null 2>&1; then
+    if [[ "$1" == LOCK_UN ]]; then flock -u 9; else flock 9; fi
+  else
+    perl -MFcntl=:flock -e \
+      'open(my $fh, ">&=", 9) or die "fd 9: $!\n"; flock($fh, $ARGV[0] eq "LOCK_UN" ? LOCK_UN : LOCK_EX) or die "flock: $!\n"' "$1"
+  fi
+}
+lock_startup() { exec 9>"$LOCK_FILE"; _lock_fd9 LOCK_EX; }
+unlock_startup() { _lock_fd9 LOCK_UN; }
+
 server_healthy() { curl -sf --max-time 3 "http://127.0.0.1:${PORT}/health" >/dev/null 2>&1; }
 
 # Settings that change how the server behaves. Recorded at launch so a later
@@ -421,13 +439,12 @@ done
 export HOST PORT
 
 # Serialise startup so two simultaneous invocations cannot both launch a server.
-exec 9>"$LOCK_FILE"
-flock 9
+lock_startup
 
 if (( SERVER_ONLY )); then
   start_server
   start_watcher
-  flock -u 9
+  unlock_startup
   say "Server running on :${PORT}. Idle shutdown in ${IDLE_TIMEOUT}s if no client connects."
   say "Status: $SERVER_CMD_SESSION --status"
   exit 0
@@ -442,7 +459,7 @@ start_server
 touch "$CLIENTS_DIR/$$"
 log "client registered pid $$ (clients now $(count_clients))"
 start_watcher
-flock -u 9
+unlock_startup
 exec 9>&-
 
 say "Launching ${CLIENT_DISPLAY_NAME} with ${PROVIDER}/${MODEL_ID} (server stops ${IDLE_TIMEOUT}s after last client exits)."
