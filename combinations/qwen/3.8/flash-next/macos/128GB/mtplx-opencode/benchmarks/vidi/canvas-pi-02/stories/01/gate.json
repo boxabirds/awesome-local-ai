@@ -1,0 +1,54 @@
+{
+  "steps": {
+    "install": {
+      "cmd": "npm ci",
+      "exit": 0,
+      "seconds": 3.2,
+      "tail": "\nadded 190 packages, and audited 191 packages in 3s\n\n34 packages are looking for funding\n  run `npm fund` for details\n\n2 moderate severity vulnerabilities\n\nTo address all issues (including breaking changes), run:\n  npm audit fix --force\n\nRun `npm audit` for details.\nnpm warn deprecated whatwg-encoding@3.1.1: Use @exodus/bytes instead for a more spec-conformant and faster implementation\nnpm warn allow-scripts 4 packages have install scripts not yet covered by allowScripts:\nnpm warn allow-scripts   esbuild@0.28.2 (postinstall: node install.js)\nnpm warn allow-scripts   fsevents@2.3.3 (install: (install scripts present))\nnpm warn allow-scripts   workerd@1.20260923.1 (postinstall: node install.js)\nnpm warn allow-scripts   esbuild@0.28.1 (postinstall: node install.js)\nnpm warn allow-scripts\nnpm warn allow-scripts Run `npm approve-scripts --allow-scripts-pending` to review, or `npm approve-scripts <pkg>` to allow.\n"
+    },
+    "build": {
+      "cmd": "npm run build",
+      "exit": 0,
+      "seconds": 0.8,
+      "tail": "\n> vidi6@0.0.0 build\n> vite build\n\n\u001b[36mvite v7.3.6 \u001b[32mbuilding client environment for production...\u001b[36m\u001b[39m\ntransforming...\n\u001b[32m\u2713\u001b[39m 36 modules transformed.\nrendering chunks...\ncomputing gzip size...\n\u001b[2mdist/client/\u001b[22m\u001b[32mindex.html                 \u001b[39m\u001b[1m\u001b[2m  0.44 kB\u001b[22m\u001b[1m\u001b[22m\u001b[2m \u2502 gzip:  0.27 kB\u001b[22m\n\u001b[2mdist/client/\u001b[22m\u001b[2massets/\u001b[22m\u001b[35mindex-gQBaI7PS.css  \u001b[39m\u001b[1m\u001b[2m  1.89 kB\u001b[22m\u001b[1m\u001b[22m\u001b[2m \u2502 gzip:  0.84 kB\u001b[22m\n\u001b[2mdist/client/\u001b[22m\u001b[2massets/\u001b[22m\u001b[36mindex-jDwW0aAG.js   \u001b[39m\u001b[1m\u001b[2m230.69 kB\u001b[22m\u001b[1m\u001b[22m\u001b[2m \u2502 gzip: 72.22 kB\u001b[22m\n\u001b[32m\u2713 built in 307ms\u001b[39m\n",
+      "passed": null,
+      "failed": null
+    },
+    "typecheck": {
+      "cmd": "npm run typecheck",
+      "exit": 0,
+      "seconds": 1.2,
+      "tail": "\n> vidi6@0.0.0 typecheck\n> tsc --noEmit -p tsconfig.json && tsc --noEmit -p tsconfig.test.json\n\n",
+      "passed": null,
+      "failed": null
+    },
+    "test:unit": {
+      "cmd": "npm run test:unit",
+      "exit": 0,
+      "seconds": 0.6,
+      "tail": "\n> vidi6@0.0.0 test:unit\n> vitest run --project unit\n\n\n\u001b[1m\u001b[46m RUN \u001b[49m\u001b[22m \u001b[36mv3.2.7 \u001b[39m\u001b[90m~/.vidi-bench/work/qwen__3.8__flash-next__macos__128GB__mtplx-opencode__benchmarks__vidi__canvas-pi-02/workspace\u001b[39m\n\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[42m unit \u001b[49m\u001b[39m tests/unit/camera.test.ts \u001b[2m(\u001b[22m\u001b[2m19 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 23\u001b[2mms\u001b[22m\u001b[39m\n\n\u001b[2m Test Files \u001b[22m \u001b[1m\u001b[32m1 passed\u001b[39m\u001b[22m\u001b[90m (1)\u001b[39m\n\u001b[2m      Tests \u001b[22m \u001b[1m\u001b[32m19 passed\u001b[39m\u001b[22m\u001b[90m (19)\u001b[39m\n\u001b[2m   Start at \u001b[22m 08:40:18\n\u001b[2m   Duration \u001b[22m 177ms\u001b[2m (transform 20ms, setup 0ms, collect 20ms, tests 23ms, environment 0ms, prepare 25ms)\u001b[22m\n\n",
+      "passed": 19,
+      "failed": 0
+    },
+    "test:component": {
+      "cmd": "npm run test:component",
+      "exit": 0,
+      "seconds": 3.6,
+      "tail": "\n> vidi6@0.0.0 test:component\n> vitest run --project component\n\n\n\u001b[1m\u001b[46m RUN \u001b[49m\u001b[22m \u001b[36mv3.2.7 \u001b[39m\u001b[90m~/.vidi-bench/work/qwen__3.8__flash-next__macos__128GB__mtplx-opencode__benchmarks__vidi__canvas-pi-02/workspace\u001b[39m\n\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[45m component \u001b[49m\u001b[39m tests/component/ZoomControls.test.tsx \u001b[2m(\u001b[22m\u001b[2m8 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 48\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[45m component \u001b[49m\u001b[39m tests/component/NavigationHint.test.tsx \u001b[2m(\u001b[22m\u001b[2m5 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[33m 468\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[45m component \u001b[49m\u001b[39m tests/component/BoardViewport.test.tsx \u001b[2m(\u001b[22m\u001b[2m21 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[33m 2963\u001b[2mms\u001b[22m\u001b[39m\n   \u001b[33m\u001b[2m\u2713\u001b[22m\u001b[39m drag to pan (TC-13, TC-14)\u001b[2m > \u001b[22mTC-14 ends the drag on lostpointercapture and resumes on a new press \u001b[33m 382\u001b[2mms\u001b[22m\u001b[39m\n\n\u001b[2m Test Files \u001b[22m \u001b[1m\u001b[32m3 passed\u001b[39m\u001b[22m\u001b[90m (3)\u001b[39m\n\u001b[2m      Tests \u001b[22m \u001b[1m\u001b[32m34 passed\u001b[39m\u001b[22m\u001b[90m (34)\u001b[39m\n\u001b[2m   Start at \u001b[22m 08:40:19\n\u001b[2m   Duration \u001b[22m 3.31s\u001b[2m (transform 52ms, setup 14ms, collect 224ms, tests 3.48s, environment 405ms, prepare 85ms)\u001b[22m\n\n",
+      "passed": 34,
+      "failed": 0
+    },
+    "test:integration": {
+      "exit": "missing"
+    },
+    "test:e2e": {
+      "cmd": "npm run test:e2e -- --project=chromium",
+      "exit": 0,
+      "seconds": 3.7,
+      "tail": "\n> vidi6@0.0.0 test:e2e\n> playwright test --project=chromium\n\n\nRunning 12 tests using 9 workers\n\n  \u2713   6 [chromium] \u203a tests/e2e/navigation.spec.ts:236:3 \u203a workflow 2: limits and recovery \u203a Ctrl + 0 resets the view from the keyboard (207ms)\n  \u2713   1 [chromium] \u203a tests/e2e/navigation.spec.ts:95:3 \u203a workflow 1: first visit navigation \u203a plain scroll pans the board and never scrolls the page (256ms)\n  \u2713   3 [chromium] \u203a tests/e2e/navigation.spec.ts:209:3 \u203a workflow 2: limits and recovery \u203a TC-26 Reset view returns to 100% with the start point centred (267ms)\n  \u2713   8 [chromium] \u203a tests/e2e/navigation.spec.ts:119:3 \u203a workflow 1: first visit navigation \u203a TC-24 Ctrl + wheel zooms around the pointer and does not zoom the page (325ms)\n  \u2713  10 [chromium] \u203a tests/e2e/navigation.spec.ts:289:3 \u203a workflow 3: far travel \u203a a click without movement leaves the view alone (126ms)\n  \u2713   5 [chromium] \u203a tests/e2e/navigation.spec.ts:252:3 \u203a workflow 3: far travel \u203a TC-27 a million units out the grid keeps its pitch and panning stays exact (439ms)\n  \u2713  12 [chromium] \u203a tests/e2e/navigation.spec.ts:350:3 \u203a negative: board gestures do not zoom the page (TC-31) \u203a TC-30 Ctrl + wheel over the zoom control does not zoom the board (178ms)\n  \u2713   7 [chromium] \u203a tests/e2e/navigation.spec.ts:58:3 \u203a workflow 1: first visit navigation \u203a TC-23 a 200x100 drag moves the board exactly 200x100 pixels (461ms)\n  \u2713  11 [chromium] \u203a tests/e2e/navigation.spec.ts:301:3 \u203a negative: board gestures do not zoom the page (TC-31) \u203a Ctrl/Cmd gestures and shortcuts over the board leave page zoom alone (347ms)\n  \u2713   9 [chromium] \u203a tests/e2e/navigation.spec.ts:153:3 \u203a workflow 2: limits and recovery \u203a TC-25 zooming in by steps stops at 400% and disables the + button (715ms)\n  \u2713   4 [chromium] \u203a tests/e2e/navigation.spec.ts:36:3 \u203a workflow 1: first visit navigation \u203a TC-28 the hint is shown, dismissed by the first drag, and stays gone (724ms)\n  \u2713   2 [chromium] \u203a tests/e2e/navigation.spec.ts:190:3 \u203a workflow 2: limits and recovery \u203a the zoom-out button disables at 10% (997ms)\n\n  12 passed (3.2s)\n",
+      "passed": 12,
+      "failed": 0
+    }
+  },
+  "all_green": true
+}
