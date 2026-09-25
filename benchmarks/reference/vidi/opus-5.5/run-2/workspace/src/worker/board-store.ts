@@ -2,7 +2,7 @@
  * Board storage in the BoardRoom's SQLite-backed Durable Object storage (anchor:
  * persist.board_store). One database per board:
  *
- *   storage_meta        key/value: storage_schema_version, snapshot_through_seq
+ *   storage_meta        key/value: storage_schema_version, snapshot_through_seq, created_at
  *   updates             append-only log of Yjs updates applied since the last snapshot
  *   snapshot_chunks     Y.encodeStateAsUpdate(doc) split into SNAPSHOT_CHUNK_BYTES rows
  *   quarantined_updates log rows that could not be applied on load, kept for inspection
@@ -10,6 +10,11 @@
  * Loading applies the snapshot then every log row with seq > snapshot_through_seq. An
  * unreadable snapshot fails the whole load (nothing is modified); an unreadable log row is
  * moved to quarantine and the rest of the board loads.
+ *
+ * Existence (anchor: share.board_api): a board exists when `created_at` is set, or (legacy
+ * boards saved before story 5) when it has any log or snapshot row. Tables are created only
+ * by `migrate()`, which runs on `initialize` and lazily before the first `append()`; loading
+ * or checking an unknown board reads only, so probing a link leaves no storage behind.
  */
 import * as Y from 'yjs';
 import {
@@ -28,6 +33,7 @@ export type LoadResult =
 
 const META_SCHEMA_VERSION = 'storage_schema_version';
 const META_THROUGH_SEQ = 'snapshot_through_seq';
+const META_CREATED_AT = 'created_at';
 
 const SCHEMA = [
   'CREATE TABLE IF NOT EXISTS storage_meta (key TEXT PRIMARY KEY, value TEXT NOT NULL)',
@@ -74,6 +80,7 @@ export class BoardStore {
   /** Log rows and bytes after the snapshot, tracked in memory to avoid COUNT(*) per write. */
   private logCount = 0;
   private logBytes = 0;
+  private migrated = false;
 
   constructor(private readonly storage: DurableObjectStorage) {}
 
@@ -89,10 +96,47 @@ export class BoardStore {
       META_SCHEMA_VERSION,
       String(STORAGE_SCHEMA_VERSION),
     );
+    this.migrated = true;
+  }
+
+  /** True once the board's tables exist. Reads sqlite_master only. */
+  private hasTables(): boolean {
+    return this.sql.exec("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'updates'").toArray().length > 0;
+  }
+
+  /** The existence rule above. Never creates tables or writes anything. */
+  existsReadOnly(): boolean {
+    if (!this.hasTables()) return false;
+    if (this.sql.exec('SELECT 1 FROM storage_meta WHERE key = ?', META_CREATED_AT).toArray().length > 0) return true;
+    if (this.sql.exec('SELECT 1 FROM updates LIMIT 1').toArray().length > 0) return true;
+    return this.sql.exec('SELECT 1 FROM snapshot_chunks LIMIT 1').toArray().length > 0;
+  }
+
+  /** `created_at` (epoch ms), or null when never initialised (unknown or legacy board). */
+  createdAt(): number | null {
+    if (!this.hasTables()) return null;
+    const value = this.sql
+      .exec<{ value: string }>('SELECT value FROM storage_meta WHERE key = ?', META_CREATED_AT)
+      .toArray()[0]?.value;
+    return value === undefined ? null : Number(value);
+  }
+
+  /**
+   * Makes this storage a new, empty board: migrate and record `created_at`. An existing
+   * board (initialised or legacy) is left untouched and reported as 'exists'.
+   */
+  initialize(now: number): 'created' | 'exists' {
+    if (this.existsReadOnly()) return 'exists';
+    this.storage.transactionSync(() => {
+      this.migrate();
+      this.sql.exec('INSERT INTO storage_meta (key, value) VALUES (?, ?)', META_CREATED_AT, String(now));
+    });
+    return 'created';
   }
 
   /** Appends one applied update to the log. Throws on SQL failure (the caller resets the room). */
   append(update: Uint8Array): void {
+    if (!this.migrated) this.migrate();
     this.sql.exec('INSERT INTO updates (data, bytes) VALUES (?, ?)', update, update.length);
     this.logCount += 1;
     this.logBytes += update.length;
@@ -107,6 +151,12 @@ export class BoardStore {
   /** Populates `doc` (expected fresh) from the snapshot and the log. Never throws. */
   load(doc: Y.Doc): LoadResult {
     try {
+      // A board that was never written to has no tables: it is empty, and stays unwritten.
+      if (!this.hasTables()) {
+        this.logCount = 0;
+        this.logBytes = 0;
+        return { ok: true, quarantined: 0 };
+      }
       const chunks = this.sql
         .exec<{ data: ArrayBuffer }>('SELECT data FROM snapshot_chunks ORDER BY idx')
         .toArray()

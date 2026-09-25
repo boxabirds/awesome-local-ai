@@ -4,7 +4,7 @@ import worker from '../../src/worker/index';
 import { newBoardId } from '../../src/shared/board-id';
 import { MAX_CONCURRENT_EDITORS } from '../../src/shared/config';
 import { createSticky } from '../../src/shared/board-model';
-import { TestClient, roomUrl, sleep, waitConverged } from './helpers/ws-client';
+import { TestClient, createdBoardId, roomUrl, sleep, waitConverged } from './helpers/ws-client';
 
 const QUIET_MS = 100;
 let open: TestClient[] = [];
@@ -23,14 +23,14 @@ afterEach(() => {
 });
 
 describe('Worker routing (sync.worker_entry)', () => {
-  it('TC-04 rejects an invalid board id with 400 and never touches the namespace', async () => {
+  it('TC-04 rejects an invalid board id with 404 (story 5; was 400) and never touches the namespace', async () => {
     const idFromName = vi.spyOn(env.BOARD_ROOM, 'idFromName');
     const get = vi.spyOn(env.BOARD_ROOM, 'get');
     const req = new Request(roomUrl('bad!id'), { headers: { Upgrade: 'websocket' } });
     const direct = await worker.fetch(req, env);
-    expect(direct.status).toBe(400);
+    expect(direct.status).toBe(404);
     const viaRuntime = await SELF.fetch(roomUrl('bad!id'), { headers: { Upgrade: 'websocket' } });
-    expect(viaRuntime.status).toBe(400);
+    expect(viaRuntime.status).toBe(404);
     expect(idFromName).not.toHaveBeenCalled();
     expect(get).not.toHaveBeenCalled();
   });
@@ -48,7 +48,7 @@ describe('Worker routing (sync.worker_entry)', () => {
   });
 
   it(`TC-13 accepts MAX_CONCURRENT_EDITORS + 1 (${MAX_CONCURRENT_EDITORS + 1}) sockets and the last one's note reaches everyone`, async () => {
-    const boardId = newBoardId();
+    const boardId = await createdBoardId();
     const clients: TestClient[] = [];
     for (let i = 0; i < MAX_CONCURRENT_EDITORS + 1; i++) clients.push(await join(boardId));
     const last = clients[clients.length - 1]!;
@@ -58,8 +58,8 @@ describe('Worker routing (sync.worker_entry)', () => {
   });
 
   it('TC-17 keeps boards separate', async () => {
-    const board2 = newBoardId();
-    const a = await join(newBoardId());
+    const board2 = await createdBoardId();
+    const a = await join(await createdBoardId());
     const b = await join(board2);
     const before = b.received.length;
     createSticky(a.doc, { x: 0, y: 0 });

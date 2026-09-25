@@ -203,3 +203,55 @@ Decisions taken where the spec was silent or ambiguous:
 - Output-gate ordering, production hibernation/eviction timing and real Cloudflare restarts
   (design "Not covered"); TC-18 uses the pool's `evictDurableObject` for hibernation.
 - Load time over real internet latency (TC-21 is local).
+
+## Story 5 — Share a board with others using a link
+
+Decisions taken where the spec was silent or ambiguous:
+
+1. **`App` stays the stories 1–4 board component** (existing component tests render it with
+   `boardId`/`doc`/`createProvider`). `App.tsx` additionally exports `Routes`, the router switch
+   that `main.tsx` renders (design: "App.tsx renders router"). `BoardPage` mounts `App` plus
+   the `SharePanel` only once the board exists. `App.tsx` and `BoardPage.tsx` import each other;
+   both only use the other's function at render time, so the cycle is harmless.
+2. **Board HTTP handler lives in `create-board.ts`** (`handleBoardsRequest`), called from
+   `index.ts`. The Worker entry module may export only handlers and entrypoint classes (wrangler
+   refused to start with an exported constant), and integration tests TC-11/TC-12 need to call
+   the handler with injected `generate` / `initialize` functions.
+3. **Shared create action.** `src/client/pages/useCreateBoard.ts` holds the Idle → Creating →
+   navigate / message logic used by both `HomePage` and `NotFoundPage` (design: "reuses
+   HomePage's create action"). Not-found page home link text: "Go to the home page".
+4. **Rate limiter.** The local runtime (Miniflare, in both `wrangler dev` and
+   `@cloudflare/vitest-pool-workers`) implements the `ratelimits` binding, so the real
+   `BOARD_CREATE_LIMITER` is used in integration and e2e tests; `namespace_id` is `"1001"`.
+   E2E runs create many boards from 127.0.0.1, so with `TEST_HOOKS=1` only the
+   `X-Test-Visitor` header replaces `CF-Connecting-IP` as the visitor key; every helper and
+   e2e context uses its own random visitor. Production ignores the header.
+5. **Existing tests now create their boards.** Rooms of unknown boards answer 404, so story 3/4
+   integration tests initialise their board over RPC first (`createdBoardId()` in
+   `tests/integration/helpers/ws-client.ts`) and e2e helpers create boards through
+   `POST /api/boards` (`createBoard()` in `tests/e2e/helpers/seed.ts`; `openBoard` opens a created
+   board instead of `/`). Story 3 TC-04 now expects 404 for a malformed room id (design).
+6. **Storage.** `BoardStore.load()` treats missing tables as an empty board and `BoardRoom` no
+   longer migrates on load; `migrate()` runs in `initialize()` and before the first `append()`.
+   `initialize()` also reports a legacy board (content but no `created_at`) as `exists`, so it
+   is never handed out as new. A room whose storage cannot even be queried for existence is
+   treated as existing and left to story 4's load-failed path.
+7. **TC-04 "chi-square" check.** 64⁴ four-character buckets are far too many for 10,000 ids, so
+   the test runs a chi-square test on each of the first 4 characters (64 buckets, p > 0.001)
+   and requires that no 4-character prefix is shared by 3 or more ids (p ≈ 0.0006 by chance).
+8. **Legacy board e2e fixture (TC-31).** New TEST_HOOKS-only route
+   `POST /__test/boards/:id/seed-legacy` (body: one Yjs update) writes it as a log row with no
+   `created_at` and reloads the room.
+9. **Share panel details.** Focusing or clicking the link field selects it all; the Share button
+   toggles the panel; Escape returns focus to Share, an outside click leaves focus where the
+   person clicked. Closing resets the copied/manual-copy state.
+10. **`checkBoard` never rejects** (network errors and 5xx → `unreachable`); `BoardPage` also treats
+    a rejection as unreachable. Retry delays: 1 s, 2 s, 4 s, 8 s, then 10 s
+    (`RECONNECT_MAX_BACKOFF_MS`).
+11. **Browsers.** Only Chromium is installed on this machine, so e2e ran with
+    `E2E_BROWSERS=chromium`; TC-27 and TC-29 are written browser-neutral for Firefox/WebKit,
+    TC-26 skips outside Chromium (clipboard permissions can only be granted there).
+
+### Not covered
+- Production rate-limiter accuracy, real Safari/Firefox clipboard behaviour and chat-app link
+  rendering (design "Not covered").

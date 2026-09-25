@@ -376,3 +376,142 @@ body,
   opacity: 0.4;
   cursor: not-allowed;
 }
+
+/* ---- Story 5: pages and Share panel ---- */
+.page {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 24px;
+  box-sizing: border-box;
+  text-align: center;
+  background: var(--board-bg);
+}
+
+.page-title {
+  margin: 0;
+  font-size: 2rem;
+}
+
+.page-text {
+  margin: 0;
+  max-width: 32rem;
+  font-size: 1.05rem;
+}
+
+.primary-button {
+  margin-top: 8px;
+  min-width: 12rem;
+  padding: 12px 24px;
+  font: inherit;
+  font-size: 1.05rem;
+  font-weight: 600;
+  color: #ffffff;
+  background: var(--focus);
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.primary-button:disabled {
+  opacity: 0.7;
+  cursor: progress;
+}
+
+.primary-button:focus-visible,
+.share-button:focus-visible,
+.share-copy:focus-visible,
+.page-link:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+.page-error {
+  margin: 0;
+  min-height: 1.5em;
+  color: #a40e26;
+}
+
+.page-link {
+  color: var(--focus);
+}
+
+.share {
+  position: fixed;
+  top: 16px;
+  right: 16px;
+  z-index: 20;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 8px;
+}
+
+.share-button {
+  padding: 8px 16px;
+  font: inherit;
+  font-weight: 600;
+  color: #ffffff;
+  background: var(--focus);
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.12);
+}
+
+.share-panel {
+  width: 26rem;
+  max-width: calc(100vw - 32px);
+  padding: 12px;
+  box-sizing: border-box;
+  background: var(--panel-bg);
+  border: 1px solid var(--panel-border);
+  border-radius: 8px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+  text-align: left;
+}
+
+.share-row {
+  display: flex;
+  gap: 8px;
+}
+
+.share-link {
+  flex: 1;
+  min-width: 0;
+  padding: 6px 8px;
+  font: inherit;
+  font-size: 0.9rem;
+  border: 1px solid var(--panel-border);
+  border-radius: 6px;
+}
+
+.share-copy {
+  flex: none;
+  min-width: 7.5rem;
+  padding: 6px 12px;
+  font: inherit;
+  background: var(--panel-bg);
+  border: 1px solid var(--panel-border);
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.share-copy[data-state='copied'] {
+  color: #1a7f37;
+  border-color: #1a7f37;
+}
+
+.share-manual {
+  margin: 8px 0 0;
+  font-weight: 600;
+}
+
+.share-note {
+  margin: 8px 0 0;
+  font-size: 0.85rem;
+  color: #57606a;
+}

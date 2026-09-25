@@ -8,7 +8,6 @@ import { afterEach, describe, expect, it } from 'vitest';
 import * as Y from 'yjs';
 import * as encoding from 'lib0/encoding';
 import * as syncProtocol from 'y-protocols/sync';
-import { newBoardId } from '../../src/shared/board-id';
 import { createSticky, snapshot } from '../../src/shared/board-model';
 import { LOAD_RETRY_MIN_INTERVAL_MS } from '../../src/shared/config';
 import {
@@ -19,7 +18,7 @@ import {
 } from '../../src/shared/protocol';
 import { BoardStore } from '../../src/worker/board-store';
 import { RETRO_NOTES, buildRetroBoard, truncatedUpdate } from '../fixtures/boards';
-import { TestClient, sameState, sleep, waitConverged, waitUntil } from './helpers/ws-client';
+import { TestClient, createdBoardId, sameState, sleep, waitConverged, waitUntil } from './helpers/ws-client';
 
 const QUIET_MS = 100;
 const GARBAGE_UPDATE = new Uint8Array([0xff, 0xff, 0xff, 0xff]);
@@ -72,7 +71,7 @@ async function rowCount(boardId: string): Promise<number> {
 
 /** A 25-note board saved as a snapshot, with the room's instance evicted afterwards. */
 async function snapshottedBoard(): Promise<{ boardId: string; original: Y.Doc }> {
-  const boardId = newBoardId();
+  const boardId = await createdBoardId();
   const a = await join(boardId);
   buildRetroBoard(a.doc);
   const probe = await join(boardId);
@@ -104,7 +103,7 @@ function syncStep2Frame(doc: Y.Doc): Uint8Array {
 
 describe('Persistent BoardRoom (persist.room)', () => {
   it('TC-12 a change another client has received is already stored', async () => {
-    const boardId = newBoardId();
+    const boardId = await createdBoardId();
     const a = await join(boardId);
     const b = await join(boardId);
     const id = createSticky(a.doc, { x: 10, y: 20 }, 'orange');
@@ -121,7 +120,7 @@ describe('Persistent BoardRoom (persist.room)', () => {
   });
 
   it('TC-13 after everyone leaves, a new room instance serves the identical board', async () => {
-    const boardId = newBoardId();
+    const boardId = await createdBoardId();
     const a = await join(boardId);
     buildRetroBoard(a.doc);
     const b = await join(boardId);
@@ -136,7 +135,7 @@ describe('Persistent BoardRoom (persist.room)', () => {
   });
 
   it('TC-25 opening a never-edited board stores nothing', async () => {
-    const boardId = newBoardId();
+    const boardId = await createdBoardId();
     const a = await connect(boardId);
     await waitUntil(() => a.synced, 'sync');
     await sleep(QUIET_MS);
@@ -145,7 +144,7 @@ describe('Persistent BoardRoom (persist.room)', () => {
   });
 
   it('TC-14 a failed save is not broadcast, closes everyone with 1011, and is saved on reconnection', async () => {
-    const boardId = newBoardId();
+    const boardId = await createdBoardId();
     const a = await join(boardId);
     const b = await join(boardId);
     const kept = createSticky(a.doc, { x: 0, y: 0 });
@@ -237,7 +236,7 @@ describe('Persistent BoardRoom (persist.room)', () => {
   });
 
   it('TC-17 a garbage update closes the sender with 1003 and is not stored', async () => {
-    const boardId = newBoardId();
+    const boardId = await createdBoardId();
     const a = await join(boardId);
     createSticky(a.doc, { x: 0, y: 0 });
     await sleep(QUIET_MS);
@@ -252,7 +251,7 @@ describe('Persistent BoardRoom (persist.room)', () => {
   });
 
   it('TC-18 sockets accepted before the object was evicted still get broadcasts after it wakes', async () => {
-    const boardId = newBoardId();
+    const boardId = await createdBoardId();
     const a = await join(boardId);
     const b = await join(boardId);
     buildRetroBoard(a.doc);
@@ -271,7 +270,7 @@ describe('Persistent BoardRoom (persist.room)', () => {
   });
 
   it('TC-26 a SQL error while loading closes clients with 4500', async () => {
-    const boardId = newBoardId();
+    const boardId = await createdBoardId();
     const a = await join(boardId);
     createSticky(a.doc, { x: 0, y: 0 });
     await closeAndWait([a]);

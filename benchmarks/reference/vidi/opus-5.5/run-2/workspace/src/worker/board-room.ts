@@ -12,6 +12,9 @@
  * - A failed insert resets the room (`storage-failed`): no broadcast, every socket closed
  *   with CLOSE_STORAGE_FAILURE, doc discarded. Reconnecting clients re-send what the reloaded
  *   room lacks through the SyncStep1/SyncStep2 handshake.
+ * - Existence (share.board_api): `initialize()` (RPC, from board creation) is the only way a
+ *   new board comes to be; `exists()` and `fetch` only read, and `fetch` answers 404 before
+ *   accepting a socket for a board that does not exist.
  * - Sockets use the hibernation API; `ctx.getWebSockets()` is the list of connected sockets,
  *   so an idle board costs no compute and its sockets survive the object being evicted.
  */
@@ -29,10 +32,11 @@ import {
 } from '../shared/protocol';
 import { BoardStore, LOAD_ORIGIN, type LoadResult } from './board-store';
 import { INITIAL_ROOM_STATE, nextRoomState, type RoomEvent, type RoomLifecycle } from './room-state';
-import { TestHookError, corruptSnapshot, repairSnapshot } from './test-hooks';
+import { TestHookError, corruptSnapshot, repairSnapshot, seedLegacyBoard } from './test-hooks';
 import type { Env } from './index';
 
 const SWITCHING_PROTOCOLS = 101;
+const NOT_FOUND = 404;
 const UPGRADE_REQUIRED = 426;
 const CLOSE_NORMAL = 1000;
 
@@ -94,7 +98,6 @@ export class BoardRoom extends DurableObject<Env> {
     const doc = new Y.Doc();
     let result: LoadResult;
     try {
-      this.store.migrate();
       result = this.store.load(doc);
     } catch (err) {
       result = { ok: false, reason: 'sql-error', error: err instanceof Error ? err.message : String(err) };
@@ -111,10 +114,30 @@ export class BoardRoom extends DurableObject<Env> {
     return result;
   }
 
+  /** RPC: turns this object into a new empty board, unless it already is a board. */
+  async initialize(): Promise<'created' | 'exists'> {
+    return this.store.initialize(this.now());
+  }
+
+  /** RPC: read-only existence check (created, or legacy content). */
+  async exists(): Promise<boolean> {
+    return this.store.existsReadOnly();
+  }
+
+  /** Existence before accepting a socket; a store that cannot be queried is left to the load path. */
+  private boardExists(): boolean {
+    try {
+      return this.store.existsReadOnly();
+    } catch {
+      return true;
+    }
+  }
+
   async fetch(req: Request): Promise<Response> {
     if (req.headers.get('Upgrade')?.toLowerCase() !== 'websocket') {
       return new Response('Expected a WebSocket upgrade', { status: UPGRADE_REQUIRED });
     }
+    if (!this.boardExists()) return new Response('Board not found', { status: NOT_FOUND });
     const refuse = this.transition({ type: 'connect', at: this.now() });
     if (this.lifecycle.kind === 'loading') this.load();
 
@@ -243,6 +266,15 @@ export class BoardRoom extends DurableObject<Env> {
     this.requireTestHooks();
     corruptSnapshot(this.ctx.storage);
     for (const ws of this.ctx.getWebSockets()) closeQuietly(ws, CLOSE_BOARD_LOAD_FAILED, "Board couldn't be loaded");
+    this.load();
+    return this.state;
+  }
+
+  /** Stores `update` as a board saved before story 5: log rows only, no `created_at` (TC-31). */
+  testSeedLegacy(update: Uint8Array): RoomState {
+    this.requireTestHooks();
+    seedLegacyBoard(this.ctx.storage, update);
+    for (const ws of this.ctx.getWebSockets()) closeQuietly(ws, CLOSE_NORMAL, 'reseeded');
     this.load();
     return this.state;
   }

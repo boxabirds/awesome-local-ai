@@ -3,11 +3,12 @@
  * real WebSocket obtained from a `SELF.fetch` upgrade — the same framing as the browser's
  * y-websocket provider.
  */
-import { SELF } from 'cloudflare:test';
+import { SELF, env } from 'cloudflare:test';
 import * as Y from 'yjs';
 import * as encoding from 'lib0/encoding';
 import * as decoding from 'lib0/decoding';
 import * as syncProtocol from 'y-protocols/sync';
+import { newBoardId } from '../../../src/shared/board-id';
 import { initDoc, snapshot, type StickySnapshot } from '../../../src/shared/board-model';
 import { MESSAGE_AWARENESS, MESSAGE_SYNC } from '../../../src/shared/protocol';
 
@@ -25,6 +26,17 @@ export interface Received {
 
 export function roomUrl(boardId: string): string {
   return `http://vidi6.test/api/rooms/${boardId}`;
+}
+
+/**
+ * A fresh id whose board has been created (story 5: rooms of unknown boards answer 404).
+ * Initialised over the same RPC that POST /api/boards uses, so no rate limit is spent.
+ */
+export async function createdBoardId(): Promise<string> {
+  const id = newBoardId();
+  const result = await env.BOARD_ROOM.get(env.BOARD_ROOM.idFromName(id)).initialize();
+  if (result !== 'created') throw new Error(`fresh board ${id} already existed`);
+  return id;
 }
 
 export async function waitUntil(predicate: () => boolean, what: string, timeoutMs = DEFAULT_WAIT_MS): Promise<void> {
