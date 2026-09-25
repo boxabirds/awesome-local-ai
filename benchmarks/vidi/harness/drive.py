@@ -47,7 +47,9 @@ WORK_ROOT = Path(os.environ.get("VIDI_WORK_ROOT", Path.home() / ".vidi-bench" / 
 SANDBOX_DENY = [REPO_ROOT, *(Path.home() / p for p in
                 (".claude", ".agents", ".codex", ".config/opencode", ".local/share/opencode", ".mtplx",
                  ".dbench")),
-                *[r for r in [packdir.private_root(PACK)] if r]]
+                *[r for r in [packdir.private_root(PACK)] if r],
+                # The held-out suite's browsers: an agent's `playwright install` would delete them.
+                hostenv.playwright_cache(Path.home())]
 # Denied trees that must still be readable, read-only: dbench installs the agents' tools (pi, uv) under
 # ~/.dbench/tools, while the rest of ~/.dbench (token, jobs, repo checkouts, other runs' builds) stays hidden.
 SANDBOX_REOPEN_RO = [Path.home() / ".dbench" / "tools"]
@@ -325,7 +327,7 @@ def agent_env(work: Path) -> dict:
         "XDG_STATE_HOME": str(home / ".local" / "state"),
         # Shared caches only: identical for every run and they hold no instructions.
         "npm_config_cache": str(real_home / ".npm"),
-        "PLAYWRIGHT_BROWSERS_PATH": str(hostenv.playwright_cache(real_home)),
+        "PLAYWRIGHT_BROWSERS_PATH": str(hostenv.agent_playwright_cache(real_home)),
         "WRANGLER_SEND_METRICS": "false",
         **GIT_IDENTITY,
     }

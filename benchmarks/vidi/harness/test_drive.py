@@ -1,4 +1,5 @@
 """uv run --with pytest pytest harness/test_drive.py"""
+import pytest
 import json
 from drive import LoopDetector, LOOP_REPEAT_LIMIT
 
@@ -550,3 +551,30 @@ def test_reference_runs_get_distinct_labels_and_work_dirs():
     assert work_dir_for(a) != work_dir_for(b) and work_dir_for(a).parent == WORK_ROOT
     local = REPO_ROOT / "combinations" / "qwen" / "3.8" / "27b" / "ubuntu" / "24GB" / "llamacpp-opencode" / "benchmarks" / "vidi" / "canvas-pi-03"
     assert combination_label(local) == "qwen/3.8/27b/ubuntu/24GB/llamacpp-opencode"
+
+
+def test_agent_browsers_are_kept_apart_from_the_held_out_suites(tmp_path: Path):
+    # `npx playwright install` deletes browsers no visible project uses. In the sandbox the suite's
+    # folder is hidden, so an agent on another Playwright version deleted the suite's browser
+    # (opus-5.5 run-2 stories 3-8 on the M2). The agent must never share the suite's browser cache.
+    from drive import agent_env
+    import hostenv
+    env = agent_env(tmp_path / "work")
+    suite_cache = hostenv.playwright_cache(Path.home())
+    agent_cache = Path(env["PLAYWRIGHT_BROWSERS_PATH"])
+    assert agent_cache != suite_cache
+    assert suite_cache not in agent_cache.parents and agent_cache not in suite_cache.parents
+
+
+def test_sandbox_blocks_the_held_out_suites_browsers(tmp_path: Path):
+    import hostenv
+    suite_cache = hostenv.playwright_cache(Path.home())
+    if not suite_cache.is_dir():
+        pytest.skip("no Playwright browsers installed on this machine")
+    own = tmp_path / "run"
+    (own / "workspace").mkdir(parents=True)
+    r = subprocess.run(sandboxed(["ls", str(suite_cache)], own_dir=own), capture_output=True, text=True)
+    assert r.returncode != 0 and "chromium" not in r.stdout
+    rm = subprocess.run(sandboxed(["touch", str(suite_cache / "agent-was-here")], own_dir=own),
+                        capture_output=True, text=True)
+    assert rm.returncode != 0 and not (suite_cache / "agent-was-here").exists()
