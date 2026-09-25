@@ -24,7 +24,7 @@ LLAMA_DIR="${LLAMA_DIR:-${INSTALL_ROOT}/llama.cpp}"
 
 # WHERE llama.cpp comes from. Upstream by default, but a combination may point
 # at a fork when its weights need kernels that are not upstream yet -- see
-# combinations/bonsai/2/27b/ubuntu/24GB/llamacpp-opencode, whose ternary types
+# combinations/bonsai/2/27b/ubuntu/nvidia4090/llamacpp-opencode, whose ternary types
 # stock llama.cpp refuses outright. Keeping this a variable rather than a
 # second backend module is what docs/adding-a-combination.md asks for: the
 # thing that varies is data, not logic.

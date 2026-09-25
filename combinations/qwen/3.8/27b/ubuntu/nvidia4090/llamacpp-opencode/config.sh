@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# combinations/qwen/3.8/27b/ubuntu/24GB/llamacpp-opencode/config.sh
+# combinations/qwen/3.8/27b/ubuntu/nvidia4090/llamacpp-opencode/config.sh
 #
 # Qwen3.8-27B on a 24GB NVIDIA GPU under Ubuntu, served by llama.cpp with
 # speculative decoding, driven by OpenCode.

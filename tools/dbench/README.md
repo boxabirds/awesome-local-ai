@@ -131,7 +131,7 @@ git pull                                           # results, as each story is r
 
 ```sh
 dbench nodes                                   # every node in parallel; unreachable ones say so
-dbench submit gruntus --id canvas-pi-02 --combination qwen/3.8/27b/ubuntu/24GB/llamacpp-opencode \
+dbench submit gruntus --id canvas-pi-02 --combination qwen/3.8/27b/ubuntu/nvidia4090/llamacpp-opencode \
   --pack benchmarks/vidi --scope canvas --run-id canvas-pi-02 [--client pi] [--stories 1,2] [--no-record]
                                                # or --install-id qwen38-27b: the name the node installed it under
 dbench submit gruntus --id vidi-4090 --install-id qwen38-27b --pack benchmarks/vidi --run-id canvas-pi --repeat 3

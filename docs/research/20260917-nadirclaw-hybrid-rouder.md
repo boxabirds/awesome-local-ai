@@ -21,7 +21,7 @@ Each claim below is labelled with how it was established:
 
 ### Backends covered
 
-This repo installs two local servers: **MTPLX** (the two macOS combinations) and **llama.cpp `llama-server`** (`qwen/3.8/27b/ubuntu/24GB/llamacpp-opencode`, RTX 4090). Both are OpenAI-compatible, and NadirClaw reaches both the same way: `openai/<alias>` through LiteLLM with `NADIRCLAW_API_BASE`. So:
+This repo installs two local servers: **MTPLX** (the two macOS combinations) and **llama.cpp `llama-server`** (`qwen/3.8/27b/ubuntu/nvidia4090/llamacpp-opencode`, RTX 4090). Both are OpenAI-compatible, and NadirClaw reaches both the same way: `openai/<alias>` through LiteLLM with `NADIRCLAW_API_BASE`. So:
 
 - **E1–E5 use a stub upstream and are server-agnostic.** The overhead, the tool override, the dropped parameters, session pinning and the `API_BASE` key leak apply identically to MTPLX and llama-server.
 - **E6 ran NadirClaw end-to-end against a real llama-server** (llama.cpp `master` `b49650a`, built locally with Metal, small Qwen3 GGUF stand-in, the combination's response-shaping flags). It confirms NadirClaw handles that server's replies, including streamed tool calls.
@@ -309,5 +309,5 @@ E5: same as above, but with `NADIRCLAW_COMPLEX_MODEL=claude-sonnet-4-5-20250929`
 - [nadirclaw on PyPI](https://pypi.org/project/nadirclaw/)
 - `CHANGELOG.md` in the repo: 0.22.0 relicense entry, 0.23.0 tty/serve fix
 - This repo: `combinations/qwen/3.8/flash-next/macos/128GB/mtplx-opencode/config.sh` (Flash-Next measurements cited above)
-- This repo: `combinations/qwen/3.8/27b/ubuntu/24GB/llamacpp-opencode/config.sh`, `lib/runtime/server-llamacpp.sh` (llama.cpp combination)
+- This repo: `combinations/qwen/3.8/27b/ubuntu/nvidia4090/llamacpp-opencode/config.sh`, `lib/runtime/server-llamacpp.sh` (llama.cpp combination)
 - [ggml-org/llama.cpp](https://github.com/ggml-org/llama.cpp) @ `b49650a`

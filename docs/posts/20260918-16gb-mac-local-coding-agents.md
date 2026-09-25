@@ -1,7 +1,7 @@
 # Can we finally get AI Local coding agents running on a 16GB Mac?
 
 *Draft — 2026-09-18. Every figure is measured on the machine named, unless the
-line says otherwise. Sources: [the 24GB combination's benchmarks](../../combinations/bonsai/2/27b/ubuntu/24GB/llamacpp-opencode/benchmarks/README.md),
+line says otherwise. Sources: [the 24GB combination's benchmarks](../../combinations/bonsai/2/27b/ubuntu/nvidia4090/llamacpp-opencode/benchmarks/README.md),
 [the M2 Air note](../research/20260918-bonsai2-apple-silicon-m2-16gb/README.md),
 [the concurrency analysis](../research/20260918-bonsai2-concurrent-sessions.md).*
 

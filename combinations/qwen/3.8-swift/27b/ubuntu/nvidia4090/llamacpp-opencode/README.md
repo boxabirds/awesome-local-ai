@@ -1,19 +1,19 @@
 # Swift Qwen3.8-27B · Ubuntu · 24GB NVIDIA · llama.cpp + OpenCode
 
-**Combination:** `qwen/3.8-swift/27b/ubuntu/24GB/llamacpp-opencode`
-**Install:** `./install-qwen-3.8-swift-27b-ubuntu-24GB-llamacpp-opencode.sh` (from the repo root)
+**Combination:** `qwen/3.8-swift/27b/ubuntu/nvidia4090/llamacpp-opencode`
+**Install:** `./install-qwen-3.8-swift-27b-ubuntu-nvidia4090-llamacpp-opencode.sh` (from the repo root)
 
 Swift-Qwen3.8-27B on a 24GB NVIDIA GPU as a local OpenAI-compatible API — with
 speculative decoding, the model's native vision tower, and a 128k context
 window. It is the **fast-of-the-two** Qwen3.8-27B here: a retrained model that
 thinks less, so each reasoning-effort level costs fewer tokens and less wall
-time than the [baseline](../../../../../../../combinations/qwen/3.8/27b/ubuntu/24GB/llamacpp-opencode/README.md)
+time than the [baseline](../../../../../../../combinations/qwen/3.8/27b/ubuntu/nvidia4090/llamacpp-opencode/README.md)
 for the same task.
 
 ```bash
 git clone https://github.com/boxabirds/awesome-local-ai.git
 cd awesome-local-ai
-./install-qwen-3.8-swift-27b-ubuntu-24GB-llamacpp-opencode.sh   # ~20 min first run (build + ~17 GB)
+./install-qwen-3.8-swift-27b-ubuntu-nvidia4090-llamacpp-opencode.sh   # ~20 min first run (build + ~17 GB)
 swift-qwen38-27b-opencode                                       # server on demand + OpenCode
 ```
 
@@ -173,7 +173,7 @@ terminal reuses the running server.
 The server is OpenAI-compatible at `http://127.0.0.1:8080/v1`, model id
 **`qwen3.8-swift-27b`**. The Pi and OpenCode hand-configs are identical to the
 baseline's except the model id — see
-[the baseline README](../../../../../../../combinations/qwen/3.8/27b/ubuntu/24GB/llamacpp-opencode/README.md#connecting-a-coding-agent-by-hand)
+[the baseline README](../../../../../../../combinations/qwen/3.8/27b/ubuntu/nvidia4090/llamacpp-opencode/README.md#connecting-a-coding-agent-by-hand)
 for the full `models.json` / `opencode.json` blocks, or pick `--client pi` at
 install time to have it written for you.
 
@@ -290,7 +290,7 @@ Swift ~1.5 GiB of real slack).
 **Empty responses** — `max_tokens` too small; the reasoning block consumed it.
 
 **Want the math/quant-strong model** — use the
-[baseline](../../../../../../../combinations/qwen/3.8/27b/ubuntu/24GB/llamacpp-opencode/README.md).
+[baseline](../../../../../../../combinations/qwen/3.8/27b/ubuntu/nvidia4090/llamacpp-opencode/README.md).
 
 ---
 
@@ -301,6 +301,6 @@ Swift ~1.5 GiB of real slack).
   comparison, caveats, and the baseline reconciliation.
 - **[benchmarks/](benchmarks/)** — the raw per-effort data (`base.tsv`,
   `swift.tsv`) and how to re-measure the profile VRAM.
-- **[the baseline combination](../../../../../../../combinations/qwen/3.8/27b/ubuntu/24GB/llamacpp-opencode/README.md)** —
+- **[the baseline combination](../../../../../../../combinations/qwen/3.8/27b/ubuntu/nvidia4090/llamacpp-opencode/README.md)** —
   the full measurement methodology (discovery.md), KV-type kernels, and the
   client hand-configs.

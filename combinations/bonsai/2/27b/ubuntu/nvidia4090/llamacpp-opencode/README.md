@@ -4,7 +4,7 @@ A 27B-class coding model in **6.7 GB of weights**, leaving two thirds of a
 24GB card unused.
 
 ```bash
-./install.sh bonsai        # or: ./install-bonsai-2-27b-ubuntu-24GB-llamacpp-opencode.sh
+./install.sh bonsai        # or: ./install-bonsai-2-27b-ubuntu-nvidia4090-llamacpp-opencode.sh
 ./start.sh
 ```
 
@@ -20,7 +20,7 @@ against PrismML fork build `5d80cff` (`prism-b10687`). Method and raw logs:
 Qwen3.8-27B with its weights re-quantised to **ternary** values `{-1, 0, +1}`
 with one FP16 scale per group of 128, in a Hadamard-rotated basis — about
 **1.72 bits per weight**. The architecture is unchanged, so everything the
-[Qwen combination](../../../../../../qwen/3.8/27b/ubuntu/24GB/llamacpp-opencode/README.md)
+[Qwen combination](../../../../../../qwen/3.8/27b/ubuntu/nvidia4090/llamacpp-opencode/README.md)
 established about this model's hybrid attention still holds. What changes is
 size, speed, and the runtime it needs.
 
@@ -104,7 +104,7 @@ rather than buried.
 Two things that stop this being a verdict:
 
 - **The baseline is full-precision Qwen3.8-27B**, not the UD-Q4_K_XL build the
-  [Qwen combination](../../../../../../qwen/3.8/27b/ubuntu/24GB/llamacpp-opencode/README.md)
+  [Qwen combination](../../../../../../qwen/3.8/27b/ubuntu/nvidia4090/llamacpp-opencode/README.md)
   actually installs on this card. That build is itself quantised, so the gap
   against what you would really be running is smaller than these figures by an
   amount nobody here has measured.

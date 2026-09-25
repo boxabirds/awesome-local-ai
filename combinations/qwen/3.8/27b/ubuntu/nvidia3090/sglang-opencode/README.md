@@ -1,7 +1,7 @@
 # Qwen3.8-27B EXL3 · Ubuntu · 24GB NVIDIA (RTX 3090) · SGLang + OpenCode
 
-**Combination:** `qwen/3.8/27b/ubuntu/24GB/sglang-opencode`
-**Install:** `./install-qwen-3.8-27b-ubuntu-24GB-sglang-opencode.sh` (from the repo root)
+**Combination:** `qwen/3.8/27b/ubuntu/nvidia3090/sglang-opencode`
+**Install:** `./install-qwen-3.8-27b-ubuntu-nvidia3090-sglang-opencode.sh` (from the repo root)
 
 > **Not measured by this repo.** Every number on this page was measured by the
 > recipe's author on a **bare RTX 3090 24 GB** and published in
@@ -17,7 +17,7 @@ container image, with NEXTN (MTP) speculative decoding, fp8 KV cache and the
 model's full 262,144-token window on a single 24 GB card.
 
 ```bash
-./install-qwen-3.8-27b-ubuntu-24GB-sglang-opencode.sh   # image ~15.4 GB + weights 13.84 GB
+./install-qwen-3.8-27b-ubuntu-nvidia3090-sglang-opencode.sh   # image ~15.4 GB + weights 13.84 GB
 qwen38-27b-exl3-sglang-opencode                         # server on demand + OpenCode
 ```
 
@@ -32,7 +32,7 @@ combination stays the default for a 24 GB card. Name it to install it.
 |---|---|
 | **Numbers** | Recipe author's, bare RTX 3090, 2026-09-23. Not reproduced here. |
 | **GPU architecture** | Kernels built **only for sm_86** (Ampere GA102: RTX 3090 / 3090 Ti / A6000-class). RTX 4090 (sm_89) and 5090 (sm_120) are **UNVERIFIED** — see [below](#gpu-architecture). The installer and launcher detect `compute_cap` and warn on anything but 8.6; they do not refuse. |
-| **Quality vs speed** | 3.00 bits per weight. The [llama.cpp 27B combination](../llamacpp-opencode/README.md) uses UD-Q4_K_XL (16.7 GiB, roughly 5.3 bits per weight by file size, against 13.84 GB here). This one is faster per the recipe, but on a *lower-bit* quantization: the speed comparison is **not like-for-like on quality**, and no quality comparison between the two has been made by anyone we know of. |
+| **Quality vs speed** | 3.00 bits per weight. The [llama.cpp 27B combination](../../nvidia4090/llamacpp-opencode/README.md) uses UD-Q4_K_XL (16.7 GiB, roughly 5.3 bits per weight by file size, against 13.84 GB here). This one is faster per the recipe, but on a *lower-bit* quantization: the speed comparison is **not like-for-like on quality**, and no quality comparison between the two has been made by anyone we know of. |
 | **Bare card** | The 262k window needs the whole card. A GPU that also drives a desktop (~5 GB used) cannot hold it — the recipe's words — so use `PROFILE=desktop`, which is **extrapolated**. |
 | **Image boot** | PR #83 stated, at merge: *"the published v0.5.1 image has not yet been booted with these exact argv. v0.4.0 was, and passed."* The registry's main branch has since recorded an `image_boot` for this recipe (2026-09-23T13:09Z, bare 3090: ready in 80 s, "216-token code answer at 127 tok/s", engine restarts 0). It does not say which of the two argv variants below that was. |
 | **OS** | The author's test box is named "omarchy" in the recipe (Omarchy is an Arch Linux-based setup). Nothing in the serving path depends on the distro — it is a container — but Ubuntu itself has not run it. |
@@ -171,7 +171,7 @@ It does **not** prove the 262k window, the speeds, or quality.
 Please send back (an issue or a PR editing this README):
 
 ```bash
-./install-qwen-3.8-27b-ubuntu-24GB-sglang-opencode.sh 2>&1 | tee first-run.txt
+./install-qwen-3.8-27b-ubuntu-nvidia3090-sglang-opencode.sh 2>&1 | tee first-run.txt
 nvidia-smi --query-gpu=name,compute_cap,driver_version,memory.total,memory.used --format=csv
 nvidia-smi | head -4                       # driver's CUDA version
 docker --version; nvidia-ctk --version

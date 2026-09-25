@@ -259,7 +259,7 @@ fi
 # is a single shared symlink that the most recently installed llama.cpp
 # combination takes over, so trusting PATH means a combination can silently run
 # on another one's binary -- which matters a great deal when one of them is a
-# fork (see combinations/bonsai/2/27b/ubuntu/24GB/llamacpp-opencode). Fall back
+# fork (see combinations/bonsai/2/27b/ubuntu/nvidia4090/llamacpp-opencode). Fall back
 # to PATH only when this install has no binary of its own.
 LLAMA_SERVER_BIN="${ROOT}/llama.cpp/build/bin/llama-server"
 if [[ ! -x "$LLAMA_SERVER_BIN" ]]; then
