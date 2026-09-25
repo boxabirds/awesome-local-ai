@@ -32,16 +32,16 @@ Held-out acceptance suite (`accept.json`), after the suite fix in `5756fe5`. Tha
 | 9 Free text | 6/6 |
 | 10 Shapes and arrows | 8/8 |
 | 11 Freehand pen | 5/5 |
-| 12 Images | 5/5 |
-| **All** | **73/75** |
+| 12 Images | 5/5 (3/5 on one run: an intermittent file-chooser timeout) |
+| **All** | **73/75** (three runs: 73, 72, 71) |
 
 - **The two failures are one real bug:** Delete is ignored while a button has keyboard focus.
 - **Before the suite fix** this build scored 63/75. Ten of those failures were the suite's own faults, not the app's.
 - **Two full runs:** the second scored 72/75, because a story 12 file-chooser test timed out intermittently.
 
-**Delivery audit:** [AUDIT.md](AUDIT.md) lists 4 functional faults, 1 missing test, 9 design deviations and no false completion claims.
+**Delivery audit:** [AUDIT.md](AUDIT.md) lists 4 functional faults, 0 false completion claims, 1 missing test, 2 weak tests and 10 design/process deviations. The same rubric and reviewer were applied to Flash-Next, which has 33 functional faults and 13 false claims.
 
-**Flash-Next:** the comparison waits until its run finishes and every story has been re-scored with the fixed suite. Scores from the old suite don't compare.
+**Flash-Next** (`canvas-pi-01`), scored with the same fixed suite: **60/75**. The head-to-head is in AUDIT.md.
 
 ### Efficiency: where the speed difference comes from
 
