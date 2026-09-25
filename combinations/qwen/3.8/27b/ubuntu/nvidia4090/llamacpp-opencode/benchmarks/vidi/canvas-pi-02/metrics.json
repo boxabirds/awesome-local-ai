@@ -2889,7 +2889,13 @@
           "found": 4,
           "total": 4
         }
-      ]
+      ],
+      "record": {
+        "committed": true,
+        "pushed": true,
+        "over_size_limit": [],
+        "commit": "36878ac"
+      }
     }
   },
   "scope": "canvas",
