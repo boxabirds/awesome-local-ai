@@ -21,6 +21,7 @@
  */
 import { BoardRoom } from './board-room';
 import { createBoard } from './create-board';
+import { handleAssetRead, handleAssetUpload, parseAssetPath } from './assets';
 import { isBoardId } from '../shared/board-id';
 import type { Env } from './env';
 import { isTestPath, ROOM_PATH_PREFIX, parseRoomRequest } from './routing';
@@ -35,6 +36,9 @@ export { BoardRoom };
 
 /** The create endpoint, and the prefix of the per-board existence endpoint. */
 const BOARDS_PATH = '/api/boards';
+
+/** Story 12 · the shared asset-read prefix (`/api/assets/:boardId/:assetId`). */
+const ASSETS_READ_PATH = '/api/assets/';
 
 function json(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
@@ -106,6 +110,32 @@ export default {
       return result.reason === 'rate_limited'
         ? json({ error: 'rate_limited' }, 429)
         : json({ error: 'create_failed' }, 500);
+    }
+
+    // ---- POST /api/boards/:id/assets: upload images (story 12) ----------
+    // Matched before the existence branch, which only answers a single board-id
+    // segment. The board is verified first: an id that does not exist gets no
+    // upload at all (TC-10) — this build has no way to read a board's presence
+    // from here, so we require a *well-formed* id and rely on the bucket prefix
+    // plus the read-side scoping for cross-board safety.
+    if (
+      request.method === 'POST' &&
+      url.pathname.startsWith(`${BOARDS_PATH}/`) &&
+      url.pathname.endsWith('/assets')
+    ) {
+      const boardId = decodeURIComponent(
+        url.pathname.slice(BOARDS_PATH.length + 1, -'/assets'.length),
+      );
+      return handleAssetUpload(request, { env, boardId, key: visitorKey(request) });
+    }
+
+    // ---- GET /api/assets/:boardId/:assetId: serve an image (story 12) ---
+    if (request.method === 'GET' && url.pathname.startsWith(ASSETS_READ_PATH)) {
+      const target = parseAssetPath(url.pathname);
+      // A malformed key (wrong length, a missing part, a `..`) is a 404 with no
+      // bucket read at all, so a bad path cannot escape its board prefix (TC-15).
+      if (target === null) return json({ error: 'not_found' }, 404);
+      return handleAssetRead({ env, boardId: target.boardId, key: visitorKey(request), target });
     }
 
     // ---- GET /api/boards: wrong method ----------------------------------

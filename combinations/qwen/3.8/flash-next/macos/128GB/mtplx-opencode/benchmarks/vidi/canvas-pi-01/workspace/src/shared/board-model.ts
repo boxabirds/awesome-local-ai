@@ -31,6 +31,7 @@ import {
 } from './doc';
 import { readConnector, detachConnectorsTo, type ConnectorSnap } from './objects/connector';
 import { STROKE_TYPE, strokeSnapshot, type PenColor, type PenThickness } from './objects/stroke';
+import { IMAGE_TYPE, type ImageStatus } from './objects/image';
 import type { ShapeKind } from './objects/shape';
 import type { ShapeFill, ShapeStroke } from './config';
 
@@ -46,6 +47,7 @@ const KNOWN_TYPES: ReadonlySet<string> = new Set([
   'shape',
   'connector',
   STROKE_TYPE,
+  IMAGE_TYPE,
 ]);
 
 /**
@@ -117,6 +119,20 @@ export interface ObjectSnapshot {
    * grow into the other.
    */
   ink?: PenColor;
+  /** Story 12 · image: the stored upload state (`'uploading' | 'ready' | 'failed'`). */
+  status?: ImageStatus;
+  /** Story 12 · image: the R2 asset key, or `null` while the upload is in flight. */
+  assetKey?: string | null;
+  /** Story 12 · image: the sniffed MIME type. */
+  contentType?: string;
+  /** Story 12 · image: the source file's natural width, in pixels. */
+  naturalWidth?: number;
+  /** See {@link ObjectSnapshot#naturalWidth}. */
+  naturalHeight?: number;
+  /** Story 12 · image: when the (current) upload began, for the unfinished clock. */
+  uploadStartedAt?: number;
+  /** Story 12 · image: who started the upload. */
+  uploaderId?: string;
 }
 
 /** @deprecated Kept for source compatibility; use {@link ObjectSnapshot}. */
@@ -424,6 +440,22 @@ export function snapshot(doc: Y.Doc): readonly ObjectSnapshot[] {
       entry.text = label instanceof Y.Text ? label.toString() : '';
       const createdBy = record.get('createdBy');
       if (typeof createdBy === 'string') entry.createdBy = createdBy;
+    } else if (type === IMAGE_TYPE) {
+      // The image's own fields ride on the generic snapshot so the renderer can
+      // pick a state (uploading / ready / failed / unfinished) from the doc alone
+      // (PRD image.uploading). A malformed record missing the status is skipped
+      // rather than rendered as a broken image.
+      const status = record.get('status');
+      if (status !== 'uploading' && status !== 'ready' && status !== 'failed') return;
+      entry.status = status;
+      const assetKey = record.get('assetKey');
+      entry.assetKey = typeof assetKey === 'string' ? assetKey : null;
+      entry.contentType = record.get('contentType') as string;
+      entry.naturalWidth = record.get('naturalWidth') as number;
+      entry.naturalHeight = record.get('naturalHeight') as number;
+      entry.uploadStartedAt = record.get('uploadStartedAt') as number;
+      const uploaderId = record.get('uploaderId');
+      if (typeof uploaderId === 'string') entry.uploaderId = uploaderId;
     } else if (type === STROKE_TYPE) {
       // The path is read here rather than in the renderer, so a damaged or empty
       // recording never reaches React at all (design "Stroke model": errors are

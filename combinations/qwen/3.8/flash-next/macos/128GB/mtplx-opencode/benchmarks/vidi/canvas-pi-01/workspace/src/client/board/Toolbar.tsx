@@ -29,6 +29,11 @@ import type { PenColor, PenThickness } from '../../shared/config';
 export interface ToolbarProps {
   onCreateSticky(): void;
   /**
+   * Story 12 · open the image file picker (the Image button and the `I` shortcut).
+   * A one-shot action, so this button never reads as pressed.
+   */
+  onAddImages?(): void;
+  /**
    * True while the board is read-only (story 4: the connection reports
    * `load_failed`). The buttons are really `disabled`, so they are skipped by
    * keyboard and reported as such to assistive tech, not just inert.
@@ -65,6 +70,7 @@ export const SHAPE_KIND_NAMES: Record<ShapeKind, string> = {
 
 export function Toolbar({
   onCreateSticky,
+  onAddImages,
   disabled = false,
   tool = 'select',
   onSelectTool,
@@ -203,6 +209,25 @@ export function Toolbar({
           </div>
         ) : null}
       </div>
+
+      <button
+        type="button"
+        className="tool-button"
+        data-testid="tool-image"
+        aria-label="Add images"
+        // A one-shot action, never a held mode: always `aria-pressed="false"`, so
+        // it can never read as an active tool (PRD tools.non_persistent, TC-28).
+        aria-pressed={false}
+        disabled={disabled}
+        onPointerDown={stop}
+        onClick={(event) => {
+          stop(event);
+          if (disabled) return;
+          onAddImages?.();
+        }}
+      >
+        <span aria-hidden="true">{'\u{1F5BC}\uFE0F'}</span>
+      </button>
 
       <button
         type="button"

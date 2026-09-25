@@ -1,0 +1,59 @@
+{
+  "steps": {
+    "install": {
+      "cmd": "npm ci",
+      "exit": 0,
+      "seconds": 4.1,
+      "tail": "\nadded 160 packages, and audited 161 packages in 4s\n\n42 packages are looking for funding\n  run `npm fund` for details\n\n4 high severity vulnerabilities\n\nTo address all issues (including breaking changes), run:\n  npm audit fix --force\n\nRun `npm audit` for details.\nnpm warn allow-scripts 4 packages have install scripts not yet covered by allowScripts:\nnpm warn allow-scripts   workerd@1.20260815.1 (postinstall: node install.js)\nnpm warn allow-scripts   esbuild@0.28.1 (postinstall: node install.js)\nnpm warn allow-scripts   fsevents@2.3.3 (install: (install scripts present))\nnpm warn allow-scripts   workerd@1.20260921.1 (postinstall: node install.js)\nnpm warn allow-scripts\nnpm warn allow-scripts Run `npm approve-scripts --allow-scripts-pending` to review, or `npm approve-scripts <pkg>` to allow.\n"
+    },
+    "build": {
+      "cmd": "npm run build",
+      "exit": 0,
+      "seconds": 0.8,
+      "tail": "\n> vidi6@0.0.0 build\n> vite build\n\n\u001b[36mvite v8.3.0 \u001b[32mbuilding client environment for production...\u001b[36m\u001b[39m\ntransforming...\n\u2713 130 modules transformed.\nrendering chunks...\ncomputing gzip size...\ndist/client/index.html                   0.67 kB \u2502 gzip:   0.41 kB\ndist/client/assets/index-DyZUueVY.css    6.96 kB \u2502 gzip:   1.90 kB\ndist/client/assets/index-CpK0Imvd.js   411.13 kB \u2502 gzip: 126.23 kB\n\n\u001b[32m\u2713 built in 214ms\u001b[39m\n",
+      "passed": null,
+      "failed": null
+    },
+    "typecheck": {
+      "cmd": "npm run typecheck",
+      "exit": 0,
+      "seconds": 2.0,
+      "tail": "\n> vidi6@0.0.0 typecheck\n> tsc --noEmit && tsc --noEmit -p tsconfig.worker.json\n\n",
+      "passed": null,
+      "failed": null
+    },
+    "test:unit": {
+      "cmd": "npm run test:unit",
+      "exit": 0,
+      "seconds": 1.9,
+      "tail": "\n> vidi6@0.0.0 test:unit\n> vitest run --project unit\n\n\n RUN  v4.1.11 ~/.vidi-bench/work/qwen__3.8__flash-next__macos__128GB__mtplx-opencode__benchmarks__vidi__canvas-pi-01/workspace\n\n\n Test Files  27 passed (27)\n      Tests  318 passed (318)\n   Start at  05:24:11\n   Duration  1.14s (transform 1.57s, setup 0ms, import 2.34s, tests 1.60s, environment 1ms)\n\n",
+      "passed": 318,
+      "failed": 0
+    },
+    "test:component": {
+      "cmd": "npm run test:component",
+      "exit": 0,
+      "seconds": 2.3,
+      "tail": "\n> vidi6@0.0.0 test:component\n> vitest run --project component\n\n\n RUN  v4.1.11 ~/.vidi-bench/work/qwen__3.8__flash-next__macos__128GB__mtplx-opencode__benchmarks__vidi__canvas-pi-01/workspace\n\n\n Test Files  23 passed (23)\n      Tests  193 passed (193)\n   Start at  05:24:13\n   Duration  1.62s (transform 3.02s, setup 1.59s, import 5.02s, tests 4.28s, environment 9.02s)\n\nNot implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package\nNot implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package\nNot implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package\n",
+      "passed": 193,
+      "failed": 0
+    },
+    "test:integration": {
+      "cmd": "npm run test:integration",
+      "exit": 0,
+      "seconds": 3.1,
+      "tail": "\n> vidi6@0.0.0 test:integration\n> vitest run --project integration\n\n\n RUN  v4.1.11 ~/.vidi-bench/work/qwen__3.8__flash-next__macos__128GB__mtplx-opencode__benchmarks__vidi__canvas-pi-01/workspace\n\n\n Test Files  6 passed (6)\n      Tests  59 passed (59)\n   Start at  05:24:16\n   Duration  2.37s (transform 836ms, setup 0ms, import 1.95s, tests 2.21s, environment 0ms)\n\n",
+      "passed": 59,
+      "failed": 0
+    },
+    "test:e2e": {
+      "cmd": "npm run test:e2e -- --project=chromium",
+      "exit": 0,
+      "seconds": 27.7,
+      "tail": "fQhxH.js 200 OK (6ms)\n[WebServer] [wrangler:info] GET /assets/index-DyZUueVY.css 200 OK (16ms)\n[WebServer] [wrangler:info] GET /api/boards/ewFXTHkHLCgvYw3HyAnh9g 200 OK (11ms)\n[WebServer] [wrangler:info] GET /api/rooms/ewFXTHkHLCgvYw3HyAnh9g 101 Switching Protocols (1ms)\n[WebServer] [wrangler:info] POST /api/boards 201 Created (15ms)\n[WebServer] [wrangler:info] GET /api/boards/HxT68sfeI8pHr0tSBPVCeg 200 OK (3ms)\n[WebServer] [wrangler:info] GET /api/rooms/HxT68sfeI8pHr0tSBPVCeg 101 Switching Protocols (1ms)\n  \u2713  53 [chromium] \u203a tests/e2e/text.spec.ts:23:1 \u203a click-to-place: Text tool + click wraps long text, never a second object (1.2s)\n[WebServer] [wrangler:info] GET / 200 OK (2ms)\n[WebServer] [wrangler:info] GET /assets/index-BT2fQhxH.js 200 OK (1ms)\n[WebServer] [wrangler:info] GET /assets/index-DyZUueVY.css 200 OK (7ms)\n[WebServer] [wrangler:info] POST /api/boards 201 Created (4ms)\n[WebServer] [wrangler:info] GET /api/boards/Pph2pgK-AWLLT1zBHaWYVg 200 OK (2ms)\n[WebServer] [wrangler:info] GET /api/rooms/Pph2pgK-AWLLT1zBHaWYVg 101 Switching Protocols (2ms)\n  \u2713  55 [chromium] \u203a tests/e2e/text.spec.ts:70:1 \u203a three-dot paste does not create a new object (962ms)\n[WebServer] [wrangler:info] GET / 200 OK (1ms)\n[WebServer] [wrangler:info] GET /assets/index-BT2fQhxH.js 200 OK (1ms)\n[WebServer] [wrangler:info] GET /assets/index-DyZUueVY.css 200 OK (7ms)\n[WebServer] [wrangler:info] POST /api/boards 201 Created (5ms)\n[WebServer] [wrangler:info] GET /api/boards/HXIHdecK0VKVKBqBy-sczA 200 OK (2ms)\n[WebServer] [wrangler:info] GET /api/rooms/HXIHdecK0VKVKBqBy-sczA 101 Switching Protocols (1ms)\n  \u2713  57 [chromium] \u203a tests/e2e/undo.spec.ts:70:1 \u203a TC-22b Ctrl+Z inside a note undoes the whole typing burst (436ms)\n[WebServer] [wrangler:info] POST /api/boards 201 Created (5ms)\n[WebServer] [wrangler:info] GET /b/aFnpo-rV0eaqtFz0yLl9tw 200 OK (1ms) `Sec-Fetch-Mode: navigate` header present - using `not_found_handling` behavior\n[WebServer] [wrangler:info] GET /assets/index-BT2fQhxH.js 200 OK (1ms)\n[WebServer] [wrangler:info] GET /assets/index-DyZUueVY.css 200 OK (7ms)\n[WebServer] [wrangler:info] GET /api/boards/aFnpo-rV0eaqtFz0yLl9tw 200 OK (2ms)\n[WebServer] [wrangler:info] GET /api/rooms/aFnpo-rV0eaqtFz0yLl9tw 101 Switching Protocols (2ms)\n[WebServer] [wrangler:info] GET /b/aFnpo-rV0eaqtFz0yLl9tw 304 Not Modified (2ms) `Sec-Fetch-Mode: navigate` header present - using `not_found_handling` behavior\n[WebServer] [wrangler:info] GET /assets/index-DyZUueVY.css 304 Not Modified (2ms)\n[WebServer] [wrangler:info] GET /assets/index-BT2fQhxH.js 304 Not Modified (2ms)\n  \u2713  56 [chromium] \u203a tests/e2e/undo.spec.ts:37:1 \u203a TC-22 golden path: drag then Ctrl+Z reverts the drag; Ctrl+Shift+Z redoes it (965ms)\n[WebServer] [wrangler:info] GET /b/HXIHdecK0VKVKBqBy-sczA 200 OK (1ms) `Sec-Fetch-Mode: navigate` header present - using `not_found_handling` behavior\n[WebServer] [wrangler:info] GET /assets/index-DyZUueVY.css 304 Not Modified (1ms)\n[WebServer] [wrangler:info] GET /assets/index-BT2fQhxH.js 304 Not Modified (3ms)\n[WebServer] [wrangler:info] GET /api/boards/aFnpo-rV0eaqtFz0yLl9tw 200 OK (3ms)\n[WebServer] [wrangler:info] GET /api/boards/HXIHdecK0VKVKBqBy-sczA 200 OK (2ms)\n[WebServer] [wrangler:info] GET /api/rooms/aFnpo-rV0eaqtFz0yLl9tw 101 Switching Protocols (2ms)\n[WebServer] [wrangler:info] GET /api/rooms/HXIHdecK0VKVKBqBy-sczA 101 Switching Protocols (2ms)\n  \u2713  58 [chromium] \u203a tests/e2e/undo.spec.ts:90:1 \u203a TC-23 a page reload clears the history (563ms)\n  \u2713  59 [chromium] \u203a tests/e2e/undo.spec.ts:117:1 \u203a TC-24 the history is per-user: one profile cannot undo another profile's change (659ms)\nTC-21: 2000 notes on screen in 127ms (story budget 3000ms, rendered 2000)\n  \u2713  49 [chromium] \u203a tests/e2e/persistence.spec.ts:197:1 \u203a TC-21: a 2,000-note board opens inside the budget after a restart (3.7s)\n  \u2713  60 [chromium] \u203a tests/e2e/persistence.spec.ts:247:1 \u203a TC-22: a drawn sketch is on disk before it is broadcast, and comes back after a restart (3.5s)\n\n  60 passed (27.0s)\n",
+      "passed": 60,
+      "failed": 0
+    }
+  },
+  "all_green": true
+}

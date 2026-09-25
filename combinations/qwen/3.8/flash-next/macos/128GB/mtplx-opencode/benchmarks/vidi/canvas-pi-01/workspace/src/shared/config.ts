@@ -333,6 +333,45 @@ export const STROKE_MIN_SIZE_WORLD = 4;
  */
 export const STROKE_MAX_COORDS = STROKE_MAX_POINTS * 2;
 
+/* ---- Story 12 · drop images onto the board (design "Named settings added")
+ * The story-12 product settings for adding images, defined once here so a
+ * designer can retune image handling without a redesign (PRD "Settings"). The
+ * accepted types are the only raster formats the board takes; type is decided
+ * by content (magic bytes), never by a file name or the client header. */
+
+/** The four accepted image MIME types (PRD image.types). */
+export const IMAGE_ACCEPTED_TYPES = ['image/png', 'image/jpeg', 'image/gif', 'image/webp'] as const;
+
+/** The largest image file the board accepts (PRD image.size_limit, 10 MB). */
+export const IMAGE_MAX_BYTES = 10 * 1024 * 1024;
+
+/** How many images one add action may place (PRD image.count_limit). */
+export const IMAGE_MAX_FILES_PER_ADD = 20;
+
+/** An image is scaled down so its longest side is at most this (PRD image.placement_size). */
+export const IMAGE_MAX_PLACE_SIZE_WORLD = 800;
+
+/** The smallest an image may be resized to, in world units (PRD image.aspect_resize). */
+export const IMAGE_MIN_SIZE_WORLD = 16;
+
+/** The gap between images laid out in a row, in world units (PRD image.drop). */
+export const IMAGE_LAYOUT_GAP_WORLD = 24;
+
+/** How long an upload may stall before it reads as unfinished (PRD image.unfinished). */
+export const IMAGE_UPLOAD_STALE_MS = 5 * 60 * 1000;
+
+/** Uploads one visitor may make within the window (PRD image.rate_limit). */
+export const IMAGE_UPLOAD_LIMIT = 60;
+
+/** Window for the upload limit, in seconds (mirrors the wrangler ratelimit). */
+export const IMAGE_UPLOAD_PERIOD_SECONDS = 60;
+
+/** Serving cache lifetime for an immutable asset key, in seconds. */
+export const ASSET_CACHE_MAX_AGE_SECONDS = 31_536_000;
+
+/** How many leading bytes are read to decide an image's type. */
+export const IMAGE_SNIFF_BYTES = 12;
+
 /* ---- Story 8 · undo / redo (design "Named settings") --------------------
  * These are the story-8 product settings, defined once here so a designer can
  * retune the personal history without a redesign (PRD "Settings"). */

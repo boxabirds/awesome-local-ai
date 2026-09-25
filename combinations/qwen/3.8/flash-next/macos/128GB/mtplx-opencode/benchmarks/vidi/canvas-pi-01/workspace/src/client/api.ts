@@ -27,6 +27,29 @@ export type CheckResponse =
 export const BOARDS_ENDPOINT = '/api/boards';
 
 /**
+ * Story 12 · the two image endpoints, kept relative to the page for the same
+ * reason as {@link BOARDS_ENDPOINT}. The upload is scoped to a board (so a
+ * board's own rate limit and bucket prefix apply); the read is a flat, cacheable
+ * asset URL that any client — including one who cannot open the board — may
+ * fetch.
+ */
+
+/** Where to POST images for `boardId`. */
+export function assetsUploadUrl(boardId: string): string {
+  return `${BOARDS_ENDPOINT}/${encodeURIComponent(boardId)}/assets`;
+}
+
+/**
+ * Where to read one stored image. `assetKey` is a `<boardId>/<assetId>` pair as
+ * written by {@link assetKeyFor}; the client just interpolates it (the Worker
+ * re-checks its shape and derives the board from it, so a crafted key cannot
+ * escape its own bucket prefix).
+ */
+export function assetReadUrl(assetKey: string): string {
+  return `/api/assets/${assetKey}`;
+}
+
+/**
  * Ask the Worker for a fresh board. Network errors and every unexpected status
  * collapse into `failed`; only `429` means "wait", which is what the home page
  * needs to show the rate-limit copy instead of the failure copy.

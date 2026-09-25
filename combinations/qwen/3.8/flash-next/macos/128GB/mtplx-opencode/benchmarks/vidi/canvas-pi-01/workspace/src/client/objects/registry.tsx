@@ -22,10 +22,12 @@ import {
   STROKE_HIT_TOLERANCE_PX,
   STROKE_MIN_SIZE_WORLD,
   TEXT_MIN_WIDTH_WORLD,
+  IMAGE_MIN_SIZE_WORLD,
 } from '../../shared/config';
 import { rectContains, type Point } from '../../shared/geometry';
 import { distanceToPolyline } from '../../shared/geometry/polyline';
 import { scaledPoints, STROKE_TYPE } from '../../shared/objects/stroke';
+import { IMAGE_TYPE } from '../../shared/objects/image';
 
 export interface ObjectTypeSpec {
   /** Whether the selection shows resize handles for this type. */
@@ -196,6 +198,23 @@ registerObjectType(STROKE_TYPE, {
     );
     return distanceToPolyline(scaledPoints(obj), worldPoint) <= tolerance;
   },
+});
+
+/**
+ * Images (story 12): resizable and aspect-locked — dragging any edge scales the
+ * picture proportionally so it is never stretched out of shape (PRD
+ * `image.resize`). Its footprint is the whole rectangle: a *transparent* corner
+ * of a picture is still part of the picture and is picked by coordinates, not by
+ * hit-testing the pixels (PRD `image.select`). The minimum edge is small so a
+ * picture can be shrunk well below its placed size.
+ */
+registerObjectType(IMAGE_TYPE, {
+  resizable: true,
+  aspectLocked: true,
+  minSize: IMAGE_MIN_SIZE_WORLD,
+  editableText: false,
+  handles: 'all',
+  hitTest: rectangularHitTest,
 });
 
 /**

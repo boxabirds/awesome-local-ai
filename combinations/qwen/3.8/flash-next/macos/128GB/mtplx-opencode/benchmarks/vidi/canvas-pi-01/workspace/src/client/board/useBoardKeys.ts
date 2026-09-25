@@ -49,6 +49,12 @@ export interface BoardKeyDeps {
   setTool(tool: Tool): void;
   /** Create a sticky at the centre of the view (the story-2 `N` shortcut). */
   createStickyAtCentre(): void;
+  /**
+   * Story 12 · open the image file picker (the `I` shortcut). A one-shot action,
+   * not a tool mode, so it is handled separately from {@link setTool}; the board
+   * stays on Select. The caller only invokes it on an editable board.
+   */
+  openImagePicker(): void;
 }
 
 /** True when the key should be handled by a focused text field, not the board. */
@@ -112,6 +118,13 @@ export function useBoardKeys(getDeps: () => BoardKeyDeps): void {
       const shortcut = TOOL_SHORTCUTS[event.key.toLowerCase()];
       if (shortcut !== undefined) {
         if (editing !== null) return;
+        // Image is a one-shot action: it opens the picker and leaves the board on
+        // Select, rather than becoming a held mode (PRD tools.non_persistent).
+        if (shortcut === 'image') {
+          event.preventDefault();
+          deps.openImagePicker();
+          return;
+        }
         // Select is always available; every creating tool needs an editable board
         // (`useTool.setTool` refuses it too — this only skips the preventDefault).
         if (shortcut !== 'select' && !deps.isEditable()) return;
