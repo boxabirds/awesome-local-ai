@@ -214,10 +214,11 @@ combination ships `low` and lets you raise it per run or per request
 ### Speculative decoding (built-in MTP)
 
 Swift carries its MTP head **inside the GGUF** (Q8_0). The launcher engages it
-with `SPEC_BUILTIN=1` — just `--spec-type draft-mtp --spec-draft-n-max 3`, no
-`-md` sidecar. Measured **0.62–0.86 draft acceptance**, mean accepted length
-**2.87–3.58** (higher than the baseline's Q4_0 sidecar — the in-file Q8_0 head
-accepts longer draft runs per step).
+with `SPEC_BUILTIN=1` — just `--spec-type draft-mtp --spec-draft-n-max 4`
+(`SPEC_DRAFT_N_MAX`), no `-md` sidecar. Measured at 3 draft tokens: **0.62–0.86
+draft acceptance**, mean accepted length **2.87–3.58** (higher than the
+baseline's Q4_0 sidecar — the in-file Q8_0 head accepts longer draft runs per
+step). A mean above 3 is why it drafts 4.
 
 To confirm it is live: grep the server log for `creating MTP draft context` and
 `draft acceptance`. If either is absent, speculative decoding is silently off.

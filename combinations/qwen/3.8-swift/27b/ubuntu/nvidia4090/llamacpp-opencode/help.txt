@@ -89,8 +89,8 @@ REASONING EFFORT                                  (default here: low)
 MTP / SPECULATIVE DECODING
   Swift carries its MTP head INSIDE the GGUF (Q8_0), so there is no separate
   sidecar file to fetch. The launcher engages it with SPEC_BUILTIN=1: just
-  --spec-type draft-mtp and --spec-draft-n-max 3 -- no -md, no draft-n-gl, no
-  draft KV type.
+  --spec-type draft-mtp and --spec-draft-n-max 4 (SPEC_DRAFT_N_MAX) -- no -md,
+  no draft-n-gl, no draft KV type.
 
   Two things to know:
    * At install you will see "MTP head missing (speculative decoding
