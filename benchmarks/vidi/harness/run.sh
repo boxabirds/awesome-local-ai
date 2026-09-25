@@ -82,6 +82,7 @@ if [[ ! -d "$ACCEPTANCE/node_modules" || "$ACCEPTANCE/package-lock.json" -nt "$A
 fi
 # Every run: the browser matching the suite's Playwright version (a no-op when it's already there).
 (cd "$ACCEPTANCE" && npx playwright install chromium >/dev/null) || { echo "playwright browser install failed" >&2; exit 1; }
+"$HARNESS/check-browser.sh" "$ACCEPTANCE" || { echo "the held-out suite can't launch its browser; not starting the run" >&2; exit 1; }
 
 echo "sandbox preflight (agent toolchain inside the sandbox)"
 (cd "$HARNESS" && uv run --quiet preflight.py --client "$CLIENT_NAME") || { echo "preflight failed; not starting the run" >&2; exit 1; }
