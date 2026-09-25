@@ -1,6 +1,6 @@
 {
-  "state": "started",
-  "reason": "harness 18ba6d7, client pi, model qwen3.8-flash-next",
-  "at": "2026-09-25T20:17:21Z",
+  "state": "failed",
+  "reason": "exit 2: [--output-limit OUTPUT_LIMIT] [--compact-at COMPACT_AT] [--only ONLY] [--record] drive.py: error: argument --context-limit: invalid int value: \"131072 # must match the default profile's ctx\"",
+  "at": "2026-09-25T20:17:24Z",
   "host": "tritus"
 }
