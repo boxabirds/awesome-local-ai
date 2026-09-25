@@ -539,3 +539,14 @@ def test_dbench_home_is_hidden_except_its_tools(tmp_path, monkeypatch):
     tool = subprocess.run(drive.sandboxed(["cat", str(dbench / "tools" / "bin" / "tool.txt")], own_dir=own), capture_output=True, text=True)
     assert secret.returncode != 0 and "secret" not in secret.stdout
     assert tool.returncode == 0 and tool.stdout == "usable"
+
+
+def test_reference_runs_get_distinct_labels_and_work_dirs():
+    """Runs outside combinations/ (reference stacks) must not share a work dir by run name alone."""
+    from drive import REPO_ROOT, WORK_ROOT, combination_label, work_dir_for
+    a = REPO_ROOT / "benchmarks" / "reference" / "vidi" / "opus-5.5" / "run-2"
+    b = REPO_ROOT / "benchmarks" / "reference" / "vidi" / "sonnet-5" / "run-2"
+    assert combination_label(a) == "reference/opus-5.5"
+    assert work_dir_for(a) != work_dir_for(b) and work_dir_for(a).parent == WORK_ROOT
+    local = REPO_ROOT / "combinations" / "qwen" / "3.8" / "27b" / "ubuntu" / "24GB" / "llamacpp-opencode" / "benchmarks" / "vidi" / "canvas-pi-03"
+    assert combination_label(local) == "qwen/3.8/27b/ubuntu/24GB/llamacpp-opencode"

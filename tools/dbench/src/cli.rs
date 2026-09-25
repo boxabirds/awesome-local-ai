@@ -137,6 +137,7 @@ pub enum UnitKind {
 pub enum ClientArg {
     Pi,
     Opencode,
+    Claude,
 }
 
 impl From<ClientArg> for AgentClient {
@@ -144,6 +145,7 @@ impl From<ClientArg> for AgentClient {
         match c {
             ClientArg::Pi => AgentClient::Pi,
             ClientArg::Opencode => AgentClient::Opencode,
+            ClientArg::Claude => AgentClient::Claude,
         }
     }
 }
