@@ -1,15 +1,16 @@
 # /// script
 # requires-python = ">=3.11"
 # ///
-"""Build a blinded package for an independent grader (see benchmarks/vidi/GRADING.md).
+"""Build a blinded package for an independent grader. The brief (GRADING.md) lives in the private pack.
 
-    uv run grading_package.py --out ~/vidi-grading \
+    uv run grading_package.py --name vidi-v2 \
         --build opus=<workspace>:<claims-dir>:<accept.json> \
         --build flash-next=<workspace>:<claims-dir>:<accept.json> \
-        --key ~/vidi-grading-key.json
+        [--out <dir>]   # default: <private repo>/gradings/<name>
 
 The builds become A and B in random order, and the name-to-letter key goes to --key, outside the
-package. Each build gets:
+package, in ~/.vidi-bench/grading-keys/<name>.json unless --key says otherwise. The key is never
+written inside the package or the private repo, where a grader could read it. Each build gets:
 - workspace/: git HEAD, without spec/ and without git history, so no author names;
 - commits.txt: messages and changed files, without authors;
 - claims/: the agent's final statements;
@@ -66,19 +67,25 @@ def copy_build(name: str, ws: Path, claims: Path, accept: Path, dest: Path) -> l
 
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("--out", type=Path, required=True)
-    ap.add_argument("--key", type=Path, required=True, help="where to save the name→letter key (keep it away from the grader)")
+    ap.add_argument("--name", required=True, help="package name, e.g. vidi-v2")
+    ap.add_argument("--out", type=Path, help="default: <private repo>/gradings/<name>")
+    ap.add_argument("--key", type=Path, help="default: ~/.vidi-bench/grading-keys/<name>.json")
     ap.add_argument("--build", action="append", required=True, help="name=workspace:claims-dir:accept.json (exactly two)")
     ap.add_argument("--scope", default="canvas")
     a = ap.parse_args()
     if len(a.build) != 2:
         raise SystemExit("exactly two --build entries")
-    out = a.out.expanduser()
-    if out.exists():
-        raise SystemExit(f"{out} exists; choose a new directory")
     pack = packdir.resolve(HERE.parent)
+    private = packdir.private_root(pack)
+    out = (a.out or ((private or HERE.parent) / "gradings" / a.name)).expanduser().resolve()
+    key_path = (a.key or Path.home() / ".vidi-bench" / "grading-keys" / f"{a.name}.json").expanduser().resolve()
+    for guarded in [out, *([private] if private else [])]:
+        if key_path.is_relative_to(guarded):
+            raise SystemExit(f"--key {key_path} is inside {guarded}, where a grader could read it")
+    if out.exists():
+        raise SystemExit(f"{out} exists; choose a new name")
     out.mkdir(parents=True)
-    shutil.copy(HERE.parent / "GRADING.md", out / "GRADING.md")
+    shutil.copy(pack / "GRADING.md", out / "GRADING.md")
     shutil.copytree(pack / "spec", out / "spec")
     shutil.copy(pack / "scope" / f"{a.scope}.json", out / "scope.json")
     shutil.copytree(pack / "acceptance" / "tests", out / "acceptance" / "tests")
@@ -90,8 +97,10 @@ def main() -> None:
         edited = copy_build(name, ws, claims, accept, out / f"build-{letter}")
         key[letter] = name
         print(f"build-{letter}: {len(edited)} workspace files had setup names scrubbed")
-    a.key.expanduser().write_text(json.dumps(key, indent=2))
-    print(f"package: {out}\nkey (don't share with the grader): {a.key}")
+    key_path.parent.mkdir(parents=True, exist_ok=True)
+    key_path.write_text(json.dumps(key, indent=2))
+    key_path.chmod(0o600)
+    print(f"package: {out}\nkey (don't share with the grader): {key_path}")
 
 
 if __name__ == "__main__":
