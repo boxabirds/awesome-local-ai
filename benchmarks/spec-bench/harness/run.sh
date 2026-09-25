@@ -21,7 +21,6 @@ REASONING_EFFORT="${REASONING_EFFORT:-low}"
 SERVER_READY_TIMEOUT_S=900
 POLL_S=5
 THERMAL_TIMEOUT_S=1800
-KIB_PER_GIB=1048576
 
 usage() { sed -n '2,13p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'; }
 
@@ -164,12 +163,8 @@ else
 fi
 fi  # local server
 
-if [[ "$(uname)" == Darwin ]]; then
-  HOST_DESC="$(sysctl -n machdep.cpu.brand_string) $(( $(sysctl -n hw.memsize) / 1073741824 ))GB"
-else
-  GPU_DESC="$(nvidia-smi --query-gpu=name,memory.total --format=csv,noheader 2>/dev/null | head -1 | tr -d ',')"
-  HOST_DESC="$(lscpu | sed -n 's/^Model name: *//p') $(( $(awk '/MemTotal/ {print $2}' /proc/meminfo) / KIB_PER_GIB ))GB${GPU_DESC:+, $GPU_DESC}"
-fi
+. "$HARNESS/host-desc.sh"
+HOST_DESC="$(host_desc)"
 
 # Which bench this run belongs to: results only compare within one version (see the private repo README).
 PACK_DIR="$(python3 "$HARNESS/packdir.py" --pack "$PACK")"
