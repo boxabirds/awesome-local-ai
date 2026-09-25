@@ -10,5 +10,6 @@ Model `qwen3.8-27b`, scope `canvas`, effort `low`, client pi 0.86.0, host 13th G
 | 4 | Return to a board and find everything as it was left | DONE | 230.2 | None | None | None | — | — | red | 28/31 |  | 0 / 0 | 9 | — | throttled 0%, server peak 18 GB |
 | 5 | Share a board with others using a link | DONE | 49.1 | None | None | None | — | — | red | 0/36 |  | 0 / 0 | 2 | — | throttled 0%, server peak 18 GB |
 | 7 | Select, move, resize and delete several objects at once | DONE | 174.0 | None | None | None | — | — | green | 41/44 |  | 0 / 0 | 7 | — | throttled 0%, server peak 18 GB |
+| 8 | Undo and redo my own changes without undoing anyone else's | DONE | 100.9 | None | None | None | — | — | green | 48/51 |  | 0 / 0 | 6 | — | throttled 0%, server peak 18 GB |
 
-**Totals:** 6 stories, 751 agent-minutes, 0 requests, 0 prompt / 0 completion tokens, gate green 4/6, final acceptance 41/44, stalled 0, partial 0, 15684 lines in src+tests.
+**Totals:** 7 stories, 852 agent-minutes, 0 requests, 0 prompt / 0 completion tokens, gate green 5/7, final acceptance 48/51, stalled 0, partial 0, 17239 lines in src+tests.

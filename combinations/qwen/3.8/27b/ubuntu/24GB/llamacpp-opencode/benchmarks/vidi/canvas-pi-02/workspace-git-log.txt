@@ -1,3 +1,31 @@
+commit 9e6c30cc71b0672899ad116a5305f925e50934a4
+vidi-agent  Fri Sep 25 13:47:38 2026 +0100
+
+    story 8: per-user undo/redo that never reverses a colleague's changes
+
+
+ NOTES.md                                |  48 ++++++
+ src/client/board/SelectionBar.tsx       |  10 +-
+ src/client/board/Toolbar.tsx            |   5 +
+ src/client/board/UndoButtons.tsx        |  66 +++++++
+ src/client/board/undo.ts                | 117 +++++++++++++
+ src/client/board/useBoardKeys.ts        |  36 +++-
+ src/client/board/useUndo.ts             |  42 +++++
+ src/client/objects/StickyNote.tsx       |   4 +-
+ src/client/objects/StickyTextEditor.tsx |  30 +++-
+ src/client/objects/registry.tsx         |   3 +
+ src/client/pages/BoardPage.tsx          |  39 ++++-
+ src/shared/config.ts                    |   8 +
+ tests/component/UndoBoundaries.test.tsx | 188 ++++++++++++++++++++
+ tests/component/UndoControls.test.tsx   | 152 +++++++++++++++++
+ tests/component/notes-harness.tsx       |  60 ++++++-
+ tests/e2e/helpers/seed-board.ts         |  42 ++++-
+ tests/e2e/undo.spec.ts                  | 292 +++++++++++++++++++++++++++++++
+ tests/unit/peer.ts                      |  95 +++++++++++
+ tests/unit/undo-boundaries.test.ts      | 128 ++++++++++++++
+ tests/unit/undo-history.test.ts         | 294 ++++++++++++++++++++++++++++++++
+ vitest.config.ts                        |   4 +
+ 21 files changed, 1635 insertions(+), 28 deletions(-)
 commit 15ee01d615625b10cb83d24232d3c8ea87b95607
 vidi-agent  Fri Sep 25 11:59:46 2026 +0100
 
