@@ -828,30 +828,31 @@ class SkipWatcher(threading.Thread):
         return self.request
 
 
+def first_event_time(events: Path) -> float | None:
+    """Unix time of the first timestamped event in an agent event log (pi: ISO or ms)."""
+    if not events.exists():
+        return None
+    with events.open() as f:
+        for line in f:
+            try:
+                ts = json.loads(line).get("timestamp")
+            except (json.JSONDecodeError, AttributeError):
+                continue
+            if isinstance(ts, str):
+                from datetime import datetime
+                return datetime.fromisoformat(ts.replace("Z", "+00:00")).timestamp()
+            if isinstance(ts, (int, float)):
+                return ts / 1000 if ts > 1e11 else float(ts)
+    return None
+
+
 def reconstruct_agent(client, events: Path) -> dict:
     """Agent totals from a story's event log alone: a skip placed before a restart ends the story
     without starting the agent again, so its record comes from the log it already wrote."""
     tally = progress.EventTally(client, events, empty_state)
     t = tally.update()
-    seconds = 0.0
-    if events.exists():
-        first = None
-        with events.open() as f:
-            for line in f:
-                try:
-                    e = json.loads(line)
-                except json.JSONDecodeError:
-                    continue
-                if e.get("timestamp"):
-                    first = e["timestamp"]
-                    break
-        if isinstance(first, str):
-            from datetime import datetime
-            first = datetime.fromisoformat(first.replace("Z", "+00:00")).timestamp()
-        elif isinstance(first, (int, float)) and first > 1e11:
-            first = first / 1000
-        if first:
-            seconds = round(events.stat().st_mtime - first, 1)
+    first = first_event_time(events)
+    seconds = round(events.stat().st_mtime - first, 1) if first else 0.0
     st = tally.st
     return {"seconds": seconds, "steps": st["steps"], "tool_calls": st["tool_calls"], "compactions": st["compactions"],
             "tool_interruptions": 0, "tokens": st["tokens"], "exit": None, "stalled": False, "resumes": 0,
@@ -979,7 +980,9 @@ def main() -> None:
         else:
             print(f"[story {sid}] {title} — agent starting", flush=True)
             rec = {"title": title, "conditions_start": wait_for_conditions(), "started": time.time()}
-            live["started_at"] = rec["started"]
+            # After a harness restart the story began earlier: its live clock counts the whole story,
+            # like its call and token counts. (Recorded agent seconds still cover this attempt only.)
+            live["started_at"] = (first_event_time(events) if prior else None) or rec["started"]
             sampler = ConditionSampler(ws, server_port=urlparse(a.base_url).port)
             sampler.start()
             if prior:
