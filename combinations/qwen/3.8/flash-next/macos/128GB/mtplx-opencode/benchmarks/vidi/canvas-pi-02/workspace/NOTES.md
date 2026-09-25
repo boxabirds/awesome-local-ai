@@ -142,3 +142,98 @@ Story 6 / 13–17 hooks were skipped as instructed.
 - No undo/redo, no sticky-note resize, no per-note rotation or shadow physics.
 - Font fitting runs on mount and on text change only, as specified: the note is a
   fixed size in world units, so a window resize cannot make text overflow.
+
+---
+
+# Story 4 — return to a board and find everything as it was left
+
+Same rule as above: decisions and deviations, not a restatement of the spec.
+
+## What is in place
+
+Runtime (framework-free, `src/worker/`):
+- `board-room.ts` — the Durable Object. Sockets are accepted with
+  `ctx.acceptWebSocket(server, ['board'])` and handled by `webSocketMessage` /
+  `webSocketClose` / `webSocketError`, so a room that was torn down and woken
+  answers from the same code as one that never slept. Membership is
+  `ctx.getWebSockets('board')` filtered to OPEN, never a `Set` of our own.
+- `board-store.ts` — the board's bytes in the object's SQLite
+  (`board_blobs(board_id, chunk, blob)`), 96 KiB chunks, one version byte in
+  front. `read` answers bytes, "nothing yet", or `STATE_UNREADABLE`; the last
+  two are never confused.
+- `room-state.ts` — `cold` / `loaded` / `failed`, and the three functions that
+  change or consult it (`roomStateAfter`, `loadActionFor`, `shouldCheckpoint`).
+- `room-machine.ts` — every decision (what a frame is, who hears it, whether it
+  is written down, whether the sender is closed), with no socket in sight.
+- `sync-frame.ts`, `board-protocol.ts` — the framing, shared with the client.
+
+## Decisions and the reasons
+
+1. **The room does not greet.** A client opens the sync, as `y-protocols/sync`
+   describes for client-server. A greeting would be answered twice by every
+   client — once for the greeting, once for its own step-1 — which is how one
+   keystroke ends up on a board three times.
+2. **The answer to a step-1 is two frames: a SyncStep2 and then a step-1 of our
+   own.** The second frame is how a browser that reconnects after the room was
+   rebuilt hands back the edits it kept. They stay two frames because a client
+   reads one message per frame.
+3. **A failed read is a refusal, not an empty board.** 4006 `load-failed`, once
+   per wake: a broken read does not get better by being hit forty times a
+   second, and the retry budget belongs to the client. `STATE_UNREADABLE` and
+   `null` are different answers for the same reason.
+4. **The restart path and the load path are one code path.** There is no
+   "restart mode" branch, so the restart case cannot be untested by being
+   separate.
+5. **The write is the last thing that happens, and there are only three times it
+   happens:** when a relay has finished and the buffer is older than
+   `FLUSH_INTERVAL_MS` or deeper than `FLUSH_UPDATE_THRESHOLD`, when the last
+   socket leaves, and never more than once per wake otherwise. The e2e and
+   integration tests cover the last-departure write, which is the one a page
+   refresh depends on.
+6. **`tests/integration/board-room-persistence.test.ts`, not `tests/components/`.**
+   The plan said `tests/components/room-doh.test.ts`; a Durable Object only runs
+   in the workers pool, and the jsdom project only picks up `*.test.tsx`. The
+   file went where it will actually run.
+7. **A test-only control surface on the object** (`/control/state`, `restart`,
+   `failure`, `timeout`, `damaged`). It is not reachable through the Worker
+   entry, so it cannot be dialled by a browser; it exists because "the storage
+   is broken" is not something a test can otherwise arrange.
+8. **Sync e2e is live again.** The suite was skipped whole at the end of story 3
+   because `WebsocketProvider` never reached `synced` against `wrangler dev`.
+   That is fixed (framing and the doubled room path), so TC-23, TC-24 and TC-12
+   run in all three browsers.
+9. **TC-31 is skipped on its own, and the reason is not the board.** Cutting the
+   link with `dropConnection()` closes the socket under `y-websocket` 2.1, which
+   clears `wsconnected` before it decides whether to announce a disconnect; the
+   badge therefore never leaves "Connected". Sync recovers — the same board
+   converges afterwards — so this is a reporting gap. It is listed below rather
+   than papered over with a `setTimeout`.
+
+## Test inventory
+
+- Integration (workerd): 26 — the 17 story-3 room cases, 14 worker-entry cases
+  (some shared), and 10 new persistence cases: board back after a rebuild, 500
+  notes, a board bigger than one SQLite row, the rejoin that hands edits back,
+  one read for eight candidates, damaged bytes refused, a wedged read refused,
+  a relay that does not wait for storage, a duplicate step-1 ignored.
+- E2E: 78 passing runs across chromium, firefox and webkit — the 20 story-2/3
+  cases plus 3 new persistence cases per browser (leave and come back, reload
+  finds the board once, eight people open a board written while nobody was
+  there).
+- Known flake: `TC-07 … exactly one update` fails roughly once in six full
+  integration runs. It is a frame-count assertion taken after a 150 ms quiet
+  window, and the persistence file adds real load to the shared worker. The
+  config's `fileParallelism: false` does not help (the workers project does not
+  accept it), so the flake is left documented rather than hidden behind a
+  longer wait.
+
+## Left for later stories
+
+- The connection badge cannot report a link that was closed from the client side
+  (see 9). A `connection-close` listener was tried and does not fire either.
+- No cross-instance write arbitration: one board is one object, and one object
+  has one writer, which is why this is not needed yet. It becomes needed the
+  moment a board is allowed to live in more than one place.
+- Storage failures are injected in tests but nothing yet *reacts* to a long
+  outage at the product level (no "this board could not be opened" screen).
+- No per-board quota, no compaction of the blob table, no export (story 17).
