@@ -1,0 +1,148 @@
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+}
+
+html,
+body {
+  /* No page scrolling, no rubber-banding: every gesture belongs to the board. */
+  overscroll-behavior: none;
+}
+
+body {
+  overflow: hidden;
+  font-family:
+    ui-sans-serif,
+    system-ui,
+    -apple-system,
+    'Segoe UI',
+    Roboto,
+    sans-serif;
+  color: #1f2933;
+  background: #f5f6f7;
+}
+
+/* Board ------------------------------------------------------------------ */
+
+.board-viewport {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  touch-action: none;
+  user-select: none;
+  background-color: #fafafb;
+}
+
+.board-world {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 0;
+  height: 0;
+  transform-origin: 0 0;
+  will-change: transform;
+}
+
+.origin-marker {
+  position: absolute;
+  left: -12px;
+  top: -12px;
+  width: 24px;
+  height: 24px;
+  pointer-events: none;
+}
+
+.origin-marker::before,
+.origin-marker::after {
+  content: '';
+  position: absolute;
+  background: rgba(15, 23, 42, 0.35);
+}
+
+.origin-marker::before {
+  left: 11px;
+  top: 0;
+  width: 2px;
+  height: 24px;
+}
+
+.origin-marker::after {
+  left: 0;
+  top: 11px;
+  width: 24px;
+  height: 2px;
+}
+
+/* Zoom controls ---------------------------------------------------------- */
+
+.zoom-controls {
+  position: fixed;
+  right: 16px;
+  bottom: 16px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px;
+  background: #ffffff;
+  border: 1px solid #d6dae0;
+  border-radius: 8px;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.12);
+}
+
+.zoom-controls button {
+  min-width: 32px;
+  height: 32px;
+  padding: 0 8px;
+  font: inherit;
+  font-size: 15px;
+  line-height: 1;
+  color: #1f2933;
+  background: #ffffff;
+  border: 1px solid #d6dae0;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.zoom-controls button:hover:not(:disabled) {
+  background: #f2f4f6;
+}
+
+.zoom-controls button:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.zoom-controls .zoom-percent {
+  min-width: 52px;
+  padding: 0 4px;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+}
+
+.zoom-controls :focus-visible,
+.navigation-hint :focus-visible {
+  outline: 2px solid #2563eb;
+  outline-offset: 2px;
+}
+
+/* Navigation hint -------------------------------------------------------- */
+
+.navigation-hint {
+  position: fixed;
+  left: 50%;
+  bottom: 20px;
+  transform: translateX(-50%);
+  padding: 8px 14px;
+  font-size: 13px;
+  color: #475467;
+  background: rgba(255, 255, 255, 0.92);
+  border: 1px solid #e4e7ec;
+  border-radius: 999px;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.08);
+  pointer-events: none;
+  white-space: nowrap;
+}

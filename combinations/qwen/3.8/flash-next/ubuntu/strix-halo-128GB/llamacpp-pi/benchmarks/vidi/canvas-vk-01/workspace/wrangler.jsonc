@@ -1,0 +1,10 @@
+{
+  // Cloudflare Worker config. Story 1 is client-only: `wrangler dev` serves the
+  // built client as static assets (Worker code + Durable Objects arrive in story 3).
+  "name": "vidi6",
+  "compatibility_date": "2026-09-01",
+  "assets": {
+    "directory": "./dist/client",
+    "not_found_handling": "single-page-application"
+  }
+}
