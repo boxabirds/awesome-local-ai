@@ -240,6 +240,36 @@ best_for_host() {
 # combination path -> the root script that installs it
 installer_script_for() { printf 'install-%s.sh' "$(printf '%s' "$1" | tr '/' '-')"; }
 
+# Why one combination does not suit this machine, as a short label for the
+# install menu; empty when it does. The first mismatch wins: OS, then
+# accelerator, then memory -- the order a user would fix them in.
+MIB_PER_GB=1024
+combo_misfit() {
+  local family version size os machine stack accel tier
+  IFS='/' read -r family version size os machine stack <<< "$1"
+  IFS='|' read -r accel tier <<< "$(_machine_segment "$machine")"
+  if ! _os_matches "$os"; then
+    case "$os" in
+      macos) printf 'needs a Mac' ;;
+      ubuntu) printf 'needs Ubuntu' ;;
+      *) printf 'needs %s' "$os" ;;
+    esac
+  elif ! _accel_matches "$accel"; then
+    case "$accel" in
+      cuda) printf 'needs an NVIDIA GPU' ;;
+      strix-halo) printf 'needs an AMD Strix Halo' ;;
+      metal) printf 'needs Apple silicon' ;;
+      *) printf 'needs a %s accelerator' "$accel" ;;
+    esac
+  elif (( HOST_MEM_MIB > 0 )) && ! _mem_fits "$tier"; then
+    # On a discrete GPU the limit is its own memory; everywhere else it is the
+    # unified RAM the GPU shares.
+    local kind=RAM
+    [[ "$HOST_ACCEL" == cuda ]] && kind=VRAM
+    printf 'not enough %s (needs %s GB)' "$kind" "$(( tier / MIB_PER_GB ))"
+  fi
+}
+
 # Why nothing matched, in terms the user can act on.
 explain_no_match() {
   local family_filter="${1:-}"
