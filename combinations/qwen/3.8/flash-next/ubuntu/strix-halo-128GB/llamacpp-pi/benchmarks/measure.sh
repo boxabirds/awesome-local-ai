@@ -124,7 +124,7 @@ bench() {
   [[ -x "$BENCH_BIN" ]] || { echo "measure.sh: no llama-bench at $BENCH_BIN" >&2; return 1; }
   local f="$OUT/bench-$STAMP.md"
   echo "== llama-bench, depths ${DEPTHS} (perf level: $(cat "$GPU/power_dpm_force_performance_level"))" | tee "$f"
-  "$BENCH_BIN" -m "$MODEL" -ngl 99 -fa 1 -mmp 0 -ub 512 -b 2048 \
+  "$BENCH_BIN" -m "$MODEL" -ngl 99 -fa 1 -lm dio -ub 512 -b 2048 \
     -p 512,2048 -n 128 -d "$DEPTHS" -r 2 -o md 2>>"$OUT/bench-$STAMP.log" | tee -a "$f"
 }
 

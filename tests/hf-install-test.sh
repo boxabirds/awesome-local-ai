@@ -1,11 +1,13 @@
 #!/usr/bin/env bash
-# How ensure_hf gets the hf CLI and hf_transfer, without touching the network.
+# How ensure_hf gets the hf CLI and turns on fast downloads, without touching
+# the network.
 #
 # Ubuntu 23.04+ ships python3 without pip, and refuses `pip install --user`
 # into the system interpreter anyway (PEP 668), so ensure_hf installs hf as a
 # uv tool, bootstrapping uv (no sudo, into ~/.local/bin) when it is missing.
-# hf_transfer must be importable by the python that runs hf -- the uv tool's
-# venv, not the system python3.
+# Downloads go through Xet, whose fast mode is HF_XET_HIGH_PERFORMANCE;
+# hf_transfer is no longer used, and setting HF_HUB_ENABLE_HF_TRANSFER only
+# prints a deprecation warning.
 set -uo pipefail
 DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$DIR/.." && pwd)"
@@ -65,7 +67,7 @@ FAKE
 run_ensure_hf() {
   HOME="$S/userhome" PATH="$S/bin:/usr/bin:/bin" bash -c '
     LOG_FILE=/dev/null; . "'"$REPO_ROOT"'/lib/common.sh"; . "'"$REPO_ROOT"'/lib/hf.sh"
-    ensure_hf; echo "HF_TRANSFER=${HF_HUB_ENABLE_HF_TRANSFER:-unset}"; command -v hf' 2>&1
+    ensure_hf; echo "HF_TRANSFER=${HF_HUB_ENABLE_HF_TRANSFER:-unset} HF_XET=${HF_XET_HIGH_PERFORMANCE:-unset}"; command -v hf' 2>&1
 }
 
 echo "Ubuntu 26.04: python3 without pip, no uv yet"
@@ -73,9 +75,10 @@ scenario ubuntu2604; fake_curl ok
 out="$(run_ensure_hf)"; rc=$?
 assert_eq "it succeeds"                          "0" "$rc"
 assert_ok "uv is bootstrapped from astral.sh"    grep -q '^curl .*astral.sh/uv/install.sh' "$S/calls"
-assert_ok "hf is a uv tool, with hf_transfer"    grep -q '^uv tool install huggingface_hub --with hf_transfer' "$S/calls"
+assert_ok "hf is a uv tool"                      grep -qx 'uv tool install huggingface_hub' "$S/calls"
 assert_fails "pip is never tried"                grep -q -- '-m pip' "$S/calls"
-assert_ok "hf_transfer is switched on"           grep -q 'HF_TRANSFER=1' <<< "$out"
+assert_ok "Xet high-performance mode is on"      grep -q 'HF_XET=1' <<< "$out"
+assert_ok "...and the deprecated hf_transfer switch is not set" grep -q 'HF_TRANSFER=unset' <<< "$out"
 assert_ok "hf is found on PATH afterwards"       grep -q '\.local/bin/hf$' <<< "$out"
 
 echo
@@ -84,8 +87,9 @@ scenario uv; write_uv "$S/bin/uv"; fake_curl ok
 out="$(run_ensure_hf)"; rc=$?
 assert_eq "it succeeds"                          "0" "$rc"
 assert_fails "uv is not re-downloaded"           grep -q '^curl' "$S/calls"
-assert_ok "hf is a uv tool, with hf_transfer"    grep -q '^uv tool install huggingface_hub --with hf_transfer' "$S/calls"
-assert_ok "hf_transfer is switched on"           grep -q 'HF_TRANSFER=1' <<< "$out"
+assert_ok "hf is a uv tool"                      grep -qx 'uv tool install huggingface_hub' "$S/calls"
+assert_ok "Xet high-performance mode is on"      grep -q 'HF_XET=1' <<< "$out"
+assert_ok "...and the deprecated hf_transfer switch is not set" grep -q 'HF_TRANSFER=unset' <<< "$out"
 
 echo
 echo "no uv, and it cannot be fetched"
@@ -96,13 +100,13 @@ assert_ok "...saying how to install uv by hand"  grep -q 'astral.sh/uv/install.s
 assert_fails "...without falling back to pip"    grep -q -- '-m pip' "$S/calls"
 
 echo
-echo "hf already present (pip --user era) without hf_transfer, no uv"
+echo "hf already present (pip --user era), no uv"
 scenario bare; fake_curl fail
 mkdir -p "$S/userhome/.local/bin"; printf '#!%s\necho "hf 1.0"\n' "$S/bin/python3" > "$S/userhome/.local/bin/hf"
 chmod +x "$S/userhome/.local/bin/hf"
 out="$(run_ensure_hf)"; rc=$?
 assert_eq "an existing hf is used as it is"      "0" "$rc"
-assert_ok "...it says downloads will be slower"  grep -q 'hf_transfer unavailable' <<< "$out"
-assert_ok "...and leaves hf_transfer off"        grep -q 'HF_TRANSFER=unset' <<< "$out"
+assert_ok "...with Xet high-performance mode on" grep -q 'HF_XET=1' <<< "$out"
+assert_fails "...and no talk of hf_transfer"      grep -q 'hf_transfer' <<< "$out"
 
 finish
