@@ -157,6 +157,14 @@ body,
   background: #f0f2f4;
 }
 
+.undo-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding-top: 4px;
+  border-top: 1px solid var(--panel-border);
+}
+
 .board-toolbar button:focus-visible {
   outline: 2px solid var(--focus);
   outline-offset: 1px;
