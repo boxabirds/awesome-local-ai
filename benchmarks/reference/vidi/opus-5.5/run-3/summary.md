@@ -6,5 +6,6 @@ Model `claude-opus-5-5`, scope `canvas`, effort `client default`, client claude 
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
 | 1 | Pan and zoom around an infinite board | DONE | 8.2 | None | None | None | — | — | green | 6/6 |  | 0 / 0 | 0 | — | throttled 0% |
 | 2 | Capture ideas on sticky notes and rearrange them | DONE | 18.5 | None | None | None | — | — | green | 20/20 |  | 0 / 0 | 0 | — | throttled 0% |
+| 3 | See other people's edits appear live on the same board | DONE | 19.9 | None | None | None | — | — | red | 27/27 |  | 0 / 0 | 0 | — | throttled 0% |
 
-**Totals:** 2 stories, 27 agent-minutes, 0 requests, 0 prompt / 0 completion tokens, gate green 2/2, final acceptance 20/20, stalled 0, partial 0, 4124 lines in src+tests.
+**Totals:** 3 stories, 47 agent-minutes, 0 requests, 0 prompt / 0 completion tokens, gate green 2/3, final acceptance 27/27, stalled 0, partial 0, 6032 lines in src+tests.
