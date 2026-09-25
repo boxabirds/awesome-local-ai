@@ -252,6 +252,81 @@ def test_record_story_rebases_when_remote_moved(tmp_path):
     assert (repo / "dirty.txt").read_text() == "uncommitted user work"
 
 
+def test_record_story_survives_a_conflicting_remote_and_pushes_the_backlog_later(tmp_path):
+    """The remote changed this run's own files (as the 24GB -> nvidia4090 rename did to gruntus's
+    canvas-pi-02): the pull-and-rebase conflicts. The checkout must not be left mid-rebase, each
+    story must still be committed locally and reported unpushed, and once the remote no longer
+    conflicts the next story pushes the backlog."""
+    import subprocess
+    from drive import record_story
+    g = ["git", "-c", "user.name=t", "-c", "user.email=t@t"]
+    remote = tmp_path / "remote.git"
+    subprocess.run(["git", "init", "-q", "--bare", "-b", "main", str(remote)], check=True)
+    repo, other = tmp_path / "repo", tmp_path / "other"
+    subprocess.run(["git", "clone", "-q", str(remote), str(repo)], check=True)
+    rel = "c/benchmarks/vidi/r"
+    run = repo / rel
+    run.mkdir(parents=True)
+    (run / "metrics.json").write_text('{"story": 1}')
+    assert record_story(repo, run, "story 1 done", git=g)["pushed"]
+    subprocess.run(["git", "clone", "-q", str(remote), str(other)], check=True)
+    (other / rel / "metrics.json").write_text('{"changed": "elsewhere"}')
+    subprocess.run([*g, "commit", "-qam", "someone else rewrites the run"], cwd=other, check=True)
+    subprocess.run(["git", "push", "-q", "origin", "HEAD:main"], cwd=other, check=True)
+
+    (repo / "todoodle-spec.md").write_text("a user's untracked work")
+    in_rebase = lambda: any((repo / ".git" / d).exists() for d in ("rebase-merge", "rebase-apply"))
+    for story in (2, 3):
+        (run / "metrics.json").write_text(f'{{"story": {story}}}')
+        res = record_story(repo, run, f"story {story} done", git=g)
+        assert res["committed"] and not res["pushed"], res
+        assert res.get("unpushed") and "conflict" in res["error"], res
+        assert not in_rebase(), f"story {story} left the checkout mid-rebase"
+        head = subprocess.run(["git", "log", "-1", "--format=%s"], cwd=repo, capture_output=True, text=True).stdout
+        assert head.strip() == f"story {story} done"
+        assert (repo / "todoodle-spec.md").read_text() == "a user's untracked work"
+
+    subprocess.run([*g, "revert", "--no-edit", "HEAD"], cwd=other, check=True, capture_output=True)
+    subprocess.run(["git", "push", "-q", "origin", "HEAD:main"], cwd=other, check=True)
+    (run / "metrics.json").write_text('{"story": 4}')
+    res = record_story(repo, run, "story 4 done", git=g)
+    assert res["pushed"], res
+    pushed = subprocess.run(["git", "--git-dir", str(remote), "log", "--format=%s", "main"],
+                            capture_output=True, text=True).stdout
+    assert all(f"story {n} done" in pushed for n in (2, 3, 4)), pushed
+
+
+def test_record_story_clears_a_rebase_left_by_a_killed_harness(tmp_path):
+    """A harness killed mid-rebase leaves the checkout in that state; committing into it would bury
+    the story. The next recording aborts the stale rebase first."""
+    import subprocess
+    from drive import record_story
+    g = ["git", "-c", "user.name=t", "-c", "user.email=t@t"]
+    remote = tmp_path / "remote.git"
+    subprocess.run(["git", "init", "-q", "--bare", "-b", "main", str(remote)], check=True)
+    repo, other = tmp_path / "repo", tmp_path / "other"
+    subprocess.run(["git", "clone", "-q", str(remote), str(repo)], check=True)
+    rel = "c/benchmarks/vidi/r"
+    (repo / rel).mkdir(parents=True)
+    (repo / rel / "metrics.json").write_text('{"story": 1}')
+    assert record_story(repo, repo / rel, "story 1 done", git=g)["pushed"]
+    subprocess.run(["git", "clone", "-q", str(remote), str(other)], check=True)
+    (other / rel / "metrics.json").write_text('{"theirs": 1}')
+    subprocess.run([*g, "commit", "-qam", "theirs"], cwd=other, check=True)
+    subprocess.run(["git", "push", "-q", "origin", "HEAD:main"], cwd=other, check=True)
+    (repo / rel / "metrics.json").write_text('{"story": 2}')
+    subprocess.run([*g, "commit", "-qam", "story 2 done"], cwd=repo, check=True)
+    subprocess.run([*g, "pull", "-q", "--rebase", "origin", "main"], cwd=repo, capture_output=True)
+    assert (repo / ".git" / "rebase-merge").exists() or (repo / ".git" / "rebase-apply").exists()
+
+    (repo / rel / "notes.md").write_text("story 3")
+    res = record_story(repo, repo / rel, "story 3 done", git=g)
+    assert res["committed"], res
+    assert not any((repo / ".git" / d).exists() for d in ("rebase-merge", "rebase-apply"))
+    log = subprocess.run(["git", "log", "--format=%s"], cwd=repo, capture_output=True, text=True).stdout
+    assert log.splitlines()[:2] == ["story 3 done", "story 2 done"], log
+
+
 def test_tool_hang_guard_interrupts_only_a_silent_tool_call(tmp_path):
     """pi's bash tool has no default timeout; a backgrounded server holding its pipe hangs it forever."""
     import json, os, subprocess, time
