@@ -9,8 +9,7 @@ NOTES FOR THIS COMBINATION
   M1 / M2 MACS. MTPLX 2.12.0 does not offer this pack on M1 or M2: its
   catalog lists it for M3/M4/M5 only. The reason is BF16 -- M1/M2 GPUs
   have no native BF16, this pack keeps its vision tower and draft head
-  in BF16, and there is no FP16 sibling (for the plain Qwen3.5 9B, MTPLX
-  steers M1/M2 to an FP16 build instead). "Not offered" means not listed
+  in BF16, and there is no FP16 sibling. "Not offered" means not listed
   or recommended; nothing seen blocks pulling it by repo id and serving
   it, which is what this installer does. Expect it to run slower on
   M1/M2 than on M3+. How much slower has not been measured by anyone.
@@ -58,9 +57,6 @@ NOTES FOR THIS COMBINATION
   VISION. The pack ships Xiaomi's vision tower (BF16). This repo's
   client configs declare text input only, and the installer's summary
   line "Vision: not available in this pack" is wrong for this pack.
-
-  ON M1/M2, MTPLX's own pick is the base model's FP16 build, which this
-  repo does not include.
 
   CREDIT. Model: Xiaomi MiMo, MiMo-V2.6-Distill-Qwen-9B (MIT), a
   fine-tune of Qwen3.5-9B (Apache 2.0). MTPLX pack: Youssofal.

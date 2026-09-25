@@ -100,9 +100,9 @@ low_memory_advice() {
   warn " FROM THE MTPLX RELEASE NOTES, measured on an M5 Max, NOT by this repo."
   warn " ${mem} MiB of GPU-addressable memory cannot hold it."
   warn ""
-  warn " This repo has no smaller pack. MTPLX's own catalog routes sub-16 GB"
-  warn " Macs to its 4B packs; this repo has no combination for them. Raising"
-  warn " iogpu.wired_limit_mb on a Mac this small starves macOS."
+  warn " MTPLX's own catalog routes sub-16 GB Macs to its 4B packs; this repo"
+  warn " has no combination for them. Raising iogpu.wired_limit_mb on a Mac"
+  warn " this small starves macOS."
 }
 
 combination_performance() {

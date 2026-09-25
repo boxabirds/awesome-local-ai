@@ -35,7 +35,7 @@ assert_eq "96GB cannot reach the 128GB tier" \
   "qwen/3.8/27b/macos/64GB/mtplx-opencode"         "$(pick macos arm64 metal 98304 qwen)"
 assert_eq "36GB Mac: no qwen combination fits below the 64GB tier" \
   ""                                                "$(pick macos arm64 metal 36864 qwen)"
-assert_eq "16GB Apple silicon: no qwen combination (the untested Qwen3.5-9B FP16 was removed)" \
+assert_eq "16GB Apple silicon: no qwen combination fits" \
   ""                                                "$(pick macos arm64 metal 16384 qwen)"
 assert_eq "16GB Apple silicon takes MiMo when asked for the mimo family" \
   "mimo/2.6/9b/macos/16GB/mtplx-opencode"           "$(pick macos arm64 metal 16384 mimo)"
