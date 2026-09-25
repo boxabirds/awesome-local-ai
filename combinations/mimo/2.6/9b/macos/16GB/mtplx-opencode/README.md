@@ -64,7 +64,7 @@ and want a local coding model that fits it at all.
 |---|---|
 | Upstream | [XiaomiMiMo/MiMo-V2.6-Distill-Qwen-9B](https://huggingface.co/XiaomiMiMo/MiMo-V2.6-Distill-Qwen-9B), by **Xiaomi MiMo**, MIT licence. A fine-tune of [Qwen/Qwen3.5-9B](https://huggingface.co/Qwen/Qwen3.5-9B) (Apache 2.0) for coding and agent work |
 | Pack | [`Youssofal/MiMo-V2.6-Qwen-9B-MTPLX-Optimized-Speed`](https://huggingface.co/Youssofal/MiMo-V2.6-Qwen-9B-MTPLX-Optimized-Speed), 8.70 GB |
-| Quantisation | 6-bit, group size 64: the same recipe as MTPLX's "Qwen 3.5 9B Optimized Speed" |
+| Quantisation | 6-bit, group size 64 |
 | Vision tower | Xiaomi's, kept in BF16 |
 | Draft head | borrowed from Qwen3.5-9B (BF16), not trained for MiMo |
 | Served id | `mtplx-mimo-v26-qwen-9b-optimized-speed` |
