@@ -20,7 +20,7 @@ import sys
 import time
 import urllib.request
 
-from drive import REPO_ROOT, WORK_ROOT, agent_env, sandboxed
+from drive import PACK, REPO_ROOT, WORK_ROOT, agent_env, sandboxed
 
 PORT = 18899
 STEP_TIMEOUT_S = 300
@@ -79,7 +79,7 @@ def main() -> None:
         print("  ok  wrangler dev serves over HTTP")
         step("playwright browsers", ["npx", "playwright", "install", "chromium"], env, ws)
         step("chromium loads the page", ["node", "browse.mjs"], env, ws)
-        leak = subprocess.run(sandboxed(["ls", str(REPO_ROOT / "benchmarks" / "vidi" / "acceptance")], own_dir=PROBE),
+        leak = subprocess.run(sandboxed(["ls", str(PACK / "acceptance")], own_dir=PROBE),
                               capture_output=True, text=True)
         if leak.returncode == 0:
             raise SystemExit("PREFLIGHT FAILED: the sandbox can read the held-out acceptance suite")

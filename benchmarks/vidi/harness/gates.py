@@ -20,7 +20,8 @@ import time
 from pathlib import Path
 
 HARNESS = Path(__file__).resolve().parent
-ACCEPTANCE = HARNESS.parent / "acceptance"
+import packdir  # noqa: E402
+ACCEPTANCE = packdir.resolve(HARNESS.parent) / "acceptance"
 STEP_TIMEOUT_S = 20 * 60
 ACCEPT_TIMEOUT_S = 60 * 60
 OUTPUT_TAIL_CHARS = 4000

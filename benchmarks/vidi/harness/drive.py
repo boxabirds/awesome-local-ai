@@ -30,6 +30,7 @@ from pathlib import Path
 
 import gates
 import hostenv
+import packdir
 import progress
 from hostenv import IS_MAC, THERMAL_OK, mem_free_pct
 from clients import CLIENTS, empty_state
@@ -37,13 +38,16 @@ from clients import CLIENTS, empty_state
 HARNESS = Path(__file__).resolve().parent
 VIDI = HARNESS.parent
 REPO_ROOT = VIDI.parent.parent
+# spec/, scope/, prompts/ and the held-out suite: the private pack repo, or benchmarks/vidi (packdir).
+PACK = packdir.resolve(VIDI)
 # Agents work OUTSIDE the repo: inside it, the harness and the held-out suite are a `cd ..` away.
 WORK_ROOT = Path(os.environ.get("VIDI_WORK_ROOT", Path.home() / ".vidi-bench" / "work")).resolve()
 # Nothing the agent runs may read these: the harness + held-out suite, the user's own agent
 # config/skills/sessions, and other runs' work directories (WORK_ROOT minus the agent's own).
 SANDBOX_DENY = [REPO_ROOT, *(Path.home() / p for p in
                 (".claude", ".agents", ".codex", ".config/opencode", ".local/share/opencode", ".mtplx",
-                 ".dbench/token", ".dbench/jobs"))]
+                 ".dbench/token", ".dbench/jobs")),
+                *[r for r in [packdir.private_root(PACK)] if r]]
 CONTEXT_BANDS = [(0, 16_000), (16_000, 32_000), (32_000, 64_000), (64_000, 100_000), (100_000, 10**9)]
 CONDITION_POLL_S = 30        # how often run conditions are sampled during a story / while waiting
 # The mirror is committed into the outer repo: no nested .git (it would become a
@@ -59,8 +63,8 @@ EVENT_STRING_MAX = 2000
 # Git-ignored bookkeeping read by local tools; must keep real absolute paths.
 LOCAL_ONLY_FILES = {"work_dir.txt", "current_story", "progress.json"}
 TEXT_SUFFIXES = {".json", ".jsonl", ".md", ".txt", ".log", ".ts", ".tsx", ".js", ".mjs", ".css", ".html", ".jsonc", ".sh"}
-SPEC = VIDI / "spec"
-PROMPT_TMPL = VIDI / "prompts" / "story.md.tmpl"
+SPEC = PACK / "spec"
+PROMPT_TMPL = PACK / "prompts" / "story.md.tmpl"
 LOOP_REPEAT_LIMIT = 8        # identical consecutive tool calls that mark a story as stalled
 KILL_GRACE_S = 10
 # If OpenCode dies on an error (server stall, 409, dropped stream) the same session is resumed,
@@ -926,7 +930,7 @@ def main() -> None:
 
     run = a.run_dir.resolve()
     run.mkdir(parents=True, exist_ok=True)
-    scope = json.loads((VIDI / "scope" / f"{a.scope}.json").read_text())
+    scope = json.loads((PACK / "scope" / f"{a.scope}.json").read_text())
     stories = scope["stories"]
     if a.only:
         wanted = {int(x) for x in a.only.split(",")}
