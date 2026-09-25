@@ -67,6 +67,7 @@ if [[ ${#problems[@]} -eq 0 ]]; then
   ACC="$(python3 "$HARNESS/packdir.py" acceptance)"
   if (cd "$ACC" && npm ci --no-audit --no-fund --silent && npx playwright install chromium >/dev/null); then ok "installed in $ACC"
   else bad "npm ci / playwright install in $ACC"; fi
+  if out="$("$HARNESS/check-browser.sh" "$ACC")"; then ok "$out"; else bad "$out"; fi
 fi
 
 if [[ -n "$STACK" ]]; then
