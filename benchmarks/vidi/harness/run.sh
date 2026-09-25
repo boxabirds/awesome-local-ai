@@ -69,7 +69,7 @@ if curl -s -m 2 "127.0.0.1:$BENCH_PORT/v1/models" >/dev/null; then
 fi
 
 # The held-out suite's own toolchain: installed here so a fresh checkout on a new node runs unattended.
-ACCEPTANCE="$HARNESS/../acceptance"
+ACCEPTANCE="$(python3 "$HARNESS/packdir.py" acceptance)"  # private pack repo, or benchmarks/vidi
 if [[ ! -d "$ACCEPTANCE/node_modules" || "$ACCEPTANCE/package-lock.json" -nt "$ACCEPTANCE/node_modules" ]]; then
   echo "installing the acceptance suite's dependencies"
   (cd "$ACCEPTANCE" && npm ci --no-audit --no-fund --silent && npx playwright install chromium >/dev/null) \

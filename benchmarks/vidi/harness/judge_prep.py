@@ -21,6 +21,8 @@ from pathlib import Path
 
 HARNESS = Path(__file__).resolve().parent
 VIDI = HARNESS.parent
+import packdir  # noqa: E402
+PACK = packdir.resolve(VIDI)
 PER_STORY_FILES = ("accept.json", "gate.json")
 
 
@@ -50,9 +52,9 @@ def main() -> None:
         shutil.rmtree(out)
     for label, run in zip("AB", runs):
         copy_run(run, out / label)
-    shutil.copytree(VIDI / "spec", out / "spec")
+    shutil.copytree(PACK / "spec", out / "spec")
     scope = json.loads((runs[0] / "metrics.json").read_text()).get("scope", "canvas")
-    shutil.copy(VIDI / "scope" / f"{scope}.json", out / "scope.json")
+    shutil.copy(PACK / "scope" / f"{scope}.json", out / "scope.json")
     shutil.copy(HARNESS / "judge.md", out / "judge.md")
     out.with_suffix(".key.json").write_text(json.dumps({"A": str(runs[0]), "B": str(runs[1])}, indent=2))
     print(out)
