@@ -1,6 +1,6 @@
 {
-  "state": "started",
-  "reason": "harness 9a2a686, client pi, model qwen3.8-27b",
-  "at": "2026-09-25T16:18:13Z",
+  "state": "finished",
+  "reason": "",
+  "at": "2026-09-25T16:42:06Z",
   "host": "gruntus"
 }
