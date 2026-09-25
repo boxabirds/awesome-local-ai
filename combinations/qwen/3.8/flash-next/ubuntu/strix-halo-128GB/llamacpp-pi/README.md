@@ -126,6 +126,21 @@ the memory per profile and the long-prompt prefill are still to come
 | Prose | 36–41 | 34–35 | 52–63% |
 | A pi coding session, ~7k context | 50–52 | – | 86–89% |
 
+**Decode against context, measured** (Vulkan, MTP depth 4, the same code
+prompt at temperature 0, clock pinned high; [`turbo-kv/`](benchmarks/turbo-kv/)):
+
+| Context filled | Decode | Prefill | MTP drafts accepted |
+|---|---|---|---|
+| 2k | 52.3 tok/s | 358 tok/s | 84% |
+| 32k | 42.9 | 317 | 76% |
+| 120k | 30.9 | 186 | 82% |
+
+So 40+ tok/s holds to roughly 35–40k of context, and 120k fills in about
+11 minutes. The drop is the attention cache: every token reads all of it, and
+at 120k that is ~3 GB on top of the weights. TurboQuant's compressed cache
+(`turbo4`, fork build) was slower at every fill and cost a KL divergence of
+0.60 against f16, so it is not a fix; a sparse-attention kernel for Vulkan is.
+
 Vulkan is the default because it decodes 10–17% faster here, with identical
 output at temperature 0. Source: [`benchmarks/backend-ab/`](benchmarks/backend-ab/)
 and the server log of the pi session.
