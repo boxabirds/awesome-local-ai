@@ -62,12 +62,40 @@ if [[ -d "$PACK_ROOT/.git" ]]; then
   else bad "pack ref $PACK_REF (git -C $PACK_ROOT tag -l)"; fi
 fi
 
+# Playwright ships Chromium per Ubuntu release and refuses releases it has not listed yet
+# ("does not support chromium on ubuntu26.04-x64"). The newest build it knows, 24.04's, runs on
+# later Ubuntu once its shared libraries are installed; missing ones are named below.
+PLAYWRIGHT_UBUNTU_FALLBACK="24.04"
+if [[ "$(uname)" == Linux && -r /etc/os-release ]]; then
+  os_id="$(sed -n 's/^ID=//p' /etc/os-release | tr -d '"')"
+  os_ver="$(sed -n 's/^VERSION_ID=//p' /etc/os-release | tr -d '"')"
+  if [[ "$os_id" == ubuntu && "$(printf '%s\n' "$os_ver" "$PLAYWRIGHT_UBUNTU_FALLBACK" | sort -V | tail -1)" != "$PLAYWRIGHT_UBUNTU_FALLBACK" ]]; then
+    arch="$(uname -m)"; case "$arch" in x86_64) arch=x64 ;; aarch64) arch=arm64 ;; esac
+    export PLAYWRIGHT_HOST_PLATFORM_OVERRIDE="ubuntu${PLAYWRIGHT_UBUNTU_FALLBACK}-${arch}"
+    echo "  note  Ubuntu ${os_ver}: using Playwright's ${PLAYWRIGHT_HOST_PLATFORM_OVERRIDE} Chromium"
+  fi
+fi
+
+# Shared libraries a downloaded Chromium cannot find (Linux), as a hint for the apt line.
+missing_browser_libs() {
+  local b
+  for b in "$HOME"/.cache/ms-playwright/chromium*/chrome*-linux64/chrome*; do
+    [[ -x "$b" && ! -d "$b" ]] || continue
+    ldd "$b" 2>/dev/null | awk '/not found/ {print $1}'
+  done | sort -u | tr '\n' ' '
+}
+
 if [[ ${#problems[@]} -eq 0 ]]; then
   echo "held-out suite dependencies"
   ACC="$(python3 "$HARNESS/packdir.py" acceptance)"
   if (cd "$ACC" && npm ci --no-audit --no-fund --silent && npx playwright install chromium >/dev/null); then ok "installed in $ACC"
   else bad "npm ci / playwright install in $ACC"; fi
-  if out="$("$HARNESS/check-browser.sh" "$ACC")"; then ok "$out"; else bad "$out"; fi
+  if out="$("$HARNESS/check-browser.sh" "$ACC")"; then ok "$out"
+  else
+    bad "$out"
+    libs="$([[ "$(uname)" == Linux ]] && missing_browser_libs)"
+    [[ -n "$libs" ]] && bad "Chromium needs these libraries: $libs-- install the packages that provide them (Ubuntu 26.04: sudo apt install libatk1.0-0t64 libatk-bridge2.0-0t64 libatspi2.0-0t64 libxdamage1 libasound2t64 libcups2t64)"
+  fi
 fi
 
 if [[ -n "$STACK" ]]; then
