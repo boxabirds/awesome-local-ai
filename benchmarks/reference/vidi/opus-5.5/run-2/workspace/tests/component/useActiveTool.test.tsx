@@ -76,7 +76,8 @@ describe('tools.active_tool', () => {
 
   it('TC-22 unknown shortcuts (tools not in this build) change nothing', () => {
     renderApp(doc);
-    for (const k of ['p', 'i', 'c', 'x']) key(k);
+    // P (story 11 Pen) is part of this build now; I and C (stories 12, 16) are not.
+    for (const k of ['i', 'c', 'x']) key(k);
     expect(pressed()).toEqual(['Select (V)']);
   });
 });

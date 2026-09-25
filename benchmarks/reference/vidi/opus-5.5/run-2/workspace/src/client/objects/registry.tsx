@@ -16,6 +16,7 @@ import {
 } from '../../shared/board-model';
 import { isTextSnapshot, setTextWidthFixed } from '../../shared/objects/text';
 import { isShapeSnap } from '../../shared/objects/shape';
+import { isStrokeSnap, scaledPoints, STROKE_TYPE } from '../../shared/objects/stroke';
 import {
   CONNECTOR_TYPE,
   isConnectorSnap,
@@ -25,8 +26,11 @@ import {
 } from '../../shared/objects/connector';
 import {
   CONNECTOR_HIT_TOLERANCE_PX,
+  PEN_THICKNESS_WORLD,
   SHAPE_MIN_SIZE_WORLD,
   STICKY_MIN_SIZE_WORLD,
+  STROKE_HIT_TOLERANCE_PX,
+  STROKE_MIN_SIZE_WORLD,
   TEXT_MIN_WIDTH_WORLD,
 } from '../../shared/config';
 import { rectContains, type Point, type Rect } from '../../shared/geometry';
@@ -35,6 +39,7 @@ import { BoardObjectsContext } from './BoardObjectsContext';
 import { ConnectorObject } from './ConnectorObject';
 import { ShapeObject } from './ShapeObject';
 import { StickyNote } from './StickyNote';
+import { StrokeObject } from './StrokeObject';
 import { TextObject } from './TextObject';
 import { defaultMeasurer } from './textLayout';
 import { syncTextBox } from './useTextBoxSync';
@@ -247,4 +252,23 @@ registerObjectType(CONNECTOR_TYPE, {
       if (next !== null) setConnectorEndpoint(doc, start.id, end, next);
     }
   },
+});
+
+const StrokeEntry = memo(function StrokeEntry(props: ObjectProps): React.JSX.Element | null {
+  const { object, ...rest } = props;
+  return isStrokeSnap(object) ? <StrokeObject stroke={object} {...rest} /> : null;
+});
+
+registerObjectType(STROKE_TYPE, {
+  Component: StrokeEntry,
+  resizable: true,
+  // pen.resize: the line scales in proportion (scaledPoints); the thickness never scales.
+  aspectLocked: true,
+  minSize: STROKE_MIN_SIZE_WORLD,
+  editableText: false,
+  // pen.select: within half the thickness or STROKE_HIT_TOLERANCE_PX screen pixels of the line.
+  hitTest: (obj, p, zoom = 1) =>
+    isStrokeSnap(obj) &&
+    distanceToPolyline(scaledPoints(obj), p) <=
+      Math.max(PEN_THICKNESS_WORLD[obj.thickness] / 2, STROKE_HIT_TOLERANCE_PX / zoom),
 });
