@@ -2,11 +2,11 @@
   "build_exit": 0,
   "runner_exit": 1,
   "runner_tail": "",
-  "passed": 63,
+  "passed": 73,
   "total": 75,
   "by_story": {
     "01": {
-      "passed": 9,
+      "passed": 10,
       "total": 10
     },
     "02": {
@@ -18,7 +18,7 @@
       "total": 7
     },
     "04": {
-      "passed": 3,
+      "passed": 4,
       "total": 4
     },
     "05": {
@@ -26,7 +26,7 @@
       "total": 5
     },
     "07": {
-      "passed": 7,
+      "passed": 8,
       "total": 8
     },
     "08": {
@@ -34,7 +34,7 @@
       "total": 7
     },
     "09": {
-      "passed": 5,
+      "passed": 6,
       "total": 6
     },
     "10": {
@@ -42,11 +42,11 @@
       "total": 8
     },
     "11": {
-      "passed": 1,
+      "passed": 5,
       "total": 5
     },
     "12": {
-      "passed": 3,
+      "passed": 5,
       "total": 5
     }
   },
@@ -66,8 +66,8 @@
     {
       "file": "story-01.spec.ts",
       "title": "zoom limits clamp and disable buttons @ref prd:zoom.limits",
-      "status": "failed",
-      "error": "TimeoutError: locator.click: Timeout 5000ms exceeded.\nCall log:\n\u001b[2m  - waiting for getByRole('button', { name: 'Zoom out' })\u001b[22m\n\u001b[2m    - locator resolved to <button type=\"button\" aria-label=\"Zoom out\" class=\"zoom-controls__button\">\u2212</button>\u001b[22m\n\u001b[2m  - attempting click action\u001b[22m\n\u001b[2m    2 \u00d7 waiting for element to be visible, enabled and stable\u001b[22m\n\u001b[2m      - element is not enabled\u001b[22m\n\u001b[2m    - retrying click action\u001b[22m\n\u001b[2m    - waiting 20ms\u001b[22m\n\u001b[2m    2 \u00d7 waiting for element to b"
+      "status": "passed",
+      "error": ""
     },
     {
       "file": "story-01.spec.ts",
@@ -216,8 +216,8 @@
     {
       "file": "story-04.spec.ts",
       "title": "board is intact after everyone leaves @ref prd:persist.reopen",
-      "status": "failed",
-      "error": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoHaveCount\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m)\u001b[22m failed\n\nLocator:  locator('[role=\"group\"][aria-label=\"Sticky note\"]')\nExpected: \u001b[32m2\u001b[39m\nReceived: \u001b[31m1\u001b[39m\nTimeout:  5000ms\n\nCall log:\n\u001b[2m  - Expect \"toHaveCount\" with timeout 5000ms\u001b[22m\n\u001b[2m  - waiting for locator('[role=\"group\"][aria-label=\"Sticky note\"]')\u001b[22m\n\u001b[2m    9 \u00d7 locator resolved to 1 element\u001b[22m\n\u001b[2m      - unexpected value \"1\"\u001b[22m\n"
+      "status": "passed",
+      "error": ""
     },
     {
       "file": "story-04.spec.ts",
@@ -276,8 +276,8 @@
     {
       "file": "story-07.spec.ts",
       "title": "partly enclosed note is not selected @ref prd:sel.marquee",
-      "status": "failed",
-      "error": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoBeVisible\u001b[2m(\u001b[22m\u001b[2m)\u001b[22m failed\n\nLocator: getByRole('button', { name: 'Delete note' })\nExpected: visible\nTimeout: 5000ms\nError: element(s) not found\n\nCall log:\n\u001b[2m  - Expect \"toBeVisible\" with timeout 5000ms\u001b[22m\n\u001b[2m  - waiting for getByRole('button', { name: 'Delete note' })\u001b[22m\n"
+      "status": "passed",
+      "error": ""
     },
     {
       "file": "story-07.spec.ts",
@@ -372,8 +372,8 @@
     {
       "file": "story-09.spec.ts",
       "title": "auto width wraps at 600 units @ref prd:text.autowidth",
-      "status": "failed",
-      "error": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoBeLessThanOrEqual\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m)\u001b[22m\n\nExpected: <= \u001b[32m486\u001b[39m\nReceived:    \u001b[31m549.9375\u001b[39m"
+      "status": "passed",
+      "error": ""
     },
     {
       "file": "story-09.spec.ts",
@@ -444,14 +444,14 @@
     {
       "file": "story-11.spec.ts",
       "title": "golden path: P shows pen toolbar, drag draws, pen stays active @ref prd:pen.draw prd:pen.stays",
-      "status": "failed",
-      "error": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoHaveCount\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m)\u001b[22m failed\n\nLocator:  locator('[aria-label=\"Drawing\"]')\nExpected: \u001b[32m1\u001b[39m\nReceived: \u001b[31m2\u001b[39m\nTimeout:  5000ms\n\nCall log:\n\u001b[2m  - Expect \"toHaveCount\" with timeout 5000ms\u001b[22m\n\u001b[2m  - waiting for locator('[aria-label=\"Drawing\"]')\u001b[22m\n\u001b[2m    9 \u00d7 locator resolved to 2 elements\u001b[22m\n\u001b[2m      - unexpected value \"2\"\u001b[22m\n"
+      "status": "passed",
+      "error": ""
     },
     {
       "file": "story-11.spec.ts",
       "title": "click without moving draws a dot @ref prd:pen.dot",
-      "status": "failed",
-      "error": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoHaveCount\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m)\u001b[22m failed\n\nLocator:  locator('[aria-label=\"Drawing\"]')\nExpected: \u001b[32m1\u001b[39m\nReceived: \u001b[31m2\u001b[39m\nTimeout:  5000ms\n\nCall log:\n\u001b[2m  - Expect \"toHaveCount\" with timeout 5000ms\u001b[22m\n\u001b[2m  - waiting for locator('[aria-label=\"Drawing\"]')\u001b[22m\n\u001b[2m    9 \u00d7 locator resolved to 2 elements\u001b[22m\n\u001b[2m      - unexpected value \"2\"\u001b[22m\n"
+      "status": "passed",
+      "error": ""
     },
     {
       "file": "story-11.spec.ts",
@@ -462,14 +462,14 @@
     {
       "file": "story-11.spec.ts",
       "title": "finished strokes reach the other person @ref prd:pen.share",
-      "status": "failed",
-      "error": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoHaveCount\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m)\u001b[22m failed\n\nLocator:  locator('[aria-label=\"Drawing\"]')\nExpected: \u001b[32m1\u001b[39m\nReceived: \u001b[31m2\u001b[39m\nTimeout:  2000ms\n\nCall log:\n\u001b[2m  - Expect \"toHaveCount\" with timeout 2000ms\u001b[22m\n\u001b[2m  - waiting for locator('[aria-label=\"Drawing\"]')\u001b[22m\n\u001b[2m    2 \u00d7 locator resolved to 0 elements\u001b[22m\n\u001b[2m      - unexpected value \"0\"\u001b[22m\n\u001b[2m    4 \u00d7 locator resolved to 2 elements\u001b[22m\n\u001b[2m      - unexpected value"
+      "status": "passed",
+      "error": ""
     },
     {
       "file": "story-11.spec.ts",
       "title": "stroke is selectable, deletable and undoable @ref prd:pen.select",
-      "status": "failed",
-      "error": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoHaveCount\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m)\u001b[22m failed\n\nLocator:  locator('[aria-label=\"Drawing\"]')\nExpected: \u001b[32m1\u001b[39m\nReceived: \u001b[31m2\u001b[39m\nTimeout:  5000ms\n\nCall log:\n\u001b[2m  - Expect \"toHaveCount\" with timeout 5000ms\u001b[22m\n\u001b[2m  - waiting for locator('[aria-label=\"Drawing\"]')\u001b[22m\n\u001b[2m    9 \u00d7 locator resolved to 2 elements\u001b[22m\n\u001b[2m      - unexpected value \"2\"\u001b[22m\n"
+      "status": "passed",
+      "error": ""
     },
     {
       "file": "story-12.spec.ts",
@@ -480,8 +480,8 @@
     {
       "file": "story-12.spec.ts",
       "title": "large image is scaled so its longest side is 800 units @ref prd:image.size",
-      "status": "failed",
-      "error": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoBeLessThan\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m)\u001b[22m\n\nExpected: < \u001b[32m2\u001b[39m\nReceived:   \u001b[31m128\u001b[39m"
+      "status": "passed",
+      "error": ""
     },
     {
       "file": "story-12.spec.ts",
@@ -498,8 +498,8 @@
     {
       "file": "story-12.spec.ts",
       "title": "image persists after reload and undo removes insertion in one step @ref prd:image.persist prd:image.undo",
-      "status": "failed",
-      "error": "TimeoutError: page.waitForEvent: Timeout 5000ms exceeded while waiting for event \"filechooser\"\n=========================== logs ===========================\nwaiting for event \"filechooser\"\n============================================================"
+      "status": "passed",
+      "error": ""
     }
   ]
 }
