@@ -140,6 +140,11 @@ def combination_label(run: Path) -> str:
         rel = run.resolve().relative_to(REPO_ROOT / "combinations")
         return "/".join(rel.parts[:-3])  # drop benchmarks/vidi/<run-id>
     except ValueError:
+        pass
+    try:  # a reference stack: benchmarks/reference/<pack>/<stack>/<run-id>
+        rel = run.resolve().relative_to(REPO_ROOT / "benchmarks" / "reference")
+        return "/".join(["reference", *rel.parts[1:-1]])
+    except ValueError:
         return run.name
 
 
@@ -148,7 +153,10 @@ def work_dir_for(run: Path) -> Path:
     try:
         rel = run.resolve().relative_to(REPO_ROOT / "combinations")
     except ValueError:
-        rel = Path(run.resolve().name)
+        try:  # anywhere else in the repo (reference stacks): named by its full repo path
+            rel = run.resolve().relative_to(REPO_ROOT)
+        except ValueError:
+            rel = Path(run.resolve().name)
     return WORK_ROOT / "__".join(rel.parts)
 
 
@@ -445,7 +453,10 @@ def run_agent(client, ws: Path, env: dict, model_id: str, prompt: str, events_pa
     """Run (or resume) one sandboxed agent session; returns counts, session id, error and loop flag."""
     cmd = sandboxed(client.command(model_id, prompt, resume_from, fork=fork), own_dir=ws.parent)
     t0 = time.monotonic()
-    proc = subprocess.Popen(cmd, cwd=ws, env={**os.environ, **env, **client.env()}, stdin=subprocess.DEVNULL,
+    full_env = {**os.environ, **env, **client.env()}
+    for k in getattr(client, "env_remove", ()):  # e.g. an API key that would override subscription auth
+        full_env.pop(k, None)
+    proc = subprocess.Popen(cmd, cwd=ws, env=full_env, stdin=subprocess.DEVNULL,
                             stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, start_new_session=True)
     loops = LoopDetector()
     st = empty_state()
@@ -532,7 +543,7 @@ def run_story_agent(client, ws: Path, env: dict, model_id: str, prompt: str, eve
 
 
 # Processes that ARE the agent (or its sandbox wrapper): never killed while a story runs.
-AGENT_PROC_MARKERS = ("pi-coding-agent", "sandbox-exec", "opencode")
+AGENT_PROC_MARKERS = ("pi-coding-agent", "sandbox-exec", "opencode", "claude ")
 
 
 def workspace_pids(ws: Path, spare_agent: bool = False) -> set[int]:

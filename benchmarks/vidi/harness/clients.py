@@ -8,6 +8,7 @@ per-tool-call key for loop detection.
 from __future__ import annotations
 
 import json
+import os
 from pathlib import Path
 
 PROVIDER = "local"
@@ -142,4 +143,68 @@ class OpenCodeClient:
         return None
 
 
-CLIENTS = {"pi": PiClient, "opencode": OpenCodeClient}
+class ClaudeClient:
+    """Claude Code headless: `claude -p --output-format stream-json`, config under an isolated
+    CLAUDE_CONFIG_DIR. Authenticates with the user's subscription via CLAUDE_CODE_OAUTH_TOKEN (from
+    `claude setup-token`); any API key is removed from the environment so usage can't silently
+    switch to API billing. No --bare: bare mode ignores the OAuth token."""
+
+    name = "claude"
+    # Removed from the agent's environment (ANTHROPIC_API_KEY outranks the OAuth token in -p mode).
+    env_remove = ("ANTHROPIC_API_KEY", "ANTHROPIC_AUTH_TOKEN")
+    TOKEN_FILE_ENV = "CLAUDE_BENCH_TOKEN_FILE"
+    DEFAULT_TOKEN_FILE = Path.home() / ".dbench" / "claude-oauth-token"
+
+    def __init__(self, work: Path):
+        self.config_dir = work / "claude-config"
+        self._seen_messages: set[str] = set()
+
+    def token(self) -> str:
+        path = Path(os.environ.get(self.TOKEN_FILE_ENV) or self.DEFAULT_TOKEN_FILE).expanduser()
+        if not path.is_file():
+            raise SystemExit(f"no Claude token at {path}: run `claude setup-token` and save it there (mode 600)")
+        return path.read_text().strip()
+
+    def env(self) -> dict:
+        return {"CLAUDE_CONFIG_DIR": str(self.config_dir), "CLAUDE_CODE_OAUTH_TOKEN": self.token(),
+                "DISABLE_AUTOUPDATER": "1"}
+
+    def write_config(self, base_url: str, model_id: str, ctx: int, out: int, compact_at: int | None = None) -> None:
+        # base_url, ctx and out don't apply: the model is Anthropic's, with Claude Code's own compaction.
+        self.config_dir.mkdir(parents=True, exist_ok=True)
+        (self.config_dir / "settings.json").write_text(json.dumps({"autoUpdates": False}, indent=2))
+
+    def command(self, model_id: str, prompt: str, resume_from: str | None = None, fork: bool = True) -> list[str]:
+        resume = (["--resume", resume_from] + (["--fork-session"] if fork else [])) if resume_from else []
+        return ["claude", "-p", prompt, "--model", model_id, "--output-format", "stream-json", "--verbose",
+                "--dangerously-skip-permissions", *resume]
+
+    def scan(self, e: dict, st: dict) -> str | None:
+        t = e.get("type")
+        if t == "system" and e.get("subtype") == "init":
+            st["session"] = st["session"] or e.get("session_id")
+        elif t == "assistant":
+            msg = e.get("message") or {}
+            mid = msg.get("id")
+            if mid and mid not in self._seen_messages:  # one model call spans several assistant events
+                self._seen_messages.add(mid)
+                st["steps"] += 1
+            for c in msg.get("content") or []:
+                if isinstance(c, dict) and c.get("type") == "tool_use":
+                    st["tool_calls"] += 1
+                    return json.dumps([c.get("name"), c.get("input")], sort_keys=True)
+        elif t == "result":
+            u = e.get("usage") or {}
+            st["tokens"].update(input=u.get("input_tokens", 0), output=u.get("output_tokens", 0),
+                                cache_read=u.get("cache_read_input_tokens", 0),
+                                cache_write=u.get("cache_creation_input_tokens", 0))
+            if e.get("is_error") or str(e.get("subtype", "")).startswith("error"):
+                st["error"] = str(e.get("result") or e.get("subtype"))[:500]
+            else:
+                st["error"] = None
+        elif t == "system" and e.get("subtype") == "compact_boundary":
+            st["compactions"] += 1
+        return None
+
+
+CLIENTS = {"pi": PiClient, "opencode": OpenCodeClient, "claude": ClaudeClient}
