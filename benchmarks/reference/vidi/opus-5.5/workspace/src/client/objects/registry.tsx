@@ -1,11 +1,18 @@
 import { CONNECTOR_TYPE } from '../../shared/board-model';
-import { SHAPE_MIN_SIZE_WORLD, STICKY_MIN_SIZE_WORLD, TEXT_MIN_WIDTH_WORLD } from '../../shared/config';
+import {
+  SHAPE_MIN_SIZE_WORLD,
+  STICKY_MIN_SIZE_WORLD,
+  STROKE_MIN_SIZE_WORLD,
+  TEXT_MIN_WIDTH_WORLD,
+} from '../../shared/config';
+import { STROKE_TYPE } from '../../shared/objects/stroke';
 import { SHAPE_TYPE } from '../../shared/objects/shape';
 import { isText, TEXT_TYPE } from '../../shared/objects/text';
 import { ConnectorObject } from './ConnectorObject';
 import { boundsHitTest, connectorHitTest, registerObjectType } from './objectTypes';
 import { ShapeObject } from './ShapeObject';
 import { StickyNote } from './StickyNote';
+import { StrokeBoardObject, strokeHitTest } from './StrokeObject';
 import { TextObject } from './TextObject';
 import { textMeasurer } from './textLayout';
 import { resizeTextWidth } from './useTextBoxSync';
@@ -60,5 +67,20 @@ registerObjectType(CONNECTOR_TYPE, {
   editableText: false,
   attachable: false,
   selectionBox: false,
+  hitByGeometry: true,
   hitTest: connectorHitTest,
+});
+
+/**
+ * Pen strokes (story 11): selected by a press near the drawn line (pen.select), resized in
+ * proportion with the thickness unchanged (pen.resize), no text.
+ */
+registerObjectType(STROKE_TYPE, {
+  Component: StrokeBoardObject,
+  resizable: true,
+  aspectLocked: true,
+  minSize: STROKE_MIN_SIZE_WORLD,
+  editableText: false,
+  hitByGeometry: true,
+  hitTest: strokeHitTest,
 });

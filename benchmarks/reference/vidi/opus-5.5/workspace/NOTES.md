@@ -657,3 +657,70 @@ Decisions made while building without anyone to ask.
   (both reverted).
 - **Not covered** (design): the 300 shapes + 300 arrows smoothness check (manual), exact
   screen-reader wording, touch input.
+
+## Story 11: Sketch freehand with a pen
+
+- **Tool layer, like story 10.** `PenTool` is a transparent screen-space layer over the board (the
+  `overlay` prop of `BoardViewport`), so every press while the Pen is active goes to it: drags over
+  objects draw and never move/select them or pan. Wheel and Safari pinch listeners sit on the
+  viewport element and still receive the events bubbling from the layer, so scrolling pans and
+  Ctrl/Cmd+scroll zooms. `BoardViewport` itself needed no code change.
+- **Preview without React renders.** The screen-space preview `path` and the round cursor are
+  updated through refs: the path's `d` is rewritten at most once per animation frame, the cursor's
+  transform on every move. The preview is never written to the document.
+- **Extra `step` prop on `PenTool`** (like `ShapeTool`): `Board` passes `asStep`, which closes an undo
+  step before and after each commit (equivalent to the design's `stopCapturing()`), so each stroke
+  and each part of a split stroke is exactly one undo step. `identityId` is the tab's guest id (no
+  identity in this build).
+- **Escape (or another tool) mid-drag discards the stroke being drawn**; only pointercancel / lost
+  pointer capture keep it (pen.interrupted). The design's state diagram only has Escape from Idle.
+- **Click vs drag.** Movement below `DRAG_THRESHOLD_PX` (screen) from the press makes a dot at the
+  press point. A split long stroke whose last part has only the join point creates no extra dot.
+- **Smoothing faithfulness** is guaranteed for the stored points: RDP uses distance to *segments*
+  (not the infinite line), so every recorded point is within `STROKE_SIMPLIFY_TOLERANCE_PX / zoom`
+  world units of the stored polyline. The drawn curve (`smoothPath`, midpoint quadratics) passes
+  through the midpoints, and at sharp corners can cut inside the stored polyline by more than that;
+  it is only a rendering of the stored stroke.
+- **Stroke box** = points' bounding box padded by half the thickness (a straight horizontal line
+  still has a non-zero height). `baseWidth/baseHeight` are that padded box; `scaledPoints` scales
+  from its top-left, so the padding scales with a resize while the thickness does not.
+- **Snapshot.** As in stories 9/10, `board-model.ts` reads strokes itself (`readStroke`,
+  `STROKE_TYPE`, `isPenColor`, `isPenThickness`); malformed strokes (odd/non-numeric points, unknown
+  colour/thickness, non-positive base size) are skipped. `ObjectSnapshot.color` widened to
+  `StickyColor | PenColor`; new optional `points`, `baseWidth`, `baseHeight`, `thickness`.
+  `PenColor`/`PenThickness` are defined in `config.ts` and re-exported from `objects/stroke.ts`.
+  Extra export `scaledLocalPoints` (box-relative points for rendering).
+- **Selection by geometry.** Strokes take no pointer events. The story 10 arrow press routing in
+  `Board` now accepts any type whose registry spec sets the new `hitByGeometry: true` (arrows and
+  strokes), using that type's `hitTest`. A click inside a stroke's box but away from its line
+  therefore reaches the object underneath (or empty board).
+- **Component split.** `StrokeObject({ stroke, selected, zoom? })` is the contract's rendering
+  component (SVG path, `aria-label="Drawing"`); the registry registers `StrokeBoardObject`, a thin
+  wrapper taking the registry's `ObjectProps` (positioned `role="group"` named "Drawing",
+  Tab-focusable, focus selects). The hit test is `strokeHitTest` in `StrokeObject.tsx`.
+- **Names.** Toolbar button "Pen (P)" after Connector. Pen toolbar `role="toolbar"` "Pen", shown
+  right of the left toolbar only while the Pen is active; swatches "Black pen", "Blue pen", "Red pen",
+  "Green pen", "Orange pen", "Purple pen" (capitalised, like story 10's "Blue fill"); "Thin",
+  "Medium", "Thick"; all with `aria-pressed`. Pen options live in `Board` (per page load).
+- **Story 10 tests changed by this story's behaviour:** `useActiveTool.test.tsx` used `pen` as its
+  example of a tool not in this build; it now uses `image`. Story 8's TC-18 toolbar button list now
+  includes "Pen (P)". Nothing else changed.
+- **Fixture paths are generated, not recorded.** No real pointer recordings are available here;
+  `tests/fixtures/pen-paths.ts` builds the loop and underline deterministically with a seeded PRNG
+  (uneven spacing, jitter, wobble) and the 5,010-point spiral analytically.
+- **E2E.** `tests/e2e/pen.spec.ts` (TC-17–TC-20) passes in Chromium and Firefox; WebKit still cannot
+  launch on the build machine, so TC-17 was not run in WebKit. TC-17 samples the preview's `d` with
+  `requestAnimationFrame` in the page and requires at least 80% of consecutive sampled frames during
+  the drag to differ (a strict 100% would fail whenever the test driver stalls for a frame).
+  The fixtures are drawn offset to the right so the first press does not land on the pen toolbar.
+- **Red phase not observed.** The model was written before its tests. Mutations were checked
+  instead: doubling the hit tolerance fails all four TC-15 cases; ignoring pointercancel / lost
+  capture fails TC-11 (both reverted).
+- **Not covered** (design): drawing latency on low-end hardware, compression ratio (manual; TC-17
+  only asserts fewer stored than recorded points), stylus pressure/palm rejection.
+- **Full e2e runs (Chromium + Firefox, `E2E_PORT=8877`).** Final run: 104 passed, 3 skipped (the
+  existing Chromium-only skips), 0 failed. Two earlier full runs each had one unrelated failure in a
+  different story's test, both at an `openBoard`/page-visibility wait under load: story 9's
+  text TC-26 (then 28/28 in `text.spec.ts` ×2) and story 5's share TC-30 (then 8/8 alone ×4, after
+  one more failure in a repeat run). Neither touches pen code; recorded as the known contention on
+  the single local workerd (story 4/5/9 notes).

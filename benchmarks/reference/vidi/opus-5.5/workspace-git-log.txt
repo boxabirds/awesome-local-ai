@@ -1,3 +1,37 @@
+commit e96630ff36cc11c9e40ed5f3abaa985288363192
+Author: opus-5.5-reference <reference@vidi.invalid>
+Date:   Fri Sep 25 01:53:22 2026 +0100
+
+    story 11: Sketch freehand with a pen
+    
+    Co-Authored-By: Claude Opus 5.5 (1M context) <noreply@anthropic.com>
+
+ NOTES.md                               |  67 ++++++++
+ src/client/board/Board.tsx             |  33 +++-
+ src/client/board/Toolbar.tsx           |  21 +++
+ src/client/board/useBoardKeys.ts       |   2 +-
+ src/client/objects/StrokeObject.tsx    | 129 +++++++++++++++
+ src/client/objects/objectTypes.ts      |   6 +
+ src/client/objects/registry.tsx        |  24 ++-
+ src/client/styles.css                  |  78 +++++++++
+ src/client/tools/PenTool.tsx           | 252 +++++++++++++++++++++++++++++
+ src/client/tools/PenToolbar.tsx        |  92 +++++++++++
+ src/client/tools/useActiveTool.ts      |  10 +-
+ src/client/tools/usePenOptions.ts      |  33 ++++
+ src/shared/board-model.ts              |  53 ++++++-
+ src/shared/config.ts                   |  26 +++
+ src/shared/geometry/simplify.ts        | 104 ++++++++++++
+ src/shared/objects/stroke.ts           | 115 ++++++++++++++
+ tests/component/PenTool.test.tsx       | 227 +++++++++++++++++++++++++++
+ tests/component/StrokeObject.test.tsx  | 153 ++++++++++++++++++
+ tests/component/UndoControls.test.tsx  |   2 +-
+ tests/component/penHelpers.tsx         |  62 ++++++++
+ tests/component/useActiveTool.test.tsx |   2 +-
+ tests/e2e/pen.spec.ts                  | 279 +++++++++++++++++++++++++++++++++
+ tests/fixtures/pen-paths.ts            |  87 ++++++++++
+ tests/unit/stroke.test.ts              | 246 +++++++++++++++++++++++++++++
+ 24 files changed, 2087 insertions(+), 16 deletions(-)
+
 commit eb62a2dad177469bcecc35077d692d4e576d6253
 Author: opus-5.5-reference <reference@vidi.invalid>
 Date:   Fri Sep 25 01:21:39 2026 +0100

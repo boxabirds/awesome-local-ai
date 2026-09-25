@@ -34,7 +34,7 @@ describe('tools.active_tool useActiveTool', () => {
     expect(onSelect).toHaveBeenCalledWith('new-id');
     expect(result.current.tool).toBe('select');
     // Tools not in this build are ignored.
-    act(() => result.current.setTool('pen'));
+    act(() => result.current.setTool('image'));
     expect(result.current.tool).toBe('select');
   });
 

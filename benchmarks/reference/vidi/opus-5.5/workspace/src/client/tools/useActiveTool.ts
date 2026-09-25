@@ -3,9 +3,10 @@ import type { ShapeKind } from '../../shared/board-model';
 import { SHAPE_KINDS } from '../../shared/config';
 
 /**
- * Every tool id of the cross-story convention. Only `select`, `text` (story 9), `shape` and
- * `connector` (story 10) are modes in this build; `sticky` is an action (a note at the view
- * centre) and pen, image and comment belong to stories that are not part of it.
+ * Every tool id of the cross-story convention. `select`, `text` (story 9), `shape`,
+ * `connector` (story 10) and `pen` (story 11) are modes in this build; `sticky` is an action (a
+ * note at the view centre) and image and comment belong to stories that are not part of it.
+ * The Pen, unlike the creation tools, stays active after each stroke (pen.stay_active).
  */
 export type ToolId = 'select' | 'sticky' | 'text' | 'shape' | 'connector' | 'pen' | 'image' | 'comment';
 
@@ -22,12 +23,13 @@ export const TOOL_SHORTCUTS: Record<string, ToolId> = {
 };
 
 /** Tools that are modes the board can be in (the rest are ignored by setTool). */
-export const MODE_TOOLS: ReadonlySet<ToolId> = new Set<ToolId>(['select', 'text', 'shape', 'connector']);
+export const MODE_TOOLS: ReadonlySet<ToolId> = new Set<ToolId>(['select', 'text', 'shape', 'connector', 'pen']);
 
 export const SELECT_TOOL_LABEL = 'Select (V)';
 export const TEXT_TOOL_LABEL = 'Text (T)';
 export const SHAPE_TOOL_LABEL = 'Shape (S)';
 export const CONNECTOR_TOOL_LABEL = 'Connector (L)';
+export const PEN_TOOL_LABEL = 'Pen (P)';
 /** Shape menu entries (visible text and accessible name). */
 export const SHAPE_KIND_LABELS: Record<ShapeKind, string> = {
   rect: 'Rectangle',

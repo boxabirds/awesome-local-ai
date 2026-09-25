@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import {
-  CONNECTOR_TYPE,
   createSticky,
   deleteObjects,
   objectSnapshot,
@@ -29,7 +28,10 @@ import { useCamera } from '../canvas/useCamera';
 import { BoardObjectsContext } from '../objects/boardObjects';
 import { getObjectType, topObjectAt } from '../objects/registry';
 import { ConnectorTool } from '../tools/ConnectorTool';
+import { PenTool } from '../tools/PenTool';
+import { PenToolbar } from '../tools/PenToolbar';
 import { ShapeTool } from '../tools/ShapeTool';
+import { usePenOptions } from '../tools/usePenOptions';
 import { useActiveTool } from '../tools/useActiveTool';
 import { textMeasurer } from '../objects/textLayout';
 import { remeasureText } from '../objects/useTextBoxSync';
@@ -88,6 +90,8 @@ export function Board({ boardId, children, createUndoController }: BoardProps) {
     onSelect: selection.adopt,
   });
   const [authorId] = useState(newGuestId);
+  // Story 11: pen colour and thickness, kept until the page is reloaded.
+  const pen = usePenOptions();
 
   const stateRef = useRef({ selection, camera, viewport, editable, history, authorId });
   stateRef.current = { selection, camera, viewport, editable, history, authorId };
@@ -226,9 +230,9 @@ export function Board({ boardId, children, createUndoController }: BoardProps) {
     [doc, asStep],
   );
 
-  // Arrows take no pointer events of their own: a press within CONNECTOR_HIT_TOLERANCE_PX of an
-  // arrow's line selects (and drags) it, unless an object stacked above the arrow was pressed
-  // (connector.select).
+  // Arrows and pen strokes take no pointer events of their own: a press near an arrow's or a
+  // stroke's line (its type's hitTest) selects (and drags) it, unless an object stacked above
+  // it was pressed (connector.select, pen.select).
   const objectsRef = useRef(objects);
   objectsRef.current = objects;
   const getObjects = useCallback(() => objectsRef.current, []);
@@ -242,7 +246,7 @@ export function Board({ boardId, children, createUndoController }: BoardProps) {
       if (pressedId !== undefined && pressedId === sel.editingId) return false;
       const pressedIndex = pressedId === undefined ? -1 : list.findIndex((o) => o.id === pressedId);
       const above = pressedIndex < 0 ? list : list.slice(pressedIndex + 1);
-      const arrow = topObjectAt(above, screenToWorld(cam, point), cam.zoom, (o) => o.type === CONNECTOR_TYPE);
+      const arrow = topObjectAt(above, screenToWorld(cam, point), cam.zoom, (_o, spec) => spec.hitByGeometry === true);
       if (!arrow) return false;
       if (sel.editingId !== null) endEdit('selected');
       gesture.onObjectPointerDown(e, arrow.id);
@@ -260,6 +264,17 @@ export function Board({ boardId, children, createUndoController }: BoardProps) {
         doc={doc}
         createdBy={authorId}
         onCreated={toolCreated}
+        step={asStep}
+      />
+    );
+  } else if (editable && tool === 'pen') {
+    toolLayer = (
+      <PenTool
+        camera={camera}
+        color={pen.color}
+        thickness={pen.thickness}
+        doc={doc}
+        identityId={authorId}
         step={asStep}
       />
     );
@@ -338,6 +353,14 @@ export function Board({ boardId, children, createUndoController }: BoardProps) {
             shapeKind={shapeKind}
             onShapeKind={setShapeKind}
           />
+          {editable && tool === 'pen' && (
+            <PenToolbar
+              color={pen.color}
+              thickness={pen.thickness}
+              onColor={pen.setColor}
+              onThickness={pen.setThickness}
+            />
+          )}
           <SelectionBar
             ids={selectedIds}
             snapshot={objects}

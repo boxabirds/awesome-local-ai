@@ -128,7 +128,7 @@ describe('undo.controls: buttons', () => {
     // story 10 Shape and Connector).
     const toolbar = screen.getByRole('toolbar', { name: 'Tools' });
     const buttons = Array.from(toolbar.querySelectorAll('button')).map((b) => b.getAttribute('aria-label'));
-    expect(buttons).toEqual(['Select (V)', 'Text (T)', 'Shape (S)', 'Connector (L)', 'Sticky note', 'Undo', 'Redo']);
+    expect(buttons).toEqual(['Select (V)', 'Text (T)', 'Shape (S)', 'Connector (L)', 'Pen (P)', 'Sticky note', 'Undo', 'Redo']);
   });
 
   it('buttons follow the controller state and call it when clicked', () => {

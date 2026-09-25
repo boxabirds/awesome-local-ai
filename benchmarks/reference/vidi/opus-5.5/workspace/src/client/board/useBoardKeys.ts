@@ -62,7 +62,7 @@ function isButtonTarget(target: EventTarget | null): boolean {
  * Ctrl/Cmd+Shift+Z / Ctrl+Y redo this person's own steps (not while the board is read-only).
  * Story 9 tool shortcuts: V Select, T Text (only while editable), N new sticky note at the view
  * centre, Escape with a tool other than Select back to Select (without clearing the selection).
- * Story 10 adds S Shape and L Connector (only while editable).
+ * Story 10 adds S Shape and L Connector, story 11 P Pen (only while editable).
  */
 export function useBoardKeys(opts: BoardKeysOptions): void {
   const optsRef = useRef(opts);
