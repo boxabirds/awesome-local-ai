@@ -116,6 +116,11 @@ struct Env {
     bin: PathBuf,
 }
 
+/// Prints the variables a job's server_env may set, as the model server would see them.
+const ENV_BODY: &str = r#"echo "server-env: GPU_BACKEND=${GPU_BACKEND:-unset} SPEC_DRAFT_N_MAX=${SPEC_DRAFT_N_MAX:-unset}"
+exit 0
+"#;
+
 fn setup() -> Env {
     let n = COUNTER.fetch_add(1, Ordering::SeqCst);
     let root = std::env::temp_dir().join(format!("dbench-it-{}-{n}", std::process::id()));
@@ -125,6 +130,7 @@ fn setup() -> Env {
     let repo = root.join("repo");
     for (pack, body) in [
         ("fakepack", FAKE_BODY),
+        ("envpack", ENV_BODY),
         ("failpack", FAIL_BODY),
         ("slowpack", SLOW_BODY),
         ("stubbornpack", STUBBORN_BODY),
@@ -876,4 +882,40 @@ async fn progress_stories_and_skip_story() {
     srv.wait_status("behind", "done").await;
     assert_eq!(srv.skip_story("behind", body(2, "x")).await.0, 409);
     drop(env.root);
+}
+
+#[tokio::test]
+async fn server_env_reaches_the_harness_and_is_checked() {
+    let env = setup();
+    let srv = start(&env, false);
+
+    // Allowed keys with valid values reach the harness's environment (and so the model server).
+    let mut s = spec("envpack", "env-1");
+    s["server_env"] = json!({"GPU_BACKEND": "rocm", "SPEC_DRAFT_N_MAX": "4"});
+    let (code, _) = srv.submit("env-1", &s).await;
+    assert_eq!(code, 201);
+    srv.wait_status("env-1", "done").await;
+    let log = srv.log("env-1").await;
+    assert!(log.contains("server-env: GPU_BACKEND=rocm SPEC_DRAFT_N_MAX=4"), "{log}");
+
+    // Without server_env the harness gets nothing extra.
+    let (code, _) = srv.submit("env-2", &spec("envpack", "env-2")).await;
+    assert_eq!(code, 201);
+    srv.wait_status("env-2", "done").await;
+    assert!(srv.log("env-2").await.contains("server-env: GPU_BACKEND=unset SPEC_DRAFT_N_MAX=unset"));
+
+    // The same id with a different server_env is a different job.
+    let mut other = s.clone();
+    other["server_env"] = json!({"GPU_BACKEND": "vulkan", "SPEC_DRAFT_N_MAX": "4"});
+    let (code, _) = srv.submit("env-1", &other).await;
+    assert_eq!(code, 409);
+
+    // Keys outside the list, and values outside a key's range, are refused.
+    for bad in [json!({"LD_PRELOAD": "/tmp/x.so"}), json!({"GPU_BACKEND": "rocm; rm -rf /"}),
+                json!({"SPEC_DRAFT_N_MAX": "0"}), json!({"SPEC_DRAFT_P_MIN": "1.5"})] {
+        let mut b = spec("envpack", "env-bad");
+        b["server_env"] = bad.clone();
+        let (code, body) = srv.submit("env-bad", &b).await;
+        assert_eq!(code, 400, "{bad} -> {body}");
+    }
 }

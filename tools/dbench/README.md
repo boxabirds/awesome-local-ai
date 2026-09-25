@@ -111,6 +111,7 @@ git pull                                           # results, as each story is r
   - A job names an installed combination, a pack directory in the repo, a run id, a scope and a client. All are checked against `[A-Za-z0-9._-]`.
   - The pack must be a relative path with no `..`.
   - The server builds the argv itself and never runs a shell string it was sent. Unknown JSON fields are rejected.
+  - A job's `server_env` may set only `GPU_BACKEND` (vulkan|rocm), `SPEC_MTP` (0|1), `SPEC_DRAFT_N_MAX` (1–16), `SPEC_DRAFT_P_MIN` (0–1) and `PROFILE` (a plain name), each value checked. Nothing else (PATH, LD_PRELOAD, …) can be set.
 - **What still runs as code:** a pack's harness and acceptance suite (Playwright). That code comes from the repo checkout at whatever `git pull` brought in, so anyone who can push to the repo can run code on the nodes.
 
 ## API
@@ -119,7 +120,7 @@ git pull                                           # results, as each story is r
 |---|---|
 | `GET /v1/health` | `{"ok":true,"version":…}`. No token needed. |
 | `GET /v1/node` | hostname, os, arch, cpus, `total_ram_bytes`, `cpu_brand`, `gpus` (nvidia-smi; on macOS the chip with unified memory), installed `combinations` (INSTALL_ID/COMBINATION/BACKEND), `tools` (node, pi, git, uv versions, using the prepended PATH), `dbench_version`, `repo_head`, `current_job` |
-| `PUT /v1/jobs/{id}` | body: `{install_id \| combination, pack, scope?, stories?, run_id, client: "pi"\|"opencode", record}`. `combination` is a directory under the node's `<repo>/combinations/` (a leading `combinations/` and trailing `/` are fine); the node reads `INSTALL_ID` from its `config.sh` and stores the job by install id, so both forms name the same job. Returns 201 if created, 200 if the same id and spec already exist, 409 if the id exists with a different spec, and 400 if a name is invalid, the combination isn't a whole directory in the repo or its install is of a different combination, the install is missing, or there's no harness for the pack. |
+| `PUT /v1/jobs/{id}` | body: `{install_id \| combination, pack, scope?, stories?, run_id, client: "pi"\|"opencode", record, server_env?}`. `server_env` is a map set in the harness's environment, and through it the model server's, from the allowed keys above; it is part of the job's identity, so the same id with a different `server_env` is a 409. `combination` is a directory under the node's `<repo>/combinations/` (a leading `combinations/` and trailing `/` are fine); the node reads `INSTALL_ID` from its `config.sh` and stores the job by install id, so both forms name the same job. Returns 201 if created, 200 if the same id and spec already exist, 409 if the id exists with a different spec, and 400 if a name is invalid, the combination isn't a whole directory in the repo or its install is of a different combination, the install is missing, or there's no harness for the pack. |
 | `GET /v1/jobs` | all jobs, newest first, each with `progress` |
 | `GET /v1/jobs/{id}` | `spec`, `state` (`queued` / `running{pid,pgid,attempt,started_at}` / `done{exit_code}` / `failed{reason,exit_code}` / `cancelled`), `attempt`, `history` (restarts, recoveries, pull failures, skip-story requests), `last_pull`, and `progress`. `progress` holds `run_dir`, `current_story`, `stories`, `stories_updated_at` and `log_tail` (last 20 lines). `stories` is every story in scope with its status, tasks, baselines and recent activity when the harness writes `progress.json`, and otherwise the finished stories from `metrics.json`; each always has `id`, `passed` and `total` (see below). |
 | `POST /v1/jobs/{id}/cancel` | A queued job is cancelled at once (200). A running job gets SIGTERM to its process group and SIGKILL after 20 s (202), then becomes `cancelled`. A finished job returns 409. |
@@ -138,6 +139,9 @@ dbench submit gruntus --id vidi-4090 --install-id qwen38-27b --pack benchmarks/v
                                                # 3 queued jobs vidi-4090-r1..r3 / runs canvas-pi-r1..r3, run one after
                                                # another; each keeps its own record, resume and status
 dbench submit … --repeat 2 --repeat-from 4     # add runs r4, r5 to an existing series
+dbench submit tritus --id canvas-rocm-01 --install-id qwen38-flash-next-strix --pack benchmarks/vidi \
+  --scope canvas --run-id canvas-rocm-01 --server-env GPU_BACKEND=rocm --server-env SPEC_DRAFT_N_MAX=4
+                                               # a two-backend build on ROCm, draft depth 4; name the run for it
 dbench status                                  # all jobs on all nodes
 dbench status gruntus                          # one node
 dbench status gruntus canvas-pi-02             # one job: state, stories, history, log tail

@@ -90,6 +90,7 @@ mod tests {
             run_id: "r".into(),
             client: AgentClient::Opencode,
             record: false,
+            server_env: Default::default(),
         };
         let mut job = Job::new("j1".into(), spec, 100);
         job.attempt = 2;
