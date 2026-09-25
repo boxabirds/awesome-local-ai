@@ -1,0 +1,18 @@
+# backend-ab 2026-09-25T19:08:47+00:00 on tritus
+# kernel 7.0.0-34-generic; llama.cpp 6fcaa16
+# gpu clock level: auto; power mode: performance
+# build backends: vulkan rocm
+# runs 2, max tokens 48, temperature 0, prompt cache off, thinking off
+run	backend	prompt	decode_tok_s	prefill_tok_s	draft_accepted	draft_total	tokens	output_sha	load_s	preview
+1	vulkan	code	46.9	103.1	33	41	48	761f4786aae3	50	```python import re   def parse_iso8601_duration(duration: str) -> int:     """ 
+1	vulkan	rewrite	55	193.9	35	35	48	54d92f966a81	50	```javascript async function load(id) {   try {     const r = await fetch("/api/
+1	vulkan	prose	34.5	74	28	54	48	d55b550c12d8	50	Hey there! Have you ever looked up at the sky and wondered why it’s not just whi
+1	rocm	code	42.2	103.1	33	41	48	761f4786aae3	32	```python import re   def parse_iso8601_duration(duration: str) -> int:     """ 
+1	rocm	rewrite	49.7	212	35	35	48	54d92f966a81	32	```javascript async function load(id) {   try {     const r = await fetch("/api/
+1	rocm	prose	34.2	98.6	29	51	48	d55b550c12d8	32	Hey there! Have you ever looked up at the sky and wondered why it’s not just whi
+2	rocm	code	42.4	106.4	33	41	48	761f4786aae3	33	```python import re   def parse_iso8601_duration(duration: str) -> int:     """ 
+2	rocm	rewrite	50.2	212	35	35	48	54d92f966a81	33	```javascript async function load(id) {   try {     const r = await fetch("/api/
+2	rocm	prose	34.5	98.6	29	51	48	d55b550c12d8	33	Hey there! Have you ever looked up at the sky and wondered why it’s not just whi
+2	vulkan	code	47	102.4	33	41	48	761f4786aae3	50	```python import re   def parse_iso8601_duration(duration: str) -> int:     """ 
+2	vulkan	rewrite	55.2	194.5	35	35	48	54d92f966a81	50	```javascript async function load(id) {   try {     const r = await fetch("/api/
+2	vulkan	prose	36.1	73.5	28	54	48	d55b550c12d8	50	Hey there! Have you ever looked up at the sky and wondered why it’s not just whi

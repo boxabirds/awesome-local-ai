@@ -1,0 +1,13 @@
+# backend-ab first look, 2026-09-25 ~19:05 on tritus (Minisforum MS-S1 MAX), by the ad-hoc script backend-ab.sh grew from
+# kernel 7.0.0-34-generic; llama.cpp 6fcaa16 (PR #28243 branch), GPU_API=both build
+# gpu clock level: auto (NOT pinned); power mode: performance (BIOS, set by hand)
+# ONE run per backend, vulkan first, so the vulkan load time includes a cold page cache.
+# Prompts are 30-150 tokens: the prefill column says nothing about long-prompt prefill.
+# Decode: vulkan ahead 12-17% on all three; outputs identical from the start (prose ended at 281 vs 300 tokens under rocm).
+run	backend	prompt	decode_tok_s	prefill_tok_s	draft_accepted	draft_total	tokens	output_sha	load_s	preview
+1	vulkan	code	47	93	208	271	300	-	87	```python import re   def parse_iso8601_duration(duration: str) -> int:     """     Parse an ISO-8601 duration
+1	vulkan	rewrite	56	195	90	90	119	-	87	```javascript async function load(id) {   try {     const r = await fetch("/api/items/" + id);     if (!r.ok)
+1	vulkan	prose	41	74	195	311	300	-	87	Hey there! Have you ever looked up at the sky and wondered why it’s not just white or black? It actually comes
+1	rocm	code	42	101	209	269	300	-	32	```python import re   def parse_iso8601_duration(duration: str) -> int:     """     Parse an ISO-8601 duration
+1	rocm	rewrite	50	211	90	90	119	-	32	```javascript async function load(id) {   try {     const r = await fetch("/api/items/" + id);     if (!r.ok)
+1	rocm	prose	35	98	178	309	281	-	32	Hey there! Have you ever looked up at the sky and wondered why it’s not just white or black? It actually comes
