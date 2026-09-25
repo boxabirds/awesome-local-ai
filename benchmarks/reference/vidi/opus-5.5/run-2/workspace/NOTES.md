@@ -45,3 +45,53 @@ Decisions taken where the spec was silent or ambiguous:
 - Very-far-away *objects*: the world layer uses a CSS transform with large translations; browsers
   composite in single precision, so objects (from story 2) a million units away may be off by a
   fraction of a pixel at high zoom. The dot grid is computed modulo the spacing and is exact.
+
+## Story 2 — Capture ideas on sticky notes and rearrange them
+
+Decisions taken where the spec was silent or ambiguous:
+
+1. **`createSticky` with non-finite coordinates** returns `''` (no id) and opens no transaction.
+   The contract returns `string` and says the model never throws for user input, so an empty
+   id is the rejection signal. `moveObject` to the note's current position is also a no-op
+   (`false`, no update), as is `setStickyColor` to the current colour.
+2. **Model additions (superset of the contract):** `hasObject`, `observeObjects`,
+   `isDetachedText`, `isStickyColor`, `SCHEMA_VERSION` in `src/shared/board-model.ts`.
+3. **DOM order vs stacking.** Rendering notes in `(z, id)` order made React *move* the dragged
+   note's DOM node when `bringToFront` ran, which drops pointer capture and ended every drag of
+   a note that was not already on top (found by e2e TC-32). Notes are therefore rendered in a
+   stable order (by id) and stacked with `z-index = z`; equal `z` falls back to DOM order, which
+   is by id, so the visual order still matches `snapshot()`'s `(z, id)` order.
+4. **Note toolbar placement.** Because every note has its own z-index (stacking context), the
+   floating toolbar is rendered through a React portal into the world layer, at the note's top
+   centre, scaled by `1/zoom` so it keeps its screen size (`NOTE_TOOLBAR_GAP_PX` above the note).
+5. **Starting a drag selects the dragged note** (single selection), so another note's toolbar
+   does not stay visible while dragging; the toolbar of the dragged note appears on release.
+6. **Pasting over the limit in the middle of text** drops the excess from the end of the
+   *inserted* text (`clampAtCaret`), never the text after the caret. Pasting at the end is
+   exactly `clampToLimit`. The caret is placed at the end of the kept inserted text.
+7. **Clicking outside while editing** is detected by a capturing `pointerdown` listener on
+   `document` installed by `StickyTextEditor` (it also covers the left toolbar and zoom
+   controls). Panning the board by dragging empty space keeps the selection; only a click
+   (press and release within `DRAG_THRESHOLD_PX`) clears it.
+8. **Keyboard.** Tab focus on a note selects it; Enter on the selected note edits it; Enter and
+   Delete are ignored while focus is on a button (e.g. a swatch), in a text field or while
+   editing. Escape returns focus to the note.
+9. **Remote text changes while editing** (story 3) are already reflected in the open textarea
+   with the caret shifted across the change.
+10. **Extra named settings:** `STICKY_PADDING_WORLD`, `STICKY_LINE_HEIGHT`,
+    `NOTE_TOOLBAR_GAP_PX`. The toolbar's z-index is a named constant in `StickyNote.tsx`.
+11. **`App` takes an optional `doc` prop** so component tests can drive and inspect a real
+    `Y.Doc` (TC-37 deletes a note through the model mid-interaction).
+12. **`StickyNote` is exported as `memo(...)`** (same props as the contract) so that 500 notes
+    do not all re-render on every drag frame; `useBoardDoc` keeps unchanged note snapshots
+    identical between updates.
+13. **Component tests fake only animation frames** when using `userEvent` (Testing Library's
+    async wrapper needs a real `setTimeout`).
+14. **Browsers.** WebKit launched on the build machine for this run, so e2e ran in chromium,
+    firefox and webkit (the default).
+
+### Not covered
+- The 500-note performance run is manual (design "Not covered"); the fixture builder is
+  `tests/fixtures/board500.ts` but there is no in-app way to load it yet, and the run was not done.
+- IME composition is covered by a jsdom test of the composition events only; a real macOS
+  Japanese IME check was not possible on this machine.

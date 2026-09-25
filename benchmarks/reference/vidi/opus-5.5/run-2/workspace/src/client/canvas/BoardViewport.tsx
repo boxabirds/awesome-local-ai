@@ -7,11 +7,23 @@
  *   never scrolls or zooms the page.
  * - Safari GestureEvents (trackpad pinch) zoom around the pointer.
  * - Ctrl/Cmd + = / - / 0 zoom one step / reset, and never zoom the page.
+ * - Story 2: a click (press and release within DRAG_THRESHOLD_PX) on empty board space
+ *   reports `onBackgroundClick`; a double-click on empty space reports
+ *   `onBackgroundDoubleClick` with the world point. Objects stop propagation, so both
+ *   only ever fire for empty space.
  */
-import { useEffect, useRef, type CSSProperties, type PointerEvent, type ReactNode } from 'react';
-import { useBoard } from './BoardContext';
-import type { Point } from './camera';
 import {
+  useEffect,
+  useRef,
+  type CSSProperties,
+  type MouseEvent,
+  type PointerEvent,
+  type ReactNode,
+} from 'react';
+import { useBoard } from './BoardContext';
+import { screenToWorld, type Point } from './camera';
+import {
+  DRAG_THRESHOLD_PX,
   GRID_DOT_RADIUS_PX,
   GRID_MIN_SCREEN_SPACING,
   GRID_SPACING_WORLD,
@@ -45,11 +57,21 @@ export function gridScreenSpacing(zoom: number): number {
   return spacing;
 }
 
-export function BoardViewport(props: { children?: ReactNode }): React.JSX.Element {
+export interface BoardViewportProps {
+  children?: ReactNode;
+  /** Press and release on empty board space without dragging. */
+  onBackgroundClick?(): void;
+  /** Double-click on empty board space, at this world point. */
+  onBackgroundDoubleClick?(world: Point): void;
+}
+
+export function BoardViewport(props: BoardViewportProps): React.JSX.Element {
   const { board, setViewport } = useBoard();
   const { camera } = board;
   const ref = useRef<HTMLDivElement>(null);
   const gestureScale = useRef(1);
+  /** Where the current press on empty space started (null when not pressed). */
+  const pressStart = useRef<Point | null>(null);
 
   const localPoint = (clientX: number, clientY: number): Point => {
     const rect = ref.current?.getBoundingClientRect();
@@ -159,13 +181,29 @@ export function BoardViewport(props: { children?: ReactNode }): React.JSX.Elemen
     if (e.target !== e.currentTarget) return;
     e.preventDefault();
     e.currentTarget.setPointerCapture?.(e.pointerId);
-    board.beginPan(localPoint(e.clientX, e.clientY));
+    const p = localPoint(e.clientX, e.clientY);
+    pressStart.current = p;
+    board.beginPan(p);
   };
   // panMove/endPan are no-ops unless a pan is in progress (Idle state).
   const onPointerMove = (e: PointerEvent<HTMLDivElement>) => {
     board.panMove(localPoint(e.clientX, e.clientY));
   };
-  const onPointerEnd = () => board.endPan();
+  const onPointerEnd = () => {
+    pressStart.current = null;
+    board.endPan();
+  };
+  const onPointerUp = (e: PointerEvent<HTMLDivElement>) => {
+    const start = pressStart.current;
+    onPointerEnd();
+    if (start === null) return;
+    const p = localPoint(e.clientX, e.clientY);
+    if (Math.hypot(p.x - start.x, p.y - start.y) < DRAG_THRESHOLD_PX) props.onBackgroundClick?.();
+  };
+  const onDoubleClick = (e: MouseEvent<HTMLDivElement>) => {
+    if (e.target !== e.currentTarget || props.onBackgroundDoubleClick === undefined) return;
+    props.onBackgroundDoubleClick(screenToWorld(camera, localPoint(e.clientX, e.clientY)));
+  };
 
   const spacing = gridScreenSpacing(camera.zoom);
   // Dots sit on world multiples of the grid spacing; each dot is drawn in the centre of
@@ -193,9 +231,10 @@ export function BoardViewport(props: { children?: ReactNode }): React.JSX.Elemen
       style={viewportStyle}
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}
-      onPointerUp={onPointerEnd}
+      onPointerUp={onPointerUp}
       onPointerCancel={onPointerEnd}
       onLostPointerCapture={onPointerEnd}
+      onDoubleClick={onDoubleClick}
     >
       <div className="board-world" data-testid="world-layer" style={worldStyle}>
         <div className="origin-marker" data-testid="origin-marker" aria-hidden="true" />
