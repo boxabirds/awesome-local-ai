@@ -80,6 +80,13 @@ pub enum Cmd {
         /// Don't commit and push each story.
         #[arg(long)]
         no_record: bool,
+        /// Run the benchmark this many times, as separate queued jobs: <id>-r1… and <run-id>-r1…
+        /// (each keeps its own record, resume and status). 1 keeps the ids as given.
+        #[arg(long, default_value_t = 1)]
+        repeat: u32,
+        /// Number of the first repeat, to add runs to an existing series (e.g. --repeat 2 --repeat-from 4).
+        #[arg(long, default_value_t = 1)]
+        repeat_from: u32,
     },
     /// Jobs on every node, one node, or one job in detail.
     Status {
