@@ -14,6 +14,8 @@ You do not know which setup produced which. Do not guess; it is irrelevant.
 
 Acceptance and gate numbers are already computed. **Your job is what numbers cannot capture.** Read code; do not re-run anything unless you need to confirm a specific claim.
 
+When a story's held-out tests fail, don't take the failure at face value: find how that implementation actually exposes the feature (its route or entry point, from its code and its own tests) and say whether the feature works that way. "Implemented but wired to a different address than the spec" and "not implemented" are different defects; name which one it is, with the path.
+
 ## Score each implementation 1–5 on each dimension
 
 | Dimension | 5 means | 1 means |
