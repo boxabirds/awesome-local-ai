@@ -8,6 +8,10 @@ The public directory benchmarks/<name>/ names the pack and may hold bench.json; 
                         "out_of_scope_note": "..."}
     prompts/story.md.tmpl   optional; otherwise benchmarks/spec-bench/prompts/story.md.tmpl
     acceptance/         optional held-out Playwright suite, tests/story-NN.spec.ts per story
+    GRADING.md          optional brief for an independent grader
+
+acceptance/ and GRADING.md may live apart from a public spec, in the private repo's
+packs/<name>/ (todoodle), so the held-out parts stay private.
 
 bench.json (all keys optional): name, app_line and rules (for the generic template), gate (the
 npm scripts every story must pass), default_scope, pack_ref (the private repo tag setup-node.sh
@@ -52,8 +56,15 @@ class Pack:
 
     @property
     def acceptance(self) -> Path | None:
-        a = self.dir / "acceptance"
+        """The held-out suite: the pack's own, or its part in the private repo (packdir.part)."""
+        a = packdir.part(self.public, "acceptance")
         return a if (a / "tests").is_dir() else None
+
+    @property
+    def grading(self) -> Path | None:
+        """GRADING.md, the brief an independent grader follows: the pack's own or the private repo's."""
+        g = packdir.part(self.public, "GRADING.md")
+        return g if g.is_file() else None
 
     @property
     def template(self) -> Path:

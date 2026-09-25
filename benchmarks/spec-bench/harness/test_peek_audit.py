@@ -4,9 +4,9 @@ from pathlib import Path
 
 import peek_audit as pa
 
-WS = "/home/u/.vidi-bench/reference/run2/workspace"
-PACK = "/home/u/src/awesome-local-ai-bench-private"
-REPO = "/home/u/src/awesome-local-ai"
+WS = "/home/user/.vidi-bench/reference/run2/workspace"
+PACK = "/home/user/src/awesome-local-ai-bench-private"
+REPO = "/home/user/src/awesome-local-ai"
 
 
 def cc_line(name: str, inp: dict) -> str:
@@ -21,13 +21,13 @@ def pi_line(name: str, args: dict) -> str:
 def audit(tmp_path: Path, *lines: str):
     t = tmp_path / "t.jsonl"
     t.write_text("\n".join(lines) + "\n")
-    return pa.audit([t], allowed=[WS, "/home/u/.vidi-bench/reference/run2/remote"], sensitive=[PACK, REPO])
+    return pa.audit([t], allowed=[WS, "/home/user/.vidi-bench/reference/run2/remote"], sensitive=[PACK, REPO])
 
 
 def test_clean_session_has_no_findings(tmp_path):
     r = audit(tmp_path,
               cc_line("Read", {"file_path": f"{WS}/spec/stories/001/prd.md"}),
-              cc_line("Bash", {"command": f"git -C {WS} status && /home/u/.vidi-bench/reference/run2/remote npm test"}),
+              cc_line("Bash", {"command": f"git -C {WS} status && /home/user/.vidi-bench/reference/run2/remote npm test"}),
               pi_line("read", {"path": f"{WS}/src/a.ts"}))
     assert r.peeks == [] and r.tool_calls == 3
 
@@ -51,7 +51,7 @@ def test_relative_climbs_are_resolved_against_the_cd(tmp_path):
     r = audit(tmp_path, cc_line("Bash", {"command": f"cd {WS} && ../remote npm test"}))
     assert r.review == [] and r.peeks == []
     r = audit(tmp_path, cc_line("Bash", {"command": f"cd {WS} && cat ../../other/file"}))
-    assert r.peeks == [] and [f.path for f in r.review] == ["/home/u/.vidi-bench/reference/other/file"]
+    assert r.peeks == [] and [f.path for f in r.review] == ["/home/user/.vidi-bench/reference/other/file"]
     r = audit(tmp_path, cc_line("Bash", {"command": f"cd {WS} && cat ../../../../src/awesome-local-ai/README.md"}))
     assert len(r.peeks) == 1
 

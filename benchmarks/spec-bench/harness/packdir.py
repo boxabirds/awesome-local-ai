@@ -7,7 +7,10 @@ stay out of public training data. Resolution order for pack <name>:
   2. a checkout of the private repo next to this public one: packs/<name>, if it has spec/;
   3. benchmarks/<name> in this repo.
 
-    python3 packdir.py [--pack benchmarks/vidi] [spec|acceptance|scope|prompts]   # the resolved path
+A pack can also be split: a public spec here, and only its held-out parts (acceptance/,
+GRADING.md) in the private repo's packs/<name>. part() finds each part where it is.
+
+    python3 packdir.py [--pack benchmarks/vidi] [spec|acceptance|scope|prompts|GRADING.md]   # its path
 """
 from __future__ import annotations
 
@@ -52,6 +55,16 @@ def resolve(pack: str | Path = DEFAULT_PACK) -> Path:
     return public_dir(pack)
 
 
+def part(pack: str | Path, name_: str) -> Path:
+    """One part of a pack (spec, acceptance, GRADING.md, …): the pack's own copy if it has one,
+    else the private repo's packs/<name>/<part>, else the pack's own (missing) path."""
+    own = resolve(pack) / name_
+    if own.exists():
+        return own
+    private = private_checkout() / PRIVATE_PACKS / name(pack) / name_
+    return private if private.exists() else own
+
+
 def private_root(pack: Path) -> Path | None:
     """The private checkout that holds the pack, which the agent sandbox must hide. None for an
     in-repo pack, since the public repo is hidden already."""
@@ -64,8 +77,8 @@ def main(argv: list[str]) -> None:
     pack = DEFAULT_PACK
     if argv[:1] == ["--pack"]:
         pack, argv = argv[1], argv[2:]
-    part = argv[0] if argv else ""
-    print(resolve(pack) / part if part else resolve(pack))
+    which = argv[0] if argv else ""
+    print(part(pack, which) if which else resolve(pack))
 
 
 if __name__ == "__main__":

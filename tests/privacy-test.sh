@@ -16,11 +16,13 @@ echo "no home paths in tracked files"
 # leaks a username; committed evidence has to hold to the same rule.
 # `you`, `user`, `<name>` and `$USER` are the documented placeholders docs use
 # when showing a path the reader must substitute; everything else is a real
-# account name.
+# account name. A match must start a path (not `next/prev/home/end` in prose),
+# and a hidden folder such as /home/.cache is not an account.
 leaks() {
   git ls-files -z \
-    | xargs -0 grep -hoE '/(Users|home)/[A-Za-z0-9._${}<>-]+' 2>/dev/null \
-    | grep -vE '/(Users|home)/(you|user|username|name|me|\$|<|\{)' \
+    | xargs -0 grep -hoE '(^|[^A-Za-z0-9_.-])/(Users|home)/[A-Za-z0-9._${}<>-]+' 2>/dev/null \
+    | sed -E 's|^[^/]||' \
+    | grep -vE '/(Users|home)/(you|user|username|name|me|\.|\$|<|\{)' \
     | sort -u
 }
 if out="$(leaks)" && [[ -n "$out" ]]; then
