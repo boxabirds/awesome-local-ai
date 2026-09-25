@@ -118,3 +118,26 @@ export const NUDGE_LARGE_STEP_WORLD = 10;
 export const UNDO_CAPTURE_TIMEOUT_MS = 500;
 /** Undo steps kept per person; the oldest is dropped beyond this (PRD undo.limit). */
 export const UNDO_MAX_STEPS = 200;
+
+// ---- Story 9: free text ----
+/** Auto-width text grows up to this width (world units), then wraps (PRD text.auto_width). */
+export const TEXT_MAX_AUTO_WIDTH_WORLD = 600;
+/** Smallest fixed width a side handle can give a text object, in world units. */
+export const TEXT_MIN_WIDTH_WORLD = 40;
+/** Maximum number of characters in one text object. */
+export const TEXT_MAX_CHARS = 5000;
+/** Text size presets: font size in world units (CSS px at 100% zoom). */
+export const TEXT_SIZES = { S: 14, M: 20, L: 32, XL: 56 } as const;
+export type TextSize = keyof typeof TEXT_SIZES;
+export const DEFAULT_TEXT_SIZE: TextSize = 'M';
+/** Line height of free text, relative to its font size. */
+export const TEXT_LINE_HEIGHT = 1.3;
+export const TEXT_FONT_FAMILY = 'Inter, system-ui, sans-serif';
+/**
+ * Extra width (world units) an auto-width box gets beyond its longest line, so the caret
+ * and sub-pixel rounding never force a wrap. Never makes a box wider than
+ * TEXT_MAX_AUTO_WIDTH_WORLD.
+ */
+export const TEXT_AUTO_WIDTH_PADDING_WORLD = 2;
+/** Average glyph width relative to the font size, used when text cannot be measured. */
+export const TEXT_AVG_GLYPH_WIDTH_RATIO = 0.55;

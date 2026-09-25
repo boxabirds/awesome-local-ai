@@ -68,6 +68,16 @@ export function isKnownObjectType(type: string): boolean {
   return knownTypes.has(type);
 }
 
+/** Reads the type-specific fields of an object on top of the generic ones (story 9 text). */
+export type SnapshotReader = (base: ObjectSnapshot, obj: Y.Map<unknown>) => ObjectSnapshot;
+const snapshotReaders = new Map<string, SnapshotReader>();
+
+/** Declares `type` known and lets `reader` add its fields to snapshots of that type. */
+export function registerSnapshotReader(type: string, reader: SnapshotReader): void {
+  declareObjectType(type);
+  snapshotReaders.set(type, reader);
+}
+
 type ObjectMap = Y.Map<unknown>;
 
 function objects(doc: Y.Doc): Y.Map<ObjectMap> {
@@ -93,6 +103,11 @@ function maxZ(doc: Y.Doc): number {
     max = Math.max(max, zOf(obj));
   });
   return max;
+}
+
+/** z that puts a new object above every existing one. */
+export function nextZ(doc: Y.Doc): number {
+  return maxZ(doc) + 1;
 }
 
 /** Sets meta.schemaVersion when absent. Emits no update when already initialised. */
@@ -300,7 +315,10 @@ function readObject(id: string, obj: ObjectMap): ObjectSnapshot | StickySnapshot
     z: typeof z === 'number' && Number.isFinite(z) ? z : EMPTY_BOARD_MAX_Z,
     createdAt: typeof createdAt === 'number' ? createdAt : 0,
   };
-  if (type !== STICKY_TYPE) return Object.freeze(base);
+  if (type !== STICKY_TYPE) {
+    const reader = snapshotReaders.get(type);
+    return Object.freeze(reader === undefined ? base : reader(base, obj));
+  }
   const color = obj.get('color');
   const text = obj.get('text');
   return Object.freeze({

@@ -24,3 +24,13 @@ export function proseOfLength(length: number): string {
 
 /** A 1,000 character paragraph of English prose. */
 export const LONG_PARAGRAPH = proseOfLength(STICKY_TEXT_MAX_CHARS);
+
+// ---- Story 9: free text (design Fixtures) ----
+/** Retro section headings. */
+export const HEADINGS = ['Went well', 'To improve'] as const;
+
+/** A 300-character English annotation (one paragraph, wraps at the maximum auto width). */
+export const ANNOTATION_300 = proseOfLength(300);
+
+/** A 5,001-character pasted paragraph: one more than TEXT_MAX_CHARS. */
+export const PASTE_5001 = proseOfLength(5001);

@@ -48,6 +48,7 @@ function fakeController(initial = { canUndo: false, canRedo: false }): FakeContr
     undoIn: () => false,
     redoIn: () => false,
     undoSize: () => 0,
+    amendLast: (fn: () => void) => fn(),
     canUndo: () => state.canUndo,
     canRedo: () => state.canRedo,
     addScope: () => undefined,

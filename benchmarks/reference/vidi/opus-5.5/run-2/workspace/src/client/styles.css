@@ -628,3 +628,93 @@ body,
   pointer-events: none;
   z-index: 2147483647;
 }
+
+/* ---- Story 9: tools and free text ---- */
+.board-toolbar button[aria-pressed='true'],
+.board-toolbar button[aria-pressed='true']:hover {
+  background: #e3eefe;
+  color: var(--selection);
+}
+
+/* Text tool: a text cursor everywhere on the board, objects included. */
+.board-viewport[data-placing='true'] .board-world,
+.board-viewport[data-placing='true'] .board-world * {
+  cursor: text;
+}
+
+.text-object {
+  position: absolute;
+  box-sizing: border-box;
+  color: var(--sticky-ink);
+  cursor: default;
+  /* No fill, border or shadow: plain text on the board. */
+  background: transparent;
+}
+
+.text-object:focus {
+  outline: none;
+}
+
+.text-object:focus-visible {
+  outline: calc(2px / var(--zoom, 1)) solid var(--selection);
+  outline-offset: calc(2px / var(--zoom, 1));
+}
+
+.text-object[data-state='dragging'] {
+  cursor: grabbing;
+}
+
+.text-object-content {
+  pointer-events: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+/* Lines come from layoutText, which already wrapped them: never re-wrap in the browser. */
+.text-line {
+  white-space: pre;
+}
+
+.text-editor {
+  position: absolute;
+  left: 0;
+  top: 0;
+  box-sizing: border-box;
+  min-width: 1em;
+  margin: 0;
+  padding: 0;
+  border: none;
+  outline: none;
+  resize: none;
+  background: transparent;
+  color: inherit;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  overflow: hidden;
+  user-select: text;
+  -webkit-user-select: text;
+  cursor: text;
+}
+
+.text-toolbar .text-size {
+  min-width: 28px;
+  height: 28px;
+  padding: 0 4px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.text-toolbar .text-size:hover {
+  background: #f0f2f4;
+}
+
+.text-toolbar .text-size[aria-pressed='true'] {
+  background: #e3eefe;
+  color: var(--selection);
+}

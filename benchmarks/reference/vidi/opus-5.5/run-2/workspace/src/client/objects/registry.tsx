@@ -6,10 +6,20 @@
  */
 import { memo, type ComponentType, type PointerEvent } from 'react';
 import type * as Y from 'yjs';
-import { declareObjectType, isStickySnapshot, objectBounds, type ObjectSnapshot } from '../../shared/board-model';
-import { STICKY_MIN_SIZE_WORLD } from '../../shared/config';
-import { rectContains, type Point } from '../../shared/geometry';
+import {
+  declareObjectType,
+  isStickySnapshot,
+  moveObjects,
+  objectBounds,
+  type ObjectSnapshot,
+} from '../../shared/board-model';
+import { isTextSnapshot, setTextWidthFixed } from '../../shared/objects/text';
+import { STICKY_MIN_SIZE_WORLD, TEXT_MIN_WIDTH_WORLD } from '../../shared/config';
+import { rectContains, type Point, type Rect } from '../../shared/geometry';
 import { StickyNote } from './StickyNote';
+import { TextObject } from './TextObject';
+import { defaultMeasurer } from './textLayout';
+import { syncTextBox } from './useTextBoxSync';
 
 /** Props every registered object component receives. */
 export interface ObjectProps {
@@ -39,7 +49,25 @@ export interface ObjectTypeSpec {
   minSize: number;
   editableText: boolean;
   hitTest(obj: ObjectSnapshot, worldPoint: Point): boolean;
+  /**
+   * Story 9: 'horizontal' shows only the left and right handles when every selected object
+   * is of such a type (height follows content). Default 'all'.
+   */
+  handles?: 'all' | 'horizontal';
+  /**
+   * Which axes of the object scale with a group resize (and so take part in its min/max
+   * limits). Default both.
+   */
+  scalesWith?(obj: ObjectSnapshot, mode: ResizeMode): { x: boolean; y: boolean };
+  /**
+   * Writes the object's part of a resize instead of the generic rect write: `to` is the
+   * object's proportionally scaled rect, `from` its rect when the gesture started.
+   */
+  applyResize?(doc: Y.Doc, obj: ObjectSnapshot, to: Rect, from: Rect, mode: ResizeMode): void;
 }
+
+/** 'horizontal': a side handle of a selection of horizontal-only types; 'group': any other resize. */
+export type ResizeMode = 'horizontal' | 'group';
 
 const registry = new Map<string, ObjectTypeSpec>();
 
@@ -71,4 +99,34 @@ registerObjectType('sticky', {
   minSize: STICKY_MIN_SIZE_WORLD,
   editableText: true,
   hitTest: boundsHitTest,
+});
+
+const TextObjectEntry = memo(function TextObjectEntry(props: ObjectProps): React.JSX.Element | null {
+  const { object, ...rest } = props;
+  return isTextSnapshot(object) ? <TextObject note={object} {...rest} /> : null;
+});
+
+/** Width changes smaller than this (world units) are rounding noise, not a resize. */
+const TEXT_RESIZE_EPSILON = 1e-6;
+
+registerObjectType('text', {
+  Component: TextObjectEntry,
+  resizable: true,
+  aspectLocked: false,
+  minSize: TEXT_MIN_WIDTH_WORLD,
+  editableText: true,
+  handles: 'horizontal',
+  hitTest: boundsHitTest,
+  // Font size never changes by handles: height follows the content; auto width follows the text.
+  scalesWith: (obj, mode) => ({
+    x: mode === 'horizontal' || (isTextSnapshot(obj) && obj.widthMode === 'fixed'),
+    y: false,
+  }),
+  applyResize(doc, obj, to, from, mode) {
+    if (!isTextSnapshot(obj)) return;
+    const widthChanged = Math.abs(to.width - from.width) > TEXT_RESIZE_EPSILON;
+    moveObjects(doc, new Map([[obj.id, { x: to.x, y: mode === 'horizontal' ? from.y : to.y }]]));
+    if (widthChanged && (mode === 'horizontal' || obj.widthMode === 'fixed')) setTextWidthFixed(doc, obj.id, to.width);
+    syncTextBox(doc, obj.id, defaultMeasurer());
+  },
 });
