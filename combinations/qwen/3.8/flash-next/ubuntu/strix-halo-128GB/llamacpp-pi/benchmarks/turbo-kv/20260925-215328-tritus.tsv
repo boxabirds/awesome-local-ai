@@ -1,0 +1,22 @@
+# turbo-kv 2026-09-25T21:53:28+00:00 on tritus; kernel 7.0.0-34-generic
+# base llama.cpp 6fcaa16; fork a3d5603
+# gpu clock level: high; power mode: performance
+# MTP depth 4, p-min 0, temperature 0, prompt cache off, thinking off, 400 tokens decoded per request
+arm	fill_tokens	prefill_tok_s	decode_tok_s	draft_accepted	draft_total	gtt_used_mib	tool_call_ok	output_sha
+base:f16	2097	358	52.3	138	164	70177	yes	89ace8b43357
+base:f16	32817	316.5	42.9	189	248	70177	-	17c94c00dcc1
+base:f16	120049	186.2	30.9	141	172	70223	-	a88c3e72b7be
+fork:f16	2097	267.4	33.9	113	216	69185	yes	ea255a0238d0
+fork:f16	32817	224.1	25.2	159	344	69339	-	26caa34912dd
+fork:f16	120049	142.4	17.7	122	248	70194	-	e268e0c75cc2
+fork:turbo4	2097	266.7	29.2	111	272	66838	yes	89ace8b43357
+fork:turbo4	32817	198.7	17.5	24	88	66992	-	14a98809ab85
+fork:turbo4	120049	131.8	10.8	191	830	67847	-	594ee9159576
+# KL divergence, turbo4 vs f16 KV (fork build, 4 x 8192-token chunks of this repo's docs):
+#   chunk             PPL               ln(PPL(Q)/PPL(base))          KL Divergence              Δp RMS            Same top p
+#   Mean PPL(Q)                   :   6.292853 ±   0.117281
+#   Mean PPL(base)                :   4.206410 ±   0.071730
+#   Mean PPL(Q)/PPL(base)         :   1.496015 ±   0.017182
+#   Mean PPL(Q)-PPL(base)         :   2.086443 ±   0.074162
+#   Mean    KLD:   0.602378 ±   0.008170
+#   Same top p: 69.921 ± 0.358 %
