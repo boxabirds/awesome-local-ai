@@ -2,7 +2,7 @@
   "build_exit": 0,
   "runner_exit": 1,
   "runner_tail": "",
-  "passed": 71,
+  "passed": 60,
   "total": 75,
   "on_partial": {
     "passed": 0,
@@ -14,11 +14,11 @@
       "total": 10
     },
     "02": {
-      "passed": 9,
+      "passed": 10,
       "total": 10
     },
     "03": {
-      "passed": 6,
+      "passed": 5,
       "total": 7
     },
     "04": {
@@ -30,7 +30,7 @@
       "total": 5
     },
     "07": {
-      "passed": 8,
+      "passed": 5,
       "total": 8
     },
     "08": {
@@ -38,19 +38,19 @@
       "total": 7
     },
     "09": {
-      "passed": 6,
+      "passed": 5,
       "total": 6
     },
     "10": {
-      "passed": 8,
+      "passed": 5,
       "total": 8
     },
     "11": {
-      "passed": 5,
+      "passed": 4,
       "total": 5
     },
     "12": {
-      "passed": 3,
+      "passed": 0,
       "total": 5
     }
   },
@@ -128,8 +128,8 @@
     {
       "file": "story-02.spec.ts",
       "title": "golden path: create, type, select, recolour, delete @ref prd:golden-path",
-      "status": "failed",
-      "error": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoHaveCount\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m)\u001b[22m failed\n\nLocator:  locator('[role=\"group\"][aria-label=\"Sticky note\"]')\nExpected: \u001b[32m0\u001b[39m\nReceived: \u001b[31m1\u001b[39m\nTimeout:  5000ms\n\nCall log:\n\u001b[2m  - Expect \"toHaveCount\" with timeout 5000ms\u001b[22m\n\u001b[2m  - waiting for locator('[role=\"group\"][aria-label=\"Sticky note\"]')\u001b[22m\n\u001b[2m    9 \u00d7 locator resolved to 1 element\u001b[22m\n\u001b[2m      - unexpected value \"1\"\u001b[22m\n",
+      "status": "passed",
+      "error": "",
       "on_partial": null
     },
     {
@@ -198,8 +198,8 @@
     {
       "file": "story-03.spec.ts",
       "title": "create, type, move, recolour and delete reach the other person @ref prd:live.propagate",
-      "status": "failed",
-      "error": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoHaveCount\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m)\u001b[22m failed\n\nLocator:  locator('[role=\"group\"][aria-label=\"Sticky note\"]')\nExpected: \u001b[32m0\u001b[39m\nReceived: \u001b[31m1\u001b[39m\nTimeout:  2000ms\n\nCall log:\n\u001b[2m  - Expect \"toHaveCount\" with timeout 2000ms\u001b[22m\n\u001b[2m  - waiting for locator('[role=\"group\"][aria-label=\"Sticky note\"]')\u001b[22m\n\u001b[2m    6 \u00d7 locator resolved to 1 element\u001b[22m\n\u001b[2m      - unexpected value \"1\"\u001b[22m\n",
+      "status": "passed",
+      "error": "",
       "on_partial": null
     },
     {
@@ -212,8 +212,8 @@
     {
       "file": "story-03.spec.ts",
       "title": "simultaneous typing keeps both people's characters @ref prd:live.concurrent_text",
-      "status": "passed",
-      "error": "",
+      "status": "failed",
+      "error": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoHaveText\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m)\u001b[22m failed\n\nLocator: locator('[role=\"group\"][aria-label=\"Sticky note\"]').first()\nExpected pattern: \u001b[32m/^\\s*red green blue\\s*$/\u001b[39m\nReceived string:  \u001b[31m\"rgreen ebdl ue\"\u001b[39m\nTimeout: 2000ms\n\nCall log:\n\u001b[2m  - Expect \"toHaveText\" with timeout 2000ms\u001b[22m\n\u001b[2m  - waiting for locator('[role=\"group\"][aria-label=\"Sticky note\"]').first()\u001b[22m\n\u001b[2m    6 \u00d7 locator resolved to <div role=\"group\" tabindex=\"",
       "on_partial": null
     },
     {
@@ -240,8 +240,8 @@
     {
       "file": "story-03.spec.ts",
       "title": "offline edits catch up on reconnect @ref prd:live.catch_up",
-      "status": "passed",
-      "error": "",
+      "status": "failed",
+      "error": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoBeVisible\u001b[2m(\u001b[22m\u001b[2m)\u001b[22m failed\n\nLocator: getByText('Reconnecting\u2026')\nExpected: visible\nTimeout: 30000ms\nError: element(s) not found\n\nCall log:\n\u001b[2m  - Expect \"toBeVisible\" with timeout 30000ms\u001b[22m\n\u001b[2m  - waiting for getByText('Reconnecting\u2026')\u001b[22m\n",
       "on_partial": null
     },
     {
@@ -310,8 +310,8 @@
     {
       "file": "story-07.spec.ts",
       "title": "golden path: marquee selects enclosed notes, bar shows count @ref prd:sel.marquee prd:sel.bar",
-      "status": "passed",
-      "error": "",
+      "status": "failed",
+      "error": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoHaveCount\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m)\u001b[22m failed\n\nLocator:  locator('[aria-label^=\"Resize \"]')\nExpected: \u001b[32m8\u001b[39m\nReceived: \u001b[31m0\u001b[39m\nTimeout:  5000ms\n\nCall log:\n\u001b[2m  - Expect \"toHaveCount\" with timeout 5000ms\u001b[22m\n\u001b[2m  - waiting for locator('[aria-label^=\"Resize \"]')\u001b[22m\n\u001b[2m    9 \u00d7 locator resolved to 0 elements\u001b[22m\n\u001b[2m      - unexpected value \"0\"\u001b[22m\n",
       "on_partial": null
     },
     {
@@ -331,8 +331,8 @@
     {
       "file": "story-07.spec.ts",
       "title": "select all, escape clears, delete removes all @ref prd:sel.all prd:sel.clear prd:sel.group_delete",
-      "status": "passed",
-      "error": "",
+      "status": "failed",
+      "error": "TimeoutError: locator.click: Timeout 5000ms exceeded.\nCall log:\n\u001b[2m  - waiting for getByRole('button', { name: 'Delete selection' })\u001b[22m\n\u001b[2m    - locator resolved to <button type=\"button\" class=\"selection-delete\" aria-label=\"Delete selection\" data-testid=\"selection-delete\">\ud83d\uddd1</button>\u001b[22m\n\u001b[2m  - attempting click action\u001b[22m\n\u001b[2m    2 \u00d7 waiting for element to be visible, enabled and stable\u001b[22m\n\u001b[2m      - element is visible, enabled and stable\u001b[22m\n\u001b[2m      - scrolling into view if needed\u001b[",
       "on_partial": null
     },
     {
@@ -359,8 +359,8 @@
     {
       "file": "story-07.spec.ts",
       "title": "corner resize keeps sticky square; minimum size enforced @ref prd:sel.resize prd:sel.aspect prd:sel.size_limits",
-      "status": "passed",
-      "error": "",
+      "status": "failed",
+      "error": "TimeoutError: locator.boundingBox: Timeout 5000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('[aria-label=\"Resize se\" i], [aria-label*=\"bottom-right\" i], [aria-label*=\"bottom right\" i], [aria-label*=\"south-east\" i]').first()\u001b[22m\n",
       "on_partial": null
     },
     {
@@ -443,8 +443,8 @@
     {
       "file": "story-09.spec.ts",
       "title": "selected text shows only left and right handles; side handle sets width @ref prd:text.fixed_width",
-      "status": "passed",
-      "error": "",
+      "status": "failed",
+      "error": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoHaveCount\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m)\u001b[22m failed\n\nLocator:  locator('[aria-label^=\"Resize \"]')\nExpected: \u001b[32m2\u001b[39m\nReceived: \u001b[31m0\u001b[39m\nTimeout:  5000ms\n\nCall log:\n\u001b[2m  - Expect \"toHaveCount\" with timeout 5000ms\u001b[22m\n\u001b[2m  - waiting for locator('[aria-label^=\"Resize \"]')\u001b[22m\n\u001b[2m    9 \u00d7 locator resolved to 0 elements\u001b[22m\n\u001b[2m      - unexpected value \"0\"\u001b[22m\n",
       "on_partial": null
     },
     {
@@ -457,22 +457,22 @@
     {
       "file": "story-10.spec.ts",
       "title": "drag creates a shape exactly covering the dragged area, then Select is active @ref prd:shape.drag",
-      "status": "passed",
-      "error": "",
+      "status": "failed",
+      "error": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoBeGreaterThan\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m)\u001b[22m\n\nExpected: > \u001b[32m0\u001b[39m\nReceived:   \u001b[31m0\u001b[39m",
       "on_partial": null
     },
     {
       "file": "story-10.spec.ts",
       "title": "click drops a standard 160\u00d7160 shape centred on the point @ref prd:shape.click",
-      "status": "passed",
-      "error": "",
+      "status": "failed",
+      "error": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoBeGreaterThan\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m)\u001b[22m\n\nExpected: > \u001b[32m0\u001b[39m\nReceived:   \u001b[31m0\u001b[39m",
       "on_partial": null
     },
     {
       "file": "story-10.spec.ts",
       "title": "shift constrains new shape to a square @ref prd:shape.shift",
-      "status": "passed",
-      "error": "",
+      "status": "failed",
+      "error": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoBeGreaterThan\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m)\u001b[22m\n\nExpected: > \u001b[32m0\u001b[39m\nReceived:   \u001b[31m0\u001b[39m",
       "on_partial": null
     },
     {
@@ -513,8 +513,8 @@
     {
       "file": "story-11.spec.ts",
       "title": "golden path: P shows pen toolbar, drag draws, pen stays active @ref prd:pen.draw prd:pen.stays",
-      "status": "passed",
-      "error": "",
+      "status": "failed",
+      "error": "Error: locator.click: Error: strict mode violation: locator('button[aria-label=\"red pen\" i]') resolved to 2 elements:\n    1) <button type=\"button\" data-color=\"red\" aria-label=\"Red pen\" aria-pressed=\"false\" class=\"swatch pen-swatch\" data-testid=\"pen-color-red\"></button> aka getByTestId('stroke-toolbar').getByTestId('pen-color-red')\n    2) <button type=\"button\" data-color=\"red\" aria-label=\"Red pen\" aria-pressed=\"false\" class=\"swatch pen-swatch\" data-testid=\"pen-color-red\"></button> aka getByTestId",
       "on_partial": null
     },
     {
@@ -548,36 +548,36 @@
     {
       "file": "story-12.spec.ts",
       "title": "Image tool picks a file; it uploads and appears for everyone @ref prd:image.picker prd:image.everyone",
-      "status": "passed",
-      "error": "",
+      "status": "failed",
+      "error": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoHaveCount\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m)\u001b[22m failed\n\nLocator:  locator('img[alt=\"Image\"]')\nExpected: \u001b[32m1\u001b[39m\nReceived: \u001b[31m0\u001b[39m\nTimeout:  15000ms\n\nCall log:\n\u001b[2m  - Expect \"toHaveCount\" with timeout 15000ms\u001b[22m\n\u001b[2m  - waiting for locator('img[alt=\"Image\"]')\u001b[22m\n\u001b[2m    19 \u00d7 locator resolved to 0 elements\u001b[22m\n\u001b[2m       - unexpected value \"0\"\u001b[22m\n",
       "on_partial": null
     },
     {
       "file": "story-12.spec.ts",
       "title": "large image is scaled so its longest side is 800 units @ref prd:image.size",
       "status": "failed",
-      "error": "Error: pressing I never opened a file chooser (5 attempts)",
+      "error": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoHaveCount\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m)\u001b[22m failed\n\nLocator:  locator('img[alt=\"Image\"]')\nExpected: \u001b[32m1\u001b[39m\nReceived: \u001b[31m0\u001b[39m\nTimeout:  15000ms\n\nCall log:\n\u001b[2m  - Expect \"toHaveCount\" with timeout 15000ms\u001b[22m\n\u001b[2m  - waiting for locator('img[alt=\"Image\"]')\u001b[22m\n\u001b[2m    19 \u00d7 locator resolved to 0 elements\u001b[22m\n\u001b[2m       - unexpected value \"0\"\u001b[22m\n",
       "on_partial": null
     },
     {
       "file": "story-12.spec.ts",
       "title": "dropped files are placed left to right from the drop point @ref prd:image.drop",
-      "status": "passed",
-      "error": "",
+      "status": "failed",
+      "error": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoHaveCount\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m)\u001b[22m failed\n\nLocator:  locator('img[alt=\"Image\"]')\nExpected: \u001b[32m2\u001b[39m\nReceived: \u001b[31m0\u001b[39m\nTimeout:  15000ms\n\nCall log:\n\u001b[2m  - Expect \"toHaveCount\" with timeout 15000ms\u001b[22m\n\u001b[2m  - waiting for locator('img[alt=\"Image\"]')\u001b[22m\n\u001b[2m    19 \u00d7 locator resolved to 0 elements\u001b[22m\n\u001b[2m       - unexpected value \"0\"\u001b[22m\n",
       "on_partial": null
     },
     {
       "file": "story-12.spec.ts",
       "title": "unsupported content is refused by content, supported sibling still added @ref prd:image.types",
-      "status": "passed",
-      "error": "",
+      "status": "failed",
+      "error": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoHaveCount\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m)\u001b[22m failed\n\nLocator:  locator('img[alt=\"Image\"]')\nExpected: \u001b[32m1\u001b[39m\nReceived: \u001b[31m0\u001b[39m\nTimeout:  15000ms\n\nCall log:\n\u001b[2m  - Expect \"toHaveCount\" with timeout 15000ms\u001b[22m\n\u001b[2m  - waiting for locator('img[alt=\"Image\"]')\u001b[22m\n\u001b[2m    19 \u00d7 locator resolved to 0 elements\u001b[22m\n\u001b[2m       - unexpected value \"0\"\u001b[22m\n",
       "on_partial": null
     },
     {
       "file": "story-12.spec.ts",
       "title": "image persists after reload and undo removes insertion in one step @ref prd:image.persist prd:image.undo",
       "status": "failed",
-      "error": "Error: pressing I never opened a file chooser (5 attempts)",
+      "error": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoHaveCount\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m)\u001b[22m failed\n\nLocator:  locator('img[alt=\"Image\"]')\nExpected: \u001b[32m1\u001b[39m\nReceived: \u001b[31m0\u001b[39m\nTimeout:  15000ms\n\nCall log:\n\u001b[2m  - Expect \"toHaveCount\" with timeout 15000ms\u001b[22m\n\u001b[2m  - waiting for locator('img[alt=\"Image\"]')\u001b[22m\n\u001b[2m    19 \u00d7 locator resolved to 0 elements\u001b[22m\n\u001b[2m       - unexpected value \"0\"\u001b[22m\n",
       "on_partial": null
     }
   ]
