@@ -61,7 +61,7 @@ Compared with the Flash-Next run over the stories both had finished:
 | Model calls | 587 | 2,413 |
 | Output tokens | 0.86M | 1.82M |
 | Output tokens per wall-second | ~74 | ~44 |
-| Held-out score | 59/65 | 50/65 |
+| Held-out score (old suite, before the test fixes) | 59/65 | 50/65 |
 
 Flash-Next's figures come from MTPLX's own request log and the run's `metrics.json`. The recorded time leaves out work before harness restarts: story 5's first 56 minutes, and two compaction-deadlock segments in story 10.
 
