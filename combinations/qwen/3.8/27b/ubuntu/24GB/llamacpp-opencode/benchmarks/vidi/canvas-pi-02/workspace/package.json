@@ -16,7 +16,8 @@
     "pretest:integration": "npm run build",
     "test:integration": "vitest run --project integration",
     "test:e2e": "playwright test",
-    "test:e2e:nightly": "playwright test --config playwright.nightly.config.ts"
+    "test:e2e:nightly": "playwright test --config playwright.nightly.config.ts",
+    "test:e2e:persist": "playwright test --config playwright.persist.config.ts"
   },
   "dependencies": {
     "lib0": "^0.2.117",

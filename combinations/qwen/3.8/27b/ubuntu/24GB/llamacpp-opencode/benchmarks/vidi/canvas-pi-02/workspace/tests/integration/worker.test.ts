@@ -52,3 +52,52 @@ describe('sync.worker_entry', () => {
     expect(body).toContain('<div id="root">');
   });
 });
+
+describe('persist.test_hooks (production gate)', () => {
+  // This pool runs the base wrangler config: TEST_HOOKS is unset, so the
+  // /__test routes must NOT exist. They fall through to the SPA assets and
+  // must never instantiate a Durable Object (task 9: "production build has
+  // no hook routes — a request to them gets the SPA/404"). The enabled path
+  // is exercised by the persist e2e (TC-24) against wrangler `--env e2e`.
+  // The assets runtime answers a POST to an unknown path with its own
+  // 405 (the SPA fallback applies to GET/HEAD only) — either way the
+  // response comes from the static layer, never from the hook (204).
+  const assertNotAHook = async (res: Response): Promise<void> => {
+    expect(res.status, 'must not be the hook\'s 204').not.toBe(204);
+    const body = await res.text();
+    expect(body).not.toContain('test hook');
+  };
+
+  it('POST /__test/boards/:id/corrupt-snapshot without TEST_HOOKS -> static layer, no DO instance', async () => {
+    const boardId = newBoardId();
+    const before = await listDurableObjectIds(env.BOARD_ROOM);
+    const res = await SELF.fetch(`http://localhost/__test/boards/${boardId}/corrupt-snapshot`, {
+      method: 'POST',
+    });
+    await assertNotAHook(res);
+    const after = await listDurableObjectIds(env.BOARD_ROOM);
+    expect(after, 'the hook must not create a Durable Object instance').toEqual(before);
+  });
+
+  it('POST /__test/boards/:id/repair without TEST_HOOKS -> static layer, no DO instance', async () => {
+    const boardId = newBoardId();
+    const before = await listDurableObjectIds(env.BOARD_ROOM);
+    const res = await SELF.fetch(`http://localhost/__test/boards/${boardId}/repair`, {
+      method: 'POST',
+    });
+    await assertNotAHook(res);
+    const after = await listDurableObjectIds(env.BOARD_ROOM);
+    expect(after, 'the hook must not create a Durable Object instance').toEqual(before);
+  });
+
+  it('POST /__test/boards/:id/hibernate without TEST_HOOKS -> static layer, no DO instance', async () => {
+    const boardId = newBoardId();
+    const before = await listDurableObjectIds(env.BOARD_ROOM);
+    const res = await SELF.fetch(`http://localhost/__test/boards/${boardId}/hibernate`, {
+      method: 'POST',
+    });
+    await assertNotAHook(res);
+    const after = await listDurableObjectIds(env.BOARD_ROOM);
+    expect(after, 'the hook must not create a Durable Object instance').toEqual(before);
+  });
+});

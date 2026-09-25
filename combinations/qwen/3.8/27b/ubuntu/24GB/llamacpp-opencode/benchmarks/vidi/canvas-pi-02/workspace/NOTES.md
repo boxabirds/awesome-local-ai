@@ -197,3 +197,28 @@ cache is ever reinstalled, repeat the copy: `libavif13_0.9.3-3`,
    overlapped note) are both covered, plus TC-30 (dblclick at (400,300)),
    TC-33 (24px → 10px + fade on 1,000 pasted chars) and TC-34 (button
    creates at screen centre when panned far away).
+
+## Story 4: non-obvious decisions
+
+1. **Yjs incremental updates chain per client.** An update emitted by
+   `doc.on('update')` encodes items relative to that client's clock. Applying
+   a client's updates to a fresh doc skips any that follow a *missing* update
+   from the same client: Yjs decodes them as already-known state and applies
+   nothing (no error). Consequence: quarantining a log row silently drops the
+   rest of that client's chain — other clients' rows still apply. TC-09
+   therefore damages the *last* row (row 7), which loses only note 3's text
+   while every other note loads intact.
+2. **Quarantine MOVES the row.** Per the spec schema, `quarantined_updates`
+   is keyed by the log row's `seq`, and the raw `data` bytes are kept
+   (forensics/replay). `load()` deletes the damaged row from `updates` in the
+   same transaction as the quarantine insert, so a second load is stable
+   (no re-quarantine, no PK conflict).
+3. **workerd SQLite limits.** BLOBs are returned as `ArrayBuffer` (wrap with
+   `new Uint8Array` before Yjs). Per-SQL-value payloads above 1 MiB raise
+   SQLITE_TOOBIG, so snapshots are chunked at `SNAPSHOT_CHUNK_BYTES` (512 KiB).
+   `.one()` throws on zero rows (use `.toArray()[0]` for optional rows).
+4. **Large payloads stay inside the DO.** Transferring multi-MB closures
+   across `runInDurableObject` is unreliable; the byte-threshold test
+   generates its 4.5 MB of updates inside the DO closure.
+5. **`acceptWebSocket` needs no compatibility flag** in the bundled workerd
+   (1.20260923.1); `ctx.getWebSockets()` / `webSocketClose` work as documented.

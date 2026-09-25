@@ -36,8 +36,15 @@ export function freshBoardId(): string {
  * Open a new isolated context on `/b/<boardId>`, wait until the client's
  * mapped state is `connected` (socket open AND state exchanged — the
  * provider's `sync` event), and park the camera so geometry is stable.
+ *
+ * `expectState: 'load_failed'` (TC-24) waits for the other end-state instead:
+ * the room refused the connection with 4500 and the client is retrying.
  */
-export async function join(browser: Browser, boardId: string): Promise<Participant> {
+export async function join(
+  browser: Browser,
+  boardId: string,
+  opts: { expectState?: 'connected' | 'load_failed' } = {},
+): Promise<Participant> {
   const context = await browser.newContext({ viewport: { width: 1280, height: 800 } });
   const page = await context.newPage();
   const pageErrors: Error[] = [];
@@ -46,7 +53,11 @@ export async function join(browser: Browser, boardId: string): Promise<Participa
   page.on('console', (msg) => consoleLines.push(msg.text()));
 
   await page.goto(`/b/${boardId}`);
-  await expectConnected(page);
+  if (opts.expectState === 'load_failed') {
+    await expectLoadFailed(page);
+  } else {
+    await expectConnected(page);
+  }
   await setCamera(page, HOME_CAMERA);
   return {
     context,
@@ -56,6 +67,19 @@ export async function join(browser: Browser, boardId: string): Promise<Participa
     consoleLines,
     close: () => context.close(),
   };
+}
+
+/** Wait until the client's mapped connection state is `load_failed`. */
+export async function expectLoadFailed(page: Page, timeoutMs = 20_000): Promise<void> {
+  await expect
+    .poll(
+      () =>
+        page.evaluate(
+          () => (window as unknown as { __vidi6?: { connectionState: string | null } }).__vidi6?.connectionState ?? null,
+        ),
+      { timeout: timeoutMs, intervals: [50], message: 'client should reach the load_failed state' },
+    )
+    .toBe('load_failed');
 }
 
 /** Wait until the client's mapped connection state is `connected`. */

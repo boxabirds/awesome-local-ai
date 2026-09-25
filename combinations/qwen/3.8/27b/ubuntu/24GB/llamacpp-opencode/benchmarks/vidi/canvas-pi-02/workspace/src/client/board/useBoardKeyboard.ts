@@ -17,10 +17,14 @@ function isTypingTarget(target: EventTarget | null): boolean {
  *  - Delete/Backspace on a selected, non-editing note removes it; while
  *    editing text those keys edit the text instead and are ignored here.
  */
-export function useBoardKeyboard(args: { doc: Y.Doc; selection: Selection }): void {
+export function useBoardKeyboard(
+  args: { doc: Y.Doc; selection: Selection; editable?: boolean },
+): void {
   const { doc } = args;
   const selectionRef = useRef(args.selection);
   selectionRef.current = args.selection;
+  const editableRef = useRef(args.editable ?? true);
+  editableRef.current = args.editable ?? true;
 
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
@@ -29,7 +33,8 @@ export function useBoardKeyboard(args: { doc: Y.Doc; selection: Selection }): vo
 
       if (e.key === 'Enter') {
         if (!e.shiftKey && !e.ctrlKey && !e.metaKey && !e.altKey) {
-          if (selection.selectedId !== null && selection.editingId === null) {
+          // persist.client_status: starting an edit is a no-op while locked.
+          if (editableRef.current && selection.selectedId !== null && selection.editingId === null) {
             e.preventDefault();
             selection.startEdit(selection.selectedId);
           }
@@ -38,7 +43,8 @@ export function useBoardKeyboard(args: { doc: Y.Doc; selection: Selection }): vo
       }
 
       if (e.key === 'Delete' || e.key === 'Backspace') {
-        if (selection.selectedId !== null && selection.editingId === null) {
+        // persist.client_status: delete is a no-op while locked.
+        if (editableRef.current && selection.selectedId !== null && selection.editingId === null) {
           e.preventDefault();
           if (deleteObject(doc, selection.selectedId)) {
             selection.select(null);

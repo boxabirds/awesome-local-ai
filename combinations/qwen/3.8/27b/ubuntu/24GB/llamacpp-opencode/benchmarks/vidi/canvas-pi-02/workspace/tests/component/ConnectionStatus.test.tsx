@@ -4,6 +4,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { ConnectionStatus } from '../../src/client/sync/ConnectionStatus';
 import { createConnectionStateMachine } from '../../src/client/sync/connectBoard';
 import type { ConnectionState } from '../../src/client/sync/connectBoard';
+import { canEdit } from '../../src/client/App';
 import { CONNECTED_CONFIRMATION_MS } from '../../src/shared/config';
 
 /**
@@ -19,6 +20,11 @@ interface Driver {
   status(status: 'connecting' | 'connected' | 'disconnected'): void;
   /** Emit a provider sync event. */
   sync(state: boolean): void;
+  /**
+   * Emit a provider connection-close event with the server's close code
+   * (`undefined` = local close: watchdog / our own disconnect).
+   */
+  close(code?: number): void;
   /** Browser went offline (drives `markReconnecting`). */
   offline(): void;
   /** Browser is back online (drives `confirmRecovered`). */
@@ -45,6 +51,10 @@ function drive(): Driver & ReturnType<typeof render> {
     },
     sync: (state) => {
       machine.onSync(state);
+      refresh();
+    },
+    close: (code) => {
+      machine.onClose(code);
       refresh();
     },
     offline: () => {
@@ -182,5 +192,68 @@ describe('sync.client badge (task 7)', () => {
     const d = drive();
     d.online();
     expect(d.phase()).toBe('connecting');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Story 4: persist.client_status (TC-22) + close-code mapping (TC-23 part 1).
+// The App-level edit lock is covered in LoadFailure.test.tsx (TC-23 part 2).
+// ---------------------------------------------------------------------------
+
+describe('persist.client_status badge (story 4)', () => {
+  it('TC-22 state load_failed -> red "This board couldn’t be loaded. Retrying…" with role=status', () => {
+    const d = drive();
+    d.close(4500); // CLOSE_BOARD_LOAD_FAILED
+    expect(d.phase()).toBe('load_failed');
+    const badge = screen.getByRole('status');
+    expect(badge.textContent).toBe('This board couldn’t be loaded. Retrying…');
+    expect(badge.className).toContain('vidi6-badge--error'); // red (styles.css)
+  });
+
+  it('close 4500 during the initial connect -> load_failed', () => {
+    const d = drive();
+    expect(d.phase()).toBe('connecting');
+    d.close(4500);
+    expect(d.phase()).toBe('load_failed');
+    expect(screen.getByText('This board couldn’t be loaded. Retrying…')).not.toBeNull();
+  });
+
+  it('close 1011 (storage failure) while connected -> reconnecting, NOT load_failed', () => {
+    const d = drive();
+    d.sync(true);
+    expect(d.phase()).toBe('connected');
+    d.close(1011); // CLOSE_STORAGE_FAILURE: the board is readable, changes re-send
+    expect(d.phase()).toBe('reconnecting');
+    expect(screen.getByText('Reconnecting…')).not.toBeNull();
+    expect(screen.queryByText('This board couldn’t be loaded. Retrying…')).toBeNull();
+  });
+
+  it('load_failed is sticky: a stray non-4500 close in the retry storm keeps the error', () => {
+    const d = drive();
+    d.close(4500);
+    expect(d.phase()).toBe('load_failed');
+    d.close(1011);
+    expect(d.phase()).toBe('load_failed');
+    d.close(undefined); // local close (watchdog)
+    expect(d.phase()).toBe('load_failed');
+    expect(screen.getByText('This board couldn’t be loaded. Retrying…')).not.toBeNull();
+  });
+
+  it('recovery: first successful sync after load_failed -> connected, badge gone', () => {
+    const d = drive();
+    d.close(4500);
+    expect(d.phase()).toBe('load_failed');
+    d.sync(true); // the provider's retry landed and state was exchanged
+    expect(d.phase()).toBe('connected');
+    expect(screen.queryByRole('status')).toBeNull();
+  });
+
+  it('canEdit is false only for load_failed (null/local mode stays editable)', () => {
+    expect(canEdit('connecting')).toBe(true);
+    expect(canEdit('connected')).toBe(true);
+    expect(canEdit('reconnecting')).toBe(true); // storage failure: not locked
+    expect(canEdit('confirmedConnected')).toBe(true);
+    expect(canEdit('load_failed')).toBe(false);
+    expect(canEdit(null)).toBe(true);
   });
 });

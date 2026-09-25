@@ -1,5 +1,6 @@
 import { isValidBoardId } from '../shared/board-id';
 import { BoardRoom } from './board-room';
+import { handleTestHook } from './test-hooks';
 
 /**
  * Worker entry (story 3).
@@ -16,11 +17,15 @@ import { BoardRoom } from './board-room';
 export interface Env {
   BOARD_ROOM: DurableObjectNamespace<BoardRoom>;
   ASSETS: Fetcher;
+  /** Test hooks are enabled only when this is exactly '1' (the e2e env). */
+  TEST_HOOKS?: string;
 }
 
 export default {
   async fetch(req: Request, env: Env): Promise<Response> {
     const url = new URL(req.url);
+    const hookResponse = await handleTestHook(req, url, env);
+    if (hookResponse !== null) return hookResponse;
     const roomMatch = url.pathname.match(/^\/api\/rooms\/([^/]+)$/);
     if (roomMatch !== null) {
       const boardId = roomMatch[1];

@@ -3,3 +3,5 @@
 stories/*/agent-events.jsonl
 current_story
 work_dir.txt
+progress.json
+control/

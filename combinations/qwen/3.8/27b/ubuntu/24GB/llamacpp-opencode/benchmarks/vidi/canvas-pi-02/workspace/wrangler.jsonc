@@ -27,5 +27,24 @@
     "directory": "dist/client",
     "binding": "ASSETS",
     "not_found_handling": "single-page-application"
+  },
+  // The persist e2e suite (playwright.persist.config.ts) runs wrangler with
+  // `--env e2e` so the TEST_HOOKS-gated /__test routes (story 4 TC-24) exist.
+  // Production and every other env leave TEST_HOOKS unset: the paths then
+  // fall through to the SPA (no Durable Object call at all).
+  "env": {
+    "e2e": {
+      "vars": {
+        "TEST_HOOKS": "1"
+      },
+      // This wrangler version does not inherit the top-level Durable Object
+      // binding into env-specific configs (the binding silently disappears
+      // under `--env e2e`), so it is redeclared here, including the SQLite
+      // migration that makes the storage available.
+      "durable_objects": {
+        "bindings": [{ "name": "BOARD_ROOM", "class_name": "BoardRoom" }]
+      },
+      "migrations": [{ "tag": "v1", "new_sqlite_classes": ["BoardRoom"] }]
+    }
   }
 }

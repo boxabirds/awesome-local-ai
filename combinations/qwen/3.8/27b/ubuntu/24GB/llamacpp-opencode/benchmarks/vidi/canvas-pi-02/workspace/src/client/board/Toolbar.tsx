@@ -3,6 +3,8 @@ import type { JSX } from 'react';
 export interface ToolbarProps {
   /** Create a sticky note centred in the visible board area, in edit mode. */
   onCreateSticky(): void;
+  /** persist.client_status: disabled while the board is locked. */
+  disabled?: boolean;
 }
 
 const STOP = (e: { stopPropagation(): void }): void => {
@@ -31,6 +33,7 @@ export function Toolbar(props: ToolbarProps): JSX.Element {
         className="vidi6-toolbar__button"
         aria-label="Sticky note"
         title="Sticky note – or double-click the board"
+        disabled={props.disabled ?? false}
         onClick={props.onCreateSticky}
       >
         <svg width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden="true">
