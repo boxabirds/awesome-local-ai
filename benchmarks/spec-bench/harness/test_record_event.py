@@ -23,6 +23,15 @@ def last_pushed(remote: Path) -> str:
                           capture_output=True, text=True).stdout.strip()
 
 
+def fake_pack(tmp_path: Path) -> Path:
+    """The smallest real pack: one story, and a held-out suite directory."""
+    pack = tmp_path / "pack"
+    (pack / "spec" / "stories" / "001-a").mkdir(parents=True)
+    (pack / "spec" / "stories" / "001-a" / "story.md").write_text("# A story\n")
+    (pack / "acceptance" / "tests").mkdir(parents=True)
+    return pack
+
+
 def test_records_the_event_in_the_run_dir_and_pushes_it(tmp_path, monkeypatch):
     import record_event
     for k, v in IDENTITY.items():
@@ -40,7 +49,7 @@ def test_records_the_event_in_the_run_dir_and_pushes_it(tmp_path, monkeypatch):
 def test_a_run_that_refuses_to_start_says_so_in_a_pushed_commit(tmp_path):
     # A copy of the harness in a throwaway repo, a cloud stack, and a held-out suite that can't install.
     repo, remote = repo_with_remote(tmp_path)
-    shutil.copytree(HARNESS, repo / "benchmarks/vidi/harness",
+    shutil.copytree(HARNESS, repo / "benchmarks/spec-bench/harness",
                     ignore=shutil.ignore_patterns("__pycache__", ".pytest_cache", "node_modules"))
     (repo / "stack.env").write_text("CONTEXT_LIMIT=0\nOUTPUT_LIMIT=0\n")
     home = tmp_path / "home"
@@ -48,11 +57,10 @@ def test_a_run_that_refuses_to_start_says_so_in_a_pushed_commit(tmp_path):
     install.mkdir(parents=True)
     (install / "install.env").write_text('COMBINATION="x"\nBACKEND="anthropic"\nMODEL_ID="m"\n'
                                          'RUN_BASE="runs/fake"\nCONFIG_FILE="stack.env"\n')
-    pack = tmp_path / "pack"
-    (pack / "acceptance").mkdir(parents=True)  # no package.json: npm ci fails
+    pack = fake_pack(tmp_path)  # its acceptance/ has no package.json: npm ci fails
     env = {**os.environ, **IDENTITY, "HOME": str(home), "VIDI_PACK_DIR": str(pack),
            "UV_CACHE_DIR": os.environ.get("UV_CACHE_DIR", str(Path.home() / ".cache/uv"))}
-    r = subprocess.run([str(repo / "benchmarks/vidi/harness/run.sh"), "fake-stack", "--run-id", "r9",
+    r = subprocess.run([str(repo / "benchmarks/spec-bench/harness/run.sh"), "fake-stack", "--run-id", "r9",
                         "--client", "claude", "--record"], env=env, capture_output=True, text=True)
     assert r.returncode != 0
     msg = last_pushed(remote)
@@ -63,7 +71,7 @@ def test_a_cloud_run_that_completes_exits_0(tmp_path):
     # A cloud stack has no server to stop. run.sh's exit trap once ended on a false test for one,
     # which under `set -e` turned a finished run into exit 1 and stopped the series (opus run-2 → run-3).
     repo, _ = repo_with_remote(tmp_path)
-    shutil.copytree(HARNESS, repo / "benchmarks/vidi/harness",
+    shutil.copytree(HARNESS, repo / "benchmarks/spec-bench/harness",
                     ignore=shutil.ignore_patterns("__pycache__", ".pytest_cache", "node_modules"))
     (repo / "stack.env").write_text("CONTEXT_LIMIT=0\nOUTPUT_LIMIT=0\n")
     home = tmp_path / "home"
@@ -71,7 +79,7 @@ def test_a_cloud_run_that_completes_exits_0(tmp_path):
     install.mkdir(parents=True)
     (install / "install.env").write_text('COMBINATION="x"\nBACKEND="anthropic"\nMODEL_ID="m"\n'
                                          'RUN_BASE="runs/fake"\nCONFIG_FILE="stack.env"\n')
-    pack = tmp_path / "pack"
+    pack = fake_pack(tmp_path)
     (pack / "acceptance" / "node_modules").mkdir(parents=True)
     (pack / "acceptance" / "package-lock.json").write_text("{}")
     # Every tool the run would use succeeds without doing anything; python3 only answers the thermal wait.
@@ -86,6 +94,6 @@ def test_a_cloud_run_that_completes_exits_0(tmp_path):
         f.chmod(0o755)
     env = {**os.environ, **IDENTITY, "HOME": str(home), "VIDI_PACK_DIR": str(pack),
            "PATH": f"{stubs}:{os.environ['PATH']}"}
-    r = subprocess.run([str(repo / "benchmarks/vidi/harness/run.sh"), "fake-stack", "--run-id", "r1",
+    r = subprocess.run([str(repo / "benchmarks/spec-bench/harness/run.sh"), "fake-stack", "--run-id", "r1",
                         "--client", "claude"], env=env, capture_output=True, text=True)
     assert r.returncode == 0, r.stdout[-1500:] + r.stderr[-1500:]

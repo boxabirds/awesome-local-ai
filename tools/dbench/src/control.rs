@@ -1,5 +1,5 @@
 //! Operator requests to the harness, written as files in its run directory.
-//! The contract is `benchmarks/vidi/harness/CONTROL.md`.
+//! The contract is `benchmarks/spec-bench/harness/CONTROL.md`.
 
 use serde::{Deserialize, Serialize};
 use std::io::Write;

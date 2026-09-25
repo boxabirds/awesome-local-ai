@@ -1,0 +1,6 @@
+{
+  "name": "vidi",
+  "default_scope": "canvas",
+  "pack_ref": "vidi-v1",
+  "gate": ["build", "typecheck", "test:unit", "test:component", "test:integration", "test:e2e"]
+}
