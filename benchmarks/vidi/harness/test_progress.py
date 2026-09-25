@@ -277,3 +277,22 @@ def test_baselines_find_every_reference_run_and_ignore_void_scores(tmp_path):
            {"tests": [{"status": "failed", "error": "browserType.launch: Executable doesn't exist at x"}]})
     got = {b["source"]: b["accept"] for b in progress.baselines(tmp_path, 3, tmp_path / "elsewhere")}
     assert got == {"reference opus-5.5 run-1": {"passed": 7, "total": 7}, "reference opus-5.5 run-2": None}
+
+
+def test_evidence_survives_bytes_that_are_not_utf8(tmp_path):
+    # Story 12 (images) crashed the harness: a file git diffs as text carried a PNG-like 0x89 byte,
+    # and the harness decoded git's output strictly (canvas-pi-02 on the 4090).
+    import subprocess
+    ws = tmp_path / "ws"
+    ws.mkdir()
+    g = ["git", "-c", "user.name=t", "-c", "user.email=t@t"]
+    subprocess.run([*g, "init", "-q"], cwd=ws, check=True)
+    (ws / "a.txt").write_text("base\n")
+    subprocess.run([*g, "add", "-A"], cwd=ws, check=True)
+    subprocess.run([*g, "commit", "-qm", "base"], cwd=ws, check=True)
+    base = subprocess.run(["git", "rev-parse", "HEAD"], cwd=ws, capture_output=True, text=True).stdout.strip()
+    (ws / "tests").mkdir()
+    (ws / "tests" / "img.test.ts").write_bytes(b"// TC-01 image\n\x89PNG not utf-8 \xff\xfe\n")
+    subprocess.run([*g, "add", "-A"], cwd=ws, check=True)
+    ev = progress.evidence(ws, base)  # must not raise
+    assert isinstance(ev, dict) and "last_commit_at" in ev
