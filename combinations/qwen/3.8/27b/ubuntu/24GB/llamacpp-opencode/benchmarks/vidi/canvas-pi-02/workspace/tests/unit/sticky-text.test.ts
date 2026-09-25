@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import * as Y from 'yjs';
 import { LOCAL_ORIGIN } from '../../src/shared/board-model';
-import { applyTextDiff, clampToLimit, counterVisible } from '../../src/client/objects/StickyText';
+import { applyTextDelta, applyTextDiff, clampToLimit, counterVisible } from '../../src/client/objects/StickyText';
 import { STICKY_TEXT_MAX_CHARS } from '../../src/shared/config';
 
 type DeltaOp = { retain?: number; insert?: string; delete?: number };
@@ -127,6 +127,120 @@ describe('sticky.text: applyTextDiff (minimal diff, one transaction)', () => {
 
     expect(deltas).toEqual([]);
     expect(updates).toBe(0);
+  });
+});
+
+describe('sticky.text: applyTextDelta (remote -> local merge, caret-preserving)', () => {
+  it('an insert before the caret shifts the caret right', () => {
+    // "green", caret at the end (5,5); remote inserts "red " at the start.
+    const r = applyTextDelta('green', [{ insert: 'red ' }, { retain: 5 }], 5, 5);
+    expect(r.text).toBe('red green');
+    expect(r.start).toBe(9);
+    expect(r.end).toBe(9);
+  });
+
+  it('a COMPACT insert at the start (no explicit trailing retain) keeps an end caret at the end', () => {
+    // Yjs emits compact deltas: an insert at the start of "green" is just
+    // [{insert:'red '}] — the trailing "green" is implicitly retained, not
+    // spelled out. A caret at the end must stay at the (new) end, not collapse
+    // to the change point. This was the TC-23 concurrent-typing flake: a wrong
+    // end-caret made the next local keystroke insert mid-word and scramble the
+    // shared text.
+    const r = applyTextDelta('green', [{ insert: 'red ' }], 5, 5);
+    expect(r.text).toBe('red green');
+    expect(r.start).toBe(9);
+    expect(r.end).toBe(9);
+  });
+
+  it('a COMPACT delete at the start (no explicit trailing retain) keeps an end caret at the end', () => {
+    // Compact: deleting "gr" from "green" is [{delete:2}]; the trailing "een" is
+    // implicit. An end caret must land at the new end (3), not 0.
+    const r = applyTextDelta('green', [{ delete: 2 }], 5, 5);
+    expect(r.text).toBe('een');
+    expect(r.start).toBe(3);
+    expect(r.end).toBe(3);
+  });
+
+  it('an insert after the caret leaves the caret alone', () => {
+    // "green", caret after "gre" (3,3); remote inserts " blue" at the end.
+    const r = applyTextDelta('green', [{ retain: 5 }, { insert: ' blue' }], 3, 3);
+    expect(r.text).toBe('green blue');
+    expect(r.start).toBe(3);
+    expect(r.end).toBe(3);
+  });
+
+  it('an insert exactly at the caret pushes the caret past it', () => {
+    const r = applyTextDelta('abc', [{ retain: 1 }, { insert: 'X' }, { retain: 2 }], 1, 1);
+    expect(r.text).toBe('aXbc');
+    expect(r.start).toBe(2);
+    expect(r.end).toBe(2);
+  });
+
+  it('a delete before the caret shifts the caret left', () => {
+    // "abcd", caret at 4 (end); remote deletes "ab".
+    const r = applyTextDelta('abcd', [{ delete: 2 }, { retain: 2 }], 4, 4);
+    expect(r.text).toBe('cd');
+    expect(r.start).toBe(2);
+    expect(r.end).toBe(2);
+  });
+
+  it('a delete that swallows the caret clamps it to the delete start', () => {
+    // "abcdef", caret at 3 (inside "bcd"); remote deletes "bcd".
+    const r = applyTextDelta('abcdef', [{ retain: 1 }, { delete: 3 }, { retain: 2 }], 3, 3);
+    expect(r.text).toBe('aef');
+    expect(r.start).toBe(1);
+    expect(r.end).toBe(1);
+  });
+
+  it('a delete entirely after the caret leaves the caret alone', () => {
+    const r = applyTextDelta('abcdef', [{ retain: 2 }, { delete: 3 }, { retain: 1 }], 1, 1);
+    expect(r.text).toBe('abf');
+    expect(r.start).toBe(1);
+    expect(r.end).toBe(1);
+  });
+
+  it('a pure retain is a no-op on text and caret', () => {
+    const r = applyTextDelta('hello', [{ retain: 5 }], 2, 4);
+    expect(r.text).toBe('hello');
+    expect(r.start).toBe(2);
+    expect(r.end).toBe(4);
+  });
+
+  it('a whole-text replace ends with the replacement selected', () => {
+    // "seed", whole-text selection (0,4); remote deletes it and inserts "a" at
+    // the same point. The caret at the delete's end is pushed past the insert,
+    // so the new selection (0,1) selects the replacement "a".
+    const r = applyTextDelta('seed', [{ delete: 4 }, { insert: 'a' }], 0, 4);
+    expect(r.text).toBe('a');
+    expect(r.start).toBe(0);
+    expect(r.end).toBe(1);
+  });
+
+  it('a caret at a pure delete boundary (no insert) clamps to the boundary', () => {
+    // "abcd", caret at 2 (end of "ab"); remote deletes "ab" (nothing inserted).
+    const r = applyTextDelta('abcd', [{ delete: 2 }, { retain: 2 }], 2, 2);
+    expect(r.text).toBe('cd');
+    expect(r.start).toBe(0);
+    expect(r.end).toBe(0);
+  });
+
+  it('TC-23 two concurrent end inserts both survive, merged in arrival order', () => {
+    // Receiver starts at "green" with the caret at the end. Alex's "red " and
+    // Sam's " blue" arrive as separate remote deltas, each relative to the
+    // receiver's current text. Every typed character is kept.
+    let r = applyTextDelta('green', [{ insert: 'red ' }, { retain: 5 }], 5, 5);
+    r = applyTextDelta(r.text, [{ retain: r.text.length }, { insert: ' blue' }], r.start, r.end);
+    expect(r.text).toBe('red green blue');
+    expect(r.start).toBe(14);
+    expect(r.end).toBe(14);
+  });
+
+  it('a selection spanning an insert keeps both ends consistent', () => {
+    // "abcdef", selection (1,4) = "bcd"; remote inserts "X" at 0.
+    const r = applyTextDelta('abcdef', [{ insert: 'X' }, { retain: 6 }], 1, 4);
+    expect(r.text).toBe('Xabcdef');
+    expect(r.start).toBe(2);
+    expect(r.end).toBe(5);
   });
 });
 

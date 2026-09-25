@@ -314,3 +314,46 @@ body {
 .vidi6-delete:hover {
   background: #fef2f2;
 }
+
+/* --- Connection badge (story 3) ------------------------------------------ */
+
+/*
+ * Top-right connection badge. Purely informational; it never blocks the
+ * board. Hidden in the settled `connected` state (a quiet board is a
+ * healthy one); shown while connecting, reconnecting, and briefly green
+ * after a successful reconnect.
+ */
+.vidi6-badge {
+  position: fixed;
+  top: 16px;
+  right: 16px;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 6px 12px;
+  background: rgba(255, 255, 255, 0.94);
+  border: 1px solid #d3d9e0;
+  border-radius: 999px;
+  color: #4b5563;
+  font-size: 13px;
+  line-height: 1;
+  box-shadow: 0 1px 4px rgba(15, 23, 42, 0.12);
+  pointer-events: none;
+  z-index: 20;
+}
+
+.vidi6-badge::before {
+  content: '';
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #94a3b8; /* connecting: neutral */
+}
+
+.vidi6-badge--warn::before {
+  background: #f59e0b; /* reconnecting: amber */
+}
+
+.vidi6-badge--ok::before {
+  background: #22c55e; /* confirmed: green */
+}

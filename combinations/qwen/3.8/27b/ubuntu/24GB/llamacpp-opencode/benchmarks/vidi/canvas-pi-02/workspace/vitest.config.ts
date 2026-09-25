@@ -1,8 +1,11 @@
 import { defineConfig } from 'vitest/config';
+import { defineWorkersProject } from '@cloudflare/vitest-pool-workers/config';
 
-// Two projects:
-//  - unit:      pure maths, run in node (no DOM)
-//  - component: React components, run in jsdom with Testing Library
+// Three projects:
+//  - unit:        pure maths and protocol helpers, run in node (no DOM)
+//  - component:   React components, run in jsdom with Testing Library
+//  - integration: real Worker + Durable Objects in workerd (miniflare),
+//                 exercised through the Worker entry via SELF.fetch
 export default defineConfig({
   test: {
     projects: [
@@ -21,6 +24,22 @@ export default defineConfig({
           setupFiles: ['tests/setup/component-setup.ts'],
         },
       },
+      defineWorkersProject({
+        test: {
+          name: 'integration',
+          pool: '@cloudflare/vitest-pool-workers',
+          poolOptions: {
+            workers: {
+              wrangler: { configPath: './wrangler.jsonc' },
+              // Per-test storage isolation cannot be popped while a Durable
+              // Object still holds an open WebSocket; the tests use unique
+              // board ids, so they do not rely on it.
+              isolatedStorage: false,
+            },
+          },
+          include: ['tests/integration/**/*.test.ts'],
+        },
+      }),
     ],
   },
 });

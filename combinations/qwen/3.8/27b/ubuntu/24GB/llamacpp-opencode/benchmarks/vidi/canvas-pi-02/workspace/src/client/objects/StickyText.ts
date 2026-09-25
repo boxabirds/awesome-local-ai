@@ -90,6 +90,92 @@ export function applyTextDiff(ytext: Y.Text, next: string, origin: unknown): voi
   });
 }
 
+/**
+ * One Quill-style text delta operation, as produced by Yjs
+ * `YTextEvent.delta` (and the `applyDelta` format). `insert` is a string for
+ * plain text (an object embed is possible in Yjs but the sticky editor never
+ * uses one). At most one of `retain`/`insert`/`delete` is set per op.
+ */
+export interface TextDeltaOp {
+  retain?: number;
+  insert?: string | object;
+  delete?: number;
+}
+
+/**
+ * Apply a Yjs text delta to a plain string, preserving the editor's
+ * selection (caret or range).
+ *
+ * This is the remote-to-local half of text sync: it lets the textarea absorb
+ * another editor's change without clobbering the local caret, so that the
+ * next local diff is computed against the true merged text rather than a
+ * stale local view. Without this, two people typing into one note clobber
+ * each other's characters (live.concurrent_text).
+ *
+ * `text` is the string before the delta (the textarea's current value) and
+ * `delta` transforms it into the new text. `selStart`/`selEnd` are the
+ * selection in `text` (UTF-16 code units); the returned `start`/`end` are the
+ * corresponding selection in the resulting text. The caret adjustment rules:
+ * - retain shifts nothing;
+ * - an insert at position p pushes a selection at/after p right by its length;
+ * - a delete of [p, p+n) clamps a selection strictly inside to p, shifts a
+ *   selection at/after the block left by n, and leaves one before p alone.
+ */
+export function applyTextDelta(
+  text: string,
+  delta: readonly TextDeltaOp[],
+  selStart: number,
+  selEnd: number,
+): { text: string; start: number; end: number } {
+  // Build the resulting text: retain copies, delete skips, insert appends.
+  let out = '';
+  let consumed = 0;
+  for (const op of delta) {
+    if (typeof op.retain === 'number') {
+      out += text.slice(consumed, consumed + op.retain);
+      consumed += op.retain;
+    } else if (typeof op.delete === 'number') {
+      consumed += op.delete;
+    } else if (typeof op.insert === 'string') {
+      out += op.insert;
+    }
+    // A non-string insert (embed) is ignored: the sticky editor is plain text.
+  }
+  out += text.slice(consumed);
+
+  // Map one position from `text` coordinates to `out` coordinates. Intervals
+  // are right-open, so a position sitting exactly at the end of a retain/delete
+  // is resolved by the *next* op: a trailing insert at that same point then
+  // pushes the caret past it (a replaced selection ends up selecting the
+  // replacement), which is the caret behaviour editors expect.
+  const mapPos = (p: number): number => {
+    let idx = 0; // offset consumed in `text`
+    let nidx = 0; // offset built in `out`
+    for (const op of delta) {
+      if (typeof op.retain === 'number') {
+        const n = op.retain;
+        if (idx + n > p) return nidx + (p - idx);
+        idx += n;
+        nidx += n;
+      } else if (typeof op.delete === 'number') {
+        const n = op.delete;
+        if (idx + n > p) return nidx;
+        idx += n;
+      } else if (typeof op.insert === 'string') {
+        if (idx <= p) nidx += op.insert.length;
+      }
+    }
+    // Characters beyond the last explicit op are implicitly retained (see the
+    // `out += text.slice(consumed)` above). Reaching the end of the loop means
+    // the caret sits at/after the explicitly-changed region (idx <= p), so its
+    // trailing offset (p - idx) must be added, or a caret at the end of a long
+    // note would collapse to the change point after a remote edit elsewhere.
+    return nidx + (p - idx);
+  };
+
+  return { text: out, start: mapPos(selStart), end: mapPos(selEnd) };
+}
+
 export interface FontFit {
   /** Chosen font size in world px, within [STICKY_FONT_MIN_PX, STICKY_FONT_MAX_PX]. */
   fontPx: number;
