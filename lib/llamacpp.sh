@@ -59,7 +59,15 @@ backend_smoke_context() {
 # assert it actually drafted tokens rather than trusting that the head loaded.
 backend_smoke_assert() {
   local smoke_log="$1"
-  [[ -n "$MTP_HEAD" ]] || return 0
+  if [[ -z "$MTP_HEAD" && "${SPEC_BUILTIN:-0}" != "1" ]]; then
+    # No MTP head: the launcher may have turned on n-gram speculation, and
+    # says which in the log. A one-line smoke prompt has nothing to draft
+    # from, so an acceptance figure is not expected here -- report, not assert.
+    local spec
+    spec="$(grep -oE 'speculation: [^(]*' "$smoke_log" | tail -1 | sed 's/ *$//')"
+    [[ -n "$spec" ]] && { SMOKE_SPEC_NOTE="${spec#speculation: }"; info "Speculative decoding: ${SMOKE_SPEC_NOTE}"; }
+    return 0
+  fi
   local acc
   acc=$(grep -oE 'draft acceptance = [0-9.]+' "$smoke_log" | tail -1 | grep -oE '[0-9.]+$')
   if [[ -n "$acc" ]]; then

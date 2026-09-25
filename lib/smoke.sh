@@ -6,6 +6,7 @@
 # silently -- asserts speculative decoding actually drafted tokens.
 
 SMOKE_CTX=""; SMOKE_MEM=""; SMOKE_FREE=""; SMOKE_GEN=""; SMOKE_ACC=""; SMOKE_RSS=""
+SMOKE_SPEC_NOTE=""   # speculation the launcher configured but the smoke prompt cannot prove
 
 # Resident size of a process and everything it forked, in MiB.
 #
