@@ -122,10 +122,22 @@ assert_fails "a Strix Halo is not offered the 24GB NVIDIA rows" \
   grep -q nvidia <<< "$(candidates_for_host qwen | cut -d'|' -f2)"
 assert_eq "an unmeasured row is still what a Strix Halo is offered, as the only one" \
   "$STRIX" "$(best_for_host qwen)"
+# tritus: a 128GB Strix Halo reports 126155 MiB, inside selection's 5% slack
+HOST_OS=ubuntu; HOST_ACCEL=strix-halo; HOST_MEM_MIB=126155
+assert_eq "a real 128GB Strix Halo (126155 MiB) is offered the 128GB row" "$STRIX" "$(best_for_host qwen)"
+why="$(explain_no_match pi 2>&1)"
+assert_fails "...so a miss on another selector does not blame its memory" \
+  grep -q "strix-halo-128GB/llamacpp-opencode.*needs 131072 MiB" <<< "$why"
+assert_ok "...it says the row fits, and the selector is what excluded it" \
+  grep -q "strix-halo-128GB/llamacpp-opencode.*fits this machine; family is qwen, not 'pi'" <<< "$why"
+HOST_ACCEL=strix-halo; HOST_MEM_MIB=65024
+why="$(explain_no_match 2>&1)"
+assert_ok "a 64GB Strix Halo is told the 128GB row needs more memory" \
+  grep -q "strix-halo-128GB/llamacpp-opencode.*needs 131072 MiB; this machine has 65024 MiB" <<< "$why"
+HOST_ACCEL=cuda; HOST_MEM_MIB=24564
 why="$(explain_no_match nosuchfamily 2>&1)"
 assert_ok "explaining a miss to a CUDA host names the accelerator" \
-  bash -c 'HOST_ACCEL=cuda; true'
-HOST_ACCEL=cuda; HOST_MEM_MIB=24564
+  grep -q "Accelerator: cuda" <<< "$why"
 why="$(explain_no_match 2>&1)"
 assert_ok "a CUDA host is told the Strix Halo row needs a strix-halo accelerator" \
   grep -q "strix-halo-128GB/llamacpp-opencode.*needs a strix-halo accelerator; this machine has cuda" <<< "$why"
