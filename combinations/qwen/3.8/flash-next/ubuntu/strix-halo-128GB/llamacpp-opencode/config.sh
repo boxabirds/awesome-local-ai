@@ -38,7 +38,12 @@ TARGET_OS="ubuntu"
 TARGET_OS_VERSION="26.04"                 # kernel 7.0: gfx1151 fixes and RTL8127 10GbE in-tree
 ACCEL="strix-halo"                        # -> lib/accel/strix-halo.sh (GPU_API=vulkan or rocm)
 BACKEND="llamacpp"                        # -> lib/llamacpp.sh
-CLIENT="${CLIENT:-opencode}"
+# pi by default: its system prompt is a fraction of OpenCode's, and at a few
+# hundred tok/s prefill every prompt token is felt on the first turn. Needs
+# pi on PATH (Ubuntu 26.04: sudo apt install nodejs npm, then
+# sudo npm install -g @earendil-works/pi-coding-agent). CLIENT=opencode or
+# --client opencode for the other; the path's stack segment predates this.
+CLIENT="${CLIENT:-pi}"
 
 # Vulkan build: loader headers, the GLSL->SPIR-V compiler and SPIR-V headers
 # for llama.cpp's shaders; RADV and vulkaninfo to run and inspect it. pipx is
