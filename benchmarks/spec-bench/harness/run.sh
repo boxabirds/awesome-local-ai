@@ -103,6 +103,7 @@ if [[ "$CLOUD" == 0 ]] && curl -s -m 2 "127.0.0.1:$BENCH_PORT/v1/models" >/dev/n
   echo "port $BENCH_PORT already serving; refusing to benchmark against an unknown server" >&2; exit 1
 fi
 
+. "$HARNESS/playwright-platform.sh"   # Ubuntu newer than Playwright knows: use its 24.04 Chromium
 # The held-out suite's own toolchain: installed here so a fresh checkout on a new node runs unattended.
 # A pack without a suite (a spec only, so far) skips this and reports acceptance as n/a.
 ACCEPTANCE="$(python3 "$HARNESS/packdir.py" --pack "$PACK" acceptance)"  # private pack repo, or the public pack

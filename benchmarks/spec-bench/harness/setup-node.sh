@@ -58,6 +58,9 @@ if [[ "$(uname)" == Darwin ]]; then need sandbox-exec "part of macOS"; else need
 echo "repos"
 if git -C "$REPO_ROOT" ls-remote --exit-code origin HEAD >/dev/null 2>&1; then ok "public repo reachable (records are pushed here)"
 else bad "push access to the public repo's origin (records are committed and pushed per story)"; fi
+if [[ -n "$(git -C "$REPO_ROOT" config user.email)" && -n "$(git -C "$REPO_ROOT" config user.name)" ]]; then
+  ok "git identity $(git -C "$REPO_ROOT" config user.name) <$(git -C "$REPO_ROOT" config user.email)> (records are committed as it)"
+else bad "a git identity: git config --global user.name '…' && git config --global user.email '…' (every story is a commit)"; fi
 PACK_ROOT="$(dirname "$REPO_ROOT")/$PRIVATE_REPO_NAME"
 if [[ -z "$PACK_REF" ]]; then
   ok "$PACK has no pack_ref in bench.json: it runs from this repo, no private pack needed"
@@ -71,19 +74,8 @@ if [[ -n "$PACK_REF" && -d "$PACK_ROOT/.git" ]]; then
   else bad "pack ref $PACK_REF (git -C $PACK_ROOT tag -l)"; fi
 fi
 
-# Playwright ships Chromium per Ubuntu release and refuses releases it has not listed yet
-# ("does not support chromium on ubuntu26.04-x64"). The newest build it knows, 24.04's, runs on
-# later Ubuntu once its shared libraries are installed; missing ones are named below.
-PLAYWRIGHT_UBUNTU_FALLBACK="24.04"
-if [[ "$(uname)" == Linux && -r /etc/os-release ]]; then
-  os_id="$(sed -n 's/^ID=//p' /etc/os-release | tr -d '"')"
-  os_ver="$(sed -n 's/^VERSION_ID=//p' /etc/os-release | tr -d '"')"
-  if [[ "$os_id" == ubuntu && "$(printf '%s\n' "$os_ver" "$PLAYWRIGHT_UBUNTU_FALLBACK" | sort -V | tail -1)" != "$PLAYWRIGHT_UBUNTU_FALLBACK" ]]; then
-    arch="$(uname -m)"; case "$arch" in x86_64) arch=x64 ;; aarch64) arch=arm64 ;; esac
-    export PLAYWRIGHT_HOST_PLATFORM_OVERRIDE="ubuntu${PLAYWRIGHT_UBUNTU_FALLBACK}-${arch}"
-    echo "  note  Ubuntu ${os_ver}: using Playwright's ${PLAYWRIGHT_HOST_PLATFORM_OVERRIDE} Chromium"
-  fi
-fi
+. "$HARNESS/playwright-platform.sh"   # Ubuntu newer than Playwright knows: use its 24.04 Chromium
+[[ -n "${PLAYWRIGHT_HOST_PLATFORM_OVERRIDE:-}" ]] && echo "  note  using Playwright's ${PLAYWRIGHT_HOST_PLATFORM_OVERRIDE} Chromium on this Ubuntu"
 
 # Shared libraries a downloaded Chromium cannot find (Linux), as a hint for the apt line.
 missing_browser_libs() {
