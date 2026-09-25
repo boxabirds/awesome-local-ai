@@ -158,11 +158,13 @@ IMAGE_MIN_TOKENS=1024
 # drluoto's measured stack runs -ub 2048. benchmarks/ settles it.
 LLAMA_BATCH=2048
 
-# --no-mmap: page-cache mapping of a 94 GB file on unified memory is slow to
-# load and double-counts memory. --ctx-checkpoints: the Gated DeltaNet layers
-# cannot roll back, so without saved checkpoints a returning agent turn
-# re-reads its whole prompt.
-LLAMA_EXTRA_ARGS="--no-mmap --ctx-checkpoints 8"
+# -lm dio: load with direct I/O. Page-cache mapping of a 94 GB file on unified
+# memory double-counts memory, and drluoto measured mmap 9-12% slower decode
+# on this chip than dio. (llama.cpp removed --no-mmap for --load-mode, #28334;
+# its default "auto" already avoids mmap on integrated GPUs.)
+# --ctx-checkpoints: the Gated DeltaNet layers cannot roll back, so without
+# saved checkpoints a returning agent turn re-reads its whole prompt.
+LLAMA_EXTRA_ARGS="-lm dio --ctx-checkpoints 8"
 
 # MTP: draft 3 tokens a step and keep every one the head proposes (p-min 0),
 # the setting drluoto measured on this chip with his own head. Unsloth's
@@ -212,7 +214,7 @@ boxes, not this installer:
                                         ~38..49 at 32k                 (drluoto)
   This install uses PR #28243's MTP, not drluoto's fork: unmeasured.
   Prefill, UD-IQ4_XS                    ~340 tok/s empty, ~200 at 24k  (drluoto)
-  Load, --no-mmap                       minutes; measure it here
+  Load, -lm dio                         minutes; measure it here
 Measure: benchmarks/README.md in this combination.
 TXT
 }

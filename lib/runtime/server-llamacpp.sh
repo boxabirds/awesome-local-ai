@@ -358,7 +358,7 @@ if [[ -n "${SPEC_NGRAM_ARGS:-}" && "$SPEC_ACTIVE" == "0" && "${SPEC_NGRAM:-1}" !
 fi
 
 # Flags a combination always wants for its model on this backend (for example
-# --no-mmap and --ctx-checkpoints for a hybrid model on unified memory). Data
+# -lm dio and --ctx-checkpoints for a hybrid model on unified memory). Data
 # in config.sh, carried in the manifest; the command line still overrides.
 if [[ -n "${LLAMA_EXTRA_ARGS:-}" ]]; then
   # shellcheck disable=SC2206
