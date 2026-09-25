@@ -19,6 +19,34 @@ assert_eq "512MB -> 512 MiB"    512    "$(_memory_segment_mib 512MB)"
 assert_eq "unparseable -> 0"    0      "$(_memory_segment_mib bogus)"
 assert_eq "empty -> 0"          0      "$(_memory_segment_mib '')"
 
+echo
+echo "machine segments name the accelerator they were measured on"
+assert_eq "legacy memory-only segment matches any accelerator" "any|24576"         "$(_machine_segment 24GB)"
+assert_eq "a platform sold in several sizes carries its memory" "strix-halo|131072" "$(_machine_segment strix-halo-128GB)"
+assert_eq "...and its smaller sibling"                          "strix-halo|65536"  "$(_machine_segment strix-halo-64GB)"
+assert_eq "a single-size device implies its memory"             "cuda|24576"        "$(_machine_segment nvidia4090)"
+assert_eq "a 5090 is 32GB"                                      "cuda|32768"        "$(_machine_segment nvidia5090)"
+assert_eq "an Apple chip tier maps to the metal family"         "metal|131072"      "$(_machine_segment m5max-128GB)"
+assert_eq "an unknown device never qualifies"                   "unknown|0"         "$(_machine_segment nvidia9999)"
+assert_eq "_memory_segment_mib reads whole machine segments"    131072              "$(_memory_segment_mib strix-halo-128GB)"
+assert_eq "...including single-size devices"                    24576               "$(_memory_segment_mib nvidia4090)"
+
+echo
+echo "Strix Halo hosts are detected from sysfs"
+FAKE_PCI="$(mktemp -d)"
+mkdir -p "$FAKE_PCI/0000:c5:00.0" "$FAKE_PCI/0000:c6:00.0"
+printf '0x1002\n' > "$FAKE_PCI/0000:c5:00.0/vendor"; printf '0x1586\n' > "$FAKE_PCI/0000:c5:00.0/device"
+printf '536870912\n' > "$FAKE_PCI/0000:c5:00.0/mem_info_vram_total"
+printf '0x10ec\n' > "$FAKE_PCI/0000:c6:00.0/vendor"; printf '0x8127\n' > "$FAKE_PCI/0000:c6:00.0/device"
+assert_ok    "an AMD 1002:1586 device is a Strix Halo GPU" env SYSFS_PCI="$FAKE_PCI" bash -c \
+  '. "'"$REPO_ROOT"'/lib/select.sh"; _has_strix_halo_gpu'
+assert_eq    "the BIOS carve-out is read from amdgpu sysfs" "536870912" \
+  "$(SYSFS_PCI="$FAKE_PCI" _strix_halo_sysfs mem_info_vram_total)"
+rm -f "$FAKE_PCI/0000:c5:00.0/device"; printf '0x150e\n' > "$FAKE_PCI/0000:c5:00.0/device"
+assert_fails "another AMD GPU is not" env SYSFS_PCI="$FAKE_PCI" bash -c \
+  '. "'"$REPO_ROOT"'/lib/select.sh"; _has_strix_halo_gpu'
+rm -rf "$FAKE_PCI"
+
 pick() { # os arch accel mem_mib family
   HOST_OS="$1"; HOST_ARCH="$2"; HOST_ACCEL="$3"; HOST_MEM_MIB="$4"
   HOST_OS_PRETTY="test"; HOST_MEM_DESC="test"
