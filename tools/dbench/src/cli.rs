@@ -80,6 +80,11 @@ pub enum Cmd {
         /// Don't commit and push each story.
         #[arg(long)]
         no_record: bool,
+        /// KEY=VALUE for the harness and the model server it starts; repeatable.
+        /// Allowed: GPU_BACKEND (vulkan|rocm), SPEC_MTP (0|1), SPEC_DRAFT_N_MAX (1-16),
+        /// SPEC_DRAFT_P_MIN (0-1), PROFILE. Name the run for it too (e.g. canvas-rocm-01).
+        #[arg(long = "server-env", value_parser = parse_key_value)]
+        server_env: Vec<(String, String)>,
         /// Run the benchmark this many times, as separate queued jobs: <id>-r1… and <run-id>-r1…
         /// (each keeps its own record, resume and status). 1 keeps the ids as given.
         #[arg(long, default_value_t = 1)]
@@ -294,5 +299,12 @@ impl ServerConfig {
             parts.extend(std::env::split_paths(&p));
         }
         std::env::join_paths(parts).unwrap_or_default()
+    }
+}
+
+fn parse_key_value(s: &str) -> Result<(String, String), String> {
+    match s.split_once('=') {
+        Some((k, v)) if !k.is_empty() => Ok((k.to_string(), v.to_string())),
+        _ => Err(format!("expected KEY=VALUE, got {s:?}")),
     }
 }

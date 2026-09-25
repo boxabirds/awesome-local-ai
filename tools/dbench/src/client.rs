@@ -626,6 +626,10 @@ fn print_job_detail(node: &str, v: &JobView) {
             .map(|s| format!(" stories {s:?}"))
             .unwrap_or_default()
     );
+    if !j.spec.server_env.is_empty() {
+        let env: Vec<String> = j.spec.server_env.iter().map(|(k, v)| format!("{k}={v}")).collect();
+        println!("env       {}", env.join(" "));
+    }
     println!("attempts  {}", j.attempt);
     if let Some(p) = &j.last_pull {
         println!(
