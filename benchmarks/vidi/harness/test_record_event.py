@@ -57,3 +57,35 @@ def test_a_run_that_refuses_to_start_says_so_in_a_pushed_commit(tmp_path):
     assert r.returncode != 0
     msg = last_pushed(remote)
     assert msg.startswith("vidi r9 r9: run failed:") and "acceptance suite install failed" in msg, (msg, r.stderr)
+
+
+def test_a_cloud_run_that_completes_exits_0(tmp_path):
+    # A cloud stack has no server to stop. run.sh's exit trap once ended on a false test for one,
+    # which under `set -e` turned a finished run into exit 1 and stopped the series (opus run-2 → run-3).
+    repo, _ = repo_with_remote(tmp_path)
+    shutil.copytree(HARNESS, repo / "benchmarks/vidi/harness",
+                    ignore=shutil.ignore_patterns("__pycache__", ".pytest_cache", "node_modules"))
+    (repo / "stack.env").write_text("CONTEXT_LIMIT=0\nOUTPUT_LIMIT=0\n")
+    home = tmp_path / "home"
+    install = home / ".local/share/fake-stack"
+    install.mkdir(parents=True)
+    (install / "install.env").write_text('COMBINATION="x"\nBACKEND="anthropic"\nMODEL_ID="m"\n'
+                                         'RUN_BASE="runs/fake"\nCONFIG_FILE="stack.env"\n')
+    pack = tmp_path / "pack"
+    (pack / "acceptance" / "node_modules").mkdir(parents=True)
+    (pack / "acceptance" / "package-lock.json").write_text("{}")
+    # Every tool the run would use succeeds without doing anything; python3 only answers the thermal wait.
+    stubs = tmp_path / "bin"
+    stubs.mkdir()
+    for tool in ("uv", "npm", "npx", "node", "claude"):
+        (stubs / tool).write_text("#!/bin/sh\nexit 0\n")
+    real_python = shutil.which("python3")
+    (stubs / "python3").write_text(f'#!/bin/sh\ncase "$*" in *wait_for_thermal*) echo "  thermal=nominal"; exit 0;; esac\n'
+                                   f'exec "{real_python}" "$@"\n')
+    for f in stubs.iterdir():
+        f.chmod(0o755)
+    env = {**os.environ, **IDENTITY, "HOME": str(home), "VIDI_PACK_DIR": str(pack),
+           "PATH": f"{stubs}:{os.environ['PATH']}"}
+    r = subprocess.run([str(repo / "benchmarks/vidi/harness/run.sh"), "fake-stack", "--run-id", "r1",
+                        "--client", "claude"], env=env, capture_output=True, text=True)
+    assert r.returncode == 0, r.stdout[-1500:] + r.stderr[-1500:]
