@@ -39,3 +39,39 @@ export const GRID_DOT_RADIUS_PX = 1.2;
 
 /** Size of the origin crosshair marker, in screen pixels. */
 export const ORIGIN_MARKER_SIZE_PX = 16;
+
+/** Sticky note edge length in world units (a square note). */
+export const STICKY_SIZE_WORLD = 200;
+
+/** Hard limit of characters kept in one sticky note. */
+export const STICKY_TEXT_MAX_CHARS = 1000;
+
+/** The character counter appears once this many characters are left. */
+export const STICKY_COUNTER_THRESHOLD_CHARS = 50;
+
+/** Largest note font size (world units == screen px at 100% zoom). */
+export const STICKY_FONT_MAX_PX = 24;
+
+/** Smallest note font size; below this the text is clipped with a fade. */
+export const STICKY_FONT_MIN_PX = 10;
+
+/** Pointer travel that turns a press on a note into a drag. */
+export const DRAG_THRESHOLD_PX = 3;
+
+/**
+ * The six note colours. Keys are the names stored in the document (and later
+ * on the wire), values the fill used on screen.
+ */
+export const STICKY_COLORS = {
+  yellow: '#FFF59D',
+  orange: '#FFCC80',
+  green: '#C5E1A5',
+  blue: '#90CAF9',
+  pink: '#F48FB1',
+  violet: '#CE93D8',
+} as const;
+
+export type StickyColor = keyof typeof STICKY_COLORS;
+
+/** Colour of a freshly created note. */
+export const DEFAULT_STICKY_COLOR: StickyColor = 'yellow';

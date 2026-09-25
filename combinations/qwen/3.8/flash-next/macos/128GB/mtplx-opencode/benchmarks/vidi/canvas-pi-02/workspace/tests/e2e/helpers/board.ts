@@ -10,10 +10,33 @@ export interface CameraState {
   zoom: number;
 }
 
+/** One sticky note as the live document sees it, lowest z first. */
+export interface NoteState {
+  id: string;
+  type: string;
+  /** Top-left corner, world units. */
+  x: number;
+  y: number;
+  z: number;
+  color: string;
+  text: string;
+}
+
+export interface SeedNoteState {
+  /** Centre of the new note, world units. */
+  x: number;
+  y: number;
+  color?: string;
+  text?: string;
+}
+
 export interface BoardWindow {
   __vidi6?: {
     setCamera(camera: CameraState): void;
     getCamera(): CameraState;
+    getNotes(): NoteState[];
+    seedNote(note: SeedNoteState): string;
+    removeNote(id: string): boolean;
   };
 }
 
@@ -83,6 +106,57 @@ export async function markerCentre(page: Page): Promise<{ x: number; y: number }
   const box = await originMarker(page).boundingBox();
   if (!box) throw new Error('the origin marker has no bounding box');
   return { x: box.x + box.width / 2, y: box.y + box.height / 2 };
+}
+
+/**
+ * Screen position (page coordinates) of a world point, taken from the *rendered*
+ * camera and the rendered position of the viewport, so a test can aim the mouse
+ * at a piece of board data without hard-coded numbers.
+ */
+export async function screenPointOf(
+  page: Page,
+  world: { x: number; y: number },
+): Promise<{ x: number; y: number }> {
+  const camera = await readCamera(page);
+  const rect = await board(page).boundingBox();
+  if (!rect) throw new Error('the board viewport has no bounding box');
+  return {
+    x: rect.x + (world.x - camera.x) * camera.zoom,
+    y: rect.y + (world.y - camera.y) * camera.zoom,
+  };
+}
+
+async function waitForHooks(page: Page): Promise<void> {
+  await page.waitForFunction(
+    () => Boolean((window as unknown as BoardWindow).__vidi6),
+    undefined,
+    { timeout: 10_000 },
+  );
+}
+
+/** The document's notes, lowest z first, read straight out of the live Y.Doc. */
+export async function readNotes(page: Page): Promise<NoteState[]> {
+  await waitForHooks(page);
+  return page.evaluate(() => window.__vidi6?.getNotes() ?? []);
+}
+
+/** Put notes on the board through the test hook, and wait for them to render. */
+export async function seedNotes(
+  page: Page,
+  notes: SeedNoteState[],
+): Promise<string[]> {
+  await waitForHooks(page);
+  const ids = await page.evaluate((list) => {
+    const hooks = (window as unknown as BoardWindow).__vidi6;
+    if (!hooks) throw new Error('window.__vidi6 is not installed in this build');
+    return list.map((note) => hooks.seedNote(note));
+  }, notes);
+  if (ids.some((id) => !id)) throw new Error('seeding a note was refused');
+  const count = ids.length;
+  await expect
+    .poll(() => page.locator('[data-testid="sticky-note"]').count(), { timeout: 5_000 })
+    .toBe(count);
+  return ids;
 }
 
 export interface GridStyle {

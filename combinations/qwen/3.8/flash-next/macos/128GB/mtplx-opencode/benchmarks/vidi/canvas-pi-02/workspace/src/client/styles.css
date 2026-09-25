@@ -56,6 +56,173 @@ body {
   pointer-events: none;
 }
 
+/*
+ * Sticky notes.
+ *
+ * They live inside the scaled world layer, so every length here is a world
+ * unit: the browser scales them with the board, which is what makes text stay
+ * crisp instead of being re-laid out at each zoom level.
+ */
+.sticky-note {
+  position: absolute;
+  overflow: visible;
+  /* The world layer ignores pointers; the notes themselves do not. */
+  pointer-events: auto;
+  color: #24292f;
+  line-height: 1.3;
+  cursor: default;
+  white-space: pre-wrap;
+  text-align: center;
+  word-break: break-word;
+  box-shadow:
+    0 1px 2px rgba(24, 28, 35, 0.18),
+    0 3px 10px rgba(24, 28, 35, 0.1);
+}
+
+.sticky-note[data-selected='true'] {
+  outline: 2px solid var(--focus-ring);
+}
+
+.sticky-note:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+.sticky-note__text,
+.sticky-note__editor {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  font-family: inherit;
+  font-weight: 500;
+  line-height: inherit;
+  letter-spacing: 0;
+  text-align: center;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.sticky-note__editor {
+  display: block;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  resize: none;
+  outline: none;
+  caret-color: #1f2328;
+  /* The board turns text selection off; inside a note it must work. */
+  -webkit-user-select: text;
+  user-select: text;
+}
+
+.sticky-note__fade {
+  position: absolute;
+  right: 12px;
+  bottom: 12px;
+  left: 12px;
+  height: 24px;
+  pointer-events: none;
+  background: linear-gradient(
+    to bottom,
+    rgba(36, 41, 47, 0),
+    rgba(36, 41, 47, 0.22)
+  );
+}
+
+.sticky-note__counter {
+  position: absolute;
+  right: 6px;
+  bottom: 2px;
+  padding: 0 3px;
+  font-size: 10px;
+  line-height: 14px;
+  color: #4b535d;
+  background: rgba(255, 255, 255, 0.75);
+  border-radius: 3px;
+  pointer-events: none;
+}
+
+/* The toolbar of the selected note: six swatches and a bin. */
+.note-toolbar {
+  position: absolute;
+  bottom: 100%;
+  left: 0;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-bottom: 6px;
+  padding: 4px;
+  white-space: nowrap;
+  background: var(--chrome-background);
+  border: 1px solid var(--chrome-border);
+  border-radius: 8px;
+  box-shadow: 0 1px 3px rgba(24, 28, 35, 0.12);
+  /* Anchored to the note's top-left corner and un-scaled, so it keeps a
+     constant size on screen at every zoom level. */
+  transform-origin: 0 100%;
+  pointer-events: auto;
+}
+
+.note-toolbar__swatch,
+.note-toolbar__delete {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  color: var(--chrome-text);
+  border: 1px solid rgba(24, 28, 35, 0.25);
+  border-radius: 5px;
+  cursor: pointer;
+}
+
+.note-toolbar__delete {
+  background: #ffffff;
+}
+
+.note-toolbar__swatch[aria-pressed='true'] {
+  border-color: var(--focus-ring);
+  box-shadow: inset 0 0 0 1px var(--focus-ring);
+}
+
+/* The fixed left toolbar. */
+.board-toolbar {
+  position: fixed;
+  top: 50%;
+  left: 16px;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 4px;
+  background: var(--chrome-background);
+  border: 1px solid var(--chrome-border);
+  border-radius: 8px;
+  box-shadow: 0 1px 3px rgba(24, 28, 35, 0.12);
+  transform: translateY(-50%);
+}
+
+.board-toolbar__button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  color: var(--chrome-text);
+  background: transparent;
+  border: 0;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.board-toolbar__button:hover {
+  background: #eef0f4;
+}
+
 .board-origin-marker {
   position: absolute;
   top: 0;

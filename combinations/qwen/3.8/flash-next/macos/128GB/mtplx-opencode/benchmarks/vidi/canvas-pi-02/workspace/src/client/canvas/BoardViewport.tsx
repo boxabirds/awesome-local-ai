@@ -4,7 +4,8 @@ import {
   GRID_SPACING_WORLD,
   ORIGIN_MARKER_SIZE_PX,
 } from '../../shared/config';
-import { mod, worldToScreen } from './camera';
+import { mod, screenToWorld, worldToScreen } from './camera';
+import type { Point } from './camera';
 import { useCameraApi, wheelDeltaToPixels } from './useCamera';
 
 /**
@@ -14,9 +15,18 @@ import { useCameraApi, wheelDeltaToPixels } from './useCamera';
  * size and phase come from the camera (so the grid looks attached to the
  * board), and a "world layer" whose transform maps world coordinates to screen
  * pixels. Children are rendered in world coordinates.
+ *
+ * Story 2 adds two reports: a click and a double-click on *empty* board
+ * surface, decided by `data-board-object` so a sticky note keeps its own
+ * clicks. What they mean (clear the selection, create a note) is decided by
+ * App, which owns the board model.
  */
 export interface BoardViewportProps {
   children?: ReactNode;
+  /** A press and release on empty surface with no pan in between. */
+  onSurfaceClick?(point: Point): void;
+  /** A double-click on empty surface, in world coordinates. */
+  onSurfaceDoubleClick?(point: Point): void;
 }
 
 interface GestureEventLike extends Event {
@@ -25,13 +35,20 @@ interface GestureEventLike extends Event {
   readonly clientY?: number;
 }
 
-export function BoardViewport({ children }: BoardViewportProps) {
+export function BoardViewport(props: BoardViewportProps) {
   const api = useCameraApi();
   const apiRef = useRef(api);
   const viewportRef = useRef<HTMLDivElement | null>(null);
   const panningRef = useRef(false);
   const gestureScaleRef = useRef(1);
   const [panning, setPanning] = useState(false);
+  // A press that travelled is a pan, never a click on empty surface.
+  const movedRef = useRef(false);
+  const downPointRef = useRef<Point>({ x: 0, y: 0 });
+
+  // Listeners are bound once, so the callbacks are read through a ref.
+  const propsRef = useRef<BoardViewportProps>(props);
+  propsRef.current = props;
 
   // Declared before the listeners effect so the bound-once listeners always
   // see the newest camera api.
@@ -65,6 +82,8 @@ export function BoardViewport({ children }: BoardViewportProps) {
         // jsdom and older browsers have no pointer capture; dragging still works.
       }
       panningRef.current = true;
+      movedRef.current = false;
+      downPointRef.current = { x: event.clientX, y: event.clientY };
       setPanning(true);
       apiRef.current.beginPan({ x: event.clientX, y: event.clientY });
       // Stops text selection / native page scroll while dragging.
@@ -73,6 +92,10 @@ export function BoardViewport({ children }: BoardViewportProps) {
 
     const onPointerMove = (event: PointerEvent) => {
       if (!panningRef.current) return;
+      const down = downPointRef.current;
+      if (Math.abs(event.clientX - down.x) > 0.5 || Math.abs(event.clientY - down.y) > 0.5) {
+        movedRef.current = true;
+      }
       apiRef.current.panMove({ x: event.clientX, y: event.clientY });
     };
 
@@ -82,6 +105,27 @@ export function BoardViewport({ children }: BoardViewportProps) {
       panningRef.current = false;
       setPanning(false);
       apiRef.current.endPan();
+    };
+
+    /**
+     * Releasing the board without having moved is a click on empty surface,
+     * which clears the selection. A release that moved was a pan.
+     */
+    const onPointerUp = (event: PointerEvent) => {
+      const wasClick = panningRef.current && !movedRef.current;
+      endPan();
+      if (!wasClick || !isSurface(event.target)) return;
+      propsRef.current.onSurfaceClick?.(
+        screenToWorld(apiRef.current.camera, localPoint(event.clientX, event.clientY)),
+      );
+    };
+
+    /** Double-click on empty surface: App decides what appears there. */
+    const onDoubleClick = (event: MouseEvent) => {
+      if (!isSurface(event.target)) return;
+      propsRef.current.onSurfaceDoubleClick?.(
+        screenToWorld(apiRef.current.camera, localPoint(event.clientX, event.clientY)),
+      );
     };
 
     const onWheel = (event: WheelEvent) => {
@@ -138,9 +182,10 @@ export function BoardViewport({ children }: BoardViewportProps) {
 
     el.addEventListener('pointerdown', onPointerDown);
     el.addEventListener('pointermove', onPointerMove);
-    el.addEventListener('pointerup', endPan);
+    el.addEventListener('pointerup', onPointerUp);
     el.addEventListener('pointercancel', endPan);
     el.addEventListener('lostpointercapture', endPan);
+    el.addEventListener('dblclick', onDoubleClick);
     // React's onWheel is passive, so the wheel listener is attached by hand.
     el.addEventListener('wheel', onWheel, { passive: false });
     el.addEventListener('gesturestart', onGestureStart, { passive: false });
@@ -152,9 +197,10 @@ export function BoardViewport({ children }: BoardViewportProps) {
     return () => {
       el.removeEventListener('pointerdown', onPointerDown);
       el.removeEventListener('pointermove', onPointerMove);
-      el.removeEventListener('pointerup', endPan);
+      el.removeEventListener('pointerup', onPointerUp);
       el.removeEventListener('pointercancel', endPan);
       el.removeEventListener('lostpointercapture', endPan);
+      el.removeEventListener('dblclick', onDoubleClick);
       el.removeEventListener('wheel', onWheel);
       el.removeEventListener('gesturestart', onGestureStart);
       el.removeEventListener('gesturechange', onGestureChangeAsListener);
@@ -196,7 +242,7 @@ export function BoardViewport({ children }: BoardViewportProps) {
           transformOrigin: '0 0',
         }}
       >
-        {children}
+        {props.children}
       </div>
       <div
         className="board-origin-marker"
