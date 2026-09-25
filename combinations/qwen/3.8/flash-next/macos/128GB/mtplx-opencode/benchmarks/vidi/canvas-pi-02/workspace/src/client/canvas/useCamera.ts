@@ -154,12 +154,22 @@ export function useCamera(viewport: Size): CameraApi {
     commit(resetCamera(viewportRef.current));
   }, [commit]);
 
-  const setCamera = useCallback(
-    (c: Camera) => {
-      commit(c);
-    },
-    [commit],
-  );
+  /**
+   * Jump the camera, and mean it right now.
+   *
+   * Pointer and wheel navigation go through `commit`, which coalesces to one
+   * render per frame: a drag that fires sixty events should paint once. This is
+   * not a drag. `setCamera` is the seam a test (or any other caller that has to
+   * read the camera straight back) uses to say *be somewhere else*, and a jump
+   * that lands a frame later means the next line reads the old view and maps a
+   * point through a camera that no longer exists. So it applies immediately.
+   */
+  const setCamera = useCallback((c: Camera) => {
+    if (c === cameraRef.current) return;
+    cameraRef.current = c;
+    navigatedRef.current = true;
+    setCameraState(c);
+  }, []);
 
   return useMemo<CameraApi>(
     () => ({

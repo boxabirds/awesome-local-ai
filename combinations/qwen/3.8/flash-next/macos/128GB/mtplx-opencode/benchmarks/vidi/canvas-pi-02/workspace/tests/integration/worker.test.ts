@@ -60,6 +60,11 @@ async function withNamespaceSpy<T>(
 }
 
 describe('the Worker refuses an address that cannot name a board (TC-04)', () => {
+  // Story 5 changed the answer from 400 to 404 and kept the guarantee: a
+  // malformed address never reaches an object. To somebody following a link, a
+  // broken address and an unknown board are one event — a board that is not
+  // there — and the two are deliberately not told apart, because telling them
+  // apart would leak which id shapes are real.
   const invalid = [
     'bad!id',
     '',
@@ -71,12 +76,12 @@ describe('the Worker refuses an address that cannot name a board (TC-04)', () =>
   ];
 
   for (const id of invalid) {
-    it(`answers 400 for "${id}" and never looks up a room`, async () => {
+    it(`answers 404 for "${id}" and never looks up a room`, async () => {
       const outcome = await withNamespaceSpy(async (calls) => {
         const response = await requestRoom(`/api/rooms/${id}`, true);
         return { status: response.status, calls: [...calls] };
       });
-      expect(outcome.status).toBe(400);
+      expect(outcome.status).toBe(404);
       // The negative half of the case: no namespace lookup, so no object
       // instance and no namespace in storage either.
       expect(outcome.calls).toEqual([]);
@@ -100,9 +105,10 @@ describe('the Worker refuses an address that cannot name a board (TC-04)', () =>
           calls: [...calls],
         };
       });
-      expect([200, 400], `${path} was answered without naming a board`).toContain(
-        outcome.status,
-      );
+      expect(
+        [200, 404],
+        `${path} was answered without naming a board`,
+      ).toContain(outcome.status);
       if (outcome.status === 200) {
         expect(outcome.type, `${path} is the app, not a room`).toContain('text/html');
       }
@@ -114,7 +120,7 @@ describe('the Worker refuses an address that cannot name a board (TC-04)', () =>
     const board = newBoardId();
     for (const path of [`/api/rooms/${board}/extra`, `/api/rooms/${board}/`, `/api/rooms/${board}%2Fextra`]) {
       const response = await requestRoom(path, true);
-      expect(response.status, path).toBe(400);
+      expect(response.status, path).toBe(404);
     }
   });
 });

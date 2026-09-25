@@ -63,6 +63,18 @@ function invalid(reason: string): Decoded {
   return { kind: 'invalid', reason };
 }
 
+/**
+ * The one-byte "who is here?" frame, made fresh each time.
+ *
+ * A room sends this to the members already present when somebody new joins, so
+ * the newcomer is not left looking at an empty board until somebody's presence
+ * clock happens to renew. It is built per call rather than exported as a shared
+ * array because a sender is allowed to write into what it sends.
+ */
+export function queryAwarenessMessage(): Uint8Array {
+  return Uint8Array.from([MESSAGE_QUERY_AWARENESS]);
+}
+
 /** Copy a frame into one contiguous `Uint8Array` starting at its first byte. */
 function toBytes(data: MessageData): Uint8Array | null {
   if (typeof data === 'string') return null;

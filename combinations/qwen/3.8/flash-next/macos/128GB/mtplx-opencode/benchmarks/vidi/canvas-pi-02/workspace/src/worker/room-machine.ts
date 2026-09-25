@@ -49,8 +49,20 @@ export type RoomDecision =
    * first and the write happens after it (`cache`, or `await` when the sender is
    * the last member left and there is no timer to hold the bytes for), and both
    * of those are read by a room that relays without awaiting this method.
+   *
+   * `presence` is the awareness body when this frame is presence traffic, and
+   * `null` for everything else. The room has to know which socket a person's
+   * presence came from in order to take it away when that socket goes, and only
+   * the frame it received can say that - so the machine, which has already
+   * decoded the frame, says what it is, and the room decides what to do with it.
    */
-  | { kind: 'relay'; echo: boolean; frame: Uint8Array; write: 'none' | 'cache' | 'await' };
+  | {
+      kind: 'relay';
+      echo: boolean;
+      frame: Uint8Array;
+      write: 'none' | 'cache' | 'await';
+      presence: Uint8Array | null;
+    };
 
 /** How many awareness updates a room replays to a socket that asks. */
 const MAX_AWARENESS_HISTORY = 20;
@@ -259,7 +271,13 @@ export class RoomMachine {
        * length-prefixed body, so the bytes as they arrived are what its reader
        * wants back. */
       this.#remember(bytes);
-      return { kind: 'relay', echo: true, frame: bytes, write: 'none' };
+      return {
+        kind: 'relay',
+        echo: true,
+        frame: bytes,
+        write: 'none',
+        presence: frame.payload,
+      };
     }
 
     // Rule 2 needs a board, and this is the only place the read happens.
@@ -363,6 +381,7 @@ export class RoomMachine {
       echo: false,
       frame: syncUpdateMessage(update),
       write: alone || due ? 'await' : 'cache',
+      presence: null,
     };
   }
 

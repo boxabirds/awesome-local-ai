@@ -4,6 +4,13 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="color-scheme" content="light" />
+    <!--
+      A board link is the only thing standing between a stranger and somebody
+      else's notes, so the address must not leak. Without this, every asset
+      served from a board page carries the board id in its `Referer`, and the
+      asset host logs it. Story 5's privacy constraint, and cheap to honour.
+    -->
+    <meta name="referrer" content="no-referrer" />
     <title>vidi6</title>
   </head>
   <body>

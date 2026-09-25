@@ -97,6 +97,21 @@ export function boardPath(boardId: string): string {
 }
 
 /**
+ * The short path a *shared link* uses (story 5): `/b/<id>`.
+ *
+ * Shorter to paste than `/board/`, and it is the address Share copies. The
+ * older `/board/<id>` prefix (stories 1–4) is still resolved by
+ * {@link parseBoardPath}, so boards already in somebody's bookmarks keep
+ * working — a link is only a promise about an id, not about a prefix.
+ */
+export const BOARD_LINK_PREFIX = '/b/';
+
+/** A whole shareable URL for a board, given an origin. */
+export function boardLink(boardId: string, origin: string): string {
+  return `${origin.replace(/\/$/, '')}${BOARD_LINK_PREFIX}${boardId}`;
+}
+
+/**
  * The board id in a pathname, or `null` when the path names no board.
  *
  * The id is read from the *last* segment, so `/board/<id>` names a board and

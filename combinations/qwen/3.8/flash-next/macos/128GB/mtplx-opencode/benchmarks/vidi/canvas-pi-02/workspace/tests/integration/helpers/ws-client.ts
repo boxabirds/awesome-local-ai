@@ -21,6 +21,7 @@ import * as Y from 'yjs';
 import * as encoding from 'lib0/encoding';
 import * as decoding from 'lib0/decoding';
 import * as syncProtocol from 'y-protocols/sync';
+import * as awarenessProtocol from 'y-protocols/awareness';
 import { SELF, env, runInDurableObject } from 'cloudflare:test';
 import { MESSAGE_AWARENESS, MESSAGE_SYNC, SYNC_UPDATE, decodeMessage } from '../../../src/shared/protocol';
 import { snapshot } from '../../../src/shared/board-model';
@@ -95,6 +96,21 @@ export async function settle(peers: readonly TestPeer[]): Promise<void> {
   }
 }
 
+/**
+ * Make a board exist, the way clicking *Create a board* does.
+ *
+ * From story 5 on, opening a socket at an id is no longer enough to get a
+ * board: an unknown id is refused, because a mistyped link must not look like a
+ * blank board. These tests are about what happens *inside* a room, so they ask
+ * for the board first and then connect, which is the order a real board has in
+ * the world.
+ */
+export async function createTestBoard(boardId: string): Promise<void> {
+  const namespace = env.BOARD_ROOM;
+  const stub = namespace.get(namespace.idFromName(boardId));
+  await (stub as unknown as { initialize(): Promise<string> }).initialize();
+}
+
 /** The room's own board, read inside the object (for "unchanged"/"empty"). */
 export async function roomBoard(boardId: string): Promise<string> {
   const namespace = env.BOARD_ROOM;
@@ -109,12 +125,55 @@ export async function roomSocketCount(boardId: string): Promise<number> {
   return runInDurableObject(stub as never, (room: BoardRoom) => room.socketCount());
 }
 
+/**
+ * What each socket the room is holding says about who is here.
+ *
+ * Presence lives on the sockets rather than in a field on the instance precisely so
+ * that it survives the room being torn down, and the only way to test *that* is to
+ * read where the answer is kept: `deserializeAttachment` on the sockets the room
+ * holds, which is the same call the departure handler makes.
+ *
+ * Entries come back in the order the sockets were accepted, which is the order the
+ * test connected its peers, so a test can name *whose* record it is looking at
+ * instead of only that somebody's exists. Attribution matters: a room that charged
+ * a socket for presence it had merely carried would remove the wrong people when
+ * that socket left.
+ */
+export async function roomPresence(boardId: string): Promise<Record<string, number>[]> {
+  const namespace = env.BOARD_ROOM;
+  const stub = namespace.get(namespace.idFromName(boardId));
+  return runInDurableObject(stub as never, (room: BoardRoom) => room.presenceSnapshot());
+}
+
 /** A test client: one `Y.Doc`, one socket, one log of received frames. */
 export class TestPeer {
   /** The document this client holds, editable with the real board-model calls. */
   readonly doc: Y.Doc;
+  /**
+   * This client's presence, real `Awareness` bound to its own document.
+   *
+   * The client id it publishes under is the document's, as it is in the browser.
+   * Presence is asserted through this object - "A no longer holds B" - rather than
+   * by counting frames, because a frame that arrives and is ignored is exactly the
+   * bug worth catching.
+   */
+  readonly awareness: awarenessProtocol.Awareness;
   /** Every frame the room sent, in arrival order. */
   readonly frames: Frame[] = [];
+  /**
+   * Every presence change this client saw, in order, with the ids that left.
+   *
+   * `change` fires for additions and updates too, so a test that wants "B went
+   * away" looks at `removed` rather than at a count.
+   */
+  readonly presenceChanges: { added: number[]; updated: number[]; removed: number[] }[] = [];
+  /**
+   * Awareness frames that arrived and could not be read, with why.
+   *
+   * Counted rather than thrown, so "the bytes were carried" and "the client choked
+   * on the bytes" are two separate facts a test can name.
+   */
+  readonly undecodable: { bytes: number; reason: string }[] = [];
   /** Close code seen on the socket, once it is closed. */
   closeCode: number | null = null;
   /** True once the socket has been closed from either side. */
@@ -127,6 +186,14 @@ export class TestPeer {
     this.#name = name;
     this.#socket = socket;
     this.doc = doc;
+    this.awareness = new awarenessProtocol.Awareness(doc);
+    this.awareness.on('change', (event: { added: number[]; updated: number[]; removed: number[] }) => {
+      this.presenceChanges.push({
+        added: [...event.added],
+        updated: [...event.updated],
+        removed: [...event.removed],
+      });
+    });
     // Whatever changes this document - typed here or sent by the room - is
     // forwarded, which is what the browser provider does. Updates whose origin
     // is this peer are its own work, so they are not sent back out.
@@ -151,6 +218,11 @@ export class TestPeer {
     return this.frames.filter(isUpdateFrame).length;
   }
 
+  /** Whether this client still holds `clientId` as somebody who is here. */
+  holdsPresence(clientId: number): boolean {
+    return this.awareness.states.has(clientId);
+  }
+
   /**
    * Open a client against a board through the real Worker entry.
    *
@@ -162,6 +234,9 @@ export class TestPeer {
     options: { name?: string; doc?: Y.Doc; path?: string } = {},
   ): Promise<TestPeer> {
     const path = options.path ?? `/api/rooms/${boardId}`;
+    // A client never meets a board that does not exist, so neither do these
+    // tests: ask for the board, then connect to it.
+    await createTestBoard(boardId);
     return TestPeer.#open(options.name ?? 'peer', `https://board.example${path}`, (request) =>
       SELF.fetch(request),
       options.doc,
@@ -179,6 +254,9 @@ export class TestPeer {
   ): Promise<TestPeer> {
     const namespace = env.BOARD_ROOM;
     const stub = namespace.get(namespace.idFromString(instanceId));
+    // Same rule one level down: a fresh instance has never been asked for its
+    // board, so the board is asked for here before the socket is.
+    await (stub as unknown as { initialize(): Promise<string> }).initialize();
     return TestPeer.#open(
       options.name ?? 'peer',
       'https://board.example/api/rooms/restart',
@@ -257,7 +335,46 @@ export class TestPeer {
       bytes: typeof data === 'string' ? new Uint8Array(0) : bytesOf(data),
     });
     if (typeof data === 'string') return;
-    // Awareness is presence traffic, relayed but never read in this story.
+
+    if (decoded.kind === 'awareness') {
+      // Presence is *read* here, the way the browser provider reads it, into a real
+      // `Awareness`. A relay that reached the socket and was dropped is the failure
+      // a frame log cannot see.
+      try {
+        awarenessProtocol.applyAwarenessUpdate(this.awareness, decoded.payload, this.#name);
+      } catch (error) {
+        // The room relays presence bytes it cannot read, so they arrive here, and
+        // `applyAwarenessUpdate` throws on them. A real `WebsocketProvider` does not
+        // guard that call, so the harness guards it: an exception thrown out of this
+        // listener tears the test socket down, and the thing under test is what the
+        // *room* did, not whether lib0 likes the bytes. The failure is still
+        // recorded, so a test can insist that a frame was ignored rather than
+        // applied.
+        this.undecodable.push({
+          bytes: bytesOf(data).byteLength,
+          reason: error instanceof Error ? error.message : String(error),
+        });
+      }
+      return;
+    }
+
+    if (decoded.kind === 'query-awareness') {
+      // The provider's answer to "who is here?": every state this client holds,
+      // including its own, which is what `getStates()` returns and what the
+      // provider sends. Nothing is sent when the client holds nobody, as in the
+      // provider, whose handler only emits a reply with something in it.
+      const clients = [...this.awareness.getStates().keys()];
+      if (clients.length === 0) return;
+      const encoder = encoding.createEncoder();
+      encoding.writeVarUint(encoder, MESSAGE_AWARENESS);
+      encoding.writeVarUint8Array(
+        encoder,
+        awarenessProtocol.encodeAwarenessUpdate(this.awareness, clients),
+      );
+      this.send(encoding.toUint8Array(encoder));
+      return;
+    }
+
     if (decoded.kind !== 'sync') return;
 
     const encoder = encoding.createEncoder();
@@ -285,6 +402,32 @@ export class TestPeer {
     encoding.writeVarUint(encoder, MESSAGE_AWARENESS);
     encoding.writeVarUint8Array(encoder, bytes);
     this.send(encoding.toUint8Array(encoder));
+  }
+
+  /**
+   * Announce this client's own presence, as a publishing client does: one state,
+   * one entry, sent as its own frame. `null` is the farewell a client sends when
+   * it decides it is gone.
+   */
+  publishPresence(state: Record<string, unknown> | null): void {
+    this.awareness.setLocalState(state);
+    this.sendAwareness(
+      awarenessProtocol.encodeAwarenessUpdate(this.awareness, [this.awareness.clientID]),
+    );
+  }
+
+  /**
+   * Send every state this client holds, as it does when answering a query.
+   *
+   * Two shapes matter and this can produce only one of them, so the other is built
+   * by hand where it is needed: an answer about a *person* carries whoever that
+   * client has seen, and a room that files it as the forwarder's own presence will
+   * remove those people when the forwarder leaves.
+   */
+  relayPresence(): void {
+    const clients = [...this.awareness.getStates().keys()];
+    if (clients.length === 0) return;
+    this.sendAwareness(awarenessProtocol.encodeAwarenessUpdate(this.awareness, clients));
   }
 
   /** Send bytes straight to the room, bypassing every client behaviour. */

@@ -1,4 +1,5 @@
-import { expect, test, type Page } from '@playwright/test';
+import { type Page } from '@playwright/test';
+import { expect, test } from './helpers/boardTest';
 import { STICKY_SIZE_WORLD } from '../../src/shared/config';
 import { screenToWorld } from '../../src/client/canvas/camera';
 import {
@@ -56,7 +57,6 @@ async function viewportPoint(page: Page, pagePoint: { x: number; y: number }) {
 test('TC-30 a double-click creates a note under the cursor, and the typing lands in it', async ({
   page,
 }) => {
-  await page.goto('/');
   await settle(page);
 
   await page.mouse.dblclick(400, 300);
@@ -91,7 +91,6 @@ test('TC-30 a double-click creates a note under the cursor, and the typing lands
 test('TC-30 a double-click on a note edits that note and does not create another one', async ({
   page,
 }) => {
-  await page.goto('/');
   await settle(page);
   const [id] = await seedNotes(page, [{ x: 0, y: 0, text: RETRO_ITEM }]);
 
@@ -109,7 +108,6 @@ test('TC-30 a double-click on a note edits that note and does not create another
 test('TC-31 at 50% zoom a 100x50 drag moves the note 200x100 world units', async ({
   page,
 }) => {
-  await page.goto('/');
   await settle(page);
   await setCamera(page, { x: -300, y: -200, zoom: 0.5 });
 
@@ -140,7 +138,6 @@ test('TC-31 at 50% zoom a 100x50 drag moves the note 200x100 world units', async
 test('TC-32 at 200% zoom a 100x50 drag moves the note 50x25 and puts it on top', async ({
   page,
 }) => {
-  await page.goto('/');
   await settle(page);
   await setCamera(page, { x: -420, y: -300, zoom: 2 });
 
@@ -182,7 +179,6 @@ test('TC-32 at 200% zoom a 100x50 drag moves the note 50x25 and puts it on top',
 test('TC-33 note text keeps the 24px size, then shrinks and clips at 1,000 characters', async ({
   page,
 }) => {
-  await page.goto('/');
   await settle(page);
 
   await page.mouse.dblclick(500, 300);
@@ -226,7 +222,6 @@ test('TC-33 note text keeps the 24px size, then shrinks and clips at 1,000 chara
 test('TC-34 the toolbar creates a note in the middle of the view a million units out', async ({
   page,
 }) => {
-  await page.goto('/');
   await settle(page);
   await setCamera(page, { x: 500_000, y: -300_000, zoom: 1 });
 
@@ -251,7 +246,6 @@ test('TC-34 the toolbar creates a note in the middle of the view a million units
 });
 
 test('the golden path: create, type, recolour, move at 50%, delete', async ({ page }) => {
-  await page.goto('/');
   await settle(page);
 
   await page.mouse.dblclick(400, 300);
@@ -297,7 +291,6 @@ test('the golden path: create, type, recolour, move at 50%, delete', async ({ pa
 });
 
 test('500 notes: clicking one is a single cheap update', async ({ page }) => {
-  await page.goto('/');
   await settle(page);
 
   // 25 x 20 notes, mixed colours and realistic texts, seeded in one page

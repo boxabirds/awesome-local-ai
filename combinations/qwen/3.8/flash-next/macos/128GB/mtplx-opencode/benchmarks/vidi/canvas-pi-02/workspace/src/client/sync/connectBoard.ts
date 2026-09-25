@@ -47,6 +47,33 @@ export interface ProviderLike {
   destroy(): void;
   readonly synced: boolean;
   readonly wsconnected: boolean;
+  /**
+   * The provider's presence, when it has one. Story 6 draws with it; the
+   * connection's own state machine does not look at it, and the test fakes
+   * leave it out, which is why it is optional here rather than assumed.
+   */
+  readonly awareness?: PresenceAwareness | null;
+  /**
+   * The raw socket behind the provider. Presence uses it for one thing: the
+   * one-byte "who is here?" frame, which `y-websocket` has no way to send and
+   * no handler for.
+   */
+  readonly ws?: PresenceSocket | null;
+}
+
+/** The presence read/write surface, kept structural so the fakes stay small. */
+export interface PresenceAwareness {
+  readonly states: Map<number, Record<string, unknown>>;
+  setLocalStateField?(field: string, value: unknown): void;
+  on?(event: string, handler: (update: unknown, origin: unknown) => void): void;
+  off?(event: string, handler: (update: unknown, origin: unknown) => void): void;
+  readonly clientID?: number;
+}
+
+/** Just enough of a `WebSocket` to notice it is open and push one byte. */
+export interface PresenceSocket {
+  readonly readyState: number;
+  send?(data: Uint8Array): void;
 }
 
 export interface BoardConnection {
@@ -116,7 +143,6 @@ function defaultProviderFactory(
     resyncInterval: KEEPALIVE_INTERVAL_MS,
   }) as unknown as ProviderLike;
 }
-
 export interface ConnectionSpec {
   /** The document to share. */
   doc: Y.Doc;
