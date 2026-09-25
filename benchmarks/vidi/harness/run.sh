@@ -94,7 +94,8 @@ PORT="$BENCH_PORT" REASONING_EFFORT="$REASONING_EFFORT" \
   > "$RUN_DIR/server.log" 2>&1 &
 SERVER_PID=$!
 for ((waited = 0; waited < SERVER_READY_TIMEOUT_S; waited += POLL_S)); do
-  curl -s -m 2 "127.0.0.1:$BENCH_PORT/v1/models" >/dev/null && break
+  # -f: while loading, llama-server answers /v1/models with a 503 error body, not the model list.
+  curl -sf -m 2 "127.0.0.1:$BENCH_PORT/v1/models" >/dev/null && break
   kill -0 "$SERVER_PID" 2>/dev/null || { echo "server exited; see $RUN_DIR/server.log" >&2; exit 1; }
   sleep "$POLL_S"
 done
