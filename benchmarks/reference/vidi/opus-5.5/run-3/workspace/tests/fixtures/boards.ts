@@ -135,3 +135,53 @@ export function randomBytesLike(update: Uint8Array, seed = 7): Uint8Array {
   for (let i = 0; i < out.length; i++) out[i] = Math.floor(rand() * 256);
   return out;
 }
+
+const CLUSTER_TEXTS = [
+  'Went well: the demo landed with the client',
+  'Onboarding checklist finally written down',
+  'Pairing on the flaky tests helped a lot',
+  'Friday releases felt calm this time',
+  'Design and dev synced early 🎉',
+  'Too many context switches mid-sprint',
+  'Estimates were off for the search work',
+  'Staging was down for two days',
+  'Late feedback on the pricing page',
+  'Standups keep running over 15 minutes',
+  'Action: add a smoke test to the pipeline',
+  'Action: book a design review every Tuesday',
+  'Action: Priya to document the release steps',
+  'Idea: rotate the demo presenter',
+  'Idea: a shared glossary for the domain',
+  'Question: who owns the analytics events?',
+  'Question: do we still need the nightly job?',
+  'Try: no-meeting Wednesday afternoons',
+  'Try: smaller pull requests (< 300 lines)',
+  'Keep: celebrating the small wins',
+];
+
+/** World top-left of each note in `clusterBoard` (world units). */
+export const CLUSTER_A = { x: 0, y: 0, step: 220 };
+export const CLUSTER_B = { x: 0, y: 700, step: 190 };
+
+/**
+ * The story 7 retro board: 20 notes in two clusters of 5 columns × 2 rows. Cluster A (ids 0-9) is a tidy grid
+ * with 20-unit gaps; cluster B (ids 10-19) is 700 units below, its notes overlapping their neighbours by 10 units,
+ * with a few brought to the front so stacking is not creation order. `ids[c + 5 * r]` is column c, row r of A;
+ * `ids[10 + c + 5 * r]` the same in B.
+ */
+export function clusterBoard(): RecordedBoard & { ids: string[] } {
+  const ids: string[] = [];
+  const recorded = recordBoard((d) => {
+    CLUSTER_TEXTS.forEach((text, i) => {
+      const cluster = i < 10 ? CLUSTER_A : CLUSTER_B;
+      const k = i % 10;
+      const x = cluster.x + (k % 5) * cluster.step;
+      const y = cluster.y + Math.floor(k / 5) * cluster.step;
+      const id = createSticky(d, { x: x + 100, y: y + 100 }, COLORS[i % COLORS.length]);
+      setText(d, id, text);
+      ids.push(id);
+    });
+    for (const i of [11, 17, 13]) bringToFront(d, ids[i]);
+  });
+  return { ...recorded, ids };
+}

@@ -7,6 +7,8 @@ export interface Vidi6TestHooks {
   getCamera(): Camera;
   /** Current notes in render order (installed by App). */
   notes?(): readonly StickySnapshot[];
+  /** Ids of this client's selected objects, sorted (installed by App). */
+  selection?(): string[];
   /** Current mapped connection state (installed by App). */
   connectionState?: ConnectionState;
 }
