@@ -1,3 +1,65 @@
+commit b3bc7f390d56e7a8e5c6c3ec52456c2f9868e0bf
+vidi-agent  Fri Sep 25 21:04:55 2026 +0100
+
+    harness: snapshot after story 5 (uncommitted agent work)
+
+
+ NOTES.md                                      | 311 ++++++++++++
+ index.html                                    |   7 +
+ src/client/App.tsx                            |  95 ++++
+ src/client/Root.tsx                           |  53 ++
+ src/client/api.ts                             |  80 ++++
+ src/client/canvas/useCamera.ts                |  22 +-
+ src/client/main.tsx                           |   4 +-
+ src/client/pages/Board.tsx                    |  94 ++++
+ src/client/pages/Home.tsx                     | 101 ++++
+ src/client/pages/NotFound.tsx                 | 114 +++++
+ src/client/presence/Presence.tsx              | 366 ++++++++++++++
+ src/client/presence/colors.ts                 |  39 ++
+ src/client/presence/identity.ts               | 266 +++++++++++
+ src/client/presence/people.ts                 | 198 ++++++++
+ src/client/presence/transport.ts              | 423 ++++++++++++++++
+ src/client/presence/usePresence.ts            | 280 +++++++++++
+ src/client/router.ts                          |  91 ++++
+ src/client/share/SharePanel.tsx               | 245 ++++++++++
+ src/client/styles.css                         | 199 ++++++++
+ src/client/sync/connectBoard.ts               |  28 +-
+ src/client/useBoardExists.ts                  | 122 +++++
+ src/shared/board-id.ts                        |  15 +
+ src/shared/config.ts                          | 106 ++++
+ src/shared/create-board.ts                    |  73 +++
+ src/shared/protocol.ts                        |  12 +
+ src/worker/awareness-tracker.ts               | 273 +++++++++++
+ src/worker/board-room.ts                      | 180 ++++++-
+ src/worker/board-store.ts                     | 155 +++++-
+ src/worker/create-board.ts                    |  69 +++
+ src/worker/env.ts                             |  11 +
+ src/worker/index.ts                           | 141 +++++-
+ src/worker/room-machine.ts                    |  23 +-
+ tests/component/presence.test.tsx             | 239 ++++++++++
+ tests/component/share-pages.test.tsx          | 314 ++++++++++++
+ tests/component/share-panel.test.tsx          | 172 +++++++
+ tests/e2e/helpers/boardTest.ts                |  38 ++
+ tests/e2e/helpers/boards.ts                   | 209 ++++++++
+ tests/e2e/navigation.spec.ts                  |  39 +-
+ tests/e2e/persistence.spec.ts                 |  46 +-
+ tests/e2e/presence.spec.ts                    | 663 ++++++++++++++++++++++++++
+ tests/e2e/share.spec.ts                       | 419 ++++++++++++++++
+ tests/e2e/sticky-notes.spec.ts                |  11 +-
+ tests/e2e/sync.spec.ts                        | 101 ++--
+ tests/integration/board-api.test.ts           | 458 ++++++++++++++++++
+ tests/integration/helpers/ws-client.ts        | 145 +++++-
+ tests/integration/presence-room.test.ts       | 289 +++++++++++
+ tests/integration/worker.test.ts              |  18 +-
+ tests/unit/awareness-tracker.test.ts          | 309 ++++++++++++
+ tests/unit/create-board.test.ts               | 279 +++++++++++
+ tests/unit/presence-colors.test.ts            | 168 +++++++
+ tests/unit/presence-identity-contract.test.ts | 187 ++++++++
+ tests/unit/presence-identity.test.ts          | 138 ++++++
+ tests/unit/presence-transport.test.ts         | 507 ++++++++++++++++++++
+ tests/unit/router.test.ts                     | 100 ++++
+ wrangler.jsonc                                |  11 +
+ 55 files changed, 8891 insertions(+), 165 deletions(-)
 commit e22cc97a81db3b856c7a54c8d1ddd7601d18daf3
 vidi-agent  Fri Sep 25 14:26:31 2026 +0100
 
