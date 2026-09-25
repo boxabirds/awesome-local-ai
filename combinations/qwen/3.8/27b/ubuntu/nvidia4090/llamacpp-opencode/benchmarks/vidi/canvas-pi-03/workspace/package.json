@@ -15,7 +15,8 @@
   },
   "dependencies": {
     "react": "^19.0.0",
-    "react-dom": "^19.0.0"
+    "react-dom": "^19.0.0",
+    "yjs": "^13.6.33"
   },
   "devDependencies": {
     "@playwright/test": "^1.44.0",

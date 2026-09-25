@@ -95,3 +95,108 @@ npm run build        # Production build → dist/client/
 
 4. **Zoom step**: Uses 1.25× per step (not 1.2). This gives 7 steps from 100% to ~381%, then clamps
    at 400%, matching the PRD's "roughly seven steps to 400%".
+
+---
+
+# Story 2: Capture ideas on sticky notes and rearrange them — Implementation Notes
+
+## What was built
+
+Sticky notes on the board: create by double-click or toolbar button, edit text with automatic
+font fitting, drag to move (zoom-accurate), recolour (6 colours), delete, and z-ordering
+(bring-to-front on drag). All board state lives in a local `Y.Doc` from day one.
+
+### Key files
+
+| File | Purpose |
+|------|---------|
+| `src/shared/board-model.ts` | Framework-free board model on a `Y.Doc` (create/move/colour/delete/bringToFront/snapshot) |
+| `src/client/board/useBoardDoc.ts` | Owns the `Y.Doc`; memoised snapshot via `useSyncExternalStore` |
+| `src/client/board/useSelection.ts` | Local selection/editing state (never stored in the doc) |
+| `src/client/objects/StickyNote.tsx` | Note element: select, drag, edit entry, font-fit mirror, fade, toolbar |
+| `src/client/objects/StickyTextEditor.tsx` | Uncontrolled textarea: diff-based Yjs writes, IME, clamp, Escape, click-outside |
+| `src/client/objects/StickyText.ts` | Pure text helpers: `clampToLimit`, `applyTextDiff`, `counterVisible`, `fitFontSize` |
+| `src/client/objects/NoteToolbar.tsx` | Per-note colour swatches + delete, unscaled above the note |
+| `src/client/board/Toolbar.tsx` | Global top toolbar with the Sticky note button |
+| `src/client/App.tsx` | Wiring: keyboard shortcuts, selection, stale-state cleanup, stable note order |
+| `tests/fixtures/texts.ts` | Realistic fixtures: short text, retro item, exactly 1,000 chars of prose |
+
+### Board model
+
+- `initDoc` sets `meta.schemaVersion` (persisted/wire format anchor for stories 3-4).
+- Each successful mutation runs exactly one `doc.transact(fn, LOCAL_ORIGIN)`; rejections
+  (stale id, unknown colour, non-finite coordinates) return `false`/`''` before any transaction,
+  so failed calls emit no Yjs update (unit-asserted per call).
+- Coordinates are the note's top-left; `createSticky` subtracts `STICKY_SIZE_WORLD / 2` so the
+  note centres on the click point.
+- `snapshot` returns notes sorted by `(z, id)`; unknown object types are skipped (forward-compat).
+
+### Y.Doc ownership
+
+`useBoardDoc` creates a single `Y.Doc` in `useState`, observes `objects` deeply, and recomputes
+the memoised snapshot into a cache ref before notifying `useSyncExternalStore`. Rendering is
+re-driven by snapshot reference change only.
+
+### Stacking: z-index, not DOM order
+
+Notes render in **stable creation order** and stack via CSS `z-index: note.z`. Rendering in z
+order would make `bringToFront` (called at drag start) reorder the React children, moving the
+dragging note's DOM node — and the browser **implicitly releases pointer capture when the
+capturing node is moved**, which kills the drag after the first move (found via e2e TC-32).
+
+### Text editing
+
+- Uncontrolled textarea (`defaultValue`); `input` computes a character diff and applies it to
+  `Y.Text` (one Yjs update per input event).
+- Input beyond 1,000 chars is clamped; the caret moves to the end of the kept text.
+- IME: `compositionstart/end` tracked; diffs only after composition end (manual-check scope).
+- Escape ends editing keeping selection; click outside (window-level capture pointerdown) ends
+  it unselected. Enter while selected starts editing with the caret at the end.
+- Font fit: hidden mirror div (same width/font as display text) binary-searched 10-24px in
+  0.5px steps on text change; overflow shows a transparent-to-colour fade at the bottom.
+  The editor mirrors the same size. Re-fit is not needed on zoom (world units scale uniformly).
+
+### Drag
+
+3px screen-pixel threshold (below = select, not move). Movement is rAF-throttled
+`moveObject`; `pointerup`/`pointercancel` flush the pending position synchronously, so the note
+always ends exactly under the pointer. `bringToFront` runs once at drag start. If the note is
+deleted mid-drag (`moveObject` returns false), the drag ends silently (TC-37).
+
+### Keyboard (board level)
+
+Enter edits the selected note; Delete/Backspace deletes it — only when not editing text
+(guard: no active editing state and event target is not INPUT/TEXTAREA/contentEditable).
+
+## Deviations / notes for story 2
+
+1. **E2E viewport is 1280x720, not 1280x800.** The chromium project spreads
+   `devices['Desktop Chrome']`, whose own viewport (1280x720) overrides the global `use.viewport`
+   in `playwright.config.ts`. Initial camera is therefore `{x:-640, y:-360, zoom:1}`; the e2e
+   specs compute coordinates from that. Left the config as-is (story 1 territory).
+
+2. **React 19 test quirks handled in component tests:**
+   - `useSyncExternalStore` updates triggered by programmatic `el.click()` are not flushed
+     synchronously; use RTL `fireEvent.click` (wraps in `act()`) or wrap in `act()`.
+   - No global `JSX.Element` namespace — components return `ReactElement`.
+   - Uncontrolled textarea value changes in tests need `fireEvent.input` (native setter)
+     to fire React's `onChange`; assigning `.value` + dispatching does not.
+
+3. **Test-only hooks extended:** `window.__vidi6.getNotes()` (snapshot) and `getDoc()` (the
+   `Y.Doc`, for direct model calls from tests), enabled in `--mode test` builds only.
+
+4. **Test counts:** 40 unit (15 camera, 15 board model, 10 sticky text), 39 component, 13 e2e
+   (6 story 1 + 7 story 2). All green on Chromium.
+
+5. **500-note performance run** remains a manual script (not a CI gate) per the design doc;
+   the z-index stacking keeps per-note re-renders local to the mutated note's style.
+
+## Local dev
+
+```bash
+npm run test:unit
+npm run test:component
+npm run test:e2e -- --project chromium
+npm run typecheck
+npm run build
+```
