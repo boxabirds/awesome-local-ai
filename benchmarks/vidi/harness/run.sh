@@ -48,12 +48,18 @@ COMBINATION="$(sed -n 's/^COMBINATION="\(.*\)"/\1/p' "$ENV_FILE")"
 BACKEND="$(sed -n 's/^BACKEND="\(.*\)"/\1/p' "$ENV_FILE")"
 COMBO_DIR="$REPO_ROOT/combinations/$COMBINATION"
 CONFIG="$COMBO_DIR/config.sh"
+# A reference stack (benchmarks/reference/install-stack.sh) names its own config and results folder.
+RUN_BASE="$(sed -n 's/^RUN_BASE="\(.*\)"/\1/p' "$ENV_FILE")"
+[[ -n "$RUN_BASE" ]] && CONFIG="$REPO_ROOT/$(sed -n 's/^CONFIG_FILE="\(.*\)"/\1/p' "$ENV_FILE")"
 cfg() { sed -n "s/^$1=\"\{0,1\}\([^\"]*\)\"\{0,1\}.*/\1/p" "$CONFIG" | head -1; }
 CONTEXT_LIMIT="$(cfg CONTEXT_LIMIT)"; OUTPUT_LIMIT="$(cfg OUTPUT_LIMIT)"
 SERVER_CMD="$INSTALL_ID-server"
-command -v "$SERVER_CMD" >/dev/null || { echo "no $SERVER_CMD on PATH" >&2; exit 1; }
+# A cloud backend (BACKEND="anthropic" in install.env) has no local server: the client talks to the provider.
+CLOUD=0; [[ "$BACKEND" == anthropic ]] && CLOUD=1
+[[ "$CLOUD" == 1 ]] || command -v "$SERVER_CMD" >/dev/null || { echo "no $SERVER_CMD on PATH" >&2; exit 1; }
 
 RUN_DIR="$COMBO_DIR/benchmarks/vidi/$RUN_ID"
+[[ -n "$RUN_BASE" ]] && RUN_DIR="$REPO_ROOT/$RUN_BASE/$RUN_ID"
 mkdir -p "$RUN_DIR"
 echo "run dir: $RUN_DIR"
 
@@ -64,7 +70,7 @@ cleanup() {
 }
 trap cleanup EXIT INT TERM
 
-if curl -s -m 2 "127.0.0.1:$BENCH_PORT/v1/models" >/dev/null; then
+if [[ "$CLOUD" == 0 ]] && curl -s -m 2 "127.0.0.1:$BENCH_PORT/v1/models" >/dev/null; then
   echo "port $BENCH_PORT already serving; refusing to benchmark against an unknown server" >&2; exit 1
 fi
 
@@ -77,7 +83,7 @@ if [[ ! -d "$ACCEPTANCE/node_modules" || "$ACCEPTANCE/package-lock.json" -nt "$A
 fi
 
 echo "sandbox preflight (agent toolchain inside the sandbox)"
-(cd "$HARNESS" && uv run --quiet preflight.py) || { echo "preflight failed; not starting the run" >&2; exit 1; }
+(cd "$HARNESS" && uv run --quiet preflight.py --client "$CLIENT_NAME") || { echo "preflight failed; not starting the run" >&2; exit 1; }
 
 if [[ "$(uname)" == Darwin ]]; then
   echo "cooling to thermal nominal"
@@ -87,6 +93,12 @@ from thermal import wait_for_thermal
 print('  thermal=' + wait_for_thermal('nominal', timeout_s=$THERMAL_TIMEOUT_S))"
 fi  # elsewhere the driver waits for fit conditions (hostenv) before every story
 
+if [[ "$CLOUD" == 1 ]]; then
+  MODEL_ID="$(sed -n 's/^MODEL_ID="\(.*\)"/\1/p' "$ENV_FILE")"
+  [[ -n "$MODEL_ID" ]] || { echo "cloud install $INSTALL_ID has no MODEL_ID in $ENV_FILE" >&2; exit 1; }
+  echo "cloud backend $BACKEND: model $MODEL_ID (no local server)"
+  AGENT_URL="cloud"
+else
 echo "starting $SERVER_CMD on :$BENCH_PORT (effort=$REASONING_EFFORT)"
 # New session so the whole server process tree can be stopped (macOS has no setsid(1)).
 PORT="$BENCH_PORT" REASONING_EFFORT="$REASONING_EFFORT" \
@@ -113,6 +125,7 @@ if [[ "$METER" == 1 ]]; then
 else
   AGENT_URL="http://127.0.0.1:$BENCH_PORT/v1"
 fi
+fi  # local server
 
 if [[ "$(uname)" == Darwin ]]; then
   HOST_DESC="$(sysctl -n machdep.cpu.brand_string) $(( $(sysctl -n hw.memsize) / 1073741824 ))GB"
@@ -130,9 +143,10 @@ SERVER_LOG=""
 case "$CLIENT_NAME" in
   pi) CLIENT_VERSION="$(pi --version 2>/dev/null)" ;;
   opencode) CLIENT_VERSION="$(opencode --version 2>/dev/null)" ;;
+  claude) CLIENT_VERSION="$(claude --version 2>/dev/null | head -1)" ;;
   *) echo "unknown client $CLIENT_NAME" >&2; exit 2 ;;
 esac
-curl -s -m 5 "127.0.0.1:$BENCH_PORT/health" > "$RUN_DIR/server-health.json" || true
+[[ "$CLOUD" == 1 ]] || curl -s -m 5 "127.0.0.1:$BENCH_PORT/health" > "$RUN_DIR/server-health.json" || true
 
 # A resumed run can change setup between stories (e.g. a memory limit); keep every start.
 [[ -f "$RUN_DIR/run.json" ]] && { tr -d '\n' < "$RUN_DIR/run.json"; echo; } >> "$RUN_DIR/run-history.jsonl"

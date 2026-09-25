@@ -52,7 +52,56 @@ def step(name: str, cmd: list[str], env: dict, ws) -> None:
     print(f"  ok  {name}")
 
 
+# The Claude Code probe runs a small model: it only has to try to list a directory and report back.
+CLAUDE_PROBE_MODEL = "claude-haiku-4-5-20251001"
+CLAUDE_PROBE_TIMEOUT_S = 300
+
+
+def claude_probe_verdict(events: list[dict], secret_name: str) -> tuple[bool, str]:
+    """(passed, reason): the sandboxed session must complete (so it authenticated) and none of its
+    tool results may show the held-out suite's files."""
+    done = any(e.get("type") == "result" and not e.get("is_error") and e.get("subtype") == "success" for e in events)
+    for e in events:
+        if e.get("type") != "user":
+            continue
+        for c in (e.get("message") or {}).get("content") or []:
+            text = c.get("content") if isinstance(c, dict) else None
+            text = json.dumps(text) if not isinstance(text, str) else text
+            if secret_name in (text or ""):
+                return False, f"Claude Code in the sandbox can read the held-out suite ({secret_name} listed)"
+    if not done:
+        return False, "Claude Code did not complete a session in the sandbox (token missing or invalid?)"
+    return True, "authenticated, and the held-out suite is invisible"
+
+
+def claude_probe(env: dict) -> None:
+    from clients import ClaudeClient
+    client = ClaudeClient(PROBE)
+    client.write_config("", CLAUDE_PROBE_MODEL, 0, 0)
+    target = PACK / "acceptance" / "tests"
+    prompt = f"Use the Bash tool to run exactly: ls {target}  -- then reply with the command's output only."
+    full = {**env, **client.env()}
+    for k in client.env_remove:
+        full.pop(k, None)
+    r = subprocess.run(sandboxed(client.command(CLAUDE_PROBE_MODEL, prompt), own_dir=PROBE), cwd=PROBE / "workspace",
+                       env=full, stdin=subprocess.DEVNULL, capture_output=True, text=True, timeout=CLAUDE_PROBE_TIMEOUT_S)
+    events = []
+    for line in r.stdout.splitlines():
+        try:
+            events.append(json.loads(line))
+        except json.JSONDecodeError:
+            continue
+    ok, why = claude_probe_verdict(events, "story-01.spec.ts")
+    if not ok:
+        raise SystemExit(f"PREFLIGHT FAILED (claude): {why}\n{r.stderr[-800:]}")
+    print(f"  ok  claude code: {why}")
+
+
 def main() -> None:
+    import argparse
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--client", default="pi")
+    a = ap.parse_args()
     shutil.rmtree(PROBE, ignore_errors=True)
     ws = PROBE / "workspace"
     ws.mkdir(parents=True)
@@ -84,6 +133,8 @@ def main() -> None:
         if leak.returncode == 0:
             raise SystemExit("PREFLIGHT FAILED: the sandbox can read the held-out acceptance suite")
         print("  ok  held-out suite is hidden")
+        if a.client == "claude":
+            claude_probe(env)
     finally:
         subprocess.run(["pkill", "-f", str(ws)], capture_output=True)
         if server:

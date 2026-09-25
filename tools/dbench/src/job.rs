@@ -17,6 +17,8 @@ pub const PACK_ENTRY: &str = "harness/run.sh";
 pub enum AgentClient {
     Pi,
     Opencode,
+    /// Claude Code headless (cloud model); the node needs `claude` on PATH and a subscription token.
+    Claude,
 }
 
 impl AgentClient {
@@ -24,6 +26,7 @@ impl AgentClient {
         match self {
             AgentClient::Pi => "pi",
             AgentClient::Opencode => "opencode",
+            AgentClient::Claude => "claude",
         }
     }
 }
