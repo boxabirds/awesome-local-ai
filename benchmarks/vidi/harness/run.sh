@@ -82,6 +82,9 @@ cleanup() {
     if [[ -n "$STOPPED" ]]; then record_event stopped "$why"; elif [[ $rc -ne 0 ]]; then record_event failed "$why"; fi
   fi
   rm -f "$ERR_LOG"
+  # The run's own status, whatever the last line above returned: under set -e a false test
+  # here (e.g. no server to stop, on a cloud stack) otherwise becomes the script's exit code.
+  exit "$rc"
 }
 trap cleanup EXIT
 trap 'STOPPED=1; exit 143' INT TERM
