@@ -76,7 +76,8 @@ describe('tools.active_tool', () => {
 
   it('TC-22 unknown shortcuts (tools not in this build) change nothing', () => {
     renderApp(doc);
-    // P (story 11 Pen) is part of this build now; I and C (stories 12, 16) are not.
+    // P (story 11 Pen) is part of this build now; C (story 16) is not. I (story 12) opens the
+    // image file picker and never becomes the active tool.
     for (const k of ['i', 'c', 'x']) key(k);
     expect(pressed()).toEqual(['Select (V)']);
   });

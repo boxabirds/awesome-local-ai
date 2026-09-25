@@ -4,6 +4,8 @@
  *   POST /api/boards        create a board (rate limited per visitor)  201 {id} / 429 / 500
  *   GET  /api/boards/:id    does the board exist?                      200 {id} / 404
  *   GET  /api/rooms/:id     WebSocket to the board's BoardRoom          101 / 404 / 426
+ *   POST /api/boards/:id/assets        upload an image (story 12, src/worker/assets.ts)
+ *   GET  /api/assets/:boardId/:assetId a stored image (story 12)
  *
  * Everything else goes to the static client. Ids are validated before the namespace is
  * touched, so malformed ids never instantiate an object; unknown and malformed ids get the
@@ -13,6 +15,7 @@
 import { isValidBoardId } from '../shared/board-id';
 import type { BoardRoom } from './board-room';
 import { handleBoardsRequest, type Limiter } from './create-board';
+import { handleServe, handleUpload } from './assets';
 import { handleTestHook } from './test-hooks';
 
 export { BoardRoom } from './board-room';
@@ -21,6 +24,10 @@ export interface Env {
   BOARD_ROOM: DurableObjectNamespace<BoardRoom>;
   ASSETS: Fetcher;
   BOARD_CREATE_LIMITER: Limiter;
+  /** Story 12: stored images, keyed `<boardId>/<assetId>`. */
+  ASSETS_BUCKET: R2Bucket;
+  /** Story 12: image uploads per visitor (IMAGE_UPLOAD_LIMIT per IMAGE_UPLOAD_PERIOD_SECONDS). */
+  ASSET_UPLOAD_LIMITER: Limiter;
   /** '1' only in the e2e `wrangler dev` command line; enables src/worker/test-hooks.ts. */
   TEST_HOOKS?: string;
 }
@@ -29,10 +36,25 @@ const ROOMS_PREFIX = '/api/rooms/';
 const BOARDS_PATH = '/api/boards';
 const NOT_FOUND = 404;
 const UPGRADE_REQUIRED = 426;
+const METHOD_NOT_ALLOWED = 405;
+const ASSETS_PREFIX = '/api/assets/';
+/** `/api/boards/:id/assets` */
+const UPLOAD_PATH = /^\/api\/boards\/([^/]+)\/assets\/?$/;
 
 export default {
   async fetch(req: Request, env: Env): Promise<Response> {
     const url = new URL(req.url);
+    const upload = UPLOAD_PATH.exec(url.pathname);
+    if (upload !== null) {
+      if (req.method !== 'POST') return new Response('Method not allowed', { status: METHOD_NOT_ALLOWED, headers: { Allow: 'POST' } });
+      return handleUpload(req, env, upload[1]!);
+    }
+    if (url.pathname.startsWith(ASSETS_PREFIX)) {
+      if (req.method !== 'GET' && req.method !== 'HEAD') {
+        return new Response('Method not allowed', { status: METHOD_NOT_ALLOWED, headers: { Allow: 'GET' } });
+      }
+      return handleServe(env, url.pathname.slice(ASSETS_PREFIX.length));
+    }
     if (url.pathname === BOARDS_PATH || url.pathname.startsWith(`${BOARDS_PATH}/`)) {
       return handleBoardsRequest(req, env);
     }

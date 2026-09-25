@@ -12,9 +12,14 @@
   },
   // Board creation limit per visitor (PRD share.rate_limit); limit and period mirror
   // BOARD_CREATE_LIMIT and BOARD_CREATE_PERIOD_SECONDS in src/shared/config.ts.
+  // Image uploads per visitor (PRD image.rate_limit); limit and period mirror IMAGE_UPLOAD_LIMIT
+  // and IMAGE_UPLOAD_PERIOD_SECONDS.
   "ratelimits": [
-    { "name": "BOARD_CREATE_LIMITER", "namespace_id": "1001", "simple": { "limit": 10, "period": 60 } }
+    { "name": "BOARD_CREATE_LIMITER", "namespace_id": "1001", "simple": { "limit": 10, "period": 60 } },
+    { "name": "ASSET_UPLOAD_LIMITER", "namespace_id": "1002", "simple": { "limit": 60, "period": 60 } }
   ],
+  // Story 12: stored images (src/worker/assets.ts).
+  "r2_buckets": [{ "binding": "ASSETS_BUCKET", "bucket_name": "vidi6-assets" }],
   "durable_objects": {
     "bindings": [{ "name": "BOARD_ROOM", "class_name": "BoardRoom" }]
   },

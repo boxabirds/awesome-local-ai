@@ -213,3 +213,31 @@ export const STROKE_MAX_POINTS = 5000;
 export const STROKE_HIT_TOLERANCE_PX = 6;
 /** Smallest width and height a stroke can be resized to, in world units. */
 export const STROKE_MIN_SIZE_WORLD = 4;
+
+// ---- Story 12: images ----
+/** Image types that can be added, judged by content (PRD image.types). No SVG: it can carry scripts. */
+export const IMAGE_ACCEPTED_TYPES = ['image/png', 'image/jpeg', 'image/gif', 'image/webp'] as const;
+/** Largest image file that can be added, in bytes (PRD image.size_limit). */
+export const IMAGE_MAX_BYTES = 10 * 1024 * 1024;
+/** Images one drop, paste or pick can add (PRD image.count_limit). */
+export const IMAGE_MAX_FILES_PER_ADD = 20;
+/** An added image's longest side is scaled down to at most this, in world units (PRD image.placement_size). */
+export const IMAGE_MAX_PLACE_SIZE_WORLD = 800;
+/** Smallest width and height an image can be resized to, in world units (PRD image.aspect_resize). */
+export const IMAGE_MIN_SIZE_WORLD = 16;
+/** Gap between images added together in one row, in world units (PRD image.drop). */
+export const IMAGE_LAYOUT_GAP_WORLD = 24;
+/** An upload that has not completed after this long shows as unfinished (PRD image.unfinished). */
+export const IMAGE_UPLOAD_STALE_MS = 5 * 60 * 1000;
+/** Uploads one visitor may make per IMAGE_UPLOAD_PERIOD_SECONDS (PRD image.rate_limit). */
+export const IMAGE_UPLOAD_LIMIT = 60;
+/** Upload rate-limit window; must match wrangler.jsonc `ratelimits` ASSET_UPLOAD_LIMITER. */
+export const IMAGE_UPLOAD_PERIOD_SECONDS = 60;
+/** Stored images never change (keys are never reused), so they are cached for a year. */
+export const ASSET_CACHE_MAX_AGE_SECONDS = 31_536_000;
+/** Leading bytes read to recognise an image type (WebP needs 12: RIFF....WEBP). */
+export const IMAGE_SNIFF_BYTES = 12;
+/** While any image is uploading, image states are re-evaluated this often (unfinished appears). */
+export const IMAGE_CLOCK_TICK_MS = 30_000;
+/** How long a status message (toast) stays at the bottom of the screen. */
+export const TOAST_DURATION_MS = 5000;

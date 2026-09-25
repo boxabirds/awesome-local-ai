@@ -14,5 +14,6 @@ Model `claude-opus-5-5`, scope `canvas`, effort `low`, client claude 2.1.282 (Cl
 | 9 | Write free text anywhere on the board | DONE | 14.7 | None | None | None | — | — | green | 0/57 |  | 0 / 0 | 0 | — | throttled 0% |
 | 10 | Draw shapes and connect them with arrows that follow when moved | DONE | 28.5 | None | None | None | — | — | green | 0/65 |  | 0 / 0 | 0 | — | throttled 0% |
 | 11 | Sketch freehand with a pen | DONE | 10.5 | None | None | None | — | — | green | 0/70 |  | 0 / 0 | 0 | — | throttled 0% |
+| 12 | Drop images onto the board | DONE | 17.8 | None | None | None | — | — | green | 0/75 |  | 0 / 0 | 0 | — | throttled 0% |
 
-**Totals:** 10 stories, 183 agent-minutes, 0 requests, 0 prompt / 0 completion tokens, gate green 8/10, final acceptance 0/70, stalled 0, partial 0, 21310 lines in src+tests.
+**Totals:** 11 stories, 201 agent-minutes, 0 requests, 0 prompt / 0 completion tokens, gate green 9/11, final acceptance 0/75, stalled 0, partial 0, 43992 lines in src+tests.

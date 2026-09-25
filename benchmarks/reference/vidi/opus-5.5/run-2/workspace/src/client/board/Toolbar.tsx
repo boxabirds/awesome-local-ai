@@ -1,6 +1,7 @@
 /**
  * Fixed left-side toolbar: the Select (V), Text (T), Shape (S), Connector (L) and Pen (P) tools with
- * their pressed state (anchors: text.tool_ui, tools.active_tool), the Sticky note button
+ * their pressed state (anchors: text.tool_ui, tools.active_tool), the Image (I) button that
+ * opens the file picker (story 12, anchor: image.pick), the Sticky note button
  * (anchor: sticky.toolbar) and, below the tools, the Undo and Redo buttons (anchor:
  * undo.buttons). While the Shape tool is active a small menu next to its button picks the
  * kind (Rectangle, Ellipse, Diamond).
@@ -149,6 +150,19 @@ export function Toolbar(props: ToolbarProps): React.JSX.Element {
                 strokeLinejoin="round"
                 strokeLinecap="round"
               />
+            </svg>
+          </button>
+          <button
+            type="button"
+            aria-label="Image (I)"
+            title="Image (I)"
+            disabled={props.disabled === true}
+            onClick={() => onTool('image')}
+          >
+            <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" focusable="false">
+              <rect x="3" y="4" width="18" height="16" rx="2" fill="none" stroke="currentColor" strokeWidth="1.6" />
+              <circle cx="9" cy="10" r="1.8" fill="currentColor" />
+              <path d="M4 18l5-5 4 4 3-3 4 4" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" />
             </svg>
           </button>
         </>

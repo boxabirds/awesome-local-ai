@@ -6,7 +6,8 @@
  * setting one is ignored otherwise, and an active one returns to Select when editing
  * becomes impossible (story 4 load failure). After a shape or arrow is created,
  * `toolCreated(id)` selects it and returns to Select (tools.return_to_select); the Pen
- * (story 11) stays active after each stroke (pen.stay_active). The
+ * (story 11) stays active after each stroke (pen.stay_active). Image (story 12) is not a
+ * mode: choosing it opens the file picker (`onOpenImagePicker`) and Select stays active. The
  * single-letter shortcuts (TOOL_SHORTCUTS) and Escape are read by `useBoardKeys`, which
  * already knows when the keyboard belongs to a text editor.
  */
@@ -27,7 +28,7 @@ export const TOOL_SHORTCUTS: Record<string, ToolId> = {
   c: 'comment',
 };
 
-/** Tools this build has (stories 12 and 16 are not part of it). */
+/** Mode tools this build has (story 16 is not part of it; story 12's Image is a command). */
 const MODE_TOOLS: ReadonlySet<ToolId> = new Set<ToolId>(['select', 'text', 'shape', 'connector', 'pen']);
 
 export function isModeTool(t: ToolId): boolean {
@@ -48,6 +49,8 @@ export interface ActiveToolOptions {
   canEdit?: boolean;
   /** Selects a just-created object. */
   onSelect?(id: string): void;
+  /** Story 12: the Image tool (button or I) opens the file picker, then Select is active again. */
+  onOpenImagePicker?(): void;
 }
 
 export function useActiveTool(opts: ActiveToolOptions = {}): ActiveToolApi {
@@ -56,6 +59,8 @@ export function useActiveTool(opts: ActiveToolOptions = {}): ActiveToolApi {
   const [shapeKind, setShapeKind] = useState<ShapeKind>('rect');
   const onSelect = useRef(opts.onSelect);
   onSelect.current = opts.onSelect;
+  const onOpenImagePicker = useRef(opts.onOpenImagePicker);
+  onOpenImagePicker.current = opts.onOpenImagePicker;
 
   useEffect(() => {
     if (!canEdit) setToolState('select');
@@ -63,6 +68,12 @@ export function useActiveTool(opts: ActiveToolOptions = {}): ActiveToolApi {
 
   const setTool = useCallback(
     (t: ToolId) => {
+      if (t === 'image') {
+        if (!canEdit) return;
+        setToolState('select');
+        onOpenImagePicker.current?.();
+        return;
+      }
       if (!isModeTool(t)) return;
       if (t !== 'select' && !canEdit) return;
       setToolState(t);

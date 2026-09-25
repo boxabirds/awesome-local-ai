@@ -108,7 +108,9 @@ test.describe('connector.ui', () => {
     const [dana, sam] = people as [Participant, Participant];
     for (const p of people) await setCamera(p.page, CAM);
 
-    await drawRect(dana.page, { x: 200, y: 300 }, { x: 300, y: 400 }); // A, centre (250, 350)
+    // Drawn from its bottom-right corner: the open Shape kind menu covers (200, 300) since the
+    // story 12 Image button made the Tools toolbar taller. Same rectangle.
+    await drawRect(dana.page, { x: 300, y: 400 }, { x: 200, y: 300 }); // A, centre (250, 350)
     await drawRect(dana.page, { x: 620, y: 300 }, { x: 780, y: 400 }); // B, centre (700, 350)
     await connect(dana.page, { x: 250, y: 350 }, { x: 700, y: 350 });
     const joined = 'attached:300,350 → attached:620,350'; // A's right side → B's left side
@@ -142,7 +144,7 @@ test.describe('connector.ui', () => {
     people.push(sam);
     for (const p of people) await setCamera(p.page, CAM);
 
-    await drawRect(dana.page, { x: 200, y: 300 }, { x: 300, y: 400 }); // A
+    await drawRect(dana.page, { x: 300, y: 400 }, { x: 200, y: 300 }); // A (from its bottom-right, see TC-25)
     await drawRect(dana.page, { x: 620, y: 300 }, { x: 780, y: 400 }); // B
     await expect(shapes(sam.page)).toHaveCount(2);
 
