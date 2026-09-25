@@ -86,7 +86,7 @@ assert_eq "llamacpp still needs build tools"    "1"        "$(get NEEDS_BUILD)"
 assert_eq "llamacpp still needs the hf CLI"     "1"        "$(get NEEDS_HF)"
 assert_eq "llamacpp declares its extra config"  "MODEL_SUBDIR MODEL_ASSETS SAFE_KV_TYPES" "$(get REQUIRED)"
 assert_eq "SAFE_KV_TYPES survives the refactor" "f16 bf16 q8_0 q4_0" "$(get SAFE_KV)"
-assert_eq "SPEC_DRAFT_N_MAX survives"           "2"        "$(get SPEC)"
+assert_eq "SPEC_DRAFT_N_MAX survives"           "3"        "$(get SPEC)"
 assert_eq "IMAGE_MIN_TOKENS survives"           "1024"     "$(get IMGTOK)"
 assert_eq "LLAMA_DIR moved into the backend"    ".local/share/qwen38-27b/llama.cpp" "$(get LLAMA_DIR)"
 
