@@ -1,3 +1,21 @@
+commit e22cc97a81db3b856c7a54c8d1ddd7601d18daf3
+vidi-agent  Fri Sep 25 14:26:31 2026 +0100
+
+    Story 4: return to a board and find everything as it was left
+
+
+ NOTES.md                                         |  95 +++++
+ src/shared/config.ts                             |  43 ++
+ src/worker/board-protocol.ts                     | 139 +++++++
+ src/worker/board-room.ts                         | 487 +++++++++++++++--------
+ src/worker/board-store.ts                        | 218 ++++++++++
+ src/worker/room-machine.ts                       | 419 +++++++++++++++++++
+ src/worker/room-state.ts                         | 169 ++++++++
+ src/worker/sync-frame.ts                         |  80 ++++
+ tests/e2e/persistence.spec.ts                    | 171 ++++++++
+ tests/e2e/sync.spec.ts                           |  30 +-
+ tests/integration/board-room-persistence.test.ts | 314 +++++++++++++++
+ 11 files changed, 1994 insertions(+), 171 deletions(-)
 commit 568ebac1967cb1f520f0634b0584dfbe067daee4
 vidi-agent  Fri Sep 25 12:05:37 2026 +0100
 

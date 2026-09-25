@@ -102,3 +102,46 @@ export const CONNECTED_CONFIRMATION_MS = 2_000;
 
 /** The outage a catch-up test cuts, matching the PRD's live.catch_up check. */
 export const CATCH_UP_TEST_OUTAGE_MS = 30_000;
+
+/* --------------------------------------------------------------------- *
+ * Story 4: board persistence.
+ * --------------------------------------------------------------------- */
+
+/**
+ * How long a room waits for its board before it stops trying.
+ *
+ * The read is synchronous inside the isolate, so this is not a queue timeout:
+ * it is the point where a slow or wedged storage read stops being "slow" and
+ * becomes a reason to refuse the connection. By the time it passes, the client
+ * has already started its own retries, which is why answering late is no better
+ * than answering nothing.
+ */
+export const LOAD_TIMEOUT_MS = 1_000;
+
+/**
+ * How many board updates a room buffers before writing them down.
+ *
+ * Small boards gain little from buffering and pay for it in risk; large boards
+ * write megabytes per checkpoint and cannot afford one per keystroke. Eight is
+ * the compromise that is tested, not the number that was guessed.
+ */
+export const FLUSH_UPDATE_THRESHOLD = 8;
+
+/**
+ * How long buffered updates may sit before they are written anyway.
+ *
+ * A room that goes quiet after one change still has to make that change
+ * durable, and its sockets have about ten seconds of hibernation left before
+ * the instance is torn down. Half a second keeps the delay far inside that.
+ */
+export const FLUSH_INTERVAL_MS = 500;
+
+/**
+ * The largest frame a room will look at, in bytes.
+ *
+ * A board update is normally a few hundred bytes; a whole board travels in the
+ * reply, not in a request, so a request over this size is either a client that
+ * has lost its mind or somebody probing the socket. Refusing it is rule 1, and
+ * it is the reason the room never has to reason about a giant buffer.
+ */
+export const MAX_MESSAGE_BYTES = 128 * 1024;
