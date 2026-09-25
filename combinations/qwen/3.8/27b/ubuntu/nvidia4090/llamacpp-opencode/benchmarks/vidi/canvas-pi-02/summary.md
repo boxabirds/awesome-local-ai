@@ -1,6 +1,6 @@
-# Vidi run — llamacpp-opencode
+# Vidi run — qwen/3.8/27b/ubuntu/nvidia4090/llamacpp-opencode
 
-Model `None`, scope `None`, effort `None`, client opencode , host None.
+Model `qwen3.8-27b`, scope `canvas`, effort `low`, client pi 0.86.0, host 13th Gen Intel(R) Core(TM) i9-13900F 62GB, NVIDIA GeForce RTX 4090 24564 MiB.
 
 | Story | Title | Status | Agent min | Requests | Prompt tok | Completion tok | TTFT med s | Decode tok/s med | Gate | Accept (cumulative) | Stalled | Resumes / nudges | Compactions | Max ctx | Conditions |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
@@ -14,5 +14,6 @@ Model `None`, scope `None`, effort `None`, client opencode , host None.
 | 9 | Write free text anywhere on the board | DONE | 51.5 | None | None | None | — | — | green | 51/57 |  | 0 / 1 | 3 | — | throttled 0%, server peak 18 GB |
 | 10 | Draw shapes and connect them with arrows that follow when moved | DONE | 21.4 | None | None | None | — | — | green | 56/65 |  | 0 / 0 | 1 | — | throttled 0%, server peak 18 GB |
 | 11 | Sketch freehand with a pen | DONE | 46.4 | None | None | None | — | — | red | 61/70 |  | 0 / 0 | 3 | — | throttled 0%, server peak 18 GB |
+| 12 | Drop images onto the board | DONE | 14.8 | None | None | None | — | — | red | 62/75 |  | 0 / 2 | 1 | — | throttled 0%, server peak 17 GB |
 
-**Totals:** 10 stories, 971 agent-minutes, 0 requests, 0 prompt / 0 completion tokens, gate green 7/10, final acceptance 61/70, stalled 0, partial 0, 24260 lines in src+tests.
+**Totals:** 11 stories, 986 agent-minutes, 0 requests, 0 prompt / 0 completion tokens, gate green 7/11, final acceptance 62/75, stalled 0, partial 0, 28771 lines in src+tests.

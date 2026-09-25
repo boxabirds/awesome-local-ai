@@ -1,3 +1,72 @@
+commit 5e09287f1e20d9dd144084608e0d91cd09fd92d6
+vidi-agent  Fri Sep 25 17:33:00 2026 +0100
+
+    story 13: Keep working through a dropped connection without losing work
+
+
+ build/vite-sw-manifest.ts              |  39 ++++++
+ public/_headers                        |   5 +
+ src/client/offline/cacheManager.ts     | 237 +++++++++++++++++++++++++++++++++
+ src/client/offline/leaveGuard.ts       |  30 +++++
+ src/client/offline/localBoardStore.ts  | 167 +++++++++++++++++++++++
+ src/client/offline/syncTracker.ts      | 184 +++++++++++++++++++++++++
+ src/client/pages/BoardPage.tsx         |   2 +-
+ src/client/sw/registerSw.ts            |  20 +++
+ src/client/sw/sw-entry.ts              |  83 ++++++++++++
+ src/client/sw/sw.ts                    |  51 +++++++
+ src/client/sync/ConnectionStatus.tsx   | 134 ++++++++++++++-----
+ src/client/sync/connectBoard.ts        |  52 +++++++-
+ src/shared/config.ts                   |  35 +++++
+ src/shared/protocol.ts                 |   1 +
+ src/worker/board-room.ts               |   9 ++
+ tests/component/OfflineStatus.test.tsx |  35 +++++
+ tests/e2e/offline.spec.ts              | 120 +++++++++++++++++
+ tests/integration/sync-ack.test.ts     | 122 +++++++++++++++++
+ tests/integration/ws-client.ts         |  12 ++
+ tests/unit/cache-manager.test.ts       |  95 +++++++++++++
+ tests/unit/sw.test.ts                  |  55 ++++++++
+ tests/unit/sync-tracker.test.ts        | 207 ++++++++++++++++++++++++++++
+ 22 files changed, 1659 insertions(+), 36 deletions(-)
+commit c9c58df9edb0b6a7052828f98f6ff7d57b6c0f10
+vidi-agent  Fri Sep 25 16:59:57 2026 +0100
+
+    story 12: Drop images onto the board
+
+
+ src/client/board/Toolbar.tsx            |  17 ++
+ src/client/board/useBoardKeys.ts        |  13 ++
+ src/client/canvas/BoardViewport.tsx     |  13 +-
+ src/client/images/DropHighlight.tsx     |  27 +++
+ src/client/images/uploadImage.ts        |  81 ++++++++
+ src/client/images/useImageInsert.ts     | 338 ++++++++++++++++++++++++++++++++
+ src/client/images/validateFiles.ts      |  76 +++++++
+ src/client/objects/ImageObject.tsx      | 277 ++++++++++++++++++++++++++
+ src/client/objects/registry.tsx         |  28 +++
+ src/client/pages/BoardPage.tsx          |  41 ++++
+ src/client/ui/Toast.tsx                 |  62 ++++++
+ src/shared/board-model.ts               |  57 +++++-
+ src/shared/config.ts                    |  35 ++++
+ src/shared/image-format.ts              |  79 ++++++++
+ src/shared/objects/image.ts             | 295 ++++++++++++++++++++++++++++
+ src/worker/assets.ts                    | 145 ++++++++++++++
+ src/worker/index.ts                     |  35 ++++
+ tests/component/ImageObject.test.tsx    | 147 ++++++++++++++
+ tests/component/useImageInsert.test.tsx | 205 +++++++++++++++++++
+ tests/e2e/images.spec.ts                | 208 ++++++++++++++++++++
+ tests/fixtures/images/corrupt.png       |   3 +
+ tests/fixtures/images/fake.png          |  21 ++
+ tests/fixtures/images/script.svg        |   1 +
+ tests/fixtures/images/small.gif         | Bin 0 -> 43 bytes
+ tests/fixtures/images/small.jpg         | Bin 0 -> 332 bytes
+ tests/fixtures/images/small.png         | Bin 0 -> 69 bytes
+ tests/fixtures/images/small.webp        | Bin 0 -> 28 bytes
+ tests/integration/assets.test.ts        | 181 +++++++++++++++++
+ tests/unit/image-format.test.ts         | 100 ++++++++++
+ tests/unit/image-model.test.ts          | 300 ++++++++++++++++++++++++++++
+ tests/unit/validate-files.test.ts       | 125 ++++++++++++
+ wrangler-test.jsonc                     |   8 +
+ wrangler.jsonc                          |  25 +++
+ 33 files changed, 2941 insertions(+), 2 deletions(-)
 commit 2be635e3b4be0f25b75a2cc29b84bed9c04f1ef2
 vidi-agent  Fri Sep 25 16:11:44 2026 +0100
 
