@@ -1,8 +1,8 @@
-import { readFileSync } from 'node:fs';
 import { describe, expect, it, vi } from 'vitest';
 import { BOARD_ID_BYTES, BOARD_ID_PATTERN, newBoardId } from '../../src/shared/board-id';
 import { BOARD_CREATE_LIMIT, BOARD_CREATE_PERIOD_SECONDS, CREATE_ID_MAX_ATTEMPTS } from '../../src/shared/config';
 import { createWithRetries, type InitializeResult } from '../../src/worker/create-board';
+import { readWranglerConfig } from './helpers/jsonc';
 
 const GENERATED_COUNT = 10_000;
 const BITS_PER_BYTE = 8;
@@ -53,36 +53,11 @@ describe('createWithRetries', () => {
   });
 });
 
-/** Removes // and /* *\/ comments outside strings (wrangler.jsonc is JSON with comments). */
-function stripJsonComments(text: string): string {
-  let out = '';
-  let inString = false;
-  for (let i = 0; i < text.length; i += 1) {
-    const c = text[i]!;
-    if (inString) {
-      out += c;
-      if (c === '\\') out += text[++i] ?? '';
-      else if (c === '"') inString = false;
-    } else if (c === '"') {
-      inString = true;
-      out += c;
-    } else if (c === '/' && text[i + 1] === '/') {
-      while (i < text.length && text[i] !== '\n') i += 1;
-      out += '\n';
-    } else if (c === '/' && text[i + 1] === '*') {
-      i = text.indexOf('*/', i + 2) + 1;
-    } else {
-      out += c;
-    }
-  }
-  return out;
-}
-
 describe('TC-03 rate-limit settings parity', () => {
   it('wrangler.jsonc BOARD_CREATE_LIMITER matches BOARD_CREATE_LIMIT / BOARD_CREATE_PERIOD_SECONDS', () => {
-    const config = JSON.parse(stripJsonComments(readFileSync('wrangler.jsonc', 'utf8'))) as {
+    const config = readWranglerConfig<{
       ratelimits?: { name: string; simple: { limit: number; period: number } }[];
-    };
+    }>();
     const binding = config.ratelimits?.find((r) => r.name === 'BOARD_CREATE_LIMITER');
     expect(binding).toBeDefined();
     expect(binding!.simple.limit).toBe(BOARD_CREATE_LIMIT);

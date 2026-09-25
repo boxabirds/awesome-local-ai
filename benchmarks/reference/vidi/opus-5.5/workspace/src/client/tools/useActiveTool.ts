@@ -4,8 +4,9 @@ import { SHAPE_KINDS } from '../../shared/config';
 
 /**
  * Every tool id of the cross-story convention. `select`, `text` (story 9), `shape`,
- * `connector` (story 10) and `pen` (story 11) are modes in this build; `sticky` is an action (a
- * note at the view centre) and image and comment belong to stories that are not part of it.
+ * `connector` (story 10) and `pen` (story 11) are modes in this build; `sticky` (a note at the
+ * view centre) and `image` (story 12: opens the file picker, then the tool is Select) are
+ * actions, and comment belongs to a story that is not part of it.
  * The Pen, unlike the creation tools, stays active after each stroke (pen.stay_active).
  */
 export type ToolId = 'select' | 'sticky' | 'text' | 'shape' | 'connector' | 'pen' | 'image' | 'comment';
@@ -30,6 +31,7 @@ export const TEXT_TOOL_LABEL = 'Text (T)';
 export const SHAPE_TOOL_LABEL = 'Shape (S)';
 export const CONNECTOR_TOOL_LABEL = 'Connector (L)';
 export const PEN_TOOL_LABEL = 'Pen (P)';
+export const IMAGE_TOOL_LABEL = 'Image (I)';
 /** Shape menu entries (visible text and accessible name). */
 export const SHAPE_KIND_LABELS: Record<ShapeKind, string> = {
   rect: 'Rectangle',

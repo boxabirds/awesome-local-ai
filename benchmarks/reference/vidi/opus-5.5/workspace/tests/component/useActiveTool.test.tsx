@@ -33,8 +33,10 @@ describe('tools.active_tool useActiveTool', () => {
     act(() => result.current.toolCreated('new-id'));
     expect(onSelect).toHaveBeenCalledWith('new-id');
     expect(result.current.tool).toBe('select');
-    // Tools not in this build are ignored.
+    // Tools that are not modes (image is an action since story 12; comment is not in this build) are ignored.
     act(() => result.current.setTool('image'));
+    expect(result.current.tool).toBe('select');
+    act(() => result.current.setTool('comment'));
     expect(result.current.tool).toBe('select');
   });
 

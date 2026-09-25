@@ -125,10 +125,10 @@ describe('undo.controls: buttons', () => {
     expect(undoButton().title).toBe('Undo (Ctrl/Cmd+Z)');
     expect(redoButton().title).toBe('Redo (Ctrl/Cmd+Shift+Z)');
     // The buttons sit in the left tool bar, below the tools (story 9 added Select and Text,
-    // story 10 Shape and Connector).
+    // story 10 Shape and Connector, story 11 Pen, story 12 Image).
     const toolbar = screen.getByRole('toolbar', { name: 'Tools' });
     const buttons = Array.from(toolbar.querySelectorAll('button')).map((b) => b.getAttribute('aria-label'));
-    expect(buttons).toEqual(['Select (V)', 'Text (T)', 'Shape (S)', 'Connector (L)', 'Pen (P)', 'Sticky note', 'Undo', 'Redo']);
+    expect(buttons).toEqual(['Select (V)', 'Text (T)', 'Shape (S)', 'Connector (L)', 'Pen (P)', 'Sticky note', 'Image (I)', 'Undo', 'Redo']);
   });
 
   it('buttons follow the controller state and call it when clicked', () => {

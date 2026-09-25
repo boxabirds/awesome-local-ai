@@ -16,6 +16,11 @@
  * the ends; see objects/connector.ts). Deleting an object turns the arrow ends attached to it
  * into free ends at the same point, inside the delete's transaction.
  *
+ * Story 12 adds `type: 'image'` (assetKey: string | null, contentType, naturalWidth,
+ * naturalHeight, status, uploadStartedAt, uploaderId; see objects/image.ts). Upload status
+ * changes use objects/image.ts's UPLOAD_ORIGIN instead of LOCAL_ORIGIN, so they never become
+ * undo steps of their own.
+ *
  * Story 7: every object type shares x, y, width, height, z and createdAt. `width`/`height` are
  * additive: stickies saved before story 7 have neither and are STICKY_SIZE_WORLD square; the
  * first resize writes both. Group operations (move, resize, stack, delete) are type-agnostic.
@@ -65,12 +70,24 @@ export const SHAPE_TYPE = 'shape';
 export const CONNECTOR_TYPE = 'connector';
 /** Freehand pen strokes (story 11); created by objects/stroke.ts. */
 export const STROKE_TYPE = 'stroke';
+/** Images (story 12); created and updated by objects/image.ts. */
+export const IMAGE_TYPE = 'image';
+/** Upload states stored on an image object (story 12). */
+export const IMAGE_STATUSES = ['uploading', 'ready', 'failed'] as const;
+export type ImageStatus = (typeof IMAGE_STATUSES)[number];
 const HALF = 2;
 /** z of the first object on an empty board is FIRST_Z. */
 const FIRST_Z = 1;
 
 /** Object types this module knows how to read and create (the client registry may add more). */
-export const KNOWN_OBJECT_TYPES: ReadonlySet<string> = new Set([STICKY_TYPE, TEXT_TYPE, SHAPE_TYPE, CONNECTOR_TYPE, STROKE_TYPE]);
+export const KNOWN_OBJECT_TYPES: ReadonlySet<string> = new Set([
+  STICKY_TYPE,
+  TEXT_TYPE,
+  SHAPE_TYPE,
+  CONNECTOR_TYPE,
+  STROKE_TYPE,
+  IMAGE_TYPE,
+]);
 
 /** Any object on the board. `width`/`height` are present only once written (see objectBounds). */
 export interface ObjectSnapshot {
@@ -110,6 +127,17 @@ export interface ObjectSnapshot {
   baseWidth?: number;
   baseHeight?: number;
   thickness?: PenThickness;
+  /**
+   * Images only (story 12): the stored file's key (null until the upload finished), its type,
+   * pixel size, upload status, when the (latest) upload started and who is uploading it.
+   */
+  assetKey?: string | null;
+  contentType?: string;
+  naturalWidth?: number;
+  naturalHeight?: number;
+  status?: ImageStatus;
+  uploadStartedAt?: number;
+  uploaderId?: string;
 }
 
 export type ShapeKind = (typeof SHAPE_KINDS)[number];
@@ -358,9 +386,36 @@ function readStroke(base: ObjectSnapshot, value: Y.Map<unknown>): ObjectSnapshot
   };
 }
 
+export function isImageStatus(s: unknown): s is ImageStatus {
+  return typeof s === 'string' && (IMAGE_STATUSES as readonly string[]).includes(s);
+}
+
+/** An image; entries without a size or with an unknown status are skipped. */
+function readImage(base: ObjectSnapshot, value: Y.Map<unknown>): ObjectSnapshot | undefined {
+  const status = value.get('status');
+  const assetKey = value.get('assetKey');
+  const contentType = value.get('contentType');
+  const uploaderId = value.get('uploaderId');
+  const naturalWidth = positiveNumber(value.get('naturalWidth'));
+  const naturalHeight = positiveNumber(value.get('naturalHeight'));
+  if (!isImageStatus(status) || base.width === undefined || base.height === undefined) return undefined;
+  if (naturalWidth === undefined || naturalHeight === undefined) return undefined;
+  return {
+    ...base,
+    assetKey: typeof assetKey === 'string' ? assetKey : null,
+    contentType: typeof contentType === 'string' ? contentType : '',
+    naturalWidth,
+    naturalHeight,
+    status,
+    uploadStartedAt: finiteNumber(value.get('uploadStartedAt')) ?? 0,
+    uploaderId: typeof uploaderId === 'string' ? uploaderId : '',
+  };
+}
+
 function readObject(id: string, value: unknown): ObjectSnapshot | undefined {
   const base = readBase(id, value);
   if (!base || !(value instanceof Y.Map)) return base;
+  if (base.type === IMAGE_TYPE) return readImage(base, value);
   if (base.type === TEXT_TYPE) return readText(base, value);
   if (base.type === SHAPE_TYPE) return readShape(base, value);
   if (base.type === STROKE_TYPE) return readStroke(base, value);

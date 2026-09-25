@@ -724,3 +724,76 @@ Decisions made while building without anyone to ask.
   text TC-26 (then 28/28 in `text.spec.ts` ×2) and story 5's share TC-30 (then 8/8 alone ×4, after
   one more failure in a repeat run). Neither touches pen code; recorded as the known contention on
   the single local workerd (story 4/5/9 notes).
+
+## Story 12: Drop images onto the board
+
+- **Schema.** `type: 'image'` objects carry `assetKey` (null until uploaded), `contentType`,
+  `naturalWidth`, `naturalHeight`, `status`, `uploadStartedAt`, `uploaderId` (plus the common
+  fields and `createdBy`). `board-model.ts` reads them itself (`readImage`, `IMAGE_TYPE`,
+  `IMAGE_STATUSES`, `isImageStatus`); entries without a size, natural size or known status are
+  skipped. `ObjectSnapshot` gained the optional image fields.
+- **Undo.** Placeholders are one LOCAL_ORIGIN transaction (one step, via the board's `asStep`);
+  ready/failed/retrying use `UPLOAD_ORIGIN`, which the undo manager does not track. Verified in
+  TC-05 with both a raw `Y.UndoManager` and the app's `createUndo`: undo removes all
+  placeholders; redo brings them back in their latest (ready) state — the open question in the
+  design's "Not covered" is answered: it works. If an upload finishes while its placeholder is
+  undone, the outcome is kept in memory and applied when a redo brings the placeholder back
+  (otherwise it would be stuck "uploading" until it turned "unfinished").
+- **Status rules.** `markImageReady`/`markImageFailed` only act on `uploading` images;
+  `markImageRetrying` only on `failed` ones; `markImageReady` also rejects keys that fail
+  `ASSET_KEY_PATTERN`. `layoutRow('centre')` centres the row's bounding box (tops aligned) on the
+  view centre.
+- **Server.** Routes are matched before story 5's `GET /api/boards/:id` (which would otherwise
+  see `id/assets`); other methods get 405. `handleServe` additionally refuses (404) any stored
+  object whose content type is not an accepted image type, so nothing but images this API stored
+  is ever served. `AssetEnv`/`AssetBucket` are structural so TC-15 can pass a failing bucket.
+  The URL parser resolves a literal `/api/assets/../x` before the Worker sees it (it becomes
+  `/api/x`, the SPA), so TC-16 checks the key `../x` at `handleServe` and the encoded
+  `..%2Fx` through HTTP. Rate limiter: the local runtime implements `ratelimits`, so TC-14 uses
+  the real `ASSET_UPLOAD_LIMITER`. A unit test checks the binding matches the settings (the
+  `stripJsonComments` helper moved from `create-board.test.ts` to `tests/unit/helpers/jsonc.ts`).
+- **Client flow.** `useImageInsert` takes the contract's arguments plus optional `viewport`,
+  `canEdit`, `isEditingText` and `step`, and returns extra `dragActive`, `onDragLeave`,
+  `pickerRef`, `onPickerChange`, `toast`, `dismissToast` (the Board renders the hidden
+  `<input type=file>` "Choose images", the drop highlight and the toast). Offline = connection not
+  `connected`/`confirmed` (so also "Connecting…" before the first sync); the picker does not open
+  then and shows the offline toast. Refusals of one action are shown together in one toast, one
+  line per message (e.g. TC-26 shows the type and size lines at once), for `TOAST_DURATION_MS`
+  (5 s, in `Toast.tsx`; not a product setting). Paste is handled on `window` and ignored while a
+  text is being edited or focus is in an input/textarea/contenteditable, and when the clipboard
+  holds no `image/*` file. `measureImage` uses `createImageBitmap` (Image.decode fallback).
+- **ImageObject.** Contract component `ImageObject({ image, isUploader, progress, canRetry, now,
+  onRetry, onRemove })` (+ optional `readOnly` hiding the buttons); the registry registers
+  `ImageBoardObject`, a positioned `role="group"` "Image" wrapper that reads identity, progress,
+  Retry/Remove and the clock from `ImageBoardContext`. The clock (`useImageClock`) ticks every
+  `IMAGE_CLOCK_TICK_MS` (30 s) only while some image is uploading. `unfinished` compares the
+  uploader's `uploadStartedAt` with the viewer's clock, so large clock skew between machines
+  shifts when it appears. Remove is one undo step (`deleteObjects`).
+- **Names.** Toolbar button "Image (I)" after "Sticky note"; I opens the picker and sets the tool
+  to Select. Progress bar `role="progressbar"` "Upload progress"; toast region `role="status"`
+  "Messages". Buttons "Retry", "Remove".
+- **Tests changed by this story's behaviour:** story 8's TC-18 toolbar button list now includes
+  "Image (I)"; story 10's `useActiveTool` test now also checks `comment` (image is an action, not
+  a mode). Nothing else changed.
+- **Fixtures** were generated with Pillow (`uv run --with pillow`): UI-like screenshots
+  (1440×900 and three smaller), a 4032×3024 JPEG (~2.6 MB, gradient + noise, not a real photo),
+  an animated GIF, a WebP, an SVG with a script, a PDF named .png, a truncated PNG. The 10 MB
+  boundary files are generated in the tests. Integration tests run in workerd without a file
+  system, so `tests/fixtures/image-bytes.ts` embeds copies of three fixtures.
+- **E2E.** `tests/e2e/images.spec.ts` (TC-25–TC-28) passes in Chromium and Firefox; WebKit still
+  cannot launch on the build machine. TC-25 holds Leo's uploads with `page.route` so Sam's
+  "Uploading…" placeholders can be observed before release. TC-27 shrinks with the top-left handle
+  (after growing, the bottom-right handle sits under the zoom controls).
+- **Full e2e runs (Chromium + Firefox, `E2E_PORT=8877`).** Final run: 111 passed, 1 failed, 3
+  skipped (existing Chromium-only skips). The failure was story 9's text TC-26 "short text" at a
+  `toBeVisible` wait under load; `text.spec.ts` alone then passed 14/14. Earlier runs: one had
+  pen TC-20 fail (then 8/8 in `pen.spec.ts`) and persistence TC-19 fail because another
+  project's `workerd` was listening on its hard-coded port 8791 (answering the test hook with
+  405); TC-19 passed on a free port and in the final run. One run lost the shared `wrangler dev`
+  mid-run (log ends without an error: killed from outside), failing 33 tests with
+  `fetch failed`; it was repeated. None of these touch image code.
+- **Red phase partly observed.** Tests were written alongside the code. Mutations were checked
+  instead: completion with LOCAL_ORIGIN fails TC-05 (app undo) and the component undo test;
+  dropping the paste editing guard fails TC-18 (both reverted).
+- **Not covered** (design): performance with 100 images (manual), production R2/CDN caching,
+  clipboard paste in e2e (component-level only).

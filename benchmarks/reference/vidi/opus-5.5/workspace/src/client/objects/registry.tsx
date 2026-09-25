@@ -1,5 +1,6 @@
 import { CONNECTOR_TYPE } from '../../shared/board-model';
 import {
+  IMAGE_MIN_SIZE_WORLD,
   SHAPE_MIN_SIZE_WORLD,
   STICKY_MIN_SIZE_WORLD,
   STROKE_MIN_SIZE_WORLD,
@@ -8,7 +9,9 @@ import {
 import { STROKE_TYPE } from '../../shared/objects/stroke';
 import { SHAPE_TYPE } from '../../shared/objects/shape';
 import { isText, TEXT_TYPE } from '../../shared/objects/text';
+import { IMAGE_TYPE } from '../../shared/objects/image';
 import { ConnectorObject } from './ConnectorObject';
+import { ImageBoardObject } from './ImageObject';
 import { boundsHitTest, connectorHitTest, registerObjectType } from './objectTypes';
 import { ShapeObject } from './ShapeObject';
 import { StickyNote } from './StickyNote';
@@ -83,4 +86,17 @@ registerObjectType(STROKE_TYPE, {
   editableText: false,
   hitByGeometry: true,
   hitTest: strokeHitTest,
+});
+
+/**
+ * Images (story 12): resized in proportion down to IMAGE_MIN_SIZE_WORLD (image.aspect_resize),
+ * selected anywhere in their box, no text.
+ */
+registerObjectType(IMAGE_TYPE, {
+  Component: ImageBoardObject,
+  resizable: true,
+  aspectLocked: true,
+  minSize: IMAGE_MIN_SIZE_WORLD,
+  editableText: false,
+  hitTest: boundsHitTest,
 });

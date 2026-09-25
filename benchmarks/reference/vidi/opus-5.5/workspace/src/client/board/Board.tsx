@@ -36,7 +36,11 @@ import { useActiveTool } from '../tools/useActiveTool';
 import { textMeasurer } from '../objects/textLayout';
 import { remeasureText } from '../objects/useTextBoxSync';
 import { ConnectionStatus } from '../sync/ConnectionStatus';
-import type { ConnectionState } from '../sync/connectBoard';
+import type { ConnectionState, ProviderFactory } from '../sync/connectBoard';
+import { IMAGE_PICKER_ACCEPT, useImageInsert } from '../images/useImageInsert';
+import { ImageBoardContext, useImageClock, type ImageBoardState } from '../objects/ImageObject';
+import { Toast } from '../ui/Toast';
+import { isImage } from '../../shared/objects/image';
 
 /**
  * Whether the board may be edited. False only while its saved state cannot be loaded: an
@@ -71,13 +75,18 @@ export interface BoardProps {
   children?: ReactNode;
   /** Builds this tab's undo controller (story 8); component tests pass a fake. */
   createUndoController?: UndoFactory;
+  /** Builds the connection to the board's room; component tests pass a fake (story 12). */
+  createProvider?: ProviderFactory;
 }
 
-export function Board({ boardId, children, createUndoController }: BoardProps) {
+/** Accessible name of the Image tool's (hidden) file input. */
+export const IMAGE_PICKER_LABEL = 'Choose images';
+
+export function Board({ boardId, children, createUndoController, createProvider }: BoardProps) {
   const [viewport, setViewport] = useState<Size>(UNMEASURED);
   const controller = useCamera(viewport);
   const { camera } = controller;
-  const { doc, objects, connection } = useBoardDoc(boardId);
+  const { doc, objects, connection } = useBoardDoc(boardId, createProvider);
   const selection = useSelection(objects);
   const { ids: selectedIds, editingId, click: selectOnly, startEdit: beginEdit, endEdit, clear } = selection;
   const editable = canEdit(connection);
@@ -190,6 +199,47 @@ export function Board({ boardId, children, createUndoController }: BoardProps) {
     [doc, asStep],
   );
 
+  // Story 12: images by drop, paste and the Image tool's picker.
+  const images = useImageInsert({
+    doc,
+    boardId,
+    camera,
+    connection,
+    identityId: authorId,
+    viewport,
+    canEdit: editable,
+    isEditingText: () => stateRef.current.selection.editingId !== null,
+    step: asStep,
+  });
+  const { onPaste } = images;
+  useEffect(() => {
+    window.addEventListener('paste', onPaste);
+    return () => window.removeEventListener('paste', onPaste);
+  }, [onPaste]);
+  const openImagePicker = useCallback(() => {
+    setTool('select');
+    images.openPicker();
+  }, [images, setTool]);
+  const anyUploading = objects.some((o) => isImage(o) && o.status === 'uploading');
+  const imageNow = useImageClock(anyUploading);
+  const removeImage = useCallback(
+    (id: string) => {
+      if (stateRef.current.editable) asStep(() => deleteObjects(doc, [id]));
+    },
+    [doc, asStep],
+  );
+  const imageBoard = useMemo<ImageBoardState>(
+    () => ({
+      identityId: authorId,
+      progress: images.progress,
+      now: imageNow,
+      canRetry: images.canRetry,
+      retry: (id) => void images.retry(id),
+      remove: removeImage,
+    }),
+    [authorId, images.progress, imageNow, images.canRetry, images.retry, removeImage],
+  );
+
   useBoardKeys({
     doc,
     selection,
@@ -201,6 +251,7 @@ export function Board({ boardId, children, createUndoController }: BoardProps) {
     tool,
     setTool,
     onCreateSticky,
+    onOpenImagePicker: openImagePicker,
   });
 
   const onEmptyPointerDown = useCallback(() => {
@@ -298,6 +349,7 @@ export function Board({ boardId, children, createUndoController }: BoardProps) {
   return (
     <UndoContext.Provider value={history}>
       <BoardObjectsContext.Provider value={getObjects}>
+        <ImageBoardContext.Provider value={imageBoard}>
         <main className="app">
           <BoardViewport
             controller={controller}
@@ -310,6 +362,10 @@ export function Board({ boardId, children, createUndoController }: BoardProps) {
             onToolClick={onToolClick}
             overlay={toolLayer}
             onPressCapture={onPressCapture}
+            onDragOver={images.onDragOver}
+            onDragLeave={images.onDragLeave}
+            onDrop={images.onDrop}
+            dropHighlight={images.dragActive}
           >
             {domOrder.map((obj) => {
               const spec = getObjectType(obj.type);
@@ -352,6 +408,7 @@ export function Board({ boardId, children, createUndoController }: BoardProps) {
             onTool={setTool}
             shapeKind={shapeKind}
             onShapeKind={setShapeKind}
+            onImage={openImagePicker}
           />
           {editable && tool === 'pen' && (
             <PenToolbar
@@ -382,8 +439,21 @@ export function Board({ boardId, children, createUndoController }: BoardProps) {
             onZoomOut={() => controller.zoomStep('out')}
             onReset={controller.reset}
           />
+          <input
+            ref={images.pickerRef}
+            type="file"
+            multiple
+            accept={IMAGE_PICKER_ACCEPT}
+            className="image-picker"
+            data-testid="image-picker"
+            aria-label={IMAGE_PICKER_LABEL}
+            tabIndex={-1}
+            onChange={images.onPickerChange}
+          />
+          <Toast messages={images.toast.messages} toastKey={images.toast.key} onDismiss={images.dismissToast} />
           {children}
         </main>
+        </ImageBoardContext.Provider>
       </BoardObjectsContext.Provider>
     </UndoContext.Provider>
   );
