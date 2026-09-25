@@ -30,6 +30,7 @@ from pathlib import Path
 
 import gates
 import hostenv
+import progress
 from hostenv import IS_MAC, THERMAL_OK, mem_free_pct
 from clients import CLIENTS, empty_state
 
@@ -56,7 +57,7 @@ PUBLISH_MAX_BYTES = 512 * 1024
 # conversation's shape, tool calls and timings, not every byte of every file.
 EVENT_STRING_MAX = 2000
 # Git-ignored bookkeeping read by local tools; must keep real absolute paths.
-LOCAL_ONLY_FILES = {"work_dir.txt", "current_story"}
+LOCAL_ONLY_FILES = {"work_dir.txt", "current_story", "progress.json"}
 TEXT_SUFFIXES = {".json", ".jsonl", ".md", ".txt", ".log", ".ts", ".tsx", ".js", ".mjs", ".css", ".html", ".jsonc", ".sh"}
 SPEC = VIDI / "spec"
 PROMPT_TMPL = VIDI / "prompts" / "story.md.tmpl"
@@ -223,6 +224,8 @@ RUN_GITIGNORE = """# Written by benchmarks/vidi/harness/drive.py. Raw agent logs
 stories/*/agent-events.jsonl
 current_story
 work_dir.txt
+progress.json
+control/
 """
 COMMIT_TRAILER = "\n\nCo-Authored-By: Claude Opus 5.5 (1M context) <noreply@anthropic.com>"
 
@@ -310,14 +313,37 @@ def agent_env(work: Path) -> dict:
     }
 
 
-def render_prompt(story: dict, title: str, done: list[int], scope: dict) -> str:
+def stories_so_far(processed: list[dict], this_id: int) -> str:
+    """The prompt's account of the stories before this one. With every story DONE it is the line
+    every run has always had; a PARTIAL story is named, with its unverified tasks and one rule."""
+    if not any(p["status"] == PARTIAL for p in processed):
+        done = ", ".join(str(p["id"]) for p in processed)
+        return f"Stories already implemented in this repository, in order: {done or 'none (empty repository)'}."
+    listed = ", ".join(f"{p['id']} ({'partial' if p['status'] == PARTIAL else 'done'})" for p in processed)
+    lines = [f"Stories already processed in this repository, in order: {listed}."]
+    for p in processed:
+        if p["status"] != PARTIAL:
+            continue
+        n = p["id"]
+        open_tasks = [str(t["n"]) for t in p.get("tasks", []) if t.get("status") != "verified"]
+        lines.append(
+            f"Story {n} was ended before it was complete. Tasks in its tasks.md that were not verified then: "
+            f"{', '.join(open_tasks) or 'none recorded'}. Do not do those tasks for their own sake. If story "
+            f"{this_id} needs behaviour story {n} was meant to provide and it is missing, implement it to story "
+            f"{n}'s design and record it in `NOTES.md` under \"Gap filled from story {n}\". Never stub, mock or "
+            f"fake product code to stand in for it.")
+    return "\n".join(lines)
+
+
+def render_prompt(story: dict, title: str, processed: list[dict], scope: dict) -> str:
+    """processed: the queue of stories already processed, each {"id", "status": DONE|PARTIAL, ...}."""
     story_dir = f"spec/stories/{story['dir']}"
     return (PROMPT_TMPL.read_text()
             .replace("{{ID}}", str(story["id"]))
             .replace("{{TITLE}}", title)
             .replace("{{SPEC_DIR}}", "spec/")
             .replace("{{STORY_DIR}}", story_dir)
-            .replace("{{DONE}}", ", ".join(map(str, done)) if done else "none (empty repository)")
+            .replace("{{STORIES_SO_FAR}}", stories_so_far(processed, story["id"]))
             .replace("{{SCOPE_NOTE}}", scope.get("out_of_scope_note", "")))
 
 
@@ -432,7 +458,9 @@ def run_agent(client, ws: Path, env: dict, model_id: str, prompt: str, events_pa
     except subprocess.TimeoutExpired:
         os.killpg(proc.pid, signal.SIGKILL)
         proc.wait()
-    if proc.returncode not in (0, None) and not st["error"] and not stalled:
+    if STORY_SKIP.is_set():
+        st["error"] = None  # the operator ended the story: not an agent failure, nothing to resume
+    elif proc.returncode not in (0, None) and not st["error"] and not stalled:
         st["error"] = f"agent exited with status {proc.returncode}"
     return {"exit": proc.returncode, "seconds": round(time.monotonic() - t0, 1), "stalled": stalled, **st}
 
@@ -468,7 +496,7 @@ def run_story_agent(client, ws: Path, env: dict, model_id: str, prompt: str, eve
     else:
         attempts = [run_agent(client, ws, env, model_id, prompt, events_path)]
     resumes = nudges = 0
-    while not RUN_ABORT.is_set():
+    while not RUN_ABORT.is_set() and not STORY_SKIP.is_set():
         last = attempts[-1]
         if last["error"] and not last["stalled"] and last["session"] and resumes < MAX_AGENT_RESUMES:
             resumes += 1
@@ -489,6 +517,7 @@ def run_story_agent(client, ws: Path, env: dict, model_id: str, prompt: str, eve
     total["tokens"] = {k: sum(a["tokens"][k] for a in attempts) for k in attempts[0]["tokens"]}
     return {**total, "exit": attempts[-1]["exit"], "stalled": attempts[-1]["stalled"],
             "resumes": resumes, "nudges": nudges, "errors": [a["error"] for a in attempts if a["error"]],
+            "ended_by_operator": STORY_SKIP.is_set(),
             "ended_in_error": bool(attempts[-1]["error"]), "sessions": [a["session"] for a in attempts]}
 
 
@@ -736,6 +765,148 @@ def thermal() -> str:
         return f"unknown ({e})"
 
 
+# ---- processed stories and operator control (CONTROL.md) ----------------------------------------
+DONE = "DONE"          # the agent finished the story by itself
+PARTIAL = "PARTIAL"    # the story was ended before it was complete (dbench skip-story)
+CONTROL_DIR = "control"
+SKIP_FILE = "skip-story.json"
+SKIP_POLL_S = 5
+PROGRESS_POLL_S = 60
+# Set when the operator ends the running story: no resume, no nudge; the run goes on to the next story.
+STORY_SKIP = threading.Event()
+
+
+def load_processed(metrics: dict, stories: list[dict]) -> list[dict]:
+    """The processed-stories queue. Runs recorded before it existed have only finished stories,
+    all ended by the agent itself: those become DONE, in scope order."""
+    if "processed" in metrics:
+        return metrics["processed"]
+    finished = {int(k): v for k, v in metrics["stories"].items() if v.get("finished")}
+    return [{"id": s["id"], "title": finished[s["id"]].get("title"), "status": DONE, "ended_by": "agent"}
+            for s in stories if s["id"] in finished]
+
+
+def pending_skip(run: Path, sid: int) -> dict | None:
+    """The operator's skip-story request for story sid, if one is waiting."""
+    f = run / CONTROL_DIR / SKIP_FILE
+    try:
+        req = json.loads(f.read_text())
+    except (OSError, json.JSONDecodeError):
+        return None
+    return req if req.get("story") == sid else None
+
+
+def mark_skip_applied(run: Path, sid: int) -> None:
+    f = run / CONTROL_DIR / SKIP_FILE
+    if pending_skip(run, sid):
+        os.replace(f, f.with_name(f"skip-story-{sid}.applied.json"))
+
+
+class SkipWatcher(threading.Thread):
+    """Watches for the operator's skip-story request for the running story; on one, stops the agent
+    (every process in the workspace) and sets STORY_SKIP so nothing resumes or nudges it."""
+
+    def __init__(self, run: Path, sid: int, ws: Path):
+        super().__init__(daemon=True)
+        self.run_dir, self.sid, self.ws = run, sid, ws
+        self.request: dict | None = None
+        self._halt = threading.Event()
+
+    def run(self):
+        while not self._halt.wait(SKIP_POLL_S):
+            req = pending_skip(self.run_dir, self.sid)
+            if req:
+                self.request = req
+                STORY_SKIP.set()
+                print(f"    operator ended story {self.sid} ({req.get('by')}): {req.get('reason')}", flush=True)
+                kill_pids(workspace_pids(self.ws))
+                return
+
+    def stop(self) -> dict | None:
+        self._halt.set()
+        self.join()
+        return self.request
+
+
+def reconstruct_agent(client, events: Path) -> dict:
+    """Agent totals from a story's event log alone: a skip placed before a restart ends the story
+    without starting the agent again, so its record comes from the log it already wrote."""
+    tally = progress.EventTally(client, events, empty_state)
+    t = tally.update()
+    seconds = 0.0
+    if events.exists():
+        first = None
+        with events.open() as f:
+            for line in f:
+                try:
+                    e = json.loads(line)
+                except json.JSONDecodeError:
+                    continue
+                if e.get("timestamp"):
+                    first = e["timestamp"]
+                    break
+        if isinstance(first, str):
+            from datetime import datetime
+            first = datetime.fromisoformat(first.replace("Z", "+00:00")).timestamp()
+        elif isinstance(first, (int, float)) and first > 1e11:
+            first = first / 1000
+        if first:
+            seconds = round(events.stat().st_mtime - first, 1)
+    st = tally.st
+    return {"seconds": seconds, "steps": st["steps"], "tool_calls": st["tool_calls"], "compactions": st["compactions"],
+            "tool_interruptions": 0, "tokens": st["tokens"], "exit": None, "stalled": False, "resumes": 0,
+            "nudges": 0, "errors": [], "ended_in_error": False, "sessions": [st["session"]],
+            "ended_by_operator": True, "reconstructed_from_log": True}
+
+
+class ProgressWatcher(threading.Thread):
+    """Keeps progress.json current while a story runs: its tasks (from workspace evidence), effort,
+    baselines and recent activity. Cheap: git reads and the new tail of the event log, once a minute."""
+
+    def __init__(self, run: Path, scope: dict, stories: list[dict], metrics: dict, live: dict,
+                 ws: Path, base: str, tasks: list[dict], tally: progress.EventTally):
+        super().__init__(daemon=True)
+        self.run_dir, self.scope, self.stories, self.metrics = run, scope, stories, metrics
+        self.live, self.ws, self.base, self.tasks, self.tally = live, ws, base, tasks, tally
+        self.signature = None
+        self._halt = threading.Event()
+
+    def refresh(self) -> None:
+        ev = progress.evidence(self.ws, self.base)
+        table = progress.task_table(self.tasks, ev)
+        sig = progress.tasks_signature(table)
+        if sig != self.signature:
+            self.signature = sig
+            self.live["last_task_change_at"] = time.time()
+        now = time.time()
+        self.live.update(tasks=table, last_commit_at=ev["last_commit_at"], **self.tally.update(),
+                         agent_minutes=round((now - self.live["started_at"]) / 60, 1))
+        progress.write_progress(self.run_dir, self.scope, self.stories, self.metrics, self.live)
+
+    def run(self):
+        while True:
+            try:
+                self.refresh()
+            except Exception as e:  # noqa: BLE001 - progress is informational; never stop a story for it
+                print(f"    progress refresh failed: {e}", flush=True)
+            if self._halt.wait(PROGRESS_POLL_S):
+                return
+
+    def stop(self) -> None:
+        self._halt.set()
+        self.join()
+
+
+def log_intervention(run: Path, text: str) -> None:
+    f = run / "interventions.md"
+    if not f.exists():
+        f.write_text("# Interventions\n\nEvery manual or automatic intervention in this run, oldest first. "
+                     "The run's numbers should be read with these in mind.\n\n")
+    with f.open("a") as f:
+        f.write(f"- {time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime())} {text}\n")
+
+
+
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--run-dir", type=Path, required=True)
@@ -769,31 +940,61 @@ def main() -> None:
     client.write_config(a.base_url, a.model_id, a.context_limit, a.output_limit, compact_at=a.compact_at)
     metrics = load_metrics(run)
     metrics.update({"scope": a.scope, "model_id": a.model_id, "client": a.client, "compact_at": a.compact_at})
-    done = [int(k) for k, v in metrics["stories"].items() if v.get("finished")]
+    processed = load_processed(metrics, scope["stories"])
+    metrics["processed"] = processed
+    progress.write_progress(run, scope, stories, metrics, None)
 
     for story in stories:
         sid = story["id"]
-        if sid in done:
+        if any(p["id"] == sid for p in processed):
             continue
         sdir = run / "stories" / f"{sid:02d}"
         sdir.mkdir(parents=True, exist_ok=True)
         (run / "current_story").write_text(str(sid))
         title = story_title(story)
-        prompt = render_prompt(story, title, done, scope)
+        prompt = render_prompt(story, title, processed, scope)
         (sdir / "prompt.md").write_text(prompt)
-        print(f"[story {sid}] {title} — agent starting", flush=True)
-        rec: dict = {"title": title, "conditions_start": wait_for_conditions(), "started": time.time()}
+        events = sdir / "agent-events.jsonl"
+        STORY_SKIP.clear()
         head_before = sh(["git", "rev-parse", "HEAD"], ws).strip()
-        sampler = ConditionSampler(ws, server_port=urlparse(a.base_url).port)
-        sampler.start()
-        prior = last_session(client, sdir / "agent-events.jsonl")
-        if prior:
-            print(f"[story {sid}] continuing the agent's own session {prior} after a harness restart", flush=True)
-            rec["continued_session"] = prior
-        rec["agent"] = run_story_agent(client, ws, env, a.model_id, prompt, sdir / "agent-events.jsonl",
-                                       continue_session=prior)
-        rec["agent_finished"] = time.time()
-        rec["conditions"] = sampler.stop()
+        prior = last_session(client, events)
+        # Where the story began: kept across harness restarts, so evidence counts the whole story.
+        base_file = sdir / "base-commit"
+        base = base_file.read_text().strip() if prior and base_file.exists() else head_before
+        base_file.write_text(base)
+        tasks = progress.parse_tasks(SPEC / "stories" / story["dir"] / "tasks.md")
+        partial_base = [p["id"] for p in processed if p["status"] == PARTIAL]
+        live = {"id": sid, "title": title, "status": "running", "started_at": time.time(), "tasks": [],
+                "partial_base": partial_base, "baselines": progress.baselines(REPO_ROOT, sid, run)}
+        early = pending_skip(run, sid)
+        if early:
+            # Placed before a restart: end the story from what the agent already did; don't start it again.
+            print(f"[story {sid}] {title} — ended by the operator before the agent restarted", flush=True)
+            STORY_SKIP.set()
+            rec: dict = {"title": title, "started": time.time()}
+            rec["agent"] = reconstruct_agent(client, events)
+            rec["agent_finished"] = time.time()
+            rec["conditions"] = {**summarise_conditions(0, []), "aborted_swap": False, "aborted_memory": False}
+            skip = early
+        else:
+            print(f"[story {sid}] {title} — agent starting", flush=True)
+            rec = {"title": title, "conditions_start": wait_for_conditions(), "started": time.time()}
+            live["started_at"] = rec["started"]
+            sampler = ConditionSampler(ws, server_port=urlparse(a.base_url).port)
+            sampler.start()
+            if prior:
+                print(f"[story {sid}] continuing the agent's own session {prior} after a harness restart", flush=True)
+                rec["continued_session"] = prior
+            tally = progress.EventTally(client, events, empty_state)
+            watcher = ProgressWatcher(run, scope, stories, metrics, live, ws, base, tasks, tally)
+            watcher.start()
+            skipper = SkipWatcher(run, sid, ws)
+            skipper.start()
+            rec["agent"] = run_story_agent(client, ws, env, a.model_id, prompt, events, continue_session=prior)
+            rec["agent_finished"] = time.time()
+            skip = skipper.stop()
+            watcher.stop()
+            rec["conditions"] = sampler.stop()
         if rec["conditions"]["aborted_swap"]:
             kill_strays(ws)
             (run / "current_story").write_text("")
@@ -801,7 +1002,7 @@ def main() -> None:
                              f"{rec['conditions']['swap_max_gb']} GB). Not checkpointed; check memory before resuming.")
         kill_strays(ws)
         (run / "current_story").write_text("")
-        if rec["agent"]["steps"] == 0:
+        if rec["agent"]["steps"] == 0 and not skip:
             # The agent never reached the model: an infrastructure fault, not a story result.
             raise SystemExit(f"[story {sid}] agent made no model calls (exit {rec['agent']['exit']}); "
                              f"see {sdir / 'agent-events.jsonl'}. Not checkpointed.")
@@ -815,9 +1016,16 @@ def main() -> None:
         rec["gate"] = gates.gate(ws)
         (sdir / "gate.json").write_text(json.dumps(rec["gate"], indent=2))
         kill_strays(ws)
-        acc = gates.accept(ws, done + [sid], sdir)
+        status = PARTIAL if skip else DONE
+        acc = gates.accept(ws, [*processed, {"id": sid, "status": status}], sdir)
         (sdir / "accept.json").write_text(json.dumps(acc, indent=2))
         rec["accept"] = {k: v for k, v in acc.items() if k != "tests"}
+        # Task evidence before the snapshot below, which would make uncommitted work look committed.
+        ev = progress.evidence(ws, base)
+        if not skip and pending_skip(run, sid):
+            # Arrived as the agent finished by itself: the story is DONE; keep the request, unapplied.
+            f = run / CONTROL_DIR / SKIP_FILE
+            os.replace(f, f.with_name(f"skip-story-{sid}.too-late.json"))
 
         sh(["git", "add", "-A"], ws, GIT_IDENTITY)
         if sh(["git", "status", "--porcelain"], ws).strip():
@@ -827,20 +1035,53 @@ def main() -> None:
         rec["loc"] = loc(ws)
         mirror(ws, run / "workspace")
         rec["finished"] = time.time()
+        # Where the story stands, from workspace evidence: its tasks, and, if it was ended early,
+        # whether later stories can build on it (never stops the run).
+        table = progress.task_table(tasks, ev, rec["gate"])
+        own = acc["by_story"].get(f"{sid:02d}")
+        rec.update(status=status, ended_by="operator" if skip else "agent", partial_base=partial_base, tasks=table)
+        if partial_base:
+            rec["stub_markers"] = progress.stub_markers(ws, base)
+            rec["partial_heldout_changes"] = {
+                str(p): progress.heldout_changes(json.loads((run / "stories" / f"{p:02d}" / "accept.json").read_text()),
+                                                 acc["tests"], p)
+                for p in partial_base if (run / "stories" / f"{p:02d}" / "accept.json").exists()}
+        entry = {"id": sid, "title": title, "status": status, "ended_by": rec["ended_by"],
+                 "started_at": rec["started"], "ended_at": rec["agent_finished"],
+                 "agent_minutes": round(rec["agent"]["seconds"] / 60, 1), "calls": rec["agent"]["steps"],
+                 "output_tokens": rec["agent"]["tokens"]["output"], "compactions": rec["agent"]["compactions"],
+                 "last_commit_at": ev["last_commit_at"], "accept": own,
+                 "partial_base": partial_base, "tasks": table, "baselines": live["baselines"]}
+        if skip:
+            health = progress.base_health(rec["gate"], table, own, live["baselines"])
+            rec.update(skip=skip, verdict=health)
+            entry.update(reason=skip.get("reason"), by=skip.get("by"), requested_at=skip.get("at"),
+                         verdict=health["verdict"], health=health)
+            mark_skip_applied(run, sid)
+            log_intervention(run, (
+                f"story {sid}: ended by the operator ({skip.get('by')}) after {entry['agent_minutes']} agent-min, "
+                f"{entry['calls']} calls: {skip.get('reason')}. Recorded PARTIAL. Verdict {health['verdict']}: gate "
+                f"{'green' if health['gate_green'] else 'red'}, tasks not verified {health['unverified_tasks'] or 'none'} "
+                f"(implementation: {health['unverified_implementation_tasks'] or 'none'}), held-out "
+                f"{(own or {}).get('passed')}/{(own or {}).get('total')} (floor {health['heldout_floor']}). "
+                f"The run continued with the next story."))
+        processed.append(entry)
         metrics["stories"][str(sid)] = rec
         save_metrics(run, metrics)
-        done.append(sid)
+        progress.write_progress(run, scope, stories, metrics, None)
         if a.record:
             import report
             (run / "summary.md").write_text(report.summary(run))
             compact_events(sdir / "agent-events.jsonl")
             label = combination_label(run)
-            rec["record"] = record_story(REPO_ROOT, run, f"vidi {label} {run.name}: story {sid} done")
+            outcome = "done" if status == DONE else "partial (ended by operator)"
+            rec["record"] = record_story(REPO_ROOT, run, f"vidi {label} {run.name}: story {sid} {outcome}")
             save_metrics(run, metrics)
             r = rec["record"]
             print(f"[story {sid}] recorded: commit {r.get('commit', '-')} pushed={r['pushed']}"
                   f"{'  ' + r['error'][:200] if r.get('error') else ''}", flush=True)
-        print(f"[story {sid}] gate green={rec['gate'].get('all_green')} "
+        print(f"[story {sid}] {status}{' verdict ' + rec['verdict']['verdict'] if skip else ''} "
+              f"gate green={rec['gate'].get('all_green')} "
               f"accept {acc['passed']}/{acc['total']} stalled={rec['agent']['stalled']}"
               f"{' DEGRADED (power/thermal) — timing not comparable' if rec['conditions']['degraded'] else ''}",
               flush=True)

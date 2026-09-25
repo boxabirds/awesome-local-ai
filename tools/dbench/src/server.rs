@@ -21,6 +21,7 @@ use tokio::io::{AsyncReadExt, AsyncSeekExt};
 use tokio::sync::Notify;
 
 use crate::cli::ServerConfig;
+use crate::control::{self, SkipStory, SkipStoryRequest};
 use crate::events::parse_log;
 use crate::ids::valid_id;
 use crate::job::{resolve_entry, submit_decision, Job, JobSpec, JobState, SubmitOutcome};
@@ -242,6 +243,7 @@ pub fn router(shared: Arc<Shared>) -> Router {
         .route("/v1/jobs", get(list_jobs))
         .route("/v1/jobs/{id}", get(get_job).put(submit))
         .route("/v1/jobs/{id}/cancel", post(cancel))
+        .route("/v1/jobs/{id}/skip-story", post(skip_story))
         .route("/v1/jobs/{id}/log", get(log))
         .route("/v1/jobs/{id}/events", get(events))
         .route_layer(middleware::from_fn_with_state(shared.clone(), auth));
@@ -330,7 +332,8 @@ async fn submit(
                     format!(
                         "{} is installed as {:?}, not {:?}",
                         found.install_id,
-                        env.get("COMBINATION").map_or("(no COMBINATION)", String::as_str),
+                        env.get("COMBINATION")
+                            .map_or("(no COMBINATION)", String::as_str),
                         found.combination
                     ),
                 );
@@ -433,6 +436,73 @@ async fn cancel(
             StatusCode::CONFLICT,
             format!("job {id} already finished ({})", job.state.label()),
         ),
+    }
+}
+
+/// Ask the harness to end the running story as PARTIAL and go on to the next
+/// one, by writing `control/skip-story.json` in its run dir. The job keeps
+/// running; the harness applies the request within a few seconds.
+async fn skip_story(
+    State(st): State<Arc<Shared>>,
+    ConnectInfo(peer): ConnectInfo<SocketAddr>,
+    UrlPath(id): UrlPath<String>,
+    Json(req): Json<SkipStoryRequest>,
+) -> Response {
+    let by = peer.ip();
+    let Some(job) = st.job(&id) else {
+        return err(StatusCode::NOT_FOUND, format!("no job {id}"));
+    };
+    let reason = req.reason.trim();
+    if reason.is_empty() {
+        return err(
+            StatusCode::BAD_REQUEST,
+            "give a reason: it is recorded with the PARTIAL story",
+        );
+    }
+    if !matches!(job.state, JobState::Running { .. }) {
+        return err(
+            StatusCode::CONFLICT,
+            format!("job {id} is not running ({})", job.state.label()),
+        );
+    }
+    let dir = match progress::resolve_run_dir(&st.cfg.repo, &st.cfg.share_dir, &job.spec) {
+        Ok((_, dir)) => dir,
+        Err(e) => return err(StatusCode::CONFLICT, format!("job {id}: {e}")),
+    };
+    let story = req.story.to_string();
+    match progress::read_current_story(&dir).filter(|c| !c.is_empty()) {
+        Some(current) if current == story => {}
+        Some(current) => {
+            return err(
+                StatusCode::CONFLICT,
+                format!("story {story} is not running; the current story is {current}"),
+            )
+        }
+        None => {
+            return err(
+                StatusCode::CONFLICT,
+                format!("story {story} is not running; no story is running right now"),
+            )
+        }
+    }
+    let file = SkipStory {
+        story: req.story,
+        reason: reason.to_string(),
+        by: by.to_string(),
+        at: now_secs(),
+    };
+    if let Err(e) = control::write_skip_story(&dir, &file) {
+        return err(
+            StatusCode::INTERNAL_SERVER_ERROR,
+            format!("writing {}: {e}", control::skip_story_path(&dir).display()),
+        );
+    }
+    let text = format!("skip-story {story} requested by {by}: {reason}");
+    let j = st.update(&id, |j, _| j.note(now_secs(), text.clone()));
+    st.log_line(&id, &text);
+    match j {
+        Some(j) => (StatusCode::ACCEPTED, Json(st.view(j))).into_response(),
+        None => err(StatusCode::NOT_FOUND, format!("no job {id}")),
     }
 }
 

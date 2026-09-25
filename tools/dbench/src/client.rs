@@ -10,6 +10,7 @@ use std::time::Duration;
 use crate::events::Event;
 use crate::job::{JobSpec, JobState};
 use crate::node::NodeInfo;
+use crate::progress::{StoryProgress, TaskProgress};
 use crate::server::JobView;
 use crate::timefmt::{fmt_duration, now_secs};
 
@@ -133,6 +134,22 @@ impl Api {
             .await
     }
 
+    pub async fn skip_story(
+        &self,
+        id: &str,
+        story: u32,
+        reason: &str,
+    ) -> Result<(reqwest::StatusCode, serde_json::Value)> {
+        self.send(
+            self.req(reqwest::Method::POST, &format!("/v1/jobs/{id}/skip-story"))
+                .json(&crate::control::SkipStoryRequest {
+                    story,
+                    reason: reason.to_string(),
+                }),
+        )
+        .await
+    }
+
     /// Stream the log to `out` from `from`; returns the offset reached.
     pub async fn stream_log(
         &self,
@@ -235,7 +252,9 @@ pub fn state_text(state: &JobState) -> String {
 fn last_score(v: &JobView) -> String {
     v.progress
         .stories
-        .last()
+        .iter()
+        .rev()
+        .find(|s| s.passed.is_some() || s.total.is_some())
         .map(|s| {
             format!(
                 "story {} {}/{}",
@@ -355,6 +374,216 @@ pub async fn cmd_submit(ctx: &Ctx, node: &str, id: &str, spec: JobSpec) -> Resul
     Ok(())
 }
 
+/// Longest story title in a story line, and task title in the task table.
+const TITLE_CHARS: usize = 44;
+/// Longest recent-activity line shown.
+const ACTIVITY_CHARS: usize = 110;
+/// How many of the harness's recent-activity lines to show.
+const ACTIVITY_LINES: usize = 5;
+/// Task statuses in the order a task moves through them (see the harness's progress.py).
+const TASK_STATUSES: [&str; 4] = ["verified", "committed", "written", "not-started"];
+
+/// `572`, `164k`, `1.2M`.
+fn fmt_count(n: u64) -> String {
+    match n {
+        0..=9_999 => n.to_string(),
+        10_000..=999_999 => format!("{}k", (n + 500) / 1000),
+        _ => format!("{:.1}M", n as f64 / 1e6),
+    }
+}
+
+/// How long ago a Unix time (from the harness, fractional) was, for humans.
+fn ago(now: u64, at: f64) -> String {
+    fmt_duration(now.saturating_sub(at.max(0.0) as u64))
+}
+
+fn agent_time(minutes: f64) -> String {
+    fmt_duration((minutes.max(0.0) * 60.0).round() as u64)
+}
+
+/// At most `n` characters, with `…` when cut.
+fn clip(s: &str, n: usize) -> String {
+    if s.chars().count() <= n {
+        s.to_string()
+    } else {
+        let mut out: String = s.chars().take(n.saturating_sub(1)).collect();
+        out.push('…');
+        out
+    }
+}
+
+fn opt_u64(v: Option<u64>) -> String {
+    v.map_or("?".into(), |n| n.to_string())
+}
+
+/// `tasks: 7 committed, 2 written`, most advanced first.
+pub fn task_summary(tasks: &[TaskProgress]) -> Option<String> {
+    if tasks.is_empty() {
+        return None;
+    }
+    let mut counts: Vec<(String, usize)> =
+        TASK_STATUSES.iter().map(|s| (s.to_string(), 0)).collect();
+    for t in tasks {
+        let status = t.status.as_deref().unwrap_or("unknown");
+        match counts.iter_mut().find(|(s, _)| s == status) {
+            Some((_, n)) => *n += 1,
+            None => counts.push((status.to_string(), 1)),
+        }
+    }
+    let parts: Vec<String> = counts
+        .into_iter()
+        .filter(|(_, n)| *n > 0)
+        .map(|(s, n)| format!("{n} {s}"))
+        .collect();
+    Some(format!("tasks: {}", parts.join(", ")))
+}
+
+/// One line per story: id, status, title, then whatever the harness reported.
+pub fn story_line(s: &StoryProgress, now: u64) -> String {
+    let status = s.status.as_deref().unwrap_or("-");
+    let running = status == "running";
+    let mut parts: Vec<String> = Vec::new();
+    if let Some(m) = s.agent_minutes {
+        parts.push(format!("agent {}", agent_time(m)));
+    }
+    if let Some(c) = s.calls {
+        parts.push(format!("{} calls", fmt_count(c)));
+    }
+    if let Some(t) = s.output_tokens {
+        parts.push(format!("{} tokens", fmt_count(t)));
+    }
+    if let Some(c) = s.compactions.filter(|c| *c > 0) {
+        parts.push(format!("{c} compactions"));
+    }
+    if s.passed.is_some() || s.total.is_some() {
+        parts.push(format!("accept {}/{}", opt_u64(s.passed), opt_u64(s.total)));
+    }
+    match s.last_commit_at {
+        Some(at) => parts.push(format!("last commit {} ago", ago(now, at))),
+        None if running => parts.push("no commit yet".into()),
+        None => {}
+    }
+    parts.extend(task_summary(&s.tasks));
+    if status == "PARTIAL" {
+        parts.push(format!("verdict {}", s.verdict.as_deref().unwrap_or("?")));
+    }
+    let head = format!(
+        "{:>3}  {:<8} {:<w$}",
+        if s.id.is_empty() { "?" } else { &s.id },
+        status,
+        clip(s.title.as_deref().unwrap_or(""), TITLE_CHARS),
+        w = TITLE_CHARS
+    );
+    if parts.is_empty() {
+        head.trim_end().to_string()
+    } else {
+        format!("{head}  {}", parts.join("  "))
+    }
+}
+
+fn story_ref(v: &serde_json::Value) -> String {
+    v.as_str().map_or_else(|| v.to_string(), String::from)
+}
+
+/// Why a PARTIAL story ended and what it was built on, if known.
+fn story_note(s: &StoryProgress) -> Option<String> {
+    let mut parts = Vec::new();
+    if let Some(r) = &s.reason {
+        parts.push(format!(
+            "ended by {}: {r}",
+            s.ended_by.as_deref().unwrap_or("?")
+        ));
+    }
+    if !s.partial_base.is_empty() {
+        let base: Vec<String> = s.partial_base.iter().map(story_ref).collect();
+        parts.push(format!("built on PARTIAL {}", base.join(", ")));
+    }
+    (!parts.is_empty()).then(|| parts.join("; "))
+}
+
+/// The story to show in detail: the running one, else the current one, else
+/// the last one the harness started.
+fn focus_story<'a>(
+    stories: &'a [StoryProgress],
+    current: Option<&str>,
+) -> Option<&'a StoryProgress> {
+    stories
+        .iter()
+        .find(|s| s.status.as_deref() == Some("running"))
+        .or_else(|| current.and_then(|c| stories.iter().find(|s| s.id == c && s.status.is_some())))
+        .or_else(|| {
+            stories
+                .iter()
+                .rev()
+                .find(|s| s.started_at.is_some() || !s.tasks.is_empty())
+        })
+}
+
+/// A story's task table, baselines and latest activity.
+pub fn story_detail(s: &StoryProgress, now: u64) -> Vec<String> {
+    let mut out = Vec::new();
+    let status = s.status.as_deref().unwrap_or("-");
+    let mut head = format!("story {} {status}", s.id);
+    if let Some(start) = s.started_at {
+        match s.ended_at {
+            Some(end) => head.push_str(&format!(
+                ", took {}",
+                fmt_duration((end - start).max(0.0) as u64)
+            )),
+            None => head.push_str(&format!(", started {} ago", ago(now, start))),
+        }
+    }
+    if let Some(at) = s.last_task_change_at {
+        head.push_str(&format!(", last task change {} ago", ago(now, at)));
+    }
+    out.push(head);
+    if !s.tasks.is_empty() {
+        out.push(format!(
+            "  {:>3}  {:<11} {:<14} {:<7} TITLE",
+            "N", "STATUS", "TYPE", "TCS"
+        ));
+        for t in &s.tasks {
+            let tcs = match (t.found, t.total) {
+                (None, None) => "-".to_string(),
+                (f, tot) => format!("{}/{}", opt_u64(f), opt_u64(tot)),
+            };
+            out.push(format!(
+                "  {:>3}  {:<11} {:<14} {:<7} {}",
+                t.n.map_or("?".into(), |n| n.to_string()),
+                t.status.as_deref().unwrap_or("?"),
+                clip(t.kind.as_deref().unwrap_or("-"), 14),
+                tcs,
+                clip(t.title.as_deref().unwrap_or(""), TITLE_CHARS + 20)
+            ));
+        }
+    }
+    if !s.baselines.is_empty() {
+        out.push("  baselines".into());
+        for b in &s.baselines {
+            let mut parts = vec![format!("{:<7}", b.status.as_deref().unwrap_or("?"))];
+            if let Some(m) = b.agent_minutes {
+                parts.push(format!("agent {:<6}", agent_time(m)));
+            }
+            if let Some(c) = b.calls {
+                parts.push(format!("{:>5} calls", fmt_count(c)));
+            }
+            if let Some(t) = b.output_tokens {
+                parts.push(format!("{:>5} tokens", fmt_count(t)));
+            }
+            parts.push(b.source.clone().unwrap_or_default());
+            out.push(format!("    {}", parts.join("  ").trim_end()));
+        }
+    }
+    if !s.recent_activity.is_empty() {
+        out.push("  recent activity".into());
+        let skip = s.recent_activity.len().saturating_sub(ACTIVITY_LINES);
+        for a in &s.recent_activity[skip..] {
+            out.push(format!("    {}", clip(a.trim(), ACTIVITY_CHARS)));
+        }
+    }
+    out
+}
+
 fn print_job_line(node: &str, v: &JobView) {
     println!(
         "{:<12} {:<24} {:<24} {:<8} {:<16} {}",
@@ -365,6 +594,14 @@ fn print_job_line(node: &str, v: &JobView) {
         last_score(v),
         state_text(&v.job.state)
     );
+    if let Some(s) = v
+        .progress
+        .stories
+        .iter()
+        .find(|s| s.status.as_deref() == Some("running"))
+    {
+        println!("{:<12} {}", "", story_line(s, now_secs()));
+    }
 }
 
 fn print_job_detail(node: &str, v: &JobView) {
@@ -410,14 +647,24 @@ fn print_job_detail(node: &str, v: &JobView) {
         "current   story {}",
         v.progress.current_story.as_deref().unwrap_or("-")
     );
-    for s in &v.progress.stories {
-        println!(
-            "  story {:>3}  accept {:>3}/{:<3}  {}",
-            s.id,
-            s.passed.map_or("?".into(), |p| p.to_string()),
-            s.total.map_or("?".into(), |t| t.to_string()),
-            s.title.as_deref().unwrap_or("")
-        );
+    let now = now_secs();
+    let stories = &v.progress.stories;
+    if !stories.is_empty() {
+        match v.progress.stories_updated_at {
+            Some(at) => println!("stories   (harness progress updated {} ago)", ago(now, at)),
+            None => println!("stories   (finished only: the harness writes no progress.json)"),
+        }
+    }
+    for s in stories {
+        println!("  {}", story_line(s, now));
+        if let Some(note) = story_note(s) {
+            println!("  {:>3}  {:<8} {note}", "", "");
+        }
+    }
+    if let Some(s) = focus_story(stories, v.progress.current_story.as_deref()) {
+        for l in story_detail(s, now) {
+            println!("  {l}");
+        }
     }
     if !j.history.is_empty() {
         println!("history");
@@ -556,6 +803,24 @@ pub async fn cmd_cancel(ctx: &Ctx, node: &str, id: &str) -> Result<()> {
     Ok(())
 }
 
+pub async fn cmd_skip_story(
+    ctx: &Ctx,
+    node: &str,
+    id: &str,
+    story: u32,
+    reason: &str,
+) -> Result<()> {
+    let (status, v) = ctx.api(node)?.skip_story(id, story, reason).await?;
+    if ctx.json {
+        print_json(&v)?;
+    }
+    match status.as_u16() {
+        202 => eprintln!("{node}: job {id}: story {story} will be ended as PARTIAL within a few seconds; the run continues with the next story"),
+        _ => bail!("{node}: {status}: {}", error_text(&v)),
+    }
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -571,5 +836,79 @@ mod tests {
             Api::new(&f.nodes["quintus"]).unwrap().base,
             "http://quintus:7717"
         );
+    }
+
+    fn story(json: serde_json::Value) -> StoryProgress {
+        serde_json::from_value(json).unwrap()
+    }
+
+    #[test]
+    fn story_lines() {
+        let now = 1_790_302_800;
+        let running = story(serde_json::json!({
+            "id": 3, "title": "See other people's edits appear live on the same board",
+            "status": "running", "started_at": 1_790_291_590.0, "agent_minutes": 187.4,
+            "calls": 572, "output_tokens": 526_585, "compactions": 8,
+            "last_commit_at": (now - 107 * 60) as f64, "passed": 5, "total": 7,
+            "tasks": [{"n": 1, "status": "committed"}, {"n": 2, "status": "written"},
+                      {"n": 3, "status": "committed"}, {"n": 4}],
+            "recent_activity": ["a", "b", "c", "d", "e", "f"]
+        }));
+        let line = story_line(&running, now);
+        assert!(
+            line.starts_with("  3  running  See other people's edits appear live on the…  "),
+            "{line}"
+        );
+        assert!(
+            line.ends_with("agent 3h07m  572 calls  527k tokens  8 compactions  accept 5/7  last commit 1h47m ago  tasks: 2 committed, 1 written, 1 unknown"),
+            "{line}"
+        );
+        let partial = story(serde_json::json!({
+            "id": 2, "title": "Draw", "status": "PARTIAL", "verdict": "amber",
+            "ended_by": "operator", "reason": "stuck", "partial_base": [1]
+        }));
+        assert!(story_line(&partial, now).ends_with("verdict amber"));
+        assert_eq!(
+            story_note(&partial).as_deref(),
+            Some("ended by operator: stuck; built on PARTIAL 1")
+        );
+        // A pending story, or one from metrics.json, is short.
+        assert_eq!(
+            story_line(
+                &story(serde_json::json!({"id": 4, "title": "Undo", "status": "pending"})),
+                now
+            ),
+            "  4  pending  Undo"
+        );
+        assert_eq!(
+            story_line(
+                &story(serde_json::json!({"id": "1", "title": "One", "passed": 3, "total": 4})),
+                now
+            ),
+            format!("  1  -        {:<44}  accept 3/4", "One")
+        );
+
+        let stories = [partial, running.clone()];
+        assert_eq!(focus_story(&stories, None), Some(&running));
+        let detail = story_detail(&running, now);
+        assert!(
+            detail[0].starts_with("story 3 running, started 3h"),
+            "{detail:?}"
+        );
+        assert!(detail.iter().any(|l| l.contains("N  STATUS")));
+        // The last few activity lines only.
+        let activity = detail
+            .iter()
+            .position(|l| l == "  recent activity")
+            .unwrap();
+        assert_eq!(detail.len() - activity - 1, ACTIVITY_LINES);
+        assert_eq!(detail.last().unwrap(), "    f");
+    }
+
+    #[test]
+    fn counts() {
+        assert_eq!(fmt_count(572), "572");
+        assert_eq!(fmt_count(163_933), "164k");
+        assert_eq!(fmt_count(1_234_567), "1.2M");
     }
 }

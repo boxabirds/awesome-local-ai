@@ -6,6 +6,7 @@
 Usable standalone, e.g. to re-score a finished run after an acceptance-suite fix:
 
     uv run gates.py accept <workspace> --done 1,2,3 --out <dir>
+    uv run gates.py accept <workspace> --done 1:DONE,2:DONE,3:PARTIAL --out <dir>
     uv run gates.py gate   <workspace> --out <dir>
 """
 from __future__ import annotations
@@ -88,24 +89,50 @@ def gate(ws: Path) -> dict:
     return result
 
 
+def _on_partial(test: dict, result: dict) -> str | None:
+    """The PARTIAL stories a test was built on (fixtures.ts `requires()` annotation), if any."""
+    for a in [*(test.get("annotations") or []), *(result.get("annotations") or [])]:
+        if a.get("type") == "on-partial":
+            return a.get("description") or ""
+    return None
+
+
 def _walk(suite: dict):
     for spec in suite.get("specs", []):
         for t in spec.get("tests", []):
             res = t["results"][-1] if t.get("results") else {}
             yield {"file": suite.get("file") or spec.get("file"), "title": spec["title"],
                    "status": res.get("status", "none"),
-                   "error": (res.get("error") or {}).get("message", "")[:500]}
+                   "error": (res.get("error") or {}).get("message", "")[:500],
+                   "on_partial": _on_partial(t, res)}
     for child in suite.get("suites", []):
         yield from _walk(child)
 
 
-def accept(ws: Path, done: list[int], out: Path) -> dict:
-    """Build the workspace and run the held-out suite for every implemented story."""
+def processed_env(processed: list) -> str:
+    """PROCESSED_STORIES for the suite: "1:DONE,2:DONE,3:PARTIAL". Plain ids mean DONE."""
+    return ",".join(f"{p['id']}:{p['status']}" if isinstance(p, dict) else f"{p}:DONE" for p in processed)
+
+
+def parse_processed(arg: str) -> list[dict]:
+    """--done "1,2,3" or "1:DONE,3:PARTIAL" into the processed queue."""
+    out = []
+    for e in filter(None, arg.split(",")):
+        sid, _, status = e.partition(":")
+        out.append({"id": int(sid), "status": status or "DONE"})
+    return out
+
+
+def accept(ws: Path, processed: list, out: Path) -> dict:
+    """Build the workspace and run the held-out suite for every processed story.
+
+    processed: the queue of processed stories ({"id", "status": DONE|PARTIAL}), or plain ids (all DONE)."""
     out.mkdir(parents=True, exist_ok=True)
     build = _run(["npm", "run", "build"], ws, STEP_TIMEOUT_S)
     report = out / "accept-report.json"
     report.unlink(missing_ok=True)
-    env = {"WORKSPACE": str(ws), "DONE_STORIES": ",".join(map(str, done)),
+    done = [p["id"] if isinstance(p, dict) else p for p in processed]
+    env = {"WORKSPACE": str(ws), "PROCESSED_STORIES": processed_env(processed),
            "ACCEPT_JSON": str(report), "ACCEPT_ARTIFACTS": str(out / "artifacts"),
            "SHOT_DIR": str(out / "screenshots")}
     files = [f"tests/story-{s:02d}.spec.ts" for s in done if (ACCEPTANCE / f"tests/story-{s:02d}.spec.ts").exists()]
@@ -123,12 +150,17 @@ def accept(ws: Path, done: list[int], out: Path) -> dict:
         agg = by_story.setdefault(key, {"passed": 0, "total": 0})
         agg["total"] += 1
         agg["passed"] += t["status"] == "passed"
+        if t.get("on_partial") is not None:
+            agg["on_partial_total"] = agg.get("on_partial_total", 0) + 1
+            agg["on_partial_passed"] = agg.get("on_partial_passed", 0) + (t["status"] == "passed")
     return {
         "build_exit": build["exit"],
         "runner_exit": run["exit"],
         "runner_tail": run["tail"][-1500:] if not tests else "",
         "passed": sum(t["status"] == "passed" for t in applicable),
         "total": len(applicable),
+        "on_partial": {"passed": sum(t["status"] == "passed" for t in applicable if t.get("on_partial") is not None),
+                       "total": sum(t.get("on_partial") is not None for t in applicable)},
         "by_story": by_story,
         "tests": tests,
     }
@@ -145,7 +177,7 @@ def main() -> None:
     if a.what == "gate":
         res = gate(ws)
     else:
-        res = accept(ws, [int(x) for x in a.done.split(",") if x], a.out)
+        res = accept(ws, parse_processed(a.done), a.out)
     a.out.mkdir(parents=True, exist_ok=True)
     (a.out / f"{a.what}.json").write_text(json.dumps(res, indent=2))
     print(json.dumps({k: v for k, v in res.items() if k not in ("tests", "steps")}, indent=2))

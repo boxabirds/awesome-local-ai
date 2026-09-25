@@ -40,6 +40,31 @@ Nothing in the harness is specific to a backend.
 8. **Snapshot:** anything the agent left uncommitted is committed as `harness: snapshot after story N`, and `metrics.json` is checkpointed.
 9. **Report:** `summary.md` in the run directory.
 
+## Watching a run and ending a story early
+
+While a story runs, the harness keeps `progress.json` in the run directory up to date, and `dbench status <node> <job>` shows it. It lists every story in scope (`pending`, `running`, `DONE` or `PARTIAL`) with the running story's effort (agent minutes, calls, output tokens, compactions), the time since its last commit and since any task last moved, the same story's figures in other runs (baselines), and its recent tool calls. It also shows the story's tasks from `tasks.md`, each `not-started`, `written`, `committed` or `verified`. The harness works these out from the workspace: the TC ids on lines the story added, commit messages that name a task, and at the end, the agent's gate. It never asks the agent.
+
+If a story seems to be taking far too long, the operator (a person, or Claude with the user's go-ahead) can end it:
+
+```bash
+dbench skip-story <node> <job> --story 3 --reason "3h, no commit for 107 min: e2e/WebKit flake triage"
+```
+
+The harness stops the agent (no resume, no nudge), runs the usual gates and snapshot, records the story as **PARTIAL** with the reason, and goes on to the next story. `metrics.json` keeps the processed stories as a queue, each `DONE` (the agent finished it) or `PARTIAL`. A PARTIAL story also gets a verdict on whether later stories can build on it. The verdict never stops the run:
+
+| Verdict | Meaning |
+|---|---|
+| green | gate green, only test tasks unverified, own held-out tests no worse than the worst healthy (DONE, gate green) baseline |
+| amber | gate green, but an implementation task is unverified or the held-out tests fall short |
+| red | gate red |
+
+The story order is the only dependency the spec records, so every later story counts as built on the PARTIAL one:
+- The next agent's prompt names the PARTIAL story and its unverified tasks. It says to fill a gap only if the story needs it, to the PARTIAL story's design, recorded in `NOTES.md` under "Gap filled from story N", and never with stubs or fakes.
+- The held-out suite gets `PROCESSED_STORIES=1:DONE,2:DONE,3:PARTIAL`. Tests built on a PARTIAL story are annotated `on-partial` and counted apart.
+- Each later story records stub-like lines added to `src/`, and which of the PARTIAL story's held-out tests it fixed or broke.
+
+Every early end is written to `interventions.md`. The file contract between the harness and dbench is in `harness/CONTROL.md`.
+
 ## Scopes
 
 | Scope | Stories | Why |
@@ -80,4 +105,6 @@ This builds an anonymised A/B bundle; the label→run key is written *outside* i
 | `harness/drive.py` | per-story agent driver, loop guard, checkpoints (tests: `test_drive.py`) |
 | `harness/gates.py` | agent gate + acceptance runner, usable standalone for re-scoring |
 | `harness/report.py` | `summary.md` and cross-run comparison |
+| `harness/progress.py` | task status from workspace evidence, baselines, the PARTIAL verdict, `progress.json` (tests: `test_progress.py`) |
+| `harness/CONTROL.md` | the harness ↔ dbench contract: `progress.json` and `control/skip-story.json` |
 | `harness/judge_prep.py`, `harness/judge.md` | blind A/B judging |

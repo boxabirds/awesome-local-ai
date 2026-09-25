@@ -72,5 +72,20 @@ async fn main() -> Result<()> {
         Cmd::Cancel { node, id } => {
             client::cmd_cancel(&Ctx::load(cli.config, cli.json)?, &node, &id).await
         }
+        Cmd::SkipStory {
+            node,
+            id,
+            story,
+            reason,
+        } => {
+            client::cmd_skip_story(
+                &Ctx::load(cli.config, cli.json)?,
+                &node,
+                &id,
+                story,
+                &reason,
+            )
+            .await
+        }
     }
 }
