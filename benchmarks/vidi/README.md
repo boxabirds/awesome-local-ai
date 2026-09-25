@@ -9,6 +9,29 @@ repo: *how does this setup implement Vidi?*
 The spec (`spec/`) is a Miro-style collaborative whiteboard ("vidi6"): 17 stories
 in 3 epics, each with a PRD, a technical design and ordered tasks.
 
+## Where the spec, the held-out suite and the other secrets are
+
+The specification, the **held-out acceptance suite** and the grading material are **not in this public repo**. They live in the private repo [`boxabirds/awesome-local-ai-bench-private`](https://github.com/boxabirds/awesome-local-ai-bench-private), so that they stay out of public training data and out of the agents' reach. That repo holds:
+- `packs/vidi/spec/`, `scope/`, `prompts/`;
+- `packs/vidi/acceptance/`: the held-out Playwright suite;
+- `packs/vidi/GRADING.md`: the independent grader's brief;
+- `gradings/`: blinded grading packages.
+
+Everything else is public: this harness, dbench, the audit method, and all run records and results.
+
+> **Transition note (25 Sep 2026):** copies of `spec/`, `acceptance/`, `scope/` and `prompts/` are still under `benchmarks/vidi/` here: they are bench **v1**, which was publicly exposed. They're removed once the runs that still read them have finished. The harness already prefers the private checkout when it sits next to this repo.
+
+**Want to run the benchmark on your own hardware** (a 3090, a DGX, anything else)? Ask the repo owner (Julian Harris) for access to the private repo. With access:
+1. Clone it next to this repo.
+2. Run `benchmarks/vidi/harness/setup-node.sh`, which checks your tools, pins the pack to the current bench version (`vidi-v1`) and proves the sandbox hides the suite.
+3. Run your setup with `run.sh` or dbench.
+
+Results are only comparable within one bench version.
+
+Two secrets never go in either repo:
+- the A/B keys of blinded gradings (`~/.vidi-bench/grading-keys/`);
+- the Claude subscription token (`~/.dbench/claude-oauth-token`).
+
 ## Run it
 
 ```bash
@@ -84,31 +107,19 @@ The reference stack runs through the same harness as the local setups: the same 
    ```
    Runs are recorded in `benchmarks/reference/vidi/opus-5.5/<run-id>/`.
 
-**On another machine (e.g. the M2).** Run reference stacks on a machine where no other harness run is going, because the two agents' apps would collide on ports.
+**On another machine (e.g. the M2).** Run reference stacks on a machine where no other harness run is going, because the two agents' apps would collide on ports. Every step is a script:
 ```sh
-cd ~/expts/awesome-local-ai && git pull                      # the public repo, with push access
-claude setup-token                                            # then save the token (see step 1 above)
-benchmarks/vidi/harness/setup-node.sh --stack benchmarks/reference/vidi/opus-5.5
+cd ~/expts/awesome-local-ai && git pull                                        # public repo, with push access
+benchmarks/reference/save-claude-token.sh                                       # `claude setup-token`, saved with mode 600
+benchmarks/vidi/harness/setup-node.sh --stack benchmarks/reference/vidi/opus-5.5   # tools, private pack, preflight -> "ready"
+benchmarks/vidi/harness/fetch-work.sh quintus benchmarks/reference/vidi/opus-5.5/run-2   # only to continue a run begun elsewhere
+benchmarks/vidi/harness/run-series.sh claude-code-opus-5-5 --client claude --runs run-2,run-3 --background
+benchmarks/vidi/harness/run-series.sh --status      # or: tail -f ~/.vidi-bench/series.log
+benchmarks/vidi/harness/run-series.sh --stop        # stops; the same command later resumes where it stopped
 ```
-`setup-node.sh` does the following, and prints `ready` or a list of what's missing:
-- checks the tools: git, uv, Node 20+ and `claude`;
-- clones the private pack next to the repo, pinned to `vidi-v1`;
-- installs the held-out suite's dependencies;
-- registers the stack and checks the token;
-- runs the sandbox preflight.
-
-To carry on a run that another machine imported (Opus run 2 was imported on quintus), copy its harness work folder across first:
-```sh
-rsync -a quintus:.vidi-bench/work/benchmarks__reference__vidi__opus-5.5__run-2/ \
-         ~/.vidi-bench/work/benchmarks__reference__vidi__opus-5.5__run-2/
-```
-Then run in the background. Keep the machine on mains power, because the harness pauses a story while on battery. `caffeinate -i` stops idle sleep; closing a laptop's lid still sleeps it.
-```sh
-nohup caffeinate -i sh -c 'for r in run-2 run-3; do benchmarks/vidi/harness/run.sh claude-code-opus-5-5 \
-  --client claude --run-id $r --record; done' > ~/.vidi-bench/opus-runs.log 2>&1 &
-tail -f ~/.vidi-bench/opus-runs.log
-```
-Each story is committed and pushed as it finishes.
+- `run-series.sh` runs the listed runs **strictly one after another**, never in parallel: run-3 starts only when run-2 has finished, and a failed run stops the series.
+- `--background` detaches it and keeps a Mac awake (`caffeinate -i`). Keep the machine on mains power: the harness pauses stories while on battery, and closing a laptop's lid sleeps it.
+- Every story is committed and pushed as it finishes.
 
 **Continuing a run that Claude Code subagents started.** Early reference runs were built by subagents that were only *told* not to look. To continue one under the harness:
 1. `harness/import_run.py` peek-audits every finished story's transcript (`~/.claude/projects/<project>/<session>/subagents/agent-<id>.jsonl`). It refuses the import if any story touched the suite, the pack, the repo or another run.

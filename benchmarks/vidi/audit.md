@@ -2,13 +2,15 @@
 
 One rubric, applied the same way to every setup, so the counts compare. The audit checks the delivered code against the spec, and checks the agent's completion claims against the code. Its output is one row per fault.
 
+> **Where the inputs are:** the spec and the held-out suite are in the private repo `boxabirds/awesome-local-ai-bench-private` (`packs/vidi/`), not here. Auditors and graders need access to it; ask the repo owner (Julian Harris). The blinded packages for independent graders are in that repo's `gradings/`, and their A/B keys are kept outside every repo.
+
 ## Inputs, per setup and per story
-- **The spec:** `benchmarks/vidi/spec/stories/<story>/` (`prd.md`, `design.md`, `tasks.md`).
+- **The spec:** `packs/vidi/spec/stories/<story>/` in the private repo (`prd.md`, `design.md`, `tasks.md`).
 - **The delivered workspace:** code and the agent's own tests.
 - **The agent's own claims:**
   - the Opus reference: its final report in `agent-reports/story-NN.md`;
   - harness runs: the agent's final messages in `stories/NN/agent-events.compact.jsonl.gz`.
-- **Held-out results:** `accept.json` and the suite source in `benchmarks/vidi/acceptance/tests/`.
+- **Held-out results:** `accept.json`, and the suite source in the private repo's `packs/vidi/acceptance/tests/`.
 
 ## Checks, per story
 1. **Tasks.** For every task in `tasks.md`, is its "Done when" met in the code?
