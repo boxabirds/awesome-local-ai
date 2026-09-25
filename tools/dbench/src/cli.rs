@@ -61,7 +61,7 @@ pub enum Cmd {
         )]
         install_id: Option<String>,
         /// The combination to run: its directory under combinations/ in the repo,
-        /// e.g. qwen/3.8/27b/ubuntu/24GB/llamacpp-opencode. The node reads the
+        /// e.g. qwen/3.8/27b/ubuntu/nvidia4090/llamacpp-opencode. The node reads the
         /// install id from that directory's config.sh.
         #[arg(long)]
         combination: Option<String>,

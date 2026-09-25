@@ -30,7 +30,7 @@ bash benchmarks/perf/swift-ab.sh          # repo root -- stops the baseline, run
 The `need_mib` values in [`profiles.tsv`](../profiles.tsv) are **conservative
 bounds carried from the baseline**, not Swift measurements. To replace them with
 real numbers, probe the context ceiling the way the baseline did
-(`combinations/qwen/3.8/27b/ubuntu/24GB/llamacpp-opencode/benchmarks/`
+(`combinations/qwen/3.8/27b/ubuntu/nvidia4090/llamacpp-opencode/benchmarks/`
 `ctx-probe-*.txt`): start at 131072, step up, note where it OOMs, and record the
 server-only footprint per profile. Until then, `coding` has plenty of slack and
 the top profiles should be treated as foreground-only.

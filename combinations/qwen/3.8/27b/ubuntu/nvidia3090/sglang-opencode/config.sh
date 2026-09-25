@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# combinations/qwen/3.8/27b/ubuntu/24GB/sglang-opencode/config.sh
+# combinations/qwen/3.8/27b/ubuntu/nvidia3090/sglang-opencode/config.sh
 #
 # Qwen3.8-27B, EXL3 3.00 bpw, on one 24GB RTX 3090, served by stock SGLang
 # v0.5.20 with the sglang-exl3 plugin from a digest-pinned container image,

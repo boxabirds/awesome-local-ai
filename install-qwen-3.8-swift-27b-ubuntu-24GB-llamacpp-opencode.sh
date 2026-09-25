@@ -1,10 +1,7 @@
 #!/usr/bin/env bash
-# Swift Qwen3.8-27B  |  Ubuntu  |  24GB NVIDIA  |  llama.cpp + OpenCode
-#
-# A pointer, nothing more. The config lives in combinations/<this path>/ and
-# every line of logic lives in lib/. See docs/adding-a-combination.md to add
-# another.
+# DEPRECATED NAME -- kept so existing links and notes keep working.
+# The machine segment now names the GPU the numbers were measured on, so this
+# combination moved to install-qwen-3.8-swift-27b-ubuntu-nvidia4090-llamacpp-opencode.sh. Remove this alias once nothing points here.
 set -euo pipefail
-REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-COMBINATION="qwen/3.8-swift/27b/ubuntu/24GB/llamacpp-opencode"
-. "${REPO_ROOT}/lib/bootstrap.sh"
+echo "note: install-qwen-3.8-swift-27b-ubuntu-24GB-llamacpp-opencode.sh was renamed to install-qwen-3.8-swift-27b-ubuntu-nvidia4090-llamacpp-opencode.sh" >&2
+exec "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/install-qwen-3.8-swift-27b-ubuntu-nvidia4090-llamacpp-opencode.sh" "$@"

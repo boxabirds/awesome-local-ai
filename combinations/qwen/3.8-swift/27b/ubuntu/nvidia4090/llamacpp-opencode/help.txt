@@ -127,7 +127,7 @@ SECURITY
 FURTHER READING
   docs/20260921-swift-qwen38-27b-ab.md  -- the A/B that justifies this
                                            combination (method, table, caveats)
-  combinations/qwen/3.8/27b/ubuntu/24GB/llamacpp-opencode/  -- the baseline
+  combinations/qwen/3.8/27b/ubuntu/nvidia4090/llamacpp-opencode/  -- the baseline
   docs/discovery.md  -- the baseline's full measurement methodology
 
 EXAMPLES

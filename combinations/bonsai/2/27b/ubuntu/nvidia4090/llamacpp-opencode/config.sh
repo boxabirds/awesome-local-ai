@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# combinations/bonsai/2/27b/ubuntu/24GB/llamacpp-opencode/config.sh
+# combinations/bonsai/2/27b/ubuntu/nvidia4090/llamacpp-opencode/config.sh
 #
 # Ternary Bonsai 2 27B on a 24GB NVIDIA GPU under Ubuntu, served by the PrismML
 # llama.cpp fork, driven by OpenCode.

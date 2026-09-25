@@ -1,7 +1,7 @@
 # Qwen3.6-35B-A3B EXL3 · Ubuntu · 24GB NVIDIA (RTX 3090) · SGLang + OpenCode
 
-**Combination:** `qwen/3.6/35b-a3b/ubuntu/24GB/sglang-opencode`
-**Install:** `./install-qwen-3.6-35b-a3b-ubuntu-24GB-sglang-opencode.sh` (from the repo root)
+**Combination:** `qwen/3.6/35b-a3b/ubuntu/nvidia3090/sglang-opencode`
+**Install:** `./install-qwen-3.6-35b-a3b-ubuntu-nvidia3090-sglang-opencode.sh` (from the repo root)
 
 > **Not measured by this repo.** Every number on this page was measured by the
 > recipe's author on a **bare RTX 3090 24 GB** and published in
@@ -17,7 +17,7 @@ container image, with NEXTN (MTP) speculative decoding, fp8 KV cache and the
 full 262,144-token window on a single 24 GB card.
 
 ```bash
-./install-qwen-3.6-35b-a3b-ubuntu-24GB-sglang-opencode.sh   # image ~15.4 GB + weights 15.92 GB
+./install-qwen-3.6-35b-a3b-ubuntu-nvidia3090-sglang-opencode.sh   # image ~15.4 GB + weights 15.92 GB
 qwen36-35b-a3b-exl3-sglang-opencode                         # server on demand + OpenCode
 ```
 
@@ -39,7 +39,7 @@ qwen36-35b-a3b-exl3-sglang-opencode                         # server on demand +
 
 ## Requirements
 
-Identical to the [27B SGLang combination](../../../../../3.8/27b/ubuntu/24GB/sglang-opencode/README.md#requirements):
+Identical to the [27B SGLang combination](../../../../../3.8/27b/ubuntu/nvidia3090/sglang-opencode/README.md#requirements):
 NVIDIA GPU >= 23,000 MiB (sm_86 tested), a driver that supports CUDA >= 13.0,
 Docker, and the NVIDIA Container Toolkit (proven by running `nvidia-smi -L`
 inside the image). Disk: ~15.4 GB compressed image (shared with the 27B) +
@@ -135,7 +135,7 @@ The installer's smoke test (scratch port 18080, up to 900 s to become healthy) p
 It does not prove the 262k window, the speeds, or quality. Please send back:
 
 ```bash
-./install-qwen-3.6-35b-a3b-ubuntu-24GB-sglang-opencode.sh 2>&1 | tee first-run.txt
+./install-qwen-3.6-35b-a3b-ubuntu-nvidia3090-sglang-opencode.sh 2>&1 | tee first-run.txt
 nvidia-smi --query-gpu=name,compute_cap,driver_version,memory.total,memory.used --format=csv
 nvidia-smi | head -4
 docker --version; nvidia-ctk --version

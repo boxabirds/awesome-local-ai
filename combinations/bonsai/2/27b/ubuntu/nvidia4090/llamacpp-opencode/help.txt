@@ -181,4 +181,4 @@ EXAMPLES
   PROFILE=vision bonsai2-27b-server                  # images, 128k
   PROFILE=dual PORT=8080 bonsai2-27b-server          # and a second on 8081
   REASONING_EFFORT=xhigh bonsai2-27b-server          # think harder
-  PACKING=PTQ1_0 ./install-bonsai-2-27b-ubuntu-24GB-llamacpp-opencode.sh
+  PACKING=PTQ1_0 ./install-bonsai-2-27b-ubuntu-nvidia4090-llamacpp-opencode.sh
