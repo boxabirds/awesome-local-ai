@@ -162,7 +162,8 @@ def default_sensitive() -> list[str]:
     pack = packdir.resolve(here.parent)
     out = [str(repo), str(packdir.private_root(pack) or pack)]
     home = Path.home()
-    out += [str(home / ".vidi-bench" / "work"), str(home / ".vidi-bench" / "reference"), str(home / ".dbench")]
+    import hostenv
+    out += [str(hostenv.bench_home()), str(home / ".dbench")]
     return out
 
 

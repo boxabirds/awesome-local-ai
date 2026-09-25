@@ -7,6 +7,7 @@ from the commands so they can be tested on captured output from each machine.
 """
 from __future__ import annotations
 
+import os
 import re
 import shutil
 import subprocess
@@ -26,6 +27,11 @@ THERMAL_OK = {"nominal", "unmonitored"}
 # Both names exist: drivers from 530 on say clocks_event_reasons, older ones clocks_throttle_reasons.
 NVIDIA_THERMAL_FIELDS = ("clocks_event_reasons.hw_thermal_slowdown,clocks_event_reasons.sw_thermal_slowdown",
                          "clocks_throttle_reasons.hw_thermal_slowdown,clocks_throttle_reasons.sw_thermal_slowdown")
+
+
+def bench_home() -> Path:
+    """All benchmark state on this machine (hidden from agents): work/, keys/, reference/, logs."""
+    return Path(os.environ.get("VIDI_BENCH_HOME", Path.home() / ".vidi-bench")).expanduser().resolve()
 
 
 def playwright_cache(real_home: Path) -> Path:
