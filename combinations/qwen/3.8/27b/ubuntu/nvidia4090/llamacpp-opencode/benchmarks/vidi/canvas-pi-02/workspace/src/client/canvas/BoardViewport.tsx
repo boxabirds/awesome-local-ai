@@ -45,6 +45,13 @@ export interface BoardViewportProps {
    * Called with the start and end world points on pointer up.
    */
   onConnectorDragEnd?: (from: Point, to: Point) => void;
+  /**
+   * Story 12: drag handlers for image file drops.
+   */
+  onDragEnter?: (e: React.DragEvent<HTMLDivElement>) => void;
+  onDragOver?: (e: React.DragEvent<HTMLDivElement>) => void;
+  onDragLeave?: (e: React.DragEvent<HTMLDivElement>) => void;
+  onDrop?: (e: React.DragEvent<HTMLDivElement>) => void;
 }
 
 /**
@@ -56,7 +63,7 @@ export interface BoardViewportProps {
  * empty space creates a sticky note at that point; a click (press without
  * movement) on empty space clears the selection.
  */
-export function BoardViewport({ children, api, onCreateStickyAt, onEmptyClick, marquee, tool, onCreateTextAt, onCreateShapeAt, onConnectorDragEnd }: BoardViewportProps) {
+export function BoardViewport({ children, api, onCreateStickyAt, onEmptyClick, marquee, tool, onCreateTextAt, onCreateShapeAt, onConnectorDragEnd, onDragEnter, onDragOver, onDragLeave, onDrop }: BoardViewportProps) {
   const viewportRef = useRef<HTMLDivElement>(null);
   const worldRef = useRef<HTMLDivElement>(null);
   const [panning, setPanning] = useState(false);
@@ -388,6 +395,10 @@ export function BoardViewport({ children, api, onCreateStickyAt, onEmptyClick, m
       onPointerCancel={onPointerCancel}
       onLostPointerCapture={onLostPointerCapture}
       onDoubleClick={onDoubleClick}
+      onDragEnter={onDragEnter}
+      onDragOver={onDragOver}
+      onDragLeave={onDragLeave}
+      onDrop={onDrop}
     >
       <div
         ref={worldRef}

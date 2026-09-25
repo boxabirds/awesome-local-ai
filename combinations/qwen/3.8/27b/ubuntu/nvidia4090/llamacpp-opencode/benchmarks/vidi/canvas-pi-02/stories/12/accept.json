@@ -2,7 +2,7 @@
   "build_exit": 0,
   "runner_exit": 1,
   "runner_tail": "",
-  "passed": 63,
+  "passed": 62,
   "total": 75,
   "on_partial": {
     "passed": 0,
@@ -50,10 +50,11 @@
       "total": 5
     },
     "12": {
-      "passed": 2,
+      "passed": 1,
       "total": 5
     }
   },
+  "harness_fault": null,
   "tests": [
     {
       "file": "story-01.spec.ts",
@@ -213,7 +214,7 @@
       "file": "story-03.spec.ts",
       "title": "simultaneous typing keeps both people's characters @ref prd:live.concurrent_text",
       "status": "failed",
-      "error": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoHaveText\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m)\u001b[22m failed\n\nLocator: locator('[role=\"group\"][aria-label=\"Sticky note\"]').first()\nExpected pattern: \u001b[32m/^\\s*red green blue\\s*$/\u001b[39m\nReceived string:  \u001b[31m\"red green bluered green blue\"\u001b[39m\nTimeout: 2000ms\n\nCall log:\n\u001b[2m  - Expect \"toHaveText\" with timeout 2000ms\u001b[22m\n\u001b[2m  - waiting for locator('[role=\"group\"][aria-label=\"Sticky note\"]').first()\u001b[22m\n\u001b[2m    6 \u00d7 locator resolved to <div role=\"gro",
+      "error": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoHaveText\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m)\u001b[22m failed\n\nLocator: locator('[role=\"group\"][aria-label=\"Sticky note\"]').first()\nExpected pattern: \u001b[32m/^\\s*red green blue\\s*$/\u001b[39m\nReceived string:  \u001b[31m\"red green bluered green blue\"\u001b[39m\nTimeout: 2000ms\n\nCall log:\n\u001b[2m  - Expect \"toHaveText\" with timeout 2000ms\u001b[22m\n\u001b[2m  - waiting for locator('[role=\"group\"][aria-label=\"Sticky note\"]').first()\u001b[22m\n\u001b[2m    2 \u00d7 locator resolved to <div role=\"gro",
       "on_partial": null
     },
     {
@@ -576,8 +577,8 @@
     {
       "file": "story-12.spec.ts",
       "title": "image persists after reload and undo removes insertion in one step @ref prd:image.persist prd:image.undo",
-      "status": "passed",
-      "error": "",
+      "status": "failed",
+      "error": "Error: pressing I never opened a file chooser (5 attempts)",
       "on_partial": null
     }
   ]

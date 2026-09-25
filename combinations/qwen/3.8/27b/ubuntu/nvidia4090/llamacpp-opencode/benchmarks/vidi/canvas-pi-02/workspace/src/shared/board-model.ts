@@ -1,6 +1,7 @@
 import * as Y from 'yjs';
 import { DEFAULT_STICKY_COLOR, PEN_THICKNESS_WORLD, STICKY_COLORS, STICKY_SIZE_WORLD, TEXT_SIZES } from './config';
 import type { StickyColor, TextSize, ShapeKind, FillColor, StrokeColor, PenThickness } from './config';
+import type { ImageStatus } from './objects/image';
 
 import type { Point } from '../client/canvas/camera';
 import { rectContains, isValidRect, type Rect } from './geometry';
@@ -95,6 +96,20 @@ export interface ObjectSnapshot {
   readonly baseHeight?: number;
   /** Stroke pen thickness name (story 11): 'thin' | 'medium' | 'thick'. */
   readonly thickness?: PenThickness;
+  /** Image asset key (story 12): null while uploading. */
+  readonly assetKey?: string | null;
+  /** Image content type (story 12). */
+  readonly contentType?: string;
+  /** Image natural width in pixels (story 12). */
+  readonly naturalWidth?: number;
+  /** Image natural height in pixels (story 12). */
+  readonly naturalHeight?: number;
+  /** Image upload status (story 12). */
+  readonly imageStatus?: ImageStatus;
+  /** Epoch ms when the image upload started (story 12). */
+  readonly uploadStartedAt?: number;
+  /** Identity of the uploader (story 12). */
+  readonly uploaderId?: string;
   readonly data?: Readonly<Record<string, unknown>>;
 }
 
@@ -106,7 +121,7 @@ export type Snapshot = readonly ObjectSnapshot[];
  * Ctrl+A). Objects of other types remain in the doc untouched, but generic
  * operations skip them (the registry keeps them out of the renderer too).
  */
-export const KNOWN_OBJECT_TYPES: readonly string[] = ['sticky', 'text', 'shape', 'connector', 'stroke'];
+export const KNOWN_OBJECT_TYPES: readonly string[] = ['sticky', 'text', 'shape', 'connector', 'stroke', 'image'];
 
 /** Top-left of an object's world-space bounding box (default sticky size when unset). */
 export function objectBounds(o: ObjectSnapshot): Rect {
@@ -150,8 +165,16 @@ const TEXT_TYPE = 'text';
 const SHAPE_TYPE = 'shape';
 const CONNECTOR_TYPE = 'connector';
 const STROKE_TYPE = 'stroke';
+const IMAGE_TYPE = 'image';
 const POINTS_KEY = 'points';
 const BASE_WIDTH_KEY = 'baseWidth';
+const ASSET_KEY_KEY = 'assetKey';
+const CONTENT_TYPE_KEY = 'contentType';
+const NATURAL_WIDTH_KEY = 'naturalWidth';
+const NATURAL_HEIGHT_KEY = 'naturalHeight';
+const IMAGE_STATUS_KEY = 'imageStatus';
+const UPLOAD_STARTED_AT_KEY = 'uploadStartedAt';
+const UPLOADER_ID_KEY = 'uploaderId';
 const BASE_HEIGHT_KEY = 'baseHeight';
 const THICKNESS_KEY = 'thickness';
 
@@ -351,6 +374,31 @@ export function snapshot(doc: Y.Doc): Snapshot {
       if (typeof th === 'string' && th in PEN_THICKNESS_WORLD) thicknessVal = th as PenThickness;
     }
 
+    // Image-specific fields (story 12).
+    let assetKeyVal: string | null | undefined;
+    let contentTypeVal: string | undefined;
+    let naturalWidthVal: number | undefined;
+    let naturalHeightVal: number | undefined;
+    let imageStatusVal: ImageStatus | undefined;
+    let uploadStartedAtVal: number | undefined;
+    let uploaderIdVal: string | undefined;
+    if (type === IMAGE_TYPE) {
+      const ak = obj.get(ASSET_KEY_KEY);
+      assetKeyVal = ak === null ? null : typeof ak === 'string' ? ak : undefined;
+      const ct = obj.get(CONTENT_TYPE_KEY);
+      contentTypeVal = typeof ct === 'string' ? ct : undefined;
+      const nw = obj.get(NATURAL_WIDTH_KEY);
+      if (typeof nw === 'number' && Number.isFinite(nw)) naturalWidthVal = nw;
+      const nh = obj.get(NATURAL_HEIGHT_KEY);
+      if (typeof nh === 'number' && Number.isFinite(nh)) naturalHeightVal = nh;
+      const ist = obj.get(IMAGE_STATUS_KEY);
+      if (ist === 'uploading' || ist === 'ready' || ist === 'failed') imageStatusVal = ist as ImageStatus;
+      const usa = obj.get(UPLOAD_STARTED_AT_KEY);
+      if (typeof usa === 'number' && Number.isFinite(usa)) uploadStartedAtVal = usa;
+      const uid = obj.get(UPLOADER_ID_KEY);
+      uploaderIdVal = typeof uid === 'string' ? uid : undefined;
+    }
+
     // Connector-specific fields (story 10): resolve endpoints and derive bbox.
     if (type === CONNECTOR_TYPE) {
       const fv = obj.get(FROM_KEY);
@@ -394,6 +442,13 @@ export function snapshot(doc: Y.Doc): Snapshot {
       ...(label !== undefined ? { label } : {}),
       ...(from !== undefined ? { from } : {}),
       ...(to !== undefined ? { to } : {}),
+      ...(assetKeyVal !== undefined ? { assetKey: assetKeyVal } : {}),
+      ...(contentTypeVal !== undefined ? { contentType: contentTypeVal } : {}),
+      ...(naturalWidthVal !== undefined ? { naturalWidth: naturalWidthVal } : {}),
+      ...(naturalHeightVal !== undefined ? { naturalHeight: naturalHeightVal } : {}),
+      ...(imageStatusVal !== undefined ? { imageStatus: imageStatusVal } : {}),
+      ...(uploadStartedAtVal !== undefined ? { uploadStartedAt: uploadStartedAtVal } : {}),
+      ...(uploaderIdVal !== undefined ? { uploaderId: uploaderIdVal } : {}),
     });
   });
   // (z, id) gives every client the same order even with concurrent equal z values.

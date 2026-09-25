@@ -17,6 +17,23 @@
         "limit": 10,
         "period": 60
       }
+    },
+    {
+      // Story 12: rate limiter for image uploads (image.rate_limit).
+      // limit/period mirror IMAGE_UPLOAD_LIMIT / IMAGE_UPLOAD_PERIOD_SECONDS.
+      "name": "ASSET_UPLOAD_LIMITER",
+      "namespace_id": "vidi6-asset-upload",
+      "simple": {
+        "limit": 60,
+        "period": 60
+      }
+    }
+  ],
+  // Story 12: R2 bucket for image assets.
+  "r2_buckets": [
+    {
+      "binding": "ASSETS_BUCKET",
+      "bucket_name": "vidi6-assets"
     }
   ],
   // Story 3: one BoardRoom Durable Object per board relays Yjs sync and
@@ -65,7 +82,15 @@
           "name": "BOARD_CREATE_LIMITER",
           "namespace_id": "vidi6-board-create",
           "simple": { "limit": 10, "period": 60 }
+        },
+        {
+          "name": "ASSET_UPLOAD_LIMITER",
+          "namespace_id": "vidi6-asset-upload",
+          "simple": { "limit": 60, "period": 60 }
         }
+      ],
+      "r2_buckets": [
+        { "binding": "ASSETS_BUCKET", "bucket_name": "vidi6-assets" }
       ],
       "durable_objects": {
         "bindings": [{ "name": "BOARD_ROOM", "class_name": "BoardRoom" }]

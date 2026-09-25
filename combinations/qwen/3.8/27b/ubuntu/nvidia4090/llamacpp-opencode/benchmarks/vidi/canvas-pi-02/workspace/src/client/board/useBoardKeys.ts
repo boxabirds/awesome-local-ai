@@ -47,6 +47,8 @@ export function useBoardKeys(opts: {
   setTool?: (tool: Tool) => void;
   /** Create a sticky note at the centre of the visible board (N key, story 9). */
   onCreateStickyCentre?: () => void;
+  /** Open the image file picker (I key, story 12). */
+  onOpenImagePicker?: () => void;
   /** The current shape kind (story 10, used by the S key). */
   shapeKind?: ShapeKind;
 }): void {
@@ -64,6 +66,8 @@ export function useBoardKeys(opts: {
   setToolRef.current = opts.setTool;
   const createStickyCentreRef = useRef(opts.onCreateStickyCentre);
   createStickyCentreRef.current = opts.onCreateStickyCentre;
+  const openImagePickerRef = useRef(opts.onOpenImagePicker);
+  openImagePickerRef.current = opts.onOpenImagePicker;
   const toolRef = useRef(opts.tool);
   toolRef.current = opts.tool;
 
@@ -115,6 +119,15 @@ export function useBoardKeys(opts: {
       if ((e.key === 's' || e.key === 'S') && !e.ctrlKey && !e.metaKey && !e.altKey && !e.shiftKey) {
         if (canEditRef.current) {
           setToolRef.current?.('shape');
+        }
+        return;
+      }
+
+      // I: open image picker (story 12, only when editable).
+      if ((e.key === 'i' || e.key === 'I') && !e.ctrlKey && !e.metaKey && !e.altKey && !e.shiftKey) {
+        if (canEditRef.current) {
+          e.preventDefault();
+          openImagePickerRef.current?.();
         }
         return;
       }

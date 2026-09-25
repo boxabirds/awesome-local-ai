@@ -1,10 +1,10 @@
 {
   "config": {
-    "configFile": "~/.dbench/repo/benchmarks/vidi/acceptance/playwright.config.ts",
-    "rootDir": "~/.dbench/repo/benchmarks/vidi/acceptance/tests",
+    "configFile": "~/.dbench/awesome-local-ai-bench-private/packs/vidi/acceptance/playwright.config.ts",
+    "rootDir": "~/.dbench/awesome-local-ai-bench-private/packs/vidi/acceptance/tests",
     "forbidOnly": false,
     "fullyParallel": false,
-    "globalSetup": "~/.dbench/repo/benchmarks/vidi/acceptance/tests/global-setup.ts",
+    "globalSetup": "~/.dbench/awesome-local-ai-bench-private/packs/vidi/acceptance/tests/global-setup.ts",
     "globalTeardown": null,
     "globalTimeout": 0,
     "grep": {},
@@ -16,7 +16,7 @@
     "preserveOutput": "always",
     "projects": [
       {
-        "outputDir": "~/.dbench/repo/combinations/qwen/3.8/27b/ubuntu/24GB/llamacpp-opencode/benchmarks/vidi/canvas-pi-02/stories/12/artifacts",
+        "outputDir": "~/.dbench/repo/combinations/qwen/3.8/27b/ubuntu/nvidia4090/llamacpp-opencode/benchmarks/vidi/canvas-pi-02/stories/12/artifacts",
         "repeatEach": 1,
         "retries": 0,
         "metadata": {
@@ -24,7 +24,7 @@
         },
         "id": "chromium",
         "name": "chromium",
-        "testDir": "~/.dbench/repo/benchmarks/vidi/acceptance/tests",
+        "testDir": "~/.dbench/awesome-local-ai-bench-private/packs/vidi/acceptance/tests",
         "testIgnore": [],
         "testMatch": [
           "**/*.@(spec|test).?(c|m)[jt]s?(x)"
@@ -41,7 +41,7 @@
       [
         "json",
         {
-          "outputFile": "~/.dbench/repo/combinations/qwen/3.8/27b/ubuntu/24GB/llamacpp-opencode/benchmarks/vidi/canvas-pi-02/stories/12/accept-report.json"
+          "outputFile": "~/.dbench/repo/combinations/qwen/3.8/27b/ubuntu/nvidia4090/llamacpp-opencode/benchmarks/vidi/canvas-pi-02/stories/12/accept-report.json"
         }
       ]
     ],
@@ -91,12 +91,12 @@
                       "workerIndex": 0,
                       "parallelIndex": 0,
                       "status": "passed",
-                      "duration": 419,
+                      "duration": 450,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2026-09-25T16:01:46.547Z",
+                      "startTime": "2026-09-25T16:33:29.559Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -128,12 +128,12 @@
                       "workerIndex": 0,
                       "parallelIndex": 0,
                       "status": "passed",
-                      "duration": 523,
+                      "duration": 528,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2026-09-25T16:01:47.018Z",
+                      "startTime": "2026-09-25T16:33:30.065Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -165,12 +165,12 @@
                       "workerIndex": 0,
                       "parallelIndex": 0,
                       "status": "passed",
-                      "duration": 3611,
+                      "duration": 3636,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2026-09-25T16:01:47.548Z",
+                      "startTime": "2026-09-25T16:33:30.603Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -202,12 +202,12 @@
                       "workerIndex": 0,
                       "parallelIndex": 0,
                       "status": "passed",
-                      "duration": 423,
+                      "duration": 392,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2026-09-25T16:01:51.172Z",
+                      "startTime": "2026-09-25T16:33:34.244Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -239,12 +239,12 @@
                       "workerIndex": 0,
                       "parallelIndex": 0,
                       "status": "passed",
-                      "duration": 353,
+                      "duration": 350,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2026-09-25T16:01:51.600Z",
+                      "startTime": "2026-09-25T16:33:34.641Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -276,12 +276,12 @@
                       "workerIndex": 0,
                       "parallelIndex": 0,
                       "status": "passed",
-                      "duration": 525,
+                      "duration": 529,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2026-09-25T16:01:51.957Z",
+                      "startTime": "2026-09-25T16:33:34.996Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -313,12 +313,12 @@
                       "workerIndex": 0,
                       "parallelIndex": 0,
                       "status": "passed",
-                      "duration": 545,
+                      "duration": 547,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2026-09-25T16:01:52.486Z",
+                      "startTime": "2026-09-25T16:33:35.530Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -350,12 +350,12 @@
                       "workerIndex": 0,
                       "parallelIndex": 0,
                       "status": "passed",
-                      "duration": 379,
+                      "duration": 353,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2026-09-25T16:01:53.037Z",
+                      "startTime": "2026-09-25T16:33:36.083Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -387,12 +387,12 @@
                       "workerIndex": 0,
                       "parallelIndex": 0,
                       "status": "passed",
-                      "duration": 391,
+                      "duration": 399,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2026-09-25T16:01:53.423Z",
+                      "startTime": "2026-09-25T16:33:36.442Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -424,12 +424,12 @@
                       "workerIndex": 0,
                       "parallelIndex": 0,
                       "status": "passed",
-                      "duration": 712,
+                      "duration": 741,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2026-09-25T16:01:53.820Z",
+                      "startTime": "2026-09-25T16:33:36.847Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -468,7 +468,7 @@
               ],
               "tests": [
                 {
-                  "timeout": 99070,
+                  "timeout": 99017,
                   "annotations": [],
                   "expectedStatus": "passed",
                   "projectId": "chromium",
@@ -478,12 +478,12 @@
                       "workerIndex": 0,
                       "parallelIndex": 0,
                       "status": "failed",
-                      "duration": 59514,
+                      "duration": 59465,
                       "error": {
                         "message": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoHaveCount\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m)\u001b[22m failed\n\nLocator:  locator('[role=\"group\"][aria-label=\"Sticky note\"]')\nExpected: \u001b[32m0\u001b[39m\nReceived: \u001b[31m1\u001b[39m\nTimeout:  5000ms\n\nCall log:\n\u001b[2m  - Expect \"toHaveCount\" with timeout 5000ms\u001b[22m\n\u001b[2m  - waiting for locator('[role=\"group\"][aria-label=\"Sticky note\"]')\u001b[22m\n\u001b[2m    9 × locator resolved to 1 element\u001b[22m\n\u001b[2m      - unexpected value \"1\"\u001b[22m\n",
-                        "stack": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoHaveCount\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m)\u001b[22m failed\n\nLocator:  locator('[role=\"group\"][aria-label=\"Sticky note\"]')\nExpected: \u001b[32m0\u001b[39m\nReceived: \u001b[31m1\u001b[39m\nTimeout:  5000ms\n\nCall log:\n\u001b[2m  - Expect \"toHaveCount\" with timeout 5000ms\u001b[22m\n\u001b[2m  - waiting for locator('[role=\"group\"][aria-label=\"Sticky note\"]')\u001b[22m\n\u001b[2m    9 × locator resolved to 1 element\u001b[22m\n\u001b[2m      - unexpected value \"1\"\u001b[22m\n\n    at ~/.dbench/repo/benchmarks/vidi/acceptance/tests/story-02.spec.ts:32:31",
+                        "stack": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoHaveCount\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m)\u001b[22m failed\n\nLocator:  locator('[role=\"group\"][aria-label=\"Sticky note\"]')\nExpected: \u001b[32m0\u001b[39m\nReceived: \u001b[31m1\u001b[39m\nTimeout:  5000ms\n\nCall log:\n\u001b[2m  - Expect \"toHaveCount\" with timeout 5000ms\u001b[22m\n\u001b[2m  - waiting for locator('[role=\"group\"][aria-label=\"Sticky note\"]')\u001b[22m\n\u001b[2m    9 × locator resolved to 1 element\u001b[22m\n\u001b[2m      - unexpected value \"1\"\u001b[22m\n\n    at ~/.dbench/awesome-local-ai-bench-private/packs/vidi/acceptance/tests/story-02.spec.ts:32:31",
                         "location": {
-                          "file": "~/.dbench/repo/benchmarks/vidi/acceptance/tests/story-02.spec.ts",
+                          "file": "~/.dbench/awesome-local-ai-bench-private/packs/vidi/acceptance/tests/story-02.spec.ts",
                           "column": 31,
                           "line": 32
                         },
@@ -492,32 +492,32 @@
                       "errors": [
                         {
                           "location": {
-                            "file": "~/.dbench/repo/benchmarks/vidi/acceptance/tests/story-02.spec.ts",
+                            "file": "~/.dbench/awesome-local-ai-bench-private/packs/vidi/acceptance/tests/story-02.spec.ts",
                             "column": 31,
                             "line": 32
                           },
-                          "message": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoHaveCount\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m)\u001b[22m failed\n\nLocator:  locator('[role=\"group\"][aria-label=\"Sticky note\"]')\nExpected: \u001b[32m0\u001b[39m\nReceived: \u001b[31m1\u001b[39m\nTimeout:  5000ms\n\nCall log:\n\u001b[2m  - Expect \"toHaveCount\" with timeout 5000ms\u001b[22m\n\u001b[2m  - waiting for locator('[role=\"group\"][aria-label=\"Sticky note\"]')\u001b[22m\n\u001b[2m    9 × locator resolved to 1 element\u001b[22m\n\u001b[2m      - unexpected value \"1\"\u001b[22m\n\n\n  30 |     await shot(page, 's02-golden');\n  31 |     await page.keyboard.press('Delete');\n> 32 |     await expect(notes(page)).toHaveCount(0);\n     |                               ^\n  33 |   });\n  34 |\n  35 |   test('double-click creates note centred on the point @ref prd:sticky.create_dblclick', async ({ page }) => {\n    at ~/.dbench/repo/benchmarks/vidi/acceptance/tests/story-02.spec.ts:32:31"
+                          "message": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoHaveCount\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m)\u001b[22m failed\n\nLocator:  locator('[role=\"group\"][aria-label=\"Sticky note\"]')\nExpected: \u001b[32m0\u001b[39m\nReceived: \u001b[31m1\u001b[39m\nTimeout:  5000ms\n\nCall log:\n\u001b[2m  - Expect \"toHaveCount\" with timeout 5000ms\u001b[22m\n\u001b[2m  - waiting for locator('[role=\"group\"][aria-label=\"Sticky note\"]')\u001b[22m\n\u001b[2m    9 × locator resolved to 1 element\u001b[22m\n\u001b[2m      - unexpected value \"1\"\u001b[22m\n\n\n  30 |     await shot(page, 's02-golden');\n  31 |     await page.keyboard.press('Delete');\n> 32 |     await expect(notes(page)).toHaveCount(0);\n     |                               ^\n  33 |   });\n  34 |\n  35 |   test('double-click creates note centred on the point @ref prd:sticky.create_dblclick', async ({ page }) => {\n    at ~/.dbench/awesome-local-ai-bench-private/packs/vidi/acceptance/tests/story-02.spec.ts:32:31"
                         }
                       ],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2026-09-25T16:01:54.544Z",
+                      "startTime": "2026-09-25T16:33:37.603Z",
                       "annotations": [],
                       "attachments": [
                         {
                           "name": "screenshot",
                           "contentType": "image/png",
-                          "path": "~/.dbench/repo/combinations/qwen/3.8/27b/ubuntu/24GB/llamacpp-opencode/benchmarks/vidi/canvas-pi-02/stories/12/artifacts/story-02-story-2-s02-golde-d3ece--delete-ref-prd-golden-path-chromium/test-failed-1.png"
+                          "path": "~/.dbench/repo/combinations/qwen/3.8/27b/ubuntu/nvidia4090/llamacpp-opencode/benchmarks/vidi/canvas-pi-02/stories/12/artifacts/story-02-story-2-s02-golde-d3ece--delete-ref-prd-golden-path-chromium/test-failed-1.png"
                         },
                         {
                           "name": "error-context",
                           "contentType": "text/markdown",
-                          "path": "~/.dbench/repo/combinations/qwen/3.8/27b/ubuntu/24GB/llamacpp-opencode/benchmarks/vidi/canvas-pi-02/stories/12/artifacts/story-02-story-2-s02-golde-d3ece--delete-ref-prd-golden-path-chromium/error-context.md"
+                          "path": "~/.dbench/repo/combinations/qwen/3.8/27b/ubuntu/nvidia4090/llamacpp-opencode/benchmarks/vidi/canvas-pi-02/stories/12/artifacts/story-02-story-2-s02-golde-d3ece--delete-ref-prd-golden-path-chromium/error-context.md"
                         }
                       ],
                       "errorLocation": {
-                        "file": "~/.dbench/repo/benchmarks/vidi/acceptance/tests/story-02.spec.ts",
+                        "file": "~/.dbench/awesome-local-ai-bench-private/packs/vidi/acceptance/tests/story-02.spec.ts",
                         "column": 31,
                         "line": 32
                       }
@@ -550,12 +550,12 @@
                       "workerIndex": 1,
                       "parallelIndex": 0,
                       "status": "passed",
-                      "duration": 363,
+                      "duration": 374,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2026-09-25T16:02:54.573Z",
+                      "startTime": "2026-09-25T16:34:37.604Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -587,12 +587,12 @@
                       "workerIndex": 1,
                       "parallelIndex": 0,
                       "status": "passed",
-                      "duration": 385,
+                      "duration": 372,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2026-09-25T16:02:54.990Z",
+                      "startTime": "2026-09-25T16:34:38.028Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -624,12 +624,12 @@
                       "workerIndex": 1,
                       "parallelIndex": 0,
                       "status": "passed",
-                      "duration": 415,
+                      "duration": 418,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2026-09-25T16:02:55.382Z",
+                      "startTime": "2026-09-25T16:34:38.411Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -661,12 +661,12 @@
                       "workerIndex": 1,
                       "parallelIndex": 0,
                       "status": "passed",
-                      "duration": 506,
+                      "duration": 446,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2026-09-25T16:02:55.807Z",
+                      "startTime": "2026-09-25T16:34:38.843Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -698,12 +698,12 @@
                       "workerIndex": 1,
                       "parallelIndex": 0,
                       "status": "passed",
-                      "duration": 557,
+                      "duration": 556,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2026-09-25T16:02:56.320Z",
+                      "startTime": "2026-09-25T16:34:39.296Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -735,12 +735,12 @@
                       "workerIndex": 1,
                       "parallelIndex": 0,
                       "status": "passed",
-                      "duration": 789,
+                      "duration": 791,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2026-09-25T16:02:56.887Z",
+                      "startTime": "2026-09-25T16:34:39.860Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -772,12 +772,12 @@
                       "workerIndex": 1,
                       "parallelIndex": 0,
                       "status": "passed",
-                      "duration": 453,
+                      "duration": 477,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2026-09-25T16:02:57.683Z",
+                      "startTime": "2026-09-25T16:34:40.660Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -809,12 +809,12 @@
                       "workerIndex": 1,
                       "parallelIndex": 0,
                       "status": "passed",
-                      "duration": 401,
+                      "duration": 411,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2026-09-25T16:02:58.143Z",
+                      "startTime": "2026-09-25T16:34:41.142Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -846,12 +846,12 @@
                       "workerIndex": 1,
                       "parallelIndex": 0,
                       "status": "passed",
-                      "duration": 360,
+                      "duration": 418,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2026-09-25T16:02:58.551Z",
+                      "startTime": "2026-09-25T16:34:41.559Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -890,7 +890,7 @@
               ],
               "tests": [
                 {
-                  "timeout": 96678,
+                  "timeout": 96619,
                   "annotations": [],
                   "expectedStatus": "passed",
                   "projectId": "chromium",
@@ -900,12 +900,12 @@
                       "workerIndex": 1,
                       "parallelIndex": 0,
                       "status": "failed",
-                      "duration": 55179,
+                      "duration": 55135,
                       "error": {
                         "message": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoHaveCount\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m)\u001b[22m failed\n\nLocator:  locator('[role=\"group\"][aria-label=\"Sticky note\"]')\nExpected: \u001b[32m0\u001b[39m\nReceived: \u001b[31m1\u001b[39m\nTimeout:  2000ms\n\nCall log:\n\u001b[2m  - Expect \"toHaveCount\" with timeout 2000ms\u001b[22m\n\u001b[2m  - waiting for locator('[role=\"group\"][aria-label=\"Sticky note\"]')\u001b[22m\n\u001b[2m    6 × locator resolved to 1 element\u001b[22m\n\u001b[2m      - unexpected value \"1\"\u001b[22m\n",
-                        "stack": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoHaveCount\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m)\u001b[22m failed\n\nLocator:  locator('[role=\"group\"][aria-label=\"Sticky note\"]')\nExpected: \u001b[32m0\u001b[39m\nReceived: \u001b[31m1\u001b[39m\nTimeout:  2000ms\n\nCall log:\n\u001b[2m  - Expect \"toHaveCount\" with timeout 2000ms\u001b[22m\n\u001b[2m  - waiting for locator('[role=\"group\"][aria-label=\"Sticky note\"]')\u001b[22m\n\u001b[2m    6 × locator resolved to 1 element\u001b[22m\n\u001b[2m      - unexpected value \"1\"\u001b[22m\n\n    at ~/.dbench/repo/benchmarks/vidi/acceptance/tests/story-03.spec.ts:38:30",
+                        "stack": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoHaveCount\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m)\u001b[22m failed\n\nLocator:  locator('[role=\"group\"][aria-label=\"Sticky note\"]')\nExpected: \u001b[32m0\u001b[39m\nReceived: \u001b[31m1\u001b[39m\nTimeout:  2000ms\n\nCall log:\n\u001b[2m  - Expect \"toHaveCount\" with timeout 2000ms\u001b[22m\n\u001b[2m  - waiting for locator('[role=\"group\"][aria-label=\"Sticky note\"]')\u001b[22m\n\u001b[2m    6 × locator resolved to 1 element\u001b[22m\n\u001b[2m      - unexpected value \"1\"\u001b[22m\n\n    at ~/.dbench/awesome-local-ai-bench-private/packs/vidi/acceptance/tests/story-03.spec.ts:38:30",
                         "location": {
-                          "file": "~/.dbench/repo/benchmarks/vidi/acceptance/tests/story-03.spec.ts",
+                          "file": "~/.dbench/awesome-local-ai-bench-private/packs/vidi/acceptance/tests/story-03.spec.ts",
                           "column": 30,
                           "line": 38
                         },
@@ -914,37 +914,37 @@
                       "errors": [
                         {
                           "location": {
-                            "file": "~/.dbench/repo/benchmarks/vidi/acceptance/tests/story-03.spec.ts",
+                            "file": "~/.dbench/awesome-local-ai-bench-private/packs/vidi/acceptance/tests/story-03.spec.ts",
                             "column": 30,
                             "line": 38
                           },
-                          "message": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoHaveCount\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m)\u001b[22m failed\n\nLocator:  locator('[role=\"group\"][aria-label=\"Sticky note\"]')\nExpected: \u001b[32m0\u001b[39m\nReceived: \u001b[31m1\u001b[39m\nTimeout:  2000ms\n\nCall log:\n\u001b[2m  - Expect \"toHaveCount\" with timeout 2000ms\u001b[22m\n\u001b[2m  - waiting for locator('[role=\"group\"][aria-label=\"Sticky note\"]')\u001b[22m\n\u001b[2m    6 × locator resolved to 1 element\u001b[22m\n\u001b[2m      - unexpected value \"1\"\u001b[22m\n\n\n  36 |     await shot(sam, 's03-golden-sam');\n  37 |     await alex.keyboard.press('Delete');\n> 38 |     await expect(notes(sam)).toHaveCount(0, { timeout: LIVE_MS });\n     |                              ^\n  39 |   });\n  40 |\n  41 |   test('late joiner sees current notes @ref prd:live.join_state', async ({ newPerson }) => {\n    at ~/.dbench/repo/benchmarks/vidi/acceptance/tests/story-03.spec.ts:38:30"
+                          "message": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoHaveCount\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m)\u001b[22m failed\n\nLocator:  locator('[role=\"group\"][aria-label=\"Sticky note\"]')\nExpected: \u001b[32m0\u001b[39m\nReceived: \u001b[31m1\u001b[39m\nTimeout:  2000ms\n\nCall log:\n\u001b[2m  - Expect \"toHaveCount\" with timeout 2000ms\u001b[22m\n\u001b[2m  - waiting for locator('[role=\"group\"][aria-label=\"Sticky note\"]')\u001b[22m\n\u001b[2m    6 × locator resolved to 1 element\u001b[22m\n\u001b[2m      - unexpected value \"1\"\u001b[22m\n\n\n  36 |     await shot(sam, 's03-golden-sam');\n  37 |     await alex.keyboard.press('Delete');\n> 38 |     await expect(notes(sam)).toHaveCount(0, { timeout: LIVE_MS });\n     |                              ^\n  39 |   });\n  40 |\n  41 |   test('late joiner sees current notes @ref prd:live.join_state', async ({ newPerson }) => {\n    at ~/.dbench/awesome-local-ai-bench-private/packs/vidi/acceptance/tests/story-03.spec.ts:38:30"
                         }
                       ],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2026-09-25T16:02:58.921Z",
+                      "startTime": "2026-09-25T16:34:41.990Z",
                       "annotations": [],
                       "attachments": [
                         {
                           "name": "screenshot",
                           "contentType": "image/png",
-                          "path": "~/.dbench/repo/combinations/qwen/3.8/27b/ubuntu/24GB/llamacpp-opencode/benchmarks/vidi/canvas-pi-02/stories/12/artifacts/story-03-story-3-s03-creat-92a12-rson-ref-prd-live-propagate-chromium/test-failed-1.png"
+                          "path": "~/.dbench/repo/combinations/qwen/3.8/27b/ubuntu/nvidia4090/llamacpp-opencode/benchmarks/vidi/canvas-pi-02/stories/12/artifacts/story-03-story-3-s03-creat-92a12-rson-ref-prd-live-propagate-chromium/test-failed-2.png"
                         },
                         {
                           "name": "screenshot",
                           "contentType": "image/png",
-                          "path": "~/.dbench/repo/combinations/qwen/3.8/27b/ubuntu/24GB/llamacpp-opencode/benchmarks/vidi/canvas-pi-02/stories/12/artifacts/story-03-story-3-s03-creat-92a12-rson-ref-prd-live-propagate-chromium/test-failed-2.png"
+                          "path": "~/.dbench/repo/combinations/qwen/3.8/27b/ubuntu/nvidia4090/llamacpp-opencode/benchmarks/vidi/canvas-pi-02/stories/12/artifacts/story-03-story-3-s03-creat-92a12-rson-ref-prd-live-propagate-chromium/test-failed-1.png"
                         },
                         {
                           "name": "error-context",
                           "contentType": "text/markdown",
-                          "path": "~/.dbench/repo/combinations/qwen/3.8/27b/ubuntu/24GB/llamacpp-opencode/benchmarks/vidi/canvas-pi-02/stories/12/artifacts/story-03-story-3-s03-creat-92a12-rson-ref-prd-live-propagate-chromium/error-context.md"
+                          "path": "~/.dbench/repo/combinations/qwen/3.8/27b/ubuntu/nvidia4090/llamacpp-opencode/benchmarks/vidi/canvas-pi-02/stories/12/artifacts/story-03-story-3-s03-creat-92a12-rson-ref-prd-live-propagate-chromium/error-context.md"
                         }
                       ],
                       "errorLocation": {
-                        "file": "~/.dbench/repo/benchmarks/vidi/acceptance/tests/story-03.spec.ts",
+                        "file": "~/.dbench/awesome-local-ai-bench-private/packs/vidi/acceptance/tests/story-03.spec.ts",
                         "column": 30,
                         "line": 38
                       }
@@ -967,7 +967,7 @@
               ],
               "tests": [
                 {
-                  "timeout": 46963,
+                  "timeout": 46968,
                   "annotations": [],
                   "expectedStatus": "passed",
                   "projectId": "chromium",
@@ -977,12 +977,12 @@
                       "workerIndex": 2,
                       "parallelIndex": 0,
                       "status": "passed",
-                      "duration": 2747,
+                      "duration": 2758,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2026-09-25T16:03:54.617Z",
+                      "startTime": "2026-09-25T16:35:37.649Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -1016,10 +1016,10 @@
                       "status": "failed",
                       "duration": 2814,
                       "error": {
-                        "message": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoHaveText\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m)\u001b[22m failed\n\nLocator: locator('[role=\"group\"][aria-label=\"Sticky note\"]').first()\nExpected pattern: \u001b[32m/^\\s*red green blue\\s*$/\u001b[39m\nReceived string:  \u001b[31m\"red green bluered green blue\"\u001b[39m\nTimeout: 2000ms\n\nCall log:\n\u001b[2m  - Expect \"toHaveText\" with timeout 2000ms\u001b[22m\n\u001b[2m  - waiting for locator('[role=\"group\"][aria-label=\"Sticky note\"]').first()\u001b[22m\n\u001b[2m    6 × locator resolved to <div role=\"group\" tabindex=\"0\" class=\"vidi6-sticky\" data-selected=\"false\" aria-label=\"Sticky note\" data-note-id=\"c9b5a808-76cd-4fad-ab28-9c205209399c\">…</div>\u001b[22m\n\u001b[2m      - unexpected value \"red green bluered green blue\"\u001b[22m\n",
-                        "stack": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoHaveText\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m)\u001b[22m failed\n\nLocator: locator('[role=\"group\"][aria-label=\"Sticky note\"]').first()\nExpected pattern: \u001b[32m/^\\s*red green blue\\s*$/\u001b[39m\nReceived string:  \u001b[31m\"red green bluered green blue\"\u001b[39m\nTimeout: 2000ms\n\nCall log:\n\u001b[2m  - Expect \"toHaveText\" with timeout 2000ms\u001b[22m\n\u001b[2m  - waiting for locator('[role=\"group\"][aria-label=\"Sticky note\"]').first()\u001b[22m\n\u001b[2m    6 × locator resolved to <div role=\"group\" tabindex=\"0\" class=\"vidi6-sticky\" data-selected=\"false\" aria-label=\"Sticky note\" data-note-id=\"c9b5a808-76cd-4fad-ab28-9c205209399c\">…</div>\u001b[22m\n\u001b[2m      - unexpected value \"red green bluered green blue\"\u001b[22m\n\n    at ~/.dbench/repo/benchmarks/vidi/acceptance/tests/story-03.spec.ts:71:38",
+                        "message": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoHaveText\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m)\u001b[22m failed\n\nLocator: locator('[role=\"group\"][aria-label=\"Sticky note\"]').first()\nExpected pattern: \u001b[32m/^\\s*red green blue\\s*$/\u001b[39m\nReceived string:  \u001b[31m\"red green bluered green blue\"\u001b[39m\nTimeout: 2000ms\n\nCall log:\n\u001b[2m  - Expect \"toHaveText\" with timeout 2000ms\u001b[22m\n\u001b[2m  - waiting for locator('[role=\"group\"][aria-label=\"Sticky note\"]').first()\u001b[22m\n\u001b[2m    2 × locator resolved to <div role=\"group\" tabindex=\"0\" class=\"vidi6-sticky\" data-selected=\"false\" aria-label=\"Sticky note\" data-note-id=\"12c8416d-ee03-420e-ad3f-7cba6663f7ae\">…</div>\u001b[22m\n\u001b[2m      - unexpected value \"red green blured green blu\"\u001b[22m\n\u001b[2m    4 × locator resolved to <div role=\"group\" tabindex=\"0\" class=\"vidi6-sticky\" data-selected=\"false\" aria-label=\"Sticky note\" data-note-id=\"12c8416d-ee03-420e-ad3f-7cba6663f7ae\">…</div>\u001b[22m\n\u001b[2m      - unexpected value \"red green bluered green blue\"\u001b[22m\n",
+                        "stack": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoHaveText\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m)\u001b[22m failed\n\nLocator: locator('[role=\"group\"][aria-label=\"Sticky note\"]').first()\nExpected pattern: \u001b[32m/^\\s*red green blue\\s*$/\u001b[39m\nReceived string:  \u001b[31m\"red green bluered green blue\"\u001b[39m\nTimeout: 2000ms\n\nCall log:\n\u001b[2m  - Expect \"toHaveText\" with timeout 2000ms\u001b[22m\n\u001b[2m  - waiting for locator('[role=\"group\"][aria-label=\"Sticky note\"]').first()\u001b[22m\n\u001b[2m    2 × locator resolved to <div role=\"group\" tabindex=\"0\" class=\"vidi6-sticky\" data-selected=\"false\" aria-label=\"Sticky note\" data-note-id=\"12c8416d-ee03-420e-ad3f-7cba6663f7ae\">…</div>\u001b[22m\n\u001b[2m      - unexpected value \"red green blured green blu\"\u001b[22m\n\u001b[2m    4 × locator resolved to <div role=\"group\" tabindex=\"0\" class=\"vidi6-sticky\" data-selected=\"false\" aria-label=\"Sticky note\" data-note-id=\"12c8416d-ee03-420e-ad3f-7cba6663f7ae\">…</div>\u001b[22m\n\u001b[2m      - unexpected value \"red green bluered green blue\"\u001b[22m\n\n    at ~/.dbench/awesome-local-ai-bench-private/packs/vidi/acceptance/tests/story-03.spec.ts:71:38",
                         "location": {
-                          "file": "~/.dbench/repo/benchmarks/vidi/acceptance/tests/story-03.spec.ts",
+                          "file": "~/.dbench/awesome-local-ai-bench-private/packs/vidi/acceptance/tests/story-03.spec.ts",
                           "column": 38,
                           "line": 71
                         },
@@ -1028,37 +1028,37 @@
                       "errors": [
                         {
                           "location": {
-                            "file": "~/.dbench/repo/benchmarks/vidi/acceptance/tests/story-03.spec.ts",
+                            "file": "~/.dbench/awesome-local-ai-bench-private/packs/vidi/acceptance/tests/story-03.spec.ts",
                             "column": 38,
                             "line": 71
                           },
-                          "message": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoHaveText\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m)\u001b[22m failed\n\nLocator: locator('[role=\"group\"][aria-label=\"Sticky note\"]').first()\nExpected pattern: \u001b[32m/^\\s*red green blue\\s*$/\u001b[39m\nReceived string:  \u001b[31m\"red green bluered green blue\"\u001b[39m\nTimeout: 2000ms\n\nCall log:\n\u001b[2m  - Expect \"toHaveText\" with timeout 2000ms\u001b[22m\n\u001b[2m  - waiting for locator('[role=\"group\"][aria-label=\"Sticky note\"]').first()\u001b[22m\n\u001b[2m    6 × locator resolved to <div role=\"group\" tabindex=\"0\" class=\"vidi6-sticky\" data-selected=\"false\" aria-label=\"Sticky note\" data-note-id=\"c9b5a808-76cd-4fad-ab28-9c205209399c\">…</div>\u001b[22m\n\u001b[2m      - unexpected value \"red green bluered green blue\"\u001b[22m\n\n\n  69 |     await clickEmpty(sam);\n  70 |     for (const p of [alex, sam]) {\n> 71 |       await expect(notes(p).first()).toHaveText(/^\\s*red green blue\\s*$/, { timeout: LIVE_MS });\n     |                                      ^\n  72 |     }\n  73 |   });\n  74 |\n    at ~/.dbench/repo/benchmarks/vidi/acceptance/tests/story-03.spec.ts:71:38"
+                          "message": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoHaveText\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m)\u001b[22m failed\n\nLocator: locator('[role=\"group\"][aria-label=\"Sticky note\"]').first()\nExpected pattern: \u001b[32m/^\\s*red green blue\\s*$/\u001b[39m\nReceived string:  \u001b[31m\"red green bluered green blue\"\u001b[39m\nTimeout: 2000ms\n\nCall log:\n\u001b[2m  - Expect \"toHaveText\" with timeout 2000ms\u001b[22m\n\u001b[2m  - waiting for locator('[role=\"group\"][aria-label=\"Sticky note\"]').first()\u001b[22m\n\u001b[2m    2 × locator resolved to <div role=\"group\" tabindex=\"0\" class=\"vidi6-sticky\" data-selected=\"false\" aria-label=\"Sticky note\" data-note-id=\"12c8416d-ee03-420e-ad3f-7cba6663f7ae\">…</div>\u001b[22m\n\u001b[2m      - unexpected value \"red green blured green blu\"\u001b[22m\n\u001b[2m    4 × locator resolved to <div role=\"group\" tabindex=\"0\" class=\"vidi6-sticky\" data-selected=\"false\" aria-label=\"Sticky note\" data-note-id=\"12c8416d-ee03-420e-ad3f-7cba6663f7ae\">…</div>\u001b[22m\n\u001b[2m      - unexpected value \"red green bluered green blue\"\u001b[22m\n\n\n  69 |     await clickEmpty(sam);\n  70 |     for (const p of [alex, sam]) {\n> 71 |       await expect(notes(p).first()).toHaveText(/^\\s*red green blue\\s*$/, { timeout: LIVE_MS });\n     |                                      ^\n  72 |     }\n  73 |   });\n  74 |\n    at ~/.dbench/awesome-local-ai-bench-private/packs/vidi/acceptance/tests/story-03.spec.ts:71:38"
                         }
                       ],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2026-09-25T16:03:57.419Z",
+                      "startTime": "2026-09-25T16:35:40.457Z",
                       "annotations": [],
                       "attachments": [
                         {
                           "name": "screenshot",
                           "contentType": "image/png",
-                          "path": "~/.dbench/repo/combinations/qwen/3.8/27b/ubuntu/24GB/llamacpp-opencode/benchmarks/vidi/canvas-pi-02/stories/12/artifacts/story-03-story-3-s03-simul-7a799-ef-prd-live-concurrent-text-chromium/test-failed-2.png"
+                          "path": "~/.dbench/repo/combinations/qwen/3.8/27b/ubuntu/nvidia4090/llamacpp-opencode/benchmarks/vidi/canvas-pi-02/stories/12/artifacts/story-03-story-3-s03-simul-7a799-ef-prd-live-concurrent-text-chromium/test-failed-2.png"
                         },
                         {
                           "name": "screenshot",
                           "contentType": "image/png",
-                          "path": "~/.dbench/repo/combinations/qwen/3.8/27b/ubuntu/24GB/llamacpp-opencode/benchmarks/vidi/canvas-pi-02/stories/12/artifacts/story-03-story-3-s03-simul-7a799-ef-prd-live-concurrent-text-chromium/test-failed-1.png"
+                          "path": "~/.dbench/repo/combinations/qwen/3.8/27b/ubuntu/nvidia4090/llamacpp-opencode/benchmarks/vidi/canvas-pi-02/stories/12/artifacts/story-03-story-3-s03-simul-7a799-ef-prd-live-concurrent-text-chromium/test-failed-1.png"
                         },
                         {
                           "name": "error-context",
                           "contentType": "text/markdown",
-                          "path": "~/.dbench/repo/combinations/qwen/3.8/27b/ubuntu/24GB/llamacpp-opencode/benchmarks/vidi/canvas-pi-02/stories/12/artifacts/story-03-story-3-s03-simul-7a799-ef-prd-live-concurrent-text-chromium/error-context.md"
+                          "path": "~/.dbench/repo/combinations/qwen/3.8/27b/ubuntu/nvidia4090/llamacpp-opencode/benchmarks/vidi/canvas-pi-02/stories/12/artifacts/story-03-story-3-s03-simul-7a799-ef-prd-live-concurrent-text-chromium/error-context.md"
                         }
                       ],
                       "errorLocation": {
-                        "file": "~/.dbench/repo/benchmarks/vidi/acceptance/tests/story-03.spec.ts",
+                        "file": "~/.dbench/awesome-local-ai-bench-private/packs/vidi/acceptance/tests/story-03.spec.ts",
                         "column": 38,
                         "line": 71
                       }
@@ -1091,12 +1091,12 @@
                       "workerIndex": 3,
                       "parallelIndex": 0,
                       "status": "passed",
-                      "duration": 2654,
+                      "duration": 2627,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2026-09-25T16:04:00.749Z",
+                      "startTime": "2026-09-25T16:35:43.802Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -1128,12 +1128,12 @@
                       "workerIndex": 3,
                       "parallelIndex": 0,
                       "status": "passed",
-                      "duration": 1529,
+                      "duration": 1559,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2026-09-25T16:04:03.452Z",
+                      "startTime": "2026-09-25T16:35:46.476Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -1165,12 +1165,12 @@
                       "workerIndex": 3,
                       "parallelIndex": 0,
                       "status": "passed",
-                      "duration": 7519,
+                      "duration": 7517,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2026-09-25T16:04:04.988Z",
+                      "startTime": "2026-09-25T16:35:48.042Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -1202,12 +1202,12 @@
                       "workerIndex": 3,
                       "parallelIndex": 0,
                       "status": "passed",
-                      "duration": 897,
+                      "duration": 665,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2026-09-25T16:04:12.516Z",
+                      "startTime": "2026-09-25T16:35:55.567Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -1256,12 +1256,12 @@
                       "workerIndex": 3,
                       "parallelIndex": 0,
                       "status": "passed",
-                      "duration": 3336,
+                      "duration": 3544,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2026-09-25T16:04:13.426Z",
+                      "startTime": "2026-09-25T16:35:56.244Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -1293,12 +1293,12 @@
                       "workerIndex": 3,
                       "parallelIndex": 0,
                       "status": "passed",
-                      "duration": 4797,
+                      "duration": 4819,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2026-09-25T16:04:16.768Z",
+                      "startTime": "2026-09-25T16:35:59.794Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -1320,7 +1320,7 @@
               ],
               "tests": [
                 {
-                  "timeout": 76045,
+                  "timeout": 76001,
                   "annotations": [],
                   "expectedStatus": "passed",
                   "projectId": "chromium",
@@ -1330,12 +1330,12 @@
                       "workerIndex": 3,
                       "parallelIndex": 0,
                       "status": "passed",
-                      "duration": 37573,
+                      "duration": 37547,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2026-09-25T16:04:21.571Z",
+                      "startTime": "2026-09-25T16:36:04.622Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -1367,12 +1367,12 @@
                       "workerIndex": 3,
                       "parallelIndex": 0,
                       "status": "passed",
-                      "duration": 290,
+                      "duration": 304,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2026-09-25T16:04:59.149Z",
+                      "startTime": "2026-09-25T16:36:42.176Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -1421,12 +1421,12 @@
                       "workerIndex": 3,
                       "parallelIndex": 0,
                       "status": "passed",
-                      "duration": 297,
+                      "duration": 302,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2026-09-25T16:04:59.448Z",
+                      "startTime": "2026-09-25T16:36:42.492Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -1448,7 +1448,7 @@
               ],
               "tests": [
                 {
-                  "timeout": 48075,
+                  "timeout": 48077,
                   "annotations": [],
                   "expectedStatus": "passed",
                   "projectId": "chromium",
@@ -1458,12 +1458,12 @@
                       "workerIndex": 3,
                       "parallelIndex": 0,
                       "status": "passed",
-                      "duration": 3554,
+                      "duration": 3563,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2026-09-25T16:04:59.751Z",
+                      "startTime": "2026-09-25T16:36:42.801Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -1495,12 +1495,12 @@
                       "workerIndex": 3,
                       "parallelIndex": 0,
                       "status": "passed",
-                      "duration": 603,
+                      "duration": 860,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2026-09-25T16:05:03.311Z",
+                      "startTime": "2026-09-25T16:36:46.370Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -1532,12 +1532,12 @@
                       "workerIndex": 3,
                       "parallelIndex": 0,
                       "status": "passed",
-                      "duration": 349,
+                      "duration": 366,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2026-09-25T16:05:03.920Z",
+                      "startTime": "2026-09-25T16:36:47.238Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -1559,7 +1559,7 @@
               ],
               "tests": [
                 {
-                  "timeout": 54987,
+                  "timeout": 54689,
                   "annotations": [],
                   "expectedStatus": "passed",
                   "projectId": "chromium",
@@ -1569,12 +1569,12 @@
                       "workerIndex": 3,
                       "parallelIndex": 0,
                       "status": "passed",
-                      "duration": 10448,
+                      "duration": 10146,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2026-09-25T16:05:04.276Z",
+                      "startTime": "2026-09-25T16:36:47.611Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -1613,7 +1613,7 @@
               ],
               "tests": [
                 {
-                  "timeout": 45686,
+                  "timeout": 45673,
                   "annotations": [],
                   "expectedStatus": "passed",
                   "projectId": "chromium",
@@ -1623,12 +1623,12 @@
                       "workerIndex": 3,
                       "parallelIndex": 0,
                       "status": "passed",
-                      "duration": 1528,
+                      "duration": 1519,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2026-09-25T16:05:14.733Z",
+                      "startTime": "2026-09-25T16:36:57.769Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -1650,7 +1650,7 @@
               ],
               "tests": [
                 {
-                  "timeout": 47506,
+                  "timeout": 47526,
                   "annotations": [],
                   "expectedStatus": "passed",
                   "projectId": "chromium",
@@ -1660,12 +1660,12 @@
                       "workerIndex": 3,
                       "parallelIndex": 0,
                       "status": "passed",
-                      "duration": 3075,
+                      "duration": 3067,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2026-09-25T16:05:16.267Z",
+                      "startTime": "2026-09-25T16:36:59.294Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -1687,7 +1687,7 @@
               ],
               "tests": [
                 {
-                  "timeout": 80262,
+                  "timeout": 80257,
                   "annotations": [],
                   "expectedStatus": "passed",
                   "projectId": "chromium",
@@ -1697,12 +1697,12 @@
                       "workerIndex": 3,
                       "parallelIndex": 0,
                       "status": "passed",
-                      "duration": 35754,
+                      "duration": 35736,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2026-09-25T16:05:19.349Z",
+                      "startTime": "2026-09-25T16:37:02.366Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -1724,7 +1724,7 @@
               ],
               "tests": [
                 {
-                  "timeout": 51023,
+                  "timeout": 51061,
                   "annotations": [],
                   "expectedStatus": "passed",
                   "projectId": "chromium",
@@ -1734,12 +1734,12 @@
                       "workerIndex": 3,
                       "parallelIndex": 0,
                       "status": "passed",
-                      "duration": 6412,
+                      "duration": 6457,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2026-09-25T16:05:55.110Z",
+                      "startTime": "2026-09-25T16:37:38.108Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -1771,12 +1771,12 @@
                       "workerIndex": 3,
                       "parallelIndex": 0,
                       "status": "passed",
-                      "duration": 809,
+                      "duration": 842,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2026-09-25T16:06:01.528Z",
+                      "startTime": "2026-09-25T16:37:44.572Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -1798,7 +1798,7 @@
               ],
               "tests": [
                 {
-                  "timeout": 47430,
+                  "timeout": 47422,
                   "annotations": [],
                   "expectedStatus": "passed",
                   "projectId": "chromium",
@@ -1808,12 +1808,12 @@
                       "workerIndex": 3,
                       "parallelIndex": 0,
                       "status": "passed",
-                      "duration": 3066,
+                      "duration": 3014,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2026-09-25T16:06:02.341Z",
+                      "startTime": "2026-09-25T16:37:45.418Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -1845,12 +1845,12 @@
                       "workerIndex": 3,
                       "parallelIndex": 0,
                       "status": "passed",
-                      "duration": 411,
+                      "duration": 458,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2026-09-25T16:06:05.413Z",
+                      "startTime": "2026-09-25T16:37:48.436Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -1872,7 +1872,7 @@
               ],
               "tests": [
                 {
-                  "timeout": 46495,
+                  "timeout": 46419,
                   "annotations": [],
                   "expectedStatus": "passed",
                   "projectId": "chromium",
@@ -1882,12 +1882,12 @@
                       "workerIndex": 3,
                       "parallelIndex": 0,
                       "status": "passed",
-                      "duration": 2241,
+                      "duration": 2180,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2026-09-25T16:06:05.831Z",
+                      "startTime": "2026-09-25T16:37:48.898Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -1926,7 +1926,7 @@
               ],
               "tests": [
                 {
-                  "timeout": 45915,
+                  "timeout": 45942,
                   "annotations": [],
                   "expectedStatus": "passed",
                   "projectId": "chromium",
@@ -1936,12 +1936,12 @@
                       "workerIndex": 3,
                       "parallelIndex": 0,
                       "status": "passed",
-                      "duration": 1204,
+                      "duration": 1244,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2026-09-25T16:06:08.086Z",
+                      "startTime": "2026-09-25T16:37:51.087Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -1963,7 +1963,7 @@
               ],
               "tests": [
                 {
-                  "timeout": 52240,
+                  "timeout": 52250,
                   "annotations": [],
                   "expectedStatus": "passed",
                   "projectId": "chromium",
@@ -1973,12 +1973,12 @@
                       "workerIndex": 3,
                       "parallelIndex": 0,
                       "status": "passed",
-                      "duration": 7657,
+                      "duration": 7643,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2026-09-25T16:06:09.296Z",
+                      "startTime": "2026-09-25T16:37:52.335Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -2000,7 +2000,7 @@
               ],
               "tests": [
                 {
-                  "timeout": 45325,
+                  "timeout": 45303,
                   "annotations": [],
                   "expectedStatus": "passed",
                   "projectId": "chromium",
@@ -2010,12 +2010,12 @@
                       "workerIndex": 3,
                       "parallelIndex": 0,
                       "status": "passed",
-                      "duration": 1209,
+                      "duration": 1231,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2026-09-25T16:06:16.963Z",
+                      "startTime": "2026-09-25T16:37:59.982Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -2037,7 +2037,7 @@
               ],
               "tests": [
                 {
-                  "timeout": 47436,
+                  "timeout": 47408,
                   "annotations": [],
                   "expectedStatus": "passed",
                   "projectId": "chromium",
@@ -2047,12 +2047,12 @@
                       "workerIndex": 3,
                       "parallelIndex": 0,
                       "status": "passed",
-                      "duration": 2931,
+                      "duration": 2922,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2026-09-25T16:06:18.177Z",
+                      "startTime": "2026-09-25T16:38:01.219Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -2074,7 +2074,7 @@
               ],
               "tests": [
                 {
-                  "timeout": 80299,
+                  "timeout": 80260,
                   "annotations": [],
                   "expectedStatus": "passed",
                   "projectId": "chromium",
@@ -2084,12 +2084,12 @@
                       "workerIndex": 3,
                       "parallelIndex": 0,
                       "status": "passed",
-                      "duration": 36542,
+                      "duration": 36492,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2026-09-25T16:06:21.112Z",
+                      "startTime": "2026-09-25T16:38:04.151Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -2111,7 +2111,7 @@
               ],
               "tests": [
                 {
-                  "timeout": 50440,
+                  "timeout": 50445,
                   "annotations": [],
                   "expectedStatus": "passed",
                   "projectId": "chromium",
@@ -2121,12 +2121,12 @@
                       "workerIndex": 3,
                       "parallelIndex": 0,
                       "status": "passed",
-                      "duration": 6577,
+                      "duration": 6627,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2026-09-25T16:06:57.658Z",
+                      "startTime": "2026-09-25T16:38:40.650Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -2158,12 +2158,12 @@
                       "workerIndex": 3,
                       "parallelIndex": 0,
                       "status": "passed",
-                      "duration": 2465,
+                      "duration": 2443,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2026-09-25T16:07:04.240Z",
+                      "startTime": "2026-09-25T16:38:47.283Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -2202,7 +2202,7 @@
               ],
               "tests": [
                 {
-                  "timeout": 45109,
+                  "timeout": 45134,
                   "annotations": [],
                   "expectedStatus": "passed",
                   "projectId": "chromium",
@@ -2212,12 +2212,12 @@
                       "workerIndex": 3,
                       "parallelIndex": 0,
                       "status": "passed",
-                      "duration": 419,
+                      "duration": 436,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2026-09-25T16:07:06.719Z",
+                      "startTime": "2026-09-25T16:38:49.737Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -2239,7 +2239,7 @@
               ],
               "tests": [
                 {
-                  "timeout": 45313,
+                  "timeout": 45341,
                   "annotations": [],
                   "expectedStatus": "passed",
                   "projectId": "chromium",
@@ -2249,12 +2249,12 @@
                       "workerIndex": 3,
                       "parallelIndex": 0,
                       "status": "failed",
-                      "duration": 5629,
+                      "duration": 5671,
                       "error": {
                         "message": "TimeoutError: locator.click: Timeout 5000ms exceeded.\nCall log:\n\u001b[2m  - waiting for getByRole('button', { name: /^XL( size)?$/ })\u001b[22m\n",
-                        "stack": "TimeoutError: locator.click: Timeout 5000ms exceeded.\nCall log:\n\u001b[2m  - waiting for getByRole('button', { name: /^XL( size)?$/ })\u001b[22m\n\n    at ~/.dbench/repo/benchmarks/vidi/acceptance/tests/story-09.spec.ts:47:62",
+                        "stack": "TimeoutError: locator.click: Timeout 5000ms exceeded.\nCall log:\n\u001b[2m  - waiting for getByRole('button', { name: /^XL( size)?$/ })\u001b[22m\n\n    at ~/.dbench/awesome-local-ai-bench-private/packs/vidi/acceptance/tests/story-09.spec.ts:47:62",
                         "location": {
-                          "file": "~/.dbench/repo/benchmarks/vidi/acceptance/tests/story-09.spec.ts",
+                          "file": "~/.dbench/awesome-local-ai-bench-private/packs/vidi/acceptance/tests/story-09.spec.ts",
                           "column": 62,
                           "line": 47
                         },
@@ -2263,32 +2263,32 @@
                       "errors": [
                         {
                           "location": {
-                            "file": "~/.dbench/repo/benchmarks/vidi/acceptance/tests/story-09.spec.ts",
+                            "file": "~/.dbench/awesome-local-ai-bench-private/packs/vidi/acceptance/tests/story-09.spec.ts",
                             "column": 62,
                             "line": 47
                           },
-                          "message": "TimeoutError: locator.click: Timeout 5000ms exceeded.\nCall log:\n\u001b[2m  - waiting for getByRole('button', { name: /^XL( size)?$/ })\u001b[22m\n\n\n  45 |     expect(Math.abs(b0.x - 400)).toBeLessThan(PIXEL_TOLERANCE * 4);\n  46 |     // The spec only asks size buttons to announce their size; 'XL' and 'XL size' both do.\n> 47 |     await page.getByRole('button', { name: /^XL( size)?$/ }).click();\n     |                                                              ^\n  48 |     await expect.poll(async () => (await box(t)).height).toBeGreaterThan(b0.height * 1.5);\n  49 |     const b1 = await box(t);\n  50 |     expect(Math.abs(b1.x - b0.x)).toBeLessThan(PIXEL_TOLERANCE * 4);\n    at ~/.dbench/repo/benchmarks/vidi/acceptance/tests/story-09.spec.ts:47:62"
+                          "message": "TimeoutError: locator.click: Timeout 5000ms exceeded.\nCall log:\n\u001b[2m  - waiting for getByRole('button', { name: /^XL( size)?$/ })\u001b[22m\n\n\n  45 |     expect(Math.abs(b0.x - 400)).toBeLessThan(PIXEL_TOLERANCE * 4);\n  46 |     // The spec only asks size buttons to announce their size; 'XL' and 'XL size' both do.\n> 47 |     await page.getByRole('button', { name: /^XL( size)?$/ }).click();\n     |                                                              ^\n  48 |     await expect.poll(async () => (await box(t)).height).toBeGreaterThan(b0.height * 1.5);\n  49 |     const b1 = await box(t);\n  50 |     expect(Math.abs(b1.x - b0.x)).toBeLessThan(PIXEL_TOLERANCE * 4);\n    at ~/.dbench/awesome-local-ai-bench-private/packs/vidi/acceptance/tests/story-09.spec.ts:47:62"
                         }
                       ],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2026-09-25T16:07:07.145Z",
+                      "startTime": "2026-09-25T16:38:50.180Z",
                       "annotations": [],
                       "attachments": [
                         {
                           "name": "screenshot",
                           "contentType": "image/png",
-                          "path": "~/.dbench/repo/combinations/qwen/3.8/27b/ubuntu/24GB/llamacpp-opencode/benchmarks/vidi/canvas-pi-02/stories/12/artifacts/story-09-story-9-s09-golde-66d24-op-left-ref-prd-golden-path-chromium/test-failed-1.png"
+                          "path": "~/.dbench/repo/combinations/qwen/3.8/27b/ubuntu/nvidia4090/llamacpp-opencode/benchmarks/vidi/canvas-pi-02/stories/12/artifacts/story-09-story-9-s09-golde-66d24-op-left-ref-prd-golden-path-chromium/test-failed-1.png"
                         },
                         {
                           "name": "error-context",
                           "contentType": "text/markdown",
-                          "path": "~/.dbench/repo/combinations/qwen/3.8/27b/ubuntu/24GB/llamacpp-opencode/benchmarks/vidi/canvas-pi-02/stories/12/artifacts/story-09-story-9-s09-golde-66d24-op-left-ref-prd-golden-path-chromium/error-context.md"
+                          "path": "~/.dbench/repo/combinations/qwen/3.8/27b/ubuntu/nvidia4090/llamacpp-opencode/benchmarks/vidi/canvas-pi-02/stories/12/artifacts/story-09-story-9-s09-golde-66d24-op-left-ref-prd-golden-path-chromium/error-context.md"
                         }
                       ],
                       "errorLocation": {
-                        "file": "~/.dbench/repo/benchmarks/vidi/acceptance/tests/story-09.spec.ts",
+                        "file": "~/.dbench/awesome-local-ai-bench-private/packs/vidi/acceptance/tests/story-09.spec.ts",
                         "column": 62,
                         "line": 47
                       }
@@ -2321,12 +2321,12 @@
                       "workerIndex": 4,
                       "parallelIndex": 0,
                       "status": "failed",
-                      "duration": 5615,
+                      "duration": 5672,
                       "error": {
                         "message": "TimeoutError: locator.boundingBox: Timeout 5000ms exceeded.\nCall log:\n\u001b[2m  - waiting for getByText(/word0 word1/).first()\u001b[22m\n",
-                        "stack": "TimeoutError: locator.boundingBox: Timeout 5000ms exceeded.\nCall log:\n\u001b[2m  - waiting for getByText(/word0 word1/).first()\u001b[22m\n\n    at box (~/.dbench/repo/benchmarks/vidi/acceptance/tests/fixtures.ts:153:21)\n    at ~/.dbench/repo/benchmarks/vidi/acceptance/tests/story-09.spec.ts:60:22",
+                        "stack": "TimeoutError: locator.boundingBox: Timeout 5000ms exceeded.\nCall log:\n\u001b[2m  - waiting for getByText(/word0 word1/).first()\u001b[22m\n\n    at box (~/.dbench/awesome-local-ai-bench-private/packs/vidi/acceptance/tests/fixtures.ts:153:21)\n    at ~/.dbench/awesome-local-ai-bench-private/packs/vidi/acceptance/tests/story-09.spec.ts:60:22",
                         "location": {
-                          "file": "~/.dbench/repo/benchmarks/vidi/acceptance/tests/fixtures.ts",
+                          "file": "~/.dbench/awesome-local-ai-bench-private/packs/vidi/acceptance/tests/fixtures.ts",
                           "column": 21,
                           "line": 153
                         },
@@ -2335,32 +2335,32 @@
                       "errors": [
                         {
                           "location": {
-                            "file": "~/.dbench/repo/benchmarks/vidi/acceptance/tests/fixtures.ts",
+                            "file": "~/.dbench/awesome-local-ai-bench-private/packs/vidi/acceptance/tests/fixtures.ts",
                             "column": 21,
                             "line": 153
                           },
-                          "message": "TimeoutError: locator.boundingBox: Timeout 5000ms exceeded.\nCall log:\n\u001b[2m  - waiting for getByText(/word0 word1/).first()\u001b[22m\n\n\n   at fixtures.ts:153\n\n  151 |\n  152 | export async function box(l: Locator) {\n> 153 |   const b = await l.boundingBox();\n      |                     ^\n  154 |   if (!b) throw new Error('element has no bounding box');\n  155 |   return b;\n  156 | }\n    at box (~/.dbench/repo/benchmarks/vidi/acceptance/tests/fixtures.ts:153:21)\n    at ~/.dbench/repo/benchmarks/vidi/acceptance/tests/story-09.spec.ts:60:22"
+                          "message": "TimeoutError: locator.boundingBox: Timeout 5000ms exceeded.\nCall log:\n\u001b[2m  - waiting for getByText(/word0 word1/).first()\u001b[22m\n\n\n   at fixtures.ts:153\n\n  151 |\n  152 | export async function box(l: Locator) {\n> 153 |   const b = await l.boundingBox();\n      |                     ^\n  154 |   if (!b) throw new Error('element has no bounding box');\n  155 |   return b;\n  156 | }\n    at box (~/.dbench/awesome-local-ai-bench-private/packs/vidi/acceptance/tests/fixtures.ts:153:21)\n    at ~/.dbench/awesome-local-ai-bench-private/packs/vidi/acceptance/tests/story-09.spec.ts:60:22"
                         }
                       ],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2026-09-25T16:07:13.312Z",
+                      "startTime": "2026-09-25T16:38:56.371Z",
                       "annotations": [],
                       "attachments": [
                         {
                           "name": "screenshot",
                           "contentType": "image/png",
-                          "path": "~/.dbench/repo/combinations/qwen/3.8/27b/ubuntu/24GB/llamacpp-opencode/benchmarks/vidi/canvas-pi-02/stories/12/artifacts/story-09-story-9-s09-auto--5fdaf-nits-ref-prd-text-autowidth-chromium/test-failed-1.png"
+                          "path": "~/.dbench/repo/combinations/qwen/3.8/27b/ubuntu/nvidia4090/llamacpp-opencode/benchmarks/vidi/canvas-pi-02/stories/12/artifacts/story-09-story-9-s09-auto--5fdaf-nits-ref-prd-text-autowidth-chromium/test-failed-1.png"
                         },
                         {
                           "name": "error-context",
                           "contentType": "text/markdown",
-                          "path": "~/.dbench/repo/combinations/qwen/3.8/27b/ubuntu/24GB/llamacpp-opencode/benchmarks/vidi/canvas-pi-02/stories/12/artifacts/story-09-story-9-s09-auto--5fdaf-nits-ref-prd-text-autowidth-chromium/error-context.md"
+                          "path": "~/.dbench/repo/combinations/qwen/3.8/27b/ubuntu/nvidia4090/llamacpp-opencode/benchmarks/vidi/canvas-pi-02/stories/12/artifacts/story-09-story-9-s09-auto--5fdaf-nits-ref-prd-text-autowidth-chromium/error-context.md"
                         }
                       ],
                       "errorLocation": {
-                        "file": "~/.dbench/repo/benchmarks/vidi/acceptance/tests/fixtures.ts",
+                        "file": "~/.dbench/awesome-local-ai-bench-private/packs/vidi/acceptance/tests/fixtures.ts",
                         "column": 21,
                         "line": 153
                       }
@@ -2393,12 +2393,12 @@
                       "workerIndex": 5,
                       "parallelIndex": 0,
                       "status": "passed",
-                      "duration": 308,
+                      "duration": 347,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2026-09-25T16:07:19.482Z",
+                      "startTime": "2026-09-25T16:39:02.608Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -2430,12 +2430,12 @@
                       "workerIndex": 5,
                       "parallelIndex": 0,
                       "status": "failed",
-                      "duration": 587,
+                      "duration": 575,
                       "error": {
                         "message": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoBeGreaterThan\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m)\u001b[22m\n\nExpected: > \u001b[32m26\u001b[39m\nReceived:   \u001b[31m26\u001b[39m",
-                        "stack": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoBeGreaterThan\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m)\u001b[22m\n\nExpected: > \u001b[32m26\u001b[39m\nReceived:   \u001b[31m26\u001b[39m\n    at ~/.dbench/repo/benchmarks/vidi/acceptance/tests/story-09.spec.ts:88:26",
+                        "stack": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoBeGreaterThan\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m)\u001b[22m\n\nExpected: > \u001b[32m26\u001b[39m\nReceived:   \u001b[31m26\u001b[39m\n    at ~/.dbench/awesome-local-ai-bench-private/packs/vidi/acceptance/tests/story-09.spec.ts:88:26",
                         "location": {
-                          "file": "~/.dbench/repo/benchmarks/vidi/acceptance/tests/story-09.spec.ts",
+                          "file": "~/.dbench/awesome-local-ai-bench-private/packs/vidi/acceptance/tests/story-09.spec.ts",
                           "column": 26,
                           "line": 88
                         },
@@ -2444,32 +2444,32 @@
                       "errors": [
                         {
                           "location": {
-                            "file": "~/.dbench/repo/benchmarks/vidi/acceptance/tests/story-09.spec.ts",
+                            "file": "~/.dbench/awesome-local-ai-bench-private/packs/vidi/acceptance/tests/story-09.spec.ts",
                             "column": 26,
                             "line": 88
                           },
-                          "message": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoBeGreaterThan\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m)\u001b[22m\n\nExpected: > \u001b[32m26\u001b[39m\nReceived:   \u001b[31m26\u001b[39m\n\n  86 |     const after = await box(t);\n  87 |     expect(after.width).toBeLessThan(before.width);\n> 88 |     expect(after.height).toBeGreaterThan(before.height);\n     |                          ^\n  89 |   });\n  90 |\n  91 |   test('text behaves like other objects: select all + delete + undo @ref prd:text.like_objects', async ({ page }) => {\n    at ~/.dbench/repo/benchmarks/vidi/acceptance/tests/story-09.spec.ts:88:26"
+                          "message": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoBeGreaterThan\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m)\u001b[22m\n\nExpected: > \u001b[32m26\u001b[39m\nReceived:   \u001b[31m26\u001b[39m\n\n  86 |     const after = await box(t);\n  87 |     expect(after.width).toBeLessThan(before.width);\n> 88 |     expect(after.height).toBeGreaterThan(before.height);\n     |                          ^\n  89 |   });\n  90 |\n  91 |   test('text behaves like other objects: select all + delete + undo @ref prd:text.like_objects', async ({ page }) => {\n    at ~/.dbench/awesome-local-ai-bench-private/packs/vidi/acceptance/tests/story-09.spec.ts:88:26"
                         }
                       ],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2026-09-25T16:07:19.841Z",
+                      "startTime": "2026-09-25T16:39:03.003Z",
                       "annotations": [],
                       "attachments": [
                         {
                           "name": "screenshot",
                           "contentType": "image/png",
-                          "path": "~/.dbench/repo/combinations/qwen/3.8/27b/ubuntu/24GB/llamacpp-opencode/benchmarks/vidi/canvas-pi-02/stories/12/artifacts/story-09-story-9-s09-selec-e608f-th-ref-prd-text-fixed-width-chromium/test-failed-1.png"
+                          "path": "~/.dbench/repo/combinations/qwen/3.8/27b/ubuntu/nvidia4090/llamacpp-opencode/benchmarks/vidi/canvas-pi-02/stories/12/artifacts/story-09-story-9-s09-selec-e608f-th-ref-prd-text-fixed-width-chromium/test-failed-1.png"
                         },
                         {
                           "name": "error-context",
                           "contentType": "text/markdown",
-                          "path": "~/.dbench/repo/combinations/qwen/3.8/27b/ubuntu/24GB/llamacpp-opencode/benchmarks/vidi/canvas-pi-02/stories/12/artifacts/story-09-story-9-s09-selec-e608f-th-ref-prd-text-fixed-width-chromium/error-context.md"
+                          "path": "~/.dbench/repo/combinations/qwen/3.8/27b/ubuntu/nvidia4090/llamacpp-opencode/benchmarks/vidi/canvas-pi-02/stories/12/artifacts/story-09-story-9-s09-selec-e608f-th-ref-prd-text-fixed-width-chromium/error-context.md"
                         }
                       ],
                       "errorLocation": {
-                        "file": "~/.dbench/repo/benchmarks/vidi/acceptance/tests/story-09.spec.ts",
+                        "file": "~/.dbench/awesome-local-ai-bench-private/packs/vidi/acceptance/tests/story-09.spec.ts",
                         "column": 26,
                         "line": 88
                       }
@@ -2502,12 +2502,12 @@
                       "workerIndex": 6,
                       "parallelIndex": 0,
                       "status": "passed",
-                      "duration": 407,
+                      "duration": 414,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2026-09-25T16:07:20.950Z",
+                      "startTime": "2026-09-25T16:39:04.100Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -2546,7 +2546,7 @@
               ],
               "tests": [
                 {
-                  "timeout": 46185,
+                  "timeout": 46063,
                   "annotations": [],
                   "expectedStatus": "passed",
                   "projectId": "chromium",
@@ -2556,12 +2556,12 @@
                       "workerIndex": 6,
                       "parallelIndex": 0,
                       "status": "passed",
-                      "duration": 1910,
+                      "duration": 1791,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2026-09-25T16:07:21.411Z",
+                      "startTime": "2026-09-25T16:39:04.570Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -2583,7 +2583,7 @@
               ],
               "tests": [
                 {
-                  "timeout": 80286,
+                  "timeout": 80259,
                   "annotations": [],
                   "expectedStatus": "passed",
                   "projectId": "chromium",
@@ -2593,12 +2593,12 @@
                       "workerIndex": 6,
                       "parallelIndex": 0,
                       "status": "passed",
-                      "duration": 35643,
+                      "duration": 35589,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2026-09-25T16:07:23.328Z",
+                      "startTime": "2026-09-25T16:39:06.369Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -2620,7 +2620,7 @@
               ],
               "tests": [
                 {
-                  "timeout": 51168,
+                  "timeout": 51210,
                   "annotations": [],
                   "expectedStatus": "passed",
                   "projectId": "chromium",
@@ -2630,12 +2630,12 @@
                       "workerIndex": 6,
                       "parallelIndex": 0,
                       "status": "passed",
-                      "duration": 6702,
+                      "duration": 6745,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2026-09-25T16:07:58.982Z",
+                      "startTime": "2026-09-25T16:39:41.963Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -2657,7 +2657,7 @@
               ],
               "tests": [
                 {
-                  "timeout": 45548,
+                  "timeout": 45563,
                   "annotations": [],
                   "expectedStatus": "passed",
                   "projectId": "chromium",
@@ -2667,12 +2667,12 @@
                       "workerIndex": 6,
                       "parallelIndex": 0,
                       "status": "failed",
-                      "duration": 5865,
+                      "duration": 5892,
                       "error": {
                         "message": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoBeVisible\u001b[2m(\u001b[22m\u001b[2m)\u001b[22m failed\n\nLocator: getByText('Checkout', { exact: true })\nExpected: visible\nTimeout: 5000ms\nError: element(s) not found\n\nCall log:\n\u001b[2m  - Expect \"toBeVisible\" with timeout 5000ms\u001b[22m\n\u001b[2m  - waiting for getByText('Checkout', { exact: true })\u001b[22m\n",
-                        "stack": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoBeVisible\u001b[2m(\u001b[22m\u001b[2m)\u001b[22m failed\n\nLocator: getByText('Checkout', { exact: true })\nExpected: visible\nTimeout: 5000ms\nError: element(s) not found\n\nCall log:\n\u001b[2m  - Expect \"toBeVisible\" with timeout 5000ms\u001b[22m\n\u001b[2m  - waiting for getByText('Checkout', { exact: true })\u001b[22m\n\n    at ~/.dbench/repo/benchmarks/vidi/acceptance/tests/story-10.spec.ts:70:63",
+                        "stack": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoBeVisible\u001b[2m(\u001b[22m\u001b[2m)\u001b[22m failed\n\nLocator: getByText('Checkout', { exact: true })\nExpected: visible\nTimeout: 5000ms\nError: element(s) not found\n\nCall log:\n\u001b[2m  - Expect \"toBeVisible\" with timeout 5000ms\u001b[22m\n\u001b[2m  - waiting for getByText('Checkout', { exact: true })\u001b[22m\n\n    at ~/.dbench/awesome-local-ai-bench-private/packs/vidi/acceptance/tests/story-10.spec.ts:70:63",
                         "location": {
-                          "file": "~/.dbench/repo/benchmarks/vidi/acceptance/tests/story-10.spec.ts",
+                          "file": "~/.dbench/awesome-local-ai-bench-private/packs/vidi/acceptance/tests/story-10.spec.ts",
                           "column": 63,
                           "line": 70
                         },
@@ -2681,32 +2681,32 @@
                       "errors": [
                         {
                           "location": {
-                            "file": "~/.dbench/repo/benchmarks/vidi/acceptance/tests/story-10.spec.ts",
+                            "file": "~/.dbench/awesome-local-ai-bench-private/packs/vidi/acceptance/tests/story-10.spec.ts",
                             "column": 63,
                             "line": 70
                           },
-                          "message": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoBeVisible\u001b[2m(\u001b[22m\u001b[2m)\u001b[22m failed\n\nLocator: getByText('Checkout', { exact: true })\nExpected: visible\nTimeout: 5000ms\nError: element(s) not found\n\nCall log:\n\u001b[2m  - Expect \"toBeVisible\" with timeout 5000ms\u001b[22m\n\u001b[2m  - waiting for getByText('Checkout', { exact: true })\u001b[22m\n\n\n  68 |     await page.keyboard.type('Checkout');\n  69 |     await page.keyboard.press('Escape');\n> 70 |     await expect(page.getByText('Checkout', { exact: true })).toBeVisible();\n     |                                                               ^\n  71 |     const t = await box(page.getByText('Checkout', { exact: true }));\n  72 |     expect(Math.abs(t.x + t.width / 2 - 600)).toBeLessThan(PIXEL_TOLERANCE * 4);\n  73 |   });\n    at ~/.dbench/repo/benchmarks/vidi/acceptance/tests/story-10.spec.ts:70:63"
+                          "message": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoBeVisible\u001b[2m(\u001b[22m\u001b[2m)\u001b[22m failed\n\nLocator: getByText('Checkout', { exact: true })\nExpected: visible\nTimeout: 5000ms\nError: element(s) not found\n\nCall log:\n\u001b[2m  - Expect \"toBeVisible\" with timeout 5000ms\u001b[22m\n\u001b[2m  - waiting for getByText('Checkout', { exact: true })\u001b[22m\n\n\n  68 |     await page.keyboard.type('Checkout');\n  69 |     await page.keyboard.press('Escape');\n> 70 |     await expect(page.getByText('Checkout', { exact: true })).toBeVisible();\n     |                                                               ^\n  71 |     const t = await box(page.getByText('Checkout', { exact: true }));\n  72 |     expect(Math.abs(t.x + t.width / 2 - 600)).toBeLessThan(PIXEL_TOLERANCE * 4);\n  73 |   });\n    at ~/.dbench/awesome-local-ai-bench-private/packs/vidi/acceptance/tests/story-10.spec.ts:70:63"
                         }
                       ],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2026-09-25T16:08:05.691Z",
+                      "startTime": "2026-09-25T16:39:48.715Z",
                       "annotations": [],
                       "attachments": [
                         {
                           "name": "screenshot",
                           "contentType": "image/png",
-                          "path": "~/.dbench/repo/combinations/qwen/3.8/27b/ubuntu/24GB/llamacpp-opencode/benchmarks/vidi/canvas-pi-02/stories/12/artifacts/story-10-story-10-s10-doub-7207d-a-shape-ref-prd-shape-label-chromium/test-failed-1.png"
+                          "path": "~/.dbench/repo/combinations/qwen/3.8/27b/ubuntu/nvidia4090/llamacpp-opencode/benchmarks/vidi/canvas-pi-02/stories/12/artifacts/story-10-story-10-s10-doub-7207d-a-shape-ref-prd-shape-label-chromium/test-failed-1.png"
                         },
                         {
                           "name": "error-context",
                           "contentType": "text/markdown",
-                          "path": "~/.dbench/repo/combinations/qwen/3.8/27b/ubuntu/24GB/llamacpp-opencode/benchmarks/vidi/canvas-pi-02/stories/12/artifacts/story-10-story-10-s10-doub-7207d-a-shape-ref-prd-shape-label-chromium/error-context.md"
+                          "path": "~/.dbench/repo/combinations/qwen/3.8/27b/ubuntu/nvidia4090/llamacpp-opencode/benchmarks/vidi/canvas-pi-02/stories/12/artifacts/story-10-story-10-s10-doub-7207d-a-shape-ref-prd-shape-label-chromium/error-context.md"
                         }
                       ],
                       "errorLocation": {
-                        "file": "~/.dbench/repo/benchmarks/vidi/acceptance/tests/story-10.spec.ts",
+                        "file": "~/.dbench/awesome-local-ai-bench-private/packs/vidi/acceptance/tests/story-10.spec.ts",
                         "column": 63,
                         "line": 70
                       }
@@ -2739,12 +2739,12 @@
                       "workerIndex": 7,
                       "parallelIndex": 0,
                       "status": "failed",
-                      "duration": 5322,
+                      "duration": 5361,
                       "error": {
                         "message": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoHaveCount\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m)\u001b[22m failed\n\nLocator:  locator('button[aria-label$=\" fill\" i]')\nExpected: \u001b[32m7\u001b[39m\nReceived: \u001b[31m0\u001b[39m\nTimeout:  5000ms\n\nCall log:\n\u001b[2m  - Expect \"toHaveCount\" with timeout 5000ms\u001b[22m\n\u001b[2m  - waiting for locator('button[aria-label$=\" fill\" i]')\u001b[22m\n\u001b[2m    9 × locator resolved to 0 elements\u001b[22m\n\u001b[2m      - unexpected value \"0\"\u001b[22m\n",
-                        "stack": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoHaveCount\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m)\u001b[22m failed\n\nLocator:  locator('button[aria-label$=\" fill\" i]')\nExpected: \u001b[32m7\u001b[39m\nReceived: \u001b[31m0\u001b[39m\nTimeout:  5000ms\n\nCall log:\n\u001b[2m  - Expect \"toHaveCount\" with timeout 5000ms\u001b[22m\n\u001b[2m  - waiting for locator('button[aria-label$=\" fill\" i]')\u001b[22m\n\u001b[2m    9 × locator resolved to 0 elements\u001b[22m\n\u001b[2m      - unexpected value \"0\"\u001b[22m\n\n    at ~/.dbench/repo/benchmarks/vidi/acceptance/tests/story-10.spec.ts:79:65",
+                        "stack": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoHaveCount\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m)\u001b[22m failed\n\nLocator:  locator('button[aria-label$=\" fill\" i]')\nExpected: \u001b[32m7\u001b[39m\nReceived: \u001b[31m0\u001b[39m\nTimeout:  5000ms\n\nCall log:\n\u001b[2m  - Expect \"toHaveCount\" with timeout 5000ms\u001b[22m\n\u001b[2m  - waiting for locator('button[aria-label$=\" fill\" i]')\u001b[22m\n\u001b[2m    9 × locator resolved to 0 elements\u001b[22m\n\u001b[2m      - unexpected value \"0\"\u001b[22m\n\n    at ~/.dbench/awesome-local-ai-bench-private/packs/vidi/acceptance/tests/story-10.spec.ts:79:65",
                         "location": {
-                          "file": "~/.dbench/repo/benchmarks/vidi/acceptance/tests/story-10.spec.ts",
+                          "file": "~/.dbench/awesome-local-ai-bench-private/packs/vidi/acceptance/tests/story-10.spec.ts",
                           "column": 65,
                           "line": 79
                         },
@@ -2753,32 +2753,32 @@
                       "errors": [
                         {
                           "location": {
-                            "file": "~/.dbench/repo/benchmarks/vidi/acceptance/tests/story-10.spec.ts",
+                            "file": "~/.dbench/awesome-local-ai-bench-private/packs/vidi/acceptance/tests/story-10.spec.ts",
                             "column": 65,
                             "line": 79
                           },
-                          "message": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoHaveCount\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m)\u001b[22m failed\n\nLocator:  locator('button[aria-label$=\" fill\" i]')\nExpected: \u001b[32m7\u001b[39m\nReceived: \u001b[31m0\u001b[39m\nTimeout:  5000ms\n\nCall log:\n\u001b[2m  - Expect \"toHaveCount\" with timeout 5000ms\u001b[22m\n\u001b[2m  - waiting for locator('button[aria-label$=\" fill\" i]')\u001b[22m\n\u001b[2m    9 × locator resolved to 0 elements\u001b[22m\n\u001b[2m      - unexpected value \"0\"\u001b[22m\n\n\n  77 |     await page.keyboard.press('s');\n  78 |     await page.mouse.click(600, 400);\n> 79 |     await expect(page.locator('button[aria-label$=\" fill\" i]')).toHaveCount(7);\n     |                                                                 ^\n  80 |     await expect(page.locator('button[aria-label$=\" outline\" i]')).toHaveCount(6);\n  81 |   });\n  82 |\n    at ~/.dbench/repo/benchmarks/vidi/acceptance/tests/story-10.spec.ts:79:65"
+                          "message": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoHaveCount\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m)\u001b[22m failed\n\nLocator:  locator('button[aria-label$=\" fill\" i]')\nExpected: \u001b[32m7\u001b[39m\nReceived: \u001b[31m0\u001b[39m\nTimeout:  5000ms\n\nCall log:\n\u001b[2m  - Expect \"toHaveCount\" with timeout 5000ms\u001b[22m\n\u001b[2m  - waiting for locator('button[aria-label$=\" fill\" i]')\u001b[22m\n\u001b[2m    9 × locator resolved to 0 elements\u001b[22m\n\u001b[2m      - unexpected value \"0\"\u001b[22m\n\n\n  77 |     await page.keyboard.press('s');\n  78 |     await page.mouse.click(600, 400);\n> 79 |     await expect(page.locator('button[aria-label$=\" fill\" i]')).toHaveCount(7);\n     |                                                                 ^\n  80 |     await expect(page.locator('button[aria-label$=\" outline\" i]')).toHaveCount(6);\n  81 |   });\n  82 |\n    at ~/.dbench/awesome-local-ai-bench-private/packs/vidi/acceptance/tests/story-10.spec.ts:79:65"
                         }
                       ],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2026-09-25T16:08:12.070Z",
+                      "startTime": "2026-09-25T16:39:55.136Z",
                       "annotations": [],
                       "attachments": [
                         {
                           "name": "screenshot",
                           "contentType": "image/png",
-                          "path": "~/.dbench/repo/combinations/qwen/3.8/27b/ubuntu/24GB/llamacpp-opencode/benchmarks/vidi/canvas-pi-02/stories/12/artifacts/story-10-story-10-s10-fill-1317a--shape-ref-prd-shape-colour-chromium/test-failed-1.png"
+                          "path": "~/.dbench/repo/combinations/qwen/3.8/27b/ubuntu/nvidia4090/llamacpp-opencode/benchmarks/vidi/canvas-pi-02/stories/12/artifacts/story-10-story-10-s10-fill-1317a--shape-ref-prd-shape-colour-chromium/test-failed-1.png"
                         },
                         {
                           "name": "error-context",
                           "contentType": "text/markdown",
-                          "path": "~/.dbench/repo/combinations/qwen/3.8/27b/ubuntu/24GB/llamacpp-opencode/benchmarks/vidi/canvas-pi-02/stories/12/artifacts/story-10-story-10-s10-fill-1317a--shape-ref-prd-shape-colour-chromium/error-context.md"
+                          "path": "~/.dbench/repo/combinations/qwen/3.8/27b/ubuntu/nvidia4090/llamacpp-opencode/benchmarks/vidi/canvas-pi-02/stories/12/artifacts/story-10-story-10-s10-fill-1317a--shape-ref-prd-shape-colour-chromium/error-context.md"
                         }
                       ],
                       "errorLocation": {
-                        "file": "~/.dbench/repo/benchmarks/vidi/acceptance/tests/story-10.spec.ts",
+                        "file": "~/.dbench/awesome-local-ai-bench-private/packs/vidi/acceptance/tests/story-10.spec.ts",
                         "column": 65,
                         "line": 79
                       }
@@ -2811,12 +2811,12 @@
                       "workerIndex": 8,
                       "parallelIndex": 0,
                       "status": "failed",
-                      "duration": 5565,
+                      "duration": 5567,
                       "error": {
                         "message": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoBeGreaterThan\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m)\u001b[22m\n\nExpected: > \u001b[32m3\u001b[39m\nReceived:   \u001b[31m3\u001b[39m\n\nCall Log:\n- Timeout 5000ms exceeded while waiting on the predicate",
-                        "stack": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoBeGreaterThan\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m)\u001b[22m\n\nExpected: > \u001b[32m3\u001b[39m\nReceived:   \u001b[31m3\u001b[39m\n\nCall Log:\n- Timeout 5000ms exceeded while waiting on the predicate\n    at ~/.dbench/repo/benchmarks/vidi/acceptance/tests/story-10.spec.ts:93:5",
+                        "stack": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoBeGreaterThan\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m)\u001b[22m\n\nExpected: > \u001b[32m3\u001b[39m\nReceived:   \u001b[31m3\u001b[39m\n\nCall Log:\n- Timeout 5000ms exceeded while waiting on the predicate\n    at ~/.dbench/awesome-local-ai-bench-private/packs/vidi/acceptance/tests/story-10.spec.ts:93:5",
                         "location": {
-                          "file": "~/.dbench/repo/benchmarks/vidi/acceptance/tests/story-10.spec.ts",
+                          "file": "~/.dbench/awesome-local-ai-bench-private/packs/vidi/acceptance/tests/story-10.spec.ts",
                           "column": 5,
                           "line": 93
                         },
@@ -2825,32 +2825,32 @@
                       "errors": [
                         {
                           "location": {
-                            "file": "~/.dbench/repo/benchmarks/vidi/acceptance/tests/story-10.spec.ts",
+                            "file": "~/.dbench/awesome-local-ai-bench-private/packs/vidi/acceptance/tests/story-10.spec.ts",
                             "column": 5,
                             "line": 93
                           },
-                          "message": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoBeGreaterThan\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m)\u001b[22m\n\nExpected: > \u001b[32m3\u001b[39m\nReceived:   \u001b[31m3\u001b[39m\n\nCall Log:\n- Timeout 5000ms exceeded while waiting on the predicate\n\n  91 |     await page.keyboard.press('l');\n  92 |     await drag(page, { x: 350, y: 400 }, { x: 850, y: 400 }, { steps: 20 });\n> 93 |     await expect.poll(() => connectorCount(page)).toBeGreaterThan(before);\n     |     ^\n  94 |     await shot(page, 's10-connected');\n  95 |     await page.keyboard.press('v');\n  96 |     await clickEmpty(page);\n    at ~/.dbench/repo/benchmarks/vidi/acceptance/tests/story-10.spec.ts:93:5"
+                          "message": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoBeGreaterThan\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m)\u001b[22m\n\nExpected: > \u001b[32m3\u001b[39m\nReceived:   \u001b[31m3\u001b[39m\n\nCall Log:\n- Timeout 5000ms exceeded while waiting on the predicate\n\n  91 |     await page.keyboard.press('l');\n  92 |     await drag(page, { x: 350, y: 400 }, { x: 850, y: 400 }, { steps: 20 });\n> 93 |     await expect.poll(() => connectorCount(page)).toBeGreaterThan(before);\n     |     ^\n  94 |     await shot(page, 's10-connected');\n  95 |     await page.keyboard.press('v');\n  96 |     await clickEmpty(page);\n    at ~/.dbench/awesome-local-ai-bench-private/packs/vidi/acceptance/tests/story-10.spec.ts:93:5"
                         }
                       ],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2026-09-25T16:08:17.966Z",
+                      "startTime": "2026-09-25T16:40:01.073Z",
                       "annotations": [],
                       "attachments": [
                         {
                           "name": "screenshot",
                           "contentType": "image/png",
-                          "path": "~/.dbench/repo/combinations/qwen/3.8/27b/ubuntu/24GB/llamacpp-opencode/benchmarks/vidi/canvas-pi-02/stories/12/artifacts/story-10-story-10-s10-gold-e9cac-ed-ref-prd-connector-follow-chromium/test-failed-1.png"
+                          "path": "~/.dbench/repo/combinations/qwen/3.8/27b/ubuntu/nvidia4090/llamacpp-opencode/benchmarks/vidi/canvas-pi-02/stories/12/artifacts/story-10-story-10-s10-gold-e9cac-ed-ref-prd-connector-follow-chromium/test-failed-1.png"
                         },
                         {
                           "name": "error-context",
                           "contentType": "text/markdown",
-                          "path": "~/.dbench/repo/combinations/qwen/3.8/27b/ubuntu/24GB/llamacpp-opencode/benchmarks/vidi/canvas-pi-02/stories/12/artifacts/story-10-story-10-s10-gold-e9cac-ed-ref-prd-connector-follow-chromium/error-context.md"
+                          "path": "~/.dbench/repo/combinations/qwen/3.8/27b/ubuntu/nvidia4090/llamacpp-opencode/benchmarks/vidi/canvas-pi-02/stories/12/artifacts/story-10-story-10-s10-gold-e9cac-ed-ref-prd-connector-follow-chromium/error-context.md"
                         }
                       ],
                       "errorLocation": {
-                        "file": "~/.dbench/repo/benchmarks/vidi/acceptance/tests/story-10.spec.ts",
+                        "file": "~/.dbench/awesome-local-ai-bench-private/packs/vidi/acceptance/tests/story-10.spec.ts",
                         "column": 5,
                         "line": 93
                       }
@@ -2883,12 +2883,12 @@
                       "workerIndex": 9,
                       "parallelIndex": 0,
                       "status": "passed",
-                      "duration": 696,
+                      "duration": 675,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2026-09-25T16:08:24.100Z",
+                      "startTime": "2026-09-25T16:40:07.210Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -2920,12 +2920,12 @@
                       "workerIndex": 9,
                       "parallelIndex": 0,
                       "status": "passed",
-                      "duration": 317,
+                      "duration": 308,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2026-09-25T16:08:24.847Z",
+                      "startTime": "2026-09-25T16:40:07.930Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -2974,12 +2974,12 @@
                       "workerIndex": 9,
                       "parallelIndex": 0,
                       "status": "passed",
-                      "duration": 1110,
+                      "duration": 1101,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2026-09-25T16:08:25.176Z",
+                      "startTime": "2026-09-25T16:40:08.253Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -3011,12 +3011,12 @@
                       "workerIndex": 9,
                       "parallelIndex": 0,
                       "status": "passed",
-                      "duration": 311,
+                      "duration": 310,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2026-09-25T16:08:26.292Z",
+                      "startTime": "2026-09-25T16:40:09.362Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -3048,12 +3048,12 @@
                       "workerIndex": 9,
                       "parallelIndex": 0,
                       "status": "passed",
-                      "duration": 610,
+                      "duration": 613,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2026-09-25T16:08:26.610Z",
+                      "startTime": "2026-09-25T16:40:09.679Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -3075,7 +3075,7 @@
               ],
               "tests": [
                 {
-                  "timeout": 78371,
+                  "timeout": 78314,
                   "annotations": [],
                   "expectedStatus": "passed",
                   "projectId": "chromium",
@@ -3085,12 +3085,12 @@
                       "workerIndex": 9,
                       "parallelIndex": 0,
                       "status": "passed",
-                      "duration": 34316,
+                      "duration": 34250,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2026-09-25T16:08:27.227Z",
+                      "startTime": "2026-09-25T16:40:10.297Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -3112,7 +3112,7 @@
               ],
               "tests": [
                 {
-                  "timeout": 50598,
+                  "timeout": 50633,
                   "annotations": [],
                   "expectedStatus": "passed",
                   "projectId": "chromium",
@@ -3122,12 +3122,12 @@
                       "workerIndex": 9,
                       "parallelIndex": 0,
                       "status": "passed",
-                      "duration": 6251,
+                      "duration": 6289,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2026-09-25T16:09:01.550Z",
+                      "startTime": "2026-09-25T16:40:44.552Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -3166,7 +3166,7 @@
               ],
               "tests": [
                 {
-                  "timeout": 45418,
+                  "timeout": 45416,
                   "annotations": [],
                   "expectedStatus": "passed",
                   "projectId": "chromium",
@@ -3176,12 +3176,12 @@
                       "workerIndex": 9,
                       "parallelIndex": 0,
                       "status": "failed",
-                      "duration": 20892,
+                      "duration": 20905,
                       "error": {
                         "message": "Error: pressing I never opened a file chooser (5 attempts)",
-                        "stack": "Error: pressing I never opened a file chooser (5 attempts)\n    at pick (~/.dbench/repo/benchmarks/vidi/acceptance/tests/story-12.spec.ts:42:9)\n    at ~/.dbench/repo/benchmarks/vidi/acceptance/tests/story-12.spec.ts:68:5",
+                        "stack": "Error: pressing I never opened a file chooser (5 attempts)\n    at pick (~/.dbench/awesome-local-ai-bench-private/packs/vidi/acceptance/tests/story-12.spec.ts:42:9)\n    at ~/.dbench/awesome-local-ai-bench-private/packs/vidi/acceptance/tests/story-12.spec.ts:68:5",
                         "location": {
-                          "file": "~/.dbench/repo/benchmarks/vidi/acceptance/tests/story-12.spec.ts",
+                          "file": "~/.dbench/awesome-local-ai-bench-private/packs/vidi/acceptance/tests/story-12.spec.ts",
                           "column": 9,
                           "line": 42
                         },
@@ -3190,37 +3190,37 @@
                       "errors": [
                         {
                           "location": {
-                            "file": "~/.dbench/repo/benchmarks/vidi/acceptance/tests/story-12.spec.ts",
+                            "file": "~/.dbench/awesome-local-ai-bench-private/packs/vidi/acceptance/tests/story-12.spec.ts",
                             "column": 9,
                             "line": 42
                           },
-                          "message": "Error: pressing I never opened a file chooser (5 attempts)\n\n  40 |     await p.waitForTimeout(PICK_RETRY_MS);\n  41 |   }\n> 42 |   throw new Error(`pressing I never opened a file chooser (${PICK_ATTEMPTS} attempts)`);\n     |         ^\n  43 | }\n  44 |\n  45 | // Synthesise an OS file drop at a screen point.\n    at pick (~/.dbench/repo/benchmarks/vidi/acceptance/tests/story-12.spec.ts:42:9)\n    at ~/.dbench/repo/benchmarks/vidi/acceptance/tests/story-12.spec.ts:68:5"
+                          "message": "Error: pressing I never opened a file chooser (5 attempts)\n\n  40 |     await p.waitForTimeout(PICK_RETRY_MS);\n  41 |   }\n> 42 |   throw new Error(`pressing I never opened a file chooser (${PICK_ATTEMPTS} attempts)`);\n     |         ^\n  43 | }\n  44 |\n  45 | // Synthesise an OS file drop at a screen point.\n    at pick (~/.dbench/awesome-local-ai-bench-private/packs/vidi/acceptance/tests/story-12.spec.ts:42:9)\n    at ~/.dbench/awesome-local-ai-bench-private/packs/vidi/acceptance/tests/story-12.spec.ts:68:5"
                         }
                       ],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2026-09-25T16:09:07.815Z",
+                      "startTime": "2026-09-25T16:40:50.856Z",
                       "annotations": [],
                       "attachments": [
                         {
                           "name": "screenshot",
                           "contentType": "image/png",
-                          "path": "~/.dbench/repo/combinations/qwen/3.8/27b/ubuntu/24GB/llamacpp-opencode/benchmarks/vidi/canvas-pi-02/stories/12/artifacts/story-12-story-12-s12-Imag-60b8f-e-picker-prd-image-everyone-chromium/test-failed-2.png"
+                          "path": "~/.dbench/repo/combinations/qwen/3.8/27b/ubuntu/nvidia4090/llamacpp-opencode/benchmarks/vidi/canvas-pi-02/stories/12/artifacts/story-12-story-12-s12-Imag-60b8f-e-picker-prd-image-everyone-chromium/test-failed-2.png"
                         },
                         {
                           "name": "screenshot",
                           "contentType": "image/png",
-                          "path": "~/.dbench/repo/combinations/qwen/3.8/27b/ubuntu/24GB/llamacpp-opencode/benchmarks/vidi/canvas-pi-02/stories/12/artifacts/story-12-story-12-s12-Imag-60b8f-e-picker-prd-image-everyone-chromium/test-failed-1.png"
+                          "path": "~/.dbench/repo/combinations/qwen/3.8/27b/ubuntu/nvidia4090/llamacpp-opencode/benchmarks/vidi/canvas-pi-02/stories/12/artifacts/story-12-story-12-s12-Imag-60b8f-e-picker-prd-image-everyone-chromium/test-failed-1.png"
                         },
                         {
                           "name": "error-context",
                           "contentType": "text/markdown",
-                          "path": "~/.dbench/repo/combinations/qwen/3.8/27b/ubuntu/24GB/llamacpp-opencode/benchmarks/vidi/canvas-pi-02/stories/12/artifacts/story-12-story-12-s12-Imag-60b8f-e-picker-prd-image-everyone-chromium/error-context.md"
+                          "path": "~/.dbench/repo/combinations/qwen/3.8/27b/ubuntu/nvidia4090/llamacpp-opencode/benchmarks/vidi/canvas-pi-02/stories/12/artifacts/story-12-story-12-s12-Imag-60b8f-e-picker-prd-image-everyone-chromium/error-context.md"
                         }
                       ],
                       "errorLocation": {
-                        "file": "~/.dbench/repo/benchmarks/vidi/acceptance/tests/story-12.spec.ts",
+                        "file": "~/.dbench/awesome-local-ai-bench-private/packs/vidi/acceptance/tests/story-12.spec.ts",
                         "column": 9,
                         "line": 42
                       }
@@ -3253,12 +3253,12 @@
                       "workerIndex": 10,
                       "parallelIndex": 0,
                       "status": "failed",
-                      "duration": 20631,
+                      "duration": 20650,
                       "error": {
                         "message": "Error: pressing I never opened a file chooser (5 attempts)",
-                        "stack": "Error: pressing I never opened a file chooser (5 attempts)\n    at pick (~/.dbench/repo/benchmarks/vidi/acceptance/tests/story-12.spec.ts:42:9)\n    at ~/.dbench/repo/benchmarks/vidi/acceptance/tests/story-12.spec.ts:80:5",
+                        "stack": "Error: pressing I never opened a file chooser (5 attempts)\n    at pick (~/.dbench/awesome-local-ai-bench-private/packs/vidi/acceptance/tests/story-12.spec.ts:42:9)\n    at ~/.dbench/awesome-local-ai-bench-private/packs/vidi/acceptance/tests/story-12.spec.ts:80:5",
                         "location": {
-                          "file": "~/.dbench/repo/benchmarks/vidi/acceptance/tests/story-12.spec.ts",
+                          "file": "~/.dbench/awesome-local-ai-bench-private/packs/vidi/acceptance/tests/story-12.spec.ts",
                           "column": 9,
                           "line": 42
                         },
@@ -3267,32 +3267,32 @@
                       "errors": [
                         {
                           "location": {
-                            "file": "~/.dbench/repo/benchmarks/vidi/acceptance/tests/story-12.spec.ts",
+                            "file": "~/.dbench/awesome-local-ai-bench-private/packs/vidi/acceptance/tests/story-12.spec.ts",
                             "column": 9,
                             "line": 42
                           },
-                          "message": "Error: pressing I never opened a file chooser (5 attempts)\n\n  40 |     await p.waitForTimeout(PICK_RETRY_MS);\n  41 |   }\n> 42 |   throw new Error(`pressing I never opened a file chooser (${PICK_ATTEMPTS} attempts)`);\n     |         ^\n  43 | }\n  44 |\n  45 | // Synthesise an OS file drop at a screen point.\n    at pick (~/.dbench/repo/benchmarks/vidi/acceptance/tests/story-12.spec.ts:42:9)\n    at ~/.dbench/repo/benchmarks/vidi/acceptance/tests/story-12.spec.ts:80:5"
+                          "message": "Error: pressing I never opened a file chooser (5 attempts)\n\n  40 |     await p.waitForTimeout(PICK_RETRY_MS);\n  41 |   }\n> 42 |   throw new Error(`pressing I never opened a file chooser (${PICK_ATTEMPTS} attempts)`);\n     |         ^\n  43 | }\n  44 |\n  45 | // Synthesise an OS file drop at a screen point.\n    at pick (~/.dbench/awesome-local-ai-bench-private/packs/vidi/acceptance/tests/story-12.spec.ts:42:9)\n    at ~/.dbench/awesome-local-ai-bench-private/packs/vidi/acceptance/tests/story-12.spec.ts:80:5"
                         }
                       ],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2026-09-25T16:09:29.244Z",
+                      "startTime": "2026-09-25T16:41:12.286Z",
                       "annotations": [],
                       "attachments": [
                         {
                           "name": "screenshot",
                           "contentType": "image/png",
-                          "path": "~/.dbench/repo/combinations/qwen/3.8/27b/ubuntu/24GB/llamacpp-opencode/benchmarks/vidi/canvas-pi-02/stories/12/artifacts/story-12-story-12-s12-larg-0af0e-00-units-ref-prd-image-size-chromium/test-failed-1.png"
+                          "path": "~/.dbench/repo/combinations/qwen/3.8/27b/ubuntu/nvidia4090/llamacpp-opencode/benchmarks/vidi/canvas-pi-02/stories/12/artifacts/story-12-story-12-s12-larg-0af0e-00-units-ref-prd-image-size-chromium/test-failed-1.png"
                         },
                         {
                           "name": "error-context",
                           "contentType": "text/markdown",
-                          "path": "~/.dbench/repo/combinations/qwen/3.8/27b/ubuntu/24GB/llamacpp-opencode/benchmarks/vidi/canvas-pi-02/stories/12/artifacts/story-12-story-12-s12-larg-0af0e-00-units-ref-prd-image-size-chromium/error-context.md"
+                          "path": "~/.dbench/repo/combinations/qwen/3.8/27b/ubuntu/nvidia4090/llamacpp-opencode/benchmarks/vidi/canvas-pi-02/stories/12/artifacts/story-12-story-12-s12-larg-0af0e-00-units-ref-prd-image-size-chromium/error-context.md"
                         }
                       ],
                       "errorLocation": {
-                        "file": "~/.dbench/repo/benchmarks/vidi/acceptance/tests/story-12.spec.ts",
+                        "file": "~/.dbench/awesome-local-ai-bench-private/packs/vidi/acceptance/tests/story-12.spec.ts",
                         "column": 9,
                         "line": 42
                       }
@@ -3325,12 +3325,12 @@
                       "workerIndex": 11,
                       "parallelIndex": 0,
                       "status": "failed",
-                      "duration": 712,
+                      "duration": 724,
                       "error": {
                         "message": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoBeLessThan\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m)\u001b[22m\n\nExpected: < \u001b[32m2\u001b[39m\nReceived:   \u001b[31m340\u001b[39m",
-                        "stack": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoBeLessThan\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m)\u001b[22m\n\nExpected: < \u001b[32m2\u001b[39m\nReceived:   \u001b[31m340\u001b[39m\n    at ~/.dbench/repo/benchmarks/vidi/acceptance/tests/story-12.spec.ts:97:41",
+                        "stack": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoBeLessThan\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m)\u001b[22m\n\nExpected: < \u001b[32m2\u001b[39m\nReceived:   \u001b[31m340\u001b[39m\n    at ~/.dbench/awesome-local-ai-bench-private/packs/vidi/acceptance/tests/story-12.spec.ts:97:41",
                         "location": {
-                          "file": "~/.dbench/repo/benchmarks/vidi/acceptance/tests/story-12.spec.ts",
+                          "file": "~/.dbench/awesome-local-ai-bench-private/packs/vidi/acceptance/tests/story-12.spec.ts",
                           "column": 41,
                           "line": 97
                         },
@@ -3339,32 +3339,32 @@
                       "errors": [
                         {
                           "location": {
-                            "file": "~/.dbench/repo/benchmarks/vidi/acceptance/tests/story-12.spec.ts",
+                            "file": "~/.dbench/awesome-local-ai-bench-private/packs/vidi/acceptance/tests/story-12.spec.ts",
                             "column": 41,
                             "line": 97
                           },
-                          "message": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoBeLessThan\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m)\u001b[22m\n\nExpected: < \u001b[32m2\u001b[39m\nReceived:   \u001b[31m340\u001b[39m\n\n   95 |     await expect(images(page)).toHaveCount(2, { timeout: UPLOAD_MS });\n   96 |     const boxes = (await Promise.all([0, 1].map((i) => box(images(page).nth(i))))).sort((p, q) => p.x - q.x);\n>  97 |     expect(Math.abs(boxes[0].x - at.x)).toBeLessThan(PIXEL_TOLERANCE);\n      |                                         ^\n   98 |     expect(Math.abs(boxes[0].y - at.y)).toBeLessThan(PIXEL_TOLERANCE);\n   99 |     expect(Math.abs(boxes[1].x - (boxes[0].x + SMALL_W + IMAGE_LAYOUT_GAP_WORLD))).toBeLessThan(PIXEL_TOLERANCE);\n  100 |   });\n    at ~/.dbench/repo/benchmarks/vidi/acceptance/tests/story-12.spec.ts:97:41"
+                          "message": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoBeLessThan\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m)\u001b[22m\n\nExpected: < \u001b[32m2\u001b[39m\nReceived:   \u001b[31m340\u001b[39m\n\n   95 |     await expect(images(page)).toHaveCount(2, { timeout: UPLOAD_MS });\n   96 |     const boxes = (await Promise.all([0, 1].map((i) => box(images(page).nth(i))))).sort((p, q) => p.x - q.x);\n>  97 |     expect(Math.abs(boxes[0].x - at.x)).toBeLessThan(PIXEL_TOLERANCE);\n      |                                         ^\n   98 |     expect(Math.abs(boxes[0].y - at.y)).toBeLessThan(PIXEL_TOLERANCE);\n   99 |     expect(Math.abs(boxes[1].x - (boxes[0].x + SMALL_W + IMAGE_LAYOUT_GAP_WORLD))).toBeLessThan(PIXEL_TOLERANCE);\n  100 |   });\n    at ~/.dbench/awesome-local-ai-bench-private/packs/vidi/acceptance/tests/story-12.spec.ts:97:41"
                         }
                       ],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2026-09-25T16:09:50.450Z",
+                      "startTime": "2026-09-25T16:41:33.511Z",
                       "annotations": [],
                       "attachments": [
                         {
                           "name": "screenshot",
                           "contentType": "image/png",
-                          "path": "~/.dbench/repo/combinations/qwen/3.8/27b/ubuntu/24GB/llamacpp-opencode/benchmarks/vidi/canvas-pi-02/stories/12/artifacts/story-12-story-12-s12-drop-382ed-op-point-ref-prd-image-drop-chromium/test-failed-1.png"
+                          "path": "~/.dbench/repo/combinations/qwen/3.8/27b/ubuntu/nvidia4090/llamacpp-opencode/benchmarks/vidi/canvas-pi-02/stories/12/artifacts/story-12-story-12-s12-drop-382ed-op-point-ref-prd-image-drop-chromium/test-failed-1.png"
                         },
                         {
                           "name": "error-context",
                           "contentType": "text/markdown",
-                          "path": "~/.dbench/repo/combinations/qwen/3.8/27b/ubuntu/24GB/llamacpp-opencode/benchmarks/vidi/canvas-pi-02/stories/12/artifacts/story-12-story-12-s12-drop-382ed-op-point-ref-prd-image-drop-chromium/error-context.md"
+                          "path": "~/.dbench/repo/combinations/qwen/3.8/27b/ubuntu/nvidia4090/llamacpp-opencode/benchmarks/vidi/canvas-pi-02/stories/12/artifacts/story-12-story-12-s12-drop-382ed-op-point-ref-prd-image-drop-chromium/error-context.md"
                         }
                       ],
                       "errorLocation": {
-                        "file": "~/.dbench/repo/benchmarks/vidi/acceptance/tests/story-12.spec.ts",
+                        "file": "~/.dbench/awesome-local-ai-bench-private/packs/vidi/acceptance/tests/story-12.spec.ts",
                         "column": 41,
                         "line": 97
                       }
@@ -3397,12 +3397,12 @@
                       "workerIndex": 12,
                       "parallelIndex": 0,
                       "status": "passed",
-                      "duration": 438,
+                      "duration": 446,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2026-09-25T16:09:51.732Z",
+                      "startTime": "2026-09-25T16:41:34.829Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -3417,7 +3417,7 @@
             },
             {
               "title": "image persists after reload and undo removes insertion in one step @ref prd:image.persist prd:image.undo",
-              "ok": true,
+              "ok": false,
               "tags": [
                 "s12",
                 "ref"
@@ -3433,18 +3433,53 @@
                     {
                       "workerIndex": 12,
                       "parallelIndex": 0,
-                      "status": "passed",
-                      "duration": 2704,
-                      "errors": [],
+                      "status": "failed",
+                      "duration": 20330,
+                      "error": {
+                        "message": "Error: pressing I never opened a file chooser (5 attempts)",
+                        "stack": "Error: pressing I never opened a file chooser (5 attempts)\n    at pick (~/.dbench/awesome-local-ai-bench-private/packs/vidi/acceptance/tests/story-12.spec.ts:42:9)\n    at ~/.dbench/awesome-local-ai-bench-private/packs/vidi/acceptance/tests/story-12.spec.ts:114:5",
+                        "location": {
+                          "file": "~/.dbench/awesome-local-ai-bench-private/packs/vidi/acceptance/tests/story-12.spec.ts",
+                          "column": 9,
+                          "line": 42
+                        },
+                        "snippet": "\u001b[0m \u001b[90m 40 |\u001b[39m     \u001b[36mawait\u001b[39m p\u001b[33m.\u001b[39mwaitForTimeout(\u001b[33mPICK_RETRY_MS\u001b[39m)\u001b[33m;\u001b[39m\n \u001b[90m 41 |\u001b[39m   }\n\u001b[31m\u001b[1m>\u001b[22m\u001b[39m\u001b[90m 42 |\u001b[39m   \u001b[36mthrow\u001b[39m \u001b[36mnew\u001b[39m \u001b[33mError\u001b[39m(\u001b[32m`pressing I never opened a file chooser (${PICK_ATTEMPTS} attempts)`\u001b[39m)\u001b[33m;\u001b[39m\n \u001b[90m    |\u001b[39m         \u001b[31m\u001b[1m^\u001b[22m\u001b[39m\n \u001b[90m 43 |\u001b[39m }\n \u001b[90m 44 |\u001b[39m\n \u001b[90m 45 |\u001b[39m \u001b[90m// Synthesise an OS file drop at a screen point.\u001b[39m\u001b[0m"
+                      },
+                      "errors": [
+                        {
+                          "location": {
+                            "file": "~/.dbench/awesome-local-ai-bench-private/packs/vidi/acceptance/tests/story-12.spec.ts",
+                            "column": 9,
+                            "line": 42
+                          },
+                          "message": "Error: pressing I never opened a file chooser (5 attempts)\n\n  40 |     await p.waitForTimeout(PICK_RETRY_MS);\n  41 |   }\n> 42 |   throw new Error(`pressing I never opened a file chooser (${PICK_ATTEMPTS} attempts)`);\n     |         ^\n  43 | }\n  44 |\n  45 | // Synthesise an OS file drop at a screen point.\n    at pick (~/.dbench/awesome-local-ai-bench-private/packs/vidi/acceptance/tests/story-12.spec.ts:42:9)\n    at ~/.dbench/awesome-local-ai-bench-private/packs/vidi/acceptance/tests/story-12.spec.ts:114:5"
+                        }
+                      ],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2026-09-25T16:09:52.222Z",
+                      "startTime": "2026-09-25T16:41:35.331Z",
                       "annotations": [],
-                      "attachments": []
+                      "attachments": [
+                        {
+                          "name": "screenshot",
+                          "contentType": "image/png",
+                          "path": "~/.dbench/repo/combinations/qwen/3.8/27b/ubuntu/nvidia4090/llamacpp-opencode/benchmarks/vidi/canvas-pi-02/stories/12/artifacts/story-12-story-12-s12-imag-16f80-mage-persist-prd-image-undo-chromium/test-failed-1.png"
+                        },
+                        {
+                          "name": "error-context",
+                          "contentType": "text/markdown",
+                          "path": "~/.dbench/repo/combinations/qwen/3.8/27b/ubuntu/nvidia4090/llamacpp-opencode/benchmarks/vidi/canvas-pi-02/stories/12/artifacts/story-12-story-12-s12-imag-16f80-mage-persist-prd-image-undo-chromium/error-context.md"
+                        }
+                      ],
+                      "errorLocation": {
+                        "file": "~/.dbench/awesome-local-ai-bench-private/packs/vidi/acceptance/tests/story-12.spec.ts",
+                        "column": 9,
+                        "line": 42
+                      }
                     }
                   ],
-                  "status": "expected"
+                  "status": "unexpected"
                 }
               ],
               "id": "b32f501d9563c585ce29-b91e3fc186592f7c41f2",
@@ -3459,11 +3494,11 @@
   ],
   "errors": [],
   "stats": {
-    "startTime": "2026-09-25T16:01:44.950Z",
-    "duration": 493013.256,
-    "expected": 63,
+    "startTime": "2026-09-25T16:33:27.792Z",
+    "duration": 510917.291,
+    "expected": 62,
     "skipped": 0,
-    "unexpected": 12,
+    "unexpected": 13,
     "flaky": 0
   }
 }

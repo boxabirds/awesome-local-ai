@@ -261,3 +261,73 @@ export const STROKE_HIT_TOLERANCE_PX = 6;
 
 /** Smallest size (world units) a stroke may be resized to in either dimension. */
 export const STROKE_MIN_SIZE_WORLD = 4;
+
+// --- Images (story 12) --------------------------------------------------------
+
+/** Accepted image MIME types (content-sniffed, not just file extension). */
+export const IMAGE_ACCEPTED_TYPES = ['image/png', 'image/jpeg', 'image/gif', 'image/webp'] as const;
+
+/** Maximum upload size in bytes (10 MB). */
+export const IMAGE_MAX_BYTES = 10 * 1024 * 1024;
+
+/** Maximum number of images added in one action (drop/paste/picker). */
+export const IMAGE_MAX_FILES_PER_ADD = 20;
+
+/** Maximum longest side (world units) of a placed image. */
+export const IMAGE_MAX_PLACE_SIZE_WORLD = 800;
+
+/** Minimum size (world units) an image may be resized to. */
+export const IMAGE_MIN_SIZE_WORLD = 16;
+
+/** Gap between images in a row layout (world units). */
+export const IMAGE_LAYOUT_GAP_WORLD = 24;
+
+/** An upload older than this (ms) is considered unfinished. */
+export const IMAGE_UPLOAD_STALE_MS = 5 * 60 * 1000;
+
+/** Maximum image uploads per IP per IMAGE_UPLOAD_PERIOD_SECONDS. */
+export const IMAGE_UPLOAD_LIMIT = 60;
+
+/** Rate-limit period for image uploads (seconds). */
+export const IMAGE_UPLOAD_PERIOD_SECONDS = 60;
+
+/** Cache-Control max-age for served assets (seconds, ~1 year). */
+export const ASSET_CACHE_MAX_AGE_SECONDS = 31_536_000;
+
+/** Number of bytes read for content sniffing. */
+export const IMAGE_SNIFF_BYTES = 12;
+
+// --- Story 13: offline resilience ------------------------------------------------
+
+/** Maximum number of device copies kept. */
+export const LOCAL_BOARD_CACHE_MAX_BOARDS = 50;
+
+/** Storage usage / quota ratio above which pressure eviction triggers. */
+export const LOCAL_STORAGE_PRESSURE_RATIO = 0.9;
+
+/** Interval (ms) between storage pressure checks. */
+export const STORAGE_CHECK_INTERVAL_MS = 60_000;
+
+/** Budget (ms) for the offline status to appear after connection loss. */
+export const OFFLINE_STATUS_BUDGET_MS = 2000;
+
+/** Budget (ms) for opening a device copy. */
+export const OFFLINE_OPEN_BUDGET_MS = 1000;
+
+/** Timeout (ms) for waiting on IndexedDB load before continuing connected-only. */
+export const LOCAL_LOAD_TIMEOUT_MS = 2000;
+
+/** Number of consecutive WebSocket failures before re-checking board existence. */
+export const ORPHAN_RECHECK_AFTER_FAILURES = 3;
+
+/** Format version for device copies. */
+export const LOCAL_COPY_FORMAT_VERSION = 1;
+
+/** Prefix for per-board IndexedDB database names. */
+export const LOCAL_DB_PREFIX = 'vidi6-board-';
+
+/** Name of the cache index database. */
+export const CACHE_INDEX_DB = 'vidi6-cache';
+
+/** Prefix for app shell cache names. */
+export const APP_SHELL_CACHE_PREFIX = 'vidi6-shell-';

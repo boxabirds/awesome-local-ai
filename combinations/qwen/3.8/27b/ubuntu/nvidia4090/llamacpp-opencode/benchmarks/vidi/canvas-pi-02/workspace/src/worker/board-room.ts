@@ -10,6 +10,7 @@ import {
   CLOSE_UNSUPPORTED_DATA,
   MESSAGE_AWARENESS,
   MESSAGE_SYNC,
+  MESSAGE_SYNC_ACK,
   SYNC_STEP1,
   SYNC_STEP2,
   SYNC_UPDATE,
@@ -494,7 +495,15 @@ export class BoardRoom extends DurableObject {
       case SYNC_STEP2:
       case SYNC_UPDATE: {
         const update = readVarUint8Array(decoder);
+        const before = this.logCount;
         this.ingestUpdate(socket, update);
+        // Story 13: ack data frames so the client can track sync progress.
+        if (this.logCount > before && update.length > 0) {
+          const ackFrame = createEncoder();
+          writeVarUint(ackFrame, MESSAGE_SYNC_ACK);
+          writeVarUint(ackFrame, Math.floor(Math.random() * 256));
+          this.safeSend(socket, toUint8Array(ackFrame));
+        }
         return;
       }
       default:
