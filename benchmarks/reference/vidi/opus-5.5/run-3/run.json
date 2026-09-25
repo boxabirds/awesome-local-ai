@@ -1,0 +1,4 @@
+{"install_id": "claude-code-opus-5-5", "combination": "reference/opus-5.5", "model_id": "claude-opus-5-5",
+ "scope": "canvas", "metered": 0, "reasoning_effort": "client default", "context_limit": 0,
+ "output_limit": 0, "backend_version": "", "mtplx_memory_limit_bytes": "", "compact_at": "client default", "client": "claude", "client_version": "2.1.282 (Claude Code)", "backend": "anthropic", "host": "Apple M2 16GB",
+ "harness_commit": "94ffc3e", "pack_version": "vidi-v1", "started_at": "2026-09-25T11:28:16Z"}
