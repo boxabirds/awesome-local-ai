@@ -118,3 +118,211 @@ body,
   pointer-events: none;
   white-space: nowrap;
 }
+
+/* ---- Story 2: toolbar and sticky notes ---- */
+:root {
+  --selection: #2684ff;
+  --sticky-ink: #1f2328;
+}
+
+.board-toolbar {
+  position: fixed;
+  left: 16px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 4px;
+  background: var(--panel-bg);
+  border: 1px solid var(--panel-border);
+  border-radius: 8px;
+  box-shadow: 0 1px 3px rgb(0 0 0 / 0.12);
+}
+
+.board-toolbar button {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+}
+
+.board-toolbar button:hover {
+  background: #f0f2f4;
+}
+
+.board-toolbar button:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 1px;
+}
+
+.sticky-note {
+  position: absolute;
+  box-sizing: border-box;
+  color: var(--sticky-ink);
+  box-shadow:
+    0 1px 2px rgb(0 0 0 / 0.12),
+    0 4px 12px rgb(0 0 0 / 0.1);
+  cursor: default;
+  font-family: inherit;
+}
+
+.sticky-note:focus {
+  outline: none;
+}
+
+.sticky-note:focus-visible,
+.sticky-note[data-selected='true'] {
+  outline: calc(2px / var(--zoom, 1)) solid var(--selection);
+  outline-offset: calc(2px / var(--zoom, 1));
+}
+
+.sticky-note[data-state='dragging'] {
+  cursor: grabbing;
+  box-shadow:
+    0 2px 4px rgb(0 0 0 / 0.14),
+    0 10px 24px rgb(0 0 0 / 0.16);
+}
+
+.sticky-text {
+  position: absolute;
+  inset: var(--sticky-padding);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  text-align: center;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+/* Auto margins centre short text vertically and collapse to 0 when it overflows,
+   so overflowing text starts at the top and only the bottom is clipped. */
+.sticky-text-content {
+  margin-block: auto;
+}
+
+/* Bottom fade when text does not fit even at the minimum size (not while typing,
+   where the text area scrolls and the caret line must stay readable). */
+.sticky-fade:not([data-state='editing'])::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: calc(var(--sticky-padding) * 2.5);
+  background: linear-gradient(to bottom, transparent, var(--note-bg) 70%);
+  pointer-events: none;
+}
+
+.sticky-editor {
+  position: absolute;
+  inset: 0;
+  box-sizing: border-box;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  padding: var(--sticky-padding);
+  border: none;
+  outline: none;
+  resize: none;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  line-height: inherit;
+  text-align: center;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  overflow: hidden auto;
+  user-select: text;
+  -webkit-user-select: text;
+  cursor: text;
+}
+
+.sticky-counter {
+  position: absolute;
+  z-index: 1;
+  padding: 0 4px;
+  border-radius: 4px;
+  background: var(--note-bg);
+  right: 6px;
+  bottom: 4px;
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  opacity: 0.7;
+  pointer-events: none;
+}
+
+.note-toolbar-anchor {
+  position: absolute;
+  width: 0;
+  height: 0;
+  transform-origin: 0 0;
+}
+
+.note-toolbar-position {
+  position: absolute;
+  left: 0;
+  transform: translateX(-50%);
+}
+
+.note-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 6px;
+  background: var(--panel-bg);
+  border: 1px solid var(--panel-border);
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgb(0 0 0 / 0.15);
+  white-space: nowrap;
+}
+
+.note-toolbar .swatch {
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: 1px solid rgb(0 0 0 / 0.2);
+  border-radius: 50%;
+  cursor: pointer;
+}
+
+.note-toolbar .swatch[aria-pressed='true'] {
+  box-shadow:
+    0 0 0 2px var(--panel-bg),
+    0 0 0 4px var(--selection);
+}
+
+.note-toolbar-divider {
+  width: 1px;
+  height: 20px;
+  margin: 0 2px;
+  background: var(--panel-border);
+}
+
+.note-delete {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+}
+
+.note-delete:hover {
+  background: #f0f2f4;
+}
+
+.note-toolbar button:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 1px;
+}
