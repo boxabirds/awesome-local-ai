@@ -578,3 +578,26 @@ def test_sandbox_blocks_the_held_out_suites_browsers(tmp_path: Path):
     rm = subprocess.run(sandboxed(["touch", str(suite_cache / "agent-was-here")], own_dir=own),
                         capture_output=True, text=True)
     assert rm.returncode != 0 and not (suite_cache / "agent-was-here").exists()
+
+
+def test_sandbox_hides_all_bench_state_but_the_agents_own_run():
+    # Everything under the bench home (grading keys, reference builds and transcripts, logs, other
+    # runs) is out of bounds; a reference build left readable once exposed Opus's whole solution.
+    from drive import BENCH_HOME, WORK_ROOT
+    import shutil
+    mine = WORK_ROOT / "_test_mine2"
+    secret = BENCH_HOME / "_test_secret"
+    try:
+        (mine / "workspace").mkdir(parents=True, exist_ok=True)
+        (mine / "workspace" / "f.txt").write_text("mine")
+        secret.mkdir(parents=True, exist_ok=True)
+        (secret / "key.json").write_text("the answer")
+        own = subprocess.run(sandboxed(["cat", str(mine / "workspace/f.txt")], own_dir=mine), capture_output=True, text=True)
+        leak = subprocess.run(sandboxed(["cat", str(secret / "key.json")], own_dir=mine), capture_output=True, text=True)
+        listing = subprocess.run(sandboxed(["ls", str(BENCH_HOME)], own_dir=mine), capture_output=True, text=True)
+        assert own.returncode == 0 and own.stdout == "mine"
+        assert leak.returncode != 0 and "the answer" not in leak.stdout
+        assert "_test_secret" not in listing.stdout
+    finally:
+        shutil.rmtree(mine, ignore_errors=True)
+        shutil.rmtree(secret, ignore_errors=True)

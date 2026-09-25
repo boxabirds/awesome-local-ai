@@ -114,7 +114,7 @@ It installs the demo's prebuilt Metal binaries (no source build -- compiling
 would heat the machine before it is measured), fetches the smaller `PTQ1_0`
 packing, and runs every measurement below, writing one report file with your
 username already scrubbed out. It needs no sudo and touches nothing outside its
-own work directory (`~/bonsai2-probe`, override with `BONSAI_PROBE_DIR`).
+own work directory (`~/.cache/awesome-local-ai/bonsai2-probe`, override with `BONSAI_PROBE_DIR`).
 
 The one thing it cannot do is judge the output, so it prints the generated text
 and asks you to confirm it is coherent -- a binary too old for these weights
@@ -141,7 +141,7 @@ must come from a build whose flags are known. Everything lands in a scratch
 directory; nothing touches your system.
 
 ```bash
-mkdir -p ~/bonsai2-probe && cd ~/bonsai2-probe
+mkdir -p ~/.cache/awesome-local-ai/bonsai2-probe && cd ~/.cache/awesome-local-ai/bonsai2-probe
 
 # 1. The fork. Stock llama.cpp CANNOT read these weights.
 git clone --depth 1 --branch prism https://github.com/PrismML-Eng/llama.cpp.git
@@ -166,8 +166,8 @@ python3 -c 'import mlx.core as mx; print("recommendedMaxWorkingSetSize:",
 ### The four measurements
 
 ```bash
-BIN=~/bonsai2-probe/llama.cpp/build/bin
-M=~/bonsai2-probe/models/Ternary-Bonsai-2-27B-PTQ1_0.gguf
+BIN=~/.cache/awesome-local-ai/bonsai2-probe/llama.cpp/build/bin
+M=~/.cache/awesome-local-ai/bonsai2-probe/models/Ternary-Bonsai-2-27B-PTQ1_0.gguf
 
 # A. Does it load and generate at all?
 $BIN/llama-cli -m "$M" -ngl 99 -fa on -c 4096 --single-turn -n 150 \

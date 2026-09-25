@@ -32,7 +32,7 @@ set -uo pipefail
 # to this script, where the person who ran it will actually find it. It
 # defaulted to the work directory once and cost two people a hunt through the
 # filesystem. Not benchmarks/results/ either -- .gitignore excludes that.
-WORK="${BONSAI_PROBE_DIR:-$HOME/bonsai2-probe}"
+WORK="${BONSAI_PROBE_DIR:-$HOME/.cache/awesome-local-ai/bonsai2-probe}"
 PROBE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)"
 DEMO="$WORK/Bonsai-demo"
 COOLDOWN="${COOLDOWN:-180}"

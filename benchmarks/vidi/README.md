@@ -142,6 +142,31 @@ It has been validated in one direction only: against an empty stub app, all 75 f
 
 ## Judging
 
+### Independent grading (a second model audits two builds, blinded)
+
+The brief is `GRADING.md` in the private pack: the same checks as [`audit.md`](audit.md), one row per
+fault, including whether a failed feature works the build's own way (`own_way`). A package pairs two
+builds as A and B; the key is kept outside every repo, in `~/.vidi-bench/keys/`, on the machine that
+made it (`harness/grading_package.py`).
+
+```bash
+# 1. On the judging machine: extract the package (the private repo's checkout never moves) and print the kick-off message.
+benchmarks/vidi/harness/judge-setup.sh vidi-v1
+#    Start the judge in <private repo>/judging/vidi-v1/ (that folder only, if its tool allows) and give it the message.
+# 2. When it has written build-A.jsonl, build-B.jsonl, test-faults.jsonl and summary.md: push them, with its transcript.
+benchmarks/vidi/harness/judge-submit.sh vidi-v1 gpt-5.6 --transcript <session file>
+# 3. On the machine with the key: check the rows and the transcript (any read outside the package is a peek), un-blind, compare.
+uv run benchmarks/vidi/harness/judge_collect.py vidi-v1 gpt-5.6 \
+    --audit opus=benchmarks/reference/vidi/opus-5.5/run-1/audit.jsonl \
+    --audit flash-next=combinations/qwen/3.8/flash-next/macos/128GB/mtplx-opencode/benchmarks/vidi/canvas-pi-01/audit.jsonl
+```
+
+The judging folder is inside the private repo's checkout, which every harness version hides from
+agents, so a benchmark can run on the same machine. The kick-off message keeps the judge off the
+ports a run uses. Give the judge no access to this repo: it holds our audits of the same builds.
+
+### Pairwise quality judge
+
 ```bash
 uv run benchmarks/vidi/harness/judge_prep.py <run-1> <run-2> --out /tmp/vidi-judge --seed 1
 ```

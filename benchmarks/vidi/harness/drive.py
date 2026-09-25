@@ -41,7 +41,10 @@ REPO_ROOT = VIDI.parent.parent
 # spec/, scope/, prompts/ and the held-out suite: the private pack repo, or benchmarks/vidi (packdir).
 PACK = packdir.resolve(VIDI)
 # Agents work OUTSIDE the repo: inside it, the harness and the held-out suite are a `cd ..` away.
-WORK_ROOT = Path(os.environ.get("VIDI_WORK_ROOT", Path.home() / ".vidi-bench" / "work")).resolve()
+# All benchmark state lives under one hidden folder, never loose in the home directory: work/ (one
+# folder per run), keys/ (grading keys), reference/ (imported builds and transcripts), series logs.
+BENCH_HOME = hostenv.bench_home()
+WORK_ROOT = Path(os.environ.get("VIDI_WORK_ROOT", BENCH_HOME / "work")).resolve()
 # Nothing the agent runs may read these: the harness + held-out suite, the user's own agent
 # config/skills/sessions, and other runs' work directories (WORK_ROOT minus the agent's own).
 SANDBOX_DENY = [REPO_ROOT, *(Path.home() / p for p in
@@ -49,7 +52,9 @@ SANDBOX_DENY = [REPO_ROOT, *(Path.home() / p for p in
                  ".dbench")),
                 *[r for r in [packdir.private_root(PACK)] if r],
                 # The held-out suite's browsers: an agent's `playwright install` would delete them.
-                hostenv.playwright_cache(Path.home())]
+                hostenv.playwright_cache(Path.home()),
+                # All bench state (keys, reference builds, other runs); the agent's own run is reopened.
+                BENCH_HOME]
 # Denied trees that must still be readable, read-only: dbench installs the agents' tools (pi, uv) under
 # ~/.dbench/tools, while the rest of ~/.dbench (token, jobs, repo checkouts, other runs' builds) stays hidden.
 SANDBOX_REOPEN_RO = [Path.home() / ".dbench" / "tools"]
