@@ -6,6 +6,7 @@ import type { Point } from '../../shared/geometry';
 import { getObjectType, isRegisteredType } from '../objects/registry';
 import { undoKey } from './undo';
 import type { Selection } from './useSelection';
+import { MODE_TOOLS, TOOL_SHORTCUTS } from '../tools/useActiveTool';
 import type { Tool } from './useTool';
 
 /** Undo/redo for the shortcuts (story 8): this tab's own history. */
@@ -61,6 +62,7 @@ function isButtonTarget(target: EventTarget | null): boolean {
  * Ctrl/Cmd+Shift+Z / Ctrl+Y redo this person's own steps (not while the board is read-only).
  * Story 9 tool shortcuts: V Select, T Text (only while editable), N new sticky note at the view
  * centre, Escape with a tool other than Select back to Select (without clearing the selection).
+ * Story 10 adds S Shape and L Connector (only while editable).
  */
 export function useBoardKeys(opts: BoardKeysOptions): void {
   const optsRef = useRef(opts);
@@ -104,8 +106,10 @@ export function useBoardKeys(opts: BoardKeysOptions): void {
         setTool('select');
         return;
       }
-      if (letter === 't' && setTool) {
-        if (canEdit) setTool('text');
+      // Creation tools (T text, S shape, L connector): only while the board can be edited.
+      const shortcut = TOOL_SHORTCUTS[letter];
+      if (shortcut !== undefined && shortcut !== 'select' && MODE_TOOLS.has(shortcut) && setTool) {
+        if (canEdit && !e.repeat) setTool(shortcut);
         return;
       }
       if (letter === 'n' && onCreateSticky) {

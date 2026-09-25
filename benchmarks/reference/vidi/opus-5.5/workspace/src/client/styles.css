@@ -36,6 +36,8 @@ html, body, #root {
   touch-action: none;
   user-select: none;
   -webkit-user-select: none;
+  /* Story 10: the tool layer stacks above the objects but never above the panels. */
+  isolation: isolate;
 }
 
 .board-viewport--panning { cursor: grabbing; }
@@ -696,6 +698,228 @@ html, body, #root {
 }
 
 .text-toolbar__size:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 1px;
+}
+
+/* ---- Shapes and connectors (story 10) ---- */
+
+/* Shape and Connector tools: a crosshair everywhere over the board, objects included. */
+.board-viewport--tool-shape,
+.board-viewport--tool-shape *,
+.board-viewport--tool-connector,
+.board-viewport--tool-connector * {
+  cursor: crosshair !important;
+}
+
+/* The Shape / Connector tool's input layer: screen space, above the world layer (and its objects). */
+.tool-layer {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  touch-action: none;
+}
+
+.tool-layer__svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  pointer-events: none;
+}
+
+.shape-tool__preview {
+  position: absolute;
+  overflow: visible;
+  pointer-events: none;
+}
+
+.connector-tool__preview {
+  stroke-dasharray: 6 4;
+}
+
+.connection-dot {
+  fill: var(--panel-bg);
+  stroke: var(--focus);
+  stroke-width: 1.5px;
+}
+
+.connection-dot--highlighted {
+  fill: var(--focus);
+}
+
+/* A shape: SVG outline at its stored box (inline), label centred over it. */
+.shape-object {
+  position: absolute;
+  left: 0;
+  top: 0;
+  cursor: default;
+  outline: 0 solid var(--focus);
+  touch-action: none;
+  color: var(--ink);
+  contain: layout size style;
+}
+
+.shape-object:focus-visible:not(.shape-object--selected) {
+  outline: 2px dashed var(--focus);
+  outline-offset: 2px;
+}
+
+.shape-object--selected {
+  outline-style: solid;
+  outline-color: var(--focus);
+}
+
+.shape-object--dragging { cursor: grabbing; }
+
+.shape-object__svg {
+  position: absolute;
+  left: 0;
+  top: 0;
+  overflow: visible;
+}
+
+/* The largest box inside the shape; the label is centred in it and clipped to it. */
+.shape-object__label-box {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  display: flex;
+  overflow: hidden;
+  line-height: 1.25;
+  font-family: Inter, system-ui, sans-serif;
+}
+
+.shape-object__label {
+  margin: auto;
+  width: 100%;
+  text-align: center;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.shape-object--editing .shape-object__label { visibility: hidden; }
+
+.shape-object__editor {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 100%;
+  max-height: 100%;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  outline: none;
+  resize: none;
+  overflow-x: hidden;
+  overflow-y: auto;
+  scrollbar-width: none;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  line-height: inherit;
+  text-align: center;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  user-select: text;
+  -webkit-user-select: text;
+  cursor: text;
+}
+
+/* An arrow takes no pointer events: the board routes presses near its line to it. */
+.connector-object {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 0;
+  height: 0;
+  pointer-events: none;
+  outline: none;
+}
+
+.connector-object__svg {
+  position: absolute;
+  overflow: visible;
+  pointer-events: none;
+}
+
+.connector-object__halo {
+  stroke: var(--focus);
+  stroke-opacity: 0.35;
+  stroke-linecap: round;
+}
+
+.connector-object:focus-visible .connector-object__halo,
+.connector-object:focus-visible:not(.connector-object--selected) .connector-object__svg {
+  filter: drop-shadow(0 0 2px var(--focus));
+}
+
+.connector-handle {
+  fill: var(--panel-bg);
+  stroke: var(--focus);
+  pointer-events: all;
+  cursor: move;
+  touch-action: none;
+}
+
+/* Shape toolbar swatches: outline swatches show the colour as a thick ring. */
+.shape-toolbar__outline {
+  background: var(--panel-bg);
+  border-width: 4px;
+  border-style: solid;
+}
+
+.shape-toolbar__swatch--none {
+  background-image: linear-gradient(135deg, transparent 45%, #e53935 45%, #e53935 55%, transparent 55%);
+}
+
+/* Shape kind menu next to the Shape button. */
+.toolbar__anchor { position: relative; }
+
+.toolbar__menu {
+  position: absolute;
+  left: calc(100% + 8px);
+  top: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 4px;
+  background: var(--panel-bg);
+  border: 1px solid var(--panel-border);
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgb(0 0 0 / 0.12);
+}
+
+.toolbar__menu-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 10px 4px 6px;
+  font: inherit;
+  font-size: 13px;
+  color: var(--ink);
+  white-space: nowrap;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.toolbar__menu-item:hover { background: #efefec; }
+
+.toolbar__menu-item[aria-checked='true'] {
+  background: #e3ebfd;
+  border-color: var(--focus);
+  color: var(--focus);
+}
+
+.toolbar__menu-item:focus-visible {
   outline: 2px solid var(--focus);
   outline-offset: 1px;
 }

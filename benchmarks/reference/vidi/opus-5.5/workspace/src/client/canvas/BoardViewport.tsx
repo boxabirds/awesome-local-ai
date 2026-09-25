@@ -51,6 +51,17 @@ export interface BoardViewportProps {
    * is active; `point` is where it was pressed, relative to the board area's top-left.
    */
   onToolClick?(point: Point): void;
+  /**
+   * Screen-space layer above the objects (story 10: the Shape and Connector tools' input and
+   * previews). Presses on it never pan the board.
+   */
+  overlay?: ReactNode;
+  /**
+   * Every press on the board with the Select tool, before objects see it (story 10: a press
+   * near an arrow's line selects the arrow). `point` is relative to the board area. Return true
+   * when handled: the press then goes no further.
+   */
+  onPressCapture?(e: React.PointerEvent<HTMLDivElement>, point: Point): boolean;
 }
 
 function positiveModulo(value: number, modulus: number): number {
@@ -73,9 +84,21 @@ function isEditableTarget(target: EventTarget | null): boolean {
  * a world layer positioned by the camera, and pointer / wheel / pinch / keyboard navigation.
  */
 export function BoardViewport(props: BoardViewportProps) {
-  const { controller, onResize, children, onEmptyPointerDown, onEmptyClick, onEmptyDoubleClick, marquee, tool = 'select', onToolClick } =
-    props;
-  const creating = tool !== 'select' && onToolClick !== undefined;
+  const {
+    controller,
+    onResize,
+    children,
+    onEmptyPointerDown,
+    onEmptyClick,
+    onEmptyDoubleClick,
+    marquee,
+    tool = 'select',
+    onToolClick,
+    overlay,
+    onPressCapture,
+  } = props;
+  // Click-to-create tools (story 9 Text) take presses here; drag tools (story 10) bring an overlay.
+  const creating = tool === 'text' && onToolClick !== undefined;
   /** A press made with a creation tool, waiting for its release. */
   const toolPressRef = useRef<{ pointerId: number; point: Point } | null>(null);
   const elementRef = useRef<HTMLDivElement>(null);
@@ -210,7 +233,10 @@ export function BoardViewport(props: BoardViewportProps) {
   // Creation tools take every press on the board first, even on top of objects (text.create):
   // no pan, no marquee, no object selection or drag.
   const onPointerDownCapture = (e: React.PointerEvent<HTMLDivElement>) => {
-    if (!creating) return;
+    if (!creating) {
+      if (tool === 'select' && onPressCapture?.(e, localPoint(e))) e.stopPropagation();
+      return;
+    }
     e.stopPropagation();
     if (e.button !== PRIMARY_BUTTON || toolPressRef.current !== null) return;
     toolPressRef.current = { pointerId: e.pointerId, point: localPoint(e) };
@@ -311,7 +337,7 @@ export function BoardViewport(props: BoardViewportProps) {
   return (
     <div
       ref={elementRef}
-      className={`board-viewport board-viewport--${mode}${creating ? ` board-viewport--tool-${tool}` : ''}`}
+      className={`board-viewport board-viewport--${mode}${tool !== 'select' ? ` board-viewport--tool-${tool}` : ''}`}
       data-testid="board-viewport"
       data-mode={mode}
       data-tool={tool}
@@ -332,6 +358,7 @@ export function BoardViewport(props: BoardViewportProps) {
         <div className="origin-marker" data-testid="origin-marker" aria-hidden="true" />
         {children}
       </div>
+      {overlay}
     </div>
   );
 }

@@ -565,3 +565,95 @@ Decisions made while building without anyone to ask.
   stickies), right-to-left text. Remote clients render the stored box; if two people type into the
   same text the last box written wins, which can briefly differ from the merged text until the next
   local change.
+
+## Story 10: Draw shapes and connect them with arrows that follow when moved
+
+- **Active tool.** `src/client/tools/useActiveTool.ts` has the contract's `ToolId`, `TOOL_SHORTCUTS`
+  and `useActiveTool()`, plus `MODE_TOOLS` (the tools that are modes in this build: select, text,
+  shape, connector; `setTool` ignores pen/image/comment/sticky). It takes optional
+  `{ canEdit, onSelect }` (the contract has no arguments, but story 9's "only Select while the
+  board cannot be edited" rule and `toolCreated` selecting the new id need them). Story 9's
+  `board/useTool.ts` is now a thin wrapper so its tests and callers are unchanged. The single-letter
+  shortcuts stay in `useBoardKeys` (which already owns "not while typing / not with Ctrl"), now
+  driven by `TOOL_SHORTCUTS`: S and L only while editable, key repeat ignored.
+- **`useSelection` gained `adopt(id)`**: selects a just-created id that is not in the snapshot yet
+  (`click` ignores unknown ids). Prune removes it if it never appears.
+- **Tool layer instead of capture.** Shape and Connector tools render a transparent screen-space
+  layer over the board (new `BoardViewport` prop `overlay`), so every press goes to the tool and
+  never to objects (TC-28), and hover hit testing is geometric (works in jsdom). The viewport got
+  `isolation: isolate` so that layer stacks above the objects but never above the panels.
+  Story 9's capture-phase click creation is now limited to the Text tool.
+- **Arrow selection by geometry.** Arrows take no pointer events (their SVG spans a bounding box that
+  would otherwise swallow clicks meant for objects below). A new `BoardViewport` prop
+  `onPressCapture` lets `Board` hit test each Select-tool press first: the topmost arrow within
+  `CONNECTOR_HIT_TOLERANCE_PX / zoom` of the press, stacked above whatever element was pressed, gets
+  the generic select/move gesture. So a press near an arrow drawn over a shape selects the arrow,
+  away from the line it selects the shape.
+- **Registry.** Split into `objects/objectTypes.ts` (the map, lookups, `boundsHitTest`,
+  `connectorHitTest`, new `topObjectAt` / `attachableAt`) and `registry.tsx` (registrations, which
+  re-exports everything). Object components now use lookups, and importing `registry.tsx` from them
+  would be a module cycle. `hitTest(obj, p, zoom?)` gained the optional zoom; `ObjectTypeSpec` gained
+  `attachable` (arrows are not attachable: arrows never connect to arrows) and `selectionBox`
+  (arrows show their end handles, not the selection box; a selection of only arrows draws no box).
+- **Model layout.** Like story 9, `board-model.ts` reads shapes and connectors itself (the snapshot
+  must derive arrow boxes from all other rects): `ObjectSnapshot` gained optional `kind`, `fill`,
+  `stroke`, `label` (shapes) and `from`, `to`, `fromPoint`, `toPoint` (arrows). `ShapeSnap` and
+  `ConnectorSnap` narrow them. `detachConnectorsTo` is implemented in `board-model.ts` (which
+  `deleteObjects` calls inside its transaction) and re-exported from `objects/connector.ts`, which
+  keeps the modules acyclic. Extra exports: `rectsOf`, `docRects`, `connectorPoints`,
+  `transformConnectorEnds`, `isShapeKind`/`isFillColor`/`isStrokeColor`, `SHAPE_TYPE`,
+  `CONNECTOR_TYPE`; `shapeRect` (shape.ts); `readEndpoint`, `isValidEndpoint`, `rectCentre`,
+  `attachedAnchor` (connector-geometry.ts). A shape with a kind this client does not know is
+  skipped (not drawn as a rectangle).
+- **Endpoints** are plain JSON values in the object's Y.Map, replaced whole; two people re-attaching
+  the same end at once: last writer wins. The stored `x, y, width, height` of an arrow are 0 and
+  never read.
+- **Sides.** Each attached end aims at the other end's object centre (or free point) and uses
+  `nearestSide` against the rect's diagonals. Exactly on a diagonal, left/right wins.
+- **Moving and resizing arrows.** Moving a selection moves each selected arrow's free ends by the same
+  delta; attached ends stay attached and follow their objects. A resize scales free ends with the
+  box. Arrows are not resizable (their ends are changed with the end handles). The gesture computes
+  every frame from its start snapshot (`transformConnectorEnds`), and each frame is now one
+  transaction (arrows included). `moveObjects` also handles arrows (delta against the current derived
+  box) for the one-shot arrow-key nudge.
+- **Orphaned ends.** `createConnector` keeps the caller's fallback for an end whose object is already
+  gone (TC-27 race). `setConnectorEndpoint` normalises an orphaned other end to a free end at its
+  fallback in the same transaction (the design's "next local write normalises"). Re-attaching to the
+  object it is already attached to is a no-op (false).
+- **Shift square** keeps the rect corner nearest `at` (the drag origin) fixed, so squares grow in the
+  drag direction. The minimum-size check comes first: a drag under 20 units in either direction drops
+  a default shape even with Shift.
+- **Connector tool.** Moving less than `CONNECTOR_MIN_LENGTH_WORLD` (world) or releasing on the start
+  object creates nothing and keeps the tool. A drag from empty space to empty space creates a
+  free-to-free arrow. The dots are drawn on the object under the pointer; while dragging, on the
+  target (its highlighted dot is the side facing the start).
+- **Label.** An HTML label box over the SVG, not a `foreignObject` (same result, simpler with the
+  existing textarea editor). The box is the largest centred box inside the shape (rect: full size
+  minus 8 px padding; ellipse: 1/√2; diamond: 1/2), so resizing re-wraps it. Extra named setting
+  `SHAPE_LABEL_FONT_PX = 16`; `CONNECTOR_COLOR` names the arrow colour. Double-click or Enter edits,
+  the editor is named "Shape label", and the 500-character limit uses the shared `TextEditor`.
+- **Names and text.** Toolbar: "Shape (S)" (with `aria-haspopup`; its menu `role="menu"` "Shape kind"
+  with `menuitemradio` Rectangle / Ellipse / Diamond, shown while the Shape tool is active) and
+  "Connector (L)". Shape toolbar (`role="toolbar"` "Shape"): "No fill", "White fill" … "Grey fill",
+  "Dark outline" … "Grey outline", and "Delete shape". Shapes are `role="group"` with
+  `aria-roledescription="shape"` and name "Rectangle: Checkout" (just "Rectangle" when unlabelled).
+  Arrows are groups named "Arrow" (`aria-roledescription="arrow"`), Tab-focusable; end handles are
+  buttons "Arrow start" / "Arrow end".
+- **Story 8 test change.** TC-18's expected Tools bar button list now includes Shape (S) and
+  Connector (L) after Text (T). Nothing else changed.
+- **TC-27 race.** Instead of a timed delay, Sam's outgoing WebSocket frames are held with
+  `page.routeWebSocket` until Dana has created her arrow, then released, which forces the overlap
+  deterministically. Both screens show the arrow with its end at the fallback, and neither logs an
+  error.
+- **Test results.** New: `tests/unit/shape-model.test.ts` (TC-01–06), `tests/unit/connector-model.test.ts`
+  (TC-07–14, TC-29, plus orphan and move cases), `tests/component/ShapeTool.test.tsx` (TC-15–17,
+  TC-28), `Connector.test.tsx` (TC-18–21), `useActiveTool.test.tsx` (TC-22), e2e `shapes.spec.ts`
+  (TC-23, TC-24, checkout fixture) and `connectors.spec.ts` (TC-25 + TC-26 in one workflow, TC-27),
+  fixture `tests/fixtures/checkout-flow.ts`. All e2e pass in Chromium and Firefox; WebKit still cannot
+  launch on the build machine, so TC-23 was not run in WebKit.
+- **Red phase not observed.** The model tests were written right after the model and passed on first
+  run. Instead, mutations were checked: widening the arrow hit tolerance fails both TC-20 zoom cases,
+  and removing the "released on the start object" rejection fails the no-accidental-arrows test
+  (both reverted).
+- **Not covered** (design): the 300 shapes + 300 arrows smoothness check (manual), exact
+  screen-reader wording, touch input.

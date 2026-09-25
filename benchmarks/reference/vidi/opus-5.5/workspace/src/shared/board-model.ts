@@ -11,6 +11,11 @@
  * Story 9 adds `type: 'text'` objects (text: Y.Text, size, widthMode, createdBy; see
  * objects/text.ts). Clients that do not know a type skip it.
  *
+ * Story 10 adds `type: 'shape'` (kind, fill, stroke, label: Y.Text; see objects/shape.ts) and
+ * `type: 'connector'` (from, to: Endpoint; x, y, width, height stored as 0 and derived here from
+ * the ends; see objects/connector.ts). Deleting an object turns the arrow ends attached to it
+ * into free ends at the same point, inside the delete's transaction.
+ *
  * Story 7: every object type shares x, y, width, height, z and createdAt. `width`/`height` are
  * additive: stickies saved before story 7 have neither and are STICKY_SIZE_WORLD square; the
  * first resize writes both. Group operations (move, resize, stack, delete) are type-agnostic.
@@ -21,17 +26,25 @@
  */
 import * as Y from 'yjs';
 import {
+  DEFAULT_SHAPE_FILL,
+  DEFAULT_SHAPE_STROKE,
   DEFAULT_STICKY_COLOR,
   DEFAULT_TEXT_SIZE,
+  SHAPE_FILL_COLORS,
+  SHAPE_KINDS,
+  SHAPE_STROKE_COLORS,
   STICKY_COLORS,
   STICKY_SIZE_WORLD,
   TEXT_AUTO_WIDTH_PADDING_WORLD,
   TEXT_LINE_HEIGHT,
   TEXT_SIZES,
+  type FillColor,
   type StickyColor,
+  type StrokeColor,
   type TextSize,
 } from './config';
 import { rectContains, type Point, type Rect } from './geometry';
+import { connectorBBox, readEndpoint, resolveEndpoints, type Endpoint } from './geometry/connector-geometry';
 
 /** Transaction origin for changes made by this client (story 3 uses it to avoid echo, story 8 for undo). */
 export const LOCAL_ORIGIN: unique symbol = Symbol('vidi6.local');
@@ -42,12 +55,16 @@ const OBJECTS_KEY = 'objects';
 const STICKY_TYPE = 'sticky';
 /** Free text (story 9); created and changed by objects/text.ts. */
 export const TEXT_TYPE = 'text';
+/** Rectangles, ellipses and diamonds (story 10); created and changed by objects/shape.ts. */
+export const SHAPE_TYPE = 'shape';
+/** Arrows (story 10); created and changed by objects/connector.ts. */
+export const CONNECTOR_TYPE = 'connector';
 const HALF = 2;
 /** z of the first object on an empty board is FIRST_Z. */
 const FIRST_Z = 1;
 
 /** Object types this module knows how to read and create (the client registry may add more). */
-export const KNOWN_OBJECT_TYPES: ReadonlySet<string> = new Set([STICKY_TYPE, TEXT_TYPE]);
+export const KNOWN_OBJECT_TYPES: ReadonlySet<string> = new Set([STICKY_TYPE, TEXT_TYPE, SHAPE_TYPE, CONNECTOR_TYPE]);
 
 /** Any object on the board. `width`/`height` are present only once written (see objectBounds). */
 export interface ObjectSnapshot {
@@ -69,7 +86,19 @@ export interface ObjectSnapshot {
   size?: TextSize;
   /** Text objects only (story 9). */
   widthMode?: TextWidthMode;
+  /** Shapes only (story 10). */
+  kind?: ShapeKind;
+  fill?: FillColor;
+  stroke?: StrokeColor;
+  label?: string;
+  /** Connectors only (story 10): the stored ends and where they are drawn right now. */
+  from?: Endpoint;
+  to?: Endpoint;
+  fromPoint?: Point;
+  toPoint?: Point;
 }
+
+export type ShapeKind = (typeof SHAPE_KINDS)[number];
 
 /** 'auto': as wide as the longest line up to TEXT_MAX_AUTO_WIDTH_WORLD; 'fixed': set by a side handle. */
 export type TextWidthMode = 'auto' | 'fixed';
@@ -235,10 +264,59 @@ function readText(base: ObjectSnapshot, value: Y.Map<unknown>): ObjectSnapshot {
   };
 }
 
+export function isShapeKind(kind: unknown): kind is ShapeKind {
+  return typeof kind === 'string' && (SHAPE_KINDS as readonly string[]).includes(kind);
+}
+
+export function isFillColor(c: unknown): c is FillColor {
+  return typeof c === 'string' && Object.prototype.hasOwnProperty.call(SHAPE_FILL_COLORS, c);
+}
+
+export function isStrokeColor(c: unknown): c is StrokeColor {
+  return typeof c === 'string' && Object.prototype.hasOwnProperty.call(SHAPE_STROKE_COLORS, c);
+}
+
+function readShape(base: ObjectSnapshot, value: Y.Map<unknown>): ObjectSnapshot | undefined {
+  const kind = value.get('kind');
+  // A kind this client does not know (a later version's) is skipped rather than misdrawn.
+  if (!isShapeKind(kind)) return undefined;
+  const fill = value.get('fill');
+  const stroke = value.get('stroke');
+  const label = value.get('label');
+  return {
+    ...base,
+    kind,
+    fill: isFillColor(fill) ? fill : DEFAULT_SHAPE_FILL,
+    stroke: isStrokeColor(stroke) ? stroke : DEFAULT_SHAPE_STROKE,
+    label: label instanceof Y.Text ? label.toString() : '',
+  };
+}
+
+/** A connector's stored ends, or undefined when either is malformed. */
+function readEnds(value: Y.Map<unknown>): { from: Endpoint; to: Endpoint } | undefined {
+  const from = readEndpoint(value.get('from'));
+  const to = readEndpoint(value.get('to'));
+  return from && to ? { from, to } : undefined;
+}
+
+/** A connector with its box and drawn ends derived from the objects' current rects. */
+function readConnector(
+  base: ObjectSnapshot,
+  value: Y.Map<unknown>,
+  rects: ReadonlyMap<string, Rect>,
+): ObjectSnapshot | undefined {
+  const ends = readEnds(value);
+  if (!ends) return undefined;
+  const points = resolveEndpoints(ends, rects);
+  const box = connectorBBox(points.from, points.to);
+  return { ...base, ...box, ...ends, fromPoint: points.from, toPoint: points.to };
+}
+
 function readObject(id: string, value: unknown): ObjectSnapshot | undefined {
   const base = readBase(id, value);
   if (!base || !(value instanceof Y.Map)) return base;
   if (base.type === TEXT_TYPE) return readText(base, value);
+  if (base.type === SHAPE_TYPE) return readShape(base, value);
   if (base.type !== STICKY_TYPE) return base;
   const rawColor = value.get('color');
   const text = value.get('text');
@@ -266,12 +344,46 @@ export function snapshot(doc: Y.Doc): readonly StickySnapshot[] {
  */
 export function objectSnapshot(doc: Y.Doc): readonly ObjectSnapshot[] {
   const all: ObjectSnapshot[] = [];
+  const connectors: [ObjectSnapshot, Y.Map<unknown>][] = [];
   objectsOf(doc).forEach((value, id) => {
     const obj = readObject(id, value);
-    if (obj) all.push(obj);
+    if (!obj) return;
+    if (obj.type === CONNECTOR_TYPE) connectors.push([obj, value as Y.Map<unknown>]);
+    else all.push(obj);
   });
+  // Arrows are drawn from the other objects' current rects (connector.follow).
+  const rects = rectsOf(all);
+  for (const [base, value] of connectors) {
+    const connector = readConnector(base, value, rects);
+    if (connector) all.push(connector);
+  }
   all.sort(byStack);
   return all;
+}
+
+/** Rects of the objects an arrow can attach to (every object but arrows), by id. */
+export function rectsOf(objects: readonly ObjectSnapshot[]): Map<string, Rect> {
+  const rects = new Map<string, Rect>();
+  for (const o of objects) if (o.type !== CONNECTOR_TYPE) rects.set(o.id, objectBounds(o));
+  return rects;
+}
+
+/** Current rects of every object an arrow can attach to, read straight from the document. */
+export function docRects(doc: Y.Doc): Map<string, Rect> {
+  const objects: ObjectSnapshot[] = [];
+  objectsOf(doc).forEach((value, id) => {
+    const obj = readObject(id, value);
+    if (obj && obj.type !== CONNECTOR_TYPE) objects.push(obj);
+  });
+  return rectsOf(objects);
+}
+
+/** Where a stored connector's ends are drawn right now, or undefined for stale ids / other types. */
+export function connectorPoints(doc: Y.Doc, id: string): { from: Point; to: Point } | undefined {
+  const obj = objectOf(doc, id);
+  if (!obj || obj.get('type') !== CONNECTOR_TYPE) return undefined;
+  const ends = readEnds(obj);
+  return ends ? resolveEndpoints(ends, docRects(doc)) : undefined;
 }
 
 // ---- Story 7: geometry of objects and generic group operations ----
@@ -313,19 +425,70 @@ export function allObjectIds(
 export function moveObjects(doc: Y.Doc, positions: ReadonlyMap<string, Point>): number {
   for (const p of positions.values()) if (!Number.isFinite(p.x) || !Number.isFinite(p.y)) return 0;
   const changes: [ObjectMap, Point][] = [];
+  const arrows: [ObjectMap, { from: Endpoint; to: Endpoint }, Point][] = [];
+  let rects: Map<string, Rect> | null = null;
   for (const [id, p] of positions) {
     const obj = objectOf(doc, id);
-    if (!obj || (obj.get('x') === p.x && obj.get('y') === p.y)) continue;
+    if (!obj) continue;
+    if (obj.get('type') === CONNECTOR_TYPE) {
+      // An arrow's position is its derived box: moving it moves its free ends by the same amount.
+      const ends = readEnds(obj);
+      if (!ends) continue;
+      rects ??= docRects(doc);
+      const pts = resolveEndpoints(ends, rects);
+      const box = connectorBBox(pts.from, pts.to);
+      const delta = { x: p.x - box.x, y: p.y - box.y };
+      if ((delta.x === 0 && delta.y === 0) || (ends.from.kind !== 'free' && ends.to.kind !== 'free')) continue;
+      arrows.push([obj, ends, delta]);
+      continue;
+    }
+    if (obj.get('x') === p.x && obj.get('y') === p.y) continue;
     changes.push([obj, p]);
   }
-  if (changes.length === 0) return 0;
+  if (changes.length === 0 && arrows.length === 0) return 0;
   doc.transact(() => {
     for (const [obj, p] of changes) {
       obj.set('x', p.x);
       obj.set('y', p.y);
     }
+    for (const [obj, { from, to }, d] of arrows) {
+      if (from.kind === 'free') obj.set('from', { kind: 'free', x: from.x + d.x, y: from.y + d.y });
+      if (to.kind === 'free') obj.set('to', { kind: 'free', x: to.x + d.x, y: to.y + d.y });
+    }
   }, LOCAL_ORIGIN);
-  return changes.length;
+  return changes.length + arrows.length;
+}
+
+/**
+ * Sets each listed arrow's free ends to `map(end as it was at `start`)`; attached ends stay
+ * attached. Used by move and resize gestures, which compute every frame from the gesture's
+ * start. Stale ids and non-arrows are skipped; non-finite results reject the call. Returns
+ * the number of arrows changed.
+ */
+export function transformConnectorEnds(
+  doc: Y.Doc,
+  starts: readonly ObjectSnapshot[],
+  map: (p: Point) => Point,
+): number {
+  const changes: [ObjectMap, 'from' | 'to', Endpoint][] = [];
+  for (const start of starts) {
+    const obj = objectOf(doc, start.id);
+    if (!obj || obj.get('type') !== CONNECTOR_TYPE) continue;
+    for (const end of ['from', 'to'] as const) {
+      const e = start[end];
+      if (e?.kind !== 'free') continue;
+      const p = map({ x: e.x, y: e.y });
+      if (!Number.isFinite(p.x) || !Number.isFinite(p.y)) return 0;
+      const current = readEndpoint(obj.get(end));
+      if (current?.kind === 'free' && current.x === p.x && current.y === p.y) continue;
+      changes.push([obj, end, { kind: 'free', x: p.x, y: p.y }]);
+    }
+  }
+  if (changes.length === 0) return 0;
+  doc.transact(() => {
+    for (const [obj, end, e] of changes) obj.set(end, e);
+  }, LOCAL_ORIGIN);
+  return new Set(changes.map(([obj]) => obj)).size;
 }
 
 function sameRect(obj: ObjectMap, r: Rect): boolean {
@@ -393,7 +556,30 @@ export function deleteObjects(doc: Y.Doc, ids: readonly string[]): number {
   const present = [...new Set(ids)].filter((id) => objectsOf(doc).has(id));
   if (present.length === 0) return 0;
   doc.transact(() => {
+    // Arrows attached to deleted objects stay, with those ends fixed where they were (story 10).
+    detachConnectorsTo(doc, present);
     for (const id of present) objectsOf(doc).delete(id);
   }, LOCAL_ORIGIN);
   return present.length;
+}
+
+/**
+ * Turns every arrow end attached to one of `deletedIds` into a free end at the point where it
+ * is drawn now (connector.target_deleted). Arrows that are themselves being deleted are left
+ * alone. Call inside an open transaction, before the objects are removed: it reads their rects.
+ */
+export function detachConnectorsTo(doc: Y.Doc, deletedIds: readonly string[]): void {
+  const deleted = new Set(deletedIds);
+  let rects: Map<string, Rect> | null = null;
+  objectsOf(doc).forEach((value, id) => {
+    if (deleted.has(id) || !(value instanceof Y.Map) || value.get('type') !== CONNECTOR_TYPE) return;
+    const ends = readEnds(value);
+    if (!ends) return;
+    const attachedToDeleted = (e: Endpoint) => e.kind === 'attached' && deleted.has(e.objectId);
+    if (!attachedToDeleted(ends.from) && !attachedToDeleted(ends.to)) return;
+    rects ??= docRects(doc);
+    const pts = resolveEndpoints(ends, rects);
+    if (attachedToDeleted(ends.from)) value.set('from', { kind: 'free', x: pts.from.x, y: pts.from.y });
+    if (attachedToDeleted(ends.to)) value.set('to', { kind: 'free', x: pts.to.x, y: pts.to.y });
+  });
 }

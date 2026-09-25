@@ -73,6 +73,11 @@ export interface Selection {
   clear(): void;
   /** Selects only this object and starts editing its text. */
   startEdit(id: string): void;
+  /**
+   * Selects only an object this viewer has just created (story 10), which the snapshot may not
+   * show yet; if it is gone by the next snapshot, prune drops it.
+   */
+  adopt(id: string): void;
   /** Stops editing; the object stays selected, or with 'unselected' the selection is cleared. */
   endEdit(next?: EndEditNext): void;
 }
@@ -109,12 +114,13 @@ export function useSelection(snapshot: readonly ObjectSnapshot[]): Selection {
   // Not checked against the snapshot: a note just created is edited before the next render
   // shows it; if it is gone by then, prune ends the edit.
   const startEdit = useCallback((id: string) => dispatch({ type: 'edit', id }), []);
+  const adopt = useCallback((id: string) => dispatch({ type: 'click', id }), []);
   const endEdit = useCallback((how: EndEditNext = 'selected') => {
     dispatch(how === 'selected' ? { type: 'edit', id: null } : { type: 'clear' });
   }, []);
 
   return useMemo(
-    () => ({ ids: state.ids, editingId: state.editingId, click, toggle, setMany, clear, startEdit, endEdit }),
-    [state, click, toggle, setMany, clear, startEdit, endEdit],
+    () => ({ ids: state.ids, editingId: state.editingId, click, toggle, setMany, clear, startEdit, adopt, endEdit }),
+    [state, click, toggle, setMany, clear, startEdit, adopt, endEdit],
   );
 }
