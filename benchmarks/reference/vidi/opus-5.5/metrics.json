@@ -8,7 +8,12 @@
       "subagent_tokens": 120500,
       "tool_uses": 28,
       "commit": "709644d",
-      "finished": 1790284337.233662
+      "finished": 1790284337.233662,
+      "api_calls": 24,
+      "output_tokens": 50987,
+      "cache_read_tokens": 1889441,
+      "cache_write_tokens": 118664,
+      "output_tok_per_wall_s": 108.2
     },
     "2": {
       "started": 1790284351.558283,
@@ -16,7 +21,12 @@
       "subagent_tokens": 179812,
       "tool_uses": 50,
       "commit": "0d03e2b",
-      "finished": 1790285212.5372999
+      "finished": 1790285212.5372999,
+      "api_calls": 42,
+      "output_tokens": 84946,
+      "cache_read_tokens": 4904370,
+      "cache_write_tokens": 156998,
+      "output_tok_per_wall_s": 102.0
     },
     "3": {
       "started": 1790285217.0369651,
@@ -24,7 +34,12 @@
       "subagent_tokens": 229083,
       "tool_uses": 73,
       "commit": "c7b638a",
-      "finished": 1790286555.820684
+      "finished": 1790286555.820684,
+      "api_calls": 62,
+      "output_tokens": 94890,
+      "cache_read_tokens": 9287115,
+      "cache_write_tokens": 209216,
+      "output_tok_per_wall_s": 71.7
     },
     "4": {
       "started": 1790286560.392357,
@@ -32,7 +47,12 @@
       "subagent_tokens": 270117,
       "tool_uses": 74,
       "commit": "95d5890",
-      "finished": 1790288721.884201
+      "finished": 1790288721.884201,
+      "api_calls": 72,
+      "output_tokens": 121862,
+      "cache_read_tokens": 13389526,
+      "cache_write_tokens": 238643,
+      "output_tok_per_wall_s": 56.8
     },
     "5": {
       "started": 1790288725.900102,
@@ -40,7 +60,12 @@
       "subagent_tokens": 226899,
       "tool_uses": 78,
       "commit": "90faa01",
-      "finished": 1790289893.407867
+      "finished": 1790289893.407867,
+      "api_calls": 73,
+      "output_tokens": 80492,
+      "cache_read_tokens": 11131668,
+      "cache_write_tokens": 206909,
+      "output_tok_per_wall_s": 69.8
     },
     "7": {
       "started": 1790289897.676393,
@@ -48,7 +73,12 @@
       "subagent_tokens": 276549,
       "tool_uses": 71,
       "commit": "b1d1ea1",
-      "finished": 1790291321.624448
+      "finished": 1790291321.624448,
+      "api_calls": 61,
+      "output_tokens": 113901,
+      "cache_read_tokens": 11336978,
+      "cache_write_tokens": 256569,
+      "output_tok_per_wall_s": 81.5
     },
     "8": {
       "started": 1790291311.1980748,
@@ -56,7 +86,12 @@
       "subagent_tokens": 228674,
       "tool_uses": 65,
       "commit": "9b054f9",
-      "finished": 1790292900.443104
+      "finished": 1790292900.443104,
+      "api_calls": 63,
+      "output_tokens": 79399,
+      "cache_read_tokens": 10216849,
+      "cache_write_tokens": 208888,
+      "output_tok_per_wall_s": 51.0
     },
     "9": {
       "started": 1790292904.634526,
@@ -64,7 +99,12 @@
       "subagent_tokens": 281186,
       "tool_uses": 74,
       "commit": "54f342b",
-      "finished": 1790294356.727038
+      "finished": 1790294356.727038,
+      "api_calls": 67,
+      "output_tokens": 107287,
+      "cache_read_tokens": 13297363,
+      "cache_write_tokens": 261402,
+      "output_tok_per_wall_s": 74.7
     },
     "10": {
       "started": 1790294360.7416708,
@@ -72,7 +112,12 @@
       "subagent_tokens": 317882,
       "tool_uses": 79,
       "commit": "eb62a2d",
-      "finished": 1790295723.869494
+      "finished": 1790295723.869494,
+      "api_calls": 69,
+      "output_tokens": 130294,
+      "cache_read_tokens": 15765601,
+      "cache_write_tokens": 299118,
+      "output_tok_per_wall_s": 96.7
     },
     "11": {
       "started": 1790295727.7257578,
@@ -80,7 +125,12 @@
       "subagent_tokens": 260405,
       "tool_uses": 74,
       "commit": "e96630f",
-      "finished": 1790297624.8755221
+      "finished": 1790297624.8755221,
+      "api_calls": 69,
+      "output_tokens": 72676,
+      "cache_read_tokens": 12857166,
+      "cache_write_tokens": 240808,
+      "output_tok_per_wall_s": 38.6
     },
     "12": {
       "started": 1790297628.588811,
@@ -88,7 +138,13 @@
       "subagent_tokens": 290533,
       "tool_uses": 81,
       "commit": "00cefee",
-      "finished": 1790299458.275248
+      "finished": 1790299458.275248,
+      "api_calls": 78,
+      "output_tokens": 101448,
+      "cache_read_tokens": 16246311,
+      "cache_write_tokens": 271013,
+      "output_tok_per_wall_s": 56.3
     }
-  }
+  },
+  "token_counting": "output/cache tokens: final usage per API call, summed from the subagent transcripts; subagent_tokens is the Agent tool's own figure (not output tokens)."
 }
