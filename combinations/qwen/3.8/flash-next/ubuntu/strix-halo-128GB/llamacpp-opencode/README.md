@@ -36,8 +36,9 @@ be fixed from inside it:
 3. **Render node access.** `sudo usermod -aG render,video $USER`, then log out
    and back in.
 
-And one it only warns about: set the BIOS **UMA Frame Buffer Size to 512M**
-(Advanced → AMD CBS → NBIO Common Options → GFX Configuration). A large
+And one it only warns about: set the BIOS **UMA Frame Buffer Size** to the
+smallest it offers: 512M where available, **1G** on the MS-S1 MAX, whose menu
+runs 1G–96G (Advanced → AMD CBS → NBIO Common Options → GFX Configuration). A large
 "dedicated VRAM" carve-out is taken from Linux for good and makes the GPU no
 faster on a unified-memory chip.
 
