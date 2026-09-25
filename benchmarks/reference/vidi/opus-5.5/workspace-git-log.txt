@@ -1,3 +1,60 @@
+commit 00cefee01b48ee7ca09818961459c49cdfd59e4a
+Author: opus-5.5-reference <reference@vidi.invalid>
+Date:   Fri Sep 25 02:23:39 2026 +0100
+
+    story 12: Drop images onto the board
+    
+    Co-Authored-By: Claude Opus 5.5 (1M context) <noreply@anthropic.com>
+
+ NOTES.md                                   |  73 ++++++
+ src/client/board/Board.tsx                 |  76 +++++-
+ src/client/board/Toolbar.tsx               |  20 ++
+ src/client/board/useBoardKeys.ts           |  28 ++-
+ src/client/canvas/BoardViewport.tsx        |  16 ++
+ src/client/images/DropHighlight.tsx        |   5 +
+ src/client/images/uploadImage.ts           |  46 ++++
+ src/client/images/useImageInsert.ts        | 361 +++++++++++++++++++++++++++++
+ src/client/images/validateFiles.ts         |  43 ++++
+ src/client/objects/ImageObject.tsx         | 287 +++++++++++++++++++++++
+ src/client/objects/registry.tsx            |  16 ++
+ src/client/styles.css                      | 131 +++++++++++
+ src/client/tools/useActiveTool.ts          |   6 +-
+ src/client/ui/Toast.tsx                    |  39 ++++
+ src/shared/board-model.ts                  |  57 ++++-
+ src/shared/config.ts                       |  25 ++
+ src/shared/image-format.ts                 |  59 +++++
+ src/shared/objects/image.ts                | 187 +++++++++++++++
+ src/worker/assets.ts                       |  91 ++++++++
+ src/worker/index.ts                        |  17 ++
+ tests/component/ImageObject.test.tsx       | 193 +++++++++++++++
+ tests/component/UndoControls.test.tsx      |   4 +-
+ tests/component/imageHelpers.tsx           | 129 +++++++++++
+ tests/component/uploadMock.ts              |  50 ++++
+ tests/component/useActiveTool.test.tsx     |   4 +-
+ tests/component/useImageInsert.test.tsx    | 209 +++++++++++++++++
+ tests/e2e/helpers/drop-files.ts            |  39 ++++
+ tests/e2e/images.spec.ts                   | 244 +++++++++++++++++++
+ tests/fixtures/image-bytes.ts              |  25 ++
+ tests/fixtures/images.ts                   |  56 +++++
+ tests/fixtures/images/animated.gif         | Bin 0 -> 997 bytes
+ tests/fixtures/images/document-renamed.png |   6 +
+ tests/fixtures/images/photo.jpg            | Bin 0 -> 2617042 bytes
+ tests/fixtures/images/sample.webp          | Bin 0 -> 374 bytes
+ tests/fixtures/images/screenshot.png       | Bin 0 -> 6545 bytes
+ tests/fixtures/images/script.svg           |   1 +
+ tests/fixtures/images/shot-a.png           | Bin 0 -> 2367 bytes
+ tests/fixtures/images/shot-b.png           | Bin 0 -> 2016 bytes
+ tests/fixtures/images/shot-c.png           | Bin 0 -> 1485 bytes
+ tests/fixtures/images/truncated.png        | Bin 0 -> 200 bytes
+ tests/integration/assets.test.ts           | 187 +++++++++++++++
+ tests/unit/create-board.test.ts            |  31 +--
+ tests/unit/helpers/jsonc.ts                |  31 +++
+ tests/unit/image-format.test.ts            |  65 ++++++
+ tests/unit/image-model.test.ts             | 208 +++++++++++++++++
+ tests/unit/validate-files.test.ts          |  65 ++++++
+ wrangler.jsonc                             |   6 +-
+ 47 files changed, 3095 insertions(+), 41 deletions(-)
+
 commit e96630ff36cc11c9e40ed5f3abaa985288363192
 Author: opus-5.5-reference <reference@vidi.invalid>
 Date:   Fri Sep 25 01:53:22 2026 +0100

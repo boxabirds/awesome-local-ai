@@ -81,6 +81,14 @@
       "tool_uses": 74,
       "commit": "e96630f",
       "finished": 1790297624.8755221
+    },
+    "12": {
+      "started": 1790297628.588811,
+      "agent_minutes": 30.0,
+      "subagent_tokens": 290533,
+      "tool_uses": 81,
+      "commit": "00cefee",
+      "finished": 1790299458.275248
     }
   }
 }

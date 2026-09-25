@@ -2,6 +2,7 @@ import type { ShapeKind } from '../../shared/board-model';
 import { SHAPE_KINDS } from '../../shared/config';
 import {
   CONNECTOR_TOOL_LABEL,
+  IMAGE_TOOL_LABEL,
   PEN_TOOL_LABEL,
   SHAPE_KIND_LABELS,
   SHAPE_TOOL_LABEL,
@@ -41,6 +42,8 @@ export interface ToolbarProps {
   /** The Shape tool's kind (story 10); without `onShapeKind` the Shape and Connector buttons are not shown. */
   shapeKind?: ShapeKind;
   onShapeKind?(k: ShapeKind): void;
+  /** Opens the image file picker (story 12); without it the Image button is not shown. */
+  onImage?(): void;
 }
 
 /** Left-side vertical tool bar. */
@@ -52,6 +55,7 @@ export function Toolbar({
   onTool,
   shapeKind = SHAPE_KINDS[0],
   onShapeKind,
+  onImage,
 }: ToolbarProps) {
   return (
     <div
@@ -199,6 +203,22 @@ export function Toolbar({
           <path d="M20 15h-5v5" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" />
         </svg>
       </button>
+      {onImage && (
+        <button
+          type="button"
+          className="toolbar__button"
+          aria-label={IMAGE_TOOL_LABEL}
+          title={IMAGE_TOOL_LABEL}
+          disabled={disabled}
+          onClick={onImage}
+        >
+          <svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+            <rect x="3" y="5" width="18" height="14" rx="2" fill="none" stroke="currentColor" strokeWidth="1.6" />
+            <circle cx="9" cy="10" r="1.8" fill="currentColor" />
+            <path d="M4 17l5-5 4 4 3-3 4 4" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" />
+          </svg>
+        </button>
+      )}
       {undo && <UndoButtons {...undo} />}
     </div>
   );

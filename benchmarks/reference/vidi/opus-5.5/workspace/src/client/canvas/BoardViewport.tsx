@@ -1,6 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import { DRAG_THRESHOLD_PX, GRID_SPACING_WORLD } from '../../shared/config';
 import type { Tool } from '../board/useTool';
+import { DropHighlight } from '../images/DropHighlight';
 import type { Point, Size } from './camera';
 import type { CameraController } from './useCamera';
 
@@ -62,6 +63,12 @@ export interface BoardViewportProps {
    * when handled: the press then goes no further.
    */
   onPressCapture?(e: React.PointerEvent<HTMLDivElement>, point: Point): boolean;
+  /** Files dragged over / off / dropped on the board (story 12). */
+  onDragOver?(e: React.DragEvent<HTMLDivElement>): void;
+  onDragLeave?(e: React.DragEvent<HTMLDivElement>): void;
+  onDrop?(e: React.DragEvent<HTMLDivElement>): void;
+  /** Shows the drop highlight (dashed outline) over the board (story 12). */
+  dropHighlight?: boolean;
 }
 
 function positiveModulo(value: number, modulus: number): number {
@@ -96,6 +103,10 @@ export function BoardViewport(props: BoardViewportProps) {
     onToolClick,
     overlay,
     onPressCapture,
+    onDragOver,
+    onDragLeave,
+    onDrop,
+    dropHighlight = false,
   } = props;
   // Click-to-create tools (story 9 Text) take presses here; drag tools (story 10) bring an overlay.
   const creating = tool === 'text' && onToolClick !== undefined;
@@ -352,6 +363,10 @@ export function BoardViewport(props: BoardViewportProps) {
       onPointerCancel={onPointerEnd}
       onLostPointerCapture={onPointerEnd}
       onDoubleClick={onDoubleClick}
+      onDragEnter={onDragOver}
+      onDragOver={onDragOver}
+      onDragLeave={onDragLeave}
+      onDrop={onDrop}
       style={gridStyle}
     >
       <div className="board-world" data-testid="board-world" style={worldStyle}>
@@ -359,6 +374,7 @@ export function BoardViewport(props: BoardViewportProps) {
         {children}
       </div>
       {overlay}
+      <DropHighlight visible={dropHighlight} />
     </div>
   );
 }

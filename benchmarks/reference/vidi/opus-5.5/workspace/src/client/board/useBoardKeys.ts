@@ -31,6 +31,8 @@ export interface BoardKeysOptions {
   setTool?(t: Tool): void;
   /** N: a sticky note in the centre of the view (story 9 shortcut for the Sticky note button). */
   onCreateSticky?(): void;
+  /** I: the Image tool's file picker (story 12). */
+  onOpenImagePicker?(): void;
 }
 
 
@@ -62,7 +64,8 @@ function isButtonTarget(target: EventTarget | null): boolean {
  * Ctrl/Cmd+Shift+Z / Ctrl+Y redo this person's own steps (not while the board is read-only).
  * Story 9 tool shortcuts: V Select, T Text (only while editable), N new sticky note at the view
  * centre, Escape with a tool other than Select back to Select (without clearing the selection).
- * Story 10 adds S Shape and L Connector, story 11 P Pen (only while editable).
+ * Story 10 adds S Shape and L Connector, story 11 P Pen, story 12 I Image (file picker; only
+ * while editable).
  */
 export function useBoardKeys(opts: BoardKeysOptions): void {
   const optsRef = useRef(opts);
@@ -71,8 +74,19 @@ export function useBoardKeys(opts: BoardKeysOptions): void {
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.defaultPrevented || e.altKey) return;
-      const { doc, selection, snapshot, canEdit, onStartEdit, undo, boundary, tool, setTool, onCreateSticky } =
-        optsRef.current;
+      const {
+        doc,
+        selection,
+        snapshot,
+        canEdit,
+        onStartEdit,
+        undo,
+        boundary,
+        tool,
+        setTool,
+        onCreateSticky,
+        onOpenImagePicker,
+      } = optsRef.current;
       // While a note is edited its editor handles undo itself (typing steps in that note).
       if (selection.editingId !== null || isEditableTarget(e.target)) return;
       const ctrlOrMeta = e.ctrlKey || e.metaKey;
@@ -110,6 +124,14 @@ export function useBoardKeys(opts: BoardKeysOptions): void {
       const shortcut = TOOL_SHORTCUTS[letter];
       if (shortcut !== undefined && shortcut !== 'select' && MODE_TOOLS.has(shortcut) && setTool) {
         if (canEdit && !e.repeat) setTool(shortcut);
+        return;
+      }
+      if (letter === 'i' && onOpenImagePicker) {
+        if (canEdit && !e.repeat) {
+          e.preventDefault();
+          setTool?.('select');
+          onOpenImagePicker();
+        }
         return;
       }
       if (letter === 'n' && onCreateSticky) {

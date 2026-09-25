@@ -1001,3 +1001,134 @@ html, body, #root {
 .stroke-object:focus-visible .stroke-object__svg {
   filter: drop-shadow(0 0 2px var(--focus));
 }
+
+/* ---- Images (story 12) ---- */
+
+.image-object {
+  position: absolute;
+  left: 0;
+  top: 0;
+  cursor: default;
+  outline: 0 solid var(--focus);
+  touch-action: none;
+  color: var(--muted);
+  contain: layout size style;
+}
+
+.image-object:focus-visible:not(.image-object--selected) {
+  outline: 2px dashed var(--focus);
+  outline-offset: 2px;
+}
+
+.image-object--selected {
+  outline-style: solid;
+  outline-color: var(--focus);
+}
+
+.image-object--dragging { cursor: grabbing; }
+
+.image-object__img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: fill;
+  user-select: none;
+  -webkit-user-select: none;
+  pointer-events: none;
+}
+
+.image-object__box {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 8px;
+  overflow: hidden;
+  background: #e6e7ea;
+  border: 1px solid #cfd2d8;
+  font-size: 14px;
+  text-align: center;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.image-object__box--failed {
+  border: 2px solid #e53935;
+  background: #fdecea;
+  color: #b71c1c;
+}
+
+.image-object__icon { width: 32px; height: 32px; flex: none; }
+
+.image-object__text { font-weight: 500; }
+
+.image-object__progress {
+  width: min(160px, 80%);
+  height: 6px;
+  border-radius: 3px;
+  background: #cfd2d8;
+  overflow: hidden;
+}
+
+.image-object__progress-bar {
+  height: 100%;
+  background: var(--focus);
+  transition: width 120ms linear;
+}
+
+.image-object__actions { display: flex; gap: 8px; }
+
+.image-object__button {
+  font: inherit;
+  font-size: 13px;
+  padding: 4px 10px;
+  border-radius: 6px;
+  border: 1px solid var(--panel-border);
+  background: var(--panel-bg);
+  color: var(--ink);
+  cursor: pointer;
+}
+
+.image-object__button:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
+
+.drop-highlight {
+  position: absolute;
+  inset: 8px;
+  border: 3px dashed var(--focus);
+  border-radius: 12px;
+  background: rgba(47, 111, 235, 0.06);
+  pointer-events: none;
+}
+
+.image-picker {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.toast-region {
+  position: fixed;
+  left: 50%;
+  bottom: 24px;
+  transform: translateX(-50%);
+  pointer-events: none;
+  z-index: 20;
+}
+
+.toast {
+  padding: 10px 16px;
+  border-radius: 8px;
+  background: #263238;
+  color: #fff;
+  font-size: 14px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+}
+
+.toast__line { margin: 0; }
+.toast__line + .toast__line { margin-top: 4px; }

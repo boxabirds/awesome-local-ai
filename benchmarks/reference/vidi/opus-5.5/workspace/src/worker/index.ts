@@ -4,11 +4,14 @@
  *   POST /api/boards          create a board (rate-limited per visitor)   201 {id} | 429 | 500
  *   GET  /api/boards/:id      does this board exist?                      200 {id} | 404
  *   GET  /api/rooms/:id       WebSocket upgrade to the board's BoardRoom  101 | 404 | 426
+ *   POST /api/boards/:id/assets        upload an image (story 12, assets.ts)
+ *   GET  /api/assets/:boardId/:assetId serve a stored image (story 12, assets.ts)
  *
  * Everything else is served from the static client assets (SPA fallback). Malformed ids are
  * rejected before any Durable Object is addressed, so junk ids never create an instance.
  */
 import { isValidBoardId } from '../shared/board-id';
+import { handleServe, handleUpload } from './assets';
 import type { BoardRoom } from './board-room';
 import { createBoard, type Limiter } from './create-board';
 import { handleTestHook } from './test-hooks';
@@ -20,6 +23,10 @@ export interface Env {
   ASSETS: Fetcher;
   /** Workers rate limiter: BOARD_CREATE_LIMIT creations per BOARD_CREATE_PERIOD_SECONDS per visitor. */
   BOARD_CREATE_LIMITER: Limiter;
+  /** Uploaded images (story 12). */
+  ASSETS_BUCKET: R2Bucket;
+  /** Workers rate limiter: IMAGE_UPLOAD_LIMIT uploads per IMAGE_UPLOAD_PERIOD_SECONDS per visitor. */
+  ASSET_UPLOAD_LIMITER: Limiter;
   /** '1' only in e2e test servers: enables the routes in test-hooks.ts. Never set in production. */
   TEST_HOOKS?: string;
 }
@@ -27,6 +34,8 @@ export interface Env {
 const ROOMS_PREFIX = '/api/rooms/';
 const BOARDS_PATH = '/api/boards';
 const BOARDS_PREFIX = `${BOARDS_PATH}/`;
+const ASSETS_SUFFIX = '/assets';
+const ASSETS_PREFIX = '/api/assets/';
 const HTTP_OK = 200;
 const HTTP_CREATED = 201;
 const HTTP_NOT_FOUND = 404;
@@ -85,6 +94,14 @@ export default {
   async fetch(req: Request, env: Env): Promise<Response> {
     const { pathname } = new URL(req.url);
     if (pathname === BOARDS_PATH) return handleCreate(req, env);
+    if (pathname.startsWith(BOARDS_PREFIX) && pathname.endsWith(ASSETS_SUFFIX)) {
+      if (req.method !== 'POST') return methodNotAllowed('POST');
+      return handleUpload(req, env, pathname.slice(BOARDS_PREFIX.length, -ASSETS_SUFFIX.length));
+    }
+    if (pathname.startsWith(ASSETS_PREFIX)) {
+      if (req.method !== 'GET' && req.method !== 'HEAD') return methodNotAllowed('GET, HEAD');
+      return handleServe(env, pathname.slice(ASSETS_PREFIX.length));
+    }
     if (pathname.startsWith(BOARDS_PREFIX)) return handleCheck(req, env, pathname.slice(BOARDS_PREFIX.length));
     if (pathname.startsWith(ROOMS_PREFIX)) return handleRoom(req, env, pathname.slice(ROOMS_PREFIX.length));
     return (await handleTestHook(req, env)) ?? env.ASSETS.fetch(req);

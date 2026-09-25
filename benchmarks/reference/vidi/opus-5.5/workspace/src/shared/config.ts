@@ -206,3 +206,28 @@ export const STROKE_MAX_POINTS = 5000;
 export const STROKE_HIT_TOLERANCE_PX = 6;
 /** Smallest width/height a stroke can be resized to, in world units. */
 export const STROKE_MIN_SIZE_WORLD = 4;
+
+// ---- Images (story 12) ----
+
+/** Image types that can be added (judged by content on the server, by File.type on the client). */
+export const IMAGE_ACCEPTED_TYPES = ['image/png', 'image/jpeg', 'image/gif', 'image/webp'] as const;
+/** Largest image file that can be added: 10 MB. */
+export const IMAGE_MAX_BYTES = 10 * 1024 * 1024;
+/** At most this many images are added by one drop, paste or pick; the rest are skipped. */
+export const IMAGE_MAX_FILES_PER_ADD = 20;
+/** A new image's longest side is scaled down to at most this (world units); never scaled up. */
+export const IMAGE_MAX_PLACE_SIZE_WORLD = 800;
+/** Smallest width/height an image can be resized to, in world units. */
+export const IMAGE_MIN_SIZE_WORLD = 16;
+/** Gap between images added side by side in one action, world units. */
+export const IMAGE_LAYOUT_GAP_WORLD = 24;
+/** An upload still not finished after this long is shown to everyone as unfinished. */
+export const IMAGE_UPLOAD_STALE_MS = 5 * 60 * 1000;
+/** Uploads one visitor may make per IMAGE_UPLOAD_PERIOD_SECONDS. Must match wrangler.jsonc `ratelimits`. */
+export const IMAGE_UPLOAD_LIMIT = 60;
+/** Upload rate-limit window. Must match wrangler.jsonc `ratelimits`. */
+export const IMAGE_UPLOAD_PERIOD_SECONDS = 60;
+/** Stored images never change (new upload = new key), so they are cached for a year. */
+export const ASSET_CACHE_MAX_AGE_SECONDS = 31_536_000;
+/** Bytes read from the start of a file to decide its image type. */
+export const IMAGE_SNIFF_BYTES = 12;
