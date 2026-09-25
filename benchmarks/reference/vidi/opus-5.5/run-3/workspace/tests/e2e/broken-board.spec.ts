@@ -3,7 +3,7 @@
 // (/__test/*), which the e2e server enables with TEST_HOOKS=1.
 import { expect, test, type APIRequestContext } from '@playwright/test';
 import * as Y from 'yjs';
-import { newBoardId } from '../../src/shared/board-id';
+import { createBoard } from './helpers/boards-api';
 import { LOAD_RETRY_MIN_INTERVAL_MS, RECONNECT_MAX_BACKOFF_MS } from '../../src/shared/config';
 import { retroBoard } from '../fixtures/boards';
 import { notes } from './helpers/notes';
@@ -20,7 +20,7 @@ test.describe('Workflow "Broken board"', () => {
   test('TC-24 honest failure message, no editing, recovery without a reload', async ({ page, request }) => {
     test.setTimeout(90_000);
     // 1. A saved 25-note board (seeding compacts it into a snapshot), then its snapshot is damaged.
-    const boardId = newBoardId();
+    const boardId = await createBoard(request);
     const board = retroBoard();
     await hook(request, boardId, 'seed', Buffer.from(Y.encodeStateAsUpdate(board.doc)));
     await hook(request, boardId, 'corrupt-snapshot');

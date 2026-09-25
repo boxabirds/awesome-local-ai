@@ -2,6 +2,8 @@
 // e2e wrangler command line, never in wrangler.jsonc). Without it these paths fall through to the static client.
 //
 //   POST /__test/boards/:id/seed               body: a Yjs update; applied like a client update, then compacted
+//   POST /__test/boards/:id/seed-legacy        body: a Yjs update; stored as log rows without created_at, as a
+//                                              board saved before board creation existed (story 5 TC-31)
 //   POST /__test/boards/:id/compact            fold the log into the snapshot
 //   POST /__test/boards/:id/corrupt-snapshot   save snapshot chunk 0 aside, overwrite it with garbage, reload
 //   POST /__test/boards/:id/repair             put the saved chunk 0 back
@@ -9,9 +11,9 @@ import { isValidBoardId } from '../shared/board-id';
 import type { BoardStorage } from './board-store';
 import type { Env } from './index';
 
-export type TestHookAction = 'seed' | 'compact' | 'corrupt-snapshot' | 'repair';
+export type TestHookAction = 'seed' | 'seed-legacy' | 'compact' | 'corrupt-snapshot' | 'repair';
 
-const HOOK_PATH = /^\/__test\/boards\/([^/]+)\/(seed|compact|corrupt-snapshot|repair)$/;
+const HOOK_PATH = /^\/__test\/boards\/([^/]+)\/(seed|seed-legacy|compact|corrupt-snapshot|repair)$/;
 
 /** The hook response, or null when the request is not a (enabled) test hook. */
 export async function handleTestHook(req: Request, env: Env): Promise<Response | null> {
@@ -21,7 +23,7 @@ export async function handleTestHook(req: Request, env: Env): Promise<Response |
   if (req.method !== 'POST') return new Response('Method not allowed', { status: 405 });
   const [, boardId, action] = match;
   if (!isValidBoardId(boardId)) return new Response('Invalid board id', { status: 400 });
-  const body = action === 'seed' ? await req.arrayBuffer() : undefined;
+  const body = action === 'seed' || action === 'seed-legacy' ? await req.arrayBuffer() : undefined;
   const stub = env.BOARD_ROOM.get(env.BOARD_ROOM.idFromName(boardId));
   const ok = await stub.testHook(action as TestHookAction, body);
   return new Response(ok ? 'ok' : 'not applied', { status: ok ? 200 : 409 });

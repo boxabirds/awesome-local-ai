@@ -77,3 +77,18 @@ export const PERSIST_TESTED_NOTES = 2000;
 export const BOARD_LOAD_BUDGET_MS = 3000;
 /** Version of the board storage tables (not of the Yjs document schema). */
 export const STORAGE_SCHEMA_VERSION = 1;
+
+// Story 5 — sharing a board by link.
+
+/** Boards one visitor may create per BOARD_CREATE_PERIOD_SECONDS (PRD share.rate_limit). */
+export const BOARD_CREATE_LIMIT = 10;
+/** Rate-limit window; must match `ratelimits` in wrangler.jsonc (a unit test asserts equality). */
+export const BOARD_CREATE_PERIOD_SECONDS = 60;
+/** Fresh ids tried when a generated id is already taken, before creation fails. */
+export const CREATE_ID_MAX_ATTEMPTS = 3;
+/** Create a board: the new board is open within this time of the click (PRD share.create). */
+export const CREATE_BUDGET_MS = 2000;
+/** How long the Copy link button shows "Link copied". */
+export const LINK_COPIED_MS = 2000;
+/** First retry delay when a board link cannot be checked; doubles up to RECONNECT_MAX_BACKOFF_MS. */
+export const BOARD_CHECK_RETRY_BASE_MS = 1000;

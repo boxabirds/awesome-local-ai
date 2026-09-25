@@ -6,7 +6,7 @@ import { WranglerProcess } from './helpers/wrangler-process';
 import { setCamera, settle } from './helpers/board';
 import { centreOf, dragBy, notes } from './helpers/notes';
 import { domSnapshot, waitConnected } from './helpers/participants';
-import { newBoardId } from '../../src/shared/board-id';
+import { createBoardAt } from './helpers/boards-api';
 import { snapshot, type StickySnapshot } from '../../src/shared/board-model';
 import { BOARD_LOAD_BUDGET_MS, PERSIST_TESTED_NOTES, STICKY_COLORS, type StickyColor } from '../../src/shared/config';
 import { largeBoard } from '../fixtures/boards';
@@ -41,7 +41,8 @@ async function boardState(page: Page) {
 }
 
 const COLORS = Object.keys(STICKY_COLORS) as StickyColor[];
-const EMPTY_SPOT = { x: 1200, y: 40 };
+// Clear of the notes and of the Share button in the top-right corner (story 5).
+const EMPTY_SPOT = { x: 1200, y: 120 };
 
 const TEXTS = Array.from({ length: 25 }, (_, i) =>
   i % 5 === 0 ? RETRO_ITEM : i % 5 === 1 ? `Idea ${i}: shorter standups` : i % 5 === 2 ? `Q${i}? 🎯` : `Note ${i} — keep`,
@@ -50,7 +51,7 @@ const TEXTS = Array.from({ length: 25 }, (_, i) =>
 test.describe('Workflow "Overnight return"', () => {
   test('TC-19 25 varied notes are identical after closing the browser and restarting the process', async ({ browser }) => {
     test.setTimeout(180_000);
-    const boardId = newBoardId();
+    const boardId = await createBoardAt(server.baseURL);
     const alex = await openBoardIn(browser, boardId);
     await setCamera(alex, { x: -100, y: 0, zoom: 0.5 });
     await settle(alex);
@@ -97,7 +98,7 @@ test.describe('Workflow "Overnight return"', () => {
 test.describe('Workflow "Leave immediately"', () => {
   test('TC-20 a note Sam has seen survives both leaving and the process being killed at once', async ({ browser }) => {
     test.setTimeout(120_000);
-    const boardId = newBoardId();
+    const boardId = await createBoardAt(server.baseURL);
     const alex = await openBoardIn(browser, boardId);
     const sam = await openBoardIn(browser, boardId);
 
@@ -124,7 +125,7 @@ test.describe('Workflow "Leave immediately"', () => {
 test.describe('Workflow "Big board open"', () => {
   test(`TC-21 a saved ${PERSIST_TESTED_NOTES}-note board shows every note within BOARD_LOAD_BUDGET_MS`, async ({ browser }) => {
     test.setTimeout(180_000);
-    const boardId = newBoardId();
+    const boardId = await createBoardAt(server.baseURL);
     const board = largeBoard();
     const seeded = await fetch(`${server.baseURL}/__test/boards/${boardId}/seed`, {
       method: 'POST',

@@ -1,6 +1,5 @@
 import { defineConfig, devices } from '@playwright/test';
-
-const PORT = 8788;
+import { E2E_PORT as PORT } from './tests/e2e/helpers/boards-api';
 
 // Firefox's own macOS sandbox cannot initialise when the test runner is itself sandboxed
 // (sandbox_init "Operation not permitted"), so the test browser runs with it disabled.

@@ -204,3 +204,54 @@ Decisions made where the spec left room:
   eviction/hibernation timing, and load time over real internet latency. TC-21 timing is local.
 - **Nightly soak.** `npm run test:e2e:nightly` passed twice in a row (TC-30 p95 45–46 ms, max ≤ 116 ms). A run
   before those timed out once in TC-30 inside a mouse click. It did not happen again and was not diagnosed further.
+
+## Story 5 — Share a board with others using a link
+
+Decisions made where the spec left room:
+
+- **Rate limiter.** `BOARD_CREATE_LIMITER` is a real `ratelimits` binding (namespace id `1001`, limit 10, period 60).
+  The local runtime (miniflare, in both `wrangler dev` and the Workers test pool) simulates it, so TC-13 and TC-30
+  use the real binding, not a fake. Its local windows are fixed and aligned to the clock, so those two tests first
+  wait until enough of the current window is left. The visitor key is `CF-Connecting-IP` (`'unknown'` if it is
+  missing). Local `wrangler dev` keeps a `CF-Connecting-IP` header the request already has. The e2e tests use this
+  to give each test its own made-up visitor address, so parallel tests (and browsers) never use up each other's limit.
+- **Existing tests now create their boards first.** Unknown boards are 404 now, so story 3/4 tests that joined a
+  random id create it first. Integration tests call `initialize()` over RPC (`createdBoardId()` in `ws-client.ts`).
+  E2E tests call `POST /api/boards` with a random visitor (`tests/e2e/helpers/boards-api.ts`). Story 3's TC-04 now
+  expects 404 instead of 400 for malformed ids (the design changes this). The persistence spec's "empty spot"
+  moved from (1200, 40) to (1200, 120), because the new Share button sits in the top-right corner.
+- **`initialize()` never re-creates a board.** It returns `'exists'`, without writing, when the board already exists
+  by the existence rule, legacy boards included. So a legacy board is never handed out as a new board either.
+  `created_at` is written in the same transaction as the tables.
+- **Storage reads for unknown boards.** `BoardStore.load()` returns an empty board when the tables are missing and
+  does not create them. `append()` runs `migrate()` lazily. So an existence check, a rejected WebSocket, or the
+  constructor's load for an unknown id leaves `sqlite_master` empty (TC-06, TC-09). A room whose storage can't
+  even be read for the existence check does not answer 404. It accepts the connection and closes it with 4500, as
+  in story 4, so "can't read" is never shown as "doesn't exist".
+- **Test seams.** `createBoard(env, visitorKey, generate = newBoardId)` and `handleRequest(req, env, { generateId })`
+  let integration tests force id collisions (TC-11). The default export always uses `newBoardId()`. `createBoard`
+  takes a structural env type, because the unit tests (DOM tsconfig) import `create-board.ts`.
+- **HTTP details.** `GET`/`HEAD` on `/api/boards/:id`, and anything but `POST` on `/api/boards`, get `405` with an
+  `Allow` header. API responses are `Cache-Control: no-store`. The client treats any status other than 200/404 on
+  the check as unreachable and retries, as the design says.
+- **Test hook for legacy boards.** `POST /__test/boards/:id/seed-legacy` (only with `TEST_HOOKS=1`) stores an update
+  as log rows without `created_at`: a board saved before this story (TC-31).
+- **Router and pages.** `useRoute()` uses `useSyncExternalStore` over `popstate` and a custom navigate event.
+  `/b/:id` always routes to `BoardPage`, which shows Board not found for malformed ids without sending a request.
+  `Root` keys `BoardPage` by id. The Board not found page also has a "Go to the home page" link (the PRD asks for
+  a link back home but gives no wording).
+  The create button's error message sits in a `role="alert"` paragraph under the button. Both pages share it.
+- **Share panel.** Opening the panel focuses the link field, which selects the whole link. Escape (or clicking Share
+  again) closes the panel and returns focus to the Share button. A press outside closes it *without* moving focus.
+  Pulling focus back to Share there would take it away from what was clicked: the first e2e run showed a
+  double-click on the board losing its new note editor that way. The tick in "✓ Link copied" is `aria-hidden`, so the
+  button's name is exactly "Link copied".
+- **Browser coverage.** TC-26 (real clipboard) runs only in Chromium, because only Chromium can grant clipboard read
+  in Playwright. TC-28 and TC-30 test server/request behaviour and run once, in Chromium. TC-27 and TC-29 run in all
+  three browsers.
+- **Nightly soak fix.** `npm run test:e2e:nightly` failed twice in TC-30, both times timing out on a click.
+  The logged call showed the cause: the colour toolbar of a note near the top edge was outside the viewport.
+  The soak only required a note's centre to be 60 px below the top, but at 50% zoom the note plus its toolbar
+  reach about 100 px above the centre. The random seed decides whether a note ends up there, so the story 4
+  one-off timeout was probably the same thing. The guard now requires 120 px, which also keeps clicks clear of
+  the new Share button. With the failing seed (`VIDI6_SEED=120660`) the soak passes (p95 45 ms).

@@ -1,8 +1,10 @@
 import { expect, type Page } from '@playwright/test';
 import type { Camera, Point } from '../../../src/client/canvas/camera';
+import { createBoard } from './boards-api';
 
+/** Creates a new board and opens it. */
 export async function openBoard(page: Page) {
-  await page.goto('/');
+  await page.goto(`/b/${await createBoard(page.request)}`);
   await expect(page.getByTestId('board-viewport')).toBeVisible();
   await page.waitForFunction(() => window.__vidi6 !== undefined);
 }

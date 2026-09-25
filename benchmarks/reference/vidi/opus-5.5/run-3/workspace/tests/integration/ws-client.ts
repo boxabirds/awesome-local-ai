@@ -1,12 +1,13 @@
 // A test participant: a real Y.Doc speaking y-protocols over a real WebSocket to the Worker, framed exactly
 // like the browser's y-websocket provider (sync + awareness messages).
-import { SELF } from 'cloudflare:test';
+import { SELF, env } from 'cloudflare:test';
 import * as Y from 'yjs';
 import * as decoding from 'lib0/decoding';
 import * as encoding from 'lib0/encoding';
 import * as syncProtocol from 'y-protocols/sync';
 import { MESSAGE_SYNC, decodeMessage, encodeSync } from '../../src/shared/protocol';
 import { snapshot, type StickySnapshot } from '../../src/shared/board-model';
+import { newBoardId } from '../../src/shared/board-id';
 
 /** Transaction origin for updates that came from the room (never sent back). */
 const REMOTE = Symbol('remote');
@@ -14,6 +15,17 @@ const REMOTE = Symbol('remote');
 export interface Received {
   kind: 'sync-step1' | 'sync-step2' | 'update' | 'awareness' | 'other';
   bytes: Uint8Array;
+}
+
+/**
+ * A new, created board (story 5: rooms only accept connections to boards that exist). Created over RPC, as
+ * POST /api/boards does, so tests are not subject to the per-visitor creation limit.
+ */
+export async function createdBoardId(): Promise<string> {
+  const id = newBoardId();
+  const result = await env.BOARD_ROOM.get(env.BOARD_ROOM.idFromName(id)).initialize();
+  if (result !== 'created') throw new Error(`board ${id} already existed`);
+  return id;
 }
 
 export async function openSocket(boardId: string): Promise<{ status: number; ws: WebSocket | null }> {
