@@ -2,19 +2,28 @@
 # lib/hf.sh -- Hugging Face CLI, shared by every combination that pulls
 # weights from the Hub.
 
+# hf is installed as a uv tool (ensure_uv, lib/common.sh): its own venv, no
+# sudo, nothing written into the system python.
+
+# The python that runs hf: hf_transfer has to be importable there, which for a
+# uv tool is its own venv, not the system python3.
+_hf_python() { sed -n '1s/^#!//p' "$(command -v hf)" 2>/dev/null; }
+
 ensure_hf() {
   info "Ensuring huggingface_hub (hf CLI) + hf_transfer..."
+  export PATH="${HOME}/.local/bin:${PATH}"
   if need_cmd hf; then
     ok "hf CLI present: $(hf version 2>/dev/null | head -1)"
   else
-    python3 -m pip install --user -q -U "huggingface_hub[cli]"
+    ensure_uv
+    uv tool install huggingface_hub --with hf_transfer >/dev/null 2>&1 || true
     hash -r
-    need_cmd hf || err "hf CLI install failed."
+    need_cmd hf || err "hf CLI install failed (uv tool install huggingface_hub)."
   fi
   # hf_transfer gives a large speedup on multi-GB pulls, but only if it is
   # actually switched on -- installing it alone does nothing.
-  python3 -c 'import hf_transfer' 2>/dev/null || python3 -m pip install --user -q -U hf_transfer
-  if python3 -c 'import hf_transfer' 2>/dev/null; then
+  local py; py="$(_hf_python)"
+  if [[ -n "$py" ]] && "$py" -c 'import hf_transfer' 2>/dev/null; then
     export HF_HUB_ENABLE_HF_TRANSFER=1
     ok "hf_transfer enabled."
   else
