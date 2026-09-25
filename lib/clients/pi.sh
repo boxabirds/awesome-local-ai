@@ -18,16 +18,34 @@ CLIENT_DISPLAY_NAME="Pi"
 
 _pi_config() { printf '%s/.pi/agent/models.json' "${HOME}"; }
 
-# Find an already-installed pi. Prefer what is on PATH (the user's active node
-# -- the least surprising choice); if it is not there, look in the common
-# global-npm locations so a pi that is installed but not on this shell's PATH is
-# still used instead of prompting for a second, competing install. Prints the
-# path of the first one found; returns 1 if none.
+# Is this pi.dev, rather than something else that happens to be called pi?
+# Homebrew's Python can carry a 2013 package of that name (chbrown/pi) whose
+# /opt/homebrew/bin/pi crashes on Python 3. An npm or bun global install's
+# bin/pi resolves into the @earendil-works/pi-coding-agent package. Version-
+# manager shims can't be followed there, so they are judged by what they are for.
+_pi_is_pi_dev() {
+  case "$(readlink -f "$1" 2>/dev/null)" in
+    */@earendil-works/pi-coding-agent/*) return 0 ;;
+  esac
+  [[ "$1" == "$HOME/.volta/bin/pi" ]] && return 0   # volta only manages node tools
+  # asdf records the plugin a shim belongs to inside the shim.
+  [[ "$1" == "$HOME"/.asdf/shims/* ]] && grep -q '^# asdf-plugin: nodejs ' "$1" 2>/dev/null
+}
+
+# An executable pi.dev.
+_pi_ok() { [[ -x "$1" ]] && _pi_is_pi_dev "$1"; }
+
+# Find an already-installed pi.dev. Prefer what is on PATH (the user's active
+# node -- the least surprising choice), checking every pi there and not just the
+# first, since another program called pi may come earlier; if none is pi.dev,
+# look in the common global-npm locations so a pi.dev that is installed but not
+# on this shell's PATH is still used instead of prompting for a second,
+# competing install. Prints the path of the first one found; returns 1 if none.
 _pi_find() {
   local p c dflt
-  if p="$(command -v pi 2>/dev/null)"; then
-    printf '%s' "$p"; return 0
-  fi
+  while IFS= read -r c; do
+    if _pi_ok "$c"; then printf '%s' "$c"; return 0; fi
+  done < <(type -ap pi 2>/dev/null)
   # nvm: the node version set as the default, else any installed version.
   dflt=""
   if [[ -f "$HOME/.nvm/alias/default" ]]; then
@@ -35,40 +53,40 @@ _pi_find() {
   fi
   case "$dflt" in
     v*)
-      if [[ -x "$HOME/.nvm/versions/node/$dflt/bin/pi" ]]; then
+      if _pi_ok "$HOME/.nvm/versions/node/$dflt/bin/pi"; then
         printf '%s' "$HOME/.nvm/versions/node/$dflt/bin/pi"; return 0
       fi ;;
   esac
   for c in "$HOME"/.nvm/versions/node/*/bin/pi; do
-    if [[ -x "$c" ]]; then printf '%s' "$c"; return 0; fi
+    if _pi_ok "$c"; then printf '%s' "$c"; return 0; fi
   done
   # asdf (shim first, then per-version installs)
   for c in "$HOME"/.asdf/shims/pi "$HOME"/.asdf/installs/nodejs/*/bin/pi; do
-    if [[ -x "$c" ]]; then printf '%s' "$c"; return 0; fi
+    if _pi_ok "$c"; then printf '%s' "$c"; return 0; fi
   done
   # fnm (default alias, then installations)
   for c in "$HOME"/.fnm/aliases/default/bin/pi \
            "$HOME"/.local/share/fnm/node-versions/*/installation/bin/pi; do
-    if [[ -x "$c" ]]; then printf '%s' "$c"; return 0; fi
+    if _pi_ok "$c"; then printf '%s' "$c"; return 0; fi
   done
   # volta
-  if [[ -x "$HOME/.volta/bin/pi" ]]; then
+  if _pi_ok "$HOME/.volta/bin/pi"; then
     printf '%s' "$HOME/.volta/bin/pi"; return 0
   fi
   # homebrew / system
   for c in /opt/homebrew/bin/pi /usr/local/bin/pi /usr/bin/pi; do
-    if [[ -x "$c" ]]; then printf '%s' "$c"; return 0; fi
+    if _pi_ok "$c"; then printf '%s' "$c"; return 0; fi
   done
   # wherever the active npm's global prefix points
   if command -v npm >/dev/null 2>&1; then
     p="$(npm prefix -g 2>/dev/null)/bin/pi"
-    if [[ -x "$p" ]]; then printf '%s' "$p"; return 0; fi
+    if _pi_ok "$p"; then printf '%s' "$p"; return 0; fi
   fi
   return 1
 }
 
 client_ensure_installed() {
-  local bin
+  local bin p
   if bin="$(_pi_find)"; then
     PI_BIN="$bin"
     case ":${PATH}:" in
@@ -81,6 +99,11 @@ client_ensure_installed() {
         echo "Using existing pi at ${bin} (not on PATH)." >&2 ;;
     esac
     return 0
+  fi
+  # Anything still called pi on PATH is some other program: say so, or its
+  # presence makes "pi not found" look wrong.
+  if p="$(command -v pi 2>/dev/null)"; then
+    echo "${p} is not pi.dev (it is another program called pi), so it is not used." >&2
   fi
   echo "pi not found. Install with:" >&2
   echo "  npm install -g @earendil-works/pi-coding-agent" >&2
