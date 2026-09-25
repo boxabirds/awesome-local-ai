@@ -84,6 +84,32 @@ The reference stack runs through the same harness as the local setups: the same 
    ```
    Runs are recorded in `benchmarks/reference/vidi/opus-5.5/<run-id>/`.
 
+**On another machine (e.g. the M2).** Run reference stacks on a machine where no other harness run is going, because the two agents' apps would collide on ports.
+```sh
+cd ~/expts/awesome-local-ai && git pull                      # the public repo, with push access
+claude setup-token                                            # then save the token (see step 1 above)
+benchmarks/vidi/harness/setup-node.sh --stack benchmarks/reference/vidi/opus-5.5
+```
+`setup-node.sh` does the following, and prints `ready` or a list of what's missing:
+- checks the tools: git, uv, Node 20+ and `claude`;
+- clones the private pack next to the repo, pinned to `vidi-v1`;
+- installs the held-out suite's dependencies;
+- registers the stack and checks the token;
+- runs the sandbox preflight.
+
+To carry on a run that another machine imported (Opus run 2 was imported on quintus), copy its harness work folder across first:
+```sh
+rsync -a quintus:.vidi-bench/work/benchmarks__reference__vidi__opus-5.5__run-2/ \
+         ~/.vidi-bench/work/benchmarks__reference__vidi__opus-5.5__run-2/
+```
+Then run in the background. Keep the machine on mains power, because the harness pauses a story while on battery. `caffeinate -i` stops idle sleep; closing a laptop's lid still sleeps it.
+```sh
+nohup caffeinate -i sh -c 'for r in run-2 run-3; do benchmarks/vidi/harness/run.sh claude-code-opus-5-5 \
+  --client claude --run-id $r --record; done' > ~/.vidi-bench/opus-runs.log 2>&1 &
+tail -f ~/.vidi-bench/opus-runs.log
+```
+Each story is committed and pushed as it finishes.
+
 **Continuing a run that Claude Code subagents started.** Early reference runs were built by subagents that were only *told* not to look. To continue one under the harness:
 1. `harness/import_run.py` peek-audits every finished story's transcript (`~/.claude/projects/<project>/<session>/subagents/agent-<id>.jsonl`). It refuses the import if any story touched the suite, the pack, the repo or another run.
 2. If the audit is clean, it hands the workspace and the finished stories to the harness.
