@@ -28,12 +28,13 @@ fake_gpu() { # gtt_total_mib vram_total_mib
   printf '%s\n' $(( $1 * 256 )) > "$SCRATCH/ttm/pages_limit"
   # 128 GB less a 512 MiB carve-out, as MemTotal reports it. Less is available
   # than GTT headroom, so the MemAvailable bound is what the test sees.
-  printf 'MemTotal:       %s kB\nMemAvailable:   %s kB\n' \
-    $(( (FAKE_RAM_MIB - 512) * 1024 )) $(( FAKE_AVAIL_MIB * 1024 )) > "$SCRATCH/meminfo"
+  printf 'MemTotal:       %s kB\nMemAvailable:   %s kB\nSwapTotal:      %s kB\n' \
+    $(( (FAKE_RAM_MIB - 512) * 1024 )) $(( FAKE_AVAIL_MIB * 1024 )) $(( FAKE_SWAP_MIB * 1024 )) > "$SCRATCH/meminfo"
 }
 printf 'BOOT_IMAGE=/vmlinuz root=/dev/mapper/ubuntu--vg-ubuntu--lv ro\n' > "$SCRATCH/cmdline"
 FAKE_RAM_MIB=131072
 FAKE_AVAIL_MIB=100000
+FAKE_SWAP_MIB=0
 
 # Run adapter functions in a clean shell with the combination's config.
 adapter() {
@@ -71,6 +72,17 @@ assert_ok "...and the combination's own advice" grep -q 'UD-Q3_K_XL is still' <<
 fake_gpu 122880 512
 out="$(adapter '_sh_gtt_budget "$(_sh_gpu_dir)"; _sh_qualify_budget' 2>&1)"; rc=$?
 assert_eq "amd-ttm --set 120 qualifies"        "0" "$rc"
+# tritus's real MemTotal: 125131 MiB (the fake adds the 512 MiB carve-out back)
+FAKE_RAM_MIB=$(( 125131 + 512 )); fake_gpu 122880 512
+out="$(adapter '_sh_gtt_budget "$(_sh_gpu_dir)"; _sh_qualify_budget' 2>&1)"
+assert_ok "...but with no swap, 120 GiB of 128 leaves Linux too little: warned" \
+  grep -q 'WARN.*leaving under 6144 MiB for Linux' <<< "$out"
+FAKE_SWAP_MIB=8192; fake_gpu 122880 512
+out="$(adapter '_sh_gtt_budget "$(_sh_gpu_dir)"; _sh_qualify_budget' 2>&1)"
+assert_fails "the designed setup (120 GiB + Ubuntu's 8 GiB swap) is not warned about" \
+  grep -q 'WARN' <<< "$out"
+assert_ok "...it says swap is the cushion"      grep -q '8192 MiB of swap' <<< "$out"
+FAKE_SWAP_MIB=0; FAKE_RAM_MIB=131072; fake_gpu 122880 512
 
 fake_gpu 122880 98304
 out="$(adapter '_sh_gtt_budget "$(_sh_gpu_dir)"; _sh_qualify_carveout' 2>&1)"

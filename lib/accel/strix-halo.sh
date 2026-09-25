@@ -170,10 +170,19 @@ _sh_qualify_carveout() {
 
 # Refuse with the fix, not with an OOM 90 GB into a load.
 _sh_qualify_budget() {
-  local reserve="${MIN_OS_RESERVE_MIB:-6144}"
-  if (( ACCEL_RAM_MIB - ACCEL_MEM_MIB < reserve )); then
+  # The GTT limit is a ceiling, not an allocation; what protects Linux if the
+  # GPU ever nears it is RAM outside the ceiling plus swap. The recommended
+  # 120 GiB on a 128 GB box leaves ~2 GiB of RAM, so swap is the cushion, and
+  # Ubuntu's installer creates 8 GiB of it: that setup should not warn.
+  local reserve="${MIN_OS_RESERVE_MIB:-6144}" swap_kib swap_mib outside
+  swap_kib="$(awk '/^SwapTotal:/ {print $2}' "${PROC_MEMINFO:-/proc/meminfo}" 2>/dev/null)"
+  swap_mib=$(( ${swap_kib:-0} / 1024 ))
+  outside=$(( ACCEL_RAM_MIB - ACCEL_MEM_MIB ))
+  if (( outside + swap_mib < reserve )); then
     warn "The GPU may address ${ACCEL_MEM_MIB} of ${ACCEL_RAM_MIB} MiB, leaving under ${reserve} MiB for Linux."
     warn "  A full context can then push sshd and friends into the OOM killer. Add swap, or lower the limit."
+  elif (( outside < reserve )); then
+    info "  The GPU may address ${ACCEL_MEM_MIB} of ${ACCEL_RAM_MIB} MiB; ${swap_mib} MiB of swap covers Linux if it nears that."
   fi
   (( ACCEL_MEM_MIB >= MIN_DEVICE_MEM_MIB )) && return 0
 
