@@ -6,8 +6,7 @@ repo's only 16 GB combination.
 
 **Recommended on M3/M4/M5 with 16 GB+. Runs on M1/M2, but MTPLX does not offer
 it there** (BF16 vision tower + BF16 draft head, and M1/M2 have no native BF16;
-the slowdown is unmeasured). On an M1/M2, MTPLX's own pick is the base model's
-FP16 build, which this repo does not include.
+the slowdown is unmeasured).
 
 > **Tested on a MacBook Air M2 16 GB (2026-09-24): not workable for agentic
 > coding.** The context window is 20,480 tokens, set by 16 GB of memory rather
@@ -131,9 +130,7 @@ What MTPLX 2.12.0 does, from its catalog source:
 - The reason is BF16. M1/M2 GPUs have no native BF16; MTPLX's FP16 packs exist
   so that "M1 and M2 Macs (no native bf16) run the identical model at full
   speed". This pack keeps its vision tower and draft head in BF16, and **no
-  FP16 sibling exists**, so M1 and M2 are not offered it. For the plain
-  Qwen3.5 9B, MTPLX steers M1/M2 to its FP16 build instead ("M1 and M2 keep
-  the FP16 9B").
+  FP16 sibling exists**, so M1 and M2 are not offered it.
 - "Not offered" means **not listed or recommended** by the catalog. Nothing
   seen blocks pulling the pack by its repo id and serving it, which is exactly
   what this installer does (`mtplx pull <repo>`, then `mtplx serve --model`).
