@@ -1,9 +1,10 @@
-# Qwen3.8-Flash-Next · Ubuntu 26.04 · Strix Halo 128GB · llama.cpp (Vulkan or ROCm) + MTP + OpenCode
+# Qwen3.8-Flash-Next · Ubuntu 26.04 · Strix Halo 128GB · llama.cpp (Vulkan or ROCm) + MTP + pi
 
 Qwen3.8-Flash-Next (125B total, about 6B active per token) from Unsloth's
 dynamic GGUF quants, with its MTP draft head, served by llama.cpp on Vulkan
 (RADV) or ROCm on an AMD Ryzen AI Max+ 395 with 128 GB of unified memory,
-driven by OpenCode or pi.
+driven by pi by default (a much smaller system prompt than OpenCode, which
+matters at this prefill speed) or OpenCode.
 
 > **NOT MEASURED BY THIS REPO YET.** This combination was written for a
 > Minisforum MS-S1 MAX before it had been run through the installer. Every
@@ -17,7 +18,7 @@ driven by OpenCode or pi.
 
 ## Before you install
 
-Three things the installer checks and will refuse over, because they cannot
+Four things the installer checks and will refuse over, because they cannot
 be fixed from inside it:
 
 1. **Ubuntu 26.04** (kernel 7.0). Kernels before 6.18.4 have a gfx1151
@@ -35,6 +36,13 @@ be fixed from inside it:
    gfx1151.
 3. **Render node access.** `sudo usermod -aG render,video $USER`, then log out
    and back in.
+4. **pi**, the default client. Ubuntu 26.04's Node (22.22) is new enough:
+
+   ```bash
+   sudo apt install -y nodejs npm && sudo npm install -g @earendil-works/pi-coding-agent
+   ```
+
+   Or install with `CLIENT=opencode` to use OpenCode instead.
 
 And one it only warns about: set the BIOS **UMA Frame Buffer Size** to the
 smallest it offers: 512M where available, **1G** on the MS-S1 MAX, whose menu
