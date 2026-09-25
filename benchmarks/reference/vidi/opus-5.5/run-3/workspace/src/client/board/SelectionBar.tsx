@@ -5,6 +5,7 @@ import { isSticky, setStickyColor, type ObjectSnapshot } from '../../shared/boar
 import { WorldOverlayContext } from '../canvas/worldOverlay';
 import { NoteToolbar } from '../objects/NoteToolbar';
 import { selectionBounds } from './SelectionOverlay';
+import { asStep, UndoContext } from './useUndo';
 
 // Keep pointer and double-click events away from the objects (drag, edit) and the board (deselect, create).
 const stop = (e: SyntheticEvent) => e.stopPropagation();
@@ -46,6 +47,7 @@ export function SelectionBar(props: {
 }) {
   const { ids, snapshot } = props;
   const overlay = useContext(WorldOverlayContext);
+  const undo = useContext(UndoContext);
   const editable = props.editable ?? true;
   const selected = snapshot.filter((o) => ids.has(o.id));
   const count = selected.length;
@@ -59,7 +61,7 @@ export function SelectionBar(props: {
       bar = (
         <NoteToolbar
           color={single.color}
-          onColor={(c) => doc && setStickyColor(doc, single.id, c)}
+          onColor={(c) => doc && asStep(undo, () => setStickyColor(doc, single.id, c))}
           onDelete={props.onDelete}
         />
       );

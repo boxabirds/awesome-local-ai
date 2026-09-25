@@ -7,6 +7,7 @@ import {
   getStickyText,
   initDoc,
   moveObject,
+  resizeObjects,
 } from '../../src/shared/board-model';
 import { PERSIST_TESTED_NOTES, STICKY_COLORS, type StickyColor } from '../../src/shared/config';
 import { seededRandom } from './random-ops';
@@ -182,6 +183,32 @@ export function clusterBoard(): RecordedBoard & { ids: string[] } {
       ids.push(id);
     });
     for (const i of [11, 17, 13]) bringToFront(d, ids[i]);
+  });
+  return { ...recorded, ids };
+}
+
+/** World top-left of the 8-note cluster in `undoBoard` (4 columns × 2 rows) and of its 4 other notes (one row). */
+export const UNDO_CLUSTER = { x: 0, y: 0, step: 260 };
+export const UNDO_OTHERS = { x: 0, y: 700, step: 260 };
+
+/**
+ * The story 8 retro board: 12 notes in varied colours and sizes (180-240 world units). `ids[0..7]` form one
+ * cluster (column c, row r = `ids[c + 4 * r]`) for the delete scenario; `ids[8..11]` are a row below it.
+ */
+export function undoBoard(): RecordedBoard & { ids: string[] } {
+  const ids: string[] = [];
+  const sizes = [200, 240, 180, 220, 210, 190, 240, 200, 200, 230, 180, 200];
+  const recorded = recordBoard((d) => {
+    for (let i = 0; i < 12; i++) {
+      const origin = i < 8 ? UNDO_CLUSTER : UNDO_OTHERS;
+      const k = i < 8 ? i : i - 8;
+      const x = origin.x + (k % 4) * origin.step;
+      const y = origin.y + Math.floor(k / 4) * origin.step;
+      const id = createSticky(d, { x: x + 100, y: y + 100 }, COLORS[i % COLORS.length]);
+      resizeObjects(d, new Map([[id, { x, y, width: sizes[i], height: sizes[i] }]]));
+      setText(d, id, CLUSTER_TEXTS[i]);
+      ids.push(id);
+    }
   });
   return { ...recorded, ids };
 }

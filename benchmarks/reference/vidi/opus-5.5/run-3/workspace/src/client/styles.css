@@ -336,8 +336,23 @@ body {
   cursor: pointer;
 }
 
-.toolbar__button:hover {
+.toolbar__button:hover:not(:disabled) {
   background: #eef0f6;
+}
+
+.toolbar__button {
+  color: #1f2330;
+}
+
+.toolbar__button:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.toolbar__divider {
+  height: 1px;
+  margin: 2px 4px;
+  background: #dcdfe8;
 }
 
 .toolbar__button:focus-visible {
