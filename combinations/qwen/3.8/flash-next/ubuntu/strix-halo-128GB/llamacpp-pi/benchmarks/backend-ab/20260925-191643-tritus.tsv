@@ -1,0 +1,12 @@
+# backend-ab 2026-09-25T19:16:43+00:00 on tritus
+# kernel 7.0.0-34-generic; llama.cpp 6fcaa16
+# gpu clock level: high; power mode: performance
+# build backends: vulkan rocm
+# runs 2, max tokens 48, temperature 0, prompt cache off, thinking off
+run	backend	prompt	decode_tok_s	prefill_tok_s	draft_accepted	draft_total	tokens	output_sha	load_s	preview
+1	vulkan	code	47.5	104.2	33	41	48	761f4786aae3	50	```python import re   def parse_iso8601_duration(duration: str) -> int:     """ 
+1	vulkan	rewrite	55.8	196.7	35	35	48	54d92f966a81	50	```javascript async function load(id) {   try {     const r = await fetch("/api/
+1	vulkan	prose	36.1	74.7	28	54	48	d55b550c12d8	50	Hey there! Have you ever looked up at the sky and wondered why it’s not just whi
+2	vulkan	code	47.4	103.5	33	41	48	761f4786aae3	50	```python import re   def parse_iso8601_duration(duration: str) -> int:     """ 
+2	vulkan	rewrite	55.7	196.7	35	35	48	54d92f966a81	50	```javascript async function load(id) {   try {     const r = await fetch("/api/
+2	vulkan	prose	36	74.5	28	54	48	d55b550c12d8	50	Hey there! Have you ever looked up at the sky and wondered why it’s not just whi

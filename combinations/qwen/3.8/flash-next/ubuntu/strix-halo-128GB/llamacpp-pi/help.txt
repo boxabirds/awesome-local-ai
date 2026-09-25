@@ -73,8 +73,10 @@ LOAD TIME AND THE IDLE TIMER
   per run: IDLE_TIMEOUT=300, SERVER_START_TIMEOUT=1200.
 
 GPU CLOCK
-  Left on 'auto', the clock floats well under its peak during decode (a ~20%
-  loss has been reported). Pin it for benchmarks; it resets at reboot:
+  Left on 'auto', the clock floats under its peak during decode. On the MS-S1
+  MAX in Performance mode pinning it gained only 1-2% (decode is mostly
+  memory-bound); another box reported ~20%. Pin it for benchmarks, so runs are
+  comparable; it resets at reboot:
       echo high | sudo tee /sys/class/drm/card*/device/power_dpm_force_performance_level
 
 ENVIRONMENT OVERRIDES
