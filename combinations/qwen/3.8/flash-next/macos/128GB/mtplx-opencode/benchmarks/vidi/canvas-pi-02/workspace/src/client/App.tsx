@@ -7,13 +7,21 @@ import { NavigationHint } from './canvas/NavigationHint';
 import { ZoomControls } from './canvas/ZoomControls';
 import { installBoardTestHooks, removeBoardTestHooks } from './canvas/testHooks';
 import { Toolbar } from './board/Toolbar';
-import { useBoardDoc, useBoardSnapshot } from './board/useBoardDoc';
+import { useBoardSnapshot } from './board/useBoardDoc';
 import { useSelection } from './board/useSelection';
 import { StickyNote } from './objects/StickyNote';
 import { createSticky, deleteObject } from '../shared/board-model';
+import { isValidBoardId, parseBoardPath } from '../shared/board-id';
+import { useBoardSession, type BoardSession } from './sync/boardSession';
+import { ConnectionStatus, useConnectionState } from './sync/ConnectionStatus';
+import type { ProviderLike } from './sync/connectBoard';
+import * as Y from 'yjs';
 
 /** Tags that own their own keyboard input, so the board must not steal it. */
 const INPUT_TAGS = new Set(['input', 'textarea', 'select']);
+
+/** The prefix that marks a path as "someone is trying to open a board link". */
+const BOARD_PATH_PREFIX = '/board/';
 
 /**
  * True when the keystroke belongs to a text field. Both halves of the rule are
@@ -27,20 +35,84 @@ function isTextInput(target: EventTarget | null): boolean {
 }
 
 /**
- * Top-level layout: a full-window board area, the sticky tools on the left,
- * the zoom controls bottom-right and the first-use hint near the bottom centre.
+ * Should this path be called out?
  *
- * App is where the three stores meet: the camera (useCamera), the board
- * document (useBoardDoc) and the selection (useSelection). Nothing here draws
- * a note; it decides what a gesture *means* and calls the model.
+ * Only a path that *looks like* a board link but is not one. `/` is the normal
+ * way to arrive, and warning there would be noise; `/board/0123456789abcde`
+ * (one character short) is a link that got truncated in Slack, and saying
+ * nothing is how people end up editing the wrong board.
  */
-export function App() {
+export function isBrokenBoardLink(path: string): boolean {
+  if (!path.startsWith(BOARD_PATH_PREFIX)) return false;
+  const last = path.split('/').filter((segment) => segment.length > 0).pop() ?? '';
+  return !isValidBoardId(last);
+}
+
+export interface AppProps {
+  /** The path to render. Defaults to the browser's own location. */
+  location?: string;
+  /** A document to render instead of the session's own (tests, story 4). */
+  doc?: Y.Doc;
+  /** How to build the connection. Component tests pass a fake provider. */
+  providerFactory?: (url: string, room: string, doc: Y.Doc) => ProviderLike;
+  /** Socket origin. Defaults to the page's own host. */
+  origin?: string;
+}
+
+/** The board's own document, with whatever is attached to it. */
+function useSessionFor(props: AppProps): BoardSession {
+  const path =
+    props.location ?? (typeof window === 'undefined' ? '/' : window.location.pathname);
+  return useBoardSession(parseBoardPath(path), {
+    doc: props.doc,
+    providerFactory: props.providerFactory,
+    // No origin here on purpose: in a browser the room lives on the page's own
+    // host, and hard-coding one would send a deployed client to localhost.
+    origin: props.origin,
+  });
+}
+
+/**
+ * Top-level layout: a full-window board area, the sticky tools on the left,
+ * the zoom controls bottom-right, the connection badge top-right and the
+ * first-use hint near the bottom centre.
+ *
+ * The one piece of shared state is the session, and the whole board is keyed
+ * by it: a new board means a new document, so the selection and the camera are
+ * rebuilt rather than carried over. What you would see if you opened someone
+ * else's board is their board from their last change, not your last view.
+ */
+export function App(props: AppProps = {}) {
+  const session = useSessionFor(props);
+  const path =
+    props.location ?? (typeof window === 'undefined' ? '/' : window.location.pathname);
+  const broken = isBrokenBoardLink(path);
+
+  return (
+    <BoardSurface
+      // The key is the board, not the component: switching rooms must not be
+      // able to reuse the old room's selection or camera.
+      key={`${session.boardId}:${session.url ?? 'local'}`}
+      session={session}
+      broken={broken}
+    />
+  );
+}
+
+function BoardSurface({
+  session,
+  broken,
+}: {
+  session: BoardSession;
+  broken: boolean;
+}) {
   const boardAreaRef = useRef<HTMLDivElement | null>(null);
   const viewport = useViewportSize(boardAreaRef);
   const cameraApi = useCamera(viewport);
-  const board = useBoardDoc();
+  const board = session.board;
   const notes = useBoardSnapshot(board);
   const selection = useSelection();
+  const connectionState = useConnectionState(session.connection);
 
   // Listeners that are bound once read the live stores through these refs.
   const boardRef = useRef(board);
@@ -54,10 +126,13 @@ export function App() {
     apiRef.current = cameraApi;
   });
 
+  const sessionRef = useRef(session);
+  sessionRef.current = session;
+
   useEffect(() => {
     installBoardTestHooks(
       () => apiRef.current,
-      () => boardRef.current?.doc ?? null,
+      () => sessionRef.current,
     );
     return () => removeBoardTestHooks();
   }, []);
@@ -184,6 +259,15 @@ export function App() {
           ))}
         </BoardViewport>
         <Toolbar onCreateSticky={createStickyInViewCentre} />
+        <div className="connection-area">
+          {broken ? (
+            <p className="board-link-warning" data-testid="board-link-warning" role="status">
+              That link is not a board, so this board is yours alone. Copy the
+              address bar to share <em>this</em> board.
+            </p>
+          ) : null}
+          <ConnectionStatus state={connectionState} />
+        </div>
       </div>
       <ZoomControls
         zoomPercent={zoomPercent(camera)}

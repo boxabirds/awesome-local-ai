@@ -10,15 +10,21 @@
     "typecheck": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p tsconfig.test.json",
     "test:unit": "vitest run --project unit",
     "test:component": "vitest run --project component",
+    "test:integration": "npm run build && vitest run --project integration",
     "test:e2e": "playwright test",
-    "test": "npm run test:unit && npm run test:component && npm run test:e2e"
+    "test": "npm run test:unit && npm run test:component && npm run test:integration && npm run test:e2e"
   },
   "dependencies": {
+    "lib0": "^0.2.117",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
+    "y-protocols": "^1.0.7",
+    "y-websocket": "^2.1.0",
     "yjs": "^13.6.33"
   },
   "devDependencies": {
+    "@cloudflare/vitest-pool-workers": "^0.12.2",
+    "@cloudflare/workers-types": "^5.20260925.1",
     "@playwright/test": "^1.56.1",
     "@testing-library/react": "^16.3.0",
     "@testing-library/user-event": "^14.6.7",
