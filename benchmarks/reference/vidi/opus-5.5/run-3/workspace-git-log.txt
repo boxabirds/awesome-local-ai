@@ -1,3 +1,44 @@
+commit 2e43f5ecc5bf1a6c8b815a4e4b1fbf030795d90c
+vidi-agent  Fri Sep 25 15:32:59 2026 +0100
+
+    story 10: Draw shapes and connect them with arrows that follow when moved
+
+
+ NOTES.md                                  |  50 ++++++
+ src/client/App.tsx                        |  40 ++++-
+ src/client/board/BoardContext.ts          |  16 ++
+ src/client/board/SelectionBar.tsx         |  15 +-
+ src/client/board/SelectionOverlay.tsx     |   2 +
+ src/client/board/Toolbar.tsx              |  80 ++++++++-
+ src/client/board/useBoardKeys.ts          |  26 +--
+ src/client/board/useSelection.ts          |  11 +-
+ src/client/board/useTool.ts               |  23 ---
+ src/client/canvas/BoardViewport.tsx       |   8 +-
+ src/client/objects/ConnectorObject.tsx    | 263 ++++++++++++++++++++++++++++++
+ src/client/objects/ShapeObject.tsx        | 215 ++++++++++++++++++++++++
+ src/client/objects/ShapeToolbar.tsx       |  68 ++++++++
+ src/client/objects/registry.tsx           |  34 +++-
+ src/client/styles.css                     | 191 ++++++++++++++++++++++
+ src/client/tools/ConnectorTool.tsx        | 163 ++++++++++++++++++
+ src/client/tools/ShapeTool.tsx            | 134 +++++++++++++++
+ src/client/tools/connectorTargets.ts      |  24 +++
+ src/client/tools/useActiveTool.ts         | 102 ++++++++++++
+ src/shared/board-model.ts                 |  97 +++++++++--
+ src/shared/config.ts                      |  46 ++++++
+ src/shared/geometry/connector-geometry.ts |  78 +++++++++
+ src/shared/geometry/polyline.ts           |  19 +++
+ src/shared/objects/connector.ts           | 224 +++++++++++++++++++++++++
+ src/shared/objects/shape.ts               | 160 ++++++++++++++++++
+ tests/component/Connector.test.tsx        | 179 ++++++++++++++++++++
+ tests/component/ShapeTool.test.tsx        | 141 ++++++++++++++++
+ tests/component/useActiveTool.test.tsx    |  96 +++++++++++
+ tests/e2e/connectors.spec.ts              | 176 ++++++++++++++++++++
+ tests/e2e/helpers/shapes.ts               |  50 ++++++
+ tests/e2e/shapes.spec.ts                  | 113 +++++++++++++
+ tests/fixtures/checkout-flow.ts           |  50 ++++++
+ tests/unit/connector-model.test.ts        | 195 ++++++++++++++++++++++
+ tests/unit/shape-model.test.ts            | 140 ++++++++++++++++
+ 34 files changed, 3159 insertions(+), 70 deletions(-)
 commit a0f185ae585e4487722c0977793e83ace5b019ce
 vidi-agent  Fri Sep 25 15:08:42 2026 +0100
 

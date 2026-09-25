@@ -134,3 +134,49 @@ export const TEXT_FONT_FAMILY = 'Inter, system-ui, sans-serif';
 export const TEXT_PADDING_WORLD = 4;
 /** Without a canvas to measure with, a glyph is estimated at this fraction of the font size. */
 export const TEXT_AVG_GLYPH_WIDTH_RATIO = 0.55;
+
+// Story 10 — shapes and connectors.
+
+/** The shape kinds the Shape tool can draw. */
+export const SHAPE_KINDS = ['rect', 'ellipse', 'diamond'] as const;
+/** Side of the standard shape dropped by a click (or a drag smaller than SHAPE_MIN_SIZE_WORLD), in world units. */
+export const SHAPE_DEFAULT_SIZE_WORLD = 160;
+/** A drag smaller than this in either direction is treated as a click; also the smallest resize, in world units. */
+export const SHAPE_MIN_SIZE_WORLD = 20;
+/** Maximum number of characters (UTF-16 code units) in a shape label. */
+export const SHAPE_LABEL_MAX_CHARS = 500;
+/** Outline thickness of a shape, in world units. */
+export const SHAPE_STROKE_WIDTH_WORLD = 2;
+export const SHAPE_FILL_COLORS = {
+  none: 'transparent',
+  white: '#FFFFFF',
+  blue: '#BBDEFB',
+  green: '#C8E6C9',
+  yellow: '#FFF9C4',
+  pink: '#F8BBD0',
+  grey: '#E0E0E0',
+} as const;
+export const SHAPE_STROKE_COLORS = {
+  dark: '#263238',
+  blue: '#1E88E5',
+  green: '#43A047',
+  orange: '#FB8C00',
+  red: '#E53935',
+  grey: '#9E9E9E',
+} as const;
+export type FillColor = keyof typeof SHAPE_FILL_COLORS;
+export type StrokeColor = keyof typeof SHAPE_STROKE_COLORS;
+export const DEFAULT_SHAPE_FILL: FillColor = 'white';
+export const DEFAULT_SHAPE_STROKE: StrokeColor = 'dark';
+/** A connector drag shorter than this (world units) creates nothing. */
+export const CONNECTOR_MIN_LENGTH_WORLD = 8;
+/** A click this close (screen px) to an arrow's line selects it. */
+export const CONNECTOR_HIT_TOLERANCE_PX = 6;
+/** Line thickness of an arrow, in world units. */
+export const CONNECTOR_STROKE_WIDTH_WORLD = 2;
+/** Length of an arrowhead, in world units. */
+export const CONNECTOR_ARROWHEAD_SIZE_WORLD = 10;
+/** Radius of a connection dot (and of an arrow end handle), in screen px. */
+export const CONNECTOR_DOT_RADIUS_PX = 4;
+/** Inner padding between a shape's label area and its text, in world units. */
+export const SHAPE_LABEL_PADDING_WORLD = 8;

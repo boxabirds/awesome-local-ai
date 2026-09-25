@@ -5,10 +5,12 @@
 import type { ComponentType, PointerEvent as ReactPointerEvent } from 'react';
 import type * as Y from 'yjs';
 import { objectBounds, registerModelObjectType, type ObjectSnapshot } from '../../shared/board-model';
-import { STICKY_MIN_SIZE_WORLD, TEXT_MIN_WIDTH_WORLD } from '../../shared/config';
+import { SHAPE_MIN_SIZE_WORLD, STICKY_MIN_SIZE_WORLD, TEXT_MIN_WIDTH_WORLD } from '../../shared/config';
 import type { Point, Rect } from '../../shared/geometry';
 import { StickyNote } from './StickyNote';
 import { resizeText, TextObject } from './TextObject';
+import { ShapeObjectView } from './ShapeObject';
+import { connectorHitTest, ConnectorObjectView } from './ConnectorObject';
 
 /** How the transform gesture currently affects an object. */
 export type ObjectGesturePhase = 'idle' | 'pressed' | 'dragging';
@@ -51,7 +53,16 @@ export interface ObjectTypeSpec {
    * types are all horizontal. Called inside the gesture's transaction.
    */
   resize?(doc: Y.Doc, obj: ObjectSnapshot, to: Rect, ctx: { horizontalOnly: boolean }): void;
-  hitTest(obj: ObjectSnapshot, worldPoint: Point): boolean;
+  /**
+   * Whether a world point is on the object. `zoom` (screen px per world unit, default 1) lets a type use a
+   * screen-space tolerance (story 10 arrows).
+   */
+  hitTest(obj: ObjectSnapshot, worldPoint: Point, zoom?: number): boolean;
+  /**
+   * The type draws its own selection UI (story 10 arrows: end handles), so no selection box is drawn when only
+   * objects of such types are selected.
+   */
+  ownSelectionUi?: boolean;
 }
 
 const registry = new Map<string, ObjectTypeSpec>();
@@ -91,6 +102,25 @@ registerObjectType('text', {
   handles: 'horizontal',
   resize: resizeText,
   hitTest: boundsHitTest,
+});
+
+registerObjectType('shape', {
+  Component: ShapeObjectView,
+  resizable: true,
+  aspectLocked: false,
+  minSize: SHAPE_MIN_SIZE_WORLD,
+  editableText: true,
+  hitTest: boundsHitTest,
+});
+
+registerObjectType('connector', {
+  Component: ConnectorObjectView,
+  resizable: false,
+  aspectLocked: false,
+  minSize: 0,
+  editableText: false,
+  ownSelectionUi: true,
+  hitTest: connectorHitTest,
 });
 
 /** Whether every one of these objects offers only horizontal handles (and there is at least one). */

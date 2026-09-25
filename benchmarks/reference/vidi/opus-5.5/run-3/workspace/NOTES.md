@@ -435,3 +435,53 @@ Decisions made where the spec left room:
   the rendered height (±half a line).
 - **Red phase.** As in earlier stories, there are no separate commits for the failing tests. This build uses one commit
   per story.
+
+## Story 10 — Draw shapes and connect them with arrows that follow when moved
+
+Decisions made where the spec left room:
+
+- **Board-model hooks instead of an import cycle.** `deleteObjects` must detach connectors inside its transaction,
+  and a connector's box and ends depend on other objects. `board-model.ts` cannot import `objects/connector.ts`
+  (which imports board-model and registers itself at load time), so board-model gained three small hooks:
+  `registerDeleteHook` (connector.ts registers `detachConnectorsTo`, run inside the delete transaction before the
+  objects go — still one update and one undo step), `registerSnapshotFinisher` (after all objects are read,
+  connectors get their resolved `ends` and derived x/y/width/height) and `registerPositionPlanner` (moving a
+  connector with the generic `moveObjects`/`resizeObjects` shifts its free ends; attached ends stay on their
+  objects; a connector's derived size may be 0).
+- **`objectBounds` keeps a size of 0** (a horizontal or vertical arrow). Before, 0 was replaced by the sticky size.
+- **`ConnectorSnap.ends`.** The snapshot carries both resolved ends so the registry hit test (which only gets the
+  object) can measure the distance to the line. `hitTest` gained an optional `zoom` argument for the screen-space
+  tolerance (`CONNECTOR_HIT_TOLERANCE_PX / zoom`).
+- **Arrow hit area in real browsers** is an invisible SVG line with `pointer-events: stroke`, a round cap and a
+  stroke width of twice the tolerance, so presses farther than 6 px from the line fall through to whatever is
+  below. The press handler also checks `distanceToPolyline` (this is what jsdom tests exercise).
+- **Registered components.** The registry passes `ObjectProps` to every type, so `ShapeObject` and `ConnectorObject`
+  keep the design's props and are wrapped by small adapters (`ShapeObjectView`, `ConnectorObjectView`). The
+  connector adapter gets the rects from a new `BoardContext` (all objects + client-to-world conversion), which the
+  end handles also use to find the drop target. `BoardView` gained `toWorld(clientX, clientY)`.
+- **Tools take `doc` and `by`.** `ShapeTool` and `ConnectorTool` need the doc to write to and the author id, which the
+  contracts leave out; both are extra props. They render a full-viewport surface in the overlay layer that takes
+  every press (so a Shape drag over a note never moves it) while the toolbar and zoom controls stay on top.
+- **Shift squares in screen space.** The tool squares the dragged rect from the press point (so dragging up/left
+  works) and also passes `square: true`; `createShape` squares from the rect's top-left, which is then a no-op.
+  Squaring happens before the minimum-size check.
+- **`useActiveTool` replaces story 9's `useTool`** (`src/client/board/useTool.ts` removed). It owns the tool
+  shortcuts (V, T, S, L) and Escape-from-a-tool; `useBoardKeys` keeps N and does not clear the selection on an
+  Escape that leaves a tool. The hook takes options (`canEdit`, `onSelectCreated`, `isEditing`) because
+  `toolCreated` must select the new object. Letters for tools outside this build (N as a mode, P, I, C) are
+  ignored by the hook. A new selection action `selectNew` selects an id this client just created, before the
+  next prune has added it to the present set.
+- **Accessible names.** Toolbar buttons "Shape (S)" and "Connector (L)" (like "Select (V)", "Text (T)"); the kind
+  menu is `role="menu"` "Shape kind" with `menuitemradio` "Rectangle", "Ellipse", "Diamond". Swatches follow the
+  design literally with the config's colour names: "blue fill", "none fill" (tooltip "No fill"), "red outline".
+  The shape toolbar is `role="toolbar"` "Shape". Shapes are groups named "Rectangle" or "Rectangle: <label>";
+  arrows "Arrow", "Arrow from <label> to <label>"; end handles "Arrow start" / "Arrow end"; the label editor
+  textbox "Shape label".
+- **Label layout.** The label is an HTML box inside the shape's div (not a `foreignObject`), inset to the largest
+  centred rectangle inside the outline (ellipse: 1/√2, diamond: half size) with `SHAPE_LABEL_PADDING_WORLD`
+  (new setting) padding, and uses story 2's `fitFontSize` (shrinks from STICKY_FONT_MAX_PX to STICKY_FONT_MIN_PX).
+- **A lone selected arrow shows only its end handles** (registry flag `ownSelectionUi`), not a selection box.
+- **Undo** uses the existing `asStep` helper (boundaries around the change) rather than calling
+  `stopCapturing()` directly; creating, restyling and re-attaching are each one step.
+- **E2E TC-27** holds Sam's outgoing WebSocket messages for 2 s with `page.routeWebSocket`, so Sam's delete reaches
+  the server after Dana has drawn her arrow to the deleted shape.
