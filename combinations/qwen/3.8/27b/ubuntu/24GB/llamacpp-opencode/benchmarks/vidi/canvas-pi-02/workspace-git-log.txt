@@ -1,3 +1,46 @@
+commit d1f6182ce6fd98fa2d410abd236cdd3c1461c876
+vidi-agent  Fri Sep 25 08:11:27 2026 +0100
+
+    story 4: Return to a board and find everything as it was left
+
+
+ NOTES.md                                     |  25 ++
+ package.json                                 |   3 +-
+ playwright.config.ts                         |   7 +-
+ playwright.persist.config.ts                 |  34 +++
+ src/client/App.tsx                           |  22 +-
+ src/client/board/Toolbar.tsx                 |   3 +
+ src/client/board/useBoardActions.ts          |   8 +-
+ src/client/board/useBoardKeyboard.ts         |  12 +-
+ src/client/objects/NoteToolbar.tsx           |   4 +
+ src/client/objects/StickyNote.tsx            |  35 ++-
+ src/client/objects/StickyText.ts             |  48 +++
+ src/client/styles.css                        |   8 +
+ src/client/sync/ConnectionStatus.tsx         |   7 +-
+ src/client/sync/connectBoard.ts              |  79 ++++-
+ src/shared/config.ts                         |  23 ++
+ src/shared/protocol.ts                       |  14 +
+ src/worker/board-room.ts                     | 433 ++++++++++++++++++++------
+ src/worker/board-store.ts                    | 328 ++++++++++++++++++++
+ src/worker/index.ts                          |   5 +
+ src/worker/room-state.ts                     |  80 +++++
+ src/worker/test-hooks.ts                     |  46 +++
+ tests/component/ConnectionStatus.test.tsx    |  73 +++++
+ tests/component/LoadFailure.test.tsx         | 161 ++++++++++
+ tests/e2e/helpers/participants.ts            |  28 +-
+ tests/e2e/helpers/seed-board.ts              | 202 ++++++++++++
+ tests/e2e/helpers/wrangler-process.ts        | 136 +++++++++
+ tests/e2e/persist-global-setup.ts            |  16 +
+ tests/e2e/persist.spec.ts                    | 303 ++++++++++++++++++
+ tests/fixtures/note-updates.ts               |  85 ++++++
+ tests/integration/board-room-persist.test.ts | 338 ++++++++++++++++++++
+ tests/integration/board-room.test.ts         |  14 +-
+ tests/integration/board-store.test.ts        | 440 +++++++++++++++++++++++++++
+ tests/integration/worker.test.ts             |  49 +++
+ tests/unit/board-store-chunks.test.ts        | 118 +++++++
+ tests/unit/room-state.test.ts                | 105 +++++++
+ wrangler.jsonc                               |  19 ++
+ 36 files changed, 3198 insertions(+), 113 deletions(-)
 commit f08de70a44635015527e9d75ac567857deb07ef4
 vidi-agent  Fri Sep 25 03:35:03 2026 +0100
 

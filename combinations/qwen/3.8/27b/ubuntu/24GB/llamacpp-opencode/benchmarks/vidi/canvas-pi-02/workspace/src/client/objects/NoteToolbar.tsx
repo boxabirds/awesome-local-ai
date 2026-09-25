@@ -7,6 +7,8 @@ export interface NoteToolbarProps {
   color: StickyColor;
   onColor(c: StickyColor): void;
   onDelete(): void;
+  /** persist.client_status: disabled while the board is locked. */
+  disabled?: boolean;
 }
 
 const capitalize = (name: string): string => name.charAt(0).toUpperCase() + name.slice(1);
@@ -28,6 +30,7 @@ export function NoteToolbar(props: NoteToolbarProps): JSX.Element {
           aria-label={`${capitalize(name)} colour`}
           aria-pressed={name === props.color}
           title={capitalize(name)}
+          disabled={props.disabled}
           onClick={() => props.onColor(name)}
         />
       ))}
@@ -36,6 +39,7 @@ export function NoteToolbar(props: NoteToolbarProps): JSX.Element {
         className="vidi6-delete"
         aria-label="Delete note"
         title="Delete note"
+        disabled={props.disabled}
         onClick={props.onDelete}
       >
         <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">

@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { CSSProperties, JSX } from 'react';
 import * as Y from 'yjs';
 import { deleteObject, getStickyText, hasObject, moveObject, bringToFront, setStickyColor } from '../../shared/board-model';
@@ -10,7 +10,7 @@ import {
   STICKY_FONT_MAX_PX,
   STICKY_SIZE_WORLD,
 } from '../../shared/config';
-import { fitFontSize } from './StickyText';
+import { scheduleFontFit } from './StickyText';
 import type { FontFit } from './StickyText';
 import { StickyTextEditor } from './StickyTextEditor';
 import { NoteToolbar } from './NoteToolbar';
@@ -22,6 +22,12 @@ export interface StickyNoteProps {
   zoom: number;
   selected: boolean;
   editing: boolean;
+  /**
+   * persist.client_status: false while the board is locked (load_failed).
+   * Drag and start-edit become no-ops, so the note toolbar (colour/delete)
+   * is unreachable. Defaults to true (local-only boards, tests).
+   */
+  editable?: boolean;
   onSelect(id: string): void;
   onStartEdit(id: string): void;
   onEndEdit(next: 'selected' | 'unselected'): void;
@@ -57,6 +63,7 @@ const stopEvent = (e: { stopPropagation(): void }): void => {
  */
 export function StickyNote(props: StickyNoteProps): JSX.Element {
   const { note, doc, zoom, selected, editing, onSelect, onStartEdit, onEndEdit } = props;
+  const editable = props.editable ?? true;
   const rootRef = useRef<HTMLDivElement>(null);
   const measureRef = useRef<HTMLDivElement>(null);
   const dragRef = useRef<DragState | null>(null);
@@ -64,10 +71,22 @@ export function StickyNote(props: StickyNoteProps): JSX.Element {
   const [fit, setFit] = useState<FontFit>({ fontPx: STICKY_FONT_MAX_PX, overflow: false });
 
   // --- font fit: measure the text at the note's content width -------------
-  useLayoutEffect(() => {
+  // Deferred off the render path (story 4, persist.large_board): fitting is a
+  // forced-layout read and, per note on a big board, would block the initial
+  // render O(n²). The note's box is its fixed world size (the measure twin is
+  // `inset: 0` in a STICKY_SIZE_WORLD box), so no layout read is needed to
+  // know it; the fit settles on a following frame (one frame on a small
+  // board — imperceptible).
+  useEffect(() => {
     const el = measureRef.current;
     if (!el) return;
-    setFit(fitFontSize(el, el.clientHeight));
+    let cancelled = false;
+    scheduleFontFit(el, STICKY_SIZE_WORLD, (fit) => {
+      if (!cancelled) setFit(fit);
+    });
+    return () => {
+      cancelled = true;
+    };
   }, [note.text, editing]);
 
   // A note deleted mid-drag must not leave a pending rAF write (TC-37).
@@ -98,6 +117,7 @@ export function StickyNote(props: StickyNoteProps): JSX.Element {
   const onPointerDown = (e: React.PointerEvent<HTMLDivElement>): void => {
     if (e.button !== 0 || editing) return;
     e.stopPropagation(); // the board must not pan (sticky.no_pan)
+    if (!editable) return; // locked board (persist.client_status): no drag/select
     e.currentTarget.setPointerCapture?.(e.pointerId);
     dragRef.current = {
       startClientX: e.clientX,
@@ -168,6 +188,7 @@ export function StickyNote(props: StickyNoteProps): JSX.Element {
 
   const onDoubleClick = (e: React.MouseEvent<HTMLDivElement>): void => {
     e.stopPropagation(); // never create a note under an existing one (TC-35)
+    if (!editable) return; // locked board (persist.client_status): no text edit
     if (!editing) onStartEdit(note.id);
   };
 
@@ -250,11 +271,13 @@ export function StickyNote(props: StickyNoteProps): JSX.Element {
         >
           <NoteToolbar
             color={note.color}
+            disabled={!editable}
             onColor={(c) => {
-              setStickyColor(doc, note.id, c);
+              // Locked board (persist.client_status): no-op even if invoked.
+              if (editable) setStickyColor(doc, note.id, c);
             }}
             onDelete={() => {
-              if (deleteObject(doc, note.id)) onEndEdit('unselected');
+              if (editable && deleteObject(doc, note.id)) onEndEdit('unselected');
             }}
           />
         </div>

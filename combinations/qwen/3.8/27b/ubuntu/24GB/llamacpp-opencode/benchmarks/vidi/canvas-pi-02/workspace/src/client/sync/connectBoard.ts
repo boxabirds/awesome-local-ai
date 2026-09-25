@@ -1,6 +1,7 @@
 import { WebsocketProvider } from 'y-websocket';
 import type * as Y from 'yjs';
 import { CONNECTED_CONFIRMATION_MS, RECONNECT_MAX_BACKOFF_MS } from '../../shared/config';
+import { CLOSE_BOARD_LOAD_FAILED } from '../../shared/protocol';
 
 /**
  * The client-side connection phases (design.md "Client connection state
@@ -12,7 +13,18 @@ import { CONNECTED_CONFIRMATION_MS, RECONNECT_MAX_BACKOFF_MS } from '../../share
  *   reconnecting        was connected, now down     ("Reconnecting…")
  *   confirmedConnected  re-synced, proving itself   ("Connected", ≤ 2s)
  */
-export type ConnectionState = 'connecting' | 'connected' | 'reconnecting' | 'confirmedConnected';
+export type ConnectionState =
+  | 'connecting'
+  | 'connected'
+  | 'reconnecting'
+  | 'confirmedConnected'
+  /**
+   * The room closed the connection with CLOSE_BOARD_LOAD_FAILED (4500):
+   * the board's stored state could not be loaded (damaged snapshot or
+   * unreadable storage). The provider keeps retrying; the first successful
+   * sync recovers to `connected` without a page reload (persist.client_status).
+   */
+  | 'load_failed';
 
 /**
  * The state machine, isolated from the provider so it can be driven by a
@@ -23,6 +35,11 @@ export function createConnectionStateMachine(
 ): {
   getStatus(state: { status: string }): void;
   onSync(state: boolean): void;
+  /**
+   * Provider `connection-close` event: the server's close code, or `undefined`
+   * for a local close (watchdog / our own disconnect — not a server signal).
+   */
+  onClose(code?: number): void;
   /** Browser `offline` while up: go "Reconnecting…" at once. */
   markReconnecting(): void;
   /** Browser `online` while the provider already reports itself re-synced. */
@@ -71,7 +88,36 @@ export function createConnectionStateMachine(
     onSync: (state) => {
       if (!state) return;
       if (phase === 'reconnecting') recover();
-      else if (phase === 'connecting') setPhase('connected');
+      else if (phase === 'load_failed') {
+        // Recovery: the retry landed, the board is readable again (design
+        // state diagram: LoadFailed --> Connected). Editing re-enables here
+        // without a page reload.
+        setPhase('connected');
+      } else if (phase === 'connecting') setPhase('connected');
+    },
+    onClose: (code) => {
+      if (phase === 'load_failed') {
+        // Sticky until a successful sync (onSync): a stray non-4500 close in
+        // the retry storm must not mask the load error.
+        return;
+      }
+      if (code === CLOSE_BOARD_LOAD_FAILED) {
+        // The room could not load the board: distinct from a transient drop.
+        // The provider keeps retrying (4500 is outside y-websocket's
+        // "never reconnect" band 4400-4499).
+        clearConfirmation();
+        setPhase('load_failed');
+        return;
+      }
+      // 1011 (storage failure while serving — the board is readable and
+      // pending changes re-send on reconnect, persist.save_failure), 1003,
+      // or a plain network close: transient. A drop only matters once we
+      // had been up; during the initial connect a failed open stays
+      // "connecting" (the provider retries with backoff).
+      if (phase === 'connected' || phase === 'confirmedConnected') {
+        clearConfirmation();
+        setPhase('reconnecting');
+      }
     },
     /**
      * Browser `offline` while connected: go "Reconnecting…" immediately, rather
@@ -115,6 +161,28 @@ function defaultServerUrl(): string {
   return `${protocol}//${window.location.host}`;
 }
 
+type ProviderOptions = NonNullable<ConstructorParameters<typeof WebsocketProvider>[3]>;
+type ProviderFactory = (
+  url: string,
+  boardId: string,
+  doc: Y.Doc,
+  opts: ProviderOptions,
+) => WebsocketProvider;
+
+const defaultProviderFactory: ProviderFactory = (url, boardId, doc, opts) =>
+  new WebsocketProvider(url, boardId, doc, opts);
+
+let providerFactory: ProviderFactory = defaultProviderFactory;
+
+/**
+ * Test seam (task 7 / TC-23): substitute the provider constructor with a
+ * fake emitter so component tests can drive `connection-close` / `status` /
+ * `sync` events. `null` restores the real WebsocketProvider.
+ */
+export function setProviderFactoryForTest(factory: ProviderFactory | null): void {
+  providerFactory = factory ?? defaultProviderFactory;
+}
+
 /**
  * Connect a Y.Doc to a board room over the y-websocket provider. The
  * provider handles the y-protocols handshake, exponential backoff
@@ -125,7 +193,7 @@ export function connectBoard(options: ConnectBoardOptions): BoardConnection {
   const { boardId, doc } = options;
   const serverUrl = options.serverUrl ?? defaultServerUrl();
 
-  const provider = new WebsocketProvider(
+  const provider = providerFactory(
     `${serverUrl.replace(/\/$/, '')}/api/rooms`,
     boardId,
     doc,
@@ -141,6 +209,11 @@ export function connectBoard(options: ConnectBoardOptions): BoardConnection {
   });
   provider.on('status', (event: { status: string }) => machine.getStatus(event));
   provider.on('sync', (state: boolean) => machine.onSync(state));
+  // Close codes carry the server's verdict on the board (persist.client_status):
+  // 4500 -> load_failed (locked); anything else is a transient drop.
+  provider.on('connection-close', (event: CloseEvent | null) =>
+    machine.onClose(event !== null ? event.code : undefined),
+  );
 
   // The provider only notices a dropped socket via its close handler or its
   // 30 s no-message watchdog, both of which can lag well behind the network

@@ -7,6 +7,7 @@ import { BoardViewport } from './canvas/BoardViewport';
 import { ZoomControls } from './canvas/ZoomControls';
 import { NavigationHint } from './canvas/NavigationHint';
 import { ConnectionStatus } from './sync/ConnectionStatus';
+import type { ConnectionState } from './sync/connectBoard';
 import { useBoardDoc } from './board/useBoardDoc';
 import { useSelection } from './board/useSelection';
 import { useBoardActions } from './board/useBoardActions';
@@ -25,6 +26,17 @@ function resolveBoardId(): string {
   const id = newBoardId();
   window.history.replaceState(null, '', `/b/${id}`);
   return id;
+}
+
+/**
+ * Edit gate (persist.client_status): the board is locked ONLY while the room
+ * reports it could not be loaded (`load_failed`, close code 4500). Every
+ * other phase — including `reconnecting` after a storage failure (1011) —
+ * stays editable: the board is readable and pending changes are re-sent on
+ * reconnect. `null` is local-only mode (no board id): fully editable.
+ */
+export function canEdit(state: ConnectionState | null): boolean {
+  return state !== 'load_failed';
 }
 
 /**
@@ -57,8 +69,11 @@ export function App() {
   const api = useCamera(size);
   const { doc, notes, connectionPhase } = useBoardDoc(boardId);
   const selection = useSelection();
-  const actions = useBoardActions({ doc, api, size, selection });
-  useBoardKeyboard({ doc, selection });
+  // persist.client_status: create/drag/edit/colour/delete are no-ops while
+  // the board is locked (load_failed); the Sticky note button is disabled.
+  const editable = canEdit(connectionPhase);
+  const actions = useBoardActions({ doc, api, size, selection, editable });
+  useBoardKeyboard({ doc, selection, editable });
 
   return (
     <div className="vidi6-shell" ref={shellRef}>
@@ -71,13 +86,14 @@ export function App() {
             zoom={api.camera.zoom}
             selected={selection.selectedId === note.id}
             editing={selection.editingId === note.id}
+            editable={editable}
             onSelect={selection.select}
             onStartEdit={selection.startEdit}
             onEndEdit={selection.endEdit}
           />
         ))}
       </BoardViewport>
-      <Toolbar onCreateSticky={actions.createAtCentre} />
+      <Toolbar onCreateSticky={actions.createAtCentre} disabled={!editable} />
       <ConnectionStatus phase={connectionPhase} />
       <ZoomControls
         zoomPercent={zoomPercent(api.camera)}

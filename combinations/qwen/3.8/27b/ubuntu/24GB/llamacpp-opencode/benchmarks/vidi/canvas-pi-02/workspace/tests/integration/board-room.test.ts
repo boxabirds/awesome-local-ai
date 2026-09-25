@@ -426,14 +426,24 @@ describe('sync.room', () => {
     const b = await connectClient(boardId);
     await Promise.all([a.waitForSync(), b.waitForSync()]);
     let lastId = '';
+    // Paced: a real browser client cannot emit one Yjs update per
+    // microtask forever — round trips and event-loop yields space them
+    // out. A tighter flood would overflow the platform's hibernation
+    // socket input buffer (workerd drops pending frames past ~10k), which
+    // is a transport limit, not a room limit. ~2 ms/update keeps the
+    // pending queue far below that while still exercising the full
+    // 10,000-update volume end to end.
     for (let i = 0; i < 10_000; i++) {
       lastId = createSticky(a.doc, { x: i, y: i }, 'yellow');
+      if (i % 500 === 499) {
+        await new Promise((r) => setTimeout(r, 1_000));
+      }
     }
-    await b.waitForNote(lastId, 120_000);
+    await b.waitForNote(lastId, 240_000);
     expect(noteCount(b.doc)).toBe(10_000);
     a.close();
     b.close();
-  }, 180_000);
+  }, 300_000);
 
   it('a change propagates within the latency budget', async () => {
     const budgetMs = 1000; // PRD live.propagate

@@ -22,6 +22,20 @@ export const MESSAGE_QUERY_AWARENESS = 3;
 /** Close code for frames the room cannot use (string, truncated, unknown, invalid Yjs update). */
 export const CLOSE_UNSUPPORTED_DATA = 1003;
 
+/**
+ * Close code: the room's saved board could not be loaded (damaged snapshot or
+ * storage read error). The room keeps retrying automatically; the client shows
+ * the load-failure message and disables editing until a retry succeeds.
+ */
+export const CLOSE_BOARD_LOAD_FAILED = 4500;
+
+/**
+ * Close code: the room's storage write failed, so the room discarded its
+ * document and will reload from storage on the next connection. The board is
+ * still readable, so the client treats this as a reconnect, not a load failure.
+ */
+export const CLOSE_STORAGE_FAILURE = 1011;
+
 /** y-protocols sync message types (the varuint after MESSAGE_SYNC). */
 export const SYNC_STEP1 = 0;
 export const SYNC_STEP2 = 1;

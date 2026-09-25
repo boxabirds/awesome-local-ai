@@ -71,3 +71,26 @@ export const CONNECTED_CONFIRMATION_MS = 2000;
 
 /** PRD `live.catch_up` verification: the outage length used by the catch-up tests. */
 export const CATCH_UP_TEST_OUTAGE_MS = 30_000;
+
+// --- Board persistence (story 4) ------------------------------------------
+
+/** Compact the update log when this many rows exist. */
+export const COMPACTION_UPDATE_COUNT = 500;
+
+/** ... or when the log's total bytes reach this. */
+export const COMPACTION_BYTES = 4 * 1024 * 1024;
+
+/** Snapshot chunk row size: keeps every row well under the platform per-row size limit. */
+export const SNAPSHOT_CHUNK_BYTES = 512 * 1024;
+
+/** A LoadFailed room retries its load at most this often (new connections before the interval are closed 4500 without a reload attempt). */
+export const LOAD_RETRY_MIN_INTERVAL_MS = 5000;
+
+/** PRD `persist.large_board`: the board size persistence is tested at. */
+export const PERSIST_TESTED_NOTES = 2000;
+
+/** PRD `persist.large_board`: a saved board of PERSIST_TESTED_NOTES notes must open within this. */
+export const BOARD_LOAD_BUDGET_MS = 3000;
+
+/** Version of the storage tables (storage_meta.storage_schema_version). */
+export const STORAGE_SCHEMA_VERSION = 1;

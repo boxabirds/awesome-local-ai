@@ -357,3 +357,11 @@ body {
 .vidi6-badge--ok::before {
   background: #22c55e; /* confirmed: green */
 }
+
+.vidi6-badge--error {
+  color: #b91c1c; /* load_failed: red text */
+}
+
+.vidi6-badge--error::before {
+  background: #ef4444; /* load_failed: red */
+}

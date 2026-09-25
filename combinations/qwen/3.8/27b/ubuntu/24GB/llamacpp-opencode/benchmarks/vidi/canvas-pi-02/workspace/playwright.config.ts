@@ -6,8 +6,11 @@ import { defineConfig, devices } from '@playwright/test';
 // (it is dead-code-eliminated from the plain production build).
 export default defineConfig({
   testDir: './tests/e2e',
-  // Nightly suites (task 9) run only via playwright.nightly.config.ts.
-  testIgnore: ['**/nightly/**'],
+  // Nightly suites (task 9) run only via playwright.nightly.config.ts;
+  // persist.spec.ts (story 4) runs only via playwright.persist.config.ts,
+  // where each test drives its own wrangler process instead of this
+  // shared webServer.
+  testIgnore: ['**/nightly/**', 'persist.spec.ts'],
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
   // A single retry absorbs intermittent flakes in the timing-sensitive e2e tests

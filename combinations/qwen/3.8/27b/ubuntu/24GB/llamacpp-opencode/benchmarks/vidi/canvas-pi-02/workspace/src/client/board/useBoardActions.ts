@@ -20,15 +20,21 @@ export interface BoardActions {
  * Note-creation wiring shared by App and the component-test harness, so the
  * behaviour (centre conversion, select + start-edit) has one implementation.
  */
-export function useBoardActions(args: { doc: Y.Doc; api: CameraApi; size: Size; selection: Selection }): BoardActions {
+export function useBoardActions(
+  args: { doc: Y.Doc; api: CameraApi; size: Size; selection: Selection; editable?: boolean },
+): BoardActions {
   const { doc, selection } = args;
   const apiRef = useRef(args.api);
   apiRef.current = args.api;
   const sizeRef = useRef(args.size);
   sizeRef.current = args.size;
+  const editableRef = useRef(args.editable ?? true);
+  editableRef.current = args.editable ?? true;
 
   const createAtScreenPoint = useCallback(
     (p: Point) => {
+      // persist.client_status: creation is a no-op while the board is locked.
+      if (!editableRef.current) return;
       const world = screenToWorld(apiRef.current.camera, p);
       const id = createSticky(doc, world);
       if (id !== '') {
