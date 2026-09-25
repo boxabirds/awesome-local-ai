@@ -47,7 +47,7 @@ The **path segments** are, in order:
 | size | parameter count, or a variant name when there is no clean size | `27b`, `8b`, `flash-next` |
 | os | operating system, lowercase | `ubuntu`, `macos` |
 | machine | the hardware the combination was **measured on**: a device name when it comes in one memory size, `<accel>-<memory>` when it comes in several, or (legacy) memory alone | `nvidia4090`, `strix-halo-128GB`, `64GB` |
-| stack | inference backend + client, hyphenated | `llamacpp-opencode`, `mtplx-opencode` |
+| stack | inference backend + client (the default one), hyphenated | `llamacpp-opencode`, `mtplx-opencode`, `llamacpp-pi` |
 
 The root script's filename is those segments joined with `-`:
 
@@ -388,7 +388,7 @@ prefix-cache reuse via `cached_tokens`, and a structured tool call.
 
 `lib/accel/strix-halo.sh` is the third accelerator: AMD's Ryzen AI Max
 (Radeon 8060S, gfx1151), unified memory on Linux. One combination uses it,
-`qwen/3.8/flash-next/ubuntu/strix-halo-128GB/llamacpp-opencode`, **not yet
+`qwen/3.8/flash-next/ubuntu/strix-halo-128GB/llamacpp-pi`, **not yet
 measured by this repo**. What is different from CUDA:
 
 - **`ACCEL_MEM_MIB` is the GTT limit**, not RAM and not the BIOS "VRAM"
@@ -397,9 +397,16 @@ measured by this repo**. What is different from CUDA:
   amdgpu's `mem_info_gtt_total` (falling back to `ttm.pages_limit`), refuses
   below `MIN_DEVICE_MEM_MIB` with the exact fix (`amd-ttm --set N`, or the
   `ttm.pages_limit` value), and never edits boot configuration itself.
-- **`GPU_API`** picks the build: `vulkan` (default, `-DGGML_VULKAN=ON`) or
-  `rocm` (HIP for gfx1151, needs a host ROCm, experimental). It is part of the
-  build key, so switching rebuilds.
+- **`GPU_API`** picks the build: `vulkan` (the adapter's default,
+  `-DGGML_VULKAN=ON`), `rocm` (HIP for gfx1151, needs a host ROCm) or `both`
+  (one binary with each). It is part of the build key, so switching rebuilds.
+  A `both` build sees the GPU twice, so the adapter exports
+  `ACCEL_GPU_BACKENDS` into the manifest and the launcher pins one device
+  with `--device` (and `--spec-draft-device` for an MTP head), chosen per run
+  by `GPU_BACKEND` and defaulting to the combination's `GPU_BACKEND_DEFAULT`.
+- **`amdgpu.lockup_timeout`**: qualification warns when it is missing from
+  the kernel command line, because since Linux 7.0 amdgpu kills a GPU job
+  after 2 s and long Vulkan runs die with `DeviceLostError`.
 - **`TESTED_ON`** lists the machines (`<vendor>-<product>` slugs) a
   combination's numbers came from. The adapter matches the running machine's
   DMI product name against it and says so plainly when it is a different box
@@ -408,7 +415,7 @@ measured by this repo**. What is different from CUDA:
 - Also read: `MIN_KERNEL_VERSION` (default 6.18.4), `MIN_OS_RESERVE_MIB`,
   `STRIX_HALO_GTT_TARGET_GIB` (what the refusal tells you to set).
 
-Five optional llama.cpp hooks came with it, each defaulting to the previous
+Six optional llama.cpp hooks came with it, each defaulting to the previous
 behaviour, and carried to the runtime through `install.env`:
 
 | Hook | What |
@@ -416,6 +423,10 @@ behaviour, and carried to the runtime through `install.env`:
 | `LLAMA_BATCH` | `-b` for llama-server; was hard-coded to 1024 |
 | `LLAMA_EXTRA_ARGS` | flags a combination always passes (`--no-mmap --ctx-checkpoints 8` here) |
 | `SPEC_NGRAM_ARGS` | n-gram speculation when there is no MTP head. The launcher probes `llama-server --help` for the flag first and starts without it on an older build; `SPEC_NGRAM=0` turns it off per run |
+| `SPEC_DRAFT_P_MIN` | `--spec-draft-p-min` for an MTP draft: how sure the head must be before a drafted token is kept. Unset leaves llama.cpp's default |
+
+At run time, `SPEC_DRAFT_N_MAX` and `SPEC_DRAFT_P_MIN` override the values in
+`install.env`, and `SPEC_MTP=0` starts without the MTP head, for an A/B.
 | `IDLE_TIMEOUT_DEFAULT`, `SERVER_START_TIMEOUT_DEFAULT` | session defaults for a model that takes minutes to load |
 
 A Hub repo that keeps a quant's shards in a subdirectory works as it is: list

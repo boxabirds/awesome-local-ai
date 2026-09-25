@@ -84,11 +84,14 @@ pick_combination_interactive() {
   printf 'Combinations for %s (%s)\n\n' "$HOST_OS_PRETTY" "$HOST_MEM_DESC"
   local i=1
   for combo in "${ordered[@]}"; do
-    local fit="won't fit"
+    local fit
     if [[ "$combo" == "$best" ]]; then
       fit="best fit"
     elif grep -qxF "$combo" <<<"$compatible"; then
       fit="compatible"
+    else
+      fit="$(combo_misfit "$combo")"
+      [[ -n "$fit" ]] || fit="won't fit"
     fi
     local note="$fit"
     if [[ "$combo" == "$default" ]]; then note="$fit, default"; fi

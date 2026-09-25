@@ -27,7 +27,8 @@ UNIFIED MEMORY: WHAT "FITS" MEANS HERE
   limit -- about half of RAM unless you raise it. The installer refuses when
   the limit is too low and prints the fix:
       pipx install amd-debug-tools && amd-ttm --set 120 && sudo reboot
-  Keep the BIOS "UMA Frame Buffer Size" at 512M. A big carve-out is taken
+  Keep the BIOS "UMA Frame Buffer Size" at its smallest (512M, or 1G on the
+  MS-S1 MAX). A big carve-out is taken
   from Linux for good and makes the GPU no faster.
 
   Budget from MemAvailable, not from "GTT free": on unified memory, GTT free
@@ -41,25 +42,32 @@ KV CACHE: f16 ONLY
   you pick anything else.
 
 SPECULATIVE DECODING
-  Upstream llama.cpp cannot load this model's MTP head yet (PRs #27836 and
-  #28243 are open drafts), so there is none. Instead the launcher turns on
-  n-gram speculation, which drafts from text already in the context: no extra
-  memory, and a large win when an agent rewrites a file. It checks the build
-  supports the flags first and starts without them otherwise.
-      SPEC_NGRAM=0 <server>        # off, for an A/B
-  Community forks with a working MTP draft report 30-58 tok/s against ~17
-  without. When upstream merges it, add the mtp asset back to config.sh.
+  The MTP draft head guesses the next tokens and the model checks them in one
+  pass; the output is unchanged. On this chip it is the difference between
+  ~17 tok/s and 32-61 (drluoto, a fork, his own head). Stock llama.cpp cannot
+  load a qwen4exp head, so this install builds PR #28243's branch with
+  Unsloth's shared-Q8_0 head: 3 draft tokens a step, p-min 0. Look for a
+  "draft acceptance" line in the log; one "borrow_shared_tensor" error at
+  startup is expected with a shared head.
+      SPEC_MTP=0 <server>             # without the head, for an A/B
+      SPEC_DRAFT_N_MAX=2 <server>     # Unsloth's default depth
+  MTP pays for one request at a time; with many at once it was measured a net
+  loss, so check it on PROFILE=agents.
 
-VULKAN, NOT ROCm (BY DEFAULT)
-  Built with Vulkan (RADV). For this model, a published matched test found
-  Vulkan decode several times faster than ROCm, and RADV needs nothing beyond
-  Mesa. ROCm often wins prompt processing on other models. To build the other
-  one for an A/B (needs a host ROCm install; experimental here):
-      GPU_API=rocm SKIP_SMOKE_TEST=1 ./install-qwen-3.8-flash-next-ubuntu-strix-halo-128GB-llamacpp-opencode.sh
-  Switching rebuilds; switching back rebuilds again.
+VULKAN OR ROCm
+  Both are compiled into one llama-server; pick per start, no rebuild:
+      <server>                        # Vulkan (RADV), the default
+      GPU_BACKEND=rocm <server>       # ROCm (HIP)
+  Neither is measured here yet. ROCm (Ubuntu's 7.1 packages, installed for
+  you) gave wrong logits on this chip before llama.cpp #28604 (8 Sep 2026),
+  and has open reports of a load hang (#29149) and of state leaking between
+  requests on a reused slot (#29092). To build only one backend, install with
+  GPU_API=vulkan or GPU_API=rocm.
+  On Linux 7.x set amdgpu.lockup_timeout=10000,60000,10000,10000 on the
+  kernel command line, or long runs die with DeviceLostError.
 
 LOAD TIME AND THE IDLE TIMER
-  --no-mmap reads all 94 GB into memory up front. That is minutes from a cold
+  -lm dio reads all 94 GB into memory up front. That is minutes from a cold
   page cache, so the session manager here waits up to 15 minutes for a load
   and keeps the server for 30 minutes after the last client, not 5. Override
   per run: IDLE_TIMEOUT=300, SERVER_START_TIMEOUT=1200.
@@ -74,7 +82,8 @@ ENVIRONMENT OVERRIDES
   NP=<slots>         UB=<micro-batch>   BATCH=<batch>
   THINKING=1|0       THINKING_BUDGET=<tokens>
   REASONING_EFFORT=low|medium|xhigh|default
-  SPEC_NGRAM=0       QWEN38_FLASH_NEXT_ROOT=<dir>      MODEL=<file>
+  SPEC_MTP=0         SPEC_DRAFT_N_MAX=<n>   SPEC_DRAFT_P_MIN=<p>
+  QWEN38_FLASH_NEXT_ROOT=<dir>              MODEL=<file>
 
 SECURITY
   HOST defaults to 127.0.0.1 and there is NO authentication. HOST=0.0.0.0
@@ -86,4 +95,4 @@ EXAMPLES
   # API: http://127.0.0.1:8080/v1  model id: qwen3.8-flash-next
   PROFILE=agents qwen38-flash-next-strix-server           # 3 x 128k slots
   REASONING_EFFORT=xhigh qwen38-flash-next-strix-server   # think hard
-  SPEC_NGRAM=0 qwen38-flash-next-strix-server             # A/B without n-gram drafting
+  SPEC_MTP=0 qwen38-flash-next-strix-server               # A/B without the MTP head
