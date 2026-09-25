@@ -421,7 +421,13 @@ pub fn finished_stories(metrics: &serde_json::Value) -> Vec<StoryProgress> {
     let mut out: Vec<StoryProgress> = stories
         .iter()
         .filter_map(|(id, s)| {
-            let accept = s.get("accept")?;
+            let suite = s.get("accept")?;
+            // The story's own tests (by_story keys are zero-padded ids); the whole suite if absent.
+            let own = id
+                .parse::<u64>()
+                .ok()
+                .and_then(|n| suite.get("by_story")?.get(format!("{n:02}")));
+            let accept = own.unwrap_or(suite);
             Some(StoryProgress {
                 id: id.clone(),
                 title: s.get("title").and_then(|t| t.as_str()).map(String::from),
@@ -759,6 +765,16 @@ mod tests {
         // And the client reads what the server serves.
         let back: Vec<StoryProgress> = serde_json::from_value(out).unwrap();
         assert_eq!(back, s);
+    }
+
+    #[test]
+    fn a_finished_story_scores_its_own_tests_not_the_whole_suite() {
+        // metrics.json's accept is the whole held-out suite run after the story; by_story has the
+        // story's own share, which is what progress.json reports for stories it scored itself.
+        let finished = finished_stories(&serde_json::json!({"stories": {"3": {"accept": {
+            "passed": 24, "total": 27,
+            "by_story": {"01": {"passed": 10, "total": 10}, "03": {"passed": 5, "total": 7}}}}}}));
+        assert_eq!((finished[0].passed, finished[0].total), (Some(5), Some(7)));
     }
 
     #[test]
