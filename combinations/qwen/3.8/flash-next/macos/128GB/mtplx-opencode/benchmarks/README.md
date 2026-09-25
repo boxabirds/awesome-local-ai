@@ -7,7 +7,7 @@ macOS 26.4 (build 25E246), MLX 0.32.1 / mlx_lm 0.31.3, mtplx 2.10.1**, on
 
 | File | Harness | What it shows |
 |---|---|---|
-| `ab-session-flash-next.json` | `benchmarks/mtplx_session_report.py` | A real OpenCode session: 69 requests logged, 65 scored, with per-thermal and per-context breakdowns and the matched-cell ratios against the 27B |
+| `ab-session-flash-next.json` | `benchmarks/perf/mtplx_session_report.py` | A real OpenCode session: 69 requests logged, 65 scored, with per-thermal and per-context breakdowns and the matched-cell ratios against the 27B |
 
 If a figure elsewhere in this repo is not traceable to a file here, treat it
 as unverified.
@@ -16,7 +16,7 @@ as unverified.
 MTPLX's own request log, which records 333 fields per request from a real
 coding session. That is telemetry from someone's private work, and this repo is
 for anyone, so it is not published here. Re-derive them from your own session
-with `benchmarks/mtplx_session_report.py`, which reads
+with `benchmarks/perf/mtplx_session_report.py`, which reads
 `~/.mtplx/logs/request-log-<port>.jsonl`.
 
 ## Reading the comparison

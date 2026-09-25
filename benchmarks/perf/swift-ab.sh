@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# benchmarks/swift-ab.sh -- A/B: Swift-Qwen3.8-27B vs the installed baseline.
+# benchmarks/perf/swift-ab.sh -- A/B: Swift-Qwen3.8-27B vs the installed baseline.
 #
 #   Swift     ukisai/Swift-Qwen3.8-27B-GGUF : Q4_K_M   (MTP layers built in)
 #   baseline  whatever this machine has installed (defaults to qwen38-27b)
@@ -46,7 +46,7 @@ set -uo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=lib.sh
 . "$SCRIPT_DIR/lib.sh"          # gives $ROOT, $MODEL, $MTP, $MMPROJ, $OUT
-REPO_ROOT="$(dirname "$SCRIPT_DIR")"
+REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 LOGS_DIR="${LOGS_DIR:-$REPO_ROOT/logs}"   # logs live here, not in $HOME
 mkdir -p "$LOGS_DIR"
 

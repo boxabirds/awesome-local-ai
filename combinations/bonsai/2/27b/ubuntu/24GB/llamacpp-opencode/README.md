@@ -178,7 +178,7 @@ for evidence:
   because it is known bad.
 - Retrieval quality at 262k was not measured. The context *fits*; whether the
   model uses it well is a separate question, and
-  [`benchmarks/run-niah.sh`](../../../../../../../benchmarks/run-niah.sh) is the
+  [`benchmarks/perf/run-niah.sh`](../../../../../../../benchmarks/perf/run-niah.sh) is the
   instrument.
 - No smaller card was tested. The footprints say a 12GB card should hold the
   `coding` profile; nobody has run it.

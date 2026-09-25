@@ -6,7 +6,7 @@
 > memory was never the problem; not enough compute is, and a fanless chassis
 > gives up another third of it to heat.
 
-One run of [`benchmarks/apple-silicon-probe.sh`](../../../benchmarks/apple-silicon-probe.sh),
+One run of [`benchmarks/perf/apple-silicon-probe.sh`](../../../benchmarks/perf/apple-silicon-probe.sh),
 the first measurement this repo has of Bonsai 2 on Apple silicon rather than
 [the third-party reports](../../measuring-bonsai2-on-apple-silicon.md#what-others-have-reported-on-16-gb).
 
@@ -63,7 +63,7 @@ rather than, say, a background process stealing the GPU.
 ## Two artefacts of the probe, now fixed
 
 Both were the harness's fault, not the machine's, and both are corrected in
-`benchmarks/apple-silicon-probe.sh`:
+`benchmarks/perf/apple-silicon-probe.sh`:
 
 **The headline was a warm number.** Section B ran straight after the download
 and the coherence check, while the 180 s cooldown sat only in front of the

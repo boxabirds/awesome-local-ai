@@ -204,11 +204,20 @@ def _story_minutes(s: dict) -> float | None:
     return None
 
 
+def _void(accept_file: Path) -> bool:
+    """A held-out score the machine couldn't produce (gates.harness_fault), e.g. no browser."""
+    import gates
+    try:
+        return gates.harness_fault(json.loads(accept_file.read_text()).get("tests", [])) is not None
+    except (OSError, json.JSONDecodeError):
+        return False
+
+
 def baselines(repo_root: Path, story_id: int, exclude: Path) -> list[dict]:
     """The same story in every other recorded run: other harness runs and the reference builds."""
     out = []
     runs = [*(repo_root / "combinations").glob("**/benchmarks/vidi/*/metrics.json"),
-            *(repo_root / "benchmarks" / "reference" / "vidi").glob("*/metrics.json")]
+            *(repo_root / "benchmarks" / "reference" / "vidi").glob("*/run-*/metrics.json")]
     for mf in sorted(runs):
         if mf.parent.resolve() == exclude.resolve():
             continue
@@ -227,9 +236,12 @@ def baselines(repo_root: Path, story_id: int, exclude: Path) -> list[dict]:
                 own = json.loads((mf.parent / "accept.json").read_text()).get("by_story", {}).get(f"{story_id:02d}")
             except (OSError, json.JSONDecodeError):
                 pass
+        story_accept = mf.parent / "stories" / f"{story_id:02d}" / "accept.json"
+        if own is not None and story_accept.exists() and _void(story_accept):
+            own = None  # scored without a working browser: says nothing about the build
         rel = mf.parent.relative_to(repo_root)
         label = (" ".join([str(Path(*rel.parts[1:-3])), rel.parts[-1]]) if rel.parts[0] == "combinations"
-                 else f"reference {rel.parts[-1]}")
+                 else " ".join(["reference", *rel.parts[3:]]))  # reference <stack> <run-id>
         # Reference builds have no harness gate; their agents' own build and tests passed (README).
         gate_green = (s.get("gate") or {}).get("all_green", True if rel.parts[0] != "combinations" else None)
         out.append({"source": label, "status": status, "gate_green": gate_green, "agent_minutes": _story_minutes(s),

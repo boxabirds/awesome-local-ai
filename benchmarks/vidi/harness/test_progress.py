@@ -258,3 +258,22 @@ def test_gates_env_carries_story_status():
     assert gates.processed_env([{"id": 1, "status": DONE}, {"id": 3, "status": PARTIAL}]) == "1:DONE,3:PARTIAL"
     assert gates.processed_env([1, 2]) == "1:DONE,2:DONE"
     assert gates.parse_processed("1,3:PARTIAL") == [{"id": 1, "status": DONE}, {"id": 3, "status": PARTIAL}]
+
+
+def _write(p: Path, doc: dict) -> None:
+    p.parent.mkdir(parents=True, exist_ok=True)
+    p.write_text(json.dumps(doc))
+
+
+def test_baselines_find_every_reference_run_and_ignore_void_scores(tmp_path):
+    ref = tmp_path / "benchmarks" / "reference" / "vidi" / "opus-5.5"
+    # run-1: a subagent build, scored once at the end (accept.json next to metrics.json).
+    _write(ref / "run-1" / "metrics.json", {"stories": {"3": {"finished": 1, "api_calls": 70}}})
+    _write(ref / "run-1" / "accept.json", {"by_story": {"03": {"passed": 7, "total": 7}}})
+    # run-2: a harness run whose story 3 score is void (the browser was missing when it was scored).
+    _write(ref / "run-2" / "metrics.json", {"stories": {"3": {"finished": 1, "agent": {"steps": 68},
+                                            "accept": {"by_story": {"03": {"passed": 0, "total": 7}}}}}})
+    _write(ref / "run-2" / "stories" / "03" / "accept.json",
+           {"tests": [{"status": "failed", "error": "browserType.launch: Executable doesn't exist at x"}]})
+    got = {b["source"]: b["accept"] for b in progress.baselines(tmp_path, 3, tmp_path / "elsewhere")}
+    assert got == {"reference opus-5.5 run-1": {"passed": 7, "total": 7}, "reference opus-5.5 run-2": None}

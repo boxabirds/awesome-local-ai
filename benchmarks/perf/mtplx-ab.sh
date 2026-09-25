@@ -17,7 +17,7 @@
 # port-collision failure (errno 48) that produced a run with no results at all.
 set -uo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 
 PORT="${PORT:-18093}"
 CONTEXTS="${CONTEXTS:-1000,32000}"

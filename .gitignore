@@ -8,7 +8,7 @@ install.log
 # Models and build trees live outside the repo, but guard against stray copies
 *.gguf
 build/
-benchmarks/results/
+benchmarks/perf/results/
 
 # macOS / editor cruft
 .DS_Store

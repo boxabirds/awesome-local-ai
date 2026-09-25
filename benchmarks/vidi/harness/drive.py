@@ -781,8 +781,8 @@ def summarise_conditions(samples: int, bad: list[dict]) -> dict:
 def thermal() -> str:
     try:
         import sys
-        sys.path.insert(0, str(VIDI.parent))
-        from thermal import thermal_pressure  # benchmarks/thermal.py
+        sys.path.insert(0, str(VIDI.parent / "perf"))
+        from thermal import thermal_pressure  # benchmarks/perf/thermal.py
         return thermal_pressure()
     except Exception as e:  # noqa: BLE001 - informational only
         return f"unknown ({e})"
