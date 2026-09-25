@@ -519,3 +519,23 @@ def test_private_pack_checkout_is_hidden_from_the_agent(tmp_path):
     own.mkdir(parents=True)
     r = subprocess.run(sandboxed(["ls", str(PACK / "acceptance")], own_dir=own), capture_output=True, text=True)
     assert r.returncode != 0 or not r.stdout.strip(), r.stdout
+
+
+def test_dbench_home_is_hidden_except_its_tools(tmp_path, monkeypatch):
+    """Agents under dbench must not reach its jobs, token, repo checkouts or other runs' builds,
+    but must still run the tools installed in ~/.dbench/tools (pi, uv)."""
+    import subprocess
+    import drive
+    dbench = tmp_path / "dotdbench"
+    (dbench / "jobs").mkdir(parents=True)
+    (dbench / "jobs" / "job.json").write_text("secret")
+    (dbench / "tools" / "bin").mkdir(parents=True)
+    (dbench / "tools" / "bin" / "tool.txt").write_text("usable")
+    monkeypatch.setattr(drive, "SANDBOX_DENY", [*drive.SANDBOX_DENY, dbench])
+    monkeypatch.setattr(drive, "SANDBOX_REOPEN_RO", [dbench / "tools"])
+    own = tmp_path / "work" / "run"
+    own.mkdir(parents=True)
+    secret = subprocess.run(drive.sandboxed(["cat", str(dbench / "jobs" / "job.json")], own_dir=own), capture_output=True, text=True)
+    tool = subprocess.run(drive.sandboxed(["cat", str(dbench / "tools" / "bin" / "tool.txt")], own_dir=own), capture_output=True, text=True)
+    assert secret.returncode != 0 and "secret" not in secret.stdout
+    assert tool.returncode == 0 and tool.stdout == "usable"

@@ -42,7 +42,7 @@ def _out(cmd: list[str]) -> str:
 
 # ---------- sandbox ----------
 
-def bwrap_wrap(cmd: list[str], own_dir: Path, deny: list[Path]) -> list[str]:
+def bwrap_wrap(cmd: list[str], own_dir: Path, deny: list[Path], reopen_ro: list[Path] | None = None) -> list[str]:
     """Linux: everything visible and writable as normal, except each denied path, which is
     masked (a directory by an empty tmpfs, a file by /dev/null); own_dir is then bound back on
     top. bwrap applies mounts in order, so own_dir must come after the mask that covers it.
@@ -54,6 +54,9 @@ def bwrap_wrap(cmd: list[str], own_dir: Path, deny: list[Path]) -> list[str]:
             args += ["--tmpfs", str(p.resolve())]
         elif p.exists():
             args += ["--ro-bind", "/dev/null", str(p.resolve())]
+    for p in reopen_ro or []:  # after the masks, so they show through them, read-only
+        if p.exists():
+            args += ["--ro-bind", str(p.resolve()), str(p.resolve())]
     own = str(own_dir.resolve())
     return [*args, "--bind", own, own, "--", *cmd]
 

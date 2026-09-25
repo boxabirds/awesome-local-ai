@@ -46,8 +46,11 @@ WORK_ROOT = Path(os.environ.get("VIDI_WORK_ROOT", Path.home() / ".vidi-bench" / 
 # config/skills/sessions, and other runs' work directories (WORK_ROOT minus the agent's own).
 SANDBOX_DENY = [REPO_ROOT, *(Path.home() / p for p in
                 (".claude", ".agents", ".codex", ".config/opencode", ".local/share/opencode", ".mtplx",
-                 ".dbench/token", ".dbench/jobs")),
+                 ".dbench")),
                 *[r for r in [packdir.private_root(PACK)] if r]]
+# Denied trees that must still be readable, read-only: dbench installs the agents' tools (pi, uv) under
+# ~/.dbench/tools, while the rest of ~/.dbench (token, jobs, repo checkouts, other runs' builds) stays hidden.
+SANDBOX_REOPEN_RO = [Path.home() / ".dbench" / "tools"]
 CONTEXT_BANDS = [(0, 16_000), (16_000, 32_000), (32_000, 64_000), (64_000, 100_000), (100_000, 10**9)]
 CONDITION_POLL_S = 30        # how often run conditions are sampled during a story / while waiting
 # The mirror is committed into the outer repo: no nested .git (it would become a
@@ -115,15 +118,18 @@ def sandboxed(cmd: list[str], own_dir: Path) -> list[str]:
     own_dir even though it sits under WORK_ROOT. Linux: bubblewrap (see hostenv.bwrap_wrap).
     """
     if not IS_MAC:
-        return hostenv.bwrap_wrap(cmd, own_dir, [*SANDBOX_DENY, WORK_ROOT])
+        return hostenv.bwrap_wrap(cmd, own_dir, [*SANDBOX_DENY, WORK_ROOT], reopen_ro=SANDBOX_REOPEN_RO)
     deny = " ".join(f"(subpath {_sb_quote(p)})" for p in [*SANDBOX_DENY, WORK_ROOT])
     # Tools resolve real paths by lstat()ing every ancestor of a path (node's realpath, the
     # wrangler watcher). Allow metadata only -- stat, not reading or listing -- on the
     # ancestors of own_dir, so path resolution works while siblings stay hidden.
-    ancestors = " ".join(f"(literal {_sb_quote(a)})" for a in own_dir.resolve().parents)
+    reopen = [p for p in SANDBOX_REOPEN_RO if p.exists()]
+    ancestors = " ".join(f"(literal {_sb_quote(a)})" for d in [own_dir, *reopen] for a in d.resolve().parents)
+    reopen_rules = "".join(f"(allow file-read* (subpath {_sb_quote(p)}))" for p in reopen)
     profile = (f"(version 1)(allow default)"
                f"(deny file-read* file-write* {deny})"
                f"(allow file-read-metadata {ancestors})"
+               f"{reopen_rules}"
                f"(allow file-read* file-write* (subpath {_sb_quote(own_dir)}))")
     return ["sandbox-exec", "-p", profile, *cmd]
 
