@@ -11,5 +11,6 @@ Model `claude-opus-5-5`, scope `canvas`, effort `client default`, client claude 
 | 5 | Share a board with others using a link | DONE | 24.1 | None | None | None | — | — | red | 36/36 |  | 0 / 0 | 0 | — | throttled 2% |
 | 7 | Select, move, resize and delete several objects at once | DONE | 18.1 | None | None | None | — | — | red | 44/44 |  | 0 / 0 | 0 | — | throttled 0% |
 | 8 | Undo and redo my own changes without undoing anyone else's | DONE | 9.5 | None | None | None | — | — | red | 51/51 |  | 0 / 0 | 0 | — | throttled 0% |
+| 9 | Write free text anywhere on the board | DONE | 19.2 | None | None | None | — | — | red | 56/57 |  | 0 / 1 | 0 | — | throttled 0% |
 
-**Totals:** 7 stories, 120 agent-minutes, 0 requests, 0 prompt / 0 completion tokens, gate green 2/7, final acceptance 51/51, stalled 0, partial 0, 13400 lines in src+tests.
+**Totals:** 8 stories, 140 agent-minutes, 0 requests, 0 prompt / 0 completion tokens, gate green 2/8, final acceptance 56/57, stalled 0, partial 0, 15511 lines in src+tests.
