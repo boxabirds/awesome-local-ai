@@ -5,12 +5,13 @@
 import type { ComponentType, PointerEvent as ReactPointerEvent } from 'react';
 import type * as Y from 'yjs';
 import { objectBounds, registerModelObjectType, type ObjectSnapshot } from '../../shared/board-model';
-import { SHAPE_MIN_SIZE_WORLD, STICKY_MIN_SIZE_WORLD, TEXT_MIN_WIDTH_WORLD } from '../../shared/config';
+import { SHAPE_MIN_SIZE_WORLD, STICKY_MIN_SIZE_WORLD, STROKE_MIN_SIZE_WORLD, TEXT_MIN_WIDTH_WORLD } from '../../shared/config';
 import type { Point, Rect } from '../../shared/geometry';
 import { StickyNote } from './StickyNote';
 import { resizeText, TextObject } from './TextObject';
 import { ShapeObjectView } from './ShapeObject';
 import { connectorHitTest, ConnectorObjectView } from './ConnectorObject';
+import { strokeHitTest, StrokeObjectView } from './StrokeObject';
 
 /** How the transform gesture currently affects an object. */
 export type ObjectGesturePhase = 'idle' | 'pressed' | 'dragging';
@@ -121,6 +122,15 @@ registerObjectType('connector', {
   editableText: false,
   ownSelectionUi: true,
   hitTest: connectorHitTest,
+});
+
+registerObjectType('stroke', {
+  Component: StrokeObjectView,
+  resizable: true,
+  aspectLocked: true,
+  minSize: STROKE_MIN_SIZE_WORLD,
+  editableText: false,
+  hitTest: strokeHitTest,
 });
 
 /** Whether every one of these objects offers only horizontal handles (and there is at least one). */

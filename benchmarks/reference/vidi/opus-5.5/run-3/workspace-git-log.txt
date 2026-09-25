@@ -1,3 +1,31 @@
+commit b3686aaa09f6635c6cd9705a5541e95fd8fa43dc
+vidi-agent  Fri Sep 25 15:51:18 2026 +0100
+
+    story 11: Sketch freehand with a pen
+
+
+ NOTES.md                               |  41 ++++++
+ src/client/App.tsx                     |  22 +++
+ src/client/board/Toolbar.tsx           |  26 +++-
+ src/client/objects/StrokeObject.tsx    | 113 +++++++++++++++
+ src/client/objects/registry.tsx        |  12 +-
+ src/client/styles.css                  | 120 ++++++++++++++++
+ src/client/tools/PenTool.tsx           | 231 +++++++++++++++++++++++++++++++
+ src/client/tools/PenToolbar.tsx        |  60 ++++++++
+ src/client/tools/useActiveTool.ts      |   7 +-
+ src/client/tools/usePenOptions.ts      |  24 ++++
+ src/shared/config.ts                   |  26 ++++
+ src/shared/geometry.ts                 |   6 +-
+ src/shared/geometry/simplify.ts        |  89 ++++++++++++
+ src/shared/objects/stroke.ts           | 115 ++++++++++++++++
+ tests/component/PenTool.test.tsx       | 198 ++++++++++++++++++++++++++
+ tests/component/StrokeObject.test.tsx  | 109 +++++++++++++++
+ tests/component/useActiveTool.test.tsx |   2 +-
+ tests/e2e/pen.spec.ts                  | 244 +++++++++++++++++++++++++++++++++
+ tests/fixtures/pen-paths.ts            |  53 +++++++
+ tests/unit/geometry.test.ts            |   7 +
+ tests/unit/stroke.test.ts              | 137 ++++++++++++++++++
+ 21 files changed, 1632 insertions(+), 10 deletions(-)
 commit 2e43f5ecc5bf1a6c8b815a4e4b1fbf030795d90c
 vidi-agent  Fri Sep 25 15:32:59 2026 +0100
 

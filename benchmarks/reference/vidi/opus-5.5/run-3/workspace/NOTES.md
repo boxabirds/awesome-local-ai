@@ -485,3 +485,44 @@ Decisions made where the spec left room:
   `stopCapturing()` directly; creating, restyling and re-attaching are each one step.
 - **E2E TC-27** holds Sam's outgoing WebSocket messages for 2 s with `page.routeWebSocket`, so Sam's delete reaches
   the server after Dana has drawn her arrow to the deleted shape.
+
+## Story 11 — Sketch freehand with a pen
+
+Decisions made where the spec left room:
+
+- **Routing via a tool surface, not a BoardViewport change.** As with story 10's Shape and Connector tools, `PenTool`
+  renders a full-viewport input surface in the overlay layer while the Pen is active. It takes every press on the
+  board (objects included), so a pen drag never pans, draws a marquee or moves an object. Wheel and pinch events
+  bubble up to the viewport's own listeners, so scrolling still pans and Ctrl/Cmd+scroll still zooms.
+  `BoardViewport.tsx` did not need to change.
+- **Types.** `PenColor` / `PenThickness` are defined in `config.ts` next to their settings (like `FillColor`) and
+  re-exported from `objects/stroke.ts` as the design asks.
+- **Identity.** `PenTool`'s `identityId` is story 10's `LOCAL_AUTHOR`, because story 6 (identity) is not in this build.
+- **Undo.** Each commit (a whole stroke, or each part of a split long stroke) goes through the existing `asStep`
+  helper (a boundary on each side, like story 10) instead of calling `stopCapturing()` directly.
+- **Dots and splitting.** A press counts as a dot if the pointer never moves `DRAG_THRESHOLD_PX` or more from where
+  it was pressed. When the raw points reach `STROKE_MAX_POINTS`, that part is simplified and committed, and drawing
+  continues from its last point. If the release adds nothing beyond that join point, no extra dot is committed.
+  Taking the Pen away mid-stroke (Escape, another tool, or the board becoming read-only) keeps the stroke drawn so
+  far, the same as an interrupted stroke.
+- **Smoothing tolerance** is `STROKE_SIMPLIFY_TOLERANCE_PX / zoom`, using the zoom when the stroke began. RDP
+  measures the distance to the segment, not to the infinite line, so every drawn point is within the tolerance of
+  the stored polyline. The rendered `smoothPath` (midpoint quadratics) rounds the corners of that polyline.
+- **Preview.** The preview is a screen-space SVG polyline. Its `d` attribute is set directly once per animation frame,
+  with no React re-render per pointer move. It follows the camera if the view changes mid-stroke.
+- **Cursor.** The pointer is hidden over the Pen surface. It is replaced by a round dot in the pen's colour with
+  diameter `thickness × zoom`, with a minimum of 2 px so a thin pen stays visible when zoomed out.
+- **Hit area.** Clicks reach a stroke only through an invisible polyline path (`pointer-events: stroke`, width
+  2 × the tolerance, round caps and joins). The rest of the stroke's box ignores the pointer, so a click there
+  reaches whatever is underneath. The press handler also checks `distanceToPolyline`, which is what the jsdom tests
+  exercise.
+- **Accessible names.** Toolbar button "Pen (P)", following the other tools. Pen toolbar `role="toolbar"` "Pen" with
+  "black pen" … "purple pen" and "Thin" / "Medium" / "Thick" (all with `aria-pressed`). A stroke is
+  `role="group"` "Drawing" (`aria-roledescription="drawing"`). Tab reaches it, and focusing it selects it. The
+  visible path also has `aria-label="Drawing"`, but its SVG is `aria-hidden` so the name is not read twice.
+- **Resize minimum.** A straight thin stroke is only 2 units tall, which is below `STROKE_MIN_SIZE_WORLD` (4). Story
+  7's `clampScale` would have forced such a stroke to grow the moment it was resized. It now only stops a side
+  already below its minimum from shrinking further; it no longer forces it to grow. Every other type is unchanged,
+  because its objects are never below their minimum.
+- **Existing test update.** `useActiveTool.test.tsx` checked that P is ignored, because the Pen was not in the build.
+  It now checks C instead, since the Pen is part of the build.

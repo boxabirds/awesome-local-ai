@@ -19,9 +19,10 @@ export const TOOL_SHORTCUTS: Record<string, ToolId> = {
 
 /**
  * The tools this build offers as modes. The sticky note is an action (N and the toolbar button create a note in the
- * centre, handled by useBoardKeys); pen, image and comment belong to stories that are not part of this build.
+ * centre, handled by useBoardKeys); image and comment belong to stories that are not part of this build. The Pen
+ * (story 11) stays active after each stroke until another tool is chosen or Escape is pressed.
  */
-export const MODE_TOOLS: ReadonlySet<ToolId> = new Set<ToolId>(['select', 'text', 'shape', 'connector']);
+export const MODE_TOOLS: ReadonlySet<ToolId> = new Set<ToolId>(['select', 'text', 'shape', 'connector', 'pen']);
 
 function isTextField(t: EventTarget | null): boolean {
   if (!(t instanceof HTMLElement)) return false;
@@ -38,7 +39,7 @@ export interface ActiveTool {
 }
 
 /**
- * This client's active tool (never persisted) and the Shape tool's kind. Window shortcuts: V, T, S, L choose a
+ * This client's active tool (never persisted) and the Shape tool's kind. Window shortcuts: V, T, S, L, P choose a
  * tool; Escape returns from any other tool to Select without creating anything. Shortcuts are ignored while typing
  * in a text field or editing an object's text, and unknown letters are ignored.
  *

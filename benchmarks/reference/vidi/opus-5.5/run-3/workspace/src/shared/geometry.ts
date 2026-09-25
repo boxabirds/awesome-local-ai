@@ -100,7 +100,9 @@ export function resizeRect(start: Rect, handle: Handle, delta: Point, aspectLock
 /**
  * Clamps a group scale so that no rect gets a side below its `minSizes[i]` or above `maxSize`. The same factor
  * applies to every rect, so the whole group stops as soon as the first rect reaches a limit. When
- * `scale.x === scale.y` (aspect kept) the result is uniform too. An axis with factor 1 is left alone.
+ * `scale.x === scale.y` (aspect kept) the result is uniform too. An axis with factor 1 is left alone. A side that
+ * is already below its minimum (story 11: a thin straight pen stroke) may not shrink further but is not forced to
+ * grow.
  */
 export function clampScale(scale: Point, rects: readonly Rect[], minSizes: readonly number[], maxSize: number): Point {
   const range = (size: (r: Rect) => number) => {
@@ -109,7 +111,7 @@ export function clampScale(scale: Point, rects: readonly Rect[], minSizes: reado
     rects.forEach((r, i) => {
       const s = size(r);
       if (!(s > 0)) return;
-      lo = Math.max(lo, (minSizes[i] ?? 0) / s);
+      lo = Math.max(lo, Math.min(1, (minSizes[i] ?? 0) / s));
       hi = Math.min(hi, maxSize / s);
     });
     return { lo, hi: Math.max(lo, hi) };
