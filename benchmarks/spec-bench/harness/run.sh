@@ -54,8 +54,8 @@ CONFIG="$COMBO_DIR/config.sh"
 # A reference stack (benchmarks/reference/install-stack.sh) names its own config and results folder.
 RUN_BASE="$(sed -n 's/^RUN_BASE="\(.*\)"/\1/p' "$ENV_FILE")"
 [[ -n "$RUN_BASE" ]] && CONFIG="$REPO_ROOT/$(sed -n 's/^CONFIG_FILE="\(.*\)"/\1/p' "$ENV_FILE")"
-cfg() { sed -n "s/^$1=\"\{0,1\}\([^\"]*\)\"\{0,1\}.*/\1/p" "$CONFIG" | head -1; }
-CONTEXT_LIMIT="$(cfg CONTEXT_LIMIT)"; OUTPUT_LIMIT="$(cfg OUTPUT_LIMIT)"
+. "$HARNESS/config-value.sh"
+CONTEXT_LIMIT="$(cfg CONTEXT_LIMIT "$CONFIG")"; OUTPUT_LIMIT="$(cfg OUTPUT_LIMIT "$CONFIG")"
 SERVER_CMD="$INSTALL_ID-server"
 # A cloud backend (BACKEND="anthropic" in install.env) has no local server: the client talks to the provider.
 CLOUD=0; [[ "$BACKEND" == anthropic ]] && CLOUD=1
