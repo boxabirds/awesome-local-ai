@@ -1,3 +1,32 @@
+commit 176ab9dd22b7522530898516ce31fafbcd4190cc
+vidi-agent  Fri Sep 25 23:23:42 2026 +0100
+
+    harness: snapshot after story 7 (uncommitted agent work)
+
+
+ src/client/App.tsx                      | 307 ++++++++---------
+ src/client/board/Marquee.tsx            | 115 +++++++
+ src/client/board/SelectionBar.tsx       |  69 ++++
+ src/client/board/SelectionOverlay.tsx   | 128 +++++++
+ src/client/board/useBoardKeys.ts        | 112 +++++++
+ src/client/board/useSelection.ts        | 158 +++++++--
+ src/client/board/useTransformGesture.ts | 317 ++++++++++++++++++
+ src/client/canvas/BoardViewport.tsx     |  77 +++--
+ src/client/objects/StickyNote.tsx       |  79 ++---
+ src/client/objects/defaultTypes.ts      |  30 ++
+ src/client/objects/registry.tsx         |  71 ++++
+ src/shared/board-model.ts               | 187 ++++++++++-
+ src/shared/config.ts                    |  19 ++
+ src/shared/geometry.ts                  | 186 +++++++++++
+ tests/component/MultiSelect.test.tsx    | 574 ++++++++++++++++++++++++++++++++
+ tests/component/appHarness.tsx          |  12 +-
+ tests/e2e/selection.spec.ts             | 386 +++++++++++++++++++++
+ tests/fixtures/testbox.tsx              |  32 ++
+ tests/unit/board-model-group.test.ts    | 334 +++++++++++++++++++
+ tests/unit/geometry.test.ts             | 141 ++++++++
+ tests/unit/registry.test.ts             |  87 +++++
+ tests/unit/selection-reducer.test.ts    | 106 ++++++
+ 22 files changed, 3275 insertions(+), 252 deletions(-)
 commit b3bc7f390d56e7a8e5c6c3ec52456c2f9868e0bf
 vidi-agent  Fri Sep 25 21:04:55 2026 +0100
 
