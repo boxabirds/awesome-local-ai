@@ -27,6 +27,22 @@ say() { echo "$*"; echo "$*" | sed 's/\x1b\[[0-9;]*m//g' >> "$LOG_FILE"; }
 
 need_cmd() { command -v "$1" >/dev/null 2>&1; }
 
+# Python tools this repo needs (hf, and cmake/ninja when no package manager has
+# them) are installed as uv tools: their own venvs, no sudo, nothing written
+# into the system python. Not pip: Ubuntu 23.04+ ships python3 without it, and
+# refuses `pip install --user` there anyway (PEP 668). uv itself is fetched
+# into ~/.local/bin when missing.
+UV_INSTALL_URL="https://astral.sh/uv/install.sh"
+ensure_uv() {
+  export PATH="${HOME}/.local/bin:${PATH}"   # where uv and its tools install
+  need_cmd uv && return 0
+  info "Installing uv (to ~/.local/bin; no sudo)..."
+  curl -LsSf "$UV_INSTALL_URL" | sh >/dev/null 2>&1 || true
+  hash -r
+  need_cmd uv || err "Could not install uv. Install it by hand, then re-run:
+       curl -LsSf ${UV_INSTALL_URL} | sh"
+}
+
 # True only if we can become root without an interactive password prompt.
 can_sudo() {
   [[ $EUID -eq 0 ]] && return 0

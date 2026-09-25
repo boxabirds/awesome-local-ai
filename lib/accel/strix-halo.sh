@@ -20,20 +20,30 @@
 # Changing that limit needs a kernel parameter and a reboot, so this adapter
 # reports and refuses; it never edits the boot configuration itself.
 #
-# Two GPU APIs build for this device:
-#   GPU_API=vulkan  (default) RADV. Fastest decode for Qwen3.8-Flash-Next with
-#                   current llama.cpp, and needs nothing beyond Mesa.
-#   GPU_API=rocm    HIP. Needs a host ROCm install (hipcc). EXPERIMENTAL here:
-#                   no combination has been measured on it yet. Set it at
-#                   install time to build the other backend for an A/B run;
-#                   the build key changes, so it rebuilds rather than mixing.
+# Two GPU APIs build for this device, and neither is measured here yet.
+# GPU_API picks what is compiled in; the build key changes with it, so
+# switching rebuilds rather than mixing.
+#   GPU_API=vulkan  RADV. Needs nothing beyond Mesa, and is where the
+#                   published Strix Halo decode figures come from.
+#   GPU_API=rocm    HIP. Needs a host ROCm install (hipconfig). llama.cpp
+#                   before 2026-09-08 (#28604) returns wrong logits on gfx1151
+#                   for prompts longer than the ubatch; the combination's
+#                   MIN_LLAMA_COMMIT_DATE must be later than that.
+#   GPU_API=both    one binary with both. It then sees the same GPU twice
+#                   (Vulkan0, ROCm0), so the launcher always pins one with
+#                   --device; GPU_BACKEND=vulkan|rocm picks it per run, with
+#                   no rebuild. ACCEL_GPU_BACKENDS tells the manifest which.
 
 ACCEL_DESC=""; ACCEL_ARCH="gfx1151"; ACCEL_MEM_MIB=0
 ACCEL_RAM_MIB=0; ACCEL_VRAM_MIB=0; ACCEL_MEM_SOURCE=""
 GPU_API="${GPU_API:-vulkan}"
+case "$GPU_API" in
+  both) ACCEL_GPU_BACKENDS="vulkan rocm" ;;
+  *)    ACCEL_GPU_BACKENDS="$GPU_API" ;;
+esac
 
-# Strix Halo's integrated GPU is PCI 1002:1586. SYSFS_PCI (and PROC_MEMINFO)
-# are overridable so tests can fake a machine.
+# Strix Halo's integrated GPU is PCI 1002:1586. SYSFS_PCI (and PROC_MEMINFO,
+# PROC_CMDLINE) are overridable so tests can fake a machine.
 _sh_gpu_dir() {
   local d
   for d in "${SYSFS_PCI:-/sys/bus/pci/devices}"/*; do
@@ -55,8 +65,8 @@ _sh_mib() {
 qualify_accel() {
   info "Checking AMD Strix Halo GPU (${GPU_API})..."
   case "$GPU_API" in
-    vulkan|rocm) ;;
-    *) err "GPU_API='${GPU_API}' is not one this adapter builds. Use vulkan (default) or rocm." ;;
+    vulkan|rocm|both) ;;
+    *) err "GPU_API='${GPU_API}' is not one this adapter builds. Use vulkan, rocm or both." ;;
   esac
 
   local gpu
@@ -75,10 +85,11 @@ qualify_accel() {
   info "  GPU budget from ${ACCEL_MEM_SOURCE}."
 
   _sh_qualify_carveout
+  _sh_qualify_lockup_timeout
   _sh_qualify_budget
   _sh_report_perf_level "$gpu"
   _sh_report_machine
-  if [[ "$GPU_API" == "rocm" ]]; then _sh_ensure_hip; fi
+  if [[ "$GPU_API" == rocm || "$GPU_API" == both ]]; then _sh_ensure_hip; fi
 }
 
 # Kernels before 6.18.4 have a gfx1151 stability bug (the KFD fixes AMD lists
@@ -158,18 +169,28 @@ _sh_gtt_budget() {
 _sh_qualify_carveout() {
   (( ACCEL_VRAM_MIB > 4096 )) || return 0
   warn "The BIOS reserves ${ACCEL_VRAM_MIB} MiB as dedicated VRAM; Linux cannot use it for anything else."
-  warn "  On Strix Halo it gives the GPU no speed advantage. Set it to 512M:"
+  warn "  On Strix Halo it gives the GPU no speed advantage. Set it to the smallest offered"
+  warn "  (512M where the BIOS has it; 1G is the floor on the MS-S1 MAX):"
   warn "  BIOS -> Advanced -> AMD CBS -> NBIO Common Options -> GFX Configuration"
-  warn "    iGPU Configuration = UMA_Specified, UMA Frame Buffer Size = 512M"
+  warn "    iGPU Configuration = UMA_Specified, UMA Frame Buffer Size = 512M (or 1G)"
   warn "  then raise the GTT limit instead (see below if it is short)."
 }
 
 # Refuse with the fix, not with an OOM 90 GB into a load.
 _sh_qualify_budget() {
-  local reserve="${MIN_OS_RESERVE_MIB:-6144}"
-  if (( ACCEL_RAM_MIB - ACCEL_MEM_MIB < reserve )); then
+  # The GTT limit is a ceiling, not an allocation; what protects Linux if the
+  # GPU ever nears it is RAM outside the ceiling plus swap. The recommended
+  # 120 GiB on a 128 GB box leaves ~2 GiB of RAM, so swap is the cushion, and
+  # Ubuntu's installer creates 8 GiB of it: that setup should not warn.
+  local reserve="${MIN_OS_RESERVE_MIB:-6144}" swap_kib swap_mib outside
+  swap_kib="$(awk '/^SwapTotal:/ {print $2}' "${PROC_MEMINFO:-/proc/meminfo}" 2>/dev/null)"
+  swap_mib=$(( ${swap_kib:-0} / 1024 ))
+  outside=$(( ACCEL_RAM_MIB - ACCEL_MEM_MIB ))
+  if (( outside + swap_mib < reserve )); then
     warn "The GPU may address ${ACCEL_MEM_MIB} of ${ACCEL_RAM_MIB} MiB, leaving under ${reserve} MiB for Linux."
     warn "  A full context can then push sshd and friends into the OOM killer. Add swap, or lower the limit."
+  elif (( outside < reserve )); then
+    info "  The GPU may address ${ACCEL_MEM_MIB} of ${ACCEL_RAM_MIB} MiB; ${swap_mib} MiB of swap covers Linux if it nears that."
   fi
   (( ACCEL_MEM_MIB >= MIN_DEVICE_MEM_MIB )) && return 0
 
@@ -237,19 +258,36 @@ _sh_report_machine() {
   }
 }
 
+# Since Linux 7.0 amdgpu kills a compute job after 2 s (it was 60 s), and a
+# long Vulkan dispatch on a big model can take that long: the server dies
+# with vk::DeviceLostError a few turns in (llama.cpp #25664, #27076). The fix
+# is a kernel parameter, so report it; never edit the boot configuration.
+_sh_qualify_lockup_timeout() {
+  local cmdline
+  cmdline="$(cat "${PROC_CMDLINE:-/proc/cmdline}" 2>/dev/null || true)"
+  if [[ "$cmdline" == *amdgpu.lockup_timeout=* ]]; then
+    ok "amdgpu.lockup_timeout is set on the kernel command line."
+    return 0
+  fi
+  warn "amdgpu.lockup_timeout is not set. Since Linux 7.0 a GPU job is killed after 2 s,"
+  warn "  which crashes long runs with vk::DeviceLostError. Add to the kernel command line:"
+  warn "    amdgpu.lockup_timeout=10000,60000,10000,10000"
+  warn "  (/etc/default/grub.d/, then sudo update-grub && sudo reboot)"
+}
+
 _sh_slug() { printf '%s' "$1" | tr 'A-Z' 'a-z' | sed -E 's/[^a-z0-9]+/-/g; s/^-+|-+$//g'; }
 
 # ROCm needs a host HIP toolchain. The Ubuntu archive carries one; AMD's own
 # repository carries newer. Neither is installed for you: which ROCm is a
-# decision, and this path is not measured yet.
+# decision.
 _sh_ensure_hip() {
-  warn "GPU_API=rocm is EXPERIMENTAL: no combination has been measured on it."
   if ! need_cmd hipconfig && [[ -x /opt/rocm/bin/hipconfig ]]; then
     export PATH="/opt/rocm/bin:${PATH}"
   fi
   need_cmd hipconfig || err \
-    "GPU_API=rocm needs a ROCm install (hipconfig not found).
-       Ubuntu 26.04: sudo apt install rocm   -- or use the default GPU_API=vulkan."
+    "GPU_API=${GPU_API} needs a ROCm install (hipconfig not found).
+       Ubuntu 26.04: sudo apt install rocm hipcc libamdhip64-dev librocblas-dev libhipblas-dev
+       -- or GPU_API=vulkan to build without ROCm."
   HIPCXX="$(hipconfig -l)/clang"; HIP_PATH="$(hipconfig -R)"
   export HIPCXX HIP_PATH
   ok "ROCm: $(hipconfig --version 2>/dev/null | head -1) at ${HIP_PATH}"
@@ -273,6 +311,7 @@ accel_report_mem() {
 accel_cmake_args() {
   case "$GPU_API" in
     rocm)   printf '%s\n' -DGGML_HIP=ON -DGPU_TARGETS=gfx1151 -DAMDGPU_TARGETS=gfx1151 ;;
+    both)   printf '%s\n' -DGGML_VULKAN=ON -DGGML_HIP=ON -DGPU_TARGETS=gfx1151 -DAMDGPU_TARGETS=gfx1151 ;;
     *)      printf '%s\n' -DGGML_VULKAN=ON ;;
   esac
 }
@@ -285,6 +324,8 @@ accel_build_key() { printf 'strix-halo=%s;%s' "$GPU_API" "$ACCEL_ARCH"; }
 accel_probe_binary() {
   case "$GPU_API" in
     rocm) "$1" --list-devices 2>&1 | grep -qiE 'ROCm|HIP' ;;
+    both) local d; d="$("$1" --list-devices 2>&1)"
+          grep -qiE 'Vulkan|RADV' <<< "$d" && grep -qiE 'ROCm|HIP' <<< "$d" ;;
     *)    "$1" --list-devices 2>&1 | grep -qiE 'Vulkan|RADV' ;;
   esac
 }
