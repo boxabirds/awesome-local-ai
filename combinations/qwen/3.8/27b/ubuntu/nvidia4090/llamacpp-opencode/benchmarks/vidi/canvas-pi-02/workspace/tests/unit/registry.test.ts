@@ -54,6 +54,7 @@ describe('registry (TC-11, TC-12)', () => {
     const spec: ObjectTypeSpec = {
       Component: (() => null) as ObjectTypeSpec['Component'],
       resizable: false,
+      handles: 'all',
       aspectLocked: false,
       minSize: 0,
       editableText: false,

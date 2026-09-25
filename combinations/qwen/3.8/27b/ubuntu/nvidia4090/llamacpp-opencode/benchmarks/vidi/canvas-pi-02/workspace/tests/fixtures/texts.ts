@@ -10,3 +10,6 @@ export const EXACTLY_1000_CHARS = `Capturing ideas on a shared board changes how
 We keep the tool honest about what it is. A sticky note is not a document, a ticket, or a canvas layer. It has a place, a colour, a short text, and a depth in the stack. Everything else is ceremony, and ceremony is where momentum goes to die. So the gestures stay few: create, write, move, recolour, delete. Each one works the same at every zoom level, and none ask for a second thought.
 
 Speed matters more than we admit. When the note appears under the pointer, the hand keeps moving. When the text fits without a resize handle, the eyes stay on the work. When the note that matters comes to the front the moment it is touched, the story stays readable. That is what a fast board is.`;
+
+/** A ~300-character English annotation for text object e2e tests (long enough to wrap). */
+export const TEXT_300_CHARS = `The team captured what went well in this sprint and what needs improvement. We shipped the new onboarding flow ahead of schedule and the user feedback has been overwhelmingly positive. The biggest challenge was coordinating across three time zones, but the async-first approach paid off. Next sprint we plan to focus on performance and accessibility improvements.`;

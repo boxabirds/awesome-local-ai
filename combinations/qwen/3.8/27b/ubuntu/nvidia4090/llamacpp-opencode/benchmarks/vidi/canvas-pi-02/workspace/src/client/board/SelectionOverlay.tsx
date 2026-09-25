@@ -8,16 +8,14 @@ import type { Camera } from '../canvas/camera';
 import { getObjectType } from '../objects/registry';
 
 /**
- * Screen-space selection chrome (story 7, sel.transform): the blue bounding
- * box of the current selection and its 8 resize handles (4 corners, 4
- * edges). Handles are a constant HANDLE_SIZE_PX on screen at any zoom and
- * carry accessible names ("Resize top-left", …).
+ * Screen-space selection chrome (story 7, sel.transform; extended in story 9):
+ * the blue bounding box of the current selection and its resize handles.
  *
- * Handles are rendered only when at least one selected type is resizable
- * (the registry declares it per type); they are hit targets for the
- * transform gesture's handle drags.
+ * Handles are rendered only when at least one selected type is resizable.
+ * When ALL selected objects use 'horizontal' handles (text objects), only
+ * the e/w handles are shown. Otherwise all 8 handles are shown.
  */
-const HANDLES: Array<{ handle: Handle; name: string; cursor: string; at: (w: number, h: number) => { x: number; y: number } }> = [
+const ALL_HANDLES: Array<{ handle: Handle; name: string; cursor: string; at: (w: number, h: number) => { x: number; y: number } }> = [
   { handle: 'nw', name: 'top-left', cursor: 'nwse-resize', at: (w, h) => ({ x: 0, y: 0 }) },
   { handle: 'n', name: 'top', cursor: 'ns-resize', at: (w, h) => ({ x: w / 2, y: 0 }) },
   { handle: 'ne', name: 'top-right', cursor: 'nesw-resize', at: (w, h) => ({ x: w, y: 0 }) },
@@ -27,6 +25,10 @@ const HANDLES: Array<{ handle: Handle; name: string; cursor: string; at: (w: num
   { handle: 'sw', name: 'bottom-left', cursor: 'nesw-resize', at: (w, h) => ({ x: 0, y: h }) },
   { handle: 'w', name: 'left', cursor: 'ew-resize', at: (w, h) => ({ x: 0, y: h / 2 }) },
 ];
+
+const HORIZONTAL_HANDLES = ALL_HANDLES.filter(
+  (h) => h.handle === 'e' || h.handle === 'w',
+);
 
 export interface SelectionOverlayProps {
   ids: ReadonlySet<string>;
@@ -44,6 +46,12 @@ export function SelectionOverlay(props: SelectionOverlayProps): JSX.Element | nu
   if (box === null) return null;
 
   const resizable = selected.some((o) => getObjectType(o.type)?.resizable === true);
+  // All selected objects use horizontal handles → show only e/w.
+  const allHorizontal =
+    selected.length > 0 &&
+    selected.every((o) => getObjectType(o.type)?.handles === 'horizontal');
+  const handles = allHorizontal ? HORIZONTAL_HANDLES : ALL_HANDLES;
+
   const topLeft = worldToScreen(camera, { x: box.x, y: box.y });
   const w = box.width * camera.zoom;
   const h = box.height * camera.zoom;
@@ -57,7 +65,7 @@ export function SelectionOverlay(props: SelectionOverlayProps): JSX.Element | nu
         style={{ left: topLeft.x, top: topLeft.y, width: w, height: h }}
       />
       {resizable &&
-        HANDLES.map(({ handle, name, cursor, at }) => {
+        handles.map(({ handle, name, cursor, at }) => {
           const p = at(w, h);
           return (
             <div

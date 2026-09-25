@@ -612,3 +612,180 @@ body {
   pointer-events: none;
   z-index: 5;
 }
+
+/* --- Free text (story 9) ---------------------------------------------------- */
+
+.vidi6-text {
+  position: absolute;
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
+  font-family: Inter, -apple-system, "Segoe UI", Roboto, sans-serif;
+  color: #1a1a2e;
+  cursor: default;
+  outline: none;
+}
+
+.vidi6-text--selected {
+  outline: 2px solid #3b82f6;
+  outline-offset: 1px;
+}
+
+.vidi6-text__display {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
+}
+
+.vidi6-text__editor {
+  position: absolute;
+  inset: 0;
+}
+
+.vidi6-text__textarea {
+  width: 100%;
+  height: 100%;
+  border: none;
+  outline: none;
+  background: transparent;
+  resize: none;
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
+  font-family: inherit;
+  color: inherit;
+  overflow: hidden;
+  padding: 0;
+  margin: 0;
+}
+
+.vidi6-text__counter {
+  position: absolute;
+  bottom: 2px;
+  right: 4px;
+  font-size: 10px;
+  color: #ef4444;
+  font-variant-numeric: tabular-nums;
+  pointer-events: none;
+}
+
+/* Text toolbar (in the SelectionBar) */
+.vidi6-text-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.vidi6-text-toolbar__size {
+  width: 28px;
+  height: 28px;
+  border: 1px solid #d3d9e0;
+  border-radius: 6px;
+  background: #ffffff;
+  font-size: 12px;
+  font-weight: 600;
+  color: #374151;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.vidi6-text-toolbar__size:hover:not(:disabled) {
+  background: #f3f4f6;
+}
+
+.vidi6-text-toolbar__size--active {
+  background: #3b82f6;
+  color: #ffffff;
+  border-color: #3b82f6;
+}
+
+.vidi6-text-toolbar__divider {
+  width: 1px;
+  height: 20px;
+  background: #d3d9e0;
+  margin: 0 4px;
+}
+
+.vidi6-text-toolbar__width {
+  width: 64px;
+  height: 28px;
+  border: 1px solid #d3d9e0;
+  border-radius: 6px;
+  padding: 0 6px;
+  font-size: 12px;
+  color: #374151;
+}
+
+.vidi6-text-toolbar__width:focus {
+  outline: 2px solid #3b82f6;
+  outline-offset: -1px;
+}
+
+/* Toolbar active state */
+.vidi6-toolbar__button--active {
+  background: #e0e7ff;
+  border-color: #6366f1;
+}
+
+/* --- Story 11: pen options toolbar ---------------------------------------- */
+
+/* The pen options toolbar: six colour swatches + three thickness buttons,
+   floating to the right of the left board toolbar, vertically centred. */
+.vidi6-pen-toolbar {
+  position: fixed;
+  left: 84px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px;
+  background: #ffffff;
+  border: 1px solid #d3d9e0;
+  border-radius: 12px;
+  box-shadow: 0 1px 4px rgba(15, 23, 42, 0.12);
+  z-index: 10;
+}
+
+.vidi6-pen-toolbar__swatch {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  border: 2px solid #ffffff;
+  box-shadow: 0 0 0 1px #cfd6de;
+  cursor: pointer;
+  padding: 0;
+}
+
+.vidi6-pen-toolbar__swatch--active {
+  box-shadow: 0 0 0 2px #3b82f6;
+}
+
+.vidi6-pen-toolbar__swatch:focus-visible,
+.vidi6-pen-toolbar__thickness:focus-visible {
+  outline: 2px solid #3b82f6;
+  outline-offset: 2px;
+}
+
+.vidi6-pen-toolbar__thickness {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 28px;
+  background: #ffffff;
+  border: 1px solid #cfd6de;
+  border-radius: 7px;
+  cursor: pointer;
+}
+
+.vidi6-pen-toolbar__thickness:hover {
+  background: #f1f4f8;
+}
+
+.vidi6-pen-toolbar__thickness--active {
+  background: #e0e7ff;
+  border-color: #6366f1;
+}

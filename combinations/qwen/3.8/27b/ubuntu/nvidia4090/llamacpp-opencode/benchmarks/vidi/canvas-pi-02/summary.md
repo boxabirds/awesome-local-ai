@@ -1,6 +1,6 @@
-# Vidi run — qwen/3.8/27b/ubuntu/24GB/llamacpp-opencode
+# Vidi run — llamacpp-opencode
 
-Model `qwen3.8-27b`, scope `canvas`, effort `low`, client pi 0.86.0, host 13th Gen Intel(R) Core(TM) i9-13900F 62GB, NVIDIA GeForce RTX 4090 24564 MiB.
+Model `None`, scope `None`, effort `None`, client opencode , host None.
 
 | Story | Title | Status | Agent min | Requests | Prompt tok | Completion tok | TTFT med s | Decode tok/s med | Gate | Accept (cumulative) | Stalled | Resumes / nudges | Compactions | Max ctx | Conditions |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
@@ -11,5 +11,8 @@ Model `qwen3.8-27b`, scope `canvas`, effort `low`, client pi 0.86.0, host 13th G
 | 5 | Share a board with others using a link | DONE | 49.1 | None | None | None | — | — | red | 0/36 |  | 0 / 0 | 2 | — | throttled 0%, server peak 18 GB |
 | 7 | Select, move, resize and delete several objects at once | DONE | 174.0 | None | None | None | — | — | green | 41/44 |  | 0 / 0 | 7 | — | throttled 0%, server peak 18 GB |
 | 8 | Undo and redo my own changes without undoing anyone else's | DONE | 100.9 | None | None | None | — | — | green | 48/51 |  | 0 / 0 | 6 | — | throttled 0%, server peak 18 GB |
+| 9 | Write free text anywhere on the board | DONE | 51.5 | None | None | None | — | — | green | 51/57 |  | 0 / 1 | 3 | — | throttled 0%, server peak 18 GB |
+| 10 | Draw shapes and connect them with arrows that follow when moved | DONE | 21.4 | None | None | None | — | — | green | 56/65 |  | 0 / 0 | 1 | — | throttled 0%, server peak 18 GB |
+| 11 | Sketch freehand with a pen | DONE | 46.4 | None | None | None | — | — | red | 61/70 |  | 0 / 0 | 3 | — | throttled 0%, server peak 18 GB |
 
-**Totals:** 7 stories, 852 agent-minutes, 0 requests, 0 prompt / 0 completion tokens, gate green 5/7, final acceptance 48/51, stalled 0, partial 0, 17239 lines in src+tests.
+**Totals:** 10 stories, 971 agent-minutes, 0 requests, 0 prompt / 0 completion tokens, gate green 7/10, final acceptance 61/70, stalled 0, partial 0, 24260 lines in src+tests.

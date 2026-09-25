@@ -2,7 +2,8 @@ import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from '
 import * as Y from 'yjs';
 import { initDoc, snapshot } from '../../shared/board-model';
 import type { Snapshot } from '../../shared/board-model';
-import { installNotesHook, setConnectionState } from '../canvas/testHooks';
+import { installNotesHook, installTextsHook, setConnectionState } from '../canvas/testHooks';
+import { snapshotText } from '../../shared/objects/text';
 import type { ConnectionState } from '../sync/connectBoard';
 import { connectBoard } from '../sync/connectBoard';
 
@@ -65,6 +66,18 @@ export function useBoardDoc(boardId: string | null = null): BoardDoc {
   // Test hook: e2e tests read the note list (positions, z, colour, text).
   useEffect(() => {
     installNotesHook(() => snapshot(doc));
+    // Story 9: e2e tests read text object snapshots.
+    installTextsHook(() => {
+      const snap = snapshot(doc);
+      const texts = [];
+      for (const o of snap) {
+        if (o.type === 'text') {
+          const t = snapshotText(doc, o.id);
+          if (t) texts.push(t);
+        }
+      }
+      return texts;
+    });
   }, [doc]);
 
   // Live connection (task 4): one provider per board id for the life of the

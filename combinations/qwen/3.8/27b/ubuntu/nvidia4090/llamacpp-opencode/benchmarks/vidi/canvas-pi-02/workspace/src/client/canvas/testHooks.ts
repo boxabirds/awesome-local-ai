@@ -1,6 +1,7 @@
 import type { ObjectSnapshot } from '../../shared/board-model';
 import type { ConnectionState } from '../sync/connectBoard';
 import type { Camera } from './camera';
+import type { TextSnapshot } from '../../shared/objects/text';
 
 declare global {
   interface Window {
@@ -8,6 +9,8 @@ declare global {
     __vidi6?: {
       setCamera(cam: Camera): void;
       getNotes(): readonly ObjectSnapshot[];
+      /** Text object snapshots (story 9). */
+      getTexts(): readonly TextSnapshot[];
       /** The client's mapped connection phase (story 3), or null locally. */
       connectionState: ConnectionState | null;
     };
@@ -17,6 +20,7 @@ declare global {
 const stateRef = {
   setCamera: undefined as ((cam: Camera) => void) | undefined,
   getNotes: undefined as (() => readonly ObjectSnapshot[]) | undefined,
+  getTexts: undefined as (() => readonly TextSnapshot[]) | undefined,
   connectionState: null as ConnectionState | null,
 };
 
@@ -25,6 +29,7 @@ function publish(): void {
   window.__vidi6 = {
     setCamera: (cam: Camera) => stateRef.setCamera?.(cam),
     getNotes: () => stateRef.getNotes?.() ?? [],
+    getTexts: () => stateRef.getTexts?.() ?? [],
     connectionState: stateRef.connectionState,
   };
 }
@@ -44,6 +49,13 @@ export function installTestHook(setCamera: (cam: Camera) => void): void {
 export function installNotesHook(getNotes: () => readonly ObjectSnapshot[]): void {
   if (import.meta.env.MODE !== 'test') return;
   stateRef.getNotes = getNotes;
+  publish();
+}
+
+/** Registers the text snapshot getter (story 9). */
+export function installTextsHook(getTexts: () => readonly TextSnapshot[]): void {
+  if (import.meta.env.MODE !== 'test') return;
+  stateRef.getTexts = getTexts;
   publish();
 }
 

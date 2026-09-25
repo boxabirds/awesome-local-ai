@@ -6,6 +6,8 @@ import { NUDGE_LARGE_STEP_WORLD, NUDGE_STEP_WORLD } from '../../shared/config';
 import type { Point } from '../canvas/camera';
 import type { Selection } from './useSelection';
 import type { UndoController } from './undo';
+import type { Tool } from './useTool';
+import type { ShapeKind } from '../../shared/config';
 
 function isTypingTarget(target: EventTarget | null): boolean {
   if (!(target instanceof HTMLElement)) return false;
@@ -39,6 +41,14 @@ export function useBoardKeys(opts: {
   snapshot: readonly ObjectSnapshot[];
   canEdit: boolean;
   undo: UndoController;
+  /** Current tool (story 9/10). */
+  tool?: Tool;
+  /** Change the tool (story 9/10). */
+  setTool?: (tool: Tool) => void;
+  /** Create a sticky note at the centre of the visible board (N key, story 9). */
+  onCreateStickyCentre?: () => void;
+  /** The current shape kind (story 10, used by the S key). */
+  shapeKind?: ShapeKind;
 }): void {
   const docRef = useRef(opts.doc);
   docRef.current = opts.doc;
@@ -50,6 +60,12 @@ export function useBoardKeys(opts: {
   canEditRef.current = opts.canEdit;
   const undoRef = useRef(opts.undo);
   undoRef.current = opts.undo;
+  const setToolRef = useRef(opts.setTool);
+  setToolRef.current = opts.setTool;
+  const createStickyCentreRef = useRef(opts.onCreateStickyCentre);
+  createStickyCentreRef.current = opts.onCreateStickyCentre;
+  const toolRef = useRef(opts.tool);
+  toolRef.current = opts.tool;
 
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent): void => {
@@ -67,6 +83,55 @@ export function useBoardKeys(opts: {
 
       if (e.key === 'Escape') {
         selection.clear();
+        // Also reset the tool to select (story 9).
+        setToolRef.current?.('select');
+        return;
+      }
+
+      // V: switch to select tool (story 9).
+      if ((e.key === 'v' || e.key === 'V') && !e.ctrlKey && !e.metaKey && !e.altKey && !e.shiftKey) {
+        setToolRef.current?.('select');
+        return;
+      }
+
+      // T: switch to text tool (story 9, only when editable).
+      if ((e.key === 't' || e.key === 'T') && !e.ctrlKey && !e.metaKey && !e.altKey && !e.shiftKey) {
+        if (canEditRef.current) {
+          setToolRef.current?.('text');
+        }
+        return;
+      }
+
+      // N: create a sticky note at the centre of the visible board (story 9).
+      if ((e.key === 'n' || e.key === 'N') && !e.ctrlKey && !e.metaKey && !e.altKey && !e.shiftKey) {
+        if (canEditRef.current) {
+          e.preventDefault();
+          createStickyCentreRef.current?.();
+        }
+        return;
+      }
+
+      // S: switch to shape tool (story 10, only when editable).
+      if ((e.key === 's' || e.key === 'S') && !e.ctrlKey && !e.metaKey && !e.altKey && !e.shiftKey) {
+        if (canEditRef.current) {
+          setToolRef.current?.('shape');
+        }
+        return;
+      }
+
+      // L: switch to connector tool (story 10, only when editable).
+      if ((e.key === 'l' || e.key === 'L') && !e.ctrlKey && !e.metaKey && !e.altKey && !e.shiftKey) {
+        if (canEditRef.current) {
+          setToolRef.current?.('connector');
+        }
+        return;
+      }
+
+      // P: switch to pen tool (story 11, only when editable).
+      if ((e.key === 'p' || e.key === 'P') && !e.ctrlKey && !e.metaKey && !e.altKey && !e.shiftKey) {
+        if (canEditRef.current) {
+          setToolRef.current?.('pen');
+        }
         return;
       }
 

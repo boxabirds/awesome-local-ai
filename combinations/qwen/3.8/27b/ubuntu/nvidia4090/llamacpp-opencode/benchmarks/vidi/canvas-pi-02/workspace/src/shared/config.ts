@@ -139,3 +139,125 @@ export const UNDO_CAPTURE_TIMEOUT_MS = 500;
 
 /** Undo steps kept per user; the oldest step is dropped beyond this (undo.limit). */
 export const UNDO_MAX_STEPS = 200;
+
+// --- Free text (story 9) ----------------------------------------------------
+
+/** Maximum width of an auto-width text object, in world units. */
+export const TEXT_MAX_AUTO_WIDTH_WORLD = 600;
+
+/** Minimum width for a fixed-width text object, in world units. */
+export const TEXT_MIN_WIDTH_WORLD = 40;
+
+/** Maximum number of characters a text object may hold. */
+export const TEXT_MAX_CHARS = 5000;
+
+/** Text font sizes (world px at 100% zoom). */
+export const TEXT_SIZES = { S: 14, M: 20, L: 32, XL: 56 } as const;
+export type TextSize = keyof typeof TEXT_SIZES;
+export const DEFAULT_TEXT_SIZE: TextSize = 'M';
+
+/** CSS line-height multiplier for text. */
+export const TEXT_LINE_HEIGHT = 1.3;
+
+/** CSS font family used by both the canvas measurer and the rendered text. */
+export const TEXT_FONT_FAMILY = 'Inter, -apple-system, "Segoe UI", Roboto, sans-serif';
+
+/** Estimated glyph width ratio (fraction of font size) for the fallback measurer. */
+export const TEXT_ESTIMATED_GLYPH_RATIO = 0.6;
+
+// --- Shapes and connectors (story 10) ----------------------------------------
+
+/** The three shape kinds. */
+export const SHAPE_KINDS = ['rect', 'ellipse', 'diamond'] as const;
+export type ShapeKind = (typeof SHAPE_KINDS)[number];
+
+/** Standard size (world units) for a click-created or tiny-drag shape. */
+export const SHAPE_DEFAULT_SIZE_WORLD = 160;
+
+/** Minimum size (world units) in either dimension; below this a click is assumed. */
+export const SHAPE_MIN_SIZE_WORLD = 20;
+
+/** Maximum label length (characters) for a shape. */
+export const SHAPE_LABEL_MAX_CHARS = 500;
+
+/** Stroke width (world units) for shape outlines. */
+export const SHAPE_STROKE_WIDTH_WORLD = 2;
+
+/** Fill colours for shapes, keyed by product name. */
+export const SHAPE_FILL_COLORS = {
+  none: 'transparent',
+  white: '#FFFFFF',
+  blue: '#BBDEFB',
+  green: '#C8E6C9',
+  yellow: '#FFF9C4',
+  pink: '#F8BBD0',
+  grey: '#E0E0E0',
+} as const;
+export type FillColor = keyof typeof SHAPE_FILL_COLORS;
+
+/** Outline colours for shapes, keyed by product name. */
+export const SHAPE_STROKE_COLORS = {
+  dark: '#263238',
+  blue: '#1E88E5',
+  green: '#43A047',
+  orange: '#FB8C00',
+  red: '#E53935',
+  grey: '#9E9E9E',
+} as const;
+export type StrokeColor = keyof typeof SHAPE_STROKE_COLORS;
+
+/** Default fill for newly created shapes. */
+export const DEFAULT_SHAPE_FILL: FillColor = 'white';
+
+/** Default outline for newly created shapes. */
+export const DEFAULT_SHAPE_STROKE: StrokeColor = 'dark';
+
+/** Minimum connector length (world units); shorter drags are rejected. */
+export const CONNECTOR_MIN_LENGTH_WORLD = 8;
+
+/** Screen-pixel tolerance for selecting a connector by clicking near its line. */
+export const CONNECTOR_HIT_TOLERANCE_PX = 6;
+
+/** Stroke width (world units) for connector lines. */
+export const CONNECTOR_STROKE_WIDTH_WORLD = 2;
+
+/** Arrowhead size (world units) for connectors. */
+export const CONNECTOR_ARROWHEAD_SIZE_WORLD = 10;
+
+/** Screen-pixel radius of the connection dots shown while the Connector tool is active. */
+export const CONNECTOR_DOT_RADIUS_PX = 4;
+
+// --- Pen and freehand strokes (story 11) ------------------------------------
+
+/** The six pen colours, keyed by product name. */
+export const PEN_COLORS = {
+  black: '#212121',
+  blue: '#1E88E5',
+  red: '#E53935',
+  green: '#43A047',
+  orange: '#FB8C00',
+  purple: '#8E24AA',
+} as const;
+export type PenColor = keyof typeof PEN_COLORS;
+
+/** Pen thicknesses in world units (strokes scale with zoom like everything else). */
+export const PEN_THICKNESS_WORLD = { thin: 2, medium: 4, thick: 8 } as const;
+export type PenThickness = keyof typeof PEN_THICKNESS_WORLD;
+
+/** Colour of newly drawn strokes. */
+export const DEFAULT_PEN_COLOR: PenColor = 'black';
+
+/** Thickness of newly drawn strokes. */
+export const DEFAULT_PEN_THICKNESS: PenThickness = 'medium';
+
+/** Smoothing tolerance in screen pixels (divided by the zoom while drawing): every raw point of a finished stroke lies this far or closer to the simplified path (pen.smooth). */
+export const STROKE_SIMPLIFY_TOLERANCE_PX = 1;
+
+/** Raw-point limit per stroke part: reaching it commits the part and continues as a new stroke from the last point (pen.long_stroke). */
+export const STROKE_MAX_POINTS = 5000;
+
+/** Screen-pixel tolerance for selecting a stroke by its line (pen.select). */
+export const STROKE_HIT_TOLERANCE_PX = 6;
+
+/** Smallest size (world units) a stroke may be resized to in either dimension. */
+export const STROKE_MIN_SIZE_WORLD = 4;

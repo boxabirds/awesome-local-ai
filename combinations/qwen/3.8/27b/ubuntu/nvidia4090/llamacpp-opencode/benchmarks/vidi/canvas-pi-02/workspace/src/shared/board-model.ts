@@ -1,8 +1,12 @@
 import * as Y from 'yjs';
-import { DEFAULT_STICKY_COLOR, STICKY_COLORS, STICKY_SIZE_WORLD } from './config';
-import type { StickyColor } from './config';
+import { DEFAULT_STICKY_COLOR, PEN_THICKNESS_WORLD, STICKY_COLORS, STICKY_SIZE_WORLD, TEXT_SIZES } from './config';
+import type { StickyColor, TextSize, ShapeKind, FillColor, StrokeColor, PenThickness } from './config';
+
 import type { Point } from '../client/canvas/camera';
 import { rectContains, isValidRect, type Rect } from './geometry';
+import { resolveEndpoints, connectorBBox } from './geometry/connector-geometry';
+import type { Endpoint } from './objects/connector';
+import { detachConnectorsTo } from './objects/connector';
 
 /**
  * Board document model (story 2).
@@ -53,6 +57,8 @@ export interface StickySnapshot {
  * `width`/`height` are optional because the sticky default
  * (STICKY_SIZE_WORLD) predates them. Objects of unregistered types keep
  * their raw record in `data` so nothing is lost before their code arrives.
+ *
+ * Story 9 adds `size` and `widthMode` for text objects.
  */
 export interface ObjectSnapshot {
   readonly id: string;
@@ -65,6 +71,30 @@ export interface ObjectSnapshot {
   readonly color?: string;
   readonly width?: number;
   readonly height?: number;
+  /** Text size (story 9): 'S' | 'M' | 'L' | 'XL'. */
+  readonly size?: TextSize;
+  /** Text width mode (story 9): 'auto' | 'fixed'. */
+  readonly widthMode?: 'auto' | 'fixed';
+  /** Shape kind (story 10). */
+  readonly kind?: ShapeKind;
+  /** Shape fill colour (story 10). */
+  readonly fill?: FillColor;
+  /** Shape stroke colour (story 10). */
+  readonly stroke?: StrokeColor;
+  /** Shape label text (story 10). */
+  readonly label?: string;
+  /** Connector from-endpoint (story 10). */
+  readonly from?: Endpoint;
+  /** Connector to-endpoint (story 10). */
+  readonly to?: Endpoint;
+  /** Stroke point list (story 11): flattened [x0, y0, ...], relative to the
+   *  bbox origin at base size. */
+  readonly points?: readonly number[];
+  /** Stroke creation-time size (story 11): proportional-resize anchor. */
+  readonly baseWidth?: number;
+  readonly baseHeight?: number;
+  /** Stroke pen thickness name (story 11): 'thin' | 'medium' | 'thick'. */
+  readonly thickness?: PenThickness;
   readonly data?: Readonly<Record<string, unknown>>;
 }
 
@@ -76,7 +106,7 @@ export type Snapshot = readonly ObjectSnapshot[];
  * Ctrl+A). Objects of other types remain in the doc untouched, but generic
  * operations skip them (the registry keeps them out of the renderer too).
  */
-export const KNOWN_OBJECT_TYPES: readonly string[] = ['sticky'];
+export const KNOWN_OBJECT_TYPES: readonly string[] = ['sticky', 'text', 'shape', 'connector', 'stroke'];
 
 /** Top-left of an object's world-space bounding box (default sticky size when unset). */
 export function objectBounds(o: ObjectSnapshot): Rect {
@@ -104,8 +134,26 @@ const Z_KEY = 'z';
 const WIDTH_KEY = 'width';
 const HEIGHT_KEY = 'height';
 const CREATED_AT_KEY = 'createdAt';
+const SIZE_KEY = 'size';
+const WIDTH_MODE_KEY = 'widthMode';
+const CONTENT_KEY = 'content';
+const CREATED_BY_KEY = 'createdBy';
+const KIND_KEY = 'kind';
+const FILL_KEY = 'fill';
+const STROKE_KEY = 'stroke';
+const LABEL_KEY = 'label';
+const FROM_KEY = 'from';
+const TO_KEY = 'to';
 
 const STICKY_TYPE = 'sticky';
+const TEXT_TYPE = 'text';
+const SHAPE_TYPE = 'shape';
+const CONNECTOR_TYPE = 'connector';
+const STROKE_TYPE = 'stroke';
+const POINTS_KEY = 'points';
+const BASE_WIDTH_KEY = 'baseWidth';
+const BASE_HEIGHT_KEY = 'baseHeight';
+const THICKNESS_KEY = 'thickness';
 
 function isStickyColor(value: unknown): value is StickyColor {
   return typeof value === 'string' && value in STICKY_COLORS;
@@ -230,6 +278,19 @@ function asNumber(value: unknown, fallback: number): number {
  */
 export function snapshot(doc: Y.Doc): Snapshot {
   const out: ObjectSnapshot[] = [];
+  const rects = new Map<string, Rect>();
+
+  // First pass: collect rects for all objects (needed for connector resolution).
+  objects(doc).forEach((obj, id) => {
+    const x = asNumber(obj.get(X_KEY), 0);
+    const y = asNumber(obj.get(Y_KEY), 0);
+    const w = obj.get(WIDTH_KEY);
+    const h = obj.get(HEIGHT_KEY);
+    const width = Number.isFinite(w) ? (w as number) : STICKY_SIZE_WORLD;
+    const height = Number.isFinite(h) ? (h as number) : STICKY_SIZE_WORLD;
+    rects.set(id, { x, y, width, height });
+  });
+
   objects(doc).forEach((obj, id) => {
     const type = obj.get(TYPE_KEY);
     if (typeof type !== 'string') return;
@@ -237,22 +298,124 @@ export function snapshot(doc: Y.Doc): Snapshot {
     const height = obj.get(HEIGHT_KEY);
     const color = obj.get(COLOR_KEY);
     const text = obj.get(TEXT_KEY);
+    const size = obj.get(SIZE_KEY);
+    const widthMode = obj.get(WIDTH_MODE_KEY);
+    const content = obj.get(CONTENT_KEY);
+
+    // Compute all fields first (ObjectSnapshot has readonly properties).
+    let x = asNumber(obj.get(X_KEY), 0);
+    let y = asNumber(obj.get(Y_KEY), 0);
+    let w: number | undefined = Number.isFinite(width) ? (width as number) : undefined;
+    let h: number | undefined = Number.isFinite(height) ? (height as number) : undefined;
+    let textVal: string | undefined = text instanceof Y.Text ? text.toString() : undefined;
+    let kind: ShapeKind | undefined;
+    let fill: FillColor | undefined;
+    let stroke: StrokeColor | undefined;
+    let label: string | undefined;
+    let from: Endpoint | undefined;
+    let to: Endpoint | undefined;
+
+    if (type === TEXT_TYPE && content instanceof Y.Text) {
+      textVal = content.toString();
+    }
+
+    // Shape-specific fields (story 10).
+    if (type === SHAPE_TYPE) {
+      const k = obj.get(KIND_KEY);
+      const f = obj.get(FILL_KEY);
+      const s = obj.get(STROKE_KEY);
+      const l = obj.get(LABEL_KEY);
+      kind = typeof k === 'string' ? (k as ShapeKind) : undefined;
+      fill = typeof f === 'string' ? (f as FillColor) : undefined;
+      stroke = typeof s === 'string' ? (s as StrokeColor) : undefined;
+      label = l instanceof Y.Text ? l.toString() : '';
+    }
+
+    // Stroke-specific fields (story 11): flattened point list, base size and
+    // pen thickness. Malformed records yield undefined fields (the renderer
+    // skips them) while the raw record stays intact in the doc.
+    let strokePoints: readonly number[] | undefined;
+    let baseWidthVal: number | undefined;
+    let baseHeightVal: number | undefined;
+    let thicknessVal: PenThickness | undefined;
+    if (type === STROKE_TYPE) {
+      const pv = obj.get(POINTS_KEY);
+      if (Array.isArray(pv) && pv.length > 0 && pv.every((v) => typeof v === 'number' && Number.isFinite(v))) {
+        strokePoints = pv as number[];
+      }
+      const bw = obj.get(BASE_WIDTH_KEY);
+      if (typeof bw === 'number' && Number.isFinite(bw)) baseWidthVal = bw;
+      const bh = obj.get(BASE_HEIGHT_KEY);
+      if (typeof bh === 'number' && Number.isFinite(bh)) baseHeightVal = bh;
+      const th = obj.get(THICKNESS_KEY);
+      if (typeof th === 'string' && th in PEN_THICKNESS_WORLD) thicknessVal = th as PenThickness;
+    }
+
+    // Connector-specific fields (story 10): resolve endpoints and derive bbox.
+    if (type === CONNECTOR_TYPE) {
+      const fv = obj.get(FROM_KEY);
+      const tv = obj.get(TO_KEY);
+      if (fv && tv) {
+        const fromEp = readEndpointValue(fv);
+        const toEp = readEndpointValue(tv);
+        if (fromEp && toEp) {
+          from = fromEp;
+          to = toEp;
+          const resolved = resolveEndpoints({ from: fromEp, to: toEp }, rects);
+          const bbox = connectorBBox(resolved.from, resolved.to);
+          x = bbox.x;
+          y = bbox.y;
+          w = bbox.width;
+          h = bbox.height;
+        }
+      }
+    }
+
     out.push({
       id,
       type,
-      x: asNumber(obj.get(X_KEY), 0),
-      y: asNumber(obj.get(Y_KEY), 0),
+      x,
+      y,
       z: asNumber(obj.get(Z_KEY), 0),
       createdAt: asNumber(obj.get(CREATED_AT_KEY), 0),
-      width: Number.isFinite(width) ? (width as number) : undefined,
-      height: Number.isFinite(height) ? (height as number) : undefined,
+      width: w,
+      height: h,
       color: typeof color === 'string' ? color : undefined,
-      text: text instanceof Y.Text ? text.toString() : undefined,
+      text: textVal,
+      size: typeof size === 'string' && size in TEXT_SIZES ? (size as TextSize) : undefined,
+      widthMode: widthMode === 'auto' || widthMode === 'fixed' ? widthMode : undefined,
+      ...(strokePoints !== undefined ? { points: strokePoints } : {}),
+      ...(baseWidthVal !== undefined ? { baseWidth: baseWidthVal } : {}),
+      ...(baseHeightVal !== undefined ? { baseHeight: baseHeightVal } : {}),
+      ...(thicknessVal !== undefined ? { thickness: thicknessVal } : {}),
+      ...(kind !== undefined ? { kind } : {}),
+      ...(fill !== undefined ? { fill } : {}),
+      ...(stroke !== undefined ? { stroke } : {}),
+      ...(label !== undefined ? { label } : {}),
+      ...(from !== undefined ? { from } : {}),
+      ...(to !== undefined ? { to } : {}),
     });
   });
   // (z, id) gives every client the same order even with concurrent equal z values.
   out.sort((a, b) => (a.z - b.z) || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
   return out;
+}
+
+/** Read an endpoint from a Y.Map embedded value. */
+function readEndpointValue(value: unknown): Endpoint | null {
+  if (typeof value !== 'object' || value === null) return null;
+  const v = value as Record<string, unknown>;
+  if (v.kind === 'free' && typeof v.x === 'number' && typeof v.y === 'number') {
+    return { kind: 'free', x: v.x, y: v.y };
+  }
+  if (v.kind === 'attached' && typeof v.objectId === 'string') {
+    const fb = v.fallback as Point | undefined;
+    if (fb && typeof fb.x === 'number' && typeof fb.y === 'number') {
+      return { kind: 'attached', objectId: v.objectId, fallback: fb };
+    }
+    return null;
+  }
+  return null;
 }
 
 // --- Generic group operations (story 7) -------------------------------------
@@ -327,12 +490,19 @@ export function bringObjectsToFront(doc: Y.Doc, ids: readonly string[]): number 
 /**
  * Delete several objects in one transaction. Stale ids are skipped. Returns
  * the number actually deleted (0 = no transaction opened).
+ *
+ * Story 10: connector ends attached to deleted objects are detached (set to
+ * free at the current anchor) inside the same transaction, so the whole
+ * operation is one undo step.
  */
 export function deleteObjects(doc: Y.Doc, ids: readonly string[]): number {
   const map = objects(doc);
   const live = ids.filter((id) => map.get(id) !== undefined);
   if (live.length === 0) return 0;
   doc.transact(() => {
+    // Detach connector ends attached to the deleted objects BEFORE removing
+    // them, so the rects are still available for anchor computation.
+    detachConnectorsTo(doc, live);
     for (const id of live) map.delete(id);
   }, LOCAL_ORIGIN);
   return live.length;

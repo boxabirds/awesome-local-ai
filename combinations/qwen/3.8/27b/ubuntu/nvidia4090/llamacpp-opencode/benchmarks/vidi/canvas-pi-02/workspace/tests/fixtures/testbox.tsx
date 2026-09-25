@@ -55,6 +55,7 @@ if (getObjectType('testbox') === undefined) {
   registerObjectType('testbox', {
     Component: TestBox,
     resizable: true,
+    handles: 'all',
     aspectLocked: false,
     minSize: TESTBOX_MIN_SIZE,
     editableText: false,
