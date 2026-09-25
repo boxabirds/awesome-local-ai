@@ -503,3 +503,19 @@ def test_unmonitored_thermal_is_fit_and_not_throttled():
     c = {"ac": True, "low_power": False, "thermal": "unmonitored"}
     assert conditions_ok(c)
     assert summarise_conditions(2, [])["throttled_share"] == 0.0
+
+
+def test_private_pack_checkout_is_hidden_from_the_agent(tmp_path):
+    """Moving the held-out suite out of the public repo must not make it readable: the sandbox
+    hides the private checkout exactly as it hides the repo."""
+    import subprocess
+    from drive import PACK, sandboxed
+    from packdir import private_root
+    root = private_root(PACK)
+    if root is None:
+        import pytest
+        pytest.skip("pack is in-repo; covered by the repo-hiding test")
+    own = tmp_path / "work" / "run"
+    own.mkdir(parents=True)
+    r = subprocess.run(sandboxed(["ls", str(PACK / "acceptance")], own_dir=own), capture_output=True, text=True)
+    assert r.returncode != 0 or not r.stdout.strip(), r.stdout
