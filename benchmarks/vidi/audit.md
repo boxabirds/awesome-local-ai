@@ -21,6 +21,7 @@ One rubric, applied the same way to every setup, so the counts compare. The audi
    - in a different layer.
 3. **Requirements.** For every PRD requirement (by anchor), does the code implement it? That includes the exact UI text, `aria-label`s and the named settings in `src/shared/config.ts`.
 4. **Held-out failures.** For each failing held-out test for the story, decide from the test source and the code whether it's an **app fault**, a **test fault** or **undetermined**. App faults become rows, merged with any duplicate from step 3. Test faults are listed separately and aren't counted against the setup.
+   - **Does it work the build's own way?** For each app fault, find how the build actually exposes the feature (its route, entry point or control, from its code and its own tests) and replay the failing held-out checks through that. Record `own_way` on the row: `works`, `partial`, `broken`, `not-applicable` (no alternative route: the feature is absent) or `not-run` (say why). It separates "wired differently from the spec" from "doesn't work", and never changes the row's category, severity or count: a feature reachable only by a route the user was never given still fails the spec.
 5. **Gap-fills (runs with a PARTIAL story only).** For every story after a PARTIAL one, find code that implements the PARTIAL story's unverified tasks, or stands in for them. Use the story's `stub_markers` and `partial_heldout_changes` in `metrics.json` as leads. Record each as a `gap-fill` row: declared or undeclared, and real or stub.
 6. **Claims.** Compare the agent's own statements ("all tests pass", "TC-12 covered", "nothing left undone") with what steps 1–5 found. Each false or overstated claim is a row.
 
@@ -39,5 +40,6 @@ One rubric, applied the same way to every setup, so the counts compare. The audi
 | `discrepancy` | one sentence |
 | `evidence` | a file and line, a test name, or a held-out test title |
 | `verified_by` | `code-read`, `held-out`, `own-run` |
+| `own_way` | rows from held-out failures only: `works`, `partial`, `broken`, `not-applicable`, `not-run` |
 
 The headline count is **functional** rows. The other categories are counted separately.
