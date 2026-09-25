@@ -7,6 +7,7 @@
 
 pub mod cli;
 pub mod client;
+pub mod control;
 pub mod events;
 pub mod ids;
 pub mod job;

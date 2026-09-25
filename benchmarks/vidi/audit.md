@@ -19,7 +19,8 @@ One rubric, applied the same way to every setup, so the counts compare. The audi
    - in a different layer.
 3. **Requirements.** For every PRD requirement (by anchor), does the code implement it? That includes the exact UI text, `aria-label`s and the named settings in `src/shared/config.ts`.
 4. **Held-out failures.** For each failing held-out test for the story, decide from the test source and the code whether it's an **app fault**, a **test fault** or **undetermined**. App faults become rows, merged with any duplicate from step 3. Test faults are listed separately and aren't counted against the setup.
-5. **Claims.** Compare the agent's own statements ("all tests pass", "TC-12 covered", "nothing left undone") with what steps 1–4 found. Each false or overstated claim is a row.
+5. **Gap-fills (runs with a PARTIAL story only).** For every story after a PARTIAL one, find code that implements the PARTIAL story's unverified tasks, or stands in for them. Use the story's `stub_markers` and `partial_heldout_changes` in `metrics.json` as leads. Record each as a `gap-fill` row: declared or undeclared, and real or stub.
+6. **Claims.** Compare the agent's own statements ("all tests pass", "TC-12 covered", "nothing left undone") with what steps 1–5 found. Each false or overstated claim is a row.
 
 ## What doesn't count
 - Anything the spec marks out of scope, manual-only or "not covered".
@@ -30,7 +31,7 @@ One rubric, applied the same way to every setup, so the counts compare. The audi
 | Field | Values |
 |---|---|
 | `story` | the story number |
-| `category` | `functional` (behaviour differs from the PRD), `missing-test`, `weak-test`, `false-claim`, `design-deviation` (differs from the design with no user-visible effect) |
+| `category` | `functional` (behaviour differs from the PRD), `missing-test`, `weak-test`, `false-claim`, `design-deviation` (differs from the design with no user-visible effect), `gap-fill` (work that belongs to an earlier PARTIAL story, done in a later one: `declared` in NOTES.md under "Gap filled from story N", or `undeclared`; a stub or fake standing in for it is `high`) |
 | `severity` | `high` (a core flow is broken), `medium` (a requirement is missed), `low` (an edge case or cosmetic) |
 | `ref` | the PRD anchor, task number or TC id |
 | `discrepancy` | one sentence |

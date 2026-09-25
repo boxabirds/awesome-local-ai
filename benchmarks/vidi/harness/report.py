@@ -35,6 +35,7 @@ def totals(m: dict) -> dict:
         "prompt_tokens": sum(s["requests"].get("prompt_tokens", 0) for s in ss),
         "completion_tokens": sum(s["requests"].get("completion_tokens", 0) for s in ss),
         "stalled": sum(bool(s["agent"]["stalled"]) for s in ss),
+        "partial": sum(s.get("status") == "PARTIAL" for s in ss),
         "gate_green": sum(bool(s["gate"].get("all_green")) for s in ss),
         "accept_final": f"{acc.get('passed', 0)}/{acc.get('total', 0)}",
         "loc": last.get("loc", {}).get("lines"),
@@ -52,6 +53,42 @@ def conditions_cell(c: dict) -> str:
             + (f", server peak {fp:.0f} GB" if fp else "") + (" SWAP-ABORT" if c.get("aborted_swap") else "") + (" MEMORY-ABORT" if c.get("aborted_memory") else ""))
 
 
+def status_cell(s: dict) -> str:
+    """DONE, PARTIAL (verdict), and whether the story was built on an earlier PARTIAL story."""
+    st = s.get("status", "DONE")
+    if st == "PARTIAL":
+        st += f" ({(s.get('verdict') or {}).get('verdict', '?')})"
+    if s.get("partial_base"):
+        st += f", on partial {', '.join(map(str, s['partial_base']))}"
+    return st
+
+
+def partial_notes(m: dict) -> list[str]:
+    """What happened to each PARTIAL story, and what later stories did on top of it."""
+    out = []
+    for sid, s in m["stories"].items():
+        if s.get("status") == "PARTIAL":
+            v = s.get("verdict") or {}
+            skip = s.get("skip") or {}
+            out.append(f"- **Story {sid} PARTIAL**, ended by the operator ({skip.get('by', '?')}): {skip.get('reason', '')}. "
+                       f"Verdict **{v.get('verdict', '?')}**: gate {'green' if v.get('gate_green') else 'red'}, "
+                       f"tasks not verified {v.get('unverified_tasks') or 'none'} "
+                       f"(implementation: {v.get('unverified_implementation_tasks') or 'none'}), "
+                       f"held-out {(v.get('heldout') or {}).get('passed')}/{(v.get('heldout') or {}).get('total')} "
+                       f"(floor {v.get('heldout_floor')}).")
+        if s.get("partial_base"):
+            changes = s.get("partial_heldout_changes") or {}
+            fixed = {p: c["fixed"] for p, c in changes.items() if c.get("fixed")}
+            regressed = {p: c["regressed"] for p, c in changes.items() if c.get("regressed")}
+            stubs = s.get("stub_markers") or []
+            onp = (s.get("accept") or {}).get("on_partial") or {}
+            out.append(f"- Story {sid}, built on partial {', '.join(map(str, s['partial_base']))}: held-out tests on the "
+                       f"partial base {onp.get('passed')}/{onp.get('total')}; partial story's tests fixed "
+                       f"{sum(map(len, fixed.values()))}, regressed {sum(map(len, regressed.values()))}; "
+                       f"{len(stubs)} stub-like lines added to src/.")
+    return out
+
+
 def summary(run: Path) -> str:
     meta, m = load(run)
     t = totals(m)
@@ -59,12 +96,12 @@ def summary(run: Path) -> str:
              f"Model `{meta.get('model_id')}`, scope `{meta.get('scope')}`, effort `{meta.get('reasoning_effort')}`, "
              f"client {meta.get('client', 'opencode')} {meta.get('client_version') or meta.get('opencode', '')}, "
              f"host {meta.get('host')}.", "",
-             "| Story | Title | Agent min | Requests | Prompt tok | Completion tok | TTFT med s | Decode tok/s med | Gate | Accept (cumulative) | Stalled | Resumes / nudges | Compactions | Max ctx | Conditions |",
-             "|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|"]
+             "| Story | Title | Status | Agent min | Requests | Prompt tok | Completion tok | TTFT med s | Decode tok/s med | Gate | Accept (cumulative) | Stalled | Resumes / nudges | Compactions | Max ctx | Conditions |",
+             "|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|"]
     for sid, s in m["stories"].items():
         r, a = s["requests"], s["accept"]
         lines.append(
-            f"| {sid} | {s['title']} | {s['agent']['seconds'] / SECONDS_PER_MINUTE:.1f} | {r.get('requests')} | "
+            f"| {sid} | {s['title']} | {status_cell(s)} | {s['agent']['seconds'] / SECONDS_PER_MINUTE:.1f} | {r.get('requests')} | "
             f"{r.get('prompt_tokens')} | {r.get('completion_tokens')} | {fmt(r.get('ttft_median_s'))} | "
             f"{fmt(r.get('decode_tok_s_median'))} | {'green' if s['gate'].get('all_green') else 'red'} | "
             f"{a.get('passed')}/{a.get('total')} | {'yes' if s['agent']['stalled'] else ''} | "
@@ -74,7 +111,10 @@ def summary(run: Path) -> str:
     lines += ["", f"**Totals:** {t['stories']} stories, {t['agent_minutes']:.0f} agent-minutes, "
               f"{t['requests']} requests, {t['prompt_tokens']:,} prompt / {t['completion_tokens']:,} completion tokens, "
               f"gate green {t['gate_green']}/{t['stories']}, final acceptance {t['accept_final']}, "
-              f"stalled {t['stalled']}, {t['loc']} lines in src+tests."]
+              f"stalled {t['stalled']}, partial {t['partial']}, {t['loc']} lines in src+tests."]
+    notes = partial_notes(m)
+    if notes:
+        lines += ["", "### Stories ended early (PARTIAL) and what was built on them", "", *notes]
     degraded = [sid for sid, s in m["stories"].items() if conditions_cell(s.get("conditions", {})).startswith("DEGRADED")]
     if degraded:
         lines.append(f"\n> Stories {', '.join(degraded)} ran partly on battery or in Low Power Mode. "

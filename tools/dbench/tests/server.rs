@@ -88,6 +88,26 @@ sleep 1
 echo "[story 1] Leaky story — agent starting"
 "#;
 
+/// Runs story 3 of 4 and writes the harness's progress.json, then waits (to be cancelled).
+const PROGRESS_BODY: &str = r#"echo 3 > "$RUN_DIR/current_story"
+cat > "$RUN_DIR/progress.json" <<'EOF'
+{"updated_at": 1790302781.2, "scope": "canvas", "stories": [
+  {"id": 1, "title": "One", "status": "DONE", "accept": {"passed": 4, "total": 4}},
+  {"id": 2, "title": "Two", "status": "PARTIAL", "ended_by": "operator", "reason": "stuck",
+   "verdict": "amber", "accept": {"passed": 1, "total": 5}},
+  {"id": 3, "title": "Three", "status": "running", "started_at": 1790291590.0, "calls": 572,
+   "partial_base": [2], "accept": null,
+   "tasks": [{"n": 8, "title": "E2E", "type": "test:e2e", "tcs": ["TC-22"], "status": "written", "found": 7, "total": 7}],
+   "baselines": [{"source": "other canvas-pi-01", "calls": 236, "status": "DONE"}],
+   "recent_activity": ["bash: npx playwright test"]},
+  {"id": 4, "title": "Four", "status": "pending"}
+]}
+EOF
+echo "[story 3] Three — agent starting"
+sleep 300 &
+wait
+"#;
+
 struct Env {
     root: TempRoot,
     repo: PathBuf,
@@ -108,6 +128,7 @@ fn setup() -> Env {
         ("failpack", FAIL_BODY),
         ("slowpack", SLOW_BODY),
         ("stubbornpack", STUBBORN_BODY),
+        ("progresspack", PROGRESS_BODY),
         ("leakpack", &format!("{LEAK_BODY}exit 0\n")),
         ("leakwaitpack", &format!("{LEAK_BODY}sleep 300 &\nwait\n")),
     ] {
@@ -243,6 +264,14 @@ impl Server {
             reqwest::Method::POST,
             &format!("/v1/jobs/{id}/cancel"),
             None,
+        )
+        .await
+    }
+    async fn skip_story(&self, id: &str, body: Value) -> (u16, Value) {
+        self.call(
+            reqwest::Method::POST,
+            &format!("/v1/jobs/{id}/skip-story"),
+            Some(body),
         )
         .await
     }
@@ -729,4 +758,122 @@ async fn leftovers_are_stopped_when_the_harness_exits() {
 #[tokio::test(flavor = "multi_thread")]
 async fn leftovers_are_stopped_when_the_job_is_cancelled() {
     leftovers_are_stopped("leakwaitpack", true).await;
+}
+
+/// The status view carries every story from the harness's progress.json, and
+/// skip-story leaves a request for the harness in the run dir, only for the
+/// story that is running.
+#[tokio::test(flavor = "multi_thread")]
+async fn progress_stories_and_skip_story() {
+    let env = setup();
+    let srv = start(&env, false);
+    assert_eq!(
+        srv.submit("prog", &spec("progresspack", "run-p")).await.0,
+        201
+    );
+    assert_eq!(
+        srv.submit("behind", &spec("fakepack", "run-b")).await.0,
+        201
+    );
+    let v = srv
+        .wait_for("prog", "running story 3", |v| {
+            v["state"]["status"] == "running"
+                && v["progress"]["stories"]
+                    .as_array()
+                    .is_some_and(|s| s.len() == 4)
+        })
+        .await;
+    let p = &v["progress"];
+    assert_eq!(p["current_story"], "3");
+    assert_eq!(p["stories_updated_at"], 1790302781.2);
+    assert!(p.get("error").is_none(), "{p:#}");
+    let stories = p["stories"].as_array().unwrap();
+    assert_eq!(
+        stories
+            .iter()
+            .map(|s| s["status"].as_str().unwrap())
+            .collect::<Vec<_>>(),
+        ["DONE", "PARTIAL", "running", "pending"]
+    );
+    // Old consumers keep their id/passed/total.
+    assert_eq!(
+        (
+            &stories[0]["id"],
+            &stories[0]["passed"],
+            &stories[0]["total"]
+        ),
+        (&json!("1"), &json!(4), &json!(4))
+    );
+    assert_eq!(stories[1]["verdict"], "amber");
+    let running = &stories[2];
+    assert_eq!(running["calls"], 572);
+    assert_eq!(running["partial_base"], json!([2]));
+    assert_eq!(
+        running["tasks"],
+        json!([{"n": 8, "title": "E2E", "type": "test:e2e", "tcs": ["TC-22"], "status": "written", "found": 7, "total": 7}])
+    );
+    assert_eq!(running["baselines"][0]["source"], "other canvas-pi-01");
+    assert_eq!(
+        running["recent_activity"],
+        json!(["bash: npx playwright test"])
+    );
+    assert_eq!(
+        stories[3],
+        json!({"id": "4", "title": "Four", "passed": null, "total": null, "status": "pending"})
+    );
+
+    let run_dir = env
+        .repo
+        .join("combinations")
+        .join(COMBINATION)
+        .join("benchmarks/progresspack/run-p");
+    let control = run_dir.join("control/skip-story.json");
+    let body = |story: u32, reason: &str| json!({"story": story, "reason": reason});
+
+    // Refusals, none of which writes anything.
+    assert_eq!(srv.skip_story("nope", body(3, "x")).await.0, 404);
+    let (code, v) = srv.skip_story("prog", body(2, "x")).await;
+    assert_eq!(code, 409, "{v}");
+    assert!(
+        v["error"]
+            .as_str()
+            .unwrap()
+            .contains("the current story is 3"),
+        "{v}"
+    );
+    assert_eq!(srv.skip_story("prog", body(3, "  ")).await.0, 400);
+    assert_eq!(srv.skip_story("prog", json!({"story": 3})).await.0, 400);
+    let (code, v) = srv.skip_story("behind", body(3, "x")).await;
+    assert_eq!(code, 409, "queued: {v}");
+    assert!(v["error"].as_str().unwrap().contains("not running"), "{v}");
+    assert!(!control.exists());
+
+    // Accepted: the request is in the run dir, the job keeps running, and who asked is recorded.
+    let before = dbench::timefmt::now_secs();
+    let (code, v) = srv
+        .skip_story("prog", body(3, "no commit for 107 min"))
+        .await;
+    assert_eq!(code, 202, "{v}");
+    assert_eq!(v["state"]["status"], "running");
+    let written: Value = serde_json::from_slice(&std::fs::read(&control).unwrap()).unwrap();
+    assert_eq!(written["story"], 3);
+    assert_eq!(written["reason"], "no commit for 107 min");
+    assert_eq!(written["by"], "127.0.0.1");
+    let at = written["at"].as_u64().unwrap();
+    assert!(
+        at >= before && at <= dbench::timefmt::now_secs(),
+        "{written}"
+    );
+    assert_eq!(written.as_object().unwrap().len(), 4, "{written}");
+    let note = "skip-story 3 requested by 127.0.0.1: no commit for 107 min";
+    assert!(v["history"].to_string().contains(note), "{v:#}");
+    assert!(srv.log("prog").await.contains(note));
+
+    // Once the job is over there is nothing to skip.
+    assert_eq!(srv.cancel("prog").await.0, 202);
+    srv.wait_status("prog", "cancelled").await;
+    assert_eq!(srv.skip_story("prog", body(3, "x")).await.0, 409);
+    srv.wait_status("behind", "done").await;
+    assert_eq!(srv.skip_story("behind", body(2, "x")).await.0, 409);
+    drop(env.root);
 }
