@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { getNotes, setCamera, waitForNoteBox } from './helpers/board';
+import { getNotes, gotoBoard, setCamera, waitForNoteBox } from './helpers/board';
 import { LONG_PROSE, SHORT_TEXT } from '../fixtures/texts';
 
 /**
@@ -10,7 +10,7 @@ import { LONG_PROSE, SHORT_TEXT } from '../fixtures/texts';
 
 test.describe('Sticky notes: create, edit, move', () => {
   test('TC-30: double-click at (400,300) centres a note there; typing saves text', async ({ page }) => {
-    await page.goto('/');
+    await gotoBoard(page);
     await page.mouse.dblclick(400, 300);
 
     const note = page.locator('[data-testid="sticky-note"]');
@@ -34,7 +34,7 @@ test.describe('Sticky notes: create, edit, move', () => {
   test('TC-31: drag by (100,50) at 50% zoom moves (200,100) world; grabbed point stays under pointer', async ({
     page,
   }) => {
-    await page.goto('/');
+    await gotoBoard(page);
     await page.mouse.dblclick(640, 360);
     await expect(page.locator('[data-testid="sticky-textarea"]')).toBeVisible();
     await page.keyboard.press('Escape');
@@ -65,7 +65,7 @@ test.describe('Sticky notes: create, edit, move', () => {
   test('TC-32: drag by (100,50) at 200% zoom moves (50,25) world; dragged note ends above the overlapped one', async ({
     page,
   }) => {
-    await page.goto('/');
+    await gotoBoard(page);
     // Two overlapping notes: A at world centre (0,0), B at (150,0). B's centre
     // is outside A (so the double-click creates instead of editing) while the
     // notes still overlap (|Δ| < note size).
@@ -107,7 +107,7 @@ test.describe('Sticky notes: create, edit, move', () => {
 
 test.describe('Sticky notes: text fits, then clips', () => {
   test('TC-33: one word fits at 24px; 1,000 characters shrink to 10px and fade', async ({ page }) => {
-    await page.goto('/');
+    await gotoBoard(page);
     await page.mouse.dblclick(640, 360);
     await expect(page.locator('[data-testid="sticky-textarea"]')).toBeVisible();
     await page.keyboard.type('Hello');
@@ -137,7 +137,7 @@ test.describe('Sticky notes: text fits, then clips', () => {
 
 test.describe('Sticky notes: create while far away', () => {
   test('TC-34: after panning far away, the toolbar button creates a note at the screen centre', async ({ page }) => {
-    await page.goto('/');
+    await gotoBoard(page);
 
     // Pan far away from the origin.
     await page.mouse.move(640, 360);
@@ -158,7 +158,7 @@ test.describe('Sticky notes: create while far away', () => {
 
 test.describe('Golden path: brainstorm a board', () => {
   test('create by double-click, type, move at 50% zoom, recolour, delete', async ({ page }) => {
-    await page.goto('/');
+    await gotoBoard(page);
 
     // 1. Create by double-click at (500,300): world centre (-140,-60).
     await page.mouse.dblclick(500, 300);

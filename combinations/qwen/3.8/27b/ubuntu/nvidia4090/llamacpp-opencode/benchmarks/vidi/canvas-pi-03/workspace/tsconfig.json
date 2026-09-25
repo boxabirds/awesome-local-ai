@@ -19,7 +19,7 @@
     "paths": {
       "@/*": ["src/*"]
     },
-    "types": ["node", "vite/client"]
+    "types": ["node", "vite/client", "@cloudflare/workers-types"]
   },
   "include": ["src", "tests", "vite.config.ts", "playwright.config.ts"],
   "exclude": ["vitest.config.ts", "vitest.workspace.ts"]

@@ -17,3 +17,16 @@ export const STICKY_COLORS = {
 } as const;
 export type StickyColor = keyof typeof STICKY_COLORS;
 export const DEFAULT_STICKY_COLOR: StickyColor = 'yellow';
+
+// --- Story 3: live collaboration (sync) settings ---
+
+/** Soft simultaneous-editor capacity: design and test target, never enforced. */
+export const MAX_CONCURRENT_EDITORS = 5;
+/** Max allowed time for a change to appear on every other screen (PRD live.propagate). */
+export const LIVE_UPDATE_LATENCY_BUDGET_MS = 1000;
+/** Passed to WebsocketProvider maxBackoffTime. */
+export const RECONNECT_MAX_BACKOFF_MS = 10_000;
+/** How long the green "Connected" badge stays visible after a reconnection. */
+export const CONNECTED_CONFIRMATION_MS = 2000;
+/** Outage duration used by the catch-up verification (PRD live.catch_up). */
+export const CATCH_UP_TEST_OUTAGE_MS = 30_000;

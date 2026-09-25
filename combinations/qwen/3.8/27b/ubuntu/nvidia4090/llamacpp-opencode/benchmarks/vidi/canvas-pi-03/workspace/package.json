@@ -11,14 +11,20 @@
     "test": "vitest run",
     "test:unit": "vitest run --project unit",
     "test:component": "vitest run --project component",
-    "test:e2e": "playwright test"
+    "test:integration": "npm run build:e2e && vitest run --project integration",
+    "test:e2e": "playwright test --project chromium",
+    "test:e2e:nightly": "playwright test --project chromium-nightly"
   },
   "dependencies": {
+    "lib0": "^0.2.118",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
+    "y-protocols": "^1.0.7",
+    "y-websocket": "^3.1.0",
     "yjs": "^13.6.33"
   },
   "devDependencies": {
+    "@cloudflare/workers-types": "^4.20260702.1",
     "@playwright/test": "^1.44.0",
     "@testing-library/jest-dom": "^7.0.1",
     "@testing-library/react": "^16.0.0",

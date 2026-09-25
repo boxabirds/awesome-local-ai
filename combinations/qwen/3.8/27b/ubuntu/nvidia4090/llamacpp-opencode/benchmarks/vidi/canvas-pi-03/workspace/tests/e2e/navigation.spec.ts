@@ -1,9 +1,9 @@
 import { test, expect } from '@playwright/test';
-import { getOriginMarkerPosition, setCamera } from './helpers/board';
+import { getOriginMarkerPosition, gotoBoard, setCamera } from './helpers/board';
 
 test.describe('Workflow 1: First visit navigation', () => {
   test('TC-28: hint visible on load, then removed after drag', async ({ page }) => {
-    await page.goto('/');
+    await gotoBoard(page);
     
     // Hint should be visible
     const hint = page.locator('[data-testid="navigation-hint"]');
@@ -21,7 +21,7 @@ test.describe('Workflow 1: First visit navigation', () => {
   });
 
   test('TC-23: real mouse drag moves origin marker exactly 200,100', async ({ page }) => {
-    await page.goto('/');
+    await gotoBoard(page);
     
     const before = await getOriginMarkerPosition(page);
     
@@ -37,7 +37,7 @@ test.describe('Workflow 1: First visit navigation', () => {
   });
 
   test('TC-24: Ctrl+wheel over a point keeps it under pointer, page zoom unchanged', async ({ page }) => {
-    await page.goto('/');
+    await gotoBoard(page);
     
     const scaleBefore = await page.evaluate(() => window.visualViewport?.scale ?? 1);
     
@@ -64,7 +64,7 @@ test.describe('Workflow 1: First visit navigation', () => {
 
 test.describe('Workflow 2: Limits and recovery', () => {
   test('TC-25: click + until disabled, label ends at 400%', async ({ page }) => {
-    await page.goto('/');
+    await gotoBoard(page);
     
     const zoomInBtn = page.getByLabel('Zoom in');
     
@@ -80,7 +80,7 @@ test.describe('Workflow 2: Limits and recovery', () => {
   });
 
   test('TC-26: jump far via test hook, zoom to 4, click Reset → 100% centred', async ({ page }) => {
-    await page.goto('/');
+    await gotoBoard(page);
     
     // Use test hook to jump far away
     await setCamera(page, { x: 1_000_000, y: 1_000_000, zoom: 4 });
@@ -104,7 +104,7 @@ test.describe('Workflow 2: Limits and recovery', () => {
 
 test.describe('Workflow 3: Far travel', () => {
   test('TC-27: at 1,000,000 units, drag 200,100 gives exact movement and grid spacing', async ({ page }) => {
-    await page.goto('/');
+    await gotoBoard(page);
     
     // Jump far away using test hook
     await setCamera(page, { x: 1_000_000, y: 1_000_000, zoom: 1 });
@@ -135,7 +135,7 @@ test.describe('Workflow 3: Far travel', () => {
 
 test.describe('TC-31: Page zoom unchanged after board gestures', () => {
   test('visualViewport.scale and devicePixelRatio unchanged after Ctrl+wheel and Ctrl+=/-/0', async ({ page }) => {
-    await page.goto('/');
+    await gotoBoard(page);
     
     const scaleBefore = await page.evaluate(() => window.visualViewport?.scale ?? 1);
     const dprBefore = await page.evaluate(() => window.devicePixelRatio);
