@@ -1,0 +1,232 @@
+import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
+import { canZoomIn, canZoomOut, zoomPercent, type Camera, type Point, type Size } from './camera';
+import { useCamera } from './useCamera';
+import { ZoomControls } from './ZoomControls';
+import { NavigationHint } from './NavigationHint';
+import { installTestHooks } from './testHooks';
+import {
+  GRID_DOT_RADIUS_PX,
+  GRID_FADE_BELOW_SPACING_PX,
+  GRID_SPACING_WORLD,
+  WHEEL_LINE_HEIGHT_PX,
+} from '../../shared/config';
+
+const DOM_DELTA_LINE = 1;
+const DOM_DELTA_PAGE = 2;
+const GRID_DOT_RGB = '120, 120, 140';
+
+/** Screen-space dot grid for a camera. Dots sit on world multiples of GRID_SPACING_WORLD. */
+export function gridBackground(cam: Camera) {
+  const spacing = GRID_SPACING_WORLD * cam.zoom;
+  // Each tile is centred on its dot, so the tile starts half a spacing before the world grid line.
+  const mod = (v: number) => ((v % spacing) + spacing) % spacing;
+  const offsetX = mod(-cam.x * cam.zoom - spacing / 2);
+  const offsetY = mod(-cam.y * cam.zoom - spacing / 2);
+  const alpha = Math.min(1, spacing / GRID_FADE_BELOW_SPACING_PX);
+  return {
+    spacing,
+    offsetX,
+    offsetY,
+    backgroundImage: `radial-gradient(circle, rgba(${GRID_DOT_RGB}, ${alpha}) ${GRID_DOT_RADIUS_PX}px, transparent ${GRID_DOT_RADIUS_PX + 0.5}px)`,
+    backgroundSize: `${spacing}px ${spacing}px`,
+    backgroundPosition: `${offsetX}px ${offsetY}px`,
+  };
+}
+
+function windowSize(): Size {
+  return { width: window.innerWidth, height: window.innerHeight };
+}
+
+function isEditableTarget(t: EventTarget | null): boolean {
+  if (!(t instanceof HTMLElement)) return false;
+  return t.isContentEditable || t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT';
+}
+
+interface GestureEventLike extends Event {
+  scale: number;
+  clientX: number;
+  clientY: number;
+}
+
+/** Full-window board: input surface, dot grid and world layer, plus zoom controls and hint overlays. */
+export function BoardViewport(props: { children?: ReactNode }) {
+  const rootRef = useRef<HTMLDivElement>(null);
+  const [size, setSize] = useState<Size>(windowSize);
+  const api = useCamera(size);
+  const { camera, hasNavigated } = api;
+  const apiRef = useRef(api);
+  apiRef.current = api;
+  const panningPointerRef = useRef<number | null>(null);
+  const [panning, setPanning] = useState(false);
+
+  const toLocal = (clientX: number, clientY: number): Point => {
+    const rect = rootRef.current?.getBoundingClientRect();
+    return { x: clientX - (rect?.left ?? 0), y: clientY - (rect?.top ?? 0) };
+  };
+  const toLocalRef = useRef(toLocal);
+  toLocalRef.current = toLocal;
+
+  // Viewport size. The camera is anchored at the top-left, so resizing never moves content.
+  useLayoutEffect(() => {
+    const el = rootRef.current;
+    if (!el) return;
+    const measure = () => {
+      const rect = el.getBoundingClientRect();
+      if (rect.width > 0 && rect.height > 0) setSize({ width: rect.width, height: rect.height });
+    };
+    measure();
+    if (typeof ResizeObserver === 'undefined') return;
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+
+  // Non-passive wheel and Safari gesture listeners (React's onWheel is passive).
+  useEffect(() => {
+    const el = rootRef.current;
+    if (!el) return;
+    const onWheel = (e: WheelEvent) => {
+      e.preventDefault();
+      const unit =
+        e.deltaMode === DOM_DELTA_LINE
+          ? WHEEL_LINE_HEIGHT_PX
+          : e.deltaMode === DOM_DELTA_PAGE
+            ? el.clientHeight || window.innerHeight
+            : 1;
+      apiRef.current.wheel({
+        deltaX: e.deltaX * unit,
+        deltaY: e.deltaY * unit,
+        ctrlOrMeta: e.ctrlKey || e.metaKey,
+        point: toLocalRef.current(e.clientX, e.clientY),
+      });
+    };
+    let lastScale = 1;
+    const onGestureStart = (e: Event) => {
+      e.preventDefault();
+      lastScale = 1;
+    };
+    const onGestureChange = (e: Event) => {
+      e.preventDefault();
+      const g = e as GestureEventLike;
+      const scale = Number(g.scale);
+      if (!Number.isFinite(scale) || scale <= 0) return;
+      const factor = scale / lastScale;
+      lastScale = scale;
+      const point = Number.isFinite(g.clientX) && Number.isFinite(g.clientY)
+        ? toLocalRef.current(g.clientX, g.clientY)
+        : { x: el.clientWidth / 2, y: el.clientHeight / 2 };
+      apiRef.current.zoomBy(point, factor);
+    };
+    const onGestureEnd = (e: Event) => e.preventDefault();
+    el.addEventListener('wheel', onWheel, { passive: false });
+    el.addEventListener('gesturestart', onGestureStart);
+    el.addEventListener('gesturechange', onGestureChange);
+    el.addEventListener('gestureend', onGestureEnd);
+    return () => {
+      el.removeEventListener('wheel', onWheel);
+      el.removeEventListener('gesturestart', onGestureStart);
+      el.removeEventListener('gesturechange', onGestureChange);
+      el.removeEventListener('gestureend', onGestureEnd);
+    };
+  }, []);
+
+  // Ctrl/Cmd + = / - / 0 zoom the board instead of the page.
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (!(e.ctrlKey || e.metaKey) || e.altKey) return;
+      if (isEditableTarget(e.target)) return;
+      if (e.key === '=' || e.key === '+' || e.code === 'NumpadAdd') {
+        e.preventDefault();
+        apiRef.current.zoomStep('in');
+      } else if (e.key === '-' || e.key === '_' || e.code === 'NumpadSubtract') {
+        e.preventDefault();
+        apiRef.current.zoomStep('out');
+      } else if (e.key === '0' || e.code === 'Numpad0') {
+        e.preventDefault();
+        apiRef.current.reset();
+      }
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, []);
+
+  useEffect(
+    () =>
+      installTestHooks({
+        setCamera: (cam) => apiRef.current.setCamera(cam),
+        getCamera: () => apiRef.current.camera,
+      }),
+    [],
+  );
+
+  const endPan = () => {
+    if (panningPointerRef.current === null) return;
+    panningPointerRef.current = null;
+    setPanning(false);
+    api.endPan();
+  };
+
+  const grid = gridBackground(camera);
+
+  return (
+    <div
+      ref={rootRef}
+      className={panning ? 'board-viewport board-viewport--panning' : 'board-viewport'}
+      data-testid="board-viewport"
+      data-state={panning ? 'panning' : 'idle'}
+      tabIndex={0}
+      aria-label="Board"
+      style={{
+        backgroundImage: grid.backgroundImage,
+        backgroundSize: grid.backgroundSize,
+        backgroundPosition: grid.backgroundPosition,
+      }}
+      onPointerDown={(e) => {
+        // Only empty board space starts a pan; objects (later stories) handle their own pointers.
+        if (e.target !== e.currentTarget) return;
+        if (e.button !== 0 && e.button !== 1) return;
+        if (panningPointerRef.current !== null) return;
+        e.preventDefault();
+        e.currentTarget.focus({ preventScroll: true });
+        panningPointerRef.current = e.pointerId;
+        e.currentTarget.setPointerCapture?.(e.pointerId);
+        setPanning(true);
+        api.beginPan(toLocal(e.clientX, e.clientY));
+      }}
+      onPointerMove={(e) => {
+        if (e.pointerId !== panningPointerRef.current) return;
+        api.panMove(toLocal(e.clientX, e.clientY));
+      }}
+      onPointerUp={(e) => {
+        if (e.pointerId === panningPointerRef.current) endPan();
+      }}
+      onPointerCancel={(e) => {
+        if (e.pointerId === panningPointerRef.current) endPan();
+      }}
+      onLostPointerCapture={(e) => {
+        if (e.pointerId === panningPointerRef.current) endPan();
+      }}
+    >
+      <div
+        className="board-world"
+        data-testid="board-world"
+        style={{
+          transform: `scale(${camera.zoom}) translate(${-camera.x}px, ${-camera.y}px)`,
+          transformOrigin: '0 0',
+        }}
+      >
+        <div className="board-origin-marker" data-testid="origin-marker" aria-hidden="true" />
+        {props.children}
+      </div>
+      <ZoomControls
+        zoomPercent={zoomPercent(camera)}
+        canZoomIn={canZoomIn(camera)}
+        canZoomOut={canZoomOut(camera)}
+        onZoomIn={() => api.zoomStep('in')}
+        onZoomOut={() => api.zoomStep('out')}
+        onReset={() => api.reset()}
+      />
+      <NavigationHint visible={!hasNavigated} />
+    </div>
+  );
+}

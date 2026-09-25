@@ -1,0 +1,119 @@
+html,
+body,
+#root {
+  margin: 0;
+  height: 100%;
+  overflow: hidden;
+  overscroll-behavior: none;
+}
+
+body {
+  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  color: #1f2330;
+  background: #fafafc;
+}
+
+.board-viewport {
+  position: fixed;
+  inset: 0;
+  overflow: hidden;
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  outline: none;
+  background-color: #fafafc;
+}
+
+.board-viewport--panning {
+  cursor: grabbing;
+}
+
+.board-world {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 0;
+  height: 0;
+}
+
+.board-origin-marker {
+  position: absolute;
+  left: -6px;
+  top: -6px;
+  width: 12px;
+  height: 12px;
+  pointer-events: none;
+  background:
+    linear-gradient(#9aa0b4, #9aa0b4) center / 12px 1px no-repeat,
+    linear-gradient(#9aa0b4, #9aa0b4) center / 1px 12px no-repeat;
+}
+
+.zoom-controls {
+  position: fixed;
+  right: 16px;
+  bottom: 16px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px;
+  background: #fff;
+  border: 1px solid #dcdfe8;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(20, 24, 40, 0.08);
+  cursor: default;
+  font-size: 14px;
+}
+
+.zoom-controls button {
+  font: inherit;
+  color: inherit;
+  background: transparent;
+  border: 0;
+  border-radius: 6px;
+  cursor: pointer;
+  height: 32px;
+}
+
+.zoom-controls__button {
+  width: 32px;
+  font-size: 18px !important;
+}
+
+.zoom-controls__reset {
+  padding: 0 10px;
+}
+
+.zoom-controls button:hover:not(:disabled) {
+  background: #eef0f6;
+}
+
+.zoom-controls button:focus-visible {
+  outline: 2px solid #3b6cf6;
+  outline-offset: 1px;
+}
+
+.zoom-controls button:disabled {
+  color: #b5b9c6;
+  cursor: default;
+}
+
+.zoom-controls__label {
+  min-width: 48px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+.navigation-hint {
+  position: fixed;
+  left: 50%;
+  bottom: 24px;
+  transform: translateX(-50%);
+  padding: 8px 14px;
+  border-radius: 999px;
+  background: rgba(31, 35, 48, 0.85);
+  color: #fff;
+  font-size: 13px;
+  pointer-events: none;
+  white-space: nowrap;
+}
