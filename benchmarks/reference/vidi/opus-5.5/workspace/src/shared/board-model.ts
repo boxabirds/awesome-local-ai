@@ -30,6 +30,8 @@ import {
   DEFAULT_SHAPE_STROKE,
   DEFAULT_STICKY_COLOR,
   DEFAULT_TEXT_SIZE,
+  PEN_COLORS,
+  PEN_THICKNESS_WORLD,
   SHAPE_FILL_COLORS,
   SHAPE_KINDS,
   SHAPE_STROKE_COLORS,
@@ -39,6 +41,8 @@ import {
   TEXT_LINE_HEIGHT,
   TEXT_SIZES,
   type FillColor,
+  type PenColor,
+  type PenThickness,
   type StickyColor,
   type StrokeColor,
   type TextSize,
@@ -59,12 +63,14 @@ export const TEXT_TYPE = 'text';
 export const SHAPE_TYPE = 'shape';
 /** Arrows (story 10); created and changed by objects/connector.ts. */
 export const CONNECTOR_TYPE = 'connector';
+/** Freehand pen strokes (story 11); created by objects/stroke.ts. */
+export const STROKE_TYPE = 'stroke';
 const HALF = 2;
 /** z of the first object on an empty board is FIRST_Z. */
 const FIRST_Z = 1;
 
 /** Object types this module knows how to read and create (the client registry may add more). */
-export const KNOWN_OBJECT_TYPES: ReadonlySet<string> = new Set([STICKY_TYPE, TEXT_TYPE, SHAPE_TYPE, CONNECTOR_TYPE]);
+export const KNOWN_OBJECT_TYPES: ReadonlySet<string> = new Set([STICKY_TYPE, TEXT_TYPE, SHAPE_TYPE, CONNECTOR_TYPE, STROKE_TYPE]);
 
 /** Any object on the board. `width`/`height` are present only once written (see objectBounds). */
 export interface ObjectSnapshot {
@@ -78,8 +84,8 @@ export interface ObjectSnapshot {
   createdAt: number;
   /** Who created it (story 9 onwards), when recorded. */
   createdBy?: string;
-  /** Sticky notes only. */
-  color?: StickyColor;
+  /** Sticky notes (StickyColor) and pen strokes (PenColor, story 11). */
+  color?: StickyColor | PenColor;
   /** Sticky notes and text objects. */
   text?: string;
   /** Text objects only (story 9). */
@@ -96,6 +102,14 @@ export interface ObjectSnapshot {
   to?: Endpoint;
   fromPoint?: Point;
   toPoint?: Point;
+  /**
+   * Pen strokes only (story 11): flattened [x0, y0, x1, y1, ...] relative to the box's top-left
+   * at creation size, the box size at creation, and the pen thickness.
+   */
+  points?: readonly number[];
+  baseWidth?: number;
+  baseHeight?: number;
+  thickness?: PenThickness;
 }
 
 export type ShapeKind = (typeof SHAPE_KINDS)[number];
@@ -312,11 +326,44 @@ function readConnector(
   return { ...base, ...box, ...ends, fromPoint: points.from, toPoint: points.to };
 }
 
+export function isPenColor(c: unknown): c is PenColor {
+  return typeof c === 'string' && Object.prototype.hasOwnProperty.call(PEN_COLORS, c);
+}
+
+export function isPenThickness(t: unknown): t is PenThickness {
+  return typeof t === 'string' && Object.prototype.hasOwnProperty.call(PEN_THICKNESS_WORLD, t);
+}
+
+/** A pen stroke; malformed entries (bad points, colour, thickness or base size) are skipped. */
+function readStroke(base: ObjectSnapshot, value: Y.Map<unknown>): ObjectSnapshot | undefined {
+  const points = value.get('points');
+  const color = value.get('color');
+  const thickness = value.get('thickness');
+  const baseWidth = positiveNumber(value.get('baseWidth'));
+  const baseHeight = positiveNumber(value.get('baseHeight'));
+  if (!Array.isArray(points) || points.length < HALF || points.length % HALF !== 0) return undefined;
+  if (!points.every((n) => typeof n === 'number' && Number.isFinite(n))) return undefined;
+  if (!isPenColor(color) || !isPenThickness(thickness) || baseWidth === undefined || baseHeight === undefined) {
+    return undefined;
+  }
+  return {
+    ...base,
+    width: base.width ?? baseWidth,
+    height: base.height ?? baseHeight,
+    points: points as number[],
+    baseWidth,
+    baseHeight,
+    color,
+    thickness,
+  };
+}
+
 function readObject(id: string, value: unknown): ObjectSnapshot | undefined {
   const base = readBase(id, value);
   if (!base || !(value instanceof Y.Map)) return base;
   if (base.type === TEXT_TYPE) return readText(base, value);
   if (base.type === SHAPE_TYPE) return readShape(base, value);
+  if (base.type === STROKE_TYPE) return readStroke(base, value);
   if (base.type !== STICKY_TYPE) return base;
   const rawColor = value.get('color');
   const text = value.get('text');

@@ -67,6 +67,12 @@ export interface ObjectTypeSpec {
   attachable?: boolean;
   /** The selection box is drawn around it when it is selected alone or with others of its kind. Default true. */
   selectionBox?: boolean;
+  /**
+   * The component takes no pointer events; the board selects it by `hitTest` on each press
+   * instead (story 10 arrows, story 11 strokes), so objects below stay clickable away from its
+   * line. Default false.
+   */
+  hitByGeometry?: boolean;
 }
 
 const registry = new Map<string, ObjectTypeSpec>();

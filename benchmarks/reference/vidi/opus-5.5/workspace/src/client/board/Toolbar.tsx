@@ -2,6 +2,7 @@ import type { ShapeKind } from '../../shared/board-model';
 import { SHAPE_KINDS } from '../../shared/config';
 import {
   CONNECTOR_TOOL_LABEL,
+  PEN_TOOL_LABEL,
   SHAPE_KIND_LABELS,
   SHAPE_TOOL_LABEL,
 } from '../tools/useActiveTool';
@@ -150,6 +151,26 @@ export function Toolbar({
                     fill="none"
                     stroke="currentColor"
                     strokeWidth="1.8"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </svg>
+              </button>
+              <button
+                type="button"
+                className="toolbar__button"
+                aria-label={PEN_TOOL_LABEL}
+                title={PEN_TOOL_LABEL}
+                aria-pressed={tool === 'pen'}
+                disabled={disabled}
+                onClick={() => onTool('pen')}
+              >
+                <svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                  <path
+                    d="M4 20l1.2-4.2L15.8 5.2a2 2 0 012.8 0l.2.2a2 2 0 010 2.8L8.2 18.8zM14 7l3 3"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.6"
                     strokeLinecap="round"
                     strokeLinejoin="round"
                   />
