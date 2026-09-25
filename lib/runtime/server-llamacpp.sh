@@ -309,6 +309,34 @@ if [[ ! -x "$LLAMA_SERVER_BIN" ]]; then
   echo "${SERVER_CMD}: warning: using ${LLAMA_SERVER_BIN} from PATH; this install has no binary of its own." >&2
 fi
 
+# A build with more than one GPU backend (GPU_API=both on Strix Halo) sees the
+# same GPU once per backend. Left alone, llama.cpp would split the model --
+# and the MTP draft head -- across "both" devices. Pin one, per run:
+# GPU_BACKEND=vulkan|rocm, defaulting to the combination's choice.
+if [[ "${GPU_BACKENDS:-}" == *" "* ]]; then
+  GPU_BACKEND="${GPU_BACKEND:-${GPU_BACKEND_DEFAULT:-${GPU_BACKENDS%% *}}}"
+  if [[ " ${GPU_BACKENDS} " != *" ${GPU_BACKEND} "* ]]; then
+    echo "${SERVER_CMD}: GPU_BACKEND=${GPU_BACKEND} is not in this build; it has: ${GPU_BACKENDS}" >&2
+    exit 1
+  fi
+  case "$GPU_BACKEND" in
+    vulkan) gpu_device="Vulkan0" ;;
+    rocm)   gpu_device="ROCm0" ;;
+    cuda)   gpu_device="CUDA0" ;;
+    *)      gpu_device="$GPU_BACKEND" ;;
+  esac
+  ARGS+=(--device "$gpu_device")
+  if printf '%s\n' "${ARGS[@]}" | grep -qx -- draft-mtp; then
+    # The draft-device flag was renamed with the --spec-* options; ask the build.
+    if "$LLAMA_SERVER_BIN" --help 2>&1 | grep -q -- --spec-draft-device; then
+      ARGS+=(--spec-draft-device "$gpu_device")
+    else
+      ARGS+=(--device-draft "$gpu_device")
+    fi
+  fi
+  echo "${SERVER_CMD}: GPU backend: ${GPU_BACKEND} (${gpu_device})" >&2
+fi
+
 # N-gram speculation drafts from text already in the context: no draft
 # model and no memory. It only runs when there is no MTP head, and only for
 # a combination that sets SPEC_NGRAM_ARGS. The flags are newer than some

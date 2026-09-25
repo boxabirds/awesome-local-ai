@@ -397,9 +397,13 @@ measured by this repo**. What is different from CUDA:
   amdgpu's `mem_info_gtt_total` (falling back to `ttm.pages_limit`), refuses
   below `MIN_DEVICE_MEM_MIB` with the exact fix (`amd-ttm --set N`, or the
   `ttm.pages_limit` value), and never edits boot configuration itself.
-- **`GPU_API`** picks the build: `vulkan` (default, `-DGGML_VULKAN=ON`) or
-  `rocm` (HIP for gfx1151, needs a host ROCm). It is part of the build key,
-  so switching rebuilds.
+- **`GPU_API`** picks the build: `vulkan` (the adapter's default,
+  `-DGGML_VULKAN=ON`), `rocm` (HIP for gfx1151, needs a host ROCm) or `both`
+  (one binary with each). It is part of the build key, so switching rebuilds.
+  A `both` build sees the GPU twice, so the adapter exports
+  `ACCEL_GPU_BACKENDS` into the manifest and the launcher pins one device
+  with `--device` (and `--spec-draft-device` for an MTP head), chosen per run
+  by `GPU_BACKEND` and defaulting to the combination's `GPU_BACKEND_DEFAULT`.
 - **`amdgpu.lockup_timeout`**: qualification warns when it is missing from
   the kernel command line, because since Linux 7.0 amdgpu kills a GPU job
   after 2 s and long Vulkan runs die with `DeviceLostError`.
