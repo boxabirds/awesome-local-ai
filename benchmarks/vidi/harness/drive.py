@@ -255,16 +255,33 @@ control/
 COMMIT_TRAILER = "\n\nCo-Authored-By: Claude Opus 5.5 (1M context) <noreply@anthropic.com>"
 
 
+def _rebase_in_progress(repo_root: Path, git: list[str]) -> bool:
+    for name in ("rebase-merge", "rebase-apply"):
+        p = subprocess.run([*git, "rev-parse", "--git-path", name], cwd=repo_root,
+                           capture_output=True, text=True).stdout.strip()
+        if p and (repo_root / p).exists():
+            return True
+    return False
+
+
 def record_story(repo_root: Path, run: Path, message: str, git: list[str] | None = None) -> dict:
     """Commit exactly this run's directory and push, so every story leaves a durable record.
 
     Only the run dir is staged: anything else uncommitted in the repo is left alone.
-    A failed push is reported, never fatal: the benchmark carries on."""
+    A failed push is reported, never fatal: the benchmark carries on. When the remote has
+    changed this run's own files (a rename of its combination, say), the pull-and-rebase
+    conflicts: it is aborted, the story stays committed locally and is reported `unpushed`,
+    and the next story's push carries the backlog once the remote no longer conflicts."""
     git = git or ["git"]
+    out: dict = {"committed": False, "pushed": False}
+    if _rebase_in_progress(repo_root, git):
+        # Left by a harness killed mid-rebase: committing into it would bury the story.
+        subprocess.run([*git, "rebase", "--abort"], cwd=repo_root, capture_output=True, text=True)
+        out["recovered"] = "aborted a rebase left in progress by an earlier run"
     (run / ".gitignore").write_text(RUN_GITIGNORE)
     too_big = make_publishable(run)
     rel = str(run.resolve().relative_to(repo_root.resolve()))
-    out: dict = {"committed": False, "pushed": False, "over_size_limit": too_big}
+    out["over_size_limit"] = too_big
     add = subprocess.run([*git, "add", "--", rel], cwd=repo_root, capture_output=True, text=True)
     if add.returncode != 0:
         return {**out, "error": add.stderr[-500:]}
@@ -281,11 +298,21 @@ def record_story(repo_root: Path, run: Path, message: str, git: list[str] | None
         # uncommitted work in the repo exactly as it was, then try once more.
         branch = subprocess.run([*git, "rev-parse", "--abbrev-ref", "HEAD"], cwd=repo_root,
                                 capture_output=True, text=True).stdout.strip()
-        subprocess.run([*git, "pull", "-q", "--rebase", "--autostash", "origin", branch],
-                       cwd=repo_root, capture_output=True, text=True)
+        pull = subprocess.run([*git, "pull", "-q", "--rebase", "--autostash", "origin", branch],
+                              cwd=repo_root, capture_output=True, text=True)
+        if pull.returncode != 0:
+            # Most likely a conflict with the remote's copy of this run. Undo the rebase (which
+            # also re-applies the autostash) so the checkout stays usable; keep the commit.
+            if _rebase_in_progress(repo_root, git):
+                subprocess.run([*git, "rebase", "--abort"], cwd=repo_root, capture_output=True, text=True)
+            out["unpushed"] = True
+            out["error"] = ("pull --rebase hit a conflict with the remote; rebase aborted, the story is "
+                            "committed locally and unpushed. " + (pull.stdout + pull.stderr)[-300:])
+            return out
         push = subprocess.run([*git, "push", "-q", "origin", "HEAD"], cwd=repo_root, capture_output=True, text=True)
     out["pushed"] = push.returncode == 0
     if not out["pushed"]:
+        out["unpushed"] = True
         out["error"] = push.stderr[-500:]
     return out
 
@@ -1110,6 +1137,7 @@ def main() -> None:
             save_metrics(run, metrics)
             r = rec["record"]
             print(f"[story {sid}] recorded: commit {r.get('commit', '-')} pushed={r['pushed']}"
+                  f"{'  NOT PUSHED, kept locally; the next story retries' if r.get('unpushed') else ''}"
                   f"{'  ' + r['error'][:200] if r.get('error') else ''}", flush=True)
         print(f"[story {sid}] {status}{' verdict ' + rec['verdict']['verdict'] if skip else ''} "
               f"gate green={rec['gate'].get('all_green')} "
