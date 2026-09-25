@@ -29,8 +29,14 @@ NVIDIA_THERMAL_FIELDS = ("clocks_event_reasons.hw_thermal_slowdown,clocks_event_
 
 
 def playwright_cache(real_home: Path) -> Path:
-    """Where Playwright keeps its browsers by default on this OS (shared with the agent's isolated HOME)."""
+    """Where Playwright keeps its browsers by default on this OS: the held-out suite's browsers."""
     return real_home / ("Library/Caches" if IS_MAC else ".cache") / "ms-playwright"
+
+
+def agent_playwright_cache(real_home: Path) -> Path:
+    """The agents' browsers, shared by every run on this machine but never with the held-out suite:
+    `playwright install` deletes browsers no project it can see uses, and the suite is hidden from agents."""
+    return real_home / ".cache" / "vidi-agent-ms-playwright"
 
 
 def _out(cmd: list[str]) -> str:
