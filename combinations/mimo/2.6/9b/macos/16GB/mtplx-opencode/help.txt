@@ -59,8 +59,8 @@ NOTES FOR THIS COMBINATION
   client configs declare text input only, and the installer's summary
   line "Vision: not available in this pack" is wrong for this pack.
 
-  ON M1/M2, MTPLX's own pick is the base model's FP16 build, installed
-  by combinations/qwen/3.5/9b-fp16/macos/16GB/mtplx-opencode.
+  ON M1/M2, MTPLX's own pick is the base model's FP16 build, which this
+  repo does not include.
 
   CREDIT. Model: Xiaomi MiMo, MiMo-V2.6-Distill-Qwen-9B (MIT), a
   fine-tune of Qwen3.5-9B (Apache 2.0). MTPLX pack: Youssofal.
