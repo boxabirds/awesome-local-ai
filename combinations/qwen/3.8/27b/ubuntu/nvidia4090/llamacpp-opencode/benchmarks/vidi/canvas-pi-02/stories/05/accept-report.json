@@ -1,0 +1,2599 @@
+{
+  "config": {
+    "configFile": "~/.dbench/repo/benchmarks/vidi/acceptance/playwright.config.ts",
+    "rootDir": "~/.dbench/repo/benchmarks/vidi/acceptance/tests",
+    "forbidOnly": false,
+    "fullyParallel": false,
+    "globalSetup": "~/.dbench/repo/benchmarks/vidi/acceptance/tests/global-setup.ts",
+    "globalTeardown": null,
+    "globalTimeout": 0,
+    "grep": {},
+    "grepInvert": null,
+    "maxFailures": 0,
+    "metadata": {
+      "actualWorkers": 1
+    },
+    "preserveOutput": "always",
+    "projects": [
+      {
+        "outputDir": "~/.dbench/repo/combinations/qwen/3.8/27b/ubuntu/24GB/llamacpp-opencode/benchmarks/vidi/canvas-pi-02/stories/05/artifacts",
+        "repeatEach": 1,
+        "retries": 0,
+        "metadata": {
+          "actualWorkers": 1
+        },
+        "id": "chromium",
+        "name": "chromium",
+        "testDir": "~/.dbench/repo/benchmarks/vidi/acceptance/tests",
+        "testIgnore": [],
+        "testMatch": [
+          "**/*.@(spec|test).?(c|m)[jt]s?(x)"
+        ],
+        "timeout": 45000
+      }
+    ],
+    "quiet": false,
+    "reporter": [
+      [
+        "list",
+        null
+      ],
+      [
+        "json",
+        {
+          "outputFile": "~/.dbench/repo/combinations/qwen/3.8/27b/ubuntu/24GB/llamacpp-opencode/benchmarks/vidi/canvas-pi-02/stories/05/accept-report.json"
+        }
+      ]
+    ],
+    "reportSlowTests": {
+      "max": 5,
+      "threshold": 300000
+    },
+    "runAgents": "none",
+    "shard": null,
+    "tags": [],
+    "updateSnapshots": "missing",
+    "updateSourceMethod": "patch",
+    "version": "1.58.2",
+    "workers": 1,
+    "webServer": null
+  },
+  "suites": [
+    {
+      "title": "story-01.spec.ts",
+      "file": "story-01.spec.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [],
+      "suites": [
+        {
+          "title": "story 1 @s01",
+          "file": "story-01.spec.ts",
+          "line": 11,
+          "column": 6,
+          "specs": [
+            {
+              "title": "golden path: controls and hint visible at 100% @ref prd:golden-path",
+              "ok": false,
+              "tags": [
+                "s01",
+                "ref"
+              ],
+              "tests": [
+                {
+                  "timeout": 45000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "failed",
+                      "duration": 108,
+                      "error": {
+                        "message": "Error: page.goto: net::ERR_CONNECTION_REFUSED at http://127.0.0.1:18787/\nCall log:\n\u001b[2m  - navigating to \"http://127.0.0.1:18787/\", waiting until \"load\"\u001b[22m\n",
+                        "stack": "Error: page.goto: net::ERR_CONNECTION_REFUSED at http://127.0.0.1:18787/\nCall log:\n\u001b[2m  - navigating to \"http://127.0.0.1:18787/\", waiting until \"load\"\u001b[22m\n\n    at openBoard (~/.dbench/repo/benchmarks/vidi/acceptance/tests/fixtures.ts:112:14)\n    at ~/.dbench/repo/benchmarks/vidi/acceptance/tests/story-01.spec.ts:15:11",
+                        "location": {
+                          "file": "~/.dbench/repo/benchmarks/vidi/acceptance/tests/fixtures.ts",
+                          "column": 14,
+                          "line": 112
+                        },
+                        "snippet": "   at fixtures.ts:112\n\n\u001b[0m \u001b[90m 110 |\u001b[39m \u001b[90m// at '/'; from story 5 on '/' is the home page with \"Create a board\".\u001b[39m\n \u001b[90m 111 |\u001b[39m \u001b[36mexport\u001b[39m \u001b[36masync\u001b[39m \u001b[36mfunction\u001b[39m openBoard(page\u001b[33m:\u001b[39m \u001b[33mPage\u001b[39m)\u001b[33m:\u001b[39m \u001b[33mPromise\u001b[39m\u001b[33m<\u001b[39m\u001b[33mstring\u001b[39m\u001b[33m>\u001b[39m {\n\u001b[31m\u001b[1m>\u001b[22m\u001b[39m\u001b[90m 112 |\u001b[39m   \u001b[36mawait\u001b[39m page\u001b[33m.\u001b[39mgoto(\u001b[32m'/'\u001b[39m)\u001b[33m;\u001b[39m\n \u001b[90m     |\u001b[39m              \u001b[31m\u001b[1m^\u001b[22m\u001b[39m\n \u001b[90m 113 |\u001b[39m   \u001b[36mif\u001b[39m (\u001b[33mPROCESSED\u001b[39m\u001b[33m.\u001b[39mhas(\u001b[35m5\u001b[39m)) \u001b[36mawait\u001b[39m createBoard(page)\u001b[33m;\u001b[39m\n \u001b[90m 114 |\u001b[39m   \u001b[36mawait\u001b[39m expect(zoomLabel(page))\u001b[33m.\u001b[39mtoBeVisible()\u001b[33m;\u001b[39m\n \u001b[90m 115 |\u001b[39m   \u001b[36mif\u001b[39m (\u001b[33mPROCESSED\u001b[39m\u001b[33m.\u001b[39mhas(\u001b[35m3\u001b[39m)) \u001b[36mawait\u001b[39m waitConnected(page)\u001b[33m;\u001b[39m\u001b[0m"
+                      },
+                      "errors": [
+                        {
+                          "location": {
+                            "file": "~/.dbench/repo/benchmarks/vidi/acceptance/tests/fixtures.ts",
+                            "column": 14,
+                            "line": 112
+                          },
+                          "message": "Error: page.goto: net::ERR_CONNECTION_REFUSED at http://127.0.0.1:18787/\nCall log:\n\u001b[2m  - navigating to \"http://127.0.0.1:18787/\", waiting until \"load\"\u001b[22m\n\n\n   at fixtures.ts:112\n\n  110 | // at '/'; from story 5 on '/' is the home page with \"Create a board\".\n  111 | export async function openBoard(page: Page): Promise<string> {\n> 112 |   await page.goto('/');\n      |              ^\n  113 |   if (PROCESSED.has(5)) await createBoard(page);\n  114 |   await expect(zoomLabel(page)).toBeVisible();\n  115 |   if (PROCESSED.has(3)) await waitConnected(page);\n    at openBoard (~/.dbench/repo/benchmarks/vidi/acceptance/tests/fixtures.ts:112:14)\n    at ~/.dbench/repo/benchmarks/vidi/acceptance/tests/story-01.spec.ts:15:11"
+                        }
+                      ],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-09-25T08:05:40.891Z",
+                      "annotations": [],
+                      "attachments": [
+                        {
+                          "name": "screenshot",
+                          "contentType": "image/png",
+                          "path": "~/.dbench/repo/combinations/qwen/3.8/27b/ubuntu/24GB/llamacpp-opencode/benchmarks/vidi/canvas-pi-02/stories/05/artifacts/story-01-story-1-s01-golde-91d47--at-100-ref-prd-golden-path-chromium/test-failed-1.png"
+                        }
+                      ],
+                      "errorLocation": {
+                        "file": "~/.dbench/repo/benchmarks/vidi/acceptance/tests/fixtures.ts",
+                        "column": 14,
+                        "line": 112
+                      }
+                    }
+                  ],
+                  "status": "unexpected"
+                }
+              ],
+              "id": "24cb81e61bbb2d948322-d28d75a74195b7023735",
+              "file": "story-01.spec.ts",
+              "line": 14,
+              "column": 3
+            },
+            {
+              "title": "zoom buttons step 100 → 125 → 100 @ref prd:zoom.step",
+              "ok": false,
+              "tags": [
+                "s01",
+                "ref"
+              ],
+              "tests": [
+                {
+                  "timeout": 45000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 1,
+                      "parallelIndex": 0,
+                      "status": "failed",
+                      "duration": 103,
+                      "error": {
+                        "message": "Error: page.goto: net::ERR_CONNECTION_REFUSED at http://127.0.0.1:18787/\nCall log:\n\u001b[2m  - navigating to \"http://127.0.0.1:18787/\", waiting until \"load\"\u001b[22m\n",
+                        "stack": "Error: page.goto: net::ERR_CONNECTION_REFUSED at http://127.0.0.1:18787/\nCall log:\n\u001b[2m  - navigating to \"http://127.0.0.1:18787/\", waiting until \"load\"\u001b[22m\n\n    at openBoard (~/.dbench/repo/benchmarks/vidi/acceptance/tests/fixtures.ts:112:14)\n    at ~/.dbench/repo/benchmarks/vidi/acceptance/tests/story-01.spec.ts:25:11",
+                        "location": {
+                          "file": "~/.dbench/repo/benchmarks/vidi/acceptance/tests/fixtures.ts",
+                          "column": 14,
+                          "line": 112
+                        },
+                        "snippet": "   at fixtures.ts:112\n\n\u001b[0m \u001b[90m 110 |\u001b[39m \u001b[90m// at '/'; from story 5 on '/' is the home page with \"Create a board\".\u001b[39m\n \u001b[90m 111 |\u001b[39m \u001b[36mexport\u001b[39m \u001b[36masync\u001b[39m \u001b[36mfunction\u001b[39m openBoard(page\u001b[33m:\u001b[39m \u001b[33mPage\u001b[39m)\u001b[33m:\u001b[39m \u001b[33mPromise\u001b[39m\u001b[33m<\u001b[39m\u001b[33mstring\u001b[39m\u001b[33m>\u001b[39m {\n\u001b[31m\u001b[1m>\u001b[22m\u001b[39m\u001b[90m 112 |\u001b[39m   \u001b[36mawait\u001b[39m page\u001b[33m.\u001b[39mgoto(\u001b[32m'/'\u001b[39m)\u001b[33m;\u001b[39m\n \u001b[90m     |\u001b[39m              \u001b[31m\u001b[1m^\u001b[22m\u001b[39m\n \u001b[90m 113 |\u001b[39m   \u001b[36mif\u001b[39m (\u001b[33mPROCESSED\u001b[39m\u001b[33m.\u001b[39mhas(\u001b[35m5\u001b[39m)) \u001b[36mawait\u001b[39m createBoard(page)\u001b[33m;\u001b[39m\n \u001b[90m 114 |\u001b[39m   \u001b[36mawait\u001b[39m expect(zoomLabel(page))\u001b[33m.\u001b[39mtoBeVisible()\u001b[33m;\u001b[39m\n \u001b[90m 115 |\u001b[39m   \u001b[36mif\u001b[39m (\u001b[33mPROCESSED\u001b[39m\u001b[33m.\u001b[39mhas(\u001b[35m3\u001b[39m)) \u001b[36mawait\u001b[39m waitConnected(page)\u001b[33m;\u001b[39m\u001b[0m"
+                      },
+                      "errors": [
+                        {
+                          "location": {
+                            "file": "~/.dbench/repo/benchmarks/vidi/acceptance/tests/fixtures.ts",
+                            "column": 14,
+                            "line": 112
+                          },
+                          "message": "Error: page.goto: net::ERR_CONNECTION_REFUSED at http://127.0.0.1:18787/\nCall log:\n\u001b[2m  - navigating to \"http://127.0.0.1:18787/\", waiting until \"load\"\u001b[22m\n\n\n   at fixtures.ts:112\n\n  110 | // at '/'; from story 5 on '/' is the home page with \"Create a board\".\n  111 | export async function openBoard(page: Page): Promise<string> {\n> 112 |   await page.goto('/');\n      |              ^\n  113 |   if (PROCESSED.has(5)) await createBoard(page);\n  114 |   await expect(zoomLabel(page)).toBeVisible();\n  115 |   if (PROCESSED.has(3)) await waitConnected(page);\n    at openBoard (~/.dbench/repo/benchmarks/vidi/acceptance/tests/fixtures.ts:112:14)\n    at ~/.dbench/repo/benchmarks/vidi/acceptance/tests/story-01.spec.ts:25:11"
+                        }
+                      ],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-09-25T08:05:41.570Z",
+                      "annotations": [],
+                      "attachments": [
+                        {
+                          "name": "screenshot",
+                          "contentType": "image/png",
+                          "path": "~/.dbench/repo/combinations/qwen/3.8/27b/ubuntu/24GB/llamacpp-opencode/benchmarks/vidi/canvas-pi-02/stories/05/artifacts/story-01-story-1-s01-zoom--feea7-125-→-100-ref-prd-zoom-step-chromium/test-failed-1.png"
+                        }
+                      ],
+                      "errorLocation": {
+                        "file": "~/.dbench/repo/benchmarks/vidi/acceptance/tests/fixtures.ts",
+                        "column": 14,
+                        "line": 112
+                      }
+                    }
+                  ],
+                  "status": "unexpected"
+                }
+              ],
+              "id": "24cb81e61bbb2d948322-9fcba404d2c92f3b907f",
+              "file": "story-01.spec.ts",
+              "line": 24,
+              "column": 3
+            },
+            {
+              "title": "zoom limits clamp and disable buttons @ref prd:zoom.limits",
+              "ok": false,
+              "tags": [
+                "s01",
+                "ref"
+              ],
+              "tests": [
+                {
+                  "timeout": 45000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 2,
+                      "parallelIndex": 0,
+                      "status": "failed",
+                      "duration": 106,
+                      "error": {
+                        "message": "Error: page.goto: net::ERR_CONNECTION_REFUSED at http://127.0.0.1:18787/\nCall log:\n\u001b[2m  - navigating to \"http://127.0.0.1:18787/\", waiting until \"load\"\u001b[22m\n",
+                        "stack": "Error: page.goto: net::ERR_CONNECTION_REFUSED at http://127.0.0.1:18787/\nCall log:\n\u001b[2m  - navigating to \"http://127.0.0.1:18787/\", waiting until \"load\"\u001b[22m\n\n    at openBoard (~/.dbench/repo/benchmarks/vidi/acceptance/tests/fixtures.ts:112:14)\n    at ~/.dbench/repo/benchmarks/vidi/acceptance/tests/story-01.spec.ts:33:11",
+                        "location": {
+                          "file": "~/.dbench/repo/benchmarks/vidi/acceptance/tests/fixtures.ts",
+                          "column": 14,
+                          "line": 112
+                        },
+                        "snippet": "   at fixtures.ts:112\n\n\u001b[0m \u001b[90m 110 |\u001b[39m \u001b[90m// at '/'; from story 5 on '/' is the home page with \"Create a board\".\u001b[39m\n \u001b[90m 111 |\u001b[39m \u001b[36mexport\u001b[39m \u001b[36masync\u001b[39m \u001b[36mfunction\u001b[39m openBoard(page\u001b[33m:\u001b[39m \u001b[33mPage\u001b[39m)\u001b[33m:\u001b[39m \u001b[33mPromise\u001b[39m\u001b[33m<\u001b[39m\u001b[33mstring\u001b[39m\u001b[33m>\u001b[39m {\n\u001b[31m\u001b[1m>\u001b[22m\u001b[39m\u001b[90m 112 |\u001b[39m   \u001b[36mawait\u001b[39m page\u001b[33m.\u001b[39mgoto(\u001b[32m'/'\u001b[39m)\u001b[33m;\u001b[39m\n \u001b[90m     |\u001b[39m              \u001b[31m\u001b[1m^\u001b[22m\u001b[39m\n \u001b[90m 113 |\u001b[39m   \u001b[36mif\u001b[39m (\u001b[33mPROCESSED\u001b[39m\u001b[33m.\u001b[39mhas(\u001b[35m5\u001b[39m)) \u001b[36mawait\u001b[39m createBoard(page)\u001b[33m;\u001b[39m\n \u001b[90m 114 |\u001b[39m   \u001b[36mawait\u001b[39m expect(zoomLabel(page))\u001b[33m.\u001b[39mtoBeVisible()\u001b[33m;\u001b[39m\n \u001b[90m 115 |\u001b[39m   \u001b[36mif\u001b[39m (\u001b[33mPROCESSED\u001b[39m\u001b[33m.\u001b[39mhas(\u001b[35m3\u001b[39m)) \u001b[36mawait\u001b[39m waitConnected(page)\u001b[33m;\u001b[39m\u001b[0m"
+                      },
+                      "errors": [
+                        {
+                          "location": {
+                            "file": "~/.dbench/repo/benchmarks/vidi/acceptance/tests/fixtures.ts",
+                            "column": 14,
+                            "line": 112
+                          },
+                          "message": "Error: page.goto: net::ERR_CONNECTION_REFUSED at http://127.0.0.1:18787/\nCall log:\n\u001b[2m  - navigating to \"http://127.0.0.1:18787/\", waiting until \"load\"\u001b[22m\n\n\n   at fixtures.ts:112\n\n  110 | // at '/'; from story 5 on '/' is the home page with \"Create a board\".\n  111 | export async function openBoard(page: Page): Promise<string> {\n> 112 |   await page.goto('/');\n      |              ^\n  113 |   if (PROCESSED.has(5)) await createBoard(page);\n  114 |   await expect(zoomLabel(page)).toBeVisible();\n  115 |   if (PROCESSED.has(3)) await waitConnected(page);\n    at openBoard (~/.dbench/repo/benchmarks/vidi/acceptance/tests/fixtures.ts:112:14)\n    at ~/.dbench/repo/benchmarks/vidi/acceptance/tests/story-01.spec.ts:33:11"
+                        }
+                      ],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-09-25T08:05:42.239Z",
+                      "annotations": [],
+                      "attachments": [
+                        {
+                          "name": "screenshot",
+                          "contentType": "image/png",
+                          "path": "~/.dbench/repo/combinations/qwen/3.8/27b/ubuntu/24GB/llamacpp-opencode/benchmarks/vidi/canvas-pi-02/stories/05/artifacts/story-01-story-1-s01-zoom--9209c-buttons-ref-prd-zoom-limits-chromium/test-failed-1.png"
+                        }
+                      ],
+                      "errorLocation": {
+                        "file": "~/.dbench/repo/benchmarks/vidi/acceptance/tests/fixtures.ts",
+                        "column": 14,
+                        "line": 112
+                      }
+                    }
+                  ],
+                  "status": "unexpected"
+                }
+              ],
+              "id": "24cb81e61bbb2d948322-99adddba3884f7bcb262",
+              "file": "story-01.spec.ts",
+              "line": 32,
+              "column": 3
+            },
+            {
+              "title": "keyboard zoom and reset do not zoom the page @ref prd:zoom.no_page_zoom",
+              "ok": false,
+              "tags": [
+                "s01",
+                "ref"
+              ],
+              "tests": [
+                {
+                  "timeout": 45000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 3,
+                      "parallelIndex": 0,
+                      "status": "failed",
+                      "duration": 96,
+                      "error": {
+                        "message": "Error: page.goto: net::ERR_CONNECTION_REFUSED at http://127.0.0.1:18787/\nCall log:\n\u001b[2m  - navigating to \"http://127.0.0.1:18787/\", waiting until \"load\"\u001b[22m\n",
+                        "stack": "Error: page.goto: net::ERR_CONNECTION_REFUSED at http://127.0.0.1:18787/\nCall log:\n\u001b[2m  - navigating to \"http://127.0.0.1:18787/\", waiting until \"load\"\u001b[22m\n\n    at openBoard (~/.dbench/repo/benchmarks/vidi/acceptance/tests/fixtures.ts:112:14)\n    at ~/.dbench/repo/benchmarks/vidi/acceptance/tests/story-01.spec.ts:46:11",
+                        "location": {
+                          "file": "~/.dbench/repo/benchmarks/vidi/acceptance/tests/fixtures.ts",
+                          "column": 14,
+                          "line": 112
+                        },
+                        "snippet": "   at fixtures.ts:112\n\n\u001b[0m \u001b[90m 110 |\u001b[39m \u001b[90m// at '/'; from story 5 on '/' is the home page with \"Create a board\".\u001b[39m\n \u001b[90m 111 |\u001b[39m \u001b[36mexport\u001b[39m \u001b[36masync\u001b[39m \u001b[36mfunction\u001b[39m openBoard(page\u001b[33m:\u001b[39m \u001b[33mPage\u001b[39m)\u001b[33m:\u001b[39m \u001b[33mPromise\u001b[39m\u001b[33m<\u001b[39m\u001b[33mstring\u001b[39m\u001b[33m>\u001b[39m {\n\u001b[31m\u001b[1m>\u001b[22m\u001b[39m\u001b[90m 112 |\u001b[39m   \u001b[36mawait\u001b[39m page\u001b[33m.\u001b[39mgoto(\u001b[32m'/'\u001b[39m)\u001b[33m;\u001b[39m\n \u001b[90m     |\u001b[39m              \u001b[31m\u001b[1m^\u001b[22m\u001b[39m\n \u001b[90m 113 |\u001b[39m   \u001b[36mif\u001b[39m (\u001b[33mPROCESSED\u001b[39m\u001b[33m.\u001b[39mhas(\u001b[35m5\u001b[39m)) \u001b[36mawait\u001b[39m createBoard(page)\u001b[33m;\u001b[39m\n \u001b[90m 114 |\u001b[39m   \u001b[36mawait\u001b[39m expect(zoomLabel(page))\u001b[33m.\u001b[39mtoBeVisible()\u001b[33m;\u001b[39m\n \u001b[90m 115 |\u001b[39m   \u001b[36mif\u001b[39m (\u001b[33mPROCESSED\u001b[39m\u001b[33m.\u001b[39mhas(\u001b[35m3\u001b[39m)) \u001b[36mawait\u001b[39m waitConnected(page)\u001b[33m;\u001b[39m\u001b[0m"
+                      },
+                      "errors": [
+                        {
+                          "location": {
+                            "file": "~/.dbench/repo/benchmarks/vidi/acceptance/tests/fixtures.ts",
+                            "column": 14,
+                            "line": 112
+                          },
+                          "message": "Error: page.goto: net::ERR_CONNECTION_REFUSED at http://127.0.0.1:18787/\nCall log:\n\u001b[2m  - navigating to \"http://127.0.0.1:18787/\", waiting until \"load\"\u001b[22m\n\n\n   at fixtures.ts:112\n\n  110 | // at '/'; from story 5 on '/' is the home page with \"Create a board\".\n  111 | export async function openBoard(page: Page): Promise<string> {\n> 112 |   await page.goto('/');\n      |              ^\n  113 |   if (PROCESSED.has(5)) await createBoard(page);\n  114 |   await expect(zoomLabel(page)).toBeVisible();\n  115 |   if (PROCESSED.has(3)) await waitConnected(page);\n    at openBoard (~/.dbench/repo/benchmarks/vidi/acceptance/tests/fixtures.ts:112:14)\n    at ~/.dbench/repo/benchmarks/vidi/acceptance/tests/story-01.spec.ts:46:11"
+                        }
+                      ],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-09-25T08:05:42.913Z",
+                      "annotations": [],
+                      "attachments": [
+                        {
+                          "name": "screenshot",
+                          "contentType": "image/png",
+                          "path": "~/.dbench/repo/combinations/qwen/3.8/27b/ubuntu/24GB/llamacpp-opencode/benchmarks/vidi/canvas-pi-02/stories/05/artifacts/story-01-story-1-s01-keybo-00965-e-ref-prd-zoom-no-page-zoom-chromium/test-failed-1.png"
+                        }
+                      ],
+                      "errorLocation": {
+                        "file": "~/.dbench/repo/benchmarks/vidi/acceptance/tests/fixtures.ts",
+                        "column": 14,
+                        "line": 112
+                      }
+                    }
+                  ],
+                  "status": "unexpected"
+                }
+              ],
+              "id": "24cb81e61bbb2d948322-77290a2ff472f4133ca4",
+              "file": "story-01.spec.ts",
+              "line": 45,
+              "column": 3
+            },
+            {
+              "title": "ctrl+wheel zooms the board @ref prd:zoom.pointer",
+              "ok": false,
+              "tags": [
+                "s01",
+                "ref"
+              ],
+              "tests": [
+                {
+                  "timeout": 45000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 4,
+                      "parallelIndex": 0,
+                      "status": "failed",
+                      "duration": 96,
+                      "error": {
+                        "message": "Error: page.goto: net::ERR_CONNECTION_REFUSED at http://127.0.0.1:18787/\nCall log:\n\u001b[2m  - navigating to \"http://127.0.0.1:18787/\", waiting until \"load\"\u001b[22m\n",
+                        "stack": "Error: page.goto: net::ERR_CONNECTION_REFUSED at http://127.0.0.1:18787/\nCall log:\n\u001b[2m  - navigating to \"http://127.0.0.1:18787/\", waiting until \"load\"\u001b[22m\n\n    at openBoard (~/.dbench/repo/benchmarks/vidi/acceptance/tests/fixtures.ts:112:14)\n    at ~/.dbench/repo/benchmarks/vidi/acceptance/tests/story-01.spec.ts:59:11",
+                        "location": {
+                          "file": "~/.dbench/repo/benchmarks/vidi/acceptance/tests/fixtures.ts",
+                          "column": 14,
+                          "line": 112
+                        },
+                        "snippet": "   at fixtures.ts:112\n\n\u001b[0m \u001b[90m 110 |\u001b[39m \u001b[90m// at '/'; from story 5 on '/' is the home page with \"Create a board\".\u001b[39m\n \u001b[90m 111 |\u001b[39m \u001b[36mexport\u001b[39m \u001b[36masync\u001b[39m \u001b[36mfunction\u001b[39m openBoard(page\u001b[33m:\u001b[39m \u001b[33mPage\u001b[39m)\u001b[33m:\u001b[39m \u001b[33mPromise\u001b[39m\u001b[33m<\u001b[39m\u001b[33mstring\u001b[39m\u001b[33m>\u001b[39m {\n\u001b[31m\u001b[1m>\u001b[22m\u001b[39m\u001b[90m 112 |\u001b[39m   \u001b[36mawait\u001b[39m page\u001b[33m.\u001b[39mgoto(\u001b[32m'/'\u001b[39m)\u001b[33m;\u001b[39m\n \u001b[90m     |\u001b[39m              \u001b[31m\u001b[1m^\u001b[22m\u001b[39m\n \u001b[90m 113 |\u001b[39m   \u001b[36mif\u001b[39m (\u001b[33mPROCESSED\u001b[39m\u001b[33m.\u001b[39mhas(\u001b[35m5\u001b[39m)) \u001b[36mawait\u001b[39m createBoard(page)\u001b[33m;\u001b[39m\n \u001b[90m 114 |\u001b[39m   \u001b[36mawait\u001b[39m expect(zoomLabel(page))\u001b[33m.\u001b[39mtoBeVisible()\u001b[33m;\u001b[39m\n \u001b[90m 115 |\u001b[39m   \u001b[36mif\u001b[39m (\u001b[33mPROCESSED\u001b[39m\u001b[33m.\u001b[39mhas(\u001b[35m3\u001b[39m)) \u001b[36mawait\u001b[39m waitConnected(page)\u001b[33m;\u001b[39m\u001b[0m"
+                      },
+                      "errors": [
+                        {
+                          "location": {
+                            "file": "~/.dbench/repo/benchmarks/vidi/acceptance/tests/fixtures.ts",
+                            "column": 14,
+                            "line": 112
+                          },
+                          "message": "Error: page.goto: net::ERR_CONNECTION_REFUSED at http://127.0.0.1:18787/\nCall log:\n\u001b[2m  - navigating to \"http://127.0.0.1:18787/\", waiting until \"load\"\u001b[22m\n\n\n   at fixtures.ts:112\n\n  110 | // at '/'; from story 5 on '/' is the home page with \"Create a board\".\n  111 | export async function openBoard(page: Page): Promise<string> {\n> 112 |   await page.goto('/');\n      |              ^\n  113 |   if (PROCESSED.has(5)) await createBoard(page);\n  114 |   await expect(zoomLabel(page)).toBeVisible();\n  115 |   if (PROCESSED.has(3)) await waitConnected(page);\n    at openBoard (~/.dbench/repo/benchmarks/vidi/acceptance/tests/fixtures.ts:112:14)\n    at ~/.dbench/repo/benchmarks/vidi/acceptance/tests/story-01.spec.ts:59:11"
+                        }
+                      ],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-09-25T08:05:43.560Z",
+                      "annotations": [],
+                      "attachments": [
+                        {
+                          "name": "screenshot",
+                          "contentType": "image/png",
+                          "path": "~/.dbench/repo/combinations/qwen/3.8/27b/ubuntu/24GB/llamacpp-opencode/benchmarks/vidi/canvas-pi-02/stories/05/artifacts/story-01-story-1-s01-ctrl--68b81--board-ref-prd-zoom-pointer-chromium/test-failed-1.png"
+                        }
+                      ],
+                      "errorLocation": {
+                        "file": "~/.dbench/repo/benchmarks/vidi/acceptance/tests/fixtures.ts",
+                        "column": 14,
+                        "line": 112
+                      }
+                    }
+                  ],
+                  "status": "unexpected"
+                }
+              ],
+              "id": "24cb81e61bbb2d948322-50bd0a81c94904480fb1",
+              "file": "story-01.spec.ts",
+              "line": 58,
+              "column": 3
+            },
+            {
+              "title": "hint disappears after first pan and stays gone @ref prd:nav.hint",
+              "ok": false,
+              "tags": [
+                "s01",
+                "ref"
+              ],
+              "tests": [
+                {
+                  "timeout": 45000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 5,
+                      "parallelIndex": 0,
+                      "status": "failed",
+                      "duration": 114,
+                      "error": {
+                        "message": "Error: page.goto: net::ERR_CONNECTION_REFUSED at http://127.0.0.1:18787/\nCall log:\n\u001b[2m  - navigating to \"http://127.0.0.1:18787/\", waiting until \"load\"\u001b[22m\n",
+                        "stack": "Error: page.goto: net::ERR_CONNECTION_REFUSED at http://127.0.0.1:18787/\nCall log:\n\u001b[2m  - navigating to \"http://127.0.0.1:18787/\", waiting until \"load\"\u001b[22m\n\n    at openBoard (~/.dbench/repo/benchmarks/vidi/acceptance/tests/fixtures.ts:112:14)\n    at ~/.dbench/repo/benchmarks/vidi/acceptance/tests/story-01.spec.ts:68:11",
+                        "location": {
+                          "file": "~/.dbench/repo/benchmarks/vidi/acceptance/tests/fixtures.ts",
+                          "column": 14,
+                          "line": 112
+                        },
+                        "snippet": "   at fixtures.ts:112\n\n\u001b[0m \u001b[90m 110 |\u001b[39m \u001b[90m// at '/'; from story 5 on '/' is the home page with \"Create a board\".\u001b[39m\n \u001b[90m 111 |\u001b[39m \u001b[36mexport\u001b[39m \u001b[36masync\u001b[39m \u001b[36mfunction\u001b[39m openBoard(page\u001b[33m:\u001b[39m \u001b[33mPage\u001b[39m)\u001b[33m:\u001b[39m \u001b[33mPromise\u001b[39m\u001b[33m<\u001b[39m\u001b[33mstring\u001b[39m\u001b[33m>\u001b[39m {\n\u001b[31m\u001b[1m>\u001b[22m\u001b[39m\u001b[90m 112 |\u001b[39m   \u001b[36mawait\u001b[39m page\u001b[33m.\u001b[39mgoto(\u001b[32m'/'\u001b[39m)\u001b[33m;\u001b[39m\n \u001b[90m     |\u001b[39m              \u001b[31m\u001b[1m^\u001b[22m\u001b[39m\n \u001b[90m 113 |\u001b[39m   \u001b[36mif\u001b[39m (\u001b[33mPROCESSED\u001b[39m\u001b[33m.\u001b[39mhas(\u001b[35m5\u001b[39m)) \u001b[36mawait\u001b[39m createBoard(page)\u001b[33m;\u001b[39m\n \u001b[90m 114 |\u001b[39m   \u001b[36mawait\u001b[39m expect(zoomLabel(page))\u001b[33m.\u001b[39mtoBeVisible()\u001b[33m;\u001b[39m\n \u001b[90m 115 |\u001b[39m   \u001b[36mif\u001b[39m (\u001b[33mPROCESSED\u001b[39m\u001b[33m.\u001b[39mhas(\u001b[35m3\u001b[39m)) \u001b[36mawait\u001b[39m waitConnected(page)\u001b[33m;\u001b[39m\u001b[0m"
+                      },
+                      "errors": [
+                        {
+                          "location": {
+                            "file": "~/.dbench/repo/benchmarks/vidi/acceptance/tests/fixtures.ts",
+                            "column": 14,
+                            "line": 112
+                          },
+                          "message": "Error: page.goto: net::ERR_CONNECTION_REFUSED at http://127.0.0.1:18787/\nCall log:\n\u001b[2m  - navigating to \"http://127.0.0.1:18787/\", waiting until \"load\"\u001b[22m\n\n\n   at fixtures.ts:112\n\n  110 | // at '/'; from story 5 on '/' is the home page with \"Create a board\".\n  111 | export async function openBoard(page: Page): Promise<string> {\n> 112 |   await page.goto('/');\n      |              ^\n  113 |   if (PROCESSED.has(5)) await createBoard(page);\n  114 |   await expect(zoomLabel(page)).toBeVisible();\n  115 |   if (PROCESSED.has(3)) await waitConnected(page);\n    at openBoard (~/.dbench/repo/benchmarks/vidi/acceptance/tests/fixtures.ts:112:14)\n    at ~/.dbench/repo/benchmarks/vidi/acceptance/tests/story-01.spec.ts:68:11"
+                        }
+                      ],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-09-25T08:05:44.221Z",
+                      "annotations": [],
+                      "attachments": [
+                        {
+                          "name": "screenshot",
+                          "contentType": "image/png",
+                          "path": "~/.dbench/repo/combinations/qwen/3.8/27b/ubuntu/24GB/llamacpp-opencode/benchmarks/vidi/canvas-pi-02/stories/05/artifacts/story-01-story-1-s01-hint--c53f4-stays-gone-ref-prd-nav-hint-chromium/test-failed-1.png"
+                        }
+                      ],
+                      "errorLocation": {
+                        "file": "~/.dbench/repo/benchmarks/vidi/acceptance/tests/fixtures.ts",
+                        "column": 14,
+                        "line": 112
+                      }
+                    }
+                  ],
+                  "status": "unexpected"
+                }
+              ],
+              "id": "24cb81e61bbb2d948322-35fcfc3fd979e5810cb7",
+              "file": "story-01.spec.ts",
+              "line": 67,
+              "column": 3
+            },
+            {
+              "title": "drag pans content exactly with the pointer @ref prd:pan.drag",
+              "ok": false,
+              "tags": [
+                "s01",
+                "ref"
+              ],
+              "tests": [
+                {
+                  "timeout": 45000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 6,
+                      "parallelIndex": 0,
+                      "status": "failed",
+                      "duration": 87,
+                      "error": {
+                        "message": "Error: page.goto: net::ERR_CONNECTION_REFUSED at http://127.0.0.1:18787/\nCall log:\n\u001b[2m  - navigating to \"http://127.0.0.1:18787/\", waiting until \"load\"\u001b[22m\n",
+                        "stack": "Error: page.goto: net::ERR_CONNECTION_REFUSED at http://127.0.0.1:18787/\nCall log:\n\u001b[2m  - navigating to \"http://127.0.0.1:18787/\", waiting until \"load\"\u001b[22m\n\n    at openBoard (~/.dbench/repo/benchmarks/vidi/acceptance/tests/fixtures.ts:112:14)\n    at ~/.dbench/repo/benchmarks/vidi/acceptance/tests/story-01.spec.ts:78:11",
+                        "location": {
+                          "file": "~/.dbench/repo/benchmarks/vidi/acceptance/tests/fixtures.ts",
+                          "column": 14,
+                          "line": 112
+                        },
+                        "snippet": "   at fixtures.ts:112\n\n\u001b[0m \u001b[90m 110 |\u001b[39m \u001b[90m// at '/'; from story 5 on '/' is the home page with \"Create a board\".\u001b[39m\n \u001b[90m 111 |\u001b[39m \u001b[36mexport\u001b[39m \u001b[36masync\u001b[39m \u001b[36mfunction\u001b[39m openBoard(page\u001b[33m:\u001b[39m \u001b[33mPage\u001b[39m)\u001b[33m:\u001b[39m \u001b[33mPromise\u001b[39m\u001b[33m<\u001b[39m\u001b[33mstring\u001b[39m\u001b[33m>\u001b[39m {\n\u001b[31m\u001b[1m>\u001b[22m\u001b[39m\u001b[90m 112 |\u001b[39m   \u001b[36mawait\u001b[39m page\u001b[33m.\u001b[39mgoto(\u001b[32m'/'\u001b[39m)\u001b[33m;\u001b[39m\n \u001b[90m     |\u001b[39m              \u001b[31m\u001b[1m^\u001b[22m\u001b[39m\n \u001b[90m 113 |\u001b[39m   \u001b[36mif\u001b[39m (\u001b[33mPROCESSED\u001b[39m\u001b[33m.\u001b[39mhas(\u001b[35m5\u001b[39m)) \u001b[36mawait\u001b[39m createBoard(page)\u001b[33m;\u001b[39m\n \u001b[90m 114 |\u001b[39m   \u001b[36mawait\u001b[39m expect(zoomLabel(page))\u001b[33m.\u001b[39mtoBeVisible()\u001b[33m;\u001b[39m\n \u001b[90m 115 |\u001b[39m   \u001b[36mif\u001b[39m (\u001b[33mPROCESSED\u001b[39m\u001b[33m.\u001b[39mhas(\u001b[35m3\u001b[39m)) \u001b[36mawait\u001b[39m waitConnected(page)\u001b[33m;\u001b[39m\u001b[0m"
+                      },
+                      "errors": [
+                        {
+                          "location": {
+                            "file": "~/.dbench/repo/benchmarks/vidi/acceptance/tests/fixtures.ts",
+                            "column": 14,
+                            "line": 112
+                          },
+                          "message": "Error: page.goto: net::ERR_CONNECTION_REFUSED at http://127.0.0.1:18787/\nCall log:\n\u001b[2m  - navigating to \"http://127.0.0.1:18787/\", waiting until \"load\"\u001b[22m\n\n\n   at fixtures.ts:112\n\n  110 | // at '/'; from story 5 on '/' is the home page with \"Create a board\".\n  111 | export async function openBoard(page: Page): Promise<string> {\n> 112 |   await page.goto('/');\n      |              ^\n  113 |   if (PROCESSED.has(5)) await createBoard(page);\n  114 |   await expect(zoomLabel(page)).toBeVisible();\n  115 |   if (PROCESSED.has(3)) await waitConnected(page);\n    at openBoard (~/.dbench/repo/benchmarks/vidi/acceptance/tests/fixtures.ts:112:14)\n    at ~/.dbench/repo/benchmarks/vidi/acceptance/tests/story-01.spec.ts:78:11"
+                        }
+                      ],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-09-25T08:05:44.892Z",
+                      "annotations": [],
+                      "attachments": [
+                        {
+                          "name": "screenshot",
+                          "contentType": "image/png",
+                          "path": "~/.dbench/repo/combinations/qwen/3.8/27b/ubuntu/24GB/llamacpp-opencode/benchmarks/vidi/canvas-pi-02/stories/05/artifacts/story-01-story-1-s01-drag--68d5d-he-pointer-ref-prd-pan-drag-chromium/test-failed-1.png"
+                        }
+                      ],
+                      "errorLocation": {
+                        "file": "~/.dbench/repo/benchmarks/vidi/acceptance/tests/fixtures.ts",
+                        "column": 14,
+                        "line": 112
+                      }
+                    }
+                  ],
+                  "status": "unexpected"
+                }
+              ],
+              "id": "24cb81e61bbb2d948322-f0d5fc064e1a69750401",
+              "file": "story-01.spec.ts",
+              "line": 76,
+              "column": 3
+            },
+            {
+              "title": "wheel scroll pans in scroll direction @ref prd:pan.scroll",
+              "ok": false,
+              "tags": [
+                "s01",
+                "ref"
+              ],
+              "tests": [
+                {
+                  "timeout": 45000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 7,
+                      "parallelIndex": 0,
+                      "status": "failed",
+                      "duration": 88,
+                      "error": {
+                        "message": "Error: page.goto: net::ERR_CONNECTION_REFUSED at http://127.0.0.1:18787/\nCall log:\n\u001b[2m  - navigating to \"http://127.0.0.1:18787/\", waiting until \"load\"\u001b[22m\n",
+                        "stack": "Error: page.goto: net::ERR_CONNECTION_REFUSED at http://127.0.0.1:18787/\nCall log:\n\u001b[2m  - navigating to \"http://127.0.0.1:18787/\", waiting until \"load\"\u001b[22m\n\n    at openBoard (~/.dbench/repo/benchmarks/vidi/acceptance/tests/fixtures.ts:112:14)\n    at ~/.dbench/repo/benchmarks/vidi/acceptance/tests/story-01.spec.ts:89:11",
+                        "location": {
+                          "file": "~/.dbench/repo/benchmarks/vidi/acceptance/tests/fixtures.ts",
+                          "column": 14,
+                          "line": 112
+                        },
+                        "snippet": "   at fixtures.ts:112\n\n\u001b[0m \u001b[90m 110 |\u001b[39m \u001b[90m// at '/'; from story 5 on '/' is the home page with \"Create a board\".\u001b[39m\n \u001b[90m 111 |\u001b[39m \u001b[36mexport\u001b[39m \u001b[36masync\u001b[39m \u001b[36mfunction\u001b[39m openBoard(page\u001b[33m:\u001b[39m \u001b[33mPage\u001b[39m)\u001b[33m:\u001b[39m \u001b[33mPromise\u001b[39m\u001b[33m<\u001b[39m\u001b[33mstring\u001b[39m\u001b[33m>\u001b[39m {\n\u001b[31m\u001b[1m>\u001b[22m\u001b[39m\u001b[90m 112 |\u001b[39m   \u001b[36mawait\u001b[39m page\u001b[33m.\u001b[39mgoto(\u001b[32m'/'\u001b[39m)\u001b[33m;\u001b[39m\n \u001b[90m     |\u001b[39m              \u001b[31m\u001b[1m^\u001b[22m\u001b[39m\n \u001b[90m 113 |\u001b[39m   \u001b[36mif\u001b[39m (\u001b[33mPROCESSED\u001b[39m\u001b[33m.\u001b[39mhas(\u001b[35m5\u001b[39m)) \u001b[36mawait\u001b[39m createBoard(page)\u001b[33m;\u001b[39m\n \u001b[90m 114 |\u001b[39m   \u001b[36mawait\u001b[39m expect(zoomLabel(page))\u001b[33m.\u001b[39mtoBeVisible()\u001b[33m;\u001b[39m\n \u001b[90m 115 |\u001b[39m   \u001b[36mif\u001b[39m (\u001b[33mPROCESSED\u001b[39m\u001b[33m.\u001b[39mhas(\u001b[35m3\u001b[39m)) \u001b[36mawait\u001b[39m waitConnected(page)\u001b[33m;\u001b[39m\u001b[0m"
+                      },
+                      "errors": [
+                        {
+                          "location": {
+                            "file": "~/.dbench/repo/benchmarks/vidi/acceptance/tests/fixtures.ts",
+                            "column": 14,
+                            "line": 112
+                          },
+                          "message": "Error: page.goto: net::ERR_CONNECTION_REFUSED at http://127.0.0.1:18787/\nCall log:\n\u001b[2m  - navigating to \"http://127.0.0.1:18787/\", waiting until \"load\"\u001b[22m\n\n\n   at fixtures.ts:112\n\n  110 | // at '/'; from story 5 on '/' is the home page with \"Create a board\".\n  111 | export async function openBoard(page: Page): Promise<string> {\n> 112 |   await page.goto('/');\n      |              ^\n  113 |   if (PROCESSED.has(5)) await createBoard(page);\n  114 |   await expect(zoomLabel(page)).toBeVisible();\n  115 |   if (PROCESSED.has(3)) await waitConnected(page);\n    at openBoard (~/.dbench/repo/benchmarks/vidi/acceptance/tests/fixtures.ts:112:14)\n    at ~/.dbench/repo/benchmarks/vidi/acceptance/tests/story-01.spec.ts:89:11"
+                        }
+                      ],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-09-25T08:05:45.533Z",
+                      "annotations": [],
+                      "attachments": [
+                        {
+                          "name": "screenshot",
+                          "contentType": "image/png",
+                          "path": "~/.dbench/repo/combinations/qwen/3.8/27b/ubuntu/24GB/llamacpp-opencode/benchmarks/vidi/canvas-pi-02/stories/05/artifacts/story-01-story-1-s01-wheel-91745-irection-ref-prd-pan-scroll-chromium/test-failed-1.png"
+                        }
+                      ],
+                      "errorLocation": {
+                        "file": "~/.dbench/repo/benchmarks/vidi/acceptance/tests/fixtures.ts",
+                        "column": 14,
+                        "line": 112
+                      }
+                    }
+                  ],
+                  "status": "unexpected"
+                }
+              ],
+              "id": "24cb81e61bbb2d948322-4949357f0d4913d672df",
+              "file": "story-01.spec.ts",
+              "line": 87,
+              "column": 3
+            },
+            {
+              "title": "zoom keeps the point under the pointer fixed @ref prd:zoom.pointer",
+              "ok": false,
+              "tags": [
+                "s01",
+                "ref"
+              ],
+              "tests": [
+                {
+                  "timeout": 45000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 8,
+                      "parallelIndex": 0,
+                      "status": "failed",
+                      "duration": 96,
+                      "error": {
+                        "message": "Error: page.goto: net::ERR_CONNECTION_REFUSED at http://127.0.0.1:18787/\nCall log:\n\u001b[2m  - navigating to \"http://127.0.0.1:18787/\", waiting until \"load\"\u001b[22m\n",
+                        "stack": "Error: page.goto: net::ERR_CONNECTION_REFUSED at http://127.0.0.1:18787/\nCall log:\n\u001b[2m  - navigating to \"http://127.0.0.1:18787/\", waiting until \"load\"\u001b[22m\n\n    at openBoard (~/.dbench/repo/benchmarks/vidi/acceptance/tests/fixtures.ts:112:14)\n    at ~/.dbench/repo/benchmarks/vidi/acceptance/tests/story-01.spec.ts:99:11",
+                        "location": {
+                          "file": "~/.dbench/repo/benchmarks/vidi/acceptance/tests/fixtures.ts",
+                          "column": 14,
+                          "line": 112
+                        },
+                        "snippet": "   at fixtures.ts:112\n\n\u001b[0m \u001b[90m 110 |\u001b[39m \u001b[90m// at '/'; from story 5 on '/' is the home page with \"Create a board\".\u001b[39m\n \u001b[90m 111 |\u001b[39m \u001b[36mexport\u001b[39m \u001b[36masync\u001b[39m \u001b[36mfunction\u001b[39m openBoard(page\u001b[33m:\u001b[39m \u001b[33mPage\u001b[39m)\u001b[33m:\u001b[39m \u001b[33mPromise\u001b[39m\u001b[33m<\u001b[39m\u001b[33mstring\u001b[39m\u001b[33m>\u001b[39m {\n\u001b[31m\u001b[1m>\u001b[22m\u001b[39m\u001b[90m 112 |\u001b[39m   \u001b[36mawait\u001b[39m page\u001b[33m.\u001b[39mgoto(\u001b[32m'/'\u001b[39m)\u001b[33m;\u001b[39m\n \u001b[90m     |\u001b[39m              \u001b[31m\u001b[1m^\u001b[22m\u001b[39m\n \u001b[90m 113 |\u001b[39m   \u001b[36mif\u001b[39m (\u001b[33mPROCESSED\u001b[39m\u001b[33m.\u001b[39mhas(\u001b[35m5\u001b[39m)) \u001b[36mawait\u001b[39m createBoard(page)\u001b[33m;\u001b[39m\n \u001b[90m 114 |\u001b[39m   \u001b[36mawait\u001b[39m expect(zoomLabel(page))\u001b[33m.\u001b[39mtoBeVisible()\u001b[33m;\u001b[39m\n \u001b[90m 115 |\u001b[39m   \u001b[36mif\u001b[39m (\u001b[33mPROCESSED\u001b[39m\u001b[33m.\u001b[39mhas(\u001b[35m3\u001b[39m)) \u001b[36mawait\u001b[39m waitConnected(page)\u001b[33m;\u001b[39m\u001b[0m"
+                      },
+                      "errors": [
+                        {
+                          "location": {
+                            "file": "~/.dbench/repo/benchmarks/vidi/acceptance/tests/fixtures.ts",
+                            "column": 14,
+                            "line": 112
+                          },
+                          "message": "Error: page.goto: net::ERR_CONNECTION_REFUSED at http://127.0.0.1:18787/\nCall log:\n\u001b[2m  - navigating to \"http://127.0.0.1:18787/\", waiting until \"load\"\u001b[22m\n\n\n   at fixtures.ts:112\n\n  110 | // at '/'; from story 5 on '/' is the home page with \"Create a board\".\n  111 | export async function openBoard(page: Page): Promise<string> {\n> 112 |   await page.goto('/');\n      |              ^\n  113 |   if (PROCESSED.has(5)) await createBoard(page);\n  114 |   await expect(zoomLabel(page)).toBeVisible();\n  115 |   if (PROCESSED.has(3)) await waitConnected(page);\n    at openBoard (~/.dbench/repo/benchmarks/vidi/acceptance/tests/fixtures.ts:112:14)\n    at ~/.dbench/repo/benchmarks/vidi/acceptance/tests/story-01.spec.ts:99:11"
+                        }
+                      ],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-09-25T08:05:46.180Z",
+                      "annotations": [],
+                      "attachments": [
+                        {
+                          "name": "screenshot",
+                          "contentType": "image/png",
+                          "path": "~/.dbench/repo/combinations/qwen/3.8/27b/ubuntu/24GB/llamacpp-opencode/benchmarks/vidi/canvas-pi-02/stories/05/artifacts/story-01-story-1-s01-zoom--4d8e2--fixed-ref-prd-zoom-pointer-chromium/test-failed-1.png"
+                        }
+                      ],
+                      "errorLocation": {
+                        "file": "~/.dbench/repo/benchmarks/vidi/acceptance/tests/fixtures.ts",
+                        "column": 14,
+                        "line": 112
+                      }
+                    }
+                  ],
+                  "status": "unexpected"
+                }
+              ],
+              "id": "24cb81e61bbb2d948322-47b3c3cddb4580241a44",
+              "file": "story-01.spec.ts",
+              "line": 97,
+              "column": 3
+            },
+            {
+              "title": "reset view returns to 100% with origin centred @ref prd:view.reset",
+              "ok": false,
+              "tags": [
+                "s01",
+                "ref"
+              ],
+              "tests": [
+                {
+                  "timeout": 45000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 9,
+                      "parallelIndex": 0,
+                      "status": "failed",
+                      "duration": 86,
+                      "error": {
+                        "message": "Error: page.goto: net::ERR_CONNECTION_REFUSED at http://127.0.0.1:18787/\nCall log:\n\u001b[2m  - navigating to \"http://127.0.0.1:18787/\", waiting until \"load\"\u001b[22m\n",
+                        "stack": "Error: page.goto: net::ERR_CONNECTION_REFUSED at http://127.0.0.1:18787/\nCall log:\n\u001b[2m  - navigating to \"http://127.0.0.1:18787/\", waiting until \"load\"\u001b[22m\n\n    at openBoard (~/.dbench/repo/benchmarks/vidi/acceptance/tests/fixtures.ts:112:14)\n    at ~/.dbench/repo/benchmarks/vidi/acceptance/tests/story-01.spec.ts:117:11",
+                        "location": {
+                          "file": "~/.dbench/repo/benchmarks/vidi/acceptance/tests/fixtures.ts",
+                          "column": 14,
+                          "line": 112
+                        },
+                        "snippet": "   at fixtures.ts:112\n\n\u001b[0m \u001b[90m 110 |\u001b[39m \u001b[90m// at '/'; from story 5 on '/' is the home page with \"Create a board\".\u001b[39m\n \u001b[90m 111 |\u001b[39m \u001b[36mexport\u001b[39m \u001b[36masync\u001b[39m \u001b[36mfunction\u001b[39m openBoard(page\u001b[33m:\u001b[39m \u001b[33mPage\u001b[39m)\u001b[33m:\u001b[39m \u001b[33mPromise\u001b[39m\u001b[33m<\u001b[39m\u001b[33mstring\u001b[39m\u001b[33m>\u001b[39m {\n\u001b[31m\u001b[1m>\u001b[22m\u001b[39m\u001b[90m 112 |\u001b[39m   \u001b[36mawait\u001b[39m page\u001b[33m.\u001b[39mgoto(\u001b[32m'/'\u001b[39m)\u001b[33m;\u001b[39m\n \u001b[90m     |\u001b[39m              \u001b[31m\u001b[1m^\u001b[22m\u001b[39m\n \u001b[90m 113 |\u001b[39m   \u001b[36mif\u001b[39m (\u001b[33mPROCESSED\u001b[39m\u001b[33m.\u001b[39mhas(\u001b[35m5\u001b[39m)) \u001b[36mawait\u001b[39m createBoard(page)\u001b[33m;\u001b[39m\n \u001b[90m 114 |\u001b[39m   \u001b[36mawait\u001b[39m expect(zoomLabel(page))\u001b[33m.\u001b[39mtoBeVisible()\u001b[33m;\u001b[39m\n \u001b[90m 115 |\u001b[39m   \u001b[36mif\u001b[39m (\u001b[33mPROCESSED\u001b[39m\u001b[33m.\u001b[39mhas(\u001b[35m3\u001b[39m)) \u001b[36mawait\u001b[39m waitConnected(page)\u001b[33m;\u001b[39m\u001b[0m"
+                      },
+                      "errors": [
+                        {
+                          "location": {
+                            "file": "~/.dbench/repo/benchmarks/vidi/acceptance/tests/fixtures.ts",
+                            "column": 14,
+                            "line": 112
+                          },
+                          "message": "Error: page.goto: net::ERR_CONNECTION_REFUSED at http://127.0.0.1:18787/\nCall log:\n\u001b[2m  - navigating to \"http://127.0.0.1:18787/\", waiting until \"load\"\u001b[22m\n\n\n   at fixtures.ts:112\n\n  110 | // at '/'; from story 5 on '/' is the home page with \"Create a board\".\n  111 | export async function openBoard(page: Page): Promise<string> {\n> 112 |   await page.goto('/');\n      |              ^\n  113 |   if (PROCESSED.has(5)) await createBoard(page);\n  114 |   await expect(zoomLabel(page)).toBeVisible();\n  115 |   if (PROCESSED.has(3)) await waitConnected(page);\n    at openBoard (~/.dbench/repo/benchmarks/vidi/acceptance/tests/fixtures.ts:112:14)\n    at ~/.dbench/repo/benchmarks/vidi/acceptance/tests/story-01.spec.ts:117:11"
+                        }
+                      ],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-09-25T08:05:46.833Z",
+                      "annotations": [],
+                      "attachments": [
+                        {
+                          "name": "screenshot",
+                          "contentType": "image/png",
+                          "path": "~/.dbench/repo/combinations/qwen/3.8/27b/ubuntu/24GB/llamacpp-opencode/benchmarks/vidi/canvas-pi-02/stories/05/artifacts/story-01-story-1-s01-reset-06e20--centred-ref-prd-view-reset-chromium/test-failed-1.png"
+                        }
+                      ],
+                      "errorLocation": {
+                        "file": "~/.dbench/repo/benchmarks/vidi/acceptance/tests/fixtures.ts",
+                        "column": 14,
+                        "line": 112
+                      }
+                    }
+                  ],
+                  "status": "unexpected"
+                }
+              ],
+              "id": "24cb81e61bbb2d948322-d46de5242fc76e3c7e6f",
+              "file": "story-01.spec.ts",
+              "line": 115,
+              "column": 3
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "title": "story-02.spec.ts",
+      "file": "story-02.spec.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [],
+      "suites": [
+        {
+          "title": "story 2 @s02",
+          "file": "story-02.spec.ts",
+          "line": 10,
+          "column": 6,
+          "specs": [
+            {
+              "title": "golden path: create, type, select, recolour, delete @ref prd:golden-path",
+              "ok": false,
+              "tags": [
+                "s02",
+                "ref"
+              ],
+              "tests": [
+                {
+                  "timeout": 45000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 10,
+                      "parallelIndex": 0,
+                      "status": "failed",
+                      "duration": 89,
+                      "error": {
+                        "message": "Error: page.goto: net::ERR_CONNECTION_REFUSED at http://127.0.0.1:18787/\nCall log:\n\u001b[2m  - navigating to \"http://127.0.0.1:18787/\", waiting until \"load\"\u001b[22m\n",
+                        "stack": "Error: page.goto: net::ERR_CONNECTION_REFUSED at http://127.0.0.1:18787/\nCall log:\n\u001b[2m  - navigating to \"http://127.0.0.1:18787/\", waiting until \"load\"\u001b[22m\n\n    at openBoard (~/.dbench/repo/benchmarks/vidi/acceptance/tests/fixtures.ts:112:14)\n    at ~/.dbench/repo/benchmarks/vidi/acceptance/tests/story-02.spec.ts:14:11",
+                        "location": {
+                          "file": "~/.dbench/repo/benchmarks/vidi/acceptance/tests/fixtures.ts",
+                          "column": 14,
+                          "line": 112
+                        },
+                        "snippet": "   at fixtures.ts:112\n\n\u001b[0m \u001b[90m 110 |\u001b[39m \u001b[90m// at '/'; from story 5 on '/' is the home page with \"Create a board\".\u001b[39m\n \u001b[90m 111 |\u001b[39m \u001b[36mexport\u001b[39m \u001b[36masync\u001b[39m \u001b[36mfunction\u001b[39m openBoard(page\u001b[33m:\u001b[39m \u001b[33mPage\u001b[39m)\u001b[33m:\u001b[39m \u001b[33mPromise\u001b[39m\u001b[33m<\u001b[39m\u001b[33mstring\u001b[39m\u001b[33m>\u001b[39m {\n\u001b[31m\u001b[1m>\u001b[22m\u001b[39m\u001b[90m 112 |\u001b[39m   \u001b[36mawait\u001b[39m page\u001b[33m.\u001b[39mgoto(\u001b[32m'/'\u001b[39m)\u001b[33m;\u001b[39m\n \u001b[90m     |\u001b[39m              \u001b[31m\u001b[1m^\u001b[22m\u001b[39m\n \u001b[90m 113 |\u001b[39m   \u001b[36mif\u001b[39m (\u001b[33mPROCESSED\u001b[39m\u001b[33m.\u001b[39mhas(\u001b[35m5\u001b[39m)) \u001b[36mawait\u001b[39m createBoard(page)\u001b[33m;\u001b[39m\n \u001b[90m 114 |\u001b[39m   \u001b[36mawait\u001b[39m expect(zoomLabel(page))\u001b[33m.\u001b[39mtoBeVisible()\u001b[33m;\u001b[39m\n \u001b[90m 115 |\u001b[39m   \u001b[36mif\u001b[39m (\u001b[33mPROCESSED\u001b[39m\u001b[33m.\u001b[39mhas(\u001b[35m3\u001b[39m)) \u001b[36mawait\u001b[39m waitConnected(page)\u001b[33m;\u001b[39m\u001b[0m"
+                      },
+                      "errors": [
+                        {
+                          "location": {
+                            "file": "~/.dbench/repo/benchmarks/vidi/acceptance/tests/fixtures.ts",
+                            "column": 14,
+                            "line": 112
+                          },
+                          "message": "Error: page.goto: net::ERR_CONNECTION_REFUSED at http://127.0.0.1:18787/\nCall log:\n\u001b[2m  - navigating to \"http://127.0.0.1:18787/\", waiting until \"load\"\u001b[22m\n\n\n   at fixtures.ts:112\n\n  110 | // at '/'; from story 5 on '/' is the home page with \"Create a board\".\n  111 | export async function openBoard(page: Page): Promise<string> {\n> 112 |   await page.goto('/');\n      |              ^\n  113 |   if (PROCESSED.has(5)) await createBoard(page);\n  114 |   await expect(zoomLabel(page)).toBeVisible();\n  115 |   if (PROCESSED.has(3)) await waitConnected(page);\n    at openBoard (~/.dbench/repo/benchmarks/vidi/acceptance/tests/fixtures.ts:112:14)\n    at ~/.dbench/repo/benchmarks/vidi/acceptance/tests/story-02.spec.ts:14:11"
+                        }
+                      ],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-09-25T08:05:47.481Z",
+                      "annotations": [],
+                      "attachments": [
+                        {
+                          "name": "screenshot",
+                          "contentType": "image/png",
+                          "path": "~/.dbench/repo/combinations/qwen/3.8/27b/ubuntu/24GB/llamacpp-opencode/benchmarks/vidi/canvas-pi-02/stories/05/artifacts/story-02-story-2-s02-golde-d3ece--delete-ref-prd-golden-path-chromium/test-failed-1.png"
+                        }
+                      ],
+                      "errorLocation": {
+                        "file": "~/.dbench/repo/benchmarks/vidi/acceptance/tests/fixtures.ts",
+                        "column": 14,
+                        "line": 112
+                      }
+                    }
+                  ],
+                  "status": "unexpected"
+                }
+              ],
+              "id": "c926f64a76cbce2cafa8-85012f1311a2f6087cd6",
+              "file": "story-02.spec.ts",
+              "line": 13,
+              "column": 3
+            },
+            {
+              "title": "double-click creates note centred on the point @ref prd:sticky.create_dblclick",
+              "ok": false,
+              "tags": [
+                "s02",
+                "ref"
+              ],
+              "tests": [
+                {
+                  "timeout": 45000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 11,
+                      "parallelIndex": 0,
+                      "status": "failed",
+                      "duration": 96,
+                      "error": {
+                        "message": "Error: page.goto: net::ERR_CONNECTION_REFUSED at http://127.0.0.1:18787/\nCall log:\n\u001b[2m  - navigating to \"http://127.0.0.1:18787/\", waiting until \"load\"\u001b[22m\n",
+                        "stack": "Error: page.goto: net::ERR_CONNECTION_REFUSED at http://127.0.0.1:18787/\nCall log:\n\u001b[2m  - navigating to \"http://127.0.0.1:18787/\", waiting until \"load\"\u001b[22m\n\n    at openBoard (~/.dbench/repo/benchmarks/vidi/acceptance/tests/fixtures.ts:112:14)\n    at ~/.dbench/repo/benchmarks/vidi/acceptance/tests/story-02.spec.ts:36:11",
+                        "location": {
+                          "file": "~/.dbench/repo/benchmarks/vidi/acceptance/tests/fixtures.ts",
+                          "column": 14,
+                          "line": 112
+                        },
+                        "snippet": "   at fixtures.ts:112\n\n\u001b[0m \u001b[90m 110 |\u001b[39m \u001b[90m// at '/'; from story 5 on '/' is the home page with \"Create a board\".\u001b[39m\n \u001b[90m 111 |\u001b[39m \u001b[36mexport\u001b[39m \u001b[36masync\u001b[39m \u001b[36mfunction\u001b[39m openBoard(page\u001b[33m:\u001b[39m \u001b[33mPage\u001b[39m)\u001b[33m:\u001b[39m \u001b[33mPromise\u001b[39m\u001b[33m<\u001b[39m\u001b[33mstring\u001b[39m\u001b[33m>\u001b[39m {\n\u001b[31m\u001b[1m>\u001b[22m\u001b[39m\u001b[90m 112 |\u001b[39m   \u001b[36mawait\u001b[39m page\u001b[33m.\u001b[39mgoto(\u001b[32m'/'\u001b[39m)\u001b[33m;\u001b[39m\n \u001b[90m     |\u001b[39m              \u001b[31m\u001b[1m^\u001b[22m\u001b[39m\n \u001b[90m 113 |\u001b[39m   \u001b[36mif\u001b[39m (\u001b[33mPROCESSED\u001b[39m\u001b[33m.\u001b[39mhas(\u001b[35m5\u001b[39m)) \u001b[36mawait\u001b[39m createBoard(page)\u001b[33m;\u001b[39m\n \u001b[90m 114 |\u001b[39m   \u001b[36mawait\u001b[39m expect(zoomLabel(page))\u001b[33m.\u001b[39mtoBeVisible()\u001b[33m;\u001b[39m\n \u001b[90m 115 |\u001b[39m   \u001b[36mif\u001b[39m (\u001b[33mPROCESSED\u001b[39m\u001b[33m.\u001b[39mhas(\u001b[35m3\u001b[39m)) \u001b[36mawait\u001b[39m waitConnected(page)\u001b[33m;\u001b[39m\u001b[0m"
+                      },
+                      "errors": [
+                        {
+                          "location": {
+                            "file": "~/.dbench/repo/benchmarks/vidi/acceptance/tests/fixtures.ts",
+                            "column": 14,
+                            "line": 112
+                          },
+                          "message": "Error: page.goto: net::ERR_CONNECTION_REFUSED at http://127.0.0.1:18787/\nCall log:\n\u001b[2m  - navigating to \"http://127.0.0.1:18787/\", waiting until \"load\"\u001b[22m\n\n\n   at fixtures.ts:112\n\n  110 | // at '/'; from story 5 on '/' is the home page with \"Create a board\".\n  111 | export async function openBoard(page: Page): Promise<string> {\n> 112 |   await page.goto('/');\n      |              ^\n  113 |   if (PROCESSED.has(5)) await createBoard(page);\n  114 |   await expect(zoomLabel(page)).toBeVisible();\n  115 |   if (PROCESSED.has(3)) await waitConnected(page);\n    at openBoard (~/.dbench/repo/benchmarks/vidi/acceptance/tests/fixtures.ts:112:14)\n    at ~/.dbench/repo/benchmarks/vidi/acceptance/tests/story-02.spec.ts:36:11"
+                        }
+                      ],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-09-25T08:05:48.138Z",
+                      "annotations": [],
+                      "attachments": [
+                        {
+                          "name": "screenshot",
+                          "contentType": "image/png",
+                          "path": "~/.dbench/repo/combinations/qwen/3.8/27b/ubuntu/24GB/llamacpp-opencode/benchmarks/vidi/canvas-pi-02/stories/05/artifacts/story-02-story-2-s02-doubl-82929--prd-sticky-create-dblclick-chromium/test-failed-1.png"
+                        }
+                      ],
+                      "errorLocation": {
+                        "file": "~/.dbench/repo/benchmarks/vidi/acceptance/tests/fixtures.ts",
+                        "column": 14,
+                        "line": 112
+                      }
+                    }
+                  ],
+                  "status": "unexpected"
+                }
+              ],
+              "id": "c926f64a76cbce2cafa8-f53d2276f30a43e3ef3c",
+              "file": "story-02.spec.ts",
+              "line": 35,
+              "column": 3
+            },
+            {
+              "title": "toolbar button creates note in view centre @ref prd:sticky.create_button",
+              "ok": false,
+              "tags": [
+                "s02",
+                "ref"
+              ],
+              "tests": [
+                {
+                  "timeout": 45000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 12,
+                      "parallelIndex": 0,
+                      "status": "failed",
+                      "duration": 96,
+                      "error": {
+                        "message": "Error: page.goto: net::ERR_CONNECTION_REFUSED at http://127.0.0.1:18787/\nCall log:\n\u001b[2m  - navigating to \"http://127.0.0.1:18787/\", waiting until \"load\"\u001b[22m\n",
+                        "stack": "Error: page.goto: net::ERR_CONNECTION_REFUSED at http://127.0.0.1:18787/\nCall log:\n\u001b[2m  - navigating to \"http://127.0.0.1:18787/\", waiting until \"load\"\u001b[22m\n\n    at openBoard (~/.dbench/repo/benchmarks/vidi/acceptance/tests/fixtures.ts:112:14)\n    at ~/.dbench/repo/benchmarks/vidi/acceptance/tests/story-02.spec.ts:47:11",
+                        "location": {
+                          "file": "~/.dbench/repo/benchmarks/vidi/acceptance/tests/fixtures.ts",
+                          "column": 14,
+                          "line": 112
+                        },
+                        "snippet": "   at fixtures.ts:112\n\n\u001b[0m \u001b[90m 110 |\u001b[39m \u001b[90m// at '/'; from story 5 on '/' is the home page with \"Create a board\".\u001b[39m\n \u001b[90m 111 |\u001b[39m \u001b[36mexport\u001b[39m \u001b[36masync\u001b[39m \u001b[36mfunction\u001b[39m openBoard(page\u001b[33m:\u001b[39m \u001b[33mPage\u001b[39m)\u001b[33m:\u001b[39m \u001b[33mPromise\u001b[39m\u001b[33m<\u001b[39m\u001b[33mstring\u001b[39m\u001b[33m>\u001b[39m {\n\u001b[31m\u001b[1m>\u001b[22m\u001b[39m\u001b[90m 112 |\u001b[39m   \u001b[36mawait\u001b[39m page\u001b[33m.\u001b[39mgoto(\u001b[32m'/'\u001b[39m)\u001b[33m;\u001b[39m\n \u001b[90m     |\u001b[39m              \u001b[31m\u001b[1m^\u001b[22m\u001b[39m\n \u001b[90m 113 |\u001b[39m   \u001b[36mif\u001b[39m (\u001b[33mPROCESSED\u001b[39m\u001b[33m.\u001b[39mhas(\u001b[35m5\u001b[39m)) \u001b[36mawait\u001b[39m createBoard(page)\u001b[33m;\u001b[39m\n \u001b[90m 114 |\u001b[39m   \u001b[36mawait\u001b[39m expect(zoomLabel(page))\u001b[33m.\u001b[39mtoBeVisible()\u001b[33m;\u001b[39m\n \u001b[90m 115 |\u001b[39m   \u001b[36mif\u001b[39m (\u001b[33mPROCESSED\u001b[39m\u001b[33m.\u001b[39mhas(\u001b[35m3\u001b[39m)) \u001b[36mawait\u001b[39m waitConnected(page)\u001b[33m;\u001b[39m\u001b[0m"
+                      },
+                      "errors": [
+                        {
+                          "location": {
+                            "file": "~/.dbench/repo/benchmarks/vidi/acceptance/tests/fixtures.ts",
+                            "column": 14,
+                            "line": 112
+                          },
+                          "message": "Error: page.goto: net::ERR_CONNECTION_REFUSED at http://127.0.0.1:18787/\nCall log:\n\u001b[2m  - navigating to \"http://127.0.0.1:18787/\", waiting until \"load\"\u001b[22m\n\n\n   at fixtures.ts:112\n\n  110 | // at '/'; from story 5 on '/' is the home page with \"Create a board\".\n  111 | export async function openBoard(page: Page): Promise<string> {\n> 112 |   await page.goto('/');\n      |              ^\n  113 |   if (PROCESSED.has(5)) await createBoard(page);\n  114 |   await expect(zoomLabel(page)).toBeVisible();\n  115 |   if (PROCESSED.has(3)) await waitConnected(page);\n    at openBoard (~/.dbench/repo/benchmarks/vidi/acceptance/tests/fixtures.ts:112:14)\n    at ~/.dbench/repo/benchmarks/vidi/acceptance/tests/story-02.spec.ts:47:11"
+                        }
+                      ],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-09-25T08:05:48.782Z",
+                      "annotations": [],
+                      "attachments": [
+                        {
+                          "name": "screenshot",
+                          "contentType": "image/png",
+                          "path": "~/.dbench/repo/combinations/qwen/3.8/27b/ubuntu/24GB/llamacpp-opencode/benchmarks/vidi/canvas-pi-02/stories/05/artifacts/story-02-story-2-s02-toolb-9afa9-ef-prd-sticky-create-button-chromium/test-failed-1.png"
+                        }
+                      ],
+                      "errorLocation": {
+                        "file": "~/.dbench/repo/benchmarks/vidi/acceptance/tests/fixtures.ts",
+                        "column": 14,
+                        "line": 112
+                      }
+                    }
+                  ],
+                  "status": "unexpected"
+                }
+              ],
+              "id": "c926f64a76cbce2cafa8-9c9b3ce2a61c2fa3968c",
+              "file": "story-02.spec.ts",
+              "line": 46,
+              "column": 3
+            },
+            {
+              "title": "escape and outside click keep typed text; Enter re-edits at end @ref prd:sticky.edit_end",
+              "ok": false,
+              "tags": [
+                "s02",
+                "ref"
+              ],
+              "tests": [
+                {
+                  "timeout": 45000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 13,
+                      "parallelIndex": 0,
+                      "status": "failed",
+                      "duration": 114,
+                      "error": {
+                        "message": "Error: page.goto: net::ERR_CONNECTION_REFUSED at http://127.0.0.1:18787/\nCall log:\n\u001b[2m  - navigating to \"http://127.0.0.1:18787/\", waiting until \"load\"\u001b[22m\n",
+                        "stack": "Error: page.goto: net::ERR_CONNECTION_REFUSED at http://127.0.0.1:18787/\nCall log:\n\u001b[2m  - navigating to \"http://127.0.0.1:18787/\", waiting until \"load\"\u001b[22m\n\n    at openBoard (~/.dbench/repo/benchmarks/vidi/acceptance/tests/fixtures.ts:112:14)\n    at ~/.dbench/repo/benchmarks/vidi/acceptance/tests/story-02.spec.ts:60:11",
+                        "location": {
+                          "file": "~/.dbench/repo/benchmarks/vidi/acceptance/tests/fixtures.ts",
+                          "column": 14,
+                          "line": 112
+                        },
+                        "snippet": "   at fixtures.ts:112\n\n\u001b[0m \u001b[90m 110 |\u001b[39m \u001b[90m// at '/'; from story 5 on '/' is the home page with \"Create a board\".\u001b[39m\n \u001b[90m 111 |\u001b[39m \u001b[36mexport\u001b[39m \u001b[36masync\u001b[39m \u001b[36mfunction\u001b[39m openBoard(page\u001b[33m:\u001b[39m \u001b[33mPage\u001b[39m)\u001b[33m:\u001b[39m \u001b[33mPromise\u001b[39m\u001b[33m<\u001b[39m\u001b[33mstring\u001b[39m\u001b[33m>\u001b[39m {\n\u001b[31m\u001b[1m>\u001b[22m\u001b[39m\u001b[90m 112 |\u001b[39m   \u001b[36mawait\u001b[39m page\u001b[33m.\u001b[39mgoto(\u001b[32m'/'\u001b[39m)\u001b[33m;\u001b[39m\n \u001b[90m     |\u001b[39m              \u001b[31m\u001b[1m^\u001b[22m\u001b[39m\n \u001b[90m 113 |\u001b[39m   \u001b[36mif\u001b[39m (\u001b[33mPROCESSED\u001b[39m\u001b[33m.\u001b[39mhas(\u001b[35m5\u001b[39m)) \u001b[36mawait\u001b[39m createBoard(page)\u001b[33m;\u001b[39m\n \u001b[90m 114 |\u001b[39m   \u001b[36mawait\u001b[39m expect(zoomLabel(page))\u001b[33m.\u001b[39mtoBeVisible()\u001b[33m;\u001b[39m\n \u001b[90m 115 |\u001b[39m   \u001b[36mif\u001b[39m (\u001b[33mPROCESSED\u001b[39m\u001b[33m.\u001b[39mhas(\u001b[35m3\u001b[39m)) \u001b[36mawait\u001b[39m waitConnected(page)\u001b[33m;\u001b[39m\u001b[0m"
+                      },
+                      "errors": [
+                        {
+                          "location": {
+                            "file": "~/.dbench/repo/benchmarks/vidi/acceptance/tests/fixtures.ts",
+                            "column": 14,
+                            "line": 112
+                          },
+                          "message": "Error: page.goto: net::ERR_CONNECTION_REFUSED at http://127.0.0.1:18787/\nCall log:\n\u001b[2m  - navigating to \"http://127.0.0.1:18787/\", waiting until \"load\"\u001b[22m\n\n\n   at fixtures.ts:112\n\n  110 | // at '/'; from story 5 on '/' is the home page with \"Create a board\".\n  111 | export async function openBoard(page: Page): Promise<string> {\n> 112 |   await page.goto('/');\n      |              ^\n  113 |   if (PROCESSED.has(5)) await createBoard(page);\n  114 |   await expect(zoomLabel(page)).toBeVisible();\n  115 |   if (PROCESSED.has(3)) await waitConnected(page);\n    at openBoard (~/.dbench/repo/benchmarks/vidi/acceptance/tests/fixtures.ts:112:14)\n    at ~/.dbench/repo/benchmarks/vidi/acceptance/tests/story-02.spec.ts:60:11"
+                        }
+                      ],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-09-25T08:05:49.438Z",
+                      "annotations": [],
+                      "attachments": [
+                        {
+                          "name": "screenshot",
+                          "contentType": "image/png",
+                          "path": "~/.dbench/repo/combinations/qwen/3.8/27b/ubuntu/24GB/llamacpp-opencode/benchmarks/vidi/canvas-pi-02/stories/05/artifacts/story-02-story-2-s02-escap-d49e8-end-ref-prd-sticky-edit-end-chromium/test-failed-1.png"
+                        }
+                      ],
+                      "errorLocation": {
+                        "file": "~/.dbench/repo/benchmarks/vidi/acceptance/tests/fixtures.ts",
+                        "column": 14,
+                        "line": 112
+                      }
+                    }
+                  ],
+                  "status": "unexpected"
+                }
+              ],
+              "id": "c926f64a76cbce2cafa8-dabf3caf4bdec9d23f3c",
+              "file": "story-02.spec.ts",
+              "line": 59,
+              "column": 3
+            },
+            {
+              "title": "pasting over the limit keeps exactly 1000 characters @ref prd:sticky.text_limit",
+              "ok": false,
+              "tags": [
+                "s02",
+                "ref"
+              ],
+              "tests": [
+                {
+                  "timeout": 45000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 14,
+                      "parallelIndex": 0,
+                      "status": "failed",
+                      "duration": 101,
+                      "error": {
+                        "message": "Error: page.goto: net::ERR_CONNECTION_REFUSED at http://127.0.0.1:18787/\nCall log:\n\u001b[2m  - navigating to \"http://127.0.0.1:18787/\", waiting until \"load\"\u001b[22m\n",
+                        "stack": "Error: page.goto: net::ERR_CONNECTION_REFUSED at http://127.0.0.1:18787/\nCall log:\n\u001b[2m  - navigating to \"http://127.0.0.1:18787/\", waiting until \"load\"\u001b[22m\n\n    at openBoard (~/.dbench/repo/benchmarks/vidi/acceptance/tests/fixtures.ts:112:14)\n    at ~/.dbench/repo/benchmarks/vidi/acceptance/tests/story-02.spec.ts:70:11",
+                        "location": {
+                          "file": "~/.dbench/repo/benchmarks/vidi/acceptance/tests/fixtures.ts",
+                          "column": 14,
+                          "line": 112
+                        },
+                        "snippet": "   at fixtures.ts:112\n\n\u001b[0m \u001b[90m 110 |\u001b[39m \u001b[90m// at '/'; from story 5 on '/' is the home page with \"Create a board\".\u001b[39m\n \u001b[90m 111 |\u001b[39m \u001b[36mexport\u001b[39m \u001b[36masync\u001b[39m \u001b[36mfunction\u001b[39m openBoard(page\u001b[33m:\u001b[39m \u001b[33mPage\u001b[39m)\u001b[33m:\u001b[39m \u001b[33mPromise\u001b[39m\u001b[33m<\u001b[39m\u001b[33mstring\u001b[39m\u001b[33m>\u001b[39m {\n\u001b[31m\u001b[1m>\u001b[22m\u001b[39m\u001b[90m 112 |\u001b[39m   \u001b[36mawait\u001b[39m page\u001b[33m.\u001b[39mgoto(\u001b[32m'/'\u001b[39m)\u001b[33m;\u001b[39m\n \u001b[90m     |\u001b[39m              \u001b[31m\u001b[1m^\u001b[22m\u001b[39m\n \u001b[90m 113 |\u001b[39m   \u001b[36mif\u001b[39m (\u001b[33mPROCESSED\u001b[39m\u001b[33m.\u001b[39mhas(\u001b[35m5\u001b[39m)) \u001b[36mawait\u001b[39m createBoard(page)\u001b[33m;\u001b[39m\n \u001b[90m 114 |\u001b[39m   \u001b[36mawait\u001b[39m expect(zoomLabel(page))\u001b[33m.\u001b[39mtoBeVisible()\u001b[33m;\u001b[39m\n \u001b[90m 115 |\u001b[39m   \u001b[36mif\u001b[39m (\u001b[33mPROCESSED\u001b[39m\u001b[33m.\u001b[39mhas(\u001b[35m3\u001b[39m)) \u001b[36mawait\u001b[39m waitConnected(page)\u001b[33m;\u001b[39m\u001b[0m"
+                      },
+                      "errors": [
+                        {
+                          "location": {
+                            "file": "~/.dbench/repo/benchmarks/vidi/acceptance/tests/fixtures.ts",
+                            "column": 14,
+                            "line": 112
+                          },
+                          "message": "Error: page.goto: net::ERR_CONNECTION_REFUSED at http://127.0.0.1:18787/\nCall log:\n\u001b[2m  - navigating to \"http://127.0.0.1:18787/\", waiting until \"load\"\u001b[22m\n\n\n   at fixtures.ts:112\n\n  110 | // at '/'; from story 5 on '/' is the home page with \"Create a board\".\n  111 | export async function openBoard(page: Page): Promise<string> {\n> 112 |   await page.goto('/');\n      |              ^\n  113 |   if (PROCESSED.has(5)) await createBoard(page);\n  114 |   await expect(zoomLabel(page)).toBeVisible();\n  115 |   if (PROCESSED.has(3)) await waitConnected(page);\n    at openBoard (~/.dbench/repo/benchmarks/vidi/acceptance/tests/fixtures.ts:112:14)\n    at ~/.dbench/repo/benchmarks/vidi/acceptance/tests/story-02.spec.ts:70:11"
+                        }
+                      ],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-09-25T08:05:50.115Z",
+                      "annotations": [],
+                      "attachments": [
+                        {
+                          "name": "screenshot",
+                          "contentType": "image/png",
+                          "path": "~/.dbench/repo/combinations/qwen/3.8/27b/ubuntu/24GB/llamacpp-opencode/benchmarks/vidi/canvas-pi-02/stories/05/artifacts/story-02-story-2-s02-pasti-2f71d-s-ref-prd-sticky-text-limit-chromium/test-failed-1.png"
+                        }
+                      ],
+                      "errorLocation": {
+                        "file": "~/.dbench/repo/benchmarks/vidi/acceptance/tests/fixtures.ts",
+                        "column": 14,
+                        "line": 112
+                      }
+                    }
+                  ],
+                  "status": "unexpected"
+                }
+              ],
+              "id": "c926f64a76cbce2cafa8-0b3c70a6187645631c5e",
+              "file": "story-02.spec.ts",
+              "line": 69,
+              "column": 3
+            },
+            {
+              "title": "dragging a note moves it, not the board @ref prd:sticky.move prd:sticky.no_pan",
+              "ok": false,
+              "tags": [
+                "s02",
+                "ref"
+              ],
+              "tests": [
+                {
+                  "timeout": 45000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 15,
+                      "parallelIndex": 0,
+                      "status": "failed",
+                      "duration": 89,
+                      "error": {
+                        "message": "Error: page.goto: net::ERR_CONNECTION_REFUSED at http://127.0.0.1:18787/\nCall log:\n\u001b[2m  - navigating to \"http://127.0.0.1:18787/\", waiting until \"load\"\u001b[22m\n",
+                        "stack": "Error: page.goto: net::ERR_CONNECTION_REFUSED at http://127.0.0.1:18787/\nCall log:\n\u001b[2m  - navigating to \"http://127.0.0.1:18787/\", waiting until \"load\"\u001b[22m\n\n    at openBoard (~/.dbench/repo/benchmarks/vidi/acceptance/tests/fixtures.ts:112:14)\n    at ~/.dbench/repo/benchmarks/vidi/acceptance/tests/story-02.spec.ts:82:11",
+                        "location": {
+                          "file": "~/.dbench/repo/benchmarks/vidi/acceptance/tests/fixtures.ts",
+                          "column": 14,
+                          "line": 112
+                        },
+                        "snippet": "   at fixtures.ts:112\n\n\u001b[0m \u001b[90m 110 |\u001b[39m \u001b[90m// at '/'; from story 5 on '/' is the home page with \"Create a board\".\u001b[39m\n \u001b[90m 111 |\u001b[39m \u001b[36mexport\u001b[39m \u001b[36masync\u001b[39m \u001b[36mfunction\u001b[39m openBoard(page\u001b[33m:\u001b[39m \u001b[33mPage\u001b[39m)\u001b[33m:\u001b[39m \u001b[33mPromise\u001b[39m\u001b[33m<\u001b[39m\u001b[33mstring\u001b[39m\u001b[33m>\u001b[39m {\n\u001b[31m\u001b[1m>\u001b[22m\u001b[39m\u001b[90m 112 |\u001b[39m   \u001b[36mawait\u001b[39m page\u001b[33m.\u001b[39mgoto(\u001b[32m'/'\u001b[39m)\u001b[33m;\u001b[39m\n \u001b[90m     |\u001b[39m              \u001b[31m\u001b[1m^\u001b[22m\u001b[39m\n \u001b[90m 113 |\u001b[39m   \u001b[36mif\u001b[39m (\u001b[33mPROCESSED\u001b[39m\u001b[33m.\u001b[39mhas(\u001b[35m5\u001b[39m)) \u001b[36mawait\u001b[39m createBoard(page)\u001b[33m;\u001b[39m\n \u001b[90m 114 |\u001b[39m   \u001b[36mawait\u001b[39m expect(zoomLabel(page))\u001b[33m.\u001b[39mtoBeVisible()\u001b[33m;\u001b[39m\n \u001b[90m 115 |\u001b[39m   \u001b[36mif\u001b[39m (\u001b[33mPROCESSED\u001b[39m\u001b[33m.\u001b[39mhas(\u001b[35m3\u001b[39m)) \u001b[36mawait\u001b[39m waitConnected(page)\u001b[33m;\u001b[39m\u001b[0m"
+                      },
+                      "errors": [
+                        {
+                          "location": {
+                            "file": "~/.dbench/repo/benchmarks/vidi/acceptance/tests/fixtures.ts",
+                            "column": 14,
+                            "line": 112
+                          },
+                          "message": "Error: page.goto: net::ERR_CONNECTION_REFUSED at http://127.0.0.1:18787/\nCall log:\n\u001b[2m  - navigating to \"http://127.0.0.1:18787/\", waiting until \"load\"\u001b[22m\n\n\n   at fixtures.ts:112\n\n  110 | // at '/'; from story 5 on '/' is the home page with \"Create a board\".\n  111 | export async function openBoard(page: Page): Promise<string> {\n> 112 |   await page.goto('/');\n      |              ^\n  113 |   if (PROCESSED.has(5)) await createBoard(page);\n  114 |   await expect(zoomLabel(page)).toBeVisible();\n  115 |   if (PROCESSED.has(3)) await waitConnected(page);\n    at openBoard (~/.dbench/repo/benchmarks/vidi/acceptance/tests/fixtures.ts:112:14)\n    at ~/.dbench/repo/benchmarks/vidi/acceptance/tests/story-02.spec.ts:82:11"
+                        }
+                      ],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-09-25T08:05:50.776Z",
+                      "annotations": [],
+                      "attachments": [
+                        {
+                          "name": "screenshot",
+                          "contentType": "image/png",
+                          "path": "~/.dbench/repo/combinations/qwen/3.8/27b/ubuntu/24GB/llamacpp-opencode/benchmarks/vidi/canvas-pi-02/stories/05/artifacts/story-02-story-2-s02-dragg-7b875-icky-move-prd-sticky-no-pan-chromium/test-failed-1.png"
+                        }
+                      ],
+                      "errorLocation": {
+                        "file": "~/.dbench/repo/benchmarks/vidi/acceptance/tests/fixtures.ts",
+                        "column": 14,
+                        "line": 112
+                      }
+                    }
+                  ],
+                  "status": "unexpected"
+                }
+              ],
+              "id": "c926f64a76cbce2cafa8-023dec7bc663eadbb88b",
+              "file": "story-02.spec.ts",
+              "line": 81,
+              "column": 3
+            },
+            {
+              "title": "dragged note is drawn above the note it overlaps @ref prd:sticky.move",
+              "ok": false,
+              "tags": [
+                "s02",
+                "ref"
+              ],
+              "tests": [
+                {
+                  "timeout": 45000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 16,
+                      "parallelIndex": 0,
+                      "status": "failed",
+                      "duration": 93,
+                      "error": {
+                        "message": "Error: page.goto: net::ERR_CONNECTION_REFUSED at http://127.0.0.1:18787/\nCall log:\n\u001b[2m  - navigating to \"http://127.0.0.1:18787/\", waiting until \"load\"\u001b[22m\n",
+                        "stack": "Error: page.goto: net::ERR_CONNECTION_REFUSED at http://127.0.0.1:18787/\nCall log:\n\u001b[2m  - navigating to \"http://127.0.0.1:18787/\", waiting until \"load\"\u001b[22m\n\n    at openBoard (~/.dbench/repo/benchmarks/vidi/acceptance/tests/fixtures.ts:112:14)\n    at ~/.dbench/repo/benchmarks/vidi/acceptance/tests/story-02.spec.ts:97:11",
+                        "location": {
+                          "file": "~/.dbench/repo/benchmarks/vidi/acceptance/tests/fixtures.ts",
+                          "column": 14,
+                          "line": 112
+                        },
+                        "snippet": "   at fixtures.ts:112\n\n\u001b[0m \u001b[90m 110 |\u001b[39m \u001b[90m// at '/'; from story 5 on '/' is the home page with \"Create a board\".\u001b[39m\n \u001b[90m 111 |\u001b[39m \u001b[36mexport\u001b[39m \u001b[36masync\u001b[39m \u001b[36mfunction\u001b[39m openBoard(page\u001b[33m:\u001b[39m \u001b[33mPage\u001b[39m)\u001b[33m:\u001b[39m \u001b[33mPromise\u001b[39m\u001b[33m<\u001b[39m\u001b[33mstring\u001b[39m\u001b[33m>\u001b[39m {\n\u001b[31m\u001b[1m>\u001b[22m\u001b[39m\u001b[90m 112 |\u001b[39m   \u001b[36mawait\u001b[39m page\u001b[33m.\u001b[39mgoto(\u001b[32m'/'\u001b[39m)\u001b[33m;\u001b[39m\n \u001b[90m     |\u001b[39m              \u001b[31m\u001b[1m^\u001b[22m\u001b[39m\n \u001b[90m 113 |\u001b[39m   \u001b[36mif\u001b[39m (\u001b[33mPROCESSED\u001b[39m\u001b[33m.\u001b[39mhas(\u001b[35m5\u001b[39m)) \u001b[36mawait\u001b[39m createBoard(page)\u001b[33m;\u001b[39m\n \u001b[90m 114 |\u001b[39m   \u001b[36mawait\u001b[39m expect(zoomLabel(page))\u001b[33m.\u001b[39mtoBeVisible()\u001b[33m;\u001b[39m\n \u001b[90m 115 |\u001b[39m   \u001b[36mif\u001b[39m (\u001b[33mPROCESSED\u001b[39m\u001b[33m.\u001b[39mhas(\u001b[35m3\u001b[39m)) \u001b[36mawait\u001b[39m waitConnected(page)\u001b[33m;\u001b[39m\u001b[0m"
+                      },
+                      "errors": [
+                        {
+                          "location": {
+                            "file": "~/.dbench/repo/benchmarks/vidi/acceptance/tests/fixtures.ts",
+                            "column": 14,
+                            "line": 112
+                          },
+                          "message": "Error: page.goto: net::ERR_CONNECTION_REFUSED at http://127.0.0.1:18787/\nCall log:\n\u001b[2m  - navigating to \"http://127.0.0.1:18787/\", waiting until \"load\"\u001b[22m\n\n\n   at fixtures.ts:112\n\n  110 | // at '/'; from story 5 on '/' is the home page with \"Create a board\".\n  111 | export async function openBoard(page: Page): Promise<string> {\n> 112 |   await page.goto('/');\n      |              ^\n  113 |   if (PROCESSED.has(5)) await createBoard(page);\n  114 |   await expect(zoomLabel(page)).toBeVisible();\n  115 |   if (PROCESSED.has(3)) await waitConnected(page);\n    at openBoard (~/.dbench/repo/benchmarks/vidi/acceptance/tests/fixtures.ts:112:14)\n    at ~/.dbench/repo/benchmarks/vidi/acceptance/tests/story-02.spec.ts:97:11"
+                        }
+                      ],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-09-25T08:05:51.421Z",
+                      "annotations": [],
+                      "attachments": [
+                        {
+                          "name": "screenshot",
+                          "contentType": "image/png",
+                          "path": "~/.dbench/repo/combinations/qwen/3.8/27b/ubuntu/24GB/llamacpp-opencode/benchmarks/vidi/canvas-pi-02/stories/05/artifacts/story-02-story-2-s02-dragg-fb22e-verlaps-ref-prd-sticky-move-chromium/test-failed-1.png"
+                        }
+                      ],
+                      "errorLocation": {
+                        "file": "~/.dbench/repo/benchmarks/vidi/acceptance/tests/fixtures.ts",
+                        "column": 14,
+                        "line": 112
+                      }
+                    }
+                  ],
+                  "status": "unexpected"
+                }
+              ],
+              "id": "c926f64a76cbce2cafa8-f1fc55fcb7f94988e829",
+              "file": "story-02.spec.ts",
+              "line": 96,
+              "column": 3
+            },
+            {
+              "title": "Delete while editing edits text, not the note @ref prd:sticky.delete",
+              "ok": false,
+              "tags": [
+                "s02",
+                "ref"
+              ],
+              "tests": [
+                {
+                  "timeout": 45000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 17,
+                      "parallelIndex": 0,
+                      "status": "failed",
+                      "duration": 86,
+                      "error": {
+                        "message": "Error: page.goto: net::ERR_CONNECTION_REFUSED at http://127.0.0.1:18787/\nCall log:\n\u001b[2m  - navigating to \"http://127.0.0.1:18787/\", waiting until \"load\"\u001b[22m\n",
+                        "stack": "Error: page.goto: net::ERR_CONNECTION_REFUSED at http://127.0.0.1:18787/\nCall log:\n\u001b[2m  - navigating to \"http://127.0.0.1:18787/\", waiting until \"load\"\u001b[22m\n\n    at openBoard (~/.dbench/repo/benchmarks/vidi/acceptance/tests/fixtures.ts:112:14)\n    at ~/.dbench/repo/benchmarks/vidi/acceptance/tests/story-02.spec.ts:113:11",
+                        "location": {
+                          "file": "~/.dbench/repo/benchmarks/vidi/acceptance/tests/fixtures.ts",
+                          "column": 14,
+                          "line": 112
+                        },
+                        "snippet": "   at fixtures.ts:112\n\n\u001b[0m \u001b[90m 110 |\u001b[39m \u001b[90m// at '/'; from story 5 on '/' is the home page with \"Create a board\".\u001b[39m\n \u001b[90m 111 |\u001b[39m \u001b[36mexport\u001b[39m \u001b[36masync\u001b[39m \u001b[36mfunction\u001b[39m openBoard(page\u001b[33m:\u001b[39m \u001b[33mPage\u001b[39m)\u001b[33m:\u001b[39m \u001b[33mPromise\u001b[39m\u001b[33m<\u001b[39m\u001b[33mstring\u001b[39m\u001b[33m>\u001b[39m {\n\u001b[31m\u001b[1m>\u001b[22m\u001b[39m\u001b[90m 112 |\u001b[39m   \u001b[36mawait\u001b[39m page\u001b[33m.\u001b[39mgoto(\u001b[32m'/'\u001b[39m)\u001b[33m;\u001b[39m\n \u001b[90m     |\u001b[39m              \u001b[31m\u001b[1m^\u001b[22m\u001b[39m\n \u001b[90m 113 |\u001b[39m   \u001b[36mif\u001b[39m (\u001b[33mPROCESSED\u001b[39m\u001b[33m.\u001b[39mhas(\u001b[35m5\u001b[39m)) \u001b[36mawait\u001b[39m createBoard(page)\u001b[33m;\u001b[39m\n \u001b[90m 114 |\u001b[39m   \u001b[36mawait\u001b[39m expect(zoomLabel(page))\u001b[33m.\u001b[39mtoBeVisible()\u001b[33m;\u001b[39m\n \u001b[90m 115 |\u001b[39m   \u001b[36mif\u001b[39m (\u001b[33mPROCESSED\u001b[39m\u001b[33m.\u001b[39mhas(\u001b[35m3\u001b[39m)) \u001b[36mawait\u001b[39m waitConnected(page)\u001b[33m;\u001b[39m\u001b[0m"
+                      },
+                      "errors": [
+                        {
+                          "location": {
+                            "file": "~/.dbench/repo/benchmarks/vidi/acceptance/tests/fixtures.ts",
+                            "column": 14,
+                            "line": 112
+                          },
+                          "message": "Error: page.goto: net::ERR_CONNECTION_REFUSED at http://127.0.0.1:18787/\nCall log:\n\u001b[2m  - navigating to \"http://127.0.0.1:18787/\", waiting until \"load\"\u001b[22m\n\n\n   at fixtures.ts:112\n\n  110 | // at '/'; from story 5 on '/' is the home page with \"Create a board\".\n  111 | export async function openBoard(page: Page): Promise<string> {\n> 112 |   await page.goto('/');\n      |              ^\n  113 |   if (PROCESSED.has(5)) await createBoard(page);\n  114 |   await expect(zoomLabel(page)).toBeVisible();\n  115 |   if (PROCESSED.has(3)) await waitConnected(page);\n    at openBoard (~/.dbench/repo/benchmarks/vidi/acceptance/tests/fixtures.ts:112:14)\n    at ~/.dbench/repo/benchmarks/vidi/acceptance/tests/story-02.spec.ts:113:11"
+                        }
+                      ],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-09-25T08:05:52.084Z",
+                      "annotations": [],
+                      "attachments": [
+                        {
+                          "name": "screenshot",
+                          "contentType": "image/png",
+                          "path": "~/.dbench/repo/combinations/qwen/3.8/27b/ubuntu/24GB/llamacpp-opencode/benchmarks/vidi/canvas-pi-02/stories/05/artifacts/story-02-story-2-s02-Delet-11b56--note-ref-prd-sticky-delete-chromium/test-failed-1.png"
+                        }
+                      ],
+                      "errorLocation": {
+                        "file": "~/.dbench/repo/benchmarks/vidi/acceptance/tests/fixtures.ts",
+                        "column": 14,
+                        "line": 112
+                      }
+                    }
+                  ],
+                  "status": "unexpected"
+                }
+              ],
+              "id": "c926f64a76cbce2cafa8-3fe14f5a0eabf4162f05",
+              "file": "story-02.spec.ts",
+              "line": 112,
+              "column": 3
+            },
+            {
+              "title": "delete button on note toolbar removes note @ref prd:sticky.delete",
+              "ok": false,
+              "tags": [
+                "s02",
+                "ref"
+              ],
+              "tests": [
+                {
+                  "timeout": 45000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 18,
+                      "parallelIndex": 0,
+                      "status": "failed",
+                      "duration": 102,
+                      "error": {
+                        "message": "Error: page.goto: net::ERR_CONNECTION_REFUSED at http://127.0.0.1:18787/\nCall log:\n\u001b[2m  - navigating to \"http://127.0.0.1:18787/\", waiting until \"load\"\u001b[22m\n",
+                        "stack": "Error: page.goto: net::ERR_CONNECTION_REFUSED at http://127.0.0.1:18787/\nCall log:\n\u001b[2m  - navigating to \"http://127.0.0.1:18787/\", waiting until \"load\"\u001b[22m\n\n    at openBoard (~/.dbench/repo/benchmarks/vidi/acceptance/tests/fixtures.ts:112:14)\n    at ~/.dbench/repo/benchmarks/vidi/acceptance/tests/story-02.spec.ts:124:11",
+                        "location": {
+                          "file": "~/.dbench/repo/benchmarks/vidi/acceptance/tests/fixtures.ts",
+                          "column": 14,
+                          "line": 112
+                        },
+                        "snippet": "   at fixtures.ts:112\n\n\u001b[0m \u001b[90m 110 |\u001b[39m \u001b[90m// at '/'; from story 5 on '/' is the home page with \"Create a board\".\u001b[39m\n \u001b[90m 111 |\u001b[39m \u001b[36mexport\u001b[39m \u001b[36masync\u001b[39m \u001b[36mfunction\u001b[39m openBoard(page\u001b[33m:\u001b[39m \u001b[33mPage\u001b[39m)\u001b[33m:\u001b[39m \u001b[33mPromise\u001b[39m\u001b[33m<\u001b[39m\u001b[33mstring\u001b[39m\u001b[33m>\u001b[39m {\n\u001b[31m\u001b[1m>\u001b[22m\u001b[39m\u001b[90m 112 |\u001b[39m   \u001b[36mawait\u001b[39m page\u001b[33m.\u001b[39mgoto(\u001b[32m'/'\u001b[39m)\u001b[33m;\u001b[39m\n \u001b[90m     |\u001b[39m              \u001b[31m\u001b[1m^\u001b[22m\u001b[39m\n \u001b[90m 113 |\u001b[39m   \u001b[36mif\u001b[39m (\u001b[33mPROCESSED\u001b[39m\u001b[33m.\u001b[39mhas(\u001b[35m5\u001b[39m)) \u001b[36mawait\u001b[39m createBoard(page)\u001b[33m;\u001b[39m\n \u001b[90m 114 |\u001b[39m   \u001b[36mawait\u001b[39m expect(zoomLabel(page))\u001b[33m.\u001b[39mtoBeVisible()\u001b[33m;\u001b[39m\n \u001b[90m 115 |\u001b[39m   \u001b[36mif\u001b[39m (\u001b[33mPROCESSED\u001b[39m\u001b[33m.\u001b[39mhas(\u001b[35m3\u001b[39m)) \u001b[36mawait\u001b[39m waitConnected(page)\u001b[33m;\u001b[39m\u001b[0m"
+                      },
+                      "errors": [
+                        {
+                          "location": {
+                            "file": "~/.dbench/repo/benchmarks/vidi/acceptance/tests/fixtures.ts",
+                            "column": 14,
+                            "line": 112
+                          },
+                          "message": "Error: page.goto: net::ERR_CONNECTION_REFUSED at http://127.0.0.1:18787/\nCall log:\n\u001b[2m  - navigating to \"http://127.0.0.1:18787/\", waiting until \"load\"\u001b[22m\n\n\n   at fixtures.ts:112\n\n  110 | // at '/'; from story 5 on '/' is the home page with \"Create a board\".\n  111 | export async function openBoard(page: Page): Promise<string> {\n> 112 |   await page.goto('/');\n      |              ^\n  113 |   if (PROCESSED.has(5)) await createBoard(page);\n  114 |   await expect(zoomLabel(page)).toBeVisible();\n  115 |   if (PROCESSED.has(3)) await waitConnected(page);\n    at openBoard (~/.dbench/repo/benchmarks/vidi/acceptance/tests/fixtures.ts:112:14)\n    at ~/.dbench/repo/benchmarks/vidi/acceptance/tests/story-02.spec.ts:124:11"
+                        }
+                      ],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-09-25T08:05:52.726Z",
+                      "annotations": [],
+                      "attachments": [
+                        {
+                          "name": "screenshot",
+                          "contentType": "image/png",
+                          "path": "~/.dbench/repo/combinations/qwen/3.8/27b/ubuntu/24GB/llamacpp-opencode/benchmarks/vidi/canvas-pi-02/stories/05/artifacts/story-02-story-2-s02-delet-3e646--note-ref-prd-sticky-delete-chromium/test-failed-1.png"
+                        }
+                      ],
+                      "errorLocation": {
+                        "file": "~/.dbench/repo/benchmarks/vidi/acceptance/tests/fixtures.ts",
+                        "column": 14,
+                        "line": 112
+                      }
+                    }
+                  ],
+                  "status": "unexpected"
+                }
+              ],
+              "id": "c926f64a76cbce2cafa8-412b4516bd06a0130de6",
+              "file": "story-02.spec.ts",
+              "line": 123,
+              "column": 3
+            },
+            {
+              "title": "clicking empty board clears selection @ref prd:sticky.select",
+              "ok": false,
+              "tags": [
+                "s02",
+                "ref"
+              ],
+              "tests": [
+                {
+                  "timeout": 45000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 19,
+                      "parallelIndex": 0,
+                      "status": "failed",
+                      "duration": 94,
+                      "error": {
+                        "message": "Error: page.goto: net::ERR_CONNECTION_REFUSED at http://127.0.0.1:18787/\nCall log:\n\u001b[2m  - navigating to \"http://127.0.0.1:18787/\", waiting until \"load\"\u001b[22m\n",
+                        "stack": "Error: page.goto: net::ERR_CONNECTION_REFUSED at http://127.0.0.1:18787/\nCall log:\n\u001b[2m  - navigating to \"http://127.0.0.1:18787/\", waiting until \"load\"\u001b[22m\n\n    at openBoard (~/.dbench/repo/benchmarks/vidi/acceptance/tests/fixtures.ts:112:14)\n    at ~/.dbench/repo/benchmarks/vidi/acceptance/tests/story-02.spec.ts:132:11",
+                        "location": {
+                          "file": "~/.dbench/repo/benchmarks/vidi/acceptance/tests/fixtures.ts",
+                          "column": 14,
+                          "line": 112
+                        },
+                        "snippet": "   at fixtures.ts:112\n\n\u001b[0m \u001b[90m 110 |\u001b[39m \u001b[90m// at '/'; from story 5 on '/' is the home page with \"Create a board\".\u001b[39m\n \u001b[90m 111 |\u001b[39m \u001b[36mexport\u001b[39m \u001b[36masync\u001b[39m \u001b[36mfunction\u001b[39m openBoard(page\u001b[33m:\u001b[39m \u001b[33mPage\u001b[39m)\u001b[33m:\u001b[39m \u001b[33mPromise\u001b[39m\u001b[33m<\u001b[39m\u001b[33mstring\u001b[39m\u001b[33m>\u001b[39m {\n\u001b[31m\u001b[1m>\u001b[22m\u001b[39m\u001b[90m 112 |\u001b[39m   \u001b[36mawait\u001b[39m page\u001b[33m.\u001b[39mgoto(\u001b[32m'/'\u001b[39m)\u001b[33m;\u001b[39m\n \u001b[90m     |\u001b[39m              \u001b[31m\u001b[1m^\u001b[22m\u001b[39m\n \u001b[90m 113 |\u001b[39m   \u001b[36mif\u001b[39m (\u001b[33mPROCESSED\u001b[39m\u001b[33m.\u001b[39mhas(\u001b[35m5\u001b[39m)) \u001b[36mawait\u001b[39m createBoard(page)\u001b[33m;\u001b[39m\n \u001b[90m 114 |\u001b[39m   \u001b[36mawait\u001b[39m expect(zoomLabel(page))\u001b[33m.\u001b[39mtoBeVisible()\u001b[33m;\u001b[39m\n \u001b[90m 115 |\u001b[39m   \u001b[36mif\u001b[39m (\u001b[33mPROCESSED\u001b[39m\u001b[33m.\u001b[39mhas(\u001b[35m3\u001b[39m)) \u001b[36mawait\u001b[39m waitConnected(page)\u001b[33m;\u001b[39m\u001b[0m"
+                      },
+                      "errors": [
+                        {
+                          "location": {
+                            "file": "~/.dbench/repo/benchmarks/vidi/acceptance/tests/fixtures.ts",
+                            "column": 14,
+                            "line": 112
+                          },
+                          "message": "Error: page.goto: net::ERR_CONNECTION_REFUSED at http://127.0.0.1:18787/\nCall log:\n\u001b[2m  - navigating to \"http://127.0.0.1:18787/\", waiting until \"load\"\u001b[22m\n\n\n   at fixtures.ts:112\n\n  110 | // at '/'; from story 5 on '/' is the home page with \"Create a board\".\n  111 | export async function openBoard(page: Page): Promise<string> {\n> 112 |   await page.goto('/');\n      |              ^\n  113 |   if (PROCESSED.has(5)) await createBoard(page);\n  114 |   await expect(zoomLabel(page)).toBeVisible();\n  115 |   if (PROCESSED.has(3)) await waitConnected(page);\n    at openBoard (~/.dbench/repo/benchmarks/vidi/acceptance/tests/fixtures.ts:112:14)\n    at ~/.dbench/repo/benchmarks/vidi/acceptance/tests/story-02.spec.ts:132:11"
+                        }
+                      ],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-09-25T08:05:53.398Z",
+                      "annotations": [],
+                      "attachments": [
+                        {
+                          "name": "screenshot",
+                          "contentType": "image/png",
+                          "path": "~/.dbench/repo/combinations/qwen/3.8/27b/ubuntu/24GB/llamacpp-opencode/benchmarks/vidi/canvas-pi-02/stories/05/artifacts/story-02-story-2-s02-click-d2f93-ction-ref-prd-sticky-select-chromium/test-failed-1.png"
+                        }
+                      ],
+                      "errorLocation": {
+                        "file": "~/.dbench/repo/benchmarks/vidi/acceptance/tests/fixtures.ts",
+                        "column": 14,
+                        "line": 112
+                      }
+                    }
+                  ],
+                  "status": "unexpected"
+                }
+              ],
+              "id": "c926f64a76cbce2cafa8-5dfdd03158e6d3bcd047",
+              "file": "story-02.spec.ts",
+              "line": 131,
+              "column": 3
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "title": "story-03.spec.ts",
+      "file": "story-03.spec.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [],
+      "suites": [
+        {
+          "title": "story 3 @s03",
+          "file": "story-03.spec.ts",
+          "line": 9,
+          "column": 6,
+          "specs": [
+            {
+              "title": "create, type, move, recolour and delete reach the other person @ref prd:live.propagate",
+              "ok": false,
+              "tags": [
+                "s03",
+                "ref"
+              ],
+              "tests": [
+                {
+                  "timeout": 45000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 20,
+                      "parallelIndex": 0,
+                      "status": "failed",
+                      "duration": 134,
+                      "error": {
+                        "message": "Error: page.goto: net::ERR_CONNECTION_REFUSED at http://127.0.0.1:18787/\nCall log:\n\u001b[2m  - navigating to \"http://127.0.0.1:18787/\", waiting until \"load\"\u001b[22m\n",
+                        "stack": "Error: page.goto: net::ERR_CONNECTION_REFUSED at http://127.0.0.1:18787/\nCall log:\n\u001b[2m  - navigating to \"http://127.0.0.1:18787/\", waiting until \"load\"\u001b[22m\n\n    at openBoard (~/.dbench/repo/benchmarks/vidi/acceptance/tests/fixtures.ts:112:14)\n    at ~/.dbench/repo/benchmarks/vidi/acceptance/tests/story-03.spec.ts:15:23",
+                        "location": {
+                          "file": "~/.dbench/repo/benchmarks/vidi/acceptance/tests/fixtures.ts",
+                          "column": 14,
+                          "line": 112
+                        },
+                        "snippet": "   at fixtures.ts:112\n\n\u001b[0m \u001b[90m 110 |\u001b[39m \u001b[90m// at '/'; from story 5 on '/' is the home page with \"Create a board\".\u001b[39m\n \u001b[90m 111 |\u001b[39m \u001b[36mexport\u001b[39m \u001b[36masync\u001b[39m \u001b[36mfunction\u001b[39m openBoard(page\u001b[33m:\u001b[39m \u001b[33mPage\u001b[39m)\u001b[33m:\u001b[39m \u001b[33mPromise\u001b[39m\u001b[33m<\u001b[39m\u001b[33mstring\u001b[39m\u001b[33m>\u001b[39m {\n\u001b[31m\u001b[1m>\u001b[22m\u001b[39m\u001b[90m 112 |\u001b[39m   \u001b[36mawait\u001b[39m page\u001b[33m.\u001b[39mgoto(\u001b[32m'/'\u001b[39m)\u001b[33m;\u001b[39m\n \u001b[90m     |\u001b[39m              \u001b[31m\u001b[1m^\u001b[22m\u001b[39m\n \u001b[90m 113 |\u001b[39m   \u001b[36mif\u001b[39m (\u001b[33mPROCESSED\u001b[39m\u001b[33m.\u001b[39mhas(\u001b[35m5\u001b[39m)) \u001b[36mawait\u001b[39m createBoard(page)\u001b[33m;\u001b[39m\n \u001b[90m 114 |\u001b[39m   \u001b[36mawait\u001b[39m expect(zoomLabel(page))\u001b[33m.\u001b[39mtoBeVisible()\u001b[33m;\u001b[39m\n \u001b[90m 115 |\u001b[39m   \u001b[36mif\u001b[39m (\u001b[33mPROCESSED\u001b[39m\u001b[33m.\u001b[39mhas(\u001b[35m3\u001b[39m)) \u001b[36mawait\u001b[39m waitConnected(page)\u001b[33m;\u001b[39m\u001b[0m"
+                      },
+                      "errors": [
+                        {
+                          "location": {
+                            "file": "~/.dbench/repo/benchmarks/vidi/acceptance/tests/fixtures.ts",
+                            "column": 14,
+                            "line": 112
+                          },
+                          "message": "Error: page.goto: net::ERR_CONNECTION_REFUSED at http://127.0.0.1:18787/\nCall log:\n\u001b[2m  - navigating to \"http://127.0.0.1:18787/\", waiting until \"load\"\u001b[22m\n\n\n   at fixtures.ts:112\n\n  110 | // at '/'; from story 5 on '/' is the home page with \"Create a board\".\n  111 | export async function openBoard(page: Page): Promise<string> {\n> 112 |   await page.goto('/');\n      |              ^\n  113 |   if (PROCESSED.has(5)) await createBoard(page);\n  114 |   await expect(zoomLabel(page)).toBeVisible();\n  115 |   if (PROCESSED.has(3)) await waitConnected(page);\n    at openBoard (~/.dbench/repo/benchmarks/vidi/acceptance/tests/fixtures.ts:112:14)\n    at ~/.dbench/repo/benchmarks/vidi/acceptance/tests/story-03.spec.ts:15:23"
+                        }
+                      ],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-09-25T08:05:54.048Z",
+                      "annotations": [],
+                      "attachments": [
+                        {
+                          "name": "screenshot",
+                          "contentType": "image/png",
+                          "path": "~/.dbench/repo/combinations/qwen/3.8/27b/ubuntu/24GB/llamacpp-opencode/benchmarks/vidi/canvas-pi-02/stories/05/artifacts/story-03-story-3-s03-creat-92a12-rson-ref-prd-live-propagate-chromium/test-failed-2.png"
+                        },
+                        {
+                          "name": "screenshot",
+                          "contentType": "image/png",
+                          "path": "~/.dbench/repo/combinations/qwen/3.8/27b/ubuntu/24GB/llamacpp-opencode/benchmarks/vidi/canvas-pi-02/stories/05/artifacts/story-03-story-3-s03-creat-92a12-rson-ref-prd-live-propagate-chromium/test-failed-1.png"
+                        }
+                      ],
+                      "errorLocation": {
+                        "file": "~/.dbench/repo/benchmarks/vidi/acceptance/tests/fixtures.ts",
+                        "column": 14,
+                        "line": 112
+                      }
+                    }
+                  ],
+                  "status": "unexpected"
+                }
+              ],
+              "id": "30f3d3dfc0d9061a88db-befed89ce8ecd14bff1f",
+              "file": "story-03.spec.ts",
+              "line": 12,
+              "column": 3
+            },
+            {
+              "title": "late joiner sees current notes @ref prd:live.join_state",
+              "ok": false,
+              "tags": [
+                "s03",
+                "ref"
+              ],
+              "tests": [
+                {
+                  "timeout": 45000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 21,
+                      "parallelIndex": 0,
+                      "status": "failed",
+                      "duration": 93,
+                      "error": {
+                        "message": "Error: page.goto: net::ERR_CONNECTION_REFUSED at http://127.0.0.1:18787/\nCall log:\n\u001b[2m  - navigating to \"http://127.0.0.1:18787/\", waiting until \"load\"\u001b[22m\n",
+                        "stack": "Error: page.goto: net::ERR_CONNECTION_REFUSED at http://127.0.0.1:18787/\nCall log:\n\u001b[2m  - navigating to \"http://127.0.0.1:18787/\", waiting until \"load\"\u001b[22m\n\n    at openBoard (~/.dbench/repo/benchmarks/vidi/acceptance/tests/fixtures.ts:112:14)\n    at ~/.dbench/repo/benchmarks/vidi/acceptance/tests/story-03.spec.ts:43:23",
+                        "location": {
+                          "file": "~/.dbench/repo/benchmarks/vidi/acceptance/tests/fixtures.ts",
+                          "column": 14,
+                          "line": 112
+                        },
+                        "snippet": "   at fixtures.ts:112\n\n\u001b[0m \u001b[90m 110 |\u001b[39m \u001b[90m// at '/'; from story 5 on '/' is the home page with \"Create a board\".\u001b[39m\n \u001b[90m 111 |\u001b[39m \u001b[36mexport\u001b[39m \u001b[36masync\u001b[39m \u001b[36mfunction\u001b[39m openBoard(page\u001b[33m:\u001b[39m \u001b[33mPage\u001b[39m)\u001b[33m:\u001b[39m \u001b[33mPromise\u001b[39m\u001b[33m<\u001b[39m\u001b[33mstring\u001b[39m\u001b[33m>\u001b[39m {\n\u001b[31m\u001b[1m>\u001b[22m\u001b[39m\u001b[90m 112 |\u001b[39m   \u001b[36mawait\u001b[39m page\u001b[33m.\u001b[39mgoto(\u001b[32m'/'\u001b[39m)\u001b[33m;\u001b[39m\n \u001b[90m     |\u001b[39m              \u001b[31m\u001b[1m^\u001b[22m\u001b[39m\n \u001b[90m 113 |\u001b[39m   \u001b[36mif\u001b[39m (\u001b[33mPROCESSED\u001b[39m\u001b[33m.\u001b[39mhas(\u001b[35m5\u001b[39m)) \u001b[36mawait\u001b[39m createBoard(page)\u001b[33m;\u001b[39m\n \u001b[90m 114 |\u001b[39m   \u001b[36mawait\u001b[39m expect(zoomLabel(page))\u001b[33m.\u001b[39mtoBeVisible()\u001b[33m;\u001b[39m\n \u001b[90m 115 |\u001b[39m   \u001b[36mif\u001b[39m (\u001b[33mPROCESSED\u001b[39m\u001b[33m.\u001b[39mhas(\u001b[35m3\u001b[39m)) \u001b[36mawait\u001b[39m waitConnected(page)\u001b[33m;\u001b[39m\u001b[0m"
+                      },
+                      "errors": [
+                        {
+                          "location": {
+                            "file": "~/.dbench/repo/benchmarks/vidi/acceptance/tests/fixtures.ts",
+                            "column": 14,
+                            "line": 112
+                          },
+                          "message": "Error: page.goto: net::ERR_CONNECTION_REFUSED at http://127.0.0.1:18787/\nCall log:\n\u001b[2m  - navigating to \"http://127.0.0.1:18787/\", waiting until \"load\"\u001b[22m\n\n\n   at fixtures.ts:112\n\n  110 | // at '/'; from story 5 on '/' is the home page with \"Create a board\".\n  111 | export async function openBoard(page: Page): Promise<string> {\n> 112 |   await page.goto('/');\n      |              ^\n  113 |   if (PROCESSED.has(5)) await createBoard(page);\n  114 |   await expect(zoomLabel(page)).toBeVisible();\n  115 |   if (PROCESSED.has(3)) await waitConnected(page);\n    at openBoard (~/.dbench/repo/benchmarks/vidi/acceptance/tests/fixtures.ts:112:14)\n    at ~/.dbench/repo/benchmarks/vidi/acceptance/tests/story-03.spec.ts:43:23"
+                        }
+                      ],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-09-25T08:05:54.758Z",
+                      "annotations": [],
+                      "attachments": [
+                        {
+                          "name": "screenshot",
+                          "contentType": "image/png",
+                          "path": "~/.dbench/repo/combinations/qwen/3.8/27b/ubuntu/24GB/llamacpp-opencode/benchmarks/vidi/canvas-pi-02/stories/05/artifacts/story-03-story-3-s03-late--69178-tes-ref-prd-live-join-state-chromium/test-failed-1.png"
+                        }
+                      ],
+                      "errorLocation": {
+                        "file": "~/.dbench/repo/benchmarks/vidi/acceptance/tests/fixtures.ts",
+                        "column": 14,
+                        "line": 112
+                      }
+                    }
+                  ],
+                  "status": "unexpected"
+                }
+              ],
+              "id": "30f3d3dfc0d9061a88db-677c8312620a660b7e57",
+              "file": "story-03.spec.ts",
+              "line": 41,
+              "column": 3
+            },
+            {
+              "title": "simultaneous typing keeps both people's characters @ref prd:live.concurrent_text",
+              "ok": false,
+              "tags": [
+                "s03",
+                "ref"
+              ],
+              "tests": [
+                {
+                  "timeout": 45000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 22,
+                      "parallelIndex": 0,
+                      "status": "failed",
+                      "duration": 142,
+                      "error": {
+                        "message": "Error: page.goto: net::ERR_CONNECTION_REFUSED at http://127.0.0.1:18787/\nCall log:\n\u001b[2m  - navigating to \"http://127.0.0.1:18787/\", waiting until \"load\"\u001b[22m\n",
+                        "stack": "Error: page.goto: net::ERR_CONNECTION_REFUSED at http://127.0.0.1:18787/\nCall log:\n\u001b[2m  - navigating to \"http://127.0.0.1:18787/\", waiting until \"load\"\u001b[22m\n\n    at openBoard (~/.dbench/repo/benchmarks/vidi/acceptance/tests/fixtures.ts:112:14)\n    at ~/.dbench/repo/benchmarks/vidi/acceptance/tests/story-03.spec.ts:54:23",
+                        "location": {
+                          "file": "~/.dbench/repo/benchmarks/vidi/acceptance/tests/fixtures.ts",
+                          "column": 14,
+                          "line": 112
+                        },
+                        "snippet": "   at fixtures.ts:112\n\n\u001b[0m \u001b[90m 110 |\u001b[39m \u001b[90m// at '/'; from story 5 on '/' is the home page with \"Create a board\".\u001b[39m\n \u001b[90m 111 |\u001b[39m \u001b[36mexport\u001b[39m \u001b[36masync\u001b[39m \u001b[36mfunction\u001b[39m openBoard(page\u001b[33m:\u001b[39m \u001b[33mPage\u001b[39m)\u001b[33m:\u001b[39m \u001b[33mPromise\u001b[39m\u001b[33m<\u001b[39m\u001b[33mstring\u001b[39m\u001b[33m>\u001b[39m {\n\u001b[31m\u001b[1m>\u001b[22m\u001b[39m\u001b[90m 112 |\u001b[39m   \u001b[36mawait\u001b[39m page\u001b[33m.\u001b[39mgoto(\u001b[32m'/'\u001b[39m)\u001b[33m;\u001b[39m\n \u001b[90m     |\u001b[39m              \u001b[31m\u001b[1m^\u001b[22m\u001b[39m\n \u001b[90m 113 |\u001b[39m   \u001b[36mif\u001b[39m (\u001b[33mPROCESSED\u001b[39m\u001b[33m.\u001b[39mhas(\u001b[35m5\u001b[39m)) \u001b[36mawait\u001b[39m createBoard(page)\u001b[33m;\u001b[39m\n \u001b[90m 114 |\u001b[39m   \u001b[36mawait\u001b[39m expect(zoomLabel(page))\u001b[33m.\u001b[39mtoBeVisible()\u001b[33m;\u001b[39m\n \u001b[90m 115 |\u001b[39m   \u001b[36mif\u001b[39m (\u001b[33mPROCESSED\u001b[39m\u001b[33m.\u001b[39mhas(\u001b[35m3\u001b[39m)) \u001b[36mawait\u001b[39m waitConnected(page)\u001b[33m;\u001b[39m\u001b[0m"
+                      },
+                      "errors": [
+                        {
+                          "location": {
+                            "file": "~/.dbench/repo/benchmarks/vidi/acceptance/tests/fixtures.ts",
+                            "column": 14,
+                            "line": 112
+                          },
+                          "message": "Error: page.goto: net::ERR_CONNECTION_REFUSED at http://127.0.0.1:18787/\nCall log:\n\u001b[2m  - navigating to \"http://127.0.0.1:18787/\", waiting until \"load\"\u001b[22m\n\n\n   at fixtures.ts:112\n\n  110 | // at '/'; from story 5 on '/' is the home page with \"Create a board\".\n  111 | export async function openBoard(page: Page): Promise<string> {\n> 112 |   await page.goto('/');\n      |              ^\n  113 |   if (PROCESSED.has(5)) await createBoard(page);\n  114 |   await expect(zoomLabel(page)).toBeVisible();\n  115 |   if (PROCESSED.has(3)) await waitConnected(page);\n    at openBoard (~/.dbench/repo/benchmarks/vidi/acceptance/tests/fixtures.ts:112:14)\n    at ~/.dbench/repo/benchmarks/vidi/acceptance/tests/story-03.spec.ts:54:23"
+                        }
+                      ],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-09-25T08:05:55.407Z",
+                      "annotations": [],
+                      "attachments": [
+                        {
+                          "name": "screenshot",
+                          "contentType": "image/png",
+                          "path": "~/.dbench/repo/combinations/qwen/3.8/27b/ubuntu/24GB/llamacpp-opencode/benchmarks/vidi/canvas-pi-02/stories/05/artifacts/story-03-story-3-s03-simul-7a799-ef-prd-live-concurrent-text-chromium/test-failed-2.png"
+                        },
+                        {
+                          "name": "screenshot",
+                          "contentType": "image/png",
+                          "path": "~/.dbench/repo/combinations/qwen/3.8/27b/ubuntu/24GB/llamacpp-opencode/benchmarks/vidi/canvas-pi-02/stories/05/artifacts/story-03-story-3-s03-simul-7a799-ef-prd-live-concurrent-text-chromium/test-failed-1.png"
+                        }
+                      ],
+                      "errorLocation": {
+                        "file": "~/.dbench/repo/benchmarks/vidi/acceptance/tests/fixtures.ts",
+                        "column": 14,
+                        "line": 112
+                      }
+                    }
+                  ],
+                  "status": "unexpected"
+                }
+              ],
+              "id": "30f3d3dfc0d9061a88db-4c3e3d841328618b8105",
+              "file": "story-03.spec.ts",
+              "line": 51,
+              "column": 3
+            },
+            {
+              "title": "boards stay separate @ref prd:live.isolation",
+              "ok": false,
+              "tags": [
+                "s03",
+                "ref"
+              ],
+              "tests": [
+                {
+                  "timeout": 45000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 23,
+                      "parallelIndex": 0,
+                      "status": "failed",
+                      "duration": 136,
+                      "error": {
+                        "message": "Error: page.goto: net::ERR_CONNECTION_REFUSED at http://127.0.0.1:18787/\nCall log:\n\u001b[2m  - navigating to \"http://127.0.0.1:18787/\", waiting until \"load\"\u001b[22m\n",
+                        "stack": "Error: page.goto: net::ERR_CONNECTION_REFUSED at http://127.0.0.1:18787/\nCall log:\n\u001b[2m  - navigating to \"http://127.0.0.1:18787/\", waiting until \"load\"\u001b[22m\n\n    at openBoard (~/.dbench/repo/benchmarks/vidi/acceptance/tests/fixtures.ts:112:14)\n    at ~/.dbench/repo/benchmarks/vidi/acceptance/tests/story-03.spec.ts:78:11",
+                        "location": {
+                          "file": "~/.dbench/repo/benchmarks/vidi/acceptance/tests/fixtures.ts",
+                          "column": 14,
+                          "line": 112
+                        },
+                        "snippet": "   at fixtures.ts:112\n\n\u001b[0m \u001b[90m 110 |\u001b[39m \u001b[90m// at '/'; from story 5 on '/' is the home page with \"Create a board\".\u001b[39m\n \u001b[90m 111 |\u001b[39m \u001b[36mexport\u001b[39m \u001b[36masync\u001b[39m \u001b[36mfunction\u001b[39m openBoard(page\u001b[33m:\u001b[39m \u001b[33mPage\u001b[39m)\u001b[33m:\u001b[39m \u001b[33mPromise\u001b[39m\u001b[33m<\u001b[39m\u001b[33mstring\u001b[39m\u001b[33m>\u001b[39m {\n\u001b[31m\u001b[1m>\u001b[22m\u001b[39m\u001b[90m 112 |\u001b[39m   \u001b[36mawait\u001b[39m page\u001b[33m.\u001b[39mgoto(\u001b[32m'/'\u001b[39m)\u001b[33m;\u001b[39m\n \u001b[90m     |\u001b[39m              \u001b[31m\u001b[1m^\u001b[22m\u001b[39m\n \u001b[90m 113 |\u001b[39m   \u001b[36mif\u001b[39m (\u001b[33mPROCESSED\u001b[39m\u001b[33m.\u001b[39mhas(\u001b[35m5\u001b[39m)) \u001b[36mawait\u001b[39m createBoard(page)\u001b[33m;\u001b[39m\n \u001b[90m 114 |\u001b[39m   \u001b[36mawait\u001b[39m expect(zoomLabel(page))\u001b[33m.\u001b[39mtoBeVisible()\u001b[33m;\u001b[39m\n \u001b[90m 115 |\u001b[39m   \u001b[36mif\u001b[39m (\u001b[33mPROCESSED\u001b[39m\u001b[33m.\u001b[39mhas(\u001b[35m3\u001b[39m)) \u001b[36mawait\u001b[39m waitConnected(page)\u001b[33m;\u001b[39m\u001b[0m"
+                      },
+                      "errors": [
+                        {
+                          "location": {
+                            "file": "~/.dbench/repo/benchmarks/vidi/acceptance/tests/fixtures.ts",
+                            "column": 14,
+                            "line": 112
+                          },
+                          "message": "Error: page.goto: net::ERR_CONNECTION_REFUSED at http://127.0.0.1:18787/\nCall log:\n\u001b[2m  - navigating to \"http://127.0.0.1:18787/\", waiting until \"load\"\u001b[22m\n\n\n   at fixtures.ts:112\n\n  110 | // at '/'; from story 5 on '/' is the home page with \"Create a board\".\n  111 | export async function openBoard(page: Page): Promise<string> {\n> 112 |   await page.goto('/');\n      |              ^\n  113 |   if (PROCESSED.has(5)) await createBoard(page);\n  114 |   await expect(zoomLabel(page)).toBeVisible();\n  115 |   if (PROCESSED.has(3)) await waitConnected(page);\n    at openBoard (~/.dbench/repo/benchmarks/vidi/acceptance/tests/fixtures.ts:112:14)\n    at ~/.dbench/repo/benchmarks/vidi/acceptance/tests/story-03.spec.ts:78:11"
+                        }
+                      ],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-09-25T08:05:56.118Z",
+                      "annotations": [],
+                      "attachments": [
+                        {
+                          "name": "screenshot",
+                          "contentType": "image/png",
+                          "path": "~/.dbench/repo/combinations/qwen/3.8/27b/ubuntu/24GB/llamacpp-opencode/benchmarks/vidi/canvas-pi-02/stories/05/artifacts/story-03-story-3-s03-board-7c3ae-rate-ref-prd-live-isolation-chromium/test-failed-1.png"
+                        },
+                        {
+                          "name": "screenshot",
+                          "contentType": "image/png",
+                          "path": "~/.dbench/repo/combinations/qwen/3.8/27b/ubuntu/24GB/llamacpp-opencode/benchmarks/vidi/canvas-pi-02/stories/05/artifacts/story-03-story-3-s03-board-7c3ae-rate-ref-prd-live-isolation-chromium/test-failed-2.png"
+                        }
+                      ],
+                      "errorLocation": {
+                        "file": "~/.dbench/repo/benchmarks/vidi/acceptance/tests/fixtures.ts",
+                        "column": 14,
+                        "line": 112
+                      }
+                    }
+                  ],
+                  "status": "unexpected"
+                }
+              ],
+              "id": "30f3d3dfc0d9061a88db-fccbbd5a9d610ad1bf08",
+              "file": "story-03.spec.ts",
+              "line": 75,
+              "column": 3
+            },
+            {
+              "title": "selection stays personal @ref prd:live.local_selection",
+              "ok": false,
+              "tags": [
+                "s03",
+                "ref"
+              ],
+              "tests": [
+                {
+                  "timeout": 45000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 24,
+                      "parallelIndex": 0,
+                      "status": "failed",
+                      "duration": 127,
+                      "error": {
+                        "message": "Error: page.goto: net::ERR_CONNECTION_REFUSED at http://127.0.0.1:18787/\nCall log:\n\u001b[2m  - navigating to \"http://127.0.0.1:18787/\", waiting until \"load\"\u001b[22m\n",
+                        "stack": "Error: page.goto: net::ERR_CONNECTION_REFUSED at http://127.0.0.1:18787/\nCall log:\n\u001b[2m  - navigating to \"http://127.0.0.1:18787/\", waiting until \"load\"\u001b[22m\n\n    at openBoard (~/.dbench/repo/benchmarks/vidi/acceptance/tests/fixtures.ts:112:14)\n    at ~/.dbench/repo/benchmarks/vidi/acceptance/tests/story-03.spec.ts:89:23",
+                        "location": {
+                          "file": "~/.dbench/repo/benchmarks/vidi/acceptance/tests/fixtures.ts",
+                          "column": 14,
+                          "line": 112
+                        },
+                        "snippet": "   at fixtures.ts:112\n\n\u001b[0m \u001b[90m 110 |\u001b[39m \u001b[90m// at '/'; from story 5 on '/' is the home page with \"Create a board\".\u001b[39m\n \u001b[90m 111 |\u001b[39m \u001b[36mexport\u001b[39m \u001b[36masync\u001b[39m \u001b[36mfunction\u001b[39m openBoard(page\u001b[33m:\u001b[39m \u001b[33mPage\u001b[39m)\u001b[33m:\u001b[39m \u001b[33mPromise\u001b[39m\u001b[33m<\u001b[39m\u001b[33mstring\u001b[39m\u001b[33m>\u001b[39m {\n\u001b[31m\u001b[1m>\u001b[22m\u001b[39m\u001b[90m 112 |\u001b[39m   \u001b[36mawait\u001b[39m page\u001b[33m.\u001b[39mgoto(\u001b[32m'/'\u001b[39m)\u001b[33m;\u001b[39m\n \u001b[90m     |\u001b[39m              \u001b[31m\u001b[1m^\u001b[22m\u001b[39m\n \u001b[90m 113 |\u001b[39m   \u001b[36mif\u001b[39m (\u001b[33mPROCESSED\u001b[39m\u001b[33m.\u001b[39mhas(\u001b[35m5\u001b[39m)) \u001b[36mawait\u001b[39m createBoard(page)\u001b[33m;\u001b[39m\n \u001b[90m 114 |\u001b[39m   \u001b[36mawait\u001b[39m expect(zoomLabel(page))\u001b[33m.\u001b[39mtoBeVisible()\u001b[33m;\u001b[39m\n \u001b[90m 115 |\u001b[39m   \u001b[36mif\u001b[39m (\u001b[33mPROCESSED\u001b[39m\u001b[33m.\u001b[39mhas(\u001b[35m3\u001b[39m)) \u001b[36mawait\u001b[39m waitConnected(page)\u001b[33m;\u001b[39m\u001b[0m"
+                      },
+                      "errors": [
+                        {
+                          "location": {
+                            "file": "~/.dbench/repo/benchmarks/vidi/acceptance/tests/fixtures.ts",
+                            "column": 14,
+                            "line": 112
+                          },
+                          "message": "Error: page.goto: net::ERR_CONNECTION_REFUSED at http://127.0.0.1:18787/\nCall log:\n\u001b[2m  - navigating to \"http://127.0.0.1:18787/\", waiting until \"load\"\u001b[22m\n\n\n   at fixtures.ts:112\n\n  110 | // at '/'; from story 5 on '/' is the home page with \"Create a board\".\n  111 | export async function openBoard(page: Page): Promise<string> {\n> 112 |   await page.goto('/');\n      |              ^\n  113 |   if (PROCESSED.has(5)) await createBoard(page);\n  114 |   await expect(zoomLabel(page)).toBeVisible();\n  115 |   if (PROCESSED.has(3)) await waitConnected(page);\n    at openBoard (~/.dbench/repo/benchmarks/vidi/acceptance/tests/fixtures.ts:112:14)\n    at ~/.dbench/repo/benchmarks/vidi/acceptance/tests/story-03.spec.ts:89:23"
+                        }
+                      ],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-09-25T08:05:56.831Z",
+                      "annotations": [],
+                      "attachments": [
+                        {
+                          "name": "screenshot",
+                          "contentType": "image/png",
+                          "path": "~/.dbench/repo/combinations/qwen/3.8/27b/ubuntu/24GB/llamacpp-opencode/benchmarks/vidi/canvas-pi-02/stories/05/artifacts/story-03-story-3-s03-selec-de26d-ef-prd-live-local-selection-chromium/test-failed-2.png"
+                        },
+                        {
+                          "name": "screenshot",
+                          "contentType": "image/png",
+                          "path": "~/.dbench/repo/combinations/qwen/3.8/27b/ubuntu/24GB/llamacpp-opencode/benchmarks/vidi/canvas-pi-02/stories/05/artifacts/story-03-story-3-s03-selec-de26d-ef-prd-live-local-selection-chromium/test-failed-1.png"
+                        }
+                      ],
+                      "errorLocation": {
+                        "file": "~/.dbench/repo/benchmarks/vidi/acceptance/tests/fixtures.ts",
+                        "column": 14,
+                        "line": 112
+                      }
+                    }
+                  ],
+                  "status": "unexpected"
+                }
+              ],
+              "id": "30f3d3dfc0d9061a88db-760643e56c30cbbd7f51",
+              "file": "story-03.spec.ts",
+              "line": 86,
+              "column": 3
+            },
+            {
+              "title": "server restart shows Reconnecting… then Connected, notes kept @ref prd:live.status",
+              "ok": false,
+              "tags": [
+                "s03",
+                "ref"
+              ],
+              "tests": [
+                {
+                  "timeout": 45000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 25,
+                      "parallelIndex": 0,
+                      "status": "failed",
+                      "duration": 87,
+                      "error": {
+                        "message": "Error: page.goto: net::ERR_CONNECTION_REFUSED at http://127.0.0.1:18787/\nCall log:\n\u001b[2m  - navigating to \"http://127.0.0.1:18787/\", waiting until \"load\"\u001b[22m\n",
+                        "stack": "Error: page.goto: net::ERR_CONNECTION_REFUSED at http://127.0.0.1:18787/\nCall log:\n\u001b[2m  - navigating to \"http://127.0.0.1:18787/\", waiting until \"load\"\u001b[22m\n\n    at openBoard (~/.dbench/repo/benchmarks/vidi/acceptance/tests/fixtures.ts:112:14)\n    at ~/.dbench/repo/benchmarks/vidi/acceptance/tests/story-03.spec.ts:101:23",
+                        "location": {
+                          "file": "~/.dbench/repo/benchmarks/vidi/acceptance/tests/fixtures.ts",
+                          "column": 14,
+                          "line": 112
+                        },
+                        "snippet": "   at fixtures.ts:112\n\n\u001b[0m \u001b[90m 110 |\u001b[39m \u001b[90m// at '/'; from story 5 on '/' is the home page with \"Create a board\".\u001b[39m\n \u001b[90m 111 |\u001b[39m \u001b[36mexport\u001b[39m \u001b[36masync\u001b[39m \u001b[36mfunction\u001b[39m openBoard(page\u001b[33m:\u001b[39m \u001b[33mPage\u001b[39m)\u001b[33m:\u001b[39m \u001b[33mPromise\u001b[39m\u001b[33m<\u001b[39m\u001b[33mstring\u001b[39m\u001b[33m>\u001b[39m {\n\u001b[31m\u001b[1m>\u001b[22m\u001b[39m\u001b[90m 112 |\u001b[39m   \u001b[36mawait\u001b[39m page\u001b[33m.\u001b[39mgoto(\u001b[32m'/'\u001b[39m)\u001b[33m;\u001b[39m\n \u001b[90m     |\u001b[39m              \u001b[31m\u001b[1m^\u001b[22m\u001b[39m\n \u001b[90m 113 |\u001b[39m   \u001b[36mif\u001b[39m (\u001b[33mPROCESSED\u001b[39m\u001b[33m.\u001b[39mhas(\u001b[35m5\u001b[39m)) \u001b[36mawait\u001b[39m createBoard(page)\u001b[33m;\u001b[39m\n \u001b[90m 114 |\u001b[39m   \u001b[36mawait\u001b[39m expect(zoomLabel(page))\u001b[33m.\u001b[39mtoBeVisible()\u001b[33m;\u001b[39m\n \u001b[90m 115 |\u001b[39m   \u001b[36mif\u001b[39m (\u001b[33mPROCESSED\u001b[39m\u001b[33m.\u001b[39mhas(\u001b[35m3\u001b[39m)) \u001b[36mawait\u001b[39m waitConnected(page)\u001b[33m;\u001b[39m\u001b[0m"
+                      },
+                      "errors": [
+                        {
+                          "location": {
+                            "file": "~/.dbench/repo/benchmarks/vidi/acceptance/tests/fixtures.ts",
+                            "column": 14,
+                            "line": 112
+                          },
+                          "message": "Error: page.goto: net::ERR_CONNECTION_REFUSED at http://127.0.0.1:18787/\nCall log:\n\u001b[2m  - navigating to \"http://127.0.0.1:18787/\", waiting until \"load\"\u001b[22m\n\n\n   at fixtures.ts:112\n\n  110 | // at '/'; from story 5 on '/' is the home page with \"Create a board\".\n  111 | export async function openBoard(page: Page): Promise<string> {\n> 112 |   await page.goto('/');\n      |              ^\n  113 |   if (PROCESSED.has(5)) await createBoard(page);\n  114 |   await expect(zoomLabel(page)).toBeVisible();\n  115 |   if (PROCESSED.has(3)) await waitConnected(page);\n    at openBoard (~/.dbench/repo/benchmarks/vidi/acceptance/tests/fixtures.ts:112:14)\n    at ~/.dbench/repo/benchmarks/vidi/acceptance/tests/story-03.spec.ts:101:23"
+                        }
+                      ],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-09-25T08:05:57.505Z",
+                      "annotations": [],
+                      "attachments": [
+                        {
+                          "name": "screenshot",
+                          "contentType": "image/png",
+                          "path": "~/.dbench/repo/combinations/qwen/3.8/27b/ubuntu/24GB/llamacpp-opencode/benchmarks/vidi/canvas-pi-02/stories/05/artifacts/story-03-story-3-s03-serve-42e75-es-kept-ref-prd-live-status-chromium/test-failed-1.png"
+                        }
+                      ],
+                      "errorLocation": {
+                        "file": "~/.dbench/repo/benchmarks/vidi/acceptance/tests/fixtures.ts",
+                        "column": 14,
+                        "line": 112
+                      }
+                    }
+                  ],
+                  "status": "unexpected"
+                }
+              ],
+              "id": "30f3d3dfc0d9061a88db-9b97bce6d18167febb92",
+              "file": "story-03.spec.ts",
+              "line": 99,
+              "column": 3
+            },
+            {
+              "title": "offline edits catch up on reconnect @ref prd:live.catch_up",
+              "ok": false,
+              "tags": [
+                "s03",
+                "ref"
+              ],
+              "tests": [
+                {
+                  "timeout": 45000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 26,
+                      "parallelIndex": 0,
+                      "status": "failed",
+                      "duration": 125,
+                      "error": {
+                        "message": "Error: page.goto: net::ERR_CONNECTION_REFUSED at http://127.0.0.1:18787/\nCall log:\n\u001b[2m  - navigating to \"http://127.0.0.1:18787/\", waiting until \"load\"\u001b[22m\n",
+                        "stack": "Error: page.goto: net::ERR_CONNECTION_REFUSED at http://127.0.0.1:18787/\nCall log:\n\u001b[2m  - navigating to \"http://127.0.0.1:18787/\", waiting until \"load\"\u001b[22m\n\n    at openBoard (~/.dbench/repo/benchmarks/vidi/acceptance/tests/fixtures.ts:112:14)\n    at ~/.dbench/repo/benchmarks/vidi/acceptance/tests/story-03.spec.ts:118:23",
+                        "location": {
+                          "file": "~/.dbench/repo/benchmarks/vidi/acceptance/tests/fixtures.ts",
+                          "column": 14,
+                          "line": 112
+                        },
+                        "snippet": "   at fixtures.ts:112\n\n\u001b[0m \u001b[90m 110 |\u001b[39m \u001b[90m// at '/'; from story 5 on '/' is the home page with \"Create a board\".\u001b[39m\n \u001b[90m 111 |\u001b[39m \u001b[36mexport\u001b[39m \u001b[36masync\u001b[39m \u001b[36mfunction\u001b[39m openBoard(page\u001b[33m:\u001b[39m \u001b[33mPage\u001b[39m)\u001b[33m:\u001b[39m \u001b[33mPromise\u001b[39m\u001b[33m<\u001b[39m\u001b[33mstring\u001b[39m\u001b[33m>\u001b[39m {\n\u001b[31m\u001b[1m>\u001b[22m\u001b[39m\u001b[90m 112 |\u001b[39m   \u001b[36mawait\u001b[39m page\u001b[33m.\u001b[39mgoto(\u001b[32m'/'\u001b[39m)\u001b[33m;\u001b[39m\n \u001b[90m     |\u001b[39m              \u001b[31m\u001b[1m^\u001b[22m\u001b[39m\n \u001b[90m 113 |\u001b[39m   \u001b[36mif\u001b[39m (\u001b[33mPROCESSED\u001b[39m\u001b[33m.\u001b[39mhas(\u001b[35m5\u001b[39m)) \u001b[36mawait\u001b[39m createBoard(page)\u001b[33m;\u001b[39m\n \u001b[90m 114 |\u001b[39m   \u001b[36mawait\u001b[39m expect(zoomLabel(page))\u001b[33m.\u001b[39mtoBeVisible()\u001b[33m;\u001b[39m\n \u001b[90m 115 |\u001b[39m   \u001b[36mif\u001b[39m (\u001b[33mPROCESSED\u001b[39m\u001b[33m.\u001b[39mhas(\u001b[35m3\u001b[39m)) \u001b[36mawait\u001b[39m waitConnected(page)\u001b[33m;\u001b[39m\u001b[0m"
+                      },
+                      "errors": [
+                        {
+                          "location": {
+                            "file": "~/.dbench/repo/benchmarks/vidi/acceptance/tests/fixtures.ts",
+                            "column": 14,
+                            "line": 112
+                          },
+                          "message": "Error: page.goto: net::ERR_CONNECTION_REFUSED at http://127.0.0.1:18787/\nCall log:\n\u001b[2m  - navigating to \"http://127.0.0.1:18787/\", waiting until \"load\"\u001b[22m\n\n\n   at fixtures.ts:112\n\n  110 | // at '/'; from story 5 on '/' is the home page with \"Create a board\".\n  111 | export async function openBoard(page: Page): Promise<string> {\n> 112 |   await page.goto('/');\n      |              ^\n  113 |   if (PROCESSED.has(5)) await createBoard(page);\n  114 |   await expect(zoomLabel(page)).toBeVisible();\n  115 |   if (PROCESSED.has(3)) await waitConnected(page);\n    at openBoard (~/.dbench/repo/benchmarks/vidi/acceptance/tests/fixtures.ts:112:14)\n    at ~/.dbench/repo/benchmarks/vidi/acceptance/tests/story-03.spec.ts:118:23"
+                        }
+                      ],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-09-25T08:05:58.149Z",
+                      "annotations": [],
+                      "attachments": [
+                        {
+                          "name": "screenshot",
+                          "contentType": "image/png",
+                          "path": "~/.dbench/repo/combinations/qwen/3.8/27b/ubuntu/24GB/llamacpp-opencode/benchmarks/vidi/canvas-pi-02/stories/05/artifacts/story-03-story-3-s03-offli-a5349-nnect-ref-prd-live-catch-up-chromium/test-failed-2.png"
+                        },
+                        {
+                          "name": "screenshot",
+                          "contentType": "image/png",
+                          "path": "~/.dbench/repo/combinations/qwen/3.8/27b/ubuntu/24GB/llamacpp-opencode/benchmarks/vidi/canvas-pi-02/stories/05/artifacts/story-03-story-3-s03-offli-a5349-nnect-ref-prd-live-catch-up-chromium/test-failed-1.png"
+                        }
+                      ],
+                      "errorLocation": {
+                        "file": "~/.dbench/repo/benchmarks/vidi/acceptance/tests/fixtures.ts",
+                        "column": 14,
+                        "line": 112
+                      }
+                    }
+                  ],
+                  "status": "unexpected"
+                }
+              ],
+              "id": "30f3d3dfc0d9061a88db-83606ea2f81abe105f6e",
+              "file": "story-03.spec.ts",
+              "line": 114,
+              "column": 3
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "title": "story-04.spec.ts",
+      "file": "story-04.spec.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [],
+      "suites": [
+        {
+          "title": "story 4 @s04",
+          "file": "story-04.spec.ts",
+          "line": 10,
+          "column": 6,
+          "specs": [
+            {
+              "title": "board is intact after everyone leaves @ref prd:persist.reopen",
+              "ok": false,
+              "tags": [
+                "s04",
+                "ref"
+              ],
+              "tests": [
+                {
+                  "timeout": 45000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 27,
+                      "parallelIndex": 0,
+                      "status": "failed",
+                      "duration": 92,
+                      "error": {
+                        "message": "Error: page.goto: net::ERR_CONNECTION_REFUSED at http://127.0.0.1:18787/\nCall log:\n\u001b[2m  - navigating to \"http://127.0.0.1:18787/\", waiting until \"load\"\u001b[22m\n",
+                        "stack": "Error: page.goto: net::ERR_CONNECTION_REFUSED at http://127.0.0.1:18787/\nCall log:\n\u001b[2m  - navigating to \"http://127.0.0.1:18787/\", waiting until \"load\"\u001b[22m\n\n    at openBoard (~/.dbench/repo/benchmarks/vidi/acceptance/tests/fixtures.ts:112:14)\n    at ~/.dbench/repo/benchmarks/vidi/acceptance/tests/story-04.spec.ts:15:23",
+                        "location": {
+                          "file": "~/.dbench/repo/benchmarks/vidi/acceptance/tests/fixtures.ts",
+                          "column": 14,
+                          "line": 112
+                        },
+                        "snippet": "   at fixtures.ts:112\n\n\u001b[0m \u001b[90m 110 |\u001b[39m \u001b[90m// at '/'; from story 5 on '/' is the home page with \"Create a board\".\u001b[39m\n \u001b[90m 111 |\u001b[39m \u001b[36mexport\u001b[39m \u001b[36masync\u001b[39m \u001b[36mfunction\u001b[39m openBoard(page\u001b[33m:\u001b[39m \u001b[33mPage\u001b[39m)\u001b[33m:\u001b[39m \u001b[33mPromise\u001b[39m\u001b[33m<\u001b[39m\u001b[33mstring\u001b[39m\u001b[33m>\u001b[39m {\n\u001b[31m\u001b[1m>\u001b[22m\u001b[39m\u001b[90m 112 |\u001b[39m   \u001b[36mawait\u001b[39m page\u001b[33m.\u001b[39mgoto(\u001b[32m'/'\u001b[39m)\u001b[33m;\u001b[39m\n \u001b[90m     |\u001b[39m              \u001b[31m\u001b[1m^\u001b[22m\u001b[39m\n \u001b[90m 113 |\u001b[39m   \u001b[36mif\u001b[39m (\u001b[33mPROCESSED\u001b[39m\u001b[33m.\u001b[39mhas(\u001b[35m5\u001b[39m)) \u001b[36mawait\u001b[39m createBoard(page)\u001b[33m;\u001b[39m\n \u001b[90m 114 |\u001b[39m   \u001b[36mawait\u001b[39m expect(zoomLabel(page))\u001b[33m.\u001b[39mtoBeVisible()\u001b[33m;\u001b[39m\n \u001b[90m 115 |\u001b[39m   \u001b[36mif\u001b[39m (\u001b[33mPROCESSED\u001b[39m\u001b[33m.\u001b[39mhas(\u001b[35m3\u001b[39m)) \u001b[36mawait\u001b[39m waitConnected(page)\u001b[33m;\u001b[39m\u001b[0m"
+                      },
+                      "errors": [
+                        {
+                          "location": {
+                            "file": "~/.dbench/repo/benchmarks/vidi/acceptance/tests/fixtures.ts",
+                            "column": 14,
+                            "line": 112
+                          },
+                          "message": "Error: page.goto: net::ERR_CONNECTION_REFUSED at http://127.0.0.1:18787/\nCall log:\n\u001b[2m  - navigating to \"http://127.0.0.1:18787/\", waiting until \"load\"\u001b[22m\n\n\n   at fixtures.ts:112\n\n  110 | // at '/'; from story 5 on '/' is the home page with \"Create a board\".\n  111 | export async function openBoard(page: Page): Promise<string> {\n> 112 |   await page.goto('/');\n      |              ^\n  113 |   if (PROCESSED.has(5)) await createBoard(page);\n  114 |   await expect(zoomLabel(page)).toBeVisible();\n  115 |   if (PROCESSED.has(3)) await waitConnected(page);\n    at openBoard (~/.dbench/repo/benchmarks/vidi/acceptance/tests/fixtures.ts:112:14)\n    at ~/.dbench/repo/benchmarks/vidi/acceptance/tests/story-04.spec.ts:15:23"
+                        }
+                      ],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-09-25T08:05:58.824Z",
+                      "annotations": [],
+                      "attachments": [
+                        {
+                          "name": "screenshot",
+                          "contentType": "image/png",
+                          "path": "~/.dbench/repo/combinations/qwen/3.8/27b/ubuntu/24GB/llamacpp-opencode/benchmarks/vidi/canvas-pi-02/stories/05/artifacts/story-04-story-4-s04-board-4e1fb-aves-ref-prd-persist-reopen-chromium/test-failed-1.png"
+                        }
+                      ],
+                      "errorLocation": {
+                        "file": "~/.dbench/repo/benchmarks/vidi/acceptance/tests/fixtures.ts",
+                        "column": 14,
+                        "line": 112
+                      }
+                    }
+                  ],
+                  "status": "unexpected"
+                }
+              ],
+              "id": "61866d84c033292fbd27-8d3234b191825ce37a15",
+              "file": "story-04.spec.ts",
+              "line": 13,
+              "column": 3
+            },
+            {
+              "title": "change seen by another person survives immediate leave + restart @ref prd:persist.seen_is_saved",
+              "ok": false,
+              "tags": [
+                "s04",
+                "ref"
+              ],
+              "tests": [
+                {
+                  "timeout": 45000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 28,
+                      "parallelIndex": 0,
+                      "status": "failed",
+                      "duration": 127,
+                      "error": {
+                        "message": "Error: page.goto: net::ERR_CONNECTION_REFUSED at http://127.0.0.1:18787/\nCall log:\n\u001b[2m  - navigating to \"http://127.0.0.1:18787/\", waiting until \"load\"\u001b[22m\n",
+                        "stack": "Error: page.goto: net::ERR_CONNECTION_REFUSED at http://127.0.0.1:18787/\nCall log:\n\u001b[2m  - navigating to \"http://127.0.0.1:18787/\", waiting until \"load\"\u001b[22m\n\n    at openBoard (~/.dbench/repo/benchmarks/vidi/acceptance/tests/fixtures.ts:112:14)\n    at ~/.dbench/repo/benchmarks/vidi/acceptance/tests/story-04.spec.ts:42:23",
+                        "location": {
+                          "file": "~/.dbench/repo/benchmarks/vidi/acceptance/tests/fixtures.ts",
+                          "column": 14,
+                          "line": 112
+                        },
+                        "snippet": "   at fixtures.ts:112\n\n\u001b[0m \u001b[90m 110 |\u001b[39m \u001b[90m// at '/'; from story 5 on '/' is the home page with \"Create a board\".\u001b[39m\n \u001b[90m 111 |\u001b[39m \u001b[36mexport\u001b[39m \u001b[36masync\u001b[39m \u001b[36mfunction\u001b[39m openBoard(page\u001b[33m:\u001b[39m \u001b[33mPage\u001b[39m)\u001b[33m:\u001b[39m \u001b[33mPromise\u001b[39m\u001b[33m<\u001b[39m\u001b[33mstring\u001b[39m\u001b[33m>\u001b[39m {\n\u001b[31m\u001b[1m>\u001b[22m\u001b[39m\u001b[90m 112 |\u001b[39m   \u001b[36mawait\u001b[39m page\u001b[33m.\u001b[39mgoto(\u001b[32m'/'\u001b[39m)\u001b[33m;\u001b[39m\n \u001b[90m     |\u001b[39m              \u001b[31m\u001b[1m^\u001b[22m\u001b[39m\n \u001b[90m 113 |\u001b[39m   \u001b[36mif\u001b[39m (\u001b[33mPROCESSED\u001b[39m\u001b[33m.\u001b[39mhas(\u001b[35m5\u001b[39m)) \u001b[36mawait\u001b[39m createBoard(page)\u001b[33m;\u001b[39m\n \u001b[90m 114 |\u001b[39m   \u001b[36mawait\u001b[39m expect(zoomLabel(page))\u001b[33m.\u001b[39mtoBeVisible()\u001b[33m;\u001b[39m\n \u001b[90m 115 |\u001b[39m   \u001b[36mif\u001b[39m (\u001b[33mPROCESSED\u001b[39m\u001b[33m.\u001b[39mhas(\u001b[35m3\u001b[39m)) \u001b[36mawait\u001b[39m waitConnected(page)\u001b[33m;\u001b[39m\u001b[0m"
+                      },
+                      "errors": [
+                        {
+                          "location": {
+                            "file": "~/.dbench/repo/benchmarks/vidi/acceptance/tests/fixtures.ts",
+                            "column": 14,
+                            "line": 112
+                          },
+                          "message": "Error: page.goto: net::ERR_CONNECTION_REFUSED at http://127.0.0.1:18787/\nCall log:\n\u001b[2m  - navigating to \"http://127.0.0.1:18787/\", waiting until \"load\"\u001b[22m\n\n\n   at fixtures.ts:112\n\n  110 | // at '/'; from story 5 on '/' is the home page with \"Create a board\".\n  111 | export async function openBoard(page: Page): Promise<string> {\n> 112 |   await page.goto('/');\n      |              ^\n  113 |   if (PROCESSED.has(5)) await createBoard(page);\n  114 |   await expect(zoomLabel(page)).toBeVisible();\n  115 |   if (PROCESSED.has(3)) await waitConnected(page);\n    at openBoard (~/.dbench/repo/benchmarks/vidi/acceptance/tests/fixtures.ts:112:14)\n    at ~/.dbench/repo/benchmarks/vidi/acceptance/tests/story-04.spec.ts:42:23"
+                        }
+                      ],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-09-25T08:05:59.478Z",
+                      "annotations": [],
+                      "attachments": [
+                        {
+                          "name": "screenshot",
+                          "contentType": "image/png",
+                          "path": "~/.dbench/repo/combinations/qwen/3.8/27b/ubuntu/24GB/llamacpp-opencode/benchmarks/vidi/canvas-pi-02/stories/05/artifacts/story-04-story-4-s04-chang-7b1a6-f-prd-persist-seen-is-saved-chromium/test-failed-2.png"
+                        },
+                        {
+                          "name": "screenshot",
+                          "contentType": "image/png",
+                          "path": "~/.dbench/repo/combinations/qwen/3.8/27b/ubuntu/24GB/llamacpp-opencode/benchmarks/vidi/canvas-pi-02/stories/05/artifacts/story-04-story-4-s04-chang-7b1a6-f-prd-persist-seen-is-saved-chromium/test-failed-1.png"
+                        }
+                      ],
+                      "errorLocation": {
+                        "file": "~/.dbench/repo/benchmarks/vidi/acceptance/tests/fixtures.ts",
+                        "column": 14,
+                        "line": 112
+                      }
+                    }
+                  ],
+                  "status": "unexpected"
+                }
+              ],
+              "id": "61866d84c033292fbd27-785492aa215377572b91",
+              "file": "story-04.spec.ts",
+              "line": 39,
+              "column": 3
+            },
+            {
+              "title": "survives restart with nobody connected @ref prd:persist.restart",
+              "ok": false,
+              "tags": [
+                "s04",
+                "ref"
+              ],
+              "tests": [
+                {
+                  "timeout": 45000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 29,
+                      "parallelIndex": 0,
+                      "status": "failed",
+                      "duration": 101,
+                      "error": {
+                        "message": "Error: page.goto: net::ERR_CONNECTION_REFUSED at http://127.0.0.1:18787/\nCall log:\n\u001b[2m  - navigating to \"http://127.0.0.1:18787/\", waiting until \"load\"\u001b[22m\n",
+                        "stack": "Error: page.goto: net::ERR_CONNECTION_REFUSED at http://127.0.0.1:18787/\nCall log:\n\u001b[2m  - navigating to \"http://127.0.0.1:18787/\", waiting until \"load\"\u001b[22m\n\n    at openBoard (~/.dbench/repo/benchmarks/vidi/acceptance/tests/fixtures.ts:112:14)\n    at ~/.dbench/repo/benchmarks/vidi/acceptance/tests/story-04.spec.ts:56:23",
+                        "location": {
+                          "file": "~/.dbench/repo/benchmarks/vidi/acceptance/tests/fixtures.ts",
+                          "column": 14,
+                          "line": 112
+                        },
+                        "snippet": "   at fixtures.ts:112\n\n\u001b[0m \u001b[90m 110 |\u001b[39m \u001b[90m// at '/'; from story 5 on '/' is the home page with \"Create a board\".\u001b[39m\n \u001b[90m 111 |\u001b[39m \u001b[36mexport\u001b[39m \u001b[36masync\u001b[39m \u001b[36mfunction\u001b[39m openBoard(page\u001b[33m:\u001b[39m \u001b[33mPage\u001b[39m)\u001b[33m:\u001b[39m \u001b[33mPromise\u001b[39m\u001b[33m<\u001b[39m\u001b[33mstring\u001b[39m\u001b[33m>\u001b[39m {\n\u001b[31m\u001b[1m>\u001b[22m\u001b[39m\u001b[90m 112 |\u001b[39m   \u001b[36mawait\u001b[39m page\u001b[33m.\u001b[39mgoto(\u001b[32m'/'\u001b[39m)\u001b[33m;\u001b[39m\n \u001b[90m     |\u001b[39m              \u001b[31m\u001b[1m^\u001b[22m\u001b[39m\n \u001b[90m 113 |\u001b[39m   \u001b[36mif\u001b[39m (\u001b[33mPROCESSED\u001b[39m\u001b[33m.\u001b[39mhas(\u001b[35m5\u001b[39m)) \u001b[36mawait\u001b[39m createBoard(page)\u001b[33m;\u001b[39m\n \u001b[90m 114 |\u001b[39m   \u001b[36mawait\u001b[39m expect(zoomLabel(page))\u001b[33m.\u001b[39mtoBeVisible()\u001b[33m;\u001b[39m\n \u001b[90m 115 |\u001b[39m   \u001b[36mif\u001b[39m (\u001b[33mPROCESSED\u001b[39m\u001b[33m.\u001b[39mhas(\u001b[35m3\u001b[39m)) \u001b[36mawait\u001b[39m waitConnected(page)\u001b[33m;\u001b[39m\u001b[0m"
+                      },
+                      "errors": [
+                        {
+                          "location": {
+                            "file": "~/.dbench/repo/benchmarks/vidi/acceptance/tests/fixtures.ts",
+                            "column": 14,
+                            "line": 112
+                          },
+                          "message": "Error: page.goto: net::ERR_CONNECTION_REFUSED at http://127.0.0.1:18787/\nCall log:\n\u001b[2m  - navigating to \"http://127.0.0.1:18787/\", waiting until \"load\"\u001b[22m\n\n\n   at fixtures.ts:112\n\n  110 | // at '/'; from story 5 on '/' is the home page with \"Create a board\".\n  111 | export async function openBoard(page: Page): Promise<string> {\n> 112 |   await page.goto('/');\n      |              ^\n  113 |   if (PROCESSED.has(5)) await createBoard(page);\n  114 |   await expect(zoomLabel(page)).toBeVisible();\n  115 |   if (PROCESSED.has(3)) await waitConnected(page);\n    at openBoard (~/.dbench/repo/benchmarks/vidi/acceptance/tests/fixtures.ts:112:14)\n    at ~/.dbench/repo/benchmarks/vidi/acceptance/tests/story-04.spec.ts:56:23"
+                        }
+                      ],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-09-25T08:06:00.157Z",
+                      "annotations": [],
+                      "attachments": [
+                        {
+                          "name": "screenshot",
+                          "contentType": "image/png",
+                          "path": "~/.dbench/repo/combinations/qwen/3.8/27b/ubuntu/24GB/llamacpp-opencode/benchmarks/vidi/canvas-pi-02/stories/05/artifacts/story-04-story-4-s04-survi-cf3c4-ted-ref-prd-persist-restart-chromium/test-failed-1.png"
+                        }
+                      ],
+                      "errorLocation": {
+                        "file": "~/.dbench/repo/benchmarks/vidi/acceptance/tests/fixtures.ts",
+                        "column": 14,
+                        "line": 112
+                      }
+                    }
+                  ],
+                  "status": "unexpected"
+                }
+              ],
+              "id": "61866d84c033292fbd27-95e29b49338648a15546",
+              "file": "story-04.spec.ts",
+              "line": 54,
+              "column": 3
+            },
+            {
+              "title": "no save button or saved indicator @ref prd:persist.automatic",
+              "ok": false,
+              "tags": [
+                "s04",
+                "ref"
+              ],
+              "tests": [
+                {
+                  "timeout": 45000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 30,
+                      "parallelIndex": 0,
+                      "status": "failed",
+                      "duration": 114,
+                      "error": {
+                        "message": "Error: page.goto: net::ERR_CONNECTION_REFUSED at http://127.0.0.1:18787/\nCall log:\n\u001b[2m  - navigating to \"http://127.0.0.1:18787/\", waiting until \"load\"\u001b[22m\n",
+                        "stack": "Error: page.goto: net::ERR_CONNECTION_REFUSED at http://127.0.0.1:18787/\nCall log:\n\u001b[2m  - navigating to \"http://127.0.0.1:18787/\", waiting until \"load\"\u001b[22m\n\n    at openBoard (~/.dbench/repo/benchmarks/vidi/acceptance/tests/fixtures.ts:112:14)\n    at ~/.dbench/repo/benchmarks/vidi/acceptance/tests/story-04.spec.ts:69:11",
+                        "location": {
+                          "file": "~/.dbench/repo/benchmarks/vidi/acceptance/tests/fixtures.ts",
+                          "column": 14,
+                          "line": 112
+                        },
+                        "snippet": "   at fixtures.ts:112\n\n\u001b[0m \u001b[90m 110 |\u001b[39m \u001b[90m// at '/'; from story 5 on '/' is the home page with \"Create a board\".\u001b[39m\n \u001b[90m 111 |\u001b[39m \u001b[36mexport\u001b[39m \u001b[36masync\u001b[39m \u001b[36mfunction\u001b[39m openBoard(page\u001b[33m:\u001b[39m \u001b[33mPage\u001b[39m)\u001b[33m:\u001b[39m \u001b[33mPromise\u001b[39m\u001b[33m<\u001b[39m\u001b[33mstring\u001b[39m\u001b[33m>\u001b[39m {\n\u001b[31m\u001b[1m>\u001b[22m\u001b[39m\u001b[90m 112 |\u001b[39m   \u001b[36mawait\u001b[39m page\u001b[33m.\u001b[39mgoto(\u001b[32m'/'\u001b[39m)\u001b[33m;\u001b[39m\n \u001b[90m     |\u001b[39m              \u001b[31m\u001b[1m^\u001b[22m\u001b[39m\n \u001b[90m 113 |\u001b[39m   \u001b[36mif\u001b[39m (\u001b[33mPROCESSED\u001b[39m\u001b[33m.\u001b[39mhas(\u001b[35m5\u001b[39m)) \u001b[36mawait\u001b[39m createBoard(page)\u001b[33m;\u001b[39m\n \u001b[90m 114 |\u001b[39m   \u001b[36mawait\u001b[39m expect(zoomLabel(page))\u001b[33m.\u001b[39mtoBeVisible()\u001b[33m;\u001b[39m\n \u001b[90m 115 |\u001b[39m   \u001b[36mif\u001b[39m (\u001b[33mPROCESSED\u001b[39m\u001b[33m.\u001b[39mhas(\u001b[35m3\u001b[39m)) \u001b[36mawait\u001b[39m waitConnected(page)\u001b[33m;\u001b[39m\u001b[0m"
+                      },
+                      "errors": [
+                        {
+                          "location": {
+                            "file": "~/.dbench/repo/benchmarks/vidi/acceptance/tests/fixtures.ts",
+                            "column": 14,
+                            "line": 112
+                          },
+                          "message": "Error: page.goto: net::ERR_CONNECTION_REFUSED at http://127.0.0.1:18787/\nCall log:\n\u001b[2m  - navigating to \"http://127.0.0.1:18787/\", waiting until \"load\"\u001b[22m\n\n\n   at fixtures.ts:112\n\n  110 | // at '/'; from story 5 on '/' is the home page with \"Create a board\".\n  111 | export async function openBoard(page: Page): Promise<string> {\n> 112 |   await page.goto('/');\n      |              ^\n  113 |   if (PROCESSED.has(5)) await createBoard(page);\n  114 |   await expect(zoomLabel(page)).toBeVisible();\n  115 |   if (PROCESSED.has(3)) await waitConnected(page);\n    at openBoard (~/.dbench/repo/benchmarks/vidi/acceptance/tests/fixtures.ts:112:14)\n    at ~/.dbench/repo/benchmarks/vidi/acceptance/tests/story-04.spec.ts:69:11"
+                        }
+                      ],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-09-25T08:06:00.809Z",
+                      "annotations": [],
+                      "attachments": [
+                        {
+                          "name": "screenshot",
+                          "contentType": "image/png",
+                          "path": "~/.dbench/repo/combinations/qwen/3.8/27b/ubuntu/24GB/llamacpp-opencode/benchmarks/vidi/canvas-pi-02/stories/05/artifacts/story-04-story-4-s04-no-sa-7d8de-r-ref-prd-persist-automatic-chromium/test-failed-1.png"
+                        }
+                      ],
+                      "errorLocation": {
+                        "file": "~/.dbench/repo/benchmarks/vidi/acceptance/tests/fixtures.ts",
+                        "column": 14,
+                        "line": 112
+                      }
+                    }
+                  ],
+                  "status": "unexpected"
+                }
+              ],
+              "id": "61866d84c033292fbd27-abb425fc258859e23ae5",
+              "file": "story-04.spec.ts",
+              "line": 67,
+              "column": 3
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "title": "story-05.spec.ts",
+      "file": "story-05.spec.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [],
+      "suites": [
+        {
+          "title": "story 5 @s05",
+          "file": "story-05.spec.ts",
+          "line": 9,
+          "column": 6,
+          "specs": [
+            {
+              "title": "home page and create a board @ref prd:share.create",
+              "ok": false,
+              "tags": [
+                "s05",
+                "ref"
+              ],
+              "tests": [
+                {
+                  "timeout": 45000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 31,
+                      "parallelIndex": 0,
+                      "status": "failed",
+                      "duration": 98,
+                      "error": {
+                        "message": "Error: page.goto: net::ERR_CONNECTION_REFUSED at http://127.0.0.1:18787/\nCall log:\n\u001b[2m  - navigating to \"http://127.0.0.1:18787/\", waiting until \"load\"\u001b[22m\n",
+                        "stack": "Error: page.goto: net::ERR_CONNECTION_REFUSED at http://127.0.0.1:18787/\nCall log:\n\u001b[2m  - navigating to \"http://127.0.0.1:18787/\", waiting until \"load\"\u001b[22m\n\n    at ~/.dbench/repo/benchmarks/vidi/acceptance/tests/story-05.spec.ts:13:16",
+                        "location": {
+                          "file": "~/.dbench/repo/benchmarks/vidi/acceptance/tests/story-05.spec.ts",
+                          "column": 16,
+                          "line": 13
+                        },
+                        "snippet": "\u001b[0m \u001b[90m 11 |\u001b[39m\n \u001b[90m 12 |\u001b[39m   test(\u001b[32m'home page and create a board @ref prd:share.create'\u001b[39m\u001b[33m,\u001b[39m \u001b[36masync\u001b[39m ({ page }) \u001b[33m=>\u001b[39m {\n\u001b[31m\u001b[1m>\u001b[22m\u001b[39m\u001b[90m 13 |\u001b[39m     \u001b[36mawait\u001b[39m page\u001b[33m.\u001b[39mgoto(\u001b[32m'/'\u001b[39m)\u001b[33m;\u001b[39m\n \u001b[90m    |\u001b[39m                \u001b[31m\u001b[1m^\u001b[22m\u001b[39m\n \u001b[90m 14 |\u001b[39m     \u001b[36mawait\u001b[39m expect(page\u001b[33m.\u001b[39mgetByText(\u001b[32m'A shared board for thinking together'\u001b[39m))\u001b[33m.\u001b[39mtoBeVisible()\u001b[33m;\u001b[39m\n \u001b[90m 15 |\u001b[39m     \u001b[36mawait\u001b[39m shot(page\u001b[33m,\u001b[39m \u001b[32m's05-home'\u001b[39m)\u001b[33m;\u001b[39m\n \u001b[90m 16 |\u001b[39m     \u001b[36mconst\u001b[39m t0 \u001b[33m=\u001b[39m \u001b[36mawait\u001b[39m createBoard(page)\u001b[33m;\u001b[39m\u001b[0m"
+                      },
+                      "errors": [
+                        {
+                          "location": {
+                            "file": "~/.dbench/repo/benchmarks/vidi/acceptance/tests/story-05.spec.ts",
+                            "column": 16,
+                            "line": 13
+                          },
+                          "message": "Error: page.goto: net::ERR_CONNECTION_REFUSED at http://127.0.0.1:18787/\nCall log:\n\u001b[2m  - navigating to \"http://127.0.0.1:18787/\", waiting until \"load\"\u001b[22m\n\n\n  11 |\n  12 |   test('home page and create a board @ref prd:share.create', async ({ page }) => {\n> 13 |     await page.goto('/');\n     |                ^\n  14 |     await expect(page.getByText('A shared board for thinking together')).toBeVisible();\n  15 |     await shot(page, 's05-home');\n  16 |     const t0 = await createBoard(page);\n    at ~/.dbench/repo/benchmarks/vidi/acceptance/tests/story-05.spec.ts:13:16"
+                        }
+                      ],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-09-25T08:06:01.487Z",
+                      "annotations": [],
+                      "attachments": [
+                        {
+                          "name": "screenshot",
+                          "contentType": "image/png",
+                          "path": "~/.dbench/repo/combinations/qwen/3.8/27b/ubuntu/24GB/llamacpp-opencode/benchmarks/vidi/canvas-pi-02/stories/05/artifacts/story-05-story-5-s05-home--89dba--board-ref-prd-share-create-chromium/test-failed-1.png"
+                        }
+                      ],
+                      "errorLocation": {
+                        "file": "~/.dbench/repo/benchmarks/vidi/acceptance/tests/story-05.spec.ts",
+                        "column": 16,
+                        "line": 13
+                      }
+                    }
+                  ],
+                  "status": "unexpected"
+                }
+              ],
+              "id": "74299ab9b312ae2c221a-a818899b00262900021c",
+              "file": "story-05.spec.ts",
+              "line": 12,
+              "column": 3
+            },
+            {
+              "title": "share panel copies full link and shows Link copied @ref prd:share.copy",
+              "ok": false,
+              "tags": [
+                "s05",
+                "ref"
+              ],
+              "tests": [
+                {
+                  "timeout": 45000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 32,
+                      "parallelIndex": 0,
+                      "status": "failed",
+                      "duration": 104,
+                      "error": {
+                        "message": "Error: page.goto: net::ERR_CONNECTION_REFUSED at http://127.0.0.1:18787/\nCall log:\n\u001b[2m  - navigating to \"http://127.0.0.1:18787/\", waiting until \"load\"\u001b[22m\n",
+                        "stack": "Error: page.goto: net::ERR_CONNECTION_REFUSED at http://127.0.0.1:18787/\nCall log:\n\u001b[2m  - navigating to \"http://127.0.0.1:18787/\", waiting until \"load\"\u001b[22m\n\n    at openBoard (~/.dbench/repo/benchmarks/vidi/acceptance/tests/fixtures.ts:112:14)\n    at ~/.dbench/repo/benchmarks/vidi/acceptance/tests/story-05.spec.ts:22:23",
+                        "location": {
+                          "file": "~/.dbench/repo/benchmarks/vidi/acceptance/tests/fixtures.ts",
+                          "column": 14,
+                          "line": 112
+                        },
+                        "snippet": "   at fixtures.ts:112\n\n\u001b[0m \u001b[90m 110 |\u001b[39m \u001b[90m// at '/'; from story 5 on '/' is the home page with \"Create a board\".\u001b[39m\n \u001b[90m 111 |\u001b[39m \u001b[36mexport\u001b[39m \u001b[36masync\u001b[39m \u001b[36mfunction\u001b[39m openBoard(page\u001b[33m:\u001b[39m \u001b[33mPage\u001b[39m)\u001b[33m:\u001b[39m \u001b[33mPromise\u001b[39m\u001b[33m<\u001b[39m\u001b[33mstring\u001b[39m\u001b[33m>\u001b[39m {\n\u001b[31m\u001b[1m>\u001b[22m\u001b[39m\u001b[90m 112 |\u001b[39m   \u001b[36mawait\u001b[39m page\u001b[33m.\u001b[39mgoto(\u001b[32m'/'\u001b[39m)\u001b[33m;\u001b[39m\n \u001b[90m     |\u001b[39m              \u001b[31m\u001b[1m^\u001b[22m\u001b[39m\n \u001b[90m 113 |\u001b[39m   \u001b[36mif\u001b[39m (\u001b[33mPROCESSED\u001b[39m\u001b[33m.\u001b[39mhas(\u001b[35m5\u001b[39m)) \u001b[36mawait\u001b[39m createBoard(page)\u001b[33m;\u001b[39m\n \u001b[90m 114 |\u001b[39m   \u001b[36mawait\u001b[39m expect(zoomLabel(page))\u001b[33m.\u001b[39mtoBeVisible()\u001b[33m;\u001b[39m\n \u001b[90m 115 |\u001b[39m   \u001b[36mif\u001b[39m (\u001b[33mPROCESSED\u001b[39m\u001b[33m.\u001b[39mhas(\u001b[35m3\u001b[39m)) \u001b[36mawait\u001b[39m waitConnected(page)\u001b[33m;\u001b[39m\u001b[0m"
+                      },
+                      "errors": [
+                        {
+                          "location": {
+                            "file": "~/.dbench/repo/benchmarks/vidi/acceptance/tests/fixtures.ts",
+                            "column": 14,
+                            "line": 112
+                          },
+                          "message": "Error: page.goto: net::ERR_CONNECTION_REFUSED at http://127.0.0.1:18787/\nCall log:\n\u001b[2m  - navigating to \"http://127.0.0.1:18787/\", waiting until \"load\"\u001b[22m\n\n\n   at fixtures.ts:112\n\n  110 | // at '/'; from story 5 on '/' is the home page with \"Create a board\".\n  111 | export async function openBoard(page: Page): Promise<string> {\n> 112 |   await page.goto('/');\n      |              ^\n  113 |   if (PROCESSED.has(5)) await createBoard(page);\n  114 |   await expect(zoomLabel(page)).toBeVisible();\n  115 |   if (PROCESSED.has(3)) await waitConnected(page);\n    at openBoard (~/.dbench/repo/benchmarks/vidi/acceptance/tests/fixtures.ts:112:14)\n    at ~/.dbench/repo/benchmarks/vidi/acceptance/tests/story-05.spec.ts:22:23"
+                        }
+                      ],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-09-25T08:06:02.145Z",
+                      "annotations": [],
+                      "attachments": [
+                        {
+                          "name": "screenshot",
+                          "contentType": "image/png",
+                          "path": "~/.dbench/repo/combinations/qwen/3.8/27b/ubuntu/24GB/llamacpp-opencode/benchmarks/vidi/canvas-pi-02/stories/05/artifacts/story-05-story-5-s05-share-de61e-k-copied-ref-prd-share-copy-chromium/test-failed-1.png"
+                        }
+                      ],
+                      "errorLocation": {
+                        "file": "~/.dbench/repo/benchmarks/vidi/acceptance/tests/fixtures.ts",
+                        "column": 14,
+                        "line": 112
+                      }
+                    }
+                  ],
+                  "status": "unexpected"
+                }
+              ],
+              "id": "74299ab9b312ae2c221a-f2a1339f3afad173968c",
+              "file": "story-05.spec.ts",
+              "line": 21,
+              "column": 3
+            },
+            {
+              "title": "opening a shared link gives full editing @ref prd:share.open_link",
+              "ok": false,
+              "tags": [
+                "s05",
+                "ref"
+              ],
+              "tests": [
+                {
+                  "timeout": 45000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 33,
+                      "parallelIndex": 0,
+                      "status": "failed",
+                      "duration": 110,
+                      "error": {
+                        "message": "Error: page.goto: net::ERR_CONNECTION_REFUSED at http://127.0.0.1:18787/\nCall log:\n\u001b[2m  - navigating to \"http://127.0.0.1:18787/\", waiting until \"load\"\u001b[22m\n",
+                        "stack": "Error: page.goto: net::ERR_CONNECTION_REFUSED at http://127.0.0.1:18787/\nCall log:\n\u001b[2m  - navigating to \"http://127.0.0.1:18787/\", waiting until \"load\"\u001b[22m\n\n    at openBoard (~/.dbench/repo/benchmarks/vidi/acceptance/tests/fixtures.ts:112:14)\n    at ~/.dbench/repo/benchmarks/vidi/acceptance/tests/story-05.spec.ts:39:23",
+                        "location": {
+                          "file": "~/.dbench/repo/benchmarks/vidi/acceptance/tests/fixtures.ts",
+                          "column": 14,
+                          "line": 112
+                        },
+                        "snippet": "   at fixtures.ts:112\n\n\u001b[0m \u001b[90m 110 |\u001b[39m \u001b[90m// at '/'; from story 5 on '/' is the home page with \"Create a board\".\u001b[39m\n \u001b[90m 111 |\u001b[39m \u001b[36mexport\u001b[39m \u001b[36masync\u001b[39m \u001b[36mfunction\u001b[39m openBoard(page\u001b[33m:\u001b[39m \u001b[33mPage\u001b[39m)\u001b[33m:\u001b[39m \u001b[33mPromise\u001b[39m\u001b[33m<\u001b[39m\u001b[33mstring\u001b[39m\u001b[33m>\u001b[39m {\n\u001b[31m\u001b[1m>\u001b[22m\u001b[39m\u001b[90m 112 |\u001b[39m   \u001b[36mawait\u001b[39m page\u001b[33m.\u001b[39mgoto(\u001b[32m'/'\u001b[39m)\u001b[33m;\u001b[39m\n \u001b[90m     |\u001b[39m              \u001b[31m\u001b[1m^\u001b[22m\u001b[39m\n \u001b[90m 113 |\u001b[39m   \u001b[36mif\u001b[39m (\u001b[33mPROCESSED\u001b[39m\u001b[33m.\u001b[39mhas(\u001b[35m5\u001b[39m)) \u001b[36mawait\u001b[39m createBoard(page)\u001b[33m;\u001b[39m\n \u001b[90m 114 |\u001b[39m   \u001b[36mawait\u001b[39m expect(zoomLabel(page))\u001b[33m.\u001b[39mtoBeVisible()\u001b[33m;\u001b[39m\n \u001b[90m 115 |\u001b[39m   \u001b[36mif\u001b[39m (\u001b[33mPROCESSED\u001b[39m\u001b[33m.\u001b[39mhas(\u001b[35m3\u001b[39m)) \u001b[36mawait\u001b[39m waitConnected(page)\u001b[33m;\u001b[39m\u001b[0m"
+                      },
+                      "errors": [
+                        {
+                          "location": {
+                            "file": "~/.dbench/repo/benchmarks/vidi/acceptance/tests/fixtures.ts",
+                            "column": 14,
+                            "line": 112
+                          },
+                          "message": "Error: page.goto: net::ERR_CONNECTION_REFUSED at http://127.0.0.1:18787/\nCall log:\n\u001b[2m  - navigating to \"http://127.0.0.1:18787/\", waiting until \"load\"\u001b[22m\n\n\n   at fixtures.ts:112\n\n  110 | // at '/'; from story 5 on '/' is the home page with \"Create a board\".\n  111 | export async function openBoard(page: Page): Promise<string> {\n> 112 |   await page.goto('/');\n      |              ^\n  113 |   if (PROCESSED.has(5)) await createBoard(page);\n  114 |   await expect(zoomLabel(page)).toBeVisible();\n  115 |   if (PROCESSED.has(3)) await waitConnected(page);\n    at openBoard (~/.dbench/repo/benchmarks/vidi/acceptance/tests/fixtures.ts:112:14)\n    at ~/.dbench/repo/benchmarks/vidi/acceptance/tests/story-05.spec.ts:39:23"
+                        }
+                      ],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-09-25T08:06:02.813Z",
+                      "annotations": [],
+                      "attachments": [
+                        {
+                          "name": "screenshot",
+                          "contentType": "image/png",
+                          "path": "~/.dbench/repo/combinations/qwen/3.8/27b/ubuntu/24GB/llamacpp-opencode/benchmarks/vidi/canvas-pi-02/stories/05/artifacts/story-05-story-5-s05-openi-d7c1a-ing-ref-prd-share-open-link-chromium/test-failed-1.png"
+                        }
+                      ],
+                      "errorLocation": {
+                        "file": "~/.dbench/repo/benchmarks/vidi/acceptance/tests/fixtures.ts",
+                        "column": 14,
+                        "line": 112
+                      }
+                    }
+                  ],
+                  "status": "unexpected"
+                }
+              ],
+              "id": "74299ab9b312ae2c221a-7168882a49f2883001b9",
+              "file": "story-05.spec.ts",
+              "line": 37,
+              "column": 3
+            },
+            {
+              "title": "unknown or malformed link shows Board not found and creates nothing @ref prd:share.not_found",
+              "ok": false,
+              "tags": [
+                "s05",
+                "ref"
+              ],
+              "tests": [
+                {
+                  "timeout": 45000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 34,
+                      "parallelIndex": 0,
+                      "status": "failed",
+                      "duration": 93,
+                      "error": {
+                        "message": "Error: page.goto: net::ERR_CONNECTION_REFUSED at http://127.0.0.1:18787/b/AAAAAAAAAAAAAAAAAAAAAA\nCall log:\n\u001b[2m  - navigating to \"http://127.0.0.1:18787/b/AAAAAAAAAAAAAAAAAAAAAA\", waiting until \"load\"\u001b[22m\n",
+                        "stack": "Error: page.goto: net::ERR_CONNECTION_REFUSED at http://127.0.0.1:18787/b/AAAAAAAAAAAAAAAAAAAAAA\nCall log:\n\u001b[2m  - navigating to \"http://127.0.0.1:18787/b/AAAAAAAAAAAAAAAAAAAAAA\", waiting until \"load\"\u001b[22m\n\n    at ~/.dbench/repo/benchmarks/vidi/acceptance/tests/story-05.spec.ts:48:18",
+                        "location": {
+                          "file": "~/.dbench/repo/benchmarks/vidi/acceptance/tests/story-05.spec.ts",
+                          "column": 18,
+                          "line": 48
+                        },
+                        "snippet": "\u001b[0m \u001b[90m 46 |\u001b[39m   test(\u001b[32m'unknown or malformed link shows Board not found and creates nothing @ref prd:share.not_found'\u001b[39m\u001b[33m,\u001b[39m \u001b[36masync\u001b[39m ({ page }) \u001b[33m=>\u001b[39m {\n \u001b[90m 47 |\u001b[39m     \u001b[36mfor\u001b[39m (\u001b[36mconst\u001b[39m bad \u001b[36mof\u001b[39m [\u001b[32m`/b/${UNKNOWN_ID}`\u001b[39m\u001b[33m,\u001b[39m \u001b[32m'/b/bad'\u001b[39m]) {\n\u001b[31m\u001b[1m>\u001b[22m\u001b[39m\u001b[90m 48 |\u001b[39m       \u001b[36mawait\u001b[39m page\u001b[33m.\u001b[39mgoto(bad)\u001b[33m;\u001b[39m\n \u001b[90m    |\u001b[39m                  \u001b[31m\u001b[1m^\u001b[22m\u001b[39m\n \u001b[90m 49 |\u001b[39m       \u001b[36mawait\u001b[39m expect(page\u001b[33m.\u001b[39mgetByRole(\u001b[32m'heading'\u001b[39m\u001b[33m,\u001b[39m { name\u001b[33m:\u001b[39m \u001b[32m'Board not found'\u001b[39m }))\u001b[33m.\u001b[39mtoBeVisible()\u001b[33m;\u001b[39m\n \u001b[90m 50 |\u001b[39m       \u001b[36mawait\u001b[39m expect(page\u001b[33m.\u001b[39mgetByText(\u001b[32m'Check the link, or ask the person who shared it to send it again.'\u001b[39m))\u001b[33m.\u001b[39mtoBeVisible()\u001b[33m;\u001b[39m\n \u001b[90m 51 |\u001b[39m       \u001b[36mawait\u001b[39m expect(page\u001b[33m.\u001b[39mgetByRole(\u001b[32m'button'\u001b[39m\u001b[33m,\u001b[39m { name\u001b[33m:\u001b[39m \u001b[32m'Create a new board'\u001b[39m }))\u001b[33m.\u001b[39mtoBeVisible()\u001b[33m;\u001b[39m\u001b[0m"
+                      },
+                      "errors": [
+                        {
+                          "location": {
+                            "file": "~/.dbench/repo/benchmarks/vidi/acceptance/tests/story-05.spec.ts",
+                            "column": 18,
+                            "line": 48
+                          },
+                          "message": "Error: page.goto: net::ERR_CONNECTION_REFUSED at http://127.0.0.1:18787/b/AAAAAAAAAAAAAAAAAAAAAA\nCall log:\n\u001b[2m  - navigating to \"http://127.0.0.1:18787/b/AAAAAAAAAAAAAAAAAAAAAA\", waiting until \"load\"\u001b[22m\n\n\n  46 |   test('unknown or malformed link shows Board not found and creates nothing @ref prd:share.not_found', async ({ page }) => {\n  47 |     for (const bad of [`/b/${UNKNOWN_ID}`, '/b/bad']) {\n> 48 |       await page.goto(bad);\n     |                  ^\n  49 |       await expect(page.getByRole('heading', { name: 'Board not found' })).toBeVisible();\n  50 |       await expect(page.getByText('Check the link, or ask the person who shared it to send it again.')).toBeVisible();\n  51 |       await expect(page.getByRole('button', { name: 'Create a new board' })).toBeVisible();\n    at ~/.dbench/repo/benchmarks/vidi/acceptance/tests/story-05.spec.ts:48:18"
+                        }
+                      ],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-09-25T08:06:03.484Z",
+                      "annotations": [],
+                      "attachments": [
+                        {
+                          "name": "screenshot",
+                          "contentType": "image/png",
+                          "path": "~/.dbench/repo/combinations/qwen/3.8/27b/ubuntu/24GB/llamacpp-opencode/benchmarks/vidi/canvas-pi-02/stories/05/artifacts/story-05-story-5-s05-unkno-64fa0-ing-ref-prd-share-not-found-chromium/test-failed-1.png"
+                        }
+                      ],
+                      "errorLocation": {
+                        "file": "~/.dbench/repo/benchmarks/vidi/acceptance/tests/story-05.spec.ts",
+                        "column": 18,
+                        "line": 48
+                      }
+                    }
+                  ],
+                  "status": "unexpected"
+                }
+              ],
+              "id": "74299ab9b312ae2c221a-cdbf5fdc8f5318565c26",
+              "file": "story-05.spec.ts",
+              "line": 46,
+              "column": 3
+            },
+            {
+              "title": "distinct 22-character links @ref prd:share.unguessable",
+              "ok": false,
+              "tags": [
+                "s05",
+                "ref"
+              ],
+              "tests": [
+                {
+                  "timeout": 45000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 35,
+                      "parallelIndex": 0,
+                      "status": "failed",
+                      "duration": 101,
+                      "error": {
+                        "message": "Error: page.goto: net::ERR_CONNECTION_REFUSED at http://127.0.0.1:18787/\nCall log:\n\u001b[2m  - navigating to \"http://127.0.0.1:18787/\", waiting until \"load\"\u001b[22m\n",
+                        "stack": "Error: page.goto: net::ERR_CONNECTION_REFUSED at http://127.0.0.1:18787/\nCall log:\n\u001b[2m  - navigating to \"http://127.0.0.1:18787/\", waiting until \"load\"\u001b[22m\n\n    at ~/.dbench/repo/benchmarks/vidi/acceptance/tests/story-05.spec.ts:62:18",
+                        "location": {
+                          "file": "~/.dbench/repo/benchmarks/vidi/acceptance/tests/story-05.spec.ts",
+                          "column": 18,
+                          "line": 62
+                        },
+                        "snippet": "\u001b[0m \u001b[90m 60 |\u001b[39m     \u001b[36mconst\u001b[39m \u001b[33mBOARDS\u001b[39m \u001b[33m=\u001b[39m \u001b[35m3\u001b[39m\u001b[33m;\u001b[39m\n \u001b[90m 61 |\u001b[39m     \u001b[36mfor\u001b[39m (\u001b[36mlet\u001b[39m i \u001b[33m=\u001b[39m \u001b[35m0\u001b[39m\u001b[33m;\u001b[39m i \u001b[33m<\u001b[39m \u001b[33mBOARDS\u001b[39m\u001b[33m;\u001b[39m i\u001b[33m++\u001b[39m) {\n\u001b[31m\u001b[1m>\u001b[22m\u001b[39m\u001b[90m 62 |\u001b[39m       \u001b[36mawait\u001b[39m page\u001b[33m.\u001b[39mgoto(\u001b[32m'/'\u001b[39m)\u001b[33m;\u001b[39m\n \u001b[90m    |\u001b[39m                  \u001b[31m\u001b[1m^\u001b[22m\u001b[39m\n \u001b[90m 63 |\u001b[39m       \u001b[36mawait\u001b[39m createBoard(page)\u001b[33m;\u001b[39m\n \u001b[90m 64 |\u001b[39m       seen\u001b[33m.\u001b[39madd(page\u001b[33m.\u001b[39murl())\u001b[33m;\u001b[39m\n \u001b[90m 65 |\u001b[39m     }\u001b[0m"
+                      },
+                      "errors": [
+                        {
+                          "location": {
+                            "file": "~/.dbench/repo/benchmarks/vidi/acceptance/tests/story-05.spec.ts",
+                            "column": 18,
+                            "line": 62
+                          },
+                          "message": "Error: page.goto: net::ERR_CONNECTION_REFUSED at http://127.0.0.1:18787/\nCall log:\n\u001b[2m  - navigating to \"http://127.0.0.1:18787/\", waiting until \"load\"\u001b[22m\n\n\n  60 |     const BOARDS = 3;\n  61 |     for (let i = 0; i < BOARDS; i++) {\n> 62 |       await page.goto('/');\n     |                  ^\n  63 |       await createBoard(page);\n  64 |       seen.add(page.url());\n  65 |     }\n    at ~/.dbench/repo/benchmarks/vidi/acceptance/tests/story-05.spec.ts:62:18"
+                        }
+                      ],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-09-25T08:06:04.134Z",
+                      "annotations": [],
+                      "attachments": [
+                        {
+                          "name": "screenshot",
+                          "contentType": "image/png",
+                          "path": "~/.dbench/repo/combinations/qwen/3.8/27b/ubuntu/24GB/llamacpp-opencode/benchmarks/vidi/canvas-pi-02/stories/05/artifacts/story-05-story-5-s05-disti-53c32-s-ref-prd-share-unguessable-chromium/test-failed-1.png"
+                        }
+                      ],
+                      "errorLocation": {
+                        "file": "~/.dbench/repo/benchmarks/vidi/acceptance/tests/story-05.spec.ts",
+                        "column": 18,
+                        "line": 62
+                      }
+                    }
+                  ],
+                  "status": "unexpected"
+                }
+              ],
+              "id": "74299ab9b312ae2c221a-292114e68e58a69f9e7d",
+              "file": "story-05.spec.ts",
+              "line": 58,
+              "column": 3
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "errors": [],
+  "stats": {
+    "startTime": "2026-09-25T08:05:36.346Z",
+    "duration": 27959.388,
+    "expected": 0,
+    "skipped": 0,
+    "unexpected": 36,
+    "flaky": 0
+  }
+}
