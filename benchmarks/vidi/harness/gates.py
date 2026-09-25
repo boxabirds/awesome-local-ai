@@ -110,6 +110,22 @@ def _walk(suite: dict):
         yield from _walk(child)
 
 
+# Test errors that mean the machine can't run the suite at all, whatever the app does.
+HARNESS_FAULTS = {
+    "browserType.launch: Executable doesn't exist":
+        "Playwright's browser is missing: run `npx playwright install chromium` in the acceptance suite",
+}
+
+
+def harness_fault(tests: list[dict]) -> str | None:
+    """Why this score says nothing about the app, if a test failed for a reason of the machine's."""
+    for t in tests:
+        for sig, why in HARNESS_FAULTS.items():
+            if sig in (t.get("error") or ""):
+                return why
+    return None
+
+
 def processed_env(processed: list) -> str:
     """PROCESSED_STORIES for the suite: "1:DONE,2:DONE,3:PARTIAL". Plain ids mean DONE."""
     return ",".join(f"{p['id']}:{p['status']}" if isinstance(p, dict) else f"{p}:DONE" for p in processed)
@@ -163,6 +179,7 @@ def accept(ws: Path, processed: list, out: Path) -> dict:
         "on_partial": {"passed": sum(t["status"] == "passed" for t in applicable if t.get("on_partial") is not None),
                        "total": sum(t.get("on_partial") is not None for t in applicable)},
         "by_story": by_story,
+        "harness_fault": harness_fault(tests),
         "tests": tests,
     }
 

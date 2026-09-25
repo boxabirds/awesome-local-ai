@@ -1109,6 +1109,10 @@ def main() -> None:
               f"accept {acc['passed']}/{acc['total']} stalled={rec['agent']['stalled']}"
               f"{' DEGRADED (power/thermal) — timing not comparable' if rec['conditions']['degraded'] else ''}",
               flush=True)
+        if acc.get("harness_fault"):
+            # The agent's work is recorded; only the held-out score is void. Later stories would be the same.
+            raise SystemExit(f"[story {sid}] HARNESS FAULT, held-out score void: {acc['harness_fault']}. Fix it, "
+                             f"re-score this story (gates.py accept), then re-run to continue with the next story.")
 
 
 if __name__ == "__main__":
