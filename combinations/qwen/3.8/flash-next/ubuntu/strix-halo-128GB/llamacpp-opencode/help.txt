@@ -1,0 +1,89 @@
+PROFILE DETAIL
+  NOTHING HERE HAS BEEN MEASURED BY THIS REPO YET. The memory figures above
+  are estimates from published Strix Halo reports; the installer's smoke test
+  prints the real server footprint on your machine. Replace the estimates in
+  profiles.tsv with those numbers.
+
+  coding     128k ctx   f16 KV   vision off   1 slot
+      >> DEFAULT. One agent session with a real repo in context.
+
+  vision     128k ctx   f16 KV   vision ON    1 slot
+      Adds the 0.9 GB projector. Whether upstream llama.cpp's multimodal path
+      supports qwen4exp is not verified; if loading the projector fails, the
+      server stops -- use coding.
+
+  agents     3 x 128k   f16 KV   vision off   3 slots
+      -c is SHARED across slots: 393216 total is 128k each. Use this when an
+      agent makes background calls (titles, summaries) alongside the main
+      session, so each keeps its own cache and a returning turn does not
+      re-read its whole prompt.
+
+  max        256k ctx   f16 KV   vision off   1 slot
+      The model's native context. Prefill at depth is slow on this chip
+      (~200 tok/s reported at 24k), so filling it from cold takes a while.
+
+UNIFIED MEMORY: WHAT "FITS" MEANS HERE
+  The GPU addresses system RAM through GTT, capped by the kernel's TTM page
+  limit -- about half of RAM unless you raise it. The installer refuses when
+  the limit is too low and prints the fix:
+      pipx install amd-debug-tools && amd-ttm --set 120 && sudo reboot
+  Keep the BIOS "UMA Frame Buffer Size" at 512M. A big carve-out is taken
+  from Linux for good and makes the GPU no faster.
+
+  Budget from MemAvailable, not from "GTT free": on unified memory, GTT free
+  ignores what the rest of the machine holds. The launcher's pre-flight uses
+  the smaller of the two.
+
+KV CACHE: f16 ONLY
+  bf16 crashes on gfx1151. Quantised KV (q8_0, q4_0) has been reported to
+  break tool calling on this model, and with two KV heads there is little
+  memory to save: a report puts 128k -> 256k at ~5 GB. The launcher warns if
+  you pick anything else.
+
+SPECULATIVE DECODING
+  Upstream llama.cpp cannot load this model's MTP head yet (PRs #27836 and
+  #28243 are open drafts), so there is none. Instead the launcher turns on
+  n-gram speculation, which drafts from text already in the context: no extra
+  memory, and a large win when an agent rewrites a file. It checks the build
+  supports the flags first and starts without them otherwise.
+      SPEC_NGRAM=0 <server>        # off, for an A/B
+  Community forks with a working MTP draft report 30-58 tok/s against ~17
+  without. When upstream merges it, add the mtp asset back to config.sh.
+
+VULKAN, NOT ROCm (BY DEFAULT)
+  Built with Vulkan (RADV). For this model, a published matched test found
+  Vulkan decode several times faster than ROCm, and RADV needs nothing beyond
+  Mesa. ROCm often wins prompt processing on other models. To build the other
+  one for an A/B (needs a host ROCm install; experimental here):
+      GPU_API=rocm SKIP_SMOKE_TEST=1 ./install-qwen-3.8-flash-next-ubuntu-strix-halo-128GB-llamacpp-opencode.sh
+  Switching rebuilds; switching back rebuilds again.
+
+LOAD TIME AND THE IDLE TIMER
+  --no-mmap reads all 94 GB into memory up front. That is minutes from a cold
+  page cache, so the session manager here waits up to 15 minutes for a load
+  and keeps the server for 30 minutes after the last client, not 5. Override
+  per run: IDLE_TIMEOUT=300, SERVER_START_TIMEOUT=1200.
+
+GPU CLOCK
+  Left on 'auto', the clock floats well under its peak during decode (a ~20%
+  loss has been reported). Pin it for benchmarks; it resets at reboot:
+      echo high | sudo tee /sys/class/drm/card*/device/power_dpm_force_performance_level
+
+ENVIRONMENT OVERRIDES
+  PORT=8080          HOST=127.0.0.1     CTX=<tokens>     VISION=0|1
+  NP=<slots>         UB=<micro-batch>   BATCH=<batch>
+  THINKING=1|0       THINKING_BUDGET=<tokens>
+  REASONING_EFFORT=low|medium|xhigh|default
+  SPEC_NGRAM=0       QWEN38_FLASH_NEXT_ROOT=<dir>      MODEL=<file>
+
+SECURITY
+  HOST defaults to 127.0.0.1 and there is NO authentication. HOST=0.0.0.0
+  exposes an unauthenticated model server to your network; put a reverse
+  proxy with auth in front, or pass --api-key <key> after the command.
+
+EXAMPLES
+  qwen38-flash-next-strix-server                          # 128k, one agent
+  # API: http://127.0.0.1:8080/v1  model id: qwen3.8-flash-next
+  PROFILE=agents qwen38-flash-next-strix-server           # 3 x 128k slots
+  REASONING_EFFORT=xhigh qwen38-flash-next-strix-server   # think hard
+  SPEC_NGRAM=0 qwen38-flash-next-strix-server             # A/B without n-gram drafting

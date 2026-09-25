@@ -26,6 +26,7 @@ lib/                                  ALL the logic, shared by every combination
   llamacpp.sh  mtplx.sh  sglang.sh    backend adapters     (BACKEND=...)
   mlxserve.sh
   accel/cuda.sh  accel/metal.sh       accelerator adapters (ACCEL=...)
+  accel/strix-halo.sh
   clients/opencode.sh                 client adapter       (CLIENT=opencode)
   clients/pi.sh                       client adapter       (CLIENT=pi)
   runtime/server-<backend>.sh         launcher, installed as local-ai-<backend>-server
@@ -382,6 +383,47 @@ override. `/health` answers before the model has loaded, so the smoke test
 waits for `"state":"ready"` in `/v1/models`, then checks MTP via `/props`,
 prefix-cache reuse via `cached_tokens`, and a structured tool call.
 `tests/mlxserve-test.sh` covers all of it against stubs.
+
+## Adding a Strix Halo combination
+
+`lib/accel/strix-halo.sh` is the third accelerator: AMD's Ryzen AI Max
+(Radeon 8060S, gfx1151), unified memory on Linux. One combination uses it,
+`qwen/3.8/flash-next/ubuntu/strix-halo-128GB/llamacpp-opencode`, **not yet
+measured by this repo**. What is different from CUDA:
+
+- **`ACCEL_MEM_MIB` is the GTT limit**, not RAM and not the BIOS "VRAM"
+  figure. The GPU reaches system memory through GTT, capped by the kernel's
+  TTM page limit, which defaults to about half of RAM. The adapter reads
+  amdgpu's `mem_info_gtt_total` (falling back to `ttm.pages_limit`), refuses
+  below `MIN_DEVICE_MEM_MIB` with the exact fix (`amd-ttm --set N`, or the
+  `ttm.pages_limit` value), and never edits boot configuration itself.
+- **`GPU_API`** picks the build: `vulkan` (default, `-DGGML_VULKAN=ON`) or
+  `rocm` (HIP for gfx1151, needs a host ROCm, experimental). It is part of the
+  build key, so switching rebuilds.
+- **`TESTED_ON`** lists the machines (`<vendor>-<product>` slugs) a
+  combination's numbers came from. The adapter matches the running machine's
+  DMI product name against it and says so plainly when it is a different box
+  with the same chip. The path's machine segment covers every Strix Halo of
+  that memory size; this is where the exact box is recorded.
+- Also read: `MIN_KERNEL_VERSION` (default 6.18.4), `MIN_OS_RESERVE_MIB`,
+  `STRIX_HALO_GTT_TARGET_GIB` (what the refusal tells you to set).
+
+Five optional llama.cpp hooks came with it, each defaulting to the previous
+behaviour, and carried to the runtime through `install.env`:
+
+| Hook | What |
+|---|---|
+| `LLAMA_BATCH` | `-b` for llama-server; was hard-coded to 1024 |
+| `LLAMA_EXTRA_ARGS` | flags a combination always passes (`--no-mmap --ctx-checkpoints 8` here) |
+| `SPEC_NGRAM_ARGS` | n-gram speculation when there is no MTP head. The launcher probes `llama-server --help` for the flag first and starts without it on an older build; `SPEC_NGRAM=0` turns it off per run |
+| `IDLE_TIMEOUT_DEFAULT`, `SERVER_START_TIMEOUT_DEFAULT` | session defaults for a model that takes minutes to load |
+
+A Hub repo that keeps a quant's shards in a subdirectory works as it is: list
+the first shard as the `model` asset and the rest under any other role, with
+the subdirectory in the filename. The manifest keeps paths relative to
+`MODEL_DIR` (`_model_rel` in `lib/launcher.sh`) rather than flattening them to
+a basename. `tests/strix-halo-test.sh` covers all of this against a faked
+sysfs and a llama-server that echoes its argv.
 
 ## Honesty
 

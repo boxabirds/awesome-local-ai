@@ -53,6 +53,7 @@ half-installing.
 | Qwen3.8-27B | macOS 26 | 64GB Apple silicon ¹ | MTPLX + OpenCode | 128k | [`install-qwen-3.8-27b-macos-64GB-mtplx-opencode.sh`](install-qwen-3.8-27b-macos-64GB-mtplx-opencode.sh) | [README](combinations/qwen/3.8/27b/macos/64GB/mtplx-opencode/README.md) |
 | Qwen3.8-Flash-Next | macOS 26 | 128GB Apple silicon | MTPLX + OpenCode | 128k | [`install-qwen-3.8-flash-next-macos-128GB-mtplx-opencode.sh`](install-qwen-3.8-flash-next-macos-128GB-mtplx-opencode.sh) | [README](combinations/qwen/3.8/flash-next/macos/128GB/mtplx-opencode/README.md) |
 | Qwen3.8-Flash-Next mixed 4/8-bit ⁶ | macOS 26.2+ | 128GB Apple silicon | mlx-serve + OpenCode | 128k | [`install-qwen-3.8-flash-next-macos-128GB-mlxserve-opencode.sh`](install-qwen-3.8-flash-next-macos-128GB-mlxserve-opencode.sh) | [README](combinations/qwen/3.8/flash-next/macos/128GB/mlxserve-opencode/README.md) |
+| Qwen3.8-Flash-Next ⁷ | Ubuntu 26.04 | Strix Halo 128GB (Ryzen AI Max+ 395) | llama.cpp *(Vulkan)* + OpenCode | 128k | [`install-qwen-3.8-flash-next-ubuntu-strix-halo-128GB-llamacpp-opencode.sh`](install-qwen-3.8-flash-next-ubuntu-strix-halo-128GB-llamacpp-opencode.sh) | [README](combinations/qwen/3.8/flash-next/ubuntu/strix-halo-128GB/llamacpp-opencode/README.md) |
 | Ternary Bonsai 2 27B ² | Ubuntu 22.04 | RTX 4090 (24GB) | llama.cpp *(fork)* + OpenCode | 128k | [`install-bonsai-2-27b-ubuntu-nvidia4090-llamacpp-opencode.sh`](install-bonsai-2-27b-ubuntu-nvidia4090-llamacpp-opencode.sh) | [README](combinations/bonsai/2/27b/ubuntu/nvidia4090/llamacpp-opencode/README.md) |
 | MiMo-V2.6-Qwen-9B ³ | macOS 26 | 16GB Apple silicon, M3+ ⁴ | MTPLX + OpenCode | **20k**: too small for agentic coding ([tested](docs/20260924-mimo-9b-macbook-air-m2-16gb.md)) | [`install-mimo-2.6-9b-macos-16GB-mtplx-opencode.sh`](install-mimo-2.6-9b-macos-16GB-mtplx-opencode.sh) | [README](combinations/mimo/2.6/9b/macos/16GB/mtplx-opencode/README.md) |
 | Qwen3.8-27B EXL3 3.0bpw ⁵ | Ubuntu (Docker) | RTX 3090 (24GB, sm_86) | SGLang *(container)* + OpenCode | 262k | [`install-qwen-3.8-27b-ubuntu-nvidia3090-sglang-opencode.sh`](install-qwen-3.8-27b-ubuntu-nvidia3090-sglang-opencode.sh) | [README](combinations/qwen/3.8/27b/ubuntu/nvidia3090/sglang-opencode/README.md) |
@@ -111,6 +112,17 @@ calling is supported per mlx-serve's source and is checked by the smoke test,
 not yet observed here. Run it only with no other model server up — the
 launcher refuses otherwise. `./install.sh` never picks it over the measured
 MTPLX row.
+
+⁷ **The Strix Halo row is unmeasured by this repo, so far.** It was written for
+a Minisforum MS-S1 MAX (Ryzen AI Max+ 395, 128 GB) ahead of its first run, and
+its [measurement plan](combinations/qwen/3.8/flash-next/ubuntu/strix-halo-128GB/llamacpp-opencode/benchmarks/README.md)
+is what turns it into a measured row. It needs Ubuntu 26.04 and the GPU's GTT
+limit raised from the kernel default of about half of RAM (`amd-ttm --set 120`,
+then reboot); the installer checks both and refuses with the fix. Upstream
+llama.cpp has no MTP for this model yet, so it uses n-gram speculation instead.
+Published figures from other Strix Halo boxes are ~15–17 tok/s decode without
+speculation. It ranks below any measured row for the same machine; today it
+is the only Strix Halo row, so `./install.sh` offers it there.
 
 **Want one that isn't here?** See
 [docs/adding-a-combination.md](docs/adding-a-combination.md). A new combination
