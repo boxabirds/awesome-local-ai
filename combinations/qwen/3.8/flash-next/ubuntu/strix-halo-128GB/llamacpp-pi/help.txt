@@ -60,7 +60,7 @@ VULKAN OR ROCm
   wrong logits on this chip before llama.cpp #28604 (8 Sep 2026), and has
   open reports of a load hang (#29149) and of state leaking between requests
   on a reused slot (#29092). To build the other one:
-      GPU_API=rocm SKIP_SMOKE_TEST=1 ./install-qwen-3.8-flash-next-ubuntu-strix-halo-128GB-llamacpp-opencode.sh
+      GPU_API=rocm SKIP_SMOKE_TEST=1 ./install-qwen-3.8-flash-next-ubuntu-strix-halo-128GB-llamacpp-pi.sh
   Switching rebuilds; switching back rebuilds again.
   On Linux 7.x set amdgpu.lockup_timeout=10000,60000,10000,10000 on the
   kernel command line, or long runs die with DeviceLostError.

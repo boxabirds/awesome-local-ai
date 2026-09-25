@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# combinations/qwen/3.8/flash-next/ubuntu/strix-halo-128GB/llamacpp-opencode/config.sh
+# combinations/qwen/3.8/flash-next/ubuntu/strix-halo-128GB/llamacpp-pi/config.sh
 #
 # Qwen3.8-Flash-Next (125B total, ~6B active, qwen4exp architecture) on a
 # 128GB AMD Strix Halo machine under Ubuntu 26.04, served by llama.cpp with
@@ -42,7 +42,7 @@ BACKEND="llamacpp"                        # -> lib/llamacpp.sh
 # hundred tok/s prefill every prompt token is felt on the first turn. Needs
 # pi on PATH (Ubuntu 26.04: sudo apt install nodejs npm, then
 # sudo npm install -g @earendil-works/pi-coding-agent). CLIENT=opencode or
-# --client opencode for the other; the path's stack segment predates this.
+# --client opencode for the other.
 CLIENT="${CLIENT:-pi}"
 
 # Vulkan build: loader headers, the GLSL->SPIR-V compiler and SPIR-V headers
