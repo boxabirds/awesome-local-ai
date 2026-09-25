@@ -3,7 +3,7 @@
 # without hurting quality? Same weights, same MTP settings as the canvas run; only the build and
 # the KV cache type change between arms.
 #
-#   benchmarks/turbo-kv.sh [--fills "32768 120000"] [--arms "base:f16 fork:f16 fork:turbo4"] [--no-kld]
+#   benchmarks/turbo-kv.sh [--fills "2048 32768 120000"] [--arms "base:f16 fork:f16 fork:turbo4"] [--no-kld]
 #
 # Arms are <build>:<kv type>. base = this install's llama.cpp (PR #28243 branch); fork = the
 # TurboQuant fork (github.com/TheTom/llama-cpp-turboquant) built in $FORK_DIR, Vulkan only.
@@ -24,7 +24,7 @@ MTP="$MODELS/MTP/mtp-Qwen3.8-Flash-Next-shared-Q8_0.gguf"
 BASE_BIN="$ROOT/llama.cpp/build/bin"
 FORK_DIR="${FORK_DIR:-$HOME/turbo-exp/llama.cpp}"
 FORK_BIN="$FORK_DIR/build/bin"
-FILLS="32768 120000"
+FILLS="2048 32768 120000"
 ARMS="base:f16 fork:f16 fork:turbo4"
 KLD=1
 PORT=18191
@@ -90,7 +90,7 @@ make_filler() { # n -> $WORK/filler-<n>.txt
   local n="$1" f="$WORK/filler-$1.txt"
   [[ -s "$f" ]] && return
   (cd "$REPO_ROOT" && git ls-files -z -- 'lib/*.sh' 'benchmarks/spec-bench/harness/*.py' 'tools/dbench/src/*.rs' \
-     | xargs -0 cat) | head -c $(( n * CHARS_PER_TOKEN_GUESS * 2 )) > "$WORK/raw.txt"
+     | xargs -0 cat 2>/dev/null) | head -c $(( n * CHARS_PER_TOKEN_GUESS * 2 )) > "$WORK/raw.txt"
   jq -n --rawfile t "$WORK/raw.txt" '{content: $t}' | curl -s "127.0.0.1:$PORT/tokenize" -H 'Content-Type: application/json' -d @- \
     | jq -c --argjson n "$n" '{tokens: .tokens[:$n]}' \
     | curl -s "127.0.0.1:$PORT/detokenize" -H 'Content-Type: application/json' -d @- | jq -r .content > "$f"
