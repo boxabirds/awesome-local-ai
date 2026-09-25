@@ -11,6 +11,9 @@
  *   reports `onBackgroundClick`; a double-click on empty space reports
  *   `onBackgroundDoubleClick` with the world point. Objects stop propagation, so both
  *   only ever fire for empty space.
+ * - Story 7: Shift + drag on empty space draws a selection rectangle (`marquee`) instead
+ *   of panning; `overlay` is drawn in screen space above the world layer (selection
+ *   outlines, handles and bar).
  */
 import {
   useEffect,
@@ -22,6 +25,7 @@ import {
 } from 'react';
 import { useBoard } from './BoardContext';
 import { screenToWorld, type Point } from './camera';
+import type { MarqueeApi } from '../board/Marquee';
 import {
   DRAG_THRESHOLD_PX,
   GRID_DOT_RADIUS_PX,
@@ -63,6 +67,10 @@ export interface BoardViewportProps {
   onBackgroundClick?(): void;
   /** Double-click on empty board space, at this world point. */
   onBackgroundDoubleClick?(world: Point): void;
+  /** Shift + drag on empty space drives this selection rectangle. */
+  marquee?: Pick<MarqueeApi, 'begin' | 'move' | 'end' | 'cancel'>;
+  /** Screen-space layer above the world layer. */
+  overlay?: ReactNode;
 }
 
 export function BoardViewport(props: BoardViewportProps): React.JSX.Element {
@@ -72,6 +80,8 @@ export function BoardViewport(props: BoardViewportProps): React.JSX.Element {
   const gestureScale = useRef(1);
   /** Where the current press on empty space started (null when not pressed). */
   const pressStart = useRef<Point | null>(null);
+  /** What the current press on empty space does. */
+  const pressMode = useRef<'pan' | 'marquee' | null>(null);
 
   const localPoint = (clientX: number, clientY: number): Point => {
     const rect = ref.current?.getBoundingClientRect();
@@ -177,26 +187,43 @@ export function BoardViewport(props: BoardViewportProps): React.JSX.Element {
 
   const onPointerDown = (e: PointerEvent<HTMLDivElement>) => {
     if (e.button !== PRIMARY_BUTTON) return;
-    // Only empty board space starts a pan; objects (later stories) stop propagation.
+    // Only empty board space starts a pan or a marquee; objects stop propagation.
     if (e.target !== e.currentTarget) return;
     e.preventDefault();
     e.currentTarget.setPointerCapture?.(e.pointerId);
     const p = localPoint(e.clientX, e.clientY);
     pressStart.current = p;
-    board.beginPan(p);
+    if (e.shiftKey && props.marquee !== undefined) {
+      pressMode.current = 'marquee';
+      props.marquee.begin(p);
+    } else {
+      pressMode.current = 'pan';
+      board.beginPan(p);
+    }
   };
   // panMove/endPan are no-ops unless a pan is in progress (Idle state).
   const onPointerMove = (e: PointerEvent<HTMLDivElement>) => {
-    board.panMove(localPoint(e.clientX, e.clientY));
+    const p = localPoint(e.clientX, e.clientY);
+    if (pressMode.current === 'marquee') props.marquee?.move(p);
+    else board.panMove(p);
   };
+  /** Interrupted press: a marquee is discarded, a pan keeps where it got to. */
   const onPointerEnd = () => {
+    if (pressMode.current === 'marquee') props.marquee?.cancel();
+    pressMode.current = null;
     pressStart.current = null;
     board.endPan();
   };
   const onPointerUp = (e: PointerEvent<HTMLDivElement>) => {
     const start = pressStart.current;
+    const mode = pressMode.current;
+    if (mode === 'marquee') {
+      props.marquee?.move(localPoint(e.clientX, e.clientY));
+      props.marquee?.end();
+      pressMode.current = null;
+    }
     onPointerEnd();
-    if (start === null) return;
+    if (start === null || mode !== 'pan') return;
     const p = localPoint(e.clientX, e.clientY);
     if (Math.hypot(p.x - start.x, p.y - start.y) < DRAG_THRESHOLD_PX) props.onBackgroundClick?.();
   };
@@ -240,6 +267,7 @@ export function BoardViewport(props: BoardViewportProps): React.JSX.Element {
         <div className="origin-marker" data-testid="origin-marker" aria-hidden="true" />
         {props.children}
       </div>
+      {props.overlay}
     </div>
   );
 }

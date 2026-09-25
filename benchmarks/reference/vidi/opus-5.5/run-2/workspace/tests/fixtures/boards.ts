@@ -114,3 +114,36 @@ export function randomBytesLike(update: Uint8Array, seed = 7): Uint8Array {
   const rand = seededRandom(seed);
   return Uint8Array.from(update, () => Math.floor(rand() * 256));
 }
+
+/** Top-left corners (world units) of the story 7 20-note board, by group. */
+export const SELECTION_BOARD = {
+  /** 3 × 2 grid, 50 apart: rows y = 0 and y = 250. */
+  grid: [0, 250].flatMap((y) => [0, 250, 500].map((x) => ({ x, y }))),
+  /** 4 overlapping notes in a row (each above the previous one). */
+  row: [0, 150, 300, 450].map((x) => ({ x, y: 600 })),
+  /** Second cluster: 5 × 2, overlapping by 20 on both axes; rows y = 0 and y = 180. */
+  right: [0, 180].flatMap((y) => [0, 1, 2, 3, 4].map((i) => ({ x: 1400 + i * 180, y }))),
+};
+
+/**
+ * Story 7 fixture: a 20-note retro board in two clusters with realistic texts and
+ * overlapping stacking. Returns the ids by group, in the order of SELECTION_BOARD.
+ */
+export function buildSelectionBoard(doc: Y.Doc): { grid: string[]; row: string[]; right: string[] } {
+  let n = 0;
+  const make = (p: { x: number; y: number }) => {
+    const id = createSticky(
+      doc,
+      { x: p.x + STICKY_SIZE_WORLD / 2, y: p.y + STICKY_SIZE_WORLD / 2 },
+      COLOURS[n % COLOURS.length],
+    );
+    typeInto(doc, id, `${n + 1}. ${RETRO_TEXTS[n % RETRO_TEXTS.length]}`);
+    n += 1;
+    return id;
+  };
+  return {
+    grid: SELECTION_BOARD.grid.map(make),
+    row: SELECTION_BOARD.row.map(make),
+    right: SELECTION_BOARD.right.map(make),
+  };
+}

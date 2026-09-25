@@ -255,3 +255,67 @@ Decisions taken where the spec was silent or ambiguous:
 ### Not covered
 - Production rate-limiter accuracy, real Safari/Firefox clipboard behaviour and chat-app link
   rendering (design "Not covered").
+
+## Story 7 — Select, move, resize and delete several objects at once
+
+Decisions taken where the spec was silent or ambiguous:
+
+1. **Generic snapshot.** `snapshot(doc)` still returns sticky notes only (story 2 TC-12 and the
+   worker/e2e helpers rely on it). The new `snapshotObjects(doc)` returns objects of every
+   type (`ObjectSnapshot`, with `width`/`height` read with a STICKY_SIZE_WORLD fallback);
+   `useBoardDoc` now exposes `objects` from it. The renderer and the selection skip types the
+   registry does not know.
+2. **Known types live in board-model.** `allObjectIds` / `objectsInRect` must skip unknown
+   types but board-model cannot import the client registry, so `registerObjectType` also calls
+   `declareObjectType` in board-model (`sticky` is built in).
+3. **New notes are created with explicit `width`/`height`** (design state diagram); notes
+   created before this story keep reading STICKY_SIZE_WORLD until their first resize.
+4. **Resize maths.** `resizeRect` is `applyScale(start, handle, resizeScale(...))` (both
+   exported, plus `resizeAnchor`). An aspect-locked corner follows whichever axis moved
+   further; an aspect-locked edge handle scales about the centre of the other axis. Sizes
+   never flip below 0. `clampScale` always allows scale 1, so an object already outside its
+   limits (written elsewhere) never forces a jump. Objects of non-resizable types in a
+   resized selection (none exist yet) keep their size and only follow the layout.
+5. **Sticky text at other sizes.** The note's content is laid out at the story 2 size and
+   CSS-scaled to the note's `width`/`height`, so text fit (font sizes, fade, clipping) is
+   identical at every size and a bigger note shows proportionally bigger text (emphasis).
+6. **Selection reducer and snapshot.** `SelectionState` carries the ids present in the last
+   pruned snapshot so `click`/`toggle`/`setMany` for absent ids are ignored in the pure
+   reducer. `edit` is not checked (a note is edited in the same event that creates it); the
+   hook also filters ids against the rendered snapshot and prunes in a layout effect.
+7. **Click semantics.** A plain press on an unselected object selects it at once (drag
+   selects-then-moves); a plain click on an already selected object selects only it on
+   release; Shift-click toggles on release; Shift+drag on an unselected object adds it and
+   moves the whole selection. Shift-click on empty space keeps the selection.
+8. **Gesture listeners are on `window` (capture phase)** during a press, so a gesture ends
+   even when the pressed element is removed (object deleted by someone else).
+9. **Screen-space overlay.** `BoardViewport` got an `overlay` prop (drawn above the world
+   layer) and a `marquee` prop. Selection outlines, the bounding box, handles and the bar
+   live there; outlines use `data-object-id` (not `data-id`, which locates notes). The note
+   toolbar moved from a world-layer portal in `StickyNote` into `SelectionBar` (shown for one
+   selected sticky, above the bounding box). The sticky note no longer draws its own
+   selection outline (focus-visible ring kept).
+10. **Bar details.** The bar reads "N selected" with an icon Delete button
+    (`aria-label="Delete selection"`); it hides while moving/resizing or editing text. The
+    count is announced in a separate visually hidden `aria-live="polite"` region (not
+    `role="status"`, which the connection badge uses); it also announces "1 selected". While
+    the board is read-only (load failed) the bar shows the count without Delete and the
+    handles are hidden.
+11. **Keys.** Arrow keys call `preventDefault` whenever something is selected (even while
+    read-only, so the page never scrolls); Delete/Backspace/Enter are still ignored while a
+    button has focus. Escape also cancels a marquee in progress.
+12. **`useTransformGesture` returns `gesture`** (`kind`, `ids`) in addition to the contract,
+    used for the notes' `data-state="dragging"` and to hide the bar. Object components get
+    `ObjectProps` from the registry (`transforming`, `onPointerDown`, …).
+13. **Existing e2e TC-19 (story 4) race fixed.** Under the extra load of the 5-context TC-36
+    run, the third "Zoom out" could render after the first note was created, shifting it
+    under the next double-click. The test now waits for the zoom label before placing notes
+    (the check itself is unchanged).
+14. **Browsers.** Only Chromium is installed here: e2e ran with `E2E_BROWSERS=chromium`.
+    TC-32 is written browser-neutral; the golden path and multi-context cases skip outside
+    Chromium.
+
+### Not covered
+- The 200-object performance check is manual (design "Not covered") and was not run.
+- Touch input; types from stories 9–12 (only the test-only `testbox` type exercises the
+  generic path).

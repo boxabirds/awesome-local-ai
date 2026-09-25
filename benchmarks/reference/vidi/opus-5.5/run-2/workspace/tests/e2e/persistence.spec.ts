@@ -6,7 +6,7 @@
  */
 import { expect, test, type Browser, type Page } from '@playwright/test';
 import * as Y from 'yjs';
-import { BOARD_LOAD_BUDGET_MS, PERSIST_TESTED_NOTES } from '../../src/shared/config';
+import { BOARD_LOAD_BUDGET_MS, PERSIST_TESTED_NOTES, ZOOM_STEP_FACTOR } from '../../src/shared/config';
 import { buildLargeBoard } from '../fixtures/boards';
 import {
   centreOf,
@@ -99,6 +99,10 @@ test('TC-19 overnight return: 25 varied notes survive everyone leaving and a pro
   const alex = await open(boardId, 'Alex');
   const page = alex.page;
   for (let i = 0; i < ZOOM_OUT_STEPS; i++) await page.getByRole('button', { name: 'Zoom out' }).click();
+  // Camera updates are applied on the next animation frame: wait for the last step to render
+  // before placing notes by screen position (under load it could land after the first note).
+  const zoomedPercent = Math.round(100 / ZOOM_STEP_FACTOR ** ZOOM_OUT_STEPS);
+  await expect(page.getByTestId('zoom-percent')).toHaveText(`${zoomedPercent}%`);
 
   const ids: string[] = [];
   for (let i = 0; i < NOTES_TO_CREATE; i++) {
