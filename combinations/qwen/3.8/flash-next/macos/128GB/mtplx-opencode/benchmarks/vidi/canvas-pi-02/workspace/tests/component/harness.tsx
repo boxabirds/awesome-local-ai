@@ -152,6 +152,12 @@ export interface PointerOptions {
   clientX: number;
   clientY: number;
   button?: number;
+  /**
+   * Which buttons are held down. Only set it when the event stands for a held
+   * drag: a real browser reports this, and StickyNote stops following a pointer
+   * that says it is not held, so a synthetic drag must say `buttons: 1`.
+   */
+  buttons?: number;
   pointerType?: string;
   pointerId?: number;
 }
@@ -168,6 +174,9 @@ export function pointerEvent(type: string, options: PointerOptions): MouseEvent 
     clientY: options.clientY,
     button: options.button ?? 0,
   });
+  if (options.buttons !== undefined) {
+    Object.defineProperty(event, 'buttons', { value: options.buttons });
+  }
   Object.defineProperty(event, 'pointerType', { value: options.pointerType ?? 'mouse' });
   Object.defineProperty(event, 'pointerId', { value: options.pointerId ?? 1 });
   return event;
