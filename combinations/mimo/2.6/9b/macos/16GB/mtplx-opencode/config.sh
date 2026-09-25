@@ -100,12 +100,9 @@ low_memory_advice() {
   warn " FROM THE MTPLX RELEASE NOTES, measured on an M5 Max, NOT by this repo."
   warn " ${mem} MiB of GPU-addressable memory cannot hold it."
   warn ""
-  warn " The smaller pack in this repo is the Qwen3.5-9B FP16 build (7,423 MiB"
-  warn " of weights):"
-  warn "   ./install-qwen-3.5-9b-fp16-macos-16GB-mtplx-opencode.sh"
-  warn " Below that, MTPLX's own catalog routes sub-16 GB Macs to its 4B packs;"
-  warn " this repo has no combination for them. Raising iogpu.wired_limit_mb on"
-  warn " a Mac this small starves macOS."
+  warn " This repo has no smaller pack. MTPLX's own catalog routes sub-16 GB"
+  warn " Macs to its 4B packs; this repo has no combination for them. Raising"
+  warn " iogpu.wired_limit_mb on a Mac this small starves macOS."
 }
 
 combination_performance() {

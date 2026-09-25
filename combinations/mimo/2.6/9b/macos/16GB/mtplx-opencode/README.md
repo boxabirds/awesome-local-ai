@@ -1,14 +1,13 @@
 # MiMo-V2.6-Qwen-9B · macOS · 16GB Apple silicon · MTPLX + OpenCode
 
 Xiaomi's coding-and-agents fine-tune of Qwen3.5-9B, served locally by MTPLX with
-multi-token-prediction speculative decoding, driven by OpenCode or Pi. One of
-this repo's two 16 GB combinations.
+multi-token-prediction speculative decoding, driven by OpenCode or Pi. This
+repo's only 16 GB combination.
 
 **Recommended on M3/M4/M5 with 16 GB+. Runs on M1/M2, but MTPLX does not offer
 it there** (BF16 vision tower + BF16 draft head, and M1/M2 have no native BF16;
 the slowdown is unmeasured). On an M1/M2, MTPLX's own pick is the base model's
-FP16 build:
-[Qwen 3.5 9B Optimized Speed FP16](../../../../../../qwen/3.5/9b-fp16/macos/16GB/mtplx-opencode/README.md).
+FP16 build, which this repo does not include.
 
 > **Tested on a MacBook Air M2 16 GB (2026-09-24): not workable for agentic
 > coding.** The context window is 20,480 tokens, set by 16 GB of memory rather
@@ -18,13 +17,13 @@ FP16 build:
 > quarter of the window, and the first reply took 1½ minutes. The first install
 > attempt froze the Mac. Full numbers: [the test report](../../../../../../../docs/20260924-mimo-9b-macbook-air-m2-16gb.md).
 
-| | This (MiMo V2.6 Qwen 9B) | [Qwen 3.5 9B FP16](../../../../../../qwen/3.5/9b-fp16/macos/16GB/mtplx-opencode/README.md) |
-|---|---|---|
-| Model | Xiaomi's coding/agent fine-tune of Qwen3.5-9B | the base Qwen3.5-9B |
-| MTPLX offers it on | M3, M4, M5 | M1, M2 |
-| Precision of float tensors | BF16 (vision tower, draft head) | FP16, so M1/M2 run it at full speed |
-| Vision | vision tower in the pack | text only |
-| Measured by this repo | install, a pi session and its speeds, on a MacBook Air M2 16 GB ([report](../../../../../../../docs/20260924-mimo-9b-macbook-air-m2-16gb.md)) | nothing |
+| | |
+|---|---|
+| Model | Xiaomi's coding/agent fine-tune of Qwen3.5-9B |
+| MTPLX offers it on | M3, M4, M5 |
+| Precision of float tensors | BF16 (vision tower, draft head) |
+| Vision | vision tower in the pack |
+| Measured by this repo | install, a pi session and its speeds, on a MacBook Air M2 16 GB ([report](../../../../../../../docs/20260924-mimo-9b-macbook-air-m2-16gb.md)) |
 
 > **Provenance.** One test by this repo, on a MacBook Air M2 16 GB: install, a
 > short pi session, and its prefill and decode speeds
@@ -100,9 +99,8 @@ and roughly level on SWE Verified.
 
 ## Install
 
-`./install.sh` defaults to the `qwen` family, so on a 16 GB Mac a bare
-`./install.sh --yes` picks the Qwen 3.5 9B FP16 combination, not this one.
-Selection reads memory, not chip generation. Name this one:
+`./install.sh` defaults to the `qwen` family, which has nothing for a 16 GB
+Mac, so a bare `./install.sh --yes` installs nothing there. Name this one:
 
 ```bash
 ./install.sh mimo            # best fit within the mimo family
@@ -110,8 +108,8 @@ Selection reads memory, not chip generation. Name this one:
 ./install-mimo-2.6-9b-macos-16GB-mtplx-opencode.sh
 ```
 
-(A bare `./install.sh` on a terminal shows a menu of every family; this one is
-listed as compatible on a 16 GB Mac, but the default is the Qwen 3.5 9B FP16.)
+(A bare `./install.sh` on a terminal shows a menu of every family, where this
+one is listed as compatible on a 16 GB Mac.)
 
 **The installer upgrades MTPLX if it is older than 2.12.0** (`uv tool upgrade
 mtplx`). If something else on the machine depends on the installed MTPLX

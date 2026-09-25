@@ -55,7 +55,6 @@ half-installing.
 | Qwen3.8-Flash-Next mixed 4/8-bit ⁶ | macOS 26.2+ | 128GB Apple silicon | mlx-serve + OpenCode | 128k | [`install-qwen-3.8-flash-next-macos-128GB-mlxserve-opencode.sh`](install-qwen-3.8-flash-next-macos-128GB-mlxserve-opencode.sh) | [README](combinations/qwen/3.8/flash-next/macos/128GB/mlxserve-opencode/README.md) |
 | Ternary Bonsai 2 27B ² | Ubuntu 22.04 | 24GB NVIDIA | llama.cpp *(fork)* + OpenCode | 128k | [`install-bonsai-2-27b-ubuntu-24GB-llamacpp-opencode.sh`](install-bonsai-2-27b-ubuntu-24GB-llamacpp-opencode.sh) | [README](combinations/bonsai/2/27b/ubuntu/24GB/llamacpp-opencode/README.md) |
 | MiMo-V2.6-Qwen-9B ³ | macOS 26 | 16GB Apple silicon, M3+ ⁴ | MTPLX + OpenCode | **20k**: too small for agentic coding ([tested](docs/20260924-mimo-9b-macbook-air-m2-16gb.md)) | [`install-mimo-2.6-9b-macos-16GB-mtplx-opencode.sh`](install-mimo-2.6-9b-macos-16GB-mtplx-opencode.sh) | [README](combinations/mimo/2.6/9b/macos/16GB/mtplx-opencode/README.md) |
-| Qwen3.5-9B FP16 ³ | macOS 26 | 16GB Apple silicon, M1/M2 ⁴ | MTPLX + OpenCode | **20k** | [`install-qwen-3.5-9b-fp16-macos-16GB-mtplx-opencode.sh`](install-qwen-3.5-9b-fp16-macos-16GB-mtplx-opencode.sh) | [README](combinations/qwen/3.5/9b-fp16/macos/16GB/mtplx-opencode/README.md) |
 | Qwen3.8-27B EXL3 3.0bpw ⁵ | Ubuntu (Docker) | 24GB NVIDIA, RTX 3090 (sm_86) | SGLang *(container)* + OpenCode | 262k | [`install-qwen-3.8-27b-ubuntu-24GB-sglang-opencode.sh`](install-qwen-3.8-27b-ubuntu-24GB-sglang-opencode.sh) | [README](combinations/qwen/3.8/27b/ubuntu/24GB/sglang-opencode/README.md) |
 | Qwen3.6-35B-A3B EXL3 3.0bpw ⁵ | Ubuntu (Docker) | 24GB NVIDIA, RTX 3090 (sm_86) | SGLang *(container)* + OpenCode | 262k | [`install-qwen-3.6-35b-a3b-ubuntu-24GB-sglang-opencode.sh`](install-qwen-3.6-35b-a3b-ubuntu-24GB-sglang-opencode.sh) | [README](combinations/qwen/3.6/35b-a3b/ubuntu/24GB/sglang-opencode/README.md) |
 
@@ -84,18 +83,14 @@ prompt and tools plus a one-line ask) is 3,231. Reading story 1 of this repo's v
 In a real pi session it prefilled at **~55 tok/s** and decoded at **~5 tok/s**
 (3.7–6.1): a request for a Fibonacci function took 5 min 43 s over three turns.
 The first install attempt froze the Mac (the memory check warned, then carried
-on). Those speeds are an M2's, without native BF16 (see ⁴). The FP16 row is
-still unmeasured: its figures come from the MTPLX 2.12.0 release notes, its
-model catalog and the pack's metadata, and its 20,480-token window is
-extrapolated. Use a 16 GB Mac as the client for a model served by a bigger
-machine instead.
+on). Those speeds are an M2's, without native BF16 (see ⁴). Use a 16 GB Mac as
+the client for a model served by a bigger machine instead.
 
 ⁴ **Chip generation, not just memory.** MTPLX offers MiMo V2.6 Qwen 9B (a
 coding/agent fine-tune by Xiaomi MiMo, BF16 vision tower and draft head) on
 M3/M4/M5 only; it runs on M1/M2 but without native BF16, and the slowdown is
-unmeasured. On M1/M2, MTPLX's pick is the Qwen3.5-9B FP16 build. `install.sh`
-selects by memory alone, so on any 16 GB Mac `./install.sh` (and its menu's
-default) is the FP16 row; use `./install.sh mimo` for MiMo.
+unmeasured. `./install.sh` never picks it by default; name it:
+`./install.sh mimo`.
 
 ⁵ **The two SGLang rows are unmeasured by this repo.** They transcribe a
 merged recipe, [0xSero/local-ai-registry PR #83](https://github.com/0xSero/local-ai-registry/pull/83),
@@ -132,7 +127,7 @@ one combination and is false now — so it is marked.
 **Every combination:**
 
 - **A context window tuned to its memory tier** — see the Context column: 128k
-  on most rows, 20k on the 16 GB rows (all a 16 GB Mac can hold next to the
+  on most rows, 20k on the 16 GB row (all a 16 GB Mac can hold next to the
   weights, and [too small for agentic coding](docs/20260924-mimo-9b-macbook-air-m2-16gb.md)), 262k on the SGLang rows (the
   recipe author's bare-card setup). What each window costs differs per row.
 - **An OpenAI-compatible endpoint with tool calling**, and OpenCode already
