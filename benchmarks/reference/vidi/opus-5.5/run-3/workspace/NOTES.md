@@ -255,3 +255,71 @@ Decisions made where the spec left room:
   reach about 100 px above the centre. The random seed decides whether a note ends up there, so the story 4
   one-off timeout was probably the same thing. The guard now requires 120 px, which also keeps clicks clear of
   the new Share button. With the failing seed (`VIDI6_SEED=120660`) the soak passes (p95 45 ms).
+
+## Story 7 — Select, move, resize and delete several objects at once
+
+Decisions made where the spec left room:
+
+- **Two snapshots.** `snapshot(doc)` still returns only sticky notes (`StickySnapshot`, now with `width`/`height`).
+  Story 2–5 code and tests, and the `notes()` test hook, depend on its note fields. The new
+  `objectSnapshot(doc)` returns every object of a *known* type as `ObjectSnapshot` (`id, type, x, y, width,
+  height, z`). The board renders from it, and the selection, gesture and keys use it.
+- **Known types live in board-model too.** `allObjectIds` and `objectsInRect` are in the framework-free
+  board-model, but they must skip unregistered types. So board-model keeps a set of known types (`sticky`
+  built in), and the client's `registerObjectType` adds each type to it (`registerModelObjectType`). Group
+  operations only touch known types. Objects of unknown types are left untouched in the doc.
+- **Width/height.** `createSticky` now writes `width`/`height` (200). Notes without them read as
+  STICKY_SIZE_WORLD, and the first resize writes both. There is no migration. Font fitting uses the note's
+  height as the box. The editor's vertical padding uses the height too.
+- **Selection reducer and absent ids.** The pure reducer ignores `click`/`toggle`/`setMany` for ids that are
+  not on the board. For that, its state keeps the ids that were present at the last `prune`. `edit` is not
+  filtered, because a note created a moment ago (double-click → edit) is not in the last snapshot yet. The hook
+  also hides pruned ids during the render before its layout-effect `prune` runs. `endEdit` takes an optional
+  `'selected' | 'unselected'`, as story 2's editor needs (a press elsewhere ends editing and deselects).
+- **When a press changes the selection.** A press on an unselected object selects it right away (Shift: adds
+  it), so a drag moves it. A press on a selected object waits for the release: a click without dragging then
+  selects only that object (Shift: removes it), and a drag moves the whole selection. The design says
+  "click an object: selects only that object", and this still does that, but it doesn't break up a
+  multi-selection the moment a drag starts. The note's focus handler (Tab selects) ignores focus caused by a
+  pointer press, so Shift-click can't replace the selection through focus.
+- **Gesture events.** `useTransformGesture` follows the pointer with `window` listeners instead of pointer
+  capture on the note. That works the same for notes, handles and future types, and a note whose DOM node
+  goes away mid-drag (deleted remotely) can't end the gesture early. Moves are written once per animation
+  frame. A release writes the final position (story 2's rule, kept by its tests). A cancel keeps the last
+  applied frame. The hook also returns `state` (`idle | pressed | moving | resizing`), which the App uses
+  for `data-state="pressed|dragging"` and to hide the bars during a gesture.
+- **Resize maths.** `handleScale` turns a handle drag into scale factors. With aspect lock, a corner uses the
+  axis that moved further, and an edge scales the other axis about the box centre. `clampScale` clamps once
+  for the whole group: uniformly when the factors are equal (aspect kept), otherwise per axis. An axis whose
+  factor is exactly 1 is left alone, so an edge drag never changes the other axis. `scaleFromHandle` anchors
+  the result at the opposite corner or edge. Resizing never flips an object. An object whose type is not
+  resizable would keep its size and only move with the group. No such type exists yet.
+- **Handles** are 8 `role="button"` elements (`aria-label="Resize top-left"` etc., `tabIndex=-1`, so they
+  are not in the tab order). They sit in the screen-space overlay, so they stay HANDLE_SIZE_PX at every zoom,
+  with a 4 px invisible hit margin. They show for any selection, including a single note. They are hidden
+  while text is edited, during a group move, and when the board can't be edited.
+- **Selection bar.** Two or more selected: a toolbar `aria-label="Selection"` with "N selected" and
+  `Delete selection`. It sits above the bounding box in the world overlay layer, drawn like the note toolbar.
+  One sticky: story 2's `NoteToolbar`. Its Delete now deletes through the selection. While the board can't
+  be edited, the multi bar still shows the count, but Delete is disabled (the note toolbar stays hidden, as
+  in story 4). A visually hidden `aria-live="polite"` region always announces "N selected" (empty for none).
+- **Marquee.** `BoardViewport` has a new optional `marquee` prop (`{ snapshot, onSelect }`) and runs
+  `useMarquee` itself, because the camera lives there. Shift+press on empty space starts it instead of a pan
+  (primary button only). The rectangle is drawn in screen space from a world rect. Escape during a marquee
+  cancels it and does not also clear the selection. Shift+click on empty space without dragging leaves the
+  selection as it is. The viewport reports `data-state="marquee"` while the rectangle is shown.
+- **Keys.** `useBoardKeys` replaces the old Delete/Enter handler in `App.tsx`. Arrow keys with a selection
+  always `preventDefault`, even on a load-failed board, where they don't move anything. Escape with nothing
+  selected, and Delete/arrows with nothing selected, are not handled (default not prevented). Enter-to-edit
+  works for exactly one selected object whose type has `editableText`.
+- **Test hooks.** `window.__vidi6.selection()` (test builds only) returns the sorted selected ids. The e2e
+  tests seed the 20-note cluster board (`clusterBoard()` in `tests/fixtures/boards.ts`) through the existing
+  `/__test/boards/:id/seed` hook.
+- **Test-only type.** `tests/fixtures/testbox.tsx` registers `testbox` (resizable, not aspect-locked,
+  minSize 10). It is imported only by tests. Component test TC-24 uses it to show edge handles changing one
+  axis and Shift keeping the ratio.
+- **Browsers.** All story 7 e2e tests, including the five-window TC-36, pass in Chromium, Firefox and WebKit
+  (repeated 3× without flakes). No browser skips were needed.
+- **Red phase.** As in earlier stories, there are no separate commits for the failing tests. This build uses
+  one commit per story.
+- **Not covered here** (as the design says): the 200-note move/resize performance run and touch input.

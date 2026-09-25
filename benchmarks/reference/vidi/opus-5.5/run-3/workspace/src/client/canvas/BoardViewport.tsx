@@ -5,6 +5,8 @@ import { ZoomControls } from './ZoomControls';
 import { NavigationHint } from './NavigationHint';
 import { installTestHooks } from './testHooks';
 import { WorldOverlayContext } from './worldOverlay';
+import { MarqueeRect, useMarquee } from '../board/Marquee';
+import type { ObjectSnapshot } from '../../shared/board-model';
 import {
   DRAG_THRESHOLD_PX,
   GRID_DOT_RADIUS_PX,
@@ -66,7 +68,14 @@ export interface BoardViewportProps {
   onDoubleClickEmpty?(world: Point): void;
   /** Press and release on empty board space without dragging. */
   onEmptyClick?(): void;
+  /**
+   * Shift+drag on empty board space draws a selection rectangle over these objects; on release the ids lying
+   * entirely inside go to `onSelect`. Without this prop Shift+drag pans like a plain drag.
+   */
+  marquee?: { snapshot: readonly ObjectSnapshot[]; onSelect(ids: string[]): void };
 }
+
+const NO_OBJECTS: readonly ObjectSnapshot[] = [];
 
 /** Full-window board: input surface, dot grid and world layer, plus zoom controls and hint overlays. */
 export function BoardViewport(props: BoardViewportProps) {
@@ -81,6 +90,9 @@ export function BoardViewport(props: BoardViewportProps) {
   // Where the current press on empty space started (client px), and whether it has become a drag.
   const pressRef = useRef<{ x: number; y: number; moved: boolean } | null>(null);
   const [overlayEl, setOverlayEl] = useState<HTMLDivElement | null>(null);
+  const marqueePointerRef = useRef<number | null>(null);
+  const onMarqueeSelect = props.marquee?.onSelect;
+  const marquee = useMarquee(camera, props.marquee?.snapshot ?? NO_OBJECTS, (ids) => onMarqueeSelect?.(ids));
 
   const toLocal = (clientX: number, clientY: number): Point => {
     const rect = rootRef.current?.getBoundingClientRect();
@@ -190,6 +202,11 @@ export function BoardViewport(props: BoardViewportProps) {
     api.endPan();
   };
 
+  const cancelMarquee = () => {
+    marqueePointerRef.current = null;
+    marquee.cancel();
+  };
+
   const grid = gridBackground(camera);
   const view: BoardView = { camera, size };
 
@@ -198,7 +215,7 @@ export function BoardViewport(props: BoardViewportProps) {
       ref={rootRef}
       className={panning ? 'board-viewport board-viewport--panning' : 'board-viewport'}
       data-testid="board-viewport"
-      data-state={panning ? 'panning' : 'idle'}
+      data-state={panning ? 'panning' : marquee.rect ? 'marquee' : 'idle'}
       tabIndex={0}
       aria-label="Board"
       style={{
@@ -210,9 +227,19 @@ export function BoardViewport(props: BoardViewportProps) {
         // Only empty board space starts a pan; objects (later stories) handle their own pointers.
         if (e.target !== e.currentTarget) return;
         if (e.button !== 0 && e.button !== 1) return;
-        if (panningPointerRef.current !== null) return;
+        if (panningPointerRef.current !== null || marqueePointerRef.current !== null) return;
         e.preventDefault();
         e.currentTarget.focus({ preventScroll: true });
+        if (e.shiftKey && e.button === 0 && props.marquee) {
+          marqueePointerRef.current = e.pointerId;
+          try {
+            e.currentTarget.setPointerCapture?.(e.pointerId);
+          } catch {
+            // Synthetic pointer: moves still arrive while over the board.
+          }
+          marquee.begin(toLocal(e.clientX, e.clientY));
+          return;
+        }
         panningPointerRef.current = e.pointerId;
         pressRef.current = { x: e.clientX, y: e.clientY, moved: false };
         e.currentTarget.setPointerCapture?.(e.pointerId);
@@ -220,12 +247,22 @@ export function BoardViewport(props: BoardViewportProps) {
         api.beginPan(toLocal(e.clientX, e.clientY));
       }}
       onPointerMove={(e) => {
+        if (e.pointerId === marqueePointerRef.current) {
+          marquee.move(toLocal(e.clientX, e.clientY));
+          return;
+        }
         if (e.pointerId !== panningPointerRef.current) return;
         const press = pressRef.current;
         if (press && Math.hypot(e.clientX - press.x, e.clientY - press.y) >= DRAG_THRESHOLD_PX) press.moved = true;
         api.panMove(toLocal(e.clientX, e.clientY));
       }}
       onPointerUp={(e) => {
+        if (e.pointerId === marqueePointerRef.current) {
+          marqueePointerRef.current = null;
+          marquee.move(toLocal(e.clientX, e.clientY));
+          marquee.end();
+          return;
+        }
         if (e.pointerId !== panningPointerRef.current) return;
         const clicked = pressRef.current !== null && !pressRef.current.moved;
         endPan();
@@ -239,9 +276,11 @@ export function BoardViewport(props: BoardViewportProps) {
       }}
       onPointerCancel={(e) => {
         if (e.pointerId === panningPointerRef.current) endPan();
+        if (e.pointerId === marqueePointerRef.current) cancelMarquee();
       }}
       onLostPointerCapture={(e) => {
         if (e.pointerId === panningPointerRef.current) endPan();
+        if (e.pointerId === marqueePointerRef.current) cancelMarquee();
       }}
     >
       <div
@@ -258,6 +297,7 @@ export function BoardViewport(props: BoardViewportProps) {
         </WorldOverlayContext.Provider>
         <div ref={setOverlayEl} className="board-world-overlay" data-testid="board-world-overlay" />
       </div>
+      <MarqueeRect rect={marquee.rect} camera={camera} />
       {props.overlay?.(view)}
       <ZoomControls
         zoomPercent={zoomPercent(camera)}
