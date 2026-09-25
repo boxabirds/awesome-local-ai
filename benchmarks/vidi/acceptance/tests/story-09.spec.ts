@@ -43,7 +43,8 @@ test.describe('story 9 @s09', () => {
     await expect(t).toBeVisible();
     const b0 = await box(t);
     expect(Math.abs(b0.x - 400)).toBeLessThan(PIXEL_TOLERANCE * 4);
-    await page.getByRole('button', { name: 'XL', exact: true }).click();
+    // The spec only asks size buttons to announce their size; 'XL' and 'XL size' both do.
+    await page.getByRole('button', { name: /^XL( size)?$/ }).click();
     await expect.poll(async () => (await box(t)).height).toBeGreaterThan(b0.height * 1.5);
     const b1 = await box(t);
     expect(Math.abs(b1.x - b0.x)).toBeLessThan(PIXEL_TOLERANCE * 4);

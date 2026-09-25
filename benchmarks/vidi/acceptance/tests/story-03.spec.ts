@@ -1,5 +1,5 @@
 // Story 3 — See other people's edits appear live on the same board.
-import { test, expect, requires, openBoard, joinBoard, notes, createNote, box, drag, shot, caretTo } from './fixtures';
+import { test, expect, requires, openBoard, joinBoard, notes, createNote, box, drag, shot, caretTo, clickEmpty } from './fixtures';
 
 // PRD: 1 s delivery. Allow harness overhead on top (Playwright polling, local workerd).
 const LIVE_MS = 2_000;
@@ -63,6 +63,10 @@ test.describe('story 3 @s03', () => {
     await Promise.all([alex.keyboard.type('red ', { delay: 30 }), sam.keyboard.type(' blue', { delay: 30 })]);
     await alex.keyboard.press('Escape');
     await sam.keyboard.press('Escape');
+    // Escape leaves the note selected, and the design lets its toolbar live inside the note
+    // element; deselect so the assertion reads only the note's text.
+    await clickEmpty(alex);
+    await clickEmpty(sam);
     for (const p of [alex, sam]) {
       await expect(notes(p).first()).toHaveText(/^\s*red green blue\s*$/, { timeout: LIVE_MS });
     }
