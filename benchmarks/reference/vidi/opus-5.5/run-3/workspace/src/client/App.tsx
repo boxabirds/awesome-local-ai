@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type * as Y from 'yjs';
 import { BoardViewport } from './canvas/BoardViewport';
 import { screenToWorld, type Camera, type Point } from './canvas/camera';
@@ -10,6 +10,8 @@ import { useTransformGesture } from './board/useTransformGesture';
 import { useBoardKeys } from './board/useBoardKeys';
 import { SelectionOverlay } from './board/SelectionOverlay';
 import { SelectionBar } from './board/SelectionBar';
+import { createUndo, NO_UNDO, type UndoController } from './board/undo';
+import { asStep, UndoContext, useUndo } from './board/useUndo';
 import { getObjectType, type ObjectGesturePhase } from './objects/registry';
 import { createSticky, deleteObjects, snapshot } from '../shared/board-model';
 import { ConnectionStatus } from './sync/ConnectionStatus';
@@ -71,15 +73,44 @@ export function App(props: { boardId?: string; doc?: Y.Doc } = {}) {
     if (!editable && selection.editingId !== null) endEdit('selected');
   }, [editable, selection.editingId, endEdit]);
 
-  const gesture = useTransformGesture({ doc, camera: liveCamera, selection, snapshot: objects, canEdit: editable });
-  useBoardKeys({ doc, selection, snapshot: objects, canEdit: editable });
+  // One undo history per board doc in this tab, memory only: gone on reload or board change (undo.session_only).
+  const [undoController, setUndoController] = useState<UndoController>(NO_UNDO);
+  useEffect(() => {
+    const controller = createUndo(doc);
+    setUndoController(controller);
+    return () => {
+      controller.destroy();
+      setUndoController(NO_UNDO);
+    };
+  }, [doc]);
+  const undoRef = useRef(undoController);
+  undoRef.current = undoController;
+  const undo = useUndo(undoController, editable);
+
+  const gesture = useTransformGesture({
+    doc,
+    camera: liveCamera,
+    selection,
+    snapshot: objects,
+    canEdit: editable,
+    // A whole drag or resize is one undo step, however long it lasts (undo.steps).
+    onGestureStart: () => undoRef.current.beginStep(),
+    onGestureEnd: () => undoRef.current.boundary(),
+  });
+  useBoardKeys({
+    doc,
+    selection,
+    snapshot: objects,
+    canEdit: editable,
+    undo: { undo: undo.undo, redo: undo.redo, controller: undoController },
+  });
 
   const editableRef = useRef(editable);
   editableRef.current = editable;
   const createAt = useCallback(
     (world: Point) => {
       if (!editableRef.current) return;
-      const id = createSticky(doc, world);
+      const id = asStep(undoRef.current, () => createSticky(doc, world));
       if (id) startEdit(id);
     },
     [doc, startEdit],
@@ -87,7 +118,8 @@ export function App(props: { boardId?: string; doc?: Y.Doc } = {}) {
 
   const deleteSelection = useCallback(() => {
     if (!editableRef.current) return;
-    deleteObjects(doc, [...selection.ids]);
+    const ids = [...selection.ids];
+    asStep(undoRef.current, () => deleteObjects(doc, ids));
     clear();
   }, [doc, selection.ids, clear]);
 
@@ -109,65 +141,68 @@ export function App(props: { boardId?: string; doc?: Y.Doc } = {}) {
   };
 
   return (
-    <BoardViewport
-      onDoubleClickEmpty={createAt}
-      onEmptyClick={clear}
-      marquee={marquee}
-      overlay={({ camera, size }) => (
-        <>
-          <SelectionOverlay
-            ids={editingId !== null ? new Set<string>() : selection.ids}
-            snapshot={objects}
-            camera={camera}
-            resizable={editable && gesture.state.mode !== 'moving'}
-            onHandlePointerDown={gesture.onHandlePointerDown}
-          />
-          <Toolbar
-            disabled={!editable}
-            onCreateSticky={() => createAt(screenToWorld(camera, { x: size.width / 2, y: size.height / 2 }))}
-          />
-          <ConnectionStatus state={connection} />
-        </>
-      )}
-    >
-      {({ camera }) => {
-        cameraRef.current = camera;
-        return (
+    <UndoContext.Provider value={undoController}>
+      <BoardViewport
+        onDoubleClickEmpty={createAt}
+        onEmptyClick={clear}
+        marquee={marquee}
+        overlay={({ camera, size }) => (
           <>
-            {stacked.map(({ object, stackIndex }) => {
-              const spec = getObjectType(object.type);
-              if (!spec) return null;
-              const selected = selection.ids.has(object.id);
-              return (
-                <spec.Component
-                  key={object.id}
-                  object={object}
-                  stackIndex={stackIndex}
-                  doc={doc}
-                  zoom={camera.zoom}
-                  selected={selected}
-                  editing={object.id === editingId}
-                  editable={editable}
-                  gesture={phaseOf(object.id, selected)}
-                  onObjectPointerDown={gesture.onObjectPointerDown}
-                  onSelect={click}
-                  onStartEdit={startEdit}
-                  onEndEdit={endEdit}
-                />
-              );
-            })}
-            <SelectionBar
-              ids={selection.ids}
+            <SelectionOverlay
+              ids={editingId !== null ? new Set<string>() : selection.ids}
               snapshot={objects}
-              doc={doc}
-              zoom={camera.zoom}
-              editable={editable}
-              hidden={editingId !== null || moving}
-              onDelete={deleteSelection}
+              camera={camera}
+              resizable={editable && gesture.state.mode !== 'moving'}
+              onHandlePointerDown={gesture.onHandlePointerDown}
             />
+            <Toolbar
+              disabled={!editable}
+              undo={undo}
+              onCreateSticky={() => createAt(screenToWorld(camera, { x: size.width / 2, y: size.height / 2 }))}
+            />
+            <ConnectionStatus state={connection} />
           </>
-        );
-      }}
-    </BoardViewport>
+        )}
+      >
+        {({ camera }) => {
+          cameraRef.current = camera;
+          return (
+            <>
+              {stacked.map(({ object, stackIndex }) => {
+                const spec = getObjectType(object.type);
+                if (!spec) return null;
+                const selected = selection.ids.has(object.id);
+                return (
+                  <spec.Component
+                    key={object.id}
+                    object={object}
+                    stackIndex={stackIndex}
+                    doc={doc}
+                    zoom={camera.zoom}
+                    selected={selected}
+                    editing={object.id === editingId}
+                    editable={editable}
+                    gesture={phaseOf(object.id, selected)}
+                    onObjectPointerDown={gesture.onObjectPointerDown}
+                    onSelect={click}
+                    onStartEdit={startEdit}
+                    onEndEdit={endEdit}
+                  />
+                );
+              })}
+              <SelectionBar
+                ids={selection.ids}
+                snapshot={objects}
+                doc={doc}
+                zoom={camera.zoom}
+                editable={editable}
+                hidden={editingId !== null || moving}
+                onDelete={deleteSelection}
+              />
+            </>
+          );
+        }}
+      </BoardViewport>
+    </UndoContext.Provider>
   );
 }

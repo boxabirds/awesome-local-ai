@@ -5,6 +5,8 @@ import { NUDGE_LARGE_STEP_WORLD, NUDGE_STEP_WORLD } from '../../shared/config';
 import type { Point } from '../../shared/geometry';
 import { getObjectType } from '../objects/registry';
 import type { Selection } from './useSelection';
+import type { UndoController } from './undo';
+import { asStep } from './useUndo';
 
 const ARROWS: Record<string, Point> = {
   ArrowLeft: { x: -1, y: 0 },
@@ -21,23 +23,36 @@ export function isTextField(t: EventTarget | null): boolean {
 /**
  * Board keyboard commands (sel.keyboard): Ctrl/Cmd+A selects everything, Escape clears, arrows nudge
  * (Shift: further), Delete/Backspace delete the selection, Enter edits a single selected note.
- * Ignored while text is being edited or focus is in a text field; changing keys also need `canEdit`.
+ * Ctrl/Cmd+Z undoes, Ctrl/Cmd+Shift+Z and Ctrl+Y redo (story 8).
+ * Ignored while text is being edited (the editor handles its own undo) or focus is in a text field;
+ * changing keys also need `canEdit`. Delete runs as one undo step of its own.
  */
 export function useBoardKeys(opts: {
   doc: Y.Doc;
   selection: Selection;
   snapshot: readonly ObjectSnapshot[];
   canEdit: boolean;
+  /** This tab's undo actions and controller (story 8). */
+  undo?: { undo(): void; redo(): void; controller: UndoController };
 }): void {
   const latest = useRef(opts);
   latest.current = opts;
 
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
-      const { doc, selection, snapshot, canEdit } = latest.current;
+      const { doc, selection, snapshot, canEdit, undo } = latest.current;
       if (selection.editingId !== null || isTextField(e.target) || e.altKey) return;
       const mod = e.ctrlKey || e.metaKey;
       if (mod) {
+        const k = e.key.toLowerCase();
+        const isUndo = k === 'z' && !e.shiftKey;
+        const isRedo = (k === 'z' && e.shiftKey) || (k === 'y' && e.ctrlKey && !e.shiftKey);
+        if (undo && canEdit && (isUndo || isRedo)) {
+          e.preventDefault(); // never the browser's own undo
+          if (isUndo) undo.undo();
+          else undo.redo();
+          return;
+        }
         if (e.key === 'a' || e.key === 'A') {
           e.preventDefault(); // never select the page's text
           selection.setMany(allObjectIds(snapshot), false);
@@ -59,11 +74,14 @@ export function useBoardKeys(opts: {
         for (const o of snapshot) {
           if (selection.ids.has(o.id)) positions.set(o.id, { x: o.x + dir.x * step, y: o.y + dir.y * step });
         }
-        moveObjects(doc, positions);
+        if (undo) asStep(undo.controller, () => moveObjects(doc, positions));
+        else moveObjects(doc, positions);
       } else if (e.key === 'Delete' || e.key === 'Backspace') {
         if (!canEdit) return;
         e.preventDefault();
-        deleteObjects(doc, [...selection.ids]);
+        const ids = [...selection.ids];
+        if (undo) asStep(undo.controller, () => deleteObjects(doc, ids));
+        else deleteObjects(doc, ids);
         selection.clear();
       } else if (e.key === 'Enter') {
         if (!canEdit || selection.ids.size !== 1) return;

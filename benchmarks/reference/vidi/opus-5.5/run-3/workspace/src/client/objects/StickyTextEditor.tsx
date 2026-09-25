@@ -1,7 +1,8 @@
-import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { useContext, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import type * as Y from 'yjs';
 import { LOCAL_ORIGIN } from '../../shared/board-model';
 import { STICKY_TEXT_MAX_CHARS } from '../../shared/config';
+import { UndoContext } from '../board/useUndo';
 import { applyTextDiff, counterVisible, limitEdit, transformIndex } from './StickyText';
 
 /** True once the Y.Text has been removed from the document (its note was deleted). */
@@ -13,6 +14,10 @@ function isDetached(ytext: Y.Text): boolean {
  * In-place textarea for a note's text. Every input is written straight to the Y.Text with a minimal diff,
  * so ending editing (Escape, pointerdown outside the note) needs no extra write and cannot lose text.
  * `paddingTop` lines the text up with the vertically centred display text.
+ *
+ * Undo (story 8): editing starts and ends an undo step boundary; typing in between groups into bursts by the
+ * capture timeout. Ctrl/Cmd+Z here undoes only typing done since editing started (never earlier actions),
+ * through the shared history, so the browser's own textarea undo never diverges from the Y.Text.
  */
 export function StickyTextEditor(props: {
   ytext: Y.Text;
@@ -26,6 +31,15 @@ export function StickyTextEditor(props: {
   const [length, setLength] = useState(() => ytext.length);
   const onEndRef = useRef(props.onEnd);
   onEndRef.current = props.onEnd;
+  const undo = useContext(UndoContext);
+  // The steps on top of the stacks when editing started: in-editor undo and redo never go past them.
+  const marksRef = useRef<{ undo: object | null; redo: object | null }>({ undo: null, redo: null });
+
+  useEffect(() => {
+    undo.boundary();
+    marksRef.current = { undo: undo.topUndo(), redo: undo.topRedo() };
+    return () => undo.boundary();
+  }, [undo]);
 
   // Start editing: current text, focused, caret at the end.
   useLayoutEffect(() => {
@@ -105,6 +119,22 @@ export function StickyTextEditor(props: {
         }}
         onBlur={commit}
         onKeyDown={(e) => {
+          const k = e.key.toLowerCase();
+          const mod = (e.ctrlKey || e.metaKey) && !e.altKey;
+          const isUndo = mod && k === 'z' && !e.shiftKey;
+          const isRedo = mod && ((k === 'z' && e.shiftKey) || (k === 'y' && e.ctrlKey && !e.shiftKey));
+          if (isUndo || isRedo) {
+            e.preventDefault();
+            e.stopPropagation();
+            if (composingRef.current) return;
+            commit();
+            if (isUndo) {
+              if (undo.canUndo() && undo.topUndo() !== marksRef.current.undo) undo.undo();
+            } else if (undo.canRedo() && undo.topRedo() !== marksRef.current.redo) {
+              undo.redo();
+            }
+            return;
+          }
           if (e.key === 'Escape') {
             e.preventDefault();
             e.stopPropagation();

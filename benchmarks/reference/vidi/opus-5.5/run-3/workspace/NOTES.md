@@ -323,3 +323,52 @@ Decisions made where the spec left room:
 - **Red phase.** As in earlier stories, there are no separate commits for the failing tests. This build uses
   one commit per story.
 - **Not covered here** (as the design says): the 200-note move/resize performance run and touch input.
+
+## Story 8 — Undo and redo my own changes without undoing anyone else's
+
+Decisions made where the spec left room:
+
+- **Capture timing lives in the controller.** `Y.UndoManager` reads its clock through lib0, which keeps a reference
+  to `Date.now` from import time. So its merge window can't be tested with `vi.setSystemTime` (TC-12, TC-13), and
+  it would not match the app's clock. The manager is created with an infinite `captureTimeout`. The controller's
+  own `afterTransaction` handler is registered before the manager's. It calls `stopCapturing()` when a
+  LOCAL_ORIGIN transaction comes UNDO_CAPTURE_TIMEOUT_MS or more after the previous one. Exactly the timeout
+  starts a new step; timeout − 1 ms merges.
+- **Gestures use `beginStep()`, not only `boundary()`.** The design has frames merge because they are less than
+  500 ms apart. A drag held still for half a second would then split into two steps and break undo.steps. So
+  `onGestureStart` calls `beginStep()`, which is `boundary()` plus "keep this step open until the next
+  `boundary()`". `onGestureEnd` calls `boundary()` (it also runs on pointercancel). There is a component test for
+  a held drag.
+- **One undo is one step, even if it has no effect.** Left to itself, `Y.UndoManager.undo()` keeps popping while a
+  step changes nothing. For example, a step whose note someone else deleted would silently undo an *older* step as
+  well. While `undo()`/`redo()` run, the controller hides the older stack items. A step with no effect is then just
+  consumed ("nothing visible happens; the next undo continues normally", TC-07, TC-23). It still returns `true`,
+  because the stack was not empty.
+- **Extra controller members.** Besides the contract, the controller has `beginStep()` (above) and
+  `topUndo()`/`topRedo()`. The text editor records the stack tops when editing starts. Ctrl/Cmd+Z inside the
+  textarea undoes only while the top is above that mark, so it undoes typing in this note but never earlier
+  actions (TC-16). Ctrl/Cmd+Shift+Z / Ctrl+Y inside the editor redo only what was undone there. The shortcut is
+  always `preventDefault`ed in the editor, even when there is nothing to undo, so the browser's native textarea
+  undo never diverges from the Y.Text.
+- **`addScope` takes `Y.AbstractType<any>`.** With `AbstractType<unknown>` as in the design, a `Y.Map` is not
+  assignable (its event type is invariant), so story 16 could not pass its comments map.
+- **Controller lifetime.** `App.tsx` creates the controller in an effect keyed on the doc and destroys it in the
+  cleanup. This is safe under StrictMode's double effects. Until the effect runs, a no-op `NO_UNDO` controller
+  is used. The controller reaches the text editor and the note toolbar through `UndoContext` (in `useUndo.ts`).
+- **Steps for single actions.** `asStep(controller, fn)` wraps a model call with `boundary()` before and after.
+  Creating a note (double-click and toolbar), Delete/Backspace, the Delete buttons, each arrow-key nudge and
+  colour changes use it. So two quick colour clicks are two steps, and a note's creation is separate from the
+  typing that follows it.
+- **Shortcuts.** Ctrl/Cmd+Z → undo, Ctrl/Cmd+Shift+Z → redo, and Ctrl+Y (Ctrl only, since Cmd+Y is browser
+  history on macOS) → redo. They are handled in `useBoardKeys`'s modifier branch with `preventDefault`. They are
+  ignored while a note is being edited (the editor handles them), when focus is in any other text field (e.g. the
+  share link), and when the board can't be edited (the default is not prevented then either).
+- **Buttons.** They sit below the Sticky note tool in the left toolbar, after a thin divider. Their tooltips are
+  "Undo (Ctrl/Cmd+Z)" and "Redo (Ctrl/Cmd+Shift+Z)". They are `disabled` with `aria-disabled` when the stack is
+  empty or the board failed to load.
+- **Fixture.** `undoBoard()` in `tests/fixtures/boards.ts` has 12 notes in 6 colours and sizes from 180 to 240.
+  The 8-note cluster is `ids[0..7]`. It is seeded through the existing test hook.
+- **Unit-test peer.** `tests/unit/peer.ts` keeps a second real Y.Doc in sync synchronously with a non-local
+  origin. Its "load" helper uses its own symbol with the same role as the worker's `LOAD_ORIGIN`, so client unit
+  tests don't import worker code.
+- **Browsers.** The story 8 e2e specs pass in Chromium, Firefox and WebKit (Chromium repeated 3× without flakes).
