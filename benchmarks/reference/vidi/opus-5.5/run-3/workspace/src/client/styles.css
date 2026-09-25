@@ -340,3 +340,33 @@ body {
   outline: 2px solid #3b6cf6;
   outline-offset: 1px;
 }
+
+/* Story 3 — connection status badge, top centre. Never intercepts pointer input. */
+.connection-status {
+  position: fixed;
+  top: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 20;
+  padding: 4px 12px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 500;
+  pointer-events: none;
+  background: #eceef4;
+  color: #3a3f52;
+  border: 1px solid #d3d7e2;
+  box-shadow: 0 2px 8px rgba(20, 24, 40, 0.08);
+}
+
+.connection-status--reconnecting {
+  background: #fff3cd;
+  color: #7a4f00;
+  border-color: #f0c36d;
+}
+
+.connection-status--confirmed {
+  background: #dcf5e1;
+  color: #1d6b32;
+  border-color: #8fd19e;
+}

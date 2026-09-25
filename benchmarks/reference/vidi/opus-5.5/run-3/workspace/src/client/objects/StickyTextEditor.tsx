@@ -2,7 +2,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import type * as Y from 'yjs';
 import { LOCAL_ORIGIN } from '../../shared/board-model';
 import { STICKY_TEXT_MAX_CHARS } from '../../shared/config';
-import { applyTextDiff, counterVisible, limitEdit } from './StickyText';
+import { applyTextDiff, counterVisible, limitEdit, transformIndex } from './StickyText';
 
 /** True once the Y.Text has been removed from the document (its note was deleted). */
 function isDetached(ytext: Y.Text): boolean {
@@ -40,14 +40,18 @@ export function StickyTextEditor(props: {
 
   // Changes to the text that did not come from this textarea (other people, from story 3).
   useEffect(() => {
-    const onChange = () => {
+    const onChange = (event: Y.YTextEvent) => {
       const ta = ref.current;
       if (!ta || composingRef.current) return;
       const value = ytext.toString();
       if (ta.value === value) return;
-      const caret = Math.min(ta.selectionStart, value.length);
+      // Keep the caret (and selection) next to the same characters while others type elsewhere.
+      const delta = event.changes.delta;
+      const start = Math.min(transformIndex(delta, ta.selectionStart), value.length);
+      const end = Math.min(transformIndex(delta, ta.selectionEnd), value.length);
+      const focused = document.activeElement === ta;
       ta.value = value;
-      ta.setSelectionRange(caret, caret);
+      if (focused) ta.setSelectionRange(start, Math.max(start, end));
       setLength(value.length);
     };
     ytext.observe(onChange);

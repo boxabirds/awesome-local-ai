@@ -1,6 +1,7 @@
-import { useState, useSyncExternalStore } from 'react';
+import { useEffect, useState, useSyncExternalStore } from 'react';
 import * as Y from 'yjs';
 import { initDoc, snapshot, type StickySnapshot } from '../../shared/board-model';
+import { connectBoard, type ConnectionState } from '../sync/connectBoard';
 
 type Notes = readonly StickySnapshot[];
 
@@ -64,10 +65,14 @@ function createSnapshotStore(doc: Y.Doc): SnapshotStore {
 }
 
 /**
- * Owns the board's Y.Doc (in memory in this story; story 3 attaches a provider, story 4 persists it)
- * and exposes an immutable, (z, id)-sorted snapshot of its notes. `existing` lets tests pass their own doc.
+ * Owns the board's Y.Doc and exposes an immutable, (z, id)-sorted snapshot of its notes.
+ * With a `boardId` the doc is kept in sync with that board's room (remote changes re-render through the
+ * same observer as local ones) until unmount or board change. `existing` lets tests pass their own doc.
  */
-export function useBoardDoc(existing?: Y.Doc): { doc: Y.Doc; notes: Notes } {
+export function useBoardDoc(
+  boardId?: string,
+  existing?: Y.Doc,
+): { doc: Y.Doc; notes: Notes; connection: ConnectionState } {
   const [doc] = useState(() => {
     const d = existing ?? new Y.Doc();
     initDoc(d);
@@ -75,5 +80,11 @@ export function useBoardDoc(existing?: Y.Doc): { doc: Y.Doc; notes: Notes } {
   });
   const [store] = useState(() => createSnapshotStore(doc));
   const notes = useSyncExternalStore(store.subscribe, store.getSnapshot);
-  return { doc, notes };
+  const [connection, setConnection] = useState<ConnectionState>(boardId ? 'connecting' : 'connected');
+  useEffect(() => {
+    if (!boardId) return;
+    const conn = connectBoard(doc, boardId, setConnection);
+    return () => conn.destroy();
+  }, [doc, boardId]);
+  return { doc, notes, connection };
 }

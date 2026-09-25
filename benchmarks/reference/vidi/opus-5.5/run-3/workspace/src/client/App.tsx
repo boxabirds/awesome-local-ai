@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type * as Y from 'yjs';
 import { BoardViewport } from './canvas/BoardViewport';
 import { screenToWorld, type Point } from './canvas/camera';
@@ -8,15 +8,43 @@ import { useBoardDoc } from './board/useBoardDoc';
 import { useSelection } from './board/useSelection';
 import { StickyNote } from './objects/StickyNote';
 import { createSticky, deleteObject, snapshot } from '../shared/board-model';
+import { isValidBoardId, newBoardId } from '../shared/board-id';
+import { ConnectionStatus } from './sync/ConnectionStatus';
 
 function isTextField(t: EventTarget | null): boolean {
   if (!(t instanceof HTMLElement)) return false;
   return t.isContentEditable || t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT';
 }
 
-/** `doc` lets tests supply their own document; the app creates one. */
-export function App(props: { doc?: Y.Doc } = {}) {
-  const { doc, notes } = useBoardDoc(props.doc);
+const BOARD_PATH = /^\/b\/([^/]+)\/?$/;
+
+/** The board id in a `/b/:boardId` path, or null. */
+export function boardIdFromPath(pathname: string): string | null {
+  const id = BOARD_PATH.exec(pathname)?.[1];
+  return id !== undefined && isValidBoardId(id) ? id : null;
+}
+
+/**
+ * Routes `/b/:boardId` to that board. Any other address (including `/`) is sent to a fresh board id;
+ * story 5 replaces this with server-side board creation.
+ */
+export function Root() {
+  const [boardId] = useState(() => {
+    const id = boardIdFromPath(window.location.pathname);
+    if (id) return id;
+    const created = newBoardId();
+    window.history.replaceState(null, '', `/b/${created}`);
+    return created;
+  });
+  return <App key={boardId} boardId={boardId} />;
+}
+
+/**
+ * One board. With `boardId` it is live-synced with everyone else on that board.
+ * `doc` lets tests supply their own document; the app creates one.
+ */
+export function App(props: { boardId?: string; doc?: Y.Doc } = {}) {
+  const { doc, notes, connection } = useBoardDoc(props.boardId, props.doc);
   const selection = useSelection();
   const { select, startEdit, endEdit } = selection;
 
@@ -68,13 +96,17 @@ export function App(props: { doc?: Y.Doc } = {}) {
   }, [doc, startEdit]);
 
   useEffect(() => installTestHooks({ notes: () => snapshot(doc) }), [doc]);
+  useEffect(() => installTestHooks({ connectionState: connection }), [connection]);
 
   return (
     <BoardViewport
       onDoubleClickEmpty={createAt}
       onEmptyClick={() => select(null)}
       overlay={({ camera, size }) => (
-        <Toolbar onCreateSticky={() => createAt(screenToWorld(camera, { x: size.width / 2, y: size.height / 2 }))} />
+        <>
+          <Toolbar onCreateSticky={() => createAt(screenToWorld(camera, { x: size.width / 2, y: size.height / 2 }))} />
+          <ConnectionStatus state={connection} />
+        </>
       )}
     >
       {({ camera }) =>
