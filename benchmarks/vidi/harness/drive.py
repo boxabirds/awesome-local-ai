@@ -393,8 +393,9 @@ def needs_nudge(attempt: dict, commits: int) -> bool:
 
 
 def keep_nudging(attempt: dict, commits: int, nudges: int) -> bool:
-    """Nudge again unless the agent committed, or the previous nudge made no progress (zero model calls)."""
-    if nudges > 0 and attempt.get("steps", 0) == 0:
+    """Nudge again unless the agent committed, or the previous nudge made no progress: no model call,
+    or only talk with no tool call (e.g. "Nothing left to do." — 3,066 times in canvas-pi-01 story 11)."""
+    if nudges > 0 and (attempt.get("steps", 0) == 0 or attempt.get("tool_calls", 0) == 0):
         return False
     return needs_nudge(attempt, commits)
 

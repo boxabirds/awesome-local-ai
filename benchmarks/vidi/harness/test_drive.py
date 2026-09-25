@@ -424,10 +424,19 @@ def test_sampler_aborts_when_swap_grows(monkeypatch):
 def test_nudges_are_unlimited_but_stop_when_a_nudge_makes_no_progress():
     """User decision (24 Sep): no cap on nudges. Only a nudged session that makes zero model calls stops it."""
     from drive import keep_nudging
-    progressing = {"stalled": False, "error": None, "session": "s", "steps": 5}
+    progressing = {"stalled": False, "error": None, "session": "s", "steps": 5, "tool_calls": 4}
     assert keep_nudging(progressing, commits=0, nudges=50) is True          # no cap
     assert keep_nudging(progressing, commits=1, nudges=0) is False          # it committed
     assert keep_nudging({**progressing, "steps": 0}, commits=0, nudges=3) is False  # no progress on a nudge
+
+
+def test_a_nudge_answered_without_any_tool_call_is_no_progress():
+    """canvas-pi-01 story 11 (25 Sep): 3,066 nudges each answered "Nothing left to do." with no tool
+    call and no commit. A reply is a model call but not progress; the story must end instead."""
+    from drive import keep_nudging
+    talked_only = {"stalled": False, "error": None, "session": "s", "steps": 1, "tool_calls": 0}
+    assert keep_nudging(talked_only, commits=0, nudges=1) is False
+    assert keep_nudging(talked_only, commits=0, nudges=0) is True   # the first stop still gets a nudge
 
 
 def test_last_session_is_found_so_a_restarted_story_continues_it(tmp_path):
