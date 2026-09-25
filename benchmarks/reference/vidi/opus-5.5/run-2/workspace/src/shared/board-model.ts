@@ -78,6 +78,30 @@ export function registerSnapshotReader(type: string, reader: SnapshotReader): vo
   snapshotReaders.set(type, reader);
 }
 
+/**
+ * Story 10: objects whose geometry derives from other objects (connectors). After every
+ * object is read, `resolve` gets the snapshot and the rects of all objects of types
+ * without a resolver, and returns the snapshot with its derived fields.
+ */
+export type SnapshotResolver = (snap: ObjectSnapshot, rects: ReadonlyMap<string, Rect>) => ObjectSnapshot;
+const snapshotResolvers = new Map<string, SnapshotResolver>();
+
+export function registerSnapshotResolver(type: string, resolve: SnapshotResolver): void {
+  snapshotResolvers.set(type, resolve);
+}
+
+/**
+ * Story 10: runs inside `deleteObjects`' transaction before the objects are removed (the
+ * connector model detaches arrows from them). Kept as a hook so board-model imports no
+ * object type module.
+ */
+export type DeleteHook = (doc: Y.Doc, deletedIds: readonly string[]) => void;
+const deleteHooks: DeleteHook[] = [];
+
+export function registerDeleteHook(hook: DeleteHook): void {
+  if (!deleteHooks.includes(hook)) deleteHooks.push(hook);
+}
+
 type ObjectMap = Y.Map<unknown>;
 
 function objects(doc: Y.Doc): Y.Map<ObjectMap> {
@@ -266,9 +290,26 @@ export function deleteObjects(doc: Y.Doc, ids: readonly string[]): number {
   const present = [...new Set(ids)].filter((id) => map.has(id));
   if (present.length === 0) return 0;
   doc.transact(() => {
+    for (const hook of deleteHooks) hook(doc, present);
     for (const id of present) map.delete(id);
   }, LOCAL_ORIGIN);
   return present.length;
+}
+
+/** The stored rect of an object (world units), or undefined for a missing or unreadable one. */
+export function objectRect(doc: Y.Doc, id: string): Rect | undefined {
+  const obj = objects(doc).get(id);
+  if (!(obj instanceof Y.Map)) return undefined;
+  const x = obj.get('x');
+  const y = obj.get('y');
+  if (typeof x !== 'number' || typeof y !== 'number' || !finite(x, y)) return undefined;
+  return { x, y, width: positiveSize(obj.get('width')), height: positiveSize(obj.get('height')) };
+}
+
+/** Type of an object, or undefined when it does not exist. */
+export function objectType(doc: Y.Doc, id: string): string | undefined {
+  const type = objects(doc).get(id)?.get('type');
+  return typeof type === 'string' ? type : undefined;
 }
 
 /** True while an object with this id exists in the document. */
@@ -337,6 +378,14 @@ export function snapshotObjects(doc: Y.Doc): readonly ObjectSnapshot[] {
     const read = readObject(id, obj);
     if (read !== null) list.push(read);
   });
+  if (snapshotResolvers.size > 0 && list.some((o) => snapshotResolvers.has(o.type))) {
+    const rects = new Map<string, Rect>();
+    for (const o of list) if (!snapshotResolvers.has(o.type)) rects.set(o.id, objectBounds(o));
+    for (let i = 0; i < list.length; i += 1) {
+      const resolve = snapshotResolvers.get(list[i]!.type);
+      if (resolve !== undefined) list[i] = Object.freeze(resolve(list[i]!, rects));
+    }
+  }
   list.sort(compareZ);
   return Object.freeze(list);
 }

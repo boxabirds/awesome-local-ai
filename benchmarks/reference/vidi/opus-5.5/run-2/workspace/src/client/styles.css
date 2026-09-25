@@ -718,3 +718,185 @@ body,
   background: #e3eefe;
   color: var(--selection);
 }
+
+/* ---- Story 10: shapes and connectors ---- */
+.toolbar-shape {
+  position: relative;
+}
+
+.shape-kind-menu {
+  position: absolute;
+  left: calc(100% + 8px);
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  gap: 4px;
+  padding: 4px;
+  background: var(--panel-bg);
+  border: 1px solid var(--panel-border);
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgb(0 0 0 / 0.15);
+}
+
+.board-toolbar .shape-kind-menu button[aria-checked='true'] {
+  background: #e3eefe;
+  color: var(--selection);
+}
+
+/* Creation tool layers cover the board and own every press while their tool is active. */
+.tool-layer {
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  cursor: crosshair;
+  touch-action: none;
+}
+
+.tool-svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  pointer-events: none;
+}
+
+.shape-preview {
+  position: absolute;
+  overflow: visible;
+  pointer-events: none;
+}
+
+.shape-preview-outline {
+  stroke: var(--selection);
+  stroke-width: 1.5px;
+}
+
+.connector-preview {
+  stroke: var(--selection);
+  stroke-width: 2px;
+  stroke-dasharray: 6 4;
+}
+
+.connection-dot {
+  fill: #ffffff;
+  stroke: var(--selection);
+  stroke-width: 1.5px;
+  pointer-events: none;
+}
+
+.connection-dot[data-highlighted='true'] {
+  fill: var(--selection);
+}
+
+.shape-object {
+  position: absolute;
+  box-sizing: border-box;
+  color: var(--sticky-ink);
+  cursor: default;
+}
+
+.shape-object:focus {
+  outline: none;
+}
+
+.shape-object:focus-visible {
+  outline: calc(2px / var(--zoom, 1)) solid var(--selection);
+  outline-offset: calc(2px / var(--zoom, 1));
+}
+
+.shape-object[data-state='dragging'] {
+  cursor: grabbing;
+}
+
+.shape-svg {
+  position: absolute;
+  left: 0;
+  top: 0;
+  overflow: visible;
+  pointer-events: none;
+}
+
+.shape-label-box {
+  position: absolute;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  /* A label longer than the shape can hold stays centred and spills over top and bottom. */
+  overflow: visible;
+}
+
+.shape-label {
+  max-width: 100%;
+  text-align: center;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  pointer-events: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.shape-label-editor {
+  position: absolute;
+  left: 0;
+  box-sizing: border-box;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  border: none;
+  outline: none;
+  resize: none;
+  background: transparent;
+  color: inherit;
+  text-align: center;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  overflow: hidden;
+  user-select: text;
+  -webkit-user-select: text;
+  cursor: text;
+}
+
+.connector-object {
+  position: absolute;
+  pointer-events: none;
+}
+
+.connector-object:focus {
+  outline: none;
+}
+
+.connector-object:focus-visible .connector-line {
+  stroke: var(--selection);
+}
+
+.connector-svg {
+  position: absolute;
+  left: 0;
+  top: 0;
+  overflow: visible;
+}
+
+.connector-hit {
+  pointer-events: stroke;
+  cursor: pointer;
+}
+
+.connector-handle {
+  fill: #ffffff;
+  stroke: var(--selection);
+  pointer-events: all;
+  cursor: move;
+  touch-action: none;
+}
+
+.note-toolbar .swatch-none {
+  background-image: linear-gradient(135deg, transparent 45%, #e53935 45%, #e53935 55%, transparent 55%);
+}
+
+.note-toolbar .swatch-outline {
+  background: #ffffff;
+  border-width: 4px;
+  border-style: solid;
+}

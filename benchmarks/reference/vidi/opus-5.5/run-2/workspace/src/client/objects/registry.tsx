@@ -4,18 +4,36 @@
  * (sel.all_types). Stories 9–12 call `registerObjectType` and add no selection or
  * transform code of their own.
  */
-import { memo, type ComponentType, type PointerEvent } from 'react';
+import { memo, useContext, type ComponentType, type PointerEvent } from 'react';
 import type * as Y from 'yjs';
 import {
   declareObjectType,
   isStickySnapshot,
+  LOCAL_ORIGIN,
   moveObjects,
   objectBounds,
   type ObjectSnapshot,
 } from '../../shared/board-model';
 import { isTextSnapshot, setTextWidthFixed } from '../../shared/objects/text';
-import { STICKY_MIN_SIZE_WORLD, TEXT_MIN_WIDTH_WORLD } from '../../shared/config';
+import { isShapeSnap } from '../../shared/objects/shape';
+import {
+  CONNECTOR_TYPE,
+  isConnectorSnap,
+  moveConnector,
+  setConnectorEndpoint,
+  type Endpoint,
+} from '../../shared/objects/connector';
+import {
+  CONNECTOR_HIT_TOLERANCE_PX,
+  SHAPE_MIN_SIZE_WORLD,
+  STICKY_MIN_SIZE_WORLD,
+  TEXT_MIN_WIDTH_WORLD,
+} from '../../shared/config';
 import { rectContains, type Point, type Rect } from '../../shared/geometry';
+import { distanceToPolyline } from '../../shared/geometry/polyline';
+import { BoardObjectsContext } from './BoardObjectsContext';
+import { ConnectorObject } from './ConnectorObject';
+import { ShapeObject } from './ShapeObject';
 import { StickyNote } from './StickyNote';
 import { TextObject } from './TextObject';
 import { defaultMeasurer } from './textLayout';
@@ -48,7 +66,15 @@ export interface ObjectTypeSpec {
   /** Smallest width and height, in world units. */
   minSize: number;
   editableText: boolean;
-  hitTest(obj: ObjectSnapshot, worldPoint: Point): boolean;
+  /** `zoom` lets thin objects (story 10 arrows) use a tolerance in screen pixels. Default 1. */
+  hitTest(obj: ObjectSnapshot, worldPoint: Point, zoom?: number): boolean;
+  /** Story 10: false hides the selection outline (arrows show their own end handles). Default true. */
+  outline?: boolean;
+  /**
+   * Story 10: writes a move by `d` from the object's state `start` instead of the generic
+   * top-left write (arrows move their free ends).
+   */
+  applyMove?(doc: Y.Doc, start: ObjectSnapshot, d: Point): void;
   /**
    * Story 9: 'horizontal' shows only the left and right handles when every selected object
    * is of such a type (height follows content). Default 'all'.
@@ -63,7 +89,7 @@ export interface ObjectTypeSpec {
    * Writes the object's part of a resize instead of the generic rect write: `to` is the
    * object's proportionally scaled rect, `from` its rect when the gesture started.
    */
-  applyResize?(doc: Y.Doc, obj: ObjectSnapshot, to: Rect, from: Rect, mode: ResizeMode): void;
+  applyResize?(doc: Y.Doc, obj: ObjectSnapshot, to: Rect, from: Rect, mode: ResizeMode, start: ObjectSnapshot): void;
 }
 
 /** 'horizontal': a side handle of a selection of horizontal-only types; 'group': any other resize. */
@@ -85,6 +111,47 @@ export function getObjectType(type: string): ObjectTypeSpec | undefined {
 /** True when the point lies within the object's bounds (edges included). */
 export function boundsHitTest(obj: ObjectSnapshot, p: Point): boolean {
   return rectContains(objectBounds(obj), { x: p.x, y: p.y, width: 0, height: 0 });
+}
+
+/**
+ * Moves each object by `d` from its state in `starts` in one transaction: the generic
+ * top-left write, or the type's own `applyMove` (story 7 move and nudge).
+ */
+export function moveSnapshots(doc: Y.Doc, starts: readonly ObjectSnapshot[], d: Point): void {
+  const positions = new Map<string, Point>();
+  const custom: (() => void)[] = [];
+  for (const o of starts) {
+    const apply = getObjectType(o.type)?.applyMove;
+    if (apply !== undefined) custom.push(() => apply(doc, o, d));
+    else positions.set(o.id, { x: o.x + d.x, y: o.y + d.y });
+  }
+  if (custom.length === 0) {
+    moveObjects(doc, positions);
+    return;
+  }
+  doc.transact(() => {
+    moveObjects(doc, positions);
+    custom.forEach((fn) => fn());
+  }, LOCAL_ORIGIN);
+}
+
+/**
+ * The topmost object an arrow end can attach to at `p` (every known type except arrows),
+ * skipping `excludeId`. Story 10 connector tool and end handles.
+ */
+export function connectableAt(
+  objects: readonly ObjectSnapshot[],
+  p: Point,
+  zoom: number,
+  excludeId?: string,
+): ObjectSnapshot | undefined {
+  for (let i = objects.length - 1; i >= 0; i -= 1) {
+    const o = objects[i]!;
+    if (o.type === CONNECTOR_TYPE || o.id === excludeId) continue;
+    const spec = getObjectType(o.type);
+    if (spec !== undefined && spec.hitTest(o, p, zoom)) return o;
+  }
+  return undefined;
 }
 
 const StickyObject = memo(function StickyObject(props: ObjectProps): React.JSX.Element | null {
@@ -128,5 +195,56 @@ registerObjectType('text', {
     moveObjects(doc, new Map([[obj.id, { x: to.x, y: mode === 'horizontal' ? from.y : to.y }]]));
     if (widthChanged && (mode === 'horizontal' || obj.widthMode === 'fixed')) setTextWidthFixed(doc, obj.id, to.width);
     syncTextBox(doc, obj.id, defaultMeasurer());
+  },
+});
+
+const ShapeEntry = memo(function ShapeEntry(props: ObjectProps): React.JSX.Element | null {
+  const { object, ...rest } = props;
+  return isShapeSnap(object) ? <ShapeObject shape={object} {...rest} /> : null;
+});
+
+registerObjectType('shape', {
+  Component: ShapeEntry,
+  resizable: true,
+  aspectLocked: false,
+  minSize: SHAPE_MIN_SIZE_WORLD,
+  editableText: true,
+  hitTest: boundsHitTest,
+});
+
+function ConnectorEntry(props: ObjectProps): React.JSX.Element | null {
+  const { object, ...rest } = props;
+  // Only arrows read the rects of every object: they redraw when anything they attach to moves.
+  const { rects } = useContext(BoardObjectsContext);
+  return isConnectorSnap(object) ? <ConnectorObject connector={object} rects={rects} {...rest} /> : null;
+}
+
+/** Scales a free end from the arrow's start box into its resized box (group resize). */
+function scaleFree(e: Endpoint, from: Rect, to: Rect): Endpoint | null {
+  if (e.kind !== 'free') return null;
+  const sx = from.width > 0 ? to.width / from.width : 1;
+  const sy = from.height > 0 ? to.height / from.height : 1;
+  return { kind: 'free', x: to.x + (e.x - from.x) * sx, y: to.y + (e.y - from.y) * sy };
+}
+
+registerObjectType(CONNECTOR_TYPE, {
+  Component: ConnectorEntry,
+  resizable: false,
+  aspectLocked: false,
+  minSize: 0,
+  editableText: false,
+  outline: false,
+  // connector.select: within CONNECTOR_HIT_TOLERANCE_PX screen pixels of the line.
+  hitTest: (obj, p, zoom = 1) =>
+    isConnectorSnap(obj) && distanceToPolyline([obj.fromPoint, obj.toPoint], p) <= CONNECTOR_HIT_TOLERANCE_PX / zoom,
+  applyMove(doc, start, d) {
+    if (isConnectorSnap(start)) moveConnector(doc, start, d);
+  },
+  applyResize(doc, _obj, to, from, _mode, start) {
+    if (!isConnectorSnap(start)) return;
+    for (const end of ['from', 'to'] as const) {
+      const next = scaleFree(start[end], from, to);
+      if (next !== null) setConnectorEndpoint(doc, start.id, end, next);
+    }
   },
 });

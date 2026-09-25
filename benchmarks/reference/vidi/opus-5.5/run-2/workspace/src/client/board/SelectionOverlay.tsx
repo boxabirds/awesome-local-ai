@@ -78,9 +78,12 @@ export function SelectionOverlay(props: SelectionOverlayProps): React.JSX.Elemen
   const horizontalOnly = objs.every((o) => getObjectType(o.type)?.handles === 'horizontal');
   const handles = horizontalOnly ? HORIZONTAL_HANDLES : HANDLES;
   const screenBox = toScreenRect(camera, box);
+  // Arrows (story 10) show their own end handles instead of an outline.
+  const outlined = objs.filter((o) => getObjectType(o.type)?.outline !== false);
+  const showBox = outlined.length > 0 || showHandles;
   return (
     <div className="selection-overlay" data-testid="selection-overlay">
-      {objs.map((o) => (
+      {outlined.map((o) => (
         <div
           key={o.id}
           className="selection-outline"
@@ -89,7 +92,11 @@ export function SelectionOverlay(props: SelectionOverlayProps): React.JSX.Elemen
           style={rectStyle(toScreenRect(camera, objectBounds(o)))}
         />
       ))}
-      <div className="selection-box" data-testid="selection-box" style={rectStyle(screenBox)}>
+      <div
+        className="selection-box"
+        data-testid="selection-box"
+        style={{ ...rectStyle(screenBox), ...(showBox ? {} : { borderColor: 'transparent' }) }}
+      >
         {showHandles &&
           handles.map((h) => {
             const [fx, fy] = HANDLE_POSITION[h];

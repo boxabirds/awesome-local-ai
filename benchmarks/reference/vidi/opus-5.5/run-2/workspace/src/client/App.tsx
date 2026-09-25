@@ -12,16 +12,22 @@ import { useSelection } from './board/useSelection';
 import { useBoardKeys } from './board/useBoardKeys';
 import { UndoContext, useUndo, useUndoController } from './board/useUndo';
 import { useTransformGesture } from './board/useTransformGesture';
-import { useTool } from './board/useTool';
+import { useActiveTool } from './tools/useActiveTool';
+import { ShapeTool } from './tools/ShapeTool';
+import { ConnectorTool } from './tools/ConnectorTool';
+import { BoardObjectsContext, type BoardObjects } from './objects/BoardObjectsContext';
 import { MarqueeRect, useMarquee } from './board/Marquee';
 import { SelectionOverlay } from './board/SelectionOverlay';
 import { SelectionBar } from './board/SelectionBar';
 import { getObjectType } from './objects/registry';
 import { ConnectionStatus } from './sync/ConnectionStatus';
 import type { ConnectionState, ProviderFactory } from './sync/connectBoard';
-import { createSticky, deleteObjects, setStickyColor } from '../shared/board-model';
+import { createSticky, deleteObjects, objectBounds, setStickyColor } from '../shared/board-model';
 import { createText, setTextSize } from '../shared/objects/text';
-import type { StickyColor, TextSize } from '../shared/config';
+import { setShapeStyle } from '../shared/objects/shape';
+import { CONNECTOR_TYPE } from '../shared/objects/connector';
+import type { FillColor, StickyColor, StrokeColor, TextSize } from '../shared/config';
+import type { Rect } from '../shared/geometry';
 import { defaultMeasurer } from './objects/textLayout';
 import { syncTextBox } from './objects/useTextBoxSync';
 import { BoardPage } from './pages/BoardPage';
@@ -63,10 +69,16 @@ export function App(props: AppProps = {}): React.JSX.Element {
   const editable = canEdit(connection);
   // Stands in for story 6's identity (not part of this build): one id per tab, for `createdBy`.
   const [localAuthor] = useState(() => `g_${crypto.randomUUID()}`);
-  const tools = useTool(editable);
-  const { tool, setTool } = tools;
   const selection = useSelection(objects);
   const { ids: selectedIds, click, clear, setMany, startEdit, endEdit } = selection;
+  const tools = useActiveTool({ canEdit: editable, onSelect: selection.selectCreated });
+  const { tool, setTool } = tools;
+  // Arrows resolve their attached ends against these rects (story 10).
+  const boardObjects = useMemo<BoardObjects>(() => {
+    const rects = new Map<string, Rect>();
+    for (const o of objects) if (o.type !== CONNECTOR_TYPE) rects.set(o.id, objectBounds(o));
+    return { objects, rects };
+  }, [objects]);
   const editingId = editable ? selection.editingId : null;
   // DOM order never changes when objects are brought to front (moving a DOM node would drop
   // its pointer capture mid-drag); stacking comes from each object's z-index instead.
@@ -161,9 +173,19 @@ export function App(props: AppProps = {}): React.JSX.Element {
     (id: string, c: StickyColor) => step(() => setStickyColor(doc, id, c)),
     [doc, step],
   );
+  const onShapeStyle = useCallback(
+    (id: string, style: { fill?: FillColor; stroke?: StrokeColor }) => step(() => setShapeStyle(doc, id, style)),
+    [doc, step],
+  );
 
   const overlay = (
     <>
+      {editable && tool === 'shape' && (
+        <ShapeTool kind={tools.shapeKind} camera={camera} onCreated={tools.toolCreated} doc={doc} createdBy={localAuthor} />
+      )}
+      {editable && tool === 'connector' && (
+        <ConnectorTool camera={camera} snapshot={objects} onCreated={tools.toolCreated} doc={doc} createdBy={localAuthor} />
+      )}
       <SelectionOverlay
         ids={selectedIds}
         snapshot={objects}
@@ -180,6 +202,7 @@ export function App(props: AppProps = {}): React.JSX.Element {
         onDelete={onDeleteSelection}
         onColor={onColor}
         onTextSize={onTextSize}
+        onShapeStyle={onShapeStyle}
       />
     </>
   );
@@ -187,6 +210,7 @@ export function App(props: AppProps = {}): React.JSX.Element {
   return (
     <BoardContext.Provider value={context}>
       <UndoContext.Provider value={history}>
+      <BoardObjectsContext.Provider value={boardObjects}>
       <main className="app">
         <BoardViewport
           onBackgroundClick={clear}
@@ -216,7 +240,15 @@ export function App(props: AppProps = {}): React.JSX.Element {
           })}
           <MarqueeRect rect={marquee.rect} camera={camera} />
         </BoardViewport>
-        <Toolbar onCreateSticky={onCreateSticky} disabled={!editable} undo={undoApi} tool={tool} onTool={setTool} />
+        <Toolbar
+          onCreateSticky={onCreateSticky}
+          disabled={!editable}
+          undo={undoApi}
+          tool={tool}
+          onTool={setTool}
+          shapeKind={tools.shapeKind}
+          onShapeKind={tools.setShapeKind}
+        />
         <ZoomControls
           zoomPercent={zoomPercent(camera)}
           canZoomIn={canZoomIn(camera)}
@@ -228,6 +260,7 @@ export function App(props: AppProps = {}): React.JSX.Element {
         <NavigationHint visible={!board.hasNavigated} />
         <ConnectionStatus state={connection} />
       </main>
+      </BoardObjectsContext.Provider>
       </UndoContext.Provider>
     </BoardContext.Provider>
   );

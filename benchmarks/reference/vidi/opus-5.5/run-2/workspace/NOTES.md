@@ -426,3 +426,90 @@ Decisions taken where the spec was silent or ambiguous:
   the canvas and DOM use the same system font.
 - With two people typing into one text at once, the stored box is whichever client wrote last
   and may lag the merged text slightly; rendering (lines computed locally) is unaffected.
+
+## Story 10 — Draw shapes and connect them with arrows that follow when moved
+
+Decisions taken where the spec was silent or ambiguous:
+
+1. **Active tool hook.** Story 9's `src/client/board/useTool.ts` was replaced by the design's
+   `src/client/tools/useActiveTool.ts` (`ToolId`, `TOOL_SHORTCUTS`, `shapeKind`,
+   `toolCreated`). It takes `{ canEdit, onSelect }`; only the tools of this build (select, text,
+   shape, connector) can become active — P, I and C (stories 11, 12, 16) do nothing, and N stays
+   story 2's create-a-note command. The single-letter keys and Escape are read by
+   `useBoardKeys` from `TOOL_SHORTCUTS`, because it already knows when typing belongs to an
+   editor or a text field. `useSelection` gained `selectCreated(id)`: a just-created object is
+   not in the last snapshot yet, so `click` would ignore it.
+2. **Tool layers.** While Shape or Connector is active, a screen-space layer
+   (`.tool-layer`) covers the whole board above the objects and owns every press, so drags that
+   start over an object never move it (TC-28) and hover hit-testing uses the registry's
+   `hitTest` on the snapshot. Toolbars, the selection bar and wheel zoom still work.
+   `ShapeTool` / `ConnectorTool` also take `doc` and `createdBy` (superset of the contract) and
+   close undo steps with `history.boundary()` (the controller's `stopCapturing`).
+3. **Shift and the minimum size.** Shift squares the drag first; the minimum-size rule is then
+   applied, so a Shift-drag of 5 × 200 makes a 200 × 200 square. A square grows from the drag
+   origin in the drag direction. Dragged shapes are capped at `MAX_OBJECT_SIZE_WORLD`.
+4. **No cycle between board-model and connector.ts.** Instead of importing
+   `detachConnectorsTo` (which would create an import cycle whose module-level registrations
+   run before board-model is initialised), board-model gained `registerDeleteHook` (called
+   inside `deleteObjects`' transaction, before removal) and `registerSnapshotResolver` (a
+   second pass in `snapshotObjects` that gets every non-arrow rect; connectors derive
+   x/y/width/height and `fromPoint`/`toPoint` there). `connector.ts` registers both, like
+   story 9's snapshot reader. Also new: `objectRect(doc, id)`, `objectType(doc, id)`.
+5. **Arrow targets.** Arrows attach to any object except another arrow. The side of an attached
+   end faces the other end's object centre (or its free point / orphaned fallback).
+   `createConnector` recomputes each attached end's `fallback` from the current rect when the
+   object exists and keeps the given one otherwise (concurrent delete). The tool also rejects a
+   pointer movement below `CONNECTOR_MIN_LENGTH_WORLD`, in addition to the model's resolved
+   length check. `setConnectorEndpoint` normalises an orphaned opposite end to free at its
+   fallback in the same write (design state diagram); it rejects the connector's own id.
+6. **Moving and resizing arrows (story 7 generic behaviour).** `ObjectTypeSpec` gained
+   `applyMove(doc, start, d)` and `applyResize` gets the start snapshot as a 6th argument; the
+   gesture keeps each object's start snapshot and `moveSnapshots` (registry) is shared by drag
+   and arrow-key nudge. Moving an arrow moves its free ends; attached ends stay with their
+   objects (so an arrow attached at both ends only moves with them). In a group resize free ends
+   scale with the box. Arrows are not resizable themselves. `hitTest` takes an optional `zoom`
+   so the arrow's tolerance is in screen pixels; new `outline: false` hides the selection
+   outline of arrows (their end handles show selection).
+7. **Arrow DOM.** Each arrow is a world-layer `div.connector-object` (role group,
+   `aria-roledescription="arrow"`, name "Arrow from Checkout to Paid?") holding an SVG sized to
+   its ends. Only a transparent stroke band of 2 × `CONNECTOR_HIT_TOLERANCE_PX / zoom` with round
+   caps takes pointer input, which is exactly "within 6 screen pixels of the line"; the
+   pointerdown also re-checks the registry `hitTest` (what jsdom TC-20 exercises). The
+   arrowhead is a polygon (not an SVG `<marker>`), `CONNECTOR_ARROWHEAD_SIZE_WORLD` long.
+   `data-x1/y1/x2/y2` expose the drawn ends for e2e. End handles are `role="button"` named
+   "Arrow start" / "Arrow end"; a press without moving `DRAG_THRESHOLD_PX` changes nothing.
+   Arrows read every object rect from `BoardObjectsContext` (provided by `App`), so only arrows
+   re-render when some other object moves.
+8. **Shape DOM and label.** A world-layer `div.shape-object` (`aria-roledescription="shape"`,
+   name "Rectangle" or "Rectangle: Checkout") with an SVG outline drawn inside the rect, and an
+   HTML label box instead of a `foreignObject` (same result, simpler to edit in place). The label
+   box is the whole rect for a rectangle and the inscribed rectangle for an ellipse (1/√2) and a
+   diamond (1/2), minus `SHAPE_LABEL_PADDING_WORLD`. A label longer than the shape can hold stays
+   centred and spills over top and bottom rather than being clipped. The label editor is story 9's
+   shared `TextEditor` (`aria-label="Shape label"`, `SHAPE_LABEL_MAX_CHARS`) placed over the
+   hidden rendered label so it is centred the same way. Extra settings:
+   `SHAPE_LABEL_FONT_PX` (16), `SHAPE_LABEL_LINE_HEIGHT`, `SHAPE_LABEL_PADDING_WORLD`,
+   `CONNECTOR_COLOR`.
+9. **Toolbar and shape toolbar.** Buttons "Shape (S)" and "Connector (L)" follow story 9's
+   naming. While Shape is active a `role="menu"` "Shape kind" shows Rectangle / Ellipse /
+   Diamond (`menuitemradio`); the chosen kind is kept for the session. The shape toolbar
+   (`role="toolbar"` "Shape", in the selection bar for one selected shape) has "<Colour> fill"
+   swatches — the no-fill swatch is "No fill" — "<Colour> outline" swatches and "Delete shape".
+   A single selected arrow shows no toolbar (Delete key and the multi-selection bar work).
+10. **Fixture use.** `tests/fixtures/checkout-flow.ts` is checked by a unit test and seeded into
+    an extra e2e case that compares every rendered arrow with the model's resolved ends.
+11. **TC-27 race.** Sam's context proxies board sockets and holds Sam→server messages for
+    3 s (`SAM_UPLINK_DELAY_MS`), so Dana attaches to B before Sam's delete arrives; both screens
+    then draw the arrow's end at its fallback.
+12. **Selection bar clears the left toolbar.** The two new tool buttons make the fixed Tools
+    toolbar taller, and a note or shape near the left edge had its toolbar hidden under it (the
+    story 3 nightly soak TC-30 hit this clicking a colour swatch). `SelectionBar` now shifts
+    itself right, after layout, whenever it would overlap the Tools toolbar (extra e2e case in
+    `shapes.spec.ts`). The nightly soak passes again (p95 71 ms).
+13. **Browsers.** Only Chromium is installed here, so e2e ran with `E2E_BROWSERS=chromium`
+    (TC-23 is browser-neutral and should also be run in Firefox/WebKit where available);
+    the multi-context cases skip outside Chromium.
+
+### Not covered
+- Smoothness with 300 shapes and 300 arrows (manual, design "Not covered") was not measured.
+- Screen-reader wording was not checked with a real screen reader.
