@@ -65,6 +65,32 @@ The story order is the only dependency the spec records, so every later story co
 
 Every early end is written to `interventions.md`. The file contract between the harness and dbench is in `harness/CONTROL.md`.
 
+## Reference stack: Claude Code + Claude Opus 5.5
+
+The reference stack runs through the same harness as the local setups: the same prompts, the same guards, the same scorer, **and the same sandbox**. The agent can't read the held-out suite, the repo, other runs or dbench's state. The preflight proves this before every run, by making Claude Code try to list the suite from inside the sandbox.
+
+1. **Token (once per machine).** Headless Claude Code bills your Claude subscription through a long-lived OAuth token. Never use an API key: one set in the environment would switch it to API billing, and the harness strips `ANTHROPIC_API_KEY` from the agent anyway.
+   ```sh
+   claude setup-token                      # browser approval; prints the token
+   # save it: ~/.dbench/claude-oauth-token, chmod 600 (or set CLAUDE_BENCH_TOKEN_FILE)
+   ```
+2. **Register the stack (once per machine):** `benchmarks/reference/install-stack.sh benchmarks/reference/vidi/opus-5.5`
+3. **Run it:**
+   ```sh
+   benchmarks/vidi/harness/run.sh claude-code-opus-5-5 --client claude --run-id run-3 --record
+   # or queued and repeated on a node:
+   dbench submit <node> --id opus --install-id claude-code-opus-5-5 --client claude --pack benchmarks/vidi \
+     --scope canvas --run-id opus --repeat 3
+   ```
+   Runs are recorded in `benchmarks/reference/vidi/opus-5.5/<run-id>/`.
+
+**Continuing a run that Claude Code subagents started.** Early reference runs were built by subagents that were only *told* not to look. To continue one under the harness:
+1. `harness/import_run.py` peek-audits every finished story's transcript (`~/.claude/projects/<project>/<session>/subagents/agent-<id>.jsonl`). It refuses the import if any story touched the suite, the pack, the repo or another run.
+2. If the audit is clean, it hands the workspace and the finished stories to the harness.
+3. `run.sh … --run-id <same run> --client claude` then carries on, sandboxed, at the next story.
+
+**Auditing any transcript for peeking:** `uv run harness/peek_audit.py --workspace <ws> <transcript.jsonl>…`. It reads Claude Code transcripts and pi event logs, and exits 1 on a peek.
+
 ## Scopes
 
 | Scope | Stories | Why |
