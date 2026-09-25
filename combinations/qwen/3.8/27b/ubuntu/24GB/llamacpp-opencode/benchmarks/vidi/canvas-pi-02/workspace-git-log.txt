@@ -1,3 +1,41 @@
+commit 79540dd0d818183e4c35b70062a5b01fcb8d04e5
+vidi-agent  Fri Sep 25 09:03:51 2026 +0100
+
+    story 5: Share a board with others using a link
+
+
+ NOTES.md                                  |  49 +++++
+ index.html                                |   2 +
+ package-lock.json                         |  98 +++++++++
+ package.json                              |   1 +
+ src/client/App.tsx                        | 120 ++---------
+ src/client/api.ts                         |  56 +++++
+ src/client/pages/BoardPage.tsx            | 184 +++++++++++++++++
+ src/client/pages/HomePage.tsx             |  54 +++++
+ src/client/pages/NotFoundPage.tsx         |  55 +++++
+ src/client/router.ts                      |  53 +++++
+ src/client/share/SharePanel.tsx           | 164 +++++++++++++++
+ src/client/styles.css                     | 194 ++++++++++++++++++
+ src/shared/config.ts                      |  20 ++
+ src/worker/board-room.ts                  |  62 ++++++
+ src/worker/board-store.ts                 |  92 ++++++++-
+ src/worker/create-board.ts                |  93 +++++++++
+ src/worker/index.ts                       |  88 ++++++--
+ src/worker/test-hooks.ts                  |   2 +-
+ tests/component/ConnectionStatus.test.tsx |   2 +-
+ tests/component/LoadFailure.test.tsx      |  25 ++-
+ tests/component/SharePanel.test.tsx       | 188 +++++++++++++++++
+ tests/component/pages.test.tsx            | 187 +++++++++++++++++
+ tests/e2e/share.spec.ts                   | 327 ++++++++++++++++++++++++++++++
+ tests/integration/board-api.test.ts       | 273 +++++++++++++++++++++++++
+ tests/integration/worker.test.ts          |   5 +-
+ tests/integration/ws-client.ts            |  12 +-
+ tests/setup/component-setup.ts            |   1 +
+ tests/unit/create-board.test.ts           | 130 ++++++++++++
+ vitest.config.ts                          |   2 +-
+ wrangler-test.jsonc                       |  39 ++++
+ wrangler.jsonc                            |  12 ++
+ 31 files changed, 2460 insertions(+), 130 deletions(-)
 commit d1f6182ce6fd98fa2d410abd236cdd3c1461c876
 vidi-agent  Fri Sep 25 08:11:27 2026 +0100
 
