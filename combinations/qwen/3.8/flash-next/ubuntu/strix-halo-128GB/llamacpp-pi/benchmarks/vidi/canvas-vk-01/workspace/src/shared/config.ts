@@ -39,6 +39,13 @@ export const STICKY_COLORS = {
 export type StickyColor = keyof typeof STICKY_COLORS;
 export const DEFAULT_STICKY_COLOR: StickyColor = 'yellow';
 
+/** Selection outline / handle colour. */
+export const SELECTION_COLOR = '#2563EB';
+/** Marquee fill colour. */
+export const MARQUEE_COLOR = 'rgba(59, 130, 246, 0.15)';
+/** Marquee border colour. */
+export const MARQUEE_BORDER_COLOR = '#3B82F6';
+
 // Live collaboration settings (story 3)
 
 /**
@@ -86,6 +93,19 @@ export const BOARD_CREATE_PERIOD_SECONDS = 60;
 export const CREATE_ID_MAX_ATTEMPTS = 3;
 /** Budget for the create-a-board flow (PRD share.create). */
 export const CREATE_BUDGET_MS = 2000;
+
+// Selection & multi-object transform settings (story 7)
+
+/** Side length of a resize handle, in screen pixels (constant at any zoom). */
+export const HANDLE_SIZE_PX = 8;
+/** Smallest sticky-note side, in world units, that a resize can reach. */
+export const STICKY_MIN_SIZE_WORLD = 50;
+/** Largest object side a resize can reach, in world units. */
+export const MAX_OBJECT_SIZE_WORLD = 20_000;
+/** Arrow-key nudge distance in world units. */
+export const NUDGE_STEP_WORLD = 1;
+/** Shift+arrow nudge distance in world units. */
+export const NUDGE_LARGE_STEP_WORLD = 10;
 /** How long "Link copied" is shown (PRD share.copy). */
 export const LINK_COPIED_MS = 2000;
 /** Base backoff for board-existence retries; doubles up to RECONNECT_MAX_BACKOFF_MS. */

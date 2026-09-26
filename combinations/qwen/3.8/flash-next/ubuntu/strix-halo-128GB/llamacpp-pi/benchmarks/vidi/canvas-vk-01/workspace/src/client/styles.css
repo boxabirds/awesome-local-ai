@@ -262,6 +262,34 @@ body {
   pointer-events: auto;
 }
 
+/* Selection bar (multi-select) ------------------------------------------- */
+
+.selection-bar-screen {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 6px;
+  background: #ffffff;
+  border: 1px solid #d6dae0;
+  border-radius: 6px;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.12);
+}
+
+.selection-bar-count {
+  font: 12px/1 system-ui, sans-serif;
+  color: #1f2933;
+  white-space: nowrap;
+}
+
+.selection-bar-delete {
+  font: 12px/1 system-ui, sans-serif;
+  padding: 4px 8px;
+  border: 1px solid #d6dae0;
+  border-radius: 4px;
+  background: #f4f6f8;
+  cursor: pointer;
+}
+
 .note-toolbar {
   display: flex;
   align-items: center;
