@@ -2,33 +2,36 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import type { ShapeKind } from '@/shared/objects/shape';
 
 /**
- * Active tool (story 9 text.tool, extended by story 10).
+ * Active tool (story 9 text.tool, extended by stories 10-11).
  *
  * The tool is per-client state (never persisted). 'select' is the default;
- * 'text', 'shape' and 'connector' are the activatable creation tools. The
- * ids 'pen' / 'image' / 'comment' are RESERVED for stories 11-13: they are
+ * 'text', 'shape', 'connector' and 'pen' are the activatable creation tools.
+ * The ids 'image' / 'comment' are RESERVED for stories 12-13: they are
  * accepted by the tool state so future toolbars can reference them, but this
  * build cannot activate them (no button, no shortcut, no tool surface).
+ * Unlike the other creation tools, the Pen stays active after each stroke
+ * (pen.active: a stroke never calls toolCreated).
  *
  * While the board cannot be edited (story 4 load-failure), an active
  * creation tool reverts to Select and the buttons are disabled
  * (text.not_editable — the same rule applies to every creation tool).
  *
  * Keyboard shortcuts (story 10, tools.keys): V → Select (every state),
- * T → Text, S → Shape, L → Connector (creation tools only while editable),
- * Escape → Select. Single keys are ignored while any modifier is held or
- * focus is in an input/textarea/contenteditable. N (sticky at centre) stays
- * in useBoardKeys: it is a direct action, not a tool.
+ * T → Text, S → Shape, L → Connector, P → Pen (creation tools only while
+ * editable), Escape → Select. Single keys are ignored while any modifier is
+ * held or focus is in an input/textarea/contenteditable. N (sticky at centre)
+ * stays in useBoardKeys: it is a direct action, not a tool.
  */
 export type ToolId = 'select' | 'sticky' | 'text' | 'shape' | 'connector' | 'pen' | 'image' | 'comment';
 
-const ACTIVATABLE: ReadonlySet<ToolId> = new Set<ToolId>(['text', 'shape', 'connector']);
+const ACTIVATABLE: ReadonlySet<ToolId> = new Set<ToolId>(['text', 'shape', 'connector', 'pen']);
 
 const SHORTCUTS: Record<string, ToolId> = {
   v: 'select',
   t: 'text',
   s: 'shape',
   l: 'connector',
+  p: 'pen',
 };
 
 export interface ActiveToolOptions {

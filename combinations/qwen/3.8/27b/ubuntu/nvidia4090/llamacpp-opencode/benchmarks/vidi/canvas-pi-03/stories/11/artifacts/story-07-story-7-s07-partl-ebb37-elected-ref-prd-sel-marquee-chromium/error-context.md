@@ -1,0 +1,55 @@
+# Page snapshot
+
+```yaml
+- generic [active]:
+  - generic:
+    - generic [ref=e1]:
+      - generic:
+        - group "Sticky note" [ref=e2]:
+          - generic [ref=e4]: full
+        - group "Sticky note" [ref=e5]:
+          - generic [ref=e7]: lf
+    - generic:
+      - button "Resize top-left" [ref=e9]
+      - button "Resize top" [ref=e10]
+      - button "Resize top-right" [ref=e11]
+      - button "Resize right" [ref=e12]
+      - button "Resize bottom-right" [ref=e13]
+      - button "Resize bottom" [ref=e14]
+      - button "Resize bottom-left" [ref=e15]
+      - button "Resize left" [ref=e16]
+    - toolbar "Note actions" [ref=e18]:
+      - button "Yellow colour" [pressed] [ref=e19] [cursor=pointer]
+      - button "Orange colour" [ref=e20] [cursor=pointer]
+      - button "Green colour" [ref=e21] [cursor=pointer]
+      - button "Blue colour" [ref=e22] [cursor=pointer]
+      - button "Pink colour" [ref=e23] [cursor=pointer]
+      - button "Violet colour" [ref=e24] [cursor=pointer]
+      - button "Delete note" [ref=e25] [cursor=pointer]:
+        - img [ref=e26]
+    - generic [ref=e30]:
+      - button "Select (V)" [ref=e31] [cursor=pointer]:
+        - img [ref=e32]
+      - button "Text (T)" [ref=e34] [cursor=pointer]:
+        - img [ref=e35]
+      - button "Shape (S)" [ref=e37] [cursor=pointer]:
+        - img [ref=e38]
+      - button "Connector (L)" [pressed] [ref=e41] [cursor=pointer]:
+        - img [ref=e42]
+      - button "Pen (P)" [ref=e45] [cursor=pointer]:
+        - img [ref=e46]
+      - button "Sticky note" [ref=e48] [cursor=pointer]:
+        - img [ref=e49]
+      - generic [ref=e53]:
+        - button "Undo" [ref=e54] [cursor=pointer]:
+          - img [ref=e55]
+        - button "Redo" [disabled] [ref=e58]:
+          - img [ref=e59]
+    - generic [ref=e62]:
+      - button "Zoom out" [ref=e63] [cursor=pointer]: −
+      - status [ref=e64]: 100%
+      - button "Zoom in" [ref=e65] [cursor=pointer]: +
+      - button "Reset view" [ref=e66] [cursor=pointer]
+    - generic: Drag to move around · Ctrl/Cmd + scroll or pinch to zoom
+    - button "Share" [ref=e68] [cursor=pointer]
+```

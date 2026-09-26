@@ -1,0 +1,45 @@
+# Page snapshot
+
+```yaml
+- generic [active]:
+  - generic:
+    - generic:
+      - img
+    - toolbar "Pen options" [ref=e2]:
+      - generic [ref=e3]:
+        - button "black pen" [pressed] [ref=e4] [cursor=pointer]
+        - button "blue pen" [ref=e5] [cursor=pointer]
+        - button "red pen" [ref=e6] [cursor=pointer]
+        - button "green pen" [ref=e7] [cursor=pointer]
+        - button "orange pen" [ref=e8] [cursor=pointer]
+        - button "purple pen" [ref=e9] [cursor=pointer]
+      - generic [ref=e10]:
+        - button "thin line" [ref=e11] [cursor=pointer]
+        - button "medium line" [pressed] [ref=e13] [cursor=pointer]
+        - button "thick line" [ref=e15] [cursor=pointer]
+    - generic [ref=e17]:
+      - button "Select (V)" [ref=e18] [cursor=pointer]:
+        - img [ref=e19]
+      - button "Text (T)" [ref=e21] [cursor=pointer]:
+        - img [ref=e22]
+      - button "Shape (S)" [ref=e24] [cursor=pointer]:
+        - img [ref=e25]
+      - button "Connector (L)" [ref=e28] [cursor=pointer]:
+        - img [ref=e29]
+      - button "Pen (P)" [pressed] [ref=e32] [cursor=pointer]:
+        - img [ref=e33]
+      - button "Sticky note" [ref=e35] [cursor=pointer]:
+        - img [ref=e36]
+      - generic [ref=e40]:
+        - button "Undo" [disabled] [ref=e41]:
+          - img [ref=e42]
+        - button "Redo" [disabled] [ref=e45]:
+          - img [ref=e46]
+    - generic [ref=e49]:
+      - button "Zoom out" [ref=e50] [cursor=pointer]: −
+      - status [ref=e51]: 100%
+      - button "Zoom in" [ref=e52] [cursor=pointer]: +
+      - button "Reset view" [ref=e53] [cursor=pointer]
+    - generic: Drag to move around · Ctrl/Cmd + scroll or pinch to zoom
+    - button "Share" [ref=e55] [cursor=pointer]
+```

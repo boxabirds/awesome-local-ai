@@ -222,6 +222,29 @@ export function Toolbar(props: ToolbarProps): ReactElement {
         </svg>
       </button>
 
+      {/* Story 11: Pen tool (P) — freehand strokes (pen.active). */}
+      <button
+        type="button"
+        aria-label="Pen (P)"
+        aria-pressed={tool === 'pen'}
+        title="Pen – P"
+        data-testid="pen-tool-button"
+        disabled={toolDisabled}
+        onClick={() => activateTool('pen')}
+        style={toolButtonStyle(tool === 'pen', toolDisabled)}
+      >
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <path
+            d="M4 17.5c2.5 0 3.5-8.5 6-8.5s2 7 4.5 7 2.5-4 4.5-4"
+            stroke="rgba(0, 0, 0, 0.55)"
+            strokeWidth="1.8"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            fill="none"
+          />
+        </svg>
+      </button>
+
       <button
         type="button"
         aria-label="Sticky note"

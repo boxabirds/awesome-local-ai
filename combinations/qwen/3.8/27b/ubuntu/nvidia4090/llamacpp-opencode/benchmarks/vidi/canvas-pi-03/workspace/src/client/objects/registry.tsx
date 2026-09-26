@@ -4,15 +4,21 @@ import { objectBounds } from '@/shared/board-model';
 import type { Point } from '@/shared/geometry';
 import {
   CONNECTOR_HIT_TOLERANCE_PX,
+  DEFAULT_PEN_THICKNESS,
+  PEN_THICKNESS_WORLD,
   SHAPE_MIN_SIZE_WORLD,
   STICKY_MIN_SIZE_WORLD,
+  STROKE_HIT_TOLERANCE_PX,
+  STROKE_MIN_SIZE_WORLD,
   TEXT_MIN_WIDTH_WORLD,
 } from '@/shared/config';
 import { distanceToPolyline } from '@/shared/geometry/polyline';
+import { scaledPoints, isStrokeSnap, type PenThickness, type StrokeSnap } from '@/shared/objects/stroke';
 import { StickyNote, type StickyNoteProps } from './StickyNote';
 import { TextObject, type TextObjectProps } from './TextObject';
 import { ShapeObject, type ShapeObjectProps } from './ShapeObject';
 import { ConnectorObject, type ConnectorObjectProps } from './ConnectorObject';
+import { StrokeObject } from './StrokeObject';
 
 /**
  * Object-type registry (story 7, sel.registry).
@@ -186,6 +192,52 @@ export function registerConnectorType(): void {
       const to = o.toPoint;
       if (from === undefined || to === undefined) return false;
       return distanceToPolyline([from, to], p) <= CONNECTOR_HIT_TOLERANCE_PX / (zoom ?? 1);
+    },
+  });
+}
+
+/**
+ * Adapter: the renderer spreads the snapshot over `ObjectProps`; the
+ * StrokeObject receives the same data as its `stroke` snapshot prop.
+ */
+function StrokeRegistryComponent(props: ObjectProps): ReactElement {
+  return (
+    <StrokeObject
+      stroke={props as unknown as StrokeSnap}
+      selected={props.selected === true}
+      zoom={typeof props.zoom === 'number' ? props.zoom : 1}
+      onObjectPointerDown={props.onObjectPointerDown}
+    />
+  );
+}
+
+/**
+ * Story 11: the stroke type (stroke.render, pen.select). Registered by the
+ * Board at module load (like shape/connector). Hit test: line-distance — a
+ * point selects the stroke when it is within max(half the thickness, the
+ * screen-pixel tolerance converted to world) of the line.
+ *
+ * Resizable with the aspect locked: a resize scales width/height
+ * proportionally about the NW anchor (story 7) and the points are rescaled
+ * by width/baseWidth, height/baseHeight — the stored points never change
+ * (pen.resize). The line thickness itself never scales.
+ */
+export function registerStrokeType(): void {
+  if (registry.has('stroke')) return; // idempotent
+  registry.set('stroke', {
+    Component: StrokeRegistryComponent,
+    resizable: true,
+    aspectLocked: true,
+    minSize: STROKE_MIN_SIZE_WORLD,
+    editableText: false,
+    hitTest: (o, p, zoom) => {
+      if (!isStrokeSnap(o)) return false;
+      const s = o as StrokeSnap;
+      const t =
+        typeof s.thickness === 'string' && s.thickness in PEN_THICKNESS_WORLD
+          ? PEN_THICKNESS_WORLD[s.thickness as PenThickness]
+          : PEN_THICKNESS_WORLD[DEFAULT_PEN_THICKNESS];
+      return distanceToPolyline(scaledPoints(s), p) <= Math.max(t / 2, STROKE_HIT_TOLERANCE_PX / (zoom ?? 1));
     },
   });
 }

@@ -1,0 +1,74 @@
+# Page snapshot
+
+```yaml
+- generic [active]:
+  - generic:
+    - generic [ref=e1]:
+      - generic:
+        - group "Sticky note" [ref=e2]:
+          - generic [ref=e4]: p0
+        - generic:
+          - img:
+            - generic:
+              - generic "Drawing"
+        - generic:
+          - img:
+            - generic:
+              - generic "Drawing"
+    - generic:
+      - img
+    - toolbar "Pen options" [ref=e5]:
+      - generic [ref=e6]:
+        - button "black pen" [pressed] [ref=e7] [cursor=pointer]
+        - button "blue pen" [ref=e8] [cursor=pointer]
+        - button "red pen" [ref=e9] [cursor=pointer]
+        - button "green pen" [ref=e10] [cursor=pointer]
+        - button "orange pen" [ref=e11] [cursor=pointer]
+        - button "purple pen" [ref=e12] [cursor=pointer]
+      - generic [ref=e13]:
+        - button "thin line" [ref=e14] [cursor=pointer]
+        - button "medium line" [pressed] [ref=e16] [cursor=pointer]
+        - button "thick line" [ref=e18] [cursor=pointer]
+    - generic:
+      - button "Resize top-left" [ref=e20]
+      - button "Resize top" [ref=e21]
+      - button "Resize top-right" [ref=e22]
+      - button "Resize right" [ref=e23]
+      - button "Resize bottom-right" [ref=e24]
+      - button "Resize bottom" [ref=e25]
+      - button "Resize bottom-left" [ref=e26]
+      - button "Resize left" [ref=e27]
+    - toolbar "Note actions" [ref=e29]:
+      - button "Yellow colour" [pressed] [ref=e30] [cursor=pointer]
+      - button "Orange colour" [ref=e31] [cursor=pointer]
+      - button "Green colour" [ref=e32] [cursor=pointer]
+      - button "Blue colour" [ref=e33] [cursor=pointer]
+      - button "Pink colour" [ref=e34] [cursor=pointer]
+      - button "Violet colour" [ref=e35] [cursor=pointer]
+      - button "Delete note" [ref=e36] [cursor=pointer]:
+        - img [ref=e37]
+    - generic [ref=e41]:
+      - button "Select (V)" [ref=e42] [cursor=pointer]:
+        - img [ref=e43]
+      - button "Text (T)" [ref=e45] [cursor=pointer]:
+        - img [ref=e46]
+      - button "Shape (S)" [ref=e48] [cursor=pointer]:
+        - img [ref=e49]
+      - button "Connector (L)" [ref=e52] [cursor=pointer]:
+        - img [ref=e53]
+      - button "Pen (P)" [pressed] [ref=e56] [cursor=pointer]:
+        - img [ref=e57]
+      - button "Sticky note" [ref=e59] [cursor=pointer]:
+        - img [ref=e60]
+      - generic [ref=e64]:
+        - button "Undo" [ref=e65] [cursor=pointer]:
+          - img [ref=e66]
+        - button "Redo" [disabled] [ref=e69]:
+          - img [ref=e70]
+    - generic [ref=e73]:
+      - button "Zoom out" [ref=e74] [cursor=pointer]: −
+      - status [ref=e75]: 64%
+      - button "Zoom in" [ref=e76] [cursor=pointer]: +
+      - button "Reset view" [ref=e77] [cursor=pointer]
+    - button "Share" [ref=e79] [cursor=pointer]
+```

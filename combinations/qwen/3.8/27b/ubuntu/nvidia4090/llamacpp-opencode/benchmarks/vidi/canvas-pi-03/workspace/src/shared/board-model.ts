@@ -89,6 +89,18 @@ export interface ObjectSnapshot {
   from?: Endpoint;
   to?: Endpoint;
   /**
+   * Story 11: flattened [x0, y0, x1, y1, ...] points RELATIVE to the bbox
+   * origin at the creation size; stroke objects only. Immutably replaced as
+   * a whole (strokes are never edited point-by-point).
+   */
+  points?: readonly number[];
+  /** Story 11: bbox size at creation; stroke objects only. */
+  baseWidth?: number;
+  /** Story 11: bbox size at creation; stroke objects only. */
+  baseHeight?: number;
+  /** Story 11: pen thickness NAME (key of PEN_THICKNESS_WORLD); stroke objects only. */
+  thickness?: string;
+  /**
    * Story 10: connector endpoint positions RESOLVED against the current
    * object positions (attached -> side anchor, free -> stored point;
    * orphaned attached -> fallback). Set for every connector snapshot.
@@ -197,6 +209,17 @@ export function objectSnapshot(doc: Y.Doc): readonly ObjectSnapshot[] {
       ...(typeof obj.get('kind') === 'string' ? { kind: obj.get('kind') as string } : {}),
       ...(typeof obj.get('fill') === 'string' ? { fill: obj.get('fill') as string } : {}),
       ...(typeof obj.get('stroke') === 'string' ? { stroke: obj.get('stroke') as string } : {}),
+      // Story 11: stroke fields (points are stored as a plain number array).
+      ...(Array.isArray(obj.get('points'))
+        ? { points: obj.get('points') as readonly number[] }
+        : {}),
+      ...(typeof obj.get('baseWidth') === 'number' && Number.isFinite(obj.get('baseWidth'))
+        ? { baseWidth: obj.get('baseWidth') as number }
+        : {}),
+      ...(typeof obj.get('baseHeight') === 'number' && Number.isFinite(obj.get('baseHeight'))
+        ? { baseHeight: obj.get('baseHeight') as number }
+        : {}),
+      ...(typeof obj.get('thickness') === 'string' ? { thickness: obj.get('thickness') as string } : {}),
       ...(obj.get('label') instanceof Y.Text
         ? { label: (obj.get('label') as Y.Text).toString() }
         : typeof obj.get('label') === 'string'

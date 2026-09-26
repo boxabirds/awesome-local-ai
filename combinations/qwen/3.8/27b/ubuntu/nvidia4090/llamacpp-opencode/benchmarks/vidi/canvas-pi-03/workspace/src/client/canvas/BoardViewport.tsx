@@ -11,12 +11,22 @@ export interface BoardViewportProps {
   /** Story 9: click (press without movement) on empty board space with the Text tool active. */
   onCreateTextAt?: (world: Point) => void;
   /**
-   * Story 9/10: the active tool — with Text active, clicks create text and
-   * do not pan/marquee. Shape/Connector tools render their own full-screen
-   * overlays (story 10) and never reach the viewport; any non-Text id is
-   * treated as Select here.
+   * Story 9/10/11: the active tool — with Text active, clicks create text
+   * and do not pan/marquee. With Pen active, left-button presses start a
+   * stroke (routed to onPenDown) — they never pan, marquee, or move objects
+   * (pen.draw). Shape/Connector tools render their own full-screen overlays
+   * (story 10) and never reach the viewport; any other id is treated as
+   * Select here.
    */
   tool?: ToolId;
+  /**
+   * Story 11: while the Pen tool is active, a left-button press on empty
+   * board space is routed here (it starts a stroke; the Pen tool captures
+   * the pointer). Wheel panning is unaffected.
+   */
+  onPenDown?: (e: React.PointerEvent) => void;
+  /** Story 11: the pen cursor (thickness ring) while the Pen tool is active. */
+  penCursor?: string;
   /** Click (press without movement) on empty board space: clear the selection. */
   onClearSelection?: () => void;
   /**
@@ -42,7 +52,7 @@ export function BoardViewport(props: BoardViewportProps) {
   // sticky note (the first click already created text and switched tools).
   const lastTextCreateRef = useRef(0);
   const [cursorStyle, setCursorStyle] = useState('default');
-  const tool = props.tool === 'text' ? 'text' : 'select';
+  const tool = props.tool === 'text' ? 'text' : props.tool === 'pen' ? 'pen' : 'select';
 
   const localPoint = (e: React.PointerEvent): Point => {
     const rect = containerRef.current!.getBoundingClientRect();
@@ -55,6 +65,13 @@ export function BoardViewport(props: BoardViewportProps) {
       // Only start pan when clicking the viewport or world layer (not child objects with data-no-pan)
       const target = e.target as HTMLElement;
       if (target.dataset?.noPan) return;
+      // Story 11: with the Pen tool active, a left-button press starts a
+      // stroke — never a pan or marquee (pen.draw). The Pen tool (via
+      // onPenDown) captures the pointer itself; wheel events still pan.
+      if (tool === 'pen') {
+        if (e.button === 0) props.onPenDown?.(e);
+        return;
+      }
       // Story 9: with the Text tool active, empty-space presses place text on
       // release; they never pan or marquee (text.tool).
       if (tool === 'text') {
@@ -79,7 +96,7 @@ export function BoardViewport(props: BoardViewportProps) {
       beginPan({ x: e.clientX, y: e.clientY });
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [beginPan, props.onMarqueeBegin, tool],
+    [beginPan, props.onMarqueeBegin, tool, props.onPenDown],
   );
 
   const handlePointerMove = useCallback(
@@ -249,10 +266,13 @@ export function BoardViewport(props: BoardViewportProps) {
         lastTextCreateRef.current = 0;
         return;
       }
+      // Story 11: the pen draws on every press; a double-click must not also
+      // create a sticky note under it.
+      if (tool === 'pen') return;
       const rect = containerRef.current.getBoundingClientRect();
       create(screenToWorld(camera, { x: e.clientX - rect.left, y: e.clientY - rect.top }));
     },
-    [camera, props.onCreateStickyAt],
+    [camera, props.onCreateStickyAt, tool],
   );
 
   // Keyboard shortcuts
@@ -289,7 +309,14 @@ export function BoardViewport(props: BoardViewportProps) {
         overflow: 'hidden',
         // Story 9: the pointer becomes a text cursor over the board while the
         // Text tool is active (text.tool).
-        cursor: cursorStyle !== 'default' ? cursorStyle : tool === 'text' ? 'text' : 'default',
+        cursor:
+          cursorStyle !== 'default'
+            ? cursorStyle
+            : tool === 'text'
+              ? 'text'
+              : tool === 'pen'
+                ? (props.penCursor ?? 'crosshair')
+                : 'default',
         backgroundSize: `${gridSpacing}px ${gridSpacing}px`,
         backgroundPosition: `${gridPosX}px ${gridPosY}px`,
         backgroundImage: 'radial-gradient(circle, #ccc 1px, transparent 1px)',

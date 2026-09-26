@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useLayoutEffect, useMemo, useState, type PointerEvent as ReactPointerEvent } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react';
 import { BoardViewport } from '../canvas/BoardViewport';
 import { ZoomControls } from '../canvas/ZoomControls';
 import { NavigationHint } from '../canvas/NavigationHint';
@@ -15,7 +15,10 @@ import { useTransformGesture } from './useTransformGesture';
 import { useActiveTool } from '../tools/useActiveTool';
 import { ShapeTool } from '../tools/ShapeTool';
 import { ConnectorTool } from '../tools/ConnectorTool';
-import { registerShapeType, registerConnectorType } from '../objects/registry';
+import { PenTool, penCursor } from '../tools/PenTool';
+import { PenToolbar } from '../tools/PenToolbar';
+import { usePenOptions } from '../tools/usePenOptions';
+import { registerShapeType, registerConnectorType, registerStrokeType } from '../objects/registry';
 import { createUndo } from './undo';
 import { useUndo } from './useUndo';
 import { SelectionOverlay } from './SelectionOverlay';
@@ -43,6 +46,8 @@ import { createText } from '@/shared/objects/text';
 // never import the Board (forward compatibility, TC-12).
 registerShapeType();
 registerConnectorType();
+// Story 11: freehand strokes (stroke.render / pen.select).
+registerStrokeType();
 
 /**
  * Story 4: the board is editable in every connection state except
@@ -107,6 +112,19 @@ export function Board({ id }: { id: string }) {
   // Story 9: width measurer for text boxes (canvas in the browser, estimate
   // fallback in non-browser envs). One per board is cheap (lazy canvas ctx).
   const measurer = useMemo(() => createCanvasMeasurer(), []);
+
+  // Story 11: pen options (session state) + the press handler the Pen tool
+  // registers. The ref indirection keeps the viewport/object callbacks stable
+  // (they must not re-render on every pen state change).
+  const pen = usePenOptions();
+  const penDownRef = useRef<((e: ReactPointerEvent) => void) | null>(null);
+  const handlePenDownReady = useCallback((h: (e: ReactPointerEvent) => void) => {
+    penDownRef.current = h;
+  }, []);
+  const handlePenDown = useCallback((e: ReactPointerEvent) => {
+    const h = penDownRef.current;
+    if (h) h(e);
+  }, []);
   // Story 9: stable per-tab creator id (string 6 identity is out of this
   // milestone; the tab id is the stand-in for `createdBy`).
   const clientId = useMemo(() => crypto.randomUUID(), []);
@@ -272,6 +290,14 @@ export function Board({ id }: { id: string }) {
             createTextAtClientPoint(e.clientX, e.clientY);
             return;
           }
+          // Story 11: with the Pen tool active, a press anywhere (objects
+          // included) starts a stroke — it never moves or edits the object
+          // below (pen.draw).
+          if (tools.tool === 'pen' && editable) {
+            e.stopPropagation();
+            if (e.button === 0) handlePenDown(e);
+            return;
+          }
           gesture.onObjectPointerDown(e, o.id);
         },
       };
@@ -341,6 +367,8 @@ export function Board({ id }: { id: string }) {
         onCreateStickyAt={editable ? createStickyAt : undefined}
         onCreateTextAt={createTextAt}
         tool={tools.tool}
+        onPenDown={tools.tool === 'pen' && editable ? handlePenDown : undefined}
+        penCursor={tools.tool === 'pen' ? penCursor(pen.thickness, cameraState.camera.zoom) : undefined}
         onClearSelection={() => selection.clear()}
         onMarqueeBegin={marquee.begin}
         onMarqueeMove={marquee.move}
@@ -370,6 +398,28 @@ export function Board({ id }: { id: string }) {
           createdBy={clientId}
           onBoundary={onBoundary}
           onCreated={(id: string) => tools.toolCreated(id)}
+        />
+      )}
+      {/* Story 11: the pen stays active across strokes (pen.active); it has
+          no full-screen overlay — the board stays fully live under it (pan,
+          zoom, other tools' objects). */}
+      {tools.tool === 'pen' && editable && (
+        <PenTool
+          camera={cameraState.camera}
+          color={pen.color}
+          thickness={pen.thickness}
+          doc={doc}
+          identityId={clientId}
+          onBoundary={onBoundary}
+          onDownReady={handlePenDownReady}
+        />
+      )}
+      {tools.tool === 'pen' && editable && (
+        <PenToolbar
+          color={pen.color}
+          thickness={pen.thickness}
+          onColor={pen.setColor}
+          onThickness={pen.setThickness}
         />
       )}
       <SelectionOverlay

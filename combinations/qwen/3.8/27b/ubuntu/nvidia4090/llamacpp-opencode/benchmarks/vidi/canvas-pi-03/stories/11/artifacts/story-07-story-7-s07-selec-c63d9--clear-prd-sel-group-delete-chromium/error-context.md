@@ -1,0 +1,51 @@
+# Page snapshot
+
+```yaml
+- generic [active]:
+  - generic:
+    - group "Sticky note" [ref=e2]:
+      - generic [ref=e4]: ll0
+    - generic:
+      - button "Resize top-left" [ref=e6]
+      - button "Resize top" [ref=e7]
+      - button "Resize top-right" [ref=e8]
+      - button "Resize right" [ref=e9]
+      - button "Resize bottom-right" [ref=e10]
+      - button "Resize bottom" [ref=e11]
+      - button "Resize bottom-left" [ref=e12]
+      - button "Resize left" [ref=e13]
+    - toolbar "Note actions" [ref=e15]:
+      - button "Yellow colour" [pressed] [ref=e16] [cursor=pointer]
+      - button "Orange colour" [ref=e17] [cursor=pointer]
+      - button "Green colour" [ref=e18] [cursor=pointer]
+      - button "Blue colour" [ref=e19] [cursor=pointer]
+      - button "Pink colour" [ref=e20] [cursor=pointer]
+      - button "Violet colour" [ref=e21] [cursor=pointer]
+      - button "Delete note" [ref=e22] [cursor=pointer]:
+        - img [ref=e23]
+    - generic [ref=e27]:
+      - button "Select (V)" [ref=e28] [cursor=pointer]:
+        - img [ref=e29]
+      - button "Text (T)" [ref=e31] [cursor=pointer]:
+        - img [ref=e32]
+      - button "Shape (S)" [ref=e34] [cursor=pointer]:
+        - img [ref=e35]
+      - button "Connector (L)" [pressed] [ref=e38] [cursor=pointer]:
+        - img [ref=e39]
+      - button "Pen (P)" [ref=e42] [cursor=pointer]:
+        - img [ref=e43]
+      - button "Sticky note" [ref=e45] [cursor=pointer]:
+        - img [ref=e46]
+      - generic [ref=e50]:
+        - button "Undo" [ref=e51] [cursor=pointer]:
+          - img [ref=e52]
+        - button "Redo" [disabled] [ref=e55]:
+          - img [ref=e56]
+    - generic [ref=e59]:
+      - button "Zoom out" [ref=e60] [cursor=pointer]: −
+      - status [ref=e61]: 100%
+      - button "Zoom in" [ref=e62] [cursor=pointer]: +
+      - button "Reset view" [ref=e63] [cursor=pointer]
+    - generic: Drag to move around · Ctrl/Cmd + scroll or pinch to zoom
+    - button "Share" [ref=e65] [cursor=pointer]
+```

@@ -135,6 +135,16 @@ export interface ObjectSnapshot {
   /** Story 10: connector resolved endpoint points (world units). */
   fromPoint?: { x: number; y: number };
   toPoint?: { x: number; y: number };
+  /** Story 11: colour (stickies and strokes). */
+  color?: string;
+  /** Story 11: stroke point data — [x0, y0, x1, y1, ...] RELATIVE to
+   *  (x, y) at the size (baseWidth, baseHeight) it was created at. */
+  points?: number[];
+  /** Story 11: stroke size at creation (proportional resize scaling). */
+  baseWidth?: number;
+  baseHeight?: number;
+  /** Story 11: stroke thickness name (thin | medium | thick). */
+  thickness?: string;
 }
 
 export async function getObjects(page: Page): Promise<ObjectSnapshot[]> {
