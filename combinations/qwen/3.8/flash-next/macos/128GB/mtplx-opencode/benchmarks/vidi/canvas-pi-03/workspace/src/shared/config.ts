@@ -24,3 +24,29 @@ export const ZOOM_SNAP_EPS = 1e-9;
 export const WHEEL_LINE_HEIGHT = 16;
 /** Wheel deltaMode=PAGE (DOM_DELTA_PAGE) converted to CSS pixels. */
 export const WHEEL_PAGE_HEIGHT = 600;
+// --- Sticky notes (story 2) -------------------------------------------------
+
+/** Sticky note size in world units (a square STICKY_SIZE_WORLD x STICKY_SIZE_WORLD). */
+export const STICKY_SIZE_WORLD = 200;
+/** Maximum characters kept in a sticky note's text. */
+export const STICKY_TEXT_MAX_CHARS = 1000;
+/** The character counter is shown when remaining characters <= this value. */
+export const STICKY_COUNTER_THRESHOLD_CHARS = 50;
+/** Largest sticky-note font size (px, at 100% zoom). */
+export const STICKY_FONT_MAX_PX = 24;
+/** Smallest sticky-note font size (px, at 100% zoom); below this text overflows. */
+export const STICKY_FONT_MIN_PX = 10;
+/** Pointer movement (screen px) beyond which a press on a note becomes a drag. */
+export const DRAG_THRESHOLD_PX = 3;
+
+/** The six preset sticky-note colours (accessible by name, not only by colour). */
+export const STICKY_COLORS = {
+  yellow: '#FFF59D',
+  orange: '#FFCC80',
+  green: '#C5E1A5',
+  blue: '#90CAF9',
+  pink: '#F48FB1',
+  violet: '#CE93D8',
+} as const;
+export type StickyColor = keyof typeof STICKY_COLORS;
+export const DEFAULT_STICKY_COLOR: StickyColor = 'yellow';
