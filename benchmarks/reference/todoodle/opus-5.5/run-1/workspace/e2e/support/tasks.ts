@@ -67,3 +67,45 @@ export async function axeViolations(page: Page, options: Record<string, unknown>
 export async function seriousAxeViolations(page: Page): Promise<string[]> {
   return (await axeViolations(page)).filter((v) => v.startsWith('serious') || v.startsWith('critical'));
 }
+
+// ---------------------------------------------------------------- story 6
+
+/** Creates tasks through the API (the quick-add path) and returns their ids, in order. */
+export async function seedTasks(page: Page, workspaceId: string, names: string[]): Promise<string[]> {
+  const ids: string[] = [];
+  for (const name of names) {
+    const res = await postTask(page, workspaceId, name);
+    expect(res.status()).toBe(201);
+    ids.push(((await res.json()) as { task: { id: string } }).task.id);
+  }
+  return ids;
+}
+
+/** An open-list row by its task name. */
+export function rowNamed(page: Page, name: string) {
+  return page.getByRole('listbox', { name: 'Tasks' }).getByRole('option', { name, exact: true });
+}
+
+/** The undo (or outcome) toast carrying this text (not one already leaving: sonner marks those data-removed). */
+export function toastWith(page: Page, text: string) {
+  return page.locator('[data-sonner-toast]:not([data-removed="true"])').filter({ hasText: text });
+}
+
+/** The stored row whatever its state (GET /test/tasks/:id/raw, local only). */
+export async function rawTask(page: Page, taskId: string): Promise<Record<string, unknown>> {
+  const res = await page.request.get(`/test/tasks/${taskId}/raw`);
+  expect(res.status()).toBe(200);
+  return ((await res.json()) as { task: Record<string, unknown> }).task;
+}
+
+/**
+ * The modifier the app treats as "mod" in this page (Meta on Apple platforms, Control elsewhere). Playwright's
+ * desktop devices report their own platform, which can differ from the machine running the tests.
+ */
+export async function modKey(page: Page): Promise<'Meta' | 'Control'> {
+  const apple = await page.evaluate(() => {
+    const platform = (navigator as Navigator & { userAgentData?: { platform?: string } }).userAgentData?.platform || navigator.platform || '';
+    return /mac|iphone|ipad|ipod/i.test(platform);
+  });
+  return apple ? 'Meta' : 'Control';
+}

@@ -1,9 +1,10 @@
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { type QueryClient, useMutation, useQueryClient } from '@tanstack/react-query';
 import { CREATE_TASK_TIMEOUT_MS, TASK_SORT_STEP } from '@todoodle/shared/limits';
 import type { Counts, Task, TaskList } from '@todoodle/shared/schemas';
 import { useCallback, useMemo } from 'react';
 import { ApiError, GoneError, createTask as postTask } from '@/lib/api';
-import { queryKeys } from '@/lib/queryKeys';
+import { type TasksFilter, queryKeys } from '@/lib/queryKeys';
+import { insertBySortOrder } from './cacheOps';
 import type { QuickAddTarget } from './DestinationChip';
 import type { NewTaskInput } from './QuickAdd';
 import {
@@ -44,6 +45,21 @@ function timeoutSignal(ms: number): { signal: AbortSignal; clear: () => void } {
   return { signal: controller.signal, clear: () => clearTimeout(timer) };
 }
 
+/**
+ * Writes one list's cache: always its open-only variant (created if needed, as before story 6), and its
+ * includeCompleted variant when that is cached too (the 'Show completed' view), so a new row shows in both.
+ */
+function writeListVariants(
+  queryClient: QueryClient,
+  workspaceId: string,
+  list: TaskList,
+  fn: (rows: LocalTask[] | undefined, includeCompleted: boolean) => LocalTask[] | undefined,
+): void {
+  queryClient.setQueryData<LocalTask[]>(queryKeys.tasks(workspaceId, { list }), (rows) => fn(rows, false));
+  const withCompleted = queryKeys.tasks(workspaceId, { list, includeCompleted: true });
+  if (queryClient.getQueryData(withCompleted)) queryClient.setQueryData<LocalTask[]>(withCompleted, (rows) => fn(rows, true));
+}
+
 function nextSortOrder(list: LocalTask[] | undefined): number {
   const last = list?.reduce((max, task) => Math.max(max, task.sortOrder), 0) ?? 0;
   return last + TASK_SORT_STEP;
@@ -70,31 +86,30 @@ export function useCreateTask(workspaceId: string) {
       }
     },
     onMutate: (vars) => {
-      const key = queryKeys.tasks(workspaceId, { list: vars.list });
-      queryClient.setQueryData<LocalTask[]>(key, (list) =>
-        vars.retry
-          ? markStatus(list, vars.id, 'pending')
-          : appendOptimistic(list, {
-              id: vars.id,
-              workspaceId,
-              name: vars.name,
-              description: vars.description,
-              sortOrder: nextSortOrder(list),
-              completedAt: null,
-              version: LOCAL_VERSION,
-              createdAt: '',
-              updatedAt: '',
-            }),
-      );
+      const sortOrder = nextSortOrder(queryClient.getQueryData<LocalTask[]>(queryKeys.tasks(workspaceId, { list: vars.list })));
+      const row: LocalTask = {
+        id: vars.id,
+        workspaceId,
+        name: vars.name,
+        description: vars.description,
+        sortOrder,
+        completedAt: null,
+        version: LOCAL_VERSION,
+        createdAt: '',
+        updatedAt: '',
+      };
+      writeListVariants(queryClient, workspaceId, vars.list, (list, includeCompleted) => {
+        if (vars.retry) return markStatus(list, vars.id, 'pending');
+        // With completed tasks shown, the new open row goes before them (the end of the open rows).
+        return includeCompleted ? insertBySortOrder(list, { ...row, localStatus: 'pending' }) : appendOptimistic(list, row);
+      });
       queryClient.setQueriesData<Counts>({ queryKey: queryKeys.counts(workspaceId) }, (counts) => adjustCount(counts, 1));
     },
     onSuccess: (task, vars) => {
-      queryClient.setQueryData<LocalTask[]>(queryKeys.tasks(workspaceId, { list: vars.list }), (list) => replaceWithServer(list, task));
+      writeListVariants(queryClient, workspaceId, vars.list, (list) => replaceWithServer(list, task));
     },
     onError: (error, vars) => {
-      queryClient.setQueryData<LocalTask[]>(queryKeys.tasks(workspaceId, { list: vars.list }), (list) =>
-        markStatus(list, vars.id, outcomeOf(error)),
-      );
+      writeListVariants(queryClient, workspaceId, vars.list, (list) => markStatus(list, vars.id, outcomeOf(error)));
       queryClient.setQueriesData<Counts>({ queryKey: queryKeys.counts(workspaceId) }, (counts) => adjustCount(counts, -1));
     },
   });
@@ -109,7 +124,7 @@ export function useCreateTask(workspaceId: string) {
     (id: string): { task: LocalTask; list: TaskList } | null => {
       for (const [key, data] of queryClient.getQueriesData<LocalTask[]>({ queryKey: queryKeys.tasks(workspaceId) })) {
         const task = data?.find((item) => item.id === id);
-        const filter = key[3] as { list: TaskList } | undefined;
+        const filter = key[3] as TasksFilter | undefined;
         if (task && filter) return { task, list: filter.list };
       }
       return null;
@@ -131,7 +146,7 @@ export function useCreateTask(workspaceId: string) {
     (id: string) => {
       const found = findLocal(id);
       if (!found || found.task.localStatus === undefined || found.task.localStatus === 'pending') return;
-      queryClient.setQueryData<LocalTask[]>(queryKeys.tasks(workspaceId, { list: found.list }), (list) => removeLocal(list, id));
+      writeListVariants(queryClient, workspaceId, found.list, (list) => removeLocal(list, id));
     },
     [findLocal, queryClient, workspaceId],
   );

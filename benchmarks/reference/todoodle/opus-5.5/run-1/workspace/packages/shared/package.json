@@ -8,7 +8,9 @@
     "./schemas": "./src/schemas.ts",
     "./tokens": "./src/tokens.ts",
     "./contrast": "./src/contrast.ts",
-    "./events": "./src/events.ts"
+    "./events": "./src/events.ts",
+    "./types": "./src/types.ts",
+    "./dates": "./src/dates.ts"
   },
   "scripts": {
     "typecheck": "tsc -p tsconfig.json --noEmit"

@@ -36,7 +36,9 @@ describe('shell.sidebar: workspaceLoader and query keys', () => {
 
   it("TC-92 the counts key is ['ws', id, 'counts'] (no date); invalidating ['ws', id] refetches counts exactly once", async () => {
     expect(countsQuery(ID).queryKey).toEqual(['ws', ID, 'counts']);
-    expect(queryKeys.tasks(ID, { list: 'inbox' })).toEqual(['ws', ID, 'tasks', { list: 'inbox' }]);
+    // Story 6 (architecture 12): the list key carries includeCompleted, defaulting to false.
+    expect(queryKeys.tasks(ID, { list: 'inbox' })).toEqual(['ws', ID, 'tasks', { list: 'inbox', includeCompleted: false }]);
+    expect(queryKeys.tasks(ID, { list: 'inbox', includeCompleted: true })).toEqual(['ws', ID, 'tasks', { list: 'inbox', includeCompleted: true }]);
     let calls = 0;
     server.use(countsHandler({ counts: { inbox: 1 } }));
     const seen = recordRequests();

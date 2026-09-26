@@ -18,9 +18,15 @@ export type ShortcutOptions = {
   modifiers?: 'none' | 'mod';
 };
 
+/**
+ * A shortcut's handler. Returning `false` means "not mine this time" (e.g. no task row is focused): the key
+ * is not prevented and an earlier-registered entry for the same key may take it.
+ */
+export type ShortcutHandler = (event: KeyboardEvent) => void | boolean;
+
 type Entry = {
   key: string;
-  handler: { current: (event: KeyboardEvent) => void };
+  handler: { current: ShortcutHandler };
   options: { current: ShortcutOptions };
 };
 
@@ -67,7 +73,8 @@ function modifiersMatch(event: KeyboardEvent, mode: 'none' | 'mod'): boolean {
   if (mode === 'mod') {
     const apple = isApplePlatform();
     const mod = apple ? event.metaKey && !event.ctrlKey : event.ctrlKey && !event.metaKey;
-    return mod && !event.altKey;
+    // Shift+mod is a different command (Cmd+Shift+Z is redo).
+    return mod && !event.altKey && !event.shiftKey;
   }
   if (event.ctrlKey || event.metaKey || event.altKey) return false;
   return !event.shiftKey || isShiftedCharacter(event.key);
@@ -75,7 +82,8 @@ function modifiersMatch(event: KeyboardEvent, mode: 'none' | 'mod'): boolean {
 
 /**
  * Runs the most recently registered enabled entry for this key whose rules pass. Calls preventDefault
- * only when a handler runs. Exported for unit tests; the document listener calls it.
+ * only when a handler takes the key (does not return false). Exported for unit tests; the document
+ * listener calls it.
  */
 export function dispatchShortcut(event: KeyboardEvent): boolean {
   if (event.isComposing || event.defaultPrevented) return false;
@@ -89,8 +97,8 @@ export function dispatchShortcut(event: KeyboardEvent): boolean {
     if (options.enabled === false) continue;
     if (typing && !options.allowInFields) continue;
     if (!modifiersMatch(event, options.modifiers ?? 'none')) continue;
+    if (entry.handler.current(event) === false) continue;
     event.preventDefault();
-    entry.handler.current(event);
     return true;
   }
   return false;
@@ -122,7 +130,7 @@ function register(entry: Entry): () => void {
  * refs updated every render, so re-renders never re-register (advanced-event-handler-refs). When several
  * components register the same key, the most recently registered enabled one wins.
  */
-export function useGlobalShortcut(key: string, handler: (event: KeyboardEvent) => void, options: ShortcutOptions): void {
+export function useGlobalShortcut(key: string, handler: ShortcutHandler, options: ShortcutOptions): void {
   const handlerRef = useRef(handler);
   const optionsRef = useRef(options);
   useLayoutEffect(() => {
@@ -132,9 +140,11 @@ export function useGlobalShortcut(key: string, handler: (event: KeyboardEvent) =
   useEffect(() => register({ key: normaliseKey(key), handler: handlerRef, options: optionsRef }), [key]);
 }
 
-/** How a key is shown in the panel: letters upper-case (Q), everything else as is (?). */
-function displayKey(key: string): string {
-  return key.length === 1 ? key.toUpperCase() : key;
+const KEY_LABELS: Record<string, string> = { ' ': 'Space', Delete: 'Del' };
+
+/** How a key is shown in the panel: letters upper-case (Q), Space and Del named, everything else as is (?). */
+export function displayKey(key: string): string {
+  return KEY_LABELS[key] ?? (key.length === 1 ? key.toUpperCase() : key);
 }
 
 /**

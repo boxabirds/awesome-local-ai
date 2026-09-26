@@ -2,6 +2,7 @@ import { Hono } from 'hono';
 import type { AppEnv } from '../app.ts';
 import { DEFAULT_WORKSPACE_NAME, MAX_REMEMBERED_WORKSPACES } from '@todoodle/shared/limits';
 import { toPublicWorkspace } from '@todoodle/shared/schemas';
+import { readRawTask } from '../db/tasks.ts';
 import { insertWorkspace } from '../db/workspaces.ts';
 import { type RememberedEntry, serializeRememberedCookie } from '../lib/cookie.ts';
 import { generateSecret, hashSecret } from '../lib/crypto.ts';
@@ -70,6 +71,12 @@ testRoutes.post('/remembered-seed', async (c) => {
   }
   c.header('Set-Cookie', serializeRememberedCookie(entries, c.env));
   return c.json({ workspaces }, 201);
+});
+
+/** Story 6: the stored task row whatever its state (deleted rows too), so e2e can prove soft delete keeps data. */
+testRoutes.get('/tasks/:id/raw', async (c) => {
+  const row = await readRawTask(c.env.DB, c.req.param('id'));
+  return row ? c.json({ task: row }) : errorResponse('not_found', 404);
 });
 
 testRoutes.get('/throw', () => {

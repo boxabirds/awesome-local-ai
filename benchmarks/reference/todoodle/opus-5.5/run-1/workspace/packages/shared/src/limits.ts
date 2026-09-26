@@ -32,8 +32,8 @@ export const MAX_REMEMBERED_WORKSPACES = 50;
 /** Remembered cookie lifetime: 400 days, the browser maximum. */
 export const REMEMBERED_COOKIE_MAX_AGE_S = 34_560_000;
 
-/** How long 'Name can't be empty' stays under the name field. */
-export const NAME_HINT_MS = 2_500;
+/** How long 'Name can't be empty' stays under a name field (workspace name, task name; story 6 set 3 s). */
+export const NAME_HINT_MS = 3_000;
 /** How long 'Copied' stays on the Share panel's Copy link button. */
 export const COPY_CONFIRM_MS = 2_000;
 /** Below this viewport width dialogs (the Share panel) become full-width bottom sheets (Tailwind `sm`). */
@@ -102,3 +102,10 @@ export const QUICK_ADD_KEY = 'q';
 export const SHORTCUT_HELP_KEY = '?';
 /** Below this viewport width the phone layout applies: sidebar in a drawer, floating add button (Tailwind `md`). */
 export const MOBILE_BREAKPOINT_PX = 768;
+
+// ---------------------------------------------------------------- story 6: complete, edit, delete, undo
+
+/** How long an undo toast (Task completed / Task deleted) offers Undo, in UNPAUSED time (owner decision 2026-09-25). */
+export const UNDO_WINDOW_MS = 10_000;
+/** A completed row stays (ticked) this long before leaving the open list; 0 under prefers-reduced-motion. */
+export const COMPLETE_ANIMATION_MS = 250;

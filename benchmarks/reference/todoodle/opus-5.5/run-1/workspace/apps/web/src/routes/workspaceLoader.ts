@@ -1,5 +1,6 @@
 import type { QueryClient } from '@tanstack/react-query';
 import { countsQuery, tasksQuery } from '@/features/tasks/queries';
+import { browserStorage, readShowCompleted } from '@/features/tasks/showCompletedPref';
 import { queryClient as appQueryClient } from '@/lib/queryClient';
 
 /**
@@ -17,7 +18,8 @@ export function workspaceLoader(
 ): null {
   const workspaceId = params.workspaceId;
   if (!workspaceId) return null;
-  void queryClient.prefetchQuery(tasksQuery(workspaceId, 'inbox'));
+  // The Inbox variant this browser shows (story 6: completed tasks too, when 'Show completed' is remembered on).
+  void queryClient.prefetchQuery(tasksQuery(workspaceId, 'inbox', readShowCompleted(browserStorage(), workspaceId, 'inbox')));
   void queryClient.prefetchQuery(countsQuery(workspaceId));
   return null;
 }

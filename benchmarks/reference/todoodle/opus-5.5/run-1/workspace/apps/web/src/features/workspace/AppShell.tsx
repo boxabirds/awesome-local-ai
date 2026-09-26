@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { ShortcutsPanelLazy } from '@/features/shortcuts/ShortcutsPanelLazy';
 import { useShortcutsPanel } from '@/features/shortcuts/useShortcutsPanel';
 import { registerTaskLiveHandlers } from '@/features/tasks/liveHandlers';
+import { useUndoShortcut } from '@/features/undo/useUndoShortcut';
 import { NAV_DRAWER_ID, NavDrawer } from './NavDrawer';
 import { Sidebar, type SidebarProps, type WorkspaceViewName } from './Sidebar';
 import { useIsNarrow } from './useIsNarrow';
@@ -43,6 +44,8 @@ export function AppShell({ workspaceId, canEdit, banner = null, renderHeader, he
   useEffect(() => registerTaskLiveHandlers(), []);
   // ? anywhere (not while typing) lists every keyboard shortcut.
   const shortcutsPanel = useShortcutsPanel();
+  // Cmd/Ctrl+Z undoes the latest completion or deletion while its undo toast is up (story 6).
+  useUndoShortcut();
 
   // Widened past the breakpoint with the drawer open: the drawer goes away and focus moves to the view.
   if (!narrow && drawerOpen) {

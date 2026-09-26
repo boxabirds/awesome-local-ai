@@ -46,6 +46,20 @@
   contain-intrinsic-size: auto var(--task-row-intrinsic-height);
 }
 
+/* Story 6: a just-completed row fades out over COMPLETE_ANIMATION_MS before it leaves the open list.
+   Under reduced motion the row never enters this state (it leaves at once). */
+@utility task-row-leaving {
+  @media (prefers-reduced-motion: no-preference) {
+    animation: task-row-leave var(--complete-animation-ms) ease-in forwards;
+  }
+}
+
+@keyframes task-row-leave {
+  to {
+    opacity: 0.35;
+  }
+}
+
 /* Quick add's description grows with its text up to QUICK_ADD_MAX_DESCRIPTION_ROWS lines, then scrolls. */
 @utility quick-add-description {
   field-sizing: content;

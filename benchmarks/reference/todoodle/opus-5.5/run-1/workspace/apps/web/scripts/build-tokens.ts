@@ -3,6 +3,7 @@
 import { writeFileSync } from 'node:fs';
 import path from 'node:path';
 import {
+  COMPLETE_ANIMATION_MS,
   MIN_TOUCH_TARGET_PX,
   MOBILE_BREAKPOINT_PX,
   QUICK_ADD_MAX_DESCRIPTION_ROWS,
@@ -65,6 +66,7 @@ export function renderConstantsCss(): string {
   --min-touch-target: ${MIN_TOUCH_TARGET_PX}px;
   --task-row-intrinsic-height: ${TASK_ROW_INTRINSIC_HEIGHT_PX}px;
   --quick-add-max-description-rows: ${QUICK_ADD_MAX_DESCRIPTION_ROWS};
+  --complete-animation-ms: ${COMPLETE_ANIMATION_MS}ms;
 }
 `;
 }

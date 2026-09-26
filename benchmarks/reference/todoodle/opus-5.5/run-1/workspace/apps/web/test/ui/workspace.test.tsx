@@ -171,7 +171,7 @@ describe('web.workspace_shell: /w#secret', () => {
     expect(screen.queryByText("Couldn't load this workspace.")).toBeNull();
   });
 
-  it('TC-80 an unchanged name sends no PATCH; the hint shows for NAME_HINT_MS (2,499 visible / 2,501 gone)', async () => {
+  it('TC-80 an unchanged name sends no PATCH; the hint shows for NAME_HINT_MS (NAME_HINT_MS - 1 visible / + 1 gone)', async () => {
     const seen = recordRequests();
     await renderPrimed();
     const input = nameInput();

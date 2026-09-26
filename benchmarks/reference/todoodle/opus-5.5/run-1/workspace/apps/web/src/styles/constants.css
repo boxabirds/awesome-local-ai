@@ -5,4 +5,5 @@
   --min-touch-target: 44px;
   --task-row-intrinsic-height: 44px;
   --quick-add-max-description-rows: 6;
+  --complete-animation-ms: 250ms;
 }

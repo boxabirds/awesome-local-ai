@@ -25,9 +25,9 @@ describe('tasks.list_view: rows and empty state', () => {
     expect(b!.querySelectorAll('p')[1]).toHaveTextContent('Ask for the Tuesday slot');
     expect(b!.querySelectorAll('p')[1]).toHaveClass('truncate', 'text-muted-foreground');
     expect(c!.querySelectorAll('p')).toHaveLength(1);
-    // The checkbox is decorative until story 6.
+    // Story 6 made the round checkbox a real control (its circle stays decorative).
     expect(a!.querySelector('[aria-hidden="true"]')).not.toBeNull();
-    expect(screen.queryByRole('checkbox')).toBeNull();
+    expect(screen.getAllByRole('checkbox')).toHaveLength(3);
   });
 
   it("TC-44 an empty Inbox says 'Your Inbox is clear. Press Q to add a task.' (and the touch variant exists)", async () => {

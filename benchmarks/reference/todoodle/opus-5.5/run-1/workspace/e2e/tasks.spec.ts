@@ -238,13 +238,19 @@ test.describe('story 5: capture a task into the Inbox', () => {
     await expect(panel).toBeHidden();
   });
 
-  test('TC-114 W15 20 tasks, keyboard only: Tab into the list, End -> row 20, Home -> row 1', async ({ page }) => {
+  test('TC-114 W15 20 tasks, keyboard only: Tab into the list, End -> row 20, Home -> row 1', async ({ page, browserName }) => {
     const { id } = await newInbox(page);
     for (let i = 1; i <= 20; i++) expect((await postTask(page, id, `Task ${i}`)).status()).toBe(201);
     await page.reload();
     await expect(taskRows(page)).toHaveCount(20);
     await sidebarInbox(page).focus();
+    // Story 6 put the 'Show completed' switch at the top of the list, one Tab stop before it (WebKit's
+    // default Tab order skips buttons, so there it goes straight to the list).
     await page.keyboard.press('Tab');
+    if (browserName !== 'webkit') {
+      await expect(page.getByRole('switch', { name: 'Show completed' })).toBeFocused();
+      await page.keyboard.press('Tab');
+    }
     await expect(taskRows(page).first()).toBeFocused();
     await page.keyboard.press('End');
     await expect(taskRows(page).nth(19)).toBeFocused();

@@ -9,6 +9,7 @@ import {
   type RememberedPublic,
   type Task,
   type TaskList,
+  type TaskPatch,
   TaskListResponse,
   TaskResponse,
   type Workspace,
@@ -148,9 +149,10 @@ export async function forgetRemembered(id: string): Promise<void> {
 
 // ---------------------------------------------------------------- story 5: tasks
 
-/** The open tasks of one list, in order. */
-export async function listTasks(workspaceId: string, list: TaskList): Promise<Task[]> {
-  return (await request(TaskListResponse, `/api/w/${encodeURIComponent(workspaceId)}/tasks?list=${list}`)).tasks;
+/** One list's open tasks in order, then (includeCompleted) its completed tasks, most recent first. */
+export async function listTasks(workspaceId: string, filter: { list: TaskList; includeCompleted?: boolean }): Promise<Task[]> {
+  const query = `list=${filter.list}${filter.includeCompleted ? '&include_completed=true' : ''}`;
+  return (await request(TaskListResponse, `/api/w/${encodeURIComponent(workspaceId)}/tasks?${query}`)).tasks;
 }
 
 /** Open-task counts per list (the sidebar badges). */
@@ -165,4 +167,33 @@ export function getCounts(workspaceId: string): Promise<Counts> {
 export async function createTask(workspaceId: string, input: CreateTaskInput, signal?: AbortSignal): Promise<Task> {
   const path = `/api/w/${encodeURIComponent(workspaceId)}/tasks`;
   return (await request(TaskResponse, path, { method: 'POST', json: input, edit: true, signal })).task;
+}
+
+// ---------------------------------------------------------------- story 6: lifecycle and edit
+// Lifecycle calls are bodyless POSTs (the client header is enough). All are workspace edits.
+
+function taskPath(workspaceId: string, taskId: string): string {
+  return `/api/w/${encodeURIComponent(workspaceId)}/tasks/${encodeURIComponent(taskId)}`;
+}
+
+export async function completeTask(workspaceId: string, taskId: string): Promise<Task> {
+  return (await request(TaskResponse, `${taskPath(workspaceId, taskId)}/complete`, { method: 'POST', edit: true })).task;
+}
+
+export async function reopenTask(workspaceId: string, taskId: string): Promise<Task> {
+  return (await request(TaskResponse, `${taskPath(workspaceId, taskId)}/reopen`, { method: 'POST', edit: true })).task;
+}
+
+/** Undo of a delete. The server accepts it at any time; the 10 s window is the UI's. */
+export async function restoreTask(workspaceId: string, taskId: string): Promise<Task> {
+  return (await request(TaskResponse, `${taskPath(workspaceId, taskId)}/restore`, { method: 'POST', edit: true })).task;
+}
+
+/** Soft delete (204). There is never a confirmation: Undo (restoreTask) is the safeguard. */
+export async function deleteTask(workspaceId: string, taskId: string): Promise<void> {
+  await request(NoContent, taskPath(workspaceId, taskId), { method: 'DELETE', edit: true });
+}
+
+export async function updateTask(workspaceId: string, taskId: string, patch: TaskPatch): Promise<Task> {
+  return (await request(TaskResponse, taskPath(workspaceId, taskId), { method: 'PATCH', json: patch, edit: true })).task;
 }

@@ -1,0 +1,62 @@
+{
+  "steps": {
+    "install": {
+      "cmd": "bun install",
+      "exit": 0,
+      "seconds": 0.0,
+      "tail": "bun install v1.2.17 (282dda62)\n\nChecked 381 installs across 510 packages (no changes) [34.00ms]\n"
+    },
+    "build": {
+      "cmd": "bun run build",
+      "exit": 0,
+      "seconds": 0.3,
+      "tail": "\u001b[36mvite v8.3.1 \u001b[32mbuilding client environment for production...\u001b[36m\u001b[39m\ntransforming...\n\u2713 482 modules transformed.\nrendering chunks...\ncomputing gzip size...\ndist/index.html                             0.59 kB \u2502 gzip:   0.32 kB\ndist/assets/index-a4qJ-r-g.css             43.48 kB \u2502 gzip:   9.33 kB\ndist/assets/dialog-DETOlYDa.js              0.74 kB \u2502 gzip:   0.45 kB\ndist/assets/ShortcutsPanel-CJcI3rNl.js      1.52 kB \u2502 gzip:   0.78 kB\ndist/assets/SharePanel-CVbpBdqE.js          3.57 kB \u2502 gzip:   1.73 kB\ndist/assets/ForgetDialog-BPi8QRr6.js        4.85 kB \u2502 gzip:   1.89 kB\ndist/assets/TaskDetailSheet-DOjSfuTN.js     4.86 kB \u2502 gzip:   2.09 kB\ndist/assets/useWorkspaceLink-voJOBGEC.js    6.88 kB \u2502 gzip:   2.60 kB\ndist/assets/Workspace-Cgv1oZf-.js          63.02 kB \u2502 gzip:  20.85 kB\ndist/assets/es2015-CNZJWwfa.js             72.98 kB \u2502 gzip:  24.20 kB\ndist/assets/api-K6EWdBgX.js               135.35 kB \u2502 gzip:  40.32 kB\ndist/assets/index-CHX_vxm9.js             323.33 kB \u2502 gzip: 104.39 kB\n\n\u001b[32m\u2713 built in 151ms\u001b[39m\n$ bun run --cwd apps/web build\n$ vite build\n",
+      "passed": null,
+      "failed": null
+    },
+    "typecheck": {
+      "cmd": "bun run typecheck",
+      "exit": 0,
+      "seconds": 5.1,
+      "tail": "$ bun run --cwd packages/shared typecheck && bun run --cwd apps/api typecheck && bun run --cwd apps/web typecheck && tsc -p tsconfig.json --noEmit\n$ tsc -p tsconfig.json --noEmit\n$ tsc -p tsconfig.json --noEmit && tsc -p tsconfig.node.json --noEmit\n$ tsc -p tsconfig.json --noEmit\n",
+      "passed": null,
+      "failed": null
+    },
+    "lint": {
+      "cmd": "bun run lint",
+      "exit": 0,
+      "seconds": 0.8,
+      "tail": "$ bun run --cwd apps/web lint\n$ eslint .\n",
+      "passed": null,
+      "failed": null
+    },
+    "test:unit": {
+      "cmd": "bun run test:unit",
+      "exit": 0,
+      "seconds": 8.1,
+      "tail": "\n RUN  v4.1.11 ~/.vidi-bench/work/benchmarks__reference__todoodle__opus-5.5__run-1/workspace\n\n\n Test Files  11 passed (11)\n      Tests  132 passed (132)\n   Start at  22:47:55\n   Duration  3.77s (transform 2.74s, setup 9.73s, import 133ms, tests 958ms, environment 1ms)\n\n\n RUN  v4.1.11 ~/.vidi-bench/work/benchmarks__reference__todoodle__opus-5.5__run-1/workspace\n\n\n Test Files  6 passed (6)\n      Tests  48 passed (48)\n   Start at  22:47:59\n   Duration  145ms (transform 113ms, setup 0ms, import 193ms, tests 61ms, environment 0ms)\n\n\n RUN  v4.1.11 ~/.vidi-bench/work/benchmarks__reference__todoodle__opus-5.5__run-1/workspace\n\n\n Test Files  27 passed (27)\n      Tests  232 passed (232)\n   Start at  22:47:59\n   Duration  2.96s (transform 1.07s, setup 8.32s, import 772ms, tests 1.61s, environment 5.29s)\n\n$ vitest run --config apps/api/vitest.config.ts --project api-unit && vitest run --config scripts/vitest.config.ts --project deploy-unit && vitest run --config apps/web/vitest.config.ts --project web-unit\n",
+      "passed": 132,
+      "failed": 0
+    },
+    "test:component": {
+      "exit": "missing"
+    },
+    "test:integration": {
+      "cmd": "bun run test:integration",
+      "exit": 0,
+      "seconds": 17.0,
+      "tail": "\n RUN  v4.1.11 ~/.vidi-bench/work/benchmarks__reference__todoodle__opus-5.5__run-1/workspace\n\n\n Test Files  18 passed (18)\n      Tests  207 passed (207)\n   Start at  22:48:03\n   Duration  9.55s (transform 3.77s, setup 14.51s, import 409ms, tests 15.65s, environment 1ms)\n\n\n RUN  v4.1.11 ~/.vidi-bench/work/benchmarks__reference__todoodle__opus-5.5__run-1/workspace\n\n\n Test Files  1 passed (1)\n      Tests  18 passed (18)\n   Start at  22:48:13\n   Duration  6.47s (transform 42ms, setup 0ms, import 62ms, tests 6.34s, environment 0ms)\n\n$ vitest run --config apps/api/vitest.config.ts --project api-integration --project api-staging-sim --project api-production-gate && vitest run --config scripts/vitest.config.ts --project deploy-integration\n",
+      "passed": 207,
+      "failed": 0
+    },
+    "test:e2e": {
+      "cmd": "bun run test:e2e --project=chromium",
+      "exit": 0,
+      "seconds": 53.3,
+      "tail": "\nRunning 55 tests using 4 workers\n\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\n  55 passed (53.0s)\n::notice title=\ud83c\udfad Playwright Run Summary::  55 passed (53.0s)\n$ playwright test \"--project=chromium\"\n[WebServer] $ wrangler d1 migrations apply DB --local\n[WebServer] $ bun run build && bun scripts/dev.ts\n[WebServer] $ bun run --cwd apps/web build\n[WebServer] $ vite build\n",
+      "passed": 55,
+      "failed": 0
+    }
+  },
+  "all_green": true
+}

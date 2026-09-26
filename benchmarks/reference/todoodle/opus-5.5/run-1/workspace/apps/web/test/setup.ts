@@ -8,6 +8,9 @@ import { setDefaultSocketFactory } from '@/features/live/LiveConnection';
 import { networkMonitor } from '@/features/live/network';
 import { clearLiveHandlersForTests } from '@/features/live/registry';
 import { clearLinkSavedCache } from '@/features/share/linkSaved';
+import { clearFocusStateForTests } from '@/features/tasks/focusAfterAction';
+import { clearTaskBusyForTests } from '@/features/tasks/taskBusy';
+import { clearUndoStackForTests } from '@/features/undo/undoStack';
 import { resetOpensForTests } from '@/features/workspace/bootOpen';
 import { queryClient } from '@/lib/queryClient';
 import { server } from './msw.ts';
@@ -26,6 +29,9 @@ afterEach(() => {
   cleanup();
   // sonner keeps toasts in a global store and replays active ones to the next Toaster: dismiss them.
   toast.dismiss();
+  clearUndoStackForTests();
+  clearTaskBusyForTests();
+  clearFocusStateForTests();
   queryClient.clear();
   resetOpensForTests();
   localStorage.clear();

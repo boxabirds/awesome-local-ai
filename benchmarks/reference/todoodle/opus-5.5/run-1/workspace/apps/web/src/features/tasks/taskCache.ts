@@ -7,8 +7,11 @@ import type { Counts, Task } from '@todoodle/shared/schemas';
  */
 export type LocalStatus = 'pending' | 'failed' | 'rejected';
 
-/** A cached task, possibly one that exists only on this device so far. */
-export type LocalTask = Task & { localStatus?: LocalStatus };
+/**
+ * A cached task, possibly one that exists only on this device so far. `leaving` (story 6): just completed,
+ * shown ticked in its open position for COMPLETE_ANIMATION_MS before it leaves the open list.
+ */
+export type LocalTask = Task & { localStatus?: LocalStatus; leaving?: boolean };
 
 /** The version an optimistic row carries: any server copy (version >= 1) replaces it. */
 export const LOCAL_VERSION = 0;

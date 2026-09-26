@@ -8,6 +8,7 @@ import { queryClient } from '@/lib/queryClient';
 import { queryKeys } from '@/lib/queryKeys';
 import { server } from '../msw.ts';
 import { type CreateOutcome, countsHandler, createHandler, listHandler } from '../msw/tasks.ts';
+import type { TaskServer } from '../msw/taskLifecycle.ts';
 import { WORKSPACE, getHandler } from './fixtures.ts';
 import { renderApp } from './render.tsx';
 
@@ -96,4 +97,41 @@ export function setViewport({ width, coarse = false }: { width: number; coarse?:
       for (const cb of [...listeners]) cb();
     },
   };
+}
+
+// ---------------------------------------------------------------- story 6
+
+/** /w/:id with the Inbox served by the stateful story 6 task server. Resolves once the rows show. */
+export async function enterWithTaskServer(api: TaskServer) {
+  server.use(getHandler(), ...api.handlers);
+  try {
+    localStorage.setItem(`tdl:v1:linkSaved:${ID}`, '1');
+  } catch {
+    // Storage made unavailable by the test: the unsaved-link banner may show, which is fine.
+  }
+  const rendered = await renderApp(`/w/${ID}`);
+  await screen.findByRole('heading', { name: 'Inbox', level: 1 });
+  return rendered;
+}
+
+/** The row of the task with this name. */
+export function rowNamed(name: string, opts: { hidden?: boolean } = {}): HTMLElement {
+  const all = opts.hidden ? screen.queryAllByRole('option', { hidden: true }) : rows();
+  const row = all.find((item) => item.querySelector('p')?.textContent === name);
+  if (!row) throw new Error(`no row named ${name}`);
+  return row;
+}
+
+/** The status (polite) or alert toast with this text, if shown. */
+export function toastWith(text: string): HTMLElement | null {
+  const node = screen.queryAllByText(text).find((element) => element.closest('[data-sonner-toast]'));
+  return node?.closest<HTMLElement>('[role="status"], [role="alert"]') ?? null;
+}
+
+/** Stubs prefers-reduced-motion (and nothing else) for this test. */
+export function setReducedMotion(reduce: boolean) {
+  const real = window.matchMedia.bind(window);
+  vi.stubGlobal('matchMedia', (query: string) =>
+    /prefers-reduced-motion:\s*reduce/.test(query) ? ({ ...real(query), matches: reduce, media: query } as MediaQueryList) : real(query),
+  );
 }

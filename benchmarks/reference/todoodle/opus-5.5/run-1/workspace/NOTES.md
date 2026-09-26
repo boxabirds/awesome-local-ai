@@ -295,3 +295,101 @@
 
   As in stories 1–4, `bun run <script>` cannot run in this sandbox, so each script's underlying binary was run directly against
   a manually started `wrangler dev`.
+
+## Story 6
+
+- **Commit order.** Tasks 1–3, then the API test tasks 9 and 10 (they only need tasks 1–3), then 4, 5, 13 (focus), 6, 7,
+  8, 11 and finally 12. Some commits hold another task's code:
+  - Task 3's PATCH route, `updateTask` and `listTasks` share `db/tasks.ts` and `routes/tasks.ts` with task 2, so they landed
+    in task 2's commit. Task 3's commit is empty and says so.
+  - `TaskDetailSheet.tsx` and its lazy loader landed with task 6. Task 6's rows preload the sheet and `InboxView` renders
+    it. Task 7's commit is empty and says so.
+  - Task 4's action controller exposes hooks (`setTaskActionHooks`). Tasks 5 and 13 plug the undo toast and focus
+    management into them (`features/tasks/wireTaskActions.ts`), so each of those tasks is its own commit.
+- **Test locations.** TC-U01..U07 (shared schemas and ordering) are in `apps/api/test/unit/taskEdit.schemas.test.ts`, as in
+  story 5, because `packages/shared` has no test project. TC-U15 (Intl dates) is in `apps/web/test/unit/tasks/dates.test.ts`,
+  since workerd's Intl locale data is not the browser's. All other unit tests are in `apps/web/test/unit/{tasks,undo}`. The
+  UI tests are in `apps/web/test/ui/tasks/taskActions.test.tsx` and `taskDetail.test.tsx`, backed by a stateful MSW task
+  server (`test/msw/taskLifecycle.ts`). The integration tests are `tasks.lifecycle.test.ts` and `tasks.edit.test.ts`.
+- **No `/test/seed` endpoint.** The design's e2e and integration fixtures mention `/test/seed`, but it never existed.
+  Seeding goes through the real create endpoint, which is the quick-add path. Integration tests then set
+  completed/deleted states directly in D1 (`seedRealisticWorkspaces`), and e2e uses `seedTasks`. The design's
+  "fractional sort_order" is not reproduced: the quick-add path only produces integer steps. `GET /test/tasks/:id/raw` was
+  added as designed.
+- **Query keys.** `queryKeys.tasks(id, {list})` now normalises to `['ws', id, 'tasks', {list, includeCompleted: false}]`,
+  so story 5 call sites name the same entry. Story 5's TC-92 key assertion was updated to the new shape. Story 5's quick add
+  writes its optimistic row into both variants of a list (the include-completed one only when it is cached), placing it
+  before the completed rows.
+- **Cache model.** Every cached list keeps one order: open by `sortOrder`, then completed by `completedAt` descending. A
+  just-completed task stays in place with `leaving: true` for `COMPLETE_ANIMATION_MS`, then moves. Under reduced motion it
+  moves at once and never gets the flag or the `task-row-leaving` class.
+  - Rollback is per task (`rollbackTask`). The failed task goes back beside its old neighbours, and other rows keep any
+    concurrent change. Whole-list snapshot rollback would undo a concurrent delete of another task.
+  - "Busy" is a tiny external store (`taskBusy.ts`) rather than `useIsMutating`, because the actions are plain functions,
+    not per-task `useMutation` keys.
+- **Actions are a per-workspace controller** (`createTaskActions`, cached per QueryClient and workspace). They are not
+  `useMutation` hooks. Undo toasts outlive components and must call stable functions, which is the design's "stable refs"
+  point. The `useCompleteTask`/`useReopenTask`/`useUpdateTask`/`useDeleteTask`/`useRestoreTask` hooks return those functions.
+- **Undo semantics.**
+  - Undo inverses are not optimistic. The task comes back when `reopen`/`restore` succeeds, and on failure it stays
+    completed or deleted on screen with "Couldn't undo — try again" (TC-C22).
+  - The undo toast appears when the complete or delete succeeds, not before. An Undo pressed before the server has the
+    change could otherwise race it.
+  - "Task restored" (role=status) follows a successful undo of either kind.
+- **Toast roles.** sonner's toasts have no role, so failures and successes use `toast.custom` with our own `role="alert"`
+  or `role="status"` card (`lib/notify.tsx`). The undo toast is a `role=status` region holding the Undo button.
+- **Shortcut registry changes (story 5's `lib/shortcuts.ts`).**
+  - A handler may return `false` to decline a key. The key is then not prevented, and an earlier registration may take it.
+    Row shortcuts decline when no task row has focus (so Space still presses buttons, and so on), and Cmd/Ctrl+Z declines
+    when no undo toast is active (native text undo is untouched).
+  - `mod` shortcuts no longer match with Shift held (Cmd+Shift+Z is redo).
+  - The panel shows `' '` as Space and `Delete` as Del.
+- **Row structure (a11y).** axe's nested-interactive rule (serious) fails any focusable widget inside `role=option`, even
+  with `tabindex=-1`. The row's checkbox (`<span role=checkbox>`), name and '…' trigger (`<span role=button>`) are therefore
+  pointer and touch targets that never take focus. Keyboard users act on the focused row with Space, E and Delete (the menu
+  shows these hints, with `aria-keyshortcuts`). The option is named by its task name (`aria-labelledby`).
+  - Menu choices run from `onCloseAutoFocus`, after the menu has released focus, so focus lands where the action puts it.
+  - Story 5's rows keep Retry/Discard buttons on unsaved rows.
+- **Space only on the row itself.** On any other element (a button, the switch), Space keeps its native meaning.
+- **Detail sheet.**
+  - Edits are held as "dirty" drafts (`null` shows the saved value), and only dirty fields are passed to story 4's edit
+    guard. Someone else's change to a field the user has not touched just shows up, with no conflict notice. A change to a
+    field being edited raises the notice (TC-C19). While the notice is open, the field keeps the user's text and the notice
+    shows theirs.
+  - A 410 on save goes through story 4's `handleMutationError`, which removes the task and toasts "This task was deleted".
+    The sheet closes because its task has left the cache.
+  - The sheet unmounts before focus moves (`flushSync`), because Radix's focus trap would pull focus back.
+  - The description is trimmed on save, like create.
+- **Live events.** Story 6 also registers a `task.deleted` handler (not only `task.restored`). Without it the dispatcher
+  would invalidate the whole workspace and never tell the edit guards, so the deleted notice (TC-E05) could not show.
+  `task.upserted` now moves a completed or reopened task between the open and completed rows of every cached list.
+- **Constants.**
+  - `NAME_HINT_MS` is 3,000 (was 2,500, story 2). Story 2's TC-80 title quoted the old numbers; it now names the constant.
+  - `COMPLETE_ANIMATION_MS` reaches CSS as `--complete-animation-ms` through the generated `constants.css`.
+  - Shared and web TypeScript `lib` moved to ES2023 for `toSorted`/`toSpliced`/`with` (supported by every browser the
+    app targets, and by workerd).
+- **Show completed.**
+  - The toggle is a `role=switch` at the top of the list. It adds one Tab stop before the list, so story 5's TC-109/TC-111
+    (UI) and TC-114 (e2e) now step over it. WebKit's default Tab order skips buttons, so TC-114 only presses the extra Tab
+    on Chromium.
+  - The workspace loader prefetches whichever Inbox variant this browser remembers.
+  - The design's "400 on include_completed -> alert and toggle off" branch is not built. The client only ever sends
+    `true`, and any failed list load already shows story 5's "Couldn't load your tasks" with Try again.
+- **Undo toast pause.** Hover and focus-within are tracked separately, and the window resumes only when both have left.
+  sonner shows the toast with an infinite duration, and `createUndo` alone decides when it goes.
+- **E2E.**
+  - `e2e/tasks.lifecycle.spec.ts` runs on Chromium only (design: standards-only APIs), and its tests skip on WebKit.
+  - `e2e/tasks.lifecycle.mobile.spec.ts` runs in the iPhone project.
+  - Playwright's Desktop Chrome device reports Windows, so the app expects Ctrl for mod+z even on a Mac host. `modKey(page)`
+    asks the page which modifier it uses. Native select-all still uses `ControlOrMeta`.
+  - The sheet's full-screen box is measured after its slide-in animation.
+- **Story 6 verification.** Everything below passes:
+  - typecheck (all five tsconfigs), lint and build;
+  - unit: api 132, deploy 48, web 232;
+  - integration: api 207, deploy 18;
+  - UI: 235;
+  - e2e: 100 passed and 15 skipped (story 4 and story 6 desktop specs on WebKit) across chromium, webkit and mobile-touch.
+    The story 6 specs also passed 3 times in a row (`--repeat-each=3`).
+
+  As before, `bun run <script>` cannot run in this sandbox (`CouldntReadCurrentDirectory`), so each script's underlying
+  binary was run directly against a manually started `wrangler dev` with a fresh `vite build`.

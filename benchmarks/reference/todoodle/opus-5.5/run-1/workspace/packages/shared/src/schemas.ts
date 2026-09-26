@@ -120,3 +120,69 @@ export type TaskResponse = z.infer<typeof TaskResponse>;
 
 export const TaskListResponse = z.object({ tasks: z.array(TaskSchema) });
 export type TaskListResponse = z.infer<typeof TaskListResponse>;
+
+// ---------------------------------------------------------------- story 6: edit, completed lists
+
+/** A task edit (PATCH /api/w/:id/tasks/:taskId). Lifecycle fields (completedAt, deleted…) can't be patched. */
+export type TaskPatch = { name?: string; description?: string };
+
+/**
+ * PATCH body: strict (unknown keys are 400, so completion can't be tampered with through PATCH), at least one
+ * field. Both are trimmed and measured in UTF-16 code units. A blank name is valid here and means "keep the
+ * previous name" (resolvePatchedName); an empty description clears it.
+ */
+export const TaskPatchSchema: z.ZodType<TaskPatch> = z
+  .object({
+    name: z.string().trim().refine(fitsUnits(TASK_NAME_MAX), { message: `At most ${TASK_NAME_MAX} characters` }).optional(),
+    description: z
+      .string()
+      .trim()
+      .refine(fitsUnits(TASK_DESCRIPTION_MAX), { message: `At most ${TASK_DESCRIPTION_MAX} characters` })
+      .optional(),
+  })
+  .strict()
+  .refine((patch) => patch.name !== undefined || patch.description !== undefined, { message: 'Change at least one field' });
+
+/** The name a patch leaves: the trimmed input, or `previous` when the input is absent or blank (prd.edit_blank_name). */
+export function resolvePatchedName(input: string | undefined, previous: string): string {
+  if (input === undefined) return previous;
+  const trimmed = input.trim();
+  return trimmed === '' ? previous : trimmed;
+}
+
+/** GET /api/w/:id/tasks query: story 5's list plus include_completed (only the literal strings true/false). */
+export const ListTasksQuerySchema = z.object({
+  list: z.enum(['inbox']).default('inbox'),
+  include_completed: z.enum(['true', 'false']).optional(),
+});
+export type ListTasksQuery = z.infer<typeof ListTasksQuerySchema>;
+
+/** include_completed: absent or 'false' -> false, 'true' -> true; any other value throws (a 400 on the API). */
+export function parseIncludeCompleted(value: string | undefined): boolean {
+  return ListTasksQuerySchema.shape.include_completed.parse(value) === 'true';
+}
+
+/** Bodyless lifecycle calls (complete, reopen, restore) accept no body or exactly `{}`. */
+export const EmptyBodySchema = z.object({}).strict();
+
+type Orderable = { id: string; sortOrder: number; completedAt: string | null };
+
+/** Compares ids byte-wise (not locale-aware), so the order is identical on the server and in every browser. */
+function compareIds(a: string, b: string): number {
+  return a < b ? -1 : a > b ? 1 : 0;
+}
+
+/**
+ * The one task order (tasks.list_completed): open tasks by sortOrder ascending, then completed tasks by
+ * completedAt descending (most recent first); ties by id. Returns a new array.
+ */
+export function orderTasks<T extends Orderable>(tasks: readonly T[]): T[] {
+  return tasks.toSorted((a, b) => {
+    const aDone = a.completedAt !== null;
+    const bDone = b.completedAt !== null;
+    if (aDone !== bDone) return aDone ? 1 : -1;
+    if (aDone && bDone && a.completedAt !== b.completedAt) return a.completedAt! < b.completedAt! ? 1 : -1;
+    if (!aDone && a.sortOrder !== b.sortOrder) return a.sortOrder - b.sortOrder;
+    return compareIds(a.id, b.id);
+  });
+}

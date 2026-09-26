@@ -7,13 +7,15 @@ import { type LocalTask, mergeLocalRows } from './taskCache';
 /**
  * One task list. The fetched list keeps rows that exist only on this device (pending, failed or rejected
  * creates), so a refetch never drops text the user has not saved yet. Background refetches keep the old
- * rows on screen (keepPreviousData); only the first load shows skeletons.
+ * rows on screen (keepPreviousData); only the first load shows skeletons. Story 6: includeCompleted adds the
+ * list's completed tasks after the open ones, and toggling it keeps the current rows on screen until they load.
  */
-export function tasksQuery(workspaceId: string, list: TaskList) {
-  const queryKey = queryKeys.tasks(workspaceId, { list });
+export function tasksQuery(workspaceId: string, list: TaskList, includeCompleted = false) {
+  const queryKey = queryKeys.tasks(workspaceId, { list, includeCompleted });
   return queryOptions({
     queryKey,
-    queryFn: async ({ client }) => mergeLocalRows(await listTasks(workspaceId, list), client.getQueryData<LocalTask[]>(queryKey)),
+    queryFn: async ({ client }) =>
+      mergeLocalRows(await listTasks(workspaceId, { list, includeCompleted }), client.getQueryData<LocalTask[]>(queryKey)),
     placeholderData: keepPreviousData,
   });
 }
