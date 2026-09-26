@@ -21,7 +21,7 @@ stack).
 | `run-history.jsonl` | yes | run started / finished / failed / stopped, with the reason; each also pushed as a commit |
 | `run-status.json` | yes | the run's current state |
 | `progress.json`, `current_story`, `control/` | no (git-ignored) | live state of the current story, for dbench and watchers |
-| `summary.md` | yes | the report (`report.py`) |
+| `summary.md` | yes | the report (`report.py`), ending with *How it happened* (`history.py`): each story's commits and source files changed, and which story broke or fixed an earlier story's held-out tests, with the tests and their error |
 | `workspace-git-log.txt` | yes | the agent's commit history |
 | `stories/NN/prompt.md`, `base-commit` | yes | what the agent was given, and from which commit |
 | `stories/NN/agent-events.compact.jsonl.gz` | yes | the agent's session, stream deltas dropped, long strings cut, home paths redacted |
