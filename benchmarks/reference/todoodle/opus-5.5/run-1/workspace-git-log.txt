@@ -1,3 +1,181 @@
+commit 5f6576533ef8cc829430bc2f5db3ee8692348b2e
+vidi-agent  Sat Sep 26 21:28:10 2026 +0100
+
+    story 4: Bring others into a workspace by sharing its link
+
+
+ NOTES.md | 73 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 73 insertions(+)
+commit c88d5b953d423b99cf670a4b7f66f11e95cddd71
+vidi-agent  Sat Sep 26 21:26:51 2026 +0100
+
+    story 4 task 12: E2E tests: share, join, live propagation, offline vs live-paused, conflict choice
+
+
+ apps/web/src/features/live/LiveConnection.ts   |  22 ++-
+ apps/web/test/unit/live/liveConnection.test.ts |   6 +-
+ e2e/live.spec.ts                               | 227 +++++++++++++++++++++++++
+ e2e/support/live.ts                            |  46 +++++
+ 4 files changed, 290 insertions(+), 11 deletions(-)
+commit 264beb096747bc67c30507de7dd232964c36412b
+vidi-agent  Sat Sep 26 21:21:16 2026 +0100
+
+    story 4 task 11: UI-component tests: shared SharePanel pins, live provider/announcer, pill vs banner gating, conflict choice
+
+
+ apps/web/test/setup.ts                 |   2 +
+ apps/web/test/support/live.ts          | 106 +++++++++++++++++++
+ apps/web/test/ui/conflict.test.tsx     | 185 +++++++++++++++++++++++++++++++++
+ apps/web/test/ui/connection.test.tsx   | 129 +++++++++++++++++++++++
+ apps/web/test/ui/live.test.tsx         |  72 +++++++++++++
+ apps/web/test/ui/share.story4.test.tsx |  60 +++++++++++
+ 6 files changed, 554 insertions(+)
+commit 5e31b58c62a658a6d97bf1f449809f8fc7c66d3e
+vidi-agent  Sat Sep 26 21:17:45 2026 +0100
+
+    story 4 task 10: Integration tests: live endpoint auth/origin, DO fan-out, broadcast, link and join contracts
+
+
+ apps/api/test/integration/broadcast.test.ts  | 126 +++++++++++++++++++++++
+ apps/api/test/integration/live.test.ts       | 146 +++++++++++++++++++++++++++
+ apps/api/test/integration/share-join.test.ts |  93 +++++++++++++++++
+ apps/api/test/support/live.ts                |  70 +++++++++++++
+ 4 files changed, 435 insertions(+)
+commit bcda922289d153b9a639f60f9f046917983d1507
+vidi-agent  Sat Sep 26 21:17:19 2026 +0100
+
+    story 4 task 9: Unit tests: event contract, room, dispatch/registry/batching/announcer, socket+network+derived UI, edit guard matrix
+
+
+ apps/api/test/unit/events.test.ts              | 113 ++++++++++++
+ apps/api/test/unit/security-headers.test.ts    |  10 ++
+ apps/api/test/unit/workspace-room.test.ts      |  80 +++++++++
+ apps/web/test/support/liveFixtures.ts          |  72 ++++++++
+ apps/web/test/unit/live/announcer.test.ts      |  68 ++++++++
+ apps/web/test/unit/live/backoff.test.ts        |  18 ++
+ apps/web/test/unit/live/deriveLiveUi.test.ts   |  29 ++++
+ apps/web/test/unit/live/dispatch.test.ts       | 132 ++++++++++++++
+ apps/web/test/unit/live/editGuard.test.ts      | 217 +++++++++++++++++++++++
+ apps/web/test/unit/live/liveConnection.test.ts | 227 +++++++++++++++++++++++++
+ apps/web/test/unit/live/network.test.ts        | 152 +++++++++++++++++
+ 11 files changed, 1118 insertions(+)
+commit fd4dea4ba2a12d8f7fad3397c1f7403b58bc6134
+vidi-agent  Sat Sep 26 21:12:35 2026 +0100
+
+    story 4 task 8: Reusable edit guard with conflict choice (Use my version / Keep theirs) and deleted notices
+
+
+ apps/web/src/features/live/ConflictNotice.tsx      |  36 ++++
+ apps/web/src/features/live/dispatch.ts             |   3 +-
+ apps/web/src/features/live/editGuard.ts            | 205 +++++++++++++++++++++
+ apps/web/src/features/live/showConflictToast.ts    |  23 +++
+ apps/web/src/features/live/useEditGuard.ts         | 104 +++++++++++
+ .../src/features/workspace/WorkspaceNameEditor.tsx |  87 ++++++++-
+ apps/web/src/lib/api.ts                            |  13 +-
+ apps/web/src/lib/errors.ts                         |  50 +++++
+ apps/web/src/routes/Workspace.tsx                  |   5 +-
+ apps/web/test/setup.ts                             |   2 +
+ 10 files changed, 516 insertions(+), 12 deletions(-)
+commit 7f87bf00fd51c7b868645906a723a7eaaa2ec854
+vidi-agent  Sat Sep 26 21:09:34 2026 +0100
+
+    story 4 task 7: Live paused vs offline: reconnect, health probe, Reconnecting pill, offline banner and fieldset edit gate
+
+
+ apps/web/src/features/live/LiveProvider.tsx        |  17 ++-
+ apps/web/src/features/live/OfflineBanner.tsx       |  14 +++
+ apps/web/src/features/live/ReconnectingPill.tsx    |  19 +++
+ apps/web/src/features/live/canEdit.ts              |  65 +++++++++++
+ apps/web/src/features/live/canEditStore.ts         |   7 --
+ apps/web/src/features/live/deriveLiveUi.ts         |  22 ++++
+ apps/web/src/features/live/network.ts              | 129 +++++++++++++++++++++
+ apps/web/src/features/live/useNetworkStatus.ts     |   7 ++
+ .../web/src/features/workspace/WorkspaceHeader.tsx |   2 +-
+ .../src/features/workspace/WorkspaceNameEditor.tsx |  11 +-
+ apps/web/src/lib/api.ts                            |  46 +++++---
+ apps/web/src/lib/errors.ts                         |  30 +++++
+ apps/web/src/routes/Workspace.tsx                  |  46 +++++---
+ apps/web/test/setup.ts                             |   3 +
+ apps/web/test/ui/editGate.test.tsx                 |   5 +-
+ 15 files changed, 377 insertions(+), 46 deletions(-)
+commit adfcfad566fba5a84b948bfe2f249c1ba0cae1a5
+vidi-agent  Sat Sep 26 21:07:21 2026 +0100
+
+    story 4 task 5: Join via shared link starts the live connection
+
+
+ apps/web/src/routes/Workspace.tsx | 20 ++++++++++++++++++--
+ 1 file changed, 18 insertions(+), 2 deletions(-)
+commit 2e438dbaa0e668a3b434e92dda0c72a5a604052d
+vidi-agent  Sat Sep 26 21:07:04 2026 +0100
+
+    story 4 task 6: Client live connection, handler registry, per-frame batching and screen-reader announcer
+
+
+ apps/api/src/live/broadcast.ts               |   4 +-
+ apps/web/package.json                        |   1 +
+ apps/web/src/features/live/LiveAnnouncer.tsx |  15 ++
+ apps/web/src/features/live/LiveConnection.ts | 333 +++++++++++++++++++++++++++
+ apps/web/src/features/live/LiveProvider.tsx  |  47 ++++
+ apps/web/src/features/live/announcer.ts      |  73 ++++++
+ apps/web/src/features/live/backoff.ts        |  10 +
+ apps/web/src/features/live/clientId.ts       |   5 +
+ apps/web/src/features/live/dispatch.ts       |  50 ++++
+ apps/web/src/features/live/frameScheduler.ts |  22 ++
+ apps/web/src/features/live/handlers.ts       |  34 +++
+ apps/web/src/features/live/registry.ts       |  45 ++++
+ apps/web/src/lib/api.ts                      |  16 +-
+ apps/web/src/lib/queryClient.ts              |   7 +-
+ apps/web/src/lib/queryKeys.ts                |   3 +
+ apps/web/src/routes/Workspace.tsx            |   3 +
+ apps/web/test/setup.ts                       |  10 +
+ apps/web/test/support/sockets.ts             |  21 ++
+ bun.lock                                     |   3 +
+ packages/shared/src/limits.ts                |   4 +
+ 20 files changed, 701 insertions(+), 5 deletions(-)
+commit ca96809a5667bc8d8ac15e2b001e6befd45d325a
+vidi-agent  Sat Sep 26 21:02:05 2026 +0100
+
+    story 4 task 4: Verify story 2's single SharePanel meets the share requirements (no new share UI)
+
+
+ apps/web/src/features/share/SharePanel.tsx |  7 ++++---
+ apps/web/src/features/share/copy.ts        | 10 ++++++++++
+ 2 files changed, 14 insertions(+), 3 deletions(-)
+commit b6618d0fd4fca0038c5b299d127b57c0f0a812c7
+vidi-agent  Sat Sep 26 21:01:52 2026 +0100
+
+    story 4 task 3: Broadcast helper and wire workspace rename to live events
+
+
+ apps/api/src/live/broadcast.ts    | 67 +++++++++++++++++++++++++++++++++++++++
+ apps/api/src/routes/workspaces.ts | 14 ++++----
+ 2 files changed, 73 insertions(+), 8 deletions(-)
+commit 7cda15ef1cb3d81193563fd3bc5a26e220973c03
+vidi-agent  Sat Sep 26 21:01:04 2026 +0100
+
+    story 4 task 2: WorkspaceRoom Durable Object and authenticated /live upgrade endpoint
+
+
+ apps/api/src/app.ts                         |  4 ++
+ apps/api/src/env.ts                         |  3 ++
+ apps/api/src/index.ts                       |  3 ++
+ apps/api/src/lib/errors.ts                  |  4 +-
+ apps/api/src/live/WorkspaceRoom.ts          | 73 +++++++++++++++++++++++++++++
+ apps/api/src/middleware/security-headers.ts |  7 ++-
+ apps/api/src/routes/live.ts                 | 20 ++++++++
+ wrangler.toml                               | 24 ++++++----
+ 8 files changed, 127 insertions(+), 11 deletions(-)
+commit 96eb271cd0f7084c0550a61ae885095441841d1f
+vidi-agent  Sat Sep 26 20:59:00 2026 +0100
+
+    story 4 task 1: Define shared live event contract and live constants
+
+
+ packages/shared/package.json  |  3 ++-
+ packages/shared/src/events.ts | 63 +++++++++++++++++++++++++++++++++++++++++++
+ packages/shared/src/limits.ts | 29 ++++++++++++++++++++
+ 3 files changed, 94 insertions(+), 1 deletion(-)
 commit 03d59af57ff8948cff03af635b3df93a52f25134
 vidi-agent  Sat Sep 26 20:54:43 2026 +0100
 
