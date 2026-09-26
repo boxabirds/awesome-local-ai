@@ -1,3 +1,42 @@
+commit 142785285ff20493bb4d71c655515a625815f046
+vidi-agent  Sat Sep 26 02:24:39 2026 +0100
+
+    story 9: Write free text anywhere on the board
+
+
+ src/client/App.tsx                      | 218 +++++++++++++---
+ src/client/board/SelectionBar.tsx       |  31 ++-
+ src/client/board/SelectionOverlay.tsx   |  35 ++-
+ src/client/board/Toolbar.tsx            |  59 ++++-
+ src/client/board/useBoardDoc.ts         |  22 +-
+ src/client/board/useBoardKeys.ts        |  31 ++-
+ src/client/board/useTool.ts             |  32 +++
+ src/client/board/useTransformGesture.ts |  12 +
+ src/client/canvas/BoardViewport.tsx     |  48 +++-
+ src/client/canvas/testHooks.ts          |  53 +++-
+ src/client/objects/StickyText.ts        |  69 +----
+ src/client/objects/TextEditor.tsx       | 206 +++++++++++++++
+ src/client/objects/TextObject.tsx       | 212 ++++++++++++++++
+ src/client/objects/TextToolbar.tsx      |  84 ++++++
+ src/client/objects/defaultTypes.ts      |  29 ++-
+ src/client/objects/registry.tsx         |   2 +
+ src/client/objects/textLayout.ts        | 154 +++++++++++
+ src/client/objects/useTextBoxSync.ts    |  64 +++++
+ src/shared/board-model.ts               | 105 +++++---
+ src/shared/config.ts                    |  27 ++
+ src/shared/objects/text.ts              | 182 +++++++++++++
+ src/shared/text-edit.ts                 |  66 +++++
+ tests/component/TextBoxSync.test.tsx    | 144 +++++++++++
+ tests/component/TextObject.test.tsx     | 223 ++++++++++++++++
+ tests/component/Tool.test.tsx           | 111 ++++++++
+ tests/component/appHarness.tsx          |   6 +-
+ tests/e2e/helpers/board.ts              |  22 ++
+ tests/e2e/text.spec.ts                  | 436 ++++++++++++++++++++++++++++++++
+ tests/unit/board-model.test.ts          |  16 +-
+ tests/unit/text-layout.test.ts          | 123 +++++++++
+ tests/unit/text-model.test.ts           | 206 +++++++++++++++
+ tests/unit/undo-history.test.ts         |   8 +-
+ 32 files changed, 2848 insertions(+), 188 deletions(-)
 commit c00d439d2708023fb013932b1038b9511a980e3b
 vidi-agent  Sat Sep 26 01:23:23 2026 +0100
 
