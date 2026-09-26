@@ -34,6 +34,19 @@ export default defineConfig({
       testMatch: '**/nightly/**',
       use: { ...devices['Desktop Chrome'] },
     },
+    // Story 7: TC-32 (marquee containment) must also pass in firefox and
+    // webkit. Only the marquee spec is targeted; the other selection tests
+    // are chromium per the spec.
+    {
+      name: 'firefox',
+      testMatch: '**/selection-marquee.spec.ts',
+      use: { ...devices['Desktop Firefox'] },
+    },
+    {
+      name: 'webkit',
+      testMatch: '**/selection-marquee.spec.ts',
+      use: { ...devices['Desktop Safari'] },
+    },
   ],
   webServer: {
     // Story 5: TEST_HOOKS enables the /__test routes (board initialize for

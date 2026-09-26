@@ -9,6 +9,15 @@ export interface BoardViewportProps {
   onCreateStickyAt?: (world: Point) => void;
   /** Click (press without movement) on empty board space: clear the selection. */
   onClearSelection?: () => void;
+  /**
+   * Story 7: shift+pointerdown on empty board space starts a marquee.
+   * Screen points are viewport-local pixels (same space as the camera).
+   */
+  onMarqueeBegin?: (screen: Point) => void;
+  onMarqueeMove?: (screen: Point) => void;
+  onMarqueeEnd?: () => void;
+  /** Pointer cancelled mid-marquee: discard with no selection change. */
+  onMarqueeCancel?: () => void;
 }
 
 export function BoardViewport(props: BoardViewportProps) {
@@ -16,27 +25,14 @@ export function BoardViewport(props: BoardViewportProps) {
   const { camera, beginPan, panMove, endPan, wheel, zoomStep, reset } = useCameraContext();
 
   const isPanningRef = useRef(false);
+  const isMarqueeingRef = useRef(false);
   const downPosRef = useRef<Point | null>(null);
   const [cursorStyle, setCursorStyle] = useState('default');
 
-  // ResizeObserver for viewport size
-  const [size, setSize] = useState({ width: 0, height: 0 });
-  void size; // used implicitly for layout; camera is managed by App
-
-  useEffect(() => {
-    const el = containerRef.current;
-    if (!el) return;
-    const ro = new ResizeObserver(entries => {
-      for (const entry of entries) {
-        setSize({
-          width: entry.contentRect.width,
-          height: entry.contentRect.height,
-        });
-      }
-    });
-    ro.observe(el);
-    return () => ro.disconnect();
-  }, []);
+  const localPoint = (e: React.PointerEvent): Point => {
+    const rect = containerRef.current!.getBoundingClientRect();
+    return { x: e.clientX - rect.left, y: e.clientY - rect.top };
+  };
 
   // Pointer events
   const handlePointerDown = useCallback(
@@ -44,25 +40,49 @@ export function BoardViewport(props: BoardViewportProps) {
       // Only start pan when clicking the viewport or world layer (not child objects with data-no-pan)
       const target = e.target as HTMLElement;
       if (target.dataset?.noPan) return;
+      // Story 7: shift+press on empty space is a marquee, not a pan.
+      if (e.shiftKey) {
+        isMarqueeingRef.current = true;
+        downPosRef.current = null;
+        setCursorStyle('crosshair');
+        (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+        props.onMarqueeBegin?.(localPoint(e));
+        return;
+      }
       isPanningRef.current = true;
       downPosRef.current = { x: e.clientX, y: e.clientY };
       setCursorStyle('grabbing');
       (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
       beginPan({ x: e.clientX, y: e.clientY });
     },
-    [beginPan],
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [beginPan, props.onMarqueeBegin],
   );
 
   const handlePointerMove = useCallback(
     (e: React.PointerEvent) => {
+      if (isMarqueeingRef.current) {
+        props.onMarqueeMove?.(localPoint(e));
+        return;
+      }
       if (!isPanningRef.current) return;
       panMove({ x: e.clientX, y: e.clientY });
     },
-    [panMove],
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [panMove, props.onMarqueeMove],
   );
 
   const handlePointerUp = useCallback(
     (e: React.PointerEvent) => {
+      if (isMarqueeingRef.current) {
+        isMarqueeingRef.current = false;
+        setCursorStyle('default');
+        try {
+          (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId);
+        } catch { /* ignore */ }
+        props.onMarqueeEnd?.();
+        return;
+      }
       if (!isPanningRef.current) return;
       isPanningRef.current = false;
       setCursorStyle('default');
@@ -77,11 +97,21 @@ export function BoardViewport(props: BoardViewportProps) {
         props.onClearSelection?.();
       }
     },
-    [endPan, props.onClearSelection],
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [endPan, props.onClearSelection, props.onMarqueeEnd],
   );
 
   const handlePointerCancel = useCallback(
     (e: React.PointerEvent) => {
+      if (isMarqueeingRef.current) {
+        isMarqueeingRef.current = false;
+        setCursorStyle('default');
+        try {
+          (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId);
+        } catch { /* ignore */ }
+        props.onMarqueeCancel?.();
+        return;
+      }
       if (!isPanningRef.current) return;
       isPanningRef.current = false;
       setCursorStyle('default');
@@ -90,7 +120,8 @@ export function BoardViewport(props: BoardViewportProps) {
       } catch { /* ignore */ }
       endPan();
     },
-    [endPan],
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [endPan, props.onMarqueeCancel],
   );
 
   // Non-passive wheel listener
