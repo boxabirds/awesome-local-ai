@@ -1341,6 +1341,344 @@
           "fixed": [],
           "regressed": []
         }
+      },
+      "record": {
+        "committed": true,
+        "pushed": true,
+        "over_size_limit": [
+          "~/.dbench/repo/combinations/qwen/3.8/27b/ubuntu/nvidia4090/llamacpp-opencode/benchmarks/vidi/canvas-pi-04/server.log"
+        ],
+        "commit": "e58a5c1"
+      }
+    },
+    "5": {
+      "title": "Share a board with others using a link",
+      "conditions_start": {
+        "ac": true,
+        "low_power": false,
+        "thermal": "nominal"
+      },
+      "started": 1790449624.62704,
+      "agent": {
+        "seconds": 4406.9,
+        "steps": 261,
+        "tool_calls": 310,
+        "compactions": 3,
+        "tool_interruptions": 0,
+        "tokens": {
+          "input": 260105,
+          "output": 209002,
+          "reasoning": 0,
+          "cache_read": 18513931,
+          "cache_write": 0
+        },
+        "exit": 0,
+        "stalled": false,
+        "resumes": 0,
+        "nudges": 0,
+        "errors": [],
+        "ended_by_operator": false,
+        "ended_in_error": false,
+        "sessions": [
+          "01a0df1d-26e2-7254-b3f1-ad9915584ee5"
+        ]
+      },
+      "agent_finished": 1790454031.503055,
+      "conditions": {
+        "samples": 145,
+        "degraded": false,
+        "throttled_share": 0.0,
+        "bad_samples": [],
+        "swap_start_gb": 1.04,
+        "swap_max_gb": 1.04,
+        "aborted_swap": false,
+        "aborted_memory": false,
+        "free_min_pct": 62.98191096663072,
+        "server_footprint_max_gb": 16.855266571044922,
+        "server_footprint_peak_gb": 17.911727905273438,
+        "gpu": {
+          "samples": 145,
+          "busy_mean_pct": 75.0,
+          "sclk_min_busy_mhz": 2520,
+          "sclk_max_mhz": 2760,
+          "power_mean_w": 323.9,
+          "power_max_w": 442.05,
+          "temp_max_c": 75.0,
+          "vram_max_gb": 22.93,
+          "throttled_samples": 23
+        }
+      },
+      "agent_commits": 7,
+      "gate": {
+        "steps": {
+          "install": {
+            "cmd": "npm ci",
+            "exit": 0,
+            "seconds": 2.2,
+            "tail": "\nadded 231 packages, and audited 232 packages in 2s\n\n47 packages are looking for funding\n  run `npm fund` for details\n\n8 vulnerabilities (2 moderate, 6 high)\n\nTo address issues that do not require attention, run:\n  npm audit fix\n\nTo address all issues (including breaking changes), run:\n  npm audit fix --force\n\nRun `npm audit` for details.\nnpm warn deprecated whatwg-encoding@3.1.1: Use @exodus/bytes instead for a more spec-conformant and faster implementation\n"
+          },
+          "build": {
+            "cmd": "npm run build",
+            "exit": 0,
+            "seconds": 0.8,
+            "tail": "\n> vidi6@0.1.0 build\n> vite build\n\n\u001b[36mvite v6.4.3 \u001b[32mbuilding for production...\u001b[36m\u001b[39m\ntransforming...\n\u001b[32m\u2713\u001b[39m 97 modules transformed.\nrendering chunks...\ncomputing gzip size...\n\u001b[2mdist/client/\u001b[22m\u001b[32mindex.html                 \u001b[39m\u001b[1m\u001b[2m  0.59 kB\u001b[22m\u001b[1m\u001b[22m\u001b[2m \u2502 gzip:   0.37 kB\u001b[22m\n\u001b[2mdist/client/\u001b[22m\u001b[2massets/\u001b[22m\u001b[35mindex-DTvNyDR3.css  \u001b[39m\u001b[1m\u001b[2m  7.24 kB\u001b[22m\u001b[1m\u001b[22m\u001b[2m \u2502 gzip:   1.83 kB\u001b[22m\n\u001b[2mdist/client/\u001b[22m\u001b[2massets/\u001b[22m\u001b[36mindex-DT0hLUya.js   \u001b[39m\u001b[1m\u001b[2m339.83 kB\u001b[22m\u001b[1m\u001b[22m\u001b[2m \u2502 gzip: 106.13 kB\u001b[22m\n\u001b[32m\u2713 built in 618ms\u001b[39m\n",
+            "passed": null,
+            "failed": null
+          },
+          "typecheck": {
+            "cmd": "npm run typecheck",
+            "exit": 0,
+            "seconds": 1.4,
+            "tail": "\n> vidi6@0.1.0 typecheck\n> tsc --noEmit && tsc --noEmit -p tsconfig.worker.json\n\n",
+            "passed": null,
+            "failed": null
+          },
+          "test:unit": {
+            "cmd": "npm run test:unit",
+            "exit": 0,
+            "seconds": 1.9,
+            "tail": "\n> vidi6@0.1.0 test:unit\n> vitest run --project unit\n\n\n\u001b[1m\u001b[46m RUN \u001b[49m\u001b[22m \u001b[36mv3.2.7 \u001b[39m\u001b[90m~/.vidi-bench/work/qwen__3.8__27b__ubuntu__nvidia4090__llamacpp-opencode__benchmarks__vidi__canvas-pi-04/workspace\u001b[39m\n\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[42m unit \u001b[49m\u001b[39m tests/unit/board-model.test.ts \u001b[2m(\u001b[22m\u001b[2m16 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 10\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[42m unit \u001b[49m\u001b[39m tests/unit/camera.test.ts \u001b[2m(\u001b[22m\u001b[2m15 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 26\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[42m unit \u001b[49m\u001b[39m tests/unit/room-state.test.ts \u001b[2m(\u001b[22m\u001b[2m91 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 6\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[42m unit \u001b[49m\u001b[39m tests/unit/sticky-text.test.ts \u001b[2m(\u001b[22m\u001b[2m9 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 6\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[42m unit \u001b[49m\u001b[39m tests/unit/create-board.test.ts \u001b[2m(\u001b[22m\u001b[2m4 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 73\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[42m unit \u001b[49m\u001b[39m tests/unit/protocol.test.ts \u001b[2m(\u001b[22m\u001b[2m10 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 4\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[42m unit \u001b[49m\u001b[39m tests/unit/board-store-chunks.test.ts \u001b[2m(\u001b[22m\u001b[2m6 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[33m 451\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[42m unit \u001b[49m\u001b[39m tests/unit/board-id.test.ts \u001b[2m(\u001b[22m\u001b[2m7 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 115\u001b[2mms\u001b[22m\u001b[39m\n\n\u001b[2m Test Files \u001b[22m \u001b[1m\u001b[32m8 passed\u001b[39m\u001b[22m\u001b[90m (8)\u001b[39m\n\u001b[2m      Tests \u001b[22m \u001b[1m\u001b[32m158 passed\u001b[39m\u001b[22m\u001b[90m (158)\u001b[39m\n\u001b[2m   Start at \u001b[22m 21:20:37\n\u001b[2m   Duration \u001b[22m 1.60s\u001b[2m (transform 95ms, setup 0ms, collect 190ms, tests 690ms, environment 1ms, prepare 199ms)\u001b[22m\n\n",
+            "passed": 158,
+            "failed": 0
+          },
+          "test:component": {
+            "cmd": "npm run test:component",
+            "exit": 0,
+            "seconds": 2.9,
+            "tail": "\n> vidi6@0.1.0 test:component\n> vitest run --project component\n\n\n\u001b[1m\u001b[46m RUN \u001b[49m\u001b[22m \u001b[36mv3.2.7 \u001b[39m\u001b[90m~/.vidi-bench/work/qwen__3.8__27b__ubuntu__nvidia4090__llamacpp-opencode__benchmarks__vidi__canvas-pi-04/workspace\u001b[39m\n\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[45m component \u001b[49m\u001b[39m tests/component/BoardViewport.test.tsx \u001b[2m(\u001b[22m\u001b[2m8 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 41\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[45m component \u001b[49m\u001b[39m tests/component/share-pages.test.tsx \u001b[2m(\u001b[22m\u001b[2m6 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 74\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[45m component \u001b[49m\u001b[39m tests/component/load-failure.test.tsx \u001b[2m(\u001b[22m\u001b[2m3 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 62\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[45m component \u001b[49m\u001b[39m tests/component/share-panel.test.tsx \u001b[2m(\u001b[22m\u001b[2m4 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 71\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[45m component \u001b[49m\u001b[39m tests/component/connection-status.test.tsx \u001b[2m(\u001b[22m\u001b[2m3 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 38\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[45m component \u001b[49m\u001b[39m tests/component/ZoomControls.test.tsx \u001b[2m(\u001b[22m\u001b[2m5 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 77\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[45m component \u001b[49m\u001b[39m tests/component/NavigationHint.test.tsx \u001b[2m(\u001b[22m\u001b[2m1 test\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 42\u001b[2mms\u001b[22m\u001b[39m\n\n\u001b[2m Test Files \u001b[22m \u001b[1m\u001b[32m7 passed\u001b[39m\u001b[22m\u001b[90m (7)\u001b[39m\n\u001b[2m      Tests \u001b[22m \u001b[1m\u001b[32m30 passed\u001b[39m\u001b[22m\u001b[90m (30)\u001b[39m\n\u001b[2m   Start at \u001b[22m 21:20:38\n\u001b[2m   Duration \u001b[22m 2.59s\u001b[2m (transform 135ms, setup 20ms, collect 531ms, tests 406ms, environment 983ms, prepare 179ms)\u001b[22m\n\n",
+            "passed": 30,
+            "failed": 0
+          },
+          "test:integration": {
+            "cmd": "npm run test:integration",
+            "exit": 0,
+            "seconds": 15.1,
+            "tail": "never breaks the room \u001b[33m 524\u001b[2mms\u001b[22m\u001b[39m\n\n\u001b[2m Test Files \u001b[22m \u001b[1m\u001b[32m5 passed\u001b[39m\u001b[22m\u001b[90m (5)\u001b[39m\n\u001b[2m      Tests \u001b[22m \u001b[1m\u001b[32m49 passed\u001b[39m\u001b[22m\u001b[90m (49)\u001b[39m\n\u001b[2m   Start at \u001b[22m 21:20:42\n\u001b[2m   Duration \u001b[22m 13.96s\u001b[2m (transform 229ms, setup 0ms, collect 2.13s, tests 27.22s, environment 1ms, prepare 1.84s)\u001b[22m\n\n[vpw:debug] Shutting down runtimes...\n\u001b[90mstderr\u001b[2m | tests/integration/board-store.test.ts\u001b[2m > \u001b[22m\u001b[2mBoardStore on Durable Object SQLite (task 3)\u001b[2m > \u001b[22m\u001b[2mTC-09: a damaged log row is quarantined; the rest loads\n\u001b[22m\u001b[39m{\n  kind: 'update-quarantined',\n  seq: 7,\n  error: 'Error: Unexpected end of array'\n}\n\n\u001b[90mstderr\u001b[2m | tests/integration/board-store.test.ts\u001b[2m > \u001b[22m\u001b[2mBoardStore on Durable Object SQLite (task 3)\u001b[2m > \u001b[22m\u001b[2mTC-10: a damaged snapshot fails the load; nothing is deleted or quarantined\n\u001b[22m\u001b[39m{\n  kind: 'snapshot-unreadable',\n  error: 'TypeError: contentRefs[(info & binary.BITS5)] is not a function'\n}\n\n\u001b[90mstderr\u001b[2m | tests/integration/board-store.test.ts\u001b[2m > \u001b[22m\u001b[2mBoardStore on Durable Object SQLite (task 3)\u001b[2m > \u001b[22m\u001b[2mTC-11: a failing compaction rolls back; previous chunks and log intact\n\u001b[22m\u001b[39m{\n  kind: 'compaction-rolled-back',\n  error: 'Error: injected fault at compaction-after-chunk-delete'\n}\n\n\u001b[90mstderr\u001b[2m | tests/integration/room-persist.test.ts\u001b[2m > \u001b[22m\u001b[2mTC-14 (persist.room): a failed append closes both with 1011; reconnect re-sends and the note is stored\n\u001b[22m\u001b[39m{\n  kind: 'board-append-failed',\n  error: 'Error: injected fault at append'\n}\n\n\u001b[90mstderr\u001b[2m | tests/integration/room-persist.test.ts\u001b[2m > \u001b[22m\u001b[2mTC-15 (persist.room): a damaged snapshot closes the connecting client with 4500 and stores nothing\n\u001b[22m\u001b[39m{\n  kind: 'snapshot-unreadable',\n  error: 'TypeError: contentRefs[(info & binary.BITS5)] is not a function'\n}\n{\n  kind: 'board-load-failed',\n  reason: 'snapshot-unreadable',\n  error: 'TypeError: contentRefs[(info & binary.BITS5)] is not a function'\n}\n\n\u001b[90mstderr\u001b[2m | tests/integration/room-persist.test.ts\u001b[2m > \u001b[22m\u001b[2mTC-16 (persist.room): before the retry interval -> 4500; after repair + interval -> loads and syncs\n\u001b[22m\u001b[39m{\n  kind: 'snapshot-unreadable',\n  error: 'TypeError: contentRefs[(info & binary.BITS5)] is not a function'\n}\n{\n  kind: 'board-load-failed',\n  reason: 'snapshot-unreadable',\n  error: 'TypeError: contentRefs[(info & binary.BITS5)] is not a function'\n}\n\n\u001b[90mstderr\u001b[2m | tests/integration/room-persist.test.ts\u001b[2m > \u001b[22m\u001b[2mTC-26 (persist.room): a SQL error on read puts the room in load-failed and closes the client with 4500\n\u001b[22m\u001b[39m{\n  kind: 'board-load-sql-error',\n  error: 'Error: injected fault at load-select'\n}\n{\n  kind: 'board-load-failed',\n  reason: 'sql-error',\n  error: 'Error: injected fault at load-select'\n}\n\nworkerd/io/worker.c++:2323: info: uncaught exception; source = Uncaught; stack = TypeError: Can't call WebSocket send() after close().\n    at WsClient.respondToSync (~/.vidi-bench/work/qwen__3.8__27b__ubuntu__nvidia4090__llamacpp-opencode__benchmarks__vidi__canvas-pi-04/workspace/tests/integration/ws-client.ts:282:20)\n    at WsClient.onMessage (~/.vidi-bench/work/qwen__3.8__27b__ubuntu__nvidia4090__llamacpp-opencode__benchmarks__vidi__canvas-pi-04/workspace/tests/integration/ws-client.ts:266:37)\n    at WebSocket.<anonymous> (~/.vidi-bench/work/qwen__3.8__27b__ubuntu__nvidia4090__llamacpp-opencode__benchmarks__vidi__canvas-pi-04/workspace/tests/integration/ws-client.ts:87:12)\nworkerd/jsg/util.c++:402: info: exception = workerd/api/web-socket.c++:788: disconnected: WebSocket peer disconnected\nworkerd/jsg/util.c++:402: info: exception = workerd/api/web-socket.c++:788: disconnected: WebSocket peer disconnected\nworkerd/jsg/util.c++:402: info: exception = workerd/api/web-socket.c++:788: disconnected: WebSocket peer disconnected\nworkerd/jsg/util.c++:402: info: exception = workerd/api/web-socket.c++:788: disconnected: WebSocket peer disconnected\n",
+            "passed": 49,
+            "failed": 0
+          },
+          "test:e2e": {
+            "cmd": "npm run test:e2e -- --project=chromium",
+            "exit": 0,
+            "seconds": 49.8,
+            "tail": "\n> vidi6@0.1.0 test:e2e\n> npm run build:e2e && playwright test --project=chromium\n\n\n> vidi6@0.1.0 build:e2e\n> vite build --mode test\n\n\u001b[36mvite v6.4.3 \u001b[32mbuilding for test...\u001b[36m\u001b[39m\ntransforming...\n\u001b[32m\u2713\u001b[39m 97 modules transformed.\nrendering chunks...\ncomputing gzip size...\n\u001b[2mdist/client/\u001b[22m\u001b[32mindex.html                 \u001b[39m\u001b[1m\u001b[2m  0.59 kB\u001b[22m\u001b[1m\u001b[22m\u001b[2m \u2502 gzip:   0.37 kB\u001b[22m\n\u001b[2mdist/client/\u001b[22m\u001b[2massets/\u001b[22m\u001b[35mindex-DTvNyDR3.css  \u001b[39m\u001b[1m\u001b[2m  7.24 kB\u001b[22m\u001b[1m\u001b[22m\u001b[2m \u2502 gzip:   1.83 kB\u001b[22m\n\u001b[2mdist/client/\u001b[22m\u001b[2massets/\u001b[22m\u001b[36mindex-B8OEGwBQ.js   \u001b[39m\u001b[1m\u001b[2m340.37 kB\u001b[22m\u001b[1m\u001b[22m\u001b[2m \u2502 gzip: 106.29 kB\u001b[22m\n\u001b[32m\u2713 built in 633ms\u001b[39m\n\nRunning 17 tests using 4 workers\n\n  \u2713   4 [chromium] \u203a tests/e2e/live-collaboration.spec.ts:215:1 \u203a TC-25: late joiner catches up to existing notes (1.8s)\n  \u2713   3 [chromium] \u203a tests/e2e/live-collaboration.spec.ts:152:1 \u203a TC-23: concurrent typing in one note merges on both pages (2.4s)\n  \u2713   2 [chromium] \u203a tests/e2e/live-collaboration.spec.ts:190:1 \u203a TC-24: concurrent drags of the same note settle to one position (2.5s)\n  \u2713   1 [chromium] \u203a tests/e2e/live-collaboration.spec.ts:113:1 \u203a TC-22: create, move, recolor, type, delete \u2014 Sam sees each within budget (3.2s)\n  \u2713   8 [chromium] \u203a tests/e2e/navigation.spec.ts:31:3 \u203a story 1: pan and zoom around an infinite board \u203a workflow 1: first visit navigation (TC-28, TC-23, TC-24) (1.0s)\n  \u2713   5 [chromium] \u203a tests/e2e/live-collaboration.spec.ts:241:1 \u203a TC-26: late joiner sees text, colour and moved position (2.4s)\n  \u2713   7 [chromium] \u203a tests/e2e/live-collaboration.spec.ts:334:1 \u203a TC-28: selection and editing are local \u2014 never broadcast (2.2s)\n  \u2713  10 [chromium] \u203a tests/e2e/navigation.spec.ts:123:3 \u203a story 1: pan and zoom around an infinite board \u203a workflow 3: far travel (TC-27) (756ms)\n  \u2713  11 [chromium] \u203a tests/e2e/navigation.spec.ts:151:3 \u203a story 1: pan and zoom around an infinite board \u203a TC-31 board gestures never change the page zoom (442ms)\n  \u2713   9 [chromium] \u203a tests/e2e/navigation.spec.ts:89:3 \u203a story 1: pan and zoom around an infinite board \u203a workflow 2: limits and recovery (TC-25, TC-26) (1.5s)\n  \u2713  13 [chromium] \u203a tests/e2e/share.spec.ts:106:1 \u203a TC-27: bad link recovery (564ms)\n  \u2713  12 [chromium] \u203a tests/e2e/share.spec.ts:42:1 \u203a TC-26: create, share, join (1.2s)\n  \u2713  15 [chromium] \u203a tests/e2e/share.spec.ts:156:1 \u203a TC-29: clipboard blocked \u2014 manual copy fallback (637ms)\n  \u2713  17 [chromium] \u203a tests/e2e/share.spec.ts:223:1 \u203a TC-31: pre-existing (legacy) board opens with its notes (332ms)\n  \u2713  14 [chromium] \u203a tests/e2e/share.spec.ts:124:1 \u203a TC-28: flaky service on open \u2014 retry recovers without reload (1.7s)\n  \u2713  16 [chromium] \u203a tests/e2e/share.spec.ts:194:1 \u203a TC-30: abuse guard \u2014 rate limit after BOARD_CREATE_LIMIT creations (2.5s)\n  \u2713   6 [chromium] \u203a tests/e2e/live-collaboration.spec.ts:271:1 \u203a TC-27: flaky Wi-Fi \u2014 offline edits catch up when the network returns (45.0s)\n\n  17 passed (48.7s)\n",
+            "passed": 17,
+            "failed": 0
+          }
+        },
+        "all_green": true
+      },
+      "accept": {
+        "skipped": false,
+        "build_exit": 0,
+        "runner_exit": 1,
+        "runner_tail": "",
+        "passed": 33,
+        "total": 36,
+        "on_partial": {
+          "passed": 14,
+          "total": 16
+        },
+        "by_story": {
+          "01": {
+            "passed": 10,
+            "total": 10
+          },
+          "02": {
+            "passed": 9,
+            "total": 10
+          },
+          "03": {
+            "passed": 5,
+            "total": 7,
+            "on_partial_total": 7,
+            "on_partial_passed": 5
+          },
+          "04": {
+            "passed": 4,
+            "total": 4,
+            "on_partial_total": 4,
+            "on_partial_passed": 4
+          },
+          "05": {
+            "passed": 5,
+            "total": 5,
+            "on_partial_total": 5,
+            "on_partial_passed": 5
+          }
+        },
+        "harness_fault": null
+      },
+      "commit": "0320934500fcb127d04720c24b9c8d3e6d9792e8",
+      "requests": {},
+      "time_split": {
+        "wall_s": 4406.9,
+        "model": {
+          "requests": 261,
+          "prefill_s": 202.7,
+          "prefill_tokens": 260105,
+          "prefill_tok_s": 1283.4,
+          "decode_s": 3035.3,
+          "decode_tokens": 209002,
+          "decode_tok_s": 68.9,
+          "draft_acceptance": 0.657,
+          "mean_accepted_len": 3.02
+        },
+        "tools_s": 912.3,
+        "tools_by_kind": {
+          "e2e": 639.6,
+          "unit": 245.2,
+          "build": 13.7,
+          "bash": 13.6,
+          "read": 0.1,
+          "edit": 0.1,
+          "write": 0.0
+        },
+        "compaction_s": 223.0,
+        "compactions": 3,
+        "other_s": 33.6
+      },
+      "loc": {
+        "files": 69,
+        "lines": 11533
+      },
+      "finished": 1790454317.2444274,
+      "status": "DONE",
+      "ended_by": "agent",
+      "partial_base": [
+        3
+      ],
+      "tasks": [
+        {
+          "n": 1,
+          "title": "Write board creation unit tests first: retries, rate-limit config parity, id distribution (TC-01 to TC-04)",
+          "type": "test:unit",
+          "implements": [
+            "share.board_api"
+          ],
+          "tcs": [
+            "TC-01",
+            "TC-02",
+            "TC-03",
+            "TC-04"
+          ],
+          "status": "verified",
+          "found": 4,
+          "total": 4
+        },
+        {
+          "n": 2,
+          "title": "Implement board API: POST /api/boards with rate limit and collision retry, GET existence, 404 for unknown rooms",
+          "type": "implementation",
+          "implements": [
+            "share.board_api"
+          ],
+          "tcs": [],
+          "status": "verified",
+          "found": null,
+          "total": null
+        },
+        {
+          "n": 3,
+          "title": "Integration tests for board API against real Worker, RPC and SQLite (TC-05 to TC-15, TC-32)",
+          "type": "test:integration",
+          "implements": [
+            "share.board_api"
+          ],
+          "tcs": [
+            "TC-05",
+            "TC-06",
+            "TC-07",
+            "TC-08",
+            "TC-09",
+            "TC-10",
+            "TC-11",
+            "TC-12",
+            "TC-13",
+            "TC-14",
+            "TC-15",
+            "TC-32"
+          ],
+          "status": "verified",
+          "found": 12,
+          "total": 12
+        },
+        {
+          "n": 4,
+          "title": "Implement router, API client, Home, Board (existence check with retry) and Board not found pages",
+          "type": "implementation",
+          "implements": [
+            "share.pages"
+          ],
+          "tcs": [],
+          "status": "verified",
+          "found": null,
+          "total": null
+        },
+        {
+          "n": 5,
+          "title": "Implement Share panel with copy link and manual-copy fallback",
+          "type": "implementation",
+          "implements": [
+            "share.share_panel"
+          ],
+          "tcs": [],
+          "status": "verified",
+          "found": null,
+          "total": null
+        },
+        {
+          "n": 6,
+          "title": "Component tests for pages and Share panel (TC-16 to TC-25)",
+          "type": "test:ui-component",
+          "implements": [
+            "share.pages",
+            "share.share_panel"
+          ],
+          "tcs": [
+            "TC-16",
+            "TC-17",
+            "TC-18",
+            "TC-19",
+            "TC-20",
+            "TC-21",
+            "TC-22",
+            "TC-23",
+            "TC-24",
+            "TC-25"
+          ],
+          "status": "verified",
+          "found": 10,
+          "total": 10
+        },
+        {
+          "n": 7,
+          "title": "E2E share workflows: create-share-join, bad link, flaky service, clipboard blocked, rate limit, legacy board (TC-26 to TC-31)",
+          "type": "test:e2e",
+          "implements": [
+            "share.board_api",
+            "share.pages",
+            "share.share_panel"
+          ],
+          "tcs": [
+            "TC-26",
+            "TC-27",
+            "TC-28",
+            "TC-29",
+            "TC-30",
+            "TC-31"
+          ],
+          "status": "verified",
+          "found": 6,
+          "total": 6
+        }
+      ],
+      "stub_markers": [],
+      "partial_heldout_changes": {
+        "3": {
+          "fixed": [],
+          "regressed": []
+        }
       }
     }
   },
@@ -2461,6 +2799,264 @@
           "accept": {
             "passed": 4,
             "total": 4
+          }
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "title": "Share a board with others using a link",
+      "status": "DONE",
+      "ended_by": "agent",
+      "started_at": 1790449624.62704,
+      "ended_at": 1790454031.503055,
+      "agent_minutes": 73.4,
+      "calls": 261,
+      "output_tokens": 209002,
+      "compactions": 3,
+      "last_commit_at": 1790454018.0,
+      "accept": {
+        "passed": 5,
+        "total": 5,
+        "on_partial_total": 5,
+        "on_partial_passed": 5
+      },
+      "partial_base": [
+        3
+      ],
+      "tasks": [
+        {
+          "n": 1,
+          "title": "Write board creation unit tests first: retries, rate-limit config parity, id distribution (TC-01 to TC-04)",
+          "type": "test:unit",
+          "implements": [
+            "share.board_api"
+          ],
+          "tcs": [
+            "TC-01",
+            "TC-02",
+            "TC-03",
+            "TC-04"
+          ],
+          "status": "verified",
+          "found": 4,
+          "total": 4
+        },
+        {
+          "n": 2,
+          "title": "Implement board API: POST /api/boards with rate limit and collision retry, GET existence, 404 for unknown rooms",
+          "type": "implementation",
+          "implements": [
+            "share.board_api"
+          ],
+          "tcs": [],
+          "status": "verified",
+          "found": null,
+          "total": null
+        },
+        {
+          "n": 3,
+          "title": "Integration tests for board API against real Worker, RPC and SQLite (TC-05 to TC-15, TC-32)",
+          "type": "test:integration",
+          "implements": [
+            "share.board_api"
+          ],
+          "tcs": [
+            "TC-05",
+            "TC-06",
+            "TC-07",
+            "TC-08",
+            "TC-09",
+            "TC-10",
+            "TC-11",
+            "TC-12",
+            "TC-13",
+            "TC-14",
+            "TC-15",
+            "TC-32"
+          ],
+          "status": "verified",
+          "found": 12,
+          "total": 12
+        },
+        {
+          "n": 4,
+          "title": "Implement router, API client, Home, Board (existence check with retry) and Board not found pages",
+          "type": "implementation",
+          "implements": [
+            "share.pages"
+          ],
+          "tcs": [],
+          "status": "verified",
+          "found": null,
+          "total": null
+        },
+        {
+          "n": 5,
+          "title": "Implement Share panel with copy link and manual-copy fallback",
+          "type": "implementation",
+          "implements": [
+            "share.share_panel"
+          ],
+          "tcs": [],
+          "status": "verified",
+          "found": null,
+          "total": null
+        },
+        {
+          "n": 6,
+          "title": "Component tests for pages and Share panel (TC-16 to TC-25)",
+          "type": "test:ui-component",
+          "implements": [
+            "share.pages",
+            "share.share_panel"
+          ],
+          "tcs": [
+            "TC-16",
+            "TC-17",
+            "TC-18",
+            "TC-19",
+            "TC-20",
+            "TC-21",
+            "TC-22",
+            "TC-23",
+            "TC-24",
+            "TC-25"
+          ],
+          "status": "verified",
+          "found": 10,
+          "total": 10
+        },
+        {
+          "n": 7,
+          "title": "E2E share workflows: create-share-join, bad link, flaky service, clipboard blocked, rate limit, legacy board (TC-26 to TC-31)",
+          "type": "test:e2e",
+          "implements": [
+            "share.board_api",
+            "share.pages",
+            "share.share_panel"
+          ],
+          "tcs": [
+            "TC-26",
+            "TC-27",
+            "TC-28",
+            "TC-29",
+            "TC-30",
+            "TC-31"
+          ],
+          "status": "verified",
+          "found": 6,
+          "total": 6
+        }
+      ],
+      "baselines": [
+        {
+          "source": "reference opus-5.5 run-1",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 19.2,
+          "calls": 73,
+          "output_tokens": 80492,
+          "accept": {
+            "passed": 5,
+            "total": 5
+          }
+        },
+        {
+          "source": "reference opus-5.5 run-2",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 12.0,
+          "calls": 53,
+          "output_tokens": 61768,
+          "accept": null
+        },
+        {
+          "source": "reference opus-5.5 run-3",
+          "status": "DONE",
+          "gate_green": false,
+          "agent_minutes": 24.1,
+          "calls": 70,
+          "output_tokens": 66383,
+          "accept": {
+            "passed": 5,
+            "total": 5
+          }
+        },
+        {
+          "source": "qwen/3.8/27b/ubuntu/nvidia4090/llamacpp-opencode canvas-pi-02",
+          "status": "DONE",
+          "gate_green": false,
+          "agent_minutes": 49.1,
+          "calls": 263,
+          "output_tokens": 144098,
+          "accept": {
+            "passed": 0,
+            "total": 5
+          }
+        },
+        {
+          "source": "qwen/3.8/27b/ubuntu/nvidia4090/llamacpp-opencode canvas-pi-03",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 91.4,
+          "calls": 283,
+          "output_tokens": 228329,
+          "accept": {
+            "passed": 5,
+            "total": 5
+          }
+        },
+        {
+          "source": "qwen/3.8/flash-next/macos/128GB/mtplx-opencode canvas-pi-01",
+          "status": "DONE",
+          "gate_green": false,
+          "agent_minutes": 77.9,
+          "calls": 242,
+          "output_tokens": 170182,
+          "accept": {
+            "passed": 5,
+            "total": 5
+          }
+        },
+        {
+          "source": "qwen/3.8/flash-next/macos/128GB/mtplx-opencode canvas-pi-02",
+          "status": "PARTIAL",
+          "gate_green": true,
+          "agent_minutes": 389.0,
+          "calls": 1217,
+          "output_tokens": 787738,
+          "accept": {
+            "passed": 5,
+            "total": 5,
+            "on_partial_total": 5,
+            "on_partial_passed": 5
+          }
+        },
+        {
+          "source": "qwen/3.8/flash-next/macos/128GB/mtplx-opencode canvas-pi-03",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 100.9,
+          "calls": 366,
+          "output_tokens": 183754,
+          "accept": {
+            "passed": 5,
+            "total": 5,
+            "on_partial_total": 5,
+            "on_partial_passed": 5
+          }
+        },
+        {
+          "source": "qwen/3.8/flash-next/ubuntu/strix-halo-128GB/llamacpp-pi canvas-vk-01",
+          "status": "DONE",
+          "gate_green": false,
+          "agent_minutes": 79.6,
+          "calls": 281,
+          "output_tokens": 102038,
+          "accept": {
+            "passed": 5,
+            "total": 5
           }
         }
       ]

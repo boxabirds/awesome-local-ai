@@ -43,6 +43,7 @@ import {
   OPERATIONS_PER_CLIENT,
 } from './random-ops';
 import { probeRoomSnapshot, WsClient } from './ws-client';
+import { createBoardId } from './persist-helpers';
 
 function sameBoard(a: readonly StickySnapshot[], b: readonly StickySnapshot[]): boolean {
   if (a.length !== b.length) return false;
@@ -54,7 +55,7 @@ function sameBoard(a: readonly StickySnapshot[], b: readonly StickySnapshot[]): 
 
 describe('BoardRoom (task 6)', () => {
   it('TC-07: A creates a note, B receives it, and the room doc equals A doc', async () => {
-    const boardId = newBoardId();
+    const boardId = await createBoardId();
     const a = await WsClient.connect(boardId);
     await a.waitForSync();
     const b = await WsClient.connect(boardId);
@@ -74,7 +75,7 @@ describe('BoardRoom (task 6)', () => {
   });
 
   it('TC-08: move, recolor, text insert, delete — B equals A, A gets no echo', async () => {
-    const boardId = newBoardId();
+    const boardId = await createBoardId();
     const a = await WsClient.connect(boardId);
     await a.waitForSync();
     const noteId = a.applyLocal((doc) => createStickyAt(doc, 0, 0));
@@ -124,7 +125,7 @@ describe('BoardRoom (task 6)', () => {
   });
 
   it('TC-09: concurrent clients without a full exchange converge after flush', async () => {
-    const boardId = newBoardId();
+    const boardId = await createBoardId();
     const a = await WsClient.connect(boardId, { autoExchange: false });
     const b = await WsClient.connect(boardId, { autoExchange: false });
     try {
@@ -156,7 +157,7 @@ describe('BoardRoom (task 6)', () => {
   });
 
   it('TC-10: late joiner B receives A note and equals A', async () => {
-    const boardId = newBoardId();
+    const boardId = await createBoardId();
     const a = await WsClient.connect(boardId);
     await a.waitForSync();
     const noteId = a.applyLocal((doc) => createStickyAt(doc, 5, 5, 'green'));
@@ -173,7 +174,7 @@ describe('BoardRoom (task 6)', () => {
   });
 
   it('TC-11: after sync, updates flow both directions', async () => {
-    const boardId = newBoardId();
+    const boardId = await createBoardId();
     const a = await WsClient.connect(boardId);
     await a.waitForSync();
     const b = await WsClient.connect(boardId);
@@ -206,7 +207,7 @@ describe('BoardRoom (task 6)', () => {
   it(
     `TC-12: ${CONCURRENT_CLIENTS} clients x ${OPERATIONS_PER_CLIENT} seeded random ops converge (seed ${CONVERGENCE_SEED})`,
     async () => {
-      const boardId = newBoardId();
+      const boardId = await createBoardId();
       const clients: WsClient[] = [];
       try {
         for (let i = 0; i < CONCURRENT_CLIENTS; i++) {
@@ -257,7 +258,7 @@ describe('BoardRoom (task 6)', () => {
   );
 
   it('TC-14: A and B create 20 notes; late joiner C equals A', async () => {
-    const boardId = newBoardId();
+    const boardId = await createBoardId();
     const a = await WsClient.connect(boardId);
     await a.waitForSync();
     const b = await WsClient.connect(boardId);
@@ -290,7 +291,7 @@ describe('BoardRoom (task 6)', () => {
   );
 
   it('TC-15: malformed traffic closes only A with 1003; B keeps receiving; room doc unchanged', async () => {
-    const boardId = newBoardId();
+    const boardId = await createBoardId();
     // B creates one note so the room has legitimate state to compare against.
     const b = await WsClient.connect(boardId);
     await b.waitForSync();
@@ -357,7 +358,7 @@ describe('BoardRoom (task 6)', () => {
   });
 
   it('TC-16: an awareness frame is relayed verbatim to A and B', async () => {
-    const boardId = newBoardId();
+    const boardId = await createBoardId();
     const a = await WsClient.connect(boardId);
     await a.waitForSync();
     const b = await WsClient.connect(boardId);
@@ -394,7 +395,7 @@ describe('BoardRoom (task 6)', () => {
   });
 
   it('TC-18: a fresh empty room is repopulated by the first reconnecting client', async () => {
-    const original = newBoardId();
+    const original = await createBoardId();
     // Phase 1: the "old" room accumulates state, then everyone leaves.
     const aOld = await WsClient.connect(original);
     await aOld.waitForSync();
@@ -410,7 +411,7 @@ describe('BoardRoom (task 6)', () => {
     // Phase 2: the "restarted" room is a fresh DO instance (new object id).
     // A reconnects FIRST with the same local doc (the client keeps its doc
     // across reconnects) and its step2 repopulates the room.
-    const restarted = newBoardId();
+    const restarted = await createBoardId();
     const aClient = await WsClient.adopt(restarted, aOld.doc);
     await aClient.waitForSync();
     try {
@@ -433,7 +434,7 @@ describe('BoardRoom (task 6)', () => {
   });
 
   it('TC-31: a dead socket never breaks the room', async () => {
-    const boardId = newBoardId();
+    const boardId = await createBoardId();
     const a = await WsClient.connect(boardId);
     await a.waitForSync();
     const b = await WsClient.connect(boardId);

@@ -1,3 +1,95 @@
+commit 0320934500fcb127d04720c24b9c8d3e6d9792e8
+vidi-agent  Sat Sep 26 21:20:18 2026 +0100
+
+    story 5: Share a board with others using a link
+
+
+ NOTES.md | 97 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 97 insertions(+)
+commit 0658ccbe68cae496548c311914e8304805c23830
+vidi-agent  Sat Sep 26 21:14:16 2026 +0100
+
+    task 7: e2e share workflows (create-share-join, bad link, flaky open, clipboard blocked, abuse guard, legacy board)
+
+
+ playwright.config.ts                 |   5 +-
+ tests/e2e/live-collaboration.spec.ts |  30 +++--
+ tests/e2e/navigation.spec.ts         |   8 +-
+ tests/e2e/nightly/soak.spec.ts       |   6 +-
+ tests/e2e/participants.ts            |  38 +++++-
+ tests/e2e/persistence.spec.ts        |   7 +-
+ tests/e2e/share.spec.ts              | 248 +++++++++++++++++++++++++++++++++++
+ 7 files changed, 318 insertions(+), 24 deletions(-)
+commit e67d44195321786c3a2173e436e5aee8957f5d1a
+vidi-agent  Sat Sep 26 20:55:14 2026 +0100
+
+    task 5.5: Share panel (copy link + manual-copy fallback); root fileParallelism:false for the shared workerd runtime
+
+
+ src/client/pages/BoardPage.tsx |  9 +++++-
+ src/client/styles.css          | 73 ++++++++++++++++++++++++++++++++++++++++++
+ vitest.config.ts               | 12 ++++---
+ 3 files changed, 88 insertions(+), 6 deletions(-)
+commit a81d6c5c796770bcf0b7ac6857ad133e073a9f7a
+vidi-agent  Sat Sep 26 20:51:57 2026 +0100
+
+    task 5.4: client router, board API client, Home/Board/NotFound pages
+
+
+ src/client/App.tsx                    |  53 ++++------
+ src/client/api.ts                     |  50 ++++++++++
+ src/client/pages/BoardPage.tsx        |  91 ++++++++++++++++++
+ src/client/pages/HomePage.tsx         |  40 ++++++++
+ src/client/pages/NotFoundPage.tsx     |  46 +++++++++
+ src/client/pages/useCreateBoard.ts    |  34 +++++++
+ src/client/router.ts                  |  44 +++++++++
+ src/client/share/SharePanel.tsx       | 136 ++++++++++++++++++++++++++
+ src/client/styles.css                 |  84 ++++++++++++++++
+ tests/component/load-failure.test.tsx |  10 ++
+ tests/component/share-pages.test.tsx  | 175 ++++++++++++++++++++++++++++++++++
+ tests/component/share-panel.test.tsx  | 155 ++++++++++++++++++++++++++++++
+ vitest.config.ts                      |   5 +
+ 13 files changed, 888 insertions(+), 35 deletions(-)
+commit cdc395c9ee92ba11f1799da003fae9250ceb91df
+vidi-agent  Sat Sep 26 20:42:39 2026 +0100
+
+    task 5.3: board API integration tests (TC-05..TC-15, TC-32)
+
+
+ src/worker/board-room.ts            |   6 +
+ src/worker/board-store.ts           |   2 +-
+ tests/integration/board-api.test.ts | 213 ++++++++++++++++++++++++++++++++++++
+ 3 files changed, 220 insertions(+), 1 deletion(-)
+commit 90d789b3c255a4cfdcc8c9533804e9f2c9c49149
+vidi-agent  Sat Sep 26 20:37:38 2026 +0100
+
+    task 5.2: board API - POST/GET /api/boards, initialize/exists RPCs, rate limiter binding, lazy store migration, 404 for unknown boards
+
+
+ index.html                             |   3 +
+ src/worker/board-room.ts               | 130 +++++++++++++++++++++--
+ src/worker/board-store.ts              | 182 +++++++++++++++++++++++++--------
+ src/worker/create-board.ts             | 112 ++++++++++++++++++--
+ src/worker/index.ts                    |  75 +++++++++++++-
+ src/worker/test-hooks.ts               |  17 ++-
+ tests/integration/board-room.test.ts   |  25 ++---
+ tests/integration/board-store.test.ts  |  17 +--
+ tests/integration/persist-helpers.ts   |  16 ++-
+ tests/integration/room-persist.test.ts |  18 ++--
+ tests/integration/worker.test.ts       |  29 +++---
+ tests/unit/create-board.test.ts        |   9 +-
+ wrangler.jsonc                         |  13 +++
+ 13 files changed, 537 insertions(+), 109 deletions(-)
+commit 3e41c78bc1fd17d2e6c225892f628528e48a88d3
+vidi-agent  Sat Sep 26 20:24:06 2026 +0100
+
+    task 5.1: failing unit tests for create-with-retry, wrangler ratelimits parity, and id uniformity
+
+
+ src/shared/config.ts            |  27 +++++++++
+ src/worker/create-board.ts      |  66 ++++++++++++++++++++
+ tests/unit/create-board.test.ts | 131 ++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 224 insertions(+)
 commit 4cc77993e8d2d2feddba7e027993636d2c212379
 vidi-agent  Sat Sep 26 20:04:02 2026 +0100
 

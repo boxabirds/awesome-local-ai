@@ -12,6 +12,7 @@ import {
   setCamera,
   zoomLabel,
 } from './helpers/board';
+import { newBoard } from './participants';
 
 /** a mod b for possibly negative a, result in [0, b). */
 function mod(a: number, b: number): number {
@@ -19,8 +20,11 @@ function mod(a: number, b: number): number {
 }
 
 test.describe('story 1: pan and zoom around an infinite board', () => {
-  test.beforeEach(async ({ page }) => {
-    await page.goto('/');
+  test.beforeEach(async ({ page, baseURL }) => {
+    // Story 5: the home page is a landing page; the board lives at
+    // /b/<id> and the id must have been created first.
+    const boardId = await newBoard(baseURL!);
+    await page.goto(`/b/${boardId}`);
     await page.waitForSelector('[data-testid="board-viewport"]');
   });
 

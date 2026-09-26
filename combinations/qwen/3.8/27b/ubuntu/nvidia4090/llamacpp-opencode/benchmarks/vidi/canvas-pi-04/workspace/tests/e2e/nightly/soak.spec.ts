@@ -261,9 +261,10 @@ test.describe.configure({ mode: 'serial' });
 
 test('TC-29: idle 45s — the connection stays "connected" (no false reconnect)', async ({
   browser,
+  baseURL,
 }) => {
   test.setTimeout(120_000);
-  const boardId = newBoard();
+  const boardId = await newBoard(baseURL!);
   const alex = await openParticipant(browser, boardId);
   const sam = await openParticipant(browser, boardId);
   try {
@@ -284,9 +285,10 @@ test('TC-29: idle 45s — the connection stays "connected" (no false reconnect)'
 
 test('TC-30: 5-way continuous edit soak (60s) — latency, badge, convergence', async ({
   browser,
+  baseURL,
 }) => {
   test.setTimeout(300_000);
-  const boardId = newBoard();
+  const boardId = await newBoard(baseURL!);
   const parts: Participant[] = [];
   for (let i = 0; i < 5; i++) parts.push(await openParticipant(browser, boardId));
   const latencies: number[] = [];

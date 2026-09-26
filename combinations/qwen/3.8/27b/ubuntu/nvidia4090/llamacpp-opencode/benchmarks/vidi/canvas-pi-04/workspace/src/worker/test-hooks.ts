@@ -22,11 +22,18 @@
 //                                                  directly into the room doc
 //   POST /__test/boards/:boardId/notes             return the room's durable
 //                                                  note count (server truth)
+//   POST /__test/boards/:boardId/initialize        create the board's storage
+//                                                  (story 5 share.board_api):
+//                                                  returns 'created' | 'exists'
+//   POST /__test/boards/:boardId/seed-legacy       write LEGACY storage
+//                                                  (updates table only, no
+//                                                  created_at) for the
+//                                                  legacy-board e2e (TC-31)
 
 import { isValidBoardId } from '../shared/board-id';
 import type { Env } from './board-room';
 
-const HOOK_PATH = /^\/__test\/boards\/([^/]+)\/(compact|corrupt-snapshot|repair|wake|seed|notes)$/;
+const HOOK_PATH = /^\/__test\/boards\/([^/]+)\/(compact|corrupt-snapshot|repair|wake|seed|notes|initialize|seed-legacy)$/;
 
 function json(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
@@ -79,6 +86,14 @@ export async function handleTestHooks(req: Request, env: Env): Promise<Response 
       return room
         .testNoteCount()
         .then((notes) => json({ ok: true, notes }));
+    case 'initialize':
+      return room.initialize().then((state) => json({ ok: true, state }));
+    case 'seed-legacy': {
+      const body = (await req.json().catch(() => null)) as { count?: number } | null;
+      const count = typeof body?.count === 'number' ? body.count : 0;
+      const seeded = await room.testSeedLegacyNotes(count);
+      return json({ ok: seeded > 0, count: seeded }, seeded > 0 ? 200 : 409);
+    }
   }
   return json({ ok: false, reason: 'unknown-action' }, 400);
 }

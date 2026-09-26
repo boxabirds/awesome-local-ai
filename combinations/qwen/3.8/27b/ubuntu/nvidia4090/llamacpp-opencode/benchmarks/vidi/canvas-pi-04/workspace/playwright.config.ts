@@ -44,7 +44,10 @@ export default defineConfig({
     },
   ],
   webServer: {
-    command: 'npx wrangler dev --port 8787',
+    // TEST_HOOKS enables the /__test/ routes (story 4 persistence hooks and
+    // story 5's seed-legacy for the pre-existing-board e2e); the production
+    // config never sets it.
+    command: 'npx wrangler dev --port 8787 --var TEST_HOOKS:1',
     url: 'http://localhost:8787',
     reuseExistingServer: !process.env.CI,
     timeout: 180_000,

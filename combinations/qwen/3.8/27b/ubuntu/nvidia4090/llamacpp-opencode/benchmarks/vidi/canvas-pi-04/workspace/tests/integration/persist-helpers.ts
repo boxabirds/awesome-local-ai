@@ -1,4 +1,4 @@
-// Shared helpers for the story 4 integration tests (workerd pool).
+// Shared helpers for the integration tests (workerd pool).
 //
 // Storage is read through the room's test-only RPC methods (the design's
 // "runInDurableObject" step): the workerd test pool has no such host, and a
@@ -6,11 +6,25 @@
 
 import { env } from 'cloudflare:test';
 import * as Y from 'yjs';
+import { newBoardId } from '../../src/shared/board-id';
 import { snapshot, type StickySnapshot } from '../../src/shared/board-model';
 
 /** The room stub for a board id (constructs the object on first call). */
 export function room(boardId: string) {
   return env.BOARD_ROOM.get(env.BOARD_ROOM.idFromName(boardId));
+}
+
+/**
+ * Create a REAL board (story 5, share.board_api): draw an id and initialize
+ * its storage, so rooms can be connected and GET /api/boards/:id returns 200.
+ * Story 3/4 tests connected to fresh ids and relied on the room creating
+ * storage on first connect; since story 5 that only happens through
+ * initialize(), so every test that opens a board uses this helper.
+ */
+export async function createBoardId(): Promise<string> {
+  const id = newBoardId();
+  await room(id).initialize();
+  return id;
 }
 
 export function bytesEqual(a: Uint8Array, b: Uint8Array): boolean {

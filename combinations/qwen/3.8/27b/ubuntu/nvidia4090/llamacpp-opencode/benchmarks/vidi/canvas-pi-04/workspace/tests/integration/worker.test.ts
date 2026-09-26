@@ -1,8 +1,9 @@
 // Story 3, task 5: worker routing + isolation + capacity integration tests.
 //
-// TC-04  valid room path upgrades to a websocket; invalid ids 400 and never
-//        allocate a Durable Object (idFromName spy).
-// TC-05  path traversal attempts are rejected with 400.
+// TC-04  valid room path upgrades to a websocket (story 5: the board must be
+//        created first); invalid ids 404 and never allocate a Durable Object
+//        (idFromName spy).
+// TC-05  path traversal attempts are rejected (404 or asset response).
 // TC-06  SPA fallback: /b/<id> serves the built client shell (200, html).
 // TC-13  MAX_CONCURRENT_EDITORS + 1 sockets all get 101; the last one's note
 //        reaches all the others.
@@ -15,10 +16,11 @@ import { createStickyAt, snapshot } from '../../src/shared/board-model';
 import { MAX_CONCURRENT_EDITORS } from '../../src/shared/config';
 import { SYNC_UPDATE } from '../../src/shared/protocol';
 import { WsClient } from './ws-client';
+import { createBoardId } from './persist-helpers';
 
 describe('worker routing (task 5)', () => {
   it('TC-04: GET /api/rooms/<valid> upgrades to a websocket', async () => {
-    const boardId = newBoardId();
+    const boardId = await createBoardId();
     const res = await SELF.fetch(`http://localhost/api/rooms/${boardId}`, {
       headers: { Upgrade: 'websocket', Connection: 'Upgrade' },
     });
@@ -29,7 +31,8 @@ describe('worker routing (task 5)', () => {
     ws.close();
   });
 
-  it('TC-04: an invalid id returns 400 and never calls idFromName', async () => {
+  it('TC-04: an invalid id returns 404 and never calls idFromName', async () => {
+    // Story 5 (share.board_api): invalid ids are 404 (was 400 in story 3).
     const idFromName = vi
       .spyOn(env.BOARD_ROOM, 'idFromName')
       .mockImplementation(() => {
@@ -39,7 +42,7 @@ describe('worker routing (task 5)', () => {
       const res = await SELF.fetch('http://localhost/api/rooms/not-a-board-id', {
         headers: { Upgrade: 'websocket', Connection: 'Upgrade' },
       });
-      expect(res.status).toBe(400);
+      expect(res.status).toBe(404);
       expect(idFromName).not.toHaveBeenCalled();
     } finally {
       idFromName.mockRestore();
@@ -47,18 +50,18 @@ describe('worker routing (task 5)', () => {
   });
 
   it('TC-04: a non-websocket request to a room path is 426', async () => {
-    const boardId = newBoardId();
+    const boardId = await createBoardId();
     const res = await SELF.fetch(`http://localhost/api/rooms/${boardId}`);
     expect(res.status).toBe(426);
   });
 
-  it('TC-05: path traversal ids are rejected with 400', async () => {
+  it('TC-05: path traversal ids are rejected (404 or asset) and never upgraded', async () => {
     for (const path of ['%2e%2e%2f%2e%2e%2fetc', 'a/../../etc', '+', 'abc%00def']) {
       const res = await SELF.fetch(`http://localhost/api/rooms/${path}`, {
         headers: { Upgrade: 'websocket', Connection: 'Upgrade' },
       });
-      // Either the worker rejects the id (400) or the router never matches
-      // the room prefix (asset response) — never a successful upgrade.
+      // Either the worker rejects the id (story 5: 404) or the router never
+      // matches the room prefix (asset response) — never a successful upgrade.
       expect(res.status).not.toBe(101);
     }
   });
@@ -75,7 +78,7 @@ describe('worker routing (task 5)', () => {
   });
 
   it(`TC-13: ${MAX_CONCURRENT_EDITORS + 1} editors all get 101 and the last one's note reaches everyone`, async () => {
-    const boardId = newBoardId();
+    const boardId = await createBoardId();
     const clients: WsClient[] = [];
     for (let i = 0; i < MAX_CONCURRENT_EDITORS + 1; i++) {
       const client = await WsClient.connect(boardId);
@@ -105,8 +108,8 @@ describe('worker routing (task 5)', () => {
   });
 
   it('TC-17: rooms are isolated — a note in room A never reaches room B', async () => {
-    const roomA = newBoardId();
-    const roomB = newBoardId();
+    const roomA = await createBoardId();
+    const roomB = await createBoardId();
     const a = await WsClient.connect(roomA);
     const b = await WsClient.connect(roomB);
     try {
