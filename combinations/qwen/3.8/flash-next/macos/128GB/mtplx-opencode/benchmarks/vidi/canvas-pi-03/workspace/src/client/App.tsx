@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { BoardViewport } from './canvas/BoardViewport';
 import { ZoomControls } from './canvas/ZoomControls';
 import { NavigationHint } from './canvas/NavigationHint';
@@ -6,9 +6,11 @@ import { Toolbar } from './board/Toolbar';
 import { useCamera } from './canvas/useCamera';
 import { useBoardDoc } from './board/useBoardDoc';
 import { useSelection } from './board/useSelection';
+import { ConnectionStatus } from './sync/ConnectionStatus';
+import type { ConnectBoardOptions } from './sync/connectBoard';
 import { StickyNote } from './objects/StickyNote';
 import { NoteToolbar } from './objects/NoteToolbar';
-import { createSticky, deleteObject, setStickyColor, snapshot } from '../shared/board-model';
+import { createSticky, deleteObject, getStickyText, moveObject, setStickyColor, snapshot, LOCAL_ORIGIN } from '../shared/board-model';
 import { STICKY_SIZE_WORLD, type StickyColor } from '../shared/config';
 import { canZoomIn, canZoomOut, zoomPercent, screenToWorld, worldToScreen, type Size } from './canvas/camera';
 
@@ -35,14 +37,25 @@ function useRefLike<T>(value: T) {
 
 /**
  * Top-level board. Owns the camera (story 1), the Y.Doc-backed note snapshot and
- * the local selection/editing state (story 2), and wires note creation, colour
- * and delete through to the board model.
+ * the local selection/editing state (story 2), and — from story 3 — the sync
+ * connection for the board it renders. Selection and editing stay local.
  */
-export function App() {
+export interface AppProps {
+  /** Room to sync with; null renders a purely local board. */
+  boardId?: string | null;
+  /** Test seam: build a fake provider instead of a real WebsocketProvider. */
+  providerFactory?: ConnectBoardOptions['providerFactory'];
+}
+
+export function App({ boardId = null, providerFactory }: AppProps = {}) {
   const [size, setSize] = useState<Size>(initialSize);
   const api = useCamera(size);
-  const { doc, notes } = useBoardDoc();
+  const connectOptions = useMemo<ConnectBoardOptions>(() => ({ providerFactory }), [providerFactory]);
+  const { doc, notes, connectionState } = useBoardDoc(boardId, connectOptions);
   const sel = useSelection();
+
+  // Latest connection state for the test hook (rendered-state snapshot).
+  const connRef = useRefLike(connectionState);
 
   // Keep the latest values available to the stable window keydown handler
   // without re-subscribing on every change.
@@ -94,6 +107,17 @@ export function App() {
     createAndEdit(centre);
   }, [api, size.width, size.height, createAndEdit]);
 
+  // Remote deletes (and a local delete of a selected note) clear stale
+  // selection/edit state: once the id is gone from the board, no outline and
+  // no editor may linger.
+  useEffect(() => {
+    const ids = new Set(notes.map((n) => n.id));
+    const state = selRef.current;
+    if ((state.selectedId !== null && !ids.has(state.selectedId)) || (state.editingId !== null && !ids.has(state.editingId))) {
+      state.select(null);
+    }
+  }, [notes, selRef]);
+
   // Board-wide keyboard handling for the selected (not-editing) note.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -137,15 +161,42 @@ export function App() {
     const w = window as unknown as { __vidi6?: Record<string, unknown> };
     w.__vidi6 = {
       ...(w.__vidi6 ?? {}),
+      boardId,
       doc: docRef.current,
       worldToScreen: (p: { x: number; y: number }) => worldToScreen(api.getCamera(), p),
       seedSticky: (x: number, y: number, color?: string) => createSticky(docRef.current, { x, y }, color as never),
       snapshot: () => snapshot(docRef.current),
       select: (id: string | null) => selRef.current.select(id),
       startEdit: (id: string) => selRef.current.startEdit(id),
-      getState: () => ({ selectedId: selRef.current.selectedId, editingId: selRef.current.editingId }),
+      getState: () => ({
+        selectedId: selRef.current.selectedId,
+        editingId: selRef.current.editingId,
+        connectionState: connRef.current,
+      }),
+      // Story-3 helpers: mutate the board the same way the UI does, and read
+      // the live connection state.
+      connectionState: () => connRef.current,
+      deleteSticky: (id: string) => {
+        deleteObject(docRef.current, id);
+        selRef.current.select(null);
+      },
+      moveSticky: (id: string, x: number, y: number) => moveObject(docRef.current, id, x, y),
+      colorSticky: (id: string, color: string) => setStickyColor(docRef.current, id, color as StickyColor),
+      typeSticky: (id: string, text: string, at?: number) => {
+        const ytext = getStickyText(docRef.current, id);
+        if (!ytext) return false;
+        docRef.current.transact(() => {
+          const pos = at === undefined ? ytext.length : Math.min(Math.max(at, 0), ytext.length);
+          ytext.insert(pos, text);
+        }, LOCAL_ORIGIN);
+        return true;
+      },
+      // Nightly latency plumbing: ops are stamped into a shared test-only map
+      // so receivers can measure document propagation time.
+      markOp: (opId: string, t: number) => docRef.current.getMap<unknown>('testclock').set(opId, t),
+      hasOp: (opId: string) => docRef.current.getMap<unknown>('testclock').has(opId),
     };
-  }, [docRef, selRef, api]);
+  }, [docRef, selRef, api, boardId]);
 
   const cam = api.camera;
 
@@ -162,6 +213,7 @@ export function App() {
 
   return (
     <>
+      <ConnectionStatus state={connectionState} />
       <BoardViewport
         api={api}
         onSize={handleResize}

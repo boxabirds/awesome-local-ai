@@ -50,3 +50,25 @@ export const STICKY_COLORS = {
 } as const;
 export type StickyColor = keyof typeof STICKY_COLORS;
 export const DEFAULT_STICKY_COLOR: StickyColor = 'yellow';
+
+// --- Live collaboration (story 3) -------------------------------------------
+
+/** Soft concurrent-editor capacity. A design and test target (boundary
+ * 5 / 6 participants), never enforced: over-capacity joins are accepted. */
+export const MAX_CONCURRENT_EDITORS = 5;
+/** Live propagation budget from PRD live.propagate: one change must be
+ * visible on every other screen within this many milliseconds. */
+export const LIVE_UPDATE_LATENCY_BUDGET_MS = 1000;
+/** Passed to WebsocketProvider as `maxBackoffTime` (reconnect backoff cap). */
+export const RECONNECT_MAX_BACKOFF_MS = 10_000;
+/** Provider `resyncInterval`: how often an otherwise-idle client re-sends
+ * SyncStep1 (which the room always answers with a SyncStep2), so the link
+ * keeps carrying traffic in BOTH directions. Must stay comfortably under
+ * y-websocket's 30-second no-message timeout — 10s keeps at least two
+ * full round-trips of margin even when a hop is slow. */
+export const IDLE_KEEPALIVE_MS = 10_000;
+/** How long the green "Connected" badge stays after a reconnect before the
+ * connection counts as fully restored (badge hidden). */
+export const CONNECTED_CONFIRMATION_MS = 2000;
+/** Outage length used to verify PRD live.catch_up (Flaky Wi-Fi workflow). */
+export const CATCH_UP_TEST_OUTAGE_MS = 30_000;
