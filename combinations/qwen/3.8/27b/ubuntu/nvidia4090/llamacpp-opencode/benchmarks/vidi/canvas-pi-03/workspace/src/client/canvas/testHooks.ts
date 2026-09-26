@@ -16,6 +16,17 @@ declare global {
       /** Story 9: snapshot of ALL board objects, any type (test mode only). */
       getObjects: () => readonly ObjectSnapshot[];
       /**
+       * Story 12 (test): the tab's identity id — the `uploaderId` the board
+       * stamps on images this tab creates, so tests can mark a seeded image
+       * "mine" (the uploader branch: progress %, Retry, Remove).
+       */
+      getUploaderId: () => string;
+      /**
+       * Story 12 (test): make the next image upload's storage PUT fail once
+       * (the worker's `x-test-fail-asset-put` hook), so a retry can succeed.
+       */
+      setNextAssetPutFailure: (on: boolean) => void;
+      /**
        * Story 3: the current connection state, kept up to date by App
        * ('connecting' | 'connected' | 'reconnecting' | 'confirmed').
        */
@@ -56,6 +67,8 @@ let testGetNotes: (() => readonly StickySnapshot[]) | null = null;
 let testGetDoc: (() => Y.Doc) | null = null;
 let testGetSelection: (() => string[]) | null = null;
 let testGetObjects: (() => readonly ObjectSnapshot[]) | null = null;
+let testGetUploaderId: (() => string) | null = null;
+let testSetNextUploadFail: ((on: boolean) => void) | null = null;
 let testConn: { drop: () => void; resume: () => void } | null = null;
 let testUndo: {
   canUndo: () => boolean;
@@ -90,6 +103,18 @@ export function registerTestHooks(setCamera: (cam: Camera) => void, getCamera: (
   testGetCamera = getCamera;
 }
 
+/** Registers the tab identity id supplier (story 12 image tests). */
+export function registerUploaderTestHook(getId: () => string): void {
+  testGetUploaderId = getId;
+  if (window.__vidi6) window.__vidi6.getUploaderId = getId;
+}
+
+/** Registers the fail-next-upload hook (story 12 flaky-upload tests). */
+export function registerUploadFailTestHook(fn: (on: boolean) => void): void {
+  testSetNextUploadFail = fn;
+  if (window.__vidi6) window.__vidi6.setNextAssetPutFailure = fn;
+}
+
 /** Registers suppliers for the board notes/doc/selection (stories 2/7/9). */
 export function registerBoardTestHooks(
   getNotes: () => readonly StickySnapshot[],
@@ -111,6 +136,8 @@ export function initGlobalTestHooks(): void {
       getNotes: () => (testGetNotes ? testGetNotes() : []),
       getSelection: () => (testGetSelection ? testGetSelection() : []),
       getObjects: () => (testGetObjects ? testGetObjects() : []),
+      getUploaderId: () => testGetUploaderId?.() ?? '',
+      setNextAssetPutFailure: (on: boolean) => testSetNextUploadFail?.(on),
       getDoc: () => {
         if (!testGetDoc) throw new Error('board test hooks not registered');
         return testGetDoc();

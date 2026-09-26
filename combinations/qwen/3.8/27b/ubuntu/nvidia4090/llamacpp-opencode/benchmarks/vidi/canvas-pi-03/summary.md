@@ -14,5 +14,6 @@ Model `qwen3.8-27b`, scope `canvas`, effort `low`, client pi 0.86.0, host 13th G
 | 9 | Write free text anywhere on the board | DONE | 68.7 | None | None | None | — | — | green | 27/57 |  | 0 / 0 | 4 | — | throttled 0%, server peak 18 GB |
 | 10 | Draw shapes and connect them with arrows that follow when moved | DONE | 86.6 | None | None | None | — | — | green | 30/65 |  | 0 / 0 | 5 | — | throttled 0%, server peak 18 GB |
 | 11 | Sketch freehand with a pen | DONE | 62.6 | None | None | None | — | — | green | 40/70 |  | 0 / 0 | 3 | — | throttled 0%, server peak 18 GB |
+| 12 | Drop images onto the board | DONE | 60.0 | None | None | None | — | — | green | 46/75 |  | 0 / 0 | 3 | — | throttled 0%, server peak 18 GB |
 
-**Totals:** 10 stories, 991 agent-minutes, 0 requests, 0 prompt / 0 completion tokens, gate green 10/10, final acceptance 40/70, stalled 0, partial 0, 24156 lines in src+tests.
+**Totals:** 11 stories, 1051 agent-minutes, 0 requests, 0 prompt / 0 completion tokens, gate green 11/11, final acceptance 46/75, stalled 0, partial 0, 27109 lines in src+tests.

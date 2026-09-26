@@ -1,0 +1,53 @@
+# Page snapshot
+
+```yaml
+- generic [active]:
+  - generic:
+    - group "Sticky note" [ref=e2]:
+      - generic [ref=e4]: ver
+    - generic:
+      - button "Resize top-left" [ref=e5]
+      - button "Resize top" [ref=e6]
+      - button "Resize top-right" [ref=e7]
+      - button "Resize right" [ref=e8]
+      - button "Resize bottom-right" [ref=e9]
+      - button "Resize bottom" [ref=e10]
+      - button "Resize bottom-left" [ref=e11]
+      - button "Resize left" [ref=e12]
+    - toolbar "Note actions" [ref=e14]:
+      - button "Yellow colour" [pressed] [ref=e15] [cursor=pointer]
+      - button "Orange colour" [ref=e16] [cursor=pointer]
+      - button "Green colour" [ref=e17] [cursor=pointer]
+      - button "Blue colour" [ref=e18] [cursor=pointer]
+      - button "Pink colour" [ref=e19] [cursor=pointer]
+      - button "Violet colour" [ref=e20] [cursor=pointer]
+      - button "Delete note" [ref=e21] [cursor=pointer]:
+        - img [ref=e22]
+    - generic [ref=e26]:
+      - button "Select (V)" [pressed] [ref=e27] [cursor=pointer]:
+        - img [ref=e28]
+      - button "Text (T)" [ref=e30] [cursor=pointer]:
+        - img [ref=e31]
+      - button "Shape (S)" [ref=e33] [cursor=pointer]:
+        - img [ref=e34]
+      - button "Connector (L)" [ref=e37] [cursor=pointer]:
+        - img [ref=e38]
+      - button "Pen (P)" [ref=e41] [cursor=pointer]:
+        - img [ref=e42]
+      - button "Image (I)" [ref=e44] [cursor=pointer]:
+        - img [ref=e45]
+      - button "Sticky note" [ref=e49] [cursor=pointer]:
+        - img [ref=e50]
+      - generic [ref=e54]:
+        - button "Undo" [ref=e55] [cursor=pointer]:
+          - img [ref=e56]
+        - button "Redo" [disabled] [ref=e59]:
+          - img [ref=e60]
+    - generic [ref=e63]:
+      - button "Zoom out" [ref=e64] [cursor=pointer]: −
+      - status [ref=e65]: 100%
+      - button "Zoom in" [ref=e66] [cursor=pointer]: +
+      - button "Reset view" [ref=e67] [cursor=pointer]
+    - generic: Drag to move around · Ctrl/Cmd + scroll or pinch to zoom
+    - button "Share" [ref=e69] [cursor=pointer]
+```

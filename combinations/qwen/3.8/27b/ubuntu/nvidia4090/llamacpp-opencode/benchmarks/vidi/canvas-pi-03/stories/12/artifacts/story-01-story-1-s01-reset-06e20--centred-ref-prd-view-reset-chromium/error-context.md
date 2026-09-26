@@ -1,0 +1,50 @@
+# Page snapshot
+
+```yaml
+- generic [active]:
+  - generic:
+    - generic [ref=e1]:
+      - generic:
+        - group "Sticky note" [ref=e2]
+        - group "Sticky note" [ref=e4]
+    - generic:
+      - button "Resize top-left" [ref=e6]
+      - button "Resize top" [ref=e7]
+      - button "Resize top-right" [ref=e8]
+      - button "Resize right" [ref=e9]
+      - button "Resize bottom-right" [ref=e10]
+      - button "Resize bottom" [ref=e11]
+      - button "Resize bottom-left" [ref=e12]
+      - button "Resize left" [ref=e13]
+    - toolbar "Selection actions" [ref=e15]:
+      - generic [ref=e16]: 2 selected
+      - button "Delete selection" [ref=e17] [cursor=pointer]:
+        - img [ref=e18]
+        - text: Delete
+    - generic [ref=e22]:
+      - button "Select (V)" [pressed] [ref=e23] [cursor=pointer]:
+        - img [ref=e24]
+      - button "Text (T)" [ref=e26] [cursor=pointer]:
+        - img [ref=e27]
+      - button "Shape (S)" [ref=e29] [cursor=pointer]:
+        - img [ref=e30]
+      - button "Connector (L)" [ref=e33] [cursor=pointer]:
+        - img [ref=e34]
+      - button "Pen (P)" [ref=e37] [cursor=pointer]:
+        - img [ref=e38]
+      - button "Image (I)" [ref=e40] [cursor=pointer]:
+        - img [ref=e41]
+      - button "Sticky note" [ref=e45] [cursor=pointer]:
+        - img [ref=e46]
+      - generic [ref=e50]:
+        - button "Undo" [ref=e51] [cursor=pointer]:
+          - img [ref=e52]
+        - button "Redo" [disabled] [ref=e55]:
+          - img [ref=e56]
+    - generic [ref=e59]:
+      - button "Zoom out" [ref=e60] [cursor=pointer]: −
+      - status [ref=e61]: 100%
+      - button "Zoom in" [ref=e62] [cursor=pointer]: +
+      - button "Reset view" [ref=e63] [cursor=pointer]
+    - button "Share" [ref=e65] [cursor=pointer]
+```

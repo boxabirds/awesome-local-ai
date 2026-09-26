@@ -1,0 +1,57 @@
+# Page snapshot
+
+```yaml
+- generic [active]:
+  - generic:
+    - generic [ref=e1]:
+      - generic:
+        - group "Sticky note" [ref=e2]:
+          - generic [ref=e4]: survivor
+        - group "Sticky note" [ref=e5]:
+          - generic [ref=e7]: ter
+    - generic:
+      - button "Resize top-left" [ref=e8]
+      - button "Resize top" [ref=e9]
+      - button "Resize top-right" [ref=e10]
+      - button "Resize right" [ref=e11]
+      - button "Resize bottom-right" [ref=e12]
+      - button "Resize bottom" [ref=e13]
+      - button "Resize bottom-left" [ref=e14]
+      - button "Resize left" [ref=e15]
+    - toolbar "Note actions" [ref=e17]:
+      - button "Yellow colour" [pressed] [ref=e18] [cursor=pointer]
+      - button "Orange colour" [ref=e19] [cursor=pointer]
+      - button "Green colour" [ref=e20] [cursor=pointer]
+      - button "Blue colour" [ref=e21] [cursor=pointer]
+      - button "Pink colour" [ref=e22] [cursor=pointer]
+      - button "Violet colour" [ref=e23] [cursor=pointer]
+      - button "Delete note" [ref=e24] [cursor=pointer]:
+        - img [ref=e25]
+    - generic [ref=e29]:
+      - button "Select (V)" [ref=e30] [cursor=pointer]:
+        - img [ref=e31]
+      - button "Text (T)" [pressed] [ref=e33] [cursor=pointer]:
+        - img [ref=e34]
+      - button "Shape (S)" [ref=e36] [cursor=pointer]:
+        - img [ref=e37]
+      - button "Connector (L)" [ref=e40] [cursor=pointer]:
+        - img [ref=e41]
+      - button "Pen (P)" [ref=e44] [cursor=pointer]:
+        - img [ref=e45]
+      - button "Image (I)" [ref=e47] [cursor=pointer]:
+        - img [ref=e48]
+      - button "Sticky note" [ref=e52] [cursor=pointer]:
+        - img [ref=e53]
+      - generic [ref=e57]:
+        - button "Undo" [ref=e58] [cursor=pointer]:
+          - img [ref=e59]
+        - button "Redo" [disabled] [ref=e62]:
+          - img [ref=e63]
+    - generic [ref=e66]:
+      - button "Zoom out" [ref=e67] [cursor=pointer]: −
+      - status [ref=e68]: 100%
+      - button "Zoom in" [ref=e69] [cursor=pointer]: +
+      - button "Reset view" [ref=e70] [cursor=pointer]
+    - generic: Drag to move around · Ctrl/Cmd + scroll or pinch to zoom
+    - button "Share" [ref=e72] [cursor=pointer]
+```

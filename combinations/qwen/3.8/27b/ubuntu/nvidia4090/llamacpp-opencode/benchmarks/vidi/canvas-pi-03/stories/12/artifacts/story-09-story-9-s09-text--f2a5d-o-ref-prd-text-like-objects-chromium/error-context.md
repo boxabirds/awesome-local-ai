@@ -1,0 +1,55 @@
+# Page snapshot
+
+```yaml
+- generic [active]:
+  - generic:
+    - generic [ref=e1]:
+      - generic:
+        - 'group "Text: ing" [ref=e2]':
+          - generic [ref=e3]: ing
+        - group "Sticky note" [ref=e4]:
+          - generic [ref=e6]: o
+        - group "Sticky note" [ref=e7]:
+          - generic [ref=e9]: te
+    - generic:
+      - button "Resize top-left" [ref=e10]
+      - button "Resize top" [ref=e11]
+      - button "Resize top-right" [ref=e12]
+      - button "Resize right" [ref=e13]
+      - button "Resize bottom-right" [ref=e14]
+      - button "Resize bottom" [ref=e15]
+      - button "Resize bottom-left" [ref=e16]
+      - button "Resize left" [ref=e17]
+    - toolbar "Selection actions" [ref=e19]:
+      - generic [ref=e20]: 3 selected
+      - button "Delete selection" [ref=e21] [cursor=pointer]:
+        - img [ref=e22]
+        - text: Delete
+    - generic [ref=e26]:
+      - button "Select (V)" [pressed] [ref=e27] [cursor=pointer]:
+        - img [ref=e28]
+      - button "Text (T)" [ref=e30] [cursor=pointer]:
+        - img [ref=e31]
+      - button "Shape (S)" [ref=e33] [cursor=pointer]:
+        - img [ref=e34]
+      - button "Connector (L)" [ref=e37] [cursor=pointer]:
+        - img [ref=e38]
+      - button "Pen (P)" [ref=e41] [cursor=pointer]:
+        - img [ref=e42]
+      - button "Image (I)" [ref=e44] [cursor=pointer]:
+        - img [ref=e45]
+      - button "Sticky note" [ref=e49] [cursor=pointer]:
+        - img [ref=e50]
+      - generic [ref=e54]:
+        - button "Undo" [ref=e55] [cursor=pointer]:
+          - img [ref=e56]
+        - button "Redo" [disabled] [ref=e59]:
+          - img [ref=e60]
+    - generic [ref=e63]:
+      - button "Zoom out" [ref=e64] [cursor=pointer]: −
+      - status [ref=e65]: 100%
+      - button "Zoom in" [ref=e66] [cursor=pointer]: +
+      - button "Reset view" [ref=e67] [cursor=pointer]
+    - generic: Drag to move around · Ctrl/Cmd + scroll or pinch to zoom
+    - button "Share" [ref=e69] [cursor=pointer]
+```

@@ -100,6 +100,20 @@ export interface ObjectSnapshot {
   baseHeight?: number;
   /** Story 11: pen thickness NAME (key of PEN_THICKNESS_WORLD); stroke objects only. */
   thickness?: string;
+  /** Story 12: asset key (`<boardId>/<assetId>`), null while uploading; image objects only. */
+  assetKey?: string | null;
+  /** Story 12: MIME type; image objects only. */
+  contentType?: string;
+  /** Story 12: natural pixel width; image objects only. */
+  naturalWidth?: number;
+  /** Story 12: natural pixel height; image objects only. */
+  naturalHeight?: number;
+  /** Story 12: upload status ('uploading' | 'ready' | 'failed'); image objects only. */
+  status?: string;
+  /** Story 12: epoch ms the upload (re)started; image objects only. */
+  uploadStartedAt?: number;
+  /** Story 12: id of the client that started the upload; image objects only. */
+  uploaderId?: string;
   /**
    * Story 10: connector endpoint positions RESOLVED against the current
    * object positions (attached -> side anchor, free -> stored point;
@@ -220,6 +234,22 @@ export function objectSnapshot(doc: Y.Doc): readonly ObjectSnapshot[] {
         ? { baseHeight: obj.get('baseHeight') as number }
         : {}),
       ...(typeof obj.get('thickness') === 'string' ? { thickness: obj.get('thickness') as string } : {}),
+      // Story 12: image fields (assetKey is null while uploading).
+      ...(obj.get('assetKey') === null || typeof obj.get('assetKey') === 'string'
+        ? { assetKey: obj.get('assetKey') as string | null }
+        : {}),
+      ...(typeof obj.get('contentType') === 'string' ? { contentType: obj.get('contentType') as string } : {}),
+      ...(typeof obj.get('naturalWidth') === 'number' && Number.isFinite(obj.get('naturalWidth') as number)
+        ? { naturalWidth: obj.get('naturalWidth') as number }
+        : {}),
+      ...(typeof obj.get('naturalHeight') === 'number' && Number.isFinite(obj.get('naturalHeight') as number)
+        ? { naturalHeight: obj.get('naturalHeight') as number }
+        : {}),
+      ...(typeof obj.get('status') === 'string' ? { status: obj.get('status') as string } : {}),
+      ...(typeof obj.get('uploadStartedAt') === 'number' && Number.isFinite(obj.get('uploadStartedAt') as number)
+        ? { uploadStartedAt: obj.get('uploadStartedAt') as number }
+        : {}),
+      ...(typeof obj.get('uploaderId') === 'string' ? { uploaderId: obj.get('uploaderId') as string } : {}),
       ...(obj.get('label') instanceof Y.Text
         ? { label: (obj.get('label') as Y.Text).toString() }
         : typeof obj.get('label') === 'string'

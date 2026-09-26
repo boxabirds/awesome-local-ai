@@ -1,0 +1,59 @@
+# Page snapshot
+
+```yaml
+- generic [active]:
+  - generic:
+    - img [ref=e3]
+    - generic:
+      - button "Resize top-left" [ref=e5]
+      - button "Resize top" [ref=e6]
+      - button "Resize top-right" [ref=e7]
+      - button "Resize right" [ref=e8]
+      - button "Resize bottom-right" [ref=e9]
+      - button "Resize bottom" [ref=e10]
+      - button "Resize bottom-left" [ref=e11]
+      - button "Resize left" [ref=e12]
+    - toolbar "Shape actions" [ref=e14]:
+      - button "None fill" [ref=e15] [cursor=pointer]
+      - button "White fill" [pressed] [ref=e16] [cursor=pointer]
+      - button "Blue fill" [ref=e17] [cursor=pointer]
+      - button "Green fill" [ref=e18] [cursor=pointer]
+      - button "Yellow fill" [ref=e19] [cursor=pointer]
+      - button "Pink fill" [ref=e20] [cursor=pointer]
+      - button "Grey fill" [ref=e21] [cursor=pointer]
+      - button "Dark outline" [pressed] [ref=e23] [cursor=pointer]
+      - button "Blue outline" [ref=e24] [cursor=pointer]
+      - button "Green outline" [ref=e25] [cursor=pointer]
+      - button "Orange outline" [ref=e26] [cursor=pointer]
+      - button "Red outline" [ref=e27] [cursor=pointer]
+      - button "Grey outline" [ref=e28] [cursor=pointer]
+      - button "Delete shape" [ref=e30] [cursor=pointer]:
+        - img [ref=e31]
+    - generic [ref=e35]:
+      - button "Select (V)" [pressed] [ref=e36] [cursor=pointer]:
+        - img [ref=e37]
+      - button "Text (T)" [ref=e39] [cursor=pointer]:
+        - img [ref=e40]
+      - button "Shape (S)" [ref=e42] [cursor=pointer]:
+        - img [ref=e43]
+      - button "Connector (L)" [ref=e46] [cursor=pointer]:
+        - img [ref=e47]
+      - button "Pen (P)" [ref=e50] [cursor=pointer]:
+        - img [ref=e51]
+      - button "Image (I)" [ref=e53] [cursor=pointer]:
+        - img [ref=e54]
+      - button "Sticky note" [ref=e58] [cursor=pointer]:
+        - img [ref=e59]
+      - generic [ref=e63]:
+        - button "Undo" [ref=e64] [cursor=pointer]:
+          - img [ref=e65]
+        - button "Redo" [disabled] [ref=e68]:
+          - img [ref=e69]
+    - generic [ref=e72]:
+      - button "Zoom out" [ref=e73] [cursor=pointer]: −
+      - status [ref=e74]: 100%
+      - button "Zoom in" [ref=e75] [cursor=pointer]: +
+      - button "Reset view" [ref=e76] [cursor=pointer]
+    - generic: Drag to move around · Ctrl/Cmd + scroll or pinch to zoom
+    - button "Share" [ref=e78] [cursor=pointer]
+```

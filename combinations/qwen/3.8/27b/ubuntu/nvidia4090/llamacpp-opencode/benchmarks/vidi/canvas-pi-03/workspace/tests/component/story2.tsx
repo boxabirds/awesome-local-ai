@@ -13,6 +13,10 @@ export interface Vidi6Hooks {
   getObjects(): readonly ObjectSnapshot[];
   getSelection(): string[];
   getDoc(): Y.Doc;
+  /** Story 3: the current connection state. */
+  connectionState: string;
+  /** Story 12: the tab's identity id (the image uploaderId). */
+  getUploaderId(): string;
   /** Story 8: local per-user undo stack non-empty. */
   canUndo(): boolean;
   /** Story 8: local redo stack non-empty. */

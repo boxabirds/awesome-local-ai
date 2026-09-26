@@ -1,0 +1,44 @@
+# Page snapshot
+
+```yaml
+- generic [active]:
+  - generic:
+    - 'group "Text: nt well" [ref=e2]':
+      - generic [ref=e3]: nt well
+    - generic:
+      - button "Resize right" [ref=e4]
+      - button "Resize left" [ref=e5]
+    - toolbar "Text actions" [ref=e7]:
+      - button "Text size S" [ref=e8] [cursor=pointer]: S
+      - button "Text size M" [pressed] [ref=e9] [cursor=pointer]: M
+      - button "Text size L" [ref=e10] [cursor=pointer]: L
+      - button "Text size XL" [ref=e11] [cursor=pointer]: XL
+      - button "Delete text" [ref=e12] [cursor=pointer]: Delete
+    - generic [ref=e13]:
+      - button "Select (V)" [pressed] [ref=e14] [cursor=pointer]:
+        - img [ref=e15]
+      - button "Text (T)" [ref=e17] [cursor=pointer]:
+        - img [ref=e18]
+      - button "Shape (S)" [ref=e20] [cursor=pointer]:
+        - img [ref=e21]
+      - button "Connector (L)" [ref=e24] [cursor=pointer]:
+        - img [ref=e25]
+      - button "Pen (P)" [ref=e28] [cursor=pointer]:
+        - img [ref=e29]
+      - button "Image (I)" [ref=e31] [cursor=pointer]:
+        - img [ref=e32]
+      - button "Sticky note" [ref=e36] [cursor=pointer]:
+        - img [ref=e37]
+      - generic [ref=e41]:
+        - button "Undo" [ref=e42] [cursor=pointer]:
+          - img [ref=e43]
+        - button "Redo" [disabled] [ref=e46]:
+          - img [ref=e47]
+    - generic [ref=e50]:
+      - button "Zoom out" [ref=e51] [cursor=pointer]: −
+      - status [ref=e52]: 100%
+      - button "Zoom in" [ref=e53] [cursor=pointer]: +
+      - button "Reset view" [ref=e54] [cursor=pointer]
+    - generic: Drag to move around · Ctrl/Cmd + scroll or pinch to zoom
+    - button "Share" [ref=e56] [cursor=pointer]
+```

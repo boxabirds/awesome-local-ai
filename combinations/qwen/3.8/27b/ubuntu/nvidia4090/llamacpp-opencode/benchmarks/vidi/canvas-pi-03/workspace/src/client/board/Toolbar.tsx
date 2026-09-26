@@ -21,6 +21,12 @@ export interface ToolbarProps {
   shapeKind?: ShapeKind;
   /** Story 10: set the shape kind (kind menu). */
   onSetShapeKind?(kind: ShapeKind): void;
+  /**
+   * Story 12: open the image picker (image.pick). A one-shot action like the
+   * Sticky button (not a persistent tool): it opens the picker and the board
+   * stays/returns on Select.
+   */
+  onOpenImagePicker?(): void;
 }
 
 /**
@@ -242,6 +248,36 @@ export function Toolbar(props: ToolbarProps): ReactElement {
             strokeLinejoin="round"
             fill="none"
           />
+        </svg>
+      </button>
+
+      {/* Story 12: Image button (I) — opens the file picker (image.pick). */}
+      <button
+        type="button"
+        aria-label="Image (I)"
+        title="Add image – I"
+        data-testid="image-button"
+        disabled={props.disabled}
+        onClick={() => props.onOpenImagePicker?.()}
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          width: 40,
+          height: 40,
+          padding: 0,
+          borderRadius: 8,
+          border: '1px solid rgba(0, 0, 0, 0.15)',
+          background: 'rgba(140, 220, 140, 0.55)',
+          cursor: props.disabled ? 'default' : 'pointer',
+          opacity: props.disabled ? 0.5 : 1,
+          boxShadow: '0 1px 3px rgba(0, 0, 0, 0.2)',
+        }}
+      >
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <rect x="4" y="5" width="16" height="14" rx="1.5" fill="rgba(255, 255, 255, 0.6)" stroke="rgba(0, 0, 0, 0.45)" strokeWidth="1.5" />
+          <circle cx="9" cy="10" r="1.6" fill="rgba(0, 0, 0, 0.4)" />
+          <path d="M5 17l4.5-4.5 3 3L16 11l3.5 4.5" stroke="rgba(0, 0, 0, 0.45)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" fill="none" />
         </svg>
       </button>
 
