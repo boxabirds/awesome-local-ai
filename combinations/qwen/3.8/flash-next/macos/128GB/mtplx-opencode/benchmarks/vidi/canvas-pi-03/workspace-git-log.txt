@@ -1,3 +1,33 @@
+commit 7e8c2c88497a509f92c8b164326ef40e10b3d3c5
+vidi-agent  Sat Sep 26 21:39:43 2026 +0100
+
+    harness: snapshot after story 7 (uncommitted agent work)
+
+
+ NOTES.md                                 |  88 ++++++++++
+ src/canvas/SelectionBar.tsx              | 107 ++++++++++++
+ src/canvas/SelectionBox.tsx              | 199 ++++++++++++++++++++++
+ src/client/App.tsx                       | 209 +++++++++++++++++++++--
+ src/client/board/selection-controller.ts | 143 ++++++++++++++++
+ src/client/board/transform-gesture.ts    | 282 +++++++++++++++++++++++++++++++
+ src/client/board/useBoardDoc.ts          |  21 ++-
+ src/client/board/useSelection.ts         | 120 ++++++++++---
+ src/client/canvas/BoardViewport.tsx      |  92 +++++++++-
+ src/client/objects/StickyNote.tsx        |  47 ++++--
+ src/shared/board-model.ts                | 205 +++++++++++++++++++++-
+ src/shared/config.ts                     |  17 ++
+ src/shared/geometry.ts                   | 202 ++++++++++++++++++++++
+ src/shared/object-types.ts               | 110 ++++++++++++
+ tests/component/SelectionTools.test.tsx  | 231 +++++++++++++++++++++++++
+ tests/component/harness-drag.ts          |  51 ++++++
+ tests/component/harness.ts               |  67 +++++++-
+ tests/unit/board-model-groups.test.ts    | 172 +++++++++++++++++++
+ tests/unit/geometry.test.ts              | 148 ++++++++++++++++
+ tests/unit/object-types.test.ts          |  77 +++++++++
+ tests/unit/selection-controller.test.ts  |  88 ++++++++++
+ tests/unit/transform-gesture.test.ts     | 278 ++++++++++++++++++++++++++++++
+ tsconfig.tsbuildinfo                     |   1 +
+ 23 files changed, 2902 insertions(+), 53 deletions(-)
 commit 3e495174571e9ff9994004970e15cbeb09b2a368
 vidi-agent  Sat Sep 26 18:52:49 2026 +0100
 

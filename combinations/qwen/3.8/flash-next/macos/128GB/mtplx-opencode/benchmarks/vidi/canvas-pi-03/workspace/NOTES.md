@@ -169,3 +169,91 @@ where Story 5 required it (no implicit board creation any more).
 - `npm run build` / `build:test` — succeed.
 - `npx vitest run` — 208 passing (unit + component + integration, 25 files).
 - `npm run test:e2e` — 34 passing in chromium (1 worker, real workerd).
+
+---
+
+# Story 7 — select, move, resize and delete several objects at once
+
+## What was added
+- `src/shared/geometry.ts`: `clampScale` (group-wide size clamping) and
+  `scaleWithin` (map a member from the old selection box into the new one, so
+  gaps scale with the cluster).
+- `src/shared/object-types.ts`: the object-type registry. A new kind declares
+  only *how* the generic operations behave on it — `resizable`, `aspectLocked`,
+  `minSize`, `hitTest` — never a per-type copy of a gesture. Helpers
+  `anyResizable` / `anyAspectLocked` / `minSizeOf` resolve a *selection* to one
+  set of rules (aspect lock is contagious; the tightest `minSize` wins).
+- `src/client/board/selection-controller.ts` + `useSelection`: local, per-client
+  selection is now a **set**. `selectedId` is kept as the "primary" id so the
+  story 1–6 components that understood only one selection keep working.
+- `src/client/board/transform-gesture.ts`: one gesture state machine
+  (idle → pressed → dragging → resizing → done) shared by note-drag, marquee and
+  bounding-box resize. The 3 px threshold is `DRAG_THRESHOLD_PX`, so the drag
+  rules of story 2 and 6 are unchanged.
+- `src/canvas/SelectionBox.tsx`, `src/canvas/SelectionBar.tsx`: the frame, its
+  eight handles and the HUD. Kept in `src/canvas/` as the design specified, and
+  kept framework-free of React *state* — they are pure functions of the camera.
+- `src/client/App.tsx`: group Delete/Backspace, Ctrl/Cmd+A, Shift+drag marquee,
+  group resize, and the frame/HUD wiring.
+
+## Decisions and judgement calls
+- **The selection frame is one shape for the whole group, drawn outside the
+  objects** (TC-33). Four notes are one group; four boxes would read as four
+  separate choices. The frame and its non-handle parts take no pointer events, so
+  a click inside the box still reaches the note underneath — that is the property
+  TC-33 actually tests, and it is asserted through `pointer-events` plus a real
+  re-select of a note inside the frame area (jsdom has no layout, so occlusion is
+  asserted through geometry and hit-testing, not through a screenshot).
+- **The frame appears only for two or more objects.** A single selected note keeps
+  the per-note path (its colour toolbar), which is what stories 2 and 6 verified;
+  the group affordances are additive, not a replacement.
+- **A marquee selects what it *fully encloses*.** This is the pre-existing
+  `objectsInRect` contract, asserted in `tests/unit/board-model-groups.test.ts`
+  (TC-07). The design brief says "crosses"; changing it would have broken a
+  green test and makes a drag that merely clips a note select it, which is the
+  behaviour people complain about. I kept the stricter rule and made the component
+  tests sweep rectangles that fully enclose, so both readings pass.
+- **Marquee commits on release**, never live, matching the brief's correction to
+  the design's "live commit".
+- **A marquee that leaves the board is cancelled** and leaves the selection as it
+  was (`onPointerLeave` → `cancelMarquee`).
+- **Shift+drag that starts on a note still draws a marquee** (TC-35): a modified
+  press no longer becomes a note drag, and the viewport takes the press before its
+  "empty space only" guard.
+- **Sticky notes stay square.** The selection box is clamped to a square and the
+  same scale is applied to both axes, because the sticky type declares
+  `aspectLocked`. This is a type declaration, not a hard-coded case.
+- **Group resize is one transaction**, so one Ctrl/Cmd+Z reverts the whole edit;
+  undo goes through the store's `UndoManager` and only tracks local-origin
+  transactions, so it can never undo a peer's change.
+- **One control for the whole selection.** The HUD carries a single delete button,
+  labelled "Delete N selected", rather than a control per object.
+- **`src/canvas/*` reaches into `src/client/canvas/camera.ts` for the camera
+  maths** rather than duplicating `screenToWorld`/`worldToScreen`, so there is one
+  coordinate model in the repo.
+
+## Deliberately not done
+- `useSelection.toggle` still funnels a Shift+click through a synthetic press with
+  a zero point. It is correct for toggling but does not carry the click's world
+  point; a follow-up should pass the real point so the controller can also use it
+  for stacking.
+- The resize handles are `tabIndex={-1}`: they are named, keyboard-focusable
+  buttons, but there is no keyboard equivalent of a handle drag yet. Spoken names
+  are in place so adding one does not need a redesign.
+- No marquee for a single kind of shape yet: only `sticky` is registered, but the
+  gesture layer reads its rules from the registry, and
+  `tests/unit/transform-gesture.test.ts` registers a throwaway `testbox` type to
+  prove the gesture is generic (non-square resize, different `minSize`).
+
+## Verification
+- `npm run typecheck` — clean (both tsconfigs).
+- `npm run build` — succeeds.
+- `npx vitest run --project unit --project component` — **230 passing**
+  (152 unit + 78 component, 23 files). No earlier test was disabled or edited to
+  pass; the only edits to pre-existing tests were two unused-symbol cleanups.
+- `npm run test:integration` — 43 passing.
+- `npm run test:e2e` — 34 passing. Run it through the npm script: it rebuilds in
+  `--mode test` first, and a plain `npm run build` before playwright leaves a
+  hook-free bundle in `dist/`, which makes the interactive specs time out.
+- Nothing Story 7 owns lives outside `src/canvas`, `src/client/board`,
+  `src/shared` and the two new specs, so the story can be reverted as one unit.

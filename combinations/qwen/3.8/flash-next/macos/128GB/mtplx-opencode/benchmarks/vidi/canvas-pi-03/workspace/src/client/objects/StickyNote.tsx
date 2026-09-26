@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react';
 import * as Y from 'yjs';
 import type { StickySnapshot } from '../../shared/board-model';
-import { bringToFront, moveObject, getStickyText } from '../../shared/board-model';
+import { getStickyText } from '../../shared/board-model';
 import { STICKY_SIZE_WORLD, STICKY_COLORS, DRAG_THRESHOLD_PX, STICKY_FONT_MAX_PX } from '../../shared/config';
+import { TransformGesture } from '../board/transform-gesture';
 import { StickyTextEditor } from './StickyTextEditor';
 import { fitFontSize } from './StickyText';
 import type { StickyColor } from '../../shared/config';
@@ -13,7 +14,13 @@ interface StickyNoteProps {
   note: StickySnapshot;
   doc: Y.Doc;
   zoom: number;
+  /** True when this note takes part in the selection (it is one of the ids). */
   selected: boolean;
+  /** The group that moves with this note: the whole selection when the note is
+   * part of it, just itself otherwise (contract `sel.transform`). */
+  groupIds: readonly string[];
+  /** The board's shared transform gesture (contract `sel.transform`). */
+  gesture: TransformGesture;
   editing: boolean;
   /** False while the board could not be loaded: the note cannot be dragged or
    * edited (PRD persist.load_failure). Defaults to true. */
@@ -30,13 +37,15 @@ function noteAlive(doc: Y.Doc, id: string): boolean {
   return doc.getMap<Y.Map<unknown>>('objects').has(id);
 }
 
-export function StickyNote({ note, doc, zoom, selected, editing, editable = true, onSelect, onStartEdit, onEndEdit }: StickyNoteProps) {
+export function StickyNote({ note, doc, zoom, selected, groupIds, gesture, editing, editable = true, onSelect, onStartEdit, onEndEdit }: StickyNoteProps) {
   const [mode, setMode] = useState<Mode>('idle');
   const modeRef = useRef<Mode>('idle');
   const zoomRef = useRef(zoom);
   zoomRef.current = zoom;
 
   const start = useRef({ px: 0, py: 0, x: 0, y: 0, moved: false });
+  const wasGroup = useRef(false);
+  const pressSelected = useRef(false);
   const contentRef = useRef<HTMLDivElement>(null);
   const [fontPx, setFontPx] = useState<number>(STICKY_FONT_MAX_PX);
   const [overflow, setOverflow] = useState<boolean>(false);
@@ -70,6 +79,10 @@ export function StickyNote({ note, doc, zoom, selected, editing, editable = true
 
   const onPointerDown = (e: ReactPointerEvent<HTMLDivElement>) => {
     if (e.button !== 0) return;
+    // A Shift+press belongs to the board, not to the note: it draws a selection
+    // rectangle even when it starts on top of this note (contract `sel.marquee`,
+    // TC-35). Only an unmodified press becomes a note drag.
+    if (e.shiftKey) return;
     // The board must never pan because of a press on a note.
     e.stopPropagation();
     if (editing || !editable) return; // no drag, no selection while uneditable
@@ -78,6 +91,18 @@ export function StickyNote({ note, doc, zoom, selected, editing, editable = true
     start.current = { px: e.clientX, py: e.clientY, x: note.x, y: note.y, moved: false };
     modeRef.current = 'pressed';
     setMode('pressed');
+    wasGroup.current = selected && groupIds.length > 1;
+    pressSelected.current = selected;
+    // A press that turns into a drag moves the whole selection when the pressed
+    // note was already part of it, and only itself otherwise. An unselected
+    // note is selected when the drag starts (contract `sel.drag_unselected`).
+    const group = selected && groupIds.length > 1 ? [...groupIds] : [note.id];
+    // The gesture owns the write: it moves the whole group, raises it once at
+    // gesture start, and skips ids a peer deleted mid-drag.
+    gesture.beginMove(group, {
+      x: e.clientX,
+      y: e.clientY,
+    });
   };
 
   const onPointerMove = (e: ReactPointerEvent<HTMLDivElement>) => {
@@ -85,6 +110,7 @@ export function StickyNote({ note, doc, zoom, selected, editing, editable = true
     if (m === 'idle') return;
     e.stopPropagation();
     if (!noteAlive(doc, note.id)) {
+      gesture.reset();
       endDrag();
       return;
     }
@@ -96,23 +122,22 @@ export function StickyNote({ note, doc, zoom, selected, editing, editable = true
     if (m === 'pressed') {
       modeRef.current = 'dragging';
       setMode('dragging');
-      bringToFront(doc, note.id); // once, at drag start
+      // Dragging a note that was not selected selects it (and only it).
+      if (!pressSelected.current) onSelect(note.id);
     }
 
-    // Convert the screen delta to world units by dividing by the camera zoom so
-    // the grabbed point stays under the pointer at any zoom level.
-    const z = zoomRef.current;
-    const nx = start.current.x + dx / z;
-    const ny = start.current.y + dy / z;
-    moveObject(doc, note.id, nx, ny);
+    // The gesture converts the screen delta to world units (divide by zoom) and
+    // writes every member in ONE transaction.
+    gesture.update({ x: e.clientX, y: e.clientY }, dist);
   };
 
   const finish = (e: ReactPointerEvent<HTMLDivElement>) => {
     (e.currentTarget as HTMLElement).releasePointerCapture?.(e.pointerId);
     if (modeRef.current === 'pressed') {
-      // A short press with no movement selects the note.
+      // A short press with no movement selects the note alone (contract
+      // `sel.interaction`: a click replaces the set).
       onSelect(note.id);
-    }
+    }    gesture.reset();
     endDrag();
   };
 

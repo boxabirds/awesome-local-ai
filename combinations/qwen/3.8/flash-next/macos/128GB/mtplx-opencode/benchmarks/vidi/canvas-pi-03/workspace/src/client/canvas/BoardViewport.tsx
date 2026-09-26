@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type ReactNode, type PointerEvent as ReactPointerEvent } from 'react';
 import { useCamera, wheelDeltaToPixels, type CameraApi } from './useCamera';
-import { GRID_SPACING_WORLD, DRAG_THRESHOLD_PX } from '../../shared/config';
+import { GRID_SPACING_WORLD, DRAG_THRESHOLD_PX, MARQUEE_FILL, SELECTION_STROKE } from '../../shared/config';
 import type { Camera, Size } from './camera';
 
 function mod(v: number, s: number): number {
@@ -40,6 +40,12 @@ export interface BoardViewportProps {
   onEmptyClick?(): void;
   /** A double-click on empty space, given the screen point (viewport-relative). */
   onEmptyDblClick?(point: { x: number; y: number }): void;
+  /** A Shift+drag marquee, live, as a viewport-relative rect (screen space), or
+   * null the moment the marquee is released / cancelled. */
+  onMarqueeChange?(rect: { x: number; y: number; width: number; height: number } | null): void;
+  /** A completed Shift+drag (past the drag threshold), in viewport-relative
+   * screen space. The owner converts to world and hit-tests. */
+  onMarqueeCommit?(rect: { x: number; y: number; width: number; height: number }, additive: boolean): void;
 }
 
 /**
@@ -47,12 +53,15 @@ export interface BoardViewportProps {
  * CSS transform is driven by the camera, and the input handlers (drag, wheel,
  * Safari gesture, keyboard) that turn raw events into camera changes.
  */
-export function BoardViewport({ children, size, api: apiProp, onSize, onEmptyClick, onEmptyDblClick }: BoardViewportProps) {
+export function BoardViewport({ children, size, api: apiProp, onSize, onEmptyClick, onEmptyDblClick, onMarqueeChange, onMarqueeCommit }: BoardViewportProps) {
   const elRef = useRef<HTMLDivElement>(null);
   const [measured, setMeasured] = useState<Size>(() => ({ width: 1280, height: 800 }));
   // Tracks a press that began on empty space so a later pointerup can tell a
   // click (clear selection) from a drag (pan).
   const emptyPress = useRef<{ x: number; y: number; moved: boolean } | null>(null);
+  // Tracks a Shift+drag marquee (viewport-relative), independent of panning.
+  const marquee = useRef<{ x0: number; y0: number; x: number; y: number; moved: boolean; additive: boolean } | null>(null);
+  const [marqueeRect, setMarqueeRect] = useState<{ x: number; y: number; width: number; height: number } | null>(null);
 
   // Always call the hook (rules of hooks); the injected api wins when present.
   const localApi = useCamera(size ?? measured);
@@ -161,15 +170,49 @@ export function BoardViewport({ children, size, api: apiProp, onSize, onEmptyCli
 
   const handlePointerDown = (e: ReactPointerEvent<HTMLDivElement>) => {
     if (e.button !== 0) return;
+    // A Shift+press is always a marquee, including one that starts on a note
+    // (TC-35), so it is handled before the "empty space only" guard below.
+    if (e.shiftKey) {
+      startMarquee(e);
+      return;
+    }
     // Drag only begins on empty space: the target must be the viewport itself,
     // so later object layers can stopPropagation and win their own gestures.
     if (e.target !== e.currentTarget) return;
-    emptyPress.current = { x: e.clientX, y: e.clientY, moved: false };
     (e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId);
+    emptyPress.current = { x: e.clientX, y: e.clientY, moved: false };
     api.beginPan({ x: e.clientX, y: e.clientY });
   };
 
+  const startMarquee = (e: ReactPointerEvent<HTMLDivElement>) => {
+    e.stopPropagation();
+    (e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId);
+    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+    const p = { x: e.clientX - rect.left, y: e.clientY - rect.top };
+    marquee.current = { x0: p.x, y0: p.y, x: p.x, y: p.y, moved: false, additive: e.altKey };
+    setMarqueeRect({ x: p.x, y: p.y, width: 0, height: 0 });
+    onMarqueeChange?.({ x: p.x, y: p.y, width: 0, height: 0 });
+  };
+
   const handlePointerMove = (e: ReactPointerEvent<HTMLDivElement>) => {
+    if (marquee.current) {
+      const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+      const p = { x: e.clientX - rect.left, y: e.clientY - rect.top };
+      const start = marquee.current;
+      if (Math.hypot(p.x - start.x0, p.y - start.y0) >= DRAG_THRESHOLD_PX) marquee.current.moved = true;
+      // Track the current corner: the commit reads it back on pointer-up.
+      start.x = p.x;
+      start.y = p.y;
+      const r = {
+        x: Math.min(start.x0, p.x),
+        y: Math.min(start.y0, p.y),
+        width: Math.abs(p.x - start.x0),
+        height: Math.abs(p.y - start.y0),
+      };
+      setMarqueeRect(r);
+      onMarqueeChange?.(r);
+      return;
+    }
     if (emptyPress.current) {
       const dx = e.clientX - emptyPress.current.x;
       const dy = e.clientY - emptyPress.current.y;
@@ -180,8 +223,33 @@ export function BoardViewport({ children, size, api: apiProp, onSize, onEmptyCli
     api.panMove({ x: e.clientX, y: e.clientY });
   };
 
+/** Cancel an in-flight marquee: a rectangle released off the board does not act
+ * (contract `marquee.acts_only_over_board`). */
+function cancelMarquee(
+  ref: { current: { x0: number; y0: number; x: number; y: number; moved: boolean; additive: boolean } | null },
+  onChange?: (rect: { x: number; y: number; width: number; height: number } | null) => void,
+): void {
+  if (ref.current === null) return;
+  ref.current = null;
+  onChange?.(null);
+}
+
   const handleEndPan = (e: ReactPointerEvent<HTMLDivElement>) => {
     (e.currentTarget as HTMLElement).releasePointerCapture?.(e.pointerId);
+    if (marquee.current) {
+      const m = marquee.current;
+      marquee.current = null;
+      setMarqueeRect(null);
+      onMarqueeChange?.(null);
+      if (m.moved) {
+        onMarqueeCommit?.(
+          { x: Math.min(m.x0, m.x), y: Math.min(m.y0, m.y), width: Math.abs(m.x - m.x0), height: Math.abs(m.y - m.y0) },
+          m.additive,
+        );
+      }
+      // A Shift+click with no drag clears NOTHING (matches Figma's Shift+click).
+      return;
+    }
     // A click on empty space with no drag clears the selection.
     if (emptyPress.current && !emptyPress.current.moved) onEmptyClick?.();
     emptyPress.current = null;
@@ -218,6 +286,7 @@ export function BoardViewport({ children, size, api: apiProp, onSize, onEmptyCli
       onPointerMove={handlePointerMove}
       onPointerUp={handleEndPan}
       onPointerCancel={handleEndPan}
+      onPointerLeave={() => cancelMarquee(marquee, onMarqueeChange)}
       onLostPointerCapture={() => api.endPan()}
       onDoubleClick={handleDoubleClick}
     >
@@ -269,6 +338,23 @@ export function BoardViewport({ children, size, api: apiProp, onSize, onEmptyCli
         </div>
         {children}
       </div>
+      {marqueeRect && (
+        <div
+          data-testid="marquee"
+          aria-hidden="true"
+          style={{
+            position: 'absolute',
+            left: marqueeRect.x,
+            top: marqueeRect.y,
+            width: marqueeRect.width,
+            height: marqueeRect.height,
+            background: MARQUEE_FILL,
+            border: `1px solid ${SELECTION_STROKE}`,
+            pointerEvents: 'none',
+            zIndex: 5,
+          }}
+        />
+      )}
     </div>
   );
 }

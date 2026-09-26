@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import * as Y from 'yjs';
-import { initDoc, snapshot, type StickySnapshot } from '../../shared/board-model';
+import { initDoc, snapshot, LOCAL_ORIGIN, type StickySnapshot } from '../../shared/board-model';
 import { connectBoard, type ConnectionState, type ConnectBoardOptions } from '../sync/connectBoard';
 
 /**
@@ -13,6 +13,9 @@ export interface BoardStore {
   doc: Y.Doc;
   subscribe(listener: () => void): () => void;
   getSnapshot(): readonly StickySnapshot[];
+  /** Undo the last LOCAL edit (one transaction = one undo step). Remote edits
+   * are never undone. Returns true when something was reverted. */
+  undo(): boolean;
 }
 
 function createBoardStore(): BoardStore {
@@ -21,6 +24,15 @@ function createBoardStore(): BoardStore {
   const objects = doc.getMap<Y.Map<unknown>>('objects');
   let current = snapshot(doc);
   const listeners = new Set<() => void>();
+
+  // App-level Undo (story 7): a single UndoManager over the object map that
+  // tracks ONLY locally-originated transactions, so Ctrl/Cmd+Z reverts the
+  // last group edit here without ever undoing a peer's change. Because every
+  // group mutation runs in ONE transaction, one undo reverts the whole group.
+  const undoManager = new Y.UndoManager(objects, {
+    trackedOrigins: new Set<unknown>([LOCAL_ORIGIN]),
+    captureTimeout: 500,
+  });
 
   // One deep observer drives every snapshot refresh (positions, colours, text
   // and add/remove all live under `objects`). Remote updates go through the
@@ -42,12 +54,17 @@ function createBoardStore(): BoardStore {
     getSnapshot() {
       return current;
     },
+    undo() {
+      return undoManager.undo() != null;
+    },
   };
 }
 
 export interface UseBoardDocResult {
   doc: Y.Doc;
   notes: readonly StickySnapshot[];
+  /** Revert the last local edit (see BoardStore.undo). */
+  undo(): boolean;
   /** Live connection state of the board's sync provider ('connected' when
    * there is no provider at all, e.g. component tests). */
   connectionState: ConnectionState;
@@ -93,5 +110,5 @@ export function useBoardDoc(
 
   const notes = useSyncExternalStore(store.subscribe, store.getSnapshot, store.getSnapshot);
 
-  return { doc: store.doc, notes, connectionState };
+  return { doc: store.doc, notes, undo: () => store.undo(), connectionState };
 }
