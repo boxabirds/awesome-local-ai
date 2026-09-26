@@ -138,3 +138,34 @@ def test_a_run_stopped_for_missing_resources_exits_3_and_records_why(tmp_path):
     assert r.returncode == 3, r.stdout[-1500:] + r.stderr[-1500:]
     msg = last_pushed(remote)
     assert "missing resources" in msg.lower() and "browser not installed" in msg, (msg, r.stderr[-1500:])
+
+
+def test_a_reference_stack_puts_each_packs_runs_under_that_pack(tmp_path):
+    # One installed reference stack (e.g. Claude Code + Opus, registered from benchmarks/reference/vidi/opus-5.5)
+    # runs every pack; a todoodle run must land in benchmarks/reference/todoodle/<stack>/, not among vidi's runs.
+    repo, _ = repo_with_remote(tmp_path)
+    shutil.copytree(HARNESS, repo / "benchmarks/spec-bench/harness",
+                    ignore=shutil.ignore_patterns("__pycache__", ".pytest_cache", "node_modules"))
+    shutil.copytree(HARNESS.parent.parent / "todoodle", repo / "benchmarks/todoodle")
+    (repo / "stack.env").write_text("CONTEXT_LIMIT=0\nOUTPUT_LIMIT=0\n")
+    home = tmp_path / "home"
+    install = home / ".local/share/fake-stack"
+    install.mkdir(parents=True)
+    (install / "install.env").write_text('COMBINATION="reference/fake-stack"\nBACKEND="anthropic"\nMODEL_ID="m"\n'
+                                         'RUN_BASE="benchmarks/reference/vidi/fake-stack"\nCONFIG_FILE="stack.env"\n')
+    stubs = tmp_path / "bin"
+    stubs.mkdir()
+    for tool in ("uv", "npm", "npx", "node", "claude"):
+        (stubs / tool).write_text("#!/bin/sh\nexit 0\n")
+    real_python = shutil.which("python3")
+    (stubs / "python3").write_text(f'#!/bin/sh\ncase "$*" in *wait_for_thermal*) echo "  thermal=nominal"; exit 0;; esac\n'
+                                   f'exec "{real_python}" "$@"\n')
+    for f in stubs.iterdir():
+        f.chmod(0o755)
+    env = {**os.environ, **IDENTITY, "HOME": str(home), "PATH": f"{stubs}:{os.environ['PATH']}"}
+    env.pop("SPEC_BENCH_PACK_DIR", None)
+    env.pop("VIDI_PACK_DIR", None)
+    r = subprocess.run([str(repo / "benchmarks/spec-bench/harness/run.sh"), "fake-stack", "--pack", "benchmarks/todoodle",
+                        "--run-id", "r1", "--client", "claude"], env=env, capture_output=True, text=True)
+    assert (repo / "benchmarks/reference/todoodle/fake-stack/r1").is_dir(), r.stdout[-1500:] + r.stderr[-1500:]
+    assert not (repo / "benchmarks/reference/vidi/fake-stack/r1").exists()
