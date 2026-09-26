@@ -12,5 +12,12 @@
   ],
   "tools": [
     "bun"
+  ],
+  "rules": [
+    "Follow the design: its repository layout, file names, named settings, exported interfaces, and the exact UI text the PRD and design specify.",
+    "Work through tasks.md in order. Write the tests the design lists and make them pass. Do not delete or weaken tests to make them pass.",
+    "Before you finish, run the project's build, typecheck and test commands, and fix failures.",
+    "Do not ask questions; there is nobody to answer. Make a reasonable decision, note it in `NOTES.md`, and continue.",
+    "Commit after each task in tasks.md is done, with the message `story {{ID}} task N: <the task's title>`, so finished work is never left uncommitted. When the story is complete, make a final commit `story {{ID}}: {{TITLE}}` with anything left."
   ]
 }
