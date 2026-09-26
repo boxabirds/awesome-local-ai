@@ -1,0 +1,1336 @@
+{
+  "config": {
+    "configFile": "~/.dbench/awesome-local-ai-bench-private/packs/vidi/acceptance/playwright.config.ts",
+    "rootDir": "~/.dbench/awesome-local-ai-bench-private/packs/vidi/acceptance/tests",
+    "forbidOnly": false,
+    "fullyParallel": false,
+    "globalSetup": "~/.dbench/awesome-local-ai-bench-private/packs/vidi/acceptance/tests/global-setup.ts",
+    "globalTeardown": null,
+    "globalTimeout": 0,
+    "grep": {},
+    "grepInvert": null,
+    "maxFailures": 0,
+    "metadata": {
+      "actualWorkers": 1
+    },
+    "preserveOutput": "always",
+    "projects": [
+      {
+        "outputDir": "~/.dbench/repo/combinations/qwen/3.8/27b/ubuntu/nvidia4090/llamacpp-opencode/benchmarks/vidi/canvas-pi-04/stories/02/artifacts",
+        "repeatEach": 1,
+        "retries": 0,
+        "metadata": {
+          "actualWorkers": 1
+        },
+        "id": "chromium",
+        "name": "chromium",
+        "testDir": "~/.dbench/awesome-local-ai-bench-private/packs/vidi/acceptance/tests",
+        "testIgnore": [],
+        "testMatch": [
+          "**/*.@(spec|test).?(c|m)[jt]s?(x)"
+        ],
+        "timeout": 45000
+      }
+    ],
+    "quiet": false,
+    "reporter": [
+      [
+        "list",
+        null
+      ],
+      [
+        "json",
+        {
+          "outputFile": "~/.dbench/repo/combinations/qwen/3.8/27b/ubuntu/nvidia4090/llamacpp-opencode/benchmarks/vidi/canvas-pi-04/stories/02/accept-report.json"
+        }
+      ]
+    ],
+    "reportSlowTests": {
+      "max": 5,
+      "threshold": 300000
+    },
+    "runAgents": "none",
+    "shard": null,
+    "tags": [],
+    "updateSnapshots": "missing",
+    "updateSourceMethod": "patch",
+    "version": "1.58.2",
+    "workers": 1,
+    "webServer": null
+  },
+  "suites": [
+    {
+      "title": "story-01.spec.ts",
+      "file": "story-01.spec.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [],
+      "suites": [
+        {
+          "title": "story 1 @s01",
+          "file": "story-01.spec.ts",
+          "line": 11,
+          "column": 6,
+          "specs": [
+            {
+              "title": "golden path: controls and hint visible at 100% @ref prd:golden-path",
+              "ok": true,
+              "tags": [
+                "s01",
+                "ref"
+              ],
+              "tests": [
+                {
+                  "timeout": 45000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 145,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-09-26T12:10:03.259Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "24cb81e61bbb2d948322-d28d75a74195b7023735",
+              "file": "story-01.spec.ts",
+              "line": 14,
+              "column": 3
+            },
+            {
+              "title": "zoom buttons step 100 → 125 → 100 @ref prd:zoom.step",
+              "ok": true,
+              "tags": [
+                "s01",
+                "ref"
+              ],
+              "tests": [
+                {
+                  "timeout": 45000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 362,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-09-26T12:10:03.458Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "24cb81e61bbb2d948322-9fcba404d2c92f3b907f",
+              "file": "story-01.spec.ts",
+              "line": 24,
+              "column": 3
+            },
+            {
+              "title": "zoom limits clamp and disable buttons @ref prd:zoom.limits",
+              "ok": true,
+              "tags": [
+                "s01",
+                "ref"
+              ],
+              "tests": [
+                {
+                  "timeout": 45000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 3423,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-09-26T12:10:03.826Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "24cb81e61bbb2d948322-99adddba3884f7bcb262",
+              "file": "story-01.spec.ts",
+              "line": 32,
+              "column": 3
+            },
+            {
+              "title": "keyboard zoom and reset do not zoom the page @ref prd:zoom.no_page_zoom",
+              "ok": true,
+              "tags": [
+                "s01",
+                "ref"
+              ],
+              "tests": [
+                {
+                  "timeout": 45000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 221,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-09-26T12:10:07.255Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "24cb81e61bbb2d948322-77290a2ff472f4133ca4",
+              "file": "story-01.spec.ts",
+              "line": 45,
+              "column": 3
+            },
+            {
+              "title": "ctrl+wheel zooms the board @ref prd:zoom.pointer",
+              "ok": true,
+              "tags": [
+                "s01",
+                "ref"
+              ],
+              "tests": [
+                {
+                  "timeout": 45000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 129,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-09-26T12:10:07.486Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "24cb81e61bbb2d948322-50bd0a81c94904480fb1",
+              "file": "story-01.spec.ts",
+              "line": 58,
+              "column": 3
+            },
+            {
+              "title": "hint disappears after first pan and stays gone @ref prd:nav.hint",
+              "ok": true,
+              "tags": [
+                "s01",
+                "ref"
+              ],
+              "tests": [
+                {
+                  "timeout": 45000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 327,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-09-26T12:10:07.622Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "24cb81e61bbb2d948322-35fcfc3fd979e5810cb7",
+              "file": "story-01.spec.ts",
+              "line": 67,
+              "column": 3
+            },
+            {
+              "title": "drag pans content exactly with the pointer @ref prd:pan.drag",
+              "ok": false,
+              "tags": [
+                "s01",
+                "ref"
+              ],
+              "tests": [
+                {
+                  "timeout": 45000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "failed",
+                      "duration": 5084,
+                      "error": {
+                        "message": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoHaveCount\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m)\u001b[22m failed\n\nLocator:  locator('[role=\"group\"][aria-label=\"Sticky note\"]')\nExpected: \u001b[32m1\u001b[39m\nReceived: \u001b[31m0\u001b[39m\nTimeout:  5000ms\n\nCall log:\n\u001b[2m  - Expect \"toHaveCount\" with timeout 5000ms\u001b[22m\n\u001b[2m  - waiting for locator('[role=\"group\"][aria-label=\"Sticky note\"]')\u001b[22m\n\u001b[2m    9 × locator resolved to 0 elements\u001b[22m\n\u001b[2m      - unexpected value \"0\"\u001b[22m\n",
+                        "stack": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoHaveCount\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m)\u001b[22m failed\n\nLocator:  locator('[role=\"group\"][aria-label=\"Sticky note\"]')\nExpected: \u001b[32m1\u001b[39m\nReceived: \u001b[31m0\u001b[39m\nTimeout:  5000ms\n\nCall log:\n\u001b[2m  - Expect \"toHaveCount\" with timeout 5000ms\u001b[22m\n\u001b[2m  - waiting for locator('[role=\"group\"][aria-label=\"Sticky note\"]')\u001b[22m\n\u001b[2m    9 × locator resolved to 0 elements\u001b[22m\n\u001b[2m      - unexpected value \"0\"\u001b[22m\n\n    at createNote (~/.dbench/awesome-local-ai-bench-private/packs/vidi/acceptance/tests/fixtures.ts:176:29)\n    at ~/.dbench/awesome-local-ai-bench-private/packs/vidi/acceptance/tests/story-01.spec.ts:79:18",
+                        "location": {
+                          "file": "~/.dbench/awesome-local-ai-bench-private/packs/vidi/acceptance/tests/fixtures.ts",
+                          "column": 29,
+                          "line": 176
+                        },
+                        "snippet": "   at fixtures.ts:176\n\n\u001b[0m \u001b[90m 174 |\u001b[39m   \u001b[36mconst\u001b[39m before \u001b[33m=\u001b[39m \u001b[36mawait\u001b[39m notes(page)\u001b[33m.\u001b[39mcount()\u001b[33m;\u001b[39m\n \u001b[90m 175 |\u001b[39m   \u001b[36mawait\u001b[39m page\u001b[33m.\u001b[39mmouse\u001b[33m.\u001b[39mdblclick(at\u001b[33m.\u001b[39mx\u001b[33m,\u001b[39m at\u001b[33m.\u001b[39my)\u001b[33m;\u001b[39m\n\u001b[31m\u001b[1m>\u001b[22m\u001b[39m\u001b[90m 176 |\u001b[39m   \u001b[36mawait\u001b[39m expect(notes(page))\u001b[33m.\u001b[39mtoHaveCount(before \u001b[33m+\u001b[39m \u001b[35m1\u001b[39m)\u001b[33m;\u001b[39m\n \u001b[90m     |\u001b[39m                             \u001b[31m\u001b[1m^\u001b[22m\u001b[39m\n \u001b[90m 177 |\u001b[39m   \u001b[36mif\u001b[39m (text) \u001b[36mawait\u001b[39m page\u001b[33m.\u001b[39mkeyboard\u001b[33m.\u001b[39mtype(text)\u001b[33m;\u001b[39m\n \u001b[90m 178 |\u001b[39m   \u001b[36mawait\u001b[39m page\u001b[33m.\u001b[39mkeyboard\u001b[33m.\u001b[39mpress(\u001b[32m'Escape'\u001b[39m)\u001b[33m;\u001b[39m\n \u001b[90m 179 |\u001b[39m   \u001b[36mconst\u001b[39m note \u001b[33m=\u001b[39m text \u001b[33m?\u001b[39m notes(page)\u001b[33m.\u001b[39mfilter({ hasText\u001b[33m:\u001b[39m text }) \u001b[33m:\u001b[39m notes(page)\u001b[33m.\u001b[39mnth(before)\u001b[33m;\u001b[39m\u001b[0m"
+                      },
+                      "errors": [
+                        {
+                          "location": {
+                            "file": "~/.dbench/awesome-local-ai-bench-private/packs/vidi/acceptance/tests/fixtures.ts",
+                            "column": 29,
+                            "line": 176
+                          },
+                          "message": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoHaveCount\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m)\u001b[22m failed\n\nLocator:  locator('[role=\"group\"][aria-label=\"Sticky note\"]')\nExpected: \u001b[32m1\u001b[39m\nReceived: \u001b[31m0\u001b[39m\nTimeout:  5000ms\n\nCall log:\n\u001b[2m  - Expect \"toHaveCount\" with timeout 5000ms\u001b[22m\n\u001b[2m  - waiting for locator('[role=\"group\"][aria-label=\"Sticky note\"]')\u001b[22m\n\u001b[2m    9 × locator resolved to 0 elements\u001b[22m\n\u001b[2m      - unexpected value \"0\"\u001b[22m\n\n\n   at fixtures.ts:176\n\n  174 |   const before = await notes(page).count();\n  175 |   await page.mouse.dblclick(at.x, at.y);\n> 176 |   await expect(notes(page)).toHaveCount(before + 1);\n      |                             ^\n  177 |   if (text) await page.keyboard.type(text);\n  178 |   await page.keyboard.press('Escape');\n  179 |   const note = text ? notes(page).filter({ hasText: text }) : notes(page).nth(before);\n    at createNote (~/.dbench/awesome-local-ai-bench-private/packs/vidi/acceptance/tests/fixtures.ts:176:29)\n    at ~/.dbench/awesome-local-ai-bench-private/packs/vidi/acceptance/tests/story-01.spec.ts:79:18"
+                        }
+                      ],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-09-26T12:10:07.956Z",
+                      "annotations": [],
+                      "attachments": [
+                        {
+                          "name": "screenshot",
+                          "contentType": "image/png",
+                          "path": "~/.dbench/repo/combinations/qwen/3.8/27b/ubuntu/nvidia4090/llamacpp-opencode/benchmarks/vidi/canvas-pi-04/stories/02/artifacts/story-01-story-1-s01-drag--68d5d-he-pointer-ref-prd-pan-drag-chromium/test-failed-1.png"
+                        },
+                        {
+                          "name": "error-context",
+                          "contentType": "text/markdown",
+                          "path": "~/.dbench/repo/combinations/qwen/3.8/27b/ubuntu/nvidia4090/llamacpp-opencode/benchmarks/vidi/canvas-pi-04/stories/02/artifacts/story-01-story-1-s01-drag--68d5d-he-pointer-ref-prd-pan-drag-chromium/error-context.md"
+                        }
+                      ],
+                      "errorLocation": {
+                        "file": "~/.dbench/awesome-local-ai-bench-private/packs/vidi/acceptance/tests/fixtures.ts",
+                        "column": 29,
+                        "line": 176
+                      }
+                    }
+                  ],
+                  "status": "unexpected"
+                }
+              ],
+              "id": "24cb81e61bbb2d948322-f0d5fc064e1a69750401",
+              "file": "story-01.spec.ts",
+              "line": 76,
+              "column": 3
+            },
+            {
+              "title": "wheel scroll pans in scroll direction @ref prd:pan.scroll",
+              "ok": false,
+              "tags": [
+                "s01",
+                "ref"
+              ],
+              "tests": [
+                {
+                  "timeout": 45000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 1,
+                      "parallelIndex": 0,
+                      "status": "failed",
+                      "duration": 5131,
+                      "error": {
+                        "message": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoHaveCount\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m)\u001b[22m failed\n\nLocator:  locator('[role=\"group\"][aria-label=\"Sticky note\"]')\nExpected: \u001b[32m1\u001b[39m\nReceived: \u001b[31m0\u001b[39m\nTimeout:  5000ms\n\nCall log:\n\u001b[2m  - Expect \"toHaveCount\" with timeout 5000ms\u001b[22m\n\u001b[2m  - waiting for locator('[role=\"group\"][aria-label=\"Sticky note\"]')\u001b[22m\n\u001b[2m    9 × locator resolved to 0 elements\u001b[22m\n\u001b[2m      - unexpected value \"0\"\u001b[22m\n",
+                        "stack": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoHaveCount\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m)\u001b[22m failed\n\nLocator:  locator('[role=\"group\"][aria-label=\"Sticky note\"]')\nExpected: \u001b[32m1\u001b[39m\nReceived: \u001b[31m0\u001b[39m\nTimeout:  5000ms\n\nCall log:\n\u001b[2m  - Expect \"toHaveCount\" with timeout 5000ms\u001b[22m\n\u001b[2m  - waiting for locator('[role=\"group\"][aria-label=\"Sticky note\"]')\u001b[22m\n\u001b[2m    9 × locator resolved to 0 elements\u001b[22m\n\u001b[2m      - unexpected value \"0\"\u001b[22m\n\n    at createNote (~/.dbench/awesome-local-ai-bench-private/packs/vidi/acceptance/tests/fixtures.ts:176:29)\n    at ~/.dbench/awesome-local-ai-bench-private/packs/vidi/acceptance/tests/story-01.spec.ts:90:18",
+                        "location": {
+                          "file": "~/.dbench/awesome-local-ai-bench-private/packs/vidi/acceptance/tests/fixtures.ts",
+                          "column": 29,
+                          "line": 176
+                        },
+                        "snippet": "   at fixtures.ts:176\n\n\u001b[0m \u001b[90m 174 |\u001b[39m   \u001b[36mconst\u001b[39m before \u001b[33m=\u001b[39m \u001b[36mawait\u001b[39m notes(page)\u001b[33m.\u001b[39mcount()\u001b[33m;\u001b[39m\n \u001b[90m 175 |\u001b[39m   \u001b[36mawait\u001b[39m page\u001b[33m.\u001b[39mmouse\u001b[33m.\u001b[39mdblclick(at\u001b[33m.\u001b[39mx\u001b[33m,\u001b[39m at\u001b[33m.\u001b[39my)\u001b[33m;\u001b[39m\n\u001b[31m\u001b[1m>\u001b[22m\u001b[39m\u001b[90m 176 |\u001b[39m   \u001b[36mawait\u001b[39m expect(notes(page))\u001b[33m.\u001b[39mtoHaveCount(before \u001b[33m+\u001b[39m \u001b[35m1\u001b[39m)\u001b[33m;\u001b[39m\n \u001b[90m     |\u001b[39m                             \u001b[31m\u001b[1m^\u001b[22m\u001b[39m\n \u001b[90m 177 |\u001b[39m   \u001b[36mif\u001b[39m (text) \u001b[36mawait\u001b[39m page\u001b[33m.\u001b[39mkeyboard\u001b[33m.\u001b[39mtype(text)\u001b[33m;\u001b[39m\n \u001b[90m 178 |\u001b[39m   \u001b[36mawait\u001b[39m page\u001b[33m.\u001b[39mkeyboard\u001b[33m.\u001b[39mpress(\u001b[32m'Escape'\u001b[39m)\u001b[33m;\u001b[39m\n \u001b[90m 179 |\u001b[39m   \u001b[36mconst\u001b[39m note \u001b[33m=\u001b[39m text \u001b[33m?\u001b[39m notes(page)\u001b[33m.\u001b[39mfilter({ hasText\u001b[33m:\u001b[39m text }) \u001b[33m:\u001b[39m notes(page)\u001b[33m.\u001b[39mnth(before)\u001b[33m;\u001b[39m\u001b[0m"
+                      },
+                      "errors": [
+                        {
+                          "location": {
+                            "file": "~/.dbench/awesome-local-ai-bench-private/packs/vidi/acceptance/tests/fixtures.ts",
+                            "column": 29,
+                            "line": 176
+                          },
+                          "message": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoHaveCount\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m)\u001b[22m failed\n\nLocator:  locator('[role=\"group\"][aria-label=\"Sticky note\"]')\nExpected: \u001b[32m1\u001b[39m\nReceived: \u001b[31m0\u001b[39m\nTimeout:  5000ms\n\nCall log:\n\u001b[2m  - Expect \"toHaveCount\" with timeout 5000ms\u001b[22m\n\u001b[2m  - waiting for locator('[role=\"group\"][aria-label=\"Sticky note\"]')\u001b[22m\n\u001b[2m    9 × locator resolved to 0 elements\u001b[22m\n\u001b[2m      - unexpected value \"0\"\u001b[22m\n\n\n   at fixtures.ts:176\n\n  174 |   const before = await notes(page).count();\n  175 |   await page.mouse.dblclick(at.x, at.y);\n> 176 |   await expect(notes(page)).toHaveCount(before + 1);\n      |                             ^\n  177 |   if (text) await page.keyboard.type(text);\n  178 |   await page.keyboard.press('Escape');\n  179 |   const note = text ? notes(page).filter({ hasText: text }) : notes(page).nth(before);\n    at createNote (~/.dbench/awesome-local-ai-bench-private/packs/vidi/acceptance/tests/fixtures.ts:176:29)\n    at ~/.dbench/awesome-local-ai-bench-private/packs/vidi/acceptance/tests/story-01.spec.ts:90:18"
+                        }
+                      ],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-09-26T12:10:13.552Z",
+                      "annotations": [],
+                      "attachments": [
+                        {
+                          "name": "screenshot",
+                          "contentType": "image/png",
+                          "path": "~/.dbench/repo/combinations/qwen/3.8/27b/ubuntu/nvidia4090/llamacpp-opencode/benchmarks/vidi/canvas-pi-04/stories/02/artifacts/story-01-story-1-s01-wheel-91745-irection-ref-prd-pan-scroll-chromium/test-failed-1.png"
+                        },
+                        {
+                          "name": "error-context",
+                          "contentType": "text/markdown",
+                          "path": "~/.dbench/repo/combinations/qwen/3.8/27b/ubuntu/nvidia4090/llamacpp-opencode/benchmarks/vidi/canvas-pi-04/stories/02/artifacts/story-01-story-1-s01-wheel-91745-irection-ref-prd-pan-scroll-chromium/error-context.md"
+                        }
+                      ],
+                      "errorLocation": {
+                        "file": "~/.dbench/awesome-local-ai-bench-private/packs/vidi/acceptance/tests/fixtures.ts",
+                        "column": 29,
+                        "line": 176
+                      }
+                    }
+                  ],
+                  "status": "unexpected"
+                }
+              ],
+              "id": "24cb81e61bbb2d948322-4949357f0d4913d672df",
+              "file": "story-01.spec.ts",
+              "line": 87,
+              "column": 3
+            },
+            {
+              "title": "zoom keeps the point under the pointer fixed @ref prd:zoom.pointer",
+              "ok": false,
+              "tags": [
+                "s01",
+                "ref"
+              ],
+              "tests": [
+                {
+                  "timeout": 45000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 2,
+                      "parallelIndex": 0,
+                      "status": "failed",
+                      "duration": 5122,
+                      "error": {
+                        "message": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoHaveCount\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m)\u001b[22m failed\n\nLocator:  locator('[role=\"group\"][aria-label=\"Sticky note\"]')\nExpected: \u001b[32m1\u001b[39m\nReceived: \u001b[31m0\u001b[39m\nTimeout:  5000ms\n\nCall log:\n\u001b[2m  - Expect \"toHaveCount\" with timeout 5000ms\u001b[22m\n\u001b[2m  - waiting for locator('[role=\"group\"][aria-label=\"Sticky note\"]')\u001b[22m\n\u001b[2m    9 × locator resolved to 0 elements\u001b[22m\n\u001b[2m      - unexpected value \"0\"\u001b[22m\n",
+                        "stack": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoHaveCount\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m)\u001b[22m failed\n\nLocator:  locator('[role=\"group\"][aria-label=\"Sticky note\"]')\nExpected: \u001b[32m1\u001b[39m\nReceived: \u001b[31m0\u001b[39m\nTimeout:  5000ms\n\nCall log:\n\u001b[2m  - Expect \"toHaveCount\" with timeout 5000ms\u001b[22m\n\u001b[2m  - waiting for locator('[role=\"group\"][aria-label=\"Sticky note\"]')\u001b[22m\n\u001b[2m    9 × locator resolved to 0 elements\u001b[22m\n\u001b[2m      - unexpected value \"0\"\u001b[22m\n\n    at createNote (~/.dbench/awesome-local-ai-bench-private/packs/vidi/acceptance/tests/fixtures.ts:176:29)\n    at ~/.dbench/awesome-local-ai-bench-private/packs/vidi/acceptance/tests/story-01.spec.ts:100:18",
+                        "location": {
+                          "file": "~/.dbench/awesome-local-ai-bench-private/packs/vidi/acceptance/tests/fixtures.ts",
+                          "column": 29,
+                          "line": 176
+                        },
+                        "snippet": "   at fixtures.ts:176\n\n\u001b[0m \u001b[90m 174 |\u001b[39m   \u001b[36mconst\u001b[39m before \u001b[33m=\u001b[39m \u001b[36mawait\u001b[39m notes(page)\u001b[33m.\u001b[39mcount()\u001b[33m;\u001b[39m\n \u001b[90m 175 |\u001b[39m   \u001b[36mawait\u001b[39m page\u001b[33m.\u001b[39mmouse\u001b[33m.\u001b[39mdblclick(at\u001b[33m.\u001b[39mx\u001b[33m,\u001b[39m at\u001b[33m.\u001b[39my)\u001b[33m;\u001b[39m\n\u001b[31m\u001b[1m>\u001b[22m\u001b[39m\u001b[90m 176 |\u001b[39m   \u001b[36mawait\u001b[39m expect(notes(page))\u001b[33m.\u001b[39mtoHaveCount(before \u001b[33m+\u001b[39m \u001b[35m1\u001b[39m)\u001b[33m;\u001b[39m\n \u001b[90m     |\u001b[39m                             \u001b[31m\u001b[1m^\u001b[22m\u001b[39m\n \u001b[90m 177 |\u001b[39m   \u001b[36mif\u001b[39m (text) \u001b[36mawait\u001b[39m page\u001b[33m.\u001b[39mkeyboard\u001b[33m.\u001b[39mtype(text)\u001b[33m;\u001b[39m\n \u001b[90m 178 |\u001b[39m   \u001b[36mawait\u001b[39m page\u001b[33m.\u001b[39mkeyboard\u001b[33m.\u001b[39mpress(\u001b[32m'Escape'\u001b[39m)\u001b[33m;\u001b[39m\n \u001b[90m 179 |\u001b[39m   \u001b[36mconst\u001b[39m note \u001b[33m=\u001b[39m text \u001b[33m?\u001b[39m notes(page)\u001b[33m.\u001b[39mfilter({ hasText\u001b[33m:\u001b[39m text }) \u001b[33m:\u001b[39m notes(page)\u001b[33m.\u001b[39mnth(before)\u001b[33m;\u001b[39m\u001b[0m"
+                      },
+                      "errors": [
+                        {
+                          "location": {
+                            "file": "~/.dbench/awesome-local-ai-bench-private/packs/vidi/acceptance/tests/fixtures.ts",
+                            "column": 29,
+                            "line": 176
+                          },
+                          "message": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoHaveCount\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m)\u001b[22m failed\n\nLocator:  locator('[role=\"group\"][aria-label=\"Sticky note\"]')\nExpected: \u001b[32m1\u001b[39m\nReceived: \u001b[31m0\u001b[39m\nTimeout:  5000ms\n\nCall log:\n\u001b[2m  - Expect \"toHaveCount\" with timeout 5000ms\u001b[22m\n\u001b[2m  - waiting for locator('[role=\"group\"][aria-label=\"Sticky note\"]')\u001b[22m\n\u001b[2m    9 × locator resolved to 0 elements\u001b[22m\n\u001b[2m      - unexpected value \"0\"\u001b[22m\n\n\n   at fixtures.ts:176\n\n  174 |   const before = await notes(page).count();\n  175 |   await page.mouse.dblclick(at.x, at.y);\n> 176 |   await expect(notes(page)).toHaveCount(before + 1);\n      |                             ^\n  177 |   if (text) await page.keyboard.type(text);\n  178 |   await page.keyboard.press('Escape');\n  179 |   const note = text ? notes(page).filter({ hasText: text }) : notes(page).nth(before);\n    at createNote (~/.dbench/awesome-local-ai-bench-private/packs/vidi/acceptance/tests/fixtures.ts:176:29)\n    at ~/.dbench/awesome-local-ai-bench-private/packs/vidi/acceptance/tests/story-01.spec.ts:100:18"
+                        }
+                      ],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-09-26T12:10:19.242Z",
+                      "annotations": [],
+                      "attachments": [
+                        {
+                          "name": "screenshot",
+                          "contentType": "image/png",
+                          "path": "~/.dbench/repo/combinations/qwen/3.8/27b/ubuntu/nvidia4090/llamacpp-opencode/benchmarks/vidi/canvas-pi-04/stories/02/artifacts/story-01-story-1-s01-zoom--4d8e2--fixed-ref-prd-zoom-pointer-chromium/test-failed-1.png"
+                        },
+                        {
+                          "name": "error-context",
+                          "contentType": "text/markdown",
+                          "path": "~/.dbench/repo/combinations/qwen/3.8/27b/ubuntu/nvidia4090/llamacpp-opencode/benchmarks/vidi/canvas-pi-04/stories/02/artifacts/story-01-story-1-s01-zoom--4d8e2--fixed-ref-prd-zoom-pointer-chromium/error-context.md"
+                        }
+                      ],
+                      "errorLocation": {
+                        "file": "~/.dbench/awesome-local-ai-bench-private/packs/vidi/acceptance/tests/fixtures.ts",
+                        "column": 29,
+                        "line": 176
+                      }
+                    }
+                  ],
+                  "status": "unexpected"
+                }
+              ],
+              "id": "24cb81e61bbb2d948322-47b3c3cddb4580241a44",
+              "file": "story-01.spec.ts",
+              "line": 97,
+              "column": 3
+            },
+            {
+              "title": "reset view returns to 100% with origin centred @ref prd:view.reset",
+              "ok": false,
+              "tags": [
+                "s01",
+                "ref"
+              ],
+              "tests": [
+                {
+                  "timeout": 45000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 3,
+                      "parallelIndex": 0,
+                      "status": "failed",
+                      "duration": 5156,
+                      "error": {
+                        "message": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoHaveCount\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m)\u001b[22m failed\n\nLocator:  locator('[role=\"group\"][aria-label=\"Sticky note\"]')\nExpected: \u001b[32m1\u001b[39m\nReceived: \u001b[31m0\u001b[39m\nTimeout:  5000ms\n\nCall log:\n\u001b[2m  - Expect \"toHaveCount\" with timeout 5000ms\u001b[22m\n\u001b[2m  - waiting for locator('[role=\"group\"][aria-label=\"Sticky note\"]')\u001b[22m\n\u001b[2m    9 × locator resolved to 0 elements\u001b[22m\n\u001b[2m      - unexpected value \"0\"\u001b[22m\n",
+                        "stack": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoHaveCount\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m)\u001b[22m failed\n\nLocator:  locator('[role=\"group\"][aria-label=\"Sticky note\"]')\nExpected: \u001b[32m1\u001b[39m\nReceived: \u001b[31m0\u001b[39m\nTimeout:  5000ms\n\nCall log:\n\u001b[2m  - Expect \"toHaveCount\" with timeout 5000ms\u001b[22m\n\u001b[2m  - waiting for locator('[role=\"group\"][aria-label=\"Sticky note\"]')\u001b[22m\n\u001b[2m    9 × locator resolved to 0 elements\u001b[22m\n\u001b[2m      - unexpected value \"0\"\u001b[22m\n\n    at createNote (~/.dbench/awesome-local-ai-bench-private/packs/vidi/acceptance/tests/fixtures.ts:176:29)\n    at ~/.dbench/awesome-local-ai-bench-private/packs/vidi/acceptance/tests/story-01.spec.ts:119:18",
+                        "location": {
+                          "file": "~/.dbench/awesome-local-ai-bench-private/packs/vidi/acceptance/tests/fixtures.ts",
+                          "column": 29,
+                          "line": 176
+                        },
+                        "snippet": "   at fixtures.ts:176\n\n\u001b[0m \u001b[90m 174 |\u001b[39m   \u001b[36mconst\u001b[39m before \u001b[33m=\u001b[39m \u001b[36mawait\u001b[39m notes(page)\u001b[33m.\u001b[39mcount()\u001b[33m;\u001b[39m\n \u001b[90m 175 |\u001b[39m   \u001b[36mawait\u001b[39m page\u001b[33m.\u001b[39mmouse\u001b[33m.\u001b[39mdblclick(at\u001b[33m.\u001b[39mx\u001b[33m,\u001b[39m at\u001b[33m.\u001b[39my)\u001b[33m;\u001b[39m\n\u001b[31m\u001b[1m>\u001b[22m\u001b[39m\u001b[90m 176 |\u001b[39m   \u001b[36mawait\u001b[39m expect(notes(page))\u001b[33m.\u001b[39mtoHaveCount(before \u001b[33m+\u001b[39m \u001b[35m1\u001b[39m)\u001b[33m;\u001b[39m\n \u001b[90m     |\u001b[39m                             \u001b[31m\u001b[1m^\u001b[22m\u001b[39m\n \u001b[90m 177 |\u001b[39m   \u001b[36mif\u001b[39m (text) \u001b[36mawait\u001b[39m page\u001b[33m.\u001b[39mkeyboard\u001b[33m.\u001b[39mtype(text)\u001b[33m;\u001b[39m\n \u001b[90m 178 |\u001b[39m   \u001b[36mawait\u001b[39m page\u001b[33m.\u001b[39mkeyboard\u001b[33m.\u001b[39mpress(\u001b[32m'Escape'\u001b[39m)\u001b[33m;\u001b[39m\n \u001b[90m 179 |\u001b[39m   \u001b[36mconst\u001b[39m note \u001b[33m=\u001b[39m text \u001b[33m?\u001b[39m notes(page)\u001b[33m.\u001b[39mfilter({ hasText\u001b[33m:\u001b[39m text }) \u001b[33m:\u001b[39m notes(page)\u001b[33m.\u001b[39mnth(before)\u001b[33m;\u001b[39m\u001b[0m"
+                      },
+                      "errors": [
+                        {
+                          "location": {
+                            "file": "~/.dbench/awesome-local-ai-bench-private/packs/vidi/acceptance/tests/fixtures.ts",
+                            "column": 29,
+                            "line": 176
+                          },
+                          "message": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoHaveCount\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m)\u001b[22m failed\n\nLocator:  locator('[role=\"group\"][aria-label=\"Sticky note\"]')\nExpected: \u001b[32m1\u001b[39m\nReceived: \u001b[31m0\u001b[39m\nTimeout:  5000ms\n\nCall log:\n\u001b[2m  - Expect \"toHaveCount\" with timeout 5000ms\u001b[22m\n\u001b[2m  - waiting for locator('[role=\"group\"][aria-label=\"Sticky note\"]')\u001b[22m\n\u001b[2m    9 × locator resolved to 0 elements\u001b[22m\n\u001b[2m      - unexpected value \"0\"\u001b[22m\n\n\n   at fixtures.ts:176\n\n  174 |   const before = await notes(page).count();\n  175 |   await page.mouse.dblclick(at.x, at.y);\n> 176 |   await expect(notes(page)).toHaveCount(before + 1);\n      |                             ^\n  177 |   if (text) await page.keyboard.type(text);\n  178 |   await page.keyboard.press('Escape');\n  179 |   const note = text ? notes(page).filter({ hasText: text }) : notes(page).nth(before);\n    at createNote (~/.dbench/awesome-local-ai-bench-private/packs/vidi/acceptance/tests/fixtures.ts:176:29)\n    at ~/.dbench/awesome-local-ai-bench-private/packs/vidi/acceptance/tests/story-01.spec.ts:119:18"
+                        }
+                      ],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-09-26T12:10:24.945Z",
+                      "annotations": [],
+                      "attachments": [
+                        {
+                          "name": "screenshot",
+                          "contentType": "image/png",
+                          "path": "~/.dbench/repo/combinations/qwen/3.8/27b/ubuntu/nvidia4090/llamacpp-opencode/benchmarks/vidi/canvas-pi-04/stories/02/artifacts/story-01-story-1-s01-reset-06e20--centred-ref-prd-view-reset-chromium/test-failed-1.png"
+                        },
+                        {
+                          "name": "error-context",
+                          "contentType": "text/markdown",
+                          "path": "~/.dbench/repo/combinations/qwen/3.8/27b/ubuntu/nvidia4090/llamacpp-opencode/benchmarks/vidi/canvas-pi-04/stories/02/artifacts/story-01-story-1-s01-reset-06e20--centred-ref-prd-view-reset-chromium/error-context.md"
+                        }
+                      ],
+                      "errorLocation": {
+                        "file": "~/.dbench/awesome-local-ai-bench-private/packs/vidi/acceptance/tests/fixtures.ts",
+                        "column": 29,
+                        "line": 176
+                      }
+                    }
+                  ],
+                  "status": "unexpected"
+                }
+              ],
+              "id": "24cb81e61bbb2d948322-d46de5242fc76e3c7e6f",
+              "file": "story-01.spec.ts",
+              "line": 115,
+              "column": 3
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "title": "story-02.spec.ts",
+      "file": "story-02.spec.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [],
+      "suites": [
+        {
+          "title": "story 2 @s02",
+          "file": "story-02.spec.ts",
+          "line": 10,
+          "column": 6,
+          "specs": [
+            {
+              "title": "golden path: create, type, select, recolour, delete @ref prd:golden-path",
+              "ok": false,
+              "tags": [
+                "s02",
+                "ref"
+              ],
+              "tests": [
+                {
+                  "timeout": 45000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 4,
+                      "parallelIndex": 0,
+                      "status": "failed",
+                      "duration": 5114,
+                      "error": {
+                        "message": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoHaveCount\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m)\u001b[22m failed\n\nLocator:  locator('[role=\"group\"][aria-label=\"Sticky note\"]')\nExpected: \u001b[32m1\u001b[39m\nReceived: \u001b[31m0\u001b[39m\nTimeout:  5000ms\n\nCall log:\n\u001b[2m  - Expect \"toHaveCount\" with timeout 5000ms\u001b[22m\n\u001b[2m  - waiting for locator('[role=\"group\"][aria-label=\"Sticky note\"]')\u001b[22m\n\u001b[2m    9 × locator resolved to 0 elements\u001b[22m\n\u001b[2m      - unexpected value \"0\"\u001b[22m\n",
+                        "stack": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoHaveCount\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m)\u001b[22m failed\n\nLocator:  locator('[role=\"group\"][aria-label=\"Sticky note\"]')\nExpected: \u001b[32m1\u001b[39m\nReceived: \u001b[31m0\u001b[39m\nTimeout:  5000ms\n\nCall log:\n\u001b[2m  - Expect \"toHaveCount\" with timeout 5000ms\u001b[22m\n\u001b[2m  - waiting for locator('[role=\"group\"][aria-label=\"Sticky note\"]')\u001b[22m\n\u001b[2m    9 × locator resolved to 0 elements\u001b[22m\n\u001b[2m      - unexpected value \"0\"\u001b[22m\n\n    at ~/.dbench/awesome-local-ai-bench-private/packs/vidi/acceptance/tests/story-02.spec.ts:16:31",
+                        "location": {
+                          "file": "~/.dbench/awesome-local-ai-bench-private/packs/vidi/acceptance/tests/story-02.spec.ts",
+                          "column": 31,
+                          "line": 16
+                        },
+                        "snippet": "\u001b[0m \u001b[90m 14 |\u001b[39m     \u001b[36mawait\u001b[39m openBoard(page)\u001b[33m;\u001b[39m\n \u001b[90m 15 |\u001b[39m     \u001b[36mawait\u001b[39m page\u001b[33m.\u001b[39mmouse\u001b[33m.\u001b[39mdblclick(\u001b[35m400\u001b[39m\u001b[33m,\u001b[39m \u001b[35m300\u001b[39m)\u001b[33m;\u001b[39m\n\u001b[31m\u001b[1m>\u001b[22m\u001b[39m\u001b[90m 16 |\u001b[39m     \u001b[36mawait\u001b[39m expect(notes(page))\u001b[33m.\u001b[39mtoHaveCount(\u001b[35m1\u001b[39m)\u001b[33m;\u001b[39m\n \u001b[90m    |\u001b[39m                               \u001b[31m\u001b[1m^\u001b[22m\u001b[39m\n \u001b[90m 17 |\u001b[39m     \u001b[36mawait\u001b[39m page\u001b[33m.\u001b[39mkeyboard\u001b[33m.\u001b[39mtype(\u001b[32m'Faster onboarding'\u001b[39m)\u001b[33m;\u001b[39m\n \u001b[90m 18 |\u001b[39m     \u001b[36mawait\u001b[39m clickEmpty(page)\u001b[33m;\u001b[39m\n \u001b[90m 19 |\u001b[39m     \u001b[36mconst\u001b[39m note \u001b[33m=\u001b[39m notes(page)\u001b[33m.\u001b[39mfirst()\u001b[33m;\u001b[39m\u001b[0m"
+                      },
+                      "errors": [
+                        {
+                          "location": {
+                            "file": "~/.dbench/awesome-local-ai-bench-private/packs/vidi/acceptance/tests/story-02.spec.ts",
+                            "column": 31,
+                            "line": 16
+                          },
+                          "message": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoHaveCount\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m)\u001b[22m failed\n\nLocator:  locator('[role=\"group\"][aria-label=\"Sticky note\"]')\nExpected: \u001b[32m1\u001b[39m\nReceived: \u001b[31m0\u001b[39m\nTimeout:  5000ms\n\nCall log:\n\u001b[2m  - Expect \"toHaveCount\" with timeout 5000ms\u001b[22m\n\u001b[2m  - waiting for locator('[role=\"group\"][aria-label=\"Sticky note\"]')\u001b[22m\n\u001b[2m    9 × locator resolved to 0 elements\u001b[22m\n\u001b[2m      - unexpected value \"0\"\u001b[22m\n\n\n  14 |     await openBoard(page);\n  15 |     await page.mouse.dblclick(400, 300);\n> 16 |     await expect(notes(page)).toHaveCount(1);\n     |                               ^\n  17 |     await page.keyboard.type('Faster onboarding');\n  18 |     await clickEmpty(page);\n  19 |     const note = notes(page).first();\n    at ~/.dbench/awesome-local-ai-bench-private/packs/vidi/acceptance/tests/story-02.spec.ts:16:31"
+                        }
+                      ],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-09-26T12:10:30.682Z",
+                      "annotations": [],
+                      "attachments": [
+                        {
+                          "name": "screenshot",
+                          "contentType": "image/png",
+                          "path": "~/.dbench/repo/combinations/qwen/3.8/27b/ubuntu/nvidia4090/llamacpp-opencode/benchmarks/vidi/canvas-pi-04/stories/02/artifacts/story-02-story-2-s02-golde-d3ece--delete-ref-prd-golden-path-chromium/test-failed-1.png"
+                        },
+                        {
+                          "name": "error-context",
+                          "contentType": "text/markdown",
+                          "path": "~/.dbench/repo/combinations/qwen/3.8/27b/ubuntu/nvidia4090/llamacpp-opencode/benchmarks/vidi/canvas-pi-04/stories/02/artifacts/story-02-story-2-s02-golde-d3ece--delete-ref-prd-golden-path-chromium/error-context.md"
+                        }
+                      ],
+                      "errorLocation": {
+                        "file": "~/.dbench/awesome-local-ai-bench-private/packs/vidi/acceptance/tests/story-02.spec.ts",
+                        "column": 31,
+                        "line": 16
+                      }
+                    }
+                  ],
+                  "status": "unexpected"
+                }
+              ],
+              "id": "c926f64a76cbce2cafa8-85012f1311a2f6087cd6",
+              "file": "story-02.spec.ts",
+              "line": 13,
+              "column": 3
+            },
+            {
+              "title": "double-click creates note centred on the point @ref prd:sticky.create_dblclick",
+              "ok": false,
+              "tags": [
+                "s02",
+                "ref"
+              ],
+              "tests": [
+                {
+                  "timeout": 45000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 5,
+                      "parallelIndex": 0,
+                      "status": "failed",
+                      "duration": 5120,
+                      "error": {
+                        "message": "TimeoutError: locator.boundingBox: Timeout 5000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('[role=\"group\"][aria-label=\"Sticky note\"]').first()\u001b[22m\n",
+                        "stack": "TimeoutError: locator.boundingBox: Timeout 5000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('[role=\"group\"][aria-label=\"Sticky note\"]').first()\u001b[22m\n\n    at box (~/.dbench/awesome-local-ai-bench-private/packs/vidi/acceptance/tests/fixtures.ts:153:21)\n    at ~/.dbench/awesome-local-ai-bench-private/packs/vidi/acceptance/tests/story-02.spec.ts:39:30",
+                        "location": {
+                          "file": "~/.dbench/awesome-local-ai-bench-private/packs/vidi/acceptance/tests/fixtures.ts",
+                          "column": 21,
+                          "line": 153
+                        },
+                        "snippet": "   at fixtures.ts:153\n\n\u001b[0m \u001b[90m 151 |\u001b[39m\n \u001b[90m 152 |\u001b[39m \u001b[36mexport\u001b[39m \u001b[36masync\u001b[39m \u001b[36mfunction\u001b[39m box(l\u001b[33m:\u001b[39m \u001b[33mLocator\u001b[39m) {\n\u001b[31m\u001b[1m>\u001b[22m\u001b[39m\u001b[90m 153 |\u001b[39m   \u001b[36mconst\u001b[39m b \u001b[33m=\u001b[39m \u001b[36mawait\u001b[39m l\u001b[33m.\u001b[39mboundingBox()\u001b[33m;\u001b[39m\n \u001b[90m     |\u001b[39m                     \u001b[31m\u001b[1m^\u001b[22m\u001b[39m\n \u001b[90m 154 |\u001b[39m   \u001b[36mif\u001b[39m (\u001b[33m!\u001b[39mb) \u001b[36mthrow\u001b[39m \u001b[36mnew\u001b[39m \u001b[33mError\u001b[39m(\u001b[32m'element has no bounding box'\u001b[39m)\u001b[33m;\u001b[39m\n \u001b[90m 155 |\u001b[39m   \u001b[36mreturn\u001b[39m b\u001b[33m;\u001b[39m\n \u001b[90m 156 |\u001b[39m }\u001b[0m"
+                      },
+                      "errors": [
+                        {
+                          "location": {
+                            "file": "~/.dbench/awesome-local-ai-bench-private/packs/vidi/acceptance/tests/fixtures.ts",
+                            "column": 21,
+                            "line": 153
+                          },
+                          "message": "TimeoutError: locator.boundingBox: Timeout 5000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('[role=\"group\"][aria-label=\"Sticky note\"]').first()\u001b[22m\n\n\n   at fixtures.ts:153\n\n  151 |\n  152 | export async function box(l: Locator) {\n> 153 |   const b = await l.boundingBox();\n      |                     ^\n  154 |   if (!b) throw new Error('element has no bounding box');\n  155 |   return b;\n  156 | }\n    at box (~/.dbench/awesome-local-ai-bench-private/packs/vidi/acceptance/tests/fixtures.ts:153:21)\n    at ~/.dbench/awesome-local-ai-bench-private/packs/vidi/acceptance/tests/story-02.spec.ts:39:30"
+                        }
+                      ],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-09-26T12:10:36.358Z",
+                      "annotations": [],
+                      "attachments": [
+                        {
+                          "name": "screenshot",
+                          "contentType": "image/png",
+                          "path": "~/.dbench/repo/combinations/qwen/3.8/27b/ubuntu/nvidia4090/llamacpp-opencode/benchmarks/vidi/canvas-pi-04/stories/02/artifacts/story-02-story-2-s02-doubl-82929--prd-sticky-create-dblclick-chromium/test-failed-1.png"
+                        },
+                        {
+                          "name": "error-context",
+                          "contentType": "text/markdown",
+                          "path": "~/.dbench/repo/combinations/qwen/3.8/27b/ubuntu/nvidia4090/llamacpp-opencode/benchmarks/vidi/canvas-pi-04/stories/02/artifacts/story-02-story-2-s02-doubl-82929--prd-sticky-create-dblclick-chromium/error-context.md"
+                        }
+                      ],
+                      "errorLocation": {
+                        "file": "~/.dbench/awesome-local-ai-bench-private/packs/vidi/acceptance/tests/fixtures.ts",
+                        "column": 21,
+                        "line": 153
+                      }
+                    }
+                  ],
+                  "status": "unexpected"
+                }
+              ],
+              "id": "c926f64a76cbce2cafa8-f53d2276f30a43e3ef3c",
+              "file": "story-02.spec.ts",
+              "line": 35,
+              "column": 3
+            },
+            {
+              "title": "toolbar button creates note in view centre @ref prd:sticky.create_button",
+              "ok": false,
+              "tags": [
+                "s02",
+                "ref"
+              ],
+              "tests": [
+                {
+                  "timeout": 45000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 6,
+                      "parallelIndex": 0,
+                      "status": "failed",
+                      "duration": 5113,
+                      "error": {
+                        "message": "TimeoutError: locator.click: Timeout 5000ms exceeded.\nCall log:\n\u001b[2m  - waiting for getByRole('button', { name: 'Sticky note' })\u001b[22m\n",
+                        "stack": "TimeoutError: locator.click: Timeout 5000ms exceeded.\nCall log:\n\u001b[2m  - waiting for getByRole('button', { name: 'Sticky note' })\u001b[22m\n\n    at ~/.dbench/awesome-local-ai-bench-private/packs/vidi/acceptance/tests/story-02.spec.ts:48:61",
+                        "location": {
+                          "file": "~/.dbench/awesome-local-ai-bench-private/packs/vidi/acceptance/tests/story-02.spec.ts",
+                          "column": 61,
+                          "line": 48
+                        },
+                        "snippet": "\u001b[0m \u001b[90m 46 |\u001b[39m   test(\u001b[32m'toolbar button creates note in view centre @ref prd:sticky.create_button'\u001b[39m\u001b[33m,\u001b[39m \u001b[36masync\u001b[39m ({ page }) \u001b[33m=>\u001b[39m {\n \u001b[90m 47 |\u001b[39m     \u001b[36mawait\u001b[39m openBoard(page)\u001b[33m;\u001b[39m\n\u001b[31m\u001b[1m>\u001b[22m\u001b[39m\u001b[90m 48 |\u001b[39m     \u001b[36mawait\u001b[39m page\u001b[33m.\u001b[39mgetByRole(\u001b[32m'button'\u001b[39m\u001b[33m,\u001b[39m { name\u001b[33m:\u001b[39m \u001b[32m'Sticky note'\u001b[39m })\u001b[33m.\u001b[39mclick()\u001b[33m;\u001b[39m\n \u001b[90m    |\u001b[39m                                                             \u001b[31m\u001b[1m^\u001b[22m\u001b[39m\n \u001b[90m 49 |\u001b[39m     \u001b[36mawait\u001b[39m expect(notes(page))\u001b[33m.\u001b[39mtoHaveCount(\u001b[35m1\u001b[39m)\u001b[33m;\u001b[39m\n \u001b[90m 50 |\u001b[39m     \u001b[36mawait\u001b[39m page\u001b[33m.\u001b[39mkeyboard\u001b[33m.\u001b[39mtype(\u001b[32m'centre'\u001b[39m)\u001b[33m;\u001b[39m\n \u001b[90m 51 |\u001b[39m     \u001b[36mawait\u001b[39m expect(notes(page)\u001b[33m.\u001b[39mfirst())\u001b[33m.\u001b[39mtoContainText(\u001b[32m'centre'\u001b[39m)\u001b[33m;\u001b[39m\u001b[0m"
+                      },
+                      "errors": [
+                        {
+                          "location": {
+                            "file": "~/.dbench/awesome-local-ai-bench-private/packs/vidi/acceptance/tests/story-02.spec.ts",
+                            "column": 61,
+                            "line": 48
+                          },
+                          "message": "TimeoutError: locator.click: Timeout 5000ms exceeded.\nCall log:\n\u001b[2m  - waiting for getByRole('button', { name: 'Sticky note' })\u001b[22m\n\n\n  46 |   test('toolbar button creates note in view centre @ref prd:sticky.create_button', async ({ page }) => {\n  47 |     await openBoard(page);\n> 48 |     await page.getByRole('button', { name: 'Sticky note' }).click();\n     |                                                             ^\n  49 |     await expect(notes(page)).toHaveCount(1);\n  50 |     await page.keyboard.type('centre');\n  51 |     await expect(notes(page).first()).toContainText('centre');\n    at ~/.dbench/awesome-local-ai-bench-private/packs/vidi/acceptance/tests/story-02.spec.ts:48:61"
+                        }
+                      ],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-09-26T12:10:42.044Z",
+                      "annotations": [],
+                      "attachments": [
+                        {
+                          "name": "screenshot",
+                          "contentType": "image/png",
+                          "path": "~/.dbench/repo/combinations/qwen/3.8/27b/ubuntu/nvidia4090/llamacpp-opencode/benchmarks/vidi/canvas-pi-04/stories/02/artifacts/story-02-story-2-s02-toolb-9afa9-ef-prd-sticky-create-button-chromium/test-failed-1.png"
+                        },
+                        {
+                          "name": "error-context",
+                          "contentType": "text/markdown",
+                          "path": "~/.dbench/repo/combinations/qwen/3.8/27b/ubuntu/nvidia4090/llamacpp-opencode/benchmarks/vidi/canvas-pi-04/stories/02/artifacts/story-02-story-2-s02-toolb-9afa9-ef-prd-sticky-create-button-chromium/error-context.md"
+                        }
+                      ],
+                      "errorLocation": {
+                        "file": "~/.dbench/awesome-local-ai-bench-private/packs/vidi/acceptance/tests/story-02.spec.ts",
+                        "column": 61,
+                        "line": 48
+                      }
+                    }
+                  ],
+                  "status": "unexpected"
+                }
+              ],
+              "id": "c926f64a76cbce2cafa8-9c9b3ce2a61c2fa3968c",
+              "file": "story-02.spec.ts",
+              "line": 46,
+              "column": 3
+            },
+            {
+              "title": "escape and outside click keep typed text; Enter re-edits at end @ref prd:sticky.edit_end",
+              "ok": false,
+              "tags": [
+                "s02",
+                "ref"
+              ],
+              "tests": [
+                {
+                  "timeout": 45000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 7,
+                      "parallelIndex": 0,
+                      "status": "failed",
+                      "duration": 5129,
+                      "error": {
+                        "message": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoHaveCount\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m)\u001b[22m failed\n\nLocator:  locator('[role=\"group\"][aria-label=\"Sticky note\"]')\nExpected: \u001b[32m1\u001b[39m\nReceived: \u001b[31m0\u001b[39m\nTimeout:  5000ms\n\nCall log:\n\u001b[2m  - Expect \"toHaveCount\" with timeout 5000ms\u001b[22m\n\u001b[2m  - waiting for locator('[role=\"group\"][aria-label=\"Sticky note\"]')\u001b[22m\n\u001b[2m    9 × locator resolved to 0 elements\u001b[22m\n\u001b[2m      - unexpected value \"0\"\u001b[22m\n",
+                        "stack": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoHaveCount\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m)\u001b[22m failed\n\nLocator:  locator('[role=\"group\"][aria-label=\"Sticky note\"]')\nExpected: \u001b[32m1\u001b[39m\nReceived: \u001b[31m0\u001b[39m\nTimeout:  5000ms\n\nCall log:\n\u001b[2m  - Expect \"toHaveCount\" with timeout 5000ms\u001b[22m\n\u001b[2m  - waiting for locator('[role=\"group\"][aria-label=\"Sticky note\"]')\u001b[22m\n\u001b[2m    9 × locator resolved to 0 elements\u001b[22m\n\u001b[2m      - unexpected value \"0\"\u001b[22m\n\n    at createNote (~/.dbench/awesome-local-ai-bench-private/packs/vidi/acceptance/tests/fixtures.ts:176:29)\n    at ~/.dbench/awesome-local-ai-bench-private/packs/vidi/acceptance/tests/story-02.spec.ts:61:18",
+                        "location": {
+                          "file": "~/.dbench/awesome-local-ai-bench-private/packs/vidi/acceptance/tests/fixtures.ts",
+                          "column": 29,
+                          "line": 176
+                        },
+                        "snippet": "   at fixtures.ts:176\n\n\u001b[0m \u001b[90m 174 |\u001b[39m   \u001b[36mconst\u001b[39m before \u001b[33m=\u001b[39m \u001b[36mawait\u001b[39m notes(page)\u001b[33m.\u001b[39mcount()\u001b[33m;\u001b[39m\n \u001b[90m 175 |\u001b[39m   \u001b[36mawait\u001b[39m page\u001b[33m.\u001b[39mmouse\u001b[33m.\u001b[39mdblclick(at\u001b[33m.\u001b[39mx\u001b[33m,\u001b[39m at\u001b[33m.\u001b[39my)\u001b[33m;\u001b[39m\n\u001b[31m\u001b[1m>\u001b[22m\u001b[39m\u001b[90m 176 |\u001b[39m   \u001b[36mawait\u001b[39m expect(notes(page))\u001b[33m.\u001b[39mtoHaveCount(before \u001b[33m+\u001b[39m \u001b[35m1\u001b[39m)\u001b[33m;\u001b[39m\n \u001b[90m     |\u001b[39m                             \u001b[31m\u001b[1m^\u001b[22m\u001b[39m\n \u001b[90m 177 |\u001b[39m   \u001b[36mif\u001b[39m (text) \u001b[36mawait\u001b[39m page\u001b[33m.\u001b[39mkeyboard\u001b[33m.\u001b[39mtype(text)\u001b[33m;\u001b[39m\n \u001b[90m 178 |\u001b[39m   \u001b[36mawait\u001b[39m page\u001b[33m.\u001b[39mkeyboard\u001b[33m.\u001b[39mpress(\u001b[32m'Escape'\u001b[39m)\u001b[33m;\u001b[39m\n \u001b[90m 179 |\u001b[39m   \u001b[36mconst\u001b[39m note \u001b[33m=\u001b[39m text \u001b[33m?\u001b[39m notes(page)\u001b[33m.\u001b[39mfilter({ hasText\u001b[33m:\u001b[39m text }) \u001b[33m:\u001b[39m notes(page)\u001b[33m.\u001b[39mnth(before)\u001b[33m;\u001b[39m\u001b[0m"
+                      },
+                      "errors": [
+                        {
+                          "location": {
+                            "file": "~/.dbench/awesome-local-ai-bench-private/packs/vidi/acceptance/tests/fixtures.ts",
+                            "column": 29,
+                            "line": 176
+                          },
+                          "message": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoHaveCount\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m)\u001b[22m failed\n\nLocator:  locator('[role=\"group\"][aria-label=\"Sticky note\"]')\nExpected: \u001b[32m1\u001b[39m\nReceived: \u001b[31m0\u001b[39m\nTimeout:  5000ms\n\nCall log:\n\u001b[2m  - Expect \"toHaveCount\" with timeout 5000ms\u001b[22m\n\u001b[2m  - waiting for locator('[role=\"group\"][aria-label=\"Sticky note\"]')\u001b[22m\n\u001b[2m    9 × locator resolved to 0 elements\u001b[22m\n\u001b[2m      - unexpected value \"0\"\u001b[22m\n\n\n   at fixtures.ts:176\n\n  174 |   const before = await notes(page).count();\n  175 |   await page.mouse.dblclick(at.x, at.y);\n> 176 |   await expect(notes(page)).toHaveCount(before + 1);\n      |                             ^\n  177 |   if (text) await page.keyboard.type(text);\n  178 |   await page.keyboard.press('Escape');\n  179 |   const note = text ? notes(page).filter({ hasText: text }) : notes(page).nth(before);\n    at createNote (~/.dbench/awesome-local-ai-bench-private/packs/vidi/acceptance/tests/fixtures.ts:176:29)\n    at ~/.dbench/awesome-local-ai-bench-private/packs/vidi/acceptance/tests/story-02.spec.ts:61:18"
+                        }
+                      ],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-09-26T12:10:47.734Z",
+                      "annotations": [],
+                      "attachments": [
+                        {
+                          "name": "screenshot",
+                          "contentType": "image/png",
+                          "path": "~/.dbench/repo/combinations/qwen/3.8/27b/ubuntu/nvidia4090/llamacpp-opencode/benchmarks/vidi/canvas-pi-04/stories/02/artifacts/story-02-story-2-s02-escap-d49e8-end-ref-prd-sticky-edit-end-chromium/test-failed-1.png"
+                        },
+                        {
+                          "name": "error-context",
+                          "contentType": "text/markdown",
+                          "path": "~/.dbench/repo/combinations/qwen/3.8/27b/ubuntu/nvidia4090/llamacpp-opencode/benchmarks/vidi/canvas-pi-04/stories/02/artifacts/story-02-story-2-s02-escap-d49e8-end-ref-prd-sticky-edit-end-chromium/error-context.md"
+                        }
+                      ],
+                      "errorLocation": {
+                        "file": "~/.dbench/awesome-local-ai-bench-private/packs/vidi/acceptance/tests/fixtures.ts",
+                        "column": 29,
+                        "line": 176
+                      }
+                    }
+                  ],
+                  "status": "unexpected"
+                }
+              ],
+              "id": "c926f64a76cbce2cafa8-dabf3caf4bdec9d23f3c",
+              "file": "story-02.spec.ts",
+              "line": 59,
+              "column": 3
+            },
+            {
+              "title": "pasting over the limit keeps exactly 1000 characters @ref prd:sticky.text_limit",
+              "ok": false,
+              "tags": [
+                "s02",
+                "ref"
+              ],
+              "tests": [
+                {
+                  "timeout": 45000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 8,
+                      "parallelIndex": 0,
+                      "status": "failed",
+                      "duration": 5121,
+                      "error": {
+                        "message": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoBeVisible\u001b[2m(\u001b[22m\u001b[2m)\u001b[22m failed\n\nLocator: getByText('1000/1000')\nExpected: visible\nTimeout: 5000ms\nError: element(s) not found\n\nCall log:\n\u001b[2m  - Expect \"toBeVisible\" with timeout 5000ms\u001b[22m\n\u001b[2m  - waiting for getByText('1000/1000')\u001b[22m\n",
+                        "stack": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoBeVisible\u001b[2m(\u001b[22m\u001b[2m)\u001b[22m failed\n\nLocator: getByText('1000/1000')\nExpected: visible\nTimeout: 5000ms\nError: element(s) not found\n\nCall log:\n\u001b[2m  - Expect \"toBeVisible\" with timeout 5000ms\u001b[22m\n\u001b[2m  - waiting for getByText('1000/1000')\u001b[22m\n\n    at ~/.dbench/awesome-local-ai-bench-private/packs/vidi/acceptance/tests/story-02.spec.ts:75:79",
+                        "location": {
+                          "file": "~/.dbench/awesome-local-ai-bench-private/packs/vidi/acceptance/tests/story-02.spec.ts",
+                          "column": 79,
+                          "line": 75
+                        },
+                        "snippet": "\u001b[0m \u001b[90m 73 |\u001b[39m     \u001b[36mawait\u001b[39m page\u001b[33m.\u001b[39mevaluate((t) \u001b[33m=>\u001b[39m navigator\u001b[33m.\u001b[39mclipboard\u001b[33m.\u001b[39mwriteText(t)\u001b[33m,\u001b[39m long)\u001b[33m;\u001b[39m\n \u001b[90m 74 |\u001b[39m     \u001b[36mawait\u001b[39m page\u001b[33m.\u001b[39mkeyboard\u001b[33m.\u001b[39mpress(process\u001b[33m.\u001b[39mplatform \u001b[33m===\u001b[39m \u001b[32m'darwin'\u001b[39m \u001b[33m?\u001b[39m \u001b[32m'Meta+V'\u001b[39m \u001b[33m:\u001b[39m \u001b[32m'Control+V'\u001b[39m)\u001b[33m;\u001b[39m\n\u001b[31m\u001b[1m>\u001b[22m\u001b[39m\u001b[90m 75 |\u001b[39m     \u001b[36mawait\u001b[39m expect(page\u001b[33m.\u001b[39mgetByText(\u001b[32m`${STICKY_TEXT_LIMIT}/${STICKY_TEXT_LIMIT}`\u001b[39m))\u001b[33m.\u001b[39mtoBeVisible()\u001b[33m;\u001b[39m\n \u001b[90m    |\u001b[39m                                                                               \u001b[31m\u001b[1m^\u001b[22m\u001b[39m\n \u001b[90m 76 |\u001b[39m     \u001b[36mawait\u001b[39m page\u001b[33m.\u001b[39mkeyboard\u001b[33m.\u001b[39mpress(\u001b[32m'Escape'\u001b[39m)\u001b[33m;\u001b[39m\n \u001b[90m 77 |\u001b[39m     \u001b[36mconst\u001b[39m text \u001b[33m=\u001b[39m \u001b[36mawait\u001b[39m notes(page)\u001b[33m.\u001b[39mfirst()\u001b[33m.\u001b[39minnerText()\u001b[33m;\u001b[39m\n \u001b[90m 78 |\u001b[39m     expect(text\u001b[33m.\u001b[39mreplace(\u001b[35m/[^x]/g\u001b[39m\u001b[33m,\u001b[39m \u001b[32m''\u001b[39m)\u001b[33m.\u001b[39mlength)\u001b[33m.\u001b[39mtoBe(\u001b[33mSTICKY_TEXT_LIMIT\u001b[39m)\u001b[33m;\u001b[39m\u001b[0m"
+                      },
+                      "errors": [
+                        {
+                          "location": {
+                            "file": "~/.dbench/awesome-local-ai-bench-private/packs/vidi/acceptance/tests/story-02.spec.ts",
+                            "column": 79,
+                            "line": 75
+                          },
+                          "message": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoBeVisible\u001b[2m(\u001b[22m\u001b[2m)\u001b[22m failed\n\nLocator: getByText('1000/1000')\nExpected: visible\nTimeout: 5000ms\nError: element(s) not found\n\nCall log:\n\u001b[2m  - Expect \"toBeVisible\" with timeout 5000ms\u001b[22m\n\u001b[2m  - waiting for getByText('1000/1000')\u001b[22m\n\n\n  73 |     await page.evaluate((t) => navigator.clipboard.writeText(t), long);\n  74 |     await page.keyboard.press(process.platform === 'darwin' ? 'Meta+V' : 'Control+V');\n> 75 |     await expect(page.getByText(`${STICKY_TEXT_LIMIT}/${STICKY_TEXT_LIMIT}`)).toBeVisible();\n     |                                                                               ^\n  76 |     await page.keyboard.press('Escape');\n  77 |     const text = await notes(page).first().innerText();\n  78 |     expect(text.replace(/[^x]/g, '').length).toBe(STICKY_TEXT_LIMIT);\n    at ~/.dbench/awesome-local-ai-bench-private/packs/vidi/acceptance/tests/story-02.spec.ts:75:79"
+                        }
+                      ],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-09-26T12:10:53.426Z",
+                      "annotations": [],
+                      "attachments": [
+                        {
+                          "name": "screenshot",
+                          "contentType": "image/png",
+                          "path": "~/.dbench/repo/combinations/qwen/3.8/27b/ubuntu/nvidia4090/llamacpp-opencode/benchmarks/vidi/canvas-pi-04/stories/02/artifacts/story-02-story-2-s02-pasti-2f71d-s-ref-prd-sticky-text-limit-chromium/test-failed-1.png"
+                        },
+                        {
+                          "name": "error-context",
+                          "contentType": "text/markdown",
+                          "path": "~/.dbench/repo/combinations/qwen/3.8/27b/ubuntu/nvidia4090/llamacpp-opencode/benchmarks/vidi/canvas-pi-04/stories/02/artifacts/story-02-story-2-s02-pasti-2f71d-s-ref-prd-sticky-text-limit-chromium/error-context.md"
+                        }
+                      ],
+                      "errorLocation": {
+                        "file": "~/.dbench/awesome-local-ai-bench-private/packs/vidi/acceptance/tests/story-02.spec.ts",
+                        "column": 79,
+                        "line": 75
+                      }
+                    }
+                  ],
+                  "status": "unexpected"
+                }
+              ],
+              "id": "c926f64a76cbce2cafa8-0b3c70a6187645631c5e",
+              "file": "story-02.spec.ts",
+              "line": 69,
+              "column": 3
+            },
+            {
+              "title": "dragging a note moves it, not the board @ref prd:sticky.move prd:sticky.no_pan",
+              "ok": false,
+              "tags": [
+                "s02",
+                "ref"
+              ],
+              "tests": [
+                {
+                  "timeout": 45000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 9,
+                      "parallelIndex": 0,
+                      "status": "failed",
+                      "duration": 5148,
+                      "error": {
+                        "message": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoHaveCount\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m)\u001b[22m failed\n\nLocator:  locator('[role=\"group\"][aria-label=\"Sticky note\"]')\nExpected: \u001b[32m1\u001b[39m\nReceived: \u001b[31m0\u001b[39m\nTimeout:  5000ms\n\nCall log:\n\u001b[2m  - Expect \"toHaveCount\" with timeout 5000ms\u001b[22m\n\u001b[2m  - waiting for locator('[role=\"group\"][aria-label=\"Sticky note\"]')\u001b[22m\n\u001b[2m    9 × locator resolved to 0 elements\u001b[22m\n\u001b[2m      - unexpected value \"0\"\u001b[22m\n",
+                        "stack": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoHaveCount\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m)\u001b[22m failed\n\nLocator:  locator('[role=\"group\"][aria-label=\"Sticky note\"]')\nExpected: \u001b[32m1\u001b[39m\nReceived: \u001b[31m0\u001b[39m\nTimeout:  5000ms\n\nCall log:\n\u001b[2m  - Expect \"toHaveCount\" with timeout 5000ms\u001b[22m\n\u001b[2m  - waiting for locator('[role=\"group\"][aria-label=\"Sticky note\"]')\u001b[22m\n\u001b[2m    9 × locator resolved to 0 elements\u001b[22m\n\u001b[2m      - unexpected value \"0\"\u001b[22m\n\n    at createNote (~/.dbench/awesome-local-ai-bench-private/packs/vidi/acceptance/tests/fixtures.ts:176:29)\n    at ~/.dbench/awesome-local-ai-bench-private/packs/vidi/acceptance/tests/story-02.spec.ts:83:15",
+                        "location": {
+                          "file": "~/.dbench/awesome-local-ai-bench-private/packs/vidi/acceptance/tests/fixtures.ts",
+                          "column": 29,
+                          "line": 176
+                        },
+                        "snippet": "   at fixtures.ts:176\n\n\u001b[0m \u001b[90m 174 |\u001b[39m   \u001b[36mconst\u001b[39m before \u001b[33m=\u001b[39m \u001b[36mawait\u001b[39m notes(page)\u001b[33m.\u001b[39mcount()\u001b[33m;\u001b[39m\n \u001b[90m 175 |\u001b[39m   \u001b[36mawait\u001b[39m page\u001b[33m.\u001b[39mmouse\u001b[33m.\u001b[39mdblclick(at\u001b[33m.\u001b[39mx\u001b[33m,\u001b[39m at\u001b[33m.\u001b[39my)\u001b[33m;\u001b[39m\n\u001b[31m\u001b[1m>\u001b[22m\u001b[39m\u001b[90m 176 |\u001b[39m   \u001b[36mawait\u001b[39m expect(notes(page))\u001b[33m.\u001b[39mtoHaveCount(before \u001b[33m+\u001b[39m \u001b[35m1\u001b[39m)\u001b[33m;\u001b[39m\n \u001b[90m     |\u001b[39m                             \u001b[31m\u001b[1m^\u001b[22m\u001b[39m\n \u001b[90m 177 |\u001b[39m   \u001b[36mif\u001b[39m (text) \u001b[36mawait\u001b[39m page\u001b[33m.\u001b[39mkeyboard\u001b[33m.\u001b[39mtype(text)\u001b[33m;\u001b[39m\n \u001b[90m 178 |\u001b[39m   \u001b[36mawait\u001b[39m page\u001b[33m.\u001b[39mkeyboard\u001b[33m.\u001b[39mpress(\u001b[32m'Escape'\u001b[39m)\u001b[33m;\u001b[39m\n \u001b[90m 179 |\u001b[39m   \u001b[36mconst\u001b[39m note \u001b[33m=\u001b[39m text \u001b[33m?\u001b[39m notes(page)\u001b[33m.\u001b[39mfilter({ hasText\u001b[33m:\u001b[39m text }) \u001b[33m:\u001b[39m notes(page)\u001b[33m.\u001b[39mnth(before)\u001b[33m;\u001b[39m\u001b[0m"
+                      },
+                      "errors": [
+                        {
+                          "location": {
+                            "file": "~/.dbench/awesome-local-ai-bench-private/packs/vidi/acceptance/tests/fixtures.ts",
+                            "column": 29,
+                            "line": 176
+                          },
+                          "message": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoHaveCount\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m)\u001b[22m failed\n\nLocator:  locator('[role=\"group\"][aria-label=\"Sticky note\"]')\nExpected: \u001b[32m1\u001b[39m\nReceived: \u001b[31m0\u001b[39m\nTimeout:  5000ms\n\nCall log:\n\u001b[2m  - Expect \"toHaveCount\" with timeout 5000ms\u001b[22m\n\u001b[2m  - waiting for locator('[role=\"group\"][aria-label=\"Sticky note\"]')\u001b[22m\n\u001b[2m    9 × locator resolved to 0 elements\u001b[22m\n\u001b[2m      - unexpected value \"0\"\u001b[22m\n\n\n   at fixtures.ts:176\n\n  174 |   const before = await notes(page).count();\n  175 |   await page.mouse.dblclick(at.x, at.y);\n> 176 |   await expect(notes(page)).toHaveCount(before + 1);\n      |                             ^\n  177 |   if (text) await page.keyboard.type(text);\n  178 |   await page.keyboard.press('Escape');\n  179 |   const note = text ? notes(page).filter({ hasText: text }) : notes(page).nth(before);\n    at createNote (~/.dbench/awesome-local-ai-bench-private/packs/vidi/acceptance/tests/fixtures.ts:176:29)\n    at ~/.dbench/awesome-local-ai-bench-private/packs/vidi/acceptance/tests/story-02.spec.ts:83:15"
+                        }
+                      ],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-09-26T12:10:59.103Z",
+                      "annotations": [],
+                      "attachments": [
+                        {
+                          "name": "screenshot",
+                          "contentType": "image/png",
+                          "path": "~/.dbench/repo/combinations/qwen/3.8/27b/ubuntu/nvidia4090/llamacpp-opencode/benchmarks/vidi/canvas-pi-04/stories/02/artifacts/story-02-story-2-s02-dragg-7b875-icky-move-prd-sticky-no-pan-chromium/test-failed-1.png"
+                        },
+                        {
+                          "name": "error-context",
+                          "contentType": "text/markdown",
+                          "path": "~/.dbench/repo/combinations/qwen/3.8/27b/ubuntu/nvidia4090/llamacpp-opencode/benchmarks/vidi/canvas-pi-04/stories/02/artifacts/story-02-story-2-s02-dragg-7b875-icky-move-prd-sticky-no-pan-chromium/error-context.md"
+                        }
+                      ],
+                      "errorLocation": {
+                        "file": "~/.dbench/awesome-local-ai-bench-private/packs/vidi/acceptance/tests/fixtures.ts",
+                        "column": 29,
+                        "line": 176
+                      }
+                    }
+                  ],
+                  "status": "unexpected"
+                }
+              ],
+              "id": "c926f64a76cbce2cafa8-023dec7bc663eadbb88b",
+              "file": "story-02.spec.ts",
+              "line": 81,
+              "column": 3
+            },
+            {
+              "title": "dragged note is drawn above the note it overlaps @ref prd:sticky.move",
+              "ok": false,
+              "tags": [
+                "s02",
+                "ref"
+              ],
+              "tests": [
+                {
+                  "timeout": 45000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 10,
+                      "parallelIndex": 0,
+                      "status": "failed",
+                      "duration": 5118,
+                      "error": {
+                        "message": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoHaveCount\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m)\u001b[22m failed\n\nLocator:  locator('[role=\"group\"][aria-label=\"Sticky note\"]')\nExpected: \u001b[32m1\u001b[39m\nReceived: \u001b[31m0\u001b[39m\nTimeout:  5000ms\n\nCall log:\n\u001b[2m  - Expect \"toHaveCount\" with timeout 5000ms\u001b[22m\n\u001b[2m  - waiting for locator('[role=\"group\"][aria-label=\"Sticky note\"]')\u001b[22m\n\u001b[2m    9 × locator resolved to 0 elements\u001b[22m\n\u001b[2m      - unexpected value \"0\"\u001b[22m\n",
+                        "stack": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoHaveCount\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m)\u001b[22m failed\n\nLocator:  locator('[role=\"group\"][aria-label=\"Sticky note\"]')\nExpected: \u001b[32m1\u001b[39m\nReceived: \u001b[31m0\u001b[39m\nTimeout:  5000ms\n\nCall log:\n\u001b[2m  - Expect \"toHaveCount\" with timeout 5000ms\u001b[22m\n\u001b[2m  - waiting for locator('[role=\"group\"][aria-label=\"Sticky note\"]')\u001b[22m\n\u001b[2m    9 × locator resolved to 0 elements\u001b[22m\n\u001b[2m      - unexpected value \"0\"\u001b[22m\n\n    at createNote (~/.dbench/awesome-local-ai-bench-private/packs/vidi/acceptance/tests/fixtures.ts:176:29)\n    at ~/.dbench/awesome-local-ai-bench-private/packs/vidi/acceptance/tests/story-02.spec.ts:98:19",
+                        "location": {
+                          "file": "~/.dbench/awesome-local-ai-bench-private/packs/vidi/acceptance/tests/fixtures.ts",
+                          "column": 29,
+                          "line": 176
+                        },
+                        "snippet": "   at fixtures.ts:176\n\n\u001b[0m \u001b[90m 174 |\u001b[39m   \u001b[36mconst\u001b[39m before \u001b[33m=\u001b[39m \u001b[36mawait\u001b[39m notes(page)\u001b[33m.\u001b[39mcount()\u001b[33m;\u001b[39m\n \u001b[90m 175 |\u001b[39m   \u001b[36mawait\u001b[39m page\u001b[33m.\u001b[39mmouse\u001b[33m.\u001b[39mdblclick(at\u001b[33m.\u001b[39mx\u001b[33m,\u001b[39m at\u001b[33m.\u001b[39my)\u001b[33m;\u001b[39m\n\u001b[31m\u001b[1m>\u001b[22m\u001b[39m\u001b[90m 176 |\u001b[39m   \u001b[36mawait\u001b[39m expect(notes(page))\u001b[33m.\u001b[39mtoHaveCount(before \u001b[33m+\u001b[39m \u001b[35m1\u001b[39m)\u001b[33m;\u001b[39m\n \u001b[90m     |\u001b[39m                             \u001b[31m\u001b[1m^\u001b[22m\u001b[39m\n \u001b[90m 177 |\u001b[39m   \u001b[36mif\u001b[39m (text) \u001b[36mawait\u001b[39m page\u001b[33m.\u001b[39mkeyboard\u001b[33m.\u001b[39mtype(text)\u001b[33m;\u001b[39m\n \u001b[90m 178 |\u001b[39m   \u001b[36mawait\u001b[39m page\u001b[33m.\u001b[39mkeyboard\u001b[33m.\u001b[39mpress(\u001b[32m'Escape'\u001b[39m)\u001b[33m;\u001b[39m\n \u001b[90m 179 |\u001b[39m   \u001b[36mconst\u001b[39m note \u001b[33m=\u001b[39m text \u001b[33m?\u001b[39m notes(page)\u001b[33m.\u001b[39mfilter({ hasText\u001b[33m:\u001b[39m text }) \u001b[33m:\u001b[39m notes(page)\u001b[33m.\u001b[39mnth(before)\u001b[33m;\u001b[39m\u001b[0m"
+                      },
+                      "errors": [
+                        {
+                          "location": {
+                            "file": "~/.dbench/awesome-local-ai-bench-private/packs/vidi/acceptance/tests/fixtures.ts",
+                            "column": 29,
+                            "line": 176
+                          },
+                          "message": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoHaveCount\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m)\u001b[22m failed\n\nLocator:  locator('[role=\"group\"][aria-label=\"Sticky note\"]')\nExpected: \u001b[32m1\u001b[39m\nReceived: \u001b[31m0\u001b[39m\nTimeout:  5000ms\n\nCall log:\n\u001b[2m  - Expect \"toHaveCount\" with timeout 5000ms\u001b[22m\n\u001b[2m  - waiting for locator('[role=\"group\"][aria-label=\"Sticky note\"]')\u001b[22m\n\u001b[2m    9 × locator resolved to 0 elements\u001b[22m\n\u001b[2m      - unexpected value \"0\"\u001b[22m\n\n\n   at fixtures.ts:176\n\n  174 |   const before = await notes(page).count();\n  175 |   await page.mouse.dblclick(at.x, at.y);\n> 176 |   await expect(notes(page)).toHaveCount(before + 1);\n      |                             ^\n  177 |   if (text) await page.keyboard.type(text);\n  178 |   await page.keyboard.press('Escape');\n  179 |   const note = text ? notes(page).filter({ hasText: text }) : notes(page).nth(before);\n    at createNote (~/.dbench/awesome-local-ai-bench-private/packs/vidi/acceptance/tests/fixtures.ts:176:29)\n    at ~/.dbench/awesome-local-ai-bench-private/packs/vidi/acceptance/tests/story-02.spec.ts:98:19"
+                        }
+                      ],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-09-26T12:11:04.823Z",
+                      "annotations": [],
+                      "attachments": [
+                        {
+                          "name": "screenshot",
+                          "contentType": "image/png",
+                          "path": "~/.dbench/repo/combinations/qwen/3.8/27b/ubuntu/nvidia4090/llamacpp-opencode/benchmarks/vidi/canvas-pi-04/stories/02/artifacts/story-02-story-2-s02-dragg-fb22e-verlaps-ref-prd-sticky-move-chromium/test-failed-1.png"
+                        },
+                        {
+                          "name": "error-context",
+                          "contentType": "text/markdown",
+                          "path": "~/.dbench/repo/combinations/qwen/3.8/27b/ubuntu/nvidia4090/llamacpp-opencode/benchmarks/vidi/canvas-pi-04/stories/02/artifacts/story-02-story-2-s02-dragg-fb22e-verlaps-ref-prd-sticky-move-chromium/error-context.md"
+                        }
+                      ],
+                      "errorLocation": {
+                        "file": "~/.dbench/awesome-local-ai-bench-private/packs/vidi/acceptance/tests/fixtures.ts",
+                        "column": 29,
+                        "line": 176
+                      }
+                    }
+                  ],
+                  "status": "unexpected"
+                }
+              ],
+              "id": "c926f64a76cbce2cafa8-f1fc55fcb7f94988e829",
+              "file": "story-02.spec.ts",
+              "line": 96,
+              "column": 3
+            },
+            {
+              "title": "Delete while editing edits text, not the note @ref prd:sticky.delete",
+              "ok": false,
+              "tags": [
+                "s02",
+                "ref"
+              ],
+              "tests": [
+                {
+                  "timeout": 45000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 11,
+                      "parallelIndex": 0,
+                      "status": "failed",
+                      "duration": 5109,
+                      "error": {
+                        "message": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoHaveCount\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m)\u001b[22m failed\n\nLocator:  locator('[role=\"group\"][aria-label=\"Sticky note\"]')\nExpected: \u001b[32m1\u001b[39m\nReceived: \u001b[31m0\u001b[39m\nTimeout:  5000ms\n\nCall log:\n\u001b[2m  - Expect \"toHaveCount\" with timeout 5000ms\u001b[22m\n\u001b[2m  - waiting for locator('[role=\"group\"][aria-label=\"Sticky note\"]')\u001b[22m\n\u001b[2m    9 × locator resolved to 0 elements\u001b[22m\n\u001b[2m      - unexpected value \"0\"\u001b[22m\n",
+                        "stack": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoHaveCount\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m)\u001b[22m failed\n\nLocator:  locator('[role=\"group\"][aria-label=\"Sticky note\"]')\nExpected: \u001b[32m1\u001b[39m\nReceived: \u001b[31m0\u001b[39m\nTimeout:  5000ms\n\nCall log:\n\u001b[2m  - Expect \"toHaveCount\" with timeout 5000ms\u001b[22m\n\u001b[2m  - waiting for locator('[role=\"group\"][aria-label=\"Sticky note\"]')\u001b[22m\n\u001b[2m    9 × locator resolved to 0 elements\u001b[22m\n\u001b[2m      - unexpected value \"0\"\u001b[22m\n\n    at ~/.dbench/awesome-local-ai-bench-private/packs/vidi/acceptance/tests/story-02.spec.ts:117:31",
+                        "location": {
+                          "file": "~/.dbench/awesome-local-ai-bench-private/packs/vidi/acceptance/tests/story-02.spec.ts",
+                          "column": 31,
+                          "line": 117
+                        },
+                        "snippet": "\u001b[0m \u001b[90m 115 |\u001b[39m     \u001b[36mawait\u001b[39m page\u001b[33m.\u001b[39mkeyboard\u001b[33m.\u001b[39mtype(\u001b[32m'abc'\u001b[39m)\u001b[33m;\u001b[39m\n \u001b[90m 116 |\u001b[39m     \u001b[36mawait\u001b[39m page\u001b[33m.\u001b[39mkeyboard\u001b[33m.\u001b[39mpress(\u001b[32m'Backspace'\u001b[39m)\u001b[33m;\u001b[39m\n\u001b[31m\u001b[1m>\u001b[22m\u001b[39m\u001b[90m 117 |\u001b[39m     \u001b[36mawait\u001b[39m expect(notes(page))\u001b[33m.\u001b[39mtoHaveCount(\u001b[35m1\u001b[39m)\u001b[33m;\u001b[39m\n \u001b[90m     |\u001b[39m                               \u001b[31m\u001b[1m^\u001b[22m\u001b[39m\n \u001b[90m 118 |\u001b[39m     \u001b[36mawait\u001b[39m page\u001b[33m.\u001b[39mkeyboard\u001b[33m.\u001b[39mpress(\u001b[32m'Escape'\u001b[39m)\u001b[33m;\u001b[39m\n \u001b[90m 119 |\u001b[39m     \u001b[36mawait\u001b[39m expect(notes(page)\u001b[33m.\u001b[39mfirst())\u001b[33m.\u001b[39mtoContainText(\u001b[32m'ab'\u001b[39m)\u001b[33m;\u001b[39m\n \u001b[90m 120 |\u001b[39m     \u001b[36mawait\u001b[39m expect(notes(page)\u001b[33m.\u001b[39mfirst())\u001b[33m.\u001b[39mnot\u001b[33m.\u001b[39mtoContainText(\u001b[32m'abc'\u001b[39m)\u001b[33m;\u001b[39m\u001b[0m"
+                      },
+                      "errors": [
+                        {
+                          "location": {
+                            "file": "~/.dbench/awesome-local-ai-bench-private/packs/vidi/acceptance/tests/story-02.spec.ts",
+                            "column": 31,
+                            "line": 117
+                          },
+                          "message": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoHaveCount\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m)\u001b[22m failed\n\nLocator:  locator('[role=\"group\"][aria-label=\"Sticky note\"]')\nExpected: \u001b[32m1\u001b[39m\nReceived: \u001b[31m0\u001b[39m\nTimeout:  5000ms\n\nCall log:\n\u001b[2m  - Expect \"toHaveCount\" with timeout 5000ms\u001b[22m\n\u001b[2m  - waiting for locator('[role=\"group\"][aria-label=\"Sticky note\"]')\u001b[22m\n\u001b[2m    9 × locator resolved to 0 elements\u001b[22m\n\u001b[2m      - unexpected value \"0\"\u001b[22m\n\n\n  115 |     await page.keyboard.type('abc');\n  116 |     await page.keyboard.press('Backspace');\n> 117 |     await expect(notes(page)).toHaveCount(1);\n      |                               ^\n  118 |     await page.keyboard.press('Escape');\n  119 |     await expect(notes(page).first()).toContainText('ab');\n  120 |     await expect(notes(page).first()).not.toContainText('abc');\n    at ~/.dbench/awesome-local-ai-bench-private/packs/vidi/acceptance/tests/story-02.spec.ts:117:31"
+                        }
+                      ],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-09-26T12:11:10.510Z",
+                      "annotations": [],
+                      "attachments": [
+                        {
+                          "name": "screenshot",
+                          "contentType": "image/png",
+                          "path": "~/.dbench/repo/combinations/qwen/3.8/27b/ubuntu/nvidia4090/llamacpp-opencode/benchmarks/vidi/canvas-pi-04/stories/02/artifacts/story-02-story-2-s02-Delet-11b56--note-ref-prd-sticky-delete-chromium/test-failed-1.png"
+                        },
+                        {
+                          "name": "error-context",
+                          "contentType": "text/markdown",
+                          "path": "~/.dbench/repo/combinations/qwen/3.8/27b/ubuntu/nvidia4090/llamacpp-opencode/benchmarks/vidi/canvas-pi-04/stories/02/artifacts/story-02-story-2-s02-Delet-11b56--note-ref-prd-sticky-delete-chromium/error-context.md"
+                        }
+                      ],
+                      "errorLocation": {
+                        "file": "~/.dbench/awesome-local-ai-bench-private/packs/vidi/acceptance/tests/story-02.spec.ts",
+                        "column": 31,
+                        "line": 117
+                      }
+                    }
+                  ],
+                  "status": "unexpected"
+                }
+              ],
+              "id": "c926f64a76cbce2cafa8-3fe14f5a0eabf4162f05",
+              "file": "story-02.spec.ts",
+              "line": 112,
+              "column": 3
+            },
+            {
+              "title": "delete button on note toolbar removes note @ref prd:sticky.delete",
+              "ok": false,
+              "tags": [
+                "s02",
+                "ref"
+              ],
+              "tests": [
+                {
+                  "timeout": 45000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 12,
+                      "parallelIndex": 0,
+                      "status": "failed",
+                      "duration": 5139,
+                      "error": {
+                        "message": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoHaveCount\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m)\u001b[22m failed\n\nLocator:  locator('[role=\"group\"][aria-label=\"Sticky note\"]')\nExpected: \u001b[32m1\u001b[39m\nReceived: \u001b[31m0\u001b[39m\nTimeout:  5000ms\n\nCall log:\n\u001b[2m  - Expect \"toHaveCount\" with timeout 5000ms\u001b[22m\n\u001b[2m  - waiting for locator('[role=\"group\"][aria-label=\"Sticky note\"]')\u001b[22m\n\u001b[2m    9 × locator resolved to 0 elements\u001b[22m\n\u001b[2m      - unexpected value \"0\"\u001b[22m\n",
+                        "stack": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoHaveCount\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m)\u001b[22m failed\n\nLocator:  locator('[role=\"group\"][aria-label=\"Sticky note\"]')\nExpected: \u001b[32m1\u001b[39m\nReceived: \u001b[31m0\u001b[39m\nTimeout:  5000ms\n\nCall log:\n\u001b[2m  - Expect \"toHaveCount\" with timeout 5000ms\u001b[22m\n\u001b[2m  - waiting for locator('[role=\"group\"][aria-label=\"Sticky note\"]')\u001b[22m\n\u001b[2m    9 × locator resolved to 0 elements\u001b[22m\n\u001b[2m      - unexpected value \"0\"\u001b[22m\n\n    at createNote (~/.dbench/awesome-local-ai-bench-private/packs/vidi/acceptance/tests/fixtures.ts:176:29)\n    at ~/.dbench/awesome-local-ai-bench-private/packs/vidi/acceptance/tests/story-02.spec.ts:125:18",
+                        "location": {
+                          "file": "~/.dbench/awesome-local-ai-bench-private/packs/vidi/acceptance/tests/fixtures.ts",
+                          "column": 29,
+                          "line": 176
+                        },
+                        "snippet": "   at fixtures.ts:176\n\n\u001b[0m \u001b[90m 174 |\u001b[39m   \u001b[36mconst\u001b[39m before \u001b[33m=\u001b[39m \u001b[36mawait\u001b[39m notes(page)\u001b[33m.\u001b[39mcount()\u001b[33m;\u001b[39m\n \u001b[90m 175 |\u001b[39m   \u001b[36mawait\u001b[39m page\u001b[33m.\u001b[39mmouse\u001b[33m.\u001b[39mdblclick(at\u001b[33m.\u001b[39mx\u001b[33m,\u001b[39m at\u001b[33m.\u001b[39my)\u001b[33m;\u001b[39m\n\u001b[31m\u001b[1m>\u001b[22m\u001b[39m\u001b[90m 176 |\u001b[39m   \u001b[36mawait\u001b[39m expect(notes(page))\u001b[33m.\u001b[39mtoHaveCount(before \u001b[33m+\u001b[39m \u001b[35m1\u001b[39m)\u001b[33m;\u001b[39m\n \u001b[90m     |\u001b[39m                             \u001b[31m\u001b[1m^\u001b[22m\u001b[39m\n \u001b[90m 177 |\u001b[39m   \u001b[36mif\u001b[39m (text) \u001b[36mawait\u001b[39m page\u001b[33m.\u001b[39mkeyboard\u001b[33m.\u001b[39mtype(text)\u001b[33m;\u001b[39m\n \u001b[90m 178 |\u001b[39m   \u001b[36mawait\u001b[39m page\u001b[33m.\u001b[39mkeyboard\u001b[33m.\u001b[39mpress(\u001b[32m'Escape'\u001b[39m)\u001b[33m;\u001b[39m\n \u001b[90m 179 |\u001b[39m   \u001b[36mconst\u001b[39m note \u001b[33m=\u001b[39m text \u001b[33m?\u001b[39m notes(page)\u001b[33m.\u001b[39mfilter({ hasText\u001b[33m:\u001b[39m text }) \u001b[33m:\u001b[39m notes(page)\u001b[33m.\u001b[39mnth(before)\u001b[33m;\u001b[39m\u001b[0m"
+                      },
+                      "errors": [
+                        {
+                          "location": {
+                            "file": "~/.dbench/awesome-local-ai-bench-private/packs/vidi/acceptance/tests/fixtures.ts",
+                            "column": 29,
+                            "line": 176
+                          },
+                          "message": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoHaveCount\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m)\u001b[22m failed\n\nLocator:  locator('[role=\"group\"][aria-label=\"Sticky note\"]')\nExpected: \u001b[32m1\u001b[39m\nReceived: \u001b[31m0\u001b[39m\nTimeout:  5000ms\n\nCall log:\n\u001b[2m  - Expect \"toHaveCount\" with timeout 5000ms\u001b[22m\n\u001b[2m  - waiting for locator('[role=\"group\"][aria-label=\"Sticky note\"]')\u001b[22m\n\u001b[2m    9 × locator resolved to 0 elements\u001b[22m\n\u001b[2m      - unexpected value \"0\"\u001b[22m\n\n\n   at fixtures.ts:176\n\n  174 |   const before = await notes(page).count();\n  175 |   await page.mouse.dblclick(at.x, at.y);\n> 176 |   await expect(notes(page)).toHaveCount(before + 1);\n      |                             ^\n  177 |   if (text) await page.keyboard.type(text);\n  178 |   await page.keyboard.press('Escape');\n  179 |   const note = text ? notes(page).filter({ hasText: text }) : notes(page).nth(before);\n    at createNote (~/.dbench/awesome-local-ai-bench-private/packs/vidi/acceptance/tests/fixtures.ts:176:29)\n    at ~/.dbench/awesome-local-ai-bench-private/packs/vidi/acceptance/tests/story-02.spec.ts:125:18"
+                        }
+                      ],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-09-26T12:11:16.177Z",
+                      "annotations": [],
+                      "attachments": [
+                        {
+                          "name": "screenshot",
+                          "contentType": "image/png",
+                          "path": "~/.dbench/repo/combinations/qwen/3.8/27b/ubuntu/nvidia4090/llamacpp-opencode/benchmarks/vidi/canvas-pi-04/stories/02/artifacts/story-02-story-2-s02-delet-3e646--note-ref-prd-sticky-delete-chromium/test-failed-1.png"
+                        },
+                        {
+                          "name": "error-context",
+                          "contentType": "text/markdown",
+                          "path": "~/.dbench/repo/combinations/qwen/3.8/27b/ubuntu/nvidia4090/llamacpp-opencode/benchmarks/vidi/canvas-pi-04/stories/02/artifacts/story-02-story-2-s02-delet-3e646--note-ref-prd-sticky-delete-chromium/error-context.md"
+                        }
+                      ],
+                      "errorLocation": {
+                        "file": "~/.dbench/awesome-local-ai-bench-private/packs/vidi/acceptance/tests/fixtures.ts",
+                        "column": 29,
+                        "line": 176
+                      }
+                    }
+                  ],
+                  "status": "unexpected"
+                }
+              ],
+              "id": "c926f64a76cbce2cafa8-412b4516bd06a0130de6",
+              "file": "story-02.spec.ts",
+              "line": 123,
+              "column": 3
+            },
+            {
+              "title": "clicking empty board clears selection @ref prd:sticky.select",
+              "ok": false,
+              "tags": [
+                "s02",
+                "ref"
+              ],
+              "tests": [
+                {
+                  "timeout": 45000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 13,
+                      "parallelIndex": 0,
+                      "status": "failed",
+                      "duration": 5108,
+                      "error": {
+                        "message": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoHaveCount\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m)\u001b[22m failed\n\nLocator:  locator('[role=\"group\"][aria-label=\"Sticky note\"]')\nExpected: \u001b[32m1\u001b[39m\nReceived: \u001b[31m0\u001b[39m\nTimeout:  5000ms\n\nCall log:\n\u001b[2m  - Expect \"toHaveCount\" with timeout 5000ms\u001b[22m\n\u001b[2m  - waiting for locator('[role=\"group\"][aria-label=\"Sticky note\"]')\u001b[22m\n\u001b[2m    9 × locator resolved to 0 elements\u001b[22m\n\u001b[2m      - unexpected value \"0\"\u001b[22m\n",
+                        "stack": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoHaveCount\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m)\u001b[22m failed\n\nLocator:  locator('[role=\"group\"][aria-label=\"Sticky note\"]')\nExpected: \u001b[32m1\u001b[39m\nReceived: \u001b[31m0\u001b[39m\nTimeout:  5000ms\n\nCall log:\n\u001b[2m  - Expect \"toHaveCount\" with timeout 5000ms\u001b[22m\n\u001b[2m  - waiting for locator('[role=\"group\"][aria-label=\"Sticky note\"]')\u001b[22m\n\u001b[2m    9 × locator resolved to 0 elements\u001b[22m\n\u001b[2m      - unexpected value \"0\"\u001b[22m\n\n    at createNote (~/.dbench/awesome-local-ai-bench-private/packs/vidi/acceptance/tests/fixtures.ts:176:29)\n    at ~/.dbench/awesome-local-ai-bench-private/packs/vidi/acceptance/tests/story-02.spec.ts:133:18",
+                        "location": {
+                          "file": "~/.dbench/awesome-local-ai-bench-private/packs/vidi/acceptance/tests/fixtures.ts",
+                          "column": 29,
+                          "line": 176
+                        },
+                        "snippet": "   at fixtures.ts:176\n\n\u001b[0m \u001b[90m 174 |\u001b[39m   \u001b[36mconst\u001b[39m before \u001b[33m=\u001b[39m \u001b[36mawait\u001b[39m notes(page)\u001b[33m.\u001b[39mcount()\u001b[33m;\u001b[39m\n \u001b[90m 175 |\u001b[39m   \u001b[36mawait\u001b[39m page\u001b[33m.\u001b[39mmouse\u001b[33m.\u001b[39mdblclick(at\u001b[33m.\u001b[39mx\u001b[33m,\u001b[39m at\u001b[33m.\u001b[39my)\u001b[33m;\u001b[39m\n\u001b[31m\u001b[1m>\u001b[22m\u001b[39m\u001b[90m 176 |\u001b[39m   \u001b[36mawait\u001b[39m expect(notes(page))\u001b[33m.\u001b[39mtoHaveCount(before \u001b[33m+\u001b[39m \u001b[35m1\u001b[39m)\u001b[33m;\u001b[39m\n \u001b[90m     |\u001b[39m                             \u001b[31m\u001b[1m^\u001b[22m\u001b[39m\n \u001b[90m 177 |\u001b[39m   \u001b[36mif\u001b[39m (text) \u001b[36mawait\u001b[39m page\u001b[33m.\u001b[39mkeyboard\u001b[33m.\u001b[39mtype(text)\u001b[33m;\u001b[39m\n \u001b[90m 178 |\u001b[39m   \u001b[36mawait\u001b[39m page\u001b[33m.\u001b[39mkeyboard\u001b[33m.\u001b[39mpress(\u001b[32m'Escape'\u001b[39m)\u001b[33m;\u001b[39m\n \u001b[90m 179 |\u001b[39m   \u001b[36mconst\u001b[39m note \u001b[33m=\u001b[39m text \u001b[33m?\u001b[39m notes(page)\u001b[33m.\u001b[39mfilter({ hasText\u001b[33m:\u001b[39m text }) \u001b[33m:\u001b[39m notes(page)\u001b[33m.\u001b[39mnth(before)\u001b[33m;\u001b[39m\u001b[0m"
+                      },
+                      "errors": [
+                        {
+                          "location": {
+                            "file": "~/.dbench/awesome-local-ai-bench-private/packs/vidi/acceptance/tests/fixtures.ts",
+                            "column": 29,
+                            "line": 176
+                          },
+                          "message": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoHaveCount\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m)\u001b[22m failed\n\nLocator:  locator('[role=\"group\"][aria-label=\"Sticky note\"]')\nExpected: \u001b[32m1\u001b[39m\nReceived: \u001b[31m0\u001b[39m\nTimeout:  5000ms\n\nCall log:\n\u001b[2m  - Expect \"toHaveCount\" with timeout 5000ms\u001b[22m\n\u001b[2m  - waiting for locator('[role=\"group\"][aria-label=\"Sticky note\"]')\u001b[22m\n\u001b[2m    9 × locator resolved to 0 elements\u001b[22m\n\u001b[2m      - unexpected value \"0\"\u001b[22m\n\n\n   at fixtures.ts:176\n\n  174 |   const before = await notes(page).count();\n  175 |   await page.mouse.dblclick(at.x, at.y);\n> 176 |   await expect(notes(page)).toHaveCount(before + 1);\n      |                             ^\n  177 |   if (text) await page.keyboard.type(text);\n  178 |   await page.keyboard.press('Escape');\n  179 |   const note = text ? notes(page).filter({ hasText: text }) : notes(page).nth(before);\n    at createNote (~/.dbench/awesome-local-ai-bench-private/packs/vidi/acceptance/tests/fixtures.ts:176:29)\n    at ~/.dbench/awesome-local-ai-bench-private/packs/vidi/acceptance/tests/story-02.spec.ts:133:18"
+                        }
+                      ],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-09-26T12:11:21.886Z",
+                      "annotations": [],
+                      "attachments": [
+                        {
+                          "name": "screenshot",
+                          "contentType": "image/png",
+                          "path": "~/.dbench/repo/combinations/qwen/3.8/27b/ubuntu/nvidia4090/llamacpp-opencode/benchmarks/vidi/canvas-pi-04/stories/02/artifacts/story-02-story-2-s02-click-d2f93-ction-ref-prd-sticky-select-chromium/test-failed-1.png"
+                        },
+                        {
+                          "name": "error-context",
+                          "contentType": "text/markdown",
+                          "path": "~/.dbench/repo/combinations/qwen/3.8/27b/ubuntu/nvidia4090/llamacpp-opencode/benchmarks/vidi/canvas-pi-04/stories/02/artifacts/story-02-story-2-s02-click-d2f93-ction-ref-prd-sticky-select-chromium/error-context.md"
+                        }
+                      ],
+                      "errorLocation": {
+                        "file": "~/.dbench/awesome-local-ai-bench-private/packs/vidi/acceptance/tests/fixtures.ts",
+                        "column": 29,
+                        "line": 176
+                      }
+                    }
+                  ],
+                  "status": "unexpected"
+                }
+              ],
+              "id": "c926f64a76cbce2cafa8-5dfdd03158e6d3bcd047",
+              "file": "story-02.spec.ts",
+              "line": 131,
+              "column": 3
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "errors": [],
+  "stats": {
+    "startTime": "2026-09-26T12:10:01.733Z",
+    "duration": 88337.378,
+    "expected": 6,
+    "skipped": 0,
+    "unexpected": 14,
+    "flaky": 0
+  }
+}
