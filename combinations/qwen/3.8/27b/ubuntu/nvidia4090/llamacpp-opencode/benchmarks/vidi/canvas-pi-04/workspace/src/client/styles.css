@@ -352,3 +352,160 @@ body {
   background: #fef3f2;
   border-color: #fecdca;
 }
+
+/* --- Story 5: pages (home / not found / opening) -------------------------- */
+
+.page {
+  position: relative;
+  height: 100%;
+}
+
+.page--center {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  text-align: center;
+  padding: 24px;
+}
+
+.page-title {
+  margin: 0;
+  font-size: 32px;
+  font-weight: 700;
+}
+
+.page-subtitle {
+  margin: 0;
+  font-size: 16px;
+  color: #5b6470;
+}
+
+.page-message {
+  margin: 0;
+  font-size: 14px;
+  color: #b42318;
+}
+
+.page-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 6px;
+}
+
+.page-loading {
+  margin: 0;
+  font-size: 16px;
+  color: #5b6470;
+}
+
+/* Shared button. */
+.btn {
+  appearance: none;
+  border: 1px solid var(--panel-border);
+  background: #fff;
+  color: var(--text-color);
+  border-radius: 8px;
+  padding: 10px 16px;
+  font-size: 15px;
+  cursor: pointer;
+}
+
+.btn:hover:not(:disabled) {
+  background: #f0f3f7;
+}
+
+.btn:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 1px;
+}
+
+.btn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.btn--primary {
+  background: #3b82f6;
+  border-color: #3b82f6;
+  color: #fff;
+}
+
+.btn--primary:hover:not(:disabled) {
+  background: #2563eb;
+}
+
+/* --- Story 5: share panel -------------------------------------------------- */
+
+.share-toggle {
+  position: fixed;
+  top: 16px;
+  right: 16px;
+  z-index: 12;
+  appearance: none;
+  border: 1px solid var(--panel-border);
+  background: var(--panel-background);
+  color: var(--text-color);
+  border-radius: 8px;
+  padding: 8px 14px;
+  font-size: 14px;
+  cursor: pointer;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+}
+
+.share-toggle:hover {
+  background: #f0f3f7;
+}
+
+.share-toggle:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 1px;
+}
+
+.share-panel {
+  position: fixed;
+  top: 56px;
+  right: 16px;
+  z-index: 12;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: min(340px, calc(100vw - 32px));
+  padding: 14px;
+  background: var(--panel-background);
+  border: 1px solid var(--panel-border);
+  border-radius: 10px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+}
+
+.share-input {
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid var(--panel-border);
+  border-radius: 8px;
+  background: #fff;
+  color: var(--text-color);
+  font-size: 13px;
+}
+
+.share-input:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 1px;
+}
+
+.share-copy {
+  align-self: flex-start;
+}
+
+.share-manual {
+  margin: 0;
+  font-size: 13px;
+  color: #b42318;
+}
+
+.share-note {
+  margin: 0;
+  font-size: 12px;
+  color: #5b6470;
+}

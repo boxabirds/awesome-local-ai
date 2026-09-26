@@ -114,3 +114,30 @@ export const BOARD_LOAD_BUDGET_MS = 3000;
 
 /** Length of the simulated network outage in the catch-up e2e test. */
 export const CATCH_UP_TEST_OUTAGE_MS = 30_000;
+
+// ---------------------------------------------------------------------------
+// Story 5: share a board with others using a link.
+// ---------------------------------------------------------------------------
+
+/**
+ * Story 5: rate limit for POST /api/boards, per visitor, per rolling period.
+ * MUST stay in sync with the `ratelimits` binding in wrangler.jsonc
+ * (enforced by tests/unit/create-board.test.ts, TC-03).
+ */
+export const BOARD_CREATE_LIMIT = 10;
+export const BOARD_CREATE_PERIOD_SECONDS = 60;
+
+/** Story 5: candidate draws for create-with-retry before giving up. */
+export const CREATE_ID_MAX_ATTEMPTS = 3;
+
+/** Story 5: end-to-end budget from "Create a board" click to a live board. */
+export const CREATE_BUDGET_MS = 2000;
+
+/** Story 5: how long the "Link copied" confirmation stays visible. */
+export const LINK_COPIED_MS = 2000;
+
+/**
+ * Story 5: base delay for the board existence check retry (doubles, capped
+ * at RECONNECT_MAX_BACKOFF_MS).
+ */
+export const BOARD_CHECK_RETRY_BASE_MS = 1000;

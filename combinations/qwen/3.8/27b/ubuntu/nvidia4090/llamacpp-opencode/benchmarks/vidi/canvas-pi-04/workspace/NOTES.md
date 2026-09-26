@@ -370,3 +370,100 @@ load-failure handling. Follows `spec/stories/004-*/`.
 - component: 20 (adds `load-failure` TC-22/TC-23).
 - integration: 36 (board-store, worker, room-persist, board-room).
 - e2e persistence: 4 (TC-19, TC-20, TC-21, TC-24).
+
+# NOTES — Story 5: Share a board with others using a link
+
+## Decisions worth recording
+
+- **Real `ratelimits` binding + in-process fallback.** `POST /api/boards`
+  uses the Workers `ratelimits` binding (`BOARD_CREATE_LIMITER`) when it is
+  materialized (wrangler dev, production) and falls back to an in-process
+  rolling-window `MemoryLimiter` with the SAME limit/period where the binding
+  is absent (workerd pool). The two config sources must not drift: TC-03
+  parses `wrangler.jsonc` and asserts equality with
+  `BOARD_CREATE_LIMIT`/`BOARD_CREATE_PERIOD_SECONDS` (10 per 60s).
+- **Visitor key.** `req.cf?.connectingIP ?? req.headers.get('CF-Connecting-IP')
+  ?? 'unknown'`. `req.cf` is null in BOTH the workerd pool and `wrangler dev`
+  (empirically verified), so the header fallback is what e2e and pool tests
+  use to steer the rate-limit bucket.
+- **Structural typing for testability.** `create-board.ts` imports nothing
+  from `cloudflare:workers`; it takes `BoardCreateEnv`/`BoardCreateNamespace`
+  structural interfaces. Node unit tests drive `createBoard` directly with a
+  fake namespace; the pool integration tests drive the real binding.
+- **Board ids stay 128-bit.** 16 random bytes → 22-char base64url
+  (`[A-Za-z0-9_-]{22}`). TC-04 checks uniqueness and chi-square uniformity of
+  the first-4-char prefix over 10,000 ids.
+- **Existence rule (share.board_api).** A board exists iff `created_at` is
+  set OR legacy rows exist (`updates`/`snapshot_chunks` in `sqlite_master`).
+  Unknown boards hold no tables at all: `load()` detects the absence and comes
+  up with an empty doc, and the room's `fetch` returns 404 BEFORE accepting a
+  socket. Reads never write (no lazy migration on the read path); migration
+  runs from `initialize()` and lazily before the first `append()`/`compact()`.
+- **404 replaces 400 for unknown room ids** (story 5 contract): `/api/rooms/:id`
+  with a malformed id no longer touches the namespace at all.
+- **Client router without a library.** `useRoute()` reads `location.pathname`
+  (`/` home, `/b/:id` board, else not found); `navigate()` does
+  `history.pushState` + a synthetic `popstate`. `BoardPage` checks existence
+  (GET) before mounting and retries with backoff
+  (BOARD_CHECK_RETRY_BASE_MS 1000ms, ×2, capped at RECONNECT_MAX_BACKOFF_MS
+  10000ms) while the service is unreachable — recovery happens without a
+  reload (TC-28).
+- **`<meta name="referrer" content="no-referrer">`** in `index.html`: a
+  shared board link must not leak the referrer of the page it was copied from
+  (Vite preserves the tag in the built `dist/client/index.html`; TC-32 asserts
+  the served document contains it).
+- **Share panel state machine.** Closed → Open → Copied (reverts after
+  LINK_COPIED_MS) | ManualCopy (`writeText` rejected or missing). Escape/outside
+  pointerdown close the panel and return focus to the Share button. The link is
+  `window.location.origin + /b/<id>`.
+
+## Gotchas found while making the tests pass
+
+- `ratelimits` in `wrangler.jsonc` requires a `namespace_id` string in this
+  wrangler version's schema (the pool validates it even though it never
+  materializes the binding).
+- **Env mutation does not propagate to the worker in the pool**: setting
+  `e.TEST_HOOKS = '1'` on the env object in a pool test does not change what
+  the worker sees. Pool tests use DO stubs directly; e2e uses
+  `--var TEST_HOOKS:1` (colon form works with wrangler dev 4.141.0).
+- `fileParallelism` is a ROOT-ONLY vitest option (vitest 3's `ProjectConfig`
+  omits it). It is set at the root of `vitest.config.ts` because all
+  integration tests share one workerd runtime and must not interleave across
+  files.
+- **TC-30 (abuse guard) is window-sensitive**: the 10+1 creations must all
+  land inside the 60s rolling window. Waiting for the full board mount after
+  each creation pushed the loop past 60s on a loaded machine (observed flake:
+  11th creation returned 201). Waiting for the pushState URL change instead
+  keeps the loop at ~4s.
+- Every e2e that creates boards stamps a UNIQUE `CF-Connecting-IP`
+  (`uniqueVisitorIp()`, per-process nonce + counter): tests never share a rate
+  bucket, and a Playwright retry gets a fresh (unpoisoned) bucket.
+- `window.__vidi6` (client test hook) is gated on `import.meta.env.MODE ===
+  'test'` (build mode), NOT on `TEST_HOOKS` (worker env) — the two are
+  independent.
+
+## Manual checks
+
+- `npm run build && npx wrangler dev --port 8787`: home page ("vidi6 / A
+  shared board for thinking together") → Create a board → board opens; Share →
+  Copy link → "✓ Link copied"; paste the link into a fresh private context →
+  same board, notes live in both directions.
+- Open `/b/` + any 22-char id that was never created → "Board not found" with
+  "Create a new board" (which works) and "Go to the home page".
+- Create 11 boards quickly from one visitor → the 11th shows "You're creating
+  boards too quickly. Wait a minute and try again."
+- Seed a legacy board (`POST /__test/boards/<id>/seed-legacy` with
+  `--var TEST_HOOKS:1`) and open its link → the board with its notes, not
+  "Board not found".
+
+## Test counts
+
+- unit: 158 (adds `create-board` TC-01..TC-04).
+- component: 30 (adds `share-pages` TC-16..TC-21, `share-panel` TC-22..TC-25).
+- integration: 49 (adds `board-api` TC-05..TC-15, TC-32; 404 contract update
+  in `worker`/`board-room`/`room-persist`).
+- e2e main: 43 passed + 8 skipped (TC-26/28/30/31 are chromium-only; TC-27 and
+  TC-29 run in all three browsers) — includes the new `share` spec
+  TC-26..TC-31.
+- e2e persistence: 4 (TC-19/TC-20 now create their boards via the API first).
+- e2e nightly: 6 (soak specs create boards via the API first).

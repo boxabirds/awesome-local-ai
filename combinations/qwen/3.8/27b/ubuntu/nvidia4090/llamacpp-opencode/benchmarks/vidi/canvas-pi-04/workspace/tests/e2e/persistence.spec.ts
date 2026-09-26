@@ -19,6 +19,7 @@ import {
   LOAD_RETRY_MIN_INTERVAL_MS,
   PERSIST_TESTED_NOTES,
 } from '../../src/shared/config';
+import { newBoard } from './participants';
 import { startWranglerProcess, type WranglerProcess } from './wrangler-process';
 
 const base = test.extend<{ wrangler: WranglerProcess }>({
@@ -185,8 +186,9 @@ async function waitForServerNotes(
 // ---------------------------------------------------------------------------
 
 base('TC-19: a board returns exactly as it was left', async ({ wrangler, browser }) => {
-  const boardId = newBoardId();
   const url = wrangler.url;
+  // Story 5: the board must exist before anyone can open its link.
+  const boardId = await newBoard(url);
 
   // Evening: create 25 varied notes in the browser.
   const eve = await openParticipant(browser, url, boardId);
@@ -217,8 +219,9 @@ base('TC-19: a board returns exactly as it was left', async ({ wrangler, browser
 // ---------------------------------------------------------------------------
 
 base('TC-20: a note is durable before it is ever broadcast', async ({ wrangler, browser }) => {
-  const boardId = newBoardId();
   const url = wrangler.url;
+  // Story 5: the board must exist before anyone can open its link.
+  const boardId = await newBoard(url);
 
   const alex = await openParticipant(browser, url, boardId);
   await createNoteAtWorld(alex.page, 0, 0, 'survivor');

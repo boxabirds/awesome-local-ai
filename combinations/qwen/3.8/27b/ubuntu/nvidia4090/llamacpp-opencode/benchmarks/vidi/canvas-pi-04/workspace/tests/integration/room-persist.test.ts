@@ -21,7 +21,7 @@ import { createStickyAt } from '../../src/shared/board-model';
 import { MESSAGE_SYNC, SYNC_UPDATE } from '../../src/shared/protocol';
 import type { StickySnapshot } from '../../src/shared/board-model';
 import { generateRetroBoard } from '../fixtures/boards';
-import { exactBuffer, ids, room, sameBoard, stateToNotes } from './persist-helpers';
+import { createBoardId, exactBuffer, ids, room, sameBoard, stateToNotes } from './persist-helpers';
 import { WsClient } from './ws-client';
 
 /** Poll the store until the loaded state satisfies `check` (bounded). */
@@ -50,7 +50,7 @@ async function rebuild(stub: ReturnType<typeof room>): Promise<void> {
 }
 
 it('TC-12 (persist.room): a stored note is written before it is observed and survives to a fresh doc', async () => {
-  const boardId = newBoardId();
+  const boardId = await createBoardId();
   const stub = room(boardId);
   const a = await connect(boardId);
   try {
@@ -81,7 +81,7 @@ it('TC-12 (persist.room): a stored note is written before it is observed and sur
 });
 
 it('TC-13 (persist.room): after every client leaves, a reconstructed room serves the same 25 notes', async () => {
-  const boardId = newBoardId();
+  const boardId = await createBoardId();
   const stub = room(boardId);
   const fixture = generateRetroBoard();
   const original = stateToNotes(exactBuffer(fixture.snapshot));
@@ -110,7 +110,7 @@ it('TC-13 (persist.room): after every client leaves, a reconstructed room serves
 }, 30_000);
 
 it('TC-14 (persist.room): a failed append closes both with 1011; reconnect re-sends and the note is stored', async () => {
-  const boardId = newBoardId();
+  const boardId = await createBoardId();
   const stub = room(boardId);
   // Touch the room so its constructor load has settled before injecting.
   await stub.testGetLifecycle();
@@ -153,7 +153,7 @@ it('TC-14 (persist.room): a failed append closes both with 1011; reconnect re-se
 }, 20_000);
 
 it('TC-15 (persist.room): a damaged snapshot closes the connecting client with 4500 and stores nothing', async () => {
-  const boardId = newBoardId();
+  const boardId = await createBoardId();
   const stub = room(boardId);
   const fixture = generateRetroBoard();
   await stub.testStoreAppendBatch(fixture.updates);
@@ -181,7 +181,7 @@ it('TC-15 (persist.room): a damaged snapshot closes the connecting client with 4
 }, 15_000);
 
 it('TC-16 (persist.room): before the retry interval -> 4500; after repair + interval -> loads and syncs', async () => {
-  const boardId = newBoardId();
+  const boardId = await createBoardId();
   const stub = room(boardId);
   const fixture = generateRetroBoard();
   const original = stateToNotes(exactBuffer(fixture.snapshot));
@@ -219,7 +219,7 @@ it('TC-16 (persist.room): before the retry interval -> 4500; after repair + inte
 }, 20_000);
 
 it('TC-17 (persist.room): a garbage update closes the sender with 1003 and is not stored', async () => {
-  const boardId = newBoardId();
+  const boardId = await createBoardId();
   const stub = room(boardId);
   await stub.testGetLifecycle();
 
@@ -244,7 +244,7 @@ it('TC-17 (persist.room): a garbage update closes the sender with 1003 and is no
 });
 
 it('TC-18 (persist.room): a wake reconstructs the doc and a broadcast reaches the pre-reconstruction socket', async () => {
-  const boardId = newBoardId();
+  const boardId = await createBoardId();
   const stub = room(boardId);
   const fixture = generateRetroBoard();
   await stub.testStoreAppendBatch(fixture.updates);
@@ -274,7 +274,7 @@ it('TC-18 (persist.room): a wake reconstructs the doc and a broadcast reaches th
 }, 20_000);
 
 it('TC-26 (persist.room): a SQL error on read puts the room in load-failed and closes the client with 4500', async () => {
-  const boardId = newBoardId();
+  const boardId = await createBoardId();
   const stub = room(boardId);
   await stub.testGetLifecycle(); // settle the constructor load
   await stub.testFailLoadSelect();

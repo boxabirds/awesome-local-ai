@@ -97,12 +97,12 @@ const SPOTS = [
   { x: 740, y: 420 },
 ];
 
-async function openBoard(browser: Browser): Promise<{
+async function openBoard(browser: Browser, baseURL: string): Promise<{
   boardId: string;
   alex: Participant;
   sam: Participant;
 }> {
-  const boardId = newBoard();
+  const boardId = await newBoard(baseURL);
   const alex = await openParticipant(browser, boardId);
   const sam = await openParticipant(browser, boardId);
   return { boardId, alex, sam };
@@ -112,8 +112,9 @@ async function openBoard(browser: Browser): Promise<{
 
 test('TC-22: create, move, recolor, type, delete — Sam sees each within budget', async ({
   browser,
+  baseURL,
 }) => {
-  const { alex, sam } = await openBoard(browser);
+  const { alex, sam } = await openBoard(browser, baseURL!);
   try {
     // 1. Create.
     const id = await createNote(alex.page, SPOTS[0], 'hello');
@@ -148,8 +149,8 @@ test('TC-22: create, move, recolor, type, delete — Sam sees each within budget
   }
 });
 
-test('TC-23: concurrent typing in one note merges on both pages', async ({ browser }) => {
-  const { alex, sam } = await openBoard(browser);
+test('TC-23: concurrent typing in one note merges on both pages', async ({ browser, baseURL }) => {
+  const { alex, sam } = await openBoard(browser, baseURL!);
   try {
     const id = await createNote(alex.page, SPOTS[1], 'green');
     await expectWithin(async () => sam.page.locator('.sticky-note').count(), 1);
@@ -186,8 +187,8 @@ test('TC-23: concurrent typing in one note merges on both pages', async ({ brows
   }
 });
 
-test('TC-24: concurrent drags of the same note settle to one position', async ({ browser }) => {
-  const { alex, sam } = await openBoard(browser);
+test('TC-24: concurrent drags of the same note settle to one position', async ({ browser, baseURL }) => {
+  const { alex, sam } = await openBoard(browser, baseURL!);
   try {
     const id = await createNote(alex.page, SPOTS[2]);
     await expectWithin(async () => sam.page.locator('.sticky-note').count(), 1);
@@ -211,8 +212,8 @@ test('TC-24: concurrent drags of the same note settle to one position', async ({
   }
 });
 
-test('TC-25: late joiner catches up to existing notes', async ({ browser }) => {
-  const boardId = newBoard();
+test('TC-25: late joiner catches up to existing notes', async ({ browser, baseURL }) => {
+  const boardId = await newBoard(baseURL!);
   const alex = await openParticipant(browser, boardId);
   try {
     const ids: { id: string; text: string }[] = [];
@@ -237,8 +238,8 @@ test('TC-25: late joiner catches up to existing notes', async ({ browser }) => {
   }
 });
 
-test('TC-26: late joiner sees text, colour and moved position', async ({ browser }) => {
-  const boardId = newBoard();
+test('TC-26: late joiner sees text, colour and moved position', async ({ browser, baseURL }) => {
+  const boardId = await newBoard(baseURL!);
   const alex = await openParticipant(browser, boardId);
   try {
     const id = await createNote(alex.page, SPOTS[3], 'moved');
@@ -269,9 +270,10 @@ test('TC-26: late joiner sees text, colour and moved position', async ({ browser
 
 test('TC-27: flaky Wi-Fi — offline edits catch up when the network returns', async ({
   browser,
+  baseURL,
 }) => {
   test.setTimeout(120_000);
-  const boardId = newBoard();
+  const boardId = await newBoard(baseURL!);
   const alex = await openParticipant(browser, boardId);
   const sam = await openParticipant(browser, boardId);
   try {
@@ -329,8 +331,8 @@ test('TC-27: flaky Wi-Fi — offline edits catch up when the network returns', a
   }
 });
 
-test('TC-28: selection and editing are local — never broadcast', async ({ browser }) => {
-  const { alex, sam } = await openBoard(browser);
+test('TC-28: selection and editing are local — never broadcast', async ({ browser, baseURL }) => {
+  const { alex, sam } = await openBoard(browser, baseURL!);
   try {
     const id = await createNote(alex.page, SPOTS[4], 'select-me');
     await expectWithin(async () => sam.page.locator('.sticky-note').count(), 1);

@@ -16,6 +16,19 @@
       }
     ]
   },
+  // Story 5 (share.board_api): rate limit for POST /api/boards, keyed per
+  // visitor (CF-Connecting-IP). MUST stay in sync with BOARD_CREATE_LIMIT /
+  // BOARD_CREATE_PERIOD_SECONDS in src/shared/config.ts (enforced by
+  // tests/unit/create-board.test.ts, TC-03).
+  "ratelimits": [
+    {
+      "name": "BOARD_CREATE_LIMITER",
+      // Production deploys: the namespace is provisioned in the Cloudflare
+      // dashboard (Rate limits); local runtimes accept any string here.
+      "namespace_id": "vidi6-board-creation",
+      "simple": { "limit": 10, "period": 60 }
+    }
+  ],
   "migrations": [
     {
       "tag": "v1",

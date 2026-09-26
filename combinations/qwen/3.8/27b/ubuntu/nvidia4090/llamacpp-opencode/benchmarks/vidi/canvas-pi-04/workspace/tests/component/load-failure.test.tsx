@@ -29,6 +29,16 @@ import { createStickyAt, snapshot } from '../../src/shared/board-model';
  * seed one sticky into the doc so "delete a note" has a target. The real
  * exports (canEdit, observeConnectionStatus, …) are kept.
  */
+// Story 5: the board page checks existence before mounting; the check
+// succeeds here so the (mocked) connector is reached.
+vi.mock('../../src/client/api', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../src/client/api')>();
+  return {
+    ...actual,
+    checkBoard: vi.fn().mockResolvedValue({ kind: 'exists' }),
+  };
+});
+
 vi.mock('../../src/client/sync/connectBoard', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../../src/client/sync/connectBoard')>();
   const boardModel = await import('../../src/shared/board-model');

@@ -1,12 +1,14 @@
 // Story 2: wires the board together: the Y.Doc (useBoardDoc), the notes,
 // selection state, keyboard shortcuts and the fixed UI (toolbar, zoom, hint).
 //
-// Story 3: the app is routed by board id — `/b/<boardId>` opens (or creates,
-// for `/`) a shared board; the live badge reflects the connection state.
+// Story 3: the live badge reflects the connection state.
+//
+// Story 5: App is a route switch (share.pages): `/` is the Home page,
+// `/b/<id>` is the Board page (existence check, then this board), anything
+// else is the Board-not-found page.
 
 import { useEffect, useState } from 'react';
 import type { JSX } from 'react';
-import { newBoardId, isValidBoardId } from '../shared/board-id';
 import { createSticky, deleteObject, type StickySnapshot } from '../shared/board-model';
 import { Toolbar } from './board/Toolbar';
 import { useBoardDoc } from './board/useBoardDoc';
@@ -19,6 +21,10 @@ import { useCamera, useWindowSize } from './canvas/useCamera';
 import { StickyNote } from './objects/StickyNote';
 import { ConnectionStatus } from './sync/ConnectionStatus';
 import { canEdit } from './sync/connectBoard';
+import { useRoute } from './router';
+import { HomePage } from './pages/HomePage';
+import { BoardPage } from './pages/BoardPage';
+import { NotFoundPage } from './pages/NotFoundPage';
 
 function isTypingTarget(target: EventTarget | null): boolean {
   if (!(target instanceof HTMLElement)) return false;
@@ -26,42 +32,19 @@ function isTypingTarget(target: EventTarget | null): boolean {
   return tag === 'TEXTAREA' || tag === 'INPUT' || target.isContentEditable;
 }
 
-/** `/b/<id>` with a well-formed id, else null (the id is validated client-side too). */
-function parseBoardId(pathname: string): string | null {
-  const match = /^\/b\/([^/]+)\/?$/.exec(pathname);
-  if (match === null) return null;
-  const id = match[1];
-  return isValidBoardId(id) ? id : null;
-}
-
 export function App(): JSX.Element {
-  const [pathname, setPathname] = useState(() => window.location.pathname);
-
-  // Back/forward navigation re-parses the route.
-  useEffect(() => {
-    const onPop = (): void => setPathname(window.location.pathname);
-    window.addEventListener('popstate', onPop);
-    return () => window.removeEventListener('popstate', onPop);
-  }, []);
-
-  const boardId = parseBoardId(pathname);
-
-  // `/` mints a fresh board (the id IS the board — there is no server-side
-  // lookup); any other unparseable path falls back to `/`.
-  useEffect(() => {
-    if (boardId === null) {
-      const target = pathname === '/' ? `/b/${newBoardId()}` : '/';
-      window.location.replace(target);
-    }
-  }, [boardId, pathname]);
-
-  if (boardId === null) {
-    return <div className="app-root" aria-busy="true" />;
+  const route = useRoute();
+  if (route.name === 'home') {
+    return <HomePage />;
   }
-  return <Board boardId={boardId} />;
+  if (route.name === 'board') {
+    return <BoardPage id={route.id} />;
+  }
+  return <NotFoundPage />;
 }
 
-function Board(props: { boardId: string }): JSX.Element {
+/** The full board experience for one board id (stories 1–4). */
+export function Board(props: { boardId: string }): JSX.Element {
   const viewport = useWindowSize();
   const { camera, hasNavigated, zoomStep, reset } = useCamera(viewport);
   const { doc, notes, connectionState } = useBoardDoc(props.boardId);

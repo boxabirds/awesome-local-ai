@@ -29,7 +29,7 @@ import {
 } from '../../src/shared/config';
 import { chunkUpdate } from '../../src/worker/board-store';
 import { generateLargeBoard, generateRetroBoard } from '../fixtures/boards';
-import { bytesEqual, ids, room, sameBoard, stateToNotes } from './persist-helpers';
+import { bytesEqual, createBoardId, ids, room, sameBoard, stateToNotes } from './persist-helpers';
 
 /** Append the fixture's incremental updates to the room's store, batched. */
 async function appendUpdates(boardId: string, updates: Uint8Array[], batch = 500): Promise<void> {
@@ -40,11 +40,14 @@ async function appendUpdates(boardId: string, updates: Uint8Array[], batch = 500
 }
 
 describe('BoardStore on Durable Object SQLite (task 3)', () => {
-  it('TC-03: migrate + load on an empty board', async () => {
-    const boardId = newBoardId();
+  it('TC-03: load on a created empty board', async () => {
+    // Story 5: an uncreated board has no tables at all; a created board has
+    // the schema (plus created_at) but no board data.
+    const boardId = await createBoardId();
     const stub = room(boardId);
     const inspect = await stub.testInspectStorage();
     expect(inspect.meta['storage_schema_version']).toBe(String(STORAGE_SCHEMA_VERSION));
+    expect(Number(inspect.meta['created_at'])).toBeGreaterThan(0);
     expect(inspect.updatesRows).toEqual([]);
     expect(inspect.snapshotChunkCount).toBe(0);
     expect(inspect.quarantined).toEqual([]);
@@ -270,12 +273,12 @@ describe('BoardStore on Durable Object SQLite (task 3)', () => {
     expect(bytesEqual(new Uint8Array(load.state!), board.snapshot)).toBe(true);
   }, 60_000);
 
-  it('TC-25: migrate writes no board data', async () => {
-    const boardId = newBoardId();
+  it('TC-25: initialize writes the schema + created_at and no board data', async () => {
+    const boardId = await createBoardId();
     const stub = room(boardId);
-    // First RPC constructs the object (migrate + load run).
     const inspect = await stub.testInspectStorage();
-    expect(Object.keys(inspect.meta).sort()).toEqual(['storage_schema_version']);
+    expect(Object.keys(inspect.meta).sort()).toEqual(['created_at', 'storage_schema_version']);
+    expect(Number(inspect.meta['created_at'])).toBeGreaterThan(0);
     expect(inspect.updatesRows).toEqual([]);
     expect(inspect.snapshotChunkCount).toBe(0);
     expect(inspect.quarantined).toEqual([]);

@@ -54,8 +54,13 @@ import {
   shouldCompact,
   type LoadResult,
 } from './board-store';
+import type { Limiter } from './create-board';
 import { nextRoomState, type RoomLifecycle } from './room-state';
-import { STICKY_COLORS, type StickyColor } from '../shared/config';
+import {
+  LOAD_RETRY_MIN_INTERVAL_MS,
+  STICKY_COLORS,
+  type StickyColor,
+} from '../shared/config';
 import { createStickyAt, snapshot } from '../shared/board-model';
 
 /** Worker bindings (see wrangler.jsonc). */
@@ -64,12 +69,23 @@ export interface Env {
   ASSETS: Fetcher;
   /** '1' on the e2e dev server: enables the /__test/ routes (test-hooks.ts). */
   TEST_HOOKS?: string;
+  /**
+   * Story 5 (share.rate_limit): the Workers `ratelimits` binding for board
+   * creation. Undefined in runtimes that don't materialize it locally;
+   * create-board.ts then falls back to an in-memory limiter.
+   */
+  BOARD_CREATE_LIMITER?: Limiter;
 }
 
 export class BoardRoom extends DurableObject<Env> {
   private lifecycle: RoomLifecycle = 'loading';
   private doc: Y.Doc | null = null;
   private store: BoardStore | null = null;
+  /**
+   * Story 5 (share.board_api): true when this board has storage. Unknown
+   * boards hold an empty doc and answer 404 until initialize() runs.
+   */
+  private boardExists = false;
   /** When the room entered load-failed (drives the retry interval, TC-26). */
   private loadFailedAt = 0;
   /** Construction count; test hooks report it to prove a wake reconstructed. */
@@ -86,6 +102,11 @@ export class BoardRoom extends DurableObject<Env> {
   }
 
   async fetch(req: Request): Promise<Response> {
+    // Story 5 (share.board_api): an unknown board is 404 at the edge of the
+    // room — no socket is opened and no storage is created.
+    if (!this.boardExists) {
+      return new Response('Not Found', { status: 404 });
+    }
     const upgrade = req.headers.get('Upgrade');
     if (upgrade === null || !upgrade.toLowerCase().includes('websocket')) {
       return new Response('Upgrade Required', { status: 426 });
@@ -201,19 +222,73 @@ export class BoardRoom extends DurableObject<Env> {
   }
 
   // -------------------------------------------------------------------------
+  // Board creation (story 5, share.board_api).
+  // -------------------------------------------------------------------------
+
+  /**
+   * RPC: create this board's storage if it does not exist yet. Returns
+   * 'created' when this call wrote created_at, 'exists' when the board
+   * already had storage. Legacy boards (data without created_at) are NEVER
+   * re-initialised: 'exists' is returned and created_at is left unset
+   * (share.legacy_boards).
+   */
+  async initialize(): Promise<'created' | 'exists'> {
+    const store = new BoardStore(this.ctx.storage);
+    if (store.existsReadOnly()) {
+      this.boardExists = true;
+      return 'exists';
+    }
+    store.migrate();
+    store.setCreatedAt(Date.now());
+    this.boardExists = true;
+    if (this.doc === null) {
+      // The last load failed (load-failed / storage-failed): rebuild from the
+      // storage we just created, exactly as the next connection would.
+      this.lifecycle = nextRoomState(
+        this.lifecycle,
+        this.lifecycle === 'storage-failed'
+          ? { type: 'next-connection' }
+          : { type: 'connection-attempt', elapsedMs: LOAD_RETRY_MIN_INTERVAL_MS },
+      );
+      await this.ctx.blockConcurrencyWhile(() => this.load());
+    }
+    return 'created';
+  }
+
+  /**
+   * RPC: true when this board has storage (the existence check behind
+   * GET /api/boards/:id). Read-only: it never creates tables.
+   */
+  async exists(): Promise<boolean> {
+    return new BoardStore(this.ctx.storage).existsReadOnly();
+  }
+
+  // -------------------------------------------------------------------------
   // Load / persistence.
   // -------------------------------------------------------------------------
 
-    /** Reconstruct the doc from storage (construct, retry, wake). */
+  /** Reconstruct the doc from storage (construct, retry, wake). */
   private async load(): Promise<void> {
+    // Reuse the object's store when present: it is the same wrapper the
+    // test-only fault injection (TC-26 "load-select") targets, and the DO
+    // storage it wraps is unchanged by a reload.
+    const store = this.store ?? (this.store = new BoardStore(this.ctx.storage));
+    if (!store.existsReadOnly()) {
+      // Story 5 (share.board_api): an unknown board has NO storage — no
+      // tables, no created_at. It holds an empty doc and stays ready; fetch()
+      // answers 404 until initialize() creates the board's storage.
+      const doc = new Y.Doc();
+      doc.on('update', (update, origin) => this.onDocUpdate(update, origin));
+      this.doc = doc;
+      this.boardExists = false;
+      this.lastLoadResult = null;
+      this.lifecycle = nextRoomState('loading', { type: 'load-success', quarantined: 0 });
+      return;
+    }
+    this.boardExists = true;
     const doc = new Y.Doc();
     let result: LoadResult;
     try {
-      // Reuse the object's store when present: it is the same wrapper the
-      // test-only fault injection (TC-26 "load-select") targets, and the DO
-      // storage it wraps is unchanged by a reload.
-      const store = this.store ?? (this.store = new BoardStore(this.ctx.storage));
-      store.migrate();
       result = store.load(doc);
       if (!result.ok) {
         console.error({
@@ -436,6 +511,12 @@ export class BoardRoom extends DurableObject<Env> {
     return this.testEnsureStore().testInspectStorage();
   }
 
+  /** Table names in this object's sqlite_master (creates nothing; TC-06/09). */
+  async testTableNames(): Promise<string[]> {
+    // A fresh store: must not run migration or construct any state.
+    return new BoardStore(this.ctx.storage).tableNames();
+  }
+
   /** Make the next append throw once (TC-14). */
   async testFailNextAppend(): Promise<void> {
     this.testEnsureStore().testInjectFault('append');
@@ -524,12 +605,47 @@ export class BoardRoom extends DurableObject<Env> {
     return count;
   }
 
+  /**
+   * Write LEGACY storage for a board: an `updates` table with one real Yjs
+   * update row per note, and NO storage_meta / created_at — the shape a
+   * pre-story-5 board had (share.legacy_boards, TC-08/TC-31). Rebuilds the
+   * room's in-memory state from that storage.
+   */
+  async testSeedLegacyNotes(count: number): Promise<number> {
+    if (count <= 0) {
+      return 0;
+    }
+    const sql = this.ctx.storage.sql;
+    sql.exec(
+      'CREATE TABLE IF NOT EXISTS updates (' +
+        'seq INTEGER PRIMARY KEY AUTOINCREMENT, data BLOB NOT NULL, bytes INTEGER NOT NULL)'
+    );
+    const doc = new Y.Doc();
+    const colors = Object.keys(STICKY_COLORS) as StickyColor[];
+    for (let i = 0; i < count; i++) {
+      const color = colors[i % colors.length];
+      const x = 40 + (i % 40) * 220;
+      const y = 40 + Math.floor(i / 40) * 220;
+      createStickyAt(doc, x, y, color);
+    }
+    const update = Y.encodeStateAsUpdate(doc);
+    sql.exec('INSERT INTO updates (data, bytes) VALUES (?, ?)', update, update.byteLength);
+    doc.destroy();
+    // Rebuild the room exactly as a reconstructed object would: the load sees
+    // the legacy updates table, applies it, and comes up ready.
+    this.doc?.destroy();
+    this.doc = null;
+    this.store = null;
+    this.lifecycle = nextRoomState('hibernated', { type: 'wake' });
+    await this.ctx.blockConcurrencyWhile(() => this.load());
+    return this.doc === null ? 0 : snapshot(this.doc).length;
+  }
+
   /** A store bound to this object's storage (test methods). */
   private testEnsureStore(): BoardStore {
     if (this.store === null) {
-      const store = new BoardStore(this.ctx.storage);
-      store.migrate();
-      this.store = store;
+      // Story 5: no eager migrate — the store migrates lazily on first write.
+      this.store = new BoardStore(this.ctx.storage);
     }
     return this.store;
   }

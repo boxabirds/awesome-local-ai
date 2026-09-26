@@ -131,6 +131,8 @@ export class BoardStore {
   private readonly sql: BoardStoreStorage['sql'];
   private readonly storage: BoardStoreStorage;
   private tracked = false;
+  /** True once migrate() has run on this wrapper (story 5: lazy migration). */
+  private migrated = false;
   private rowBytes = 0;
   private rowCount = 0;
   private maxSeq = 0;
@@ -150,6 +152,9 @@ export class BoardStore {
   /**
    * Create/upgrade the schema and record the version. Idempotent; writes no
    * board data (TC-25: a migrated board has empty updates/snapshot tables).
+   *
+   * Story 5: no longer run on construction — the schema is created either by
+   * `BoardRoom.initialize()` (a real board) or lazily by the first append.
    */
   migrate(): void {
     this.sql.exec(
@@ -172,6 +177,77 @@ export class BoardStore {
       "INSERT OR IGNORE INTO storage_meta (key, value) VALUES ('storage_schema_version', ?)",
       String(STORAGE_SCHEMA_VERSION)
     );
+    this.migrated = true;
+  }
+
+  /** Run migrate() at most once on this wrapper (lazy, story 5). */
+  private migrateIfNeeded(): void {
+    if (!this.migrated) {
+      this.migrate();
+    }
+  }
+
+  /**
+   * READ-ONLY existence check (share.board_api): the board exists when it has
+   * a created_at, OR legacy data (at least one updates or snapshot_chunks
+   * row). Queries sqlite_master first, so this NEVER creates tables — an
+   * unknown board stays table-less until initialize() runs.
+   */
+  existsReadOnly(): boolean {
+    const tables = new Set(this.tableNames());
+    if (tables.has('storage_meta')) {
+      for (const row of this.sql
+        .exec("SELECT value FROM storage_meta WHERE key = 'created_at'")
+        .toArray()) {
+        if ((row as { value: string }).value !== '') {
+          return true;
+        }
+      }
+    }
+    if (tables.has('updates') || tables.has('snapshot_chunks')) {
+      const updates = this.sql.exec('SELECT COUNT(*) AS c FROM updates').toArray();
+      if (((updates[0] as { c: number } | undefined)?.c ?? 0) > 0) {
+        return true;
+      }
+      const chunks = this.sql.exec('SELECT COUNT(*) AS c FROM snapshot_chunks').toArray();
+      if (((chunks[0] as { c: number } | undefined)?.c ?? 0) > 0) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  /** The board's creation timestamp (ms), or null (share.board_api). */
+  getCreatedAt(): number | null {
+    if (!this.tableNames().includes('storage_meta')) {
+      return null;
+    }
+    for (const row of this.sql
+      .exec("SELECT value FROM storage_meta WHERE key = 'created_at'")
+      .toArray()) {
+      const value = (row as { value: string }).value;
+      if (value !== '') {
+        return Number(value);
+      }
+    }
+    return null;
+  }
+
+  /** Record the creation timestamp (write-once by initialize(); share.legacy_boards). */
+  setCreatedAt(ts: number): void {
+    this.sql.exec(
+      "INSERT INTO storage_meta (key, value) VALUES ('created_at', ?) " +
+        'ON CONFLICT(key) DO UPDATE SET value = excluded.value',
+      String(ts),
+    );
+  }
+
+  /** Table names present in this storage (sqlite_master; creates nothing). */
+  tableNames(): string[] {
+    return this.sql
+      .exec("SELECT name FROM sqlite_master WHERE type = 'table'")
+      .toArray()
+      .map((row) => (row as { name: string }).name);
   }
 
   /**
@@ -179,6 +255,9 @@ export class BoardStore {
    * this call returns (synchronous SQLite inside the Durable Object).
    */
   append(update: Uint8Array): void {
+    // Story 5: the first write creates the schema (lazy migration) — a board
+    // seeded only via legacy storage gets the missing tables on first use.
+    this.migrateIfNeeded();
     this.ensureTracked();
     this.checkFault('append');
     this.sql.exec(
@@ -205,26 +284,33 @@ export class BoardStore {
       this.ensureTracked();
       this.checkFault('load-select');
 
-      const chunkRows = this.sql
-        .exec('SELECT data FROM snapshot_chunks ORDER BY idx')
-        .toArray();
-      if (chunkRows.length > 0) {
-        const snapshot = joinChunks(
-          chunkRows.map((row) =>
-            toUint8Array((row as { data: unknown }).data, 'snapshot chunk')
-          )
-        );
-        try {
-          Y.applyUpdate(doc, snapshot, LOAD_ORIGIN);
-        } catch (error) {
-          console.error({ kind: 'snapshot-unreadable', error: String(error) });
-          return { ok: false, quarantined: 0, reason: 'snapshot-unreadable', error: String(error) };
+      // Story 5: tables may be missing (unknown board) or partial (legacy
+      // board with only an updates table); read each table only when present.
+      const tables = new Set(this.tableNames());
+      if (tables.has('snapshot_chunks')) {
+        const chunkRows = this.sql
+          .exec('SELECT data FROM snapshot_chunks ORDER BY idx')
+          .toArray();
+        if (chunkRows.length > 0) {
+          const snapshot = joinChunks(
+            chunkRows.map((row) =>
+              toUint8Array((row as { data: unknown }).data, 'snapshot chunk')
+            )
+          );
+          try {
+            Y.applyUpdate(doc, snapshot, LOAD_ORIGIN);
+          } catch (error) {
+            console.error({ kind: 'snapshot-unreadable', error: String(error) });
+            return { ok: false, quarantined: 0, reason: 'snapshot-unreadable', error: String(error) };
+          }
         }
       }
 
-      const rows = this.sql
-        .exec('SELECT seq, data, bytes FROM updates WHERE seq > ? ORDER BY seq', this.throughSeq)
-        .toArray();
+      const rows = tables.has('updates')
+        ? this.sql
+            .exec('SELECT seq, data, bytes FROM updates WHERE seq > ? ORDER BY seq', this.throughSeq)
+            .toArray()
+        : [];
       let quarantined = 0;
       let rowCount = 0;
       let rowBytes = 0;
@@ -282,6 +368,7 @@ export class BoardStore {
    * @param doc the doc whose full state becomes the new snapshot
    */
   compact(doc: Y.Doc): boolean {
+    this.migrateIfNeeded();
     this.ensureTracked();
     const chunks = chunkUpdate(Y.encodeStateAsUpdate(doc), SNAPSHOT_CHUNK_BYTES);
     try {
@@ -402,22 +489,31 @@ export class BoardStore {
     quarantined: { seq: number; error: string | null }[];
   } {
     this.ensureTracked();
+    // Story 5: safe on unknown boards (no tables) and legacy boards (partial
+    // schema): each table is read only when present.
+    const tables = new Set(this.tableNames());
     const meta: Record<string, string> = {};
-    for (const row of this.sql.exec('SELECT key, value FROM storage_meta').toArray()) {
-      const r = row as { key: string; value: string };
-      meta[r.key] = r.value;
+    if (tables.has('storage_meta')) {
+      for (const row of this.sql.exec('SELECT key, value FROM storage_meta').toArray()) {
+        const r = row as { key: string; value: string };
+        meta[r.key] = r.value;
+      }
     }
-    const updatesRows = (this.sql.exec('SELECT seq, bytes FROM updates ORDER BY seq').toArray() ??
-      []).map((row) => {
-        const r = row as { seq: number; bytes: number };
-        return { seq: r.seq, bytes: r.bytes };
-      });
-    const chunks = this.sql.exec('SELECT COUNT(*) AS c FROM snapshot_chunks').toArray();
-    const quarantined = (this.sql.exec('SELECT seq, error FROM quarantined_updates ORDER BY seq').toArray() ??
-      []).map((row) => {
-        const r = row as { seq: number; error: string | null };
-        return { seq: r.seq, error: r.error };
-      });
+    const updatesRows = tables.has('updates')
+      ? (this.sql.exec('SELECT seq, bytes FROM updates ORDER BY seq').toArray() ?? []).map((row) => {
+          const r = row as { seq: number; bytes: number };
+          return { seq: r.seq, bytes: r.bytes };
+        })
+      : [];
+    const chunks = tables.has('snapshot_chunks')
+      ? this.sql.exec('SELECT COUNT(*) AS c FROM snapshot_chunks').toArray()
+      : [];
+    const quarantined = tables.has('quarantined_updates')
+      ? (this.sql.exec('SELECT seq, error FROM quarantined_updates ORDER BY seq').toArray() ?? []).map((row) => {
+          const r = row as { seq: number; error: string | null };
+          return { seq: r.seq, error: r.error };
+        })
+      : [];
     return {
       meta,
       updatesRows,
@@ -458,17 +554,23 @@ export class BoardStore {
     if (this.tracked) {
       return;
     }
+    // Story 5: tables may be missing (unknown board); track zeros instead.
+    const tables = new Set(this.tableNames());
     let through = 0;
-    for (const row of this.sql
-      .exec("SELECT value FROM storage_meta WHERE key = 'snapshot_through_seq'")
-      .toArray()) {
-      through = parseInt((row as { value: string }).value, 10);
+    if (tables.has('storage_meta')) {
+      for (const row of this.sql
+        .exec("SELECT value FROM storage_meta WHERE key = 'snapshot_through_seq'")
+        .toArray()) {
+        through = parseInt((row as { value: string }).value, 10);
+      }
     }
-    const agg = (this.sql
-      .exec(
-        'SELECT COALESCE(MAX(seq), 0) AS m, COUNT(*) AS c, COALESCE(SUM(bytes), 0) AS b FROM updates'
-      )
-      .toArray()[0] ?? { m: 0, c: 0, b: 0 }) as { m: number; c: number; b: number };
+    const agg = (tables.has('updates')
+      ? (this.sql
+          .exec(
+            'SELECT COALESCE(MAX(seq), 0) AS m, COUNT(*) AS c, COALESCE(SUM(bytes), 0) AS b FROM updates'
+          )
+          .toArray()[0] ?? { m: 0, c: 0, b: 0 })
+      : { m: 0, c: 0, b: 0 }) as { m: number; c: number; b: number };
     this.throughSeq = through;
     this.maxSeq = Math.max(agg.m, through);
     this.rowCount = agg.c;

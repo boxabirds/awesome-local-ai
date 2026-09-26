@@ -12,6 +12,13 @@ import { defineWorkersProject } from '@cloudflare/vitest-pool-workers/config';
 // E2E tests (Playwright) are configured separately in playwright.config.ts.
 export default defineConfig({
   test: {
+    // The integration project runs everything inside ONE shared workerd
+    // runtime (one Durable Object namespace, one ratelimits binding), so
+    // test files must not interleave: run files sequentially. Unit and
+    // component files are small, so the lost parallelism is negligible.
+    // (fileParallelism is a root-only option: it is omitted from per-project
+    // configs by vitest's ProjectConfig type.)
+    fileParallelism: false,
     projects: [
       {
         extends: true,
