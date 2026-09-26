@@ -1,3 +1,47 @@
+commit 3e495174571e9ff9994004970e15cbeb09b2a368
+vidi-agent  Sat Sep 26 18:52:49 2026 +0100
+
+    story 5: Share a board with others using a link
+
+
+ NOTES.md                                      |  63 +++++-
+ index.html                                    |   3 +
+ playwright.config.ts                          |  16 +-
+ src/client/api.ts                             |  61 +++++
+ src/client/main.tsx                           |  39 ++--
+ src/client/pages/BoardPage.tsx                | 114 ++++++++++
+ src/client/pages/HomePage.tsx                 |  87 ++++++++
+ src/client/pages/NotFoundPage.tsx             |  34 +++
+ src/client/router.ts                          |  62 ++++++
+ src/client/share/SharePanel.tsx               | 173 +++++++++++++++
+ src/client/styles.css                         |  80 +++++++
+ src/shared/config.ts                          |  18 ++
+ src/worker/board-room.ts                      |  80 ++++++-
+ src/worker/board-store.ts                     |  68 ++++++
+ src/worker/create-board.ts                    | 108 +++++++++
+ src/worker/index.ts                           |  86 ++++++--
+ src/worker/test-hooks.ts                      |  43 +++-
+ tests/component/SharePanel.test.tsx           | 141 ++++++++++++
+ tests/component/pages.test.tsx                | 212 ++++++++++++++++++
+ tests/e2e/helpers/board.ts                    |  61 ++++-
+ tests/e2e/helpers/live.ts                     |  32 +--
+ tests/e2e/helpers/local-worker.ts             |   7 +-
+ tests/e2e/helpers/share.ts                    |  92 ++++++++
+ tests/e2e/live.spec.ts                        |  38 ++--
+ tests/e2e/share.spec.ts                       | 306 ++++++++++++++++++++++++++
+ tests/integration/board-api.test.ts           | 199 +++++++++++++++++
+ tests/integration/connection.test.ts          |  14 +-
+ tests/integration/global-setup.ts             |   7 +-
+ tests/integration/helpers/server.ts           |   5 +-
+ tests/integration/helpers/ws-client.ts        |  43 +++-
+ tests/integration/persistence-restart.test.ts |   8 +-
+ tests/integration/persistence.test.ts         |  14 +-
+ tests/integration/reconcile.test.ts           |   8 +-
+ tests/integration/room.test.ts                |  48 ++--
+ tests/integration/sync.test.ts                |  12 +-
+ tests/unit/create-board.test.ts               | 210 ++++++++++++++++++
+ wrangler.jsonc                                |  13 ++
+ 37 files changed, 2447 insertions(+), 158 deletions(-)
 commit ad755cdaa766bf3d74c8ed3362983fa4d1322b3a
 vidi-agent  Sat Sep 26 17:10:59 2026 +0100
 
