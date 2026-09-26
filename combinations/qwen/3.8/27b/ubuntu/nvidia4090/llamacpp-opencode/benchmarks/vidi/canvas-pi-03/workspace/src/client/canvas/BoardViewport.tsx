@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useCameraContext } from './CameraContext';
 import { screenToWorld, type Point } from './camera';
 import { GRID_SPACING_WORLD, WHEEL_ZOOM_SENSITIVITY } from '@/shared/config';
-import type { Tool } from '../board/useTool';
+import type { ToolId } from '../tools/useActiveTool';
 
 export interface BoardViewportProps {
   children?: React.ReactNode;
@@ -10,8 +10,13 @@ export interface BoardViewportProps {
   onCreateStickyAt?: (world: Point) => void;
   /** Story 9: click (press without movement) on empty board space with the Text tool active. */
   onCreateTextAt?: (world: Point) => void;
-  /** Story 9: the active tool — with Text active, clicks create text and do not pan/marquee. */
-  tool?: Tool;
+  /**
+   * Story 9/10: the active tool — with Text active, clicks create text and
+   * do not pan/marquee. Shape/Connector tools render their own full-screen
+   * overlays (story 10) and never reach the viewport; any non-Text id is
+   * treated as Select here.
+   */
+  tool?: ToolId;
   /** Click (press without movement) on empty board space: clear the selection. */
   onClearSelection?: () => void;
   /**

@@ -12,7 +12,10 @@ import { useBoardKeys } from './useBoardKeys';
 import { useMarquee } from './Marquee';
 import { MarqueeRect } from './Marquee';
 import { useTransformGesture } from './useTransformGesture';
-import { useTool } from './useTool';
+import { useActiveTool } from '../tools/useActiveTool';
+import { ShapeTool } from '../tools/ShapeTool';
+import { ConnectorTool } from '../tools/ConnectorTool';
+import { registerShapeType, registerConnectorType } from '../objects/registry';
 import { createUndo } from './undo';
 import { useUndo } from './useUndo';
 import { SelectionOverlay } from './SelectionOverlay';
@@ -33,6 +36,13 @@ import {
 } from '@/shared/board-model';
 import { unionRects } from '@/shared/geometry';
 import { createText } from '@/shared/objects/text';
+
+// Story 10: the shape and connector types render through the registry.
+// Registered at module load (idempotent), NOT in the registry module itself:
+// registry unit tests must see 'shape'/'connector' as unknown in builds that
+// never import the Board (forward compatibility, TC-12).
+registerShapeType();
+registerConnectorType();
 
 /**
  * Story 4: the board is editable in every connection state except
@@ -82,9 +92,18 @@ export function Board({ id }: { id: string }) {
   const undoState = useUndo(undo, editable);
   const onBoundary = useCallback(() => undo.boundary(), [undo]);
 
-  // Story 9: the active tool (per-client, never persisted). Reverts to
-  // Select when the board stops being editable (text.not_editable).
-  const tools = useTool(editable);
+  // Story 9/10: the active tool (per-client, never persisted). Reverts to
+  // Select when the board stops being editable (text.not_editable). A
+  // creation tool that produces an object selects it and returns to Select.
+  const tools = useActiveTool({
+    canEdit: editable,
+    onSelectCreated: (id) => {
+      // The new object is not in the snapshot yet: queue the select (the
+      // click would be a no-op) so it lands once the snapshot catches up.
+      selection.clear();
+      selection.selectNew(id);
+    },
+  });
   // Story 9: width measurer for text boxes (canvas in the browser, estimate
   // fallback in non-browser envs). One per board is cheap (lazy canvas ctx).
   const measurer = useMemo(() => createCanvasMeasurer(), []);
@@ -156,7 +175,8 @@ export function Board({ id }: { id: string }) {
   }, [cameraState.camera, createStickyAt, viewport.width, viewport.height]);
 
   // Story 7: keyboard commands (select all, escape, arrows, delete, enter).
-  // Story 9: tool shortcuts (V/T/N) and Escape returning to Select.
+  // Story 9: N creates a sticky at the view centre; the tool shortcuts
+  // (V/T/S/L/Escape) live in useActiveTool (story 10, tools.keys).
   useBoardKeys({
     doc,
     selection,
@@ -167,7 +187,6 @@ export function Board({ id }: { id: string }) {
     onBoundary,
     onUndo: undoState.undo,
     onRedo: undoState.redo,
-    tool: tools,
     onCreateStickyCenter: createStickyCenter,
   });
 
@@ -182,10 +201,9 @@ export function Board({ id }: { id: string }) {
       onBoundary();
       if (newId) {
         // A new text starts a fresh single selection (the old selection is
-        // replaced, as a plain click would do).
-        selection.clear();
+        // replaced, as a plain click would do) and is immediately edited.
+        tools.toolCreated(newId); // clear + click + back to Select
         selection.startEdit(newId);
-        tools.setTool('select');
       }
     },
     [doc, editable, clientId, selection, onBoundary, tools],
@@ -246,7 +264,7 @@ export function Board({ id }: { id: string }) {
         editable,
         doc,
         zoom: cameraState.camera.zoom,
-        onObjectPointerDown: (e: ReactPointerEvent<HTMLElement>) => {
+        onObjectPointerDown: (e: ReactPointerEvent<Element>) => {
           // Story 9: with the Text tool active, a press anywhere (objects
           // included) creates a new text at the press point (text.create).
           if (tools.tool === 'text' && editable) {
@@ -293,6 +311,26 @@ export function Board({ id }: { id: string }) {
         props.onTextUndo = undoState.undo;
         props.onTextRedo = undoState.redo;
       }
+      if (o.type === 'shape') {
+        // Story 10: shape object props (shape.render / shape.label_limit).
+        // `kind`/`fill`/`stroke`/`label` arrive via the `...o` spread.
+        props.editing = selection.editingId === o.id;
+        props.onStartEdit = (shapeId: string) => selection.startEdit(shapeId);
+        props.onEndEdit = (next: 'selected' | 'unselected') => {
+          selection.endEdit();
+          if (next === 'unselected') selection.clear();
+        };
+        // Story 8: in-editor undo/redo and capture window.
+        props.onTextBoundary = onBoundary;
+        props.onTextUndo = undoState.undo;
+        props.onTextRedo = undoState.redo;
+      }
+      if (o.type === 'connector') {
+        // Story 10: connector object props (conn.render / connector.handle).
+        // `from`/`to`/`fromPoint`/`toPoint` arrive via the `...o` spread.
+        props.objects = objects;
+        props.onBoundary = onBoundary;
+      }
       return <Comp key={o.id} {...props} />;
     });
 
@@ -311,6 +349,29 @@ export function Board({ id }: { id: string }) {
       >
         {renderObjects()}
       </BoardViewport>
+      {/* Story 10: creation tool overlays (above the viewport; they capture
+          all pointer events while active, so the board neither pans nor
+          selects underneath). */}
+      {tools.tool === 'shape' && editable && (
+        <ShapeTool
+          kind={tools.shapeKind}
+          camera={cameraState.camera}
+          doc={doc}
+          createdBy={clientId}
+          onBoundary={onBoundary}
+          onCreated={(id: string) => tools.toolCreated(id)}
+        />
+      )}
+      {tools.tool === 'connector' && editable && (
+        <ConnectorTool
+          camera={cameraState.camera}
+          doc={doc}
+          snapshot={objects}
+          createdBy={clientId}
+          onBoundary={onBoundary}
+          onCreated={(id: string) => tools.toolCreated(id)}
+        />
+      )}
       <SelectionOverlay
         ids={selection.ids}
         snapshot={objects}
@@ -342,6 +403,8 @@ export function Board({ id }: { id: string }) {
         onRedo={undoState.redo}
         tool={tools.tool}
         onSetTool={tools.setTool}
+        shapeKind={tools.shapeKind}
+        onSetShapeKind={tools.setShapeKind}
       />
       <ZoomControls
         zoomPercent={zoomPercent(cameraState.camera)}

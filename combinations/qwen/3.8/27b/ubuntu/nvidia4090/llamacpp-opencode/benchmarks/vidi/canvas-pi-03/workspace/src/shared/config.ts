@@ -18,6 +18,59 @@ export const STICKY_COLORS = {
 export type StickyColor = keyof typeof STICKY_COLORS;
 export const DEFAULT_STICKY_COLOR: StickyColor = 'yellow';
 
+// --- Story 10: shapes and connectors (shape.*, conn.*) ---
+
+/** The shape kinds this build draws (story 10; more in 12/14/15). */
+export const SHAPE_KINDS = ['rect', 'ellipse', 'diamond'] as const;
+
+/** Shapes are free-size; a click or a below-min drag uses this (shape.create_click). */
+export const SHAPE_DEFAULT_SIZE_WORLD = 160;
+/** A drag smaller than this in either dimension becomes a default-size click (shape.create_drag). */
+export const SHAPE_MIN_SIZE_WORLD = 20;
+/** Shape label limit: SHAPE_LABEL_MAX_CHARS = 500 (shape.label_limit). */
+export const SHAPE_LABEL_MAX_CHARS = 500;
+/** Rendered in world units, so a shape's outline scales with zoom (shape.style). */
+export const SHAPE_STROKE_WIDTH_WORLD = 2;
+
+/** Shape fill swatches by name; 'none' = transparent (shape.style). */
+export const SHAPE_FILL_COLORS = {
+  none: 'transparent',
+  white: '#FFFFFF',
+  blue: '#BBDEFB',
+  green: '#C8E6C9',
+  yellow: '#FFF9C4',
+  pink: '#F8BBD0',
+  grey: '#E0E0E0',
+} as const;
+export type ShapeFillColor = keyof typeof SHAPE_FILL_COLORS;
+
+/** Shape outline swatches by name (shape.style). */
+export const SHAPE_STROKE_COLORS = {
+  dark: '#263238',
+  blue: '#1E88E5',
+  green: '#43A047',
+  orange: '#FB8C00',
+  red: '#E53935',
+  grey: '#9E9E9E',
+} as const;
+export type ShapeStrokeColor = keyof typeof SHAPE_STROKE_COLORS;
+
+export const DEFAULT_SHAPE_FILL: ShapeFillColor = 'white';
+export const DEFAULT_SHAPE_STROKE: ShapeStrokeColor = 'dark';
+/** Shape label font in px at zoom 1 (world units) (shape.label_limit). */
+export const SHAPE_LABEL_FONT_PX = 16;
+
+/** The shortest connector that can exist: CONNECTOR_MIN_LENGTH_WORLD = 8 (conn.min_length). */
+export const CONNECTOR_MIN_LENGTH_WORLD = 8;
+/** Click tolerance in SCREEN pixels at any zoom (connector.select). */
+export const CONNECTOR_HIT_TOLERANCE_PX = 6;
+/** The line renders in world units, so it scales with zoom (conn.style). */
+export const CONNECTOR_STROKE_WIDTH_WORLD = 2;
+/** The arrowhead length in world units (scales with zoom) (conn.style). */
+export const CONNECTOR_ARROWHEAD_SIZE_WORLD = 10;
+/** The side attachment dots / endpoint handles radius in SCREEN pixels. */
+export const CONNECTOR_DOT_RADIUS_PX = 4;
+
 // --- Story 3: live collaboration (sync) settings ---
 
 /** Soft simultaneous-editor capacity: design and test target, never enforced. */

@@ -7,12 +7,20 @@ import {
   DEFAULT_STICKY_COLOR,
   DEFAULT_TEXT_SIZE,
   TEXT_SIZES,
+  DEFAULT_SHAPE_FILL,
+  DEFAULT_SHAPE_STROKE,
+  SHAPE_FILL_COLORS,
+  SHAPE_STROKE_COLORS,
   type StickyColor,
   type TextSize,
+  type ShapeFillColor,
+  type ShapeStrokeColor,
 } from '@/shared/config';
 import { setTextSize } from '@/shared/objects/text';
+import { setShapeStyle } from '@/shared/objects/shape';
 import { NoteToolbar } from '../objects/NoteToolbar';
 import { TextToolbar } from '../objects/TextToolbar';
+import { ShapeToolbar } from '../objects/ShapeToolbar';
 import type { Measurer } from '../objects/textLayout';
 import { remeasureTextBox } from '../objects/useTextBoxSync';
 
@@ -24,6 +32,8 @@ import { remeasureTextBox } from '../objects/useTextBoxSync';
  *    a "Delete selection" button.
  *  - exactly one sticky: the story 2 NoteToolbar (colour + delete) instead.
  *  - exactly one text: the story 9 TextToolbar (S/M/L/XL + delete) instead.
+ *  - exactly one shape: the story 10 ShapeToolbar (fill + outline +
+ *    delete) instead.
  *
  * Deleting goes through the Board's `onDelete` (deleteObjects + clear); the
  * bar itself never touches the doc except for the single-sticky colour and
@@ -109,6 +119,44 @@ export function SelectionBar(props: SelectionBarProps): ReactElement | null {
             // top-left anchor stays put (text.size).
             remeasureTextBox(doc, text.id, measure);
           }
+          onBoundary?.();
+        }}
+        onDelete={onDelete}
+      />
+    );
+  }
+
+  // Exactly one selected shape (story 10, shape.style): fill/outline
+  // swatches + delete. Hidden like the other single-object toolbars: while
+  // locked, while that shape's label is being edited, or while the shape is
+  // part of an active drag.
+  if (selected.length === 1 && selected[0].type === 'shape') {
+    const shape = selected[0];
+    const hidden =
+      !editable || editingId === shape.id || (draggingIds !== null && draggingIds.has(shape.id));
+    if (hidden) return null;
+    const fill: ShapeFillColor =
+      typeof shape.fill === 'string' &&
+      Object.prototype.hasOwnProperty.call(SHAPE_FILL_COLORS, shape.fill)
+        ? (shape.fill as ShapeFillColor)
+        : DEFAULT_SHAPE_FILL;
+    const stroke: ShapeStrokeColor =
+      typeof shape.stroke === 'string' &&
+      Object.prototype.hasOwnProperty.call(SHAPE_STROKE_COLORS, shape.stroke)
+        ? (shape.stroke as ShapeStrokeColor)
+        : DEFAULT_SHAPE_STROKE;
+    return (
+      <ShapeToolbar
+        fill={fill}
+        stroke={stroke}
+        onFill={(c) => {
+          onBoundary?.();
+          setShapeStyle(doc, shape.id, { fill: c });
+          onBoundary?.();
+        }}
+        onStroke={(c) => {
+          onBoundary?.();
+          setShapeStyle(doc, shape.id, { stroke: c });
           onBoundary?.();
         }}
         onDelete={onDelete}

@@ -12,5 +12,6 @@ Model `qwen3.8-27b`, scope `canvas`, effort `low`, client pi 0.86.0, host 13th G
 | 7 | Select, move, resize and delete several objects at once | DONE | 134.5 | None | None | None | — | — | green | 24/44 |  | 0 / 0 | 7 | — | throttled 0%, server peak 18 GB |
 | 8 | Undo and redo my own changes without undoing anyone else's | DONE | 48.9 | None | None | None | — | — | green | 25/51 |  | 0 / 0 | 3 | — | throttled 0%, server peak 18 GB |
 | 9 | Write free text anywhere on the board | DONE | 68.7 | None | None | None | — | — | green | 27/57 |  | 0 / 0 | 4 | — | throttled 0%, server peak 18 GB |
+| 10 | Draw shapes and connect them with arrows that follow when moved | DONE | 86.6 | None | None | None | — | — | green | 30/65 |  | 0 / 0 | 5 | — | throttled 0%, server peak 18 GB |
 
-**Totals:** 8 stories, 842 agent-minutes, 0 requests, 0 prompt / 0 completion tokens, gate green 8/8, final acceptance 27/57, stalled 0, partial 0, 18378 lines in src+tests.
+**Totals:** 9 stories, 928 agent-minutes, 0 requests, 0 prompt / 0 completion tokens, gate green 9/9, final acceptance 30/65, stalled 0, partial 0, 22087 lines in src+tests.

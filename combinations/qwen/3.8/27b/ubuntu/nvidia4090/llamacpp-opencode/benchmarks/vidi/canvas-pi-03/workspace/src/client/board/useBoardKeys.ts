@@ -5,7 +5,6 @@ import { allObjectIds, moveObjects, deleteObjects } from '@/shared/board-model';
 import { NUDGE_STEP_WORLD, NUDGE_LARGE_STEP_WORLD } from '@/shared/config';
 import { getObjectType } from '../objects/registry';
 import type { Selection } from './useSelection';
-import type { Tool } from './useTool';
 
 /**
  * Selection keyboard commands (story 7, sel.keyboard). Replaces story 2's
@@ -45,9 +44,11 @@ export interface BoardKeysOptions {
   onUndo?: () => void;
   /** Story 8: re-apply this tab's most recently undone own step. */
   onRedo?: () => void;
-  /** Story 9: the active tool (V/T/Escape shortcuts read and set it). */
-  tool?: { tool: Tool; setTool(t: Tool): void };
-  /** Story 9: N shortcut — create a sticky at the view centre (story 2). */
+  /**
+   * Story 7: N shortcut — create a sticky at the view centre (story 2).
+   * The tool shortcuts (V/T, story 9; S/L, story 10) live in useActiveTool
+   * (tools.keys) so the tool state stays in one place.
+   */
   onCreateStickyCenter?: () => void;
 }
 
@@ -84,24 +85,15 @@ export function useBoardKeys(opts: BoardKeysOptions): void {
         }
         e.preventDefault();
         sel.clear();
-        ref.current.tool?.setTool('select'); // story 9: Escape returns to Select
+        // (useActiveTool's Escape listener returns the tool to Select.)
         return;
       }
 
-      // Story 9: tool shortcuts (plain single keys, no modifiers, and never
-      // while a marquee is active). V works in every state; T and N create
-      // content, so they respect the story 4 edit lock.
-      if (!e.ctrlKey && !e.metaKey && !e.altKey && !marqueeActive) {
-        if (e.key === 'v' || e.key === 'V') {
-          ref.current.tool?.setTool('select');
-          return;
-        }
-        if ((e.key === 't' || e.key === 'T') && canEdit) {
-          e.preventDefault();
-          ref.current.tool?.setTool('text');
-          return;
-        }
-        if ((e.key === 'n' || e.key === 'N') && canEdit) {
+      // N: sticky at the view centre (plain key, edit-locked, and never
+      // while a marquee is active). The tool shortcuts (V/T/S/L) are in
+      // useActiveTool (story 10, tools.keys).
+      if (!e.ctrlKey && !e.metaKey && !e.altKey && !marqueeActive && canEdit) {
+        if (e.key === 'n' || e.key === 'N') {
           e.preventDefault();
           ref.current.onCreateStickyCenter?.();
           return;

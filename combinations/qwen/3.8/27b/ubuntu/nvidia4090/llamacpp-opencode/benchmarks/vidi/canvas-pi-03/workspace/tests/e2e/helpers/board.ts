@@ -93,9 +93,20 @@ export async function getNotes(page: Page): Promise<NoteSnapshot[]> {
   });
 }
 
+/** Story 10: a connector endpoint (attached with fallback, or free). */
+export interface EndpointSnap {
+  kind: 'free' | 'attached';
+  objectId?: string;
+  x?: number;
+  y?: number;
+  fallback?: { x: number; y: number };
+}
+
 /**
  * Story 9: snapshot of ALL board objects (any type) with the text fields
- * (size, widthMode, width, height, createdBy). Read through the test hooks.
+ * (size, widthMode, width, height, createdBy). Story 10 adds the shape
+ * fields (kind, fill, stroke, label) and the connector fields (from/to plus
+ * their resolved world points).
  */
 export interface ObjectSnapshot {
   id: string;
@@ -110,6 +121,20 @@ export interface ObjectSnapshot {
   createdBy?: string;
   z: number;
   createdAt: number;
+  /** Story 10: shape kind (rect | ellipse | diamond). */
+  kind?: string;
+  /** Story 10: shape fill colour name. */
+  fill?: string;
+  /** Story 10: shape outline colour name. */
+  stroke?: string;
+  /** Story 10: shape label text. */
+  label?: string;
+  /** Story 10: connector endpoints. */
+  from?: EndpointSnap;
+  to?: EndpointSnap;
+  /** Story 10: connector resolved endpoint points (world units). */
+  fromPoint?: { x: number; y: number };
+  toPoint?: { x: number; y: number };
 }
 
 export async function getObjects(page: Page): Promise<ObjectSnapshot[]> {

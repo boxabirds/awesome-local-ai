@@ -1,0 +1,43 @@
+# Page snapshot
+
+```yaml
+- generic:
+  - generic:
+    - generic [ref=e1]:
+      - generic:
+        - group "Sticky note" [ref=e2]:
+          - generic [ref=e4]: p0
+        - group "Sticky note" [ref=e5]:
+          - textbox [active] [ref=e7]
+    - generic:
+      - button "Resize top-left" [ref=e8]
+      - button "Resize top" [ref=e9]
+      - button "Resize top-right" [ref=e10]
+      - button "Resize right" [ref=e11]
+      - button "Resize bottom-right" [ref=e12]
+      - button "Resize bottom" [ref=e13]
+      - button "Resize bottom-left" [ref=e14]
+      - button "Resize left" [ref=e15]
+    - generic [ref=e16]:
+      - button "Select (V)" [pressed] [ref=e17] [cursor=pointer]:
+        - img [ref=e18]
+      - button "Text (T)" [ref=e20] [cursor=pointer]:
+        - img [ref=e21]
+      - button "Shape (S)" [ref=e23] [cursor=pointer]:
+        - img [ref=e24]
+      - button "Connector (L)" [ref=e27] [cursor=pointer]:
+        - img [ref=e28]
+      - button "Sticky note" [ref=e31] [cursor=pointer]:
+        - img [ref=e32]
+      - generic [ref=e36]:
+        - button "Undo" [ref=e37] [cursor=pointer]:
+          - img [ref=e38]
+        - button "Redo" [disabled] [ref=e41]:
+          - img [ref=e42]
+    - generic [ref=e45]:
+      - button "Zoom out" [ref=e46] [cursor=pointer]: −
+      - status [ref=e47]: 64%
+      - button "Zoom in" [ref=e48] [cursor=pointer]: +
+      - button "Reset view" [ref=e49] [cursor=pointer]
+    - button "Share" [ref=e51] [cursor=pointer]
+```

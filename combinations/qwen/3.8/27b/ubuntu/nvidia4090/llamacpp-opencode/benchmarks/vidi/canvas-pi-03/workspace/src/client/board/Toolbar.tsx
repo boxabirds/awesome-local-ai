@@ -1,6 +1,7 @@
-import type { ReactElement, SyntheticEvent } from 'react';
+import { useState, type ReactElement, type SyntheticEvent } from 'react';
 import { UndoButtons } from './UndoButtons';
-import type { Tool } from './useTool';
+import type { ToolId } from '../tools/useActiveTool';
+import type { ShapeKind } from '@/shared/objects/shape';
 
 export interface ToolbarProps {
   /** Creates a sticky note at the centre of the visible board area. */
@@ -12,10 +13,14 @@ export interface ToolbarProps {
   canRedo?: boolean;
   onUndo?(): void;
   onRedo?(): void;
-  /** Story 9: the active tool (Select | Text) for aria-pressed state. */
-  tool?: Tool;
-  /** Story 9: switch the active tool (text.tool). */
-  onSetTool?(tool: Tool): void;
+  /** Story 9/10: the active tool for aria-pressed state. */
+  tool?: ToolId;
+  /** Story 9/10: switch the active tool (text.tool / shape.tool). */
+  onSetTool?(tool: ToolId): void;
+  /** Story 10: the shape kind the Shape tool creates (kind menu). */
+  shapeKind?: ShapeKind;
+  /** Story 10: set the shape kind (kind menu). */
+  onSetShapeKind?(kind: ShapeKind): void;
 }
 
 /**
@@ -25,9 +30,12 @@ export interface ToolbarProps {
  * clear the selection).
  *
  * Story 9 (text.tool): the Text button (T) is the ONLY way to create text;
- * the Sticky button (N / double-click) keeps the story 2 behaviour. The
- * buttons are a radio pair (aria-pressed); the Text tool is per-client and
- * never leaves this control (and the T shortcut).
+ * the Sticky button (N / double-click) keeps the story 2 behaviour.
+ *
+ * Story 10 (tools): the Shape button (S) opens a kind menu (Rectangle /
+ * Ellipse / Diamond) and the Connector button (L) — both aria-pressed radio
+ * members like Select/Text. The Shape and Connector tools are per-client and
+ * never leave this control (and their shortcuts).
  */
 export function Toolbar(props: ToolbarProps): ReactElement {
   const stop = (e: SyntheticEvent) => {
@@ -36,6 +44,12 @@ export function Toolbar(props: ToolbarProps): ReactElement {
 
   const tool = props.tool ?? 'select';
   const toolDisabled = props.disabled === true || props.onSetTool === undefined;
+  const shapeKind = props.shapeKind ?? 'rect';
+  const [kindMenuOpen, setKindMenuOpen] = useState(false);
+
+  const activateTool = (t: ToolId): void => {
+    props.onSetTool?.(t);
+  };
 
   const toolButtonStyle = (active: boolean, disabled: boolean): React.CSSProperties => ({
     display: 'flex',
@@ -113,6 +127,98 @@ export function Toolbar(props: ToolbarProps): ReactElement {
             strokeWidth="1.8"
             strokeLinecap="round"
           />
+        </svg>
+      </button>
+
+      {/* Story 10: Shape tool (S) + kind menu. */}
+      <button
+        type="button"
+        aria-label="Shape (S)"
+        aria-pressed={tool === 'shape'}
+        title="Shape – S"
+        data-testid="shape-tool-button"
+        disabled={toolDisabled}
+        onClick={() => {
+          setKindMenuOpen((open) => !open);
+          if (tool !== 'shape') activateTool('shape');
+        }}
+        style={toolButtonStyle(tool === 'shape', toolDisabled)}
+      >
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <rect x="4" y="5" width="12" height="10" rx="1" fill="rgba(255, 255, 255, 0.6)" stroke="rgba(0, 0, 0, 0.45)" strokeWidth="1.5" />
+          <circle cx="17" cy="16" r="4" fill="rgba(255, 255, 255, 0.6)" stroke="rgba(0, 0, 0, 0.45)" strokeWidth="1.5" />
+        </svg>
+      </button>
+      {kindMenuOpen && (
+        <div
+          data-testid="shape-kind-menu"
+          role="menu"
+          aria-label="Shape kind"
+          onClick={stop}
+          style={{
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 2,
+            padding: 4,
+            background: 'rgba(255, 255, 255, 0.98)',
+            border: '1px solid rgba(0, 0, 0, 0.15)',
+            borderRadius: 8,
+            boxShadow: '0 2px 8px rgba(0, 0, 0, 0.2)',
+            width: 108,
+          }}
+        >
+          {(
+            [
+              ['rect', 'Rectangle'],
+              ['ellipse', 'Ellipse'],
+              ['diamond', 'Diamond'],
+            ] as Array<[ShapeKind, string]>
+          ).map(([kind, name]) => (
+            <button
+              key={kind}
+              type="button"
+              role="menuitemradio"
+              aria-checked={shapeKind === kind}
+              data-testid={`shape-kind-${kind}`}
+              onClick={() => {
+                props.onSetShapeKind?.(kind);
+                activateTool('shape');
+                setKindMenuOpen(false);
+              }}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 6,
+                padding: '5px 8px',
+                border: 'none',
+                borderRadius: 4,
+                background: shapeKind === kind ? 'rgba(26, 115, 232, 0.15)' : 'transparent',
+                cursor: 'pointer',
+                fontSize: 12,
+                textAlign: 'left',
+              }}
+            >
+              {name}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {/* Story 10: Connector tool (L). */}
+      <button
+        type="button"
+        aria-label="Connector (L)"
+        aria-pressed={tool === 'connector'}
+        title="Connector – L"
+        data-testid="connector-tool-button"
+        disabled={toolDisabled}
+        onClick={() => activateTool('connector')}
+        style={toolButtonStyle(tool === 'connector', toolDisabled)}
+      >
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <path d="M4 16h12" stroke="rgba(0, 0, 0, 0.55)" strokeWidth="1.8" strokeLinecap="round" />
+          <path d="M13 12.5 16.5 16 13 19.5" stroke="rgba(0, 0, 0, 0.55)" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" fill="none" />
+          <circle cx="4" cy="16" r="2" fill="rgba(255, 255, 255, 0.6)" stroke="rgba(0, 0, 0, 0.45)" strokeWidth="1.2" />
         </svg>
       </button>
 
