@@ -281,6 +281,76 @@ in the conversation, a 6 GiB lower limit made the difference between a frozen ma
 session's resident snapshot is evicted, or stay under a projected total that includes it?
 This compaction is the request that stops the machine.
 
+## 8. One cause, two symptoms: why pi's compaction either freezes the Mac or is refused (26 Sep)
+
+The refused compactions (sections 1 and 5) and the machine freezes (sections 5 to 7) come from the
+same moment in the conversation. The machine sits at the edge of its memory, and pi's compaction
+asks for a large block of new memory all at once.
+
+**1. The budget leaves the rest of the Mac very little.** On a 128 GB Mac, 2.12.0 sets:
+- an allocation limit of 96 GiB (75% of RAM, `_apply_metal_memory_caps`);
+- a wired limit of 83.3 GiB. This is Flash-Next's resident floor, and macOS can neither page nor
+  compress it.
+
+The memory plan leaves 0 bytes of headroom. The guards also forgive process memory beyond the
+limit, up to a "host allowance" (`_host_memory_allowance_bytes`): `max(8 GiB, RAM − 16 GiB system
+reserve − limit)`, which is 16 GiB at the 96 GiB limit. quintus's log showed the server at a
+115.5 GB footprint (107.6 GiB) while the allocator counted 92–96 GiB. That overhang sits inside the
+allowance and is never charged, so every guard read it as within budget. It leaves about 20 GiB
+for macOS, pi, the agent's dev servers and its test browsers.
+
+**2. pi's compaction is a guaranteed cache miss on top of a conversation still in memory.** At
+about 114.7k tokens, pi sends a new request to summarise the history: 67–74k tokens in a new,
+anonymous session. The previous 114k-token conversation is still resident twice: its live cache,
+and the snapshot each turn restores by `clone`. The new request must be prefilled from nothing.
+
+**3. What happens next depends on the guard.**
+- **The guard projects that it won't fit, and refuses the request (507).** The Mac survives, but
+  the compaction fails. The agent carries on at 127–130k context and its replies collapse to 1–26
+  tokens. This is the quality loss: 20–82 failed compactions per story at the stock limit, and it
+  ended both story 12 sessions.
+- **The guard projects that it fits, and admits the request.** The projection is optimistic:
+  memory grew about 75 KB per context token over 98k–114k tokens against the plan's 32 KB
+  (section 6). The real demand overshoots. macOS cannot reclaim the 83 GiB that is wired, so it
+  compresses everything else. The kernel stalls before the 2-second system guard acts, and the
+  watchdog restarts the Mac about 2.5 minutes later. This is the freeze.
+
+**The evidence tying the freezes to this moment:**
+- **Freezes 2 and 3 end at the compaction.** MTPLX's flight recorder shows each ending within a
+  second of the compaction request's `begin`, with no `prefill` event after it (section 7).
+- **The compactions that survived show the same squeeze, just short of fatal.** At the stock limit
+  the lowest memory levels were:
+
+  | Time (UTC) | Lowest `kern.memorystatus_level` | Notes |
+  |---|---|---|
+  | 10:02 | 17% | compressor grew 4.8 → 14.7 GiB in about 30 s |
+  | 10:37 | 14% | |
+  | 11:00 | 13% | |
+  | 11:52 | 12% | |
+
+  Each came from the 2-second memory recorder, and each landed closer to the floor.
+- **The same workload on llama.cpp avoids both.** tritus (Strix Halo, llama.cpp) runs the same
+  model family, the same pi client and the same compaction threshold. It has had no freezes and no
+  failed compactions.
+- **A lower limit changes the outcome at the same moment.** At `MTPLX_MEMORY_LIMIT_BYTES=90G`, the
+  identical 72,776-token compaction that froze the machine at 14:48 completed in 129 s. The memory
+  level never fell below 27%, and there was no compression (section 7).
+
+  The lower limit does not remove refusals. Since the change there have been 3 refusals in 163
+  requests (15:23, 15:39, 15:53 UTC), each a new session of 31–48k uncached tokens: the same shape
+  of request. At 90G the host allowance also grows to 22 GiB. The guard's ceiling for the whole
+  process therefore stays at about 112 GiB, and the lower limit only helps because the snapshot
+  cache the planner sizes to fit shrinks by about 6 GiB.
+
+Freeze 1 (03:20) does not show this pattern: its last request was an ordinary 43,893-token turn
+with nothing after it. Its cause is still open.
+
+**Where the fix belongs.** Before admitting an uncached request for a new session, release or
+spill to SSD the previous session's live cache and snapshot. At a compaction that session can
+never be restored by its lineage again. Doing this removes the freeze and the refusal together.
+Counting the host overhang against the Mac as a whole, rather than forgiving it up to an
+allowance, would make the guard's projection honest about the machine it runs on.
+
 ## Data available on request
 
 - The request-log rows for every window above, as JSONL.
