@@ -2,6 +2,7 @@ import { useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogClose, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog';
 import { useWorkspaceContext } from '@/features/workspace/WorkspaceContext';
+import { SAVE_ONLY_WAY_BACK_TEXT, SHARE_ACCESS_TEXT, SHARE_KEY_TEXT } from './copy';
 import { markLinkSaved } from './linkSaved';
 import { platformShortcut } from './platformShortcut';
 import { useCopyLink } from './useCopyLink';
@@ -89,9 +90,9 @@ export default function SharePanel({ open, mode, onOpenChange }: SharePanelProps
         )}
 
         <DialogDescription className="flex flex-col gap-1 text-sm">
-          <span>This link is the key to this workspace — for you and anyone you send it to.</span>
-          {save ? <span>It's the only way back in: if you lose it, you lose access.</span> : null}
-          <span>Anyone with it can see and change everything. Access can't be removed yet.</span>
+          <span>{SHARE_KEY_TEXT}</span>
+          {save ? <span>{SAVE_ONLY_WAY_BACK_TEXT}</span> : null}
+          <span>{SHARE_ACCESS_TEXT}</span>
         </DialogDescription>
 
         <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">

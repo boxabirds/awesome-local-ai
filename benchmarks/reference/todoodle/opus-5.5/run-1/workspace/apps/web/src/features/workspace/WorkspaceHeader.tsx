@@ -21,7 +21,7 @@ export function WorkspaceHeader({ name, canEdit, onRename, onShare }: Props) {
       <div className="flex h-14 items-center gap-3 px-4">
         {/* Edit gate: only editable content goes inside; Share stays usable offline. */}
         <fieldset disabled={!canEdit} className="contents">
-          <WorkspaceNameEditor name={name} onRename={onRename} />
+          <WorkspaceNameEditor name={name} canEdit={canEdit} onRename={onRename} />
         </fieldset>
         {/* Story 3: switch between this browser's remembered workspaces (works offline too). */}
         <WorkspaceSwitcher currentId={workspaceId} currentName={name} />

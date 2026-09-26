@@ -6,7 +6,10 @@ import { enterByHash, isSaved } from '../support/workspace.ts';
 
 // D12: story 4 replaces the stub with the real offline store; here it is overridden per test.
 const gate = vi.hoisted(() => ({ canEdit: true }));
-vi.mock('@/features/live/canEditStore', () => ({ useCanEdit: () => gate.canEdit }));
+vi.mock('@/features/live/canEdit', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/features/live/canEdit')>()),
+  useCanEdit: () => gate.canEdit,
+}));
 
 describe('TC-94 edit gate', () => {
   it('canEdit true -> the name editor is enabled', async () => {

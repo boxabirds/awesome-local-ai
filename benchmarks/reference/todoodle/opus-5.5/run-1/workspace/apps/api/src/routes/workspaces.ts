@@ -1,11 +1,12 @@
 import { DEFAULT_WORKSPACE_NAME } from '@todoodle/shared/limits';
-import { OpenWorkspaceBody, RenameWorkspaceBody, type Workspace, toPublicWorkspace } from '@todoodle/shared/schemas';
+import { OpenWorkspaceBody, RenameWorkspaceBody, toPublicWorkspace } from '@todoodle/shared/schemas';
 import { type Context, Hono } from 'hono';
 import type { AppEnv } from '../app.ts';
 import { findActiveBySecretHash, insertWorkspace, renameWorkspace } from '../db/workspaces.ts';
 import { readRemembered, serializeRememberedCookie, upsertRemembered } from '../lib/cookie.ts';
 import { generateSecret, hashSecret, isWellFormedSecret } from '../lib/crypto.ts';
 import { errorResponse, workspaceNotFound } from '../lib/errors.ts';
+import { broadcast } from '../live/broadcast.ts';
 import { hasBody } from '../middleware/validate.ts';
 
 function nowSeconds(): number {
@@ -60,20 +61,17 @@ export const workspaceRoutes = new Hono<AppEnv>();
 
 workspaceRoutes.get('/', (c) => c.json({ workspace: toPublicWorkspace(c.var.workspace) }));
 
-/**
- * Hook point for story 4: broadcast `workspace.updated` to everyone connected to this workspace.
- * Deliberately a no-op until live updates exist.
- */
-export function onWorkspaceRenamed(_env: AppEnv['Bindings'], _workspace: Workspace): void {}
-
 workspaceRoutes.patch('/', async (c) => {
   const parsed = RenameWorkspaceBody.safeParse(await readJson(c.req.raw));
   if (!parsed.success) return errorResponse('validation', 400);
+  // Story 4: renaming to the current name is a no-op write: no version bump and no broadcast.
+  if (parsed.data.name === c.var.workspace.name) return c.json({ workspace: toPublicWorkspace(c.var.workspace) });
   // Null when the workspace was deleted between auth and the update.
   const row = await renameWorkspace(c.env.DB, c.var.workspace.id, parsed.data.name);
   if (!row) return workspaceNotFound();
   const workspace = toPublicWorkspace(row);
-  onWorkspaceRenamed(c.env, workspace);
+  // After the write commits: everyone else with the workspace open sees the new name.
+  broadcast(c, workspace.id, { type: 'workspace.updated', entity: workspace, version: workspace.version });
   return c.json({ workspace });
 });
 

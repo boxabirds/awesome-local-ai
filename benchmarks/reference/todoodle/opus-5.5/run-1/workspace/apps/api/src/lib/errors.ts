@@ -6,7 +6,8 @@ export type ErrorCode =
   | 'internal'
   | 'method_not_allowed'
   | 'unsupported_media_type'
-  | 'payload_too_large';
+  | 'payload_too_large'
+  | 'upgrade_required';
 
 const DEFAULT_MESSAGES: Record<ErrorCode, string> = {
   validation: 'The request is not valid.',
@@ -17,6 +18,7 @@ const DEFAULT_MESSAGES: Record<ErrorCode, string> = {
   method_not_allowed: 'This method is not allowed.',
   unsupported_media_type: 'Request bodies must be JSON (Content-Type: application/json).',
   payload_too_large: 'The request body is too large.',
+  upgrade_required: 'This endpoint only accepts WebSocket upgrades.',
 };
 
 /** JSON error body `{error, message}`. Never includes stack traces or request data. */

@@ -11,11 +11,13 @@ function isNoStorePath(path: string): boolean {
 }
 
 /**
- * Applies the baseline protections to any response (API, error, SPA or asset). Always returns a new
- * Response, so immutable responses (e.g. from ASSETS) can be finalized. Status and body are preserved;
+ * Applies the baseline protections to any response (API, error, SPA or asset). Returns a new Response
+ * (except for a 101 WebSocket upgrade, returned as is), so immutable responses (e.g. from ASSETS) can be finalized. Status and body are preserved;
  * baseline headers override anything the handler set.
  */
 export function finalizeResponse(res: Response, ctx: { requestId: string; path: string }): Response {
+  // A 101 carries the client end of a WebSocket; rebuilding it would drop `webSocket`. Pass it through untouched.
+  if (res.status === 101) return res;
   const out = new Response(res.body, res);
   out.headers.set('X-Request-Id', ctx.requestId);
   out.headers.set('X-Content-Type-Options', 'nosniff');
@@ -29,6 +31,7 @@ export function finalizeResponse(res: Response, ctx: { requestId: string; path: 
 /** Outermost middleware: finalizes whatever response the rest of the pipeline produced (including errors). */
 export const securityHeaders: MiddlewareHandler<AppEnv> = async (c, next) => {
   await next();
+  if (c.res.status === 101) return;
   const finalized = finalizeResponse(c.res, { requestId: c.get('requestId'), path: new URL(c.req.url).pathname });
   // Clear first: Hono's res setter would otherwise copy the old response's headers over the new ones.
   c.res = undefined;

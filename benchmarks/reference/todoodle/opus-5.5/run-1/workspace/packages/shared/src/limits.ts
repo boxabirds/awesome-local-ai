@@ -40,3 +40,36 @@ export const COPY_CONFIRM_MS = 2_000;
 export const MOBILE_BREAKPOINT_PX = 640;
 /** Minimum height/width of tappable controls on touch devices. */
 export const MIN_TOUCH_TARGET_PX = 44;
+
+// ---------------------------------------------------------------- story 4: live updates
+// (LIVE_OFFLINE_AFTER_MS is retired: losing the live socket no longer means offline.)
+
+/** Header carrying the web client's per-tab id, so each tab can ignore live echoes of its own changes. */
+export const CLIENT_ID_HEADER_NAME = 'X-Todoodle-Client-Id';
+/** Live frames are applied once per animation frame; this fallback flushes them if the frame never comes. */
+export const LIVE_FRAME_FALLBACK_MS = 100;
+/** Reconnect backoff: attempt n waits min(BASE * 2^n, MAX) ± JITTER. Also paces offline health probes. */
+export const LIVE_RECONNECT_BASE_MS = 1_000;
+/** Longest wait between reconnect attempts (and between offline probes). */
+export const LIVE_RECONNECT_MAX_MS = 30_000;
+/** Backoff jitter as a fraction: each wait is scaled by a random factor in [1 - J, 1 + J]. */
+export const LIVE_RECONNECT_JITTER = 0.2;
+/** How often the client pings the live socket; no pong within one interval means the socket is dead. */
+export const LIVE_PING_INTERVAL_MS = 20_000;
+/** Heartbeat frames. The Durable Object answers them without waking (auto-response). */
+export const LIVE_PING = 'ping';
+export const LIVE_PONG = 'pong';
+/** Target: others' changes appear within this long (prd.live_updates). */
+export const LIVE_UPDATE_TARGET_MS = 5_000;
+/** After our own save, another person's change within this window still raises a conflict notice. */
+export const CONFLICT_RECENT_EDIT_WINDOW_MS = 10_000;
+/** Largest serialised live event; bigger events are rejected by broadcast and logged. */
+export const LIVE_MAX_EVENT_BYTES = 16_384;
+/** WebSocket close code: the workspace is not found (terminal, never retried). */
+export const LIVE_CLOSE_NOT_FOUND = 4404;
+/** WebSocket close code: bad origin. */
+export const LIVE_CLOSE_BAD_ORIGIN = 4403;
+/** Screen-reader summaries of others' changes are announced at most once per this interval. */
+export const LIVE_ANNOUNCE_THROTTLE_MS = 10_000;
+/** The 'Reconnecting…' pill shows once live updates have been down continuously this long. */
+export const LIVE_PAUSED_AFTER_MS = 5_000;
