@@ -136,10 +136,15 @@ if [[ "$CLOUD" == 1 ]]; then
   AGENT_URL="cloud"
 else
 echo "starting $SERVER_CMD on :$BENCH_PORT (effort=$REASONING_EFFORT)"
-# New session so the whole server process tree can be stopped (macOS has no setsid(1)).
+# New session so the whole server process tree can be stopped (macOS has no setsid(1)). The log is
+# appended, never truncated: each start opens with a marker giving its wall-clock time, which
+# llama_log.py needs to place each request's timings (the server's own clock starts at 0).
 PORT="$BENCH_PORT" REASONING_EFFORT="$REASONING_EFFORT" \
-  python3 -c 'import os, sys; os.setsid(); os.execvp(sys.argv[1], sys.argv[1:])' "$SERVER_CMD" \
-  > "$RUN_DIR/server.log" 2>&1 &
+  python3 -c 'import os, sys, time
+sys.path.insert(0, sys.argv[1]); import llama_log
+print(llama_log.start_marker(time.time()), end="", flush=True)
+os.setsid(); os.execvp(sys.argv[2], sys.argv[2:])' "$HARNESS" "$SERVER_CMD" \
+  >> "$RUN_DIR/server.log" 2>&1 &
 SERVER_PID=$!
 for ((waited = 0; waited < SERVER_READY_TIMEOUT_S; waited += POLL_S)); do
   # -f: while loading, llama-server answers /v1/models with a 503 error body, not the model list.

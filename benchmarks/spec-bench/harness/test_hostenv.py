@@ -72,3 +72,43 @@ def test_bwrap_masks_then_reopens_own_dir(tmp_path):
     assert f"--ro-bind /dev/null {secret_file.resolve()}" in joined  # files: masked by /dev/null
     assert str(missing) not in joined                          # never create paths on the host
     assert cmd.index(str(own.resolve())) > cmd.index(str(work_root.resolve()))  # own_dir after the mask
+
+
+def fake_amdgpu(root: Path) -> Path:
+    """tritus's card1 sysfs, values as read during story 4."""
+    dev = root / "card1" / "device"
+    hw = dev / "hwmon" / "hwmon3"
+    hw.mkdir(parents=True)
+    (dev / "gpu_busy_percent").write_text("97\n")
+    (dev / "pp_dpm_sclk").write_text("0: 2900Mhz \n1: 1100Mhz \n2: 2900Mhz *\n")
+    (dev / "mem_info_gtt_used").write_text("73701355520\n")
+    (hw / "power1_average").write_text("88016000\n")
+    (hw / "temp1_input").write_text("62000\n")
+    return root
+
+
+def test_amdgpu_sample_reads_busy_clock_power_temperature_and_gtt(tmp_path):
+    s = hostenv.amdgpu_sample(fake_amdgpu(tmp_path))
+    assert s == {"busy_pct": 97, "sclk_mhz": 2900, "power_w": 88.0, "temp_c": 62.0, "gtt_gb": 68.64}
+
+
+def test_no_amdgpu_means_no_sample(tmp_path):
+    assert hostenv.amdgpu_sample(tmp_path) is None
+
+
+def test_gpu_summary_shows_a_clock_drop_under_load():
+    busy = {"busy_pct": 97, "sclk_mhz": 2900, "power_w": 88.0, "temp_c": 62.0, "gtt_gb": 68.6}
+    samples = [busy, {**busy, "sclk_mhz": 1100, "temp_c": 91.0}, {**busy, "busy_pct": 0, "sclk_mhz": 600}]
+    s = hostenv.summarise_gpu(samples)
+    assert s["samples"] == 3 and s["busy_mean_pct"] == 64.7
+    assert s["sclk_min_busy_mhz"] == 1100          # idle clocks don't count as throttling
+    assert s["temp_max_c"] == 91.0 and s["power_max_w"] == 88.0 and s["gtt_max_gb"] == 68.6
+    assert hostenv.summarise_gpu([]) is None
+
+
+def test_nvidia_sample_from_gruntus_smi_line():
+    # utilization.gpu, clocks.sm, clocks.max.sm, power.draw, temperature.gpu, memory.used, throttle reasons
+    s = hostenv.parse_nvidia_gpu("98, 2745, 3105, 405.08, 68, 22622, 0x0000000000000000\n")
+    assert s == {"busy_pct": 98, "sclk_mhz": 2745, "power_w": 405.08, "temp_c": 68.0, "vram_gb": 22.09,
+                 "throttle": "0x0000000000000000"}
+    assert hostenv.parse_nvidia_gpu("") is None
