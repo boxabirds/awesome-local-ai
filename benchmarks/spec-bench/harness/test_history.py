@@ -114,3 +114,70 @@ def test_gruntus_story_7_is_found_as_the_story_that_broke_stories_1_to_5():
     typed = next(c for c in h["changes"] if c["by_story"] == "7" and c["of_story"] == "02")
     assert "Received" in typed["common_error"], typed["common_error"]
     assert "## How it happened" in report.summary(GRUNTUS_RUN)
+
+
+QUINTUS_RUN = (REPO_ROOT / "combinations/qwen/3.8/flash-next/macos/128GB/mtplx-opencode/benchmarks/vidi"
+               / "canvas-pi-03")
+
+
+def interrupted_run(tmp_path: Path) -> Path:
+    """One story whose machine froze mid-way and was restarted 30 min later, then another clean story."""
+    import gzip
+    run = fake_run(tmp_path)
+    import datetime as dt
+    t0 = dt.datetime(2026, 9, 26, 11, 0, tzinfo=dt.timezone.utc).timestamp()
+    def events(times):
+        return "".join(json.dumps({"type": "message_end", "message": {"role": "assistant", "timestamp": int(t * 1000)}}) + "\n"
+                       for t in times)
+    # work 11:00-11:09, freeze at 11:10, restart 11:39, work again 11:41-12:00: a 32 min gap
+    s1 = [t0 + 60 * i for i in range(10)] + [t0 + 2460 + 60 * i for i in range(20)]
+    s2 = [t0 + 4000 + 60 * i for i in range(5)]           # 12:06-12:10, after the restart: clean
+    for sid, times in (("01", s1), ("02", s2)):
+        with gzip.open(run / "stories" / sid / "agent-events.compact.jsonl.gz", "wt") as f:
+            f.write(events(times))
+    (run / "run-history.jsonl").write_text(json.dumps({"started_at": "2026-09-26T11:00:00Z"}) + "\n"
+                                           + json.dumps({"started_at": "2026-09-26T11:39:00Z"}) + "\n")
+    (run / "interventions.md").write_text(
+        "- 2026-09-26T11:10:05Z story 1: quintus froze (last system log 11:10Z) and the watchdog restarted it.\n")
+    m = json.loads((run / "metrics.json").read_text())
+    m["stories"]["1"]["agent"] = {"seconds": 1200.0}
+    m["stories"]["2"]["agent"] = {"seconds": 240.0}
+    (run / "metrics.json").write_text(json.dumps(m))
+    return run
+
+
+def test_a_freeze_mid_story_is_dead_time_not_agent_time(tmp_path):
+    h = history.analyse(interrupted_run(tmp_path))
+    [i] = h["interruptions"]
+    assert i["story"] == "1" and i["kind"] == "machine freeze" and round(i["gap_s"]) == 1920
+    assert "quintus froze" in i["cause"]
+    s1 = h["stories"]["1"]
+    # events at 0-9 min and 41-60 min: a 60 min span minus the 32 min gap is 28 min of work
+    assert round(s1["active_s"]) == 3600 - 1920
+    assert round(s1["dead_s"]) == 1920 and s1["recorded_s"] == 1200.0
+    assert "dead_s" not in h["stories"]["2"] or h["stories"]["2"]["dead_s"] == 0
+
+
+def test_the_report_states_interruptions_and_totals(tmp_path):
+    text = history.render(interrupted_run(tmp_path))
+    assert "### Interruptions and dead time" in text
+    assert "machine freeze" in text and "1 machine freeze" in text and "32 min" in text
+
+
+@pytest.mark.skipif(not QUINTUS_RUN.exists(), reason="no quintus canvas-pi-03 records in this checkout")
+def test_quintus_freeze_2_is_found_in_story_3_with_its_logged_cause():
+    h = history.analyse(QUINTUS_RUN)
+    s3 = [i for i in h["interruptions"] if i["story"] == "3"]
+    assert s3 and s3[0]["kind"] == "machine freeze" and 20 * 60 <= s3[0]["gap_s"] <= 25 * 60, s3
+    st = h["stories"]["3"]
+    # the recorded agent time covers only the attempt after the restart
+    assert st["active_s"] > st["recorded_s"] + 30 * 60
+
+
+def test_notes_that_are_not_interruptions_mark_no_dead_time(tmp_path):
+    run = interrupted_run(tmp_path)
+    with (run / "interventions.md").open("a") as f:
+        f.write("- 2026-09-26T11:05:00Z story 1: ended by the operator (harness (cap)) after 100 agent-min. Recorded PARTIAL.\n"
+                "- 2026-09-26T11:03:00Z held-out suite fixed mid-run (commit above).\n")
+    h = history.analyse(run)
+    assert [i["kind"] for i in h["interruptions"]] == ["machine freeze"]

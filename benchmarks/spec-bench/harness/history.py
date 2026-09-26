@@ -13,6 +13,8 @@ blamed per story. A test that flips once may be flaky; one story breaking many a
 from __future__ import annotations
 
 import collections
+import datetime as dt
+import gzip
 import json
 import re
 import sys
@@ -27,6 +29,16 @@ HARNESS_SUBJECT = "harness:"
 TOP_FILES = 6
 TITLES_SHOWN = 4
 ERROR_SHOWN_CHARS = 240
+# An interruption is a gap in a story's agent events that a restart or a logged intervention falls
+# inside. A boundary this long before the gap's last event still counts (clock and logging skew).
+BOUNDARY_SLACK_S = 120
+SECONDS_PER_MINUTE = 60
+# interventions.md lines: "- 2026-09-26T08:57:29Z story 3: quintus froze …"
+INTERVENTION_RE = re.compile(r"^-\s*\**\s*(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(?::\d{2})?(?:\.\d+)?Z)\s*(.*)$")
+# What kind of interruption a logged cause describes; the first match wins.
+INTERRUPTION_KINDS = [("machine freeze", re.compile(r"froze|freeze|watchdog|kernel panic|rebooted", re.I)),
+                      ("harness crash", re.compile(r"harness crashed|crash|traceback|unexpected EOF", re.I)),
+                      ("operator restart", re.compile(r"restarted by the operator|relaunched|resumed|restart", re.I))]
 # Not where a behaviour change comes from: tests, and generated dependency locks.
 NOT_SOURCE_RE = re.compile(r"(^|/)(tests?|__tests__|e2e)/|\.(test|spec)\.[jt]sx?$|(^|/)(package-lock\.json|bun\.lockb?|yarn\.lock|pnpm-lock\.yaml)$")
 # The lines of a Playwright error that say what was wrong, after its first "Error" line.
@@ -97,6 +109,108 @@ def _tests(run: Path, sid: str) -> dict[tuple, dict]:
     return {(t.get("file"), t.get("title")): t for t in tests if t.get("status") != "skipped"}
 
 
+def _epoch(stamp: str) -> float | None:
+    try:
+        return dt.datetime.fromisoformat(stamp.replace("Z", "+00:00")).timestamp()
+    except ValueError:
+        return None
+
+
+def _event_times(run: Path, sid: str) -> list[float]:
+    """Every timestamp in a story's agent events (compact log, else raw), sorted, in epoch seconds."""
+    d = run / "stories" / f"{int(sid):02d}"
+    f = d / "agent-events.compact.jsonl.gz"
+    opener = (lambda: gzip.open(f, "rt", errors="replace")) if f.exists() else None
+    if opener is None and (d / "agent-events.jsonl").exists():
+        raw = d / "agent-events.jsonl"
+        opener = lambda: raw.open(errors="replace")
+    if opener is None:
+        return []
+    out = []
+    with opener() as fh:
+        for line in fh:
+            if '"message_update"' in line[:60]:
+                continue
+            try:
+                e = json.loads(line)
+            except json.JSONDecodeError:
+                continue
+            if not isinstance(e, dict):
+                continue
+            v = e.get("_rx") or e.get("timestamp") or (e.get("message") or {}).get("timestamp")
+            if isinstance(v, str):
+                v = _epoch(v)
+            if isinstance(v, (int, float)) and v > 0:
+                out.append(v / 1000 if v > 1e11 else float(v))
+    return sorted(out)
+
+
+def _boundaries(run: Path) -> list[tuple[float, str]]:
+    """Restarts (run-history.jsonl starts after the first) and logged interventions, with their text."""
+    out: list[tuple[float, str]] = []
+    hist = run / "run-history.jsonl"
+    if hist.exists():
+        starts = []
+        for line in hist.read_text().splitlines():
+            try:
+                t = _epoch(json.loads(line).get("started_at", ""))
+            except (json.JSONDecodeError, AttributeError):
+                t = None
+            if t:
+                starts.append(t)
+        out += [(t, "") for t in sorted(starts)[1:]]
+    iv = run / "interventions.md"
+    if iv.exists():
+        for line in iv.read_text().splitlines():
+            if (m := INTERVENTION_RE.match(line.strip())):
+                t = _epoch(m.group(1))
+                text = m.group(2).replace("**", "").strip()
+                # Only notes of something going down mark an interruption; a story ended by its cap,
+                # or a suite fix, stopped nothing.
+                if t and _kind(text) != "other":
+                    out.append((t, text))
+    return sorted(out)
+
+
+def _kind(cause: str) -> str:
+    if not cause:
+        return "restart (no intervention logged)"
+    return next((k for k, rx in INTERRUPTION_KINDS if rx.search(cause)), "other")
+
+
+def _first_sentence(text: str) -> str:
+    m = re.match(r"(.+?[.;])(\s|$)", text)
+    return (m.group(1) if m else text)[:ERROR_SHOWN_CHARS]
+
+
+def interruptions(run: Path, stories: dict) -> tuple[list[dict], dict[str, dict]]:
+    """Gaps in each story's agent events that a restart or intervention falls in: dead time, not work.
+    Returns the interruptions and, per story, active (worked) seconds, dead seconds and recorded seconds."""
+    bounds = _boundaries(run)
+    found, per_story = [], {}
+    for sid, s in stories.items():
+        ts = _event_times(run, sid)
+        recorded = (s.get("agent") or {}).get("seconds")
+        if len(ts) < 2:
+            continue
+        gaps = list(zip(ts, ts[1:]))
+        hits: dict[tuple[float, float], list[str]] = {}
+        for t, cause in bounds:
+            # Each restart or intervention belongs to one gap: the longest it can fall in.
+            near = [(a, b) for a, b in gaps if a - BOUNDARY_SLACK_S <= t <= b]
+            if near:
+                hits.setdefault(max(near, key=lambda g: g[1] - g[0]), []).append(cause)
+        dead = 0.0
+        for (a, b), causes in sorted(hits.items()):
+            logged = [c for c in causes if c]
+            cause = logged[0] if logged else ""
+            found.append({"story": sid, "from": a, "to": b, "gap_s": b - a, "kind": _kind(cause),
+                          "cause": _first_sentence(re.sub(r"^story \d+:\s*", "", cause)) if cause else ""})
+            dead += b - a
+        per_story[sid] = {"active_s": (ts[-1] - ts[0]) - dead, "dead_s": dead, "recorded_s": recorded}
+    return found, per_story
+
+
 def analyse(run: Path) -> dict:
     m = json.loads((run / "metrics.json").read_text())
     log = run / "workspace-git-log.txt"
@@ -131,7 +245,10 @@ def analyse(run: Path) -> dict:
                             "before": f"{b.get('passed')}/{b.get('total')}", "after": f"{a.get('passed')}/{a.get('total')}",
                             "broke": [t["title"] for t in broke], "fixed": [t["title"] for t in fixed],
                             "common_error": example})
-    return {"stories": stories, "changes": changes}
+    found, timing = interruptions(run, m["stories"])
+    for sid, t in timing.items():
+        stories.setdefault(sid, {"title": "", "commits": []}).update(t)
+    return {"stories": stories, "changes": changes, "interruptions": found}
 
 
 def _files(commits: list[dict]) -> str:
@@ -171,7 +288,37 @@ def render(run: Path) -> str:
                           + (" …" if len(c["broke"]) > TITLES_SHOWN else "") if c["broke"] else "")
                        + (f"; fixed {len(c['fixed'])}" if c["fixed"] else "")
                        + (f". Most common error: `{c['common_error'][:ERROR_SHOWN_CHARS]}`" if c["common_error"] else ""))
+    out += ["", *render_interruptions(h)]
     return "\n".join(out) + "\n"
+
+
+def _minutes(seconds: float | None) -> str:
+    return "—" if seconds is None else f"{seconds / SECONDS_PER_MINUTE:.0f} min"
+
+
+def render_interruptions(h: dict) -> list[str]:
+    out = ["### Interruptions and dead time", "",
+           "A gap in a story's agent events with a restart or a logged intervention inside it is dead time "
+           "(the machine or the run was down), not agent time. *Active* is the story's event span minus that "
+           "dead time, across every attempt. *Recorded* is the harness's agent time, which covers only the "
+           "attempt after the last restart.", ""]
+    ints = h.get("interruptions") or []
+    if not ints:
+        return out + ["No interruptions inside a story."]
+    kinds = collections.Counter(i["kind"] for i in ints)
+    total = sum(i["gap_s"] for i in ints)
+    out.append("**" + ", ".join(f"{n} {k}{'s' if n > 1 and not k.endswith(')') else ''}" for k, n in kinds.most_common())
+               + f"; {_minutes(total)} dead in total.**")
+    out += ["", "| Story | When (UTC) | Down for | Kind | Logged cause |", "|---|---|---|---|---|"]
+    for i in ints:
+        when = dt.datetime.fromtimestamp(i["from"], dt.timezone.utc).strftime("%d %b %H:%M")
+        out.append(f"| {i['story']} | {when} | {_minutes(i['gap_s'])} | {i['kind']} | {i['cause'] or '—'} |")
+    hit = sorted({i["story"] for i in ints}, key=lambda x: int(x))
+    out += ["", "| Story | Active | Dead | Recorded |", "|---|---|---|---|"]
+    for sid in hit:
+        s = h["stories"].get(sid, {})
+        out.append(f"| {sid} | {_minutes(s.get('active_s'))} | {_minutes(s.get('dead_s'))} | {_minutes(s.get('recorded_s'))} |")
+    return out
 
 
 if __name__ == "__main__":
