@@ -1424,7 +1424,15 @@
           "found": 6,
           "total": 6
         }
-      ]
+      ],
+      "record": {
+        "committed": true,
+        "pushed": true,
+        "over_size_limit": [
+          "~/expts/awesome-local-ai/combinations/qwen/3.8/flash-next/ubuntu/strix-halo-128GB/llamacpp-pi/benchmarks/vidi/canvas-vk-01/server.log"
+        ],
+        "commit": "9b70c1f"
+      }
     }
   },
   "pack": "vidi",
