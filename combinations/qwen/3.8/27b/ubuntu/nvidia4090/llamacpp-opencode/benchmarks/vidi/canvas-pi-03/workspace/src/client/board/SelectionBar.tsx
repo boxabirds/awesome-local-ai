@@ -2,8 +2,19 @@ import type { ReactElement, SyntheticEvent } from 'react';
 import * as Y from 'yjs';
 import type { ObjectSnapshot } from '@/shared/board-model';
 import { setStickyColor } from '@/shared/board-model';
-import { STICKY_COLORS, DEFAULT_STICKY_COLOR, type StickyColor } from '@/shared/config';
+import {
+  STICKY_COLORS,
+  DEFAULT_STICKY_COLOR,
+  DEFAULT_TEXT_SIZE,
+  TEXT_SIZES,
+  type StickyColor,
+  type TextSize,
+} from '@/shared/config';
+import { setTextSize } from '@/shared/objects/text';
 import { NoteToolbar } from '../objects/NoteToolbar';
+import { TextToolbar } from '../objects/TextToolbar';
+import type { Measurer } from '../objects/textLayout';
+import { remeasureTextBox } from '../objects/useTextBoxSync';
 
 /**
  * Selection bar (story 7, sel.interaction). Rendered above the selection's
@@ -12,9 +23,11 @@ import { NoteToolbar } from '../objects/NoteToolbar';
  *  - >= 2 selected objects: "<n> selected" (aria-live count announcement) +
  *    a "Delete selection" button.
  *  - exactly one sticky: the story 2 NoteToolbar (colour + delete) instead.
+ *  - exactly one text: the story 9 TextToolbar (S/M/L/XL + delete) instead.
  *
  * Deleting goes through the Board's `onDelete` (deleteObjects + clear); the
- * bar itself never touches the doc except for the single-sticky colour.
+ * bar itself never touches the doc except for the single-sticky colour and
+ * the single-text size.
  */
 
 export interface SelectionBarProps {
@@ -32,6 +45,8 @@ export interface SelectionBarProps {
   onDelete(): void;
   /** Story 8: close the capture window before/after the colour model call. */
   onBoundary?: () => void;
+  /** Story 9: width measurer for re-measuring a text box after a size change. */
+  measure: Measurer;
 }
 
 function stop(e: SyntheticEvent): void {
@@ -39,7 +54,8 @@ function stop(e: SyntheticEvent): void {
 }
 
 export function SelectionBar(props: SelectionBarProps): ReactElement | null {
-  const { ids, snapshot, doc, editable, editingId, draggingIds, onDelete, onBoundary } = props;
+  const { ids, snapshot, doc, editable, editingId, draggingIds, onDelete, onBoundary, measure } =
+    props;
   if (ids.size === 0) return null;
 
   const selected = snapshot.filter((o) => ids.has(o.id));
@@ -63,6 +79,36 @@ export function SelectionBar(props: SelectionBarProps): ReactElement | null {
         onColor={(c) => {
           onBoundary?.();
           setStickyColor(doc, sticky.id, c);
+          onBoundary?.();
+        }}
+        onDelete={onDelete}
+      />
+    );
+  }
+
+  // Exactly one selected text object (story 9, text.size): the text toolbar.
+  // Hidden like the sticky toolbar: while locked, while editing, while the
+  // text is part of an active drag (a size click mid-drag would race the
+  // handle gesture).
+  if (selected.length === 1 && selected[0].type === 'text') {
+    const text = selected[0];
+    const hidden =
+      !editable || editingId === text.id || (draggingIds !== null && draggingIds.has(text.id));
+    if (hidden) return null;
+    const size: TextSize =
+      typeof text.size === 'string' && Object.prototype.hasOwnProperty.call(TEXT_SIZES, text.size)
+        ? (text.size as TextSize)
+        : DEFAULT_TEXT_SIZE;
+    return (
+      <TextToolbar
+        size={size}
+        onSize={(s) => {
+          onBoundary?.();
+          if (setTextSize(doc, text.id, s)) {
+            // Re-measure: auto width recomputes, fixed width rewraps; the
+            // top-left anchor stays put (text.size).
+            remeasureTextBox(doc, text.id, measure);
+          }
           onBoundary?.();
         }}
         onDelete={onDelete}

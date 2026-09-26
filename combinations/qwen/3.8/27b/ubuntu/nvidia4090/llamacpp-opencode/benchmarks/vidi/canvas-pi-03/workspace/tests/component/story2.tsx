@@ -2,13 +2,15 @@ import * as Y from 'yjs';
 import { render, RenderResult, screen, fireEvent } from '@testing-library/react';
 import { act } from 'react';
 import { App } from '@/client/App';
-import { createSticky, getStickyText, type StickySnapshot } from '@/shared/board-model';
+import { createSticky, getStickyText, type ObjectSnapshot, type StickySnapshot } from '@/shared/board-model';
 import { newBoardId } from '@/shared/board-id';
 
 export interface Vidi6Hooks {
   setCamera(cam: { x: number; y: number; zoom: number }): void;
   getCamera(): { x: number; y: number; zoom: number };
   getNotes(): readonly StickySnapshot[];
+  /** Story 9: every object on the board (sticky + text). */
+  getObjects(): readonly ObjectSnapshot[];
   getSelection(): string[];
   getDoc(): Y.Doc;
   /** Story 8: local per-user undo stack non-empty. */

@@ -12,12 +12,15 @@ import { useBoardKeys } from './useBoardKeys';
 import { useMarquee } from './Marquee';
 import { MarqueeRect } from './Marquee';
 import { useTransformGesture } from './useTransformGesture';
+import { useTool } from './useTool';
 import { createUndo } from './undo';
 import { useUndo } from './useUndo';
 import { SelectionOverlay } from './SelectionOverlay';
 import { SelectionBar } from './SelectionBar';
 import { Toolbar } from './Toolbar';
 import { getObjectType, type ObjectProps } from '../objects/registry';
+import { createCanvasMeasurer } from '../objects/textLayout';
+import { deleteIfEmpty } from '@/shared/objects/text';
 import { ConnectionStatus } from '../sync/ConnectionStatus';
 import type { ConnectionState } from '../sync/connectBoard';
 import { SharePanel } from '../share/SharePanel';
@@ -29,6 +32,7 @@ import {
   type ObjectSnapshot,
 } from '@/shared/board-model';
 import { unionRects } from '@/shared/geometry';
+import { createText } from '@/shared/objects/text';
 
 /**
  * Story 4: the board is editable in every connection state except
@@ -78,6 +82,16 @@ export function Board({ id }: { id: string }) {
   const undoState = useUndo(undo, editable);
   const onBoundary = useCallback(() => undo.boundary(), [undo]);
 
+  // Story 9: the active tool (per-client, never persisted). Reverts to
+  // Select when the board stops being editable (text.not_editable).
+  const tools = useTool(editable);
+  // Story 9: width measurer for text boxes (canvas in the browser, estimate
+  // fallback in non-browser envs). One per board is cheap (lazy canvas ctx).
+  const measurer = useMemo(() => createCanvasMeasurer(), []);
+  // Story 9: stable per-tab creator id (string 6 identity is out of this
+  // milestone; the tab id is the stand-in for `createdBy`).
+  const clientId = useMemo(() => crypto.randomUUID(), []);
+
   // Test-only: expose the board snapshot/doc/selection (story 2/7 tests).
   // Layout effect (not passive): test readiness is keyed off the committed
   // DOM, so the hooks must be registered by the time the board is visible —
@@ -87,6 +101,7 @@ export function Board({ id }: { id: string }) {
       () => stickyNotes(objects),
       () => doc,
       () => [...selection.ids],
+      () => objects,
     );
   }, [doc, objects, selection.ids]);
 
@@ -104,28 +119,18 @@ export function Board({ id }: { id: string }) {
   const marquee = useMarquee(cameraState.camera, objects, (ids) => selection.setMany(ids, true));
 
   // Story 7: group move + bounding-box resize, one gesture at a time.
+  // Story 9: the single-text e/w handle drag re-measures with the shared
+  // measurer.
   const gesture = useTransformGesture({
     doc,
     camera: cameraState.camera,
     selection,
     snapshot: objects,
     canEdit: editable,
+    measure: measurer,
     // Story 8: one whole drag (all its rAF transactions) is one undo step.
     onGestureStart: onBoundary,
     onGestureEnd: onBoundary,
-  });
-
-  // Story 7: keyboard commands (select all, escape, arrows, delete, enter).
-  useBoardKeys({
-    doc,
-    selection,
-    snapshot: objects,
-    canEdit: editable,
-    marqueeActive: marquee.rect !== null,
-    cancelMarquee: marquee.cancel,
-    onBoundary,
-    onUndo: undoState.undo,
-    onRedo: undoState.redo,
   });
 
   const createStickyAt = useCallback(
@@ -149,6 +154,52 @@ export function Board({ id }: { id: string }) {
       }),
     );
   }, [cameraState.camera, createStickyAt, viewport.width, viewport.height]);
+
+  // Story 7: keyboard commands (select all, escape, arrows, delete, enter).
+  // Story 9: tool shortcuts (V/T/N) and Escape returning to Select.
+  useBoardKeys({
+    doc,
+    selection,
+    snapshot: objects,
+    canEdit: editable,
+    marqueeActive: marquee.rect !== null,
+    cancelMarquee: marquee.cancel,
+    onBoundary,
+    onUndo: undoState.undo,
+    onRedo: undoState.redo,
+    tool: tools,
+    onCreateStickyCenter: createStickyCenter,
+  });
+
+  // Story 9: create a size M text object with its top-left at `world` (the
+  // click point, text.anchor), start editing it, and return the tool to
+  // Select (text.create).
+  const createTextAt = useCallback(
+    (world: Point) => {
+      if (!editable) return;
+      onBoundary();
+      const newId = createText(doc, world, clientId);
+      onBoundary();
+      if (newId) {
+        // A new text starts a fresh single selection (the old selection is
+        // replaced, as a plain click would do).
+        selection.clear();
+        selection.startEdit(newId);
+        tools.setTool('select');
+      }
+    },
+    [doc, editable, clientId, selection, onBoundary, tools],
+  );
+
+  // Story 9: the viewport is fixed inset 0, so client coords are
+  // viewport-local; used for both empty-space clicks and clicks on top of
+  // existing objects (new text is created on top at that point).
+  const createTextAtClientPoint = useCallback(
+    (clientX: number, clientY: number) => {
+      createTextAt(screenToWorld(cameraState.camera, { x: clientX, y: clientY }));
+    },
+    [cameraState.camera, createTextAt],
+  );
 
   // Story 7: delete the whole current selection (toolbar bin, Delete key and
   // the selection bar's "Delete selection" all go through this).
@@ -195,8 +246,16 @@ export function Board({ id }: { id: string }) {
         editable,
         doc,
         zoom: cameraState.camera.zoom,
-        onObjectPointerDown: (e: ReactPointerEvent<HTMLElement>) =>
-          gesture.onObjectPointerDown(e, o.id),
+        onObjectPointerDown: (e: ReactPointerEvent<HTMLElement>) => {
+          // Story 9: with the Text tool active, a press anywhere (objects
+          // included) creates a new text at the press point (text.create).
+          if (tools.tool === 'text' && editable) {
+            e.stopPropagation();
+            createTextAtClientPoint(e.clientX, e.clientY);
+            return;
+          }
+          gesture.onObjectPointerDown(e, o.id);
+        },
       };
       if (o.type === 'sticky') {
         const note = stickyNotes([o])[0];
@@ -212,6 +271,28 @@ export function Board({ id }: { id: string }) {
         props.onTextUndo = undoState.undo;
         props.onTextRedo = undoState.redo;
       }
+      if (o.type === 'text') {
+        // Story 9: text object props (design "Text rendering"). `doc`, the
+        // box fields and `size`/`widthMode` arrive via the `...o` spread.
+        props.note = o;
+        props.editing = selection.editingId === o.id;
+        props.onStartEdit = (textId: string) => selection.startEdit(textId);
+        props.onEndEdit = (next: 'selected' | 'unselected') => {
+          // Empty text vanishes on exit (one undo brings it back,
+          // text.empty_delete). The editor already closed the capture window
+          // before calling onEnd, so the deletion is its own undo step.
+          if (deleteIfEmpty(doc, o.id)) {
+            selection.clear();
+          } else {
+            selection.endEdit();
+            if (next === 'unselected') selection.clear();
+          }
+        };
+        // Story 8: in-editor undo/redo and capture window.
+        props.onTextBoundary = onBoundary;
+        props.onTextUndo = undoState.undo;
+        props.onTextRedo = undoState.redo;
+      }
       return <Comp key={o.id} {...props} />;
     });
 
@@ -219,7 +300,9 @@ export function Board({ id }: { id: string }) {
     <CameraContext.Provider value={cameraState}>
       <ConnectionStatus state={connectionState} />
       <BoardViewport
-        onCreateStickyAt={createStickyAt}
+        onCreateStickyAt={editable ? createStickyAt : undefined}
+        onCreateTextAt={createTextAt}
+        tool={tools.tool}
         onClearSelection={() => selection.clear()}
         onMarqueeBegin={marquee.begin}
         onMarqueeMove={marquee.move}
@@ -245,6 +328,7 @@ export function Board({ id }: { id: string }) {
             draggingIds={gesture.draggingIds}
             onDelete={deleteSelection}
             onBoundary={onBoundary}
+            measure={measurer}
           />
         </div>
       )}
@@ -256,6 +340,8 @@ export function Board({ id }: { id: string }) {
         canRedo={undoState.canRedo}
         onUndo={undoState.undo}
         onRedo={undoState.redo}
+        tool={tools.tool}
+        onSetTool={tools.setTool}
       />
       <ZoomControls
         zoomPercent={zoomPercent(cameraState.camera)}

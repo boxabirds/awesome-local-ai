@@ -83,3 +83,34 @@ export const NUDGE_LARGE_STEP_WORLD = 10;
 export const UNDO_CAPTURE_TIMEOUT_MS = 500;
 /** Number of own changes kept in the per-tab undo history (undo.limit). */
 export const UNDO_MAX_STEPS = 200;
+
+// --- Story 9: plain free text objects (text.*) ---
+
+/** Font size in world units per text size key (text.sizes). */
+export const TEXT_SIZES = {
+  S: 14,
+  M: 20,
+  L: 32,
+  XL: 56,
+} as const;
+/** Text size preset key (text.sizes). */
+export type TextSize = keyof typeof TEXT_SIZES;
+/** Font family used by text objects and by the width measurer. */
+export const TEXT_FONT_FAMILY =
+  "ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif";
+/** Line height multiplier for text objects (layout.height). */
+export const TEXT_LINE_HEIGHT = 1.3;
+/** Hard limit for one text object (text.limit); extra characters are not added. */
+export const TEXT_MAX_CHARS = 5000;
+/** Default size of a newly created text object (text.create). */
+export const DEFAULT_TEXT_SIZE = 'M';
+/** Auto width grows with the longest line but never above this (text.wrap). */
+export const TEXT_MAX_AUTO_WIDTH_WORLD = 600;
+/**
+ * Fallback width estimate (no canvas available, e.g. node/jsdom):
+ * width ≈ characters * fontPx * ratio. In the browser the canvas measurer is
+ * used instead (layout.width).
+ */
+export const TEXT_GLYPH_WIDTH_RATIO = 0.6;
+/** Text boxes (auto and fixed) are never narrower than this (text.resize). */
+export const TEXT_MIN_WIDTH_WORLD = 40;

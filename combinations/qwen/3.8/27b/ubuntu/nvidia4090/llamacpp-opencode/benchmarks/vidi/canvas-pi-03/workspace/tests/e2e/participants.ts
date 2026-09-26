@@ -1,5 +1,6 @@
 import { expect, type Browser, type BrowserContext, type Page } from '@playwright/test';
-import { ensureBoardExists, getNotes, type NoteSnapshot } from './helpers/board';
+import { ensureBoardExists, getNotes, getObjects, gotoBoard, type NoteSnapshot, type ObjectSnapshot } from './helpers/board';
+import { TEXT_ANNOTATION_300 } from '../fixtures/texts';
 
 // --- board id generation (mirrors src/shared/board-id, no `@` alias here) ---
 
@@ -246,3 +247,127 @@ export async function isSelected(page: Page, id: string): Promise<boolean> {
 }
 
 export { getNotes };
+
+// --- story 9: text tool + text objects ------------------------------------
+
+/** Mirrors src/shared/config (no `@` alias in e2e). */
+export const TEXT_MAX_AUTO_WIDTH_WORLD = 600;
+
+/** Presses T to activate the Text tool (story 9). */
+export async function activateTextTool(page: Page): Promise<void> {
+  await page.keyboard.press('t');
+}
+
+/**
+ * Creates a text at a screen point via the Text tool. On return the editor
+ * is open (caret at the end of the empty text) and the tool is back to
+ * Select. Resolves to the new object id. The object is identified by its
+ * anchor (top-left = the click's world point), which stays unique even when
+ * other contexts create texts on the same board at the same time.
+ */
+export async function createTextAt(page: Page, sx: number, sy: number): Promise<string> {
+  const cam = await getCamera(page);
+  // Mirrors src/client/canvas/camera.ts screenToWorld: world = screen/zoom + cam.
+  const wx = sx / cam.zoom + cam.x;
+  const wy = sy / cam.zoom + cam.y;
+  await activateTextTool(page);
+  await page.mouse.click(sx, sy);
+  let id: string | null = null;
+  await expect
+    .poll(
+      async () => {
+        const atPoint = (await getObjects(page)).find(
+          (o) =>
+            o.type === 'text' &&
+            Math.abs(o.x - wx) < 0.5 &&
+            Math.abs(o.y - wy) < 0.5,
+        );
+        id = atPoint?.id ?? null;
+        return id !== null;
+      },
+      { timeout: 5000 },
+    )
+    .toBe(true);
+  await waitForEditorFocus(page);
+  return id!;
+}
+
+/**
+ * Waits until the text editor's textarea is visible AND focused (the mount
+ * effect focuses it; the small window before the effect runs must not be
+ * used for typing).
+ */
+async function waitForEditorFocus(page: Page): Promise<void> {
+  await expect(page.locator('[data-testid="text-textarea"]')).toBeVisible({ timeout: 5000 });
+  await expect
+    .poll(
+      async () =>
+        page.evaluate(() => document.activeElement?.getAttribute('data-testid') ?? null),
+      { timeout: 5000 },
+    )
+    .toBe('text-textarea');
+}
+
+/** Ends text editing (Escape); the text stays selected. */
+export async function finishTextEdit(page: Page): Promise<void> {
+  await page.keyboard.press('Escape');
+  await expect(page.locator('[data-testid="text-textarea"]')).toBeHidden({ timeout: 5000 });
+}
+
+/** The object's centre in screen pixels for the page's current camera. */
+export async function objectCenterScreen(page: Page, o: ObjectSnapshot): Promise<{ x: number; y: number }> {
+  const cam = await getCamera(page);
+  const cx = o.x + (o.width ?? 0) / 2;
+  const cy = o.y + (o.height ?? 0) / 2;
+  return { x: (cx - cam.x) * cam.zoom, y: (cy - cam.y) * cam.zoom };
+}
+
+/** Opens editing on a text object by double-clicking its centre. */
+export async function editTextObject(page: Page, id: string): Promise<void> {
+  const o = (await getObjects(page)).find((x) => x.id === id);
+  if (!o) throw new Error(`text ${id} not found`);
+  const { x, y } = await objectCenterScreen(page, o);
+  await page.mouse.dblclick(x, y);
+  await waitForEditorFocus(page);
+}
+
+/** A text object by id (or null). */
+export async function getText(page: Page, id: string): Promise<ObjectSnapshot | null> {
+  return (await getObjects(page)).find((o) => o.id === id) ?? null;
+}
+
+/** The text content of a text object (via its Y.Text snapshot field). */
+export async function getTextContent(page: Page, id: string): Promise<string> {
+  const o = await getText(page, id);
+  return o?.text ?? '';
+}
+
+/**
+ * TC-26: a 300-character annotation caps at TEXT_MAX_AUTO_WIDTH_WORLD and
+ * wraps to several rendered lines. Runs in every browser (chromium, firefox,
+ * webkit) — wrapping differences stay within the ±2 unit tolerance.
+ */
+export async function longAnnotationWraps(page: Page): Promise<void> {
+  await gotoBoard(page);
+  const id = await createTextAt(page, 400, 300);
+  await page.keyboard.insertText(TEXT_ANNOTATION_300);
+  await finishTextEdit(page);
+
+  await expect
+    .poll(async () => {
+      const o = await getText(page, id);
+      return (
+        o !== null &&
+        o.widthMode === 'auto' &&
+        o.width !== undefined &&
+        Math.abs(o.width - TEXT_MAX_AUTO_WIDTH_WORLD) <= 2
+      );
+    }, { timeout: 5000 })
+    .toBe(true);
+
+  const o = (await getText(page, id))!;
+  // Several rendered lines: at size M one line is 20 * 1.3 = 26 world px;
+  // more than two lines means height > 52.
+  expect(o.height).toBeGreaterThan(52);
+}
+

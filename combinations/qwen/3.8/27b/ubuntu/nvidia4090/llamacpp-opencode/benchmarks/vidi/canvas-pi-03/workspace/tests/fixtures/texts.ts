@@ -74,3 +74,20 @@ function toExactLength(base: string, target: number): string {
 
 /** Exactly 1,000 characters of English prose (STICKY_TEXT_MAX_CHARS). */
 export const LONG_PROSE = toExactLength(LONG_PROSE_BASE, 1000);
+
+/**
+ * Story 9: exactly 300 characters of prose — the "long annotation" fixture
+ * (e2e TC-26). Long enough to exceed TEXT_MAX_AUTO_WIDTH_WORLD at size M so
+ * the auto width caps and the text wraps.
+ */
+export const TEXT_ANNOTATION_300 = toExactLength(LONG_PROSE_BASE, 300);
+
+/**
+ * Story 9: exactly 5,001 characters — one past TEXT_MAX_CHARS, to prove the
+ * editor clamps pasted/typed input to the limit (text.limit). The base prose
+ * is ~1,000 characters, so it is repeated to reach the target length.
+ */
+export const TEXT_PASTE_5001 = toExactLength(
+  Array.from({ length: 6 }, () => LONG_PROSE_BASE).join(' '),
+  5001,
+);

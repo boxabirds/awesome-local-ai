@@ -2,8 +2,9 @@ import type { ComponentType, PointerEvent as ReactPointerEvent, ReactElement } f
 import type { ObjectSnapshot } from '@/shared/board-model';
 import { objectBounds } from '@/shared/board-model';
 import type { Point } from '@/shared/geometry';
-import { STICKY_MIN_SIZE_WORLD } from '@/shared/config';
+import { STICKY_MIN_SIZE_WORLD, TEXT_MIN_WIDTH_WORLD } from '@/shared/config';
 import { StickyNote, type StickyNoteProps } from './StickyNote';
+import { TextObject, type TextObjectProps } from './TextObject';
 
 /**
  * Object-type registry (story 7, sel.registry).
@@ -49,6 +50,13 @@ export interface ObjectTypeSpec {
   minSize: number;
   /** Double-click / Enter enters in-place text editing for this type. */
   editableText: boolean;
+  /**
+   * Story 9: which resize handles the selection overlay shows for objects of
+   * this type. 'all' (default) is the eight bounding-box handles; 'horizontal'
+   * is e/w only (text objects: height always follows the content, and a
+   * single-text e/w drag sets a fixed width instead of scaling the box).
+   */
+  handles?: 'all' | 'horizontal';
   /** True when the world point is inside the object (hit testing). */
   hitTest(obj: ObjectSnapshot, worldPoint: Point): boolean;
 }
@@ -71,8 +79,9 @@ export function getObjectType(type: string): ObjectTypeSpec | undefined {
 /** Test-only: forget a registration (module state is per test process). */
 export function resetObjectTypeRegistry(): void {
   registry.clear();
-  // Re-register the built-in sticky (module load already did this once).
+  // Re-register the built-ins (module load already did this once).
   registerStickyType();
+  registerTextType();
 }
 
 function pointInBounds(obj: ObjectSnapshot, p: Point): boolean {
@@ -100,5 +109,25 @@ export function registerStickyType(): void {
   });
 }
 
+/** Thin adapter so the spec's `Component` can be the concrete TextObject. */
+function TextRegistryComponent(props: ObjectProps): ReactElement {
+  return <TextObject {...(props as unknown as TextObjectProps)} />;
+}
+
+export function registerTextType(): void {
+  if (registry.has('text')) return; // idempotent (resetObjectTypeRegistry)
+  registry.set('text', {
+    Component: TextRegistryComponent,
+    resizable: true,
+    aspectLocked: false,
+    minSize: TEXT_MIN_WIDTH_WORLD,
+    editableText: true,
+    handles: 'horizontal',
+    hitTest: pointInBounds,
+  });
+}
+
 // Story 2's type is known from the start: register at module load.
 registerStickyType();
+// Story 9: free text (text.consistent: plugs in through the registry only).
+registerTextType();

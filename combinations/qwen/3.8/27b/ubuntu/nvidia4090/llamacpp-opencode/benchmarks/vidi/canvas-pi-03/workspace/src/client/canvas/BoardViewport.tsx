@@ -2,11 +2,16 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useCameraContext } from './CameraContext';
 import { screenToWorld, type Point } from './camera';
 import { GRID_SPACING_WORLD, WHEEL_ZOOM_SENSITIVITY } from '@/shared/config';
+import type { Tool } from '../board/useTool';
 
 export interface BoardViewportProps {
   children?: React.ReactNode;
   /** Double-click on empty board space: create an object at this world point. */
   onCreateStickyAt?: (world: Point) => void;
+  /** Story 9: click (press without movement) on empty board space with the Text tool active. */
+  onCreateTextAt?: (world: Point) => void;
+  /** Story 9: the active tool — with Text active, clicks create text and do not pan/marquee. */
+  tool?: Tool;
   /** Click (press without movement) on empty board space: clear the selection. */
   onClearSelection?: () => void;
   /**
@@ -26,8 +31,13 @@ export function BoardViewport(props: BoardViewportProps) {
 
   const isPanningRef = useRef(false);
   const isMarqueeingRef = useRef(false);
+  const isTextPlacingRef = useRef(false);
   const downPosRef = useRef<Point | null>(null);
+  // Story 9: a double-click right after a Text-tool click must not create a
+  // sticky note (the first click already created text and switched tools).
+  const lastTextCreateRef = useRef(0);
   const [cursorStyle, setCursorStyle] = useState('default');
+  const tool = props.tool === 'text' ? 'text' : 'select';
 
   const localPoint = (e: React.PointerEvent): Point => {
     const rect = containerRef.current!.getBoundingClientRect();
@@ -40,6 +50,14 @@ export function BoardViewport(props: BoardViewportProps) {
       // Only start pan when clicking the viewport or world layer (not child objects with data-no-pan)
       const target = e.target as HTMLElement;
       if (target.dataset?.noPan) return;
+      // Story 9: with the Text tool active, empty-space presses place text on
+      // release; they never pan or marquee (text.tool).
+      if (tool === 'text') {
+        isTextPlacingRef.current = true;
+        downPosRef.current = { x: e.clientX, y: e.clientY };
+        (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+        return;
+      }
       // Story 7: shift+press on empty space is a marquee, not a pan.
       if (e.shiftKey) {
         isMarqueeingRef.current = true;
@@ -56,11 +74,12 @@ export function BoardViewport(props: BoardViewportProps) {
       beginPan({ x: e.clientX, y: e.clientY });
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [beginPan, props.onMarqueeBegin],
+    [beginPan, props.onMarqueeBegin, tool],
   );
 
   const handlePointerMove = useCallback(
     (e: React.PointerEvent) => {
+      if (isTextPlacingRef.current) return; // story 9: text placement has no move phase
       if (isMarqueeingRef.current) {
         props.onMarqueeMove?.(localPoint(e));
         return;
@@ -74,6 +93,21 @@ export function BoardViewport(props: BoardViewportProps) {
 
   const handlePointerUp = useCallback(
     (e: React.PointerEvent) => {
+      if (isTextPlacingRef.current) {
+        isTextPlacingRef.current = false;
+        try {
+          (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId);
+        } catch { /* ignore */ }
+        const down = downPosRef.current;
+        downPosRef.current = null;
+        // A press without movement is a click: create text at the world point.
+        if (down !== null && down.x === e.clientX && down.y === e.clientY) {
+          lastTextCreateRef.current = Date.now();
+          const create = props.onCreateTextAt;
+          if (create !== undefined) create(screenToWorld(camera, localPoint(e)));
+        }
+        return;
+      }
       if (isMarqueeingRef.current) {
         isMarqueeingRef.current = false;
         setCursorStyle('default');
@@ -98,7 +132,7 @@ export function BoardViewport(props: BoardViewportProps) {
       }
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [endPan, props.onClearSelection, props.onMarqueeEnd],
+    [endPan, props.onClearSelection, props.onMarqueeEnd, camera, props.onCreateTextAt],
   );
 
   const handlePointerCancel = useCallback(
@@ -110,6 +144,14 @@ export function BoardViewport(props: BoardViewportProps) {
           (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId);
         } catch { /* ignore */ }
         props.onMarqueeCancel?.();
+        return;
+      }
+      if (isTextPlacingRef.current) {
+        isTextPlacingRef.current = false;
+        downPosRef.current = null;
+        try {
+          (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId);
+        } catch { /* ignore */ }
         return;
       }
       if (!isPanningRef.current) return;
@@ -197,6 +239,11 @@ export function BoardViewport(props: BoardViewportProps) {
       if (e.target !== containerRef.current) return;
       const create = props.onCreateStickyAt;
       if (!create) return;
+      // Story 9: ignore the double-click that follows a Text-tool click.
+      if (Date.now() - lastTextCreateRef.current < 500) {
+        lastTextCreateRef.current = 0;
+        return;
+      }
       const rect = containerRef.current.getBoundingClientRect();
       create(screenToWorld(camera, { x: e.clientX - rect.left, y: e.clientY - rect.top }));
     },
@@ -235,7 +282,9 @@ export function BoardViewport(props: BoardViewportProps) {
         position: 'fixed',
         inset: 0,
         overflow: 'hidden',
-        cursor: cursorStyle,
+        // Story 9: the pointer becomes a text cursor over the board while the
+        // Text tool is active (text.tool).
+        cursor: cursorStyle !== 'default' ? cursorStyle : tool === 'text' ? 'text' : 'default',
         backgroundSize: `${gridSpacing}px ${gridSpacing}px`,
         backgroundPosition: `${gridPosX}px ${gridPosY}px`,
         backgroundImage: 'radial-gradient(circle, #ccc 1px, transparent 1px)',

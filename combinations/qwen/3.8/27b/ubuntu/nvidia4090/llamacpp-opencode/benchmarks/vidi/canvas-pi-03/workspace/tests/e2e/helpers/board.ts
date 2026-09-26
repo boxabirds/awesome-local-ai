@@ -93,6 +93,32 @@ export async function getNotes(page: Page): Promise<NoteSnapshot[]> {
   });
 }
 
+/**
+ * Story 9: snapshot of ALL board objects (any type) with the text fields
+ * (size, widthMode, width, height, createdBy). Read through the test hooks.
+ */
+export interface ObjectSnapshot {
+  id: string;
+  type: string;
+  x: number;
+  y: number;
+  width?: number;
+  height?: number;
+  text?: string;
+  size?: string;
+  widthMode?: 'auto' | 'fixed';
+  createdBy?: string;
+  z: number;
+  createdAt: number;
+}
+
+export async function getObjects(page: Page): Promise<ObjectSnapshot[]> {
+  return page.evaluate(() => {
+    const h = (window as any).__vidi6;
+    return h ? h.getObjects() : [];
+  });
+}
+
 /** Waits until the note's bounding box matches the expected screen rect. */
 export async function waitForNoteBox(page: Page, noteId: string, expected: { x: number; y: number; width: number; height: number }): Promise<void> {
   await expect

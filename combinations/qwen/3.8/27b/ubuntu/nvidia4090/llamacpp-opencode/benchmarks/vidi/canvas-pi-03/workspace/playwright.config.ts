@@ -39,12 +39,12 @@ export default defineConfig({
     // are chromium per the spec.
     {
       name: 'firefox',
-      testMatch: '**/selection-marquee.spec.ts',
+      testMatch: ['**/selection-marquee.spec.ts', '**/text-wrapping.spec.ts'],
       use: { ...devices['Desktop Firefox'] },
     },
     {
       name: 'webkit',
-      testMatch: '**/selection-marquee.spec.ts',
+      testMatch: ['**/selection-marquee.spec.ts', '**/text-wrapping.spec.ts'],
       use: { ...devices['Desktop Safari'] },
     },
   ],

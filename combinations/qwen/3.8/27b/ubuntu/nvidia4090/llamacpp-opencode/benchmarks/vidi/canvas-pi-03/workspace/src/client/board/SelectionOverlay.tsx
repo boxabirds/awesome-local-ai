@@ -8,12 +8,16 @@ import { getObjectType } from '../objects/registry';
 
 /**
  * Selection overlay (story 7): the union bounding box of the current
- * selection plus eight resize handles. Rendered in screen space (fixed
+ * selection plus resize handles. Rendered in screen space (fixed
  * positioning) so the box border and handles keep a constant size at any
  * zoom; per-object outlines stay on the objects themselves (data-selected).
  *
  * Handles are hidden unless at least one selected object's type is
  * resizable. Each handle has aria-label "Resize <position>" (sel.transform).
+ * Story 9: when every selected object's spec is `handles: 'horizontal'`
+ * (text objects), only the e/w handles show — text height always follows
+ * the content (text.fixed_width), and the eight-handle box resize would
+ * let users set a height the object does not have.
  */
 
 export interface SelectionOverlayProps {
@@ -90,6 +94,11 @@ export function SelectionOverlay(props: SelectionOverlayProps): ReactElement | n
   if (!box) return null;
 
   const resizable = selected.some((o) => getObjectType(o.type)?.resizable);
+  // Story 9: horizontal-only handles when the whole selection is horizontal.
+  const handlesOnlyHorizontal = selected.every(
+    (o) => getObjectType(o.type)?.handles === 'horizontal',
+  );
+  const handles: readonly Handle[] = resizable && handlesOnlyHorizontal ? ['e', 'w'] : HANDLES;
   const tl = worldToScreen(camera, { x: box.x, y: box.y });
   const width = box.width * camera.zoom;
   const height = box.height * camera.zoom;
@@ -111,7 +120,7 @@ export function SelectionOverlay(props: SelectionOverlayProps): ReactElement | n
       }}
     >
       {resizable &&
-        HANDLES.map((handle) => (
+        handles.map((handle) => (
           <div
             key={handle}
             role="button"
