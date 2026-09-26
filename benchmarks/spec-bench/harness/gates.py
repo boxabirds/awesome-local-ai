@@ -88,16 +88,17 @@ def gate(ws: Path, steps: list[str] | None = None) -> dict:
             # Chromium only: the harness does not install every browser.
             cmd += ["--", "--project=chromium"]
         r = _run(cmd, ws, STEP_TIMEOUT_S, env)
-        if step == "test:e2e" and r["exit"] != 0 and "project" in r["tail"].lower():
+        if step == "test:e2e" and r["exit"] != 0 and NO_SUCH_PROJECT.search(r["tail"]):
+            # The agent's config has no "chromium" project: run its own projects instead.
             cmd = ["npm", "run", step]
             r = _run(cmd, ws, STEP_TIMEOUT_S, env)
-        if step == "test:e2e" and missing_browser(r["tail"]):
+        if step == "test:e2e" and missing_chromium(r["tail"]):
             # Install the browser the agent's Playwright wants, once, and rerun. Still missing means
             # this machine can't run the tests at all: stop, don't score (or retry) against nothing.
             fetch = _run(["npx", "playwright", "install", "chromium"], ws, STEP_TIMEOUT_S, env)
             result["steps"]["browser_install"] = fetch
             r = _run(cmd, ws, STEP_TIMEOUT_S, env) if fetch["exit"] == 0 else r
-            if missing_browser(r["tail"]):
+            if missing_chromium(r["tail"]):
                 result["harness_fault"] = (f"{MISSING_RESOURCES} the agent's e2e tests have no browser "
                                            f"({missing_browser(r['tail'])}); `npx playwright install chromium` "
                                            f"in the workspace with PLAYWRIGHT_BROWSERS_PATH={env['PLAYWRIGHT_BROWSERS_PATH']} "
@@ -136,6 +137,28 @@ BROWSER_MISSING_SIGNS = (
     "browser not installed",                  # a playwright.config that skips browsers it can't find
     "Host system is missing dependencies",    # downloaded, but the OS lacks its libraries
 )
+
+
+# Playwright's error when --project names a project the config doesn't have.
+NO_SUCH_PROJECT = re.compile(r'Project\(s\) .* not found')
+# The harness installs and promises Chromium only; another missing browser is the agent's configuration.
+CHROMIUM = re.compile(r"chrom", re.IGNORECASE)
+BROWSER_NAMES = re.compile(r"chrom|firefox|webkit", re.IGNORECASE)
+
+
+def missing_chromium(output: str) -> str | None:
+    """The sign that a run had no Chromium, the one browser this machine must provide; else None.
+    Chromium counts as missing when a line reporting the missing browser names it, or names no
+    browser and Chromium appears in the output."""
+    sig = missing_browser(output)
+    if not sig:
+        return None
+    lines = [line for line in output.splitlines() if sig in line]
+    if any(CHROMIUM.search(line) for line in lines):
+        return sig
+    if not any(BROWSER_NAMES.search(line) for line in lines) and CHROMIUM.search(output):
+        return sig
+    return None
 
 
 def missing_browser(output: str) -> str | None:
