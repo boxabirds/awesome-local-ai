@@ -1,3 +1,60 @@
+commit 34fde614e41ec6550209f05a1d8f166e7991989d
+vidi-agent  Sat Sep 26 17:13:30 2026 +0100
+
+    harness: snapshot after story 3 (uncommitted agent work)
+
+
+ NOTES.md                                   |  156 +++
+ package-lock.json                          | 1434 ++++++++++++++++++++++++++++
+ package.json                               |   11 +-
+ playwright.config.ts                       |   10 +
+ playwright.nightly.config.ts               |   14 +
+ src/client/App.tsx                         |   48 +-
+ src/client/board/useBoardDoc.ts            |   32 +-
+ src/client/canvas/testHooks.ts             |   27 +-
+ src/client/styles.css                      |   29 +
+ src/client/sync/ConnectionStatus.tsx       |   25 +
+ src/client/sync/connectBoard.ts            |  143 +++
+ src/shared/board-id.ts                     |   30 +
+ src/shared/config.ts                       |   20 +
+ src/shared/protocol.ts                     |  102 ++
+ src/worker/board-room.ts                   |  187 ++++
+ src/worker/index.ts                        |   31 +
+ tests/component/connection-status.test.tsx |  152 +++
+ tests/e2e/live-collaboration.spec.ts       |  368 +++++++
+ tests/e2e/nightly/soak.spec.ts             |  360 +++++++
+ tests/e2e/participants.ts                  |   79 ++
+ tests/integration/board-room.test.ts       |  457 +++++++++
+ tests/integration/random-ops.ts            |  145 +++
+ tests/integration/worker.test.ts           |  129 +++
+ tests/integration/ws-client.ts             |  304 ++++++
+ tests/unit/board-id.test.ts                |   50 +
+ tests/unit/protocol.test.ts                |  112 +++
+ tsconfig.json                              |    3 +-
+ tsconfig.worker.json                       |   11 +
+ vite.config.ts                             |    5 +-
+ vitest.config.ts                           |   29 +-
+ wrangler.jsonc                             |   23 +-
+ 31 files changed, 4507 insertions(+), 19 deletions(-)
+commit 8ed7b105c57264ff40acd72729eafa776a7033cd
+vidi-agent  Sat Sep 26 16:39:12 2026 +0100
+
+    story 2: complete board model and sticky notes UI (prerequisite for story 3)
+
+
+ src/client/App.tsx                      |  85 ++++++++++-
+ src/client/board/Toolbar.tsx            |  36 +++++
+ src/client/board/useBoardDoc.ts         |  53 +++++++
+ src/client/board/useSelection.ts        |  41 ++++++
+ src/client/canvas/BoardViewport.tsx     |  38 ++++-
+ src/client/objects/NoteToolbar.tsx      |  60 ++++++++
+ src/client/objects/StickyNote.tsx       | 247 ++++++++++++++++++++++++++++++++
+ src/client/objects/StickyText.ts        |  86 +++++++++++
+ src/client/objects/StickyTextEditor.tsx | 170 ++++++++++++++++++++++
+ src/client/styles.css                   | 189 ++++++++++++++++++++++++
+ src/shared/board-model.ts               | 213 +++++++++++++++++++++++----
+ tests/unit/sticky-text.test.ts          | 154 ++++++++++++++++++++
+ 12 files changed, 1340 insertions(+), 32 deletions(-)
 commit 596ba44b804c10bc799924e54e0375d3a2686bd4
 vidi-agent  Sat Sep 26 13:01:01 2026 +0100
 
