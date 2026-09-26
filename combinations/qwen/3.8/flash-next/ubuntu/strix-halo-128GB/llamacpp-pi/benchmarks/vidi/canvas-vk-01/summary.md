@@ -10,5 +10,6 @@ Model `qwen3.8-flash-next`, scope `canvas`, effort `low`, client pi 0.87.1, host
 | 4 | Return to a board and find everything as it was left | DONE | 158.4 | None | None | None | — | — | red | 28/31 |  | 0 / 0 | 3 | — | throttled 0%, server peak 38 GB |
 | 5 | Share a board with others using a link | DONE | 79.6 | None | None | None | — | — | red | 33/36 |  | 0 / 0 (ended in error) | 1 | — | throttled 0%, server peak 38 GB MEMORY-ABORT |
 | 7 | Select, move, resize and delete several objects at once | DONE | 182.0 | None | None | None | — | — | red | 41/44 |  | 0 / 0 | 4 | — | throttled 0%, server peak 37 GB |
+| 8 | Undo and redo my own changes without undoing anyone else's | DONE | 74.6 | None | None | None | — | — | red | 48/51 |  | 0 / 0 | 1 | — | throttled 0%, server peak 37 GB |
 
-**Totals:** 6 stories, 808 agent-minutes, 0 requests, 0 prompt / 0 completion tokens, gate green 0/6, final acceptance 41/44, stalled 0, partial 0, 15117 lines in src+tests.
+**Totals:** 7 stories, 882 agent-minutes, 0 requests, 0 prompt / 0 completion tokens, gate green 0/7, final acceptance 48/51, stalled 0, partial 0, 16479 lines in src+tests.
