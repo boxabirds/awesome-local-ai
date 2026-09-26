@@ -4,13 +4,15 @@ import type { SelectionApi } from './useSelection';
 import type { ObjectSnapshot } from '../../shared/board-model';
 import { moveObjects, deleteObjects } from '../../shared/board-model';
 import { NUDGE_STEP_WORLD, NUDGE_LARGE_STEP_WORLD } from '../../shared/config';
+import type { UndoController } from './undo';
 
 import { getObjectType } from '../objects/registry';
 
 /**
  * Keyboard commands for selection operations (story 7) plus the story-2
- * Enter-to-edit shortcut.
- * Ctrl/Cmd+A, Escape, Enter, arrows, Delete/Backspace.
+ * Enter-to-edit shortcut and the story-8 undo/redo shortcuts.
+ * Ctrl/Cmd+A, Escape, Enter, arrows, Delete/Backspace, Ctrl/Cmd+Z,
+ * Ctrl/Cmd+Shift+Z, Ctrl+Y.
  */
 
 const INPUT_TAGS = new Set(['input', 'textarea', 'select']);
@@ -25,6 +27,8 @@ export interface UseBoardKeysOptions {
   selection: SelectionApi;
   snapshot: readonly ObjectSnapshot[];
   canEdit: boolean;
+  /** This person's undo history (story 8). */
+  undo: UndoController;
 }
 
 export function useBoardKeys(optsRef: { current: UseBoardKeysOptions }): void {
@@ -35,6 +39,21 @@ export function useBoardKeys(optsRef: { current: UseBoardKeysOptions }): void {
       if (opts.selection.editingId !== null) return;
 
       const mod = event.ctrlKey || event.metaKey;
+
+      // Ctrl/Cmd+Z undoes, Ctrl/Cmd+Shift+Z and Ctrl+Y redo (design
+      // "Keyboard"). No selection is needed and a redo whose redo stack was
+      // cleared simply does nothing. Ignored when the board cannot be
+      // edited, like every other write path; ignored while a text input has
+      // focus (handled above), where the editor runs undo itself.
+      const letter = event.key.toLowerCase();
+      if (mod && (letter === 'z' || (letter === 'y' && !event.shiftKey))) {
+        const redo = letter === 'y' || event.shiftKey;
+        if (!opts.canEdit) return;
+        event.preventDefault();
+        if (redo) opts.undo.redo();
+        else opts.undo.undo();
+        return;
+      }
 
       // Ctrl/Cmd+A: select all
       if (mod && event.key === 'a') {
@@ -89,7 +108,12 @@ export function useBoardKeys(optsRef: { current: UseBoardKeysOptions }): void {
           positions.set(id, { x: obj.x + dx, y: obj.y + dy });
         }
         if (positions.size > 0) {
+          // One nudge is one undo step (story 8): the capture group ends on
+          // both sides, so a nudge never merges into the drag, typing burst
+          // or nudge before it.
+          opts.undo.boundary();
           moveObjects(opts.doc, positions);
+          opts.undo.boundary();
         }
         return;
       }
@@ -99,7 +123,10 @@ export function useBoardKeys(optsRef: { current: UseBoardKeysOptions }): void {
         event.preventDefault();
         const ids = [...opts.selection.ids];
         if (ids.length > 0) {
+          // One Delete press is one undo step, whatever the selection size.
+          opts.undo.boundary();
           deleteObjects(opts.doc, ids);
+          opts.undo.boundary();
           opts.selection.clear();
         }
         return;

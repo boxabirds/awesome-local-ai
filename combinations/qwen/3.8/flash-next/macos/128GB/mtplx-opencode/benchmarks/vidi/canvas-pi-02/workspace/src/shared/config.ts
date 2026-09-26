@@ -270,3 +270,20 @@ export const NUDGE_STEP_WORLD = 1;
 
 /** Shift+arrow nudge step in world units. */
 export const NUDGE_LARGE_STEP_WORLD = 10;
+
+/* --------------------------------------------------------------------- *
+ * Story 8: undo and redo my own changes.
+ * --------------------------------------------------------------------- */
+
+/**
+ * How long a typing burst may pause before the next keystroke starts a new
+ * undo step (`undo.steps`). Consecutive changes that arrive within this
+ * window are one step; the first change after a longer pause is a new step.
+ */
+export const UNDO_CAPTURE_TIMEOUT_MS = 500;
+
+/**
+ * How many undo steps one person's history holds (`undo.limit`). Oldest
+ * steps fall off the front when a new step arrives and the history is full.
+ */
+export const UNDO_MAX_STEPS = 200;

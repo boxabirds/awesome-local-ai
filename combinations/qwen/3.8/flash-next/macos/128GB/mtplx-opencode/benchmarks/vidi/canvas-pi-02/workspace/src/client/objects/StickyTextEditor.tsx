@@ -4,6 +4,7 @@ import * as Y from 'yjs';
 import { LOCAL_ORIGIN } from '../../shared/board-model';
 import { STICKY_TEXT_MAX_CHARS } from '../../shared/config';
 import { applyTextDiff, clampToLimit, counterVisible, fitFontSize } from './StickyText';
+import type { UndoController } from '../board/undo';
 
 /**
  * The editing layer of a sticky note (design "sticky.text").
@@ -26,6 +27,12 @@ export interface StickyTextEditorProps {
   /** Height available to the text, in world units. */
   box: number;
   onEnd(next: 'selected' | 'unselected'): void;
+  /**
+   * This person's undo history (story 8). Typing writes with `LOCAL_ORIGIN`
+   * and lands in it: one editing session is one undo step, so the capture
+   * group is closed when the editor opens and again when it ends.
+   */
+  undo?: UndoController;
 }
 
 export function StickyTextEditor(props: StickyTextEditorProps): JSX.Element {
@@ -66,6 +73,21 @@ export function StickyTextEditor(props: StickyTextEditorProps): JSX.Element {
       // is only a nicety there.
     }
     refit();
+    // Mount only: the editor is recreated for every editing session.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useLayoutEffect(() => {
+    // The editing session is one undo step: the boundary on open keeps the
+    // typing from merging into whatever happened before (the drag that
+    // landed the pointer here, the previous burst), and the boundary on the
+    // way out — Escape, a click outside, any unmount — keeps it from
+    // merging forward.
+    const undo = props.undo;
+    undo?.boundary();
+    return () => {
+      undo?.boundary();
+    };
     // Mount only: the editor is recreated for every editing session.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -119,6 +141,31 @@ export function StickyTextEditor(props: StickyTextEditorProps): JSX.Element {
           commit((event.target as HTMLTextAreaElement).value);
         }}
         onKeyDown={(event) => {
+          const letter = event.key.toLowerCase();
+          if (
+            (event.ctrlKey || event.metaKey) &&
+            (letter === 'z' || (letter === 'y' && !event.shiftKey))
+          ) {
+            // Ctrl/Cmd+Z inside a note is undo, not the browser's textarea
+            // undo: preventDefault stops the native history, and the textarea
+            // is re-read from Y.Text afterwards so the two cannot disagree
+            // (design "Text undo inside the editor").
+            event.preventDefault();
+            event.stopPropagation();
+            const undo = props.undo;
+            if (undo) {
+              if (letter === 'y' || event.shiftKey) undo.redo();
+              else undo.undo();
+              const value = props.ytext.toString();
+              const el = ref.current;
+              if (el) {
+                el.value = value;
+                setLength(value.length);
+                refit();
+              }
+            }
+            return;
+          }
           if (event.key === 'Escape') {
             // Escape leaves the edit but keeps the note selected; the text is
             // already in the document, so there is nothing to flush.

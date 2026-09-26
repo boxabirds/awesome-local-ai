@@ -17,6 +17,7 @@ import {
 import { unionRects, resizeRect, clampScale, scaleWithin } from '../../shared/geometry';
 import type { Rect, Handle, Point } from '../../shared/geometry';
 import { getObjectType } from '../objects/registry';
+import type { UndoController } from './undo';
 
 /**
  * Transform gesture: group move and bounding-box resize.
@@ -38,6 +39,8 @@ export interface TransformGestureOptions {
   canEdit: boolean;
   onGestureStart?(): void;
   onGestureEnd?(): void;
+  /** This person's undo history (story 8): a gesture is one undo step. */
+  undo: UndoController;
 }
 
 export interface TransformGestureApi {
@@ -109,6 +112,9 @@ export function useTransformGesture(
         if (dist < DRAG_THRESHOLD_PX) return;
         gesture.moved = true;
         opts.onGestureStart?.();
+        // Start the gesture's capture group: the raise and every frame's
+        // transform below land in one undo step (story 8).
+        opts.undo.boundary();
         if (gesture.mode === 'move') {
           const ids = [...gesture.startRects.keys()];
           bringObjectsToFront(opts.doc, ids);
@@ -197,7 +203,12 @@ export function useTransformGesture(
         return;
       }
       if (e.pointerId !== gesture.pointerId) return;
-      if (gesture.moved) optsRef.current.onGestureEnd?.();
+      if (gesture.moved) {
+        // End the capture group, on a cancel too: a partial gesture is
+        // still one step (story 8).
+        optsRef.current.undo.boundary();
+        optsRef.current.onGestureEnd?.();
+      }
       cleanup();
     };
 

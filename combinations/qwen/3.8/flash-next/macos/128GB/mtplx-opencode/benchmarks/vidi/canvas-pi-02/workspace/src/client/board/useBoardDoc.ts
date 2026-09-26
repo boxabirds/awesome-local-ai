@@ -18,7 +18,9 @@ export interface BoardDoc {
   subscribe(listener: () => void): () => void;
   /** Stable between changes: the same array while the document is untouched. */
   getSnapshot(): readonly StickySnapshot[];
-  /** Release the observer and destroy the document. */
+  /** Release the observer. The document is not ours to destroy: the session
+   * that built us decides whether the document goes too (story 8: an
+   * injected document and its undo history must survive a board teardown). */
   destroy(): void;
 }
 
@@ -89,7 +91,11 @@ export function createBoardDoc(doc: Y.Doc = new Y.Doc()): BoardDoc {
     destroy() {
       listeners.clear();
       objects.unobserveDeep(handler);
-      doc.destroy();
+      // Not `doc.destroy()`: React 19 development mode unmounts and remounts
+      // every board, and an injected document (a harness, a persisted store,
+      // a shared session) does not belong to one mount. Destroying it here
+      // wiped the document's listeners - including an injected undo history -
+      // between the two mounts, so the remounted board had no history at all.
     },
   };
 }
