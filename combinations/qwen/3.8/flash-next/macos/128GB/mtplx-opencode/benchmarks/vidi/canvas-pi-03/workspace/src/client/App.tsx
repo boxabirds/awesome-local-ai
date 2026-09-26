@@ -7,6 +7,7 @@ import { useCamera } from './canvas/useCamera';
 import { useBoardDoc } from './board/useBoardDoc';
 import { useSelection } from './board/useSelection';
 import { ConnectionStatus } from './sync/ConnectionStatus';
+import { canEdit } from './sync/connectBoard';
 import type { ConnectBoardOptions } from './sync/connectBoard';
 import { StickyNote } from './objects/StickyNote';
 import { NoteToolbar } from './objects/NoteToolbar';
@@ -54,8 +55,11 @@ export function App({ boardId = null, providerFactory }: AppProps = {}) {
   const { doc, notes, connectionState } = useBoardDoc(boardId, connectOptions);
   const sel = useSelection();
 
-  // Latest connection state for the test hook (rendered-state snapshot).
+  // Latest connection state for the test hook (rendered-state snapshot) and
+  // for the edit gates below (a board that could not be loaded is read-only).
   const connRef = useRefLike(connectionState);
+  const editable = canEdit(connectionState);
+  const editableRef = useRefLike(editable);
 
   // Keep the latest values available to the stable window keydown handler
   // without re-subscribing on every change.
@@ -70,6 +74,7 @@ export function App({ boardId = null, providerFactory }: AppProps = {}) {
 
   const createAndEdit = useCallback(
     (at: { x: number; y: number }) => {
+      if (!editableRef.current) return; // load-failed board: creation is a no-op
       const id = createSticky(docRef.current, at);
       selRef.current.startEdit(id);
     },
@@ -80,6 +85,7 @@ export function App({ boardId = null, providerFactory }: AppProps = {}) {
   // button and the Delete/Backspace keyboard shortcut.
   const removeNote = useCallback(
     (id: string) => {
+      if (!editableRef.current) return;
       deleteObject(docRef.current, id);
       selRef.current.select(null);
     },
@@ -126,6 +132,7 @@ export function App({ boardId = null, providerFactory }: AppProps = {}) {
       // belong to the text editor.
       if (state.editingId !== null || isTextInput(document.activeElement)) return;
 
+      if (!editableRef.current) return; // load-failed board: no editing at all
       if (e.key === 'n' || e.key === 'N') {
         // "Sticky note" tool shortcut: create a note at the viewport centre.
         e.preventDefault();
@@ -228,6 +235,7 @@ export function App({ boardId = null, providerFactory }: AppProps = {}) {
             zoom={cam.zoom}
             selected={sel.selectedId === note.id}
             editing={sel.editingId === note.id}
+            editable={editable}
             onSelect={(id) => sel.select(id)}
             onStartEdit={(id) => sel.startEdit(id)}
             onEndEdit={sel.endEdit}
@@ -235,7 +243,7 @@ export function App({ boardId = null, providerFactory }: AppProps = {}) {
         ))}
       </BoardViewport>
 
-      <Toolbar onCreateSticky={handleCreateSticky} />
+      <Toolbar onCreateSticky={handleCreateSticky} disabled={!editable} />
 
       {selectedNote && toolbarPos && (
         <div
@@ -249,6 +257,7 @@ export function App({ boardId = null, providerFactory }: AppProps = {}) {
         >
           <NoteToolbar
             color={selectedNote.color as StickyColor}
+            disabled={!editable}
             onColor={(c) => setStickyColor(doc, selectedNote.id, c)}
             onDelete={() => removeNote(selectedNote.id)}
           />

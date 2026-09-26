@@ -72,3 +72,22 @@ export const IDLE_KEEPALIVE_MS = 10_000;
 export const CONNECTED_CONFIRMATION_MS = 2000;
 /** Outage length used to verify PRD live.catch_up (Flaky Wi-Fi workflow). */
 export const CATCH_UP_TEST_OUTAGE_MS = 30_000;
+
+// --- Persistence (story 4) --------------------------------------------------
+
+/** Compact the update log once this many rows have accumulated. */
+export const COMPACTION_UPDATE_COUNT = 500;
+/** ...or once the log reaches this many bytes. */
+export const COMPACTION_BYTES = 4 * 1024 * 1024;
+/** Snapshot blobs are stored in chunks of this size, keeping every row far
+ * below the per-row size limit of SQLite-backed Durable Objects. */
+export const SNAPSHOT_CHUNK_BYTES = 512 * 1024;
+/** A LoadFailed room retries its load at most this often (per board). */
+export const LOAD_RETRY_MIN_INTERVAL_MS = 5000;
+/** Largest board size verified for PRD persist.large_board. */
+export const PERSIST_TESTED_NOTES = 2000;
+/** Budget for showing a PERSIST_TESTED_NOTES board (PRD persist.large_board). */
+export const BOARD_LOAD_BUDGET_MS = 3000;
+/** Version of the Durable-Object storage tables (NOT the Yjs doc schema, which
+ * is versioned separately by `meta.schemaVersion`). */
+export const STORAGE_SCHEMA_VERSION = 1;

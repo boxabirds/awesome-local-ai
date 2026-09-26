@@ -12,11 +12,20 @@ export interface ConnectionStatusProps {
  *   connecting  → "Connecting…"   (neutral)
  *   reconnecting → "Reconnecting…" (amber)
  *   confirmed   → "Connected"     (green, for CONNECTED_CONFIRMATION_MS)
+ *   load_failed → "This board couldn't be loaded. Retrying…" (red, persistent:
+ *                 the board is not shown and editing is disabled until a retry
+ *                 succeeds — PRD persist.load_failure)
  */
 export function ConnectionStatus({ state }: ConnectionStatusProps) {
   if (state === 'connected') return null;
   const text =
-    state === 'reconnecting' ? 'Reconnecting…' : state === 'confirmed' ? 'Connected' : 'Connecting…';
+    state === 'load_failed'
+      ? "This board couldn't be loaded. Retrying…"
+      : state === 'reconnecting'
+        ? 'Reconnecting…'
+        : state === 'confirmed'
+          ? 'Connected'
+          : 'Connecting…';
   return (
     <div
       role="status"

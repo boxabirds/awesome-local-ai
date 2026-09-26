@@ -1,5 +1,8 @@
 export interface ToolbarProps {
   onCreateSticky(): void;
+  /** True while the board cannot be edited (load failure): the creation button
+   * is rendered disabled, so the failure is visible instead of silent. */
+  disabled?: boolean;
 }
 
 /**
@@ -7,7 +10,7 @@ export interface ToolbarProps {
  * button. It stops pointer propagation so a click in the palette never reaches
  * the board (which would otherwise clear the selection or pan the camera).
  */
-export function Toolbar({ onCreateSticky }: ToolbarProps) {
+export function Toolbar({ onCreateSticky, disabled = false }: ToolbarProps) {
   return (
     <div
       data-testid="toolbar"
@@ -33,6 +36,9 @@ export function Toolbar({ onCreateSticky }: ToolbarProps) {
       <button
         type="button"
         aria-label="Sticky note"
+        aria-disabled={disabled}
+        disabled={disabled}
+        data-disabled={disabled ? 'true' : 'false'}
         title="Sticky note – or double-click the board"
         data-testid="create-sticky"
         onClick={() => onCreateSticky()}

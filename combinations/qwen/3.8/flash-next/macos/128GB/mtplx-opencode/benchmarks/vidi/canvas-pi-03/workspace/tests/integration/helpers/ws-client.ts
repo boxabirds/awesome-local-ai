@@ -37,9 +37,9 @@ export interface RawClient {
 }
 
 /** Connect a raw WebSocket client to a room. Resolves once OPEN. */
-export function rawClient(boardId: string): Promise<RawClient> {
+export function rawClient(boardId: string, origin: string = WS_ORIGIN): Promise<RawClient> {
   return new Promise((resolve, reject) => {
-    const ws = new WebSocket(`${WS_ORIGIN}/api/rooms/${boardId}`);
+    const ws = new WebSocket(`${origin}/api/rooms/${boardId}`);
     ws.binaryType = 'arraybuffer';
     const frames: Uint8Array[] = [];
     let settleClosed: ((code: number) => void) | null = null;

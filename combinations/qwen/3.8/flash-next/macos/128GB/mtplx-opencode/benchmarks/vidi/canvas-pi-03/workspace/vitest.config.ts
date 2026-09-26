@@ -1,5 +1,6 @@
 import { defineConfig } from 'vitest/config';
 import react from '@vitejs/plugin-react';
+import { defineWorkersProject } from '@cloudflare/vitest-pool-workers/config';
 
 export default defineConfig({
   plugins: [react()],
@@ -40,6 +41,18 @@ export default defineConfig({
           hookTimeout: 120_000,
         },
       },
+      defineWorkersProject({
+        test: {
+          name: 'workers',
+          include: ['tests/workers/**/*.test.ts'],
+          pool: '@cloudflare/vitest-pool-workers',
+          poolOptions: {
+            workers: {
+              wrangler: { configPath: './tests/workers/wrangler.jsonc' },
+            },
+          },
+        },
+      }),
     ],
   },
 });
