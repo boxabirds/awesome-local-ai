@@ -121,6 +121,32 @@ These are included for completeness. Each was measured, but each has a confounde
    - Every later request on that session id got 409 `session … is already in flight`, even though `/health` showed `active_requests` 0.
    - Not re-tested on 2.12.
 
+## 5. 2.12.0 stock: two more machine freezes, both at the compaction point (26 Sep)
+
+These two freezes are the same kind as the 2.11.3 panic in section 4, but without its confounder. The screen saver had been removed, and nothing else heavy was running.
+
+**Setup:** MTPLX 2.12.0 at the default memory limit, serving Flash-Next Optimized-Speed to pi. The context was 131,072 tokens, with pi's default compaction (window − 16,384, so it triggers at about 114k). The machine was the M5 Max 128 GB.
+
+| | Freeze 1 | Freeze 2 |
+|---|---|---|
+| Run | canvas-pi-02, story 11 | canvas-pi-03, story 3 |
+| Last completed request (UTC) | 03:20:33 | 08:57:29 |
+| That request's prompt | 43,893 tokens (a few minutes after a 114k request and its compaction) | 114,191 tokens (the compaction point) |
+| MTPLX memory at that request (active + cache) | 85.9 + 5.9 GiB | 93.9 + 2.1 GiB |
+| Peak memory before the freeze | 96.5 GiB | 96.0 GiB |
+| Last system log entry (UTC) | 03:20:22 | 08:57:29.5 |
+| Last 2-second power sample (UTC) | 03:20:33 | 08:57:34 (90 W at the wall) |
+| Watchdog restart (UTC) | 03:23 | 08:59:50 |
+| Panic report written | No | No |
+
+**What the data shows:**
+- In both cases, the whole machine stops within seconds of a request at or near pi's compaction point, while MTPLX holds 92–96 GiB of wired GPU memory. About 2.5 minutes later the watchdog restarts it.
+- The same run also had five guard refusals at 0.2–1.7 GiB over the 96 GiB limit, and one "exceeded available GPU memory … during prefill" abort that repeated on resume until the server was restarted. So a request can pass the guard while the machine as a whole has too little memory left.
+
+**Question for you:** should the default limit on a 128 GB machine leave more headroom? Or should the guard account for the wired memory the OS itself needs at about 96 GiB of GPU use?
+
+The timestamps come from the harness's 2-second power collector (`tools/power-collector`) and `/usr/bin/log show`. Each run's `interventions.md` records its restarts.
+
 ## Data available on request
 
 - The request-log rows for every window above, as JSONL.
