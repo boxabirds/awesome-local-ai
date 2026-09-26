@@ -26,14 +26,14 @@ database_name = "todoodle-local"
 database_id = "00000000-0000-0000-0000-000000000000"
 migrations_dir = "migrations"
 
-# WorkspaceRoom Durable Object: owned by story 4 (needs the exported class and a
-# DO migration tag). Placeholder only:
-# [[durable_objects.bindings]]
-# name = "WORKSPACE_ROOM"
-# class_name = "WorkspaceRoom"
-# [[migrations]]
-# tag = "v1"
-# new_sqlite_classes = ["WorkspaceRoom"]
+# Story 4: one WorkspaceRoom Durable Object per workspace fans out live changes (holds no data of record).
+[[durable_objects.bindings]]
+name = "WORKSPACE_ROOM"
+class_name = "WorkspaceRoom"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["WorkspaceRoom"]
 
 # ---------------------------------------------------------------- staging
 [env.staging]
@@ -47,6 +47,10 @@ invocation_logs = false
 
 [env.staging.vars]
 ENVIRONMENT = "staging"
+
+[[env.staging.durable_objects.bindings]]
+name = "WORKSPACE_ROOM"
+class_name = "WorkspaceRoom"
 
 [[env.staging.d1_databases]]
 binding = "DB"
@@ -67,6 +71,10 @@ invocation_logs = false
 
 [env.production.vars]
 ENVIRONMENT = "production"
+
+[[env.production.durable_objects.bindings]]
+name = "WORKSPACE_ROOM"
+class_name = "WorkspaceRoom"
 
 [[env.production.d1_databases]]
 binding = "DB"

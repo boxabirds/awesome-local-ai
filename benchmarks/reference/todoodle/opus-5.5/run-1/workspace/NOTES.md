@@ -158,3 +158,76 @@
   (api 76, deploy 18), UI (92) and e2e (51 across chromium, webkit and mobile-touch, run twice) all pass. As in stories
   1–2, `bun run <script>` cannot run in this sandbox, so each script's underlying binary was run directly against a
   manually started `wrangler dev`.
+
+## Story 4
+
+- **Commit order.** Task 6 (LiveProvider and the client live modules) was committed before task 5, because task 5 wraps the
+  workspace in `LiveProvider`. `backoff.ts` landed with task 6, because `LiveConnection` needs it. The integration tests
+  written to verify tasks 2–3 were committed with task 10.
+- **Story 2 names differ from the design.** The design's `WorkspaceShell` is `WorkspaceView` in `routes/Workspace.tsx`, and its
+  `WorkspaceName.tsx` is `features/workspace/WorkspaceNameEditor.tsx`. Story 2 had no `features/share/copy.ts`, so story 4 adds
+  it: it holds the panel's statement text, and `SharePanel` and the tests read it from there.
+  Story 2's stub `features/live/canEditStore.ts` was replaced by the design's `canEdit.ts`. The story 2 edit-gate UI test
+  therefore mocks `@/features/live/canEdit`, keeping the module's other exports via `importOriginal`. Its assertions are unchanged.
+- **Edit-gate fieldsets.** Share sits inside the header, so one fieldset cannot wrap the header's name editor while leaving
+  Share outside. There are two fieldsets, both driven by the same `useCanEdit()` boolean: the header's own fieldset around the
+  name editor (story 2), and one around the sidebar and main areas. Share, the switcher and the unsaved-link banner stay outside both.
+- **Constants.** Besides the design's table, `limits.ts` gains:
+  - `LIVE_RECONNECT_MAX_MS = 30_000`: the backoff cap the tests expect.
+  - `LIVE_PING_INTERVAL_MS = 20_000`.
+  - `LIVE_PING`/`LIVE_PONG`.
+  - `LIVE_UPDATE_TARGET_MS = 5_000`.
+  - `LIVE_FRAME_FALLBACK_MS = 100`: a fallback timer in case a hidden tab never fires the animation frame.
+  - `CLIENT_ID_HEADER_NAME`.
+  `LIVE_OFFLINE_AFTER_MS` never existed, so there was nothing to retire.
+- **Event union.** The design lists 8 type literals, but TC-E01 says "9 valid variants". TC-E01 parses one valid event of every
+  type (all 8) and asserts the list equals `LIVE_EVENT_TYPES`. `ProjectDTO`/`TaskDTO` are loose `{id, version}` placeholders
+  for stories 5 and 7.
+- **No-op rename.** Renaming to the current name now returns 200 without writing: no version bump and no broadcast (TC-B06).
+  Before this story every rename bumped the version.
+- **Not found on the socket.** Browsers hide the HTTP status of a refused upgrade, and auth fails before the upgrade, so the server
+  never sends close 4404 today. The client handles 4404 anyway. When a socket fails before it ever opened, it also asks
+  `GET /api/w/:id`: a 404 means `not_found` (terminal, no retries, the route shows Not Found). Any other answer keeps retrying.
+- **Socket states.** `reconnecting` lasts from a drop until the next open, including the retry attempts, so the status does not flip
+  back to `connecting` on every attempt. While the network is offline no attempts are made. When the network comes back, the
+  socket reconnects at once with a fresh backoff. The client pings once as soon as the socket opens, then every interval. The first
+  pong proves the path end to end, and the e2e tests wait for it before acting.
+- **api.ts and the live feature.** They are decoupled through `setConnectivityHooks` (installed by `network.ts` and `canEdit.ts`),
+  so there are no import cycles. The `OfflineError` guard covers workspace edits (`request(..., {edit: true})`: rename now, and
+  stories 5–8 add theirs). Create, open, touch and forget are not workspace edits. The health probe never reports its own
+  failure. `request` is exported for later stories, and HTTP 410 maps to `GoneError`.
+- **Conflict UX details (name editor).**
+  - While a conflict is open, leaving the field does not commit or close the notice. Escape closes the editor, which keeps theirs.
+  - After a choice, the editor stays open if the field still has focus, and closes otherwise.
+  - The notice's buttons keep focus on mousedown, so a click does not blur (and close) the editor.
+  - The editor-closed toast uses sonner's action/cancel buttons, with the description `Now: <their value>`.
+  - A rename draft typed before going offline is kept even if the browser blurs the field as it becomes disabled.
+- **Announcer.** The polite region has `aria-label="Changes by others"`, which keeps story 2's query for the unnamed name-hint
+  status unique. Each announcement is a fresh node keyed by a sequence number, so a repeated message is announced again. The
+  `workspace.updated` handler also patches the name in the cached remembered list (switcher, Home) without refetching.
+- **Test placement and mechanics.**
+  - The design's `apps/api/test/share-join.test.ts` lives in `test/integration/`, the only folder the integration project runs.
+  - TC-B04 calls `app.fetch` directly with a throwing `WORKSPACE_ROOM` in `env`, because a binding cannot be overridden through `SELF`.
+  - workerd will not construct a Durable Object around a fake `ctx`. The TC-R01/R02 unit tests therefore call the room's methods
+    on a prototype-linked object carrying a fake `ctx`, and the constructor's ping/pong auto-response is checked with
+    `runInDurableObject`.
+  - UI tests use `mock-socket` servers, and the story 2/3 UI tests get an inert socket by default (`test/support/sockets.ts`).
+  - TC-O10 uses fake timers with `shouldAdvanceTime`, so MSW and `waitFor` still run. The exact 4,999/5,000 ms boundary is
+    pinned in the unit tests.
+- **E2E.** `e2e/live.spec.ts` runs on Chromium only, as the design says (clipboard permission, offline emulation, WebSocket
+  routing); its tests are skipped on WebKit. W8 starts from an unrenamed workspace. Otherwise A's own rename at creation falls
+  within A's 10 s recent-edit window, and B's rename correctly raises a conflict notice for A, which holds A's next commit until
+  A chooses a version.
+- **wrangler.** The Durable Object binding is repeated under `env.staging` and `env.production`, because bindings are not
+  inherited. The DO migration (`tag = "v1"`) is top-level, and `wrangler deploy --dry-run --env staging` lists the binding with
+  no warnings.
+- **Story 4 verification.** Everything below passes:
+  - typecheck (all five tsconfigs), lint and build;
+  - unit: api 84, deploy 48, web 122;
+  - integration: api 104, deploy 18;
+  - UI: 114;
+  - e2e: 59 passed and 8 skipped (story 4 on WebKit) across chromium, webkit and mobile-touch. The story 4 specs were also run
+    3 times in a row on Chromium with no failures.
+
+  As in stories 1–3, `bun run <script>` cannot run in this sandbox, so each script's underlying binary was run directly against
+  a manually started `wrangler dev`.

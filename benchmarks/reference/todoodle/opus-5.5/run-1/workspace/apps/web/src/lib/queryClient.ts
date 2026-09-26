@@ -1,4 +1,9 @@
-import { QueryClient } from '@tanstack/react-query';
+import { QueryClient, notifyManager } from '@tanstack/react-query';
+import { scheduleFrame } from '@/features/live/frameScheduler';
+
+// Observers are notified once per animation frame (setTimeout while the tab is hidden), so a burst of
+// live events re-renders each observer once and background tabs stay current.
+notifyManager.setScheduler(scheduleFrame);
 
 /** Workspace data primed from create/open counts as fresh this long, so arriving never refetches it at once. */
 const DEFAULT_STALE_MS = 10_000;

@@ -64,3 +64,13 @@ describe('request id', () => {
     expect(first).not.toBe(second);
   });
 });
+
+describe('finalizeResponse: WebSocket upgrades (story 4)', () => {
+  it('passes a 101 through untouched, keeping its webSocket', () => {
+    const pair = new WebSocketPair();
+    const upgrade = new Response(null, { status: 101, webSocket: pair[0] });
+    const res = finalizeResponse(upgrade, { requestId: 'r', path: '/api/w/x/live' });
+    expect(res).toBe(upgrade);
+    expect(res.webSocket).toBe(pair[0]);
+  });
+});

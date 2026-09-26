@@ -1,7 +1,11 @@
 import type { Workspace as WorkspaceData } from '@todoodle/shared/schemas';
 import { Suspense, use, useCallback, useMemo, useState } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router';
-import { useCanEdit } from '@/features/live/canEditStore';
+import { useCanEdit } from '@/features/live/canEdit';
+import { LiveAnnouncer } from '@/features/live/LiveAnnouncer';
+import { LiveProvider } from '@/features/live/LiveProvider';
+import { OfflineBanner } from '@/features/live/OfflineBanner';
+import { ReconnectingPill } from '@/features/live/ReconnectingPill';
 import { SharePanelLazy } from '@/features/share/SharePanelLazy';
 import { type OpenResult, getOpen, retryOpen } from '@/features/workspace/bootOpen';
 import { WorkspaceContext, type WorkspaceContextValue } from '@/features/workspace/WorkspaceContext';
@@ -37,8 +41,9 @@ function WorkspaceView({
   const navigate = useNavigate();
   const [panel, setPanel] = useState<PanelState>(() => ({ open: isJustCreated(location.state), mode: 'save' }));
   const { mutateAsync: rename } = useRenameWorkspace(workspace.id);
-  // Failures are handled by the mutation (rollback + toast); the editor only needs to know it settled.
-  const onRename = useCallback((name: string) => rename(name).catch(() => undefined), [rename]);
+  // Failures are handled by the mutation (rollback + toast); the editor also learns whether it saved
+  // (story 4's edit guard needs to know).
+  const onRename = useCallback((name: string) => rename(name), [rename]);
   const context = useMemo<WorkspaceContextValue>(
     () => ({ workspaceId: workspace.id, secretFromHash }),
     [workspace.id, secretFromHash],
@@ -55,33 +60,43 @@ function WorkspaceView({
   return (
     <WorkspaceContext value={context}>
       <title>{`Todoodle - ${workspace.name}`}</title>
+      {/* Polite summary of other people's changes for screen readers (story 4). */}
+      <LiveAnnouncer />
       <div className="flex min-h-svh flex-col">
+        {/* Story 4: saves can't reach Todoodle. Editing is off below; typed text stays in its field. */}
+        <OfflineBanner />
         <WorkspaceHeader
           name={workspace.name}
           canEdit={canEdit}
           onRename={onRename}
           onShare={() => setPanel({ open: true, mode: 'share' })}
         />
-        <div className="flex flex-1">
-          <aside className="hidden w-56 border-r border-border p-4 sm:block">
-            <nav aria-label="Lists">
-              <span aria-current="page" className="block rounded-md bg-muted px-3 py-2 text-sm font-medium">
-                Inbox
-              </span>
-            </nav>
-          </aside>
-          {placeholder ? (
-            <WorkspaceSkeletonRows />
-          ) : (
-            <main className="flex-1 p-4">
-              <fieldset disabled={!canEdit} className="contents">
+        {/*
+          The edit gate for the sidebar and main areas: one fieldset, disabled while !canEdit. Disabling
+          never unmounts inputs, so drafts survive. Share, the switcher and navigation stay outside it.
+        */}
+        <fieldset disabled={!canEdit} className="contents">
+          <div className="flex flex-1">
+            <aside className="hidden w-56 border-r border-border p-4 sm:block">
+              <nav aria-label="Lists">
+                <span aria-current="page" className="block rounded-md bg-muted px-3 py-2 text-sm font-medium">
+                  Inbox
+                </span>
+              </nav>
+            </aside>
+            {placeholder ? (
+              <WorkspaceSkeletonRows />
+            ) : (
+              <main className="flex-1 p-4">
                 <h2 className="text-xl font-semibold">Inbox</h2>
                 <p className="mt-2 text-muted-foreground">Your Inbox is empty.</p>
-              </fieldset>
-            </main>
-          )}
-        </div>
+              </main>
+            )}
+          </div>
+        </fieldset>
       </div>
+      {/* Live updates paused but saving works: a small pill, editing stays on. */}
+      <ReconnectingPill />
       {/* Outside the edit fieldset: sharing works even when editing is disabled. */}
       <SharePanelLazy open={panel.open} mode={panel.mode} onOpenChange={onPanelOpenChange} />
     </WorkspaceContext>
@@ -91,14 +106,23 @@ function WorkspaceView({
 /** /w#<secret> once open has settled. The name comes from the query cache (kept fresh by refetch). */
 function OpenedWorkspace({ promise, secret, onRetry }: { promise: Promise<OpenResult>; secret: string; onRetry: () => void }) {
   const result = use(promise);
+  // 404: Not Found, and no LiveProvider, so no socket is ever attempted.
   if (result.status === 'not_found') return <NotFound />;
   if (result.status === 'failed') return <WorkspaceLoadFailed onRetry={onRetry} />;
   return <HashWorkspaceReady opened={result.workspace} secret={secret} />;
 }
 
+/**
+ * Open has resolved, so the id is known: the data queries and the live socket start now, in parallel.
+ * (Open itself can only overlap the route chunk load: the id comes from its response.)
+ */
 function HashWorkspaceReady({ opened, secret }: { opened: WorkspaceData; secret: string }) {
   const { data } = useWorkspace(opened.id);
-  return <WorkspaceView workspace={data ?? opened} secretFromHash={secret} />;
+  return (
+    <LiveProvider key={opened.id} workspaceId={opened.id} notFound={<NotFound />}>
+      <WorkspaceView workspace={data ?? opened} secretFromHash={secret} />
+    </LiveProvider>
+  );
 }
 
 function HashWorkspace({ secret }: { secret: string }) {
@@ -118,7 +142,13 @@ function IdWorkspace({ id }: { id: string }) {
   // Not remembered here (or no longer opens): NotFound, whichever request learns it first.
   if (isNotFoundError(touch.error) || isNotFoundError(query.error)) return <NotFound />;
   // A placeholder (name from the cached remembered list) renders the header at once; the body waits.
-  if (query.data) return <WorkspaceView workspace={query.data} placeholder={query.isPlaceholderData} />;
+  if (query.data) {
+    return (
+      <LiveProvider workspaceId={id} notFound={<NotFound />}>
+        <WorkspaceView workspace={query.data} placeholder={query.isPlaceholderData} />
+      </LiveProvider>
+    );
+  }
   if (query.isPending) return <WorkspaceSkeleton />;
   return <WorkspaceLoadFailed onRetry={() => void query.refetch()} />;
 }

@@ -34,6 +34,7 @@
     "axe-core": "^4.13.0",
     "eslint": "^10.11.0",
     "happy-dom": "^20.14.5",
+    "mock-socket": "^9.3.1",
     "msw": "^2.15.0",
     "tailwindcss": "^4.3.3",
     "tw-animate-css": "^1.3.8",

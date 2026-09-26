@@ -1,0 +1,446 @@
+{
+  "skipped": false,
+  "build_exit": 0,
+  "runner_exit": 1,
+  "runner_tail": "",
+  "passed": 49,
+  "total": 51,
+  "on_partial": {
+    "passed": 0,
+    "total": 0
+  },
+  "by_story": {
+    "01": {
+      "passed": 11,
+      "total": 11
+    },
+    "02": {
+      "passed": 22,
+      "total": 22
+    },
+    "03": {
+      "passed": 14,
+      "total": 15
+    },
+    "04": {
+      "passed": 2,
+      "total": 3
+    }
+  },
+  "harness_fault": null,
+  "tests": [
+    {
+      "file": "story-01.spec.ts",
+      "title": "landing page runs locally and shows Todoodle @ref prd:local_dev",
+      "status": "passed",
+      "error": "",
+      "on_partial": null
+    },
+    {
+      "file": "story-01.spec.ts",
+      "title": "health reports status, environment, version, revision and release time @ref prd:health",
+      "status": "passed",
+      "error": "",
+      "on_partial": null
+    },
+    {
+      "file": "story-01.spec.ts",
+      "title": "/health and /api/health answer the same @ref prd:health",
+      "status": "passed",
+      "error": "",
+      "on_partial": null
+    },
+    {
+      "file": "story-01.spec.ts",
+      "title": "every response carries a request id and baseline protections @ref prd:security_baseline",
+      "status": "passed",
+      "error": "",
+      "on_partial": null
+    },
+    {
+      "file": "story-01.spec.ts",
+      "title": "API and health responses are never cached @ref prd:security_baseline",
+      "status": "passed",
+      "error": "",
+      "on_partial": null
+    },
+    {
+      "file": "story-01.spec.ts",
+      "title": "unknown API paths are a plain 404 without internals @ref prd:request_limits",
+      "status": "passed",
+      "error": "",
+      "on_partial": null
+    },
+    {
+      "file": "story-01.spec.ts",
+      "title": "an unsupported method is rejected @ref prd:request_limits",
+      "status": "passed",
+      "error": "",
+      "on_partial": null
+    },
+    {
+      "file": "story-01.spec.ts",
+      "title": "a change without JSON content is rejected @ref prd:request_limits",
+      "status": "passed",
+      "error": "",
+      "on_partial": null
+    },
+    {
+      "file": "story-01.spec.ts",
+      "title": "a body over 1 MB is rejected @ref prd:request_limits",
+      "status": "passed",
+      "error": "",
+      "on_partial": null
+    },
+    {
+      "file": "story-01.spec.ts",
+      "title": "a change from outside the web client is refused @ref prd:request_limits",
+      "status": "passed",
+      "error": "",
+      "on_partial": null
+    },
+    {
+      "file": "story-01.spec.ts",
+      "title": "deep links are served the app, not a 404 @ref prd:local_dev",
+      "status": "passed",
+      "error": "",
+      "on_partial": null
+    },
+    {
+      "file": "story-02.spec.ts",
+      "title": "Start a new list opens a new empty workspace @ref prd:create_workspace",
+      "status": "passed",
+      "error": "",
+      "on_partial": null
+    },
+    {
+      "file": "story-02.spec.ts",
+      "title": "each workspace gets its own long random link @ref prd:unguessable_link",
+      "status": "passed",
+      "error": "",
+      "on_partial": null
+    },
+    {
+      "file": "story-02.spec.ts",
+      "title": "another person with the link gets into the workspace @ref prd:unguessable_link",
+      "status": "passed",
+      "error": "",
+      "on_partial": null
+    },
+    {
+      "file": "story-02.spec.ts",
+      "title": "save-your-link panel shows the full link and the warnings @ref prd:save_link_prompt",
+      "status": "passed",
+      "error": "",
+      "on_partial": null
+    },
+    {
+      "file": "story-02.spec.ts",
+      "title": "Copy link & continue copies the link and closes the panel @ref prd:save_link_actions",
+      "status": "passed",
+      "error": "",
+      "on_partial": null
+    },
+    {
+      "file": "story-02.spec.ts",
+      "title": "Email it to me uses the mail app with the link in the body @ref prd:save_link_actions",
+      "status": "passed",
+      "error": "",
+      "on_partial": null
+    },
+    {
+      "file": "story-02.spec.ts",
+      "title": "Bookmark this page says which keys to press @ref prd:save_link_actions",
+      "status": "passed",
+      "error": "",
+      "on_partial": null
+    },
+    {
+      "file": "story-02.spec.ts",
+      "title": "skipping leaves a reminder until the link is copied, even after reload @ref prd:unsaved_link_reminder",
+      "status": "passed",
+      "error": "",
+      "on_partial": null
+    },
+    {
+      "file": "story-02.spec.ts",
+      "title": "Remind me later hides the reminder for this tab only @ref prd:unsaved_link_reminder",
+      "status": "passed",
+      "error": "",
+      "on_partial": null
+    },
+    {
+      "file": "story-02.spec.ts",
+      "title": "one Share button in the header opens the link panel @ref prd:share_entry",
+      "status": "passed",
+      "error": "",
+      "on_partial": null
+    },
+    {
+      "file": "story-02.spec.ts",
+      "title": "the full link stays in the address bar and reload returns to the workspace @ref prd:bookmarkable_link",
+      "status": "passed",
+      "error": "",
+      "on_partial": null
+    },
+    {
+      "file": "story-02.spec.ts",
+      "title": "an unknown link shows the not-found page @ref prd:not_found",
+      "status": "passed",
+      "error": "",
+      "on_partial": null
+    },
+    {
+      "file": "story-02.spec.ts",
+      "title": "a cut-off link shows the not-found page @ref prd:not_found",
+      "status": "passed",
+      "error": "",
+      "on_partial": null
+    },
+    {
+      "file": "story-02.spec.ts",
+      "title": "an empty link shows the not-found page @ref prd:not_found",
+      "status": "passed",
+      "error": "",
+      "on_partial": null
+    },
+    {
+      "file": "story-02.spec.ts",
+      "title": "not-found reveals nothing about which links exist @ref prd:not_found",
+      "status": "passed",
+      "error": "",
+      "on_partial": null
+    },
+    {
+      "file": "story-02.spec.ts",
+      "title": "renaming saves the name for everyone @ref prd:rename_workspace",
+      "status": "passed",
+      "error": "",
+      "on_partial": null
+    },
+    {
+      "file": "story-02.spec.ts",
+      "title": "an empty name is refused and the old name comes back @ref prd:rename_workspace",
+      "status": "passed",
+      "error": "",
+      "on_partial": null
+    },
+    {
+      "file": "story-02.spec.ts",
+      "title": "Escape cancels a rename @ref prd:rename_workspace",
+      "status": "passed",
+      "error": "",
+      "on_partial": null
+    },
+    {
+      "file": "story-02.spec.ts",
+      "title": "the link never reaches the title, web storage or referrers @ref prd:no_link_leak",
+      "status": "passed",
+      "error": "",
+      "on_partial": null
+    },
+    {
+      "file": "story-02.spec.ts",
+      "title": "a failed load offers Try again, not the not-found page @ref prd:load_failure",
+      "status": "passed",
+      "error": "",
+      "on_partial": null
+    },
+    {
+      "file": "story-02.spec.ts",
+      "title": "placeholders show while the workspace loads @ref prd:loading_state",
+      "status": "passed",
+      "error": "",
+      "on_partial": null
+    },
+    {
+      "file": "story-02.spec.ts",
+      "title": "the workspace follows the device light or dark setting @ref prd:colour_scheme",
+      "status": "passed",
+      "error": "",
+      "on_partial": null
+    },
+    {
+      "file": "story-03.spec.ts",
+      "title": "a created workspace is remembered and listed on the home page @ref prd:remember_on_open @ref prd:list_remembered",
+      "status": "passed",
+      "error": "",
+      "on_partial": null
+    },
+    {
+      "file": "story-03.spec.ts",
+      "title": "a workspace opened from a link is remembered in that browser @ref prd:remember_on_open",
+      "status": "passed",
+      "error": "",
+      "on_partial": null
+    },
+    {
+      "file": "story-03.spec.ts",
+      "title": "the list is most recently opened first @ref prd:list_remembered",
+      "status": "passed",
+      "error": "",
+      "on_partial": null
+    },
+    {
+      "file": "story-03.spec.ts",
+      "title": "Continue goes to the most recent workspace, never automatically @ref prd:continue_recent",
+      "status": "passed",
+      "error": "",
+      "on_partial": null
+    },
+    {
+      "file": "story-03.spec.ts",
+      "title": "the name shows before the workspace finishes loading @ref prd:instant_name",
+      "status": "passed",
+      "error": "",
+      "on_partial": null
+    },
+    {
+      "file": "story-03.spec.ts",
+      "title": "a browser with nothing remembered shows only Start and the open-a-link hint @ref prd:empty_home",
+      "status": "passed",
+      "error": "",
+      "on_partial": null
+    },
+    {
+      "file": "story-03.spec.ts",
+      "title": "forgetting removes it from this browser only; the link still works @ref prd:forget",
+      "status": "passed",
+      "error": "",
+      "on_partial": null
+    },
+    {
+      "file": "story-03.spec.ts",
+      "title": "Cancel keeps the workspace remembered @ref prd:forget",
+      "status": "passed",
+      "error": "",
+      "on_partial": null
+    },
+    {
+      "file": "story-03.spec.ts",
+      "title": "forgetting an unsaved link warns and offers to copy it @ref prd:forget_unsaved_warning",
+      "status": "passed",
+      "error": "",
+      "on_partial": null
+    },
+    {
+      "file": "story-03.spec.ts",
+      "title": "forgetting a saved link has no warning @ref prd:forget_unsaved_warning",
+      "status": "passed",
+      "error": "",
+      "on_partial": null
+    },
+    {
+      "file": "story-03.spec.ts",
+      "title": "the not-found page lists remembered workspaces above Start @ref prd:not_found_recovery",
+      "status": "passed",
+      "error": "",
+      "on_partial": null
+    },
+    {
+      "file": "story-03.spec.ts",
+      "title": "the header switcher lists remembered workspaces and switches @ref prd:list_remembered",
+      "status": "failed",
+      "error": "TimeoutError: locator.click: Timeout 5000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('header').getByRole('button', { name: /Beta/ }).first()\u001b[22m\n",
+      "on_partial": null
+    },
+    {
+      "file": "story-03.spec.ts",
+      "title": "remembered links are kept where page scripts cannot read them @ref prd:protected_memory",
+      "status": "passed",
+      "error": "",
+      "on_partial": null
+    },
+    {
+      "file": "story-03.spec.ts",
+      "title": "a failed list load offers retry and Start stays usable @ref prd:list_loading",
+      "status": "passed",
+      "error": "",
+      "on_partial": null
+    },
+    {
+      "file": "story-03.spec.ts",
+      "title": "remembered-list actions work by touch with 44 px targets @ref prd:touch_usable",
+      "status": "passed",
+      "error": "",
+      "on_partial": null
+    },
+    {
+      "file": "story-04.spec.ts",
+      "title": "Share shows the link, a copy action and the full-access statement @ref prd:share_panel",
+      "status": "passed",
+      "error": "",
+      "on_partial": null
+    },
+    {
+      "file": "story-04.spec.ts",
+      "title": "opening a shared link goes straight in, with no prompts @ref prd:join_via_link",
+      "status": "passed",
+      "error": "",
+      "on_partial": null
+    },
+    {
+      "file": "story-04.spec.ts",
+      "title": "someone who joined by link can add tasks @ref prd:join_via_link",
+      "status": "skipped",
+      "error": "",
+      "on_partial": null
+    },
+    {
+      "file": "story-04.spec.ts",
+      "title": "a task added by one person appears for the other without reload @ref prd:live_updates",
+      "status": "skipped",
+      "error": "",
+      "on_partial": null
+    },
+    {
+      "file": "story-04.spec.ts",
+      "title": "a task completed by one person leaves the other person's list without reload @ref prd:live_updates",
+      "status": "skipped",
+      "error": "",
+      "on_partial": null
+    },
+    {
+      "file": "story-04.spec.ts",
+      "title": "changes by someone else are announced politely as a count @ref prd:announce_remote",
+      "status": "skipped",
+      "error": "",
+      "on_partial": null
+    },
+    {
+      "file": "story-04.spec.ts",
+      "title": "an edit overtaken by someone else is flagged and can be kept @ref prd:conflict_notice @ref prd:conflict_choice",
+      "status": "skipped",
+      "error": "",
+      "on_partial": null
+    },
+    {
+      "file": "story-04.spec.ts",
+      "title": "an edit overtaken by someone else can give way to theirs @ref prd:conflict_choice",
+      "status": "skipped",
+      "error": "",
+      "on_partial": null
+    },
+    {
+      "file": "story-04.spec.ts",
+      "title": "offline shows a banner, stops edits and keeps typed text @ref prd:offline_indicator",
+      "status": "skipped",
+      "error": "",
+      "on_partial": null
+    },
+    {
+      "file": "story-04.spec.ts",
+      "title": "losing only live updates shows Reconnecting and editing stays on @ref prd:live_paused",
+      "status": "skipped",
+      "error": "",
+      "on_partial": null
+    },
+    {
+      "file": "story-04.spec.ts",
+      "title": "live updates need the link, and say nothing about whether a workspace exists @ref prd:live_access",
+      "status": "failed",
+      "error": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoBe\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m) // Object.is equality\u001b[22m\n\nExpected: \u001b[32m404\u001b[39m\nReceived: \u001b[31m403\u001b[39m",
+      "on_partial": null
+    }
+  ]
+}
