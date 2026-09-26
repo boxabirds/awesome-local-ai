@@ -1,0 +1,10 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "vidi6",
+  // The Worker module (`main`) arrives in story 3; until then this is an
+  // assets-only deployment that serves the built client.
+  "compatibility_date": "2026-09-17",
+  "assets": {
+    "directory": "dist/client"
+  }
+}

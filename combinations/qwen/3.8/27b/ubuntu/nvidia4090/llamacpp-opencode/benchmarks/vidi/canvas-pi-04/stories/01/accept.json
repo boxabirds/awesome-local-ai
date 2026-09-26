@@ -1,0 +1,91 @@
+{
+  "skipped": false,
+  "build_exit": 0,
+  "runner_exit": 0,
+  "runner_tail": "",
+  "passed": 6,
+  "total": 6,
+  "on_partial": {
+    "passed": 0,
+    "total": 0
+  },
+  "by_story": {
+    "01": {
+      "passed": 6,
+      "total": 6
+    }
+  },
+  "harness_fault": null,
+  "tests": [
+    {
+      "file": "story-01.spec.ts",
+      "title": "golden path: controls and hint visible at 100% @ref prd:golden-path",
+      "status": "passed",
+      "error": "",
+      "on_partial": null
+    },
+    {
+      "file": "story-01.spec.ts",
+      "title": "zoom buttons step 100 \u2192 125 \u2192 100 @ref prd:zoom.step",
+      "status": "passed",
+      "error": "",
+      "on_partial": null
+    },
+    {
+      "file": "story-01.spec.ts",
+      "title": "zoom limits clamp and disable buttons @ref prd:zoom.limits",
+      "status": "passed",
+      "error": "",
+      "on_partial": null
+    },
+    {
+      "file": "story-01.spec.ts",
+      "title": "keyboard zoom and reset do not zoom the page @ref prd:zoom.no_page_zoom",
+      "status": "passed",
+      "error": "",
+      "on_partial": null
+    },
+    {
+      "file": "story-01.spec.ts",
+      "title": "ctrl+wheel zooms the board @ref prd:zoom.pointer",
+      "status": "passed",
+      "error": "",
+      "on_partial": null
+    },
+    {
+      "file": "story-01.spec.ts",
+      "title": "hint disappears after first pan and stays gone @ref prd:nav.hint",
+      "status": "passed",
+      "error": "",
+      "on_partial": null
+    },
+    {
+      "file": "story-01.spec.ts",
+      "title": "drag pans content exactly with the pointer @ref prd:pan.drag",
+      "status": "skipped",
+      "error": "",
+      "on_partial": null
+    },
+    {
+      "file": "story-01.spec.ts",
+      "title": "wheel scroll pans in scroll direction @ref prd:pan.scroll",
+      "status": "skipped",
+      "error": "",
+      "on_partial": null
+    },
+    {
+      "file": "story-01.spec.ts",
+      "title": "zoom keeps the point under the pointer fixed @ref prd:zoom.pointer",
+      "status": "skipped",
+      "error": "",
+      "on_partial": null
+    },
+    {
+      "file": "story-01.spec.ts",
+      "title": "reset view returns to 100% with origin centred @ref prd:view.reset",
+      "status": "skipped",
+      "error": "",
+      "on_partial": null
+    }
+  ]
+}
