@@ -1,3 +1,30 @@
+commit 025e901a2f7e733dd9ea7502a5b3224ff109386f
+vidi-agent  Sat Sep 26 10:55:52 2026 +0100
+
+    story 11: Sketch freehand with a pen
+
+
+ playwright.config.ts                  |   7 +-
+ src/client/board/Board.tsx            |  54 ++++++-
+ src/client/board/Toolbar.tsx          |  23 +++
+ src/client/canvas/BoardViewport.tsx   |  43 ++++-
+ src/client/objects/StrokeObject.tsx   | 142 ++++++++++++++++
+ src/client/objects/registry.tsx       |  52 ++++++
+ src/client/tools/PenTool.tsx          | 293 ++++++++++++++++++++++++++++++++++
+ src/client/tools/PenToolbar.tsx       | 124 ++++++++++++++
+ src/client/tools/useActiveTool.ts     |  19 ++-
+ src/client/tools/usePenOptions.ts     |  37 +++++
+ src/shared/board-model.ts             |  23 +++
+ src/shared/config.ts                  |  36 +++++
+ src/shared/geometry/simplify.ts       |  97 +++++++++++
+ src/shared/objects/stroke.ts          | 216 +++++++++++++++++++++++++
+ tests/component/PenTool.test.tsx      | 210 ++++++++++++++++++++++++
+ tests/component/StrokeObject.test.tsx | 137 ++++++++++++++++
+ tests/e2e/helpers/board.ts            |  10 ++
+ tests/e2e/pen.spec.ts                 | 290 +++++++++++++++++++++++++++++++++
+ tests/fixtures/pen-paths.ts           |  72 +++++++++
+ tests/unit/stroke.test.ts             | 227 ++++++++++++++++++++++++++
+ 20 files changed, 2091 insertions(+), 21 deletions(-)
 commit bb50b959f902d77f8cb875f04782bdb8842ee52f
 vidi-agent  Sat Sep 26 09:44:15 2026 +0100
 
