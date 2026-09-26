@@ -28,3 +28,24 @@ button:focus-visible {
   outline: 2px solid #2563eb;
   outline-offset: 1px;
 }
+
+/* Sticky notes (story 2) */
+.sticky-note {
+  /* The note font is authored in world units and scales with the board. */
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+}
+
+.sticky-textarea {
+  font-family: inherit;
+}
+
+/* Present when text overflows at the minimum font size. */
+.sticky-overflow {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 28px;
+  pointer-events: none;
+  background: linear-gradient(to bottom, rgba(255, 255, 255, 0), rgba(255, 255, 255, 0.85));
+}

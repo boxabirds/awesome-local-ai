@@ -1,3 +1,35 @@
+commit e99815adce22c4cd21668a5109d9602fa852bab2
+vidi-agent  Sat Sep 26 09:15:13 2026 +0100
+
+    story 2: Capture ideas on sticky notes and rearrange them
+
+
+ NOTES.md                                           | 110 ++++++++++
+ package-lock.json                                  |  51 ++++-
+ package.json                                       |   5 +-
+ .../tasks.md                                       |  16 +-
+ src/client/App.tsx                                 | 189 +++++++++++++++++-
+ src/client/board/Toolbar.tsx                       |  57 ++++++
+ src/client/board/useBoardDoc.ts                    |  62 ++++++
+ src/client/board/useSelection.ts                   |  40 ++++
+ src/client/canvas/BoardViewport.tsx                |  29 ++-
+ src/client/objects/NoteToolbar.tsx                 |  84 ++++++++
+ src/client/objects/StickyNote.tsx                  | 201 +++++++++++++++++++
+ src/client/objects/StickyText.ts                   | 114 +++++++++++
+ src/client/objects/StickyTextEditor.tsx            | 140 +++++++++++++
+ src/client/styles.css                              |  21 ++
+ src/shared/board-model.ts                          | 183 +++++++++++++++++
+ src/shared/config.ts                               |  28 ++-
+ tests/component/StickyNote.test.tsx                | 218 ++++++++++++++++++++
+ tests/component/StickyTextEditor.test.tsx          | 115 +++++++++++
+ tests/component/Toolbars.test.tsx                  |  70 +++++++
+ tests/component/harness.ts                         |  42 ++++
+ tests/e2e/helpers/board.ts                         |  56 +++++-
+ tests/e2e/sticky.spec.ts                           | 158 +++++++++++++++
+ tests/fixtures/texts.ts                            |  15 ++
+ tests/unit/board-model.test.ts                     | 221 +++++++++++++++++++++
+ tests/unit/sticky-text.test.ts                     | 138 +++++++++++++
+ 25 files changed, 2340 insertions(+), 23 deletions(-)
 commit 2f372da232581aa9c54706e1d2d71eb69342015f
 vidi-agent  Sat Sep 26 08:27:11 2026 +0100
 

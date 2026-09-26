@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type ReactNode, type PointerEvent as ReactPointerEvent } from 'react';
 import { useCamera, wheelDeltaToPixels, type CameraApi } from './useCamera';
-import { GRID_SPACING_WORLD } from '../../shared/config';
+import { GRID_SPACING_WORLD, DRAG_THRESHOLD_PX } from '../../shared/config';
 import type { Camera, Size } from './camera';
 
 function mod(v: number, s: number): number {
@@ -36,6 +36,10 @@ export interface BoardViewportProps {
   api?: CameraApi;
   /** Reports measured size so an injected camera can track the viewport. */
   onSize?: (size: Size) => void;
+  /** A pointerup on empty space with no drag: clears the selection. */
+  onEmptyClick?(): void;
+  /** A double-click on empty space, given the screen point (viewport-relative). */
+  onEmptyDblClick?(point: { x: number; y: number }): void;
 }
 
 /**
@@ -43,9 +47,12 @@ export interface BoardViewportProps {
  * CSS transform is driven by the camera, and the input handlers (drag, wheel,
  * Safari gesture, keyboard) that turn raw events into camera changes.
  */
-export function BoardViewport({ children, size, api: apiProp, onSize }: BoardViewportProps) {
+export function BoardViewport({ children, size, api: apiProp, onSize, onEmptyClick, onEmptyDblClick }: BoardViewportProps) {
   const elRef = useRef<HTMLDivElement>(null);
   const [measured, setMeasured] = useState<Size>(() => ({ width: 1280, height: 800 }));
+  // Tracks a press that began on empty space so a later pointerup can tell a
+  // click (clear selection) from a drag (pan).
+  const emptyPress = useRef<{ x: number; y: number; moved: boolean } | null>(null);
 
   // Always call the hook (rules of hooks); the injected api wins when present.
   const localApi = useCamera(size ?? measured);
@@ -157,11 +164,17 @@ export function BoardViewport({ children, size, api: apiProp, onSize }: BoardVie
     // Drag only begins on empty space: the target must be the viewport itself,
     // so later object layers can stopPropagation and win their own gestures.
     if (e.target !== e.currentTarget) return;
+    emptyPress.current = { x: e.clientX, y: e.clientY, moved: false };
     (e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId);
     api.beginPan({ x: e.clientX, y: e.clientY });
   };
 
   const handlePointerMove = (e: ReactPointerEvent<HTMLDivElement>) => {
+    if (emptyPress.current) {
+      const dx = e.clientX - emptyPress.current.x;
+      const dy = e.clientY - emptyPress.current.y;
+      if (Math.hypot(dx, dy) >= DRAG_THRESHOLD_PX) emptyPress.current.moved = true;
+    }
     // panMove is a no-op unless a pan is active (guarded inside the hook), so
     // it is safe to call for every move without a stale-mode check.
     api.panMove({ x: e.clientX, y: e.clientY });
@@ -169,7 +182,18 @@ export function BoardViewport({ children, size, api: apiProp, onSize }: BoardVie
 
   const handleEndPan = (e: ReactPointerEvent<HTMLDivElement>) => {
     (e.currentTarget as HTMLElement).releasePointerCapture?.(e.pointerId);
+    // A click on empty space with no drag clears the selection.
+    if (emptyPress.current && !emptyPress.current.moved) onEmptyClick?.();
+    emptyPress.current = null;
     api.endPan();
+  };
+
+  const handleDoubleClick = (e: ReactPointerEvent<HTMLDivElement>) => {
+    // Only the empty board creates a note; a note (or toolbar) handles its own
+    // double-click and stops propagation before it reaches here.
+    if (e.target !== e.currentTarget) return;
+    const rect = e.currentTarget.getBoundingClientRect();
+    onEmptyDblClick?.({ x: e.clientX - rect.left, y: e.clientY - rect.top });
   };
 
   return (
@@ -195,6 +219,7 @@ export function BoardViewport({ children, size, api: apiProp, onSize }: BoardVie
       onPointerUp={handleEndPan}
       onPointerCancel={handleEndPan}
       onLostPointerCapture={() => api.endPan()}
+      onDoubleClick={handleDoubleClick}
     >
       <div
         data-testid="world-layer"
