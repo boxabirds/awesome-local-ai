@@ -770,3 +770,16 @@ def test_time_split_puts_the_story_s_wall_time_into_model_tools_and_compaction(t
     assert s["tools_by_kind"]["e2e"] == 60 and s["model"]["prefill_s"] == 4.0 and s["model"]["decode_s"] == 5.0
     assert s["other_s"] == 500 - 61 - 300 - 9.0
     assert drive.time_split(tmp_path / "none.jsonl", tmp_path / "none.log", t0, t0 + 1)["model"] is None
+
+
+def test_a_cut_off_event_line_does_not_crash_the_end_of_a_story(tmp_path):
+    """A story ended by the cap, a skip or the hang guard kills pi mid-line; a panic truncates the log.
+    Reading the stamped events at story end must skip the broken line, not crash before the record
+    is saved (a restart would then crash on the same line, story after story)."""
+    import json as _json
+    from drive import _stamped_events
+    log = tmp_path / "agent-events.jsonl"
+    good = [{"_rx": 1.0, "type": "message_end"}, {"_rx": 3.0, "type": "tool_execution_start"}]
+    log.write_text(_json.dumps(good[0]) + "\n" + '{"_rx": 2.0, "type": "message_end", "message": {"content": "cut of\n'
+                   + _json.dumps(good[1]) + "\n")
+    assert [e["_rx"] for e in _stamped_events(log)] == [1.0, 3.0]
