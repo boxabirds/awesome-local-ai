@@ -268,6 +268,15 @@ Measured from MTPLX's own flight recorder (`~/.mtplx/metrics/flight-18010.jsonl`
   did not restart, and its next requests completed normally. We don't know what un-wires the model
   like this; it may be the system memory guard's shed. It is in the recorder at 2-second resolution.
 
+**The same compaction at `MTPLX_MEMORY_LIMIT_BYTES=90G`** (15:07–15:11 UTC, the resumed story 4
+session). The first request, the resumed 114k conversation, was refused with "projects 90.2 GiB
+against the engine's 90.0 GiB limit". pi fork-resumed 60 s later and sent the compaction: a new
+session with the same 72,776 prompt tokens as the request that froze the machine at 14:48. This
+time it completed in 129 s. Over those minutes the lowest `kern.memorystatus_level` was 27%, with
+at most 0.11 GiB compressed and no swap. The compaction at the default limit that the machine
+survived (10:02) had 17% and 14.7 GiB compressed. One compaction is not proof, but at this point
+in the conversation, a 6 GiB lower limit made the difference between a frozen machine and a normal one.
+
 **Question for you:** should a cache-miss prefill for a new session wait until the previous
 session's resident snapshot is evicted, or stay under a projected total that includes it?
 This compaction is the request that stops the machine.
