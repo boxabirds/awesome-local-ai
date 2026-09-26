@@ -110,3 +110,10 @@ export const NUDGE_LARGE_STEP_WORLD = 10;
 export const LINK_COPIED_MS = 2000;
 /** Base backoff for board-existence retries; doubles up to RECONNECT_MAX_BACKOFF_MS. */
 export const BOARD_CHECK_RETRY_BASE_MS = 1000;
+
+// Undo settings (story 8)
+
+/** Typing pause (ms) that ends a capture group — keystrokes closer together merge into one undo step. */
+export const UNDO_CAPTURE_TIMEOUT_MS = 500;
+/** Maximum number of undo steps kept per user per session. */
+export const UNDO_MAX_STEPS = 200;

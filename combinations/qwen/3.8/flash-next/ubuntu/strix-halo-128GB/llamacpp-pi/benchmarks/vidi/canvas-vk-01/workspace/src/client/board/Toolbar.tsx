@@ -1,15 +1,17 @@
-import { type JSX } from 'react';
+import { type JSX, type ReactNode } from 'react';
 
 export interface ToolbarProps {
   onCreateSticky(): void;
   /** False while the board cannot be edited (persist.load_failure). */
   editable?: boolean;
+  /** Undo/Redo buttons rendered below the tools. */
+  undoButtons?: ReactNode;
 }
 
 /**
- * Fixed left-side toolbar with the Sticky note button.
+ * Fixed left-side toolbar with the Sticky note button and undo/redo buttons.
  */
-export function Toolbar({ onCreateSticky, editable = true }: ToolbarProps): JSX.Element {
+export function Toolbar({ onCreateSticky, editable = true, undoButtons }: ToolbarProps): JSX.Element {
   return (
     <div
       className="board-toolbar"
@@ -27,6 +29,7 @@ export function Toolbar({ onCreateSticky, editable = true }: ToolbarProps): JSX.
       >
         <span aria-hidden="true">&#x1F4CC;</span>
       </button>
+      {undoButtons}
     </div>
   );
 }

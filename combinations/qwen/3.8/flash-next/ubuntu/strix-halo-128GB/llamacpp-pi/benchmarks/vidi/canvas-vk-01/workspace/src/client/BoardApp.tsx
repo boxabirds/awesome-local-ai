@@ -20,6 +20,10 @@ import { NoteToolbar } from './objects/NoteToolbar';
 import { getObjectType } from './objects/registry';
 import { createSticky, deleteObject, deleteObjects, setStickyColor } from '../shared/board-model';
 import { SharePanel } from './share/SharePanel';
+import { createUndo } from './board/undo';
+import { UndoProvider } from './board/UndoContext';
+import { useUndo } from './board/useUndo';
+import { UndoButtons } from './board/UndoButtons';
 
 /** Fixed overlays that read the board camera: zoom control and first-use hint. */
 export function BoardOverlays() {
@@ -62,6 +66,12 @@ function BoardContent() {
     if (!editable && editingId !== null) endEdit();
   }, [editable, editingId, endEdit]);
 
+  // Undo controller: one per board doc, session-only
+  const undoController = useMemo(() => createUndo(doc), [doc]);
+  useEffect(() => () => undoController.destroy(), [undoController]);
+
+  const undoState = useUndo(undoController, editable);
+
   const draggingRef = useRef(false);
   const gesture = useTransformGesture({
     doc,
@@ -73,9 +83,11 @@ function BoardContent() {
     onToggleObject: toggle,
     onGestureStart: () => {
       draggingRef.current = true;
+      undoController.boundary();
     },
     onGestureEnd: () => {
       draggingRef.current = false;
+      undoController.boundary();
     },
   });
 
@@ -86,15 +98,17 @@ function BoardContent() {
     [setMany],
   ));
 
-  useBoardKeys({ doc, snapshot: notes, selection: { ids, setMany, clear }, editingId, canEdit: editable });
+  useBoardKeys({ doc, snapshot: notes, selection: { ids, setMany, clear }, editingId, canEdit: editable, undoRedo: { undo: undoState.undo, redo: undoState.redo, boundary: () => undoController.boundary() } });
 
   const handleDblClickEmpty = useCallback(
     (worldPoint: Point) => {
       if (!editable) return;
+      undoController.boundary();
       const id = createSticky(doc, worldPoint);
+      undoController.boundary();
       startEdit(id);
     },
-    [doc, startEdit, editable],
+    [doc, startEdit, editable, undoController],
   );
 
   const handleEmptyClick = useCallback(() => {
@@ -103,37 +117,45 @@ function BoardContent() {
 
   const handleCreateSticky = useCallback(() => {
     if (!editable) return;
+    undoController.boundary();
     const viewportEl = document.querySelector('[data-testid="board-viewport"]') as HTMLElement | null;
     if (!viewportEl) return;
     const rect = viewportEl.getBoundingClientRect();
     const screenCenter: Point = { x: rect.width / 2, y: rect.height / 2 };
     const worldCenter = screenToWorld(camera, screenCenter);
     const id = createSticky(doc, worldCenter);
+    undoController.boundary();
     startEdit(id);
-  }, [doc, camera, startEdit, editable]);
+  }, [doc, camera, startEdit, editable, undoController]);
 
   const handleColorChange = useCallback(
     (id: string, color: string) => {
       if (!editable) return;
+      undoController.boundary();
       setStickyColor(doc, id, color);
+      undoController.boundary();
     },
-    [doc, editable],
+    [doc, editable, undoController],
   );
 
   const handleDelete = useCallback(
     (id: string) => {
       if (!editable) return;
+      undoController.boundary();
       deleteObject(doc, id);
+      undoController.boundary();
       clear();
     },
-    [doc, clear, editable],
+    [doc, clear, editable, undoController],
   );
 
   const handleDeleteSelection = useCallback(() => {
     if (!editable) return;
+    undoController.boundary();
     deleteObjects(doc, Array.from(ids));
+    undoController.boundary();
     clear();
-  }, [doc, ids, clear, editable]);
+  }, [doc, ids, clear, editable, undoController]);
 
   // Story 2's Enter-to-edit for a single selected, editable-text object.
   useEffect(() => {
@@ -170,8 +192,8 @@ function BoardContent() {
   const overlayVisible = ids.size > 0 && !gesture.isDragging;
 
   return (
-    <>
-      <Toolbar onCreateSticky={handleCreateSticky} editable={editable} />
+    <UndoProvider value={undoController}>
+      <Toolbar onCreateSticky={handleCreateSticky} editable={editable} undoButtons={<UndoButtons {...undoState} />} />
       <BoardViewport
         onDblClickEmpty={handleDblClickEmpty}
         onEmptyClick={handleEmptyClick}
@@ -223,7 +245,7 @@ function BoardContent() {
           onDelete={handleDelete}
         />
       )}
-    </>
+    </UndoProvider>
   );
 }
 

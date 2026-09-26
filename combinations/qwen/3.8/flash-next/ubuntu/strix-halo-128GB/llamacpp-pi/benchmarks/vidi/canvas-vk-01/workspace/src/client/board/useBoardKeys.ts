@@ -15,12 +15,19 @@ export interface BoardKeyHandlers {
   clear(): void;
 }
 
+export interface UndoRedoHandlers {
+  undo(): void;
+  redo(): void;
+  boundary(): void;
+}
+
 export interface BoardKeysOptions {
   doc: Doc;
   snapshot: readonly ObjectSnapshot[];
   selection: BoardKeyHandlers;
   editingId: string | null;
   canEdit: boolean;
+  undoRedo?: UndoRedoHandlers;
 }
 
 function isEditableTarget(target: EventTarget | null): boolean {
@@ -53,7 +60,7 @@ export function useBoardKeys(options: BoardKeysOptions): void {
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
-      const { doc, snapshot, selection, editingId, canEdit } = ref.current;
+      const { doc, snapshot, selection, editingId, canEdit, undoRedo } = ref.current;
 
       // Never intercept text entry or an active editor.
       if (editingId !== null) return;
@@ -72,12 +79,31 @@ export function useBoardKeys(options: BoardKeysOptions): void {
         return;
       }
 
+      // Undo/redo shortcuts (story 8)
+      if (undoRedo && canEdit) {
+        const isUndo = (event.ctrlKey || event.metaKey) && !event.shiftKey && (event.key === 'z' || event.key === 'Z');
+        const isRedo1 = (event.ctrlKey || event.metaKey) && event.shiftKey && (event.key === 'z' || event.key === 'Z');
+        const isRedo2 = event.ctrlKey && !event.metaKey && (event.key === 'y' || event.key === 'Y');
+        if (isUndo) {
+          event.preventDefault();
+          undoRedo.undo();
+          return;
+        }
+        if (isRedo1 || isRedo2) {
+          event.preventDefault();
+          undoRedo.redo();
+          return;
+        }
+      }
+
       if (!canEdit) return;
       if (selection.ids.size === 0) return;
 
       if (event.key === 'Delete' || event.key === 'Backspace') {
         event.preventDefault();
+        if (undoRedo) undoRedo.boundary();
         deleteObjects(doc, Array.from(selection.ids));
+        if (undoRedo) undoRedo.boundary();
         selection.clear();
         return;
       }
@@ -85,6 +111,7 @@ export function useBoardKeys(options: BoardKeysOptions): void {
       const arrow = ARROWS[event.key];
       if (arrow !== undefined) {
         event.preventDefault();
+        if (undoRedo) undoRedo.boundary();
         const step = event.shiftKey ? NUDGE_LARGE_STEP_WORLD : NUDGE_STEP_WORLD;
         const [ux, uy] = arrow;
         const positions = new Map<string, { x: number; y: number }>();
@@ -94,6 +121,7 @@ export function useBoardKeys(options: BoardKeysOptions): void {
           }
         }
         moveObjects(doc, positions);
+        if (undoRedo) undoRedo.boundary();
       }
     };
 
