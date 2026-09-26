@@ -15,6 +15,14 @@ benchmarks/spec-bench/harness/drive.py --pack benchmarks/<name> [--epic NAME] --
 `combinations/<COMBINATION>/benchmarks/<pack-name>/<run-id>/`. dbench runs this harness when a job
 names a pack (`dbench submit … --pack benchmarks/<name>`).
 
+## What gets recorded
+
+Every run and story records its configuration, what the agent did, where the time went (model
+prefill and decode, tools, compaction), the machine's conditions (GPU clock, power, temperature,
+memory) and the scores: [TELEMETRY.md](TELEMETRY.md) lists every field, where it lands and which
+machines produce it. When you change what the harness records, update it;
+[`harness/test_telemetry_doc.py`](harness/test_telemetry_doc.py) fails until you do.
+
 ## What a pack is
 
 A pack is named by its directory here, `benchmarks/<name>/`. Its contents are found by
