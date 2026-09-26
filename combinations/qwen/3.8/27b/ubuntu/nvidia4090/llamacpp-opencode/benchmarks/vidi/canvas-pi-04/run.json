@@ -1,0 +1,4 @@
+{"install_id": "qwen38-27b", "combination": "qwen/3.8/27b/ubuntu/nvidia4090/llamacpp-opencode", "model_id": "qwen3.8-27b",
+ "pack": "vidi", "scope": "canvas", "metered": 0, "reasoning_effort": "low", "context_limit": 131072,
+ "output_limit": 32768, "backend_version": "", "mtplx_memory_limit_bytes": "", "compact_at": "client default", "client": "pi", "client_version": "0.86.0", "backend": "llamacpp", "host": "13th Gen Intel(R) Core(TM) i9-13900F 62GB, NVIDIA GeForce RTX 4090 24564 MiB",
+ "harness_commit": "62792fc", "pack_version": "vidi-v1", "started_at": "2026-09-26T11:16:17Z"}
