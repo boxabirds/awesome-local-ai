@@ -13,7 +13,10 @@ benchmarks/spec-bench/harness/drive.py --pack benchmarks/todoodle --dry-run     
 benchmarks/spec-bench/harness/run.sh <install-id> --pack benchmarks/todoodle --epic workspaces --run-id <id>
 ```
 
-Until `packs/todoodle/acceptance/tests/` exists, runs are scored on the agent's own gate only and
-acceptance is reported n/a. When the held-out suite is added, tag the private repo (e.g.
-`todoodle-v1`) and set `"pack_ref"` in [`bench.json`](bench.json), so every node pins the same
-version (`setup-node.sh --pack benchmarks/todoodle`).
+The held-out suite is pinned by `"pack_ref": "todoodle-v1"` in [`bench.json`](bench.json), so every
+node runs the same version (`setup-node.sh --pack benchmarks/todoodle` checks out that tag). It has
+one Playwright file per story and starts each build the way the spec runs it: the local D1 database
+migrated from `migrations/`, then `wrangler dev` from the workspace root. What it covers, and which
+PRD requirements it can't test from a browser, is in the private repo's
+`packs/todoodle/acceptance/README.md`. A change to the suite or the grading brief is a new tag
+(`todoodle-v2`), and results only compare within one version.
