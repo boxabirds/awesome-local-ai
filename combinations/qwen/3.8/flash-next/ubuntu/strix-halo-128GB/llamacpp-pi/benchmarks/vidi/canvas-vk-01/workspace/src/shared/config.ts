@@ -117,3 +117,29 @@ export const BOARD_CHECK_RETRY_BASE_MS = 1000;
 export const UNDO_CAPTURE_TIMEOUT_MS = 500;
 /** Maximum number of undo steps kept per user per session. */
 export const UNDO_MAX_STEPS = 200;
+
+// Free text settings (story 9)
+
+/** Largest width an auto-width text box grows to, in world units; longer lines wrap. */
+export const TEXT_MAX_AUTO_WIDTH_WORLD = 600;
+/** Smallest width a fixed (handle-dragged) text width can reach, in world units. */
+export const TEXT_MIN_WIDTH_WORLD = 40;
+/** Maximum characters in a text object. */
+export const TEXT_MAX_CHARS = 5000;
+/** Text size presets, in board units (px at 100% zoom). */
+export const TEXT_SIZES = { S: 14, M: 20, L: 32, XL: 56 } as const;
+export type TextSize = keyof typeof TEXT_SIZES;
+/** Size of a freshly created text object. */
+export const DEFAULT_TEXT_SIZE: TextSize = 'M';
+/** Text line height multiplier; height = lines × size × TEXT_LINE_HEIGHT. */
+export const TEXT_LINE_HEIGHT = 1.3;
+/** The board's standard sans-serif text face. */
+export const TEXT_FONT_FAMILY = 'Inter, system-ui, sans-serif';
+/** Extra width added to an auto-width text box so glyphs never touch the edge. */
+export const TEXT_WIDTH_PADDING_WORLD = 8;
+/**
+ * Average glyph width as a fraction of the font size, used for the estimate
+ * fallback when no text measurer (canvas) is available. Never accurate, only
+ * proportional — good enough for an initial box before the first measurement.
+ */
+export const TEXT_ESTIMATED_GLYPH_RATIO = 0.52;

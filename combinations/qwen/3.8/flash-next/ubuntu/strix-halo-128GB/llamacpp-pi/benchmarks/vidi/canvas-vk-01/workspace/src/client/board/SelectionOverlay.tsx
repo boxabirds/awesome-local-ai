@@ -65,6 +65,14 @@ export function SelectionOverlay({
     return spec !== undefined && spec.resizable;
   });
 
+  // When every selected type resizes horizontally only (text), show just the
+  // east/west handles — the height follows the wrapped content (story 9).
+  const horizontalOnly = selected.every((obj) => {
+    const spec = getObjectType(obj.type);
+    return spec !== undefined && spec.handles === 'horizontal';
+  });
+  const handles = horizontalOnly ? HANDLES.filter((h) => h === 'e' || h === 'w') : HANDLES;
+
   const topLeft = worldToScreen(camera, { x: box.x, y: box.y });
   const w = box.width * camera.zoom;
   const h = box.height * camera.zoom;
@@ -85,7 +93,7 @@ export function SelectionOverlay({
       }}
     >
       {resizable &&
-        HANDLES.map((handle) => {
+        handles.map((handle) => {
           const frac = HANDLE_POS[handle];
           const size = HANDLE_SIZE_PX;
           return (

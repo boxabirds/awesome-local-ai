@@ -8,6 +8,7 @@ import {
   moveObjects,
   type ObjectSnapshot,
 } from '../../shared/board-model';
+import { isEditableTarget } from './useTool';
 
 export interface BoardKeyHandlers {
   ids: ReadonlySet<string>;
@@ -28,16 +29,8 @@ export interface BoardKeysOptions {
   editingId: string | null;
   canEdit: boolean;
   undoRedo?: UndoRedoHandlers;
-}
-
-function isEditableTarget(target: EventTarget | null): boolean {
-  if (!(target instanceof HTMLElement)) return false;
-  return (
-    target.isContentEditable ||
-    target.tagName === 'INPUT' ||
-    target.tagName === 'TEXTAREA' ||
-    target.tagName === 'SELECT'
-  );
+  /** `N` — create a sticky at the view centre (story 2, kept by story 9). */
+  onCreateSticky?: () => void;
 }
 
 const ARROWS: Record<string, [number, number]> = {
@@ -97,6 +90,15 @@ export function useBoardKeys(options: BoardKeysOptions): void {
       }
 
       if (!canEdit) return;
+
+      // `N` creates a sticky at the view centre (story 2). It runs before the
+      // selection guard because it works with nothing selected.
+      if (event.key === 'n' || event.key === 'N') {
+        event.preventDefault();
+        ref.current.onCreateSticky?.();
+        return;
+      }
+
       if (selection.ids.size === 0) return;
 
       if (event.key === 'Delete' || event.key === 'Backspace') {

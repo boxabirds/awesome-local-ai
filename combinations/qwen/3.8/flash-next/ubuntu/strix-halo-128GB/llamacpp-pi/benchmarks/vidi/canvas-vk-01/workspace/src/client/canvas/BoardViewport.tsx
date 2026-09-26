@@ -108,6 +108,13 @@ export interface BoardViewportProps {
    * the viewport only routes the pointer events here.
    */
   marqueeController?: MarqueeController;
+  /**
+   * While the Text tool is active (story 9) a capture layer covers the board:
+   * every click — over objects or empty space — places a new text object at
+   * that world point instead of selecting or panning.
+   */
+  textToolActive?: boolean;
+  onTextToolPlace?(worldPoint: Point): void;
 }
 
 /**
@@ -115,7 +122,14 @@ export interface BoardViewportProps {
  * wheel/trackpad scrolling, pinch (Safari gesture) zoom, the keyboard zoom
  * shortcuts, the dot grid and the world layer transform.
  */
-export function BoardViewport({ children, onDblClickEmpty, onEmptyClick, marqueeController }: BoardViewportProps): JSX.Element {
+export function BoardViewport({
+  children,
+  onDblClickEmpty,
+  onEmptyClick,
+  marqueeController,
+  textToolActive = false,
+  onTextToolPlace,
+}: BoardViewportProps): JSX.Element {
   const viewportRef = useRef<HTMLDivElement | null>(null);
   const worldRef = useRef<HTMLDivElement | null>(null);
   const panPointerIdRef = useRef<number | null>(null);
@@ -139,9 +153,9 @@ export function BoardViewport({ children, onDblClickEmpty, onEmptyClick, marquee
   });
 
   // Latest callbacks for stable event handlers
-  const callbacksRef = useRef({ onDblClickEmpty, onEmptyClick });
+  const callbacksRef = useRef({ onDblClickEmpty, onEmptyClick, onTextToolPlace });
   useEffect(() => {
-    callbacksRef.current = { onDblClickEmpty, onEmptyClick };
+    callbacksRef.current = { onDblClickEmpty, onEmptyClick, onTextToolPlace };
   });
 
   // Wheel must be non-passive so the page never scrolls or zooms over the board.
@@ -250,6 +264,25 @@ export function BoardViewport({ children, onDblClickEmpty, onEmptyClick, marquee
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, []);
+
+  // Text-tool capture: press and release on the layer place text at the
+  // release point (a plain click; the release position is what was seen).
+  const textPressRef = useRef<{ pointerId: number } | null>(null);
+  const onTextLayerDown = (event: ReactPointerEvent<HTMLDivElement>) => {
+    if (event.button !== 0) return;
+    event.stopPropagation();
+    textPressRef.current = { pointerId: event.pointerId ?? -1 };
+  };
+  const onTextLayerUp = (event: ReactPointerEvent<HTMLDivElement>) => {
+    const press = textPressRef.current;
+    textPressRef.current = null;
+    if (press === null || press.pointerId !== (event.pointerId ?? -1)) return;
+    event.stopPropagation();
+    const element = viewportRef.current;
+    if (!element) return;
+    const viewportPoint = pointInViewport(element, event.clientX, event.clientY);
+    callbacksRef.current.onTextToolPlace?.(cameraScreenToWorld(camera, viewportPoint));
+  };
 
   const isEmptyTarget = (target: HTMLElement | EventTarget | null): boolean => {
     const el = viewportRef.current;
@@ -360,7 +393,7 @@ export function BoardViewport({ children, onDblClickEmpty, onEmptyClick, marquee
         backgroundImage: `radial-gradient(${DOT_COLOR} ${DOT_RADIUS_PX}px, transparent ${DOT_RADIUS_PX + 0.5}px)`,
         backgroundSize: `${tile}px ${tile}px`,
         backgroundPosition: `${gridOffsetX}px ${gridOffsetY}px`,
-        cursor: panning ? 'grabbing' : 'grab',
+        cursor: textToolActive ? 'text' : panning ? 'grabbing' : 'grab',
       }}
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}
@@ -399,6 +432,23 @@ export function BoardViewport({ children, onDblClickEmpty, onEmptyClick, marquee
         <div className="origin-marker" data-testid="origin-marker" aria-hidden="true" />
         {children}
       </div>
+      {textToolActive && (
+        <div
+          data-testid="text-tool-layer"
+          className="text-tool-layer"
+          style={{ position: 'absolute', inset: 0, cursor: 'text', zIndex: 10 }}
+          onPointerDown={onTextLayerDown}
+          onPointerUp={onTextLayerUp}
+          onPointerCancel={() => {
+            textPressRef.current = null;
+          }}
+          onDoubleClick={(event) => {
+            // While placing text, a double-click must not create a sticky.
+            event.stopPropagation();
+            event.preventDefault();
+          }}
+        />
+      )}
     </div>
   );
 }

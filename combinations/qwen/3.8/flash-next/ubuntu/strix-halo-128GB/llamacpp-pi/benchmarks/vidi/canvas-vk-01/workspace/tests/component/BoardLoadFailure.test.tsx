@@ -1,5 +1,5 @@
 import { readFileSync } from 'node:fs';
-import { fileURLToPath } from 'node:url';
+import path from 'node:path';
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
@@ -104,8 +104,11 @@ describe('TC-22: the load-failure badge', () => {
 
     // jsdom applies no stylesheets, so the colour is checked where it is
     // defined rather than on the element.
+    // (Resolved from the repo root: `new URL(literal, import.meta.url)` gets
+    // rewritten to a served asset URL by the bundler in a jsdom environment,
+    // which is not a file: URL.)
     const css = readFileSync(
-      fileURLToPath(new URL('../../src/client/styles.css', import.meta.url)),
+      path.resolve(process.cwd(), 'src/client/styles.css'),
       'utf8',
     );
     const rule = /\.connection-status--load_failed\s*\{[^}]*\}/.exec(css)?.[0] ?? '';

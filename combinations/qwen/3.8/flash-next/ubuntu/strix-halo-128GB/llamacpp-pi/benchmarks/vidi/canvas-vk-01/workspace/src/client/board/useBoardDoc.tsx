@@ -1,13 +1,13 @@
 import { createContext, useContext, type ReactNode, type JSX } from 'react';
 import * as Y from 'yjs';
-import { initDoc, snapshot, type StickySnapshot } from '../../shared/board-model';
+import { initDoc, objectSnapshots, type BoardSnapshot } from '../../shared/board-model';
 import { useSyncExternalStore, useRef, useMemo, useEffect, useState, useCallback } from 'react';
 import { connectBoard, type ConnectionState } from '../sync/connectBoard';
 import { reportConnectionState } from '../canvas/testHooks';
 
 export interface BoardDocContextValue {
   doc: Y.Doc;
-  notes: readonly StickySnapshot[];
+  notes: readonly BoardSnapshot[];
   /** Live connection to the room; `connected` when there is nothing to sync. */
   connection: ConnectionState;
 }
@@ -57,7 +57,7 @@ export function BoardDocProvider({
     };
   }, [objectsMap]);
 
-  const cachedRef = useRef<{ value: readonly StickySnapshot[]; dirty: boolean }>({ value: [], dirty: true });
+  const cachedRef = useRef<{ value: readonly BoardSnapshot[]; dirty: boolean }>({ value: [], dirty: true });
 
   useEffect(() => {
     const handler = () => { cachedRef.current.dirty = true; };
@@ -68,7 +68,7 @@ export function BoardDocProvider({
   const getSnapshot = useMemo(() => {
     return () => {
       if (cachedRef.current.dirty) {
-        cachedRef.current.value = snapshot(doc);
+        cachedRef.current.value = objectSnapshots(doc);
         cachedRef.current.dirty = false;
       }
       return cachedRef.current.value;

@@ -16,9 +16,16 @@ import { SelectionOverlay } from './board/SelectionOverlay';
 import { SelectionBar } from './board/SelectionBar';
 import { canEdit, ConnectionStatus } from './sync/ConnectionStatus';
 import { Toolbar } from './board/Toolbar';
+import { useTool } from './board/useTool';
+import { useIdentity } from './board/useIdentity';
 import { NoteToolbar } from './objects/NoteToolbar';
 import { getObjectType } from './objects/registry';
-import { createSticky, deleteObject, deleteObjects, setStickyColor } from '../shared/board-model';
+import { createSticky, deleteObject, deleteObjects, setStickyColor, type StickySnapshot } from '../shared/board-model';
+import { createText, setTextSize } from '../shared/objects/text';
+import type { TextSnapshot } from '../shared/objects/text';
+import type { TextSize } from '../shared/config';
+import { textMeasurer } from './objects/TextObject';
+import { remeasureTextBox } from './objects/useTextBoxSync';
 import { SharePanel } from './share/SharePanel';
 import { createUndo } from './board/undo';
 import { UndoProvider } from './board/UndoContext';
@@ -61,6 +68,8 @@ function BoardContent() {
 
   const editable = canEdit(connection);
   const { ids, editingId, click, toggle, setMany, clear, startEdit, endEdit } = selection;
+  const { tool, setTool } = useTool(editable);
+  const identity = useIdentity();
 
   useEffect(() => {
     if (!editable && editingId !== null) endEdit();
@@ -98,8 +107,6 @@ function BoardContent() {
     [setMany],
   ));
 
-  useBoardKeys({ doc, snapshot: notes, selection: { ids, setMany, clear }, editingId, canEdit: editable, undoRedo: { undo: undoState.undo, redo: undoState.redo, boundary: () => undoController.boundary() } });
-
   const handleDblClickEmpty = useCallback(
     (worldPoint: Point) => {
       if (!editable) return;
@@ -115,6 +122,35 @@ function BoardContent() {
     clear();
   }, [clear]);
 
+  // Text tool (story 9): a click anywhere places a text object at that world
+  // point, straight into editing, and the tool returns to Select.
+  const handleTextToolPlace = useCallback(
+    (worldPoint: Point) => {
+      if (!editable) return;
+      undoController.boundary();
+      const id = createText(doc, worldPoint, identity.id);
+      if (id === null) return;
+      remeasureTextBox(doc, id, textMeasurer);
+      undoController.boundary();
+      startEdit(id);
+      setTool('select');
+    },
+    [doc, editable, identity.id, startEdit, setTool, undoController],
+  );
+
+  // Size preset change: the layout (width for auto, height always) follows.
+  const handleTextSize = useCallback(
+    (id: string, size: TextSize) => {
+      if (!editable) return;
+      undoController.boundary();
+      if (setTextSize(doc, id, size)) {
+        remeasureTextBox(doc, id, textMeasurer);
+      }
+      undoController.boundary();
+    },
+    [doc, editable, undoController],
+  );
+
   const handleCreateSticky = useCallback(() => {
     if (!editable) return;
     undoController.boundary();
@@ -127,6 +163,16 @@ function BoardContent() {
     undoController.boundary();
     startEdit(id);
   }, [doc, camera, startEdit, editable, undoController]);
+
+  useBoardKeys({
+    doc,
+    snapshot: notes,
+    selection: { ids, setMany, clear },
+    editingId,
+    canEdit: editable,
+    undoRedo: { undo: undoState.undo, redo: undoState.redo, boundary: () => undoController.boundary() },
+    onCreateSticky: handleCreateSticky,
+  });
 
   const handleColorChange = useCallback(
     (id: string, color: string) => {
@@ -189,15 +235,27 @@ function BoardContent() {
     singleId !== undefined && editingId === null
       ? notes.find((n) => n.id === singleId && n.type === 'sticky')
       : undefined;
+  const singleText =
+    singleId !== undefined && editingId === null
+      ? notes.find((n) => n.id === singleId && n.type === 'text')
+      : undefined;
   const overlayVisible = ids.size > 0 && !gesture.isDragging;
 
   return (
     <UndoProvider value={undoController}>
-      <Toolbar onCreateSticky={handleCreateSticky} editable={editable} undoButtons={<UndoButtons {...undoState} />} />
+      <Toolbar
+        onCreateSticky={handleCreateSticky}
+        editable={editable}
+        tool={tool}
+        onSelectTool={setTool}
+        undoButtons={<UndoButtons {...undoState} />}
+      />
       <BoardViewport
         onDblClickEmpty={handleDblClickEmpty}
         onEmptyClick={handleEmptyClick}
         marqueeController={marquee.controller}
+        textToolActive={tool === 'text'}
+        onTextToolPlace={handleTextToolPlace}
       >
         {renderedNotes.map((note) => {
           const spec = getObjectType(note.type);
@@ -234,12 +292,19 @@ function BoardContent() {
       )}
 
       {overlayVisible && (
-        <SelectionBar snapshot={notes} ids={ids} camera={camera} onDelete={handleDeleteSelection} />
+        <SelectionBar
+          snapshot={notes}
+          ids={ids}
+          camera={camera}
+          onDelete={handleDeleteSelection}
+          singleText={singleText as TextSnapshot | undefined}
+          onTextSize={handleTextSize}
+        />
       )}
 
       {selectedNote !== undefined && (
         <NoteToolbarOverlay
-          note={selectedNote}
+          note={selectedNote as StickySnapshot}
           camera={camera}
           onColor={handleColorChange}
           onDelete={handleDelete}

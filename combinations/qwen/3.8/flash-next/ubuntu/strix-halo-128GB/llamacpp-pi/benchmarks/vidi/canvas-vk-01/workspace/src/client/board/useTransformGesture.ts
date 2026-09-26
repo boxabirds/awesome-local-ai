@@ -26,6 +26,10 @@ import {
   type Rect,
 } from '../../shared/geometry';
 import { getObjectType } from '../objects/registry';
+import { setTextWidthFixed, type TextSnapshot } from '../../shared/objects/text';
+import { layoutText } from '../objects/textLayout';
+import { textMeasurer } from '../objects/TextObject';
+import { remeasureTextBox } from '../objects/useTextBoxSync';
 
 export interface TransformGestureOptions {
   doc: Doc;
@@ -60,6 +64,8 @@ interface ActiveGesture {
   from: Rect | null;
   minSizes: number[];
   aspectLocked: boolean;
+  /** Every selected object resizes horizontally only (text, story 9). */
+  horizontalOnly: boolean;
   begun: boolean;
 }
 
@@ -160,11 +166,60 @@ export function useTransformGesture(
     const toY = g.handle.includes('n') ? from.y + from.height - newH : from.y;
     const to: Rect = { x: toX, y: toY, width: newW, height: newH };
     const rects = new Map<string, Rect>();
+    const byId = new Map(ref.current.snapshot.map((o) => [o.id, o]));
     for (let i = 0; i < g.ids.length; i += 1) {
       const sr = g.startRects[i];
-      if (sr) rects.set(g.ids[i]!, scaleWithin(sr, from, to));
+      if (!sr) continue;
+      const scaled = scaleWithin(sr, from, to);
+      let rect = scaled;
+      const obj = byId.get(g.ids[i]!);
+      const spec = obj === undefined ? undefined : getObjectType(obj.type);
+      if (obj !== undefined && spec?.handles === 'horizontal' && obj.type === 'text') {
+        // Mixed selection (TC-23): text moves proportionally; a fixed width
+        // scales with the drag, an auto width never does. The height follows
+        // the wrap, and the font size is untouched.
+        const t = obj as TextSnapshot;
+        const fixedWidth = t.widthMode === 'fixed' ? scaled.width : null;
+        const box = layoutText(t.text, t.size, t.widthMode, fixedWidth, textMeasurer);
+        rect = {
+          x: scaled.x,
+          y: scaled.y,
+          width: fixedWidth === null ? sr.width : scaled.width,
+          height: box.height,
+        };
+      }
+      rects.set(g.ids[i]!, rect);
     }
     resizeObjects(ref.current.doc, rects);
+  };
+
+  /**
+   * All-selected-horizontal resize (a text-only selection): the dragged edge
+   * sets a fixed width, side handles only, and every object's height rewraps
+   * at its new width in the same gesture (story 9).
+   */
+  const applyHorizontalResize = (g: ActiveGesture, client: Point): void => {
+    if (g.handle === null || !g.from || !g.startRects) return;
+    const from = g.from;
+    const delta = worldDelta(client, g.origin);
+    const minWidth = g.minSizes.length > 0 ? Math.max(...g.minSizes) : 0;
+    const raw = g.handle === 'e' ? from.width + delta.x : from.width - delta.x;
+    const newW = Math.min(Math.max(raw, minWidth), MAX_OBJECT_SIZE_WORLD);
+    const toX = g.handle.includes('w') ? from.x + from.width - newW : from.x;
+    const to: Rect = { x: toX, y: from.y, width: newW, height: from.height };
+    const { doc } = ref.current;
+    for (let i = 0; i < g.ids.length; i += 1) {
+      const id = g.ids[i]!;
+      const sr = g.startRects[i];
+      if (!sr) continue;
+      const scaled = scaleWithin(sr, from, to);
+      const perWidth =
+        g.ids.length === 1 ? newW : Math.max(scaled.width, g.minSizes[i] ?? 0);
+      moveObjects(doc, new Map([[id, { x: scaled.x, y: scaled.y }]]));
+      setTextWidthFixed(doc, id, perWidth);
+      // Height follows the wrap at the new fixed width (one box write).
+      remeasureTextBox(doc, id, textMeasurer);
+    }
   };
 
   const detach = (): void => {
@@ -191,6 +246,7 @@ export function useTransformGesture(
       setDragging(true);
     }
     if (g.mode === 'move') applyMove(g, client);
+    else if (g.horizontalOnly) applyHorizontalResize(g, client);
     else applyResize(g, client);
   };
 
@@ -248,6 +304,7 @@ export function useTransformGesture(
         from: null,
         minSizes: [],
         aspectLocked: false,
+        horizontalOnly: false,
         begun: false,
       };
       attach();
@@ -264,11 +321,13 @@ export function useTransformGesture(
       const minSizes: number[] = [];
       const ids: string[] = [];
       let anyAspect = false;
+      let horizontalOnly = true;
       for (const obj of snap) {
         if (!sel.has(obj.id)) continue;
         const spec = getObjectType(obj.type);
         if (!spec || !spec.resizable) continue;
         if (spec.aspectLocked) anyAspect = true;
+        if (spec.handles !== 'horizontal') horizontalOnly = false;
         rects.push(objectBounds(obj));
         minSizes.push(spec.minSize);
         ids.push(obj.id);
@@ -294,7 +353,8 @@ export function useTransformGesture(
         startRects: rects,
         from,
         minSizes,
-        aspectLocked: (isCorner && anyAspect) || event.shiftKey,
+        aspectLocked: ((isCorner && anyAspect) || event.shiftKey) && !horizontalOnly,
+        horizontalOnly,
         begun: false,
       };
       attach();

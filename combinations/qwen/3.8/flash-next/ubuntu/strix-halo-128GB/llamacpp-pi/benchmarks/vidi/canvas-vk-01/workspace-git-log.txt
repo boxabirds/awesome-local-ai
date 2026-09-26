@@ -1,3 +1,84 @@
+commit 2e0b3462aff89ebdb3201b1559e20eb03e98d7f6
+vidi-agent  Sat Sep 26 15:15:57 2026 +0000
+
+    story 9: Write free text anywhere on the board
+
+commit 8f184fb96d3c7753cbbbd87a4603b77e86bf8c3d
+vidi-agent  Sat Sep 26 15:15:47 2026 +0000
+
+    story 9: e2e text workflows (TC-26 to TC-31)
+
+
+ tests/e2e/text.spec.ts | 257 +++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 257 insertions(+)
+commit 89fb0e0d241116b2adea11fc778c03dc3257dbb2
+vidi-agent  Sat Sep 26 15:02:42 2026 +0000
+
+    story 9: text tool, TextObject, generalised TextEditor, TextToolbar, horizontal resize; tool/object component tests (tasks 6-9)
+
+
+ src/client/BoardApp.tsx                 |  77 ++++++-
+ src/client/board/SelectionBar.tsx       |  41 +++-
+ src/client/board/SelectionOverlay.tsx   |  10 +-
+ src/client/board/Toolbar.tsx            |  37 +++-
+ src/client/board/useBoardDoc.tsx        |   8 +-
+ src/client/board/useBoardKeys.ts        |  22 +-
+ src/client/board/useIdentity.ts         |  42 ++++
+ src/client/board/useTool.ts             |  76 +++++++
+ src/client/board/useTransformGesture.ts |  64 +++++-
+ src/client/canvas/BoardViewport.tsx     |  58 ++++-
+ src/client/objects/StickyTextEditor.tsx | 153 ++-----------
+ src/client/objects/TextEditor.tsx       | 205 ++++++++++++++++++
+ src/client/objects/TextObject.tsx       | 125 +++++++++++
+ src/client/objects/TextToolbar.tsx      |  47 ++++
+ src/client/objects/registry.tsx         |  20 ++
+ src/client/styles.css                   |  52 +++++
+ src/shared/board-model.ts               |  62 ++++++
+ tests/component/TextObject.test.tsx     | 373 ++++++++++++++++++++++++++++++++
+ tests/component/Tool.test.tsx           | 265 +++++++++++++++++++++++
+ 19 files changed, 1567 insertions(+), 170 deletions(-)
+commit 4e2ef1ccbb4bc1b277f9842d8cd5e0c685b4be12
+vidi-agent  Sat Sep 26 14:24:09 2026 +0000
+
+    story 9: implement text layout and box sync; TextBoxSync component tests (tasks 4-5)
+
+
+ src/client/objects/textLayout.ts     |  90 +++++++++++++++++++---
+ src/client/objects/useTextBoxSync.ts |  65 ++++++++++++++++
+ tests/component/TextBoxSync.test.tsx | 143 +++++++++++++++++++++++++++++++++++
+ tests/unit/text-layout.test.ts       |   8 +-
+ 4 files changed, 294 insertions(+), 12 deletions(-)
+commit 17884ed5ac61b6c0faebec3f017b5480b0c1f296
+vidi-agent  Sat Sep 26 14:17:47 2026 +0000
+
+    story 9: failing text layout unit tests + layoutText stub (task 3)
+
+
+ src/client/objects/textLayout.ts |  38 ++++++++++++
+ tests/unit/text-layout.test.ts   | 121 +++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 159 insertions(+)
+commit 796d1b69e725187a4523d8832ab86e952f763a44
+vidi-agent  Sat Sep 26 14:14:17 2026 +0000
+
+    story 9: implement text model, shared text-edit helpers (task 2); fix flaky styles.css URL resolution in BoardLoadFailure test
+
+
+ src/client/objects/StickyText.ts          |  54 ++-------
+ src/shared/objects/text.ts                | 182 ++++++++++++++++++++++++++----
+ src/shared/text-edit.ts                   |  47 ++++++--
+ tests/component/BoardLoadFailure.test.tsx |   7 +-
+ 4 files changed, 212 insertions(+), 78 deletions(-)
+commit efc80a4a65c2212e7f515591d2a6dea4a39fad3b
+vidi-agent  Sat Sep 26 14:02:46 2026 +0000
+
+    story 9: failing text model unit tests + TEXT_* config + model stubs (task 1)
+
+
+ src/shared/config.ts          |  26 ++++++
+ src/shared/objects/text.ts    |  64 ++++++++++++++
+ src/shared/text-edit.ts       |  22 +++++
+ tests/unit/text-model.test.ts | 189 ++++++++++++++++++++++++++++++++++++++++++
+ 4 files changed, 301 insertions(+)
 commit ea3a2d366ce086aeffe96b115db6fa6fadb8a9c3
 vidi-agent  Sat Sep 26 13:08:41 2026 +0000
 
