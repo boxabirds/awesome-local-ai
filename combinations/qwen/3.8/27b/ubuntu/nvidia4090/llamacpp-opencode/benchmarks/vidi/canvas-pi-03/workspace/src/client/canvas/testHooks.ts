@@ -32,6 +32,18 @@ declare global {
        * persisted, so tests can seed a board quickly (e2e TC-19/TC-21).
        */
       applyUpdates: (updates: string[]) => void;
+      /**
+       * Story 8 (test): whether the local per-user undo stack is non-empty.
+       */
+      canUndo: () => boolean;
+      /** Story 8 (test): whether the local redo stack is non-empty. */
+      canRedo: () => boolean;
+      /** Story 8 (test): undo one own step; false when the stack is empty. */
+      undo: () => boolean;
+      /** Story 8 (test): redo one own step; false when the stack is empty. */
+      redo: () => boolean;
+      /** Story 8 (test): close the current capture window. */
+      undoBoundary: () => void;
     };
   }
 }
@@ -42,6 +54,13 @@ let testGetNotes: (() => readonly StickySnapshot[]) | null = null;
 let testGetDoc: (() => Y.Doc) | null = null;
 let testGetSelection: (() => string[]) | null = null;
 let testConn: { drop: () => void; resume: () => void } | null = null;
+let testUndo: {
+  canUndo: () => boolean;
+  canRedo: () => boolean;
+  undo: () => boolean;
+  redo: () => boolean;
+  boundary: () => void;
+} | null = null;
 
 /** Registers the live connection's drop/resume handles (story 3 tests). */
 export function registerConnectionTestHook(conn: { drop: () => void; resume: () => void }): void {
@@ -50,6 +69,17 @@ export function registerConnectionTestHook(conn: { drop: () => void; resume: () 
     window.__vidi6.dropConnection = conn.drop;
     window.__vidi6.resumeConnection = conn.resume;
   }
+}
+
+/** Registers the local per-user undo controller (story 8 tests). */
+export function registerUndoTestHooks(undo: {
+  canUndo: () => boolean;
+  canRedo: () => boolean;
+  undo: () => boolean;
+  redo: () => boolean;
+  boundary: () => void;
+}): void {
+  testUndo = undo;
 }
 
 export function registerTestHooks(setCamera: (cam: Camera) => void, getCamera: () => Camera): void {
@@ -89,6 +119,12 @@ export function initGlobalTestHooks(): void {
           Y.applyUpdate(doc, bytes, 'e2e-seed');
         }
       },
+      // Story 8: dynamic wrappers read the controller registered by Board.
+      canUndo: () => testUndo?.canUndo() ?? false,
+      canRedo: () => testUndo?.canRedo() ?? false,
+      undo: () => (testUndo ? testUndo.undo() : false),
+      redo: () => (testUndo ? testUndo.redo() : false),
+      undoBoundary: () => testUndo?.boundary(),
       connectionState: 'connecting',
       // Dynamic wrappers: pick up the connection registered after init (React
       // effect ordering) and follow reconnections.

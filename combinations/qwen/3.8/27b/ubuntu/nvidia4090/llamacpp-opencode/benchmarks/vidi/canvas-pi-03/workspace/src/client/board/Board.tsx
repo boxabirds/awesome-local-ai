@@ -5,13 +5,15 @@ import { NavigationHint } from '../canvas/NavigationHint';
 import { CameraContext } from '../canvas/CameraContext';
 import { useCamera } from '../canvas/useCamera';
 import { canZoomIn, canZoomOut, zoomPercent, screenToWorld, worldToScreen, type Point } from '../canvas/camera';
-import { registerBoardTestHooks } from '../canvas/testHooks';
+import { registerBoardTestHooks, registerUndoTestHooks } from '../canvas/testHooks';
 import { useBoardDoc } from './useBoardDoc';
 import { useSelection } from './useSelection';
 import { useBoardKeys } from './useBoardKeys';
 import { useMarquee } from './Marquee';
 import { MarqueeRect } from './Marquee';
 import { useTransformGesture } from './useTransformGesture';
+import { createUndo } from './undo';
+import { useUndo } from './useUndo';
 import { SelectionOverlay } from './SelectionOverlay';
 import { SelectionBar } from './SelectionBar';
 import { Toolbar } from './Toolbar';
@@ -68,6 +70,14 @@ export function Board({ id }: { id: string }) {
   // Story 4: all edit handlers are no-ops while the board failed to load.
   const editable = canEdit(connectionState);
 
+  // Story 8: per-user undo history. One controller per board doc; destroyed
+  // on board change/unmount (the history is session-only). Created here (not
+  // in App) because the Y.Doc is owned by useBoardDoc inside this component.
+  const undo = useMemo(() => createUndo(doc), [doc]);
+  useEffect(() => () => undo.destroy(), [undo]);
+  const undoState = useUndo(undo, editable);
+  const onBoundary = useCallback(() => undo.boundary(), [undo]);
+
   // Test-only: expose the board snapshot/doc/selection (story 2/7 tests).
   // Layout effect (not passive): test readiness is keyed off the committed
   // DOM, so the hooks must be registered by the time the board is visible —
@@ -79,6 +89,11 @@ export function Board({ id }: { id: string }) {
       () => [...selection.ids],
     );
   }, [doc, objects, selection.ids]);
+
+  // Test-only: expose the local per-user undo controller (story 8 tests).
+  useLayoutEffect(() => {
+    registerUndoTestHooks(undo);
+  }, [undo]);
 
   // Test-only: keep the live connection state readable (story 3 tests).
   useLayoutEffect(() => {
@@ -95,6 +110,9 @@ export function Board({ id }: { id: string }) {
     selection,
     snapshot: objects,
     canEdit: editable,
+    // Story 8: one whole drag (all its rAF transactions) is one undo step.
+    onGestureStart: onBoundary,
+    onGestureEnd: onBoundary,
   });
 
   // Story 7: keyboard commands (select all, escape, arrows, delete, enter).
@@ -105,17 +123,22 @@ export function Board({ id }: { id: string }) {
     canEdit: editable,
     marqueeActive: marquee.rect !== null,
     cancelMarquee: marquee.cancel,
+    onBoundary,
+    onUndo: undoState.undo,
+    onRedo: undoState.redo,
   });
 
   const createStickyAt = useCallback(
     (world: Point) => {
       if (!editable) return;
+      onBoundary();
       const newId = createSticky(doc, world);
+      onBoundary();
       if (newId) {
         selection.startEdit(newId);
       }
     },
-    [doc, editable, selection],
+    [doc, editable, selection, onBoundary],
   );
 
   const createStickyCenter = useCallback(() => {
@@ -133,9 +156,11 @@ export function Board({ id }: { id: string }) {
     if (!editable) return;
     const ids = [...selection.ids];
     if (ids.length === 0) return;
+    onBoundary();
     deleteObjects(doc, ids);
+    onBoundary();
     selection.clear();
-  }, [doc, editable, selection]);
+  }, [doc, editable, selection, onBoundary]);
 
   // Stable DOM order (creation order): reordering DOM nodes while a gesture
   // is in progress would move the node under the pointer and make the
@@ -182,6 +207,10 @@ export function Board({ id }: { id: string }) {
           selection.endEdit();
           if (next === 'unselected') selection.clear();
         };
+        // Story 8: in-editor undo/redo and capture window.
+        props.onTextBoundary = onBoundary;
+        props.onTextUndo = undoState.undo;
+        props.onTextRedo = undoState.redo;
       }
       return <Comp key={o.id} {...props} />;
     });
@@ -215,11 +244,19 @@ export function Board({ id }: { id: string }) {
             editingId={selection.editingId}
             draggingIds={gesture.draggingIds}
             onDelete={deleteSelection}
+            onBoundary={onBoundary}
           />
         </div>
       )}
       <MarqueeRect rect={marquee.rect} camera={cameraState.camera} />
-      <Toolbar onCreateSticky={createStickyCenter} disabled={!editable} />
+      <Toolbar
+        onCreateSticky={createStickyCenter}
+        disabled={!editable}
+        canUndo={undoState.canUndo}
+        canRedo={undoState.canRedo}
+        onUndo={undoState.undo}
+        onRedo={undoState.redo}
+      />
       <ZoomControls
         zoomPercent={zoomPercent(cameraState.camera)}
         canZoomIn={canZoomIn(cameraState.camera)}

@@ -41,6 +41,12 @@ export interface StickyNoteProps {
    * (select / shift-toggle / group move). The note no longer drags itself.
    */
   onObjectPointerDown(e: ReactPointerEvent<HTMLDivElement>): void;
+  /** Story 8: close the undo capture window (edit start/end). */
+  onTextBoundary?: () => void;
+  /** Story 8: undo inside the in-note editor (Ctrl/Cmd+Z). */
+  onTextUndo?: () => void;
+  /** Story 8: redo inside the in-note editor (Ctrl/Cmd+Shift+Z). */
+  onTextRedo?: () => void;
 }
 
 const SELECTION_OUTLINE = '#1A73E8';
@@ -59,7 +65,10 @@ const SELECTION_OUTLINE = '#1A73E8';
  *   Editing -> Unselected (click outside)
  */
 export function StickyNote(props: StickyNoteProps): ReactElement {
-  const { note, doc, selected, editing, editable, dragging, onStartEdit, onEndEdit, onObjectPointerDown } = props;
+  const {
+    note, doc, selected, editing, editable, dragging, onStartEdit, onEndEdit,
+    onObjectPointerDown, onTextBoundary, onTextUndo, onTextRedo,
+  } = props;
 
   const rootRef = useRef<HTMLDivElement>(null);
   const mirrorRef = useRef<HTMLDivElement>(null);
@@ -193,7 +202,14 @@ export function StickyNote(props: StickyNoteProps): ReactElement {
       </div>
 
       {editing && ytext ? (
-        <StickyTextEditor ytext={ytext} fontPx={font.fontPx} onEnd={onEndEdit} />
+        <StickyTextEditor
+          ytext={ytext}
+          fontPx={font.fontPx}
+          onEnd={onEndEdit}
+          onBoundary={onTextBoundary}
+          onUndo={onTextUndo}
+          onRedo={onTextRedo}
+        />
       ) : (
         <div
           data-testid="sticky-note-text"

@@ -10,6 +10,12 @@ export interface StickyTextEditorProps {
   fontPx: number;
   /** Ends editing: 'selected' (Escape) or 'unselected' (click outside). */
   onEnd(next: 'selected' | 'unselected'): void;
+  /** Story 8: close the capture window (edit start and edit end). */
+  onBoundary?: () => void;
+  /** Story 8: undo this tab's own step (Ctrl/Cmd+Z inside the editor). */
+  onUndo?: () => void;
+  /** Story 8: redo this tab's own step (Ctrl/Cmd+Shift+Z inside the editor). */
+  onRedo?: () => void;
 }
 
 /**
@@ -32,6 +38,14 @@ export function StickyTextEditor(props: StickyTextEditorProps): ReactElement {
   const valueRef = useRef<string>(ytext.toString());
   const composingRef = useRef(false);
   const endedRef = useRef(false);
+  // Story 8: read the (stable) undo callbacks through refs so the window /
+  // key handlers stay stable and never capture a stale controller.
+  const boundaryRef = useRef(props.onBoundary);
+  boundaryRef.current = props.onBoundary;
+  const undoRef = useRef(props.onUndo);
+  undoRef.current = props.onUndo;
+  const redoRef = useRef(props.onRedo);
+  redoRef.current = props.onRedo;
   const [length, setLength] = useState(valueRef.current.length);
 
   // Edit start: focus with the caret at the end of the text.
@@ -40,6 +54,8 @@ export function StickyTextEditor(props: StickyTextEditorProps): ReactElement {
     if (!el) return;
     el.focus();
     el.setSelectionRange(el.value.length, el.value.length);
+    // Story 8: start a fresh capture window for this editing session.
+    boundaryRef.current?.();
   }, []);
 
   // Keep the editor in sync with changes made outside of it (future: other
@@ -68,6 +84,7 @@ export function StickyTextEditor(props: StickyTextEditorProps): ReactElement {
       const target = e.target as Node | null;
       if (target !== null && containerRef.current !== null && !containerRef.current.contains(target)) {
         endedRef.current = true;
+        boundaryRef.current?.(); // Story 8: close the capture window.
         onEnd('unselected');
       }
     };
@@ -116,7 +133,22 @@ export function StickyTextEditor(props: StickyTextEditorProps): ReactElement {
       if (e.key === 'Escape') {
         e.preventDefault();
         endedRef.current = true;
+        boundaryRef.current?.(); // Story 8: close the capture window.
         onEnd('selected');
+        return;
+      }
+      // Story 8: in-editor undo/redo. Intercepted here (preventDefault) so the
+      // native textarea undo never diverges from the shared Y.Text that drives
+      // the per-user controller.
+      if ((e.ctrlKey || e.metaKey) && !e.altKey && (e.key === 'z' || e.key === 'Z')) {
+        e.preventDefault();
+        if (e.shiftKey) redoRef.current?.();
+        else undoRef.current?.();
+        return;
+      }
+      if (e.ctrlKey && !e.metaKey && !e.shiftKey && (e.key === 'y' || e.key === 'Y')) {
+        e.preventDefault();
+        redoRef.current?.();
       }
     },
     [onEnd],

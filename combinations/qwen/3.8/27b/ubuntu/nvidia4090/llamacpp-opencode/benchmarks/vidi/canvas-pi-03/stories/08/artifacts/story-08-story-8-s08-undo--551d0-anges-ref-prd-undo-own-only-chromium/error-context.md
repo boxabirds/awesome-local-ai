@@ -1,0 +1,44 @@
+# Page snapshot
+
+```yaml
+- generic:
+  - generic:
+    - generic [ref=e1]:
+      - generic:
+        - group "Sticky note" [active] [ref=e2]:
+          - generic [ref=e4]: miaA
+        - group "Sticky note" [ref=e5]
+    - generic:
+      - button "Resize top-left" [ref=e7]
+      - button "Resize top" [ref=e8]
+      - button "Resize top-right" [ref=e9]
+      - button "Resize right" [ref=e10]
+      - button "Resize bottom-right" [ref=e11]
+      - button "Resize bottom" [ref=e12]
+      - button "Resize bottom-left" [ref=e13]
+      - button "Resize left" [ref=e14]
+    - toolbar "Note actions" [ref=e16]:
+      - button "Yellow colour" [pressed] [ref=e17] [cursor=pointer]
+      - button "Orange colour" [ref=e18] [cursor=pointer]
+      - button "Green colour" [ref=e19] [cursor=pointer]
+      - button "Blue colour" [ref=e20] [cursor=pointer]
+      - button "Pink colour" [ref=e21] [cursor=pointer]
+      - button "Violet colour" [ref=e22] [cursor=pointer]
+      - button "Delete note" [ref=e23] [cursor=pointer]:
+        - img [ref=e24]
+    - generic [ref=e28]:
+      - button "Sticky note" [ref=e29] [cursor=pointer]:
+        - img [ref=e30]
+      - generic [ref=e34]:
+        - button "Undo" [ref=e35] [cursor=pointer]:
+          - img [ref=e36]
+        - button "Redo" [disabled] [ref=e39]:
+          - img [ref=e40]
+    - generic [ref=e43]:
+      - button "Zoom out" [ref=e44] [cursor=pointer]: −
+      - status [ref=e45]: 100%
+      - button "Zoom in" [ref=e46] [cursor=pointer]: +
+      - button "Reset view" [ref=e47] [cursor=pointer]
+    - generic: Drag to move around · Ctrl/Cmd + scroll or pinch to zoom
+    - button "Share" [ref=e49] [cursor=pointer]
+```
