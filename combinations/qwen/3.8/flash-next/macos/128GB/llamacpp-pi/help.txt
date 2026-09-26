@@ -1,0 +1,100 @@
+PROFILE DETAIL
+  NOTHING HERE HAS BEEN MEASURED BY THIS REPO YET. The memory figures above
+  are estimates from published Strix Halo reports; the installer's smoke test
+  prints the real server footprint on your machine. Replace the estimates in
+  profiles.tsv with those numbers.
+
+  coding     128k ctx   f16 KV   vision off   1 slot
+      >> DEFAULT. One agent session with a real repo in context.
+
+  vision     128k ctx   f16 KV   vision ON    1 slot
+      Adds the 0.9 GB projector. Whether upstream llama.cpp's multimodal path
+      supports qwen4exp is not verified; if loading the projector fails, the
+      server stops -- use coding.
+
+  agents     3 x 128k   f16 KV   vision off   3 slots
+      -c is SHARED across slots: 393216 total is 128k each. Use this when an
+      agent makes background calls (titles, summaries) alongside the main
+      session, so each keeps its own cache and a returning turn does not
+      re-read its whole prompt.
+
+  max        256k ctx   f16 KV   vision off   1 slot
+      The model's native context. Prefill at depth is slow on this chip
+      (~200 tok/s reported at 24k), so filling it from cold takes a while.
+
+UNIFIED MEMORY: WHAT "FITS" MEANS HERE
+  The GPU addresses system RAM through GTT, capped by the kernel's TTM page
+  limit -- about half of RAM unless you raise it. The installer refuses when
+  the limit is too low and prints the fix:
+      pipx install amd-debug-tools && amd-ttm --set 120 && sudo reboot
+  Keep the BIOS "UMA Frame Buffer Size" at its smallest (512M, or 1G on the
+  MS-S1 MAX). A big carve-out is taken
+  from Linux for good and makes the GPU no faster.
+
+  Budget from MemAvailable, not from "GTT free": on unified memory, GTT free
+  ignores what the rest of the machine holds. The launcher's pre-flight uses
+  the smaller of the two.
+
+KV CACHE: f16 ONLY
+  bf16 crashes on gfx1151. Quantised KV (q8_0, q4_0) has been reported to
+  break tool calling on this model, and with two KV heads there is little
+  memory to save: a report puts 128k -> 256k at ~5 GB. The launcher warns if
+  you pick anything else.
+
+SPECULATIVE DECODING
+  The MTP draft head guesses the next tokens and the model checks them in one
+  pass; the output is unchanged. On this chip it is the difference between
+  ~17 tok/s and 32-61 (drluoto, a fork, his own head). Stock llama.cpp cannot
+  load a qwen4exp head, so this install builds PR #28243's branch with
+  Unsloth's shared-Q8_0 head: 4 draft tokens a step, p-min 0. Look for a
+  "draft acceptance" line in the log; one "borrow_shared_tensor" error at
+  startup is expected with a shared head.
+      SPEC_MTP=0 <server>             # without the head, for an A/B
+      SPEC_DRAFT_N_MAX=2 <server>     # Unsloth's default depth
+  MTP pays for one request at a time; with many at once it was measured a net
+  loss, so check it on PROFILE=agents.
+
+VULKAN OR ROCm
+  Both are compiled into one llama-server; pick per start, no rebuild:
+      <server>                        # Vulkan (RADV), the default
+      GPU_BACKEND=rocm <server>       # ROCm (HIP)
+  Neither is measured here yet. ROCm (Ubuntu's 7.1 packages, installed for
+  you) gave wrong logits on this chip before llama.cpp #28604 (8 Sep 2026),
+  and has open reports of a load hang (#29149) and of state leaking between
+  requests on a reused slot (#29092). To build only one backend, install with
+  GPU_API=vulkan or GPU_API=rocm.
+  On Linux 7.x set amdgpu.lockup_timeout=10000,60000,10000,10000 on the
+  kernel command line, or long runs die with DeviceLostError.
+
+LOAD TIME AND THE IDLE TIMER
+  -lm dio reads all 94 GB into memory up front. That is minutes from a cold
+  page cache, so the session manager here waits up to 15 minutes for a load
+  and keeps the server for 30 minutes after the last client, not 5. Override
+  per run: IDLE_TIMEOUT=300, SERVER_START_TIMEOUT=1200.
+
+GPU CLOCK
+  Left on 'auto', the clock floats under its peak during decode. On the MS-S1
+  MAX in Performance mode pinning it gained only 1-2% (decode is mostly
+  memory-bound); another box reported ~20%. Pin it for benchmarks, so runs are
+  comparable; it resets at reboot:
+      echo high | sudo tee /sys/class/drm/card*/device/power_dpm_force_performance_level
+
+ENVIRONMENT OVERRIDES
+  PORT=8080          HOST=127.0.0.1     CTX=<tokens>     VISION=0|1
+  NP=<slots>         UB=<micro-batch>   BATCH=<batch>
+  THINKING=1|0       THINKING_BUDGET=<tokens>
+  REASONING_EFFORT=low|medium|xhigh|default
+  SPEC_MTP=0         SPEC_DRAFT_N_MAX=<n>   SPEC_DRAFT_P_MIN=<p>
+  QWEN38_FLASH_NEXT_ROOT=<dir>              MODEL=<file>
+
+SECURITY
+  HOST defaults to 127.0.0.1 and there is NO authentication. HOST=0.0.0.0
+  exposes an unauthenticated model server to your network; put a reverse
+  proxy with auth in front, or pass --api-key <key> after the command.
+
+EXAMPLES
+  qwen38-flash-next-strix-server                          # 128k, one agent
+  # API: http://127.0.0.1:8080/v1  model id: qwen3.8-flash-next
+  PROFILE=agents qwen38-flash-next-strix-server           # 3 x 128k slots
+  REASONING_EFFORT=xhigh qwen38-flash-next-strix-server   # think hard
+  SPEC_MTP=0 qwen38-flash-next-strix-server               # A/B without the MTP head
