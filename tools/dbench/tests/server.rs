@@ -66,6 +66,12 @@ echo "RuntimeError: fake crash"
 exit 1
 "#;
 
+const MISSING_BODY: &str = r#"echo "[story 3] agent done; running gates"
+echo "MISSING RESOURCES: the agent's e2e tests have no browser (browser not installed). Story 3 scores are void." >&2
+echo "exit 3: some later noise" >&2
+exit 3
+"#;
+
 const SLOW_BODY: &str = r#"echo "[story 1] Slow story — agent starting"
 sleep 300 &
 echo "sleep-pid: $!"
@@ -132,6 +138,7 @@ fn setup() -> Env {
         ("fakepack", FAKE_BODY),
         ("envpack", ENV_BODY),
         ("failpack", FAIL_BODY),
+        ("missingpack", MISSING_BODY),
         ("slowpack", SLOW_BODY),
         ("stubbornpack", STUBBORN_BODY),
         ("progresspack", PROGRESS_BODY),
@@ -519,6 +526,27 @@ async fn failure_hits_max_restarts() {
     srv.wait_status("after", "done").await;
 }
 
+#[tokio::test(flavor = "multi_thread")]
+async fn missing_resources_fail_at_once_and_say_why() {
+    // The harness exits 3 when the machine lacks what the run needs (a browser, …). Restarting
+    // would hit the same wall, so the job fails on its first attempt, with the harness's reason.
+    let env = setup();
+    let srv = start(&env, false);
+    assert_eq!(
+        srv.submit("nobrowser", &spec("missingpack", "run-m"))
+            .await
+            .0,
+        201
+    );
+    let v = srv.wait_status("nobrowser", "failed").await;
+    assert_eq!(v["attempt"], 1, "{v}");
+    assert_eq!(v["state"]["exit_code"], 3);
+    let reason = v["state"]["reason"].as_str().unwrap();
+    assert!(reason.starts_with("missing resources: "), "{reason}");
+    assert!(reason.contains("browser not installed"), "{reason}");
+    assert!(!reason.contains("later noise"), "{reason}");
+}
+
 /// `exit` is the harness's recorded exit: 143 (SIGTERM) or 137 (SIGKILL).
 async fn cancel_kills_group(pack: &str, exit: i32) {
     let env = setup();
@@ -896,13 +924,19 @@ async fn server_env_reaches_the_harness_and_is_checked() {
     assert_eq!(code, 201);
     srv.wait_status("env-1", "done").await;
     let log = srv.log("env-1").await;
-    assert!(log.contains("server-env: GPU_BACKEND=rocm SPEC_DRAFT_N_MAX=4"), "{log}");
+    assert!(
+        log.contains("server-env: GPU_BACKEND=rocm SPEC_DRAFT_N_MAX=4"),
+        "{log}"
+    );
 
     // Without server_env the harness gets nothing extra.
     let (code, _) = srv.submit("env-2", &spec("envpack", "env-2")).await;
     assert_eq!(code, 201);
     srv.wait_status("env-2", "done").await;
-    assert!(srv.log("env-2").await.contains("server-env: GPU_BACKEND=unset SPEC_DRAFT_N_MAX=unset"));
+    assert!(srv
+        .log("env-2")
+        .await
+        .contains("server-env: GPU_BACKEND=unset SPEC_DRAFT_N_MAX=unset"));
 
     // The same id with a different server_env is a different job.
     let mut other = s.clone();
@@ -911,8 +945,12 @@ async fn server_env_reaches_the_harness_and_is_checked() {
     assert_eq!(code, 409);
 
     // Keys outside the list, and values outside a key's range, are refused.
-    for bad in [json!({"LD_PRELOAD": "/tmp/x.so"}), json!({"GPU_BACKEND": "rocm; rm -rf /"}),
-                json!({"SPEC_DRAFT_N_MAX": "0"}), json!({"SPEC_DRAFT_P_MIN": "1.5"})] {
+    for bad in [
+        json!({"LD_PRELOAD": "/tmp/x.so"}),
+        json!({"GPU_BACKEND": "rocm; rm -rf /"}),
+        json!({"SPEC_DRAFT_N_MAX": "0"}),
+        json!({"SPEC_DRAFT_P_MIN": "1.5"}),
+    ] {
         let mut b = spec("envpack", "env-bad");
         b["server_env"] = bad.clone();
         let (code, body) = srv.submit("env-bad", &b).await;
