@@ -107,3 +107,44 @@ def test_the_held_out_suite_without_a_browser_is_missing_resources_even_with_no_
     monkeypatch.setattr(gates, "_run", lambda cmd, cwd, timeout, env=None: {"exit": 1, "tail": BROWSER_MISSING})
     res = gates.accept(tmp_path, [1], tmp_path / "out", acc)
     assert res["harness_fault"] and res["harness_fault"].startswith("missing resources:")
+
+
+def _fake_npm(tmp_path, script: str):
+    """A workspace whose `npm` is a stub: `script` is sh that prints what a real run would."""
+    import os
+    ws = tmp_path / "ws"
+    ws.mkdir()
+    (ws / "package.json").write_text('{"scripts": {"test:e2e": "playwright test"}}')
+    bin_ = tmp_path / "bin"
+    bin_.mkdir()
+    for tool in ("npm", "npx"):
+        (bin_ / tool).write_text("#!/bin/sh\n" + script)
+        (bin_ / tool).chmod(0o755)
+    return ws, {**os.environ, "PATH": f"{bin_}:{os.environ['PATH']}"}
+
+
+def test_the_word_project_in_a_failing_e2e_run_is_not_a_missing_project(tmp_path, monkeypatch):
+    # A todoodle build has tests about projects; a failing Chromium run mentions them. That is a red
+    # gate, not a reason to rerun every browser (and then stop the run when WebKit isn't installed).
+    ws, env = _fake_npm(tmp_path, '''case "$*" in
+  *install*) exit 0;;
+  *project=chromium*) echo "1 failed: tests/e2e/projects.spec.ts creates a project"; exit 1;;
+  *) echo "browserType.launch: Executable doesn't exist at /x/webkit-2359/pw_run.sh"; exit 1;;
+esac''')
+    monkeypatch.setattr(gates.os, "environ", env)
+    res = gates.gate(ws, ["test:e2e"])
+    assert "harness_fault" not in res, res.get("harness_fault")
+    assert res["steps"]["test:e2e"]["exit"] == 1
+
+
+def test_only_a_missing_chromium_stops_the_run(tmp_path, monkeypatch):
+    # The harness promises Chromium. With no chromium project the suite reruns on the agent's own
+    # browsers; a missing WebKit there is the agent's configuration, not this machine's fault.
+    ws, env = _fake_npm(tmp_path, '''case "$*" in
+  *install*) exit 0;;
+  *project=chromium*) echo 'Error: Project(s) "chromium" not found. Available projects: "webkit"'; exit 1;;
+  *) echo "browserType.launch: Executable doesn't exist at /x/webkit-2359/pw_run.sh"; exit 1;;
+esac''')
+    monkeypatch.setattr(gates.os, "environ", env)
+    res = gates.gate(ws, ["test:e2e"])
+    assert "harness_fault" not in res, res.get("harness_fault")

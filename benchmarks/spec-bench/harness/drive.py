@@ -544,7 +544,10 @@ def _stamped_events(events: Path):
     with f:
         for line in f:
             if line.startswith('{"_rx"') and not any(f'"type":"{d}"' in line[:60] for d in STREAM_DELTA_EVENTS):
-                e = json.loads(line)
+                try:
+                    e = json.loads(line)
+                except json.JSONDecodeError:
+                    continue  # cut off when the agent was killed mid-write, or by a crash
                 if isinstance(e, dict):
                     yield e
 
@@ -871,8 +874,11 @@ class ConditionSampler(threading.Thread):
                 self.bad.append({**c, "t": time.time()})
             swap = swap_used_gb()
             self.swap_max = max(self.swap_max, swap)
-            if (g := hostenv.gpu_sample()):
-                self.gpu.append(g)
+            try:  # informational: a failed GPU reading must not stop the memory and swap guards below
+                if (g := hostenv.gpu_sample()):
+                    self.gpu.append(g)
+            except Exception as e:  # noqa: BLE001
+                print(f"    gpu sample failed: {e}", flush=True)
             fp, fp_peak = server_footprint_gb(self.server_port)
             if fp is not None:
                 self.footprint_max = max(self.footprint_max or 0.0, fp)

@@ -203,8 +203,17 @@ def parse_nvidia_gpu(csv: str) -> dict | None:
     f = [x.strip() for x in line.split(",")]
     if len(f) < 7 or not f[0].isdigit():
         return None
-    return {"busy_pct": int(f[0]), "sclk_mhz": int(f[1]), "power_w": float(f[3]), "temp_c": float(f[4]),
-            "vram_gb": round(int(f[5]) / MIB_PER_GIB, GB_DECIMALS), "throttle": f[6]}
+
+    def num(x: str) -> float | None:
+        """A field's number, or None for what nvidia-smi can't read ("[N/A]", "[Not Supported]")."""
+        try:
+            return float(x)
+        except ValueError:
+            return None
+    sclk, vram_mib = num(f[1]), num(f[5])
+    return {"busy_pct": int(f[0]), "sclk_mhz": None if sclk is None else int(sclk), "power_w": num(f[3]),
+            "temp_c": num(f[4]), "vram_gb": None if vram_mib is None else round(vram_mib / MIB_PER_GIB, GB_DECIMALS),
+            "throttle": f[6]}
 
 
 def gpu_sample() -> dict | None:

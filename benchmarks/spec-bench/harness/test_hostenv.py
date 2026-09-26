@@ -112,3 +112,11 @@ def test_nvidia_sample_from_gruntus_smi_line():
     assert s == {"busy_pct": 98, "sclk_mhz": 2745, "power_w": 405.08, "temp_c": 68.0, "vram_gb": 22.09,
                  "throttle": "0x0000000000000000"}
     assert hostenv.parse_nvidia_gpu("") is None
+
+
+def test_an_nvidia_field_reported_as_na_does_not_kill_the_condition_sampler():
+    """nvidia-smi prints [N/A] for a field it can't read (a driver hiccup, another card). The sampler
+    thread parses every sample; an exception there silently stops the swap/memory guards for the story."""
+    import hostenv
+    s = hostenv.parse_nvidia_gpu("97, 2520, 3105, [N/A], 64, 22622, 0x0000000000000000\n")
+    assert s is not None and s["busy_pct"] == 97 and s["power_w"] is None and s["temp_c"] == 64.0
