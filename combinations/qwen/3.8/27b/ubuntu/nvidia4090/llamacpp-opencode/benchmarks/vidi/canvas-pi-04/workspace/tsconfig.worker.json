@@ -1,0 +1,11 @@
+{
+  // Type-checks the Cloudflare worker and the workerd-side integration
+  // tests against @cloudflare/workers-types (no DOM: the worker runtime is
+  // not a browser). The client and browser-side tests use tsconfig.json.
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "lib": ["ES2022"],
+    "types": ["@cloudflare/workers-types", "@cloudflare/vitest-pool-workers"]
+  },
+  "include": ["src/worker", "src/shared", "tests/integration"]
+}

@@ -1,25 +1,38 @@
 import { useEffect, useRef, useState } from 'react';
-import type { JSX, PointerEvent as ReactPointerEvent, ReactNode } from 'react';
+import type { JSX, MouseEvent as ReactMouseEvent, PointerEvent as ReactPointerEvent, ReactNode } from 'react';
 import {
+  DRAG_THRESHOLD_PX,
   GRID_SPACING_WORLD,
   WHEEL_DELTA_LINE_PX,
   WHEEL_DELTA_PAGE_PX,
   WHEEL_ZOOM_SENSITIVITY,
 } from '../../shared/config';
 import type { Point } from './camera';
+import { screenToWorld } from './camera';
 import { useCamera, useElementSize } from './useCamera';
 
 /**
  * The board's input surface. Renders the dot grid (as the viewport's
  * background) and the world layer (CSS-transformed children), and wires
  * pointer drag, wheel, Safari pinch and keyboard navigation into the camera.
+ *
+ * Story 2: a double-click on empty space creates a note there, and a press
+ * on empty space without movement clears the selection. Children (notes) stop
+ * pointer propagation to opt out of both.
  */
-export function BoardViewport(props: { children?: ReactNode }): JSX.Element {
+export function BoardViewport(props: {
+  children?: ReactNode;
+  /** Create a sticky at a world point (double-click on empty space). */
+  onCreateStickyAt?: (worldPoint: Point) => void;
+  /** Clear the selection (press on empty space without a drag). */
+  onClearSelection?: () => void;
+}): JSX.Element {
   const viewportRef = useRef<HTMLDivElement | null>(null);
   const size = useElementSize(viewportRef);
   const { camera, beginPan, panMove, endPan, wheel, zoomStep, reset } = useCamera(size);
   const [panning, setPanning] = useState(false);
   const gestureScale = useRef(1);
+  const pressPoint = useRef<Point | null>(null);
 
   const toLocal = (clientX: number, clientY: number): Point => {
     const el = viewportRef.current;
@@ -44,6 +57,7 @@ export function BoardViewport(props: { children?: ReactNode }): JSX.Element {
       // Pointer capture is unavailable (e.g. jsdom); the drag still works
       // because events are dispatched on the viewport element.
     }
+    pressPoint.current = toLocal(e.clientX, e.clientY);
     setPanning(true);
     beginPan(toLocal(e.clientX, e.clientY));
   };
@@ -66,6 +80,25 @@ export function BoardViewport(props: { children?: ReactNode }): JSX.Element {
     // The last committed camera is kept: an interrupted drag leaves the
     // board exactly where it was.
     endPan();
+    // A press that did not travel is a click on empty space: it clears the
+    // selection (PRD sticky.select).
+    const start = pressPoint.current;
+    pressPoint.current = null;
+    if (start !== null) {
+      const now = toLocal(e.clientX, e.clientY);
+      if (Math.hypot(now.x - start.x, now.y - start.y) <= DRAG_THRESHOLD_PX) {
+        props.onClearSelection?.();
+      }
+    }
+  };
+
+  // A double-click on empty space creates a note centred on the point
+  // (PRD sticky.create_dblclick). Notes stop propagation, so this only fires
+  // for the board surface itself.
+  const onDoubleClick = (e: ReactMouseEvent<HTMLDivElement>): void => {
+    const el = viewportRef.current;
+    if (el === null || e.target !== el) return;
+    props.onCreateStickyAt?.(screenToWorld(camera, toLocal(e.clientX, e.clientY)));
   };
 
   const onLostPointerCapture = (): void => {
@@ -184,6 +217,7 @@ export function BoardViewport(props: { children?: ReactNode }): JSX.Element {
       onPointerUp={stopPanning}
       onPointerCancel={stopPanning}
       onLostPointerCapture={onLostPointerCapture}
+      onDoubleClick={onDoubleClick}
     >
       <div
         className="world-layer"

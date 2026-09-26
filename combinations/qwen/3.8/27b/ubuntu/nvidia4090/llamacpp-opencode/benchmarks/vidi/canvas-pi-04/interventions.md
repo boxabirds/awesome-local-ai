@@ -1,0 +1,2 @@
+2026-09-26T14:17:23Z 03: interrupted a tool call silent for 600s (killed processes under the workspace)
+- 2026-09-26T16:13:30Z story 3: ended by the operator (harness (cap)) after 240.0 agent-min, 655 calls: story cap: 4.0 h of agent time (cap 4.0 h). Recorded PARTIAL. Verdict amber: gate green, tasks not verified [1, 2, 3, 4, 5, 6, 7, 8, 9] (implementation: [2, 3, 4]), held-out 5/7 (floor 0.0). The run continued with the next story.

@@ -7,17 +7,24 @@
     "dev": "vite",
     "build": "vite build",
     "build:e2e": "vite build --mode test",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "tsc --noEmit && tsc --noEmit -p tsconfig.worker.json",
     "test:unit": "vitest run --project unit",
     "test:component": "vitest run --project component",
-    "test:e2e": "npm run build:e2e && playwright test"
+    "test:integration": "npm run build && vitest run --project integration",
+    "test:e2e": "npm run build:e2e && playwright test",
+    "test:e2e:nightly": "npm run build:e2e && playwright test --config playwright.nightly.config.ts"
   },
   "dependencies": {
+    "lib0": "^0.2.118",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
+    "y-protocols": "^1.0.7",
+    "y-websocket": "^3.1.0",
     "yjs": "^13.6.33"
   },
   "devDependencies": {
+    "@cloudflare/vitest-pool-workers": "^0.12.0",
+    "@cloudflare/workers-types": "^5.20260926.1",
     "@playwright/test": "^1.53.0",
     "@testing-library/react": "^16.0.0",
     "@testing-library/user-event": "^14.5.2",
