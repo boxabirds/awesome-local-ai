@@ -240,6 +240,38 @@ limit it ran with (`mtplx_memory_limit_bytes` in `run.json`).
    a planned headroom of 0?
 3. Is the zero prefill transient right when the prefill starts at the limit rather than idle?
 
+## 7. Freeze 3, and what froze in 2 and 3: the compaction request itself (26 Sep, 14:48 UTC)
+
+Measured from MTPLX's own flight recorder (`~/.mtplx/metrics/flight-18010.jsonl`, one `begin` /
+`prefill` / `s` / `end` / `pc` event per request step) and the 2-second memory recorder.
+
+| | Freeze 2 | Freeze 3 |
+|---|---|---|
+| Run | canvas-pi-03, story 3 | canvas-pi-03, story 4 |
+| Last finished turn (UTC), prompt tokens | 08:57:29.54, 114,191 | 14:48:10.84, 114,657 |
+| Next event | 08:57:29.90 `begin`, new session, 67,405 prompt tokens | 14:48:11.19 `begin`, new session, 72,776 prompt tokens |
+| `prefill` event for it | none | none |
+| Last memory-recorder row | (recorder not yet running) | 14:48:14: wired 87.7, free 5.7, compressed 11.0 GiB, swap 1.9 GiB |
+| Last power sample | 08:57:34 | 14:48:15.8 (97 W) |
+| Watchdog restart | 08:59:50 | boot at 14:50:45 |
+
+- Both freezes happen during the first seconds of pi's compaction request: a new session, so a
+  full cache miss of 67–73k tokens. It started less than half a second after a 114k-token turn
+  whose conversation stayed resident in the session cache (`cache_source ram`, restore `clone`).
+  Freeze 1 (03:20) does not show this pattern in the flight recorder: its last request was an
+  ordinary 43,893-token turn with nothing after it.
+- The machine was already short of memory before freeze 3. For the two minutes before it, free
+  pages sat at 0.05–0.1 GiB with 18 GiB compressed and 2 GiB of swap, while the agent ran its own
+  tests between model turns.
+- Twice before freeze 3 (14:18:31 and 14:45:52), wired memory system-wide fell to 3.6 and 9.2 GiB,
+  compressed memory jumped to 69 and 71 GiB, and everything was re-wired within about 10 s. MTPLX
+  did not restart, and its next requests completed normally. We don't know what un-wires the model
+  like this; it may be the system memory guard's shed. It is in the recorder at 2-second resolution.
+
+**Question for you:** should a cache-miss prefill for a new session wait until the previous
+session's resident snapshot is evicted, or stay under a projected total that includes it?
+This compaction is the request that stops the machine.
+
 ## Data available on request
 
 - The request-log rows for every window above, as JSONL.
