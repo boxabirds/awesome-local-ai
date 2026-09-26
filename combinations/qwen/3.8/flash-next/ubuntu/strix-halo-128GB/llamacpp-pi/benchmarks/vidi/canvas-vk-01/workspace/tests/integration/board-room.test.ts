@@ -20,6 +20,7 @@ import {
   SYNC_UPDATE,
   boardsOf,
   connectClient,
+  initializeBoard,
   waitUntil,
 } from './helpers/ws-client';
 
@@ -108,6 +109,7 @@ describe('room relay', () => {
     const a = new RoomClient(aDoc);
     const b = new RoomClient(bDoc);
     try {
+      await initializeBoard(boardId);
       await a.connect(boardId);
       await a.sync();
       await b.connect(boardId);
@@ -136,6 +138,7 @@ describe('room relay', () => {
     const a = new RoomClient(aDoc);
     const b = new RoomClient(bDoc);
     try {
+      await initializeBoard(boardId);
       await a.connect(boardId);
       await a.sync();
       await b.connect(boardId);
@@ -166,6 +169,7 @@ describe('room relay', () => {
     const a = new RoomClient(aDoc);
     const b = new RoomClient(bDoc);
     try {
+      await initializeBoard(boardId);
       await a.connect(boardId);
       await a.sync();
       await b.connect(boardId);
@@ -314,6 +318,7 @@ describe('room relay', () => {
 
     // Fresh object id: the clients' documents recreate the room contents.
     const fresh = newBoardId();
+    await initializeBoard(fresh);
     await a.connect(fresh);
     await a.sync();
     expect(json(a.board())).toEqual(expected);

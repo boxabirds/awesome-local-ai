@@ -75,3 +75,18 @@ export const PERSIST_TESTED_NOTES = 2000;
 export const BOARD_LOAD_BUDGET_MS = 3000;
 /** Version of the storage tables, written to `storage_meta` on migrate. */
 export const STORAGE_SCHEMA_VERSION = 1;
+
+// Share settings (story 5)
+
+/** Max boards a single visitor may create within the period. */
+export const BOARD_CREATE_LIMIT = 10;
+/** Period (seconds) over which the creation limit applies. Must match wrangler.jsonc ratelimits. */
+export const BOARD_CREATE_PERIOD_SECONDS = 60;
+/** Maximum attempts to find a non-colliding board id before giving up. */
+export const CREATE_ID_MAX_ATTEMPTS = 3;
+/** Budget for the create-a-board flow (PRD share.create). */
+export const CREATE_BUDGET_MS = 2000;
+/** How long "Link copied" is shown (PRD share.copy). */
+export const LINK_COPIED_MS = 2000;
+/** Base backoff for board-existence retries; doubles up to RECONNECT_MAX_BACKOFF_MS. */
+export const BOARD_CHECK_RETRY_BASE_MS = 1000;

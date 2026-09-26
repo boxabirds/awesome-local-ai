@@ -133,8 +133,55 @@ export class BoardStore {
   private logCount = 0;
   private logBytes = 0;
 
+  /** Whether migrate() has been called (tables exist) in this instance. */
+  private _migrated = false;
+
   constructor(storage: BoardStorage) {
     this.storage = storage;
+  }
+
+  /**
+   * Read-only existence check: returns true if the board's `storage_meta` has
+   * `created_at`, or if there are any rows in `updates` or `snapshot_chunks`
+   * (legacy boards from before story 5). Never creates tables; returns false
+   * when `sqlite_master` has none of the expected tables.
+   */
+  existsReadOnly(): boolean {
+    // Check if tables exist at all (any relation type: table or view)
+    const tables = this.storage.sql
+      .exec(
+        "SELECT name FROM sqlite_master WHERE name IN ('storage_meta', 'updates', 'snapshot_chunks')",
+      )
+      .toArray();
+    if (tables.length === 0) return false;
+
+    // Check created_at in storage_meta
+    const hasMeta = tables.some((r) => r.name === 'storage_meta');
+    if (hasMeta) {
+      const rows = this.storage.sql
+        .exec("SELECT value FROM storage_meta WHERE key = 'created_at'")
+        .toArray();
+      if (rows.length > 0) return true;
+    }
+
+    // Legacy: any rows in updates or snapshot_chunks means the board existed
+    const hasUpdates = tables.some((r) => r.name === 'updates');
+    if (hasUpdates) {
+      const rows = this.storage.sql
+        .exec('SELECT 1 FROM updates LIMIT 1')
+        .toArray();
+      if (rows.length > 0) return true;
+    }
+
+    const hasSnapshots = tables.some((r) => r.name === 'snapshot_chunks');
+    if (hasSnapshots) {
+      const rows = this.storage.sql
+        .exec('SELECT 1 FROM snapshot_chunks LIMIT 1')
+        .toArray();
+      if (rows.length > 0) return true;
+    }
+
+    return false;
   }
 
   /**
@@ -149,6 +196,12 @@ export class BoardStore {
     if (existing.length === 0) {
       this.setMeta(META_SCHEMA_VERSION, String(STORAGE_SCHEMA_VERSION));
     }
+    this._migrated = true;
+  }
+
+  /** Ensure tables exist before write operations. */
+  private ensureMigrated(): void {
+    if (!this._migrated) this.migrate();
   }
 
   /**
@@ -158,6 +211,7 @@ export class BoardStore {
    * saved (PRD persist.save_failure).
    */
   append(update: Uint8Array): void {
+    this.ensureMigrated();
     const pieces = chunkBytes(update);
     if (pieces.length === 0) return; // an empty update carries nothing to store
     if (pieces.length === 1) {
@@ -184,6 +238,20 @@ export class BoardStore {
    */
   load(doc: Y.Doc): LoadResult {
     try {
+      // If the `updates` table doesn't exist yet (board never created or never
+      // migrated), treat as an empty board without creating anything. We check
+      // for any relation type (table or view) so that storage corruption
+      // (e.g. a broken view) is caught by the subsequent SELECT rather than
+      // silently treated as empty.
+      const tables = this.storage.sql
+        .exec(
+          "SELECT name FROM sqlite_master WHERE name = 'updates'",
+        )
+        .toArray();
+      if (tables.length === 0) {
+        return { ok: true, quarantined: 0 };
+      }
+
       const throughSeq = this.metaNumber(META_SNAPSHOT_THROUGH_SEQ);
 
       const chunks = this.storage.sql
@@ -331,7 +399,7 @@ export class BoardStore {
     );
   }
 
-  private setMeta(key: string, value: string): void {
+  setMeta(key: string, value: string): void {
     this.storage.sql.exec(
       'INSERT INTO storage_meta (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value',
       key,
