@@ -1,3 +1,28 @@
+commit c00d439d2708023fb013932b1038b9511a980e3b
+vidi-agent  Sat Sep 26 01:23:23 2026 +0100
+
+    harness: snapshot after story 8 (uncommitted agent work)
+
+
+ src/client/App.tsx                       |  31 ++-
+ src/client/board/Toolbar.tsx             |   7 +
+ src/client/board/UndoButtons.tsx         |  77 +++++
+ src/client/board/undo.ts                 | 145 ++++++++++
+ src/client/board/useBoardDoc.ts          |  10 +-
+ src/client/board/useBoardKeys.ts         |  31 ++-
+ src/client/board/useTransformGesture.ts  |  13 +-
+ src/client/board/useUndo.ts              | 122 ++++++++
+ src/client/objects/StickyNote.tsx        |  19 +-
+ src/client/objects/StickyTextEditor.tsx  |  47 ++++
+ src/client/sync/boardSession.ts          |   6 +
+ src/shared/config.ts                     |  17 ++
+ tests/component/appHarness.tsx           |  13 +
+ tests/component/undo-boundaries.test.tsx | 227 +++++++++++++++
+ tests/component/undo-controls.test.tsx   | 195 +++++++++++++
+ tests/e2e/undo.spec.ts                   | 464 +++++++++++++++++++++++++++++++
+ tests/unit/undo-boundaries.test.ts       | 106 +++++++
+ tests/unit/undo-history.test.ts          | 282 +++++++++++++++++++
+ 18 files changed, 1803 insertions(+), 9 deletions(-)
 commit 176ab9dd22b7522530898516ce31fafbcd4190cc
 vidi-agent  Fri Sep 25 23:23:42 2026 +0100
 
