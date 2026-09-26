@@ -10,6 +10,7 @@ import {
 
 import { GRID_SPACING_WORLD, WHEEL_ZOOM_SENSITIVITY } from '../../shared/config';
 import type { Point, Size } from './camera';
+import { screenToWorld as cameraScreenToWorld } from './camera';
 import { useCamera } from './useCamera';
 
 /** Wheel `deltaMode` conversions to CSS pixels. */
@@ -96,6 +97,10 @@ function useViewportSize(ref: RefObject<HTMLElement | null>): Size {
 export interface BoardViewportProps {
   /** Board content, rendered in world coordinates. */
   children?: ReactNode;
+  /** Called on double-click of empty board space with world coordinates. */
+  onDblClickEmpty?(worldPoint: Point): void;
+  /** Called on single click of empty board space (to clear selection). */
+  onEmptyClick?(): void;
 }
 
 /**
@@ -103,10 +108,12 @@ export interface BoardViewportProps {
  * wheel/trackpad scrolling, pinch (Safari gesture) zoom, the keyboard zoom
  * shortcuts, the dot grid and the world layer transform.
  */
-export function BoardViewport({ children }: BoardViewportProps): JSX.Element {
+export function BoardViewport({ children, onDblClickEmpty, onEmptyClick }: BoardViewportProps): JSX.Element {
   const viewportRef = useRef<HTMLDivElement | null>(null);
   const worldRef = useRef<HTMLDivElement | null>(null);
   const panPointerIdRef = useRef<number | null>(null);
+  const panStartedRef = useRef(false);
+  const didPanRef = useRef(false);
 
   const size = useViewportSize(viewportRef);
   const sizeRef = useRef<Size>(size);
@@ -117,6 +124,12 @@ export function BoardViewport({ children }: BoardViewportProps): JSX.Element {
   const actionsRef = useRef({ wheel, zoomStep, reset });
   useEffect(() => {
     actionsRef.current = { wheel, zoomStep, reset };
+  });
+
+  // Latest callbacks for stable event handlers
+  const callbacksRef = useRef({ onDblClickEmpty, onEmptyClick });
+  useEffect(() => {
+    callbacksRef.current = { onDblClickEmpty, onEmptyClick };
   });
 
   // Wheel must be non-passive so the page never scrolls or zooms over the board.
@@ -171,8 +184,6 @@ export function BoardViewport({ children }: BoardViewportProps): JSX.Element {
       const ratio = scale / baseScale;
       baseScale = scale;
       if (!Number.isFinite(ratio) || ratio <= 0) return;
-      // The hook's zoom entry point is the ctrl/modifier wheel; convert the
-      // pinch scale ratio into the deltaY that produces exactly that factor.
       const deltaY = -Math.log(ratio) / WHEEL_ZOOM_SENSITIVITY;
       actionsRef.current.wheel({ deltaX: 0, deltaY, ctrlOrMeta: true, point: gesturePoint(event) });
     };
@@ -216,14 +227,22 @@ export function BoardViewport({ children }: BoardViewportProps): JSX.Element {
     return () => window.removeEventListener('keydown', onKeyDown);
   }, []);
 
+  const isEmptyTarget = (target: HTMLElement | EventTarget | null): boolean => {
+    const el = viewportRef.current;
+    const wl = worldRef.current;
+    return target === el || target === wl;
+  };
+
   const onPointerDown = (event: ReactPointerEvent<HTMLDivElement>) => {
     if (event.button !== 0) return;
     const element = viewportRef.current;
     if (!element) return;
     // Only empty board space starts a pan; board objects stop propagation.
     const target = event.target as HTMLElement | null;
-    if (target !== element && target !== worldRef.current) return;
+    if (!isEmptyTarget(target)) return;
 
+    panStartedRef.current = true;
+    didPanRef.current = false;
     panPointerIdRef.current = event.pointerId ?? -1;
     if (typeof element.setPointerCapture === 'function') {
       try {
@@ -239,6 +258,7 @@ export function BoardViewport({ children }: BoardViewportProps): JSX.Element {
     if (panPointerIdRef.current === null || panPointerIdRef.current !== (event.pointerId ?? -1)) return;
     const element = viewportRef.current;
     if (!element) return;
+    didPanRef.current = true;
     panMove(pointInViewport(element, event.clientX, event.clientY));
   };
 
@@ -247,6 +267,24 @@ export function BoardViewport({ children }: BoardViewportProps): JSX.Element {
     panPointerIdRef.current = null;
     // Whatever the camera reached when the gesture was interrupted is kept.
     endPan();
+    // If we didn't actually pan (no move happened), this was a click on empty space
+    if (!didPanRef.current && panStartedRef.current) {
+      callbacksRef.current.onEmptyClick?.();
+    }
+    panStartedRef.current = false;
+    didPanRef.current = false;
+  };
+
+  const onDoubleClick = (event: React.MouseEvent) => {
+    const target = event.target as HTMLElement | EventTarget | null;
+    if (!isEmptyTarget(target)) return;
+    const element = viewportRef.current;
+    if (!element) return;
+    event.stopPropagation();
+    event.preventDefault();
+    const viewportPoint = pointInViewport(element, event.clientX, event.clientY);
+    const worldPoint = cameraScreenToWorld(camera, viewportPoint);
+    callbacksRef.current.onDblClickEmpty?.(worldPoint);
   };
 
   const tile = GRID_SPACING_WORLD * camera.zoom;
@@ -270,6 +308,7 @@ export function BoardViewport({ children }: BoardViewportProps): JSX.Element {
       onPointerUp={onPanEnd}
       onPointerCancel={onPanEnd}
       onLostPointerCapture={onPanEnd}
+      onDoubleClick={onDoubleClick}
     >
       <div
         ref={worldRef}

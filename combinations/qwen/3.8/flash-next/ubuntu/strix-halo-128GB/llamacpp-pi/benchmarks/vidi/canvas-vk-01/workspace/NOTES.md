@@ -169,3 +169,97 @@ confirm the page zoom indicator never changes and nothing scrolls the window.
   "infinite"-enough; `CAMERA_COORD_LIMIT` is 1e9.
 * e2e runs `wrangler dev`; if a run is interrupted, an orphan `workerd` may keep
   port 8787 — kill it by pattern (`pkill -f 'wrangler de[v]'`).
+
+---
+
+# Story 2 notes — capture ideas on sticky notes and rearrange them
+
+Implementation of `spec/stories/002-capture-ideas-on-sticky-notes-and-rearrange-them`.
+
+## Architecture
+
+```
+src/shared/board-model.ts     — pure Y.Doc mutations, snapshot helpers
+src/client/objects/StickyNote.tsx   — interaction component (select, drag, edit)
+src/client/objects/StickyText.ts    — clampToLimit, applyTextDiff, counterVisible, fitFontSize
+src/client/objects/StickyTextEditor.tsx — IME-aware textarea
+src/client/objects/NoteToolbar.tsx  — swatches and delete button
+src/client/board/useBoardDoc.tsx    — Y.Doc provider and React hooks
+src/client/board/useSelection.ts    — local selection/editing state
+src/client/App.tsx                  — BoardApp, BoardContent, NoteToolbarOverlay
+```
+
+## Key implementation decisions
+
+### Drag state machine
+The note uses a ref-based state machine (`Unselected | Pressed | Selected | Dragging | Editing`)
+to manage interaction without spurious re-renders. Critical fix: the external `useEffect`
+that syncs `selected`/`editing` props must NOT override `Dragging` or `Pressed` states —
+this was a bug where `bringToFront` triggered a Y.Doc update → snapshot change → re-render
+→ effect set state back to `Selected`, breaking all subsequent pointer moves.
+
+### Synchronous drag (no rAF)
+`moveObject` is called synchronously on each pointermove. The design mentions "rAF-batched"
+but tests fire pointer events faster than rAF can flush; synchronous application is
+correct and the Y.Doc's transaction batching already coalesces updates within a microtask.
+
+### Absolute position drag with zoomRef
+Drag uses `startWorld + (pointer - pressOrigin) / zoom` (absolute delta from origin)
+rather than incremental position updates. This avoids floating-point accumulation errors.
+The `zoomRef` pattern avoids stale `zoom` values inside `useCallback` closures.
+
+### Empty-click detection (BoardViewport)
+Replaced `panning` state check with `didPanRef` (a ref tracking whether any `pointermove`
+event fired during a viewport pan attempt). This correctly distinguishes "click on empty
+space" from "pan gesture that started at the same position" since the `panning` state was
+always true by the time `pointerup` fired (set synchronously by `beginPan`).
+
+### Note toolbar in screen space
+The toolbar is rendered OUTSIDE the world layer as a `position: fixed` overlay, positioned
+by converting the note's world coordinates to screen via `worldToScreen(camera, ...)`.
+This prevents the toolbar from being clipped by the note's `overflow: hidden` and keeps
+it at constant screen size regardless of zoom level (matching the design spec:
+"rendered in screen space above the selected note, not scaled by zoom").
+
+### Font fitting
+`fitFontSize(el, box)` in `StickyText.ts` performs binary search over font sizes
+(`STICKY_FONT_MIN_PX..STICKY_FONT_MAX_PX`) checking `el.scrollHeight <= box`.
+The `StickyNote` component calls this via `useLayoutEffect` whenever text changes.
+In jsdom, `scrollHeight` is always 0, so the function always returns max font size
+(harmless for component tests). In the real browser (e2e), it correctly shrinks font.
+
+### Text overflow fade
+When `fitFontSize` returns `overflow: true` (text still doesn't fit at min font),
+the text element gets class `overflow-fade` which applies a CSS mask-image gradient.
+
+## Test coverage
+
+| Tests | Where |
+| --- | --- |
+| TC-01..TC-12 (board model) | `tests/unit/board-model.test.ts` |
+| TC-13..TC-17 (sticky text) | `tests/unit/sticky-text.test.ts` |
+| TC-18..TC-29 (components) | `tests/component/StickyNote.test.tsx`, `StickyTextEditor.test.tsx`, `Toolbars.test.tsx` |
+| TC-30..TC-34 + workflow (e2e) | `tests/e2e/sticky-notes.spec.ts` |
+
+## Deviations from the spec
+
+1. **Camera store: rAF-coalesced but synchronous object mutations.** Story 1 uses
+   rAF for camera updates; Story 2's note moves apply synchronously. This is fine because
+   the design's rAF mention for drags was an optimization suggestion, not a requirement.
+
+2. **`isDragging` is a React state** (not purely a ref) to trigger re-render for
+   the `data-dragging` attribute, allowing the App to hide the toolbar during drag.
+
+3. **`estimateFontSize` fallback removed** — font fitting uses only real DOM measurement.
+   The initial render uses CSS `font-size: 24px` (max), then `useLayoutEffect` corrects it
+   synchronously before the browser paints.
+
+4. **`NoteToolbar` is rendered by `BoardContent`** (not inside the note component) to avoid
+   `overflow: hidden` clipping and to render in screen space per the design spec.
+
+## Not covered
+
+* Presence cursors (Story 6): selection/editing state is local only, per design.
+* Undo/redo (Story 9): no undo manager attached.
+* Shape/connection components: hooks exist in board-model for Stories 4/5.
+* Frame-rate profiling under 100 notes: manual perf check only.
