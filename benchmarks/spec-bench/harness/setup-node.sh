@@ -54,6 +54,11 @@ else
   bad "node >= $MIN_NODE_MAJOR -- brew install node"
 fi
 if [[ "$(uname)" == Darwin ]]; then need sandbox-exec "part of macOS"; else need bwrap "sudo apt install bubblewrap"; fi
+# Tools the pack's builds need beyond node (bench.json "tools", e.g. bun for a bun workspace).
+for tool in $(python3 -c 'import json, sys; print(" ".join(json.load(open(sys.argv[1])).get("tools", [])))' \
+                "$REPO_ROOT/$PACK/bench.json" 2>/dev/null); do
+  need "$tool" "the $PACK pack's builds need it; see its README"
+done
 
 echo "repos"
 if git -C "$REPO_ROOT" ls-remote --exit-code origin HEAD >/dev/null 2>&1; then ok "public repo reachable (records are pushed here)"

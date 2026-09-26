@@ -1,4 +1,16 @@
 {
   "name": "todoodle",
-  "pack_ref": "todoodle-v1"
+  "pack_ref": "todoodle-v1",
+  "gate": [
+    "build",
+    "typecheck",
+    "lint",
+    "test:unit",
+    "test:component",
+    "test:integration",
+    "test:e2e"
+  ],
+  "tools": [
+    "bun"
+  ]
 }

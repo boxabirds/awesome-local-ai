@@ -62,7 +62,24 @@ def _counts(output: str) -> dict:
     return {"passed": passed, "failed": failed}
 
 
+BUN_LOCKFILES = ("bun.lock", "bun.lockb")
+
+
+def package_manager(ws: Path) -> str:
+    """The workspace's own package manager: bun for a bun workspace (a bun lockfile, or
+    "packageManager": "bun@..."), else npm. npm can't install bun's `workspace:` dependencies."""
+    if any((ws / f).exists() for f in BUN_LOCKFILES):
+        return "bun"
+    try:
+        declared = json.loads((ws / "package.json").read_text()).get("packageManager") or ""
+    except (OSError, json.JSONDecodeError, AttributeError):
+        declared = ""
+    return "bun" if declared.startswith("bun@") else "npm"
+
+
 def install(ws: Path) -> dict:
+    if package_manager(ws) == "bun":
+        return _run(["bun", "install"], ws, STEP_TIMEOUT_S)
     cmd = ["npm", "ci"] if (ws / "package-lock.json").exists() else ["npm", "install"]
     return _run(cmd, ws, STEP_TIMEOUT_S)
 
@@ -79,18 +96,20 @@ def gate(ws: Path, steps: list[str] | None = None) -> dict:
     # The agent's scripts run against the agent's browsers, which it installed with its own
     # Playwright; the default cache holds the held-out suite's build, a different version.
     env = {"PLAYWRIGHT_BROWSERS_PATH": str(hostenv.agent_playwright_cache(Path.home()))}
+    pm = package_manager(ws)
     for step in steps or GATE_STEPS:
         if step not in scripts:
             result["steps"][step] = {"exit": "missing"}
             continue
-        cmd = ["npm", "run", step]
+        cmd = [pm, "run", step]
         if step == "test:e2e":
-            # Chromium only: the harness does not install every browser.
-            cmd += ["--", "--project=chromium"]
+            # Chromium only: the harness does not install every browser. (npm needs "--" to pass
+            # arguments through to the script; bun passes them as they are.)
+            cmd += ["--project=chromium"] if pm == "bun" else ["--", "--project=chromium"]
         r = _run(cmd, ws, STEP_TIMEOUT_S, env)
         if step == "test:e2e" and r["exit"] != 0 and NO_SUCH_PROJECT.search(r["tail"]):
             # The agent's config has no "chromium" project: run its own projects instead.
-            cmd = ["npm", "run", step]
+            cmd = [pm, "run", step]
             r = _run(cmd, ws, STEP_TIMEOUT_S, env)
         if step == "test:e2e" and missing_chromium(r["tail"]):
             # Install the browser the agent's Playwright wants, once, and rerun. Still missing means
