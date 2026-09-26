@@ -2,11 +2,13 @@ import { CLIENT_HEADER_NAME, CLIENT_HEADER_VALUE } from '@todoodle/shared/limits
 import {
   CreateWorkspaceResponse,
   OpenWorkspaceResponse,
+  RememberedListResponse,
+  type RememberedPublic,
   type Workspace,
   WorkspaceLinkResponse,
   WorkspaceResponse,
 } from '@todoodle/shared/schemas';
-import type { z } from 'zod';
+import { z } from 'zod';
 
 /**
  * A failed API call. Carries only the error code and HTTP status (0 for a network failure):
@@ -79,4 +81,22 @@ export async function renameWorkspace(id: string, name: string): Promise<Workspa
 /** Only called on an explicit user action (Share panel, Bookmark, banner Copy) on the /w/:id route. */
 export async function getWorkspaceLink(id: string): Promise<string> {
   return (await request(WorkspaceLinkResponse, `/api/w/${encodeURIComponent(id)}/link`)).link;
+}
+
+/** Bodyless responses (204): nothing to parse. */
+const NoContent = z.unknown();
+
+/** This browser's remembered workspaces (never secrets), most recently opened first. */
+export async function getRemembered(): Promise<RememberedPublic[]> {
+  return (await request(RememberedListResponse, '/api/remembered')).workspaces;
+}
+
+/** Open by id: moves the workspace to the front of this browser's list. 404 when it is not remembered. */
+export async function touchRemembered(id: string): Promise<void> {
+  await request(NoContent, `/api/remembered/${encodeURIComponent(id)}/touch`, { method: 'POST' });
+}
+
+/** Forget on this browser only. Idempotent; the workspace itself is untouched. */
+export async function forgetRemembered(id: string): Promise<void> {
+  await request(NoContent, `/api/remembered/${encodeURIComponent(id)}`, { method: 'DELETE' });
 }

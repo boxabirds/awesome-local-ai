@@ -23,6 +23,10 @@ export function useRenameWorkspace(workspaceId: string) {
     onSuccess: (workspace) => {
       queryClient.setQueryData(key, workspace);
     },
-    onSettled: () => queryClient.invalidateQueries({ queryKey: key }),
+    onSettled: () => {
+      // Story 3: this browser's remembered list shows the name too (Home, switcher, instant name).
+      void queryClient.invalidateQueries({ queryKey: queryKeys.remembered() });
+      return queryClient.invalidateQueries({ queryKey: key });
+    },
   });
 }

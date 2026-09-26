@@ -37,3 +37,16 @@ export function renameWorkspace(db: D1Database, id: string, name: string): Promi
     .bind(name, id)
     .first<WorkspaceRow>();
 }
+
+export type WorkspaceSecretRow = Pick<WorkspaceRow, 'id' | 'name' | 'secret_hash'>;
+
+/** One prepared statement for all ids (the remembered list is one D1 round-trip). Deleted rows are excluded. */
+export async function getWorkspacesByIds(db: D1Database, ids: string[]): Promise<WorkspaceSecretRow[]> {
+  if (ids.length === 0) return [];
+  const placeholders = ids.map(() => '?').join(', ');
+  const { results } = await db
+    .prepare(`SELECT id, name, secret_hash FROM workspaces WHERE deleted = 0 AND id IN (${placeholders})`)
+    .bind(...ids)
+    .all<WorkspaceSecretRow>();
+  return results;
+}

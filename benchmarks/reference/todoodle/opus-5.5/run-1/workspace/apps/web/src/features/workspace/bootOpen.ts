@@ -1,4 +1,5 @@
 import type { Workspace } from '@todoodle/shared/schemas';
+import { notifyDropped } from '@/features/remembered/useDroppedNotice';
 import { isNotFoundError, openWorkspace } from '@/lib/api';
 import { queryClient } from '@/lib/queryClient';
 import { queryKeys } from '@/lib/queryKeys';
@@ -28,8 +29,11 @@ export function secretFromLocation(location: Pick<Location, 'pathname' | 'hash'>
 /** Fires POST /api/workspaces/open. The then-callback writes the workspace into the query cache. */
 function fireOpen(secret: string): Promise<OpenResult> {
   const promise: TrackedPromise<OpenResult> = openWorkspace(secret).then(
-    ({ workspace }): OpenResult => {
+    ({ workspace, dropped }): OpenResult => {
       queryClient.setQueryData(queryKeys.workspace(workspace.id), workspace);
+      // Opening by link remembers the workspace on this browser (the response set the cookie).
+      void queryClient.invalidateQueries({ queryKey: queryKeys.remembered() });
+      notifyDropped(dropped);
       return { status: 'ok', workspace };
     },
     (error: unknown): OpenResult => (isNotFoundError(error) ? { status: 'not_found' } : { status: 'failed' }),

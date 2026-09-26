@@ -25,6 +25,14 @@
   --color-success: var(--success);
 }
 
+/* Minimum hit area (MIN_TOUCH_TARGET_PX = 44px = 2.75rem) on devices without hover (touch screens). */
+@utility touch-target {
+  @media (hover: none) {
+    min-height: 2.75rem;
+    min-width: 2.75rem;
+  }
+}
+
 @layer base {
   * {
     @apply border-border;

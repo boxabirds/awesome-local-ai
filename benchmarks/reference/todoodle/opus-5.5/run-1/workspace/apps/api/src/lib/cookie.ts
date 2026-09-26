@@ -78,10 +78,13 @@ export function encodeRemembered(entries: RememberedEntry[]): string {
   return toBase64url(out);
 }
 
-/** Entries from a cookie value. Never throws: anything unparseable is []. Invalid entries are dropped individually. */
-export function decodeRemembered(value: string): RememberedEntry[] {
+/**
+ * Entries from a cookie value, or null when the value as a whole cannot be decoded (bad base64, wrong
+ * version, truncated). Never throws. Individually invalid or duplicate entries are dropped.
+ */
+export function decodeRememberedStrict(value: string): RememberedEntry[] | null {
   const bytes = fromBase64url(value);
-  if (!bytes || bytes.length < 1 || bytes[0] !== FORMAT_VERSION || (bytes.length - 1) % ENTRY_BYTES !== 0) return [];
+  if (!bytes || bytes.length < 1 || bytes[0] !== FORMAT_VERSION || (bytes.length - 1) % ENTRY_BYTES !== 0) return null;
   const view = new DataView(bytes.buffer);
   const entries: RememberedEntry[] = [];
   for (let offset = 1; offset < bytes.length; offset += ENTRY_BYTES) {
@@ -93,6 +96,11 @@ export function decodeRemembered(value: string): RememberedEntry[] {
     if (RememberedEntrySchema.safeParse(entry).success && !entries.some((e) => e.id === entry.id)) entries.push(entry);
   }
   return entries;
+}
+
+/** Entries from a cookie value. Never throws: anything unparseable is []. Invalid entries are dropped individually. */
+export function decodeRemembered(value: string): RememberedEntry[] {
+  return decodeRememberedStrict(value) ?? [];
 }
 
 /** The value of the remembered cookie in a Cookie header, if any. */
@@ -107,9 +115,21 @@ function cookieValue(cookieHeader: string, name: string): string | undefined {
 
 /** This browser's remembered workspaces from the request's Cookie header. Never throws; malformed -> []. */
 export function readRemembered(cookieHeader: string | null): RememberedEntry[] {
-  if (!cookieHeader) return [];
-  const value = cookieValue(cookieHeader, REMEMBERED_COOKIE_NAME);
-  return value ? decodeRemembered(value) : [];
+  const parsed = parseRememberedCookie(cookieHeader);
+  return parsed.status === 'ok' ? parsed.entries : [];
+}
+
+export type ParsedRememberedCookie =
+  | { status: 'absent' }
+  | { status: 'ok'; entries: RememberedEntry[] }
+  | { status: 'malformed' };
+
+/** Like readRemembered, but tells an absent cookie apart from a malformed one (which the caller heals). */
+export function parseRememberedCookie(cookieHeader: string | null): ParsedRememberedCookie {
+  const value = cookieHeader ? cookieValue(cookieHeader, REMEMBERED_COOKIE_NAME) : undefined;
+  if (!value) return { status: 'absent' };
+  const entries = decodeRememberedStrict(value);
+  return entries ? { status: 'ok', entries } : { status: 'malformed' };
 }
 
 /**
@@ -126,11 +146,46 @@ export function upsertRemembered(
   return { entries: kept, dropped: merged.length - kept.length };
 }
 
-/** The full Set-Cookie header value. Secure everywhere except local (plain-http wrangler dev). */
-export function serializeRememberedCookie(entries: RememberedEntry[], env: Pick<Env, 'ENVIRONMENT'>): string {
-  const attributes = ['HttpOnly', 'SameSite=Lax', 'Path=/api', `Max-Age=${REMEMBERED_COOKIE_MAX_AGE_S}`];
+function cookieAttributes(env: Pick<Env, 'ENVIRONMENT'>, maxAge: number): string[] {
+  const attributes = ['HttpOnly', 'SameSite=Lax', 'Path=/api', `Max-Age=${maxAge}`];
+  // Secure on staging and production. Only local wrangler dev (plain http) omits it; an unknown
+  // environment fails safe to Secure.
   if (env.ENVIRONMENT !== 'local') attributes.push('Secure');
-  return [`${REMEMBERED_COOKIE_NAME}=${encodeRemembered(entries)}`, ...attributes].join('; ');
+  return attributes;
+}
+
+/**
+ * The one builder for every tdl_ws Set-Cookie: HttpOnly (never readable by page scripts), SameSite=Lax,
+ * Path=/api (sent only to the API), Max-Age=REMEMBERED_COOKIE_MAX_AGE_S, and Secure on staging/production.
+ */
+export function rememberedCookieHeader(value: string, env: Pick<Env, 'ENVIRONMENT'>): string {
+  return [`${REMEMBERED_COOKIE_NAME}=${value}`, ...cookieAttributes(env, REMEMBERED_COOKIE_MAX_AGE_S)].join('; ');
+}
+
+/** Deletes the cookie (same name, path and attributes, Max-Age=0). Used to heal a malformed value. */
+export function clearRememberedCookieHeader(env: Pick<Env, 'ENVIRONMENT'>): string {
+  return [`${REMEMBERED_COOKIE_NAME}=`, ...cookieAttributes(env, 0)].join('; ');
+}
+
+/** The full Set-Cookie header value for a list of entries. */
+export function serializeRememberedCookie(entries: RememberedEntry[], env: Pick<Env, 'ENVIRONMENT'>): string {
+  return rememberedCookieHeader(encodeRemembered(entries), env);
+}
+
+/**
+ * Open by id: moves the entry for `id` to the front with t = nowSec, keeping its secret.
+ * Null when the id is not remembered (touch never adds an entry).
+ */
+export function touchRemembered(entries: RememberedEntry[], id: string, nowSec: number): RememberedEntry[] | null {
+  const entry = findEntry(entries, id);
+  if (!entry) return null;
+  return upsertRemembered(entries, { id, s: entry.s, t: nowSec }).entries;
+}
+
+/** Forget on this browser: removes the entry for `id`, keeping the order of the rest. */
+export function removeRemembered(entries: RememberedEntry[], id: string): { entries: RememberedEntry[]; changed: boolean } {
+  const kept = entries.filter((entry) => entry.id !== id);
+  return { entries: kept, changed: kept.length !== entries.length };
 }
 
 export function findEntry(entries: RememberedEntry[], id: string): RememberedEntry | undefined {

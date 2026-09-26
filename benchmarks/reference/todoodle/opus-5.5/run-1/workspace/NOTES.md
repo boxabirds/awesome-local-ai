@@ -108,3 +108,53 @@
 - Story 2 verification: build, typecheck (all five tsconfigs), lint, unit (api 57, deploy 48, web 40), integration
   (api 56, deploy 18), UI (54) and e2e (26: 13 per browser) all pass. `bun run <script>` cannot run in this sandbox
   (`CouldntReadCurrentDirectory`, as in story 1), so each script's underlying command was run directly.
+
+## Story 3
+
+- **Commit order.** Task 7 (forget dialog) was committed before task 6 (Home list), because task 6 depends on
+  `preloadForgetDialog`. Task 13 (NotFound recovery, instant name) was committed before the test tasks 9–12, which
+  exercise it. `removeRemembered` landed with task 2's cookie helpers; `RememberedPublic`/`RememberedListResponse`
+  landed with task 2 because `lib/remembered.ts` needs them.
+- **Secure attribute.** TC-09 says Secure "only for staging and production". Story 2's TC-13 also expects Secure when
+  `ENVIRONMENT` is missing (fail-safe). The one builder (`rememberedCookieHeader`) therefore omits Secure only for
+  `local`, which satisfies both.
+- **Malformed vs absent cookie.** Story 2's codec turns anything unparseable into `[]`. Story 3 needs to heal a
+  malformed cookie, so `cookie.ts` adds `decodeRememberedStrict` (null when the value as a whole cannot be decoded)
+  and `parseRememberedCookie` (`absent | ok | malformed`). An empty `tdl_ws=` value counts as absent. With the binary
+  codec, TC-25's "bad JSON" and "schema failure" cases are base64url JSON values, which fail the version/length check.
+- **Touch fires once per mount.** `useTouchRemembered` uses `staleTime`/`gcTime: Infinity` as the design says, plus
+  `refetchOnMount: 'always'`. Otherwise reopening a workspace later in the same session would not move it back to
+  the front (TC-81).
+- **useOpenWorkspace.** Story 2 has no `useOpenWorkspace` hook; opening by link is `fireOpen` in `bootOpen.ts`. The
+  remembered-list invalidation and the dropped notice are called from its success callback (and from
+  `useCreateWorkspace`'s `onSuccess`). `notifyDropped` is the plain function; `useDroppedNotice()` returns it.
+- **Switcher trigger.** The workspace name in the header is story 2's inline rename input, so it cannot also be the
+  menu trigger. The switcher is a chevron button labelled "Switch workspace", next to the name. The list query in the
+  switcher is enabled only once the menu is opened (and prefetched on trigger hover/focus), so workspaces that never
+  open it make no extra request. Menu items are marked current with `aria-current="page"` and a check icon.
+- **Copy link in the forget dialog.** `useWorkspaceLink` (story 2) gained `fetchLink()`. It runs `refetch()` on the
+  disabled query and resolves the link or rejects. The dialog then calls `copyText(link)` with a string, as the
+  design says. Unlike the Share panel, a manual copy in the fallback field does not set the saved flag.
+- **Instant name while the route chunk loads.** React 19 throttles revealing Suspense content (about 300 ms). So even with a
+  cached chunk, the header could stay a skeleton past TC-92's 200 ms. The `/w/:workspaceId` Suspense fallback
+  (`RememberedWorkspaceFallback`) therefore also reads `rememberedPlaceholder` and shows the name in the skeleton
+  header. After the chunk loads, `workspaceQuery`'s `placeholderData` keeps it until GET answers. The placeholder
+  fills `version: 0, createdAt: ''`, because only id and name are known. Editing stays off while
+  `isPlaceholderData` is true.
+- **Rename refreshes the remembered list.** Found by e2e TC-90: after a rename, the cached list (used by NotFound, the
+  switcher and the placeholder) showed the old name. `useRenameWorkspace` now also invalidates `['remembered']`.
+- **Story 2 tests touched.** Three story 2 UI tests asserted the exact request list on `/w/:id` or NotFound. They now
+  include story 3's touch request and the recovery list request (the rest of each assertion is unchanged). MSW now
+  has default handlers (empty remembered list, touch 204). The shared test teardown dismisses sonner toasts, because
+  sonner replays active toasts to the next mounted Toaster.
+- **Touch sizing.** The `touch-target` utility (`@media (hover: none)` → 44px minimum) lives in `index.css`.
+  happy-dom evaluates no media queries, so UI TC-71 asserts the classes. The real layout is checked by e2e TC-91 in
+  a new `mobile-touch` Playwright project (iPhone 13, WebKit), which runs only `*.mobile.spec.ts`.
+- **axe.** `axe-core` was added as a web dev dependency. The UI tests run it on Home, NotFound and the forget dialog,
+  with `color-contrast` and `region` off: happy-dom does no layout, and contrast is covered by story 2's token tests.
+- `POST /test/remembered-seed {count}` (1–50) creates workspaces named `Seeded 1` (newest) to `Seeded N` (oldest) and
+  sets a cookie remembering exactly them. Like every `/test/*` route, it returns 404 in production.
+- Story 3 verification: typecheck (all five tsconfigs), lint, build, unit (api 69, deploy 48, web 47), integration
+  (api 76, deploy 18), UI (92) and e2e (51 across chromium, webkit and mobile-touch, run twice) all pass. As in stories
+  1–2, `bun run <script>` cannot run in this sandbox, so each script's underlying binary was run directly against a
+  manually started `wrangler dev`.

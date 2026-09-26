@@ -805,6 +805,439 @@
           "found": null,
           "total": null
         }
+      ],
+      "record": {
+        "committed": true,
+        "pushed": true,
+        "over_size_limit": [],
+        "commit": "475efa3"
+      }
+    },
+    "3": {
+      "title": "Get back to my workspaces from this browser without hunting for the link",
+      "conditions_start": {
+        "ac": true,
+        "low_power": false,
+        "thermal": "nominal"
+      },
+      "started": 1790451206.844939,
+      "agent": {
+        "seconds": 1290.0,
+        "steps": 91,
+        "tool_calls": 93,
+        "compactions": 0,
+        "tool_interruptions": 0,
+        "tokens": {
+          "input": 182,
+          "output": 110975,
+          "reasoning": 0,
+          "cache_read": 13805452,
+          "cache_write": 224682
+        },
+        "exit": 0,
+        "stalled": false,
+        "resumes": 0,
+        "nudges": 0,
+        "errors": [],
+        "ended_by_operator": false,
+        "ended_in_error": false,
+        "sessions": [
+          "0ce7a0bb-e205-4f40-9472-c91bcb92e8c2"
+        ]
+      },
+      "agent_finished": 1790452496.854759,
+      "conditions": {
+        "samples": 42,
+        "degraded": true,
+        "throttled_share": 0.0,
+        "bad_samples": [
+          {
+            "ac": false,
+            "low_power": true,
+            "thermal": "nominal",
+            "t": 1790451507.396297
+          }
+        ],
+        "swap_start_gb": 0.49,
+        "swap_max_gb": 0.49,
+        "aborted_swap": false,
+        "aborted_memory": false,
+        "free_min_pct": 64.0,
+        "server_footprint_max_gb": null,
+        "server_footprint_peak_gb": null,
+        "gpu": null
+      },
+      "agent_commits": 14,
+      "gate": {
+        "steps": {
+          "install": {
+            "cmd": "bun install",
+            "exit": 0,
+            "seconds": 0.1,
+            "tail": "bun install v1.2.17 (282dda62)\n\nChecked 380 installs across 509 packages (no changes) [45.00ms]\n"
+          },
+          "build": {
+            "cmd": "bun run build",
+            "exit": 0,
+            "seconds": 0.3,
+            "tail": "\u001b[36mvite v8.3.1 \u001b[32mbuilding client environment for production...\u001b[36m\u001b[39m\ntransforming...\n\u2713 403 modules transformed.\nrendering chunks...\ncomputing gzip size...\ndist/index.html                             0.52 kB \u2502 gzip:   0.30 kB\ndist/assets/index-TLMzLkrp.css             36.19 kB \u2502 gzip:   7.98 kB\ndist/assets/useWorkspaceLink-CMlKSEED.js    2.17 kB \u2502 gzip:   1.04 kB\ndist/assets/SharePanel-Bxy-8dlp.js          4.09 kB \u2502 gzip:   1.92 kB\ndist/assets/dist-DA7uCJDi.js                4.70 kB \u2502 gzip:   1.69 kB\ndist/assets/ForgetDialog-idsf3qlr.js        4.86 kB \u2502 gzip:   1.89 kB\ndist/assets/Workspace-bKz6f4r_.js           8.56 kB \u2502 gzip:   3.48 kB\ndist/assets/es2015-gUsCr47k.js            183.10 kB \u2502 gzip:  56.33 kB\ndist/assets/index-yGcVzGIM.js             339.64 kB \u2502 gzip: 109.31 kB\n\n\u001b[32m\u2713 built in 136ms\u001b[39m\n$ bun run --cwd apps/web build\n$ vite build\n",
+            "passed": null,
+            "failed": null
+          },
+          "typecheck": {
+            "cmd": "bun run typecheck",
+            "exit": 0,
+            "seconds": 4.0,
+            "tail": "$ bun run --cwd packages/shared typecheck && bun run --cwd apps/api typecheck && bun run --cwd apps/web typecheck && tsc -p tsconfig.json --noEmit\n$ tsc -p tsconfig.json --noEmit\n$ tsc -p tsconfig.json --noEmit && tsc -p tsconfig.node.json --noEmit\n$ tsc -p tsconfig.json --noEmit\n",
+            "passed": null,
+            "failed": null
+          },
+          "lint": {
+            "cmd": "bun run lint",
+            "exit": 0,
+            "seconds": 0.6,
+            "tail": "$ bun run --cwd apps/web lint\n$ eslint .\n",
+            "passed": null,
+            "failed": null
+          },
+          "test:unit": {
+            "cmd": "bun run test:unit",
+            "exit": 0,
+            "seconds": 5.2,
+            "tail": "\n RUN  v4.1.11 ~/.vidi-bench/work/benchmarks__reference__todoodle__opus-5.5__run-1/workspace\n\n\n Test Files  7 passed (7)\n      Tests  69 passed (69)\n   Start at  20:55:02\n   Duration  2.71s (transform 2.53s, setup 7.51s, import 85ms, tests 363ms, environment 0ms)\n\n\n RUN  v4.1.11 ~/.vidi-bench/work/benchmarks__reference__todoodle__opus-5.5__run-1/workspace\n\n\n Test Files  6 passed (6)\n      Tests  48 passed (48)\n   Start at  20:55:05\n   Duration  151ms (transform 155ms, setup 0ms, import 217ms, tests 61ms, environment 0ms)\n\n\n RUN  v4.1.11 ~/.vidi-bench/work/benchmarks__reference__todoodle__opus-5.5__run-1/workspace\n\n\n Test Files  7 passed (7)\n      Tests  47 passed (47)\n   Start at  20:55:06\n   Duration  1.10s (transform 331ms, setup 2.15s, import 191ms, tests 501ms, environment 1.35s)\n\n$ vitest run --config apps/api/vitest.config.ts --project api-unit && vitest run --config scripts/vitest.config.ts --project deploy-unit && vitest run --config apps/web/vitest.config.ts --project web-unit\n",
+            "passed": 69,
+            "failed": 0
+          },
+          "test:component": {
+            "exit": "missing"
+          },
+          "test:integration": {
+            "cmd": "bun run test:integration",
+            "exit": 0,
+            "seconds": 11.7,
+            "tail": "\n RUN  v4.1.11 ~/.vidi-bench/work/benchmarks__reference__todoodle__opus-5.5__run-1/workspace\n\n\n Test Files  10 passed (10)\n      Tests  76 passed (76)\n   Start at  20:55:07\n   Duration  4.33s (transform 3.59s, setup 10.03s, import 164ms, tests 1.71s, environment 1ms)\n\n\n RUN  v4.1.11 ~/.vidi-bench/work/benchmarks__reference__todoodle__opus-5.5__run-1/workspace\n\n\n Test Files  1 passed (1)\n      Tests  18 passed (18)\n   Start at  20:55:12\n   Duration  6.37s (transform 41ms, setup 0ms, import 61ms, tests 6.25s, environment 0ms)\n\n$ vitest run --config apps/api/vitest.config.ts --project api-integration --project api-staging-sim --project api-production-gate && vitest run --config scripts/vitest.config.ts --project deploy-integration\n",
+            "passed": 76,
+            "failed": 0
+          },
+          "test:e2e": {
+            "cmd": "bun run test:e2e --project=chromium",
+            "exit": 0,
+            "seconds": 15.0,
+            "tail": "\nRunning 25 tests using 4 workers\n\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\n  25 passed (14.7s)\n::notice title=\ud83c\udfad Playwright Run Summary::  25 passed (14.7s)\n$ playwright test \"--project=chromium\"\n[WebServer] $ wrangler d1 migrations apply DB --local\n[WebServer] $ bun run build && bun scripts/dev.ts\n[WebServer] $ bun run --cwd apps/web build\n[WebServer] $ vite build\n",
+            "passed": 25,
+            "failed": 0
+          }
+        },
+        "all_green": true
+      },
+      "accept": {
+        "skipped": false,
+        "build_exit": 0,
+        "runner_exit": 1,
+        "runner_tail": "",
+        "passed": 47,
+        "total": 48,
+        "on_partial": {
+          "passed": 0,
+          "total": 0
+        },
+        "by_story": {
+          "01": {
+            "passed": 11,
+            "total": 11
+          },
+          "02": {
+            "passed": 22,
+            "total": 22
+          },
+          "03": {
+            "passed": 14,
+            "total": 15
+          }
+        },
+        "harness_fault": null
+      },
+      "commit": "03d59af57ff8948cff03af635b3df93a52f25134",
+      "requests": {},
+      "time_split": {
+        "wall_s": 1290.0,
+        "model": null,
+        "tools_s": 0,
+        "tools_by_kind": {},
+        "compaction_s": 0,
+        "compactions": 0,
+        "other_s": 1290.0
+      },
+      "loc": {
+        "files": 0,
+        "lines": 0
+      },
+      "finished": 1790452655.422039,
+      "status": "DONE",
+      "ended_by": "agent",
+      "partial_base": [],
+      "tasks": [
+        {
+          "n": 1,
+          "title": "Protect the remembered-workspaces cookie with one attribute builder",
+          "type": "implementation",
+          "implements": [
+            "remembered.cookie_attributes"
+          ],
+          "tcs": [],
+          "status": "verified",
+          "found": null,
+          "total": null
+        },
+        {
+          "n": 2,
+          "title": "Keep remembered workspaces in most-recently-opened order, including open-by-id",
+          "type": "implementation",
+          "implements": [
+            "remembered.touch"
+          ],
+          "tcs": [],
+          "status": "committed",
+          "found": null,
+          "total": null
+        },
+        {
+          "n": 3,
+          "title": "Tell users when their oldest workspace is dropped from the browser list",
+          "type": "implementation",
+          "implements": [
+            "remembered.cap_notice"
+          ],
+          "tcs": [],
+          "status": "committed",
+          "found": null,
+          "total": null
+        },
+        {
+          "n": 4,
+          "title": "List this browser's workspaces by name without ever exposing their secrets",
+          "type": "implementation",
+          "implements": [
+            "remembered.list_api"
+          ],
+          "tcs": [],
+          "status": "verified",
+          "found": null,
+          "total": null
+        },
+        {
+          "n": 5,
+          "title": "Forget a workspace on this browser only",
+          "type": "implementation",
+          "implements": [
+            "remembered.forget_api"
+          ],
+          "tcs": [],
+          "status": "verified",
+          "found": null,
+          "total": null
+        },
+        {
+          "n": 6,
+          "title": "Show remembered workspaces, Continue to the most recent, and helpful loading/empty states on Home",
+          "type": "implementation",
+          "implements": [
+            "home.remembered_list",
+            "home.continue_recent"
+          ],
+          "tcs": [],
+          "status": "committed",
+          "found": null,
+          "total": null
+        },
+        {
+          "n": 7,
+          "title": "Confirm before forgetting, warn about unsaved links, and load the dialog on demand",
+          "type": "implementation",
+          "implements": [
+            "forget.confirm_dialog",
+            "forget.unsaved_warning"
+          ],
+          "tcs": [],
+          "status": "committed",
+          "found": null,
+          "total": null
+        },
+        {
+          "n": 8,
+          "title": "Switch between remembered workspaces from inside a workspace",
+          "type": "implementation",
+          "implements": [
+            "switcher.menu"
+          ],
+          "tcs": [],
+          "status": "committed",
+          "found": null,
+          "total": null
+        },
+        {
+          "n": 9,
+          "title": "Unit tests: remembered ordering, cap, forget, projection, cookie attributes, relative time",
+          "type": "test:unit",
+          "implements": [
+            "remembered.touch",
+            "remembered.cap_notice",
+            "remembered.forget_api",
+            "remembered.list_api",
+            "remembered.cookie_attributes",
+            "home.remembered_list",
+            "home.continue_recent",
+            "workspace.instant_name"
+          ],
+          "tcs": [
+            "TC-01",
+            "TC-02",
+            "TC-03",
+            "TC-04",
+            "TC-05",
+            "TC-06",
+            "TC-07",
+            "TC-08",
+            "TC-09",
+            "TC-10",
+            "TC-11",
+            "TC-12",
+            "TC-13"
+          ],
+          "status": "verified",
+          "found": 13,
+          "total": 13
+        },
+        {
+          "n": 10,
+          "title": "Integration tests: remembered list/touch/forget routes against real D1 and cookies",
+          "type": "test:integration",
+          "implements": [
+            "remembered.list_api",
+            "remembered.touch",
+            "remembered.forget_api",
+            "remembered.cookie_attributes",
+            "remembered.cap_notice"
+          ],
+          "tcs": [
+            "TC-20",
+            "TC-21",
+            "TC-22",
+            "TC-23",
+            "TC-24",
+            "TC-25",
+            "TC-26",
+            "TC-27",
+            "TC-28",
+            "TC-29",
+            "TC-30",
+            "TC-31",
+            "TC-32",
+            "TC-33",
+            "TC-34",
+            "TC-35",
+            "TC-36",
+            "TC-37"
+          ],
+          "status": "verified",
+          "found": 18,
+          "total": 18
+        },
+        {
+          "n": 11,
+          "title": "UI component tests: Home, Continue, empty/loading states, forget dialog + unsaved warning, switcher, NotFound recovery, instant name, touch, lazy loading",
+          "type": "test:ui-component",
+          "implements": [
+            "home.remembered_list",
+            "home.continue_recent",
+            "forget.confirm_dialog",
+            "forget.unsaved_warning",
+            "switcher.menu",
+            "remembered.cap_notice",
+            "notfound.remembered",
+            "workspace.instant_name",
+            "remembered.touch"
+          ],
+          "tcs": [
+            "TC-50",
+            "TC-51",
+            "TC-52",
+            "TC-53",
+            "TC-54",
+            "TC-55",
+            "TC-56",
+            "TC-57",
+            "TC-58",
+            "TC-59",
+            "TC-60",
+            "TC-61",
+            "TC-62",
+            "TC-63",
+            "TC-64",
+            "TC-65",
+            "TC-66",
+            "TC-67",
+            "TC-68",
+            "TC-69",
+            "TC-70",
+            "TC-71",
+            "TC-72",
+            "TC-73"
+          ],
+          "status": "committed",
+          "found": 24,
+          "total": 24
+        },
+        {
+          "n": 12,
+          "title": "E2E tests: returning, continuing, switching, forgetting safely, recovering from bad links, and touch use in real browsers",
+          "type": "test:e2e",
+          "implements": [
+            "remembered.list_api",
+            "remembered.touch",
+            "remembered.forget_api",
+            "remembered.cookie_attributes",
+            "remembered.cap_notice",
+            "home.remembered_list",
+            "home.continue_recent",
+            "switcher.menu",
+            "forget.confirm_dialog",
+            "forget.unsaved_warning",
+            "notfound.remembered",
+            "workspace.instant_name"
+          ],
+          "tcs": [
+            "TC-80",
+            "TC-81",
+            "TC-82",
+            "TC-83",
+            "TC-84",
+            "TC-85",
+            "TC-86",
+            "TC-87",
+            "TC-88",
+            "TC-89",
+            "TC-90",
+            "TC-91",
+            "TC-92"
+          ],
+          "status": "verified",
+          "found": 13,
+          "total": 13
+        },
+        {
+          "n": 13,
+          "title": "Recover from bad links via remembered workspaces, and show the workspace name instantly when opening from the list",
+          "type": "implementation",
+          "implements": [
+            "notfound.remembered",
+            "workspace.instant_name"
+          ],
+          "tcs": [],
+          "status": "committed",
+          "found": null,
+          "total": null
+        }
       ]
     }
   },
@@ -1600,6 +2033,410 @@
           "accept": {
             "passed": 7,
             "total": 10
+          }
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "title": "Get back to my workspaces from this browser without hunting for the link",
+      "status": "DONE",
+      "ended_by": "agent",
+      "started_at": 1790451206.844939,
+      "ended_at": 1790452496.854759,
+      "agent_minutes": 21.5,
+      "calls": 91,
+      "output_tokens": 110975,
+      "compactions": 0,
+      "last_commit_at": 1790452483.0,
+      "accept": {
+        "passed": 14,
+        "total": 15
+      },
+      "partial_base": [],
+      "tasks": [
+        {
+          "n": 1,
+          "title": "Protect the remembered-workspaces cookie with one attribute builder",
+          "type": "implementation",
+          "implements": [
+            "remembered.cookie_attributes"
+          ],
+          "tcs": [],
+          "status": "verified",
+          "found": null,
+          "total": null
+        },
+        {
+          "n": 2,
+          "title": "Keep remembered workspaces in most-recently-opened order, including open-by-id",
+          "type": "implementation",
+          "implements": [
+            "remembered.touch"
+          ],
+          "tcs": [],
+          "status": "committed",
+          "found": null,
+          "total": null
+        },
+        {
+          "n": 3,
+          "title": "Tell users when their oldest workspace is dropped from the browser list",
+          "type": "implementation",
+          "implements": [
+            "remembered.cap_notice"
+          ],
+          "tcs": [],
+          "status": "committed",
+          "found": null,
+          "total": null
+        },
+        {
+          "n": 4,
+          "title": "List this browser's workspaces by name without ever exposing their secrets",
+          "type": "implementation",
+          "implements": [
+            "remembered.list_api"
+          ],
+          "tcs": [],
+          "status": "verified",
+          "found": null,
+          "total": null
+        },
+        {
+          "n": 5,
+          "title": "Forget a workspace on this browser only",
+          "type": "implementation",
+          "implements": [
+            "remembered.forget_api"
+          ],
+          "tcs": [],
+          "status": "verified",
+          "found": null,
+          "total": null
+        },
+        {
+          "n": 6,
+          "title": "Show remembered workspaces, Continue to the most recent, and helpful loading/empty states on Home",
+          "type": "implementation",
+          "implements": [
+            "home.remembered_list",
+            "home.continue_recent"
+          ],
+          "tcs": [],
+          "status": "committed",
+          "found": null,
+          "total": null
+        },
+        {
+          "n": 7,
+          "title": "Confirm before forgetting, warn about unsaved links, and load the dialog on demand",
+          "type": "implementation",
+          "implements": [
+            "forget.confirm_dialog",
+            "forget.unsaved_warning"
+          ],
+          "tcs": [],
+          "status": "committed",
+          "found": null,
+          "total": null
+        },
+        {
+          "n": 8,
+          "title": "Switch between remembered workspaces from inside a workspace",
+          "type": "implementation",
+          "implements": [
+            "switcher.menu"
+          ],
+          "tcs": [],
+          "status": "committed",
+          "found": null,
+          "total": null
+        },
+        {
+          "n": 9,
+          "title": "Unit tests: remembered ordering, cap, forget, projection, cookie attributes, relative time",
+          "type": "test:unit",
+          "implements": [
+            "remembered.touch",
+            "remembered.cap_notice",
+            "remembered.forget_api",
+            "remembered.list_api",
+            "remembered.cookie_attributes",
+            "home.remembered_list",
+            "home.continue_recent",
+            "workspace.instant_name"
+          ],
+          "tcs": [
+            "TC-01",
+            "TC-02",
+            "TC-03",
+            "TC-04",
+            "TC-05",
+            "TC-06",
+            "TC-07",
+            "TC-08",
+            "TC-09",
+            "TC-10",
+            "TC-11",
+            "TC-12",
+            "TC-13"
+          ],
+          "status": "verified",
+          "found": 13,
+          "total": 13
+        },
+        {
+          "n": 10,
+          "title": "Integration tests: remembered list/touch/forget routes against real D1 and cookies",
+          "type": "test:integration",
+          "implements": [
+            "remembered.list_api",
+            "remembered.touch",
+            "remembered.forget_api",
+            "remembered.cookie_attributes",
+            "remembered.cap_notice"
+          ],
+          "tcs": [
+            "TC-20",
+            "TC-21",
+            "TC-22",
+            "TC-23",
+            "TC-24",
+            "TC-25",
+            "TC-26",
+            "TC-27",
+            "TC-28",
+            "TC-29",
+            "TC-30",
+            "TC-31",
+            "TC-32",
+            "TC-33",
+            "TC-34",
+            "TC-35",
+            "TC-36",
+            "TC-37"
+          ],
+          "status": "verified",
+          "found": 18,
+          "total": 18
+        },
+        {
+          "n": 11,
+          "title": "UI component tests: Home, Continue, empty/loading states, forget dialog + unsaved warning, switcher, NotFound recovery, instant name, touch, lazy loading",
+          "type": "test:ui-component",
+          "implements": [
+            "home.remembered_list",
+            "home.continue_recent",
+            "forget.confirm_dialog",
+            "forget.unsaved_warning",
+            "switcher.menu",
+            "remembered.cap_notice",
+            "notfound.remembered",
+            "workspace.instant_name",
+            "remembered.touch"
+          ],
+          "tcs": [
+            "TC-50",
+            "TC-51",
+            "TC-52",
+            "TC-53",
+            "TC-54",
+            "TC-55",
+            "TC-56",
+            "TC-57",
+            "TC-58",
+            "TC-59",
+            "TC-60",
+            "TC-61",
+            "TC-62",
+            "TC-63",
+            "TC-64",
+            "TC-65",
+            "TC-66",
+            "TC-67",
+            "TC-68",
+            "TC-69",
+            "TC-70",
+            "TC-71",
+            "TC-72",
+            "TC-73"
+          ],
+          "status": "committed",
+          "found": 24,
+          "total": 24
+        },
+        {
+          "n": 12,
+          "title": "E2E tests: returning, continuing, switching, forgetting safely, recovering from bad links, and touch use in real browsers",
+          "type": "test:e2e",
+          "implements": [
+            "remembered.list_api",
+            "remembered.touch",
+            "remembered.forget_api",
+            "remembered.cookie_attributes",
+            "remembered.cap_notice",
+            "home.remembered_list",
+            "home.continue_recent",
+            "switcher.menu",
+            "forget.confirm_dialog",
+            "forget.unsaved_warning",
+            "notfound.remembered",
+            "workspace.instant_name"
+          ],
+          "tcs": [
+            "TC-80",
+            "TC-81",
+            "TC-82",
+            "TC-83",
+            "TC-84",
+            "TC-85",
+            "TC-86",
+            "TC-87",
+            "TC-88",
+            "TC-89",
+            "TC-90",
+            "TC-91",
+            "TC-92"
+          ],
+          "status": "verified",
+          "found": 13,
+          "total": 13
+        },
+        {
+          "n": 13,
+          "title": "Recover from bad links via remembered workspaces, and show the workspace name instantly when opening from the list",
+          "type": "implementation",
+          "implements": [
+            "notfound.remembered",
+            "workspace.instant_name"
+          ],
+          "tcs": [],
+          "status": "committed",
+          "found": null,
+          "total": null
+        }
+      ],
+      "baselines": [
+        {
+          "source": "reference opus-5.5 run-1",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 22.1,
+          "calls": 62,
+          "output_tokens": 94890,
+          "accept": {
+            "passed": 6,
+            "total": 7
+          }
+        },
+        {
+          "source": "reference opus-5.5 run-2",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 21.3,
+          "calls": 68,
+          "output_tokens": 69355,
+          "accept": null
+        },
+        {
+          "source": "reference opus-5.5 run-3",
+          "status": "DONE",
+          "gate_green": false,
+          "agent_minutes": 19.9,
+          "calls": 85,
+          "output_tokens": 79550,
+          "accept": {
+            "passed": 7,
+            "total": 7
+          }
+        },
+        {
+          "source": "qwen/3.8/27b/ubuntu/nvidia4090/llamacpp-opencode canvas-pi-02",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 204.3,
+          "calls": 599,
+          "output_tokens": 551749,
+          "accept": {
+            "passed": 5,
+            "total": 7
+          }
+        },
+        {
+          "source": "qwen/3.8/27b/ubuntu/nvidia4090/llamacpp-opencode canvas-pi-03",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 168.5,
+          "calls": 494,
+          "output_tokens": 451852,
+          "accept": {
+            "passed": 5,
+            "total": 7
+          }
+        },
+        {
+          "source": "qwen/3.8/27b/ubuntu/nvidia4090/llamacpp-opencode canvas-pi-04",
+          "status": "PARTIAL",
+          "gate_green": true,
+          "agent_minutes": 240.0,
+          "calls": 655,
+          "output_tokens": 425712,
+          "accept": {
+            "passed": 5,
+            "total": 7,
+            "on_partial_total": 7,
+            "on_partial_passed": 5
+          }
+        },
+        {
+          "source": "qwen/3.8/flash-next/macos/128GB/mtplx-opencode canvas-pi-01",
+          "status": "DONE",
+          "gate_green": false,
+          "agent_minutes": 58.4,
+          "calls": 234,
+          "output_tokens": 158653,
+          "accept": {
+            "passed": 0,
+            "total": 7
+          }
+        },
+        {
+          "source": "qwen/3.8/flash-next/macos/128GB/mtplx-opencode canvas-pi-02",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 124.0,
+          "calls": 413,
+          "output_tokens": 313633,
+          "accept": {
+            "passed": 0,
+            "total": 7
+          }
+        },
+        {
+          "source": "qwen/3.8/flash-next/macos/128GB/mtplx-opencode canvas-pi-03",
+          "status": "PARTIAL",
+          "gate_green": false,
+          "agent_minutes": 165.8,
+          "calls": 376,
+          "output_tokens": 289149,
+          "accept": {
+            "passed": 6,
+            "total": 7,
+            "on_partial_total": 7,
+            "on_partial_passed": 6
+          }
+        },
+        {
+          "source": "qwen/3.8/flash-next/ubuntu/strix-halo-128GB/llamacpp-pi canvas-vk-01",
+          "status": "DONE",
+          "gate_green": false,
+          "agent_minutes": 212.2,
+          "calls": 351,
+          "output_tokens": 248750,
+          "accept": {
+            "passed": 6,
+            "total": 7
           }
         }
       ]

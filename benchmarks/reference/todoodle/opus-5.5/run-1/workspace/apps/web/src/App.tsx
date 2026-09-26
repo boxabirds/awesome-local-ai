@@ -5,7 +5,8 @@ import { Toaster } from 'sonner';
 import { queryClient } from '@/lib/queryClient';
 import { Home } from '@/routes/Home';
 import { loadWorkspaceRoute } from '@/routes/lazy';
-import { NotFound } from '@/routes/NotFound';
+import { RecoverableNotFound } from '@/routes/RecoverableNotFound';
+import { RememberedWorkspaceFallback } from '@/features/remembered/RememberedWorkspaceFallback';
 import { WorkspaceSkeleton } from '@/features/workspace/WorkspaceSkeleton';
 
 // The Workspace route is its own chunk (bundle-dynamic-imports); Home preloads it on hover/focus.
@@ -27,12 +28,12 @@ export function AppRoutes() {
       <Route
         path="/w/:workspaceId"
         element={
-          <Suspense fallback={<WorkspaceSkeleton />}>
+          <Suspense fallback={<RememberedWorkspaceFallback />}>
             <Workspace />
           </Suspense>
         }
       />
-      <Route path="*" element={<NotFound />} />
+      <Route path="*" element={<RecoverableNotFound />} />
     </Routes>
   );
 }

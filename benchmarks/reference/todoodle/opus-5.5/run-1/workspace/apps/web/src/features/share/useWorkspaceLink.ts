@@ -4,7 +4,13 @@ import { WorkspaceContext } from '@/features/workspace/WorkspaceContext';
 import { getWorkspaceLink } from '@/lib/api';
 import { queryKeys } from '@/lib/queryKeys';
 
-export type WorkspaceLinkState = { link?: string; status: 'ready' | 'loading' | 'error'; retry(): void };
+export type WorkspaceLinkState = {
+  link?: string;
+  status: 'ready' | 'loading' | 'error';
+  retry(): void;
+  /** Fetches the link now (even while disabled) and resolves it; rejects if the request fails. Story 3. */
+  fetchLink(): Promise<string>;
+};
 
 const noop = () => {};
 
@@ -29,7 +35,13 @@ export function useWorkspaceLink(workspaceId: string, opts: { enabled: boolean }
     gcTime: 0,
     refetchOnWindowFocus: false,
   });
-  if (secret) return { link: linkFromSecret(secret), status: 'ready', retry: noop };
-  if (query.data) return { link: query.data, status: 'ready', retry: noop };
-  return { status: query.isError ? 'error' : 'loading', retry: () => void query.refetch() };
+  const fetchLink = async () => {
+    if (secret) return linkFromSecret(secret);
+    const result = await query.refetch();
+    if (result.data) return result.data;
+    throw result.error ?? new Error('Link unavailable');
+  };
+  if (secret) return { link: linkFromSecret(secret), status: 'ready', retry: noop, fetchLink };
+  if (query.data) return { link: query.data, status: 'ready', retry: noop, fetchLink };
+  return { status: query.isError ? 'error' : 'loading', retry: () => void query.refetch(), fetchLink };
 }

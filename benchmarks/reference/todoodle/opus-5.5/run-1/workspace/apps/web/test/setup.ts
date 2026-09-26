@@ -1,5 +1,6 @@
 import '@testing-library/jest-dom/vitest';
 import { cleanup } from '@testing-library/react';
+import { toast } from 'sonner';
 import { afterAll, afterEach, beforeAll, vi } from 'vitest';
 import { clearLinkSavedCache } from '@/features/share/linkSaved';
 import { resetOpensForTests } from '@/features/workspace/bootOpen';
@@ -13,6 +14,8 @@ afterEach(() => {
   server.resetHandlers();
   stopRecordingRequests();
   cleanup();
+  // sonner keeps toasts in a global store and replays active ones to the next Toaster: dismiss them.
+  toast.dismiss();
   queryClient.clear();
   resetOpensForTests();
   localStorage.clear();
