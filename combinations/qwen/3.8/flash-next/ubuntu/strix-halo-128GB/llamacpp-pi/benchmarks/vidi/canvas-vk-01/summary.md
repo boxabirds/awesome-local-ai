@@ -8,5 +8,6 @@ Model `qwen3.8-flash-next`, scope `canvas`, effort `low`, client pi 0.87.1, host
 | 2 | Capture ideas on sticky notes and rearrange them | DONE | 97.8 | None | None | None | — | — | red | 17/20 |  | 0 / 0 | 2 | — | throttled 0%, server peak 36 GB |
 | 3 | See other people's edits appear live on the same board | DONE | 212.2 | None | None | None | — | — | red | 24/27 |  | 0 / 0 | 4 | — | throttled 0%, server peak 36 GB |
 | 4 | Return to a board and find everything as it was left | DONE | 158.4 | None | None | None | — | — | red | 28/31 |  | 0 / 0 | 3 | — | throttled 0%, server peak 38 GB |
+| 5 | Share a board with others using a link | DONE | 79.6 | None | None | None | — | — | red | 33/36 |  | 0 / 0 (ended in error) | 1 | — | throttled 0%, server peak 38 GB MEMORY-ABORT |
 
-**Totals:** 4 stories, 546 agent-minutes, 0 requests, 0 prompt / 0 completion tokens, gate green 0/4, final acceptance 28/31, stalled 0, partial 0, 10948 lines in src+tests.
+**Totals:** 5 stories, 626 agent-minutes, 0 requests, 0 prompt / 0 completion tokens, gate green 0/5, final acceptance 33/36, stalled 0, partial 0, 12640 lines in src+tests.
