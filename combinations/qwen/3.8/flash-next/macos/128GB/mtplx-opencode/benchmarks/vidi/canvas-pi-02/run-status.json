@@ -1,6 +1,6 @@
 {
-  "state": "started",
-  "reason": "harness 7aead30, client pi, model mtplx-flash-next-optimized-speed",
-  "at": "2026-09-26T04:06:09Z",
+  "state": "failed",
+  "reason": "exit 2: ~/expts/awesome-local-ai/benchmarks/spec-bench/harness/run.sh: line 206: unexpected EOF while looking for matching `\"'",
+  "at": "2026-09-26T06:52:33Z",
   "host": "Quintus"
 }
