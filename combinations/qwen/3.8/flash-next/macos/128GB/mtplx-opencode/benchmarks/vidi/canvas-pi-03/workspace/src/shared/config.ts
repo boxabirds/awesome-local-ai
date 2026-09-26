@@ -39,6 +39,23 @@ export const STICKY_FONT_MIN_PX = 10;
 /** Pointer movement (screen px) beyond which a press on a note becomes a drag. */
 export const DRAG_THRESHOLD_PX = 3;
 
+// --- Selection & transforms (story 7) ---------------------------------------
+
+/** Resize-handle size in screen pixels (constant at any zoom). */
+export const HANDLE_SIZE_PX = 8;
+/** Smallest sticky-note side in world units (resizing stops here). */
+export const STICKY_MIN_SIZE_WORLD = 50;
+/** Largest any single object may be resized to, in world units. */
+export const MAX_OBJECT_SIZE_WORLD = 20_000;
+/** Arrow-key nudge step in world units. */
+export const NUDGE_STEP_WORLD = 1;
+/** Shift+arrow nudge step in world units. */
+export const NUDGE_LARGE_STEP_WORLD = 10;
+/** Fill colour of the Shift+drag selection rectangle. */
+export const MARQUEE_FILL = 'rgba(59,130,246,0.18)';
+/** Border colour of the selection rectangle and bounding box. */
+export const SELECTION_STROKE = '#2563eb';
+
 /** The six preset sticky-note colours (accessible by name, not only by colour). */
 export const STICKY_COLORS = {
   yellow: '#FFF59D',
