@@ -287,3 +287,30 @@ export const UNDO_CAPTURE_TIMEOUT_MS = 500;
  * steps fall off the front when a new step arrives and the history is full.
  */
 export const UNDO_MAX_STEPS = 200;
+
+/* --------------------------------------------------------------------- *
+ * Story 9: free text.
+ * --------------------------------------------------------------------- */
+
+/** Maximum automatic width for a text object (world units). */
+export const TEXT_MAX_AUTO_WIDTH_WORLD = 600;
+
+/** Minimum fixed width for a text object (world units). */
+export const TEXT_MIN_WIDTH_WORLD = 40;
+
+/** Maximum characters in a text object. */
+export const TEXT_MAX_CHARS = 5000;
+
+/** Size presets: key → font-size in world units. */
+export const TEXT_SIZES = { S: 14, M: 20, L: 32, XL: 56 } as const;
+
+export type TextSize = keyof typeof TEXT_SIZES;
+
+/** Size of a freshly created text object. */
+export const DEFAULT_TEXT_SIZE: TextSize = 'M';
+
+/** Line-height multiplier for text objects. */
+export const TEXT_LINE_HEIGHT = 1.3;
+
+/** Font family for text objects. */
+export const TEXT_FONT_FAMILY = 'Inter, system-ui, sans-serif';

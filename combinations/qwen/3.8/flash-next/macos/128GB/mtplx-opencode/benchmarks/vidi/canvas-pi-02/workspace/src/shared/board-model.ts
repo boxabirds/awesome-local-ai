@@ -68,7 +68,7 @@ export interface StickySnapshot {
 }
 
 /** Generic object snapshot for group operations. */
-export type ObjectSnapshot = StickySnapshot;
+export type ObjectSnapshot = StickySnapshot | import('./objects/text').TextSnapshot;
 
 type NoteMap = Y.Map<unknown>;
 
@@ -79,6 +79,15 @@ export function objectsMap(doc: Y.Doc): Y.Map<NoteMap | unknown> {
 
 function isSticky(value: unknown): value is NoteMap {
   return value instanceof Y.Map && value.get('type') === 'sticky';
+}
+
+function isTextObj(value: unknown): value is NoteMap {
+  return value instanceof Y.Map && value.get('type') === 'text';
+}
+
+/** True for any recognised board object. */
+export function isBoardObject(value: unknown): value is NoteMap {
+  return isSticky(value) || isTextObj(value);
 }
 
 function readNote(doc: Y.Doc, id: string): NoteMap | undefined {
@@ -94,7 +103,7 @@ function finite(...values: unknown[]): boolean {
 function maxZ(doc: Y.Doc): number {
   let max = 0;
   objectsMap(doc).forEach((value) => {
-    if (!isSticky(value)) return;
+    if (!isBoardObject(value)) return;
     const z = value.get('z');
     if (typeof z === 'number' && Number.isFinite(z) && z > max) max = z;
   });
@@ -211,48 +220,78 @@ export function getStickyText(doc: Y.Doc, id: string): Y.Text | undefined {
  * every client. Objects of an unknown `type` are skipped so a newer client can
  * open a document written by an older one.
  */
-export function snapshot(doc: Y.Doc): readonly StickySnapshot[] {
-  const notes: StickySnapshot[] = [];
-  objectsMap(doc).forEach((value, id) => {
-    if (!isSticky(value)) return;
+export function snapshot(doc: Y.Doc): readonly ObjectSnapshot[] {
+  const objects = objectsMap(doc);
+  const result: ObjectSnapshot[] = [];
+  objects.forEach((value, id) => {
+    if (!isBoardObject(value)) return;
     const x = value.get('x');
     const y = value.get('y');
     const z = value.get('z');
     const createdAt = value.get('createdAt');
-    if (!finite(x, y, z)) return; // hand-edited or half-written entry
-    const storedColor = value.get('color');
-    const text = value.get('text');
-    notes.push({
-      id,
-      type: 'sticky',
-      x: x as number,
-      y: y as number,
-      color:
-        typeof storedColor === 'string' && storedColor in STICKY_COLORS
-          ? (storedColor as StickyColor)
-          : DEFAULT_STICKY_COLOR,
-      text: text instanceof Y.Text ? text.toString() : '',
-      z: z as number,
-      createdAt: typeof createdAt === 'number' ? createdAt : 0,
-      width: typeof value.get('width') === 'number' ? (value.get('width') as number) : undefined,
-      height: typeof value.get('height') === 'number' ? (value.get('height') as number) : undefined,
-    });
+    if (!finite(x, y, z)) return;
+    const type = value.get('type');
+    if (type === 'sticky') {
+      const storedColor = value.get('color');
+      const text = value.get('text');
+      result.push({
+        id,
+        type: 'sticky' as const,
+        x: x as number,
+        y: y as number,
+        color:
+          typeof storedColor === 'string' && storedColor in STICKY_COLORS
+            ? (storedColor as StickyColor)
+            : DEFAULT_STICKY_COLOR,
+        text: text instanceof Y.Text ? text.toString() : '',
+        z: z as number,
+        createdAt: typeof createdAt === 'number' ? createdAt : 0,
+        width: typeof value.get('width') === 'number' ? (value.get('width') as number) : undefined,
+        height: typeof value.get('height') === 'number' ? (value.get('height') as number) : undefined,
+      });
+    } else if (type === 'text') {
+      const text = value.get('text');
+      const size = value.get('size');
+      const widthMode = value.get('widthMode');
+      result.push({
+        id,
+        type: 'text' as const,
+        x: x as number,
+        y: y as number,
+        width: typeof value.get('width') === 'number' ? (value.get('width') as number) : 80,
+        height: typeof value.get('height') === 'number' ? (value.get('height') as number) : 26,
+        z: z as number,
+        createdAt: typeof createdAt === 'number' ? createdAt : 0,
+        createdBy: typeof value.get('createdBy') === 'string' ? (value.get('createdBy') as string) : '',
+        text: text instanceof Y.Text ? text.toString() : '',
+        size: typeof size === 'string' && ['S','M','L','XL'].includes(size) ? (size as import('./objects/text').TextSnapshot['size']) : 'M',
+        widthMode: widthMode === 'fixed' ? 'fixed' as const : 'auto' as const,
+      });
+    }
   });
-  notes.sort((a, b) => a.z - b.z || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
-  return notes;
+  result.sort((a, b) => a.z - b.z || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
+  return result;
 }
 
 /* --------------------------------------------------------------------- *
  * Story 7: group operations.
  * --------------------------------------------------------------------- */
 
-/** Read an object's rect, using STICKY_SIZE_WORLD for implicit sizes. */
+/** Read an object's rect, using STICKY_SIZE_WORLD for implicit sizes (sticky only). */
 export function objectBounds(obj: ObjectSnapshot): Rect {
+  if (obj.type === 'text') {
+    return {
+      x: obj.x,
+      y: obj.y,
+      width: obj.width,
+      height: obj.height,
+    };
+  }
   return {
     x: obj.x,
     y: obj.y,
-    width: obj.width ?? STICKY_SIZE_WORLD,
-    height: obj.height ?? STICKY_SIZE_WORLD,
+    width: (obj as StickySnapshot).width ?? STICKY_SIZE_WORLD,
+    height: (obj as StickySnapshot).height ?? STICKY_SIZE_WORLD,
   };
 }
 
@@ -291,7 +330,7 @@ export function moveObjects(
   const updates: Array<{ note: NoteMap; x: number; y: number }> = [];
   for (const [id, pos] of positions) {
     const note = objects.get(id);
-    if (!isSticky(note)) continue;
+    if (!isBoardObject(note)) continue;
     updates.push({ note, x: pos.x, y: pos.y });
   }
   if (updates.length === 0) return 0;
@@ -332,7 +371,7 @@ export function resizeObjects(
   const updates: Array<{ note: NoteMap; r: Rect }> = [];
   for (const [id, r] of rects) {
     const note = objects.get(id);
-    if (!isSticky(note)) continue;
+    if (!isBoardObject(note)) continue;
     updates.push({ note, r });
   }
   if (updates.length === 0) return 0;
@@ -365,7 +404,7 @@ export function bringObjectsToFront(
   let maxUnselected = 0;
 
   objects.forEach((value, key) => {
-    if (!isSticky(value)) return;
+    if (!isBoardObject(value)) return;
     const z = value.get('z');
     if (typeof z !== 'number' || !Number.isFinite(z)) return;
     if (selected.has(key)) {
@@ -401,7 +440,7 @@ export function bringObjectsToFront(
 export function deleteObjects(doc: Y.Doc, ids: readonly string[]): number {
   if (ids.length === 0) return 0;
   const objects = objectsMap(doc);
-  const existing = ids.filter((id) => isSticky(objects.get(id)));
+  const existing = ids.filter((id) => isBoardObject(objects.get(id)));
   if (existing.length === 0) return 0;
   doc.transact(() => {
     for (const id of existing) {

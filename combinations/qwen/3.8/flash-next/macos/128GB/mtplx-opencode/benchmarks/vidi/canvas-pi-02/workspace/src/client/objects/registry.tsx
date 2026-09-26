@@ -48,6 +48,8 @@ export interface ObjectTypeSpec {
   editableText: boolean;
   /** Hit test: is the world point inside this object's bounds? */
   hitTest(obj: { x: number; y: number; width?: number; height?: number }, worldPoint: { x: number; y: number }): boolean;
+  /** Which handles to show: 'all' for 8, 'horizontal' for e/w only. */
+  handles?: 'all' | 'horizontal';
 }
 
 const registry = new Map<string, ObjectTypeSpec>();

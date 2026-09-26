@@ -50,11 +50,26 @@ export interface SeedNote {
   text?: string;
 }
 
+export interface TextObjectHook {
+  id: string;
+  type: 'text';
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  z: number;
+  text: string;
+  size: string;
+  widthMode: 'auto' | 'fixed';
+}
+
 export interface BoardTestHooks {
   setCamera(camera: { x: number; y: number; zoom: number }): void;
   getCamera(): Camera;
   /** The objects on the board, lowest z first. */
   getNotes(): StickyNoteHook[];
+  /** The text objects on the board, lowest z first. */
+  getTexts(): TextObjectHook[];
   /** Adds a note through the board model and returns its id ('' if refused). */
   seedNote(note: SeedNote): string;
   /** Removes a note while the pointer is still down, for interruption tests. */
@@ -100,15 +115,17 @@ export function installBoardTestHooks(
     getNotes() {
       const session = getSession();
       if (!session) return [];
-      return snapshot(session.doc).map((row) => ({
-        id: row.id,
-        type: row.type,
-        x: row.x,
-        y: row.y,
-        z: row.z,
-        color: row.color,
-        text: row.text,
-      }));
+      return snapshot(session.doc)
+        .filter((row) => row.type === 'sticky')
+        .map((row) => ({
+          id: row.id,
+          type: row.type,
+          x: row.x,
+          y: row.y,
+          z: row.z,
+          color: (row as any).color ?? 'yellow',
+          text: row.text,
+        }));
     },
     seedNote(note: SeedNote) {
       const session = getSession();
@@ -118,6 +135,24 @@ export function installBoardTestHooks(
       if (note.color) setStickyColor(session.doc, id, note.color);
       if (note.text) getStickyText(session.doc, id)?.insert(0, note.text);
       return id;
+    },
+    getTexts() {
+      const session = getSession();
+      if (!session) return [];
+      return snapshot(session.doc)
+        .filter((row) => row.type === 'text')
+        .map((row) => ({
+          id: row.id,
+          type: 'text' as const,
+          x: row.x,
+          y: row.y,
+          width: (row as any).width ?? 80,
+          height: (row as any).height ?? 26,
+          z: row.z,
+          text: row.text,
+          size: (row as any).size ?? 'M',
+          widthMode: ((row as any).widthMode ?? 'auto') as 'auto' | 'fixed',
+        }));
     },
     removeNote(id: string) {
       const session = getSession();

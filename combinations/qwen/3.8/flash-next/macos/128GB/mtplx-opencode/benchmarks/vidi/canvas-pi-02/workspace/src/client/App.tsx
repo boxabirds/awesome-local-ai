@@ -14,18 +14,24 @@ import { useBoardKeys } from './board/useBoardKeys';
 import { useUndo, useUndoController } from './board/useUndo';
 import type { UndoController } from './board/undo';
 import { SelectionOverlay } from './board/SelectionOverlay';
-import { SelectionBar } from './board/SelectionBar';
+import { SelectionBar, TextSelectionBar } from './board/SelectionBar';
 import { useMarquee, MarqueeRect } from './board/Marquee';
+import { useTool } from './board/useTool';
 import { StickyNote } from './objects/StickyNote';
+import { TextObject } from './objects/TextObject';
 import './objects/defaultTypes';
 import {
   createSticky,
   deleteObject,
   deleteObjects,
   objectBounds,
+  type ObjectSnapshot,
 } from '../shared/board-model';
+import { createText, setTextSize, setTextWidthFixed } from '../shared/objects/text';
+import { createCanvasMeasurer } from './objects/textLayout';
+import { createTextBoxSync } from './objects/useTextBoxSync';
 import { isValidBoardId, parseBoardPath } from '../shared/board-id';
-import { STICKY_SIZE_WORLD } from '../shared/config';
+import { STICKY_SIZE_WORLD, type TextSize } from '../shared/config';
 import { unionRects } from '../shared/geometry';
 import { useBoardSession, type BoardSession } from './sync/boardSession';
 import { ConnectionStatus, useConnectionState } from './sync/ConnectionStatus';
@@ -113,7 +119,7 @@ function BoardSurface({
   const viewport = useViewportSize(boardAreaRef);
   const cameraApi = useCamera(viewport);
   const board = session.board;
-  const notes = useBoardSnapshot(board);
+  const objects = useBoardSnapshot(board);
   const selection = useSelection();
   const connectionState = useConnectionState(session.connection);
 
@@ -122,12 +128,18 @@ function BoardSurface({
   const undoController = useUndoController(board, undo);
   const undoState = useUndo(undoController, canEdit);
 
+  // Story 9: tool mode.
+  const { tool, setTool } = useTool(canEdit);
+
   const boardRef = useRef(board);
   boardRef.current = board;
   const viewportRef = useRef(viewport);
   viewportRef.current = viewport;
   const cameraRef = useRef<{ camera: Camera }>(cameraApi);
   cameraRef.current = cameraApi;
+
+  // Story 9: text creation.
+  const measurerRef = useRef(createCanvasMeasurer());
 
   const presence = usePresence(session, cameraRef);
   const presenceRef = useRef(presence);
@@ -174,8 +186,8 @@ function BoardSurface({
     };
   }, []);
 
-  const notesRef = useRef(notes);
-  notesRef.current = notes;
+  const objectsRef = useRef(objects);
+  objectsRef.current = objects;
 
   /** Put a sticky at a world point and start typing straight away. */
   const createStickyAt = useCallback(
@@ -197,16 +209,16 @@ function BoardSurface({
 
   // Prune selection when snapshot changes.
   useEffect(() => {
-    const present = new Set(notes.map((n) => n.id));
+    const present = new Set(objects.map((n) => n.id));
     selection.prune(present);
-  }, [notes, selection]);
+  }, [objects, selection]);
 
   // --- Transform gesture wiring ---
   const gestureOptsRef = useRef<import('./board/useTransformGesture').TransformGestureOptions>({
     doc: board.doc,
     camera: cameraApi.camera,
     selection,
-    snapshot: notes,
+    snapshot: objects,
     canEdit,
     undo: undoController,
   });
@@ -214,36 +226,61 @@ function BoardSurface({
     doc: board.doc,
     camera: cameraApi.camera,
     selection,
-    snapshot: notes,
+    snapshot: objects,
     canEdit,
     onGestureStart,
     onGestureEnd,
+    onResizeComplete: (ids: readonly string[]) => {
+      for (const id of ids) {
+        const obj = objectsRef.current.find((o) => o.id === id);
+        if (obj?.type === 'text') {
+          const objMap = boardRef.current.doc.getMap('objects').get(id) as Y.Map<unknown> | undefined;
+          if (objMap) {
+            const w = objMap.get('width') as number;
+            if (typeof w === 'number' && Number.isFinite(w)) {
+              setTextWidthFixed(boardRef.current.doc, id, w);
+            }
+          }
+          const boxSync = createTextBoxSync(boardRef.current.doc, id, measurerRef.current);
+          boxSync.remeasureAfterLocalChange();
+        }
+      }
+    },
     undo: undoController,
   };
 
   const gesture = useTransformGesture(gestureOptsRef);
 
   // --- Keyboard ---
+  const toolRef = useRef(tool);
+  toolRef.current = tool;
+  const setToolRef = useRef(setTool);
+  setToolRef.current = setTool;
+
   const keysOptsRef = useRef({
     doc: board.doc,
     selection,
-    snapshot: notes,
+    snapshot: objects,
     canEdit,
     undo: undoController,
+    toolRef,
+    setToolRef,
   });
   keysOptsRef.current = {
     doc: board.doc,
     selection,
-    snapshot: notes,
+    snapshot: objects,
     canEdit,
     undo: undoController,
+    toolRef,
+    setToolRef,
   };
   useBoardKeys(keysOptsRef);
 
   // --- Marquee ---
   const marquee = useMarquee(
     { get current() { return cameraRef.current.camera; } },
-    { get current() { return notesRef.current; } },
+    { get current() { return objectsRef.current; } },
     useCallback((ids: string[]) => {
       selection.setMany(ids, false);
     }, [selection]),
@@ -255,9 +292,29 @@ function BoardSurface({
 
   const stackPeople: readonly Person[] = presence.board;
 
-  const handleSurfaceClick = useCallback(() => {
-    selection.clear();
-  }, [selection]);
+  // Story 9: text tool creates text on click.
+  const toolRefForClick = useRef(tool);
+  toolRefForClick.current = tool;
+
+  const setToolRefForClick = useRef(setTool);
+  setToolRefForClick.current = setTool;
+
+  const handleSurfaceClick = useCallback(
+    (point: Point) => {
+      if (toolRefForClick.current === 'text') {
+        // Create text at this point.
+        const identity = { id: 'local' };
+        const id = createText(boardRef.current.doc, point, identity.id);
+        if (id) {
+          setToolRefForClick.current('select');
+          selection.startEdit(id);
+        }
+        return;
+      }
+      selection.clear();
+    },
+    [selection],
+  );
 
   // Publish selection for presence: single-selection only.
   useEffect(() => {
@@ -293,13 +350,20 @@ function BoardSurface({
     }
   }, [selection, undoController]);
 
+  // Find the selected object if it's a single text object (for TextToolbar).
+  let selectedTextObj: ObjectSnapshot | undefined;
+  if (selection.ids.size === 1) {
+    const id = [...selection.ids][0]!;
+    selectedTextObj = objects.find((o) => o.id === id && o.type === 'text');
+  }
+
   // Screen-space bounding box for the selection bar.
   const selectedCount = selection.ids.size;
   let barTop = 0;
   let barLeft = 0;
   if (selectedCount > 0) {
     const rects: ReturnType<typeof objectBounds>[] = [];
-    for (const n of notes) {
+    for (const n of objects) {
       if (selection.ids.has(n.id)) rects.push(objectBounds(n));
     }
     const bb = unionRects(rects);
@@ -310,39 +374,87 @@ function BoardSurface({
     }
   }
 
+  // --- Text toolbar handlers ---
+  const handleTextSizeChange = useCallback(
+    (size: TextSize) => {
+      if (selection.ids.size !== 1) return;
+      const id = [...selection.ids][0]!;
+      const obj = objectsRef.current.find((o) => o.id === id);
+      if (!obj || obj.type !== 'text') return;
+      undoController.boundary();
+      setTextSize(boardRef.current.doc, id, size);
+      // Remeasure box.
+      const boxSync = createTextBoxSync(boardRef.current.doc, id, measurerRef.current);
+      boxSync.remeasureAfterLocalChange();
+      undoController.boundary();
+    },
+    [selection, undoController],
+  );
+
+  const handleTextDelete = useCallback(() => {
+    if (selection.ids.size === 1) {
+      const id = [...selection.ids][0]!;
+      deleteNote(id);
+    }
+  }, [selection, deleteNote]);
+
   return (
     <CameraContext.Provider value={cameraApi}>
       <div className="board-area" data-testid="board-area" ref={boardAreaRef}>
         <BoardViewport
+          tool={tool}
           onSurfaceClick={handleSurfaceClick}
           onSurfaceDoubleClick={handleSurfaceDoubleClick}
           marqueeRef={marqueeRef}
         >
-          {/* Dispatches every object through StickyNote rather than through
-              getObjectType(obj.type); safe only while sticky is the sole type
-              the snapshot can contain. See registry.tsx before adding a type. */}
-          {notes.map((note) => (
-            <StickyNote
-              key={note.id}
-              note={note}
-              doc={board.doc}
-              zoom={camera.zoom}
-              selected={selection.ids.has(note.id)}
-              editing={selection.editingId === note.id}
-              multiSelected={selectedCount > 1 && selection.ids.has(note.id)}
-              onObjectPointerDown={gesture.onObjectPointerDown}
-              onToggleSelect={selection.toggle}
-              onSelect={(id) => selection.click(id)}
-              onStartEdit={(id) => selection.startEdit(id)}
-              onEndEdit={(next) => selection.endEdit(next)}
-              onDelete={deleteNote}
-              undo={undoController}
-            />
-          ))}
+          {objects.map((obj) => {
+            if (obj.type === 'text') {
+              return (
+                <TextObject
+                  key={obj.id}
+                  id={obj.id}
+                  x={obj.x}
+                  y={obj.y}
+                  width={obj.width}
+                  height={obj.height}
+                  size={obj.size}
+                  editing={selection.editingId === obj.id}
+                  selected={selection.ids.has(obj.id)}
+                  canEdit={canEdit}
+                  doc={board.doc}
+                  camera={camera}
+                  onSelect={(id) => selection.click(id)}
+                  onStartEdit={(id) => selection.startEdit(id)}
+                  onEndEdit={(next) => selection.endEdit(next)}
+                  onDelete={deleteNote}
+                  undo={undoController}
+                />
+              );
+            }
+            // Sticky note rendering (story 2).
+            return (
+              <StickyNote
+                key={obj.id}
+                note={obj}
+                doc={board.doc}
+                zoom={camera.zoom}
+                selected={selection.ids.has(obj.id)}
+                editing={selection.editingId === obj.id}
+                multiSelected={selectedCount > 1 && selection.ids.has(obj.id)}
+                onObjectPointerDown={gesture.onObjectPointerDown}
+                onToggleSelect={selection.toggle}
+                onSelect={(id) => selection.click(id)}
+                onStartEdit={(id) => selection.startEdit(id)}
+                onEndEdit={(next) => selection.endEdit(next)}
+                onDelete={deleteNote}
+                undo={undoController}
+              />
+            );
+          })}
         </BoardViewport>
         <RemoteSelections
           people={presence.selections}
-          objects={notes}
+          objects={objects}
           camera={camera}
           size={STICKY_SIZE_WORLD}
         />
@@ -354,10 +466,30 @@ function BoardSurface({
         {selection.ids.size > 0 ? (
           <SelectionOverlay
             ids={selection.ids}
-            snapshot={notes}
+            snapshot={objects}
             camera={camera}
             onHandlePointerDown={gesture.onHandlePointerDown}
           />
+        ) : null}
+        {selectedCount === 1 && selectedTextObj && selectedTextObj.type === 'text' ? (
+          <div
+            data-testid="selection-bar-anchor"
+            style={{
+              position: 'absolute',
+              left: barLeft,
+              top: barTop,
+              pointerEvents: 'none',
+              width: 0,
+              height: 0,
+              zIndex: 30,
+            }}
+          >
+            <TextSelectionBar
+              size={selectedTextObj.size}
+              onSize={handleTextSizeChange}
+              onDelete={handleTextDelete}
+            />
+          </div>
         ) : null}
         {selectedCount > 1 ? (
           <div
@@ -383,7 +515,13 @@ function BoardSurface({
             onRename={(raw) => presenceRef.current.rename(raw)}
           />
         </div>
-        <Toolbar onCreateSticky={createStickyInViewCentre} undo={undoState} />
+        <Toolbar
+          onCreateSticky={createStickyInViewCentre}
+          undo={undoState}
+          tool={tool}
+          onToolChange={setTool}
+          canEdit={canEdit}
+        />
         <div className="connection-area">
           {broken ? (
             <p className="board-link-warning" data-testid="board-link-warning" role="status">

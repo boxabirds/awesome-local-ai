@@ -39,6 +39,8 @@ export interface TransformGestureOptions {
   canEdit: boolean;
   onGestureStart?(): void;
   onGestureEnd?(): void;
+  /** Called after a resize gesture completes with affected object IDs. */
+  onResizeComplete?(ids: readonly string[]): void;
   /** This person's undo history (story 8): a gesture is one undo step. */
   undo: UndoController;
 }
@@ -207,6 +209,9 @@ export function useTransformGesture(
         // End the capture group, on a cancel too: a partial gesture is
         // still one step (story 8).
         optsRef.current.undo.boundary();
+        if (gesture.mode === 'resize') {
+          optsRef.current.onResizeComplete?.([...gesture.startRects.keys()]);
+        }
         optsRef.current.onGestureEnd?.();
       }
       cleanup();
@@ -304,6 +309,7 @@ export function useTransformGesture(
 
       let anyResizable = false;
       let aspectLocked = e.shiftKey;
+      let horizontalOnly = true;
       for (const objId of selectedIds) {
         const obj = snapshot.find((s) => s.id === objId);
         if (!obj) continue;
@@ -311,9 +317,15 @@ export function useTransformGesture(
         if (spec) {
           if (spec.resizable) anyResizable = true;
           if (spec.aspectLocked) aspectLocked = true;
+          if (spec.handles !== 'horizontal') horizontalOnly = false;
+        } else {
+          horizontalOnly = false;
         }
       }
       if (!anyResizable) return;
+
+      // Horizontal-only mode: only allow e/w handles.
+      if (horizontalOnly && handle !== 'e' && handle !== 'w') return;
 
       const gesture = buildGesture(e, 'resize', selectedIds, aspectLocked, handle);
       if (!gesture) return;
