@@ -114,8 +114,8 @@ scores are void and the run stops with exit 3, which dbench reports without rest
 | | tritus (Strix Halo, llama.cpp, Vulkan) | gruntus (RTX 4090, llama.cpp) | quintus (Mac, MTPLX) |
 |---|---|---|---|
 | agent, gate, accept, conditions | all runs | all runs | all runs |
-| `time_split.model` | canvas-vk-01 from the first story started on harness 0ef8480 or later | canvas-pi-04 and later jobs; canvas-pi-03 can be backfilled (see below) | no: `requests` instead |
-| `time_split` tools and compaction | as above | as above | from its next job on 0ef8480 or later |
+| `time_split.model` | canvas-vk-01 from story 7 (dbench job canvas-vk-01g, harness 5b17d48, 26 Sep 08:45 UTC); stories 1–5 have none | canvas-pi-04 and later jobs; canvas-pi-03 can be backfilled (see below) | no: `requests` instead |
+| `time_split` tools and compaction | as above | as above | canvas-pi-03 (harness 61ac40e) and later |
 | `conditions.gpu` | as above, from sysfs | as above, from `nvidia-smi` | no (needs `powermetrics`, which needs root) |
 
 A server log without a start marker (before 0ef8480) can still be read by prepending a marker with
