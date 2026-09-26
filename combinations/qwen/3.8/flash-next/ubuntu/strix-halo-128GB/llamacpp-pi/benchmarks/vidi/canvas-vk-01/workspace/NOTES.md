@@ -263,3 +263,140 @@ the text element gets class `overflow-fade` which applies a CSS mask-image gradi
 * Undo/redo (Story 9): no undo manager attached.
 * Shape/connection components: hooks exist in board-model for Stories 4/5.
 * Frame-rate profiling under 100 notes: manual perf check only.
+
+# Story 3 notes — see other people's edits appear live on the same board
+
+Implementation of `spec/stories/003-see-other-people-s-edits-appear-live-on-the-same-b`.
+Two browsers on one URL now show each other's notes, text, colours and deletions
+while both are editing.
+
+## How to run (additions)
+
+```bash
+npm run test:integration      # Worker + BoardRoom in workerd (vitest-pool-workers)
+npm run test:e2e              # Playwright, includes the 30 s outage case (TC-27)
+npm run test:e2e:nightly      # TC-29 idle stability + TC-30 capacity soak (skipped by default)
+NIGHTLY=1 NIGHTLY_IDLE_MINUTES=0.1 npx playwright test live-stability   # quick local check
+```
+
+`npm install` needs `--legacy-peer-deps` here: `y-websocket`'s peer range against
+`yjs` trips npm 9's resolver (arborist bug), nothing is actually incompatible.
+`vitest` is held at 4.1.x because `@cloudflare/vitest-pool-workers` needs the
+`pool: 'workers'` implementation of that line, and `compatibility_date` stays at
+`2026-08-15`, which the vendored workerd accepts.
+
+## Architecture
+
+```
+src/shared/board-id.ts     newBoardId/isValidBoardId (16 random bytes, base64url, no padding)
+src/shared/protocol.ts     decodeMessage: y-websocket frame -> sync | awareness | query | invalid
+src/worker/index.ts        fetch router: /api/rooms/:boardId -> BoardRoom, everything else -> ASSETS
+src/worker/board-room.ts   Durable Object: one Y.Doc per board, relay for sync + awareness
+src/client/routing.ts      boardId from /b/:boardId, / -> /b/<new id>
+src/client/sync/connectBoard.ts    WebsocketProvider + the ConnectionState machine
+src/client/sync/ConnectionStatus.tsx  the badge (role=status)
+```
+
+## Wire format (checked against y-websocket's own source)
+
+* sync: `varuint(0)` followed by the y-protocols message **inline** — no length prefix;
+* awareness: `varuint(1)` followed by `varuint8array(payload)` — one prefix, because
+  awareness carries its own encoder;
+* query-awareness: `varuint(3)` alone; the room ignores it (no presence yet, story 6).
+
+`protocol.ts` mirrors this byte for byte, which is what makes the integration tests
+real: they speak the same framing the browser does.
+
+## Durable Object decisions
+
+* **Non-hibernating WebSockets** (`ws.accept()` + `addEventListener('message')`).
+  Hibernation pays off when the server holds no per-connection state; here the room
+  is a live `Y.Doc` in memory until story 4 persists it, and the doc has to be read
+  per message anyway.
+* `ws.binaryType = 'arraybuffer'` **before** `accept()`. workerd hands `event.data`
+  to a message handler as a `Blob` otherwise, and unwrapping a Blob is async, which
+  the handler cannot await in order to reply in order.
+* Bad input closes **that socket** with `CLOSE_UNSUPPORTED_DATA` (1003): a text
+  frame, an unknown message type, truncated bytes or a corrupt Yjs update. The room
+  and every other socket keep going (TC-15).
+* No participant counting. `MAX_CONCURRENT_EDITORS` is a *soft* capacity: the 6th
+  joiner is served like anyone else (TC-13).
+* On accept the room sends SyncStep1, so a client that reconnects to a restarted
+  (empty) room repopulates it from the peers that are already there (TC-18).
+
+## Client connection state machine
+
+`connecting` → first sync → `connected`. A disconnect after the first sync is
+`reconnecting`; re-syncing goes to `confirmed` — the green "Connected" badge — for
+`CONNECTED_CONFIRMATION_MS` and only then hides the badge. Without the
+confirmation hold a single blip would flash "Connected" and disappear, which reads
+as a bug. `disableBc: true` matters: with y-websocket's BroadcastChannel on, two
+tabs of one browser would sync around the server and both the capacity limit and
+the e2e tests would be theatre.
+
+For tests, `connectBoard` can be handed a `WebSocketPolyfill`: in `test` builds
+`window.__vidi6.dropSockets()` closes the live sockets so an outage is observed
+immediately instead of after a handshake timeout, and
+`context.setOffline(true)` keeps it down in both directions (TC-27).
+
+## Two bugs the collaboration tests found in the sticky-note layer
+
+1. **Dragging a note froze after the first pointermove** — but only when the note
+   was not on top. `bringToFront` bumps `z`, `snapshot()` sorts by `z`, React then
+   *moved the DOM node*, and moving a node out of the document drops pointer
+   capture, whose `lostpointercapture` ended the drag. Fixed by rendering notes in
+   a stable id order in `App.tsx`: stacking already comes from the inline
+   `zIndex`, so DOM order carried no meaning and cost a lot.
+2. **Two people typing into one note lost one side.** The editor was a textarea
+   that diffed its own value against the live `Y.Text` on every input, so the next
+   local keystroke deleted whatever the peer had just inserted. The editor now
+   observes the `Y.Text` and folds the remote change into the textarea
+   (`mergeRemoteText`: one splice plus a caret shift), and marks its own
+   transactions with an origin symbol so they are never echoed back into the box.
+
+## Test coverage
+
+| Tests | Where |
+| --- | --- |
+| TC-01..TC-03 (board id, frame decode) | `tests/unit/board-id.test.ts`, `tests/unit/protocol.test.ts` |
+| TC-04..TC-06, TC-13, TC-17 (routing) | `tests/integration/worker.test.ts` |
+| TC-07..TC-12, TC-14..TC-18, TC-31 (room) | `tests/integration/board-room.test.ts` |
+| TC-19..TC-21 (badge) | `tests/component/ConnectionStatus.test.tsx` |
+| TC-22..TC-28 (live, multi-context) | `tests/e2e/live-collaboration.spec.ts` |
+| TC-29, TC-30 (idle + capacity) | `tests/e2e/live-stability.spec.ts` (nightly) |
+| `mergeRemoteText` (typing merge) | `tests/unit/sticky-text.test.ts` |
+
+Shared fixtures: `tests/integration/helpers/ws-client.ts` (a `RoomClient` speaking
+the real protocol over a `SELF.fetch` upgrade) and
+`tests/integration/helpers/random-ops.ts` (seeded create/move/colour/type/delete
+generator through the real board-model functions).
+
+## Deviations from the spec
+
+1. The board id is written into the URL with `history.replaceState`; there is no
+   router (story 5 owns routes). `/` opens a fresh board, and a `/b/<invalid>` URL
+   falls back to a new board instead of an error page.
+2. `decodeMessage` lives in `src/shared/protocol.ts` and is used by the room. The
+   client keeps using y-websocket's own encoder — reimplementing it would only
+   prove the test client and the app agree with each other.
+3. TC-27 pays the full `CATCH_UP_TEST_OUTAGE_MS` (30 s), so the daily e2e run is
+   dominated by that one test.
+4. TC-26 asserts convergence per *round* of concurrent changes: a round that
+   converges inside the budget bounds every change it contained, and it keeps the
+   run proportional. TC-30 measures each individual change.
+5. TC-30's soak drives one change at a time and measures convergence after
+   each, so a latency number belongs to a single change; concurrency itself is
+   covered by TC-23, TC-24 (e2e) and TC-09/TC-10 (integration). The seed prints
+   with the percentiles (`NIGHTLY_SEED` overrides it).
+6. Only Chromium is installed in this environment. `playwright.config.ts` declares
+   the firefox and webkit projects whenever their browsers are present, so TC-22
+   and TC-23 run there automatically.
+
+## Not covered
+
+* Presence rendering (story 6). Awareness bytes are relayed — that keeps idle
+  connections alive — but nothing draws them.
+* Persistence (story 4): evicting a room loses the board; TC-18 covers the
+  converge-after-restart path only.
+* A real Cloudflare deployment: everything server-side runs in workerd through
+  `@cloudflare/vitest-pool-workers`, and `wrangler dev` for the e2e run.

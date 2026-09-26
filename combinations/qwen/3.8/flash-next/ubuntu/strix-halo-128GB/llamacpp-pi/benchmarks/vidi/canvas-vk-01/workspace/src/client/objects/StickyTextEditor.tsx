@@ -8,7 +8,10 @@ import * as Y from 'yjs';
 import {
   STICKY_TEXT_MAX_CHARS,
 } from '../../shared/config';
-import { clampToLimit, applyTextDiff, counterVisible } from './StickyText';
+import { clampToLimit, applyTextDiff, counterVisible, mergeRemoteText } from './StickyText';
+
+/** Marks the transactions this editor writes, so its own edits are not fed back. */
+const LOCAL_EDIT = Symbol('sticky-text-local-edit');
 
 export interface StickyTextEditorProps {
   ytext: Y.Text;
@@ -18,20 +21,47 @@ export interface StickyTextEditorProps {
 
 /**
  * Textarea-based text editor for sticky notes.
- * Mounts with caret at end, writes minimal diffs to Y.Text on each input event.
+ * Mounts with caret at end, writes minimal diffs to Y.Text on each input event,
+ * and folds remote edits of the same note into the textarea, so two people
+ * typing in one note keep every character.
  */
 export function StickyTextEditor({ ytext, fontPx, onEnd }: StickyTextEditorProps): JSX.Element {
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
   const composingRef = useRef(false);
+  /** The Y.Text content the textarea value was last derived from. */
+  const syncedRef = useRef('');
 
   useEffect(() => {
     const ta = textareaRef.current;
     if (!ta) return;
     // Set value from Y.Text and place caret at end
     const text = ytext.toString();
+    syncedRef.current = text;
     ta.value = text;
     ta.focus();
     ta.setSelectionRange(text.length, text.length);
+  }, [ytext]);
+
+  useEffect(() => {
+    const observe = (_event: Y.YTextEvent, transaction: Y.Transaction): void => {
+      if (transaction.origin === LOCAL_EDIT) return;
+      const ta = textareaRef.current;
+      if (!ta) return;
+      const after = ytext.toString();
+      const before = syncedRef.current;
+      if (after === before) return;
+      const merged = mergeRemoteText(ta.value, before, after, {
+        start: ta.selectionStart ?? ta.value.length,
+        end: ta.selectionEnd ?? ta.value.length,
+      });
+      syncedRef.current = after;
+      ta.value = merged.value;
+      ta.setSelectionRange(merged.selection.start, merged.selection.end);
+    };
+    ytext.observe(observe);
+    return () => {
+      ytext.unobserve(observe);
+    };
   }, [ytext]);
 
   const handleInput = () => {
@@ -59,7 +89,8 @@ export function StickyTextEditor({ ytext, fontPx, onEnd }: StickyTextEditorProps
       ta.value = clamped;
       ta.setSelectionRange(caretPos, caretPos);
     }
-    applyTextDiff(ytext, clamped, null);
+    applyTextDiff(ytext, clamped, LOCAL_EDIT);
+    syncedRef.current = ytext.toString();
   };
 
   const handleKeyDown = (event: ReactKeyboardEvent<HTMLTextAreaElement>) => {

@@ -5,6 +5,7 @@ import {
   clampToLimit,
   applyTextDiff,
   counterVisible,
+  mergeRemoteText,
 } from '../../src/client/objects/StickyText';
 import {
   STICKY_TEXT_MAX_CHARS,
@@ -136,5 +137,59 @@ describe('StickyText', () => {
     it('full text (1000) -> true', () => {
       expect(counterVisible(1000)).toBe(true);
     });
+  });
+});
+
+describe('mergeRemoteText', () => {
+  const caretAtEnd = (value: string) => ({ start: value.length, end: value.length });
+
+  it('leaves the local value alone when the remote text did not change', () => {
+    expect(mergeRemoteText('green', 'green', 'green', caretAtEnd('green'))).toEqual({
+      value: 'green',
+      selection: { start: 5, end: 5 },
+    });
+  });
+
+  it('keeps the characters the local user typed while a remote insert arrives', () => {
+    // Local typed 'x' into 'red'; the peer appended ' blue'.
+    const merged = mergeRemoteText('redx', 'red', 'red blue', { start: 4, end: 4 });
+    expect(merged.value).toContain('x');
+    expect(merged.value).toContain(' blue');
+    expect(merged.selection.start).toBe(merged.value.length);
+  });
+
+  it('shifts the caret past a remote insert at the start', () => {
+    const merged = mergeRemoteText('greenblue', 'green', 'red green', { start: 9, end: 9 });
+    expect(merged.value).toBe('red greenblue');
+    expect(merged.selection).toEqual({ start: 13, end: 13 });
+  });
+
+  it('applies a remote delete without eating the local tail', () => {
+    const merged = mergeRemoteText('green texthere', 'green text', 'green', { start: 14, end: 14 });
+    expect(merged.value).toBe('greenhere');
+    expect(merged.selection).toEqual({ start: 9, end: 9 });
+  });
+
+  it('ends up with what two merged documents agree on, plus the unflushed local character', () => {
+    const a = new Y.Doc();
+    const b = new Y.Doc();
+    const textA = a.getText('text');
+    textA.insert(0, 'green');
+    Y.applyUpdate(b, Y.encodeStateAsUpdate(a));
+    const textB = b.getText('text');
+
+    // Both editors derive from 'green'. A flushes ' x'; B flushes ' y'; the
+    // update from B lands in A while A still holds an unflushed '!'.
+    applyTextDiff(textA, 'green x', null);
+    const derived = textA.toString();
+    applyTextDiff(textB, 'green y', null);
+    Y.applyUpdate(a, Y.encodeStateAsUpdate(b));
+    const after = textA.toString();
+
+    const merged = mergeRemoteText('green x!', derived, after, { start: 8, end: 8 });
+    expect(merged.value).toContain('x');
+    expect(merged.value).toContain('y');
+    expect(merged.value).toContain('!');
+    expect(merged.value.replace('!', '')).toBe(after);
   });
 });

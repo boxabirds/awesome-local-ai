@@ -38,3 +38,20 @@ export const STICKY_COLORS = {
 } as const;
 export type StickyColor = keyof typeof STICKY_COLORS;
 export const DEFAULT_STICKY_COLOR: StickyColor = 'yellow';
+
+// Live collaboration settings (story 3)
+
+/**
+ * Simultaneous-editor capacity: the number of people a board is designed and
+ * tested for. Soft: never enforced, a 6th person is never turned away. Tests
+ * must use this setting rather than a hard-coded number (PRD live.capacity).
+ */
+export const MAX_CONCURRENT_EDITORS = 5;
+/** PRD live.propagate: change-delivery budget in ms (sender screen -> receiver screen). */
+export const LIVE_UPDATE_LATENCY_BUDGET_MS = 1000;
+/** Upper bound of the provider's reconnect backoff (passed to WebsocketProvider). */
+export const RECONNECT_MAX_BACKOFF_MS = 10_000;
+/** How long the green "Connected" badge stays visible after a reconnection. */
+export const CONNECTED_CONFIRMATION_MS = 2000;
+/** Outage length used by the PRD live.catch_up verification. */
+export const CATCH_UP_TEST_OUTAGE_MS = 30_000;

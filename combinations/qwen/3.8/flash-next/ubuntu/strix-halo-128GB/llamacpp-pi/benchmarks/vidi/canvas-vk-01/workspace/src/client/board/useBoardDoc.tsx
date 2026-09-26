@@ -1,11 +1,15 @@
 import { createContext, useContext, type ReactNode, type JSX } from 'react';
 import * as Y from 'yjs';
 import { initDoc, snapshot, type StickySnapshot } from '../../shared/board-model';
-import { useSyncExternalStore, useRef, useMemo, useEffect } from 'react';
+import { useSyncExternalStore, useRef, useMemo, useEffect, useState, useCallback } from 'react';
+import { connectBoard, type ConnectionState } from '../sync/connectBoard';
+import { reportConnectionState } from '../canvas/testHooks';
 
 export interface BoardDocContextValue {
   doc: Y.Doc;
   notes: readonly StickySnapshot[];
+  /** Live connection to the room; `connected` when there is nothing to sync. */
+  connection: ConnectionState;
 }
 
 const BoardDocContext = createContext<BoardDocContextValue | null>(null);
@@ -14,12 +18,23 @@ export interface BoardDocProviderProps {
   children?: ReactNode;
   /** Provide an existing doc (for testing). */
   doc?: Y.Doc;
+  /**
+   * Board id from `/b/:boardId`. When given, the doc is connected to that
+   * board's room and stays in sync with everyone else on it. Without it the
+   * board is local only (component tests).
+   */
+  boardId?: string;
 }
 
 /**
- * Provides a single Y.Doc instance to the entire board subtree.
+ * Provides a single Y.Doc instance to the entire board subtree, kept in sync
+ * with the board's room while `boardId` is set.
  */
-export function BoardDocProvider({ children, doc: externalDoc }: BoardDocProviderProps): JSX.Element {
+export function BoardDocProvider({
+  children,
+  doc: externalDoc,
+  boardId,
+}: BoardDocProviderProps): JSX.Element {
   const docRef = useRef<Y.Doc | null>(null);
   if (docRef.current === null) {
     if (externalDoc) {
@@ -62,8 +77,31 @@ export function BoardDocProvider({ children, doc: externalDoc }: BoardDocProvide
 
   const notes = useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
 
+  const [connection, setConnection] = useState<ConnectionState>(
+    boardId === undefined ? 'connected' : 'connecting',
+  );
+
+  const report = useCallback((state: ConnectionState) => {
+    setConnection(state);
+    reportConnectionState(state);
+  }, []);
+
+  // Attach the provider to the doc; detach on unmount and whenever the board
+  // changes. Remote updates flow through the same `observeDeep` subscription
+  // as local ones, so the board re-renders exactly as it does for local edits.
+  useEffect(() => {
+    if (boardId === undefined) {
+      setConnection('connected');
+      return;
+    }
+    const handle = connectBoard(doc, boardId, report);
+    return () => {
+      handle.destroy();
+    };
+  }, [doc, boardId, report]);
+
   return (
-    <BoardDocContext.Provider value={{ doc, notes }}>
+    <BoardDocContext.Provider value={{ doc, notes, connection }}>
       {children}
     </BoardDocContext.Provider>
   );

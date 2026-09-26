@@ -304,3 +304,37 @@ body {
 .note-toolbar-delete:hover {
   background: #fee2e2;
 }
+
+/* Connection status badge (PRD live.connection_status): top centre, above the
+   board, never capturing pointer events so the board stays editable. */
+.connection-status {
+  position: fixed;
+  top: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 30;
+  padding: 5px 12px;
+  font-size: 13px;
+  font-weight: 500;
+  border-radius: 999px;
+  pointer-events: none;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.12);
+}
+
+.connection-status--connecting {
+  color: #1f2933;
+  background: #eef1f4;
+  border: 1px solid #d6dae0;
+}
+
+.connection-status--reconnecting {
+  color: #7a4b00;
+  background: #fff3cd;
+  border: 1px solid #f0c674;
+}
+
+.connection-status--confirmed {
+  color: #14562f;
+  background: #d7f5e3;
+  border: 1px solid #7fd6a4;
+}
