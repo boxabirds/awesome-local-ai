@@ -1,3 +1,280 @@
+commit 0bbacd77841ef36aee0e9b331bd26722874d4993
+vidi-agent  Sat Sep 26 23:56:55 2026 +0100
+
+    story 7: Group related tasks into projects so work stays organised
+
+
+ NOTES.md                  | 102 ++++++++++++++++++++++++++++++++++++++++++++++
+ apps/api/vitest.config.ts |   4 ++
+ 2 files changed, 106 insertions(+)
+commit 4c473bd7d92d0e8a860dbb9dce41b266d9220b0d
+vidi-agent  Sat Sep 26 23:38:16 2026 +0100
+
+    story 7 task 17: E2E: project create/move, delete+undo exact set, rename, collaboration, reload, cookie-less access, keyboard, phone
+
+
+ apps/web/src/features/tasks/TaskListView.tsx |   3 +-
+ e2e/projects.mobile.spec.ts                  |  81 ++++++++
+ e2e/projects.spec.ts                         | 264 +++++++++++++++++++++++++++
+ e2e/support/projects.ts                      |  63 +++++++
+ e2e/tasks.spec.ts                            |   7 +-
+ smoke.tmp.mjs                                |  51 ------
+ 6 files changed, 415 insertions(+), 54 deletions(-)
+commit c637637a9d2b0deeb6562ca44aec7b0d6f18c611
+vidi-agent  Sat Sep 26 23:31:40 2026 +0100
+
+    story 7 task 16: UI component tests: project view, delete/undo dialog, Move to picker and M shortcut, live handlers
+
+
+ apps/web/test/ui/projects/projectView.test.tsx | 324 +++++++++++++++++++++++++
+ 1 file changed, 324 insertions(+)
+commit bc0311d6f64f93a9353b5111a91ad8445655a95e
+vidi-agent  Sat Sep 26 23:29:47 2026 +0100
+
+    story 7 task 15: UI component tests: sidebar projects, create dialog, rename, touch visibility, render isolation
+
+
+ apps/web/src/features/projects/ColorPalette.tsx |   2 +
+ apps/web/src/features/projects/ProjectRow.tsx   |   9 +-
+ apps/web/test/msw/projectServer.ts              | 212 ++++++++++++++
+ apps/web/test/support/projects.tsx              |  44 +++
+ apps/web/test/ui/projects/sidebar.test.tsx      | 361 ++++++++++++++++++++++++
+ 5 files changed, 624 insertions(+), 4 deletions(-)
+commit cac63e55275e5f5cdba84e4e717d4c099bb65aaf
+vidi-agent  Sat Sep 26 23:27:04 2026 +0100
+
+    story 7 task 10: Unit tests: project schemas, restore/move decisions, cache reducer, migration scan
+
+
+ apps/api/src/db/tasks.ts                           |  9 +-
+ apps/api/test/unit/projectRules.test.ts            | 51 +++++++++++
+ apps/api/test/unit/projectSchemas.test.ts          | 98 ++++++++++++++++++++++
+ apps/api/test/unit/search.test.ts                  | 18 ++++
+ apps/web/test/unit/projects/liveRegistry.test.ts   | 39 +++++++++
+ apps/web/test/unit/projects/nameFieldState.test.ts | 28 +++++++
+ apps/web/test/unit/projects/palette.test.ts        | 30 +++++++
+ apps/web/test/unit/projects/projectCache.test.ts   | 83 ++++++++++++++++++
+ .../web/test/unit/tasks/filterDestinations.test.ts | 68 +++++++++++++++
+ scripts/test/migration-0003.test.ts                | 22 +++++
+ smoke.tmp.mjs                                      | 51 +++++++++++
+ 11 files changed, 493 insertions(+), 4 deletions(-)
+commit 0a6a9809977a5ad405f8c609abd71b889c9a59c8
+vidi-agent  Sat Sep 26 23:24:08 2026 +0100
+
+    story 7 task 19: Build the searchable Move to picker and the M shortcut
+
+
+ .../src/components/combobox/HighlightedText.tsx    |  44 +++++
+ apps/web/src/components/combobox/OptionRow.tsx     |  48 ++++++
+ .../src/components/combobox/ResponsiveCommand.tsx  |  84 ++++++++++
+ apps/web/src/components/ui/sheet.tsx               |  12 +-
+ apps/web/src/features/projects/useProjects.ts      |   9 +-
+ apps/web/src/features/tasks/MovePickerHost.tsx     |  19 +++
+ apps/web/src/features/tasks/MoveToPicker.tsx       | 183 +++++++++++++++++++++
+ apps/web/src/features/tasks/TaskRow.tsx            |   3 +-
+ apps/web/src/features/tasks/filterDestinations.ts  |  29 ++++
+ apps/web/src/features/tasks/moveToPickerLoader.ts  |  20 +++
+ apps/web/src/features/tasks/useMoveShortcut.ts     |  25 +++
+ apps/web/src/features/workspace/AppShell.tsx       |   3 +
+ packages/shared/package.json                       |   3 +-
+ packages/shared/src/index.ts                       |   1 +
+ packages/shared/src/search.ts                      |  14 ++
+ 15 files changed, 491 insertions(+), 6 deletions(-)
+commit 95e0a752eb10c5627655b5209fdaff2a36c71657
+vidi-agent  Sat Sep 26 23:21:37 2026 +0100
+
+    story 7 task 9: Add 'Move to…' menu entry and optimistic moveTask mutation
+
+
+ apps/web/src/components/icons.ts                |  2 ++
+ apps/web/src/features/tasks/TaskListView.tsx    |  2 ++
+ apps/web/src/features/tasks/TaskRow.tsx         | 14 ++++++--
+ apps/web/src/features/tasks/TaskRowActions.ts   |  3 ++
+ apps/web/src/features/tasks/movePicker.ts       | 41 +++++++++++++++++++++++
+ apps/web/src/features/tasks/useTaskMutations.ts | 43 ++++++++++++++++++++++++-
+ apps/web/test/setup.ts                          |  2 ++
+ 7 files changed, 103 insertions(+), 4 deletions(-)
+commit 653eb392b092c03f78ea4769fe785556d97c09a2
+vidi-agent  Sat Sep 26 23:20:40 2026 +0100
+
+    story 7 task 8: Add project delete confirmation with task count and Undo toast
+
+
+ .../src/features/projects/DeleteProjectDialog.tsx  | 59 ++++++++++++++++++++++
+ .../features/projects/ProjectsSidebarSection.tsx   | 46 +++++++++++++++--
+ .../web/src/features/projects/deleteProjectCopy.ts | 11 ++++
+ .../features/projects/deleteProjectDialogLoader.ts | 14 +++++
+ 4 files changed, 125 insertions(+), 5 deletions(-)
+commit 588303e2c1b5ede2f1f114f1eb89325ed26a89a5
+vidi-agent  Sat Sep 26 23:19:48 2026 +0100
+
+    story 7 task 7: Add project view route with empty state and project-targeted quick add
+
+
+ apps/web/src/features/tasks/InboxView.tsx    | 151 ++-----------------------
+ apps/web/src/features/tasks/TaskListView.tsx | 163 +++++++++++++++++++++++++++
+ apps/web/src/routes/ProjectView.tsx          |  86 ++++++++++++--
+ apps/web/src/routes/Workspace.tsx            |   3 +-
+ 4 files changed, 252 insertions(+), 151 deletions(-)
+commit 0019239ae8ab45832d4ec863a1f1a369048e07ba
+vidi-agent  Sat Sep 26 23:18:36 2026 +0100
+
+    story 7 task 6: Build sidebar Projects section with create dialog, colour palette, counts and inline rename
+
+
+ .../src/features/projects/CreateProjectDialog.tsx  |  98 +++++++++++
+ apps/web/src/features/projects/ProjectRow.tsx      | 174 +++++++++++++++++++
+ .../features/projects/ProjectsSidebarSection.tsx   | 108 ++++++++++++
+ .../src/features/projects/RenameProjectInline.tsx  |  65 +++++++
+ .../features/projects/createProjectDialogLoader.ts |  14 ++
+ .../src/features/projects/useProjectMutations.ts   | 193 +++++++++++++++++++++
+ apps/web/src/features/projects/useProjects.ts      |  20 +++
+ apps/web/src/features/undo/showUndoToast.ts        |   9 +-
+ apps/web/src/features/workspace/AppShell.tsx       |  21 ++-
+ apps/web/src/features/workspace/Sidebar.tsx        |   4 +-
+ apps/web/src/features/workspace/bootOpen.ts        |   6 +-
+ apps/web/src/main.tsx                              |  10 +-
+ apps/web/src/routes/ProjectView.tsx                |  16 ++
+ apps/web/src/routes/Workspace.tsx                  |  24 ++-
+ apps/web/src/routes/lazy.ts                        |  23 +++
+ apps/web/src/routes/workspaceLoader.ts             |  17 +-
+ apps/web/test/msw.ts                               |   3 +
+ apps/web/test/msw/projects.ts                      |  34 ++++
+ apps/web/test/ui/sharePanel.test.tsx               |   3 +-
+ apps/web/test/ui/tasks/listKeyboard.test.tsx       |   4 +
+ apps/web/test/ui/tasks/loader.test.tsx             |   4 +-
+ apps/web/test/ui/tasks/mobileShell.test.tsx        |   9 +-
+ apps/web/test/ui/workspace.test.tsx                |   1 +
+ 23 files changed, 835 insertions(+), 25 deletions(-)
+commit 032ff2d51702baf2e935a15dee854d7b3c7d1cde
+vidi-agent  Sat Sep 26 23:13:57 2026 +0100
+
+    story 7 task 18: Make project controls touch-friendly, colour-legible, and give clear blank/over-limit name feedback
+
+
+ apps/web/src/components/NameField.tsx           | 88 +++++++++++++++++++++++++
+ apps/web/src/components/nameFieldState.ts       | 23 +++++++
+ apps/web/src/features/projects/ColorPalette.tsx | 41 ++++++++++++
+ apps/web/src/features/projects/ProjectDot.tsx   | 17 +++++
+ apps/web/src/lib/useHoverNone.ts                | 22 +++++++
+ 5 files changed, 191 insertions(+)
+commit 0d1ca65129952f4ef89eb88e2c3794c0bab42598
+vidi-agent  Sat Sep 26 23:13:10 2026 +0100
+
+    story 7 task 5: Apply project live events in clients and redirect viewers of deleted projects
+
+
+ apps/web/src/App.tsx                               |  17 +--
+ apps/web/src/features/projects/projectCache.ts     | 117 +++++++++++++++++
+ apps/web/src/features/projects/projectGone.ts      |  22 ++++
+ apps/web/src/features/projects/queries.ts          |   8 ++
+ .../projects/registerProjectLiveHandlers.ts        | 144 +++++++++++++++++++++
+ .../features/projects/useProjectLiveHandlers.ts    |  38 ++++++
+ apps/web/src/features/tasks/TaskDetailSheet.tsx    |   5 +-
+ apps/web/src/features/tasks/liveHandlers.ts        |  30 +++--
+ apps/web/src/features/tasks/queries.ts             |  11 +-
+ apps/web/src/features/tasks/taskCache.ts           |   9 +-
+ apps/web/src/features/tasks/useCreateTask.ts       |  42 +++---
+ apps/web/src/features/tasks/useTaskMutations.ts    |  39 +++---
+ .../src/features/workspace/useWorkspaceNavigate.ts |  31 +++++
+ apps/web/src/lib/api.ts                            |  55 +++++++-
+ apps/web/src/lib/ids.ts                            |  13 +-
+ apps/web/src/lib/queryKeys.ts                      |  50 +++++--
+ apps/web/src/routes/Workspace.tsx                  |   3 +
+ apps/web/test/setup.ts                             |   2 +
+ apps/web/test/ui/tasks/loader.test.tsx             |   4 +-
+ packages/shared/src/schemas.ts                     |   3 +-
+ 20 files changed, 561 insertions(+), 82 deletions(-)
+commit 056856984f9aae20ed822279df16fefc8b26734a
+vidi-agent  Sat Sep 26 23:05:52 2026 +0100
+
+    story 7 task 14: Integration test: project events fan out through WorkspaceRoom to other clients only
+
+
+ apps/api/test/integration/projects.live.test.ts | 48 +++++++++++++++++++++++++
+ 1 file changed, 48 insertions(+)
+commit 5b42bb5742fe2555b79356347a1816802467373a
+vidi-agent  Sat Sep 26 23:05:27 2026 +0100
+
+    story 7 task 13: Integration tests: project-scoped task create/list and task move
+
+
+ apps/api/test/integration/tasks.projects.test.ts | 218 +++++++++++++++++++++++
+ 1 file changed, 218 insertions(+)
+commit 1004bd4f1bb51f8761fb8ff1c081586eb0d4984f
+vidi-agent  Sat Sep 26 23:04:40 2026 +0100
+
+    story 7 task 12: Integration tests: project delete atomicity and exact-set batch restore
+
+
+ apps/api/test/integration/projects.delete.test.ts | 257 ++++++++++++++++++++++
+ 1 file changed, 257 insertions(+)
+commit 0d9cb34cb6919ba3391383d7f60ee0a203095215
+vidi-agent  Sat Sep 26 23:03:48 2026 +0100
+
+    story 7 task 11: Integration tests: projects migration, list/counts, create (idempotent, limit), update
+
+
+ apps/api/src/db/tasks.ts                        |   2 +-
+ apps/api/test/integration/projects.crud.test.ts | 385 ++++++++++++++++++++++++
+ apps/api/test/support/projects.ts               |  91 ++++++
+ 3 files changed, 477 insertions(+), 1 deletion(-)
+commit c6e42569eaeb9d12b8a663c1c3e891862dbf58e2
+vidi-agent  Sat Sep 26 23:01:55 2026 +0100
+
+    story 7 task 4: Scope task create/list to projects and add task move endpoint
+
+
+ apps/api/src/db/projects.ts   | 11 ++++++
+ apps/api/src/db/tasks.ts      | 88 +++++++++++++++++++++++++++++++++----------
+ apps/api/src/lib/moveRules.ts | 15 ++++++++
+ apps/api/src/routes/tasks.ts  | 60 +++++++++++++++++++++++++----
+ 4 files changed, 148 insertions(+), 26 deletions(-)
+commit 60ebbd9c12b5e4f72bcef5c59330b15b38df5b61
+vidi-agent  Sat Sep 26 23:00:44 2026 +0100
+
+    story 7 task 3: Build atomic project delete and batch-scoped restore API
+
+
+ apps/api/src/db/projects.ts      | 72 ++++++++++++++++++++++++++++++++++++++++
+ apps/api/src/lib/restoreRules.ts | 14 ++++++++
+ apps/api/src/routes/projects.ts  | 70 ++++++++++++++++++++++++++++++++++++--
+ apps/api/src/routes/test.ts      | 11 ++++++
+ packages/shared/src/limits.ts    |  2 ++
+ 5 files changed, 167 insertions(+), 2 deletions(-)
+commit e8dffcb7285edea21798185eff51bdcbce49584e
+vidi-agent  Sat Sep 26 22:59:58 2026 +0100
+
+    story 7 task 2: Build project list/create/update API and extend counts with per-project open/total
+
+
+ apps/api/src/app.ts                          |   2 +
+ apps/api/src/db/projects.ts                  | 117 +++++++++++++++++++++++++++
+ apps/api/src/db/tasks.ts                     |  31 +++++--
+ apps/api/src/routes/projects.ts              |  74 +++++++++++++++++
+ apps/api/test/integration/tasks.db.test.ts   |  16 +++-
+ apps/api/test/integration/tasks.list.test.ts |   4 +-
+ 6 files changed, 232 insertions(+), 12 deletions(-)
+commit 653bcc516ec5c722855ba805e965bd87c0b2d4a2
+vidi-agent  Sat Sep 26 22:58:36 2026 +0100
+
+    story 7 task 1: Add projects migration 0003 and shared project limits/schemas
+
+
+ apps/api/src/db/tasks.ts                    |   5 ++
+ apps/api/src/lib/crypto.ts                  |   7 ++
+ apps/api/src/lib/errors.ts                  |  10 ++-
+ apps/api/src/routes/test.ts                 |   2 +-
+ apps/api/test/unit/taskEdit.schemas.test.ts |   1 +
+ apps/api/test/unit/taskSchemas.test.ts      |   3 +
+ apps/web/scripts/build-tokens.ts            |   4 +-
+ apps/web/test/unit/tokens.test.ts           |   4 +-
+ migrations/0003_projects.sql                |  26 ++++++
+ packages/shared/src/events.ts               |  11 ++-
+ packages/shared/src/limits.ts               |  43 +++++++++
+ packages/shared/src/schemas.ts              | 135 ++++++++++++++++++++++++----
+ packages/shared/src/tokens.ts               |  50 ++---------
+ 13 files changed, 232 insertions(+), 69 deletions(-)
 commit 8e69956757e7fe97839267b524036978d331a0e7
 vidi-agent  Sat Sep 26 22:47:31 2026 +0100
 
