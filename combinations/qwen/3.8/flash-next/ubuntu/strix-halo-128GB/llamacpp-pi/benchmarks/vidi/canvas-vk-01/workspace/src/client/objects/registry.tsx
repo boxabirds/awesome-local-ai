@@ -30,6 +30,12 @@ export interface ObjectTypeSpec {
   aspectLocked: boolean;
   minSize: number;
   editableText: boolean;
+  /**
+   * Which resize handles the selection overlay shows (story 9). 'horizontal'
+   * (text) means only east/west: the height follows the wrapped text, it is
+   * never dragged directly. Default 'all'.
+   */
+  handles?: 'all' | 'horizontal';
   hitTest(obj: ObjectSnapshot, worldPoint: Point): boolean;
 }
 
@@ -70,5 +76,19 @@ registerObjectType('sticky', {
   aspectLocked: true,
   minSize: STICKY_MIN_SIZE_WORLD,
   editableText: true,
+  hitTest: stickyHitTest,
+});
+
+// --- free text (story 9) ---------------------------------------------------
+import { TEXT_MIN_WIDTH_WORLD } from '../../shared/config';
+import { TextObject } from './TextObject';
+
+registerObjectType('text', {
+  Component: TextObject,
+  resizable: true,
+  aspectLocked: false,
+  minSize: TEXT_MIN_WIDTH_WORLD,
+  editableText: true,
+  handles: 'horizontal',
   hitTest: stickyHitTest,
 });

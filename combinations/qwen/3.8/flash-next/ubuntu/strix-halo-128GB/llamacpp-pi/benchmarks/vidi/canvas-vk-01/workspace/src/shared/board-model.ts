@@ -4,8 +4,10 @@ import {
   STICKY_COLORS,
   DEFAULT_STICKY_COLOR,
   type StickyColor,
+  type TextSize,
 } from './config';
 import { rectContains, type Point, type Rect } from './geometry';
+import type { TextSnapshot } from './objects/text';
 
 /**
  * Board document model: owns the Yjs schema and all mutations.
@@ -136,6 +138,66 @@ export function getStickyText(doc: Y.Doc, id: string): Y.Text | undefined {
   const text = obj.get('text');
   if (text instanceof Y.Text) return text;
   return undefined;
+}
+
+/**
+ * Every renderable object: stickies and text objects (story 9), sorted by z
+ * then id. `snapshot()` stays sticky-only for the story 1–8 callers.
+ */
+export type BoardSnapshot = StickySnapshot | TextSnapshot;
+
+export function objectSnapshots(doc: Y.Doc): readonly BoardSnapshot[] {
+  const objects = getObjectsMap(doc);
+  const result: BoardSnapshot[] = [];
+
+  objects.forEach((obj, id) => {
+    const type = obj.get('type');
+    if (type === 'sticky') {
+      const text = obj.get('text');
+      const entry: StickySnapshot = {
+        id,
+        type: 'sticky',
+        x: obj.get('x') as number,
+        y: obj.get('y') as number,
+        color: obj.get('color') as StickyColor,
+        text: text instanceof Y.Text ? text.toString() : '',
+        z: obj.get('z') as number,
+        createdAt: obj.get('createdAt') as number,
+      };
+      const width = obj.get('width') as number | undefined;
+      const height = obj.get('height') as number | undefined;
+      if (typeof width === 'number' && Number.isFinite(width)) entry.width = width;
+      if (typeof height === 'number' && Number.isFinite(height)) entry.height = height;
+      result.push(entry);
+      return;
+    }
+    if (type === 'text' && KNOWN_OBJECT_TYPES.has('text')) {
+      const text = obj.get('text');
+      const width = obj.get('width');
+      const height = obj.get('height');
+      const size = obj.get('size');
+      const entry: TextSnapshot = {
+        id,
+        type: 'text',
+        x: obj.get('x') as number,
+        y: obj.get('y') as number,
+        text: text instanceof Y.Text ? text.toString() : '',
+        size: (typeof size === 'string' ? size : 'M') as TextSize,
+        widthMode: obj.get('widthMode') === 'fixed' ? 'fixed' : 'auto',
+        z: obj.get('z') as number,
+        width: typeof width === 'number' && Number.isFinite(width) ? width : 0,
+        height: typeof height === 'number' && Number.isFinite(height) ? height : 0,
+      };
+      result.push(entry);
+    }
+  });
+
+  result.sort((a, b) => {
+    if (a.z !== b.z) return a.z - b.z;
+    return a.id < b.id ? -1 : a.id > b.id ? 1 : a.id === b.id ? 0 : 1;
+  });
+
+  return result;
 }
 
 export function snapshot(doc: Y.Doc): readonly StickySnapshot[] {
