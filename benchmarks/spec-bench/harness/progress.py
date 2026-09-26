@@ -208,7 +208,8 @@ def _void(accept_file: Path) -> bool:
     """A held-out score the machine couldn't produce (gates.harness_fault), e.g. no browser."""
     import gates
     try:
-        return gates.harness_fault(json.loads(accept_file.read_text()).get("tests", [])) is not None
+        acc = json.loads(accept_file.read_text())
+        return bool(acc.get("harness_fault") or gates.harness_fault(acc.get("tests", []), acc.get("runner_tail", "")))
     except (OSError, json.JSONDecodeError):
         return False
 

@@ -26,7 +26,12 @@ pub const REPEAT_SUFFIX: &str = "-r";
 
 /// Expand one job into `count` repeats: `(job id, run id)` pairs, numbered from `first`.
 /// A count of 1 keeps the ids unchanged. Every result must still be a valid id.
-pub fn expand_repeats(id: &str, run_id: &str, count: u32, first: u32) -> Result<Vec<(String, String)>, String> {
+pub fn expand_repeats(
+    id: &str,
+    run_id: &str,
+    count: u32,
+    first: u32,
+) -> Result<Vec<(String, String)>, String> {
     if count == 0 {
         return Err("--repeat must be at least 1".into());
     }
@@ -35,11 +40,17 @@ pub fn expand_repeats(id: &str, run_id: &str, count: u32, first: u32) -> Result<
     }
     (first..first + count)
         .map(|n| {
-            let pair = (format!("{id}{REPEAT_SUFFIX}{n}"), format!("{run_id}{REPEAT_SUFFIX}{n}"));
+            let pair = (
+                format!("{id}{REPEAT_SUFFIX}{n}"),
+                format!("{run_id}{REPEAT_SUFFIX}{n}"),
+            );
             if valid_id(&pair.0) && valid_id(&pair.1) {
                 Ok(pair)
             } else {
-                Err(format!("repeat ids {} / {} are not valid ids (max {MAX_ID_LEN} chars)", pair.0, pair.1))
+                Err(format!(
+                    "repeat ids {} / {} are not valid ids (max {MAX_ID_LEN} chars)",
+                    pair.0, pair.1
+                ))
             }
         })
         .collect()
@@ -51,7 +62,10 @@ mod tests {
 
     #[test]
     fn repeats_are_numbered_distinct_jobs_and_runs() {
-        assert_eq!(expand_repeats("j", "run", 1, 1).unwrap(), vec![("j".into(), "run".into())]);
+        assert_eq!(
+            expand_repeats("j", "run", 1, 1).unwrap(),
+            vec![("j".into(), "run".into())]
+        );
         assert_eq!(
             expand_repeats("vidi-4090", "canvas-pi", 3, 1).unwrap(),
             vec![
@@ -61,7 +75,10 @@ mod tests {
             ]
         );
         // Adding more repeats later continues the numbering without clobbering earlier runs.
-        assert_eq!(expand_repeats("j", "run", 2, 4).unwrap()[0], ("j-r4".into(), "run-r4".into()));
+        assert_eq!(
+            expand_repeats("j", "run", 2, 4).unwrap()[0],
+            ("j-r4".into(), "run-r4".into())
+        );
         assert!(expand_repeats("j", "run", 0, 1).is_err());
         assert!(expand_repeats(&"x".repeat(MAX_ID_LEN), "run", 2, 1).is_err()); // suffix would overflow
     }

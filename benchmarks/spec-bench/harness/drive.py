@@ -21,6 +21,7 @@ import os
 import shutil
 import signal
 import subprocess
+import sys
 import time
 import re
 import threading
@@ -39,6 +40,9 @@ from clients import CLIENTS, empty_state
 HARNESS = Path(__file__).resolve().parent
 REPO_ROOT = HARNESS.parent.parent.parent       # benchmarks/spec-bench/harness -> repo
 BENCHMARKS = REPO_ROOT / "benchmarks"
+# drive.py's exit code when the machine lacks something the run needs (a browser, …). Distinct from a
+# crash (1) so a supervisor (dbench) stops instead of restarting into the same wall.
+EXIT_MISSING_RESOURCES = 3
 # The pack being run (--pack, vidi unless told otherwise): its spec/, scope/, prompts/ and held-out
 # suite, from the private pack repo or benchmarks/<name> (packdir, pack). set_pack() switches it.
 PK = packmod.load(packdir.DEFAULT_PACK)
@@ -1212,10 +1216,19 @@ def main() -> None:
               f"stalled={rec['agent']['stalled']}"
               f"{' DEGRADED (power/thermal) — timing not comparable' if rec['conditions']['degraded'] else ''}",
               flush=True)
-        if acc.get("harness_fault"):
-            # The agent's work is recorded; only the held-out score is void. Later stories would be the same.
-            raise SystemExit(f"[story {sid}] HARNESS FAULT, held-out score void: {acc['harness_fault']}. Fix it, "
-                             f"re-score this story (gates.py accept), then re-run to continue with the next story.")
+        stop_if_missing_resources(sid, rec["gate"], acc)
+
+
+def stop_if_missing_resources(sid: int, gate: dict, acc: dict) -> None:
+    """Stop the run if the machine couldn't run a story's tests. The agent's work is recorded; only
+    the scores are void, and every later story would hit the same wall."""
+    fault = gate.get("harness_fault") or acc.get("harness_fault")
+    if not fault:
+        return
+    why = fault.removeprefix(gates.MISSING_RESOURCES).strip()
+    print(f"MISSING RESOURCES: {why}. Story {sid}'s scores are void: fix it, re-score the story "
+          f"(gates.py), then re-run to continue with the next story.", file=sys.stderr, flush=True)
+    sys.exit(EXIT_MISSING_RESOURCES)
 
 
 if __name__ == "__main__":

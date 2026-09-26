@@ -20,6 +20,7 @@ import time
 from pathlib import Path
 
 HARNESS = Path(__file__).resolve().parent
+import hostenv  # noqa: E402
 import packdir  # noqa: E402
 # The default pack's held-out suite (vidi); drive.py passes the running pack's.
 ACCEPTANCE = packdir.resolve() / "acceptance"
@@ -75,6 +76,9 @@ def gate(ws: Path, steps: list[str] | None = None) -> dict:
         return result
     scripts = json.loads(pkg.read_text()).get("scripts", {})
     result["steps"]["install"] = install(ws)
+    # The agent's scripts run against the agent's browsers, which it installed with its own
+    # Playwright; the default cache holds the held-out suite's build, a different version.
+    env = {"PLAYWRIGHT_BROWSERS_PATH": str(hostenv.agent_playwright_cache(Path.home()))}
     for step in steps or GATE_STEPS:
         if step not in scripts:
             result["steps"][step] = {"exit": "missing"}
@@ -83,9 +87,21 @@ def gate(ws: Path, steps: list[str] | None = None) -> dict:
         if step == "test:e2e":
             # Chromium only: the harness does not install every browser.
             cmd += ["--", "--project=chromium"]
-        r = _run(cmd, ws, STEP_TIMEOUT_S)
+        r = _run(cmd, ws, STEP_TIMEOUT_S, env)
         if step == "test:e2e" and r["exit"] != 0 and "project" in r["tail"].lower():
-            r = _run(["npm", "run", step], ws, STEP_TIMEOUT_S)
+            cmd = ["npm", "run", step]
+            r = _run(cmd, ws, STEP_TIMEOUT_S, env)
+        if step == "test:e2e" and missing_browser(r["tail"]):
+            # Install the browser the agent's Playwright wants, once, and rerun. Still missing means
+            # this machine can't run the tests at all: stop, don't score (or retry) against nothing.
+            fetch = _run(["npx", "playwright", "install", "chromium"], ws, STEP_TIMEOUT_S, env)
+            result["steps"]["browser_install"] = fetch
+            r = _run(cmd, ws, STEP_TIMEOUT_S, env) if fetch["exit"] == 0 else r
+            if missing_browser(r["tail"]):
+                result["harness_fault"] = (f"{MISSING_RESOURCES} the agent's e2e tests have no browser "
+                                           f"({missing_browser(r['tail'])}); `npx playwright install chromium` "
+                                           f"in the workspace with PLAYWRIGHT_BROWSERS_PATH={env['PLAYWRIGHT_BROWSERS_PATH']} "
+                                           f"{'did not fix it' if fetch['exit'] == 0 else 'failed: ' + fetch['tail'][-200:]}")
         r.update(_counts(r["tail"]))
         result["steps"][step] = r
     result["all_green"] = all(s.get("exit") in (0, "missing") for s in result["steps"].values())
@@ -112,19 +128,28 @@ def _walk(suite: dict):
         yield from _walk(child)
 
 
-# Test errors that mean the machine can't run the suite at all, whatever the app does.
-HARNESS_FAULTS = {
-    "browserType.launch: Executable doesn't exist":
-        "Playwright's browser is missing: run `npx playwright install chromium` in the acceptance suite",
-}
+# Every harness fault starts with this: the machine lacks something, and no run on it can score.
+MISSING_RESOURCES = "missing resources:"
+# Output that means there is no browser to test with, whatever the app does.
+BROWSER_MISSING_SIGNS = (
+    "Executable doesn't exist",               # Playwright, launching a browser it has not downloaded
+    "browser not installed",                  # a playwright.config that skips browsers it can't find
+    "Host system is missing dependencies",    # downloaded, but the OS lacks its libraries
+)
 
 
-def harness_fault(tests: list[dict]) -> str | None:
-    """Why this score says nothing about the app, if a test failed for a reason of the machine's."""
-    for t in tests:
-        for sig, why in HARNESS_FAULTS.items():
-            if sig in (t.get("error") or ""):
-                return why
+def missing_browser(output: str) -> str | None:
+    """The sign, in a test run's output, that it had no browser; None if it had one."""
+    return next((sig for sig in BROWSER_MISSING_SIGNS if sig in (output or "")), None)
+
+
+def harness_fault(tests: list[dict], runner_tail: str = "") -> str | None:
+    """Why this score says nothing about the app, if the tests failed for a reason of the machine's."""
+    sig = next(filter(None, (missing_browser(t.get("error") or "") for t in tests)), None) \
+        or missing_browser(runner_tail)
+    if sig:
+        return (f"{MISSING_RESOURCES} the held-out suite has no browser ({sig}); run "
+                f"`npx playwright install chromium` in the acceptance suite")
     return None
 
 
@@ -188,7 +213,7 @@ def accept(ws: Path, processed: list, out: Path, acceptance: Path | None = ACCEP
         "on_partial": {"passed": sum(t["status"] == "passed" for t in applicable if t.get("on_partial") is not None),
                        "total": sum(t.get("on_partial") is not None for t in applicable)},
         "by_story": by_story,
-        "harness_fault": harness_fault(tests),
+        "harness_fault": harness_fault(tests, run["tail"]),
         "tests": tests,
     }
 
