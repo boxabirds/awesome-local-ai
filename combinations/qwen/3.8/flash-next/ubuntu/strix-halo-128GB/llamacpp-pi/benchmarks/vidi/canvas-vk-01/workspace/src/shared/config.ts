@@ -12,3 +12,29 @@ export const WHEEL_ZOOM_SENSITIVITY = 0.01;
 export const GRID_SPACING_WORLD = 24;
 /** How far from the start panning is guaranteed (and tested) to work. */
 export const UNBOUNDED_PAN_TESTED_EXTENT = 1_000_000;
+
+// Sticky note settings (story 2)
+
+/** Width and height of a sticky note in world units. */
+export const STICKY_SIZE_WORLD = 200;
+/** Maximum characters in a sticky note's text. */
+export const STICKY_TEXT_MAX_CHARS = 1000;
+/** Character counter becomes visible when remaining <= this value. */
+export const STICKY_COUNTER_THRESHOLD_CHARS = 50;
+/** Largest font size for sticky note text (px at 100% zoom). */
+export const STICKY_FONT_MAX_PX = 24;
+/** Smallest font size for sticky note text (px at 100% zoom). */
+export const STICKY_FONT_MIN_PX = 10;
+/** Minimum pointer movement in screen px before a press becomes a drag. */
+export const DRAG_THRESHOLD_PX = 3;
+/** Available sticky note colours. */
+export const STICKY_COLORS = {
+  yellow: '#FFF59D',
+  orange: '#FFCC80',
+  green: '#C5E1A5',
+  blue: '#90CAF9',
+  pink: '#F48FB1',
+  violet: '#CE93D8',
+} as const;
+export type StickyColor = keyof typeof STICKY_COLORS;
+export const DEFAULT_STICKY_COLOR: StickyColor = 'yellow';

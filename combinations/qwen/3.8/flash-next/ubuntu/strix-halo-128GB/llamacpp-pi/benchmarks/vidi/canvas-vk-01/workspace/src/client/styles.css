@@ -146,3 +146,161 @@ body {
   pointer-events: none;
   white-space: nowrap;
 }
+
+/* Board toolbar ---------------------------------------------------------- */
+
+.board-toolbar {
+  position: fixed;
+  left: 16px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 4px;
+  background: #ffffff;
+  border: 1px solid #d6dae0;
+  border-radius: 8px;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.12);
+  z-index: 100;
+}
+
+.board-toolbar button {
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  background: #ffffff;
+  border: 1px solid #d6dae0;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.board-toolbar button:hover {
+  background: #f2f4f6;
+}
+
+/* Sticky note ------------------------------------------------------------ */
+
+.sticky-note {
+  border-radius: 4px;
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.15);
+  overflow: hidden;
+  user-select: none;
+  outline: none;
+  transition: box-shadow 0.1s;
+}
+
+.sticky-note[data-selected] {
+  box-shadow: 0 0 0 2px #2563eb, 0 2px 8px rgba(15, 23, 42, 0.15);
+}
+
+.sticky-note:focus-visible {
+  box-shadow: 0 0 0 2px #2563eb, 0 2px 8px rgba(15, 23, 42, 0.15);
+}
+
+.sticky-note-text {
+  width: 100%;
+  height: 100%;
+  padding: 12px;
+  box-sizing: border-box;
+  font-size: 24px;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  overflow: hidden;
+  line-height: 1.3;
+  color: #1f2933;
+  font-family: inherit;
+}
+
+.sticky-note-text.overflow-fade {
+  mask-image: linear-gradient(to bottom, black 80%, transparent 100%);
+  -webkit-mask-image: linear-gradient(to bottom, black 80%, transparent 100%);
+}
+
+/* Sticky text editor ----------------------------------------------------- */
+
+.sticky-text-editor {
+  width: 100%;
+  height: 100%;
+  position: relative;
+}
+
+.sticky-textarea {
+  width: 100%;
+  height: 100%;
+  padding: 12px;
+  box-sizing: border-box;
+  border: none;
+  background: transparent;
+  resize: none;
+  outline: none;
+  font-family: inherit;
+  line-height: 1.3;
+  color: #1f2933;
+  overflow: hidden;
+  word-wrap: break-word;
+}
+
+.sticky-counter {
+  position: absolute;
+  bottom: 4px;
+  right: 8px;
+  font-size: 10px;
+  color: #6b7280;
+}
+
+/* Note toolbar ----------------------------------------------------------- */
+
+.note-toolbar-screen {
+  position: fixed;
+  z-index: 100;
+  pointer-events: auto;
+}
+
+.note-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  padding: 4px;
+  background: #ffffff;
+  border: 1px solid #d6dae0;
+  border-radius: 6px;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.12);
+  transform: scale(calc(1 / var(--note-zoom, 1)));
+  transform-origin: bottom left;
+}
+
+.note-toolbar-swatch {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  border: 2px solid rgba(0, 0, 0, 0.15);
+  cursor: pointer;
+  padding: 0;
+}
+
+.note-toolbar-swatch[aria-pressed="true"] {
+  border-color: #1f2933;
+  box-shadow: 0 0 0 1px #ffffff inset;
+}
+
+.note-toolbar-delete {
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  background: transparent;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  margin-left: 4px;
+}
+
+.note-toolbar-delete:hover {
+  background: #fee2e2;
+}
