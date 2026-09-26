@@ -38,11 +38,38 @@ export interface BoardViewportProps {
   onMarqueeEnd?: () => void;
   /** Pointer cancelled mid-marquee: discard with no selection change. */
   onMarqueeCancel?: () => void;
+  /**
+   * Story 12: file drag-and-drop onto the board (image.drop). Native
+   * `DragEvent` handlers attached to the viewport root (the hook's handlers
+   * are native, not React synthetic).
+   */
+  onDragEnter?: (e: DragEvent) => void;
+  onDragOver?: (e: DragEvent) => void;
+  onDragLeave?: (e: DragEvent) => void;
+  onDrop?: (e: DragEvent) => void;
 }
 
 export function BoardViewport(props: BoardViewportProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const { camera, beginPan, panMove, endPan, wheel, zoomStep, reset } = useCameraContext();
+
+  // Story 12: attach native drag/drop listeners to the viewport root (the
+  // image-insert hook's handlers are native DragEvents, not React synthetic).
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    const { onDragEnter, onDragOver, onDragLeave, onDrop } = props;
+    if (onDragEnter) el.addEventListener('dragenter', onDragEnter);
+    if (onDragOver) el.addEventListener('dragover', onDragOver);
+    if (onDragLeave) el.addEventListener('dragleave', onDragLeave);
+    if (onDrop) el.addEventListener('drop', onDrop);
+    return () => {
+      if (onDragEnter) el.removeEventListener('dragenter', onDragEnter);
+      if (onDragOver) el.removeEventListener('dragover', onDragOver);
+      if (onDragLeave) el.removeEventListener('dragleave', onDragLeave);
+      if (onDrop) el.removeEventListener('drop', onDrop);
+    };
+  }, [props.onDragEnter, props.onDragOver, props.onDragLeave, props.onDrop]);
 
   const isPanningRef = useRef(false);
   const isMarqueeingRef = useRef(false);

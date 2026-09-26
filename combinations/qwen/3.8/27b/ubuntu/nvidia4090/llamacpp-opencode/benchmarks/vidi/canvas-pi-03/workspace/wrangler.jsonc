@@ -13,10 +13,19 @@
       { "name": "BOARD_ROOM", "class_name": "BoardRoom" }
     ]
   },
+  // Story 12: image assets (raster images) live in this R2 bucket; keys are
+  // unguessable (<boardId>/<assetId>) and immutable (served with immutable
+  // caching + nosniff + CSP default-src 'none').
+  "r2_buckets": [{ "binding": "ASSETS_BUCKET", "bucket_name": "vidi6-assets" }],
   // Story 5: platform rate limiter for POST /api/boards. limit/period MUST
   // match BOARD_CREATE_LIMIT / BOARD_CREATE_PERIOD_SECONDS in
   // src/shared/config.ts (asserted by tests/unit/create-board.test.ts TC-03).
-  "ratelimits": [{ "name": "BOARD_CREATE_LIMITER", "limit": 10, "period": 60 }],
+  // Story 12: platform rate limiter for POST /api/boards/:id/assets. limit/period
+  // MUST match IMAGE_UPLOAD_LIMIT / IMAGE_UPLOAD_PERIOD_SECONDS.
+  "ratelimits": [
+    { "name": "BOARD_CREATE_LIMITER", "limit": 10, "period": 60 },
+    { "name": "ASSET_UPLOAD_LIMITER", "limit": 60, "period": 60 }
+  ],
   "migrations": [
     { "tag": "v1", "new_sqlite_classes": ["BoardRoom"] }
   ]

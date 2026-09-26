@@ -5,7 +5,8 @@ import { NavigationHint } from '../canvas/NavigationHint';
 import { CameraContext } from '../canvas/CameraContext';
 import { useCamera } from '../canvas/useCamera';
 import { canZoomIn, canZoomOut, zoomPercent, screenToWorld, worldToScreen, type Point } from '../canvas/camera';
-import { registerBoardTestHooks, registerUndoTestHooks } from '../canvas/testHooks';
+import { registerBoardTestHooks, registerUndoTestHooks, registerUploaderTestHook, registerUploadFailTestHook } from '../canvas/testHooks';
+import { setNextUploadFail } from '../images/uploadImage';
 import { useBoardDoc } from './useBoardDoc';
 import { useSelection } from './useSelection';
 import { useBoardKeys } from './useBoardKeys';
@@ -18,7 +19,10 @@ import { ConnectorTool } from '../tools/ConnectorTool';
 import { PenTool, penCursor } from '../tools/PenTool';
 import { PenToolbar } from '../tools/PenToolbar';
 import { usePenOptions } from '../tools/usePenOptions';
-import { registerShapeType, registerConnectorType, registerStrokeType } from '../objects/registry';
+import { registerShapeType, registerConnectorType, registerStrokeType, registerImageType } from '../objects/registry';
+import { useImageInsert } from '../images/useImageInsert';
+import { DropHighlight } from '../images/DropHighlight';
+import { Toast } from '../ui/Toast';
 import { createUndo } from './undo';
 import { useUndo } from './useUndo';
 import { SelectionOverlay } from './SelectionOverlay';
@@ -48,6 +52,8 @@ registerShapeType();
 registerConnectorType();
 // Story 11: freehand strokes (stroke.render / pen.select).
 registerStrokeType();
+// Story 12: images (image.object) — selectable/movable/resizable/aspect-locked.
+registerImageType();
 
 /**
  * Story 4: the board is editable in every connection state except
@@ -58,6 +64,26 @@ registerStrokeType();
  */
 export function canEdit(state: ConnectionState): boolean {
   return state !== 'load_failed';
+}
+
+/**
+ * Story 12: the render clock for the `unfinished` image state (image.unfinished).
+ * Ticks every 30 s while at least one image is uploading (so an upload that
+ * outlasts IMAGE_UPLOAD_STALE_MS flips to "unfinished"), and resets the
+ * baseline whenever the uploading set changes. Idle boards cost nothing.
+ */
+function useUploadClock(objects: readonly ObjectSnapshot[]): number {
+  const anyUploading = objects.some((o) => o.type === 'image' && o.status === 'uploading');
+  const [now, setNow] = useState<number>(() => Date.now());
+  useEffect(() => {
+    setNow(Date.now());
+  }, [anyUploading]);
+  useEffect(() => {
+    if (!anyUploading) return;
+    const id = window.setInterval(() => setNow(Date.now()), 30_000);
+    return () => window.clearInterval(id);
+  }, [anyUploading]);
+  return now;
 }
 
 /**
@@ -129,6 +155,32 @@ export function Board({ id }: { id: string }) {
   // milestone; the tab id is the stand-in for `createdBy`).
   const clientId = useMemo(() => crypto.randomUUID(), []);
 
+  // Story 12: image insertion (drop / paste / picker) + the 30 s upload
+  // clock for the `unfinished` state. The hook owns the toasts, the uploader
+  // progress map and the in-memory Retry files.
+  const imageInsert = useImageInsert({
+    doc,
+    boardId: id,
+    camera: cameraState.camera,
+    connection: connectionState,
+    identityId: clientId,
+    viewport,
+  });
+  const uploadNow = useUploadClock(objects);
+
+  // Story 12: Remove (image.upload_failure) — delete a single image (story 7
+  // deleteObjects, one undo step).
+  const removeImage = useCallback(
+    (imageId: string) => {
+      if (!editable) return;
+      onBoundary();
+      deleteObjects(doc, [imageId]);
+      onBoundary();
+      selection.clear();
+    },
+    [doc, editable, selection, onBoundary],
+  );
+
   // Test-only: expose the board snapshot/doc/selection (story 2/7 tests).
   // Layout effect (not passive): test readiness is keyed off the committed
   // DOM, so the hooks must be registered by the time the board is visible —
@@ -146,6 +198,16 @@ export function Board({ id }: { id: string }) {
   useLayoutEffect(() => {
     registerUndoTestHooks(undo);
   }, [undo]);
+
+  // Test-only: expose the tab identity id (story 12 image tests).
+  useLayoutEffect(() => {
+    registerUploaderTestHook(() => clientId);
+  }, [clientId]);
+
+  // Test-only: fail the next upload's storage PUT once (story 12 flaky upload).
+  useLayoutEffect(() => {
+    registerUploadFailTestHook(setNextUploadFail);
+  }, []);
 
   // Test-only: keep the live connection state readable (story 3 tests).
   useLayoutEffect(() => {
@@ -206,6 +268,7 @@ export function Board({ id }: { id: string }) {
     onUndo: undoState.undo,
     onRedo: undoState.redo,
     onCreateStickyCenter: createStickyCenter,
+    onOpenImagePicker: imageInsert.openPicker,
   });
 
   // Story 9: create a size M text object with its top-left at `world` (the
@@ -357,6 +420,17 @@ export function Board({ id }: { id: string }) {
         props.objects = objects;
         props.onBoundary = onBoundary;
       }
+      if (o.type === 'image') {
+        // Story 12: image object props (image.object). The box fields and
+        // image fields arrive via the `...o` spread; these drive the render
+        // states and the uploader-only Retry.
+        props.isUploader = o.uploaderId === clientId;
+        props.progress = imageInsert.progress.get(o.id);
+        props.canRetry = imageInsert.canRetry(o.id);
+        props.now = uploadNow;
+        props.onRetry = () => imageInsert.retry(o.id);
+        props.onRemove = () => removeImage(o.id);
+      }
       return <Comp key={o.id} {...props} />;
     });
 
@@ -374,9 +448,17 @@ export function Board({ id }: { id: string }) {
         onMarqueeMove={marquee.move}
         onMarqueeEnd={marquee.end}
         onMarqueeCancel={marquee.cancel}
+        onDragEnter={imageInsert.onDragEnter}
+        onDragOver={imageInsert.onDragOver}
+        onDragLeave={imageInsert.onDragLeave}
+        onDrop={imageInsert.onDrop}
       >
         {renderObjects()}
       </BoardViewport>
+      {/* Story 12: outline while a file drag hovers the board (image.drop). */}
+      <DropHighlight active={imageInsert.dragActive} />
+      {/* Story 12: bottom toast for image insertion feedback (image.* toasts). */}
+      <Toast messages={imageInsert.toasts} />
       {/* Story 10: creation tool overlays (above the viewport; they capture
           all pointer events while active, so the board neither pans nor
           selects underneath). */}
@@ -455,6 +537,7 @@ export function Board({ id }: { id: string }) {
         onSetTool={tools.setTool}
         shapeKind={tools.shapeKind}
         onSetShapeKind={tools.setShapeKind}
+        onOpenImagePicker={imageInsert.openPicker}
       />
       <ZoomControls
         zoomPercent={zoomPercent(cameraState.camera)}

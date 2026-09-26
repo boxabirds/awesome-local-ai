@@ -50,6 +50,12 @@ export interface BoardKeysOptions {
    * (tools.keys) so the tool state stays in one place.
    */
   onCreateStickyCenter?: () => void;
+  /**
+   * Story 12: I shortcut — open the image picker (image.pick). Like N it is
+   * a direct action (not a persistent tool): it opens the picker and the
+   * board stays/returns on Select.
+   */
+  onOpenImagePicker?: () => void;
 }
 
 export function useBoardKeys(opts: BoardKeysOptions): void {
@@ -96,6 +102,12 @@ export function useBoardKeys(opts: BoardKeysOptions): void {
         if (e.key === 'n' || e.key === 'N') {
           e.preventDefault();
           ref.current.onCreateStickyCenter?.();
+          return;
+        }
+        // Story 12: I opens the image picker (image.pick).
+        if (e.key === 'i' || e.key === 'I') {
+          e.preventDefault();
+          ref.current.onOpenImagePicker?.();
           return;
         }
       }

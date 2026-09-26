@@ -145,6 +145,19 @@ export interface ObjectSnapshot {
   baseHeight?: number;
   /** Story 11: stroke thickness name (thin | medium | thick). */
   thickness?: string;
+  /** Story 12: image asset key (null while uploading). */
+  assetKey?: string | null;
+  /** Story 12: image MIME type. */
+  contentType?: string;
+  /** Story 12: natural pixel dimensions. */
+  naturalWidth?: number;
+  naturalHeight?: number;
+  /** Story 12: upload status (uploading | ready | failed). */
+  status?: string;
+  /** Story 12: upload start epoch ms. */
+  uploadStartedAt?: number;
+  /** Story 12: the uploader's identity id. */
+  uploaderId?: string;
 }
 
 export async function getObjects(page: Page): Promise<ObjectSnapshot[]> {

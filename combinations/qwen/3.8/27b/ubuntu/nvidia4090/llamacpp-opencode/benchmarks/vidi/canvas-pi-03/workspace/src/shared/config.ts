@@ -203,3 +203,33 @@ export const STROKE_MAX_POINTS = 5000;
 export const STROKE_HIT_TOLERANCE_PX = 6;
 /** Smallest side of a stroke's bounding box in world units (pen.resize). */
 export const STROKE_MIN_SIZE_WORLD = 4;
+
+// --- Story 12: drop images onto the board (image.*) ---
+
+/**
+ * The MIME types accepted as board images (image.types). Type is ultimately
+ * decided from the file's CONTENT (magic bytes) on the server, never from the
+ * client-supplied type; this list is the picker's `accept` and the client-side
+ * pre-check.
+ */
+export const IMAGE_ACCEPTED_TYPES = ['image/png', 'image/jpeg', 'image/gif', 'image/webp'] as const;
+/** Largest accepted image in bytes (image.size_limit): 10 MB. */
+export const IMAGE_MAX_BYTES = 10 * 1024 * 1024;
+/** Most images a single add action (one drop/paste/pick) may create (image.count_limit). */
+export const IMAGE_MAX_FILES_PER_ADD = 20;
+/** Longest side (world units) a placed image may have (image.placement_size). */
+export const IMAGE_MAX_PLACE_SIZE_WORLD = 800;
+/** Smallest side (world units) an image may be resized to (image.aspect_resize). */
+export const IMAGE_MIN_SIZE_WORLD = 16;
+/** Horizontal gap (world units) between images placed in a row (image.drop). */
+export const IMAGE_LAYOUT_GAP_WORLD = 24;
+/** How long an upload may stay in `uploading` before it is `unfinished` (image.unfinished). */
+export const IMAGE_UPLOAD_STALE_MS = 5 * 60 * 1000;
+/** Per-visitor upload rate limit (image.rate_limit): at most this many per period. */
+export const IMAGE_UPLOAD_LIMIT = 60;
+/** Upload rate-limit window in seconds. MUST match the wrangler.jsonc `ratelimits` binding. */
+export const IMAGE_UPLOAD_PERIOD_SECONDS = 60;
+/** Cache lifetime (seconds) of served assets (immutable; keys never change). */
+export const ASSET_CACHE_MAX_AGE_SECONDS = 31_536_000;
+/** How many leading bytes the server reads for magic-byte type sniffing. */
+export const IMAGE_SNIFF_BYTES = 12;

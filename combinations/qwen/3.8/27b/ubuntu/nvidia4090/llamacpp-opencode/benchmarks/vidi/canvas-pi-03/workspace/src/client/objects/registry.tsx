@@ -19,6 +19,9 @@ import { TextObject, type TextObjectProps } from './TextObject';
 import { ShapeObject, type ShapeObjectProps } from './ShapeObject';
 import { ConnectorObject, type ConnectorObjectProps } from './ConnectorObject';
 import { StrokeObject } from './StrokeObject';
+import { ImageObject, type ImageObjectProps } from './ImageObject';
+import { isImageSnap } from '@/shared/objects/image';
+import { IMAGE_MIN_SIZE_WORLD } from '@/shared/config';
 
 /**
  * Object-type registry (story 7, sel.registry).
@@ -238,6 +241,52 @@ export function registerStrokeType(): void {
           ? PEN_THICKNESS_WORLD[s.thickness as PenThickness]
           : PEN_THICKNESS_WORLD[DEFAULT_PEN_THICKNESS];
       return distanceToPolyline(scaledPoints(s), p) <= Math.max(t / 2, STROKE_HIT_TOLERANCE_PX / (zoom ?? 1));
+    },
+  });
+}
+
+/**
+ * Adapter: the renderer spreads the snapshot over `ObjectProps`; the
+ * ImageObject receives the image snapshot plus its interaction/status props
+ * (isUploader/progress/canRetry/now/onRetry/onRemove arrive from the Board).
+ */
+function ImageRegistryComponent(props: ObjectProps): ReactElement {
+  // A malformed/partial image (missing required fields) renders nothing —
+  // the same forward-compat rule as unknown types.
+  if (!isImageSnap(props as unknown as import('@/shared/board-model').ObjectSnapshot)) return <></>;
+  return (
+    <ImageObject
+      image={props as unknown as ImageObjectProps['image']}
+      isUploader={props.isUploader === true}
+      progress={typeof props.progress === 'number' ? props.progress : undefined}
+      canRetry={props.canRetry === true}
+      now={typeof props.now === 'number' ? props.now : 0}
+      onRetry={typeof props.onRetry === 'function' ? (props.onRetry as () => void) : () => undefined}
+      onRemove={typeof props.onRemove === 'function' ? (props.onRemove as () => void) : () => undefined}
+      selected={props.selected === true}
+      onObjectPointerDown={props.onObjectPointerDown}
+    />
+  );
+}
+
+/**
+ * Story 12: the image type (image.object). Registered by the Board at module
+ * load (like shape/connector/stroke): registry unit tests must see 'image' as
+ * unknown in builds that never import the Board (forward compatibility). Box
+ * hit test; resizable with the aspect locked and a min floor
+ * (image.aspect_resize).
+ */
+export function registerImageType(): void {
+  if (registry.has('image')) return; // idempotent
+  registry.set('image', {
+    Component: ImageRegistryComponent,
+    resizable: true,
+    aspectLocked: true,
+    minSize: IMAGE_MIN_SIZE_WORLD,
+    editableText: false,
+    hitTest: (o, p) => {
+      if (!isImageSnap(o)) return false;
+      return pointInBounds(o, p);
     },
   });
 }

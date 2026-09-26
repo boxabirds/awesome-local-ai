@@ -1,5 +1,6 @@
 import { BoardRoom } from './board-room';
 import { createBoard, type CreateOpts } from './create-board';
+import { handleUpload, handleServe } from './assets';
 import { isValidBoardId } from '@/shared/board-id';
 
 export interface Env {
@@ -13,6 +14,20 @@ export interface Env {
    * createBoard falls back to an in-memory fixed-window limiter.
    */
   BOARD_CREATE_LIMITER?: {
+    limit(opts: { key: string; limit?: number; periodSeconds?: number }): Promise<{ success: boolean }>;
+  };
+  /**
+   * Story 12: R2 bucket for board image assets (declared in wrangler.jsonc as
+   * the `r2_buckets` entry ASSETS_BUCKET). Bound to a real Miniflare bucket in
+   * local dev and a real Cloudflare R2 bucket in production.
+   */
+  ASSETS_BUCKET: R2Bucket;
+  /**
+   * Story 12: platform rate-limit binding for asset uploads (wrangler.jsonc
+   * `ratelimits` entry ASSET_UPLOAD_LIMITER). Present in production; absent
+   * locally, in which case assets.ts falls back to an in-memory limiter.
+   */
+  ASSET_UPLOAD_LIMITER?: {
     limit(opts: { key: string; limit?: number; periodSeconds?: number }): Promise<{ success: boolean }>;
   };
 }
@@ -70,6 +85,26 @@ export default {
       if (result.ok) return json({ id: result.id }, 201);
       return json({ error: result.reason }, result.reason === 'rate_limited' ? 429 : 500);
     }
+    // Story 12: image asset upload for an existing board.
+    const assetUploadPath = url.pathname.match(/^\/api\/boards\/([^/]+)\/assets$/);
+    if (assetUploadPath) {
+      if (request.method !== 'POST') return json({ error: 'method_not_allowed' }, 405);
+      const boardId = assetUploadPath[1];
+      if (!isValidBoardId(boardId)) return json({ error: 'not_found' }, 404);
+      return handleUpload(request, env, boardId);
+    }
+    // Story 12: serving a stored image asset (immutable). The key is the FULL
+    // remainder of the path (a valid key is exactly `<boardId>/<assetId>`); it
+    // is validated against ASSET_KEY_PATTERN inside handleServe, which also
+    // rejects traversal/malformed keys with 404. Capturing the remainder (not
+    // two fixed segments) keeps odd paths (e.g. `..%2Fx`) from bypassing the
+    // check or leaking to the SPA fallback.
+    const assetServePath = url.pathname.match(/^\/api\/assets\/(.+)$/);
+    if (assetServePath) {
+      if (request.method !== 'GET') return json({ error: 'method_not_allowed' }, 405);
+      return handleServe(env, assetServePath[1]);
+    }
+
     const boardPath = url.pathname.match(/^\/api\/boards\/([^/]+)$/);
     if (boardPath) {
       if (request.method !== 'GET') return json({ error: 'method_not_allowed' }, 405);
