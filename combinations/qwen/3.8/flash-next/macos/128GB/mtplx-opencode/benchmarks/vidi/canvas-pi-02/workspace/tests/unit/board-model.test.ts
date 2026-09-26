@@ -10,7 +10,11 @@ import {
   moveObject,
   setStickyColor,
   snapshot,
+  type StickySnapshot,
 } from '../../src/shared/board-model';
+
+const stickyOnly = (doc: Y.Doc) =>
+  snapshot(doc).filter((s) => s.type === 'sticky') as StickySnapshot[];
 
 /**
  * Unit tests for the board document model (TC-01 to TC-12).
@@ -57,7 +61,7 @@ describe('createSticky (TC-01, TC-02)', () => {
       id = createSticky(doc, { x: 0, y: 0 });
     });
 
-    const notes = snapshot(doc);
+    const notes = stickyOnly(doc);
     expect(notes).toHaveLength(1);
     const note = notes[0]!;
     expect(note.id).toBe(id);
@@ -101,7 +105,7 @@ describe('createSticky (TC-01, TC-02)', () => {
   it('accepts an explicit colour and keeps unknown input out of the document', () => {
     const doc = createDoc();
     const id = createSticky(doc, { x: 0, y: 0 }, 'violet');
-    expect(snapshot(doc).find((note) => note.id === id)!.color).toBe('violet');
+    expect(stickyOnly(doc).find((note) => note.id === id)!.color).toBe('violet');
   });
 
   it('rejects non-finite coordinates with no document update', () => {
@@ -123,7 +127,7 @@ describe('moveObject (TC-03, TC-04)', () => {
   it('TC-03 updates x and y and leaves every other field alone', () => {
     const doc = createDoc();
     const id = createSticky(doc, { x: 100, y: 100 }, 'green');
-    const before = snapshot(doc).find((note) => note.id === id)!;
+    const before = stickyOnly(doc).find((note) => note.id === id)!;
     const text = getStickyText(doc, id)!;
     text.insert(0, 'Faster onboarding');
     expect(getStickyText(doc, id)!.toString()).toBe('Faster onboarding');
@@ -134,7 +138,7 @@ describe('moveObject (TC-03, TC-04)', () => {
     });
 
     expect(applied).toBe(true);
-    const after = snapshot(doc).find((note) => note.id === id)!;
+    const after = stickyOnly(doc).find((note) => note.id === id)!;
     expect({ x: after.x, y: after.y }).toEqual({ x: 10, y: -20 });
     expect(after.color).toBe(before.color);
     expect(after.text).toBe('Faster onboarding');
@@ -194,7 +198,7 @@ describe('setStickyColor (TC-05, TC-06)', () => {
       applied = setStickyColor(doc, id, 'green');
     });
     expect(applied).toBe(true);
-    expect(snapshot(doc)[0]!.color).toBe('green');
+    expect(stickyOnly(doc)[0]!.color).toBe('green');
     expect(updates).toBe(1);
   });
 
@@ -208,7 +212,7 @@ describe('setStickyColor (TC-05, TC-06)', () => {
     });
     expect(applied).toBe(false);
     expect(updates).toBe(0);
-    expect(snapshot(doc)[0]!.color).toBe(DEFAULT_STICKY_COLOR);
+    expect(stickyOnly(doc)[0]!.color).toBe(DEFAULT_STICKY_COLOR);
   });
 
   it('re-applying the current colour is a no-op with no update', () => {

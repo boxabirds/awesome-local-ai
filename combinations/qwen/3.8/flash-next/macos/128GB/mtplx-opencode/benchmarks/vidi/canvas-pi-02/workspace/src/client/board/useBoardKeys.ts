@@ -5,14 +5,14 @@ import type { ObjectSnapshot } from '../../shared/board-model';
 import { moveObjects, deleteObjects } from '../../shared/board-model';
 import { NUDGE_STEP_WORLD, NUDGE_LARGE_STEP_WORLD } from '../../shared/config';
 import type { UndoController } from './undo';
+import type { Tool } from './useTool';
 
 import { getObjectType } from '../objects/registry';
 
 /**
  * Keyboard commands for selection operations (story 7) plus the story-2
- * Enter-to-edit shortcut and the story-8 undo/redo shortcuts.
- * Ctrl/Cmd+A, Escape, Enter, arrows, Delete/Backspace, Ctrl/Cmd+Z,
- * Ctrl/Cmd+Shift+Z, Ctrl+Y.
+ * Enter-to-edit shortcut, the story-8 undo/redo shortcuts, and the story-9
+ * tool shortcuts (T, V, Escape).
  */
 
 const INPUT_TAGS = new Set(['input', 'textarea', 'select']);
@@ -29,6 +29,10 @@ export interface UseBoardKeysOptions {
   canEdit: boolean;
   /** This person's undo history (story 8). */
   undo: UndoController;
+  /** Current tool (story 9). */
+  toolRef: { current: Tool };
+  /** Set the tool (story 9). */
+  setToolRef: { current: (t: Tool) => void };
 }
 
 export function useBoardKeys(optsRef: { current: UseBoardKeysOptions }): void {
@@ -66,11 +70,30 @@ export function useBoardKeys(optsRef: { current: UseBoardKeysOptions }): void {
         return;
       }
 
-      // Escape: clear selection
+      // Escape: return to Select tool, or clear selection.
       if (event.key === 'Escape') {
+        if (opts.toolRef.current !== 'select') {
+          opts.setToolRef.current('select');
+          return;
+        }
         if (opts.selection.ids.size > 0) {
           opts.selection.clear();
         }
+        return;
+      }
+
+      // T: activate Text tool (only if canEdit and not in text input).
+      if (!mod && event.key.toLowerCase() === 't') {
+        if (!opts.canEdit) return;
+        event.preventDefault();
+        opts.setToolRef.current('text');
+        return;
+      }
+
+      // V: return to Select tool.
+      if (!mod && event.key.toLowerCase() === 'v') {
+        event.preventDefault();
+        opts.setToolRef.current('select');
         return;
       }
 

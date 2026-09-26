@@ -10,28 +10,32 @@
 import { createElement, createContext, useContext, useMemo, useRef, useSyncExternalStore } from 'react';
 import type { JSX, ReactNode } from 'react';
 import * as Y from 'yjs';
-import { initDoc, snapshot, type StickySnapshot } from '../../shared/board-model';
+import { initDoc, snapshot, type ObjectSnapshot } from '../../shared/board-model';
 
 export interface BoardDoc {
   readonly doc: Y.Doc;
   /** Subscribe to any change to a board object (including note text). */
   subscribe(listener: () => void): () => void;
   /** Stable between changes: the same array while the document is untouched. */
-  getSnapshot(): readonly StickySnapshot[];
+  getSnapshot(): readonly ObjectSnapshot[];
   /** Release the observer. The document is not ours to destroy: the session
    * that built us decides whether the document goes too (story 8: an
    * injected document and its undo history must survive a board teardown). */
   destroy(): void;
 }
 
-function sameNote(a: StickySnapshot, b: StickySnapshot): boolean {
+function sameNote(a: ObjectSnapshot, b: ObjectSnapshot): boolean {
   return (
     a.x === b.x &&
     a.y === b.y &&
     a.z === b.z &&
-    a.color === b.color &&
     a.text === b.text &&
-    a.createdAt === b.createdAt
+    a.createdAt === b.createdAt &&
+    a.type === b.type &&
+    ('color' in a ? a.color === (b as any).color : true) &&
+    ('size' in a ? a.size === (b as any).size : true) &&
+    ('width' in a ? a.width === (b as any).width : true) &&
+    ('height' in a ? a.height === (b as any).height : true)
   );
 }
 
@@ -47,12 +51,12 @@ export function createBoardDoc(doc: Y.Doc = new Y.Doc()): BoardDoc {
   const objects = doc.getMap<Y.Map<unknown>>('objects');
 
   const initial = snapshot(doc);
-  let rows = new Map<string, StickySnapshot>(initial.map((row) => [row.id, row]));
-  let current: readonly StickySnapshot[] = initial;
+  let rows = new Map<string, ObjectSnapshot>(initial.map((row) => [row.id, row]));
+  let current: readonly ObjectSnapshot[] = initial;
 
   const rebuild = (): void => {
     const next = snapshot(doc);
-    const fresh = new Map<string, StickySnapshot>();
+    const fresh = new Map<string, ObjectSnapshot>();
     let changed = next.length !== rows.size;
     for (const row of next) {
       const previous = rows.get(row.id);
@@ -124,7 +128,7 @@ export function useBoardDoc(): BoardDoc {
 }
 
 /** The current board contents, in render order (bottom note first). */
-export function useBoardSnapshot(board: BoardDoc): readonly StickySnapshot[] {
+export function useBoardSnapshot(board: BoardDoc): readonly ObjectSnapshot[] {
   // Stable per document, so React does not resubscribe on every render.
   const { subscribe, getSnapshot } = useMemo(
     () => ({ subscribe: board.subscribe, getSnapshot: board.getSnapshot }),

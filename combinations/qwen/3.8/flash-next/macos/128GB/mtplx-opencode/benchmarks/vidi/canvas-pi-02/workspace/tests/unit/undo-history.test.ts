@@ -10,7 +10,11 @@ import {
   moveObject,
   setStickyColor,
   snapshot,
+  type StickySnapshot,
 } from '../../src/shared/board-model';
+
+const stickyOnly = (doc: Y.Doc) =>
+  snapshot(doc).filter((s) => s.type === 'sticky') as StickySnapshot[];
 
 /**
  * Story 8, undo.history (TC-01 to TC-11): the personal history over the
@@ -64,7 +68,7 @@ describe('undo.history (TC-01 to TC-11)', () => {
     // so undo cannot reach it even in principle.
     expect(undo.undo()).toBe(true);
 
-    const notes = snapshot(doc);
+    const notes = stickyOnly(doc);
     const moved = notes.find((note) => note.id === x);
     const recoloured = notes.find((note) => note.id === z);
     const created = notes.find((note) => note.text === '');
@@ -192,7 +196,7 @@ describe('undo.history (TC-01 to TC-11)', () => {
     expect(snapshot(doc)).toHaveLength(1); // the created note went back
     expect(undo.canUndo()).toBe(true); // and the history still works
     expect(undo.undo()).toBe(true); // the drain continued into step 1...
-    expect(snapshot(doc)[0]!.color).toBe('yellow'); // ...and that colour landed
+    expect(stickyOnly(doc)[0]!.color).toBe('yellow'); // ...and that colour landed
     expect(undo.undo()).toBe(false); // now empty, and honest about it
   });
 

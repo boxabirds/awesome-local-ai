@@ -11,7 +11,9 @@ import {
   initDoc,
   setStickyColor,
   snapshot,
+  isBoardObject,
   type StickySnapshot,
+  type ObjectSnapshot,
 } from '../../src/shared/board-model';
 import type { StickyColor } from '../../src/shared/config';
 
@@ -135,7 +137,9 @@ export function renderApp(
       return el;
     },
     camera: () => parseCamera(board$().dataset.camera ?? null),
-    notes: () => snapshot(doc),
+    notes: (): readonly StickySnapshot[] => {
+      return snapshot(doc).filter((s) => s.type === 'sticky') as readonly StickySnapshot[];
+    },
     noteElements: () =>
       Array.from(container.querySelectorAll<HTMLElement>('[data-testid="sticky-note"]')),
     noteElement: (id: string) => {

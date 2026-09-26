@@ -19,9 +19,12 @@ import type { MarqueeApi } from '../board/Marquee';
  *
  * Story 2 added click and double-click on empty surface.
  * Story 7 adds: shift+drag on empty surface = marquee, not pan.
+ * Story 9 adds: text tool cursor and click-to-create.
  */
 export interface BoardViewportProps {
   children?: ReactNode;
+  /** Active tool (story 9). */
+  tool?: 'select' | 'text';
   /** A press and release on empty surface with no pan in between. */
   onSurfaceClick?(point: Point): void;
   /** A double-click on empty surface, in world coordinates. */
@@ -51,6 +54,10 @@ export function BoardViewport(props: BoardViewportProps) {
   const propsRef = useRef<BoardViewportProps>(props);
   propsRef.current = props;
 
+  // Keep toolRef in sync for use inside event handlers.
+  const toolRef = useRef(props.tool ?? 'select');
+  toolRef.current = props.tool ?? 'select';
+
   useEffect(() => {
     apiRef.current = api;
   });
@@ -73,6 +80,24 @@ export function BoardViewport(props: BoardViewportProps) {
       if (event.button !== 0) return;
       if (event.pointerType !== 'mouse') return;
       if (!isSurface(event.target)) return;
+
+      // While text tool is active: no panning, no marquee.
+      // Click will be handled in onPointerUp as surface click.
+      if (toolRef.current === 'text') {
+        // Don't start panning or marquee when text tool is active.
+        try {
+          el.setPointerCapture(event.pointerId);
+        } catch {
+          // jsdom and older browsers have no pointer capture; dragging still works.
+        }
+        panningRef.current = false;
+        marqueeActiveRef.current = false;
+        movedRef.current = false;
+        downPointRef.current = { x: event.clientX, y: event.clientY };
+        event.preventDefault();
+        return;
+      }
+
       try {
         el.setPointerCapture(event.pointerId);
       } catch {
@@ -143,7 +168,7 @@ export function BoardViewport(props: BoardViewportProps) {
 
     const onPointerUp = (event: PointerEvent) => {
       const wasMarquee = marqueeActiveRef.current;
-      const wasClick = panningRef.current && !movedRef.current;
+      const wasClick = (panningRef.current || toolRef.current === 'text') && !movedRef.current;
       endPan();
       if (wasMarquee) return;
       if (!wasClick || !isSurface(event.target)) return;
@@ -154,6 +179,8 @@ export function BoardViewport(props: BoardViewportProps) {
 
     const onDoubleClick = (event: MouseEvent) => {
       if (!isSurface(event.target)) return;
+      // Text tool: double-click does NOT create a sticky.
+      if (toolRef.current === 'text') return;
       propsRef.current.onSurfaceDoubleClick?.(
         screenToWorld(apiRef.current.camera, localPoint(event.clientX, event.clientY)),
       );
@@ -214,11 +241,11 @@ export function BoardViewport(props: BoardViewportProps) {
     el.addEventListener('pointercancel', cancelGesture);
     el.addEventListener('lostpointercapture', endPan);
     el.addEventListener('dblclick', onDoubleClick);
-    el.addEventListener('wheel', onWheel, { passive: false });
-    el.addEventListener('gesturestart', onGestureStart, { passive: false });
-    el.addEventListener('gesturechange', onGestureChangeAsListener, {
+    el.addEventListener('wheel', onWheel, { passive: false } as EventListenerOptions);
+    el.addEventListener('gesturestart', onGestureStart as EventListener, { passive: false } as EventListenerOptions);
+    el.addEventListener('gesturechange', onGestureChangeAsListener as EventListener, {
       passive: false,
-    });
+    } as EventListenerOptions);
     window.addEventListener('keydown', onKeyDown);
 
     return () => {
@@ -228,9 +255,9 @@ export function BoardViewport(props: BoardViewportProps) {
       el.removeEventListener('pointercancel', cancelGesture);
       el.removeEventListener('lostpointercapture', endPan);
       el.removeEventListener('dblclick', onDoubleClick);
-      el.removeEventListener('wheel', onWheel);
-      el.removeEventListener('gesturestart', onGestureStart);
-      el.removeEventListener('gesturechange', onGestureChangeAsListener);
+      el.removeEventListener('wheel', onWheel as EventListener);
+      el.removeEventListener('gesturestart', onGestureStart as EventListener);
+      el.removeEventListener('gesturechange', onGestureChangeAsListener as EventListener);
       window.removeEventListener('keydown', onKeyDown);
       panningRef.current = false;
       marqueeActiveRef.current = false;
@@ -243,6 +270,8 @@ export function BoardViewport(props: BoardViewportProps) {
   const origin = worldToScreen(camera, { x: 0, y: 0 });
   const halfMarker = ORIGIN_MARKER_SIZE_PX / 2;
   const halfSpacing = spacingPx / 2;
+
+  const cursorStyle = props.tool === 'text' ? 'text' : undefined;
 
   return (
     <div
@@ -260,6 +289,7 @@ export function BoardViewport(props: BoardViewportProps) {
           origin.y - halfSpacing,
           spacingPx,
         )}px`,
+        cursor: cursorStyle,
       }}
     >
       <div

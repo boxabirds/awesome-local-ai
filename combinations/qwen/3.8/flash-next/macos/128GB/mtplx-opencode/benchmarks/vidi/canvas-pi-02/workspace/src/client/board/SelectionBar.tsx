@@ -1,9 +1,12 @@
 import type { JSX } from 'react';
+import { TextToolbar } from '../objects/TextToolbar';
+import type { TextSize } from '../../shared/config';
 
 /**
  * SelectionBar: "N selected" + Delete button when 2+ objects are selected.
- * When exactly one sticky is selected, the NoteToolbar appears instead
- * (rendered by the note component).
+ * When exactly one text object is selected, the TextToolbar appears.
+ * When exactly one sticky is selected, the NoteToolbar appears (rendered by
+ * the note component).
  */
 export interface SelectionBarProps {
   /** Number of selected objects. */
@@ -64,6 +67,30 @@ export function SelectionBar(props: SelectionBarProps): JSX.Element | null {
           />
         </svg>
       </button>
+    </div>
+  );
+}
+
+/** Shown when exactly one text object is selected. */
+export interface TextSelectionBarProps {
+  size: TextSize;
+  onSize(s: TextSize): void;
+  onDelete(): void;
+}
+
+export function TextSelectionBar(props: TextSelectionBarProps): JSX.Element {
+  return (
+    <div
+      data-testid="text-selection-bar"
+      style={{
+        position: 'absolute',
+        top: -36,
+        left: 0,
+        pointerEvents: 'auto',
+        zIndex: 30,
+      }}
+    >
+      <TextToolbar size={props.size} onSize={props.onSize} onDelete={props.onDelete} />
     </div>
   );
 }

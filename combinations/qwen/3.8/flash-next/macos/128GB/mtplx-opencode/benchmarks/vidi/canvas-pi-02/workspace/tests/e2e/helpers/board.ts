@@ -37,7 +37,23 @@ export interface BoardWindow {
     getNotes(): NoteState[];
     seedNote(note: SeedNoteState): string;
     removeNote(id: string): boolean;
+    getTexts(): TextObjectState[];
+    getDoc(): import('yjs').Doc | null;
   };
+}
+
+/** A text object as the live document sees it. */
+export interface TextObjectState {
+  id: string;
+  type: 'text';
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  z: number;
+  text: string;
+  size: string;
+  widthMode: 'auto' | 'fixed';
 }
 
 export const board = (page: Page): Locator =>
@@ -138,6 +154,12 @@ async function waitForHooks(page: Page): Promise<void> {
 export async function readNotes(page: Page): Promise<NoteState[]> {
   await waitForHooks(page);
   return page.evaluate(() => window.__vidi6?.getNotes() ?? []);
+}
+
+/** The document's text objects, lowest z first. */
+export async function readTexts(page: Page): Promise<TextObjectState[]> {
+  await waitForHooks(page);
+  return page.evaluate(() => window.__vidi6?.getTexts() ?? []);
 }
 
 /** Put notes on the board through the test hook, and wait for them to render. */
