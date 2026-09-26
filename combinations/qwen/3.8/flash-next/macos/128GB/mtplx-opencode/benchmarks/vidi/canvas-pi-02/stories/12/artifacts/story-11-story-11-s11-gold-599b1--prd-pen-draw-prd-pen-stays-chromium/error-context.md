@@ -1,0 +1,55 @@
+# Page snapshot
+
+```yaml
+- generic [ref=e3]:
+  - banner [ref=e4]:
+    - button "Share" [ref=e6] [cursor=pointer]
+  - generic [ref=e7]:
+    - generic [ref=e8]:
+      - generic:
+        - img
+    - generic [ref=e9]:
+      - img "Curious Otter, you" [ref=e12]: C
+      - generic [ref=e13]:
+        - generic [ref=e14]: Curious Otter
+        - button "Rename" [ref=e15]
+    - generic [ref=e16]:
+      - button "Select (V)" [ref=e17] [cursor=pointer]:
+        - img [ref=e18]
+      - button "Text (T)" [ref=e20] [cursor=pointer]:
+        - img [ref=e21]:
+          - generic [ref=e22]: T
+      - button "Shape (S)" [ref=e23] [cursor=pointer]:
+        - img [ref=e24]
+      - button "Connector (L)" [ref=e26] [cursor=pointer]:
+        - img [ref=e27]
+      - button "Pen (P)" [pressed] [ref=e30] [cursor=pointer]:
+        - img [ref=e31]
+      - group "Pen options" [ref=e33]:
+        - group "Pen colour" [ref=e34]:
+          - button "Pen colour black" [pressed] [ref=e35]
+          - button "Pen colour blue" [ref=e36]
+          - button "Pen colour red" [ref=e37]
+          - button "Pen colour green" [ref=e38]
+          - button "Pen colour orange" [ref=e39]
+          - button "Pen colour purple" [ref=e40]
+        - group "Pen thickness" [ref=e41]:
+          - button "Pen thickness thin" [ref=e42]:
+            - img [ref=e43]
+          - button "Pen thickness medium" [pressed] [ref=e44]:
+            - img [ref=e45]
+          - button "Pen thickness thick" [ref=e46]:
+            - img [ref=e47]
+      - button "Sticky note" [ref=e48] [cursor=pointer]:
+        - img [ref=e49]
+      - button "Undo" [disabled] [ref=e52] [cursor=pointer]:
+        - img [ref=e53]
+      - button "Redo" [disabled] [ref=e56] [cursor=pointer]:
+        - img [ref=e57]
+  - generic [ref=e60]:
+    - button "Zoom out" [ref=e61] [cursor=pointer]: −
+    - status [ref=e62]: 100%
+    - button "Zoom in" [ref=e63] [cursor=pointer]: +
+    - button "Reset view" [ref=e64] [cursor=pointer]
+  - generic: Drag to move around · Ctrl/Cmd + scroll or pinch to zoom
+```

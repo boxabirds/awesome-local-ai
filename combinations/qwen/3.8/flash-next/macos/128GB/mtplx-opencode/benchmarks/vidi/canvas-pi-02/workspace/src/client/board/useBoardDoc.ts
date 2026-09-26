@@ -41,6 +41,20 @@ function sameNote(a: ObjectSnapshot, b: ObjectSnapshot): boolean {
     return a.label === b.label && a.kind === b.kind && a.fill === b.fill && a.stroke === b.stroke
       && a.width === b.width && a.height === b.height;
   }
+  if (a.type === 'image' && b.type === 'image') {
+    // An image changes without changing its box: `uploading` to `ready`, a
+    // retry restarting the clock, a failed upload staying failed. Those are
+    // the facts the renderer draws, so they have to break row identity — the
+    // generic branch below would happily reuse the old row and show a
+    // placeholder forever.
+    return (
+      a.assetKey === b.assetKey &&
+      a.status === b.status &&
+      a.uploadStartedAt === b.uploadStartedAt &&
+      a.width === b.width &&
+      a.height === b.height
+    );
+  }
   return (
     ('text' in a ? (a as any).text === (b as any).text : true) &&
     ('color' in a ? (a as any).color === (b as any).color : true) &&

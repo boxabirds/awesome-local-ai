@@ -8,6 +8,7 @@ import {
   TEXT_MIN_WIDTH_WORLD,
   SHAPE_MIN_SIZE_WORLD,
   STROKE_MIN_SIZE_WORLD,
+  IMAGE_MIN_SIZE_WORLD,
 } from '../../shared/config';
 import { getObjectType, registerObjectType } from './registry';
 import { hitTestStroke } from '../../shared/objects/stroke';
@@ -33,8 +34,7 @@ export function ensureStickyType(): void {
   });
 }
 
-export function ensureTextType(): void {
-  if (getObjectType('text')) return;
+export function ensureTextType(): void {  if (getObjectType('text')) return;
   registerObjectType('text', {
     Component: () => null,
     resizable: true,
