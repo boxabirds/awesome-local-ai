@@ -12,6 +12,8 @@ import argparse
 import json
 from pathlib import Path
 
+import history
+
 SECONDS_PER_MINUTE = 60
 
 
@@ -132,6 +134,7 @@ def summary(run: Path) -> str:
     missing = sum(s["requests"].get("usage_missing", 0) for s in m["stories"].values())
     if missing:
         lines.append(f"\n> {missing} requests returned no `usage`; token totals are a lower bound.")
+    lines += ["", history.render(run).rstrip()]
     return "\n".join(lines) + "\n"
 
 
