@@ -13,6 +13,10 @@ const LABELS: Record<Exclude<ConnectionState, 'connected'>, string> = {
   connecting: 'Connecting…',
   reconnecting: 'Reconnecting…',
   confirmed: 'Connected',
+  // load_failed: the room closed us with 4500 — the board could not be
+  // loaded. The provider keeps retrying; the first successful sync clears
+  // the badge (PRD persist.badge). Rendered red via [data-state="load_failed"].
+  load_failed: "This board couldn't be loaded. Retrying…",
 };
 
 export function ConnectionStatus(props: { state: ConnectionState }): JSX.Element | null {

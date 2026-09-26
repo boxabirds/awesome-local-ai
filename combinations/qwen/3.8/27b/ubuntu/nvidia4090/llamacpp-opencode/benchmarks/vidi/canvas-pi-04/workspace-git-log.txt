@@ -1,3 +1,41 @@
+commit 4cc77993e8d2d2feddba7e027993636d2c212379
+vidi-agent  Sat Sep 26 20:04:02 2026 +0100
+
+    story 4: Return to a board and find everything as it was left
+
+
+ NOTES.md                               | 121 ++++++++
+ package.json                           |   1 +
+ playwright.config.ts                   |   5 +-
+ playwright.persistence.config.ts       |  29 ++
+ src/client/App.tsx                     |  15 +-
+ src/client/board/Toolbar.tsx           |   6 +-
+ src/client/canvas/testHooks.ts         |   4 +-
+ src/client/objects/NoteToolbar.tsx     |   5 +
+ src/client/objects/StickyNote.tsx      |  36 ++-
+ src/client/styles.css                  |   7 +
+ src/client/sync/ConnectionStatus.tsx   |   4 +
+ src/client/sync/connectBoard.ts        |  55 +++-
+ src/shared/config.ts                   |  25 ++
+ src/shared/protocol.ts                 |  16 +
+ src/worker/board-room.ts               | 519 +++++++++++++++++++++++++++------
+ src/worker/board-store.ts              | 478 ++++++++++++++++++++++++++++++
+ src/worker/index.ts                    |   6 +
+ src/worker/room-state.ts               | 116 ++++++++
+ src/worker/test-hooks.ts               |  84 ++++++
+ tests/component/load-failure.test.tsx  | 165 +++++++++++
+ tests/e2e/persistence.spec.ts          | 351 ++++++++++++++++++++++
+ tests/e2e/wrangler-process.ts          | 200 +++++++++++++
+ tests/fixtures/boards.ts               | 276 ++++++++++++++++++
+ tests/integration/board-room.test.ts   |   4 +-
+ tests/integration/board-store.test.ts  | 283 ++++++++++++++++++
+ tests/integration/persist-helpers.ts   |  52 ++++
+ tests/integration/room-persist.test.ts | 293 +++++++++++++++++++
+ tests/integration/ws-client.ts         |  10 +-
+ tests/unit/board-store-chunks.test.ts  |  82 ++++++
+ tests/unit/room-state.test.ts          | 189 ++++++++++++
+ wrangler.jsonc                         |   2 +-
+ 31 files changed, 3329 insertions(+), 110 deletions(-)
 commit 34fde614e41ec6550209f05a1d8f166e7991989d
 vidi-agent  Sat Sep 26 17:13:30 2026 +0100
 

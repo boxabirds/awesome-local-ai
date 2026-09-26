@@ -1,6 +1,6 @@
 import type { Camera } from './camera';
 import { setBoardCamera } from './useCamera';
-import { getTestConnectionState, getTestProvider } from '../sync/connectBoard';
+import { getTestConnectionState, getTestProvider, type ConnectionState } from '../sync/connectBoard';
 
 declare global {
   interface Window {
@@ -10,7 +10,7 @@ declare global {
      */
     __vidi6?: {
       setCamera(camera: Camera): void;
-      connectionState(): 'connecting' | 'connected' | 'reconnecting' | 'confirmed';
+      connectionState(): ConnectionState;
       forceDisconnect(): void;
       resumeConnection(): void;
     };

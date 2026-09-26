@@ -4,7 +4,7 @@
 import type { JSX } from 'react';
 import type { PointerEvent as ReactPointerEvent, MouseEvent as ReactMouseEvent } from 'react';
 
-export function Toolbar(props: { onCreateSticky: () => void }): JSX.Element {
+export function Toolbar(props: { onCreateSticky: () => void; canEdit: boolean }): JSX.Element {
   const stop = (e: ReactPointerEvent | ReactMouseEvent): void => {
     e.stopPropagation();
   };
@@ -18,8 +18,10 @@ export function Toolbar(props: { onCreateSticky: () => void }): JSX.Element {
       <button
         type="button"
         className="board-toolbar__sticky"
-        title="Sticky note – or double-click the board"
+        title={props.canEdit ? 'Sticky note – or double-click the board' : 'Board unavailable'}
         aria-label="Sticky note"
+        aria-disabled={props.canEdit ? undefined : true}
+        disabled={!props.canEdit}
         onClick={props.onCreateSticky}
       >
         <svg width="20" height="20" viewBox="0 0 20 20" aria-hidden="true" focusable="false">

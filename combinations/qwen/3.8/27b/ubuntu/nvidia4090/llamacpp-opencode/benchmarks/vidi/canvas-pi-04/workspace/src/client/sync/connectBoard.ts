@@ -20,14 +20,32 @@
 import * as Y from 'yjs';
 import { WebsocketProvider } from 'y-websocket';
 import { CONNECTED_CONFIRMATION_MS, RECONNECT_MAX_BACKOFF_MS } from '../../shared/config';
+import { CLOSE_BOARD_LOAD_FAILED } from '../../shared/protocol';
 
-export type ConnectionState = 'connecting' | 'connected' | 'reconnecting' | 'confirmed';
+export type ConnectionState =
+  | 'connecting'
+  | 'connected'
+  | 'reconnecting'
+  | 'confirmed'
+  | 'load_failed';
+
+/**
+ * Whether the board accepts edits in the given connection state. Editing is
+ * locked out ONLY while the board could not be loaded (PRD persist.badge):
+ * a reconnect (1011 / network) keeps the board editable because local edits
+ * are retried once the socket returns.
+ */
+export function canEdit(state: ConnectionState): boolean {
+  return state !== 'load_failed';
+}
 
 export interface ConnectionStatusObserver {
   /** Feed one provider `status` event: { status: 'connecting' | 'connected' | 'disconnected' }. */
   onStatus(event: { status: 'connecting' | 'connected' | 'disconnected' }): void;
   /** Feed one provider `sync` event: [synced]. */
   onSync(event: [boolean]): void;
+  /** Feed one provider `connection-close` close code. */
+  onConnectionClose(event: { code: number }): void;
   /** Release any pending confirmation timer. */
   destroy(): void;
 }
@@ -59,12 +77,20 @@ export function observeConnectionStatus(
       confirmTimer = null;
     }
     // Before the first sync a downed socket is just the initial connect
-    // retrying; after we were live it means reconnecting.
-    if (hasBeenSynced) setState('reconnecting');
+    // retrying; after we were live it means reconnecting. A load_failed
+    // board keeps retrying but stays locked out (it is still failing).
+    if (hasBeenSynced && state !== 'load_failed') setState('reconnecting');
   };
 
   const onSync: ConnectionStatusObserver['onSync'] = ([synced]) => {
     if (!synced) return;
+    if (state === 'load_failed') {
+      // A retry got through and synced: the board is live and editable
+      // again, with no page reload (persist.client_status).
+      hasBeenSynced = true;
+      setState('connected');
+      return;
+    }
     if (!hasBeenSynced) {
       hasBeenSynced = true;
       setState('connected');
@@ -80,9 +106,27 @@ export function observeConnectionStatus(
     }
   };
 
+  const onConnectionClose: ConnectionStatusObserver['onConnectionClose'] = ({ code }) => {
+    if (code === CLOSE_BOARD_LOAD_FAILED) {
+      // The room could not load the board: lock editing and show the
+      // load-failed message. The provider keeps retrying on its backoff;
+      // the first successful sync switches back to "connected".
+      if (confirmTimer !== null) {
+        clearTimeout(confirmTimer);
+        confirmTimer = null;
+      }
+      setState('load_failed');
+      return;
+    }
+    // Any other close (1011 storage failure, network drop, our own teardown)
+    // is just a disconnect: reconnecting if we were live, retrying if not.
+    onStatus({ status: 'disconnected' });
+  };
+
   return {
     onStatus,
     onSync,
+    onConnectionClose,
     destroy(): void {
       if (confirmTimer !== null) clearTimeout(confirmTimer);
     },
@@ -132,6 +176,11 @@ export function connectBoard(
   });
   provider.on('sync', (synced: boolean) => {
     observer.onSync([synced]);
+  });
+  // Close code: 4500 means the room could not load the board (load_failed);
+  // everything else is an ordinary disconnect (reconnecting).
+  provider.on('connection-close', (event: CloseEvent | null) => {
+    observer.onConnectionClose({ code: event === null ? 0 : event.code });
   });
   return {
     destroy(): void {

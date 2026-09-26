@@ -12,6 +12,7 @@
     "test:component": "vitest run --project component",
     "test:integration": "npm run build && vitest run --project integration",
     "test:e2e": "npm run build:e2e && playwright test",
+    "test:e2e:persistence": "npm run build:e2e && playwright test --config playwright.persistence.config.ts",
     "test:e2e:nightly": "npm run build:e2e && playwright test --config playwright.nightly.config.ts"
   },
   "dependencies": {

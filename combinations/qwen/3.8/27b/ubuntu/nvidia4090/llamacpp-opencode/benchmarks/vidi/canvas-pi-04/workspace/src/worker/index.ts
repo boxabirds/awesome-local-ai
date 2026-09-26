@@ -6,12 +6,18 @@
 
 import { isValidBoardId } from '../shared/board-id';
 import { BoardRoom, type Env } from './board-room';
+import { handleTestHooks } from './test-hooks';
 
 const ROOM_PATH_PREFIX = '/api/rooms/';
 
 export default {
   async fetch(req: Request, env: Env): Promise<Response> {
     const url = new URL(req.url);
+    // Story 4: test-only routes (guarded by env.TEST_HOOKS === '1').
+    const hook = await handleTestHooks(req, env);
+    if (hook !== null) {
+      return hook;
+    }
     if (url.pathname.startsWith(ROOM_PATH_PREFIX)) {
       const boardId = url.pathname.slice(ROOM_PATH_PREFIX.length);
       if (!isValidBoardId(boardId)) {
