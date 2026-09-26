@@ -136,7 +136,8 @@ accel_build_key() { printf 'metal=%s' "$ACCEL_ARCH"; }
 
 # A binary built without Metal runs on the CPU and is far slower, so probe
 # rather than trust the build log.
-accel_probe_binary() { "$1" --list-devices 2>&1 | grep -qi 'metal'; }
+# llama.cpp lists the Metal GPU as "MTL0: Apple M5 Max (...)" (older builds said "Metal").
+accel_probe_binary() { "$1" --list-devices 2>&1 | grep -qiE 'metal|^[[:space:]]*MTL[0-9]+:'; }
 
 # How much memory a model could actually claim right now.
 #
