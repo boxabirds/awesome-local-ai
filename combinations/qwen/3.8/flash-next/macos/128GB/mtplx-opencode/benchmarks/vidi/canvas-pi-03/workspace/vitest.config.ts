@@ -25,6 +25,21 @@ export default defineConfig({
           setupFiles: ['tests/component/setup.ts'],
         },
       },
+      {
+        extends: true,
+        plugins: [react()],
+        test: {
+          name: 'integration',
+          environment: 'node',
+          // Real Y.Doc clients speaking the y-protocols over real WebSockets
+          // against a real workerd instance (`wrangler dev`, started by the
+          // global setup below on port 8790). No mocks anywhere in the stack.
+          include: ['tests/integration/**/*.test.ts'],
+          globalSetup: ['tests/integration/global-setup.ts'],
+          testTimeout: 30_000,
+          hookTimeout: 120_000,
+        },
+      },
     ],
   },
 });

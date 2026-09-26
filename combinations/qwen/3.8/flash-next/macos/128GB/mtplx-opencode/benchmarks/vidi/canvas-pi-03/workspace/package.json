@@ -8,17 +8,23 @@
     "build": "vite build",
     "build:test": "vite build --mode test",
     "preview": "vite preview",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p tsconfig.workers.json",
     "test:unit": "vitest run --project unit",
     "test:component": "vitest run --project component",
-    "test:e2e": "npm run build:test && playwright test"
+    "test:integration": "npm run build:test && vitest run --project integration",
+    "test:e2e": "npm run build:test && playwright test --grep-invert @nightly",
+    "test:e2e:nightly": "npm run build:test && playwright test --grep @nightly"
   },
   "dependencies": {
+    "lib0": "^0.2.118",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
+    "y-protocols": "^1.0.7",
+    "y-websocket": "^1.5.4",
     "yjs": "^13.6.33"
   },
   "devDependencies": {
+    "@cloudflare/vitest-pool-workers": "^0.12.0",
     "@cloudflare/workers-types": "^5.20260925.1",
     "@playwright/test": "^1.57.0",
     "@testing-library/dom": "^10.4.0",

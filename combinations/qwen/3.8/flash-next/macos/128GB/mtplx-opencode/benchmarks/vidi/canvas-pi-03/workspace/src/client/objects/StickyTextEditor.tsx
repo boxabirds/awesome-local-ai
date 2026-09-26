@@ -1,5 +1,5 @@
-import { useLayoutEffect, useRef, useState, type KeyboardEvent as ReactKeyboardEvent, type FormEvent } from 'react';
-import type * as Y from 'yjs';
+import { useEffect, useLayoutEffect, useRef, useState, type KeyboardEvent as ReactKeyboardEvent, type FormEvent } from 'react';
+import * as Y from 'yjs';
 import { clampToLimit, applyTextDiff, counterVisible } from './StickyText';
 import { STICKY_TEXT_MAX_CHARS } from '../../shared/config';
 import { LOCAL_ORIGIN } from '../../shared/board-model';
@@ -24,6 +24,35 @@ export function StickyTextEditor({ ytext, fontPx, padding, onEnd }: StickyTextEd
   const ref = useRef<HTMLTextAreaElement>(null);
   const composing = useRef(false);
   const [value, setValue] = useState<string>(() => ytext.toString());
+  // Mirror of `value` readable from event handlers without re-subscribing.
+  const valueRef = useRef(value);
+
+  // Adopt remote edits while editing: when the shared Y.Text changes from
+  // another origin (a synced peer edit), reseed the textarea from the merged
+  // text. Without this, the next local input would diff the stale local value
+  // against the merged document and delete the peer's characters.
+  useEffect(() => {
+    const observer = (_event: Y.YTextEvent, origin: unknown) => {
+      if (origin === LOCAL_ORIGIN || origin === ytext.doc) return;
+      if (composing.current) return; // never clobber an in-flight IME composition
+      const merged = ytext.toString();
+      if (merged !== valueRef.current) {
+        valueRef.current = merged;
+        setValue(merged);
+        const el = ref.current;
+        if (el) {
+          const pos = Math.min(el.selectionStart ?? merged.length, merged.length);
+          try {
+            el.setSelectionRange(pos, pos);
+          } catch {
+            /* jsdom + detached element: nothing else to do */
+          }
+        }
+      }
+    };
+    ytext.observe(observer);
+    return () => ytext.unobserve(observer);
+  }, [ytext]);
 
   // Focus and put the caret at the end when the editor mounts (edit_start).
   useLayoutEffect(() => {
@@ -36,6 +65,7 @@ export function StickyTextEditor({ ytext, fontPx, padding, onEnd }: StickyTextEd
 
   const commit = (next: string, caret?: number) => {
     const clamped = clampToLimit(next);
+    valueRef.current = clamped;
     setValue(clamped);
     applyTextDiff(ytext, clamped, LOCAL_ORIGIN);
     // If we truncated, drop the caret at the end of the kept text (the extra
