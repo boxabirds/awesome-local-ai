@@ -19,6 +19,9 @@ import { Toolbar } from './board/Toolbar';
 import { useActiveTool } from './tools/useActiveTool';
 import { ShapeTool } from './tools/ShapeTool';
 import { ConnectorTool } from './tools/ConnectorTool';
+import { PenTool } from './tools/PenTool';
+import { PenToolbar } from './tools/PenToolbar';
+import { usePenOptions } from './tools/usePenOptions';
 import { useIdentity } from './board/useIdentity';
 import { NoteToolbar } from './objects/NoteToolbar';
 import { ShapeToolbar } from './objects/ShapeToolbar';
@@ -80,6 +83,7 @@ function BoardContent() {
     canEdit: editable,
     select: selectCreated,
   });
+  const penOptions = usePenOptions();
   const identity = useIdentity();
 
   useEffect(() => {
@@ -295,12 +299,14 @@ function BoardContent() {
         marqueeController={marquee.controller}
         textToolActive={tool === 'text'}
         onTextToolPlace={handleTextToolPlace}
-        toolCursor={tool === 'shape' || tool === 'connector' ? 'crosshair' : undefined}
+        toolCursor={tool === 'shape' || tool === 'connector' ? 'crosshair' : tool === 'pen' ? 'crosshair' : undefined}
         toolLayer={
           tool === 'shape' ? (
             <ShapeTool kind={shapeKind} camera={camera} onCreated={toolCreated} />
           ) : tool === 'connector' ? (
             <ConnectorTool camera={camera} snapshot={notes} onCreated={toolCreated} />
+          ) : tool === 'pen' ? (
+            <PenTool camera={camera} color={penOptions.color} thickness={penOptions.thickness} />
           ) : undefined
         }
       >
@@ -330,6 +336,17 @@ function BoardContent() {
         })}
         <MarqueeRect rect={marquee.rect} />
       </BoardViewport>
+
+      {tool === 'pen' && (
+        <div className="pen-toolbar-overlay">
+          <PenToolbar
+            color={penOptions.color}
+            thickness={penOptions.thickness}
+            onColor={penOptions.setColor}
+            onThickness={penOptions.setThickness}
+          />
+        </div>
+      )}
 
       {overlayVisible && (
         <SelectionOverlay

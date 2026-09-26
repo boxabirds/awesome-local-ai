@@ -198,3 +198,29 @@ export const CONNECTOR_STROKE_WIDTH_WORLD = 2;
 export const CONNECTOR_ARROWHEAD_SIZE_WORLD = 10;
 /** Radius of a connection dot, in screen pixels (constant at any zoom). */
 export const CONNECTOR_DOT_RADIUS_PX = 4;
+
+// Pen / freehand stroke settings (story 11)
+
+/** Available pen colours. */
+export const PEN_COLORS = {
+  black: '#212121',
+  blue: '#1E88E5',
+  red: '#E53935',
+  green: '#43A047',
+  orange: '#FB8C00',
+  purple: '#8E24AA',
+} as const;
+export type PenColor = keyof typeof PEN_COLORS;
+/** Thickness presets in world units. */
+export const PEN_THICKNESS_WORLD = { thin: 2, medium: 4, thick: 8 } as const;
+export type PenThickness = keyof typeof PEN_THICKNESS_WORLD;
+export const DEFAULT_PEN_COLOR: PenColor = 'black';
+export const DEFAULT_PEN_THICKNESS: PenThickness = 'medium';
+/** Simplification tolerance in screen pixels (divided by zoom for world units). */
+export const STROKE_SIMPLIFY_TOLERANCE_PX = 1;
+/** Maximum recorded points in a single stroke part before splitting. */
+export const STROKE_MAX_POINTS = 5000;
+/** How close to a stroke's line a click must be to select it, in screen pixels. */
+export const STROKE_HIT_TOLERANCE_PX = 6;
+/** Smallest stroke side a resize can reach, in world units. */
+export const STROKE_MIN_SIZE_WORLD = 4;

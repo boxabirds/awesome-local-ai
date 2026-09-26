@@ -110,6 +110,18 @@ export function Toolbar({
       </button>
       <button
         type="button"
+        aria-label="Pen"
+        data-testid="tool-pen"
+        title="Pen \u2013 or press P"
+        onClick={() => onSelectTool?.('pen')}
+        disabled={!editable}
+        aria-disabled={!editable}
+        aria-pressed={tool === 'pen'}
+      >
+        <span aria-hidden="true">&#x270F;&#xFE0F;</span>
+      </button>
+      <button
+        type="button"
         aria-label="Sticky note"
         data-testid="create-sticky"
         title="Sticky note \u2013 or double-click the board"

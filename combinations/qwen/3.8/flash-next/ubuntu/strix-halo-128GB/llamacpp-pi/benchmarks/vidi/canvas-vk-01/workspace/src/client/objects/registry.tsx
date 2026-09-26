@@ -148,3 +148,36 @@ registerObjectType('connector', {
   editableText: false,
   hitTest: connectorHitTest,
 });
+
+// --- strokes (story 11) ---------------------------------------------------
+import { PEN_THICKNESS_WORLD, STROKE_HIT_TOLERANCE_PX, STROKE_MIN_SIZE_WORLD } from '../../shared/config';
+import type { StrokeSnap } from '../../shared/objects/stroke';
+import { scaledPoints } from '../../shared/objects/stroke';
+import { StrokeObject } from './StrokeObject';
+
+/**
+ * A stroke is selected only by how close the click is to its drawn line,
+ * never by its bounding box. Clicks inside the bbox but away from the line
+ * fall through to objects below (`pen.select`).
+ */
+function strokeHitTest(obj: ObjectSnapshot, worldPoint: Point, zoom = 1): boolean {
+  const stroke = obj as StrokeSnap;
+  if (!Array.isArray(stroke.points) || stroke.points.length < 2) return false;
+  const tolerance = Math.max(
+    PEN_THICKNESS_WORLD[stroke.thickness] / 2,
+    STROKE_HIT_TOLERANCE_PX / (zoom > 0 ? zoom : 1),
+  );
+  const pts = scaledPoints(stroke);
+  // Offset worldPoint into the stroke's local coordinate space (relative to bbox origin)
+  const localPoint = { x: worldPoint.x - stroke.x, y: worldPoint.y - stroke.y };
+  return distanceToPolyline(pts, localPoint) <= tolerance;
+}
+
+registerObjectType('stroke', {
+  Component: StrokeObject,
+  resizable: true,
+  aspectLocked: true,
+  minSize: STROKE_MIN_SIZE_WORLD,
+  editableText: false,
+  hitTest: strokeHitTest,
+});

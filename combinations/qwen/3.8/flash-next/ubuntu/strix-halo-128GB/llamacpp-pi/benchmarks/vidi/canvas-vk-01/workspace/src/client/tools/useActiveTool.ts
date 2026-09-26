@@ -40,7 +40,7 @@ export const TOOL_SHORTCUTS: Record<string, ToolId> = {
  * The tools this build can actually activate. Stories 11 and 12 extend the list
  * when their tools exist; until then their shortcuts do nothing.
  */
-export const AVAILABLE_TOOLS: readonly ToolId[] = ['select', 'text', 'shape', 'connector'];
+export const AVAILABLE_TOOLS: readonly ToolId[] = ['select', 'text', 'shape', 'connector', 'pen'];
 
 export interface UseActiveToolOptions {
   /** False while the board cannot be edited: only Select is available. */
