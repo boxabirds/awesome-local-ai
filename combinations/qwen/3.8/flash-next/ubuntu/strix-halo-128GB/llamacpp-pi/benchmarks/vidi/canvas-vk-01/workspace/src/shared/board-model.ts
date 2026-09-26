@@ -15,6 +15,7 @@ import {
   objectRects,
   type ConnectorSnapshot,
 } from './objects/connector';
+import { strokeSnapshotFrom, type StrokeSnap } from './objects/stroke';
 
 /**
  * Board document model: owns the Yjs schema and all mutations.
@@ -156,7 +157,8 @@ export type BoardSnapshot =
   | StickySnapshot
   | TextSnapshot
   | ShapeSnapshot
-  | ConnectorSnapshot;
+  | ConnectorSnapshot
+  | StrokeSnap;
 
 export function objectSnapshots(doc: Y.Doc): readonly BoardSnapshot[] {
   const objects = getObjectsMap(doc);
@@ -217,6 +219,11 @@ export function objectSnapshots(doc: Y.Doc): readonly BoardSnapshot[] {
     }
     if (type === 'connector' && KNOWN_OBJECT_TYPES.has('connector')) {
       const snap = connectorSnapshotFrom(id, obj.get('z') as number, obj, rectsOnce());
+      if (snap !== null) result.push(snap);
+      return;
+    }
+    if (type === 'stroke' && KNOWN_OBJECT_TYPES.has('stroke')) {
+      const snap = strokeSnapshotFrom(id, obj.get('z') as number, obj);
       if (snap !== null) result.push(snap);
     }
   });

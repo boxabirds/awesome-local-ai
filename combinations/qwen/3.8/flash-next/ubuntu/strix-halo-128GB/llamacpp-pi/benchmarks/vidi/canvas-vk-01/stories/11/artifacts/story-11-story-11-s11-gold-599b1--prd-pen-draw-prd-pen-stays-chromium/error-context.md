@@ -1,0 +1,47 @@
+# Page snapshot
+
+```yaml
+- generic [ref=e2]:
+  - generic [ref=e3]:
+    - button "Select" [ref=e4] [cursor=pointer]:
+      - generic [ref=e5]: ↑
+    - button "Text" [ref=e6] [cursor=pointer]:
+      - generic [ref=e7]: T
+    - button "Shape" [ref=e9] [cursor=pointer]:
+      - generic [ref=e10]: □
+    - button "Connector" [ref=e11] [cursor=pointer]:
+      - generic [ref=e12]: →
+    - button "Pen" [pressed] [ref=e13] [cursor=pointer]:
+      - generic [ref=e14]: ✏️
+    - button "Sticky note" [ref=e15] [cursor=pointer]:
+      - generic [ref=e16]: 📌
+    - button "Undo" [ref=e17] [cursor=pointer]:
+      - generic [ref=e18]: ↩
+    - button "Redo" [disabled] [ref=e19] [cursor=pointer]:
+      - generic [ref=e20]: ↪
+  - generic [ref=e21]:
+    - generic:
+      - img "Drawing":
+        - img
+    - generic [ref=e23]:
+      - img
+  - toolbar "Pen options" [ref=e25]:
+    - group "Pen colour" [ref=e26]:
+      - button "Black pen" [pressed] [ref=e27]
+      - button "Blue pen" [ref=e28]
+      - button "Red pen" [ref=e29]
+      - button "Green pen" [ref=e30]
+      - button "Orange pen" [ref=e31]
+      - button "Purple pen" [ref=e32]
+    - group "Pen thickness" [ref=e33]:
+      - button "Thin" [ref=e34]
+      - button "Medium" [pressed] [ref=e35]
+      - button "Thick" [ref=e36]
+  - group "Zoom controls" [ref=e37]:
+    - button "Zoom out" [ref=e38] [cursor=pointer]: −
+    - status [ref=e39]: 100%
+    - button "Zoom in" [ref=e40] [cursor=pointer]: +
+    - button "Reset view" [ref=e41] [cursor=pointer]
+  - status: Drag to move around · Ctrl/Cmd + scroll or pinch to zoom
+  - button "Share" [ref=e43] [cursor=pointer]
+```
