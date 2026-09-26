@@ -9,24 +9,26 @@ Model `mtplx-flash-next-optimized-speed`, scope `canvas`, effort `low`, client p
 | 3 | See other people's edits appear live on the same board | PARTIAL (red) | 165.8 | 383 | 27388627 | 318864 | 1.2 | 67.7 | red | 25/27 |  | 0 / 5 | 6 | 115639 | throttled 56%, server peak 111 GB |
 | 4 | Return to a board and find everything as it was left | DONE, on partial 3 | 55.8 | 172 | 11675670 | 147343 | 2.0 | 67.0 | green | 29/31 |  | 3 / 0 (ended in error) | 5 | 115993 | throttled 85%, server peak 100 GB |
 | 5 | Share a board with others using a link | DONE, on partial 3 | 100.9 | 372 | 25806362 | 204304 | 1.3 | 72.2 | green | 34/36 |  | 1 / 0 | 5 | 115757 | throttled 60%, server peak 105 GB |
+| 7 | Select, move, resize and delete several objects at once | DONE, on partial 3 | 149.9 | 431 | 29011734 | 347427 | 1.3 | 67.9 | green | 37/44 |  | 3 / 2 (ended in error) | 11 | 123269 | throttled 72%, server peak 110 GB |
 
-**Totals:** 5 stories, 403 agent-minutes, 1208 requests, 81,900,784 prompt / 898,554 completion tokens, gate green 4/5, final acceptance 34/36, stalled 0, partial 1, 11158 lines in src+tests.
+**Totals:** 6 stories, 553 agent-minutes, 1639 requests, 110,912,518 prompt / 1,245,981 completion tokens, gate green 5/6, final acceptance 37/44, stalled 0, partial 1, 13918 lines in src+tests.
 
 ### Stories ended early (PARTIAL) and what was built on them
 
 - **Story 3 PARTIAL**, ended by the operator (harness (cap)): story cap: 5 nudges without committing (cap 5). Verdict **red**: gate red, tasks not verified [1, 2, 3, 4, 5, 6, 7, 8, 9] (implementation: [2, 3, 4]), held-out 6/7 (floor 0.0).
 - Story 4, built on partial 3: held-out tests on the partial base 10/11; partial story's tests fixed 0, regressed 0; 3 stub-like lines added to src/.
 - Story 5, built on partial 3: held-out tests on the partial base 15/16; partial story's tests fixed 0, regressed 0; 6 stub-like lines added to src/.
+- Story 7, built on partial 3: held-out tests on the partial base 18/24; partial story's tests fixed 0, regressed 0; 0 stub-like lines added to src/.
 
 ### Decode tok/s by context (server log, all stories)
 
 | Context | Requests | Decode tok/s (request-weighted median of per-story medians) |
 |---|---|---|
-| 0-16k | 22 | 93.1 |
-| 16-32k | 92 | 73.8 |
-| 32-64k | 429 | 68.3 |
-| 64-100k | 468 | 67.6 |
-| 100-+k | 197 | 67.0 |
+| 0-16k | 37 | 0.0 |
+| 16-32k | 118 | 73.8 |
+| 32-64k | 599 | 73.5 |
+| 64-100k | 610 | 67.4 |
+| 100-+k | 275 | 57.8 |
 
 ## How it happened
 
@@ -39,6 +41,7 @@ Each story's commits, and which story broke or fixed an earlier story's held-out
 | 3 | harness snapshot (agent left work uncommitted) | 4767 / 30 | `connectBoard.ts` (225), `board-room.ts` (169), `protocol.ts` (100), `index.ts` (73), `App.tsx` (68), `useBoardDoc.ts` (57), +11 more |
 | 4 | harness snapshot (agent left work uncommitted) | 2752 / 127 | `board-room.ts` (418), `board-store.ts` (391), `test-hooks.ts` (123), `room-state.ts` (115), `index.ts` (69), `connectBoard.ts` (63), +12 more |
 | 5 | 1 by the agent | 2447 / 158 | `SharePanel.tsx` (173), `BoardPage.tsx` (114), `create-board.ts` (108), `HomePage.tsx` (87), `index.ts` (86), `styles.css` (80), +12 more |
+| 7 | harness snapshot (agent left work uncommitted) | 2902 / 53 | `transform-gesture.ts` (282), `App.tsx` (209), `board-model.ts` (205), `geometry.ts` (202), `SelectionBox.tsx` (199), `selection-controller.ts` (143), +9 more |
 
 ### Earlier stories broken or fixed
 
