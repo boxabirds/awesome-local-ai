@@ -62,13 +62,13 @@ describe('tasks.list_api: GET /api/w/:id/counts', () => {
     const res = await getCounts(browser, id);
     expect(res.status).toBe(200);
     expect(res.headers.get('Cache-Control')).toBe('no-store');
-    expect(CountsSchema.parse(await res.json())).toEqual({ inbox: 3 });
+    expect(CountsSchema.parse(await res.json())).toEqual({ inbox: 3, projects: {} });
     expect(await taskRows()).toEqual(before);
   });
 
   it('an empty workspace counts 0', async () => {
     const { browser, id } = await member();
-    expect(await (await getCounts(browser, id)).json()).toEqual({ inbox: 0 });
+    expect(await (await getCounts(browser, id)).json()).toEqual({ inbox: 0, projects: {} });
   });
 
   it('TC-29 no cookie -> 404 not_found for list and counts', async () => {

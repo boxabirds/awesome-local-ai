@@ -2,9 +2,10 @@ import type { QueryKey } from '@tanstack/react-query';
 import type { LiveEvent } from '@todoodle/shared/events';
 import { type Counts, type Task, TaskSchema } from '@todoodle/shared/schemas';
 import { type HandlerCtx, registerLiveHandler } from '@/features/live/registry';
-import { type TasksFilter, queryKeys } from '@/lib/queryKeys';
+import { type CountsDelta, adjustCounts as applyCountsDelta, mergeDeltas, taskCountsDelta } from '@/features/projects/projectCache';
+import { type TasksFilter, queryKeys, scopeHolds } from '@/lib/queryKeys';
 import { findTask, placeTask, removeFromCache, updateInCache } from './cacheOps';
-import { type LocalTask, adjustCount } from './taskCache';
+import type { LocalTask } from './taskCache';
 
 type CachedList = { key: QueryKey; list: LocalTask[] | undefined; filter: TasksFilter };
 
@@ -17,9 +18,8 @@ function cachedLists(ctx: HandlerCtx): CachedList[] {
   return lists;
 }
 
-function adjustCounts(ctx: HandlerCtx, delta: number): void {
-  if (delta === 0) return;
-  ctx.queryClient.setQueriesData<Counts>({ queryKey: queryKeys.counts(ctx.workspaceId) }, (counts) => adjustCount(counts, delta));
+function adjustCounts(ctx: HandlerCtx, delta: CountsDelta): void {
+  ctx.queryClient.setQueryData<Counts>(queryKeys.counts(ctx.workspaceId), (counts) => applyCountsDelta(counts, delta));
 }
 
 /** The event's task, when it is a valid task of this workspace. */
@@ -30,9 +30,11 @@ function taskOf(ctx: HandlerCtx, entity: unknown, version: number): Task | null 
 }
 
 /**
- * Writes a newer copy of a task to every cached list: in place when only its text changed, re-placed when
- * it was completed or reopened (it leaves or joins the open rows at its sortOrder), inserted when new.
- * Ignored (false) when a cached copy is at the same or a newer version. Keeps the Inbox count in step.
+ * Writes a newer copy of a task to every cached list of its scope (story 7: the Inbox holds tasks with no
+ * project, a project list only its own): in place when only its text changed, re-placed when it was completed
+ * or reopened (it leaves or joins the open rows at its sortOrder), inserted when new. Lists of any other scope
+ * drop it (it moved away). Ignored (false) when a cached copy is at the same or a newer version. Keeps the
+ * counts in step.
  */
 function applyTask(ctx: HandlerCtx, task: Task): boolean {
   const lists = cachedLists(ctx);
@@ -47,15 +49,17 @@ function applyTask(ctx: HandlerCtx, task: Task): boolean {
     const shape = { includeCompleted: filter.includeCompleted };
     const inList = list.some((item) => item.id === task.id);
     const sameState = inList && list.find((item) => item.id === task.id)!.completedAt === task.completedAt;
-    const next = sameState ? updateInCache(list, task, shape) : placeTask(list, task, shape);
+    const next = !scopeHolds(filter, task.projectId)
+      ? removeFromCache(list, task.id)
+      : sameState
+        ? updateInCache(list, task, shape)
+        : placeTask(list, task, shape);
     if (next !== list) {
       ctx.queryClient.setQueryData(key, next);
       changed = true;
     }
   }
-  const wasOpen = cached ? cached.completedAt === null : false;
-  const isOpen = task.completedAt === null;
-  if (changed) adjustCounts(ctx, Number(isOpen) - Number(wasOpen));
+  if (changed) adjustCounts(ctx, mergeDeltas(cached ? taskCountsDelta(cached, -1) : {}, taskCountsDelta(task, 1)));
   return changed;
 }
 
@@ -86,7 +90,7 @@ export function applyTaskDeleted(ctx: HandlerCtx, event: Extract<LiveEvent, { ty
     const next = removeFromCache(list, event.entity.id);
     if (next !== list) ctx.queryClient.setQueryData(key, next);
   }
-  if (cached.completedAt === null) adjustCounts(ctx, -1);
+  adjustCounts(ctx, taskCountsDelta(cached, -1));
   return true;
 }
 

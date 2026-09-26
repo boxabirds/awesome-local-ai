@@ -58,6 +58,9 @@ describe('tasks.list_view: keyboard', () => {
   it('TC-109 Tab lands on row 1; ↓↓ focuses row 3; Tab leaves the list for the next control', async () => {
     const { user } = await inboxWith(5);
     sidebarInbox().focus();
+    // Story 7 added the sidebar's 'Add project' button after the Inbox entry.
+    await user.tab();
+    expect(screen.getByRole('button', { name: 'Add project' })).toHaveFocus();
     // Story 6 put the 'Show completed' switch at the top of the list, one Tab stop before it.
     await user.tab();
     expect(screen.getByRole('switch', { name: 'Show completed' })).toHaveFocus();
@@ -81,6 +84,7 @@ describe('tasks.list_view: keyboard', () => {
   it('TC-111 after Tab away and Shift+Tab back, focus returns to the last focused row', async () => {
     const { user } = await inboxWith(5);
     sidebarInbox().focus();
+    await user.tab(); // the sidebar's 'Add project' button (story 7)
     await user.tab(); // the 'Show completed' switch (story 6)
     await user.tab();
     await user.keyboard('{ArrowDown}');

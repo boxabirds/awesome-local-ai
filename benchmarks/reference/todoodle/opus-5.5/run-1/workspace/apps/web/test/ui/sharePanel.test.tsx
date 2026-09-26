@@ -96,10 +96,11 @@ describe('web.link_dialog (SharePanel)', () => {
     const seen = recordRequests();
     server.use(linkHandler());
     const { user } = await enterById({ saved: true });
-    // Story 3: opening by id also touches this browser's remembered list. Story 5: and loads the Inbox.
+    // Story 3: opening by id also touches this browser's remembered list. Story 5: and loads the Inbox. Story 7: and its projects.
     expect([...seen].sort()).toEqual([
       `GET /api/w/${ID}`,
       `GET /api/w/${ID}/counts`,
+      `GET /api/w/${ID}/projects`,
       `GET /api/w/${ID}/tasks`,
       `POST /api/remembered/${ID}/touch`,
     ]);

@@ -1,5 +1,5 @@
 import { TASK_SORT_STEP } from '@todoodle/shared/limits';
-import type { Task, TaskList, TaskPatch } from '@todoodle/shared/schemas';
+import type { Counts, Task, TaskList, TaskPatch } from '@todoodle/shared/schemas';
 import { resolvePatchedName } from '@todoodle/shared/schemas';
 import type { MutationResult } from '@todoodle/shared/types';
 
@@ -16,6 +16,10 @@ export type TaskRow = {
   updated_at: string;
   deleted: number;
   deleted_at: string | null;
+  /** Story 7: NULL = Inbox. */
+  project_id: string | null;
+  /** Story 7: set only when the task was deleted together with its project. */
+  delete_batch_id: string | null;
 };
 
 /** Maps a stored row to the public Task shape. Only whitelisted fields are copied. */
@@ -23,6 +27,7 @@ export function rowToTask(row: TaskRow): Task {
   return {
     id: row.id,
     workspaceId: row.workspace_id,
+    projectId: row.project_id ?? null,
     name: row.name,
     description: row.description,
     sortOrder: Number(row.sort_order),
@@ -50,38 +55,75 @@ export type InsertTaskResult =
  */
 export async function insertTaskIdempotent(
   db: D1Database,
-  input: { id: string; workspaceId: string; name: string; description: string },
+  input: { id: string; workspaceId: string; name: string; description: string; projectId?: string | null },
 ): Promise<InsertTaskResult> {
   const inserted = await db
     .prepare(
-      `INSERT INTO tasks (id, workspace_id, name, description, sort_order)
-       SELECT ?1, ?2, ?3, ?4, COALESCE(MAX(sort_order), 0) + ?5 FROM tasks WHERE workspace_id = ?2
+      `INSERT INTO tasks (id, workspace_id, name, description, sort_order, project_id)
+       SELECT ?1, ?2, ?3, ?4, COALESCE(MAX(sort_order), 0) + ?5, ?6 FROM tasks WHERE workspace_id = ?2
        ON CONFLICT(id) DO NOTHING RETURNING *`,
     )
-    .bind(input.id, input.workspaceId, input.name, input.description, TASK_SORT_STEP)
+    .bind(input.id, input.workspaceId, input.name, input.description, TASK_SORT_STEP, input.projectId ?? null)
     .first<TaskRow>();
   if (inserted) return { status: 'created', task: inserted };
+  return classifyExistingTask(db, input.id, input.workspaceId);
+}
 
-  const existing = await db.prepare('SELECT * FROM tasks WHERE id = ?').bind(input.id).first<TaskRow>();
-  // The row vanished between the two statements: nothing to replay, so report it as gone.
-  if (!existing) return { status: 'gone' };
-  if (existing.workspace_id !== input.workspaceId) return { status: 'conflict' };
+/**
+ * An id that is already taken, classified for a create: same workspace -> replayed (stored values win) or gone
+ * (soft-deleted); another workspace -> conflict. Null when no row has the id.
+ */
+async function classifyExisting(db: D1Database, id: string, workspaceId: string): Promise<InsertTaskResult | null> {
+  const existing = await db.prepare('SELECT * FROM tasks WHERE id = ?').bind(id).first<TaskRow>();
+  if (!existing) return null;
+  if (existing.workspace_id !== workspaceId) return { status: 'conflict' };
   if (existing.deleted !== 0) return { status: 'gone' };
   return { status: 'replayed', task: existing };
 }
 
-/** Open (not completed), non-deleted tasks of a list, in order. Story 5 only has the Inbox. */
-export function listOpenTasks(db: D1Database, workspaceId: string, query: { list: TaskList }): Promise<TaskRow[]> {
-  return listTasks(db, workspaceId, { list: query.list, includeCompleted: false });
+async function classifyExistingTask(db: D1Database, id: string, workspaceId: string): Promise<InsertTaskResult> {
+  // The row vanished between the two statements: nothing to replay, so report it as gone.
+  return (await classifyExisting(db, id, workspaceId)) ?? { status: 'gone' };
 }
 
-/** Open, non-deleted task counts per list. Stories 7 and 8 add fields. */
-export async function countOpenTasks(db: D1Database, workspaceId: string): Promise<{ inbox: number }> {
-  const row = await db
-    .prepare('SELECT COUNT(*) AS n FROM tasks WHERE workspace_id = ? AND deleted = 0 AND completed_at IS NULL')
+/**
+ * Story 7: a create whose projectId is not an active project here. A replay of an existing id still answers
+ * as before (the project is only checked for rows that would be inserted); a new id is project_not_found.
+ */
+export async function classifyCreateWithoutProject(db: D1Database, id: string, workspaceId: string): Promise<InsertTaskResult | { status: 'project_not_found' }> {
+  return (await classifyExisting(db, id, workspaceId)) ?? { status: 'project_not_found' };
+}
+
+/** Open (not completed), non-deleted tasks of a list, in order: the Inbox (no project) or one project. */
+export function listOpenTasks(db: D1Database, workspaceId: string, query: { list: TaskList; projectId?: string }): Promise<TaskRow[]> {
+  return listTasks(db, workspaceId, { ...query, includeCompleted: false });
+}
+
+/**
+ * Task counts per list, in one statement. inbox: open, non-deleted tasks with no project. projects: every
+ * active project (zeros included; deleted projects absent) with open = not completed and total = open +
+ * completed, which is exactly the set a project delete removes. Story 8 adds fields.
+ */
+export async function countOpenTasks(db: D1Database, workspaceId: string): Promise<Counts> {
+  const { results } = await db
+    .prepare(
+      `SELECT p.id AS pid, COALESCE(SUM(t.id IS NOT NULL AND t.completed_at IS NULL), 0) AS open, COUNT(t.id) AS total
+       FROM projects p LEFT JOIN tasks t ON t.workspace_id = p.workspace_id AND t.project_id = p.id AND t.deleted = 0
+       WHERE p.workspace_id = ?1 AND p.deleted = 0
+       GROUP BY p.id
+       UNION ALL
+       SELECT NULL AS pid, COUNT(*) AS open, COUNT(*) AS total
+       FROM tasks WHERE workspace_id = ?1 AND deleted = 0 AND completed_at IS NULL AND project_id IS NULL`,
+    )
     .bind(workspaceId)
-    .first<{ n: number }>();
-  return { inbox: row?.n ?? 0 };
+    .all<{ pid: string | null; open: number; total: number }>();
+  const projects: NonNullable<Counts['projects']> = {};
+  let inbox = 0;
+  for (const row of results) {
+    if (row.pid === null) inbox = row.open;
+    else projects[row.pid] = { open: row.open, total: row.total };
+  }
+  return { inbox, projects };
 }
 
 // ---------------------------------------------------------------- story 6: lifecycle and edit
@@ -187,21 +229,52 @@ export async function updateTask(
 
 /**
  * A list's non-deleted tasks: open ones by sort_order, then (includeCompleted) completed ones, most
- * recently completed first; ties by id. The filter object lets story 7's project scope compose.
+ * recently completed first; ties by id. The Inbox is every task with no project (story 7); list=project is
+ * one project's tasks.
  */
 export async function listTasks(
   db: D1Database,
   workspaceId: string,
-  filter: { list: TaskList; includeCompleted: boolean },
+  filter: { list: TaskList; projectId?: string; includeCompleted: boolean },
 ): Promise<TaskRow[]> {
-  const { results } = await db
-    .prepare(
-      `SELECT * FROM tasks WHERE workspace_id = ? AND deleted = 0 ${filter.includeCompleted ? '' : 'AND completed_at IS NULL'}
-       ORDER BY (completed_at IS NOT NULL), sort_order * (completed_at IS NULL), completed_at DESC, id`,
-    )
-    .bind(workspaceId)
-    .all<TaskRow>();
+  const scope = filter.list === 'project' ? 'AND project_id = ?2' : 'AND project_id IS NULL';
+  const statement = db.prepare(
+    `SELECT * FROM tasks WHERE workspace_id = ?1 AND deleted = 0 ${scope} ${filter.includeCompleted ? '' : 'AND completed_at IS NULL'}
+     ORDER BY (completed_at IS NOT NULL), sort_order * (completed_at IS NULL), completed_at DESC, id`,
+  );
+  const bound = filter.list === 'project' ? statement.bind(workspaceId, filter.projectId ?? '') : statement.bind(workspaceId);
+  const { results } = await bound.all<TaskRow>();
   return results;
+}
+
+/** A task in this workspace whatever its state; null when it does not exist here. */
+export function getTaskRow(db: D1Database, workspaceId: string, taskId: string): Promise<TaskRow | null> {
+  return db.prepare('SELECT * FROM tasks WHERE id = ? AND workspace_id = ?').bind(taskId, workspaceId).first<TaskRow>();
+}
+
+/**
+ * Story 7: moves a task to the Inbox (null) or a project, at the end of it: sort_order = the workspace's MAX +
+ * TASK_SORT_STEP (story 5's workspace-wide rule), version + 1. Name, description, completion (and story 8's due
+ * date) are never touched. The caller has already checked the destination and that the list differs.
+ */
+export async function moveTask(
+  db: D1Database,
+  workspaceId: string,
+  taskId: string,
+  projectId: string | null,
+  now: string,
+): Promise<MutationResult<Task>> {
+  const row = await db
+    .prepare(
+      `UPDATE tasks SET project_id = ?1,
+         sort_order = (SELECT COALESCE(MAX(sort_order), 0) + ?2 FROM tasks WHERE workspace_id = ?3),
+         version = version + 1, updated_at = ?4
+       WHERE id = ?5 AND workspace_id = ?3 AND deleted = 0 RETURNING *`,
+    )
+    .bind(projectId, TASK_SORT_STEP, workspaceId, now, taskId)
+    .first<TaskRow>();
+  if (row) return { kind: 'changed', entity: rowToTask(row) };
+  return (await getTaskRow(db, workspaceId, taskId)) ? { kind: 'gone' } : { kind: 'missing' };
 }
 
 /** Test-only (GET /test/tasks/:id/raw): the stored row whatever its state, for retention checks. */

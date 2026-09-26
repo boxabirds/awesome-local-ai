@@ -8,7 +8,11 @@ export type ErrorCode =
   | 'method_not_allowed'
   | 'unsupported_media_type'
   | 'payload_too_large'
-  | 'upgrade_required';
+  | 'upgrade_required'
+  | 'limit_reached'
+  | 'batch_mismatch'
+  | 'not_deleted'
+  | 'project_not_found';
 
 const DEFAULT_MESSAGES: Record<ErrorCode, string> = {
   validation: 'The request is not valid.',
@@ -21,6 +25,10 @@ const DEFAULT_MESSAGES: Record<ErrorCode, string> = {
   unsupported_media_type: 'Request bodies must be JSON (Content-Type: application/json).',
   payload_too_large: 'The request body is too large.',
   upgrade_required: 'This endpoint only accepts WebSocket upgrades.',
+  limit_reached: 'This workspace has reached its limit.',
+  batch_mismatch: 'This undo no longer matches the deletion.',
+  not_deleted: 'This is not deleted.',
+  project_not_found: 'Project not found.',
 };
 
 /** JSON error body `{error, message}`. Never includes stack traces or request data. */

@@ -1,9 +1,9 @@
 import { type QueryClient, useMutation, useQueryClient } from '@tanstack/react-query';
 import { CREATE_TASK_TIMEOUT_MS, TASK_SORT_STEP } from '@todoodle/shared/limits';
-import type { Counts, Task, TaskList } from '@todoodle/shared/schemas';
+import type { Counts, Task } from '@todoodle/shared/schemas';
 import { useCallback, useMemo } from 'react';
 import { ApiError, GoneError, createTask as postTask } from '@/lib/api';
-import { type TasksFilter, queryKeys } from '@/lib/queryKeys';
+import { INBOX_SCOPE, type ListScope, type TasksFilter, queryKeys, scopeOf } from '@/lib/queryKeys';
 import { insertBySortOrder } from './cacheOps';
 import type { QuickAddTarget } from './DestinationChip';
 import type { NewTaskInput } from './QuickAdd';
@@ -18,14 +18,21 @@ import {
   replaceWithServer,
 } from './taskCache';
 
-type CreateVars = { id: string; name: string; description: string; list: TaskList; retry: boolean };
+type CreateVars = { id: string; name: string; description: string; list: ListScope; retry: boolean };
 
-/** The list a quick-add target writes into. Stories 7 and 8 map their targets here. */
-function listFor(target: QuickAddTarget): TaskList {
+/** The list a quick-add target writes into. Story 7 maps a project target to its project; story 8 adds Today. */
+function listFor(target: QuickAddTarget): ListScope {
   switch (target.kind) {
+    case 'project':
+      return { list: 'project', projectId: target.id };
     default:
-      return 'inbox';
+      return INBOX_SCOPE;
   }
+}
+
+/** The project a new task in this list belongs to (null = Inbox). */
+function projectIdOf(list: ListScope): string | null {
+  return list.list === 'project' ? list.projectId : null;
 }
 
 /**
@@ -52,11 +59,11 @@ function timeoutSignal(ms: number): { signal: AbortSignal; clear: () => void } {
 function writeListVariants(
   queryClient: QueryClient,
   workspaceId: string,
-  list: TaskList,
+  list: ListScope,
   fn: (rows: LocalTask[] | undefined, includeCompleted: boolean) => LocalTask[] | undefined,
 ): void {
-  queryClient.setQueryData<LocalTask[]>(queryKeys.tasks(workspaceId, { list }), (rows) => fn(rows, false));
-  const withCompleted = queryKeys.tasks(workspaceId, { list, includeCompleted: true });
+  queryClient.setQueryData<LocalTask[]>(queryKeys.tasks(workspaceId, list), (rows) => fn(rows, false));
+  const withCompleted = queryKeys.tasks(workspaceId, { ...list, includeCompleted: true });
   if (queryClient.getQueryData(withCompleted)) queryClient.setQueryData<LocalTask[]>(withCompleted, (rows) => fn(rows, true));
 }
 
@@ -77,19 +84,22 @@ export function useCreateTask(workspaceId: string) {
 
   const { mutate } = useMutation<Task, unknown, CreateVars>({
     mutationKey: [...queryKeys.root(workspaceId), 'createTask'],
-    mutationFn: async ({ id, name, description }) => {
+    mutationFn: async ({ id, name, description, list }) => {
       const timeout = timeoutSignal(CREATE_TASK_TIMEOUT_MS);
+      // Story 7: quick add in a project adds there (the body carries its projectId; the Inbox sends none).
+      const projectId = projectIdOf(list);
       try {
-        return await postTask(workspaceId, { id, name, description }, timeout.signal);
+        return await postTask(workspaceId, projectId ? { id, name, description, projectId } : { id, name, description }, timeout.signal);
       } finally {
         timeout.clear();
       }
     },
     onMutate: (vars) => {
-      const sortOrder = nextSortOrder(queryClient.getQueryData<LocalTask[]>(queryKeys.tasks(workspaceId, { list: vars.list })));
+      const sortOrder = nextSortOrder(queryClient.getQueryData<LocalTask[]>(queryKeys.tasks(workspaceId, vars.list)));
       const row: LocalTask = {
         id: vars.id,
         workspaceId,
+        projectId: projectIdOf(vars.list),
         name: vars.name,
         description: vars.description,
         sortOrder,
@@ -103,14 +113,14 @@ export function useCreateTask(workspaceId: string) {
         // With completed tasks shown, the new open row goes before them (the end of the open rows).
         return includeCompleted ? insertBySortOrder(list, { ...row, localStatus: 'pending' }) : appendOptimistic(list, row);
       });
-      queryClient.setQueriesData<Counts>({ queryKey: queryKeys.counts(workspaceId) }, (counts) => adjustCount(counts, 1));
+      queryClient.setQueryData<Counts>(queryKeys.counts(workspaceId), (counts) => adjustCount(counts, 1, projectIdOf(vars.list), 1));
     },
     onSuccess: (task, vars) => {
       writeListVariants(queryClient, workspaceId, vars.list, (list) => replaceWithServer(list, task));
     },
     onError: (error, vars) => {
       writeListVariants(queryClient, workspaceId, vars.list, (list) => markStatus(list, vars.id, outcomeOf(error)));
-      queryClient.setQueriesData<Counts>({ queryKey: queryKeys.counts(workspaceId) }, (counts) => adjustCount(counts, -1));
+      queryClient.setQueryData<Counts>(queryKeys.counts(workspaceId), (counts) => adjustCount(counts, -1, projectIdOf(vars.list), -1));
     },
   });
 
@@ -121,11 +131,11 @@ export function useCreateTask(workspaceId: string) {
   );
 
   const findLocal = useCallback(
-    (id: string): { task: LocalTask; list: TaskList } | null => {
+    (id: string): { task: LocalTask; list: ListScope } | null => {
       for (const [key, data] of queryClient.getQueriesData<LocalTask[]>({ queryKey: queryKeys.tasks(workspaceId) })) {
         const task = data?.find((item) => item.id === id);
         const filter = key[3] as TasksFilter | undefined;
-        if (task && filter) return { task, list: filter.list };
+        if (task && filter) return { task, list: scopeOf(filter) };
       }
       return null;
     },

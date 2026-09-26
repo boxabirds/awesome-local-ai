@@ -91,6 +91,7 @@ describe('TC-U07 orderTasks', () => {
   const task = (id: string, sortOrder: number, completedAt: string | null): Task => ({
     id: id.padEnd(32, '0'),
     workspaceId: 'W',
+    projectId: null,
     name: id,
     description: '',
     sortOrder,

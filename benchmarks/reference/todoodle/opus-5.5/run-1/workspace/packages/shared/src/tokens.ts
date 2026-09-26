@@ -1,6 +1,8 @@
 // Theme colour tokens: the single source of colour for every story. apps/web/scripts/build-tokens.ts
 // generates apps/web/src/styles/tokens.css from this file; the contrast tests read it directly.
 
+import { PROJECT_COLORS, type ProjectColorKey } from './limits.ts';
+
 export type Theme = 'light' | 'dark';
 
 export const SEMANTIC_TOKENS = [
@@ -47,52 +49,12 @@ export const TOKENS: Record<Theme, Record<SemanticToken, string>> = {
   },
 };
 
-/** The 12 project colours (story 7), each with a light and a dark value that stands out from the background. */
-export const PROJECT_COLORS = [
-  'red',
-  'orange',
-  'amber',
-  'lime',
-  'green',
-  'teal',
-  'cyan',
-  'blue',
-  'indigo',
-  'violet',
-  'purple',
-  'pink',
-] as const;
-export type ProjectColor = (typeof PROJECT_COLORS)[number];
+/** The 12 project colours (story 7): keys, labels and values live in limits.ts PROJECT_COLORS. */
+export type ProjectColor = ProjectColorKey;
 
 export const PROJECT_COLOR_TOKENS: Record<Theme, Record<ProjectColor, string>> = {
-  light: {
-    red: '#dc2626',
-    orange: '#c2410c',
-    amber: '#b45309',
-    lime: '#4d7c0f',
-    green: '#15803d',
-    teal: '#0f766e',
-    cyan: '#0e7490',
-    blue: '#2563eb',
-    indigo: '#4f46e5',
-    violet: '#7c3aed',
-    purple: '#9333ea',
-    pink: '#db2777',
-  },
-  dark: {
-    red: '#f87171',
-    orange: '#fb923c',
-    amber: '#fbbf24',
-    lime: '#a3e635',
-    green: '#4ade80',
-    teal: '#2dd4bf',
-    cyan: '#22d3ee',
-    blue: '#60a5fa',
-    indigo: '#818cf8',
-    violet: '#a78bfa',
-    purple: '#c084fc',
-    pink: '#f472b6',
-  },
+  light: Object.fromEntries(PROJECT_COLORS.map((color) => [color.key, color.light])) as Record<ProjectColor, string>,
+  dark: Object.fromEntries(PROJECT_COLORS.map((color) => [color.key, color.dark])) as Record<ProjectColor, string>,
 };
 
 /** Pairs that carry text: [foreground, background], each must reach 4.5:1. */

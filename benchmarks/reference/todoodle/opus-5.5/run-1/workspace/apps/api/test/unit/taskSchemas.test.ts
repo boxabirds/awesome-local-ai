@@ -102,6 +102,8 @@ describe('rowToTask', () => {
     updated_at: '2026-09-26 10:00:01',
     deleted: 0,
     deleted_at: null,
+    project_id: null,
+    delete_batch_id: null,
   };
 
   it('maps snake_case to the public Task shape, keeping a null completedAt', () => {
@@ -109,6 +111,7 @@ describe('rowToTask', () => {
     expect(task).toEqual({
       id: ID,
       workspaceId: '0123456789ABCDEF0123456789ABCDEF',
+      projectId: null,
       name: TASK_NAMES.dentist,
       description: MULTI_LINE_DESCRIPTION,
       sortOrder: 3,

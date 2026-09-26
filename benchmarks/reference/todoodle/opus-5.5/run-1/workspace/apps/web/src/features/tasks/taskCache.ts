@@ -1,4 +1,5 @@
 import type { Counts, Task } from '@todoodle/shared/schemas';
+import { adjustCounts } from '@/features/projects/projectCache';
 
 /**
  * Where an unsaved row stands. `pending`: the create is in flight. `failed`: it may not have reached
@@ -52,9 +53,13 @@ export function removeLocal(list: LocalTask[] | undefined, id: string): LocalTas
   return [...list.slice(0, index), ...list.slice(index + 1)];
 }
 
-/** Adds `delta` to the Inbox count (never below zero). Story 7/8 fields pass through untouched. */
-export function adjustCount<T extends Counts>(counts: T | undefined, delta: number): T | undefined {
+/**
+ * Adds `delta` open tasks to a list's count (never below zero): the Inbox (projectId null), or (story 7) a
+ * project, whose `total` (open + completed) also moves by `totalDelta`. Other fields pass through untouched.
+ */
+export function adjustCount<T extends Counts>(counts: T | undefined, delta: number, projectId: string | null = null, totalDelta = 0): T | undefined {
   if (!counts) return counts;
+  if (projectId) return adjustCounts(counts, { projects: { [projectId]: { open: delta, total: totalDelta } } });
   return { ...counts, inbox: Math.max(0, counts.inbox + delta) };
 }
 

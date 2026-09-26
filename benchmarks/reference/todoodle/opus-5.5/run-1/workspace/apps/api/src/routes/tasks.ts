@@ -2,10 +2,14 @@ import { CreateTaskInputSchema, EmptyBodySchema, ListTasksQuerySchema, type Task
 import type { MutationResult } from '@todoodle/shared/types';
 import { type Context, Hono } from 'hono';
 import type { AppEnv } from '../app.ts';
+import { getActiveProjectForWorkspace } from '../db/projects.ts';
 import {
+  classifyCreateWithoutProject,
   completeTask,
+  getTaskRow,
   insertTaskIdempotent,
   listTasks,
+  moveTask,
   reopenTask,
   restoreTask,
   rowToTask,
@@ -14,20 +18,33 @@ import {
 } from '../db/tasks.ts';
 import { errorResponse } from '../lib/errors.ts';
 import { readJson } from '../lib/json.ts';
+import { classifyMove } from '../lib/moveRules.ts';
 import { broadcast } from '../live/broadcast.ts';
 
 /** Routes under /api/w/:workspaceId/tasks, mounted behind workspace-auth (c.var.workspace is verified). */
 export const tasksRoutes = new Hono<AppEnv>();
 
 /**
- * GET ?list=inbox (the default)&include_completed=true|false (default false): the list's open tasks in
- * order, then (include_completed) its completed tasks, most recent first. Soft-deleted tasks never appear.
+ * GET ?list=inbox (the default)|project&projectId=&include_completed=true|false (default false): the list's
+ * open tasks in order, then (include_completed) its completed tasks, most recent first. Soft-deleted tasks
+ * never appear. list=project: 410 for a deleted project, 404 project_not_found for one that is not here.
  */
 tasksRoutes.get('/', async (c) => {
-  const parsed = ListTasksQuerySchema.safeParse({ list: c.req.query('list'), include_completed: c.req.query('include_completed') });
+  const parsed = ListTasksQuerySchema.safeParse({
+    list: c.req.query('list'),
+    projectId: c.req.query('projectId'),
+    include_completed: c.req.query('include_completed'),
+  });
   if (!parsed.success) return errorResponse('validation', 400);
+  const { list, projectId } = parsed.data;
+  if (list === 'project') {
+    const state = await getActiveProjectForWorkspace(c.env.DB, c.var.workspace.id, projectId!);
+    if (state === 'deleted') return errorResponse('gone', 410);
+    if (state === 'missing') return errorResponse('project_not_found', 404);
+  }
   const rows = await listTasks(c.env.DB, c.var.workspace.id, {
-    list: parsed.data.list,
+    list,
+    ...(list === 'project' ? { projectId } : {}),
     includeCompleted: parsed.data.include_completed === 'true',
   });
   return c.json({ tasks: rows.map(rowToTask) });
@@ -41,8 +58,15 @@ tasksRoutes.post('/', async (c) => {
   const parsed = CreateTaskInputSchema.safeParse(await readJson(c.req.raw));
   if (!parsed.success) return errorResponse('validation', 400);
   const workspaceId = c.var.workspace.id;
-  const result = await insertTaskIdempotent(c.env.DB, { ...parsed.data, workspaceId });
+  const { projectId } = parsed.data;
+  // Story 7: the project is checked only for a row that would be inserted; a replay answers as before.
+  const projectActive = !projectId || (await getActiveProjectForWorkspace(c.env.DB, workspaceId, projectId)) === 'active';
+  const result = projectActive
+    ? await insertTaskIdempotent(c.env.DB, { ...parsed.data, workspaceId })
+    : await classifyCreateWithoutProject(c.env.DB, parsed.data.id, workspaceId);
   switch (result.status) {
+    case 'project_not_found':
+      return errorResponse('project_not_found', 404);
     case 'created': {
       const task = rowToTask(result.task);
       // After the write commits: everyone else with the workspace open sees the new task.
@@ -116,11 +140,33 @@ tasksRoutes.delete('/:taskId', async (c) => {
   return respond(c, await softDeleteTask(c.env.DB, c.var.workspace.id, taskId, new Date().toISOString()), 'task.deleted');
 });
 
-/** Edit name and/or description (strict body). A blank name keeps the previous one. */
+/**
+ * Edit name and/or description (strict body). A blank name keeps the previous one. Story 7: projectId moves
+ * the task (null = Inbox) to the end of that list: 404 project_not_found unless the destination is an active
+ * project here; moving to the list it is already in writes nothing and broadcasts nothing.
+ */
 tasksRoutes.patch('/:taskId', async (c) => {
   const parsed = TaskPatchSchema.safeParse(await readJson(c.req.raw));
   if (!parsed.success) return errorResponse('validation', 400);
   const taskId = taskIdOf(c);
   if (!taskId) return errorResponse('not_found', 404);
-  return respond(c, await updateTask(c.env.DB, c.var.workspace.id, taskId, parsed.data, new Date().toISOString()), 'task.upserted');
+  const workspaceId = c.var.workspace.id;
+  const now = new Date().toISOString();
+  const { projectId, ...edit } = parsed.data;
+  if (projectId === undefined) return respond(c, await updateTask(c.env.DB, workspaceId, taskId, edit, now), 'task.upserted');
+
+  const current = await getTaskRow(c.env.DB, workspaceId, taskId);
+  if (!current) return errorResponse('not_found', 404);
+  if (current.deleted !== 0) return errorResponse('gone', 410);
+  const destState = projectId === null ? null : await getActiveProjectForWorkspace(c.env.DB, workspaceId, projectId);
+  const decision = classifyMove(current.project_id ?? null, projectId, destState);
+  if (decision === 'project_not_found') return errorResponse('project_not_found', 404);
+
+  let result: MutationResult<Task> = { kind: 'noop', entity: rowToTask(current) };
+  if (edit.name !== undefined || edit.description !== undefined) {
+    result = await updateTask(c.env.DB, workspaceId, taskId, edit, now);
+    if (result.kind === 'missing' || result.kind === 'gone') return respond(c, result, 'task.upserted');
+  }
+  if (decision === 'move') result = await moveTask(c.env.DB, workspaceId, taskId, projectId, now);
+  return respond(c, result, 'task.upserted');
 });

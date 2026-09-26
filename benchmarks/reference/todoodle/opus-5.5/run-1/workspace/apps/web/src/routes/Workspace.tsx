@@ -1,11 +1,12 @@
 import type { Workspace as WorkspaceData } from '@todoodle/shared/schemas';
-import { Suspense, use, useCallback, useEffect, useMemo, useState } from 'react';
+import { Suspense, lazy, use, useCallback, useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router';
 import { useCanEdit } from '@/features/live/canEdit';
 import { LiveAnnouncer } from '@/features/live/LiveAnnouncer';
 import { LiveProvider } from '@/features/live/LiveProvider';
 import { OfflineBanner } from '@/features/live/OfflineBanner';
 import { ReconnectingPill } from '@/features/live/ReconnectingPill';
+import { ProjectLiveHandlers } from '@/features/projects/useProjectLiveHandlers';
 import { SharePanelLazy } from '@/features/share/SharePanelLazy';
 import { type OpenResult, getOpen, retryOpen } from '@/features/workspace/bootOpen';
 import { AppShell } from '@/features/workspace/AppShell';
@@ -20,7 +21,11 @@ import { useTouchRemembered } from '@/features/remembered/useTouchRemembered';
 import { isNotFoundError } from '@/lib/api';
 import { WorkspaceSkeletonRows } from '@/features/workspace/WorkspaceSkeleton';
 import { RecoverableNotFound as NotFound } from './RecoverableNotFound.tsx';
+import { preloadProjectView } from './lazy.ts';
 import { workspaceLoader } from './workspaceLoader.ts';
+
+// Story 7: the project view is its own chunk; sidebar rows preload it on hover and focus.
+const ProjectView = lazy(() => preloadProjectView().then((module) => ({ default: module.ProjectView })));
 
 type PanelState = { open: boolean; mode: 'save' | 'share' };
 
@@ -41,6 +46,7 @@ function WorkspaceView({
 }) {
   const canEdit = useCanEdit() && !placeholder;
   const location = useLocation();
+  const { projectId } = useParams();
   const navigate = useNavigate();
   const [panel, setPanel] = useState<PanelState>(() => ({ open: isJustCreated(location.state), mode: 'save' }));
   const { mutateAsync: rename } = useRenameWorkspace(workspace.id);
@@ -62,9 +68,12 @@ function WorkspaceView({
 
   return (
     <WorkspaceContext value={context}>
-      <title>{`Todoodle - ${workspace.name}`}</title>
+      {/* A project view titles the page itself ('<project> · <workspace>', story 7). */}
+      {projectId ? null : <title>{`Todoodle - ${workspace.name}`}</title>}
       {/* Polite summary of other people's changes for screen readers (story 4). */}
       <LiveAnnouncer />
+      {/* Story 7: others' project changes; a deleted project on screen sends this tab to the Inbox. */}
+      <ProjectLiveHandlers workspaceId={workspace.id} />
       <AppShell
         workspaceId={workspace.id}
         canEdit={canEdit}
@@ -81,7 +90,15 @@ function WorkspaceView({
           />
         )}
       >
-        {placeholder ? <WorkspaceSkeletonRows /> : <InboxView workspaceId={workspace.id} />}
+        {placeholder ? (
+          <WorkspaceSkeletonRows />
+        ) : projectId ? (
+          <Suspense fallback={<WorkspaceSkeletonRows />}>
+            <ProjectView key={projectId} workspaceId={workspace.id} />
+          </Suspense>
+        ) : (
+          <InboxView workspaceId={workspace.id} />
+        )}
       </AppShell>
       {/* Live updates paused but saving works: a small pill, editing stays on. */}
       <ReconnectingPill />
@@ -125,8 +142,11 @@ function HashWorkspace({ secret }: { secret: string }) {
 
 /** /w/:workspaceId: entered from this browser's remembered list (story 3). No secret reaches JS. */
 function IdWorkspace({ id }: { id: string }) {
-  // In-app navigation without a hover/focus prefetch: start the Inbox list and counts now (no-op when fresh).
-  useEffect(() => void workspaceLoader({ params: { workspaceId: id } }), [id]);
+  const { projectId } = useParams();
+  // In-app navigation without a hover/focus prefetch: start the entry list, counts and projects now (no-op when
+  // fresh). Only on entering the workspace: later view changes load their own list.
+  const [entryProjectId] = useState(projectId);
+  useEffect(() => void workspaceLoader({ params: { workspaceId: id, projectId: entryProjectId } }), [id, entryProjectId]);
   const touch = useTouchRemembered(id);
   const query = useWorkspace(id);
   // Not remembered here (or no longer opens): NotFound, whichever request learns it first.

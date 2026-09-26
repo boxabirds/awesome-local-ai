@@ -10,7 +10,8 @@
     "./contrast": "./src/contrast.ts",
     "./events": "./src/events.ts",
     "./types": "./src/types.ts",
-    "./dates": "./src/dates.ts"
+    "./dates": "./src/dates.ts",
+    "./search": "./src/search.ts"
   },
   "scripts": {
     "typecheck": "tsc -p tsconfig.json --noEmit"

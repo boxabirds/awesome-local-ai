@@ -5,7 +5,6 @@ import {
   meetsContrast,
 } from '@todoodle/shared/contrast';
 import {
-  PROJECT_COLORS,
   PROJECT_COLOR_TOKENS,
   SEMANTIC_TOKENS,
   TEXT_PAIRS,
@@ -13,6 +12,7 @@ import {
   type Theme,
   UI_PAIRS,
 } from '@todoodle/shared/tokens';
+import { PROJECT_COLOR_KEYS } from '@todoodle/shared/limits';
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
@@ -33,7 +33,7 @@ describe('TC-85 theme token contrast', () => {
       const ratio = contrastRatio(TOKENS[theme][fg], TOKENS[theme][bg]);
       expect(meetsContrast(ratio, 'ui'), `${theme} ${fg} on ${bg} = ${ratio.toFixed(2)}`).toBe(true);
     }
-    for (const color of PROJECT_COLORS) {
+    for (const color of PROJECT_COLOR_KEYS) {
       const ratio = contrastRatio(PROJECT_COLOR_TOKENS[theme][color], TOKENS[theme].background);
       expect(meetsContrast(ratio, 'ui'), `${theme} project ${color} = ${ratio.toFixed(2)}`).toBe(true);
     }

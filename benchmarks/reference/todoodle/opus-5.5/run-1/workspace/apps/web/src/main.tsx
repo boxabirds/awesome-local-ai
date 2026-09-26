@@ -11,9 +11,13 @@ import { workspaceLoader } from './routes/workspaceLoader.ts';
 startBootOpen(window.location);
 // On Home, fetch this browser's remembered workspaces in parallel with rendering (async-parallel).
 if (window.location.pathname === '/') void queryClient.prefetchQuery(rememberedQuery);
-// On /w/:id, the Inbox list and counts start now, in parallel with the route chunk and the workspace GET.
-const idRoute = /^\/w\/([^/]+)$/.exec(window.location.pathname);
-if (idRoute) workspaceLoader({ params: { workspaceId: decodeURIComponent(idRoute[1]!) } });
+// On /w/:id (and /w/:id/project/:pid), the list, counts and projects start now, in parallel with the route
+// chunk and the workspace GET.
+const idRoute = /^\/w\/([^/]+)(?:\/project\/([^/]+))?$/.exec(window.location.pathname);
+if (idRoute) {
+  const projectId = idRoute[2] === undefined ? undefined : decodeURIComponent(idRoute[2]);
+  workspaceLoader({ params: { workspaceId: decodeURIComponent(idRoute[1]!), projectId } });
+}
 
 const root = document.getElementById('root');
 if (!root) throw new Error('Missing #root element');

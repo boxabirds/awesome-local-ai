@@ -1,6 +1,8 @@
 import { screen, waitFor, within } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
+import { MemoryRouter } from 'react-router';
 import { AppShell } from '@/features/workspace/AppShell';
+import { WorkspaceContext } from '@/features/workspace/WorkspaceContext';
 import { ID, enterInbox, renderWithClient, setViewport } from '../../support/tasks.tsx';
 
 function menuButton(): HTMLElement | null {
@@ -91,8 +93,11 @@ describe('shell.mobile', () => {
 });
 
 describe('TC-126 extension slots for search (story 11)', () => {
+  // Story 7: the shell reads the route (Inbox or project) and navigates, so it needs a router and a workspace.
   const renderShell = () =>
     renderWithClient(
+      <MemoryRouter initialEntries={[`/w/${ID}`]}>
+        <WorkspaceContext value={{ workspaceId: ID }}>
       <AppShell
         workspaceId={ID}
         canEdit
@@ -106,7 +111,9 @@ describe('TC-126 extension slots for search (story 11)', () => {
         searchSlot={<div data-testid="search-slot">search</div>}
       >
         <h1 id="view-title">Inbox</h1>
-      </AppShell>,
+      </AppShell>
+        </WorkspaceContext>
+      </MemoryRouter>,
     );
 
   it('inline: the search slot is the first child above the Inbox entry; header actions render in the header', async () => {

@@ -4,7 +4,10 @@ import { Workspace } from './schemas.ts';
 // Live events (story 4): what the WorkspaceRoom Durable Object fans out to every open tab of a workspace.
 // The union's shape is frozen; stories 5 and 7 fill in ProjectDTO and TaskDTO.
 
-/** Placeholder until story 7: every project carries at least its id and version. Extra fields pass through. */
+/**
+ * A project in live events: at least its id and version; story 7 sends the full public Project (consumers
+ * validate it with ProjectSchema). Extra fields pass through.
+ */
 export const ProjectDTO = z.looseObject({ id: z.string(), version: z.number().int() });
 export type ProjectDTO = z.infer<typeof ProjectDTO>;
 
@@ -19,11 +22,13 @@ export const LiveEvent = z.discriminatedUnion('type', [
   z.object({ type: z.literal('workspace.updated'), entity: Workspace, ...base }),
   z.object({ type: z.literal('project.upserted'), entity: ProjectDTO, ...base }),
   z.object({ type: z.literal('project.restored'), entity: ProjectDTO, ...base }),
-  z.object({ type: z.literal('project.deleted'), entity: Deleted, ...base }),
+  // Story 7: batchId names the deletion (undo restores exactly it).
+  z.object({ type: z.literal('project.deleted'), entity: Deleted.extend({ batchId: z.string().optional() }), ...base }),
   z.object({ type: z.literal('task.upserted'), entity: TaskDTO, ...base }),
   z.object({ type: z.literal('task.restored'), entity: TaskDTO, ...base }),
   z.object({ type: z.literal('task.deleted'), entity: Deleted, ...base }),
-  z.object({ type: z.literal('tasks.bulk'), entity: z.object({ ids: z.array(z.string()) }), ...base }),
+  // Story 7: `deleted` says whether the ids were deleted (project delete) or restored (project undo).
+  z.object({ type: z.literal('tasks.bulk'), entity: z.object({ ids: z.array(z.string()), deleted: z.boolean().optional() }), ...base }),
 ]);
 export type LiveEvent = z.infer<typeof LiveEvent>;
 export type LiveEventType = LiveEvent['type'];

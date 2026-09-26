@@ -11,20 +11,20 @@ import { gate, recordRequests } from '../../support/fixtures.ts';
 import { ID, renderWithClient } from '../../support/tasks.tsx';
 
 describe('shell.sidebar: workspaceLoader and query keys', () => {
-  it('TC-91 starts GET tasks and GET counts together and returns without awaiting either', async () => {
+  it('TC-91 starts GET tasks, GET counts (and, story 7, GET projects) together and returns without awaiting any', async () => {
     const hold = gate();
     server.use(listHandler({ until: hold.promise }), countsHandler({ until: hold.promise }));
     const seen = recordRequests();
     const result = workspaceLoader({ params: { workspaceId: ID } });
     // Synchronous: rendering is never blocked on the data.
     expect(result).toBeNull();
-    await waitFor(() => expect([...seen].sort()).toEqual([`GET /api/w/${ID}/counts`, `GET /api/w/${ID}/tasks`]));
+    await waitFor(() => expect([...seen].sort()).toEqual([`GET /api/w/${ID}/counts`, `GET /api/w/${ID}/projects`, `GET /api/w/${ID}/tasks`]));
     // Both are in flight and neither has resolved.
     expect(queryClient.getQueryState(queryKeys.tasks(ID, { list: 'inbox' }))?.fetchStatus).toBe('fetching');
     expect(queryClient.getQueryState(queryKeys.counts(ID))?.fetchStatus).toBe('fetching');
     expect(queryClient.getQueryData(queryKeys.counts(ID))).toBeUndefined();
     hold.release();
-    await waitFor(() => expect(queryClient.getQueryData(queryKeys.counts(ID))).toEqual({ inbox: 0 }));
+    await waitFor(() => expect(queryClient.getQueryData(queryKeys.counts(ID))).toEqual({ inbox: 0, projects: {} }));
     expect(queryClient.getQueryData(queryKeys.tasks(ID, { list: 'inbox' }))).toEqual([]);
   });
 
@@ -47,7 +47,7 @@ describe('shell.sidebar: workspaceLoader and query keys', () => {
       return null;
     }
     await renderWithClient(<Probe />);
-    await waitFor(() => expect(queryClient.getQueryData(queryKeys.counts(ID))).toEqual({ inbox: 1 }));
+    await waitFor(() => expect(queryClient.getQueryData(queryKeys.counts(ID))).toEqual({ inbox: 1, projects: {} }));
     calls = seen.filter((r) => r.endsWith('/counts')).length;
     expect(calls).toBe(1);
     await act(async () => {

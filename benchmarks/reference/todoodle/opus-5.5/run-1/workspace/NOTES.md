@@ -393,3 +393,105 @@
 
   As before, `bun run <script>` cannot run in this sandbox (`CouldntReadCurrentDirectory`), so each script's underlying
   binary was run directly against a manually started `wrangler dev` with a fresh `vite build`.
+
+## Story 7
+
+- **Commit order.** Tasks were committed in dependency order: 1–4 (API), then the API test tasks 11–14 (they only need
+  1–4), then 5, 18 (tasks.md says to do it before 6), 6, 7, 8, 9, 19, and the test tasks 10, 15, 16, 17.
+  - Task 6's commit carries a stub `routes/ProjectView.tsx` (heading only), because sidebar rows preload that chunk.
+    Task 7 replaces it.
+  - Task 18's commit holds NameField, nameFieldState, ColorPalette and ProjectDot. The sidebar's 44px hit areas and
+    touch-visible '…' landed with the sidebar (task 6).
+  - `smoke.tmp.mjs`, a throwaway browser script, was committed by mistake with task 10 and removed in task 17.
+- **Palette.** Story 2's `tokens.ts` already had a `PROJECT_COLORS` key list and `PROJECT_COLOR_TOKENS`.
+  - `limits.ts` now owns `PROJECT_COLORS` as the design's `{key, label, light, dark}`, plus `PROJECT_COLOR_KEYS`.
+  - `tokens.ts` derives `PROJECT_COLOR_TOKENS` from it, so `tokens.css` (`--project-<key>`) is unchanged.
+  - The keys are story 2's (`red`…`pink`, not the design's example `berry`). Labels are plain colour names.
+  - The measured ratios are listed in a comment. All are at least 4.18 against the light background and muted
+    surfaces, and 5.07 against the dark ones. TC-83 checks both surfaces in both themes.
+- **Counts.** `CountsSchema.projects` defaults to `{}`. The exported `Counts` type is the schema's input type, so
+  pre-story-7 fixtures (`{inbox: n}`) still type-check. Story 5 tests that compared a whole counts response now
+  expect `projects: {}`.
+  - The `/counts` query is a UNION of a per-project LEFT JOIN and the Inbox count, in one statement. An empty project
+    counted one open task through the LEFT JOIN's null row; the integration test TC-04 caught it (fixed in task 11).
+- **Live event shapes.** The event union's `entity` envelope is kept:
+  - `project.deleted` carries `{id, batchId}`;
+  - `tasks.bulk` carries `{ids, deleted}`;
+  - each `tasks.bulk` holds at most `TASKS_BULK_MAX_IDS` (400) ids, so a large project stays under
+    `LIVE_MAX_EVENT_BYTES`.
+- **Live counts refresh.** The project handler refetches counts on `task.upserted` only when the event or the cached
+  copy involves a project. Inbox changes are already counted exactly by story 5's handler, and refetching on every
+  event made a story 5 test's static fixture overwrite the count. Every project refetch uses
+  `cancelRefetch: false`, so several events in one frame share one request.
+- **Scope-aware task caches (story 5/6 code changed).** With several lists cached, a task must only ever sit in lists
+  of its own scope:
+  - `queryKeys.tasks` takes `{list: 'project', projectId}`. The Inbox key shape is unchanged.
+  - Story 5's live `applyTask` removes a task from lists of other scopes (a move).
+  - Story 6's `writeLists` takes an optional project filter for the writes that can insert (reopen, undo, move).
+  - `adjustCount` moves project counts, including `total`.
+  - `InboxView` became a thin wrapper over the new `TaskListView`, which the project view reuses.
+- **Routing.** The project route is a sibling `<Route path="/w/:workspaceId/project/:projectId">` with the same
+  element as `/w/:workspaceId`, rather than a nested child route. Switching views therefore keeps the workspace
+  (and its live socket) mounted.
+  - `WorkspaceView` renders the lazy `ProjectView` when the param is present.
+  - The sidebar's current view is derived from the address. `AppShell` therefore now needs a router and a
+    `WorkspaceContext`; story 5's TC-126 test wraps it in both.
+- **No cmdk or vaul.** Neither is installed, and nothing can be installed here. The shared combobox pieces are built
+  on Radix instead:
+  - `ResponsiveCommand` is a Radix `Popover` anchored to the task row with `virtualRef`, or a `Dialog` without an
+    anchor, or a bottom `Sheet` (new `side="bottom"`) below `MOBILE_BREAKPOINT_PX`.
+  - The listbox is our own: `role=combobox` input with `aria-activedescendant`, and `OptionRow` options.
+  - The filtering is ours, as the design wants (cmdk's `shouldFilter={false}`).
+- **Move to… filter.** Matching is a case- and accent-insensitive *substring* match, as the PRD says ("contain the
+  typed text"). The design's TC-80 row expects 'WORK' to give only Work, but 'Woodwork' contains 'work'. The unit
+  test follows the PRD: 'WORK' gives Work and Woodwork.
+- **Create flow.** The row appears in the sidebar at once (optimistic), but the dialog stays open until Todoodle
+  answers, and only then navigates to the project. This lets 409 `limit_reached` show in the dialog (TC-55) and
+  keeps a failed create's text (TC-54). Navigating first would load a project the server does not have yet.
+  - `id_conflict` regenerates the id and retries once.
+- **Delete / Undo.** As in story 6, the Undo toast appears once the DELETE has succeeded, so an Undo can never race
+  the delete (the design's "chain the restore after the pending delete" cannot occur).
+  - `showUndoToast` gained `restoredText` ('Project restored').
+  - After a confirmed delete, focus goes to the Projects heading. After Cancel it goes back to the '…' trigger.
+  - Deleting the project on screen navigates to the Inbox before the cache write.
+  - A small "known gone" set (`projectGone.ts`) stops the project view from also saying 'Project not found', both
+    for this tab's own deletes and for live deletes by others.
+- **UI details decided here:**
+  - The project empty state on touch screens reads 'No tasks yet. Tap + to add one.', like story 5's Inbox.
+  - An over-long inline rename stays open on Enter or blur. Nothing is cut and nothing is sent; Escape cancels.
+  - A repeated blank rename restarts the hint's `HINT_VISIBLE_MS` timer.
+  - Colour swatches select on focus (radio semantics). Radix's own arrow-key selection depends on keyup timing,
+    which happy-dom does not reproduce.
+  - 'Project not found' is `role=alert`; 'This project was deleted' is `role=status`.
+  - On phones and touch screens the list keeps room below its last row, so the floating add button never covers a
+    row's '…' (found by W9).
+- **Test locations.**
+  - TC-02 (safety scan of the real `0003_projects.sql`) is `scripts/test/migration-0003.test.ts`.
+  - The shared-schema tests (TC-48) and the pure decisions (TC-73, TC-74) are in `apps/api/test/unit`, as in stories
+    5 and 6. So is TC-93 (`normaliseForSearch`), which then runs in workerd, where story 11's server will call it.
+  - Web unit tests are in `apps/web/test/unit/{projects,tasks}`. UI tests are in `apps/web/test/ui/projects`, backed
+    by a stateful MSW server (`test/msw/projectServer.ts`).
+  - E2E: `e2e/projects.spec.ts` (Chromium only; it skips on WebKit, as the design says) and
+    `e2e/projects.mobile.spec.ts` (the iPhone 13 device, at the design's 390×844; Playwright's preset viewport is
+    390×664).
+- **`/test/sql`** (non-production only) runs one SQL statement. TC-29 uses it to install and drop the trigger that
+  aborts the project UPDATE, proving the delete batch is atomic.
+- **Existing tests touched.**
+  - The request lists of `/w/:id` (story 2 TC-64 and TC-65, story 5 TC-91) now include `GET projects`.
+  - The keyboard walks (story 5 TC-109, TC-111, e2e TC-114) step over the new 'Add project' Tab stop.
+  - `primeOpen` also seeds an empty projects list, so a just-created workspace still makes no list requests.
+- **Integration tests run one file at a time.** With the new project delete/restore tests running beside story 4's
+  10-socket room tests, the local workerd process sometimes exited mid-run ("Worker exited unexpectedly"). About 2 in
+  5 full runs lost story 4's `live.test.ts`. Bisecting pointed at load, not at any assertion: the old files alone
+  never crashed, and neither did any pair of files. `fileParallelism: false` on `api-integration` removed the crash
+  (0 in 9 runs), at about 33 s instead of 10 s.
+- **Story 7 verification.** Everything below passes:
+  - typecheck (all five tsconfigs), lint and build;
+  - unit: api 166, deploy 49, web 274;
+  - integration: api 273 (with the staging and production simulations), deploy 18;
+  - UI: 276;
+  - e2e: 110 passed and 24 skipped (the story 4, 6 and 7 desktop specs on WebKit) across chromium, webkit and
+    mobile-touch. The story 7 specs also passed 3 times in a row (`--repeat-each=3`).
+
+  As before, `bun run <script>` cannot run in this sandbox (`CouldntReadCurrentDirectory`), so each script's
+  underlying binary was run directly against a manually started `wrangler dev` with a fresh `vite build`.

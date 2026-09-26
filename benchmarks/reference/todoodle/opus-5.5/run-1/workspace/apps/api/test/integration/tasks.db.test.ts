@@ -26,13 +26,23 @@ describe('tasks.store: migration 0002', () => {
       'updated_at',
       'deleted',
       'deleted_at',
+      // Story 7 (migration 0003) appends these two.
+      'project_id',
+      'delete_batch_id',
     ]);
     const id = columns.find((c) => c.name === 'id');
     expect(id?.pk).toBe(1);
     expect(id?.dflt_value).toBeNull();
 
     const { results: fks } = await db().prepare('PRAGMA foreign_key_list(tasks)').all<{ table: string; from: string; to: string }>();
-    expect(fks).toEqual([expect.objectContaining({ table: 'workspaces', from: 'workspace_id', to: 'id' })]);
+    expect(fks).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ table: 'workspaces', from: 'workspace_id', to: 'id' }),
+        // Story 7 (migration 0003).
+        expect.objectContaining({ table: 'projects', from: 'project_id', to: 'id' }),
+      ]),
+    );
+    expect(fks).toHaveLength(2);
 
     const { results: indexCols } = await db().prepare('PRAGMA index_info(idx_tasks_ws_open)').all<{ name: string }>();
     expect(indexCols.map((c) => c.name)).toEqual(['workspace_id', 'deleted', 'completed_at', 'sort_order']);
@@ -116,12 +126,12 @@ describe('tasks.store: listOpenTasks and countOpenTasks', () => {
     await markCompleted(ids[1]!);
     await markDeleted(ids[3]!);
     expect((await listOpenTasks(db(), ws, { list: 'inbox' })).map((r) => r.name)).toEqual(['A', 'C', 'E']);
-    expect(await countOpenTasks(db(), ws)).toEqual({ inbox: 3 });
+    expect(await countOpenTasks(db(), ws)).toEqual({ inbox: 3, projects: {} });
   });
 
   it('TC-27 an empty workspace lists nothing and counts 0', async () => {
     const ws = await workspaceId();
     expect(await listOpenTasks(db(), ws, { list: 'inbox' })).toEqual([]);
-    expect(await countOpenTasks(db(), ws)).toEqual({ inbox: 0 });
+    expect(await countOpenTasks(db(), ws)).toEqual({ inbox: 0, projects: {} });
   });
 });

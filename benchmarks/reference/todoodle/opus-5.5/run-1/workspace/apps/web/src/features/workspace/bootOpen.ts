@@ -83,11 +83,13 @@ export function retryOpen(secret: string): Promise<OpenResult> {
 
 /**
  * After create: the route renders at once from an already-settled result, with no open request. A new
- * workspace has no tasks yet, so its Inbox and counts are known too (no list requests either).
+ * workspace has no tasks or projects yet, so its Inbox, counts and projects are known too (no list requests).
  */
 export function primeOpen(secret: string, workspace: Workspace): void {
   queryClient.setQueryData(queryKeys.tasks(workspace.id, { list: 'inbox' }), []);
-  queryClient.setQueryData(queryKeys.counts(workspace.id), { inbox: 0 });
+  queryClient.setQueryData(queryKeys.counts(workspace.id), { inbox: 0, projects: {} });
+  // Story 7: nor projects.
+  queryClient.setQueryData(queryKeys.projects(workspace.id), []);
   const value: OpenResult = { status: 'ok', workspace };
   const promise: TrackedPromise<OpenResult> = Promise.resolve(value);
   promise.status = 'fulfilled';

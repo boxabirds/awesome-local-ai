@@ -63,6 +63,10 @@ export default defineConfig({
           include: ['test/integration/**/*.test.ts'],
           exclude: ['**/*.staging.test.ts', '**/*.production.test.ts'],
           root: import.meta.dirname,
+          // One file at a time (story 7): with story 4's many-socket room tests running beside the project
+          // delete/restore batches, the local workerd process sometimes exited mid-run ("Worker exited
+          // unexpectedly"), dropping a file's tests. Sequential runs never did (about 33 s instead of 10 s).
+          fileParallelism: false,
         },
       },
       {

@@ -12,6 +12,12 @@ import { WorkspaceSkeleton } from '@/features/workspace/WorkspaceSkeleton';
 // The Workspace route is its own chunk (bundle-dynamic-imports); Home preloads it on hover/focus.
 const Workspace = lazy(loadWorkspaceRoute);
 
+const idWorkspace = (
+  <Suspense fallback={<RememberedWorkspaceFallback />}>
+    <Workspace />
+  </Suspense>
+);
+
 /** Route table, separate from the browser router so tests can mount it in a MemoryRouter. */
 export function AppRoutes() {
   return (
@@ -25,14 +31,9 @@ export function AppRoutes() {
           </Suspense>
         }
       />
-      <Route
-        path="/w/:workspaceId"
-        element={
-          <Suspense fallback={<RememberedWorkspaceFallback />}>
-            <Workspace />
-          </Suspense>
-        }
-      />
+      <Route path="/w/:workspaceId" element={idWorkspace} />
+      {/* Story 7: the same element, so moving between the Inbox and projects keeps the workspace mounted. */}
+      <Route path="/w/:workspaceId/project/:projectId" element={idWorkspace} />
       <Route path="*" element={<RecoverableNotFound />} />
     </Routes>
   );

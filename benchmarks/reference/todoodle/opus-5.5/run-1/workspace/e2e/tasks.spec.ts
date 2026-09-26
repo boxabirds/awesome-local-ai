@@ -244,10 +244,13 @@ test.describe('story 5: capture a task into the Inbox', () => {
     await page.reload();
     await expect(taskRows(page)).toHaveCount(20);
     await sidebarInbox(page).focus();
-    // Story 6 put the 'Show completed' switch at the top of the list, one Tab stop before it (WebKit's
-    // default Tab order skips buttons, so there it goes straight to the list).
+    // Story 7 added the sidebar's 'Add project' button after the Inbox entry, and story 6 put the 'Show
+    // completed' switch at the top of the list: two Tab stops before it (WebKit's default Tab order skips
+    // buttons, so there it goes straight to the list).
     await page.keyboard.press('Tab');
     if (browserName !== 'webkit') {
+      await expect(page.getByRole('button', { name: 'Add project' })).toBeFocused();
+      await page.keyboard.press('Tab');
       await expect(page.getByRole('switch', { name: 'Show completed' })).toBeFocused();
       await page.keyboard.press('Tab');
     }

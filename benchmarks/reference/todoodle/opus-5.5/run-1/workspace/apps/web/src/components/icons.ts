@@ -11,3 +11,5 @@ export { default as EllipsisIcon } from 'lucide-react/icons/ellipsis';
 export { default as PencilIcon } from 'lucide-react/icons/pencil';
 export { default as TrashIcon } from 'lucide-react/icons/trash';
 export { default as XIcon } from 'lucide-react/icons/x';
+// Story 7: Move to… (task menu).
+export { default as FolderInputIcon } from 'lucide-react/icons/folder-input';

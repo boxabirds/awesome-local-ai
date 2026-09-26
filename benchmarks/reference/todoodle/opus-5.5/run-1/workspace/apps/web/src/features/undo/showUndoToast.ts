@@ -19,7 +19,12 @@ let sequence = 0;
  * says 'Task restored' (role=status), failure "Couldn't undo — try again" (role=alert). Cmd/Ctrl+Z reaches
  * the newest active toast through the undo stack.
  */
-export function showUndoToast(opts: { message: string; inverse: () => Promise<unknown> }): void {
+export function showUndoToast(opts: {
+  message: string;
+  inverse: () => Promise<unknown>;
+  /** Said after a successful Undo (story 7: 'Project restored'); 'Task restored' by default. */
+  restoredText?: string;
+}): void {
   const id = `undo:${++sequence}`;
   const listeners = new Set<() => void>();
   const handle = createUndo(opts.inverse, realClock, (state: UndoState) => {
@@ -27,7 +32,7 @@ export function showUndoToast(opts: { message: string; inverse: () => Promise<un
     if (state === 'counting' || state === 'paused' || state === 'undoing') return;
     removeUndo(handle);
     toast.dismiss(id);
-    if (state === 'undone') notifyStatus(TASK_RESTORED_TEXT);
+    if (state === 'undone') notifyStatus(opts.restoredText ?? TASK_RESTORED_TEXT);
     else if (state === 'failed') notifyAlert(UNDO_FAILED_TEXT);
   });
   pushUndo(handle);

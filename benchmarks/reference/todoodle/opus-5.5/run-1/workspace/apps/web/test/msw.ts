@@ -1,6 +1,7 @@
 import { http, HttpResponse } from 'msw';
 import { setupServer } from 'msw/node';
 import { RememberedListResponse } from '@todoodle/shared/schemas';
+import { defaultProjectHandlers } from './msw/projects.ts';
 import { defaultTaskHandlers } from './msw/tasks.ts';
 
 /**
@@ -12,6 +13,8 @@ export const defaultHandlers = [
   http.post('/api/remembered/:id/touch', () => new HttpResponse(null, { status: 204 })),
   // Story 5: every workspace view loads its Inbox and counts; by default the Inbox is empty.
   ...defaultTaskHandlers,
+  // Story 7: every workspace view loads its projects (the sidebar); by default there are none.
+  ...defaultProjectHandlers,
 ];
 
 /** MSW server for component tests. */

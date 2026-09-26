@@ -1,9 +1,10 @@
 import { formatCompletedDate } from '@todoodle/shared/dates';
 import { memo, use, useCallback, useId, useRef } from 'react';
-import { CheckIcon, EllipsisIcon, PencilIcon, TrashIcon } from '@/components/icons';
+import { CheckIcon, EllipsisIcon, FolderInputIcon, PencilIcon, TrashIcon } from '@/components/icons';
 import { Button } from '@/components/ui/button';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { cn } from '@/lib/utils';
+import { preloadMoveToPicker } from './moveToPickerLoader';
 import { preloadTaskDetail } from './TaskDetailSheet.lazy';
 import { TaskRowActionsContext } from './TaskRowActions';
 import type { LocalStatus } from './taskCache';
@@ -27,11 +28,11 @@ function preload() {
   void preloadTaskDetail();
 }
 
-type MenuAction = 'edit' | 'delete';
+type MenuAction = 'edit' | 'delete' | 'move';
 
 /**
  * One task: a round checkbox (44px hit area; Complete NAME / Reopen NAME), the name (opens the detail
- * sheet), a muted one-line description preview, and a '…' menu with Edit (E) and Delete (Del). Delete acts
+ * sheet), a muted one-line description preview, and a '…' menu with Edit (E), Move to… (M, story 7) and Delete (Del). Delete acts
  * at once: there is no confirmation, Undo is the safeguard. The menu button shows on hover or focus with a
  * mouse, and always on touch screens. Completed rows are struck through with their completion date.
  * aria-busy while a change is saving. Primitive props only (memo); tabIndex is story 5's roving tabindex.
@@ -66,6 +67,7 @@ export const TaskRow = memo(function TaskRow({ taskId, name, description, comple
       if (!chosen) return;
       event.preventDefault();
       if (chosen === 'edit') actions.edit(taskId, rowRef.current);
+      else if (chosen === 'move') actions.move(taskId, rowRef.current);
       else actions.remove(taskId);
     },
     [actions, taskId],
@@ -138,7 +140,7 @@ export const TaskRow = memo(function TaskRow({ taskId, name, description, comple
         ) : null}
       </div>
       {local ? null : (
-        <DropdownMenu modal={false}>
+        <DropdownMenu modal={false} onOpenChange={(open) => open && void preloadMoveToPicker()}>
           <DropdownMenuTrigger asChild>
             <span
               role="button"
@@ -155,6 +157,13 @@ export const TaskRow = memo(function TaskRow({ taskId, name, description, comple
               Edit
               <kbd aria-hidden="true" className="ml-auto font-sans text-xs text-muted-foreground">
                 E
+              </kbd>
+            </DropdownMenuItem>
+            <DropdownMenuItem aria-keyshortcuts="M" onSelect={() => (menuAction.current = 'move')}>
+              <FolderInputIcon aria-hidden="true" />
+              Move to…
+              <kbd aria-hidden="true" className="ml-auto font-sans text-xs text-muted-foreground">
+                M
               </kbd>
             </DropdownMenuItem>
             <DropdownMenuItem aria-keyshortcuts="Delete" onSelect={() => (menuAction.current = 'delete')}>

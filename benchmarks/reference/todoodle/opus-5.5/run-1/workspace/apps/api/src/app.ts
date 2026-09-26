@@ -8,6 +8,7 @@ import { workspaceAuth } from './middleware/workspace-auth.ts';
 import { healthHandler } from './routes/health.ts';
 import { countsHandler } from './routes/counts.ts';
 import { forwardToRoom, liveUpgradeGuard } from './routes/live.ts';
+import { projectsRoutes } from './routes/projects.ts';
 import { rememberedRoutes } from './routes/remembered.ts';
 import { tasksRoutes } from './routes/tasks.ts';
 import { testRoutes } from './routes/test.ts';
@@ -37,6 +38,7 @@ export function createApp() {
   app.use('/api/w/:workspaceId', workspaceAuth);
   app.use('/api/w/:workspaceId/*', workspaceAuth);
   app.route('/api/w/:workspaceId/tasks', tasksRoutes);
+  app.route('/api/w/:workspaceId/projects', projectsRoutes);
   app.get('/api/w/:workspaceId/counts', countsHandler);
   app.route('/api/w/:workspaceId', workspaceRoutes);
   app.get('/api/w/:workspaceId/live', forwardToRoom);

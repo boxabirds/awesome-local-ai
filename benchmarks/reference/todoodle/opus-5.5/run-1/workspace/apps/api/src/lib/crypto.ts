@@ -51,3 +51,10 @@ export function hashesEqual(a: string, b: string): boolean {
 export function isWellFormedSecret(s: unknown): s is string {
   return typeof s === 'string' && SECRET_PATTERN.test(s);
 }
+
+/** `bytes` random bytes as lowercase hex (story 7 project deletion batch ids). */
+export function randomHexId(bytes: number): string {
+  let hex = '';
+  for (const byte of crypto.getRandomValues(new Uint8Array(bytes))) hex += byte.toString(16).padStart(2, '0');
+  return hex;
+}

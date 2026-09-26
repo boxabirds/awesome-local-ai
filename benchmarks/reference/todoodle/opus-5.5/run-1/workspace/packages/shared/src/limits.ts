@@ -109,3 +109,48 @@ export const MOBILE_BREAKPOINT_PX = 768;
 export const UNDO_WINDOW_MS = 10_000;
 /** A completed row stays (ticked) this long before leaving the open list; 0 under prefers-reduced-motion. */
 export const COMPLETE_ANIMATION_MS = 250;
+
+// ---------------------------------------------------------------- story 7: projects
+
+/** Longest project name, in UTF-16 code units after trimming. Longer text is never cut: Add/Save stay disabled. */
+export const PROJECT_NAME_MAX = 120;
+/** Most active (non-deleted) projects a workspace may hold. Deleted projects do not count. */
+export const MAX_PROJECTS_PER_WORKSPACE = 300;
+/** Random bytes in a client-generated project id (lowercase hex, 32 chars: the same format as task ids). */
+export const PROJECT_ID_BYTES = TASK_ID_BYTES;
+/** Random bytes in a project deletion's batch id (lowercase hex, 32 chars). */
+export const DELETE_BATCH_ID_BYTES = 16;
+/** How long a project name hint ('Name can't be empty') stays visible. */
+export const HINT_VISIBLE_MS = 3_000;
+
+/**
+ * The 12 project colours. `key` is what the API stores (never a hex value, so these can be retuned
+ * without a migration); `label` names the swatch for screen readers; `light`/`dark` are the dot colours per
+ * theme. Every value is at least 3:1 (WCAG 1.4.11) against its theme's background and muted surfaces
+ * (sidebar, dialogs, active row):
+ * (light vs #ffffff/#f4f4f5; dark vs #0a0a0a/#262626):
+ *   red 4.83/4.39, 7.16/5.47; orange 5.18/4.71, 8.75/6.69; amber 5.02/4.57, 11.86/9.07;
+ *   lime 4.99/4.54, 13.13/10.04; green 5.02/4.56, 11.36/8.68; teal 5.47/4.98, 10.64/8.13;
+ *   cyan 5.36/4.87, 10.96/8.37; blue 5.17/4.70, 7.79/5.95; indigo 6.29/5.72, 6.64/5.07;
+ *   violet 5.70/5.18, 7.27/5.56; purple 5.38/4.90, 7.49/5.73; pink 4.60/4.18, 7.48/5.71.
+ * TC-83 recomputes all of them with contrastRatio.
+ */
+export const PROJECT_COLORS = [
+  { key: 'red', label: 'Red', light: '#dc2626', dark: '#f87171' },
+  { key: 'orange', label: 'Orange', light: '#c2410c', dark: '#fb923c' },
+  { key: 'amber', label: 'Amber', light: '#b45309', dark: '#fbbf24' },
+  { key: 'lime', label: 'Lime green', light: '#4d7c0f', dark: '#a3e635' },
+  { key: 'green', label: 'Green', light: '#15803d', dark: '#4ade80' },
+  { key: 'teal', label: 'Teal', light: '#0f766e', dark: '#2dd4bf' },
+  { key: 'cyan', label: 'Cyan', light: '#0e7490', dark: '#22d3ee' },
+  { key: 'blue', label: 'Blue', light: '#2563eb', dark: '#60a5fa' },
+  { key: 'indigo', label: 'Indigo', light: '#4f46e5', dark: '#818cf8' },
+  { key: 'violet', label: 'Violet', light: '#7c3aed', dark: '#a78bfa' },
+  { key: 'purple', label: 'Purple', light: '#9333ea', dark: '#c084fc' },
+  { key: 'pink', label: 'Pink', light: '#db2777', dark: '#f472b6' },
+] as const;
+export type ProjectColorKey = (typeof PROJECT_COLORS)[number]['key'];
+/** Palette keys in palette order (the first one is preselected in the create dialog). */
+export const PROJECT_COLOR_KEYS = PROJECT_COLORS.map((color) => color.key) as [ProjectColorKey, ...ProjectColorKey[]];
+/** Ids per tasks.bulk live event, so a big project's delete/restore stays under LIVE_MAX_EVENT_BYTES (~35 bytes an id). */
+export const TASKS_BULK_MAX_IDS = 400;

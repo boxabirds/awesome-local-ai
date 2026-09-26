@@ -2,13 +2,19 @@ import { CLIENT_HEADER_NAME, CLIENT_HEADER_VALUE, CLIENT_ID_HEADER_NAME } from '
 import {
   type Counts,
   CountsSchema,
+  type CreateProjectInput,
   type CreateTaskInput,
   CreateWorkspaceResponse,
+  DeleteProjectResponse,
+  type Project,
+  ProjectListResponse,
+  ProjectResponse,
+  RestoreProjectResponse,
+  type UpdateProjectInput,
   OpenWorkspaceResponse,
   RememberedListResponse,
   type RememberedPublic,
   type Task,
-  type TaskList,
   type TaskPatch,
   TaskListResponse,
   TaskResponse,
@@ -19,6 +25,7 @@ import {
 import { z } from 'zod';
 import { clientId } from '@/features/live/clientId';
 import { ApiError, GoneError, NetworkError, OfflineError } from './errors';
+import type { ListScope } from './queryKeys';
 
 export { ApiError, GoneError, NetworkError, OfflineError } from './errors';
 
@@ -149,9 +156,13 @@ export async function forgetRemembered(id: string): Promise<void> {
 
 // ---------------------------------------------------------------- story 5: tasks
 
-/** One list's open tasks in order, then (includeCompleted) its completed tasks, most recent first. */
-export async function listTasks(workspaceId: string, filter: { list: TaskList; includeCompleted?: boolean }): Promise<Task[]> {
-  const query = `list=${filter.list}${filter.includeCompleted ? '&include_completed=true' : ''}`;
+/**
+ * One list's open tasks in order, then (includeCompleted) its completed tasks, most recent first. Story 7:
+ * a project list sends its projectId.
+ */
+export async function listTasks(workspaceId: string, filter: ListScope & { includeCompleted?: boolean }): Promise<Task[]> {
+  const scope = filter.list === 'project' ? `list=project&projectId=${encodeURIComponent(filter.projectId)}` : `list=${filter.list}`;
+  const query = `${scope}${filter.includeCompleted ? '&include_completed=true' : ''}`;
   return (await request(TaskListResponse, `/api/w/${encodeURIComponent(workspaceId)}/tasks?${query}`)).tasks;
 }
 
@@ -196,4 +207,40 @@ export async function deleteTask(workspaceId: string, taskId: string): Promise<v
 
 export async function updateTask(workspaceId: string, taskId: string, patch: TaskPatch): Promise<Task> {
   return (await request(TaskResponse, taskPath(workspaceId, taskId), { method: 'PATCH', json: patch, edit: true })).task;
+}
+
+// ---------------------------------------------------------------- story 7: projects
+
+function projectsPath(workspaceId: string, projectId?: string): string {
+  const base = `/api/w/${encodeURIComponent(workspaceId)}/projects`;
+  return projectId === undefined ? base : `${base}/${encodeURIComponent(projectId)}`;
+}
+
+/** The workspace's active projects, in creation order. */
+export async function listProjects(workspaceId: string): Promise<Project[]> {
+  return (await request(ProjectListResponse, projectsPath(workspaceId))).projects;
+}
+
+/** Idempotent create (client-generated id): 201 and 200 (a replay) both resolve with the stored project. */
+export async function createProject(workspaceId: string, input: CreateProjectInput): Promise<Project> {
+  return (await request(ProjectResponse, projectsPath(workspaceId), { method: 'POST', json: input, edit: true })).project;
+}
+
+export async function updateProject(workspaceId: string, projectId: string, patch: UpdateProjectInput): Promise<Project> {
+  return (await request(ProjectResponse, projectsPath(workspaceId, projectId), { method: 'PATCH', json: patch, edit: true })).project;
+}
+
+/** Deletes the project and all its tasks; the batchId is what Undo sends back. */
+export function deleteProject(workspaceId: string, projectId: string): Promise<DeleteProjectResponse> {
+  return request(DeleteProjectResponse, projectsPath(workspaceId, projectId), { method: 'DELETE', edit: true });
+}
+
+/** Undo of deleteProject: restores the project and exactly the tasks that deletion removed. */
+export function restoreProject(workspaceId: string, projectId: string, batchId: string): Promise<RestoreProjectResponse> {
+  return request(RestoreProjectResponse, `${projectsPath(workspaceId, projectId)}/restore`, { method: 'POST', json: { batchId }, edit: true });
+}
+
+/** Moves a task to a project, or to the Inbox (null). Name, completion and due date are untouched. */
+export function moveTask(workspaceId: string, taskId: string, projectId: string | null): Promise<Task> {
+  return updateTask(workspaceId, taskId, { projectId });
 }

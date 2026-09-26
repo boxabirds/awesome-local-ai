@@ -4,8 +4,8 @@ import type { ReactNode } from 'react';
 import { countsQuery } from '@/features/tasks/queries';
 import { SidebarNavItem } from './SidebarNavItem';
 
-/** The views the sidebar can open. Stories 7 and 8 add theirs. */
-export type WorkspaceViewName = 'inbox';
+/** The views the sidebar can open: the Inbox and (story 7) 'project:<id>'. Story 8 adds Today. */
+export type WorkspaceViewName = 'inbox' | `project:${string}`;
 
 export type SidebarSlotProps = { current: string; onNavigate: (view: string) => void };
 

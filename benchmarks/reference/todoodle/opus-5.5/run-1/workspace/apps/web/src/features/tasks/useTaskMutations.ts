@@ -1,12 +1,12 @@
 import { type QueryClient, type QueryKey, useQueryClient } from '@tanstack/react-query';
-import { COMPLETE_ANIMATION_MS } from '@todoodle/shared/limits';
+import { COMPLETE_ANIMATION_MS, TASK_SORT_STEP } from '@todoodle/shared/limits';
 import { type Counts, type Task, type TaskPatch, resolvePatchedName } from '@todoodle/shared/schemas';
 import { useMemo } from 'react';
 import * as api from '@/lib/api';
 import { handleMutationError } from '@/lib/errors';
 import { prefersReducedMotion } from '@/lib/motion';
 import { notifyAlert } from '@/lib/notify';
-import { type TasksFilter, queryKeys } from '@/lib/queryKeys';
+import { type TasksFilter, queryKeys, scopeHolds } from '@/lib/queryKeys';
 import {
   type ListShape,
   completeInCache,
@@ -18,6 +18,7 @@ import {
   rollbackTask,
   updateInCache,
 } from './cacheOps';
+import { moveCountsDelta, adjustCounts as applyCountsDelta } from '@/features/projects/projectCache';
 import { endBusy, startBusy } from './taskBusy';
 import { type LocalTask, adjustCount } from './taskCache';
 
@@ -38,6 +39,12 @@ export type TaskActions = {
   undoComplete(id: string): Promise<Task>;
   /** Undo of a delete: POST restore, then the task goes back where it was. Rejects on failure. */
   undoDelete(id: string): Promise<Task>;
+  /**
+   * Story 7: optimistic move to a project, or to the Inbox (null). The task leaves its list at once (focus
+   * goes to its neighbour), joins the end of the destination list if that is loaded, and the counts follow.
+   * Rolled back with "Couldn't save — try again" on failure; 410 says 'This task was deleted'.
+   */
+  move(id: string, projectId: string | null): Promise<void>;
 };
 
 /** Hooks the focus and undo features plug into (tasks 5 and 13), so this module stays about the cache. */
@@ -66,11 +73,16 @@ export function createTaskActions(queryClient: QueryClient, workspaceId: string)
 
   const snapshot = (): Snapshot => queryClient.getQueriesData<LocalTask[]>({ queryKey: prefix });
 
-  /** Applies `fn` to every cached list of this workspace (both includeCompleted variants of every list). */
-  function writeLists(fn: (list: LocalTask[] | undefined, shape: ListShape) => LocalTask[] | undefined): void {
+  /**
+   * Applies `fn` to every cached list of this workspace (both includeCompleted variants of every list). Story 7:
+   * with `projectId` (null = Inbox), only the lists of that scope, so a write that may insert the task (placeTask)
+   * never puts a project task into the Inbox or another project.
+   */
+  function writeLists(fn: (list: LocalTask[] | undefined, shape: ListShape) => LocalTask[] | undefined, projectId?: string | null): void {
     for (const [key, list] of snapshot()) {
       const filter = key[3] as TasksFilter | undefined;
       if (!filter) continue;
+      if (projectId !== undefined && !scopeHolds(filter, projectId)) continue;
       const next = fn(list, { includeCompleted: filter.includeCompleted });
       if (next !== list) queryClient.setQueryData(key, next);
     }
@@ -83,8 +95,9 @@ export function createTaskActions(queryClient: QueryClient, workspaceId: string)
     );
   }
 
-  function adjustCounts(delta: number): void {
-    queryClient.setQueriesData<Counts>({ queryKey: queryKeys.counts(workspaceId) }, (counts) => adjustCount(counts, delta));
+  /** Open-count delta for the task's list (story 7: the Inbox or its project), and the project's total. */
+  function adjustCounts(delta: number, task: Pick<LocalTask, 'projectId'> | undefined, totalDelta = 0): void {
+    queryClient.setQueryData<Counts>(queryKeys.counts(workspaceId), (counts) => adjustCount(counts, delta, task?.projectId ?? null, totalDelta));
   }
 
   /** Puts this one task back as it was in `before` (other rows keep any change made meanwhile). */
@@ -137,7 +150,7 @@ export function createTaskActions(queryClient: QueryClient, workspaceId: string)
         };
         if (!animate) hooks.beforeRemoval(id);
         writeLists((list, shape) => completeInCache(list, id, completedAt, { ...shape, leaving: animate }));
-        adjustCounts(-1);
+        adjustCounts(-1, task);
         if (animate) leavingTimers.set(id, setTimeout(leave, COMPLETE_ANIMATION_MS));
         try {
           const saved = await api.completeTask(workspaceId, id);
@@ -145,7 +158,7 @@ export function createTaskActions(queryClient: QueryClient, workspaceId: string)
           hooks.offerUndo('completed', () => actions.undoComplete(id));
         } catch (error) {
           stopLeaving(id);
-          adjustCounts(1);
+          adjustCounts(1, task);
           fail(error, id, before);
           hooks.afterRollback(id);
         }
@@ -162,13 +175,13 @@ export function createTaskActions(queryClient: QueryClient, workspaceId: string)
         await cancelLists();
         const before = snapshot();
         hooks.beforeRemoval(id);
-        writeLists((list, shape) => reopenInCache(list, task, shape));
-        adjustCounts(1);
+        writeLists((list, shape) => reopenInCache(list, task, shape), task.projectId ?? null);
+        adjustCounts(1, task);
         try {
           const saved = await api.reopenTask(workspaceId, id);
           writeLists((list, shape) => updateInCache(list, saved, shape));
         } catch (error) {
-          adjustCounts(-1);
+          adjustCounts(-1, task);
           fail(error, id, before);
           hooks.afterRollback(id);
         }
@@ -215,12 +228,12 @@ export function createTaskActions(queryClient: QueryClient, workspaceId: string)
         const before = snapshot();
         const wasOpen = task.completedAt === null;
         writeLists((list) => removeFromCache(list, id));
-        if (wasOpen) adjustCounts(-1);
+        adjustCounts(wasOpen ? -1 : 0, task, -1);
         try {
           await api.deleteTask(workspaceId, id);
           hooks.offerUndo('deleted', () => actions.undoDelete(id));
         } catch (error) {
-          if (wasOpen) adjustCounts(1);
+          adjustCounts(wasOpen ? 1 : 0, task, 1);
           fail(error, id, before);
           hooks.afterRollback(id);
         }
@@ -233,16 +246,51 @@ export function createTaskActions(queryClient: QueryClient, workspaceId: string)
       const saved = await api.reopenTask(workspaceId, id);
       stopLeaving(id);
       const wasOpen = find(id)?.completedAt === null;
-      writeLists((list, shape) => placeTask(list, saved, shape));
-      if (!wasOpen) adjustCounts(1);
+      writeLists((list, shape) => placeTask(list, saved, shape), saved.projectId);
+      if (!wasOpen) adjustCounts(1, saved);
       return saved;
+    },
+
+    async move(id, projectId) {
+      const task = find(id);
+      if (!task || task.localStatus !== undefined || (task.projectId ?? null) === projectId) return;
+      startBusy(id);
+      // Focus moves while the row is still on screen (it leaves the list with the cache write below).
+      hooks.beforeRemoval(id);
+      try {
+        stopLeaving(id);
+        await cancelLists();
+        const before = snapshot();
+        // The end of the destination list (the server puts it at the workspace's MAX + TASK_SORT_STEP).
+        const lastSort = before.reduce((max, [, list]) => Math.max(max, ...(list ?? []).map((item) => item.sortOrder)), 0);
+        const { leaving: _leaving, ...settled } = task;
+        const moved: LocalTask = { ...settled, projectId, sortOrder: lastSort + TASK_SORT_STEP };
+        writeLists((list) => removeFromCache(list, id));
+        writeLists((list, shape) => placeTask(list, moved, shape), projectId);
+        const delta = moveCountsDelta(task, projectId);
+        queryClient.setQueryData<Counts>(queryKeys.counts(workspaceId), (counts) => applyCountsDelta(counts, delta));
+        try {
+          const saved = await api.moveTask(workspaceId, id, projectId);
+          writeLists((list) => removeFromCache(list, id));
+          writeLists((list, shape) => placeTask(list, saved, shape), saved.projectId);
+        } catch (error) {
+          queryClient.setQueryData<Counts>(queryKeys.counts(workspaceId), (counts) =>
+            applyCountsDelta(counts, moveCountsDelta({ ...task, projectId }, task.projectId ?? null)),
+          );
+          fail(error, id, before);
+          hooks.afterRollback(id);
+        }
+      } finally {
+        endBusy(id);
+      }
     },
 
     async undoDelete(id) {
       const saved = await api.restoreTask(workspaceId, id);
       const cached = find(id);
-      writeLists((list, shape) => placeTask(list, saved, shape));
-      if (saved.completedAt === null && cached?.completedAt !== null) adjustCounts(1);
+      writeLists((list, shape) => placeTask(list, saved, shape), saved.projectId);
+      if (!cached) adjustCounts(saved.completedAt === null ? 1 : 0, saved, 1);
+      else if (saved.completedAt === null && cached.completedAt !== null) adjustCounts(1, saved);
       return saved;
     },
   };

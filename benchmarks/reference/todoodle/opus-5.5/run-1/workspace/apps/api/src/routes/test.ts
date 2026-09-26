@@ -12,7 +12,7 @@ import { errorResponse } from '../lib/errors.ts';
  * Tables emptied by POST /test/reset, children first so foreign keys are never violated.
  * Stories append their tables here (e.g. tasks and projects go before workspaces).
  */
-export const TEST_RESET_TABLES: string[] = ['tasks', 'workspaces'];
+export const TEST_RESET_TABLES: string[] = ['tasks', 'projects', 'workspaces'];
 
 /** Test-only routes. In production they do not exist: every /test/* path is the plain API 404. */
 export const testRoutes = new Hono<AppEnv>();
@@ -77,6 +77,17 @@ testRoutes.post('/remembered-seed', async (c) => {
 testRoutes.get('/tasks/:id/raw', async (c) => {
   const row = await readRawTask(c.env.DB, c.req.param('id'));
   return row ? c.json({ task: row }) : errorResponse('not_found', 404);
+});
+
+/**
+ * Story 7 (TC-29): runs one SQL statement against the local database, e.g. to install or drop a trigger that
+ * aborts a project UPDATE and so prove the delete batch is atomic. Body: { sql: string }. Never in production.
+ */
+testRoutes.post('/sql', async (c) => {
+  const body = (await c.req.json().catch(() => ({}))) as { sql?: unknown };
+  if (typeof body.sql !== 'string' || body.sql.trim() === '') return errorResponse('validation', 400);
+  await c.env.DB.prepare(body.sql).run();
+  return c.json({ ok: true });
 });
 
 testRoutes.get('/throw', () => {

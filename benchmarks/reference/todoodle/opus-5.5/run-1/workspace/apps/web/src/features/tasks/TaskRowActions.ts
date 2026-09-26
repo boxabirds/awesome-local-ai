@@ -10,6 +10,8 @@ export type TaskRowActions = {
   remove: (id: string) => void;
   /** Opens the task's detail sheet; focus returns to `row` when it closes. */
   edit: (id: string, row: HTMLElement | null) => void;
+  /** Story 7: opens Move to… for the task; focus returns to `row` if it closes without a move. */
+  move: (id: string, row: HTMLElement | null) => void;
 };
 
 const noop = () => {};
@@ -21,4 +23,5 @@ export const TaskRowActionsContext = createContext<TaskRowActions>({
   reopen: noop,
   remove: noop,
   edit: noop,
+  move: noop,
 });

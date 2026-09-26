@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { NAME_HINT_MS, TASK_DESCRIPTION_MAX, TASK_NAME_MAX } from '@todoodle/shared/limits';
-import type { Task, TaskList } from '@todoodle/shared/schemas';
+import type { Task } from '@todoodle/shared/schemas';
+import type { ListScope } from '@/lib/queryKeys';
 import { type KeyboardEvent, useEffect, useRef, useState } from 'react';
 import { flushSync } from 'react-dom';
 import { TrashIcon, XIcon } from '@/components/icons';
@@ -33,7 +34,7 @@ type Props = {
   workspaceId: string;
   taskId: string;
   /** The list the task was opened from (its cached query holds the task). */
-  list: TaskList;
+  list: ListScope | 'inbox';
   includeCompleted: boolean;
   /** The row the sheet was opened from: focus goes back to it when the sheet closes (if it still exists). */
   returnFocusTo: HTMLElement | null;

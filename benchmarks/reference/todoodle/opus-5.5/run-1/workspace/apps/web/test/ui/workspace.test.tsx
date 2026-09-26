@@ -222,6 +222,7 @@ describe('web.workspace_shell: /w/:workspaceId', () => {
     expect([...seen].sort()).toEqual([
       `GET /api/w/${ID}`,
       `GET /api/w/${ID}/counts`,
+      `GET /api/w/${ID}/projects`,
       `GET /api/w/${ID}/tasks`,
       `POST /api/remembered/${ID}/touch`,
     ]);
