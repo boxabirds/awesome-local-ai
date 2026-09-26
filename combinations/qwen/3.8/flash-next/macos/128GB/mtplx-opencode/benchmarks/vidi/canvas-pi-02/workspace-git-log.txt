@@ -1,3 +1,21 @@
+commit e053e52ef46f9e77151c29e0544b0bb7e9b59939
+vidi-agent  Sat Sep 26 07:52:23 2026 +0100
+
+    harness: snapshot after story 12 (uncommitted agent work)
+
+
+ src/client/board/assetRegistry.ts      | 121 ++++++++++++++++++
+ src/client/board/image-contract.ts     |  98 +++++++++++++++
+ src/client/board/useBoardDoc.ts        |  14 +++
+ src/client/images/uploader.ts          | 161 ++++++++++++++++++++++++
+ src/client/objects/ImageErrorState.tsx |  57 +++++++++
+ src/client/objects/ImageObject.tsx     | 118 +++++++++++++++++
+ src/client/objects/defaultTypes.ts     |   4 +-
+ src/shared/board-model.ts              |  45 ++++++-
+ src/shared/config.ts                   |  43 +++++++
+ src/shared/image-format.ts             |  99 +++++++++++++++
+ src/shared/objects/image.ts            | 223 +++++++++++++++++++++++++++++++++
+ 11 files changed, 979 insertions(+), 4 deletions(-)
 commit 7c3e0322c695a7072f2672bb5fadb8e2a03c43fc
 vidi-agent  Sat Sep 26 06:42:03 2026 +0100
 

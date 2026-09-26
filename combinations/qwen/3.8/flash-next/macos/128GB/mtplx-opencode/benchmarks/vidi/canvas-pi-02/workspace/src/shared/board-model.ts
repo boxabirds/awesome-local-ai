@@ -50,11 +50,13 @@ import { detachConnectorsTo } from './objects/connector';
 import type { ConnectorSnap, Endpoint } from './objects/connector';
 import type { ShapeSnap } from './objects/shape';
 import type { StrokeSnap } from './objects/stroke';
+import { isImageObject, type ImageSnap } from './objects/image';
 
 export type { Rect, Point };
 export type { ShapeSnap, FillColor, StrokeColor, ShapeKind };
 export type { ConnectorSnap, Endpoint };
 export type { StrokeSnap };
+export type { ImageSnap };
 
 /**
  * Transaction origin for local mutations. Story 8 uses it to build undo
@@ -89,7 +91,8 @@ export type ObjectSnapshot =
   | import('./objects/text').TextSnapshot
   | import('./objects/shape').ShapeSnap
   | import('./objects/connector').ConnectorSnap
-  | import('./objects/stroke').StrokeSnap;
+  | import('./objects/stroke').StrokeSnap
+  | ImageSnap;
 
 type NoteMap = Y.Map<unknown>;
 
@@ -125,7 +128,8 @@ export function isBoardObject(value: unknown): value is NoteMap {
     isTextObj(value) ||
     isShapeObj(value) ||
     isConnectorObj(value) ||
-    isStrokeObj(value)
+    isStrokeObj(value) ||
+    isImageObject(value)
   );
 }
 
@@ -346,6 +350,40 @@ export function snapshot(doc: Y.Doc): readonly ObjectSnapshot[] {
         from: fromRaw && typeof fromRaw === 'object' ? (fromRaw as Endpoint) : { kind: 'free', x: x as number, y: y as number },
         to: toRaw && typeof toRaw === 'object' ? (toRaw as Endpoint) : { kind: 'free', x: x as number, y: y as number },
       });
+    } else if (type === 'image') {
+      // An image is only worth drawing when its box is real: an image entry
+      // with a broken box would be an object nothing can select or paint.
+      const iw = value.get('width');
+      const ih = value.get('height');
+      if (!finite(iw, ih) || (iw as number) <= 0 || (ih as number) <= 0) return;
+      const status = value.get('status');
+      const assetKey = value.get('assetKey');
+      const contentType = value.get('contentType');
+      const naturalWidth = value.get('naturalWidth');
+      const naturalHeight = value.get('naturalHeight');
+      const uploadStartedAt = value.get('uploadStartedAt');
+      const uploaderId = value.get('uploaderId');
+      result.push({
+        id,
+        type: 'image' as const,
+        x: x as number,
+        y: y as number,
+        width: iw as number,
+        height: ih as number,
+        z: z as number,
+        createdAt: typeof createdAt === 'number' ? createdAt : 0,
+        assetKey: typeof assetKey === 'string' ? assetKey : null,
+        contentType:
+          typeof contentType === 'string' ? contentType : 'application/octet-stream',
+        naturalWidth: finite(naturalWidth) ? (naturalWidth as number) : 0,
+        naturalHeight: finite(naturalHeight) ? (naturalHeight as number) : 0,
+        status:
+          status === 'ready' || status === 'failed'
+            ? status
+            : ('uploading' as const),
+        uploadStartedAt: finite(uploadStartedAt) ? (uploadStartedAt as number) : 0,
+        uploaderId: typeof uploaderId === 'string' ? uploaderId : '',
+      });
     } else if (type === 'stroke') {
       // A stroke is only worth drawing when there is a line to draw: the
       // flattened point list has to be real numbers, at least two of them.
@@ -410,6 +448,9 @@ export function objectBounds(obj: ObjectSnapshot): Rect {
     // ring reaches the board), but keeping the box itself the ink box is what
     // lets a resize keep the drawn ratio exactly: the resize gesture measures
     // this box and writes it back, so any padding here would land in the ratio.
+    return { x: obj.x, y: obj.y, width: obj.width, height: obj.height };
+  }
+  if (obj.type === 'image') {
     return { x: obj.x, y: obj.y, width: obj.width, height: obj.height };
   }
   return {

@@ -404,3 +404,46 @@ export const STROKE_HIT_TOLERANCE_PX = 6;
 
 /** Smallest size a stroke's bounding box may be resized to (world units). */
 export const STROKE_MIN_SIZE_WORLD = 4;
+
+/* --------------------------------------------------------------------- *
+ * Story 12: drop images onto the board.
+ * --------------------------------------------------------------------- */
+
+/**
+ * The image types the board accepts. A file is judged by its content (the
+ * Worker sniffs magic bytes), never by its name or its declared type; this
+ * list is what the client trusts for the pre-upload check and the picker
+ * filter. SVG is deliberately absent: it can carry scripts.
+ */
+export const IMAGE_ACCEPTED_TYPES = ['image/png', 'image/jpeg', 'image/gif', 'image/webp'] as const;
+
+/** Most images one drop, paste or picker batch may add. */
+export const IMAGE_MAX_FILES_PER_ADD = 20;
+
+/** Longest side of a freshly placed image, in world units (design `imageMaxSide`). */
+export const IMAGE_MAX_PLACE_SIZE_WORLD = 800;
+
+/** Smallest an image may be resized to, in world units (design `imageMinSize`). */
+export const IMAGE_MIN_SIZE_WORLD = 16;
+
+/**
+ * How long an upload may hang before everyone calls it unfinished.
+ * The clock is derived at render time (five minutes after `uploadStartedAt`),
+ * never a timer: nobody is there to set a timeout for a browser that closed.
+ */
+export const IMAGE_UPLOAD_STALE_MS = 5 * 60 * 1000;
+
+/** How often a board with an upload in flight re-renders the clock. */
+export const IMAGE_UPLOAD_CLOCK_TICK_MS = 30_000;
+
+/** How many uploads one visitor may start within the window below. */
+export const IMAGE_UPLOAD_LIMIT = 60;
+
+/** The upload window, in seconds. Must match `wrangler.jsonc`'s ratelimit. */
+export const IMAGE_UPLOAD_PERIOD_SECONDS = 60;
+
+/** Served assets are immutable: keys are random and never reused. */
+export const ASSET_CACHE_MAX_AGE_SECONDS = 31_536_000;
+
+/** Bytes read from the head of a file to decide its type. */
+export const IMAGE_SNIFF_BYTES = 12;
