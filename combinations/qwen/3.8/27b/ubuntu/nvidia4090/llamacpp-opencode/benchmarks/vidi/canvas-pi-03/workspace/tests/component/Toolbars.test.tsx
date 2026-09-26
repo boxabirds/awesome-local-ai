@@ -2,6 +2,13 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { screen, fireEvent } from '@testing-library/react';
 import { renderFullApp, hooks, makeNote, pressKey, selectNoteAt } from './story2';
 
+// Story 5: the board page checks existence before rendering the board; keep
+// these story-2 tests exercising the board UI directly.
+vi.mock('@/client/api', () => ({
+  checkBoard: vi.fn(async () => ({ kind: 'exists' })),
+  createBoardRequest: vi.fn(async () => ({ kind: 'failed' })),
+}));
+
 beforeEach(() => {
   vi.stubGlobal('ResizeObserver', class {
     observe() {}
@@ -15,8 +22,8 @@ afterEach(() => {
 });
 
 describe('Sticky note toolbars (story 2)', () => {
-  it('TC-27: clicking the Pink swatch recolors the note and keeps the selection', () => {
-    renderFullApp();
+  it('TC-27: clicking the Pink swatch recolors the note and keeps the selection', async () => {
+    await renderFullApp();
     const id = makeNote(0, 0);
     selectNoteAt(id);
     expect(hooks().getNotes()[0].color).toBe('yellow');
@@ -31,8 +38,8 @@ describe('Sticky note toolbars (story 2)', () => {
     expect(screen.getByRole('button', { name: 'Yellow colour' }).getAttribute('aria-pressed')).toBe('false');
   });
 
-  it('TC-28: clicking the Sticky note button creates a note at the viewport centre and starts editing', () => {
-    renderFullApp();
+  it('TC-28: clicking the Sticky note button creates a note at the viewport centre and starts editing', async () => {
+    await renderFullApp();
     // jsdom window is 1024x768 and the camera starts reset, so the world
     // centre of the visible area is (0, 0).
     fireEvent.click(screen.getByRole('button', { name: 'Sticky note' }));
@@ -47,8 +54,8 @@ describe('Sticky note toolbars (story 2)', () => {
     expect(document.activeElement).toBe(screen.getByTestId('sticky-textarea'));
   });
 
-  it('TC-29: clicking the bin button deletes the note and clears the selection', () => {
-    renderFullApp();
+  it('TC-29: clicking the bin button deletes the note and clears the selection', async () => {
+    await renderFullApp();
     makeNote(0, 0);
     const notes0 = hooks().getNotes();
     selectNoteAt(notes0[0].id);
@@ -61,8 +68,8 @@ describe('Sticky note toolbars (story 2)', () => {
     expect(document.querySelector('[data-selected="true"]')).not.toBeInTheDocument();
   });
 
-  it('extra: the toolbar is hidden while dragging and while editing', () => {
-    renderFullApp();
+  it('extra: the toolbar is hidden while dragging and while editing', async () => {
+    await renderFullApp();
     const id = makeNote(0, 0);
     selectNoteAt(id);
     expect(screen.getByTestId('note-toolbar')).toBeInTheDocument();

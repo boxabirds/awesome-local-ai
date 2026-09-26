@@ -25,6 +25,11 @@ import { type RoomState } from './room-state';
  *   repair                       restore everything `corrupt-*` backed up
  *   set-failure                  {target: append|load-select|
  *                                compaction-after-chunk-delete}
+ *   initialize                   story 5: create the board (migrate +
+ *                                created_at), idempotent -> {result}
+ *   exists                       story 5: read-only existence -> {exists}
+ *   seed-legacy                  {updates: [b64]} — story 5 fixture: full
+ *                                schema + update rows, NO created_at
  *
  * BLOBs go through `sql.exec` bindings as ArrayBuffer (the installed
  * workers-types expose no `prepare`).
@@ -35,6 +40,8 @@ export interface TestableRoom {
   readonly storage: DurableObjectStorage;
   inspectState(): { state: RoomState; lastLoadAttempt: number };
   reconstruct(): { before: RoomState; after: RoomState };
+  initialize(): Promise<'created' | 'exists'>;
+  exists(): Promise<boolean>;
 }
 
 // --- helpers ---------------------------------------------------------------
@@ -84,24 +91,31 @@ function storageInfo(storage: DurableObjectStorage) {
       "SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%' ORDER BY name",
     ).toArray()
   ).map((r) => r.name);
+  const has = (n: string): boolean => tables.includes(n);
   const meta = (key: string): string | null => {
+    if (!has('storage_meta')) return null;
     const rows = sql.exec<{ value: string }>('SELECT value FROM storage_meta WHERE key = ?', key).toArray();
     return rows[0]?.value ?? null;
   };
-  const updates = sql.exec<{ c: number; b: number }>(
-    'SELECT COUNT(*) AS c, COALESCE(SUM(bytes), 0) AS b FROM updates',
-  ).toArray()[0] ?? { c: 0, b: 0 };
-  const chunks = sql.exec<{ c: number; b: number }>(
-    'SELECT COUNT(*) AS c, COALESCE(SUM(LENGTH(data)), 0) AS b FROM snapshot_chunks',
-  ).toArray()[0] ?? { c: 0, b: 0 };
-  const quarantined = sql
-    .exec<{ seq: number; error: string }>('SELECT seq, error FROM quarantined_updates ORDER BY seq')
-    .toArray();
-  const failureFlags = (
-    sql.exec<{ key: string }>("SELECT key FROM storage_meta WHERE key LIKE 'test%' ORDER BY key").toArray()
-  ).map((r) => r.key);
+  const updates = has('updates')
+    ? (sql.exec<{ c: number; b: number }>('SELECT COUNT(*) AS c, COALESCE(SUM(bytes), 0) AS b FROM updates').toArray()[0]
+      ?? { c: 0, b: 0 })
+    : { c: 0, b: 0 };
+  const chunks = has('snapshot_chunks')
+    ? (sql.exec<{ c: number; b: number }>('SELECT COUNT(*) AS c, COALESCE(SUM(LENGTH(data)), 0) AS b FROM snapshot_chunks').toArray()[0]
+      ?? { c: 0, b: 0 })
+    : { c: 0, b: 0 };
+  const quarantined = has('quarantined_updates')
+    ? sql.exec<{ seq: number; error: string }>('SELECT seq, error FROM quarantined_updates ORDER BY seq').toArray()
+    : [];
+  const failureFlags = has('storage_meta')
+    ? (sql.exec<{ key: string }>("SELECT key FROM storage_meta WHERE key LIKE 'test%' ORDER BY key").toArray()).map(
+        (r) => r.key,
+      )
+    : [];
   return {
     tables,
+    createdAt: meta('created_at'),
     storageSchemaVersion: meta('storage_schema_version'),
     snapshotThroughSeq: meta('snapshot_through_seq'),
     updates: updates.c,
@@ -226,6 +240,25 @@ export async function handleTestRequest(request: Request, room: TestableRoom): P
         }
         sql.exec('DELETE FROM test_backups');
         return json({ repairedSnapshot, repairedUpdates });
+      }
+
+      case 'initialize':
+        // Story 5: create the board through the same RPC POST /api/boards uses.
+        return json({ result: await room.initialize() });
+
+      case 'exists':
+        return json({ exists: await room.exists() });
+
+      case 'seed-legacy': {
+        // Story 5 (share.legacy_boards): a pre-share board — full schema and
+        // update rows, but NO created_at stamp.
+        const updates = (body.updates as unknown as string[] | undefined) ?? [];
+        store.migrate();
+        for (const s of updates) {
+          const u = b64ToBytes(s);
+          sql.exec('INSERT INTO updates (data, bytes) VALUES (?, ?)', toBuffer(u), u.length);
+        }
+        return json({ ok: true, seeded: updates.length, storage: storageInfo(room.storage) });
       }
 
       case 'set-failure': {

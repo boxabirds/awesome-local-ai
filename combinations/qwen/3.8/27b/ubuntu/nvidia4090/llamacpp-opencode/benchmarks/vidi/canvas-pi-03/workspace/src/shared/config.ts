@@ -47,3 +47,18 @@ export const PERSIST_TESTED_NOTES = 2000;
 export const BOARD_LOAD_BUDGET_MS = 3000;
 /** Version of the persisted storage layout (tables in the board's SQLite database). */
 export const STORAGE_SCHEMA_VERSION = 1;
+
+// --- Story 5: share a board with others using a link ---
+
+/** Max boards one visitor may create per BOARD_CREATE_PERIOD_SECONDS window (PRD share.rate_limit). */
+export const BOARD_CREATE_LIMIT = 10;
+/** Rate-limit window in seconds. MUST match the wrangler.jsonc `ratelimits` binding. */
+export const BOARD_CREATE_PERIOD_SECONDS = 60;
+/** Max id-generation + initialize attempts before board creation gives up (500 create_failed). */
+export const CREATE_ID_MAX_ATTEMPTS = 3;
+/** Max time from clicking "Create a board" until the new board opens (PRD share.create). */
+export const CREATE_BUDGET_MS = 2000;
+/** How long the "Link copied" confirmation shows in the Share panel (PRD share.copy). */
+export const LINK_COPIED_MS = 2000;
+/** First backoff between BoardPage existence-check retries; doubles up to RECONNECT_MAX_BACKOFF_MS. */
+export const BOARD_CHECK_RETRY_BASE_MS = 1000;

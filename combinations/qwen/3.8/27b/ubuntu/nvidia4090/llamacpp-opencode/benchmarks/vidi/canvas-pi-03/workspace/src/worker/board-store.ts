@@ -87,11 +87,29 @@ type ChunkRow = { idx: number; data: ArrayBuffer };
 type LogRow = { seq: number; data: ArrayBuffer; bytes: number };
 type SeqRow = { m: number | null };
 
+/** Table-presence summary read from sqlite_master (never creates tables). */
+interface TablePresence {
+  meta: boolean;
+  updates: boolean;
+  chunks: boolean;
+  quarantined: boolean;
+}
+
+/** The quarantine table (created by migrate, or on demand for legacy boards). */
+const QUARANTINE_TABLE_SQL = `CREATE TABLE IF NOT EXISTS quarantined_updates (
+  seq INTEGER PRIMARY KEY,
+  data BLOB NOT NULL,
+  error TEXT NOT NULL,
+  quarantined_at INTEGER NOT NULL
+);`;
+
 export class BoardStore {
   /** Log rows currently stored (re-synced on load; updated on append/compact). */
   private updateCount = 0;
   /** Total bytes of the stored log (same bookkeeping). */
   private updateBytes = 0;
+  /** Story 5: schema migrated (or present) for this instance. */
+  private tablesReady = false;
 
   constructor(private readonly storage: DurableObjectStorage) {}
 
@@ -109,16 +127,70 @@ export class BoardStore {
         bytes INTEGER NOT NULL
       );
       CREATE TABLE IF NOT EXISTS snapshot_chunks (idx INTEGER PRIMARY KEY, data BLOB NOT NULL);
-      CREATE TABLE IF NOT EXISTS quarantined_updates (
-        seq INTEGER PRIMARY KEY,
-        data BLOB NOT NULL,
-        error TEXT NOT NULL,
-        quarantined_at INTEGER NOT NULL
-      );
+      ${QUARANTINE_TABLE_SQL}
     `);
     if (this.metaGet('storage_schema_version') === null) {
       this.metaSet('storage_schema_version', String(STORAGE_SCHEMA_VERSION));
     }
+    this.tablesReady = true;
+  }
+
+  /**
+   * Story 5: create the board. Migrates the schema (a no-op for legacy
+   * boards that already have tables) and stamps `storage_meta.created_at`
+   * exactly once. Idempotent: 'created' on the first stamp, 'exists'
+   * whenever a stamp is already there.
+   */
+  initialize(): 'created' | 'exists' {
+    this.migrate();
+    if (this.metaGet('created_at') !== null) return 'exists';
+    this.metaSet('created_at', String(Date.now()));
+    return 'created';
+  }
+
+  /**
+   * Story 5: read-only existence check. A board exists when its storage has
+   * `storage_meta.created_at`, or (legacy, pre-share) at least one row in
+   * `updates` or `snapshot_chunks`. Never creates any table, so probing a
+   * never-created board leaves no storage behind (share.invalid_links).
+   */
+  existsReadOnly(): boolean {
+    const t = this.tablePresence();
+    if (!t.meta && !t.updates && !t.chunks) return false;
+    if (t.meta && this.metaGet('created_at') !== null) return true;
+    if (t.updates) {
+      const row = this.storage.sql.exec<{ c: number }>('SELECT COUNT(*) AS c FROM updates').toArray()[0];
+      if (row && row.c > 0) return true;
+    }
+    if (t.chunks) {
+      const row = this.storage.sql.exec<{ c: number }>('SELECT COUNT(*) AS c FROM snapshot_chunks').toArray()[0];
+      if (row && row.c > 0) return true;
+    }
+    return false;
+  }
+
+  /** Table-presence summary read from sqlite_master (never creates tables). */
+  private tablePresence(): TablePresence {
+    const rows = this.storage.sql
+      .exec<{ name: string }>("SELECT name FROM sqlite_master WHERE type = 'table'")
+      .toArray();
+    const names = new Set(rows.map((r) => r.name));
+    return {
+      meta: names.has('storage_meta'),
+      updates: names.has('updates'),
+      chunks: names.has('snapshot_chunks'),
+      quarantined: names.has('quarantined_updates'),
+    };
+  }
+
+  /**
+   * Story 5: ensures the schema before any storage access. Fresh boards
+   * (no tables yet) are migrated; legacy boards already have theirs.
+   */
+  private ensureTables(): void {
+    const t = this.tablePresence();
+    if (!t.meta && !t.updates && !t.chunks) this.migrate();
+    this.tablesReady = true;
   }
 
   /**
@@ -127,6 +199,9 @@ export class BoardStore {
    * flag (`test_fail_append`) which is consumed here, outside the SQL call.
    */
   append(update: Uint8Array): void {
+    // Story 5: the schema is migrated lazily on the first write; a board
+    // that is only probed or loaded never gets tables (share.invalid_links).
+    if (!this.tablesReady) this.ensureTables();
     if (this.consumeFailureFlag('test_fail_append')) {
       throw new Error('injected append failure (test hook)');
     }
@@ -144,12 +219,19 @@ export class BoardStore {
    */
   load(doc: Y.Doc): LoadResult {
     try {
+      const t = this.tablePresence();
+      if (!t.meta && !t.updates && !t.chunks) {
+        // Story 5: storage never touched — an empty board. Nothing is
+        // created by merely reading, so probing a link leaves no trace.
+        return { ok: true, quarantined: 0 };
+      }
+
       // Test hook: one-shot injected load failure (TC-26).
-      if (this.consumeFailureFlag('test_fail_load_select')) {
+      if (t.meta && this.consumeFailureFlag('test_fail_load_select')) {
         return { ok: false, reason: 'sql-error', error: 'injected load failure (test hook)' };
       }
 
-      const through = this.snapshotThroughSeq();
+      const through = t.meta ? this.snapshotThroughSeq() : 0;
 
       // 1. Snapshot (only recorded together with a positive through_seq).
       if (through > 0) {
@@ -175,11 +257,14 @@ export class BoardStore {
       }
 
       // 2. Log rows after the snapshot, in seq order.
-      const rows = (
-        through > 0
-          ? this.storage.sql.exec<LogRow>('SELECT seq, data, bytes FROM updates WHERE seq > ? ORDER BY seq', through)
-          : this.storage.sql.exec<LogRow>('SELECT seq, data, bytes FROM updates ORDER BY seq')
-      ).toArray();
+      let rows: LogRow[] = [];
+      if (t.updates) {
+        rows = (
+          through > 0
+            ? this.storage.sql.exec<LogRow>('SELECT seq, data, bytes FROM updates WHERE seq > ? ORDER BY seq', through)
+            : this.storage.sql.exec<LogRow>('SELECT seq, data, bytes FROM updates ORDER BY seq')
+        ).toArray();
+      }
 
       let quarantined = 0;
       let remaining = 0;
@@ -192,6 +277,8 @@ export class BoardStore {
           // One damaged change does not lose the board (persist.partial_damage):
           // move the row to quarantine and keep going.
           this.storage.transactionSync(() => {
+            // Legacy boards may predate the quarantine table.
+            if (!this.tablePresence().quarantined) this.storage.sql.exec(QUARANTINE_TABLE_SQL);
             this.storage.sql.exec('DELETE FROM updates WHERE seq = ?', row.seq);
             this.storage.sql.exec(
               'INSERT INTO quarantined_updates (seq, data, error, quarantined_at) VALUES (?, ?, ?, ?)',

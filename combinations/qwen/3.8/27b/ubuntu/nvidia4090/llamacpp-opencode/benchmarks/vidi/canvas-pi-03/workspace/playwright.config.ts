@@ -36,7 +36,10 @@ export default defineConfig({
     },
   ],
   webServer: {
-    command: 'npm run build:e2e && npx wrangler dev --port 8787 --local',
+    // Story 5: TEST_HOOKS enables the /__test routes (board initialize for
+    // the openBoard helper, legacy seeding for TC-31) and the x-test-visitor
+    // rate-limit override used to keep parallel e2e creations independent.
+    command: 'npm run build:e2e && npx wrangler dev --port 8787 --local --var TEST_HOOKS:1',
     url: 'http://127.0.0.1:8787',
     reuseExistingServer: !process.env.CI,
     timeout: 120_000,

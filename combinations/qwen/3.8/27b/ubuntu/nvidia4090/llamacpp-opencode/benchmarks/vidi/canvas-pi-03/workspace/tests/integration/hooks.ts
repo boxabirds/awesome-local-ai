@@ -105,6 +105,14 @@ export const repair = (boardId: string) =>
 export const setFailure = (boardId: string, target: 'append' | 'load-select' | 'compaction-after-chunk-delete') =>
   hook<{ armed?: string; error?: string }>(boardId, 'set-failure', { target }).then((r) => r.json);
 
+/** Story 5: create the board (migrate + created_at stamp); idempotent. */
+export const initialize = (boardId: string) =>
+  hook<{ result: 'created' | 'exists' }>(boardId, 'initialize').then((r) => r.json);
+
+/** Story 5: read-only existence check (never creates storage). */
+export const exists = (boardId: string) =>
+  hook<{ exists: boolean }>(boardId, 'exists').then((r) => r.json);
+
 export const roomState = (boardId: string) =>
   hook<{ state: string; lastLoadAttempt: number }>(boardId, 'room-state').then((r) => r.json);
 

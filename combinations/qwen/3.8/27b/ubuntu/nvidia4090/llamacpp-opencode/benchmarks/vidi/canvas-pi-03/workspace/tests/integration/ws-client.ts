@@ -3,7 +3,7 @@ import * as sync from 'y-protocols/sync';
 import { createEncoder, writeVarUint, writeUint8Array, toUint8Array } from 'lib0/encoding';
 import { createDecoder, readVarUint, readVarUint8Array } from 'lib0/decoding';
 import { snapshot, LOCAL_ORIGIN, type StickySnapshot } from '@/shared/board-model';
-import { wsUrl } from './server';
+import { BASE_URL, wsUrl } from './server';
 
 // y-websocket outer frame types (see src/shared/protocol.ts).
 const MESSAGE_SYNC = 0;
@@ -37,9 +37,16 @@ export class RoomClient {
   readonly awarenessReceived: Uint8Array[] = [];
   private _autoPush = true;
   private pending: Uint8Array[] = [];
+  /**
+   * Story 5: boards must exist before a room accepts a connection, so by
+   * default connect() first creates this board through the initialize test
+   * hook (idempotent). Pass { autoInit: false } for 404 tests.
+   */
+  private readonly autoInit: boolean;
 
-  constructor(boardId: string, doc?: Y.Doc) {
+  constructor(boardId: string, doc?: Y.Doc, opts: { autoInit?: boolean } = {}) {
     this.boardId = boardId;
+    this.autoInit = opts.autoInit ?? true;
     this.doc = doc ?? new Y.Doc();
     this.doc.on('update', (update, origin) => {
       if (origin === LOCAL_ORIGIN) {
@@ -95,6 +102,15 @@ export class RoomClient {
 
   /** Opens the socket and sends our SyncStep1. Resolves on open. */
   connect(): Promise<void> {
+    if (this.autoInit) {
+      return fetch(`${BASE_URL}/__test/boards/${this.boardId}/initialize`)
+        .then(() => undefined)
+        .then(() => this.open());
+    }
+    return this.open();
+  }
+
+  private open(): Promise<void> {
     return new Promise((resolve, reject) => {
       const ws = new WebSocket(wsUrl(this.boardId));
       this.ws = ws;

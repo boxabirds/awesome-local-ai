@@ -8,14 +8,16 @@ import { MAX_CONCURRENT_EDITORS } from '@/shared/config';
 const valid = () => 'A'.repeat(22);
 
 describe('Worker routing (real wrangler dev)', () => {
-  it('TC-04: GET /api/rooms/<invalid> -> 400 (id validated before upgrade/DO)', async () => {
+  it('TC-04: GET /api/rooms/<invalid> -> 404 (id validated before upgrade/DO)', async () => {
+    // Story 5 changed malformed room ids from 400 to 404 (share.urls): an
+    // invalid id must look exactly like a missing board.
     const res = await fetch(`${BASE_URL}/api/rooms/bad!id`);
-    expect(res.status).toBe(400);
+    expect(res.status).toBe(404);
     // Also reject traversal / wrong shapes.
     for (const bad of ['../x', 'short', 'A'.repeat(21), 'A'.repeat(23), '++', '']) {
       if (bad === '') continue; // empty segment -> different route
       const r = await fetch(`${BASE_URL}/api/rooms/${encodeURIComponent(bad)}`);
-      expect(r.status).toBe(400);
+      expect(r.status).toBe(404);
     }
   });
 

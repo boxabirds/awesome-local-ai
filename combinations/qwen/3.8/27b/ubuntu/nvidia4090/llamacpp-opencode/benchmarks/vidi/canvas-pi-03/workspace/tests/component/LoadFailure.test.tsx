@@ -72,8 +72,16 @@ vi.mock('@/shared/board-model', async (importOriginal) => {
 // Drives the App's connection state + notes without a real provider.
 vi.mock('@/client/board/useBoardDoc', () => ({ useBoardDoc: vi.fn() }));
 
+// Story 5: the board page checks existence before rendering; pretend the
+// board exists so these tests keep exercising the board UI directly.
+vi.mock('@/client/api', () => ({
+  checkBoard: vi.fn(async () => ({ kind: 'exists' })),
+  createBoardRequest: vi.fn(async () => ({ kind: 'failed' })),
+}));
+
 import { ConnectionStatus } from '@/client/sync/ConnectionStatus';
-import { App, canEdit } from '@/client/App';
+import { App } from '@/client/App';
+import { canEdit } from '@/client/board/Board';
 import { connectBoard, type ConnectionState } from '@/client/sync/connectBoard';
 import { useBoardDoc } from '@/client/board/useBoardDoc';
 import type { StickySnapshot } from '@/shared/board-model';
@@ -132,7 +140,7 @@ describe('Story 4: load-failure badge and edit lock', () => {
     expect(dot.style.background).toBe('rgb(229, 115, 115)');
   });
 
-  it('TC-23: App in load_failed performs zero board-model mutations', () => {
+  it('TC-23: App in load_failed performs zero board-model mutations', async () => {
     // A valid board id so App does not redirect.
     window.history.pushState({}, '', '/b/' + BOARD_ID);
 
@@ -150,6 +158,8 @@ describe('Story 4: load-failure badge and edit lock', () => {
     vi.mocked(useBoardDoc).mockReturnValue({ doc, notes: [note], connectionState: 'load_failed' });
 
     render(<App />);
+    // Story 5: the board page awaits one existence check before mounting the board.
+    await screen.findByTestId('board-viewport', undefined, { timeout: 5000 });
 
     // The badge reflects the failed load.
     expect((screen.getByTestId('connection-status').textContent ?? '').trim()).toBe(LOAD_FAILED_TEXT);

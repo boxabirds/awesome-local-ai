@@ -4,6 +4,13 @@ import { act } from 'react';
 import { deleteObject, type StickySnapshot } from '@/shared/board-model';
 import { renderFullApp, firePointer, hooks, makeNote, pressKey, setText, typeText } from './story2';
 
+// Story 5: the board page checks existence before rendering the board; keep
+// these story-2 tests exercising the board UI directly.
+vi.mock('@/client/api', () => ({
+  checkBoard: vi.fn(async () => ({ kind: 'exists' })),
+  createBoardRequest: vi.fn(async () => ({ kind: 'failed' })),
+}));
+
 beforeEach(() => {
   vi.stubGlobal('ResizeObserver', class {
     observe() {}
@@ -41,8 +48,8 @@ function clickEmptyBoard(x = 60, y = 60): void {
 }
 
 describe('StickyNote interaction (story 2)', () => {
-  it('TC-18: pointerdown+up without movement selects; outline and NoteToolbar render', () => {
-    renderFullApp();
+  it('TC-18: pointerdown+up without movement selects; outline and NoteToolbar render', async () => {
+    await renderFullApp();
     const id = makeNote(0, 0);
     const p = noteScreenCentre(hooks().getNotes()[0]);
     const note = noteElement(id);
@@ -56,8 +63,8 @@ describe('StickyNote interaction (story 2)', () => {
     expect(screen.getByTestId('note-toolbar')).toBeInTheDocument();
   });
 
-  it('TC-19: a 2px movement is below DRAG_THRESHOLD_PX; no move is applied', () => {
-    renderFullApp();
+  it('TC-19: a 2px movement is below DRAG_THRESHOLD_PX; no move is applied', async () => {
+    await renderFullApp();
     const id = makeNote(0, 0);
     const p = noteScreenCentre(hooks().getNotes()[0]);
     const note = noteElement(id);
@@ -72,8 +79,8 @@ describe('StickyNote interaction (story 2)', () => {
     expect(noteElement(id).hasAttribute('data-selected')).toBe(true);
   });
 
-  it('TC-20: a 3px movement starts a drag; the camera is unchanged (no pan)', () => {
-    renderFullApp();
+  it('TC-20: a 3px movement starts a drag; the camera is unchanged (no pan)', async () => {
+    await renderFullApp();
     const id = makeNote(0, 0);
     const p = noteScreenCentre(hooks().getNotes()[0]);
     const note = noteElement(id);
@@ -92,8 +99,8 @@ describe('StickyNote interaction (story 2)', () => {
     expect(noteElement(id).hasAttribute('data-selected')).toBe(true);
   });
 
-  it('TC-21: pointercancel ends the drag in Selected; the note keeps its last applied position', () => {
-    renderFullApp();
+  it('TC-21: pointercancel ends the drag in Selected; the note keeps its last applied position', async () => {
+    await renderFullApp();
     const id = makeNote(0, 0);
     const p = noteScreenCentre(hooks().getNotes()[0]);
     const note = noteElement(id);
@@ -109,8 +116,8 @@ describe('StickyNote interaction (story 2)', () => {
     expect(noteElement(id).style.cursor).toBe('grab');
   });
 
-  it('TC-22: clicking empty board deselects; the toolbar is removed', () => {
-    renderFullApp();
+  it('TC-22: clicking empty board deselects; the toolbar is removed', async () => {
+    await renderFullApp();
     const id = makeNote(0, 0);
     selectNote(id);
     expect(noteElement(id).hasAttribute('data-selected')).toBe(true);
@@ -122,8 +129,8 @@ describe('StickyNote interaction (story 2)', () => {
     expect(screen.queryByTestId('note-toolbar')).not.toBeInTheDocument();
   });
 
-  it('TC-23: pressing Enter on a selected note starts editing with the caret at the end', () => {
-    renderFullApp();
+  it('TC-23: pressing Enter on a selected note starts editing with the caret at the end', async () => {
+    await renderFullApp();
     const id = makeNote(0, 0);
     setText(id, 'abc');
     selectNote(id);
@@ -136,8 +143,8 @@ describe('StickyNote interaction (story 2)', () => {
     expect(textarea.selectionEnd).toBe(3);
   });
 
-  it('TC-24: pressing Escape ends editing, keeps the selection and the text', () => {
-    renderFullApp();
+  it('TC-24: pressing Escape ends editing, keeps the selection and the text', async () => {
+    await renderFullApp();
     const id = makeNote(0, 0);
     setText(id, 'hello');
     selectNote(id);
@@ -151,8 +158,8 @@ describe('StickyNote interaction (story 2)', () => {
     expect(hooks().getNotes()[0].text).toBe('hello');
   });
 
-  it('TC-25 (Delete): pressing Delete removes the selected note', () => {
-    renderFullApp();
+  it('TC-25 (Delete): pressing Delete removes the selected note', async () => {
+    await renderFullApp();
     const id = makeNote(0, 0);
     selectNote(id);
 
@@ -161,8 +168,8 @@ describe('StickyNote interaction (story 2)', () => {
     expect(hooks().getNotes()).toHaveLength(0);
   });
 
-  it('TC-25 (Backspace): pressing Backspace removes the selected note', () => {
-    renderFullApp();
+  it('TC-25 (Backspace): pressing Backspace removes the selected note', async () => {
+    await renderFullApp();
     const id = makeNote(0, 0);
     selectNote(id);
 
@@ -171,8 +178,8 @@ describe('StickyNote interaction (story 2)', () => {
     expect(hooks().getNotes()).toHaveLength(0);
   });
 
-  it('TC-26: Backspace while editing edits the text, it does not delete the note', () => {
-    renderFullApp();
+  it('TC-26: Backspace while editing edits the text, it does not delete the note', async () => {
+    await renderFullApp();
     const id = makeNote(0, 0);
     setText(id, 'ab');
     selectNote(id);
@@ -190,8 +197,8 @@ describe('StickyNote interaction (story 2)', () => {
     expect(hooks().getNotes()[0].text).toBe('a');
   });
 
-  it('TC-35: double-clicking an existing note edits it and does not create a new note', () => {
-    renderFullApp();
+  it('TC-35: double-clicking an existing note edits it and does not create a new note', async () => {
+    await renderFullApp();
     const id = makeNote(0, 0);
     const p = noteScreenCentre(hooks().getNotes()[0]);
 
@@ -206,8 +213,8 @@ describe('StickyNote interaction (story 2)', () => {
     expect(screen.getByTestId('sticky-textarea')).toBeInTheDocument();
   });
 
-  it('TC-36: pressing Enter with nothing selected does nothing', () => {
-    renderFullApp();
+  it('TC-36: pressing Enter with nothing selected does nothing', async () => {
+    await renderFullApp();
 
     pressKey(window, 'Enter');
 
@@ -215,8 +222,8 @@ describe('StickyNote interaction (story 2)', () => {
     expect(screen.queryByTestId('sticky-textarea')).not.toBeInTheDocument();
   });
 
-  it('TC-37 (drag): a note deleted while dragging ends the interaction without exceptions or re-creation', () => {
-    renderFullApp();
+  it('TC-37 (drag): a note deleted while dragging ends the interaction without exceptions or re-creation', async () => {
+    await renderFullApp();
     const id = makeNote(0, 0);
     const p = noteScreenCentre(hooks().getNotes()[0]);
 
@@ -237,8 +244,8 @@ describe('StickyNote interaction (story 2)', () => {
     expect(screen.queryByTestId('sticky-textarea')).not.toBeInTheDocument();
   });
 
-  it('TC-37 (edit): a note deleted while editing ends editing without exceptions or re-creation', () => {
-    renderFullApp();
+  it('TC-37 (edit): a note deleted while editing ends editing without exceptions or re-creation', async () => {
+    await renderFullApp();
     const id = makeNote(0, 0);
     setText(id, 'keep');
     selectNote(id);

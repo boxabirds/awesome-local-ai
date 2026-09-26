@@ -1,5 +1,5 @@
 import * as Y from 'yjs';
-import { render, RenderResult, fireEvent } from '@testing-library/react';
+import { render, RenderResult, screen, fireEvent } from '@testing-library/react';
 import { act } from 'react';
 import { App } from '@/client/App';
 import { createSticky, getStickyText, type StickySnapshot } from '@/shared/board-model';
@@ -23,10 +23,16 @@ export function hooks(): Vidi6Hooks {
  * Renders the real <App /> (full story 2 wiring). Story 3 routes the board by
  * URL, so point the (jsdom) location at a fresh /b/<id> first; the sync
  * provider's WebSocket is stubbed in setup.ts so no network is attempted.
+ *
+ * Story 5: BoardPage runs one async existence check before mounting the
+ * board, so this waits for the board viewport (the api module is mocked to
+ * answer "exists" in every test file that uses this helper).
  */
-export function renderFullApp(): RenderResult {
+export async function renderFullApp(): Promise<RenderResult> {
   window.history.pushState({}, '', '/b/' + newBoardId());
-  return render(<App />);
+  const view = render(<App />);
+  await screen.findByTestId('board-viewport', undefined, { timeout: 5000 });
+  return view;
 }
 
 /** Creates a note through the board model (as a remote client would). */

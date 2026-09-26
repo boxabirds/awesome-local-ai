@@ -2,6 +2,13 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { screen } from '@testing-library/react';
 import { renderFullApp, firePointer, hooks, makeNote, pressKey, setText, typeText } from './story2';
 
+// Story 5: the board page checks existence before rendering the board; keep
+// these story-2 tests exercising the board UI directly.
+vi.mock('@/client/api', () => ({
+  checkBoard: vi.fn(async () => ({ kind: 'exists' })),
+  createBoardRequest: vi.fn(async () => ({ kind: 'failed' })),
+}));
+
 beforeEach(() => {
   vi.stubGlobal('ResizeObserver', class {
     observe() {}
@@ -31,8 +38,8 @@ function clickOutside(x = 40, y = 40): void {
 }
 
 describe('StickyTextEditor (story 2)', () => {
-  it('TC-23: starting editing focuses the textarea with the caret at the end of the text', () => {
-    renderFullApp();
+  it('TC-23: starting editing focuses the textarea with the caret at the end of the text', async () => {
+    await renderFullApp();
     const id = makeNote(0, 0);
     setText(id, 'abc');
     selectNote();
@@ -47,8 +54,8 @@ describe('StickyTextEditor (story 2)', () => {
     expect(textarea.selectionEnd).toBe(3);
   });
 
-  it('TC-24: Escape ends editing, keeps the selection and the typed text', () => {
-    renderFullApp();
+  it('TC-24: Escape ends editing, keeps the selection and the typed text', async () => {
+    await renderFullApp();
     const id = makeNote(0, 0);
     selectNote();
     pressKey(window, 'Enter');
@@ -63,8 +70,8 @@ describe('StickyTextEditor (story 2)', () => {
     expect(hooks().getNotes()[0].text).toBe('typed');
   });
 
-  it('TC-26: Backspace while editing deletes a character, never the note', () => {
-    renderFullApp();
+  it('TC-26: Backspace while editing deletes a character, never the note', async () => {
+    await renderFullApp();
     const id = makeNote(0, 0);
     setText(id, 'ab');
     selectNote();
@@ -84,8 +91,8 @@ describe('StickyTextEditor (story 2)', () => {
     expect(note).toBeInTheDocument();
   });
 
-  it('TC-38: clicking outside ends editing, the text is kept, and the note is unselected', () => {
-    renderFullApp();
+  it('TC-38: clicking outside ends editing, the text is kept, and the note is unselected', async () => {
+    await renderFullApp();
     const id = makeNote(0, 0);
     selectNote();
     pressKey(window, 'Enter');
@@ -100,8 +107,8 @@ describe('StickyTextEditor (story 2)', () => {
     expect(note.hasAttribute('data-selected')).toBe(false);
   });
 
-  it('extra: input beyond the limit is clamped and the caret moves to the end of the kept text', () => {
-    renderFullApp();
+  it('extra: input beyond the limit is clamped and the caret moves to the end of the kept text', async () => {
+    await renderFullApp();
     makeNote(0, 0);
     selectNote();
     pressKey(window, 'Enter');
@@ -115,8 +122,8 @@ describe('StickyTextEditor (story 2)', () => {
     expect(textarea.selectionStart).toBe(1000); // caret restored to the end
   });
 
-  it('extra: Enter inserts a newline inside the text (editing keeps going)', () => {
-    renderFullApp();
+  it('extra: Enter inserts a newline inside the text (editing keeps going)', async () => {
+    await renderFullApp();
     makeNote(0, 0);
     selectNote();
     pressKey(window, 'Enter');
