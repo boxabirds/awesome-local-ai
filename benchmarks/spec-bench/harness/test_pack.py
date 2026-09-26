@@ -126,3 +126,16 @@ def test_a_public_spec_scores_against_a_private_held_out_suite(tmp_path, monkeyp
     assert pk.dir == public and pk.spec == public / "spec"
     assert pk.acceptance == private / "acceptance"
     assert pk.grading == private / "GRADING.md"
+
+
+def test_todoodle_asks_for_a_commit_after_each_task():
+    """todoodle's agents commit per task, so its runs have fine-grained history and no multi-hour
+    stretch of uncommitted work (vidi keeps one commit per story for comparability)."""
+    r = subprocess.run([sys.executable, str(HARNESS / "drive.py"), "--pack", "benchmarks/todoodle", "--dry-run"],
+                       capture_output=True, text=True, cwd=HARNESS)
+    assert r.returncode == 0, r.stderr
+    prompt = r.stdout.split("--- first prompt ---", 1)[1]
+    assert "{{" not in prompt, prompt
+    assert "after each task" in prompt and "story 1 task" in prompt, prompt
+    vidi = pack.load("benchmarks/vidi")
+    assert "after each task" not in vidi.rules
