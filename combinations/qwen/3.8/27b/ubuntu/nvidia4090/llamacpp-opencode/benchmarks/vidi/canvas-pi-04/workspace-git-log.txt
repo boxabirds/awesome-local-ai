@@ -1,0 +1,154 @@
+commit a4c31c83c17dc78ea957cb858e5bb2024118181c
+vidi-agent  Sat Sep 26 12:56:07 2026 +0100
+
+    story 1: Pan and zoom around an infinite board
+
+
+ NOTES.md                              |  95 +++++++++++++++++++
+ package.json                          |   2 +-
+ playwright.config.ts                  |  17 +++-
+ tests/component/ZoomControls.test.tsx |  12 ++-
+ tests/component/helpers.tsx           |   2 +-
+ tests/e2e/helpers/board.ts            |  75 +++++++++++++++
+ tests/e2e/navigation.spec.ts          | 168 ++++++++++++++++++++++++++++++++++
+ 7 files changed, 362 insertions(+), 9 deletions(-)
+commit 5b8285e5e5a016a7204783ac270cc60c7f2ef3dd
+vidi-agent  Sat Sep 26 12:43:34 2026 +0100
+
+    task 1.6: component tests for viewport input, zoom controls and hint
+
+
+ tests/component/BoardViewport.test.tsx  | 230 ++++++++++++++++++++++++++++++++
+ tests/component/NavigationHint.test.tsx |  56 ++++++++
+ tests/component/ZoomControls.test.tsx   |  88 ++++++++++++
+ tests/component/helpers.tsx             |  94 +++++++++++++
+ tests/component/setup.ts                |   9 ++
+ 5 files changed, 477 insertions(+)
+commit 8a229dc81b6c76b060b5a768504ba42be4de9af3
+vidi-agent  Sat Sep 26 12:41:19 2026 +0100
+
+    tasks 1.3-1.5: board viewport, zoom controls and first-use hint
+
+
+ src/client/App.tsx                   |  21 ++-
+ src/client/canvas/BoardViewport.tsx  | 224 +++++++++++++++++++++++++++++++
+ src/client/canvas/NavigationHint.tsx |  17 +++
+ src/client/canvas/ZoomControls.tsx   |  47 +++++++
+ src/client/canvas/testHooks.ts       |  25 ++++
+ src/client/canvas/useCamera.ts       | 249 +++++++++++++++++++++++++++++++++++
+ src/client/main.tsx                  |   4 +
+ 7 files changed, 584 insertions(+), 3 deletions(-)
+commit 2bd71fb0ed776c70c09c5df128e8e9a09691dfc4
+vidi-agent  Sat Sep 26 12:33:25 2026 +0100
+
+    task 1.2: implement camera maths (TC-01..TC-12 + property check green)
+
+
+ src/client/canvas/camera.ts | 101 ++++++++++++++++++++++++++++----------------
+ 1 file changed, 64 insertions(+), 37 deletions(-)
+commit fc6fff4328507e8ae0dd4586d87b298a9d3f3ff8
+vidi-agent  Sat Sep 26 12:32:24 2026 +0100
+
+    task 1.1: scaffold repo and add failing camera maths unit tests (TC-01..TC-12)
+
+
+ .gitignore                  |    6 +
+ index.html                  |   12 +
+ package-lock.json           | 4615 +++++++++++++++++++++++++++++++++++++++++++
+ package.json                |   33 +
+ playwright.config.ts        |   28 +
+ src/client/App.tsx          |   11 +
+ src/client/canvas/camera.ts |  113 ++
+ src/client/main.tsx         |   13 +
+ src/client/styles.css       |  129 ++
+ src/shared/config.ts        |   35 +
+ tests/unit/camera.test.ts   |  234 +++
+ tsconfig.json               |   20 +
+ vite.config.ts              |   13 +
+ vitest.config.ts            |   29 +
+ wrangler.jsonc              |   10 +
+ 15 files changed, 5301 insertions(+)
+commit f97c9ef1509d34e946453c4f80de679ee02316da
+vidi-agent  Sat Sep 26 12:16:19 2026 +0100
+
+    harness: empty repository with spec
+
+
+ README.md                                          |   3 +
+ spec/.DS_Store                                     | Bin 0 -> 6148 bytes
+ spec/README.md                                     |  21 +
+ spec/epics/boards-sharing.md                       |  15 +
+ spec/epics/canvas.md                               |  17 +
+ spec/epics/realtime-collab.md                      |  14 +
+ spec/stories/.DS_Store                             | Bin 0 -> 14340 bytes
+ .../design.md                                      | 358 +++++++++++++
+ .../prd.md                                         | 161 ++++++
+ .../story.md                                       |  11 +
+ .../tasks.md                                       | 157 ++++++
+ .../design.md                                      | 433 +++++++++++++++
+ .../prd.md                                         | 169 ++++++
+ .../story.md                                       |  11 +
+ .../tasks.md                                       | 170 ++++++
+ .../comments.md                                    |   8 +
+ .../design.md                                      | 403 ++++++++++++++
+ .../prd.md                                         | 158 ++++++
+ .../story.md                                       |  11 +
+ .../tasks.md                                       | 171 ++++++
+ .../design.md                                      | 411 ++++++++++++++
+ .../prd.md                                         | 129 +++++
+ .../story.md                                       |  11 +
+ .../tasks.md                                       | 169 ++++++
+ .../design.md                                      | 418 +++++++++++++++
+ .../prd.md                                         | 148 +++++
+ .../story.md                                       |  11 +
+ .../tasks.md                                       | 140 +++++
+ .../comments.md                                    |   8 +
+ .../design.md                                      | 444 +++++++++++++++
+ .../prd.md                                         | 163 ++++++
+ .../story.md                                       |  11 +
+ .../tasks.md                                       | 191 +++++++
+ .../design.md                                      | 512 ++++++++++++++++++
+ .../prd.md                                         | 184 +++++++
+ .../story.md                                       |  11 +
+ .../tasks.md                                       | 218 ++++++++
+ .../design.md                                      | 322 +++++++++++
+ .../prd.md                                         | 139 +++++
+ .../story.md                                       |  11 +
+ .../tasks.md                                       | 133 +++++
+ .../design.md                                      | 415 ++++++++++++++
+ .../prd.md                                         | 157 ++++++
+ .../story.md                                       |  11 +
+ .../tasks.md                                       | 169 ++++++
+ .../design.md                                      | 460 ++++++++++++++++
+ .../prd.md                                         | 174 ++++++
+ .../story.md                                       |  11 +
+ .../tasks.md                                       | 161 ++++++
+ .../011-sketch-freehand-with-a-pen/design.md       | 329 ++++++++++++
+ spec/stories/011-sketch-freehand-with-a-pen/prd.md | 148 +++++
+ .../011-sketch-freehand-with-a-pen/story.md        |  11 +
+ .../011-sketch-freehand-with-a-pen/tasks.md        | 121 +++++
+ .../012-drop-images-onto-the-board/design.md       | 459 ++++++++++++++++
+ spec/stories/012-drop-images-onto-the-board/prd.md | 184 +++++++
+ .../012-drop-images-onto-the-board/story.md        |  11 +
+ .../012-drop-images-onto-the-board/tasks.md        | 171 ++++++
+ .../design.md                                      | 557 +++++++++++++++++++
+ .../prd.md                                         | 172 ++++++
+ .../story.md                                       |  11 +
+ .../tasks.md                                       | 243 +++++++++
+ .../design.md                                      | 593 +++++++++++++++++++++
+ .../prd.md                                         | 185 +++++++
+ .../story.md                                       |  11 +
+ .../tasks.md                                       | 226 ++++++++
+ .../design.md                                      | 474 ++++++++++++++++
+ .../prd.md                                         | 174 ++++++
+ .../story.md                                       |  11 +
+ .../tasks.md                                       | Bin 0 -> 15615 bytes
+ .../design.md                                      | 508 ++++++++++++++++++
+ .../prd.md                                         | 211 ++++++++
+ .../story.md                                       |  11 +
+ .../tasks.md                                       | 203 +++++++
+ .../design.md                                      | 465 ++++++++++++++++
+ .../017-export-a-board-as-an-image-or-pdf/prd.md   | 188 +++++++
+ .../017-export-a-board-as-an-image-or-pdf/story.md |  11 +
+ .../017-export-a-board-as-an-image-or-pdf/tasks.md | 206 +++++++
+ 77 files changed, 13527 insertions(+)
