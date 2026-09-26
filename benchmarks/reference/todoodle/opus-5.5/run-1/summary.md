@@ -9,8 +9,9 @@ Model `claude-opus-5-5`, scope ``, effort `client default`, client claude 2.1.28
 | 3 | Get back to my workspaces from this browser without hunting for the link | DONE | 21.5 | None | None | None | — | — | green | 47/48 |  | 0 / 0 | 0 | — | DEGRADED (power) throttled 0% |
 | 4 | Bring others into a workspace by sharing its link | DONE | 30.8 | None | None | None | — | — | green | 49/51 |  | 0 / 0 | 0 | — | throttled 0% |
 | 5 | Capture a task into my Inbox in seconds | DONE | 31.9 | None | None | None | — | — | red | 76/81 |  | 0 / 0 | 0 | — | throttled 0% |
+| 6 | Tick off, edit, and remove tasks — with undo when I slip | DONE | 39.2 | None | None | None | — | — | green | 91/104 |  | 0 / 0 | 0 | — | throttled 0% |
 
-**Totals:** 5 stories, 135 agent-minutes, 0 requests, 0 prompt / 0 completion tokens, gate green 4/5, final acceptance 76/81, stalled 0, partial 0, 0 lines in src+tests.
+**Totals:** 6 stories, 174 agent-minutes, 0 requests, 0 prompt / 0 completion tokens, gate green 5/6, final acceptance 91/104, stalled 0, partial 0, 0 lines in src+tests.
 
 > Stories 3 ran partly on battery or in Low Power Mode. Their timings are not comparable; re-run them.
 
@@ -25,6 +26,7 @@ Each story's commits, and which story broke or fixed an earlier story's held-out
 | 3 | 14 by the agent | 2865 / 70 | `WorkspaceSwitcher.tsx` (107), `UnsavedLinkWarning.tsx` (87), `RememberedRow.tsx` (78), `cookie.ts` (75), `WorkspaceSkeleton.tsx` (71), `remembered.ts` (70), +38 more |
 | 4 | 13 by the agent | 4390 / 99 | `LiveConnection.ts` (355), `editGuard.ts` (205), `network.ts` (129), `useEditGuard.ts` (104), `WorkspaceNameEditor.tsx` (98), `errors.ts` (80), +39 more |
 | 5 | 19 by the agent | 4989 / 114 | `shortcuts.ts` (174), `InboxView.tsx` (168), `useCreateTask.ts` (140), `QuickAdd.tsx` (138), `taskCache.ts` (116), `useRovingList.ts` (113), +50 more |
+| 6 | 14 by the agent | 4954 / 162 | `useTaskMutations.ts` (278), `TaskDetailSheet.tsx` (271), `TaskRow.tsx` (196), `cacheOps.ts` (155), `tasks.ts` (142), `createUndo.ts` (115), +42 more |
 
 ### Earlier stories broken or fixed
 
