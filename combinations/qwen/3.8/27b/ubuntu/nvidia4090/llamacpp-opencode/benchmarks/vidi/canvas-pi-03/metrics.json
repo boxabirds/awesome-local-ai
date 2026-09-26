@@ -3332,7 +3332,16 @@
           "found": 4,
           "total": 4
         }
-      ]
+      ],
+      "record": {
+        "committed": true,
+        "pushed": true,
+        "over_size_limit": [
+          "~/.dbench/repo/combinations/qwen/3.8/27b/ubuntu/nvidia4090/llamacpp-opencode/benchmarks/vidi/canvas-pi-03/server.log",
+          "~/.dbench/repo/combinations/qwen/3.8/27b/ubuntu/nvidia4090/llamacpp-opencode/benchmarks/vidi/canvas-pi-03/workspace/tests/fixtures/images/too-large.jpg"
+        ],
+        "commit": "a4e0553"
+      }
     }
   },
   "scope": "canvas",
