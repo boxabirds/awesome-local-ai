@@ -6,6 +6,19 @@ import {
   type StickyColor,
 } from './config';
 import { rectContains, type Point, type Rect } from './geometry';
+import { connectorBBox, resolveEndpoints } from './geometry/connector-geometry';
+import { isKnownObjectType, registerKnownObjectType } from './known-object-types';
+import { detachConnectorsTo } from './objects/connector';
+import type { Endpoint } from './objects/connector';
+
+/** Re-exported from the dependency-free module (see known-object-types.ts). */
+export { registerKnownObjectType, isKnownObjectType };
+
+/**
+ * Type-only re-export (erased at compile time — no runtime edge, so the
+ * board-model <-> objects/connector cycle stays exactly as analysed).
+ */
+export type { Endpoint } from './objects/connector';
 
 /**
  * Board document model (story 2).
@@ -64,26 +77,59 @@ export interface ObjectSnapshot {
   widthMode?: 'auto' | 'fixed';
   /** Story 9: per-tab client id of the creator (string 6 identity is excluded from this milestone). */
   createdBy?: string;
+  /** Story 10: shape kind ('rect' | 'ellipse' | 'diamond' | ...); shape objects only. */
+  kind?: string;
+  /** Story 10: fill colour NAME (key of SHAPE_FILL_COLORS); shape objects only. */
+  fill?: string;
+  /** Story 10: stroke colour NAME (key of SHAPE_STROKE_COLORS); shape objects only. */
+  stroke?: string;
+  /** Story 10: label text; shape objects only. */
+  label?: string;
+  /** Story 10: connector endpoints; connector objects only. */
+  from?: Endpoint;
+  to?: Endpoint;
+  /**
+   * Story 10: connector endpoint positions RESOLVED against the current
+   * object positions (attached -> side anchor, free -> stored point;
+   * orphaned attached -> fallback). Set for every connector snapshot.
+   */
+  fromPoint?: Point;
+  toPoint?: Point;
 }
 
 /**
- * Object types the board knows how to select, move, resize and delete
- * (story 7, sel.all_types). `sticky` is known from story 2; later stories
- * (9-12) declare their types through the client registry, which calls
- * registerKnownObjectType. Unknown types are still persisted but are never
- * selected by select-all and are skipped by the renderer (forward
- * compatibility).
+ * Reads a connector endpoint from its stored form (story 10). Fresh writes
+ * store a plain object; after Yjs deep-converts it on set (and across the
+ * wire) the value is a Y.Map — both shapes are handled here. Returns
+ * undefined for a malformed/non-finite endpoint.
  */
-const KNOWN_OBJECT_TYPES: ReadonlySet<string> = new Set(['sticky']);
-
-/** Declares `type` as a known board object type. Idempotent. */
-export function registerKnownObjectType(type: string): void {
-  (KNOWN_OBJECT_TYPES as Set<string>).add(type);
-}
-
-/** True when this build knows the type (selectable, included in allObjectIds). */
-export function isKnownObjectType(type: string): boolean {
-  return KNOWN_OBJECT_TYPES.has(type);
+export function readEndpoint(value: unknown): Endpoint | undefined {
+  const get = (key: string): unknown => {
+    if (value instanceof Y.Map) return value.get(key);
+    if (value !== null && typeof value === 'object') {
+      return (value as Record<string, unknown>)[key];
+    }
+    return undefined;
+  };
+  const kind = get('kind');
+  if (kind === 'free') {
+    const x = get('x');
+    const y = get('y');
+    if (typeof x !== 'number' || typeof y !== 'number') return undefined;
+    if (!Number.isFinite(x) || !Number.isFinite(y)) return undefined;
+    return { kind: 'free', x, y };
+  }
+  if (kind === 'attached') {
+    const objectId = get('objectId');
+    const fb = get('fallback');
+    const fbX = fb instanceof Y.Map ? fb.get('x') : fb !== null && typeof fb === 'object' ? (fb as Record<string, unknown>).x : undefined;
+    const fbY = fb instanceof Y.Map ? fb.get('y') : fb !== null && typeof fb === 'object' ? (fb as Record<string, unknown>).y : undefined;
+    if (typeof objectId !== 'string' || objectId.length === 0) return undefined;
+    if (typeof fbX !== 'number' || typeof fbY !== 'number') return undefined;
+    if (!Number.isFinite(fbX) || !Number.isFinite(fbY)) return undefined;
+    return { kind: 'attached', objectId, fallback: { x: fbX, y: fbY } };
+  }
+  return undefined;
 }
 
 /**
@@ -110,9 +156,19 @@ export function objectBounds(obj: ObjectSnapshot): Rect {
  */
 export function objectSnapshot(doc: Y.Doc): readonly ObjectSnapshot[] {
   const out: ObjectSnapshot[] = [];
+  // Story 10 first pass: non-connector objects, plus a rect map the second
+  // pass uses to resolve connector endpoints against LIVE object positions
+  // (connector.follow: attached ends re-anchor to the side facing the
+  // other end every time anything moves).
+  const rects = new Map<string, Rect>();
+  const connectors: Array<[string, Y.Map<unknown>]> = [];
   objectsMap(doc).forEach((obj, id) => {
     const type = obj.get('type');
     if (typeof type !== 'string') return;
+    if (type === 'connector') {
+      connectors.push([id, obj]);
+      return;
+    }
     const x = obj.get('x');
     const y = obj.get('y');
     const z = obj.get('z');
@@ -138,8 +194,48 @@ export function objectSnapshot(doc: Y.Doc): readonly ObjectSnapshot[] {
       ...(typeof size === 'string' ? { size } : {}),
       ...(widthMode === 'auto' || widthMode === 'fixed' ? { widthMode } : {}),
       ...(typeof createdBy === 'string' ? { createdBy } : {}),
+      ...(typeof obj.get('kind') === 'string' ? { kind: obj.get('kind') as string } : {}),
+      ...(typeof obj.get('fill') === 'string' ? { fill: obj.get('fill') as string } : {}),
+      ...(typeof obj.get('stroke') === 'string' ? { stroke: obj.get('stroke') as string } : {}),
+      ...(obj.get('label') instanceof Y.Text
+        ? { label: (obj.get('label') as Y.Text).toString() }
+        : typeof obj.get('label') === 'string'
+          ? { label: obj.get('label') as string }
+          : {}),
     });
+    rects.set(id, objectBounds(out[out.length - 1]));
   });
+  // Story 10 second pass: connectors. The stored x/y is derived (bbox of the
+  // resolved endpoints) so selection/marquee treats an arrow like any other
+  // object; the endpoints themselves stay authoritative.
+  for (const [id, obj] of connectors) {
+    const z = obj.get('z');
+    const createdAt = obj.get('createdAt');
+    const from = readEndpoint(obj.get('from'));
+    const to = readEndpoint(obj.get('to'));
+    const snap: ObjectSnapshot = {
+      id,
+      type: 'connector',
+      x: 0,
+      y: 0,
+      z: typeof z === 'number' && Number.isFinite(z) ? z : 0,
+      createdAt: typeof createdAt === 'number' && Number.isFinite(createdAt) ? createdAt : 0,
+      ...(typeof obj.get('createdBy') === 'string' ? { createdBy: obj.get('createdBy') as string } : {}),
+    };
+    if (from !== undefined && to !== undefined) {
+      const resolved = resolveEndpoints({ from, to }, rects);
+      const bbox = connectorBBox(resolved.from, resolved.to);
+      snap.x = bbox.x;
+      snap.y = bbox.y;
+      snap.width = bbox.width;
+      snap.height = bbox.height;
+      snap.from = from;
+      snap.to = to;
+      snap.fromPoint = resolved.from;
+      snap.toPoint = resolved.to;
+    }
+    out.push(snap);
+  }
   out.sort((a, b) => (a.z - b.z) || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
   return out;
 }
@@ -158,7 +254,7 @@ export function objectsInRect(snapshot: readonly ObjectSnapshot[], rect: Rect): 
 
 /** Ids of objects with a known type only (select-all, sel.all). */
 export function allObjectIds(snapshot: readonly ObjectSnapshot[]): string[] {
-  return snapshot.filter((o) => KNOWN_OBJECT_TYPES.has(o.type)).map((o) => o.id);
+  return snapshot.filter((o) => isKnownObjectType(o.type)).map((o) => o.id);
 }
 
 /**
@@ -181,7 +277,23 @@ export function moveObjects(doc: Y.Doc, positions: ReadonlyMap<string, Point>): 
   }
   if (valid.length === 0) return 0;
   doc.transact(() => {
+    const rects = liveObjectRects(objects);
     for (const [obj, p] of valid) {
+      if (obj.get('type') === 'connector') {
+        // Story 10 (connector.follow): move the arrow by the bbox delta;
+        // only FREE ends move, attached ends stay on their objects.
+        const from = readEndpoint(obj.get('from'));
+        const to = readEndpoint(obj.get('to'));
+        if (from === undefined || to === undefined) continue;
+        const resolved = resolveEndpoints({ from, to }, rects);
+        const bbox = connectorBBox(resolved.from, resolved.to);
+        const dx = p.x - bbox.x;
+        const dy = p.y - bbox.y;
+        if (dx === 0 && dy === 0) continue;
+        if (from.kind === 'free') obj.set('from', { kind: 'free', x: from.x + dx, y: from.y + dy });
+        if (to.kind === 'free') obj.set('to', { kind: 'free', x: to.x + dx, y: to.y + dy });
+        continue;
+      }
       obj.set('x', p.x);
       obj.set('y', p.y);
     }
@@ -216,6 +328,9 @@ export function resizeObjects(doc: Y.Doc, rects: ReadonlyMap<string, Rect>): num
   if (valid.length === 0) return 0;
   doc.transact(() => {
     for (const [obj, r] of valid) {
+      // Story 10: connectors are not box-resizable; their ends move by
+      // dragging (setConnectorEndpoint). Skip without writing.
+      if (obj.get('type') === 'connector') continue;
       obj.set('x', r.x);
       obj.set('y', r.y);
       obj.set('width', r.width);
@@ -287,6 +402,11 @@ export function deleteObjects(doc: Y.Doc, ids: readonly string[]): number {
   }
   if (present.length === 0) return 0;
   doc.transact(() => {
+    // Story 10 (connector.target_deleted): ends attached to a deleted object
+    // become FREE at their current anchor inside this same transaction, so
+    // every client converges to the orphaned-at-fallback state without an
+    // extra round-trip.
+    detachConnectorsTo(doc, present);
     for (const id of present) objects.delete(id);
   }, LOCAL_ORIGIN);
   return present.length;
@@ -308,6 +428,31 @@ function stickyMap(doc: Y.Doc, id: string): Y.Map<unknown> | undefined {
   const obj = objectsMap(doc).get(id);
   if (!obj || obj.get('type') !== 'sticky') return undefined;
   return obj;
+}
+
+/**
+ * Story 10: id -> world rect of every live non-connector object (stickies
+ * fall back to STICKY_SIZE_WORLD). Used to resolve connector endpoints
+ * against current positions.
+ */
+function liveObjectRects(objects: Y.Map<Y.Map<unknown>>): Map<string, Rect> {
+  const rects = new Map<string, Rect>();
+  objects.forEach((obj, id) => {
+    const type = obj.get('type');
+    if (type === 'connector' || typeof type !== 'string') return;
+    const x = obj.get('x');
+    const y = obj.get('y');
+    if (typeof x !== 'number' || typeof y !== 'number') return;
+    if (!Number.isFinite(x) || !Number.isFinite(y)) return;
+    const rawWidth = obj.get('width');
+    const rawHeight = obj.get('height');
+    const width =
+      typeof rawWidth === 'number' && Number.isFinite(rawWidth) ? rawWidth : type === 'sticky' ? STICKY_SIZE_WORLD : 0;
+    const height =
+      typeof rawHeight === 'number' && Number.isFinite(rawHeight) ? rawHeight : type === 'sticky' ? STICKY_SIZE_WORLD : 0;
+    rects.set(id, { x, y, width, height });
+  });
+  return rects;
 }
 
 function maxZ(objects: Y.Map<Y.Map<unknown>>): number {

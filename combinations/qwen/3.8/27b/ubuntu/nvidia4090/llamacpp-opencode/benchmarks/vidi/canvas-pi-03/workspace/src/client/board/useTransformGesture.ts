@@ -58,7 +58,7 @@ export interface TransformGestureOptions {
 }
 
 export interface TransformGesture {
-  onObjectPointerDown(e: ReactPointerEvent<HTMLElement>, id: string): void;
+  onObjectPointerDown(e: ReactPointerEvent<Element>, id: string): void;
   onHandlePointerDown(e: ReactPointerEvent<HTMLElement>, handle: Handle): void;
   /** Ids of the objects currently being dragged (cursor feedback), if any. */
   draggingIds: ReadonlySet<string> | null;
@@ -329,7 +329,7 @@ export function useTransformGesture(opts: TransformGestureOptions): TransformGes
   );
 
   const onObjectPointerDown = useCallback(
-    (e: ReactPointerEvent<HTMLElement>, id: string): void => {
+    (e: ReactPointerEvent<Element>, id: string): void => {
       if (e.button !== 0) return;
       // The board must not pan when a press starts on an object (sticky.no_pan).
       e.stopPropagation();

@@ -108,6 +108,12 @@ export interface Selection {
   /** Marquee / select-all: replace or add a batch of ids. */
   setMany(ids: string[], additive: boolean): void;
   clear(): void;
+  /**
+   * Select a just-created object: it is not in the snapshot yet when the
+   * creator calls this (create-then-select, story 9/10), so the click is
+   * queued until the snapshot catches up (same pattern as startEdit).
+   */
+  selectNew(id: string): void;
   startEdit(id: string): void;
   endEdit(): void;
 }
@@ -163,6 +169,28 @@ export function useSelection(snapshot: readonly ObjectSnapshot[]): Selection {
   // A brand-new object is not in the snapshot yet when the creator calls
   // startEdit (create-and-edit, story 2); queue the edit until the snapshot
   // catches up instead of dropping it.
+  const pendingSelectRef = useRef<string | null>(null);
+  useEffect(() => {
+    const id = pendingSelectRef.current;
+    if (id === null) return;
+    if (isPresent(id)) {
+      pendingSelectRef.current = null;
+      dispatch({ type: 'click', id });
+    }
+  }, [snapshot, isPresent]);
+
+  const selectNew = useCallback(
+    (id: string) => {
+      if (isPresent(id)) {
+        pendingSelectRef.current = null;
+        dispatch({ type: 'click', id });
+      } else {
+        pendingSelectRef.current = id;
+      }
+    },
+    [isPresent],
+  );
+
   const pendingEditRef = useRef<string | null>(null);
   useEffect(() => {
     const id = pendingEditRef.current;
@@ -187,5 +215,5 @@ export function useSelection(snapshot: readonly ObjectSnapshot[]): Selection {
 
   const endEdit = useCallback(() => dispatch({ type: 'edit', id: null }), []);
 
-  return { ids: state.ids, editingId: state.editingId, click, toggle, setMany, clear, startEdit, endEdit };
+  return { ids: state.ids, editingId: state.editingId, click, toggle, setMany, clear, selectNew, startEdit, endEdit };
 }

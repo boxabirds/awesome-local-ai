@@ -2,9 +2,17 @@ import type { ComponentType, PointerEvent as ReactPointerEvent, ReactElement } f
 import type { ObjectSnapshot } from '@/shared/board-model';
 import { objectBounds } from '@/shared/board-model';
 import type { Point } from '@/shared/geometry';
-import { STICKY_MIN_SIZE_WORLD, TEXT_MIN_WIDTH_WORLD } from '@/shared/config';
+import {
+  CONNECTOR_HIT_TOLERANCE_PX,
+  SHAPE_MIN_SIZE_WORLD,
+  STICKY_MIN_SIZE_WORLD,
+  TEXT_MIN_WIDTH_WORLD,
+} from '@/shared/config';
+import { distanceToPolyline } from '@/shared/geometry/polyline';
 import { StickyNote, type StickyNoteProps } from './StickyNote';
 import { TextObject, type TextObjectProps } from './TextObject';
+import { ShapeObject, type ShapeObjectProps } from './ShapeObject';
+import { ConnectorObject, type ConnectorObjectProps } from './ConnectorObject';
 
 /**
  * Object-type registry (story 7, sel.registry).
@@ -36,7 +44,7 @@ export type ObjectProps = Record<string, unknown> & {
    * Pointerdown delegation: the board's transform gesture selects the object
    * (or the set, when shift-held) and drives move/resize from here.
    */
-  onObjectPointerDown?: (e: ReactPointerEvent<HTMLElement>) => void;
+  onObjectPointerDown?: (e: ReactPointerEvent<Element>) => void;
 };
 
 export interface ObjectTypeSpec {
@@ -57,8 +65,12 @@ export interface ObjectTypeSpec {
    * single-text e/w drag sets a fixed width instead of scaling the box).
    */
   handles?: 'all' | 'horizontal';
-  /** True when the world point is inside the object (hit testing). */
-  hitTest(obj: ObjectSnapshot, worldPoint: Point): boolean;
+  /**
+   * True when the world point is inside the object (hit testing).
+   * `zoom` (story 10) converts screen-pixel tolerances to world units for
+   * line-based types (connector.select); box types ignore it.
+   */
+  hitTest(obj: ObjectSnapshot, worldPoint: Point, zoom?: number): boolean;
 }
 
 const registry = new Map<string, ObjectTypeSpec>();
@@ -124,6 +136,57 @@ export function registerTextType(): void {
     editableText: true,
     handles: 'horizontal',
     hitTest: pointInBounds,
+  });
+}
+
+/** Thin adapter so the spec's `Component` can be the concrete ShapeObject. */
+function ShapeRegistryComponent(props: ObjectProps): ReactElement {
+  return <ShapeObject {...(props as unknown as ShapeObjectProps)} />;
+}
+
+/**
+ * Story 10: the shape type (shape.render). Registered by Board at module
+ * load, NOT here: unit tests of this registry assert that 'shape' is
+ * unknown in builds that never import the Board (TC-12 / forward
+ * compatibility), so registration must not happen at this module's scope.
+ */
+export function registerShapeType(): void {
+  if (registry.has('shape')) return; // idempotent
+  registry.set('shape', {
+    Component: ShapeRegistryComponent,
+    resizable: true,
+    aspectLocked: false,
+    minSize: SHAPE_MIN_SIZE_WORLD,
+    editableText: true,
+    hitTest: pointInBounds,
+  });
+}
+
+/** Thin adapter so the spec's `Component` can be the concrete ConnectorObject. */
+function ConnectorRegistryComponent(props: ObjectProps): ReactElement {
+  return <ConnectorObject {...(props as unknown as ConnectorObjectProps)} />;
+}
+
+/**
+ * Story 10: the connector type (conn.render, connector.select). Hit test:
+ * distance from the point to the centerline <= CONNECTOR_HIT_TOLERANCE_PX
+ * screen pixels (converted to world units with `zoom`). Not box-resizable:
+ * its ends move by dragging (setConnectorEndpoint).
+ */
+export function registerConnectorType(): void {
+  if (registry.has('connector')) return; // idempotent
+  registry.set('connector', {
+    Component: ConnectorRegistryComponent,
+    resizable: false,
+    aspectLocked: false,
+    minSize: 0,
+    editableText: false,
+    hitTest: (o, p, zoom) => {
+      const from = o.fromPoint;
+      const to = o.toPoint;
+      if (from === undefined || to === undefined) return false;
+      return distanceToPolyline([from, to], p) <= CONNECTOR_HIT_TOLERANCE_PX / (zoom ?? 1);
+    },
   });
 }
 

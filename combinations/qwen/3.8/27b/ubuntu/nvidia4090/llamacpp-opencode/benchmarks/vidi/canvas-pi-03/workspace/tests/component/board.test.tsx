@@ -422,7 +422,7 @@ describe('gesture boundaries (TC-26)', () => {
           const p: ObjectProps = {
             ...o,
             selected: props.selection.ids.has(o.id),
-            onObjectPointerDown: (e: ReactPointerEvent<HTMLElement>) =>
+            onObjectPointerDown: (e: ReactPointerEvent<Element>) =>
               gesture.onObjectPointerDown(e, o.id),
           };
           return <Comp key={o.id} {...p} />;
@@ -477,6 +477,9 @@ describe('gesture boundaries (TC-26)', () => {
       },
       clear: () => {
         fakeSelection.ids = new Set();
+      },
+      selectNew: (id: string) => {
+        fakeSelection.ids = new Set([id]);
       },
       startEdit: () => {},
       endEdit: () => {},

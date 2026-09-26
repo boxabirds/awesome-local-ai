@@ -461,3 +461,128 @@ actions (drag then recolour) are two steps.
   and assert the list is empty at the end, giving a real guarantee that undoing a doomed inverse
   (or 5 concurrent undos) throws nothing.
 
+
+# Story 10: Draw shapes and connect them with arrows that follow when moved — Implementation Notes
+
+## What was built
+
+Shapes (rect / ellipse / diamond) with a fill, an outline and a wrapping centred label, plus
+connectors (arrows) whose attached ends follow their objects — re-resolving their side anchor
+on every render of the two objects — and survive the target's deletion at a stored fallback
+point.
+
+### Key files
+
+| File | Purpose |
+|------|---------|
+| `src/shared/config.ts` | New constants: shape kinds/sizes/colours, connector tolerance/width/arrowhead |
+| `src/shared/known-object-types.ts` | Dependency-free `KNOWN_OBJECT_TYPES` set + `registerKnownObjectType` / `isKnownObjectType` (see "Import-cycle design" below) |
+| `src/shared/geometry/connector-geometry.ts` | Pure geometry: `nearestSide`, `sideAnchor`, `resolveEndpoints`, `connectorBBox` |
+| `src/shared/geometry/polyline.ts` | `distanceToPolyline` / `pointToSegment` (shared with story 11's pen strokes) |
+| `src/shared/objects/shape.ts` | `createShape`, `readShape`, `setShapeStyle`, `getShapeLabel` + `ShapeSnap` |
+| `src/shared/objects/connector.ts` | `createConnector`, `readConnector`, `setConnectorEndpoint`, `detachConnectorsTo` + `Endpoint` type + `ConnectorSnap` |
+| `src/shared/board-model.ts` | Two-pass `objectSnapshot` (resolves connector endpoints against live rects), connector branch in `moveObjects`, connector guard in `resizeObjects`, `deleteObjects` detaches first, `readEndpoint` |
+| `src/client/tools/useActiveTool.ts` | Replaces `useTool`: v/t/s/l + Escape, shape-kind state, `toolCreated` (select + back to Select) |
+| `src/client/tools/ShapeTool.tsx` | Full-screen drag-to-create overlay with dashed preview; click = default size; Shift = square |
+| `src/client/tools/ConnectorTool.tsx` | Full-screen overlay: side-midpoint dots on the hovered object, target highlighting, drag with dashed preview, hit-test on release |
+| `src/client/objects/ShapeObject.tsx` | SVG shape + foreignObject centred label; double-click label editing (shared `TextEditor`); exports `shapeElement` for the tool preview |
+| `src/client/objects/ConnectorObject.tsx` | Fat invisible hit line + visible line + arrowhead marker; draggable endpoint handles when selected |
+| `src/client/objects/ShapeToolbar.tsx` | Fill + stroke swatches + delete for a single selected shape |
+| `src/client/objects/registry.tsx` | `registerShapeType` / `registerConnectorType` (called by Board, not at module scope); `hitTest` gains an optional `zoom` |
+| `src/client/board/*` | Wiring: Board renders the tool overlays + registers the types; SelectionBar shape branch; Toolbar shape/connector buttons; `useBoardKeys` keeps N + selection keys (tool keys moved to `useActiveTool`); `useSelection.selectNew` |
+| `tests/fixtures/checkout-flow.ts` | 4 labelled shapes + 4 arrows as a base64 Yjs update for the e2e specs |
+
+### Model contracts
+
+- `createShape(doc, { kind, rect, at, square }, by) -> id | null` — one `LOCAL_ORIGIN`
+  transaction. `rect` null (a plain click) or below `SHAPE_MIN_SIZE_WORLD` in either dimension
+  becomes the `SHAPE_DEFAULT_SIZE_WORLD` square centred on `at`. Unknown kind / non-finite:
+  null, no transaction.
+- `createConnector(doc, from, to, by) -> id | null` — rejects same-object pairs and resolved
+  length < `CONNECTOR_MIN_LENGTH_WORLD`. Attached endpoints are normalised with a fresh
+  fallback recomputed from the live rect (the passed fallback is kept if the object is gone —
+  the TC-27 deletion-race path).
+- `setConnectorEndpoint(doc, id, end, e) -> boolean` — same-object / stale / non-finite
+  rejected; no min-length check (a handle may be parked anywhere).
+- `moveObjects` shifts only FREE connector endpoints (attached ends stay attached and are
+  re-resolved on render); `resizeObjects` ignores connectors; `deleteObjects` calls
+  `detachConnectorsTo` in the same transaction — every connector referencing a deleted object
+  (either end) keeps its stored endpoint and its fallback, and renders at the fallback.
+- `objectSnapshot` is two-pass: first pass snapshots all objects and collects their rects;
+  second pass resolves each connector's endpoints via `resolveEndpoints` and fills in the
+  connector's own bbox plus `fromPoint` / `toPoint` (world units) so the component and the
+  registry hit test work off one source.
+
+### Import-cycle design (why `known-object-types.ts` exists)
+
+`deleteObjects` (board-model) must call `detachConnectorsTo` (objects/connector), and
+objects/connector imports from board-model — a runtime ESM cycle. It is safe as long as:
+
+1. The `KNOWN_OBJECT_TYPES` set + register/isKnown functions live in a dependency-free module
+   (`known-object-types.ts`) so the `registerKnownObjectType('connector')` call at
+   connector.ts module scope cannot hit a TDZ on a board-model `const`.
+2. shape.ts / connector.ts import `registerKnownObjectType` **directly from
+   `@/shared/known-object-types`**, never re-exported through board-model: vite-node's SSR
+   transform does not expose re-export bindings to modules imported *during* a module's
+   evaluation, so the re-export pattern breaks under vitest even though it is valid native ESM.
+3. Everything else board-model exposes to the object modules is hoisted (function
+   declarations) or accessed inside function bodies (`LOCAL_ORIGIN`, config), so first-use
+   is after both modules are initialised.
+
+### Selection after creation (`useSelection.selectNew`)
+
+A created object is not in the React snapshot yet when the creator selects it (Yjs update →
+subscription → setState → re-render is async), and `click(id)` is gated by `isPresent(id)`,
+so a plain click would be silently dropped. `selectNew(id)` dispatches immediately if the id
+is present, otherwise queues it in a ref; an effect (declared before the edit-pending effect)
+dispatches the queued click on the first snapshot that contains the id — the same pattern as
+story 9's `startEdit`.
+
+### Tool layering
+
+The shape/connector tools are full-screen `position: fixed` overlays above the viewport
+(z-index 5). They `setPointerCapture` on press, so the viewport underneath neither pans,
+zooms nor selects while the tool is active (TC-28). On release the tool returns to Select and
+the new object is selected via `toolCreated` → `selectNew`.
+
+## Testing strategy
+
+- **Unit (TC-01…06 `shape-model.test.ts`; TC-07…14 + TC-29 `connector-model.test.ts`):** shape
+  creation rules (drag rect, click default, square, min-size, unknown kind, label round-trip,
+  style validation); connector creation (min length, same-object rejection, fallback
+  normalisation, free ends); `setConnectorEndpoint` (re-attach, free, stale id, same-object);
+  `detachConnectorsTo` (both ends, free ends untouched, unknown ids).
+- **Component (TC-15, 16, 17, 28 `ShapeTool.test.tsx`; TC-18…21 `Connector.test.tsx`;
+  TC-22 `useActiveTool.test.tsx`):** drag creates the dragged size and selects it; click makes
+  the default square and Escape closes the label editor; Shift constrains; a press over an
+  existing object creates (does not move); the connector tool shows side dots, highlights the
+  target, creates attached→attached, hit-tests at 50%/200% zoom (5 px in, 7 px out), and a
+  handle drag re-attaches onto C or frees onto empty space.
+- **E2E (TC-23, 24 `shapes.spec.ts`; TC-25…27 `connectors.spec.ts`), real wrangler dev +
+  Chromium:** a real drag creates the dragged size/position; a diamond click at 200% makes a
+  160×160 centred shape whose long label wraps, stays centred and reflows after an east-handle
+  resize; dragging B past A keeps the arrow attached and switches sides on *both* screens
+  within `LIVE_UPDATE_LATENCY_BUDGET_MS`; deleting B leaves both arrows with free ends at B's
+  former side anchors on both screens; the deletion race (Sam dark + deleting B while Dana
+  draws A→B) converges with the arrow at its fallback point on both screens and zero
+  page/console errors.
+
+## Test notes
+
+- **No existing test was weakened.** TC-12 (`registry.test.ts`: 'shape' is unknown in a
+  build that never imports Board) still passes unchanged: the registration functions are
+  called by Board at module scope, not by `registry.tsx` at module scope.
+- **`tests/component/board.test.tsx` gained two type-only updates:** the `Probe`'s
+  `onObjectPointerDown` handler is typed `ReactPointerEvent<Element>` (SVG connector lines
+  and HTML object divs share the Board handler), and the fake `Selection` object implements
+  the new `selectNew` method. No assertion changed.
+- **The e2e `ObjectSnapshot` helper** (`tests/e2e/helpers/board.ts`) gained the story 10
+  fields (`kind`, `fill`, `stroke`, `label`, `from`, `to`, `fromPoint`, `toPoint`) —
+  additive only.
+- **Selection lands one effect tick after the object snapshot** (the queued `selectNew`
+  click is dispatched in a post-render effect), so TC-23 polls the selection instead of
+  asserting it synchronously after the object appears.
+- **TC-27 uses the test-build `dropConnection`/`resumeConnection` hooks** rather than
+  `page.setOffline`, which does not tear down an already-open WebSocket.
+- **Firefox/webkit e2e projects could not be run in this environment** (browser binaries not
+  installed); the default `test:e2e` (chromium) is fully green.
