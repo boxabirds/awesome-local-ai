@@ -155,3 +155,84 @@ def linux_process_gb(pid: int) -> tuple[float | None, float | None]:
         return parse_proc_status_gb(Path(f"/proc/{pid}/status").read_text())
     except OSError:
         return None, None
+
+
+# ---------- GPU: clock, power, temperature, load ----------
+# Sampled during each story, so a slow story can be told apart from a throttled chip.
+
+DRM_ROOT = Path("/sys/class/drm")
+UW_PER_W = 1_000_000
+MILLIDEG_PER_DEG = 1000
+BYTES_PER_GIB = 1024 ** 3
+MIB_PER_GIB = 1024
+GB_DECIMALS = 2
+SCLK_RE = re.compile(r"^\d+:\s*(\d+)Mhz\s*\*", re.M)
+NVIDIA_GPU_FIELDS = ("utilization.gpu,clocks.sm,clocks.max.sm,power.draw,temperature.gpu,memory.used,"
+                     "clocks_throttle_reasons.active")
+# A GPU below this load is idle: its clock drops by design, which is not throttling.
+BUSY_PCT = 50
+
+
+def _read(p: Path) -> str | None:
+    try:
+        return p.read_text().strip()
+    except OSError:
+        return None
+
+
+def amdgpu_sample(drm_root: Path = DRM_ROOT) -> dict | None:
+    """The first amdgpu card's load, current shader clock, power, edge temperature and GTT in use."""
+    for busy in sorted(drm_root.glob("card*/device/gpu_busy_percent")):
+        dev = busy.parent
+        hwmon = next(iter(sorted(dev.glob("hwmon/hwmon*"))), None)
+        sclk = SCLK_RE.search(_read(dev / "pp_dpm_sclk") or "")
+        power = _read(hwmon / "power1_average") or _read(hwmon / "power1_input") if hwmon else None
+        temp = _read(hwmon / "temp1_input") if hwmon else None
+        gtt = _read(dev / "mem_info_gtt_used")
+        return {"busy_pct": int(_read(busy) or 0),
+                "sclk_mhz": int(sclk.group(1)) if sclk else None,
+                "power_w": round(int(power) / UW_PER_W, 1) if power else None,
+                "temp_c": int(temp) / MILLIDEG_PER_DEG if temp else None,
+                "gtt_gb": round(int(gtt) / BYTES_PER_GIB, GB_DECIMALS) if gtt else None}
+    return None
+
+
+def parse_nvidia_gpu(csv: str) -> dict | None:
+    """The first GPU's line of `nvidia-smi --query-gpu=NVIDIA_GPU_FIELDS --format=csv,noheader,nounits`."""
+    line = csv.strip().splitlines()[0] if csv.strip() else ""
+    f = [x.strip() for x in line.split(",")]
+    if len(f) < 7 or not f[0].isdigit():
+        return None
+    return {"busy_pct": int(f[0]), "sclk_mhz": int(f[1]), "power_w": float(f[3]), "temp_c": float(f[4]),
+            "vram_gb": round(int(f[5]) / MIB_PER_GIB, GB_DECIMALS), "throttle": f[6]}
+
+
+def gpu_sample() -> dict | None:
+    """This machine's GPU now: amdgpu from sysfs, NVIDIA from nvidia-smi; None on a Mac or no GPU."""
+    if IS_MAC:
+        return None
+    s = amdgpu_sample()
+    if s is None and shutil.which("nvidia-smi"):
+        s = parse_nvidia_gpu(_out(["nvidia-smi", f"--query-gpu={NVIDIA_GPU_FIELDS}", "--format=csv,noheader,nounits"]))
+    return s
+
+
+def summarise_gpu(samples: list[dict]) -> dict | None:
+    if not samples:
+        return None
+    def vals(k, busy_only=False):
+        return [s[k] for s in samples if s.get(k) is not None and (not busy_only or s["busy_pct"] >= BUSY_PCT)]
+    def agg(fn, k, busy_only=False):
+        v = vals(k, busy_only)
+        return fn(v) if v else None
+    mem_key = "gtt_gb" if any("gtt_gb" in s for s in samples) else "vram_gb"
+    busy = vals("busy_pct")
+    return {"samples": len(samples),
+            "busy_mean_pct": round(sum(busy) / len(busy), 1) if busy else None,
+            "sclk_min_busy_mhz": agg(min, "sclk_mhz", busy_only=True),
+            "sclk_max_mhz": agg(max, "sclk_mhz"),
+            "power_mean_w": agg(lambda v: round(sum(v) / len(v), 1), "power_w"),
+            "power_max_w": agg(max, "power_w"),
+            "temp_max_c": agg(max, "temp_c"),
+            f"{mem_key.removesuffix('_gb')}_max_gb": agg(max, mem_key),
+            "throttled_samples": sum(1 for s in samples if s.get("throttle") not in (None, "0x0000000000000000"))}
