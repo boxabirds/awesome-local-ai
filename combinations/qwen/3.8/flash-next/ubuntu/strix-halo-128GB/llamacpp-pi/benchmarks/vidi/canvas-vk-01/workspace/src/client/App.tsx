@@ -1,4 +1,4 @@
-import { useCallback, useEffect, type JSX } from 'react';
+import { useCallback, useEffect, useMemo, useState, type JSX } from 'react';
 import * as Y from 'yjs';
 import type { Point } from './canvas/camera';
 import { screenToWorld, worldToScreen } from './canvas/camera';
@@ -9,6 +9,8 @@ import { canZoomIn, canZoomOut, zoomPercent } from './canvas/camera';
 import { CameraProvider, useCameraApi } from './canvas/useCamera';
 import { BoardDocProvider, useBoardDoc } from './board/useBoardDoc';
 import { useSelection } from './board/useSelection';
+import { ConnectionStatus } from './sync/ConnectionStatus';
+import { boardIdFromPathname, resolveBoardId } from './routing';
 import { Toolbar } from './board/Toolbar';
 import { StickyNote } from './objects/StickyNote';
 import { NoteToolbar } from './objects/NoteToolbar';
@@ -33,14 +35,27 @@ export function BoardOverlays() {
   );
 }
 
+/** The connection badge, reading the state the board's provider reports. */
+export function ConnectionBadge() {
+  const { connection } = useBoardDoc();
+  return <ConnectionStatus state={connection} />;
+}
+
 /**
  * The main board content: sticky notes, viewport, toolbar, and keyboard handlers.
  * All sharing one doc and one selection state.
  */
 function BoardContent() {
   const { doc, notes } = useBoardDoc();
-  const { selectedId, editingId, select, startEdit, endEdit } = useSelection();
+  const { selectedId, editingId, select, startEdit, endEdit, pruneTo } = useSelection();
   const { camera } = useCameraApi();
+
+  // Someone else may delete the note I have selected or am typing in: drop
+  // the stale ids so no editor is left pointing at a deleted note.
+  const visibleIds = useMemo(() => new Set(notes.map((note) => note.id)), [notes]);
+  useEffect(() => {
+    pruneTo(visibleIds);
+  }, [visibleIds, pruneTo]);
 
   const handleDblClickEmpty = useCallback((worldPoint: Point) => {
     const id = createSticky(doc, worldPoint);
@@ -99,6 +114,15 @@ function BoardContent() {
     return () => window.removeEventListener('keydown', onKeyDown);
   }, [selectedId, editingId, doc, startEdit, select]);
 
+  // Render in a stable order. Stacking comes from each note's z-index style, so
+  // ordering the list by z as well would move DOM nodes in the middle of a drag
+  // — and moving a node out of the document drops pointer capture, freezing the
+  // drag (visible as soon as a note that is not on top is moved).
+  const renderedNotes = useMemo(
+    () => [...notes].sort((a, b) => (a.id < b.id ? -1 : 1)),
+    [notes],
+  );
+
   const selectedNote = selectedId ? notes.find((n) => n.id === selectedId) : undefined;
 
   return (
@@ -108,7 +132,7 @@ function BoardContent() {
         onDblClickEmpty={handleDblClickEmpty}
         onEmptyClick={handleEmptyClick}
       >
-        {notes.map((note) => (
+        {renderedNotes.map((note) => (
           <StickyNote
             key={note.id}
             note={note}
@@ -158,17 +182,33 @@ function NoteToolbarOverlay({ note, camera, onColor, onDelete }: {
 }
 
 /** The full board application, exportable with an optional doc for testing. */
-export function BoardApp({ doc }: { doc?: Y.Doc } = {}): JSX.Element {
+export function BoardApp({ doc, boardId }: { doc?: Y.Doc; boardId?: string } = {}): JSX.Element {
   return (
     <CameraProvider>
-      <BoardDocProvider doc={doc}>
+      <BoardDocProvider doc={doc} boardId={boardId}>
         <BoardContent />
         <BoardOverlays />
+        <ConnectionBadge />
       </BoardDocProvider>
     </CameraProvider>
   );
 }
 
-export default function App() {
-  return <BoardApp />;
+/**
+ * The board for the board id in the URL. `/` (or any path without a valid id)
+ * starts a new board and puts its id in the address bar — temporary until
+ * story 5 adds the board dashboard.
+ */
+export default function App(): JSX.Element {
+  const [boardId, setBoardId] = useState<string>(resolveBoardId);
+
+  useEffect(() => {
+    const onPopState = () => {
+      setBoardId(boardIdFromPathname(window.location.pathname) ?? resolveBoardId());
+    };
+    window.addEventListener('popstate', onPopState);
+    return () => window.removeEventListener('popstate', onPopState);
+  }, []);
+
+  return <BoardApp boardId={boardId} />;
 }

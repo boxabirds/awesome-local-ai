@@ -1,7 +1,10 @@
 {
+  // Worker-side program: the Worker script, the Durable Object, the shared
+  // modules they import, and the integration tests that run inside workerd.
+  // Checked with `npm run typecheck` alongside the client program.
   "compilerOptions": {
     "target": "ES2022",
-    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "lib": ["ES2022"],
     "module": "ESNext",
     "moduleResolution": "bundler",
     "jsx": "react-jsx",
@@ -15,17 +18,15 @@
     "verbatimModuleSyntax": true,
     "skipLibCheck": true,
     "noEmit": true,
-    "types": ["vite/client", "node"]
+    "types": [
+      "node",
+      "@cloudflare/workers-types",
+      "@cloudflare/vitest-pool-workers/types"
+    ]
   },
   "include": [
-    "src",
-    "tests",
-    "vite.config.ts",
-    "vitest.config.ts",
-    "playwright.config.ts"
-  ],
-  "exclude": [
     "src/worker",
+    "src/shared",
     "tests/integration"
   ]
 }

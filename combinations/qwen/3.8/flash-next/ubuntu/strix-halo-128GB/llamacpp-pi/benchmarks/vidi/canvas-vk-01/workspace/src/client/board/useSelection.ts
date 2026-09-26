@@ -6,6 +6,11 @@ export interface SelectionState {
   select(id: string | null): void;
   startEdit(id: string): void;
   endEdit(next: 'selected' | 'unselected'): void;
+  /**
+   * Forget `selectedId` / `editingId` when the object is gone (someone else
+   * deleted it). An in-flight drag ends with the component, which unmounts.
+   */
+  pruneTo(visibleIds: Iterable<string>): void;
 }
 
 /**
@@ -33,5 +38,11 @@ export function useSelection(): SelectionState {
     }
   }, []);
 
-  return { selectedId, editingId, select, startEdit, endEdit };
+  const pruneTo = useCallback((visibleIds: Iterable<string>) => {
+    const visible = new Set(visibleIds);
+    setEditingId((editing) => (editing !== null && !visible.has(editing) ? null : editing));
+    setSelectedId((selected) => (selected !== null && !visible.has(selected) ? null : selected));
+  }, []);
+
+  return { selectedId, editingId, select, startEdit, endEdit, pruneTo };
 }

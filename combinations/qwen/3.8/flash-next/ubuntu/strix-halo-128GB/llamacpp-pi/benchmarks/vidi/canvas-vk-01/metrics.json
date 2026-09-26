@@ -540,6 +540,304 @@
           "found": 5,
           "total": 5
         }
+      ],
+      "record": {
+        "committed": true,
+        "pushed": true,
+        "over_size_limit": [],
+        "commit": "9328c68"
+      }
+    },
+    "3": {
+      "title": "See other people's edits appear live on the same board",
+      "conditions_start": {
+        "ac": true,
+        "low_power": false,
+        "thermal": "unmonitored"
+      },
+      "started": 1790382726.4958224,
+      "agent": {
+        "seconds": 12734.8,
+        "steps": 351,
+        "tool_calls": 350,
+        "compactions": 4,
+        "tool_interruptions": 0,
+        "tokens": {
+          "input": 253812,
+          "output": 248750,
+          "reasoning": 0,
+          "cache_read": 24369738,
+          "cache_write": 0
+        },
+        "exit": 0,
+        "stalled": false,
+        "resumes": 0,
+        "nudges": 0,
+        "errors": [],
+        "ended_by_operator": false,
+        "ended_in_error": false,
+        "sessions": [
+          "01a0db20-5e5d-7092-8241-6b9169925850"
+        ]
+      },
+      "agent_finished": 1790395461.323931,
+      "conditions": {
+        "samples": 424,
+        "degraded": false,
+        "throttled_share": 0.0,
+        "bad_samples": [],
+        "swap_start_gb": 0.08,
+        "swap_max_gb": 0.08,
+        "aborted_swap": false,
+        "aborted_memory": false,
+        "free_min_pct": 12.46957020020812,
+        "server_footprint_max_gb": 36.09260559082031,
+        "server_footprint_peak_gb": 36.095069885253906
+      },
+      "agent_commits": 1,
+      "gate": {
+        "steps": {
+          "install": {
+            "cmd": "npm ci",
+            "exit": 0,
+            "seconds": 3.0,
+            "tail": "\nadded 169 packages, and audited 170 packages in 3s\n\n47 packages are looking for funding\n  run `npm fund` for details\n\n4 high severity vulnerabilities\n\nTo address all issues (including breaking changes), run:\n  npm audit fix --force\n\nRun `npm audit` for details.\nnpm WARN EBADENGINE Unsupported engine {\nnpm WARN EBADENGINE   package: '@asamuzakjp/css-color@7.0.1',\nnpm WARN EBADENGINE   required: { node: '^22.22.2 || ^24.15.0 || >=26.0.0' },\nnpm WARN EBADENGINE   current: { node: 'v22.22.1', npm: '9.2.0' }\nnpm WARN EBADENGINE }\nnpm WARN EBADENGINE Unsupported engine {\nnpm WARN EBADENGINE   package: '@asamuzakjp/dom-selector@9.2.1',\nnpm WARN EBADENGINE   required: { node: '^22.22.2 || ^24.15.0 || >=26.0.0' },\nnpm WARN EBADENGINE   current: { node: 'v22.22.1', npm: '9.2.0' }\nnpm WARN EBADENGINE }\nnpm WARN EBADENGINE Unsupported engine {\nnpm WARN EBADENGINE   package: 'jsdom@30.1.1',\nnpm WARN EBADENGINE   required: { node: '^22.22.2 || ^24.15.0 || >=26.0.0' },\nnpm WARN EBADENGINE   current: { node: 'v22.22.1', npm: '9.2.0' }\nnpm WARN EBADENGINE }\nnpm WARN EBADENGINE Unsupported engine {\nnpm WARN EBADENGINE   package: 'w3c-xmlserializer@6.0.0',\nnpm WARN EBADENGINE   required: { node: '^22.22.2 || ^24.15.0 || >=26.0.0' },\nnpm WARN EBADENGINE   current: { node: 'v22.22.1', npm: '9.2.0' }\nnpm WARN EBADENGINE }\n"
+          },
+          "build": {
+            "cmd": "npm run build",
+            "exit": 0,
+            "seconds": 0.5,
+            "tail": "\n> vidi6@0.0.1 build\n> vite build\n\n\u001b[36mvite v8.3.1 \u001b[32mbuilding client environment for production...\u001b[36m\u001b[39m\ntransforming...\n\u2713 77 modules transformed.\nrendering chunks...\ncomputing gzip size...\ndist/client/index.html                   0.39 kB \u2502 gzip:   0.26 kB\ndist/client/assets/index-BFiCR48f.css    4.40 kB \u2502 gzip:   1.41 kB\ndist/client/assets/index-BpNT-3vf.js   329.72 kB \u2502 gzip: 102.20 kB \u2502 map: 1,814.81 kB\n\n\u001b[32m\u2713 built in 107ms\u001b[39m\n",
+            "passed": null,
+            "failed": null
+          },
+          "typecheck": {
+            "cmd": "npm run typecheck",
+            "exit": 0,
+            "seconds": 2.4,
+            "tail": "\n> vidi6@0.0.1 typecheck\n> tsc --noEmit && tsc --noEmit -p tsconfig.worker.json\n\n",
+            "passed": null,
+            "failed": null
+          },
+          "test:unit": {
+            "cmd": "npm run test:unit",
+            "exit": 0,
+            "seconds": 2.2,
+            "tail": "\n> vidi6@0.0.1 test:unit\n> vitest run --project unit\n\n\n\u001b[1m\u001b[30m\u001b[46m RUN \u001b[49m\u001b[39m\u001b[22m \u001b[36mv4.1.11 \u001b[39m\u001b[90m~/.vidi-bench/work/qwen__3.8__flash-next__ubuntu__strix-halo-128GB__llamacpp-pi__benchmarks__vidi__canvas-vk-01/workspace\u001b[39m\n\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[42m unit \u001b[49m\u001b[39m tests/unit/protocol.test.ts \u001b[2m(\u001b[22m\u001b[2m9 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 5\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[42m unit \u001b[49m\u001b[39m tests/unit/board-model.test.ts \u001b[2m(\u001b[22m\u001b[2m21 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 14\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[42m unit \u001b[49m\u001b[39m tests/unit/sticky-text.test.ts \u001b[2m(\u001b[22m\u001b[2m20 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 11\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[42m unit \u001b[49m\u001b[39m tests/unit/camera.test.ts \u001b[2m(\u001b[22m\u001b[2m30 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 48\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[42m unit \u001b[49m\u001b[39m tests/unit/board-id.test.ts \u001b[2m(\u001b[22m\u001b[2m9 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 255\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[42m unit \u001b[49m\u001b[39m tests/unit/cameraStore.test.ts \u001b[2m(\u001b[22m\u001b[2m9 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[33m 746\u001b[2mms\u001b[22m\u001b[39m\n\n\u001b[2m Test Files \u001b[22m \u001b[1m\u001b[32m6 passed\u001b[39m\u001b[22m\u001b[90m (6)\u001b[39m\n\u001b[2m      Tests \u001b[22m \u001b[1m\u001b[32m98 passed\u001b[39m\u001b[22m\u001b[90m (98)\u001b[39m\n\u001b[2m   Start at \u001b[22m 04:04:28\n\u001b[2m   Duration \u001b[22m 956ms\u001b[2m (transform 273ms, setup 0ms, import 429ms, tests 1.08s, environment 0ms)\u001b[22m\n\n(node:168852) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.\n(Use `node --trace-deprecation ...` to show where the warning was created)\n",
+            "passed": 98,
+            "failed": 0
+          },
+          "test:component": {
+            "cmd": "npm run test:component",
+            "exit": 0,
+            "seconds": 3.2,
+            "tail": "\n> vidi6@0.0.1 test:component\n> vitest run --project component\n\n\n\u001b[1m\u001b[30m\u001b[46m RUN \u001b[49m\u001b[39m\u001b[22m \u001b[36mv4.1.11 \u001b[39m\u001b[90m~/.vidi-bench/work/qwen__3.8__flash-next__ubuntu__strix-halo-128GB__llamacpp-pi__benchmarks__vidi__canvas-vk-01/workspace\u001b[39m\n\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[45m component \u001b[49m\u001b[39m tests/component/ZoomControls.test.tsx \u001b[2m(\u001b[22m\u001b[2m9 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 169\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[45m component \u001b[49m\u001b[39m tests/component/ConnectionStatus.test.tsx \u001b[2m(\u001b[22m\u001b[2m8 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 116\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[45m component \u001b[49m\u001b[39m tests/component/NavigationHint.test.tsx \u001b[2m(\u001b[22m\u001b[2m4 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 239\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[45m component \u001b[49m\u001b[39m tests/component/Toolbars.test.tsx \u001b[2m(\u001b[22m\u001b[2m3 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[33m 329\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[45m component \u001b[49m\u001b[39m tests/component/StickyTextEditor.test.tsx \u001b[2m(\u001b[22m\u001b[2m4 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[33m 596\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[45m component \u001b[49m\u001b[39m tests/component/StickyNote.test.tsx \u001b[2m(\u001b[22m\u001b[2m11 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[33m 1032\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[45m component \u001b[49m\u001b[39m tests/component/BoardViewport.test.tsx \u001b[2m(\u001b[22m\u001b[2m17 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[33m 1223\u001b[2mms\u001b[22m\u001b[39m\n\n\u001b[2m Test Files \u001b[22m \u001b[1m\u001b[32m7 passed\u001b[39m\u001b[22m\u001b[90m (7)\u001b[39m\n\u001b[2m      Tests \u001b[22m \u001b[1m\u001b[32m56 passed\u001b[39m\u001b[22m\u001b[90m (56)\u001b[39m\n\u001b[2m   Start at \u001b[22m 04:04:30\n\u001b[2m   Duration \u001b[22m 1.95s\u001b[2m (transform 264ms, setup 86ms, import 988ms, tests 3.70s, environment 2.88s)\u001b[22m\n\n(node:168982) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.\n(Use `node --trace-deprecation ...` to show where the warning was created)\n",
+            "passed": 56,
+            "failed": 0
+          },
+          "test:integration": {
+            "cmd": "npm run test:integration",
+            "exit": 0,
+            "seconds": 2.8,
+            "tail": "ner.directRequest (home/julian/.vidi-bench/work/qwen__3.8__flash-next__ubuntu__strix-halo-128GB__llamacpp-pi__benchmarks__vidi__canvas-vk-01/workspace/node_modules/\u001b[4mvite\u001b[24m/dist/node/module-runner.js:1272:59)\n    at VitestModuleRunner.cachedRequest (home/julian/.vidi-bench/work/qwen__3.8__flash-next__ubuntu__strix-halo-128GB__llamacpp-pi__benchmarks__vidi__canvas-vk-01/workspace/node_modules/\u001b[4mvite\u001b[24m/dist/node/module-runner.js:1179:73)\n    at ~/.vidi-bench/work/qwen__3.8__flash-next__ubuntu__strix-halo-128GB__llamacpp-pi__benchmarks__vidi__canvas-vk-01/workspace/node_modules/\u001b[4myjs\u001b[24m/dist/yjs.mjs:109:31\n    at VitestModuleEvaluator._runInlinedModule (home/julian/.vidi-bench/work/qwen__3.8__flash-next__ubuntu__strix-halo-128GB__llamacpp-pi__benchmarks__vidi__canvas-vk-01/workspace/node_modules/\u001b[4mvitest\u001b[24m/dist/module-evaluator.js:206:4)\n    at VitestModuleRunner.directRequest (home/julian/.vidi-bench/work/qwen__3.8__flash-next__ubuntu__strix-halo-128GB__llamacpp-pi__benchmarks__vidi__canvas-vk-01/workspace/node_modules/\u001b[4mvite\u001b[24m/dist/node/module-runner.js:1272:59)\n    at VitestModuleRunner.cachedRequest (home/julian/.vidi-bench/work/qwen__3.8__flash-next__ubuntu__strix-halo-128GB__llamacpp-pi__benchmarks__vidi__canvas-vk-01/workspace/node_modules/\u001b[4mvite\u001b[24m/dist/node/module-runner.js:1179:73)\n    at ~/.vidi-bench/work/qwen__3.8__flash-next__ubuntu__strix-halo-128GB__llamacpp-pi__benchmarks__vidi__canvas-vk-01/workspace/tests/integration/board-room.test.ts:3:1\n\n\u001b[90mstderr\u001b[2m | tests/integration/board-room.test.ts\u001b[2m > \u001b[22m\u001b[2mroom relay\u001b[2m > \u001b[22m\u001b[2mTC-15: malformed traffic\u001b[2m > \u001b[22m\u001b[2minvalid Yjs update closes the socket with 1003 and leaves the room usable\n\u001b[22m\u001b[39mCaught error while handling a Yjs update Error: Unexpected end of array\n    at Module.create (~/.vidi-bench/work/qwen__3.8__flash-next__ubuntu__strix-halo-128GB__llamacpp-pi__benchmarks__vidi__canvas-vk-01/workspace/node_modules/\u001b[4mlib0\u001b[24m/error.js:12:28)\n    at ~/.vidi-bench/work/qwen__3.8__flash-next__ubuntu__strix-halo-128GB__llamacpp-pi__benchmarks__vidi__canvas-vk-01/workspace/node_modules/\u001b[4mlib0\u001b[24m/decoding.js:36:41\n    at VitestModuleEvaluator._runInlinedModule (home/julian/.vidi-bench/work/qwen__3.8__flash-next__ubuntu__strix-halo-128GB__llamacpp-pi__benchmarks__vidi__canvas-vk-01/workspace/node_modules/\u001b[4mvitest\u001b[24m/dist/module-evaluator.js:206:4)\n    at VitestModuleRunner.directRequest (home/julian/.vidi-bench/work/qwen__3.8__flash-next__ubuntu__strix-halo-128GB__llamacpp-pi__benchmarks__vidi__canvas-vk-01/workspace/node_modules/\u001b[4mvite\u001b[24m/dist/node/module-runner.js:1272:59)\n    at VitestModuleRunner.cachedRequest (home/julian/.vidi-bench/work/qwen__3.8__flash-next__ubuntu__strix-halo-128GB__llamacpp-pi__benchmarks__vidi__canvas-vk-01/workspace/node_modules/\u001b[4mvite\u001b[24m/dist/node/module-runner.js:1179:73)\n    at ~/.vidi-bench/work/qwen__3.8__flash-next__ubuntu__strix-halo-128GB__llamacpp-pi__benchmarks__vidi__canvas-vk-01/workspace/node_modules/\u001b[4myjs\u001b[24m/dist/yjs.mjs:109:31\n    at VitestModuleEvaluator._runInlinedModule (home/julian/.vidi-bench/work/qwen__3.8__flash-next__ubuntu__strix-halo-128GB__llamacpp-pi__benchmarks__vidi__canvas-vk-01/workspace/node_modules/\u001b[4mvitest\u001b[24m/dist/module-evaluator.js:206:4)\n    at VitestModuleRunner.directRequest (home/julian/.vidi-bench/work/qwen__3.8__flash-next__ubuntu__strix-halo-128GB__llamacpp-pi__benchmarks__vidi__canvas-vk-01/workspace/node_modules/\u001b[4mvite\u001b[24m/dist/node/module-runner.js:1272:59)\n    at VitestModuleRunner.cachedRequest (home/julian/.vidi-bench/work/qwen__3.8__flash-next__ubuntu__strix-halo-128GB__llamacpp-pi__benchmarks__vidi__canvas-vk-01/workspace/node_modules/\u001b[4mvite\u001b[24m/dist/node/module-runner.js:1179:73)\n    at ~/.vidi-bench/work/qwen__3.8__flash-next__ubuntu__strix-halo-128GB__llamacpp-pi__benchmarks__vidi__canvas-vk-01/workspace/tests/integration/board-room.test.ts:3:1\n\n",
+            "passed": null,
+            "failed": null
+          },
+          "test:e2e": {
+            "cmd": "npm run test:e2e",
+            "exit": 1,
+            "seconds": 3.0,
+            "tail": "\n> vidi6@0.0.1 test:e2e\n> npm run build:test && playwright test\n\n\n> vidi6@0.0.1 build:test\n> vite build --mode test\n\n\u001b[36mvite v8.3.1 \u001b[32mbuilding client environment for test...\u001b[36m\u001b[39m\ntransforming...\n\u2713 77 modules transformed.\nrendering chunks...\ncomputing gzip size...\ndist/client/index.html                   0.39 kB \u2502 gzip:   0.26 kB\ndist/client/assets/index-BFiCR48f.css    4.40 kB \u2502 gzip:   1.41 kB\ndist/client/assets/index-DbXaTgYo.js   330.28 kB \u2502 gzip: 102.39 kB \u2502 map: 1,815.84 kB\n\n\u001b[32m\u2713 built in 109ms\u001b[39m\n[playwright.config] skipping chromium, firefox, webkit (browser not installed; run `npx playwright install --with-deps`)\n[WebServer] \n[WebServer] > vidi6@0.0.1 build:test\n[WebServer] > vite build --mode test\n[WebServer] \n[WebServer] vite v8.3.1 building client environment for test...\n[WebServer] transforming...\n[WebServer] \u2713 77 modules transformed.\n[WebServer] rendering chunks...\n[WebServer] computing gzip size...\n[WebServer] dist/client/index.html                   0.39 kB \u2502 gzip:   0.26 kB\n[WebServer] dist/client/assets/index-BFiCR48f.css    4.40 kB \u2502 gzip:   1.41 kB\n[WebServer] dist/client/assets/index-DbXaTgYo.js   330.28 kB \u2502 gzip: 102.39 kB \u2502 map: 1,815.84 kB\n[WebServer] \n[WebServer] \u2713 built in 104ms\n[WebServer] \n[WebServer]  \u26c5\ufe0f wrangler 4.141.0\n[WebServer] \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\n[WebServer] Your Worker has access to the following bindings:\n[WebServer] Binding                         Resource            Mode\n[WebServer] env.BOARD_ROOM (BoardRoom)      Durable Object      local\n[WebServer] env.ASSETS                      Assets              local\n[WebServer] \n[WebServer] \u2394 Starting local server...\n[WebServer] [wrangler:info] Ready on http://127.0.0.1:8787\nError: No tests found\n[WebServer] [wrangler:info] GET / 200 OK (7ms)\n\n",
+            "passed": null,
+            "failed": null
+          }
+        },
+        "all_green": false
+      },
+      "accept": {
+        "skipped": false,
+        "build_exit": 0,
+        "runner_exit": 1,
+        "runner_tail": "",
+        "passed": 24,
+        "total": 27,
+        "on_partial": {
+          "passed": 0,
+          "total": 0
+        },
+        "by_story": {
+          "01": {
+            "passed": 10,
+            "total": 10
+          },
+          "02": {
+            "passed": 8,
+            "total": 10
+          },
+          "03": {
+            "passed": 6,
+            "total": 7
+          }
+        },
+        "harness_fault": null
+      },
+      "commit": "f76c77cebd161efc6f2abf7081a9943807e76f45",
+      "requests": {},
+      "loc": {
+        "files": 53,
+        "lines": 8208
+      },
+      "finished": 1790395549.6293151,
+      "status": "DONE",
+      "ended_by": "agent",
+      "partial_base": [],
+      "tasks": [
+        {
+          "n": 1,
+          "title": "Write board id and protocol decode unit tests first (TC-01 to TC-03)",
+          "type": "test:unit",
+          "implements": [
+            "sync.worker_entry",
+            "sync.room"
+          ],
+          "tcs": [
+            "TC-01",
+            "TC-02",
+            "TC-03"
+          ],
+          "status": "verified",
+          "found": 3,
+          "total": 3
+        },
+        {
+          "n": 2,
+          "title": "Implement Worker entry: /api/rooms/:boardId routing to BoardRoom, static assets fallback",
+          "type": "implementation",
+          "implements": [
+            "sync.worker_entry"
+          ],
+          "tcs": [],
+          "status": "verified",
+          "found": null,
+          "total": null
+        },
+        {
+          "n": 3,
+          "title": "Implement BoardRoom Durable Object: Yjs sync relay, awareness relay, malformed-message handling",
+          "type": "implementation",
+          "implements": [
+            "sync.room"
+          ],
+          "tcs": [],
+          "status": "verified",
+          "found": null,
+          "total": null
+        },
+        {
+          "n": 4,
+          "title": "Implement client connection: y-websocket provider, /b/:boardId route, connection status badge",
+          "type": "implementation",
+          "implements": [
+            "sync.client"
+          ],
+          "tcs": [],
+          "status": "committed",
+          "found": null,
+          "total": null
+        },
+        {
+          "n": 5,
+          "title": "Integration tests for Worker routing in workerd (TC-04 to TC-06, TC-13, TC-17)",
+          "type": "test:integration",
+          "implements": [
+            "sync.worker_entry"
+          ],
+          "tcs": [
+            "TC-04",
+            "TC-05",
+            "TC-06",
+            "TC-13",
+            "TC-17"
+          ],
+          "status": "verified",
+          "found": 5,
+          "total": 5
+        },
+        {
+          "n": 6,
+          "title": "Integration tests for BoardRoom merging, broadcast and error handling (TC-07 to TC-12, TC-14 to TC-16, TC-18, TC-31)",
+          "type": "test:integration",
+          "implements": [
+            "sync.room"
+          ],
+          "tcs": [
+            "TC-07",
+            "TC-08",
+            "TC-09",
+            "TC-10",
+            "TC-11",
+            "TC-12",
+            "TC-14",
+            "TC-15",
+            "TC-16",
+            "TC-18",
+            "TC-31"
+          ],
+          "status": "verified",
+          "found": 11,
+          "total": 11
+        },
+        {
+          "n": 7,
+          "title": "Component tests for connection status badge (TC-19 to TC-21)",
+          "type": "test:ui-component",
+          "implements": [
+            "sync.client"
+          ],
+          "tcs": [
+            "TC-19",
+            "TC-20",
+            "TC-21"
+          ],
+          "status": "verified",
+          "found": 3,
+          "total": 3
+        },
+        {
+          "n": 8,
+          "title": "E2E live collaboration with multiple browser contexts (TC-22 to TC-28)",
+          "type": "test:e2e",
+          "implements": [
+            "sync.client"
+          ],
+          "tcs": [
+            "TC-22",
+            "TC-23",
+            "TC-24",
+            "TC-25",
+            "TC-26",
+            "TC-27",
+            "TC-28"
+          ],
+          "status": "committed",
+          "found": 7,
+          "total": 7
+        },
+        {
+          "n": 9,
+          "title": "Nightly e2e: idle connection stability and 60-second capacity soak (TC-29, TC-30)",
+          "type": "test:e2e",
+          "implements": [
+            "sync.client"
+          ],
+          "tcs": [
+            "TC-29",
+            "TC-30"
+          ],
+          "status": "committed",
+          "found": 2,
+          "total": 2
+        }
       ]
     }
   },
@@ -1028,6 +1326,255 @@
           "accept": {
             "passed": 10,
             "total": 10
+          }
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "title": "See other people's edits appear live on the same board",
+      "status": "DONE",
+      "ended_by": "agent",
+      "started_at": 1790382726.4958224,
+      "ended_at": 1790395461.323931,
+      "agent_minutes": 212.2,
+      "calls": 351,
+      "output_tokens": 248750,
+      "compactions": 4,
+      "last_commit_at": 1790395388.0,
+      "accept": {
+        "passed": 6,
+        "total": 7
+      },
+      "partial_base": [],
+      "tasks": [
+        {
+          "n": 1,
+          "title": "Write board id and protocol decode unit tests first (TC-01 to TC-03)",
+          "type": "test:unit",
+          "implements": [
+            "sync.worker_entry",
+            "sync.room"
+          ],
+          "tcs": [
+            "TC-01",
+            "TC-02",
+            "TC-03"
+          ],
+          "status": "verified",
+          "found": 3,
+          "total": 3
+        },
+        {
+          "n": 2,
+          "title": "Implement Worker entry: /api/rooms/:boardId routing to BoardRoom, static assets fallback",
+          "type": "implementation",
+          "implements": [
+            "sync.worker_entry"
+          ],
+          "tcs": [],
+          "status": "verified",
+          "found": null,
+          "total": null
+        },
+        {
+          "n": 3,
+          "title": "Implement BoardRoom Durable Object: Yjs sync relay, awareness relay, malformed-message handling",
+          "type": "implementation",
+          "implements": [
+            "sync.room"
+          ],
+          "tcs": [],
+          "status": "verified",
+          "found": null,
+          "total": null
+        },
+        {
+          "n": 4,
+          "title": "Implement client connection: y-websocket provider, /b/:boardId route, connection status badge",
+          "type": "implementation",
+          "implements": [
+            "sync.client"
+          ],
+          "tcs": [],
+          "status": "committed",
+          "found": null,
+          "total": null
+        },
+        {
+          "n": 5,
+          "title": "Integration tests for Worker routing in workerd (TC-04 to TC-06, TC-13, TC-17)",
+          "type": "test:integration",
+          "implements": [
+            "sync.worker_entry"
+          ],
+          "tcs": [
+            "TC-04",
+            "TC-05",
+            "TC-06",
+            "TC-13",
+            "TC-17"
+          ],
+          "status": "verified",
+          "found": 5,
+          "total": 5
+        },
+        {
+          "n": 6,
+          "title": "Integration tests for BoardRoom merging, broadcast and error handling (TC-07 to TC-12, TC-14 to TC-16, TC-18, TC-31)",
+          "type": "test:integration",
+          "implements": [
+            "sync.room"
+          ],
+          "tcs": [
+            "TC-07",
+            "TC-08",
+            "TC-09",
+            "TC-10",
+            "TC-11",
+            "TC-12",
+            "TC-14",
+            "TC-15",
+            "TC-16",
+            "TC-18",
+            "TC-31"
+          ],
+          "status": "verified",
+          "found": 11,
+          "total": 11
+        },
+        {
+          "n": 7,
+          "title": "Component tests for connection status badge (TC-19 to TC-21)",
+          "type": "test:ui-component",
+          "implements": [
+            "sync.client"
+          ],
+          "tcs": [
+            "TC-19",
+            "TC-20",
+            "TC-21"
+          ],
+          "status": "verified",
+          "found": 3,
+          "total": 3
+        },
+        {
+          "n": 8,
+          "title": "E2E live collaboration with multiple browser contexts (TC-22 to TC-28)",
+          "type": "test:e2e",
+          "implements": [
+            "sync.client"
+          ],
+          "tcs": [
+            "TC-22",
+            "TC-23",
+            "TC-24",
+            "TC-25",
+            "TC-26",
+            "TC-27",
+            "TC-28"
+          ],
+          "status": "committed",
+          "found": 7,
+          "total": 7
+        },
+        {
+          "n": 9,
+          "title": "Nightly e2e: idle connection stability and 60-second capacity soak (TC-29, TC-30)",
+          "type": "test:e2e",
+          "implements": [
+            "sync.client"
+          ],
+          "tcs": [
+            "TC-29",
+            "TC-30"
+          ],
+          "status": "committed",
+          "found": 2,
+          "total": 2
+        }
+      ],
+      "baselines": [
+        {
+          "source": "reference opus-5.5 run-1",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 22.1,
+          "calls": 62,
+          "output_tokens": 94890,
+          "accept": {
+            "passed": 6,
+            "total": 7
+          }
+        },
+        {
+          "source": "reference opus-5.5 run-2",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 21.3,
+          "calls": 68,
+          "output_tokens": 69355,
+          "accept": null
+        },
+        {
+          "source": "reference opus-5.5 run-3",
+          "status": "DONE",
+          "gate_green": false,
+          "agent_minutes": 19.9,
+          "calls": 85,
+          "output_tokens": 79550,
+          "accept": {
+            "passed": 7,
+            "total": 7
+          }
+        },
+        {
+          "source": "qwen/3.8/27b/ubuntu/nvidia4090/llamacpp-opencode canvas-pi-02",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 204.3,
+          "calls": 599,
+          "output_tokens": 551749,
+          "accept": {
+            "passed": 5,
+            "total": 7
+          }
+        },
+        {
+          "source": "qwen/3.8/27b/ubuntu/nvidia4090/llamacpp-opencode canvas-pi-03",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 168.5,
+          "calls": 494,
+          "output_tokens": 451852,
+          "accept": {
+            "passed": 5,
+            "total": 7
+          }
+        },
+        {
+          "source": "qwen/3.8/flash-next/macos/128GB/mtplx-opencode canvas-pi-01",
+          "status": "DONE",
+          "gate_green": false,
+          "agent_minutes": 58.4,
+          "calls": 234,
+          "output_tokens": 158653,
+          "accept": {
+            "passed": 0,
+            "total": 7
+          }
+        },
+        {
+          "source": "qwen/3.8/flash-next/macos/128GB/mtplx-opencode canvas-pi-02",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 124.0,
+          "calls": 413,
+          "output_tokens": 313633,
+          "accept": {
+            "passed": 0,
+            "total": 7
           }
         }
       ]

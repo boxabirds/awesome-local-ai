@@ -1,10 +1,28 @@
 {
-  // Cloudflare Worker config. Story 1 is client-only: `wrangler dev` serves the
-  // built client as static assets (Worker code + Durable Objects arrive in story 3).
+  // Cloudflare Worker config. Story 3 adds the Worker (`main`) and the
+  // BoardRoom Durable Object; the built client stays behind the assets binding.
+  // The migration is SQLite-backed from the start so story 4 needs no class
+  // migration.
   "name": "vidi6",
-  "compatibility_date": "2026-09-01",
+  "main": "src/worker/index.ts",
+  "compatibility_date": "2026-08-15",
   "assets": {
     "directory": "./dist/client",
-    "not_found_handling": "single-page-application"
-  }
+    "not_found_handling": "single-page-application",
+    "binding": "ASSETS"
+  },
+  "durable_objects": {
+    "bindings": [
+      {
+        "name": "BOARD_ROOM",
+        "class_name": "BoardRoom"
+      }
+    ]
+  },
+  "migrations": [
+    {
+      "tag": "v1",
+      "new_sqlite_classes": ["BoardRoom"]
+    }
+  ]
 }
