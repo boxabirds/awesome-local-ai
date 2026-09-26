@@ -12,5 +12,10 @@ Model `qwen3.8-flash-next`, scope `canvas`, effort `low`, client pi 0.87.1, host
 | 7 | Select, move, resize and delete several objects at once | DONE | 182.0 | None | None | None | — | — | red | 41/44 |  | 0 / 0 | 4 | — | throttled 0%, server peak 37 GB |
 | 8 | Undo and redo my own changes without undoing anyone else's | DONE | 74.6 | None | None | None | — | — | red | 48/51 |  | 0 / 0 | 1 | — | throttled 0%, server peak 37 GB |
 | 9 | Write free text anywhere on the board | DONE | 119.8 | None | None | None | — | — | red | 52/57 |  | 0 / 0 | 2 | — | throttled 0%, server peak 38 GB |
+| 10 | Draw shapes and connect them with arrows that follow when moved | PARTIAL (red) | 239.0 | None | None | None | — | — | red | 58/65 |  | 0 / 5 | 5 | — | throttled 0%, server peak 38 GB |
 
-**Totals:** 8 stories, 1002 agent-minutes, 0 requests, 0 prompt / 0 completion tokens, gate green 0/8, final acceptance 52/57, stalled 0, partial 0, 19009 lines in src+tests.
+**Totals:** 9 stories, 1241 agent-minutes, 0 requests, 0 prompt / 0 completion tokens, gate green 0/9, final acceptance 58/65, stalled 0, partial 1, 23173 lines in src+tests.
+
+### Stories ended early (PARTIAL) and what was built on them
+
+- **Story 10 PARTIAL**, ended by the operator (harness (cap)): story cap: 5 nudges without committing (cap 5). Verdict **red**: gate red, tasks not verified [7, 8, 9, 10, 11, 12, 13, 14, 15] (implementation: [8, 10, 11, 12, 13]), held-out 6/8 (floor 0.625).
