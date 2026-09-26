@@ -1,7 +1,8 @@
 import type { ComponentType, PointerEvent as ReactPointerEvent } from 'react';
 import type { ObjectSnapshot } from '../../shared/board-model';
 import { objectBounds } from '../../shared/board-model';
-import { rectContains, type Point } from '../../shared/geometry';
+import { rectContains, type Point, type Rect } from '../../shared/geometry';
+import type { Camera } from '../canvas/camera';
 
 /**
  * The props every renderable board object receives. Selection, move, resize
@@ -13,6 +14,14 @@ export interface ObjectProps {
   obj: ObjectSnapshot;
   doc: import('yjs').Doc;
   zoom: number;
+  /** Full camera, for objects that turn pointer coordinates back into world. */
+  camera: Camera;
+  /**
+   * Every attachable object's rectangle by id (story 10). Excludes connectors,
+   * which have no surface to attach to; an arrow's end handle hit-tests this to
+   * find what it was released on.
+   */
+  rects: ReadonlyMap<string, Rect>;
   selected: boolean;
   editing: boolean;
   /** False while the board is locked (persist.load_failure). */
@@ -20,7 +29,7 @@ export interface ObjectProps {
   onStartEdit(id: string): void;
   onEndEdit(next: 'selected' | 'unselected'): void;
   /** Begin a press that may become a group move; wired to useTransformGesture. */
-  onObjectPointerDown(event: ReactPointerEvent<HTMLElement>, id: string): void;
+  onObjectPointerDown(event: ReactPointerEvent<Element>, id: string): void;
 }
 
 /** A single object type's behaviour declaration. */
@@ -36,7 +45,13 @@ export interface ObjectTypeSpec {
    * never dragged directly. Default 'all'.
    */
   handles?: 'all' | 'horizontal';
-  hitTest(obj: ObjectSnapshot, worldPoint: Point): boolean;
+  /**
+   * Does `worldPoint` hit this object? `zoom` (screen pixels per world unit) is
+   * only needed by objects whose tolerance is specified on screen — an arrow has
+   * to be clickable within a fixed number of pixels however far away the board is
+   * zoomed (`connector.select`). Defaults to 1.
+   */
+  hitTest(obj: ObjectSnapshot, worldPoint: Point, zoom?: number): boolean;
 }
 
 const registry = new Map<string, ObjectTypeSpec>();
@@ -91,4 +106,45 @@ registerObjectType('text', {
   editableText: true,
   handles: 'horizontal',
   hitTest: stickyHitTest,
+});
+
+// --- shapes (story 10) ----------------------------------------------------
+import { SHAPE_MIN_SIZE_WORLD } from '../../shared/config';
+import { ShapeObject } from './ShapeObject';
+
+registerObjectType('shape', {
+  Component: ShapeObject,
+  resizable: true,
+  aspectLocked: false,
+  minSize: SHAPE_MIN_SIZE_WORLD,
+  editableText: true,
+  hitTest: stickyHitTest,
+});
+
+// --- connectors (story 10) ------------------------------------------------
+import { CONNECTOR_HIT_TOLERANCE_PX } from '../../shared/config';
+import { distanceToPolyline } from '../../shared/geometry/polyline';
+import type { ConnectorSnapshot } from '../../shared/objects/connector';
+import { ConnectorObject } from './ConnectorObject';
+
+/**
+ * An arrow is selected by how close the click is to its line, never by its
+ * bounding box: clicking inside the box but away from the line selects nothing
+ * (`connector.select`). The tolerance is specified in screen pixels, so it is
+ * divided by the zoom to become world units.
+ */
+function connectorHitTest(obj: ObjectSnapshot, worldPoint: Point, zoom = 1): boolean {
+  const connector = obj as ConnectorSnapshot;
+  if (connector.fromPoint === undefined || connector.toPoint === undefined) return false;
+  const tolerance = CONNECTOR_HIT_TOLERANCE_PX / (zoom > 0 ? zoom : 1);
+  return distanceToPolyline([connector.fromPoint, connector.toPoint], worldPoint) <= tolerance;
+}
+
+registerObjectType('connector', {
+  Component: ConnectorObject,
+  resizable: false,
+  aspectLocked: false,
+  minSize: 0,
+  editableText: false,
+  hitTest: connectorHitTest,
 });

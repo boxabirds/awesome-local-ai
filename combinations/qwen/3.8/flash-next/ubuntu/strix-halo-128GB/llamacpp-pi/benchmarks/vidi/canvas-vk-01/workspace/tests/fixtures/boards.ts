@@ -1,6 +1,11 @@
 import * as Y from 'yjs';
 
 import { createSticky, getStickyText, initDoc } from '../../src/shared/board-model';
+import { createShape } from '../../src/shared/objects/shape';
+import { createConnector } from '../../src/shared/objects/connector';
+import { rectCenter, sideAnchor } from '../../src/shared/geometry/connector-geometry';
+import type { ShapeKind } from '../../src/shared/config';
+import type { Endpoint } from '../../src/shared/objects/connector';
 
 /**
  * Fixtures for the persistence tests: documents with a known number of notes at
@@ -90,3 +95,80 @@ export function docsEqual(a: Y.Doc, b: Y.Doc): boolean {
   }
   return true;
 }
+
+// --- Story 10: shapes, targets and arrows -----------------------------------
+
+const objectsMap = (doc: Y.Doc): Y.Map<Y.Map<unknown>> =>
+  doc.getMap('objects') as unknown as Y.Map<Y.Map<unknown>>;
+
+/** A plain sticky note used as an arrow target: a box whose text does not matter. */
+export function seedBox(doc: Y.Doc, at: { x: number; y: number }, size = 100): string {
+  const id = createSticky(doc, at);
+  const record = objectsMap(doc).get(id);
+  if (record !== undefined) {
+    record.set('width', size);
+    record.set('height', size);
+  }
+  return id;
+}
+
+export interface ShapeFixture {
+  kind?: ShapeKind;
+  x: number;
+  y: number;
+  width?: number;
+  height?: number;
+  label?: string;
+  fill?: string;
+  stroke?: string;
+}
+
+/** A shape created through the model, then optionally labelled and recoloured. */
+export function seedShape(doc: Y.Doc, fixture: ShapeFixture): string {
+  const id = createShape(
+    doc,
+    {
+      kind: fixture.kind ?? 'rect',
+      rect: { x: fixture.x, y: fixture.y, width: fixture.width ?? 160, height: fixture.height ?? 100 },
+      at: { x: fixture.x, y: fixture.y },
+      square: false,
+    },
+    'fixture',
+  );
+  if (id === null) throw new Error('fixture: shape was refused');
+  const record = objectsMap(doc).get(id);
+  if (record === undefined) throw new Error('fixture: shape was refused');
+  if (fixture.label !== undefined) (record.get('label') as Y.Text).insert(0, fixture.label);
+  if (fixture.fill !== undefined) record.set('fill', fixture.fill);
+  if (fixture.stroke !== undefined) record.set('stroke', fixture.stroke);
+  return id;
+}
+
+/** The rectangle a seeded object occupies, for anchor arithmetic in tests. */
+export function fixtureRect(doc: Y.Doc, id: string): { x: number; y: number; width: number; height: number } {
+  const record = objectsMap(doc).get(id);
+  if (record === undefined) throw new Error(`fixture: no object ${id}`);
+  return {
+    x: record.get('x') as number,
+    y: record.get('y') as number,
+    width: (record.get('width') as number) ?? 0,
+    height: (record.get('height') as number) ?? 0,
+  };
+}
+
+/** An endpoint attaching `id` to an object, with its centre as the fallback point. */
+export function attachedTo(objectId: string, doc: Y.Doc): Endpoint {
+  return { kind: 'attached', objectId, fallback: rectCenter(fixtureRect(doc, objectId)) };
+}
+
+/**
+ * An arrow attached at both ends, so the objects' own rectangles decide the
+ * endpoints a test asserts against.
+ */
+export function seedConnectorBetween(doc: Y.Doc, fromId: string, toId: string): string {
+  const id = createConnector(doc, attachedTo(fromId, doc), attachedTo(toId, doc), 'fixture');
+  if (id === null) throw new Error('fixture: connector was refused');
+  return id;
+}
+
+export { sideAnchor };

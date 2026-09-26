@@ -605,3 +605,94 @@ body {
   background: #e8eaed;
   border-color: #b9bec7;
 }
+
+/* --- Story 10: shapes and connectors -------------------------------------- */
+
+/* Which tool is active is visible on the button itself. */
+.board-toolbar button[aria-pressed="true"] {
+  background: #e3f2fd;
+  border-color: #2563eb;
+  color: #1d4ed8;
+}
+
+.board-toolbar-shape-group {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 4px;
+}
+
+.shape-kind-menu {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 4px;
+  background: #ffffff;
+  border: 1px solid #d6dae0;
+  border-radius: 8px;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.12);
+}
+
+.shape-kind-menu button {
+  width: 28px;
+  height: 28px;
+  font-size: 11px;
+}
+
+.shape-object {
+  user-select: none;
+  outline: none;
+  overflow: visible;
+}
+
+.shape-label {
+  position: absolute;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  box-sizing: border-box;
+  overflow: hidden;
+  font-family: Arial, Helvetica, sans-serif;
+  line-height: 1.25;
+}
+
+.shape-label-text {
+  display: block;
+  width: 100%;
+  overflow: hidden;
+  word-break: break-word;
+}
+
+.connector-object svg {
+  shape-rendering: geometricPrecision;
+}
+
+.tool-layer {
+  touch-action: none;
+}
+
+/* The shape toolbar is the note toolbar with a divider between the two rows. */
+.shape-toolbar {
+  flex-wrap: nowrap;
+}
+
+.shape-toolbar-divider {
+  width: 1px;
+  align-self: stretch;
+  margin: 2px 3px;
+  background: #d6dae0;
+}
+
+/* The label editor sits on the shape, not in a box of its own. */
+.shape-label-textarea {
+  width: 100%;
+  height: 100%;
+  padding: 0;
+  border: none;
+  background: transparent;
+  resize: none;
+  outline: none;
+  text-align: center;
+  color: inherit;
+}

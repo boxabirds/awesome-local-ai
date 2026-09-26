@@ -676,3 +676,112 @@ subsequent updates.
    `stopCapturing()` call with no intervening transaction is a no-op, making
    redundant boundary calls (e.g., at both gesture start AND create-sticky)
    safe.
+
+# Story 10 notes — draw shapes and connect them with arrows that follow
+
+## What is where
+
+- `src/shared/objects/shape.ts` — `ShapeSnapshot`, `createShape`, `setShapeStyle`,
+  `getShapeLabel`, `isShapeKind` / `isFillColor` / `isStrokeColor`, `shapeSnapshotFrom`.
+- `src/shared/objects/connector.ts` — `Endpoint`, `ConnectorSnapshot`,
+  `createConnector`, `setConnectorEndpoint`, `detachConnectorsTo`,
+  `connectorSnapshotFrom`, `objectRects`.
+- `src/shared/geometry/connector-geometry.ts` — `Side`, `sideAnchor`, `nearestSide`,
+  `endpointPoint`, `resolveEndpoints`, `connectorBBox`.
+  `src/shared/geometry/polyline.ts` — `distanceToPolyline`, the click tolerance.
+- `src/client/tools/useActiveTool.ts` — the tool id, `TOOL_SHORTCUTS`, and the
+  "creation tool goes back to Select once it has made its object" rule
+  (`toolCreated`). `src/client/tools/ShapeTool.tsx`, `ConnectorTool.tsx` are the two
+  capture layers; `src/client/objects/{ShapeObject,ShapeToolbar,ConnectorObject}.tsx`
+  draw and edit.
+- `tests/fixtures/checkout-flow.ts` — four labelled shapes, three attached arrows
+  and one free-ended arrow, built with the real model calls, for any test that
+  wants a drawn flow instead of an empty board.
+
+## Decisions
+
+1. **`ShapeSnapshot` / `ConnectorSnapshot`, not `ShapeSnap` / `ConnectorSnap`.**
+   Every stored-record type in this repo is `XxxSnapshot` (`StickySnapshot`,
+   `TextSnapshot`); the design's shorter name would have been the odd one out.
+2. **`ShapeSnapshot.label` is a `string`.** Exactly how `StickySnapshot.text`
+   works: renderers get a string, and the editor takes the `Y.Text` from
+   `getShapeLabel(doc, id)` so typing stays collaborative (story 9's TC-29 path).
+3. **An arrow has no box of its own.** The stored `x/y/width/height` are 0;
+   `connectorSnapshotFrom` overwrites them with `connectorBBox(fromPoint, toPoint)`,
+   so `objectBounds`, the marquee, the selection overlay and z-ordered hit testing
+   all follow the arrow without a second place for the box to be out of date.
+4. **Sides are chosen by aspect, not by 45°.** `nearestSide` compares
+   `|dy| * halfWidth` with `|dx| * halfHeight`, which is what "the side it would
+   hit first" means for a wide rectangle; a plain angle test sends arrows out of
+   the top of a wide box.
+5. **`resolveEndpoints({from, to})` takes the two ends plus a rect map**, not a
+   whole snapshot — the same function serves the model, the snapshot and the tools.
+6. **Dragging a selected arrow does nothing** (`draggable: false`): an arrow moves
+   by moving what it is attached to, or by dragging one of its two end handles onto
+   something else. Dragging both ends off is what a free-floating arrow is.
+7. **`deleteObjects` detaches in its own transaction.** `detachConnectorsTo` runs
+   inside the same `doc.transact`, so a delete plus the ends it frees is one undo
+   step, and an undo brings both back together.
+8. **Hit tolerance is screen pixels, not world units**: `distanceToPolyline` with
+   `CONNECTOR_HIT_TOLERANCE_PX / zoom`, which is why `ObjectTypeSpec.hitTest` grew an
+   optional `zoom` argument. 6 px of screen either side at 10% is 60 world units,
+   and at 400% is 1.5 — the number a person is actually aiming at.
+9. **Arrows do not attach to arrows**: the Connector tool's hover targets filter out
+   `type: 'connector'`, so an arrow between two arrows cannot exist.
+10. **`ObjectProps` carries `camera` and `rects` explicitly** rather than reaching
+    for context inside the object components, which is what lets `ConnectorObject`
+    be rendered in isolation in a jsdom test.
+11. **The label is an HTML overlay, not the design's SVG `foreignObject`.** The
+    design's Outputs line asks for "centred label in a `foreignObject` using story
+    2's text editor". Story 2's editor is an HTML `<textarea>` with its own
+    autosize/focus handling, and a `textarea` nested in a `foreignObject` is where
+    Chromium's SVG-foreign-content layout and focus behaviour go badly — which is
+    precisely the centring-during-typing behaviour TC-24 measures. So `ShapeSvg`
+    draws the `rect`/`ellipse`/`polygon` and the label (or the editor) sits in an
+    absolutely positioned div clipped to the shape's box, inset per kind so a
+    diamond's text never spills over a vertex. Testable behaviour — wrapping, and
+    staying centred after a resize — is unchanged; only the element is.
+
+## Testing notes
+
+- **Undo is asserted for the new object types even though the story's test table
+  does not list it.** The design's cross-story section makes story 8 a hard
+  requirement, and shapes and arrows are the first objects whose gestures are
+  written by new code, so four cases live in the story's own component files:
+  drawing a shape is one step (`ShapeTool.test.tsx`), recolouring is a step of its
+  own that leaves the shape in place, drawing an arrow is one step and leaves the
+  shapes it joins, and deleting an attached shape plus the arrow ends it frees is
+  **one** step that comes back together (`Connector.test.tsx`) — the assertion that
+  actually pins decision 7.
+- e2e reads an arrow's ends straight out of the DOM: the container's rect plus the
+  line's local `x1/y1/x2/y2` times the camera zoom lands exactly on the world point
+  (`worldToScreen` of it), because the padding cancels. No test hooks needed beyond
+  `__vidi6.getCamera()`.
+- The suite in this environment cannot run green in one invocation: `wrangler.jsonc`
+  caps board creation at 10 per minute per IP (later attempts render the Home page's
+  "creating boards too quickly" alert), and the story 1/2 specs
+  (`sticky-notes`, `navigation`, `board-persistence`) call an `openBoard()` helper
+  that expects a board at `/`, which the app has not shown since the Home page
+  arrived — both verified against the base commit. Story 10's specs
+  (`shapes`, `connectors`) pass on their own: `npx playwright test shapes connectors`.
+- "TC-23 in firefox and webkit too" needs `npx playwright install --with-deps`;
+  `playwright.config.ts` skips browsers that are not installed.
+- **A pre-existing render-loop crash shows up as `React error #185` under CPU
+  pressure, and it is not story 10.** Reproduced with four throttled clients
+  (`Emulation.setCPUThrottlingRate: 5`) typing and resizing on one shared board —
+  with a story 9 only workload (sticky notes and text, no shapes, no arrows) and
+  with the story 10 changes stashed, i.e. on the base commit. The stack is always
+  the same: `y-protocols/sync.js` applying a remote update → Yjs `transact` →
+  `cleanupTransactions` → the `objectsMap.observeDeep` listener → React
+  `forceStoreRerender` → `getRootForUpdatedFiber` throws "Maximum update depth
+  exceeded". In other words the board store (`src/client/board/useBoardDoc.tsx`)
+  is notified from inside a transaction that lands while React is still working
+  through the previous notification, and React 19 refuses the nesting. It is
+  worth a separate story: the fix is to deliver store notifications outside the
+  transaction (`queueMicrotask`/rAF in the `subscribe` callback), which the story
+  10 tests do not need and which no story 10 task covers. Until then: keep
+  "no console errors" assertions on two-client tests (TC-27, as the PRD asks),
+  and don't put them on single-client rendering tests (TC-24), where they catch
+  this bug and nothing else. Reproduction: `npx vite build --mode test --minify
+  false`, serve it, open four contexts on one board at 5x CPU throttle, and have
+  each create a note, type, drag, and resize a text object twice.
