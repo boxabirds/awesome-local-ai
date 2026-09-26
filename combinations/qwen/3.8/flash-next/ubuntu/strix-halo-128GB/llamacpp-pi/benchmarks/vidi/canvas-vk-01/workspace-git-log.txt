@@ -1,3 +1,40 @@
+commit 3420a91d4380dcfec228e1a5b2cfcf3eb54bc783
+vidi-agent  Sat Sep 26 19:34:28 2026 +0000
+
+    harness: snapshot after story 10 (uncommitted agent work)
+
+
+ NOTES.md                                  | 109 +++++++++
+ src/client/BoardApp.tsx                   |  85 ++++++-
+ src/client/board/Toolbar.tsx              |  69 +++++-
+ src/client/board/useTool.ts               |  68 +-----
+ src/client/canvas/BoardViewport.tsx       |  13 +-
+ src/client/canvas/viewportPoint.ts        |  26 +++
+ src/client/objects/ConnectorObject.tsx    | 225 ++++++++++++++++++
+ src/client/objects/ShapeObject.tsx        | 156 +++++++++++++
+ src/client/objects/ShapeToolbar.tsx       |  77 +++++++
+ src/client/objects/registry.tsx           |  62 ++++-
+ src/client/styles.css                     |  91 ++++++++
+ src/client/tools/ConnectorTool.tsx        | 236 +++++++++++++++++++
+ src/client/tools/ShapeTool.tsx            | 156 +++++++++++++
+ src/client/tools/useActiveTool.ts         | 124 ++++++++++
+ src/shared/board-model.ts                 |  40 +++-
+ src/shared/config.ts                      |  55 +++++
+ src/shared/geometry/connector-geometry.ts | 101 ++++++++
+ src/shared/geometry/polyline.ts           |  39 ++++
+ src/shared/objects/connector.ts           | 315 +++++++++++++++++++++++++
+ src/shared/objects/shape.ts               | 233 +++++++++++++++++++
+ tests/component/Connector.test.tsx        | 368 ++++++++++++++++++++++++++++++
+ tests/component/ShapeTool.test.tsx        | 324 ++++++++++++++++++++++++++
+ tests/component/TextObject.test.tsx       |   2 +-
+ tests/component/useActiveTool.test.tsx    | 141 ++++++++++++
+ tests/e2e/connectors.spec.ts              | 328 ++++++++++++++++++++++++++
+ tests/e2e/shapes.spec.ts                  | 220 ++++++++++++++++++
+ tests/fixtures/boards.ts                  |  82 +++++++
+ tests/fixtures/checkout-flow.ts           | 129 +++++++++++
+ tests/unit/connector-model.test.ts        | 323 ++++++++++++++++++++++++++
+ tests/unit/shape-model.test.ts            | 240 +++++++++++++++++++
+ 30 files changed, 4355 insertions(+), 82 deletions(-)
 commit 2e0b3462aff89ebdb3201b1559e20eb03e98d7f6
 vidi-agent  Sat Sep 26 15:15:57 2026 +0000
 

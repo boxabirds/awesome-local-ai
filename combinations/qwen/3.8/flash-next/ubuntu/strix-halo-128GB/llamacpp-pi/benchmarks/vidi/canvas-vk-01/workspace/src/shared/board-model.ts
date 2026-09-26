@@ -8,6 +8,13 @@ import {
 } from './config';
 import { rectContains, type Point, type Rect } from './geometry';
 import type { TextSnapshot } from './objects/text';
+import { shapeSnapshotFrom, type ShapeSnapshot } from './objects/shape';
+import {
+  connectorSnapshotFrom,
+  detachConnectorsTo,
+  objectRects,
+  type ConnectorSnapshot,
+} from './objects/connector';
 
 /**
  * Board document model: owns the Yjs schema and all mutations.
@@ -141,14 +148,26 @@ export function getStickyText(doc: Y.Doc, id: string): Y.Text | undefined {
 }
 
 /**
- * Every renderable object: stickies and text objects (story 9), sorted by z
- * then id. `snapshot()` stays sticky-only for the story 1–8 callers.
+ * Every renderable object: stickies (story 2), text (story 9), shapes and
+ * connectors (story 10), sorted by z then id. `snapshot()` stays sticky-only
+ * for the story 1–8 callers.
  */
-export type BoardSnapshot = StickySnapshot | TextSnapshot;
+export type BoardSnapshot =
+  | StickySnapshot
+  | TextSnapshot
+  | ShapeSnapshot
+  | ConnectorSnapshot;
 
 export function objectSnapshots(doc: Y.Doc): readonly BoardSnapshot[] {
   const objects = getObjectsMap(doc);
   const result: BoardSnapshot[] = [];
+  // Arrows are drawn from the objects they hang off, so their rectangles are
+  // read lazily (and only once) as soon as the board contains a connector.
+  let rects: Map<string, Rect> | null = null;
+  const rectsOnce = (): Map<string, Rect> => {
+    if (rects === null) rects = objectRects(doc);
+    return rects;
+  };
 
   objects.forEach((obj, id) => {
     const type = obj.get('type');
@@ -189,6 +208,16 @@ export function objectSnapshots(doc: Y.Doc): readonly BoardSnapshot[] {
         height: typeof height === 'number' && Number.isFinite(height) ? height : 0,
       };
       result.push(entry);
+      return;
+    }
+    if (type === 'shape' && KNOWN_OBJECT_TYPES.has('shape')) {
+      const snap = shapeSnapshotFrom(id, obj.get('z') as number, obj);
+      if (snap !== null) result.push(snap);
+      return;
+    }
+    if (type === 'connector' && KNOWN_OBJECT_TYPES.has('connector')) {
+      const snap = connectorSnapshotFrom(id, obj.get('z') as number, obj, rectsOnce());
+      if (snap !== null) result.push(snap);
     }
   });
 
@@ -402,6 +431,11 @@ export function deleteObjects(doc: Y.Doc, ids: readonly string[]): number {
   const present = unique.filter((id) => objects.has(id));
   if (present.length === 0) return 0;
   doc.transact(() => {
+    // Story 10 (`connector.target_deleted`): arrows attached to a deleted object
+    // survive with their end pinned where it was attached. Detaching inside this
+    // same transaction means the anchors are still resolvable and the whole
+    // delete is one update and one undo step.
+    detachConnectorsTo(doc, present);
     for (const id of present) objects.delete(id);
   }, LOCAL_ORIGIN);
   return present.length;

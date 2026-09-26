@@ -143,3 +143,58 @@ export const TEXT_WIDTH_PADDING_WORLD = 8;
  * proportional — good enough for an initial box before the first measurement.
  */
 export const TEXT_ESTIMATED_GLYPH_RATIO = 0.52;
+
+// Shape settings (story 10)
+
+/** The shape kinds a user can draw; the Shape menu shows them in this order. */
+export const SHAPE_KINDS = ['rect', 'ellipse', 'diamond'] as const;
+export type ShapeKind = (typeof SHAPE_KINDS)[number];
+/** The size of a shape dropped by a click (or a drag under the minimum). */
+export const SHAPE_DEFAULT_SIZE_WORLD = 160;
+/**
+ * Smallest dragged shape side, in world units. A drag smaller than this in
+ * either direction counts as a click and drops a standard-size shape.
+ */
+export const SHAPE_MIN_SIZE_WORLD = 20;
+/** Maximum characters in a shape label. */
+export const SHAPE_LABEL_MAX_CHARS = 500;
+/** Shape outline width in world units (it scales with the board). */
+export const SHAPE_STROKE_WIDTH_WORLD = 2;
+/** Fill swatch palette; `none` keeps the shape transparent inside. */
+export const SHAPE_FILL_COLORS = {
+  none: 'transparent',
+  white: '#FFFFFF',
+  blue: '#BBDEFB',
+  green: '#C8E6C9',
+  yellow: '#FFF9C4',
+  pink: '#F8BBD0',
+  grey: '#E0E0E0',
+} as const;
+export type FillColor = keyof typeof SHAPE_FILL_COLORS;
+/** Outline swatch palette. */
+export const SHAPE_STROKE_COLORS = {
+  dark: '#263238',
+  blue: '#1E88E5',
+  green: '#43A047',
+  orange: '#FB8C00',
+  red: '#E53935',
+  grey: '#9E9E9E',
+} as const;
+export type StrokeColor = keyof typeof SHAPE_STROKE_COLORS;
+export const DEFAULT_SHAPE_FILL: FillColor = 'white';
+export const DEFAULT_SHAPE_STROKE: StrokeColor = 'dark';
+/** Shape label text, in world units; it scales with the board like the outline. */
+export const SHAPE_LABEL_FONT_PX = 16;
+
+// Connector settings (story 10)
+
+/** A connector drag shorter than this, in world units, creates nothing. */
+export const CONNECTOR_MIN_LENGTH_WORLD = 8;
+/** How close to an arrow's line a click has to be, in screen pixels. */
+export const CONNECTOR_HIT_TOLERANCE_PX = 6;
+/** Arrow line width in world units. */
+export const CONNECTOR_STROKE_WIDTH_WORLD = 2;
+/** Arrowhead leg length in world units. */
+export const CONNECTOR_ARROWHEAD_SIZE_WORLD = 10;
+/** Radius of a connection dot, in screen pixels (constant at any zoom). */
+export const CONNECTOR_DOT_RADIUS_PX = 4;

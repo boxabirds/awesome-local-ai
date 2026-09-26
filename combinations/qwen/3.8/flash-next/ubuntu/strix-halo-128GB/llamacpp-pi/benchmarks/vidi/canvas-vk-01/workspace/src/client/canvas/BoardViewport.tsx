@@ -115,6 +115,14 @@ export interface BoardViewportProps {
    */
   textToolActive?: boolean;
   onTextToolPlace?(worldPoint: Point): void;
+  /**
+   * A tool's own capture layer (stories 10-12), rendered above the world layer
+   * and below the toolbar: while it is mounted the tool owns every pointer
+   * gesture, so pressing an object draws instead of moving it.
+   */
+  toolLayer?: ReactNode;
+  /** Pointer cursor while a drawing tool owns the board. */
+  toolCursor?: string;
 }
 
 /**
@@ -129,6 +137,8 @@ export function BoardViewport({
   marqueeController,
   textToolActive = false,
   onTextToolPlace,
+  toolLayer,
+  toolCursor,
 }: BoardViewportProps): JSX.Element {
   const viewportRef = useRef<HTMLDivElement | null>(null);
   const worldRef = useRef<HTMLDivElement | null>(null);
@@ -393,7 +403,7 @@ export function BoardViewport({
         backgroundImage: `radial-gradient(${DOT_COLOR} ${DOT_RADIUS_PX}px, transparent ${DOT_RADIUS_PX + 0.5}px)`,
         backgroundSize: `${tile}px ${tile}px`,
         backgroundPosition: `${gridOffsetX}px ${gridOffsetY}px`,
-        cursor: textToolActive ? 'text' : panning ? 'grabbing' : 'grab',
+        cursor: toolCursor ?? (textToolActive ? 'text' : panning ? 'grabbing' : 'grab'),
       }}
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}
@@ -449,6 +459,7 @@ export function BoardViewport({
           }}
         />
       )}
+      {toolLayer}
     </div>
   );
 }

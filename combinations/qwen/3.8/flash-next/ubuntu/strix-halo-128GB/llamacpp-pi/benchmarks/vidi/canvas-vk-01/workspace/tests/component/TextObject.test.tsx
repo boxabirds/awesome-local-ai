@@ -110,7 +110,7 @@ describe('TC-19: editing behaviour', () => {
     await settle();
     expect(screen.queryByTestId(`text-textarea-${firstId}`)).toBeNull();
     expect(screen.getByTestId(`text-object-${firstId}`).dataset.selected).toBe('true');
-    expect((objectSnapshots(doc).find((o) => o.id === firstId)!).text).toBe('hello world');
+    expect((objectSnapshots(doc).find((o) => o.id === firstId)! as TextSnapshot).text).toBe('hello world');
   });
 
   it('Enter on a single selected text starts editing', async () => {

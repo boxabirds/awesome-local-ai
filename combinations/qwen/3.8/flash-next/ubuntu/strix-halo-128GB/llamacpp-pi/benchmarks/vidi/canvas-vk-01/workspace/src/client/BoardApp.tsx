@@ -16,13 +16,19 @@ import { SelectionOverlay } from './board/SelectionOverlay';
 import { SelectionBar } from './board/SelectionBar';
 import { canEdit, ConnectionStatus } from './sync/ConnectionStatus';
 import { Toolbar } from './board/Toolbar';
-import { useTool } from './board/useTool';
+import { useActiveTool } from './tools/useActiveTool';
+import { ShapeTool } from './tools/ShapeTool';
+import { ConnectorTool } from './tools/ConnectorTool';
 import { useIdentity } from './board/useIdentity';
 import { NoteToolbar } from './objects/NoteToolbar';
+import { ShapeToolbar } from './objects/ShapeToolbar';
 import { getObjectType } from './objects/registry';
-import { createSticky, deleteObject, deleteObjects, setStickyColor, type StickySnapshot } from '../shared/board-model';
+import { createSticky, deleteObject, deleteObjects, objectBounds, setStickyColor, type StickySnapshot } from '../shared/board-model';
 import { createText, setTextSize } from '../shared/objects/text';
+import { setShapeStyle, type ShapeSnapshot } from '../shared/objects/shape';
 import type { TextSnapshot } from '../shared/objects/text';
+import type { FillColor, StrokeColor } from '../shared/config';
+import type { Rect } from '../shared/geometry';
 import type { TextSize } from '../shared/config';
 import { textMeasurer } from './objects/TextObject';
 import { remeasureTextBox } from './objects/useTextBoxSync';
@@ -68,7 +74,12 @@ function BoardContent() {
 
   const editable = canEdit(connection);
   const { ids, editingId, click, toggle, setMany, clear, startEdit, endEdit } = selection;
-  const { tool, setTool } = useTool(editable);
+  // A created shape or arrow is selected and the tool goes back to Select.
+  const selectCreated = useCallback((id: string) => click(id), [click]);
+  const { tool, shapeKind, setTool, setShapeKind, toolCreated } = useActiveTool({
+    canEdit: editable,
+    select: selectCreated,
+  });
   const identity = useIdentity();
 
   useEffect(() => {
@@ -150,6 +161,28 @@ function BoardContent() {
     },
     [doc, editable, undoController],
   );
+
+  // Shape style swatches (`shape.style`): only the colour changes.
+  const handleShapeStyle = useCallback(
+    (id: string, style: { fill?: FillColor; stroke?: StrokeColor }) => {
+      if (!editable) return;
+      undoController.boundary();
+      setShapeStyle(doc, id, style);
+      undoController.boundary();
+    },
+    [doc, editable, undoController],
+  );
+
+  // Every attachable object's rectangle, shared by the arrows' end handles —
+  // connectors themselves are never a target.
+  const attachableRects = useMemo(() => {
+    const rects = new Map<string, Rect>();
+    for (const obj of notes) {
+      if (obj.type === 'connector') continue;
+      rects.set(obj.id, objectBounds(obj));
+    }
+    return rects;
+  }, [notes]);
 
   const handleCreateSticky = useCallback(() => {
     if (!editable) return;
@@ -239,6 +272,10 @@ function BoardContent() {
     singleId !== undefined && editingId === null
       ? notes.find((n) => n.id === singleId && n.type === 'text')
       : undefined;
+  const singleShape =
+    singleId !== undefined && editingId === null
+      ? (notes.find((n) => n.id === singleId && n.type === 'shape') as ShapeSnapshot | undefined)
+      : undefined;
   const overlayVisible = ids.size > 0 && !gesture.isDragging;
 
   return (
@@ -248,6 +285,8 @@ function BoardContent() {
         editable={editable}
         tool={tool}
         onSelectTool={setTool}
+        shapeKind={shapeKind}
+        onShapeKind={setShapeKind}
         undoButtons={<UndoButtons {...undoState} />}
       />
       <BoardViewport
@@ -256,6 +295,14 @@ function BoardContent() {
         marqueeController={marquee.controller}
         textToolActive={tool === 'text'}
         onTextToolPlace={handleTextToolPlace}
+        toolCursor={tool === 'shape' || tool === 'connector' ? 'crosshair' : undefined}
+        toolLayer={
+          tool === 'shape' ? (
+            <ShapeTool kind={shapeKind} camera={camera} onCreated={toolCreated} />
+          ) : tool === 'connector' ? (
+            <ConnectorTool camera={camera} snapshot={notes} onCreated={toolCreated} />
+          ) : undefined
+        }
       >
         {renderedNotes.map((note) => {
           const spec = getObjectType(note.type);
@@ -267,6 +314,8 @@ function BoardContent() {
               obj={note}
               doc={doc}
               zoom={camera.zoom}
+              camera={camera}
+              rects={attachableRects}
               selected={ids.has(note.id)}
               editing={editingId === note.id}
               editable={editable}
@@ -310,6 +359,15 @@ function BoardContent() {
           onDelete={handleDelete}
         />
       )}
+
+      {singleShape !== undefined && (
+        <ShapeToolbarOverlay
+          shape={singleShape}
+          camera={camera}
+          onStyle={handleShapeStyle}
+          onDelete={handleDelete}
+        />
+      )}
     </UndoProvider>
   );
 }
@@ -331,6 +389,27 @@ function NoteToolbarOverlay({ note, camera, onColor, onDelete }: {
         color={note.color}
         onColor={(c) => onColor(note.id, c)}
         onDelete={() => onDelete(note.id)}
+      />
+    </div>
+  );
+}
+
+/** Screen-space swatch toolbar above a single selected shape (story 10). */
+function ShapeToolbarOverlay({ shape, camera, onStyle, onDelete }: {
+  shape: ShapeSnapshot;
+  camera: { x: number; y: number; zoom: number };
+  onStyle(id: string, style: { fill?: FillColor; stroke?: StrokeColor }): void;
+  onDelete(id: string): void;
+}) {
+  const screenPos = worldToScreen(camera, { x: shape.x, y: shape.y });
+  return (
+    <div className="note-toolbar-screen" style={{ left: screenPos.x, top: screenPos.y - 36 }}>
+      <ShapeToolbar
+        fill={shape.fill}
+        stroke={shape.stroke}
+        onFill={(color) => onStyle(shape.id, { fill: color })}
+        onStroke={(color) => onStyle(shape.id, { stroke: color })}
+        onDelete={() => onDelete(shape.id)}
       />
     </div>
   );
