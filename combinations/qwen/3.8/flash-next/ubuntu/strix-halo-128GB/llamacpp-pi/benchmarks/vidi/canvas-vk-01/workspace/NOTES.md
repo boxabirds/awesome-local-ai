@@ -561,3 +561,118 @@ chrome never lags behind a drag.
   `fileURLToPath(new URL('.../styles.css', import.meta.url))`, which throws
   `TypeError: The URL must be of scheme file` under the jsdom component project.
   It fails on the base commit as well.
+
+---
+
+# Story 8 notes — undo and redo my own changes without undoing anyone else's
+
+Implementation of `spec/stories/008-undo-and-redo-my-own-changes-without-undoing-anyon`.
+
+## Architecture
+
+```
+src/client/board/undo.ts          — createUndo() wrapping Y.UndoManager
+src/client/board/useUndo.ts       — React hook (canUndo, canRedo, undo, redo)
+src/client/board/UndoButtons.tsx  — toolbar buttons with aria-label
+src/client/board/UndoContext.ts   — React context providing UndoController
+```
+
+Modified files:
+- `src/shared/config.ts` — `UNDO_CAPTURE_TIMEOUT_MS = 500`, `UNDO_MAX_STEPS = 200`
+- `src/client/BoardApp.tsx` — creates controller, passes boundary() to gestures/color/delete/create, provides UndoContext
+- `src/client/board/useBoardKeys.ts` — Ctrl/Cmd+Z (undo), Ctrl/Cmd+Shift+Z, Ctrl+Y (redo); boundary around Delete and nudge
+- `src/client/board/Toolbar.tsx` — accepts `undoButtons?: ReactNode` prop
+- `src/client/objects/StickyTextEditor.tsx` — uses UndoController context; boundary on mount/Escape; intercepts Ctrl/Cmd+Z/Y in textarea
+
+## Key implementation decisions
+
+### Per-user undo via `trackedOrigins`
+`Y.UndoManager` is constructed with `trackedOrigins: new Set([LOCAL_ORIGIN])`.
+The `LOCAL_ORIGIN` symbol is exported from `board-model.ts` and used by every
+local mutation function (`createSticky`, `moveObject`, `deleteObjects`,
+`setStickyColor`, text editor transactions). Remote updates arrive with
+`REMOTE_ORIGIN` or `undefined`, so they are invisible to the UndoManager.
+This is the key mechanism that makes undo "local only" without a filter layer.
+
+### UndoController interface
+```ts
+interface UndoController {
+  boundary(): void;
+  undo(): void;
+  redo(): void;
+  canUndo(): boolean;
+  canRedo(): boolean;
+  onChange(cb: () => void): () => void;
+  destroy(): void;
+}
+```
+The controller exposes `boundary()` to split capture windows at gesture
+boundaries (drag start/end, colour change, delete, note creation). Between
+boundaries, rapid local changes merge into one undo step (controlled by
+Yjs's `captureTimeout`).
+
+### Stack trimming to UNDO_MAX_STEPS
+After each `stack-item-added` event, if the undo stack exceeds `UNDO_MAX_STEPS`,
+the oldest items are shifted from the front (`manager.undoStack.shift()`). This
+bounds memory usage on long sessions.
+
+### Text editor interaction
+The textarea editor intercepts Ctrl/Cmd+Z/Y itself (calling `controller.undo()`
+/ `controller.redo()`) and calls `event.preventDefault()` so the global handler
+does not also fire. `boundary()` is called on mount and on Escape (committing
+the text editing session as a clean boundary).
+
+### `isEditableTarget` guard
+The global keyboard handler skips `Ctrl/Cmd+Z` when
+`event.target` is an `<input>`, `<textarea>`, or `contenteditable` element
+(`isEditableTarget()` in `useBoardKeys.ts`). This prevents hijacking undo in
+the share-link input field or other non-board inputs (TC-21).
+
+### Gesture boundaries
+`useTransformGesture` calls `boundary()` at gesture start (`begin()`) and at
+gesture end (`end()`, which fires on pointerup, pointercancel, or lostpointercapture).
+This ensures that a 30-frame drag becomes exactly one undo step, and that
+`pointercancel` (which calls `cancel()` → `end()`) still produces exactly one
+step. The design specifies that even after a cancel, the user must undo once
+to return to the pre-drag state (the intermediate writes during the drag are
+already committed to Y.Doc).
+
+## Test coverage
+
+| Tests | Where |
+| --- | --- |
+| TC-01..TC-11 (undo history) | `tests/unit/undo-history.test.ts` |
+| TC-12, TC-13a/b (capture boundaries) | `tests/unit/undo-boundaries.test.ts` |
+| TC-14..TC-17 (gesture boundaries) | `tests/component/UndoBoundaries.test.tsx` |
+| TC-18..TC-21 (controls) | `tests/component/UndoControls.test.tsx` |
+| TC-22..TC-24 (live collaboration) | `tests/e2e/story8-undo-redo.spec.ts` |
+
+### Unit test peer simulation
+The `createPeer()` helper pre-syncs the full doc state via
+`Y.encodeStateAsUpdate` → `Y.applyUpdate(peerDoc, ...)` before registering
+incremental sync handlers. This mimics the SyncStep1/SyncStep2 handshake that
+a real Yjs provider performs and is necessary because `initDoc()` creates
+internal Yjs state that the peer must receive before it can correctly apply
+subsequent updates.
+
+## Deviations from the spec
+
+1. **Capture timeout boundary value.** The design says "exactly
+   `UNDO_CAPTURE_TIMEOUT_MS` apart → two steps". Yjs's `UndoManager` uses
+   strict `>` comparison (`elapsed > captureTimeout`), so exactly at the
+   timeout the inserts are still merged. TC-13a uses `UNDO_CAPTURE_TIMEOUT_MS + 1`
+   to produce two steps, and TC-13b verifies `UNDO_CAPTURE_TIMEOUT_MS − 1`
+   still merges. The PRD's user-facing statement ("without a pause of half a
+   second or more") remains true in spirit; the half-ms boundary is
+   indistinguishable to a human.
+
+2. **Fake timers don't work for capture timeout.** `lib0/time` captures
+   `Date.now` as a module-level constant at import time, before vitest's
+   `vi.useFakeTimers()` can replace it. Capture timeout tests use real timers
+   with short values (50–500ms) instead.
+
+3. **`boundary()` calls `stopCapturing()` which in Yjs prevents the NEXT
+   transaction from merging into the current stack item.** An additional
+   `stopCapturing()` call with no intervening transaction is a no-op, making
+   redundant boundary calls (e.g., at both gesture start AND create-sticky)
+   safe.
