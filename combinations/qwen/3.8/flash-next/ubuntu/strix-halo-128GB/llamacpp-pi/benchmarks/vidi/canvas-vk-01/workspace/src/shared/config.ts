@@ -55,3 +55,23 @@ export const RECONNECT_MAX_BACKOFF_MS = 10_000;
 export const CONNECTED_CONFIRMATION_MS = 2000;
 /** Outage length used by the PRD live.catch_up verification. */
 export const CATCH_UP_TEST_OUTAGE_MS = 30_000;
+
+// Persistence settings (story 4)
+
+/** Compact the update log when this many rows exist (PRD persist.large_board). */
+export const COMPACTION_UPDATE_COUNT = 500;
+/** ...or when the log reaches this many bytes. */
+export const COMPACTION_BYTES = 4 * 1024 * 1024;
+/**
+ * Snapshot rows are written in chunks of this size, which keeps every row well
+ * under the per-row size limit of SQLite-backed Durable Objects.
+ */
+export const SNAPSHOT_CHUNK_BYTES = 512 * 1024;
+/** A `load-failed` room retries loading at most this often (PRD persist.load_failure). */
+export const LOAD_RETRY_MIN_INTERVAL_MS = 5000;
+/** The board size the persistence work is designed and tested for (PRD persist.large_board). */
+export const PERSIST_TESTED_NOTES = 2000;
+/** Opening a `PERSIST_TESTED_NOTES` board must show every note within this (PRD persist.large_board). */
+export const BOARD_LOAD_BUDGET_MS = 3000;
+/** Version of the storage tables, written to `storage_meta` on migrate. */
+export const STORAGE_SCHEMA_VERSION = 1;

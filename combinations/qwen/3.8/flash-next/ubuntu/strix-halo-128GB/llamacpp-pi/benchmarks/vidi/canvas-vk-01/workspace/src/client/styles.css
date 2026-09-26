@@ -338,3 +338,11 @@ body {
   background: #d7f5e3;
   border: 1px solid #7fd6a4;
 }
+
+/* A board that could not be loaded (PRD persist.load_failure): red, and the
+   only state in which the board itself is locked. */
+.connection-status--load_failed {
+  color: #b3261e;
+  background: #fee2e2;
+  border: 1px solid #f0a8a4;
+}

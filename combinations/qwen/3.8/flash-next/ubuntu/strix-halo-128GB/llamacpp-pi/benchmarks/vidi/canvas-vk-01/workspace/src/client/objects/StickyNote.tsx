@@ -33,6 +33,8 @@ export interface StickyNoteProps {
   zoom: number;
   selected: boolean;
   editing: boolean;
+  /** False while the board is locked (persist.load_failure): no drag, no editor. */
+  editable?: boolean;
   onSelect(id: string): void;
   onStartEdit(id: string): void;
   onEndEdit(next: 'selected' | 'unselected'): void;
@@ -48,6 +50,7 @@ export function StickyNote({
   zoom,
   selected,
   editing,
+  editable = true,
   onSelect,
   onStartEdit,
   onEndEdit,
@@ -107,6 +110,8 @@ export function StickyNote({
 
   const handlePointerDown = useCallback((event: ReactPointerEvent<HTMLDivElement>) => {
     if (event.button !== 0) return;
+    // Locked board: a press never becomes a drag.
+    if (!editable) return;
     event.stopPropagation();
     event.preventDefault();
 
@@ -125,7 +130,7 @@ export function StickyNote({
     if (stateRef.current !== 'Editing') {
       stateRef.current = 'Pressed';
     }
-  }, []);
+  }, [editable]);
 
   const handlePointerMove = useCallback((event: ReactPointerEvent<HTMLDivElement>) => {
     if (stateRef.current !== 'Pressed' && stateRef.current !== 'Dragging') return;
@@ -199,9 +204,10 @@ export function StickyNote({
   const handleDoubleClick = useCallback((event: React.MouseEvent) => {
     event.stopPropagation();
     event.preventDefault();
+    if (!editable) return;
     if (!objectsMap.has(note.id)) return;
     onStartEdit(note.id);
-  }, [note.id, onStartEdit, objectsMap]);
+  }, [note.id, onStartEdit, objectsMap, editable]);
 
   const handleEditorEnd = useCallback((next: 'selected' | 'unselected') => {
     onEndEdit(next);

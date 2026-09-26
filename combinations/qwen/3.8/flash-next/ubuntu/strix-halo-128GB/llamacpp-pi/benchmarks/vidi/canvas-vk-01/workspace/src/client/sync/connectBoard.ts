@@ -2,6 +2,7 @@ import type * as Y from 'yjs';
 import { WebsocketProvider } from 'y-websocket';
 
 import { CONNECTED_CONFIRMATION_MS, RECONNECT_MAX_BACKOFF_MS } from '../../shared/config';
+import { CLOSE_BOARD_LOAD_FAILED } from '../../shared/protocol';
 import { recordingWebSocket } from '../canvas/testHooks';
 
 /**
@@ -19,8 +20,15 @@ import { recordingWebSocket } from '../canvas/testHooks';
  * `reconnecting` connection lost after a successful sync (badge, amber)
  * `confirmed`   just re-synced after an outage (badge, green, for
  *               `CONNECTED_CONFIRMATION_MS`, then `connected`)
+ * `load_failed` the room refused this board because it could not load it (badge,
+ *               red); the only state in which the board is not editable
  */
-export type ConnectionState = 'connecting' | 'connected' | 'reconnecting' | 'confirmed';
+export type ConnectionState =
+  | 'connecting'
+  | 'connected'
+  | 'reconnecting'
+  | 'confirmed'
+  | 'load_failed';
 
 export interface ConnectBoardResult {
   destroy(): void;
@@ -65,6 +73,14 @@ export function connectBoard(
 
   /** True once the doc has been in sync with a room at least once. */
   let hasSynced = false;
+  /**
+   * Set when the room refused the board (close code 4500) and kept until a sync
+   * succeeds. The provider retries on its own — 4500 is outside the range
+   * `y-websocket` treats as terminal — and a failed retry closing for another
+   * reason must not turn "this board couldn't be loaded" into "reconnecting",
+   * which would unlock a board whose contents nobody can see.
+   */
+  let loadFailed = false;
   let confirmation: ReturnType<typeof setTimeout> | null = null;
 
   const clearConfirmation = (): void => {
@@ -85,8 +101,23 @@ export function connectBoard(
     }, CONNECTED_CONFIRMATION_MS);
   };
 
+  /**
+   * The room closed our socket. 4500 is the one code that means something about
+   * the board rather than the connection: it could not be loaded. Everything
+   * else — including 1011, the room's own storage failure — is a dropped
+   * connection, where the board is readable and local changes go out again on
+   * reconnect (persist.save_failure).
+   */
+  const handleConnectionClose = (event: { code: number } | null): void => {
+    if (event === null || event.code !== CLOSE_BOARD_LOAD_FAILED) return;
+    loadFailed = true;
+    clearConfirmation();
+    onState('load_failed');
+  };
+
   const handleStatus = (event: { status: 'connected' | 'disconnected' | 'connecting' }): void => {
     if (event.status === 'disconnected') {
+      if (loadFailed) return; // already showing the load failure; retries change nothing
       // A drop after we were in sync is a reconnection; before the first sync
       // it is still the initial "Connecting…".
       clearConfirmation();
@@ -102,6 +133,9 @@ export function connectBoard(
 
   const handleSync = (synced: boolean): void => {
     if (!synced) return;
+    // A board that had refused us is now readable: editing comes back on its
+    // own, without anyone reloading the page (persist.load_failure).
+    loadFailed = false;
     if (!hasSynced) {
       hasSynced = true;
       clearConfirmation();
@@ -113,12 +147,14 @@ export function connectBoard(
 
   provider.on('status', handleStatus);
   provider.on('sync', handleSync);
+  provider.on('connection-close', handleConnectionClose);
 
   return {
     destroy() {
       clearConfirmation();
       provider.off('status', handleStatus);
       provider.off('sync', handleSync);
+      provider.off('connection-close', handleConnectionClose);
       provider.disconnect();
       provider.destroy();
     },
