@@ -36,15 +36,16 @@ export default defineConfig({
     },
     // Story 7: TC-32 (marquee containment) must also pass in firefox and
     // webkit. Only the marquee spec is targeted; the other selection tests
-    // are chromium per the spec.
+    // are chromium per the spec. Story 11: TC-17 (real-drag preview) must
+    // also pass there, so the pen spec is targeted as well.
     {
       name: 'firefox',
-      testMatch: ['**/selection-marquee.spec.ts', '**/text-wrapping.spec.ts'],
+      testMatch: ['**/selection-marquee.spec.ts', '**/text-wrapping.spec.ts', '**/pen.spec.ts'],
       use: { ...devices['Desktop Firefox'] },
     },
     {
       name: 'webkit',
-      testMatch: ['**/selection-marquee.spec.ts', '**/text-wrapping.spec.ts'],
+      testMatch: ['**/selection-marquee.spec.ts', '**/text-wrapping.spec.ts', '**/pen.spec.ts'],
       use: { ...devices['Desktop Safari'] },
     },
   ],

@@ -167,3 +167,39 @@ export const TEXT_MAX_AUTO_WIDTH_WORLD = 600;
 export const TEXT_GLYPH_WIDTH_RATIO = 0.6;
 /** Text boxes (auto and fixed) are never narrower than this (text.resize). */
 export const TEXT_MIN_WIDTH_WORLD = 40;
+
+// --- Story 11: sketch freehand with a pen (pen.*) ---
+
+/** The six pen ink swatches by name (pen.options). */
+export const PEN_COLORS = {
+  black: '#212121',
+  blue: '#1E88E5',
+  red: '#E53935',
+  green: '#43A047',
+  orange: '#FB8C00',
+  purple: '#8E24AA',
+} as const;
+/** Pen thickness presets in WORLD units, so strokes scale with zoom (pen.options). */
+export const PEN_THICKNESS_WORLD = { thin: 2, medium: 4, thick: 8 } as const;
+export const DEFAULT_PEN_COLOR = 'black';
+export const DEFAULT_PEN_THICKNESS = 'medium';
+/**
+ * Smoothing tolerance in SCREEN pixels at the zoom used while drawing:
+ * no point of the finished stroke lies farther than this from the drawn path
+ * (pen.smooth). The tool converts it to world units with tolerance / zoom.
+ */
+export const STROKE_SIMPLIFY_TOLERANCE_PX = 1;
+/**
+ * A stroke being drawn is finished at this many raw points and continued as
+ * a new stroke starting at the same (shared) point, with no visible gap
+ * (pen.long_stroke).
+ */
+export const STROKE_MAX_POINTS = 5000;
+/**
+ * Click tolerance in SCREEN pixels: a click selects a stroke when it is
+ * within this of the line or within half its thickness, whichever is larger
+ * (pen.select).
+ */
+export const STROKE_HIT_TOLERANCE_PX = 6;
+/** Smallest side of a stroke's bounding box in world units (pen.resize). */
+export const STROKE_MIN_SIZE_WORLD = 4;
