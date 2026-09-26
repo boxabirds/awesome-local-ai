@@ -49,6 +49,8 @@ export function StickyNote(props: {
   zoom: number;
   selected: boolean;
   editing: boolean;
+  /** When false (board load_failed) every mutation is a no-op. */
+  canEdit: boolean;
   onSelect: (id: string | null) => void;
   onStartEdit: (id: string) => void;
   onEndEdit: (next: 'selected' | 'unselected') => void;
@@ -60,13 +62,28 @@ export function StickyNote(props: {
   const [dragging, setDragging] = useState(false);
   const [overflow, setOverflow] = useState(false);
 
-  // Fit the text into the note (binary search, world-px font sizes). Runs on
-  // mount, on text change and when the editor swaps in.
+  // Fit the text into the note (binary search, world-px font sizes) on mount,
+  // on text change and when the editor swaps in.
+  //
+  // Empty text needs no fitting (nothing to shrink). For non-empty text the
+  // measurement is deferred to requestAnimationFrame: fitFontSize alternates a
+  // style write with a scrollHeight read, so each iteration forces a
+  // synchronous reflow. Fitting synchronously in useLayoutEffect while a large
+  // board mounts thousands of notes at once would thrash layout (O(n^2)) and
+  // blow the load budget; deferring keeps the initial commit fast and corrects
+  // the font on the next frame.
   useLayoutEffect(() => {
     const el = textRef.current;
     if (el === null) return;
-    const fit = fitFontSize(el, STICKY_SIZE_WORLD - TEXT_PADDING_WORLD * 2);
-    setOverflow(fit.overflow);
+    if (note.text === '') {
+      setOverflow(false);
+      return;
+    }
+    let frame = requestAnimationFrame(() => {
+      const fit = fitFontSize(el, STICKY_SIZE_WORLD - TEXT_PADDING_WORLD * 2);
+      setOverflow(fit.overflow);
+    });
+    return () => cancelAnimationFrame(frame);
   }, [note.text, editing]);
 
   const flushPendingMove = (state: DragState): void => {
@@ -99,12 +116,13 @@ export function StickyNote(props: {
     if (editing) return; // the textarea owns pointer events while editing
     if (e.pointerType === 'mouse' && e.button !== 0) return;
     e.stopPropagation(); // the board must not pan or create on a note press
+    props.onSelect(note.id);
+    if (!props.canEdit) return; // load_failed: select only, never drag
     try {
       rootRef.current?.setPointerCapture(e.pointerId);
     } catch {
       // Capture can be unavailable (jsdom); the drag still works.
     }
-    props.onSelect(note.id);
     dragRef.current = {
       pointerId: e.pointerId,
       startX: e.clientX,
@@ -164,11 +182,11 @@ export function StickyNote(props: {
 
   const onDoubleClick = (e: ReactMouseEvent<HTMLDivElement>): void => {
     e.stopPropagation(); // the board must not create a note on a note dblclick
-    if (!editing) props.onStartEdit(note.id);
+    if (!editing && props.canEdit) props.onStartEdit(note.id);
   };
 
   const onKeyDown = (e: React.KeyboardEvent<HTMLDivElement>): void => {
-    if (e.key === 'Enter' && !editing) {
+    if (e.key === 'Enter' && !editing && props.canEdit) {
       e.preventDefault();
       props.onStartEdit(note.id);
     }
@@ -231,10 +249,12 @@ export function StickyNote(props: {
           >
             <NoteToolbar
               color={color}
+              disabled={!props.canEdit}
               onColor={(c) => {
-                setStickyColor(doc, note.id, c);
+                if (props.canEdit) setStickyColor(doc, note.id, c);
               }}
               onDelete={() => {
+                if (!props.canEdit) return;
                 deleteObject(doc, note.id);
                 props.onSelect(null);
               }}

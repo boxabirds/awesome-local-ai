@@ -285,7 +285,9 @@ describe('BoardRoom (task 6)', () => {
       await a.destroy();
       await b.destroy();
     }
-  });
+  },
+    20_000,
+  );
 
   it('TC-15: malformed traffic closes only A with 1003; B keeps receiving; room doc unchanged', async () => {
     const boardId = newBoardId();

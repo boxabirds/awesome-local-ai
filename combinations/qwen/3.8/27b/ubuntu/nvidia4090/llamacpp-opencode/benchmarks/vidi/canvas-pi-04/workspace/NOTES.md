@@ -249,3 +249,124 @@ commit of this change set.
   or a Yjs update the doc rejects): close `1003` for that socket only.
 - No persistence: room state lives in the DO's memory; restart ⇒ empty
   room, repopulated by clients' next `Step1`.
+
+# NOTES — Story 4: Return to a board and find everything as it was left
+
+Board persistence (SQLite-backed Durable Object), compaction, hibernation and
+load-failure handling. Follows `spec/stories/004-*/`.
+
+## Story-3 gap filled
+
+- **`wrangler.jsonc`: `new_classes` → `new_sqlite_classes`.** A Durable Object
+  that uses `storage.sql` must be declared under `new_sqlite_classes`, not
+  `new_classes`, or the SQL API is unavailable at runtime. Story 3 never
+  exercised `.sql`, so the misdeclaration went unnoticed. (Recorded per the
+  brief: "fill any story-3 gaps you need.")
+
+## Decisions worth recording
+
+1. **Load-failure vs storage-failure split.** A load that cannot read the
+   snapshot (unreadable bytes) OR hits a SQL error goes to `LoadFailed`
+   (client closed with `4500`, retried after `LOAD_RETRY_MIN_INTERVAL_MS`).
+   `StorageFailed` is reserved for the INSERT path (an update that cannot be
+   written). The design's state diagram is authoritative: both load error
+   kinds converge on `LoadFailed`.
+
+2. **Three production room states.** `ready | load-failed | storage-failed`.
+   The full 6-state machine (`Loading`, `Compacting`, `Hibernated`, …) in
+   `room-state.ts` exists so TC-27 can exercise every transition; the live
+   room only occupies the three steady states.
+
+3. **`BoardStoreStorage` is a structural interface** `{ sql: { exec },
+   transactionSync<T>(work): T }`. `transactionSync` lives on the Durable
+   Object storage (called with the storage object as `this`), NOT on
+   `storage.sql` and NOT on `DurableObjectState`. The structural shape lets
+   the pure helpers run under unit tests while the class runs unchanged in
+   the workerd pool.
+
+4. **`compact()` never throws.** It returns `false` on any error; the failed
+   transaction rolls back and leaves the previous snapshot + log intact
+   (design: "Compacting → Ready: compaction error rolled back, log intact").
+
+5. **`LOAD_ORIGIN` unique symbol.** Updates applied while loading from the
+   store are tagged with it; the room's doc-update handler skips them so the
+   load is neither re-stored nor re-broadcast.
+
+6. **Lazy tracking via `ensureTracked()`.** Row count / bytes / maxSeq /
+   throughSeq are read from the DB once on first access (one query) rather
+   than tracked on every append; `load()` overwrites them with the exact
+   values it observed. `lastRowId` is not exposed by the DO SQL API, so seq
+   is derived from `MAX(seq)`.
+
+7. **Multi-client fixture (3 docs).** The corrupted-row fixture must be
+   multi-client with the bad row being a client's LAST update. Yjs'
+   `integrateStructs` discards ALL remaining items from a client once it hits
+   a gap (clock below the doc's current clock for that client) via
+   `addStackToRestSS()`. A single-client fixture would let the loader recover;
+   a multi-client one makes the dead-wall quarantining observable (TC-09).
+
+8. **Hibernation API close propagation.** With `ctx.acceptWebSocket`, a
+   client-initiated close does NOT fire the client-side `close` event in the
+   workerd test pool (server-initiated closes do). `WsClient.destroy()` uses a
+   100 ms grace period to absorb this. TC-18 simulates a wake via `testWake()`
+   (the pool does not do real hibernation).
+
+9. **`notes` test hook (server ground truth).** `POST /__test/boards/:id/notes`
+   returns the room's durable note count. A note is counted only once its
+   update has been applied to the room — and by the durability ordering that
+   means it is persisted. TC-19 polls it before a cold restart so the test is
+   deterministic (see gotcha 3).
+
+## Gotchas found while making the e2e pass
+
+1. **`wrangler dev` spawns a `workerd` grandchild that outlives the CLI.**
+   SIGTERM-ing the `wrangler` CLI (what `restart()` did) left the `workerd
+   serve` process — and its in-memory Durable Object state — alive, still
+   bound to the port. A "restart" therefore reconnected to the OLD room,
+   masking every cold-start assertion (TC-24 served the live 25-note doc
+   instead of the corrupted snapshot). Fix: spawn with `detached: true` (new
+   process group) and kill the whole group with `process.kill(-pid, signal)`,
+   polling `process.kill(-pid, 0)` until the group (incl. workerd) is gone.
+   Without this, orphans also leaked (40+ workerd per run).
+
+2. **Wrangler 4.141.0 `--var` uses COLON, not `=`.** `collectKeyValues` does
+   `v.split(":")`, so `--var TEST_HOOKS=1` produced an empty/`=`-mangled value
+   and `env.TEST_HOOKS` was undefined (hooks 404'd). Use `--var TEST_HOOKS:1`.
+
+3. **TC-19 durability race.** Creating 25 notes in the browser and then
+   restarting immediately lost ~half of them: the client was still flushing
+   Yjs updates when the socket closed. This only surfaced once restart became
+   a REAL cold load (gotcha 1). The test now blocks on the `/notes` hook until
+   the server durably holds all 25 before the restart.
+
+4. **Rendering 2000 notes blew the TC-21 budget (6 s → 150 ms).** `StickyNote`
+   fit its text in `useLayoutEffect` via `fitFontSize`, a binary search that
+   alternates a `style.fontSize` write with a `scrollHeight` read — a forced
+   synchronous reflow per iteration. Mounting thousands of notes at once
+   thrashed layout O(n²). Fix: skip fitting for empty text (nothing to shrink)
+   and defer `fitFontSize` to `requestAnimationFrame`, so the bulk commit is
+   not blocked by reflows and the font corrects on the next frame.
+
+5. **DO SQL rows are objects with named properties.** `SELECT data FROM t`
+   yields `[{ data: ArrayBuffer }]` — access `.data`, never pass the row
+   object to `Y.applyUpdate`. BLOBs come back as `ArrayBuffer`.
+
+6. **`DurableObjectBinding` type does not exist** in workers-types
+   5.20260926.1; the binding is typed `DurableObjectNamespace<BoardRoom>` and
+   the constructor takes the global `DurableObjectState`.
+
+## Manual checks
+
+- `wrangler dev --persist-to <tmp> --var TEST_HOOKS:1`: seed 25 notes in the
+  browser, kill + restart, reopen — the identical 25 notes return (positions,
+  colours, text). Corrupting the snapshot then shows the load-failed banner
+  and, after repair, the board returns live without a reload.
+- A 2000-note board (compacted to a single snapshot) opens in well under the
+  3000 ms budget on a cold start.
+
+## Test counts
+
+- unit: 154 (adds `board-store-chunks`, `room-state` TC-27 matrix).
+- component: 20 (adds `load-failure` TC-22/TC-23).
+- integration: 36 (board-store, worker, room-persist, board-room).
+- e2e persistence: 4 (TC-19, TC-20, TC-21, TC-24).

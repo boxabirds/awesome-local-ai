@@ -25,6 +25,22 @@ export const MESSAGE_QUERY_AWARENESS = 3;
  */
 export const CLOSE_UNSUPPORTED_DATA = 1003;
 
+/**
+ * Story 4: the room accepted the socket but the board's storage could not be
+ * loaded (corrupt snapshot, failing SELECT). The client shows a load failure
+ * and keeps retrying. The code sits outside the 4400–4499 "do not reconnect"
+ * range, so the y-websocket provider auto-reconnects on its backoff.
+ */
+export const CLOSE_BOARD_LOAD_FAILED = 4500;
+
+/**
+ * Story 4: an update was applied in memory but could not be stored (e.g. an
+ * INSERT failure). The room drops its doc and closes all sockets with this
+ * code; the next connection triggers a reload from storage (which restores
+ * every durably stored change).
+ */
+export const CLOSE_STORAGE_FAILURE = 1011;
+
 /** y-protocols sync sub-message types (inside a MESSAGE_SYNC frame). */
 export const SYNC_STEP1 = 0;
 export const SYNC_STEP2 = 1;

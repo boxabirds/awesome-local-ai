@@ -87,5 +87,30 @@ export const RECONNECT_MAX_BACKOFF_MS = 10_000;
 /** How long the green "Connected" badge stays visible after a reconnect. */
 export const CONNECTED_CONFIRMATION_MS = 2000;
 
+// ---------------------------------------------------------------------------
+// Story 4: persistence, compaction, load failure.
+// ---------------------------------------------------------------------------
+
+/** Story 4, design decision 2: SQLite schema version. */
+export const STORAGE_SCHEMA_VERSION = 1;
+
+/** Story 4: the update-log row count that triggers compaction (TC-17). */
+export const COMPACTION_UPDATE_COUNT = 500;
+
+/** Story 4: the update-log byte total that triggers compaction (design decision 4). */
+export const COMPACTION_BYTES = 4 * 1024 * 1024;
+
+/** Story 4: the snapshot size that forces chunking (design decision 5). */
+export const SNAPSHOT_CHUNK_BYTES = 512 * 1024;
+
+/** Story 4: minimum interval between storage SELECT retry attempts (TC-26). */
+export const LOAD_RETRY_MIN_INTERVAL_MS = 5000;
+
+/** Story 4: the note count the persistence path is explicitly tested at (TC-08, TC-21). */
+export const PERSIST_TESTED_NOTES = 2000;
+
+/** Story 4: a board of PERSIST_TESTED_NOTES must render within this of navigation start. */
+export const BOARD_LOAD_BUDGET_MS = 3000;
+
 /** Length of the simulated network outage in the catch-up e2e test. */
 export const CATCH_UP_TEST_OUTAGE_MS = 30_000;

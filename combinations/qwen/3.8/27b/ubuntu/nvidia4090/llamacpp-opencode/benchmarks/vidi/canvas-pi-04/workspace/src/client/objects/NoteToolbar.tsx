@@ -16,7 +16,10 @@ export function NoteToolbar(props: {
   color: StickyColor;
   onColor: (color: StickyColor) => void;
   onDelete: () => void;
+  /** When true (board load_failed) the tools are inert. */
+  disabled?: boolean;
 }): JSX.Element {
+  const disabled = props.disabled === true;
   const stop = (e: ReactPointerEvent | ReactMouseEvent): void => {
     e.stopPropagation();
   };
@@ -37,6 +40,7 @@ export function NoteToolbar(props: {
           title={colorLabel(color)}
           aria-label={colorLabel(color)}
           aria-pressed={props.color === color}
+          disabled={disabled}
           style={{ background: STICKY_COLORS[color] }}
           onClick={() => props.onColor(color)}
         />
@@ -46,6 +50,7 @@ export function NoteToolbar(props: {
         className="note-toolbar__delete"
         title="Delete note"
         aria-label="Delete note"
+        disabled={disabled}
         onClick={props.onDelete}
       >
         <svg width="14" height="14" viewBox="0 0 16 16" aria-hidden="true" focusable="false">

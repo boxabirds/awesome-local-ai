@@ -18,6 +18,7 @@ import { canZoomIn, canZoomOut, screenToWorld, zoomPercent } from './canvas/came
 import { useCamera, useWindowSize } from './canvas/useCamera';
 import { StickyNote } from './objects/StickyNote';
 import { ConnectionStatus } from './sync/ConnectionStatus';
+import { canEdit } from './sync/connectBoard';
 
 function isTypingTarget(target: EventTarget | null): boolean {
   if (!(target instanceof HTMLElement)) return false;
@@ -64,6 +65,10 @@ function Board(props: { boardId: string }): JSX.Element {
   const viewport = useWindowSize();
   const { camera, hasNavigated, zoomStep, reset } = useCamera(viewport);
   const { doc, notes, connectionState } = useBoardDoc(props.boardId);
+  // Editing is locked out only while the board could not be loaded (story 4
+  // persist.client_status): create/drag/edit/colour/delete are no-ops and the
+  // Sticky note button is disabled. Selection stays available (read-only).
+  const editable = canEdit(connectionState);
   const { selectedId, editingId, select, startEdit, endEdit } = useSelection();
 
   // If the selected or editing note disappears (e.g. deleted by someone else),
@@ -79,11 +84,12 @@ function Board(props: { boardId: string }): JSX.Element {
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent): void => {
       if (isTypingTarget(e.target)) return;
-      if (e.key === 'Enter' && selectedId !== null && editingId === null) {
+      if (e.key === 'Enter' && editable && selectedId !== null && editingId === null) {
         e.preventDefault();
         startEdit(selectedId);
       } else if (
         (e.key === 'Delete' || e.key === 'Backspace') &&
+        editable &&
         selectedId !== null &&
         editingId === null
       ) {
@@ -94,9 +100,10 @@ function Board(props: { boardId: string }): JSX.Element {
     };
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [selectedId, editingId, startEdit, select, doc]);
+  }, [selectedId, editingId, startEdit, select, doc, editable]);
 
   const createAtCenter = (): void => {
+    if (!editable) return; // load_failed: create is a no-op
     const at = screenToWorld(camera, { x: viewport.width / 2, y: viewport.height / 2 });
     const id = createSticky(doc, at);
     if (id !== null) startEdit(id);
@@ -106,6 +113,7 @@ function Board(props: { boardId: string }): JSX.Element {
     <div className="app-root">
       <BoardViewport
         onCreateStickyAt={(at) => {
+          if (!editable) return; // load_failed: create is a no-op
           const id = createSticky(doc, at);
           if (id !== null) startEdit(id);
         }}
@@ -119,13 +127,14 @@ function Board(props: { boardId: string }): JSX.Element {
             zoom={camera.zoom}
             selected={note.id === selectedId}
             editing={note.id === editingId}
+            canEdit={editable}
             onSelect={select}
             onStartEdit={startEdit}
             onEndEdit={endEdit}
           />
         ))}
       </BoardViewport>
-      <Toolbar onCreateSticky={createAtCenter} />
+      <Toolbar onCreateSticky={createAtCenter} canEdit={editable} />
       <ZoomControls
         zoomPercent={zoomPercent(camera)}
         canZoomIn={canZoomIn(camera)}

@@ -7,7 +7,10 @@ export default defineConfig({
   testDir: './tests/e2e',
   // The nightly soak tests are slow (30-60s waits); they run under
   // `npm run test:e2e:nightly` (see playwright.nightly.config.ts).
-  testIgnore: ['**/nightly/**'],
+  // The persistence spec manages its own wrangler process (kill/restart with
+  // --persist-to) and runs under `npm run test:e2e:persistence` (see
+  // playwright.persistence.config.ts).
+  testIgnore: ['**/nightly/**', '**/persistence.spec.ts'],
   fullyParallel: true,
   // One wrangler dev serves every test; with 32 CPUs the default worker
   // count would hit it with ~16 parallel browser sessions and push the

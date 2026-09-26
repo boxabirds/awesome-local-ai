@@ -236,10 +236,12 @@ export class WsClient {
     this.destroyed = true;
     this.doc.off('update', this.updateHandler);
     this.close();
-    await Promise.race([
-      this.closeInfo(),
-      new Promise((resolve) => setTimeout(resolve, 1000)),
-    ]);
+    // Note: with the hibernation API (ctx.acceptWebSocket) a SELF-initiated
+    // close never fires the client half's close event in the workerd test
+    // pool (server-initiated closes do), so there is no close event to wait
+    // for - just a short grace for the pool to process the teardown. The
+    // old 1000ms race timeout cost a full second per destroyed client.
+    await new Promise((resolve) => setTimeout(resolve, 100));
   }
 
   private onMessage(data: ArrayBuffer | string): void {

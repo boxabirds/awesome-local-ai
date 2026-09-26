@@ -345,3 +345,10 @@ body {
 .connection-status[data-state='confirmed'] {
   color: #067647;
 }
+
+/* load_failed: the room closed us with 4500 (board could not be loaded). */
+.connection-status[data-state='load_failed'] {
+  color: #b42318;
+  background: #fef3f2;
+  border-color: #fecdca;
+}
