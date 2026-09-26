@@ -1,3 +1,238 @@
+commit 993376f46bb0e29e46e55573d147976863162a0d
+vidi-agent  Sat Sep 26 22:03:15 2026 +0100
+
+    story 5: Capture a task into my Inbox in seconds
+
+
+ NOTES.md | 64 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 64 insertions(+)
+commit 161227aef87a060dee5fcb81036e46a6b9aa722b
+vidi-agent  Sat Sep 26 22:02:01 2026 +0100
+
+    story 5 task 14: E2E tests: Inbox capture, lost-response retry, limits, keyboard-only use, phone layout, touch targets, dark mode and shortcuts panel
+
+
+ e2e/support/tasks.ts     |  69 ++++++++++++
+ e2e/tasks.mobile.spec.ts |  90 +++++++++++++++
+ e2e/tasks.spec.ts        | 280 +++++++++++++++++++++++++++++++++++++++++++++++
+ e2e/workspace.spec.ts    |   6 +-
+ 4 files changed, 444 insertions(+), 1 deletion(-)
+commit 997f965a6fc7cc8a14277e7032e011372b5400e3
+vidi-agent  Sat Sep 26 21:54:20 2026 +0100
+
+    story 5 task 18: UI component tests: phone shell, shortcuts panel, loader parallelism and list keyboard navigation
+
+
+ apps/web/test/ui/tasks/listKeyboard.test.tsx   | 116 +++++++++++++++++++++
+ apps/web/test/ui/tasks/loader.test.tsx         |  56 +++++++++++
+ apps/web/test/ui/tasks/mobileShell.test.tsx    | 134 +++++++++++++++++++++++++
+ apps/web/test/ui/tasks/shortcutsPanel.test.tsx |  87 ++++++++++++++++
+ 4 files changed, 393 insertions(+)
+commit 14758e22973d1403b0fdde48e4d26a0e1c5b26ed
+vidi-agent  Sat Sep 26 21:52:49 2026 +0100
+
+    story 5 task 17: Unit tests: shortcut registry, keyboard inset, roving list maths and quick-add validation
+
+
+ apps/web/test/unit/tasks/canSubmit.test.ts     |  60 ++++++++++
+ apps/web/test/unit/tasks/constants.test.ts     |  18 +++
+ apps/web/test/unit/tasks/keyboardInset.test.ts |  53 +++++++++
+ apps/web/test/unit/tasks/rovingList.test.ts    |  35 ++++++
+ apps/web/test/unit/tasks/shortcuts.test.ts     | 150 +++++++++++++++++++++++++
+ 5 files changed, 316 insertions(+)
+commit 5e05b56b5a11e0285bad84e18f8f2eb98c5fbfb8
+vidi-agent  Sat Sep 26 21:51:54 2026 +0100
+
+    story 5 task 13: UI component tests: quick add (non-truncating limits, keys, destination), optimistic create, retry, discard and a11y status
+
+
+ apps/web/src/features/tasks/InboxView.tsx  |  31 ++--
+ apps/web/test/ui/tasks/createTask.test.tsx | 174 +++++++++++++++++++
+ apps/web/test/ui/tasks/quickAdd.test.tsx   | 270 +++++++++++++++++++++++++++++
+ 3 files changed, 464 insertions(+), 11 deletions(-)
+commit efd7c715ad9c2480b76cb84296721f4f4a7fbb03
+vidi-agent  Sat Sep 26 21:49:51 2026 +0100
+
+    story 5 task 12: UI component tests: sidebar, task list, empty state and memoised rows
+
+
+ apps/web/test/support/tasks.tsx          | 99 ++++++++++++++++++++++++++++++++
+ apps/web/test/ui/tasks/sidebar.test.tsx  | 71 +++++++++++++++++++++++
+ apps/web/test/ui/tasks/taskList.test.tsx | 59 +++++++++++++++++++
+ 3 files changed, 229 insertions(+)
+commit 3cf1fa4dffdb5d7c0750d5fc87345276b911b438
+vidi-agent  Sat Sep 26 21:48:51 2026 +0100
+
+    story 5 task 11: Unit tests: task cache helpers and batched live-event application
+
+
+ apps/web/test/unit/tasks/taskCache.test.ts | 137 +++++++++++++++++++++++++++++
+ 1 file changed, 137 insertions(+)
+commit f439fe7c9c2fa69404b057bbc46218fd20d27c2f
+vidi-agent  Sat Sep 26 21:48:23 2026 +0100
+
+    story 5 task 16: Build the phone layout: navigation drawer, floating add button, 44px touch targets and light/dark tokens
+
+
+ apps/web/src/components/ui/sheet.tsx               | 32 +++++++++++++++
+ apps/web/src/features/tasks/InboxView.tsx          | 13 +++++--
+ apps/web/src/features/tasks/QuickAdd.tsx           |  3 ++
+ apps/web/src/features/workspace/AppShell.tsx       | 45 ++++++++++++++++++----
+ .../src/features/workspace/FloatingAddButton.tsx   | 30 +++++++++++++++
+ apps/web/src/features/workspace/NavDrawer.tsx      | 43 +++++++++++++++++++++
+ apps/web/src/features/workspace/useIsNarrow.ts     | 23 +++++++++++
+ apps/web/src/index.css                             |  2 +
+ apps/web/src/lib/useKeyboardInset.ts               | 44 +++++++++++++++++++++
+ apps/web/src/styles/touch.css                      | 29 ++++++++++++++
+ 10 files changed, 254 insertions(+), 10 deletions(-)
+commit a9c464deda42ad7f31e8e1435362f5ccef11b416
+vidi-agent  Sat Sep 26 21:47:04 2026 +0100
+
+    story 5 task 7: Implement optimistic task creation with failed/rejected states, retry, discard and live upsert
+
+
+ apps/web/src/features/tasks/InboxView.tsx    |  26 +++--
+ apps/web/src/features/tasks/liveHandlers.ts  |  32 ++++++
+ apps/web/src/features/tasks/useCreateTask.ts | 140 +++++++++++++++++++++++++++
+ apps/web/src/features/workspace/AppShell.tsx |   5 +-
+ 4 files changed, 188 insertions(+), 15 deletions(-)
+commit ee09fe3f0b7391c83d7f912a4ae38c5ed084bb7f
+vidi-agent  Sat Sep 26 21:46:06 2026 +0100
+
+    story 5 task 6: Build inline and docked quick add with Q shortcut, non-truncating length counters, keyboard rules and destination chip
+
+
+ apps/web/src/features/tasks/DestinationChip.tsx  |  32 ++++++
+ apps/web/src/features/tasks/InboxView.tsx        |  67 ++++++++++-
+ apps/web/src/features/tasks/LengthCounter.tsx    |  38 +++++++
+ apps/web/src/features/tasks/QuickAdd.tsx         | 135 +++++++++++++++++++++++
+ apps/web/src/features/tasks/canSubmit.ts         |  27 +++++
+ apps/web/src/features/tasks/useThrottledValue.ts |  24 ++++
+ apps/web/src/index.css                           |  12 ++
+ apps/web/src/lib/ids.ts                          |  12 ++
+ 8 files changed, 344 insertions(+), 3 deletions(-)
+commit 027a961b83d5513a2e26de6b0961b9de090bf333
+vidi-agent  Sat Sep 26 21:44:36 2026 +0100
+
+    story 5 task 15: Build the app-wide keyboard shortcut registry and the ? shortcuts panel
+
+
+ apps/web/src/features/shortcuts/ShortcutsPanel.tsx |  68 ++++++++
+ .../src/features/shortcuts/ShortcutsPanelLazy.tsx  |  17 ++
+ .../src/features/shortcuts/useShortcutsPanel.ts    |  24 +++
+ apps/web/src/features/tasks/TaskList.tsx           |   6 +
+ apps/web/src/features/workspace/AppShell.tsx       |   5 +
+ apps/web/src/lib/shortcuts.ts                      | 174 +++++++++++++++++++++
+ 6 files changed, 294 insertions(+)
+commit 8038b2a4acf3fe1f165861d510ecf95e38e124ad
+vidi-agent  Sat Sep 26 21:43:36 2026 +0100
+
+    story 5 task 5: Build Inbox view, memoised task list with roving keyboard navigation, loading skeletons, load-failure retry and empty state
+
+
+ apps/web/scripts/build-tokens.ts              |  33 +++++++-
+ apps/web/src/features/tasks/EmptyInbox.tsx    |  22 +++++
+ apps/web/src/features/tasks/InboxView.tsx     |  21 ++++-
+ apps/web/src/features/tasks/SkeletonRow.tsx   |   9 ++
+ apps/web/src/features/tasks/TaskList.tsx      |  59 ++++++++++++++
+ apps/web/src/features/tasks/TaskRow.tsx       |  52 ++++++++++++
+ apps/web/src/features/tasks/TaskRowActions.ts |  11 +++
+ apps/web/src/features/tasks/useRovingList.ts  | 113 ++++++++++++++++++++++++++
+ apps/web/src/index.css                        |  11 +++
+ apps/web/src/styles/constants.css             |   8 ++
+ 10 files changed, 333 insertions(+), 6 deletions(-)
+commit 104b33e1ad1619d3df324377726266dbf3e6f1c3
+vidi-agent  Sat Sep 26 21:41:31 2026 +0100
+
+    story 5 task 4: Build workspace app shell with sidebar Inbox entry and open-task count
+
+
+ apps/web/src/components/icons.ts                   |   7 ++
+ apps/web/src/components/ui/dialog.tsx              |   2 +-
+ .../src/features/remembered/prefetchWorkspace.ts   |   4 +-
+ apps/web/src/features/tasks/InboxView.tsx          |  10 ++
+ apps/web/src/features/tasks/queries.ts             |  23 ++++
+ apps/web/src/features/tasks/taskCache.ts           | 116 +++++++++++++++++++++
+ apps/web/src/features/workspace/AppShell.tsx       |  45 ++++++++
+ apps/web/src/features/workspace/Sidebar.tsx        |  62 +++++++++++
+ apps/web/src/features/workspace/SidebarNavItem.tsx |  51 +++++++++
+ .../web/src/features/workspace/WorkspaceHeader.tsx |   9 +-
+ .../src/features/workspace/WorkspaceSkeleton.tsx   |   6 +-
+ apps/web/src/features/workspace/bootOpen.ts        |  10 +-
+ apps/web/src/lib/api.ts                            |  31 ++++++
+ apps/web/src/lib/queryKeys.ts                      |  16 ++-
+ apps/web/src/main.tsx                              |   4 +
+ apps/web/src/routes/Workspace.tsx                  |  60 +++++------
+ apps/web/src/routes/workspaceLoader.ts             |  23 ++++
+ apps/web/test/msw.ts                               |   5 +-
+ apps/web/test/msw/tasks.ts                         |  90 ++++++++++++++++
+ apps/web/test/ui/sharePanel.test.tsx               |   9 +-
+ apps/web/test/ui/workspace.test.tsx                |   9 +-
+ packages/shared/src/limits.ts                      |  20 +++-
+ 22 files changed, 561 insertions(+), 51 deletions(-)
+commit d90359a4f2b4e43dc83a986c176f04ab922a0bf0
+vidi-agent  Sat Sep 26 21:36:32 2026 +0100
+
+    story 5 task 10: Integration tests: Inbox list and counts endpoints
+
+
+ apps/api/test/integration/tasks.list.test.ts | 91 ++++++++++++++++++++++++++++
+ 1 file changed, 91 insertions(+)
+commit bd87d98d52f85947f3128ddccf391736a8246583
+vidi-agent  Sat Sep 26 21:36:32 2026 +0100
+
+    story 5 task 9: Integration tests: tasks migration, idempotent create, auth/CSRF and broadcast counts
+
+
+ apps/api/test/integration/tasks.create.test.ts | 286 +++++++++++++++++++++++++
+ apps/api/test/integration/tasks.db.test.ts     | 127 +++++++++++
+ apps/api/test/support/tasks.ts                 |  55 +++++
+ 3 files changed, 468 insertions(+)
+commit 8e55719427e5e4a67aee93ac4a4440de01e17cab
+vidi-agent  Sat Sep 26 21:36:32 2026 +0100
+
+    story 5 task 8: Unit tests: task schemas, list query schema and row mapping
+
+
+ apps/api/test/fixtures/tasks.ts        |  26 +++++++
+ apps/api/test/unit/taskSchemas.test.ts | 130 +++++++++++++++++++++++++++++++++
+ packages/shared/src/schemas.ts         |  16 +++-
+ 3 files changed, 170 insertions(+), 2 deletions(-)
+commit 453008fdb032b866c165621ed44ccda9a02dc118
+vidi-agent  Sat Sep 26 21:35:44 2026 +0100
+
+    story 5 task 3: Add Inbox task list and counts endpoints
+
+
+ apps/api/src/app.ts           |  2 ++
+ apps/api/src/routes/counts.ts |  8 ++++++++
+ apps/api/src/routes/tasks.ts  | 12 ++++++++++--
+ 3 files changed, 20 insertions(+), 2 deletions(-)
+commit cced9fe9a61da2ce43c61b8e1e97cf68c7358d96
+vidi-agent  Sat Sep 26 21:34:57 2026 +0100
+
+    story 5 task 2: Add idempotent create-task endpoint with validation and live broadcast
+
+
+ apps/api/src/app.ts               |  2 ++
+ apps/api/src/lib/errors.ts        |  2 ++
+ apps/api/src/lib/json.ts          | 11 +++++++++++
+ apps/api/src/routes/tasks.ts      | 35 +++++++++++++++++++++++++++++++++++
+ apps/api/src/routes/workspaces.ts | 12 +-----------
+ packages/shared/src/limits.ts     |  2 ++
+ 6 files changed, 53 insertions(+), 11 deletions(-)
+commit a5db1f6dc7baf336180e145601dbe1b213a10d96
+vidi-agent  Sat Sep 26 21:33:34 2026 +0100
+
+    story 5 task 1: Add tasks table (migration 0002) and tasks query module
+
+
+ apps/api/src/db/tasks.ts       | 90 ++++++++++++++++++++++++++++++++++++++++++
+ apps/api/src/routes/test.ts    |  2 +-
+ migrations/0002_tasks.sql      | 18 +++++++++
+ packages/shared/src/limits.ts  | 11 ++++++
+ packages/shared/src/schemas.ts | 47 +++++++++++++++++++++-
+ 5 files changed, 166 insertions(+), 2 deletions(-)
 commit 5f6576533ef8cc829430bc2f5db3ee8692348b2e
 vidi-agent  Sat Sep 26 21:28:10 2026 +0100
 
