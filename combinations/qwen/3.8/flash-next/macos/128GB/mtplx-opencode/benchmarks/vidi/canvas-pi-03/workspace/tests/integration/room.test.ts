@@ -15,6 +15,7 @@ import { decodeMessage } from '../../src/shared/protocol';
 import { HTTP_ORIGIN, restartServer, startServer } from './helpers/server';
 import {
   awarenessFrame,
+  createRoom,
   rawClient,
   room,
   syncFrame,
@@ -27,14 +28,16 @@ function http(path: string, init?: RequestInit): Promise<Response> {
 }
 
 describe('worker routing (sync.worker_entry)', () => {
-  it('TC-04 negative: malformed board ids get 400 and never reach a Durable Object', async () => {
+  it('TC-04 negative: malformed board ids get 404 and never reach a Durable Object', async () => {
+    // Story 5: unknown AND malformed ids answer 404 (it used to be 400), so a
+    // probe leaks nothing about which of the two a link was.
     // NOTE: '../x'-style paths never reach the Worker literally (the URL
     // parser normalizes them to /x, a static-asset path), so the literal
     // malformed cases are a wrong id, a two-segment path, and the bare
     // namespace route.
     for (const bad of ['/api/rooms/bad!id', '/api/rooms/a/b', '/api/rooms']) {
       const response = await http(bad);
-      expect(response.status, bad).toBe(400);
+      expect(response.status, bad).toBe(404);
       expect(await response.text()).toBe('Invalid board id');
     }
     // A bad id over a real WebSocket attempt fails the upgrade outright, and
@@ -53,21 +56,24 @@ describe('worker routing (sync.worker_entry)', () => {
     });
     expect(failure).toBe('error');
 
-    const id = room();
+    const id = await createRoom();
     const client = yClient(id);
     expect(await until(() => client.provider.synced, 8000)).toBe(true);
     client.destroy();
   });
 
-  it('TC-05: a valid board id without the Upgrade header answers 426', async () => {
-    const id = room(); // 22 chars, structurally valid
+  it('TC-05: a real board id without the Upgrade header answers 426', async () => {
+    // Story 5 needs the board to EXIST before the route will talk about
+    // upgrades at all: a never-created id is refused (TC-09 in
+    // board-api.test.ts), a real one answers 426 to a plain GET.
+    const id = await createRoom();
     const response = await http(`/api/rooms/${id}`);
     expect(response.status).toBe(426);
     expect(await response.text()).toBe('Upgrade Required');
   });
 
   it('TC-06: /b/<valid> serves the SPA index (deep links reach the router)', async () => {
-    const id = room();
+    const id = room(); // a syntactically valid id, never created
     const response = await http(`/b/${id}`);
     expect(response.status).toBe(200);
     expect(response.headers.get('content-type')).toContain('text/html');
@@ -79,7 +85,7 @@ describe('worker routing (sync.worker_entry)', () => {
 
 describe('BoardRoom capacity', () => {
   it('TC-13: MAX+1 (6) concurrent sockets are accepted; the last one syncs and propagates', async () => {
-    const id = room();
+    const id = await createRoom();
     const clients = Array.from({ length: 6 }, () => yClient(id));
     expect(await until(() => clients.every((c) => c.provider.synced), 15_000)).toBe(true);
 
@@ -97,7 +103,7 @@ describe('BoardRoom capacity', () => {
   });
 
   it('TC-14: a late joiner catches up with 40 notes from two busy clients', async () => {
-    const id = room();
+    const id = await createRoom();
     const a = yClient(id);
     const b = yClient(id);
     expect(await until(() => a.provider.synced && b.provider.synced, 12_000)).toBe(true);
@@ -129,7 +135,7 @@ describe('BoardRoom error handling', () => {
     ];
 
     for (const { label, send } of payloads) {
-      const id = room();
+      const id = await createRoom();
       const bystander = yClient(id);
       expect(await until(() => bystander.provider.synced, 8000)).toBe(true);
       const noteId = createSticky(bystander.doc, { x: 0, y: 0 }); // give the room real content
@@ -158,7 +164,7 @@ describe('BoardRoom error handling', () => {
   });
 
   it('TC-16: awareness bytes are relayed verbatim to every socket, including the sender', async () => {
-    const id = room();
+    const id = await createRoom();
     const sender = await rawClient(id);
     const watcher = await rawClient(id);
     await new Promise((r) => setTimeout(r, 500)); // let both sync steps settle
@@ -185,7 +191,7 @@ describe('BoardRoom error handling', () => {
 
 describe('BoardRoom merge semantics', () => {
   it('TC-11: delete during a concurrent text insert — delete wins, no resurrection, no exception', async () => {
-    const id = room();
+    const id = await createRoom();
     const a = yClient(id);
     const b = yClient(id);
     expect(await until(() => a.provider.synced && b.provider.synced, 12_000)).toBe(true);
@@ -229,7 +235,7 @@ describe('BoardRoom merge semantics', () => {
     };
     console.log(`TC-12 seed=${SEED}`);
 
-    const id = room();
+    const id = await createRoom();
     const clients = Array.from({ length: 5 }, () => yClient(id));
     expect(await until(() => clients.every((c) => c.provider.synced), 15_000)).toBe(true);
 
@@ -272,7 +278,7 @@ describe('restart and rebuild (TC-18, file-local server)', () => {
   it('TC-18: after a restart the room rebuilds from the first reconnecting client', async () => {
     const server = await startServer(8792); // dedicated instance, restartable
     try {
-      const id = room();
+      const id = await createRoom(server.httpOrigin);
       const a = yClient(id, undefined, { origin: server.wsOrigin });
       const b = yClient(id, undefined, { origin: server.wsOrigin });
       expect(await until(() => a.provider.synced && b.provider.synced, 15_000)).toBe(true);
@@ -280,24 +286,26 @@ describe('restart and rebuild (TC-18, file-local server)', () => {
       expect(await until(() => b.doc.getMap('objects').size === 3, 5000)).toBe(true);
       const before = JSON.stringify(snapshot(b.doc));
 
-      // Kill + respawn: every socket drops, the room doc is gone.
+      // Kill + respawn: every socket drops and the room's in-memory document
+      // goes with it. Whether it then rebuilds from its durable log or from a
+      // reconnecting client, nobody's notes may vanish.
       const restarted = await restartServer(server);
 
-      // After the restart, the room answers each new socket with its (empty)
-      // SyncStep1; the reconnecting old client must answer with SyncStep2 and
-      // repopulate. A fresh client then has to converge on the rebuilt state.
+      // Two cold joiners on the restarted instance: both must converge on the
+      // state that existed before the restart.
+      const early = yClient(id, undefined, { origin: restarted.wsOrigin });
       const late = yClient(id, undefined, { origin: restarted.wsOrigin });
-      expect(await until(() => late.provider.synced, 20_000)).toBe(true);
-      // B (or A) reconnects and the two old docs converge with the joiner.
+      expect(await until(() => early.provider.synced && late.provider.synced, 20_000)).toBe(true);
       const converged = await until(
         () =>
-          JSON.stringify(snapshot(a.doc)) === before &&
+          JSON.stringify(snapshot(early.doc)) === before &&
           JSON.stringify(snapshot(late.doc)) === before,
         30_000,
       );
       expect(converged).toBe(true);
       a.destroy();
       b.destroy();
+      early.destroy();
       late.destroy();
     } finally {
       await server.stop();

@@ -21,5 +21,18 @@
       "tag": "v1",
       "new_sqlite_classes": ["BoardRoom"]
     }
+  ],
+  "ratelimits": [
+    {
+      "name": "BOARD_CREATE_LIMITER",
+      "namespace_id": "board-create-limiter",
+      // limit/period mirror BOARD_CREATE_LIMIT / BOARD_CREATE_PERIOD_SECONDS in
+      // src/shared/config.ts. tests/unit/create-board.test.ts (TC-03) fails if
+      // these drift from the named settings.
+      "simple": {
+        "limit": 10,
+        "period": 60
+      }
+    }
   ]
 }

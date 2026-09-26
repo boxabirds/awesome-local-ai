@@ -13,7 +13,7 @@ import { createSticky, snapshot } from '../../src/shared/board-model';
 import { CLOSE_BOARD_LOAD_FAILED } from '../../src/shared/protocol';
 import { restartServer, startFreshServer, type DevServer } from './helpers/server';
 import { RoomHooks, until } from './helpers/hooks';
-import { rawClient, room, yClient } from './helpers/ws-client';
+import { createRoom, rawClient, yClient } from './helpers/ws-client';
 import * as Y from 'yjs';
 
 const PORT = 8797;
@@ -36,7 +36,7 @@ afterAll(async () => {
 
 describe('board durability across a workerd restart', () => {
   it('TC-13: data written before a restart is read back after it', async () => {
-    const boardId = room();
+    const boardId = await createRoom(server.httpOrigin);
     const author = yClient(boardId, undefined, { origin: ws() });
     expect(await until(() => author.provider.wsconnected, 10_000)).toBe(true);
 
@@ -60,7 +60,7 @@ describe('board durability across a workerd restart', () => {
   }, 90_000);
 
   it('TC-19 (workerd level): a compacted board is rebuilt from snapshot chunks after a restart', async () => {
-    const boardId = room();
+    const boardId = await createRoom(server.httpOrigin);
     const author = yClient(boardId, undefined, { origin: ws() });
     expect(await until(() => author.provider.wsconnected, 10_000)).toBe(true);
     for (let i = 0; i < 4; i++) createSticky(author.doc, { x: i * 20, y: 0 });
@@ -88,7 +88,7 @@ describe('board durability across a workerd restart', () => {
   }, 90_000);
 
   it('TC-15 after a restart: a damaged snapshot is refused with 4500, never served as an empty board', async () => {
-    const boardId = room();
+    const boardId = await createRoom(server.httpOrigin);
     const author = yClient(boardId, undefined, { origin: ws() });
     expect(await until(() => author.provider.wsconnected, 10_000)).toBe(true);
     for (let i = 0; i < 3; i++) createSticky(author.doc, { x: i * 20, y: 0 });

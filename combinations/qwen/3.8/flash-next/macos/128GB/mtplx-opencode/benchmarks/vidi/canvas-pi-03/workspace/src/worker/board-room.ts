@@ -99,7 +99,11 @@ export class BoardRoom extends DurableObject<Env> {
 
     let result: LoadResult;
     try {
-      store.migrate();
+      // Do NOT migrate here. `migrate()` (and the created_at stamp) run only
+      // in `initialize()` (a real create) or lazily before the first
+      // `append()`. A wake on a board that was never created must read
+      // nothing and write nothing; `load()` returns an empty result for a
+      // board with no tables (share.legacy_boards / TC-06).
       result = store.load(doc);
     } catch (error) {
       // Anything that throws outside the store's own error handling is still a
@@ -232,6 +236,25 @@ export class BoardRoom extends DurableObject<Env> {
       });
     }
 
+    // Existence rule (share.board_api): a socket may only reach a board that
+    // actually exists. The check is READ-ONLY — a probe of an unknown id must
+    // not create storage (TC-09). We build a throwaway store for the probe so
+    // the room's own (possibly absent) document is untouched.
+    let exists: boolean;
+    try {
+      exists = new BoardStore(this.storageForTest, {
+        failStatement: (query) => this.shouldFailStatement(query),
+      }).existsReadOnly();
+    } catch {
+      exists = false;
+    }
+    if (!exists) {
+      // Unknown or never-created board: refuse the upgrade with 404 and write
+      // nothing (TC-09). Story 3/4 rooms are no longer created implicitly by
+      // connecting; a board is created only through POST /api/boards.
+      return new Response('Not found', { status: 404 });
+    }
+
     const pair = new WebSocketPair();
     const [client, server] = Object.values(pair);
 
@@ -270,6 +293,37 @@ export class BoardRoom extends DurableObject<Env> {
     // Return the CLIENT end on the 101 response; the runtime pipes it to the
     // upgraded connection (the server end is the room's event source).
     return new Response(null, { status: 101, webSocket: client });
+  }
+
+  // --- RPC (callable from the Worker over `env.BOARD_ROOM.get(...)`) --------
+
+  /** Initialise a freshly-created board: create the tables and stamp
+   * `created_at` if it is absent. Returns `exists` for a board that already
+   * had `created_at` OR legacy content (an existing board is never handed out
+   * as new, and its `created_at` is never overwritten — TC-11 / TC-15). */
+  async initialize(): Promise<'created' | 'exists'> {
+    const store = new BoardStore(this.storageForTest, {
+      failStatement: (query) => this.shouldFailStatement(query),
+    });
+    // A board that already exists (created_at, or legacy data without it).
+    if (store.existsReadOnly()) return 'exists';
+    store.migrate();
+    store.setCreatedAt(Date.now());
+    // (Re)build the document now that the tables exist, so the very first
+    // socket on a freshly-created board sees an empty-but-ready room.
+    this.reload();
+    return 'created';
+  }
+
+  /** Read-only existence check (share.board_api). Never creates tables. */
+  async exists(): Promise<boolean> {
+    try {
+      return new BoardStore(this.storageForTest, {
+        failStatement: (query) => this.shouldFailStatement(query),
+      }).existsReadOnly();
+    } catch {
+      return false;
+    }
   }
 
   webSocketMessage(ws: WebSocket, message: string | ArrayBuffer): void {
@@ -427,6 +481,30 @@ export class BoardRoom extends DurableObject<Env> {
     // and must not be broadcast.
     Y.applyUpdate(doc, update, LOAD_ORIGIN);
     return true;
+  }
+
+  /** The pre-story-5 board shape (share.legacy_boards): tables plus stored
+   * updates, but deliberately NO `created_at` stamp. The existence rule must
+   * still count this board as existing, and opening it must show the seeded
+   * notes rather than an empty board or Board not found. */
+  legacySeedForTest(update: Uint8Array): boolean {
+    try {
+      const doc = this.doc ?? new Y.Doc();
+      this.doc = doc;
+      Y.applyUpdate(doc, update, LOAD_ORIGIN);
+      const store =
+        this.store ??
+        new BoardStore(this.storageForTest, {
+          failStatement: (query) => this.shouldFailStatement(query),
+        });
+      this.store = store;
+      store.migrate(); // tables exist, but no created_at is written
+      store.append(new Uint8Array(update));
+      this.state = 'ready';
+      return true;
+    } catch {
+      return false;
+    }
   }
 
   /** Force compaction of the current document (test fixtures only). */

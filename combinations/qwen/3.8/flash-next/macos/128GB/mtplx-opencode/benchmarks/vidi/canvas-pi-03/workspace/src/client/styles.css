@@ -74,3 +74,83 @@ button:focus-visible {
 .connection-badge--confirmed {
   background: #16a34a; /* green: link restored (confirmation window) */
 }
+
+/* Share entry (story 5).
+   The board viewport is absolutely positioned and paints over anything left in
+   normal flow, so the Share entry has to be taken out of the flow and stacked
+   above it: a control nobody can click is not an entry point. The panel shares
+   the stacking context and stays above the canvas while it is open. */
+.share-button {
+  position: fixed;
+  top: 12px;
+  right: 16px;
+  z-index: 50;
+  padding: 6px 14px;
+  border: 1px solid #d4d4d8;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #18181b;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.4;
+  cursor: pointer;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
+}
+
+.share-button:hover {
+  background: #f4f4f5;
+}
+
+.share-panel {
+  position: fixed;
+  top: 48px;
+  right: 16px;
+  z-index: 50;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: min(360px, calc(100vw - 32px));
+  padding: 12px;
+  border: 1px solid #e4e4e7;
+  border-radius: 10px;
+  background: #ffffff;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.12);
+}
+
+.share-panel input {
+  /* The field exists to be copied out of, so its text must be selectable even
+     though the board itself turns selection off. */
+  -webkit-user-select: text;
+  user-select: text;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 12px;
+  padding: 6px 8px;
+  border: 1px solid #d4d4d8;
+  border-radius: 6px;
+  color: #27272a;
+  background: #fafafa;
+}
+
+.share-panel button {
+  align-self: flex-start;
+  padding: 6px 12px;
+  border: 1px solid #d4d4d8;
+  border-radius: 6px;
+  background: #ffffff;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.share-panel p {
+  margin: 0;
+  font-size: 12px;
+  color: #52525b;
+}
+
+/* Pages (story 5): the board must fill the page while it is open. */
+.board-page {
+  position: relative;
+  width: 100%;
+  height: 100%;
+}

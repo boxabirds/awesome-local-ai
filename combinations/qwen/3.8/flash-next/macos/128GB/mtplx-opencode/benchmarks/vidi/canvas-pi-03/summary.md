@@ -8,23 +8,25 @@ Model `mtplx-flash-next-optimized-speed`, scope `canvas`, effort `low`, client p
 | 2 | Capture ideas on sticky notes and rearrange them | DONE | 46.7 | 181 | 11185922 | 131257 | 1.0 | 57.0 | green | 19/20 |  | 0 / 0 | 1 | 115221 | throttled 99%, server peak 109 GB |
 | 3 | See other people's edits appear live on the same board | PARTIAL (red) | 165.8 | 383 | 27388627 | 318864 | 1.2 | 67.7 | red | 25/27 |  | 0 / 5 | 6 | 115639 | throttled 56%, server peak 111 GB |
 | 4 | Return to a board and find everything as it was left | DONE, on partial 3 | 55.8 | 172 | 11675670 | 147343 | 2.0 | 67.0 | green | 29/31 |  | 3 / 0 (ended in error) | 5 | 115993 | throttled 85%, server peak 100 GB |
+| 5 | Share a board with others using a link | DONE, on partial 3 | 100.9 | 372 | 25806362 | 204304 | 1.3 | 72.2 | green | 34/36 |  | 1 / 0 | 5 | 115757 | throttled 60%, server peak 105 GB |
 
-**Totals:** 4 stories, 303 agent-minutes, 836 requests, 56,094,422 prompt / 694,250 completion tokens, gate green 3/4, final acceptance 29/31, stalled 0, partial 1, 8954 lines in src+tests.
+**Totals:** 5 stories, 403 agent-minutes, 1208 requests, 81,900,784 prompt / 898,554 completion tokens, gate green 4/5, final acceptance 34/36, stalled 0, partial 1, 11158 lines in src+tests.
 
 ### Stories ended early (PARTIAL) and what was built on them
 
 - **Story 3 PARTIAL**, ended by the operator (harness (cap)): story cap: 5 nudges without committing (cap 5). Verdict **red**: gate red, tasks not verified [1, 2, 3, 4, 5, 6, 7, 8, 9] (implementation: [2, 3, 4]), held-out 6/7 (floor 0.0).
 - Story 4, built on partial 3: held-out tests on the partial base 10/11; partial story's tests fixed 0, regressed 0; 3 stub-like lines added to src/.
+- Story 5, built on partial 3: held-out tests on the partial base 15/16; partial story's tests fixed 0, regressed 0; 6 stub-like lines added to src/.
 
 ### Decode tok/s by context (server log, all stories)
 
 | Context | Requests | Decode tok/s (request-weighted median of per-story medians) |
 |---|---|---|
-| 0-16k | 17 | 93.1 |
-| 16-32k | 53 | 69.5 |
-| 32-64k | 313 | 68.3 |
-| 64-100k | 329 | 64.7 |
-| 100-+k | 124 | 67.0 |
+| 0-16k | 22 | 93.1 |
+| 16-32k | 92 | 73.8 |
+| 32-64k | 429 | 68.3 |
+| 64-100k | 468 | 67.6 |
+| 100-+k | 197 | 67.0 |
 
 ## How it happened
 
@@ -36,6 +38,7 @@ Each story's commits, and which story broke or fixed an earlier story's held-out
 | 2 | 1 by the agent | 2340 / 23 | `StickyNote.tsx` (201), `App.tsx` (189), `board-model.ts` (183), `StickyTextEditor.tsx` (140), `StickyText.ts` (114), `NOTES.md` (110), +9 more |
 | 3 | harness snapshot (agent left work uncommitted) | 4767 / 30 | `connectBoard.ts` (225), `board-room.ts` (169), `protocol.ts` (100), `index.ts` (73), `App.tsx` (68), `useBoardDoc.ts` (57), +11 more |
 | 4 | harness snapshot (agent left work uncommitted) | 2752 / 127 | `board-room.ts` (418), `board-store.ts` (391), `test-hooks.ts` (123), `room-state.ts` (115), `index.ts` (69), `connectBoard.ts` (63), +12 more |
+| 5 | 1 by the agent | 2447 / 158 | `SharePanel.tsx` (173), `BoardPage.tsx` (114), `create-board.ts` (108), `HomePage.tsx` (87), `index.ts` (86), `styles.css` (80), +12 more |
 
 ### Earlier stories broken or fixed
 

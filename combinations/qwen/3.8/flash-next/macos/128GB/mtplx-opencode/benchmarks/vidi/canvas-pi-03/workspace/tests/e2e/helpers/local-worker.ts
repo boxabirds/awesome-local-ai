@@ -41,12 +41,13 @@ function pickFreePort(start = 8900, tries = 40): number {
   throw new Error(`no free port at or above ${start}`);
 }
 
-/** True once the Worker answers (a malformed board id is answered with 400 by
- * the Worker itself, before any asset or room lookup). */
+/** True once the Worker answers. A malformed board id is answered by the
+ * Worker itself (404 since story 5, before any asset or room lookup), so a
+ * reply here proves the Worker — not just the port — is up. */
 async function workerReady(origin: string): Promise<boolean> {
   try {
     const response = await fetch(`${origin}/api/rooms/not-valid`, { signal: AbortSignal.timeout(1500) });
-    return response.status === 400;
+    return response.status === 404;
   } catch {
     return false;
   }

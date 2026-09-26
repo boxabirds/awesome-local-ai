@@ -7,37 +7,23 @@
 // visible change on every other screen, budget LIVE_UPDATE_LATENCY_BUDGET_MS.
 // The test-only __vidi6 hook (App.tsx) is exposed only in test builds.
 
-import { expect, type Page } from '@playwright/test';
-import { randomBytes } from 'node:crypto';
+import { expect, type APIRequestContext, type Page } from '@playwright/test';
 import { LIVE_UPDATE_LATENCY_BUDGET_MS } from '../../../src/shared/config';
+import { createBoard, waitForBoardReady } from './board';
 
-/** A fresh, VALID 22-char board id (same shape as newBoardId()). */
-export function newRoomId(): string {
-  return randomBytes(16)
-    .toString('base64')
-    .replace(/\+/g, '-')
-    .replace(/\//g, '_')
-    .slice(0, 22);
+/** Create a real board (a real Durable Object, empty) and return its id.
+ * Story 5: a made-up id is no longer a board — it is a 404. */
+export function createRoom(request: APIRequestContext): Promise<string> {
+  return createBoard(request);
 }
 
 /**
- * Open /b/<id> and wait until this client is CONNECTED: the test hook
- * exists, the socket is up and the first sync landed (state 'connected' or
- * 'confirmed'). An extra settle window lets in-flight sync updates apply.
+ * Open /b/<id> and wait until this client is CONNECTED (socket up AND first
+ * sync done). An extra settle window lets in-flight sync updates apply.
  */
 export async function openRoom(page: Page, id: string): Promise<void> {
   await page.goto(`/b/${id}`);
-  await page.waitForFunction(
-    () => {
-      const w = window as unknown as {
-        __vidi6?: { getState(): { connectionState: string } };
-      };
-      const s = w.__vidi6?.getState()?.connectionState;
-      return s === 'connected' || s === 'confirmed';
-    },
-    null,
-    { timeout: 20_000 },
-  );
+  await waitForBoardReady(page);
   await page.waitForTimeout(600); // let the first sync apply fully
 }
 

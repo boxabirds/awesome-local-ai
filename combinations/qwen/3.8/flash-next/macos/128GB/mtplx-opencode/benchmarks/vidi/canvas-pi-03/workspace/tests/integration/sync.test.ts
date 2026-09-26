@@ -6,7 +6,7 @@ import { describe, expect, it } from 'vitest';
 import * as Y from 'yjs';
 import { createSticky, snapshot } from '../../src/shared/board-model';
 import { decodeMessage } from '../../src/shared/protocol';
-import { isUpdateFrame, room, textOf, until, yClient } from './helpers/ws-client';
+import { isUpdateFrame, createRoom, textOf, until, yClient } from './helpers/ws-client';
 
 function sameState(a: Y.Doc, b: Y.Doc): boolean {
   const sa = Y.encodeStateVector(a);
@@ -18,7 +18,7 @@ function sameState(a: Y.Doc, b: Y.Doc): boolean {
 
 describe('sync protocol over WebSockets', () => {
   it('TC-04: a new client receives a full sync and updates relay with update-type frames', async () => {
-    const id = room();
+    const id = await createRoom();
     const a = yClient(id);
     const b = yClient(id);
     expect(await until(() => a.provider.synced && b.provider.synced)).toBe(true);
@@ -37,8 +37,8 @@ describe('sync protocol over WebSockets', () => {
   });
 
   it('TC-05: concurrent creates merge into one board; other boards are not affected', async () => {
-    const idA = room();
-    const idB = room();
+    const idA = await createRoom();
+    const idB = await createRoom();
     const a1 = yClient(idA);
     const a2 = yClient(idA);
     const b1 = yClient(idB);
@@ -67,7 +67,7 @@ describe('sync protocol over WebSockets', () => {
   });
 
   it('TC-06: concurrent edits to the same text region converge to one value', async () => {
-    const id = room();
+    const id = await createRoom();
     const a = yClient(id);
     const b = yClient(id);
     expect(await until(() => a.provider.synced && b.provider.synced)).toBe(true);
@@ -92,7 +92,7 @@ describe('sync protocol over WebSockets', () => {
   });
 
   it('TC-07: 25 messages in ~2s (with an idle gap) all arrive; docs converge within 3s of the last', async () => {
-    const id = room();
+    const id = await createRoom();
     const a = yClient(id);
     const b = yClient(id);
     expect(await until(() => a.provider.synced && b.provider.synced)).toBe(true);

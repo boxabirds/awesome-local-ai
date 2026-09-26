@@ -91,3 +91,21 @@ export const BOARD_LOAD_BUDGET_MS = 3000;
 /** Version of the Durable-Object storage tables (NOT the Yjs doc schema, which
  * is versioned separately by `meta.schemaVersion`). */
 export const STORAGE_SCHEMA_VERSION = 1;
+
+// --- Sharing / board creation (story 5) ------------------------------------
+
+/** Board-creation rate limit per visitor (per period). Mirrors the
+ * `BOARD_CREATE_LIMITER` binding in wrangler.jsonc (TC-03 asserts equality). */
+export const BOARD_CREATE_LIMIT = 10;
+/** Rate-limit window in seconds. Must equal the wrangler.jsonc period (TC-03). */
+export const BOARD_CREATE_PERIOD_SECONDS = 60;
+/** How many id-generation attempts a single create makes before giving up
+ * (collision retries). Boundary tested by TC-01 / TC-02. */
+export const CREATE_ID_MAX_ATTEMPTS = 3;
+/** Budget for PRD share.create: create + open a board within this many ms. */
+export const CREATE_BUDGET_MS = 2000;
+/** How long the Share panel shows "Link copied" before reverting. */
+export const LINK_COPIED_MS = 2000;
+/** Base backoff for the board-existence retry; doubles up to
+ * RECONNECT_MAX_BACKOFF_MS (story 3). */
+export const BOARD_CHECK_RETRY_BASE_MS = 1000;

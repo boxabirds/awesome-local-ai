@@ -14,7 +14,7 @@ import {
   errorCollector,
   moveSticky,
   notePoint,
-  newRoomId,
+  createRoom,
   openRoom,
   seedSticky,
   typeSticky,
@@ -39,8 +39,8 @@ async function closeClients(contexts: BrowserContext[]): Promise<void> {
   for (const c of contexts) await c.close();
 }
 
-test('TC-22: every kind of Alex change is visible to Sam within the latency budget', async ({ browser }) => {
-  const room = newRoomId();
+test('TC-22: every kind of Alex change is visible to Sam within the latency budget', async ({ browser, request }) => {
+  const room = await createRoom(request);
   const pages = await makeClients(browser, 2, room);
   const [alex, sam] = pages;
   const errors = errorCollector(sam);
@@ -84,8 +84,8 @@ test('TC-22: every kind of Alex change is visible to Sam within the latency budg
   await closeClients(pages.map((p) => p.context()));
 });
 
-test('TC-23: both typing into one note at once → identical text, every character kept', async ({ browser }) => {
-  const room = newRoomId();
+test('TC-23: both typing into one note at once → identical text, every character kept', async ({ browser, request }) => {
+  const room = await createRoom(request);
   const pages = await makeClients(browser, 2, room);
   const [alex, sam] = pages;
 
@@ -122,8 +122,8 @@ test('TC-23: both typing into one note at once → identical text, every charact
   await closeClients(pages.map((p) => p.context()));
 });
 
-test('TC-24: both drag the same note at once → identical settled position', async ({ browser }) => {
-  const room = newRoomId();
+test('TC-24: both drag the same note at once → identical settled position', async ({ browser, request }) => {
+  const room = await createRoom(request);
   const pages = await makeClients(browser, 2, room);
   const [alex, sam] = pages;
   const id = await seedSticky(alex, 0, 0);
@@ -148,8 +148,8 @@ test('TC-24: both drag the same note at once → identical settled position', as
   await closeClients(pages.map((p) => p.context()));
 });
 
-test('TC-25: Alex deletes the note Sam is editing — editor and note vanish, no console errors', async ({ browser }) => {
-  const room = newRoomId();
+test('TC-25: Alex deletes the note Sam is editing — editor and note vanish, no console errors', async ({ browser, request }) => {
+  const room = await createRoom(request);
   const pages = await makeClients(browser, 2, room);
   const [alex, sam] = pages;
   const errors = errorCollector(sam);
@@ -179,9 +179,9 @@ test('TC-25: Alex deletes the note Sam is editing — editor and note vanish, no
   await closeClients(pages.map((p) => p.context()));
 });
 
-test('TC-26: full-capacity session — 5 contexts create and move, all snapshots end identical', async ({ browser }) => {
+test('TC-26: full-capacity session — 5 contexts create and move, all snapshots end identical', async ({ browser, request }) => {
   test.setTimeout(120_000);
-  const room = newRoomId();
+  const room = await createRoom(request);
   const pages = await makeClients(browser, MAX_CONCURRENT_EDITORS, room);
 
   // 5 notes created per context, each propagation inside the budget.
@@ -211,9 +211,9 @@ test('TC-26: full-capacity session — 5 contexts create and move, all snapshots
   await closeClients(pages.map((p) => p.context()));
 });
 
-test('TC-27: flaky Wi-Fi — 30s offline, both keep editing, everything converges after reconnect', async ({ browser }) => {
+test('TC-27: flaky Wi-Fi — 30s offline, both keep editing, everything converges after reconnect', async ({ browser, request }) => {
   test.setTimeout(180_000);
-  const room = newRoomId();
+  const room = await createRoom(request);
   const pages = await makeClients(browser, 2, room);
   const [alex, sam] = pages;
 
@@ -251,8 +251,8 @@ test('TC-27: flaky Wi-Fi — 30s offline, both keep editing, everything converge
   await closeClients(pages.map((p) => p.context()));
 });
 
-test('TC-28 negative: a remote selection and editor are not mirrored', async ({ browser }) => {
-  const room = newRoomId();
+test('TC-28 negative: a remote selection and editor are not mirrored', async ({ browser, request }) => {
+  const room = await createRoom(request);
   const pages = await makeClients(browser, 2, room);
   const [alex, sam] = pages;
   const id = await seedSticky(alex, 0, 0);
@@ -274,9 +274,9 @@ test('TC-28 negative: a remote selection and editor are not mirrored', async ({ 
   await closeClients(pages.map(p => p.context()));
 });
 
-test('@nightly TC-29: 45s idle — the badge never leaves "connected"', async ({ browser }) => {
+test('@nightly TC-29: 45s idle — the badge never leaves "connected"', async ({ browser, request }) => {
   test.setTimeout(120_000);
-  const room = newRoomId();
+  const room = await createRoom(request);
   const pages = await makeClients(browser, 2, room);
 
   // Two idle clients for 45 real seconds; sample connection state on both
@@ -300,9 +300,9 @@ test('@nightly TC-29: 45s idle — the badge never leaves "connected"', async ({
   await closeClients(pages.map(p => p.context()));
 });
 
-test('@nightly TC-30: 60s capacity soak — 5 clients, every change inside budget', async ({ browser }) => {
+test('@nightly TC-30: 60s capacity soak — 5 clients, every change inside budget', async ({ browser, request }) => {
   test.setTimeout(180_000);
-  const room = newRoomId();
+  const room = await createRoom(request);
   const pages = await makeClients(browser, MAX_CONCURRENT_EDITORS, room);
 
   let rng = 42; // seeded (mulberry32) — change to re-run the exact same soak

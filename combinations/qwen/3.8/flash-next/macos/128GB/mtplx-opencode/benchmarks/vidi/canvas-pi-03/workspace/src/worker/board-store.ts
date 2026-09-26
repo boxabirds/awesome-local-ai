@@ -143,6 +143,55 @@ export class BoardStore {
     return [...cursor];
   }
 
+  /** Read-only existence probe (share.board_api / share.legacy_boards).
+   *
+   * A board exists if its storage has `created_at`, OR (legacy) it has at
+   * least one row in `updates` or `snapshot_chunks`. It FIRST checks
+   * `sqlite_master`: a board that was never created has no tables at all, so
+   * the probe reads nothing and — crucially — writes nothing. This is what
+   * lets `GET /api/boards/:id` and the WebSocket route answer 404 for an
+   * unknown link without leaving any storage behind (TC-06 / TC-09). */
+  existsReadOnly(): boolean {
+    const tables = new Set(
+      [...this.exec(`SELECT name FROM sqlite_master WHERE type = 'table'`)].map((row) => String(row['name'])),
+    );
+    if (!tables.has('updates') && !tables.has('snapshot_chunks')) return false;
+    const meta = [...this.exec(`SELECT value FROM storage_meta WHERE key = ?`, 'created_at')];
+    if (meta.length > 0) return true;
+    if (tables.has('updates')) {
+      const rows = [...this.exec(`SELECT 1 FROM updates LIMIT 1`)];
+      if (rows.length > 0) return true;
+    }
+    if (tables.has('snapshot_chunks')) {
+      const rows = [...this.exec(`SELECT 1 FROM snapshot_chunks LIMIT 1`)];
+      if (rows.length > 0) return true;
+    }
+    return false;
+  }
+
+  /** The board's creation timestamp (epoch ms), or null if it was never
+   * initialised. Read-only. */
+  createdAt(): number | null {
+    const rows = [...this.exec(`SELECT value FROM storage_meta WHERE key = ?`, 'created_at')];
+    const value = Number(rows[0]?.['value']);
+    return Number.isFinite(value) && value > 0 ? value : null;
+  }
+
+  /** Stamp the creation time (called once, from `initialize()`). */
+  setCreatedAt(ms: number): void {
+    this.exec(
+      `INSERT INTO storage_meta (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value`,
+      'created_at',
+      String(ms),
+    );
+  }
+
+  /** True when the update-log table exists (a migrated board, legacy or new). */
+  hasTables(): boolean {
+    const rows = [...this.exec(`SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'updates'`)];
+    return rows.length > 0;
+  }
+
   /** Create the tables and stamp the storage schema version. Writes no
    * update rows: opening a board that was never edited must not create
    * document state (TC-25). */
@@ -165,6 +214,14 @@ export class BoardStore {
     }
   }
 
+  /** Every table name present in this board's storage. Test-only: lets a test
+   * prove that probing an unknown link left NO storage behind (TC-06/TC-09). */
+  listTables(): string[] {
+    return [...this.exec(`SELECT name FROM sqlite_master WHERE type = 'table'`)].map((row) =>
+      String(row['name']),
+    );
+  }
+
   /** Append one update to the log. SQL errors are RE-THROWN: the caller
    * (BoardRoom) treats a failed write as a storage failure. */
   append(update: Uint8Array): void {
@@ -173,6 +230,10 @@ export class BoardStore {
     // The insert and the bookkeeping share one transaction, so a failure can
     // never leave a log row without its counter (or the reverse).
     this.storage.transactionSync(() => {
+      // A legacy board (or one whose tables were never migrated because it
+      // was probed before it was initialised) still gets its tables here, on
+      // the first real write. `migrate()` is idempotent.
+      if (!this.hasTables()) this.migrate();
       this.exec(`INSERT INTO updates (data, bytes) VALUES (?, ?)`, blob, bytes);
       const rows = this.exec(`SELECT seq FROM updates ORDER BY seq DESC LIMIT 1`);
       const seq = Number(rows[0]?.['seq'] ?? this.lastSeq + 1);
@@ -193,6 +254,13 @@ export class BoardStore {
    * row be dropped and replayed around, so the rest of the board survives. */
   load(doc: Y.Doc): LoadResult {
     try {
+      // A board that was never created has no tables at all. Treat it as an
+      // EMPTY board WITHOUT creating anything (share.legacy_boards + the
+      // "probing writes nothing" guarantee). This is the first place `load`
+      // touches SQL, so the table check must come before any table query.
+      if (!this.hasTables()) {
+        return { ok: true, quarantined: 0 };
+      }
       this.snapshotThroughSeq = this.readSnapshotThroughSeq();
       this.logCount = 0;
       this.logBytes = 0;

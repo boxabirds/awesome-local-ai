@@ -1,19 +1,27 @@
-// Worker entry (sync.worker_entry).
+// Worker entry (sync.worker_entry + share.board_api).
 //
 // Routing:
-//   /api/rooms/:boardId  → the BoardRoom Durable Object for that board
-//   everything else      → static assets (with an index.html fallback so
-//                          /b/<boardId> deep links reach the SPA even when
-//                          the assets layer answers a bare 404).
+//   /api/boards            → POST create, other methods 405
+//   /api/boards/:id        → GET existence check (404 unknown + malformed)
+//   /api/rooms/:boardId    → the BoardRoom Durable Object for that board
+//   everything else        → static assets (with an index.html fallback so
+//                            /b/<boardId> deep links reach the SPA).
 
 import { isValidBoardId } from '../shared/board-id';
 import { BoardRoom } from './board-room';
+import { createBoard } from './create-board';
 
 export { BoardRoom };
 
 export interface Env {
   BOARD_ROOM: DurableObjectNamespace<BoardRoom>;
   ASSETS: Fetcher;
+  /** Workers rate-limit binding (share.rate_limit). limit/period mirror the
+   * BOARD_CREATE_LIMIT / BOARD_CREATE_PERIOD_SECONDS settings (TC-03). May be
+   * absent in the local test runtime; createBoard then skips limiting. */
+  BOARD_CREATE_LIMITER?: {
+    limit(opts: { key: string }): Promise<{ success: boolean }>;
+  };
   /** Test-only: enables the room's storage-inspection / damage hooks. Set ONLY
    * in the `test` wrangler environment and in `npm run workers:test`; the
    * production config never defines it, and then these paths are plain asset
@@ -23,18 +31,20 @@ export interface Env {
 
 /** The shared-room route prefix. `/api/rooms` itself (no id) is invalid. */
 const ROOM_ROUTE = '/api/rooms';
+/** The board-collection route (POST create) and the per-board check route. */
+const BOARDS_ROUTE = '/api/boards';
 
-function badRequest(message: string): Response {
+function notFound(message = 'Not found'): Response {
   return new Response(message, {
-    status: 400,
+    status: 404,
     headers: { 'content-type': 'text/plain; charset=utf-8' },
   });
 }
 
-function upgradeRequired(): Response {
-  return new Response('Upgrade Required', {
-    status: 426,
-    headers: { 'content-type': 'text/plain; charset=utf-8', upgrade: 'websocket' },
+function json(body: unknown, status = 200): Response {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { 'content-type': 'application/json' },
   });
 }
 
@@ -48,6 +58,9 @@ function readBoardId(pathname: string): string | null {
     return null; // malformed percent-escape
   }
 }
+
+/** A limiter that always allows: only reachable through the test-only header. */
+const ALWAYS_ALLOWED = { limit: async () => ({ success: true }) };
 
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
@@ -77,14 +90,57 @@ export async function workerFetch(request: Request, env: Env): Promise<Response>
     return new Response('Not found', { status: 404 });
   }
 
+  // --- Board API (share.board_api) ------------------------------------------
+
+  if (url.pathname === BOARDS_ROUTE) {
+    // POST /api/boards → create a board. Any other method → 405 (TC-14).
+    if (request.method !== 'POST') {
+      return new Response('Method not allowed', {
+        status: 405,
+        headers: { allow: 'POST', 'content-type': 'text/plain; charset=utf-8' },
+      });
+    }
+    const visitorKey = request.headers.get('CF-Connecting-IP') ?? 'unknown';
+    const result = await createBoard(env, visitorKey, {
+      // Only the test environment may step over the limiter, and only through
+      // the explicit header: fixtures must not be throttled into 429s (the
+      // local runtime enforces the real binding, and every local request shares
+      // one key). tests/integration/board-api.test.ts covers the limiter with
+      // the header left off.
+      limiter: env.TEST_HOOKS === '1' && request.headers.get('x-test-ignore-limit') === '1' ? ALWAYS_ALLOWED : undefined,
+    });
+    if (result.ok) return json({ id: result.id }, 201);
+    if (result.reason === 'rate_limited') return json({ error: 'rate_limited' }, 429);
+    return json({ error: 'create_failed' }, 500);
+  }
+
+  if (url.pathname.startsWith(`${BOARDS_ROUTE}/`)) {
+    // GET /api/boards/:id → 200 exists / 404 unknown or malformed. A malformed
+    // id never touches the Durable Object namespace (TC-07).
+    const raw = url.pathname.slice(BOARDS_ROUTE.length + 1);
+    if (raw.includes('/') || !isValidBoardId(raw)) return notFound();
+    const stub = env.BOARD_ROOM.get(env.BOARD_ROOM.idFromName(raw));
+    const exists = await (stub as unknown as { exists(): Promise<boolean> }).exists();
+    return exists ? json({ id: raw }, 200) : notFound();
+  }
+
+  // --- Room WebSocket route -------------------------------------------------
+
   if (url.pathname === ROOM_ROUTE || url.pathname.startsWith(`${ROOM_ROUTE}/`)) {
     const boardId = readBoardId(url.pathname);
-    // Invalid (or missing) board id → 400, and critically: no Durable
-    // Object instance is ever touched (TC-04).
-    if (boardId === null || !isValidBoardId(boardId)) return badRequest('Invalid board id');
+    // Malformed (or missing) board id → 404 (was 400 in story 3). No Durable
+    // Object instance is ever touched, and unknown/malformed ids leak nothing.
+    if (boardId === null || !isValidBoardId(boardId)) return notFound('Invalid board id');
     // Valid id without the upgrade header → 426 (TC-05).
-    if (request.headers.get('Upgrade')?.toLowerCase() !== 'websocket') return upgradeRequired();
+    if (request.headers.get('Upgrade')?.toLowerCase() !== 'websocket') {
+      return new Response('Upgrade Required', {
+        status: 426,
+        headers: { 'content-type': 'text/plain; charset=utf-8', upgrade: 'websocket' },
+      });
+    }
     // One object per board id: `idFromName` is what isolates boards (TC-17).
+    // The room rejects a NON-EXISTENT board with 404 before accepting, so
+    // story 3/4 rooms can no longer be created implicitly by connecting.
     const stub = env.BOARD_ROOM.get(env.BOARD_ROOM.idFromName(boardId));
     return stub.fetch(request);
   }

@@ -1,36 +1,27 @@
-import { StrictMode } from 'react';
+import { type ReactElement, StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
-import { App } from './App';
-import { isValidBoardId, newBoardId } from '../shared/board-id';
+import { useRoute } from './router';
+import { HomePage } from './pages/HomePage';
+import { BoardPage } from './pages/BoardPage';
+import { NotFoundPage } from './pages/NotFoundPage';
 import './styles.css';
 
 const container = document.getElementById('root');
 
-/**
- * Resolve the board to render from the URL:
- *
- *   /b/<boardId>  → that board (when the id is well-formed)
- *   anything else → a fresh random board, with the URL rewritten to /b/<id>
- *
- * The rewrite (replaceState, no reload) keeps deep links shareable and gives
- * every fresh visit its own board until story 5 adds server-side creation.
- */
-function resolveBoardId(): string {
-  const pathname = window.location.pathname;
-  if (pathname.startsWith('/b/')) {
-    const raw = decodeURIComponent(pathname.slice('/b/'.length));
-    if (isValidBoardId(raw)) return raw;
-  }
-  const fresh = newBoardId();
-  window.history.replaceState(null, '', `/b/${fresh}`);
-  return fresh;
+/** The router root: the current route decides the page. No board is created at
+ * an unknown address (share.not_found), and `/` no longer redirects to a
+ * random id — it is the home page with Create a board. */
+function Root(): ReactElement {
+  const route = useRoute();
+  if (route.name === 'home') return <HomePage />;
+  if (route.name === 'board') return <BoardPage key={route.id} id={route.id} />;
+  return <NotFoundPage />;
 }
 
 if (container) {
-  const boardId = resolveBoardId();
   createRoot(container).render(
     <StrictMode>
-      <App boardId={boardId} />
+      <Root />
     </StrictMode>,
   );
 }

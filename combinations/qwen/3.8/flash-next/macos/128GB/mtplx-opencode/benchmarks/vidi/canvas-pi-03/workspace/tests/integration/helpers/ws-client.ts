@@ -13,18 +13,47 @@
 import { WebsocketProvider } from 'y-websocket';
 import * as Y from 'yjs';
 import { decodeMessage } from '../../../src/shared/protocol';
-import { WS_ORIGIN } from './server';
+import { HTTP_ORIGIN, WS_ORIGIN } from './server';
 
 export type CapturedFrame = { dir: 'in' | 'out'; bytes: Uint8Array };
 
-/** Fresh unique room id: 16 random bytes rendered base64url WITHOUT padding —
- * exactly 22 characters, what the Worker's board-id validator accepts. */
+/**
+ * A fresh, VALID 22-char board id that was NEVER created (16 random bytes,
+ * base64url without padding — the shape `newBoardId()` produces).
+ *
+ * From story 5 on this is only good for NEGATIVE cases: a valid-but-unknown id
+ * is refused (404) by both the existence check and the WebSocket route. Tests
+ * that need a board their clients can actually join must use `createRoom()`.
+ */
 export function room(): string {
   const bytes = new Uint8Array(16);
   (globalThis.crypto as Crypto).getRandomValues(bytes);
   let binary = '';
   for (const b of bytes) binary += String.fromCharCode(b);
   return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
+}
+
+/** Create a REAL board through the server (`POST /api/boards`) and return its
+ * id. This is the documented test helper of AC-04: since story 5 a board is
+ * only ever created server-side, so every integration test that connects
+ * clients to a board creates one first — exactly like the product does.
+ */
+export async function createRoom(origin: string = HTTP_ORIGIN): Promise<string> {
+  // `x-test-ignore-limit` keeps fixtures out of the rate limiter (see the
+  // header check in src/worker/index.ts); board-api.test.ts tests the limiter
+  // itself with the header left off.
+  const response = await fetch(`${origin}/api/boards`, {
+    method: 'POST',
+    headers: { 'x-test-ignore-limit': '1' },
+  });
+  if (!response.ok) {
+    throw new Error(`createRoom: POST ${origin}/api/boards answered ${response.status}`);
+  }
+  const body = (await response.json()) as { id?: string };
+  if (typeof body.id !== 'string' || body.id.length === 0) {
+    throw new Error(`createRoom: no id in the response (${JSON.stringify(body)})`);
+  }
+  return body.id;
 }
 
 
@@ -164,14 +193,16 @@ export function yClient(
   };
 }
 
-/** Wait until `predicate` holds or timeout. Returns true if satisfied. */
+/** Wait until `predicate` holds or timeout. Async predicates are awaited, so a
+ * test can wait on a round trip to the Durable Object ("the write landed")
+ * instead of only on in-memory state. Returns true if satisfied. */
 export async function until(
-  predicate: () => boolean,
+  predicate: () => boolean | Promise<boolean>,
   timeoutMs = 8_000,
   intervalMs = 15,
 ): Promise<boolean> {
   const start = Date.now();
-  while (!predicate()) {
+  while (!(await predicate())) {
     if (Date.now() - start > timeoutMs) return false;
     await new Promise((r) => setTimeout(r, intervalMs));
   }

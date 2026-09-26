@@ -5,11 +5,11 @@
 import { describe, expect, it } from 'vitest';
 import * as Y from 'yjs';
 import { createSticky, snapshot } from '../../src/shared/board-model';
-import { room, textOf, until, yClient } from './helpers/ws-client';
+import { createRoom, textOf, until, yClient } from './helpers/ws-client';
 
 describe('reconnect and resync', () => {
   it('TC-08: a client that drops out late can rejoin and catch up', async () => {
-    const id = room();
+    const id = await createRoom();
     const a = yClient(id);
     const b = yClient(id);
     expect(await until(() => a.provider.synced && b.provider.synced)).toBe(true);
@@ -44,7 +44,7 @@ describe('reconnect and resync', () => {
   }, 60_000);
 
   it('TC-09: a brand-new doc syncs to a rebuilt room state byte-for-byte', async () => {
-    const id = room();
+    const id = await createRoom();
     const longText = 'lorem ipsum dolor sit amet '.repeat(200); // 5.2 KB
 
     // Seed the room through doc1, then drop that client.
@@ -72,7 +72,7 @@ describe('reconnect and resync', () => {
   }, 60_000);
 
   it('TC-10: 32 KB payloads with concurrent writes converge with all content intact', async () => {
-    const id = room();
+    const id = await createRoom();
     const a = yClient(id);
     const b = yClient(id);
     expect(await until(() => a.provider.synced && b.provider.synced)).toBe(true);

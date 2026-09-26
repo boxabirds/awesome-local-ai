@@ -15,6 +15,9 @@
 //   GET  state                 → lifecycle + bookkeeping snapshot
 //   POST seed                  → body: raw Yjs update bytes, loaded as fixture
 //                                state (not stored, not broadcast)
+//   POST legacy-seed           → body: raw Yjs update bytes, stored WITHOUT
+//                                stamping created_at: the pre-story-5 board
+//                                shape (share.legacy_boards)
 //   POST compact               → run the real compaction rewrite once
 //   POST inject-failure        → {"reads": n, "writes": n, "select": sql}
 //   POST corrupt-snapshot      → save + damage snapshot chunk 0
@@ -40,17 +43,41 @@ function hookName(pathname: string): string {
 
 /** Snapshot of the current storage + room state (what `GET state` returns). */
 function stateOf(room: BoardRoom): Record<string, unknown> {
-  const snapshot = room.storeForTest ? room.storeForTest.dumpSnapshot() : [];
+  // Story 1 invariant, still true after Story 5: a board's tables do not exist
+  // until it is actually created — and an unknown link now never reaches a room
+  // at all. Every storage read below throws on an empty board, and that must
+  // read as "nothing here", not as a 500 (TC-06/TC-09 assert exactly this).
+  const read = <T>(fn: () => T, empty: T): T => {
+    try {
+      return fn();
+    } catch {
+      return empty;
+    }
+  };
+  const store = room.storeForTest;
+  const snapshot = store ? read(() => store.dumpSnapshot(), []) : [];
+  const tables = store ? read(() => store.listTables(), []) : [];
   return {
-    ...room.testState(),
+    // `testState()` reads the storage stats too, so the whole base object has
+    // to be guarded; the fallback is what an empty room would truthfully
+    // report (nothing loaded, nothing read).
+    ...read(() => room.testState(), {
+      state: 'loading' as const,
+      serving: false,
+      loadAttempts: 0,
+      retryInMs: 0,
+      storeStats: null,
+    }),
+    tables,
+    createdAt: tables.length > 0 && store ? read(() => store.createdAt(), null) : null,
     // Every socket is hibernated once the idle timer fired (design: the
     // `state` field must be able to report "hibernating").
     hibernating: room.webSocketCountForTest() === 0,
     chunkCount: snapshot.length,
     snapshotBytes: snapshot.reduce((total, chunk) => total + chunk.bytes, 0),
-    log: room.storeForTest ? room.storeForTest.dumpLog() : null,
+    log: store ? read(() => store.dumpLog(), null) : null,
     snapshot,
-    quarantined: room.storeForTest ? room.storeForTest.dumpQuarantined() : null,
+    quarantined: store ? read(() => store.dumpQuarantined(), null) : null,
   };
 }
 
@@ -64,6 +91,14 @@ export async function handleRoomTestRequest(room: BoardRoom, request: Request): 
   if (hook === 'seed' && method === 'POST') {
     const bytes = new Uint8Array(await request.arrayBuffer());
     const ok = room.seedDocumentForTest(bytes);
+    return json({ ok, ...stateOf(room) }, ok ? 200 : 500);
+  }
+
+  if (hook === 'legacy-seed' && method === 'POST') {
+    // A pre-story-5 board: tables and content, but NO `created_at`. This is
+    // the `share.legacy_boards` fixture (TC-08 integration, TC-31 e2e).
+    const bytes = new Uint8Array(await request.arrayBuffer());
+    const ok = room.legacySeedForTest(bytes);
     return json({ ok, ...stateOf(room) }, ok ? 200 : 500);
   }
 

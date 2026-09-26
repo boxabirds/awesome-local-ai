@@ -10,10 +10,11 @@ const BASE = `http://127.0.0.1:${PORT}`;
 
 async function healthy(): Promise<boolean> {
   try {
-    // A bad board id deterministically answers 400 once the worker is up,
-    // regardless of whether client assets are built.
+    // A bad board id deterministically answers 404 once the worker is up,
+    // regardless of whether client assets are built (story 5 made the
+    // malformed-id response 404, not 400).
     const response = await fetch(`${BASE}/api/rooms/not-a-valid-id`, { signal: AbortSignal.timeout(1500) });
-    return response.status === 400;
+    return response.status === 404;
   } catch {
     return false;
   }

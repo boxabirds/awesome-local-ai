@@ -35,11 +35,12 @@ const WORKERD = new URL('../../../node_modules/@cloudflare/workerd-darwin-arm64/
 
 async function healthy(port: number): Promise<boolean> {
   try {
-    // A malformed board id answers 400 as soon as the worker answers at all.
+    // A malformed board id answers 404 as soon as the worker answers at all
+    // (story 5: unknown AND malformed ids are 404, nothing leaks).
     const response = await fetch(`http://127.0.0.1:${port}/api/rooms/not-valid`, {
       signal: AbortSignal.timeout(1500),
     });
-    return response.status === 400;
+    return response.status === 404;
   } catch {
     return false;
   }
