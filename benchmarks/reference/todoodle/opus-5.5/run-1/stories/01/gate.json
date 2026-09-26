@@ -1,0 +1,57 @@
+{
+  "steps": {
+    "install": {
+      "cmd": "bun install",
+      "exit": 0,
+      "seconds": 0.1,
+      "tail": "bun install v1.2.17 (282dda62)\n\nChecked 207 installs across 337 packages (no changes) [51.00ms]\n"
+    },
+    "build": {
+      "cmd": "bun run build",
+      "exit": 0,
+      "seconds": 0.2,
+      "tail": "\u001b[36mvite v8.3.1 \u001b[32mbuilding client environment for production...\u001b[36m\u001b[39m\ntransforming...\n\u2713 16 modules transformed.\nrendering chunks...\ncomputing gzip size...\ndist/index.html                   0.44 kB \u2502 gzip:  0.27 kB\ndist/assets/index-xNxd1U0I.css    7.70 kB \u2502 gzip:  2.25 kB\ndist/assets/index-5wzQCRkX.js   219.98 kB \u2502 gzip: 68.79 kB\n\n\u001b[32m\u2713 built in 66ms\u001b[39m\n$ bun run --cwd apps/web build\n$ vite build\n",
+      "passed": null,
+      "failed": null
+    },
+    "typecheck": {
+      "cmd": "bun run typecheck",
+      "exit": 0,
+      "seconds": 3.1,
+      "tail": "$ bun run --cwd packages/shared typecheck && bun run --cwd apps/api typecheck && bun run --cwd apps/web typecheck && tsc -p tsconfig.json --noEmit\n$ tsc -p tsconfig.json --noEmit\n$ tsc -p tsconfig.json --noEmit && tsc -p tsconfig.node.json --noEmit\n$ tsc -p tsconfig.json --noEmit\n",
+      "passed": null,
+      "failed": null
+    },
+    "lint": {
+      "exit": "missing"
+    },
+    "test:unit": {
+      "cmd": "bun run test:unit",
+      "exit": 0,
+      "seconds": 2.6,
+      "tail": "\n RUN  v4.1.11 ~/.vidi-bench/work/benchmarks__reference__todoodle__opus-5.5__run-1/workspace\n\n\n Test Files  4 passed (4)\n      Tests  38 passed (38)\n   Start at  19:59:04\n   Duration  1.41s (transform 260ms, setup 576ms, import 36ms, tests 129ms, environment 0ms)\n\n\n RUN  v4.1.11 ~/.vidi-bench/work/benchmarks__reference__todoodle__opus-5.5__run-1/workspace\n\n\n Test Files  6 passed (6)\n      Tests  48 passed (48)\n   Start at  19:59:06\n   Duration  169ms (transform 157ms, setup 0ms, import 235ms, tests 56ms, environment 0ms)\n\n$ vitest run --config apps/api/vitest.config.ts --project api-unit && vitest run --config scripts/vitest.config.ts --project deploy-unit\n",
+      "passed": 38,
+      "failed": 0
+    },
+    "test:component": {
+      "exit": "missing"
+    },
+    "test:integration": {
+      "cmd": "bun run test:integration",
+      "exit": 0,
+      "seconds": 9.6,
+      "tail": "\n RUN  v4.1.11 ~/.vidi-bench/work/benchmarks__reference__todoodle__opus-5.5__run-1/workspace\n\n\n Test Files  8 passed (8)\n      Tests  24 passed (24)\n   Start at  19:59:07\n   Duration  2.23s (transform 833ms, setup 1.68s, import 157ms, tests 241ms, environment 0ms)\n\n\n RUN  v4.1.11 ~/.vidi-bench/work/benchmarks__reference__todoodle__opus-5.5__run-1/workspace\n\n\n Test Files  1 passed (1)\n      Tests  18 passed (18)\n   Start at  19:59:09\n   Duration  6.36s (transform 41ms, setup 0ms, import 61ms, tests 6.23s, environment 0ms)\n\n$ vitest run --config apps/api/vitest.config.ts --project api-integration --project api-staging-sim --project api-production-gate && vitest run --config scripts/vitest.config.ts --project deploy-integration\n",
+      "passed": 24,
+      "failed": 0
+    },
+    "test:e2e": {
+      "cmd": "bun run test:e2e --project=chromium",
+      "exit": 0,
+      "seconds": 3.5,
+      "tail": "\nRunning 2 tests using 2 workers\n\u00b7\u00b7\n  2 passed (3.2s)\n::notice title=\ud83c\udfad Playwright Run Summary::  2 passed (3.2s)\n$ playwright test \"--project=chromium\"\n[WebServer] $ bun run build && bun scripts/dev.ts\n[WebServer] $ bun run --cwd apps/web build\n[WebServer] $ vite build\n",
+      "passed": 2,
+      "failed": 0
+    }
+  },
+  "all_green": true
+}

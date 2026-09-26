@@ -1,0 +1,3 @@
+[install]
+# Commit a text lockfile (bun.lock) so installs are reproducible.
+saveTextLockfile = true

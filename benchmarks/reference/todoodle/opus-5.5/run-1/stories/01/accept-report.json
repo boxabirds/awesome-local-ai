@@ -1,0 +1,482 @@
+{
+  "config": {
+    "argv": [
+      "~/.nvm/versions/node/v24.15.0/bin/node",
+      "~/.spec-bench/awesome-local-ai-bench-private/packs/todoodle/acceptance/node_modules/.bin/playwright",
+      "test",
+      "tests/story-01.spec.ts"
+    ],
+    "configFile": "~/.spec-bench/awesome-local-ai-bench-private/packs/todoodle/acceptance/playwright.config.ts",
+    "rootDir": "~/.spec-bench/awesome-local-ai-bench-private/packs/todoodle/acceptance/tests",
+    "failOnFlakyTests": false,
+    "forbidOnly": false,
+    "fullyParallel": false,
+    "globalSetup": "~/.spec-bench/awesome-local-ai-bench-private/packs/todoodle/acceptance/tests/global-setup.ts",
+    "globalTeardown": null,
+    "globalTimeout": 0,
+    "grep": {},
+    "grepInvert": null,
+    "maxFailures": 0,
+    "metadata": {
+      "actualWorkers": 1
+    },
+    "preserveOutput": "always",
+    "projects": [
+      {
+        "outputDir": "~/.spec-bench/awesome-local-ai/benchmarks/reference/todoodle/opus-5.5/run-1/stories/01/artifacts",
+        "repeatEach": 1,
+        "retries": 0,
+        "metadata": {
+          "actualWorkers": 1
+        },
+        "id": "chromium",
+        "name": "chromium",
+        "testDir": "~/.spec-bench/awesome-local-ai-bench-private/packs/todoodle/acceptance/tests",
+        "testIgnore": [],
+        "testMatch": [
+          "**/*.@(spec|test).?(c|m)[jt]s?(x)"
+        ],
+        "timeout": 45000
+      }
+    ],
+    "quiet": false,
+    "reporter": [
+      [
+        "list",
+        null
+      ],
+      [
+        "json",
+        {
+          "outputFile": "~/.spec-bench/awesome-local-ai/benchmarks/reference/todoodle/opus-5.5/run-1/stories/01/accept-report.json"
+        }
+      ]
+    ],
+    "reportSlowTests": {
+      "max": 5,
+      "threshold": 300000
+    },
+    "shard": null,
+    "tags": [],
+    "updateSnapshots": "missing",
+    "updateSourceMethod": "patch",
+    "version": "1.63.0",
+    "workers": 1,
+    "webServer": null
+  },
+  "suites": [
+    {
+      "title": "story-01.spec.ts",
+      "file": "story-01.spec.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [
+        {
+          "title": "landing page runs locally and shows Todoodle @ref prd:local_dev",
+          "ok": true,
+          "tags": [
+            "ref"
+          ],
+          "tests": [
+            {
+              "timeout": 45000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 248,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-09-26T18:59:22.888Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "24cb81e61bbb2d948322-ad30331ff0dc7c7b20f2",
+          "file": "story-01.spec.ts",
+          "line": 13,
+          "column": 1
+        },
+        {
+          "title": "health reports status, environment, version, revision and release time @ref prd:health",
+          "ok": true,
+          "tags": [
+            "ref"
+          ],
+          "tests": [
+            {
+              "timeout": 45000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 11,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-09-26T18:59:28.450Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "24cb81e61bbb2d948322-1c074538da52295223d6",
+          "file": "story-01.spec.ts",
+          "line": 19,
+          "column": 1
+        },
+        {
+          "title": "/health and /api/health answer the same @ref prd:health",
+          "ok": true,
+          "tags": [
+            "ref"
+          ],
+          "tests": [
+            {
+              "timeout": 45000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 7,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-09-26T18:59:28.465Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "24cb81e61bbb2d948322-80da6c79b5cae60ac008",
+          "file": "story-01.spec.ts",
+          "line": 30,
+          "column": 1
+        },
+        {
+          "title": "every response carries a request id and baseline protections @ref prd:security_baseline",
+          "ok": true,
+          "tags": [
+            "ref"
+          ],
+          "tests": [
+            {
+              "timeout": 45000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 17,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-09-26T18:59:28.476Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "24cb81e61bbb2d948322-89bf3c72e14aa972c0e3",
+          "file": "story-01.spec.ts",
+          "line": 38,
+          "column": 1
+        },
+        {
+          "title": "API and health responses are never cached @ref prd:security_baseline",
+          "ok": true,
+          "tags": [
+            "ref"
+          ],
+          "tests": [
+            {
+              "timeout": 45000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 8,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-09-26T18:59:28.497Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "24cb81e61bbb2d948322-86ee8d00cfcfb77b2e2b",
+          "file": "story-01.spec.ts",
+          "line": 54,
+          "column": 1
+        },
+        {
+          "title": "unknown API paths are a plain 404 without internals @ref prd:request_limits",
+          "ok": true,
+          "tags": [
+            "ref"
+          ],
+          "tests": [
+            {
+              "timeout": 45000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 4,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-09-26T18:59:28.508Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "24cb81e61bbb2d948322-bd9fe709bfee92a1e3cf",
+          "file": "story-01.spec.ts",
+          "line": 62,
+          "column": 1
+        },
+        {
+          "title": "an unsupported method is rejected @ref prd:request_limits",
+          "ok": true,
+          "tags": [
+            "ref"
+          ],
+          "tests": [
+            {
+              "timeout": 45000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 4,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-09-26T18:59:28.519Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "24cb81e61bbb2d948322-c7d3c07d574fefb4b828",
+          "file": "story-01.spec.ts",
+          "line": 71,
+          "column": 1
+        },
+        {
+          "title": "a change without JSON content is rejected @ref prd:request_limits",
+          "ok": true,
+          "tags": [
+            "ref"
+          ],
+          "tests": [
+            {
+              "timeout": 45000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 4,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-09-26T18:59:28.526Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "24cb81e61bbb2d948322-4e627686dada4570dac5",
+          "file": "story-01.spec.ts",
+          "line": 78,
+          "column": 1
+        },
+        {
+          "title": "a body over 1 MB is rejected @ref prd:request_limits",
+          "ok": true,
+          "tags": [
+            "ref"
+          ],
+          "tests": [
+            {
+              "timeout": 45000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 8,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-09-26T18:59:28.533Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "24cb81e61bbb2d948322-7cdb24298dc3d8563fbd",
+          "file": "story-01.spec.ts",
+          "line": 85,
+          "column": 1
+        },
+        {
+          "title": "a change from outside the web client is refused @ref prd:request_limits",
+          "ok": true,
+          "tags": [
+            "ref"
+          ],
+          "tests": [
+            {
+              "timeout": 45000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 4,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-09-26T18:59:28.550Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "24cb81e61bbb2d948322-2b74da62d30ed35459ac",
+          "file": "story-01.spec.ts",
+          "line": 93,
+          "column": 1
+        },
+        {
+          "title": "deep links are served the app, not a 404 @ref prd:local_dev",
+          "ok": true,
+          "tags": [
+            "ref"
+          ],
+          "tests": [
+            {
+              "timeout": 45000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 88,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-09-26T18:59:28.557Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "24cb81e61bbb2d948322-152cb95d2b0c577ce166",
+          "file": "story-01.spec.ts",
+          "line": 100,
+          "column": 1
+        }
+      ]
+    }
+  ],
+  "errors": [],
+  "stats": {
+    "startTime": "2026-09-26T18:59:20.649Z",
+    "duration": 11037.804,
+    "expected": 11,
+    "skipped": 0,
+    "unexpected": 0,
+    "flaky": 0
+  }
+}

@@ -1,0 +1,98 @@
+{
+  "skipped": false,
+  "build_exit": 0,
+  "runner_exit": 0,
+  "runner_tail": "",
+  "passed": 11,
+  "total": 11,
+  "on_partial": {
+    "passed": 0,
+    "total": 0
+  },
+  "by_story": {
+    "01": {
+      "passed": 11,
+      "total": 11
+    }
+  },
+  "harness_fault": null,
+  "tests": [
+    {
+      "file": "story-01.spec.ts",
+      "title": "landing page runs locally and shows Todoodle @ref prd:local_dev",
+      "status": "passed",
+      "error": "",
+      "on_partial": null
+    },
+    {
+      "file": "story-01.spec.ts",
+      "title": "health reports status, environment, version, revision and release time @ref prd:health",
+      "status": "passed",
+      "error": "",
+      "on_partial": null
+    },
+    {
+      "file": "story-01.spec.ts",
+      "title": "/health and /api/health answer the same @ref prd:health",
+      "status": "passed",
+      "error": "",
+      "on_partial": null
+    },
+    {
+      "file": "story-01.spec.ts",
+      "title": "every response carries a request id and baseline protections @ref prd:security_baseline",
+      "status": "passed",
+      "error": "",
+      "on_partial": null
+    },
+    {
+      "file": "story-01.spec.ts",
+      "title": "API and health responses are never cached @ref prd:security_baseline",
+      "status": "passed",
+      "error": "",
+      "on_partial": null
+    },
+    {
+      "file": "story-01.spec.ts",
+      "title": "unknown API paths are a plain 404 without internals @ref prd:request_limits",
+      "status": "passed",
+      "error": "",
+      "on_partial": null
+    },
+    {
+      "file": "story-01.spec.ts",
+      "title": "an unsupported method is rejected @ref prd:request_limits",
+      "status": "passed",
+      "error": "",
+      "on_partial": null
+    },
+    {
+      "file": "story-01.spec.ts",
+      "title": "a change without JSON content is rejected @ref prd:request_limits",
+      "status": "passed",
+      "error": "",
+      "on_partial": null
+    },
+    {
+      "file": "story-01.spec.ts",
+      "title": "a body over 1 MB is rejected @ref prd:request_limits",
+      "status": "passed",
+      "error": "",
+      "on_partial": null
+    },
+    {
+      "file": "story-01.spec.ts",
+      "title": "a change from outside the web client is refused @ref prd:request_limits",
+      "status": "passed",
+      "error": "",
+      "on_partial": null
+    },
+    {
+      "file": "story-01.spec.ts",
+      "title": "deep links are served the app, not a 404 @ref prd:local_dev",
+      "status": "passed",
+      "error": "",
+      "on_partial": null
+    }
+  ]
+}

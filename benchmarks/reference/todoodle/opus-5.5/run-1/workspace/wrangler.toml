@@ -1,0 +1,70 @@
+# Todoodle: one Worker serving the API and the SPA assets.
+# Base (top-level) config is the LOCAL environment. Tests only ever use this base config.
+name = "todoodle"
+main = "apps/api/src/index.ts"
+compatibility_date = "2026-08-20"
+compatibility_flags = ["nodejs_compat"]
+
+[dev]
+ip = "127.0.0.1"
+port = 8787
+
+[assets]
+directory = "apps/web/dist"
+binding = "ASSETS"
+not_found_handling = "single-page-application"
+# The Worker runs first for every request so request ids and security headers
+# are applied to SPA and asset responses too.
+run_worker_first = true
+
+[vars]
+ENVIRONMENT = "local"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "todoodle-local"
+database_id = "00000000-0000-0000-0000-000000000000"
+migrations_dir = "migrations"
+
+# WorkspaceRoom Durable Object: owned by story 4 (needs the exported class and a
+# DO migration tag). Placeholder only:
+# [[durable_objects.bindings]]
+# name = "WORKSPACE_ROOM"
+# class_name = "WorkspaceRoom"
+# [[migrations]]
+# tag = "v1"
+# new_sqlite_classes = ["WorkspaceRoom"]
+
+# ---------------------------------------------------------------- staging
+[env.staging]
+logpush = true
+
+[env.staging.observability.logs]
+enabled = true
+
+[env.staging.vars]
+ENVIRONMENT = "staging"
+
+[[env.staging.d1_databases]]
+binding = "DB"
+database_name = "todoodle-staging"
+# Fill in after `wrangler d1 create todoodle-staging` (see README).
+database_id = "00000000-0000-0000-0000-000000000001"
+migrations_dir = "migrations"
+
+# ---------------------------------------------------------------- production
+[env.production]
+logpush = true
+
+[env.production.observability.logs]
+enabled = true
+
+[env.production.vars]
+ENVIRONMENT = "production"
+
+[[env.production.d1_databases]]
+binding = "DB"
+database_name = "todoodle-production"
+# Fill in after `wrangler d1 create todoodle-production` (see README).
+database_id = "00000000-0000-0000-0000-000000000002"
+migrations_dir = "migrations"

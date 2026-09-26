@@ -1,0 +1,626 @@
+{
+  "stories": {
+    "1": {
+      "title": "See which version of Todoodle is live in each environment",
+      "conditions_start": {
+        "ac": true,
+        "low_power": false,
+        "thermal": "nominal"
+      },
+      "started": 1790448021.103018,
+      "agent": {
+        "seconds": 1119.3,
+        "steps": 83,
+        "tool_calls": 86,
+        "compactions": 0,
+        "tool_interruptions": 0,
+        "tokens": {
+          "input": 166,
+          "output": 108232,
+          "reasoning": 0,
+          "cache_read": 8441499,
+          "cache_write": 171750
+        },
+        "exit": 0,
+        "stalled": false,
+        "resumes": 0,
+        "nudges": 0,
+        "errors": [],
+        "ended_by_operator": false,
+        "ended_in_error": false,
+        "sessions": [
+          "af228389-4b68-4041-88f1-55eda711072d"
+        ]
+      },
+      "agent_finished": 1790449140.482392,
+      "conditions": {
+        "samples": 37,
+        "degraded": false,
+        "throttled_share": 0.0,
+        "bad_samples": [],
+        "swap_start_gb": 0.49,
+        "swap_max_gb": 0.49,
+        "aborted_swap": false,
+        "aborted_memory": false,
+        "free_min_pct": 74.0,
+        "server_footprint_max_gb": null,
+        "server_footprint_peak_gb": null,
+        "gpu": null
+      },
+      "agent_commits": 13,
+      "gate": {
+        "steps": {
+          "install": {
+            "cmd": "bun install",
+            "exit": 0,
+            "seconds": 0.1,
+            "tail": "bun install v1.2.17 (282dda62)\n\nChecked 207 installs across 337 packages (no changes) [51.00ms]\n"
+          },
+          "build": {
+            "cmd": "bun run build",
+            "exit": 0,
+            "seconds": 0.2,
+            "tail": "\u001b[36mvite v8.3.1 \u001b[32mbuilding client environment for production...\u001b[36m\u001b[39m\ntransforming...\n\u2713 16 modules transformed.\nrendering chunks...\ncomputing gzip size...\ndist/index.html                   0.44 kB \u2502 gzip:  0.27 kB\ndist/assets/index-xNxd1U0I.css    7.70 kB \u2502 gzip:  2.25 kB\ndist/assets/index-5wzQCRkX.js   219.98 kB \u2502 gzip: 68.79 kB\n\n\u001b[32m\u2713 built in 66ms\u001b[39m\n$ bun run --cwd apps/web build\n$ vite build\n",
+            "passed": null,
+            "failed": null
+          },
+          "typecheck": {
+            "cmd": "bun run typecheck",
+            "exit": 0,
+            "seconds": 3.1,
+            "tail": "$ bun run --cwd packages/shared typecheck && bun run --cwd apps/api typecheck && bun run --cwd apps/web typecheck && tsc -p tsconfig.json --noEmit\n$ tsc -p tsconfig.json --noEmit\n$ tsc -p tsconfig.json --noEmit && tsc -p tsconfig.node.json --noEmit\n$ tsc -p tsconfig.json --noEmit\n",
+            "passed": null,
+            "failed": null
+          },
+          "lint": {
+            "exit": "missing"
+          },
+          "test:unit": {
+            "cmd": "bun run test:unit",
+            "exit": 0,
+            "seconds": 2.6,
+            "tail": "\n RUN  v4.1.11 ~/.vidi-bench/work/benchmarks__reference__todoodle__opus-5.5__run-1/workspace\n\n\n Test Files  4 passed (4)\n      Tests  38 passed (38)\n   Start at  19:59:04\n   Duration  1.41s (transform 260ms, setup 576ms, import 36ms, tests 129ms, environment 0ms)\n\n\n RUN  v4.1.11 ~/.vidi-bench/work/benchmarks__reference__todoodle__opus-5.5__run-1/workspace\n\n\n Test Files  6 passed (6)\n      Tests  48 passed (48)\n   Start at  19:59:06\n   Duration  169ms (transform 157ms, setup 0ms, import 235ms, tests 56ms, environment 0ms)\n\n$ vitest run --config apps/api/vitest.config.ts --project api-unit && vitest run --config scripts/vitest.config.ts --project deploy-unit\n",
+            "passed": 38,
+            "failed": 0
+          },
+          "test:component": {
+            "exit": "missing"
+          },
+          "test:integration": {
+            "cmd": "bun run test:integration",
+            "exit": 0,
+            "seconds": 9.6,
+            "tail": "\n RUN  v4.1.11 ~/.vidi-bench/work/benchmarks__reference__todoodle__opus-5.5__run-1/workspace\n\n\n Test Files  8 passed (8)\n      Tests  24 passed (24)\n   Start at  19:59:07\n   Duration  2.23s (transform 833ms, setup 1.68s, import 157ms, tests 241ms, environment 0ms)\n\n\n RUN  v4.1.11 ~/.vidi-bench/work/benchmarks__reference__todoodle__opus-5.5__run-1/workspace\n\n\n Test Files  1 passed (1)\n      Tests  18 passed (18)\n   Start at  19:59:09\n   Duration  6.36s (transform 41ms, setup 0ms, import 61ms, tests 6.23s, environment 0ms)\n\n$ vitest run --config apps/api/vitest.config.ts --project api-integration --project api-staging-sim --project api-production-gate && vitest run --config scripts/vitest.config.ts --project deploy-integration\n",
+            "passed": 24,
+            "failed": 0
+          },
+          "test:e2e": {
+            "cmd": "bun run test:e2e --project=chromium",
+            "exit": 0,
+            "seconds": 3.5,
+            "tail": "\nRunning 2 tests using 2 workers\n\u00b7\u00b7\n  2 passed (3.2s)\n::notice title=\ud83c\udfad Playwright Run Summary::  2 passed (3.2s)\n$ playwright test \"--project=chromium\"\n[WebServer] $ bun run build && bun scripts/dev.ts\n[WebServer] $ bun run --cwd apps/web build\n[WebServer] $ vite build\n",
+            "passed": 2,
+            "failed": 0
+          }
+        },
+        "all_green": true
+      },
+      "accept": {
+        "skipped": false,
+        "build_exit": 0,
+        "runner_exit": 0,
+        "runner_tail": "",
+        "passed": 11,
+        "total": 11,
+        "on_partial": {
+          "passed": 0,
+          "total": 0
+        },
+        "by_story": {
+          "01": {
+            "passed": 11,
+            "total": 11
+          }
+        },
+        "harness_fault": null
+      },
+      "commit": "5a6107e1868c77907ec5f89c8adf198aaa8af804",
+      "requests": {},
+      "time_split": {
+        "wall_s": 1119.4,
+        "model": null,
+        "tools_s": 0,
+        "tools_by_kind": {},
+        "compaction_s": 0,
+        "compactions": 0,
+        "other_s": 1119.4
+      },
+      "loc": {
+        "files": 0,
+        "lines": 0
+      },
+      "finished": 1790449172.0143712,
+      "status": "DONE",
+      "ended_by": "agent",
+      "partial_base": [],
+      "tasks": [
+        {
+          "n": 1,
+          "title": "Scaffold bun monorepo, single Worker with static assets, and local dev loop",
+          "type": "implementation",
+          "implements": [
+            "platform.scaffold"
+          ],
+          "tcs": [],
+          "status": "committed",
+          "found": null,
+          "total": null
+        },
+        {
+          "n": 2,
+          "title": "Test harness: vitest-pool-workers, web vitest, Playwright, all guarded to local-only",
+          "type": "implementation",
+          "implements": [
+            "testing.isolation"
+          ],
+          "tcs": [],
+          "status": "committed",
+          "found": null,
+          "total": null
+        },
+        {
+          "n": 3,
+          "title": "Request pipeline: validation, request id, security headers, error handling, SPA fallthrough",
+          "type": "implementation",
+          "implements": [
+            "platform.request_pipeline"
+          ],
+          "tcs": [],
+          "status": "committed",
+          "found": null,
+          "total": null
+        },
+        {
+          "n": 4,
+          "title": "Health endpoint on /health and /api/health with injected version metadata",
+          "type": "implementation",
+          "implements": [
+            "health.report"
+          ],
+          "tcs": [],
+          "status": "committed",
+          "found": null,
+          "total": null
+        },
+        {
+          "n": 5,
+          "title": "Test-only /test/* routes (reset, throw) gated off in production",
+          "type": "implementation",
+          "implements": [
+            "testing.test_routes"
+          ],
+          "tcs": [],
+          "status": "committed",
+          "found": null,
+          "total": null
+        },
+        {
+          "n": 6,
+          "title": "Unit tests: request validation, header finalization, health builder, test-env guard",
+          "type": "test:unit",
+          "implements": [
+            "platform.request_pipeline",
+            "health.report",
+            "testing.isolation"
+          ],
+          "tcs": [],
+          "status": "committed",
+          "found": null,
+          "total": null
+        },
+        {
+          "n": 7,
+          "title": "Integration tests: Worker request handling, health, SPA fallback, test-route gating, storage isolation",
+          "type": "test:integration",
+          "implements": [
+            "platform.scaffold",
+            "platform.request_pipeline",
+            "health.report",
+            "testing.isolation",
+            "testing.test_routes"
+          ],
+          "tcs": [],
+          "status": "committed",
+          "found": null,
+          "total": null
+        },
+        {
+          "n": 8,
+          "title": "E2E: developer golden path and headers on a real document load",
+          "type": "test:e2e",
+          "implements": [
+            "platform.scaffold",
+            "platform.request_pipeline"
+          ],
+          "tcs": [],
+          "status": "committed",
+          "found": null,
+          "total": null
+        },
+        {
+          "n": 9,
+          "title": "Deploy building blocks: migration safety scan, idempotency check, retry, health verification and release record",
+          "type": "implementation",
+          "implements": [
+            "deploy.safety_scan",
+            "deploy.idempotency",
+            "deploy.retry",
+            "deploy.verify_record"
+          ],
+          "tcs": [],
+          "status": "committed",
+          "found": null,
+          "total": null
+        },
+        {
+          "n": 10,
+          "title": "Unit tests: safety scan, idempotency, retry, health verification, CSV formatting",
+          "type": "test:unit",
+          "implements": [
+            "deploy.safety_scan",
+            "deploy.idempotency",
+            "deploy.retry",
+            "deploy.verify_record"
+          ],
+          "tcs": [],
+          "status": "committed",
+          "found": null,
+          "total": null
+        },
+        {
+          "n": 11,
+          "title": "Release command: bun deploy script orchestrating prechecks, scan, migrations, publish, verify, record",
+          "type": "implementation",
+          "implements": [
+            "deploy.pipeline"
+          ],
+          "tcs": [],
+          "status": "committed",
+          "found": null,
+          "total": null
+        },
+        {
+          "n": 12,
+          "title": "Integration tests: release pipeline end to end with fake wrangler, real git, fs and health server",
+          "type": "test:integration",
+          "implements": [
+            "deploy.pipeline",
+            "deploy.safety_scan",
+            "deploy.verify_record"
+          ],
+          "tcs": [],
+          "status": "committed",
+          "found": null,
+          "total": null
+        }
+      ]
+    }
+  },
+  "pack": "todoodle",
+  "scope": "all",
+  "model_id": "claude-opus-5-5",
+  "client": "claude",
+  "compact_at": null,
+  "processed": [
+    {
+      "id": 1,
+      "title": "See which version of Todoodle is live in each environment",
+      "status": "DONE",
+      "ended_by": "agent",
+      "started_at": 1790448021.103018,
+      "ended_at": 1790449140.482392,
+      "agent_minutes": 18.7,
+      "calls": 83,
+      "output_tokens": 108232,
+      "compactions": 0,
+      "last_commit_at": 1790449129.0,
+      "accept": {
+        "passed": 11,
+        "total": 11
+      },
+      "partial_base": [],
+      "tasks": [
+        {
+          "n": 1,
+          "title": "Scaffold bun monorepo, single Worker with static assets, and local dev loop",
+          "type": "implementation",
+          "implements": [
+            "platform.scaffold"
+          ],
+          "tcs": [],
+          "status": "committed",
+          "found": null,
+          "total": null
+        },
+        {
+          "n": 2,
+          "title": "Test harness: vitest-pool-workers, web vitest, Playwright, all guarded to local-only",
+          "type": "implementation",
+          "implements": [
+            "testing.isolation"
+          ],
+          "tcs": [],
+          "status": "committed",
+          "found": null,
+          "total": null
+        },
+        {
+          "n": 3,
+          "title": "Request pipeline: validation, request id, security headers, error handling, SPA fallthrough",
+          "type": "implementation",
+          "implements": [
+            "platform.request_pipeline"
+          ],
+          "tcs": [],
+          "status": "committed",
+          "found": null,
+          "total": null
+        },
+        {
+          "n": 4,
+          "title": "Health endpoint on /health and /api/health with injected version metadata",
+          "type": "implementation",
+          "implements": [
+            "health.report"
+          ],
+          "tcs": [],
+          "status": "committed",
+          "found": null,
+          "total": null
+        },
+        {
+          "n": 5,
+          "title": "Test-only /test/* routes (reset, throw) gated off in production",
+          "type": "implementation",
+          "implements": [
+            "testing.test_routes"
+          ],
+          "tcs": [],
+          "status": "committed",
+          "found": null,
+          "total": null
+        },
+        {
+          "n": 6,
+          "title": "Unit tests: request validation, header finalization, health builder, test-env guard",
+          "type": "test:unit",
+          "implements": [
+            "platform.request_pipeline",
+            "health.report",
+            "testing.isolation"
+          ],
+          "tcs": [],
+          "status": "committed",
+          "found": null,
+          "total": null
+        },
+        {
+          "n": 7,
+          "title": "Integration tests: Worker request handling, health, SPA fallback, test-route gating, storage isolation",
+          "type": "test:integration",
+          "implements": [
+            "platform.scaffold",
+            "platform.request_pipeline",
+            "health.report",
+            "testing.isolation",
+            "testing.test_routes"
+          ],
+          "tcs": [],
+          "status": "committed",
+          "found": null,
+          "total": null
+        },
+        {
+          "n": 8,
+          "title": "E2E: developer golden path and headers on a real document load",
+          "type": "test:e2e",
+          "implements": [
+            "platform.scaffold",
+            "platform.request_pipeline"
+          ],
+          "tcs": [],
+          "status": "committed",
+          "found": null,
+          "total": null
+        },
+        {
+          "n": 9,
+          "title": "Deploy building blocks: migration safety scan, idempotency check, retry, health verification and release record",
+          "type": "implementation",
+          "implements": [
+            "deploy.safety_scan",
+            "deploy.idempotency",
+            "deploy.retry",
+            "deploy.verify_record"
+          ],
+          "tcs": [],
+          "status": "committed",
+          "found": null,
+          "total": null
+        },
+        {
+          "n": 10,
+          "title": "Unit tests: safety scan, idempotency, retry, health verification, CSV formatting",
+          "type": "test:unit",
+          "implements": [
+            "deploy.safety_scan",
+            "deploy.idempotency",
+            "deploy.retry",
+            "deploy.verify_record"
+          ],
+          "tcs": [],
+          "status": "committed",
+          "found": null,
+          "total": null
+        },
+        {
+          "n": 11,
+          "title": "Release command: bun deploy script orchestrating prechecks, scan, migrations, publish, verify, record",
+          "type": "implementation",
+          "implements": [
+            "deploy.pipeline"
+          ],
+          "tcs": [],
+          "status": "committed",
+          "found": null,
+          "total": null
+        },
+        {
+          "n": 12,
+          "title": "Integration tests: release pipeline end to end with fake wrangler, real git, fs and health server",
+          "type": "test:integration",
+          "implements": [
+            "deploy.pipeline",
+            "deploy.safety_scan",
+            "deploy.verify_record"
+          ],
+          "tcs": [],
+          "status": "committed",
+          "found": null,
+          "total": null
+        }
+      ],
+      "baselines": [
+        {
+          "source": "reference opus-5.5 run-1",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 7.9,
+          "calls": 24,
+          "output_tokens": 50987,
+          "accept": {
+            "passed": 10,
+            "total": 10
+          }
+        },
+        {
+          "source": "reference opus-5.5 run-2",
+          "status": "DONE",
+          "gate_green": null,
+          "agent_minutes": 7.9,
+          "calls": null,
+          "output_tokens": null,
+          "accept": null
+        },
+        {
+          "source": "reference opus-5.5 run-3",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 8.2,
+          "calls": 20,
+          "output_tokens": 40848,
+          "accept": {
+            "passed": 6,
+            "total": 6
+          }
+        },
+        {
+          "source": "qwen/3.8/27b/ubuntu/nvidia4090/llamacpp-opencode canvas-pi-02",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 50.2,
+          "calls": 127,
+          "output_tokens": 165888,
+          "accept": {
+            "passed": 5,
+            "total": 6
+          }
+        },
+        {
+          "source": "qwen/3.8/27b/ubuntu/nvidia4090/llamacpp-opencode canvas-pi-03",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 19.9,
+          "calls": 109,
+          "output_tokens": 57101,
+          "accept": {
+            "passed": 6,
+            "total": 6
+          }
+        },
+        {
+          "source": "qwen/3.8/27b/ubuntu/nvidia4090/llamacpp-opencode canvas-pi-04",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 40.0,
+          "calls": 109,
+          "output_tokens": 149683,
+          "accept": {
+            "passed": 6,
+            "total": 6
+          }
+        },
+        {
+          "source": "qwen/3.8/flash-next/macos/128GB/mtplx-opencode canvas-pi-01",
+          "status": "DONE",
+          "gate_green": false,
+          "agent_minutes": 55.4,
+          "calls": 136,
+          "output_tokens": 148800,
+          "accept": {
+            "passed": 0,
+            "total": 6
+          }
+        },
+        {
+          "source": "qwen/3.8/flash-next/macos/128GB/mtplx-opencode canvas-pi-02",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 46.1,
+          "calls": 117,
+          "output_tokens": 136475,
+          "accept": {
+            "passed": 6,
+            "total": 6
+          }
+        },
+        {
+          "source": "qwen/3.8/flash-next/macos/128GB/mtplx-opencode canvas-pi-03",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 34.3,
+          "calls": 99,
+          "output_tokens": 95144,
+          "accept": {
+            "passed": 6,
+            "total": 6
+          }
+        },
+        {
+          "source": "qwen/3.8/flash-next/macos/128GB/mtplx-opencode pi-smoke",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 30.1,
+          "calls": 81,
+          "output_tokens": 77274,
+          "accept": {
+            "passed": 0,
+            "total": 6
+          }
+        },
+        {
+          "source": "qwen/3.8/flash-next/ubuntu/strix-halo-128GB/llamacpp-pi canvas-vk-01",
+          "status": "DONE",
+          "gate_green": false,
+          "agent_minutes": 77.8,
+          "calls": 116,
+          "output_tokens": 117649,
+          "accept": {
+            "passed": 6,
+            "total": 6
+          }
+        }
+      ]
+    }
+  ]
+}
