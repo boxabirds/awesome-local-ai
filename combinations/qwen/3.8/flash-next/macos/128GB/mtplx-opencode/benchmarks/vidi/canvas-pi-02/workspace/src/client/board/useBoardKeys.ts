@@ -97,6 +97,22 @@ export function useBoardKeys(optsRef: { current: UseBoardKeysOptions }): void {
         return;
       }
 
+      // S: activate Shape tool (story 10).
+      if (!mod && event.key.toLowerCase() === 's') {
+        if (!opts.canEdit) return;
+        event.preventDefault();
+        opts.setToolRef.current('shape');
+        return;
+      }
+
+      // L: activate Connector tool (story 10).
+      if (!mod && event.key.toLowerCase() === 'l') {
+        if (!opts.canEdit) return;
+        event.preventDefault();
+        opts.setToolRef.current('connector');
+        return;
+      }
+
       // Enter: start editing a single selected editable object.
       if (event.key === 'Enter') {
         if (opts.selection.ids.size !== 1) return;

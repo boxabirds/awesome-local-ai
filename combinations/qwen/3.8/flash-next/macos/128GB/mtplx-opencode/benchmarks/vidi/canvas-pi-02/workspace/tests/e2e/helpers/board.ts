@@ -38,8 +38,58 @@ export interface BoardWindow {
     seedNote(note: SeedNoteState): string;
     removeNote(id: string): boolean;
     getTexts(): TextObjectState[];
+    getShapes(): ShapeState[];
+    getConnectors(): ConnectorState[];
+    seedShape(seed: SeedShapeState): string;
+    seedConnector(seed: SeedConnectorState): string;
     getDoc(): import('yjs').Doc | null;
   };
+}
+
+/** A shape object as the live document sees it. */
+export interface ShapeState {
+  id: string;
+  type: 'shape';
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  z: number;
+  kind: string;
+  fill: string;
+  stroke: string;
+  label: string;
+}
+
+/** A connector object as the live document sees it. */
+export interface ConnectorState {
+  id: string;
+  type: 'connector';
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  z: number;
+  fromKind: string;
+  toKind: string;
+  fromId?: string;
+  toId?: string;
+}
+
+export interface SeedShapeState {
+  kind: string;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  at?: { x: number; y: number };
+}
+
+export interface SeedConnectorState {
+  fromId: string | null;
+  toId: string | null;
+  fromFallback: { x: number; y: number };
+  toFallback: { x: number; y: number };
 }
 
 /** A text object as the live document sees it. */
@@ -213,4 +263,34 @@ export function expectWithin(
 ): void {
   expect(Math.abs(actual.x - expected.x)).toBeLessThanOrEqual(tolerance);
   expect(Math.abs(actual.y - expected.y)).toBeLessThanOrEqual(tolerance);
+}
+
+/** The document's shape objects. */
+export async function readShapes(page: Page): Promise<ShapeState[]> {
+  await waitForHooks(page);
+  return page.evaluate(() => window.__vidi6?.getShapes() ?? []);
+}
+
+/** The document's connector objects. */
+export async function readConnectors(page: Page): Promise<ConnectorState[]> {
+  await waitForHooks(page);
+  return page.evaluate(() => window.__vidi6?.getConnectors() ?? []);
+}
+
+/** Put a shape on the board through the test hook. */
+export async function seedShape(
+  page: Page,
+  seed: SeedShapeState,
+): Promise<string> {
+  await waitForHooks(page);
+  return page.evaluate((s) => window.__vidi6?.seedShape(s) ?? '', seed);
+}
+
+/** Put a connector on the board through the test hook. */
+export async function seedConnector(
+  page: Page,
+  seed: SeedConnectorState,
+): Promise<string> {
+  await waitForHooks(page);
+  return page.evaluate((s) => window.__vidi6?.seedConnector(s) ?? '', seed);
 }

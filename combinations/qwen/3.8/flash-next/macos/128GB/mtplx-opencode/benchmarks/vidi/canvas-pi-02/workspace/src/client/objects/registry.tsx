@@ -47,7 +47,7 @@ export interface ObjectTypeSpec {
   /** Whether the object has editable inline text. */
   editableText: boolean;
   /** Hit test: is the world point inside this object's bounds? */
-  hitTest(obj: { x: number; y: number; width?: number; height?: number }, worldPoint: { x: number; y: number }): boolean;
+  hitTest(obj: { x: number; y: number; width?: number; height?: number }, worldPoint: { x: number; y: number }, zoom?: number): boolean;
   /** Which handles to show: 'all' for 8, 'horizontal' for e/w only. */
   handles?: 'all' | 'horizontal';
 }

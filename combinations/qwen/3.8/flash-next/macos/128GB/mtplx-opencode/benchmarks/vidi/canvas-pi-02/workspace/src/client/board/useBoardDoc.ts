@@ -25,17 +25,28 @@ export interface BoardDoc {
 }
 
 function sameNote(a: ObjectSnapshot, b: ObjectSnapshot): boolean {
+  if (a.type !== b.type) return false;
+  if (a.x !== b.x || a.y !== b.y || a.z !== b.z || a.createdAt !== b.createdAt) return false;
+  if (a.type === 'connector' && b.type === 'connector') {
+    const fa = a.from; const fb = b.from;
+    const ta = a.to; const tb = b.to;
+    if (fa.kind !== fb.kind || ta.kind !== tb.kind) return false;
+    if (fa.kind === 'free' && fb.kind === 'free' && (fa.x !== fb.x || fa.y !== fb.y)) return false;
+    if (fa.kind === 'attached' && fb.kind === 'attached' && fa.objectId !== fb.objectId) return false;
+    if (ta.kind === 'free' && tb.kind === 'free' && (ta.x !== tb.x || ta.y !== tb.y)) return false;
+    if (ta.kind === 'attached' && tb.kind === 'attached' && ta.objectId !== tb.objectId) return false;
+    return true;
+  }
+  if (a.type === 'shape' && b.type === 'shape') {
+    return a.label === b.label && a.kind === b.kind && a.fill === b.fill && a.stroke === b.stroke
+      && a.width === b.width && a.height === b.height;
+  }
   return (
-    a.x === b.x &&
-    a.y === b.y &&
-    a.z === b.z &&
-    a.text === b.text &&
-    a.createdAt === b.createdAt &&
-    a.type === b.type &&
-    ('color' in a ? a.color === (b as any).color : true) &&
-    ('size' in a ? a.size === (b as any).size : true) &&
-    ('width' in a ? a.width === (b as any).width : true) &&
-    ('height' in a ? a.height === (b as any).height : true)
+    ('text' in a ? (a as any).text === (b as any).text : true) &&
+    ('color' in a ? (a as any).color === (b as any).color : true) &&
+    ('size' in a ? (a as any).size === (b as any).size : true) &&
+    ('width' in a ? (a as any).width === (b as any).width : true) &&
+    ('height' in a ? (a as any).height === (b as any).height : true)
   );
 }
 

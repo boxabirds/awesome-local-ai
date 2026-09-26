@@ -23,8 +23,8 @@ import type { MarqueeApi } from '../board/Marquee';
  */
 export interface BoardViewportProps {
   children?: ReactNode;
-  /** Active tool (story 9). */
-  tool?: 'select' | 'text';
+  /** Active tool (stories 9, 10). */
+  tool?: 'select' | 'text' | 'shape' | 'connector';
   /** A press and release on empty surface with no pan in between. */
   onSurfaceClick?(point: Point): void;
   /** A double-click on empty surface, in world coordinates. */
@@ -81,9 +81,9 @@ export function BoardViewport(props: BoardViewportProps) {
       if (event.pointerType !== 'mouse') return;
       if (!isSurface(event.target)) return;
 
-      // While text tool is active: no panning, no marquee.
+      // While a creation tool is active: no panning, no marquee.
       // Click will be handled in onPointerUp as surface click.
-      if (toolRef.current === 'text') {
+      if (toolRef.current === 'text' || toolRef.current === 'shape' || toolRef.current === 'connector') {
         // Don't start panning or marquee when text tool is active.
         try {
           el.setPointerCapture(event.pointerId);
@@ -168,7 +168,7 @@ export function BoardViewport(props: BoardViewportProps) {
 
     const onPointerUp = (event: PointerEvent) => {
       const wasMarquee = marqueeActiveRef.current;
-      const wasClick = (panningRef.current || toolRef.current === 'text') && !movedRef.current;
+      const wasClick = (panningRef.current || toolRef.current === 'text' || toolRef.current === 'shape' || toolRef.current === 'connector') && !movedRef.current;
       endPan();
       if (wasMarquee) return;
       if (!wasClick || !isSurface(event.target)) return;
@@ -179,8 +179,8 @@ export function BoardViewport(props: BoardViewportProps) {
 
     const onDoubleClick = (event: MouseEvent) => {
       if (!isSurface(event.target)) return;
-      // Text tool: double-click does NOT create a sticky.
-      if (toolRef.current === 'text') return;
+      // Shape/Connector/Text tools: double-click does NOT create a sticky.
+      if (toolRef.current === 'text' || toolRef.current === 'shape' || toolRef.current === 'connector') return;
       propsRef.current.onSurfaceDoubleClick?.(
         screenToWorld(apiRef.current.camera, localPoint(event.clientX, event.clientY)),
       );
@@ -271,7 +271,7 @@ export function BoardViewport(props: BoardViewportProps) {
   const halfMarker = ORIGIN_MARKER_SIZE_PX / 2;
   const halfSpacing = spacingPx / 2;
 
-  const cursorStyle = props.tool === 'text' ? 'text' : undefined;
+  const cursorStyle = (props.tool === 'text' || props.tool === 'shape' || props.tool === 'connector') ? 'crosshair' : undefined;
 
   return (
     <div

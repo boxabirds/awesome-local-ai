@@ -7,6 +7,8 @@ import {
   snapshot,
 } from '../../shared/board-model';
 import type { StickyColor } from '../../shared/config';
+import { createShape } from '../../shared/objects/shape';
+import { createConnector, type Endpoint } from '../../shared/objects/connector';
 import type { Camera } from './camera';
 import type { CameraApi } from './useCamera';
 import type { ConnectionState } from '../sync/connectBoard';
@@ -63,6 +65,50 @@ export interface TextObjectHook {
   widthMode: 'auto' | 'fixed';
 }
 
+export interface ShapeHook {
+  id: string;
+  type: 'shape';
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  z: number;
+  kind: string;
+  fill: string;
+  stroke: string;
+  label: string;
+}
+
+export interface ConnectorHook {
+  id: string;
+  type: 'connector';
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  z: number;
+  fromKind: string;
+  toKind: string;
+  fromId?: string;
+  toId?: string;
+}
+
+export interface SeedShape {
+  kind: string;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  at?: { x: number; y: number };
+}
+
+export interface SeedConnector {
+  fromId: string | null;
+  toId: string | null;
+  fromFallback: { x: number; y: number };
+  toFallback: { x: number; y: number };
+}
+
 export interface BoardTestHooks {
   setCamera(camera: { x: number; y: number; zoom: number }): void;
   getCamera(): Camera;
@@ -72,6 +118,14 @@ export interface BoardTestHooks {
   getTexts(): TextObjectHook[];
   /** Adds a note through the board model and returns its id ('' if refused). */
   seedNote(note: SeedNote): string;
+  /** Get shape objects from the document. */
+  getShapes(): ShapeHook[];
+  /** Get connector objects from the document. */
+  getConnectors(): ConnectorHook[];
+  /** Seed a shape through the model. */
+  seedShape(seed: SeedShape): string;
+  /** Seed a connector through the model. */
+  seedConnector(seed: SeedConnector): string;
   /** Removes a note while the pointer is still down, for interruption tests. */
   removeNote(id: string): boolean;
   getDoc(): Y.Doc | null;
@@ -149,10 +203,70 @@ export function installBoardTestHooks(
           width: (row as any).width ?? 80,
           height: (row as any).height ?? 26,
           z: row.z,
-          text: row.text,
+          text: (row as any).text,
           size: (row as any).size ?? 'M',
           widthMode: ((row as any).widthMode ?? 'auto') as 'auto' | 'fixed',
         }));
+    },
+    getShapes() {
+      const session = getSession();
+      if (!session) return [];
+      return snapshot(session.doc)
+        .filter((row) => row.type === 'shape')
+        .map((row) => ({
+          id: row.id,
+          type: 'shape' as const,
+          x: row.x,
+          y: row.y,
+          width: (row as any).width ?? 160,
+          height: (row as any).height ?? 160,
+          z: row.z,
+          kind: (row as any).kind ?? 'rect',
+          fill: (row as any).fill ?? 'lightBlue',
+          stroke: (row as any).stroke ?? 'charcoal',
+          label: (row as any).label ?? '',
+        }));
+    },
+    getConnectors() {
+      const session = getSession();
+      if (!session) return [];
+      return snapshot(session.doc)
+        .filter((row) => row.type === 'connector')
+        .map((row) => ({
+          id: row.id,
+          type: 'connector' as const,
+          x: row.x,
+          y: row.y,
+          width: (row as any).width ?? 0,
+          height: (row as any).height ?? 0,
+          z: row.z,
+          fromKind: (row as any).from?.kind ?? 'free',
+          toKind: (row as any).to?.kind ?? 'free',
+          fromId: (row as any).from?.objectId,
+          toId: (row as any).to?.objectId,
+        }));
+    },
+    seedShape(seed: SeedShape) {
+      const session = getSession();
+      if (!session) return '';
+      const id = createShape(session.doc, {
+        kind: seed.kind as any,
+        rect: { x: seed.x, y: seed.y, width: seed.width, height: seed.height },
+        at: seed.at ?? { x: seed.x + seed.width / 2, y: seed.y + seed.height / 2 },
+      }, 'seed');
+      return id ?? '';
+    },
+    seedConnector(seed: SeedConnector) {
+      const session = getSession();
+      if (!session) return '';
+      const from: Endpoint = seed.fromId
+        ? { kind: 'attached', objectId: seed.fromId, fallback: seed.fromFallback }
+        : { kind: 'free', x: seed.fromFallback.x, y: seed.fromFallback.y };
+      const to: Endpoint = seed.toId
+        ? { kind: 'attached', objectId: seed.toId, fallback: seed.toFallback }
+        : { kind: 'free', x: seed.toFallback.x, y: seed.toFallback.y };
+      const id = createConnector(session.doc, from, to, 'seed');
+      return id ?? '';
     },
     removeNote(id: string) {
       const session = getSession();

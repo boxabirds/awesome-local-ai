@@ -1,12 +1,11 @@
 /**
- * Tool mode (story 9).
+ * Tool mode (stories 9, 10).
  *
- * Manages the active tool state: 'select' or 'text'. The Text tool is only
- * active when `canEdit` is true. Stories 10-12 extend this with more tools.
+ * Manages the active tool state. Stories 10-12 extend this with more tools.
  */
 import { useState, useEffect } from 'react';
 
-export type Tool = 'select' | 'text';
+export type Tool = 'select' | 'text' | 'shape' | 'connector';
 
 export interface UseToolResult {
   tool: Tool;
