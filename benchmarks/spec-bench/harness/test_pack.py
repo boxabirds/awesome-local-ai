@@ -108,7 +108,7 @@ def test_vidi_renders_exactly_the_prompts_its_runs_recorded(sid):
 
 def test_vidi_defaults_to_its_canvas_scope():
     pk = pack.load("benchmarks/vidi")
-    assert pk.name == "vidi" and pk.default_scope == "canvas" and pk.pack_ref == "vidi-v1"
+    assert pk.name == "vidi" and pk.default_scope == "canvas" and pk.pack_ref == "vidi-v1.1"
 
 
 def test_a_public_spec_scores_against_a_private_held_out_suite(tmp_path, monkeypatch):
