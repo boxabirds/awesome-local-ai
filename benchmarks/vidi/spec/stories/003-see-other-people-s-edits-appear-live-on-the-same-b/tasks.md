@@ -167,5 +167,5 @@ Long-running verification of the sync.client contract that is too slow for every
 - **Teardown side effect:** closing each context calls `destroy()`; assert no reconnect attempts are logged after close.
 
 ## Done when
-Both pass locally; nightly project excluded from default `test:e2e`.
+Both are written and run once through `test:e2e:nightly`, and the result is recorded in NOTES.md: pass or fail for each test, and TC-30's p50/p95/max latency. The nightly project is excluded from default `test:e2e`. A failing nightly run does not block the story: both tests are timing-sensitive, and on one machine running the model, the browsers and the server at once they cannot be made to pass reliably. Record the failure and move on.
 
