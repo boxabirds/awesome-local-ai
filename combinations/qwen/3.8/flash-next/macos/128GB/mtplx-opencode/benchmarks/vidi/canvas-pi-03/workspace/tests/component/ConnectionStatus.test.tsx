@@ -9,6 +9,7 @@ import { useEffect, useReducer } from 'react';
 import { render, screen, act } from '@testing-library/react';
 import { ConnectionStatus } from '../../src/client/sync/ConnectionStatus';
 import {
+  canEdit,
   createConnectionMonitor,
   realScheduler,
   type ConnectionState,
@@ -20,11 +21,11 @@ class FakeProvider implements ProviderLike {
   synced = false;
   private listeners = new Map<string, Set<(...args: unknown[]) => void>>();
 
-  on(event: 'status' | 'synced', listener: (...args: unknown[]) => void): void {
+  on(event: 'status' | 'synced' | 'connection-close', listener: (...args: unknown[]) => void): void {
     if (!this.listeners.has(event)) this.listeners.set(event, new Set());
     this.listeners.get(event)!.add(listener);
   }
-  off(event: 'status' | 'synced', listener: (...args: unknown[]) => void): void {
+  off(event: 'status' | 'synced' | 'connection-close', listener: (...args: unknown[]) => void): void {
     this.listeners.get(event)?.delete(listener);
   }
   destroy(): void {
@@ -33,6 +34,10 @@ class FakeProvider implements ProviderLike {
   /** Mirror y-websocket: 'status' fires with a single {status} object. */
   emitStatus(status: 'connecting' | 'connected' | 'disconnected'): void {
     for (const l of this.listeners.get('status') ?? []) l({ status });
+  }
+  /** Mirror y-websocket's 'connection-close' (close event with .code). */
+  emitClose(code: number): void {
+    for (const l of this.listeners.get('connection-close') ?? []) l({ code });
   }
   setSynced(value: boolean): void {
     this.synced = value;
@@ -167,5 +172,85 @@ describe('story-3 badge TC-21: disconnect again during confirmation', () => {
     });
     expect(badge()!.textContent).toBe('Reconnecting…'); // timer did NOT hide it
     expect(badge()!.getAttribute('data-state')).toBe('reconnecting');
+  });
+});
+// ---------------------------------------------------------------------------
+// Story 4 — a board that cannot be loaded is NOT a blank canvas, and it is
+// not editable either (PRD persist.load_failure / persist.client_status).
+// 4500 (CLOSE_BOARD_LOAD_FAILED) is the room's "could not load this board"
+// signal; every other close stays an ordinary drop.
+
+describe('story 4: load failure is terminal and visible', () => {
+  it('TC-17: a 4500 close shows the error, never a blank canvas', () => {
+    const provider = new FakeProvider();
+    const { badge, state } = mountBadge(provider);
+    act(() => {
+      provider.emitStatus('connected');
+      provider.setSynced(true);
+    });
+    expect(badge()).toBeNull();
+
+    act(() => provider.emitClose(4500));
+    expect(state()).toBe('load_failed');
+    const el = badge();
+    expect(el).not.toBeNull();
+    expect(el!.getAttribute('data-state')).toBe('load_failed');
+    expect(el!.textContent).toMatch(/couldn't be loaded/i);
+  });
+
+  it('TC-18: a load failure never degrades back to Reconnecting', () => {
+    const provider = new FakeProvider();
+    const { badge, state } = mountBadge(provider);
+    act(() => provider.emitClose(4500));
+    expect(state()).toBe('load_failed');
+
+    // The provider always emits 'disconnected' after a close; that must not
+    // downgrade the state (it would silently re-enable editing).
+    act(() => provider.emitStatus('disconnected'));
+    expect(state()).toBe('load_failed');
+    expect(badge()!.getAttribute('data-state')).toBe('load_failed');
+  });
+
+  it('TC-18b: a retry that answers 4500 again stays on the error', () => {
+    const provider = new FakeProvider();
+    const { badge, state } = mountBadge(provider);
+    act(() => provider.emitClose(4500));
+    expect(state()).toBe('load_failed');
+
+    // Each retry opens a socket that answers 4500 again; the load failure
+    // sticks, and editing stays disabled.
+    act(() => provider.emitStatus('connecting'));
+    expect(state()).toBe('load_failed');
+    act(() => provider.emitClose(4500));
+    expect(state()).toBe('load_failed');
+    expect(badge()!.textContent).toMatch(/couldn't be loaded/i);
+    expect(canEdit(state())).toBe(false);
+
+    // Only a real re-sync (a repaired board) unlocks it.
+    act(() => {
+      provider.emitStatus('connected');
+      provider.setSynced(true);
+    });
+    expect(state()).not.toBe('load_failed');
+    expect(canEdit(state())).toBe(true);
+  });
+
+  it('TC-19: editing is disabled only while the board could not be loaded', () => {
+    // A normal drop keeps the local changes (fail-open, PRD persist.save_failure).
+    expect(canEdit('reconnecting')).toBe(true);
+    expect(canEdit('connected')).toBe(true);
+    expect(canEdit('confirmed')).toBe(true);
+    expect(canEdit('connecting')).toBe(true);
+    // A board we never loaded is read-only until it is genuinely reloaded.
+    expect(canEdit('load_failed')).toBe(false);
+  });
+
+  it('TC-19b: an ordinary drop (no 4500) is Reconnecting, and editing stays on', () => {
+    const provider = new FakeProvider();
+    const { badge, state } = mountBadge(provider);
+    act(() => provider.emitClose(1006));
+    expect(state()).toBe('reconnecting');
+    expect(badge()!.textContent).toBe('Reconnecting…');
+    expect(canEdit(state())).toBe(true);
   });
 });

@@ -1,0 +1,15 @@
+{
+  "name": "vidi6-workers",
+  "main": "main.ts",
+  "compatibility_date": "2026-09-01",
+  "compatibility_flags": ["nodejs_compat"],
+  "durable_objects": {
+    "bindings": [
+      { "name": "STORE", "class_name": "StoreHarness" },
+      { "name": "BOARD_ROOM", "class_name": "BoardRoom" }
+    ]
+  },
+  "migrations": [
+    { "tag": "v1", "new_sqlite_classes": ["StoreHarness", "BoardRoom"] }
+  ]
+}

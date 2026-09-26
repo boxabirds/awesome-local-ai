@@ -22,6 +22,18 @@ export const MESSAGE_QUERY_AWARENESS = 3;
 /** WebSocket close code used for non-binary or undecodable traffic. */
 export const CLOSE_UNSUPPORTED_DATA = 1003;
 
+/** Close code sent by a room whose board could not be loaded from storage
+ * (unreadable snapshot or SQL error). The client shows an honest failure
+ * message and disables editing (persist.load_failure). Application range: a
+ * 4000-4999 code is reserved for the application, so the browser reports it
+ * to the page instead of treating it as a protocol error. */
+export const CLOSE_BOARD_LOAD_FAILED = 4500;
+
+/** Close code sent when the room's storage write failed (persist.save_failure).
+ * The board stays readable and unsaved changes are re-sent on reconnect, so
+ * the client treats this like any other dropped connection. */
+export const CLOSE_STORAGE_FAILURE = 1011;
+
 /** Sync sub-types (y-protocols/sync). */
 export const SYNC_STEP1 = 0;
 export const SYNC_STEP2 = 1;

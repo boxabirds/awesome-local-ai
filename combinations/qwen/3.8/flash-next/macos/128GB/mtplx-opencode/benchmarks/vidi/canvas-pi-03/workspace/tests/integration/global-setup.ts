@@ -26,7 +26,7 @@ export default async function startWorkerServer(): Promise<() => Promise<void>> 
 
   const child: ChildProcess = spawn(
     process.execPath,
-    ['node_modules/wrangler/bin/wrangler.js', 'dev', '--port', String(PORT), '--ip', '127.0.0.1', '--persist-to', `/tmp/vidi-it-main`],
+    ['node_modules/wrangler/bin/wrangler.js', 'dev', '--port', String(PORT), '--ip', '127.0.0.1', '--persist-to', `/tmp/vidi-it-main`, '--var', 'TEST_HOOKS:1'],
     { cwd: process.cwd(), env: { ...process.env, CI: '1', MINIFLARE_WORKERD_PATH: WORKERD }, stdio: ['ignore', 'pipe', 'pipe'] },
   );
   let tail = '';

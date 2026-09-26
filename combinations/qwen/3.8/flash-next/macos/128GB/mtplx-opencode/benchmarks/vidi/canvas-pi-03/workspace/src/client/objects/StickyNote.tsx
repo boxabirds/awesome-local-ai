@@ -15,6 +15,9 @@ interface StickyNoteProps {
   zoom: number;
   selected: boolean;
   editing: boolean;
+  /** False while the board could not be loaded: the note cannot be dragged or
+   * edited (PRD persist.load_failure). Defaults to true. */
+  editable?: boolean;
   onSelect(id: string): void;
   onStartEdit(id: string): void;
   onEndEdit(next: 'selected' | 'unselected'): void;
@@ -27,7 +30,7 @@ function noteAlive(doc: Y.Doc, id: string): boolean {
   return doc.getMap<Y.Map<unknown>>('objects').has(id);
 }
 
-export function StickyNote({ note, doc, zoom, selected, editing, onSelect, onStartEdit, onEndEdit }: StickyNoteProps) {
+export function StickyNote({ note, doc, zoom, selected, editing, editable = true, onSelect, onStartEdit, onEndEdit }: StickyNoteProps) {
   const [mode, setMode] = useState<Mode>('idle');
   const modeRef = useRef<Mode>('idle');
   const zoomRef = useRef(zoom);
@@ -69,7 +72,7 @@ export function StickyNote({ note, doc, zoom, selected, editing, onSelect, onSta
     if (e.button !== 0) return;
     // The board must never pan because of a press on a note.
     e.stopPropagation();
-    if (editing) return; // textarea handles its own pointer events
+    if (editing || !editable) return; // no drag, no selection while uneditable
 
     (e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId);
     start.current = { px: e.clientX, py: e.clientY, x: note.x, y: note.y, moved: false };
@@ -115,7 +118,7 @@ export function StickyNote({ note, doc, zoom, selected, editing, onSelect, onSta
 
   const onDoubleClick = (e: ReactPointerEvent<HTMLDivElement>) => {
     e.stopPropagation();
-    if (!editing) onStartEdit(note.id);
+    if (!editing && editable) onStartEdit(note.id);
   };
 
   const color = STICKY_COLORS[note.color as StickyColor] ?? STICKY_COLORS.yellow;

@@ -1,6 +1,9 @@
 import { STICKY_COLORS, type StickyColor } from '../../shared/config';
 
 export interface NoteToolbarProps {
+  /** True while the board cannot be edited (load failure): every button here is
+   * disabled, matching the read-only board underneath. */
+  disabled?: boolean;
   color: StickyColor;
   onColor(c: StickyColor): void;
   onDelete(): void;
@@ -21,7 +24,7 @@ const LABELS: Record<StickyColor, string> = {
  * button. Rendered in screen space above the note. Stops pointer propagation so
  * a click never reaches the viewport (which would clear the selection).
  */
-export function NoteToolbar({ color, onColor, onDelete }: NoteToolbarProps) {
+export function NoteToolbar({ color, onColor, onDelete, disabled = false }: NoteToolbarProps) {
   return (
     <div
       data-testid="note-toolbar"
@@ -46,6 +49,7 @@ export function NoteToolbar({ color, onColor, onDelete }: NoteToolbarProps) {
           type="button"
           aria-label={LABELS[name]}
           aria-pressed={color === name}
+          disabled={disabled}
           title={LABELS[name]}
           onClick={() => onColor(name)}
           style={{
@@ -64,6 +68,7 @@ export function NoteToolbar({ color, onColor, onDelete }: NoteToolbarProps) {
         aria-label="Delete note"
         title="Delete note"
         data-testid="note-delete"
+        disabled={disabled}
         onClick={() => onDelete()}
         style={{
           width: 26,

@@ -21,14 +21,22 @@
 
 import * as Y from 'yjs';
 import { WebsocketProvider } from 'y-websocket';
-import {
-  CONNECTED_CONFIRMATION_MS,
-  IDLE_KEEPALIVE_MS,
-  RECONNECT_MAX_BACKOFF_MS,
-} from '../../shared/config';
+import { CONNECTED_CONFIRMATION_MS, IDLE_KEEPALIVE_MS, RECONNECT_MAX_BACKOFF_MS } from '../../shared/config';
+import { CLOSE_BOARD_LOAD_FAILED } from '../../shared/protocol';
 
 /** The connection states the UI distinguishes. */
-export type ConnectionState = 'connecting' | 'reconnecting' | 'confirmed' | 'connected';
+export type ConnectionState = 'connecting' | 'reconnecting' | 'confirmed' | 'connected' | 'load_failed';
+
+/**
+ * Whether the local user may change the board. False ONLY for `load_failed`:
+ * a board that could not be loaded must never be edited into a misleading
+ * state (PRD persist.load_failure), while every other state — including
+ * `reconnecting`, where the local changes are kept and re-sent on reconnect
+ * (PRD persist.save_failure) — stays editable.
+ */
+export function canEdit(state: ConnectionState): boolean {
+  return state !== 'load_failed';
+}
 
 /** The slice of WebsocketProvider the state machine consumes (a fake with the
  * same surface drives the component tests). */
@@ -38,8 +46,8 @@ export interface ProviderLike {
   // The real WebsocketProvider emits 'status' with a single object argument
   // ({status: 'connected'|'disconnected'|'connecting'}); fake test emitters
   // may pass the bare string. Both shapes are handled.
-  on(event: 'status' | 'synced', listener: (...args: any[]) => void): void;
-  off(event: 'status' | 'synced', listener: (...args: any[]) => void): void;
+  on(event: 'status' | 'synced' | 'connection-close', listener: (...args: any[]) => void): void;
+  off(event: 'status' | 'synced' | 'connection-close', listener: (...args: any[]) => void): void;
   destroy(): void;
   /** Optional reconnect hooks (the real provider has connect/disconnect).
    * Fired when the browser reports the network went away / came back. */
@@ -87,6 +95,13 @@ export function createConnectionMonitor(
   };
 
   const syncedNow = () => {
+    if (state === 'load_failed') {
+      // Recovery without a reload: the retry succeeded, so the board is back.
+      // No confirmation badge (nothing was ever shown that needed confirming).
+      everSynced = true;
+      set('connected');
+      return;
+    }
     if (!everSynced) {
       // First sync of the session: trust the link and hide the badge.
       everSynced = true;
@@ -108,6 +123,10 @@ export function createConnectionMonitor(
     const status: string | undefined =
       typeof first === 'string' ? first : first && typeof first === 'object' ? (first as { status?: string }).status : undefined;
     if (status === 'disconnected') {
+      // A load-failed board stays failed: the provider emits 'disconnected'
+      // right after the 4500 close, and downgrading to 'reconnecting' would
+      // silently re-enable editing on a board we never loaded.
+      if (state === 'load_failed') return;
       clearTimer();
       socketUp = false;
       set('reconnecting');
@@ -117,12 +136,39 @@ export function createConnectionMonitor(
     }
   };
 
+  // The room tells us WHY it hung up: 4500 (CLOSE_BOARD_LOAD_FAILED) means
+  // "this board could not be loaded" — the board must not be shown, and
+  // editing is disabled. Every other close (1011 storage failure, a dropped
+  // or black-holed link) is an ordinary drop: amber Reconnecting, edits kept.
+  const onClose = (...args: any[]) => {
+    const first = args[0];
+    const code:
+      | number
+      | undefined =
+      typeof first === 'number'
+        ? first
+        : first && typeof first === 'object'
+          ? (first as { code?: number }).code
+          : undefined;
+    if (code === CLOSE_BOARD_LOAD_FAILED) {
+      clearTimer();
+      socketUp = false;
+      set('load_failed');
+      return;
+    }
+    if (state === 'load_failed') return;
+    clearTimer();
+    socketUp = false;
+    set('reconnecting');
+  };
+
   const onSynced = (...args: any[]) => {
     if (args[0] === true && socketUp && provider.synced) syncedNow();
   };
 
   provider.on('status', onStatus);
   provider.on('synced', onSynced);
+  provider.on('connection-close', onClose);
 
   // Browser-level link loss (flaky Wi-Fi, airplane mode): Chromium fires
   // 'offline' even when the socket is merely black-holed (no RST/close ever
@@ -170,6 +216,7 @@ export function createConnectionMonitor(
       clearTimer();
       provider.off('status', onStatus);
       provider.off('synced', onSynced);
+      provider.off('connection-close', onClose);
       if (typeof window !== 'undefined' && typeof window.removeEventListener === 'function') {
         window.removeEventListener('offline', onOffline);
         window.removeEventListener('online', onOnline);
