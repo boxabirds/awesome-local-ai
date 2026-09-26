@@ -41,3 +41,46 @@ Model `mtplx-flash-next-optimized-speed`, scope `canvas`, effort `low`, client p
 | 64-100k | 1407 | 60.9 |
 | 100-+k | 614 | 60.3 |
 | 16-32k | 164 | 65.5 |
+
+## How it happened
+
+Each story's commits, and which story broke or fixed an earlier story's held-out tests. Attribution is per commit, so an agent that commits once per story is blamed per story.
+
+| Story | Commits | + / − lines | Most-changed source files (lines; tests and lockfiles left out) |
+|---|---|---|---|
+| 1 | 1 by the agent | 7336 / 0 | `BoardViewport.tsx` (243), `useCamera.ts` (236), `camera.ts` (140), `styles.css` (133), `ZoomControls.tsx` (73), `playwright.config.ts` (48), +14 more |
+| 2 | 1 by the agent | 3960 / 20 | `StickyNote.tsx` (349), `board-model.ts` (227), `App.tsx` (169), `styles.css` (167), `StickyTextEditor.tsx` (147), `NOTES.md` (144), +9 more |
+| 3 | 1 by the agent | 5174 / 39 | `connectBoard.ts` (241), `board-room.ts` (215), `boardSession.ts` (171), `protocol.ts` (165), `board-id.ts` (122), `App.tsx` (100), +10 more |
+| 4 | 1 by the agent | 1994 / 171 | `board-room.ts` (487), `room-machine.ts` (419), `board-store.ts` (218), `room-state.ts` (169), `board-protocol.ts` (139), `NOTES.md` (95), +2 more |
+| 5 | harness snapshot (agent left work uncommitted) | 8891 / 165 | `transport.ts` (423), `Presence.tsx` (366), `NOTES.md` (311), `usePresence.ts` (280), `awareness-tracker.ts` (273), `identity.ts` (266), +27 more |
+| 7 | harness snapshot (agent left work uncommitted) | 3275 / 252 | `useTransformGesture.ts` (317), `App.tsx` (307), `board-model.ts` (187), `geometry.ts` (186), `useSelection.ts` (158), `SelectionOverlay.tsx` (128), +8 more |
+| 8 | harness snapshot (agent left work uncommitted) | 1803 / 9 | `undo.ts` (145), `useUndo.ts` (122), `UndoButtons.tsx` (77), `StickyTextEditor.tsx` (47), `App.tsx` (31), `useBoardKeys.ts` (31), +6 more |
+| 9 | 1 by the agent | 2848 / 188 | `App.tsx` (218), `TextObject.tsx` (212), `TextEditor.tsx` (206), `text.ts` (182), `textLayout.ts` (154), `board-model.ts` (105), +16 more |
+| 10 | 1 by the agent | 2961 / 38 | `connector.ts` (291), `ConnectorTool.tsx` (249), `ShapeObject.tsx` (206), `shape.ts` (197), `ShapeTool.tsx` (165), `connector-geometry.ts` (131), +15 more |
+| 11 | 1 by the agent | 4197 / 18 | `stroke.ts` (635), `PenTool.tsx` (308), `pen-capture.ts` (285), `stroke-path.ts` (146), `simplify.ts` (106), `testHooks.ts` (104), +14 more |
+| 12 | harness snapshot (agent left work uncommitted) | 979 / 4 | `image.ts` (223), `uploader.ts` (161), `assetRegistry.ts` (121), `ImageObject.tsx` (118), `image-format.ts` (99), `image-contract.ts` (98), +5 more |
+
+### Earlier stories broken or fixed
+
+- **Story 5 broke 0, fixed 8** earlier held-out tests (harness: snapshot after story 5 (uncommitted agent work)). Source files it changed most: `transport.ts` (423), `Presence.tsx` (366), `NOTES.md` (311), `usePresence.ts` (280), `awareness-tracker.ts` (273), `identity.ts` (266), +27 more.
+  - story 3: 0/7 → 5/7; fixed 5
+  - story 4: 1/4 → 4/4; fixed 3
+- **Story 9 broke 0, fixed 1** earlier held-out tests (story 9: Write free text anywhere on the board). Source files it changed most: `App.tsx` (218), `TextObject.tsx` (212), `TextEditor.tsx` (206), `text.ts` (182), `textLayout.ts` (154), `board-model.ts` (105), +16 more.
+  - story 7: 6/8 → 7/8; fixed 1
+
+### Interruptions and dead time
+
+A gap in a story's agent events with a restart or a logged intervention inside it is dead time (the machine or the run was down), not agent time. *Active* is the story's event span minus that dead time, across every attempt. *Recorded* is the harness's agent time, which covers only the attempt after the last restart.
+
+**1 operator restart, 1 restart (no intervention logged), 1 machine freeze; 50 min dead in total.**
+
+| Story | When (UTC) | Down for | Kind | Logged cause |
+|---|---|---|---|---|
+| 7 | 25 Sep 20:36 | 2 min | operator restart | harness restarted by the operator. |
+| 7 | 25 Sep 20:39 | 2 min | restart (no intervention logged) | — |
+| 11 | 26 Sep 03:20 | 46 min | machine freeze | quintus froze (last system log 03:20:22Z, power collector's last rows 03:20:33Z) and the watchdog restarted it at 03:23Z. |
+
+| Story | Active | Dead | Recorded |
+|---|---|---|---|
+| 7 | 129 min | 4 min | 100 min |
+| 11 | 171 min | 46 min | 96 min |

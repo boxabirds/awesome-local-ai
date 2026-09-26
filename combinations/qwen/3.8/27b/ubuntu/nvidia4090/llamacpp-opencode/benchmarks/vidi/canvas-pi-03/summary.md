@@ -78,3 +78,9 @@ Each story's commits, and which story broke or fixed an earlier story's held-out
   - story 7: 1/8 → 2/8; fixed 1
   - story 8: 3/7 → 2/7; broke 1: “new change clears redo @ref prd:undo.redo_cleared”. Most common error: `Error: expect(locator).toHaveCount(expected) failed / Locator:  locator('[role="group"][aria-label="Sticky note"]').filter({ hasText: 'first' }) / Expected: 1 / Received: 0`
   - story 11: 3/5 → 4/5; fixed 1
+
+### Interruptions and dead time
+
+A gap in a story's agent events with a restart or a logged intervention inside it is dead time (the machine or the run was down), not agent time. *Active* is the story's event span minus that dead time, across every attempt. *Recorded* is the harness's agent time, which covers only the attempt after the last restart.
+
+No interruptions inside a story.
