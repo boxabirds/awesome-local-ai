@@ -5,6 +5,7 @@ import {
   DEFAULT_STICKY_COLOR,
   type StickyColor,
 } from './config';
+import { rectContains, type Point, type Rect } from './geometry';
 
 /**
  * Board document model (story 2).
@@ -35,6 +36,248 @@ export interface StickySnapshot {
   text: string;
   z: number;
   createdAt: number;
+  /** Story 7: explicit size (world units); absent on pre-story-7 notes. */
+  width?: number;
+  height?: number;
+}
+
+/**
+ * Story 7: type-agnostic object snapshot. `width`/`height` are optional:
+ * objects created before story 7 (fixed-size stickies) carry no explicit
+ * size and render at the type's default (STICKY_SIZE_WORLD). `color` and
+ * `text` are present on stickies and are read through by the renderer.
+ */
+export interface ObjectSnapshot {
+  id: string;
+  type: string;
+  x: number;
+  y: number;
+  z: number;
+  createdAt: number;
+  width?: number;
+  height?: number;
+  color?: string;
+  text?: string;
+}
+
+/**
+ * Object types the board knows how to select, move, resize and delete
+ * (story 7, sel.all_types). `sticky` is known from story 2; later stories
+ * (9-12) declare their types through the client registry, which calls
+ * registerKnownObjectType. Unknown types are still persisted but are never
+ * selected by select-all and are skipped by the renderer (forward
+ * compatibility).
+ */
+const KNOWN_OBJECT_TYPES: ReadonlySet<string> = new Set(['sticky']);
+
+/** Declares `type` as a known board object type. Idempotent. */
+export function registerKnownObjectType(type: string): void {
+  (KNOWN_OBJECT_TYPES as Set<string>).add(type);
+}
+
+/** True when this build knows the type (selectable, included in allObjectIds). */
+export function isKnownObjectType(type: string): boolean {
+  return KNOWN_OBJECT_TYPES.has(type);
+}
+
+/**
+ * World rect of an object. Stickies without an explicit width/height fall
+ * back to STICKY_SIZE_WORLD (additive field, no migration); other types
+ * without an explicit size are degenerate (0x0).
+ */
+export function objectBounds(obj: ObjectSnapshot): Rect {
+  let width: number;
+  let height: number;
+  if (obj.type === 'sticky') {
+    width = obj.width !== undefined && Number.isFinite(obj.width) ? obj.width : STICKY_SIZE_WORLD;
+    height = obj.height !== undefined && Number.isFinite(obj.height) ? obj.height : STICKY_SIZE_WORLD;
+  } else {
+    width = obj.width !== undefined && Number.isFinite(obj.width) ? obj.width : 0;
+    height = obj.height !== undefined && Number.isFinite(obj.height) ? obj.height : 0;
+  }
+  return { x: obj.x, y: obj.y, width, height };
+}
+
+/**
+ * Immutable snapshot of ALL board objects (any type), sorted by (z, id) so
+ * equal z values still order identically on every client.
+ */
+export function objectSnapshot(doc: Y.Doc): readonly ObjectSnapshot[] {
+  const out: ObjectSnapshot[] = [];
+  objectsMap(doc).forEach((obj, id) => {
+    const type = obj.get('type');
+    if (typeof type !== 'string') return;
+    const x = obj.get('x');
+    const y = obj.get('y');
+    const z = obj.get('z');
+    const createdAt = obj.get('createdAt');
+    const width = obj.get('width');
+    const height = obj.get('height');
+    const color = obj.get('color');
+    const text = obj.get('text');
+    out.push({
+      id,
+      type,
+      x: typeof x === 'number' ? x : 0,
+      y: typeof y === 'number' ? y : 0,
+      z: typeof z === 'number' ? z : 0,
+      createdAt: typeof createdAt === 'number' ? createdAt : 0,
+      ...(typeof width === 'number' && Number.isFinite(width) ? { width } : {}),
+      ...(typeof height === 'number' && Number.isFinite(height) ? { height } : {}),
+      ...(typeof color === 'string' ? { color } : {}),
+      ...(text instanceof Y.Text ? { text: text.toString() } : typeof text === 'string' ? { text } : {}),
+    });
+  });
+  out.sort((a, b) => (a.z - b.z) || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
+  return out;
+}
+
+/**
+ * Ids of objects whose bounds lie entirely inside `rect` (marquee rule,
+ * sel.marquee). A rect touching an object without enclosing it selects
+ * nothing for that object.
+ */
+export function objectsInRect(snapshot: readonly ObjectSnapshot[], rect: Rect): string[] {
+  if (!Number.isFinite(rect.x) || !Number.isFinite(rect.y) || !Number.isFinite(rect.width) || !Number.isFinite(rect.height)) {
+    return [];
+  }
+  return snapshot.filter((o) => rectContains(rect, objectBounds(o))).map((o) => o.id);
+}
+
+/** Ids of objects with a known type only (select-all, sel.all). */
+export function allObjectIds(snapshot: readonly ObjectSnapshot[]): string[] {
+  return snapshot.filter((o) => KNOWN_OBJECT_TYPES.has(o.type)).map((o) => o.id);
+}
+
+/**
+ * Writes absolute world positions for a group of objects (drag, nudge).
+ * Missing ids are skipped; non-finite values or an empty map return 0 with
+ * no transaction; otherwise exactly one LOCAL_ORIGIN transaction and the
+ * count of objects changed.
+ */
+export function moveObjects(doc: Y.Doc, positions: ReadonlyMap<string, Point>): number {
+  if (positions.size === 0) return 0;
+  for (const p of positions.values()) {
+    if (!Number.isFinite(p.x) || !Number.isFinite(p.y)) return 0;
+  }
+  const objects = objectsMap(doc);
+  const valid: Array<[Y.Map<unknown>, Point]> = [];
+  for (const [id, p] of positions) {
+    const obj = objects.get(id);
+    if (!obj) continue; // missing ids are skipped (deleted remotely)
+    valid.push([obj, p]);
+  }
+  if (valid.length === 0) return 0;
+  doc.transact(() => {
+    for (const [obj, p] of valid) {
+      obj.set('x', p.x);
+      obj.set('y', p.y);
+    }
+  }, LOCAL_ORIGIN);
+  return valid.length;
+}
+
+/**
+ * Writes absolute world rects for a group of objects (group resize).
+ * Writes both `width` and `height`, turning implicit-size stickies explicit
+ * on first resize. Same rejection/skip/transaction rules as moveObjects.
+ */
+export function resizeObjects(doc: Y.Doc, rects: ReadonlyMap<string, Rect>): number {
+  if (rects.size === 0) return 0;
+  for (const r of rects.values()) {
+    if (
+      !Number.isFinite(r.x) ||
+      !Number.isFinite(r.y) ||
+      !Number.isFinite(r.width) ||
+      !Number.isFinite(r.height)
+    ) {
+      return 0;
+    }
+  }
+  const objects = objectsMap(doc);
+  const valid: Array<[Y.Map<unknown>, Rect]> = [];
+  for (const [id, r] of rects) {
+    const obj = objects.get(id);
+    if (!obj) continue;
+    valid.push([obj, r]);
+  }
+  if (valid.length === 0) return 0;
+  doc.transact(() => {
+    for (const [obj, r] of valid) {
+      obj.set('x', r.x);
+      obj.set('y', r.y);
+      obj.set('width', r.width);
+      obj.set('height', r.height);
+    }
+  }, LOCAL_ORIGIN);
+  return valid.length;
+}
+
+/**
+ * Raises the given ids above every unselected object, preserving their
+ * relative stacking order (reassigns z = maxUnselectedZ + rank, rank in the
+ * selection's current (z, id) order). Returns the number of objects whose z
+ * changed (0 when already on top, no transaction).
+ */
+export function bringObjectsToFront(doc: Y.Doc, ids: readonly string[]): number {
+  if (ids.length === 0) return 0;
+  const objects = objectsMap(doc);
+  const selected: Array<{ id: string; z: number }> = [];
+  const seen = new Set<string>();
+  for (const id of ids) {
+    if (seen.has(id)) continue; // defensive: duplicate ids
+    const obj = objects.get(id);
+    if (!obj) continue;
+    const z = obj.get('z');
+    seen.add(id);
+    selected.push({ id, z: typeof z === 'number' && Number.isFinite(z) ? z : 0 });
+  }
+  if (selected.length === 0) return 0;
+  selected.sort((a, b) => a.z - b.z || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
+
+  let maxUnselected = 0;
+  objects.forEach((obj, id) => {
+    if (seen.has(id)) return;
+    const z = obj.get('z');
+    if (typeof z === 'number' && Number.isFinite(z) && z > maxUnselected) maxUnselected = z;
+  });
+
+  let changed = 0;
+  const target = new Map<string, number>();
+  selected.forEach((s, rank) => {
+    const z = maxUnselected + rank + 1;
+    target.set(s.id, z);
+    if (s.z !== z) changed += 1;
+  });
+  if (changed === 0) return 0;
+  doc.transact(() => {
+    target.forEach((z, id) => {
+      objects.get(id)?.set('z', z);
+    });
+  }, LOCAL_ORIGIN);
+  return changed;
+}
+
+/**
+ * Removes a group of objects. Missing ids are skipped; an empty or all-missing
+ * list returns 0 with no transaction; otherwise one LOCAL_ORIGIN transaction
+ * and the count removed.
+ */
+export function deleteObjects(doc: Y.Doc, ids: readonly string[]): number {
+  if (ids.length === 0) return 0;
+  const objects = objectsMap(doc);
+  const present: string[] = [];
+  const seen = new Set<string>();
+  for (const id of ids) {
+    if (seen.has(id)) continue;
+    seen.add(id);
+    if (objects.has(id)) present.push(id);
+  }
+  if (present.length === 0) return 0;
+  doc.transact(() => {
+    for (const id of present) objects.delete(id);
+  }, LOCAL_ORIGIN);
+  return present.length;
 }
 
 const META_KEY = 'meta';
@@ -172,31 +415,31 @@ export function getStickyText(doc: Y.Doc, id: string): Y.Text | undefined {
 }
 
 /**
+ * Sticky-note views of a set of object snapshots (the sticky subset with
+ * colour/text defaults applied). Pure, so tests and the renderer can reuse it.
+ */
+export function stickyNotes(objects: readonly ObjectSnapshot[]): readonly StickySnapshot[] {
+  return objects
+    .filter((o): o is ObjectSnapshot & { type: 'sticky' } => o.type === 'sticky')
+    .map((o) => ({
+      id: o.id,
+      type: 'sticky',
+      x: o.x,
+      y: o.y,
+      color: isStickyColor(o.color) ? o.color : DEFAULT_STICKY_COLOR,
+      text: typeof o.text === 'string' ? o.text : '',
+      z: o.z,
+      createdAt: o.createdAt,
+      ...(o.width !== undefined ? { width: o.width } : {}),
+      ...(o.height !== undefined ? { height: o.height } : {}),
+    }));
+}
+
+/**
  * Immutable snapshot of all sticky notes, sorted by (z, id) so concurrent
  * equal z values still order identically on every client. Unknown object
  * types are skipped.
  */
 export function snapshot(doc: Y.Doc): readonly StickySnapshot[] {
-  const out: StickySnapshot[] = [];
-  objectsMap(doc).forEach((obj, id) => {
-    if (obj.get('type') !== 'sticky') return;
-    const text = obj.get('text');
-    const color = obj.get('color');
-    const x = obj.get('x');
-    const y = obj.get('y');
-    const z = obj.get('z');
-    const createdAt = obj.get('createdAt');
-    out.push({
-      id,
-      type: 'sticky',
-      x: typeof x === 'number' ? x : 0,
-      y: typeof y === 'number' ? y : 0,
-      color: isStickyColor(color) ? color : DEFAULT_STICKY_COLOR,
-      text: text instanceof Y.Text ? text.toString() : '',
-      z: typeof z === 'number' ? z : 0,
-      createdAt: typeof createdAt === 'number' ? createdAt : 0,
-    });
-  });
-  out.sort((a, b) => (a.z - b.z) || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
-  return out;
+  return stickyNotes(objectSnapshot(doc));
 }

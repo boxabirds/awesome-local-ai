@@ -9,6 +9,7 @@ export interface Vidi6Hooks {
   setCamera(cam: { x: number; y: number; zoom: number }): void;
   getCamera(): { x: number; y: number; zoom: number };
   getNotes(): readonly StickySnapshot[];
+  getSelection(): string[];
   getDoc(): Y.Doc;
 }
 
@@ -68,19 +69,41 @@ export function setText(id: string, text: string): void {
 }
 
 /** Builds a pointer event with the properties jsdom leaves undefined. */
-export function makePointerEvent(type: string, opts: { x: number; y: number; pointerId?: number; button?: number }): Event {
+export function makePointerEvent(
+  type: string,
+  opts: { x: number; y: number; pointerId?: number; button?: number; shiftKey?: boolean },
+): Event {
   const event = new Event(type, { bubbles: true, cancelable: true });
   Object.defineProperty(event, 'clientX', { value: opts.x });
   Object.defineProperty(event, 'clientY', { value: opts.y });
   Object.defineProperty(event, 'pointerId', { value: opts.pointerId ?? 1 });
   Object.defineProperty(event, 'button', { value: opts.button ?? 0 });
+  Object.defineProperty(event, 'shiftKey', { value: opts.shiftKey ?? false });
   return event;
 }
 
 /** Dispatches a pointer event on an element inside act(). */
-export function firePointer(el: Element, type: string, x: number, y: number, opts?: { pointerId?: number; button?: number }): void {
+export function firePointer(
+  el: Element,
+  type: string,
+  x: number,
+  y: number,
+  opts?: { pointerId?: number; button?: number; shiftKey?: boolean },
+): void {
   act(() => {
     el.dispatchEvent(makePointerEvent(type, { x, y, ...opts }));
+  });
+}
+
+/** Dispatches a pointer event on the WINDOW inside act() (window-listener gestures). */
+export function fireWindowPointer(
+  type: string,
+  x: number,
+  y: number,
+  opts?: { pointerId?: number; button?: number; shiftKey?: boolean },
+): void {
+  act(() => {
+    window.dispatchEvent(makePointerEvent(type, { x, y, ...opts }));
   });
 }
 

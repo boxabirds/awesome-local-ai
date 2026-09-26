@@ -128,7 +128,10 @@ export async function createNoteAt(page: Page, sx: number, sy: number): Promise<
 export function notesKey(notes: NoteSnapshot[]): string {
   const map: Record<string, unknown> = {};
   for (const n of notes) map[n.id] = { x: n.x, y: n.y, color: n.color, text: n.text, z: n.z, createdAt: n.createdAt };
-  return JSON.stringify(map, Object.keys(map).sort());
+  // Sort by id and keep the FULL note data: a plain JSON.stringify of the map
+  // with a replacer array would drop every nested property (the replacer is
+  // applied to nested objects too), making the key useless for comparison.
+  return JSON.stringify(Object.keys(map).sort().map((id) => [id, map[id]]));
 }
 
 /**

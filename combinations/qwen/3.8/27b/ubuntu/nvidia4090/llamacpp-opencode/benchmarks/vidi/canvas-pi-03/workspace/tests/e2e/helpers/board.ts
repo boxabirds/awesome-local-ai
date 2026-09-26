@@ -75,6 +75,10 @@ export interface NoteSnapshot {
   type: string;
   x: number;
   y: number;
+  /** Story 7: sticky width/height (world px). Optional: pre-story-7 boards
+   *  omit them and the client falls back to the default sticky size. */
+  width?: number;
+  height?: number;
   color: string;
   text: string;
   z: number;

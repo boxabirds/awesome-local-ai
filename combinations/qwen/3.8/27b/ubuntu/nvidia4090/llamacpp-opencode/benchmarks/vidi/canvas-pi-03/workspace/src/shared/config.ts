@@ -62,3 +62,16 @@ export const CREATE_BUDGET_MS = 2000;
 export const LINK_COPIED_MS = 2000;
 /** First backoff between BoardPage existence-check retries; doubles up to RECONNECT_MAX_BACKOFF_MS. */
 export const BOARD_CHECK_RETRY_BASE_MS = 1000;
+
+// --- Story 7: select, move, resize and delete several objects at once ---
+
+/** Screen size (square, in CSS px, independent of zoom) of a selection resize handle. */
+export const HANDLE_SIZE_PX = 8;
+/** Minimum side of a sticky note in world units (sel.size_limits). */
+export const STICKY_MIN_SIZE_WORLD = 50;
+/** Maximum side of any board object in world units (sel.size_limits). */
+export const MAX_OBJECT_SIZE_WORLD = 20_000;
+/** Arrow-key nudge step in world units (sel.nudge). */
+export const NUDGE_STEP_WORLD = 1;
+/** Shift+arrow nudge step in world units (sel.nudge). */
+export const NUDGE_LARGE_STEP_WORLD = 10;

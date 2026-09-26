@@ -264,3 +264,94 @@ panel (copy link) for the creator.
   `Buffer.from(Y.encodeStateAsUpdate(doc)).toString('base64')`.
 - **Playwright:** `test.describe` + `test.describe.configure({ timeout })`
   (no top-level `describe`, no 3rd-arg `test()` timeout in this version).
+
+# Story 7: Select, move, resize and delete several objects at once — Implementation Notes
+
+## What was built
+
+Multiple objects can be selected (click, shift-click, shift-drag marquee, select-all),
+moved and resized as a group via bounding-box handles, nudged with the arrows, and deleted
+with one key press. One consistent code path for every registered object type.
+
+### Key files
+
+| File | Purpose |
+|------|---------|
+| `src/shared/geometry.ts` | Pure rect/handle math: `rectContains`, `unionRects`, `normalizeRect`, `resizeRect`, `clampScale`, `scaleWithin` |
+| `src/shared/board-model.ts` | Generic object ops: `objectBounds`, `objectSnapshot`, `objectsInRect`, `allObjectIds`, `moveObjects`, `resizeObjects`, `bringObjectsToFront`, `deleteObjects`, `stickyNotes`; known-type registry |
+| `src/shared/config.ts` | `HANDLE_SIZE_PX`, `STICKY_MIN_SIZE_WORLD`, `MAX_OBJECT_SIZE_WORLD`, `NUDGE_STEP_WORLD`, `NUDGE_LARGE_STEP_WORLD` |
+| `src/client/objects/registry.tsx` | `registerObjectType`/`getObjectType` — Board renders any type through its spec (Component + resize policy) |
+| `src/client/board/useSelection.ts` | Pure `selectionReducer` + `useSelection` hook (click/toggle/setMany/clear/prune/edit; auto-prunes ids that leave the doc; `pendingEditRef` for create-and-edit) |
+| `src/client/board/useTransformGesture.ts` | Board-level move/resize gesture: window pointer listeners, 3px threshold, rAF-throttled writes, synchronous flush on up/cancel |
+| `src/client/board/useMarquee.ts` / `Marquee.tsx` | Shift-drag marquee (additive selection); pure `useMarquee` + `MarqueeRect` |
+| `src/client/board/useBoardKeys.ts` | Ctrl+A, Escape, arrows (nudge), Delete/Backspace, Enter — all gated by `canEdit` |
+| `src/client/board/SelectionOverlay.tsx` | Bounding box + 8 resize handles in screen space (aria-labelled, positioned cursors) |
+| `src/client/board/SelectionBar.tsx` | "N selected" + Delete for multi-select; re-uses `NoteToolbar` for a single sticky |
+| `src/client/board/Board.tsx` | Composes doc, selection, marquee, gesture, keys, overlay, bar; renders objects through the registry |
+| `src/client/board/useBoardDoc.ts` | Doc lifecycle + objects state (`useLayoutEffect` observer + `useState`) |
+| `src/client/canvas/BoardViewport.tsx` | Shift+pointerdown on empty space starts the marquee (instead of panning); crosshair cursor |
+| `tests/fixtures/testbox.tsx` | Self-registering second object type for tests (resizable, free aspect) |
+
+### Design notes
+
+- **Selection is Board-level, not per-object.** `StickyNote` no longer drags itself; it forwards
+  `pointerdown` to the gesture hook and receives `dragging` for its cursor. The same hook handles
+  every type, so the behaviour is identical by construction.
+- **Gesture listeners live on `window`** (installed only while a gesture is in flight) and the
+  pointer is captured on the source element. If the element unmounts mid-gesture (remote delete),
+  the listeners still see `pointerup`/`pointercancel` and end cleanly.
+- **Dragging a selected object moves the whole selection** (PRD). `onObjectPointerDown` keeps the
+  full selection when the target is already selected (no shift), instead of collapsing it to one.
+- **Writes are rAF-throttled and flushed synchronously on `pointerup`/`pointercancel`**, so the
+  committed position always matches the pointer release. Each gesture write is absolute (computed
+  from the gesture's start rects), which makes concurrent gestures on disjoint selections merge
+  cleanly (Yjs per-field LWW; different editors touch different objects).
+- **`bringObjectsToFront`** raises the whole selection one step above the highest unselected
+  object (stable rank), so a dragged group lands on top as one unit.
+- **Resize policy comes from the registry spec**: `aspectLocked` stickies keep their ratio on
+  every handle (edges drive one axis, corners take the larger ratio), while free types
+  (testbox) resize per axis; all types clamp to `minSize`…`MAX_OBJECT_SIZE_WORLD`.
+- **Remote changes prune the selection**: `useSelection` drops ids missing from the snapshot and
+  clears `editingId` when its target vanishes (story 3's delete-while-editing behaviour is kept).
+- **Escape is context-aware**: cancels an active marquee, otherwise clears the selection.
+- **`useBoardDoc` rebuild**: objects flow through a `useLayoutEffect` observer + `useState`
+  (not `useSyncExternalStore`, whose subscription installs in the passive-effects phase and left
+  a window where doc writes could be missed under load — the root cause of the pre-existing
+  component-test flakes; now 0 failures across 10 loaded parallel runs).
+
+### Testing strategy
+
+- **Unit (TC-01…15):** geometry (containment/union/normalize/resize/aspect/limits), board-model
+  group ops (skip-missing, reject-non-finite, single transact, z-ranking, delete), registry
+  (spec lookup, unknown type, duplicate throws), selection reducer (click/toggle/setMany/prune/
+  edit/no-op stability).
+- **Component (TC-16…31):** full-app tests with a fake y-websocket provider (the same
+  `providerHolder` pattern as the load-failure test): marquee inside/half/outside, group drag
+  moves only the selection, group drag of an already-selected note keeps the whole selection,
+  resize handles (corner + edge, aspect-locked and free, min clamp), nudge (arrow + shift+arrow,
+  no camera pan), Delete/Backspace, Ctrl+A, Escape (clear + marquee cancel), remote-delete
+  pruning, load-failed = no writes on drag.
+- **E2E (TC-32…36):** real wrangler dev + Chromium. Marquee half-overlap exclusion; 6-note group
+  move above a 4th with corner resize scaling sizes *and* gaps + min clamp; arrow nudge of a
+  selection (camera untouched) + group delete; cross-editor delete prunes a selection within the
+  live-update budget; 5 simultaneous editors moving 5 different rows converge on identical
+  positions.
+
+### Test notes
+
+- **`notesKey` was silently broken** (JSON.stringify replacer array strips nested properties —
+  the replacer applies to nested objects too, so every note serialised to `{}` and every
+  "convergence" comparison was trivially true). Fixed to sort by id and keep full note data.
+  Story 3's live-collaboration checks now actually compare positions.
+- **TC-36 convergence race:** with the broken key, the "all 5 contexts converge" poll resolved
+  immediately and the position assertion read in-flight state (cross-context relay lags a few
+  ms). With a real key the poll waits for genuine convergence; the test is stable across
+  repeated runs.
+- **E2E viewport is 1280×720** (the Chromium project uses `devices['Desktop Chrome']`, which
+  overrides the global 1280×800). Screen = (world − camera) × zoom; initial camera
+  (−640, −360, 1) ⇒ screen = world + (640, 360).
+- **Seeding arbitrary sizes:** e2e seeds build a `Y.Doc` in the Node context (raw Y.Maps with
+  exact top-left x/y and optional width/height) and apply the base64 update through
+  `__vidi6.applyUpdates` — sticky 120×120 needs explicit width/height; omitting them gives the
+  200×200 default.
+- **`closeAll` takes rest args** (`closeAll(...participants)`), not an array.

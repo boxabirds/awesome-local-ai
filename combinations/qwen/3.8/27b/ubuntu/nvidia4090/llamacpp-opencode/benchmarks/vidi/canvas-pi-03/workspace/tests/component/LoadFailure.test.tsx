@@ -155,7 +155,7 @@ describe('Story 4: load-failure badge and edit lock', () => {
       z: 0,
       createdAt: 1,
     };
-    vi.mocked(useBoardDoc).mockReturnValue({ doc, notes: [note], connectionState: 'load_failed' });
+    vi.mocked(useBoardDoc).mockReturnValue({ doc, objects: [note], notes: [note], connectionState: 'load_failed' });
 
     render(<App />);
     // Story 5: the board page awaits one existence check before mounting the board.
