@@ -3,7 +3,9 @@ import * as Y from 'yjs';
 import type { ObjectSnapshot } from '@/shared/board-model';
 import { allObjectIds, moveObjects, deleteObjects } from '@/shared/board-model';
 import { NUDGE_STEP_WORLD, NUDGE_LARGE_STEP_WORLD } from '@/shared/config';
+import { getObjectType } from '../objects/registry';
 import type { Selection } from './useSelection';
+import type { Tool } from './useTool';
 
 /**
  * Selection keyboard commands (story 7, sel.keyboard). Replaces story 2's
@@ -15,7 +17,13 @@ import type { Selection } from './useSelection';
  *  - Arrows: nudge the selection by NUDGE_STEP_WORLD (NUDGE_LARGE_STEP_WORLD
  *    with Shift); preventDefault so the page neither scrolls nor pans.
  *  - Delete/Backspace: delete the selection, then clear.
- *  - Enter: story 2's edit for a single selected sticky.
+ *  - Enter: edit a single selected object whose type is editableText
+ *    (sticky from story 2, text from story 9).
+ *
+ * Story 9 tool shortcuts (text.tool): V → Select, T → Text (only when
+ * canEdit), N → create a sticky at the view centre (story 2 behaviour),
+ * Escape also returns to Select. Plain single keys are ignored while any
+ * modifier (Ctrl/Meta/Alt) is held.
  *
  * Ignored while editing text (editingId set) or focus is in an
  * input/textarea/contenteditable. Mutating keys (nudge/delete/enter) also
@@ -37,6 +45,10 @@ export interface BoardKeysOptions {
   onUndo?: () => void;
   /** Story 8: re-apply this tab's most recently undone own step. */
   onRedo?: () => void;
+  /** Story 9: the active tool (V/T/Escape shortcuts read and set it). */
+  tool?: { tool: Tool; setTool(t: Tool): void };
+  /** Story 9: N shortcut — create a sticky at the view centre (story 2). */
+  onCreateStickyCenter?: () => void;
 }
 
 export function useBoardKeys(opts: BoardKeysOptions): void {
@@ -72,7 +84,28 @@ export function useBoardKeys(opts: BoardKeysOptions): void {
         }
         e.preventDefault();
         sel.clear();
+        ref.current.tool?.setTool('select'); // story 9: Escape returns to Select
         return;
+      }
+
+      // Story 9: tool shortcuts (plain single keys, no modifiers, and never
+      // while a marquee is active). V works in every state; T and N create
+      // content, so they respect the story 4 edit lock.
+      if (!e.ctrlKey && !e.metaKey && !e.altKey && !marqueeActive) {
+        if (e.key === 'v' || e.key === 'V') {
+          ref.current.tool?.setTool('select');
+          return;
+        }
+        if ((e.key === 't' || e.key === 'T') && canEdit) {
+          e.preventDefault();
+          ref.current.tool?.setTool('text');
+          return;
+        }
+        if ((e.key === 'n' || e.key === 'N') && canEdit) {
+          e.preventDefault();
+          ref.current.onCreateStickyCenter?.();
+          return;
+        }
       }
 
       if (!canEdit) return; // story 4: nudge/delete/edit/undo blocked when locked
@@ -121,10 +154,12 @@ export function useBoardKeys(opts: BoardKeysOptions): void {
       }
 
       if (e.key === 'Enter') {
-        // Story 2: Enter edits a single selected sticky (and only a sticky).
+        // Story 2: Enter edits a single selected sticky. Story 9: the same
+        // command edits a single selected text object (registry spec's
+        // editableText, sel.all_types).
         if (ids.length === 1) {
           const o = snapshot.find((s) => s.id === ids[0]);
-          if (o !== undefined && o.type === 'sticky') {
+          if (o !== undefined && getObjectType(o.type)?.editableText) {
             e.preventDefault();
             sel.startEdit(ids[0]);
           }

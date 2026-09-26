@@ -1,4 +1,3 @@
-import * as Y from 'yjs';
 import {
   STICKY_SIZE_WORLD,
   STICKY_TEXT_MAX_CHARS,
@@ -6,10 +5,14 @@ import {
   STICKY_FONT_MAX_PX,
   STICKY_FONT_MIN_PX,
 } from '@/shared/config';
+import { clampToLimit as sharedClampToLimit } from '@/shared/text-edit';
 
 /**
  * Pure sticky-note text logic (story 2): length clamping, minimal Y.Text
- * diffing, counter visibility and font fitting.
+ * diffing, counter visibility and font fitting. Story 9 moved the shared
+ * clamping/diffing to `@/shared/text-edit` (used by free text objects too);
+ * this module re-exports it with the sticky-note defaults so existing
+ * callers are unchanged.
  */
 
 /** Inner padding of a sticky note in world px (shared by display and edit modes). */
@@ -20,42 +23,11 @@ export const NOTE_TEXT_BOX = STICKY_SIZE_WORLD - 2 * NOTE_PADDING;
 
 /** Keeps at most `max` characters (default STICKY_TEXT_MAX_CHARS). */
 export function clampToLimit(next: string, max: number = STICKY_TEXT_MAX_CHARS): string {
-  return next.length > max ? next.slice(0, max) : next;
+  return sharedClampToLimit(next, max);
 }
 
-/**
- * Applies the minimal change (common prefix + common suffix) that turns the
- * Y.Text's current value into `next`: at most one delete and at most one
- * insert, inside a single transaction. A full replace would destroy
- * concurrent typing by other clients once story 3 ships, so the minimal
- * diff is required. Surrogate pairs are never split: the delete/insert
- * boundaries always fall on the common prefix/suffix, which align with
- * identical code units in both strings.
- */
-export function applyTextDiff(ytext: Y.Text, next: string, origin: unknown): void {
-  const current = ytext.toString();
-  if (current === next) return;
-  const minLen = Math.min(current.length, next.length);
-  let prefix = 0;
-  while (prefix < minLen && current[prefix] === next[prefix]) prefix += 1;
-  let suffix = 0;
-  while (suffix < minLen - prefix && current[current.length - 1 - suffix] === next[next.length - 1 - suffix]) {
-    suffix += 1;
-  }
-  const deleteLength = current.length - prefix - suffix;
-  const insertText = next.slice(prefix, next.length - suffix);
-  const apply = () => {
-    if (deleteLength > 0) ytext.delete(prefix, deleteLength);
-    if (insertText.length > 0) ytext.insert(prefix, insertText);
-  };
-  const doc = ytext.doc;
-  if (doc) {
-    doc.transact(apply, origin);
-  } else {
-    // Standalone (unattached) Y.Text: no document to transact on.
-    apply();
-  }
-}
+/** Minimal-diff Y.Text commit (shared with story 9 free text). */
+export { applyTextDiff } from '@/shared/text-edit';
 
 /** The counter shows when the remaining capacity is <= STICKY_COUNTER_THRESHOLD_CHARS. */
 export function counterVisible(length: number): boolean {

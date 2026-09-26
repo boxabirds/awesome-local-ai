@@ -1,6 +1,6 @@
 import * as Y from 'yjs';
 import type { Camera } from './camera';
-import type { StickySnapshot } from '@/shared/board-model';
+import type { ObjectSnapshot, StickySnapshot } from '@/shared/board-model';
 
 declare global {
   interface Window {
@@ -13,6 +13,8 @@ declare global {
       getDoc: () => Y.Doc;
       /** Story 7: the local selection's object ids (test mode only). */
       getSelection: () => string[];
+      /** Story 9: snapshot of ALL board objects, any type (test mode only). */
+      getObjects: () => readonly ObjectSnapshot[];
       /**
        * Story 3: the current connection state, kept up to date by App
        * ('connecting' | 'connected' | 'reconnecting' | 'confirmed').
@@ -53,6 +55,7 @@ let testGetCamera: (() => Camera) | null = null;
 let testGetNotes: (() => readonly StickySnapshot[]) | null = null;
 let testGetDoc: (() => Y.Doc) | null = null;
 let testGetSelection: (() => string[]) | null = null;
+let testGetObjects: (() => readonly ObjectSnapshot[]) | null = null;
 let testConn: { drop: () => void; resume: () => void } | null = null;
 let testUndo: {
   canUndo: () => boolean;
@@ -87,15 +90,17 @@ export function registerTestHooks(setCamera: (cam: Camera) => void, getCamera: (
   testGetCamera = getCamera;
 }
 
-/** Registers suppliers for the board notes/doc/selection (stories 2/7). */
+/** Registers suppliers for the board notes/doc/selection (stories 2/7/9). */
 export function registerBoardTestHooks(
   getNotes: () => readonly StickySnapshot[],
   getDoc: () => Y.Doc,
   getSelection: () => string[],
+  getObjects?: () => readonly ObjectSnapshot[],
 ): void {
   testGetNotes = getNotes;
   testGetDoc = getDoc;
   testGetSelection = getSelection;
+  testGetObjects = getObjects ?? null;
 }
 
 export function initGlobalTestHooks(): void {
@@ -105,6 +110,7 @@ export function initGlobalTestHooks(): void {
       getCamera: () => testGetCamera?.() ?? { x: 0, y: 0, zoom: 1 },
       getNotes: () => (testGetNotes ? testGetNotes() : []),
       getSelection: () => (testGetSelection ? testGetSelection() : []),
+      getObjects: () => (testGetObjects ? testGetObjects() : []),
       getDoc: () => {
         if (!testGetDoc) throw new Error('board test hooks not registered');
         return testGetDoc();

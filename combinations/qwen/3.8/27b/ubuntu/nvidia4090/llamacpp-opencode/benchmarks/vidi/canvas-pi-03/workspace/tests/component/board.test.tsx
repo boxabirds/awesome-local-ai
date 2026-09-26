@@ -19,6 +19,7 @@ import {
   type ObjectSnapshot,
 } from '@/shared/board-model';
 import { getObjectType, type ObjectProps } from '@/client/objects/registry';
+import { createCanvasMeasurer } from '@/client/objects/textLayout';
 import { useTransformGesture } from '@/client/board/useTransformGesture';
 import type { Selection } from '@/client/board/useSelection';
 import { NUDGE_STEP_WORLD, NUDGE_LARGE_STEP_WORLD } from '@/shared/config';
@@ -76,6 +77,9 @@ vi.mock('@/client/api', () => ({
 // --- geometry helpers (jsdom window 1024x768, initial camera -512,-384, zoom 1) ---
 
 const CAM = { x: -512, y: -384, zoom: 1 };
+// Story 9: width measurer for the gesture probe (canvas in the browser, the
+// ratio estimate in jsdom — good enough for these gesture tests).
+const MEASURE = createCanvasMeasurer();
 
 /** World point -> screen pixel at the initial camera. */
 function screenOf(w: { x: number; y: number }): { x: number; y: number } {
@@ -405,6 +409,7 @@ describe('gesture boundaries (TC-26)', () => {
       selection: props.selection,
       snapshot: props.objects,
       canEdit: props.canEdit,
+      measure: MEASURE,
       onGestureStart: props.onStart,
       onGestureEnd: props.onEnd,
     });

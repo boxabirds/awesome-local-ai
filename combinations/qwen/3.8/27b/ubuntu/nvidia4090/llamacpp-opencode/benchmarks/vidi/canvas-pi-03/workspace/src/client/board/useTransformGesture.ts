@@ -12,9 +12,12 @@ import {
   type Point,
   type Rect,
 } from '@/shared/geometry';
-import { DRAG_THRESHOLD_PX, MAX_OBJECT_SIZE_WORLD } from '@/shared/config';
+import { DRAG_THRESHOLD_PX, MAX_OBJECT_SIZE_WORLD, TEXT_MIN_WIDTH_WORLD } from '@/shared/config';
 import type { Camera } from '../canvas/camera';
 import { getObjectType } from '../objects/registry';
+import type { Measurer } from '../objects/textLayout';
+import { remeasureTextBox } from '../objects/useTextBoxSync';
+import { setTextWidthFixed } from '@/shared/objects/text';
 import type { Selection } from './useSelection';
 
 /**
@@ -46,6 +49,8 @@ export interface TransformGestureOptions {
   selection: Selection;
   snapshot: readonly ObjectSnapshot[];
   canEdit: boolean;
+  /** Story 9: width measurer for the single-text width gesture. */
+  measure: Measurer;
   /** Exactly once per gesture (story 8 undo boundaries). */
   onGestureStart?(): void;
   /** Exactly once per gesture, on pointerup/pointercancel. */
@@ -60,7 +65,11 @@ export interface TransformGesture {
 }
 
 interface GestureState {
-  kind: 'move' | 'resize';
+  /**
+   * 'move' / 'resize' are story 7; 'textWidth' (story 9) is a single-text
+   * e/w handle drag that sets a fixed width and rewraps (text.fixed_width).
+   */
+  kind: 'move' | 'resize' | 'textWidth';
   pointerId: number;
   startClientX: number;
   startClientY: number;
@@ -75,6 +84,12 @@ interface GestureState {
   startBox: Rect | null;
   minSizes: number[] | null;
   pending: ReadonlyMap<string, Point | Rect> | null;
+  /** textWidth: the latest target {x, y, width} for the single text. */
+  pendingText: { id: string; x: number; y: number; width: number } | null;
+  /** textWidth: the box captured at handle pointerdown. */
+  textStartX: number;
+  textStartY: number;
+  textStartWidth: number;
   rafId: number | null;
 }
 
@@ -103,8 +118,22 @@ export function useTransformGesture(opts: TransformGestureOptions): TransformGes
 
   const writePending = useCallback((): void => {
     const g = gestureRef.current;
-    if (!g || g.pending === null) return;
-    const { doc } = optsRef.current;
+    if (!g) return;
+    const { doc, measure } = optsRef.current;
+    if (g.kind === 'textWidth') {
+      // Story 9: write the anchor (x moves with a 'w' drag) and the fixed
+      // width, then rewrap (height follows the content). x/y never move on
+      // a re-measure (text.anchor).
+      if (g.pendingText !== null) {
+        const t = g.pendingText;
+        moveObjects(doc, new Map<string, Point>([[t.id, { x: t.x, y: t.y }]]));
+        setTextWidthFixed(doc, t.id, t.width);
+        remeasureTextBox(doc, t.id, measure);
+      }
+      g.pendingText = null;
+      return;
+    }
+    if (g.pending === null) return;
     if (g.kind === 'move') {
       moveObjects(doc, g.pending as ReadonlyMap<string, Point>);
     } else {
@@ -163,6 +192,23 @@ export function useTransformGesture(opts: TransformGestureOptions): TransformGes
     [writePending],
   );
 
+  const scheduleTextWrite = useCallback(
+    (pendingText: { id: string; x: number; y: number; width: number }): void => {
+      const g = gestureRef.current;
+      if (!g) return;
+      g.pendingText = pendingText;
+      if (g.rafId === null) {
+        g.rafId = requestAnimationFrame(() => {
+          const st = gestureRef.current;
+          if (!st) return;
+          st.rafId = null;
+          writePending();
+        });
+      }
+    },
+    [writePending],
+  );
+
   const handleWindowMove = useCallback(
     (e: PointerEvent): void => {
       const g = gestureRef.current;
@@ -171,6 +217,23 @@ export function useTransformGesture(opts: TransformGestureOptions): TransformGes
       const dx = e.clientX - g.startClientX;
       const dy = e.clientY - g.startClientY;
 
+      if (g.kind === 'textWidth') {
+        // Story 9: single-text e/w handle — width follows the pointer,
+        // clamped to [TEXT_MIN_WIDTH_WORLD, MAX_OBJECT_SIZE_WORLD]; the 'w'
+        // handle keeps the right edge fixed by moving the anchor x.
+        const z = camera.zoom;
+        const raw =
+          g.handle === 'w'
+            ? g.textStartWidth - dx / z
+            : g.textStartWidth + dx / z;
+        const width = Math.min(
+          Math.max(raw, TEXT_MIN_WIDTH_WORLD),
+          MAX_OBJECT_SIZE_WORLD,
+        );
+        const x = g.handle === 'w' ? g.textStartX + (g.textStartWidth - width) : g.textStartX;
+        scheduleTextWrite({ id: g.ids[0], x, y: g.textStartY, width });
+        return;
+      }
       if (g.kind === 'move') {
         if (!g.active) {
           if (Math.hypot(dx, dy) < DRAG_THRESHOLD_PX) return; // still "Pressed"
@@ -230,7 +293,7 @@ export function useTransformGesture(opts: TransformGestureOptions): TransformGes
         scheduleWrite(pending);
       }
     },
-    [endGesture, scheduleWrite],
+    [endGesture, scheduleWrite, scheduleTextWrite],
   );
 
   const installListeners = useCallback((): void => {
@@ -309,6 +372,10 @@ export function useTransformGesture(opts: TransformGestureOptions): TransformGes
         startBox: null,
         minSizes: null,
         pending: null,
+        pendingText: null,
+        textStartX: 0,
+        textStartY: 0,
+        textStartWidth: 0,
         rafId: null,
       };
       gestureRef.current = g;
@@ -332,6 +399,48 @@ export function useTransformGesture(opts: TransformGestureOptions): TransformGes
 
       const objs = snapshot.filter((o) => selection.ids.has(o.id));
       if (!objs.some((o) => getObjectType(o.type)?.resizable)) return;
+
+      // Story 9: a single text object with an e/w handle gets a fixed-width
+      // drag (text.fixed_width) instead of a bounding-box resize — height
+      // always follows the content, so there is no scale to compute.
+      const horizontal =
+        handle === 'e' || handle === 'w'
+          ? objs.length === 1 && getObjectType(objs[0].type)?.handles === 'horizontal'
+          : false;
+      if (horizontal) {
+        const o = objs[0];
+        const b = objectBounds(o);
+        const g: GestureState = {
+          kind: 'textWidth',
+          pointerId: e.pointerId,
+          startClientX: e.clientX,
+          startClientY: e.clientY,
+          active: true,
+          ids: [o.id],
+          startRects: null,
+          handle,
+          aspect: false,
+          startBox: b,
+          minSizes: null,
+          pending: null,
+          pendingText: null,
+          textStartX: b.x,
+          textStartY: b.y,
+          textStartWidth: Math.max(b.width, 0),
+          rafId: null,
+        };
+        gestureRef.current = g;
+        try {
+          e.currentTarget.setPointerCapture?.(e.pointerId);
+        } catch {
+          /* jsdom / unsupported */
+        }
+        optsRef.current.onGestureStart?.();
+        setDraggingIds(new Set(g.ids));
+        installListeners();
+        return;
+      }
+
       const startBox = unionRects(objs.map((o) => objectBounds(o)));
       if (!startBox) return;
 
@@ -358,6 +467,10 @@ export function useTransformGesture(opts: TransformGestureOptions): TransformGes
         startBox,
         minSizes,
         pending: null,
+        pendingText: null,
+        textStartX: 0,
+        textStartY: 0,
+        textStartWidth: 0,
         rafId: null,
       };
       gestureRef.current = g;

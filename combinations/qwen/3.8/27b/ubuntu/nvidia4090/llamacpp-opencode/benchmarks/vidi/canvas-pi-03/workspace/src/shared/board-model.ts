@@ -58,6 +58,12 @@ export interface ObjectSnapshot {
   height?: number;
   color?: string;
   text?: string;
+  /** Story 9: text size key (S/M/L/XL); text objects only. */
+  size?: string;
+  /** Story 9: 'auto' (grow with content, capped) or 'fixed' (width handle); text objects only. */
+  widthMode?: 'auto' | 'fixed';
+  /** Story 9: per-tab client id of the creator (string 6 identity is excluded from this milestone). */
+  createdBy?: string;
 }
 
 /**
@@ -115,6 +121,9 @@ export function objectSnapshot(doc: Y.Doc): readonly ObjectSnapshot[] {
     const height = obj.get('height');
     const color = obj.get('color');
     const text = obj.get('text');
+    const size = obj.get('size');
+    const widthMode = obj.get('widthMode');
+    const createdBy = obj.get('createdBy');
     out.push({
       id,
       type,
@@ -126,6 +135,9 @@ export function objectSnapshot(doc: Y.Doc): readonly ObjectSnapshot[] {
       ...(typeof height === 'number' && Number.isFinite(height) ? { height } : {}),
       ...(typeof color === 'string' ? { color } : {}),
       ...(text instanceof Y.Text ? { text: text.toString() } : typeof text === 'string' ? { text } : {}),
+      ...(typeof size === 'string' ? { size } : {}),
+      ...(widthMode === 'auto' || widthMode === 'fixed' ? { widthMode } : {}),
+      ...(typeof createdBy === 'string' ? { createdBy } : {}),
     });
   });
   out.sort((a, b) => (a.z - b.z) || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
