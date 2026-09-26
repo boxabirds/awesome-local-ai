@@ -53,6 +53,16 @@ export const NUDGE_STEP_WORLD = 1;
 export const NUDGE_LARGE_STEP_WORLD = 10;
 /** Fill colour of the Shift+drag selection rectangle. */
 export const MARQUEE_FILL = 'rgba(59,130,246,0.18)';
+
+// --- Undo & redo (story 8) --------------------------------------------------
+
+/** Typing pause that ends a capture window. Transactions closer than this merge
+ * into one undo step; a boundary() (gesture start/end, edit start/end) or a
+ * pause of at least this long starts a new step. */
+export const UNDO_CAPTURE_TIMEOUT_MS = 500;
+/** Largest number of undo steps kept per board. Older steps are dropped from
+ * the front once the undo stack is longer (the newest edit is never dropped). */
+export const UNDO_MAX_STEPS = 200;
 /** Border colour of the selection rectangle and bounding box. */
 export const SELECTION_STROKE = '#2563eb';
 

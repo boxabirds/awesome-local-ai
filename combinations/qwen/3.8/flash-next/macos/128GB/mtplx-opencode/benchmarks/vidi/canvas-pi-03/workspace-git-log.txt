@@ -1,3 +1,13 @@
+commit cb49b73a9ecdb3459fb8b029fd361ec768428b47
+vidi-agent  Sat Sep 26 22:53:22 2026 +0100
+
+    harness: snapshot after story 8 (uncommitted agent work)
+
+
+ src/client/board/undo.ts   | 122 +++++++++++++++++++++++++++++++++++++++++++++
+ src/shared/config.ts       |  10 ++++
+ tests/unit/helpers/peer.ts |  99 ++++++++++++++++++++++++++++++++++++
+ 3 files changed, 231 insertions(+)
 commit 7e8c2c88497a509f92c8b164326ef40e10b3d3c5
 vidi-agent  Sat Sep 26 21:39:43 2026 +0100
 
