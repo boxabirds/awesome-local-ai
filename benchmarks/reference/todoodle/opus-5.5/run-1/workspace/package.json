@@ -1,0 +1,29 @@
+{
+  "name": "todoodle",
+  "private": true,
+  "type": "module",
+  "workspaces": ["apps/*", "packages/*"],
+  "scripts": {
+    "dev": "bun run build && bun scripts/dev.ts",
+    "build": "bun run --cwd apps/web build",
+    "typecheck": "bun run --cwd packages/shared typecheck && bun run --cwd apps/api typecheck && bun run --cwd apps/web typecheck && tsc -p tsconfig.json --noEmit",
+    "db:migrate:local": "wrangler d1 migrations apply DB --local",
+    "test": "bun run test:unit && bun run test:integration && bun run test:ui",
+    "test:unit": "vitest run --config apps/api/vitest.config.ts --project api-unit && vitest run --config scripts/vitest.config.ts --project deploy-unit",
+    "test:integration": "vitest run --config apps/api/vitest.config.ts --project api-integration --project api-staging-sim --project api-production-gate && vitest run --config scripts/vitest.config.ts --project deploy-integration",
+    "test:ui": "vitest run --config apps/web/vitest.config.ts",
+    "test:e2e": "playwright test",
+    "deploy:staging": "bun scripts/deploy.ts staging",
+    "deploy:production": "bun scripts/deploy.ts production"
+  },
+  "devDependencies": {
+    "@cloudflare/vitest-pool-workers": "0.22.0",
+    "@cloudflare/workers-types": "^5.20260926.1",
+    "@playwright/test": "^1.63.0",
+    "@types/bun": "^1.2.17",
+    "@types/node": "^24.0.0",
+    "typescript": "~5.9.3",
+    "vitest": "~4.1.11",
+    "wrangler": "^4.141.0"
+  }
+}

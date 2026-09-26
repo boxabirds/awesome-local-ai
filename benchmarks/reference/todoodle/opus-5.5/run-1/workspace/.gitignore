@@ -1,0 +1,9 @@
+node_modules
+dist
+.wrangler
+.dev.vars
+.dev.vars.*
+test-results
+playwright-report
+*.tsbuildinfo
+.DS_Store
