@@ -1,3 +1,62 @@
+commit cbf43c6bfeeb73141602813facf5bfa166e6d647
+vidi-agent  Sat Sep 26 06:58:40 2026 +0000
+
+    harness: snapshot after story 4 (uncommitted agent work)
+
+
+ src/client/App.tsx                               |  37 ++-
+ src/client/board/Toolbar.tsx                     |   6 +-
+ src/client/objects/StickyNote.tsx                |  10 +-
+ src/client/styles.css                            |   8 +
+ src/client/sync/ConnectionStatus.tsx             |  22 +-
+ src/client/sync/connectBoard.ts                  |  38 ++-
+ tests/component/BoardLoadFailure.test.tsx        | 294 +++++++++++++++++++++++
+ tests/integration/board-room-persistence.test.ts |   2 +-
+ 8 files changed, 402 insertions(+), 15 deletions(-)
+commit 533d747c06bdce7f03ab99f1c2865c52c26d28b2
+vidi-agent  Sat Sep 26 06:29:24 2026 +0000
+
+    wip story 4: e2e persistence across real process restarts (TC-19..TC-21)
+
+
+ tests/e2e/board-persistence.spec.ts              | 172 ++++++++++++++++++++
+ tests/e2e/helpers/seed-board.ts                  |  89 +++++++++++
+ tests/e2e/helpers/wrangler-process.ts            | 192 +++++++++++++++++++++++
+ tests/integration/board-room-persistence.test.ts |   4 +-
+ 4 files changed, 455 insertions(+), 2 deletions(-)
+commit 888ee09f665ef985a4bba2397308b65bb4d80e67
+vidi-agent  Sat Sep 26 06:00:28 2026 +0000
+
+    wip story 4: room persistence integration tests (TC-12..TC-18, TC-26)
+
+
+ tests/integration/board-room-persistence.test.ts | 371 +++++++++++++++++++++++
+ 1 file changed, 371 insertions(+)
+commit d1b7e2afb26ed03a1a916d2685b62146247bfc28
+vidi-agent  Sat Sep 26 05:41:37 2026 +0000
+
+    wip story 4: persistent hibernating BoardRoom (store-before-broadcast, 4500/1011 handling)
+
+
+ src/shared/protocol.ts   |  10 ++
+ src/worker/board-room.ts | 317 ++++++++++++++++++++++++++++++++++++++---------
+ 2 files changed, 267 insertions(+), 60 deletions(-)
+commit 0b4097172ce778d60dcae0e5501e0aee5243da2c
+vidi-agent  Sat Sep 26 05:30:02 2026 +0000
+
+    wip story 4: storage layer (BoardStore) with unit and integration coverage
+
+
+ src/shared/config.ts                  |  20 ++
+ src/shared/protocol.ts                |  13 +
+ src/worker/board-store.ts             | 354 +++++++++++++++++++++++
+ src/worker/room-state.ts              | 101 +++++++
+ tests/fixtures/boards.ts              |  92 ++++++
+ tests/integration/board-store.test.ts | 522 ++++++++++++++++++++++++++++++++++
+ tests/integration/helpers/bindings.ts |  10 +
+ tests/unit/board-store-chunks.test.ts |  64 +++++
+ tests/unit/room-state.test.ts         | 146 ++++++++++
+ 9 files changed, 1322 insertions(+)
 commit f76c77cebd161efc6f2abf7081a9943807e76f45
 vidi-agent  Sat Sep 26 04:03:08 2026 +0000
 
