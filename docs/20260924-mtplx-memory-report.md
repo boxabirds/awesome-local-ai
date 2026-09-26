@@ -211,6 +211,21 @@ supply while 83+ GiB is wired, and the kernel stalls before the 2-second guard a
 recorder (`~/.local/share/awesome-local-ai/memlog/`, `~/.local/bin/memlog.sh`, a LaunchAgent that
 survives reboots) will show the last seconds before the next freeze.
 
+**A compaction the machine survived, recorded** (10:02–10:08 UTC, canvas-pi-03 story 3, request log
+and the 2-second memory recorder):
+
+| Time | Request | Prompt tokens | New (not cached) | Seconds |
+|---|---|---|---|---|
+| 10:02:22 | last ordinary turn | 113,389 | 195 | 8 |
+| 10:05:06 | pi's compaction | 77,601 | 77,601 | 164 |
+| 10:07:38 | first turn after it | 34,098 | 32,664 | 152 |
+
+During the compaction prefill `kern.memorystatus_level` fell from 26% to 17–18% within about 30 s
+(10:03:32 to 10:04:36), macOS's compressor grew from 4.8 to 14.7 GiB, wired memory reached
+92.2 GiB and free pages sat at 0.1–0.5 GiB. About 10 GiB of other memory was compressed to make
+room for this one cache-miss prefill. The two freezes happened at the same point in the
+conversation. Both the compaction and the turn after it were complete cache misses.
+
 **Mitigation that keeps the context window:** the planner, run with this Mac's inputs, admits the
 full 262,144-token window at an allocation limit of 90 GiB (217,088 at 88 GiB). The 131,072-token
 window this benchmark uses is unaffected; only the session cache shrinks (steady 9.7 → 3.7 GiB,
