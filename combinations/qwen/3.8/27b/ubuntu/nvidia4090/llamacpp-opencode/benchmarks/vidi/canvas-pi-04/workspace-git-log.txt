@@ -1,3 +1,15 @@
+commit 596ba44b804c10bc799924e54e0375d3a2686bd4
+vidi-agent  Sat Sep 26 13:01:01 2026 +0100
+
+    task 2.1: board model unit tests (TC-01..TC-12) against a real Y.Doc
+
+
+ package-lock.json              |  51 +++++++-
+ package.json                   |   3 +-
+ src/shared/board-model.ts      |  92 ++++++++++++++
+ src/shared/config.ts           |  36 ++++++
+ tests/unit/board-model.test.ts | 279 +++++++++++++++++++++++++++++++++++++++++
+ 5 files changed, 459 insertions(+), 2 deletions(-)
 commit a4c31c83c17dc78ea957cb858e5bb2024118181c
 vidi-agent  Sat Sep 26 12:56:07 2026 +0100
 
