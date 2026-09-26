@@ -147,6 +147,84 @@ These two freezes are the same kind as the 2.11.3 panic in section 4, but withou
 
 The timestamps come from the harness's 2-second power collector (`tools/power-collector`) and `/usr/bin/log show`. Each run's `interventions.md` records its restarts.
 
+## 6. What the 2.12.0 source and the logs show about freeze 2 (26 Sep)
+
+Read from the 2.12.0 sdist on PyPI, quintus's request log (`~/.mtplx/logs/request-log-18010.jsonl`)
+and the server's startup record. Measured unless marked as a hypothesis.
+
+**The limits this Mac ran with** (server startup record, `metal_memory_caps` and `memory_plan`):
+
+| | GiB |
+|---|---|
+| Allocation limit (`mx.set_memory_limit`, 75% of RAM) | 96.0 |
+| Wired limit (`mx.set_wired_limit`, the model's resident floor) | 83.3 |
+| macOS GPU working-set ceiling (`max_recommended_working_set_size`; `iogpu.wired_limit_mb` is the stock 0) | 107.5 |
+| Model weights | 77.3 |
+| KV and QSA state per token | 32 KB (4 GiB at 131,072 tokens) |
+| Session cache, planned steady / idle maximum | 12.7 / 15.7 |
+| Planned headroom | 0 |
+
+The GPU ceiling is 11.5 GiB above the allocation limit, so MTPLX did not run into the GPU
+ceiling itself. Your own 2.12.0 speed measurements on the same M5 Max 128 GB raised
+`iogpu.wired_limit_mb` to 122880; this Mac runs the stock setting.
+
+**The last requests before freeze 2** (request log, UTC):
+
+| Time | Prompt tokens | New | Active + cache (GiB) | Peak (GiB) |
+|---|---|---|---|---|
+| 08:53:20 | 98,373 | 249 | 92.7 + 3.3 | 96.0 |
+| 08:55:31 | 105,375 | 859 | 92.9 + 0.4 | 96.0 |
+| 08:56:46 | 110,859 | 23 | 93.8 + 2.1 | 96.0 |
+| 08:57:29 | 114,191 | 30 | 93.9 + 2.1 | 96.0 |
+
+- The 08:57:29 request is an ordinary agent turn, not the compaction. Its 678-token answer took
+  the context to about 114,869 tokens, past pi's threshold (131,072 − 16,384 = 114,688), so the
+  next request was the compaction. That request was never logged: the machine stopped within
+  about 5 seconds of it starting (last power sample 08:57:34).
+- `peak_memory_bytes` read 96.0 GiB, the allocation limit, on every request for at least four
+  minutes before the freeze.
+- Active memory grew about 1.2 GiB over 15,800 tokens of context (98,373 to 114,191): about 75 KB
+  per token, where the plan counts 32 KB. The session cache restores each turn by `clone`, so a
+  second copy of the conversation is expected; the plan's per-token term does not appear to
+  include it.
+
+**What the guards do at that moment** (source):
+- The prefill admission shed (`_prefill_admission_shed`, issue #415) is written for this exact
+  case: a pi compaction forces a cache miss while the superseded snapshot stays resident. It
+  projects against 0.97 of the allocation limit (93.1 GiB). The process was already at 96 GiB, so
+  it would shed; whether the shed then freed enough is not in the log.
+- The planner charges no prefill transient for Flash-Next on M5 (`prefill_transient_bytes_per_token`
+  is zeroed when the sparse prefill lane is resolved), on the strength of a measured 87.4 GB peak
+  for a cold 262K prefill. That measurement starts from an idle process; the compaction prefill
+  starts from a process already at its limit, holding the previous conversation twice.
+- The in-flight system guard (issue #516) samples `kern.memorystatus_level` every 2 s once below its
+  shed floor. A freeze within about 5 s of the request starting leaves it one or two samples.
+
+**The machine around it** (2-second memory recorder started on quintus at 09:27 UTC, after the
+restart, with the run at a small context): `kern.memorystatus_level` 27–28%, 3.0–3.7 GiB of pages
+free, 87.6–88.0 GiB wired system-wide, 3.7 GiB compressed, no swap. So at an ordinary moment
+about 88 of the 128 GiB cannot be paged, and the compaction prefill adds to that.
+
+**Hypothesis, not yet measured:** the compaction's cache-miss prefill, starting at the allocation
+limit with the pre-compaction conversation still held twice, briefly needs more than macOS can
+supply while 83+ GiB is wired, and the kernel stalls before the 2-second guard acts. The memory
+recorder (`~/.local/share/awesome-local-ai/memlog/`, `~/.local/bin/memlog.sh`, a LaunchAgent that
+survives reboots) will show the last seconds before the next freeze.
+
+**Mitigation that keeps the context window:** the planner, run with this Mac's inputs, admits the
+full 262,144-token window at an allocation limit of 90 GiB (217,088 at 88 GiB). The 131,072-token
+window this benchmark uses is unaffected; only the session cache shrinks (steady 9.7 → 3.7 GiB,
+idle maximum 15.7 → 9.7 GiB), leaving about 6 GiB more for macOS:
+`MTPLX_MEMORY_LIMIT_BYTES=90G`. Not applied yet: it restarts the server, and the run records the
+limit it ran with (`mtplx_memory_limit_bytes` in `run.json`).
+
+**Questions for you:**
+1. Does the per-token plan term include the cloned restore copy? The log shows 75 KB per token of
+   growth against a planned 32 KB.
+2. Should the default allocation limit on 128 GB leave room for the compaction case, rather than
+   a planned headroom of 0?
+3. Is the zero prefill transient right when the prefill starts at the limit rather than idle?
+
 ## Data available on request
 
 - The request-log rows for every window above, as JSONL.
