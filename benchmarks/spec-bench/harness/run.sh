@@ -68,6 +68,9 @@ SPEC_BENCH_PACK_NAME="$(cd "$HARNESS" && python3 -c 'import sys, pack; print(pac
 # No --scope or --epic: the pack's default_scope (vidi: canvas), or every story when it has none.
 [[ -z "$SCOPE$EPIC" ]] && SCOPE="$(cd "$HARNESS" && python3 -c 'import sys, pack; print(pack.load(sys.argv[1]).default_scope or "")' "$PACK")"
 RUN_DIR="$COMBO_DIR/benchmarks/$SPEC_BENCH_PACK_NAME/$RUN_ID"
+# A reference stack is registered once (install-stack.sh, from benchmarks/reference/<pack>/<stack>) and runs
+# every pack: its runs go under the pack being run, benchmarks/reference/<this pack>/<stack>/<run-id>.
+[[ "$RUN_BASE" == benchmarks/reference/*/* ]] && RUN_BASE="benchmarks/reference/$SPEC_BENCH_PACK_NAME/${RUN_BASE##*/}"
 [[ -n "$RUN_BASE" ]] && RUN_DIR="$REPO_ROOT/$RUN_BASE/$RUN_ID"
 mkdir -p "$RUN_DIR"
 echo "run dir: $RUN_DIR"
