@@ -32,13 +32,13 @@ function spyRoomFetch(): { calls: string[]; restore(): void } {
 }
 
 describe('worker routing', () => {
-  it('TC-04: rejects an invalid board id with 400 and never creates an object', async () => {
+  it('TC-04: rejects an invalid board id with 404 and never creates an object', async () => {
     const spy = spyRoomFetch();
     try {
       const response = await SELF.fetch('http://worker.local/api/rooms/bad!id', {
         headers: { Upgrade: 'websocket' },
       });
-      expect(response.status).toBe(400);
+      expect(response.status).toBe(404);
       expect(spy.calls).toHaveLength(0);
     } finally {
       spy.restore();

@@ -4,6 +4,8 @@ body,
   height: 100%;
   margin: 0;
   padding: 0;
+  position: relative;
+  z-index: 0;
 }
 
 html,
@@ -345,4 +347,181 @@ body {
   color: #b3261e;
   background: #fee2e2;
   border: 1px solid #f0a8a4;
+}
+
+/* Share panel ------------------------------------------------------------ */
+
+.share-wrapper {
+  position: fixed;
+  top: 12px;
+  right: 16px;
+  z-index: 100;
+}
+
+.share-wrapper > button {
+  padding: 6px 14px;
+  background: #ffffff;
+  border: 1px solid #d6dae0;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.12);
+}
+
+.share-wrapper > button:hover {
+  background: #f2f4f6;
+}
+
+.share-panel {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  margin-top: 6px;
+  width: 320px;
+  padding: 14px;
+  background: #ffffff;
+  border: 1px solid #d6dae0;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.15);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.share-panel input[readonly] {
+  width: 100%;
+  padding: 6px 8px;
+  border: 1px solid #d6dae0;
+  border-radius: 4px;
+  font-size: 12px;
+  font-family: monospace;
+}
+
+.share-panel button {
+  padding: 6px 12px;
+  background: #1a73e8;
+  color: #ffffff;
+  border: none;
+  border-radius: 4px;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.share-panel button:hover {
+  background: #1557b0;
+}
+
+.share-panel .share-note {
+  font-size: 12px;
+  color: #6b7280;
+  margin: 0;
+}
+
+.share-panel .share-manual-msg {
+  font-size: 12px;
+  color: #92400e;
+  margin: 0;
+}
+
+/* Board page ------------------------------------------------------------- */
+
+.board-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100vh;
+  font-size: 16px;
+  color: #6b7280;
+}
+
+.home-page {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100vh;
+  gap: 12px;
+}
+
+.home-page h1 {
+  font-size: 36px;
+  margin: 0;
+}
+
+.home-page p {
+  color: #6b7280;
+  margin: 0;
+}
+
+.home-page button {
+  padding: 10px 24px;
+  background: #1a73e8;
+  color: #ffffff;
+  border: none;
+  border-radius: 6px;
+  font-size: 15px;
+  font-weight: 500;
+  cursor: pointer;
+  margin-top: 8px;
+}
+
+.home-page button:hover:not(:disabled) {
+  background: #1557b0;
+}
+
+.home-page button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.home-page .error-message {
+  color: #b91c1c;
+  font-size: 13px;
+}
+
+.not-found-page {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100vh;
+  gap: 12px;
+}
+
+.not-found-page h1 {
+  font-size: 24px;
+  margin: 0;
+}
+
+.not-found-page p {
+  color: #6b7280;
+  margin: 0;
+}
+
+.not-found-actions {
+  display: flex;
+  gap: 12px;
+  margin-top: 8px;
+}
+
+.not-found-actions button {
+  padding: 8px 16px;
+  background: #1a73e8;
+  color: #ffffff;
+  border: none;
+  border-radius: 6px;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.not-found-actions button:hover {
+  background: #1557b0;
+}
+
+.not-found-actions a {
+  color: #1a73e8;
+  text-decoration: underline;
+  display: flex;
+  align-items: center;
 }

@@ -3,7 +3,9 @@ import * as encoding from 'lib0/encoding';
 import * as decoding from 'lib0/decoding';
 import * as syncProtocol from 'y-protocols/sync';
 import { SELF } from 'cloudflare:test';
+import { env } from 'cloudflare:test';
 
+import type { Env } from '../../../src/worker/env';
 import { snapshot, type StickySnapshot } from '../../../src/shared/board-model';
 import {
   MESSAGE_SYNC,
@@ -11,6 +13,16 @@ import {
   decodeMessage,
   type Decoded,
 } from '../../../src/shared/protocol';
+
+/**
+ * Initialize a board (story 5: boards must exist before WebSocket connects).
+ * Calls the DO's RPC `initialize()` method directly.
+ */
+export async function initializeBoard(boardId: string): Promise<'created' | 'exists'> {
+  const bindings = env as unknown as Env;
+  const stub = bindings.BOARD_ROOM.get(bindings.BOARD_ROOM.idFromName(boardId));
+  return stub.initialize();
+}
 
 /**
  * Integration test client: a real `Y.Doc` speaking the y-protocols wire
@@ -196,16 +208,18 @@ export class RoomClient {
   }
 }
 
-/** Connect a fresh client and complete the initial sync. */
+/** Initialize a board and connect a fresh client, completing the initial sync. */
 export async function connectClient(boardId: string): Promise<RoomClient> {
+  await initializeBoard(boardId);
   const client = new RoomClient();
   await client.connect(boardId);
   await client.sync();
   return client;
 }
 
-/** Connect a client whose doc is a copy of `source` (concurrent-edit setups). */
+/** Initialize a board and connect a client whose doc is a copy of `source`. */
 export async function connectClientWithDoc(boardId: string, source: Y.Doc): Promise<RoomClient> {
+  await initializeBoard(boardId);
   const doc = new Y.Doc();
   Y.applyUpdate(doc, Y.encodeStateAsUpdate(source));
   const client = new RoomClient(doc);

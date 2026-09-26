@@ -68,10 +68,36 @@ export class BoardRoom extends DurableObject<Env> {
     });
   }
 
+  /**
+   * RPC: initialize a board's storage. Creates tables and sets `created_at`
+   * if absent. Returns 'exists' if the board was already initialized.
+   */
+  async initialize(): Promise<'created' | 'exists'> {
+    // Check if already initialized
+    if (this.store.existsReadOnly()) {
+      return 'exists';
+    }
+    this.store.migrate();
+    this.store.setMeta('created_at', String(Date.now()));
+    return 'created';
+  }
+
+  /**
+   * RPC: read-only check whether the board exists. Returns false for unknown
+   * ids without writing any storage.
+   */
+  async exists(): Promise<boolean> {
+    return this.store.existsReadOnly();
+  }
+
   /** WebSocket upgrade only; the Worker has already validated the board id. */
   async fetch(request: Request): Promise<Response> {
     if (request.headers.get('Upgrade')?.toLowerCase() !== 'websocket') {
       return new Response('Expected WebSocket upgrade', { status: 426 });
+    }
+    // Reject unknown boards before accepting: nothing is created by probing.
+    if (!this.store.existsReadOnly()) {
+      return new Response('Not found', { status: 404 });
     }
     this.ensureLoaded();
 
@@ -159,7 +185,6 @@ export class BoardRoom extends DurableObject<Env> {
     const doc = new Y.Doc();
     let result: LoadResult;
     try {
-      this.store.migrate();
       result = this.store.load(doc);
     } catch (error) {
       result = { ok: false, reason: 'sql-error', error: describe(error) };

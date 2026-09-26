@@ -1,3 +1,37 @@
+commit 276bcb5b1d18dcae1d6a8f44f7d82171c307cbc4
+vidi-agent  Sat Sep 26 08:23:59 2026 +0000
+
+    harness: snapshot after story 5 (uncommitted agent work)
+
+
+ index.html                             |   1 +
+ src/client/App.tsx                     | 246 +++------------------------------
+ src/client/BoardApp.tsx                | 194 ++++++++++++++++++++++++++
+ src/client/api.ts                      |  44 ++++++
+ src/client/pages/BoardPage.tsx         |  79 +++++++++++
+ src/client/pages/HomePage.tsx          |  47 +++++++
+ src/client/pages/NotFoundPage.tsx      |  43 ++++++
+ src/client/router.ts                   |  41 ++++++
+ src/client/routing.ts                  |  39 ------
+ src/client/share/SharePanel.tsx        | 136 ++++++++++++++++++
+ src/client/styles.css                  | 179 ++++++++++++++++++++++++
+ src/shared/config.ts                   |  15 ++
+ src/worker/board-room.ts               |  27 +++-
+ src/worker/board-store.ts              |  70 +++++++++-
+ src/worker/create-board.ts             |  58 ++++++++
+ src/worker/env.ts                      |   3 +
+ src/worker/index.ts                    |  94 ++++++++++++-
+ tests/component/SharePanel.test.tsx    | 160 +++++++++++++++++++++
+ tests/component/pages.test.tsx         | 162 ++++++++++++++++++++++
+ tests/e2e/helpers/live.ts              |  10 +-
+ tests/e2e/share-board.spec.ts          | 232 +++++++++++++++++++++++++++++++
+ tests/integration/board-api.test.ts    | 245 ++++++++++++++++++++++++++++++++
+ tests/integration/board-room.test.ts   |   5 +
+ tests/integration/helpers/ws-client.ts |  18 ++-
+ tests/integration/worker.test.ts       |   4 +-
+ tests/unit/create-board.test.ts        | 107 ++++++++++++++
+ wrangler.jsonc                         |  10 ++
+ 27 files changed, 1986 insertions(+), 283 deletions(-)
 commit cbf43c6bfeeb73141602813facf5bfa166e6d647
 vidi-agent  Sat Sep 26 06:58:40 2026 +0000
 

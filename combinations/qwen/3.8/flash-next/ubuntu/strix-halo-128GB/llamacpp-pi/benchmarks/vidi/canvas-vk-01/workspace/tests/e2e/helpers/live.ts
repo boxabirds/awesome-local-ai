@@ -51,12 +51,14 @@ export function watchErrors(page: Page): { errors(): string[]; reset(): void } {
   };
 }
 
-/** Load the app at `/` — which starts a board — and return the board id from the URL. */
+/** Load the app at `/`, create a board via the button, and return the board id. */
 export async function startBoard(page: Page): Promise<string> {
   await page.goto('/');
-  // The id lands in the address bar from the client (no server redirect), so
-  // wait for it instead of racing the first render.
-  await page.waitForURL(/\/b\/[A-Za-z0-9_-]{22}$/, { timeout: 10_000 });
+  await page.getByRole('button', { name: 'Create a board' }).click();
+  await page.waitForFunction(
+    () => /^\/b\/[A-Za-z0-9_-]{22}$/.test(window.location.pathname),
+    { timeout: 10_000 },
+  );
   await expect(viewportOf(page)).toBeVisible();
   await expectConnected(page);
   return boardIdOf(page);
