@@ -721,3 +721,18 @@ def test_the_nudge_cap_ends_the_story_after_the_fifth_nudge(tmp_path, monkeypatc
     res = drive.run_story_agent(None, tmp_path, {}, "m", "go", tmp_path / "ev.jsonl", on_cap=capped.append)
     assert res["nudges"] == drive.MAX_NUDGES
     assert len(capped) == 1 and "5 nudges" in capped[0]
+
+
+def test_missing_resources_stop_the_run_with_their_own_exit_code_and_reason(capsys):
+    """A machine that can't run the tests must stop the run, not score story after story against
+    nothing, and say why in a line dbench can show (run.sh's last stderr lines, the job log)."""
+    import drive
+    import gates
+    fault = f"{gates.MISSING_RESOURCES} the agent's e2e tests have no browser (browser not installed)"
+    for gate, acc in (({"harness_fault": fault}, {}), ({}, {"harness_fault": fault})):
+        with pytest.raises(SystemExit) as e:
+            drive.stop_if_missing_resources(3, gate, acc)
+        assert e.value.code == drive.EXIT_MISSING_RESOURCES
+        err = capsys.readouterr().err
+        assert err.startswith("MISSING RESOURCES") and "browser not installed" in err and "story 3" in err.lower()
+    drive.stop_if_missing_resources(3, {"all_green": False}, {"passed": 0})   # app failures carry on

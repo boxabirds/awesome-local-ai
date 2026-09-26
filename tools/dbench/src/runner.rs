@@ -23,6 +23,13 @@ const KILL_POLL: Duration = Duration::from_millis(200);
 const PULL_DETAIL_MAX_CHARS: usize = 500;
 /// Shell convention for "killed by signal N".
 const SIGNAL_EXIT_BASE: i32 = 128;
+/// The harness's exit when the machine lacks what the run needs (drive.py EXIT_MISSING_RESOURCES).
+/// A restart would hit the same wall, so the job fails at once.
+pub const EXIT_MISSING_RESOURCES: i32 = 3;
+/// The line the harness prints before that exit (drive.py stop_if_missing_resources).
+const MISSING_RESOURCES_MARK: &str = "MISSING RESOURCES";
+/// How much of the end of the job log to search for that line.
+const REASON_LOG_TAIL_BYTES: u64 = 64 * 1024;
 
 pub async fn run(st: Arc<Shared>, adopt: Vec<crate::server::Adopted>) {
     for (id, pgid) in adopt {
@@ -385,6 +392,11 @@ async fn run_one(st: &Arc<Shared>, id: &str) -> bool {
     stop_leftovers(st, id, &seen).await;
 
     let max = st.cfg.max_restarts;
+    let missing = (code == EXIT_MISSING_RESOURCES).then(|| {
+        let tail = log_tail(&st.log_path(id), REASON_LOG_TAIL_BYTES);
+        missing_resources_reason(&tail)
+            .unwrap_or_else(|| "the harness gave no reason; see the job log".into())
+    });
     let mut requeued = false;
     let job = st.update(id, |j, inner| {
         let now = now_secs();
@@ -392,6 +404,13 @@ async fn run_one(st: &Arc<Shared>, id: &str) -> bool {
             j.state = JobState::Cancelled;
         } else if code == 0 {
             j.state = JobState::Done { exit_code: 0 };
+        } else if let Some(why) = &missing {
+            let reason = format!("missing resources: {why}");
+            j.note(now, format!("{reason}; not restarting"));
+            j.state = JobState::Failed {
+                reason,
+                exit_code: Some(code),
+            };
         } else if j.attempt > max {
             let reason = format!(
                 "harness exited {code} on attempt {}; all {max} restarts used",
@@ -425,4 +444,42 @@ async fn run_one(st: &Arc<Shared>, id: &str) -> bool {
         st.log_line(id, &format!("harness exited {code}; job {label}"));
     }
     requeued
+}
+
+/// The last `len` bytes of a file, lossily decoded; empty if it can't be read.
+fn log_tail(path: &std::path::Path, len: u64) -> String {
+    use std::io::{Read, Seek, SeekFrom};
+    let Ok(mut f) = std::fs::File::open(path) else {
+        return String::new();
+    };
+    let size = f.metadata().map(|m| m.len()).unwrap_or(0);
+    let _ = f.seek(SeekFrom::Start(size.saturating_sub(len)));
+    let mut buf = Vec::new();
+    let _ = f.read_to_end(&mut buf);
+    String::from_utf8_lossy(&buf).into_owned()
+}
+
+/// What the harness said was missing: its last MISSING RESOURCES line, without the marker.
+pub fn missing_resources_reason(log: &str) -> Option<String> {
+    let line = log
+        .lines()
+        .rev()
+        .find(|l| l.contains(MISSING_RESOURCES_MARK))?;
+    let rest = &line[line.find(MISSING_RESOURCES_MARK)? + MISSING_RESOURCES_MARK.len()..];
+    Some(rest.trim_start_matches([' ', ':']).trim().to_string())
+}
+
+#[cfg(test)]
+mod missing_resources_tests {
+    use super::missing_resources_reason;
+
+    #[test]
+    fn takes_the_last_marked_line() {
+        let log = "MISSING RESOURCES: old\n[story 3] gates\nMISSING RESOURCES: no browser. Story 3 scores are void.\nexit 3: noise\n";
+        assert_eq!(
+            missing_resources_reason(log).as_deref(),
+            Some("no browser. Story 3 scores are void.")
+        );
+        assert_eq!(missing_resources_reason("exit 3\n"), None);
+    }
 }

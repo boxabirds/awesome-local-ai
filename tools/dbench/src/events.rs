@@ -303,14 +303,28 @@ RuntimeError: boom
             parse_line("[story 4] DONE gate green=True accept 4/4 stalled=False"),
             Some((
                 Some(4),
-                EventKind::Scored { green: Some(true), passed: 4, total: 4, stalled: Some(false), degraded: false }
+                EventKind::Scored {
+                    green: Some(true),
+                    passed: 4,
+                    total: 4,
+                    stalled: Some(false),
+                    degraded: false
+                }
             ))
         );
         assert_eq!(
-            parse_line("[story 6] PARTIAL verdict incomplete gate green=False accept 2/9 stalled=False"),
+            parse_line(
+                "[story 6] PARTIAL verdict incomplete gate green=False accept 2/9 stalled=False"
+            ),
             Some((
                 Some(6),
-                EventKind::Scored { green: Some(false), passed: 2, total: 9, stalled: Some(false), degraded: false }
+                EventKind::Scored {
+                    green: Some(false),
+                    passed: 2,
+                    total: 9,
+                    stalled: Some(false),
+                    degraded: false
+                }
             ))
         );
         for noise in [
