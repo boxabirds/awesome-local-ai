@@ -20,6 +20,29 @@ export const MESSAGE_AWARENESS = 1;
 export const MESSAGE_QUERY_AWARENESS = 3;
 /** WebSocket close code sent for non-binary or undecodable traffic. */
 export const CLOSE_UNSUPPORTED_DATA = 1003;
+/**
+ * Close code for a board whose saved state could not be loaded (story 4,
+ * PRD persist.load_failure). The client shows a red message and locks editing
+ * instead of presenting a misleading empty board, and keeps retrying.
+ */
+export const CLOSE_BOARD_LOAD_FAILED = 4500;
+/**
+ * Close code sent when the room cannot write to storage (story 4, PRD
+ * persist.save_failure). The board itself is readable and clients re-send what
+ * the room lacks on reconnect, so this maps to "Reconnecting…", not to a
+ * load failure. 1011 is the protocol's own "internal error" code.
+ */
+export const CLOSE_STORAGE_FAILURE = 1011;
+
+/**
+ * Whether a close code received from a peer may be echoed back with
+ * `WebSocket.close()`. 1005 ("no status received") and 1006 ("connection ended
+ * without a closing handshake") report what happened and are rejected as
+ * arguments, so a status-less close is answered with a normal 1000.
+ */
+export function isEchoableCloseCode(code: number): boolean {
+  return code === 1000 || (code >= 3000 && code <= 4999);
+}
 
 export type Decoded =
   /** `payload` starts at the y-protocols sync sub-type byte. */

@@ -9,7 +9,7 @@ import { canZoomIn, canZoomOut, zoomPercent } from './canvas/camera';
 import { CameraProvider, useCameraApi } from './canvas/useCamera';
 import { BoardDocProvider, useBoardDoc } from './board/useBoardDoc';
 import { useSelection } from './board/useSelection';
-import { ConnectionStatus } from './sync/ConnectionStatus';
+import { canEdit, ConnectionStatus } from './sync/ConnectionStatus';
 import { boardIdFromPathname, resolveBoardId } from './routing';
 import { Toolbar } from './board/Toolbar';
 import { StickyNote } from './objects/StickyNote';
@@ -46,9 +46,22 @@ export function ConnectionBadge() {
  * All sharing one doc and one selection state.
  */
 function BoardContent() {
-  const { doc, notes } = useBoardDoc();
+  const { doc, notes, connection } = useBoardDoc();
   const { selectedId, editingId, select, startEdit, endEdit, pruneTo } = useSelection();
   const { camera } = useCameraApi();
+
+  // A board that could not be loaded is not editable (persist.load_failure):
+  // every mutation below becomes a no-op, and the Sticky note button is
+  // disabled. Nothing is buffered or pretended — the room is retried by the
+  // provider and editing returns when a sync succeeds.
+  const editable = canEdit(connection);
+
+  useEffect(() => {
+    // An editor open when the board locks must close: a textarea the user
+    // types into while their notes are unreachable is worse than an editor
+    // that closes on its own.
+    if (!editable && editingId !== null) endEdit('unselected');
+  }, [editable, editingId, endEdit]);
 
   // Someone else may delete the note I have selected or am typing in: drop
   // the stale ids so no editor is left pointing at a deleted note.
@@ -58,15 +71,17 @@ function BoardContent() {
   }, [visibleIds, pruneTo]);
 
   const handleDblClickEmpty = useCallback((worldPoint: Point) => {
+    if (!editable) return;
     const id = createSticky(doc, worldPoint);
     startEdit(id);
-  }, [doc, startEdit]);
+  }, [doc, startEdit, editable]);
 
   const handleEmptyClick = useCallback(() => {
     select(null);
   }, [select]);
 
   const handleCreateSticky = useCallback(() => {
+    if (!editable) return;
     const viewportEl = document.querySelector('[data-testid="board-viewport"]') as HTMLElement | null;
     if (!viewportEl) return;
     const rect = viewportEl.getBoundingClientRect();
@@ -74,16 +89,18 @@ function BoardContent() {
     const worldCenter = screenToWorld(camera, screenCenter);
     const id = createSticky(doc, worldCenter);
     startEdit(id);
-  }, [doc, camera, startEdit]);
+  }, [doc, camera, startEdit, editable]);
 
   const handleColorChange = useCallback((id: string, color: string) => {
+    if (!editable) return;
     setStickyColor(doc, id, color);
-  }, [doc]);
+  }, [doc, editable]);
 
   const handleDelete = useCallback((id: string) => {
+    if (!editable) return;
     deleteObject(doc, id);
     select(null);
-  }, [doc, select]);
+  }, [doc, select, editable]);
 
   // Keyboard handlers for Delete/Backspace and Enter on selected notes
   useEffect(() => {
@@ -93,6 +110,9 @@ function BoardContent() {
       if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable)) {
         return;
       }
+
+      // A board that failed to load takes no keyboard edits either.
+      if (!editable) return;
 
       // Enter: start editing the selected note
       if (event.key === 'Enter' && selectedId && editingId === null) {
@@ -112,7 +132,7 @@ function BoardContent() {
 
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [selectedId, editingId, doc, startEdit, select]);
+  }, [selectedId, editingId, doc, startEdit, select, editable]);
 
   // Render in a stable order. Stacking comes from each note's z-index style, so
   // ordering the list by z as well would move DOM nodes in the middle of a drag
@@ -127,7 +147,7 @@ function BoardContent() {
 
   return (
     <>
-      <Toolbar onCreateSticky={handleCreateSticky} />
+      <Toolbar onCreateSticky={handleCreateSticky} editable={editable} />
       <BoardViewport
         onDblClickEmpty={handleDblClickEmpty}
         onEmptyClick={handleEmptyClick}
@@ -140,6 +160,7 @@ function BoardContent() {
             zoom={camera.zoom}
             selected={selectedId === note.id}
             editing={editingId === note.id}
+            editable={editable}
             onSelect={select}
             onStartEdit={startEdit}
             onEndEdit={endEdit}
