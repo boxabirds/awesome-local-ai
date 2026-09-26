@@ -15078,6 +15078,15 @@
           "fixed": [],
           "regressed": []
         }
+      },
+      "record": {
+        "committed": true,
+        "pushed": true,
+        "over_size_limit": [
+          "~/expts/awesome-local-ai/combinations/qwen/3.8/flash-next/macos/128GB/mtplx-opencode/benchmarks/vidi/canvas-pi-02/metrics.json",
+          "~/expts/awesome-local-ai/combinations/qwen/3.8/flash-next/macos/128GB/mtplx-opencode/benchmarks/vidi/canvas-pi-02/server.log"
+        ],
+        "commit": "7aead30"
       }
     }
   },
