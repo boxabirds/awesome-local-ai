@@ -513,6 +513,75 @@ def commits_since(ws: Path, head: str) -> int:
     return int(sh(["git", "rev-list", "--count", f"{head}..HEAD"], ws).strip())
 
 
+def stamp(line: str, t: float) -> str:
+    """An agent event line with its arrival time added as "_rx" (pi times no tool runs itself).
+    A string splice, not a re-dump: most lines are large stream deltas."""
+    if not line.startswith("{"):
+        return line
+    body = line[1:].lstrip()
+    return f'{{"_rx":{t:.3f}' + ("" if body.startswith("}") else ",") + body
+
+
+# What a tool call was for, from its command: the first match wins.
+TOOL_KINDS = [("e2e", re.compile(r"playwright|test:e2e")),
+              ("unit", re.compile(r"vitest|test:unit|test:component|test:integration|npm (run )?test")),
+              ("build", re.compile(r"npm (ci|install|i\b)|npm run build|vite build|\btsc\b|typecheck"))]
+
+
+def _tool_kind(e: dict) -> str:
+    if e.get("toolName") != "bash":
+        return e.get("toolName") or "other"
+    cmd = (e.get("args") or {}).get("command", "")
+    return next((k for k, rx in TOOL_KINDS if rx.search(cmd)), "bash")
+
+
+def _stamped_events(events: Path):
+    """The stamped events of a log, streamed (a story's log runs to hundreds of MB), deltas skipped."""
+    try:
+        f = events.open(errors="replace")
+    except OSError:
+        return
+    with f:
+        for line in f:
+            if line.startswith('{"_rx"') and not any(f'"type":"{d}"' in line[:60] for d in STREAM_DELTA_EVENTS):
+                e = json.loads(line)
+                if isinstance(e, dict):
+                    yield e
+
+
+def time_split(events: Path, server_log: Path, t_from: float, t_to: float) -> dict:
+    """Where a story's wall time went: the model (prefill, decode: from llama-server's log), tools
+    (by kind), compaction, and the rest (the agent's own overhead, gaps). From "_rx" stamps."""
+    import llama_log
+    starts: dict[str, dict] = {}
+    tools: dict[str, float] = {}
+    comp, comp_open = [], None
+    for e in _stamped_events(events):
+        kind, t = e.get("type"), e["_rx"]
+        if kind == "tool_execution_start":
+            starts[e.get("toolCallId")] = e
+        elif kind == "tool_execution_end" and (st := starts.pop(e.get("toolCallId"), None)):
+            k = _tool_kind(st)
+            tools[k] = tools.get(k, 0.0) + t - st["_rx"]
+        elif kind == "compaction_start":
+            comp_open = t
+        elif kind == "compaction_end" and comp_open is not None:
+            comp.append((comp_open, t))
+            comp_open = None
+    reqs = llama_log.parse(server_log.read_text(errors="replace")) if server_log.exists() else []
+    # A compaction's own model call is counted in compaction, not twice.
+    reqs = [r for r in reqs if not any(a <= r["end"] <= b for a, b in comp)]
+    model = llama_log.summarise(reqs, t_from, t_to) if reqs else None
+    wall = t_to - t_from
+    tools_s = sum(tools.values())
+    comp_s = sum(b - a for a, b in comp)
+    model_s = (model["prefill_s"] + model["decode_s"]) if model else 0.0
+    return {"wall_s": round(wall, 1), "model": model, "tools_s": round(tools_s, 1),
+            "tools_by_kind": {k: round(v, 1) for k, v in sorted(tools.items(), key=lambda x: -x[1])},
+            "compaction_s": round(comp_s, 1), "compactions": len(comp),
+            "other_s": round(wall - tools_s - comp_s - model_s, 1)}
+
+
 def run_agent(client, ws: Path, env: dict, model_id: str, prompt: str, events_path: Path,
               resume_from: str | None = None, fork: bool = True) -> dict:
     """Run (or resume) one sandboxed agent session; returns counts, session id, error and loop flag."""
@@ -528,7 +597,7 @@ def run_agent(client, ws: Path, env: dict, model_id: str, prompt: str, events_pa
     stalled = False
     with events_path.open("a") as ev:
         for line in proc.stdout:  # type: ignore[union-attr]
-            ev.write(line)
+            ev.write(stamp(line, time.time()))
             ev.flush()
             try:
                 e = json.loads(line)
@@ -788,6 +857,7 @@ class ConditionSampler(threading.Thread):
         self.ws = ws
         self.swap_start = swap_used_gb()
         self.swap_max = self.swap_start
+        self.gpu: list[dict] = []
         self.aborted = threading.Event()
         self.aborted_memory = False
         self.free_min_pct: float | None = None
@@ -801,6 +871,8 @@ class ConditionSampler(threading.Thread):
                 self.bad.append({**c, "t": time.time()})
             swap = swap_used_gb()
             self.swap_max = max(self.swap_max, swap)
+            if (g := hostenv.gpu_sample()):
+                self.gpu.append(g)
             fp, fp_peak = server_footprint_gb(self.server_port)
             if fp is not None:
                 self.footprint_max = max(self.footprint_max or 0.0, fp)
@@ -831,7 +903,8 @@ class ConditionSampler(threading.Thread):
                 "swap_max_gb": round(self.swap_max, 2),
                 "aborted_swap": self.aborted.is_set() and not self.aborted_memory,
                 "aborted_memory": self.aborted_memory, "free_min_pct": self.free_min_pct,
-                "server_footprint_max_gb": self.footprint_max, "server_footprint_peak_gb": self.footprint_peak}
+                "server_footprint_max_gb": self.footprint_max, "server_footprint_peak_gb": self.footprint_peak,
+                "gpu": hostenv.summarise_gpu(self.gpu)}
 
 
 def summarise_conditions(samples: int, bad: list[dict]) -> dict:
@@ -1161,6 +1234,8 @@ def main() -> None:
             sh(["git", "commit", "-qm", f"harness: snapshot after story {sid} (uncommitted agent work)"], ws, GIT_IDENTITY)
         rec["commit"] = sh(["git", "rev-parse", "HEAD"], ws).strip()
         rec["requests"] = server_stats(a.server_log, rec["started"], rec["agent_finished"])
+        rec["time_split"] = time_split(sdir / "agent-events.jsonl", run / "server.log", rec["started"],
+                                       rec["agent_finished"])
         rec["loc"] = loc(ws)
         mirror(ws, run / "workspace")
         rec["finished"] = time.time()

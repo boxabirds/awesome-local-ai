@@ -736,3 +736,37 @@ def test_missing_resources_stop_the_run_with_their_own_exit_code_and_reason(caps
         err = capsys.readouterr().err
         assert err.startswith("MISSING RESOURCES") and "browser not installed" in err and "story 3" in err.lower()
     drive.stop_if_missing_resources(3, {"all_green": False}, {"passed": 0})   # app failures carry on
+
+
+def test_each_agent_event_is_stamped_with_its_arrival_time():
+    """pi's events carry no times of their own for tool runs; the harness stamps them as they arrive."""
+    import drive
+    line = '{"type":"tool_execution_start","toolCallId":"a"}\n'
+    stamped = json.loads(drive.stamp(line, 1790390000.25))
+    assert stamped["_rx"] == 1790390000.25 and stamped["toolCallId"] == "a"
+    assert drive.stamp("not json\n", 1.0) == "not json\n"
+    assert json.loads(drive.stamp("{}\n", 1.0)) == {"_rx": 1.0}
+
+
+def test_time_split_puts_the_story_s_wall_time_into_model_tools_and_compaction(tmp_path):
+    import drive
+    import llama_log
+    t0 = 1790390000.0
+    ev = [{"type": "tool_execution_start", "toolCallId": "a", "toolName": "bash", "args": {"command": "npx playwright test"}, "_rx": t0 + 10},
+          {"type": "tool_execution_end", "toolCallId": "a", "toolName": "bash", "_rx": t0 + 70},
+          {"type": "tool_execution_start", "toolCallId": "b", "toolName": "read", "_rx": t0 + 80},
+          {"type": "tool_execution_end", "toolCallId": "b", "toolName": "read", "_rx": t0 + 81},
+          {"type": "compaction_start", "_rx": t0 + 100},
+          {"type": "compaction_end", "_rx": t0 + 400}]
+    events = tmp_path / "agent-events.jsonl"
+    events.write_text("".join(drive.stamp(json.dumps({k: v for k, v in e.items() if k != "_rx"}) + "\n", e["_rx"])
+                              for e in ev))
+    log = tmp_path / "server.log"
+    log.write_text(llama_log.start_marker(t0) +
+                   "0.09.000.000 I slot print_timing: id  0 | task 0 | prompt eval time =  4000.00 ms /  1000 tokens (x)\n"
+                   "0.09.000.001 I slot print_timing: id  0 | task 0 |        eval time =  5000.00 ms /   150 tokens (x)\n")
+    s = drive.time_split(events, log, t0, t0 + 500)
+    assert s["wall_s"] == 500 and s["tools_s"] == 61 and s["compaction_s"] == 300
+    assert s["tools_by_kind"]["e2e"] == 60 and s["model"]["prefill_s"] == 4.0 and s["model"]["decode_s"] == 5.0
+    assert s["other_s"] == 500 - 61 - 300 - 9.0
+    assert drive.time_split(tmp_path / "none.jsonl", tmp_path / "none.log", t0, t0 + 1)["model"] is None
