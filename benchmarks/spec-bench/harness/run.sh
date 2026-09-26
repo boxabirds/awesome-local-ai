@@ -176,7 +176,7 @@ HOST_DESC="$(host_desc)"
 
 # Which bench this run belongs to: results only compare within one version (see the private repo README).
 PACK_DIR="$(python3 "$HARNESS/packdir.py" --pack "$PACK")"
-PACK_VERSION="$(git -C "$PACK_DIR" describe --tags --always --dirty 2>/dev/null || echo "in-repo@$(git -C "$REPO_ROOT" rev-parse --short HEAD)")"
+PACK_VERSION="$("$HARNESS/pack-version.sh" "$PACK_DIR" "$SPEC_BENCH_PACK_NAME")"  # this pack's own tag, e.g. vidi-v1
 
 SERVER_LOG=""
 [[ "$BACKEND" == mtplx ]] && SERVER_LOG="$HOME/.mtplx/logs/request-log-$BENCH_PORT.jsonl"
