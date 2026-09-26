@@ -1,6 +1,6 @@
 {
-  "state": "stopped",
-  "reason": "exit 143:",
-  "at": "2026-09-26T04:15:52Z",
+  "state": "started",
+  "reason": "harness f2fce62, client pi, model qwen3.8-flash-next",
+  "at": "2026-09-26T04:17:44Z",
   "host": "tritus"
 }
