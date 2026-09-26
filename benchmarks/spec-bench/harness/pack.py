@@ -14,8 +14,9 @@ acceptance/ and GRADING.md may live apart from a public spec, in the private rep
 packs/<name>/ (todoodle), so the held-out parts stay private.
 
 bench.json (all keys optional): name, app_line and rules (for the generic template), gate (the
-npm scripts every story must pass), default_scope, pack_ref (the private repo tag setup-node.sh
-pins). A pack with none of these still runs, as a plain spec.
+scripts every story must pass, run with the workspace's package manager), default_scope, pack_ref
+(the private repo tag setup-node.sh pins), tools (commands its builds need beyond node, e.g. bun,
+checked by setup-node.sh). A pack with none of these still runs, as a plain spec.
 """
 from __future__ import annotations
 

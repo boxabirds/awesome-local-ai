@@ -148,3 +148,36 @@ esac''')
     monkeypatch.setattr(gates.os, "environ", env)
     res = gates.gate(ws, ["test:e2e"])
     assert "harness_fault" not in res, res.get("harness_fault")
+
+
+def test_a_bun_workspace_is_installed_and_gated_with_bun(tmp_path, monkeypatch):
+    # Todoodle's spec is a bun workspace (`workspace:` dependencies npm can't install): the gate must
+    # use the workspace's own package manager, or every build shows red for a tooling reason.
+    ran = []
+    monkeypatch.setattr(gates, "_run", lambda cmd, cwd, timeout, env=None: ran.append(cmd) or {"exit": 0, "tail": ""})
+    ws = tmp_path / "ws"
+    ws.mkdir()
+    (ws / "package.json").write_text('{"scripts": {"build": "x", "test:e2e": "x"}, "packageManager": "bun@1.2.0"}')
+    gates.gate(ws, ["build", "test:e2e"])
+    assert ran[0] == ["bun", "install"]
+    assert ["bun", "run", "build"] in ran
+    assert ["bun", "run", "test:e2e", "--project=chromium"] in ran
+
+
+def test_an_npm_workspace_is_unchanged(tmp_path, monkeypatch):
+    ran = []
+    monkeypatch.setattr(gates, "_run", lambda cmd, cwd, timeout, env=None: ran.append(cmd) or {"exit": 0, "tail": ""})
+    ws = tmp_path / "ws"
+    ws.mkdir()
+    (ws / "package.json").write_text('{"scripts": {"build": "x"}}')
+    (ws / "package-lock.json").write_text("{}")
+    gates.gate(ws, ["build"])
+    assert ran[0] == ["npm", "ci"] and ["npm", "run", "build"] in ran
+
+
+def test_a_bun_lockfile_alone_marks_a_bun_workspace(tmp_path):
+    ws = tmp_path / "ws"
+    ws.mkdir()
+    (ws / "package.json").write_text("{}")
+    (ws / "bun.lock").write_text("")
+    assert gates.package_manager(ws) == "bun"
