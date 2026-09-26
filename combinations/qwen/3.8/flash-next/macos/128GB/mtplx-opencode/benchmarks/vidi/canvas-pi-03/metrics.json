@@ -3054,6 +3054,12 @@
         },
         "heldout_floor": 0.0,
         "heldout_ok": true
+      },
+      "record": {
+        "committed": true,
+        "pushed": true,
+        "over_size_limit": [],
+        "commit": "bb1f62a"
       }
     }
   },
