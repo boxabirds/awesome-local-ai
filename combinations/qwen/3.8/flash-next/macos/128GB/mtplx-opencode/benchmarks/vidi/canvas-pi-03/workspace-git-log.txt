@@ -1,3 +1,43 @@
+commit ad755cdaa766bf3d74c8ed3362983fa4d1322b3a
+vidi-agent  Sat Sep 26 17:10:59 2026 +0100
+
+    harness: snapshot after story 4 (uncommitted agent work)
+
+
+ playwright.config.ts                          |   5 +
+ scripts/debug-close.mjs                       |  59 ++++
+ scripts/debug-fail.mjs                        |  44 +++
+ scripts/debug-persist.mjs                     |  37 +++
+ src/client/App.tsx                            |  13 +-
+ src/client/board/Toolbar.tsx                  |   8 +-
+ src/client/objects/NoteToolbar.tsx            |   7 +-
+ src/client/objects/StickyNote.tsx             |   9 +-
+ src/client/sync/ConnectionStatus.tsx          |  11 +-
+ src/client/sync/connectBoard.ts               |  63 +++-
+ src/shared/config.ts                          |  19 ++
+ src/shared/protocol.ts                        |  12 +
+ src/worker/board-room.ts                      | 418 +++++++++++++++++++++-----
+ src/worker/board-store.ts                     | 391 ++++++++++++++++++++++++
+ src/worker/index.ts                           |  69 +++--
+ src/worker/room-state.ts                      | 115 +++++++
+ src/worker/test-hooks.ts                      | 123 ++++++++
+ tests/component/ConnectionStatus.test.tsx     |  91 +++++-
+ tests/e2e/helpers/local-worker.ts             |  93 ++++++
+ tests/e2e/production-hooks.spec.ts            |  71 +++++
+ tests/fixtures/boards.ts                      | 138 +++++++++
+ tests/integration/global-setup.ts             |   2 +-
+ tests/integration/helpers/hooks.ts            | 122 ++++++++
+ tests/integration/helpers/server.ts           | 113 ++++++-
+ tests/integration/helpers/ws-client.ts        |   4 +-
+ tests/integration/persistence-restart.test.ts | 113 +++++++
+ tests/integration/persistence.test.ts         | 185 ++++++++++++
+ tests/unit/board-store.test.ts                |  64 ++++
+ tests/unit/room-state.test.ts                 | 117 +++++++
+ tests/workers/board-store.test.ts             | 214 +++++++++++++
+ tests/workers/main.ts                         | 119 ++++++++
+ tests/workers/wrangler.jsonc                  |  15 +
+ vitest.config.ts                              |  15 +-
+ 33 files changed, 2752 insertions(+), 127 deletions(-)
 commit 576842899af113c3a866787478d62a547999b943
 vidi-agent  Sat Sep 26 13:08:42 2026 +0100
 
