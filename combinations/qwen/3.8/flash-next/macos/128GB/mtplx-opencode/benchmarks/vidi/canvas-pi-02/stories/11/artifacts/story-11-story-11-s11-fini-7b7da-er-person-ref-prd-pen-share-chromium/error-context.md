@@ -1,0 +1,68 @@
+# Page snapshot
+
+```yaml
+- generic [ref=e3]:
+  - banner [ref=e4]:
+    - button "Share" [ref=e6] [cursor=pointer]
+  - generic [ref=e7]:
+    - generic [ref=e8]:
+      - generic:
+        - generic:
+          - img
+      - generic:
+        - img
+    - button "Resize top-left" [ref=e9] [cursor=pointer]
+    - button "Resize top" [ref=e10] [cursor=pointer]
+    - button "Resize top-right" [ref=e11] [cursor=pointer]
+    - button "Resize right" [ref=e12] [cursor=pointer]
+    - button "Resize bottom-right" [ref=e13] [cursor=pointer]
+    - button "Resize bottom" [ref=e14] [cursor=pointer]
+    - button "Resize bottom-left" [ref=e15] [cursor=pointer]
+    - button "Resize left" [ref=e16] [cursor=pointer]
+    - generic [ref=e17]:
+      - generic [ref=e19]:
+        - img "Curious Otter, you" [ref=e20]: C
+        - img "Curious Otter 2" [ref=e21]: C
+      - generic [ref=e22]:
+        - generic [ref=e23]: Curious Otter
+        - button "Rename" [ref=e24]
+    - generic [ref=e25]:
+      - button "Select (V)" [ref=e26] [cursor=pointer]:
+        - img [ref=e27]
+      - button "Text (T)" [ref=e29] [cursor=pointer]:
+        - img [ref=e30]:
+          - generic [ref=e31]: T
+      - button "Shape (S)" [ref=e32] [cursor=pointer]:
+        - img [ref=e33]
+      - button "Connector (L)" [ref=e35] [cursor=pointer]:
+        - img [ref=e36]
+      - button "Pen (P)" [pressed] [ref=e39] [cursor=pointer]:
+        - img [ref=e40]
+      - group "Pen options" [ref=e42]:
+        - group "Pen colour" [ref=e43]:
+          - button "Pen colour black" [pressed] [ref=e44]
+          - button "Pen colour blue" [ref=e45]
+          - button "Pen colour red" [ref=e46]
+          - button "Pen colour green" [ref=e47]
+          - button "Pen colour orange" [ref=e48]
+          - button "Pen colour purple" [ref=e49]
+        - group "Pen thickness" [ref=e50]:
+          - button "Pen thickness thin" [ref=e51]:
+            - img [ref=e52]
+          - button "Pen thickness medium" [pressed] [ref=e53]:
+            - img [ref=e54]
+          - button "Pen thickness thick" [ref=e55]:
+            - img [ref=e56]
+      - button "Sticky note" [ref=e57] [cursor=pointer]:
+        - img [ref=e58]
+      - button "Undo" [ref=e61] [cursor=pointer]:
+        - img [ref=e62]
+      - button "Redo" [disabled] [ref=e65] [cursor=pointer]:
+        - img [ref=e66]
+  - generic [ref=e69]:
+    - button "Zoom out" [ref=e70] [cursor=pointer]: −
+    - status [ref=e71]: 100%
+    - button "Zoom in" [ref=e72] [cursor=pointer]: +
+    - button "Reset view" [ref=e73] [cursor=pointer]
+  - generic: Drag to move around · Ctrl/Cmd + scroll or pinch to zoom
+```

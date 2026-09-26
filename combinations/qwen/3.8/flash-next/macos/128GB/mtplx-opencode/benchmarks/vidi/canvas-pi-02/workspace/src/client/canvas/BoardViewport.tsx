@@ -24,9 +24,14 @@ import type { MarqueeApi } from '../board/Marquee';
 export interface BoardViewportProps {
   children?: ReactNode;
   /** Active tool (stories 9, 10). */
-  tool?: 'select' | 'text' | 'shape' | 'connector';
+  tool?: 'select' | 'text' | 'shape' | 'connector' | 'pen';
   /** A press and release on empty surface with no pan in between. */
   onSurfaceClick?(point: Point): void;
+  /**
+   * A press on empty surface, asked before the viewport decides to pan. Return
+   * true to claim it: the board then does not move, and no surface click follows.
+   */
+  onSurfacePointerDown?(point: Point, event: PointerEvent): boolean;
   /** A double-click on empty surface, in world coordinates. */
   onSurfaceDoubleClick?(point: Point): void;
   /** Marquee state (story 7); shift+drag starts it instead of panning. */
@@ -83,8 +88,15 @@ export function BoardViewport(props: BoardViewportProps) {
 
       // While a creation tool is active: no panning, no marquee.
       // Click will be handled in onPointerUp as surface click.
-      if (toolRef.current === 'text' || toolRef.current === 'shape' || toolRef.current === 'connector') {
-        // Don't start panning or marquee when text tool is active.
+      if (
+        toolRef.current === 'text' ||
+        toolRef.current === 'shape' ||
+        toolRef.current === 'connector' ||
+        toolRef.current === 'pen'
+      ) {
+        // A creation tool owns the pointer: no panning and no marquee under it.
+        // The pen needs this most: its drag is long, it starts on the surface, and
+        // a board that decided half of it was a pan would draw nothing at all.
         try {
           el.setPointerCapture(event.pointerId);
         } catch {
@@ -115,6 +127,20 @@ export function BoardViewport(props: BoardViewportProps) {
         propsRef.current.marqueeRef.current.begin(local);
         event.preventDefault();
         return;
+      }
+
+      // A press on the ink of a stroke that is already selected moves the stroke
+      // instead of the board under it. Anything else that starts here stays a
+      // pan: the line is thin, and most of what touches it means panning.
+      if (toolRef.current === 'select') {
+        const worldUnderPress = screenToWorld(apiRef.current.camera, local);
+        if (propsRef.current.onSurfacePointerDown?.(worldUnderPress, event) === true) {
+          panningRef.current = false;
+          marqueeActiveRef.current = false;
+          movedRef.current = true; // a move is not a click: no surface click follows
+          event.preventDefault();
+          return;
+        }
       }
 
       panningRef.current = true;
@@ -271,7 +297,7 @@ export function BoardViewport(props: BoardViewportProps) {
   const halfMarker = ORIGIN_MARKER_SIZE_PX / 2;
   const halfSpacing = spacingPx / 2;
 
-  const cursorStyle = (props.tool === 'text' || props.tool === 'shape' || props.tool === 'connector') ? 'crosshair' : undefined;
+  const cursorStyle = (props.tool === 'text' || props.tool === 'shape' || props.tool === 'connector' || props.tool === 'pen') ? 'crosshair' : undefined;
 
   return (
     <div

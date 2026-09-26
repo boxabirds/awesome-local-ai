@@ -13,8 +13,9 @@ Model `mtplx-flash-next-optimized-speed`, scope `canvas`, effort `low`, client p
 | 8 | Undo and redo my own changes without undoing anyone else's | PARTIAL (amber), on partial 5, 7 | 112.0 | 293 | 19348542 | 260709 | 1.4 | 56.7 | green | 47/51 |  | 1 / 5 | 5 | 120382 | throttled 92%, server peak 112 GB |
 | 9 | Write free text anywhere on the board | DONE, on partial 5, 7, 8 | 61.3 | 399 | 26227708 | 162154 | 1.1 | 68.6 | green | 53/57 |  | 0 / 1 | 3 | 115031 | throttled 95%, server peak 113 GB |
 | 10 | Draw shapes and connect them with arrows that follow when moved | DONE, on partial 5, 7, 8 | 25.0 | 161 | 10336834 | 75693 | 1.1 | 70.2 | red | 59/65 |  | 0 / 0 | 1 | 114711 | throttled 94%, server peak 113 GB |
+| 11 | Sketch freehand with a pen | DONE, on partial 5, 7, 8 | 96.0 | 92 | 6511067 | 60133 | 1.5 | 49.7 | red | 60/70 |  | 0 / 0 | 4 | 114091 | throttled 97%, server peak 110 GB |
 
-**Totals:** 9 stories, 1074 agent-minutes, 3321 requests, 230,233,940 prompt / 2,290,738 completion tokens, gate green 8/9, final acceptance 59/65, stalled 0, partial 3, 29926 lines in src+tests.
+**Totals:** 10 stories, 1170 agent-minutes, 3413 requests, 236,745,007 prompt / 2,350,871 completion tokens, gate green 8/10, final acceptance 60/70, stalled 0, partial 3, 34034 lines in src+tests.
 
 ### Stories ended early (PARTIAL) and what was built on them
 
@@ -25,6 +26,7 @@ Model `mtplx-flash-next-optimized-speed`, scope `canvas`, effort `low`, client p
 - Story 8, built on partial 5, 7: held-out tests on the partial base 18/20; partial story's tests fixed 0, regressed 0; 0 stub-like lines added to src/.
 - Story 9, built on partial 5, 7, 8: held-out tests on the partial base 24/26; partial story's tests fixed 1, regressed 0; 0 stub-like lines added to src/.
 - Story 10, built on partial 5, 7, 8: held-out tests on the partial base 30/34; partial story's tests fixed 1, regressed 0; 0 stub-like lines added to src/.
+- Story 11, built on partial 5, 7, 8: held-out tests on the partial base 31/39; partial story's tests fixed 1, regressed 0; 0 stub-like lines added to src/.
 
 > Stories 4 ran partly on battery or in Low Power Mode. Their timings are not comparable; re-run them.
 
@@ -33,7 +35,7 @@ Model `mtplx-flash-next-optimized-speed`, scope `canvas`, effort `low`, client p
 | Context | Requests | Decode tok/s (request-weighted median of per-story medians) |
 |---|---|---|
 | 0-16k | 32 | 92.2 |
-| 32-64k | 1251 | 63.6 |
-| 64-100k | 1331 | 60.9 |
-| 100-+k | 554 | 60.3 |
+| 32-64k | 1294 | 63.6 |
+| 64-100k | 1365 | 60.9 |
+| 100-+k | 569 | 60.3 |
 | 16-32k | 153 | 64.0 |
