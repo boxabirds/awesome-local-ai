@@ -76,7 +76,7 @@ export function firePointer(
   type: PointerType,
   x: number,
   y: number,
-  init: { pointerId?: number; button?: number } = {},
+  init: { pointerId?: number; button?: number; shiftKey?: boolean } = {},
 ): void {
   const event = new PointerEvent(type, {
     bubbles: true,
@@ -88,6 +88,7 @@ export function firePointer(
     buttons: type === 'pointerup' || type === 'pointercancel' ? 0 : 1,
     isPrimary: true,
     pointerType: 'mouse',
+    shiftKey: init.shiftKey ?? false,
   });
   act(() => {
     element.dispatchEvent(event);

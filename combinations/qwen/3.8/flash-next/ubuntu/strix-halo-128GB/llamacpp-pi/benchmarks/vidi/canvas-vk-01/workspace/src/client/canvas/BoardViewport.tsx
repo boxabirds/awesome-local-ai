@@ -12,6 +12,7 @@ import { GRID_SPACING_WORLD, WHEEL_ZOOM_SENSITIVITY } from '../../shared/config'
 import type { Point, Size } from './camera';
 import { screenToWorld as cameraScreenToWorld } from './camera';
 import { useCamera } from './useCamera';
+import type { MarqueeController } from '../board/Marquee';
 
 /** Wheel `deltaMode` conversions to CSS pixels. */
 const DELTA_MODE_LINE = 1;
@@ -101,6 +102,12 @@ export interface BoardViewportProps {
   onDblClickEmpty?(worldPoint: Point): void;
   /** Called on single click of empty board space (to clear selection). */
   onEmptyClick?(): void;
+  /**
+   * When present, a shift+drag on empty board space drives a selection marquee
+   * instead of panning. The rectangle is drawn by the caller (via a child);
+   * the viewport only routes the pointer events here.
+   */
+  marqueeController?: MarqueeController;
 }
 
 /**
@@ -108,12 +115,17 @@ export interface BoardViewportProps {
  * wheel/trackpad scrolling, pinch (Safari gesture) zoom, the keyboard zoom
  * shortcuts, the dot grid and the world layer transform.
  */
-export function BoardViewport({ children, onDblClickEmpty, onEmptyClick }: BoardViewportProps): JSX.Element {
+export function BoardViewport({ children, onDblClickEmpty, onEmptyClick, marqueeController }: BoardViewportProps): JSX.Element {
   const viewportRef = useRef<HTMLDivElement | null>(null);
   const worldRef = useRef<HTMLDivElement | null>(null);
   const panPointerIdRef = useRef<number | null>(null);
   const panStartedRef = useRef(false);
   const didPanRef = useRef(false);
+  const marqueePointerIdRef = useRef<number | null>(null);
+  const marqueeRef = useRef(marqueeController);
+  useEffect(() => {
+    marqueeRef.current = marqueeController;
+  });
 
   const size = useViewportSize(viewportRef);
   const sizeRef = useRef<Size>(size);
@@ -227,6 +239,18 @@ export function BoardViewport({ children, onDblClickEmpty, onEmptyClick }: Board
     return () => window.removeEventListener('keydown', onKeyDown);
   }, []);
 
+  // Escape cancels an in-progress marquee, leaving the selection untouched.
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape' && marqueePointerIdRef.current !== null) {
+        marqueePointerIdRef.current = null;
+        marqueeRef.current?.cancel();
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
+
   const isEmptyTarget = (target: HTMLElement | EventTarget | null): boolean => {
     const el = viewportRef.current;
     const wl = worldRef.current;
@@ -240,6 +264,20 @@ export function BoardViewport({ children, onDblClickEmpty, onEmptyClick }: Board
     // Only empty board space starts a pan; board objects stop propagation.
     const target = event.target as HTMLElement | null;
     if (!isEmptyTarget(target)) return;
+
+    // Shift+drag on empty space is a selection marquee, not a pan.
+    if (event.shiftKey && marqueeRef.current) {
+      marqueePointerIdRef.current = event.pointerId ?? -1;
+      if (typeof element.setPointerCapture === 'function') {
+        try {
+          element.setPointerCapture(event.pointerId);
+        } catch {
+          // best-effort
+        }
+      }
+      marqueeRef.current.begin(pointInViewport(element, event.clientX, event.clientY));
+      return;
+    }
 
     panStartedRef.current = true;
     didPanRef.current = false;
@@ -255,11 +293,32 @@ export function BoardViewport({ children, onDblClickEmpty, onEmptyClick }: Board
   };
 
   const onPointerMove = (event: ReactPointerEvent<HTMLDivElement>) => {
+    if (
+      marqueePointerIdRef.current !== null &&
+      marqueePointerIdRef.current === (event.pointerId ?? -1)
+    ) {
+      const element = viewportRef.current;
+      if (!element) return;
+      marqueeRef.current?.move(pointInViewport(element, event.clientX, event.clientY));
+      return;
+    }
     if (panPointerIdRef.current === null || panPointerIdRef.current !== (event.pointerId ?? -1)) return;
     const element = viewportRef.current;
     if (!element) return;
     didPanRef.current = true;
     panMove(pointInViewport(element, event.clientX, event.clientY));
+  };
+
+  const onMarqueeEnd = (event: ReactPointerEvent<HTMLDivElement>, commit: boolean): void => {
+    if (
+      marqueePointerIdRef.current === null ||
+      marqueePointerIdRef.current !== (event.pointerId ?? -1)
+    ) {
+      return;
+    }
+    marqueePointerIdRef.current = null;
+    if (commit) marqueeRef.current?.end();
+    else marqueeRef.current?.cancel();
   };
 
   const onPanEnd = (event: ReactPointerEvent<HTMLDivElement>) => {
@@ -305,9 +364,27 @@ export function BoardViewport({ children, onDblClickEmpty, onEmptyClick }: Board
       }}
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}
-      onPointerUp={onPanEnd}
-      onPointerCancel={onPanEnd}
-      onLostPointerCapture={onPanEnd}
+      onPointerUp={(event) => {
+        if (marqueePointerIdRef.current !== null) {
+          onMarqueeEnd(event, true);
+          return;
+        }
+        onPanEnd(event);
+      }}
+      onPointerCancel={(event) => {
+        if (marqueePointerIdRef.current !== null) {
+          onMarqueeEnd(event, false);
+          return;
+        }
+        onPanEnd(event);
+      }}
+      onLostPointerCapture={(event) => {
+        if (marqueePointerIdRef.current !== null) {
+          onMarqueeEnd(event, false);
+          return;
+        }
+        onPanEnd(event);
+      }}
       onDoubleClick={onDoubleClick}
     >
       <div

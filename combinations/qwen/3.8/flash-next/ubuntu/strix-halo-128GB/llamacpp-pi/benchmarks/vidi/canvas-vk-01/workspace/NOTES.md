@@ -400,3 +400,164 @@ generator through the real board-model functions).
   converge-after-restart path only.
 * A real Cloudflare deployment: everything server-side runs in workerd through
   `@cloudflare/vitest-pool-workers`, and `wrangler dev` for the e2e run.
+
+# Story 7 notes — select, move, resize and delete several objects at once
+
+## How to run (additions)
+
+Everything is the same as story 3. `npm run test:unit`, `test:component` and
+`test:integration` are unchanged; story 7's specs live in the existing projects:
+
+* unit: `tests/unit/geometry.test.ts`, `board-model-group.test.ts`,
+  `registry.test.ts`, `selection.test.ts` (TC-01 … TC-15).
+* component: `tests/component/MultiSelect.test.tsx`,
+  `tests/component/Transform.test.tsx` (TC-16 … TC-31).
+* e2e: `tests/e2e/multi-select.spec.ts` (TC-32 … TC-36).
+
+## Architecture
+
+Story 7 turns the single-sticky drag code from story 2 into a **generic object
+transform pipeline**. Four new layers sit between the board app and the model:
+
+1. **`src/shared/geometry.ts`** — pure `Rect`/`Point` math with no imports:
+   `rectContains`, `unionRects`, `normalizeRect`, `resizeRect`, `clampScale`,
+   `scaleWithin`. This is the only place resize/clamp arithmetic lives, and it is
+   the reason selection behaviour is testable without React or Yjs.
+2. **`src/shared/board-model.ts`** — group operations (`moveObjects`,
+   `resizeObjects`, `bringObjectsToFront`, `deleteObjects`, `objectsInRect`,
+   `allObjectIds`, `objectBounds`) added beside the existing per-note helpers,
+   plus a framework-free type registry (`registerBoardObjectType`) so the model
+   stays importable by the Durable Object worker (it must never import React or a
+   client module).
+3. **`src/client/objects/registry.tsx`** — the client-side object-type registry.
+   A sticky registers its React `Component`, `resizable`, `aspectLocked`,
+   `minSize`, `editableText` and `hitTest`. StickyNote was refactored to a generic
+   `ObjectProps` component so a future shape needs no change to the gesture code.
+4. **Board hooks** — `useSelection` (pure reducer + snapshot pruning),
+   `useTransformGesture` (move/resize), `Marquee` (rubber-band select),
+   `useBoardKeys` (select-all / nudge / delete), rendered together by
+   `SelectionOverlay`, `SelectionBar` and `MarqueeRect`.
+
+## Key implementation decisions
+
+### `ObjectSnapshot` generalisation
+`ObjectSnapshot { id, type, x, y, z, width?, height? }` and
+`StickySnapshot extends ObjectSnapshot`. `snapshot()` still returns
+`readonly StickySnapshot[]` so every story 1-5 test is untouched. `width`/`height`
+are **optional**: a note created before story 7 has no stored size and falls back
+to `STICKY_SIZE_WORLD` through `objectBounds`. Only the first resize writes both
+fields explicitly — so we never rewrite the whole board on load.
+
+### `createSticky` centres, tests seed literally
+`createSticky(doc, p)` stores `x = p.x - STICKY_SIZE_WORLD/2` (it centres on the
+click). Tests that want exact bounds seed the Y.Map directly with literal `x`/`y`
+instead of going through `createSticky`.
+
+### Nudge is in world units
+`NUDGE_STEP_WORLD = 1`, `NUDGE_LARGE_STEP_WORLD = 10`. Arrow keys move the
+selection by a whole world unit (not a screen pixel), so the result is identical
+at every zoom level. `useBoardKeys` calls `preventDefault` on the arrows it
+handles so the window never scrolls, and is a no-op while editing text or when a
+contenteditable target has focus.
+
+### Aspect lock uses the max scale factor
+`resizeRect(..., aspectLocked)` computes `scaleW` and `scaleH` from the raw
+handle delta and applies `Math.max(scaleW, scaleH)` to both axes. This preserves
+the *existing* ratio (a group of rectangles keeps looking like a group) rather
+than forcing squares. Corner handles (`handle.length === 2`) respect the type's
+`aspectLocked`; edge handles move one axis only. Holding **Shift forces the ratio
+lock** on any handle (TC-24).
+
+### `bringObjectsToFront` is stable and writes minimally
+Selected ids are sorted by `(z, id)`, assigned `maxUnselectedZ + 1 + rank`, and a
+`z` write happens only when the value actually changes.
+
+### Selection is a pure reducer that prunes stale ids
+`selectionReducer` handles click / toggle / setMany / clear / prune / edit.
+`useSelection(snapshot)` runs a `prune` effect whenever the snapshot changes and
+returns the **same state object** when nothing is stale, so a remote edit never
+re-renders the selection for no reason. The `'edit'` action with a non-null id
+replaces the selection with that one id and sets `editingId`, which is how
+Enter-to-edit naturally selects the note.
+
+### Pressing an already-selected member keeps the group
+`onObjectPointerDown` calls `click(id)` only when the object is **not** already
+selected, so pressing any member of a multi-selection drags the whole group
+instead of collapsing to one.
+
+### Transform gesture: window listeners, synchronous writes
+`useTransformGesture` attaches native `pointermove`/`up`/`cancel` listeners to
+`window` (not React handlers) and writes to the doc **synchronously** on each
+move — no rAF batching — which is what makes the component tests deterministic.
+`move` captures the selected positions at the moment `DRAG_THRESHOLD_PX` is
+crossed; `resize` captures the starting rects at pointerdown. The resize pipeline
+is `resizeRect → derive scale → clampScale → scaleWithin → resizeObjects`, so a
+group grows proportionally and the whole selection stops when the *first* object
+hits its min or the global `MAX_OBJECT_SIZE_WORLD`.
+
+### `onClickObject` / `onToggleObject` replace the old setter hack
+Story 2's `setSelectionApi` mutation is gone; the gesture takes optional
+callbacks so selection side-effects flow through the normal hook API.
+
+### Marquee is additive
+A marquee always begins from Shift+drag, so `onSelect` calls
+`setMany(ids, additive = true)` (TC-20). The marquee only selects objects
+**fully enclosed** by the band (`rectContains`). A plain (non-Shift) drag on empty
+space still pans, and `Escape` / `pointercancel` cancels an in-flight marquee.
+
+### Overlay, bar and note toolbar coexist without fighting
+`SelectionOverlay` renders for any non-empty selection (bounding box + 8 handles,
+handles only if some selected type is `resizable`); `SelectionBar` renders for
+two or more (with an `aria-live="polite"` count); the single-sticky `NoteToolbar`
+renders for exactly one editable sticky. All are hidden while `isDragging` so the
+chrome never lags behind a drag.
+
+## Test coverage
+
+* **Unit (TC-01 … TC-15)**: geometry primitives (containment, union, normalise,
+  resize with/without ratio, per-axis `clampScale`, `scaleWithin`), the group
+  model operations (move/resize/front/delete, `objectsInRect` fully-enclosed,
+  `allObjectIds` filters unknown types), the registry (throw-on-duplicate,
+  sticky wiring) and the selection reducer (toggle/setMany/prune/edit).
+* **Component (TC-16 … TC-31)**: remote-delete pruning, `aria-live` count, single
+  sticky → NoteToolbar, empty click clears, additive marquee, non-shift drag pans
+  (no marquee), `pointercancel` leaves selection alone, Ctrl+A `preventDefault`,
+  arrow nudge `preventDefault`, Backspace while editing is safe, Delete removes
+  the whole selection, threshold boundary (2px = click, 3px = drag), one-axis
+  edge resize and Shift ratio, 8 labelled handles, read-only (`canEdit false`)
+  writes nothing, gesture start/end fire once, `pointercancel` keeps last applied.
+* **E2E (TC-32 … TC-36)**: marquee fully-inside selection; group move of six
+  notes by +300; corner resize proportional + minimum clamp; arrow/Shift nudge
+  with camera and `window.scrollY` unchanged, then Delete; a colleague deleting a
+  selected note prunes the local selection; and `MAX_CONCURRENT_EDITORS` contexts
+  each moving a different note converging to identical positions. All six run
+  green in Chromium (they use the `startBoard`/`joinBoard` pattern, not
+  `openBoard`).
+
+## Deviations from the spec
+
+1. **Two `registerObjectType` entry points.** `board-model.ts` exports
+   `registerBoardObjectType(type)` (framework-free, used to extend
+   `KNOWN_OBJECT_TYPES`); the client `registry.tsx` exports
+   `registerObjectType(type, spec)` (full spec incl. the React component) and
+   calls the model one internally. This keeps the worker import-safe.
+2. **Registry is module-level, not a context.** `getObjectType` is a plain lookup;
+   registration happens once at import of `registry.tsx`. There is no DI seam —
+   there is exactly one registry per bundle.
+
+## Not covered
+
+* Story 6 (presence) and stories 13-17 — no hooks left for them.
+* **Pre-existing e2e breakage (not introduced here).** `tests/e2e/helpers/board.ts`'s
+  `openBoard()` does `goto('/')` and expects a board viewport, but story 5 made `/`
+  the home page, so `navigation.spec.ts`, `sticky-notes.spec.ts` and part of
+  `share-board.spec.ts` fail on `toBeVisible()` **on the base commit too** (verified
+  by stashing story 7 and re-running). Rewiring `openBoard` to click "Create a
+  board" is not viable under Playwright's parallel run — creating a board per test
+  trips the create-board rate limiter (the very 429 the share-board suite tests).
+  Story 7's own e2e spec sidesteps this by using `startBoard`.
+* **Pre-existing component failure (not introduced here).** BoardLoadFailure
+  "TC-22 … is red" reads `styles.css` via
+  `fileURLToPath(new URL('.../styles.css', import.meta.url))`, which throws
+  `TypeError: The URL must be of scheme file` under the jsdom component project.
+  It fails on the base commit as well.
