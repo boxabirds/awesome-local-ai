@@ -1,0 +1,16 @@
+# dependencies
+node_modules/
+
+# build output
+dist/
+
+# wrangler / workers
+.wrangler/
+
+# test artefacts
+playwright-report/
+test-results/
+
+# misc
+*.local
+.DS_Store
