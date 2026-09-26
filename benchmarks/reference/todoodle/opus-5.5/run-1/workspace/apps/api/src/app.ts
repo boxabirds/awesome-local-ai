@@ -1,13 +1,15 @@
 import { Hono } from 'hono';
-import type { Env } from './env.ts';
-import { errorResponse } from './lib/errors.ts';
+import type { Env, Variables } from './env.ts';
+import { errorResponse, logRequestError } from './lib/errors.ts';
 import { requestId } from './middleware/request-id.ts';
 import { securityHeaders } from './middleware/security-headers.ts';
 import { validate } from './middleware/validate.ts';
+import { workspaceAuth } from './middleware/workspace-auth.ts';
 import { healthHandler } from './routes/health.ts';
 import { testRoutes } from './routes/test.ts';
+import { workspaceRoutes, workspacesRoutes } from './routes/workspaces.ts';
 
-export type AppEnv = { Bindings: Env; Variables: { requestId: string } };
+export type AppEnv = { Bindings: Env; Variables: Variables };
 
 export function createApp() {
   const app = new Hono<AppEnv>();
@@ -23,6 +25,12 @@ export function createApp() {
 
   app.route('/test', testRoutes);
 
+  app.route('/api/workspaces', workspacesRoutes);
+  // Every workspace-scoped route sits behind workspace-auth. Later stories add theirs to workspaceRoutes.
+  app.use('/api/w/:workspaceId', workspaceAuth);
+  app.use('/api/w/:workspaceId/*', workspaceAuth);
+  app.route('/api/w/:workspaceId', workspaceRoutes);
+
   app.all('/api', () => errorResponse('not_found', 404));
   app.all('/api/*', () => errorResponse('not_found', 404));
 
@@ -30,14 +38,14 @@ export function createApp() {
   app.all('*', (c) => c.env.ASSETS.fetch(c.req.raw));
 
   app.onError((err, c) => {
-    // Log only what helps diagnose the failure. Never headers, cookies, bodies or URL query/fragment.
-    console.error('unhandled error', {
-      name: err.name,
-      message: err.message,
-      stack: err.stack,
+    // Sanitised: never headers, cookies, bodies, stack traces or URL query/fragment.
+    logRequestError({
       requestId: c.get('requestId'),
       method: c.req.method,
-      path: new URL(c.req.url).pathname,
+      pathname: new URL(c.req.url).pathname,
+      status: 500,
+      errorName: err.name,
+      errorMessage: err.message,
     });
     return errorResponse('internal', 500);
   });

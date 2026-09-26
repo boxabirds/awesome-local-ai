@@ -1,12 +1,16 @@
 import { Hono } from 'hono';
 import type { AppEnv } from '../app.ts';
+import { DEFAULT_WORKSPACE_NAME } from '@todoodle/shared/limits';
+import { toPublicWorkspace } from '@todoodle/shared/schemas';
+import { insertWorkspace } from '../db/workspaces.ts';
+import { generateSecret, hashSecret } from '../lib/crypto.ts';
 import { errorResponse } from '../lib/errors.ts';
 
 /**
  * Tables emptied by POST /test/reset, children first so foreign keys are never violated.
- * Empty in story 1; later stories append their tables (e.g. tasks, projects, workspaces).
+ * Stories append their tables here (e.g. tasks and projects go before workspaces).
  */
-export const TEST_RESET_TABLES: string[] = [];
+export const TEST_RESET_TABLES: string[] = ['workspaces'];
 
 /** Test-only routes. In production they do not exist: every /test/* path is the plain API 404. */
 export const testRoutes = new Hono<AppEnv>();
@@ -21,6 +25,26 @@ testRoutes.post('/reset', async (c) => {
     await c.env.DB.batch(TEST_RESET_TABLES.map((table) => c.env.DB.prepare(`DELETE FROM "${table}"`)));
   }
   return c.json({ ok: true });
+});
+
+/**
+ * Seeds a workspace directly (no cookie), optionally soft-deleted, and returns its secret.
+ * Body: { name?: string, deleted?: boolean }.
+ */
+testRoutes.post('/seed-workspace', async (c) => {
+  const body = (await c.req.json().catch(() => ({}))) as { name?: unknown; deleted?: unknown };
+  const secret = generateSecret();
+  const name = typeof body.name === 'string' ? body.name : DEFAULT_WORKSPACE_NAME;
+  let row = await insertWorkspace(c.env.DB, await hashSecret(secret), name);
+  if (body.deleted === true) {
+    const deleted = await c.env.DB.prepare(
+      "UPDATE workspaces SET deleted = 1, deleted_at = datetime('now') WHERE id = ? RETURNING *",
+    )
+      .bind(row.id)
+      .first<typeof row>();
+    if (deleted) row = deleted;
+  }
+  return c.json({ workspace: toPublicWorkspace(row), secret }, 201);
 });
 
 testRoutes.get('/throw', () => {

@@ -23,3 +23,30 @@ const DEFAULT_MESSAGES: Record<ErrorCode, string> = {
 export function errorResponse(code: ErrorCode, status: number, message?: string): Response {
   return Response.json({ error: code, message: message ?? DEFAULT_MESSAGES[code] }, { status });
 }
+
+/**
+ * The one 404 body for every workspace miss (unknown, malformed or deleted secret; failed auth).
+ * A module-level constant so all misses are byte-identical and reveal nothing.
+ */
+export const WORKSPACE_NOT_FOUND_BODY = JSON.stringify(Object.freeze({ error: 'not_found', message: 'Workspace not found' }));
+
+export function workspaceNotFound(): Response {
+  return new Response(WORKSPACE_NOT_FOUND_BODY, { status: 404, headers: { 'Content-Type': 'application/json' } });
+}
+
+/** The only fields the API ever logs about a request. Never bodies, cookies, headers or query strings. */
+export type RequestLogEntry = {
+  requestId: string;
+  method: string;
+  pathname: string;
+  status: number;
+  errorName?: string;
+  /** The error's own message (story 1 requires it for diagnosis). Handlers never put request data in messages. */
+  errorMessage?: string;
+};
+
+/** Sanitised logger: copies only the whitelisted fields, so nothing else can slip into the log. */
+export function logRequestError(entry: RequestLogEntry): void {
+  const { requestId, method, pathname, status, errorName, errorMessage } = entry;
+  console.error('request failed', { requestId, method, pathname, status, errorName, errorMessage });
+}

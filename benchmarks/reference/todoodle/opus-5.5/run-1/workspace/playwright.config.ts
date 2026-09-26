@@ -14,9 +14,14 @@ export default defineConfig({
     baseURL: LOCAL_BASE_URL,
     trace: 'retain-on-failure',
   },
-  projects: [{ name: 'chromium', use: { ...devices['Desktop Chrome'] } }],
+  projects: [
+    // Chromium can be granted real clipboard access; WebKit cannot, so it exercises the manual-copy fallback.
+    { name: 'chromium', use: { ...devices['Desktop Chrome'], permissions: ['clipboard-read', 'clipboard-write'] } },
+    { name: 'webkit', use: { ...devices['Desktop Safari'] } },
+  ],
   webServer: {
-    command: 'bun run dev',
+    // Apply migrations first so a fresh checkout has the local schema.
+    command: 'bun run db:migrate:local && bun run dev',
     url: `${LOCAL_BASE_URL}/health`,
     reuseExistingServer: !process.env.CI,
     timeout: 120_000,

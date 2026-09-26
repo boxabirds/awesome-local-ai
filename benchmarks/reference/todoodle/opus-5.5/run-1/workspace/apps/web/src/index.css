@@ -1,29 +1,13 @@
 @import "tailwindcss";
 @import "tw-animate-css";
-
-@custom-variant dark (&:is(.dark *));
+/* Bundled here because the CSP blocks sonner's runtime <style> injection (see vite.config.ts). */
+@import "sonner/dist/styles.css";
+/* Colour tokens (light + dark via prefers-color-scheme), generated from packages/shared/src/tokens.ts. */
+@import "./styles/tokens.css";
+@import "./styles/scroll-lock.css";
 
 :root {
   --radius: 0.625rem;
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
-  --primary: oklch(0.205 0 0);
-  --primary-foreground: oklch(0.985 0 0);
-  --border: oklch(0.922 0 0);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: oklch(0.145 0 0);
-    --foreground: oklch(0.985 0 0);
-    --muted: oklch(0.269 0 0);
-    --muted-foreground: oklch(0.708 0 0);
-    --primary: oklch(0.922 0 0);
-    --primary-foreground: oklch(0.205 0 0);
-    --border: oklch(1 0 0 / 10%);
-  }
 }
 
 @theme inline {
@@ -34,7 +18,11 @@
   --color-muted-foreground: var(--muted-foreground);
   --color-primary: var(--primary);
   --color-primary-foreground: var(--primary-foreground);
+  --color-destructive: var(--destructive);
   --color-border: var(--border);
+  --color-ring: var(--ring);
+  --color-warning: var(--warning);
+  --color-success: var(--success);
 }
 
 @layer base {

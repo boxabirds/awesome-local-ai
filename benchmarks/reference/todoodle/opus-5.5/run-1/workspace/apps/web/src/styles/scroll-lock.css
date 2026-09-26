@@ -1,0 +1,9 @@
+/*
+ * Scroll lock while a modal (the Share panel) is open. Radix sets data-scroll-locked on <body>; the rules
+ * react-remove-scroll would inject at runtime are blocked by the CSP, so the essential ones live here
+ * (see src/lib/cspStyleSingleton.ts).
+ */
+body[data-scroll-locked] {
+  overflow: hidden !important;
+  overscroll-behavior: contain;
+}

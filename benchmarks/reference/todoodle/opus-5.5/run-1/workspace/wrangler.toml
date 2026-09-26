@@ -41,6 +41,9 @@ logpush = true
 
 [env.staging.observability.logs]
 enabled = true
+# Story 2 (security.no_leak): invocation logs record request metadata; keep them off so Cookie
+# headers (which hold workspace secrets) can never be captured. Only our sanitised console logs are kept.
+invocation_logs = false
 
 [env.staging.vars]
 ENVIRONMENT = "staging"
@@ -58,6 +61,9 @@ logpush = true
 
 [env.production.observability.logs]
 enabled = true
+# Story 2 (security.no_leak): invocation logs record request metadata; keep them off so Cookie
+# headers (which hold workspace secrets) can never be captured. Only our sanitised console logs are kept.
+invocation_logs = false
 
 [env.production.vars]
 ENVIRONMENT = "production"

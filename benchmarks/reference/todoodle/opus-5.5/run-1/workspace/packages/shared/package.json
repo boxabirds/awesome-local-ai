@@ -4,9 +4,15 @@
   "type": "module",
   "exports": {
     ".": "./src/index.ts",
-    "./limits": "./src/limits.ts"
+    "./limits": "./src/limits.ts",
+    "./schemas": "./src/schemas.ts",
+    "./tokens": "./src/tokens.ts",
+    "./contrast": "./src/contrast.ts"
   },
   "scripts": {
     "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "zod": "^4.6.5"
   }
 }
