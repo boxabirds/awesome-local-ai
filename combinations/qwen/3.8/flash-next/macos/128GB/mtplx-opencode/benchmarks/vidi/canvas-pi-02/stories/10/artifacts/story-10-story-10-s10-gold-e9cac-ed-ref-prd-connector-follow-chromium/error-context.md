@@ -1,0 +1,44 @@
+# Page snapshot
+
+```yaml
+- generic [ref=e3]:
+  - banner [ref=e4]:
+    - button "Share" [ref=e6] [cursor=pointer]
+  - generic [ref=e7]:
+    - generic [ref=e8]:
+      - generic:
+        - group "rect":
+          - img
+        - group "rect":
+          - img
+        - generic:
+          - img
+      - generic:
+        - img
+    - generic [ref=e9]:
+      - img "Curious Otter, you" [ref=e12]: C
+      - generic [ref=e13]:
+        - generic [ref=e14]: Curious Otter
+        - button "Rename" [ref=e15]
+    - generic [ref=e16]:
+      - button "Select (V)" [pressed] [ref=e17] [cursor=pointer]:
+        - img [ref=e18]
+      - button "Text (T)" [ref=e20] [cursor=pointer]:
+        - img [ref=e21]:
+          - generic [ref=e22]: T
+      - button "Shape (S)" [ref=e23] [cursor=pointer]:
+        - img [ref=e24]
+      - button "Connector (L)" [ref=e26] [cursor=pointer]:
+        - img [ref=e27]
+      - button "Sticky note" [ref=e30] [cursor=pointer]:
+        - img [ref=e31]
+      - button "Undo" [ref=e34] [cursor=pointer]:
+        - img [ref=e35]
+      - button "Redo" [disabled] [ref=e38] [cursor=pointer]:
+        - img [ref=e39]
+  - generic [ref=e42]:
+    - button "Zoom out" [ref=e43] [cursor=pointer]: −
+    - status [ref=e44]: 100%
+    - button "Zoom in" [ref=e45] [cursor=pointer]: +
+    - button "Reset view" [ref=e46] [cursor=pointer]
+```

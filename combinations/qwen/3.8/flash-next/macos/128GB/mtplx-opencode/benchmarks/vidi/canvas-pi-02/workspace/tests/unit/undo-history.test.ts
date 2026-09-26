@@ -213,7 +213,7 @@ describe('undo.history (TC-01 to TC-11)', () => {
     const restored = snapshot(doc).find((note) => note.id === x);
     // The content as it stood at the time of the delete: the peer's text is
     // part of what comes back, and it stays intact on the wire too.
-    expect(restored?.text).toBe('start + peer');
+    expect((restored as any)?.text).toBe('start + peer');
     expect(getStickyText(doc, x)?.toString()).toBe('start + peer');
   });
 

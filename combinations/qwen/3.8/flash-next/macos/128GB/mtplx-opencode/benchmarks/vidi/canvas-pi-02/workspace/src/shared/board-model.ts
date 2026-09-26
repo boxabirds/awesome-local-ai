@@ -33,12 +33,20 @@ import {
   STICKY_COLORS,
   STICKY_SIZE_WORLD,
   MAX_OBJECT_SIZE_WORLD,
+  SHAPE_FILL_COLORS,
+  SHAPE_STROKE_COLORS,
   type StickyColor,
 } from './config';
 import type { Rect, Point } from './geometry';
 import { rectContains } from './geometry';
+import type { ShapeKind, FillColor, StrokeColor } from './config';
+import { detachConnectorsTo } from './objects/connector';
+import type { ConnectorSnap, Endpoint } from './objects/connector';
+import type { ShapeSnap } from './objects/shape';
 
 export type { Rect, Point };
+export type { ShapeSnap, FillColor, StrokeColor, ShapeKind };
+export type { ConnectorSnap, Endpoint };
 
 /**
  * Transaction origin for local mutations. Story 8 uses it to build undo
@@ -68,7 +76,7 @@ export interface StickySnapshot {
 }
 
 /** Generic object snapshot for group operations. */
-export type ObjectSnapshot = StickySnapshot | import('./objects/text').TextSnapshot;
+export type ObjectSnapshot = StickySnapshot | import('./objects/text').TextSnapshot | import('./objects/shape').ShapeSnap | import('./objects/connector').ConnectorSnap;
 
 type NoteMap = Y.Map<unknown>;
 
@@ -85,9 +93,17 @@ function isTextObj(value: unknown): value is NoteMap {
   return value instanceof Y.Map && value.get('type') === 'text';
 }
 
+function isShapeObj(value: unknown): value is NoteMap {
+  return value instanceof Y.Map && value.get('type') === 'shape';
+}
+
+function isConnectorObj(value: unknown): value is NoteMap {
+  return value instanceof Y.Map && value.get('type') === 'connector';
+}
+
 /** True for any recognised board object. */
 export function isBoardObject(value: unknown): value is NoteMap {
-  return isSticky(value) || isTextObj(value);
+  return isSticky(value) || isTextObj(value) || isShapeObj(value) || isConnectorObj(value);
 }
 
 function readNote(doc: Y.Doc, id: string): NoteMap | undefined {
@@ -267,6 +283,46 @@ export function snapshot(doc: Y.Doc): readonly ObjectSnapshot[] {
         size: typeof size === 'string' && ['S','M','L','XL'].includes(size) ? (size as import('./objects/text').TextSnapshot['size']) : 'M',
         widthMode: widthMode === 'fixed' ? 'fixed' as const : 'auto' as const,
       });
+    } else if (type === 'shape') {
+      const label = value.get('label');
+      const kind = value.get('kind');
+      const fill = value.get('fill');
+      const stroke = value.get('stroke');
+      const w = value.get('width');
+      const h = value.get('height');
+      result.push({
+        id,
+        type: 'shape' as const,
+        x: x as number,
+        y: y as number,
+        width: typeof w === 'number' ? w : 160,
+        height: typeof h === 'number' ? h : 160,
+        z: z as number,
+        createdAt: typeof createdAt === 'number' ? createdAt : 0,
+        createdBy: typeof value.get('createdBy') === 'string' ? (value.get('createdBy') as string) : '',
+        kind: typeof kind === 'string' && ['rect','ellipse','diamond'].includes(kind) ? (kind as ShapeKind) : 'rect',
+        fill: typeof fill === 'string' && fill in SHAPE_FILL_COLORS ? (fill as FillColor) : 'white',
+        stroke: typeof stroke === 'string' && stroke in SHAPE_STROKE_COLORS ? (stroke as StrokeColor) : 'dark',
+        label: label instanceof Y.Text ? label.toString() : '',
+      });
+    } else if (type === 'connector') {
+      const fromRaw = value.get('from');
+      const toRaw = value.get('to');
+      const w = value.get('width');
+      const h = value.get('height');
+      result.push({
+        id,
+        type: 'connector' as const,
+        x: x as number,
+        y: y as number,
+        width: typeof w === 'number' ? w : 0,
+        height: typeof h === 'number' ? h : 0,
+        z: z as number,
+        createdAt: typeof createdAt === 'number' ? createdAt : 0,
+        createdBy: typeof value.get('createdBy') === 'string' ? (value.get('createdBy') as string) : '',
+        from: fromRaw && typeof fromRaw === 'object' ? (fromRaw as Endpoint) : { kind: 'free', x: x as number, y: y as number },
+        to: toRaw && typeof toRaw === 'object' ? (toRaw as Endpoint) : { kind: 'free', x: x as number, y: y as number },
+      });
     }
   });
   result.sort((a, b) => a.z - b.z || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
@@ -286,6 +342,12 @@ export function objectBounds(obj: ObjectSnapshot): Rect {
       width: obj.width,
       height: obj.height,
     };
+  }
+  if (obj.type === 'shape') {
+    return { x: obj.x, y: obj.y, width: obj.width, height: obj.height };
+  }
+  if (obj.type === 'connector') {
+    return { x: obj.x, y: obj.y, width: obj.width, height: obj.height };
   }
   return {
     x: obj.x,
@@ -436,13 +498,17 @@ export function bringObjectsToFront(
 
 /**
  * Delete multiple objects in one transaction. Returns the count deleted.
+ * If any connector has endpoints attached to a deleted id, those ends are
+ * detached to `free` within the same transaction (one undo step).
  */
 export function deleteObjects(doc: Y.Doc, ids: readonly string[]): number {
   if (ids.length === 0) return 0;
   const objects = objectsMap(doc);
   const existing = ids.filter((id) => isBoardObject(objects.get(id)));
   if (existing.length === 0) return 0;
+  // Detach connectors BEFORE removing the objects so their anchors are still resolvable.
   doc.transact(() => {
+    detachConnectorsTo(doc, existing);
     for (const id of existing) {
       objects.delete(id);
     }

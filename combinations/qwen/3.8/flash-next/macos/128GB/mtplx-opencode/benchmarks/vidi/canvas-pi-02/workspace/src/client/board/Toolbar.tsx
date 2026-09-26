@@ -1,12 +1,13 @@
 import type { JSX } from 'react';
 import { UndoButtons } from './UndoButtons';
-import type { UndoState } from './useUndo';
-import type { Tool } from './useTool';
+import type { UndoState } from '../board/useUndo';
+import type { Tool } from '../board/useTool';
 
 /**
  * The fixed left toolbar.
  *
- * Story 9 adds Select and Text tool buttons.
+ * Story 9 added Select and Text tool buttons.
+ * Story 10 adds Shape and Connector buttons.
  */
 export interface ToolbarProps {
   /** A new 200x200 sticky at the centre of the current viewport. */
@@ -19,9 +20,16 @@ export interface ToolbarProps {
   onToolChange(tool: Tool): void;
   /** Whether editing is possible. */
   canEdit: boolean;
+  /** Active tool id from useActiveTool. */
+  activeTool?: string;
+  /** Set tool via active tool hook. */
+  onActiveToolChange?(t: string): void;
+  /** Shape kind. */
+  shapeKind?: string;
 }
 
 export function Toolbar(props: ToolbarProps): JSX.Element {
+  const { activeTool = 'select', onActiveToolChange } = props;
   return (
     <div
       className="board-toolbar"
@@ -36,15 +44,15 @@ export function Toolbar(props: ToolbarProps): JSX.Element {
         className="board-toolbar__button"
         data-testid="tool-select"
         aria-label="Select (V)"
-        aria-pressed={props.tool === 'select'}
+        aria-pressed={activeTool === 'select'}
         title="Select – or press V"
-        disabled={!props.canEdit && props.tool === 'select'}
-        onClick={() => props.onToolChange('select')}
+        disabled={!props.canEdit && activeTool === 'select'}
+        onClick={() => onActiveToolChange?.('select')}
       >
         <svg width="18" height="18" viewBox="0 0 18 18" focusable="false" aria-hidden="true">
           <path
             d="M4 2l10 8-5 1-2 5z"
-            fill={props.tool === 'select' ? '#4285F4' : 'currentColor'}
+            fill={activeTool === 'select' ? '#4285F4' : 'currentColor'}
             stroke="currentColor"
             strokeWidth="1.2"
           />
@@ -55,10 +63,10 @@ export function Toolbar(props: ToolbarProps): JSX.Element {
         className="board-toolbar__button"
         data-testid="tool-text"
         aria-label="Text (T)"
-        aria-pressed={props.tool === 'text'}
+        aria-pressed={activeTool === 'text'}
         title="Text – or press T"
         disabled={!props.canEdit}
-        onClick={() => props.onToolChange('text')}
+        onClick={() => onActiveToolChange?.('text')}
       >
         <svg width="18" height="18" viewBox="0 0 18 18" focusable="false" aria-hidden="true">
           <text
@@ -71,6 +79,35 @@ export function Toolbar(props: ToolbarProps): JSX.Element {
           >
             T
           </text>
+        </svg>
+      </button>
+      <button
+        type="button"
+        className="board-toolbar__button"
+        data-testid="tool-shape"
+        aria-label="Shape (S)"
+        aria-pressed={activeTool === 'shape'}
+        title="Shape – or press S"
+        disabled={!props.canEdit}
+        onClick={() => onActiveToolChange?.('shape')}
+      >
+        <svg width="18" height="18" viewBox="0 0 18 18" focusable="false" aria-hidden="true">
+          <rect x="3" y="3" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="1.5" />
+        </svg>
+      </button>
+      <button
+        type="button"
+        className="board-toolbar__button"
+        data-testid="tool-connector"
+        aria-label="Connector (L)"
+        aria-pressed={activeTool === 'connector'}
+        title="Connector – or press L"
+        disabled={!props.canEdit}
+        onClick={() => onActiveToolChange?.('connector')}
+      >
+        <svg width="18" height="18" viewBox="0 0 18 18" focusable="false" aria-hidden="true">
+          <line x1="3" y1="15" x2="15" y2="3" stroke="currentColor" strokeWidth="1.5" />
+          <polygon points="15,3 12,5 13,7" fill="currentColor" />
         </svg>
       </button>
       <button

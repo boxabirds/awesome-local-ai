@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef } from 'react';
+import { useCallback, useEffect, useMemo, useRef } from 'react';
 import { canZoomIn, canZoomOut, screenToWorld, worldToScreen, zoomPercent } from './canvas/camera';
 import type { Camera, Point } from './canvas/camera';
 import { BoardViewport } from './canvas/BoardViewport';
@@ -19,6 +19,10 @@ import { useMarquee, MarqueeRect } from './board/Marquee';
 import { useTool } from './board/useTool';
 import { StickyNote } from './objects/StickyNote';
 import { TextObject } from './objects/TextObject';
+import { ShapeObject } from './objects/ShapeObject';
+import { ConnectorObject } from './objects/ConnectorObject';
+import { ShapeTool } from './tools/ShapeTool';
+import { ConnectorTool } from './tools/ConnectorTool';
 import './objects/defaultTypes';
 import {
   createSticky,
@@ -311,6 +315,14 @@ function BoardSurface({
         }
         return;
       }
+      if (toolRefForClick.current === 'shape') {
+        // Shape tool click-to-create (non-drag): handled by ShapeTool component.
+        return;
+      }
+      if (toolRefForClick.current === 'connector') {
+        // Connector tool: handled by ConnectorTool component.
+        return;
+      }
       selection.clear();
     },
     [selection],
@@ -398,6 +410,16 @@ function BoardSurface({
     }
   }, [selection, deleteNote]);
 
+  // Build rects map for connector rendering.
+  const rectsMap = useMemo(() => {
+    const m = new Map<string, { x: number; y: number; width: number; height: number }>();
+    for (const obj of objects) {
+      if (obj.type === 'connector') continue;
+      m.set(obj.id, objectBounds(obj));
+    }
+    return m;
+  }, [objects]);
+
   return (
     <CameraContext.Provider value={cameraApi}>
       <div className="board-area" data-testid="board-area" ref={boardAreaRef}>
@@ -431,6 +453,30 @@ function BoardSurface({
                 />
               );
             }
+            if (obj.type === 'shape') {
+              return (
+                <ShapeObject
+                  key={obj.id}
+                  shape={obj}
+                  doc={board.doc}
+                  selected={selection.ids.has(obj.id)}
+                  editing={selection.editingId === obj.id}
+                  onEndEdit={() => selection.endEdit('unselected')}
+                />
+              );
+            }
+            if (obj.type === 'connector') {
+              return (
+                <ConnectorObject
+                  key={obj.id}
+                  connector={obj}
+                  rects={rectsMap}
+                  doc={board.doc}
+                  selected={selection.ids.has(obj.id)}
+                  zoom={camera.zoom}
+                />
+              );
+            }
             // Sticky note rendering (story 2).
             return (
               <StickyNote
@@ -451,6 +497,28 @@ function BoardSurface({
               />
             );
           })}
+          {tool === 'shape' && (
+            <ShapeTool
+              kind="rect"
+              camera={camera}
+              doc={board.doc}
+              onCreated={(id) => {
+                selection.click(id);
+                setTool('select');
+              }}
+            />
+          )}
+          {tool === 'connector' && (
+            <ConnectorTool
+              camera={camera}
+              snapshot={objects}
+              doc={board.doc}
+              onCreated={(id) => {
+                selection.click(id);
+                setTool('select');
+              }}
+            />
+          )}
         </BoardViewport>
         <RemoteSelections
           people={presence.selections}
@@ -521,6 +589,9 @@ function BoardSurface({
           tool={tool}
           onToolChange={setTool}
           canEdit={canEdit}
+          activeTool={tool}
+          onActiveToolChange={(t) => setTool(t as any)}
+          shapeKind="rect"
         />
         <div className="connection-area">
           {broken ? (

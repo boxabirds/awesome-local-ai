@@ -1,0 +1,42 @@
+# Page snapshot
+
+```yaml
+- generic [ref=e3]:
+  - banner [ref=e4]:
+    - button "Share" [ref=e6] [cursor=pointer]
+  - generic [ref=e7]:
+    - generic [ref=e8]:
+      - group "Sticky note" [ref=e9]:
+        - generic [ref=e10]: green blue
+      - generic:
+        - img
+    - generic [ref=e11]:
+      - generic [ref=e13]:
+        - img "Curious Otter, you" [ref=e14]: C
+        - img "Curious Otter 2" [ref=e15]: C
+      - generic [ref=e16]:
+        - generic [ref=e17]: Curious Otter
+        - button "Rename" [ref=e18]
+    - generic [ref=e19]:
+      - button "Select (V)" [pressed] [ref=e20] [cursor=pointer]:
+        - img [ref=e21]
+      - button "Text (T)" [ref=e23] [cursor=pointer]:
+        - img [ref=e24]:
+          - generic [ref=e25]: T
+      - button "Shape (S)" [ref=e26] [cursor=pointer]:
+        - img [ref=e27]
+      - button "Connector (L)" [ref=e29] [cursor=pointer]:
+        - img [ref=e30]
+      - button "Sticky note" [ref=e33] [cursor=pointer]:
+        - img [ref=e34]
+      - button "Undo" [ref=e37] [cursor=pointer]:
+        - img [ref=e38]
+      - button "Redo" [disabled] [ref=e41] [cursor=pointer]:
+        - img [ref=e42]
+  - generic [ref=e45]:
+    - button "Zoom out" [ref=e46] [cursor=pointer]: −
+    - status [ref=e47]: 100%
+    - button "Zoom in" [ref=e48] [cursor=pointer]: +
+    - button "Reset view" [ref=e49] [cursor=pointer]
+  - generic: Drag to move around · Ctrl/Cmd + scroll or pinch to zoom
+```

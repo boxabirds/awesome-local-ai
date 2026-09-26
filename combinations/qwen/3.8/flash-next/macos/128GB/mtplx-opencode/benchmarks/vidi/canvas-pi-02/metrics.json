@@ -14416,6 +14416,668 @@
           "fixed": [],
           "regressed": []
         }
+      },
+      "record": {
+        "committed": true,
+        "pushed": true,
+        "over_size_limit": [
+          "~/expts/awesome-local-ai/combinations/qwen/3.8/flash-next/macos/128GB/mtplx-opencode/benchmarks/vidi/canvas-pi-02/metrics.json",
+          "~/expts/awesome-local-ai/combinations/qwen/3.8/flash-next/macos/128GB/mtplx-opencode/benchmarks/vidi/canvas-pi-02/server.log"
+        ],
+        "commit": "cc1d2a7"
+      }
+    },
+    "10": {
+      "title": "Draw shapes and connect them with arrows that follow when moved",
+      "conditions_start": {
+        "ac": true,
+        "low_power": false,
+        "thermal": "nominal"
+      },
+      "started": 1790386324.6516821,
+      "agent": {
+        "seconds": 1499.6,
+        "steps": 160,
+        "tool_calls": 175,
+        "compactions": 1,
+        "tool_interruptions": 0,
+        "tokens": {
+          "input": 114791,
+          "output": 74807,
+          "reasoning": 9453,
+          "cache_read": 10177191,
+          "cache_write": 0
+        },
+        "exit": 0,
+        "stalled": false,
+        "resumes": 0,
+        "nudges": 0,
+        "errors": [],
+        "ended_by_operator": false,
+        "ended_in_error": false,
+        "sessions": [
+          "01a0db57-453c-77b6-a578-2a74320b0965"
+        ]
+      },
+      "agent_finished": 1790387824.2929752,
+      "conditions": {
+        "samples": 49,
+        "degraded": false,
+        "throttled_share": 0.94,
+        "bad_samples": [
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "moderate",
+            "t": 1790386445.791728
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790386476.178528
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790386506.547895
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790386536.9055371
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790386567.265978
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790386597.590085
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790386627.929811
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790386658.265397
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790386688.6099389
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790386718.960193
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790386749.3067
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790386779.619188
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790386809.9612749
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790386840.426656
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790386870.748103
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790386901.073008
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790386931.410272
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790386961.717591
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790386991.99023
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790387022.319433
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790387052.6579242
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790387082.994934
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790387113.291986
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790387143.581205
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790387173.879101
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790387204.173335
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790387234.6153018
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790387264.9404001
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790387295.307101
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790387325.61984
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790387355.94142
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790387386.249599
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790387416.551517
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790387446.851017
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790387477.150084
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790387507.471939
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790387537.8067021
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790387568.0986738
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790387598.429832
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790387628.7433012
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790387659.070647
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790387689.389599
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790387719.7104661
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790387750.0188448
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790387780.33657
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790387810.623297
+          }
+        ],
+        "swap_start_gb": 0.72,
+        "swap_max_gb": 0.72,
+        "aborted_swap": false,
+        "aborted_memory": false,
+        "free_min_pct": 14.0,
+        "server_footprint_max_gb": 112.0,
+        "server_footprint_peak_gb": 113.0
+      },
+      "agent_commits": 1,
+      "gate": {
+        "steps": {
+          "install": {
+            "cmd": "npm ci",
+            "exit": 0,
+            "seconds": 17.8,
+            "tail": "\nadded 254 packages, and audited 255 packages in 18s\n\n52 packages are looking for funding\n  run `npm fund` for details\n\n8 vulnerabilities (2 moderate, 6 high)\n\nTo address issues that do not require attention, run:\n  npm audit fix\n\nTo address all issues (including breaking changes), run:\n  npm audit fix --force\n\nRun `npm audit` for details.\nnpm warn deprecated whatwg-encoding@3.1.1: Use @exodus/bytes instead for a more spec-conformant and faster implementation\nnpm warn deprecated level-errors@2.0.1: Superseded by abstract-level (https://github.com/Level/community#faq)\nnpm warn deprecated level-concat-iterator@2.0.1: Superseded by abstract-level (https://github.com/Level/community#faq)\nnpm warn deprecated deferred-leveldown@5.3.0: Superseded by abstract-level (https://github.com/Level/community#faq)\nnpm warn deprecated encoding-down@6.3.0: Superseded by abstract-level (https://github.com/Level/community#faq)\nnpm warn deprecated levelup@4.4.0: Superseded by abstract-level (https://github.com/Level/community#faq)\nnpm warn deprecated level-js@5.0.2: Superseded by browser-level (https://github.com/Level/community#faq)\nnpm warn deprecated level-codec@9.0.2: Superseded by level-transcoder (https://github.com/Level/community#faq)\nnpm warn deprecated level-packager@5.1.1: Superseded by abstract-level (https://github.com/Level/community#faq)\nnpm warn deprecated abstract-leveldown@6.2.3: Superseded by abstract-level (https://github.com/Level/community#faq)\nnpm warn deprecated leveldown@5.6.0: Superseded by classic-level (https://github.com/Level/community#faq)\nnpm warn allow-scripts 8 packages have install scripts not yet covered by allowScripts:\nnpm warn allow-scripts   esbuild@0.27.0 (postinstall: node install.js)\nnpm warn allow-scripts   sharp@0.34.5 (install: node install/check.js || npm run build)\nnpm warn allow-scripts   workerd@1.20260111.0 (postinstall: node install.js)\nnpm warn allow-scripts   esbuild@0.28.2 (postinstall: node install.js)\nnpm warn allow-scripts   fsevents@2.3.3 (install: (install scripts present))\nnpm warn allow-scripts   leveldown@5.6.0 (install: node-gyp-build)\nnpm warn allow-scripts   workerd@1.20260923.1 (postinstall: node install.js)\nnpm warn allow-scripts   esbuild@0.28.1 (postinstall: node install.js)\nnpm warn allow-scripts\nnpm warn allow-scripts Run `npm approve-scripts --allow-scripts-pending` to review, or `npm approve-scripts <pkg>` to allow.\n"
+          },
+          "build": {
+            "cmd": "npm run build",
+            "exit": 0,
+            "seconds": 1.0,
+            "tail": "\n> vidi6@0.0.0 build\n> vite build\n\n\u001b[36mvite v7.3.6 \u001b[32mbuilding client environment for production...\u001b[36m\u001b[39m\ntransforming...\n\u001b[32m\u2713\u001b[39m 131 modules transformed.\nrendering chunks...\ncomputing gzip size...\n\u001b[2mdist/client/\u001b[22m\u001b[32mindex.html                 \u001b[39m\u001b[1m\u001b[2m  0.81 kB\u001b[22m\u001b[1m\u001b[22m\u001b[2m \u2502 gzip:   0.46 kB\u001b[22m\n\u001b[2mdist/client/\u001b[22m\u001b[2massets/\u001b[22m\u001b[35mindex-BvHjmNRj.css  \u001b[39m\u001b[1m\u001b[2m  6.54 kB\u001b[22m\u001b[1m\u001b[22m\u001b[2m \u2502 gzip:   1.80 kB\u001b[22m\n\u001b[2mdist/client/\u001b[22m\u001b[2massets/\u001b[22m\u001b[36mindex-B4p6yvGC.js   \u001b[39m\u001b[1m\u001b[2m411.46 kB\u001b[22m\u001b[1m\u001b[22m\u001b[2m \u2502 gzip: 128.54 kB\u001b[22m\n\u001b[32m\u2713 built in 479ms\u001b[39m\n",
+            "passed": null,
+            "failed": null
+          },
+          "typecheck": {
+            "cmd": "npm run typecheck",
+            "exit": 0,
+            "seconds": 2.0,
+            "tail": "\n> vidi6@0.0.0 typecheck\n> tsc --noEmit -p tsconfig.json && tsc --noEmit -p tsconfig.test.json\n\n",
+            "passed": null,
+            "failed": null
+          },
+          "test:unit": {
+            "cmd": "npm run test:unit",
+            "exit": 0,
+            "seconds": 2.1,
+            "tail": "\n> vidi6@0.0.0 test:unit\n> vitest run --project unit\n\n\n\u001b[1m\u001b[46m RUN \u001b[49m\u001b[22m \u001b[36mv3.2.7 \u001b[39m\u001b[90m~/.vidi-bench/work/qwen__3.8__flash-next__macos__128GB__mtplx-opencode__benchmarks__vidi__canvas-pi-02/workspace\u001b[39m\n\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[42m unit \u001b[49m\u001b[39m tests/unit/text-layout.test.ts \u001b[2m(\u001b[22m\u001b[2m9 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 2\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[42m unit \u001b[49m\u001b[39m tests/unit/geometry.test.ts \u001b[2m(\u001b[22m\u001b[2m16 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 2\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[42m unit \u001b[49m\u001b[39m tests/unit/presence-identity.test.ts \u001b[2m(\u001b[22m\u001b[2m12 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 3\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[42m unit \u001b[49m\u001b[39m tests/unit/presence-colors.test.ts \u001b[2m(\u001b[22m\u001b[2m7 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 8\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[42m unit \u001b[49m\u001b[39m tests/unit/presence-transport.test.ts \u001b[2m(\u001b[22m\u001b[2m22 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 4\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[42m unit \u001b[49m\u001b[39m tests/unit/presence-identity-contract.test.ts \u001b[2m(\u001b[22m\u001b[2m12 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 25\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[42m unit \u001b[49m\u001b[39m tests/unit/protocol.test.ts \u001b[2m(\u001b[22m\u001b[2m14 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 4\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[42m unit \u001b[49m\u001b[39m tests/unit/sticky-text.test.ts \u001b[2m(\u001b[22m\u001b[2m13 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 7\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[42m unit \u001b[49m\u001b[39m tests/unit/text-model.test.ts \u001b[2m(\u001b[22m\u001b[2m21 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 5\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[42m unit \u001b[49m\u001b[39m tests/unit/camera.test.ts \u001b[2m(\u001b[22m\u001b[2m19 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 28\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[42m unit \u001b[49m\u001b[39m tests/unit/awareness-tracker.test.ts \u001b[2m(\u001b[22m\u001b[2m23 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 9\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[42m unit \u001b[49m\u001b[39m tests/unit/board-model.test.ts \u001b[2m(\u001b[22m\u001b[2m22 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 12\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[42m unit \u001b[49m\u001b[39m tests/unit/shape-model.test.ts \u001b[2m(\u001b[22m\u001b[2m9 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 6\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[42m unit \u001b[49m\u001b[39m tests/unit/undo-history.test.ts \u001b[2m(\u001b[22m\u001b[2m11 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 21\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[42m unit \u001b[49m\u001b[39m tests/unit/connector-model.test.ts \u001b[2m(\u001b[22m\u001b[2m14 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 8\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[42m unit \u001b[49m\u001b[39m tests/unit/board-model-group.test.ts \u001b[2m(\u001b[22m\u001b[2m21 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 11\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[42m unit \u001b[49m\u001b[39m tests/unit/create-board.test.ts \u001b[2m(\u001b[22m\u001b[2m10 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 128\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[42m unit \u001b[49m\u001b[39m tests/unit/selection-reducer.test.ts \u001b[2m(\u001b[22m\u001b[2m11 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 2\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[42m unit \u001b[49m\u001b[39m tests/unit/router.test.ts \u001b[2m(\u001b[22m\u001b[2m9 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 6\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[42m unit \u001b[49m\u001b[39m tests/unit/registry.test.ts \u001b[2m(\u001b[22m\u001b[2m4 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 1\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[42m unit \u001b[49m\u001b[39m tests/unit/board-id.test.ts \u001b[2m(\u001b[22m\u001b[2m8 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 48\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[42m unit \u001b[49m\u001b[39m tests/unit/undo-boundaries.test.ts \u001b[2m(\u001b[22m\u001b[2m2 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[33m 1332\u001b[2mms\u001b[22m\u001b[39m\n   \u001b[33m\u001b[2m\u2713\u001b[22m\u001b[39m undo.boundaries: the capture window (TC-12, TC-13)\u001b[2m > \u001b[22mTC-13 a pause past the window splits; a pause inside it does not \u001b[33m 1268\u001b[2mms\u001b[22m\u001b[39m\n\n\u001b[2m Test Files \u001b[22m \u001b[1m\u001b[32m22 passed\u001b[39m\u001b[22m\u001b[90m (22)\u001b[39m\n\u001b[2m      Tests \u001b[22m \u001b[1m\u001b[32m289 passed\u001b[39m\u001b[22m\u001b[90m (289)\u001b[39m\n\u001b[2m   Start at \u001b[22m 02:57:25\n\u001b[2m   Duration \u001b[22m 1.70s\u001b[2m (transform 731ms, setup 0ms, collect 1.51s, tests 1.67s, environment 8ms, prepare 711ms)\u001b[22m\n\n",
+            "passed": 289,
+            "failed": 0
+          },
+          "test:component": {
+            "cmd": "npm run test:component",
+            "exit": 0,
+            "seconds": 6.5,
+            "tail": "getContext (~/.vidi-bench/work/qwen__3.8__flash-next__macos__128GB__mtplx-opencode__benchmarks__vidi__canvas-pi-02/workspace/node_modules/jsdom/lib/jsdom/living/generated/HTMLCanvasElement.js:131:58)\n    at createCanvasMeasurer (~/.vidi-bench/work/qwen__3.8__flash-next__macos__128GB__mtplx-opencode__benchmarks__vidi__canvas-pi-02/workspace/src/client/objects/textLayout.ts:36:24)\n    at BoardSurface (~/.vidi-bench/work/qwen__3.8__flash-next__macos__128GB__mtplx-opencode__benchmarks__vidi__canvas-pi-02/workspace/src/client/App.tsx:146:30)\n    at Object.react_stack_bottom_frame (~/.vidi-bench/work/qwen__3.8__flash-next__macos__128GB__mtplx-opencode__benchmarks__vidi__canvas-pi-02/workspace/node_modules/react-dom/cjs/react-dom-client.development.js:28571:20)\n    at renderWithHooks (~/.vidi-bench/work/qwen__3.8__flash-next__macos__128GB__mtplx-opencode__benchmarks__vidi__canvas-pi-02/workspace/node_modules/react-dom/cjs/react-dom-client.development.js:8030:22)\n    at updateFunctionComponent (~/.vidi-bench/work/qwen__3.8__flash-next__macos__128GB__mtplx-opencode__benchmarks__vidi__canvas-pi-02/workspace/node_modules/react-dom/cjs/react-dom-client.development.js:10569:19)\n    at beginWork (~/.vidi-bench/work/qwen__3.8__flash-next__macos__128GB__mtplx-opencode__benchmarks__vidi__canvas-pi-02/workspace/node_modules/react-dom/cjs/react-dom-client.development.js:12205:18)\n    at runWithFiberInDEV (~/.vidi-bench/work/qwen__3.8__flash-next__macos__128GB__mtplx-opencode__benchmarks__vidi__canvas-pi-02/workspace/node_modules/react-dom/cjs/react-dom-client.development.js:1048:13) \u001b[90mundefined\u001b[39m\nError: Not implemented: HTMLCanvasElement.prototype.getContext (without installing the canvas npm package)\n    at module.exports (~/.vidi-bench/work/qwen__3.8__flash-next__macos__128GB__mtplx-opencode__benchmarks__vidi__canvas-pi-02/workspace/node_modules/jsdom/lib/jsdom/browser/not-implemented.js:9:17)\n    at HTMLCanvasElementImpl.getContext (~/.vidi-bench/work/qwen__3.8__flash-next__macos__128GB__mtplx-opencode__benchmarks__vidi__canvas-pi-02/workspace/node_modules/jsdom/lib/jsdom/living/nodes/HTMLCanvasElement-impl.js:42:5)\n    at HTMLCanvasElement.getContext (~/.vidi-bench/work/qwen__3.8__flash-next__macos__128GB__mtplx-opencode__benchmarks__vidi__canvas-pi-02/workspace/node_modules/jsdom/lib/jsdom/living/generated/HTMLCanvasElement.js:131:58)\n    at createCanvasMeasurer (~/.vidi-bench/work/qwen__3.8__flash-next__macos__128GB__mtplx-opencode__benchmarks__vidi__canvas-pi-02/workspace/src/client/objects/textLayout.ts:36:24)\n    at BoardSurface (~/.vidi-bench/work/qwen__3.8__flash-next__macos__128GB__mtplx-opencode__benchmarks__vidi__canvas-pi-02/workspace/src/client/App.tsx:146:30)\n    at Object.react_stack_bottom_frame (~/.vidi-bench/work/qwen__3.8__flash-next__macos__128GB__mtplx-opencode__benchmarks__vidi__canvas-pi-02/workspace/node_modules/react-dom/cjs/react-dom-client.development.js:28571:20)\n    at renderWithHooksAgain (~/.vidi-bench/work/qwen__3.8__flash-next__macos__128GB__mtplx-opencode__benchmarks__vidi__canvas-pi-02/workspace/node_modules/react-dom/cjs/react-dom-client.development.js:8138:20)\n    at renderWithHooks (~/.vidi-bench/work/qwen__3.8__flash-next__macos__128GB__mtplx-opencode__benchmarks__vidi__canvas-pi-02/workspace/node_modules/react-dom/cjs/react-dom-client.development.js:8042:22)\n    at updateFunctionComponent (~/.vidi-bench/work/qwen__3.8__flash-next__macos__128GB__mtplx-opencode__benchmarks__vidi__canvas-pi-02/workspace/node_modules/react-dom/cjs/react-dom-client.development.js:10569:19)\n    at beginWork (~/.vidi-bench/work/qwen__3.8__flash-next__macos__128GB__mtplx-opencode__benchmarks__vidi__canvas-pi-02/workspace/node_modules/react-dom/cjs/react-dom-client.development.js:12205:18) \u001b[90mundefined\u001b[39m\n\n",
+            "passed": null,
+            "failed": null
+          },
+          "test:integration": {
+            "cmd": "npm run test:integration",
+            "exit": 0,
+            "seconds": 19.6,
+            "tail": "0] wrote 145 bytes to board board\n\n\u001b[90mstdout\u001b[2m | tests/integration/worker.test.ts\u001b[2m > \u001b[22m\u001b[2mtwo boards are two rooms (TC-17)\u001b[2m > \u001b[22m\u001b[2mkeeps a note made in one board out of another\n\u001b[22m\u001b[39m[room 873e5b914b8b4913833eab1ffe9ac938ac1d6b7fa0e1b1b6c69805c45fb234f8] wrote 147 bytes to board board\n\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[45m integration \u001b[49m\u001b[39m tests/integration/worker.test.ts \u001b[2m(\u001b[22m\u001b[2m14 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[33m 740\u001b[2mms\u001b[22m\u001b[39m\n   \u001b[33m\u001b[2m\u2713\u001b[22m\u001b[39m the room holds more than the configured capacity (TC-13)\u001b[2m > \u001b[22maccepts capacity + 1 editors and still relays between all of them \u001b[33m 350\u001b[2mms\u001b[22m\u001b[39m\n   \u001b[33m\u001b[2m\u2713\u001b[22m\u001b[39m two boards are two rooms (TC-17)\u001b[2m > \u001b[22mkeeps a note made in one board out of another \u001b[33m 349\u001b[2mms\u001b[22m\u001b[39m\n\n\u001b[2m Test Files \u001b[22m \u001b[1m\u001b[32m5 passed\u001b[39m\u001b[22m\u001b[90m (5)\u001b[39m\n\u001b[2m      Tests \u001b[22m \u001b[1m\u001b[32m64 passed\u001b[39m\u001b[22m\u001b[90m (64)\u001b[39m\n\u001b[2m   Start at \u001b[22m 02:57:34\n\u001b[2m   Duration \u001b[22m 18.73s\u001b[2m (transform 95ms, setup 0ms, collect 357ms, tests 17.81s, environment 0ms, prepare 63ms)\u001b[22m\n\n[vpw:debug] Shutting down runtimes...\n\u001b[90mstderr\u001b[2m | tests/integration/board-room-persistence.test.ts\u001b[2m > \u001b[22m\u001b[2ma board that cannot be read is refused, not emptied (TC-21, TC-22, TC-23)\u001b[2m > \u001b[22m\u001b[2mcloses a joiner for damaged bytes, and keeps the damage off the board\n\u001b[22m\u001b[39mboard board: the stored state is unreadable, refusing to load it\n\nworkerd/io/worker.c++:2323: info: uncaught exception; source = Uncaught; stack = Error: ~/.vidi-bench/work/qwen__3.8__flash-next__macos__128GB__mtplx-opencode__benchmarks__vidi__canvas-pi-02/workspace/src/worker/index.ts changed, invalidating this Durable Object. Please retry the `DurableObjectStub#fetch()` call.\n    at Users/julian/.vidi-bench/work/qwen__3.8__flash-next__macos__128GB__mtplx-opencode__benchmarks__vidi__canvas-pi-02/workspace/node_modules/@cloudflare/vitest-pool-workers/dist/worker/lib/cloudflare/test-internal.mjs:542:15\nworkerd/jsg/exception.c++:146: info: Annotating with brokenness; internalMessage = jsg.Error: ~/.vidi-bench/work/qwen__3.8__flash-next__macos__128GB__mtplx-opencode__benchmarks__vidi__canvas-pi-02/workspace/src/worker/index.ts changed, invalidating this Durable Object. Please retry the `DurableObjectStub#fetch()` call.; brokennessReason = broken.inputGateBroken\nworkerd/io/io-context.c++:430: info: uncaught exception; exception = workerd/jsg/_virtual_includes/iterator/workerd/jsg/value.h:1480: failed: broken.inputGateBroken; jsg.Error: ~/.vidi-bench/work/qwen__3.8__flash-next__macos__128GB__mtplx-opencode__benchmarks__vidi__canvas-pi-02/workspace/src/worker/index.ts changed, invalidating this Durable Object. Please retry the `DurableObjectStub#fetch()` call.\nstack: 103ddc597 103773b97 10376ca47 103768b1b 103762437 10383931b 10383bf27 10383bc57 105560e5b 10383c554 10376dc68 102e4d7e8\nworkerd/io/io-context.c++:430: info: uncaught exception; exception = workerd/jsg/_virtual_includes/iterator/workerd/jsg/value.h:1480: failed: broken.inputGateBroken; jsg.Error: ~/.vidi-bench/work/qwen__3.8__flash-next__macos__128GB__mtplx-opencode__benchmarks__vidi__canvas-pi-02/workspace/src/worker/index.ts changed, invalidating this Durable Object. Please retry the `DurableObjectStub#fetch()` call.\nstack: 103ddc597 103773b97 10376ca47 103768b1b 103762437 10383931b 10383bf27 10383bc57 105560e5b 10383c554 10376dc68 102e4d7e8 1038cecac\nworkerd/io/io-context.c++:430: info: uncaught exception; exception = workerd/jsg/_virtual_includes/iterator/workerd/jsg/value.h:1480: failed: broken.inputGateBroken; jsg.Error: ~/.vidi-bench/work/qwen__3.8__flash-next__macos__128GB__mtplx-opencode__benchmarks__vidi__canvas-pi-02/workspace/src/worker/index.ts changed, invalidating this Durable Object. Please retry the `DurableObjectStub#fetch()` call.\nstack: 103ddc597 103773b97 10376ca47 103768b1b 103762437 10383931b 10383bf27 10383bc57 105560e5b 10383c554 10376dc68 102e4d7e8 1038cecac\n",
+            "passed": 64,
+            "failed": 0
+          },
+          "test:e2e": {
+            "cmd": "npm run test:e2e -- --project=chromium",
+            "exit": 1,
+            "seconds": 16.6,
+            "tail": "/e2e/sticky-notes.spec.ts:222:1 \u203a TC-34 the toolbar creates a note in the middle of the view a million units out (174ms)\n  \u2713  53 [chromium] \u203a tests/e2e/sticky-notes.spec.ts:108:1 \u203a TC-31 at 50% zoom a 100x50 drag moves the note 200x100 world units (384ms)\n  \u2713  54 [chromium] \u203a tests/e2e/sticky-notes.spec.ts:138:1 \u203a TC-32 at 200% zoom a 100x50 drag moves the note 50x25 and puts it on top (410ms)\n  -  61 [chromium] \u203a tests/e2e/sync.spec.ts:181:8 \u203a two people, one board \u203a TC-31 a link that dies mid-flight does not leave a broken board\n  \u2713  57 [chromium] \u203a tests/e2e/sticky-notes.spec.ts:248:1 \u203a the golden path: create, type, recolour, move at 50%, delete (610ms)\n  \u2713  58 [chromium] \u203a tests/e2e/sticky-notes.spec.ts:293:1 \u203a 500 notes: clicking one is a single cheap update (524ms)\n  \u2713  41 [chromium] \u203a tests/e2e/share.spec.ts:202:1 \u203a TC-27 a paste that lost characters is a dead end you can see (2.1s)\n  \u2713  45 [chromium] \u203a tests/e2e/share.spec.ts:265:1 \u203a TC-28 an unreachable service says so, and comes back without a reload (1.9s)\n  \u2713  62 [chromium] \u203a tests/e2e/sync.spec.ts:223:3 \u203a a whole board of people \u203a TC-12 five editors, one change each, converge (1.4s)\n  \u2713  21 [chromium] \u203a tests/e2e/presence.spec.ts:340:3 \u203a one board, seen from two different places \u203a TC-24 the same place on the board is the same place on both screens (5.2s)\n  \u2713  63 [chromium] \u203a tests/e2e/text.spec.ts:58:1 \u203a TC-26 long annotation: long text wraps to multiple lines, width \u2264 TEXT_MAX_AUTO_WIDTH_WORLD (1.3s)\n  \u2713  59 [chromium] \u203a tests/e2e/sync.spec.ts:119:3 \u203a two people, one board \u203a TC-23 an edit by one person appears on the other board within two seconds (2.0s)\n  \u2713  67 [chromium] \u203a tests/e2e/text.spec.ts:339:1 \u203a TC-30 concurrent heading creation: all editors create headings at once (840ms)\n  \u2713  69 [chromium] \u203a tests/e2e/undo.spec.ts:118:1 \u203a TC-22 undo restores my eight deleted notes, leaves the colleague's note, and reverses (607ms)\n  \u2713  68 [chromium] \u203a tests/e2e/text.spec.ts:397:1 \u203a TC-31 abandoned text: T, click, Escape \u2192 no object; marquee selects nothing (749ms)\n  \u2713  65 [chromium] \u203a tests/e2e/text.spec.ts:178:1 \u203a TC-28 golden path: heading creation, XL size, Delete key, undo restores (1.5s)\n  \u2713  64 [chromium] \u203a tests/e2e/text.spec.ts:99:1 \u203a TC-27 drag right handle narrower \u2192 words rewrap, height grows (2.1s)\n  \u2713  70 [chromium] \u203a tests/e2e/undo.spec.ts:241:1 \u203a TC-23 undoing a move whose note a colleague deleted errors nowhere, and the next undo still works (1.2s)\n  \u2713  60 [chromium] \u203a tests/e2e/sync.spec.ts:136:3 \u203a two people, one board \u203a TC-24 a note made in one board never reaches another (3.3s)\n  \u2713  66 [chromium] \u203a tests/e2e/text.spec.ts:253:1 \u203a TC-29 concurrent editing: two contexts type into same text \u2192 merge (2.2s)\n  \u2713  71 [chromium] \u203a tests/e2e/undo.spec.ts:318:1 \u203a TC-24 everyone undoing at once undoes exactly their own changes (6.3s)\n  \u2718  36 [chromium] \u203a tests/e2e/shapes-connectors.spec.ts:160:1 \u203a TC-26 delete shape detaches connector on both contexts (10.4s)\n\n\n  1) [chromium] \u203a tests/e2e/shapes-connectors.spec.ts:160:1 \u203a TC-26 delete shape detaches connector on both contexts \n\n    Error: expect(received).toBe(expected) // Object.is equality\n\n    Expected: true\n    Received: false\n\n    Call Log:\n    - Timeout 10000ms exceeded while waiting on the predicate\n\n      206 |         && c2[0]!.toKind === 'free';\n      207 |     }, { timeout: 10_000 })\n    > 208 |     .toBe(true);\n          |      ^\n      209 | });\n      210 |\n      211 | // ---------------------------------------------------------------------------\n        at ~/.vidi-bench/work/qwen__3.8__flash-next__macos__128GB__mtplx-opencode__benchmarks__vidi__canvas-pi-02/workspace/tests/e2e/shapes-connectors.spec.ts:208:6\n\n    Error Context: test-results/shapes-connectors-TC-26-de-43720--connector-on-both-contexts-chromium/error-context.md\n\n  1 failed\n    [chromium] \u203a tests/e2e/shapes-connectors.spec.ts:160:1 \u203a TC-26 delete shape detaches connector on both contexts \n  1 skipped\n  69 passed (16.2s)\n",
+            "passed": 69,
+            "failed": 1
+          }
+        },
+        "all_green": false
+      },
+      "accept": {
+        "skipped": false,
+        "build_exit": 0,
+        "runner_exit": 1,
+        "runner_tail": "",
+        "passed": 59,
+        "total": 65,
+        "on_partial": {
+          "passed": 30,
+          "total": 34
+        },
+        "by_story": {
+          "01": {
+            "passed": 10,
+            "total": 10
+          },
+          "02": {
+            "passed": 10,
+            "total": 10
+          },
+          "03": {
+            "passed": 5,
+            "total": 7
+          },
+          "04": {
+            "passed": 4,
+            "total": 4
+          },
+          "05": {
+            "passed": 5,
+            "total": 5,
+            "on_partial_total": 5,
+            "on_partial_passed": 5
+          },
+          "07": {
+            "passed": 7,
+            "total": 8,
+            "on_partial_total": 8,
+            "on_partial_passed": 7
+          },
+          "08": {
+            "passed": 7,
+            "total": 7,
+            "on_partial_total": 7,
+            "on_partial_passed": 7
+          },
+          "09": {
+            "passed": 5,
+            "total": 6,
+            "on_partial_total": 6,
+            "on_partial_passed": 5
+          },
+          "10": {
+            "passed": 6,
+            "total": 8,
+            "on_partial_total": 8,
+            "on_partial_passed": 6
+          }
+        },
+        "harness_fault": null
+      },
+      "commit": "4ecab5fd902c13659e87b0d07b5bdb1b54d70b11",
+      "requests": {
+        "requests": 161,
+        "prompt_tokens": 10336834,
+        "completion_tokens": 75693,
+        "cached_tokens": 10177191,
+        "ttft_median_s": 1.1082635409838986,
+        "prefill_tok_s_median": 262.59157674578245,
+        "decode_tok_s_median": 70.15914954882582,
+        "max_context": 114711,
+        "decode_by_context": {
+          "0-16k": {
+            "requests": 2,
+            "decode_tok_s_median": 92.87556767800038
+          },
+          "16-32k": {
+            "requests": 14,
+            "decode_tok_s_median": 65.48240108639322
+          },
+          "32-64k": {
+            "requests": 60,
+            "decode_tok_s_median": 74.37858528021432
+          },
+          "64-100k": {
+            "requests": 67,
+            "decode_tok_s_median": 68.31289403171442
+          },
+          "100-+k": {
+            "requests": 18,
+            "decode_tok_s_median": 63.477854185646834
+          }
+        }
+      },
+      "loc": {
+        "files": 144,
+        "lines": 29926
+      },
+      "finished": 1790388291.387858,
+      "status": "DONE",
+      "ended_by": "agent",
+      "partial_base": [
+        5,
+        7,
+        8
+      ],
+      "tasks": [
+        {
+          "n": 7,
+          "title": "Write shape model unit tests first (TC-01 to TC-06)",
+          "type": "test:unit",
+          "implements": [
+            "shape.model"
+          ],
+          "tcs": [
+            "TC-01",
+            "TC-02",
+            "TC-03",
+            "TC-04",
+            "TC-05",
+            "TC-06"
+          ],
+          "status": "verified",
+          "found": 6,
+          "total": 6
+        },
+        {
+          "n": 8,
+          "title": "Implement shape model: create by drag/click/Shift, style validation, label Y.Text",
+          "type": "implementation",
+          "implements": [
+            "shape.model"
+          ],
+          "tcs": [],
+          "status": "verified",
+          "found": null,
+          "total": null
+        },
+        {
+          "n": 9,
+          "title": "Write connector model and geometry unit tests first (TC-07 to TC-14, TC-29)",
+          "type": "test:unit",
+          "implements": [
+            "connector.model"
+          ],
+          "tcs": [
+            "TC-07",
+            "TC-08",
+            "TC-09",
+            "TC-10",
+            "TC-11",
+            "TC-12",
+            "TC-13",
+            "TC-14",
+            "TC-29"
+          ],
+          "status": "verified",
+          "found": 9,
+          "total": 9
+        },
+        {
+          "n": 10,
+          "title": "Implement connector model, geometry and detach-on-delete in board-model",
+          "type": "implementation",
+          "implements": [
+            "connector.model"
+          ],
+          "tcs": [],
+          "status": "verified",
+          "found": null,
+          "total": null
+        },
+        {
+          "n": 11,
+          "title": "Implement active tool hook with shortcuts and return-to-Select",
+          "type": "implementation",
+          "implements": [
+            "tools.active_tool"
+          ],
+          "tcs": [],
+          "status": "not-started",
+          "found": null,
+          "total": null
+        },
+        {
+          "n": 12,
+          "title": "Implement Shape tool, ShapeObject with centred label, and ShapeToolbar",
+          "type": "implementation",
+          "implements": [
+            "shape.ui"
+          ],
+          "tcs": [],
+          "status": "not-started",
+          "found": null,
+          "total": null
+        },
+        {
+          "n": 13,
+          "title": "Implement Connector tool with hover dots, ConnectorObject with arrowhead and re-attach handles",
+          "type": "implementation",
+          "implements": [
+            "connector.ui"
+          ],
+          "tcs": [],
+          "status": "not-started",
+          "found": null,
+          "total": null
+        },
+        {
+          "n": 14,
+          "title": "Component tests for shape tool/object/toolbar, connector tool/object and active tool (TC-15 to TC-22, TC-28)",
+          "type": "test:ui-component",
+          "implements": [
+            "shape.ui",
+            "connector.ui",
+            "tools.active_tool"
+          ],
+          "tcs": [
+            "TC-15",
+            "TC-16",
+            "TC-17",
+            "TC-18",
+            "TC-19",
+            "TC-20",
+            "TC-21",
+            "TC-22",
+            "TC-28"
+          ],
+          "status": "not-started",
+          "found": 0,
+          "total": 9
+        },
+        {
+          "n": 15,
+          "title": "E2E: draw a flow, collaborative rearrange, delete race (TC-23 to TC-27)",
+          "type": "test:e2e",
+          "implements": [
+            "shape.ui",
+            "connector.ui"
+          ],
+          "tcs": [
+            "TC-23",
+            "TC-24",
+            "TC-25",
+            "TC-26",
+            "TC-27"
+          ],
+          "status": "committed",
+          "found": 5,
+          "total": 5
+        }
+      ],
+      "stub_markers": [],
+      "partial_heldout_changes": {
+        "5": {
+          "fixed": [],
+          "regressed": []
+        },
+        "7": {
+          "fixed": [
+            "corner resize keeps sticky square; minimum size enforced @ref prd:sel.resize prd:sel.aspect prd:sel.size_limits"
+          ],
+          "regressed": []
+        },
+        "8": {
+          "fixed": [],
+          "regressed": []
+        }
       }
     }
   },
@@ -16211,6 +16873,235 @@
           "accept": {
             "passed": 3,
             "total": 6
+          }
+        }
+      ]
+    },
+    {
+      "id": 10,
+      "title": "Draw shapes and connect them with arrows that follow when moved",
+      "status": "DONE",
+      "ended_by": "agent",
+      "started_at": 1790386324.6516821,
+      "ended_at": 1790387824.2929752,
+      "agent_minutes": 25.0,
+      "calls": 160,
+      "output_tokens": 74807,
+      "compactions": 1,
+      "last_commit_at": 1790387801.0,
+      "accept": {
+        "passed": 6,
+        "total": 8,
+        "on_partial_total": 8,
+        "on_partial_passed": 6
+      },
+      "partial_base": [
+        5,
+        7,
+        8
+      ],
+      "tasks": [
+        {
+          "n": 7,
+          "title": "Write shape model unit tests first (TC-01 to TC-06)",
+          "type": "test:unit",
+          "implements": [
+            "shape.model"
+          ],
+          "tcs": [
+            "TC-01",
+            "TC-02",
+            "TC-03",
+            "TC-04",
+            "TC-05",
+            "TC-06"
+          ],
+          "status": "verified",
+          "found": 6,
+          "total": 6
+        },
+        {
+          "n": 8,
+          "title": "Implement shape model: create by drag/click/Shift, style validation, label Y.Text",
+          "type": "implementation",
+          "implements": [
+            "shape.model"
+          ],
+          "tcs": [],
+          "status": "verified",
+          "found": null,
+          "total": null
+        },
+        {
+          "n": 9,
+          "title": "Write connector model and geometry unit tests first (TC-07 to TC-14, TC-29)",
+          "type": "test:unit",
+          "implements": [
+            "connector.model"
+          ],
+          "tcs": [
+            "TC-07",
+            "TC-08",
+            "TC-09",
+            "TC-10",
+            "TC-11",
+            "TC-12",
+            "TC-13",
+            "TC-14",
+            "TC-29"
+          ],
+          "status": "verified",
+          "found": 9,
+          "total": 9
+        },
+        {
+          "n": 10,
+          "title": "Implement connector model, geometry and detach-on-delete in board-model",
+          "type": "implementation",
+          "implements": [
+            "connector.model"
+          ],
+          "tcs": [],
+          "status": "verified",
+          "found": null,
+          "total": null
+        },
+        {
+          "n": 11,
+          "title": "Implement active tool hook with shortcuts and return-to-Select",
+          "type": "implementation",
+          "implements": [
+            "tools.active_tool"
+          ],
+          "tcs": [],
+          "status": "not-started",
+          "found": null,
+          "total": null
+        },
+        {
+          "n": 12,
+          "title": "Implement Shape tool, ShapeObject with centred label, and ShapeToolbar",
+          "type": "implementation",
+          "implements": [
+            "shape.ui"
+          ],
+          "tcs": [],
+          "status": "not-started",
+          "found": null,
+          "total": null
+        },
+        {
+          "n": 13,
+          "title": "Implement Connector tool with hover dots, ConnectorObject with arrowhead and re-attach handles",
+          "type": "implementation",
+          "implements": [
+            "connector.ui"
+          ],
+          "tcs": [],
+          "status": "not-started",
+          "found": null,
+          "total": null
+        },
+        {
+          "n": 14,
+          "title": "Component tests for shape tool/object/toolbar, connector tool/object and active tool (TC-15 to TC-22, TC-28)",
+          "type": "test:ui-component",
+          "implements": [
+            "shape.ui",
+            "connector.ui",
+            "tools.active_tool"
+          ],
+          "tcs": [
+            "TC-15",
+            "TC-16",
+            "TC-17",
+            "TC-18",
+            "TC-19",
+            "TC-20",
+            "TC-21",
+            "TC-22",
+            "TC-28"
+          ],
+          "status": "not-started",
+          "found": 0,
+          "total": 9
+        },
+        {
+          "n": 15,
+          "title": "E2E: draw a flow, collaborative rearrange, delete race (TC-23 to TC-27)",
+          "type": "test:e2e",
+          "implements": [
+            "shape.ui",
+            "connector.ui"
+          ],
+          "tcs": [
+            "TC-23",
+            "TC-24",
+            "TC-25",
+            "TC-26",
+            "TC-27"
+          ],
+          "status": "committed",
+          "found": 5,
+          "total": 5
+        }
+      ],
+      "baselines": [
+        {
+          "source": "reference opus-5.5 run-1",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 22.5,
+          "calls": 69,
+          "output_tokens": 130294,
+          "accept": {
+            "passed": 8,
+            "total": 8
+          }
+        },
+        {
+          "source": "reference opus-5.5 run-2",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 28.5,
+          "calls": 68,
+          "output_tokens": 119648,
+          "accept": null
+        },
+        {
+          "source": "reference opus-5.5 run-3",
+          "status": "DONE",
+          "gate_green": false,
+          "agent_minutes": 17.5,
+          "calls": 62,
+          "output_tokens": 104833,
+          "accept": {
+            "passed": 8,
+            "total": 8
+          }
+        },
+        {
+          "source": "qwen/3.8/27b/ubuntu/nvidia4090/llamacpp-opencode canvas-pi-02",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 21.4,
+          "calls": 130,
+          "output_tokens": 84472,
+          "accept": {
+            "passed": 5,
+            "total": 8
+          }
+        },
+        {
+          "source": "qwen/3.8/flash-next/macos/128GB/mtplx-opencode canvas-pi-01",
+          "status": "DONE",
+          "gate_green": false,
+          "agent_minutes": 67.0,
+          "calls": 253,
+          "output_tokens": 132825,
+          "accept": {
+            "passed": 4,
+            "total": 8
           }
         }
       ]
