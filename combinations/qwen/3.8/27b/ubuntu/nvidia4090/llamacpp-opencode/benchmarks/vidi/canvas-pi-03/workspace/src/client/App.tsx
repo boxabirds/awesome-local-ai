@@ -11,8 +11,20 @@ import { useSelection } from './board/useSelection';
 import { Toolbar } from './board/Toolbar';
 import { StickyNote } from './objects/StickyNote';
 import { ConnectionStatus } from './sync/ConnectionStatus';
+import type { ConnectionState } from './sync/connectBoard';
 import { createSticky, deleteObject, snapshot } from '@/shared/board-model';
 import { isValidBoardId, newBoardId } from '@/shared/board-id';
+
+/**
+ * Story 4: the board is editable in every connection state except
+ * `load_failed` — a board that could not be loaded must not accept edits
+ * (they would be lost against the unreadable storage, and the UI says the
+ * board is retrying, not editable). While connecting/reconnecting the
+ * existing story-3 behaviour holds: edits apply locally and sync later.
+ */
+export function canEdit(state: ConnectionState): boolean {
+  return state !== 'load_failed';
+}
 
 /** Extracts the board id from `/b/:boardId`, or null when absent. */
 function parseBoardId(pathname: string): string | null {
@@ -59,14 +71,18 @@ export function App() {
     if (window.__vidi6) window.__vidi6.connectionState = connectionState;
   }, [connectionState]);
 
+  // Story 4: all edit handlers are no-ops while the board failed to load.
+  const editable = canEdit(connectionState);
+
   const createStickyAt = useCallback(
     (world: Point) => {
+      if (!editable) return;
       const id = createSticky(doc, world);
       if (id) {
         startEdit(id);
       }
     },
-    [doc, startEdit],
+    [doc, editable, startEdit],
   );
 
   const createStickyCenter = useCallback(() => {
@@ -87,6 +103,7 @@ export function App() {
         target instanceof HTMLElement &&
         (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable);
       if (editingId !== null || inInput) return;
+      if (!editable) return; // story 4: no edits while load failed
       if (selectedId === null) return;
       if (e.key === 'Enter') {
         e.preventDefault();
@@ -98,7 +115,7 @@ export function App() {
     };
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [doc, editingId, selectedId, startEdit]);
+  }, [doc, editable, editingId, selectedId, startEdit]);
 
   // If the selected or edited note disappears (deleted via the bin or
   // keyboard), clear the stale local state.
@@ -130,13 +147,14 @@ export function App() {
             zoom={cameraState.camera.zoom}
             selected={selectedId === note.id}
             editing={editingId === note.id}
+            editable={editable}
             onSelect={select}
             onStartEdit={startEdit}
             onEndEdit={endEdit}
           />
         ))}
       </BoardViewport>
-      <Toolbar onCreateSticky={createStickyCenter} />
+      <Toolbar onCreateSticky={createStickyCenter} disabled={!editable} />
       <ZoomControls
         zoomPercent={zoomPercent(cameraState.camera)}
         canZoomIn={canZoomIn(cameraState.camera)}

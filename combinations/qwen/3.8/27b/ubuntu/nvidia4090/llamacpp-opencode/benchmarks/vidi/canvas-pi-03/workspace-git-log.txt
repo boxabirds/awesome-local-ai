@@ -1,3 +1,47 @@
+commit 5ecf3919b7ca2c05f411a197f11a2825c8d15cd6
+vidi-agent  Sat Sep 26 02:06:54 2026 +0100
+
+    harness: snapshot after story 4 (uncommitted agent work)
+
+
+ package.json                               |   3 +-
+ playwright.config.ts                       |   5 +-
+ playwright.persist.config.ts               |  30 +++
+ scripts/dbg-build.ts                       |   3 +
+ scripts/dbg-tc15.mjs                       |  15 ++
+ scripts/replay-test.mjs                    |  43 ++++
+ scripts/room-sim.mjs                       | 104 +++++++++
+ scripts/smoke-story4.mjs                   | 256 +++++++++++++++++++++
+ scripts/tc09-debug.mjs                     |  23 ++
+ src/client/App.tsx                         |  24 +-
+ src/client/board/Toolbar.tsx               |   6 +-
+ src/client/canvas/testHooks.ts             |  16 ++
+ src/client/objects/StickyNote.tsx          |  66 +++++-
+ src/client/sync/ConnectionStatus.tsx       |   3 +
+ src/client/sync/connectBoard.ts            |  64 +++++-
+ src/shared/board-model.ts                  |  27 ++-
+ src/shared/config.ts                       |  17 ++
+ src/shared/protocol.ts                     |  31 +++
+ src/worker/board-room.ts                   | 352 ++++++++++++++++++++---------
+ src/worker/board-store.ts                  | 298 ++++++++++++++++++++++++
+ src/worker/index.ts                        |  18 +-
+ src/worker/room-state.ts                   | 105 +++++++++
+ src/worker/test-hooks.ts                   | 252 +++++++++++++++++++++
+ tests/component/LoadFailure.test.tsx       | 250 ++++++++++++++++++++
+ tests/e2e/persistence/boards.ts            |  85 +++++++
+ tests/e2e/persistence/broken-board.spec.ts |  65 ++++++
+ tests/e2e/persistence/helpers.ts           |  55 +++++
+ tests/e2e/persistence/persistence.spec.ts  | 129 +++++++++++
+ tests/e2e/persistence/wrangler-process.ts  | 136 +++++++++++
+ tests/fixtures/boards.ts                   | 202 +++++++++++++++++
+ tests/integration/board-store.test.ts      | 246 ++++++++++++++++++++
+ tests/integration/global-setup.ts          |   8 +-
+ tests/integration/hooks.ts                 | 112 +++++++++
+ tests/integration/persistent-room.test.ts  | 221 ++++++++++++++++++
+ tests/unit/board-store.test.ts             |  76 +++++++
+ tests/unit/room-state.test.ts              | 120 ++++++++++
+ wrangler.jsonc                             |   2 +-
+ 37 files changed, 3328 insertions(+), 140 deletions(-)
 commit 07110bcecc1013f90c5b2d126eedaec35489e953
 vidi-agent  Fri Sep 25 21:49:01 2026 +0100
 

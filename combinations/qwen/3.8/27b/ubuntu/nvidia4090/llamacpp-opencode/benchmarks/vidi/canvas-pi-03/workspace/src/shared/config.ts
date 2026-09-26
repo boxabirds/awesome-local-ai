@@ -30,3 +30,20 @@ export const RECONNECT_MAX_BACKOFF_MS = 10_000;
 export const CONNECTED_CONFIRMATION_MS = 2000;
 /** Outage duration used by the catch-up verification (PRD live.catch_up). */
 export const CATCH_UP_TEST_OUTAGE_MS = 30_000;
+
+// --- Story 4: board persistence settings ---
+
+/** Compact the update log once it reaches this many rows. */
+export const COMPACTION_UPDATE_COUNT = 500;
+/** Or once the log reaches this many bytes. */
+export const COMPACTION_BYTES = 4 * 1024 * 1024;
+/** Snapshot size limit per storage row (kept well below the platform's per-row limit). */
+export const SNAPSHOT_CHUNK_BYTES = 512 * 1024;
+/** A LoadFailed room retries loading at most this often (per new connection). */
+export const LOAD_RETRY_MIN_INTERVAL_MS = 5000;
+/** Number of notes in the tested large board (PRD persist.large_board). */
+export const PERSIST_TESTED_NOTES = 2000;
+/** A board of PERSIST_TESTED_NOTES notes must be fully rendered within this (PRD persist.large_board). */
+export const BOARD_LOAD_BUDGET_MS = 3000;
+/** Version of the persisted storage layout (tables in the board's SQLite database). */
+export const STORAGE_SCHEMA_VERSION = 1;

@@ -14,6 +14,6 @@
     ]
   },
   "migrations": [
-    { "tag": "v1", "new_classes": ["BoardRoom"] }
+    { "tag": "v1", "new_sqlite_classes": ["BoardRoom"] }
   ]
 }

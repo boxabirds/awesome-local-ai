@@ -7,6 +7,7 @@
  * auth, which this product does not use.
  */
 import { createDecoder, readVarUint } from 'lib0/decoding';
+import { createEncoder, toUint8Array, writeUint8Array, writeVarUint } from 'lib0/encoding';
 
 export const MESSAGE_SYNC = 0;
 export const MESSAGE_AWARENESS = 1;
@@ -19,6 +20,36 @@ export const MESSAGE_QUERY_AWARENESS = 3;
  * as transient and reconnects, then fully resyncs.
  */
 export const CLOSE_UNSUPPORTED_DATA = 1003;
+
+/**
+ * Close code for a board whose persisted state cannot be loaded (story 4).
+ * 4500 sits in y-websocket's "try again later" range (4500–4599): the
+ * provider keeps reconnecting with backoff, and the room retries loading on
+ * each new connection (throttled by LOAD_RETRY_MIN_INTERVAL_MS).
+ */
+export const CLOSE_BOARD_LOAD_FAILED = 4500;
+
+/**
+ * Close code for storage failures (story 4): the room could not save the
+ * latest change and has discarded its in-memory document. The board remains
+ * readable from storage, so clients reconnect as usual; open pages re-send
+ * their unsaved changes during the re-sync handshake.
+ */
+export const CLOSE_STORAGE_FAILURE = 1011;
+
+/**
+ * Encodes one y-websocket frame: [type: varUint][payload...]. The inverse of
+ * {@link decodeMessage}. An empty/absent payload yields just the type byte
+ * (as query-awareness frames do).
+ */
+export function encodeMessage(type: number, payload?: Uint8Array): Uint8Array {
+  const encoder = createEncoder();
+  writeVarUint(encoder, type);
+  if (payload && payload.length > 0) {
+    writeUint8Array(encoder, payload);
+  }
+  return toUint8Array(encoder);
+}
 
 export type Decoded =
   | { kind: 'sync'; payload: Uint8Array }

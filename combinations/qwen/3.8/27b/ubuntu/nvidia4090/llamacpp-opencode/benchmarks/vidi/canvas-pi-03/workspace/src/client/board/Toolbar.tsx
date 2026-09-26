@@ -3,6 +3,8 @@ import type { ReactElement, SyntheticEvent } from 'react';
 export interface ToolbarProps {
   /** Creates a sticky note at the centre of the visible board area. */
   onCreateSticky(): void;
+  /** Story 4: disabled while the board failed to load (load_failed). */
+  disabled?: boolean;
 }
 
 /**
@@ -43,6 +45,7 @@ export function Toolbar(props: ToolbarProps): ReactElement {
         aria-label="Sticky note"
         title="Sticky note – or double-click the board"
         data-testid="sticky-button"
+        disabled={props.disabled}
         onClick={props.onCreateSticky}
         style={{
           display: 'flex',
@@ -54,7 +57,8 @@ export function Toolbar(props: ToolbarProps): ReactElement {
           borderRadius: 8,
           border: '1px solid rgba(0, 0, 0, 0.15)',
           background: '#FFF59D',
-          cursor: 'pointer',
+          cursor: props.disabled ? 'default' : 'pointer',
+          opacity: props.disabled ? 0.5 : 1,
           boxShadow: '0 1px 3px rgba(0, 0, 0, 0.2)',
         }}
       >

@@ -23,7 +23,10 @@ export default defineConfig({
   projects: [
     {
       name: 'chromium',
-      testIgnore: '**/nightly/**',
+      // The persistence specs manage their own wrangler per test (separate
+      // process, port 8791) and must run sequentially; they live in their
+      // own config (playwright.persist.config.ts, workers: 1).
+      testIgnore: ['**/nightly/**', '**/persistence/**'],
       use: { ...devices['Desktop Chrome'] },
     },
     {

@@ -43,7 +43,13 @@ function waitForReady(timeoutMs: number): Promise<void> {
 }
 
 export default async function setup(): Promise<() => Promise<void>> {
-  child = spawn(process.execPath, [WRANGLER, 'dev', '--port', String(PORT), '--local'], {
+  // TEST_HOOKS:1 exposes the /__test/boards/:id/:op routes the persistence
+  // tests use to reach into the Durable Object's SQLite. Colon-separated
+  // (wrangler splits --var on ':').
+  child = spawn(
+    process.execPath,
+    [WRANGLER, 'dev', '--port', String(PORT), '--local', '--var', 'TEST_HOOKS:1'],
+    {
     stdio: ['ignore', 'pipe', 'pipe'],
     env: process.env,
     detached: true,
