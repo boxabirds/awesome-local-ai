@@ -11,6 +11,16 @@ export interface Vidi6Hooks {
   getNotes(): readonly StickySnapshot[];
   getSelection(): string[];
   getDoc(): Y.Doc;
+  /** Story 8: local per-user undo stack non-empty. */
+  canUndo(): boolean;
+  /** Story 8: local redo stack non-empty. */
+  canRedo(): boolean;
+  /** Story 8: undo one own step; false when the stack is empty. */
+  undo(): boolean;
+  /** Story 8: redo one own step; false when the stack is empty. */
+  redo(): boolean;
+  /** Story 8: close the current capture window. */
+  undoBoundary(): void;
 }
 
 /** The test-only hooks exposed by App in test mode. */

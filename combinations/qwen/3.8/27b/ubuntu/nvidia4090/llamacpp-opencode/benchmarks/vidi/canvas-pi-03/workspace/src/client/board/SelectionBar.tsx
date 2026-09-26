@@ -30,6 +30,8 @@ export interface SelectionBarProps {
   draggingIds: ReadonlySet<string> | null;
   /** Deletes the whole current selection (all ids, not just stickies). */
   onDelete(): void;
+  /** Story 8: close the capture window before/after the colour model call. */
+  onBoundary?: () => void;
 }
 
 function stop(e: SyntheticEvent): void {
@@ -37,7 +39,7 @@ function stop(e: SyntheticEvent): void {
 }
 
 export function SelectionBar(props: SelectionBarProps): ReactElement | null {
-  const { ids, snapshot, doc, editable, editingId, draggingIds, onDelete } = props;
+  const { ids, snapshot, doc, editable, editingId, draggingIds, onDelete, onBoundary } = props;
   if (ids.size === 0) return null;
 
   const selected = snapshot.filter((o) => ids.has(o.id));
@@ -59,7 +61,9 @@ export function SelectionBar(props: SelectionBarProps): ReactElement | null {
       <NoteToolbar
         color={color}
         onColor={(c) => {
+          onBoundary?.();
           setStickyColor(doc, sticky.id, c);
+          onBoundary?.();
         }}
         onDelete={onDelete}
       />

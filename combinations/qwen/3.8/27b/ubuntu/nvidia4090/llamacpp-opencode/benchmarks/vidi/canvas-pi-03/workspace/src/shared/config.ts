@@ -75,3 +75,11 @@ export const MAX_OBJECT_SIZE_WORLD = 20_000;
 export const NUDGE_STEP_WORLD = 1;
 /** Shift+arrow nudge step in world units (sel.nudge). */
 export const NUDGE_LARGE_STEP_WORLD = 10;
+
+// --- Story 8: undo and redo my own changes without undoing anyone else's ---
+
+/** Typing pause that ends a burst (undo.typing); consecutive typing without a
+ *  pause of this length merges into one undo step. */
+export const UNDO_CAPTURE_TIMEOUT_MS = 500;
+/** Number of own changes kept in the per-tab undo history (undo.limit). */
+export const UNDO_MAX_STEPS = 200;

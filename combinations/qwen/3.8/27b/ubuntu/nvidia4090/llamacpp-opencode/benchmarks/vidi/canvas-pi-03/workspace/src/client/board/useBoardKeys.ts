@@ -31,6 +31,12 @@ export interface BoardKeysOptions {
   /** True while a marquee drag is in progress (Escape cancels it instead). */
   marqueeActive?: boolean;
   cancelMarquee?: () => void;
+  /** Story 8: close the capture window before/after a single model call. */
+  onBoundary?: () => void;
+  /** Story 8: undo this tab's most recent own step. */
+  onUndo?: () => void;
+  /** Story 8: re-apply this tab's most recently undone own step. */
+  onRedo?: () => void;
 }
 
 export function useBoardKeys(opts: BoardKeysOptions): void {
@@ -41,7 +47,7 @@ export function useBoardKeys(opts: BoardKeysOptions): void {
 
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent): void => {
-      const { doc, snapshot, canEdit, marqueeActive, cancelMarquee } = ref.current;
+      const { doc, snapshot, canEdit, marqueeActive, cancelMarquee, onBoundary, onUndo, onRedo } = ref.current;
       const sel = selectionRef.current;
 
       const target = e.target as HTMLElement | null;
@@ -69,7 +75,24 @@ export function useBoardKeys(opts: BoardKeysOptions): void {
         return;
       }
 
-      if (!canEdit) return; // story 4: nudge/delete/edit blocked when locked
+      if (!canEdit) return; // story 4: nudge/delete/edit/undo blocked when locked
+
+      // Story 8: undo / redo (no selection required). Intercepted here only
+      // when focus is NOT in an input and no sticky is being edited (the
+      // guards above returned early), so the board and the in-note editor
+      // never both handle the same keystroke.
+      if ((e.ctrlKey || e.metaKey) && !e.altKey && (e.key === 'z' || e.key === 'Z')) {
+        e.preventDefault();
+        if (e.shiftKey) onRedo?.();
+        else onUndo?.();
+        return;
+      }
+      if (e.ctrlKey && !e.metaKey && !e.shiftKey && (e.key === 'y' || e.key === 'Y')) {
+        e.preventDefault();
+        onRedo?.();
+        return;
+      }
+
       const ids = [...sel.ids];
       if (ids.length === 0) return;
 
@@ -82,13 +105,17 @@ export function useBoardKeys(opts: BoardKeysOptions): void {
         for (const o of snapshot) {
           if (sel.ids.has(o.id)) positions.set(o.id, { x: o.x + dx, y: o.y + dy });
         }
+        onBoundary?.();
         moveObjects(doc, positions);
+        onBoundary?.();
         return;
       }
 
       if (e.key === 'Delete' || e.key === 'Backspace') {
         e.preventDefault();
+        onBoundary?.();
         deleteObjects(doc, ids);
+        onBoundary?.();
         sel.clear();
         return;
       }

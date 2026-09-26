@@ -1,10 +1,16 @@
 import type { ReactElement, SyntheticEvent } from 'react';
+import { UndoButtons } from './UndoButtons';
 
 export interface ToolbarProps {
   /** Creates a sticky note at the centre of the visible board area. */
   onCreateSticky(): void;
   /** Story 4: disabled while the board failed to load (load_failed). */
   disabled?: boolean;
+  /** Story 8: undo/redo state + handlers (rendered in the left toolbar). */
+  canUndo?: boolean;
+  canRedo?: boolean;
+  onUndo?(): void;
+  onRedo?(): void;
 }
 
 /**
@@ -67,6 +73,19 @@ export function Toolbar(props: ToolbarProps): ReactElement {
           <path d="M15 20v-5h5" fill="rgba(0, 0, 0, 0.12)" stroke="rgba(0, 0, 0, 0.45)" strokeWidth="1.5" />
         </svg>
       </button>
+
+      {/* Story 8: undo / redo (this person's own steps only). */}
+      {props.onUndo !== undefined && props.onRedo !== undefined && (
+        <div style={{ height: 1, background: 'rgba(0, 0, 0, 0.12)', margin: '0 2px' }} aria-hidden="true" />
+      )}
+      {props.onUndo !== undefined && props.onRedo !== undefined && (
+        <UndoButtons
+          canUndo={props.canUndo ?? false}
+          canRedo={props.canRedo ?? false}
+          onUndo={props.onUndo}
+          onRedo={props.onRedo}
+        />
+      )}
     </div>
   );
 }

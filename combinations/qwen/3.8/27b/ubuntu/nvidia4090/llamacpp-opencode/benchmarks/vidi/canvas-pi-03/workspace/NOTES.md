@@ -355,3 +355,109 @@ with one key press. One consistent code path for every registered object type.
   `__vidi6.applyUpdates` — sticky 120×120 needs explicit width/height; omitting them gives the
   200×200 default.
 - **`closeAll` takes rest args** (`closeAll(...participants)`), not an array.
+
+---
+
+# Story 8: Undo and redo my own changes without undoing anyone else's — Implementation Notes
+
+## What was built
+
+Undo and redo of *one's own* changes only, on a live board. Each participant runs a
+per-`Y.Doc` `UndoManager` scoped to their local origin, so a Ctrl+Z reverts the editor's own
+last change — never a collaborator's. A 500 ms capture window merges a burst (one drag, one
+typing run) into a single step, and an explicit `boundary()` closes that window so two distinct
+actions (drag then recolour) are two steps.
+
+### Key files
+
+| File | Purpose |
+|------|---------|
+| `src/client/board/undo.ts` | `createUndo(doc, opts?)` → `UndoController` wrapping Yjs `UndoManager`: `undo`/`redo`/`canUndo`/`canRedo`/`boundary`/`onChange`/`destroy`; `trackedOrigins: [LOCAL_ORIGIN]`, `captureTimeout`, `index: 0` stack |
+| `src/client/board/useUndo.ts` | React subscription to the controller's change signal; exposes `canUndo`/`canRedo` (gated by `canEdit`) + `undo`/`redo` |
+| `src/client/board/UndoButtons.tsx` | The two toolbar buttons (`aria-label`, `data-testid`, disabled state, inline SVG icons) |
+| `src/client/board/Board.tsx` | Owns the controller (`useMemo` over `doc`), wires `boundary()` into gesture start/end, nudge, delete, create, colour, and text edits; registers the undo test hooks |
+| `src/client/board/useBoardKeys.ts` | Ctrl/⌘+Z undo, Ctrl/⌘+Shift+Z and Ctrl/⌘+Y redo (after the `canEdit` guard, before the selection guard — undo/redo don't need a selection); `boundary()` around nudge + delete |
+| `src/client/board/Toolbar.tsx` | Optional `canUndo`/`canRedo`/`onUndo`/`onRedo` props; renders `UndoButtons` when `onUndo` is provided |
+| `src/client/board/SelectionBar.tsx` | Optional `onBoundary`; wraps `setStickyColor` so a recolour is its own step |
+| `src/client/objects/StickyTextEditor.tsx` | Optional `onBoundary`/`onUndo`/`onRedo`; `boundary()` on mount + on end, and in-editor Ctrl/⌘+Z / Ctrl/⌘+Y intercept (so typing undo lives on the editor, not the board) |
+| `src/client/objects/StickyNote.tsx` | Forwards `onTextBoundary`/`onTextUndo`/`onTextRedo` to its editor |
+| `src/shared/config.ts` | `UNDO_CAPTURE_TIMEOUT_MS = 500`, `UNDO_MAX_STEPS = 200` |
+| `src/client/canvas/testHooks.ts` | `registerUndoTestHooks`; `__vidi6.canUndo/redo/undo/redo/undoBoundary` (test-mode only) |
+
+### Design notes
+
+- **One manager per doc, scoped to one origin.** `UndoManager` is constructed with
+  `trackedOrigins: [LOCAL_ORIGIN]`. Yjs records a transaction only when its origin matches, so
+  remote (collaborator) transactions are *never* captured. That is the entire mechanism for
+  "undo my changes, not theirs" — no diffing or filtering of captured items is needed.
+- **`index: 0` keeps the undo stack at the head.** The redo stack is a separate, implicit
+  reverse; `undo()` pops head, `redo()` re-applies. `depth: Infinity` so nested doc ops (a move
+  touching x and y, a delete touching several objects) collapse into the single stack item for
+  the transaction.
+- **`captureTimeout` is the merge window.** Consecutive local transactions inside 500 ms merge
+  into one stack item. A drag is one long gesture (many rAF writes) — all within the window — so
+  it is one step. A typing burst (key-by-key inserts) is one step. Two actions ≥ 500 ms apart are
+  two steps.
+- **`boundary()` closes the window deliberately.** Called at gesture *end* (and around discrete
+  commands: nudge, delete, create, recolour, text start/end). It flushes the current stack item
+  so the next local transaction starts a fresh step. This is what makes "drag *then* recolour"
+  two steps even though both may land within 500 ms of each other.
+- **Undoing a move of a remotely-deleted object is a no-op that advances the stack.** When the
+  inverse targets a deleted item, Yjs applies it to the (deleted) item with no visible effect and
+  pops on to the next own step in the same `undo()` call. No throw; the deleted object stays
+  gone. (TC-07 / TC-23.)
+- **`onChange` is a change signal, not a Yjs doc event.** The controller subscribes to the
+  manager's stack and fires on every `undo`/`redo`/capture so the toolbar can update
+  `canUndo`/`canRedo`. `useUndo` converts that into a React re-render.
+- **The controller lives in `Board.tsx`, not `App.tsx`.** The `Y.Doc` is owned by `useBoardDoc`
+  inside `Board`, so the manager that wraps it is created there (`useMemo` over `doc`) and the
+  controller is passed down. (The design doc says App; Board is where the doc actually exists.)
+- **Editor keystrokes are intercepted before the board.** `StickyTextEditor`'s `keydown`
+  handles Ctrl/⌘+Z and Ctrl/⌘+Y (and calls `preventDefault`) while focused, so typing undo is
+  the editor's text undo — it never reaches `useBoardKeys`.
+- **Read-only ESM export means real time in boundary tests.** Yjs captures `Date.now` at import
+  (`lib0/time` `export const getUnixTime = Date.now`), which cannot be patched or faked. The
+  capture-timeout unit tests therefore run on the *real* clock with comfortable margins on each
+  side of the 500 ms threshold (see Test notes).
+
+### Testing strategy
+
+- **Unit (TC-01…13, `undo-history.test.ts` + `undo-boundaries.test.ts`):** own moves/edits are
+  undoable; a remote peer's changes are never captured (a second `Y.Doc` pushes state in with a
+  remote origin — `tests/unit/peer.ts`); undo/redo round-trips; multi-step history; the capture
+  timeout merges a burst into one step and splits across the threshold; `boundary()` on an empty
+  stack is safe; undo of a move on a remotely-deleted object is a no-op that advances; a remote
+  text edit survives a local delete + undo.
+- **Component (TC-14…21, `UndoBoundaries.test.tsx` + `UndoControls.test.tsx`):** a 30-frame drag
+  is one step; move-then-colour is two; in-editor Ctrl/⌘+Z undoes typing not the move;
+  `pointercancel` is one step; empty stacks disable the buttons; all five keyboard combos map to
+  the right action with `preventDefault`; load-failed disables the buttons and ignores the
+  shortcuts; Ctrl/⌘+Z while an `<input>` is focused never reaches the controller.
+- **E2E (TC-22…24, `undo.spec.ts`):** real wrangler dev + Chromium. Mia deletes 8 while Raj adds
+  a note — Mia's undo restores the 8 on *both* screens and leaves Raj's note intact, redo removes
+  them again; Mia moves a note Raj deletes — her undo is a no-op with no error and the note stays
+  absent on both; all 5 editors make and undo their own change concurrently — final boards
+  identical and each own change reverted.
+
+### Test notes
+
+- **Fake timers cannot control Yjs's clock.** Because `getUnixTime` is a read-only ESM export
+  bound to `Date.now` at import, `vi.useFakeTimers()` cannot move the capture-timeout clock. The
+  boundary tests (TC-12/13) use the *real* clock: a typing burst with ~100 ms gaps (well under
+  500 ms) merges to one step, while a ≥ 500 ms pause splits to two. This is a deliberate,
+  documented deviation from the spec's "fake timers" wording.
+- **`makeNote` in component tests is undo-tracked.** The test helper creates the note with
+  `createSticky` under `LOCAL_ORIGIN`, so the create itself is a step on the (test) controller's
+  stack. Component undo tests account for that create step (e.g. TC-19's sequence ends with the
+  note's create being undone, then redone).
+- **Buttons gate on `canEdit`; the test hook does not.** `hooks().canUndo()` returns the raw
+  controller state, but the toolbar buttons render disabled when `!canEdit`. The load-failed test
+  (TC-20) therefore asserts the *button* disabled state, not the raw controller — the edit lock
+  is a UI gate, not a controller gate.
+- **E2E counts must include synced remote notes.** After Raj creates a note in TC-22, it syncs to
+  Mia's tab, so each screen shows 8 + 1 = 9 (not 8). The assertions compare against the specific
+  seeded ids + Raj's id rather than a bare count to stay unambiguous.
+- **`pageerror` listeners for "no error".** TC-23/24 attach `page.on('pageerror')` to every tab
+  and assert the list is empty at the end, giving a real guarantee that undoing a doomed inverse
+  (or 5 concurrent undos) throws nothing.
+
