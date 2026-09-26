@@ -7,12 +7,14 @@ Model `qwen3.8-27b`, scope `canvas`, effort `low`, client pi 0.86.0, host 13th G
 | 1 | Pan and zoom around an infinite board | DONE | 40.0 | None | None | None | — | — | green | 6/6 |  | 0 / 1 | 1 | — | throttled 0%, server peak 17 GB |
 | 2 | Capture ideas on sticky notes and rearrange them | DONE | 13.1 | None | None | None | — | — | red | 6/20 |  | 0 / 0 | 0 | — | throttled 0%, server peak 17 GB |
 | 3 | See other people's edits appear live on the same board | PARTIAL (amber) | 240.0 | None | None | None | — | — | green | 24/27 |  | 0 / 0 | 7 | — | throttled 0%, server peak 18 GB |
+| 4 | Return to a board and find everything as it was left | DONE, on partial 3 | 170.6 | None | None | None | — | — | green | 28/31 |  | 0 / 0 | 8 | — | throttled 0%, server peak 18 GB |
 
-**Totals:** 3 stories, 293 agent-minutes, 0 requests, 0 prompt / 0 completion tokens, gate green 2/3, final acceptance 24/27, stalled 0, partial 1, 6394 lines in src+tests.
+**Totals:** 4 stories, 464 agent-minutes, 0 requests, 0 prompt / 0 completion tokens, gate green 3/4, final acceptance 28/31, stalled 0, partial 1, 9459 lines in src+tests.
 
 ### Stories ended early (PARTIAL) and what was built on them
 
 - **Story 3 PARTIAL**, ended by the operator (harness (cap)): story cap: 4.0 h of agent time (cap 4.0 h). Verdict **amber**: gate green, tasks not verified [1, 2, 3, 4, 5, 6, 7, 8, 9] (implementation: [2, 3, 4]), held-out 5/7 (floor 0.0).
+- Story 4, built on partial 3: held-out tests on the partial base 9/11; partial story's tests fixed 0, regressed 0; 1 stub-like lines added to src/.
 
 ## How it happened
 
@@ -23,6 +25,7 @@ Each story's commits, and which story broke or fixed an earlier story's held-out
 | 1 | 5 by the agent | 6788 / 49 | `useCamera.ts` (249), `BoardViewport.tsx` (224), `camera.ts` (214), `styles.css` (129), `NOTES.md` (95), `ZoomControls.tsx` (47), +13 more |
 | 2 | 1 by the agent | 459 / 2 | `board-model.ts` (92), `config.ts` (36), `package.json` (3) |
 | 3 | 1 by the agent, + harness snapshot | 5847 / 51 | `StickyNote.tsx` (247), `styles.css` (218), `board-model.ts` (213), `board-room.ts` (187), `StickyTextEditor.tsx` (170), `NOTES.md` (156), +22 more |
+| 4 | 1 by the agent | 3329 / 110 | `board-room.ts` (519), `board-store.ts` (478), `NOTES.md` (121), `room-state.ts` (116), `test-hooks.ts` (84), `connectBoard.ts` (55), +14 more |
 
 ### Earlier stories broken or fixed
 
