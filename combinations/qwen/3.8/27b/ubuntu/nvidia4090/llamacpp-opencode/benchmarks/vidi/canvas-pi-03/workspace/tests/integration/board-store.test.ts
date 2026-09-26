@@ -14,6 +14,7 @@ import {
   compact,
   corruptSnapshot,
   corruptUpdateRow,
+  initialize,
   loadFresh,
   repair,
   setFailure,
@@ -37,7 +38,9 @@ function simpleSpecs(n: number): Array<{ x: number; y: number; color: StickyColo
 describe('persist.board_store against real Durable Object SQLite', () => {
   it('TC-03: empty board -> tables exist, doc empty, schema version recorded', async () => {
     const boardId = newBoardId();
-    const info = await storageInfo(boardId); // constructs the room -> migrate
+    // Story 5: migrate no longer runs at construct; initialize creates the board.
+    await initialize(boardId);
+    const info = await storageInfo(boardId);
     expect(info.tables).toEqual(
       expect.arrayContaining(['storage_meta', 'updates', 'snapshot_chunks', 'quarantined_updates']),
     );
@@ -51,6 +54,7 @@ describe('persist.board_store against real Durable Object SQLite', () => {
 
   it('TC-25: migrate on a never-edited board writes no updates/snapshot rows', async () => {
     const boardId = newBoardId();
+    await initialize(boardId); // story 5: creates the board (migrate)
     const info = await storageInfo(boardId);
     expect(info.tables).toContain('updates');
     expect(info.tables).toContain('snapshot_chunks');

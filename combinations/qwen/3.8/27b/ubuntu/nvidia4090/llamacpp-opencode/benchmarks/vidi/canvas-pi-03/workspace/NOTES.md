@@ -200,3 +200,67 @@ npm run test:e2e -- --project chromium
 npm run typecheck
 npm run build
 ```
+
+# Story 5: Share a board with others using a link — Implementation Notes
+
+## What was built
+
+Boards are now addressable: `POST /api/boards` creates one (rate-limited), `GET
+/api/boards/:id` checks existence, and `/b/:id` renders the board for any visitor.
+Unknown or malformed ids land on a not-found page. The board page shows a share
+panel (copy link) for the creator.
+
+### Key files
+
+| File | Purpose |
+|------|---------|
+| `src/worker/create-board.ts` | id generation (crypto, 3 retries), fixed-window rate limit (binding or in-memory fallback), DO `initialize()` RPC |
+| `src/worker/index.ts` | `POST /api/boards`, `GET /api/boards/:id`; `/api/rooms/:id` now 404s unknown/malformed ids (was 400) |
+| `src/worker/board-store.ts` | lazy tables: created by `initialize()`/first write instead of at DO construction; `existsReadOnly()` for the existence check |
+| `src/worker/board-room.ts` | `extends DurableObject`; `initialize()`/`exists()` RPC; `fetch()` 404s unknown boards |
+| `src/worker/test-hooks.ts` | `initialize`, `exists`, `seed-legacy` ops (plus `x-test-visitor`, `x-test-create-ids`, `x-test-fail-initialize` headers) |
+| `src/client/router.ts` | tiny hashless router: `parseRoute`, `useRoute` (`useSyncExternalStore` + `popstate` + `getSnapshot` re-sync), `navigate` |
+| `src/client/api.ts` | `checkBoard`, `createBoardRequest` |
+| `src/client/pages/` | `HomePage` (create), `BoardPage` (existence check + exponential-backoff retry), `NotFoundPage`, `useCreateBoard` |
+| `src/client/share/SharePanel.tsx` | copy-to-clipboard link panel (Clipboard API + manual fallback, Escape/outside close) |
+| `src/client/board/Board.tsx` | board surface extracted from `App.tsx`; exports `canEdit` |
+| `index.html` | `<meta name="referrer" content="no-referrer">` so share links leak no referer |
+
+### Design decisions
+
+- **Rate limiting.** `wrangler.jsonc` declares a `BOARD_CREATE_LIMITER` ratelimit
+  (10/60s). Local workerd does not support ratelimit bindings, so the worker falls
+  back to an in-memory fixed-window limiter keyed by visitor when the binding is
+  undefined; production uses the real binding. Visitor key: cookie or
+  `x-test-visitor` (test override keeps parallel e2e creations independent).
+- **Lazy migration.** `migrate()` no longer runs at DO construction; a fresh board
+  has no tables until `initialize()` or the first write. `existsReadOnly()` treats
+  "tables exist but empty" as a non-board so 404 stays correct.
+- **`extends DurableObject`.** Local workerd requires `extends DurableObject`
+  (from `cloudflare:workers`) for RPC; `implements` does not work locally.
+- **BoardPage retry.** Existence-check failures retry with exponential backoff
+  (base 1s, capped at `RECONNECT_MAX_BACKOFF_MS`) to ride out DO cold starts.
+- **Router `getSnapshot` re-sync.** Re-parses `location.pathname` every call so
+  external `pushState` (tests, `window.location` edits) is picked up without a
+  `popstate` event; the cached route object only changes when the route changes
+  (stable snapshots for `useSyncExternalStore`).
+
+### Test notes
+
+- **Component tests:** `renderFullApp` is async (BoardPage performs an existence
+  check in a microtask); all full-app renders `await` it and mock `@/client/api`.
+- **RoomClient `autoInit`:** the integration `ws-client` calls the `initialize`
+  hook before connecting (default on), matching what a real browser does via
+  BoardPage's check.
+- **TC-31 (legacy data):** legacy rows are seeded with `seed-legacy`, then
+  `simulate-reconstruct` forces the room's doc to reload from storage (the room
+  instance is reused by the WS and predates the seeded rows).
+- **TC-21 race (persistence):** the y-websocket provider flushes client doc
+  updates asynchronously; `broadcastMessage` silently drops updates while the
+  socket is not open, and closing the page drops frames still in flight. The
+  test now waits until `load-fresh` reports all seeded notes are durable before
+  compacting and closing the seed page.
+- **yjs v13:** no `encodeUpdateAsBase64` export — use
+  `Buffer.from(Y.encodeStateAsUpdate(doc)).toString('base64')`.
+- **Playwright:** `test.describe` + `test.describe.configure({ timeout })`
+  (no top-level `describe`, no 3rd-arg `test()` timeout in this version).

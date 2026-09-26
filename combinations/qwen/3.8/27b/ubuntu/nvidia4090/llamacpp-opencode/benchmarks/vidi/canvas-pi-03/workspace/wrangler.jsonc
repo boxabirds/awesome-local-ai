@@ -13,6 +13,10 @@
       { "name": "BOARD_ROOM", "class_name": "BoardRoom" }
     ]
   },
+  // Story 5: platform rate limiter for POST /api/boards. limit/period MUST
+  // match BOARD_CREATE_LIMIT / BOARD_CREATE_PERIOD_SECONDS in
+  // src/shared/config.ts (asserted by tests/unit/create-board.test.ts TC-03).
+  "ratelimits": [{ "name": "BOARD_CREATE_LIMITER", "limit": 10, "period": 60 }],
   "migrations": [
     { "tag": "v1", "new_sqlite_classes": ["BoardRoom"] }
   ]

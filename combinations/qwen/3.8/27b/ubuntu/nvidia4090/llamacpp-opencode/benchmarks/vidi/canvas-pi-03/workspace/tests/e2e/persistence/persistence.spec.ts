@@ -92,7 +92,16 @@ test.describe('Story 4 persistence (real wrangler restarts)', () => {
       const p = await openBoard(browser, boardId);
       await seedBoard(p.page, buildBoardUpdates(COUNT, 0x5eed).updates);
       await waitForNoteCount(p.page, COUNT, 60_000);
-      await waitStored(wrangler.url, boardId, 1);
+      // The provider flushes the seeded updates to the server asynchronously;
+      // wait until they are ALL durable before compacting and closing the
+      // page (closing early would drop frames still in flight and the
+      // snapshot would miss the notes).
+      await expect
+        .poll(
+          async () => (await hook(wrangler.url, boardId, 'load-fresh')).json?.notes?.length ?? 0,
+          { timeout: 60_000, message: `waiting for the server to store all ${COUNT} seeded notes` },
+        )
+        .toBe(COUNT);
       await hook(wrangler.url, boardId, 'store-compact', { force: true });
       await closeAll(p);
 

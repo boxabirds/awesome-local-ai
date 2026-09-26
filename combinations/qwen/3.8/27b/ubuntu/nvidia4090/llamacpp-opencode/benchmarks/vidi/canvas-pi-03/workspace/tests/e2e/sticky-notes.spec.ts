@@ -122,9 +122,10 @@ test.describe('Sticky notes: text fits, then clips', () => {
     const ta = page.locator('[data-testid="sticky-textarea"]');
     await expect(ta).toBeVisible();
     await ta.fill(LONG_PROSE);
-    const editingSize = await ta.evaluate((el) => parseFloat(getComputedStyle(el).fontSize));
-    expect(editingSize).toBeGreaterThanOrEqual(10);
-    expect(editingSize).toBeLessThan(24);
+    // The shrink is applied on the next render; poll until it lands.
+    const editingSize = () => ta.evaluate((el) => parseFloat(getComputedStyle(el).fontSize));
+    await expect.poll(editingSize).toBeGreaterThanOrEqual(10);
+    await expect.poll(editingSize).toBeLessThan(24);
 
     await page.keyboard.press('Escape');
     await expect(text).toHaveCSS('font-size', '10px');

@@ -1,5 +1,5 @@
 import { expect, type Browser, type BrowserContext, type Page } from '@playwright/test';
-import { getNotes, type NoteSnapshot } from './helpers/board';
+import { ensureBoardExists, getNotes, type NoteSnapshot } from './helpers/board';
 
 // --- board id generation (mirrors src/shared/board-id, no `@` alias here) ---
 
@@ -51,6 +51,9 @@ export async function waitForSynced(page: Page, timeoutMs = 20_000): Promise<voi
 export async function openBoard(browser: Browser, boardId: string): Promise<Participant> {
   const context = await browser.newContext();
   const page = await context.newPage();
+  // Story 5: a board link 404s until the board exists; create it (idempotent)
+  // before navigating so specs that pass a shared id keep working.
+  await ensureBoardExists(page, boardId);
   await page.goto(`/b/${boardId}`);
   await waitForSynced(page);
   return { context, page };

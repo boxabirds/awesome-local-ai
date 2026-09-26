@@ -1,22 +1,50 @@
 import { expect, type Page } from '@playwright/test';
 
-/** Mirrors src/shared/board-id (e2e cannot use the `@` alias). */
-function newBoardId(): string {
-  const bytes = new Uint8Array(16);
-  crypto.getRandomValues(bytes);
-  let binary = '';
-  for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
-  return Buffer.from(binary, 'binary').toString('base64url');
+/**
+ * Story 5: a board link only works for boards that exist. Create one through
+ * the production `POST /api/boards` path (in the page, so it hits the app's
+ * own origin) and return its id.
+ *
+ * Each creation uses a unique `x-test-visitor` (TEST_HOOKS override) so the
+ * per-visitor rate limit never collides across the parallel e2e suite.
+ */
+export async function createBoardViaApi(page: Page): Promise<string> {
+  await page.goto('/');
+  return page.evaluate(async () => {
+    const res = await fetch('/api/boards', {
+      method: 'POST',
+      headers: { 'x-test-visitor': crypto.randomUUID() },
+    });
+    if (!res.ok) throw new Error(`POST /api/boards failed: ${res.status}`);
+    const body = (await res.json()) as { id: string };
+    return body.id;
+  });
 }
 
 /**
- * Navigate to a fresh board and wait until it is rendered. The app redirects
- * `/` to `/b/<id>` via a full-page reload, which would race the test's first
- * action, so we go straight to a valid board URL instead.
+ * Navigate to a fresh board and wait until it is rendered. Story 5: the
+ * board is created via the API first (its link is what the app now serves),
+ * then we go straight to the board URL.
  */
-export async function gotoBoard(page: Page): Promise<void> {
-  await page.goto('/b/' + newBoardId());
+export async function gotoBoard(page: Page): Promise<string> {
+  const id = await createBoardViaApi(page);
+  await page.goto('/b/' + id);
   await page.waitForSelector('[data-testid="board-viewport"]', { timeout: 15_000 });
+  return id;
+}
+
+/**
+ * Story 5: make a (possibly never-created) board id exist via the server
+ * test hook `initialize` (idempotent: created exactly once). Runs in the
+ * page so it always hits the app's own origin. Used by openBoard, whose
+ * callers pass in the id several participants share.
+ */
+export async function ensureBoardExists(page: Page, boardId: string): Promise<void> {
+  await page.goto('/');
+  await page.evaluate(async (id: string) => {
+    const res = await fetch(`/__test/boards/${id}/initialize`);
+    if (!res.ok) throw new Error(`initialize failed for ${id}: ${res.status}`);
+  }, boardId);
 }
 
 export async function getOriginMarkerPosition(page: Page): Promise<{ x: number; y: number }> {

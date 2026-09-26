@@ -1,3 +1,4 @@
+import { DurableObject } from 'cloudflare:workers';
 import * as Y from 'yjs';
 import * as syncProtocol from 'y-protocols/sync';
 import { createDecoder } from 'lib0/decoding';
@@ -25,10 +26,14 @@ import type { Env } from './index';
  * A Durable Object with hibernatable WebSockets and a SQLite-backed Yjs
  * document:
  *
- *  - construct/wake: migrate the schema, load the chunked snapshot and the
- *    update log into a fresh doc (blockConcurrencyWhile until done). A
- *    log row that Yjs rejects is quarantined (the board stays usable); an
- *    unreadable snapshot or SQL error puts the room in LoadFailed.
+ *  - construct/wake: load the chunked snapshot and the update log into a
+ *    fresh doc (blockConcurrencyWhile until done). Loading never writes to
+ *    storage (story 5: probing a link leaves no trace). A log row that Yjs
+ *    rejects is quarantined (the board stays usable); an unreadable snapshot
+ *    or SQL error puts the room in LoadFailed.
+ *  - story 5: fetch answers 404 for upgrades to boards that do not exist
+ *    (never created and no legacy data); the `initialize` RPC creates a
+ *    board (migrate + created_at stamp) and `exists` checks read-only.
  *  - fetch: a WebSocket upgrade is accepted only from Ready (after a fresh
  *    load if the room was StorageFailed). From LoadFailed a connection is
  *    refused with CLOSE_BOARD_LOAD_FAILED (4500) until
@@ -48,15 +53,18 @@ import type { Env } from './index';
  * stay open across hibernation, the runtime tracks them, and the doc is
  * reloaded from storage on every (re)construct.
  */
-export class BoardRoom implements DurableObject {
-
+export class BoardRoom extends DurableObject {
   private doc: Y.Doc;
   private readonly store: BoardStore;
   private state: RoomState;
   /** Epoch ms of the last load attempt (LoadFailed retry throttling). */
   private lastLoadAttempt = 0;
 
-  constructor(private readonly ctx: DurableObjectState, _env: Env) {
+  constructor(ctx: DurableObjectState, _env: Env) {
+    // Extending the runtime DurableObject class (cloudflare:workers) is what
+    // enables RPC (story 5: the initialize/exists stubs); it also supplies
+    // the protected `ctx` (DurableObjectState) used throughout this class.
+    super(ctx, _env);
     this.store = new BoardStore(ctx.storage);
     this.doc = this.freshDoc();
     this.state = 'loading';
@@ -65,6 +73,25 @@ export class BoardRoom implements DurableObject {
     void ctx.blockConcurrencyWhile(async () => {
       this.loadFromStorage();
     });
+  }
+
+  // --- story 5 RPCs ---------------------------------------------------------
+
+  /**
+   * RPC (story 5, share.board_api): create the board — migrate the schema
+   * and stamp `storage_meta.created_at` exactly once. Idempotent: a board
+   * that already has the stamp (or legacy data) reports 'exists' and is
+   * left untouched.
+   */
+  async initialize(): Promise<'created' | 'exists'> {
+    return await this.ctx.blockConcurrencyWhile(async () => {
+      return this.store.initialize();
+    });
+  }
+
+  /** RPC (story 5): read-only existence (never creates storage). */
+  async exists(): Promise<boolean> {
+    return this.store.existsReadOnly();
   }
 
   // --- lifecycle ----------------------------------------------------------
@@ -80,11 +107,10 @@ export class BoardRoom implements DurableObject {
     return new Y.Doc();
   }
 
-  /** Migrates (idempotent) and loads the persisted state into a fresh doc. */
+  /** Loads the persisted state into a fresh doc (read-only: story 5). */
   private loadFromStorage(): void {
     this.state = 'loading';
     this.doc = this.freshDoc();
-    this.store.migrate();
     this.lastLoadAttempt = Date.now();
     const result = this.store.load(this.doc);
     if (result.ok) {
@@ -126,6 +152,12 @@ export class BoardRoom implements DurableObject {
     const url = new URL(request.url);
     if (url.pathname.startsWith('/__test/')) {
       return handleTestRequest(request, this);
+    }
+    // Story 5: an upgrade to a board that does not exist (never created and
+    // no legacy data) is a 404 before we accept anything — probing a link
+    // must not hold a socket open.
+    if (!this.store.existsReadOnly()) {
+      return new Response('Board not found', { status: 404 });
     }
     // Only WebSocket upgrades reach the room (the worker entry returns 426
     // for anything else).
