@@ -21,7 +21,7 @@ stack).
 | `run-history.jsonl` | yes | run started / finished / failed / stopped, with the reason; each also pushed as a commit |
 | `run-status.json` | yes | the run's current state |
 | `progress.json`, `current_story`, `control/` | no (git-ignored) | live state of the current story, for dbench and watchers |
-| `summary.md` | yes | the report (`report.py`), ending with *How it happened* (`history.py`): each story's commits and source files changed, and which story broke or fixed an earlier story's held-out tests, with the tests and their error |
+| `summary.md` | yes | the report (`report.py`), ending with *How it happened* (`history.py`): each story's commits and source files changed, which story broke or fixed an earlier story's held-out tests (with the tests and their error), and *Interruptions and dead time*: every machine freeze, harness crash or restart inside a story, how long it was down, the cause logged in `interventions.md`, and each story's active agent time across all its attempts |
 | `workspace-git-log.txt` | yes | the agent's commit history |
 | `stories/NN/prompt.md`, `base-commit` | yes | what the agent was given, and from which commit |
 | `stories/NN/agent-events.compact.jsonl.gz` | yes | the agent's session, stream deltas dropped, long strings cut, home paths redacted |
@@ -55,7 +55,7 @@ pull records and failure reasons in `~/.dbench/jobs/` on the node (`dbench statu
 
 ### `agent`: what the agent did (from pi's session events)
 
-`seconds` (wall time), `steps` (model calls), `tool_calls`, `tool_interruptions`, `compactions`,
+`seconds` (wall time of the attempt after the story's last restart only: work before a crash or restart is left out, and so is the dead time; the report's *Interruptions and dead time* gives the active time across every attempt), `steps` (model calls), `tool_calls`, `tool_interruptions`, `compactions`,
 `tokens` (`input`, `output`, `reasoning`, `cache_read`, `cache_write`, as the server reported them to
 the client), `exit`, `stalled` (the loop detector stopped it), `resumes` (after errors), `nudges`
 (after stopping without a commit), `errors`, `ended_by_operator`, `ended_in_error`, `sessions`.
