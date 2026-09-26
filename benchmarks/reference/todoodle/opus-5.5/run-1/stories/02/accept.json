@@ -1,0 +1,256 @@
+{
+  "skipped": false,
+  "build_exit": 0,
+  "runner_exit": 0,
+  "runner_tail": "",
+  "passed": 33,
+  "total": 33,
+  "on_partial": {
+    "passed": 0,
+    "total": 0
+  },
+  "by_story": {
+    "01": {
+      "passed": 11,
+      "total": 11
+    },
+    "02": {
+      "passed": 22,
+      "total": 22
+    }
+  },
+  "harness_fault": null,
+  "tests": [
+    {
+      "file": "story-01.spec.ts",
+      "title": "landing page runs locally and shows Todoodle @ref prd:local_dev",
+      "status": "passed",
+      "error": "",
+      "on_partial": null
+    },
+    {
+      "file": "story-01.spec.ts",
+      "title": "health reports status, environment, version, revision and release time @ref prd:health",
+      "status": "passed",
+      "error": "",
+      "on_partial": null
+    },
+    {
+      "file": "story-01.spec.ts",
+      "title": "/health and /api/health answer the same @ref prd:health",
+      "status": "passed",
+      "error": "",
+      "on_partial": null
+    },
+    {
+      "file": "story-01.spec.ts",
+      "title": "every response carries a request id and baseline protections @ref prd:security_baseline",
+      "status": "passed",
+      "error": "",
+      "on_partial": null
+    },
+    {
+      "file": "story-01.spec.ts",
+      "title": "API and health responses are never cached @ref prd:security_baseline",
+      "status": "passed",
+      "error": "",
+      "on_partial": null
+    },
+    {
+      "file": "story-01.spec.ts",
+      "title": "unknown API paths are a plain 404 without internals @ref prd:request_limits",
+      "status": "passed",
+      "error": "",
+      "on_partial": null
+    },
+    {
+      "file": "story-01.spec.ts",
+      "title": "an unsupported method is rejected @ref prd:request_limits",
+      "status": "passed",
+      "error": "",
+      "on_partial": null
+    },
+    {
+      "file": "story-01.spec.ts",
+      "title": "a change without JSON content is rejected @ref prd:request_limits",
+      "status": "passed",
+      "error": "",
+      "on_partial": null
+    },
+    {
+      "file": "story-01.spec.ts",
+      "title": "a body over 1 MB is rejected @ref prd:request_limits",
+      "status": "passed",
+      "error": "",
+      "on_partial": null
+    },
+    {
+      "file": "story-01.spec.ts",
+      "title": "a change from outside the web client is refused @ref prd:request_limits",
+      "status": "passed",
+      "error": "",
+      "on_partial": null
+    },
+    {
+      "file": "story-01.spec.ts",
+      "title": "deep links are served the app, not a 404 @ref prd:local_dev",
+      "status": "passed",
+      "error": "",
+      "on_partial": null
+    },
+    {
+      "file": "story-02.spec.ts",
+      "title": "Start a new list opens a new empty workspace @ref prd:create_workspace",
+      "status": "passed",
+      "error": "",
+      "on_partial": null
+    },
+    {
+      "file": "story-02.spec.ts",
+      "title": "each workspace gets its own long random link @ref prd:unguessable_link",
+      "status": "passed",
+      "error": "",
+      "on_partial": null
+    },
+    {
+      "file": "story-02.spec.ts",
+      "title": "another person with the link gets into the workspace @ref prd:unguessable_link",
+      "status": "passed",
+      "error": "",
+      "on_partial": null
+    },
+    {
+      "file": "story-02.spec.ts",
+      "title": "save-your-link panel shows the full link and the warnings @ref prd:save_link_prompt",
+      "status": "passed",
+      "error": "",
+      "on_partial": null
+    },
+    {
+      "file": "story-02.spec.ts",
+      "title": "Copy link & continue copies the link and closes the panel @ref prd:save_link_actions",
+      "status": "passed",
+      "error": "",
+      "on_partial": null
+    },
+    {
+      "file": "story-02.spec.ts",
+      "title": "Email it to me uses the mail app with the link in the body @ref prd:save_link_actions",
+      "status": "passed",
+      "error": "",
+      "on_partial": null
+    },
+    {
+      "file": "story-02.spec.ts",
+      "title": "Bookmark this page says which keys to press @ref prd:save_link_actions",
+      "status": "passed",
+      "error": "",
+      "on_partial": null
+    },
+    {
+      "file": "story-02.spec.ts",
+      "title": "skipping leaves a reminder until the link is copied, even after reload @ref prd:unsaved_link_reminder",
+      "status": "passed",
+      "error": "",
+      "on_partial": null
+    },
+    {
+      "file": "story-02.spec.ts",
+      "title": "Remind me later hides the reminder for this tab only @ref prd:unsaved_link_reminder",
+      "status": "passed",
+      "error": "",
+      "on_partial": null
+    },
+    {
+      "file": "story-02.spec.ts",
+      "title": "one Share button in the header opens the link panel @ref prd:share_entry",
+      "status": "passed",
+      "error": "",
+      "on_partial": null
+    },
+    {
+      "file": "story-02.spec.ts",
+      "title": "the full link stays in the address bar and reload returns to the workspace @ref prd:bookmarkable_link",
+      "status": "passed",
+      "error": "",
+      "on_partial": null
+    },
+    {
+      "file": "story-02.spec.ts",
+      "title": "an unknown link shows the not-found page @ref prd:not_found",
+      "status": "passed",
+      "error": "",
+      "on_partial": null
+    },
+    {
+      "file": "story-02.spec.ts",
+      "title": "a cut-off link shows the not-found page @ref prd:not_found",
+      "status": "passed",
+      "error": "",
+      "on_partial": null
+    },
+    {
+      "file": "story-02.spec.ts",
+      "title": "an empty link shows the not-found page @ref prd:not_found",
+      "status": "passed",
+      "error": "",
+      "on_partial": null
+    },
+    {
+      "file": "story-02.spec.ts",
+      "title": "not-found reveals nothing about which links exist @ref prd:not_found",
+      "status": "passed",
+      "error": "",
+      "on_partial": null
+    },
+    {
+      "file": "story-02.spec.ts",
+      "title": "renaming saves the name for everyone @ref prd:rename_workspace",
+      "status": "passed",
+      "error": "",
+      "on_partial": null
+    },
+    {
+      "file": "story-02.spec.ts",
+      "title": "an empty name is refused and the old name comes back @ref prd:rename_workspace",
+      "status": "passed",
+      "error": "",
+      "on_partial": null
+    },
+    {
+      "file": "story-02.spec.ts",
+      "title": "Escape cancels a rename @ref prd:rename_workspace",
+      "status": "passed",
+      "error": "",
+      "on_partial": null
+    },
+    {
+      "file": "story-02.spec.ts",
+      "title": "the link never reaches the title, web storage or referrers @ref prd:no_link_leak",
+      "status": "passed",
+      "error": "",
+      "on_partial": null
+    },
+    {
+      "file": "story-02.spec.ts",
+      "title": "a failed load offers Try again, not the not-found page @ref prd:load_failure",
+      "status": "passed",
+      "error": "",
+      "on_partial": null
+    },
+    {
+      "file": "story-02.spec.ts",
+      "title": "placeholders show while the workspace loads @ref prd:loading_state",
+      "status": "passed",
+      "error": "",
+      "on_partial": null
+    },
+    {
+      "file": "story-02.spec.ts",
+      "title": "the workspace follows the device light or dark setting @ref prd:colour_scheme",
+      "status": "passed",
+      "error": "",
+      "on_partial": null
+    }
+  ]
+}

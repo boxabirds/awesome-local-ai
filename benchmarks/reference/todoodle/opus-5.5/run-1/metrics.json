@@ -303,6 +303,508 @@
           "found": null,
           "total": null
         }
+      ],
+      "record": {
+        "committed": true,
+        "pushed": true,
+        "over_size_limit": [],
+        "commit": "f053179"
+      }
+    },
+    "2": {
+      "title": "Start a private workspace instantly, with no sign-up, and get a secret link to return to it",
+      "conditions_start": {
+        "ac": true,
+        "low_power": false,
+        "thermal": "nominal"
+      },
+      "started": 1790449174.604246,
+      "agent": {
+        "seconds": 1913.1,
+        "steps": 133,
+        "tool_calls": 134,
+        "compactions": 0,
+        "tool_interruptions": 0,
+        "tokens": {
+          "input": 266,
+          "output": 179303,
+          "reasoning": 0,
+          "cache_read": 25133411,
+          "cache_write": 293257
+        },
+        "exit": 0,
+        "stalled": false,
+        "resumes": 0,
+        "nudges": 0,
+        "errors": [],
+        "ended_by_operator": false,
+        "ended_in_error": false,
+        "sessions": [
+          "b7158664-4ef1-4a2a-8f2d-28583e64f1a8"
+        ]
+      },
+      "agent_finished": 1790451087.800331,
+      "conditions": {
+        "samples": 63,
+        "degraded": false,
+        "throttled_share": 0.0,
+        "bad_samples": [],
+        "swap_start_gb": 0.49,
+        "swap_max_gb": 0.49,
+        "aborted_swap": false,
+        "aborted_memory": false,
+        "free_min_pct": 65.0,
+        "server_footprint_max_gb": null,
+        "server_footprint_peak_gb": null,
+        "gpu": null
+      },
+      "agent_commits": 19,
+      "gate": {
+        "steps": {
+          "install": {
+            "cmd": "bun install",
+            "exit": 0,
+            "seconds": 0.1,
+            "tail": "bun install v1.2.17 (282dda62)\n\nChecked 379 installs across 508 packages (no changes) [109.00ms]\n"
+          },
+          "build": {
+            "cmd": "bun run build",
+            "exit": 0,
+            "seconds": 0.4,
+            "tail": "\u001b[36mvite v8.3.1 \u001b[32mbuilding client environment for production...\u001b[36m\u001b[39m\ntransforming...\n\u2713 378 modules transformed.\nrendering chunks...\ncomputing gzip size...\ndist/index.html                             0.44 kB \u2502 gzip:   0.27 kB\ndist/assets/index-Bkzgt2Ko.css             34.10 kB \u2502 gzip:   7.57 kB\ndist/assets/Workspace-z3vlBZuL.js           6.40 kB \u2502 gzip:   2.67 kB\ndist/assets/useWorkspaceLink-DXjpstM2.js    9.87 kB \u2502 gzip:   3.71 kB\ndist/assets/SharePanel-BGHBHUrn.js         40.45 kB \u2502 gzip:  13.94 kB\ndist/assets/index-W7wotFnn.js             425.23 kB \u2502 gzip: 131.29 kB\n\n\u001b[32m\u2713 built in 164ms\u001b[39m\n$ bun run --cwd apps/web build\n$ vite build\n",
+            "passed": null,
+            "failed": null
+          },
+          "typecheck": {
+            "cmd": "bun run typecheck",
+            "exit": 0,
+            "seconds": 3.9,
+            "tail": "$ bun run --cwd packages/shared typecheck && bun run --cwd apps/api typecheck && bun run --cwd apps/web typecheck && tsc -p tsconfig.json --noEmit\n$ tsc -p tsconfig.json --noEmit\n$ tsc -p tsconfig.json --noEmit && tsc -p tsconfig.node.json --noEmit\n$ tsc -p tsconfig.json --noEmit\n",
+            "passed": null,
+            "failed": null
+          },
+          "lint": {
+            "cmd": "bun run lint",
+            "exit": 0,
+            "seconds": 0.7,
+            "tail": "$ bun run --cwd apps/web lint\n$ eslint .\n",
+            "passed": null,
+            "failed": null
+          },
+          "test:unit": {
+            "cmd": "bun run test:unit",
+            "exit": 0,
+            "seconds": 5.0,
+            "tail": "\n RUN  v4.1.11 ~/.vidi-bench/work/benchmarks__reference__todoodle__opus-5.5__run-1/workspace\n\n\n Test Files  6 passed (6)\n      Tests  57 passed (57)\n   Start at  20:31:33\n   Duration  2.58s (transform 2.06s, setup 5.85s, import 55ms, tests 294ms, environment 3ms)\n\n\n RUN  v4.1.11 ~/.vidi-bench/work/benchmarks__reference__todoodle__opus-5.5__run-1/workspace\n\n\n Test Files  6 passed (6)\n      Tests  48 passed (48)\n   Start at  20:31:36\n   Duration  141ms (transform 108ms, setup 0ms, import 178ms, tests 66ms, environment 0ms)\n\n\n RUN  v4.1.11 ~/.vidi-bench/work/benchmarks__reference__todoodle__opus-5.5__run-1/workspace\n\n\n Test Files  6 passed (6)\n      Tests  40 passed (40)\n   Start at  20:31:37\n   Duration  1.07s (transform 281ms, setup 1.82s, import 140ms, tests 464ms, environment 1.15s)\n\n$ vitest run --config apps/api/vitest.config.ts --project api-unit && vitest run --config scripts/vitest.config.ts --project deploy-unit && vitest run --config apps/web/vitest.config.ts --project web-unit\n",
+            "passed": 57,
+            "failed": 0
+          },
+          "test:component": {
+            "exit": "missing"
+          },
+          "test:integration": {
+            "cmd": "bun run test:integration",
+            "exit": 0,
+            "seconds": 11.4,
+            "tail": "\n RUN  v4.1.11 ~/.vidi-bench/work/benchmarks__reference__todoodle__opus-5.5__run-1/workspace\n\n\n Test Files  9 passed (9)\n      Tests  56 passed (56)\n   Start at  20:31:38\n   Duration  4.05s (transform 3.79s, setup 9.39s, import 150ms, tests 1.08s, environment 0ms)\n\n\n RUN  v4.1.11 ~/.vidi-bench/work/benchmarks__reference__todoodle__opus-5.5__run-1/workspace\n\n\n Test Files  1 passed (1)\n      Tests  18 passed (18)\n   Start at  20:31:43\n   Duration  6.40s (transform 41ms, setup 0ms, import 60ms, tests 6.28s, environment 0ms)\n\n$ vitest run --config apps/api/vitest.config.ts --project api-integration --project api-staging-sim --project api-production-gate && vitest run --config scripts/vitest.config.ts --project deploy-integration\n",
+            "passed": 56,
+            "failed": 0
+          },
+          "test:e2e": {
+            "cmd": "bun run test:e2e --project=chromium",
+            "exit": 0,
+            "seconds": 8.7,
+            "tail": "\nRunning 13 tests using 4 workers\n\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\n  13 passed (8.4s)\n::notice title=\ud83c\udfad Playwright Run Summary::  13 passed (8.4s)\n$ playwright test \"--project=chromium\"\n[WebServer] $ wrangler d1 migrations apply DB --local\n[WebServer] $ bun run build && bun scripts/dev.ts\n[WebServer] $ bun run --cwd apps/web build\n[WebServer] $ vite build\n",
+            "passed": 13,
+            "failed": 0
+          }
+        },
+        "all_green": true
+      },
+      "accept": {
+        "skipped": false,
+        "build_exit": 0,
+        "runner_exit": 0,
+        "runner_tail": "",
+        "passed": 33,
+        "total": 33,
+        "on_partial": {
+          "passed": 0,
+          "total": 0
+        },
+        "by_story": {
+          "01": {
+            "passed": 11,
+            "total": 11
+          },
+          "02": {
+            "passed": 22,
+            "total": 22
+          }
+        },
+        "harness_fault": null
+      },
+      "commit": "ae39c1fd6008d0c9625650cfe033b8e6246a540a",
+      "requests": {},
+      "time_split": {
+        "wall_s": 1913.2,
+        "model": null,
+        "tools_s": 0,
+        "tools_by_kind": {},
+        "compaction_s": 0,
+        "compactions": 0,
+        "other_s": 1913.2
+      },
+      "loc": {
+        "files": 0,
+        "lines": 0
+      },
+      "finished": 1790451201.028565,
+      "status": "DONE",
+      "ended_by": "agent",
+      "partial_base": [],
+      "tasks": [
+        {
+          "n": 1,
+          "title": "Add workspaces migration and query module",
+          "type": "implementation",
+          "implements": [
+            "workspace.schema"
+          ],
+          "tcs": [],
+          "status": "verified",
+          "found": null,
+          "total": null
+        },
+        {
+          "n": 2,
+          "title": "Implement secret generation, hashing and constant-time compare",
+          "type": "implementation",
+          "implements": [
+            "workspace.secret"
+          ],
+          "tcs": [],
+          "status": "verified",
+          "found": null,
+          "total": null
+        },
+        {
+          "n": 3,
+          "title": "Implement remembered-workspaces cookie codec",
+          "type": "implementation",
+          "implements": [
+            "workspace.cookie_codec"
+          ],
+          "tcs": [],
+          "status": "verified",
+          "found": null,
+          "total": null
+        },
+        {
+          "n": 4,
+          "title": "Implement create and open workspace endpoints",
+          "type": "implementation",
+          "implements": [
+            "workspace.create",
+            "workspace.open"
+          ],
+          "tcs": [],
+          "status": "verified",
+          "found": null,
+          "total": null
+        },
+        {
+          "n": 5,
+          "title": "Implement workspace-auth middleware and GET workspace",
+          "type": "implementation",
+          "implements": [
+            "workspace.auth",
+            "workspace.get"
+          ],
+          "tcs": [],
+          "status": "verified",
+          "found": null,
+          "total": null
+        },
+        {
+          "n": 6,
+          "title": "Implement rename workspace endpoint",
+          "type": "implementation",
+          "implements": [
+            "workspace.rename"
+          ],
+          "tcs": [],
+          "status": "verified",
+          "found": null,
+          "total": null
+        },
+        {
+          "n": 7,
+          "title": "Enforce no-leak measures and verify platform logs",
+          "type": "implementation",
+          "implements": [
+            "security.no_leak"
+          ],
+          "tcs": [],
+          "status": "verified",
+          "found": null,
+          "total": null
+        },
+        {
+          "n": 8,
+          "title": "Build landing page with one-click start",
+          "type": "implementation",
+          "implements": [
+            "web.landing"
+          ],
+          "tcs": [],
+          "status": "committed",
+          "found": null,
+          "total": null
+        },
+        {
+          "n": 9,
+          "title": "Build workspace route shell: query-key factory, boot open, skeleton/failed states, <title>, header rename",
+          "type": "implementation",
+          "implements": [
+            "web.workspace_shell"
+          ],
+          "tcs": [],
+          "status": "committed",
+          "found": null,
+          "total": null
+        },
+        {
+          "n": 10,
+          "title": "Build SharePanel (save-your-link + single Share button), copy/email/bookmark actions and clipboard fallback",
+          "type": "implementation",
+          "implements": [
+            "web.link_dialog"
+          ],
+          "tcs": [],
+          "status": "committed",
+          "found": null,
+          "total": null
+        },
+        {
+          "n": 11,
+          "title": "Build workspace-not-found page",
+          "type": "implementation",
+          "implements": [
+            "web.not_found"
+          ],
+          "tcs": [],
+          "status": "committed",
+          "found": null,
+          "total": null
+        },
+        {
+          "n": 12,
+          "title": "Unit tests: secret crypto, cookie codec, query keys, boot open, link-saved store, theme contrast, import lint",
+          "type": "test:unit",
+          "implements": [
+            "workspace.secret",
+            "workspace.cookie_codec",
+            "web.workspace_shell",
+            "web.unsaved_link_banner",
+            "web.theme"
+          ],
+          "tcs": [
+            "TC-01",
+            "TC-02",
+            "TC-03",
+            "TC-04",
+            "TC-05",
+            "TC-06",
+            "TC-07",
+            "TC-08",
+            "TC-09",
+            "TC-10",
+            "TC-11",
+            "TC-12",
+            "TC-13",
+            "TC-83",
+            "TC-84",
+            "TC-85",
+            "TC-90",
+            "TC-91",
+            "TC-92"
+          ],
+          "status": "verified",
+          "found": 19,
+          "total": 19
+        },
+        {
+          "n": 13,
+          "title": "Integration tests: workspace API, auth and headers",
+          "type": "test:integration",
+          "implements": [
+            "workspace.schema",
+            "workspace.create",
+            "workspace.open",
+            "workspace.auth",
+            "workspace.get",
+            "workspace.rename",
+            "workspace.link",
+            "security.no_leak"
+          ],
+          "tcs": [
+            "TC-14",
+            "TC-15",
+            "TC-16",
+            "TC-17",
+            "TC-18",
+            "TC-19",
+            "TC-20",
+            "TC-21",
+            "TC-22",
+            "TC-23",
+            "TC-24",
+            "TC-25",
+            "TC-26",
+            "TC-27",
+            "TC-28",
+            "TC-29",
+            "TC-30",
+            "TC-31",
+            "TC-32",
+            "TC-33",
+            "TC-34",
+            "TC-35",
+            "TC-36",
+            "TC-37",
+            "TC-38",
+            "TC-39",
+            "TC-40",
+            "TC-59",
+            "TC-60",
+            "TC-61",
+            "TC-62"
+          ],
+          "status": "verified",
+          "found": 31,
+          "total": 31
+        },
+        {
+          "n": 14,
+          "title": "UI component tests: landing, workspace shell states, SharePanel, unsaved-link banner, not-found",
+          "type": "test:ui-component",
+          "implements": [
+            "web.landing",
+            "web.workspace_shell",
+            "web.link_dialog",
+            "web.not_found",
+            "web.unsaved_link_banner"
+          ],
+          "tcs": [
+            "TC-41",
+            "TC-42",
+            "TC-43",
+            "TC-44",
+            "TC-45",
+            "TC-46",
+            "TC-47",
+            "TC-48",
+            "TC-49",
+            "TC-50",
+            "TC-51",
+            "TC-52",
+            "TC-53",
+            "TC-64",
+            "TC-65",
+            "TC-66",
+            "TC-67",
+            "TC-68",
+            "TC-69",
+            "TC-70",
+            "TC-71",
+            "TC-72",
+            "TC-73",
+            "TC-74",
+            "TC-75",
+            "TC-76",
+            "TC-77",
+            "TC-78",
+            "TC-79",
+            "TC-80",
+            "TC-81",
+            "TC-82",
+            "TC-93",
+            "TC-94"
+          ],
+          "status": "committed",
+          "found": 34,
+          "total": 34
+        },
+        {
+          "n": 15,
+          "title": "E2E tests: create/save link, return by link, bad link, rename, no leak, boot parallelism, dark mode",
+          "type": "test:e2e",
+          "implements": [
+            "workspace.create",
+            "workspace.open",
+            "workspace.rename",
+            "workspace.link",
+            "security.no_leak",
+            "web.landing",
+            "web.workspace_shell",
+            "web.link_dialog",
+            "web.not_found",
+            "web.unsaved_link_banner",
+            "web.theme"
+          ],
+          "tcs": [
+            "TC-54",
+            "TC-55",
+            "TC-56",
+            "TC-57",
+            "TC-58",
+            "TC-63",
+            "TC-86",
+            "TC-87",
+            "TC-88",
+            "TC-89"
+          ],
+          "status": "verified",
+          "found": 10,
+          "total": 10
+        },
+        {
+          "n": 16,
+          "title": "Implement GET workspace link endpoint",
+          "type": "implementation",
+          "implements": [
+            "workspace.link"
+          ],
+          "tcs": [],
+          "status": "verified",
+          "found": null,
+          "total": null
+        },
+        {
+          "n": 17,
+          "title": "Build unsaved-link reminder banner, linkSaved store and copyText helper",
+          "type": "implementation",
+          "implements": [
+            "web.unsaved_link_banner"
+          ],
+          "tcs": [],
+          "status": "committed",
+          "found": null,
+          "total": null
+        },
+        {
+          "n": 18,
+          "title": "Add light/dark theme tokens and enforce direct (non-barrel) imports",
+          "type": "implementation",
+          "implements": [
+            "web.theme"
+          ],
+          "tcs": [],
+          "status": "verified",
+          "found": null,
+          "total": null
+        }
       ]
     }
   },
@@ -618,6 +1120,486 @@
           "accept": {
             "passed": 6,
             "total": 6
+          }
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "title": "Start a private workspace instantly, with no sign-up, and get a secret link to return to it",
+      "status": "DONE",
+      "ended_by": "agent",
+      "started_at": 1790449174.604246,
+      "ended_at": 1790451087.800331,
+      "agent_minutes": 31.9,
+      "calls": 133,
+      "output_tokens": 179303,
+      "compactions": 0,
+      "last_commit_at": 1790451077.0,
+      "accept": {
+        "passed": 22,
+        "total": 22
+      },
+      "partial_base": [],
+      "tasks": [
+        {
+          "n": 1,
+          "title": "Add workspaces migration and query module",
+          "type": "implementation",
+          "implements": [
+            "workspace.schema"
+          ],
+          "tcs": [],
+          "status": "verified",
+          "found": null,
+          "total": null
+        },
+        {
+          "n": 2,
+          "title": "Implement secret generation, hashing and constant-time compare",
+          "type": "implementation",
+          "implements": [
+            "workspace.secret"
+          ],
+          "tcs": [],
+          "status": "verified",
+          "found": null,
+          "total": null
+        },
+        {
+          "n": 3,
+          "title": "Implement remembered-workspaces cookie codec",
+          "type": "implementation",
+          "implements": [
+            "workspace.cookie_codec"
+          ],
+          "tcs": [],
+          "status": "verified",
+          "found": null,
+          "total": null
+        },
+        {
+          "n": 4,
+          "title": "Implement create and open workspace endpoints",
+          "type": "implementation",
+          "implements": [
+            "workspace.create",
+            "workspace.open"
+          ],
+          "tcs": [],
+          "status": "verified",
+          "found": null,
+          "total": null
+        },
+        {
+          "n": 5,
+          "title": "Implement workspace-auth middleware and GET workspace",
+          "type": "implementation",
+          "implements": [
+            "workspace.auth",
+            "workspace.get"
+          ],
+          "tcs": [],
+          "status": "verified",
+          "found": null,
+          "total": null
+        },
+        {
+          "n": 6,
+          "title": "Implement rename workspace endpoint",
+          "type": "implementation",
+          "implements": [
+            "workspace.rename"
+          ],
+          "tcs": [],
+          "status": "verified",
+          "found": null,
+          "total": null
+        },
+        {
+          "n": 7,
+          "title": "Enforce no-leak measures and verify platform logs",
+          "type": "implementation",
+          "implements": [
+            "security.no_leak"
+          ],
+          "tcs": [],
+          "status": "verified",
+          "found": null,
+          "total": null
+        },
+        {
+          "n": 8,
+          "title": "Build landing page with one-click start",
+          "type": "implementation",
+          "implements": [
+            "web.landing"
+          ],
+          "tcs": [],
+          "status": "committed",
+          "found": null,
+          "total": null
+        },
+        {
+          "n": 9,
+          "title": "Build workspace route shell: query-key factory, boot open, skeleton/failed states, <title>, header rename",
+          "type": "implementation",
+          "implements": [
+            "web.workspace_shell"
+          ],
+          "tcs": [],
+          "status": "committed",
+          "found": null,
+          "total": null
+        },
+        {
+          "n": 10,
+          "title": "Build SharePanel (save-your-link + single Share button), copy/email/bookmark actions and clipboard fallback",
+          "type": "implementation",
+          "implements": [
+            "web.link_dialog"
+          ],
+          "tcs": [],
+          "status": "committed",
+          "found": null,
+          "total": null
+        },
+        {
+          "n": 11,
+          "title": "Build workspace-not-found page",
+          "type": "implementation",
+          "implements": [
+            "web.not_found"
+          ],
+          "tcs": [],
+          "status": "committed",
+          "found": null,
+          "total": null
+        },
+        {
+          "n": 12,
+          "title": "Unit tests: secret crypto, cookie codec, query keys, boot open, link-saved store, theme contrast, import lint",
+          "type": "test:unit",
+          "implements": [
+            "workspace.secret",
+            "workspace.cookie_codec",
+            "web.workspace_shell",
+            "web.unsaved_link_banner",
+            "web.theme"
+          ],
+          "tcs": [
+            "TC-01",
+            "TC-02",
+            "TC-03",
+            "TC-04",
+            "TC-05",
+            "TC-06",
+            "TC-07",
+            "TC-08",
+            "TC-09",
+            "TC-10",
+            "TC-11",
+            "TC-12",
+            "TC-13",
+            "TC-83",
+            "TC-84",
+            "TC-85",
+            "TC-90",
+            "TC-91",
+            "TC-92"
+          ],
+          "status": "verified",
+          "found": 19,
+          "total": 19
+        },
+        {
+          "n": 13,
+          "title": "Integration tests: workspace API, auth and headers",
+          "type": "test:integration",
+          "implements": [
+            "workspace.schema",
+            "workspace.create",
+            "workspace.open",
+            "workspace.auth",
+            "workspace.get",
+            "workspace.rename",
+            "workspace.link",
+            "security.no_leak"
+          ],
+          "tcs": [
+            "TC-14",
+            "TC-15",
+            "TC-16",
+            "TC-17",
+            "TC-18",
+            "TC-19",
+            "TC-20",
+            "TC-21",
+            "TC-22",
+            "TC-23",
+            "TC-24",
+            "TC-25",
+            "TC-26",
+            "TC-27",
+            "TC-28",
+            "TC-29",
+            "TC-30",
+            "TC-31",
+            "TC-32",
+            "TC-33",
+            "TC-34",
+            "TC-35",
+            "TC-36",
+            "TC-37",
+            "TC-38",
+            "TC-39",
+            "TC-40",
+            "TC-59",
+            "TC-60",
+            "TC-61",
+            "TC-62"
+          ],
+          "status": "verified",
+          "found": 31,
+          "total": 31
+        },
+        {
+          "n": 14,
+          "title": "UI component tests: landing, workspace shell states, SharePanel, unsaved-link banner, not-found",
+          "type": "test:ui-component",
+          "implements": [
+            "web.landing",
+            "web.workspace_shell",
+            "web.link_dialog",
+            "web.not_found",
+            "web.unsaved_link_banner"
+          ],
+          "tcs": [
+            "TC-41",
+            "TC-42",
+            "TC-43",
+            "TC-44",
+            "TC-45",
+            "TC-46",
+            "TC-47",
+            "TC-48",
+            "TC-49",
+            "TC-50",
+            "TC-51",
+            "TC-52",
+            "TC-53",
+            "TC-64",
+            "TC-65",
+            "TC-66",
+            "TC-67",
+            "TC-68",
+            "TC-69",
+            "TC-70",
+            "TC-71",
+            "TC-72",
+            "TC-73",
+            "TC-74",
+            "TC-75",
+            "TC-76",
+            "TC-77",
+            "TC-78",
+            "TC-79",
+            "TC-80",
+            "TC-81",
+            "TC-82",
+            "TC-93",
+            "TC-94"
+          ],
+          "status": "committed",
+          "found": 34,
+          "total": 34
+        },
+        {
+          "n": 15,
+          "title": "E2E tests: create/save link, return by link, bad link, rename, no leak, boot parallelism, dark mode",
+          "type": "test:e2e",
+          "implements": [
+            "workspace.create",
+            "workspace.open",
+            "workspace.rename",
+            "workspace.link",
+            "security.no_leak",
+            "web.landing",
+            "web.workspace_shell",
+            "web.link_dialog",
+            "web.not_found",
+            "web.unsaved_link_banner",
+            "web.theme"
+          ],
+          "tcs": [
+            "TC-54",
+            "TC-55",
+            "TC-56",
+            "TC-57",
+            "TC-58",
+            "TC-63",
+            "TC-86",
+            "TC-87",
+            "TC-88",
+            "TC-89"
+          ],
+          "status": "verified",
+          "found": 10,
+          "total": 10
+        },
+        {
+          "n": 16,
+          "title": "Implement GET workspace link endpoint",
+          "type": "implementation",
+          "implements": [
+            "workspace.link"
+          ],
+          "tcs": [],
+          "status": "verified",
+          "found": null,
+          "total": null
+        },
+        {
+          "n": 17,
+          "title": "Build unsaved-link reminder banner, linkSaved store and copyText helper",
+          "type": "implementation",
+          "implements": [
+            "web.unsaved_link_banner"
+          ],
+          "tcs": [],
+          "status": "committed",
+          "found": null,
+          "total": null
+        },
+        {
+          "n": 18,
+          "title": "Add light/dark theme tokens and enforce direct (non-barrel) imports",
+          "type": "implementation",
+          "implements": [
+            "web.theme"
+          ],
+          "tcs": [],
+          "status": "verified",
+          "found": null,
+          "total": null
+        }
+      ],
+      "baselines": [
+        {
+          "source": "reference opus-5.5 run-1",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 13.9,
+          "calls": 42,
+          "output_tokens": 84946,
+          "accept": {
+            "passed": 9,
+            "total": 10
+          }
+        },
+        {
+          "source": "reference opus-5.5 run-2",
+          "status": "DONE",
+          "gate_green": null,
+          "agent_minutes": 16.9,
+          "calls": null,
+          "output_tokens": null,
+          "accept": null
+        },
+        {
+          "source": "reference opus-5.5 run-3",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 18.5,
+          "calls": 49,
+          "output_tokens": 92087,
+          "accept": {
+            "passed": 10,
+            "total": 10
+          }
+        },
+        {
+          "source": "qwen/3.8/27b/ubuntu/nvidia4090/llamacpp-opencode canvas-pi-02",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 43.0,
+          "calls": 139,
+          "output_tokens": 153391,
+          "accept": {
+            "passed": 9,
+            "total": 10
+          }
+        },
+        {
+          "source": "qwen/3.8/27b/ubuntu/nvidia4090/llamacpp-opencode canvas-pi-03",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 57.5,
+          "calls": 207,
+          "output_tokens": 214709,
+          "accept": {
+            "passed": 10,
+            "total": 10
+          }
+        },
+        {
+          "source": "qwen/3.8/27b/ubuntu/nvidia4090/llamacpp-opencode canvas-pi-04",
+          "status": "DONE",
+          "gate_green": false,
+          "agent_minutes": 13.1,
+          "calls": 37,
+          "output_tokens": 52611,
+          "accept": {
+            "passed": 0,
+            "total": 10
+          }
+        },
+        {
+          "source": "qwen/3.8/flash-next/macos/128GB/mtplx-opencode canvas-pi-01",
+          "status": "DONE",
+          "gate_green": false,
+          "agent_minutes": 40.8,
+          "calls": 115,
+          "output_tokens": 124781,
+          "accept": {
+            "passed": 9,
+            "total": 10
+          }
+        },
+        {
+          "source": "qwen/3.8/flash-next/macos/128GB/mtplx-opencode canvas-pi-02",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 77.6,
+          "calls": 202,
+          "output_tokens": 203498,
+          "accept": {
+            "passed": 10,
+            "total": 10
+          }
+        },
+        {
+          "source": "qwen/3.8/flash-next/macos/128GB/mtplx-opencode canvas-pi-03",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 46.7,
+          "calls": 180,
+          "output_tokens": 129456,
+          "accept": {
+            "passed": 9,
+            "total": 10
+          }
+        },
+        {
+          "source": "qwen/3.8/flash-next/ubuntu/strix-halo-128GB/llamacpp-pi canvas-vk-01",
+          "status": "DONE",
+          "gate_green": false,
+          "agent_minutes": 97.8,
+          "calls": 250,
+          "output_tokens": 137457,
+          "accept": {
+            "passed": 7,
+            "total": 10
           }
         }
       ]

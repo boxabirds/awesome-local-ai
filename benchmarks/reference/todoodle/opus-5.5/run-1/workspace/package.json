@@ -2,19 +2,24 @@
   "name": "todoodle",
   "private": true,
   "type": "module",
-  "workspaces": ["apps/*", "packages/*"],
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
   "scripts": {
     "dev": "bun run build && bun scripts/dev.ts",
     "build": "bun run --cwd apps/web build",
     "typecheck": "bun run --cwd packages/shared typecheck && bun run --cwd apps/api typecheck && bun run --cwd apps/web typecheck && tsc -p tsconfig.json --noEmit",
     "db:migrate:local": "wrangler d1 migrations apply DB --local",
-    "test": "bun run test:unit && bun run test:integration && bun run test:ui",
-    "test:unit": "vitest run --config apps/api/vitest.config.ts --project api-unit && vitest run --config scripts/vitest.config.ts --project deploy-unit",
+    "test": "bun run lint && bun run test:unit && bun run test:integration && bun run test:ui",
+    "test:unit": "vitest run --config apps/api/vitest.config.ts --project api-unit && vitest run --config scripts/vitest.config.ts --project deploy-unit && vitest run --config apps/web/vitest.config.ts --project web-unit",
     "test:integration": "vitest run --config apps/api/vitest.config.ts --project api-integration --project api-staging-sim --project api-production-gate && vitest run --config scripts/vitest.config.ts --project deploy-integration",
-    "test:ui": "vitest run --config apps/web/vitest.config.ts",
+    "test:ui": "vitest run --config apps/web/vitest.config.ts --project web-ui",
     "test:e2e": "playwright test",
     "deploy:staging": "bun scripts/deploy.ts staging",
-    "deploy:production": "bun scripts/deploy.ts production"
+    "deploy:production": "bun scripts/deploy.ts production",
+    "lint": "bun run --cwd apps/web lint",
+    "tokens": "bun run --cwd apps/web tokens"
   },
   "devDependencies": {
     "@cloudflare/vitest-pool-workers": "0.22.0",
