@@ -36,8 +36,8 @@ export const REMEMBERED_COOKIE_MAX_AGE_S = 34_560_000;
 export const NAME_HINT_MS = 2_500;
 /** How long 'Copied' stays on the Share panel's Copy link button. */
 export const COPY_CONFIRM_MS = 2_000;
-/** Below this viewport width the Share panel becomes a full-width bottom sheet. */
-export const MOBILE_BREAKPOINT_PX = 640;
+/** Below this viewport width dialogs (the Share panel) become full-width bottom sheets (Tailwind `sm`). */
+export const SHEET_BREAKPOINT_PX = 640;
 /** Minimum height/width of tappable controls on touch devices. */
 export const MIN_TOUCH_TARGET_PX = 44;
 
@@ -73,3 +73,32 @@ export const LIVE_CLOSE_BAD_ORIGIN = 4403;
 export const LIVE_ANNOUNCE_THROTTLE_MS = 10_000;
 /** The 'Reconnecting…' pill shows once live updates have been down continuously this long. */
 export const LIVE_PAUSED_AFTER_MS = 5_000;
+
+// ---------------------------------------------------------------- story 5: tasks and quick add
+
+/** Longest task name, in UTF-16 code units after trimming (String.length, the same on client and server). */
+export const TASK_NAME_MAX = 500;
+/** Longest task description, in UTF-16 code units after trimming. */
+export const TASK_DESCRIPTION_MAX = 5_000;
+/** A new task goes this far after the workspace's current largest sort_order (newest last). */
+export const TASK_SORT_STEP = 1;
+/** Random bytes in a client-generated task id (lowercase hex, 32 chars: the same format as server ids). */
+export const TASK_ID_BYTES = 16;
+/** Length counters appear once a field reaches this fraction of its limit (450 for names, 4,500 for descriptions). */
+export const LENGTH_WARNING_RATIO = 0.9;
+/** At most one screen-reader announcement per this interval from a length counter. */
+export const COUNTER_ANNOUNCE_THROTTLE_MS = 1_000;
+/** The quick-add description grows with its text up to this many lines, then scrolls. */
+export const QUICK_ADD_MAX_DESCRIPTION_ROWS = 6;
+/** A create request that has not answered after this long is abandoned and the row marked failed. */
+export const CREATE_TASK_TIMEOUT_MS = 10_000;
+/** Placeholder rows shown while a task list loads for the first time. */
+export const SKELETON_ROW_COUNT = 5;
+/** Height the browser assumes for an off-screen task row (content-visibility: auto). */
+export const TASK_ROW_INTRINSIC_HEIGHT_PX = 44;
+/** Opens quick add from anywhere in the workspace (not while typing in a field). */
+export const QUICK_ADD_KEY = 'q';
+/** Opens the keyboard shortcuts panel. */
+export const SHORTCUT_HELP_KEY = '?';
+/** Below this viewport width the phone layout applies: sidebar in a drawer, floating add button (Tailwind `md`). */
+export const MOBILE_BREAKPOINT_PX = 768;

@@ -1565,6 +1565,532 @@
           "found": null,
           "total": null
         }
+      ],
+      "record": {
+        "committed": true,
+        "pushed": true,
+        "over_size_limit": [],
+        "commit": "1002c02"
+      }
+    },
+    "5": {
+      "title": "Capture a task into my Inbox in seconds",
+      "conditions_start": {
+        "ac": true,
+        "low_power": false,
+        "thermal": "nominal"
+      },
+      "started": 1790454696.76179,
+      "agent": {
+        "seconds": 1912.3,
+        "steps": 127,
+        "tool_calls": 131,
+        "compactions": 0,
+        "tool_interruptions": 0,
+        "tokens": {
+          "input": 254,
+          "output": 175527,
+          "reasoning": 0,
+          "cache_read": 27401116,
+          "cache_write": 335559
+        },
+        "exit": 0,
+        "stalled": false,
+        "resumes": 0,
+        "nudges": 0,
+        "errors": [],
+        "ended_by_operator": false,
+        "ended_in_error": false,
+        "sessions": [
+          "628b0c9d-3df8-4dde-94f8-dece7c263d01"
+        ]
+      },
+      "agent_finished": 1790456609.121744,
+      "conditions": {
+        "samples": 63,
+        "degraded": false,
+        "throttled_share": 0.0,
+        "bad_samples": [],
+        "swap_start_gb": 0.35,
+        "swap_max_gb": 0.35,
+        "aborted_swap": false,
+        "aborted_memory": false,
+        "free_min_pct": 74.0,
+        "server_footprint_max_gb": null,
+        "server_footprint_peak_gb": null,
+        "gpu": null
+      },
+      "agent_commits": 19,
+      "gate": {
+        "steps": {
+          "install": {
+            "cmd": "bun install",
+            "exit": 0,
+            "seconds": 0.1,
+            "tail": "bun install v1.2.17 (282dda62)\n\nChecked 381 installs across 510 packages (no changes) [45.00ms]\n"
+          },
+          "build": {
+            "cmd": "bun run build",
+            "exit": 0,
+            "seconds": 0.3,
+            "tail": "\u001b[36mvite v8.3.1 \u001b[32mbuilding client environment for production...\u001b[36m\u001b[39m\ntransforming...\n\u2713 460 modules transformed.\nrendering chunks...\ncomputing gzip size...\ndist/index.html                             0.59 kB \u2502 gzip:   0.32 kB\ndist/assets/index-PSTrj6Hb.css             41.32 kB \u2502 gzip:   8.99 kB\ndist/assets/dialog-BYMHE1GE.js              0.74 kB \u2502 gzip:   0.44 kB\ndist/assets/ShortcutsPanel-Bm84a-9J.js      1.52 kB \u2502 gzip:   0.78 kB\ndist/assets/SharePanel-hpEIwF-V.js          3.57 kB \u2502 gzip:   1.73 kB\ndist/assets/ForgetDialog--WffjegM.js        4.85 kB \u2502 gzip:   1.89 kB\ndist/assets/useWorkspaceLink-B4nKbwxc.js    6.88 kB \u2502 gzip:   2.59 kB\ndist/assets/Workspace-CeRWlEMC.js          46.04 kB \u2502 gzip:  15.40 kB\ndist/assets/es2015-CNZJWwfa.js             72.98 kB \u2502 gzip:  24.20 kB\ndist/assets/api-B_muDefh.js               133.78 kB \u2502 gzip:  39.87 kB\ndist/assets/index-Cwouw-hP.js             323.49 kB \u2502 gzip: 104.47 kB\n\n\u001b[32m\u2713 built in 157ms\u001b[39m\n$ bun run --cwd apps/web build\n$ vite build\n",
+            "passed": null,
+            "failed": null
+          },
+          "typecheck": {
+            "cmd": "bun run typecheck",
+            "exit": 0,
+            "seconds": 4.6,
+            "tail": "$ bun run --cwd packages/shared typecheck && bun run --cwd apps/api typecheck && bun run --cwd apps/web typecheck && tsc -p tsconfig.json --noEmit\n$ tsc -p tsconfig.json --noEmit\n$ tsc -p tsconfig.json --noEmit && tsc -p tsconfig.node.json --noEmit\n$ tsc -p tsconfig.json --noEmit\n",
+            "passed": null,
+            "failed": null
+          },
+          "lint": {
+            "cmd": "bun run lint",
+            "exit": 0,
+            "seconds": 0.8,
+            "tail": "$ bun run --cwd apps/web lint\n$ eslint .\n",
+            "passed": null,
+            "failed": null
+          },
+          "test:unit": {
+            "cmd": "bun run test:unit",
+            "exit": 0,
+            "seconds": 7.5,
+            "tail": "\n RUN  v4.1.11 ~/.vidi-bench/work/benchmarks__reference__todoodle__opus-5.5__run-1/workspace\n\n\n Test Files  10 passed (10)\n      Tests  109 passed (109)\n   Start at  22:03:35\n   Duration  3.64s (transform 2.70s, setup 9.17s, import 117ms, tests 800ms, environment 1ms)\n\n\n RUN  v4.1.11 ~/.vidi-bench/work/benchmarks__reference__todoodle__opus-5.5__run-1/workspace\n\n\n Test Files  6 passed (6)\n      Tests  48 passed (48)\n   Start at  22:03:39\n   Duration  161ms (transform 174ms, setup 0ms, import 244ms, tests 61ms, environment 0ms)\n\n\n RUN  v4.1.11 ~/.vidi-bench/work/benchmarks__reference__todoodle__opus-5.5__run-1/workspace\n\n\n Test Files  20 passed (20)\n      Tests  174 passed (174)\n   Start at  22:03:40\n   Duration  2.44s (transform 1.41s, setup 7.17s, import 1.11s, tests 1.47s, environment 4.04s)\n\n$ vitest run --config apps/api/vitest.config.ts --project api-unit && vitest run --config scripts/vitest.config.ts --project deploy-unit && vitest run --config apps/web/vitest.config.ts --project web-unit\n",
+            "passed": 109,
+            "failed": 0
+          },
+          "test:component": {
+            "exit": "missing"
+          },
+          "test:integration": {
+            "cmd": "bun run test:integration",
+            "exit": 1,
+            "seconds": 16.9,
+            "tail": "\n RUN  v4.1.11 ~/.vidi-bench/work/benchmarks__reference__todoodle__opus-5.5__run-1/workspace\n\n[mf:warn] The Workers runtime crashed unexpectedly and is being restarted (crash #1). Any additional runtime output above may indicate the cause.\n\n Test Files  15 passed (16)\n      Tests  145 passed (152)\n     Errors  1 error\n   Start at  22:03:43\n   Duration  6.11s (transform 3.77s, setup 15.24s, import 422ms, tests 5.50s, environment 1ms)\n\n$ vitest run --config apps/api/vitest.config.ts --project api-integration --project api-staging-sim --project api-production-gate && vitest run --config scripts/vitest.config.ts --project deploy-integration\n*** Fatal uncaught kj::Exception: kj/async.c++:2194: failed: Promise callback destroyed itself.\nstack: 1036fad6b 100b3d9fb 1036fb04b 1036f7f8f 100b0c7d7 1036f7f8f 100ab469b 100b234af 100b23527 101b09dff 1016f49ff 1036fb04b 100aa72cb 1036fb107 1016f5a1b 1036fb04b 1036f7f8f 100ab469b 1036fc757 1036f166f 1036f1c4f 1016ec983 1016ecd03 1016c0203 1016c0117 101692473 10169255f 1016c24b7 100aaa44b 101605fb7 100af3adb\n\u23af\u23af\u23af\u23af\u23af\u23af Unhandled Errors \u23af\u23af\u23af\u23af\u23af\u23af\n\nVitest caught 1 unhandled error during the test run.\nThis might cause false positive tests. Resolve unhandled errors to make sure your tests are not affected.\n\n\u23af\u23af\u23af\u23af\u23af\u23af Unhandled Error \u23af\u23af\u23af\u23af\u23af\u23af\u23af\nError: [vitest-pool]: Worker cloudflare-pool emitted error.\n \u276f EventEmitter.onTaskError node_modules/vitest/dist/chunks/cli-api.CnMVyzaz.js:3526:21\n \u276f EventEmitter.emit node:events:509:28\n \u276f EventEmitter.emit node:domain:489:12\n \u276f _WebSocket.emitUnexpectedExit node_modules/vitest/dist/chunks/cli-api.CnMVyzaz.js:3092:22\n \u276f _WebSocket.[nodejs.internal.kHybridDispatch] node:internal/event_target:843:20\n \u276f _WebSocket.dispatchEvent node:internal/event_target:776:26\n \u276f _WebSocket.dispatchEvent node_modules/miniflare/dist/src/index.js:94125:18\n \u276f _WebSocket.#queuingDispatchToPair node_modules/miniflare/dist/src/index.js:94428:12\n \u276f _WebSocket.[kClose] node_modules/miniflare/dist/src/index.js:94486:37\n \u276f WebSocket.<anonymous> node_modules/miniflare/dist/src/index.js:94522:19\n\nCaused by: Error: Worker exited unexpectedly\n \u276f _WebSocket.emitUnexpectedExit node_modules/vitest/dist/chunks/cli-api.CnMVyzaz.js:3090:33\n \u276f _WebSocket.[nodejs.internal.kHybridDispatch] node:internal/event_target:843:20\n \u276f _WebSocket.dispatchEvent node:internal/event_target:776:26\n \u276f _WebSocket.dispatchEvent node_modules/miniflare/dist/src/index.js:94125:18\n \u276f _WebSocket.#queuingDispatchToPair node_modules/miniflare/dist/src/index.js:94428:12\n \u276f _WebSocket.[kClose] node_modules/miniflare/dist/src/index.js:94486:37\n \u276f WebSocket.<anonymous> node_modules/miniflare/dist/src/index.js:94522:19\n \u276f WebSocket.emit node:events:509:28\n \u276f WebSocket.emit node:domain:489:12\n \u276f WebSocket.emitClose node_modules/ws/lib/websocket.js:279:10\n\n\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\n\nclose timed out after 10000ms\nTests closed successfully but something prevents the main process from exiting\nYou can try to identify the cause by enabling \"hanging-process\" reporter. See https://vitest.dev/guide/reporters.html#hanging-process-reporter\nerror: script \"test:integration\" exited with code 1\n",
+            "passed": 145,
+            "failed": 0
+          },
+          "test:e2e": {
+            "cmd": "bun run test:e2e --project=chromium",
+            "exit": 0,
+            "seconds": 32.5,
+            "tail": "\nRunning 48 tests using 4 workers\n\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\n  48 passed (32.2s)\n::notice title=\ud83c\udfad Playwright Run Summary::  48 passed (32.2s)\n$ playwright test \"--project=chromium\"\n[WebServer] $ wrangler d1 migrations apply DB --local\n[WebServer] $ bun run build && bun scripts/dev.ts\n[WebServer] $ bun run --cwd apps/web build\n[WebServer] $ vite build\n",
+            "passed": 48,
+            "failed": 0
+          }
+        },
+        "all_green": false
+      },
+      "accept": {
+        "skipped": false,
+        "build_exit": 0,
+        "runner_exit": 1,
+        "runner_tail": "",
+        "passed": 76,
+        "total": 81,
+        "on_partial": {
+          "passed": 0,
+          "total": 0
+        },
+        "by_story": {
+          "01": {
+            "passed": 11,
+            "total": 11
+          },
+          "02": {
+            "passed": 22,
+            "total": 22
+          },
+          "03": {
+            "passed": 14,
+            "total": 15
+          },
+          "04": {
+            "passed": 7,
+            "total": 8
+          },
+          "05": {
+            "passed": 22,
+            "total": 25
+          }
+        },
+        "harness_fault": null
+      },
+      "commit": "993376f46bb0e29e46e55573d147976863162a0d",
+      "requests": {},
+      "time_split": {
+        "wall_s": 1912.4,
+        "model": null,
+        "tools_s": 0,
+        "tools_by_kind": {},
+        "compaction_s": 0,
+        "compactions": 0,
+        "other_s": 1912.4
+      },
+      "loc": {
+        "files": 0,
+        "lines": 0
+      },
+      "finished": 1790456909.4141738,
+      "status": "DONE",
+      "ended_by": "agent",
+      "partial_base": [],
+      "tasks": [
+        {
+          "n": 1,
+          "title": "Add tasks table (migration 0002) and tasks query module",
+          "type": "implementation",
+          "implements": [
+            "tasks.store"
+          ],
+          "tcs": [],
+          "status": "committed",
+          "found": null,
+          "total": null
+        },
+        {
+          "n": 2,
+          "title": "Add idempotent create-task endpoint with validation and live broadcast",
+          "type": "implementation",
+          "implements": [
+            "tasks.create_api"
+          ],
+          "tcs": [],
+          "status": "committed",
+          "found": null,
+          "total": null
+        },
+        {
+          "n": 3,
+          "title": "Add Inbox task list and counts endpoints",
+          "type": "implementation",
+          "implements": [
+            "tasks.list_api"
+          ],
+          "tcs": [],
+          "status": "committed",
+          "found": null,
+          "total": null
+        },
+        {
+          "n": 4,
+          "title": "Build workspace app shell with sidebar Inbox entry and open-task count",
+          "type": "implementation",
+          "implements": [
+            "shell.sidebar"
+          ],
+          "tcs": [],
+          "status": "committed",
+          "found": null,
+          "total": null
+        },
+        {
+          "n": 5,
+          "title": "Build Inbox view, memoised task list with roving keyboard navigation, loading skeletons, load-failure retry and empty state",
+          "type": "implementation",
+          "implements": [
+            "tasks.list_view"
+          ],
+          "tcs": [],
+          "status": "committed",
+          "found": null,
+          "total": null
+        },
+        {
+          "n": 6,
+          "title": "Build inline and docked quick add with Q shortcut, non-truncating length counters, keyboard rules and destination chip",
+          "type": "implementation",
+          "implements": [
+            "tasks.quick_add"
+          ],
+          "tcs": [],
+          "status": "committed",
+          "found": null,
+          "total": null
+        },
+        {
+          "n": 7,
+          "title": "Implement optimistic task creation with failed/rejected states, retry, discard and live upsert",
+          "type": "implementation",
+          "implements": [
+            "tasks.client_cache"
+          ],
+          "tcs": [],
+          "status": "committed",
+          "found": null,
+          "total": null
+        },
+        {
+          "n": 8,
+          "title": "Unit tests: task schemas, list query schema and row mapping",
+          "type": "test:unit",
+          "implements": [
+            "tasks.store",
+            "tasks.create_api",
+            "tasks.list_api"
+          ],
+          "tcs": [
+            "TC-30",
+            "TC-31"
+          ],
+          "status": "verified",
+          "found": 2,
+          "total": 2
+        },
+        {
+          "n": 9,
+          "title": "Integration tests: tasks migration, idempotent create, auth/CSRF and broadcast counts",
+          "type": "test:integration",
+          "implements": [
+            "tasks.store",
+            "tasks.create_api"
+          ],
+          "tcs": [
+            "TC-01",
+            "TC-02",
+            "TC-03",
+            "TC-04",
+            "TC-05",
+            "TC-06",
+            "TC-07",
+            "TC-08",
+            "TC-09",
+            "TC-10",
+            "TC-11",
+            "TC-12",
+            "TC-13",
+            "TC-14",
+            "TC-15",
+            "TC-16",
+            "TC-17",
+            "TC-18",
+            "TC-19",
+            "TC-20",
+            "TC-21",
+            "TC-22",
+            "TC-23",
+            "TC-24",
+            "TC-32"
+          ],
+          "status": "committed",
+          "found": 25,
+          "total": 25
+        },
+        {
+          "n": 10,
+          "title": "Integration tests: Inbox list and counts endpoints",
+          "type": "test:integration",
+          "implements": [
+            "tasks.list_api"
+          ],
+          "tcs": [
+            "TC-25",
+            "TC-26",
+            "TC-27",
+            "TC-28",
+            "TC-29"
+          ],
+          "status": "committed",
+          "found": 5,
+          "total": 5
+        },
+        {
+          "n": 11,
+          "title": "Unit tests: task cache helpers and batched live-event application",
+          "type": "test:unit",
+          "implements": [
+            "tasks.client_cache"
+          ],
+          "tcs": [
+            "TC-46",
+            "TC-60",
+            "TC-61",
+            "TC-62",
+            "TC-63",
+            "TC-64",
+            "TC-121",
+            "TC-122"
+          ],
+          "status": "verified",
+          "found": 8,
+          "total": 8
+        },
+        {
+          "n": 12,
+          "title": "UI component tests: sidebar, task list, empty state and memoised rows",
+          "type": "test:ui-component",
+          "implements": [
+            "shell.sidebar",
+            "tasks.list_view"
+          ],
+          "tcs": [
+            "TC-40",
+            "TC-41",
+            "TC-42",
+            "TC-43",
+            "TC-44",
+            "TC-45"
+          ],
+          "status": "committed",
+          "found": 6,
+          "total": 6
+        },
+        {
+          "n": 13,
+          "title": "UI component tests: quick add (non-truncating limits, keys, destination), optimistic create, retry, discard and a11y status",
+          "type": "test:ui-component",
+          "implements": [
+            "tasks.quick_add",
+            "tasks.client_cache"
+          ],
+          "tcs": [
+            "TC-47",
+            "TC-48",
+            "TC-49",
+            "TC-50",
+            "TC-51",
+            "TC-53",
+            "TC-54",
+            "TC-55",
+            "TC-56",
+            "TC-57",
+            "TC-58",
+            "TC-59",
+            "TC-65",
+            "TC-66",
+            "TC-67",
+            "TC-68",
+            "TC-69",
+            "TC-70",
+            "TC-71",
+            "TC-116",
+            "TC-117",
+            "TC-118",
+            "TC-119",
+            "TC-120",
+            "TC-123",
+            "TC-124"
+          ],
+          "status": "committed",
+          "found": 26,
+          "total": 26
+        },
+        {
+          "n": 14,
+          "title": "E2E tests: Inbox capture, lost-response retry, limits, keyboard-only use, phone layout, touch targets, dark mode and shortcuts panel",
+          "type": "test:e2e",
+          "implements": [
+            "tasks.create_api",
+            "tasks.list_api",
+            "shell.sidebar",
+            "shell.mobile",
+            "shell.shortcuts",
+            "tasks.list_view",
+            "tasks.quick_add",
+            "tasks.client_cache"
+          ],
+          "tcs": [
+            "TC-80",
+            "TC-81",
+            "TC-82",
+            "TC-83",
+            "TC-84",
+            "TC-85",
+            "TC-86",
+            "TC-87",
+            "TC-88",
+            "TC-89",
+            "TC-90",
+            "TC-97",
+            "TC-98",
+            "TC-105",
+            "TC-114",
+            "TC-125"
+          ],
+          "status": "verified",
+          "found": 16,
+          "total": 16
+        },
+        {
+          "n": 15,
+          "title": "Build the app-wide keyboard shortcut registry and the ? shortcuts panel",
+          "type": "implementation",
+          "implements": [
+            "shell.shortcuts"
+          ],
+          "tcs": [],
+          "status": "committed",
+          "found": null,
+          "total": null
+        },
+        {
+          "n": 16,
+          "title": "Build the phone layout: navigation drawer, floating add button, 44px touch targets and light/dark tokens",
+          "type": "implementation",
+          "implements": [
+            "shell.mobile"
+          ],
+          "tcs": [],
+          "status": "committed",
+          "found": null,
+          "total": null
+        },
+        {
+          "n": 17,
+          "title": "Unit tests: shortcut registry, keyboard inset, roving list maths and quick-add validation",
+          "type": "test:unit",
+          "implements": [
+            "shell.shortcuts",
+            "shell.mobile",
+            "tasks.list_view",
+            "tasks.quick_add"
+          ],
+          "tcs": [
+            "TC-46",
+            "TC-93",
+            "TC-99",
+            "TC-100",
+            "TC-101",
+            "TC-102",
+            "TC-106",
+            "TC-115"
+          ],
+          "status": "verified",
+          "found": 8,
+          "total": 8
+        },
+        {
+          "n": 18,
+          "title": "UI component tests: phone shell, shortcuts panel, loader parallelism and list keyboard navigation",
+          "type": "test:ui-component",
+          "implements": [
+            "shell.mobile",
+            "shell.shortcuts",
+            "shell.sidebar",
+            "tasks.list_view"
+          ],
+          "tcs": [
+            "TC-91",
+            "TC-92",
+            "TC-94",
+            "TC-95",
+            "TC-96",
+            "TC-103",
+            "TC-104",
+            "TC-107",
+            "TC-108",
+            "TC-109",
+            "TC-110",
+            "TC-111",
+            "TC-112",
+            "TC-113"
+          ],
+          "status": "committed",
+          "found": 14,
+          "total": 14
+        }
       ]
     }
   },
@@ -3065,6 +3591,504 @@
           "accept": {
             "passed": 4,
             "total": 4
+          }
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "title": "Capture a task into my Inbox in seconds",
+      "status": "DONE",
+      "ended_by": "agent",
+      "started_at": 1790454696.76179,
+      "ended_at": 1790456609.121744,
+      "agent_minutes": 31.9,
+      "calls": 127,
+      "output_tokens": 175527,
+      "compactions": 0,
+      "last_commit_at": 1790456595.0,
+      "accept": {
+        "passed": 22,
+        "total": 25
+      },
+      "partial_base": [],
+      "tasks": [
+        {
+          "n": 1,
+          "title": "Add tasks table (migration 0002) and tasks query module",
+          "type": "implementation",
+          "implements": [
+            "tasks.store"
+          ],
+          "tcs": [],
+          "status": "committed",
+          "found": null,
+          "total": null
+        },
+        {
+          "n": 2,
+          "title": "Add idempotent create-task endpoint with validation and live broadcast",
+          "type": "implementation",
+          "implements": [
+            "tasks.create_api"
+          ],
+          "tcs": [],
+          "status": "committed",
+          "found": null,
+          "total": null
+        },
+        {
+          "n": 3,
+          "title": "Add Inbox task list and counts endpoints",
+          "type": "implementation",
+          "implements": [
+            "tasks.list_api"
+          ],
+          "tcs": [],
+          "status": "committed",
+          "found": null,
+          "total": null
+        },
+        {
+          "n": 4,
+          "title": "Build workspace app shell with sidebar Inbox entry and open-task count",
+          "type": "implementation",
+          "implements": [
+            "shell.sidebar"
+          ],
+          "tcs": [],
+          "status": "committed",
+          "found": null,
+          "total": null
+        },
+        {
+          "n": 5,
+          "title": "Build Inbox view, memoised task list with roving keyboard navigation, loading skeletons, load-failure retry and empty state",
+          "type": "implementation",
+          "implements": [
+            "tasks.list_view"
+          ],
+          "tcs": [],
+          "status": "committed",
+          "found": null,
+          "total": null
+        },
+        {
+          "n": 6,
+          "title": "Build inline and docked quick add with Q shortcut, non-truncating length counters, keyboard rules and destination chip",
+          "type": "implementation",
+          "implements": [
+            "tasks.quick_add"
+          ],
+          "tcs": [],
+          "status": "committed",
+          "found": null,
+          "total": null
+        },
+        {
+          "n": 7,
+          "title": "Implement optimistic task creation with failed/rejected states, retry, discard and live upsert",
+          "type": "implementation",
+          "implements": [
+            "tasks.client_cache"
+          ],
+          "tcs": [],
+          "status": "committed",
+          "found": null,
+          "total": null
+        },
+        {
+          "n": 8,
+          "title": "Unit tests: task schemas, list query schema and row mapping",
+          "type": "test:unit",
+          "implements": [
+            "tasks.store",
+            "tasks.create_api",
+            "tasks.list_api"
+          ],
+          "tcs": [
+            "TC-30",
+            "TC-31"
+          ],
+          "status": "verified",
+          "found": 2,
+          "total": 2
+        },
+        {
+          "n": 9,
+          "title": "Integration tests: tasks migration, idempotent create, auth/CSRF and broadcast counts",
+          "type": "test:integration",
+          "implements": [
+            "tasks.store",
+            "tasks.create_api"
+          ],
+          "tcs": [
+            "TC-01",
+            "TC-02",
+            "TC-03",
+            "TC-04",
+            "TC-05",
+            "TC-06",
+            "TC-07",
+            "TC-08",
+            "TC-09",
+            "TC-10",
+            "TC-11",
+            "TC-12",
+            "TC-13",
+            "TC-14",
+            "TC-15",
+            "TC-16",
+            "TC-17",
+            "TC-18",
+            "TC-19",
+            "TC-20",
+            "TC-21",
+            "TC-22",
+            "TC-23",
+            "TC-24",
+            "TC-32"
+          ],
+          "status": "committed",
+          "found": 25,
+          "total": 25
+        },
+        {
+          "n": 10,
+          "title": "Integration tests: Inbox list and counts endpoints",
+          "type": "test:integration",
+          "implements": [
+            "tasks.list_api"
+          ],
+          "tcs": [
+            "TC-25",
+            "TC-26",
+            "TC-27",
+            "TC-28",
+            "TC-29"
+          ],
+          "status": "committed",
+          "found": 5,
+          "total": 5
+        },
+        {
+          "n": 11,
+          "title": "Unit tests: task cache helpers and batched live-event application",
+          "type": "test:unit",
+          "implements": [
+            "tasks.client_cache"
+          ],
+          "tcs": [
+            "TC-46",
+            "TC-60",
+            "TC-61",
+            "TC-62",
+            "TC-63",
+            "TC-64",
+            "TC-121",
+            "TC-122"
+          ],
+          "status": "verified",
+          "found": 8,
+          "total": 8
+        },
+        {
+          "n": 12,
+          "title": "UI component tests: sidebar, task list, empty state and memoised rows",
+          "type": "test:ui-component",
+          "implements": [
+            "shell.sidebar",
+            "tasks.list_view"
+          ],
+          "tcs": [
+            "TC-40",
+            "TC-41",
+            "TC-42",
+            "TC-43",
+            "TC-44",
+            "TC-45"
+          ],
+          "status": "committed",
+          "found": 6,
+          "total": 6
+        },
+        {
+          "n": 13,
+          "title": "UI component tests: quick add (non-truncating limits, keys, destination), optimistic create, retry, discard and a11y status",
+          "type": "test:ui-component",
+          "implements": [
+            "tasks.quick_add",
+            "tasks.client_cache"
+          ],
+          "tcs": [
+            "TC-47",
+            "TC-48",
+            "TC-49",
+            "TC-50",
+            "TC-51",
+            "TC-53",
+            "TC-54",
+            "TC-55",
+            "TC-56",
+            "TC-57",
+            "TC-58",
+            "TC-59",
+            "TC-65",
+            "TC-66",
+            "TC-67",
+            "TC-68",
+            "TC-69",
+            "TC-70",
+            "TC-71",
+            "TC-116",
+            "TC-117",
+            "TC-118",
+            "TC-119",
+            "TC-120",
+            "TC-123",
+            "TC-124"
+          ],
+          "status": "committed",
+          "found": 26,
+          "total": 26
+        },
+        {
+          "n": 14,
+          "title": "E2E tests: Inbox capture, lost-response retry, limits, keyboard-only use, phone layout, touch targets, dark mode and shortcuts panel",
+          "type": "test:e2e",
+          "implements": [
+            "tasks.create_api",
+            "tasks.list_api",
+            "shell.sidebar",
+            "shell.mobile",
+            "shell.shortcuts",
+            "tasks.list_view",
+            "tasks.quick_add",
+            "tasks.client_cache"
+          ],
+          "tcs": [
+            "TC-80",
+            "TC-81",
+            "TC-82",
+            "TC-83",
+            "TC-84",
+            "TC-85",
+            "TC-86",
+            "TC-87",
+            "TC-88",
+            "TC-89",
+            "TC-90",
+            "TC-97",
+            "TC-98",
+            "TC-105",
+            "TC-114",
+            "TC-125"
+          ],
+          "status": "verified",
+          "found": 16,
+          "total": 16
+        },
+        {
+          "n": 15,
+          "title": "Build the app-wide keyboard shortcut registry and the ? shortcuts panel",
+          "type": "implementation",
+          "implements": [
+            "shell.shortcuts"
+          ],
+          "tcs": [],
+          "status": "committed",
+          "found": null,
+          "total": null
+        },
+        {
+          "n": 16,
+          "title": "Build the phone layout: navigation drawer, floating add button, 44px touch targets and light/dark tokens",
+          "type": "implementation",
+          "implements": [
+            "shell.mobile"
+          ],
+          "tcs": [],
+          "status": "committed",
+          "found": null,
+          "total": null
+        },
+        {
+          "n": 17,
+          "title": "Unit tests: shortcut registry, keyboard inset, roving list maths and quick-add validation",
+          "type": "test:unit",
+          "implements": [
+            "shell.shortcuts",
+            "shell.mobile",
+            "tasks.list_view",
+            "tasks.quick_add"
+          ],
+          "tcs": [
+            "TC-46",
+            "TC-93",
+            "TC-99",
+            "TC-100",
+            "TC-101",
+            "TC-102",
+            "TC-106",
+            "TC-115"
+          ],
+          "status": "verified",
+          "found": 8,
+          "total": 8
+        },
+        {
+          "n": 18,
+          "title": "UI component tests: phone shell, shortcuts panel, loader parallelism and list keyboard navigation",
+          "type": "test:ui-component",
+          "implements": [
+            "shell.mobile",
+            "shell.shortcuts",
+            "shell.sidebar",
+            "tasks.list_view"
+          ],
+          "tcs": [
+            "TC-91",
+            "TC-92",
+            "TC-94",
+            "TC-95",
+            "TC-96",
+            "TC-103",
+            "TC-104",
+            "TC-107",
+            "TC-108",
+            "TC-109",
+            "TC-110",
+            "TC-111",
+            "TC-112",
+            "TC-113"
+          ],
+          "status": "committed",
+          "found": 14,
+          "total": 14
+        }
+      ],
+      "baselines": [
+        {
+          "source": "reference opus-5.5 run-1",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 19.2,
+          "calls": 73,
+          "output_tokens": 80492,
+          "accept": {
+            "passed": 5,
+            "total": 5
+          }
+        },
+        {
+          "source": "reference opus-5.5 run-2",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 12.0,
+          "calls": 53,
+          "output_tokens": 61768,
+          "accept": null
+        },
+        {
+          "source": "reference opus-5.5 run-3",
+          "status": "DONE",
+          "gate_green": false,
+          "agent_minutes": 24.1,
+          "calls": 70,
+          "output_tokens": 66383,
+          "accept": {
+            "passed": 5,
+            "total": 5
+          }
+        },
+        {
+          "source": "qwen/3.8/27b/ubuntu/nvidia4090/llamacpp-opencode canvas-pi-02",
+          "status": "DONE",
+          "gate_green": false,
+          "agent_minutes": 49.1,
+          "calls": 263,
+          "output_tokens": 144098,
+          "accept": {
+            "passed": 0,
+            "total": 5
+          }
+        },
+        {
+          "source": "qwen/3.8/27b/ubuntu/nvidia4090/llamacpp-opencode canvas-pi-03",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 91.4,
+          "calls": 283,
+          "output_tokens": 228329,
+          "accept": {
+            "passed": 5,
+            "total": 5
+          }
+        },
+        {
+          "source": "qwen/3.8/27b/ubuntu/nvidia4090/llamacpp-opencode canvas-pi-04",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 73.4,
+          "calls": 261,
+          "output_tokens": 209002,
+          "accept": {
+            "passed": 5,
+            "total": 5,
+            "on_partial_total": 5,
+            "on_partial_passed": 5
+          }
+        },
+        {
+          "source": "qwen/3.8/flash-next/macos/128GB/mtplx-opencode canvas-pi-01",
+          "status": "DONE",
+          "gate_green": false,
+          "agent_minutes": 77.9,
+          "calls": 242,
+          "output_tokens": 170182,
+          "accept": {
+            "passed": 5,
+            "total": 5
+          }
+        },
+        {
+          "source": "qwen/3.8/flash-next/macos/128GB/mtplx-opencode canvas-pi-02",
+          "status": "PARTIAL",
+          "gate_green": true,
+          "agent_minutes": 389.0,
+          "calls": 1217,
+          "output_tokens": 787738,
+          "accept": {
+            "passed": 5,
+            "total": 5,
+            "on_partial_total": 5,
+            "on_partial_passed": 5
+          }
+        },
+        {
+          "source": "qwen/3.8/flash-next/macos/128GB/mtplx-opencode canvas-pi-03",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 100.9,
+          "calls": 366,
+          "output_tokens": 183754,
+          "accept": {
+            "passed": 5,
+            "total": 5,
+            "on_partial_total": 5,
+            "on_partial_passed": 5
+          }
+        },
+        {
+          "source": "qwen/3.8/flash-next/ubuntu/strix-halo-128GB/llamacpp-pi canvas-vk-01",
+          "status": "DONE",
+          "gate_green": false,
+          "agent_minutes": 79.6,
+          "calls": 281,
+          "output_tokens": 102038,
+          "accept": {
+            "passed": 5,
+            "total": 5
           }
         }
       ]

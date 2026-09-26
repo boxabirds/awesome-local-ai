@@ -8,7 +8,7 @@ export const DialogTitle = DialogPrimitive.Title;
 export const DialogDescription = DialogPrimitive.Description;
 
 /**
- * Centered dialog on desktop; below MOBILE_BREAKPOINT_PX (640px, Tailwind `sm`) a full-width bottom sheet.
+ * Centered dialog on desktop; below SHEET_BREAKPOINT_PX (640px, Tailwind `sm`) a full-width bottom sheet.
  */
 export function DialogContent({ className, children, ...props }: ComponentProps<typeof DialogPrimitive.Content>) {
   return (

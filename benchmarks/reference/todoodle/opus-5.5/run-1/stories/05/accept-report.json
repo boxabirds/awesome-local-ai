@@ -1,0 +1,3385 @@
+{
+  "config": {
+    "argv": [
+      "~/.nvm/versions/node/v24.15.0/bin/node",
+      "~/.spec-bench/awesome-local-ai-bench-private/packs/todoodle/acceptance/node_modules/.bin/playwright",
+      "test",
+      "tests/story-01.spec.ts",
+      "tests/story-02.spec.ts",
+      "tests/story-03.spec.ts",
+      "tests/story-04.spec.ts",
+      "tests/story-05.spec.ts"
+    ],
+    "configFile": "~/.spec-bench/awesome-local-ai-bench-private/packs/todoodle/acceptance/playwright.config.ts",
+    "rootDir": "~/.spec-bench/awesome-local-ai-bench-private/packs/todoodle/acceptance/tests",
+    "failOnFlakyTests": false,
+    "forbidOnly": false,
+    "fullyParallel": false,
+    "globalSetup": "~/.spec-bench/awesome-local-ai-bench-private/packs/todoodle/acceptance/tests/global-setup.ts",
+    "globalTeardown": null,
+    "globalTimeout": 0,
+    "grep": {},
+    "grepInvert": null,
+    "maxFailures": 0,
+    "metadata": {
+      "actualWorkers": 1
+    },
+    "preserveOutput": "always",
+    "projects": [
+      {
+        "outputDir": "~/.spec-bench/awesome-local-ai/benchmarks/reference/todoodle/opus-5.5/run-1/stories/05/artifacts",
+        "repeatEach": 1,
+        "retries": 0,
+        "metadata": {
+          "actualWorkers": 1
+        },
+        "id": "chromium",
+        "name": "chromium",
+        "testDir": "~/.spec-bench/awesome-local-ai-bench-private/packs/todoodle/acceptance/tests",
+        "testIgnore": [],
+        "testMatch": [
+          "**/*.@(spec|test).?(c|m)[jt]s?(x)"
+        ],
+        "timeout": 45000
+      }
+    ],
+    "quiet": false,
+    "reporter": [
+      [
+        "list",
+        null
+      ],
+      [
+        "json",
+        {
+          "outputFile": "~/.spec-bench/awesome-local-ai/benchmarks/reference/todoodle/opus-5.5/run-1/stories/05/accept-report.json"
+        }
+      ]
+    ],
+    "reportSlowTests": {
+      "max": 5,
+      "threshold": 300000
+    },
+    "shard": null,
+    "tags": [],
+    "updateSnapshots": "missing",
+    "updateSourceMethod": "patch",
+    "version": "1.63.0",
+    "workers": 1,
+    "webServer": null
+  },
+  "suites": [
+    {
+      "title": "story-01.spec.ts",
+      "file": "story-01.spec.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [
+        {
+          "title": "landing page runs locally and shows Todoodle @ref prd:local_dev",
+          "ok": true,
+          "tags": [
+            "ref"
+          ],
+          "tests": [
+            {
+              "timeout": 45000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 298,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-09-26T21:04:35.494Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "24cb81e61bbb2d948322-ad30331ff0dc7c7b20f2",
+          "file": "story-01.spec.ts",
+          "line": 13,
+          "column": 1
+        },
+        {
+          "title": "health reports status, environment, version, revision and release time @ref prd:health",
+          "ok": true,
+          "tags": [
+            "ref"
+          ],
+          "tests": [
+            {
+              "timeout": 45000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 10,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-09-26T21:04:41.353Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "24cb81e61bbb2d948322-1c074538da52295223d6",
+          "file": "story-01.spec.ts",
+          "line": 19,
+          "column": 1
+        },
+        {
+          "title": "/health and /api/health answer the same @ref prd:health",
+          "ok": true,
+          "tags": [
+            "ref"
+          ],
+          "tests": [
+            {
+              "timeout": 45000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 7,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-09-26T21:04:41.367Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "24cb81e61bbb2d948322-80da6c79b5cae60ac008",
+          "file": "story-01.spec.ts",
+          "line": 30,
+          "column": 1
+        },
+        {
+          "title": "every response carries a request id and baseline protections @ref prd:security_baseline",
+          "ok": true,
+          "tags": [
+            "ref"
+          ],
+          "tests": [
+            {
+              "timeout": 45000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 16,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-09-26T21:04:41.378Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "24cb81e61bbb2d948322-89bf3c72e14aa972c0e3",
+          "file": "story-01.spec.ts",
+          "line": 38,
+          "column": 1
+        },
+        {
+          "title": "API and health responses are never cached @ref prd:security_baseline",
+          "ok": true,
+          "tags": [
+            "ref"
+          ],
+          "tests": [
+            {
+              "timeout": 45000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 7,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-09-26T21:04:41.398Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "24cb81e61bbb2d948322-86ee8d00cfcfb77b2e2b",
+          "file": "story-01.spec.ts",
+          "line": 54,
+          "column": 1
+        },
+        {
+          "title": "unknown API paths are a plain 404 without internals @ref prd:request_limits",
+          "ok": true,
+          "tags": [
+            "ref"
+          ],
+          "tests": [
+            {
+              "timeout": 45000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 4,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-09-26T21:04:41.409Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "24cb81e61bbb2d948322-bd9fe709bfee92a1e3cf",
+          "file": "story-01.spec.ts",
+          "line": 62,
+          "column": 1
+        },
+        {
+          "title": "an unsupported method is rejected @ref prd:request_limits",
+          "ok": true,
+          "tags": [
+            "ref"
+          ],
+          "tests": [
+            {
+              "timeout": 45000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 4,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-09-26T21:04:41.419Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "24cb81e61bbb2d948322-c7d3c07d574fefb4b828",
+          "file": "story-01.spec.ts",
+          "line": 71,
+          "column": 1
+        },
+        {
+          "title": "a change without JSON content is rejected @ref prd:request_limits",
+          "ok": true,
+          "tags": [
+            "ref"
+          ],
+          "tests": [
+            {
+              "timeout": 45000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 3,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-09-26T21:04:41.427Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "24cb81e61bbb2d948322-4e627686dada4570dac5",
+          "file": "story-01.spec.ts",
+          "line": 78,
+          "column": 1
+        },
+        {
+          "title": "a body over 1 MB is rejected @ref prd:request_limits",
+          "ok": true,
+          "tags": [
+            "ref"
+          ],
+          "tests": [
+            {
+              "timeout": 45000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 8,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-09-26T21:04:41.433Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "24cb81e61bbb2d948322-7cdb24298dc3d8563fbd",
+          "file": "story-01.spec.ts",
+          "line": 85,
+          "column": 1
+        },
+        {
+          "title": "a change from outside the web client is refused @ref prd:request_limits",
+          "ok": true,
+          "tags": [
+            "ref"
+          ],
+          "tests": [
+            {
+              "timeout": 45000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 3,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-09-26T21:04:41.449Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "24cb81e61bbb2d948322-2b74da62d30ed35459ac",
+          "file": "story-01.spec.ts",
+          "line": 93,
+          "column": 1
+        },
+        {
+          "title": "deep links are served the app, not a 404 @ref prd:local_dev",
+          "ok": true,
+          "tags": [
+            "ref"
+          ],
+          "tests": [
+            {
+              "timeout": 45000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 118,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-09-26T21:04:41.456Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "24cb81e61bbb2d948322-152cb95d2b0c577ce166",
+          "file": "story-01.spec.ts",
+          "line": 100,
+          "column": 1
+        }
+      ]
+    },
+    {
+      "title": "story-02.spec.ts",
+      "file": "story-02.spec.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [
+        {
+          "title": "Start a new list opens a new empty workspace @ref prd:create_workspace",
+          "ok": true,
+          "tags": [
+            "ref"
+          ],
+          "tests": [
+            {
+              "timeout": 45000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 636,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-09-26T21:04:41.584Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "c926f64a76cbce2cafa8-59cf4b339924d2b56264",
+          "file": "story-02.spec.ts",
+          "line": 39,
+          "column": 1
+        },
+        {
+          "title": "each workspace gets its own long random link @ref prd:unguessable_link",
+          "ok": true,
+          "tags": [
+            "ref"
+          ],
+          "tests": [
+            {
+              "timeout": 45000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 1976,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-09-26T21:04:47.463Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "c926f64a76cbce2cafa8-e333e89189467075a38c",
+          "file": "story-02.spec.ts",
+          "line": 47,
+          "column": 1
+        },
+        {
+          "title": "another person with the link gets into the workspace @ref prd:unguessable_link",
+          "ok": true,
+          "tags": [
+            "ref"
+          ],
+          "tests": [
+            {
+              "timeout": 45000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 1991,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-09-26T21:04:49.445Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "c926f64a76cbce2cafa8-76bb8bd501ea816cbd58",
+          "file": "story-02.spec.ts",
+          "line": 56,
+          "column": 1
+        },
+        {
+          "title": "save-your-link panel shows the full link and the warnings @ref prd:save_link_prompt",
+          "ok": true,
+          "tags": [
+            "ref"
+          ],
+          "tests": [
+            {
+              "timeout": 45000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 1049,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-09-26T21:04:51.442Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "c926f64a76cbce2cafa8-bdd492cda0c311be5e9b",
+          "file": "story-02.spec.ts",
+          "line": 65,
+          "column": 1
+        },
+        {
+          "title": "Copy link & continue copies the link and closes the panel @ref prd:save_link_actions",
+          "ok": true,
+          "tags": [
+            "ref"
+          ],
+          "tests": [
+            {
+              "timeout": 45000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 1024,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-09-26T21:04:52.497Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "c926f64a76cbce2cafa8-2051be9e807cb265bc47",
+          "file": "story-02.spec.ts",
+          "line": 78,
+          "column": 1
+        },
+        {
+          "title": "Email it to me uses the mail app with the link in the body @ref prd:save_link_actions",
+          "ok": true,
+          "tags": [
+            "ref"
+          ],
+          "tests": [
+            {
+              "timeout": 45000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 992,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-09-26T21:04:53.526Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "c926f64a76cbce2cafa8-5ab1788e3e418e16a90e",
+          "file": "story-02.spec.ts",
+          "line": 88,
+          "column": 1
+        },
+        {
+          "title": "Bookmark this page says which keys to press @ref prd:save_link_actions",
+          "ok": true,
+          "tags": [
+            "ref"
+          ],
+          "tests": [
+            {
+              "timeout": 45000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 1001,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-09-26T21:04:54.524Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "c926f64a76cbce2cafa8-10dcb758ae239c352c90",
+          "file": "story-02.spec.ts",
+          "line": 101,
+          "column": 1
+        },
+        {
+          "title": "skipping leaves a reminder until the link is copied, even after reload @ref prd:unsaved_link_reminder",
+          "ok": true,
+          "tags": [
+            "ref"
+          ],
+          "tests": [
+            {
+              "timeout": 45000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 2276,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-09-26T21:04:55.529Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "c926f64a76cbce2cafa8-348489f461cbd0bacca5",
+          "file": "story-02.spec.ts",
+          "line": 108,
+          "column": 1
+        },
+        {
+          "title": "Remind me later hides the reminder for this tab only @ref prd:unsaved_link_reminder",
+          "ok": true,
+          "tags": [
+            "ref"
+          ],
+          "tests": [
+            {
+              "timeout": 45000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 1969,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-09-26T21:04:57.811Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "c926f64a76cbce2cafa8-98b854027a3faf5ff1ab",
+          "file": "story-02.spec.ts",
+          "line": 122,
+          "column": 1
+        },
+        {
+          "title": "one Share button in the header opens the link panel @ref prd:share_entry",
+          "ok": true,
+          "tags": [
+            "ref"
+          ],
+          "tests": [
+            {
+              "timeout": 45000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 3510,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-09-26T21:04:59.785Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "c926f64a76cbce2cafa8-d7031701bb13895d7e6a",
+          "file": "story-02.spec.ts",
+          "line": 132,
+          "column": 1
+        },
+        {
+          "title": "the full link stays in the address bar and reload returns to the workspace @ref prd:bookmarkable_link",
+          "ok": true,
+          "tags": [
+            "ref"
+          ],
+          "tests": [
+            {
+              "timeout": 45000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 1899,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-09-26T21:05:03.301Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "c926f64a76cbce2cafa8-46e6cc6669ad4bf49fc7",
+          "file": "story-02.spec.ts",
+          "line": 150,
+          "column": 1
+        },
+        {
+          "title": "an unknown link shows the not-found page @ref prd:not_found",
+          "ok": true,
+          "tags": [
+            "ref"
+          ],
+          "tests": [
+            {
+              "timeout": 45000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 933,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-09-26T21:05:05.207Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "c926f64a76cbce2cafa8-056622d928e0fd04436a",
+          "file": "story-02.spec.ts",
+          "line": 166,
+          "column": 3
+        },
+        {
+          "title": "a cut-off link shows the not-found page @ref prd:not_found",
+          "ok": true,
+          "tags": [
+            "ref"
+          ],
+          "tests": [
+            {
+              "timeout": 45000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 932,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-09-26T21:05:06.145Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "c926f64a76cbce2cafa8-fac34d0d3194a3796f1b",
+          "file": "story-02.spec.ts",
+          "line": 166,
+          "column": 3
+        },
+        {
+          "title": "an empty link shows the not-found page @ref prd:not_found",
+          "ok": true,
+          "tags": [
+            "ref"
+          ],
+          "tests": [
+            {
+              "timeout": 45000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 932,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-09-26T21:05:07.083Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "c926f64a76cbce2cafa8-7ed6d29b18f889ee0496",
+          "file": "story-02.spec.ts",
+          "line": 166,
+          "column": 3
+        },
+        {
+          "title": "not-found reveals nothing about which links exist @ref prd:not_found",
+          "ok": true,
+          "tags": [
+            "ref"
+          ],
+          "tests": [
+            {
+              "timeout": 45000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 2780,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-09-26T21:05:08.022Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "c926f64a76cbce2cafa8-9d8d06a5e6db19c546fd",
+          "file": "story-02.spec.ts",
+          "line": 176,
+          "column": 1
+        },
+        {
+          "title": "renaming saves the name for everyone @ref prd:rename_workspace",
+          "ok": true,
+          "tags": [
+            "ref"
+          ],
+          "tests": [
+            {
+              "timeout": 45000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 1972,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-09-26T21:05:10.808Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "c926f64a76cbce2cafa8-b3ae7a378ca5aa00061a",
+          "file": "story-02.spec.ts",
+          "line": 189,
+          "column": 1
+        },
+        {
+          "title": "an empty name is refused and the old name comes back @ref prd:rename_workspace",
+          "ok": true,
+          "tags": [
+            "ref"
+          ],
+          "tests": [
+            {
+              "timeout": 45000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 1907,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-09-26T21:05:12.786Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "c926f64a76cbce2cafa8-10e19bfc688af12c9238",
+          "file": "story-02.spec.ts",
+          "line": 198,
+          "column": 1
+        },
+        {
+          "title": "Escape cancels a rename @ref prd:rename_workspace",
+          "ok": true,
+          "tags": [
+            "ref"
+          ],
+          "tests": [
+            {
+              "timeout": 45000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 1873,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-09-26T21:05:14.699Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "c926f64a76cbce2cafa8-f155396d124ca8f2504b",
+          "file": "story-02.spec.ts",
+          "line": 209,
+          "column": 1
+        },
+        {
+          "title": "the link never reaches the title, web storage or referrers @ref prd:no_link_leak",
+          "ok": true,
+          "tags": [
+            "ref"
+          ],
+          "tests": [
+            {
+              "timeout": 45000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 1872,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-09-26T21:05:16.579Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "c926f64a76cbce2cafa8-8e18222a4d12faeb05bf",
+          "file": "story-02.spec.ts",
+          "line": 218,
+          "column": 1
+        },
+        {
+          "title": "a failed load offers Try again, not the not-found page @ref prd:load_failure",
+          "ok": true,
+          "tags": [
+            "ref"
+          ],
+          "tests": [
+            {
+              "timeout": 45000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 2339,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-09-26T21:05:18.456Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "c926f64a76cbce2cafa8-2094856c74028f95e6de",
+          "file": "story-02.spec.ts",
+          "line": 232,
+          "column": 1
+        },
+        {
+          "title": "placeholders show while the workspace loads @ref prd:loading_state",
+          "ok": true,
+          "tags": [
+            "ref"
+          ],
+          "tests": [
+            {
+              "timeout": 73025,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 30021,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-09-26T21:05:20.801Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "c926f64a76cbce2cafa8-c43dc05afff28d67d07e",
+          "file": "story-02.spec.ts",
+          "line": 246,
+          "column": 1
+        },
+        {
+          "title": "the workspace follows the device light or dark setting @ref prd:colour_scheme",
+          "ok": true,
+          "tags": [
+            "ref"
+          ],
+          "tests": [
+            {
+              "timeout": 45000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 1074,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-09-26T21:05:50.827Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "c926f64a76cbce2cafa8-67d58b7def71703b4015",
+          "file": "story-02.spec.ts",
+          "line": 259,
+          "column": 1
+        }
+      ]
+    },
+    {
+      "title": "story-03.spec.ts",
+      "file": "story-03.spec.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [
+        {
+          "title": "a created workspace is remembered and listed on the home page @ref prd:remember_on_open @ref prd:list_remembered",
+          "ok": true,
+          "tags": [
+            "ref",
+            "ref"
+          ],
+          "tests": [
+            {
+              "timeout": 45000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 1178,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-09-26T21:05:51.912Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "30f3d3dfc0d9061a88db-5838168f7c0fc1dd8777",
+          "file": "story-03.spec.ts",
+          "line": 52,
+          "column": 1
+        },
+        {
+          "title": "a workspace opened from a link is remembered in that browser @ref prd:remember_on_open",
+          "ok": true,
+          "tags": [
+            "ref"
+          ],
+          "tests": [
+            {
+              "timeout": 45000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 2057,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-09-26T21:05:58.346Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "30f3d3dfc0d9061a88db-15309d4021a75fe39665",
+          "file": "story-03.spec.ts",
+          "line": 62,
+          "column": 1
+        },
+        {
+          "title": "the list is most recently opened first @ref prd:list_remembered",
+          "ok": true,
+          "tags": [
+            "ref"
+          ],
+          "tests": [
+            {
+              "timeout": 45000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 2974,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-09-26T21:06:00.408Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "30f3d3dfc0d9061a88db-5d8ca7d0759cb14f5bd8",
+          "file": "story-03.spec.ts",
+          "line": 71,
+          "column": 1
+        },
+        {
+          "title": "Continue goes to the most recent workspace, never automatically @ref prd:continue_recent",
+          "ok": true,
+          "tags": [
+            "ref"
+          ],
+          "tests": [
+            {
+              "timeout": 45000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 2894,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-09-26T21:06:03.386Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "30f3d3dfc0d9061a88db-ec53a67a543664f679fa",
+          "file": "story-03.spec.ts",
+          "line": 82,
+          "column": 1
+        },
+        {
+          "title": "the name shows before the workspace finishes loading @ref prd:instant_name",
+          "ok": true,
+          "tags": [
+            "ref"
+          ],
+          "tests": [
+            {
+              "timeout": 45000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 1971,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-09-26T21:06:06.287Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "30f3d3dfc0d9061a88db-585c9b015743878e1d14",
+          "file": "story-03.spec.ts",
+          "line": 93,
+          "column": 1
+        },
+        {
+          "title": "a browser with nothing remembered shows only Start and the open-a-link hint @ref prd:empty_home",
+          "ok": true,
+          "tags": [
+            "ref"
+          ],
+          "tests": [
+            {
+              "timeout": 45000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 153,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-09-26T21:06:08.265Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "30f3d3dfc0d9061a88db-d5a6b63dd9670c248818",
+          "file": "story-03.spec.ts",
+          "line": 106,
+          "column": 1
+        },
+        {
+          "title": "forgetting removes it from this browser only; the link still works @ref prd:forget",
+          "ok": true,
+          "tags": [
+            "ref"
+          ],
+          "tests": [
+            {
+              "timeout": 45000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 3977,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-09-26T21:06:08.422Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "30f3d3dfc0d9061a88db-3a2021e5c100b7cbd534",
+          "file": "story-03.spec.ts",
+          "line": 115,
+          "column": 1
+        },
+        {
+          "title": "Cancel keeps the workspace remembered @ref prd:forget",
+          "ok": true,
+          "tags": [
+            "ref"
+          ],
+          "tests": [
+            {
+              "timeout": 45000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 2112,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-09-26T21:06:12.405Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "30f3d3dfc0d9061a88db-5a3782eb2e9ef97e9ffb",
+          "file": "story-03.spec.ts",
+          "line": 133,
+          "column": 1
+        },
+        {
+          "title": "forgetting an unsaved link warns and offers to copy it @ref prd:forget_unsaved_warning",
+          "ok": true,
+          "tags": [
+            "ref"
+          ],
+          "tests": [
+            {
+              "timeout": 45000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 2088,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-09-26T21:06:14.522Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "30f3d3dfc0d9061a88db-0dafc9c0ad5f90dea131",
+          "file": "story-03.spec.ts",
+          "line": 144,
+          "column": 1
+        },
+        {
+          "title": "forgetting a saved link has no warning @ref prd:forget_unsaved_warning",
+          "ok": true,
+          "tags": [
+            "ref"
+          ],
+          "tests": [
+            {
+              "timeout": 45000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 2065,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-09-26T21:06:16.615Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "30f3d3dfc0d9061a88db-25c28a5a43b6c716602e",
+          "file": "story-03.spec.ts",
+          "line": 155,
+          "column": 1
+        },
+        {
+          "title": "the not-found page lists remembered workspaces above Start @ref prd:not_found_recovery",
+          "ok": true,
+          "tags": [
+            "ref"
+          ],
+          "tests": [
+            {
+              "timeout": 45000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 1896,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-09-26T21:06:18.685Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "30f3d3dfc0d9061a88db-837bae05e464f94b2422",
+          "file": "story-03.spec.ts",
+          "line": 164,
+          "column": 1
+        },
+        {
+          "title": "the header switcher lists remembered workspaces and switches @ref prd:list_remembered",
+          "ok": false,
+          "tags": [
+            "ref"
+          ],
+          "tests": [
+            {
+              "timeout": 45000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "failed",
+                  "duration": 7039,
+                  "error": {
+                    "message": "TimeoutError: locator.click: Timeout 5000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('header').getByRole('button', { name: /Beta/ }).first()\u001b[22m\n",
+                    "stack": "TimeoutError: locator.click: Timeout 5000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('header').getByRole('button', { name: /Beta/ }).first()\u001b[22m\n\n    at ~/.spec-bench/awesome-local-ai-bench-private/packs/todoodle/acceptance/tests/story-03.spec.ts:180:39",
+                    "location": {
+                      "file": "~/.spec-bench/awesome-local-ai-bench-private/packs/todoodle/acceptance/tests/story-03.spec.ts",
+                      "column": 39,
+                      "line": 180
+                    },
+                    "snippet": "\u001b[0m \u001b[90m 178 |\u001b[39m   \u001b[36mawait\u001b[39m namedWorkspace(page\u001b[33m,\u001b[39m \u001b[32m'Alpha'\u001b[39m)\u001b[33m;\u001b[39m\n \u001b[90m 179 |\u001b[39m   \u001b[36mawait\u001b[39m namedWorkspace(page\u001b[33m,\u001b[39m \u001b[32m'Beta'\u001b[39m)\u001b[33m;\u001b[39m\n\u001b[31m\u001b[1m>\u001b[22m\u001b[39m\u001b[90m 180 |\u001b[39m   \u001b[36mawait\u001b[39m switcherTrigger(page\u001b[33m,\u001b[39m \u001b[32m'Beta'\u001b[39m)\u001b[33m.\u001b[39mclick()\u001b[33m;\u001b[39m\n \u001b[90m     |\u001b[39m                                       \u001b[31m\u001b[1m^\u001b[22m\u001b[39m\n \u001b[90m 181 |\u001b[39m   \u001b[36mawait\u001b[39m expect(page\u001b[33m.\u001b[39mgetByRole(\u001b[32m'menuitem'\u001b[39m\u001b[33m,\u001b[39m { name\u001b[33m:\u001b[39m \u001b[32m'All workspaces'\u001b[39m }))\u001b[33m.\u001b[39mtoBeVisible()\u001b[33m;\u001b[39m\n \u001b[90m 182 |\u001b[39m   \u001b[36mawait\u001b[39m expect(page\u001b[33m.\u001b[39mgetByRole(\u001b[32m'menuitem'\u001b[39m\u001b[33m,\u001b[39m { name\u001b[33m:\u001b[39m \u001b[32m'Forget this workspace on this browser'\u001b[39m }))\u001b[33m.\u001b[39mtoBeVisible()\u001b[33m;\u001b[39m\n \u001b[90m 183 |\u001b[39m   \u001b[36mawait\u001b[39m page\u001b[33m.\u001b[39mgetByRole(\u001b[32m'menuitem'\u001b[39m\u001b[33m,\u001b[39m { name\u001b[33m:\u001b[39m \u001b[35m/Alpha/\u001b[39m })\u001b[33m.\u001b[39mclick()\u001b[33m;\u001b[39m\u001b[0m"
+                  },
+                  "errors": [
+                    {
+                      "location": {
+                        "file": "~/.spec-bench/awesome-local-ai-bench-private/packs/todoodle/acceptance/tests/story-03.spec.ts",
+                        "column": 39,
+                        "line": 180
+                      },
+                      "message": "TimeoutError: locator.click: Timeout 5000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('header').getByRole('button', { name: /Beta/ }).first()\u001b[22m\n\n\n  178 |   await namedWorkspace(page, 'Alpha');\n  179 |   await namedWorkspace(page, 'Beta');\n> 180 |   await switcherTrigger(page, 'Beta').click();\n      |                                       ^\n  181 |   await expect(page.getByRole('menuitem', { name: 'All workspaces' })).toBeVisible();\n  182 |   await expect(page.getByRole('menuitem', { name: 'Forget this workspace on this browser' })).toBeVisible();\n  183 |   await page.getByRole('menuitem', { name: /Alpha/ }).click();\n    at ~/.spec-bench/awesome-local-ai-bench-private/packs/todoodle/acceptance/tests/story-03.spec.ts:180:39"
+                    }
+                  ],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-09-26T21:06:20.587Z",
+                  "annotations": [],
+                  "attachments": [
+                    {
+                      "name": "screenshot",
+                      "contentType": "image/png",
+                      "path": "~/.spec-bench/awesome-local-ai/benchmarks/reference/todoodle/opus-5.5/run-1/stories/05/artifacts/story-03-the-header-switch-bbc99-hes-ref-prd-list-remembered-chromium/test-failed-1.png"
+                    },
+                    {
+                      "name": "error-context",
+                      "contentType": "text/markdown",
+                      "path": "~/.spec-bench/awesome-local-ai/benchmarks/reference/todoodle/opus-5.5/run-1/stories/05/artifacts/story-03-the-header-switch-bbc99-hes-ref-prd-list-remembered-chromium/error-context.md"
+                    }
+                  ],
+                  "errorLocation": {
+                    "file": "~/.spec-bench/awesome-local-ai-bench-private/packs/todoodle/acceptance/tests/story-03.spec.ts",
+                    "column": 39,
+                    "line": 180
+                  }
+                }
+              ],
+              "status": "unexpected"
+            }
+          ],
+          "id": "30f3d3dfc0d9061a88db-84debf848114524a64ec",
+          "file": "story-03.spec.ts",
+          "line": 176,
+          "column": 1
+        },
+        {
+          "title": "remembered links are kept where page scripts cannot read them @ref prd:protected_memory",
+          "ok": true,
+          "tags": [
+            "ref"
+          ],
+          "tests": [
+            {
+              "timeout": 45000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 1,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 1132,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-09-26T21:06:27.860Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "30f3d3dfc0d9061a88db-b704044a1d584b4b941f",
+          "file": "story-03.spec.ts",
+          "line": 187,
+          "column": 1
+        },
+        {
+          "title": "a failed list load offers retry and Start stays usable @ref prd:list_loading",
+          "ok": true,
+          "tags": [
+            "ref"
+          ],
+          "tests": [
+            {
+              "timeout": 45000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 1,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 1224,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-09-26T21:06:29.096Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "30f3d3dfc0d9061a88db-a5a6e859f068192f2816",
+          "file": "story-03.spec.ts",
+          "line": 198,
+          "column": 1
+        },
+        {
+          "title": "remembered-list actions work by touch with 44 px targets @ref prd:touch_usable",
+          "ok": true,
+          "tags": [
+            "ref"
+          ],
+          "tests": [
+            {
+              "timeout": 45000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 1,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 1181,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-09-26T21:06:30.324Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "30f3d3dfc0d9061a88db-9aa5f87e833bf7d91707",
+          "file": "story-03.spec.ts",
+          "line": 210,
+          "column": 1
+        }
+      ]
+    },
+    {
+      "title": "story-04.spec.ts",
+      "file": "story-04.spec.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [
+        {
+          "title": "Share shows the link, a copy action and the full-access statement @ref prd:share_panel",
+          "ok": true,
+          "tags": [
+            "ref"
+          ],
+          "tests": [
+            {
+              "timeout": 45000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 1,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 3464,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-09-26T21:06:31.514Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "61866d84c033292fbd27-9ff248bbcdab385ce7ec",
+          "file": "story-04.spec.ts",
+          "line": 36,
+          "column": 1
+        },
+        {
+          "title": "opening a shared link goes straight in, with no prompts @ref prd:join_via_link",
+          "ok": true,
+          "tags": [
+            "ref"
+          ],
+          "tests": [
+            {
+              "timeout": 45000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 1,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 2004,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-09-26T21:06:40.221Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "61866d84c033292fbd27-2b4559af0d59d13a9faf",
+          "file": "story-04.spec.ts",
+          "line": 47,
+          "column": 1
+        },
+        {
+          "title": "someone who joined by link can add tasks @ref prd:join_via_link",
+          "ok": true,
+          "tags": [
+            "ref"
+          ],
+          "tests": [
+            {
+              "timeout": 45000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 1,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 2434,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-09-26T21:06:42.231Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "61866d84c033292fbd27-12df0f923cd3a2b50163",
+          "file": "story-04.spec.ts",
+          "line": 56,
+          "column": 1
+        },
+        {
+          "title": "a task added by one person appears for the other without reload @ref prd:live_updates",
+          "ok": true,
+          "tags": [
+            "ref"
+          ],
+          "tests": [
+            {
+              "timeout": 45000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 1,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 2020,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-09-26T21:06:44.677Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "61866d84c033292fbd27-6295a2cff1b1d3f43444",
+          "file": "story-04.spec.ts",
+          "line": 65,
+          "column": 1
+        },
+        {
+          "title": "a task completed by one person leaves the other person's list without reload @ref prd:live_updates",
+          "ok": true,
+          "tags": [
+            "ref"
+          ],
+          "tests": [
+            {
+              "timeout": 45000,
+              "annotations": [
+                {
+                  "type": "skip",
+                  "description": "needs stories 6",
+                  "location": {
+                    "file": "~/.spec-bench/awesome-local-ai-bench-private/packs/todoodle/acceptance/tests/fixtures.ts",
+                    "line": 33,
+                    "column": 8
+                  }
+                }
+              ],
+              "expectedStatus": "skipped",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 1,
+                  "parallelIndex": 0,
+                  "status": "skipped",
+                  "duration": 47,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-09-26T21:06:46.702Z",
+                  "annotations": [
+                    {
+                      "type": "skip",
+                      "description": "needs stories 6",
+                      "location": {
+                        "file": "~/.spec-bench/awesome-local-ai-bench-private/packs/todoodle/acceptance/tests/fixtures.ts",
+                        "line": 33,
+                        "column": 8
+                      }
+                    }
+                  ],
+                  "attachments": []
+                }
+              ],
+              "status": "skipped"
+            }
+          ],
+          "id": "61866d84c033292fbd27-7ea88774cd90dd1130d1",
+          "file": "story-04.spec.ts",
+          "line": 73,
+          "column": 1
+        },
+        {
+          "title": "changes by someone else are announced politely as a count @ref prd:announce_remote",
+          "ok": true,
+          "tags": [
+            "ref"
+          ],
+          "tests": [
+            {
+              "timeout": 45000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 1,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 2032,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-09-26T21:06:46.753Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "61866d84c033292fbd27-575351564b28007b6fa6",
+          "file": "story-04.spec.ts",
+          "line": 82,
+          "column": 1
+        },
+        {
+          "title": "an edit overtaken by someone else is flagged and can be kept @ref prd:conflict_notice @ref prd:conflict_choice",
+          "ok": true,
+          "tags": [
+            "ref",
+            "ref"
+          ],
+          "tests": [
+            {
+              "timeout": 45000,
+              "annotations": [
+                {
+                  "type": "skip",
+                  "description": "needs stories 6",
+                  "location": {
+                    "file": "~/.spec-bench/awesome-local-ai-bench-private/packs/todoodle/acceptance/tests/fixtures.ts",
+                    "line": 33,
+                    "column": 8
+                  }
+                }
+              ],
+              "expectedStatus": "skipped",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 1,
+                  "parallelIndex": 0,
+                  "status": "skipped",
+                  "duration": 47,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-09-26T21:06:48.789Z",
+                  "annotations": [
+                    {
+                      "type": "skip",
+                      "description": "needs stories 6",
+                      "location": {
+                        "file": "~/.spec-bench/awesome-local-ai-bench-private/packs/todoodle/acceptance/tests/fixtures.ts",
+                        "line": 33,
+                        "column": 8
+                      }
+                    }
+                  ],
+                  "attachments": []
+                }
+              ],
+              "status": "skipped"
+            }
+          ],
+          "id": "61866d84c033292fbd27-1e2bc0f51aeb69eb5d24",
+          "file": "story-04.spec.ts",
+          "line": 94,
+          "column": 1
+        },
+        {
+          "title": "an edit overtaken by someone else can give way to theirs @ref prd:conflict_choice",
+          "ok": true,
+          "tags": [
+            "ref"
+          ],
+          "tests": [
+            {
+              "timeout": 45000,
+              "annotations": [
+                {
+                  "type": "skip",
+                  "description": "needs stories 6",
+                  "location": {
+                    "file": "~/.spec-bench/awesome-local-ai-bench-private/packs/todoodle/acceptance/tests/fixtures.ts",
+                    "line": 33,
+                    "column": 8
+                  }
+                }
+              ],
+              "expectedStatus": "skipped",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 1,
+                  "parallelIndex": 0,
+                  "status": "skipped",
+                  "duration": 64,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-09-26T21:06:48.840Z",
+                  "annotations": [
+                    {
+                      "type": "skip",
+                      "description": "needs stories 6",
+                      "location": {
+                        "file": "~/.spec-bench/awesome-local-ai-bench-private/packs/todoodle/acceptance/tests/fixtures.ts",
+                        "line": 33,
+                        "column": 8
+                      }
+                    }
+                  ],
+                  "attachments": []
+                }
+              ],
+              "status": "skipped"
+            }
+          ],
+          "id": "61866d84c033292fbd27-47b8f04f785d50163431",
+          "file": "story-04.spec.ts",
+          "line": 109,
+          "column": 1
+        },
+        {
+          "title": "offline shows a banner, stops edits and keeps typed text @ref prd:offline_indicator",
+          "ok": true,
+          "tags": [
+            "ref"
+          ],
+          "tests": [
+            {
+              "timeout": 45000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 1,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 1168,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-09-26T21:06:48.908Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "61866d84c033292fbd27-0b966e58c919fe6e0922",
+          "file": "story-04.spec.ts",
+          "line": 125,
+          "column": 1
+        },
+        {
+          "title": "losing only live updates shows Reconnecting and editing stays on @ref prd:live_paused",
+          "ok": true,
+          "tags": [
+            "ref"
+          ],
+          "tests": [
+            {
+              "timeout": 45000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 1,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 7760,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-09-26T21:06:50.079Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "61866d84c033292fbd27-4ff37f059207741e2d16",
+          "file": "story-04.spec.ts",
+          "line": 142,
+          "column": 1
+        },
+        {
+          "title": "live updates need the link, and say nothing about whether a workspace exists @ref prd:live_access",
+          "ok": false,
+          "tags": [
+            "ref"
+          ],
+          "tests": [
+            {
+              "timeout": 45000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 1,
+                  "parallelIndex": 0,
+                  "status": "failed",
+                  "duration": 1109,
+                  "error": {
+                    "message": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoBe\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m) // Object.is equality\u001b[22m\n\nExpected: \u001b[32m404\u001b[39m\nReceived: \u001b[31m403\u001b[39m",
+                    "stack": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoBe\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m) // Object.is equality\u001b[22m\n\nExpected: \u001b[32m404\u001b[39m\nReceived: \u001b[31m403\u001b[39m\n    at ~/.spec-bench/awesome-local-ai-bench-private/packs/todoodle/acceptance/tests/story-04.spec.ts:167:25",
+                    "location": {
+                      "file": "~/.spec-bench/awesome-local-ai-bench-private/packs/todoodle/acceptance/tests/story-04.spec.ts",
+                      "column": 25,
+                      "line": 167
+                    },
+                    "snippet": "\u001b[0m \u001b[90m 165 |\u001b[39m   \u001b[36mconst\u001b[39m unknown \u001b[33m=\u001b[39m id\u001b[33m.\u001b[39mslice(\u001b[35m0\u001b[39m\u001b[33m,\u001b[39m \u001b[33m-\u001b[39m\u001b[35m1\u001b[39m) \u001b[33m+\u001b[39m (id\u001b[33m.\u001b[39mendsWith(\u001b[32m'0'\u001b[39m) \u001b[33m?\u001b[39m \u001b[32m'1'\u001b[39m \u001b[33m:\u001b[39m \u001b[32m'0'\u001b[39m)\u001b[33m;\u001b[39m\n \u001b[90m 166 |\u001b[39m   \u001b[36mconst\u001b[39m fake \u001b[33m=\u001b[39m \u001b[36mawait\u001b[39m stranger\u001b[33m.\u001b[39m\u001b[36mget\u001b[39m(\u001b[32m`/api/w/${unknown}/live`\u001b[39m\u001b[33m,\u001b[39m { headers\u001b[33m:\u001b[39m { \u001b[33mUpgrade\u001b[39m\u001b[33m:\u001b[39m \u001b[32m'websocket'\u001b[39m\u001b[33m,\u001b[39m \u001b[33mConnection\u001b[39m\u001b[33m:\u001b[39m \u001b[32m'Upgrade'\u001b[39m } })\u001b[33m;\u001b[39m\n\u001b[31m\u001b[1m>\u001b[22m\u001b[39m\u001b[90m 167 |\u001b[39m   expect(real\u001b[33m.\u001b[39mstatus())\u001b[33m.\u001b[39mtoBe(\u001b[35m404\u001b[39m)\u001b[33m;\u001b[39m\n \u001b[90m     |\u001b[39m                         \u001b[31m\u001b[1m^\u001b[22m\u001b[39m\n \u001b[90m 168 |\u001b[39m   expect(fake\u001b[33m.\u001b[39mstatus())\u001b[33m.\u001b[39mtoBe(\u001b[35m404\u001b[39m)\u001b[33m;\u001b[39m\n \u001b[90m 169 |\u001b[39m   expect(\u001b[36mawait\u001b[39m real\u001b[33m.\u001b[39mtext())\u001b[33m.\u001b[39mtoBe(\u001b[36mawait\u001b[39m fake\u001b[33m.\u001b[39mtext())\u001b[33m;\u001b[39m\n \u001b[90m 170 |\u001b[39m   \u001b[36mawait\u001b[39m stranger\u001b[33m.\u001b[39mdispose()\u001b[33m;\u001b[39m\u001b[0m"
+                  },
+                  "errors": [
+                    {
+                      "location": {
+                        "file": "~/.spec-bench/awesome-local-ai-bench-private/packs/todoodle/acceptance/tests/story-04.spec.ts",
+                        "column": 25,
+                        "line": 167
+                      },
+                      "message": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoBe\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m) // Object.is equality\u001b[22m\n\nExpected: \u001b[32m404\u001b[39m\nReceived: \u001b[31m403\u001b[39m\n\n  165 |   const unknown = id.slice(0, -1) + (id.endsWith('0') ? '1' : '0');\n  166 |   const fake = await stranger.get(`/api/w/${unknown}/live`, { headers: { Upgrade: 'websocket', Connection: 'Upgrade' } });\n> 167 |   expect(real.status()).toBe(404);\n      |                         ^\n  168 |   expect(fake.status()).toBe(404);\n  169 |   expect(await real.text()).toBe(await fake.text());\n  170 |   await stranger.dispose();\n    at ~/.spec-bench/awesome-local-ai-bench-private/packs/todoodle/acceptance/tests/story-04.spec.ts:167:25"
+                    }
+                  ],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-09-26T21:06:57.844Z",
+                  "annotations": [],
+                  "attachments": [
+                    {
+                      "name": "screenshot",
+                      "contentType": "image/png",
+                      "path": "~/.spec-bench/awesome-local-ai/benchmarks/reference/todoodle/opus-5.5/run-1/stories/05/artifacts/story-04-live-updates-need-15230--exists-ref-prd-live-access-chromium/test-failed-1.png"
+                    },
+                    {
+                      "name": "error-context",
+                      "contentType": "text/markdown",
+                      "path": "~/.spec-bench/awesome-local-ai/benchmarks/reference/todoodle/opus-5.5/run-1/stories/05/artifacts/story-04-live-updates-need-15230--exists-ref-prd-live-access-chromium/error-context.md"
+                    }
+                  ],
+                  "errorLocation": {
+                    "file": "~/.spec-bench/awesome-local-ai-bench-private/packs/todoodle/acceptance/tests/story-04.spec.ts",
+                    "column": 25,
+                    "line": 167
+                  }
+                }
+              ],
+              "status": "unexpected"
+            }
+          ],
+          "id": "61866d84c033292fbd27-2863534de2cb9ff4e824",
+          "file": "story-04.spec.ts",
+          "line": 156,
+          "column": 1
+        }
+      ]
+    },
+    {
+      "title": "story-05.spec.ts",
+      "file": "story-05.spec.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [
+        {
+          "title": "every workspace has an Inbox that cannot be renamed or deleted @ref prd:inbox_exists",
+          "ok": false,
+          "tags": [
+            "ref"
+          ],
+          "tests": [
+            {
+              "timeout": 45000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 2,
+                  "parallelIndex": 0,
+                  "status": "failed",
+                  "duration": 6072,
+                  "error": {
+                    "message": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoHaveAttribute\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m)\u001b[22m failed\n\nLocator: getByRole('link', { name: /^Inbox(, \\d+ open tasks?)?$/ })\nExpected: \u001b[32m\"page\"\u001b[39m\nTimeout: 5000ms\nError: element(s) not found\n\nCall log:\n\u001b[2m  - Expect \"toHaveAttribute\" getByRole('link', { name: /^Inbox(, \\d+ open tasks?)?$/ }) with timeout 5000ms\u001b[22m\n\u001b[2m  - waiting for getByRole('link', { name: /^Inbox(, \\d+ open tasks?)?$/ })\u001b[22m\n",
+                    "stack": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoHaveAttribute\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m)\u001b[22m failed\n\nLocator: getByRole('link', { name: /^Inbox(, \\d+ open tasks?)?$/ })\nExpected: \u001b[32m\"page\"\u001b[39m\nTimeout: 5000ms\nError: element(s) not found\n\nCall log:\n\u001b[2m  - Expect \"toHaveAttribute\" getByRole('link', { name: /^Inbox(, \\d+ open tasks?)?$/ }) with timeout 5000ms\u001b[22m\n\u001b[2m  - waiting for getByRole('link', { name: /^Inbox(, \\d+ open tasks?)?$/ })\u001b[22m\n\n    at ~/.spec-bench/awesome-local-ai-bench-private/packs/todoodle/acceptance/tests/story-05.spec.ts:38:33",
+                    "location": {
+                      "file": "~/.spec-bench/awesome-local-ai-bench-private/packs/todoodle/acceptance/tests/story-05.spec.ts",
+                      "column": 33,
+                      "line": 38
+                    },
+                    "snippet": "\u001b[0m \u001b[90m 36 |\u001b[39m   \u001b[36mawait\u001b[39m expect(viewTitle(page))\u001b[33m.\u001b[39mtoHaveText(\u001b[32m'Inbox'\u001b[39m)\u001b[33m;\u001b[39m\n \u001b[90m 37 |\u001b[39m   \u001b[36mawait\u001b[39m expect(page\u001b[33m.\u001b[39mgetByRole(\u001b[32m'heading'\u001b[39m\u001b[33m,\u001b[39m { name\u001b[33m:\u001b[39m \u001b[32m'Inbox'\u001b[39m }))\u001b[33m.\u001b[39mtoBeVisible()\u001b[33m;\u001b[39m\n\u001b[31m\u001b[1m>\u001b[22m\u001b[39m\u001b[90m 38 |\u001b[39m   \u001b[36mawait\u001b[39m expect(inboxLink(page))\u001b[33m.\u001b[39mtoHaveAttribute(\u001b[32m'aria-current'\u001b[39m\u001b[33m,\u001b[39m \u001b[32m'page'\u001b[39m)\u001b[33m;\u001b[39m\n \u001b[90m    |\u001b[39m                                 \u001b[31m\u001b[1m^\u001b[22m\u001b[39m\n \u001b[90m 39 |\u001b[39m   \u001b[36mconst\u001b[39m inboxRow \u001b[33m=\u001b[39m page\u001b[33m.\u001b[39mlocator(\u001b[32m'li, div'\u001b[39m)\u001b[33m.\u001b[39mfilter({ has\u001b[33m:\u001b[39m inboxLink(page) })\u001b[33m.\u001b[39mlast()\u001b[33m;\u001b[39m\n \u001b[90m 40 |\u001b[39m   \u001b[36mawait\u001b[39m expect(inboxRow\u001b[33m.\u001b[39mlocator(\u001b[32m'[aria-haspopup=\"menu\"]'\u001b[39m))\u001b[33m.\u001b[39mtoHaveCount(\u001b[35m0\u001b[39m)\u001b[33m;\u001b[39m\n \u001b[90m 41 |\u001b[39m })\u001b[33m;\u001b[39m\u001b[0m"
+                  },
+                  "errors": [
+                    {
+                      "location": {
+                        "file": "~/.spec-bench/awesome-local-ai-bench-private/packs/todoodle/acceptance/tests/story-05.spec.ts",
+                        "column": 33,
+                        "line": 38
+                      },
+                      "message": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoHaveAttribute\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m)\u001b[22m failed\n\nLocator: getByRole('link', { name: /^Inbox(, \\d+ open tasks?)?$/ })\nExpected: \u001b[32m\"page\"\u001b[39m\nTimeout: 5000ms\nError: element(s) not found\n\nCall log:\n\u001b[2m  - Expect \"toHaveAttribute\" getByRole('link', { name: /^Inbox(, \\d+ open tasks?)?$/ }) with timeout 5000ms\u001b[22m\n\u001b[2m  - waiting for getByRole('link', { name: /^Inbox(, \\d+ open tasks?)?$/ })\u001b[22m\n\n\n  36 |   await expect(viewTitle(page)).toHaveText('Inbox');\n  37 |   await expect(page.getByRole('heading', { name: 'Inbox' })).toBeVisible();\n> 38 |   await expect(inboxLink(page)).toHaveAttribute('aria-current', 'page');\n     |                                 ^\n  39 |   const inboxRow = page.locator('li, div').filter({ has: inboxLink(page) }).last();\n  40 |   await expect(inboxRow.locator('[aria-haspopup=\"menu\"]')).toHaveCount(0);\n  41 | });\n    at ~/.spec-bench/awesome-local-ai-bench-private/packs/todoodle/acceptance/tests/story-05.spec.ts:38:33"
+                    }
+                  ],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-09-26T21:06:59.175Z",
+                  "annotations": [],
+                  "attachments": [
+                    {
+                      "name": "screenshot",
+                      "contentType": "image/png",
+                      "path": "~/.spec-bench/awesome-local-ai/benchmarks/reference/todoodle/opus-5.5/run-1/stories/05/artifacts/story-05-every-workspace-h-af41d-eleted-ref-prd-inbox-exists-chromium/test-failed-1.png"
+                    },
+                    {
+                      "name": "error-context",
+                      "contentType": "text/markdown",
+                      "path": "~/.spec-bench/awesome-local-ai/benchmarks/reference/todoodle/opus-5.5/run-1/stories/05/artifacts/story-05-every-workspace-h-af41d-eleted-ref-prd-inbox-exists-chromium/error-context.md"
+                    }
+                  ],
+                  "errorLocation": {
+                    "file": "~/.spec-bench/awesome-local-ai-bench-private/packs/todoodle/acceptance/tests/story-05.spec.ts",
+                    "column": 33,
+                    "line": 38
+                  }
+                }
+              ],
+              "status": "unexpected"
+            }
+          ],
+          "id": "74299ab9b312ae2c221a-8ca91cd247aec85ac929",
+          "file": "story-05.spec.ts",
+          "line": 33,
+          "column": 1
+        },
+        {
+          "title": "an empty Inbox says how to add a task @ref prd:empty_inbox",
+          "ok": true,
+          "tags": [
+            "ref"
+          ],
+          "tests": [
+            {
+              "timeout": 45000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 3,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 1086,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-09-26T21:07:10.825Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "74299ab9b312ae2c221a-f7da0d6fa816df05f346",
+          "file": "story-05.spec.ts",
+          "line": 43,
+          "column": 1
+        },
+        {
+          "title": "quick add saves the task and shows it at once @ref prd:quick_add",
+          "ok": true,
+          "tags": [
+            "ref"
+          ],
+          "tests": [
+            {
+              "timeout": 45000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 3,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 2057,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-09-26T21:07:12.018Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "74299ab9b312ae2c221a-5fc68c50c01f838fabd4",
+          "file": "story-05.spec.ts",
+          "line": 49,
+          "column": 1
+        },
+        {
+          "title": "Q opens quick add with the name field focused @ref prd:quick_add_shortcut",
+          "ok": true,
+          "tags": [
+            "ref"
+          ],
+          "tests": [
+            {
+              "timeout": 45000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 3,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 1124,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-09-26T21:07:14.081Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "74299ab9b312ae2c221a-a2631fc4bcb6e222634b",
+          "file": "story-05.spec.ts",
+          "line": 66,
+          "column": 1
+        },
+        {
+          "title": "a blank or whitespace name creates nothing @ref prd:reject_blank",
+          "ok": true,
+          "tags": [
+            "ref"
+          ],
+          "tests": [
+            {
+              "timeout": 45000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 3,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 1927,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-09-26T21:07:15.212Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "74299ab9b312ae2c221a-e08c68923a519a99ba3d",
+          "file": "story-05.spec.ts",
+          "line": 76,
+          "column": 1
+        },
+        {
+          "title": "tasks show in the order added, newest last @ref prd:task_order",
+          "ok": true,
+          "tags": [
+            "ref"
+          ],
+          "tests": [
+            {
+              "timeout": 45000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 3,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 2018,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-09-26T21:07:17.146Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "74299ab9b312ae2c221a-fe32604251c9d64ec387",
+          "file": "story-05.spec.ts",
+          "line": 89,
+          "column": 1
+        },
+        {
+          "title": "after adding, quick add stays open, cleared, name focused @ref prd:quick_add_stays_open",
+          "ok": true,
+          "tags": [
+            "ref"
+          ],
+          "tests": [
+            {
+              "timeout": 45000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 3,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 1091,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-09-26T21:07:19.171Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "74299ab9b312ae2c221a-03d93aa8e865542aead3",
+          "file": "story-05.spec.ts",
+          "line": 98,
+          "column": 1
+        },
+        {
+          "title": "Escape closes quick add without creating a task @ref prd:quick_add_escape",
+          "ok": true,
+          "tags": [
+            "ref"
+          ],
+          "tests": [
+            {
+              "timeout": 45000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 3,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 1112,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-09-26T21:07:20.267Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "74299ab9b312ae2c221a-8d9db12f643b6e640ea5",
+          "file": "story-05.spec.ts",
+          "line": 112,
+          "column": 1
+        },
+        {
+          "title": "quick add names the list it adds to @ref prd:destination_chip",
+          "ok": true,
+          "tags": [
+            "ref"
+          ],
+          "tests": [
+            {
+              "timeout": 45000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 3,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 1060,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-09-26T21:07:21.384Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "74299ab9b312ae2c221a-f7759789f53f226642dd",
+          "file": "story-05.spec.ts",
+          "line": 124,
+          "column": 1
+        },
+        {
+          "title": "Enter in the description adds a new line, not a task @ref prd:description_newline",
+          "ok": true,
+          "tags": [
+            "ref"
+          ],
+          "tests": [
+            {
+              "timeout": 45000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 3,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 1107,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-09-26T21:07:22.448Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "74299ab9b312ae2c221a-91de03bbb07ac95d8afd",
+          "file": "story-05.spec.ts",
+          "line": 131,
+          "column": 1
+        },
+        {
+          "title": "Cmd/Ctrl+Enter adds from either field @ref prd:modifier_enter_submit",
+          "ok": true,
+          "tags": [
+            "ref"
+          ],
+          "tests": [
+            {
+              "timeout": 45000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 3,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 1160,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-09-26T21:07:23.560Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "74299ab9b312ae2c221a-ba6f53f2b8b65dc16c4c",
+          "file": "story-05.spec.ts",
+          "line": 145,
+          "column": 1
+        },
+        {
+          "title": "near the limit a counter shows the characters left @ref prd:length_counter",
+          "ok": true,
+          "tags": [
+            "ref"
+          ],
+          "tests": [
+            {
+              "timeout": 45000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 3,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 1128,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-09-26T21:07:24.724Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "74299ab9b312ae2c221a-92a9f6457242d48aa5fb",
+          "file": "story-05.spec.ts",
+          "line": 159,
+          "column": 1
+        },
+        {
+          "title": "over the limit nothing is cut, the excess is shown and Add is blocked @ref prd:no_truncation @ref prd:length_limits",
+          "ok": true,
+          "tags": [
+            "ref",
+            "ref"
+          ],
+          "tests": [
+            {
+              "timeout": 45000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 3,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 1105,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-09-26T21:07:25.857Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "74299ab9b312ae2c221a-e3ff5a3a8b7c6577e79b",
+          "file": "story-05.spec.ts",
+          "line": 173,
+          "column": 1
+        },
+        {
+          "title": "a failed save keeps the task with Retry and Discard, announced at once @ref prd:failed_save_recovery @ref prd:save_status_accessible",
+          "ok": true,
+          "tags": [
+            "ref",
+            "ref"
+          ],
+          "tests": [
+            {
+              "timeout": 45000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 3,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 1174,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-09-26T21:07:26.966Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "74299ab9b312ae2c221a-de4a716ddb70e0aa6368",
+          "file": "story-05.spec.ts",
+          "line": 190,
+          "column": 1
+        },
+        {
+          "title": "retrying a save that did reach the server leaves exactly one task @ref prd:retry_no_duplicate",
+          "ok": true,
+          "tags": [
+            "ref"
+          ],
+          "tests": [
+            {
+              "timeout": 45000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 3,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 2038,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-09-26T21:07:28.145Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "74299ab9b312ae2c221a-8f1a75eb2d6b59ec9497",
+          "file": "story-05.spec.ts",
+          "line": 203,
+          "column": 1
+        },
+        {
+          "title": "a task being saved is marked busy @ref prd:save_status_accessible",
+          "ok": true,
+          "tags": [
+            "ref"
+          ],
+          "tests": [
+            {
+              "timeout": 45000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 3,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 1128,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-09-26T21:07:30.188Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "74299ab9b312ae2c221a-91b436c00adc5ca0826b",
+          "file": "story-05.spec.ts",
+          "line": 225,
+          "column": 1
+        },
+        {
+          "title": "a failed list load says Couldn't load your tasks. with Try again @ref prd:load_failure_retry",
+          "ok": true,
+          "tags": [
+            "ref"
+          ],
+          "tests": [
+            {
+              "timeout": 45000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 3,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 2033,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-09-26T21:07:31.321Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "74299ab9b312ae2c221a-4b1c8a6cc37ac8226de9",
+          "file": "story-05.spec.ts",
+          "line": 242,
+          "column": 1
+        },
+        {
+          "title": "placeholder rows show while the list loads, sidebar still usable @ref prd:loading_placeholder",
+          "ok": false,
+          "tags": [
+            "ref"
+          ],
+          "tests": [
+            {
+              "timeout": 45000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 3,
+                  "parallelIndex": 0,
+                  "status": "failed",
+                  "duration": 6187,
+                  "error": {
+                    "message": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoBeVisible\u001b[2m(\u001b[22m\u001b[2m)\u001b[22m failed\n\nLocator: getByRole('link', { name: /^Inbox(, \\d+ open tasks?)?$/ })\nExpected: visible\nTimeout: 5000ms\nError: element(s) not found\n\nCall log:\n\u001b[2m  - Expect \"toBeVisible\" getByRole('link', { name: /^Inbox(, \\d+ open tasks?)?$/ }) with timeout 5000ms\u001b[22m\n\u001b[2m  - waiting for getByRole('link', { name: /^Inbox(, \\d+ open tasks?)?$/ })\u001b[22m\n",
+                    "stack": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoBeVisible\u001b[2m(\u001b[22m\u001b[2m)\u001b[22m failed\n\nLocator: getByRole('link', { name: /^Inbox(, \\d+ open tasks?)?$/ })\nExpected: visible\nTimeout: 5000ms\nError: element(s) not found\n\nCall log:\n\u001b[2m  - Expect \"toBeVisible\" getByRole('link', { name: /^Inbox(, \\d+ open tasks?)?$/ }) with timeout 5000ms\u001b[22m\n\u001b[2m  - waiting for getByRole('link', { name: /^Inbox(, \\d+ open tasks?)?$/ })\u001b[22m\n\n    at ~/.spec-bench/awesome-local-ai-bench-private/packs/todoodle/acceptance/tests/story-05.spec.ts:264:33",
+                    "location": {
+                      "file": "~/.spec-bench/awesome-local-ai-bench-private/packs/todoodle/acceptance/tests/story-05.spec.ts",
+                      "column": 33,
+                      "line": 264
+                    },
+                    "snippet": "\u001b[0m \u001b[90m 262 |\u001b[39m   \u001b[36mawait\u001b[39m page\u001b[33m.\u001b[39mgoto(link)\u001b[33m;\u001b[39m\n \u001b[90m 263 |\u001b[39m   \u001b[36mawait\u001b[39m expect(page\u001b[33m.\u001b[39mlocator(\u001b[32m'[aria-busy=\"true\"]'\u001b[39m)\u001b[33m.\u001b[39mfirst())\u001b[33m.\u001b[39mtoBeAttached()\u001b[33m;\u001b[39m\n\u001b[31m\u001b[1m>\u001b[22m\u001b[39m\u001b[90m 264 |\u001b[39m   \u001b[36mawait\u001b[39m expect(inboxLink(page))\u001b[33m.\u001b[39mtoBeVisible()\u001b[33m;\u001b[39m\n \u001b[90m     |\u001b[39m                                 \u001b[31m\u001b[1m^\u001b[22m\u001b[39m\n \u001b[90m 265 |\u001b[39m   release()\u001b[33m;\u001b[39m\n \u001b[90m 266 |\u001b[39m   \u001b[36mawait\u001b[39m expect(taskRow(page\u001b[33m,\u001b[39m \u001b[32m'Later'\u001b[39m))\u001b[33m.\u001b[39mtoBeVisible()\u001b[33m;\u001b[39m\n \u001b[90m 267 |\u001b[39m })\u001b[33m;\u001b[39m\u001b[0m"
+                  },
+                  "errors": [
+                    {
+                      "location": {
+                        "file": "~/.spec-bench/awesome-local-ai-bench-private/packs/todoodle/acceptance/tests/story-05.spec.ts",
+                        "column": 33,
+                        "line": 264
+                      },
+                      "message": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoBeVisible\u001b[2m(\u001b[22m\u001b[2m)\u001b[22m failed\n\nLocator: getByRole('link', { name: /^Inbox(, \\d+ open tasks?)?$/ })\nExpected: visible\nTimeout: 5000ms\nError: element(s) not found\n\nCall log:\n\u001b[2m  - Expect \"toBeVisible\" getByRole('link', { name: /^Inbox(, \\d+ open tasks?)?$/ }) with timeout 5000ms\u001b[22m\n\u001b[2m  - waiting for getByRole('link', { name: /^Inbox(, \\d+ open tasks?)?$/ })\u001b[22m\n\n\n  262 |   await page.goto(link);\n  263 |   await expect(page.locator('[aria-busy=\"true\"]').first()).toBeAttached();\n> 264 |   await expect(inboxLink(page)).toBeVisible();\n      |                                 ^\n  265 |   release();\n  266 |   await expect(taskRow(page, 'Later')).toBeVisible();\n  267 | });\n    at ~/.spec-bench/awesome-local-ai-bench-private/packs/todoodle/acceptance/tests/story-05.spec.ts:264:33"
+                    }
+                  ],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-09-26T21:07:33.359Z",
+                  "annotations": [],
+                  "attachments": [
+                    {
+                      "name": "screenshot",
+                      "contentType": "image/png",
+                      "path": "~/.spec-bench/awesome-local-ai/benchmarks/reference/todoodle/opus-5.5/run-1/stories/05/artifacts/story-05-placeholder-rows--fa395-ref-prd-loading-placeholder-chromium/test-failed-1.png"
+                    },
+                    {
+                      "name": "error-context",
+                      "contentType": "text/markdown",
+                      "path": "~/.spec-bench/awesome-local-ai/benchmarks/reference/todoodle/opus-5.5/run-1/stories/05/artifacts/story-05-placeholder-rows--fa395-ref-prd-loading-placeholder-chromium/error-context.md"
+                    }
+                  ],
+                  "errorLocation": {
+                    "file": "~/.spec-bench/awesome-local-ai-bench-private/packs/todoodle/acceptance/tests/story-05.spec.ts",
+                    "column": 33,
+                    "line": 264
+                  }
+                }
+              ],
+              "status": "unexpected"
+            }
+          ],
+          "id": "74299ab9b312ae2c221a-13f077711887ff843c3a",
+          "file": "story-05.spec.ts",
+          "line": 255,
+          "column": 1
+        },
+        {
+          "title": "? lists the keyboard shortcuts and Escape closes it @ref prd:shortcut_help",
+          "ok": true,
+          "tags": [
+            "ref"
+          ],
+          "tests": [
+            {
+              "timeout": 71646,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 4,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 28606,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-09-26T21:07:39.778Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "74299ab9b312ae2c221a-cc727f79c687f58ebb3c",
+          "file": "story-05.spec.ts",
+          "line": 269,
+          "column": 1
+        },
+        {
+          "title": "the task list is one Tab stop @ref prd:list_single_tab_stop",
+          "ok": true,
+          "tags": [
+            "ref"
+          ],
+          "tests": [
+            {
+              "timeout": 49448,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 4,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 5669,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-09-26T21:08:08.488Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "74299ab9b312ae2c221a-19e1576330dfb298588c",
+          "file": "story-05.spec.ts",
+          "line": 282,
+          "column": 1
+        },
+        {
+          "title": "Up/Down, k/j and Home/End move through tasks without wrapping @ref prd:list_keyboard_nav",
+          "ok": true,
+          "tags": [
+            "ref"
+          ],
+          "tests": [
+            {
+              "timeout": 45000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 4,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 1178,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-09-26T21:08:14.162Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "74299ab9b312ae2c221a-59cdcb129d56282ef200",
+          "file": "story-05.spec.ts",
+          "line": 295,
+          "column": 1
+        },
+        {
+          "title": "on a phone the sidebar is a drawer behind a menu button @ref prd:mobile_drawer",
+          "ok": false,
+          "tags": [
+            "ref"
+          ],
+          "tests": [
+            {
+              "timeout": 45741,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 4,
+                  "parallelIndex": 0,
+                  "status": "failed",
+                  "duration": 6882,
+                  "error": {
+                    "message": "TimeoutError: locator.tap: Timeout 5000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('#nav-drawer').getByRole('link', { name: /^Inbox/ })\u001b[22m\n",
+                    "stack": "TimeoutError: locator.tap: Timeout 5000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('#nav-drawer').getByRole('link', { name: /^Inbox/ })\u001b[22m\n\n    at ~/.spec-bench/awesome-local-ai-bench-private/packs/todoodle/acceptance/tests/story-05.spec.ts:325:54",
+                    "location": {
+                      "file": "~/.spec-bench/awesome-local-ai-bench-private/packs/todoodle/acceptance/tests/story-05.spec.ts",
+                      "column": 54,
+                      "line": 325
+                    },
+                    "snippet": "\u001b[0m \u001b[90m 323 |\u001b[39m   \u001b[36mconst\u001b[39m drawer \u001b[33m=\u001b[39m phone\u001b[33m.\u001b[39mlocator(\u001b[32m'#nav-drawer'\u001b[39m)\u001b[33m;\u001b[39m\n \u001b[90m 324 |\u001b[39m   \u001b[36mawait\u001b[39m expect(drawer)\u001b[33m.\u001b[39mtoBeVisible()\u001b[33m;\u001b[39m\n\u001b[31m\u001b[1m>\u001b[22m\u001b[39m\u001b[90m 325 |\u001b[39m   \u001b[36mawait\u001b[39m drawer\u001b[33m.\u001b[39mgetByRole(\u001b[32m'link'\u001b[39m\u001b[33m,\u001b[39m { name\u001b[33m:\u001b[39m \u001b[35m/^Inbox/\u001b[39m })\u001b[33m.\u001b[39mtap()\u001b[33m;\u001b[39m\n \u001b[90m     |\u001b[39m                                                      \u001b[31m\u001b[1m^\u001b[22m\u001b[39m\n \u001b[90m 326 |\u001b[39m   \u001b[36mawait\u001b[39m expect(drawer)\u001b[33m.\u001b[39mtoBeHidden()\u001b[33m;\u001b[39m\n \u001b[90m 327 |\u001b[39m   expect(phone\u001b[33m.\u001b[39mviewportSize())\u001b[33m.\u001b[39mtoEqual(\u001b[33mPHONE\u001b[39m)\u001b[33m;\u001b[39m\n \u001b[90m 328 |\u001b[39m })\u001b[33m;\u001b[39m\u001b[0m"
+                  },
+                  "errors": [
+                    {
+                      "location": {
+                        "file": "~/.spec-bench/awesome-local-ai-bench-private/packs/todoodle/acceptance/tests/story-05.spec.ts",
+                        "column": 54,
+                        "line": 325
+                      },
+                      "message": "TimeoutError: locator.tap: Timeout 5000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('#nav-drawer').getByRole('link', { name: /^Inbox/ })\u001b[22m\n\n\n  323 |   const drawer = phone.locator('#nav-drawer');\n  324 |   await expect(drawer).toBeVisible();\n> 325 |   await drawer.getByRole('link', { name: /^Inbox/ }).tap();\n      |                                                      ^\n  326 |   await expect(drawer).toBeHidden();\n  327 |   expect(phone.viewportSize()).toEqual(PHONE);\n  328 | });\n    at ~/.spec-bench/awesome-local-ai-bench-private/packs/todoodle/acceptance/tests/story-05.spec.ts:325:54"
+                    }
+                  ],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-09-26T21:08:15.345Z",
+                  "annotations": [],
+                  "attachments": [
+                    {
+                      "name": "screenshot",
+                      "contentType": "image/png",
+                      "path": "~/.spec-bench/awesome-local-ai/benchmarks/reference/todoodle/opus-5.5/run-1/stories/05/artifacts/story-05-on-a-phone-the-si-64542-utton-ref-prd-mobile-drawer-chromium/test-failed-1.png"
+                    },
+                    {
+                      "name": "error-context",
+                      "contentType": "text/markdown",
+                      "path": "~/.spec-bench/awesome-local-ai/benchmarks/reference/todoodle/opus-5.5/run-1/stories/05/artifacts/story-05-on-a-phone-the-si-64542-utton-ref-prd-mobile-drawer-chromium/error-context.md"
+                    }
+                  ],
+                  "errorLocation": {
+                    "file": "~/.spec-bench/awesome-local-ai-bench-private/packs/todoodle/acceptance/tests/story-05.spec.ts",
+                    "column": 54,
+                    "line": 325
+                  }
+                }
+              ],
+              "status": "unexpected"
+            }
+          ],
+          "id": "74299ab9b312ae2c221a-49b0953d38e189cb5884",
+          "file": "story-05.spec.ts",
+          "line": 315,
+          "column": 1
+        },
+        {
+          "title": "on a phone a floating Add task button opens quick add @ref prd:mobile_add_button",
+          "ok": true,
+          "tags": [
+            "ref"
+          ],
+          "tests": [
+            {
+              "timeout": 45000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 5,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 1181,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-09-26T21:08:22.465Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "74299ab9b312ae2c221a-9130226e16a6900d2743",
+          "file": "story-05.spec.ts",
+          "line": 330,
+          "column": 1
+        },
+        {
+          "title": "without hover, shell and list controls are at least 44 px @ref prd:touch_targets",
+          "ok": true,
+          "tags": [
+            "ref"
+          ],
+          "tests": [
+            {
+              "timeout": 45000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 5,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 1117,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-09-26T21:08:23.747Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "74299ab9b312ae2c221a-13baa85a2fd6f05d899a",
+          "file": "story-05.spec.ts",
+          "line": 344,
+          "column": 1
+        },
+        {
+          "title": "the task list follows the device light or dark setting @ref prd:color_scheme",
+          "ok": true,
+          "tags": [
+            "ref"
+          ],
+          "tests": [
+            {
+              "timeout": 45000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 5,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 1107,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-09-26T21:08:24.868Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "74299ab9b312ae2c221a-847927ce20d64708aaf0",
+          "file": "story-05.spec.ts",
+          "line": 363,
+          "column": 1
+        }
+      ]
+    }
+  ],
+  "errors": [],
+  "stats": {
+    "startTime": "2026-09-26T21:04:32.985Z",
+    "duration": 236035.527,
+    "expected": 76,
+    "skipped": 3,
+    "unexpected": 5,
+    "flaky": 0
+  }
+}

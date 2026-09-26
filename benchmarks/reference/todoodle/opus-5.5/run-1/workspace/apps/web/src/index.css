@@ -5,6 +5,13 @@
 /* Colour tokens (light + dark via prefers-color-scheme), generated from packages/shared/src/tokens.ts. */
 @import "./styles/tokens.css";
 @import "./styles/scroll-lock.css";
+/* Shared numbers (breakpoint, touch target, row height) as custom properties, generated from limits.ts. */
+@import "./styles/constants.css";
+/* 44px touch targets on touch screens (story 5). */
+@import "./styles/touch.css";
+
+/* Devices without a hover-capable pointer (touch screens): the `touch:` variant. */
+@custom-variant touch (@media (hover: none));
 
 :root {
   --radius: 0.625rem;
@@ -31,6 +38,24 @@
     min-height: 2.75rem;
     min-width: 2.75rem;
   }
+}
+
+/* Off-screen task rows skip layout and paint. Per row, never on the list (story 5). */
+@utility task-row {
+  content-visibility: auto;
+  contain-intrinsic-size: auto var(--task-row-intrinsic-height);
+}
+
+/* Quick add's description grows with its text up to QUICK_ADD_MAX_DESCRIPTION_ROWS lines, then scrolls. */
+@utility quick-add-description {
+  field-sizing: content;
+  max-height: calc(var(--quick-add-max-description-rows) * 1lh);
+}
+
+/* Docked quick add (phones) sits directly above the on-screen keyboard (--kb-inset, useKeyboardInset). */
+@utility quick-add-docked {
+  bottom: var(--kb-inset, 0px);
+  padding-bottom: max(0.75rem, env(safe-area-inset-bottom));
 }
 
 @layer base {

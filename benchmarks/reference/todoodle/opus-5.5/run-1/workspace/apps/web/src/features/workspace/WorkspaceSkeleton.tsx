@@ -3,18 +3,18 @@ import type { ReactNode } from 'react';
 const bar = 'rounded bg-muted motion-safe:animate-pulse';
 
 const rows = (
-  <main aria-busy="true" aria-label="Loading tasks" className="flex flex-1 flex-col gap-3 p-4">
+  <div aria-busy="true" aria-label="Loading tasks" className="flex flex-1 flex-col gap-3 p-4">
     {[0, 1, 2, 3, 4].map((i) => (
       <div key={i} className={`${bar} h-8 w-full`} />
     ))}
-  </main>
+  </div>
 );
 
 const nameBar = <div className={`${bar} h-6 w-48`} />;
 
 const body = (
   <div className="flex flex-1">
-    <aside className="hidden w-56 flex-col gap-3 border-r border-border p-4 sm:flex">
+    <aside className="hidden w-56 flex-col gap-3 border-r border-border p-4 md:flex">
       {[0, 1, 2].map((i) => (
         <div key={i} className={`${bar} h-5 w-full`} />
       ))}

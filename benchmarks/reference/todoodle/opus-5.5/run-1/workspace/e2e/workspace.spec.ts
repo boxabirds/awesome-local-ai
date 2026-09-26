@@ -97,8 +97,12 @@ test('WF-5 / TC-58 no leak: the secret never appears in a URL or Referer and eve
   const origin = new URL(baseURL!).origin;
   type Seen = { url: string; referer: string; body: string };
   const pending: Promise<Seen>[] = [];
+  // allHeaders() never settles for a request cancelled by a navigation (e.g. the Inbox list during a
+  // reload); fall back to the headers the browser reported when it sent the request.
+  const headersOf = (r: Request) =>
+    Promise.race([r.allHeaders(), new Promise<Record<string, string>>((resolve) => setTimeout(() => resolve(r.headers()), 2_000))]);
   const record = (r: Request) =>
-    pending.push(r.allHeaders().then((headers) => ({ url: r.url(), referer: headers.referer ?? '', body: r.postData() ?? '' })));
+    pending.push(headersOf(r).then((headers) => ({ url: r.url(), referer: headers.referer ?? '', body: r.postData() ?? '' })));
   page.on('request', record);
 
   const { link, secret, id } = await createWorkspace(page);

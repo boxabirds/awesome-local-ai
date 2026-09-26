@@ -11,7 +11,7 @@ import { errorResponse } from '../lib/errors.ts';
  * Tables emptied by POST /test/reset, children first so foreign keys are never violated.
  * Stories append their tables here (e.g. tasks and projects go before workspaces).
  */
-export const TEST_RESET_TABLES: string[] = ['workspaces'];
+export const TEST_RESET_TABLES: string[] = ['tasks', 'workspaces'];
 
 /** Test-only routes. In production they do not exist: every /test/* path is the plain API 404. */
 export const testRoutes = new Hono<AppEnv>();

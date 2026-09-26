@@ -1,5 +1,5 @@
 import type { Workspace as WorkspaceData } from '@todoodle/shared/schemas';
-import { Suspense, use, useCallback, useMemo, useState } from 'react';
+import { Suspense, use, useCallback, useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router';
 import { useCanEdit } from '@/features/live/canEdit';
 import { LiveAnnouncer } from '@/features/live/LiveAnnouncer';
@@ -8,6 +8,8 @@ import { OfflineBanner } from '@/features/live/OfflineBanner';
 import { ReconnectingPill } from '@/features/live/ReconnectingPill';
 import { SharePanelLazy } from '@/features/share/SharePanelLazy';
 import { type OpenResult, getOpen, retryOpen } from '@/features/workspace/bootOpen';
+import { AppShell } from '@/features/workspace/AppShell';
+import { InboxView } from '@/features/tasks/InboxView';
 import { WorkspaceContext, type WorkspaceContextValue } from '@/features/workspace/WorkspaceContext';
 import { WorkspaceHeader } from '@/features/workspace/WorkspaceHeader';
 import { WorkspaceLoadFailed } from '@/features/workspace/WorkspaceLoadFailed';
@@ -18,6 +20,7 @@ import { useTouchRemembered } from '@/features/remembered/useTouchRemembered';
 import { isNotFoundError } from '@/lib/api';
 import { WorkspaceSkeletonRows } from '@/features/workspace/WorkspaceSkeleton';
 import { RecoverableNotFound as NotFound } from './RecoverableNotFound.tsx';
+import { workspaceLoader } from './workspaceLoader.ts';
 
 type PanelState = { open: boolean; mode: 'save' | 'share' };
 
@@ -25,7 +28,7 @@ function isJustCreated(state: unknown): boolean {
   return typeof state === 'object' && state !== null && 'justCreated' in state && state.justCreated === true;
 }
 
-/** The workspace itself: header, sidebar and the (empty, until story 5) Inbox. */
+/** The workspace itself: header, sidebar and the Inbox (story 5's app shell). */
 function WorkspaceView({
   workspace,
   secretFromHash,
@@ -62,39 +65,24 @@ function WorkspaceView({
       <title>{`Todoodle - ${workspace.name}`}</title>
       {/* Polite summary of other people's changes for screen readers (story 4). */}
       <LiveAnnouncer />
-      <div className="flex min-h-svh flex-col">
-        {/* Story 4: saves can't reach Todoodle. Editing is off below; typed text stays in its field. */}
-        <OfflineBanner />
-        <WorkspaceHeader
-          name={workspace.name}
-          canEdit={canEdit}
-          onRename={onRename}
-          onShare={() => setPanel({ open: true, mode: 'share' })}
-        />
-        {/*
-          The edit gate for the sidebar and main areas: one fieldset, disabled while !canEdit. Disabling
-          never unmounts inputs, so drafts survive. Share, the switcher and navigation stay outside it.
-        */}
-        <fieldset disabled={!canEdit} className="contents">
-          <div className="flex flex-1">
-            <aside className="hidden w-56 border-r border-border p-4 sm:block">
-              <nav aria-label="Lists">
-                <span aria-current="page" className="block rounded-md bg-muted px-3 py-2 text-sm font-medium">
-                  Inbox
-                </span>
-              </nav>
-            </aside>
-            {placeholder ? (
-              <WorkspaceSkeletonRows />
-            ) : (
-              <main className="flex-1 p-4">
-                <h2 className="text-xl font-semibold">Inbox</h2>
-                <p className="mt-2 text-muted-foreground">Your Inbox is empty.</p>
-              </main>
-            )}
-          </div>
-        </fieldset>
-      </div>
+      <AppShell
+        workspaceId={workspace.id}
+        canEdit={canEdit}
+        // Story 4: saves can't reach Todoodle. Editing is off below; typed text stays in its field.
+        banner={<OfflineBanner />}
+        renderHeader={({ navButton, actions }) => (
+          <WorkspaceHeader
+            name={workspace.name}
+            canEdit={canEdit}
+            onRename={onRename}
+            onShare={() => setPanel({ open: true, mode: 'share' })}
+            navButton={navButton}
+            actions={actions}
+          />
+        )}
+      >
+        {placeholder ? <WorkspaceSkeletonRows /> : <InboxView workspaceId={workspace.id} />}
+      </AppShell>
       {/* Live updates paused but saving works: a small pill, editing stays on. */}
       <ReconnectingPill />
       {/* Outside the edit fieldset: sharing works even when editing is disabled. */}
@@ -137,6 +125,8 @@ function HashWorkspace({ secret }: { secret: string }) {
 
 /** /w/:workspaceId: entered from this browser's remembered list (story 3). No secret reaches JS. */
 function IdWorkspace({ id }: { id: string }) {
+  // In-app navigation without a hover/focus prefetch: start the Inbox list and counts now (no-op when fresh).
+  useEffect(() => void workspaceLoader({ params: { workspaceId: id } }), [id]);
   const touch = useTouchRemembered(id);
   const query = useWorkspace(id);
   // Not remembered here (or no longer opens): NotFound, whichever request learns it first.
