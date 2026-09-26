@@ -1,4 +1,4 @@
-import { expect, type Page, type Locator } from '@playwright/test';
+import { expect, type APIRequestContext, type Page, type Locator } from '@playwright/test';
 
 export interface Camera {
   x: number;
@@ -28,10 +28,61 @@ declare global {
   }
 }
 
-/** Load the board and wait until the app has mounted (test hook present). */
-export async function openBoard(page: Page) {
-  await page.goto('/');
-  await page.waitForFunction(() => window.__vidi6 != null, null, { timeout: 15_000 });
+/** Wait until the app has mounted AND this client is CONNECTED: the test
+ * hook exists, the socket is up and the first sync landed (state
+ * 'connected'/'confirmed'). Story 5 made that a hard requirement: a board id
+ * that was never created now gets 404, so a page can only reach 'connected'
+ * on a board that actually exists. */
+export async function waitForBoardReady(page: Page, timeout = 20_000): Promise<void> {
+  await page.waitForFunction(
+    () => {
+      const w = window as unknown as {
+        __vidi6?: { getState(): { connectionState: string } };
+      };
+      const s = w.__vidi6?.getState()?.connectionState;
+      return s === 'connected' || s === 'confirmed';
+    },
+    null,
+    { timeout },
+  );
+}
+
+/** Create a real, EMPTY board through the shipped API and return its id.
+ *
+ * Story 5 removed implicit board creation, so a fixture must create the board
+ * it wants to test on. The `x-test-ignore-limit` header keeps a 23-test suite
+ * from throttling itself (it is honoured only when the dev server runs with
+ * TEST_HOOKS=1); the share spec tests the limiter with the header left off. */
+export async function createBoard(request: APIRequestContext): Promise<string> {
+  const response = await request.post('/api/boards', {
+    headers: { 'x-test-ignore-limit': '1' },
+  });
+  if (!response.ok()) {
+    throw new Error(`createBoard failed: ${response.status()} ${await response.text()}`);
+  }
+  const body = (await response.json()) as { id: string };
+  return body.id;
+}
+
+/** Create `count` boards; each one is its own Durable Object. */
+export async function createBoards(request: APIRequestContext, count: number): Promise<string[]> {
+  const ids: string[] = [];
+  for (let i = 0; i < count; i += 1) ids.push(await createBoard(request));
+  return ids;
+}
+
+/** Open a FRESH board (created for this test) and wait until it is ready.
+ * Returns the board id, so a spec can also address it directly. */
+export async function openBoard(page: Page): Promise<string> {
+  const id = await createBoard(page.request);
+  await openRoom(page, id);
+  return id;
+}
+
+/** Open an existing board by id and wait until the app is connected to it. */
+export async function openRoom(page: Page, id: string): Promise<void> {
+  await page.goto(`/b/${id}`);
+  await waitForBoardReady(page);
 }
 
 export function getCamera(page: Page): Promise<Camera> {

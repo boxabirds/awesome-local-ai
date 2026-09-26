@@ -6,7 +6,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { createSticky, snapshot } from '../../src/shared/board-model';
 import { decodeMessage } from '../../src/shared/protocol';
 import { restartServer, startServer, type DevServer } from './helpers/server';
-import { room, until, yClient } from './helpers/ws-client';
+import { createRoom, until, yClient } from './helpers/ws-client';
 
 let server: DevServer;
 const clients: Array<ReturnType<typeof yClient>> = [];
@@ -28,7 +28,7 @@ afterAll(async () => {
 
 describe('connection quality over WebSockets', () => {
   it('TC-11: four concurrent clients in one room stay consistent', async () => {
-    const id = room();
+    const id = await createRoom(server.httpOrigin);
     const cs = [client(id), client(id), client(id), client(id)];
     expect(await until(() => cs.every((c) => c.provider.synced), 15_000)).toBe(true);
 
@@ -43,8 +43,8 @@ describe('connection quality over WebSockets', () => {
   });
 
   it('TC-12: clients on different boards do not cross-contaminate', async () => {
-    const idX = room();
-    const idY = room();
+    const idX = await createRoom(server.httpOrigin);
+    const idY = await createRoom(server.httpOrigin);
     const x1 = client(idX);
     const x2 = client(idX);
     const y1 = client(idY);
@@ -63,7 +63,7 @@ describe('connection quality over WebSockets', () => {
   });
 
   it('TC-13 + TC-15: 35s idle keeps rooms alive — awareness pings only, no invalid frames, round-trip still <1.5s', async () => {
-    const idA = room(); // multi-user room (story: two users × 4 clients — compressed to 2 per room)
+    const idA = await createRoom(server.httpOrigin); // multi-user room (story: two users × 4 clients — compressed to 2 per room)
     const pairA = [client(idA), client(idA)];
     expect(await until(() => pairA.every((c) => c.provider.synced), 15_000)).toBe(true);
     const noteId = createSticky(pairA[0].doc, { x: 0, y: 0 });
@@ -129,12 +129,12 @@ describe('connection quality over WebSockets', () => {
     const attempts = broken.status.filter((s) => s === 'connecting').length;
     expect(attempts).toBeGreaterThanOrEqual(3);
     // The provider is alive and the server is healthy for real clients:
-    const ok = client(room());
+    const ok = client(await createRoom(server.httpOrigin));
     expect(await until(() => ok.provider.synced, 8000)).toBe(true);
   });
 
   it('TC-16 + TC-31: server restart mid-session — new client syncs, old clients reconnect and resync', async () => {
-    const id = room();
+    const id = await createRoom(server.httpOrigin);
     const a = client(id);
     const b = client(id);
     expect(await until(() => a.provider.synced && b.provider.synced, 15_000)).toBe(true);

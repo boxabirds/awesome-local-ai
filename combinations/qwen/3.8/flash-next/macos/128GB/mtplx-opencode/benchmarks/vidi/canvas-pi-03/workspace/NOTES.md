@@ -108,3 +108,64 @@ stories 6 / 13–17. Story 1 (camera) was left intact — its 7 e2e specs still 
 - `npm run build` — succeeds (yjs bundled).
 - `npm run test:unit` + `test:component` — 82 passing.
 - `npm run test:e2e` — 15 passing (7 camera + 8 sticky), single worker.
+# Story 5 — Share a board with a link: notes & decisions
+
+## Scope
+Board creation API + unguessable ids, a path router (`/` home, `/b/<id>` board,
+anything else = Board not found), the existence check that gates the board page,
+and the Share panel with its clipboard fallback. Stories 1–4 were changed only
+where Story 5 required it (no implicit board creation any more).
+
+## Existence, and what "unknown" means
+- A board exists when its storage has `storage_meta.created_at`, or (legacy)
+  when `updates` / `snapshot_chunks` hold a row. Probing only ever reads: the
+  read-only path queries `sqlite_master` first, so an unknown link leaves no
+  tables, no `created_at` and no rows (asserted in integration).
+- `connectBoard` now refuses to open a provider for an unknown id, and the room
+  answers `404` to a WebSocket upgrade for one — the page shows Board not found
+  instead of a board that silently accepts edits against nothing.
+- Malformed ids are rejected before any Durable Object is touched, so "does not
+  exist" and "cannot exist" return the same shape and leak nothing.
+- A `?board=<id>` link (story 3/4 form) is now a valid *URL* only as `/b/<id>`;
+  the query form was dropped rather than kept as a redirect — every in-repo
+  producer was moved to the link form, so no URL shape has to be maintained
+  twice. Old links land on Board not found, which is the behaviour the PRD asks
+  for a link that names no board.
+
+## Test boundaries (what actually runs where)
+- There is no Docker sidecar and no hand-rolled mock storage in the Story 5
+  tests. Integration tests use the Workers runtime itself (`env.fetch` for the
+  HTTP contract, `env.getDO(id).rpc(...)` for the two-state RPC) against real
+  SQLite D1; e2e tests run against a real `wrangler dev` on 127.0.0.1:8799,
+  which the e2e harness starts and waits for.
+- The local runner does NOT enforce the bound `BOARD_CREATE_LIMITER` (a brand
+  new `CLOUDFLARE_ENV` namespace passes through, which is exactly what the
+  "limiter really is bound" negative control asserts). So the 10/60 s limit is
+  asserted through the binding + an `x-test-ignore-limit` bypass header that is
+  honoured only while `TEST_HOOKS=1`; fixtures use it so a 23-test suite cannot
+  throttle itself, and the rate-limit cases deliberately leave it off.
+- Cross-browser: only Chromium is installed here, so the two scenarios the
+  strategy also wanted in Firefox/WebKit (bad link, clipboard refused) run in
+  Chromium only. The clipboard ones are still real: one browser context per
+  person with clipboard permissions, and a genuine read-back of what the browser
+  actually holds before it is pasted into the second context.
+- `tests/e2e/helpers/share.ts` keeps one visitor key per context so the create
+  limiter is scoped per visitor; a run that re-uses the bucket within 60 s would
+  otherwise fail on its own fixtures.
+
+## Small things deliberately not done
+- No client-side timeout on the existence check: an unreachable service is
+  reported and retried with the story 3 backoff (1 s, doubling, capped at
+  `RECONNECT_MAX_BACKOFF_MS`) instead of turning into a fake "not found".
+- "Link copied" reverts to the Open panel after `LINK_COPIED_MS` (design
+  diagram: Copied → Open), and a second successful copy from the ManualCopy
+  state still wins over the manual message.
+- The dev-only `/seed` + storage-readout hooks stayed, because the story 3/4
+  specs and the legacy-board case need to plant content without a UI; they are
+  compiled out of the production bundle (asserted).
+
+## Verification (all green before commit)
+- `npm run typecheck` — clean.
+- `npm run build` / `build:test` — succeed.
+- `npx vitest run` — 208 passing (unit + component + integration, 25 files).
+- `npm run test:e2e` — 34 passing in chromium (1 worker, real workerd).

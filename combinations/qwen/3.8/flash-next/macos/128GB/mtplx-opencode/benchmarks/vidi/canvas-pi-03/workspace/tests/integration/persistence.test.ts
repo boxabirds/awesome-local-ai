@@ -11,7 +11,7 @@ import { describe, expect, it } from 'vitest';
 import { createSticky, snapshot } from '../../src/shared/board-model';
 import { CLOSE_BOARD_LOAD_FAILED, CLOSE_UNSUPPORTED_DATA, MESSAGE_SYNC } from '../../src/shared/protocol';
 import { hooks, until } from './helpers/hooks';
-import { rawClient, room, syncFrame, yClient } from './helpers/ws-client';
+import { rawClient, createRoom, syncFrame, yClient } from './helpers/ws-client';
 
 /** Sync-update frames a client RECEIVED (channel 0, type 2). */
 /** Inbound sync-update frames of a raw client (frames are bare byte arrays). */
@@ -23,7 +23,7 @@ function inboundUpdates(client: { frames: ReadonlyArray<Uint8Array> }) {
 
 describe('board persistence (persist.room)', () => {
   it('TC-12: an edit is written to SQLite before it is broadcast', async () => {
-    const boardId = room();
+    const boardId = await createRoom();
     const author = yClient(boardId);
     expect(await until(() => author.provider.synced, 10_000)).toBe(true);
     expect(await hooks.logCount(boardId)).toBe(0); // empty board: nothing stored yet
@@ -45,7 +45,7 @@ describe('board persistence (persist.room)', () => {
   }, 40_000);
 
   it('TC-18: an idle board keeps no memory-resident state, and later traffic re-reads it', async () => {
-    const boardId = room();
+    const boardId = await createRoom();
     const first = yClient(boardId);
     expect(await until(() => first.provider.wsconnected, 10_000)).toBe(true);
     createSticky(first.doc, { x: 5, y: 5 });
@@ -66,7 +66,7 @@ describe('board persistence (persist.room)', () => {
   }, 40_000);
 
   it('TC-14: a room that cannot trust its storage shows nothing and stores nothing', async () => {
-    const boardId = room();
+    const boardId = await createRoom();
     const author = yClient(boardId);
     expect(await until(() => author.provider.synced, 10_000)).toBe(true);
     for (let i = 0; i < 2; i++) createSticky(author.doc, { x: i * 20, y: 0 });
@@ -97,7 +97,7 @@ describe('board persistence (persist.room)', () => {
   }, 60_000);
 
   it('TC-15: a board whose snapshot cannot be decoded is refused, not emptied', async () => {
-    const boardId = room();
+    const boardId = await createRoom();
     const author = yClient(boardId);
     expect(await until(() => author.provider.synced, 10_000)).toBe(true);
     for (let i = 0; i < 3; i++) createSticky(author.doc, { x: i * 20, y: 0 });
@@ -123,7 +123,7 @@ describe('board persistence (persist.room)', () => {
   }, 60_000);
 
   it('TC-16: a refused board retries only after the load interval', async () => {
-    const boardId = room();
+    const boardId = await createRoom();
     const author = yClient(boardId);
     expect(await until(() => author.provider.synced, 10_000)).toBe(true);
     for (let i = 0; i < 2; i++) createSticky(author.doc, { x: i * 20, y: 0 });
@@ -153,7 +153,7 @@ describe('board persistence (persist.room)', () => {
   }, 60_000);
 
   it('TC-17: rejected input is never written to the journal', async () => {
-    const boardId = room();
+    const boardId = await createRoom();
     const author = yClient(boardId);
     expect(await until(() => author.provider.synced, 10_000)).toBe(true);
     createSticky(author.doc, { x: 0, y: 0 });
