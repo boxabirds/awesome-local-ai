@@ -49,3 +49,17 @@ export type WorkspaceLinkResponse = z.infer<typeof WorkspaceLinkResponse>;
 
 export const ErrorBody = z.object({ error: z.string(), message: z.string() });
 export type ErrorBody = z.infer<typeof ErrorBody>;
+
+/** One workspace this browser remembers (GET /api/remembered). Never includes the secret. */
+export const RememberedPublic = z
+  .object({
+    id: z.string(),
+    name: z.string().nullable(),
+    lastOpenedAt: z.iso.datetime(),
+    available: z.boolean(),
+  })
+  .strict();
+export type RememberedPublic = z.infer<typeof RememberedPublic>;
+
+export const RememberedListResponse = z.object({ workspaces: z.array(RememberedPublic) }).strict();
+export type RememberedListResponse = z.infer<typeof RememberedListResponse>;

@@ -24,7 +24,8 @@ describe('web.not_found', () => {
     await renderApp('/w');
     expect(await screen.findByRole('heading', { name: 'Workspace not found' })).toBeInTheDocument();
     await renderApp('/w#');
-    expect(seen).toEqual([]);
+    // Story 3: the recovery slot loads this browser's remembered list; nothing else is requested.
+    expect(seen.filter((r) => r !== 'GET /api/remembered')).toEqual([]);
   });
 
   it('unknown paths render NotFound (router catch-all)', async () => {

@@ -96,7 +96,8 @@ describe('web.link_dialog (SharePanel)', () => {
     const seen = recordRequests();
     server.use(linkHandler());
     const { user } = await enterById({ saved: true });
-    expect(seen).toEqual([`GET /api/w/${ID}`]);
+    // Story 3: opening by id also touches this browser's remembered list.
+    expect([...seen].sort()).toEqual([`GET /api/w/${ID}`, `POST /api/remembered/${ID}/touch`]);
     await openShare(user);
     await waitFor(() => expect(linkField()).toHaveValue(linkFor()));
     expect(seen.filter((r) => r.endsWith('/link'))).toEqual([`GET /api/w/${ID}/link`]);

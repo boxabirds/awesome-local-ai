@@ -1,8 +1,9 @@
 import { Hono } from 'hono';
 import type { AppEnv } from '../app.ts';
-import { DEFAULT_WORKSPACE_NAME } from '@todoodle/shared/limits';
+import { DEFAULT_WORKSPACE_NAME, MAX_REMEMBERED_WORKSPACES } from '@todoodle/shared/limits';
 import { toPublicWorkspace } from '@todoodle/shared/schemas';
 import { insertWorkspace } from '../db/workspaces.ts';
+import { type RememberedEntry, serializeRememberedCookie } from '../lib/cookie.ts';
 import { generateSecret, hashSecret } from '../lib/crypto.ts';
 import { errorResponse } from '../lib/errors.ts';
 
@@ -45,6 +46,30 @@ testRoutes.post('/seed-workspace', async (c) => {
     if (deleted) row = deleted;
   }
   return c.json({ workspace: toPublicWorkspace(row), secret }, 201);
+});
+
+/**
+ * Creates `count` workspaces named 'Seeded 1' (most recent) to 'Seeded <count>' (oldest) and sets a
+ * tdl_ws cookie remembering exactly them, one second apart. For e2e cap tests (TC-87).
+ * Body: { count: 1..MAX_REMEMBERED_WORKSPACES }.
+ */
+testRoutes.post('/remembered-seed', async (c) => {
+  const body = (await c.req.json().catch(() => ({}))) as { count?: unknown };
+  const count = body.count;
+  if (typeof count !== 'number' || !Number.isInteger(count) || count < 1 || count > MAX_REMEMBERED_WORKSPACES) {
+    return errorResponse('validation', 400);
+  }
+  const now = Math.floor(Date.now() / 1000);
+  const entries: RememberedEntry[] = [];
+  const workspaces = [];
+  for (let i = 0; i < count; i++) {
+    const secret = generateSecret();
+    const row = await insertWorkspace(c.env.DB, await hashSecret(secret), `Seeded ${i + 1}`);
+    entries.push({ id: row.id, s: secret, t: now - i - 1 });
+    workspaces.push(toPublicWorkspace(row));
+  }
+  c.header('Set-Cookie', serializeRememberedCookie(entries, c.env));
+  return c.json({ workspaces }, 201);
 });
 
 testRoutes.get('/throw', () => {

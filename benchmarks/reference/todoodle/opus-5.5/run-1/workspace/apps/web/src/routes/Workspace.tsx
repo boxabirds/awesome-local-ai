@@ -10,8 +10,10 @@ import { WorkspaceLoadFailed } from '@/features/workspace/WorkspaceLoadFailed';
 import { WorkspaceSkeleton } from '@/features/workspace/WorkspaceSkeleton';
 import { useRenameWorkspace } from '@/features/workspace/useRenameWorkspace';
 import { useWorkspace } from '@/features/workspace/useWorkspace';
+import { useTouchRemembered } from '@/features/remembered/useTouchRemembered';
 import { isNotFoundError } from '@/lib/api';
-import { NotFound } from './NotFound.tsx';
+import { WorkspaceSkeletonRows } from '@/features/workspace/WorkspaceSkeleton';
+import { RecoverableNotFound as NotFound } from './RecoverableNotFound.tsx';
 
 type PanelState = { open: boolean; mode: 'save' | 'share' };
 
@@ -20,8 +22,17 @@ function isJustCreated(state: unknown): boolean {
 }
 
 /** The workspace itself: header, sidebar and the (empty, until story 5) Inbox. */
-function WorkspaceView({ workspace, secretFromHash }: { workspace: WorkspaceData; secretFromHash?: string }) {
-  const canEdit = useCanEdit();
+function WorkspaceView({
+  workspace,
+  secretFromHash,
+  placeholder = false,
+}: {
+  workspace: WorkspaceData;
+  secretFromHash?: string;
+  /** Only the name is known yet (story 3 instant name): body skeleton, editing off until real data. */
+  placeholder?: boolean;
+}) {
+  const canEdit = useCanEdit() && !placeholder;
   const location = useLocation();
   const navigate = useNavigate();
   const [panel, setPanel] = useState<PanelState>(() => ({ open: isJustCreated(location.state), mode: 'save' }));
@@ -59,12 +70,16 @@ function WorkspaceView({ workspace, secretFromHash }: { workspace: WorkspaceData
               </span>
             </nav>
           </aside>
-          <main className="flex-1 p-4">
-            <fieldset disabled={!canEdit} className="contents">
-              <h2 className="text-xl font-semibold">Inbox</h2>
-              <p className="mt-2 text-muted-foreground">Your Inbox is empty.</p>
-            </fieldset>
-          </main>
+          {placeholder ? (
+            <WorkspaceSkeletonRows />
+          ) : (
+            <main className="flex-1 p-4">
+              <fieldset disabled={!canEdit} className="contents">
+                <h2 className="text-xl font-semibold">Inbox</h2>
+                <p className="mt-2 text-muted-foreground">Your Inbox is empty.</p>
+              </fieldset>
+            </main>
+          )}
         </div>
       </div>
       {/* Outside the edit fieldset: sharing works even when editing is disabled. */}
@@ -98,10 +113,13 @@ function HashWorkspace({ secret }: { secret: string }) {
 
 /** /w/:workspaceId: entered from this browser's remembered list (story 3). No secret reaches JS. */
 function IdWorkspace({ id }: { id: string }) {
+  const touch = useTouchRemembered(id);
   const query = useWorkspace(id);
-  if (query.data) return <WorkspaceView workspace={query.data} />;
+  // Not remembered here (or no longer opens): NotFound, whichever request learns it first.
+  if (isNotFoundError(touch.error) || isNotFoundError(query.error)) return <NotFound />;
+  // A placeholder (name from the cached remembered list) renders the header at once; the body waits.
+  if (query.data) return <WorkspaceView workspace={query.data} placeholder={query.isPlaceholderData} />;
   if (query.isPending) return <WorkspaceSkeleton />;
-  if (isNotFoundError(query.error)) return <NotFound />;
   return <WorkspaceLoadFailed onRetry={() => void query.refetch()} />;
 }
 
