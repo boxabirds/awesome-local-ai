@@ -218,8 +218,13 @@ describe('web.workspace_shell: /w/:workspaceId', () => {
     server.use(getHandler());
     await renderApp(`/w/${ID}`);
     await waitFor(() => expect(nameInput()).toHaveValue('My Todoodle'));
-    // Story 3: opening by id also touches this browser's remembered list.
-    expect([...seen].sort()).toEqual([`GET /api/w/${ID}`, `POST /api/remembered/${ID}/touch`]);
+    // Story 3: opening by id also touches this browser's remembered list. Story 5: and loads the Inbox.
+    expect([...seen].sort()).toEqual([
+      `GET /api/w/${ID}`,
+      `GET /api/w/${ID}/counts`,
+      `GET /api/w/${ID}/tasks`,
+      `POST /api/remembered/${ID}/touch`,
+    ]);
     expect(titleText()).toBe('Todoodle - My Todoodle');
     expect(titleText()).not.toContain(SECRET);
   });

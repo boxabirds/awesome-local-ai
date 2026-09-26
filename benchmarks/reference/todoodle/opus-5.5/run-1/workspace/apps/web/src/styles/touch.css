@@ -1,0 +1,29 @@
+/*
+ * Touch screens (no hover-capable pointer): every interactive control in the app shell, task list and
+ * quick add is at least MIN_TOUCH_TARGET_PX (--min-touch-target, from limits.ts) in both dimensions.
+ * Controls whose visual must stay smaller get a transparent ::before hit area instead (.hit-area).
+ */
+@media (hover: none) {
+  button,
+  a[href],
+  input[type="checkbox"],
+  [role="option"],
+  [data-nav-item] {
+    min-height: var(--min-touch-target);
+    min-width: var(--min-touch-target);
+  }
+
+  .hit-area {
+    position: relative;
+  }
+
+  .hit-area::before {
+    content: "";
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: max(100%, var(--min-touch-target));
+    height: max(100%, var(--min-touch-target));
+    transform: translate(-50%, -50%);
+  }
+}

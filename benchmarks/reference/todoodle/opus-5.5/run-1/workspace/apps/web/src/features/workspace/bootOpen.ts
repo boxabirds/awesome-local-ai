@@ -3,6 +3,7 @@ import { notifyDropped } from '@/features/remembered/useDroppedNotice';
 import { isNotFoundError, openWorkspace } from '@/lib/api';
 import { queryClient } from '@/lib/queryClient';
 import { queryKeys } from '@/lib/queryKeys';
+import { workspaceLoader } from '@/routes/workspaceLoader';
 
 /** Outcome of opening a workspace by its secret. Never rejects, so React's use() needs no error boundary. */
 export type OpenResult =
@@ -31,6 +32,8 @@ function fireOpen(secret: string): Promise<OpenResult> {
   const promise: TrackedPromise<OpenResult> = openWorkspace(secret).then(
     ({ workspace, dropped }): OpenResult => {
       queryClient.setQueryData(queryKeys.workspace(workspace.id), workspace);
+      // The id is known now: start the Inbox list and counts in parallel with rendering (story 5).
+      workspaceLoader({ params: { workspaceId: workspace.id } });
       // Opening by link remembers the workspace on this browser (the response set the cookie).
       void queryClient.invalidateQueries({ queryKey: queryKeys.remembered() });
       notifyDropped(dropped);
@@ -78,8 +81,13 @@ export function retryOpen(secret: string): Promise<OpenResult> {
   return promise;
 }
 
-/** After create: the route renders at once from an already-settled result, with no open request. */
+/**
+ * After create: the route renders at once from an already-settled result, with no open request. A new
+ * workspace has no tasks yet, so its Inbox and counts are known too (no list requests either).
+ */
 export function primeOpen(secret: string, workspace: Workspace): void {
+  queryClient.setQueryData(queryKeys.tasks(workspace.id, { list: 'inbox' }), []);
+  queryClient.setQueryData(queryKeys.counts(workspace.id), { inbox: 0 });
   const value: OpenResult = { status: 'ok', workspace };
   const promise: TrackedPromise<OpenResult> = Promise.resolve(value);
   promise.status = 'fulfilled';

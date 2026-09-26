@@ -1,0 +1,62 @@
+{
+  "steps": {
+    "install": {
+      "cmd": "bun install",
+      "exit": 0,
+      "seconds": 0.1,
+      "tail": "bun install v1.2.17 (282dda62)\n\nChecked 381 installs across 510 packages (no changes) [45.00ms]\n"
+    },
+    "build": {
+      "cmd": "bun run build",
+      "exit": 0,
+      "seconds": 0.3,
+      "tail": "\u001b[36mvite v8.3.1 \u001b[32mbuilding client environment for production...\u001b[36m\u001b[39m\ntransforming...\n\u2713 460 modules transformed.\nrendering chunks...\ncomputing gzip size...\ndist/index.html                             0.59 kB \u2502 gzip:   0.32 kB\ndist/assets/index-PSTrj6Hb.css             41.32 kB \u2502 gzip:   8.99 kB\ndist/assets/dialog-BYMHE1GE.js              0.74 kB \u2502 gzip:   0.44 kB\ndist/assets/ShortcutsPanel-Bm84a-9J.js      1.52 kB \u2502 gzip:   0.78 kB\ndist/assets/SharePanel-hpEIwF-V.js          3.57 kB \u2502 gzip:   1.73 kB\ndist/assets/ForgetDialog--WffjegM.js        4.85 kB \u2502 gzip:   1.89 kB\ndist/assets/useWorkspaceLink-B4nKbwxc.js    6.88 kB \u2502 gzip:   2.59 kB\ndist/assets/Workspace-CeRWlEMC.js          46.04 kB \u2502 gzip:  15.40 kB\ndist/assets/es2015-CNZJWwfa.js             72.98 kB \u2502 gzip:  24.20 kB\ndist/assets/api-B_muDefh.js               133.78 kB \u2502 gzip:  39.87 kB\ndist/assets/index-Cwouw-hP.js             323.49 kB \u2502 gzip: 104.47 kB\n\n\u001b[32m\u2713 built in 157ms\u001b[39m\n$ bun run --cwd apps/web build\n$ vite build\n",
+      "passed": null,
+      "failed": null
+    },
+    "typecheck": {
+      "cmd": "bun run typecheck",
+      "exit": 0,
+      "seconds": 4.6,
+      "tail": "$ bun run --cwd packages/shared typecheck && bun run --cwd apps/api typecheck && bun run --cwd apps/web typecheck && tsc -p tsconfig.json --noEmit\n$ tsc -p tsconfig.json --noEmit\n$ tsc -p tsconfig.json --noEmit && tsc -p tsconfig.node.json --noEmit\n$ tsc -p tsconfig.json --noEmit\n",
+      "passed": null,
+      "failed": null
+    },
+    "lint": {
+      "cmd": "bun run lint",
+      "exit": 0,
+      "seconds": 0.8,
+      "tail": "$ bun run --cwd apps/web lint\n$ eslint .\n",
+      "passed": null,
+      "failed": null
+    },
+    "test:unit": {
+      "cmd": "bun run test:unit",
+      "exit": 0,
+      "seconds": 7.5,
+      "tail": "\n RUN  v4.1.11 ~/.vidi-bench/work/benchmarks__reference__todoodle__opus-5.5__run-1/workspace\n\n\n Test Files  10 passed (10)\n      Tests  109 passed (109)\n   Start at  22:03:35\n   Duration  3.64s (transform 2.70s, setup 9.17s, import 117ms, tests 800ms, environment 1ms)\n\n\n RUN  v4.1.11 ~/.vidi-bench/work/benchmarks__reference__todoodle__opus-5.5__run-1/workspace\n\n\n Test Files  6 passed (6)\n      Tests  48 passed (48)\n   Start at  22:03:39\n   Duration  161ms (transform 174ms, setup 0ms, import 244ms, tests 61ms, environment 0ms)\n\n\n RUN  v4.1.11 ~/.vidi-bench/work/benchmarks__reference__todoodle__opus-5.5__run-1/workspace\n\n\n Test Files  20 passed (20)\n      Tests  174 passed (174)\n   Start at  22:03:40\n   Duration  2.44s (transform 1.41s, setup 7.17s, import 1.11s, tests 1.47s, environment 4.04s)\n\n$ vitest run --config apps/api/vitest.config.ts --project api-unit && vitest run --config scripts/vitest.config.ts --project deploy-unit && vitest run --config apps/web/vitest.config.ts --project web-unit\n",
+      "passed": 109,
+      "failed": 0
+    },
+    "test:component": {
+      "exit": "missing"
+    },
+    "test:integration": {
+      "cmd": "bun run test:integration",
+      "exit": 1,
+      "seconds": 16.9,
+      "tail": "\n RUN  v4.1.11 ~/.vidi-bench/work/benchmarks__reference__todoodle__opus-5.5__run-1/workspace\n\n[mf:warn] The Workers runtime crashed unexpectedly and is being restarted (crash #1). Any additional runtime output above may indicate the cause.\n\n Test Files  15 passed (16)\n      Tests  145 passed (152)\n     Errors  1 error\n   Start at  22:03:43\n   Duration  6.11s (transform 3.77s, setup 15.24s, import 422ms, tests 5.50s, environment 1ms)\n\n$ vitest run --config apps/api/vitest.config.ts --project api-integration --project api-staging-sim --project api-production-gate && vitest run --config scripts/vitest.config.ts --project deploy-integration\n*** Fatal uncaught kj::Exception: kj/async.c++:2194: failed: Promise callback destroyed itself.\nstack: 1036fad6b 100b3d9fb 1036fb04b 1036f7f8f 100b0c7d7 1036f7f8f 100ab469b 100b234af 100b23527 101b09dff 1016f49ff 1036fb04b 100aa72cb 1036fb107 1016f5a1b 1036fb04b 1036f7f8f 100ab469b 1036fc757 1036f166f 1036f1c4f 1016ec983 1016ecd03 1016c0203 1016c0117 101692473 10169255f 1016c24b7 100aaa44b 101605fb7 100af3adb\n\u23af\u23af\u23af\u23af\u23af\u23af Unhandled Errors \u23af\u23af\u23af\u23af\u23af\u23af\n\nVitest caught 1 unhandled error during the test run.\nThis might cause false positive tests. Resolve unhandled errors to make sure your tests are not affected.\n\n\u23af\u23af\u23af\u23af\u23af\u23af Unhandled Error \u23af\u23af\u23af\u23af\u23af\u23af\u23af\nError: [vitest-pool]: Worker cloudflare-pool emitted error.\n \u276f EventEmitter.onTaskError node_modules/vitest/dist/chunks/cli-api.CnMVyzaz.js:3526:21\n \u276f EventEmitter.emit node:events:509:28\n \u276f EventEmitter.emit node:domain:489:12\n \u276f _WebSocket.emitUnexpectedExit node_modules/vitest/dist/chunks/cli-api.CnMVyzaz.js:3092:22\n \u276f _WebSocket.[nodejs.internal.kHybridDispatch] node:internal/event_target:843:20\n \u276f _WebSocket.dispatchEvent node:internal/event_target:776:26\n \u276f _WebSocket.dispatchEvent node_modules/miniflare/dist/src/index.js:94125:18\n \u276f _WebSocket.#queuingDispatchToPair node_modules/miniflare/dist/src/index.js:94428:12\n \u276f _WebSocket.[kClose] node_modules/miniflare/dist/src/index.js:94486:37\n \u276f WebSocket.<anonymous> node_modules/miniflare/dist/src/index.js:94522:19\n\nCaused by: Error: Worker exited unexpectedly\n \u276f _WebSocket.emitUnexpectedExit node_modules/vitest/dist/chunks/cli-api.CnMVyzaz.js:3090:33\n \u276f _WebSocket.[nodejs.internal.kHybridDispatch] node:internal/event_target:843:20\n \u276f _WebSocket.dispatchEvent node:internal/event_target:776:26\n \u276f _WebSocket.dispatchEvent node_modules/miniflare/dist/src/index.js:94125:18\n \u276f _WebSocket.#queuingDispatchToPair node_modules/miniflare/dist/src/index.js:94428:12\n \u276f _WebSocket.[kClose] node_modules/miniflare/dist/src/index.js:94486:37\n \u276f WebSocket.<anonymous> node_modules/miniflare/dist/src/index.js:94522:19\n \u276f WebSocket.emit node:events:509:28\n \u276f WebSocket.emit node:domain:489:12\n \u276f WebSocket.emitClose node_modules/ws/lib/websocket.js:279:10\n\n\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\n\nclose timed out after 10000ms\nTests closed successfully but something prevents the main process from exiting\nYou can try to identify the cause by enabling \"hanging-process\" reporter. See https://vitest.dev/guide/reporters.html#hanging-process-reporter\nerror: script \"test:integration\" exited with code 1\n",
+      "passed": 145,
+      "failed": 0
+    },
+    "test:e2e": {
+      "cmd": "bun run test:e2e --project=chromium",
+      "exit": 0,
+      "seconds": 32.5,
+      "tail": "\nRunning 48 tests using 4 workers\n\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\n  48 passed (32.2s)\n::notice title=\ud83c\udfad Playwright Run Summary::  48 passed (32.2s)\n$ playwright test \"--project=chromium\"\n[WebServer] $ wrangler d1 migrations apply DB --local\n[WebServer] $ bun run build && bun scripts/dev.ts\n[WebServer] $ bun run --cwd apps/web build\n[WebServer] $ vite build\n",
+      "passed": 48,
+      "failed": 0
+    }
+  },
+  "all_green": false
+}

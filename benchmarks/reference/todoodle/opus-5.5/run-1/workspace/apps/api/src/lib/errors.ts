@@ -3,6 +3,7 @@ export type ErrorCode =
   | 'not_found'
   | 'forbidden_client'
   | 'gone'
+  | 'id_conflict'
   | 'internal'
   | 'method_not_allowed'
   | 'unsupported_media_type'
@@ -14,6 +15,7 @@ const DEFAULT_MESSAGES: Record<ErrorCode, string> = {
   not_found: 'Not found.',
   forbidden_client: 'This request must come from the Todoodle app.',
   gone: 'This no longer exists.',
+  id_conflict: 'This id is already in use.',
   internal: 'Something went wrong on our side.',
   method_not_allowed: 'This method is not allowed.',
   unsupported_media_type: 'Request bodies must be JSON (Content-Type: application/json).',

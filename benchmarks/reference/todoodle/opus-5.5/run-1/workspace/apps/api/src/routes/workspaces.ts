@@ -6,21 +6,11 @@ import { findActiveBySecretHash, insertWorkspace, renameWorkspace } from '../db/
 import { readRemembered, serializeRememberedCookie, upsertRemembered } from '../lib/cookie.ts';
 import { generateSecret, hashSecret, isWellFormedSecret } from '../lib/crypto.ts';
 import { errorResponse, workspaceNotFound } from '../lib/errors.ts';
+import { readJson } from '../lib/json.ts';
 import { broadcast } from '../live/broadcast.ts';
-import { hasBody } from '../middleware/validate.ts';
 
 function nowSeconds(): number {
   return Math.floor(Date.now() / 1000);
-}
-
-/** Reads a JSON body; undefined when there is none, null when it is not valid JSON. */
-async function readJson(req: Request): Promise<unknown> {
-  if (!hasBody(req)) return undefined;
-  try {
-    return await req.json();
-  } catch {
-    return null;
-  }
 }
 
 /** Adds or refreshes this workspace in the browser's remembered cookie. Returns how many old entries were evicted. */

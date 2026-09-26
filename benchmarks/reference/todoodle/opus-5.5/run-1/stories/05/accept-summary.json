@@ -1,0 +1,34 @@
+{
+  "skipped": false,
+  "build_exit": 0,
+  "runner_exit": 1,
+  "passed": 76,
+  "total": 81,
+  "on_partial": {
+    "passed": 0,
+    "total": 0
+  },
+  "by_story": {
+    "01": {
+      "passed": 11,
+      "total": 11
+    },
+    "02": {
+      "passed": 22,
+      "total": 22
+    },
+    "03": {
+      "passed": 14,
+      "total": 15
+    },
+    "04": {
+      "passed": 7,
+      "total": 8
+    },
+    "05": {
+      "passed": 22,
+      "total": 25
+    }
+  },
+  "harness_fault": null
+}

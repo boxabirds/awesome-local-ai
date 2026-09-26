@@ -6,8 +6,10 @@ import { securityHeaders } from './middleware/security-headers.ts';
 import { validate } from './middleware/validate.ts';
 import { workspaceAuth } from './middleware/workspace-auth.ts';
 import { healthHandler } from './routes/health.ts';
+import { countsHandler } from './routes/counts.ts';
 import { forwardToRoom, liveUpgradeGuard } from './routes/live.ts';
 import { rememberedRoutes } from './routes/remembered.ts';
+import { tasksRoutes } from './routes/tasks.ts';
 import { testRoutes } from './routes/test.ts';
 import { workspaceRoutes, workspacesRoutes } from './routes/workspaces.ts';
 
@@ -34,6 +36,8 @@ export function createApp() {
   // Every workspace-scoped route sits behind workspace-auth. Later stories add theirs to workspaceRoutes.
   app.use('/api/w/:workspaceId', workspaceAuth);
   app.use('/api/w/:workspaceId/*', workspaceAuth);
+  app.route('/api/w/:workspaceId/tasks', tasksRoutes);
+  app.get('/api/w/:workspaceId/counts', countsHandler);
   app.route('/api/w/:workspaceId', workspaceRoutes);
   app.get('/api/w/:workspaceId/live', forwardToRoom);
 
