@@ -18,6 +18,7 @@ import {
 import { NoteToolbar } from './NoteToolbar';
 import { StickyTextEditor } from './StickyTextEditor';
 import { fitFontSize } from './StickyText';
+import type { UndoController } from '../board/undo';
 
 /**
  * One sticky note: the read-only face, the text editor and the pointer state
@@ -58,6 +59,8 @@ export interface StickyNoteProps {
   onEndEdit(next: 'selected' | 'unselected'): void;
   /** The bin button: removes the note and clears the selection. */
   onDelete(id: string): void;
+  /** This person's undo history (story 8), passed down to the text editor. */
+  undo?: UndoController;
 }
 
 /** Where a pointer press on this note currently is. Null means no press. */
@@ -137,7 +140,12 @@ function StickyNoteView(props: StickyNoteProps): JSX.Element {
       const pending = drag.pending;
       drag.pending = null;
       if (applyLastPosition && pending) moveObject(doc, id, pending.x, pending.y);
-      if (drag.moving) setDragging(false);
+      if (drag.moving) {
+        // End the capture group: the drag is one undo step, including a
+        // partial drag interrupted by pointercancel (story 8).
+        latest.current.undo?.boundary();
+        setDragging(false);
+      }
       latest.current.onSelect(id);
     };
 
@@ -198,6 +206,9 @@ function StickyNoteView(props: StickyNoteProps): JSX.Element {
       if (!drag.moving) {
         if (Math.hypot(dx, dy) < DRAG_THRESHOLD_PX) return;
         drag.moving = true;
+        // Start the drag's capture group: the raise and every frame's move
+        // below land in one step, separate from whatever came before.
+        latest.current.undo?.boundary();
         setDragging(true);
         bringToFront(doc, id);
       }
@@ -268,7 +279,12 @@ function StickyNoteView(props: StickyNoteProps): JSX.Element {
 
   const handleColor = useCallback(
     (color: StickyColor) => {
+      // One colour click is one undo step, separate from the gesture or
+      // typing burst before it however close together they happen (story 8).
+      const undo = latest.current.undo;
+      undo?.boundary();
       setStickyColor(doc, id, color);
+      undo?.boundary();
     },
     [doc, id],
   );
@@ -307,6 +323,7 @@ function StickyNoteView(props: StickyNoteProps): JSX.Element {
           fontPx={fit.fontPx}
           box={TEXT_BOX_WORLD}
           onEnd={props.onEndEdit}
+          undo={props.undo}
         />
       ) : (
         <div

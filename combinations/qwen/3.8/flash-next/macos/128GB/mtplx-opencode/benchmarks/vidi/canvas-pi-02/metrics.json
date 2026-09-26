@@ -11711,6 +11711,1628 @@
         },
         "heldout_floor": 1.0,
         "heldout_ok": false
+      },
+      "record": {
+        "committed": true,
+        "pushed": true,
+        "over_size_limit": [],
+        "commit": "a7a2baf"
+      }
+    },
+    "8": {
+      "title": "Undo and redo my own changes without undoing anyone else's",
+      "conditions_start": {
+        "ac": true,
+        "low_power": false,
+        "thermal": "nominal"
+      },
+      "started": 1790375031.254752,
+      "agent": {
+        "seconds": 6719.999999999999,
+        "steps": 287,
+        "tool_calls": 297,
+        "compactions": 5,
+        "tool_interruptions": 0,
+        "tokens": {
+          "input": 387851,
+          "output": 242587,
+          "reasoning": 167402,
+          "cache_read": 18609888,
+          "cache_write": 0
+        },
+        "exit": 0,
+        "stalled": false,
+        "resumes": 1,
+        "nudges": 5,
+        "errors": [
+          "insufficient memory: this prompt projects 96.9 GiB against the engine's 96.0 GiB limit (0.9 GiB over) after the allocator cache and the session bank were reclaimed (44335 prompt tokens, 5084 not cached). The engine stays up and keeps its sessions; this request was refused before prefill instead of pushing the Mac into swap. Reduce the prompt, start a new conversation, close other apps, or use q8 KV quantization; --allow-swap admits it anyway."
+        ],
+        "ended_by_operator": true,
+        "ended_in_error": false,
+        "sessions": [
+          "01a0daaa-f26b-74ee-93c7-ec995042051c",
+          "01a0dacc-e836-74fa-9d9f-c630f367b7f7",
+          "01a0dacc-e836-74fa-9d9f-c630f367b7f7",
+          "01a0dacc-e836-74fa-9d9f-c630f367b7f7",
+          "01a0dacc-e836-74fa-9d9f-c630f367b7f7",
+          "01a0dacc-e836-74fa-9d9f-c630f367b7f7",
+          "01a0dacc-e836-74fa-9d9f-c630f367b7f7"
+        ]
+      },
+      "agent_finished": 1790381811.416082,
+      "conditions": {
+        "samples": 223,
+        "degraded": false,
+        "throttled_share": 0.92,
+        "bad_samples": [
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "moderate",
+            "t": 1790375152.414411
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790375182.812769
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790375213.2227252
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790375243.608952
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790375273.929644
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790375304.2837918
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790375334.611148
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790375364.9233432
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790375395.256875
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790375425.589149
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790375455.914403
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790375486.2364511
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790375516.568126
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790375546.891351
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790375577.224618
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790375607.566881
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790375637.89275
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790375668.212616
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790375698.5346491
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790375728.872669
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790375759.1913211
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790375789.477356
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790375819.7718961
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790375850.092412
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790375880.418397
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790375910.758121
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790375941.085804
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790375971.4123352
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790376001.748391
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790376032.0843751
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790376062.4118211
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790376092.7748191
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790376123.108984
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790376153.4194381
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790376183.74993
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790376214.090067
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790376244.395981
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790376274.704166
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790376305.019045
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790376335.3364952
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790376365.666917
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790376395.991004
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790376426.324022
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790376456.654166
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790376486.969057
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790376517.302583
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790376547.630622
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790376577.961817
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790376608.2953
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790376638.610945
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790376668.936641
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790376699.252244
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790376729.60011
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790376759.935966
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790376790.260947
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790376820.592352
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790376850.891139
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790376881.225069
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790376911.5612202
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790376941.87626
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790376972.195101
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790377002.4880052
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790377032.846066
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790377063.1632042
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790377093.4927201
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790377123.830434
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790377154.194612
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790377184.5265548
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790377214.852536
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "moderate",
+            "t": 1790377245.201911
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "moderate",
+            "t": 1790377275.527152
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "moderate",
+            "t": 1790377305.8593931
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "moderate",
+            "t": 1790377336.1772811
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "moderate",
+            "t": 1790377366.527102
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "moderate",
+            "t": 1790377396.8664691
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "moderate",
+            "t": 1790377427.171335
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "moderate",
+            "t": 1790377457.495649
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "moderate",
+            "t": 1790377487.810569
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790377518.14004
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790377548.4876852
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790377578.775896
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790377609.1245818
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790377639.450007
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790377669.788266
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790377700.117388
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790377730.438899
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790377760.7739499
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790377791.107397
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790377821.447787
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790377851.78426
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790377882.117297
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790377912.4478579
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790377942.7699142
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790377973.106622
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790378003.447498
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790378033.784259
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790378064.1261902
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790378094.488246
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790378124.815068
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790378155.1442719
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790378185.471819
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790378215.784139
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790378246.1243992
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790378276.429611
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790378306.766353
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790378337.119644
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790378367.451387
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790378397.78576
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790378428.1270819
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790378458.4702551
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790378488.79504
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790378519.106499
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790378549.4164832
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790378579.753648
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790378610.091313
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790378640.401839
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790378670.757014
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790378701.1029708
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790378731.443616
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790378761.773879
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790378792.096044
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790378822.417372
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790378852.746588
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790378883.079316
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790378913.416446
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790378943.756458
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790378974.097551
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790379004.435842
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790379034.766019
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790379065.123013
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790379095.468193
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790379125.792038
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790379156.090185
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790379186.415
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790379216.757355
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790379247.102078
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790379277.435715
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790379307.761311
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790379338.104052
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790379368.434816
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790379398.753942
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790379429.0968242
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790379459.401273
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790379489.745704
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790379520.092152
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790379550.424139
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790379580.7047439
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790379611.036913
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790379641.361297
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790379671.664948
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790379702.061426
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790379732.401459
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790379762.725346
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790379793.062622
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790379823.400519
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790379853.732908
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790379884.046489
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790379914.3305678
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790379944.65952
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790379974.993114
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790380005.32463
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790380035.661419
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790380065.9950132
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790380096.3266828
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790380126.659717
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790380157.009484
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790380187.33422
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790380217.685371
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790380248.026121
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790380278.369162
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790380308.710096
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790380339.051216
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790380369.398945
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790380399.752973
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790380430.110194
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790380460.4483972
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790380490.787411
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790380521.1180959
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790380551.44782
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790380581.816171
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790380612.170736
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "moderate",
+            "t": 1790380642.456807
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "moderate",
+            "t": 1790380672.772085
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "moderate",
+            "t": 1790380703.082344
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "moderate",
+            "t": 1790380733.4130769
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "moderate",
+            "t": 1790380763.708328
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790380794.027584
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790380824.351988
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790380854.707121
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790380885.009467
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "moderate",
+            "t": 1790380915.321795
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "moderate",
+            "t": 1790380945.6349928
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "moderate",
+            "t": 1790380975.949327
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790381006.274198
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790381036.582571
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790381066.897103
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790381097.2408268
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790381127.588035
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "heavy",
+            "t": 1790381157.8883488
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "moderate",
+            "t": 1790381188.193953
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "moderate",
+            "t": 1790381218.487444
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "moderate",
+            "t": 1790381673.23472
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "moderate",
+            "t": 1790381703.524242
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "moderate",
+            "t": 1790381733.807403
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "moderate",
+            "t": 1790381764.1300669
+          },
+          {
+            "ac": true,
+            "low_power": false,
+            "thermal": "moderate",
+            "t": 1790381794.428757
+          }
+        ],
+        "swap_start_gb": 0.73,
+        "swap_max_gb": 0.73,
+        "aborted_swap": false,
+        "aborted_memory": false,
+        "free_min_pct": 13.0,
+        "server_footprint_max_gb": 111.0,
+        "server_footprint_peak_gb": 112.0
+      },
+      "agent_commits": 0,
+      "gate": {
+        "steps": {
+          "install": {
+            "cmd": "npm ci",
+            "exit": 0,
+            "seconds": 17.4,
+            "tail": "\nadded 254 packages, and audited 255 packages in 17s\n\n52 packages are looking for funding\n  run `npm fund` for details\n\n8 vulnerabilities (2 moderate, 6 high)\n\nTo address issues that do not require attention, run:\n  npm audit fix\n\nTo address all issues (including breaking changes), run:\n  npm audit fix --force\n\nRun `npm audit` for details.\nnpm warn deprecated whatwg-encoding@3.1.1: Use @exodus/bytes instead for a more spec-conformant and faster implementation\nnpm warn deprecated level-errors@2.0.1: Superseded by abstract-level (https://github.com/Level/community#faq)\nnpm warn deprecated level-concat-iterator@2.0.1: Superseded by abstract-level (https://github.com/Level/community#faq)\nnpm warn deprecated deferred-leveldown@5.3.0: Superseded by abstract-level (https://github.com/Level/community#faq)\nnpm warn deprecated encoding-down@6.3.0: Superseded by abstract-level (https://github.com/Level/community#faq)\nnpm warn deprecated levelup@4.4.0: Superseded by abstract-level (https://github.com/Level/community#faq)\nnpm warn deprecated level-js@5.0.2: Superseded by browser-level (https://github.com/Level/community#faq)\nnpm warn deprecated level-codec@9.0.2: Superseded by level-transcoder (https://github.com/Level/community#faq)\nnpm warn deprecated level-packager@5.1.1: Superseded by abstract-level (https://github.com/Level/community#faq)\nnpm warn deprecated abstract-leveldown@6.2.3: Superseded by abstract-level (https://github.com/Level/community#faq)\nnpm warn deprecated leveldown@5.6.0: Superseded by classic-level (https://github.com/Level/community#faq)\nnpm warn allow-scripts 8 packages have install scripts not yet covered by allowScripts:\nnpm warn allow-scripts   esbuild@0.27.0 (postinstall: node install.js)\nnpm warn allow-scripts   sharp@0.34.5 (install: node install/check.js || npm run build)\nnpm warn allow-scripts   workerd@1.20260111.0 (postinstall: node install.js)\nnpm warn allow-scripts   esbuild@0.28.2 (postinstall: node install.js)\nnpm warn allow-scripts   fsevents@2.3.3 (install: (install scripts present))\nnpm warn allow-scripts   leveldown@5.6.0 (install: node-gyp-build)\nnpm warn allow-scripts   workerd@1.20260923.1 (postinstall: node install.js)\nnpm warn allow-scripts   esbuild@0.28.1 (postinstall: node install.js)\nnpm warn allow-scripts\nnpm warn allow-scripts Run `npm approve-scripts --allow-scripts-pending` to review, or `npm approve-scripts <pkg>` to allow.\n"
+          },
+          "build": {
+            "cmd": "npm run build",
+            "exit": 0,
+            "seconds": 1.0,
+            "tail": "\n> vidi6@0.0.0 build\n> vite build\n\n\u001b[36mvite v7.3.6 \u001b[32mbuilding client environment for production...\u001b[36m\u001b[39m\ntransforming...\n\u001b[32m\u2713\u001b[39m 116 modules transformed.\nrendering chunks...\ncomputing gzip size...\n\u001b[2mdist/client/\u001b[22m\u001b[32mindex.html                 \u001b[39m\u001b[1m\u001b[2m  0.81 kB\u001b[22m\u001b[1m\u001b[22m\u001b[2m \u2502 gzip:   0.46 kB\u001b[22m\n\u001b[2mdist/client/\u001b[22m\u001b[2massets/\u001b[22m\u001b[35mindex-BvHjmNRj.css  \u001b[39m\u001b[1m\u001b[2m  6.54 kB\u001b[22m\u001b[1m\u001b[22m\u001b[2m \u2502 gzip:   1.80 kB\u001b[22m\n\u001b[2mdist/client/\u001b[22m\u001b[2massets/\u001b[22m\u001b[36mindex-8O7hZlX-.js   \u001b[39m\u001b[1m\u001b[2m380.59 kB\u001b[22m\u001b[1m\u001b[22m\u001b[2m \u2502 gzip: 119.86 kB\u001b[22m\n\u001b[32m\u2713 built in 439ms\u001b[39m\n",
+            "passed": null,
+            "failed": null
+          },
+          "typecheck": {
+            "cmd": "npm run typecheck",
+            "exit": 0,
+            "seconds": 1.8,
+            "tail": "\n> vidi6@0.0.0 typecheck\n> tsc --noEmit -p tsconfig.json && tsc --noEmit -p tsconfig.test.json\n\n",
+            "passed": null,
+            "failed": null
+          },
+          "test:unit": {
+            "cmd": "npm run test:unit",
+            "exit": 0,
+            "seconds": 2.0,
+            "tail": "\n> vidi6@0.0.0 test:unit\n> vitest run --project unit\n\n\n\u001b[1m\u001b[46m RUN \u001b[49m\u001b[22m \u001b[36mv3.2.7 \u001b[39m\u001b[90m~/.vidi-bench/work/qwen__3.8__flash-next__macos__128GB__mtplx-opencode__benchmarks__vidi__canvas-pi-02/workspace\u001b[39m\n\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[42m unit \u001b[49m\u001b[39m tests/unit/geometry.test.ts \u001b[2m(\u001b[22m\u001b[2m16 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 2\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[42m unit \u001b[49m\u001b[39m tests/unit/selection-reducer.test.ts \u001b[2m(\u001b[22m\u001b[2m11 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 2\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[42m unit \u001b[49m\u001b[39m tests/unit/presence-identity.test.ts \u001b[2m(\u001b[22m\u001b[2m12 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 2\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[42m unit \u001b[49m\u001b[39m tests/unit/router.test.ts \u001b[2m(\u001b[22m\u001b[2m9 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 5\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[42m unit \u001b[49m\u001b[39m tests/unit/presence-colors.test.ts \u001b[2m(\u001b[22m\u001b[2m7 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 8\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[42m unit \u001b[49m\u001b[39m tests/unit/board-model.test.ts \u001b[2m(\u001b[22m\u001b[2m22 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 11\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[42m unit \u001b[49m\u001b[39m tests/unit/presence-transport.test.ts \u001b[2m(\u001b[22m\u001b[2m22 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 5\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[42m unit \u001b[49m\u001b[39m tests/unit/sticky-text.test.ts \u001b[2m(\u001b[22m\u001b[2m13 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 6\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[42m unit \u001b[49m\u001b[39m tests/unit/protocol.test.ts \u001b[2m(\u001b[22m\u001b[2m14 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 5\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[42m unit \u001b[49m\u001b[39m tests/unit/presence-identity-contract.test.ts \u001b[2m(\u001b[22m\u001b[2m12 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 25\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[42m unit \u001b[49m\u001b[39m tests/unit/camera.test.ts \u001b[2m(\u001b[22m\u001b[2m19 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 31\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[42m unit \u001b[49m\u001b[39m tests/unit/awareness-tracker.test.ts \u001b[2m(\u001b[22m\u001b[2m23 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 9\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[42m unit \u001b[49m\u001b[39m tests/unit/board-model-group.test.ts \u001b[2m(\u001b[22m\u001b[2m21 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 11\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[42m unit \u001b[49m\u001b[39m tests/unit/undo-history.test.ts \u001b[2m(\u001b[22m\u001b[2m11 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 28\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[42m unit \u001b[49m\u001b[39m tests/unit/board-id.test.ts \u001b[2m(\u001b[22m\u001b[2m8 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 59\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[42m unit \u001b[49m\u001b[39m tests/unit/registry.test.ts \u001b[2m(\u001b[22m\u001b[2m4 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 1\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[42m unit \u001b[49m\u001b[39m tests/unit/create-board.test.ts \u001b[2m(\u001b[22m\u001b[2m10 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 131\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[42m unit \u001b[49m\u001b[39m tests/unit/undo-boundaries.test.ts \u001b[2m(\u001b[22m\u001b[2m2 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[33m 1331\u001b[2mms\u001b[22m\u001b[39m\n   \u001b[33m\u001b[2m\u2713\u001b[22m\u001b[39m undo.boundaries: the capture window (TC-12, TC-13)\u001b[2m > \u001b[22mTC-13 a pause past the window splits; a pause inside it does not \u001b[33m 1268\u001b[2mms\u001b[22m\u001b[39m\n\n\u001b[2m Test Files \u001b[22m \u001b[1m\u001b[32m18 passed\u001b[39m\u001b[22m\u001b[90m (18)\u001b[39m\n\u001b[2m      Tests \u001b[22m \u001b[1m\u001b[32m236 passed\u001b[39m\u001b[22m\u001b[90m (236)\u001b[39m\n\u001b[2m   Start at \u001b[22m 01:17:12\n\u001b[2m   Duration \u001b[22m 1.55s\u001b[2m (transform 665ms, setup 0ms, collect 1.33s, tests 1.67s, environment 1ms, prepare 590ms)\u001b[22m\n\n",
+            "passed": 236,
+            "failed": 0
+          },
+          "test:component": {
+            "cmd": "npm run test:component",
+            "exit": 0,
+            "seconds": 6.3,
+            "tail": "re 511ms)\u001b[22m\n\n\u001b[90mstderr\u001b[2m | tests/component/undo-controls.test.tsx\u001b[2m > \u001b[22m\u001b[2mundo.controls at the component level (TC-18 to TC-21)\u001b[2m > \u001b[22m\u001b[2mTC-19 Ctrl+Z, Cmd+Z, Ctrl+Shift+Z, Cmd+Shift+Z and Ctrl+Y all reach the controller, preventDefault included\n\u001b[22m\u001b[39mAn update to BoardSurface inside a test was not wrapped in act(...).\n\nWhen testing, code that causes React state updates should be wrapped into act(...):\n\nact(() => {\n  /* fire events that update state */\n});\n/* assert on the output */\n\nThis ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act\nAn update to BoardSurface inside a test was not wrapped in act(...).\n\nWhen testing, code that causes React state updates should be wrapped into act(...):\n\nact(() => {\n  /* fire events that update state */\n});\n/* assert on the output */\n\nThis ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act\n\n\u001b[90mstderr\u001b[2m | tests/component/undo-controls.test.tsx\u001b[2m > \u001b[22m\u001b[2mundo.controls at the component level (TC-18 to TC-21)\u001b[2m > \u001b[22m\u001b[2mTC-19 Ctrl+Z, Cmd+Z, Ctrl+Shift+Z, Cmd+Shift+Z and Ctrl+Y all reach the controller, preventDefault included\n\u001b[22m\u001b[39mAn update to BoardSurface inside a test was not wrapped in act(...).\n\nWhen testing, code that causes React state updates should be wrapped into act(...):\n\nact(() => {\n  /* fire events that update state */\n});\n/* assert on the output */\n\nThis ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act\nAn update to BoardSurface inside a test was not wrapped in act(...).\n\nWhen testing, code that causes React state updates should be wrapped into act(...):\n\nact(() => {\n  /* fire events that update state */\n});\n/* assert on the output */\n\nThis ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act\n\n\u001b[90mstderr\u001b[2m | tests/component/undo-controls.test.tsx\u001b[2m > \u001b[22m\u001b[2mundo.controls at the component level (TC-18 to TC-21)\u001b[2m > \u001b[22m\u001b[2mTC-20 a board that cannot be edited ignores the shortcuts and greys the buttons out\n\u001b[22m\u001b[39mAn update to BoardSurface inside a test was not wrapped in act(...).\n\nWhen testing, code that causes React state updates should be wrapped into act(...):\n\nact(() => {\n  /* fire events that update state */\n});\n/* assert on the output */\n\nThis ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act\nAn update to BoardSurface inside a test was not wrapped in act(...).\n\nWhen testing, code that causes React state updates should be wrapped into act(...):\n\nact(() => {\n  /* fire events that update state */\n});\n/* assert on the output */\n\nThis ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act\n\n\u001b[90mstderr\u001b[2m | tests/component/undo-controls.test.tsx\u001b[2m > \u001b[22m\u001b[2mundo.controls at the component level (TC-18 to TC-21)\u001b[2m > \u001b[22m\u001b[2mTC-21 Ctrl+Z with the focus in a text field never touches the board history\n\u001b[22m\u001b[39mAn update to BoardSurface inside a test was not wrapped in act(...).\n\nWhen testing, code that causes React state updates should be wrapped into act(...):\n\nact(() => {\n  /* fire events that update state */\n});\n/* assert on the output */\n\nThis ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act\nAn update to BoardSurface inside a test was not wrapped in act(...).\n\nWhen testing, code that causes React state updates should be wrapped into act(...):\n\nact(() => {\n  /* fire events that update state */\n});\n/* assert on the output */\n\nThis ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act\n\n",
+            "passed": null,
+            "failed": null
+          },
+          "test:integration": {
+            "cmd": "npm run test:integration",
+            "exit": 0,
+            "seconds": 19.5,
+            "tail": "3] wrote 145 bytes to board board\n\n\u001b[90mstdout\u001b[2m | tests/integration/worker.test.ts\u001b[2m > \u001b[22m\u001b[2mtwo boards are two rooms (TC-17)\u001b[2m > \u001b[22m\u001b[2mkeeps a note made in one board out of another\n\u001b[22m\u001b[39m[room cd676b4c016afb358b585433d4588e269be424e9bf4996a2dca282a537620d9f] wrote 147 bytes to board board\n\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[45m integration \u001b[49m\u001b[39m tests/integration/worker.test.ts \u001b[2m(\u001b[22m\u001b[2m14 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[33m 754\u001b[2mms\u001b[22m\u001b[39m\n   \u001b[33m\u001b[2m\u2713\u001b[22m\u001b[39m the room holds more than the configured capacity (TC-13)\u001b[2m > \u001b[22maccepts capacity + 1 editors and still relays between all of them \u001b[33m 362\u001b[2mms\u001b[22m\u001b[39m\n   \u001b[33m\u001b[2m\u2713\u001b[22m\u001b[39m two boards are two rooms (TC-17)\u001b[2m > \u001b[22mkeeps a note made in one board out of another \u001b[33m 350\u001b[2mms\u001b[22m\u001b[39m\n\n\u001b[2m Test Files \u001b[22m \u001b[1m\u001b[32m5 passed\u001b[39m\u001b[22m\u001b[90m (5)\u001b[39m\n\u001b[2m      Tests \u001b[22m \u001b[1m\u001b[32m64 passed\u001b[39m\u001b[22m\u001b[90m (64)\u001b[39m\n\u001b[2m   Start at \u001b[22m 01:17:20\n\u001b[2m   Duration \u001b[22m 18.66s\u001b[2m (transform 96ms, setup 0ms, collect 341ms, tests 17.80s, environment 0ms, prepare 60ms)\u001b[22m\n\n[vpw:debug] Shutting down runtimes...\n\u001b[90mstderr\u001b[2m | tests/integration/board-room-persistence.test.ts\u001b[2m > \u001b[22m\u001b[2ma board that cannot be read is refused, not emptied (TC-21, TC-22, TC-23)\u001b[2m > \u001b[22m\u001b[2mcloses a joiner for damaged bytes, and keeps the damage off the board\n\u001b[22m\u001b[39mboard board: the stored state is unreadable, refusing to load it\n\nworkerd/io/worker.c++:2323: info: uncaught exception; source = Uncaught; stack = Error: ~/.vidi-bench/work/qwen__3.8__flash-next__macos__128GB__mtplx-opencode__benchmarks__vidi__canvas-pi-02/workspace/src/worker/index.ts changed, invalidating this Durable Object. Please retry the `DurableObjectStub#fetch()` call.\n    at Users/julian/.vidi-bench/work/qwen__3.8__flash-next__macos__128GB__mtplx-opencode__benchmarks__vidi__canvas-pi-02/workspace/node_modules/@cloudflare/vitest-pool-workers/dist/worker/lib/cloudflare/test-internal.mjs:542:15\nworkerd/jsg/exception.c++:146: info: Annotating with brokenness; internalMessage = jsg.Error: ~/.vidi-bench/work/qwen__3.8__flash-next__macos__128GB__mtplx-opencode__benchmarks__vidi__canvas-pi-02/workspace/src/worker/index.ts changed, invalidating this Durable Object. Please retry the `DurableObjectStub#fetch()` call.; brokennessReason = broken.inputGateBroken\nworkerd/io/io-context.c++:430: info: uncaught exception; exception = workerd/jsg/_virtual_includes/iterator/workerd/jsg/value.h:1480: failed: broken.inputGateBroken; jsg.Error: ~/.vidi-bench/work/qwen__3.8__flash-next__macos__128GB__mtplx-opencode__benchmarks__vidi__canvas-pi-02/workspace/src/worker/index.ts changed, invalidating this Durable Object. Please retry the `DurableObjectStub#fetch()` call.\nstack: 1019ec597 101383b97 10137ca47 101378b1b 101372437 10144931b 10144bf27 10144bc57 103170e5b 10144c554 10137dc68 100a5d7e8\nworkerd/io/io-context.c++:430: info: uncaught exception; exception = workerd/jsg/_virtual_includes/iterator/workerd/jsg/value.h:1480: failed: broken.inputGateBroken; jsg.Error: ~/.vidi-bench/work/qwen__3.8__flash-next__macos__128GB__mtplx-opencode__benchmarks__vidi__canvas-pi-02/workspace/src/worker/index.ts changed, invalidating this Durable Object. Please retry the `DurableObjectStub#fetch()` call.\nstack: 1019ec597 101383b97 10137ca47 101378b1b 101372437 10144931b 10144bf27 10144bc57 103170e5b 10144c554 10137dc68 100a5d7e8 1014decac\nworkerd/io/io-context.c++:430: info: uncaught exception; exception = workerd/jsg/_virtual_includes/iterator/workerd/jsg/value.h:1480: failed: broken.inputGateBroken; jsg.Error: ~/.vidi-bench/work/qwen__3.8__flash-next__macos__128GB__mtplx-opencode__benchmarks__vidi__canvas-pi-02/workspace/src/worker/index.ts changed, invalidating this Durable Object. Please retry the `DurableObjectStub#fetch()` call.\nstack: 1019ec597 101383b97 10137ca47 101378b1b 101372437 10144931b 10144bf27 10144bc57 103170e5b 10144c554 10137dc68 100a5d7e8 1014decac\n",
+            "passed": 64,
+            "failed": 0
+          },
+          "test:e2e": {
+            "cmd": "npm run test:e2e -- --project=chromium",
+            "exit": 0,
+            "seconds": 14.0,
+            "tail": "are.spec.ts:255:1 \u203a TC-27 the legacy /board/ address still opens a real board (121ms)\n  \u2713  31 [chromium] \u203a tests/e2e/selection.spec.ts:260:1 \u203a TC-35 a remote delete drops the note from my selection within 2 s (701ms)\n  \u2713  37 [chromium] \u203a tests/e2e/share.spec.ts:229:1 \u203a TC-27 a wrong link offers a way to get on with it (227ms)\n  \u2713  32 [chromium] \u203a tests/e2e/selection.spec.ts:311:1 \u203a TC-36 MAX_CONCURRENT_EDITORS move different selections and converge (691ms)\n  \u2713  38 [chromium] \u203a tests/e2e/share.spec.ts:247:1 \u203a TC-27 the back link returns to the home page (206ms)\n  \u2713  34 [chromium] \u203a tests/e2e/share.spec.ts:116:1 \u203a TC-26 the link is the board: create, copy, and join as a second person (604ms)\n  \u2713  41 [chromium] \u203a tests/e2e/share.spec.ts:290:1 \u203a TC-29 a denied clipboard still leaves the link one keystroke away (198ms)\n  \u2713  42 [chromium] \u203a tests/e2e/share.spec.ts:321:1 \u203a TC-30 a rate-limited create says so, and does not pretend to work (211ms)\n  \u2713  43 [chromium] \u203a tests/e2e/share.spec.ts:372:1 \u203a back and forward between home and a board land on the right page (215ms)\n  \u2713  44 [chromium] \u203a tests/e2e/share.spec.ts:353:1 \u203a TC-30 a create that fails outright leaves the button working (292ms)\n  \u2713  46 [chromium] \u203a tests/e2e/sticky-notes.spec.ts:57:1 \u203a TC-30 a double-click creates a note under the cursor, and the typing lands in it (199ms)\n  \u2713  47 [chromium] \u203a tests/e2e/sticky-notes.spec.ts:91:1 \u203a TC-30 a double-click on a note edits that note and does not create another one (193ms)\n  \u2713  45 [chromium] \u203a tests/e2e/share.spec.ts:401:1 \u203a the dead end offers a way home that leads somewhere still working (271ms)\n  \u2713  51 [chromium] \u203a tests/e2e/sticky-notes.spec.ts:222:1 \u203a TC-34 the toolbar creates a note in the middle of the view a million units out (187ms)\n  \u2713  48 [chromium] \u203a tests/e2e/sticky-notes.spec.ts:108:1 \u203a TC-31 at 50% zoom a 100x50 drag moves the note 200x100 world units (388ms)\n  \u2713  50 [chromium] \u203a tests/e2e/sticky-notes.spec.ts:179:1 \u203a TC-33 note text keeps the 24px size, then shrinks and clips at 1,000 characters (234ms)\n  \u2713  49 [chromium] \u203a tests/e2e/sticky-notes.spec.ts:138:1 \u203a TC-32 at 200% zoom a 100x50 drag moves the note 50x25 and puts it on top (397ms)\n  -  56 [chromium] \u203a tests/e2e/sync.spec.ts:181:8 \u203a two people, one board \u203a TC-31 a link that dies mid-flight does not leave a broken board\n  \u2713  14 [chromium] \u203a tests/e2e/persistence.spec.ts:102:1 \u203a TC-20 a reload finds the board once, not twice (3.7s)\n  \u2713  52 [chromium] \u203a tests/e2e/sticky-notes.spec.ts:248:1 \u203a the golden path: create, type, recolour, move at 50%, delete (618ms)\n  \u2713  53 [chromium] \u203a tests/e2e/sticky-notes.spec.ts:293:1 \u203a 500 notes: clicking one is a single cheap update (516ms)\n  \u2713  36 [chromium] \u203a tests/e2e/share.spec.ts:202:1 \u203a TC-27 a paste that lost characters is a dead end you can see (2.0s)\n  \u2713  40 [chromium] \u203a tests/e2e/share.spec.ts:265:1 \u203a TC-28 an unreachable service says so, and comes back without a reload (1.9s)\n  \u2713  54 [chromium] \u203a tests/e2e/sync.spec.ts:119:3 \u203a two people, one board \u203a TC-23 an edit by one person appears on the other board within two seconds (1.5s)\n  \u2713  58 [chromium] \u203a tests/e2e/undo.spec.ts:118:1 \u203a TC-22 undo restores my eight deleted notes, leaves the colleague's note, and reverses (1.4s)\n  \u2713  57 [chromium] \u203a tests/e2e/sync.spec.ts:223:3 \u203a a whole board of people \u203a TC-12 five editors, one change each, converge (1.7s)\n  \u2713  21 [chromium] \u203a tests/e2e/presence.spec.ts:340:3 \u203a one board, seen from two different places \u203a TC-24 the same place on the board is the same place on both screens (5.1s)\n  \u2713  59 [chromium] \u203a tests/e2e/undo.spec.ts:241:1 \u203a TC-23 undoing a move whose note a colleague deleted errors nowhere, and the next undo still works (2.0s)\n  \u2713  55 [chromium] \u203a tests/e2e/sync.spec.ts:136:3 \u203a two people, one board \u203a TC-24 a note made in one board never reaches another (3.3s)\n  \u2713  60 [chromium] \u203a tests/e2e/undo.spec.ts:318:1 \u203a TC-24 everyone undoing at once undoes exactly their own changes (6.8s)\n\n  1 skipped\n  59 passed (13.6s)\n",
+            "passed": 59,
+            "failed": 0
+          }
+        },
+        "all_green": true
+      },
+      "accept": {
+        "skipped": false,
+        "build_exit": 0,
+        "runner_exit": 1,
+        "runner_tail": "",
+        "passed": 47,
+        "total": 51,
+        "on_partial": {
+          "passed": 18,
+          "total": 20
+        },
+        "by_story": {
+          "01": {
+            "passed": 10,
+            "total": 10
+          },
+          "02": {
+            "passed": 10,
+            "total": 10
+          },
+          "03": {
+            "passed": 5,
+            "total": 7
+          },
+          "04": {
+            "passed": 4,
+            "total": 4
+          },
+          "05": {
+            "passed": 5,
+            "total": 5,
+            "on_partial_total": 5,
+            "on_partial_passed": 5
+          },
+          "07": {
+            "passed": 6,
+            "total": 8,
+            "on_partial_total": 8,
+            "on_partial_passed": 6
+          },
+          "08": {
+            "passed": 7,
+            "total": 7,
+            "on_partial_total": 7,
+            "on_partial_passed": 7
+          }
+        },
+        "harness_fault": null
+      },
+      "commit": "c00d439d2708023fb013932b1038b9511a980e3b",
+      "requests": {
+        "requests": 293,
+        "prompt_tokens": 19348542,
+        "completion_tokens": 260709,
+        "cached_tokens": 18609888,
+        "ttft_median_s": 1.3772154999896884,
+        "prefill_tok_s_median": 689.6018526753941,
+        "decode_tok_s_median": 56.659848799927765,
+        "max_context": 120382,
+        "decode_by_context": {
+          "0-16k": {
+            "requests": 5,
+            "decode_tok_s_median": 91.94327710382699
+          },
+          "16-32k": {
+            "requests": 10,
+            "decode_tok_s_median": 56.906096684380124
+          },
+          "32-64k": {
+            "requests": 153,
+            "decode_tok_s_median": 61.73226097644518
+          },
+          "64-100k": {
+            "requests": 72,
+            "decode_tok_s_median": 50.96865569584045
+          },
+          "100-+k": {
+            "requests": 53,
+            "decode_tok_s_median": 53.90924573466136
+          }
+        }
+      },
+      "loc": {
+        "files": 116,
+        "lines": 24343
+      },
+      "finished": 1790382204.1884868,
+      "status": "PARTIAL",
+      "ended_by": "operator",
+      "partial_base": [
+        5,
+        7
+      ],
+      "tasks": [
+        {
+          "n": 2,
+          "title": "Implement per-user undo history controller",
+          "type": "implementation",
+          "implements": [
+            "undo.history"
+          ],
+          "tcs": [],
+          "status": "written",
+          "found": null,
+          "total": null
+        },
+        {
+          "n": 5,
+          "title": "E2E: recover my mistakes while colleagues work (TC-22 to TC-24)",
+          "type": "test:e2e",
+          "implements": [
+            "undo.controls"
+          ],
+          "tcs": [
+            "TC-22",
+            "TC-23",
+            "TC-24"
+          ],
+          "status": "written",
+          "found": 3,
+          "total": 3
+        },
+        {
+          "n": 6,
+          "title": "Write undo history unit tests first with a simulated remote peer (TC-01 to TC-11)",
+          "type": "test:unit",
+          "implements": [
+            "undo.history"
+          ],
+          "tcs": [
+            "TC-01",
+            "TC-02",
+            "TC-03",
+            "TC-04",
+            "TC-05",
+            "TC-06",
+            "TC-07",
+            "TC-08",
+            "TC-09",
+            "TC-10",
+            "TC-11"
+          ],
+          "status": "written",
+          "found": 11,
+          "total": 11
+        },
+        {
+          "n": 7,
+          "title": "Write capture-timeout unit tests first (TC-12, TC-13)",
+          "type": "test:unit",
+          "implements": [
+            "undo.boundaries"
+          ],
+          "tcs": [
+            "TC-12",
+            "TC-13"
+          ],
+          "status": "written",
+          "found": 2,
+          "total": 2
+        },
+        {
+          "n": 8,
+          "title": "Wire undo step boundaries into transform gestures, toolbars and the text editor",
+          "type": "implementation",
+          "implements": [
+            "undo.boundaries"
+          ],
+          "tcs": [],
+          "status": "written",
+          "found": null,
+          "total": null
+        },
+        {
+          "n": 9,
+          "title": "Component tests: gesture and typing boundaries (TC-14 to TC-17)",
+          "type": "test:ui-component",
+          "implements": [
+            "undo.boundaries"
+          ],
+          "tcs": [
+            "TC-14",
+            "TC-15",
+            "TC-16",
+            "TC-17"
+          ],
+          "status": "written",
+          "found": 4,
+          "total": 4
+        },
+        {
+          "n": 10,
+          "title": "Implement undo/redo shortcuts and toolbar buttons",
+          "type": "implementation",
+          "implements": [
+            "undo.controls"
+          ],
+          "tcs": [],
+          "status": "written",
+          "found": null,
+          "total": null
+        },
+        {
+          "n": 11,
+          "title": "Component tests: undo shortcuts, buttons and edit lock (TC-18 to TC-21)",
+          "type": "test:ui-component",
+          "implements": [
+            "undo.controls"
+          ],
+          "tcs": [
+            "TC-18",
+            "TC-19",
+            "TC-20",
+            "TC-21"
+          ],
+          "status": "written",
+          "found": 4,
+          "total": 4
+        }
+      ],
+      "stub_markers": [],
+      "partial_heldout_changes": {
+        "5": {
+          "fixed": [],
+          "regressed": []
+        },
+        "7": {
+          "fixed": [],
+          "regressed": []
+        }
+      },
+      "skip": {
+        "story": 8,
+        "reason": "story cap: 5 nudges without committing (cap 5)",
+        "by": "harness (cap)",
+        "at": 1790381811.270387
+      },
+      "verdict": {
+        "verdict": "amber",
+        "gate_green": true,
+        "unverified_tasks": [
+          2,
+          5,
+          6,
+          7,
+          8,
+          9,
+          10,
+          11
+        ],
+        "unverified_implementation_tasks": [
+          2,
+          8,
+          10
+        ],
+        "heldout": {
+          "passed": 7,
+          "total": 7,
+          "on_partial_total": 7,
+          "on_partial_passed": 7
+        },
+        "heldout_floor": 1.0,
+        "heldout_ok": true
       }
     }
   },
@@ -13024,6 +14646,246 @@
         },
         "heldout_floor": 1.0,
         "heldout_ok": false
+      }
+    },
+    {
+      "id": 8,
+      "title": "Undo and redo my own changes without undoing anyone else's",
+      "status": "PARTIAL",
+      "ended_by": "operator",
+      "started_at": 1790375031.254752,
+      "ended_at": 1790381811.416082,
+      "agent_minutes": 112.0,
+      "calls": 287,
+      "output_tokens": 242587,
+      "compactions": 5,
+      "last_commit_at": null,
+      "accept": {
+        "passed": 7,
+        "total": 7,
+        "on_partial_total": 7,
+        "on_partial_passed": 7
+      },
+      "partial_base": [
+        5,
+        7
+      ],
+      "tasks": [
+        {
+          "n": 2,
+          "title": "Implement per-user undo history controller",
+          "type": "implementation",
+          "implements": [
+            "undo.history"
+          ],
+          "tcs": [],
+          "status": "written",
+          "found": null,
+          "total": null
+        },
+        {
+          "n": 5,
+          "title": "E2E: recover my mistakes while colleagues work (TC-22 to TC-24)",
+          "type": "test:e2e",
+          "implements": [
+            "undo.controls"
+          ],
+          "tcs": [
+            "TC-22",
+            "TC-23",
+            "TC-24"
+          ],
+          "status": "written",
+          "found": 3,
+          "total": 3
+        },
+        {
+          "n": 6,
+          "title": "Write undo history unit tests first with a simulated remote peer (TC-01 to TC-11)",
+          "type": "test:unit",
+          "implements": [
+            "undo.history"
+          ],
+          "tcs": [
+            "TC-01",
+            "TC-02",
+            "TC-03",
+            "TC-04",
+            "TC-05",
+            "TC-06",
+            "TC-07",
+            "TC-08",
+            "TC-09",
+            "TC-10",
+            "TC-11"
+          ],
+          "status": "written",
+          "found": 11,
+          "total": 11
+        },
+        {
+          "n": 7,
+          "title": "Write capture-timeout unit tests first (TC-12, TC-13)",
+          "type": "test:unit",
+          "implements": [
+            "undo.boundaries"
+          ],
+          "tcs": [
+            "TC-12",
+            "TC-13"
+          ],
+          "status": "written",
+          "found": 2,
+          "total": 2
+        },
+        {
+          "n": 8,
+          "title": "Wire undo step boundaries into transform gestures, toolbars and the text editor",
+          "type": "implementation",
+          "implements": [
+            "undo.boundaries"
+          ],
+          "tcs": [],
+          "status": "written",
+          "found": null,
+          "total": null
+        },
+        {
+          "n": 9,
+          "title": "Component tests: gesture and typing boundaries (TC-14 to TC-17)",
+          "type": "test:ui-component",
+          "implements": [
+            "undo.boundaries"
+          ],
+          "tcs": [
+            "TC-14",
+            "TC-15",
+            "TC-16",
+            "TC-17"
+          ],
+          "status": "written",
+          "found": 4,
+          "total": 4
+        },
+        {
+          "n": 10,
+          "title": "Implement undo/redo shortcuts and toolbar buttons",
+          "type": "implementation",
+          "implements": [
+            "undo.controls"
+          ],
+          "tcs": [],
+          "status": "written",
+          "found": null,
+          "total": null
+        },
+        {
+          "n": 11,
+          "title": "Component tests: undo shortcuts, buttons and edit lock (TC-18 to TC-21)",
+          "type": "test:ui-component",
+          "implements": [
+            "undo.controls"
+          ],
+          "tcs": [
+            "TC-18",
+            "TC-19",
+            "TC-20",
+            "TC-21"
+          ],
+          "status": "written",
+          "found": 4,
+          "total": 4
+        }
+      ],
+      "baselines": [
+        {
+          "source": "reference opus-5.5 run-1",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 26.0,
+          "calls": 63,
+          "output_tokens": 79399,
+          "accept": {
+            "passed": 7,
+            "total": 7
+          }
+        },
+        {
+          "source": "reference opus-5.5 run-2",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 9.5,
+          "calls": 50,
+          "output_tokens": 52393,
+          "accept": null
+        },
+        {
+          "source": "reference opus-5.5 run-3",
+          "status": "DONE",
+          "gate_green": false,
+          "agent_minutes": 9.5,
+          "calls": 48,
+          "output_tokens": 50663,
+          "accept": {
+            "passed": 7,
+            "total": 7
+          }
+        },
+        {
+          "source": "qwen/3.8/27b/ubuntu/nvidia4090/llamacpp-opencode canvas-pi-02",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 100.9,
+          "calls": 345,
+          "output_tokens": 318623,
+          "accept": {
+            "passed": 7,
+            "total": 7
+          }
+        },
+        {
+          "source": "qwen/3.8/flash-next/macos/128GB/mtplx-opencode canvas-pi-01",
+          "status": "DONE",
+          "gate_green": false,
+          "agent_minutes": 47.9,
+          "calls": 181,
+          "output_tokens": 124334,
+          "accept": {
+            "passed": 7,
+            "total": 7
+          }
+        }
+      ],
+      "reason": "story cap: 5 nudges without committing (cap 5)",
+      "by": "harness (cap)",
+      "requested_at": 1790381811.270387,
+      "verdict": "amber",
+      "health": {
+        "verdict": "amber",
+        "gate_green": true,
+        "unverified_tasks": [
+          2,
+          5,
+          6,
+          7,
+          8,
+          9,
+          10,
+          11
+        ],
+        "unverified_implementation_tasks": [
+          2,
+          8,
+          10
+        ],
+        "heldout": {
+          "passed": 7,
+          "total": 7,
+          "on_partial_total": 7,
+          "on_partial_passed": 7
+        },
+        "heldout_floor": 1.0,
+        "heldout_ok": true
       }
     }
   ],

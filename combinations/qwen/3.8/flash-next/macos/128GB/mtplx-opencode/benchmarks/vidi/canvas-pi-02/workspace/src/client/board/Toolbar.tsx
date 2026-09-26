@@ -1,4 +1,6 @@
 import type { JSX } from 'react';
+import { UndoButtons } from './UndoButtons';
+import type { UndoState } from './useUndo';
 
 /**
  * The fixed left toolbar (PRD "Create by double-click" names its tooltip).
@@ -6,10 +8,14 @@ import type { JSX } from 'react';
  * It lives outside the world layer: it is UI, not board content, so it does
  * not pan, does not zoom and does not need the `data-board-object` marker that
  * tells BoardViewport "this is not empty board surface".
+ *
+ * Story 8 added the Undo / Redo pair under the sticky tool.
  */
 export interface ToolbarProps {
   /** A new 200x200 sticky at the centre of the current viewport. */
   onCreateSticky(): void;
+  /** The personal undo history's state, for the two buttons. */
+  undo: UndoState;
 }
 
 export function Toolbar(props: ToolbarProps): JSX.Element {
@@ -44,6 +50,7 @@ export function Toolbar(props: ToolbarProps): JSX.Element {
           <path d="M5.5 6.5h7M5.5 9.5h7M5.5 12.5h4" stroke="currentColor" strokeWidth="1.2" />
         </svg>
       </button>
+      <UndoButtons {...props.undo} />
     </div>
   );
 }

@@ -3,6 +3,7 @@ import { Profiler, StrictMode, createElement } from 'react';
 import * as Y from 'yjs';
 import { App, type AppProps } from '../../src/client/App';
 import type { Camera } from '../../src/client/canvas/camera';
+import type { UndoController } from '../../src/client/board/undo';
 import { dispatch } from './harness';
 import {
   createSticky,
@@ -38,11 +39,19 @@ export interface AppHarnessOptions {
   /** Watches transform gestures (group move and resize). */
   onGestureStart?(): void;
   onGestureEnd?(): void;
+  /**
+   * Builds the undo history the app will use, over the harness's document.
+   * Without one the app builds its own, which is fine until a test needs to
+   * count the steps the app made (story 8).
+   */
+  undoFactory?: (doc: Y.Doc) => UndoController;
 }
 
 export interface AppHarness {
   doc: Y.Doc;
   container: HTMLElement;
+  /** The undo history under test, when `undoFactory` built one. */
+  undo: UndoController | null;
   board(): HTMLElement;
   world(): HTMLElement;
   camera(): Camera;
@@ -77,12 +86,15 @@ export function renderApp(
     if (note.text) getStickyText(doc, id)?.insert(0, note.text);
   }
 
+  const undo = options.undoFactory ? options.undoFactory(doc) : undefined;
+
   // The explicit type argument is not decoration: `App` takes its props with a
   // default value, and React's `createElement` inference gives up on that
   // signature, so the props would otherwise be checked against `unknown`.
   const app = createElement<Partial<AppProps>>(App, {
     doc,
     canEdit: options.canEdit,
+    undo,
     onGestureStart: options.onGestureStart,
     onGestureEnd: options.onGestureEnd,
   });
@@ -115,6 +127,7 @@ export function renderApp(
   const harness: AppHarness = {
     doc,
     container,
+    undo: undo ?? null,
     board: board$,
     world: () => {
       const el = container.querySelector<HTMLElement>('[data-testid="world-layer"]');

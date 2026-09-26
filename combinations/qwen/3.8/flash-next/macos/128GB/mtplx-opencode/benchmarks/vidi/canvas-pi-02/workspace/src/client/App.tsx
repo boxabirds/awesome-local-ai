@@ -11,6 +11,8 @@ import { useBoardSnapshot } from './board/useBoardDoc';
 import { useSelection } from './board/useSelection';
 import { useTransformGesture } from './board/useTransformGesture';
 import { useBoardKeys } from './board/useBoardKeys';
+import { useUndo, useUndoController } from './board/useUndo';
+import type { UndoController } from './board/undo';
 import { SelectionOverlay } from './board/SelectionOverlay';
 import { SelectionBar } from './board/SelectionBar';
 import { useMarquee, MarqueeRect } from './board/Marquee';
@@ -57,6 +59,11 @@ export interface AppProps {
   onGestureStart?(): void;
   /** Called once when that gesture ends, is cancelled, or loses its objects. */
   onGestureEnd?(): void;
+  /**
+   * The personal undo history, injected for tests. Without one the surface
+   * builds its own per document (story 8).
+   */
+  undo?: UndoController;
 }
 
 function useSessionFor(props: AppProps): BoardSession {
@@ -82,6 +89,7 @@ export function App(props: AppProps = {}) {
       canEdit={props.canEdit ?? true}
       onGestureStart={props.onGestureStart}
       onGestureEnd={props.onGestureEnd}
+      undo={props.undo}
     />
   );
 }
@@ -92,12 +100,14 @@ function BoardSurface({
   canEdit,
   onGestureStart,
   onGestureEnd,
+  undo,
 }: {
   session: BoardSession;
   broken: boolean;
   canEdit: boolean;
   onGestureStart?(): void;
   onGestureEnd?(): void;
+  undo?: UndoController;
 }) {
   const boardAreaRef = useRef<HTMLDivElement | null>(null);
   const viewport = useViewportSize(boardAreaRef);
@@ -106,6 +116,11 @@ function BoardSurface({
   const notes = useBoardSnapshot(board);
   const selection = useSelection();
   const connectionState = useConnectionState(session.connection);
+
+  // Story 8: one personal undo history per board document. The keyboard
+  // hook, the gestures and the toolbar buttons all act through it.
+  const undoController = useUndoController(board, undo);
+  const undoState = useUndo(undoController, canEdit);
 
   const boardRef = useRef(board);
   boardRef.current = board;
@@ -193,6 +208,7 @@ function BoardSurface({
     selection,
     snapshot: notes,
     canEdit,
+    undo: undoController,
   });
   gestureOptsRef.current = {
     doc: board.doc,
@@ -202,6 +218,7 @@ function BoardSurface({
     canEdit,
     onGestureStart,
     onGestureEnd,
+    undo: undoController,
   };
 
   const gesture = useTransformGesture(gestureOptsRef);
@@ -212,12 +229,14 @@ function BoardSurface({
     selection,
     snapshot: notes,
     canEdit,
+    undo: undoController,
   });
   keysOptsRef.current = {
     doc: board.doc,
     selection,
     snapshot: notes,
     canEdit,
+    undo: undoController,
   };
   useBoardKeys(keysOptsRef);
 
@@ -255,19 +274,24 @@ function BoardSurface({
 
   const deleteNote = useCallback(
     (id: string) => {
+      // One bin click is one undo step (story 8).
+      undoController.boundary();
       deleteObject(boardRef.current.doc, id);
+      undoController.boundary();
       selection.clear();
     },
-    [selection],
+    [selection, undoController],
   );
 
   const handleDeleteSelection = useCallback(() => {
     const ids = [...selection.ids];
     if (ids.length > 0) {
+      undoController.boundary();
       deleteObjects(boardRef.current.doc, ids);
+      undoController.boundary();
       selection.clear();
     }
-  }, [selection]);
+  }, [selection, undoController]);
 
   // Screen-space bounding box for the selection bar.
   const selectedCount = selection.ids.size;
@@ -312,6 +336,7 @@ function BoardSurface({
               onStartEdit={(id) => selection.startEdit(id)}
               onEndEdit={(next) => selection.endEdit(next)}
               onDelete={deleteNote}
+              undo={undoController}
             />
           ))}
         </BoardViewport>
@@ -358,7 +383,7 @@ function BoardSurface({
             onRename={(raw) => presenceRef.current.rename(raw)}
           />
         </div>
-        <Toolbar onCreateSticky={createStickyInViewCentre} />
+        <Toolbar onCreateSticky={createStickyInViewCentre} undo={undoState} />
         <div className="connection-area">
           {broken ? (
             <p className="board-link-warning" data-testid="board-link-warning" role="status">

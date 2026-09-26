@@ -64,6 +64,11 @@ export function createSession(
 ): BoardSession {
   const shared = boardId !== null && boardId !== '';
   const doc = options.doc ?? new Y.Doc();
+  // Whether the document came from outside React (`options.doc`) or with the
+  // session. Only a document the session created may die with it; an
+  // injected one belongs to whoever injected it, and React 19 development
+  // mode tears sessions down between the two mounts of every board.
+  const ownsDoc = options.doc === undefined;
   const board = createBoardDoc(doc);
   const origin = options.origin ?? (typeof window !== 'undefined' && window.location
     ? `${window.location.protocol}//${window.location.host}`
@@ -97,6 +102,7 @@ export function createSession(
       session.destroyed = true;
       connection?.destroy();
       board.destroy();
+      if (ownsDoc) doc.destroy();
     },
   };
   return session;

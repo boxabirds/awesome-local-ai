@@ -1,0 +1,48 @@
+# Page snapshot
+
+```yaml
+- generic [ref=e3]:
+  - banner [ref=e4]:
+    - button "Share" [ref=e6] [cursor=pointer]
+  - generic [ref=e7]:
+    - generic [ref=e8]:
+      - group "Sticky note" [ref=e9]:
+        - generic [ref=e10]: grow
+        - generic [ref=e11]:
+          - button "Yellow colour" [pressed] [ref=e12] [cursor=pointer]
+          - button "Orange colour" [ref=e13] [cursor=pointer]
+          - button "Green colour" [ref=e14] [cursor=pointer]
+          - button "Blue colour" [ref=e15] [cursor=pointer]
+          - button "Pink colour" [ref=e16] [cursor=pointer]
+          - button "Violet colour" [ref=e17] [cursor=pointer]
+          - button "Delete note" [ref=e18] [cursor=pointer]:
+            - img [ref=e19]
+      - generic:
+        - img
+    - button "Resize top-left" [ref=e21] [cursor=pointer]
+    - button "Resize top" [ref=e22] [cursor=pointer]
+    - button "Resize top-right" [ref=e23] [cursor=pointer]
+    - button "Resize right" [ref=e24] [cursor=pointer]
+    - button "Resize bottom-right" [active] [ref=e25] [cursor=pointer]
+    - button "Resize bottom" [ref=e26] [cursor=pointer]
+    - button "Resize bottom-left" [ref=e27] [cursor=pointer]
+    - button "Resize left" [ref=e28] [cursor=pointer]
+    - generic [ref=e29]:
+      - img "Curious Otter, you" [ref=e32]: C
+      - generic [ref=e33]:
+        - generic [ref=e34]: Curious Otter
+        - button "Rename" [ref=e35]
+    - generic [ref=e36]:
+      - button "Sticky note" [ref=e37] [cursor=pointer]:
+        - img [ref=e38]
+      - button "Undo" [ref=e41] [cursor=pointer]:
+        - img [ref=e42]
+      - button "Redo" [disabled] [ref=e45] [cursor=pointer]:
+        - img [ref=e46]
+  - generic [ref=e49]:
+    - button "Zoom out" [ref=e50] [cursor=pointer]: −
+    - status [ref=e51]: 100%
+    - button "Zoom in" [ref=e52] [cursor=pointer]: +
+    - button "Reset view" [ref=e53] [cursor=pointer]
+  - generic: Drag to move around · Ctrl/Cmd + scroll or pinch to zoom
+```
