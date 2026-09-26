@@ -2,6 +2,7 @@ import * as Y from 'yjs';
 import {
   createSticky,
   deleteObject,
+  deleteObjects,
   getStickyText,
   setStickyColor,
   snapshot,
@@ -9,6 +10,14 @@ import {
 import type { StickyColor } from '../../shared/config';
 import { createShape } from '../../shared/objects/shape';
 import { createConnector, type Endpoint } from '../../shared/objects/connector';
+import {
+  createStroke,
+  strokeBBox,
+  strokePathData,
+  toPoints,
+  type StrokeSnap,
+} from '../../shared/objects/stroke';
+import type { PenColor, PenThickness } from '../../shared/config';
 import type { Camera } from './camera';
 import type { CameraApi } from './useCamera';
 import type { ConnectionState } from '../sync/connectBoard';
@@ -109,6 +118,35 @@ export interface SeedConnector {
   toFallback: { x: number; y: number };
 }
 
+/** One stroke as the live document holds it, in paint order. */
+export interface StrokeHook {
+  id: string;
+  type: 'stroke';
+  /** Top-left of the ink's box, world units. */
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  z: number;
+  color: string;
+  thickness: string;
+  closed: boolean;
+  /** How many points the ink is drawn from. */
+  pointCount: number;
+  /** The ink itself, flattened and relative to `x`/`y`. */
+  points: number[];
+  /** The path it is drawn with, for a test that compares a drawing to itself. */
+  path: string;
+}
+
+export interface SeedStroke {
+  /** The ink, as absolute world coordinates: `[x0, y0, x1, y1, …]`. */
+  points: number[];
+  color?: string;
+  thickness?: string;
+  closed?: boolean;
+}
+
 export interface BoardTestHooks {
   setCamera(camera: { x: number; y: number; zoom: number }): void;
   getCamera(): Camera;
@@ -126,8 +164,24 @@ export interface BoardTestHooks {
   seedShape(seed: SeedShape): string;
   /** Seed a connector through the model. */
   seedConnector(seed: SeedConnector): string;
-  /** Removes a note while the pointer is still down, for interruption tests. */
+  /** The document's strokes, lowest z first. */
+  getStrokes(): StrokeHook[];
+  /**
+   * Puts a drawing on the board through `createStroke`, from absolute world
+   * points, and returns its id ('' when the model refuses it).
+   */
+  seedStroke(seed: SeedStroke): string;
+  /**
+   * Removes a note while the pointer is still down, for interruption tests. Raw:
+   * this is the single-object delete, which leaves any connector that pointed at
+   * the object attached to a missing id.
+   */
   removeNote(id: string): boolean;
+  /**
+   * Deletes through the product's own path: `deleteObjects`, what the Delete key
+   * runs, which detaches the connectors that pointed at what was deleted.
+   */
+  removeObjects(ids: string[]): number;
   getDoc(): Y.Doc | null;
   /** The room this board is shared in, or `'local'`. */
   getBoardId(): string;
@@ -268,10 +322,58 @@ export function installBoardTestHooks(
       const id = createConnector(session.doc, from, to, 'seed');
       return id ?? '';
     },
+    getStrokes() {
+      const session = getSession();
+      if (!session) return [];
+      return snapshot(session.doc)
+        .filter((row) => row.type === 'stroke')
+        .map((row) => {
+          const stroke = row as StrokeSnap;
+          return {
+            id: stroke.id,
+            type: 'stroke' as const,
+            x: stroke.x,
+            y: stroke.y,
+            width: stroke.width,
+            height: stroke.height,
+            z: stroke.z,
+            color: stroke.color,
+            thickness: stroke.thickness,
+            closed: stroke.closed,
+            pointCount: stroke.points.length / 2,
+            points: [...stroke.points],
+            path: strokePathData(stroke),
+          };
+        });
+    },
+    seedStroke(seed: SeedStroke) {
+      const session = getSession();
+      if (!session) return '';
+      if (seed.points.length < 4) return '';
+      // The ink in the document lives relative to the object's own box, so a seed
+      // that names absolute points is moved to its own origin first: the hook
+      // takes the coordinates a test can see on screen and hands the model the
+      // same shape a drawn stroke has.
+      const ink = toPoints(seed.points);
+      const box = strokeBBox(ink);
+      const flat: number[] = [];
+      for (const point of ink) flat.push(point.x - box.x, point.y - box.y);
+      return createStroke(session.doc, flat, { x: box.x, y: box.y }, {
+        color: seed.color as PenColor | undefined,
+        thickness: seed.thickness as PenThickness | undefined,
+        closed: seed.closed === true,
+        by: 'seed',
+      });
+    },
     removeNote(id: string) {
       const session = getSession();
       if (!session) return false;
       return deleteObject(session.doc, id);
+    },
+    removeObjects(ids: string[]) {
+      const session = getSession();
+      if (!session) return 0;
+      return deleteObjects(session.doc, ids);
     },
     getDoc() {
       return getSession()?.doc ?? null;

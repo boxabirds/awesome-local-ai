@@ -189,15 +189,19 @@ test('TC-26 delete shape detaches connector on both contexts', async ({ page, br
     }, { timeout: 10_000 })
     .toBe(1);
 
-  // Delete shape B on page2.
+  // Delete shape B on page2, through the product's own delete: `removeObjects` is
+  // `deleteObjects`, what the Delete key runs, and it is the one that detaches a
+  // connector from what it deleted. The other hook, `removeNote`, is the raw
+  // single-object delete, which leaves a connector attached to a missing id (that
+  // dangling case is TC-27 below, and it wants exactly that).
   await page2.evaluate((id) => {
     const hooks = window.__vidi6;
     if (!hooks) throw new Error('no hooks');
-    hooks.removeNote(id);
+    return hooks.removeObjects([id]);
   }, shapeBId);
   await settle(page2);
 
-  // On both contexts, connector should still exist with 'to' as free.
+  // On both contexts the connector survives, its end now free.
   await expect
     .poll(async () => {
       const [c1, c2] = await Promise.all([readConnectors(page), readConnectors(page2)]);

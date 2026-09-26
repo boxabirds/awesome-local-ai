@@ -548,3 +548,74 @@ obvious mistake.
 - Presence tells everyone where your pointer is and what you have selected. That is
   the feature. It is also a decision about how much of a person's attention the
   board publishes, and it has not been revisited since.
+
+---
+
+## Story 11 — sketch freehand with a pen: implementation notes
+
+Seven files of product code were added and nine were touched. The added ones are
+`shared/geometry/simplify.ts`, `shared/geometry/stroke-path.ts`,
+`shared/objects/stroke.ts`, `client/tools/pen-capture.ts`,
+`client/tools/PenTool.tsx`, `client/tools/usePenOptions.ts` and
+`client/objects/StrokeShape.tsx`.
+
+### Gaps from stories 7 and 8 that the pen had to go through
+
+`resizeObjects` and `objectBounds` in `board-model.ts` only knew sticky, text,
+shape and connector, and there was no way to open an undo group for a gesture
+that has not finished yet. Both were filled rather than worked around: a stroke
+moves, resizes, groups and deletes through the same generic object path a note
+uses, which is also what lets one gesture be one undo step without a second
+bookkeeping system next to the first.
+
+`useTransformGesture` locked only the corner drag for an `aspectLocked` type;
+the axis handles could still stretch a box sideways. That is now locked as
+well, because a drawing stretched sideways is not the same drawing. The change
+is visible to the types already in the app — sticky is `aspectLocked` — so the
+sticky and shape resize cases were re-run after it: they come out unchanged,
+which says the tightening landed on the axis case rather than on anything the
+sticky path reaches.
+
+`distanceToSegment` was exported from `geometry/polyline.ts` instead of being
+copied into the stroke geometry, so the distance the pen is hit with and the
+distance the shape outline is hit with are literally the same function.
+
+### Decisions, and where they part from the design text
+
+- The hit envelope is six screen pixels of slack either side of the ink,
+  measured at the zoom the click happens at, and never less than half the ink's
+  own width. The design wrote this as a band 1.5 px wide halved again; taken
+  literally that cuts a thick stroke's own ink out of its clickable area at 100%
+  and above, which is the opposite of the reason the number was in the story.
+- Nothing derived is stored: no path data, no hit box, no "rendered closed"
+  flag. A ring is read back from the geometry — a closing chord shorter than
+  twice the simplify tolerance replays as a `Z`, anything else draws the chord it
+  is missing. That buys one source of truth and costs the ability to tell a
+  deliberately straight-sided ring from a reconstruction. This is design risk 4,
+  taken on purpose, and it is documented at the function that decides it.
+- An unfinished stroke is never a document change, so it is never on the wire:
+  the release is the first thing the two boards agree on. Asserted in a real
+  browser as well as in jsdom, because in jsdom nothing would be on the wire
+  either way and the check would prove nothing there.
+- The pen takes `pointerdown` in the capture phase on the viewport and holds the
+  pointer, so a press that starts on a note draws over it instead of dragging
+  it. The wheel path is untouched, which is why panning still works with the pen
+  active.
+- Undo granularity is the stroke, not the gesture: a long line split at the point
+  budget comes back in the order it went in.
+
+### Test inventory
+
+`tests/unit/stroke.test.ts` covers the simplifier, the hit envelope, ring
+detection and the capture buffer; `tests/component/PenTool.test.tsx` and
+`tests/component/StrokeObject.test.tsx` cover the tool and the object against a
+rendered board; `tests/e2e/pen.spec.ts` holds four stories, run on chromium,
+firefox and webkit. At commit time the whole suite is 319 unit, 199 component,
+64 integration and 220 e2e passing with 5 e2e skipped, and typecheck is clean.
+
+### Left for later
+
+Pressure and tilt: the capture buffer has room for a fourth channel and uses
+none of it. An eraser, which wants the same envelope read the other way round.
+And a stroke that crosses a note stays two objects — the pen draws over things,
+it does not group with them.

@@ -23,6 +23,9 @@ import { ShapeObject } from './objects/ShapeObject';
 import { ConnectorObject } from './objects/ConnectorObject';
 import { ShapeTool } from './tools/ShapeTool';
 import { ConnectorTool } from './tools/ConnectorTool';
+import { PenTool } from './tools/PenTool';
+import { StrokeShape } from './objects/StrokeShape';
+import { usePenOptions } from './tools/usePenOptions';
 import './objects/defaultTypes';
 import {
   createSticky,
@@ -36,6 +39,7 @@ import { createCanvasMeasurer } from './objects/textLayout';
 import { createTextBoxSync } from './objects/useTextBoxSync';
 import { isValidBoardId, parseBoardPath } from '../shared/board-id';
 import { STICKY_SIZE_WORLD, type TextSize } from '../shared/config';
+import { hitTestStroke } from '../shared/objects/stroke';
 import { unionRects } from '../shared/geometry';
 import { useBoardSession, type BoardSession } from './sync/boardSession';
 import { ConnectionStatus, useConnectionState } from './sync/ConnectionStatus';
@@ -134,6 +138,9 @@ function BoardSurface({
 
   // Story 9: tool mode.
   const { tool, setTool } = useTool(canEdit);
+  // Story 11: the pen's colour and thickness, which are session state and live
+  // here, not in the document: they belong to the person holding the pen.
+  const pen = usePenOptions();
 
   const boardRef = useRef(board);
   boardRef.current = board;
@@ -323,6 +330,27 @@ function BoardSurface({
         // Connector tool: handled by ConnectorTool component.
         return;
       }
+      if (toolRefForClick.current === 'pen') {
+        // A press with the pen that did not draw anything is not a click on
+        // anything either.
+        return;
+      }
+      // A stroke is only under the cursor where its ink is, so the topmost stroke
+      // whose envelope contains the point wins; a click in the empty middle of a
+      // ring is a click on the board, and a click in a gap of a curve that crosses
+      // itself is too (§4.2). This happens here rather than in the object tree
+      // because a stroke draws through a layer that never intercepts a pointer.
+      const objects = objectsRef.current;
+      for (let index = objects.length - 1; index >= 0; index--) {
+        const obj = objects[index]!;
+        if (obj.type !== 'stroke') continue;
+        // Measured at the zoom the click happens at: a stroke drawn small stays
+        // clickable when it is seen small, which a fixed world tolerance is not.
+        if (hitTestStroke(obj, { x: point.x - obj.x, y: point.y - obj.y }, cameraRef.current.camera.zoom)) {
+          selection.click(obj.id);
+          return;
+        }
+      }
       selection.clear();
     },
     [selection],
@@ -426,6 +454,7 @@ function BoardSurface({
         <BoardViewport
           tool={tool}
           onSurfaceClick={handleSurfaceClick}
+          onSurfacePointerDown={(point, event) => gesture.onSurfacePointerDown(event, point)}
           onSurfaceDoubleClick={handleSurfaceDoubleClick}
           marqueeRef={marqueeRef}
         >
@@ -477,6 +506,9 @@ function BoardSurface({
                 />
               );
             }
+            if (obj.type === 'stroke') {
+              return <StrokeShape key={obj.id} snap={obj} />;
+            }
             // Sticky note rendering (story 2).
             return (
               <StickyNote
@@ -505,6 +537,21 @@ function BoardSurface({
               onCreated={(id) => {
                 selection.click(id);
                 setTool('select');
+              }}
+            />
+          )}
+          {tool === 'pen' && (
+            <PenTool
+              camera={camera}
+              doc={board.doc}
+              color={pen.color}
+              thickness={pen.thickness}
+              onCommitted={(ids) => {
+                // A finished stroke is a drawing, not a selection: the pen keeps
+                // the pointer and the next stroke is the next stroke. The new ink
+                // does become the selection, so `del` and `esc` have something to
+                // act on (pen.draw).
+                selection.setMany(ids, false);
               }}
             />
           )}
@@ -592,6 +639,12 @@ function BoardSurface({
           activeTool={tool}
           onActiveToolChange={(t) => setTool(t as any)}
           shapeKind="rect"
+          pen={{
+            color: pen.color,
+            thickness: pen.thickness,
+            onColor: pen.setColor,
+            onThickness: pen.setThickness,
+          }}
         />
         <div className="connection-area">
           {broken ? (

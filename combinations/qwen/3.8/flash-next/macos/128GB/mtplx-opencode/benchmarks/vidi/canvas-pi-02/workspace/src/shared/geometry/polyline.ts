@@ -8,7 +8,7 @@
 import type { Point } from '../geometry';
 
 /** Distance from point `p` to the closest point on segment `a`→`b`. */
-function distanceToSegment(a: Point, b: Point, p: Point): number {
+export function distanceToSegment(a: Point, b: Point, p: Point): number {
   const dx = b.x - a.x;
   const dy = b.y - a.y;
   const lenSq = dx * dx + dy * dy;

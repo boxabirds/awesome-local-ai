@@ -113,6 +113,16 @@ export function useBoardKeys(optsRef: { current: UseBoardKeysOptions }): void {
         return;
       }
 
+      // P: activate the Pen tool (story 11). `esc` and `v` leave it, and leaving
+      // it discards whatever was under the pointer — a pen has nothing to commit
+      // half-drawn.
+      if (!mod && event.key.toLowerCase() === 'p') {
+        if (!opts.canEdit) return;
+        event.preventDefault();
+        opts.setToolRef.current('pen');
+        return;
+      }
+
       // Enter: start editing a single selected editable object.
       if (event.key === 'Enter') {
         if (opts.selection.ids.size !== 1) return;

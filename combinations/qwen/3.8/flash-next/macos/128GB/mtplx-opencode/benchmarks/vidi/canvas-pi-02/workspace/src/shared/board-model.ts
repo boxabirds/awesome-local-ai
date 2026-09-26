@@ -35,7 +35,13 @@ import {
   MAX_OBJECT_SIZE_WORLD,
   SHAPE_FILL_COLORS,
   SHAPE_STROKE_COLORS,
+  PEN_COLORS,
+  PEN_THICKNESS_WORLD,
+  DEFAULT_PEN_COLOR,
+  DEFAULT_PEN_THICKNESS,
   type StickyColor,
+  type PenColor,
+  type PenThickness,
 } from './config';
 import type { Rect, Point } from './geometry';
 import { rectContains } from './geometry';
@@ -43,10 +49,12 @@ import type { ShapeKind, FillColor, StrokeColor } from './config';
 import { detachConnectorsTo } from './objects/connector';
 import type { ConnectorSnap, Endpoint } from './objects/connector';
 import type { ShapeSnap } from './objects/shape';
+import type { StrokeSnap } from './objects/stroke';
 
 export type { Rect, Point };
 export type { ShapeSnap, FillColor, StrokeColor, ShapeKind };
 export type { ConnectorSnap, Endpoint };
+export type { StrokeSnap };
 
 /**
  * Transaction origin for local mutations. Story 8 uses it to build undo
@@ -76,7 +84,12 @@ export interface StickySnapshot {
 }
 
 /** Generic object snapshot for group operations. */
-export type ObjectSnapshot = StickySnapshot | import('./objects/text').TextSnapshot | import('./objects/shape').ShapeSnap | import('./objects/connector').ConnectorSnap;
+export type ObjectSnapshot =
+  | StickySnapshot
+  | import('./objects/text').TextSnapshot
+  | import('./objects/shape').ShapeSnap
+  | import('./objects/connector').ConnectorSnap
+  | import('./objects/stroke').StrokeSnap;
 
 type NoteMap = Y.Map<unknown>;
 
@@ -101,9 +114,19 @@ function isConnectorObj(value: unknown): value is NoteMap {
   return value instanceof Y.Map && value.get('type') === 'connector';
 }
 
+function isStrokeObj(value: unknown): value is NoteMap {
+  return value instanceof Y.Map && value.get('type') === 'stroke';
+}
+
 /** True for any recognised board object. */
 export function isBoardObject(value: unknown): value is NoteMap {
-  return isSticky(value) || isTextObj(value) || isShapeObj(value) || isConnectorObj(value);
+  return (
+    isSticky(value) ||
+    isTextObj(value) ||
+    isShapeObj(value) ||
+    isConnectorObj(value) ||
+    isStrokeObj(value)
+  );
 }
 
 function readNote(doc: Y.Doc, id: string): NoteMap | undefined {
@@ -323,6 +346,37 @@ export function snapshot(doc: Y.Doc): readonly ObjectSnapshot[] {
         from: fromRaw && typeof fromRaw === 'object' ? (fromRaw as Endpoint) : { kind: 'free', x: x as number, y: y as number },
         to: toRaw && typeof toRaw === 'object' ? (toRaw as Endpoint) : { kind: 'free', x: x as number, y: y as number },
       });
+    } else if (type === 'stroke') {
+      // A stroke is only worth drawing when there is a line to draw: the
+      // flattened point list has to be real numbers, at least two of them.
+      const rawPoints = value.get('points');
+      if (!Array.isArray(rawPoints) || rawPoints.length < 2 || !rawPoints.every((v) => finite(v))) return;
+      const w = value.get('width');
+      const h = value.get('height');
+      const baseW = value.get('baseWidth');
+      const baseH = value.get('baseHeight');
+      const color = value.get('color');
+      const thickness = value.get('thickness');
+      result.push({
+        id,
+        type: 'stroke' as const,
+        x: x as number,
+        y: y as number,
+        width: typeof w === 'number' && finite(w) ? w : 0,
+        height: typeof h === 'number' && finite(h) ? h : 0,
+        z: z as number,
+        createdAt: typeof createdAt === 'number' ? createdAt : 0,
+        createdBy: typeof value.get('createdBy') === 'string' ? (value.get('createdBy') as string) : '',
+        points: rawPoints as number[],
+        baseWidth: typeof baseW === 'number' && finite(baseW) && baseW > 0 ? baseW : 1,
+        baseHeight: typeof baseH === 'number' && finite(baseH) && baseH > 0 ? baseH : 1,
+        color: typeof color === 'string' && color in PEN_COLORS ? (color as PenColor) : DEFAULT_PEN_COLOR,
+        thickness:
+          typeof thickness === 'string' && thickness in PEN_THICKNESS_WORLD
+            ? (thickness as PenThickness)
+            : DEFAULT_PEN_THICKNESS,
+        closed: value.get('closed') === true,
+      });
     }
   });
   result.sort((a, b) => a.z - b.z || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
@@ -347,6 +401,15 @@ export function objectBounds(obj: ObjectSnapshot): Rect {
     return { x: obj.x, y: obj.y, width: obj.width, height: obj.height };
   }
   if (obj.type === 'connector') {
+    return { x: obj.x, y: obj.y, width: obj.width, height: obj.height };
+  }
+  if (obj.type === 'stroke') {
+    // The box a stroke reports is the box of its ink. The *clickable* area is
+    // wider than that by the pen's half-width plus the click tolerance (that is
+    // what `strokeHit` builds, and it is why a click in the empty middle of a
+    // ring reaches the board), but keeping the box itself the ink box is what
+    // lets a resize keep the drawn ratio exactly: the resize gesture measures
+    // this box and writes it back, so any padding here would land in the ratio.
     return { x: obj.x, y: obj.y, width: obj.width, height: obj.height };
   }
   return {
@@ -439,6 +502,33 @@ export function resizeObjects(
   if (updates.length === 0) return 0;
   doc.transact(() => {
     for (const { note, r } of updates) {
+      // A stroke carries its drawing with it: the box is only where the ink sits,
+      // so resizing has to rescale the ink in the same transaction or the box
+      // grows around a line that stayed where it was (pen.resize, 3.4). The ink
+      // is written as one array, in the same transaction as the box: a peer gets
+      // either the old stroke or the new one, never a box without its ink.
+      if (note.get('type') === 'stroke') {
+        const beforeWidth = Number(note.get('width') ?? 0);
+        const beforeHeight = Number(note.get('height') ?? 0);
+        const ink = note.get('points');
+        if (
+          Array.isArray(ink) &&
+          ink.length >= 4 &&
+          beforeWidth > 0 &&
+          beforeHeight > 0
+        ) {
+          const sx = Math.min(r.width, MAX_OBJECT_SIZE_WORLD) / beforeWidth;
+          const sy = Math.min(r.height, MAX_OBJECT_SIZE_WORLD) / beforeHeight;
+          if (sx !== 1 || sy !== 1) {
+            const scaled = new Array<number>(ink.length);
+            for (let i = 0; i < ink.length; i += 2) {
+              scaled[i] = Math.round(Number(ink[i]) * sx * 1000) / 1000;
+              scaled[i + 1] = Math.round(Number(ink[i + 1]) * sy * 1000) / 1000;
+            }
+            note.set('points', scaled);
+          }
+        }
+      }
       note.set('x', r.x);
       note.set('y', r.y);
       note.set('width', Math.min(r.width, MAX_OBJECT_SIZE_WORLD));

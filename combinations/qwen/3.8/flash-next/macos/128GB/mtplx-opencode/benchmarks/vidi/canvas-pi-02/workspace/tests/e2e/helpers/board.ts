@@ -37,11 +37,15 @@ export interface BoardWindow {
     getNotes(): NoteState[];
     seedNote(note: SeedNoteState): string;
     removeNote(id: string): boolean;
+    /** The product's delete (what the Delete key runs): detaches what pointed at it. */
+    removeObjects(ids: string[]): number;
     getTexts(): TextObjectState[];
     getShapes(): ShapeState[];
     getConnectors(): ConnectorState[];
     seedShape(seed: SeedShapeState): string;
     seedConnector(seed: SeedConnectorState): string;
+    getStrokes(): StrokeState[];
+    seedStroke(seed: SeedStrokeState): string;
     getDoc(): import('yjs').Doc | null;
   };
 }
@@ -90,6 +94,33 @@ export interface SeedConnectorState {
   toId: string | null;
   fromFallback: { x: number; y: number };
   toFallback: { x: number; y: number };
+}
+
+/** A stroke as the live document sees it. */
+export interface StrokeState {
+  id: string;
+  type: 'stroke';
+  /** Top-left of the ink's box, world units. */
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  z: number;
+  color: string;
+  thickness: string;
+  closed: boolean;
+  pointCount: number;
+  /** The ink itself, flattened and relative to `x`/`y`. */
+  points: number[];
+  path: string;
+}
+
+export interface SeedStrokeState {
+  /** The ink, as absolute world coordinates: `[x0, y0, x1, y1, …]`. */
+  points: number[];
+  color?: string;
+  thickness?: string;
+  closed?: boolean;
 }
 
 /** A text object as the live document sees it. */
@@ -293,4 +324,29 @@ export async function seedConnector(
 ): Promise<string> {
   await waitForHooks(page);
   return page.evaluate((s) => window.__vidi6?.seedConnector(s) ?? '', seed);
+}
+
+/** The document's strokes, lowest z first, read out of the live Y.Doc. */
+export async function readStrokes(page: Page): Promise<StrokeState[]> {
+  await waitForHooks(page);
+  return page.evaluate(() => window.__vidi6?.getStrokes() ?? []);
+}
+
+/**
+ * Put a drawing on the board through the model, and wait for it to be rendered.
+ * `points` are absolute world coordinates.
+ */
+export async function seedStroke(page: Page, seed: SeedStrokeState): Promise<string> {
+  await waitForHooks(page);
+  const before = (await readStrokes(page)).length;
+  const id = await page.evaluate((s) => {
+    const hooks = (window as unknown as BoardWindow).__vidi6;
+    if (!hooks) throw new Error('window.__vidi6 is not installed in this build');
+    return hooks.seedStroke(s);
+  }, seed);
+  if (!id) throw new Error('seeding the stroke was refused');
+  await expect
+    .poll(() => readStrokes(page), { timeout: 5_000 })
+    .toHaveLength(before + 1);
+  return id;
 }

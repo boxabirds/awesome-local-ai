@@ -17,6 +17,7 @@ import {
 import { unionRects, resizeRect, clampScale, scaleWithin } from '../../shared/geometry';
 import type { Rect, Handle, Point } from '../../shared/geometry';
 import { getObjectType } from '../objects/registry';
+import { hitTestStroke } from '../../shared/objects/stroke';
 import type { UndoController } from './undo';
 
 /**
@@ -47,6 +48,11 @@ export interface TransformGestureOptions {
 
 export interface TransformGestureApi {
   onObjectPointerDown(e: PointerEvent, id: string): boolean;
+  /**
+   * A press on empty surface, given the world point under it. Returns true when
+   * the gesture claims the press, which tells the viewport not to pan.
+   */
+  onSurfacePointerDown(e: PointerEvent, world: Point): boolean;
   onHandlePointerDown(e: PointerEvent, handle: Handle): void;
 }
 
@@ -336,5 +342,37 @@ export function useTransformGesture(
     [optsRef, startTracking],
   );
 
-  return { onObjectPointerDown, onHandlePointerDown };
+  const onSurfacePointerDown = useCallback(
+    (e: PointerEvent, world: Point): boolean => {
+      const opts = optsRef.current;
+      if (!opts.canEdit) return false;
+      if (opts.selection.ids.size === 0) return false;
+      const zoom = opts.camera.zoom > 0 ? opts.camera.zoom : 1;
+      // Topmost first: ink under other ink is not the line you pressed.
+      for (let index = opts.snapshot.length - 1; index >= 0; index -= 1) {
+        const obj = opts.snapshot[index]!;
+        if (obj.type !== 'stroke') continue;
+        // Only a *selected* stroke is movable by its line. An unselected one is
+        // still just board: pressing there pans, and letting go without travel
+        // selects it, which is the two-step the story asks for.
+        if (!opts.selection.has(obj.id)) continue;
+        // Measured against the object's own origin, at the zoom it is seen at.
+        if (
+          !hitTestStroke(obj, { x: world.x - obj.x, y: world.y - obj.y }, zoom)
+        ) {
+          continue;
+        }
+        const gesture = buildGesture(e, 'move', [obj.id], false);
+        if (!gesture) return false;
+        gestureRef.current = gesture;
+        startTracking();
+        return true;
+      }
+      return false;
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [startTracking],
+  );
+
+  return { onObjectPointerDown, onSurfacePointerDown, onHandlePointerDown };
 }

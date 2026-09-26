@@ -85,8 +85,16 @@ export function useActiveTool(): UseActiveToolResult {
       // Single-letter tool shortcuts.
       const newTool = TOOL_SHORTCUTS[key];
       if (newTool && newTool !== toolRef.current) {
-        // Only activate tools that have implementations.
-        if (newTool === 'shape' || newTool === 'connector' || newTool === 'select' || newTool === 'text' || newTool === 'sticky') {
+        // Only activate tools that have implementations. The pen is one of them:
+        // `p` is the shortcut the toolbar advertises on the button.
+        if (
+          newTool === 'shape'
+          || newTool === 'connector'
+          || newTool === 'select'
+          || newTool === 'text'
+          || newTool === 'sticky'
+          || newTool === 'pen'
+        ) {
           setToolState(newTool);
           event.preventDefault();
         }
