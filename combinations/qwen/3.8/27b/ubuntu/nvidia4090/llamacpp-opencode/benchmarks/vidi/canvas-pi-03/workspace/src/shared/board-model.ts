@@ -64,13 +64,31 @@ function maxZ(objects: Y.Map<Y.Map<unknown>>): number {
   return max;
 }
 
-/** Sets meta.schemaVersion once. Idempotent. */
+/**
+ * Materialises the board's top-level types and stamps the schema version.
+ * Setting meta.schemaVersion emits exactly one update; creating the named
+ * types (getMap) does not. Idempotent: a second call on the same doc is a
+ * no-op (schemaVersion is already present).
+ *
+ * The worker room does not use this: its load target is a pristine doc with
+ * no meta (see BoardRoom.freshDoc), because persisted rows already carry the
+ * top-level types. The room stamps meta lazily via ensureMeta instead.
+ */
 export function initDoc(doc: Y.Doc): void {
+  doc.getMap(OBJECTS_KEY);
+  ensureMeta(doc);
+}
+
+/**
+ * Sets meta.schemaVersion exactly once (no-op when already present). Called
+ * inside the first content transaction so the first persisted update carries
+ * meta alongside the content.
+ */
+export function ensureMeta(doc: Y.Doc): void {
   const meta = doc.getMap(META_KEY);
-  if (meta.has('schemaVersion')) return;
-  doc.transact(() => {
+  if (!meta.has('schemaVersion')) {
     meta.set('schemaVersion', SCHEMA_VERSION);
-  }, LOCAL_ORIGIN);
+  }
 }
 
 /**
@@ -83,6 +101,7 @@ export function createSticky(doc: Y.Doc, at: { x: number; y: number }, color: St
   const id = crypto.randomUUID();
   const text = new Y.Text();
   doc.transact(() => {
+    ensureMeta(doc); // first content writes meta.schemaVersion (idempotent)
     const objects = objectsMap(doc);
     const obj = new Y.Map();
     obj.set('type', 'sticky');

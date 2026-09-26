@@ -24,6 +24,12 @@ declare global {
       dropConnection: () => void;
       /** Story 3 (test): resume the connection to simulate the network returning. */
       resumeConnection: () => void;
+      /**
+       * Story 4 (test): apply base64 Yjs updates to the board doc. Updates
+       * applied with a non-provider origin are pushed to the room and
+       * persisted, so tests can seed a board quickly (e2e TC-19/TC-21).
+       */
+      applyUpdates: (updates: string[]) => void;
     };
   }
 }
@@ -63,6 +69,16 @@ export function initGlobalTestHooks(): void {
       getDoc: () => {
         if (!testGetDoc) throw new Error('board test hooks not registered');
         return testGetDoc();
+      },
+      applyUpdates: (updates: string[]) => {
+        if (!testGetDoc) return;
+        const doc = testGetDoc();
+        for (const b64 of updates) {
+          const bin = atob(b64);
+          const bytes = new Uint8Array(bin.length);
+          for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+          Y.applyUpdate(doc, bytes, 'e2e-seed');
+        }
       },
       connectionState: 'connecting',
       // Dynamic wrappers: pick up the connection registered after init (React

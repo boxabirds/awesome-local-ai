@@ -15,12 +15,15 @@ const LABELS: Partial<Record<ConnectionState, string>> = {
   connecting: 'Connecting…',
   reconnecting: 'Reconnecting…',
   confirmed: 'Connected',
+  // Story 4: shown persistently (no timer) until the load retries succeed.
+  load_failed: "This board couldn't be loaded. Retrying…",
 };
 
 const DOT_COLOR: Partial<Record<ConnectionState, string>> = {
   connecting: '#90CAF9',
   reconnecting: '#FFB74D',
   confirmed: '#81C784',
+  load_failed: '#E57373',
 };
 
 export function ConnectionStatus({ state }: { state: ConnectionState }) {

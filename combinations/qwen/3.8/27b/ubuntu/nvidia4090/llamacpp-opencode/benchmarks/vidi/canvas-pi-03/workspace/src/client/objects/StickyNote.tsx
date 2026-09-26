@@ -35,6 +35,11 @@ export interface StickyNoteProps {
   zoom: number;
   selected: boolean;
   editing: boolean;
+  /**
+   * Story 4: false while the board failed to load. Selection stays possible
+   * but drag, edit-start and the note toolbar (colour/delete) are blocked.
+   */
+  editable: boolean;
   onSelect(id: string): void;
   onStartEdit(id: string): void;
   onEndEdit(next: 'selected' | 'unselected'): void;
@@ -66,7 +71,7 @@ interface DragState {
  *   Editing -> Unselected (click outside)
  */
 export function StickyNote(props: StickyNoteProps): ReactElement {
-  const { note, doc, zoom, selected, editing, onSelect, onStartEdit, onEndEdit } = props;
+  const { note, doc, zoom, selected, editing, editable, onSelect, onStartEdit, onEndEdit } = props;
 
   const rootRef = useRef<HTMLDivElement>(null);
   const mirrorRef = useRef<HTMLDivElement>(null);
@@ -82,12 +87,48 @@ export function StickyNote(props: StickyNoteProps): ReactElement {
     : DEFAULT_STICKY_COLOR;
   const background = STICKY_COLORS[colorName];
 
-  // Font fit: binary search on the hidden mirror; runs on text change and
-  // mount only (zoom scales world units uniformly, so no re-fit on zoom).
+  // Font fit: binary search on the hidden mirror (zoom scales world units
+  // uniformly, so no re-fit on zoom). The fit forces a reflow, and a reflow
+  // is O(boards notes) — so fitting every note on mount is O(n²) and makes a
+  // large board's first paint stall for seconds (story 4, persist.large_board).
+  // So the FIRST fit (on mount) is deferred until the note is (near) in the
+  // viewport, which bounds an initial load to the visible slice. A re-fit on
+  // text change is a single note (O(1)) and stays synchronous, matching the
+  // pre-change behaviour editors depend on. Non-browser envs (jsdom) fit now.
+  const prevTextRef = useRef(note.text);
   useEffect(() => {
-    const el = mirrorRef.current;
-    if (!el) return;
-    setFont(fitFontSize(el, NOTE_TEXT_BOX));
+    const mirror = mirrorRef.current;
+    const root = rootRef.current;
+    if (!mirror || !root) return;
+    const textChanged = prevTextRef.current !== note.text;
+    prevTextRef.current = note.text;
+    const doFit = () => setFont(fitFontSize(mirror, NOTE_TEXT_BOX));
+    if (textChanged || typeof IntersectionObserver === 'undefined') {
+      doFit();
+      return;
+    }
+    // First fit: defer until the note is (near) on screen.
+    let cancelled = false;
+    const io = new IntersectionObserver(
+      (entries) => {
+        if (cancelled) return;
+        for (const e of entries) {
+          if (e.isIntersecting) {
+            doFit();
+            io.disconnect();
+            return;
+          }
+        }
+      },
+      // A little before the note is on screen so scrolling never flashes an
+      // un-fitted size.
+      { rootMargin: '256px 0px' },
+    );
+    io.observe(root);
+    return () => {
+      cancelled = true;
+      io.disconnect();
+    };
   }, [note.text]);
 
   // If the note is deleted mid-drag (stale id), cancel any pending frame.
@@ -106,6 +147,8 @@ export function StickyNote(props: StickyNoteProps): ReactElement {
       // The board must not pan when a drag starts on a note (sticky.no_pan).
       e.stopPropagation();
       if (editing) return; // The textarea owns the pointer while editing.
+      onSelect(note.id);
+      if (!editable) return; // story 4: select-only; dragging is blocked
       const el = rootRef.current;
       if (!el) return;
       try {
@@ -123,9 +166,8 @@ export function StickyNote(props: StickyNoteProps): ReactElement {
         pendingWorld: null,
         rafId: null,
       };
-      onSelect(note.id);
     },
-    [editing, note.id, note.x, note.y, onSelect],
+    [editing, editable, note.id, note.x, note.y, onSelect],
   );
 
   const handlePointerMove = useCallback(
@@ -194,9 +236,9 @@ export function StickyNote(props: StickyNoteProps): ReactElement {
     (e: React.MouseEvent<HTMLDivElement>) => {
       // The viewport must not create a new note when a note is double-clicked.
       e.stopPropagation();
-      if (!editing) onStartEdit(note.id);
+      if (!editing && editable) onStartEdit(note.id);
     },
-    [editing, note.id, onStartEdit],
+    [editing, editable, note.id, onStartEdit],
   );
 
   const ytext = getStickyText(doc, note.id);
@@ -233,7 +275,7 @@ export function StickyNote(props: StickyNoteProps): ReactElement {
         boxShadow: '0 2px 10px rgba(0, 0, 0, 0.18)',
         outline: selected ? `2px solid ${SELECTION_OUTLINE}` : 'none',
         outlineOffset: 2,
-        cursor: dragging ? 'grabbing' : 'grab',
+        cursor: !editable ? 'default' : dragging ? 'grabbing' : 'grab',
         touchAction: 'none',
         fontFamily: 'Arial, Helvetica, sans-serif',
         userSelect: 'none',
@@ -315,7 +357,7 @@ export function StickyNote(props: StickyNoteProps): ReactElement {
 
       {/* Note toolbar: screen space above the note (unscaled by zoom),
           only for the selected note, hidden while dragging or editing. */}
-      {selected && !editing && !dragging && (
+      {selected && !editing && !dragging && editable && (
         <div
           style={{
             position: 'absolute',

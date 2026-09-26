@@ -13,7 +13,8 @@
     "test:component": "vitest run --project component",
     "test:integration": "npm run build:e2e && vitest run --project integration",
     "test:e2e": "playwright test --project chromium",
-    "test:e2e:nightly": "playwright test --project chromium-nightly"
+    "test:e2e:nightly": "playwright test --project chromium-nightly",
+    "test:persist": "npm run build:e2e && playwright test -c playwright.persist.config.ts"
   },
   "dependencies": {
     "lib0": "^0.2.118",
