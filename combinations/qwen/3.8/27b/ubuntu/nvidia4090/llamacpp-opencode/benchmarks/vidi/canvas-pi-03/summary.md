@@ -9,5 +9,6 @@ Model `qwen3.8-27b`, scope `canvas`, effort `low`, client pi 0.86.0, host 13th G
 | 3 | See other people's edits appear live on the same board | DONE | 168.5 | None | None | None | — | — | green | 25/27 |  | 0 / 0 | 7 | — | throttled 0%, server peak 18 GB |
 | 4 | Return to a board and find everything as it was left | DONE | 252.4 | None | None | None | — | — | green | 29/31 |  | 0 / 1 | 11 | — | throttled 0%, server peak 18 GB |
 | 5 | Share a board with others using a link | DONE | 91.4 | None | None | None | — | — | green | 34/36 |  | 0 / 0 | 4 | — | throttled 0%, server peak 18 GB |
+| 7 | Select, move, resize and delete several objects at once | DONE | 134.5 | None | None | None | — | — | green | 24/44 |  | 0 / 0 | 7 | — | throttled 0%, server peak 18 GB |
 
-**Totals:** 5 stories, 590 agent-minutes, 0 requests, 0 prompt / 0 completion tokens, gate green 5/5, final acceptance 34/36, stalled 0, partial 0, 11016 lines in src+tests.
+**Totals:** 6 stories, 724 agent-minutes, 0 requests, 0 prompt / 0 completion tokens, gate green 6/6, final acceptance 24/44, stalled 0, partial 0, 14255 lines in src+tests.

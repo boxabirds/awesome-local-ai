@@ -1,3 +1,40 @@
+commit d01a2c1b88218b9276b42b9fe046d93ab687470d
+vidi-agent  Sat Sep 26 05:58:01 2026 +0100
+
+    story 7: Select, move, resize and delete several objects at once
+
+
+ NOTES.md                                |  91 +++++
+ playwright.config.ts                    |  13 +
+ src/client/board/Board.tsx              | 215 ++++++++----
+ src/client/board/Marquee.tsx            | 101 ++++++
+ src/client/board/SelectionBar.tsx       | 129 +++++++
+ src/client/board/SelectionOverlay.tsx   | 126 +++++++
+ src/client/board/useBoardDoc.ts         |  86 +++--
+ src/client/board/useBoardKeys.ts        | 111 ++++++
+ src/client/board/useSelection.ts        | 204 +++++++++--
+ src/client/board/useTransformGesture.ts | 377 ++++++++++++++++++++
+ src/client/canvas/BoardViewport.tsx     |  75 ++--
+ src/client/canvas/testHooks.ts          |  13 +-
+ src/client/objects/StickyNote.tsx       | 202 ++---------
+ src/client/objects/registry.tsx         | 104 ++++++
+ src/shared/board-model.ts               | 287 +++++++++++++--
+ src/shared/config.ts                    |  13 +
+ src/shared/geometry.ts                  | 147 ++++++++
+ tests/component/LoadFailure.test.tsx    |   2 +-
+ tests/component/board.test.tsx          | 605 ++++++++++++++++++++++++++++++++
+ tests/component/story2.tsx              |  27 +-
+ tests/e2e/helpers/board.ts              |   4 +
+ tests/e2e/helpers/selection.ts          | 104 ++++++
+ tests/e2e/participants.ts               |   5 +-
+ tests/e2e/selection-marquee.spec.ts     |  73 ++++
+ tests/e2e/selection.spec.ts             | 307 ++++++++++++++++
+ tests/fixtures/testbox.tsx              |  78 ++++
+ tests/unit/board-model-group.test.ts    | 234 ++++++++++++
+ tests/unit/geometry.test.ts             | 150 ++++++++
+ tests/unit/registry.test.ts             |  56 +++
+ tests/unit/selection-reducer.test.ts    | 106 ++++++
+ 30 files changed, 3694 insertions(+), 351 deletions(-)
 commit 6c3772d489c3cb2072a886330a24ed50c1acf78f
 vidi-agent  Sat Sep 26 03:38:17 2026 +0100
 
