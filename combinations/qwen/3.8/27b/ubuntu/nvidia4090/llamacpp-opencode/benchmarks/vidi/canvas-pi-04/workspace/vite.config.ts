@@ -5,7 +5,10 @@ import react from '@vitejs/plugin-react';
 // Cloudflare Worker (`wrangler dev`), whose config is wrangler.jsonc.
 export default defineConfig({
   plugins: [react()],
-  base: './',
+  // Absolute base: the SPA is served under /b/<boardId> routes, so relative
+  // asset URLs would resolve against the wrong path (/b/assets/... → 404 →
+  // SPA fallback → text/html instead of JS).
+  base: '/',
   build: {
     outDir: 'dist/client',
     emptyOutDir: true,

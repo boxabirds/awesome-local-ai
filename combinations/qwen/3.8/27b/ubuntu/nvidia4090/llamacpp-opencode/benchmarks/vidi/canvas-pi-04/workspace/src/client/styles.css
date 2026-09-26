@@ -127,3 +127,221 @@ body {
   pointer-events: none;
   z-index: 10;
 }
+
+/* --- Story 2: sticky notes ------------------------------------------------ */
+
+.board-toolbar {
+  position: fixed;
+  left: 16px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 6px;
+  background: var(--panel-background);
+  border: 1px solid var(--panel-border);
+  border-radius: 10px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+  z-index: 10;
+}
+
+.board-toolbar__sticky {
+  appearance: none;
+  border: 1px solid var(--panel-border);
+  background: #fff;
+  color: var(--text-color);
+  border-radius: 8px;
+  width: 40px;
+  height: 40px;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  padding: 0;
+}
+
+.board-toolbar__sticky:hover {
+  background: #f0f3f7;
+}
+
+.board-toolbar__sticky:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 1px;
+}
+
+.sticky-note {
+  position: absolute;
+  pointer-events: auto;
+  padding: 12px;
+  border-radius: 2px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.18);
+  outline: none;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  cursor: grab;
+}
+
+.sticky-note:active {
+  cursor: grabbing;
+}
+
+.sticky-note[data-selected] {
+  outline: 3px solid var(--focus-ring);
+  outline-offset: 1px;
+}
+
+.sticky-note__text {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-weight: 500;
+  line-height: 1.25;
+  color: var(--text-color);
+}
+
+.sticky-note__editor {
+  position: relative;
+  width: 100%;
+  height: 100%;
+}
+
+.sticky-note__textarea {
+  width: 100%;
+  height: 100%;
+  display: block;
+  resize: none;
+  border: none;
+  outline: none;
+  background: transparent;
+  padding: 0;
+  margin: 0;
+  overflow: hidden;
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-family: inherit;
+  font-weight: 500;
+  line-height: 1.25;
+  color: var(--text-color);
+  cursor: text;
+  user-select: text;
+  -webkit-user-select: text;
+}
+
+.sticky-note__counter {
+  position: absolute;
+  right: 4px;
+  bottom: 2px;
+  font-size: 9px;
+  font-variant-numeric: tabular-nums;
+  color: rgba(31, 36, 43, 0.55);
+  pointer-events: none;
+}
+
+.sticky-note__fade {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 28%;
+  background: linear-gradient(to top, rgba(255, 255, 255, 0.9), transparent);
+  opacity: 0;
+  pointer-events: none;
+  border-radius: 0 0 2px 2px;
+}
+
+.sticky-note.has-fade .sticky-note__fade {
+  opacity: 1;
+}
+
+/* The floating note toolbar: anchored at the note's top centre in world
+   space, then counter-scaled so it keeps a constant on-screen size. */
+.note-toolbar-anchor {
+  position: absolute;
+  left: 50%;
+  top: 0;
+  width: 0;
+  height: 0;
+  pointer-events: none;
+}
+
+.note-toolbar-scaled {
+  position: absolute;
+  left: 0;
+  top: 0;
+  transform-origin: 50% 100%;
+  pointer-events: auto;
+}
+
+.note-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 5px 6px;
+  background: var(--panel-background);
+  border: 1px solid var(--panel-border);
+  border-radius: 8px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.12);
+}
+
+.note-toolbar__swatch {
+  appearance: none;
+  width: 18px;
+  height: 18px;
+  border: 1px solid rgba(0, 0, 0, 0.2);
+  border-radius: 4px;
+  cursor: pointer;
+  padding: 0;
+}
+
+.note-toolbar__swatch[aria-pressed='true'] {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 1px;
+}
+
+.note-toolbar__delete {
+  appearance: none;
+  border: 1px solid var(--panel-border);
+  background: #fff;
+  border-radius: 4px;
+  width: 26px;
+  height: 26px;
+  display: grid;
+  place-items: center;
+  color: #b42318;
+  cursor: pointer;
+  margin-left: 2px;
+  padding: 0;
+}
+
+
+/* --- Story 3: connection status badge -------------------------------------- */
+
+.connection-status {
+  position: fixed;
+  top: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 6px 12px;
+  background: var(--panel-background);
+  border: 1px solid var(--panel-border);
+  border-radius: 999px;
+  font-size: 13px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+  pointer-events: none;
+  z-index: 10;
+}
+
+.connection-status[data-state='connecting'] {
+  color: #92400e;
+}
+
+.connection-status[data-state='reconnecting'] {
+  color: #b42318;
+}
+
+.connection-status[data-state='confirmed'] {
+  color: #067647;
+}

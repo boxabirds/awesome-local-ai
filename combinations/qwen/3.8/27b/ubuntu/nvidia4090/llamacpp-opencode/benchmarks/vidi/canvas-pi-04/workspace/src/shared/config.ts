@@ -69,3 +69,23 @@ export type StickyColor = keyof typeof STICKY_COLORS;
 
 /** Colour of newly created notes. */
 export const DEFAULT_STICKY_COLOR: StickyColor = 'yellow';
+
+// --- Story 3: live collaboration -------------------------------------------
+
+/**
+ * Soft board capacity: the design and tests target this many simultaneous
+ * editors. Deliberately never enforced by the worker (live.over_capacity).
+ */
+export const MAX_CONCURRENT_EDITORS = 5;
+
+/** A change made on one client must be visible on every other within this. */
+export const LIVE_UPDATE_LATENCY_BUDGET_MS = 1000;
+
+/** WebsocketProvider `maxBackoffTime` for reconnect attempts. */
+export const RECONNECT_MAX_BACKOFF_MS = 10_000;
+
+/** How long the green "Connected" badge stays visible after a reconnect. */
+export const CONNECTED_CONFIRMATION_MS = 2000;
+
+/** Length of the simulated network outage in the catch-up e2e test. */
+export const CATCH_UP_TEST_OUTAGE_MS = 30_000;
