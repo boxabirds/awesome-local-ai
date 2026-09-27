@@ -44,4 +44,17 @@ function defaultSpeed(duration, speeds, minPlay) {
   return fit.length ? Math.max(...fit, Math.min(...speeds)) : Math.min(...speeds);
 }
 
-if (typeof module !== "undefined") module.exports = { frameAt, timeline, defaultSpeed };
+// The next check's time after t (dir 1) or the previous one before it (dir -1); null when the path
+// has none left that way, so the caller moves on to the next or previous path.
+function nextCheck(checks, t, dir, eps) {
+  const x = dir > 0 ? checks.find(c => c > t + eps) : [...checks].reverse().find(c => c < t - eps);
+  return x === undefined ? null : x;
+}
+
+// Where to go from path i of n in the story: {path} within it, or {story: ±1} off either end.
+function nextSpot(n, i, dir) {
+  const j = i + dir;
+  return j >= 0 && j < n ? {path: j} : {story: dir};
+}
+
+if (typeof module !== "undefined") module.exports = { frameAt, timeline, defaultSpeed, nextCheck, nextSpot };

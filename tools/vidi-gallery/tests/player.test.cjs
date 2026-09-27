@@ -1,7 +1,7 @@
 // node --test tools/vidi-gallery/tests/  — the review player's time maths (src/player.js).
 const test = require("node:test");
 const assert = require("node:assert");
-const { frameAt, timeline, defaultSpeed } = require("../src/player.js");
+const { frameAt, timeline, defaultSpeed, nextCheck, nextSpot } = require("../src/player.js");
 
 test("the frame shown at t is the last one at or before t, for each page separately", () => {
   const p1 = [[10, "a"], [20, "b"], [30, "c"]], p2 = [[25, "x"]];
@@ -39,4 +39,23 @@ test("short paths play slowly enough to watch", () => {
   assert.strictEqual(defaultSpeed(400, SPEEDS, MIN_PLAY_MS), 0.1);     // a 0.4 s test: slowest
   assert.strictEqual(defaultSpeed(3000, SPEEDS, MIN_PLAY_MS), 0.25);
   assert.strictEqual(defaultSpeed(30000, SPEEDS, MIN_PLAY_MS), 1);
+});
+
+test("→ and ← step through the checks, then report that the path has run out", () => {
+  const checks = [100, 200, 300], EPS = 1;
+  assert.strictEqual(nextCheck(checks, 0, 1, EPS), 100);
+  assert.strictEqual(nextCheck(checks, 100, 1, EPS), 200);
+  assert.strictEqual(nextCheck(checks, 300, 1, EPS), null);    // past the last check: move on
+  assert.strictEqual(nextCheck(checks, 300, -1, EPS), 200);
+  assert.strictEqual(nextCheck(checks, 100, -1, EPS), null);   // before the first: move back
+  assert.strictEqual(nextCheck([], 0, 1, EPS), null);
+});
+
+test("moving on from a path goes to the next path, then off the end of the story", () => {
+  // three paths in the story; i is the current one's position
+  assert.deepStrictEqual(nextSpot(3, 0, 1), {path: 1});
+  assert.deepStrictEqual(nextSpot(3, 2, 1), {story: 1});      // last path → next story
+  assert.deepStrictEqual(nextSpot(3, 0, -1), {story: -1});    // first path → previous story
+  assert.deepStrictEqual(nextSpot(3, -1, 1), {path: 0});      // nothing selected yet → the first
+  assert.deepStrictEqual(nextSpot(0, -1, 1), {story: 1});     // a story with no recorded paths
 });
