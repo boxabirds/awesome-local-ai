@@ -5197,7 +5197,15 @@
           "found": 1,
           "total": 1
         }
-      ]
+      ],
+      "record": {
+        "committed": true,
+        "pushed": true,
+        "over_size_limit": [
+          "~/.spec-bench/awesome-local-ai/combinations/qwen/3.8/flash-next/macos/128GB/mlxserve-opencode/benchmarks/vidi/canvas-mlx-01/server.log"
+        ],
+        "commit": "e95a4218"
+      }
     }
   },
   "pack": "vidi",
