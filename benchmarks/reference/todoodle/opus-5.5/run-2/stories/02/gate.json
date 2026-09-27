@@ -1,0 +1,62 @@
+{
+  "steps": {
+    "install": {
+      "cmd": "bun install",
+      "exit": 0,
+      "seconds": 1.0,
+      "tail": "bun install v1.2.17 (282dda62)\n\nChecked 438 installs across 555 packages (no changes) [998.00ms]\n\n$ node scripts/ensure-workerd.mjs\n"
+    },
+    "build": {
+      "cmd": "bun run build",
+      "exit": 0,
+      "seconds": 1.3,
+      "tail": "\u001b[36mvite v7.3.6 \u001b[32mbuilding client environment for production...\u001b[36m\u001b[39m\ntransforming...\n\u001b[32m\u2713\u001b[39m 398 modules transformed.\nrendering chunks...\ncomputing gzip size...\n\u001b[2mdist/\u001b[22m\u001b[32mindex.html                           \u001b[39m\u001b[1m\u001b[2m  0.44 kB\u001b[22m\u001b[1m\u001b[22m\u001b[2m \u2502 gzip:   0.28 kB\u001b[22m\n\u001b[2mdist/\u001b[22m\u001b[2massets/\u001b[22m\u001b[35mindex-CDS9Jjbt.css            \u001b[39m\u001b[1m\u001b[2m 16.52 kB\u001b[22m\u001b[1m\u001b[22m\u001b[2m \u2502 gzip:   4.35 kB\u001b[22m\n\u001b[2mdist/\u001b[22m\u001b[2massets/\u001b[22m\u001b[36mWorkspace-DQiqjiz8.js         \u001b[39m\u001b[1m\u001b[2m  6.94 kB\u001b[22m\u001b[1m\u001b[22m\u001b[2m \u2502 gzip:   2.81 kB\u001b[22m\n\u001b[2mdist/\u001b[22m\u001b[2massets/\u001b[22m\u001b[36museWorkspaceLink-CS0MMsXC.js  \u001b[39m\u001b[1m\u001b[2m  9.92 kB\u001b[22m\u001b[1m\u001b[22m\u001b[2m \u2502 gzip:   3.67 kB\u001b[22m\n\u001b[2mdist/\u001b[22m\u001b[2massets/\u001b[22m\u001b[36mSharePanel-BTz5HjuZ.js        \u001b[39m\u001b[1m\u001b[2m 42.69 kB\u001b[22m\u001b[1m\u001b[22m\u001b[2m \u2502 gzip:  14.83 kB\u001b[22m\n\u001b[2mdist/\u001b[22m\u001b[2massets/\u001b[22m\u001b[36mindex-DDJQFChi.js             \u001b[39m\u001b[1m\u001b[2m446.66 kB\u001b[22m\u001b[1m\u001b[22m\u001b[2m \u2502 gzip: 137.46 kB\u001b[22m\n\u001b[32m\u2713 built in 1.03s\u001b[39m\n$ vite build apps/web\n\u001b[33mnode_modules/zod/v4/core/regexes.js (74:0): A comment\n\n\"/** Anchors a pattern source. The interpolation lives here rather than at the call site because\n * esbuild will not drop a `@__PURE__` call whose own argument interpolates a variable, but it\n * will drop `anchor(dateSource)`. Keeping it inline pinned `date` into every bundle. */\"\n\nin \"node_modules/zod/v4/core/regexes.js\" contains an annotation that Rollup cannot interpret due to the position of the comment. The comment will be removed to avoid issues.\u001b[39m\n\u001b[33mnode_modules/zod/v4/core/util.js (400:0): A comment\n\n\"// Wrapped in a `@__PURE__` IIFE: esbuild never tree-shakes a top-level initializer that contains a member access on `Number`, so the bare object literal survived into every bundle.\"\n\nin \"node_modules/zod/v4/core/util.js\" contains an annotation that Rollup cannot interpret due to the position of the comment. The comment will be removed to avoid issues.\u001b[39m\n",
+      "passed": null,
+      "failed": null
+    },
+    "typecheck": {
+      "cmd": "bun run typecheck",
+      "exit": 0,
+      "seconds": 4.0,
+      "tail": "$ tsc -p apps/api && tsc -p apps/api/tsconfig.node.json && tsc -p apps/web && tsc -p packages/shared && tsc -p scripts\n",
+      "passed": null,
+      "failed": null
+    },
+    "lint": {
+      "cmd": "bun run lint",
+      "exit": 0,
+      "seconds": 0.5,
+      "tail": "$ eslint apps/web\n",
+      "passed": null,
+      "failed": null
+    },
+    "test:unit": {
+      "cmd": "bun run test:unit",
+      "exit": 0,
+      "seconds": 3.9,
+      "tail": "\n RUN  v4.1.11 ~/.vidi-bench/work/benchmarks__reference__todoodle__opus-5.5__run-2/workspace/apps/api\n\n\n Test Files  6 passed (6)\n      Tests  69 passed (69)\n   Start at  13:17:52\n   Duration  1.74s (transform 1.72s, setup 5.67s, import 63ms, tests 137ms, environment 2ms)\n\n\n RUN  v4.1.11 ~/.vidi-bench/work/benchmarks__reference__todoodle__opus-5.5__run-2/workspace\n\n\n Test Files  5 passed (5)\n      Tests  42 passed (42)\n   Start at  13:17:54\n   Duration  164ms (transform 125ms, setup 0ms, import 198ms, tests 71ms, environment 0ms)\n\n\n RUN  v4.1.11 ~/.vidi-bench/work/benchmarks__reference__todoodle__opus-5.5__run-2/workspace/apps/web\n\n\n Test Files  6 passed (6)\n      Tests  49 passed (49)\n   Start at  13:17:54\n   Duration  822ms (transform 229ms, setup 909ms, import 329ms, tests 787ms, environment 938ms)\n\n$ vitest run --config apps/api/vitest.config.ts --passWithNoTests --project unit && vitest run --config scripts/vitest.config.ts --passWithNoTests --project unit && vitest run --config apps/web/vitest.config.ts --passWithNoTests --project web-unit\n",
+      "passed": 69,
+      "failed": 0
+    },
+    "test:component": {
+      "exit": "missing"
+    },
+    "test:integration": {
+      "cmd": "bun run test:integration",
+      "exit": 0,
+      "seconds": 8.8,
+      "tail": "\n RUN  v4.1.11 ~/.vidi-bench/work/benchmarks__reference__todoodle__opus-5.5__run-2/workspace/apps/api\n\n\n Test Files  7 passed (7)\n      Tests  66 passed (66)\n   Start at  13:17:56\n   Duration  2.42s (transform 2.48s, setup 8.12s, import 178ms, tests 567ms, environment 1ms)\n\n\n RUN  v4.1.11 ~/.vidi-bench/work/benchmarks__reference__todoodle__opus-5.5__run-2/workspace\n\n\n Test Files  2 passed (2)\n      Tests  14 passed (14)\n   Start at  13:17:58\n   Duration  5.45s (transform 83ms, setup 0ms, import 113ms, tests 5.31s, environment 0ms)\n\n$ vitest run --config apps/api/vitest.config.ts --passWithNoTests --project integration --project production-gate && vitest run --config scripts/vitest.config.ts --passWithNoTests --project integration\n",
+      "passed": 66,
+      "failed": 0
+    },
+    "test:e2e": {
+      "cmd": "bun run test:e2e --project=chromium",
+      "exit": 1,
+      "seconds": 53.3,
+      "tail": "\n      26 |   expect(requested.length).toBeGreaterThan(0);\n        at ~/.vidi-bench/work/benchmarks__reference__todoodle__opus-5.5__run-2/workspace/e2e/headers.spec.ts:23:55\n\n    Error Context: test-results/headers-document-carries-b-e8b50-errer-and-stays-same-origin-chromium/error-context.md\n\n    attachment #2: trace (application/zip) \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\n    test-results/headers-document-carries-b-e8b50-errer-and-stays-same-origin-chromium/trace.zip\n    Usage:\n\n        npx playwright show-trace test-results/headers-document-carries-b-e8b50-errer-and-stays-same-origin-chromium/trace.zip\n\n    \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\n\n  3) [chromium] \u203a e2e/workspace.spec.ts:82:3 \u203a secret-link workspaces \u203a WF-1 / TC-54 create -> workspace in under a second, Save your link, Share reopens \n\n    Test timeout of 30000ms exceeded.\n\n    Error: page.waitForResponse: Test timeout of 30000ms exceeded.\n\n      38 |   const start = Date.now();\n      39 |   const [response] = await Promise.all([\n    > 40 |     page.waitForResponse((r) => r.url().endsWith('/api/workspaces') && r.request().method() === 'POST'),\n         |          ^\n      41 |     page.getByRole('button', { name: 'Start a new list' }).click(),\n      42 |   ]);\n      43 |   await expect(page.getByLabel('Workspace name')).toHaveValue('My Todoodle');\n        at createFromHome (~/.vidi-bench/work/benchmarks__reference__todoodle__opus-5.5__run-2/workspace/e2e/workspace.spec.ts:40:10)\n        at ~/.vidi-bench/work/benchmarks__reference__todoodle__opus-5.5__run-2/workspace/e2e/workspace.spec.ts:84:21\n\n    Error Context: test-results/workspace-secret-link-work-ac22f-ave-your-link-Share-reopens-chromium/error-context.md\n\n    attachment #2: trace (application/zip) \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\n    test-results/workspace-secret-link-work-ac22f-ave-your-link-Share-reopens-chromium/trace.zip\n    Usage:\n\n        npx playwright show-trace test-results/workspace-secret-link-work-ac22f-ave-your-link-Share-reopens-chromium/trace.zip\n\n    \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\n\n  3 failed\n    [chromium] \u203a e2e/golden-path.spec.ts:4:1 \u203a landing page renders and same-origin /health reports local \n    [chromium] \u203a e2e/headers.spec.ts:4:1 \u203a document carries baseline headers, suppresses referrer and stays same-origin \n    [chromium] \u203a e2e/workspace.spec.ts:82:3 \u203a secret-link workspaces \u203a WF-1 / TC-54 create -> workspace in under a second, Save your link, Share reopens \n  11 passed (53.0s)\n$ playwright test \"--project=chromium\"\n[WebServer] $ wrangler d1 migrations apply DB --local && vite build apps/web && concurrently -k -n web,api \"vite build apps/web --watch\" \"wrangler dev --ip 127.0.0.1 --port 8787\"\n[WebServer] node_modules/zod/v4/core/regexes.js (74:0): A comment\n[WebServer] \n[WebServer] \"/** Anchors a pattern source. The interpolation lives here rather than at the call site because\n[WebServer]  * esbuild will not drop a `@__PURE__` call whose own argument interpolates a variable, but it\n[WebServer]  * will drop `anchor(dateSource)`. Keeping it inline pinned `date` into every bundle. */\"\n[WebServer] \n[WebServer] in \"node_modules/zod/v4/core/regexes.js\" contains an annotation that Rollup cannot interpret due to the position of the comment. The comment will be removed to avoid issues.\n[WebServer] node_modules/zod/v4/core/util.js (400:0): A comment\n[WebServer] \n[WebServer] \"// Wrapped in a `@__PURE__` IIFE: esbuild never tree-shakes a top-level initializer that contains a member access on `Number`, so the bare object literal survived into every bundle.\"\n[WebServer] \n[WebServer] in \"node_modules/zod/v4/core/util.js\" contains an annotation that Rollup cannot interpret due to the position of the comment. The comment will be removed to avoid issues.\nerror: script \"test:e2e\" exited with code 1\n",
+      "passed": 11,
+      "failed": 3
+    }
+  },
+  "all_green": false
+}
