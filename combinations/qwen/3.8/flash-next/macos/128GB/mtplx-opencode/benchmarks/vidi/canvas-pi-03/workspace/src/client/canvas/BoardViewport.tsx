@@ -7,6 +7,10 @@ function mod(v: number, s: number): number {
   return ((v % s) + s) % s;
 }
 
+/** The rect a Text-tool press with no drag creates: a line-high block, in
+ * screen px at zoom 1 (the owner divides by zoom). */
+const DEFAULT_BLOCK_PX = { width: 240, height: 64 };
+
 function measure(el: HTMLElement): Size {
   const w = el.clientWidth || (typeof window !== 'undefined' ? window.innerWidth : 1280);
   const h = el.clientHeight || (typeof window !== 'undefined' ? window.innerHeight : 800);
@@ -46,6 +50,12 @@ export interface BoardViewportProps {
   /** A completed Shift+drag (past the drag threshold), in viewport-relative
    * screen space. The owner converts to world and hit-tests. */
   onMarqueeCommit?(rect: { x: number; y: number; width: number; height: number }, additive: boolean): void;
+  /** The active tool. 'text' turns a press-drag on empty board into the
+   * creation of a block; 'select' (the default) keeps the marquee. */
+  tool?: 'select' | 'text';
+  /** A block released with the Text tool, in viewport-relative screen space.
+   * A press with no drag reports the default block rect at the press point. */
+  onCreateBlock?(rect: { x: number; y: number; width: number; height: number }): void;
 }
 
 /**
@@ -53,7 +63,7 @@ export interface BoardViewportProps {
  * CSS transform is driven by the camera, and the input handlers (drag, wheel,
  * Safari gesture, keyboard) that turn raw events into camera changes.
  */
-export function BoardViewport({ children, size, api: apiProp, onSize, onEmptyClick, onEmptyDblClick, onMarqueeChange, onMarqueeCommit }: BoardViewportProps) {
+export function BoardViewport({ children, size, api: apiProp, onSize, onEmptyClick, onEmptyDblClick, onMarqueeChange, onMarqueeCommit, tool = 'select', onCreateBlock }: BoardViewportProps) {
   const elRef = useRef<HTMLDivElement>(null);
   const [measured, setMeasured] = useState<Size>(() => ({ width: 1280, height: 800 }));
   // Tracks a press that began on empty space so a later pointerup can tell a
@@ -61,6 +71,9 @@ export function BoardViewport({ children, size, api: apiProp, onSize, onEmptyCli
   const emptyPress = useRef<{ x: number; y: number; moved: boolean } | null>(null);
   // Tracks a Shift+drag marquee (viewport-relative), independent of panning.
   const marquee = useRef<{ x0: number; y0: number; x: number; y: number; moved: boolean; additive: boolean } | null>(null);
+  // Tracks a Text-tool press: the same rectangle, but released it creates a
+  // block instead of selecting (contract `text.tool`).
+  const draw = useRef<{ x0: number; y0: number; x: number; y: number; moved: boolean } | null>(null);
   const [marqueeRect, setMarqueeRect] = useState<{ x: number; y: number; width: number; height: number } | null>(null);
 
   // Always call the hook (rules of hooks); the injected api wins when present.
@@ -179,6 +192,18 @@ export function BoardViewport({ children, size, api: apiProp, onSize, onEmptyCli
     // Drag only begins on empty space: the target must be the viewport itself,
     // so later object layers can stopPropagation and win their own gestures.
     if (e.target !== e.currentTarget) return;
+    if (tool === 'text' && onCreateBlock !== undefined) {
+      // The Text tool owns the press: the same rectangle as a marquee, but it
+      // draws a block and the board does not pan under it.
+      e.stopPropagation();
+      (e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId);
+      const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+      const p = { x: e.clientX - rect.left, y: e.clientY - rect.top };
+      draw.current = { x0: p.x, y0: p.y, x: p.x, y: p.y, moved: false };
+      setMarqueeRect({ x: p.x, y: p.y, width: 0, height: 0 });
+      onMarqueeChange?.({ x: p.x, y: p.y, width: 0, height: 0 });
+      return;
+    }
     (e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId);
     emptyPress.current = { x: e.clientX, y: e.clientY, moved: false };
     api.beginPan({ x: e.clientX, y: e.clientY });
@@ -195,6 +220,23 @@ export function BoardViewport({ children, size, api: apiProp, onSize, onEmptyCli
   };
 
   const handlePointerMove = (e: ReactPointerEvent<HTMLDivElement>) => {
+    if (draw.current) {
+      const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+      const p = { x: e.clientX - rect.left, y: e.clientY - rect.top };
+      const start = draw.current;
+      if (Math.hypot(p.x - start.x0, p.y - start.y0) >= DRAG_THRESHOLD_PX) draw.current.moved = true;
+      start.x = p.x;
+      start.y = p.y;
+      const r = {
+        x: Math.min(start.x0, p.x),
+        y: Math.min(start.y0, p.y),
+        width: Math.abs(p.x - start.x0),
+        height: Math.abs(p.y - start.y0),
+      };
+      setMarqueeRect(r);
+      onMarqueeChange?.(r);
+      return;
+    }
     if (marquee.current) {
       const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
       const p = { x: e.clientX - rect.left, y: e.clientY - rect.top };
@@ -236,6 +278,20 @@ function cancelMarquee(
 
   const handleEndPan = (e: ReactPointerEvent<HTMLDivElement>) => {
     (e.currentTarget as HTMLElement).releasePointerCapture?.(e.pointerId);
+    if (draw.current) {
+      const d = draw.current;
+      draw.current = null;
+      setMarqueeRect(null);
+      onMarqueeChange?.(null);
+      // A release anywhere counts, including a plain click: the tool's whole
+      // point is to place a block. A press with no drag gets the default rect.
+      const dragged = d.moved
+        ? { x: Math.min(d.x0, d.x), y: Math.min(d.y0, d.y), width: Math.abs(d.x - d.x0), height: Math.abs(d.y - d.y0) }
+        : { x: d.x0, y: d.y0, width: DEFAULT_BLOCK_PX.width, height: DEFAULT_BLOCK_PX.height };
+      onCreateBlock?.(dragged);
+      api.endPan();
+      return;
+    }
     if (marquee.current) {
       const m = marquee.current;
       marquee.current = null;
@@ -275,7 +331,9 @@ function cancelMarquee(
         inset: 0,
         overflow: 'hidden',
         touchAction: 'none',
-        cursor: api.mode === 'panning' ? 'grabbing' : 'grab',
+        // The Text tool shows a caret cursor: the board says what the next
+        // click will do before the pointer ever moves.
+        cursor: api.mode === 'panning' ? 'grabbing' : tool === 'text' ? 'text' : 'grab',
         backgroundColor: '#fafafa',
         backgroundImage:
           'radial-gradient(circle at 1px 1px, rgba(17,17,17,0.22) 1px, rgba(0,0,0,0) 1.5px)',
@@ -286,7 +344,14 @@ function cancelMarquee(
       onPointerMove={handlePointerMove}
       onPointerUp={handleEndPan}
       onPointerCancel={handleEndPan}
-      onPointerLeave={() => cancelMarquee(marquee, onMarqueeChange)}
+      onPointerLeave={() => {
+        cancelMarquee(marquee, onMarqueeChange);
+        if (draw.current !== null) {
+          draw.current = null;
+          setMarqueeRect(null);
+          onMarqueeChange?.(null);
+        }
+      }}
       onLostPointerCapture={() => api.endPan()}
       onDoubleClick={handleDoubleClick}
     >

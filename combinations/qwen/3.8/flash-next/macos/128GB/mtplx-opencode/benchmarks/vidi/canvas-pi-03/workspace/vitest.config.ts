@@ -4,6 +4,14 @@ import { defineWorkersProject } from '@cloudflare/vitest-pool-workers/config';
 
 export default defineConfig({
   plugins: [react()],
+  // The repo's own alias style (tsconfig `paths`): `@/…` is `src/…` and
+  // `@shared/…` is `src/shared/…`. Tests import through the same specifiers.
+  resolve: {
+    alias: {
+      '@shared': new URL('./src/shared', import.meta.url).pathname,
+      '@': new URL('./src', import.meta.url).pathname,
+    },
+  },
   test: {
     globals: true,
     projects: [

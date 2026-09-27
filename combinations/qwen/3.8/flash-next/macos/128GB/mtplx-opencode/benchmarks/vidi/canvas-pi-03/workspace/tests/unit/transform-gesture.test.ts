@@ -208,16 +208,31 @@ describe('transform gesture: bounding-box resize', () => {
   });
 
   it('a selection of non-resizable types has no gesture at all', () => {
-    // 'text' is deliberately not registered: an unknown type is skipped by every
-    // generic operation, so it cannot be half-resized.
-    const text = plant('text', { x: 0, y: 0, width: 100, height: 40 });
-    const raw = () => doc.getMap<Y.Map<unknown>>('objects').get(text)!.get('width');
-    expect(objectBounds(doc, text)).toBeNull();
+    // 'shape9' is deliberately not registered: an unknown type is skipped by every
+    // generic operation, so it cannot be half-resized. (Story 9 registered the
+    // real 'text' type, so it can no longer stand in for an unknown kind.)
+    const unknown = plant('shape9', { x: 0, y: 0, width: 100, height: 40 });
+    const raw = () => doc.getMap<Y.Map<unknown>>('objects').get(unknown)!.get('width');
+    expect(objectBounds(doc, unknown)).toBeNull();
     const g = makeGesture();
-    g.beginResize('se', [text], { x: 0, y: 0, width: 100, height: 40 }, { x: 0, y: 0 });
+    g.beginResize('se', [unknown], { x: 0, y: 0, width: 100, height: 40 }, { x: 0, y: 0 });
     expect(g.active).toBe(false);
     expect(g.update({ x: 200, y: 200 }, 200)).toBe(false);
     expect(raw()).toBe(100);
+  });
+
+  it('story 9: a registered text block resizes through the e handle, width only', () => {
+    // The generic gesture now accepts `text`: it is resizable and not
+    // aspect-locked, and a horizontal handle leaves the height alone.
+    const text = plant('text', { x: 0, y: 0, width: 200, height: 40 });
+    expect(getObjectType('text')?.handles).toBe('horizontal');
+    expect(objectBounds(doc, text)).not.toBeNull();
+    const g = makeGesture();
+    g.beginResize('e', [text], { x: 0, y: 0, width: 200, height: 40 }, { x: 0, y: 0 });
+    g.update({ x: 120, y: 40 }, 120);
+    const out = boundsOf(text)!;
+    expect(out.width).toBeCloseTo(320);
+    expect(out.height).toBeCloseTo(40); // height is derived from the text, not dragged
   });
 });
 

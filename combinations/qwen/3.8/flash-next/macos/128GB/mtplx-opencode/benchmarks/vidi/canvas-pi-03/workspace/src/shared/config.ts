@@ -136,3 +136,31 @@ export const LINK_COPIED_MS = 2000;
 /** Base backoff for the board-existence retry; doubles up to
  * RECONNECT_MAX_BACKOFF_MS (story 3). */
 export const BOARD_CHECK_RETRY_BASE_MS = 1000;
+
+// --- Free text (story 9) -----------------------------------------------------
+
+/** Largest width an auto-width text block may reach, in world units. A longer
+ * line wraps instead of growing past this. */
+export const TEXT_MAX_AUTO_WIDTH_WORLD = 600;
+/** Smallest text width (auto or fixed) in world units: a single short word
+ * still gets a usable box, and a fixed-width drag stops here. */
+export const TEXT_MIN_WIDTH_WORLD = 40;
+/** Text padding on each side of the block, in world units (added to the
+ * measured line width when sizing an auto block). */
+export const TEXT_PADDING_WORLD = 8;
+/** Maximum characters kept in a text block's Y.Text. */
+export const TEXT_MAX_CHARS = 5000;
+/** The four size presets, in world-unit font sizes (S heading … XL title). */
+export const TEXT_SIZES = { S: 14, M: 20, L: 32, XL: 56 } as const;
+export type TextSize = keyof typeof TEXT_SIZES;
+/** Size a new text block starts with. */
+export const DEFAULT_TEXT_SIZE: TextSize = 'M';
+/** Line height multiplier for every text size. */
+export const TEXT_LINE_HEIGHT = 1.3;
+/** Font family text blocks are measured and rendered in. */
+export const TEXT_FONT_FAMILY = 'Inter, system-ui, sans-serif';
+/** Average glyph width as a fraction of the font size, used for the estimate
+ * fallback when no canvas context exists to measure with. */
+export const TEXT_AVG_GLYPH_RATIO = 0.55;
+/** Default tool of the board (Text is entered with T or the toolbar). */
+export const DEFAULT_TOOL = 'select';

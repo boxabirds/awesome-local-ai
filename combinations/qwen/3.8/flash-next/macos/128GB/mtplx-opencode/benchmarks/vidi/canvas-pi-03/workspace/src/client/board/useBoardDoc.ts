@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import * as Y from 'yjs';
-import { initDoc, snapshot, LOCAL_ORIGIN, type StickySnapshot } from '../../shared/board-model';
+import { initDoc, snapshot, objectSnapshots, LOCAL_ORIGIN, type AnySnapshot, type StickySnapshot } from '../../shared/board-model';
 import { connectBoard, type ConnectionState, type ConnectBoardOptions } from '../sync/connectBoard';
 
 /**
@@ -13,6 +13,8 @@ export interface BoardStore {
   doc: Y.Doc;
   subscribe(listener: () => void): () => void;
   getSnapshot(): readonly StickySnapshot[];
+  /** Every selectable object (notes and text blocks), in paint order. */
+  getObjects(): readonly AnySnapshot[];
   /** Undo the last LOCAL edit (one transaction = one undo step). Remote edits
    * are never undone. Returns true when something was reverted. */
   undo(): boolean;
@@ -23,6 +25,7 @@ function createBoardStore(): BoardStore {
   initDoc(doc);
   const objects = doc.getMap<Y.Map<unknown>>('objects');
   let current = snapshot(doc);
+  let currentObjects = objectSnapshots(doc);
   const listeners = new Set<() => void>();
 
   // App-level Undo (story 7): a single UndoManager over the object map that
@@ -39,6 +42,7 @@ function createBoardStore(): BoardStore {
   // same path, so a synced change re-renders like a local one.
   const observer = () => {
     current = snapshot(doc);
+    currentObjects = objectSnapshots(doc);
     listeners.forEach((l) => l());
   };
   objects.observeDeep(observer);
@@ -54,6 +58,9 @@ function createBoardStore(): BoardStore {
     getSnapshot() {
       return current;
     },
+    getObjects() {
+      return currentObjects;
+    },
     undo() {
       return undoManager.undo() != null;
     },
@@ -63,6 +70,8 @@ function createBoardStore(): BoardStore {
 export interface UseBoardDocResult {
   doc: Y.Doc;
   notes: readonly StickySnapshot[];
+  /** Every selectable object on the board, in paint order (story 9). */
+  objects: readonly AnySnapshot[];
   /** Revert the last local edit (see BoardStore.undo). */
   undo(): boolean;
   /** Live connection state of the board's sync provider ('connected' when
@@ -109,6 +118,7 @@ export function useBoardDoc(
   }, [boardId, syncDisabled]);
 
   const notes = useSyncExternalStore(store.subscribe, store.getSnapshot, store.getSnapshot);
+  const objects = useSyncExternalStore(store.subscribe, store.getObjects, store.getObjects);
 
-  return { doc: store.doc, notes, undo: () => store.undo(), connectionState };
+  return { doc: store.doc, notes, objects, undo: () => store.undo(), connectionState };
 }

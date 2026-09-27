@@ -1,3 +1,4 @@
+import * as Y from 'yjs';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { BoardViewport } from './canvas/BoardViewport';
 import { ZoomControls } from './canvas/ZoomControls';
@@ -11,13 +12,17 @@ import { canEdit } from './sync/connectBoard';
 import type { ConnectBoardOptions } from './sync/connectBoard';
 import { StickyNote } from './objects/StickyNote';
 import { NoteToolbar } from './objects/NoteToolbar';
-import { createSticky, deleteObject, deleteObjects, getStickyText, moveObject, moveObjects, objectBounds, objectsInRect, resizeObjects, setStickyColor, snapshot, LOCAL_ORIGIN } from '../shared/board-model';
+import { createSticky, deleteObject, deleteObjects, getStickyText, moveObject, moveObjects, objectBounds, objectSnapshots, objectsInRect, resizeObjects, setStickyColor, LOCAL_ORIGIN } from '../shared/board-model';
+import { createText, getTextObject, setTextWidthFixed, setTextSize } from '../shared/objects/text';
+import { TextObject } from './objects/TextObject';
+import { toolForKey } from './board/tools';
+import { useTool } from './board/useTool';
 import { SelectionBar, selectionScreenBounds } from '../canvas/SelectionBar';
 import { SelectionBox, type SelectionTransform } from '../canvas/SelectionBox';
 import { clampScale, scaleWithin, unionRect, type Rect } from '../shared/geometry';
-import { anyAspectLocked, anyResizable } from '../shared/object-types';
+import { anyAspectLocked, minSizeOf, selectionResizeMode, allFreeResize } from '../shared/object-types';
 import { TransformGesture } from './board/transform-gesture';
-import { STICKY_SIZE_WORLD, NUDGE_STEP_WORLD, NUDGE_LARGE_STEP_WORLD, STICKY_MIN_SIZE_WORLD, type StickyColor } from '../shared/config';
+import { STICKY_SIZE_WORLD, NUDGE_STEP_WORLD, NUDGE_LARGE_STEP_WORLD, STICKY_MIN_SIZE_WORLD, TEXT_MIN_WIDTH_WORLD, type StickyColor, type TextSize } from '../shared/config';
 import { canZoomIn, canZoomOut, zoomPercent, screenToWorld, worldToScreen, type Size } from './canvas/camera';
 
 function initialSize(): Size {
@@ -57,7 +62,7 @@ export function App({ boardId = null, providerFactory }: AppProps = {}) {
   const [size, setSize] = useState<Size>(initialSize);
   const api = useCamera(size);
   const connectOptions = useMemo<ConnectBoardOptions>(() => ({ providerFactory }), [providerFactory]);
-  const { doc, notes, undo, connectionState } = useBoardDoc(boardId, connectOptions);
+  const { doc, notes, objects, undo, connectionState } = useBoardDoc(boardId, connectOptions);
   const sel = useSelection();
 
   // Latest connection state for the test hook (rendered-state snapshot) and
@@ -65,6 +70,13 @@ export function App({ boardId = null, providerFactory }: AppProps = {}) {
   const connRef = useRefLike(connectionState);
   const editable = canEdit(connectionState);
   const editableRef = useRefLike(editable);
+  // The board's tool (story 9): 'select' by default, 'text' after T or the
+  // palette button, and back to 'select' as soon as a block is placed. A board
+  // that cannot be edited has no tools at all.
+  const tools = useTool(editable);
+  const tool = tools.tool;
+  const toolRef = useRefLike(tool);
+  const setToolRef = useRefLike(tools.setTool);
   // Undo goes through the store's UndoManager (local-origin edits only).
   const undoRef = useRefLike(undo);
 
@@ -99,6 +111,31 @@ export function App({ boardId = null, providerFactory }: AppProps = {}) {
     [docRef, selRef],
   );
 
+  // A block released with the Text tool: the dragged rectangle becomes its box
+  // (width pinned, so later edits rewrap inside it); a plain click makes a
+  // default block that sizes itself to the text. Creation and the first layout
+  // are ONE transaction, so undo removes the block in a single step.
+  const createBlock = useCallback(
+    (rect: { x: number; y: number; width: number; height: number }) => {
+      if (!editableRef.current) return;
+      const cam = apiRef.current.getCamera();
+      const zoom = cam.zoom || 1;
+      const origin = screenToWorld(cam, { x: rect.x, y: rect.y });
+      const dragged = rect.width > 1 && rect.height > 1;
+      const width = Math.max(TEXT_MIN_WIDTH_WORLD, rect.width / zoom);
+      const id = docRef.current.transact(() => {
+        const newId = createText(docRef.current, { x: origin.x, y: origin.y }, 'local');
+        if (newId === null) return null;
+        if (dragged) setTextWidthFixed(docRef.current, newId, width);
+        return newId;
+      }, LOCAL_ORIGIN);
+      if (id === null) return;
+      setToolRef.current('select');
+      selRef.current.startEdit(id);
+    },
+    [apiRef, docRef, selRef],
+  );
+
   // Double-click on empty board: create a note centred on the clicked point.
   const handleEmptyDblClick = useCallback(
     (point: { x: number; y: number }) => {
@@ -125,7 +162,9 @@ export function App({ boardId = null, providerFactory }: AppProps = {}) {
   // no editor may linger. A multi-selection is PRUNED, not dropped: a peer who
   // deletes one of four selected notes leaves the other three selected (TC-35).
   useEffect(() => {
-    const ids = new Set(notes.map((n) => n.id));
+    // Every board object counts, not just notes: a text block removed by a peer
+    // must lose its outline and its editor too (TC-24).
+    const ids = new Set(objects.map((o) => o.id));
     const state = selRef.current;
     const kept = state.ids.filter((id) => ids.has(id));
     if (kept.length !== state.ids.length) {
@@ -134,7 +173,7 @@ export function App({ boardId = null, providerFactory }: AppProps = {}) {
       return;
     }
     if (state.editingId !== null && !ids.has(state.editingId)) state.select(null);
-  }, [notes, selRef]);
+  }, [objects, notes, selRef]);
 
   // Board-wide keyboard handling for the selection (when not editing).
   useEffect(() => {
@@ -147,6 +186,17 @@ export function App({ boardId = null, providerFactory }: AppProps = {}) {
       if (!editableRef.current) return; // load-failed board: no editing at all
       const doc = docRef.current;
 
+      // Tool shortcuts are read before anything that acts on the selection:
+      // `T` enters the Text tool (it creates nothing by itself), Escape leaves
+      // it again, and a combination with Ctrl/Cmd/Alt is never a tool.
+      const nextTool = toolForKey(e);
+      if (nextTool !== null && nextTool !== toolRef.current) {
+        e.preventDefault();
+        toolRef.current = nextTool;
+        setToolRef.current(nextTool);
+        return;
+      }
+
       // App-level Undo: one Ctrl/Cmd+Z reverts the last group edit (one
       // transaction) across every selected object.
       if ((e.ctrlKey || e.metaKey) && (e.key === 'z' || e.key === 'Z')) {
@@ -155,6 +205,7 @@ export function App({ boardId = null, providerFactory }: AppProps = {}) {
         return;
       }
 
+      if (toolRef.current === 'text') return; // the Text tool owns the pointer
       if (e.key === 'n' || e.key === 'N') {
         // "Sticky note" tool shortcut: create a note at the viewport centre.
         e.preventDefault();
@@ -186,7 +237,7 @@ export function App({ boardId = null, providerFactory }: AppProps = {}) {
         // Ctrl/Cmd+A selects every object on the board (contract `selection.select_all`).
         if (!(e.ctrlKey || e.metaKey)) return;
         e.preventDefault();
-        const all = snapshot(doc).map((o) => o.id);
+        const all = objectSnapshots(doc).map((o) => o.id);
         if (all.length > 0) state.setSelection(all);
       } else if (e.key === 'Enter') {
         e.preventDefault();
@@ -213,7 +264,21 @@ export function App({ boardId = null, providerFactory }: AppProps = {}) {
       doc: docRef.current,
       worldToScreen: (p: { x: number; y: number }) => worldToScreen(api.getCamera(), p),
       seedSticky: (x: number, y: number, color?: string) => createSticky(docRef.current, { x, y }, color as never),
-      snapshot: () => snapshot(docRef.current),
+      // Story-9 seam: place a text block and read the board's tool.
+      seedText: (x: number, y: number) => {
+        const id = createText(docRef.current, { x, y }, 'local');
+        if (id !== null) {
+          const record = docRef.current.getMap<Y.Map<unknown>>('objects').get(id);
+          const text = record?.get('text') as Y.Text | undefined;
+          text?.insert(0, 'Went well');
+        }
+        return id;
+      },
+      tool: () => toolRef.current,
+      textBlock: (id: string) => getTextObject(docRef.current, id),
+      // Every selectable object, notes and text blocks alike: story 9 asserts
+      // on `type`, so the hook reports the whole board, not just the notes.
+      snapshot: () => objectSnapshots(docRef.current),
       select: (id: string | null) => selRef.current.select(id),
       startEdit: (id: string) => selRef.current.startEdit(id),
       getState: () => ({
@@ -224,7 +289,7 @@ export function App({ boardId = null, providerFactory }: AppProps = {}) {
       // Story-7 seam: read the whole selection set, not just the primary id.
       selection: () => [...selRef.current.ids],
       selectAll: () => {
-        const all = snapshot(docRef.current).map((o) => o.id);
+        const all = objectSnapshots(docRef.current).map((o) => o.id);
         if (all.length > 0) selRef.current.setSelection(all);
       },
       // Story-3 helpers: mutate the board the same way the UI does, and read
@@ -287,14 +352,15 @@ export function App({ boardId = null, providerFactory }: AppProps = {}) {
   // longer has no geometry to transform.
   const members = useMemo(() => {
     if (sel.ids.length === 0) return [];
-    const out: { id: string; rect: Rect }[] = [];
+    const typeOf = new Map(objects.map((o) => [o.id, o.type]));
+    const out: { id: string; rect: Rect; type: string }[] = [];
     for (const id of sel.ids) {
       const rect = objectBounds(doc, id);
       if (rect === null) continue;
-      out.push({ id, rect });
+      out.push({ id, rect, type: typeOf.get(id) ?? '' });
     }
     return out;
-  }, [sel.ids, notes, doc]);
+  }, [sel.ids, objects, doc]);
 
   // Members are immutable while a box drag runs: the transform is always
   // measured from the box the gesture started with.
@@ -310,7 +376,16 @@ export function App({ boardId = null, providerFactory }: AppProps = {}) {
     [members, boxTransform, cam],
   );
 
-  const resizable = members.length > 0 && anyResizable(['sticky']);
+  // Everything the box offers comes from the registry, never from a per-type
+  // branch: the tightest declaration in the selection decides the handles.
+  const selTypes = useMemo(() => members.map((m) => m.type), [members]);
+  const resizeMode = selectionResizeMode(selTypes);
+  const resizable = resizeMode !== 'none';
+  // A lone sticky keeps its own per-note toolbar and draws no frame; a lone
+  // text block has no toolbar of its own, so its (width-only) handles are the
+  // only way to resize it and the frame is what carries them (TC-22).
+  const boxMode: 'frame' | 'none' =
+    sel.ids.length >= 2 ? 'frame' : sel.ids.length === 1 && resizeMode === 'horizontal' ? 'frame' : 'none';
 
   const applyBoxTransform = useCallback(
     (t: SelectionTransform) => {
@@ -320,9 +395,24 @@ export function App({ boardId = null, providerFactory }: AppProps = {}) {
       if (items.length === 0) return;
       // One clamp for the whole group: the tightest member limit wins, so a
       // cluster shrinks and grows as one (contract `sel.resize`).
-      const limits = items.map((m) => ({ rect: m.rect, minSize: STICKY_MIN_SIZE_WORLD, maxSize: Infinity }));
+      const minSize = minSizeOf(items.map((m) => m.type), STICKY_MIN_SIZE_WORLD);
+      const limits = items.map((m) => ({ rect: m.rect, minSize, maxSize: Infinity }));
       let to = t.to;
-      if (anyAspectLocked(['sticky'])) {
+      const horizontal = selectionResizeMode(items.map((m) => m.type)) === 'horizontal';
+      if (horizontal && items.length === 1) {
+        // One text block: its width is the only thing a handle drives, so the
+        // drag pins the width and the block's own layout re-derives the height
+        // (contract `text.height`). Font size is never touched here.
+        docRef.current.transact(() => {
+          setTextWidthFixed(docRef.current, items[0].id, to.width);
+        }, LOCAL_ORIGIN);
+        return;
+      }
+      if (horizontal) {
+        // A width-only selection keeps its height: the layout re-derives it
+        // from the text, so a drag never drags the height around.
+        to = { x: to.x, y: t.from.y, width: to.width, height: t.from.height };
+      } else if (anyAspectLocked(items.map((m) => m.type))) {
         // Sticky notes stay square: the box is forced back to a square.
         const side = Math.max(to.width, to.height);
         to = { x: to.x, y: to.y, width: side, height: side };
@@ -344,6 +434,43 @@ export function App({ boardId = null, providerFactory }: AppProps = {}) {
   );
 
   const endBoxTransform = useCallback(() => setBoxTransform(null), []);
+
+  // A committed W/H field. Only a selection that resizes freely in both axes
+  // gets the fields, so this is the sticky (and mixed) case: the typed box is
+  // applied the same way a handle drag would, clamps and all.
+  const commitSizeFields = useCallback(
+    (next: { width: number; height: number }) => {
+      if (!editableRef.current) return;
+      const items = membersRef.current;
+      if (items.length === 0) return;
+      if (!Number.isFinite(next.width) || !Number.isFinite(next.height)) return;
+      if (next.width <= 0 || next.height <= 0) return;
+      const from = items.map((m) => m.rect).reduce<Rect | null>((acc, r) => unionRect(acc, r), null);
+      if (from === null) return;
+      applyBoxTransform({
+        handle: 'se',
+        additive: false,
+        from,
+        to: { x: from.x, y: from.y, width: next.width, height: next.height },
+      });
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [applyBoxTransform, membersRef],
+  );
+
+  // The size stepper: exactly one selected text block gets S/M/L/XL. Changing
+  // the size re-measures the block through its own box sync, and never moves
+  // it (contract `text.object`).
+  const selectedObject = sel.ids.length === 1 ? objects.find((o) => o.id === sel.selectedId) : undefined;
+  const textToolbar =
+    selectedObject !== undefined && selectedObject.type === 'text'
+      ? {
+          size: ((selectedObject as { size?: TextSize }).size ?? 'M') as TextSize,
+          onSize: (size: TextSize) => {
+            setTextSize(doc, selectedObject.id, size);
+          },
+        }
+      : null;
 
   // A committed Shift+drag: everything the rectangle touched is selected, in
   // one transaction, on release. Hit-testing goes through the registry so a
@@ -393,7 +520,26 @@ export function App({ boardId = null, providerFactory }: AppProps = {}) {
         onEmptyClick={handleEmptyClick}
         onEmptyDblClick={handleEmptyDblClick}
         onMarqueeCommit={handleMarqueeCommit}
+        tool={tool}
+        onCreateBlock={createBlock}
       >
+        {objects.map((object) =>
+          object.type === 'text' ? (
+            <TextObject
+              key={object.id}
+              block={object}
+              doc={doc}
+              selected={selectedSet.has(object.id)}
+              groupIds={sel.ids}
+              gesture={gesture}
+              editing={sel.editingId === object.id}
+              editable={editable}
+              onSelect={(id) => sel.select(id)}
+              onStartEdit={(id) => sel.startEdit(id)}
+              onEndEdit={sel.endEdit}
+            />
+          ) : null,
+        )}
         {notes.map((note) => (
           <StickyNote
             key={note.id}
@@ -412,7 +558,12 @@ export function App({ boardId = null, providerFactory }: AppProps = {}) {
         ))}
       </BoardViewport>
 
-      <Toolbar onCreateSticky={handleCreateSticky} disabled={!editable} />
+      <Toolbar
+        onCreateSticky={handleCreateSticky}
+        tool={tool}
+        onSelectTool={(next) => setToolRef.current(next)}
+        disabled={!editable}
+      />
 
       {selectedNote && toolbarPos && (
         <div
@@ -437,12 +588,22 @@ export function App({ boardId = null, providerFactory }: AppProps = {}) {
         bounds={boxBounds}
         world={boxWorld}
         camera={cam}
-        mode={sel.ids.length >= 2 ? 'frame' : 'none'}
+        mode={boxMode}
         resizable={resizable}
+        handles={resizeMode === 'horizontal' ? 'horizontal' : 'all'}
         onTransform={applyBoxTransform}
         onTransformEnd={endBoxTransform}
       />
-      <SelectionBar count={sel.ids.length} bounds={boxBounds} resizable={resizable} onDelete={removeSelection} />
+      <SelectionBar
+        count={sel.ids.length}
+        bounds={boxBounds}
+        resizable={resizable}
+        sized={sel.ids.length === 1 && allFreeResize(selTypes)}
+        size={boxWorld !== null ? { width: boxWorld.width, height: boxWorld.height } : null}
+        text={textToolbar}
+        onSize={commitSizeFields}
+        onDelete={removeSelection}
+      />
       <ZoomControls
         zoomPercent={zoomPercent(cam)}
         canZoomIn={canZoomIn(cam)}

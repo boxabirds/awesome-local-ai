@@ -24,6 +24,10 @@ export const RESIZE_HANDLES: readonly { id: HandleId; label: string; dx: number;
 
 const SIZE = 8;
 
+/** The two handles a width-only object offers. */
+export const HORIZONTAL_HANDLES: readonly { id: HandleId; label: string; dx: number; dy: number }[] =
+  RESIZE_HANDLES.filter((h) => h.id === 'e' || h.id === 'w');
+
 export interface SelectionTransform {
   handle: HandleId;
   /** The box the selection had when the gesture began. */
@@ -44,6 +48,9 @@ export interface SelectionBoxProps {
   mode?: 'frame' | 'none';
   accent?: string;
   resizable?: boolean;
+  /** 'horizontal' shows only the left/right handles: the height of such a
+   * selection follows its content, so a top/bottom handle would fight it. */
+  handles?: 'all' | 'horizontal';
   /** Screen-space rectangle of an in-progress marquee, if any. */
   marquee?: { left: number; top: number; width: number; height: number } | null;
   onTransform?: (t: SelectionTransform) => void;
@@ -70,6 +77,7 @@ export function SelectionBox({
   mode = 'frame',
   accent = '#6366f1',
   resizable = true,
+  handles = 'all',
   marquee = null,
   onTransform,
   onTransformEnd,
@@ -109,7 +117,7 @@ export function SelectionBox({
     >
       {marquee ? <Marquee rect={marquee} accent={accent} /> : null}
       {resizable
-        ? RESIZE_HANDLES.map((h) => (
+        ? (handles === 'horizontal' ? HORIZONTAL_HANDLES : RESIZE_HANDLES).map((h) => (
             <button
               key={h.id}
               type="button"

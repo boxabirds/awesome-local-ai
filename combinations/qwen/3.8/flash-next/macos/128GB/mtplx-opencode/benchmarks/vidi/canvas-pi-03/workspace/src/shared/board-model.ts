@@ -20,7 +20,17 @@
 //       }
 
 import * as Y from 'yjs';
-import { STICKY_SIZE_WORLD, STICKY_MIN_SIZE_WORLD, MAX_OBJECT_SIZE_WORLD, DEFAULT_STICKY_COLOR, STICKY_COLORS, type StickyColor } from './config';
+import {
+  STICKY_SIZE_WORLD,
+  STICKY_MIN_SIZE_WORLD,
+  MAX_OBJECT_SIZE_WORLD,
+  DEFAULT_STICKY_COLOR,
+  STICKY_COLORS,
+  TEXT_SIZES,
+  DEFAULT_TEXT_SIZE,
+  type StickyColor,
+  type TextSize,
+} from './config';
 import type { Rect } from './geometry';
 import { isFiniteRect } from './geometry';
 import { getObjectType } from './object-types';
@@ -29,21 +39,40 @@ import { getObjectType } from './object-types';
  * it for undo scoping and story 3 to avoid echoing changes back. */
 export const LOCAL_ORIGIN: unique symbol = Symbol('vidi6.local');
 
-/** Immutable projection of one sticky note used by React rendering. */
-export interface StickySnapshot {
+/** The part of an object's projection that every kind shares: where it is, how
+ * big it is, and how it stacks. Story 9 made this explicit because `text` (and
+ * every later kind) projects into the same shape. */
+export interface ObjectSnapshot {
   id: string;
-  type: 'sticky';
+  /** Registry key ('sticky', 'text', …). */
+  type: string;
   x: number;
   y: number;
   /** Footprint in world units. Notes created before story 7 carry no explicit
    * size and fall back to `STICKY_SIZE_WORLD` (compatibility requirement). */
   width: number;
   height: number;
-  color: StickyColor;
-  text: string;
   z: number;
   createdAt: number;
 }
+
+/** Immutable projection of one sticky note used by React rendering. */
+export interface StickySnapshot extends ObjectSnapshot {
+  type: 'sticky';
+  color: StickyColor;
+  text: string;
+}
+
+/** Immutable projection of one free-text block (story 9). */
+export interface TextSnapshot extends ObjectSnapshot {
+  type: 'text';
+  text: string;
+  size: TextSize;
+  widthMode: 'auto' | 'fixed';
+}
+
+/** Anything the board can render and select. */
+export type AnySnapshot = StickySnapshot | TextSnapshot;
 
 /** The document key holding the object map. */
 const OBJECTS_KEY = 'objects';
@@ -192,16 +221,21 @@ export function objectBounds(doc: Y.Doc, id: string): Rect | null {
   const x = obj.get('x');
   const y = obj.get('y');
   if (typeof x !== 'number' || typeof y !== 'number') return null;
-  const width = typeof obj.get('width') === 'number' ? (obj.get('width') as number) : STICKY_SIZE_WORLD;
-  const height = typeof obj.get('height') === 'number' ? (obj.get('height') as number) : STICKY_SIZE_WORLD;
+  const spec = getObjectType(obj.get('type') as string | undefined);
+  const fallback = obj.get('type') === 'sticky' ? STICKY_SIZE_WORLD : spec?.minSize ?? 0;
+  const width = typeof obj.get('width') === 'number' ? (obj.get('width') as number) : fallback;
+  const height = typeof obj.get('height') === 'number' ? (obj.get('height') as number) : fallback;
   if (!Number.isFinite(width) || !Number.isFinite(height) || width <= 0 || height <= 0) return null;
   return { x, y, width, height };
 }
 
 /** Read one object's footprint straight from its Y.Map (used by `snapshot`). */
 function boundsOf(obj: Y.Map<unknown>): { width: number; height: number } | null {
-  const width = typeof obj.get('width') === 'number' ? (obj.get('width') as number) : STICKY_SIZE_WORLD;
-  const height = typeof obj.get('height') === 'number' ? (obj.get('height') as number) : STICKY_SIZE_WORLD;
+  // Notes created before story 7 carry no explicit size; everything else must
+  // declare its footprint.
+  const fallback = obj.get('type') === 'sticky' ? STICKY_SIZE_WORLD : 0;
+  const width = typeof obj.get('width') === 'number' ? (obj.get('width') as number) : fallback;
+  const height = typeof obj.get('height') === 'number' ? (obj.get('height') as number) : fallback;
   if (!Number.isFinite(width) || !Number.isFinite(height) || width <= 0 || height <= 0) return null;
   return { width, height };
 }
@@ -298,9 +332,11 @@ export function resizeObjects(doc: Y.Doc, items: ReadonlyMap<string, Rect>): num
     if (!note || !isSelectable(note)) continue;
     if (!rect || !Number.isFinite(rect.x) || !Number.isFinite(rect.y)) continue;
     if (!Number.isFinite(rect.width) || !Number.isFinite(rect.height)) continue;
+    // Each object stops at its OWN declared minimum (contract sel.size_limits).
+    const minSize = getObjectType(note.get('type') as string | undefined)?.minSize ?? STICKY_MIN_SIZE_WORLD;
     let w = rect.width;
     let h = rect.height;
-    if (w < STICKY_MIN_SIZE_WORLD || h < STICKY_MIN_SIZE_WORLD) continue;
+    if (w < minSize || h < minSize) continue;
     if (w > MAX_OBJECT_SIZE_WORLD) w = MAX_OBJECT_SIZE_WORLD;
     if (h > MAX_OBJECT_SIZE_WORLD) h = MAX_OBJECT_SIZE_WORLD;
     writes.push({ note, x: rect.x, y: rect.y, w, h });
@@ -354,31 +390,58 @@ export function bringObjectsToFront(doc: Y.Doc, ids: readonly string[]): number 
   return raised;
 }
 
-/** Project the document into an immutable, render-ready list sorted by
- * `(z, id)` and skipping unknown object types (forward compatibility). */
-export function snapshot(doc: Y.Doc): readonly StickySnapshot[] {
-  const result: StickySnapshot[] = [];
+/** Project one object into its render-ready snapshot, or null when its type is
+ * unknown or its footprint is malformed (a malformed footprint renders nothing
+ * at all, and cannot be selected either). */
+function objectSnapshotOf(id: string, obj: Y.Map<unknown>): AnySnapshot | null {
+  const text = obj.get('text') as Y.Text | undefined;
+  const size = boundsOf(obj);
+  if (!size) return null;
+  const base = {
+    id,
+    x: obj.get('x') as number,
+    y: obj.get('y') as number,
+    width: size.width,
+    height: size.height,
+    z: obj.get('z') as number,
+    createdAt: obj.get('createdAt') as number,
+  };
+  if (obj.get('type') === 'sticky') {
+    const color = obj.get('color') as StickyColor;
+    return { ...base, type: 'sticky', color: color ?? DEFAULT_STICKY_COLOR, text: text ? text.toString() : '' };
+  }
+  if (obj.get('type') === 'text') {
+    const preset = obj.get('size') as TextSize | undefined;
+    const mode = obj.get('widthMode') === 'fixed' ? 'fixed' : 'auto';
+    return {
+      ...base,
+      type: 'text',
+      text: text ? text.toString() : '',
+      size: preset !== undefined && preset in TEXT_SIZES ? preset : DEFAULT_TEXT_SIZE,
+      widthMode: mode,
+    };
+  }
+  return null;
+}
+
+/** Project every known object into an immutable, render-ready list sorted by
+ * `(z, id)` and skipping unknown object types (forward compatibility). Both
+ * story 9's text blocks and the sticky notes come out of here, in paint order. */
+export function objectSnapshots(doc: Y.Doc): readonly AnySnapshot[] {
+  const result: AnySnapshot[] = [];
   objectsMap(doc).forEach((obj, id) => {
     if (!isSelectable(obj)) return; // skip unknown types
-    const color = obj.get('color') as StickyColor;
-    const text = obj.get('text') as Y.Text | undefined;
-    const size = boundsOf(obj);
-    if (!size) return; // a malformed footprint renders nothing at all
-    result.push({
-      id,
-      type: 'sticky',
-      x: obj.get('x') as number,
-      y: obj.get('y') as number,
-      width: size.width,
-      height: size.height,
-      color: color ?? DEFAULT_STICKY_COLOR,
-      text: text ? text.toString() : '',
-      z: obj.get('z') as number,
-      createdAt: obj.get('createdAt') as number,
-    });
+    const snap = objectSnapshotOf(id, obj);
+    if (snap !== null) result.push(snap);
   });
   // Stable render order: sort by stacking, then by id so concurrent equal z
-  // values (possible once story 3 syncs) resolve identically on every client.
+  // values (possible once the board syncs) resolve identically on every client.
   result.sort((a, b) => (a.z !== b.z ? a.z - b.z : a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
   return result;
+}
+
+/** The sticky notes only — kept for the story 1–8 call sites that only ever
+ * understood notes. `objectSnapshots` is the whole board. */
+export function snapshot(doc: Y.Doc): readonly StickySnapshot[] {
+  return objectSnapshots(doc).filter((s): s is StickySnapshot => s.type === 'sticky');
 }

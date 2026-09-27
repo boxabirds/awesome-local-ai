@@ -14,6 +14,19 @@ export interface StickySnapshot {
   text: string;
 }
 
+/** One board object as the test hook reports it: notes AND text blocks. */
+export interface BoardObject {
+  id: string;
+  type: string;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  text: string;
+  size?: string;
+  widthMode?: string;
+}
+
 declare global {
   interface Window {
     __vidi6?: {
@@ -23,7 +36,11 @@ declare global {
       zoomStep(dir: 'in' | 'out'): void;
       worldToScreen(p: { x: number; y: number }): { x: number; y: number };
       seedSticky(x: number, y: number, color?: string): string;
-      snapshot(): StickySnapshot[];
+      seedText(x: number, y: number): string | null;
+      tool(): string;
+      textBlock(id: string): { text: string; size: string; widthMode: string; width: number; height: number } | null;
+      selection(): string[];
+      snapshot(): BoardObject[];
     };
   }
 }
@@ -126,7 +143,7 @@ export async function expectPixelClose(actual: number, expected: number, tol = 1
 
 /** Read the full board model snapshot (sorted by z then id). */
 export function snapshot(page: Page): Promise<StickySnapshot[]> {
-  return page.evaluate(() => window.__vidi6!.snapshot());
+  return page.evaluate(() => window.__vidi6!.snapshot() as unknown as StickySnapshot[]);
 }
 
 /** Seed a sticky note at a world point through the test hook. Returns its id. */
@@ -163,4 +180,110 @@ export async function mouseDrag(page: Page, sx: number, sy: number, dx: number, 
   await page.mouse.down();
   await page.mouse.move(sx + dx, sy + dy, { steps: 4 });
   await page.mouse.up();
+}
+
+// ---- Free-text (story 9) helpers ----
+
+/** Every board object (notes and text blocks), in paint order. */
+export function objectsSnapshot(page: Page): Promise<BoardObject[]> {
+  return page.evaluate(() => window.__vidi6!.snapshot());
+}
+
+/** The text blocks only. */
+export async function textBlocks(page: Page): Promise<BoardObject[]> {
+  return (await objectsSnapshot(page)).filter((o) => o.type === 'text');
+}
+
+/** The board's active tool: 'select' or 'text'. */
+export function toolState(page: Page): Promise<string> {
+  return page.evaluate(() => window.__vidi6!.tool());
+}
+
+/** The selected ids (the whole selection, not just the primary one). */
+export function selectionIds(page: Page): Promise<string[]> {
+  return page.evaluate(() => window.__vidi6!.selection());
+}
+
+/** Seed a text block at a WORLD point (its top-left corner). Test-only hook. */
+export function seedText(page: Page, x: number, y: number): Promise<string | null> {
+  return page.evaluate((a) => window.__vidi6!.seedText(a.x, a.y), { x, y });
+}
+
+/** Locate a rendered text block by id. */
+export function textByld(page: Page, id: string): Locator {
+  return page.locator(`[data-block-id="${id}"]`);
+}
+
+/** Page-space box of a rendered text block (CSS pixels, zoom applied). */
+export async function textBox(page: Page, id: string): Promise<{ x: number; y: number; width: number; height: number }> {
+  const el = textByld(page, id);
+  await el.waitFor({ state: 'visible', timeout: 5_000 });
+  const box = await el.boundingBox();
+  if (!box) throw new Error(`text block ${id} has no bounding box`);
+  return box;
+}
+
+/** Page-space centre of a rendered text block. */
+export async function textCenter(page: Page, id: string): Promise<{ x: number; y: number }> {
+  const box = await textBox(page, id);
+  return { x: box.x + box.width / 2, y: box.y + box.height / 2 };
+}
+
+/** Convert a page-space point to world coordinates through the live camera. */
+export async function screenToWorld(page: Page, pt: { x: number; y: number }): Promise<{ x: number; y: number }> {
+  const cam = await getCamera(page);
+  const zoom = cam.zoom || 1;
+  return { x: pt.x / zoom + cam.x, y: pt.y / zoom + cam.y };
+}
+
+/**
+ * Type into a text block the real way: double-click to open the in-place
+ * editor, fill the textarea, then Escape to close it.
+ */
+export async function typeText(page: Page, id: string, text: string): Promise<void> {
+  await page.keyboard.press('Escape');
+  await page.waitForTimeout(30);
+  const c = await textCenter(page, id);
+  await page.mouse.dblclick(c.x, c.y);
+  const editor = page.getByTestId('text-editor');
+  await editor.waitFor({ state: 'visible', timeout: 3_000 });
+  await editor.fill(text);
+  await page.keyboard.press('Escape');
+  await page.waitForTimeout(30);
+}
+
+/**
+ * Arm the Text tool the keyboard way (the shortcut the PRD describes) and
+ * place a block with a real click, so the whole path runs through the shipped
+ * pointer and key handlers.
+ */
+export async function placeTextByTool(page: Page, x: number, y: number): Promise<void> {
+  await page.keyboard.press('t');
+  await page.mouse.click(x, y);
+}
+
+/** A Shift+drag over empty board: the marquee gesture. */
+export async function marqueeDrag(page: Page, sx: number, sy: number, dx: number, dy: number) {
+  await page.keyboard.down('Shift');
+  await page.mouse.move(sx, sy);
+  await page.mouse.down();
+  await page.mouse.move(sx + dx, sy + dy, { steps: 4 });
+  await page.mouse.up();
+  await page.keyboard.up('Shift');
+}
+
+/**
+ * Type into a text block the real way: double-click to open the in-place
+ * editor, fill the textarea, then Escape to close it.
+ */
+export async function typeText(page: Page, id: string, text: string): Promise<void> {
+  await page.keyboard.press('Escape');
+  await page.waitForTimeout(30);
+  const c = await textCenter(page, id);
+  await page.mouse.dblclick(c.x, c.y);
+  const editor = page.getByTestId('text-editor');
+  await editor.waitFor({ state: 'visible', timeout: 3_000 });
+  await editor.fill(text);
+  await page.keyboard.press('Escape');
+  await page.waitForTimeout(30);
 }

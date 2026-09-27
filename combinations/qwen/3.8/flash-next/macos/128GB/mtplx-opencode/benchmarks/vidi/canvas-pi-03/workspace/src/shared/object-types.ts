@@ -12,7 +12,7 @@
 
 import type { Point, Rect } from './geometry';
 import { rectContainsPoint } from './geometry';
-import { STICKY_MIN_SIZE_WORLD } from './config';
+import { STICKY_MIN_SIZE_WORLD, TEXT_MIN_WIDTH_WORLD } from './config';
 
 export interface ObjectTypeSpec {
   /** Registry key, matching the `type` field stored on the object. */
@@ -29,6 +29,11 @@ export interface ObjectTypeSpec {
   minSize: number;
   /** True → Enter / double-click opens a text editor for it. */
   editableText: boolean;
+  /** Which resize handles a selection of ONLY this kind shows. 'all' is the
+   * eight-handle box; 'horizontal' means the height is derived from the
+   * content and only the left/right edges resize (contract `text.height`).
+   * Defaults to 'all'. */
+  handles?: 'all' | 'horizontal';
   /** Hit test in world space. A point exactly on the edge counts as a hit; a
    * point one unit outside must not (that boundary is asserted in the tests). */
   hitTest(bounds: Rect, point: Point): boolean;
@@ -92,6 +97,58 @@ export function minSizeOf(types: Iterable<string | undefined>, fallback: number)
   return min;
 }
 
+/** True when EVERY type in `types` declares 'horizontal' handles — the only
+ * case where the box drops its corner and edge handles. An unknown type counts
+ * as 'all', so a mixed selection always gets the full box. */
+export function allHorizontalHandles(types: Iterable<string | undefined>): boolean {
+  let seen = false;
+  for (const type of types) {
+    const spec = getObjectType(type);
+    if (!spec || spec.handles !== 'horizontal') return false;
+    seen = true;
+  }
+  return seen;
+}
+
+/** Which resize handles a selection of ONLY this kind shows. */
+export type ResizeMode = 'all' | 'horizontal' | 'none';
+
+/**
+ * The resize mode of one type: 'none' when it is unknown or not resizable
+ * (every generic gesture then skips it), 'horizontal' when only its width is
+ * driven by the pointer, 'all' for the eight-handle box.
+ */
+export function resizeModeOf(type: string | undefined): ResizeMode {
+  const spec = getObjectType(type);
+  if (spec === undefined || !spec.resizable) return 'none';
+  return spec.handles ?? 'all';
+}
+
+/**
+ * The resize mode of a whole selection. It is narrowed to 'horizontal' only
+ * when EVERY member declares that mode — a cluster with one sticky in it keeps
+ * its full eight-handle box, because the box belongs to the group, not to the
+ * tightest member. One unresizable (or unknown) member takes the handles away.
+ */
+export function selectionResizeMode(types: Iterable<string | undefined>): ResizeMode {
+  let all = false;
+  for (const type of types) {
+    const mode = resizeModeOf(type);
+    if (mode === 'none') return 'none';
+    if (mode === 'all') all = true;
+  }
+  if (!all) return 'horizontal';
+  return 'all';
+}
+
+/** True when EVERY type resizes freely in both axes (the W/H fields' case). */
+export function allFreeResize(types: Iterable<string | undefined>): boolean {
+  for (const type of types) {
+    if (resizeModeOf(type) !== 'all') return false;
+  }
+  return true;
+}
+
 /** Sticky notes: resizable, always square, and hit anywhere inside the note. */
 export const STICKY_SPEC: ObjectTypeSpec = {
   type: 'sticky',
@@ -102,8 +159,23 @@ export const STICKY_SPEC: ObjectTypeSpec = {
   hitTest: (bounds, point) => rectContainsPoint(bounds, point),
 };
 
+/** Free text (story 9): width resizes through the e/w handles only — the height
+ * always follows the text, so a top/bottom handle would fight the layout. Not
+ * aspect-locked: dragging a corner of a mixed selection repositions a text
+ * block proportionally without changing its font size. */
+export const TEXT_SPEC: ObjectTypeSpec = {
+  type: 'text',
+  resizable: true,
+  aspectLocked: false,
+  minSize: TEXT_MIN_WIDTH_WORLD,
+  editableText: true,
+  handles: 'horizontal',
+  hitTest: (bounds, point) => rectContainsPoint(bounds, point),
+};
+
 function registerBuiltinTypes(): void {
   registerObjectType(STICKY_SPEC);
+  registerObjectType(TEXT_SPEC);
 }
 
 // Registered on module load; `resetObjectTypes` re-registers after a test wipe.

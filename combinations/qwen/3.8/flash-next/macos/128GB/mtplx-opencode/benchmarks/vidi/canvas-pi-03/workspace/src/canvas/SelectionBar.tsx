@@ -1,5 +1,8 @@
+import { useState } from 'react';
 import type { Camera } from '../client/canvas/camera';
 import { worldToScreen } from '../client/canvas/camera';
+import { TextToolbar } from '../client/objects/TextToolbar';
+import type { TextSize } from '../shared/config';
 
 /** Screen-space bounds of a selection, plus the anchor used for HUD placement. */
 export function selectionScreenBounds(
@@ -33,7 +36,17 @@ export interface SelectionBarProps {
   bounds: { left: number; top: number; width: number; height: number } | null;
   /** True when every member declares itself resizable. */
   resizable: boolean;
+  /** True when the selection may have its size typed in: one object, free
+   * resize in both axes. A cluster gets the handles and the bin only. */
+  sized?: boolean;
+  /** Current size of the selection in world units; a non-finite or empty one
+   * shows a placeholder instead of a value. */
+  size?: { width: number; height: number } | null;
   onDelete?(): void;
+  /** A committed size field (Enter or blur). */
+  onSize?: (next: { width: number; height: number }) => void;
+  /** The size stepper, for a selection of exactly one text block. */
+  text?: { size: TextSize; onSize(size: TextSize): void } | null;
 }
 
 /**
@@ -45,7 +58,16 @@ export interface SelectionBarProps {
  * would force them to repeat the action per object. It is also a real
  * `<button>`, so it is reachable by keyboard and announced by a screen reader.
  */
-export function SelectionBar({ count, bounds, resizable, onDelete }: SelectionBarProps) {
+export function SelectionBar({
+  count,
+  bounds,
+  resizable,
+  sized = false,
+  size = null,
+  onDelete,
+  onSize,
+  text = null,
+}: SelectionBarProps) {
   if (count === 0 || bounds === null) return null;
   return (
     <div
@@ -69,6 +91,15 @@ export function SelectionBar({ count, bounds, resizable, onDelete }: SelectionBa
       <span aria-hidden="true" style={{ fontSize: 11, color: '#475569' }}>
         {count}
       </span>
+      {text !== null ? <TextToolbar size={text.size} onSize={text.onSize} /> : null}
+      {sized && size !== null && onSize !== undefined ? (
+        <SizeFields
+          size={size}
+          onCommit={(next) => {
+            onSize?.(next);
+          }}
+        />
+      ) : null}
       <button
         type="button"
         data-testid="selection-delete"
@@ -103,5 +134,85 @@ export function SelectionBar({ count, bounds, resizable, onDelete }: SelectionBa
         </span>
       ) : null}
     </div>
+  );
+}
+
+/**
+ * W/H fields for one free-resize object: the box's current size, step 4,
+ * committed by Enter or blur. An unparsable or non-positive entry is dropped —
+ * the object keeps its last valid size rather than snapping to something the
+ * user never typed.
+ */
+function SizeFields({
+  size,
+  onCommit,
+}: {
+  size: { width: number; height: number };
+  onCommit: (next: { width: number; height: number }) => void;
+}) {
+  const shown = (value: number) => (Number.isFinite(value) && value > 0 ? String(Math.round(value)) : '');
+  const [width, setWidth] = useState(shown(size.width));
+  const [height, setHeight] = useState(shown(size.height));
+  const [editing, setEditing] = useState<'width' | 'height' | null>(null);
+
+  // A new selection (or a finished drag) repopulates the fields, so they show
+  // the object's real size and never the remnant of the previous one.
+  const key = `${Math.round(size.width)}x${Math.round(size.height)}`;
+  const [lastKey, setLastKey] = useState(key);
+  if (key !== lastKey) {
+    setLastKey(key);
+    setEditing(null);
+    setWidth(shown(size.width));
+    setHeight(shown(size.height));
+  }
+
+  const commit = () => {
+    setEditing(null);
+    const w = Number.parseFloat(width);
+    const h = Number.parseFloat(height);
+    if (!Number.isFinite(w) || !Number.isFinite(h) || w <= 0 || h <= 0) {
+      // Invalid entry: put the real size back instead of resizing to garbage.
+      setWidth(shown(size.width));
+      setHeight(shown(size.height));
+      return;
+    }
+    onCommit({ width: w, height: h });
+  };
+
+  const field = (
+    testid: string,
+    label: string,
+    value: string,
+    setValue: (v: string) => void,
+  ) => (
+    <input
+      type="number"
+      data-testid={testid}
+      aria-label={label}
+      title={label}
+      step={4}
+      value={value}
+      placeholder="—"
+      onPointerDown={(e) => e.stopPropagation()}
+      onFocus={() => setEditing(label.toLowerCase() === 'width' ? 'width' : 'height')}
+      onChange={(e) => {
+        setValue(e.target.value);
+        setEditing(label.toLowerCase() === 'width' ? 'width' : 'height');
+      }}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter') commit();
+        else if (e.key === 'Escape') setEditing(null);
+        e.stopPropagation();
+      }}
+      onBlur={commit}
+      style={{ width: 46, fontSize: 11, padding: '2px 4px', border: '1px solid #cbd5e1', borderRadius: 4 }}
+    />
+  );
+
+  return (
+    <>
+      {field('sel-width', 'Width', editing === 'height' ? height : width, editing === 'height' ? setHeight : setWidth)}
+      {field('sel-height', 'Height', editing === 'width' ? width : height, editing === 'width' ? setWidth : setHeight)}
+    </>
   );
 }
