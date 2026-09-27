@@ -13,10 +13,12 @@ import {
   DEFAULT_STICKY_COLOR,
   STICKY_COLORS,
   STICKY_SIZE_WORLD,
+  TEXT_SIZES,
   type StickyColor,
 } from './config';
 import { rectContains } from './geometry';
 import type { Point, Rect } from './geometry';
+import type { TextSnapshot } from './objects/text';
 
 /**
  * Transaction origin for all local (this client's user) mutations.
@@ -61,6 +63,15 @@ const SCHEMA_VERSION = 1;
 
 function objectsMap(doc: Y.Doc): Y.Map<Y.Map<unknown>> {
   return doc.getMap(OBJECTS_KEY) as Y.Map<Y.Map<unknown>>;
+}
+
+/**
+ * The shared objects map (the `'objects'` top-level type). Exported so the
+ * per-type model modules (sticky, text, ...) can read and write their own
+ * objects without re-deriving the key.
+ */
+export function objectMap(doc: Y.Doc): Y.Map<Y.Map<unknown>> {
+  return objectsMap(doc);
 }
 
 /** Set `meta.schemaVersion = 1` when absent. */
@@ -445,6 +456,16 @@ export function objectSnapshot(doc: Y.Doc): readonly ObjectSnapshot[] {
       sticky.color = isStickyColor(color) ? color : DEFAULT_STICKY_COLOR;
       sticky.text = text instanceof Y.Text ? text.toString() : '';
       sticky.createdAt = asNumber(obj.get('createdAt'), 0);
+    } else if (type === 'text') {
+      const text = snap as TextSnapshot;
+      const content = obj.get('text');
+      text.text = content instanceof Y.Text ? content.toString() : '';
+      const size = obj.get('size');
+      text.size = typeof size === 'string' && size in TEXT_SIZES ? (size as TextSnapshot['size']) : 'M';
+      text.widthMode = obj.get('widthMode') === 'fixed' ? 'fixed' : 'auto';
+      text.createdAt = asNumber(obj.get('createdAt'), 0);
+      const createdBy = obj.get('createdBy');
+      text.createdBy = typeof createdBy === 'string' ? createdBy : '';
     }
     out.push(snap);
   }

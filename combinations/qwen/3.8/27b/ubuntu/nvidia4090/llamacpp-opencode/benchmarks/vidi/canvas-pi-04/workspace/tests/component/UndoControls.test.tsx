@@ -81,7 +81,13 @@ function Harness(props: { controller: UndoController; canEdit: boolean }): JSX.E
   const undo = useUndo(props.controller, props.canEdit);
   return (
     <div>
-      <Toolbar onCreateSticky={() => {}} canEdit={props.canEdit} {...undo} />
+      <Toolbar
+        onCreateSticky={() => {}}
+        canEdit={props.canEdit}
+        tool="select"
+        setTool={() => {}}
+        {...undo}
+      />
       <BoardKeysProbe canEdit={props.canEdit} controller={props.controller} />
       <input aria-label="Share link" />
     </div>

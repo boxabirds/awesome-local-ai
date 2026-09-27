@@ -13,6 +13,7 @@ import type { Point } from '../../shared/geometry';
 import { getObjectType } from '../objects/registry';
 import type { SelectionApi } from './useSelection';
 import type { UndoController } from './undo';
+import type { Tool } from './useTool';
 
 export interface BoardKeysOptions {
   doc: Y.Doc;
@@ -21,6 +22,10 @@ export interface BoardKeysOptions {
   canEdit: boolean;
   /** Story 8: undo/redo shortcuts and step boundaries for Delete/nudge. */
   undo?: UndoController | null;
+  /** Story 9: tool shortcuts (V/Escape -> Select, T -> Text) and N (sticky at view centre). */
+  tool?: { tool: Tool; setTool(tool: Tool): void } | null;
+  /** Story 9: N creates a sticky note at the view centre (story 2 behaviour). */
+  onCreateStickyAtCenter?: (() => void) | null;
 }
 
 function isTypingTarget(target: EventTarget | null): boolean {
@@ -36,7 +41,8 @@ export function useBoardKeys(opts: BoardKeysOptions): void {
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent): void => {
       if (isTypingTarget(e.target)) return;
-      const { doc, selection, snapshot, canEdit, undo } = optsRef.current;
+      const { doc, selection, snapshot, canEdit, undo, tool, onCreateStickyAtCenter } =
+        optsRef.current;
       if (selection.editingId !== null) return;
 
       // Select all (non-mutating: selection only, allowed read-only).
@@ -46,9 +52,29 @@ export function useBoardKeys(opts: BoardKeysOptions): void {
         return;
       }
 
-      // Escape clears the selection (non-mutating).
+      // Story 9: tool shortcuts (text.tool). Plain keys only (no modifiers),
+      // and never while typing (guarded above by isTypingTarget + editingId):
+      // T while editing a note types 't' (TC-16).
+      if (!e.ctrlKey && !e.metaKey && !e.altKey) {
+        if (e.key === 'v' || e.key === 'V') {
+          tool?.setTool('select');
+          return;
+        }
+        if (e.key === 't' || e.key === 'T') {
+          tool?.setTool('text'); // ignored when the board is read-only
+          return;
+        }
+        if (e.key === 'n' || e.key === 'N') {
+          if (canEdit) onCreateStickyAtCenter?.();
+          return;
+        }
+      }
+
+      // Escape: back to the Select tool (story 9, text.tool), then clear the
+      // selection (story 7). Both are non-mutating.
       if (e.key === 'Escape') {
         e.preventDefault();
+        tool?.setTool('select');
         selection.clear();
         return;
       }

@@ -178,3 +178,34 @@ export const UNDO_CAPTURE_TIMEOUT_MS = 500;
  * same bound.
  */
 export const UNDO_MAX_STEPS = 200;
+
+// ---------------------------------------------------------------------------
+// Story 9: write free text anywhere on the board.
+// ---------------------------------------------------------------------------
+
+/** Maximum width of an auto-width text box, in world units. */
+export const TEXT_MAX_AUTO_WIDTH_WORLD = 600;
+
+/** Minimum width a text object may be resized to, in world units. */
+export const TEXT_MIN_WIDTH_WORLD = 40;
+
+/** Hard character limit for a text object (PRD: at least 5,000). */
+export const TEXT_MAX_CHARS = 5000;
+
+/**
+ * Text size presets: the font size in world units (px at 100% zoom), on the
+ * same scale as the sticky font.
+ */
+export const TEXT_SIZES = { S: 14, M: 20, L: 32, XL: 56 } as const;
+
+/** One of the {@link TEXT_SIZES} preset names. */
+export type TextSize = keyof typeof TEXT_SIZES;
+
+/** Size used for newly created text objects. */
+export const DEFAULT_TEXT_SIZE: TextSize = 'M';
+
+/** Text line height, as a multiple of the font size. */
+export const TEXT_LINE_HEIGHT = 1.3;
+
+/** The board's standard font, used for text objects and measuring. */
+export const TEXT_FONT_FAMILY = 'Inter, system-ui, sans-serif';

@@ -695,3 +695,95 @@ clean).
 - e2e: 3 new (undo TC-22 delete-eight/redo lifecycle; TC-23 peer-deleted note
   never resurrects and throws nothing; TC-24 five concurrent editors each undo
   only their own typing).
+
+# NOTES — Story 9: Write free text anywhere on the board
+
+Decisions and deviations from the design spec, as required by the task brief.
+
+## Scope note (story 3 gap check)
+
+No story-3 gap needed filling: text is the first object type added purely
+through the registry (story 7's `registry.tsx`), so selection, move, nudge,
+delete, marquee, live-sync and undo all come for free and are exercised by the
+existing story-3/7/8 suites (all still green). `StickyText.ts` re-exports
+`clampToLimit`/`applyTextDiff` from the new shared `src/shared/text-edit.ts`;
+story 2's callers and tests are unchanged.
+
+## Decisions worth recording
+
+1. **The measured box is stored on the object and written by the local client
+   only (text.layout, key decision 1).** `useTextBoxSync` re-measures after
+   each *local* change and writes `width`/`height` back to the object. Remote
+   clients render the stored box and never re-measure, so a peer's screen is
+   stable and fonts never cause cross-client drift. `observeDeep` on the
+   `objects` map is what re-derives the React snapshot when a *nested* `Y.Text`
+   changes (the content is a `Y.Text` inside the object's `Y.Map`).
+2. **Auto width = the longest original line, clamped to
+   `TEXT_MAX_AUTO_WIDTH_WORLD` (600); there is no padding term.** The e2e
+   TC-26 "600 ± 2" constraint is decisive: `width = min(longestLine, 600)`.
+   `wrapLine` uses an inclusive boundary (`measure(candidate) <= maxWidth`).
+3. **`XL = 56`**, per both the PRD and the design (not 48).
+4. **Empty-text end skips its end-boundary (key decision 3).** In
+   `TextEditor.end()`, when the `Y.Text` has zero characters the caller removes
+   the object in the *same* capture window as the last edit, so one undo
+   restores the typed text (text.empty_removed). TC-22 therefore types before
+   Escape — Escape on genuinely empty text deletes the object by design.
+5. **Mixed-selection resize keeps auto-width text repositioned, not
+   re-measured.** In `useTransformGesture.handleTextResize` the scaling
+   predicate matches the gesture's: `scales = widthMode === 'fixed' ||
+   (allText && horizontal)`. Auto text in a group is repositioned
+   proportionally (no box write); a single text on an e/w handle gets an
+   x-scale + `widthMode='fixed'` + height re-measure. The flip to fixed uses
+   `rects.size === 1` (total objects in the gesture), not the text count, so a
+   mixed group containing one text never flips.
+6. **Identity is a per-tab anonymous id in `sessionStorage`
+   (`src/client/identity.ts`)** — the pre-story-6 stand-in for
+   `text.createdBy`.
+
+## Gotchas found while making the tests pass
+
+- **`parkCamera` (a `__vidi6.setCamera` evaluate) succeeds *before* React
+  mounts the viewport.** The test hook is exposed at module init, but the
+  board's viewport/keyboard listeners mount a beat later; a `t`-press or click
+  before mount is silently lost. `createTextAt` gates on
+  `[data-testid="board-viewport"]` being visible, then on the `is-text-tool`
+  class (the tool switch is an async re-render) before it clicks.
+- **Cross-peer text content lands ~1 s after the objects' metadata.** With 5
+  concurrent creators each screen shows all five boxes almost immediately but
+  only its own text for ~1 s; the rest sync a moment later. The TC-30
+  assertion therefore *polls* each screen for all headings rather than doing a
+  one-shot read (a one-shot read catches the mid-sync state and sees empties).
+- **`pressSequentially` drops keys under server load; `fill()` does not.**
+  Typing the 300-char fixture key-by-key intermittently lost characters
+  ("labore"→"lore") once the dev server was busy. TC-26/27/28/30 set the whole
+  value with `fill()` (one deterministic input event) — they are about the
+  stored box/objects, not the typing path. Only TC-29 keeps `pressSequentially`
+  because it specifically exercises concurrent caret-insert merging.
+- **firefox/webkit e2e is environment-limited in this sandbox (pre-existing).**
+  The *unmodified* story-3/7/8 e2e suites (live-collaboration TC-22…28,
+  story7 TC-32/33/35/36, undo TC-23/24) fail on firefox/webkit with the same
+  15 s `waitForConnected` timeout — the board never reaches `connected` there.
+  That is a browser/server connection issue in this environment, not a story-9
+  regression: chromium (the browser that connects reliably) passes the entire
+  matrix, including the six new story-9 tests, with no regressions. Story-9
+  e2e is therefore verified on chromium here.
+
+## Manual checks
+
+- `npm run build:e2e && npx wrangler dev --port 8787 --local --var TEST_HOOKS:1`:
+  press T and click the board to drop a text; type a long paragraph and it
+  wraps at 600 world px; drag its right handle narrower and it rewraps taller;
+  select it, choose XL from the floating bar, drag it over some notes, delete
+  it, and Ctrl+Z brings it back at the moved spot still XL; a second
+  participant typing into the same text keeps every character on both screens.
+
+## Test counts
+
+- unit: 12 new (text-model TC-01…06 + stale ids/remote edits; text-layout
+  TC-07…11, TC-32 + edge cases).
+- component: 15 new (text-box-sync TC-12/13 + auto→fixed rewrap; text-tool
+  TC-14…18; text-object TC-19…25).
+- e2e: 6 new (story9 TC-26 300-char 600-wide box; TC-27 narrower-handle
+  rewrap; TC-28 heading create/XL/move/delete/undo; TC-29 two peers keep every
+  character; TC-30 five concurrent creators; TC-31 abandoned text leaves no
+  object).

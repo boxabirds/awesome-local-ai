@@ -31,6 +31,16 @@ export function BoardViewport(props: {
   onMarqueeMove?: (screen: Point) => void;
   onMarqueeEnd?: () => void;
   onMarqueeCancel?: () => void;
+  /**
+   * Story 9: true while the Text tool is active. The viewport shows a text
+   * cursor, a click (no drag) creates text at the world point, and presses
+   * neither pan nor marquee. The world layer gets pointer-events: none so
+   * clicks on existing objects fall through to the board surface (text.create:
+   * a click on top of an object creates text on top at that point).
+   */
+  textToolActive?: boolean;
+  /** Story 9: create text at a world point (click while the Text tool is active). */
+  onTextCreateAt?: (worldPoint: Point) => void;
 }): JSX.Element {
   const viewportRef = useRef<HTMLDivElement | null>(null);
   const size = useElementSize(viewportRef);
@@ -64,6 +74,12 @@ export function BoardViewport(props: {
       // because events are dispatched on the viewport element.
     }
     const local = toLocal(e.clientX, e.clientY);
+    // Story 9: with the Text tool active a press neither pans nor marquees;
+    // a press that does not travel creates text at the point (stopPanning).
+    if (props.textToolActive === true) {
+      pressPoint.current = local;
+      return;
+    }
     // Shift + press on empty space marquee-selects (sel.marquee_ui); without
     // Shift the story 1 pan path is unchanged.
     if (e.shiftKey) {
@@ -81,6 +97,7 @@ export function BoardViewport(props: {
       props.onMarqueeMove?.(toLocal(e.clientX, e.clientY));
       return;
     }
+    if (props.textToolActive === true) return; // no pan while the Text tool is active
     if (!panning) return;
     panMove(toLocal(e.clientX, e.clientY));
   };
@@ -98,6 +115,19 @@ export function BoardViewport(props: {
     if (marqueePointer.current === e.pointerId) {
       marqueePointer.current = null;
       props.onMarqueeEnd?.();
+      return;
+    }
+    // Story 9: a Text-tool press that did not travel creates text at the
+    // world point (text.create). A travel is a plain drag: nothing happens.
+    if (props.textToolActive === true) {
+      const start = pressPoint.current;
+      pressPoint.current = null;
+      if (start !== null) {
+        const now = toLocal(e.clientX, e.clientY);
+        if (Math.hypot(now.x - start.x, now.y - start.y) <= DRAG_THRESHOLD_PX) {
+          props.onTextCreateAt?.(screenToWorld(camera, now));
+        }
+      }
       return;
     }
     setPanning(false);
@@ -122,17 +152,24 @@ export function BoardViewport(props: {
       props.onMarqueeCancel?.();
       return;
     }
+    if (props.textToolActive === true) {
+      pressPoint.current = null;
+      return;
+    }
     setPanning(false);
     endPan();
   };
 
   // A double-click on empty space creates a note centred on the point
   // (PRD sticky.create_dblclick). Notes stop propagation, so this only fires
-  // for the board surface itself. Shift+double-click is a no-op.
+  // for the board surface itself. Shift+double-click is a no-op. With the
+  // Text tool active double-click is suppressed (the first click already
+  // created the text).
   const onDoubleClick = (e: ReactMouseEvent<HTMLDivElement>): void => {
     const el = viewportRef.current;
     if (el === null || e.target !== el) return;
     if (e.shiftKey) return;
+    if (props.textToolActive === true) return;
     props.onCreateStickyAt?.(screenToWorld(camera, toLocal(e.clientX, e.clientY)));
   };
 
@@ -239,7 +276,9 @@ export function BoardViewport(props: {
   return (
     <div
       ref={viewportRef}
-      className={`board-viewport${panning ? ' is-panning' : ''}`}
+      className={`board-viewport${panning ? ' is-panning' : ''}${
+        props.textToolActive ? ' is-text-tool' : ''
+      }`}
       data-testid="board-viewport"
       style={{
         backgroundImage:

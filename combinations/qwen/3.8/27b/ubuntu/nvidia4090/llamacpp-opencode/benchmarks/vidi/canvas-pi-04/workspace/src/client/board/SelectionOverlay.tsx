@@ -14,6 +14,7 @@ import { worldToScreen, type Camera } from '../canvas/camera';
 import { getObjectType } from '../objects/registry';
 
 const HANDLES: readonly Handle[] = ['nw', 'n', 'ne', 'e', 'se', 's', 'sw', 'w'];
+const HORIZONTAL_HANDLES: readonly Handle[] = ['e', 'w'];
 
 function handleCenter(box: Rect, handle: Handle): Point {
   const cx = box.x + box.width / 2;
@@ -48,6 +49,14 @@ export function SelectionOverlay(props: SelectionOverlayProps): JSX.Element | nu
   const box = unionRects(selected.map((o) => objectBounds(o)));
   if (box === null) return null;
   const anyResizable = selected.some((o) => getObjectType(o.type)?.resizable === true);
+  // Story 9: when EVERY selected object's spec is horizontal-only (text), the
+  // group box shows the e/w handles only (text.height: height is derived and
+  // must not be handle-adjustable). A mixed selection (text + sticky) keeps
+  // the full story 7 handle set.
+  const allHorizontal =
+    selected.length > 0 &&
+    selected.every((o) => (getObjectType(o.type)?.handles ?? 'all') === 'horizontal');
+  const shownHandles = anyResizable ? (allHorizontal ? HORIZONTAL_HANDLES : HANDLES) : [];
 
   const topLeft = worldToScreen(camera, { x: box.x, y: box.y });
   const width = box.width * camera.zoom;
@@ -59,8 +68,7 @@ export function SelectionOverlay(props: SelectionOverlayProps): JSX.Element | nu
         className="selection-box"
         style={{ left: topLeft.x, top: topLeft.y, width, height }}
       />
-      {anyResizable &&
-        HANDLES.map((h) => {
+      {shownHandles.map((h) => {
           const c = worldToScreen(camera, handleCenter(box, h));
           return (
             <div

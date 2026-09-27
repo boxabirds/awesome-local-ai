@@ -27,6 +27,7 @@ import {
   resizeObjects,
   type ObjectSnapshot,
 } from '../../shared/board-model';
+import type { TextSnapshot, TextWidthMode } from '../../shared/objects/text';
 import {
   clampScale,
   placeBox,
@@ -60,6 +61,12 @@ interface Gesture {
   startRects?: ReadonlyMap<string, Rect>;
   minSizes?: number[];
   aspectLocked?: boolean;
+  // story 9: per-object type/width-mode captured at resize start, so
+  // computeResize can reposition (not scale) auto-width text.
+  startTypes?: ReadonlyMap<string, string>;
+  startWidthModes?: ReadonlyMap<string, TextWidthMode>;
+  /** Last computed resize rects (for the final onResize even when flushed). */
+  lastRects?: ReadonlyMap<string, Rect>;
 }
 
 export interface TransformGestureOptions {
@@ -70,6 +77,13 @@ export interface TransformGestureOptions {
   canEdit: boolean;
   onGestureStart?(): void;
   onGestureEnd?(): void;
+  /**
+   * Story 9: called after every resize frame write (and once more, with
+   * final=true, when the gesture ends) with the rects just written. The
+   * caller remeasures text objects' heights at their new widths (text.layout)
+   * and flips a single text to fixed width on an e/w handle drag.
+   */
+  onResize?(rects: ReadonlyMap<string, Rect>, handle: Handle, final: boolean): void;
 }
 
 export interface TransformGesture {
@@ -93,6 +107,8 @@ function captureResizeStart(g: Gesture, snapshot: readonly ObjectSnapshot[]): vo
   const byId = new Map(snapshot.map((o) => [o.id, o]));
   const rects = new Map<string, Rect>();
   const minSizes: number[] = [];
+  const types = new Map<string, string>();
+  const widthModes = new Map<string, TextWidthMode>();
   const ids: string[] = [];
   let anyAspect = false;
   for (const id of g.dragIds) {
@@ -100,13 +116,35 @@ function captureResizeStart(g: Gesture, snapshot: readonly ObjectSnapshot[]): vo
     if (o === undefined) continue;
     rects.set(id, objectBounds(o));
     const spec = getObjectType(o.type);
-    minSizes.push(spec?.minSize ?? STICKY_MIN_SIZE_WORLD);
+    types.set(id, o.type);
+    if (o.type === 'text') widthModes.set(id, (o as TextSnapshot).widthMode ?? 'auto');
     if (spec?.aspectLocked === true) anyAspect = true;
     ids.push(id);
   }
   g.dragIds = ids;
   g.startRects = rects;
-  g.minSizes = minSizes;
+  g.startTypes = types;
+  g.startWidthModes = widthModes;
+  // Story 9 (key decision 2): which text objects actually get SCALED in this
+  // gesture — fixed-width text always; auto-width text only when the selection
+  // is all-text AND the handle moves a horizontal edge. The others are
+  // repositioned proportionally and keep their size, so they must not bound
+  // the group scale (minSize 0).
+  const allText = ids.length > 0 && ids.every((id) => types.get(id) === 'text');
+  const horizontal = g.handle !== undefined && (g.handle.includes('e') || g.handle.includes('w'));
+  const minSizesArr: number[] = [];
+  for (const id of ids) {
+    const o = byId.get(id);
+    if (o === undefined) continue;
+    const spec = getObjectType(o.type);
+    let min = spec?.minSize ?? STICKY_MIN_SIZE_WORLD;
+    if (o.type === 'text') {
+      const mode = widthModes.get(id) ?? 'auto';
+      if (!(mode === 'fixed' || (allText && horizontal))) min = 0;
+    }
+    minSizesArr.push(min);
+  }
+  g.minSizes = minSizesArr;
   g.aspectLocked = anyAspect;
   const box = unionRects([...rects.values()]);
   if (box !== null) g.startBox = box;
@@ -125,8 +163,36 @@ function computeResize(g: Gesture, delta: Point, aspectLocked: boolean): Map<str
   const scale = clampScale(rawScale, [...startRects.values()], minSizes, MAX_OBJECT_SIZE_WORLD);
   const targetBox = placeBox(startBox, handle, startBox.width * scale.x, startBox.height * scale.y);
   const rects = new Map<string, Rect>();
+  const types = g.startTypes;
+  const widthModes = g.startWidthModes;
+  const ids = g.dragIds;
+  const allText = ids.length > 0 && ids.every((id) => types?.get(id) === 'text');
+  const horizontal = handle.includes('e') || handle.includes('w');
   for (const [id, child] of startRects) {
-    rects.set(id, scaleWithin(child, startBox, targetBox));
+    let rect = scaleWithin(child, startBox, targetBox);
+    // Story 9 (key decision 2): text keeps its content-derived size unless it
+    // is the kind being resized — fixed-width text always scales its width;
+    // auto-width text only when the selection is all-text and the handle is
+    // horizontal. In a mixed selection (or a vertical handle) an auto text is
+    // repositioned proportionally but keeps width AND height; a fixed text
+    // scales its width (its height is remeasured by the onResize caller).
+    if (types?.get(id) === 'text') {
+      const mode = widthModes?.get(id) ?? 'auto';
+      const scales = mode === 'fixed' || (allText && horizontal);
+      if (!scales) {
+        rect = {
+          x: targetBox.x + (child.x - startBox.x) * scale.x,
+          y: targetBox.y + (child.y - startBox.y) * scale.y,
+          width: child.width,
+          height: child.height,
+        };
+      } else if (mode === 'fixed') {
+        // Width follows the x scale only; the y scale never applies to text
+        // height (it is content-derived, remeasured after the write).
+        rect = { ...rect, height: child.height };
+      }
+    }
+    rects.set(id, rect);
   }
   return rects;
 }
@@ -162,7 +228,9 @@ export function useTransformGesture(opts: TransformGestureOptions): TransformGes
       g.pending = { positions };
     } else {
       const aspectLocked = (g.aspectLocked ?? false) || ev.shiftKey;
-      g.pending = { rects: computeResize(g, deltaWorld, aspectLocked) };
+      const rects = computeResize(g, deltaWorld, aspectLocked);
+      g.pending = { rects };
+      g.lastRects = rects;
     }
     if (g.frame === null) g.frame = requestAnimationFrame(flushRef.current);
   }, []);
@@ -195,7 +263,22 @@ export function useTransformGesture(opts: TransformGestureOptions): TransformGes
     if (pending !== null) {
       const { doc } = optsRef.current;
       if (pending.positions !== undefined) moveObjects(doc, pending.positions);
-      else if (pending.rects !== undefined) resizeObjects(doc, pending.rects);
+      else if (pending.rects !== undefined) {
+        resizeObjects(doc, pending.rects);
+        if (g.handle !== undefined) {
+          optsRef.current.onResize?.(pending.rects, g.handle, true);
+        }
+      }
+    } else if (
+      g.kind === 'resize' &&
+      g.moved &&
+      g.lastRects !== undefined &&
+      g.handle !== undefined
+    ) {
+      // The final frame was already flushed by rAF; still notify the caller
+      // with the final rects (story 9: a single text e/w drag flips the
+      // widthMode to 'fixed' exactly once, at gesture end).
+      optsRef.current.onResize?.(g.lastRects, g.handle, true);
     }
     if (g.moved) optsRef.current.onGestureEnd?.();
   }, [onWindowMove, onWindowUp, onWindowCancel]);
@@ -211,7 +294,11 @@ export function useTransformGesture(opts: TransformGestureOptions): TransformGes
     if (pending.positions !== undefined) {
       if (moveObjects(doc, pending.positions) === 0) endGesture();
     } else if (pending.rects !== undefined) {
-      if (resizeObjects(doc, pending.rects) === 0) endGesture();
+      if (resizeObjects(doc, pending.rects) === 0) {
+        endGesture();
+      } else if (g.handle !== undefined) {
+        optsRef.current.onResize?.(pending.rects, g.handle, false);
+      }
     }
   }, [endGesture]);
 

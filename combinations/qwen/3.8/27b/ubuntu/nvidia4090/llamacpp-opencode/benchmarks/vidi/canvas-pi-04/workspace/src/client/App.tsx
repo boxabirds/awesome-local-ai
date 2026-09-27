@@ -13,8 +13,10 @@
 // overlay holds the marquee rect, the selection outline/handles and the bar.
 
 import type { JSX } from 'react';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { createSticky, deleteObjects } from '../shared/board-model';
+import { createText, deleteIfEmpty, getTextContent, getTextMeta } from '../shared/objects/text';
+import type { TextSnapshot } from '../shared/objects/text';
 import { Toolbar } from './board/Toolbar';
 import { useBoardDoc } from './board/useBoardDoc';
 import { useSelection } from './board/useSelection';
@@ -31,9 +33,14 @@ import { ZoomControls } from './canvas/ZoomControls';
 import { canZoomIn, canZoomOut, screenToWorld, zoomPercent } from './canvas/camera';
 import { useCamera, useWindowSize } from './canvas/useCamera';
 import { getObjectType } from './objects/registry';
+import { layoutText, sharedMeasurer } from './objects/textLayout';
+import { setTextBox, setTextWidthFixed } from '../shared/objects/text';
 import { ConnectionStatus } from './sync/ConnectionStatus';
 import { canEdit } from './sync/connectBoard';
 import { useRoute } from './router';
+import { useTool } from './board/useTool';
+import { getIdentityId } from './identity';
+import type { Point } from '../shared/geometry';
 import { HomePage } from './pages/HomePage';
 import { BoardPage } from './pages/BoardPage';
 import { NotFoundPage } from './pages/NotFoundPage';
@@ -60,6 +67,11 @@ export function Board(props: { boardId: string }): JSX.Element {
   const editable = canEdit(connectionState);
   const selection = useSelection(objects);
 
+  // Story 9: the per-client tool mode (text.tool_ui). T/Text button activate
+  // it (only when editable); V/Escape return to Select.
+  const { tool, setTool } = useTool(editable);
+  const measure = sharedMeasurer();
+
   // Story 8: one undo controller per board doc (undo.session_only). It is
   // created in an effect (not during render, StrictMode-safe) and destroyed
   // when the doc goes away, so history never survives a reload, a board
@@ -79,6 +91,44 @@ export function Board(props: { boardId: string }): JSX.Element {
   // bounding-box resize (handle pointerdown) for every registered type.
   // Story 8: a step boundary before the first moved frame and after the
   // gesture, so a whole drag/resize is exactly one undo step.
+  // Story 9: after every resize frame (and at gesture end) remeasure the
+  // heights of the resized text objects at their new widths (text.height,
+  // text.fixed_width), and flip a single text dragged by its e/w handle to
+  // fixed width (one write per drag, at the end).
+  const handleTextResize = useCallback(
+    (rects: ReadonlyMap<string, { x: number; y: number; width: number; height: number }>, handle: string, final: boolean): void => {
+      // Same predicate as the gesture (key decision 2): fixed-width text
+      // always scales its width; auto-width text only when the whole
+      // selection is text AND the handle moves a horizontal edge.
+      const horizontal = handle.includes('e') || handle.includes('w');
+      let allText = rects.size > 0;
+      for (const id of rects.keys()) {
+        if (getTextMeta(doc, id) === undefined) allText = false;
+      }
+      for (const [id, rect] of rects) {
+        const meta = getTextMeta(doc, id);
+        if (meta === undefined) continue; // not a text object
+        const scales = meta.widthMode === 'fixed' || (allText && horizontal);
+        if (!scales) continue; // repositioned: the box is untouched
+        const content = getTextContent(doc, id)?.toString() ?? '';
+        // The gesture wrote x/y/width (height stale): wrap at the NEW width
+        // and write the box (width + fresh height) in the same capture window.
+        const layout = layoutText(content, meta.size, 'fixed', rect.width, measure);
+        setTextBox(doc, id, { width: rect.width, height: layout.height });
+      }
+      // Key decision 2: an e/w drag of a SINGLE text object makes it fixed
+      // width. (A mixed group with one text repositions it without scaling,
+      // so it must stay auto — hence rects.size, not a text count.)
+      if (final && rects.size === 1 && (handle === 'e' || handle === 'w')) {
+        const [id, rect] = [...rects.entries()][0] ?? [];
+        if (id !== undefined && rect !== undefined && getTextMeta(doc, id) !== undefined) {
+          setTextWidthFixed(doc, id, rect.width);
+        }
+      }
+    },
+    [doc, measure],
+  );
+
   const gesture = useTransformGesture({
     doc,
     camera,
@@ -87,14 +137,11 @@ export function Board(props: { boardId: string }): JSX.Element {
     canEdit: editable,
     onGestureStart: () => undoController?.boundary(),
     onGestureEnd: () => undoController?.boundary(),
+    onResize: handleTextResize,
   });
 
   // Shift+drag marquee: add the objects inside the rect to the selection.
   const marquee = useMarquee(camera, objects, (ids) => selection.setMany(ids, true));
-
-  // Window keyboard commands (select all, clear, nudge, delete, edit)
-  // plus story 8's undo/redo shortcuts (Ctrl/Cmd+Z, Ctrl/Cmd+Shift+Z, Ctrl+Y).
-  useBoardKeys({ doc, selection, snapshot: objects, canEdit: editable, undo: undoController });
 
   const createAtPoint = (at: { x: number; y: number }): void => {
     if (!editable) return; // load_failed: create is a no-op
@@ -112,6 +159,54 @@ export function Board(props: { boardId: string }): JSX.Element {
   const createAtCenter = (): void => {
     createAtPoint(screenToWorld(camera, { x: viewport.width / 2, y: viewport.height / 2 }));
   };
+
+  // Window keyboard commands (select all, clear, nudge, delete, edit, undo)
+  // plus story 9's tool shortcuts (V/T) and N (sticky at view centre).
+  useBoardKeys({
+    doc,
+    selection,
+    snapshot: objects,
+    canEdit: editable,
+    undo: undoController,
+    tool: { tool, setTool },
+    onCreateStickyAtCenter: createAtCenter,
+  });
+
+  // Story 9 (text.create): a click while the Text tool is active creates a
+  // size M text object with its top-left at the point, starts editing it and
+  // returns the tool to Select.
+  const createTextAt = useCallback(
+    (at: Point): void => {
+      if (!editable) return; // text.not_editable
+      undoController?.boundary();
+      const id = createText(doc, at, getIdentityId());
+      undoController?.boundary();
+      if (id !== null) {
+        selection.click(id);
+        selection.startEdit(id);
+        setTool('select');
+      }
+    },
+    [editable, doc, undoController, selection, setTool],
+  );
+
+  // Story 9 (text.empty_removed): ending an edit of a TEXT object removes it
+  // when it has no characters. The TextEditor skipped its end-boundary for
+  // empty text, so this removal stays in the last edit's capture window and
+  // one undo restores the typed text (design key decision 3).
+  const handleTextEndEdit = useCallback(
+    (id: string): void => {
+      const content = getTextContent(doc, id);
+      if (content !== undefined && content.length === 0) {
+        deleteIfEmpty(doc, id);
+        selection.clear();
+        return;
+      }
+      // Deleted remotely during the edit: the selection prunes the id.
+      selection.endEdit(id);
+    },
+    [doc, selection],
+  );
 
   const deleteSelection = (): void => {
     if (!editable) return;
@@ -135,6 +230,8 @@ export function Board(props: { boardId: string }): JSX.Element {
         onMarqueeMove={marquee.move}
         onMarqueeEnd={marquee.end}
         onMarqueeCancel={marquee.cancel}
+        textToolActive={tool === 'text'}
+        onTextCreateAt={createTextAt}
       >
         {objects.map((obj) => {
           const spec = getObjectType(obj.type);
@@ -150,7 +247,7 @@ export function Board(props: { boardId: string }): JSX.Element {
               canEdit={editable}
               onPointerDown={(e) => gesture.onObjectPointerDown(e, obj.id)}
               onStartEdit={selection.startEdit}
-              onEndEdit={selection.endEdit}
+              onEndEdit={obj.type === 'text' ? handleTextEndEdit : selection.endEdit}
             />
           );
         })}
@@ -178,7 +275,13 @@ export function Board(props: { boardId: string }): JSX.Element {
         />
       </div>
 
-      <Toolbar onCreateSticky={createAtCenter} canEdit={editable} {...undo} />
+      <Toolbar
+        onCreateSticky={createAtCenter}
+        canEdit={editable}
+        tool={tool}
+        setTool={setTool}
+        {...undo}
+      />
       <ZoomControls
         zoomPercent={zoomPercent(camera)}
         canZoomIn={canZoomIn(camera)}

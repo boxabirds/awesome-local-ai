@@ -15,8 +15,9 @@ import type * as Y from 'yjs';
 import { objectBounds } from '../../shared/board-model';
 import type { ObjectSnapshot } from '../../shared/board-model';
 import type { Point } from '../../shared/geometry';
-import { STICKY_MIN_SIZE_WORLD } from '../../shared/config';
+import { STICKY_MIN_SIZE_WORLD, TEXT_MIN_WIDTH_WORLD } from '../../shared/config';
 import { StickyNote } from './StickyNote';
+import { TextObject } from './TextObject';
 
 /**
  * The props every registered object component receives. The component renders
@@ -53,6 +54,12 @@ export interface ObjectTypeSpec {
   minSize: number;
   /** Whether the type has editable text. */
   editableText: boolean;
+  /**
+   * Which resize handles the type shows when it is the only kind selected:
+   * 'all' (default, story 7) or 'horizontal' (e/w only; height is derived,
+   * e.g. text — story 9, text.height).
+   */
+  handles?: 'all' | 'horizontal';
   /** Whether a world point hits the object (for future hit regions). */
   hitTest: (obj: ObjectSnapshot, worldPoint: Point) => boolean;
 }
@@ -86,6 +93,26 @@ registerObjectType('sticky', {
   aspectLocked: true,
   minSize: STICKY_MIN_SIZE_WORLD,
   editableText: true,
+  hitTest: (obj, point) => {
+    const b = objectBounds(obj);
+    return (
+      point.x >= b.x &&
+      point.x < b.x + b.width &&
+      point.y >= b.y &&
+      point.y < b.y + b.height
+    );
+  },
+});
+
+// Story 9: free text (anchor: text.object). Resizable by width only (e/w
+// handles), never aspect-locked, minimum side TEXT_MIN_WIDTH_WORLD.
+registerObjectType('text', {
+  Component: TextObject,
+  resizable: true,
+  aspectLocked: false,
+  minSize: TEXT_MIN_WIDTH_WORLD,
+  editableText: true,
+  handles: 'horizontal',
   hitTest: (obj, point) => {
     const b = objectBounds(obj);
     return (

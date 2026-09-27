@@ -4,58 +4,26 @@
 // Story 3 depends on `applyTextDiff` being a *minimal* diff: a full replace
 // would destroy concurrent typing by others once the doc is shared live.
 
-import * as Y from 'yjs';
 import {
   STICKY_COUNTER_THRESHOLD_CHARS,
   STICKY_FONT_MAX_PX,
   STICKY_FONT_MIN_PX,
   STICKY_TEXT_MAX_CHARS,
 } from '../../shared/config';
+import { clampToLimit as clampToLimitShared } from '../../shared/text-edit';
 
 /** Keep at most `max` characters; longer input is truncated (no wrap). */
 export function clampToLimit(next: string, max: number = STICKY_TEXT_MAX_CHARS): string {
-  return next.length > max ? next.slice(0, max) : next;
+  return clampToLimitShared(next, max);
 }
+
+// Story 9: the minimal diff now lives in the shared module; re-export so story 2's
+// callers and tests are unchanged.
+export { applyTextDiff } from '../../shared/text-edit';
 
 /** The character counter shows when the remaining capacity is at or below the threshold. */
 export function counterVisible(length: number): boolean {
   return STICKY_TEXT_MAX_CHARS - length <= STICKY_COUNTER_THRESHOLD_CHARS;
-}
-
-/**
- * Bring `ytext` to exactly `next` with the minimal edit: common prefix and
- * common suffix are kept, so at most one delete and one insert are emitted
- * (inside a single transaction). Surrogate pairs in `next` are kept intact
- * because edit boundaries are derived from comparing the two full strings.
- */
-export function applyTextDiff(ytext: Y.Text, next: string, origin: unknown): void {
-  const current = ytext.toString();
-  if (current === next) return;
-
-  const minLen = Math.min(current.length, next.length);
-  let prefix = 0;
-  while (prefix < minLen && current[prefix] === next[prefix]) prefix += 1;
-  let suffix = 0;
-  while (
-    suffix < minLen - prefix &&
-    current[current.length - 1 - suffix] === next[next.length - 1 - suffix]
-  ) {
-    suffix += 1;
-  }
-
-  const deleteLength = current.length - prefix - suffix;
-  const insertText = next.slice(prefix, next.length - suffix);
-  if (deleteLength === 0 && insertText.length === 0) return;
-
-  const doc = ytext.doc;
-  if (doc === null) return;
-  doc.transact(
-    () => {
-      if (deleteLength > 0) ytext.delete(prefix, deleteLength);
-      if (insertText.length > 0) ytext.insert(prefix, insertText);
-    },
-    origin,
-  );
 }
 
 /**

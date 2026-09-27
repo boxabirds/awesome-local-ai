@@ -665,3 +665,172 @@ body {
   opacity: 0.5;
   cursor: default;
 }
+
+/* --------------------------------------------------------------------- */
+/* Story 9: free text objects (anchor: text.object)                        */
+/* --------------------------------------------------------------------- */
+
+.text-object {
+  position: absolute;
+  pointer-events: auto;
+  padding: 0; /* the stored width is the exact content width (e2e TC-26) */
+  outline: none;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  cursor: grab;
+  color: var(--text-color);
+}
+
+.text-object:active {
+  cursor: grabbing;
+}
+
+.text-object[data-selected] {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 1px;
+}
+
+.text-object__content {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-weight: 400;
+  line-height: inherit;
+}
+
+/* The shared text editor (TextEditor) inside a text object: the textarea
+   fills the stored box; the box itself is remeasured as the text changes. */
+.text-editor {
+  position: relative;
+  width: 100%;
+  height: 100%;
+}
+
+.text-editor__textarea {
+  display: block;
+  width: 100%;
+  height: 100%;
+  resize: none;
+  border: none;
+  outline: none;
+  background: transparent;
+  padding: 0;
+  margin: 0;
+  overflow: hidden;
+  white-space: pre;
+  word-break: normal;
+  font-family: inherit;
+  font-weight: 400;
+  line-height: inherit;
+  color: var(--text-color);
+  cursor: text;
+  user-select: text;
+  -webkit-user-select: text;
+}
+
+/* The S/M/L/XL + Delete toolbar for one selected text object
+   (anchor: text.size). Rendered inside the SelectionBar anchor, so it
+   inherits the screen-space positioning from .selection-bar-scaled. */
+.text-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 5px 6px;
+  background: var(--panel-background);
+  border: 1px solid var(--panel-border);
+  border-radius: 8px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.12);
+}
+
+.text-toolbar__size {
+  appearance: none;
+  border: 1px solid var(--panel-border);
+  background: #fff;
+  color: var(--text-color);
+  border-radius: 4px;
+  width: 26px;
+  height: 26px;
+  display: grid;
+  place-items: center;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 0;
+}
+
+.text-toolbar__size[aria-pressed='true'] {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 1px;
+}
+
+.text-toolbar__size:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 1px;
+}
+
+.text-toolbar__delete {
+  appearance: none;
+  border: 1px solid var(--panel-border);
+  border-radius: 6px;
+  background: #fff;
+  color: var(--text-color);
+  font-size: 12px;
+  padding: 3px 10px;
+  cursor: pointer;
+}
+
+.text-toolbar__delete:hover {
+  border-color: var(--focus-ring);
+  color: var(--focus-ring);
+}
+
+/* Story 9: the Select/Text tool buttons in the board toolbar
+   (anchor: text.tool_ui). */
+.board-toolbar__tool {
+  appearance: none;
+  border: 1px solid var(--panel-border);
+  background: #fff;
+  color: var(--text-color);
+  border-radius: 8px;
+  width: 40px;
+  height: 40px;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  padding: 0;
+}
+
+.board-toolbar__tool:hover:not(:disabled) {
+  background: #f0f3f7;
+}
+
+.board-toolbar__tool[aria-pressed='true'] {
+  background: var(--focus-ring);
+  border-color: var(--focus-ring);
+  color: #fff;
+}
+
+.board-toolbar__tool:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 1px;
+}
+
+.board-toolbar__tool:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+/* Story 9: with the Text tool active the viewport shows a text cursor and
+   every board object ignores the pointer, so a click anywhere (including on
+   top of an object) falls through to the board surface and creates text
+   there (text.create, text.tool). */
+.board-viewport.is-text-tool {
+  cursor: text;
+}
+
+.board-viewport.is-text-tool .world-layer * {
+  pointer-events: none;
+}

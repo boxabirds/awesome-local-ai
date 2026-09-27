@@ -1,7 +1,15 @@
 // Story 2: sticky note text editor (anchor: sticky.text).
 //
-// A transparent textarea that diffs itself into the shared Y.Text with
-// minimal edits (applyTextDiff). Story 3 depends on this behaviour:
+// Story 9: this is now a thin wrapper around the shared TextEditor
+// (src/client/objects/TextEditor.tsx), which generalises the diff/caret/
+// limit/undo behaviour. The sticky-note-specific parts stay here:
+//  - STICKY_TEXT_MAX_CHARS (vs TEXT_MAX_CHARS for text objects);
+//  - the font-fit hook (the note binary-searches the font size on the
+//    textarea, so no fontPx is passed);
+//  - the char counter (renderExtras);
+//  - the sticky editor class names (the note CSS depends on them).
+//
+// Story 3's behaviour is unchanged:
 //  - every keystroke is written to the doc immediately (nothing is buffered
 //    and nothing is lost when editing ends or the note is deleted);
 //  - remote updates arriving while this note is edited merge into the
@@ -9,13 +17,12 @@
 //    concurrent typing by two people keeps every character (PRD
 //    live.concurrent_text).
 
-import { useEffect, useRef, useState } from 'react';
 import type { JSX, RefObject } from 'react';
-import * as Y from 'yjs';
-import { LOCAL_ORIGIN } from '../../shared/board-model';
+import type * as Y from 'yjs';
 import { STICKY_TEXT_MAX_CHARS } from '../../shared/config';
+import { counterVisible } from './StickyText';
+import { TextEditor } from './TextEditor';
 import { useUndoController } from '../board/useUndo';
-import { applyTextDiff, clampToLimit, counterVisible } from './StickyText';
 
 export function StickyTextEditor(props: {
   ytext: Y.Text;
@@ -25,170 +32,26 @@ export function StickyTextEditor(props: {
   rootRef: RefObject<HTMLElement | null>;
   onEnd: (next: 'selected' | 'unselected') => void;
 }): JSX.Element {
-  const taRef = useRef<HTMLTextAreaElement | null>(null);
-  const [value, setValue] = useState(() => props.ytext.toString());
-  const caretRel = useRef<Y.RelativePosition | null>(null);
-  const composing = useRef(false);
-  const ended = useRef(false);
-
-  // Story 8: the per-board undo controller. Read through a ref so handlers
-  // created once (mount effect, document pointerdown) still see the current
-  // value.
   const undo = useUndoController();
-  const undoRef = useRef(undo);
-  undoRef.current = undo;
-
-  const end = (next: 'selected' | 'unselected'): void => {
-    if (ended.current) return;
-    ended.current = true;
-    // Step boundary at edit end: the typing burst is its own undo step,
-    // separate from the note creation and from whatever comes after.
-    undoRef.current?.boundary();
-    props.onEnd(next);
-  };
-
-  // Mount: focus with the caret at the end of the text (PRD sticky.edit_start).
-  // Story 8: step boundary at edit start (typing burst starts fresh).
-  useEffect(() => {
-    const ta = taRef.current;
-    if (!ta) return;
-    undoRef.current?.boundary();
-    ta.focus();
-    const len = ta.value.length;
-    ta.setSelectionRange(len, len);
-    caretRel.current = Y.createRelativePositionFromTypeIndex(props.ytext, len);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  // Remote (non-local) text changes: merge them into the textarea and remap
-  // the caret through the Yjs relative position captured at the last input.
-  useEffect(() => {
-    const ytext = props.ytext;
-    const handler = (_event: Y.YTextEvent, transaction: Y.Transaction): void => {
-      if (transaction.origin === LOCAL_ORIGIN) return; // our own echo
-      const ta = taRef.current;
-      if (!ta) return;
-      const newText = ytext.toString();
-      setValue(newText);
-      if (composing.current) return; // finish on compositionend instead
-
-      let index = newText.length; // caret at the end when we have no marker
-      const rel = caretRel.current;
-      const doc = ytext.doc;
-      if (rel !== null && doc !== null) {
-        const abs = Y.createAbsolutePositionFromRelativePosition(rel, doc);
-        if (abs !== null && abs.type === ytext) index = abs.index;
-      }
-      // Apply the selection after React has committed the new value.
-      requestAnimationFrame(() => {
-        const current = taRef.current;
-        if (current !== null && current.value === newText) {
-          try {
-            current.setSelectionRange(index, index);
-          } catch {
-            // Selection can be invalid on a detached element; ignore.
-          }
-        }
-      });
-    };
-    ytext.observe(handler);
-    return () => {
-      ytext.unobserve(handler);
-    };
-  }, [props.ytext]);
-
-  // A pointerdown outside the note ends editing (PRD sticky.edit_end).
-  useEffect(() => {
-    const onPointerDown = (e: PointerEvent): void => {
-      const root = props.rootRef.current;
-      if (root !== null && e.target instanceof Node && root.contains(e.target)) return;
-      end('unselected');
-    };
-    document.addEventListener('pointerdown', onPointerDown, true);
-    return () => {
-      document.removeEventListener('pointerdown', onPointerDown, true);
-    };
-    // `end` is stable (guarded by the `ended` ref).
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  const writeValue = (ta: HTMLTextAreaElement): void => {
-    let next = ta.value;
-    if (next.length > STICKY_TEXT_MAX_CHARS) {
-      next = next.slice(0, STICKY_TEXT_MAX_CHARS);
-      ta.value = next;
-      ta.setSelectionRange(next.length, next.length);
-    }
-    caretRel.current = Y.createRelativePositionFromTypeIndex(
-      props.ytext,
-      ta.selectionStart,
-    );
-    applyTextDiff(props.ytext, next, LOCAL_ORIGIN);
-    setValue(next);
-  };
-
-  const onInput = (e: React.FormEvent<HTMLTextAreaElement>): void => {
-    if (composing.current) return;
-    writeValue(e.currentTarget);
-  };
-
-  const onCompositionEnd = (e: React.CompositionEvent<HTMLTextAreaElement>): void => {
-    composing.current = false;
-    writeValue(e.currentTarget);
-  };
-
-  const onKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>): void => {
-    // Story 8: personal undo/redo inside the editor (undo.typing). The
-    // textarea's native undo must not run: it would desynchronise the
-    // textarea from the Y.Text, so Ctrl/Cmd+Z and Ctrl/Cmd+Shift+Z are
-    // handled here against the UndoController and the default is prevented.
-    // (The board-level useBoardKeys ignores keydowns from textareas.)
-    if ((e.ctrlKey || e.metaKey) && (e.key === 'z' || e.key === 'Z')) {
-      e.preventDefault();
-      if (e.shiftKey) undoRef.current?.redo();
-      else undoRef.current?.undo();
-      return;
-    }
-    if (e.key === 'Escape') {
-      e.preventDefault();
-      end('selected');
-      return;
-    }
-    // Enter inserts a newline (not intercepted). Delete/Backspace edit text.
-  };
-
   return (
-    <div className="sticky-note__editor">
-      <textarea
-        ref={(el) => {
-          taRef.current = el;
-          props.textRef.current = el;
-        }}
-        className="sticky-note__textarea"
-        value={value}
-        spellCheck={false}
-        aria-label="Sticky note text"
-        onInput={onInput}
-        onKeyDown={onKeyDown}
-        onCompositionStart={() => {
-          composing.current = true;
-        }}
-        onCompositionEnd={onCompositionEnd}
-        onSelect={() => {
-          const ta = taRef.current;
-          if (ta !== null) {
-            caretRel.current = Y.createRelativePositionFromTypeIndex(
-              props.ytext,
-              ta.selectionStart,
-            );
-          }
-        }}
-      />
-      {counterVisible(value.length) && (
-        <div className="sticky-note__counter" aria-hidden="true">
-          {value.length}/{STICKY_TEXT_MAX_CHARS}
-        </div>
-      )}
-    </div>
+    <TextEditor
+      ytext={props.ytext}
+      maxChars={STICKY_TEXT_MAX_CHARS}
+      width="auto"
+      undo={undo}
+      textRef={props.textRef}
+      rootRef={props.rootRef}
+      ariaLabel="Sticky note text"
+      wrapperClassName="sticky-note__editor"
+      textareaClassName="sticky-note__textarea"
+      renderExtras={(value) =>
+        counterVisible(value.length) ? (
+          <div className="sticky-note__counter" aria-hidden="true">
+            {value.length}/{STICKY_TEXT_MAX_CHARS}
+          </div>
+        ) : null
+      }
+      onEnd={props.onEnd}
+    />
   );
 }
