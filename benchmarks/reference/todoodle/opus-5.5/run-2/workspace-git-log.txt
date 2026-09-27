@@ -1,3 +1,177 @@
+commit 93d55e820d4c5211e59dce819e11de1c6d9f5e01
+vidi-agent  Sun Sep 27 15:41:28 2026 +0100
+
+    story 6: Tick off, edit, and remove tasks — with undo when I slip
+
+
+ NOTES.md                                     | 70 ++++++++++++++++++++++++++++
+ apps/api/test/routes/tasks.lifecycle.test.ts |  2 +-
+ 2 files changed, 71 insertions(+), 1 deletion(-)
+commit 4ec795b225c92ca4248982bdbe7336c23eee8d46
+vidi-agent  Sun Sep 27 15:38:10 2026 +0100
+
+    story 6 task 12: E2E tests: complete/undo, reopen, edit, no-confirm delete/undo/retention, two-browser live, keyboard-only with focus, mobile touch, undo pause
+
+
+ apps/web/src/features/undo/showUndoToast.ts |  12 ++
+ e2e/tasks-helpers.ts                        |  74 +++++++++++
+ e2e/tasks.spec.ts                           | 182 ++++++++++++++++++++++++++++
+ e2e/tasks.touch.spec.ts                     |  33 +++++
+ 4 files changed, 301 insertions(+)
+commit 838027e4700d5b6113a75075a5094e5d6046804e
+vidi-agent  Sun Sep 27 15:26:16 2026 +0100
+
+    story 6 task 11: UI component tests: row actions, completion feedback, no-confirm delete, pausable undo, Cmd/Ctrl+Z, focus, detail sheet, show completed, responsive and a11y
+
+
+ .../test/features/tasks/TaskDetailSheet.test.tsx   | 216 +++++++++++++++
+ .../web/test/features/tasks/detailPreload.test.tsx |  25 ++
+ apps/web/test/features/tasks/lifecycle-helpers.tsx | 177 ++++++++++++
+ .../web/test/features/tasks/showCompleted.test.tsx | 107 +++++++
+ apps/web/test/features/tasks/taskActions.test.tsx  | 307 +++++++++++++++++++++
+ apps/web/test/features/undo/undoToast.test.tsx     | 149 ++++++++++
+ 6 files changed, 981 insertions(+)
+commit 171ba3b7e9faf4b492bd0b8ce594d91005528bd7
+vidi-agent  Sun Sep 27 15:26:16 2026 +0100
+
+    story 6 task 8: Unit tests: schemas, ordering, cache ops, restored handler, pausable undo, undo stack, focus target, preference codec, Intl dates, shortcut table
+
+
+ apps/web/test/features/tasks/cacheOps.test.ts      | 123 +++++++++++++++++++++
+ .../test/features/tasks/focusAfterAction.test.ts   |  40 +++++++
+ apps/web/test/features/tasks/liveHandlers.test.ts  |  93 ++++++++++++++++
+ apps/web/test/features/tasks/rowShortcuts.test.ts  |  22 ++++
+ .../test/features/tasks/showCompletedPref.test.ts  |  59 ++++++++++
+ apps/web/test/features/undo/createUndo.test.ts     |  85 ++++++++++++++
+ apps/web/test/features/undo/undoStack.test.ts      |  40 +++++++
+ 7 files changed, 462 insertions(+)
+commit 0cceebb1abfb29e799086b77674dcac327a4e230
+vidi-agent  Sun Sep 27 15:26:16 2026 +0100
+
+    story 6 task 7: Web: lazy task detail sheet (full-screen on mobile) with inline edit, blank-name hint, edit guard and focus return
+
+
+ apps/web/src/components/ui/sheet.tsx               |  22 +-
+ .../web/src/features/tasks/TaskDetailSheet.lazy.ts |  11 +
+ apps/web/src/features/tasks/TaskDetailSheet.tsx    | 267 +++++++++++++++++++++
+ apps/web/src/index.css                             |   7 +
+ 4 files changed, 303 insertions(+), 4 deletions(-)
+commit 45d48d897c5b170c8f7b683edbe32929850d9df4
+vidi-agent  Sun Sep 27 15:26:15 2026 +0100
+
+    story 6 task 6: Web: task row checkbox with completion feedback, actions menu without delete confirm, show-completed toggle, touch and keyboard
+
+
+ apps/web/src/components/icons.ts                   |   5 +
+ apps/web/src/features/tasks/InboxView.tsx          | 110 ++++++++++--
+ .../web/src/features/tasks/ShowCompletedToggle.tsx |  43 +++++
+ apps/web/src/features/tasks/TaskActionsContext.ts  |  19 ++-
+ apps/web/src/features/tasks/TaskList.tsx           |  40 ++++-
+ apps/web/src/features/tasks/TaskRow.tsx            | 184 ++++++++++++++++++---
+ apps/web/src/features/tasks/showCompletedPref.ts   |  32 ++++
+ apps/web/src/features/tasks/useTaskShortcuts.ts    |  40 +++++
+ .../src/features/workspace/FloatingAddButton.tsx   |   1 +
+ apps/web/test/features/tasks/QuickAdd.test.tsx     |   4 +-
+ apps/web/test/features/tasks/TaskList.test.tsx     |  24 +--
+ .../web/test/features/tasks/useCreateTask.test.tsx |   8 +-
+ e2e/inbox-helpers.ts                               |   2 +-
+ 13 files changed, 449 insertions(+), 63 deletions(-)
+commit 78f1ab1ee768df2ea5e3029a20898c7107e6fb9a
+vidi-agent  Sun Sep 27 15:26:15 2026 +0100
+
+    story 6 task 13: Web: focus management after complete/delete and on detail close
+
+
+ apps/web/src/features/tasks/focusAfterAction.ts | 90 +++++++++++++++++++++++++
+ 1 file changed, 90 insertions(+)
+commit d5330e713c1c0497b33e44c47cdd22bddc0eca0b
+vidi-agent  Sun Sep 27 15:26:15 2026 +0100
+
+    story 6 task 5: Web: pausable 10 s undo toast, undo stack and Cmd/Ctrl+Z
+
+
+ apps/web/src/features/shortcuts/ShortcutsPanel.tsx |   6 +-
+ apps/web/src/features/tasks/rowShortcuts.ts        |  22 ++++
+ apps/web/src/features/undo/UndoToast.tsx           |  49 ++++++++
+ apps/web/src/features/undo/createUndo.ts           | 133 +++++++++++++++++++++
+ apps/web/src/features/undo/showUndoToast.ts        |  35 ++++++
+ apps/web/src/features/undo/undoStack.ts            |  26 ++++
+ apps/web/src/features/undo/useUndoShortcut.ts      |  17 +++
+ apps/web/src/features/workspace/AppShell.tsx       |   3 +
+ apps/web/src/lib/shortcuts.ts                      |  27 +++--
+ 9 files changed, 307 insertions(+), 11 deletions(-)
+commit 052330cfbfc56544cf52b692812f5f64db79a787
+vidi-agent  Sun Sep 27 15:26:15 2026 +0100
+
+    story 6 task 4: Web: optimistic task mutation hooks, cache ops, busy state and live restored handler
+
+
+ apps/web/src/features/tasks/busyStore.ts           |  63 +++++
+ apps/web/src/features/tasks/cacheOps.ts            | 106 ++++++++
+ apps/web/src/features/tasks/checkedStore.ts        |  57 ++++
+ apps/web/src/features/tasks/liveHandlers.ts        | 110 ++++++--
+ apps/web/src/features/tasks/queries.ts             |  11 +-
+ apps/web/src/features/tasks/taskLists.ts           |  88 ++++++
+ apps/web/src/features/tasks/useCreateTask.ts       |  37 ++-
+ apps/web/src/features/tasks/useTaskMutations.ts    | 298 +++++++++++++++++++++
+ apps/web/src/lib/api.ts                            |  40 ++-
+ apps/web/src/lib/queryKeys.ts                      |  11 +-
+ .../features/workspace/workspaceLoader.test.ts     |   2 +-
+ apps/web/test/setup.ts                             |   9 +
+ 12 files changed, 783 insertions(+), 49 deletions(-)
+commit fb4b8c91671dce50e71993b4e47ca547b8cf8200
+vidi-agent  Sun Sep 27 15:05:36 2026 +0100
+
+    story 6 task 10: Integration tests: PATCH edit validation and blank-name rule, list include_completed, last-write-wins
+
+
+ apps/api/test/routes/tasks.edit.test.ts | 261 ++++++++++++++++++++++++++++++++
+ 1 file changed, 261 insertions(+)
+commit 4444fd4b2a3c07641720eb4e8fab4162fbf8d520
+vidi-agent  Sun Sep 27 15:05:36 2026 +0100
+
+    story 6 task 3: API: PATCH task name/description with blank-name rule, and list with include_completed
+
+
+ NOTES.md | 17 +++++++++++++++++
+ 1 file changed, 17 insertions(+)
+commit 74f8923970a266cc15a5d77fbcf4fdd963f7be39
+vidi-agent  Sun Sep 27 15:04:38 2026 +0100
+
+    story 6 task 9: Integration tests: complete/reopen/delete/restore state matrix, access, broadcasts, retention
+
+
+ apps/api/test/lifecycle-helpers.ts           | 155 ++++++++++++++
+ apps/api/test/routes/tasks.lifecycle.test.ts | 302 +++++++++++++++++++++++++++
+ 2 files changed, 457 insertions(+)
+commit e816354400b8216c0dce4f7ed3d5eae5001298ba
+vidi-agent  Sun Sep 27 15:04:37 2026 +0100
+
+    story 6 task 2: API: complete, reopen, soft delete and restore endpoints with idempotent no-ops and broadcasts
+
+
+ apps/api/src/db/tasks.ts         | 139 +++++++++++++++++++++++++++++++++++++--
+ apps/api/src/routes/tasks.ts     | 101 ++++++++++++++++++++++++++--
+ apps/api/src/routes/test.ts      |   9 +++
+ docs/ops/recover-deleted-task.md |  38 +++++++++++
+ 4 files changed, 277 insertions(+), 10 deletions(-)
+commit fc2056a53f736ac5f548997e3ec7b40ea57d247f
+vidi-agent  Sun Sep 27 15:01:33 2026 +0100
+
+    story 6 task 1: Shared task schemas, Intl date helpers and undo/animation constants
+
+
+ apps/api/tsconfig.json                     |   2 +-
+ apps/web/tsconfig.json                     |   2 +-
+ packages/shared/package.json               |   4 +-
+ packages/shared/src/dates.ts               |  42 ++++++++++++
+ packages/shared/src/limits.ts              |  15 ++++-
+ packages/shared/src/schemas.ts             |  59 ++++++++++++++++
+ packages/shared/src/types.ts               |  12 ++++
+ packages/shared/test/dates.test.ts         |  41 ++++++++++++
+ packages/shared/test/taskLifecycle.test.ts | 104 +++++++++++++++++++++++++++++
+ tsconfig.base.json                         |   2 +-
+ 10 files changed, 277 insertions(+), 6 deletions(-)
 commit 7401216ac16fde2987bc39613e9cd9e80b5d46f7
 vidi-agent  Sun Sep 27 14:56:29 2026 +0100
 

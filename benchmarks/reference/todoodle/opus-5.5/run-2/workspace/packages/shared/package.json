@@ -8,7 +8,9 @@
     "./schemas": "./src/schemas.ts",
     "./events": "./src/events.ts",
     "./tokens": "./src/tokens.ts",
-    "./contrast": "./src/contrast.ts"
+    "./contrast": "./src/contrast.ts",
+    "./types": "./src/types.ts",
+    "./dates": "./src/dates.ts"
   },
   "dependencies": {
     "zod": "^4.6.5"

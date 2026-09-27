@@ -17,9 +17,14 @@ export type ShortcutOptions = {
   allowInFields?: boolean;
   /** 'none': no Ctrl, Meta or Alt (default). 'mod': Meta on macOS, Ctrl elsewhere. */
   modifiers?: 'none' | 'mod';
+  /**
+   * Checked at key time (story 6): when it returns false the key is left alone entirely (not
+   * handled, default not prevented), e.g. row shortcuts only while a task row has focus.
+   */
+  when?: (event: KeyboardEvent) => boolean;
 };
 
-export type ShortcutInfo = { key: string; description: string; group: ShortcutGroup };
+export type ShortcutInfo = { key: string; description: string; group: ShortcutGroup; modifiers?: 'none' | 'mod' };
 
 type Entry = {
   key: string;
@@ -66,7 +71,7 @@ export function isTypingTarget(el: EventTarget | null): boolean {
   return editable !== null && editable !== 'false';
 }
 
-function isMac(): boolean {
+export function isMac(): boolean {
   if (typeof navigator === 'undefined') return false;
   const platform = (navigator as Navigator & { userAgentData?: { platform?: string } }).userAgentData?.platform ?? navigator.platform ?? '';
   return /mac|iphone|ipad|ipod/i.test(platform);
@@ -101,7 +106,11 @@ export function dispatchShortcut(event: KeyboardEvent): void {
   // The most recently registered eligible entry wins (a view can override a global one).
   const candidates = [...entries].reverse();
   const match = candidates.find(
-    (entry) => isEnabled(entry) && (!typing || entry.opts.current.allowInFields === true) && modifiersMatch(event, entry),
+    (entry) =>
+      isEnabled(entry) &&
+      (!typing || entry.opts.current.allowInFields === true) &&
+      modifiersMatch(event, entry) &&
+      (entry.opts.current.when?.(event) ?? true),
   );
   if (!match) return;
   event.preventDefault();
@@ -155,11 +164,11 @@ export function listShortcuts(): ShortcutInfo[] {
   for (const [key, entries] of registry) {
     for (const entry of [...entries].reverse()) {
       if (!isEnabled(entry)) continue;
-      const { description, group } = entry.opts.current;
+      const { description, group, modifiers } = entry.opts.current;
       const id = `${key}:${description}`;
       if (seen.has(id)) continue;
       seen.add(id);
-      out.push({ key, description, group });
+      out.push(modifiers === 'mod' ? { key, description, group, modifiers } : { key, description, group });
       break;
     }
   }
@@ -167,9 +176,11 @@ export function listShortcuts(): ShortcutInfo[] {
   return out;
 }
 
-/** How a key is shown in the panel ('q' as Q). */
-export function displayKey(key: string): string {
-  return key.length === 1 ? key.toUpperCase() : key;
+/** How a key is shown in the panel and menus ('q' as Q, ' ' as Space, mod+z as ⌘Z or Ctrl+Z). */
+export function displayKey(key: string, modifiers: 'none' | 'mod' = 'none'): string {
+  const base = key === ' ' ? 'Space' : key.length === 1 ? key.toUpperCase() : key;
+  if (modifiers !== 'mod') return base;
+  return isMac() ? `⌘${base}` : `Ctrl+${base}`;
 }
 
 /** Test hooks: registration counters, and a fresh registry (as after a page load). */

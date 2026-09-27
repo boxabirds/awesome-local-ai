@@ -45,7 +45,7 @@ describe('workspaceLoader', () => {
 
   it('TC-92 the counts key has no date; invalidating the workspace root refetches counts exactly once', async () => {
     expect(qk.counts(TASK_WS_ID)).toEqual(['ws', TASK_WS_ID, 'counts']);
-    expect(qk.tasks(TASK_WS_ID, { list: 'inbox' })).toEqual(['ws', TASK_WS_ID, 'tasks', { list: 'inbox' }]);
+    expect(qk.tasks(TASK_WS_ID, { list: 'inbox' })).toEqual(['ws', TASK_WS_ID, 'tasks', { list: 'inbox', includeCompleted: false }]);
     let gets = 0;
     server.use(
       http.get('/api/w/:id/counts', () => {

@@ -60,7 +60,7 @@ describe('QuickAdd', () => {
     fireEvent.submit(form());
     await settle();
     expect(bodies).toEqual([]);
-    expect(screen.queryByRole('option')).not.toBeInTheDocument();
+    expect(screen.queryByRole('listitem')).not.toBeInTheDocument();
   });
 
   it('TC-52 a whitespace-only name: Add disabled, Enter creates nothing', async () => {
@@ -79,7 +79,7 @@ describe('QuickAdd', () => {
     type(nameField(), 'Buy milk');
     type(descriptionField(), 'semi-skimmed');
     pressEnter(nameField());
-    expect(await screen.findByRole('option', { name: /Buy milk/ })).toBeInTheDocument();
+    expect(await screen.findByRole('listitem', { name: /Buy milk/ })).toBeInTheDocument();
     await settle();
     expect(bodies).toEqual([{ id: expect.stringMatching(/^[0-9a-f]{32}$/), name: 'Buy milk', description: 'semi-skimmed' }]);
     expect(nameField()).toHaveValue('');

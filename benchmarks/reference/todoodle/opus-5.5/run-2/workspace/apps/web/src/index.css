@@ -40,6 +40,13 @@
   }
 }
 
+/* The task detail sheet slides in from the right (story 6; also off under reduced motion). */
+@keyframes sheet-in-right {
+  from {
+    transform: translateX(100%);
+  }
+}
+
 @keyframes skeleton-shimmer {
   50% {
     opacity: 0.5;

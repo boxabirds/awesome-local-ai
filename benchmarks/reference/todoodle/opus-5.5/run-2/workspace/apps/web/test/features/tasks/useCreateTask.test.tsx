@@ -50,9 +50,9 @@ function add(name: string) {
   });
 }
 
-const row = (name: string) => screen.getByRole('option', { name: new RegExp(name) });
+const row = (name: string) => screen.getByRole('listitem', { name: new RegExp(name) });
 /** Rows render on the next animation frame (query notifications are batched per frame). */
-const findRow = (name: string) => screen.findByRole('option', { name: new RegExp(name) });
+const findRow = (name: string) => screen.findByRole('listitem', { name: new RegExp(name) });
 const inboxCount = () => queryClient.getQueryData<Counts>(qk.counts(TASK_WS_ID))?.inbox;
 const cachedTasks = () => queryClient.getQueryData<LocalTask[]>(qk.tasks(TASK_WS_ID, { list: 'inbox' })) ?? [];
 
@@ -79,7 +79,7 @@ describe('useCreateTask', () => {
     await expect.poll(() => cachedTasks()[0]?.localStatus).toBeUndefined();
     expect(bodies).toHaveLength(2);
     expect(bodies[1]).toEqual(bodies[0]);
-    expect(screen.getAllByRole('option')).toHaveLength(1);
+    expect(screen.getAllByRole('listitem')).toHaveLength(1);
     expect(cachedTasks()).toEqual([expect.objectContaining({ name: 'Buy milk', version: 1 })]);
   });
 
@@ -89,7 +89,7 @@ describe('useCreateTask', () => {
     const discard = await screen.findByRole('button', { name: 'Discard' });
     expect(inboxCount()).toBe(2);
     fireEvent.click(discard);
-    await expect.poll(() => screen.queryByRole('option', { name: /Buy milk/ })).toBeNull();
+    await expect.poll(() => screen.queryByRole('listitem', { name: /Buy milk/ })).toBeNull();
     await act(async () => void (await new Promise((r) => setTimeout(r, 20))));
     expect(bodies).toHaveLength(1);
     expect(inboxCount()).toBe(2);

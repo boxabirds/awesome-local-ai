@@ -8,6 +8,7 @@ import { qk } from '@/lib/queryKeys';
 import type { QuickAddTarget } from './DestinationChip';
 import type { LocalStatus, LocalTask } from './localTask';
 import type { NewTaskInput } from './QuickAdd';
+import { insertBySortOrder, placeTask } from './cacheOps';
 import { adjustCount, appendOptimistic, markStatus, nextSortOrder, removeLocal, replaceWithServer } from './taskCache';
 
 type CreateVariables = NewTaskInput & { retry?: boolean };
@@ -44,6 +45,7 @@ export type CreateTaskApi = {
  */
 export function useCreateTask(workspaceId: string): CreateTaskApi {
   const queryClient = useQueryClient();
+  const withCompleted = (target: QuickAddTarget) => qk.tasks(workspaceId, { list: listFor(target), includeCompleted: true });
 
   const { mutate } = useMutation<Task, unknown, CreateVariables>({
     mutationKey: [...qk.root(workspaceId), 'create-task'],
@@ -57,31 +59,37 @@ export function useCreateTask(workspaceId: string): CreateTaskApi {
     },
     onMutate: (vars) => {
       const key = qk.tasks(workspaceId, { list: listFor(vars.target) });
+      const optimistic = (list: readonly LocalTask[] | undefined): LocalTask => ({
+        id: vars.id,
+        workspaceId,
+        name: vars.name,
+        description: vars.description,
+        sortOrder: nextSortOrder(list),
+        completedAt: null,
+        version: 0,
+        createdAt: '',
+        updatedAt: '',
+        localStatus: 'pending',
+      });
+      const open = queryClient.getQueryData<LocalTask[]>(key);
       queryClient.setQueryData<LocalTask[]>(key, (list) =>
-        vars.retry
-          ? markStatus(list, vars.id, 'pending')
-          : appendOptimistic(list, {
-              id: vars.id,
-              workspaceId,
-              name: vars.name,
-              description: vars.description,
-              sortOrder: nextSortOrder(list),
-              completedAt: null,
-              version: 0,
-              createdAt: '',
-              updatedAt: '',
-              localStatus: 'pending',
-            }),
+        vars.retry ? markStatus(list, vars.id, 'pending') : appendOptimistic(list, optimistic(list)),
+      );
+      // Story 6: the same list with its completed tasks, when cached (the new task goes before them).
+      queryClient.setQueryData<LocalTask[]>(withCompleted(vars.target), (list) =>
+        !list ? list : vars.retry ? markStatus(list, vars.id, 'pending') : insertBySortOrder(list, optimistic(open ?? list.filter((t) => !t.completedAt))),
       );
       queryClient.setQueriesData<Counts>({ queryKey: qk.counts(workspaceId) }, (counts) => adjustCount(counts, 1));
     },
     onSuccess: (task, vars) => {
       queryClient.setQueryData<LocalTask[]>(qk.tasks(workspaceId, { list: listFor(vars.target) }), (list) => replaceWithServer(list, task));
+      queryClient.setQueryData<LocalTask[]>(withCompleted(vars.target), (list) => placeTask(list, task, true));
     },
     onError: (error, vars) => {
       queryClient.setQueryData<LocalTask[]>(qk.tasks(workspaceId, { list: listFor(vars.target) }), (list) =>
         markStatus(list, vars.id, outcomeOf(error)),
       );
+      queryClient.setQueryData<LocalTask[]>(withCompleted(vars.target), (list) => markStatus(list, vars.id, outcomeOf(error)));
       queryClient.setQueriesData<Counts>({ queryKey: qk.counts(workspaceId) }, (counts) => adjustCount(counts, -1));
     },
   });
@@ -106,6 +114,7 @@ export function useCreateTask(workspaceId: string): CreateTaskApi {
         const found = findLocal(id);
         if (!found?.task.localStatus || found.task.localStatus === 'pending') return;
         queryClient.setQueryData<LocalTask[]>(qk.tasks(workspaceId, { list: found.list }), (list) => removeLocal(list, id));
+        queryClient.setQueryData<LocalTask[]>(qk.tasks(workspaceId, { list: found.list, includeCompleted: true }), (list) => removeLocal(list, id));
       },
     };
   }, [mutate, queryClient, workspaceId]);

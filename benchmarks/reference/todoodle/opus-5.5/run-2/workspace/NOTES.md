@@ -364,3 +364,90 @@
   migrated local D1 (`npm run dev`, as in earlier stories).
 - Not verified here: real on-screen keyboards on physical phones (the inset maths is unit-tested and
   docked placement checked in emulation) and real screen readers, as the design says.
+
+## Story 6
+
+- **Commit order.** Tasks 2 and 3 share `apps/api/src/routes/tasks.ts` and `db/tasks.ts`, and were
+  written together: task 2's commit already contains the PATCH route, `updateTask` and `listTasks`
+  (task 3's code). Task 3's commit holds this note; its integration tests are task 10. The API tests
+  (tasks 9, 10) were committed right after the API; the shared unit tests for task 1 (TC-U01..U07,
+  TC-U15) were committed with task 1 because they are its "Done when".
+- **Timestamps written by story 6** (`completed_at`, `deleted_at`, `updated_at`) are ISO 8601 with
+  milliseconds (`new Date().toISOString()`), so completion order is exact. Older rows keep SQLite's
+  `YYYY-MM-DD HH:MM:SS`; `parseTimestamp` in `packages/shared/src/dates.ts` reads both as UTC.
+- **Delete and restore leave `updated_at` alone** (TC-I16: "other columns unchanged"); complete,
+  reopen and edit set it.
+- **`NAME_HINT_MS` is 3000** (was 2500 from story 2); the workspace name hint uses the same constant.
+- **`ES2023.Array`** was added to the TypeScript `lib` (for `toSorted`, which the design asks for).
+  Every runtime involved (workerd, current browsers, Node 24) has it.
+- Lifecycle POSTs accept no body or exactly `{}` (`EmptyBodySchema`); any other JSON body is 400.
+- **Web commit order.** Tasks 4, 5, 13, 6 and 7 depend on each other (the mutation hooks open undo
+  toasts and move focus; the row opens the lazy sheet). They were committed in the order 4, 5, 13, 6,
+  7, then the tests 8, 11, 12. `rowShortcuts.ts` went in with task 5 because the undo shortcut is in
+  its table. Task 12's commit also has a small fix found by the WebKit e2e run (see "Sonner focus").
+- **Rows are a list, not a listbox.** Story 5's rows were `role=option`; story 6 puts a checkbox, the
+  name button and the "…" menu inside each row, and interactive children inside an option break
+  axe's `nested-interactive` rule (TC-88 runs axe). So rows are now `<ul aria-label="Tasks">` with
+  `<li>` items named by `aria-labelledby` (the task name). Story 5's tests and the e2e helper select
+  `list`/`listitem` now; TC-43's "checkbox is decorative until story 6" check became "the checkbox is
+  a real control named Complete NAME".
+- **The row's own controls are not tab stops** (`tabIndex=-1`), so the list stays one tab stop, as
+  story 5's TC-109 requires. From the keyboard, Space, E and Delete/Backspace act on the focused row.
+  Pointer, touch and screen-reader users can still use every control.
+- **Shortcut registry additions** (`lib/shortcuts.ts`): an optional `when(event)` predicate, checked
+  before the key is taken, so row shortcuts apply only while a row itself has focus, and Cmd/Ctrl+Z
+  only while an undo toast is showing. In every other case the key keeps its default. `ShortcutInfo`
+  carries `modifiers`, and `displayKey` shows "Space" and "⌘Z"/"Ctrl+Z" in the `?` panel.
+- **Undo toast timing.** The toast appears when the change is applied on screen (optimistically), not
+  when the server answers. If the change fails, the toast is cancelled (`UndoHandle.cancel()`) and
+  "Couldn't save — try again" shows instead. Undo waits for the original request to settle before it
+  sends the inverse, so reopen/restore can never overtake complete/delete. As the design's state
+  machine says, a failed Undo is final: the alert "Couldn't undo — try again" is shown.
+- `createUndo(inverse, clock, opts?)`: the optional third argument (`windowMs`, `onSettled`) and the
+  handle's `cancel`, `subscribe` and `remaining` are additions. `showUndoToast` returns the handle
+  instead of `void`, so the mutation can cancel it.
+- **Pending tick.** The checkbox ticks at once from a small per-id store (`checkedStore`), because
+  cache updates render on the next frame (story 5's batched notifications) and the list uses
+  `useDeferredValue`. The row clears the pending state itself once its data agrees, or when it
+  unmounts; a rollback clears it explicitly.
+- **Live handlers.** `task.upserted` now updates every cached list variant: a completed task leaves
+  open-only lists and moves to the completed group, and the open count follows. `task.deleted` is
+  registered too (without it the dispatcher would only refetch, and the edit guard's "This task was
+  deleted" notice would never fire). Deleted ids are remembered (`taskTombstones`), so a late
+  `task.upserted` for a deleted task is ignored; `task.restored` applies only when newer than the
+  deletion (TC-U09).
+- **Busy state** comes from one subscription to the mutation cache (`busyStore`); each row listens
+  for its own id only. Rows keep working without a QueryClientProvider (story 5's bare TaskList tests).
+- **Query key.** `queryKeys.tasks(id, { list, includeCompleted })` always puts `includeCompleted` in
+  the key (default false), so `{ list }` and `{ list, includeCompleted: false }` share one cache
+  entry. Story 5's loader test now expects the full key. Quick add also writes new tasks into the
+  "with completed" list when it is cached.
+- **Show completed** is a `role=switch` button labelled "Show completed". Completed rows follow the
+  open ones in the same list (so roving focus covers them), with no separate heading. "No completed
+  tasks" is not shown while the completed tasks are still loading, so it never flashes.
+- **Detail sheet.** Titled "Task details", with fields "Name" and "Description", a Delete button and
+  a Close button. Escape reverts a field that has unsaved changes. If there is nothing to revert,
+  Escape closes the sheet (so "Escape twice" after an edit always ends closed). Closing by click
+  (Close button, overlay) saves what was typed, as a blur would. If the task leaves the open list
+  while the sheet is open (someone completed it), the sheet keeps its last copy. After closing,
+  focus goes back to the row it was opened from. If that row has gone, focus goes to the row now in
+  its place, or to "+ Add task". The conflict notice is story 4's shared one ("Someone else changed
+  this just now.", Use my version / Keep theirs). The PRD describes that notice as story 4's.
+- **Sonner focus.** In Safari, clicking Undo focuses the toast itself. Sonner remembers where focus
+  was before and, the next time focus leaves the toaster, puts it back there. That closed a row
+  menu the user had just opened (found by WebKit e2e TC-E04). When an undo toast settles, focus
+  inside the toaster is now released at once, so sonner restores it straight away.
+- **TC-C32** counts imports of the sheet module with `vi.mock(..., importOriginal)`.
+- **E2E.** Undo is pressed with the chord for the page's own platform (`undoChord`): Playwright's
+  `ControlOrMeta` follows the host OS, but the emulated "Desktop Chrome" page reports Windows. WebKit
+  tabs with Alt+Tab (as in story 5). TC-E05 is Chromium only, like story 4's live specs.
+
+### Story 6 verification (2026-09-27)
+
+- `typecheck`, `build`, `lint` and `test` pass: api unit 102, scripts + shared unit 80, api
+  integration and production-gate 216, scripts integration 14, web unit and ui 440. E2E: 106 passing
+  (9 skipped: story 4's Chromium-only specs and TC-E05 under WebKit), against `wrangler dev` with a
+  freshly migrated local D1 (`npm run dev`, as in earlier stories).
+- The build's "chunk larger than 500 kB" warning was already there before story 6 (the main chunk
+  was 560 kB then too). The detail sheet is its own 4 kB chunk.
+- Not verified here: real screen readers and physical phones (as the design says).

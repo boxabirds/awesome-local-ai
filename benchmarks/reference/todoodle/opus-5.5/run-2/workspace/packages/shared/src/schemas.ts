@@ -119,3 +119,62 @@ export type TaskListResponse = z.infer<typeof TaskListResponse>;
 /** GET /api/w/:id/counts: open tasks per list. Stories 7 and 8 add fields. */
 export const CountsSchema = z.object({ inbox: z.number().int().nonnegative() });
 export type Counts = z.infer<typeof CountsSchema>;
+
+/* Task lifecycle (story 6). */
+
+/**
+ * Body of PATCH /api/w/:id/tasks/:taskId. Strict (lifecycle fields such as completedAt can't be
+ * set here) and at least one key. The name is checked after trimming; a blank name is allowed
+ * and means "keep the previous name" (resolvePatchedName). An empty description clears it.
+ */
+export const TaskPatchSchema = z
+  .object({
+    name: z
+      .string()
+      .refine((value) => value.trim().length <= TASK_NAME_MAX, { message: `At most ${TASK_NAME_MAX} characters` })
+      .optional(),
+    description: z.string().refine(fitsIn(TASK_DESCRIPTION_MAX), { message: `At most ${TASK_DESCRIPTION_MAX} characters` }).optional(),
+  })
+  .strict()
+  .refine((patch) => patch.name !== undefined || patch.description !== undefined, {
+    message: 'Change at least one of name or description',
+  });
+export type TaskPatch = z.infer<typeof TaskPatchSchema>;
+
+/** The name a patch leaves: the trimmed input, or the previous name when the input is absent or blank. */
+export function resolvePatchedName(input: string | undefined, previous: string): string {
+  const trimmed = input?.trim() ?? '';
+  return trimmed === '' ? previous : trimmed;
+}
+
+/** Lifecycle POSTs (complete, reopen, restore) take no body, or an empty JSON object. */
+export const EmptyBodySchema = z.object({}).strict();
+
+/** Query of GET /api/w/:id/tasks with story 6's `include_completed` (default false). */
+export const ListTasksQuerySchema = TaskListQuerySchema.extend({
+  include_completed: z.enum(['true', 'false']).optional(),
+});
+export type ListTasksQuery = z.infer<typeof ListTasksQuerySchema>;
+
+/** `include_completed` as a boolean: absent or 'false' is false, 'true' is true; anything else throws. */
+export function parseIncludeCompleted(value: string | undefined): boolean {
+  return ListTasksQuerySchema.shape.include_completed.parse(value) === 'true';
+}
+
+/**
+ * List order: open tasks by sortOrder ascending, then completed tasks by completedAt descending
+ * (most recent first); ties by id. Returns a new array.
+ */
+export function orderTasks<T extends Pick<Task, 'id' | 'sortOrder' | 'completedAt'>>(tasks: readonly T[]): T[] {
+  return tasks.toSorted((a, b) => {
+    const aDone = a.completedAt !== null;
+    const bDone = b.completedAt !== null;
+    if (aDone !== bDone) return aDone ? 1 : -1;
+    if (!aDone) {
+      if (a.sortOrder !== b.sortOrder) return a.sortOrder - b.sortOrder;
+    } else if (a.completedAt !== b.completedAt) {
+      return a.completedAt! < b.completedAt! ? 1 : -1;
+    }
+    return a.id < b.id ? -1 : a.id > b.id ? 1 : 0;
+  });
+}

@@ -9,14 +9,15 @@ import { mergeLocalRows } from './taskCache';
 const TASKS_STALE_MS = 10_000;
 
 /**
- * Query options for one task list. Background refetches keep showing the previous rows, and keep
- * this tab's unsaved rows (their text is never lost to a refetch).
+ * Query options for one task list (with its completed tasks when `includeCompleted`). Background
+ * refetches and toggling "Show completed" keep showing the previous rows (keepPreviousData: no
+ * empty or loading flash), and this tab's unsaved rows are kept (their text is never lost).
  */
-export function tasksQuery(workspaceId: string, list: TaskList) {
+export function tasksQuery(workspaceId: string, list: TaskList, includeCompleted = false) {
   return queryOptions({
-    queryKey: qk.tasks(workspaceId, { list }),
+    queryKey: qk.tasks(workspaceId, { list, includeCompleted }),
     queryFn: async ({ signal, client, queryKey }): Promise<LocalTask[]> =>
-      mergeLocalRows(await listTasks(workspaceId, list, signal), client.getQueryData<LocalTask[]>(queryKey)),
+      mergeLocalRows(await listTasks(workspaceId, { list, includeCompleted }, signal), client.getQueryData<LocalTask[]>(queryKey)),
     placeholderData: keepPreviousData,
     staleTime: TASKS_STALE_MS,
     // A failure shows "Couldn't load your tasks." with Try again at once.

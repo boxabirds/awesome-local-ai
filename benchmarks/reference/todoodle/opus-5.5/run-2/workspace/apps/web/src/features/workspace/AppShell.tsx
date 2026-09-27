@@ -3,6 +3,7 @@ import { MenuIcon } from '@/components/icons';
 import { useShortcutsPanel } from '@/features/shortcuts/useShortcutsPanel';
 import { InboxView } from '@/features/tasks/InboxView';
 import { registerTaskHandlers } from '@/features/tasks/liveHandlers';
+import { useUndoShortcut } from '@/features/undo/useUndoShortcut';
 import { NAV_DRAWER_ID, NavDrawer } from './NavDrawer';
 import { Sidebar } from './Sidebar';
 import { useIsNarrow } from './useIsNarrow';
@@ -42,6 +43,8 @@ export function AppShell({ workspaceId, name, canEdit, loading = false, headerAc
 
   // Task live updates, once per workspace mount (one handler among others for the same type).
   useEffect(() => registerTaskHandlers(), [workspaceId]);
+  // Cmd/Ctrl+Z undoes the most recent completion or deletion (story 6), once for the shell.
+  useUndoShortcut();
 
   // Widened past the breakpoint with the drawer open: the drawer is gone, so focus the view title.
   useEffect(() => {

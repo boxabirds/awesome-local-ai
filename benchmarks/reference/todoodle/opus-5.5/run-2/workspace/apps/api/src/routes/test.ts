@@ -70,6 +70,15 @@ testRoutes.post('/remembered-seed', async (c) => {
   return c.json({ workspaces: results.map((r) => toPublicWorkspace(r.results[0]!)) }, 201);
 });
 
+/**
+ * The stored task row exactly as in D1, deleted or not (story 6 retention checks, TC-E04).
+ * 404 when no row has this id.
+ */
+testRoutes.get('/tasks/:id/raw', async (c) => {
+  const row = await c.env.DB.prepare('SELECT * FROM tasks WHERE id = ?').bind(c.req.param('id')).first();
+  return row ? c.json({ task: row }) : errorResponse('not_found', 404);
+});
+
 testRoutes.get('/throw', () => {
   throw new Error('Deliberate failure from /test/throw');
 });

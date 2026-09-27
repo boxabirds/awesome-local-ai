@@ -2062,6 +2062,376 @@
           "found": 14,
           "total": 14
         }
+      ],
+      "record": {
+        "committed": true,
+        "pushed": true,
+        "over_size_limit": [
+          "~/.spec-bench/awesome-local-ai/benchmarks/reference/todoodle/opus-5.5/run-2/workspace/apps/web/dist/assets/index-DF-tDsP7.js"
+        ],
+        "commit": "339c75c1"
+      }
+    },
+    "6": {
+      "title": "Tick off, edit, and remove tasks \u2014 with undo when I slip",
+      "conditions_start": {
+        "ac": true,
+        "low_power": false,
+        "thermal": "nominal"
+      },
+      "started": 1790517568.6021278,
+      "agent": {
+        "seconds": 2533.7,
+        "steps": 123,
+        "tool_calls": 131,
+        "compactions": 0,
+        "tool_interruptions": 0,
+        "tokens": {
+          "input": 246,
+          "output": 202760,
+          "reasoning": 0,
+          "cache_read": 30823435,
+          "cache_write": 371545
+        },
+        "exit": 0,
+        "stalled": false,
+        "resumes": 0,
+        "nudges": 0,
+        "errors": [],
+        "ended_by_operator": false,
+        "ended_in_error": false,
+        "sessions": [
+          "030f05fc-954f-4af9-b792-23265429896f"
+        ]
+      },
+      "agent_finished": 1790520102.3588521,
+      "conditions": {
+        "samples": 84,
+        "degraded": false,
+        "throttled_share": 0.0,
+        "bad_samples": [],
+        "swap_start_gb": 0.34,
+        "swap_max_gb": 0.34,
+        "aborted_swap": false,
+        "aborted_memory": false,
+        "free_min_pct": 63.0,
+        "server_footprint_max_gb": null,
+        "server_footprint_peak_gb": null,
+        "gpu": null
+      },
+      "agent_commits": 14,
+      "gate": {
+        "steps": {
+          "install": {
+            "cmd": "bun install",
+            "exit": 0,
+            "seconds": 1.0,
+            "tail": "bun install v1.2.17 (282dda62)\n\nChecked 440 installs across 557 packages (no changes) [1036.00ms]\n\n$ node scripts/ensure-workerd.mjs\n"
+          },
+          "build": {
+            "cmd": "bun run build",
+            "exit": 0,
+            "seconds": 1.5,
+            "tail": "6mSharePanel-4BhNhkFk.js        \u001b[39m\u001b[1m\u001b[2m  4.48 kB\u001b[22m\u001b[1m\u001b[22m\u001b[2m \u2502 gzip:   2.07 kB\u001b[22m\n\u001b[2mdist/\u001b[22m\u001b[2massets/\u001b[22m\u001b[36mForgetDialog-CRNq2jKX.js      \u001b[39m\u001b[1m\u001b[2m  4.81 kB\u001b[22m\u001b[1m\u001b[22m\u001b[2m \u2502 gzip:   1.92 kB\u001b[22m\n\u001b[2mdist/\u001b[22m\u001b[2massets/\u001b[22m\u001b[36museWorkspaceLink-DoJacup6.js  \u001b[39m\u001b[1m\u001b[2m  6.80 kB\u001b[22m\u001b[1m\u001b[22m\u001b[2m \u2502 gzip:   2.58 kB\u001b[22m\n\u001b[2mdist/\u001b[22m\u001b[2massets/\u001b[22m\u001b[36mWorkspace-AaO9NQOT.js         \u001b[39m\u001b[1m\u001b[2m 64.35 kB\u001b[22m\u001b[1m\u001b[22m\u001b[2m \u2502 gzip:  21.72 kB\u001b[22m\n\u001b[2mdist/\u001b[22m\u001b[2massets/\u001b[22m\u001b[36mindex-hyPBgFyr.js             \u001b[39m\u001b[1m\u001b[33m560.79 kB\u001b[39m\u001b[22m\u001b[2m \u2502 gzip: 176.04 kB\u001b[22m\n\u001b[32m\u2713 built in 1.20s\u001b[39m\n$ vite build apps/web\n\u001b[33mnode_modules/zod/v4/core/regexes.js (74:0): A comment\n\n\"/** Anchors a pattern source. The interpolation lives here rather than at the call site because\n * esbuild will not drop a `@__PURE__` call whose own argument interpolates a variable, but it\n * will drop `anchor(dateSource)`. Keeping it inline pinned `date` into every bundle. */\"\n\nin \"node_modules/zod/v4/core/regexes.js\" contains an annotation that Rollup cannot interpret due to the position of the comment. The comment will be removed to avoid issues.\u001b[39m\n\u001b[33mnode_modules/zod/v4/core/util.js (400:0): A comment\n\n\"// Wrapped in a `@__PURE__` IIFE: esbuild never tree-shakes a top-level initializer that contains a member access on `Number`, so the bare object literal survived into every bundle.\"\n\nin \"node_modules/zod/v4/core/util.js\" contains an annotation that Rollup cannot interpret due to the position of the comment. The comment will be removed to avoid issues.\u001b[39m\n\u001b[33m[plugin vite:reporter] \n(!) ~/.vidi-bench/work/benchmarks__reference__todoodle__opus-5.5__run-2/workspace/apps/web/src/lib/api.ts is dynamically imported by ~/.vidi-bench/work/benchmarks__reference__todoodle__opus-5.5__run-2/workspace/apps/web/src/features/live/network.ts but also statically imported by ~/.vidi-bench/work/benchmarks__reference__todoodle__opus-5.5__run-2/workspace/apps/web/src/features/live/LiveProvider.tsx, ~/.vidi-bench/work/benchmarks__reference__todoodle__opus-5.5__run-2/workspace/apps/web/src/features/remembered/api.ts, ~/.vidi-bench/work/benchmarks__reference__todoodle__opus-5.5__run-2/workspace/apps/web/src/features/remembered/useTouchRemembered.ts, ~/.vidi-bench/work/benchmarks__reference__todoodle__opus-5.5__run-2/workspace/apps/web/src/features/share/UnsavedLinkBanner.tsx, ~/.vidi-bench/work/benchmarks__reference__todoodle__opus-5.5__run-2/workspace/apps/web/src/features/share/useWorkspaceLink.ts, ~/.vidi-bench/work/benchmarks__reference__todoodle__opus-5.5__run-2/workspace/apps/web/src/features/tasks/queries.ts, ~/.vidi-bench/work/benchmarks__reference__todoodle__opus-5.5__run-2/workspace/apps/web/src/features/tasks/useCreateTask.ts, ~/.vidi-bench/work/benchmarks__reference__todoodle__opus-5.5__run-2/workspace/apps/web/src/features/tasks/useTaskMutations.ts, ~/.vidi-bench/work/benchmarks__reference__todoodle__opus-5.5__run-2/workspace/apps/web/src/features/workspace/bootOpen.ts, ~/.vidi-bench/work/benchmarks__reference__todoodle__opus-5.5__run-2/workspace/apps/web/src/features/workspace/useCreateWorkspace.ts, ~/.vidi-bench/work/benchmarks__reference__todoodle__opus-5.5__run-2/workspace/apps/web/src/features/workspace/useRenameWorkspace.ts, ~/.vidi-bench/work/benchmarks__reference__todoodle__opus-5.5__run-2/workspace/apps/web/src/features/workspace/workspaceQuery.ts, dynamic import will not move module into another chunk.\n\u001b[39m\n\u001b[33m\n(!) Some chunks are larger than 500 kB after minification. Consider:\n- Using dynamic import() to code-split the application\n- Use build.rollupOptions.output.manualChunks to improve chunking: https://rollupjs.org/configuration-options/#output-manualchunks\n- Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.\u001b[39m\n",
+            "passed": null,
+            "failed": null
+          },
+          "typecheck": {
+            "cmd": "bun run typecheck",
+            "exit": 0,
+            "seconds": 5.1,
+            "tail": "$ tsc -p apps/api && tsc -p apps/api/tsconfig.node.json && tsc -p apps/web && tsc -p packages/shared && tsc -p scripts\n",
+            "passed": null,
+            "failed": null
+          },
+          "lint": {
+            "cmd": "bun run lint",
+            "exit": 0,
+            "seconds": 1.0,
+            "tail": "$ eslint apps/web\n",
+            "passed": null,
+            "failed": null
+          },
+          "test:unit": {
+            "cmd": "bun run test:unit",
+            "exit": 0,
+            "seconds": 6.7,
+            "tail": "\n RUN  v4.1.11 ~/.vidi-bench/work/benchmarks__reference__todoodle__opus-5.5__run-2/workspace/apps/api\n\n\n Test Files  10 passed (10)\n      Tests  102 passed (102)\n   Start at  15:41:51\n   Duration  2.79s (transform 2.23s, setup 8.66s, import 116ms, tests 258ms, environment 1ms)\n\n\n RUN  v4.1.11 ~/.vidi-bench/work/benchmarks__reference__todoodle__opus-5.5__run-2/workspace\n\n\n Test Files  8 passed (8)\n      Tests  80 passed (80)\n   Start at  15:41:54\n   Duration  254ms (transform 250ms, setup 0ms, import 404ms, tests 111ms, environment 0ms)\n\n\n RUN  v4.1.11 ~/.vidi-bench/work/benchmarks__reference__todoodle__opus-5.5__run-2/workspace/apps/web\n\n\n Test Files  23 passed (23)\n      Tests  205 passed (205)\n   Start at  15:41:55\n   Duration  2.38s (transform 1000ms, setup 5.91s, import 807ms, tests 1.77s, environment 4.20s)\n\n$ vitest run --config apps/api/vitest.config.ts --passWithNoTests --project unit && vitest run --config scripts/vitest.config.ts --passWithNoTests --project unit && vitest run --config apps/web/vitest.config.ts --passWithNoTests --project web-unit\n",
+            "passed": 102,
+            "failed": 0
+          },
+          "test:component": {
+            "exit": "missing"
+          },
+          "test:integration": {
+            "cmd": "bun run test:integration",
+            "exit": 0,
+            "seconds": 18.0,
+            "tail": "\n RUN  v4.1.11 ~/.vidi-bench/work/benchmarks__reference__todoodle__opus-5.5__run-2/workspace/apps/api\n\n\n Test Files  15 passed (15)\n      Tests  216 passed (216)\n   Start at  15:41:58\n   Duration  11.82s (transform 2.54s, setup 11.37s, import 366ms, tests 21.44s, environment 1ms)\n\n\n RUN  v4.1.11 ~/.vidi-bench/work/benchmarks__reference__todoodle__opus-5.5__run-2/workspace\n\n\n Test Files  2 passed (2)\n      Tests  14 passed (14)\n   Start at  15:42:10\n   Duration  5.28s (transform 81ms, setup 0ms, import 110ms, tests 5.15s, environment 0ms)\n\n$ vitest run --config apps/api/vitest.config.ts --passWithNoTests --project integration --project production-gate && vitest run --config scripts/vitest.config.ts --passWithNoTests --project integration\n",
+            "passed": 216,
+            "failed": 0
+          },
+          "test:e2e": {
+            "cmd": "bun run test:e2e --project=chromium",
+            "exit": 0,
+            "seconds": 69.5,
+            "tail": "\nRunning 55 tests using 4 workers\n\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\n  55 passed (1.2m)\n$ playwright test \"--project=chromium\"\n[WebServer] $ wrangler d1 migrations apply DB --local && vite build apps/web && concurrently -k -n web,api \"vite build apps/web --watch\" \"wrangler dev --ip 127.0.0.1 --port 8787\"\n[WebServer] node_modules/zod/v4/core/regexes.js (74:0): A comment\n[WebServer] \n[WebServer] \"/** Anchors a pattern source. The interpolation lives here rather than at the call site because\n[WebServer]  * esbuild will not drop a `@__PURE__` call whose own argument interpolates a variable, but it\n[WebServer]  * will drop `anchor(dateSource)`. Keeping it inline pinned `date` into every bundle. */\"\n[WebServer] \n[WebServer] in \"node_modules/zod/v4/core/regexes.js\" contains an annotation that Rollup cannot interpret due to the position of the comment. The comment will be removed to avoid issues.\n[WebServer] node_modules/zod/v4/core/util.js (400:0): A comment\n[WebServer] \n[WebServer] \"// Wrapped in a `@__PURE__` IIFE: esbuild never tree-shakes a top-level initializer that contains a member access on `Number`, so the bare object literal survived into every bundle.\"\n[WebServer] \n[WebServer] in \"node_modules/zod/v4/core/util.js\" contains an annotation that Rollup cannot interpret due to the position of the comment. The comment will be removed to avoid issues.\n[WebServer] [plugin vite:reporter] \n[WebServer] (!) ~/.vidi-bench/work/benchmarks__reference__todoodle__opus-5.5__run-2/workspace/apps/web/src/lib/api.ts is dynamically imported by ~/.vidi-bench/work/benchmarks__reference__todoodle__opus-5.5__run-2/workspace/apps/web/src/features/live/network.ts but also statically imported by ~/.vidi-bench/work/benchmarks__reference__todoodle__opus-5.5__run-2/workspace/apps/web/src/features/live/LiveProvider.tsx, ~/.vidi-bench/work/benchmarks__reference__todoodle__opus-5.5__run-2/workspace/apps/web/src/features/remembered/api.ts, ~/.vidi-bench/work/benchmarks__reference__todoodle__opus-5.5__run-2/workspace/apps/web/src/features/remembered/useTouchRemembered.ts, ~/.vidi-bench/work/benchmarks__reference__todoodle__opus-5.5__run-2/workspace/apps/web/src/features/share/UnsavedLinkBanner.tsx, ~/.vidi-bench/work/benchmarks__reference__todoodle__opus-5.5__run-2/workspace/apps/web/src/features/share/useWorkspaceLink.ts, ~/.vidi-bench/work/benchmarks__reference__todoodle__opus-5.5__run-2/workspace/apps/web/src/features/tasks/queries.ts, ~/.vidi-bench/work/benchmarks__reference__todoodle__opus-5.5__run-2/workspace/apps/web/src/features/tasks/useCreateTask.ts, ~/.vidi-bench/work/benchmarks__reference__todoodle__opus-5.5__run-2/workspace/apps/web/src/features/tasks/useTaskMutations.ts, ~/.vidi-bench/work/benchmarks__reference__todoodle__opus-5.5__run-2/workspace/apps/web/src/features/workspace/bootOpen.ts, ~/.vidi-bench/work/benchmarks__reference__todoodle__opus-5.5__run-2/workspace/apps/web/src/features/workspace/useCreateWorkspace.ts, ~/.vidi-bench/work/benchmarks__reference__todoodle__opus-5.5__run-2/workspace/apps/web/src/features/workspace/useRenameWorkspace.ts, ~/.vidi-bench/work/benchmarks__reference__todoodle__opus-5.5__run-2/workspace/apps/web/src/features/workspace/workspaceQuery.ts, dynamic import will not move module into another chunk.\n[WebServer] \n[WebServer] \n[WebServer] (!) Some chunks are larger than 500 kB after minification. Consider:\n[WebServer] - Using dynamic import() to code-split the application\n[WebServer] - Use build.rollupOptions.output.manualChunks to improve chunking: https://rollupjs.org/configuration-options/#output-manualchunks\n[WebServer] - Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.\n",
+            "passed": 55,
+            "failed": 0
+          }
+        },
+        "all_green": true
+      },
+      "accept": {
+        "skipped": false,
+        "build_exit": 0,
+        "runner_exit": 1,
+        "passed": 57,
+        "total": 104,
+        "on_partial": {
+          "passed": 0,
+          "total": 0
+        },
+        "by_story": {
+          "01": {
+            "passed": 11,
+            "total": 11
+          },
+          "02": {
+            "passed": 19,
+            "total": 22
+          },
+          "03": {
+            "passed": 14,
+            "total": 15
+          },
+          "04": {
+            "passed": 3,
+            "total": 11
+          },
+          "05": {
+            "passed": 10,
+            "total": 25
+          },
+          "06": {
+            "passed": 0,
+            "total": 20
+          }
+        },
+        "harness_fault": null
+      },
+      "commit": "93d55e820d4c5211e59dce819e11de1c6d9f5e01",
+      "requests": {},
+      "time_split": {
+        "wall_s": 2533.8,
+        "model": null,
+        "tools_s": 0,
+        "tools_by_kind": {},
+        "compaction_s": 0,
+        "compactions": 0,
+        "other_s": 2533.8
+      },
+      "loc": {
+        "files": 0,
+        "lines": 0
+      },
+      "finished": 1790520604.7702131,
+      "status": "DONE",
+      "ended_by": "agent",
+      "partial_base": [],
+      "tasks": [
+        {
+          "n": 1,
+          "title": "Shared task schemas, Intl date helpers and undo/animation constants",
+          "type": "implementation",
+          "implements": [
+            "tasks.edit",
+            "tasks.list_completed",
+            "tasks.complete",
+            "tasks.reopen"
+          ],
+          "tcs": [],
+          "status": "committed",
+          "found": null,
+          "total": null
+        },
+        {
+          "n": 2,
+          "title": "API: complete, reopen, soft delete and restore endpoints with idempotent no-ops and broadcasts",
+          "type": "implementation",
+          "implements": [
+            "tasks.complete",
+            "tasks.reopen",
+            "tasks.delete",
+            "tasks.restore"
+          ],
+          "tcs": [],
+          "status": "committed",
+          "found": null,
+          "total": null
+        },
+        {
+          "n": 3,
+          "title": "API: PATCH task name/description with blank-name rule, and list with include_completed",
+          "type": "implementation",
+          "implements": [
+            "tasks.edit",
+            "tasks.list_completed"
+          ],
+          "tcs": [],
+          "status": "committed",
+          "found": null,
+          "total": null
+        },
+        {
+          "n": 4,
+          "title": "Web: optimistic task mutation hooks, cache ops, busy state and live restored handler",
+          "type": "implementation",
+          "implements": [
+            "tasks.complete",
+            "tasks.reopen",
+            "tasks.edit",
+            "tasks.delete",
+            "tasks.restore",
+            "tasks.list_completed"
+          ],
+          "tcs": [],
+          "status": "committed",
+          "found": null,
+          "total": null
+        },
+        {
+          "n": 5,
+          "title": "Web: pausable 10 s undo toast, undo stack and Cmd/Ctrl+Z",
+          "type": "implementation",
+          "implements": [
+            "ui.undo"
+          ],
+          "tcs": [],
+          "status": "committed",
+          "found": null,
+          "total": null
+        },
+        {
+          "n": 6,
+          "title": "Web: task row checkbox with completion feedback, actions menu without delete confirm, show-completed toggle, touch and keyboard",
+          "type": "implementation",
+          "implements": [
+            "ui.task_actions"
+          ],
+          "tcs": [],
+          "status": "committed",
+          "found": null,
+          "total": null
+        },
+        {
+          "n": 7,
+          "title": "Web: lazy task detail sheet (full-screen on mobile) with inline edit, blank-name hint, edit guard and focus return",
+          "type": "implementation",
+          "implements": [
+            "ui.task_detail"
+          ],
+          "tcs": [],
+          "status": "committed",
+          "found": null,
+          "total": null
+        },
+        {
+          "n": 8,
+          "title": "Unit tests: schemas, ordering, cache ops, restored handler, pausable undo, undo stack, focus target, preference codec, Intl dates, shortcut table",
+          "type": "test:unit",
+          "implements": [
+            "tasks.complete",
+            "tasks.reopen",
+            "tasks.edit",
+            "tasks.delete",
+            "tasks.restore",
+            "tasks.list_completed",
+            "ui.undo",
+            "ui.task_actions",
+            "ui.focus_management"
+          ],
+          "tcs": [],
+          "status": "committed",
+          "found": null,
+          "total": null
+        },
+        {
+          "n": 9,
+          "title": "Integration tests: complete/reopen/delete/restore state matrix, access, broadcasts, retention",
+          "type": "test:integration",
+          "implements": [
+            "tasks.complete",
+            "tasks.reopen",
+            "tasks.delete",
+            "tasks.restore"
+          ],
+          "tcs": [],
+          "status": "committed",
+          "found": null,
+          "total": null
+        },
+        {
+          "n": 10,
+          "title": "Integration tests: PATCH edit validation and blank-name rule, list include_completed, last-write-wins",
+          "type": "test:integration",
+          "implements": [
+            "tasks.edit",
+            "tasks.list_completed"
+          ],
+          "tcs": [],
+          "status": "committed",
+          "found": null,
+          "total": null
+        },
+        {
+          "n": 11,
+          "title": "UI component tests: row actions, completion feedback, no-confirm delete, pausable undo, Cmd/Ctrl+Z, focus, detail sheet, show completed, responsive and a11y",
+          "type": "test:ui-component",
+          "implements": [
+            "ui.undo",
+            "ui.task_actions",
+            "ui.task_detail",
+            "ui.focus_management"
+          ],
+          "tcs": [],
+          "status": "committed",
+          "found": null,
+          "total": null
+        },
+        {
+          "n": 12,
+          "title": "E2E tests: complete/undo, reopen, edit, no-confirm delete/undo/retention, two-browser live, keyboard-only with focus, mobile touch, undo pause",
+          "type": "test:e2e",
+          "implements": [
+            "tasks.complete",
+            "tasks.reopen",
+            "tasks.edit",
+            "tasks.delete",
+            "tasks.restore",
+            "tasks.list_completed",
+            "ui.undo",
+            "ui.task_actions",
+            "ui.task_detail",
+            "ui.focus_management"
+          ],
+          "tcs": [],
+          "status": "committed",
+          "found": null,
+          "total": null
+        },
+        {
+          "n": 13,
+          "title": "Web: focus management after complete/delete and on detail close",
+          "type": "implementation",
+          "implements": [
+            "ui.focus_management"
+          ],
+          "tcs": [],
+          "status": "committed",
+          "found": null,
+          "total": null
+        }
       ]
     }
   },
@@ -4233,6 +4603,219 @@
           }
         }
       ]
+    },
+    {
+      "id": 6,
+      "title": "Tick off, edit, and remove tasks \u2014 with undo when I slip",
+      "status": "DONE",
+      "ended_by": "agent",
+      "started_at": 1790517568.6021278,
+      "ended_at": 1790520102.3588521,
+      "agent_minutes": 42.2,
+      "calls": 123,
+      "output_tokens": 202760,
+      "compactions": 0,
+      "last_commit_at": 1790520088.0,
+      "accept": {
+        "passed": 0,
+        "total": 20
+      },
+      "partial_base": [],
+      "tasks": [
+        {
+          "n": 1,
+          "title": "Shared task schemas, Intl date helpers and undo/animation constants",
+          "type": "implementation",
+          "implements": [
+            "tasks.edit",
+            "tasks.list_completed",
+            "tasks.complete",
+            "tasks.reopen"
+          ],
+          "tcs": [],
+          "status": "committed",
+          "found": null,
+          "total": null
+        },
+        {
+          "n": 2,
+          "title": "API: complete, reopen, soft delete and restore endpoints with idempotent no-ops and broadcasts",
+          "type": "implementation",
+          "implements": [
+            "tasks.complete",
+            "tasks.reopen",
+            "tasks.delete",
+            "tasks.restore"
+          ],
+          "tcs": [],
+          "status": "committed",
+          "found": null,
+          "total": null
+        },
+        {
+          "n": 3,
+          "title": "API: PATCH task name/description with blank-name rule, and list with include_completed",
+          "type": "implementation",
+          "implements": [
+            "tasks.edit",
+            "tasks.list_completed"
+          ],
+          "tcs": [],
+          "status": "committed",
+          "found": null,
+          "total": null
+        },
+        {
+          "n": 4,
+          "title": "Web: optimistic task mutation hooks, cache ops, busy state and live restored handler",
+          "type": "implementation",
+          "implements": [
+            "tasks.complete",
+            "tasks.reopen",
+            "tasks.edit",
+            "tasks.delete",
+            "tasks.restore",
+            "tasks.list_completed"
+          ],
+          "tcs": [],
+          "status": "committed",
+          "found": null,
+          "total": null
+        },
+        {
+          "n": 5,
+          "title": "Web: pausable 10 s undo toast, undo stack and Cmd/Ctrl+Z",
+          "type": "implementation",
+          "implements": [
+            "ui.undo"
+          ],
+          "tcs": [],
+          "status": "committed",
+          "found": null,
+          "total": null
+        },
+        {
+          "n": 6,
+          "title": "Web: task row checkbox with completion feedback, actions menu without delete confirm, show-completed toggle, touch and keyboard",
+          "type": "implementation",
+          "implements": [
+            "ui.task_actions"
+          ],
+          "tcs": [],
+          "status": "committed",
+          "found": null,
+          "total": null
+        },
+        {
+          "n": 7,
+          "title": "Web: lazy task detail sheet (full-screen on mobile) with inline edit, blank-name hint, edit guard and focus return",
+          "type": "implementation",
+          "implements": [
+            "ui.task_detail"
+          ],
+          "tcs": [],
+          "status": "committed",
+          "found": null,
+          "total": null
+        },
+        {
+          "n": 8,
+          "title": "Unit tests: schemas, ordering, cache ops, restored handler, pausable undo, undo stack, focus target, preference codec, Intl dates, shortcut table",
+          "type": "test:unit",
+          "implements": [
+            "tasks.complete",
+            "tasks.reopen",
+            "tasks.edit",
+            "tasks.delete",
+            "tasks.restore",
+            "tasks.list_completed",
+            "ui.undo",
+            "ui.task_actions",
+            "ui.focus_management"
+          ],
+          "tcs": [],
+          "status": "committed",
+          "found": null,
+          "total": null
+        },
+        {
+          "n": 9,
+          "title": "Integration tests: complete/reopen/delete/restore state matrix, access, broadcasts, retention",
+          "type": "test:integration",
+          "implements": [
+            "tasks.complete",
+            "tasks.reopen",
+            "tasks.delete",
+            "tasks.restore"
+          ],
+          "tcs": [],
+          "status": "committed",
+          "found": null,
+          "total": null
+        },
+        {
+          "n": 10,
+          "title": "Integration tests: PATCH edit validation and blank-name rule, list include_completed, last-write-wins",
+          "type": "test:integration",
+          "implements": [
+            "tasks.edit",
+            "tasks.list_completed"
+          ],
+          "tcs": [],
+          "status": "committed",
+          "found": null,
+          "total": null
+        },
+        {
+          "n": 11,
+          "title": "UI component tests: row actions, completion feedback, no-confirm delete, pausable undo, Cmd/Ctrl+Z, focus, detail sheet, show completed, responsive and a11y",
+          "type": "test:ui-component",
+          "implements": [
+            "ui.undo",
+            "ui.task_actions",
+            "ui.task_detail",
+            "ui.focus_management"
+          ],
+          "tcs": [],
+          "status": "committed",
+          "found": null,
+          "total": null
+        },
+        {
+          "n": 12,
+          "title": "E2E tests: complete/undo, reopen, edit, no-confirm delete/undo/retention, two-browser live, keyboard-only with focus, mobile touch, undo pause",
+          "type": "test:e2e",
+          "implements": [
+            "tasks.complete",
+            "tasks.reopen",
+            "tasks.edit",
+            "tasks.delete",
+            "tasks.restore",
+            "tasks.list_completed",
+            "ui.undo",
+            "ui.task_actions",
+            "ui.task_detail",
+            "ui.focus_management"
+          ],
+          "tcs": [],
+          "status": "committed",
+          "found": null,
+          "total": null
+        },
+        {
+          "n": 13,
+          "title": "Web: focus management after complete/delete and on detail close",
+          "type": "implementation",
+          "implements": [
+            "ui.focus_management"
+          ],
+          "tcs": [],
+          "status": "committed",
+          "found": null,
+          "total": null
+        }
+      ],
+      "baselines": []
     }
   ]
 }

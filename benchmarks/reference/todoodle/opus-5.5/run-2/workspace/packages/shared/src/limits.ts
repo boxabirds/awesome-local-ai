@@ -32,8 +32,8 @@ export const WORKSPACE_NAME_MAX = 120;
 /** Name given to every new workspace. */
 export const DEFAULT_WORKSPACE_NAME = 'My Todoodle';
 
-/** How long 'Name can't be empty' stays under the name field. */
-export const NAME_HINT_MS = 2_500;
+/** How long 'Name can't be empty' stays under the name field (workspace name and task name). */
+export const NAME_HINT_MS = 3_000;
 
 /** How long 'Copied' stays on the Share panel's copy button. */
 export const COPY_CONFIRM_MS = 2_000;
@@ -109,3 +109,14 @@ export const QUICK_ADD_MAX_DESCRIPTION_ROWS = 6;
 
 /** A task create with no answer within this time is marked failed (Retry resends the same id). */
 export const CREATE_TASK_TIMEOUT_MS = 10_000;
+
+/* Task lifecycle (story 6). */
+
+/**
+ * How long Undo stays available after completing or deleting a task, in unpaused time (owner
+ * decision 2026-09-25: 10 s, paused while the toast is hovered or focused).
+ */
+export const UNDO_WINDOW_MS = 10_000;
+
+/** A completed task stays in the open list this long (ticked) before leaving; 0 under reduced motion. */
+export const COMPLETE_ANIMATION_MS = 250;

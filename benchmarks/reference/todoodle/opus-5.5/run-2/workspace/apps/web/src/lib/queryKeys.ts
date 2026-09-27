@@ -8,8 +8,15 @@ import type { TaskList } from '@todoodle/shared/schemas';
  */
 export const queryKeys = {
   root: (id: string) => ['ws', id] as const,
-  /** One task list (story 5: inbox; stories 7 and 8 add project and today). */
-  tasks: (id: string, filter: { list: TaskList }) => ['ws', id, 'tasks', filter] as const,
+  /**
+   * One task list (story 5: inbox; stories 7 and 8 add project and today), with or without its
+   * completed tasks (story 6). `includeCompleted` is always in the key, so `{ list }` alone and
+   * `{ list, includeCompleted: false }` name the same cache entry.
+   */
+  tasks: (id: string, filter: { list: TaskList; includeCompleted?: boolean }) =>
+    ['ws', id, 'tasks', { list: filter.list, includeCompleted: filter.includeCompleted ?? false }] as const,
+  /** Prefix of every task list of a workspace (for cancel, snapshot and setQueriesData). */
+  taskLists: (id: string) => ['ws', id, 'tasks'] as const,
   /** Open-task counts. No date in the key (architecture section 12): story 8's queryFn reads the clock. */
   counts: (id: string) => ['ws', id, 'counts'] as const,
   workspace: (id: string) => ['ws', id, 'workspace'] as const,

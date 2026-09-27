@@ -54,6 +54,9 @@ afterEach(async () => {
       { canEditStore },
       { resetShortcutsForTests },
       { resetIsNarrowForTests },
+      { checkedStore },
+      { taskTombstones },
+      { resetUndoStackForTests },
     ] = await Promise.all([
       import('@/lib/queryClient'),
       import('@/features/workspace/bootOpen'),
@@ -63,7 +66,13 @@ afterEach(async () => {
       import('@/features/live/canEdit'),
       import('@/lib/shortcuts'),
       import('@/features/workspace/useIsNarrow'),
+      import('@/features/tasks/checkedStore'),
+      import('@/features/tasks/taskLists'),
+      import('@/features/undo/undoStack'),
     ]);
+    checkedStore.resetForTests();
+    taskTombstones.resetForTests();
+    resetUndoStackForTests();
     resetIsNarrowForTests();
     resetShortcutsForTests();
     queryClient.clear();

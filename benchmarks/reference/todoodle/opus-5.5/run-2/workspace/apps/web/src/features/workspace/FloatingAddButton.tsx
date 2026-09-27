@@ -11,6 +11,7 @@ export function FloatingAddButton({ onPress, hidden, ref }: { onPress(button: HT
       ref={ref}
       type="button"
       aria-label="Add task"
+      data-add-task=""
       hidden={hidden}
       onClick={(event) => onPress(event.currentTarget)}
       className="fixed right-4 bottom-[calc(1rem+env(safe-area-inset-bottom))] z-30 inline-flex size-14 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-lg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"

@@ -3,7 +3,7 @@
     "target": "ES2022",
     "module": "ESNext",
     "moduleResolution": "Bundler",
-    "lib": ["ES2022"],
+    "lib": ["ES2022", "ES2023.Array"],
     "strict": true,
     "noUncheckedIndexedAccess": true,
     "noImplicitOverride": true,

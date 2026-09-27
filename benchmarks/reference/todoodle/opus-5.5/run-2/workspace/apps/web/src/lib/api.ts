@@ -9,6 +9,7 @@ import {
   RememberedListResponse,
   type Task,
   type TaskList,
+  type TaskPatch,
   TaskListResponse,
   TaskResponse,
   type Workspace,
@@ -122,9 +123,14 @@ export async function health(): Promise<void> {
   if (!res.ok) throw new ApiError('health', res.status);
 }
 
-/** Open tasks of one list, in list order. */
-export async function listTasks(workspaceId: string, list: TaskList, signal?: AbortSignal): Promise<Task[]> {
-  const path = `/api/w/${encodeURIComponent(workspaceId)}/tasks?list=${encodeURIComponent(list)}`;
+/** Tasks of one list in list order: open ones, then (includeCompleted) completed ones, most recent first. */
+export async function listTasks(
+  workspaceId: string,
+  opts: { list: TaskList; includeCompleted?: boolean },
+  signal?: AbortSignal,
+): Promise<Task[]> {
+  let path = `/api/w/${encodeURIComponent(workspaceId)}/tasks?list=${encodeURIComponent(opts.list)}`;
+  if (opts.includeCompleted) path += '&include_completed=true';
   return (await request(TaskListResponse, path, { signal })).tasks;
 }
 
@@ -140,4 +146,32 @@ export function getCounts(workspaceId: string, signal?: AbortSignal): Promise<Co
 export async function createTask(workspaceId: string, input: CreateTaskInput, signal?: AbortSignal): Promise<Task> {
   const init = { ...mutation('POST', input), signal };
   return (await request(TaskResponse, `/api/w/${encodeURIComponent(workspaceId)}/tasks`, init)).task;
+}
+
+/* Task lifecycle (story 6). Lifecycle POSTs and DELETE are bodyless (only the client header). */
+
+const taskPath = (workspaceId: string, taskId: string) =>
+  `/api/w/${encodeURIComponent(workspaceId)}/tasks/${encodeURIComponent(taskId)}`;
+
+export async function completeTask(workspaceId: string, taskId: string): Promise<Task> {
+  return (await request(TaskResponse, `${taskPath(workspaceId, taskId)}/complete`, bodyless('POST'))).task;
+}
+
+export async function reopenTask(workspaceId: string, taskId: string): Promise<Task> {
+  return (await request(TaskResponse, `${taskPath(workspaceId, taskId)}/reopen`, bodyless('POST'))).task;
+}
+
+/** Undo of a delete. The server accepts it at any time; the 10 s window is the UI's. */
+export async function restoreTask(workspaceId: string, taskId: string): Promise<Task> {
+  return (await request(TaskResponse, `${taskPath(workspaceId, taskId)}/restore`, bodyless('POST'))).task;
+}
+
+/** Name and/or description. A blank name keeps the previous one (the client never sends one). */
+export async function updateTask(workspaceId: string, taskId: string, patch: TaskPatch): Promise<Task> {
+  return (await request(TaskResponse, taskPath(workspaceId, taskId), mutation('PATCH', patch))).task;
+}
+
+/** Soft delete (204). */
+export async function deleteTask(workspaceId: string, taskId: string): Promise<void> {
+  await send(taskPath(workspaceId, taskId), bodyless('DELETE'));
 }

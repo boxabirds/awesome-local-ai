@@ -22,7 +22,9 @@ const skeletonRows = (
 /**
  * The task list. Loading shows skeleton rows (first load only: refetches keep the old rows); an
  * error shows "Couldn't load your tasks." with Try again; an empty list shows `empty`. Rows are a
- * listbox with roving focus (one tab stop; ↑/↓, j/k, Home/End).
+ * list with roving focus (one tab stop; ↑/↓, j/k, Home/End). With `showCompleted`, completed rows
+ * follow the open ones (struck through, with their date), or "No completed tasks" when there are
+ * none (not while they are still loading: the previous rows stay on screen meanwhile).
  */
 export function TaskList({
   tasks,
@@ -31,6 +33,8 @@ export function TaskList({
   empty,
   fallbackFocus,
   rovingRef,
+  showCompleted = false,
+  completedLoading = false,
 }: {
   tasks: readonly LocalTask[];
   status: TaskListStatus;
@@ -39,12 +43,21 @@ export function TaskList({
   /** Focused when the last row is removed (the "+ Add task" button). */
   fallbackFocus?: () => HTMLElement | null;
   rovingRef?: Ref<Pick<RovingList, 'focusAfterRemoval'>>;
+  /** Story 6: the list includes completed tasks. */
+  showCompleted?: boolean;
+  /** Story 6: completed tasks are still loading (the previous rows are shown meanwhile). */
+  completedLoading?: boolean;
 }) {
   // Bursts of live or optimistic updates never block typing in quick add.
   const shown = useDeferredValue(tasks);
   const listRef = useRef<HTMLUListElement>(null);
   const roving = useRovingList(listRef, { fallback: fallbackFocus });
   useImperativeHandle(rovingRef, () => ({ focusAfterRemoval: roving.focusAfterRemoval }), [roving]);
+
+  const noCompleted =
+    showCompleted && !completedLoading && status === 'ready' && !shown.some((task) => task.completedAt !== null) ? (
+      <p className="px-2 py-2 text-sm text-muted-foreground">No completed tasks</p>
+    ) : null;
 
   return status === 'loading' ? (
     skeletonRows
@@ -56,12 +69,25 @@ export function TaskList({
       </Button>
     </div>
   ) : shown.length === 0 ? (
-    empty
+    <>
+      {empty}
+      {noCompleted}
+    </>
   ) : (
-    <ul ref={listRef} role="listbox" aria-label="Tasks" className="flex flex-col" onKeyDown={roving.onKeyDown} onFocus={roving.onFocus}>
-      {shown.map((task) => (
-        <TaskRow key={task.id} task={task} />
-      ))}
-    </ul>
+    <>
+      <ul ref={listRef} aria-label="Tasks" className="flex flex-col" onKeyDown={roving.onKeyDown} onFocus={roving.onFocus}>
+        {shown.map((task) => (
+          <TaskRow
+            key={task.id}
+            taskId={task.id}
+            name={task.name}
+            description={task.description}
+            completedAt={task.completedAt}
+            localStatus={task.localStatus}
+          />
+        ))}
+      </ul>
+      {noCompleted}
+    </>
   );
 }

@@ -9,7 +9,7 @@ import { TASK_WS_ID, task, taskHandlers, tasksNamed } from '../../msw/tasks';
 import { pressTab, renderWithProviders } from '../helpers';
 
 const noop = () => {};
-const rows = () => within(screen.getByRole('listbox', { name: 'Tasks' })).getAllByRole('option');
+const rows = () => within(screen.getByRole('list', { name: 'Tasks' })).getAllByRole('listitem');
 
 describe('TaskList', () => {
   it('TC-43 rows render in order; a description preview only on rows that have one', () => {
@@ -20,18 +20,18 @@ describe('TaskList', () => {
     const all = rows();
     expect(all.map((row) => row.querySelector('span.break-words')?.textContent)).toEqual(['Buy milk', 'Email Sam re: invoice #4411', 'Call Mum 📞']);
     expect(within(all[1]!).getByText(/Attach the PDF/)).toHaveClass('truncate', 'text-muted-foreground');
-    expect(all[0]!.querySelectorAll('.text-muted-foreground')).toHaveLength(0);
-    expect(all[2]!.querySelectorAll('.text-muted-foreground')).toHaveLength(0);
-    // The checkbox is decorative until story 6.
-    expect(all[0]!.querySelector('[aria-hidden="true"]')).not.toBeNull();
-    expect(within(all[0]!).queryByRole('checkbox')).not.toBeInTheDocument();
+    // (Story 6's "…" menu button is muted too, so the preview is matched as muted text.)
+    expect(all[0]!.querySelectorAll('span.text-muted-foreground')).toHaveLength(0);
+    expect(all[2]!.querySelectorAll('span.text-muted-foreground')).toHaveLength(0);
+    // Story 6: the round checkbox is a real control, named after the task.
+    expect(within(all[0]!).getByRole('checkbox', { name: 'Complete Buy milk' })).toHaveAttribute('aria-checked', 'false');
   });
 
   it('TC-44 a ready, empty Inbox says how to add a task', async () => {
     server.use(taskHandlers.list([]));
     await renderWithProviders(<InboxView workspaceId={TASK_WS_ID} canEdit />);
     expect(await screen.findByText('Your Inbox is clear. Press Q to add a task.')).toBeInTheDocument();
-    expect(screen.queryByRole('listbox')).not.toBeInTheDocument();
+    expect(screen.queryByRole('list', { name: 'Tasks' })).not.toBeInTheDocument();
   });
 
   it('TC-44 on touch screens the empty Inbox says to tap +', async () => {
@@ -63,7 +63,7 @@ describe('TaskList states and keyboard', () => {
     const region = screen.getByRole('region', { name: 'Loading tasks' });
     expect(region).toHaveAttribute('aria-busy', 'true');
     expect(region.querySelectorAll('li')).toHaveLength(5);
-    expect(screen.queryByRole('listbox')).not.toBeInTheDocument();
+    expect(screen.queryByRole('list', { name: 'Tasks' })).not.toBeInTheDocument();
   });
 
   it('an error with no rows shows the error, not the empty state', () => {
@@ -88,7 +88,7 @@ describe('TaskList states and keyboard', () => {
     const before = gets;
     fail = false;
     fireEvent.click(screen.getByRole('button', { name: 'Try again' }));
-    expect(await screen.findByRole('option', { name: /Buy milk/ })).toBeInTheDocument();
+    expect(await screen.findByRole('listitem', { name: /Buy milk/ })).toBeInTheDocument();
     expect(gets - before).toBe(1);
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
   });
@@ -162,10 +162,10 @@ describe('TaskList states and keyboard', () => {
     expect(focusedName()).toBe('One');
   });
 
-  it('TC-113 listbox with option rows; exactly one row has tabIndex 0', () => {
+  it('TC-113 a list of rows (story 6: list items, since rows now hold controls); exactly one row has tabIndex 0', () => {
     render(<TaskList tasks={tasksNamed('A', 'B', 'C')} status="ready" onRetry={noop} empty={null} />);
-    const listbox = screen.getByRole('listbox', { name: 'Tasks' });
-    const options = within(listbox).getAllByRole('option');
+    const listbox = screen.getByRole('list', { name: 'Tasks' });
+    const options = within(listbox).getAllByRole('listitem');
     expect(options).toHaveLength(3);
     expect(options.filter((o) => o.tabIndex === 0)).toEqual([options[0]]);
     act(() => options[2]!.focus());

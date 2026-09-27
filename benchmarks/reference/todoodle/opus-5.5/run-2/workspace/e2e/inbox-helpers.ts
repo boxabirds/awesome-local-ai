@@ -53,7 +53,7 @@ export async function storedTasks(request: APIRequestContext, workspaceId: strin
 
 export const nameField = (page: Page) => page.getByRole('textbox', { name: 'Task name' });
 export const quickAddForm = (page: Page) => page.getByRole('form', { name: 'Add task' });
-export const taskRows = (page: Page) => page.getByRole('listbox', { name: 'Tasks' }).getByRole('option');
+export const taskRows = (page: Page) => page.getByRole('list', { name: 'Tasks' }).getByRole('listitem');
 /** The visible length counter in quick add (the live region repeats its text for screen readers). */
 export const counter = (page: Page, text: string) => quickAddForm(page).locator('p[id]', { hasText: text });
 

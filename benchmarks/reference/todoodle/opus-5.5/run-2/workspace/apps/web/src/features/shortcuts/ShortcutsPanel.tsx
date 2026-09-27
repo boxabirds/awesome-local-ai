@@ -10,14 +10,14 @@ function grouped(shortcuts: ShortcutInfo[]): Array<[ShortcutGroup, ShortcutInfo[
 }
 
 /** Splits a combined key label ('↑/↓') into one <kbd> per key. */
-function Keys({ label }: { label: string }) {
+function Keys({ label, modifiers }: { label: string; modifiers?: 'none' | 'mod' }) {
   const parts = label.length > 1 && label.includes('/') ? label.split('/') : [label];
   return (
     <span className="flex items-center gap-1">
       {parts.map((part, i) => (
         <span key={part} className="flex items-center gap-1">
           {i > 0 ? <span aria-hidden="true" className="text-muted-foreground">/</span> : null}
-          <kbd className="min-w-7 rounded border border-border bg-muted px-1.5 py-0.5 text-center font-mono text-xs">{displayKey(part)}</kbd>
+          <kbd className="min-w-7 rounded border border-border bg-muted px-1.5 py-0.5 text-center font-mono text-xs">{displayKey(part, modifiers)}</kbd>
         </span>
       ))}
     </span>
@@ -61,7 +61,7 @@ export default function ShortcutsPanel({
                 {items.map((item) => (
                   <li key={`${item.key}:${item.description}`} className="flex items-center justify-between gap-4 text-sm">
                     <span>{item.description}</span>
-                    <Keys label={item.key} />
+                    <Keys label={item.key} modifiers={item.modifiers} />
                   </li>
                 ))}
               </ul>
