@@ -1,0 +1,54 @@
+{
+  "steps": {
+    "install": {
+      "cmd": "npm ci",
+      "exit": 0,
+      "seconds": 2.0,
+      "tail": "\nadded 211 packages, and audited 212 packages in 2s\n\n37 packages are looking for funding\n  run `npm fund` for details\n\n2 moderate severity vulnerabilities\n\nTo address all issues (including breaking changes), run:\n  npm audit fix --force\n\nRun `npm audit` for details.\n"
+    },
+    "build": {
+      "cmd": "npm run build",
+      "exit": 0,
+      "seconds": 0.9,
+      "tail": "\n> vidi6@0.0.1 build\n> vite build\n\n\u001b[36mvite v7.3.6 \u001b[32mbuilding client environment for production...\u001b[36m\u001b[39m\ntransforming...\n\u001b[32m\u2713\u001b[39m 29 modules transformed.\nrendering chunks...\ncomputing gzip size...\n\u001b[2mdist/client/\u001b[22m\u001b[32mindex.html                 \u001b[39m\u001b[1m\u001b[2m  0.39 kB\u001b[22m\u001b[1m\u001b[22m\u001b[2m \u2502 gzip:  0.26 kB\u001b[22m\n\u001b[2mdist/client/\u001b[22m\u001b[2massets/\u001b[22m\u001b[35mindex-CbpXX_VF.css  \u001b[39m\u001b[1m\u001b[2m  0.37 kB\u001b[22m\u001b[1m\u001b[22m\u001b[2m \u2502 gzip:  0.27 kB\u001b[22m\n\u001b[2mdist/client/\u001b[22m\u001b[2massets/\u001b[22m\u001b[36mindex-BRWAVeEb.js   \u001b[39m\u001b[1m\u001b[2m222.65 kB\u001b[22m\u001b[1m\u001b[22m\u001b[2m \u2502 gzip: 69.30 kB\u001b[22m\n\u001b[32m\u2713 built in 540ms\u001b[39m\n",
+      "passed": null,
+      "failed": null
+    },
+    "typecheck": {
+      "cmd": "npm run typecheck",
+      "exit": 2,
+      "seconds": 1.0,
+      "tail": "\n> vidi6@0.0.1 typecheck\n> tsc --noEmit\n\nsrc/client/canvas/BoardViewport.tsx(64,84): error TS2503: Cannot find namespace 'JSX'.\nsrc/client/canvas/BoardViewport.tsx(112,65): error TS2345: Argument of type 'GestureEventLike' is not assignable to parameter of type '{ clientX: number; clientY: number; }'.\n  Types of property 'clientX' are incompatible.\n    Type 'number | undefined' is not assignable to type 'number'.\n      Type 'undefined' is not assignable to type 'number'.\n",
+      "passed": null,
+      "failed": null
+    },
+    "test:unit": {
+      "cmd": "npm run test:unit",
+      "exit": 0,
+      "seconds": 1.0,
+      "tail": "\n> vidi6@0.0.1 test:unit\n> vitest run --project unit\n\n\n\u001b[1m\u001b[46m RUN \u001b[49m\u001b[22m \u001b[36mv3.2.7 \u001b[39m\u001b[90m~/.vidi-bench/work/qwen__3.8__flash-next__ubuntu__strix-halo-128GB__gufo-pi__benchmarks__vidi__canvas-gufo-exp1/workspace\u001b[39m\n\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[42m unit \u001b[49m\u001b[39m tests/unit/camera.test.ts \u001b[2m(\u001b[22m\u001b[2m23 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 43\u001b[2mms\u001b[22m\u001b[39m\n\n\u001b[2m Test Files \u001b[22m \u001b[1m\u001b[32m1 passed\u001b[39m\u001b[22m\u001b[90m (1)\u001b[39m\n\u001b[2m      Tests \u001b[22m \u001b[1m\u001b[32m23 passed\u001b[39m\u001b[22m\u001b[90m (23)\u001b[39m\n\u001b[2m   Start at \u001b[22m 22:59:06\n\u001b[2m   Duration \u001b[22m 447ms\u001b[2m (transform 50ms, setup 0ms, collect 44ms, tests 43ms, environment 0ms, prepare 60ms)\u001b[22m\n\n",
+      "passed": 23,
+      "failed": 0
+    },
+    "test:component": {
+      "cmd": "npm run test:component",
+      "exit": 1,
+      "seconds": 0.5,
+      "tail": "\n> vidi6@0.0.1 test:component\n> vitest run --project component\n\n\n\u001b[1m\u001b[46m RUN \u001b[49m\u001b[22m \u001b[36mv3.2.7 \u001b[39m\u001b[90m~/.vidi-bench/work/qwen__3.8__flash-next__ubuntu__strix-halo-128GB__gufo-pi__benchmarks__vidi__canvas-gufo-exp1/workspace\u001b[39m\n\n\u001b[31mNo test files found, exiting with code 1\n\u001b[39m\n\u001b[2mprojects: \u001b[22m\u001b[33mcomponent\u001b[39m\n\n\u001b[30m\u001b[45m component \u001b[49m\u001b[39m \n\n\u001b[2minclude: \u001b[22m\u001b[33mtests/component/**/*.test.{ts,tsx}\u001b[39m\n\u001b[2mexclude:  \u001b[22m\u001b[33m**/node_modules/**\u001b[2m, \u001b[22m**/dist/**\u001b[2m, \u001b[22m**/cypress/**\u001b[2m, \u001b[22m**/.{idea,git,cache,output,temp}/**\u001b[2m, \u001b[22m**/{karma,rollup,webpack,vite,vitest,jest,ava,babel,nyc,cypress,tsup,build,eslint,prettier}.config.*\u001b[39m\n\n",
+      "passed": null,
+      "failed": null
+    },
+    "test:integration": {
+      "exit": "missing"
+    },
+    "test:e2e": {
+      "cmd": "npm run test:e2e -- --project=chromium",
+      "exit": 1,
+      "seconds": 2.5,
+      "tail": "ebServer]       --no-bundle                                  Skip internal build steps and directly deploy script  [boolean] [default: false]\n[WebServer]       --ip                                         IP address to listen on  [string]\n[WebServer]       --port                                       Port to listen on  [number]\n[WebServer]       --inspector-port                             Port for devtools to connect to  [number]\n[WebServer]       --inspector-ip                               IP address for devtools to connect to  [string]\n[WebServer]       --routes, --route                            Routes to upload  [array]\n[WebServer]       --host                                       Host to forward requests to, defaults to the zone of project  [string]\n[WebServer]       --local-protocol                             Protocol to listen to requests on, defaults to http.  [choices: \"http\", \"https\"]\n[WebServer]       --https-key-path                             Path to a custom certificate key  [string]\n[WebServer]       --https-cert-path                            Path to a custom certificate  [string]\n[WebServer]       --local-upstream                             Host to act as origin in local mode, defaults to dev.host or route  [string]\n[WebServer]       --upstream-protocol                          Protocol to forward requests to host on, defaults to https.  [choices: \"http\", \"https\"]\n[WebServer]       --var                                        A key-value pair to be injected into the script as a variable  [array]\n[WebServer]       --define                                     A key-value pair to be substituted in the script  [array]\n[WebServer]       --alias                                      A module pair to be substituted in the script  [array]\n[WebServer]       --jsx-factory                                The function that is called for each JSX element  [string]\n[WebServer]       --jsx-fragment                               The function that is called for each JSX fragment  [string]\n[WebServer]       --tsconfig                                   Path to a custom tsconfig.json file  [string]\n[WebServer]   -r, --remote                                     Run on the global Cloudflare network with access to production resources  [boolean] [default: false]\n[WebServer]   -l, --local                                      Run locally with remote bindings disabled  [boolean]\n[WebServer]       --minify                                     Minify the script  [boolean]\n[WebServer]       --persist-to                                 Specify directory to use for local persistence (defaults to .wrangler/state)  [string]\n[WebServer]       --live-reload                                Auto reload HTML pages when change is detected in local mode  [boolean]\n[WebServer]       --test-scheduled                             Test scheduled events by visiting /__scheduled in browser  [boolean] [default: false]\n[WebServer]       --log-level                                  Specify logging level  [choices: \"debug\", \"info\", \"log\", \"warn\", \"error\", \"none\"]\n[WebServer]       --show-interactive-dev-session               Show interactive dev session (defaults to true if the terminal supports interactivity)  [boolean]\n[WebServer]       --types                                      Generate types from your Worker configuration  [boolean]\n[WebServer]       --tunnel                                     Expose your local dev server via a Cloudflare Tunnel. Use `--tunnel` for a Quick Tunnel and `--tunnel-name` with `--tunnel` for a named tunnel.  [boolean]\n[WebServer]       --tunnel-name                                Use an existing named Cloudflare Tunnel when `--tunnel` is enabled.  [string]\nError: Process from config.webServer was not able to start. Exit code: 1\n\n[WebServer] \u2718 [ERROR] Unknown arguments: x-devtok, xDevtok\n[WebServer] \n[WebServer] \n[WebServer] \ud83e\udeb5  Logs were written to \"~/.config/.wrangler/logs/wrangler-2026-09-27_22-59-10_117.log\"\n",
+      "passed": null,
+      "failed": null
+    }
+  },
+  "all_green": false
+}
