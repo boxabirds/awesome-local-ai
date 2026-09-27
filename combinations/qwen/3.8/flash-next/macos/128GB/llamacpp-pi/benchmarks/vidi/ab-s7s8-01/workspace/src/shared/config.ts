@@ -1,0 +1,126 @@
+// Product settings for the board. All navigation constants live here so they
+// can be tuned in one place without touching component code (PRD "Settings").
+
+/** Smallest allowed zoom (screen pixels per world unit). 10%. */
+export const ZOOM_MIN = 0.1;
+/** Largest allowed zoom. 400%. */
+export const ZOOM_MAX = 4;
+/** Multiplicative size of one zoom step (button / keyboard). */
+export const ZOOM_STEP_FACTOR = 1.25;
+/** Wheel zoom: zoom factor = exp(-deltaY * sensitivity). */
+export const WHEEL_ZOOM_SENSITIVITY = 0.01;
+/** Dot-grid spacing measured in world units. */
+export const GRID_SPACING_WORLD = 24;
+/** The extent (in world units) the board is verified to pan to without edges. */
+export const UNBOUNDED_PAN_TESTED_EXTENT = 1_000_000;
+
+/** Multiplier converting a zoom ratio to a whole-number percentage label. */
+export const ZOOM_PERCENT_SCALE = 100;
+/** Zooms within this distance of a ZOOM_STEP_FACTOR^n snap to it, killing
+ * floating-point drift so step-in then step-out returns exactly 1.0 (TC-09). */
+export const ZOOM_SNAP_EPS = 1e-9;
+
+/** Wheel deltaMode=LINE (DOM_DELTA_LINE) converted to CSS pixels. */
+export const WHEEL_LINE_HEIGHT = 16;
+/** Wheel deltaMode=PAGE (DOM_DELTA_PAGE) converted to CSS pixels. */
+export const WHEEL_PAGE_HEIGHT = 600;
+// --- Sticky notes (story 2) -------------------------------------------------
+
+/** Sticky note size in world units (a square STICKY_SIZE_WORLD x STICKY_SIZE_WORLD). */
+export const STICKY_SIZE_WORLD = 200;
+/** Maximum characters kept in a sticky note's text. */
+export const STICKY_TEXT_MAX_CHARS = 1000;
+/** The character counter is shown when remaining characters <= this value. */
+export const STICKY_COUNTER_THRESHOLD_CHARS = 50;
+/** Largest sticky-note font size (px, at 100% zoom). */
+export const STICKY_FONT_MAX_PX = 24;
+/** Smallest sticky-note font size (px, at 100% zoom); below this text overflows. */
+export const STICKY_FONT_MIN_PX = 10;
+/** Pointer movement (screen px) beyond which a press on a note becomes a drag. */
+export const DRAG_THRESHOLD_PX = 3;
+
+/** The six preset sticky-note colours (accessible by name, not only by colour). */
+export const STICKY_COLORS = {
+  yellow: '#FFF59D',
+  orange: '#FFCC80',
+  green: '#C5E1A5',
+  blue: '#90CAF9',
+  pink: '#F48FB1',
+  violet: '#CE93D8',
+} as const;
+export type StickyColor = keyof typeof STICKY_COLORS;
+export const DEFAULT_STICKY_COLOR: StickyColor = 'yellow';
+
+// --- Selection, moving and resizing (story 7) --------------------------------
+
+/** Resize-handle edge length in SCREEN pixels — constant at every zoom level. */
+export const HANDLE_SIZE_PX = 8;
+/** Smallest sticky note side in world units (a sticky note is square).
+ *  Boundary tested by TC-02 (STICKY_MIN_SIZE_WORLD − 1 must be refused). */
+export const STICKY_MIN_SIZE_WORLD = 50;
+/** Largest side any board object may reach, in world units. Boundary tested
+ *  by TC-03 (MAX_OBJECT_SIZE_WORLD + 1 must stop the whole selection). */
+export const MAX_OBJECT_SIZE_WORLD = 20_000;
+/** Arrow-key nudge distance in world units. */
+export const NUDGE_STEP_WORLD = 1;
+/** Shift + arrow-key nudge distance in world units. */
+export const NUDGE_LARGE_STEP_WORLD = 10;
+
+// --- Live collaboration (story 3) -------------------------------------------
+
+/** Soft concurrent-editor capacity. A design and test target (boundary
+ * 5 / 6 participants), never enforced: over-capacity joins are accepted. */
+export const MAX_CONCURRENT_EDITORS = 5;
+/** Live propagation budget from PRD live.propagate: one change must be
+ * visible on every other screen within this many milliseconds. */
+export const LIVE_UPDATE_LATENCY_BUDGET_MS = 1000;
+/** Passed to WebsocketProvider as `maxBackoffTime` (reconnect backoff cap). */
+export const RECONNECT_MAX_BACKOFF_MS = 10_000;
+/** Provider `resyncInterval`: how often an otherwise-idle client re-sends
+ * SyncStep1 (which the room always answers with a SyncStep2), so the link
+ * keeps carrying traffic in BOTH directions. Must stay comfortably under
+ * y-websocket's 30-second no-message timeout — 10s keeps at least two
+ * full round-trips of margin even when a hop is slow. */
+export const IDLE_KEEPALIVE_MS = 10_000;
+/** How long the green "Connected" badge stays after a reconnect before the
+ * connection counts as fully restored (badge hidden). */
+export const CONNECTED_CONFIRMATION_MS = 2000;
+/** Outage length used to verify PRD live.catch_up (Flaky Wi-Fi workflow). */
+export const CATCH_UP_TEST_OUTAGE_MS = 30_000;
+
+// --- Persistence (story 4) --------------------------------------------------
+
+/** Compact the update log once this many rows have accumulated. */
+export const COMPACTION_UPDATE_COUNT = 500;
+/** ...or once the log reaches this many bytes. */
+export const COMPACTION_BYTES = 4 * 1024 * 1024;
+/** Snapshot blobs are stored in chunks of this size, keeping every row far
+ * below the per-row size limit of SQLite-backed Durable Objects. */
+export const SNAPSHOT_CHUNK_BYTES = 512 * 1024;
+/** A LoadFailed room retries its load at most this often (per board). */
+export const LOAD_RETRY_MIN_INTERVAL_MS = 5000;
+/** Largest board size verified for PRD persist.large_board. */
+export const PERSIST_TESTED_NOTES = 2000;
+/** Budget for showing a PERSIST_TESTED_NOTES board (PRD persist.large_board). */
+export const BOARD_LOAD_BUDGET_MS = 3000;
+/** Version of the Durable-Object storage tables (NOT the Yjs doc schema, which
+ * is versioned separately by `meta.schemaVersion`). */
+export const STORAGE_SCHEMA_VERSION = 1;
+
+// --- Sharing / board creation (story 5) ------------------------------------
+
+/** Board-creation rate limit per visitor (per period). Mirrors the
+ * `BOARD_CREATE_LIMITER` binding in wrangler.jsonc (TC-03 asserts equality). */
+export const BOARD_CREATE_LIMIT = 10;
+/** Rate-limit window in seconds. Must equal the wrangler.jsonc period (TC-03). */
+export const BOARD_CREATE_PERIOD_SECONDS = 60;
+/** How many id-generation attempts a single create makes before giving up
+ * (collision retries). Boundary tested by TC-01 / TC-02. */
+export const CREATE_ID_MAX_ATTEMPTS = 3;
+/** Budget for PRD share.create: create + open a board within this many ms. */
+export const CREATE_BUDGET_MS = 2000;
+/** How long the Share panel shows "Link copied" before reverting. */
+export const LINK_COPIED_MS = 2000;
+/** Base backoff for the board-existence retry; doubles up to
+ * RECONNECT_MAX_BACKOFF_MS (story 3). */
+export const BOARD_CHECK_RETRY_BASE_MS = 1000;
