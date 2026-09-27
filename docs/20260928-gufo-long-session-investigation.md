@@ -61,6 +61,11 @@ the foundation of stories 1–4.
 Per turn, gufo was not slower: 225 assistant turns in 86 minutes, against llama.cpp story 1's 116
 in 78.
 
+**Story 5 final (gufo):** DONE at 108 min of agent time, 294 calls, 215k output tokens, 3
+compactions, held-out 3/5, gate red (`canvas-gufo-01/metrics.json`). llama.cpp's first story on an
+empty repository took 78 min (116 calls, 117k output, 1 compaction, 6/6 on that story's tests) — a
+different story, so this is context, not a score comparison.
+
 ### H4: gufo's known bugs
 
 Open issues on [gufo-org/gufo](https://github.com/gufo-org/gufo/issues) relevant to long agent
