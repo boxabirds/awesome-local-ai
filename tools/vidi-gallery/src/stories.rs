@@ -95,7 +95,12 @@ pub fn load(pack: &Path, scope: &str) -> Vec<Story> {
                     let heading = std::fs::read_to_string(pack.join("spec/stories").join(dir).join("story.md"))
                         .ok()
                         .and_then(|t| t.lines().find_map(|l| l.strip_prefix("# ").map(|h| h.trim().to_string())));
-                    story.title = heading.unwrap_or_else(|| title_from_dir(dir)); // dir names are cut at ~50 chars
+                    story.title = s
+                        .get("title")
+                        .and_then(Value::as_str)
+                        .map(String::from) // the scope can rename a story for the review
+                        .or(heading)
+                        .unwrap_or_else(|| title_from_dir(dir)); // dir names are cut at ~50 chars
                     Some(story)
                 })
                 .collect()
