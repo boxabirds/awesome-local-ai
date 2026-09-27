@@ -2,6 +2,7 @@
 import argparse
 import json
 import shutil
+import subprocess
 import sys
 from pathlib import Path
 
@@ -87,3 +88,53 @@ def test_scored_commit_is_the_last_recorded_story_commit(tmp_path):
     assert judge.scored_commit(tmp_path) == "bbb"
     real = judge.REPO / "combinations/qwen/3.8/27b/ubuntu/nvidia4090/llamacpp-opencode/benchmarks/vidi/canvas-pi-03"
     assert judge.scored_commit(real).startswith("70f7075")
+
+
+LOG = """commit bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
+vidi-agent  Fri Sep 25 17:07:33 2026 +0100
+
+    story 2: notes
+
+ src/b.ts | 1 +
+
+commit aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+vidi-agent  Fri Sep 25 16:00:00 2026 +0100
+
+    story 1: pan
+
+ src/a.ts | 1 +
+"""
+
+
+def test_commit_log_is_put_in_build_order():
+    out = judge.commits_oldest_first(LOG)
+    assert out.index("story 1: pan") < out.index("story 2: notes")
+    assert out.count("commit ") == 2
+
+
+def fake_record(tmp_path, scored="bbbbbbb"):
+    rec = tmp_path / "rec"
+    (rec / "workspace" / "src").mkdir(parents=True)
+    (rec / "workspace" / "src" / "b.ts").write_text("export const b = 1\n")
+    (rec / "workspace-git-log.txt").write_text(LOG)
+    (rec / "metrics.json").write_text(json.dumps({"stories": {"2": {"commit": scored}}}))
+    return rec
+
+
+def test_record_workspace_becomes_a_one_commit_repo(tmp_path):
+    judge.record_workspace(fake_record(tmp_path), tmp_path / "ws")
+    files = subprocess.run(["git", "-C", str(tmp_path / "ws"), "ls-files"], capture_output=True, text=True).stdout.split()
+    assert files == ["src/b.ts"]
+
+
+def test_a_snapshot_that_is_not_the_scored_commit_is_refused(tmp_path):
+    with pytest.raises(SystemExit, match="score was taken on"):
+        judge.record_workspace(fake_record(tmp_path, scored="ccccccc"), tmp_path / "ws")
+
+
+def test_every_finished_record_snapshot_matches_its_scored_commit():
+    for rec in ["benchmarks/reference/vidi/opus-5.5/run-1",
+                "combinations/qwen/3.8/27b/ubuntu/nvidia4090/llamacpp-opencode/benchmarks/vidi/canvas-pi-03"]:
+        r = judge.REPO / rec
+        head = (r / "workspace-git-log.txt").read_text().split("\n", 1)[0].split()[-1]
+        assert head.startswith(judge.scored_commit(r)[:7])

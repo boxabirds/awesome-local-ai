@@ -5,13 +5,14 @@
 
     uv run judge.py --name <name> \\
         --build opus=benchmarks/reference/vidi/opus-5.5/run-2 \\
-        --build pi03=combinations/qwen/3.8/27b/ubuntu/nvidia4090/llamacpp-opencode/benchmarks/vidi/canvas-pi-03@gruntus \\
+        --build pi03=combinations/qwen/3.8/27b/ubuntu/nvidia4090/llamacpp-opencode/benchmarks/vidi/canvas-pi-03 \\
         --label codex-<model>-high --model <model> [--effort high] [--repeat 2]
 
 One command does the whole flow, so no human has to type an instruction to the judge:
-1. Fetches each build's workspace from the machine that ran it (`@node`, over ssh as a git bundle;
-   none means this machine) into a fresh clone, and pulls each story's completion claims and the
-   final held-out results from the run record in this repo.
+1. Takes everything from the run records in this repo, not from the machines that ran them: the
+   final workspace snapshot (`workspace/`, checked against the commit its score was taken on), the
+   commit log (`workspace-git-log.txt`), each story's completion claims and the final held-out
+   results.
 2. Builds the blinded package (grading_package.py) in <private>/state/judging/<name>/package. The
    key goes to <private>/state/keys/<name>.json. state/ is git-ignored, so neither is ever committed.
 3. Installs the builds' and the held-out suite's dependencies, because the judge gets no internet.
@@ -31,6 +32,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -97,18 +99,25 @@ def scored_commit(record: Path) -> str:
     return commits[-1]
 
 
-def fetch_workspace(record: str, node: str | None, dest: Path) -> None:
-    """A fresh clone of the run's final workspace, from this machine or over ssh."""
-    work = f".vidi-bench/work/{work_dir_name(record)}/workspace"
-    if node is None:
-        src = hostenv.bench_home() / "work" / work_dir_name(record) / "workspace"
-        subprocess.run(["git", "clone", "-q", str(src), str(dest)], check=True)
-        return
-    bundle = dest.with_suffix(".bundle")
-    with bundle.open("wb") as f:
-        subprocess.run(["ssh", "-o", "BatchMode=yes", node, f"git -C {work} bundle create - HEAD --branches"],
-                       stdout=f, check=True)
-    subprocess.run(["git", "clone", "-q", str(bundle), str(dest)], check=True)
+def record_workspace(record: Path, dest: Path) -> None:
+    """The run's final workspace from its record, as a one-commit git repo (grading_package archives
+    HEAD). Refuses a snapshot that isn't the commit the final score was taken on."""
+    log = (record / "workspace-git-log.txt").read_text()
+    head = log.split("\n", 1)[0].split()[-1]
+    scored = scored_commit(record)
+    if not (head.startswith(scored[:7]) or scored.startswith(head[:7])):
+        raise SystemExit(f"{record}: the workspace snapshot is {head[:7]}, but the score was taken on {scored[:7]}")
+    shutil.copytree(record / "workspace", dest)
+    git = ["git", "-C", str(dest), "-c", "user.name=build", "-c", "user.email=build@invalid"]
+    subprocess.run([*git, "init", "-q"], check=True)
+    subprocess.run([*git, "add", "-A"], check=True)
+    subprocess.run([*git, "commit", "-q", "-m", "final build"], check=True)
+
+
+def commits_oldest_first(log: str) -> str:
+    """workspace-git-log.txt (newest first, as `git log --stat` writes it) in build order."""
+    blocks = re.split(r"(?m)^(?=commit [0-9a-f]{7,40}\b)", log)
+    return "".join(reversed([b for b in blocks if b.strip()]))
 
 
 def npm_ci(where: Path) -> None:
@@ -186,13 +195,14 @@ def run_judge(run_dir: Path, package: Path, args: argparse.Namespace) -> Path:
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--name", required=True)
-    ap.add_argument("--build", action="append", required=True, help="label=<run record dir>[@node], exactly two")
+    ap.add_argument("--build", action="append", required=True, help="label=<run record dir in this repo>, exactly two")
     ap.add_argument("--label", required=True, help="names the judge: model and effort, e.g. codex-<model>-high")
     ap.add_argument("--model")
     ap.add_argument("--effort")
     ap.add_argument("--repeat", type=int, default=1)
     ap.add_argument("--scope", default="canvas")
     ap.add_argument("--audit", action="append", default=[], help="label=<audit.jsonl>, passed to judge_collect")
+    ap.add_argument("--prepare-only", action="store_true", help="build the package and install dependencies, then stop")
     a = ap.parse_args()
     if sys.platform != "darwin":
         raise SystemExit("judge.py needs macOS (sandbox-exec)")
@@ -211,18 +221,14 @@ def main() -> None:
     specs = []
     for b in a.build:
         label, _, rest = b.partition("=")
-        record, _, node = rest.partition("@")
+        record = rest
         rec = REPO / record
         fault = scorer_fault(last_accept(rec))
         if fault:
             raise SystemExit(f"{label}: {last_accept(rec).relative_to(REPO)} is a scorer fault, not a result "
                              f"({fault}). Re-score the run before judging it.")
         ws = src / label
-        print(f"{label}: workspace from {node or 'this machine'}")
-        fetch_workspace(record, node or None, ws)
-        commit = scored_commit(rec)
-        if subprocess.run(["git", "-C", str(ws), "checkout", "-q", commit]).returncode != 0:
-            raise SystemExit(f"{label}: the workspace has no commit {commit}, the one its final score was taken on")
+        record_workspace(rec, ws)
         claims_dir = src / f"{label}-claims"
         print(f"{label}: claims for stories {' '.join(claims.write_claims(rec, claims_dir))}")
         specs.append(f"{label}={ws}:{claims_dir}:{last_accept(rec)}")
@@ -232,6 +238,13 @@ def main() -> None:
     for s in specs:
         cmd += ["--build", s]
     subprocess.run(cmd, check=True)
+    # grading_package wrote a one-commit history; replace it with each build's real commit log.
+    sys.path.insert(0, str(HERE))
+    import grading_package
+    records = {b.partition("=")[0]: REPO / b.partition("=")[2] for b in a.build}
+    for letter, label in json.loads(key.read_text()).items():
+        log = (records[label] / "workspace-git-log.txt").read_text()
+        (package / f"build-{letter}" / "commits.txt").write_text(grading_package.scrub(commits_oldest_first(log)))
     accept_src = packdir.resolve() / "acceptance"
     for f in ACCEPTANCE_FILES:
         if (accept_src / f).exists():
@@ -239,6 +252,9 @@ def main() -> None:
     for where in [package / "acceptance", package / "build-A" / "workspace", package / "build-B" / "workspace"]:
         print(f"installing dependencies in {where.relative_to(job)}")
         npm_ci(where)
+    if a.prepare_only:
+        print(f"package ready, judge not run: {package}")
+        return
     for r in range(1, a.repeat + 1):
         results = run_judge(job / f"run-{r}", package, a)
         cmd = ["uv", "run", str(HERE / "judge_collect.py"), a.name, results.name, "--dir", str(results),
