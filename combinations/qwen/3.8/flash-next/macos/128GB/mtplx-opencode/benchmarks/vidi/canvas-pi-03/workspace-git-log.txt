@@ -1,3 +1,42 @@
+commit aab3c178a28c01b6999a152faf75db76e12abb25
+vidi-agent  Sun Sep 27 01:44:32 2026 +0100
+
+    harness: snapshot after story 9 (uncommitted agent work)
+
+
+ src/canvas/SelectionBar.tsx             | 113 +++++++++-
+ src/canvas/SelectionBox.tsx             |  10 +-
+ src/client/App.tsx                      | 197 +++++++++++++++--
+ src/client/board/Toolbar.tsx            |  54 ++++-
+ src/client/board/tools.ts               |  20 ++
+ src/client/board/useBoardDoc.ts         |  14 +-
+ src/client/board/useTool.ts             |  56 +++++
+ src/client/canvas/BoardViewport.tsx     |  71 ++++++-
+ src/client/objects/StickyText.ts        |  63 +-----
+ src/client/objects/StickyTextEditor.tsx | 143 ++-----------
+ src/client/objects/TextEditor.tsx       | 191 +++++++++++++++++
+ src/client/objects/TextObject.tsx       | 224 ++++++++++++++++++++
+ src/client/objects/TextToolbar.tsx      |  78 +++++++
+ src/client/objects/text/text-layout.ts  | 265 +++++++++++++++++++++++
+ src/client/objects/useTextBoxSync.ts    |  76 +++++++
+ src/shared/board-model.ts               | 129 ++++++++---
+ src/shared/config.ts                    |  28 +++
+ src/shared/object-types.ts              |  74 ++++++-
+ src/shared/objects/text.ts              | 195 +++++++++++++++++
+ src/shared/text-edit.ts                 |  73 +++++++
+ tests/component/TextBoxSync.test.tsx    | 229 ++++++++++++++++++++
+ tests/component/TextObject.test.tsx     | 211 ++++++++++++++++++
+ tests/component/Tool.test.tsx           | 226 ++++++++++++++++++++
+ tests/component/harness.ts              |  70 +++++-
+ tests/e2e/free-text.spec.ts             | 280 ++++++++++++++++++++++++
+ tests/e2e/helpers/board.ts              | 127 ++++++++++-
+ tests/integration/free-text.test.ts     | 364 ++++++++++++++++++++++++++++++++
+ tests/unit/selection-registry.test.ts   |  70 ++++++
+ tests/unit/text-layout.test.ts          | 109 ++++++++++
+ tests/unit/text-model.test.ts           | 177 ++++++++++++++++
+ tests/unit/transform-gesture.test.ts    |  27 ++-
+ vitest.config.ts                        |   8 +
+ 32 files changed, 3715 insertions(+), 257 deletions(-)
 commit cb49b73a9ecdb3459fb8b029fd361ec768428b47
 vidi-agent  Sat Sep 26 22:53:22 2026 +0100
 
