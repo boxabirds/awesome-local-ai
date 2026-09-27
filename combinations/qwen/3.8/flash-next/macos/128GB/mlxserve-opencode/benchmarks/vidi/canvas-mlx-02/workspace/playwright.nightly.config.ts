@@ -1,12 +1,19 @@
+// Nightly Playwright config for story 3's cross-browser collaboration specs,
+// which open multiple contexts, simulate network outages, and assert convergence
+// — so they need generous timeouts and a couple of retries. The regular
+// playwright.config.ts stays fast and does not run these.
+//
+// Browsers are not installed in every sandbox; if `npx playwright install` has
+// not been run these specs will fail to launch (documented in NOTES.md).
 import { defineConfig, devices } from '@playwright/test';
 
 export default defineConfig({
   testDir: './tests/e2e',
-  // The multi-context collaboration / outage specs run under playwright.nightly.config.ts.
-  testIgnore: /.*(collaboration|connection)\.spec\.ts/,
+  testMatch: /.*(collaboration|connection)\.spec\.ts/,
   fullyParallel: false,
   workers: 1,
-  retries: 0,
+  retries: 2,
+  timeout: 60_000,
   reporter: [['list']],
   use: {
     baseURL: 'http://localhost:4173',
@@ -16,16 +23,11 @@ export default defineConfig({
   projects: [
     { name: 'chromium', use: { ...devices['Desktop Chrome'] } },
     { name: 'webkit', use: { ...devices['Desktop Safari'] } },
-    // Firefox launches its own OS-level sandbox, which is blocked in some CI
-    // sandboxes. It is part of the design's browser matrix, so it stays here,
-    // enabled with E2E_FIREFOX=1 where the environment allows it. See NOTES.md.
     ...(process.env.E2E_FIREFOX
       ? [{ name: 'firefox', use: { ...devices['Desktop Firefox'] } }]
       : []),
   ],
   webServer: {
-    // Serve the client (built in test mode, so the __vidi6 hook is present)
-    // through the same static-asset path used in production: `wrangler dev`.
     command: 'npm run build:test && npx wrangler dev --ip 127.0.0.1 --port 4173',
     url: 'http://localhost:4173',
     reuseExistingServer: !process.env.CI,

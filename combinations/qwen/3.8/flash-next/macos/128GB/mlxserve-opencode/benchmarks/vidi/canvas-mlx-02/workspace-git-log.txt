@@ -1,3 +1,40 @@
+commit e7c898ed6a2bc00d030f123c1a1db211126d0cfa
+vidi-agent  Sun Sep 27 23:45:38 2026 +0100
+
+    Story 3: live multi-user collaboration over Yjs + Durable Objects
+
+
+ NOTES.md                                  |  102 +++
+ package-lock.json                         | 1380 ++++++++++++++++++++---------
+ package.json                              |   13 +-
+ playwright.config.ts                      |    2 +
+ playwright.nightly.config.ts              |   38 +
+ src/client/App.tsx                        |   45 +-
+ src/client/board/useBoardDoc.ts           |   44 +-
+ src/client/board/useSelection.ts          |   11 +-
+ src/client/collab/ConnectionStatus.tsx    |   36 +
+ src/client/collab/connectBoard.ts         |  115 +++
+ src/client/testHooks.ts                   |   10 +-
+ src/shared/board-id.ts                    |   21 +
+ src/shared/config.ts                      |   22 +
+ src/shared/protocol.ts                    |   58 ++
+ src/worker/board-room.ts                  |  181 ++++
+ src/worker/index.ts                       |   39 +-
+ tests/component/ConnectionStatus.test.tsx |  115 +++
+ tests/e2e/collaboration.spec.ts           |  167 ++++
+ tests/e2e/connection.spec.ts              |  104 +++
+ tests/e2e/helpers/room.ts                 |   49 +
+ tests/integration/board-room.test.ts      |  353 ++++++++
+ tests/integration/helpers/random-ops.ts   |   91 ++
+ tests/integration/helpers/ws-client.ts    |  275 ++++++
+ tests/integration/worker.test.ts          |   98 ++
+ tests/unit/board-id.test.ts               |   57 ++
+ tests/unit/protocol.test.ts               |  102 +++
+ tsconfig.json                             |    5 +-
+ tsconfig.worker.json                      |   21 +
+ vitest.config.ts                          |   16 +
+ wrangler.jsonc                            |   19 +-
+ 30 files changed, 3153 insertions(+), 436 deletions(-)
 commit 52acc0ee28263bcbaed46571a0916851a46a64ef
 vidi-agent  Sun Sep 27 22:24:20 2026 +0100
 

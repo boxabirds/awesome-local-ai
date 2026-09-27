@@ -1,7 +1,7 @@
 {
   "compilerOptions": {
     "target": "ES2022",
-    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "lib": ["ES2022"],
     "module": "ESNext",
     "moduleResolution": "bundler",
     "jsx": "react-jsx",
@@ -15,10 +15,7 @@
     "forceConsistentCasingInFileNames": true,
     "resolveJsonModule": true,
     "isolatedModules": true,
-    "types": ["vite/client", "node", "@testing-library/jest-dom"]
+    "types": ["@cloudflare/workers-types/experimental", "@cloudflare/vitest-pool-workers"]
   },
-  "include": ["src", "tests", "vitest.config.ts", "playwright.config.ts", "playwright.nightly.config.ts"],
-  // Worker + integration tests typecheck under @cloudflare/workers-types in
-  // tsconfig.worker.json (worker globals conflict with the DOM lib used here).
-  "exclude": ["src/worker", "tests/integration"]
+  "include": ["src/worker", "src/shared", "tests/integration"]
 }

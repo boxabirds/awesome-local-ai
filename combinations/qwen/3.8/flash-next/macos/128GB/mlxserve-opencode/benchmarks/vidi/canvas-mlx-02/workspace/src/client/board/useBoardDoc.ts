@@ -1,20 +1,26 @@
 // Owns the local Y.Doc for the board and exposes an immutable, memoised
 // snapshot to React via useSyncExternalStore. Story 3 attaches a network
 // provider to the same doc; story 4 persists it.
-import { useCallback, useMemo, useRef, useSyncExternalStore } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import * as Y from 'yjs';
+import { initDoc, snapshot, type StickySnapshot } from '../../shared/board-model.ts';
 import {
-  initDoc,
-  snapshot,
-  type StickySnapshot,
-} from '../../shared/board-model.ts';
+  connectBoard,
+  type BoardProvider,
+  type ConnectionState,
+  type ProviderFactory,
+} from '../collab/connectBoard.ts';
 
 export interface BoardDoc {
   doc: Y.Doc;
   notes: readonly StickySnapshot[];
+  /** Live collaboration status of the underlying provider. */
+  connectionState: ConnectionState;
+  /** The provider, exposed for the test hook's forced connect/disconnect. */
+  provider: BoardProvider | null;
 }
 
-export function useBoardDoc(): BoardDoc {
+export function useBoardDoc(boardId: string, makeProvider?: ProviderFactory): BoardDoc {
   // One Y.Doc per component lifetime.
   const docRef = useRef<Y.Doc | null>(null);
   if (docRef.current === null) {
@@ -23,6 +29,22 @@ export function useBoardDoc(): BoardDoc {
     docRef.current = doc;
   }
   const doc = docRef.current;
+
+  const [connectionState, setConnectionState] = useState<ConnectionState>('connecting');
+  const providerRef = useRef<BoardProvider | null>(null);
+
+  // Attach the collaboration provider to the same doc. On unmount (or a board
+  // change) we destroy it, closing the WebSocket and dropping any pending timer.
+  useEffect(() => {
+    const conn = connectBoard(doc, boardId, setConnectionState, makeProvider);
+    providerRef.current = conn.provider;
+    return () => {
+      providerRef.current = null;
+      conn.destroy();
+    };
+    // makeProvider is a stable module-level function in production; a test that
+    // passes an inline factory re-attaches, which is fine.
+  }, [doc, boardId, makeProvider]);
 
   // `version` bumps on any change; the snapshot is recomputed only when it
   // differs from `computed`. Keeps a stable object identity between changes
@@ -37,7 +59,7 @@ export function useBoardDoc(): BoardDoc {
         onStoreChange();
       };
       objects.observeDeep(bump);
-      // Whole-doc changes (e.g. remote sync in story 3) must also invalidate.
+      // Whole-doc changes (e.g. remote sync) must also invalidate.
       doc.on('update', bump);
       return () => {
         objects.unobserveDeep(bump);
@@ -58,5 +80,11 @@ export function useBoardDoc(): BoardDoc {
 
   const notes = useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
 
-  return useMemo(() => ({ doc, notes }), [doc, notes]);
+  // The provider ref is stable for a given board; connectionState already drives
+  // re-renders, so we deliberately do NOT include providerRef in the memo deps.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  return useMemo(
+    () => ({ doc, notes, connectionState, provider: providerRef.current }),
+    [doc, notes, connectionState],
+  );
 }

@@ -11,6 +11,10 @@ export interface SelectionApi {
   select(id: string | null): void;
   startEdit(id: string): void;
   endEdit(next: EndMode): void;
+  // Clear selection / editing when a selected/edited id leaves the document
+  // (a remote delete). Selection is a purely local, transient fact, so dropping a
+  // vanished id has no server cost and cannot race a CRDT merge.
+  pruneTo(liveIds: ReadonlySet<string>): void;
 }
 
 export function useSelection(): SelectionApi {
@@ -39,5 +43,10 @@ export function useSelection(): SelectionApi {
     });
   }, []);
 
-  return { selectedId, editingId, select, startEdit, endEdit };
+  const pruneTo = useCallback((liveIds: ReadonlySet<string>) => {
+    setSelectedId((id) => (id !== null && !liveIds.has(id) ? null : id));
+    setEditingId((id) => (id !== null && !liveIds.has(id) ? null : id));
+  }, []);
+
+  return { selectedId, editingId, select, startEdit, endEdit, pruneTo };
 }
