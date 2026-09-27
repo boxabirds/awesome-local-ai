@@ -3,7 +3,7 @@
 
 import { useEffect, useRef, useState, type ReactElement } from 'react';
 import { useCamera, type CameraApi } from './useCamera';
-import type { Size } from './camera';
+import type { Point, Size } from './camera';
 import {
   GRID_SPACING_WORLD,
   WHEEL_DELTA_LINE_PX,
@@ -23,6 +23,10 @@ export interface BoardViewportProps {
    * hint observe the same camera.
    */
   camera?: CameraApi;
+  /** Double-click on empty board space (the grid), with the local point. */
+  onDblClickEmpty?(point: Point): void;
+  /** A click (press without drag) on empty board space. */
+  onEmptyClick?(): void;
 }
 
 function positiveMod(value: number, modulus: number): number {
@@ -35,11 +39,21 @@ function deltaToPixels(delta: number, deltaMode: number, pageHeight: number): nu
   return delta;
 }
 
-export function BoardViewport({ children, camera: cameraProp }: BoardViewportProps): ReactElement {
+export function BoardViewport({
+  children,
+  camera: cameraProp,
+  onDblClickEmpty,
+  onEmptyClick,
+}: BoardViewportProps): ReactElement {
   const containerRef = useRef<HTMLDivElement>(null);
   const worldRef = useRef<HTMLDivElement>(null);
   const [viewport, setViewport] = useState<Size>({ width: 0, height: 0 });
   const [panning, setPanning] = useState(false);
+  const panMovedRef = useRef(false);
+  const onEmptyClickRef = useRef(onEmptyClick);
+  onEmptyClickRef.current = onEmptyClick;
+  const onDblClickEmptyRef = useRef(onDblClickEmpty);
+  onDblClickEmptyRef.current = onDblClickEmpty;
 
   const ownCamera = useCamera(viewport);
   const camera: CameraApi = cameraProp ?? ownCamera;
@@ -122,26 +136,40 @@ export function BoardViewport({ children, camera: cameraProp }: BoardViewportPro
     return { x: e.clientX - rect.left, y: e.clientY - rect.top };
   };
 
+  const onEmptySpace = (e: React.PointerEvent | React.MouseEvent): boolean =>
+    e.target === e.currentTarget || e.target === worldRef.current;
+
   // Drag starts only on empty board space (the viewport or world layer
   // themselves), so later object stories can stop propagation on their nodes.
   const onPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
-    if (e.target !== e.currentTarget && e.target !== worldRef.current) return;
+    if (!onEmptySpace(e)) return;
     e.currentTarget.setPointerCapture(e.pointerId);
     setPanning(true);
+    panMovedRef.current = false;
     camera.beginPan(toLocal(e));
   };
 
   const onPointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
     if (!panning) return;
+    panMovedRef.current = true;
     camera.panMove(toLocal(e));
   };
 
   const finishPan = (e: React.PointerEvent<HTMLDivElement>) => {
+    const wasClick = panning && !panMovedRef.current;
     if (e.currentTarget.hasPointerCapture(e.pointerId)) {
       e.currentTarget.releasePointerCapture(e.pointerId);
     }
     setPanning(false);
     camera.endPan();
+    if (wasClick) onEmptyClickRef.current?.();
+  };
+
+  // Double-click on empty space creates a note (story 2); double-clicks on
+  // notes are stopped by the note itself.
+  const onDoubleClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (!onEmptySpace(e)) return;
+    onDblClickEmptyRef.current?.(toLocal(e));
   };
 
   return (
@@ -160,6 +188,7 @@ export function BoardViewport({ children, camera: cameraProp }: BoardViewportPro
       onPointerUp={finishPan}
       onPointerCancel={finishPan}
       onLostPointerCapture={finishPan}
+      onDoubleClick={onDoubleClick}
     >
       <div
         ref={worldRef}

@@ -35,3 +35,30 @@ export const WHEEL_DELTA_MODE_PAGE = 2;
  * In normal browsers the rAF (next paint) always wins over this timer.
  */
 export const CAMERA_FLUSH_FALLBACK_MS = 32;
+
+/* --- Story 2: sticky notes --- */
+
+/** Sticky note side length in world units (notes are square). */
+export const STICKY_SIZE_WORLD = 200;
+/** Maximum characters of text a sticky note may hold. */
+export const STICKY_TEXT_MAX_CHARS = 1000;
+/** The character counter shows when remaining characters <= this. */
+export const STICKY_COUNTER_THRESHOLD_CHARS = 50;
+/** Largest note text size (px at 100% zoom). */
+export const STICKY_FONT_MAX_PX = 24;
+/** Smallest note text size (px at 100% zoom); overflow fades below it. */
+export const STICKY_FONT_MIN_PX = 10;
+/** Pointer travel (screen px) before a press on a note becomes a drag. */
+export const DRAG_THRESHOLD_PX = 3;
+/** The six preset sticky note colours. */
+export const STICKY_COLORS = {
+  yellow: '#FFF59D',
+  orange: '#FFCC80',
+  green: '#C5E1A5',
+  blue: '#90CAF9',
+  pink: '#F48FB1',
+  violet: '#CE93D8',
+} as const;
+export type StickyColor = keyof typeof STICKY_COLORS;
+/** Colour of a newly created sticky note. */
+export const DEFAULT_STICKY_COLOR: StickyColor = 'yellow';
