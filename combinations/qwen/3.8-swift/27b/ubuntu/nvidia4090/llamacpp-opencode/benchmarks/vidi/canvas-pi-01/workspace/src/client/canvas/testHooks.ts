@@ -10,10 +10,16 @@ export interface Vidi6TestApi {
   setCamera(cam: Camera): void;
   /** The app's Y.Doc (component tests assert against the real document). */
   getDoc(): Y.Doc;
-  /** board-model deleteObject (component tests, TC-37). */
+  /** Create a sticky note centred on a world point (e2e fixtures). */
+  createNoteAt(x: number, y: number): string;
+  /** board-model deleteObjects (component tests, TC-37/TC-16). */
   deleteNote(id: string): boolean;
   /** Mapped connection state (e2e: badge + reconnect assertions, TC-27/29). */
   connectionState: string;
+  /** Force a connection state (story 7: load_failed disables editing). */
+  setConnectionState(state: string): void;
+  /** Count of transform gestures that started/ended on this client. */
+  getGestureLog(): { starts: number; ends: number };
 }
 
 declare global {

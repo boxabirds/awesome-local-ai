@@ -433,3 +433,74 @@ body {
 .copied-tick {
   color: #16a34a;
 }
+
+/* ---- multi-select: bounding box + resize handles (story 7) ---- */
+.selection-overlay {
+  border: 1.5px solid #2563eb;
+  border-radius: 2px;
+  z-index: 9;
+}
+.selection-handle {
+  background: #ffffff;
+  border: 1.5px solid #2563eb;
+  border-radius: 2px;
+  box-sizing: border-box;
+}
+.selection-handle:focus-visible {
+  outline: 2px solid #2563eb;
+  outline-offset: 1px;
+}
+
+/* ---- marquee rect (world space, scales with zoom) ---- */
+.marquee-rect {
+  background: rgba(37, 99, 235, 0.12);
+  border: 1px solid rgba(37, 99, 235, 0.55);
+  pointer-events: none;
+}
+
+/* ---- selection bar: "N selected" + delete (story 7) ---- */
+.selection-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 8px;
+  background: #ffffff;
+  border: 1px solid #d9dde3;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  font-size: 13px;
+  color: #1f2430;
+}
+.selection-bar__delete {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border: 1px solid #d9dde3;
+  border-radius: 6px;
+  background: #ffffff;
+  color: #b42318;
+  cursor: pointer;
+}
+.selection-bar__delete:hover {
+  background: #fef3f2;
+}
+.selection-bar__delete:focus-visible {
+  outline: 2px solid #2563eb;
+  outline-offset: 1px;
+}
+
+/* ---- screen-reader-only live region ---- */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}

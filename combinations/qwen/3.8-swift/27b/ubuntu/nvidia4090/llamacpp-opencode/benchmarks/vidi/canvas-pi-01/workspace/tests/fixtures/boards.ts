@@ -11,7 +11,7 @@ import {
   initDoc,
   moveObject,
   snapshot,
-  type StickySnapshot,
+  type ObjectSnapshot,
 } from '../../src/shared/board-model';
 import { PERSIST_TESTED_NOTES, STICKY_COLORS, type StickyColor } from '../../src/shared/config';
 
@@ -64,7 +64,7 @@ function makeRetroBoardInto(doc: Y.Doc, out: string[]): void {
  * positions and a non-trivial stacking order. Returns the notes in
  * rendering order and records creation ids in `creationIds`.
  */
-export function makeRetroBoard(doc: Y.Doc, creationIds?: string[]): readonly StickySnapshot[] {
+export function makeRetroBoard(doc: Y.Doc, creationIds?: string[]): readonly ObjectSnapshot[] {
   initDoc(doc);
   const ids: string[] = [];
   makeRetroBoardInto(doc, ids);
@@ -105,7 +105,7 @@ export function realisticPhrase(rand: () => number): string {
  * A board of `notes` realistic notes (default PERSIST_TESTED_NOTES) laid out
  * in clusters. Returns the notes in rendering order.
  */
-export function makeLargeBoard(doc: Y.Doc, notes: number = PERSIST_TESTED_NOTES): readonly StickySnapshot[] {
+export function makeLargeBoard(doc: Y.Doc, notes: number = PERSIST_TESTED_NOTES): readonly ObjectSnapshot[] {
   initDoc(doc);
   const rand = mulberry32(7);
   const perCluster = 100;
@@ -134,7 +134,7 @@ export function makeLargeBoard(doc: Y.Doc, notes: number = PERSIST_TESTED_NOTES)
 export function buildWithUpdates(build: (doc: Y.Doc) => unknown): {
   doc: Y.Doc;
   updates: Uint8Array[];
-  state: readonly StickySnapshot[];
+  state: readonly ObjectSnapshot[];
 } {
   const doc = new Y.Doc();
   const updates: Uint8Array[] = [];
@@ -180,6 +180,6 @@ export function randomBytes(length: number, seed = 1234): Uint8Array {
 }
 
 /** True when two board snapshots are identical (including ids and z order). */
-export function sameState(a: readonly StickySnapshot[], b: readonly StickySnapshot[]): boolean {
+export function sameState(a: readonly ObjectSnapshot[], b: readonly ObjectSnapshot[]): boolean {
   return JSON.stringify(a) === JSON.stringify(b);
 }

@@ -26,6 +26,11 @@ export interface BoardViewportProps {
   onEmptyClick?: () => void;
   /** Double-click on empty board space, at the screen point of the click. */
   onCreateStickyAt?: (screenPoint: Point) => void;
+  /** Marquee selection: Shift+pointerdown on empty board space. */
+  onMarqueeBegin?: (screenPoint: Point) => void;
+  onMarqueeMove?: (screenPoint: Point) => void;
+  onMarqueeEnd?: () => void;
+  onMarqueeCancel?: () => void;
 }
 
 /** Positive modulo in [0, m). */
@@ -33,9 +38,19 @@ function mod(value: number, m: number): number {
   return ((value % m) + m) % m;
 }
 
-export function BoardViewport({ children, cam, onEmptyClick, onCreateStickyAt }: BoardViewportProps) {
+export function BoardViewport({
+  children,
+  cam,
+  onEmptyClick,
+  onCreateStickyAt,
+  onMarqueeBegin,
+  onMarqueeMove,
+  onMarqueeEnd,
+  onMarqueeCancel,
+}: BoardViewportProps) {
   const viewportRef = useRef<HTMLDivElement | null>(null);
   const downPointRef = useRef<Point | null>(null);
+  const marqueeActiveRef = useRef(false);
   const { wheel: wheelApi, gestureStart, gestureChange, zoomStep: zoomStepApi, reset: resetApi } = cam;
 
   // Non-passive wheel listener: React's onWheel is passive and cannot
@@ -100,9 +115,15 @@ export function BoardViewport({ children, cam, onEmptyClick, onCreateStickyAt }:
     };
   }, [gestureStart, gestureChange]);
 
-  // Keyboard shortcuts: Ctrl/Cmd + = / - / 0 (preventDefault stops page zoom).
+  // Keyboard shortcuts: Ctrl/Cmd + = / - / 0 (preventDefault stops page
+  // zoom), Escape cancels an in-flight marquee.
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape' && marqueeActiveRef.current) {
+        marqueeActiveRef.current = false;
+        onMarqueeCancel?.();
+        return;
+      }
       if (!(event.ctrlKey || event.metaKey)) return;
       switch (event.key) {
         case '=':
@@ -125,7 +146,7 @@ export function BoardViewport({ children, cam, onEmptyClick, onCreateStickyAt }:
     };
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [zoomStepApi, resetApi]);
+  }, [zoomStepApi, resetApi, onMarqueeCancel]);
 
   const pointFromEvent = (event: { clientX: number; clientY: number }): Point => {
     const el = viewportRef.current;
@@ -145,14 +166,30 @@ export function BoardViewport({ children, cam, onEmptyClick, onCreateStickyAt }:
       // Pointer capture unsupported (e.g. jsdom) — drag still works.
     }
     downPointRef.current = pointFromEvent(event);
-    cam.beginPan(pointFromEvent(event));
+    if (event.shiftKey && onMarqueeBegin !== undefined) {
+      // Shift+drag on empty space starts a marquee instead of a pan.
+      marqueeActiveRef.current = true;
+      onMarqueeBegin(pointFromEvent(event));
+    } else {
+      cam.beginPan(pointFromEvent(event));
+    }
   };
 
   const onPointerMove = (event: React.PointerEvent<HTMLDivElement>) => {
+    if (marqueeActiveRef.current) {
+      onMarqueeMove?.(pointFromEvent(event));
+      return;
+    }
     cam.panMove(pointFromEvent(event));
   };
 
   const onPointerUp = (event: React.PointerEvent<HTMLDivElement>) => {
+    if (marqueeActiveRef.current) {
+      marqueeActiveRef.current = false;
+      downPointRef.current = null;
+      onMarqueeEnd?.();
+      return;
+    }
     const el = viewportRef.current;
     cam.endPan();
     // A click on empty space (down + up without movement) clears selection.
@@ -164,6 +201,16 @@ export function BoardViewport({ children, cam, onEmptyClick, onCreateStickyAt }:
       }
     }
     downPointRef.current = null;
+  };
+
+  const onPointerCancel = (event: React.PointerEvent<HTMLDivElement>) => {
+    if (marqueeActiveRef.current) {
+      marqueeActiveRef.current = false;
+      downPointRef.current = null;
+      onMarqueeCancel?.();
+      return;
+    }
+    onPointerUp(event);
   };
 
   const onDoubleClick = (event: React.MouseEvent<HTMLDivElement>) => {
@@ -197,8 +244,8 @@ export function BoardViewport({ children, cam, onEmptyClick, onCreateStickyAt }:
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}
       onPointerUp={onPointerUp}
-      onPointerCancel={onPointerUp}
-      onLostPointerCapture={onPointerUp}
+      onPointerCancel={onPointerCancel}
+      onLostPointerCapture={onPointerCancel}
       onDoubleClick={onDoubleClick}
     >
       <div

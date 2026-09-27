@@ -112,3 +112,16 @@ export const LINK_COPIED_MS = 2000;
  * (PRD share.unreachable).
  */
 export const BOARD_CHECK_RETRY_BASE_MS = 1000;
+
+// ---- Multi-select and group transforms (story 7) ----
+
+/** Side length (screen px) of the bounding-box resize handles at any zoom. */
+export const HANDLE_SIZE_PX = 8;
+/** Smallest size (board units) a sticky note may be resized to. */
+export const STICKY_MIN_SIZE_WORLD = 50;
+/** Largest size (board units) any object may be resized to. */
+export const MAX_OBJECT_SIZE_WORLD = 20_000;
+/** Arrow-key nudge step (board units). */
+export const NUDGE_STEP_WORLD = 1;
+/** Shift+arrow nudge step (board units). */
+export const NUDGE_LARGE_STEP_WORLD = 10;

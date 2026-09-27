@@ -10,13 +10,15 @@ import {
   type BoardConnection,
   type ConnectionState,
 } from '../sync/connectBoard';
-import { initDoc, snapshot, type StickySnapshot } from '../../shared/board-model';
+import { initDoc, snapshot, type ObjectSnapshot } from '../../shared/board-model';
 
 export interface BoardDoc {
   doc: Y.Doc;
-  notes: readonly StickySnapshot[];
+  notes: readonly ObjectSnapshot[];
   /** Live connection state for the ConnectionStatus badge. */
   connectionState: ConnectionState;
+  /** Test-only: force the connection state (e.g. load_failed). */
+  setConnectionState(state: ConnectionState): void;
 }
 
 export function useBoardDoc(boardId: string): BoardDoc {
@@ -27,7 +29,7 @@ export function useBoardDoc(boardId: string): BoardDoc {
     docRef.current = doc;
   }
   const doc = docRef.current;
-  const cacheRef = useRef<{ notes: readonly StickySnapshot[] } | null>(null);
+  const cacheRef = useRef<{ notes: readonly ObjectSnapshot[] } | null>(null);
 
   const getSnapshot = useCallback(() => {
     if (cacheRef.current === null) cacheRef.current = { notes: snapshot(doc) };
@@ -54,5 +56,10 @@ export function useBoardDoc(boardId: string): BoardDoc {
     return () => connection.destroy();
   }, [doc, boardId]);
 
-  return { doc, notes: useSyncExternalStore(subscribe, getSnapshot), connectionState };
+  return {
+    doc,
+    notes: useSyncExternalStore(subscribe, getSnapshot),
+    connectionState,
+    setConnectionState: useCallback((state: ConnectionState) => setConnectionState(state), []),
+  };
 }

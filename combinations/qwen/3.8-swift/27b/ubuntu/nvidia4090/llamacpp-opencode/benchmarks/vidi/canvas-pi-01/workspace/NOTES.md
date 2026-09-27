@@ -211,3 +211,70 @@ Both nightly tests pass on this machine:
   firefox/webkit).
 - `tests/e2e/nightly/idle.spec.ts` — TC-29.
 - `tests/e2e/nightly/capacity.spec.ts` — TC-30.
+
+## Decisions and deviations (story 7)
+
+- **`ObjectSnapshot` is generic over type**: `board-model.ts` now works on
+  `{ id, type, x, y, width?, height?, color?, text?, z }` so group operations
+  (`moveObjects`, `resizeObjects`, `deleteObjects`, `bringObjectsToFront`,
+  `objectsInRect`) are type-agnostic. `StickySnapshot` extends it with the
+  sticky-required fields; stories 9–12 add their own extensions. `snapshot(doc)`
+  and `allObjectIds`/`objectsInRect` skip objects whose `type` is not registered
+  (`isKnownObjectType`), so unknown types never throw (TC-12).
+- **Registry**: `src/client/objects/registry.tsx` maps a type name to a spec
+  (`Component`, `resizable`, `aspectLocked`, `minSize`). `registerObjectType`
+  throws on duplicate registration (unit-tested). Only `sticky` is registered in
+  app code; the `testbox` fixture (resizable, not aspect-locked, minSize 10) is
+  registered in component tests to prove the generic resize path.
+- **Aspect lock is a selection property**: a resize unifies its scale when any
+  selected spec is `aspectLocked` **or** Shift is held. In `useTransformGesture`
+  the unified scale is `s = min(clamped.x, clamped.y)` so both axes stay equal;
+  `scaleWithin` then maps every object rect through the same scale about the
+  bounding-box origin, which keeps gaps proportional.
+- **Absolute writes from gesture start**: each frame writes `startRect + delta`
+  (move) or `scaleWithin(startRect, startBox, targetBox)` (resize) — never
+  accumulated per-frame deltas — so concurrent remote moves converge to the last
+  writer identically on every screen (TC-36).
+- **Stacking**: a group move calls `bringObjectsToFront`, which reassigns
+  `z = maxUnselectedZ + rank` preserving relative order among the selected
+  objects; it returns 0 (no transaction) when the order is already correct.
+- **Selection bar count is an `aria-live` region for any selection**: the
+  visible "N selected" bar renders at ≥ 2 objects (with Delete); a single sticky
+  shows the story-2 `NoteToolbar`. A separate `.sr-only` `aria-live="polite"`
+  span announces the count for **any** non-empty selection (design contract),
+  which is what the e2e TC-35 prune assertion reads ("2 selected" → "1 selected").
+- **Load-failed is read-only, not selection-free**: a click still selects the
+  note (harmless highlight) but `useTransformGesture` is handed an empty id set
+  so no gesture starts and nothing is written (TC-25).
+- **`endEdit(next)`**: the editor reports how editing ended — Escape →
+  `'selected'` (the note stays selected), click-outside → `'unselected'`
+  (deselects). The reducer's `end-edit` action carries that flag.
+- **Marquee is world-space**: `useMarquee` converts screen→world via the camera
+  and `MarqueeRect` renders inside the scaled world layer, so the rubber band
+  tracks the board at any zoom. `objectsInRect` selects objects lying *entirely*
+  inside (a partly-inside object is not selected, TC-07/TC-32).
+- **e2e fixtures place notes at exact world coordinates** via a new
+  `window.__vidi6.createNoteAt(x, y)` test hook (a `createSticky` wrapper), and
+  assertions read world state back from the Y.Doc so camera rounding never
+  matters. `homeCam(page)` derives the home camera from each page's *actual*
+  viewport because `openParticipant` contexts do not inherit the project's
+  800 px-tall viewport (default is 720).
+- **e2e input-drop hardening**: WebKit/Firefox drop clicks and drags under
+  parallel load (the pre-existing specs retry for the same reason). `clickNoteAt`
+  verifies the selection and retries; TC-36's per-editor drag self-heals by
+  re-dragging from the note's actual position until it reaches its target.
+
+## Test-to-spec map (story 7)
+
+- `tests/unit/geometry.test.ts` — TC-01..04 + `scaleWithin`/`clampScale`/
+  `unionRects`/`normalizeRect`/`pointInRect`/`rectContains`.
+- `tests/unit/board-model-group.test.ts` — TC-05..10 (group move/resize/delete/
+  bring-to-front/objectsInRect/allObjectIds).
+- `tests/unit/registry.test.ts` — TC-11, TC-12 + duplicate registration throws.
+- `tests/unit/selection.test.ts` — TC-13..15 + end-edit selected/unselected.
+- `tests/component/selection.test.tsx` — TC-16..19, TC-27..31.
+- `tests/component/marquee.test.tsx` — TC-20..22.
+- `tests/component/transform.test.tsx` — TC-23..26.
+- `tests/fixtures/testbox.tsx` — test-only non-locked resizable type.
+- `tests/e2e/select-move-resize-delete.spec.ts` — TC-32..36 (chromium/firefox/
+  webkit).

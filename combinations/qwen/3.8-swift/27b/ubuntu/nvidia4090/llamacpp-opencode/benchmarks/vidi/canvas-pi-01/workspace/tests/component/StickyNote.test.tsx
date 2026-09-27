@@ -7,16 +7,20 @@
 import { act, cleanup, render } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import * as Y from 'yjs';
+import { useMemo, useEffect, useState } from 'react';
 import {
   createSticky,
-  deleteObject,
+  deleteObjects,
   initDoc,
-  moveObject,
+  moveObjects,
   snapshot,
-  type StickySnapshot,
+  type ObjectSnapshot,
 } from '../../src/shared/board-model';
 import { STICKY_SIZE_WORLD } from '../../src/shared/config';
-import { StickyNote } from '../../src/client/objects/StickyNote';
+import { getObjectType } from '../../src/client/objects/registry';
+import { useSelection } from '../../src/client/board/useSelection';
+import { useTransformGesture } from '../../src/client/board/useTransformGesture';
+import type { Camera } from '../../src/client/canvas/camera';
 import {
   click,
   dispatch,
@@ -231,42 +235,92 @@ describe('sticky.interaction — app level', () => {
 });
 
 // --- standalone StickyNote: drag state machine against a real Y.Doc ---
+//
+// The note renders inside a harness that wires the real useSelection +
+// useTransformGesture (the story 7 shared gesture), so these tests exercise
+// the same drag state machine as the app.
 
 interface DragLog {
+  /** draggingIds marker on every change: the id while dragging, null otherwise. */
   dragging: (string | null)[];
-  endEdit: ('selected' | 'unselected')[];
+  starts: number;
+  ends: number;
 }
 
-function makeDocWithNote(x = 0, y = 0): { doc: Y.Doc; note: StickySnapshot } {
+function makeDocWithNote(x = 0, y = 0): { doc: Y.Doc; note: ObjectSnapshot } {
   const doc = new Y.Doc();
   initDoc(doc);
   const id = createSticky(doc, { x: x + STICKY_SIZE_WORLD / 2, y: y + STICKY_SIZE_WORLD / 2 });
-  moveObject(doc, id, x, y);
+  moveObjects(doc, new Map([[id, { x, y }]]));
   const note = snapshot(doc)[0];
   if (note === undefined) throw new Error('note not created');
   return { doc, note };
 }
 
-function renderStandalone(
-  doc: Y.Doc,
-  note: StickySnapshot,
-  zoom = 1,
-  log: DragLog = { dragging: [], endEdit: [] },
-) {
-  return render(
-    <StickyNote
-      note={note}
+function StandaloneHarness({
+  doc,
+  note,
+  zoom,
+  log,
+}: {
+  doc: Y.Doc;
+  note: ObjectSnapshot;
+  zoom: number;
+  log: DragLog;
+}) {
+  const [snap, setSnap] = useState<readonly ObjectSnapshot[]>([note]);
+  const selection = useSelection(snap);
+  const camera = useMemo<Camera>(() => ({ x: 0, y: 0, zoom }), [zoom]);
+  const gesture = useTransformGesture({
+    doc,
+    camera,
+    selection,
+    snapshot: snap,
+    canEdit: true,
+    onGestureStart: () => {
+      log.starts += 1;
+    },
+    onGestureEnd: () => {
+      log.ends += 1;
+    },
+  });
+  useEffect(() => {
+    log.dragging.push(gesture.draggingIds.size > 0 ? [...gesture.draggingIds][0] ?? null : null);
+  }, [gesture.draggingIds, log]);
+  // Track doc changes (e.g. a remote deletion) so the selection prunes.
+  useEffect(() => {
+    const handler = () => setSnap(snapshot(doc));
+    doc.getMap('objects').observeDeep(handler);
+    return () => doc.getMap('objects').unobserveDeep(handler);
+  }, [doc]);
+
+  const spec = getObjectType(note.type);
+  if (spec === undefined) return null;
+  const Component = spec.Component;
+  return (
+    <Component
+      obj={note}
       doc={doc}
       zoom={zoom}
-      selected
-      editing={false}
+      selected={selection.ids.has(note.id)}
+      editing={selection.editingId === note.id}
+      dragging={gesture.draggingIds.has(note.id)}
       editable
-      onSelect={() => {}}
-      onStartEdit={() => {}}
-      onEndEdit={(next) => log.endEdit.push(next)}
-      onDraggingChange={(id) => log.dragging.push(id)}
-    />,
+      onObjectPointerDown={gesture.onObjectPointerDown}
+      onFocusSelect={(id) => selection.click(id)}
+      onStartEdit={selection.startEdit}
+      onEndEdit={selection.endEdit}
+    />
   );
+}
+
+function renderStandalone(
+  doc: Y.Doc,
+  note: ObjectSnapshot,
+  zoom = 1,
+  log: DragLog = { dragging: [], starts: 0, ends: 0 },
+) {
+  return render(<StandaloneHarness doc={doc} note={note} zoom={zoom} log={log} />);
 }
 
 function noteEl(container: HTMLElement): HTMLElement {
@@ -275,10 +329,10 @@ function noteEl(container: HTMLElement): HTMLElement {
   return el;
 }
 
-describe('sticky.interaction — standalone note', () => {
-  it('TC-19b pointermove 2px below threshold: no drag starts, no movement, no onDraggingChange', async () => {
+describe('sticky.interaction — standalone note (shared gesture)', () => {
+  it('TC-19b pointermove 2px below threshold: no drag starts, no movement, no gesture start', async () => {
     const { doc, note } = makeDocWithNote();
-    const log: DragLog = { dragging: [], endEdit: [] };
+    const log: DragLog = { dragging: [], starts: 0, ends: 0 };
     const { container } = renderStandalone(doc, note, 1, log);
     const el = noteEl(container);
 
@@ -289,14 +343,17 @@ describe('sticky.interaction — standalone note', () => {
 
     expect(snapshot(doc).find((n) => n.id === note.id)?.x).toBe(0);
     expect(snapshot(doc).find((n) => n.id === note.id)?.y).toBe(0);
-    expect(log.dragging).toEqual([]);
+    expect(log.starts).toBe(0);
+    expect(log.ends).toBe(0);
+    // The note was still selected by the click.
+    expect(el.getAttribute('data-selected')).toBe('true');
   });
 
-  it('TC-20b move 3px (= threshold) starts a drag: bringToFront + moveObject at zoom 1', async () => {
+  it('TC-20b move 3px (= threshold) starts a drag: bringToFront + moveObjects at zoom 1', async () => {
     const { doc, note } = makeDocWithNote();
     // A second note above, so bringToFront has something to do.
     createSticky(doc, { x: 400, y: 400 });
-    const log: DragLog = { dragging: [], endEdit: [] };
+    const log: DragLog = { dragging: [], starts: 0, ends: 0 };
     const { container } = renderStandalone(doc, note, 1, log);
     const el = noteEl(container);
 
@@ -309,15 +366,17 @@ describe('sticky.interaction — standalone note', () => {
     const moved = snapshot(doc).find((n) => n.id === note.id);
     expect(moved?.x).toBe(3);
     expect(moved?.y).toBe(0);
-    // bringToFront was called on drag start: z went 1 → 3 (maxZ 2 + 1).
+    // bringObjectsToFront ran on drag start: z went 1 → 3 (maxZ 2 + 1).
     expect(moved?.z).toBe(3);
-    expect(log.dragging[0]).toBe(note.id);
+    expect(log.starts).toBe(1);
+    expect(log.ends).toBe(1);
+    expect(log.dragging).toContain(note.id);
     expect(log.dragging[log.dragging.length - 1]).toBe(null);
   });
 
-  it('TC-21 pointercancel keeps the last shown position and ends the drag', async () => {
+  it('TC-21 pointercancel keeps the last shown position and ends the gesture', async () => {
     const { doc, note } = makeDocWithNote();
-    const log: DragLog = { dragging: [], endEdit: [] };
+    const log: DragLog = { dragging: [], starts: 0, ends: 0 };
     const { container } = renderStandalone(doc, note, 1, log);
     const el = noteEl(container);
 
@@ -329,12 +388,13 @@ describe('sticky.interaction — standalone note', () => {
     await flushRaf();
 
     expect(snapshot(doc).find((n) => n.id === note.id)?.x).toBe(10);
+    expect(log.ends).toBe(1);
     expect(log.dragging[log.dragging.length - 1]).toBe(null);
   });
 
   it('TC-20c drag at zoom 2: screen delta is divided by zoom', async () => {
     const { doc, note } = makeDocWithNote();
-    const log: DragLog = { dragging: [], endEdit: [] };
+    const log: DragLog = { dragging: [], starts: 0, ends: 0 };
     const { container } = renderStandalone(doc, note, 2, log);
     const el = noteEl(container);
 
@@ -349,20 +409,23 @@ describe('sticky.interaction — standalone note', () => {
     expect(moved?.y).toBe(5);
   });
 
-  it('TC-37 note deleted via model while dragging: drag ends silently, no re-creation', async () => {
+  it('TC-37 note deleted via model while dragging: writes stop silently, no re-creation', async () => {
     const { doc, note } = makeDocWithNote();
-    const log: DragLog = { dragging: [], endEdit: [] };
+    const log: DragLog = { dragging: [], starts: 0, ends: 0 };
     const { container } = renderStandalone(doc, note, 1, log);
     const el = noteEl(container);
 
     dispatch(el, pointerEvent('pointerdown', 100, 100));
     dispatch(el, pointerEvent('pointermove', 110, 100));
     await flushRaf();
-    expect(deleteObject(doc, note.id)).toBe(true);
+    expect(deleteObjects(doc, [note.id])).toBe(1);
     dispatch(el, pointerEvent('pointermove', 130, 100));
-    await flushRaf(); // no exception: moveObject on the stale id returns false
+    await flushRaf(); // no exception: moveObjects on the stale id is a no-op
+    dispatch(el, pointerEvent('pointerup', 130, 100));
+    await flushRaf();
 
     expect(doc.getMap('objects').size).toBe(0);
+    expect(log.ends).toBe(1);
     expect(log.dragging[log.dragging.length - 1]).toBe(null);
     void container;
   });
