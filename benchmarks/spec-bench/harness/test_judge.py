@@ -72,9 +72,12 @@ def test_a_whole_run_rescore_wins_over_the_last_story(tmp_path):
     assert judge.last_accept(tmp_path) == tmp_path / "accept-final.json"
 
 
-def test_scorer_faults_are_caught_on_real_records():
+def test_scorer_faults_are_caught_on_real_records(tmp_path):
     ref = judge.REPO / "benchmarks" / "reference" / "vidi" / "opus-5.5"
-    broken = ref / "run-2" / "stories" / "12" / "accept.json"  # every test: browser executable missing
+    # run-2's story 12 as it was first recorded (re-scored since): every test failed to launch a browser
+    broken = tmp_path / "accept.json"
+    broken.write_text(json.dumps({"passed": 0, "total": 75, "tests": [{"title": "golden path", "status": "failed",
+        "error": "Error: browserType.launch: Executable doesn't exist at ~/Library/Caches/ms-playwright/chromium"}]}))
     good = ref / "run-3" / "stories" / "12" / "accept.json"
     assert "no browser" in judge.scorer_fault(broken)
     assert judge.scorer_fault(good) is None
@@ -138,3 +141,9 @@ def test_every_finished_record_snapshot_matches_its_scored_commit():
         r = judge.REPO / rec
         head = (r / "workspace-git-log.txt").read_text().split("\n", 1)[0].split()[-1]
         assert head.startswith(judge.scored_commit(r)[:7])
+
+
+def test_claims_come_from_agent_reports_for_a_run_built_outside_the_harness(tmp_path):
+    run1 = judge.REPO / "benchmarks" / "reference" / "vidi" / "opus-5.5" / "run-1"
+    ids = judge.record_claims(run1, tmp_path / "claims")
+    assert "01" in ids and (tmp_path / "claims" / "story-01.md").read_text().strip()

@@ -114,6 +114,22 @@ def record_workspace(record: Path, dest: Path) -> None:
     subprocess.run([*git, "commit", "-q", "-m", "final build"], check=True)
 
 
+def record_claims(record: Path, out: Path) -> list[str]:
+    """Each story's completion claims: from the per-story event logs, or, for a run built outside the
+    harness (no stories/), from the agent reports it was imported with."""
+    if (record / "stories").is_dir():
+        return claims.write_claims(record, out)
+    reports = record / "agent-reports"
+    if not reports.is_dir():
+        raise SystemExit(f"{record}: no stories/ and no agent-reports/: nothing to take the agent's claims from")
+    out.mkdir(parents=True, exist_ok=True)
+    ids = []
+    for f in sorted(reports.glob("story-*.md")):
+        shutil.copy(f, out / f.name)
+        ids.append(f.stem.split("-", 1)[1])
+    return ids
+
+
 def commits_oldest_first(log: str) -> str:
     """workspace-git-log.txt (newest first, as `git log --stat` writes it) in build order."""
     blocks = re.split(r"(?m)^(?=commit [0-9a-f]{7,40}\b)", log)
@@ -230,7 +246,7 @@ def main() -> None:
         ws = src / label
         record_workspace(rec, ws)
         claims_dir = src / f"{label}-claims"
-        print(f"{label}: claims for stories {' '.join(claims.write_claims(rec, claims_dir))}")
+        print(f"{label}: claims for stories {' '.join(record_claims(rec, claims_dir))}")
         specs.append(f"{label}={ws}:{claims_dir}:{last_accept(rec)}")
     package = job / "package"
     cmd = ["uv", "run", str(HERE / "grading_package.py"), "--name", a.name, "--out", str(package),
