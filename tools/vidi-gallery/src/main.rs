@@ -46,6 +46,7 @@ struct Cli {
 struct App {
     repo: PathBuf,
     builds: Builds,
+    cache: PathBuf,
     blind: bool,
     /// The builds under story review, in their (shuffled, when blind) order: key i is letter i.
     review_builds: Vec<runs::Run>,
@@ -63,6 +64,36 @@ fn is_reviewable(r: &runs::Run) -> bool {
         && !r.score.void
         && r.score.total.is_some()
         && r.stories_in_scope.is_some_and(|n| r.stories_finished >= n)
+        && r.has_history // each story is reviewed on the build as it was after that story
+}
+
+/// The build slug for one story's state of a run.
+fn story_slug(run: &runs::Run, story: u64) -> String {
+    format!("{}@{story:02}", run.slug)
+}
+
+/// A checkout of the run's code as it was after `story`, from the record's git bundle, under the
+/// gallery cache. Reused if it exists.
+async fn story_checkout(cache: &std::path::Path, run: &runs::Run, story: u64) -> anyhow::Result<PathBuf> {
+    let commit = run.story_commits.get(&story).ok_or_else(|| anyhow::anyhow!("no recorded commit for story {story}"))?;
+    let dir = cache.join("checkouts").join(story_slug(run, story));
+    if dir.join(".git").is_dir() {
+        return Ok(dir);
+    }
+    let _ = tokio::fs::remove_dir_all(&dir).await;
+    tokio::fs::create_dir_all(dir.parent().unwrap_or(cache)).await?;
+    let bundle = run.path.join("workspace.bundle");
+    let ok = tokio::process::Command::new("git")
+        .args(["clone", "-q", "--no-checkout"]).arg(&bundle).arg(&dir)
+        .status().await?.success()
+        && tokio::process::Command::new("git").arg("-C").arg(&dir)
+            .args(["-c", "advice.detachedHead=false", "checkout", "-q", commit])
+            .status().await?.success();
+    if !ok {
+        let _ = tokio::fs::remove_dir_all(&dir).await;
+        anyhow::bail!("could not check out {commit} from {}", bundle.display());
+    }
+    Ok(dir)
 }
 
 /// Finished, validly scored runs: the builds a story review compares.
@@ -188,22 +219,38 @@ async fn api_review_state(State(app): State<Arc<App>>) -> impl IntoResponse {
     }))
 }
 
-async fn api_review_status(State(app): State<Arc<App>>) -> impl IntoResponse {
+async fn api_review_status(State(app): State<Arc<App>>, UrlPath(story): UrlPath<u64>) -> impl IntoResponse {
     let states = app.builds.states().await;
     let by_key: Vec<serde_json::Value> = app
         .review_builds
         .iter()
         .enumerate()
-        .map(|(i, r)| serde_json::json!({"key": i, "status": states.get(&r.slug)}))
+        .map(|(i, r)| serde_json::json!({"key": i, "status": states.get(&story_slug(r, story))}))
         .collect();
     Json(by_key)
 }
 
-async fn api_review_open(State(app): State<Arc<App>>, UrlPath(key): UrlPath<usize>) -> impl IntoResponse {
+/// Moving to another story: stop the builds of every other story, so only one story's builds
+/// hold ports and memory at a time.
+async fn api_review_story(State(app): State<Arc<App>>, UrlPath(story): UrlPath<u64>) -> impl IntoResponse {
+    let keep: std::collections::HashSet<String> = app.review_builds.iter().map(|r| story_slug(r, story)).collect();
+    for slug in app.builds.states().await.into_keys() {
+        if slug.contains('@') && !keep.contains(&slug) {
+            app.builds.stop(&slug).await;
+        }
+    }
+    StatusCode::NO_CONTENT
+}
+
+async fn api_review_open(State(app): State<Arc<App>>, UrlPath((story, key)): UrlPath<(u64, usize)>) -> impl IntoResponse {
     let Some(run) = app.review_builds.get(key) else {
         return (StatusCode::NOT_FOUND, Json(serde_json::json!({"error": "no such build"}))).into_response();
     };
-    let label = build_label(&app, key);
+    let workspace = match story_checkout(&app.cache, run, story).await {
+        Ok(dir) => dir,
+        Err(e) => return (StatusCode::INTERNAL_SERVER_ERROR, Json(serde_json::json!({"state": "failed", "error": e.to_string()}))).into_response(),
+    };
+    let label = format!("{} · after story {story}", build_label(&app, key));
     let banner = if app.blind {
         proxy::Banner { text: label.clone(), colour: BLIND_COLOUR.to_string(), title: label }
     } else {
@@ -214,7 +261,7 @@ async fn api_review_open(State(app): State<Arc<App>>, UrlPath(key): UrlPath<usiz
             title: format!("{} {}", short_name(&run.setup), run.run),
         }
     };
-    let state = app.builds.open(Spec { slug: run.slug.clone(), workspace: run.path.join("workspace"), banner }).await;
+    let state = app.builds.open(Spec { slug: story_slug(run, story), workspace, banner }).await;
     Json(serde_json::json!(state)).into_response()
 }
 
@@ -272,14 +319,15 @@ async fn main() -> anyhow::Result<()> {
         .repo
         .unwrap_or_else(|| PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../.."))
         .canonicalize()?;
-    let builds = Builds::new(home().join(".cache/awesome-local-ai/vidi-gallery"));
+    let cache = home().join(".cache/awesome-local-ai/vidi-gallery");
+    let builds = Builds::new(cache.clone());
     let blind = !cli.labelled;
     let mut review_builds = reviewable(&repo);
     if blind {
         shuffle(&mut review_builds);
     }
     let reviews = reviews::Store::new(private_repo(&repo).join("analysis/story-reviews.csv"));
-    let app = Arc::new(App { repo: repo.clone(), builds: builds.clone(), blind, review_builds, reviews });
+    let app = Arc::new(App { repo: repo.clone(), builds: builds.clone(), cache, blind, review_builds, reviews });
     let router = Router::new()
         .route("/", get(page))
         .route("/api/runs", get(api_runs))
@@ -288,8 +336,9 @@ async fn main() -> anyhow::Result<()> {
         .route("/api/stop/{slug}", post(api_stop))
         .route("/review", get(review_page))
         .route("/api/review/state", get(api_review_state))
-        .route("/api/review/status", get(api_review_status))
-        .route("/api/review/open/{key}", post(api_review_open))
+        .route("/api/review/status/{story}", get(api_review_status))
+        .route("/api/review/story/{story}", post(api_review_story))
+        .route("/api/review/open/{story}/{key}", post(api_review_open))
         .route("/api/review/set", post(api_review_set))
         .route("/api/review/reveal/{story}", get(api_review_reveal))
         .with_state(app.clone());

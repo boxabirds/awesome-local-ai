@@ -46,8 +46,12 @@ a grey "Build C" banner instead of the setup's name. A story's names can be reve
 has a verdict on it. `--labelled` shows names throughout. The main page (`/`) shows every name, so
 don't open it during a blind review.
 
-Only runs that finished every story in scope with a valid score are reviewed. These are **final**
-builds: a later story's features (and regressions) are present when you review an earlier story.
+**Each story is reviewed on the build as it was after that story**, not the final build (where,
+for example, story 5's "Create a board" home page sits in front of story 1's board). The gallery
+checks out that story's recorded commit from the run record's `workspace.bundle` (the run's git
+history) and builds it; moving to another story stops the previous story's builds. Only runs that
+finished every story in scope with a valid score and have a `workspace.bundle` are reviewed (Opus
+run-1 was built outside the harness and has no per-story history).
 
 ## Opening a build
 

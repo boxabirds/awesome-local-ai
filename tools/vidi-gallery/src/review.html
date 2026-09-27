@@ -131,18 +131,25 @@ function renderStory() {
     <div class="builds" id="builds"></div>
     <div class="reveal" id="reveal"></div>
     <div class="keys"><kbd>1</kbd>–<kbd>9</kbd> pick a build · <kbd>o</kbd> open or go to its tab · <kbd>+</kbd> pass · <kbd>-</kbd> fail · <kbd>space</kbd> skip · <kbd>n</kbd> note (<kbd>Esc</kbd> to leave) · <kbd>↑</kbd><kbd>↓</kbd> build · <kbd>←</kbd><kbd>→</kbd> story<br>
-    These are each run's <b>final</b> build: later stories' features are in it too. Reviews save to <code>${esc(S.file)}</code>.</div>`;
+    Each build opens <b>as it was after story ${s.id}</b>, built from that story's commit; moving to another story stops these builds. Reviews save to <code>${esc(S.file)}</code>.</div>`;
   renderBuilds();
 }
 
-function go(i) { story = Math.max(0, Math.min(i, S.stories.length - 1)); sel = firstUnreviewed(); renderNav(); renderStory(); }
+async function go(i) {
+  story = Math.max(0, Math.min(i, S.stories.length - 1)); sel = firstUnreviewed();
+  // Each story is reviewed on the build as it was after that story: the server stops other stories' builds.
+  await fetch(`/api/review/story/${S.stories[story].id}`, {method: "POST"});
+  status = {}; await poll();
+  renderNav(); renderStory();
+}
 function firstUnreviewed() { const sid = S.stories[story].id; const k = S.builds.findIndex(b => !review(sid, b.key)?.verdict); return k < 0 ? 0 : k; }
 
 async function openTab(i) {
   const key = S.builds[i].key;
-  if (status[key]?.state === "running") { window.open(status[key].url, "vidi-build-" + key); return; }
-  const w = window.open("about:blank", "vidi-build-" + key);  // open now, while this is still a user action
-  const st = await (await fetch(`/api/review/open/${key}`, {method: "POST"})).json();
+  const sid = S.stories[story].id, name = `vidi-build-${key}`;  // one tab per build, reused across stories
+  if (status[key]?.state === "running") { window.open(status[key].url, name); return; }
+  const w = window.open("about:blank", name);  // open now, while this is still a user action
+  const st = await (await fetch(`/api/review/open/${sid}/${key}`, {method: "POST"})).json();
   status[key] = st; renderBuilds();
   const wait = async () => {
     await poll();
@@ -183,7 +190,8 @@ async function reveal() {
 }
 
 async function poll() {
-  for (const s of await (await fetch("/api/review/status")).json()) status[s.key] = s.status;
+  const sid = S.stories[story].id;
+  for (const s of await (await fetch(`/api/review/status/${sid}`)).json()) status[s.key] = s.status;
 }
 
 document.addEventListener("keydown", e => {
@@ -205,8 +213,7 @@ document.addEventListener("keydown", e => {
 (async () => {
   S = await (await fetch("/api/review/state")).json();
   $("mode").textContent = `${S.builds.length} builds · ${S.blind ? "blind (letters are shuffled each session)" : "labelled"}`;
-  await poll();
-  go(0);
+  await go(0);
   setInterval(async () => { await poll(); if (document.activeElement?.tagName !== "TEXTAREA") renderBuilds(); }, 3000);
 })();
 </script>
