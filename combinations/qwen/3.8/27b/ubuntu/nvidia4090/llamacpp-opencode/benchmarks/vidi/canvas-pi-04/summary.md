@@ -12,8 +12,9 @@ Model `qwen3.8-27b`, scope `canvas`, effort `low`, client pi 0.86.0, host 13th G
 | 7 | Select, move, resize and delete several objects at once | DONE, on partial 3 | 216.5 | None | None | None | — | — | green | 42/44 |  | 0 / 3 | 12 | — | throttled 0%, server peak 18 GB |
 | 8 | Undo and redo my own changes without undoing anyone else's | DONE, on partial 3 | 71.6 | None | None | None | — | — | green | 49/51 |  | 0 / 0 | 2 | — | throttled 0%, server peak 18 GB |
 | 9 | Write free text anywhere on the board | DONE, on partial 3 | 82.9 | None | None | None | — | — | green | 54/57 |  | 0 / 0 | 4 | — | throttled 0%, server peak 18 GB |
+| 10 | Draw shapes and connect them with arrows that follow when moved | DONE, on partial 3 | 80.1 | None | None | None | — | — | red | 61/65 |  | 0 / 0 | 5 | — | throttled 0%, server peak 18 GB |
 
-**Totals:** 8 stories, 908 agent-minutes, 0 requests, 0 prompt / 0 completion tokens, gate green 7/8, final acceptance 54/57, stalled 0, partial 1, 18672 lines in src+tests.
+**Totals:** 9 stories, 988 agent-minutes, 0 requests, 0 prompt / 0 completion tokens, gate green 7/9, final acceptance 61/65, stalled 0, partial 1, 22940 lines in src+tests.
 
 ### Stories ended early (PARTIAL) and what was built on them
 
@@ -23,6 +24,7 @@ Model `qwen3.8-27b`, scope `canvas`, effort `low`, client pi 0.86.0, host 13th G
 - Story 7, built on partial 3: held-out tests on the partial base 22/24; partial story's tests fixed 0, regressed 0; 0 stub-like lines added to src/.
 - Story 8, built on partial 3: held-out tests on the partial base 29/31; partial story's tests fixed 0, regressed 0; 0 stub-like lines added to src/.
 - Story 9, built on partial 3: held-out tests on the partial base 34/37; partial story's tests fixed 0, regressed 0; 1 stub-like lines added to src/.
+- Story 10, built on partial 3: held-out tests on the partial base 41/45; partial story's tests fixed 0, regressed 0; 0 stub-like lines added to src/.
 
 ## How it happened
 
@@ -38,6 +40,7 @@ Each story's commits, and which story broke or fixed an earlier story's held-out
 | 7 | 1 by the agent | 3187 / 342 | `useTransformGesture.ts` (292), `board-model.ts` (284), `StickyNote.tsx` (226), `geometry.ts` (181), `App.tsx` (163), `useSelection.ts` (137), +10 more |
 | 8 | 3 by the agent | 1781 / 35 | `NOTES.md` (126), `undo.ts` (116), `UndoButtons.tsx` (69), `useUndo.ts` (60), `styles.css` (47), `App.tsx` (39), +6 more |
 | 9 | 1 by the agent | 3104 / 230 | `TextEditor.tsx` (235), `StickyTextEditor.tsx` (201), `text.ts` (191), `textLayout.ts` (185), `styles.css` (169), `App.tsx` (117), +17 more |
+| 10 | 1 by the agent | 4300 / 32 | `ConnectorObject.tsx` (324), `connector.ts` (266), `ConnectorTool.tsx` (251), `styles.css` (225), `shape.ts` (203), `ShapeObject.tsx` (156), +15 more |
 
 ### Earlier stories broken or fixed
 
