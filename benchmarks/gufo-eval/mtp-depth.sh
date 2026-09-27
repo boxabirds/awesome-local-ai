@@ -6,7 +6,8 @@
 # The canvas runs draft 4 tokens a step (config.sh: "not yet measured against 3"). In canvas-vk-01/02
 # they accepted 3.6-3.9 tokens a step at depth 4, about what a depth-3 session accepted (3.6), so the
 # 4th draft token may cost a verification slot for nothing. This measures it: the same server as
-# test-a.sh's llama.cpp arm, only --spec-draft-n-max changes; the agents' sampler (temperature 1.0,
+# test-a.sh's llama.cpp arm on the benchmark runs' own weights (UD-IQ4_XS: the question is what depth
+# those runs should use), only --spec-draft-n-max changes; the agents' sampler (temperature 1.0,
 # thinking on); test A's exact-length prompts. The unique line goes last, so repeats reuse the
 # cached prefix and only decode is compared (prefill figures here are not meaningful).
 # Writes benchmarks/gufo-eval/results/<timestamp>-<host>-mtp-depth/.
@@ -20,11 +21,14 @@ REPEATS=3
 PROMPTS=""
 CTX=131072
 PORT=18291
-LOAD_TIMEOUT_S=1200
-MODELS="$HOME/gufo/models/qwen3.8-flash-next"
-MODEL_REL="UD-Q4_K_XL/Qwen3.8-Flash-Next-UD-Q4_K_XL-00001-of-00004.gguf"
+: "${LOAD_TIMEOUT_S:=1200}"
+: "${MODELS:=$HOME/gufo/models/qwen3.8-flash-next}"
 MTP_REL="MTP/mtp-Qwen3.8-Flash-Next-shared-Q8_0.gguf"
-LLAMA_BIN="$HOME/.local/share/qwen38-flash-next-strix/llama.cpp/build/bin"
+: "${INSTALL:=$HOME/.local/share/qwen38-flash-next-strix}"
+: "${LLAMA_BIN:=$INSTALL/llama.cpp/build/bin}"
+
+: "${RESULTS:=$HERE/results}"
+: "${IQ4_MODEL:=$INSTALL/models/Qwen3.8-Flash-Next-GGUF/UD-IQ4_XS/Qwen3.8-Flash-Next-UD-IQ4_XS-00001-of-00003.gguf}"
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -36,12 +40,12 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 # Default: the prompts of the newest test A run.
-[[ -n "$PROMPTS" ]] || PROMPTS="$(ls -d "$HERE"/results/*/prompts 2>/dev/null | grep -v mtp-depth | sort | tail -1)"
+[[ -n "$PROMPTS" ]] || PROMPTS="$(ls -d "$RESULTS"/*/prompts 2>/dev/null | grep -v -e mtp-depth -e dry-run | sort | tail -1)"
 for n in ${FILLS//,/ }; do
   [[ -s "$PROMPTS/fill-$n.txt" ]] || { echo "no prompt $PROMPTS/fill-$n.txt (run test-a.sh first)" >&2; exit 1; }
 done
 
-OUT="$HERE/results/$(date -u +%Y%m%d-%H%M%S)-$(hostname -s)-mtp-depth"
+OUT="$RESULTS/$(date -u +%Y%m%d-%H%M%S)-$(hostname -s)-mtp-depth"
 mkdir -p "$OUT"
 SPID=""
 
@@ -57,9 +61,10 @@ wait_up() {
 
 stop_server() {
   [[ -n "$SPID" ]] && kill -- "-$SPID" 2>/dev/null
-  while pgrep -f "llama-server.*--port $PORT" >/dev/null; do sleep 1; done
+  while pgrep -f "[l]lama-server.*--port $PORT" >/dev/null; do sleep 1; done
   SPID=""
 }
+trap stop_server EXIT   # whatever happens, stop the server this script started
 
 {
   echo "# MTP draft depth $(date -u +%FT%TZ) on $(hostname -s); prompts $PROMPTS"
@@ -67,18 +72,20 @@ stop_server() {
   echo "depths: $DEPTHS; fills: $FILLS; repeats: $REPEATS; decode 400 tokens; agent sampler, thinking on"
 } > "$OUT/versions.txt"
 
+failed=0
 for d in $DEPTHS; do
-  cmd=("$LLAMA_BIN/llama-server" -m "$MODELS/$MODEL_REL" -lm dio -ngl 99 -c "$CTX" -fa on --jinja -np 1
+  cmd=("$LLAMA_BIN/llama-server" -m "$IQ4_MODEL" -lm dio -ngl 99 -c "$CTX" -fa on --jinja -np 1
     --host 127.0.0.1 --port "$PORT" --device Vulkan0 --spec-draft-device Vulkan0
     -md "$MODELS/$MTP_REL" --spec-type draft-mtp --spec-draft-n-max "$d" --spec-draft-ngl 99
-    --spec-draft-p-min 0.0 --ctx-checkpoints 8)
+    --spec-draft-p-min 0.0 --ctx-checkpoints 8 --cache-ram 0)
   echo "depth $d: ${cmd[*]}" >> "$OUT/versions.txt"
   setsid nohup "${cmd[@]}" > "$OUT/server-depth-$d.log" 2>&1 < /dev/null &
   SPID=$!
-  if ! wait_up; then echo "depth $d did not start; see $OUT/server-depth-$d.log" | tee -a "$OUT/results.jsonl"; stop_server; continue; fi
+  if ! wait_up; then echo "depth $d did not start; see $OUT/server-depth-$d.log" | tee -a "$OUT/results.jsonl"; failed=1; stop_server; continue; fi
   echo "== depth $d"
   uv run "$HERE/throughput.py" --engine llamacpp --label "draft-depth-$d" --sampling agent --reuse-prefix \
     --url "http://127.0.0.1:$PORT" --prompts "$PROMPTS" --out "$OUT/results.jsonl" --fills "$FILLS" --repeats "$REPEATS"
   stop_server
 done
 echo "done: $OUT"
+exit $failed

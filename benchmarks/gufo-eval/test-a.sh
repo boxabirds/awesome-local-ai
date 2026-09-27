@@ -2,12 +2,15 @@
 # test-a.sh -- test A of the pre-registered gufo vs llama.cpp plan (docs/20260926-gufo-vs-llamacpp-eval-plan.md):
 # throughput on the same UD-Q4_K_XL weights, one engine at a time, with the GPU to itself.
 #
-#   benchmarks/gufo-eval/test-a.sh [--engines "llamacpp gufo"] [--fills 2048,32768,65536,120000] [--repeats 3]
+#   benchmarks/gufo-eval/test-a.sh [--engines "llamacpp gufo llamacpp-iq4xs"] [--fills 2048,32768,65536,120000] [--repeats 3]
+#   benchmarks/gufo-eval/test-a.sh --dry-run    # each engine starts and answers one 2k request; minutes, not hours
 #
 # 1. Starts llama.cpp (the pinned MTP branch) and cuts the prompts to exact token counts with its
 #    tokenizer: this repo's own source code, so both engines get byte-identical prompts.
 # 2. For each engine: start its server (context 131072, one session, MTP on), run throughput.py
-#    (engine-neutral, client-side timing), stop it.
+#    (engine-neutral, client-side timing), stop it. llamacpp and gufo run the same UD-Q4_K_XL weights
+#    (the only quant gufo supports); llamacpp-iq4xs is the plan's reference, llama.cpp on UD-IQ4_XS,
+#    the quant the benchmark runs use. Whatever server this script starts, it stops on every exit.
 # Writes benchmarks/gufo-eval/results/<timestamp>-<host>/ : results.jsonl, the server logs, and
 # versions.txt (image digest, llama.cpp commit, weights revision, every command line).
 set -uo pipefail
@@ -15,17 +18,24 @@ HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$HERE/../.." && pwd)"
 export PATH="$HOME/.local/bin:$PATH"
 
-ENGINES="llamacpp gufo"
+ENGINES="llamacpp gufo llamacpp-iq4xs"
 FILLS="2048,32768,65536,120000"
 REPEATS=3
+DECODE=400
+DRY_FILLS="2048"
+DRY_DECODE=16
 CTX=131072
 PORT=18291
-LOAD_TIMEOUT_S=1200
-MODELS="$HOME/gufo/models/qwen3.8-flash-next"
+: "${LOAD_TIMEOUT_S:=1200}"
+: "${MODELS:=$HOME/gufo/models/qwen3.8-flash-next}"
 MODEL_REL="UD-Q4_K_XL/Qwen3.8-Flash-Next-UD-Q4_K_XL-00001-of-00004.gguf"
 MTP_REL="MTP/mtp-Qwen3.8-Flash-Next-shared-Q8_0.gguf"
 WEIGHTS_REV="38bb39ee97821de2c9009abb7e93950eec396e66"
-LLAMA_BIN="$HOME/.local/share/qwen38-flash-next-strix/llama.cpp/build/bin"
+: "${INSTALL:=$HOME/.local/share/qwen38-flash-next-strix}"
+: "${LLAMA_BIN:=$INSTALL/llama.cpp/build/bin}"
+# The benchmark runs' own weights (install.env MODEL_FILE), for the reference arm.
+: "${IQ4_MODEL:=$INSTALL/models/Qwen3.8-Flash-Next-GGUF/UD-IQ4_XS/Qwen3.8-Flash-Next-UD-IQ4_XS-00001-of-00003.gguf}"
+: "${RESULTS:=$HERE/results}"
 IMAGE="ghcr.io/gufo-org/toolboxes/gufo-runtime:latest"
 CHARS_PER_TOKEN_GUESS=3   # only for the first cut of filler text; the tokenizer trims it exactly
 
@@ -34,11 +44,12 @@ while [[ $# -gt 0 ]]; do
     --engines) ENGINES="$2"; shift 2 ;;
     --fills) FILLS="$2"; shift 2 ;;
     --repeats) REPEATS="$2"; shift 2 ;;
+    --dry-run) FILLS="$DRY_FILLS"; REPEATS=1; DECODE="$DRY_DECODE"; DRY=1; shift ;;
     *) echo "unknown option $1" >&2; exit 2 ;;
   esac
 done
 
-OUT="$HERE/results/$(date -u +%Y%m%d-%H%M%S)-$(hostname -s)"
+OUT="$RESULTS/$(date -u +%Y%m%d-%H%M%S)-$(hostname -s)${DRY:+-dry-run}"
 mkdir -p "$OUT/prompts"
 SPID=""
 
@@ -52,16 +63,21 @@ wait_up() {
   return 0  # the loop's own status is its body's last command (a false timeout check), not success
 }
 
-start_llamacpp() {
-  local cmd=("$LLAMA_BIN/llama-server" -m "$MODELS/$MODEL_REL" -lm dio -ngl 99 -c "$CTX" -fa on --jinja -np 1
+# llama.cpp on the given weights. --cache-ram 0: test A's prompts are all unique, so llama-server's
+# host-RAM prompt cache (8 GB by default) only fills memory; on tritus it pushed swap to full.
+start_llama_on() {
+  local name="$1" model="$2"
+  local cmd=("$LLAMA_BIN/llama-server" -m "$model" -lm dio -ngl 99 -c "$CTX" -fa on --jinja -np 1
     --host 127.0.0.1 --port "$PORT" --device Vulkan0 --spec-draft-device Vulkan0
     -md "$MODELS/$MTP_REL" --spec-type draft-mtp --spec-draft-n-max 4 --spec-draft-ngl 99
-    --spec-draft-p-min 0.0 --ctx-checkpoints 8)
-  echo "llamacpp: ${cmd[*]}" >> "$OUT/versions.txt"
-  setsid nohup "${cmd[@]}" > "$OUT/server-llamacpp.log" 2>&1 < /dev/null &
+    --spec-draft-p-min 0.0 --ctx-checkpoints 8 --cache-ram 0)
+  echo "$name: ${cmd[*]}" >> "$OUT/versions.txt"
+  setsid nohup "${cmd[@]}" > "$OUT/server-$name.log" 2>&1 < /dev/null &
   SPID=$!
   wait_up
 }
+start_llamacpp() { start_llama_on llamacpp "$MODELS/$MODEL_REL"; }
+start_llamacpp-iq4xs() { start_llama_on llamacpp-iq4xs "$IQ4_MODEL"; }
 
 start_gufo() {
   local cmd=(podman run --rm --name gufo-test-a --userns=keep-id:uid=1000,gid=1000
@@ -76,11 +92,15 @@ start_gufo() {
 }
 
 stop_server() {
-  [[ "$1" == gufo ]] && podman stop -t 10 gufo-test-a >/dev/null 2>&1
+  podman stop -t 10 gufo-test-a >/dev/null 2>&1
   [[ -n "$SPID" ]] && kill -- "-$SPID" 2>/dev/null
-  while pgrep -f "llama-server.*--port $PORT" >/dev/null || podman ps -q --filter name=gufo-test-a | grep -q .; do sleep 1; done
+  # [l]lama: the pattern must not match this script's own command lines
+  while pgrep -f "[l]lama-server.*--port $PORT" >/dev/null || podman ps -q --filter name=gufo-test-a 2>/dev/null | grep -q .; do sleep 1; done
   SPID=""
 }
+# 27 Sep: a failed start exited and left its llama-server running; the benchmark run resumed next to
+# it and the kernel's OOM killer fired. Whatever happens, stop what this script started.
+trap stop_server EXIT
 
 make_prompts() { # needs llama.cpp running: /tokenize and /detokenize cut real code to exact lengths
   local raw="$OUT/prompts/raw.txt" n
@@ -103,20 +123,21 @@ make_prompts() { # needs llama.cpp running: /tokenize and /detokenize cut real c
   echo "llama.cpp: $(git -C "$LLAMA_BIN/../.." log --oneline -1 2>/dev/null)"
   echo "gufo image: $(podman image inspect "$IMAGE" --format '{{.Id}} {{.Created}}' 2>/dev/null)"
   echo "gpu clock level: $(cat /sys/class/drm/card*/device/power_dpm_force_performance_level 2>/dev/null | head -1)"
-  echo "fills: $FILLS; repeats: $REPEATS; context: $CTX; decode 400 tokens, greedy, thinking off"
+  echo "engines: $ENGINES; fills: $FILLS; repeats: $REPEATS; context: $CTX; decode $DECODE tokens, greedy, thinking off"
 } > "$OUT/versions.txt"
 
 echo "== prompts (llama.cpp tokenizer)"
 start_llamacpp || { echo "llama.cpp did not start; see $OUT/server-llamacpp.log"; exit 1; }
 make_prompts
+stop_server
+failed=0
 for engine in $ENGINES; do
-  if [[ "$engine" != llamacpp ]]; then
-    stop_server llamacpp
-    "start_$engine" || { echo "$engine did not start; see $OUT/server-$engine.log" | tee -a "$OUT/results.jsonl"; continue; }
-  fi
+  # every engine gets a fresh server: same starting state for each
+  "start_$engine" || { echo "$engine did not start; see $OUT/server-$engine.log" | tee -a "$OUT/results.jsonl"; failed=1; stop_server; continue; }
   echo "== $engine"
   uv run "$HERE/throughput.py" --engine "$engine" --url "http://127.0.0.1:$PORT" --prompts "$OUT/prompts" \
-    --out "$OUT/results.jsonl" --fills "$FILLS" --repeats "$REPEATS"
-  stop_server "$engine"
+    --out "$OUT/results.jsonl" --fills "$FILLS" --repeats "$REPEATS" --decode "$DECODE" || failed=1
+  stop_server
 done
 echo "done: $OUT"
+exit $failed
