@@ -6,8 +6,9 @@ Model `mlxserve-flash-next-mixed-4-8bit`, scope `canvas`, effort `low`, client p
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
 | 1 | Pan and zoom around an infinite board | DONE | 28.4 | None | None | None | — | — | green | 6/6 |  | 0 / 0 | 0 | — | throttled 73%, server peak 80 GB |
 | 2 | Capture ideas on sticky notes and rearrange them | DONE | 48.7 | None | None | None | — | — | green | 20/20 |  | 0 / 0 | 1 | — | throttled 98%, server peak 83 GB |
+| 3 | See other people's edits appear live on the same board | DONE | 79.7 | None | None | None | — | — | green | 25/27 |  | 0 / 0 | 2 | — | throttled 94%, server peak 84 GB |
 
-**Totals:** 2 stories, 77 agent-minutes, 0 requests, 0 prompt / 0 completion tokens, gate green 2/2, final acceptance 20/20, stalled 0, partial 0, 4188 lines in src+tests.
+**Totals:** 3 stories, 157 agent-minutes, 0 requests, 0 prompt / 0 completion tokens, gate green 3/3, final acceptance 25/27, stalled 0, partial 0, 6137 lines in src+tests.
 
 ## How it happened
 
@@ -17,6 +18,7 @@ Each story's commits, and which story broke or fixed an earlier story's held-out
 |---|---|---|---|
 | 1 | 1 by the agent | 6877 / 0 | `BoardViewport.tsx` (288), `useCamera.ts` (144), `camera.ts` (106), `ZoomControls.tsx` (101), `NOTES.md` (82), `package.json` (35), +14 more |
 | 2 | 1 by the agent | 2602 / 12 | `StickyNote.tsx` (306), `board-model.ts` (193), `StickyTextEditor.tsx` (130), `App.tsx` (120), `StickyText.ts` (91), `NoteToolbar.tsx` (86), +9 more |
+| 3 | 1 by the agent | 3153 / 436 | `board-room.ts` (181), `connectBoard.ts` (115), `NOTES.md` (102), `protocol.ts` (58), `App.tsx` (45), `useBoardDoc.ts` (44), +13 more |
 
 ### Earlier stories broken or fixed
 
