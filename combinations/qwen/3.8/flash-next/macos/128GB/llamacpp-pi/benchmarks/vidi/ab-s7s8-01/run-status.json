@@ -1,0 +1,6 @@
+{
+  "state": "failed",
+  "reason": "exit 1: raise TimeoutExpired( subprocess.TimeoutExpired: Command '['sandbox-exec', '-p', '(version 1)(allow default)(deny file-read* file-write* (subpath \"~/.spec-bench/awesome-local-ai\") (subpath \"~/.claude\") (subpath \"~/.agents\") (subpath \"~/.codex\")",
+  "at": "2026-09-27T00:51:04Z",
+  "host": "Quintus"
+}
