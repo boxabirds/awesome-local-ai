@@ -1,3 +1,75 @@
+commit 6ec236faa2b8f1d237045d233b74902d5c728652
+vidi-agent  Sun Sep 27 15:15:35 2026 +0000
+
+    harness: snapshot after story 4 (uncommitted agent work)
+
+
+ package.json                                     |   2 +-
+ playwright.config.ts                             |  22 +++
+ src/worker/board-room.ts                         |  41 +++-
+ tests/e2e/helpers/board-socket.ts                | 156 ++++++++++++++++
+ tests/e2e/helpers/wrangler-process.ts            | 174 +++++++++++++++++
+ tests/e2e/perf-dbg.spec.ts                       |  47 +++++
+ tests/e2e/persistence.spec.ts                    | 228 +++++++++++++++++++++++
+ tests/integration/board-room-persistence.test.ts |  54 ++++++
+ 8 files changed, 720 insertions(+), 4 deletions(-)
+commit eaa3f28ef80cdda83cc9511792f0cd6278025616
+vidi-agent  Sun Sep 27 14:04:00 2026 +0000
+
+    story 4: integration tests for the persistent room — durable before broadcast, 4500 and 1011, and a rebuilt room that still knows its sockets
+
+
+ src/worker/board-room.ts                         |   7 +
+ tests/integration/board-room-persistence.test.ts | 417 +++++++++++++++++++++++
+ tests/integration/helpers/store.ts               |  16 +-
+ 3 files changed, 437 insertions(+), 3 deletions(-)
+commit c8661a2dd9bb872595208f1bb5b297aa0abaf99b
+vidi-agent  Sun Sep 27 13:16:42 2026 +0000
+
+    story 4: BoardRoom persists before broadcasting, hibernates, and refuses a board it cannot load (4500) or stores not at all (1011)
+
+
+ src/worker/board-room.ts             | 416 ++++++++++++++++++++++++++++-------
+ tests/fixtures/boards.ts             |   1 -
+ tests/integration/board-room.test.ts |  16 +-
+ 3 files changed, 346 insertions(+), 87 deletions(-)
+commit beeeb914a911523507eebfafc142cba552fc2654
+vidi-agent  Sun Sep 27 13:02:40 2026 +0000
+
+    story 4: rebuild-on-refusal load rule, measured Yjs damage semantics, NOTES on partial damage
+
+
+ NOTES.md                                |  74 ++++++++++++++
+ src/worker/board-store.ts               |  48 ++++++---
+ tests/integration/board-store.test.ts   |  12 +++
+ tests/unit/yjs-damage-semantics.test.ts | 175 ++++++++++++++++++++++++++++++++
+ 4 files changed, 296 insertions(+), 13 deletions(-)
+commit 4cbbfd0ae0b20719696647e4eb7777e96d3e5160
+vidi-agent  Sun Sep 27 12:39:21 2026 +0000
+
+    story 4: BoardStore on DO SQLite with chunked snapshots, quarantine-on-damage, and rollback-on-failed-compaction (TC-03..TC-11, TC-25)
+
+
+ src/worker/board-store.ts             | 118 +++++--
+ tests/fixtures/boards.ts              | 174 ++++++++++
+ tests/integration/board-store.test.ts | 628 ++++++++++++++++++++++++++++++++++
+ tests/integration/helpers/store.ts    |  94 +++++
+ 4 files changed, 987 insertions(+), 27 deletions(-)
+commit d7a33db743b3c1a8e15067907f5fd916bbcf4cc1
+vidi-agent  Sun Sep 27 11:48:03 2026 +0000
+
+    story 4: storage chunking/compaction and room-state unit tests (TC-01, TC-02, TC-27) + BoardStore
+
+
+ src/shared/config.ts                  |  29 +++
+ src/shared/protocol.ts                |  12 ++
+ src/worker/board-store.ts             | 334 ++++++++++++++++++++++++++++++++++
+ src/worker/room-state.ts              | 156 ++++++++++++++++
+ tests/unit/board-store-chunks.test.ts |  86 +++++++++
+ tests/unit/room-state.test.ts         | 152 ++++++++++++++++
+ tsconfig.json                         |   6 +-
+ tsconfig.worker.json                  |   9 +-
+ 8 files changed, 781 insertions(+), 3 deletions(-)
 commit 8d82fdccb2a07dcce603096b13015af37bd46eac
 vidi-agent  Sun Sep 27 11:12:03 2026 +0000
 
