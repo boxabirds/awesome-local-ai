@@ -1,17 +1,21 @@
 import { type ReactNode, useCallback, useEffect, useRef, useState } from 'react';
-import { useParams } from 'react-router';
+import { useLocation, useParams } from 'react-router';
 import { MenuIcon } from '@/components/icons';
 import { Button } from '@/components/ui/button';
 import { ShortcutsPanelLazy } from '@/features/shortcuts/ShortcutsPanelLazy';
 import { useShortcutsPanel } from '@/features/shortcuts/useShortcutsPanel';
+import { RowDatePickerHost } from '@/features/dates/RowDatePickerHost';
+import { useClockInvalidation } from '@/features/dates/useClockInvalidation';
 import { ProjectsSidebarSection } from '@/features/projects/ProjectsSidebarSection';
 import { registerTaskLiveHandlers } from '@/features/tasks/liveHandlers';
 import { MovePickerHost } from '@/features/tasks/MovePickerHost';
+import { registerTodayHandlers } from '@/features/today/registerTodayHandlers';
+import { TodayNavItem } from '@/features/today/TodayNavItem';
 import { useUndoShortcut } from '@/features/undo/useUndoShortcut';
 import { NAV_DRAWER_ID, NavDrawer } from './NavDrawer';
 import { Sidebar, type SidebarProps, type SidebarSlotProps, type WorkspaceViewName } from './Sidebar';
 import { useIsNarrow } from './useIsNarrow';
-import { useWorkspaceNavigate } from './useWorkspaceNavigate';
+import { isTodayPath, useWorkspaceNavigate } from './useWorkspaceNavigate';
 
 export type HeaderSlots = {
   /** The phone layout's ☰ button (null at or above the breakpoint). */
@@ -38,13 +42,22 @@ type Props = {
  * and main areas sit inside story 4's edit gate (one fieldset, disabled while !canEdit).
  */
 export function AppShell({ workspaceId, canEdit, banner = null, renderHeader, headerActionsSlot = null, searchSlot, children }: Props) {
-  // The active view follows the address (story 7): /w/:id is the Inbox, /w/:id/project/:pid a project.
+  // The active view follows the address (story 7): /w/:id is the Inbox, /w/:id/project/:pid a project, and
+  // (story 8) /w/:id/today Today.
   const { projectId } = useParams();
-  const view: WorkspaceViewName = projectId ? `project:${projectId}` : 'inbox';
+  const { pathname } = useLocation();
+  const view: WorkspaceViewName = projectId ? `project:${projectId}` : isTodayPath(pathname) ? 'today' : 'inbox';
   const navigateTo = useWorkspaceNavigate();
   const onNavigate = useCallback(
-    (next: string) => navigateTo(next.startsWith('project:') ? { view: 'project', projectId: next.slice('project:'.length) } : { view: 'inbox' }),
+    (next: string) =>
+      navigateTo(
+        next.startsWith('project:') ? { view: 'project', projectId: next.slice('project:'.length) } : next === 'today' ? { view: 'today' } : { view: 'inbox' },
+      ),
     [navigateTo],
+  );
+  const todaySlot = useCallback(
+    (slot: SidebarSlotProps) => <TodayNavItem workspaceId={workspaceId} current={slot.current === 'today'} onNavigate={slot.onNavigate} />,
+    [workspaceId],
   );
   const projectsSlot = useCallback(
     (slot: SidebarSlotProps) => <ProjectsSidebarSection workspaceId={workspaceId} current={slot.current} onNavigate={slot.onNavigate} />,
@@ -55,11 +68,16 @@ export function AppShell({ workspaceId, canEdit, banner = null, renderHeader, he
   const menuButtonRef = useRef<HTMLButtonElement>(null);
 
   // Live task changes from others land in the task caches (one handler among several, never replacing any).
+  // Story 8: others' changes refetch any cached Today and the Today count (debounced). Registered first, so it sees
+  // the cached copy of a task before story 5's handler replaces it (a cleared date must still refresh the count).
+  useEffect(() => registerTodayHandlers(), []);
   useEffect(() => registerTaskLiveHandlers(), []);
   // ? anywhere (not while typing) lists every keyboard shortcut.
   const shortcutsPanel = useShortcutsPanel();
   // Cmd/Ctrl+Z undoes the latest completion or deletion while its undo toast is up (story 6).
   useUndoShortcut();
+  // Story 8: at local midnight the counts (Today badge, tab title) refetch with the new date.
+  useClockInvalidation(workspaceId);
 
   // Widened past the breakpoint with the drawer open: the drawer goes away and focus moves to the view.
   if (!narrow && drawerOpen) {
@@ -67,7 +85,7 @@ export function AppShell({ workspaceId, canEdit, banner = null, renderHeader, he
     queueMicrotask(() => document.getElementById('view-title')?.focus());
   }
 
-  const sidebarProps = { workspaceId, current: view, onNavigate, searchSlot, projectsSlot };
+  const sidebarProps = { workspaceId, current: view, onNavigate, searchSlot, todaySlot, projectsSlot };
   const navButton = narrow ? (
     <Button
       ref={menuButtonRef}
@@ -97,6 +115,8 @@ export function AppShell({ workspaceId, canEdit, banner = null, renderHeader, he
       {narrow ? <NavDrawer {...sidebarProps} open={drawerOpen} onOpenChange={setDrawerOpen} triggerRef={menuButtonRef} /> : null}
       {/* Story 7: Move to… (task menu or M). Inside the edit gate's reach: moving is an edit. */}
       {canEdit ? <MovePickerHost workspaceId={workspaceId} /> : null}
+      {/* Story 8: a task row's date picker (D, the row's date or its menu). Setting a date is an edit. */}
+      {canEdit ? <RowDatePickerHost workspaceId={workspaceId} /> : null}
       <ShortcutsPanelLazy open={shortcutsPanel.open} onOpenChange={shortcutsPanel.onOpenChange} />
     </div>
   );

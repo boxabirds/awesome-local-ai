@@ -81,3 +81,26 @@ export const UI_PAIRS: ReadonlyArray<readonly [SemanticToken, SemanticToken]> = 
 export function projectColorVar(color: ProjectColor): string {
   return `--project-${color}`;
 }
+
+// ---------------------------------------------------------------- story 8: due date chips
+
+/** Date chip tones (prd.date_chip): overdue red, today green, tomorrow orange, anything else neutral. */
+export const CHIP_TONES = ['overdue', 'today', 'tomorrow', 'neutral'] as const;
+export type ChipToneToken = (typeof CHIP_TONES)[number];
+
+/**
+ * Chip text colours per theme. Each is at least 4.5:1 (WCAG AA text) against the row background and the muted
+ * surface a selected or hovered row sits on (TC-110): light vs #ffffff/#f4f4f5 — overdue 6.47/5.89,
+ * today 5.02/4.56, tomorrow 5.18/4.71, neutral 7.73/7.03; dark vs #0a0a0a/#262626 — overdue 7.16/5.47,
+ * today 11.36/8.68, tomorrow 8.75/6.69, neutral 8.08/6.18. Colour is never the only signal: overdue chips also
+ * carry words and a warning icon.
+ */
+export const CHIP_TOKENS: Record<Theme, Record<ChipToneToken, string>> = {
+  light: { overdue: '#b91c1c', today: '#15803d', tomorrow: '#c2410c', neutral: '#52525b' },
+  dark: { overdue: '#f87171', today: '#4ade80', tomorrow: '#fb923c', neutral: '#a3a3a3' },
+};
+
+/** CSS custom property name for a chip tone ('--chip-overdue'). */
+export function chipToneVar(tone: ChipToneToken): string {
+  return `--chip-${tone}`;
+}

@@ -3,6 +3,7 @@ import { setupServer } from 'msw/node';
 import { RememberedListResponse } from '@todoodle/shared/schemas';
 import { defaultProjectHandlers } from './msw/projects.ts';
 import { defaultTaskHandlers } from './msw/tasks.ts';
+import { defaultTodayHandlers } from './msw/today.ts';
 
 /**
  * Defaults every test starts with (server.resetHandlers() restores them): this browser remembers
@@ -15,6 +16,8 @@ export const defaultHandlers = [
   ...defaultTaskHandlers,
   // Story 7: every workspace view loads its projects (the sidebar); by default there are none.
   ...defaultProjectHandlers,
+  // Story 8: the sidebar's Today entry prefetches Today on hover and focus; by default nothing is due.
+  ...defaultTodayHandlers,
 ];
 
 /** MSW server for component tests. */

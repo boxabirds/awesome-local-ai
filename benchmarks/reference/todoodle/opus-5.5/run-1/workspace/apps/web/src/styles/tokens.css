@@ -25,6 +25,10 @@
   --project-violet: #7c3aed;
   --project-purple: #9333ea;
   --project-pink: #db2777;
+  --chip-overdue: #b91c1c;
+  --chip-today: #15803d;
+  --chip-tomorrow: #c2410c;
+  --chip-neutral: #52525b;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -52,6 +56,10 @@
     --project-violet: #a78bfa;
     --project-purple: #c084fc;
     --project-pink: #f472b6;
+    --chip-overdue: #f87171;
+    --chip-today: #4ade80;
+    --chip-tomorrow: #fb923c;
+    --chip-neutral: #a3a3a3;
   }
 }
 

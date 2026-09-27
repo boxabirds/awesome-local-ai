@@ -22,17 +22,28 @@ let sequence = 0;
 export function showUndoToast(opts: {
   message: string;
   inverse: () => Promise<unknown>;
-  /** Said after a successful Undo (story 7: 'Project restored'); 'Task restored' by default. */
-  restoredText?: string;
+  /**
+   * Said after a successful Undo (story 7: 'Project restored'); 'Task restored' by default. Story 8: a function
+   * gets the inverse's result and may return null to say nothing (the inverse reported the outcome itself).
+   */
+  restoredText?: string | ((result: unknown) => string | null);
 }): void {
+  let result: unknown;
+  const inverse = async () => {
+    result = await opts.inverse();
+    return result;
+  };
   const id = `undo:${++sequence}`;
   const listeners = new Set<() => void>();
-  const handle = createUndo(opts.inverse, realClock, (state: UndoState) => {
+  const handle = createUndo(inverse, realClock, (state: UndoState) => {
     for (const listener of listeners) listener();
     if (state === 'counting' || state === 'paused' || state === 'undoing') return;
     removeUndo(handle);
     toast.dismiss(id);
-    if (state === 'undone') notifyStatus(opts.restoredText ?? TASK_RESTORED_TEXT);
+    if (state === 'undone') {
+      const text = typeof opts.restoredText === 'function' ? opts.restoredText(result) : (opts.restoredText ?? TASK_RESTORED_TEXT);
+      if (text !== null) notifyStatus(text);
+    }
     else if (state === 'failed') notifyAlert(UNDO_FAILED_TEXT);
   });
   pushUndo(handle);

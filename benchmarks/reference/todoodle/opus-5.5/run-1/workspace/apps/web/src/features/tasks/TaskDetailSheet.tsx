@@ -7,7 +7,12 @@ import { flushSync } from 'react-dom';
 import { TrashIcon, XIcon } from '@/components/icons';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetTitle } from '@/components/ui/sheet';
+import { DueDatePicker } from '@/features/dates/DueDatePicker';
+import { useLocalDate } from '@/features/dates/useLocalDate';
 import { ConflictNotice } from '@/features/live/ConflictNotice';
+import type { TodayData } from '@/features/today/todayCache';
+import { findTodayRow } from '@/features/today/todayCache';
+import { todayQuery } from '@/features/today/useTodayQuery';
 import type { GuardFields } from '@/features/live/editGuard';
 import { useEditGuard } from '@/features/live/useEditGuard';
 import { cn } from '@/lib/utils';
@@ -30,11 +35,32 @@ export function selectTaskById(id: string): (tasks: LocalTask[]) => LocalTask | 
   return select;
 }
 
+const todaySelectors = new Map<string, (data: TodayData) => LocalTask | undefined>();
+
+/** Story 8: the same, for a task opened from Today (the Today cache holds it). */
+export function selectTodayTaskById(id: string): (data: TodayData) => LocalTask | undefined {
+  let select = todaySelectors.get(id);
+  if (!select) {
+    select = (data) => findTodayRow(data, id);
+    todaySelectors.set(id, select);
+  }
+  return select;
+}
+
+/** The task from the cache of the view it was opened from: a list, or (story 8) Today. No request of its own. */
+function useSheetTask(workspaceId: string, list: ListScope | 'inbox' | 'today', includeCompleted: boolean, taskId: string): LocalTask | undefined {
+  const date = useLocalDate();
+  const fromToday = list === 'today';
+  const listTask = useQuery({ ...tasksQuery(workspaceId, fromToday ? 'inbox' : list, includeCompleted), select: selectTaskById(taskId), enabled: !fromToday });
+  const todayTask = useQuery({ ...todayQuery(workspaceId, date, includeCompleted), select: selectTodayTaskById(taskId), enabled: fromToday });
+  return fromToday ? todayTask.data : listTask.data;
+}
+
 type Props = {
   workspaceId: string;
   taskId: string;
-  /** The list the task was opened from (its cached query holds the task). */
-  list: ListScope | 'inbox';
+  /** The list the task was opened from (its cached query holds the task); story 8: or Today. */
+  list: ListScope | 'inbox' | 'today';
   includeCompleted: boolean;
   /** The row the sheet was opened from: focus goes back to it when the sheet closes (if it still exists). */
   returnFocusTo: HTMLElement | null;
@@ -52,7 +78,7 @@ type Fields = GuardFields & { name?: string; description?: string };
  * handled by story 4's edit guard. Keyed by task id by the parent, so drafts reset per task.
  */
 export function TaskDetailSheet({ workspaceId, taskId, list, includeCompleted, returnFocusTo, onClose }: Props) {
-  const { data: task } = useQuery({ ...tasksQuery(workspaceId, list, includeCompleted), select: selectTaskById(taskId) });
+  const task = useSheetTask(workspaceId, list, includeCompleted, taskId);
   const actions = useTaskActions(workspaceId);
   // An edit in progress; null shows the saved value (and follows others' changes).
   const [nameEdit, setNameEdit] = useState<string | null>(null);
@@ -259,6 +285,17 @@ export function TaskDetailSheet({ workspaceId, taskId, list, includeCompleted, r
             )}
           />
           <LengthCounter id="task-detail-description-count" length={description.length} limit={TASK_DESCRIPTION_MAX} />
+        </div>
+        <div className="flex flex-col items-start gap-1">
+          <span className="text-sm font-medium">Due date</span>
+          <DueDatePicker
+            value={saved.dueDate ?? null}
+            onChange={(dueDate) => {
+              if (dueDate === (saved.dueDate ?? null)) return;
+              // Optimistic; a failure rolls back with a toast, a 410 removes the task (and closes this sheet).
+              actions.update(taskId, { dueDate }).catch(() => undefined);
+            }}
+          />
         </div>
         <div className="mt-auto flex justify-end pt-2">
           <Button variant="outline" className="min-h-[var(--min-touch-target)] text-destructive" onClick={onDelete}>

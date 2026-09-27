@@ -1,4 +1,16 @@
-import { CreateTaskInputSchema, EmptyBodySchema, ListTasksQuerySchema, type Task, TaskIdSchema, TaskPatchSchema } from '@todoodle/shared/schemas';
+import { TASKS_BULK_MAX_IDS } from '@todoodle/shared/limits';
+import {
+  CreateTaskInputSchema,
+  EmptyBodySchema,
+  ListTasksQuerySchema,
+  type RescheduleResponse,
+  type RestoreDueDatesResponse,
+  type Task,
+  TaskIdSchema,
+  TaskPatchSchema,
+  rescheduleRequestSchema,
+  restoreDueDatesRequestSchema,
+} from '@todoodle/shared/schemas';
 import type { MutationResult } from '@todoodle/shared/types';
 import { type Context, Hono } from 'hono';
 import type { AppEnv } from '../app.ts';
@@ -11,6 +23,8 @@ import {
   listTasks,
   moveTask,
   reopenTask,
+  rescheduleOverdue,
+  restoreDueDates,
   restoreTask,
   rowToTask,
   softDeleteTask,
@@ -82,6 +96,48 @@ tasksRoutes.post('/', async (c) => {
   }
 });
 
+// ---------------------------------------------------------------- story 8: reschedule overdue and undo
+// Literal paths, registered before the /:taskId routes (due-dates/restore would otherwise match /:taskId/restore).
+
+/** One tasks.bulk for the changed ids (split so no event exceeds the live size limit). None when nothing changed. */
+function broadcastBulk(c: Context<AppEnv>, rows: Array<{ id: string; version: number }>): void {
+  if (rows.length === 0) return;
+  const version = Math.max(...rows.map((row) => row.version));
+  for (let start = 0; start < rows.length; start += TASKS_BULK_MAX_IDS) {
+    const ids = rows.slice(start, start + TASKS_BULK_MAX_IDS).map((row) => row.id);
+    broadcast(c, c.var.workspace.id, { type: 'tasks.bulk', entity: { ids }, version });
+  }
+}
+
+/**
+ * Reschedule overdue (today.reschedule): { ids, to } -> only ids still overdue for `to` move to `to`; the rest
+ * are skipped. One atomic batch (500 with nothing written if it fails).
+ */
+tasksRoutes.post('/reschedule', async (c) => {
+  const parsed = rescheduleRequestSchema.safeParse(await readJson(c.req.raw));
+  if (!parsed.success) return errorResponse('validation', 400);
+  const result = await rescheduleOverdue(c.env.DB, c.var.workspace.id, parsed.data.ids, parsed.data.to, new Date().toISOString());
+  const body: RescheduleResponse = {
+    changed: result.changed.map(({ row, previousDueDate }) => ({ id: row.id, previousDueDate, dueDate: row.due_date!, version: row.version })),
+    skipped: result.skipped,
+  };
+  broadcastBulk(c, result.changed.map(({ row }) => row));
+  return c.json(body);
+});
+
+/** Undo of a reschedule: { items: [{id, dueDate, expectedVersion}] } -> restored, or skipped as changed/gone. */
+tasksRoutes.post('/due-dates/restore', async (c) => {
+  const parsed = restoreDueDatesRequestSchema.safeParse(await readJson(c.req.raw));
+  if (!parsed.success) return errorResponse('validation', 400);
+  const result = await restoreDueDates(c.env.DB, c.var.workspace.id, parsed.data.items, new Date().toISOString());
+  const body: RestoreDueDatesResponse = {
+    restored: result.restored.map((row) => ({ id: row.id, dueDate: row.due_date ?? null, version: row.version })),
+    skipped: result.skipped,
+  };
+  broadcastBulk(c, result.restored);
+  return c.json(body);
+});
+
 // ---------------------------------------------------------------- story 6: lifecycle and edit
 
 type AppContext = Context<AppEnv>;
@@ -141,7 +197,7 @@ tasksRoutes.delete('/:taskId', async (c) => {
 });
 
 /**
- * Edit name and/or description (strict body). A blank name keeps the previous one. Story 7: projectId moves
+ * Edit name, description and/or (story 8) dueDate (strict body; dueDate null clears it). A blank name keeps the previous one. Story 7: projectId moves
  * the task (null = Inbox) to the end of that list: 404 project_not_found unless the destination is an active
  * project here; moving to the list it is already in writes nothing and broadcasts nothing.
  */
@@ -163,7 +219,7 @@ tasksRoutes.patch('/:taskId', async (c) => {
   if (decision === 'project_not_found') return errorResponse('project_not_found', 404);
 
   let result: MutationResult<Task> = { kind: 'noop', entity: rowToTask(current) };
-  if (edit.name !== undefined || edit.description !== undefined) {
+  if (edit.name !== undefined || edit.description !== undefined || edit.dueDate !== undefined) {
     result = await updateTask(c.env.DB, workspaceId, taskId, edit, now);
     if (result.kind === 'missing' || result.kind === 'gone') return respond(c, result, 'task.upserted');
   }

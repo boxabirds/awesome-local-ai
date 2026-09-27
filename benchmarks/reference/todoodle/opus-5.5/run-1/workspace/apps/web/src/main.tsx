@@ -11,12 +11,12 @@ import { workspaceLoader } from './routes/workspaceLoader.ts';
 startBootOpen(window.location);
 // On Home, fetch this browser's remembered workspaces in parallel with rendering (async-parallel).
 if (window.location.pathname === '/') void queryClient.prefetchQuery(rememberedQuery);
-// On /w/:id (and /w/:id/project/:pid), the list, counts and projects start now, in parallel with the route
-// chunk and the workspace GET.
-const idRoute = /^\/w\/([^/]+)(?:\/project\/([^/]+))?$/.exec(window.location.pathname);
+// On /w/:id (and /w/:id/project/:pid, /w/:id/today), the list, counts and projects (and Today) start now, in
+// parallel with the route chunk and the workspace GET.
+const idRoute = /^\/w\/([^/]+)(?:\/project\/([^/]+)|\/(today))?\/?$/.exec(window.location.pathname);
 if (idRoute) {
   const projectId = idRoute[2] === undefined ? undefined : decodeURIComponent(idRoute[2]);
-  workspaceLoader({ params: { workspaceId: decodeURIComponent(idRoute[1]!), projectId } });
+  workspaceLoader({ params: { workspaceId: decodeURIComponent(idRoute[1]!), projectId, today: idRoute[3] !== undefined } });
 }
 
 const root = document.getElementById('root');

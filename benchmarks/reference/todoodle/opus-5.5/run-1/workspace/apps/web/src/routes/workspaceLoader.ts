@@ -1,5 +1,6 @@
 import type { QueryClient } from '@tanstack/react-query';
 import { projectsQuery } from '@/features/projects/queries';
+import { prefetchToday } from '@/features/today/todayLoader';
 import { countsQuery, tasksQuery } from '@/features/tasks/queries';
 import { browserStorage, readShowCompleted } from '@/features/tasks/showCompletedPref';
 import { queryClient as appQueryClient } from '@/lib/queryClient';
@@ -14,7 +15,7 @@ import { queryClient as appQueryClient } from '@/lib/queryClient';
  * hover/focus, and the workspace route itself).
  */
 export function workspaceLoader(
-  { params }: { params: { workspaceId?: string; projectId?: string } },
+  { params }: { params: { workspaceId?: string; projectId?: string; today?: boolean } },
   queryClient: QueryClient = appQueryClient,
 ): null {
   const workspaceId = params.workspaceId;
@@ -28,6 +29,8 @@ export function workspaceLoader(
     void queryClient.prefetchQuery(tasksQuery(workspaceId, 'inbox', readShowCompleted(browserStorage(), workspaceId, 'inbox')));
   }
   void queryClient.prefetchQuery(countsQuery(workspaceId));
+  // Story 8: entering on /w/:id/today starts Today too (with its count, in parallel).
+  if (params.today) void prefetchToday(queryClient, workspaceId);
   // Story 7: the sidebar's projects, in parallel with the list and counts (not gated on either).
   void queryClient.prefetchQuery(projectsQuery(workspaceId));
   return null;

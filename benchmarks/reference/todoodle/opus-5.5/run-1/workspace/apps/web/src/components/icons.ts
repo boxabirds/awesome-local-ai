@@ -13,3 +13,6 @@ export { default as TrashIcon } from 'lucide-react/icons/trash';
 export { default as XIcon } from 'lucide-react/icons/x';
 // Story 7: Move to… (task menu).
 export { default as FolderInputIcon } from 'lucide-react/icons/folder-input';
+// Story 8: due dates (the picker trigger) and Today (the sidebar entry).
+export { default as CalendarIcon } from 'lucide-react/icons/calendar';
+export { default as CalendarDaysIcon } from 'lucide-react/icons/calendar-days';

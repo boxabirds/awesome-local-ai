@@ -1,3 +1,218 @@
+commit 4496eb63efff8ee8b167528c694af5320aeba4bb
+vidi-agent  Sun Sep 27 01:15:25 2026 +0100
+
+    harness: snapshot after story 8 (uncommitted agent work)
+
+
+ bun.lock | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+commit 744870784235206f5bc387cabb338fa3d076ffb4
+vidi-agent  Sun Sep 27 01:04:55 2026 +0100
+
+    story 8: Give tasks due dates and see everything due today (and overdue) in one place
+
+
+ NOTES.md                                  |  82 +++++++++++++++++++++++
+ apps/web/src/features/today/TodayRows.tsx |   9 ++-
+ e2e/today.perf.spec.ts                    | 108 ++++++++++++++++++++++++++++++
+ e2e/today.spec.ts                         |  97 +--------------------------
+ package.json                              |   2 +-
+ packages/shared/src/limits.ts             |   5 ++
+ playwright.config.ts                      |   6 +-
+ 7 files changed, 208 insertions(+), 101 deletions(-)
+commit 9733da2ad269aa9b6998d55d9618373f93810e96
+vidi-agent  Sun Sep 27 00:44:17 2026 +0100
+
+    story 8 task 11: E2E tests: set date, Today, reschedule+undo, cross-timezone viewers, midnight, live, performance
+
+
+ apps/web/src/features/today/TodayNavItem.tsx       |  24 +-
+ .../src/features/today/registerTodayHandlers.ts    |   7 +-
+ apps/web/src/features/workspace/AppShell.tsx       |   5 +-
+ e2e/projects.spec.ts                               |   3 +
+ e2e/support/today.ts                               |  65 ++++
+ e2e/tasks.spec.ts                                  |   3 +
+ e2e/today.spec.ts                                  | 343 +++++++++++++++++++++
+ 7 files changed, 443 insertions(+), 7 deletions(-)
+commit 673cbb3bab426ad2de0ba85797719645b79648df
+vidi-agent  Sun Sep 27 00:38:07 2026 +0100
+
+    story 8 task 10: UI-component tests: date picker, chip, Today view, reschedule/undo, sidebar badge, rollover
+
+
+ apps/web/src/features/dates/DueDatePicker.tsx      |   4 +-
+ .../src/features/today/registerTodayHandlers.ts    |  60 +++-
+ apps/web/test/msw/todayServer.ts                   | 204 ++++++++++++++
+ apps/web/test/setup.ts                             |   2 +
+ apps/web/test/support/today.tsx                    |  57 ++++
+ apps/web/test/ui/dates/datePicker.test.tsx         | 245 ++++++++++++++++
+ apps/web/test/ui/dates/pickerChunk.test.tsx        |  49 ++++
+ apps/web/test/ui/today/todayLive.test.tsx          | 125 +++++++++
+ apps/web/test/ui/today/todayView.test.tsx          | 309 +++++++++++++++++++++
+ 9 files changed, 1045 insertions(+), 10 deletions(-)
+commit added70e39bb0ecf09404b019cfb46678b1f0bb4
+vidi-agent  Sun Sep 27 00:32:15 2026 +0100
+
+    story 8 task 9: Integration tests: due date API, Today query, reschedule/undo, migration, performance
+
+
+ apps/api/src/db/tasks.ts                         |  16 +-
+ apps/api/test/integration/counts.today.test.ts   |  59 ++++++
+ apps/api/test/integration/reschedule.test.ts     | 240 +++++++++++++++++++++++
+ apps/api/test/integration/tasks.due-date.test.ts | 179 +++++++++++++++++
+ apps/api/test/integration/today.test.ts          | 198 +++++++++++++++++++
+ apps/api/test/support/dates.ts                   |  57 ++++++
+ scripts/test/migration-0004.test.ts              |  19 ++
+ 7 files changed, 760 insertions(+), 8 deletions(-)
+commit 45f7a389d123b7a7db4a93454daa58d2e8ed98de
+vidi-agent  Sun Sep 27 00:29:17 2026 +0100
+
+    story 8 task 8: Unit tests: date logic, schemas, today split, undo mapping, clock store
+
+
+ apps/api/test/unit/dueDateSchemas.test.ts         | 121 +++++++++++++
+ apps/api/test/unit/split.test.ts                  |  41 +++++
+ apps/web/test/unit/dates/clockStore.test.ts       |  95 +++++++++++
+ apps/web/test/unit/dates/dates.gmt12.test.ts      |  21 +++
+ apps/web/test/unit/dates/dates.kiritimati.test.ts |  27 +++
+ apps/web/test/unit/dates/dates.newyork.test.ts    |  34 ++++
+ apps/web/test/unit/dates/dates.utc.test.ts        | 198 ++++++++++++++++++++++
+ apps/web/test/unit/dates/tokens.test.ts           |  40 +++++
+ apps/web/test/unit/today/todayCache.test.ts       | 161 ++++++++++++++++++
+ 9 files changed, 738 insertions(+)
+commit 01dff9732b599ae758e516eae121b2b38e5c96eb
+vidi-agent  Sun Sep 27 00:25:57 2026 +0100
+
+    story 8 task 7: Today view with Overdue group, Reschedule + Undo, project tags, sidebar badge and live refresh
+
+
+ apps/web/src/App.tsx                               |   2 +
+ apps/web/src/features/today/OverdueSection.tsx     |  26 +++
+ apps/web/src/features/today/RescheduleButton.tsx   |  51 +++++
+ apps/web/src/features/today/RescheduleConfirm.tsx  |  55 +++++
+ apps/web/src/features/today/TodayNavItem.tsx       |  66 ++++++
+ apps/web/src/features/today/TodayRows.tsx          |  39 ++++
+ apps/web/src/features/today/TodayTitle.tsx         |  22 ++
+ apps/web/src/features/today/TodayView.tsx          | 242 +++++++++++++++++++++
+ .../src/features/today/registerTodayHandlers.ts    |  54 +++++
+ .../src/features/today/rescheduleConfirmLoader.ts  |  14 ++
+ apps/web/src/features/today/todayLoader.ts         |  20 ++
+ apps/web/src/features/workspace/AppShell.tsx       |  25 ++-
+ apps/web/src/features/workspace/Sidebar.tsx        |   4 +-
+ .../src/features/workspace/useWorkspaceNavigate.ts |  14 +-
+ apps/web/src/main.tsx                              |   8 +-
+ apps/web/src/routes/Workspace.tsx                  |  18 +-
+ apps/web/src/routes/lazy.ts                        |  16 ++
+ apps/web/src/routes/workspaceLoader.ts             |   5 +-
+ apps/web/test/msw.ts                               |   3 +
+ apps/web/test/msw/today.ts                         |  11 +
+ apps/web/test/ui/tasks/listKeyboard.test.tsx       |   4 +
+ 21 files changed, 678 insertions(+), 21 deletions(-)
+commit 7cf0e1ef8171d3cc51152956f30af5a1c168a967
+vidi-agent  Sun Sep 27 00:21:49 2026 +0100
+
+    story 8 task 6: Date picker and relative date chip in quick add, task detail and task rows
+
+
+ apps/web/package.json                              |   4 +-
+ apps/web/scripts/build-tokens.ts                   |   5 +
+ apps/web/src/components/icons.ts                   |   3 +
+ apps/web/src/components/ui/calendar.tsx            |  71 +++++++++++
+ apps/web/src/components/ui/popover.tsx             |  24 ++++
+ apps/web/src/features/dates/DateChip.tsx           |  39 +++++++
+ apps/web/src/features/dates/DueDatePicker.tsx      | 130 +++++++++++++++++++++
+ apps/web/src/features/dates/RowDatePickerHost.tsx  |  49 ++++++++
+ apps/web/src/features/dates/dueDatePickerLoader.ts |  15 +++
+ apps/web/src/features/dates/locale.ts              |   4 +
+ .../features/dates/picker/DueDatePickerPanel.tsx   |  99 ++++++++++++++++
+ apps/web/src/features/dates/rowDatePicker.ts       |  40 +++++++
+ apps/web/src/features/dates/useDateShortcut.ts     |  26 +++++
+ apps/web/src/features/tasks/QuickAdd.tsx           |  20 +++-
+ apps/web/src/features/tasks/TaskDetailSheet.tsx    |  43 ++++++-
+ apps/web/src/features/tasks/TaskList.tsx           |   1 +
+ apps/web/src/features/tasks/TaskRow.tsx            |  49 +++++++-
+ apps/web/src/features/tasks/useCreateTask.ts       |  27 +++--
+ apps/web/src/features/tasks/useTaskMutations.ts    |  39 ++++++-
+ apps/web/src/features/today/ProjectTag.tsx         |  19 +++
+ apps/web/src/features/today/todayCache.ts          |  16 +--
+ apps/web/src/features/workspace/AppShell.tsx       |   3 +
+ apps/web/src/index.css                             |   7 ++
+ apps/web/src/lib/lazyWithRetry.ts                  |  27 +++++
+ apps/web/src/styles/rows.css                       |   9 ++
+ apps/web/src/styles/tokens.css                     |   8 ++
+ apps/web/test/setup.ts                             |   4 +
+ bun.lock                                           |  12 ++
+ packages/shared/src/tokens.ts                      |  23 ++++
+ 29 files changed, 782 insertions(+), 34 deletions(-)
+commit 4f1a7cea566cbe28efcba20afd655f796109338a
+vidi-agent  Sun Sep 27 00:15:45 2026 +0100
+
+    story 8 task 4: Reschedule overdue (id-scoped) and version-guarded undo endpoints
+
+
+ apps/api/src/db/tasks.ts                     |  70 ++++++++++++++
+ apps/api/src/routes/tasks.ts                 |  58 +++++++++++-
+ apps/web/src/features/today/todayCache.ts    | 124 +++++++++++++++++++++++++
+ apps/web/src/features/today/useReschedule.ts | 131 +++++++++++++++++++++++++++
+ apps/web/src/features/undo/showUndoToast.ts  |  19 +++-
+ apps/web/src/lib/api.ts                      |  20 ++++
+ packages/shared/src/schemas.ts               |  45 +++++++++
+ 7 files changed, 462 insertions(+), 5 deletions(-)
+commit 838d8ee592dd9616e97ddc17517c2a7bc1eec4d8
+vidi-agent  Sun Sep 27 00:12:24 2026 +0100
+
+    story 8 task 3: Today query endpoint and Today count on the shared counts endpoint
+
+
+ apps/api/src/app.ts                          |  2 +
+ apps/api/src/db/tasks.ts                     | 62 +++++++++++++++++++++++-----
+ apps/api/src/routes/counts.ts                | 11 ++++-
+ apps/api/src/routes/today.ts                 | 19 +++++++++
+ apps/api/src/today/split.ts                  | 29 +++++++++++++
+ apps/web/package.json                        |  2 +
+ apps/web/src/features/tasks/queries.ts       |  7 +++-
+ apps/web/src/features/today/useTodayQuery.ts | 17 ++++++++
+ apps/web/src/lib/api.ts                      | 17 ++++++--
+ apps/web/src/lib/queryKeys.ts                | 14 +++++++
+ packages/shared/src/schemas.ts               | 36 ++++++++++++++++
+ 11 files changed, 199 insertions(+), 17 deletions(-)
+commit 30e5817974c9daf4b2ef3bfcecb0670983169427
+vidi-agent  Sun Sep 27 00:11:17 2026 +0100
+
+    story 8 task 5: Local-date clock store and useLocalDate with midnight rollover
+
+
+ apps/web/src/features/dates/clockStore.ts          | 79 ++++++++++++++++++++++
+ .../web/src/features/dates/useClockInvalidation.ts | 17 +++++
+ apps/web/src/features/dates/useLocalDate.ts        |  8 +++
+ apps/web/src/features/workspace/AppShell.tsx       |  3 +
+ 4 files changed, 107 insertions(+)
+commit e513524bfa30bf6ac11e79bb32757da71a7b9c19
+vidi-agent  Sun Sep 27 00:10:51 2026 +0100
+
+    story 8 task 2: Store due dates on tasks: migration 0004, create/update accept dueDate, broadcast
+
+
+ apps/api/src/db/tasks.ts                     | 60 +++++++++++++++++++++-------
+ apps/api/src/routes/tasks.ts                 |  4 +-
+ apps/api/src/routes/test.ts                  | 56 +++++++++++++++++++++++++-
+ apps/api/test/integration/tasks.db.test.ts   |  2 +
+ apps/api/test/unit/taskEdit.schemas.test.ts  |  1 +
+ apps/api/test/unit/taskSchemas.test.ts       |  2 +
+ apps/web/src/features/tasks/useCreateTask.ts |  1 +
+ migrations/0004_task_due_date.sql            |  7 ++++
+ packages/shared/src/schemas.ts               | 12 ++++--
+ 9 files changed, 124 insertions(+), 21 deletions(-)
+commit 68d98ee57ce60fcc7f014dd0b24e2c018cfbae62
+vidi-agent  Sun Sep 27 00:08:49 2026 +0100
+
+    story 8 task 1: Shared local-date logic: validation, arithmetic, classification, chip labels, midnight
+
+
+ packages/shared/src/dates.ts   | 173 ++++++++++++++++++++++++++++++++++++++++-
+ packages/shared/src/limits.ts  |  25 ++++++
+ packages/shared/src/schemas.ts |   7 ++
+ 3 files changed, 204 insertions(+), 1 deletion(-)
 commit 0bbacd77841ef36aee0e9b331bd26722874d4993
 vidi-agent  Sat Sep 26 23:56:55 2026 +0100
 

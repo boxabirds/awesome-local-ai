@@ -2,13 +2,19 @@ import { useCallback, useLayoutEffect, useRef } from 'react';
 import { type NavigateOptions, useLocation, useNavigate } from 'react-router';
 import { useWorkspaceContext } from './WorkspaceContext';
 
-/** Where in the workspace to go: the Inbox, or one project (story 7). Story 8 adds Today. */
-export type WorkspaceTarget = { view: 'inbox' } | { view: 'project'; projectId: string };
+/** Where in the workspace to go: the Inbox, one project (story 7), or Today (story 8). */
+export type WorkspaceTarget = { view: 'inbox' } | { view: 'project'; projectId: string } | { view: 'today' };
 
-/** The path of a workspace view (SPA routing decision: /w/:id, /w/:id/project/:pid). */
+/** The path of a workspace view (SPA routing decision: /w/:id, /w/:id/project/:pid, /w/:id/today). */
 export function workspacePath(workspaceId: string, target: WorkspaceTarget): string {
   const base = `/w/${encodeURIComponent(workspaceId)}`;
-  return target.view === 'project' ? `${base}/project/${encodeURIComponent(target.projectId)}` : base;
+  if (target.view === 'project') return `${base}/project/${encodeURIComponent(target.projectId)}`;
+  return target.view === 'today' ? `${base}/today` : base;
+}
+
+/** Whether a path is a workspace's Today address (/w/:id/today). */
+export function isTodayPath(pathname: string): boolean {
+  return /^\/w\/[^/]+\/today\/?$/.test(pathname);
 }
 
 /**

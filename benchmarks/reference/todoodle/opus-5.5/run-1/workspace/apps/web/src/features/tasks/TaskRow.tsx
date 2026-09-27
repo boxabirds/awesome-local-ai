@@ -1,8 +1,12 @@
 import { formatCompletedDate } from '@todoodle/shared/dates';
 import { memo, use, useCallback, useId, useRef } from 'react';
-import { CheckIcon, EllipsisIcon, FolderInputIcon, PencilIcon, TrashIcon } from '@/components/icons';
+import { CalendarIcon, CheckIcon, EllipsisIcon, FolderInputIcon, PencilIcon, TrashIcon } from '@/components/icons';
 import { Button } from '@/components/ui/button';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { DateChip } from '@/features/dates/DateChip';
+import { openRowDatePicker } from '@/features/dates/rowDatePicker';
+import { preloadDatePicker } from '@/features/dates/dueDatePickerLoader';
+import { ProjectTag } from '@/features/today/ProjectTag';
 import { cn } from '@/lib/utils';
 import { preloadMoveToPicker } from './moveToPickerLoader';
 import { preloadTaskDetail } from './TaskDetailSheet.lazy';
@@ -22,13 +26,19 @@ type Props = {
   localStatus?: LocalStatus;
   /** Just completed: ticked, still in its open position for COMPLETE_ANIMATION_MS. */
   leaving?: boolean;
+  /** Story 8: the due date (a calendar date), shown as a relative chip. */
+  dueDate?: string | null;
+  /** Story 8 (Today): show where the task lives, its project's name and colour or 'Inbox'. */
+  showProject?: boolean;
+  projectName?: string | null;
+  projectColor?: string | null;
 };
 
 function preload() {
   void preloadTaskDetail();
 }
 
-type MenuAction = 'edit' | 'delete' | 'move';
+type MenuAction = 'edit' | 'delete' | 'move' | 'date';
 
 /**
  * One task: a round checkbox (44px hit area; Complete NAME / Reopen NAME), the name (opens the detail
@@ -42,7 +52,18 @@ type MenuAction = 'edit' | 'delete' | 'move';
  * touch targets that never take focus (a focusable control inside an option is nested-interactive).
  * Keyboard users act on the focused row with Space, E and Delete, which the menu shows next to each item.
  */
-export const TaskRow = memo(function TaskRow({ taskId, name, description, completedAt, localStatus, leaving = false }: Props) {
+export const TaskRow = memo(function TaskRow({
+  taskId,
+  name,
+  description,
+  completedAt,
+  localStatus,
+  leaving = false,
+  dueDate = null,
+  showProject = false,
+  projectName = null,
+  projectColor = null,
+}: Props) {
   taskRowRenders.count++;
   const actions = use(TaskRowActionsContext);
   const busy = useTaskBusy(taskId);
@@ -59,6 +80,7 @@ export const TaskRow = memo(function TaskRow({ taskId, name, description, comple
     else if (!completed) actions.complete(taskId);
   }, [actions, completed, leaving, local, taskId]);
   const onEdit = useCallback(() => actions.edit(taskId, rowRef.current), [actions, taskId]);
+  const onDateClick = useCallback(() => openRowDatePicker(taskId, rowRef.current), [taskId]);
   // Menu choices run once the menu has closed (its focus handling is done), so focus lands where the action puts it.
   const onMenuCloseAutoFocus = useCallback(
     (event: Event) => {
@@ -68,6 +90,7 @@ export const TaskRow = memo(function TaskRow({ taskId, name, description, comple
       event.preventDefault();
       if (chosen === 'edit') actions.edit(taskId, rowRef.current);
       else if (chosen === 'move') actions.move(taskId, rowRef.current);
+      else if (chosen === 'date') openRowDatePicker(taskId, rowRef.current);
       else actions.remove(taskId);
     },
     [actions, taskId],
@@ -88,7 +111,7 @@ export const TaskRow = memo(function TaskRow({ taskId, name, description, comple
       onPointerEnter={preload}
       onFocus={preload}
       className={cn(
-        'task-row group flex items-start gap-1 rounded-md pr-1 outline-none focus-visible:ring-2 focus-visible:ring-ring',
+        'task-row row-cv group flex items-start gap-1 rounded-md pr-1 outline-none focus-visible:ring-2 focus-visible:ring-ring',
         leaving && 'task-row-leaving',
       )}
     >
@@ -118,6 +141,17 @@ export const TaskRow = memo(function TaskRow({ taskId, name, description, comple
           </span>
         </p>
         {description ? <p className="truncate text-sm text-muted-foreground">{description}</p> : null}
+        {/* Story 8: the chip slot anchors the D-opened date picker; a click on it opens the picker too. */}
+        {dueDate !== null || showProject ? (
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+            <span data-chip-slot onClick={local ? undefined : onDateClick} onPointerEnter={preloadDatePicker} className={cn(!local && 'cursor-pointer')}>
+              {dueDate !== null && !(completed && !leaving) ? <DateChip due={dueDate} /> : null}
+            </span>
+            {showProject ? <ProjectTag projectName={projectName} projectColor={projectColor} /> : null}
+          </div>
+        ) : (
+          <span data-chip-slot />
+        )}
         {completed && !leaving ? (
           <span className="text-xs text-muted-foreground">
             Completed <time dateTime={completedAt}>{formatCompletedDate(completedAt)}</time>
@@ -157,6 +191,13 @@ export const TaskRow = memo(function TaskRow({ taskId, name, description, comple
               Edit
               <kbd aria-hidden="true" className="ml-auto font-sans text-xs text-muted-foreground">
                 E
+              </kbd>
+            </DropdownMenuItem>
+            <DropdownMenuItem aria-keyshortcuts="D" onSelect={() => (menuAction.current = 'date')}>
+              <CalendarIcon aria-hidden="true" />
+              Set due date…
+              <kbd aria-hidden="true" className="ml-auto font-sans text-xs text-muted-foreground">
+                D
               </kbd>
             </DropdownMenuItem>
             <DropdownMenuItem aria-keyshortcuts="M" onSelect={() => (menuAction.current = 'move')}>

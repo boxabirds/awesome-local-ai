@@ -1,0 +1,62 @@
+{
+  "steps": {
+    "install": {
+      "cmd": "bun install",
+      "exit": 0,
+      "seconds": 0.4,
+      "tail": "bun install v1.2.17 (282dda62)\n\nChecked 386 installs across 515 packages (no changes) [378.00ms]\nResolving dependencies\nResolved, downloaded and extracted [29]\nSaved lockfile\n"
+    },
+    "build": {
+      "cmd": "bun run build",
+      "exit": 0,
+      "seconds": 0.5,
+      "tail": "\u001b[36mvite v8.3.1 \u001b[32mbuilding client environment for production...\u001b[36m\u001b[39m\ntransforming...\n\u2713 1490 modules transformed.\nrendering chunks...\ncomputing gzip size...\ndist/index.html                                 1.06 kB \u2502 gzip:   0.41 kB\ndist/assets/index-DNR54iO9.css                 46.90 kB \u2502 gzip:  10.02 kB\ndist/assets/queryOptions-Dfvzj6n2.js            0.03 kB \u2502 gzip:   0.05 kB\ndist/assets/locale-CxDImwWw.js                  0.09 kB \u2502 gzip:   0.09 kB\ndist/assets/WorkspaceContext-XCYYrBaD.js        0.23 kB \u2502 gzip:   0.18 kB\ndist/assets/useProjects-zA21wfUe.js             0.38 kB \u2502 gzip:   0.27 kB\ndist/assets/dist-C9YTAVML.js                    0.63 kB \u2502 gzip:   0.41 kB\ndist/assets/dialog-BYC9mDpa.js                  0.72 kB \u2502 gzip:   0.43 kB\ndist/assets/RescheduleConfirm-BnQfHCt9.js       0.87 kB \u2502 gzip:   0.50 kB\ndist/assets/sheet-BXzOESWz.js                   0.88 kB \u2502 gzip:   0.46 kB\ndist/assets/DeleteProjectDialog-DGCXeip1.js     1.14 kB \u2502 gzip:   0.66 kB\ndist/assets/LengthCounter-DQN6rTlq.js           1.50 kB \u2502 gzip:   0.82 kB\ndist/assets/ShortcutsPanel-DqYzZjxl.js          1.53 kB \u2502 gzip:   0.78 kB\ndist/assets/ProjectView-Bg7BSOuB.js             1.90 kB \u2502 gzip:   1.00 kB\ndist/assets/useWorkspaceLink-Ing62zmq.js        2.07 kB \u2502 gzip:   1.00 kB\ndist/assets/ForgetDialog-Ch434IBo.js            2.35 kB \u2502 gzip:   1.09 kB\ndist/assets/alert-dialog-DAJBe_tr.js            2.76 kB \u2502 gzip:   1.08 kB\ndist/assets/taskCache-C0ryySz3.js               3.17 kB \u2502 gzip:   1.29 kB\ndist/assets/dates-CeDQNtA8.js                   3.47 kB \u2502 gzip:   1.52 kB\ndist/assets/SharePanel-QF9bx1it.js              3.64 kB \u2502 gzip:   1.75 kB\ndist/assets/useEditGuard-D1Leox5_.js            4.30 kB \u2502 gzip:   1.79 kB\ndist/assets/dist-CY4idIBY.js                    4.55 kB \u2502 gzip:   1.68 kB\ndist/assets/dist-fDAlXe_j.js                    4.72 kB \u2502 gzip:   1.69 kB\ndist/assets/useWorkspaceNavigate-CZ9KI8n4.js    5.03 kB \u2502 gzip:   2.24 kB\ndist/assets/TaskDetailSheet-D2tlFhRX.js         5.62 kB \u2502 gzip:   2.36 kB\ndist/assets/useMutation-DsQ8yszW.js             5.72 kB \u2502 gzip:   1.82 kB\ndist/assets/MoveToPicker-j6wEhy-s.js            6.06 kB \u2502 gzip:   2.70 kB\ndist/assets/CreateProjectDialog-CcZEGy0d.js     7.55 kB \u2502 gzip:   3.08 kB\ndist/assets/useTaskMutations-D7A__bFo.js        8.58 kB \u2502 gzip:   3.20 kB\ndist/assets/TodayView-D_IWvJ6u.js               9.42 kB \u2502 gzip:   3.80 kB\ndist/assets/useWorkspace-CnsnPifY.js           28.11 kB \u2502 gzip:  10.30 kB\ndist/assets/es2015-BFLRjpdp.js                 36.22 kB \u2502 gzip:  12.44 kB\ndist/assets/utils-CX7kd-qx.js                  36.57 kB \u2502 gzip:  12.04 kB\ndist/assets/Workspace-CRau3hys.js              46.50 kB \u2502 gzip:  14.85 kB\ndist/assets/DueDatePickerPanel-KDh32Rd4.js     73.98 kB \u2502 gzip:  22.17 kB\ndist/assets/api-CmSF2tDp.js                   142.04 kB \u2502 gzip:  41.73 kB\ndist/assets/index--aZ-m99V.js                 320.13 kB \u2502 gzip: 103.99 kB\n\n\u001b[32m\u2713 built in 253ms\u001b[39m\n$ bun run --cwd apps/web build\n$ vite build\n",
+      "passed": null,
+      "failed": null
+    },
+    "typecheck": {
+      "cmd": "bun run typecheck",
+      "exit": 0,
+      "seconds": 5.8,
+      "tail": "$ bun run --cwd packages/shared typecheck && bun run --cwd apps/api typecheck && bun run --cwd apps/web typecheck && tsc -p tsconfig.json --noEmit\n$ tsc -p tsconfig.json --noEmit\n$ tsc -p tsconfig.json --noEmit && tsc -p tsconfig.node.json --noEmit\n$ tsc -p tsconfig.json --noEmit\n",
+      "passed": null,
+      "failed": null
+    },
+    "lint": {
+      "cmd": "bun run lint",
+      "exit": 0,
+      "seconds": 1.0,
+      "tail": "$ bun run --cwd apps/web lint\n$ eslint .\n",
+      "passed": null,
+      "failed": null
+    },
+    "test:unit": {
+      "cmd": "bun run test:unit",
+      "exit": 0,
+      "seconds": 10.8,
+      "tail": "\n RUN  v4.1.11 ~/.vidi-bench/work/benchmarks__reference__todoodle__opus-5.5__run-1/workspace\n\n\n Test Files  16 passed (16)\n      Tests  200 passed (200)\n   Start at  01:05:19\n   Duration  5.31s (transform 2.81s, setup 13.80s, import 285ms, tests 1.88s, environment 1ms)\n\n\n RUN  v4.1.11 ~/.vidi-bench/work/benchmarks__reference__todoodle__opus-5.5__run-1/workspace\n\n\n Test Files  8 passed (8)\n      Tests  50 passed (50)\n   Start at  01:05:25\n   Duration  221ms (transform 168ms, setup 0ms, import 273ms, tests 74ms, environment 1ms)\n\n\n RUN  v4.1.11 ~/.vidi-bench/work/benchmarks__reference__todoodle__opus-5.5__run-1/workspace\n\n\n Test Files  39 passed (39)\n      Tests  356 passed (356)\n   Start at  01:05:25\n   Duration  4.02s (transform 1.44s, setup 12.67s, import 890ms, tests 1.85s, environment 7.47s)\n\n$ vitest run --config apps/api/vitest.config.ts --project api-unit && vitest run --config scripts/vitest.config.ts --project deploy-unit && vitest run --config apps/web/vitest.config.ts --project web-unit\n",
+      "passed": 200,
+      "failed": 0
+    },
+    "test:component": {
+      "exit": "missing"
+    },
+    "test:integration": {
+      "cmd": "bun run test:integration",
+      "exit": 0,
+      "seconds": 46.8,
+      "tail": "\n RUN  v4.1.11 ~/.vidi-bench/work/benchmarks__reference__todoodle__opus-5.5__run-1/workspace\n\n\n Test Files  26 passed (26)\n      Tests  335 passed (335)\n   Start at  01:05:30\n   Duration  39.28s (transform 1.40s, setup 9.45s, import 397ms, tests 24.43s, environment 2ms)\n\n\n RUN  v4.1.11 ~/.vidi-bench/work/benchmarks__reference__todoodle__opus-5.5__run-1/workspace\n\n\n Test Files  1 passed (1)\n      Tests  18 passed (18)\n   Start at  01:06:09\n   Duration  6.55s (transform 43ms, setup 0ms, import 63ms, tests 6.42s, environment 0ms)\n\n$ vitest run --config apps/api/vitest.config.ts --project api-integration --project api-staging-sim --project api-production-gate && vitest run --config scripts/vitest.config.ts --project deploy-integration\n",
+      "passed": 335,
+      "failed": 0
+    },
+    "test:e2e": {
+      "cmd": "bun run test:e2e --project=chromium",
+      "exit": 1,
+      "seconds": 88.8,
+      "tail": "\nRunning 156 tests using 4 workers\n\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b0\u00b0\u00b0\u00b0\u00b0\n\u00b0\u00b0\u00b0\u00b0\u00b0\u00b0\u00b0\u00b0\u00b0\u00b0\u00b0\u00b0\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b0\u00b0\u00b0\u00b0\u00b0\u00b0\u00b0\u00b7\u00b7\u00b7\u00b7F\n::error file=e2e/remembered.spec.ts,title=[webkit] \u203a e2e/remembered.spec.ts:37:1 \u203a TC-82 forget with confirm; the link still opens the workspace and it is remembered again,line=45,col=44::  1) [webkit] \u203a e2e/remembered.spec.ts:37:1 \u203a TC-82 forget with confirm; the link still opens the workspace and it is remembered again %0A    Error: expect(locator).toBeVisible() failed%0A%0A    Locator: getByText('Have a link? Open it to get back in.')%0A    Expected: visible%0A    Timeout: 5000ms%0A    Error: element(s) not found%0A%0A    Call log:%0A      - Expect \"toBeVisible\" getByText('Have a link? Open it to get back in.') with timeout 5000ms%0A      - waiting for getByText('Have a link? Open it to get back in.')%0A%0A%0A      43 |   await expect(rowLink(page, a.name)).toHaveCount(0);%0A      44 |   await page.reload();%0A    > 45 |   await expect(page.getByText(EMPTY_HINT)).toBeVisible();%0A         |                                            ^%0A      46 |%0A      47 |   await page.goto(a.link);%0A      48 |   await expect(nameField(page)).toHaveValue(a.name);%0A        at ~/.vidi-bench/work/benchmarks__reference__todoodle__opus-5.5__run-1/workspace/e2e/remembered.spec.ts:45:44\n\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b0\u00b0\u00b0\u00b0\u00b0\u00b0\u00b0\u00b0\u00b0\u00b0\u00b0\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\n\n  1) [webkit] \u203a e2e/remembered.spec.ts:37:1 \u203a TC-82 forget with confirm; the link still opens the workspace and it is remembered again \n\n    Error: expect(locator).toBeVisible() failed\n\n    Locator: getByText('Have a link? Open it to get back in.')\n    Expected: visible\n    Timeout: 5000ms\n    Error: element(s) not found\n\n    Call log:\n      - Expect \"toBeVisible\" getByText('Have a link? Open it to get back in.') with timeout 5000ms\n      - waiting for getByText('Have a link? Open it to get back in.')\n\n\n      43 |   await expect(rowLink(page, a.name)).toHaveCount(0);\n      44 |   await page.reload();\n    > 45 |   await expect(page.getByText(EMPTY_HINT)).toBeVisible();\n         |                                            ^\n      46 |\n      47 |   await page.goto(a.link);\n      48 |   await expect(nameField(page)).toHaveValue(a.name);\n        at ~/.vidi-bench/work/benchmarks__reference__todoodle__opus-5.5__run-1/workspace/e2e/remembered.spec.ts:45:44\n\n    Error Context: test-results/remembered-TC-82-forget-wi-6cdb7--and-it-is-remembered-again-webkit/error-context.md\n\n    attachment #2: trace (application/zip) \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\n    test-results/remembered-TC-82-forget-wi-6cdb7--and-it-is-remembered-again-webkit/trace.zip\n    Usage:\n\n        npx playwright show-trace test-results/remembered-TC-82-forget-wi-6cdb7--and-it-is-remembered-again-webkit/trace.zip\n\n    \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\n\n  1 failed\n    [webkit] \u203a e2e/remembered.spec.ts:37:1 \u203a TC-82 forget with confirm; the link still opens the workspace and it is remembered again \n  35 skipped\n  120 passed (1.5m)\n::notice title=\ud83c\udfad Playwright Run Summary::  1 failed%0A    [webkit] \u203a e2e/remembered.spec.ts:37:1 \u203a TC-82 forget with confirm; the link still opens the workspace and it is remembered again %0A  35 skipped%0A  120 passed (1.5m)\n$ playwright test --project chromium --project webkit --project mobile-touch && playwright test --project perf --workers=1 \"--project=chromium\"\n[WebServer] $ wrangler d1 migrations apply DB --local\n[WebServer] $ bun run build && bun scripts/dev.ts\n[WebServer] $ bun run --cwd apps/web build\n[WebServer] $ vite build\nerror: script \"test:e2e\" exited with code 1\n",
+      "passed": 120,
+      "failed": 1
+    }
+  },
+  "all_green": false
+}

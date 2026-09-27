@@ -9,6 +9,8 @@
 @import "./styles/constants.css";
 /* 44px touch targets on touch screens (story 5). */
 @import "./styles/touch.css";
+/* Story 8: content-visibility per task row (row-cv). */
+@import "./styles/rows.css";
 
 /* Devices without a hover-capable pointer (touch screens): the `touch:` variant. */
 @custom-variant touch (@media (hover: none));
@@ -30,6 +32,11 @@
   --color-ring: var(--ring);
   --color-warning: var(--warning);
   --color-success: var(--success);
+  /* Story 8: due date chip tones (text-chip-overdue, …). */
+  --color-chip-overdue: var(--chip-overdue);
+  --color-chip-today: var(--chip-today);
+  --color-chip-tomorrow: var(--chip-tomorrow);
+  --color-chip-neutral: var(--chip-neutral);
 }
 
 /* Minimum hit area (MIN_TOUCH_TARGET_PX = 44px = 2.75rem) on devices without hover (touch screens). */

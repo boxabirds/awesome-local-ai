@@ -104,6 +104,7 @@ describe('rowToTask', () => {
     deleted_at: null,
     project_id: null,
     delete_batch_id: null,
+    due_date: null,
   };
 
   it('maps snake_case to the public Task shape, keeping a null completedAt', () => {
@@ -119,6 +120,7 @@ describe('rowToTask', () => {
       version: 1,
       createdAt: '2026-09-26 10:00:00',
       updatedAt: '2026-09-26 10:00:01',
+      dueDate: null,
     });
     expect(TaskSchema.parse(task)).toEqual(task);
   });

@@ -1,9 +1,11 @@
 import { z } from 'zod';
+import { type LocalDate, isCalendarDate } from './dates.ts';
 import {
   DELETE_BATCH_ID_BYTES,
   PROJECT_COLOR_KEYS,
   PROJECT_ID_BYTES,
   PROJECT_NAME_MAX,
+  RESCHEDULE_MAX_IDS,
   TASK_DESCRIPTION_MAX,
   TASK_ID_BYTES,
   TASK_NAME_MAX,
@@ -13,6 +15,12 @@ import {
 // No JIT: zod's `new Function` probe is reported as a CSP violation (default-src 'self'), and neither
 // the browser under our CSP nor workerd may evaluate code anyway.
 z.config({ jitless: true });
+
+/**
+ * Story 8: a calendar date 'YYYY-MM-DD' (no time, no zone) within DUE_DATE_MIN_YEAR..DUE_DATE_MAX_YEAR. Every
+ * date-relative request carries the viewer's own local date in this form; the server only validates it.
+ */
+export const localDateSchema: z.ZodType<LocalDate> = z.string().refine(isCalendarDate, { message: 'Not a calendar date (YYYY-MM-DD)' });
 
 /** Public shape of a workspace. Never includes the secret or its hash. */
 export const Workspace = z.object({
@@ -102,6 +110,8 @@ export const TaskSchema = z.object({
   version: z.number().int(),
   createdAt: z.string(),
   updatedAt: z.string(),
+  /** Story 8: the due date (a calendar date); null (or absent in pre-story-8 payloads) means no date. */
+  dueDate: localDateSchema.nullable().default(null),
 });
 export type Task = z.infer<typeof TaskSchema>;
 
@@ -118,6 +128,8 @@ export const CreateTaskInputSchema = z.object({
     .refine(fitsUnits(TASK_DESCRIPTION_MAX), { message: `At most ${TASK_DESCRIPTION_MAX} characters` })
     .default(''),
   projectId: ProjectIdSchema.nullable().optional(),
+  /** Story 8: a missing or null dueDate means no date. */
+  dueDate: localDateSchema.nullable().optional(),
 });
 export type CreateTaskInput = z.infer<typeof CreateTaskInputSchema>;
 
@@ -143,6 +155,11 @@ export type ProjectCounts = z.infer<typeof ProjectCountsSchema>;
 export const CountsSchema = z.object({
   inbox: z.number().int().nonnegative(),
   projects: z.record(z.string(), ProjectCountsSchema).default({}),
+  /**
+   * Story 8: open tasks due on or before the viewer's date (Today + Overdue), excluding deleted projects. Only
+   * when the request carried ?date= (never computed from the server clock).
+   */
+  today: z.number().int().nonnegative().optional(),
 });
 /** `projects` is optional in the type (pre-story-7 payloads and fixtures); the API always sends it. */
 export type Counts = z.input<typeof CountsSchema>;
@@ -159,12 +176,12 @@ export type TaskListResponse = z.infer<typeof TaskListResponse>;
  * A task edit (PATCH /api/w/:id/tasks/:taskId). Lifecycle fields (completedAt, deleted…) can't be patched.
  * projectId (story 7) moves the task: null = Inbox.
  */
-export type TaskPatch = { name?: string; description?: string; projectId?: string | null };
+export type TaskPatch = { name?: string; description?: string; projectId?: string | null; dueDate?: LocalDate | null };
 
 /**
  * PATCH body: strict (unknown keys are 400, so completion can't be tampered with through PATCH), at least one
  * field. Both are trimmed and measured in UTF-16 code units. A blank name is valid here and means "keep the
- * previous name" (resolvePatchedName); an empty description clears it.
+ * previous name" (resolvePatchedName); an empty description clears it. Story 8: dueDate (null clears).
  */
 export const TaskPatchSchema: z.ZodType<TaskPatch> = z
   .object({
@@ -175,9 +192,11 @@ export const TaskPatchSchema: z.ZodType<TaskPatch> = z
       .refine(fitsUnits(TASK_DESCRIPTION_MAX), { message: `At most ${TASK_DESCRIPTION_MAX} characters` })
       .optional(),
     projectId: ProjectIdSchema.nullable().optional(),
+    /** Story 8: sets the due date; null clears it. */
+    dueDate: localDateSchema.nullable().optional(),
   })
   .strict()
-  .refine((patch) => patch.name !== undefined || patch.description !== undefined || patch.projectId !== undefined, {
+  .refine((patch) => patch.name !== undefined || patch.description !== undefined || patch.projectId !== undefined || patch.dueDate !== undefined, {
     message: 'Change at least one field',
   });
 
@@ -290,3 +309,78 @@ export type DeleteProjectResponse = z.infer<typeof DeleteProjectResponse>;
 export const RestoreProjectResponse = z.object({ project: ProjectSchema, restoredTaskCount: z.number().int().nonnegative() });
 export type RestoreProjectResponse = z.infer<typeof RestoreProjectResponse>;
 export const ProjectListResponseSchema = ProjectListResponse;
+
+// ---------------------------------------------------------------- story 8: Today, reschedule and undo
+
+/** 'Show completed' as a query flag: 1/true on, 0/false (or absent) off. */
+const QueryFlagSchema = z
+  .enum(['1', 'true', '0', 'false'])
+  .optional()
+  .transform((value) => value === '1' || value === 'true');
+
+/** GET /api/w/:id/counts[?date=]: the optional viewer's local date adds `today`. */
+export const countsQuerySchema = z.object({ date: localDateSchema.optional() });
+
+/** GET /api/w/:id/today?date=&includeCompleted=: date (the viewer's local date) is required. */
+export const todayQuerySchema = z.object({ date: localDateSchema, includeCompleted: QueryFlagSchema });
+export type TodayQuery = z.infer<typeof todayQuerySchema>;
+
+/** A task on Today, with where it lives: its project's name and colour key, or both null for the Inbox. */
+export const TodayTaskSchema = TaskSchema.extend({ projectName: z.string().nullable(), projectColor: z.string().nullable() });
+export type TodayTask = z.infer<typeof TodayTaskSchema>;
+
+/**
+ * The Today view for one viewer's date: overdue (open, due before date; by due date then sort order), today
+ * (open, due on date; by sort order) and completed (due on date, only with includeCompleted; most recent first).
+ */
+export const todayResponseSchema = z.object({
+  date: localDateSchema,
+  overdue: z.array(TodayTaskSchema),
+  today: z.array(TodayTaskSchema),
+  completed: z.array(TodayTaskSchema),
+});
+export type TodayResponse = z.infer<typeof todayResponseSchema>;
+
+/** True when no value repeats. */
+function unique(values: readonly string[]): boolean {
+  return new Set(values).size === values.length;
+}
+
+/**
+ * POST /api/w/:id/tasks/reschedule: move exactly the overdue tasks the viewer saw (ids, 1..RESCHEDULE_MAX_IDS,
+ * unique) to their local date `to`. The server re-checks each one (prd.reschedule_scope).
+ */
+export const rescheduleRequestSchema = z.object({
+  ids: z.array(TaskIdSchema).min(1).max(RESCHEDULE_MAX_IDS).refine(unique, { message: 'Duplicate ids' }),
+  to: localDateSchema,
+});
+export type RescheduleRequest = z.infer<typeof rescheduleRequestSchema>;
+
+/** One rescheduled task: its date before and after, and its new version (what undo must still find). */
+export const RescheduledTaskSchema = z.object({ id: TaskIdSchema, previousDueDate: localDateSchema, dueDate: localDateSchema, version: z.number().int() });
+export type RescheduledTask = z.infer<typeof RescheduledTaskSchema>;
+
+/** skipped: ids that were not eligible (for whatever reason, other workspaces' included: nothing is leaked). */
+export const rescheduleResponseSchema = z.object({ changed: z.array(RescheduledTaskSchema), skipped: z.array(z.string()) });
+export type RescheduleResponse = z.infer<typeof rescheduleResponseSchema>;
+
+/** One undo item: put `dueDate` back, but only if the task is still at `expectedVersion`. */
+export const RestoreDueDateItemSchema = z.object({ id: TaskIdSchema, dueDate: localDateSchema.nullable(), expectedVersion: z.number().int() });
+export type RestoreDueDateItem = z.infer<typeof RestoreDueDateItemSchema>;
+
+/** POST /api/w/:id/tasks/due-dates/restore: undo of a reschedule (1..RESCHEDULE_MAX_IDS items, unique ids). */
+export const restoreDueDatesRequestSchema = z.object({
+  items: z
+    .array(RestoreDueDateItemSchema)
+    .min(1)
+    .max(RESCHEDULE_MAX_IDS)
+    .refine((items) => unique(items.map((item) => item.id)), { message: 'Duplicate ids' }),
+});
+export type RestoreDueDatesRequest = z.infer<typeof restoreDueDatesRequestSchema>;
+
+/** restored: put back; skipped: changed by someone since (version moved) or gone (deleted, or not here). */
+export const restoreDueDatesResponseSchema = z.object({
+  restored: z.array(z.object({ id: TaskIdSchema, dueDate: localDateSchema.nullable(), version: z.number().int() })),
+  skipped: z.array(z.object({ id: z.string(), reason: z.enum(['changed', 'gone']) })),
+});
+export type RestoreDueDatesResponse = z.infer<typeof restoreDueDatesResponseSchema>;

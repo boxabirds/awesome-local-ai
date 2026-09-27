@@ -34,6 +34,8 @@ export function AppRoutes() {
       <Route path="/w/:workspaceId" element={idWorkspace} />
       {/* Story 7: the same element, so moving between the Inbox and projects keeps the workspace mounted. */}
       <Route path="/w/:workspaceId/project/:projectId" element={idWorkspace} />
+      {/* Story 8: Today has its own address (reload, back and forward return to it). */}
+      <Route path="/w/:workspaceId/today" element={idWorkspace} />
       <Route path="*" element={<RecoverableNotFound />} />
     </Routes>
   );

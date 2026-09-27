@@ -17,6 +17,12 @@ export const queryKeys = {
   tasks: ((id: string, filter?: TasksFilterInput) => (filter ? (['ws', id, 'tasks', normaliseFilter(filter)] as const) : (['ws', id, 'tasks'] as const))) as TasksKey,
   /** Open-task counts per list. No date in the key (story 8's queryFn reads the clock instead). */
   counts: (id: string) => ['ws', id, 'counts'] as const,
+  /**
+   * Story 8: the Today view for one viewer's local date: ['ws', id, 'today', {date, includeCompleted}]. The date is
+   * in the key, so Today refetches by itself at local midnight. Without params, the prefix of every variant.
+   */
+  today: ((id: string, params?: TodayParams) =>
+    params ? (['ws', id, 'today', { date: params.date, includeCompleted: params.includeCompleted }] as const) : (['ws', id, 'today'] as const)) as TodayKey,
   /** Story 7: the workspace's active projects, in creation order. */
   projects: (id: string) => ['ws', id, 'projects'] as const,
   remembered: () => ['remembered'] as const,
@@ -60,4 +66,12 @@ export function scopeKey(scope: ListScope): string {
 type TasksKey = {
   (id: string): readonly ['ws', string, 'tasks'];
   (id: string, filter: TasksFilterInput): readonly ['ws', string, 'tasks', TasksFilter];
+};
+
+/** Which Today a query holds: the viewer's local date, and whether completed tasks due that day are included. */
+export type TodayParams = { date: string; includeCompleted: boolean };
+
+type TodayKey = {
+  (id: string): readonly ['ws', string, 'today'];
+  (id: string, params: TodayParams): readonly ['ws', string, 'today', TodayParams];
 };

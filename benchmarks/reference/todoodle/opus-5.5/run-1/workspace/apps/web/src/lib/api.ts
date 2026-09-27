@@ -18,6 +18,14 @@ import {
   type TaskPatch,
   TaskListResponse,
   TaskResponse,
+  type RescheduleRequest,
+  type RescheduleResponse,
+  type RestoreDueDateItem,
+  type RestoreDueDatesResponse,
+  type TodayResponse,
+  rescheduleResponseSchema,
+  restoreDueDatesResponseSchema,
+  todayResponseSchema,
   type Workspace,
   WorkspaceLinkResponse,
   WorkspaceResponse,
@@ -166,9 +174,10 @@ export async function listTasks(workspaceId: string, filter: ListScope & { inclu
   return (await request(TaskListResponse, `/api/w/${encodeURIComponent(workspaceId)}/tasks?${query}`)).tasks;
 }
 
-/** Open-task counts per list (the sidebar badges). */
-export function getCounts(workspaceId: string): Promise<Counts> {
-  return request(CountsSchema, `/api/w/${encodeURIComponent(workspaceId)}/counts`);
+/** Open-task counts per list (the sidebar badges). Story 8: the viewer's local date adds `today`. */
+export function getCounts(workspaceId: string, date?: string): Promise<Counts> {
+  const query = date === undefined ? '' : `?date=${encodeURIComponent(date)}`;
+  return request(CountsSchema, `/api/w/${encodeURIComponent(workspaceId)}/counts${query}`);
 }
 
 /**
@@ -243,4 +252,26 @@ export function restoreProject(workspaceId: string, projectId: string, batchId: 
 /** Moves a task to a project, or to the Inbox (null). Name, completion and due date are untouched. */
 export function moveTask(workspaceId: string, taskId: string, projectId: string | null): Promise<Task> {
   return updateTask(workspaceId, taskId, { projectId });
+}
+
+// ---------------------------------------------------------------- story 8: Today, reschedule, undo
+
+/** The viewer's Today: overdue and today tasks (and completed ones due today, with includeCompleted). */
+export function getToday(workspaceId: string, params: { date: string; includeCompleted: boolean }): Promise<TodayResponse> {
+  const query = `date=${encodeURIComponent(params.date)}${params.includeCompleted ? '&includeCompleted=1' : ''}`;
+  return request(todayResponseSchema, `/api/w/${encodeURIComponent(workspaceId)}/today?${query}`);
+}
+
+/** Moves exactly these overdue tasks to the viewer's date `to`; the server skips any no longer overdue. */
+export function rescheduleTasks(workspaceId: string, body: RescheduleRequest): Promise<RescheduleResponse> {
+  return request(rescheduleResponseSchema, `/api/w/${encodeURIComponent(workspaceId)}/tasks/reschedule`, { method: 'POST', json: body, edit: true });
+}
+
+/** Undo of rescheduleTasks: each date goes back only while the task is still at the version the reschedule left. */
+export function restoreDueDates(workspaceId: string, items: RestoreDueDateItem[]): Promise<RestoreDueDatesResponse> {
+  return request(restoreDueDatesResponseSchema, `/api/w/${encodeURIComponent(workspaceId)}/tasks/due-dates/restore`, {
+    method: 'POST',
+    json: { items },
+    edit: true,
+  });
 }

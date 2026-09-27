@@ -495,3 +495,85 @@
 
   As before, `bun run <script>` cannot run in this sandbox (`CouldntReadCurrentDirectory`), so each script's
   underlying binary was run directly against a manually started `wrangler dev` with a fresh `vite build`.
+
+## Story 8
+
+- **Commit order.** Task 5 (the clock store) was committed before task 3, because task 3's counts `queryFn` reads
+  `getLocalDateSnapshot()`. `todayCache.ts` (the Today cache helpers and the mirror used by the task actions) landed
+  with task 4. `apps/api/test/support/dates.ts` and `reschedule.test.ts` were written while building task 4 (TC-58
+  proved `json_each` first) and committed with task 9. `bun.lock` landed with task 6. Fixes found by later tasks are
+  in those tasks' commits and say so (task 10: the picker's height, the Today count on live events; task 11: live
+  handler order and the idle chunk preload); the final commit holds the progressive Today rows and the perf project.
+- **Existing names kept.** The design's `taskSchema`/`createTaskSchema`/`updateTaskSchema` are the existing
+  `TaskSchema`/`CreateTaskInputSchema`/`TaskPatchSchema`. `TaskSchema.dueDate` defaults to null like `projectId`, so
+  pre-story-8 payloads still parse. There was no idempotent-create body comparison to extend: a replay answers with the
+  stored row (stored values win), so a retried dated create never makes a second row (TC-100).
+- **`/test/seed`** is new (the design assumed it existed; story 6 noted it did not). It seeds projects (optionally
+  deleted exactly as a project delete does) and tasks through the same insert statements as the API, in batches, then
+  marks tasks completed or deleted. The perf fixtures (5,000 tasks) go through it.
+- **`json_each` works in D1** (TC-58 passes against Miniflare D1), so the chunked `IN (...)` fallback was not built;
+  `D1_MAX_BOUND_PARAMS` exists only as the named setting. D1 refuses `RETURNING tasks.*` on `UPDATE … FROM`, so the
+  restore lists its columns. Reschedule and restore broadcast `tasks.bulk` split by story 7's `TASKS_BULK_MAX_IDS`
+  (one event up to 400 ids), only when something changed.
+- **Labels.** Recent ICU spells September 'Sept' in en-GB short months; the PRD shows 'Sep', so the date formatter
+  shortens a four-letter 'Sept' month part. Chip and picker labels use `navigator.language` (the design); UI tests stub
+  it to en-GB and the e2e contexts use `locale: 'en-GB'`. The picker's accessible names use the full form
+  ('Tomorrow, Saturday 26 September').
+- **Picker.** Built on Radix Popover and react-day-picker 9 (week starts Monday). The shadcn CLI's current output
+  imports a `cn` package and wants react-day-picker 10, so `components/ui/popover.tsx` and `calendar.tsx` are the
+  shadcn components adapted by hand. The lazy panel lives in `src/features/dates/picker/DueDatePickerPanel.tsx`: the
+  import lint (story 2) already allowed `date-fns` only under `src/features/dates/picker/**`. `lazyWithRetry`
+  returns `{load, loaded}` (a module, not a component) and the picker opens once the module arrived, because
+  `React.lazy` caches a rejection forever. The popover never grows past the room it has (it scrolls).
+- **Row pickers.** D (and a click on a row's date, and a new 'Set due date… D' item in the row menu) opens a picker
+  store like story 7's Move to…; `RowDatePickerHost` in the shell renders it anchored to the row's `[data-chip-slot]`.
+  The chip itself is a `role=img` with the screen-reader label as its name, so the row (an `option`) never contains a
+  focusable control (story 6's nested-interactive rule).
+- **Today and the task actions.** Today is its own cache (`['ws', id, 'today', {date, includeCompleted}]`), not a
+  task list, so story 6/7's task actions now also call `mirrorTaskToToday` at each optimistic write, success and
+  rollback: the Today rows and the Today count stay in step with complete, reopen, edit (dates), delete, move and undo
+  from any view, and quick add. `find` falls back to cached Todays, so a task only Today holds can be acted on. The
+  reschedule and undo are a per-workspace controller (`createRescheduleActions`) rather than `useMutation`, like
+  story 6's actions, because the undo toast outlives the view; it snapshots the Today and counts caches and rolls
+  back on failure. `showUndoToast`'s `restoredText` may be a function (null: the inverse reported the outcome), so a
+  partial undo says only 'N task(s) … were not restored' and a full one 'Due dates restored'.
+- **Quick add on Today** targets the Inbox ('→ Inbox') with the local date preselected; a picked date other than
+  today adds the task and says 'Added to Inbox'. Story 5's `{kind: 'today'}` quick-add target stays unused. Opening a
+  task from Today uses the same detail sheet (it reads the Today cache); changing its date so it leaves Today closes
+  the sheet, like any task leaving the list it was opened from.
+- **Live refresh.** Today's handlers are registered before story 5's (AppShell): they must see a task's cached copy
+  before it is replaced, so a collaborator clearing a date still refreshes the Today count (found by e2e TC-91).
+  Besides refetching cached Todays (debounced), they refetch counts when a dated task changed, because the story 5/7
+  count handlers do not track `today`; undated changes never refetch (story 5's static test fixtures are unaffected).
+  `project.upserted` is handled too (renamed projects change row tags).
+- **Performance.** TC-94/TC-118 pass without virtualization (about 290 ms to the first Today rows; the slowest
+  keystroke event during a 500-task reschedule plus a live bulk change was about 40 ms). Two things were needed:
+  the Today chunk also preloads when the browser is idle (otherwise React 19's Suspense reveal throttle added about
+  300 ms to a first visit), and each Today group renders its first `TODAY_FIRST_RENDER_ROWS` (50) rows at once and the
+  rest in a deferred render, so a cached Today with 2,000 rows never renders them in one blocking pass. `row-cv` is on
+  every task row (lists too), never a container. Playwright's clock also fakes `performance.now()`, so the perf specs
+  use the real clock with dates relative to the real London date.
+- **E2E layout.** `e2e/today.spec.ts` (Chromium only, as designed; London, en-GB, `page.clock` at Fri 2026-09-25) and
+  `e2e/today.perf.spec.ts`, which runs in its own `perf` Playwright project with one worker: timings taken while
+  other specs load the same local server measured the machine, not Todoodle. `test:e2e` runs the other projects,
+  then `perf`.
+- **Existing tests touched.** Keyboard walks (story 5 UI TC-109/TC-111, e2e TC-114; story 7 e2e W7) step over the new
+  sidebar Today link. Story 5/6 schema fixtures gained `due_date`/`dueDate: null`. Story 5's migration test lists the
+  new `due_date` column. MSW gained a default empty Today handler (the sidebar prefetches Today on hover and focus).
+- **Test locations.** As in stories 5–7: shared-schema and `splitToday` unit tests in `apps/api/test/unit`; the date
+  logic runs in `apps/web/test/unit/dates` (Node, where `TZ` can be set per file; workerd cannot change zones);
+  UI tests in `apps/web/test/ui/{dates,today}` with a stateful MSW Today server; TC-114 has its own file because the
+  panel module must be unloaded and its import mocked.
+- **Local dev server.** `wrangler dev` keeps its asset manifest from start-up: after a `vite build` it served
+  `index.html` for the new chunk names, which broke the app and showed up as unrelated e2e failures (WebKit WF-1's
+  "socket closed" console error, then timeouts). Restart `wrangler dev` after rebuilding before running e2e.
+- **Story 8 verification.** Everything below passes:
+  - typecheck (all five tsconfigs), lint and build;
+  - unit: api 200, deploy 50, web 356;
+  - integration: api 335 (with the staging and production simulations), deploy 18;
+  - UI: 319;
+  - e2e: 121 passed and 35 skipped (desktop specs of stories 4, 6, 7 and 8 on WebKit) across chromium, webkit and
+    mobile-touch, then the `perf` project (2 passed; TC-94 also 3 times in a row).
+
+  As before, `bun run <script>` cannot run in this sandbox (`CouldntReadCurrentDirectory`), so each script's underlying
+  binary was run directly against a freshly started `wrangler dev` with a fresh `vite build`.

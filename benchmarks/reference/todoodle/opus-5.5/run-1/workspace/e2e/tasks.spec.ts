@@ -249,6 +249,9 @@ test.describe('story 5: capture a task into the Inbox', () => {
     // buttons, so there it goes straight to the list).
     await page.keyboard.press('Tab');
     if (browserName !== 'webkit') {
+      // Story 8 added the sidebar's Today entry (a link) after the Inbox entry.
+      await expect(page.getByRole('navigation', { name: 'Lists' }).getByRole('link', { name: /^Today/ })).toBeFocused();
+      await page.keyboard.press('Tab');
       await expect(page.getByRole('button', { name: 'Add project' })).toBeFocused();
       await page.keyboard.press('Tab');
       await expect(page.getByRole('switch', { name: 'Show completed' })).toBeFocused();

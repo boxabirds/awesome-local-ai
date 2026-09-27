@@ -21,11 +21,14 @@ import { useTouchRemembered } from '@/features/remembered/useTouchRemembered';
 import { isNotFoundError } from '@/lib/api';
 import { WorkspaceSkeletonRows } from '@/features/workspace/WorkspaceSkeleton';
 import { RecoverableNotFound as NotFound } from './RecoverableNotFound.tsx';
-import { preloadProjectView } from './lazy.ts';
+import { preloadProjectView, preloadTodayView } from './lazy.ts';
+import { isTodayPath } from '@/features/workspace/useWorkspaceNavigate';
 import { workspaceLoader } from './workspaceLoader.ts';
 
 // Story 7: the project view is its own chunk; sidebar rows preload it on hover and focus.
 const ProjectView = lazy(() => preloadProjectView().then((module) => ({ default: module.ProjectView })));
+// Story 8: Today is its own route chunk; the sidebar's Today entry preloads it on hover and focus.
+const TodayView = lazy(preloadTodayView);
 
 type PanelState = { open: boolean; mode: 'save' | 'share' };
 
@@ -47,6 +50,7 @@ function WorkspaceView({
   const canEdit = useCanEdit() && !placeholder;
   const location = useLocation();
   const { projectId } = useParams();
+  const today = isTodayPath(location.pathname);
   const navigate = useNavigate();
   const [panel, setPanel] = useState<PanelState>(() => ({ open: isJustCreated(location.state), mode: 'save' }));
   const { mutateAsync: rename } = useRenameWorkspace(workspace.id);
@@ -68,8 +72,8 @@ function WorkspaceView({
 
   return (
     <WorkspaceContext value={context}>
-      {/* A project view titles the page itself ('<project> · <workspace>', story 7). */}
-      {projectId ? null : <title>{`Todoodle - ${workspace.name}`}</title>}
+      {/* A project view titles the page itself ('<project> · <workspace>', story 7); so does Today (story 8). */}
+      {projectId || today ? null : <title>{`Todoodle - ${workspace.name}`}</title>}
       {/* Polite summary of other people's changes for screen readers (story 4). */}
       <LiveAnnouncer />
       {/* Story 7: others' project changes; a deleted project on screen sends this tab to the Inbox. */}
@@ -95,6 +99,10 @@ function WorkspaceView({
         ) : projectId ? (
           <Suspense fallback={<WorkspaceSkeletonRows />}>
             <ProjectView key={projectId} workspaceId={workspace.id} />
+          </Suspense>
+        ) : today ? (
+          <Suspense fallback={<WorkspaceSkeletonRows />}>
+            <TodayView workspaceId={workspace.id} />
           </Suspense>
         ) : (
           <InboxView workspaceId={workspace.id} />
@@ -146,7 +154,9 @@ function IdWorkspace({ id }: { id: string }) {
   // In-app navigation without a hover/focus prefetch: start the entry list, counts and projects now (no-op when
   // fresh). Only on entering the workspace: later view changes load their own list.
   const [entryProjectId] = useState(projectId);
-  useEffect(() => void workspaceLoader({ params: { workspaceId: id, projectId: entryProjectId } }), [id, entryProjectId]);
+  const { pathname } = useLocation();
+  const [entryToday] = useState(() => isTodayPath(pathname));
+  useEffect(() => void workspaceLoader({ params: { workspaceId: id, projectId: entryProjectId, today: entryToday } }), [id, entryProjectId, entryToday]);
   const touch = useTouchRemembered(id);
   const query = useWorkspace(id);
   // Not remembered here (or no longer opens): NotFound, whichever request learns it first.

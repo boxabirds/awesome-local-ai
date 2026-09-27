@@ -154,3 +154,33 @@ export type ProjectColorKey = (typeof PROJECT_COLORS)[number]['key'];
 export const PROJECT_COLOR_KEYS = PROJECT_COLORS.map((color) => color.key) as [ProjectColorKey, ...ProjectColorKey[]];
 /** Ids per tasks.bulk live event, so a big project's delete/restore stays under LIVE_MAX_EVENT_BYTES (~35 bytes an id). */
 export const TASKS_BULK_MAX_IDS = 400;
+
+// ---------------------------------------------------------------- story 8: due dates and Today
+
+/** Earliest and latest year a due date may have (a calendar date 'YYYY-MM-DD', no time, no zone). */
+export const DUE_DATE_MIN_YEAR = 1970;
+export const DUE_DATE_MAX_YEAR = 9999;
+/** A due date this many days ahead (or fewer, from 2) is labelled with its weekday name; further ones with a short date. */
+export const CHIP_WEEKDAY_MAX_OFFSET = 6;
+/** Most task ids one Reschedule (or its undo) may carry. */
+export const RESCHEDULE_MAX_IDS = 5_000;
+/** Live changes by others refetch the Today list at most once per this interval. */
+export const TODAY_INVALIDATE_DEBOUNCE_MS = 250;
+/** The midnight timer fires this long after local midnight (timers may fire a few ms early). */
+export const MIDNIGHT_SLACK_MS = 1_000;
+/** Reschedule asks for confirmation when it would move at least this many overdue tasks. */
+export const RESCHEDULE_CONFIRM_MIN = 2;
+/** Date.getUTCDay() values (0 = Sunday). */
+export const WEEKDAY_SUNDAY = 0;
+export const WEEKDAY_MONDAY = 1;
+export const WEEKDAY_SATURDAY = 6;
+export const DAYS_PER_WEEK = 7;
+/** Bound parameters per D1 statement; only the chunked IN (...) fallback of reschedule/restore would use it. */
+export const D1_MAX_BOUND_PARAMS = 100;
+/** Milliseconds in a calendar day (UTC calendar arithmetic only; never used on local instants). */
+export const MS_PER_DAY = 86_400_000;
+/**
+ * A Today group's first render shows this many rows; the rest follow in a deferred (interruptible) render, so opening
+ * Today with thousands of rows paints at once and never holds up typing.
+ */
+export const TODAY_FIRST_RENDER_ROWS = 50;

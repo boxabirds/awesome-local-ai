@@ -4,6 +4,7 @@ import type { Counts, Task } from '@todoodle/shared/schemas';
 import { useCallback, useMemo } from 'react';
 import { ApiError, GoneError, createTask as postTask } from '@/lib/api';
 import { INBOX_SCOPE, type ListScope, type TasksFilter, queryKeys, scopeOf } from '@/lib/queryKeys';
+import { mirrorTaskToToday } from '@/features/today/todayCache';
 import { insertBySortOrder } from './cacheOps';
 import type { QuickAddTarget } from './DestinationChip';
 import type { NewTaskInput } from './QuickAdd';
@@ -18,7 +19,7 @@ import {
   replaceWithServer,
 } from './taskCache';
 
-type CreateVars = { id: string; name: string; description: string; list: ListScope; retry: boolean };
+type CreateVars = { id: string; name: string; description: string; list: ListScope; retry: boolean; dueDate: string | null };
 
 /** The list a quick-add target writes into. Story 7 maps a project target to its project; story 8 adds Today. */
 function listFor(target: QuickAddTarget): ListScope {
@@ -82,14 +83,16 @@ function nextSortOrder(list: LocalTask[] | undefined): number {
 export function useCreateTask(workspaceId: string) {
   const queryClient = useQueryClient();
 
-  const { mutate } = useMutation<Task, unknown, CreateVars>({
+  const { mutate } = useMutation<Task, unknown, CreateVars, LocalTask>({
     mutationKey: [...queryKeys.root(workspaceId), 'createTask'],
-    mutationFn: async ({ id, name, description, list }) => {
+    mutationFn: async ({ id, name, description, list, dueDate }) => {
       const timeout = timeoutSignal(CREATE_TASK_TIMEOUT_MS);
       // Story 7: quick add in a project adds there (the body carries its projectId; the Inbox sends none).
       const projectId = projectIdOf(list);
+      // Story 8: a dated task carries its dueDate (undated creates send the same body as before).
+      const body = { id, name, description, ...(projectId ? { projectId } : {}), ...(dueDate ? { dueDate } : {}) };
       try {
-        return await postTask(workspaceId, projectId ? { id, name, description, projectId } : { id, name, description }, timeout.signal);
+        return await postTask(workspaceId, body, timeout.signal);
       } finally {
         timeout.clear();
       }
@@ -107,6 +110,7 @@ export function useCreateTask(workspaceId: string) {
         version: LOCAL_VERSION,
         createdAt: '',
         updatedAt: '',
+        dueDate: vars.dueDate,
       };
       writeListVariants(queryClient, workspaceId, vars.list, (list, includeCompleted) => {
         if (vars.retry) return markStatus(list, vars.id, 'pending');
@@ -114,19 +118,24 @@ export function useCreateTask(workspaceId: string) {
         return includeCompleted ? insertBySortOrder(list, { ...row, localStatus: 'pending' }) : appendOptimistic(list, row);
       });
       queryClient.setQueryData<Counts>(queryKeys.counts(workspaceId), (counts) => adjustCount(counts, 1, projectIdOf(vars.list), 1));
+      // Story 8: a task due today (or earlier) shows in Today at once; it counts once it is saved.
+      mirrorTaskToToday(queryClient, workspaceId, vars.id, { ...row, localStatus: 'pending' }, null);
+      return row;
     },
-    onSuccess: (task, vars) => {
+    onSuccess: (task, vars, row) => {
       writeListVariants(queryClient, workspaceId, vars.list, (list) => replaceWithServer(list, task));
+      mirrorTaskToToday(queryClient, workspaceId, vars.id, task, row ? { ...row, localStatus: 'pending' } : null);
     },
-    onError: (error, vars) => {
+    onError: (error, vars, row) => {
       writeListVariants(queryClient, workspaceId, vars.list, (list) => markStatus(list, vars.id, outcomeOf(error)));
+      if (row) mirrorTaskToToday(queryClient, workspaceId, vars.id, { ...row, localStatus: outcomeOf(error) }, null);
       queryClient.setQueryData<Counts>(queryKeys.counts(workspaceId), (counts) => adjustCount(counts, -1, projectIdOf(vars.list), -1));
     },
   });
 
   const createTask = useCallback(
     (input: NewTaskInput) =>
-      mutate({ id: input.id, name: input.name, description: input.description, list: listFor(input.target), retry: false }),
+      mutate({ id: input.id, name: input.name, description: input.description, list: listFor(input.target), retry: false, dueDate: input.dueDate }),
     [mutate],
   );
 
@@ -147,7 +156,7 @@ export function useCreateTask(workspaceId: string) {
       const found = findLocal(id);
       if (found?.task.localStatus !== 'failed') return;
       const { task, list } = found;
-      mutate({ id, name: task.name, description: task.description, list, retry: true });
+      mutate({ id, name: task.name, description: task.description, list, retry: true, dueDate: task.dueDate ?? null });
     },
     [findLocal, mutate],
   );
@@ -157,6 +166,7 @@ export function useCreateTask(workspaceId: string) {
       const found = findLocal(id);
       if (!found || found.task.localStatus === undefined || found.task.localStatus === 'pending') return;
       writeListVariants(queryClient, workspaceId, found.list, (list) => removeLocal(list, id));
+      mirrorTaskToToday(queryClient, workspaceId, id, null, null);
     },
     [findLocal, queryClient, workspaceId],
   );

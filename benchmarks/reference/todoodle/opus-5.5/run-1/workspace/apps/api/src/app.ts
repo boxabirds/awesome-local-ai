@@ -12,6 +12,7 @@ import { projectsRoutes } from './routes/projects.ts';
 import { rememberedRoutes } from './routes/remembered.ts';
 import { tasksRoutes } from './routes/tasks.ts';
 import { testRoutes } from './routes/test.ts';
+import { todayHandler } from './routes/today.ts';
 import { workspaceRoutes, workspacesRoutes } from './routes/workspaces.ts';
 
 export type AppEnv = { Bindings: Env; Variables: Variables };
@@ -40,6 +41,7 @@ export function createApp() {
   app.route('/api/w/:workspaceId/tasks', tasksRoutes);
   app.route('/api/w/:workspaceId/projects', projectsRoutes);
   app.get('/api/w/:workspaceId/counts', countsHandler);
+  app.get('/api/w/:workspaceId/today', todayHandler);
   app.route('/api/w/:workspaceId', workspaceRoutes);
   app.get('/api/w/:workspaceId/live', forwardToRoom);
 

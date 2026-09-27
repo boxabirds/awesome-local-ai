@@ -15,7 +15,7 @@
     "test:unit": "vitest run --config apps/api/vitest.config.ts --project api-unit && vitest run --config scripts/vitest.config.ts --project deploy-unit && vitest run --config apps/web/vitest.config.ts --project web-unit",
     "test:integration": "vitest run --config apps/api/vitest.config.ts --project api-integration --project api-staging-sim --project api-production-gate && vitest run --config scripts/vitest.config.ts --project deploy-integration",
     "test:ui": "vitest run --config apps/web/vitest.config.ts --project web-ui",
-    "test:e2e": "playwright test",
+    "test:e2e": "playwright test --project chromium --project webkit --project mobile-touch && playwright test --project perf --workers=1",
     "deploy:staging": "bun scripts/deploy.ts staging",
     "deploy:production": "bun scripts/deploy.ts production",
     "lint": "bun run --cwd apps/web lint",

@@ -46,6 +46,7 @@ function renderRow(task: LocalTask) {
       completedAt={task.completedAt}
       localStatus={task.localStatus}
       leaving={task.leaving}
+      dueDate={task.dueDate ?? null}
     />
   );
 }

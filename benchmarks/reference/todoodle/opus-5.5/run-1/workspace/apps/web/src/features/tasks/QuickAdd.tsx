@@ -1,6 +1,8 @@
 import { TASK_DESCRIPTION_MAX, TASK_NAME_MAX } from '@todoodle/shared/limits';
+import type { LocalDate } from '@todoodle/shared/dates';
 import { type KeyboardEvent, type RefObject, useEffect, useId, useState } from 'react';
 import { Button } from '@/components/ui/button';
+import { DueDatePicker } from '@/features/dates/DueDatePicker';
 import { newTaskId } from '@/lib/ids';
 import { useKeyboardInset } from '@/lib/useKeyboardInset';
 import { cn } from '@/lib/utils';
@@ -8,7 +10,7 @@ import { canSubmit, lengthStatus } from './canSubmit';
 import { DestinationChip, type QuickAddTarget } from './DestinationChip';
 import { LengthCounter } from './LengthCounter';
 
-export type NewTaskInput = { id: string; name: string; description: string; target: QuickAddTarget };
+export type NewTaskInput = { id: string; name: string; description: string; target: QuickAddTarget; dueDate: LocalDate | null };
 
 type Props = {
   target: QuickAddTarget;
@@ -19,6 +21,8 @@ type Props = {
   onClose: () => void;
   /** The name field, so the opener can focus it again (Q while quick add is already open). */
   nameRef: RefObject<HTMLInputElement | null>;
+  /** Story 8: the due date a new task starts with (Today: the viewer's local date); none by default. */
+  defaultDueDate?: LocalDate | null;
 };
 
 /** Enter that is part of an IME composition (e.g. choosing a Japanese candidate) is never a submit. */
@@ -31,9 +35,12 @@ function isComposing(event: KeyboardEvent): boolean {
  * destination chip, and Add/Cancel. Nothing is ever truncated: there is no maxLength; over-long text
  * shows how far over it is and blocks Add. After adding, both fields clear and the name keeps focus.
  */
-export function QuickAdd({ target, mode, onCreate, onClose, nameRef }: Props) {
+export function QuickAdd({ target, mode, onCreate, onClose, nameRef, defaultDueDate = null }: Props) {
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
+  // Story 8: null means "not picked": the task gets the default date (which follows local midnight on Today).
+  const [pickedDate, setPickedDate] = useState<{ value: LocalDate | null } | null>(null);
+  const dueDate = pickedDate ? pickedDate.value : defaultDueDate;
   const ids = useId();
   const nameId = `${ids}-name`;
   const descriptionId = `${ids}-description`;
@@ -53,9 +60,10 @@ export function QuickAdd({ target, mode, onCreate, onClose, nameRef }: Props) {
 
   const submit = () => {
     if (!allowed) return;
-    onCreate({ id: newTaskId(), name: name.trim(), description: description.trim(), target });
+    onCreate({ id: newTaskId(), name: name.trim(), description: description.trim(), target, dueDate });
     setName(() => '');
     setDescription(() => '');
+    setPickedDate(null);
     nameRef.current?.focus();
   };
 
@@ -123,7 +131,11 @@ export function QuickAdd({ target, mode, onCreate, onClose, nameRef }: Props) {
       />
       <LengthCounter id={descriptionCounterId} length={description.length} limit={TASK_DESCRIPTION_MAX} />
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <DestinationChip id={chipId} target={target} />
+        <div className="flex flex-wrap items-center gap-2">
+          <DestinationChip id={chipId} target={target} />
+          {/* Reached with Tab (D in a text field types a letter). */}
+          <DueDatePicker value={dueDate} onChange={(value) => setPickedDate({ value })} />
+        </div>
         <div className="flex gap-2">
           <Button variant="ghost" onClick={onClose}>
             Cancel

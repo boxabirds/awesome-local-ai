@@ -29,6 +29,8 @@ describe('tasks.store: migration 0002', () => {
       // Story 7 (migration 0003) appends these two.
       'project_id',
       'delete_batch_id',
+      // Story 8 (migration 0004) appends this one.
+      'due_date',
     ]);
     const id = columns.find((c) => c.name === 'id');
     expect(id?.pk).toBe(1);

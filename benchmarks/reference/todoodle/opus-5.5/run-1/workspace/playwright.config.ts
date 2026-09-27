@@ -18,12 +18,14 @@ export default defineConfig({
     // Chromium can be granted real clipboard access; WebKit cannot, so it exercises the manual-copy fallback.
     {
       name: 'chromium',
-      testIgnore: '**/*.mobile.spec.ts',
+      testIgnore: ['**/*.mobile.spec.ts', '**/*.perf.spec.ts'],
       use: { ...devices['Desktop Chrome'], permissions: ['clipboard-read', 'clipboard-write'] },
     },
-    { name: 'webkit', testIgnore: '**/*.mobile.spec.ts', use: { ...devices['Desktop Safari'] } },
+    { name: 'webkit', testIgnore: ['**/*.mobile.spec.ts', '**/*.perf.spec.ts'], use: { ...devices['Desktop Safari'] } },
     // Touch layout (story 3 TC-91): no hover, 44px targets.
     { name: 'mobile-touch', testMatch: '**/*.mobile.spec.ts', use: { ...devices['iPhone 13'] } },
+    // Story 8 timings (TC-94, TC-118): run alone with one worker (`bun run test:e2e` runs it after the others).
+    { name: 'perf', testMatch: '**/*.perf.spec.ts', use: { ...devices['Desktop Chrome'] } },
   ],
   webServer: {
     // Apply migrations first so a fresh checkout has the local schema.

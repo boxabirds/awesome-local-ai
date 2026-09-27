@@ -1,4 +1,5 @@
 import { keepPreviousData, queryOptions } from '@tanstack/react-query';
+import { getLocalDateSnapshot } from '@/features/dates/clockStore';
 import { getCounts, listTasks } from '@/lib/api';
 import { INBOX_SCOPE, type ListScope, queryKeys } from '@/lib/queryKeys';
 import { type LocalTask, mergeLocalRows } from './taskCache';
@@ -21,6 +22,10 @@ export function tasksQuery(workspaceId: string, list: ListScope | 'inbox', inclu
   });
 }
 
+/**
+ * Open-task counts. The key has no date (architecture §12); story 8's queryFn sends the viewer's local date read
+ * from the clock store at fetch time, which adds `today`. useClockInvalidation refetches it at local midnight.
+ */
 export function countsQuery(workspaceId: string) {
-  return queryOptions({ queryKey: queryKeys.counts(workspaceId), queryFn: () => getCounts(workspaceId) });
+  return queryOptions({ queryKey: queryKeys.counts(workspaceId), queryFn: () => getCounts(workspaceId, getLocalDateSnapshot()) });
 }

@@ -1,5 +1,5 @@
 import { TASK_SORT_STEP } from '@todoodle/shared/limits';
-import type { Counts, Task, TaskList, TaskPatch } from '@todoodle/shared/schemas';
+import type { Counts, Task, TaskList, TaskPatch, TodayTask } from '@todoodle/shared/schemas';
 import { resolvePatchedName } from '@todoodle/shared/schemas';
 import type { MutationResult } from '@todoodle/shared/types';
 
@@ -20,6 +20,8 @@ export type TaskRow = {
   project_id: string | null;
   /** Story 7: set only when the task was deleted together with its project. */
   delete_batch_id: string | null;
+  /** Story 8: the due date, a calendar date 'YYYY-MM-DD' (no time, no zone); NULL = no date. */
+  due_date: string | null;
 };
 
 /** Maps a stored row to the public Task shape. Only whitelisted fields are copied. */
@@ -35,7 +37,44 @@ export function rowToTask(row: TaskRow): Task {
     version: row.version,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
+    dueDate: row.due_date ?? null,
   };
+}
+
+/** What a create writes. Story 7 adds projectId, story 8 dueDate (both optional: null). */
+export type NewTaskRow = { id: string; workspaceId: string; name: string; description: string; projectId?: string | null; dueDate?: string | null };
+
+/**
+ * The one INSERT of a new task (quick add, and /test/seed through the same statement): after the workspace's
+ * largest sort_order, nothing written when the id exists. The WHERE clause also resolves SQLite's
+ * INSERT ... SELECT ... ON CONFLICT parse ambiguity.
+ */
+function insertStatement(db: D1Database, input: NewTaskRow): D1PreparedStatement {
+  return db
+    .prepare(
+      `INSERT INTO tasks (id, workspace_id, name, description, sort_order, project_id, due_date)
+       SELECT ?1, ?2, ?3, ?4, COALESCE(MAX(sort_order), 0) + ?5, ?6, ?7 FROM tasks WHERE workspace_id = ?2
+       ON CONFLICT(id) DO NOTHING RETURNING *`,
+    )
+    .bind(input.id, input.workspaceId, input.name, input.description, TASK_SORT_STEP, input.projectId ?? null, input.dueDate ?? null);
+}
+
+/**
+ * Test-only (/test/seed): inserts many tasks with the create statement, in batches (each one D1 transaction).
+ * Existing ids are left as they are. Returns the inserted rows.
+ */
+export async function insertTasksForSeed(db: D1Database, inputs: NewTaskRow[], chunk = 500): Promise<TaskRow[]> {
+  const rows: TaskRow[] = [];
+  for (let start = 0; start < inputs.length; start += chunk) {
+    const results = await db.batch<TaskRow>(inputs.slice(start, start + chunk).map((input) => insertStatement(db, input)));
+    for (const result of results) if (result.results[0]) rows.push(result.results[0]);
+  }
+  return rows;
+}
+
+/** A Today row in the public shape: the task plus its project's name and colour (null for the Inbox). */
+export function rowToTodayTask(row: TaskRow & { project_name: string | null; project_color: string | null }): TodayTask {
+  return { ...rowToTask(row), projectName: row.project_name ?? null, projectColor: row.project_color ?? null };
 }
 
 export type InsertTaskResult =
@@ -51,20 +90,14 @@ export type InsertTaskResult =
  * INSERT ... SELECT ... ON CONFLICT parse ambiguity.
  *
  * When the id already exists nothing is written: same workspace -> replayed (stored values win) or gone
- * (soft-deleted); another workspace -> conflict.
+ * (soft-deleted); another workspace -> conflict. A replay answers with the stored task whatever the retried body
+ * says (story 8: its dueDate included), so a retried dated create never makes a second row.
  */
 export async function insertTaskIdempotent(
   db: D1Database,
-  input: { id: string; workspaceId: string; name: string; description: string; projectId?: string | null },
+  input: NewTaskRow,
 ): Promise<InsertTaskResult> {
-  const inserted = await db
-    .prepare(
-      `INSERT INTO tasks (id, workspace_id, name, description, sort_order, project_id)
-       SELECT ?1, ?2, ?3, ?4, COALESCE(MAX(sort_order), 0) + ?5, ?6 FROM tasks WHERE workspace_id = ?2
-       ON CONFLICT(id) DO NOTHING RETURNING *`,
-    )
-    .bind(input.id, input.workspaceId, input.name, input.description, TASK_SORT_STEP, input.projectId ?? null)
-    .first<TaskRow>();
+  const inserted = await insertStatement(db, input).first<TaskRow>();
   if (inserted) return { status: 'created', task: inserted };
   return classifyExistingTask(db, input.id, input.workspaceId);
 }
@@ -102,28 +135,63 @@ export function listOpenTasks(db: D1Database, workspaceId: string, query: { list
 /**
  * Task counts per list, in one statement. inbox: open, non-deleted tasks with no project. projects: every
  * active project (zeros included; deleted projects absent) with open = not completed and total = open +
- * completed, which is exactly the set a project delete removes. Story 8 adds fields.
+ * completed, which is exactly the set a project delete removes. Story 8: with the viewer's `date`, also
+ * today = open, non-deleted tasks due on or before it, not in a deleted project (SUM(CASE ...) in the same
+ * statement); without a date the field is omitted (the server clock is never used).
  */
-export async function countOpenTasks(db: D1Database, workspaceId: string): Promise<Counts> {
+export async function countOpenTasks(db: D1Database, workspaceId: string, date?: string): Promise<Counts> {
   const { results } = await db
     .prepare(
-      `SELECT p.id AS pid, COALESCE(SUM(t.id IS NOT NULL AND t.completed_at IS NULL), 0) AS open, COUNT(t.id) AS total
+      `SELECT p.id AS pid, COALESCE(SUM(t.id IS NOT NULL AND t.completed_at IS NULL), 0) AS open, COUNT(t.id) AS total, 0 AS today
        FROM projects p LEFT JOIN tasks t ON t.workspace_id = p.workspace_id AND t.project_id = p.id AND t.deleted = 0
        WHERE p.workspace_id = ?1 AND p.deleted = 0
        GROUP BY p.id
        UNION ALL
-       SELECT NULL AS pid, COUNT(*) AS open, COUNT(*) AS total
-       FROM tasks WHERE workspace_id = ?1 AND deleted = 0 AND completed_at IS NULL AND project_id IS NULL`,
+       SELECT NULL AS pid, COALESCE(SUM(t.project_id IS NULL), 0) AS open, COALESCE(SUM(t.project_id IS NULL), 0) AS total,
+         COALESCE(SUM(CASE WHEN ?2 IS NOT NULL AND t.due_date <= ?2
+           AND (t.project_id IS NULL OR EXISTS (SELECT 1 FROM projects dp WHERE dp.id = t.project_id AND dp.deleted = 0))
+           THEN 1 ELSE 0 END), 0) AS today
+       FROM tasks t WHERE t.workspace_id = ?1 AND t.deleted = 0 AND t.completed_at IS NULL`,
     )
-    .bind(workspaceId)
-    .all<{ pid: string | null; open: number; total: number }>();
+    .bind(workspaceId, date ?? null)
+    .all<{ pid: string | null; open: number; total: number; today: number }>();
   const projects: NonNullable<Counts['projects']> = {};
   let inbox = 0;
+  let today = 0;
   for (const row of results) {
-    if (row.pid === null) inbox = row.open;
-    else projects[row.pid] = { open: row.open, total: row.total };
+    if (row.pid === null) {
+      inbox = row.open;
+      today = row.today;
+    } else projects[row.pid] = { open: row.open, total: row.total };
   }
-  return { inbox, projects };
+  return date === undefined ? { inbox, projects } : { inbox, projects, today };
+}
+
+// ---------------------------------------------------------------- story 8: Today
+
+/** A task row with its (active) project's name and colour; both null for the Inbox. */
+export type TodayRow = TaskRow & { project_name: string | null; project_color: string | null };
+
+/**
+ * Today's rows for the viewer's `date`, in ONE statement: open non-deleted tasks due on or before it, and (with
+ * includeCompleted) completed ones due on it; tasks in a deleted project are excluded. Ordered by due date,
+ * then sort order. Dates compare as strings (zero-padded ISO). Uses idx_tasks_ws_due.
+ */
+export async function listDueOnOrBefore(db: D1Database, workspaceId: string, date: string, includeCompleted: boolean): Promise<TodayRow[]> {
+  const { results } = await db.prepare(dueOnOrBeforeSql(includeCompleted)).bind(workspaceId, date).all<TodayRow>();
+  return results;
+}
+
+/** listDueOnOrBefore's statement (?1 workspace id, ?2 date); exported so the query plan can be checked. */
+export function dueOnOrBeforeSql(includeCompleted: boolean): string {
+  const due = includeCompleted
+    ? '((t.completed_at IS NULL AND t.due_date <= ?2) OR (t.completed_at IS NOT NULL AND t.due_date = ?2))'
+    : 't.completed_at IS NULL AND t.due_date <= ?2';
+  return `SELECT t.*, p.name AS project_name, p.color AS project_color
+       FROM tasks t LEFT JOIN projects p ON p.id = t.project_id AND p.deleted = 0
+       WHERE t.workspace_id = ?1 AND t.deleted = 0 AND ${due}
+         AND (t.project_id IS NULL OR p.id IS NOT NULL)
+       ORDER BY t.due_date, t.sort_order, t.id`;
 }
 
 // ---------------------------------------------------------------- story 6: lifecycle and edit
@@ -201,7 +269,7 @@ export function restoreTask(db: D1Database, workspaceId: string, taskId: string,
 }
 
 /**
- * Edits name and/or description. A blank name keeps the previous one (resolvePatchedName). Nothing
+ * Edits name, description and/or (story 8) the due date. A blank name keeps the previous one (resolvePatchedName). Nothing
  * different: noop. Deleted (before or during): gone. Last write wins (no version precondition).
  */
 export async function updateTask(
@@ -216,13 +284,17 @@ export async function updateTask(
   if (current.deleted !== 0) return { kind: 'gone' };
   const name = resolvePatchedName(patch.name, current.name);
   const description = patch.description ?? current.description;
-  if (name === current.name && description === current.description) return { kind: 'noop', entity: rowToTask(current) };
+  // Story 8: undefined keeps the due date, null clears it.
+  const dueDate = patch.dueDate === undefined ? (current.due_date ?? null) : patch.dueDate;
+  if (name === current.name && description === current.description && dueDate === (current.due_date ?? null)) {
+    return { kind: 'noop', entity: rowToTask(current) };
+  }
   const row = await db
     .prepare(
-      `UPDATE tasks SET name = ?1, description = ?2, version = version + 1, updated_at = ?3
+      `UPDATE tasks SET name = ?1, description = ?2, due_date = ?6, version = version + 1, updated_at = ?3
        WHERE id = ?4 AND workspace_id = ?5 AND deleted = 0 RETURNING *`,
     )
-    .bind(name, description, now, taskId, workspaceId)
+    .bind(name, description, now, taskId, workspaceId, dueDate)
     .first<TaskRow>();
   return row ? { kind: 'changed', entity: rowToTask(row) } : { kind: 'gone' };
 }
@@ -280,4 +352,74 @@ export async function moveTask(
 /** Test-only (GET /test/tasks/:id/raw): the stored row whatever its state, for retention checks. */
 export function readRawTask(db: D1Database, taskId: string): Promise<TaskRow | null> {
   return db.prepare('SELECT * FROM tasks WHERE id = ?').bind(taskId).first<TaskRow>();
+}
+
+// ---------------------------------------------------------------- story 8: reschedule overdue and its undo
+// Ids travel as one JSON array bound to json_each (one parameter however many ids), so each operation is a
+// single db.batch: one D1 transaction, all or nothing.
+
+/** Eligible for reschedule: this workspace, not deleted, open, dated and due before `to`. */
+const RESCHEDULE_ELIGIBLE = `workspace_id = ?1 AND id IN (SELECT value FROM json_each(?2)) AND deleted = 0
+  AND completed_at IS NULL AND due_date IS NOT NULL AND due_date < ?3`;
+
+export type RescheduleResult = { changed: Array<{ row: TaskRow; previousDueDate: string }>; skipped: string[] };
+
+/**
+ * Moves exactly the listed tasks that are still overdue for `to` to `to` (prd.reschedule_scope): completed,
+ * deleted, no-longer-overdue and other workspaces' ids are skipped (without saying why). A SELECT of the previous
+ * dates and the guarded UPDATE run in one batch, so both see the same rows.
+ */
+export async function rescheduleOverdue(db: D1Database, workspaceId: string, ids: string[], to: string, now: string): Promise<RescheduleResult> {
+  const json = JSON.stringify(ids);
+  const [before, updated] = await db.batch<Record<string, unknown>>([
+    db.prepare(`SELECT id, due_date FROM tasks WHERE ${RESCHEDULE_ELIGIBLE}`).bind(workspaceId, json, to),
+    db
+      .prepare(`UPDATE tasks SET due_date = ?3, version = version + 1, updated_at = ?4 WHERE ${RESCHEDULE_ELIGIBLE} RETURNING *`)
+      .bind(workspaceId, json, to, now),
+  ]);
+  const previous = new Map(((before?.results ?? []) as Array<{ id: string; due_date: string }>).map((row) => [row.id, row.due_date]));
+  const rows = (updated?.results ?? []) as TaskRow[];
+  const changedIds = new Set(rows.map((row) => row.id));
+  return {
+    changed: rows.map((row) => ({ row, previousDueDate: previous.get(row.id)! })),
+    skipped: ids.filter((id) => !changedIds.has(id)),
+  };
+}
+
+export type RestoreDueDatesResult = { restored: Array<Pick<TaskRow, 'id' | 'due_date' | 'version'>>; skipped: Array<{ id: string; reason: 'changed' | 'gone' }> };
+
+/**
+ * Undo of a reschedule (prd.undo_reschedule): each task gets its previous date back only while it is still at
+ * the version the reschedule left (nobody changed it since) and not deleted. The rest are reported: changed (it
+ * is here, someone edited it) or gone (deleted, or not in this workspace). One UPDATE ... FROM json_each, then a
+ * SELECT to classify, in one batch.
+ */
+export async function restoreDueDates(
+  db: D1Database,
+  workspaceId: string,
+  items: Array<{ id: string; dueDate: string | null; expectedVersion: number }>,
+  now: string,
+): Promise<RestoreDueDatesResult> {
+  const json = JSON.stringify(items);
+  const [updated, after] = await db.batch<Record<string, unknown>>([
+    db
+      .prepare(
+        `UPDATE tasks SET due_date = json_extract(j.value, '$.dueDate'), version = tasks.version + 1, updated_at = ?3
+         FROM json_each(?2) AS j
+         WHERE tasks.id = json_extract(j.value, '$.id') AND tasks.workspace_id = ?1 AND tasks.deleted = 0
+           AND tasks.version = json_extract(j.value, '$.expectedVersion')
+         RETURNING id, due_date, version, deleted`,
+      )
+      .bind(workspaceId, json, now),
+    db
+      .prepare(`SELECT id, deleted FROM tasks WHERE workspace_id = ?1 AND id IN (SELECT json_extract(value, '$.id') FROM json_each(?2))`)
+      .bind(workspaceId, json),
+  ]);
+  const restored = (updated?.results ?? []) as Array<Pick<TaskRow, 'id' | 'due_date' | 'version'>>;
+  const restoredIds = new Set(restored.map((row) => row.id));
+  const present = new Map(((after?.results ?? []) as Array<{ id: string; deleted: number }>).map((row) => [row.id, row.deleted === 0]));
+  const skipped = items
+    .filter((item) => !restoredIds.has(item.id))
+    .map((item) => ({ id: item.id, reason: present.get(item.id) ? ('changed' as const) : ('gone' as const) }));
+  return { restored, skipped };
 }

@@ -99,6 +99,7 @@ describe('TC-U07 orderTasks', () => {
     version: 1,
     createdAt: '',
     updatedAt: '',
+    dueDate: null,
   });
 
   it('open by sortOrder, then completed by completedAt desc; ties by id; stable and immutable', () => {

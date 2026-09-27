@@ -1,8 +1,10 @@
 import { Hono } from 'hono';
 import type { AppEnv } from '../app.ts';
 import { DEFAULT_WORKSPACE_NAME, MAX_REMEMBERED_WORKSPACES } from '@todoodle/shared/limits';
-import { toPublicWorkspace } from '@todoodle/shared/schemas';
-import { readRawTask } from '../db/tasks.ts';
+import { CreateProjectInputSchema, CreateTaskInputSchema, toPublicWorkspace } from '@todoodle/shared/schemas';
+import { z } from 'zod';
+import { deleteProjectBatch, insertProjectIdempotent } from '../db/projects.ts';
+import { insertTasksForSeed, readRawTask, rowToTask } from '../db/tasks.ts';
 import { insertWorkspace } from '../db/workspaces.ts';
 import { type RememberedEntry, serializeRememberedCookie } from '../lib/cookie.ts';
 import { generateSecret, hashSecret } from '../lib/crypto.ts';
@@ -88,6 +90,56 @@ testRoutes.post('/sql', async (c) => {
   if (typeof body.sql !== 'string' || body.sql.trim() === '') return errorResponse('validation', 400);
   await c.env.DB.prepare(body.sql).run();
   return c.json({ ok: true });
+});
+
+const SeedBody = z.object({
+  workspaceId: z.string().min(1),
+  projects: z.array(CreateProjectInputSchema.extend({ deleted: z.boolean().optional() })).default([]),
+  tasks: z
+    .array(CreateTaskInputSchema.extend({ completedAt: z.string().nullable().optional(), deleted: z.boolean().optional() }))
+    .default([]),
+});
+
+/**
+ * Story 8: seeds realistic fixtures through the same db modules the API uses (not hand-written rows): projects
+ * (the create statement; `deleted` deletes one with its tasks exactly as a project delete does) and tasks (the
+ * quick-add insert, with dueDate), then marks tasks completed (`completedAt`) or soft-deleted (`deleted`).
+ * Body: { workspaceId, projects?: [{id, name, color, deleted?}], tasks?: [{id, name, description?, projectId?,
+ * dueDate?, completedAt?, deleted?}] }. Tasks are inserted in batches, so 5,000 of them stay quick.
+ */
+testRoutes.post('/seed', async (c) => {
+  const parsed = SeedBody.safeParse(await c.req.json().catch(() => null));
+  if (!parsed.success) return errorResponse('validation', 400);
+  const { workspaceId, projects, tasks } = parsed.data;
+  const db = c.env.DB;
+  for (const project of projects) {
+    const result = await insertProjectIdempotent(db, { id: project.id, workspaceId, name: project.name, color: project.color });
+    if (result.status !== 'created' && result.status !== 'replayed') return errorResponse("validation", 409);
+  }
+  const rows = await insertTasksForSeed(
+    db,
+    tasks.map((task) => ({ ...task, workspaceId })),
+  );
+  const states = tasks.filter((task) => task.completedAt || task.deleted);
+  if (states.length > 0) {
+    await db.batch(
+      states.map((task) =>
+        db
+          .prepare(
+            `UPDATE tasks SET completed_at = COALESCE(?1, completed_at),
+               deleted = CASE WHEN ?2 THEN 1 ELSE deleted END, deleted_at = CASE WHEN ?2 THEN datetime('now') ELSE deleted_at END
+             WHERE id = ?3 AND workspace_id = ?4`,
+          )
+          .bind(task.completedAt ?? null, task.deleted ? 1 : 0, task.id, workspaceId),
+      ),
+    );
+  }
+  const now = new Date().toISOString();
+  for (const project of projects.filter((p) => p.deleted)) {
+    const batchId = [...crypto.getRandomValues(new Uint8Array(16))].map((b) => b.toString(16).padStart(2, '0')).join('');
+    await deleteProjectBatch(db, workspaceId, project.id, batchId, now);
+  }
+  return c.json({ tasks: rows.map(rowToTask) }, 201);
 });
 
 testRoutes.get('/throw', () => {

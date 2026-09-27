@@ -1,0 +1,9 @@
+/*
+ * Story 8 (architecture §12): off-screen rows skip layout and paint. On EACH ROW, never on a section or list
+ * container (a hidden container would hide all its rows from find-in-page and focus at once). The intrinsic
+ * height is TASK_ROW_INTRINSIC_HEIGHT_PX (44px, --task-row-intrinsic-height from constants.css).
+ */
+.row-cv {
+  content-visibility: auto;
+  contain-intrinsic-size: auto var(--task-row-intrinsic-height);
+}

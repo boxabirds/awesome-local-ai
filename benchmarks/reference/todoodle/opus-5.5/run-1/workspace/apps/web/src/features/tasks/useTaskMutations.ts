@@ -19,6 +19,7 @@ import {
   updateInCache,
 } from './cacheOps';
 import { moveCountsDelta, adjustCounts as applyCountsDelta } from '@/features/projects/projectCache';
+import { findInTodayCaches, mirrorTaskToToday } from '@/features/today/todayCache';
 import { endBusy, startBusy } from './taskBusy';
 import { type LocalTask, adjustCount } from './taskCache';
 
@@ -88,12 +89,18 @@ export function createTaskActions(queryClient: QueryClient, workspaceId: string)
     }
   }
 
+  /** The task from any cached list, or (story 8) from a cached Today when no list has it. */
   function find(id: string): LocalTask | undefined {
-    return findTask(
-      snapshot().map(([, list]) => list),
-      id,
+    return (
+      findTask(
+        snapshot().map(([, list]) => list),
+        id,
+      ) ?? findInTodayCaches(queryClient, workspaceId, id)
     );
   }
+
+  /** Story 8: the task's new state in every cached Today (null: it left), and the Today count. */
+  const mirror = (id: string, next: LocalTask | null, previous: LocalTask | null) => mirrorTaskToToday(queryClient, workspaceId, id, next, previous);
 
   /** Open-count delta for the task's list (story 7: the Inbox or its project), and the project's total. */
   function adjustCounts(delta: number, task: Pick<LocalTask, 'projectId'> | undefined, totalDelta = 0): void {
@@ -117,6 +124,7 @@ export function createTaskActions(queryClient: QueryClient, workspaceId: string)
       rollback: () => rollback(before, id),
     });
     if (gone) {
+      mirror(id, null, null);
       void queryClient.invalidateQueries({ queryKey: queryKeys.counts(workspaceId) });
       return;
     }
@@ -143,22 +151,28 @@ export function createTaskActions(queryClient: QueryClient, workspaceId: string)
         const before = snapshot();
         const animate = COMPLETE_ANIMATION_MS > 0 && !prefersReducedMotion();
         const completedAt = new Date().toISOString();
+        const { leaving: _leaving, ...settled } = task;
+        const done: LocalTask = { ...settled, completedAt };
         const leave = () => {
           leavingTimers.delete(id);
           hooks.beforeRemoval(id);
           writeLists((list, shape) => finishLeaving(list, id, shape));
+          mirror(id, done, { ...done, leaving: true });
         };
         if (!animate) hooks.beforeRemoval(id);
         writeLists((list, shape) => completeInCache(list, id, completedAt, { ...shape, leaving: animate }));
+        mirror(id, animate ? { ...done, leaving: true } : done, task);
         adjustCounts(-1, task);
         if (animate) leavingTimers.set(id, setTimeout(leave, COMPLETE_ANIMATION_MS));
         try {
           const saved = await api.completeTask(workspaceId, id);
           writeLists((list, shape) => updateInCache(list, saved, shape));
+          mirror(id, leavingTimers.has(id) ? { ...saved, leaving: true } : saved, done);
           hooks.offerUndo('completed', () => actions.undoComplete(id));
         } catch (error) {
           stopLeaving(id);
           adjustCounts(1, task);
+          mirror(id, task, done);
           fail(error, id, before);
           hooks.afterRollback(id);
         }
@@ -176,12 +190,16 @@ export function createTaskActions(queryClient: QueryClient, workspaceId: string)
         const before = snapshot();
         hooks.beforeRemoval(id);
         writeLists((list, shape) => reopenInCache(list, task, shape), task.projectId ?? null);
+        const reopened: LocalTask = { ...task, completedAt: null, leaving: false };
+        mirror(id, reopened, task);
         adjustCounts(1, task);
         try {
           const saved = await api.reopenTask(workspaceId, id);
           writeLists((list, shape) => updateInCache(list, saved, shape));
+          mirror(id, saved, reopened);
         } catch (error) {
           adjustCounts(-1, task);
+          mirror(id, task, reopened);
           fail(error, id, before);
           hooks.afterRollback(id);
         }
@@ -201,13 +219,18 @@ export function createTaskActions(queryClient: QueryClient, workspaceId: string)
           ...task,
           name: resolvePatchedName(patch.name, task.name),
           description: patch.description === undefined ? task.description : patch.description.trim(),
+          // Story 8: undefined keeps the due date, null clears it.
+          dueDate: patch.dueDate === undefined ? (task.dueDate ?? null) : patch.dueDate,
         };
         writeLists((list, shape) => updateInCache(list, optimistic, shape));
+        mirror(id, optimistic, task);
         try {
           const saved = await api.updateTask(workspaceId, id, patch);
           writeLists((list, shape) => updateInCache(list, saved, shape));
+          mirror(id, saved, optimistic);
           return saved;
         } catch (error) {
+          mirror(id, task, optimistic);
           fail(error, id, before);
           throw error;
         }
@@ -228,12 +251,14 @@ export function createTaskActions(queryClient: QueryClient, workspaceId: string)
         const before = snapshot();
         const wasOpen = task.completedAt === null;
         writeLists((list) => removeFromCache(list, id));
+        mirror(id, null, task);
         adjustCounts(wasOpen ? -1 : 0, task, -1);
         try {
           await api.deleteTask(workspaceId, id);
           hooks.offerUndo('deleted', () => actions.undoDelete(id));
         } catch (error) {
           adjustCounts(wasOpen ? 1 : 0, task, 1);
+          mirror(id, task, null);
           fail(error, id, before);
           hooks.afterRollback(id);
         }
@@ -245,8 +270,10 @@ export function createTaskActions(queryClient: QueryClient, workspaceId: string)
     async undoComplete(id) {
       const saved = await api.reopenTask(workspaceId, id);
       stopLeaving(id);
-      const wasOpen = find(id)?.completedAt === null;
+      const cached = find(id);
+      const wasOpen = cached?.completedAt === null;
       writeLists((list, shape) => placeTask(list, saved, shape), saved.projectId);
+      mirror(id, saved, cached ?? null);
       if (!wasOpen) adjustCounts(1, saved);
       return saved;
     },
@@ -267,13 +294,16 @@ export function createTaskActions(queryClient: QueryClient, workspaceId: string)
         const moved: LocalTask = { ...settled, projectId, sortOrder: lastSort + TASK_SORT_STEP };
         writeLists((list) => removeFromCache(list, id));
         writeLists((list, shape) => placeTask(list, moved, shape), projectId);
+        mirror(id, moved, task);
         const delta = moveCountsDelta(task, projectId);
         queryClient.setQueryData<Counts>(queryKeys.counts(workspaceId), (counts) => applyCountsDelta(counts, delta));
         try {
           const saved = await api.moveTask(workspaceId, id, projectId);
           writeLists((list) => removeFromCache(list, id));
           writeLists((list, shape) => placeTask(list, saved, shape), saved.projectId);
+          mirror(id, saved, moved);
         } catch (error) {
+          mirror(id, task, moved);
           queryClient.setQueryData<Counts>(queryKeys.counts(workspaceId), (counts) =>
             applyCountsDelta(counts, moveCountsDelta({ ...task, projectId }, task.projectId ?? null)),
           );
@@ -289,6 +319,7 @@ export function createTaskActions(queryClient: QueryClient, workspaceId: string)
       const saved = await api.restoreTask(workspaceId, id);
       const cached = find(id);
       writeLists((list, shape) => placeTask(list, saved, shape), saved.projectId);
+      mirror(id, saved, cached ?? null);
       if (!cached) adjustCounts(saved.completedAt === null ? 1 : 0, saved, 1);
       else if (saved.completedAt === null && cached.completedAt !== null) adjustCounts(1, saved);
       return saved;

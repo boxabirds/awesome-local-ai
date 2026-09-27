@@ -173,6 +173,9 @@ test.describe('story 7: projects', () => {
   test('W7 / TC-71 keyboard only: create with + and Enter, rename and delete from the menu; focus returns to the trigger', async ({ page }) => {
     await newInbox(page);
     await sidebarInbox(page).focus();
+    // Story 8 added the sidebar's Today entry (a link) after the Inbox entry.
+    await page.keyboard.press('Tab');
+    await expect(lists(page).getByRole('link', { name: /^Today/ })).toBeFocused();
     await page.keyboard.press('Tab');
     await expect(lists(page).getByRole('button', { name: 'Add project' })).toBeFocused();
     await page.keyboard.press('Enter');

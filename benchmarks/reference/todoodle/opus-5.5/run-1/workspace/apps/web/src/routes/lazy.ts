@@ -23,3 +23,19 @@ export function preloadProjectView(): Promise<typeof import('./ProjectView.tsx')
   }
   return projectView;
 }
+
+// ---------------------------------------------------------------- story 8: the Today view chunk
+
+let todayView: Promise<typeof import('@/features/today/TodayView.tsx')> | null = null;
+
+/**
+ * The Today route chunk (bundle-dynamic-imports), preloaded by the sidebar's Today entry on hover and focus.
+ * Idempotent; a failed load is forgotten so the next attempt retries.
+ */
+export function preloadTodayView(): Promise<typeof import('@/features/today/TodayView.tsx')> {
+  todayView ??= import('@/features/today/TodayView.tsx').catch((error: unknown) => {
+    todayView = null;
+    throw error;
+  });
+  return todayView;
+}
