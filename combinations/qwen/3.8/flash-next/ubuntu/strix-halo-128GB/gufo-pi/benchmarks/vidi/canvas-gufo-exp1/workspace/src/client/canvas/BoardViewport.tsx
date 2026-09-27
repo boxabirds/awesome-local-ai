@@ -12,10 +12,17 @@ import {
   useRef,
   useState,
   type CSSProperties,
+  type JSX,
   type PointerEvent as ReactPointerEvent,
+  type MouseEvent as ReactMouseEvent,
   type ReactNode,
 } from 'react';
-import { GRID_SPACING_WORLD, WHEEL_LINE_PIXELS, WHEEL_PAGE_PIXELS } from '../../shared/config';
+import {
+  GRID_SPACING_WORLD,
+  WHEEL_LINE_PIXELS,
+  WHEEL_PAGE_PIXELS,
+  DRAG_THRESHOLD_PX,
+} from '../../shared/config';
 import type { Camera, Point } from './camera';
 import type { CameraControls } from './useCamera';
 
@@ -23,6 +30,13 @@ export interface BoardViewportProps {
   camera: Camera;
   controls: CameraControls;
   children?: ReactNode;
+  /**
+   * Double-click on bare board space (never on a note, which stops
+   * propagation): the app creates a sticky note at the world point.
+   */
+  onEmptyDblClick?(point: Point): void;
+  /** A bare-board pointer press-and-release without panning (clears selection). */
+  onEmptyClick?(point: Point): void;
 }
 
 /** `WheelEvent.deltaMode` values (spelled out so they also exist in jsdom). */
@@ -61,9 +75,16 @@ const isTextEntry = (target: EventTarget | null): boolean => {
   );
 };
 
-export function BoardViewport({ camera, controls, children }: BoardViewportProps): JSX.Element {
+export function BoardViewport({
+  camera,
+  controls,
+  children,
+  onEmptyDblClick,
+  onEmptyClick,
+}: BoardViewportProps): JSX.Element {
   const viewportRef = useRef<HTMLDivElement>(null);
   const [mode, setMode] = useState<'idle' | 'panning'>('idle');
+  const panStartRef = useRef<Point | null>(null);
 
   // Keep the latest controls reachable from listeners installed once.
   const controlsRef = useRef(controls);
@@ -109,7 +130,12 @@ export function BoardViewport({ camera, controls, children }: BoardViewportProps
       const scale = gesture.scale || 1;
       const factor = gestureScale === 0 ? 1 : scale / gestureScale;
       gestureScale = scale;
-      if (factor !== 1) controlsRef.current.zoomAtPoint(pointOf(gesture), factor);
+      if (factor !== 1) {
+        controlsRef.current.zoomAtPoint(
+          { x: gesture.clientX ?? 0, y: gesture.clientY ?? 0 },
+          factor,
+        );
+      }
     };
     const onGestureEnd = (event: Event): void => {
       event.preventDefault();
@@ -152,6 +178,7 @@ export function BoardViewport({ camera, controls, children }: BoardViewportProps
     if (!isBareBoard(event.target)) return;
     event.preventDefault();
     event.currentTarget.setPointerCapture?.(event.pointerId);
+    panStartRef.current = pointOf(event);
     controlsRef.current.beginPan(pointOf(event));
     setMode('panning');
   };
@@ -168,7 +195,20 @@ export function BoardViewport({ camera, controls, children }: BoardViewportProps
     if (event.currentTarget.hasPointerCapture?.(event.pointerId)) {
       event.currentTarget.releasePointerCapture?.(event.pointerId);
     }
+    // A press-and-release without any movement is a click, not a pan: the app
+    // clears the selection over the bare board.
+    const start = panStartRef.current;
+    panStartRef.current = null;
+    const point = pointOf(event);
+    if (start && Math.hypot(point.x - start.x, point.y - start.y) < DRAG_THRESHOLD_PX) {
+      onEmptyClick?.(point);
+    }
     setMode('idle');
+  };
+
+  const onDoubleClick = (event: ReactMouseEvent<HTMLDivElement>): void => {
+    if (!isBareBoard(event.target)) return;
+    onEmptyDblClick?.(pointOf(event));
   };
 
   const spacingPx = GRID_SPACING_WORLD * camera.zoom;
@@ -196,6 +236,7 @@ export function BoardViewport({ camera, controls, children }: BoardViewportProps
       onPointerUp={endDrag}
       onPointerCancel={endDrag}
       onLostPointerCapture={endDrag}
+      onDoubleClick={onDoubleClick}
     >
       <div className="board-grid" data-testid="board-grid" data-board-surface="grid" style={gridStyle} />
       <div className="board-world" data-testid="board-world" style={worldStyle}>
