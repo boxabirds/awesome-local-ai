@@ -1,0 +1,178 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Attempt review</title>
+<style>
+:root { --bg:#fbfbf9; --fg:#1d1d1b; --muted:#6b6b66; --line:#e3e2dc; --card:#ffffff;
+        --pass:#1f7a3f; --fail:#b3261e; --skip:#9a6700; --accent:#2f5bd3; --chip:#efeee8; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+        --bg:#161615; --fg:#ecebe6; --muted:#9b9a94; --line:#2d2d2a; --card:#1e1e1c;
+        --pass:#5cc47f; --fail:#f07167; --skip:#e3b341; --accent:#8aa8ff; --chip:#2a2a27; } }
+* { box-sizing: border-box; }
+body { margin:0; background:var(--bg); color:var(--fg); font:14px/1.45 -apple-system, system-ui, sans-serif; }
+header { position:sticky; top:0; z-index:2; background:var(--bg); border-bottom:1px solid var(--line);
+         display:flex; gap:16px; align-items:center; padding:8px 16px; flex-wrap:wrap; }
+header b { font-size:15px; }
+.progress { color:var(--muted); }
+.bar { flex:1; min-width:120px; height:6px; background:var(--chip); border-radius:3px; overflow:hidden; display:flex; }
+.bar span { display:block; height:100%; }
+.filters button, .verdicts button { border:1px solid var(--line); background:var(--card); color:var(--fg);
+         border-radius:6px; padding:3px 9px; cursor:pointer; font:inherit; }
+.filters button.on { border-color:var(--accent); color:var(--accent); }
+main { max-width:1400px; margin:0 auto; padding:12px 16px 160px; }
+h1 { font-size:18px; margin:4px 0 2px; }
+.meta { color:var(--muted); margin-bottom:10px; }
+.chips { display:flex; gap:6px; flex-wrap:wrap; margin:6px 0 12px; }
+.chip { background:var(--chip); border-radius:10px; padding:1px 9px; font-size:12px; }
+.chip.bad { color:var(--fail); } .chip.good { color:var(--pass); }
+.grid { display:grid; grid-template-columns: 1fr 1fr; gap:12px; }
+@media (max-width: 900px) { .grid { grid-template-columns: 1fr; } }
+section { background:var(--card); border:1px solid var(--line); border-radius:8px; padding:10px 12px; min-width:0; }
+section h2 { font-size:12px; text-transform:uppercase; letter-spacing:.04em; color:var(--muted); margin:0 0 6px; }
+ol, ul { margin:0; padding-left:20px; }
+pre { white-space:pre-wrap; word-break:break-word; margin:0; font:12px/1.4 ui-monospace, Menlo, monospace; max-height:340px; overflow:auto; }
+.claims { white-space:pre-wrap; max-height:340px; overflow:auto; }
+.fail-list li { margin-bottom:4px; } .fail-list .err { color:var(--muted); font-size:12px; }
+.tl { display:none; } .tl.open { display:block; }
+.tl div { font:12px/1.5 ui-monospace, Menlo, monospace; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.tl .compaction { color:var(--skip); } .tl .error { color:var(--fail); } .tl .nudge { color:var(--accent); }
+footer { position:fixed; bottom:0; left:0; right:0; background:var(--bg); border-top:1px solid var(--line); padding:8px 16px; }
+footer .row { max-width:1400px; margin:0 auto; display:flex; gap:10px; align-items:stretch; }
+textarea { flex:1; min-height:64px; resize:vertical; background:var(--card); color:var(--fg); border:1px solid var(--line);
+           border-radius:6px; padding:6px 8px; font:inherit; }
+.verdicts { display:flex; flex-direction:column; gap:4px; }
+.verdicts button.pass.on { background:var(--pass); color:#fff; } .verdicts button.fail.on { background:var(--fail); color:#fff; }
+.verdicts button.skip.on { background:var(--skip); color:#fff; }
+.keys { color:var(--muted); font-size:12px; max-width:1400px; margin:4px auto 0; }
+.saved { color:var(--muted); font-size:12px; }
+kbd { background:var(--chip); border-radius:3px; padding:0 4px; font:11px ui-monospace, monospace; }
+</style>
+</head>
+<body>
+<header>
+  <b>Attempt review</b>
+  <span class="progress" id="progress"></span>
+  <div class="bar" id="bar"></div>
+  <span class="filters" id="filters">
+    <button data-f="all">1 all</button><button data-f="todo">2 unlabelled</button>
+    <button data-f="skip">3 skipped</button><button data-f="fail">4 failed</button>
+  </span>
+  <span class="saved" id="saved"></span>
+</header>
+<main id="main">Loading…</main>
+<footer>
+  <div class="row">
+    <textarea id="notes" placeholder="n: notes: what went wrong, a question, a scope doubt… (Esc to leave)"></textarea>
+    <div class="verdicts">
+      <button class="pass" data-v="pass"><kbd>p</kbd> pass</button>
+      <button class="fail" data-v="fail"><kbd>f</kbd> fail</button>
+      <button class="skip" data-v="skip"><kbd>s</kbd> skip</button>
+    </div>
+  </div>
+  <div class="keys"><kbd>p</kbd>/<kbd>f</kbd>/<kbd>s</kbd> label and go on · <kbd>n</kbd> notes · <kbd>j</kbd>/<kbd>k</kbd> or <kbd>←</kbd>/<kbd>→</kbd> move · <kbd>t</kbd> timeline · <kbd>1</kbd>–<kbd>4</kbd> filter</div>
+</footer>
+<script>
+let index = [], view = [], pos = 0, filter = "todo", current = null;
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+
+function applyFilter(keepId) {
+  view = index.map((a, i) => ({...a, i})).filter(a =>
+    filter === "all" || (filter === "todo" && !a.verdict) || a.verdict === filter);
+  pos = Math.max(0, keepId ? view.findIndex(a => a.id === keepId) : 0);
+  document.querySelectorAll("#filters button").forEach(b => b.classList.toggle("on", b.dataset.f === filter));
+}
+
+function renderProgress() {
+  const n = index.length, c = v => index.filter(a => a.verdict === v).length;
+  const p = c("pass"), f = c("fail"), s = c("skip"), done = p + f + s;
+  $("progress").textContent = `${done} of ${n} labelled · ${p} pass · ${f} fail · ${s} skip` +
+    (view.length ? ` · showing ${pos + 1} of ${view.length}` : " · nothing in this filter");
+  const w = x => `${(100 * x / n).toFixed(2)}%`;
+  $("bar").innerHTML = `<span style="width:${w(p)};background:var(--pass)"></span><span style="width:${w(f)};background:var(--fail)"></span><span style="width:${w(s)};background:var(--skip)"></span>`;
+}
+
+async function show() {
+  renderProgress();
+  if (!view.length) { $("main").innerHTML = "<p>Nothing to show in this filter.</p>"; current = null; return; }
+  const meta = view[pos];
+  const a = await (await fetch(`/api/attempt/${meta.i}`)).json();
+  current = a;
+  const c = a.completion, b = a.behaviour;
+  const own = b.own_total ? `${b.own_passed}/${b.own_total}` : "n/a";
+  const chip = (t, cls = "") => `<span class="chip ${cls}">${esc(t)}</span>`;
+  const tl = a.timeline.map(e => `<div class="${e.kind}">${e.min ?? "·"}m ${e.count > 1 ? `×${e.count} ` : ""}${esc(e.count > 1 ? e.last : e.text)}</div>`).join("");
+  $("main").innerHTML = `
+    <h1>Story ${a.story}: ${esc(a.title)}</h1>
+    <div class="meta">${esc(a.stack)} · ${esc(a.run)}</div>
+    <div class="chips">
+      ${chip(`behaviour ${own} (cumulative ${b.cumulative})`, b.own_total && b.own_passed === b.own_total ? "good" : "bad")}
+      ${chip(`self-check ${a.self_check_green ? "green" : "red"}`, a.self_check_green ? "good" : "bad")}
+      ${chip(`${c.status || "?"}${c.ended_by ? " · ended by " + c.ended_by : ""}`, c.status === "DONE" ? "" : "bad")}
+      ${chip(`${c.agent_minutes} min · ${c.tool_calls ?? "?"} calls`)}
+      ${c.compactions ? chip(`${c.compactions} compactions`) : ""}
+      ${c.nudges ? chip(`${c.nudges} nudges`, "bad") : ""}
+      ${c.resumes ? chip(`${c.resumes} resumes`, "bad") : ""}
+      ${c.ended_in_error ? chip("ended in error", "bad") : ""}
+    </div>
+    <div class="grid">
+      <section><h2>Asked: tasks</h2><ol>${a.tasks.map(t => `<li>${esc(t.title)} <span class="chip">${esc(t.type || "")}</span>${t.status && t.status !== "verified" ? ` <span class="chip ${["not-started", "missing", "failed"].includes(t.status) ? "bad" : ""}">${esc(t.status)}</span>` : ""}</li>`).join("") || "<li>(no task list recorded)</li>"}</ol></section>
+      <section><h2>Behaviour eval: failed held-out tests</h2>${b.failed.length ? `<ul class="fail-list">${b.failed.map(f => `<li>${esc(f.title)}<div class="err">${esc(f.error)}</div></li>`).join("")}</ul>` : "<p>None failed.</p>"}</section>
+      <section><h2>Agent's final claim</h2><div class="claims">${esc(a.claims) || "(none)"}</div></section>
+      <section><h2>Commits</h2><pre>${esc(a.commits.join("\n\n")) || "(no commit for this story)"}</pre></section>
+    </div>
+    <section style="margin-top:12px"><h2><a href="#" id="tltoggle">Timeline (${a.timeline.length} entries) · t</a></h2><div class="tl" id="tl">${tl}</div></section>`;
+  $("tltoggle").onclick = e => { e.preventDefault(); $("tl").classList.toggle("open"); };
+  $("notes").value = meta.notes || "";
+  document.querySelectorAll(".verdicts button").forEach(x => x.classList.toggle("on", x.dataset.v === meta.verdict));
+  window.scrollTo(0, 0);
+}
+
+async function save(verdict) {
+  if (!current) return;
+  const meta = view[pos];
+  const notes = $("notes").value;
+  const r = await fetch("/api/label", {method: "POST", headers: {"Content-Type": "application/json"},
+    body: JSON.stringify({attempt: current.id, verdict, notes})});
+  if (!r.ok) { $("saved").textContent = "NOT SAVED: " + (await r.text()); return; }
+  const row = index[meta.i]; row.verdict = verdict; row.notes = notes;
+  $("saved").textContent = `saved ${new Date().toLocaleTimeString()}`;
+  // Go on to the next attempt. Re-filtering may drop the one just labelled (e.g. from "unlabelled"),
+  // in which case the next one has slid into the same position.
+  const was = pos, stillHere = view.length;
+  applyFilter();
+  pos = view.length < stillHere ? Math.min(was, view.length - 1) : Math.min(was + 1, view.length - 1);
+  pos = Math.max(pos, 0);
+  show();
+}
+
+function move(d) { if (!view.length) return; persistNotes(); pos = Math.min(Math.max(pos + d, 0), view.length - 1); show(); }
+function persistNotes() {  // keep a note typed without a verdict
+  if (!current) return;
+  const meta = view[pos], notes = $("notes").value;
+  if (notes !== (meta.notes || "")) {
+    fetch("/api/label", {method: "POST", headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({attempt: current.id, verdict: meta.verdict || "", notes})});
+    index[meta.i].notes = notes;
+  }
+}
+
+document.addEventListener("keydown", e => {
+  if (e.target === $("notes")) { if (e.key === "Escape") { $("notes").blur(); persistNotes(); } return; }
+  if (e.metaKey || e.ctrlKey || e.altKey) return;
+  const k = e.key;
+  if (k === "p") save("pass"); else if (k === "f") save("fail"); else if (k === "s") save("skip");
+  else if (k === "n") { e.preventDefault(); $("notes").focus(); }
+  else if (k === "j" || k === "ArrowRight") move(1); else if (k === "k" || k === "ArrowLeft") move(-1);
+  else if (k === "t") $("tl")?.classList.toggle("open");
+  else if ("1234".includes(k)) { persistNotes(); filter = ["all", "todo", "skip", "fail"][+k - 1]; applyFilter(); show(); }
+});
+document.querySelectorAll(".verdicts button").forEach(b => b.onclick = () => save(b.dataset.v));
+document.querySelectorAll("#filters button").forEach(b => b.onclick = () => { persistNotes(); filter = b.dataset.f; applyFilter(); show(); });
+
+(async () => { index = await (await fetch("/api/state")).json(); applyFilter(); show(); })();
+</script>
+</body>
+</html>
