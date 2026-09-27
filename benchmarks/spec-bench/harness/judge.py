@@ -86,6 +86,17 @@ def scorer_fault(accept: Path) -> str | None:
     return d.get("harness_fault") or gates.harness_fault(tests, d.get("runner_tail") or "")
 
 
+def scored_commit(record: Path) -> str:
+    """The commit the run's final held-out score was taken on: the last story's recorded commit."""
+    d = json.loads((record / "metrics.json").read_text())
+    st = d["stories"]
+    stories = st.values() if isinstance(st, dict) else st
+    commits = [s["commit"] for s in stories if s.get("commit")]
+    if not commits:
+        raise SystemExit(f"{record}: no story commit recorded")
+    return commits[-1]
+
+
 def fetch_workspace(record: str, node: str | None, dest: Path) -> None:
     """A fresh clone of the run's final workspace, from this machine or over ssh."""
     work = f".vidi-bench/work/{work_dir_name(record)}/workspace"
@@ -209,6 +220,9 @@ def main() -> None:
         ws = src / label
         print(f"{label}: workspace from {node or 'this machine'}")
         fetch_workspace(record, node or None, ws)
+        commit = scored_commit(rec)
+        if subprocess.run(["git", "-C", str(ws), "checkout", "-q", commit]).returncode != 0:
+            raise SystemExit(f"{label}: the workspace has no commit {commit}, the one its final score was taken on")
         claims_dir = src / f"{label}-claims"
         print(f"{label}: claims for stories {' '.join(claims.write_claims(rec, claims_dir))}")
         specs.append(f"{label}={ws}:{claims_dir}:{last_accept(rec)}")
