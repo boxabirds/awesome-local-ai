@@ -1,3 +1,174 @@
+commit b522e4203bc7d97e285ab426b96a14d5d107e827
+vidi-agent  Sun Sep 27 13:41:43 2026 +0100
+
+    story 3: Get back to my workspaces from this browser without hunting for the link
+
+
+ NOTES.md | 83 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 83 insertions(+)
+commit ae3e4b411779fe800a3b7b74f0a489bbc95bd26f
+vidi-agent  Sun Sep 27 13:40:05 2026 +0100
+
+    story 3 task 12: E2E tests: returning, continuing, switching, forgetting safely, recovering from bad links, and touch use in real browsers
+
+
+ apps/web/src/App.tsx                               |  12 +-
+ apps/web/src/features/remembered/RememberedRow.tsx |   3 +
+ .../features/workspace/preloadWorkspaceRoute.ts    |  22 ++-
+ apps/web/src/main.tsx                              |  10 +-
+ e2e/remembered-helpers.ts                          |  67 +++++++
+ e2e/remembered.spec.ts                             | 211 +++++++++++++++++++++
+ e2e/remembered.touch.spec.ts                       |  31 +++
+ playwright.config.ts                               |   6 +-
+ 8 files changed, 354 insertions(+), 8 deletions(-)
+commit 22b55fcc3b646e249d5149dd41ff605afb663d07
+vidi-agent  Sun Sep 27 13:35:48 2026 +0100
+
+    story 3 task 11: UI component tests: Home, Continue, empty/loading states, forget dialog + unsaved warning, switcher, NotFound recovery, instant name, touch, lazy loading
+
+
+ apps/web/package.json                         |   1 +
+ apps/web/test/fixtures.ts                     |  35 +++-
+ apps/web/test/render.tsx                      |  51 ++++-
+ apps/web/test/setup.ts                        |  16 +-
+ apps/web/test/ui/forgetDialog.test.tsx        | 204 +++++++++++++++++++
+ apps/web/test/ui/forgetDialogLoading.test.tsx |  36 ++++
+ apps/web/test/ui/home.test.tsx                | 270 ++++++++++++++++++++++++++
+ apps/web/test/ui/rememberedRecovery.test.tsx  | 151 ++++++++++++++
+ apps/web/test/ui/switcher.test.tsx            | 159 +++++++++++++++
+ bun.lock                                      |   3 +
+ 10 files changed, 918 insertions(+), 8 deletions(-)
+commit e0e3df08d321974e11af7ddaf228153ba6ad4662
+vidi-agent  Sun Sep 27 13:30:56 2026 +0100
+
+    story 3 task 10: Integration tests: remembered list/touch/forget routes against real D1 and cookies
+
+
+ apps/api/test/integration/remembered.test.ts | 292 +++++++++++++++++++++++++++
+ apps/api/test/workspace-helpers.ts           |  11 +
+ 2 files changed, 303 insertions(+)
+commit 75b8fef3d49d9bc1c81d68e397284a26cc1e491f
+vidi-agent  Sun Sep 27 13:29:50 2026 +0100
+
+    story 3 task 9: Unit tests: remembered ordering, cap, forget, projection, cookie attributes, relative time
+
+
+ apps/api/test/unit/remembered.test.ts | 165 ++++++++++++++++++++++++++++++++++
+ apps/web/test/unit/remembered.test.ts |  99 ++++++++++++++++++++
+ 2 files changed, 264 insertions(+)
+commit 06de6973819892179b8da24d18d2d9c81e70e24c
+vidi-agent  Sun Sep 27 13:29:00 2026 +0100
+
+    story 3 task 13: Recover from bad links via remembered workspaces, and show the workspace name instantly when opening from the list
+
+
+ apps/web/src/App.tsx                              |  4 +-
+ apps/web/src/features/workspace/workspaceQuery.ts | 16 ++++++-
+ apps/web/src/routes/NotFoundPage.tsx              | 10 +++++
+ apps/web/src/routes/Workspace.tsx                 | 52 +++++++++++++++++------
+ 4 files changed, 65 insertions(+), 17 deletions(-)
+commit 61fcab2cd617c5f0bb94cbe845ce2ae45fc3877e
+vidi-agent  Sun Sep 27 13:28:33 2026 +0100
+
+    story 3 task 8: Switch between remembered workspaces from inside a workspace
+
+
+ .../src/features/remembered/WorkspaceSwitcher.tsx  | 133 +++++++++++++++++++++
+ .../web/src/features/workspace/WorkspaceHeader.tsx |  12 +-
+ apps/web/test/ui/sharePanel.test.tsx               |   6 +-
+ 3 files changed, 146 insertions(+), 5 deletions(-)
+commit 7ab46b486d19e430c74e8af4849284a5008db48b
+vidi-agent  Sun Sep 27 13:27:49 2026 +0100
+
+    story 3 task 6: Show remembered workspaces, Continue to the most recent, and helpful loading/empty states on Home
+
+
+ apps/web/src/components/ui/dropdown-menu.tsx       | 55 ++++++++++++++
+ .../web/src/features/remembered/ContinueRecent.tsx | 32 +++++++++
+ apps/web/src/features/remembered/HomeEmptyHint.tsx |  8 +++
+ .../web/src/features/remembered/RememberedList.tsx | 83 +++++++++++++++++++++
+ apps/web/src/features/remembered/RememberedRow.tsx | 84 ++++++++++++++++++++++
+ .../src/features/remembered/RememberedSkeleton.tsx | 19 +++++
+ .../src/features/remembered/pickContinueTarget.ts  | 11 +++
+ apps/web/src/features/remembered/relativeTime.ts   | 27 +++++++
+ .../features/remembered/rememberedPlaceholder.ts   | 30 ++++++++
+ apps/web/src/features/remembered/warmWorkspace.ts  |  9 +++
+ apps/web/src/features/workspace/StartButton.tsx    | 12 ++--
+ .../features/workspace/preloadWorkspaceRoute.ts    |  4 ++
+ apps/web/src/index.css                             |  7 +-
+ apps/web/src/lib/useHoverNone.ts                   | 31 ++++++++
+ apps/web/src/main.tsx                              |  4 ++
+ apps/web/src/routes/Home.tsx                       | 12 +++-
+ apps/web/test/msw.ts                               | 15 +++-
+ 17 files changed, 432 insertions(+), 11 deletions(-)
+commit 0f0dcf802ba2729bfd4826610d2b62f2a593967e
+vidi-agent  Sun Sep 27 13:26:44 2026 +0100
+
+    story 3 task 7: Confirm before forgetting, warn about unsaved links, and load the dialog on demand
+
+
+ apps/web/src/components/ui/alert-dialog.tsx        |  32 +++++++
+ apps/web/src/features/remembered/ForgetDialog.tsx  |  74 +++++++++++++++
+ .../src/features/remembered/UnsavedLinkWarning.tsx | 102 +++++++++++++++++++++
+ .../src/features/remembered/forgetDialogLoader.ts  |  13 +++
+ apps/web/src/features/share/useWorkspaceLink.ts    |  18 +++-
+ 5 files changed, 234 insertions(+), 5 deletions(-)
+commit b4e238b285ecb06257c2926f43ab57c51e095696
+vidi-agent  Sun Sep 27 13:24:14 2026 +0100
+
+    story 3 task 5: Forget a workspace on this browser only
+
+
+ apps/api/src/lib/cookie.ts              |  9 ++++++++
+ apps/api/src/routes/remembered.ts       | 11 ++++++++++
+ apps/web/src/features/remembered/api.ts | 38 +++++++++++++++++++++++++++++++++
+ 3 files changed, 58 insertions(+)
+commit 45109317739d145a137adad816c62d87283cd770
+vidi-agent  Sun Sep 27 13:23:53 2026 +0100
+
+    story 3 task 4: List this browser's workspaces by name without ever exposing their secrets
+
+
+ apps/api/src/lib/cookie.ts        | 22 +++++++++++++++++++---
+ apps/api/src/routes/remembered.ts | 24 ++++++++++++++++++++++--
+ 2 files changed, 41 insertions(+), 5 deletions(-)
+commit 1c53f756921e6cb2aa815e5b9a096d4181f09b31
+vidi-agent  Sun Sep 27 13:23:35 2026 +0100
+
+    story 3 task 3: Tell users when their oldest workspace is dropped from the browser list
+
+
+ apps/api/src/routes/test.ts                        | 25 ++++++++++++++++++++--
+ .../src/features/remembered/useDroppedNotice.ts    | 12 +++++++++++
+ apps/web/src/features/workspace/bootOpen.ts        |  2 ++
+ .../src/features/workspace/useCreateWorkspace.ts   |  4 +++-
+ 4 files changed, 40 insertions(+), 3 deletions(-)
+commit 981b7028edd15254df947c94e2ced4a067a24f97
+vidi-agent  Sun Sep 27 13:23:13 2026 +0100
+
+    story 3 task 2: Keep remembered workspaces in most-recently-opened order, including open-by-id
+
+
+ apps/api/src/app.ts                                |  2 +
+ apps/api/src/db/workspaces.ts                      | 14 +++++++
+ apps/api/src/lib/cookie.ts                         | 10 +++++
+ apps/api/src/lib/remembered.ts                     | 45 ++++++++++++++++++++++
+ apps/api/src/routes/remembered.ts                  | 27 +++++++++++++
+ .../src/features/remembered/useTouchRemembered.ts  | 25 ++++++++++++
+ apps/web/src/features/workspace/bootOpen.ts        |  1 +
+ .../src/features/workspace/useCreateWorkspace.ts   |  1 +
+ apps/web/src/lib/api.ts                            | 30 ++++++++++++++-
+ apps/web/src/routes/Workspace.tsx                  | 13 ++++++-
+ packages/shared/src/schemas.ts                     | 14 +++++++
+ 11 files changed, 180 insertions(+), 2 deletions(-)
+commit dbb871bb0a2080123b96d5fa059405908bc402fa
+vidi-agent  Sun Sep 27 13:21:51 2026 +0100
+
+    story 3 task 1: Protect the remembered-workspaces cookie with one attribute builder
+
+
+ apps/api/src/lib/cookie.ts | 31 ++++++++++++++++++++++++-------
+ 1 file changed, 24 insertions(+), 7 deletions(-)
 commit c45bafb64c006feead637782319c686885642706
 vidi-agent  Sun Sep 27 13:17:32 2026 +0100
 

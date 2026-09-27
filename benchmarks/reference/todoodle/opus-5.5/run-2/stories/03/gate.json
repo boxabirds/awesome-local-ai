@@ -1,0 +1,62 @@
+{
+  "steps": {
+    "install": {
+      "cmd": "bun install",
+      "exit": 0,
+      "seconds": 1.0,
+      "tail": "bun install v1.2.17 (282dda62)\n\nChecked 439 installs across 556 packages (no changes) [1016.00ms]\n\n$ node scripts/ensure-workerd.mjs\n"
+    },
+    "build": {
+      "cmd": "bun run build",
+      "exit": 0,
+      "seconds": 1.4,
+      "tail": "\u001b[36mvite v7.3.6 \u001b[32mbuilding client environment for production...\u001b[36m\u001b[39m\ntransforming...\n\u001b[32m\u2713\u001b[39m 422 modules transformed.\nrendering chunks...\ncomputing gzip size...\n\u001b[2mdist/\u001b[22m\u001b[32mindex.html                           \u001b[39m\u001b[1m\u001b[2m  0.44 kB\u001b[22m\u001b[1m\u001b[22m\u001b[2m \u2502 gzip:   0.28 kB\u001b[22m\n\u001b[2mdist/\u001b[22m\u001b[2massets/\u001b[22m\u001b[35mindex-DFmHaUTk.css            \u001b[39m\u001b[1m\u001b[2m 18.70 kB\u001b[22m\u001b[1m\u001b[22m\u001b[2m \u2502 gzip:   4.80 kB\u001b[22m\n\u001b[2mdist/\u001b[22m\u001b[2massets/\u001b[22m\u001b[36museWorkspaceLink-CuBR61t9.js  \u001b[39m\u001b[1m\u001b[2m  2.12 kB\u001b[22m\u001b[1m\u001b[22m\u001b[2m \u2502 gzip:   1.02 kB\u001b[22m\n\u001b[2mdist/\u001b[22m\u001b[2massets/\u001b[22m\u001b[36mindex-BK2i10nZ.js             \u001b[39m\u001b[1m\u001b[2m  4.66 kB\u001b[22m\u001b[1m\u001b[22m\u001b[2m \u2502 gzip:   1.67 kB\u001b[22m\n\u001b[2mdist/\u001b[22m\u001b[2massets/\u001b[22m\u001b[36mForgetDialog-Bbc1yO70.js      \u001b[39m\u001b[1m\u001b[2m  4.84 kB\u001b[22m\u001b[1m\u001b[22m\u001b[2m \u2502 gzip:   1.93 kB\u001b[22m\n\u001b[2mdist/\u001b[22m\u001b[2massets/\u001b[22m\u001b[36mSharePanel-Btaj4ARo.js        \u001b[39m\u001b[1m\u001b[2m  4.93 kB\u001b[22m\u001b[1m\u001b[22m\u001b[2m \u2502 gzip:   2.25 kB\u001b[22m\n\u001b[2mdist/\u001b[22m\u001b[2massets/\u001b[22m\u001b[36mWorkspace-DX7BoQJn.js         \u001b[39m\u001b[1m\u001b[2m  9.53 kB\u001b[22m\u001b[1m\u001b[22m\u001b[2m \u2502 gzip:   3.73 kB\u001b[22m\n\u001b[2mdist/\u001b[22m\u001b[2massets/\u001b[22m\u001b[36mindex-Ba439q9w.js             \u001b[39m\u001b[1m\u001b[33m548.96 kB\u001b[39m\u001b[22m\u001b[2m \u2502 gzip: 172.26 kB\u001b[22m\n\u001b[32m\u2713 built in 1.12s\u001b[39m\n$ vite build apps/web\n\u001b[33mnode_modules/zod/v4/core/util.js (400:0): A comment\n\n\"// Wrapped in a `@__PURE__` IIFE: esbuild never tree-shakes a top-level initializer that contains a member access on `Number`, so the bare object literal survived into every bundle.\"\n\nin \"node_modules/zod/v4/core/util.js\" contains an annotation that Rollup cannot interpret due to the position of the comment. The comment will be removed to avoid issues.\u001b[39m\n\u001b[33mnode_modules/zod/v4/core/regexes.js (74:0): A comment\n\n\"/** Anchors a pattern source. The interpolation lives here rather than at the call site because\n * esbuild will not drop a `@__PURE__` call whose own argument interpolates a variable, but it\n * will drop `anchor(dateSource)`. Keeping it inline pinned `date` into every bundle. */\"\n\nin \"node_modules/zod/v4/core/regexes.js\" contains an annotation that Rollup cannot interpret due to the position of the comment. The comment will be removed to avoid issues.\u001b[39m\n\u001b[33m\n(!) Some chunks are larger than 500 kB after minification. Consider:\n- Using dynamic import() to code-split the application\n- Use build.rollupOptions.output.manualChunks to improve chunking: https://rollupjs.org/configuration-options/#output-manualchunks\n- Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.\u001b[39m\n",
+      "passed": null,
+      "failed": null
+    },
+    "typecheck": {
+      "cmd": "bun run typecheck",
+      "exit": 0,
+      "seconds": 4.3,
+      "tail": "$ tsc -p apps/api && tsc -p apps/api/tsconfig.node.json && tsc -p apps/web && tsc -p packages/shared && tsc -p scripts\n",
+      "passed": null,
+      "failed": null
+    },
+    "lint": {
+      "cmd": "bun run lint",
+      "exit": 0,
+      "seconds": 0.7,
+      "tail": "$ eslint apps/web\n",
+      "passed": null,
+      "failed": null
+    },
+    "test:unit": {
+      "cmd": "bun run test:unit",
+      "exit": 0,
+      "seconds": 4.4,
+      "tail": "\n RUN  v4.1.11 ~/.vidi-bench/work/benchmarks__reference__todoodle__opus-5.5__run-2/workspace/apps/api\n\n\n Test Files  7 passed (7)\n      Tests  85 passed (85)\n   Start at  13:42:04\n   Duration  2.05s (transform 2.11s, setup 7.20s, import 102ms, tests 348ms, environment 0ms)\n\n\n RUN  v4.1.11 ~/.vidi-bench/work/benchmarks__reference__todoodle__opus-5.5__run-2/workspace\n\n\n Test Files  5 passed (5)\n      Tests  42 passed (42)\n   Start at  13:42:06\n   Duration  140ms (transform 110ms, setup 0ms, import 168ms, tests 64ms, environment 0ms)\n\n\n RUN  v4.1.11 ~/.vidi-bench/work/benchmarks__reference__todoodle__opus-5.5__run-2/workspace/apps/web\n\n\n Test Files  7 passed (7)\n      Tests  62 passed (62)\n   Start at  13:42:06\n   Duration  1.01s (transform 275ms, setup 1.84s, import 310ms, tests 662ms, environment 1.34s)\n\n$ vitest run --config apps/api/vitest.config.ts --passWithNoTests --project unit && vitest run --config scripts/vitest.config.ts --passWithNoTests --project unit && vitest run --config apps/web/vitest.config.ts --passWithNoTests --project web-unit\n",
+      "passed": 85,
+      "failed": 0
+    },
+    "test:component": {
+      "exit": "missing"
+    },
+    "test:integration": {
+      "cmd": "bun run test:integration",
+      "exit": 0,
+      "seconds": 9.1,
+      "tail": "\n RUN  v4.1.11 ~/.vidi-bench/work/benchmarks__reference__todoodle__opus-5.5__run-2/workspace/apps/api\n\n\n Test Files  8 passed (8)\n      Tests  87 passed (87)\n   Start at  13:42:08\n   Duration  2.92s (transform 2.27s, setup 7.77s, import 160ms, tests 1.74s, environment 0ms)\n\n\n RUN  v4.1.11 ~/.vidi-bench/work/benchmarks__reference__todoodle__opus-5.5__run-2/workspace\n\n\n Test Files  2 passed (2)\n      Tests  14 passed (14)\n   Start at  13:42:11\n   Duration  5.28s (transform 78ms, setup 0ms, import 110ms, tests 5.15s, environment 0ms)\n\n$ vitest run --config apps/api/vitest.config.ts --passWithNoTests --project integration --project production-gate && vitest run --config scripts/vitest.config.ts --passWithNoTests --project integration\n",
+      "passed": 87,
+      "failed": 0
+    },
+    "test:e2e": {
+      "cmd": "bun run test:e2e --project=chromium",
+      "exit": 1,
+      "seconds": 48.2,
+      "tail": "\n\n    \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\n\n  3) [chromium] \u203a e2e/workspace.spec.ts:82:3 \u203a secret-link workspaces \u203a WF-1 / TC-54 create -> workspace in under a second, Save your link, Share reopens \n\n    Error: expect(locator).toHaveValue(expected) failed\n\n    Locator: getByLabel('Workspace name')\n    Expected: \"My Todoodle\"\n    Timeout: 5000ms\n    Error: element(s) not found\n\n    Call log:\n      - Expect \"toHaveValue\" getByLabel('Workspace name') with timeout 5000ms\n      - waiting for getByLabel('Workspace name')\n\n\n      41 |     page.getByRole('button', { name: 'Start a new list' }).click(),\n      42 |   ]);\n    > 43 |   await expect(page.getByLabel('Workspace name')).toHaveValue('My Todoodle');\n         |                                                   ^\n      44 |   const elapsedMs = Date.now() - start;\n      45 |   const body = (await response.json()) as { workspace: { id: string }; secret: string };\n      46 |   const origin = new URL(page.url()).origin;\n        at createFromHome (~/.vidi-bench/work/benchmarks__reference__todoodle__opus-5.5__run-2/workspace/e2e/workspace.spec.ts:43:51)\n        at ~/.vidi-bench/work/benchmarks__reference__todoodle__opus-5.5__run-2/workspace/e2e/workspace.spec.ts:84:21\n\n    Error Context: test-results/workspace-secret-link-work-ac22f-ave-your-link-Share-reopens-chromium/error-context.md\n\n    attachment #2: trace (application/zip) \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\n    test-results/workspace-secret-link-work-ac22f-ave-your-link-Share-reopens-chromium/trace.zip\n    Usage:\n\n        npx playwright show-trace test-results/workspace-secret-link-work-ac22f-ave-your-link-Share-reopens-chromium/trace.zip\n\n    \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\n\n  3 failed\n    [chromium] \u203a e2e/golden-path.spec.ts:20:1 \u203a deep links fall back to the app \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\n    [chromium] \u203a e2e/remembered.spec.ts:9:3 \u203a remembered workspaces \u203a TC-80 a created workspace is listed first on Home \n    [chromium] \u203a e2e/workspace.spec.ts:82:3 \u203a secret-link workspaces \u203a WF-1 / TC-54 create -> workspace in under a second, Save your link, Share reopens \n  23 passed (47.9s)\n$ playwright test \"--project=chromium\"\n[WebServer] $ wrangler d1 migrations apply DB --local && vite build apps/web && concurrently -k -n web,api \"vite build apps/web --watch\" \"wrangler dev --ip 127.0.0.1 --port 8787\"\n[WebServer] node_modules/zod/v4/core/util.js (400:0): A comment\n[WebServer] \n[WebServer] \"// Wrapped in a `@__PURE__` IIFE: esbuild never tree-shakes a top-level initializer that contains a member access on `Number`, so the bare object literal survived into every bundle.\"\n[WebServer] \n[WebServer] in \"node_modules/zod/v4/core/util.js\" contains an annotation that Rollup cannot interpret due to the position of the comment. The comment will be removed to avoid issues.\n[WebServer] node_modules/zod/v4/core/regexes.js (74:0): A comment\n[WebServer] \n[WebServer] \"/** Anchors a pattern source. The interpolation lives here rather than at the call site because\n[WebServer]  * esbuild will not drop a `@__PURE__` call whose own argument interpolates a variable, but it\n[WebServer]  * will drop `anchor(dateSource)`. Keeping it inline pinned `date` into every bundle. */\"\n[WebServer] \n[WebServer] in \"node_modules/zod/v4/core/regexes.js\" contains an annotation that Rollup cannot interpret due to the position of the comment. The comment will be removed to avoid issues.\n[WebServer] \n[WebServer] (!) Some chunks are larger than 500 kB after minification. Consider:\n[WebServer] - Using dynamic import() to code-split the application\n[WebServer] - Use build.rollupOptions.output.manualChunks to improve chunking: https://rollupjs.org/configuration-options/#output-manualchunks\n[WebServer] - Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.\nerror: script \"test:e2e\" exited with code 1\n",
+      "passed": 23,
+      "failed": 3
+    }
+  },
+  "all_green": false
+}
