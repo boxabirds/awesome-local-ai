@@ -1306,8 +1306,9 @@ def stop_if_missing_resources(sid: int, gate: dict, acc: dict) -> None:
     fault = gate.get("harness_fault") or acc.get("harness_fault")
     if not fault:
         return
-    why = fault.removeprefix(gates.MISSING_RESOURCES).strip()
-    print(f"MISSING RESOURCES: {why}. Story {sid}'s scores are void: fix it, re-score the story "
+    label = "MISSING RESOURCES" if fault.startswith(gates.MISSING_RESOURCES) else "SCORING INTERRUPTED"
+    why = fault.removeprefix(gates.MISSING_RESOURCES).removeprefix(gates.SCORING_INTERRUPTED).strip()
+    print(f"{label}: {why}. Story {sid}'s scores are void: fix it, re-score the story "
           f"(gates.py), then re-run to continue with the next story.", file=sys.stderr, flush=True)
     sys.exit(EXIT_MISSING_RESOURCES)
 

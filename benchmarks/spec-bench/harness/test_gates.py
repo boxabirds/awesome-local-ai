@@ -109,6 +109,62 @@ def test_the_held_out_suite_without_a_browser_is_missing_resources_even_with_no_
     assert res["harness_fault"] and res["harness_fault"].startswith("missing resources:")
 
 
+def _suite_with_story_1(tmp_path):
+    acc = tmp_path / "acc"
+    (acc / "tests").mkdir(parents=True)
+    (acc / "tests" / "story-01.spec.ts").write_text("")
+    return acc
+
+
+def _runs(*results):
+    """A fake _run: the build, then the suite runner returning each of `results` in turn."""
+    calls = []
+
+    def run(cmd, cwd, timeout, env=None):
+        calls.append(cmd)
+        if cmd[:2] == ["npm", "run"]:
+            return {"exit": 0, "tail": ""}
+        return results[min(sum(c[:2] == ["npx", "playwright"] for c in calls), len(results)) - 1]
+    return run, calls
+
+
+def test_a_suite_runner_killed_before_its_report_is_retried_once(tmp_path, monkeypatch):
+    """27 Sep 2026: a stray pkill SIGTERMed todoodle run-2's story-5 scoring; the record said 0/0."""
+    acc = _suite_with_story_1(tmp_path)
+    killed = {"exit": -15, "tail": "\nRunning 84 tests using 1 worker\n\n"}
+    run, calls = _runs(killed, {"exit": 0, "tail": ""})
+    monkeypatch.setattr(gates, "_run", run)
+    res = gates.accept(tmp_path, [1], tmp_path / "out", acc)
+    assert sum(c[:2] == ["npx", "playwright"] for c in calls) == 2
+    assert res["harness_fault"] is None
+
+
+def test_a_suite_runner_killed_every_time_is_a_harness_fault_not_a_score(tmp_path, monkeypatch):
+    acc = _suite_with_story_1(tmp_path)
+    run, _ = _runs({"exit": -15, "tail": "Running 84 tests using 1 worker"})
+    monkeypatch.setattr(gates, "_run", run)
+    res = gates.accept(tmp_path, [1], tmp_path / "out", acc)
+    assert res["harness_fault"] and res["harness_fault"].startswith(gates.SCORING_INTERRUPTED)
+    assert "signal 15" in res["harness_fault"]
+
+
+def test_a_suite_runner_that_timed_out_without_a_report_is_a_harness_fault(tmp_path, monkeypatch):
+    acc = _suite_with_story_1(tmp_path)
+    run, _ = _runs({"exit": "timeout", "tail": ""})
+    monkeypatch.setattr(gates, "_run", run)
+    res = gates.accept(tmp_path, [1], tmp_path / "out", acc)
+    assert res["harness_fault"] and "timed out" in res["harness_fault"]
+
+
+def test_a_suite_that_fails_normally_without_a_report_is_not_interrupted(tmp_path, monkeypatch):
+    acc = _suite_with_story_1(tmp_path)
+    run, calls = _runs({"exit": 1, "tail": "Error: something in the app"})
+    monkeypatch.setattr(gates, "_run", run)
+    res = gates.accept(tmp_path, [1], tmp_path / "out", acc)
+    assert res["harness_fault"] is None
+    assert sum(c[:2] == ["npx", "playwright"] for c in calls) == 1
+
+
 def _fake_npm(tmp_path, script: str):
     """A workspace whose `npm` is a stub: `script` is sh that prints what a real run would."""
     import os

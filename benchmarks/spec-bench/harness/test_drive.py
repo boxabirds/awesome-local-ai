@@ -738,6 +738,17 @@ def test_missing_resources_stop_the_run_with_their_own_exit_code_and_reason(caps
     drive.stop_if_missing_resources(3, {"all_green": False}, {"passed": 0})   # app failures carry on
 
 
+def test_interrupted_scoring_stops_the_run_and_says_so(capsys):
+    import drive
+    import gates
+    fault = f"{gates.SCORING_INTERRUPTED} the held-out suite was killed by signal 15 before writing a report"
+    with pytest.raises(SystemExit) as e:
+        drive.stop_if_missing_resources(5, {}, {"harness_fault": fault})
+    assert e.value.code == drive.EXIT_MISSING_RESOURCES
+    err = capsys.readouterr().err
+    assert err.startswith("SCORING INTERRUPTED: the held-out suite was killed by signal 15"), err
+
+
 def test_each_agent_event_is_stamped_with_its_arrival_time():
     """pi's events carry no times of their own for tool runs; the harness stamps them as they arrive."""
     import drive
