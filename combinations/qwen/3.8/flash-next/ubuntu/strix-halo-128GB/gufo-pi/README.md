@@ -78,6 +78,12 @@ session commands, and smoke-tests the model.
 |---|---|---|---|---|---|---|
 | `coding` | 131,072 | 1 | 7 | 512 | 87,849 MiB | measured, test A |
 
+## Runs
+
+| Run | Build order | Notes |
+|---|---|---|
+| `canvas-gufo-01` | **user journey**: story 5 first, then 1, 2, 3, 4, 7, … | [interventions](benchmarks/vidi/canvas-gufo-01/interventions.md): its per-story scores are not directly comparable with number-order runs; its end-of-run total over the same scope is |
+
 ## Usage
 
 ```bash
