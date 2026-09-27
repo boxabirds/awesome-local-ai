@@ -49,6 +49,7 @@ wait_up() {
     if [[ -n "$SPID" ]] && ! kill -0 "$SPID" 2>/dev/null; then echo "server exited"; return 1; fi
     (( $(date +%s) - t0 > LOAD_TIMEOUT_S )) && { echo "no response in ${LOAD_TIMEOUT_S}s"; return 1; }
   done
+  return 0  # the loop's own status is its body's last command (a false timeout check), not success
 }
 
 start_llamacpp() {
