@@ -63,6 +63,9 @@ pub struct Run {
     /// Each story's recorded commit (story id -> sha), to build the app as it was after that story.
     #[serde(skip)]
     pub story_commits: BTreeMap<u64, String>,
+    /// How each story ended (DONE / PARTIAL), from metrics.json's processed queue.
+    #[serde(skip)]
+    pub story_status: BTreeMap<u64, String>,
     /// The record holds the run's git history (workspace.bundle), so any story's commit can be built.
     pub has_history: bool,
     pub score: Score,
@@ -299,6 +302,15 @@ pub fn load(repo: &Path) -> Vec<Run> {
                 in_progress: !status_finished && in_scope.is_some_and(|n| finished < n),
                 stories_finished: finished,
                 story_commits: story_commits(&metrics),
+                story_status: metrics
+                    .get("processed")
+                    .and_then(Value::as_array)
+                    .map(|a| {
+                        a.iter()
+                            .filter_map(|p| Some((p.get("id")?.as_u64()?, p.get("status")?.as_str()?.to_string())))
+                            .collect()
+                    })
+                    .unwrap_or_default(),
                 has_history: path.join("workspace.bundle").is_file(),
                 stories_in_scope: in_scope,
                 score: score(&path),
