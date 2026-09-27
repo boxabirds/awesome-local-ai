@@ -1,6 +1,6 @@
 {
-  "state": "started",
-  "reason": "harness 8c515ee, client pi, model mtplx-flash-next-optimized-speed",
-  "at": "2026-09-27T01:03:07Z",
+  "state": "stopped",
+  "reason": "exit 143:",
+  "at": "2026-09-27T03:02:50Z",
   "host": "Quintus"
 }
