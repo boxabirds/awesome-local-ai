@@ -169,9 +169,10 @@
         "all_green": true
       },
       "accept": {
+        "skipped": false,
         "build_exit": 0,
         "runner_exit": 1,
-        "passed": 0,
+        "passed": 24,
         "total": 27,
         "on_partial": {
           "passed": 0,
@@ -179,18 +180,19 @@
         },
         "by_story": {
           "01": {
-            "passed": 0,
+            "passed": 10,
             "total": 10
           },
           "02": {
-            "passed": 0,
+            "passed": 9,
             "total": 10
           },
           "03": {
-            "passed": 0,
+            "passed": 5,
             "total": 7
           }
-        }
+        },
+        "harness_fault": null
       },
       "commit": "e5a881075ecbfaa6419a900abb62b02f9f3be4c3",
       "requests": {},
@@ -466,9 +468,10 @@
         "all_green": true
       },
       "accept": {
+        "skipped": false,
         "build_exit": 0,
         "runner_exit": 1,
-        "passed": 0,
+        "passed": 28,
         "total": 31,
         "on_partial": {
           "passed": 0,
@@ -476,22 +479,23 @@
         },
         "by_story": {
           "01": {
-            "passed": 0,
+            "passed": 10,
             "total": 10
           },
           "02": {
-            "passed": 0,
+            "passed": 9,
             "total": 10
           },
           "03": {
-            "passed": 0,
+            "passed": 5,
             "total": 7
           },
           "04": {
-            "passed": 0,
+            "passed": 4,
             "total": 4
           }
-        }
+        },
+        "harness_fault": null
       },
       "commit": "b604c11f39aba224bce41374a16fd6e438670bcc",
       "requests": {},
@@ -761,9 +765,10 @@
         "all_green": true
       },
       "accept": {
+        "skipped": false,
         "build_exit": 0,
         "runner_exit": 1,
-        "passed": 0,
+        "passed": 33,
         "total": 36,
         "on_partial": {
           "passed": 0,
@@ -771,26 +776,27 @@
         },
         "by_story": {
           "01": {
-            "passed": 0,
+            "passed": 10,
             "total": 10
           },
           "02": {
-            "passed": 0,
+            "passed": 9,
             "total": 10
           },
           "03": {
-            "passed": 0,
+            "passed": 5,
             "total": 7
           },
           "04": {
-            "passed": 0,
+            "passed": 4,
             "total": 4
           },
           "05": {
-            "passed": 0,
+            "passed": 5,
             "total": 5
           }
-        }
+        },
+        "harness_fault": null
       },
       "commit": "66764c9348413c544350bb3905804835573b6753",
       "requests": {},
@@ -1041,9 +1047,10 @@
         "all_green": true
       },
       "accept": {
+        "skipped": false,
         "build_exit": 0,
         "runner_exit": 1,
-        "passed": 0,
+        "passed": 41,
         "total": 44,
         "on_partial": {
           "passed": 0,
@@ -1051,30 +1058,31 @@
         },
         "by_story": {
           "01": {
-            "passed": 0,
+            "passed": 10,
             "total": 10
           },
           "02": {
-            "passed": 0,
+            "passed": 9,
             "total": 10
           },
           "03": {
-            "passed": 0,
+            "passed": 5,
             "total": 7
           },
           "04": {
-            "passed": 0,
+            "passed": 4,
             "total": 4
           },
           "05": {
-            "passed": 0,
+            "passed": 5,
             "total": 5
           },
           "07": {
-            "passed": 0,
+            "passed": 8,
             "total": 8
           }
-        }
+        },
+        "harness_fault": null
       },
       "commit": "f9500e07b5582078bea8d0c1fbb9a8e4dcea1e5f",
       "requests": {},
@@ -1393,9 +1401,10 @@
         "all_green": true
       },
       "accept": {
+        "skipped": false,
         "build_exit": 0,
         "runner_exit": 1,
-        "passed": 0,
+        "passed": 48,
         "total": 51,
         "on_partial": {
           "passed": 0,
@@ -1403,34 +1412,35 @@
         },
         "by_story": {
           "01": {
-            "passed": 0,
+            "passed": 10,
             "total": 10
           },
           "02": {
-            "passed": 0,
+            "passed": 9,
             "total": 10
           },
           "03": {
-            "passed": 0,
+            "passed": 5,
             "total": 7
           },
           "04": {
-            "passed": 0,
+            "passed": 4,
             "total": 4
           },
           "05": {
-            "passed": 0,
+            "passed": 5,
             "total": 5
           },
           "07": {
-            "passed": 0,
+            "passed": 8,
             "total": 8
           },
           "08": {
-            "passed": 0,
+            "passed": 7,
             "total": 7
           }
-        }
+        },
+        "harness_fault": null
       },
       "commit": "8124de148bfe4934eba8a208681aa9802ab8661b",
       "requests": {},
@@ -1683,9 +1693,10 @@
         "all_green": true
       },
       "accept": {
+        "skipped": false,
         "build_exit": 0,
         "runner_exit": 1,
-        "passed": 0,
+        "passed": 53,
         "total": 57,
         "on_partial": {
           "passed": 0,
@@ -1693,38 +1704,39 @@
         },
         "by_story": {
           "01": {
-            "passed": 0,
+            "passed": 10,
             "total": 10
           },
           "02": {
-            "passed": 0,
+            "passed": 9,
             "total": 10
           },
           "03": {
-            "passed": 0,
+            "passed": 5,
             "total": 7
           },
           "04": {
-            "passed": 0,
+            "passed": 4,
             "total": 4
           },
           "05": {
-            "passed": 0,
+            "passed": 5,
             "total": 5
           },
           "07": {
-            "passed": 0,
+            "passed": 8,
             "total": 8
           },
           "08": {
-            "passed": 0,
+            "passed": 7,
             "total": 7
           },
           "09": {
-            "passed": 0,
+            "passed": 5,
             "total": 6
           }
-        }
+        },
+        "harness_fault": null
       },
       "commit": "a66ef5608017e0e5d5abcdf8b2e99a2f21b6e333",
       "requests": {},
@@ -2011,9 +2023,10 @@
         "all_green": true
       },
       "accept": {
+        "skipped": false,
         "build_exit": 0,
         "runner_exit": 1,
-        "passed": 0,
+        "passed": 61,
         "total": 65,
         "on_partial": {
           "passed": 0,
@@ -2021,42 +2034,43 @@
         },
         "by_story": {
           "01": {
-            "passed": 0,
+            "passed": 10,
             "total": 10
           },
           "02": {
-            "passed": 0,
+            "passed": 9,
             "total": 10
           },
           "03": {
-            "passed": 0,
+            "passed": 5,
             "total": 7
           },
           "04": {
-            "passed": 0,
+            "passed": 4,
             "total": 4
           },
           "05": {
-            "passed": 0,
+            "passed": 5,
             "total": 5
           },
           "07": {
-            "passed": 0,
+            "passed": 8,
             "total": 8
           },
           "08": {
-            "passed": 0,
+            "passed": 7,
             "total": 7
           },
           "09": {
-            "passed": 0,
+            "passed": 5,
             "total": 6
           },
           "10": {
-            "passed": 0,
+            "passed": 8,
             "total": 8
           }
-        }
+        },
+        "harness_fault": null
       },
       "commit": "d3cf51b3cfb2a905816d98024dfb638c341dfb21",
       "requests": {},
@@ -2328,9 +2342,10 @@
         "all_green": true
       },
       "accept": {
+        "skipped": false,
         "build_exit": 0,
         "runner_exit": 1,
-        "passed": 0,
+        "passed": 66,
         "total": 70,
         "on_partial": {
           "passed": 0,
@@ -2338,46 +2353,47 @@
         },
         "by_story": {
           "01": {
-            "passed": 0,
+            "passed": 10,
             "total": 10
           },
           "02": {
-            "passed": 0,
+            "passed": 9,
             "total": 10
           },
           "03": {
-            "passed": 0,
+            "passed": 5,
             "total": 7
           },
           "04": {
-            "passed": 0,
+            "passed": 4,
             "total": 4
           },
           "05": {
-            "passed": 0,
+            "passed": 5,
             "total": 5
           },
           "07": {
-            "passed": 0,
+            "passed": 8,
             "total": 8
           },
           "08": {
-            "passed": 0,
+            "passed": 7,
             "total": 7
           },
           "09": {
-            "passed": 0,
+            "passed": 5,
             "total": 6
           },
           "10": {
-            "passed": 0,
+            "passed": 8,
             "total": 8
           },
           "11": {
-            "passed": 0,
+            "passed": 5,
             "total": 5
           }
-        }
+        },
+        "harness_fault": null
       },
       "commit": "0e45b793baaa041ff25f59a6b57ebe79c6f51a50",
       "requests": {},
@@ -2603,9 +2619,10 @@
         "all_green": true
       },
       "accept": {
+        "skipped": false,
         "build_exit": 0,
         "runner_exit": 1,
-        "passed": 0,
+        "passed": 71,
         "total": 75,
         "on_partial": {
           "passed": 0,
@@ -2613,50 +2630,51 @@
         },
         "by_story": {
           "01": {
-            "passed": 0,
+            "passed": 10,
             "total": 10
           },
           "02": {
-            "passed": 0,
+            "passed": 9,
             "total": 10
           },
           "03": {
-            "passed": 0,
+            "passed": 5,
             "total": 7
           },
           "04": {
-            "passed": 0,
+            "passed": 4,
             "total": 4
           },
           "05": {
-            "passed": 0,
+            "passed": 5,
             "total": 5
           },
           "07": {
-            "passed": 0,
+            "passed": 8,
             "total": 8
           },
           "08": {
-            "passed": 0,
+            "passed": 7,
             "total": 7
           },
           "09": {
-            "passed": 0,
+            "passed": 5,
             "total": 6
           },
           "10": {
-            "passed": 0,
+            "passed": 8,
             "total": 8
           },
           "11": {
-            "passed": 0,
+            "passed": 5,
             "total": 5
           },
           "12": {
-            "passed": 0,
+            "passed": 5,
             "total": 5
           }
-        }
+        },
+        "harness_fault": null
       },
       "commit": "2212240acf6a2351f34c45e27ab06e4d372a1ea2",
       "requests": {},
@@ -2844,7 +2862,7 @@
       "compactions": 0,
       "last_commit_at": 1790323885.0,
       "accept": {
-        "passed": 0,
+        "passed": 5,
         "total": 7
       },
       "partial_base": [],
@@ -3048,7 +3066,7 @@
       "compactions": 0,
       "last_commit_at": 1790325907.0,
       "accept": {
-        "passed": 0,
+        "passed": 4,
         "total": 4
       },
       "partial_base": [],
@@ -3248,7 +3266,7 @@
       "compactions": 0,
       "last_commit_at": 1790326714.0,
       "accept": {
-        "passed": 0,
+        "passed": 5,
         "total": 5
       },
       "partial_base": [],
@@ -3429,7 +3447,7 @@
       "compactions": 0,
       "last_commit_at": 1790328575.0,
       "accept": {
-        "passed": 0,
+        "passed": 8,
         "total": 8
       },
       "partial_base": [],
@@ -3666,7 +3684,7 @@
       "compactions": 0,
       "last_commit_at": 1790329240.0,
       "accept": {
-        "passed": 0,
+        "passed": 7,
         "total": 7
       },
       "partial_base": [],
@@ -3837,7 +3855,7 @@
       "compactions": 0,
       "last_commit_at": 1790330224.0,
       "accept": {
-        "passed": 0,
+        "passed": 5,
         "total": 6
       },
       "partial_base": [],
@@ -4042,7 +4060,7 @@
       "compactions": 0,
       "last_commit_at": 1790332050.0,
       "accept": {
-        "passed": 0,
+        "passed": 8,
         "total": 8
       },
       "partial_base": [],
@@ -4232,7 +4250,7 @@
       "compactions": 0,
       "last_commit_at": 1790332792.0,
       "accept": {
-        "passed": 0,
+        "passed": 5,
         "total": 5
       },
       "partial_base": [],
@@ -4376,7 +4394,7 @@
       "compactions": 0,
       "last_commit_at": 1790333979.0,
       "accept": {
-        "passed": 0,
+        "passed": 5,
         "total": 5
       },
       "partial_base": [],

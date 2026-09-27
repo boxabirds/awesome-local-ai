@@ -1,7 +1,8 @@
 {
+  "skipped": false,
   "build_exit": 0,
   "runner_exit": 1,
-  "passed": 0,
+  "passed": 41,
   "total": 44,
   "on_partial": {
     "passed": 0,
@@ -9,28 +10,29 @@
   },
   "by_story": {
     "01": {
-      "passed": 0,
+      "passed": 10,
       "total": 10
     },
     "02": {
-      "passed": 0,
+      "passed": 9,
       "total": 10
     },
     "03": {
-      "passed": 0,
+      "passed": 5,
       "total": 7
     },
     "04": {
-      "passed": 0,
+      "passed": 4,
       "total": 4
     },
     "05": {
-      "passed": 0,
+      "passed": 5,
       "total": 5
     },
     "07": {
-      "passed": 0,
+      "passed": 8,
       "total": 8
     }
-  }
+  },
+  "harness_fault": null
 }
