@@ -1,3 +1,64 @@
+commit 7274b95f1687930b4736c1e759eff3c80045a35a
+vidi-agent  Sun Sep 27 23:58:56 2026 +0000
+
+    harness: snapshot after story 2 (uncommitted agent work)
+
+
+ playwright.config.ts                      |  14 +-
+ src/client/App.tsx                        | 142 +++++++++++++-
+ src/client/board/Toolbar.tsx              |  51 +++++
+ src/client/board/useSelection.ts          |  38 ++++
+ src/client/canvas/BoardViewport.tsx       |  47 ++++-
+ src/client/objects/NoteToolbar.tsx        |  64 +++++++
+ src/client/objects/StickyNote.tsx         | 263 ++++++++++++++++++++++++++
+ src/client/objects/StickyText.ts          |  18 +-
+ src/client/objects/StickyTextEditor.tsx   | 108 +++++++++++
+ src/client/styles.css                     | 226 ++++++++++++++++++++++
+ src/shared/board-model.ts                 |  13 +-
+ tests/component/StickyNote.test.tsx       | 245 ++++++++++++++++++++++++
+ tests/component/StickyTextEditor.test.tsx | 130 +++++++++++++
+ tests/component/StickyTextFit.test.ts     |  51 +++++
+ tests/component/Toolbars.test.tsx         | 118 ++++++++++++
+ tests/component/harness.tsx               | 128 +++++++++++++
+ tests/e2e/sticky-notes.spec.ts            | 303 ++++++++++++++++++++++++++++++
+ tests/fixtures/texts.ts                   |  31 +++
+ tests/setup/component.ts                  |  18 ++
+ tests/unit/board-model.test.ts            |  14 +-
+ tests/unit/sticky-text.test.ts            |   7 +-
+ 21 files changed, 1999 insertions(+), 30 deletions(-)
+commit 9ffe36c2930f57f97db6f92e5ae685a783457296
+vidi-agent  Sun Sep 27 23:13:35 2026 +0000
+
+    story 2: board model, useBoardDoc and sticky text logic (green)
+
+
+ src/client/objects/StickyText.ts | 114 ++++++++++++++++++++++++++++++++-------
+ tests/unit/sticky-text.test.ts   |   2 +-
+ 2 files changed, 97 insertions(+), 19 deletions(-)
+commit 3cdb3ad29285389e6595ceb53a1687677cf8ad03
+vidi-agent  Sun Sep 27 23:10:17 2026 +0000
+
+    story 2: sticky text unit tests (red)
+
+
+ src/client/board/useBoardDoc.ts  |  54 ++++++++++++
+ src/client/objects/StickyText.ts |  45 ++++++++++
+ src/shared/board-model.ts        | 172 ++++++++++++++++++++++++++++++++++-----
+ tests/unit/board-model.test.ts   |   3 +-
+ tests/unit/sticky-text.test.ts   | 158 +++++++++++++++++++++++++++++++++++
+ 5 files changed, 411 insertions(+), 21 deletions(-)
+commit 77ffaac101b95a732bd8d8819fdebb34362892a2
+vidi-agent  Sun Sep 27 23:07:30 2026 +0000
+
+    story 2: board model and sticky config unit tests (red)
+
+
+ package-lock.json              |  48 +++++++-
+ package.json                   |   3 +-
+ src/shared/board-model.ts      |  60 +++++++++
+ src/shared/config.ts           |  35 ++++++
+ tests/unit/board-model.test.ts | 270 +++++++++++++++++++++++++++++++++++++++++
+ 5 files changed, 414 insertions(+), 2 deletions(-)
 commit 85b06983681400f8f83bad6db7e7672d1cac9ddc
 vidi-agent  Sun Sep 27 22:59:22 2026 +0000
 
