@@ -16,17 +16,20 @@
 // written to the doc (live.local_selection).
 
 import { AWARENESS_HEARTBEAT_MS, CONNECTED_CONFIRMATION_MS, RECONNECT_MAX_BACKOFF_MS } from '../../shared/config';
+import { CLOSE_BOARD_LOAD_FAILED } from '../../shared/protocol';
 import * as Y from 'yjs';
 import { createEncoder, toUint8Array, writeVarUint } from 'lib0/encoding';
 import * as syncProtocol from 'y-protocols/sync';
 import { WebsocketProvider } from 'y-websocket';
 
-export type ConnectionState = 'connecting' | 'connected' | 'reconnecting' | 'confirmed';
+export type ConnectionState = 'connecting' | 'connected' | 'reconnecting' | 'confirmed' | 'load_failed';
 export type ProviderStatus = 'connecting' | 'connected' | 'disconnected';
 
 export interface ConnectionStateMachine {
   /** Feed a provider status event. */
   status(s: ProviderStatus): void;
+  /** The provider closed with CLOSE_BOARD_LOAD_FAILED: the board is unreadable. */
+  loadFailed(): void;
   /** Cancel any pending confirmation timer. */
   destroy(): void;
 }
@@ -70,6 +73,9 @@ export function createConnectionStateMachine(
           emit('connected');
         }
       } else if (providerStatus === 'disconnected' || providerStatus === 'connecting') {
+        // The close code already owns the load_failed state: the status event
+        // of the same close must not downgrade it to reconnecting.
+        if (state === 'load_failed') return;
         if (everConnected) {
           clearConfirmation();
           emit('reconnecting');
@@ -78,6 +84,11 @@ export function createConnectionStateMachine(
         }
       }
     },
+    loadFailed() {
+      clearConfirmation();
+      if (state !== 'load_failed') emit('load_failed');
+    },
+
     destroy() {
       clearConfirmation();
     },
@@ -110,6 +121,17 @@ export function connectBoard(
     disableBc: true,
   });
   provider.on('status', (event) => machine.status(event.status));
+
+  // A 4500 close means the board's saved state is unreadable: show the red
+  // "couldn't be loaded" badge and gate editing. 1011 (storage failure) stays
+  // 'reconnecting': the board is readable and changes retry on reconnect.
+  // The provider keeps retrying (4500 is not in the 4400-4499 permanent
+  // range); the first successful sync switches back to connected.
+  provider.on('connection-close', (event) => {
+    if (event !== null && event.code === CLOSE_BOARD_LOAD_FAILED) {
+      machine.loadFailed();
+    }
+  });
 
   // Flush the full doc update on every connect (offline catch-up).
   // y-websocket only sends a state vector (SyncStep1) on open; local edits

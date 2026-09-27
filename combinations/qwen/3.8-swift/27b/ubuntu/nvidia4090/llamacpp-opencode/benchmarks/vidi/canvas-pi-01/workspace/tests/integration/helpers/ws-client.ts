@@ -37,7 +37,10 @@ export class RoomClient {
   readonly receivedSync: Uint8Array[] = [];
   /** Awareness payloads received from the room, in order. */
   readonly receivedAwareness: Uint8Array[] = [];
+  /** Resolves with the close code once the socket closes. */
+  readonly closePromise: Promise<number>;
   private closed = false;
+  private closeResolve: ((code: number) => void) | null = null;
 
   constructor(ws: WebSocket, user: string, doc?: Y.Doc) {
     this.doc = doc ?? new Y.Doc();
@@ -45,6 +48,10 @@ export class RoomClient {
     this.ws = ws;
 
     this.ws.addEventListener('message', (event) => this.onMessage(event.data));
+    this.closePromise = new Promise<number>((resolve) => {
+      this.closeResolve = resolve;
+      this.ws.addEventListener('close', (event) => resolve(event.code));
+    });
 
     // Send our state vector (SyncStep1) so the room replies with the updates
     // we lack (SyncStep2). Mirrors y-websocket's onopen behaviour; the socket
@@ -136,6 +143,16 @@ export class RoomClient {
       // already closed (e.g. the room closed it for unsupported data)
     }
     this.doc.destroy();
+  }
+
+  /** Wait for the socket to close and return the close code. */
+  async waitForClose(timeoutMs = 4000): Promise<number> {
+    return Promise.race([
+      this.closePromise,
+      new Promise<number>((_, reject) =>
+        setTimeout(() => reject(new Error('timed out waiting for close')), timeoutMs),
+      ),
+    ]);
   }
 }
 

@@ -8,9 +8,11 @@ export const STICKY_BUTTON_TOOLTIP = 'Sticky note – or double-click the board'
 
 export interface ToolbarProps {
   onCreateSticky(): void;
+  /** False while the board is load_failed: the button is disabled. */
+  disabled?: boolean;
 }
 
-export function Toolbar({ onCreateSticky }: ToolbarProps): JSX.Element {
+export function Toolbar({ onCreateSticky, disabled = false }: ToolbarProps): JSX.Element {
   const stop = (event: React.SyntheticEvent) => event.stopPropagation();
   return (
     <div
@@ -24,6 +26,7 @@ export function Toolbar({ onCreateSticky }: ToolbarProps): JSX.Element {
         className="toolbar-sticky"
         aria-label="Sticky note"
         title={STICKY_BUTTON_TOOLTIP}
+        disabled={disabled}
         onClick={onCreateSticky}
       >
         <svg width="20" height="20" viewBox="0 0 20 20" aria-hidden="true" focusable="false">

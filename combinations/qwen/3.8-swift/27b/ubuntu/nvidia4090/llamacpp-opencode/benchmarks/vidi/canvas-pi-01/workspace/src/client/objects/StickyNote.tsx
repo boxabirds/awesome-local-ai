@@ -19,6 +19,8 @@ export interface StickyNoteProps {
   zoom: number;
   selected: boolean;
   editing: boolean;
+  /** False while the board is load_failed: drag and edit are no-ops. */
+  editable: boolean;
   onSelect(id: string | null): void;
   onStartEdit(id: string): void;
   onEndEdit(next: 'selected' | 'unselected'): void;
@@ -41,7 +43,7 @@ interface DragState {
 }
 
 export function StickyNote(props: StickyNoteProps): JSX.Element {
-  const { note, doc, zoom, selected, editing, onSelect, onStartEdit, onEndEdit, onDraggingChange } = props;
+  const { note, doc, zoom, selected, editing, editable, onSelect, onStartEdit, onEndEdit, onDraggingChange } = props;
   const noteRef = useRef<HTMLDivElement | null>(null);
   const textRef = useRef<HTMLDivElement | null>(null);
   const dragRef = useRef<DragState | null>(null);
@@ -119,6 +121,7 @@ export function StickyNote(props: StickyNoteProps): JSX.Element {
     // The board must not pan when a drag starts on a note (sticky.no_pan).
     event.stopPropagation();
     if (!selected) onSelect(note.id);
+    if (!editable) return; // selection only: no drag on a load_failed board
     try {
       noteRef.current?.setPointerCapture(event.pointerId);
     } catch {
@@ -182,6 +185,7 @@ export function StickyNote(props: StickyNoteProps): JSX.Element {
 
   const onDoubleClick = (event: React.MouseEvent<HTMLDivElement>) => {
     event.stopPropagation();
+    if (!editable) return; // no text editing on a load_failed board
     onStartEdit(note.id);
   };
 

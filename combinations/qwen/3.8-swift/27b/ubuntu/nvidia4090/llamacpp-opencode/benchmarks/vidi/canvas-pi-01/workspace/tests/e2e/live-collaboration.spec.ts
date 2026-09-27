@@ -114,15 +114,18 @@ test.describe('Two-person workshop', () => {
         typeInNote(sam.page, 0, samText),
       ]);
 
-      const [alexFinal, samFinal] = await Promise.all([
-        noteTexts(alex.page),
-        noteTexts(sam.page),
-      ]);
-      expect(alexFinal[0]).toBe(samFinal[0]);
-      // Every typed character is present.
-      for (const ch of alexText + samText) {
-        expect(alexFinal[0]).toContain(ch);
-      }
+      // Both pages converge to the same merged text that contains every
+      // typed character. Poll: the write-before-broadcast room relays each
+      // update after a storage write, so the peer applies it a beat later.
+      await expectWithin(async () => {
+        const [alexFinal, samFinal] = await Promise.all([
+          noteTexts(alex.page),
+          noteTexts(sam.page),
+        ]);
+        if (alexFinal[0] !== samFinal[0]) return false;
+        // Every typed character is present.
+        return (alexText + samText).split('').every((ch) => alexFinal[0].includes(ch));
+      }, { message: 'both pages show the merged note text' });
     } finally {
       await closeParticipant(alex);
       await closeParticipant(sam);
@@ -223,23 +226,28 @@ test.describe('Full-capacity session', () => {
           await dragNote(p.page, n, 30 * (n + 1), 20 * (n + 1));
         }
       }
-      // Final DOM snapshots identical: same multiset of note positions.
-      const signatures = await Promise.all(
-        participants.map(async (p) => {
-          const boxes = await p.page
-            .locator('[data-testid="sticky-note"]')
-            .evaluateAll((els) =>
-              els
-                .map((el) => {
-                  const r = el.getBoundingClientRect();
-                  return `${Math.round(r.x)}x${Math.round(r.y)}`;
-                })
-                .sort(),
-            );
-          return boxes.join('|');
-        }),
-      );
-      expect(new Set(signatures).size).toBe(1);
+      // Final DOM snapshots identical: same multiset of note positions. Poll
+      // for convergence: 5 peers × 5 drags each flow through the
+      // write-before-broadcast room, so positions settle a beat after the last
+      // drag is committed.
+      await expectWithin(async () => {
+        const signatures = await Promise.all(
+          participants.map(async (p) => {
+            const boxes = await p.page
+              .locator('[data-testid="sticky-note"]')
+              .evaluateAll((els) =>
+                els
+                  .map((el) => {
+                    const r = el.getBoundingClientRect();
+                    return `${Math.round(r.x)}x${Math.round(r.y)}`;
+                  })
+                  .sort(),
+              );
+            return boxes.join('|');
+          }),
+        );
+        return new Set(signatures).size === 1;
+      }, { timeout: 5000, message: 'all snapshots identical' });
     } finally {
       for (const p of participants) await closeParticipant(p);
     }

@@ -260,6 +260,7 @@ function renderStandalone(
       zoom={zoom}
       selected
       editing={false}
+      editable
       onSelect={() => {}}
       onStartEdit={() => {}}
       onEndEdit={(next) => log.endEdit.push(next)}

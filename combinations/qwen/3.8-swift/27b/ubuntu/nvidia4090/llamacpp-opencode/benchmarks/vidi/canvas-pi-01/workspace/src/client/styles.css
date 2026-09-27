@@ -302,3 +302,7 @@ body {
   background: #16a34a;
   color: #ffffff;
 }
+.connection-badge--load_failed {
+  background: #dc2626;
+  color: #ffffff;
+}

@@ -68,3 +68,20 @@ export const CATCH_UP_TEST_OUTAGE_MS = 30_000;
  * with no user activity (TC-29).
  */
 export const AWARENESS_HEARTBEAT_MS = 10_000;
+
+// ---- Persistence (story 4) ----
+
+/** Compact the update log into a snapshot when this many log rows exist. */
+export const COMPACTION_UPDATE_COUNT = 500;
+/** ...or when the log's total byte count reaches this. */
+export const COMPACTION_BYTES = 4 * 1024 * 1024;
+/** Snapshot rows are split into chunks of this size (below any per-row limit). */
+export const SNAPSHOT_CHUNK_BYTES = 512 * 1024;
+/** A LoadFailed room retries its load at most this often (per new connection). */
+export const LOAD_RETRY_MIN_INTERVAL_MS = 5000;
+/** PRD persist.large_board: the tested board size. */
+export const PERSIST_TESTED_NOTES = 2000;
+/** PRD persist.large_board: the open-time target. */
+export const BOARD_LOAD_BUDGET_MS = 3000;
+/** Versions the SQLite tables (storage_meta.storage_schema_version). */
+export const STORAGE_SCHEMA_VERSION = 1;

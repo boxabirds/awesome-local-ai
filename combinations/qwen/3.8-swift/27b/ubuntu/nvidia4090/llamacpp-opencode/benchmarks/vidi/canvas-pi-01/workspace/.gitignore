@@ -3,3 +3,4 @@ dist
 .wrangler
 playwright-report
 test-results
+.dev.vars

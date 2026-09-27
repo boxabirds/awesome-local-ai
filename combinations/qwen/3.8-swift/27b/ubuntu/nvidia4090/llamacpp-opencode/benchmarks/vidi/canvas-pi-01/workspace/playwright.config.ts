@@ -46,7 +46,10 @@ export default defineConfig({
       : []),
   ],
   webServer: {
-    command: `npm run build:e2e && npx wrangler dev --port ${PORT} --ip 127.0.0.1`,
+    // TEST_HOOKS=1 (via .dev.vars) enables the /__test board-maintenance
+    // routes used by the broken-board e2e (spec task 9). It is written only
+    // for this dev server, so the production build never exposes the hooks.
+    command: `npm run build:e2e && printf 'TEST_HOOKS=1\\n' > .dev.vars && npx wrangler dev --port ${PORT} --ip 127.0.0.1`,
     url: BASE_URL,
     reuseExistingServer: !process.env.CI,
     timeout: 240_000,

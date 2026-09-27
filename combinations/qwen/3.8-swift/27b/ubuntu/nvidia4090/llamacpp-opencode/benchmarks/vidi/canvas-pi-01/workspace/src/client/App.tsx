@@ -26,9 +26,20 @@ import { Toolbar } from './board/Toolbar';
 import { StickyNote } from './objects/StickyNote';
 import { NoteToolbar } from './objects/NoteToolbar';
 import { ConnectionStatus } from './sync/ConnectionStatus';
+import type { ConnectionState } from './sync/connectBoard';
 import { createSticky, deleteObject, setStickyColor } from '../shared/board-model';
 import { isValidBoardId, newBoardId } from '../shared/board-id';
 import { STICKY_SIZE_WORLD } from '../shared/config';
+
+/**
+ * Editing is allowed in every connection state except load_failed
+ * (spec: persist.client_status). A load_failed board shows the red badge
+ * "This board couldn't be loaded. Retrying…" and the provider keeps
+ * retrying; the first successful sync re-enables editing without a reload.
+ */
+export function canEdit(state: ConnectionState): boolean {
+  return state !== 'load_failed';
+}
 
 function parseBoardId(pathname: string): string | null {
   const match = /^\/b\/([^/]+)$/.exec(pathname);
@@ -86,6 +97,7 @@ function Board({ boardId }: { boardId: string }) {
 
   const cam = useCamera(size);
   const { doc, notes, connectionState } = useBoardDoc(boardId);
+  const editable = canEdit(connectionState);
   const { selectedId, editingId, select, startEdit, endEdit } = useSelection(notes);
   const [draggingId, setDraggingId] = useState<string | null>(null);
 
@@ -103,6 +115,7 @@ function Board({ boardId }: { boardId: string }) {
 
   /** Create a note centred on a screen point, then select and start editing it. */
   const createStickyAt = (screenPoint: { x: number; y: number }) => {
+    if (!editable) return; // load_failed: no model mutation (persist.client_status)
     const world = screenToWorld(cam.camera, screenPoint);
     const id = createSticky(doc, world);
     startEdit(id);
@@ -117,7 +130,7 @@ function Board({ boardId }: { boardId: string }) {
       const inField =
         target !== null &&
         (target.tagName === 'TEXTAREA' || target.tagName === 'INPUT' || target.isContentEditable);
-      if (inField || selectedId === null || editingId !== null) return;
+      if (inField || selectedId === null || editingId !== null || !editable) return;
       if (event.key === 'Enter') {
         event.preventDefault();
         startEdit(selectedId);
@@ -129,11 +142,12 @@ function Board({ boardId }: { boardId: string }) {
     };
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [selectedId, editingId, doc, startEdit, select]);
+  }, [selectedId, editingId, doc, editable, startEdit, select]);
 
-  // Note toolbar: screen space, centred above the selected note.
+  // Note toolbar: screen space, centred above the selected note. Hidden while
+  // the board is load_failed so colour/delete are no-ops too.
   let noteToolbar = null;
-  if (selectedNote !== null && editingId === null && draggingId === null) {
+  if (editable && selectedNote !== null && editingId === null && draggingId === null) {
     const centre = worldToScreen(cam.camera, {
       x: selectedNote.x + STICKY_SIZE_WORLD / 2,
       y: selectedNote.y,
@@ -175,6 +189,7 @@ function Board({ boardId }: { boardId: string }) {
             zoom={cam.camera.zoom}
             selected={selectedId === note.id}
             editing={editingId === note.id}
+            editable={editable}
             onSelect={select}
             onStartEdit={startEdit}
             onEndEdit={endEdit}
@@ -183,6 +198,7 @@ function Board({ boardId }: { boardId: string }) {
         ))}
       </BoardViewport>
       <Toolbar
+        disabled={!editable}
         onCreateSticky={() => createStickyAt({ x: size.width / 2, y: size.height / 2 })}
       />
       {noteToolbar}
