@@ -1360,6 +1360,14 @@
         },
         "heldout_floor": 0.25,
         "heldout_ok": true
+      },
+      "record": {
+        "committed": true,
+        "pushed": true,
+        "over_size_limit": [
+          "~/expts/awesome-local-ai/combinations/qwen/3.8/flash-next/ubuntu/strix-halo-128GB/llamacpp-pi/benchmarks/vidi/canvas-vk-02/server.log"
+        ],
+        "commit": "a9d7663"
       }
     }
   },
