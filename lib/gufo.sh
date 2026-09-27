@@ -219,13 +219,19 @@ backend_profile_table() {
   }' "$1"
 }
 
-# gufo lists the context it serves per session in /v1/models, when it does;
-# otherwise the profile's value is what was asked for.
+# The context gufo serves per session. Its API doesn't state it (b722a61: /v1/models lists only the
+# model name, /props?model= returns an empty model_info), but its load line does:
+#   [loader] event=load_completed ... sessions=1 context_tokens=131072 ...
+# so read that from the launcher's container (named "<install id>-<port>"). '?' if neither says.
 backend_smoke_context() {
-  curl -s --max-time 10 "http://127.0.0.1:${1}/v1/models" \
+  local port="$1" n
+  n="$(curl -s --max-time 10 "http://127.0.0.1:${port}/v1/models" \
     | python3 -c 'import sys,json
 m=(json.load(sys.stdin).get("data") or [{}])[0]
-print(m.get("context_length") or m.get("max_model_len") or m.get("n_ctx") or "?")' 2>/dev/null
+print(m.get("context_length") or m.get("max_model_len") or m.get("n_ctx") or "")' 2>/dev/null)"
+  [[ -n "$n" ]] || n="$(podman logs "${INSTALL_ID}-${port}" 2>&1 \
+    | sed -n 's/.*event=load_completed.* context_tokens=\([0-9][0-9]*\).*/\1/p' | tail -1)"
+  echo "${n:-?}"
 }
 
 # "<accepted> <drafted>" from a chat completion's usage, or nothing. gufo

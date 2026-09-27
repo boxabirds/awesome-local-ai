@@ -37,6 +37,20 @@ echo "smoke test: what gufo actually answers (fields as seen on tritus, 27 Sep 2
 RESP='{"usage":{"completion_tokens":120,"draft_tokens":133,"draft_tokens_accepted":104,"gufo":{"prefill_tokens":25}}}'
 assert_eq "draft counters read from usage" "104 133" "$(_gufo_draft_counts <<< "$RESP")"
 assert_eq "no counters -> nothing" "" "$(_gufo_draft_counts <<< '{"usage":{"completion_tokens":5}}')"
+echo
+echo "smoke test: the served context comes from gufo's own load line (its API doesn't report it)"
+# gufo b722a61's /v1/models lists only the model name, and /props?model= returns an empty
+# model_info; the load line in the container log is the one place it states the context.
+curl() { echo '{"object":"list","data":[{"id":"qwen3.8-flash-next-gufo","object":"model","owned_by":"gufo"}]}'; }
+podman() {
+  [[ "$1 $2" == "logs qwen38-flash-next-strix-gufo-18010" ]] || return 1
+  echo '2026-09-27 19:10:06 [INFO] [loader] event=load_completed kind=text elapsed_ms=34236 model=qwen3.8-flash-next-gufo sessions=1 context_tokens=131072 speculative=mtp draft_limit=7'
+}
+assert_eq "context read from the load line" "131072" "$(INSTALL_ID=qwen38-flash-next-strix-gufo backend_smoke_context 18010)"
+podman() { return 1; }
+assert_eq "no container log -> unknown" "?" "$(INSTALL_ID=qwen38-flash-next-strix-gufo backend_smoke_context 18010)"
+unset -f curl podman
+
 smoke_extra() { # the SMOKE_REQUEST_EXTRA the installer would send, with the combination loaded
   bash -c 'LOG_FILE=/dev/null; . "$1/lib/common.sh"; . "$2"; . "$1/lib/gufo.sh"; printf "%s" "$SMOKE_REQUEST_EXTRA"' _ "$REPO_ROOT" "$CFG"
 }
