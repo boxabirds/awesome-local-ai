@@ -53,7 +53,7 @@ wait_up() {
 }
 
 start_llamacpp() {
-  local cmd=("$LLAMA_BIN/llama-server" -m "$MODELS/$MODEL_REL" -ngl 99 -c "$CTX" -fa on --jinja -np 1
+  local cmd=("$LLAMA_BIN/llama-server" -m "$MODELS/$MODEL_REL" -lm dio -ngl 99 -c "$CTX" -fa on --jinja -np 1
     --host 127.0.0.1 --port "$PORT" --device Vulkan0 --spec-draft-device Vulkan0
     -md "$MODELS/$MTP_REL" --spec-type draft-mtp --spec-draft-n-max 4 --spec-draft-ngl 99
     --spec-draft-p-min 0.0 --ctx-checkpoints 8)
