@@ -83,6 +83,8 @@ function statusText(key) {
   const st = status[key];
   if (!st) return ["not started", ""];
   if (st.state === "running") return ["running", "running"];
+  if (st.state === "ready") return ["ready: opens in seconds", "running"];
+  if (st.state === "queued") return ["queued to build", ""];
   if (st.state === "preparing") return [st.step || "preparing…", ""];
   if (st.state === "failed") return ["failed: " + (st.error || "").slice(0, 80), "failed"];
   return [st.state, ""];
