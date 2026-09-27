@@ -1,6 +1,6 @@
 {
-  "state": "failed",
-  "reason": "exit 1: raise TimeoutExpired( subprocess.TimeoutExpired: Command '['sandbox-exec', '-p', '(version 1)(allow default)(deny file-read* file-write* (subpath \"~/expts/awesome-local-ai\") (subpath \"~/.claude\") (subpath \"~/.agents\") (subpath \"~/.codex\") (subp",
-  "at": "2026-09-27T00:56:10Z",
+  "state": "started",
+  "reason": "harness 8c515ee, client pi, model mtplx-flash-next-optimized-speed",
+  "at": "2026-09-27T01:03:07Z",
   "host": "Quintus"
 }
