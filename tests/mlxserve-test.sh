@@ -19,6 +19,12 @@ trap 'rm -rf "$WORK" "$INSTALL_ROOT" "$LOG_FILE"' EXIT
 COMBO="qwen/3.8/flash-next/macos/128GB/mlxserve-opencode"
 CFG="$REPO_ROOT/combinations/$COMBO/config.sh"
 
+echo "a first install: looking for the pinned binary in a folder that doesn't exist yet"
+# The installer runs under set -euo pipefail. find exits non-zero on a missing folder, and that
+# silently killed the first mlx-serve install on quintus (27 Sep 2026).
+out="$(bash -c 'set -euo pipefail; . "$1/lib/common.sh"; . "$1/lib/mlxserve.sh"; b="$(_mlxserve_find_in /nonexistent/mlx-serve/v0)"; echo "survived:[$b]"' _ "$REPO_ROOT" 2>/dev/null)"
+assert_eq "a missing folder finds nothing, without ending the install" "survived:[]" "$out"
+
 echo "version comparison (mlx-serve is calendar-versioned)"
 assert_ok    "26.9.5 >= 26.9.5"   version_ge 26.9.5 26.9.5
 assert_ok    "26.10.1 >= 26.9.5"  version_ge 26.10.1 26.9.5
@@ -142,7 +148,7 @@ assert_ok "opts out of automatic selection"       grep -qE '^AUTO_SELECT=0$' "$C
 assert_ok "backend is mlxserve"                   grep -qE '^BACKEND="mlxserve"' "$CFG"
 assert_ok "revision is a full commit"             grep -qE '^MODEL_REVISION="[0-9a-f]{40}"' "$CFG"
 assert_ok "release tarball pinned by sha256"      grep -qE '^MLXSERVE_TARBALL_SHA256="[0-9a-f]{64}"' "$CFG"
-assert_ok "mlx-serve floor is 26.9.5"             grep -qE '^MLXSERVE_VERSION="26\.9\.5"' "$CFG"
+assert_ok "mlx-serve pin is 26.9.6"              grep -qE '^MLXSERVE_VERSION="26\.9\.6"' "$CFG"
 assert_eq "a hash for all 103 LFS files" 103 "$(bash -c ". '$CFG'; printf '%s\n' \"\$MODEL_SHA256\" | grep -cE '^[0-9a-f]{64}  '")"
 assert_ok "...including the n-gram table"        grep -qE '^[0-9a-f]{64}  ngram_table\.bin$' "$CFG"
 assert_ok "effort: only what mlx-serve does"      grep -qE '^REASONING_EFFORTS="default low"$' "$CFG"

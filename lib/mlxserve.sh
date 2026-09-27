@@ -146,7 +146,10 @@ _mlxserve_resolve_binary() {
 _mlxserve_pinned_dir() { printf '%s/%s/v%s' "$HOME" "$MLXSERVE_INSTALL_REL" "$MLXSERVE_VERSION"; }
 
 _mlxserve_find_in() {
-  find "$1" -maxdepth 3 -type f -name mlx-serve -perm -u+x 2>/dev/null | head -1
+  # A folder that doesn't exist yet (a first install) finds nothing; it must not fail the caller,
+  # which runs under set -euo pipefail.
+  [[ -d "$1" ]] || return 0
+  find "$1" -maxdepth 3 -type f -name mlx-serve -perm -u+x 2>/dev/null | head -1 || true
 }
 
 # Idempotent: an unpacked copy of this exact version is reused without any
