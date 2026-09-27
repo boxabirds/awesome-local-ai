@@ -1,16 +1,21 @@
+import { UndoButtons, type UndoButtonsProps } from './UndoButtons';
+
 export interface ToolbarProps {
   onCreateSticky(): void;
   /** True while the board cannot be edited (load failure): the creation button
    * is rendered disabled, so the failure is visible instead of silent. */
   disabled?: boolean;
+  /** Undo / redo state from useUndo (story 8), rendered below the tools. */
+  undo: UndoButtonsProps;
 }
 
 /**
- * The fixed left-side tool palette. Currently just the "Sticky note" creation
- * button. It stops pointer propagation so a click in the palette never reaches
- * the board (which would otherwise clear the selection or pan the camera).
+ * The fixed left-side tool palette: the "Sticky note" creation button and the
+ * undo / redo controls (story 8). It stops pointer propagation so a click in
+ * the palette never reaches the board (which would otherwise clear the
+ * selection or pan the camera).
  */
-export function Toolbar({ onCreateSticky, disabled = false }: ToolbarProps) {
+export function Toolbar({ onCreateSticky, disabled = false, undo }: ToolbarProps) {
   return (
     <div
       data-testid="toolbar"
@@ -58,6 +63,7 @@ export function Toolbar({ onCreateSticky, disabled = false }: ToolbarProps) {
       >
         &#9634;
       </button>
+      <UndoButtons {...undo} />
     </div>
   );
 }

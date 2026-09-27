@@ -14,3 +14,5 @@ test-results/
 # misc
 *.local
 .DS_Store
+# tsc build info
+*.tsbuildinfo

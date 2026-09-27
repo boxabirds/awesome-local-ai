@@ -1,8 +1,9 @@
-import { useEffect, useLayoutEffect, useRef, useState, type KeyboardEvent as ReactKeyboardEvent, type FormEvent } from 'react';
+import { useContext, useEffect, useLayoutEffect, useRef, useState, type KeyboardEvent as ReactKeyboardEvent, type FormEvent } from 'react';
 import * as Y from 'yjs';
 import { clampToLimit, applyTextDiff, counterVisible } from './StickyText';
 import { STICKY_TEXT_MAX_CHARS } from '../../shared/config';
 import { LOCAL_ORIGIN } from '../../shared/board-model';
+import { UndoControllerContext } from '../board/useUndo';
 
 export interface StickyTextEditorProps {
   ytext: Y.Text;
@@ -19,6 +20,11 @@ export interface StickyTextEditorProps {
  * clamped to the character limit and written to the Y.Text with a minimal diff,
  * so ending editing later performs no additional write (the text is already in
  * the document). Escape ends editing and keeps the note selected.
+ *
+ * Story 8: while editing, Ctrl/Cmd+Z (and Ctrl+Y / the Shift variants) route to
+ * the board's undo controller instead of the textarea's native undo — a native
+ * undo would desync the textarea from the shared Y.Text. Typing within the
+ * capture window is ONE undo step; leaving the note closes the step (undo.typing).
  */
 export function StickyTextEditor({ ytext, fontPx, padding, onEnd }: StickyTextEditorProps) {
   const ref = useRef<HTMLTextAreaElement>(null);
@@ -26,6 +32,17 @@ export function StickyTextEditor({ ytext, fontPx, padding, onEnd }: StickyTextEd
   const [value, setValue] = useState<string>(() => ytext.toString());
   // Mirror of `value` readable from event handlers without re-subscribing.
   const valueRef = useRef(value);
+  const undo = useContext(UndoControllerContext);
+
+  // Undo step boundaries around the whole edit session (edit start / Escape /
+  // click-away all end here via unmount): the typing run below becomes one
+  // step, and the action that opened the editor is already its own step.
+  useEffect(() => {
+    undo?.boundary();
+    return () => {
+      undo?.boundary();
+    };
+  }, [undo]);
 
   // Adopt remote edits while editing: when the shared Y.Text changes from
   // another origin (a synced peer edit), reseed the textarea from the merged
@@ -88,6 +105,21 @@ export function StickyTextEditor({ ytext, fontPx, padding, onEnd }: StickyTextEd
       e.preventDefault();
       e.stopPropagation();
       onEnd('selected');
+      return;
+    }
+    // Story 8: undo / redo while typing (undo.typing). The window-level handler
+    // ignores keys from text fields, so this textarea is the only handler that
+    // sees them. Undoing the typing burst is visible immediately: the undo
+    // transaction arrives with the manager as origin, and the remote-adopt
+    // observer above reseeds the textarea from the merged text.
+    const mod = e.metaKey || e.ctrlKey;
+    const key = typeof e.key === 'string' ? e.key.toLowerCase() : e.key;
+    if (undo && mod && (key === 'z' || key === 'y')) {
+      e.preventDefault();
+      e.stopPropagation();
+      if (key === 'z' && !e.shiftKey) undo.undo();
+      else undo.redo();
+      return;
     }
     // Enter is intentionally NOT intercepted: it inserts a newline. Delete and
     // Backspace fall through to the textarea (edit_text); App ignores them while

@@ -124,3 +124,14 @@ export const LINK_COPIED_MS = 2000;
 /** Base backoff for the board-existence retry; doubles up to
  * RECONNECT_MAX_BACKOFF_MS (story 3). */
 export const BOARD_CHECK_RETRY_BASE_MS = 1000;
+
+// --- Undo / redo (story 8) --------------------------------------------------
+
+/** Typing pause that ends an undo typing burst: consecutive edits written
+ *  within this window merge into ONE undo step (undo.typing). Boundary tested
+ *  by TC-13 (− 1 ms merges, exactly one step each). */
+export const UNDO_CAPTURE_TIMEOUT_MS = 500;
+/** Largest number of undo steps kept per person per tab (undo.limit). The
+ *  oldest step is discarded when a new one arrives at the cap. Boundary
+ *  tested by TC-09 / TC-10. */
+export const UNDO_MAX_STEPS = 200;

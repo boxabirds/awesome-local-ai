@@ -1,6 +1,7 @@
 // Board keyboard commands (sel.keyboard).
 //
 //   Ctrl/Cmd+A        select everything selectable (works even on a read-only board)
+//   Ctrl/Cmd+Z        undo my last step (story 8); Ctrl/Cmd+Shift+Z and Ctrl+Y redo
 //   Escape            clear the selection
 //   Delete / Backspace delete the selection
 //   Arrow keys        nudge the selection by NUDGE_STEP_WORLD (Shift: NUDGE_LARGE_STEP_WORLD)
@@ -9,7 +10,8 @@
 //
 // Typing always wins: while a text edit is open, or while focus is in a text field,
 // nothing here runs (TC-30). The listener is on `window`, so the shortcuts work
-// whatever has focus inside the board.
+// whatever has focus inside the board. While editing, the sticky's own textarea
+// handles Ctrl/Cmd+Z (StickyTextEditor), so undo still works mid-edit.
 
 import { useEffect, useRef } from 'react';
 import type * as Y from 'yjs';
@@ -34,6 +36,12 @@ export interface BoardKeysDeps {
   marqueeActive?(): boolean;
   /** Story 2's "n" shortcut: create a sticky note at the centre of the view. */
   createObject(): void;
+  /** Story 8: the board's undo controller surface (useUndo). Ignored on a
+   * read-only board, like every other data-changing command. */
+  undo: { undo(): void; redo(): void };
+  /** Story 8: close the capture window before / after a discrete command so
+   * each Delete keypress or nudge is exactly one undo step. */
+  undoBoundary(): void;
 }
 
 /** Text-entry targets: the board never intercepts a key pressed in one of these. */
@@ -74,6 +82,20 @@ export function useBoardKeys(deps: BoardKeysDeps): void {
       // Everything below changes board data: unavailable on a read-only board.
       if (!d.isEditable()) return;
 
+      // Story 8: undo / redo. Checked before the selection gate — undoing
+      // needs no selection. The undo controller itself only holds THIS tab's
+      // steps, so a remote change can never be popped here (undo.safe).
+      {
+        const mod = e.metaKey || e.ctrlKey;
+        const key = typeof e.key === 'string' ? e.key.toLowerCase() : e.key;
+        if (mod && (key === 'z' || key === 'y')) {
+          e.preventDefault();
+          if (key === 'z' && !e.shiftKey) d.undo.undo();
+          else d.undo.redo(); // Ctrl/Cmd+Shift+Z, and Ctrl/Cmd+Y
+          return;
+        }
+      }
+
       if (e.key === 'n' || e.key === 'N') {
         e.preventDefault();
         d.createObject();
@@ -85,7 +107,9 @@ export function useBoardKeys(deps: BoardKeysDeps): void {
 
       if (e.key === 'Delete' || e.key === 'Backspace') {
         e.preventDefault();
+        d.undoBoundary();
         d.deleteSelection(); // clears the selection when it removed something
+        d.undoBoundary(); // one deletion == one undo step, whatever the timing
         return;
       }
       if (e.key === 'Enter') {
@@ -125,7 +149,9 @@ export function useBoardKeys(deps: BoardKeysDeps): void {
         const b = objectBounds(o);
         positions.set(o.id, { x: b.x + dx, y: b.y + dy });
       }
+      d.undoBoundary(); // each arrow press is one step, not one merged burst
       moveObjects(d.doc, positions);
+      d.undoBoundary();
     };
 
     window.addEventListener('keydown', onKeyDown);

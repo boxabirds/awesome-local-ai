@@ -16,6 +16,8 @@ import { SelectionBar, SelectionStatus } from './board/SelectionBar';
 import { useTransformGesture } from './board/useTransformGesture';
 import { useMarquee, Marquee } from './board/Marquee';
 import { useBoardKeys } from './board/useBoardKeys';
+import { createUndo, type UndoController } from './board/undo';
+import { UndoControllerContext, useUndo } from './board/useUndo';
 import type { BackgroundPointerDown } from './canvas/BoardViewport';
 import {
   allObjectIds,
@@ -50,6 +52,14 @@ function useRefLike<T>(value: T) {
 }
 
 /**
+ * Origin for the test-only seed hooks. Fixtures are pre-existing board
+ * content, not something the current user did, so they are written with a
+ * non-local origin: the undo controller (trackedOrigins = {LOCAL_ORIGIN})
+ * never captures them and they sync to peers like any remote change.
+ */
+const FIXTURE_SEED_ORIGIN = Symbol('vidi6.fixture-seed');
+
+/**
  * Top-level board. Owns the camera (story 1), the Y.Doc-backed note snapshot and
  * the local selection/editing state (story 2), and — from story 3 — the sync
  * connection for the board it renders. Selection and editing stay local.
@@ -81,6 +91,26 @@ export function App({ boardId = null, providerFactory }: AppProps = {}) {
   const editable = canEdit(connectionState);
   const editableRef = useRefLike(editable);
 
+  // --- story 8: undo / redo for THIS tab's own changes ------------------------
+  // One controller per board session (PRD "per person per tab"). Created once
+  // the doc exists and destroyed on teardown; nothing renders undo state in
+  // the single frame before this effect runs, so a null controller only ever
+  // means "disabled buttons". Remote updates carry the provider origin and
+  // story 4's load applies carry the load origin — neither is ever captured.
+  const [undoController, setUndoController] = useState<UndoController | null>(null);
+  useEffect(() => {
+    const controller = createUndo(doc);
+    setUndoController(controller);
+    return () => {
+      controller.destroy();
+      setUndoController(null);
+    };
+  }, [doc]);
+  const undoControllerRef = useRefLike(undoController);
+  /** Close the current capture window: the next local write is a NEW step. */
+  const undoBoundary = useCallback(() => undoControllerRef.current?.boundary(), [undoControllerRef]);
+  const undoApi = useUndo(undoController, editable);
+
   // Keep the latest values available to the stable window keydown handler
   // without re-subscribing on every change.
   const selRef = useRefLike(sel);
@@ -97,10 +127,14 @@ export function App({ boardId = null, providerFactory }: AppProps = {}) {
   const createAndEdit = useCallback(
     (at: { x: number; y: number }) => {
       if (!editableRef.current) return; // load-failed board: creation is a no-op
+      // Boundaries on both sides: creation is one undo step whatever follows
+      // it inside the capture window (story 2's "create then edit" flow).
+      undoBoundary();
       const id = createSticky(docRef.current, at);
+      undoBoundary();
       selRef.current.startEdit(id);
     },
-    [docRef, selRef],
+    [docRef, selRef, undoBoundary],
   );
 
   // Delete a note and clear its selection. Shared by the note toolbar's bin
@@ -108,10 +142,12 @@ export function App({ boardId = null, providerFactory }: AppProps = {}) {
   const removeNote = useCallback(
     (id: string) => {
       if (!editableRef.current) return;
+      undoBoundary();
       deleteObject(docRef.current, id);
+      undoBoundary(); // one toolbar deletion == one undo step
       selRef.current.select(null);
     },
-    [docRef, selRef],
+    [docRef, selRef, undoBoundary],
   );
 
   // Double-click on empty board: create a note centred on the clicked point.
@@ -147,6 +183,10 @@ export function App({ boardId = null, providerFactory }: AppProps = {}) {
     isEditable: () => editableRef.current,
     onSelectionChange: (ids) => selRef.current.setMany(ids, false),
     onObjectsDeleted: () => selRef.current.clear(),
+    // Story 8: a whole drag (however many frames) is ONE undo step — the
+    // boundaries close the capture window around the gesture. TC-14.
+    onGestureStart: undoBoundary,
+    onGestureEnd: undoBoundary,
   });
 
   const marquee = useMarquee({
@@ -164,7 +204,8 @@ export function App({ boardId = null, providerFactory }: AppProps = {}) {
     [marquee],
   );
 
-  // Select All, Escape, Delete / Backspace, Enter and the arrow-key nudge.
+  // Select All, Escape, Delete / Backspace, Enter, undo / redo and the
+  // arrow-key nudge.
   useBoardKeys({
     doc,
     getSnapshot: () => notesRef.current,
@@ -177,6 +218,8 @@ export function App({ boardId = null, providerFactory }: AppProps = {}) {
     deleteSelection: gesture.deleteSelection,
     marqueeActive: () => marquee.isActive(),
     createObject: createAtCentre,
+    undo: undoApi,
+    undoBoundary,
   });
 
   // Test-only board hook: seed notes and read interaction state through the
@@ -192,7 +235,14 @@ export function App({ boardId = null, providerFactory }: AppProps = {}) {
       // Story 7: the whole selection (local, never synced), and Select All.
       selectedIds: () => [...selRef.current.ids],
       selectAll: () => selRef.current.setMany(allObjectIds(snapshot(docRef.current)), false),
-      seedSticky: (x: number, y: number, color?: string) => createSticky(docRef.current, { x, y }, color as never),
+      // Fixtures are seeded with a non-local origin so they behave like
+      // content that was already on the board: the undo controller never
+      // captures them (they still sync to peers normally).
+      seedSticky: (x: number, y: number, color?: string) =>
+        docRef.current.transact(
+          () => createSticky(docRef.current, { x, y }, color as never),
+          FIXTURE_SEED_ORIGIN,
+        ) as string,
       snapshot: () => snapshot(docRef.current),
       select: (id: string | null) => selRef.current.select(id),
       startEdit: (id: string) => selRef.current.startEdit(id),
@@ -243,7 +293,7 @@ export function App({ boardId = null, providerFactory }: AppProps = {}) {
   const selectedObjects = notes.filter((n) => sel.ids.has(n.id));
 
   return (
-    <>
+    <UndoControllerContext.Provider value={undoController}>
       <ConnectionStatus state={connectionState} />
       <BoardViewport
         api={api}
@@ -281,7 +331,7 @@ export function App({ boardId = null, providerFactory }: AppProps = {}) {
         <Marquee rect={marquee.rect} zoom={cam.zoom} />
       </BoardViewport>
 
-      <Toolbar onCreateSticky={handleCreateSticky} disabled={!editable} />
+      <Toolbar onCreateSticky={handleCreateSticky} disabled={!editable} undo={undoApi} />
 
       {selectedNote && toolbarPos && (
         <div
@@ -296,7 +346,12 @@ export function App({ boardId = null, providerFactory }: AppProps = {}) {
           <NoteToolbar
             color={selectedNote.color as StickyColor}
             disabled={!editable}
-            onColor={(c) => setStickyColor(doc, selectedNote.id, c)}
+            onColor={(c) => {
+              if (!editableRef.current) return;
+              undoBoundary();
+              setStickyColor(doc, selectedNote.id, c);
+              undoBoundary(); // one colour click == one undo step (TC-15)
+            }}
             onDelete={() => removeNote(selectedNote.id)}
           />
         </div>
@@ -308,7 +363,11 @@ export function App({ boardId = null, providerFactory }: AppProps = {}) {
         objects={selectedObjects}
         camera={cam}
         editable={editable}
-        onDelete={gesture.deleteSelection}
+        onDelete={() => {
+          undoBoundary();
+          gesture.deleteSelection();
+          undoBoundary(); // one bar deletion == one undo step
+        }}
       />
       <SelectionStatus count={sel.count} />
 
@@ -321,7 +380,7 @@ export function App({ boardId = null, providerFactory }: AppProps = {}) {
         onReset={api.reset}
       />
       <NavigationHint visible={!api.hasNavigated} />
-    </>
+    </UndoControllerContext.Provider>
   );
 }
 export default App;

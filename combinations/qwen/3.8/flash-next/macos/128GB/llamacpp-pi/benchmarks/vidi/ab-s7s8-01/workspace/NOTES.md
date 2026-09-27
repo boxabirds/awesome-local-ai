@@ -169,3 +169,79 @@ where Story 5 required it (no implicit board creation any more).
 - `npm run build` / `build:test` — succeed.
 - `npx vitest run` — 208 passing (unit + component + integration, 25 files).
 - `npm run test:e2e` — 34 passing in chromium (1 worker, real workerd).
+
+# Story 8 — Undo my mistakes, keep others' work: notes & decisions
+
+## Scope
+Implemented story 8 only: per-person undo/redo of local actions with visible
+Undo/Redo controls, Ctrl/Cmd+Z (and Ctrl/Cmd+Shift+Z / Ctrl+Y) shortcuts, a
+200-step budget per person per tab, and whole multi-event actions (drag,
+resize, typing burst) collapsing into single steps.
+
+## The controller (`src/client/board/undo.ts` + `useUndo.ts`)
+- `createUndo(doc, { captureTimeoutMs, maxSteps })` wraps `Y.UndoManager`
+  scoped to the `objects` Y.Map, with `trackedOrigins = { LOCAL_ORIGIN }`
+  only. Provider-applied remote updates, fixture loads and implicit (null)
+  origins are therefore never captured, and undo/redo can never destroy a
+  colleague's change — remote state just converges back.
+- `boundary()` == `manager.stopCapturing()`: called at the start AND end of
+  every composite gesture (transform start/end, editor mount/unmount) and
+  before/after each discrete mutation (create, delete, nudge, colour, share
+  link is untouched). With `captureTimeoutMs = 500` consecutive edits without
+  a boundary merge, boundaries force splits — a drag is one step, a delete is
+  its own step, a typing burst is one step.
+- Stack trimming: on every captured step, extra items are shifted off the
+  bottom when the stack exceeds `UNDO_MAX_STEPS` (oldest silently dropped;
+  the newest 200 survive).
+- `undo()/redo()` return booleans; a `change` listener plus the
+  stack-item-popped/stack-cleared events feed `canUndo/canRedo` state. When
+  Yjs silently skips dead items (inverse would be a no-op — the object was
+  deleted remotely) NO event fires, so `undo()` also notifies manually if
+  the stack shrank while nothing was undone — otherwise buttons would show
+  stale enabled state.
+- `useUndo(controller, canEdit)` subscribes with `useSyncExternalStore`;
+  undo/redo are additionally gated on `canEdit` (read-only boards stay inert)
+  and swallow "history exhausted" (the boolean is false, nothing throws).
+- The controller is created in a mount effect (StrictMode-safe cleanup calls
+  `destroy()`), passed to the toolbar through props and to the text editor
+  through `UndoControllerContext` (the editor intercepts Ctrl/Cmd+Z *inside*
+  the textarea: one press closes the editor and hands the undo to the board,
+  so a burst is closed and undone as a unit — the browser's own textarea
+  history is suppressed with preventDefault before our boundary fires).
+
+## Keyboard (`useBoardKeys.ts`)
+Checked after the read-only guard but before the selection guard (undo needs
+no selection). Ctrl/Cmd+Z = undo, Ctrl/Cmd+Shift+Z and Ctrl+Y = redo; every
+app shortcut preventDefaults so the browser never sees it. Delete and nudges
+are boundary-wrapped on both sides, so `move, move, delete, undo` reverses
+exactly the delete.
+
+## Test seams
+- The `seedSticky` window hook now writes through `FIXTURE_SEED_ORIGIN`, so
+  seeding fixtures does not pollute the history of the tab that seeds.
+- `tests/unit/helpers/peer.ts` models real peers (separate docs, relayed
+  updates) — the crucial trick: each peer must receive the FULL initial state
+  before delta relay starts, because yjs ignores a struct segment whose clock
+  starts above the target's clock (no implicit catch-up through `origin`).
+- `tests/unit/undo-boundaries.test.ts` mocks `lib0/time` (vitest inlines
+  yjs/lib0 so the interception reaches UndoManager) to control the 500 ms
+  capture window deterministically.
+- e2e TC-24 keeps all ten notes inside the viewport (the default camera
+  centres the world origin; ~world x∈[-540, 740], y∈[-310, 490] is on screen
+  at zoom 1 — off-screen notes silently swallow dblclicks).
+
+## Small things deliberately not done
+- No persistence of history across reloads (PRD: history is per browser tab,
+  gone on reload — matches Y.UndoManager's in-memory design).
+- No toast/tooltip on exhausted history — buttons disable, keyboard presses
+  are silent no-ops (PRD tone: "nothing happens immediately").
+- Redo-after-new-action follows Yjs semantics: a new local action clears the
+  redo stack (documented behaviour, matches mainstream editors).
+
+## Verification (all green before commit)
+- `npx tsc -b` — clean.
+- `npx vitest run --project unit --project component` — 295 passing (33 new
+  undo tests: 18 unit, 12 component, 3 e2e).
+- `npx vitest run --project integration` — 43; `--project workers` — 10.
+- `npx playwright test` — 46 passing in chromium (real workerd, real
+  multi-context undo).

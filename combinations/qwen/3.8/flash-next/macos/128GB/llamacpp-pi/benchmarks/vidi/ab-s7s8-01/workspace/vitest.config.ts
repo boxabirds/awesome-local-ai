@@ -14,6 +14,10 @@ export default defineConfig({
           name: 'unit',
           environment: 'node',
           include: ['tests/unit/**/*.test.ts'],
+          // Story 8 TC-12/TC-13 fake the clock at its source: yjs reads
+          // `lib0/time`, so both must resolve through vite's module graph
+          // (where vi.mock applies) instead of node's native resolution.
+          server: { deps: { inline: ['yjs', 'lib0'] } },
         },
       },
       {
