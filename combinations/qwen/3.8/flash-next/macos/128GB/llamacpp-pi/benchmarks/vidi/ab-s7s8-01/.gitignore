@@ -1,0 +1,7 @@
+# Written by benchmarks/spec-bench/harness/drive.py. Raw agent logs are kept compacted
+# (agent-events.compact.jsonl.gz); machine-local bookkeeping stays out of git.
+stories/*/agent-events.jsonl
+current_story
+work_dir.txt
+progress.json
+control/
