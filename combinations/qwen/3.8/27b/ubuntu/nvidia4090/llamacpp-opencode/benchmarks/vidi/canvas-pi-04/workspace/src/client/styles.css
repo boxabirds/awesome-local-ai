@@ -509,3 +509,116 @@ body {
   font-size: 12px;
   color: #5b6470;
 }
+
+/* Story 7: the screen-space overlay above the board. It covers the viewport,
+   is pointer-transparent except its interactive children, and clips to it. */
+.board-overlay {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+/* Shift+drag marquee rectangle (screen space, converted from world). */
+.marquee-rect {
+  position: absolute;
+  background: rgba(59, 130, 246, 0.12);
+  border: 1px solid rgba(59, 130, 246, 0.7);
+  border-radius: 1px;
+}
+
+/* Selection outline + resize handles (screen space, converted from world). */
+.selection-overlay {
+  position: absolute;
+  inset: 0;
+}
+
+.selection-box {
+  position: absolute;
+  border: 1px solid var(--focus-ring);
+  border-radius: 1px;
+  pointer-events: none;
+}
+
+.selection-handle {
+  position: absolute;
+  width: 8px;
+  height: 8px;
+  transform: translate(-50%, -50%);
+  background: #fff;
+  border: 1px solid var(--focus-ring);
+  border-radius: 2px;
+  pointer-events: auto;
+}
+
+.selection-handle--nw { cursor: nwse-resize; }
+.selection-handle--se { cursor: nwse-resize; }
+.selection-handle--ne { cursor: nesw-resize; }
+.selection-handle--sw { cursor: nesw-resize; }
+.selection-handle--n { cursor: ns-resize; }
+.selection-handle--s { cursor: ns-resize; }
+.selection-handle--e { cursor: ew-resize; }
+.selection-handle--w { cursor: ew-resize; }
+
+.selection-handle:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 1px;
+}
+
+/* Floating selection bar: anchored at the group's top-centre, then floated
+   above it (bottom-centre on the anchor). Constant screen size (screen space).
+   Reuses the note toolbar's panel styling for the single-sticky case. */
+.selection-bar-anchor {
+  position: absolute;
+  width: 0;
+  height: 0;
+  pointer-events: none;
+}
+
+.selection-bar-scaled {
+  position: absolute;
+  left: 0;
+  top: 0;
+  transform: translate(-50%, -100%);
+  transform-origin: 50% 100%;
+  margin-top: -8px;
+  pointer-events: auto;
+}
+
+.selection-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 6px;
+  background: var(--panel-background);
+  border: 1px solid var(--panel-border);
+  border-radius: 8px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.12);
+}
+
+.selection-bar__count {
+  font-size: 12px;
+  color: var(--text-color);
+  white-space: nowrap;
+}
+
+.selection-bar__delete {
+  appearance: none;
+  border: 1px solid var(--panel-border);
+  border-radius: 6px;
+  background: #fff;
+  color: var(--text-color);
+  font-size: 12px;
+  padding: 3px 10px;
+  cursor: pointer;
+}
+
+.selection-bar__delete:hover:not(:disabled) {
+  border-color: var(--focus-ring);
+  color: var(--focus-ring);
+}
+
+.selection-bar__delete:disabled {
+  opacity: 0.5;
+  cursor: default;
+}

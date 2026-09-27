@@ -26,6 +26,11 @@ export function BoardViewport(props: {
   onCreateStickyAt?: (worldPoint: Point) => void;
   /** Clear the selection (press on empty space without a drag). */
   onClearSelection?: () => void;
+  /** Shift+press on empty space begins a marquee (viewport-local point). */
+  onMarqueeBegin?: (screen: Point) => void;
+  onMarqueeMove?: (screen: Point) => void;
+  onMarqueeEnd?: () => void;
+  onMarqueeCancel?: () => void;
 }): JSX.Element {
   const viewportRef = useRef<HTMLDivElement | null>(null);
   const size = useElementSize(viewportRef);
@@ -33,6 +38,7 @@ export function BoardViewport(props: {
   const [panning, setPanning] = useState(false);
   const gestureScale = useRef(1);
   const pressPoint = useRef<Point | null>(null);
+  const marqueePointer = useRef<number | null>(null);
 
   const toLocal = (clientX: number, clientY: number): Point => {
     const el = viewportRef.current;
@@ -45,11 +51,11 @@ export function BoardViewport(props: {
 
   const onPointerDown = (e: ReactPointerEvent<HTMLDivElement>): void => {
     const el = viewportRef.current;
-    if (!el || panning) return;
+    if (!el || panning || marqueePointer.current !== null) return;
     if (e.pointerType === 'mouse' && e.button !== 0) return;
-    // Only start a pan when pressing the board surface itself. Children live
-    // in the world layer with pointer-events: none, so a press on empty space
-    // lands on the viewport; future objects can stopPropagation to opt out.
+    // Only start a pan/marquee when pressing the board surface itself.
+    // Children live in the world layer with pointer-events: none, so a press
+    // on empty space lands on the viewport; objects stopPropagation to opt out.
     if (e.target !== el) return;
     try {
       el.setPointerCapture(e.pointerId);
@@ -57,12 +63,24 @@ export function BoardViewport(props: {
       // Pointer capture is unavailable (e.g. jsdom); the drag still works
       // because events are dispatched on the viewport element.
     }
-    pressPoint.current = toLocal(e.clientX, e.clientY);
+    const local = toLocal(e.clientX, e.clientY);
+    // Shift + press on empty space marquee-selects (sel.marquee_ui); without
+    // Shift the story 1 pan path is unchanged.
+    if (e.shiftKey) {
+      marqueePointer.current = e.pointerId;
+      props.onMarqueeBegin?.(local);
+      return;
+    }
+    pressPoint.current = local;
     setPanning(true);
-    beginPan(toLocal(e.clientX, e.clientY));
+    beginPan(local);
   };
 
   const onPointerMove = (e: ReactPointerEvent<HTMLDivElement>): void => {
+    if (marqueePointer.current === e.pointerId) {
+      props.onMarqueeMove?.(toLocal(e.clientX, e.clientY));
+      return;
+    }
     if (!panning) return;
     panMove(toLocal(e.clientX, e.clientY));
   };
@@ -75,6 +93,12 @@ export function BoardViewport(props: {
       } catch {
         // Capture may already be released (pointercancel).
       }
+    }
+    // A marquee press that ends commits its rect (objectsInRect -> setMany).
+    if (marqueePointer.current === e.pointerId) {
+      marqueePointer.current = null;
+      props.onMarqueeEnd?.();
+      return;
     }
     setPanning(false);
     // The last committed camera is kept: an interrupted drag leaves the
@@ -92,12 +116,23 @@ export function BoardViewport(props: {
     }
   };
 
+  const onPointerCancel = (e: ReactPointerEvent<HTMLDivElement>): void => {
+    if (marqueePointer.current === e.pointerId) {
+      marqueePointer.current = null;
+      props.onMarqueeCancel?.();
+      return;
+    }
+    setPanning(false);
+    endPan();
+  };
+
   // A double-click on empty space creates a note centred on the point
   // (PRD sticky.create_dblclick). Notes stop propagation, so this only fires
-  // for the board surface itself.
+  // for the board surface itself. Shift+double-click is a no-op.
   const onDoubleClick = (e: ReactMouseEvent<HTMLDivElement>): void => {
     const el = viewportRef.current;
     if (el === null || e.target !== el) return;
+    if (e.shiftKey) return;
     props.onCreateStickyAt?.(screenToWorld(camera, toLocal(e.clientX, e.clientY)));
   };
 
@@ -215,7 +250,7 @@ export function BoardViewport(props: {
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}
       onPointerUp={stopPanning}
-      onPointerCancel={stopPanning}
+      onPointerCancel={onPointerCancel}
       onLostPointerCapture={onLostPointerCapture}
       onDoubleClick={onDoubleClick}
     >

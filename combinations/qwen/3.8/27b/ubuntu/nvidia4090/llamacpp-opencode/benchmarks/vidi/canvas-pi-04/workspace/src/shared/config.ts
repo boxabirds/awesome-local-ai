@@ -141,3 +141,22 @@ export const LINK_COPIED_MS = 2000;
  * at RECONNECT_MAX_BACKOFF_MS).
  */
 export const BOARD_CHECK_RETRY_BASE_MS = 1000;
+
+// ---------------------------------------------------------------------------
+// Story 7: select, move, resize and delete several objects at once.
+// ---------------------------------------------------------------------------
+
+/** Screen-space size (CSS px) of the selection bounding-box resize handles. */
+export const HANDLE_SIZE_PX = 8;
+
+/** Smallest a sticky note may be resized, in world units (its side). */
+export const STICKY_MIN_SIZE_WORLD = 50;
+
+/** Largest any object may be resized, in world units (any dimension). */
+export const MAX_OBJECT_SIZE_WORLD = 20_000;
+
+/** Arrow-key nudge step, in world units (no Shift). */
+export const NUDGE_STEP_WORLD = 1;
+
+/** Arrow-key nudge step, in world units (Shift held). */
+export const NUDGE_LARGE_STEP_WORLD = 10;

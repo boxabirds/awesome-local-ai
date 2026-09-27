@@ -467,3 +467,105 @@ load-failure handling. Follows `spec/stories/004-*/`.
   TC-26..TC-31.
 - e2e persistence: 4 (TC-19/TC-20 now create their boards via the API first).
 - e2e nightly: 6 (soak specs create boards via the API first).
+
+---
+
+# NOTES — Story 7: Select, move, resize and delete several objects at once
+
+Decisions and deviations from the design spec, as required by the task brief.
+
+## Decisions worth recording
+
+1. **File structure follows the design's list exactly.** `registry.tsx` holds the
+   `ObjectTypeSpec` registry (`registerObjectType` / `getObjectType` /
+   `isRegisteredType`) and registers `sticky`; `App.tsx` "wires overlay, bar,
+   keys" (the design keeps the board wiring in `App.tsx`; there is no separate
+   `Board.tsx`). New files: `src/shared/geometry.ts`,
+   `src/client/objects/registry.tsx`, and
+   `src/client/board/{useSelection,SelectionOverlay,SelectionBar,
+   useTransformGesture,Marquee,useBoardKeys}.ts(x)`. `objectTypes.ts` is not a
+   separate file here — the registry machinery lives in `registry.tsx`, as the
+   design's file table specifies.
+
+2. **Generic object-type registry.** Every object is an `ObjectSnapshot`
+   (discriminated on `type`); sticky notes are the only *registered* type so
+   far, with spec `{ resizable: true, aspectLocked: true, minSize:
+   STICKY_MIN_SIZE_WORLD, editableText: true, hitTest: boundsHitTest }`. A
+   test-only `testbox` type (resizable, *not* aspect-locked) is registered from
+   `tests/fixtures/testbox.tsx` to prove the registry is type-agnostic. Adding
+   a future type needs no changes to selection, transform, marquee or keys.
+
+3. **Selection is local; only transforms touch the CRDT.** `useSelection` is a
+   pure reducer (`select` / `toggle` / `setMany` / `selectAll` / `clear` / prune)
+   holding a `ReadonlySet` of ids plus the local `editingId`; it is never
+   broadcast (the story 5 TC-28 invariant). Move / resize / nudge / delete go
+   through the board model's `moveObjects` / `resizeObjects` / `deleteObjects`
+   + `applyPatch`, the single CRDT write path.
+
+4. **Group transform via bounding box.** The selection's world-space union
+   (`objectBounds` + `unionRects`) drives a screen-space overlay: an outline per
+   object and, for 2+ objects, a bounding box with 8 handles. Dragging the box
+   moves the whole group (every object translated by the world delta). Dragging
+   a handle runs `resizeRect` + `scaleWithin`; the sticky spec's `aspectLocked`
+   keeps notes square (uniform scale) while `testbox` stretches freely.
+   `STICKY_MIN_SIZE_WORLD` and `MAX_OBJECT_SIZE_WORLD` clamp the result.
+
+5. **Stable DOM order = creation order.** Objects render in `createdAt` order
+   (id tiebreak), with `z-index` from the `z` field. Rendering in z-order would
+   reorder the DOM when `bringObjectsToFront` fires mid-drag, releasing the
+   pointer capture and silently aborting the drag. The e2e span assertion uses
+   `min`/`max` rather than DOM position for the same reason (same-ms seeds tie
+   on `createdAt` → the id tiebreak is not spatial).
+
+6. **Keyboard.** `useBoardKeys`: Ctrl/Cmd+A = select all, Escape = clear
+   (cancelling an active marquee), arrows = nudge by `NUDGE_STEP_WORLD`
+   (Shift = `NUDGE_LARGE_STEP_WORLD`), Delete/Backspace = delete the selection.
+   Keys are ignored while a note's text editor is focused (the input surfaces
+   guard `e.target`), matching the story 4 invariant.
+
+## Gotchas found while making the tests pass
+
+- **The e2e spec had to be reconstructed for this codebase's contracts.** The
+  brief shipped `story7.spec.ts` + `helpers/story7.ts` written against a
+  different API: query-string routing (`/?b=`; this codebase is path-based
+  `/b/:id`), a `{boardId}` return from `newBoard` (here it returns the id
+  string), a three-arg `openParticipant`, a `window.__vidi6` *object* with a
+  `camera` getter (here the hook is `setCamera(cam)` + `connectionState()`),
+  and two-letter handle labels (`Resize se`). The helpers read each note's
+  position/size/selection straight from the DOM (`.sticky-note[data-note-id]`
+  inline `left/top/width/height` + `[data-selected]`) and use
+  `window.__vidi6.setCamera` only to park the camera so the world→screen math
+  is exact; note ids come from the seed grid via `data-note-id`.
+- **Camera origin is the viewport top-left, not the centre.**
+  `worldToScreen(p) = (p − camera.xy) × zoom`, so to centre world point `w` you
+  park `camera.xy = w − (640, 400)/zoom`. The marquee bands in TC-36 are wide
+  (~220 screen px each at zoom 0.4) and must stay disjoint from their
+  neighbours: after a group move the moved pair syncs to the other contexts, so
+  the end contexts' pairs are pushed *away* from the middle (offsets
+  `[-200, 0, 0, 0, 200]`) to keep every band clear of every synced position.
+- **Cross-browser drag precision.** All three browsers run (Chromium, Firefox
+  and WebKit are installed). A 16-step pointer drag lands within sub-pixel of
+  the target on Chromium but overshoots by ~1 px on Firefox/WebKit, so the
+  group-move assertion uses a few-world-units tolerance (`toBeCloseTo(…, -1)`);
+  the resize assertions are inequalities and the nudge/delete tests are
+  deterministic, so only the move needed the looser band.
+- **`__test/boards/:id/seed`** seeds N stickies in a 40-wide grid through the
+  worker test hook (test-mode only) so the marquee/group e2e tests don't depend
+  on timing-fragile repeated single-note creation.
+
+## Manual checks
+
+- `npm run build && npx wrangler dev --port 8787 --local --var TEST_HOOKS:1`:
+  seed a board, shift+drag an empty area → marquee selects the contained notes
+  ("N selected" bar with Delete); drag one selected note → the whole group
+  moves; drag the bottom-right handle → the group scales (notes stay square);
+  arrow keys nudge, Shift+arrow by 10, Delete clears them; Ctrl+A selects all;
+  a second participant's delete shrinks the first's live selection.
+
+## Test counts
+
+- unit: 187 (adds geometry, board-model-group, registry, selection).
+- component: 46 (adds multi-select TC-16…TC-31).
+- integration: 49 (unchanged).
+- e2e: 58 passed + 8 skipped (TC-26/28/30/31 chromium-only) across all three
+  browsers — adds story7 TC-32…TC-36.

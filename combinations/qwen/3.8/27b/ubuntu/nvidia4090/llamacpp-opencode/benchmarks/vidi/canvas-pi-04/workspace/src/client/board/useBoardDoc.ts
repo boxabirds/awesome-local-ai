@@ -7,7 +7,8 @@
 
 import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from 'react';
 import * as Y from 'yjs';
-import { initDoc, snapshot, type StickySnapshot } from '../../shared/board-model';
+import { initDoc, objectSnapshot } from '../../shared/board-model';
+import type { ObjectSnapshot } from '../../shared/board-model';
 import {
   connectBoard,
   type ConnectionState,
@@ -16,8 +17,8 @@ import {
 export interface BoardDoc {
   /** The shared document (all mutations go through board-model). */
   doc: Y.Doc;
-  /** Immutable snapshot of all sticky notes, sorted by (z, id). */
-  notes: readonly StickySnapshot[];
+  /** Immutable snapshot of all objects, sorted by (z, id). */
+  objects: readonly ObjectSnapshot[];
   /** Mapped provider state (drives the live badge). */
   connectionState: ConnectionState;
 }
@@ -25,7 +26,7 @@ export interface BoardDoc {
 // Module-level memo for useSyncExternalStore: getSnapshot must return the
 // same reference between store changes, so the snapshot is recomputed only
 // when the document actually changes (invalidated by the observeDeep below).
-const snapshotCache = new Map<Y.Doc, readonly StickySnapshot[]>();
+const snapshotCache = new Map<Y.Doc, readonly ObjectSnapshot[]>();
 
 export function useBoardDoc(boardId: string): BoardDoc {
   // One doc per board id. (The previous doc is abandoned when the id
@@ -63,15 +64,15 @@ export function useBoardDoc(boardId: string): BoardDoc {
     [doc],
   );
 
-  const getSnapshot = useCallback((): readonly StickySnapshot[] => {
-    let notes = snapshotCache.get(doc);
-    if (notes === undefined) {
-      notes = snapshot(doc);
-      snapshotCache.set(doc, notes);
+  const getSnapshot = useCallback((): readonly ObjectSnapshot[] => {
+    let objects = snapshotCache.get(doc);
+    if (objects === undefined) {
+      objects = objectSnapshot(doc);
+      snapshotCache.set(doc, objects);
     }
-    return notes;
+    return objects;
   }, [doc]);
 
-  const notes = useSyncExternalStore(subscribe, getSnapshot);
-  return { doc, notes, connectionState };
+  const objects = useSyncExternalStore(subscribe, getSnapshot);
+  return { doc, objects, connectionState };
 }

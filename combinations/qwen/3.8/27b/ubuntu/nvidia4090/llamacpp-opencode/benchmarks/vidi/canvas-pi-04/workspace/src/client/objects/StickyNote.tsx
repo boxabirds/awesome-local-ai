@@ -2,76 +2,52 @@
 // drag to move, double-click to edit.
 //
 // Story 3: position, colour and text come from the shared Y.Doc snapshot, so
-// remote changes re-render this note through the parent. Selection and
-// editing are local props only.
+// remote changes re-render this note through the parent.
+//
+// Story 7: this note is now a registered object type. It renders its size from
+// the snapshot (width/height, falling back to STICKY_SIZE_WORLD) and delegates
+// pointer-down to the shared transform gesture (sel.all_types). Selection,
+// outlines, the toolbar and the resize handles live outside the note (the
+// SelectionOverlay / SelectionBar), so every future object type gets them for
+// free.
 
 import { useLayoutEffect, useRef, useState } from 'react';
 import type { JSX } from 'react';
-import type { PointerEvent as ReactPointerEvent, MouseEvent as ReactMouseEvent } from 'react';
+import type {
+  KeyboardEvent as ReactKeyboardEvent,
+  MouseEvent as ReactMouseEvent,
+  PointerEvent as ReactPointerEvent,
+} from 'react';
 import type * as Y from 'yjs';
-import {
-  bringToFront,
-  deleteObject,
-  getStickyText,
-  moveObject,
-  setStickyColor,
-  type StickySnapshot,
-} from '../../shared/board-model';
+import { getStickyText, type StickySnapshot } from '../../shared/board-model';
 import {
   DEFAULT_STICKY_COLOR,
-  DRAG_THRESHOLD_PX,
   STICKY_COLORS,
   STICKY_SIZE_WORLD,
+  type StickyColor,
 } from '../../shared/config';
 import { fitFontSize } from './StickyText';
 import { StickyTextEditor } from './StickyTextEditor';
-import { NoteToolbar } from './NoteToolbar';
+import type { ObjectProps } from './registry';
 
 /** Inner padding of the note in world units (kept for the font-fit box). */
 const TEXT_PADDING_WORLD = 12;
 
-interface DragState {
-  pointerId: number;
-  /** Pointer position at press, CSS px. */
-  startX: number;
-  startY: number;
-  /** Note position at press, world units. */
-  origX: number;
-  origY: number;
-  moved: boolean;
-  pending: { x: number; y: number } | null;
-  frame: number | null;
-}
-
-export function StickyNote(props: {
-  note: StickySnapshot;
-  doc: Y.Doc;
-  zoom: number;
-  selected: boolean;
-  editing: boolean;
-  /** When false (board load_failed) every mutation is a no-op. */
-  canEdit: boolean;
-  onSelect: (id: string | null) => void;
-  onStartEdit: (id: string) => void;
-  onEndEdit: (next: 'selected' | 'unselected') => void;
-}): JSX.Element {
-  const { note, doc, zoom, selected, editing } = props;
+export function StickyNote(props: ObjectProps): JSX.Element {
+  const { obj, selected, editing } = props;
+  const note = obj as StickySnapshot;
   const rootRef = useRef<HTMLDivElement | null>(null);
   const textRef = useRef<HTMLElement | null>(null);
-  const dragRef = useRef<DragState | null>(null);
-  const [dragging, setDragging] = useState(false);
   const [overflow, setOverflow] = useState(false);
 
+  const width = obj.width ?? STICKY_SIZE_WORLD;
+  const height = obj.height ?? STICKY_SIZE_WORLD;
+
   // Fit the text into the note (binary search, world-px font sizes) on mount,
-  // on text change and when the editor swaps in.
-  //
-  // Empty text needs no fitting (nothing to shrink). For non-empty text the
-  // measurement is deferred to requestAnimationFrame: fitFontSize alternates a
-  // style write with a scrollHeight read, so each iteration forces a
-  // synchronous reflow. Fitting synchronously in useLayoutEffect while a large
-  // board mounts thousands of notes at once would thrash layout (O(n^2)) and
-  // blow the load budget; deferring keeps the initial commit fast and corrects
-  // the font on the next frame.
+  // on text/size change and when the editor swaps in. Empty text needs no
+  // fitting; otherwise the measurement is deferred to the next frame (see the
+  // story 2 rationale: fitting synchronously while a large board mounts would
+  // thrash layout and blow the load budget).
   useLayoutEffect(() => {
     const el = textRef.current;
     if (el === null) return;
@@ -80,122 +56,35 @@ export function StickyNote(props: {
       return;
     }
     let frame = requestAnimationFrame(() => {
-      const fit = fitFontSize(el, STICKY_SIZE_WORLD - TEXT_PADDING_WORLD * 2);
+      const fit = fitFontSize(el, width - TEXT_PADDING_WORLD * 2);
       setOverflow(fit.overflow);
     });
     return () => cancelAnimationFrame(frame);
-  }, [note.text, editing]);
+  }, [note.text, width, editing]);
 
-  const flushPendingMove = (state: DragState): void => {
-    if (state.frame !== null) {
-      cancelAnimationFrame(state.frame);
-      state.frame = null;
-    }
-    if (state.pending === null) return;
-    const { x, y } = state.pending;
-    state.pending = null;
-    moveObject(doc, note.id, x, y);
-  };
-
-  const endDrag = (state: DragState | null): void => {
-    if (state !== null) {
-      flushPendingMove(state);
-      if (state.frame !== null) {
-        cancelAnimationFrame(state.frame);
-        state.frame = null;
-      }
-      state.pending = null;
-    }
-    dragRef.current = null;
-    setDragging(false);
-  };
-
-  // --- pointer: press -> select; beyond threshold -> drag ------------------
-
+  // --- pointer: hand to the shared transform gesture (sel.transform) --------
   const onPointerDown = (e: ReactPointerEvent<HTMLDivElement>): void => {
     if (editing) return; // the textarea owns pointer events while editing
     if (e.pointerType === 'mouse' && e.button !== 0) return;
-    e.stopPropagation(); // the board must not pan or create on a note press
-    props.onSelect(note.id);
-    if (!props.canEdit) return; // load_failed: select only, never drag
-    try {
-      rootRef.current?.setPointerCapture(e.pointerId);
-    } catch {
-      // Capture can be unavailable (jsdom); the drag still works.
-    }
-    dragRef.current = {
-      pointerId: e.pointerId,
-      startX: e.clientX,
-      startY: e.clientY,
-      origX: note.x,
-      origY: note.y,
-      moved: false,
-      pending: null,
-      frame: null,
-    };
-  };
-
-  const onPointerMove = (e: ReactPointerEvent<HTMLDivElement>): void => {
-    const drag = dragRef.current;
-    if (drag === null || e.pointerId !== drag.pointerId) return;
-    const dx = e.clientX - drag.startX;
-    const dy = e.clientY - drag.startY;
-    if (!drag.moved) {
-      if (Math.hypot(dx, dy) < DRAG_THRESHOLD_PX) return;
-      drag.moved = true;
-      setDragging(true);
-      bringToFront(doc, note.id);
-    }
-    drag.pending = { x: drag.origX + dx / zoom, y: drag.origY + dy / zoom };
-    if (drag.frame === null) {
-      drag.frame = requestAnimationFrame(() => {
-        const state = dragRef.current;
-        if (state === null || state.pending === null) return;
-        state.frame = null;
-        const { x, y } = state.pending;
-        state.pending = null;
-        // The note may have been deleted meanwhile: end the drag silently.
-        if (!moveObject(doc, note.id, x, y)) endDrag(null);
-      });
-    }
-  };
-
-  const onPointerUp = (e: ReactPointerEvent<HTMLDivElement>): void => {
-    const drag = dragRef.current;
-    if (drag === null || e.pointerId !== drag.pointerId) return;
-    try {
-      rootRef.current?.releasePointerCapture(e.pointerId);
-    } catch {
-      // Capture may already be released (pointercancel).
-    }
-    // Flush the last position so the grabbed point stays under the pointer.
-    endDrag(drag);
-  };
-
-  const onPointerCancel = (): void => {
-    // An interrupted drag keeps the note where it was last shown.
-    const drag = dragRef.current;
-    if (drag !== null) endDrag(null);
+    e.stopPropagation(); // the board must not pan/marquee/create on a note press
+    props.onPointerDown(e);
   };
 
   // --- keyboard and edit ----------------------------------------------------
-
   const onDoubleClick = (e: ReactMouseEvent<HTMLDivElement>): void => {
     e.stopPropagation(); // the board must not create a note on a note dblclick
-    if (!editing && props.canEdit) props.onStartEdit(note.id);
+    if (!editing && props.canEdit) props.onStartEdit(obj.id);
   };
 
-  const onKeyDown = (e: React.KeyboardEvent<HTMLDivElement>): void => {
+  const onKeyDown = (e: ReactKeyboardEvent<HTMLDivElement>): void => {
     if (e.key === 'Enter' && !editing && props.canEdit) {
       e.preventDefault();
-      props.onStartEdit(note.id);
+      props.onStartEdit(obj.id);
     }
   };
 
-  const color =
-    note.color in STICKY_COLORS ? note.color : DEFAULT_STICKY_COLOR;
-
-  const ytext = getStickyText(doc, note.id);
+  const color: StickyColor = note.color in STICKY_COLORS ? note.color : DEFAULT_STICKY_COLOR;
+  const ytext = getStickyText(props.doc, obj.id);
 
   return (
     <div
@@ -203,22 +92,18 @@ export function StickyNote(props: {
       className={`sticky-note${overflow ? ' has-fade' : ''}`}
       role="group"
       aria-label="Sticky note"
-      data-note-id={note.id}
+      data-note-id={obj.id}
       data-color={note.color}
       data-selected={selected ? '' : undefined}
       tabIndex={0}
       style={{
-        left: note.x,
-        top: note.y,
-        width: STICKY_SIZE_WORLD,
-        height: STICKY_SIZE_WORLD,
+        left: obj.x,
+        top: obj.y,
+        width,
+        height,
         background: STICKY_COLORS[color],
       }}
       onPointerDown={onPointerDown}
-      onPointerMove={onPointerMove}
-      onPointerUp={onPointerUp}
-      onPointerCancel={onPointerCancel}
-      onLostPointerCapture={onPointerCancel}
       onDoubleClick={onDoubleClick}
       onKeyDown={onKeyDown}
     >
@@ -227,7 +112,7 @@ export function StickyNote(props: {
           ytext={ytext}
           textRef={textRef}
           rootRef={rootRef}
-          onEnd={props.onEndEdit}
+          onEnd={() => props.onEndEdit(obj.id)}
         />
       ) : (
         <div ref={(el) => void (textRef.current = el)} className="sticky-note__text">
@@ -235,33 +120,6 @@ export function StickyNote(props: {
         </div>
       )}
       <div className="sticky-note__fade" aria-hidden="true" />
-      {selected && !editing && !dragging && (
-        <div
-          className="note-toolbar-anchor"
-          onPointerDown={(e) => e.stopPropagation()}
-          onDoubleClick={(e) => e.stopPropagation()}
-        >
-          <div
-            className="note-toolbar-scaled"
-            style={{
-              transform: `translate(-50%, -100%) scale(${1 / zoom})`,
-            }}
-          >
-            <NoteToolbar
-              color={color}
-              disabled={!props.canEdit}
-              onColor={(c) => {
-                if (props.canEdit) setStickyColor(doc, note.id, c);
-              }}
-              onDelete={() => {
-                if (!props.canEdit) return;
-                deleteObject(doc, note.id);
-                props.onSelect(null);
-              }}
-            />
-          </div>
-        </div>
-      )}
     </div>
   );
 }
