@@ -60,6 +60,11 @@ pub struct Run {
     pub stories_finished: usize,
     pub stories_in_scope: Option<usize>,
     pub in_progress: bool,
+    /// Each story's recorded commit (story id -> sha), to build the app as it was after that story.
+    #[serde(skip)]
+    pub story_commits: BTreeMap<u64, String>,
+    /// The record holds the run's git history (workspace.bundle), so any story's commit can be built.
+    pub has_history: bool,
     pub score: Score,
     pub judging: Option<Judging>,
     pub cost: Cost,
@@ -262,6 +267,22 @@ pub fn scope_size(repo: &Path, scope: &str) -> Option<usize> {
         .and_then(|d| d.get("stories").and_then(Value::as_array).map(Vec::len))
 }
 
+/// story id -> recorded commit, from metrics.json's stories (a map keyed by id, or a list with "id").
+pub fn story_commits(metrics: &Value) -> BTreeMap<u64, String> {
+    let mut out = BTreeMap::new();
+    let add = |out: &mut BTreeMap<u64, String>, id: Option<u64>, s: &Value| {
+        if let (Some(id), Some(c)) = (id, s.get("commit").and_then(Value::as_str)) {
+            out.insert(id, c.to_string());
+        }
+    };
+    match metrics.get("stories") {
+        Some(Value::Object(m)) => m.iter().for_each(|(k, s)| add(&mut out, k.parse().ok(), s)),
+        Some(Value::Array(a)) => a.iter().for_each(|s| add(&mut out, s.get("id").and_then(Value::as_u64), s)),
+        _ => {}
+    }
+    out
+}
+
 pub fn load(repo: &Path) -> Vec<Run> {
     discover(repo)
         .into_iter()
@@ -277,6 +298,8 @@ pub fn load(repo: &Path) -> Vec<Run> {
                 slug: slug(&setup, &run),
                 in_progress: !status_finished && in_scope.is_some_and(|n| finished < n),
                 stories_finished: finished,
+                story_commits: story_commits(&metrics),
+                has_history: path.join("workspace.bundle").is_file(),
                 stories_in_scope: in_scope,
                 score: score(&path),
                 judging: std::fs::read_to_string(path.join("audit.jsonl")).ok().map(|t| judging(&t)),
@@ -396,6 +419,15 @@ mod tests {
         assert_eq!(j.functional.get("medium"), Some(&1));
         assert_eq!(j.by_category.get("weak-test"), Some(&1));
         assert_eq!(j.own_way.get("works"), Some(&1));
+    }
+
+    #[test]
+    fn story_commits_read_both_metrics_formats() {
+        let map = serde_json::json!({"stories": {"1": {"commit": "aaa"}, "2": {"status": "PARTIAL"}, "12": {"commit": "ccc"}}});
+        let list = serde_json::json!({"stories": [{"id": 1, "commit": "aaa"}, {"id": 12, "commit": "ccc"}]});
+        let want: BTreeMap<u64, String> = [(1, "aaa".to_string()), (12, "ccc".to_string())].into();
+        assert_eq!(story_commits(&map), want);
+        assert_eq!(story_commits(&list), want);
     }
 
     #[test]
