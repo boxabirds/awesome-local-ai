@@ -832,5 +832,230 @@ body {
 }
 
 .board-viewport.is-text-tool .world-layer * {
+  /* !important: world objects may set inline pointer-events (connector hit
+     bands); while a tool is active the tool owns every press. */
+  pointer-events: none !important;
+}
+
+/* ========================================================================
+   Story 10: shapes and connectors
+   ======================================================================== */
+
+/* --- shapes (world layer) ------------------------------------------- */
+
+.shape-object {
+  position: absolute;
+  pointer-events: auto;
+  outline: none;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  cursor: grab;
+}
+
+.shape-object:active {
+  cursor: grabbing;
+}
+
+.shape-object[data-selected] {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 1px;
+}
+
+.shape-object__svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+/* The SVG paths inherit fill/stroke from the CSS properties the component
+   sets on the root; the outline thickness is the shared constant
+   (SHAPE_STROKE_WIDTH_WORLD = 2 world units). */
+.shape-object__svg rect,
+.shape-object__svg ellipse,
+.shape-object__svg polygon {
+  stroke-width: 2;
+  stroke-linejoin: round;
+}
+
+/* Label: centred, clipped to the shape, fitted by the component. */
+.shape-object__label {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  overflow: hidden;
+  padding: 12px;
+  color: var(--text-color);
   pointer-events: none;
+}
+
+.shape-object__editor {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 12px;
+  pointer-events: auto;
+}
+
+/* --- connectors (world layer) ---------------------------------------- */
+
+.connector-object {
+  position: absolute;
+  pointer-events: none;
+  overflow: visible;
+}
+
+/* The arrow body must not swallow the hit band's events. */
+.connector-object__body {
+  pointer-events: none;
+}
+
+/* --- Shape tool preview (screen space) -------------------------------- */
+
+.shape-tool-preview {
+  position: absolute;
+  border: 1.5px dashed var(--focus-ring);
+  background: rgba(59, 130, 246, 0.08);
+  pointer-events: none;
+}
+
+/* --- Connector tool (screen space) ------------------------------------ */
+
+.connector-tool {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.connector-tool__dot {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  background: #ffffff;
+  border: 1.5px solid var(--focus-ring);
+  opacity: 0.85;
+}
+
+.connector-tool__dot.is-active {
+  background: var(--focus-ring);
+  opacity: 1;
+}
+
+.connector-tool__preview {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+/* --- Shape selection toolbar (screen space) --------------------------- */
+
+.shape-toolbar {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 5px 6px;
+  background: var(--panel-background);
+  border: 1px solid var(--panel-border);
+  border-radius: 8px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.12);
+}
+
+.shape-toolbar__row {
+  display: flex;
+  gap: 4px;
+}
+
+.shape-toolbar__swatch {
+  width: 18px;
+  height: 18px;
+  border-radius: 4px;
+  border: 1px solid var(--panel-border);
+  cursor: pointer;
+  padding: 0;
+}
+
+.shape-toolbar__swatch--fill {
+  background-image: linear-gradient(135deg, transparent 45%, rgba(0, 0, 0, 0.25) 45%);
+}
+
+.shape-toolbar__swatch[aria-pressed='true'] {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 1px;
+}
+
+.shape-toolbar__delete {
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border: 1px solid var(--panel-border);
+  border-radius: 6px;
+  background: transparent;
+  color: #c62828;
+  cursor: pointer;
+}
+
+.shape-toolbar__delete:hover:not(:disabled) {
+  background: #fdecea;
+}
+
+/* --- Toolbar: the shape kind menu ------------------------------------- */
+
+.board-toolbar__shape {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+.shape-kind-menu {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 4px;
+  background: var(--panel-background);
+  border: 1px solid var(--panel-border);
+  border-radius: 8px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.12);
+}
+
+.shape-kind-menu button {
+  border: none;
+  background: transparent;
+  font: inherit;
+  font-size: 12px;
+  color: var(--text-color);
+  text-align: left;
+  padding: 3px 8px;
+  border-radius: 4px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.shape-kind-menu button:hover {
+  background: #f0f3f7;
+}
+
+.shape-kind-menu button[aria-checked='true'] {
+  background: var(--focus-ring);
+  color: #fff;
+}
+
+/* --- Drawing tools: the viewport cursor and inert world layer ---------- */
+
+.board-viewport.is-drawing-tool {
+  cursor: crosshair;
+}
+
+.board-viewport.is-drawing-tool .world-layer * {
+  /* !important: world objects may set inline pointer-events (connector hit
+     bands); while a tool is active the tool owns every press. */
+  pointer-events: none !important;
 }

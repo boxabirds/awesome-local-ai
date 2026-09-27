@@ -29,11 +29,21 @@
 //                                                  (updates table only, no
 //                                                  created_at) for the
 //                                                  legacy-board e2e (TC-31)
+//   POST /__test/boards/:boardId/seed-flow         seed the story 10
+//                                                  checkout-flow fixture
+//                                                  (labelled shapes +
+//                                                  connectors) via the real
+//                                                  model calls; body: the
+//                                                  flow spec, returns the id
+//                                                  map
+//   POST /__test/boards/:boardId/flow              per-type object counts of
+//                                                  the room doc (server
+//                                                  ground truth)
 
 import { isValidBoardId } from '../shared/board-id';
-import type { Env } from './board-room';
+import type { Env, FlowSpec } from './board-room';
 
-const HOOK_PATH = /^\/__test\/boards\/([^/]+)\/(compact|corrupt-snapshot|repair|wake|seed|notes|initialize|seed-legacy)$/;
+const HOOK_PATH = /^\/__test\/boards\/([^/]+)\/(compact|corrupt-snapshot|repair|wake|seed|notes|initialize|seed-legacy|seed-flow|flow)$/;
 
 function json(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
@@ -94,6 +104,14 @@ export async function handleTestHooks(req: Request, env: Env): Promise<Response 
       const seeded = await room.testSeedLegacyNotes(count);
       return json({ ok: seeded > 0, count: seeded }, seeded > 0 ? 200 : 409);
     }
+    case 'seed-flow': {
+      const body = (await req.json().catch(() => null)) as FlowSpec | null;
+      const seeded = await room.testSeedFlow(body ?? { shapes: [], connectors: [] });
+      const ok = Object.keys(seeded.shapes).length > 0 || seeded.connectors.length > 0;
+      return json({ ok, ...seeded }, ok ? 200 : 409);
+    }
+    case 'flow':
+      return room.testFlowCount().then((counts) => json({ ok: true, ...counts }));
   }
   return json({ ok: false, reason: 'unknown-action' }, 400);
 }

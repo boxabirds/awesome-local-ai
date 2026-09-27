@@ -17,10 +17,23 @@ import {
 } from '../../shared/board-model';
 import { setTextSize, type TextSnapshot } from '../../shared/objects/text';
 import { unionRects } from '../../shared/geometry';
-import { DEFAULT_STICKY_COLOR, STICKY_COLORS, type StickyColor } from '../../shared/config';
+import {
+  DEFAULT_SHAPE_FILL,
+  DEFAULT_SHAPE_STROKE,
+  DEFAULT_STICKY_COLOR,
+  SHAPE_FILL_COLORS,
+  SHAPE_STROKE_COLORS,
+  STICKY_COLORS,
+  type FillColor,
+  type StrokeColor,
+  type StickyColor,
+} from '../../shared/config';
 import { worldToScreen, type Camera } from '../canvas/camera';
 import { NoteToolbar } from '../objects/NoteToolbar';
+import { ShapeToolbar } from '../objects/ShapeToolbar';
 import { TextToolbar } from '../objects/TextToolbar';
+import type { ShapeSnap } from '../../shared/objects/shape';
+import { setShapeStyle } from '../../shared/objects/shape';
 import { sharedMeasurer } from '../objects/textLayout';
 import { useTextBoxSync } from '../objects/useTextBoxSync';
 import { useUndoController } from './useUndo';
@@ -66,6 +79,13 @@ export function SelectionBar(props: SelectionBarProps): JSX.Element | null {
     ) : selected.length === 1 && selected[0].type === 'text' ? (
       <SingleTextToolbar
         text={selected[0] as TextSnapshot}
+        doc={doc}
+        canEdit={canEdit}
+        onDelete={onDelete}
+      />
+    ) : selected.length === 1 && selected[0].type === 'shape' ? (
+      <SingleShapeToolbar
+        shape={selected[0] as ShapeSnap}
         doc={doc}
         canEdit={canEdit}
         onDelete={onDelete}
@@ -120,6 +140,42 @@ function SingleTextToolbar(props: {
         undo?.boundary();
       }}
       onDelete={onDelete}
+    />
+  );
+}
+
+/**
+ * Story 10: the fill/outline swatches + Delete toolbar for one selected shape
+ * (shape.style). A colour change is its own undo step.
+ */
+function SingleShapeToolbar(props: {
+  shape: ShapeSnap;
+  doc: Y.Doc;
+  canEdit: boolean;
+  onDelete: () => void;
+}): JSX.Element {
+  const { shape, doc, canEdit, onDelete } = props;
+  const undo = useUndoController();
+  const fill: FillColor = shape.fill in SHAPE_FILL_COLORS ? shape.fill : DEFAULT_SHAPE_FILL;
+  const stroke: StrokeColor = shape.stroke in SHAPE_STROKE_COLORS ? shape.stroke : DEFAULT_SHAPE_STROKE;
+  return (
+    <ShapeToolbar
+      fill={fill}
+      stroke={stroke}
+      onFill={(f) => {
+        if (!canEdit) return;
+        undo?.boundary();
+        setShapeStyle(doc, shape.id, { fill: f });
+        undo?.boundary();
+      }}
+      onStroke={(s) => {
+        if (!canEdit) return;
+        undo?.boundary();
+        setShapeStyle(doc, shape.id, { stroke: s });
+        undo?.boundary();
+      }}
+      onDelete={onDelete}
+      disabled={!canEdit}
     />
   );
 }

@@ -10,6 +10,8 @@
 
 import * as Y from 'yjs';
 import {
+  DEFAULT_SHAPE_FILL,
+  DEFAULT_SHAPE_STROKE,
   DEFAULT_STICKY_COLOR,
   STICKY_COLORS,
   STICKY_SIZE_WORLD,
@@ -18,6 +20,11 @@ import {
 } from './config';
 import { rectContains } from './geometry';
 import type { Point, Rect } from './geometry';
+import { connectorBBox, resolveEndpoints } from './geometry/connector-geometry';
+import { detachConnectorsTo, readEndpoint } from './objects/connector';
+import { isFillColor, isShapeKind, isStrokeColor } from './objects/shape';
+import type { ConnectorSnap } from './objects/connector';
+import type { ShapeSnap } from './objects/shape';
 import type { TextSnapshot } from './objects/text';
 
 /**
@@ -366,6 +373,11 @@ export function bringObjectsToFront(doc: Y.Doc, ids: readonly string[]): number 
 /**
  * Delete every id in `ids`. Missing ids are skipped. Returns the count
  * deleted.
+ *
+ * Story 10 (connector.target_deleted): connector endpoints attached to a
+ * deleted object are detached to a free point at the object's current side
+ * anchor FIRST (inside the same transaction), so the arrows stay on the
+ * board instead of vanishing.
  */
 export function deleteObjects(doc: Y.Doc, ids: readonly string[]): number {
   if (ids.length === 0) return 0;
@@ -373,6 +385,7 @@ export function deleteObjects(doc: Y.Doc, ids: readonly string[]): number {
   let changed = 0;
   doc.transact(
     () => {
+      detachConnectorsTo(doc, ids);
       for (const id of ids) {
         if (map.get(id) === undefined) continue; // missing id skipped
         map.delete(id);
@@ -434,8 +447,21 @@ export function snapshot(doc: Y.Doc): readonly StickySnapshot[] {
  * skipped (corrupt data).
  */
 export function objectSnapshot(doc: Y.Doc): readonly ObjectSnapshot[] {
+  const map = objectsMap(doc);
+  // Story 10: connector endpoints resolve against the CURRENT rects of every
+  // object (connector.endpoints), so the arrows follow their objects in this
+  // snapshot on every client.
+  const rects = new Map<string, Rect>();
+  for (const [id, obj] of map.entries()) {
+    rects.set(id, {
+      x: asNumber(obj.get('x'), 0),
+      y: asNumber(obj.get('y'), 0),
+      width: asNumber(obj.get('width'), STICKY_SIZE_WORLD),
+      height: asNumber(obj.get('height'), STICKY_SIZE_WORLD),
+    });
+  }
   const out: ObjectSnapshot[] = [];
-  for (const [id, obj] of objectsMap(doc).entries()) {
+  for (const [id, obj] of map.entries()) {
     const type = obj.get('type');
     if (typeof type !== 'string' || type === '') continue; // corrupt / untyped
     const snap: ObjectSnapshot = {
@@ -449,7 +475,33 @@ export function objectSnapshot(doc: Y.Doc): readonly ObjectSnapshot[] {
     if (typeof width === 'number' && Number.isFinite(width)) snap.width = width;
     const height = obj.get('height');
     if (typeof height === 'number' && Number.isFinite(height)) snap.height = height;
-    if (type === 'sticky') {
+    if (type === 'shape') {
+      const shape = snap as ShapeSnap;
+      const kind = obj.get('kind');
+      shape.kind = isShapeKind(kind) ? kind : 'rect';
+      const fill = obj.get('fill');
+      shape.fill = isFillColor(fill) ? fill : DEFAULT_SHAPE_FILL;
+      const stroke = obj.get('stroke');
+      shape.stroke = isStrokeColor(stroke) ? stroke : DEFAULT_SHAPE_STROKE;
+      const label = obj.get('label');
+      shape.label = label instanceof Y.Text ? label.toString() : '';
+      shape.createdAt = asNumber(obj.get('createdAt'), 0);
+      const createdBy = obj.get('createdBy');
+      shape.createdBy = typeof createdBy === 'string' ? createdBy : '';
+    } else if (type === 'connector') {
+      const connector = snap as ConnectorSnap;
+      connector.from = readEndpoint(obj.get('from'));
+      connector.to = readEndpoint(obj.get('to'));
+      const resolved = resolveEndpoints(connector, rects);
+      connector.fromPoint = resolved.from;
+      connector.toPoint = resolved.to;
+      // The stored base fields stay 0; the snapshot derives the geometry.
+      const bbox = connectorBBox(resolved.from, resolved.to);
+      snap.x = bbox.x;
+      snap.y = bbox.y;
+      snap.width = bbox.width;
+      snap.height = bbox.height;
+    } else if (type === 'sticky') {
       const sticky = snap as StickySnapshot;
       const color = obj.get('color');
       const text = obj.get('text');

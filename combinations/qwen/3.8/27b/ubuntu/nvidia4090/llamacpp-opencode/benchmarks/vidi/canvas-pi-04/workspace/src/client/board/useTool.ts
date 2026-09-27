@@ -1,39 +1,71 @@
-// Story 9: the per-client tool mode (anchor: text.tool_ui).
+// Story 9: the per-client tool mode (anchor: text.tool_ui), extended in
+// story 10 to `select | text | shape | connector` (tools.active).
 //
-// A minimal `select | text` state; stories 10-12 extend the union. The state
-// is per-client UI state (not persisted). While `text` is active:
-//  - the board shows a text cursor and a click creates text there;
-//  - the Text toolbar button is pressed;
-//  - empty-space presses neither pan nor marquee (BoardViewport).
-// `canEdit` false (load_failed) disables the Text tool: T is ignored, the
-// button is disabled, and an active Text tool reverts to Select.
+// A per-client UI state (not persisted). While a tool is active:
+//  - `text`: text cursor; a click creates text there (BoardViewport);
+//  - `shape`: crosshair cursor; a click/drag draws a shape of `shapeKind`
+//    (ShapeTool); Shift during the drag forces a square;
+//  - `connector`: crosshair cursor; a drag draws an arrow between its
+//    endpoints (ConnectorTool).
+// In all drawing tools the pressed toolbar button shows as pressed, and
+// empty-space presses neither pan nor marquee (BoardViewport).
+//
+// `canEdit` false (load_failed) disables the tools: S/L/T are ignored, the
+// buttons are disabled, and an active tool reverts to Select.
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import type { ShapeKind } from '../../shared/config';
 
-export type Tool = 'select' | 'text';
+export type Tool = 'select' | 'text' | 'shape' | 'connector';
 
 export interface ToolApi {
   tool: Tool;
+  /** The kind drawn while the shape tool is active (shape.button). */
+  shapeKind: ShapeKind;
   setTool(tool: Tool): void;
+  setShapeKind(kind: ShapeKind): void;
+  /**
+   * A drawing tool finished successfully: select the created object and
+   * switch back to Select (tools.auto_return). Called with the new id.
+   */
+  toolCreated(id: string): void;
 }
 
-export function useTool(canEdit: boolean): ToolApi {
-  const [tool, setToolState] = useState<Tool>('select');
+export interface ToolOptions {
+  /** Select the object a drawing tool just created. */
+  onSelectCreated?: ((id: string) => void) | null;
+}
 
-  // A board that loses editability (load_failed) reverts to Select
-  // (text.not_editable); the Text tool is unavailable while read-only.
+export function useTool(canEdit: boolean, opts: ToolOptions = {}): ToolApi {
+  const [tool, setToolState] = useState<Tool>('select');
+  const [shapeKind, setShapeKindState] = useState<ShapeKind>('rect');
+  const onSelectCreatedRef = useRef(opts.onSelectCreated);
+  onSelectCreatedRef.current = opts.onSelectCreated;
+
+  // A board that loses editability (load_failed) reverts to Select; the
+  // tools are unavailable while read-only.
   useEffect(() => {
     if (!canEdit && tool !== 'select') setToolState('select');
   }, [canEdit, tool]);
 
   const setTool = useCallback(
     (next: Tool): void => {
-      // text.not_editable: T (or a programmatic set) is ignored read-only.
-      if (next === 'text' && !canEdit) return;
+      // Drawing tools are ignored read-only.
+      if (next !== 'select' && !canEdit) return;
       setToolState(next);
     },
     [canEdit],
   );
 
-  return { tool, setTool };
+  const setShapeKind = useCallback((kind: ShapeKind): void => {
+    setShapeKindState(kind);
+  }, []);
+
+  const toolCreated = useCallback((id: string): void => {
+    if (id === '') return;
+    onSelectCreatedRef.current?.(id);
+    setToolState('select');
+  }, []);
+
+  return { tool, shapeKind, setTool, setShapeKind, toolCreated };
 }

@@ -5,12 +5,26 @@
 //
 // Story 9: the Select (V) and Text (T) tool buttons join the Sticky note
 // button (N); the active tool is highlighted (aria-pressed, text.tool_ui).
+//
+// Story 10 (tools.active, shape.button): the Shape (S) and Connector (L)
+// tool buttons join the toolbar. The Shape button carries the kind menu
+// (Rectangle / Ellipse / Diamond), open while the shape tool is active, with
+// the current kind shown as pressed.
 
 import type { JSX } from 'react';
 import type { PointerEvent as ReactPointerEvent, MouseEvent as ReactMouseEvent } from 'react';
+import type { ShapeKind } from '../../shared/config';
 import { UndoButtons } from './UndoButtons';
 import type { UndoBinding } from './useUndo';
 import type { Tool } from './useTool';
+
+const SHAPE_KIND_LABELS: Record<ShapeKind, string> = {
+  rect: 'Rectangle',
+  ellipse: 'Ellipse',
+  diamond: 'Diamond',
+};
+
+const SHAPE_KINDS: readonly ShapeKind[] = ['rect', 'ellipse', 'diamond'];
 
 export function Toolbar(
   props: {
@@ -18,11 +32,14 @@ export function Toolbar(
     canEdit: boolean;
     tool: Tool;
     setTool(tool: Tool): void;
+    shapeKind: ShapeKind;
+    setShapeKind(kind: ShapeKind): void;
   } & UndoBinding,
 ): JSX.Element {
   const stop = (e: ReactPointerEvent | ReactMouseEvent): void => {
     e.stopPropagation();
   };
+  const shapeActive = props.tool === 'shape';
   return (
     <div
       className="board-toolbar"
@@ -64,6 +81,66 @@ export function Toolbar(
             stroke="currentColor"
             strokeWidth="1.5"
             strokeLinecap="round"
+          />
+        </svg>
+      </button>
+      <div className="board-toolbar__shape">
+        <button
+          type="button"
+          className="board-toolbar__tool"
+          title={props.canEdit ? 'Shape – S' : 'Board unavailable'}
+          aria-label="Shape (S)"
+          aria-pressed={shapeActive}
+          disabled={!props.canEdit}
+          onClick={() => props.setTool('shape')}
+        >
+          <svg width="20" height="20" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
+            <rect
+              x="3"
+              y="3"
+              width="14"
+              height="14"
+              rx="1"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.5"
+            />
+          </svg>
+        </button>
+        {shapeActive && (
+          <div className="shape-kind-menu" role="menu" aria-label="Shape kind">
+            {SHAPE_KINDS.map((kind) => (
+              <button
+                key={kind}
+                type="button"
+                role="menuitemradio"
+                aria-label={SHAPE_KIND_LABELS[kind]}
+                aria-checked={props.shapeKind === kind}
+                onClick={() => props.setShapeKind(kind)}
+              >
+                {SHAPE_KIND_LABELS[kind]}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+      <button
+        type="button"
+        className="board-toolbar__tool"
+        title={props.canEdit ? 'Connector – L' : 'Board unavailable'}
+        aria-label="Connector (L)"
+        aria-pressed={props.tool === 'connector'}
+        disabled={!props.canEdit}
+        onClick={() => props.setTool('connector')}
+      >
+        <svg width="20" height="20" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
+          <path
+            d="M3 17L15 5M15 5h-5M15 5v5"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.5"
+            strokeLinecap="round"
+            strokeLinejoin="round"
           />
         </svg>
       </button>

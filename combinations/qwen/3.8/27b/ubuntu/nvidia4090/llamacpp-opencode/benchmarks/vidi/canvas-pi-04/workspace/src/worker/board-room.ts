@@ -61,7 +61,9 @@ import {
   STICKY_COLORS,
   type StickyColor,
 } from '../shared/config';
-import { createStickyAt, snapshot } from '../shared/board-model';
+import { createStickyAt, objectSnapshot, snapshot } from '../shared/board-model';
+import { createShape, getShapeLabel } from '../shared/objects/shape';
+import { createConnector, type Endpoint } from '../shared/objects/connector';
 
 /** Worker bindings (see wrangler.jsonc). */
 export interface Env {
@@ -75,6 +77,29 @@ export interface Env {
    * create-board.ts then falls back to an in-memory limiter.
    */
   BOARD_CREATE_LIMITER?: Limiter;
+}
+
+/** One seeded shape (story 10 seed-flow hook). */
+export interface FlowShapeSpec {
+  key: string;
+  kind: 'rect' | 'ellipse' | 'diamond';
+  label: string;
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+}
+
+/** One seeded connector endpoint (story 10 seed-flow hook). */
+export interface FlowEndpointSpec {
+  key?: string;
+  x?: number;
+  y?: number;
+}
+
+export interface FlowSpec {
+  shapes: FlowShapeSpec[];
+  connectors: { from: FlowEndpointSpec; to: FlowEndpointSpec }[];
 }
 
 export class BoardRoom extends DurableObject<Env> {
@@ -603,6 +628,90 @@ export class BoardRoom extends DurableObject<Env> {
       createStickyAt(doc, x, y, color);
     }
     return count;
+  }
+
+  /**
+   * Seed the room doc with a flow of labelled shapes and connectors (story 10
+   * seed-flow hook) through the REAL model calls — each shape is one
+   * createShape transaction (plus its label), each connector one
+   * createConnector transaction — so the board syncs to live peers exactly
+   * like an organically drawn one. Returns the id map (fixture key -> id) and
+   * the connector ids in spec order.
+   */
+  async testSeedFlow(spec: FlowSpec): Promise<{
+    shapes: Record<string, string>;
+    connectors: string[];
+  }> {
+    const doc = this.doc;
+    const empty = { shapes: {} as Record<string, string>, connectors: [] as string[] };
+    if (doc === null || this.lifecycle !== 'ready') return empty;
+    if (spec === null || typeof spec !== 'object') return empty;
+    if (!Array.isArray(spec.shapes) || !Array.isArray(spec.connectors)) return empty;
+
+    const ids: Record<string, string> = {};
+    for (const s of spec.shapes) {
+      if (s === null || typeof s !== 'object') continue;
+      const { key, kind, label, x, y, w, h } = s as FlowShapeSpec;
+      if (typeof key !== 'string' || key === '' || key in ids) continue;
+      if (kind !== 'rect' && kind !== 'ellipse' && kind !== 'diamond') continue;
+      if (![x, y, w, h].every((v) => typeof v === 'number' && Number.isFinite(v))) continue;
+      if (w <= 0 || h <= 0) continue;
+      const id = createShape(
+        doc,
+        { kind, rect: { x, y, width: w, height: h }, at: { x, y }, square: false },
+        'test-seed',
+      );
+      if (id === null) continue;
+      if (typeof label === 'string' && label !== '') {
+        const ytext = getShapeLabel(doc, id);
+        if (ytext !== undefined) ytext.insert(0, label);
+      }
+      ids[key] = id;
+    }
+
+    const endpoint = (e: FlowEndpointSpec | undefined): Endpoint | null => {
+      if (e === null || typeof e !== 'object') return null;
+      if (typeof e.key === 'string' && e.key !== '') {
+        const objectId = ids[e.key];
+        if (objectId === undefined) return null;
+        // The fallback is replaced by createConnector with the resolved
+        // side anchor; any valid point satisfies validation here.
+        return { kind: 'attached', objectId, fallback: { x: 0, y: 0 } };
+      }
+      if (typeof e.x === 'number' && Number.isFinite(e.x) && typeof e.y === 'number' && Number.isFinite(e.y)) {
+        return { kind: 'free', x: e.x, y: e.y };
+      }
+      return null;
+    };
+
+    const connectors: string[] = [];
+    for (const c of spec.connectors) {
+      if (c === null || typeof c !== 'object') continue;
+      const from = endpoint((c as { from?: FlowEndpointSpec }).from);
+      const to = endpoint((c as { to?: FlowEndpointSpec }).to);
+      if (from === null || to === null) continue;
+      const id = createConnector(doc, from, to, 'test-seed');
+      if (id !== null) connectors.push(id);
+    }
+    return { shapes: ids, connectors };
+  }
+
+  /**
+   * Per-type object counts of the room doc (story 10 flow hook): server-side
+   * ground truth for "what the room durably holds".
+   */
+  async testFlowCount(): Promise<{ shapes: number; connectors: number; other: number }> {
+    let shapes = 0;
+    let connectors = 0;
+    let other = 0;
+    if (this.doc !== null) {
+      for (const o of objectSnapshot(this.doc)) {
+        if (o.type === 'shape') shapes += 1;
+        else if (o.type === 'connector') connectors += 1;
+        else other += 1;
+      }
+    }
+    return { shapes, connectors, other };
   }
 
   /**

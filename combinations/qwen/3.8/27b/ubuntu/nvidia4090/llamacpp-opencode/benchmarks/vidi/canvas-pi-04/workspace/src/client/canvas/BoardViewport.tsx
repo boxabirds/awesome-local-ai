@@ -41,6 +41,14 @@ export function BoardViewport(props: {
   textToolActive?: boolean;
   /** Story 9: create text at a world point (click while the Text tool is active). */
   onTextCreateAt?: (worldPoint: Point) => void;
+  /**
+   * Story 10: true while the Shape or Connector tool is active. Presses
+   * neither pan, marquee nor double-click (the tools own the pointer via
+   * window listeners), the viewport shows a crosshair, and every object in
+   * the world layer ignores the pointer so a press on top of an object still
+   * starts the draw (shapes.create / connector.attach).
+   */
+  drawingToolActive?: boolean;
 }): JSX.Element {
   const viewportRef = useRef<HTMLDivElement | null>(null);
   const size = useElementSize(viewportRef);
@@ -63,6 +71,10 @@ export function BoardViewport(props: {
     const el = viewportRef.current;
     if (!el || panning || marqueePointer.current !== null) return;
     if (e.pointerType === 'mouse' && e.button !== 0) return;
+    // Story 10: while a drawing tool is active the tools own the pointer
+    // (window listeners); the viewport does not pan/marquee and does not
+    // even capture.
+    if (props.drawingToolActive === true) return;
     // Only start a pan/marquee when pressing the board surface itself.
     // Children live in the world layer with pointer-events: none, so a press
     // on empty space lands on the viewport; objects stopPropagation to opt out.
@@ -97,12 +109,14 @@ export function BoardViewport(props: {
       props.onMarqueeMove?.(toLocal(e.clientX, e.clientY));
       return;
     }
+    if (props.drawingToolActive === true) return; // the drawing tools own the pointer
     if (props.textToolActive === true) return; // no pan while the Text tool is active
     if (!panning) return;
     panMove(toLocal(e.clientX, e.clientY));
   };
 
   const stopPanning = (e: ReactPointerEvent<HTMLDivElement>): void => {
+    if (props.drawingToolActive === true) return; // the tools handle their own releases
     const el = viewportRef.current;
     if (el) {
       try {
@@ -170,10 +184,12 @@ export function BoardViewport(props: {
     if (el === null || e.target !== el) return;
     if (e.shiftKey) return;
     if (props.textToolActive === true) return;
+    if (props.drawingToolActive === true) return; // the tools own clicks
     props.onCreateStickyAt?.(screenToWorld(camera, toLocal(e.clientX, e.clientY)));
   };
 
   const onLostPointerCapture = (): void => {
+    if (props.drawingToolActive === true) return;
     setPanning(false);
     endPan();
   };
@@ -278,7 +294,7 @@ export function BoardViewport(props: {
       ref={viewportRef}
       className={`board-viewport${panning ? ' is-panning' : ''}${
         props.textToolActive ? ' is-text-tool' : ''
-      }`}
+      }${props.drawingToolActive ? ' is-drawing-tool' : ''}`}
       data-testid="board-viewport"
       style={{
         backgroundImage:

@@ -86,6 +86,8 @@ function Harness(props: { controller: UndoController; canEdit: boolean }): JSX.E
         canEdit={props.canEdit}
         tool="select"
         setTool={() => {}}
+        shapeKind="rect"
+        setShapeKind={() => {}}
         {...undo}
       />
       <BoardKeysProbe canEdit={props.canEdit} controller={props.controller} />

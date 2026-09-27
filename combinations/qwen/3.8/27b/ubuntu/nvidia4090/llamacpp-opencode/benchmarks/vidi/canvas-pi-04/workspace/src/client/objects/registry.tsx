@@ -14,8 +14,13 @@ import type { ComponentType, PointerEvent as ReactPointerEvent } from 'react';
 import type * as Y from 'yjs';
 import { objectBounds } from '../../shared/board-model';
 import type { ObjectSnapshot } from '../../shared/board-model';
+import { distanceToPolyline } from '../../shared/geometry/polyline';
 import type { Point } from '../../shared/geometry';
-import { STICKY_MIN_SIZE_WORLD, TEXT_MIN_WIDTH_WORLD } from '../../shared/config';
+import { CONNECTOR_HIT_TOLERANCE_PX, SHAPE_MIN_SIZE_WORLD, STICKY_MIN_SIZE_WORLD, TEXT_MIN_WIDTH_WORLD } from '../../shared/config';
+import type { ConnectorSnap } from '../../shared/objects/connector';
+import type { ShapeSnap } from '../../shared/objects/shape';
+import { ConnectorObject } from './ConnectorObject';
+import { ShapeObject } from './ShapeObject';
 import { StickyNote } from './StickyNote';
 import { TextObject } from './TextObject';
 
@@ -41,6 +46,15 @@ export interface ObjectProps {
   onStartEdit: (id: string) => void;
   /** Commit or cancel editing (the hook keeps the selection). */
   onEndEdit: (id: string) => void;
+  /**
+   * Story 10: the full board snapshot. Connector components need it for
+   * endpoint hit-testing and the arrow re-attach drag.
+   */
+  snapshot?: readonly ObjectSnapshot[];
+  /** Story 10: the current camera zoom (screen px per world unit). */
+  zoom?: number;
+  /** Story 10: the full camera (connector handle drags convert client px). */
+  camera?: import('../canvas/camera').Camera;
 }
 
 /** Everything the board needs to know to select/transform one object type. */
@@ -100,6 +114,48 @@ registerObjectType('sticky', {
       point.x < b.x + b.width &&
       point.y >= b.y &&
       point.y < b.y + b.height
+    );
+  },
+});
+
+// Story 10: shapes (anchor: shapes.object). Rectangles, ellipses and
+// diamonds; freely resizable, minimum side SHAPE_MIN_SIZE_WORLD, editable
+// label text.
+registerObjectType('shape', {
+  Component: ShapeObject,
+  resizable: true,
+  aspectLocked: false,
+  minSize: SHAPE_MIN_SIZE_WORLD,
+  editableText: true,
+  hitTest: (obj, point) => {
+    const b = objectBounds(obj as ShapeSnap);
+    return (
+      point.x >= b.x &&
+      point.x < b.x + b.width &&
+      point.y >= b.y &&
+      point.y < b.y + b.height
+    );
+  },
+});
+
+// Story 10: connectors (anchor: connector.select). Never resizable or
+// aspect-locked (the geometry is derived from its endpoints); selection is
+// by the hit band around the centre line, ±CONNECTOR_HIT_TOLERANCE_PX screen
+// px at the current zoom.
+registerObjectType('connector', {
+  Component: ConnectorObject,
+  resizable: false,
+  aspectLocked: false,
+  minSize: 0,
+  editableText: false,
+  // Coarse world-unit approximation (the registry API has no zoom); the
+  // precise ±CONNECTOR_HIT_TOLERANCE_PX screen-px band is the DOM hit line in
+  // ConnectorObject.
+  hitTest: (obj, point) => {
+    const snap = obj as ConnectorSnap;
+    return (
+      distanceToPolyline([snap.fromPoint, snap.toPoint], point) <=
+      CONNECTOR_HIT_TOLERANCE_PX
     );
   },
 });

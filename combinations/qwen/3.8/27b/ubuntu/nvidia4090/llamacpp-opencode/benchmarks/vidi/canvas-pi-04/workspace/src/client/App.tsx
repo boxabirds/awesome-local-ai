@@ -15,8 +15,13 @@
 import type { JSX } from 'react';
 import { useCallback, useEffect, useState } from 'react';
 import { createSticky, deleteObjects } from '../shared/board-model';
+import type { ObjectSnapshot } from '../shared/board-model';
 import { createText, deleteIfEmpty, getTextContent, getTextMeta } from '../shared/objects/text';
 import type { TextSnapshot } from '../shared/objects/text';
+import { createShape } from '../shared/objects/shape';
+import type { ShapeCreateInput } from '../shared/objects/shape';
+import { createConnector } from '../shared/objects/connector';
+import type { Endpoint } from '../shared/objects/connector';
 import { Toolbar } from './board/Toolbar';
 import { useBoardDoc } from './board/useBoardDoc';
 import { useSelection } from './board/useSelection';
@@ -40,7 +45,9 @@ import { canEdit } from './sync/connectBoard';
 import { useRoute } from './router';
 import { useTool } from './board/useTool';
 import { getIdentityId } from './identity';
-import type { Point } from '../shared/geometry';
+import { ShapeTool } from './tools/ShapeTool';
+import { ConnectorTool } from './tools/ConnectorTool';
+import type { Point, Rect } from '../shared/geometry';
 import { HomePage } from './pages/HomePage';
 import { BoardPage } from './pages/BoardPage';
 import { NotFoundPage } from './pages/NotFoundPage';
@@ -69,7 +76,11 @@ export function Board(props: { boardId: string }): JSX.Element {
 
   // Story 9: the per-client tool mode (text.tool_ui). T/Text button activate
   // it (only when editable); V/Escape return to Select.
-  const { tool, setTool } = useTool(editable);
+  // Story 10: Shape (S) and Connector (L) join the tools; a successful draw
+  // selects the new object and returns the tool to Select (tools.auto_return).
+  const { tool, shapeKind, setTool, setShapeKind, toolCreated } = useTool(editable, {
+    onSelectCreated: (id) => selection.click(id),
+  });
   const measure = sharedMeasurer();
 
   // Story 8: one undo controller per board doc (undo.session_only). It is
@@ -190,6 +201,33 @@ export function Board(props: { boardId: string }): JSX.Element {
     [editable, doc, undoController, selection, setTool],
   );
 
+  // Story 10 (shapes.create): a finished Shape-tool gesture creates the shape
+  // (its own undo step) and selects it, returning the tool to Select.
+  const createShapeFromGesture = useCallback(
+    (rect: Rect | null, at: Point, square: boolean): void => {
+      if (!editable) return; // tools are disabled read-only
+      const input: ShapeCreateInput = { kind: shapeKind, rect, at, square };
+      undoController?.boundary();
+      const id = createShape(doc, input, getIdentityId());
+      undoController?.boundary();
+      if (id !== null) toolCreated(id);
+    },
+    [editable, doc, shapeKind, undoController, toolCreated],
+  );
+
+  // Story 10 (connector.create): a finished Connector-tool gesture creates the
+  // arrow (its own undo step) and selects it, returning the tool to Select.
+  const createConnectorFromGesture = useCallback(
+    (from: Endpoint, to: Endpoint): void => {
+      if (!editable) return;
+      undoController?.boundary();
+      const id = createConnector(doc, from, to, getIdentityId());
+      undoController?.boundary();
+      if (id !== null) toolCreated(id);
+    },
+    [editable, doc, undoController, toolCreated],
+  );
+
   // Story 9 (text.empty_removed): ending an edit of a TEXT object removes it
   // when it has no characters. The TextEditor skipped its end-boundary for
   // empty text, so this removal stays in the last edit's capture window and
@@ -232,6 +270,7 @@ export function Board(props: { boardId: string }): JSX.Element {
         onMarqueeCancel={marquee.cancel}
         textToolActive={tool === 'text'}
         onTextCreateAt={createTextAt}
+        drawingToolActive={tool === 'shape' || tool === 'connector'}
       >
         {objects.map((obj) => {
           const spec = getObjectType(obj.type);
@@ -245,7 +284,19 @@ export function Board(props: { boardId: string }): JSX.Element {
               selected={selection.ids.has(obj.id)}
               editing={selection.editingId === obj.id}
               canEdit={editable}
-              onPointerDown={(e) => gesture.onObjectPointerDown(e, obj.id)}
+              snapshot={objects}
+              zoom={camera.zoom}
+              camera={camera}
+              onPointerDown={
+                // Story 10: an arrow body click only SELECTS (the arrow has no
+                // body to move; its ends are re-attached via the handles).
+                obj.type === 'connector'
+                  ? (e) => {
+                      if (e.shiftKey) selection.setMany([obj.id], true);
+                      else selection.click(obj.id);
+                    }
+                  : (e) => gesture.onObjectPointerDown(e, obj.id)
+              }
               onStartEdit={selection.startEdit}
               onEndEdit={obj.type === 'text' ? handleTextEndEdit : selection.endEdit}
             />
@@ -273,6 +324,22 @@ export function Board(props: { boardId: string }): JSX.Element {
           canEdit={editable}
           onDelete={deleteSelection}
         />
+        {/* Story 10: the drawing tools' screen-space previews (pointer-events
+            none; the tools listen on window). */}
+        {tool === 'shape' && (
+          <ShapeTool
+            camera={camera}
+            kind={shapeKind}
+            onCreateShape={createShapeFromGesture}
+          />
+        )}
+        {tool === 'connector' && (
+          <ConnectorTool
+            camera={camera}
+            snapshot={objects}
+            onCreateConnector={createConnectorFromGesture}
+          />
+        )}
       </div>
 
       <Toolbar
@@ -280,6 +347,8 @@ export function Board(props: { boardId: string }): JSX.Element {
         canEdit={editable}
         tool={tool}
         setTool={setTool}
+        shapeKind={shapeKind}
+        setShapeKind={setShapeKind}
         {...undo}
       />
       <ZoomControls

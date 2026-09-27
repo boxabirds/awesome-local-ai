@@ -64,6 +64,16 @@ export function useBoardKeys(opts: BoardKeysOptions): void {
           tool?.setTool('text'); // ignored when the board is read-only
           return;
         }
+        // Story 10 (tools.active): S -> Shape, L -> Connector; ignored
+        // read-only (the hook's setTool enforces that).
+        if (e.key === 's' || e.key === 'S') {
+          tool?.setTool('shape');
+          return;
+        }
+        if (e.key === 'l' || e.key === 'L') {
+          tool?.setTool('connector');
+          return;
+        }
         if (e.key === 'n' || e.key === 'N') {
           if (canEdit) onCreateStickyAtCenter?.();
           return;

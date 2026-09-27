@@ -11,7 +11,7 @@ import {
   registerObjectType,
   type ObjectTypeSpec,
 } from '../../src/client/objects/registry';
-import { STICKY_MIN_SIZE_WORLD } from '../../src/shared/config';
+import { SHAPE_MIN_SIZE_WORLD, STICKY_MIN_SIZE_WORLD } from '../../src/shared/config';
 
 function dummySpec(overrides: Partial<ObjectTypeSpec> = {}): ObjectTypeSpec {
   const Component: ComponentType = () => null;
@@ -38,10 +38,33 @@ describe('registry: sticky', () => {
   });
 });
 
+// Story 10: the shape and connector specs.
+describe('registry: shape (story 10)', () => {
+  it('exposes the shape spec (resizable, not aspect-locked, min side, editable label)', () => {
+    const spec = getObjectType('shape');
+    expect(spec).toBeDefined();
+    expect(spec!.resizable).toBe(true);
+    expect(spec!.aspectLocked).toBe(false);
+    expect(spec!.minSize).toBe(SHAPE_MIN_SIZE_WORLD);
+    expect(spec!.editableText).toBe(true);
+    expect(typeof spec!.Component).toBe('function');
+  });
+});
+
+describe('registry: connector (story 10)', () => {
+  it('exposes the connector spec (never resizable or aspect-locked, no text)', () => {
+    const spec = getObjectType('connector');
+    expect(spec).toBeDefined();
+    expect(spec!.resizable).toBe(false);
+    expect(spec!.aspectLocked).toBe(false);
+    expect(spec!.editableText).toBe(false);
+    expect(typeof spec!.Component).toBe('function');
+  });
+});
+
 describe('registry: unknown type', () => {
   it('TC-12 getObjectType returns undefined for an unregistered type', () => {
     expect(getObjectType('unknown')).toBeUndefined();
-    expect(getObjectType('shape')).toBeUndefined();
   });
 });
 

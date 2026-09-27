@@ -64,14 +64,25 @@ async function waitForConnected(page: Page): Promise<void> {
 
 /**
  * Open a participant on `boardId` and wait until their board is live
- * (connected + synced).
+ * (connected + synced). `setup` runs on the fresh context BEFORE the page
+ * loads (e.g. to install addInitScript hooks).
  */
-export async function openParticipant(browser: Browser, boardId: string): Promise<Participant> {
+export async function openParticipantWith(
+  browser: Browser,
+  boardId: string,
+  setup?: (context: BrowserContext) => Promise<void> | void,
+): Promise<Participant> {
   const context = await browser.newContext();
+  if (setup !== undefined) await setup(context);
   const page = await context.newPage();
   await page.goto(`/b/${boardId}`);
   await waitForConnected(page);
   return { context, page };
+}
+
+/** Open a participant with no context setup. */
+export async function openParticipant(browser: Browser, boardId: string): Promise<Participant> {
+  return openParticipantWith(browser, boardId);
 }
 
 export async function closeParticipant(participant: Participant): Promise<void> {
@@ -88,7 +99,7 @@ export async function expectWithin<T>(
   expected: T,
   timeoutMs: number = LIVE_UPDATE_LATENCY_BUDGET_MS,
 ): Promise<void> {
-  await expect.poll(poll, { timeout: timeoutMs }).toBe(expected);
+  await expect.poll(poll, { timeout: timeoutMs }).toEqual(expected);
 }
 
 /**
