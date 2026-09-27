@@ -3504,7 +3504,13 @@
           "found": 12,
           "total": 12
         }
-      ]
+      ],
+      "record": {
+        "committed": true,
+        "pushed": true,
+        "over_size_limit": [],
+        "commit": "5f15bb8"
+      }
     }
   },
   "pack": "todoodle",
