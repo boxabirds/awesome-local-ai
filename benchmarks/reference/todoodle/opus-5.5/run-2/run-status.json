@@ -1,6 +1,6 @@
 {
-  "state": "started",
-  "reason": "harness 49792d35, client claude, model claude-opus-5-5",
-  "at": "2026-09-27T11:28:57Z",
+  "state": "stopped",
+  "reason": "exit 143:",
+  "at": "2026-09-27T15:31:26Z",
   "host": "Julians-MacBook-Air.local"
 }
