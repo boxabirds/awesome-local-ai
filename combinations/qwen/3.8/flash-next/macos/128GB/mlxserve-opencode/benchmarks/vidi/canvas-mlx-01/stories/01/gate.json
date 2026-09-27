@@ -1,0 +1,54 @@
+{
+  "steps": {
+    "install": {
+      "cmd": "npm ci",
+      "exit": 0,
+      "seconds": 2.6,
+      "tail": "\nadded 190 packages, and audited 191 packages in 2s\n\n34 packages are looking for funding\n  run `npm fund` for details\n\n2 moderate severity vulnerabilities\n\nTo address all issues (including breaking changes), run:\n  npm audit fix --force\n\nRun `npm audit` for details.\nnpm warn deprecated whatwg-encoding@3.1.1: Use @exodus/bytes instead for a more spec-conformant and faster implementation\nnpm warn allow-scripts 4 packages have install scripts not yet covered by allowScripts:\nnpm warn allow-scripts   esbuild@0.28.2 (postinstall: node install.js)\nnpm warn allow-scripts   fsevents@2.3.3 (install: (install scripts present))\nnpm warn allow-scripts   workerd@1.20260925.1 (postinstall: node install.js)\nnpm warn allow-scripts   esbuild@0.28.1 (postinstall: node install.js)\nnpm warn allow-scripts\nnpm warn allow-scripts Run `npm approve-scripts --allow-scripts-pending` to review, or `npm approve-scripts <pkg>` to allow.\n"
+    },
+    "build": {
+      "cmd": "npm run build",
+      "exit": 0,
+      "seconds": 0.8,
+      "tail": "\n> vidi6@0.0.0 build\n> vite build\n\n\u001b[36mvite v7.3.6 \u001b[32mbuilding client environment for production...\u001b[36m\u001b[39m\ntransforming...\n\u001b[32m\u2713\u001b[39m 37 modules transformed.\nrendering chunks...\ncomputing gzip size...\n\u001b[2m../../dist/client/\u001b[22m\u001b[32mindex.html                 \u001b[39m\u001b[1m\u001b[2m  0.39 kB\u001b[22m\u001b[1m\u001b[22m\u001b[2m \u2502 gzip:  0.26 kB\u001b[22m\n\u001b[2m../../dist/client/\u001b[22m\u001b[2massets/\u001b[22m\u001b[35mindex-DvqOokEG.css  \u001b[39m\u001b[1m\u001b[2m  1.99 kB\u001b[22m\u001b[1m\u001b[22m\u001b[2m \u2502 gzip:  0.90 kB\u001b[22m\n\u001b[2m../../dist/client/\u001b[22m\u001b[2massets/\u001b[22m\u001b[36mindex-BfKN0Yig.js   \u001b[39m\u001b[1m\u001b[2m230.97 kB\u001b[22m\u001b[1m\u001b[22m\u001b[2m \u2502 gzip: 72.30 kB\u001b[22m\n\u001b[32m\u2713 built in 288ms\u001b[39m\n",
+      "passed": null,
+      "failed": null
+    },
+    "typecheck": {
+      "cmd": "npm run typecheck",
+      "exit": 0,
+      "seconds": 0.7,
+      "tail": "\n> vidi6@0.0.0 typecheck\n> tsc --noEmit\n\n",
+      "passed": null,
+      "failed": null
+    },
+    "test:unit": {
+      "cmd": "npm run test:unit",
+      "exit": 0,
+      "seconds": 0.6,
+      "tail": "\n> vidi6@0.0.0 test:unit\n> vitest run --project unit\n\n\n\u001b[1m\u001b[46m RUN \u001b[49m\u001b[22m \u001b[36mv3.2.7 \u001b[39m\u001b[90m~/.vidi-bench/work/qwen__3.8__flash-next__macos__128GB__mlxserve-opencode__benchmarks__vidi__canvas-mlx-01/workspace\u001b[39m\n\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[42m unit \u001b[49m\u001b[39m tests/unit/camera.test.ts \u001b[2m(\u001b[22m\u001b[2m31 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 27\u001b[2mms\u001b[22m\u001b[39m\n\n\u001b[2m Test Files \u001b[22m \u001b[1m\u001b[32m1 passed\u001b[39m\u001b[22m\u001b[90m (1)\u001b[39m\n\u001b[2m      Tests \u001b[22m \u001b[1m\u001b[32m31 passed\u001b[39m\u001b[22m\u001b[90m (31)\u001b[39m\n\u001b[2m   Start at \u001b[22m 15:15:43\n\u001b[2m   Duration \u001b[22m 189ms\u001b[2m (transform 24ms, setup 0ms, collect 25ms, tests 27ms, environment 0ms, prepare 26ms)\u001b[22m\n\n",
+      "passed": 31,
+      "failed": 0
+    },
+    "test:component": {
+      "cmd": "npm run test:component",
+      "exit": 0,
+      "seconds": 1.3,
+      "tail": "\n> vidi6@0.0.0 test:component\n> vitest run --project component\n\n\n\u001b[1m\u001b[46m RUN \u001b[49m\u001b[22m \u001b[36mv3.2.7 \u001b[39m\u001b[90m~/.vidi-bench/work/qwen__3.8__flash-next__macos__128GB__mlxserve-opencode__benchmarks__vidi__canvas-mlx-01/workspace\u001b[39m\n\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[45m component \u001b[49m\u001b[39m tests/component/ZoomControls.test.tsx \u001b[2m(\u001b[22m\u001b[2m10 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 53\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[45m component \u001b[49m\u001b[39m tests/component/NavigationHint.test.tsx \u001b[2m(\u001b[22m\u001b[2m7 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 82\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[45m component \u001b[49m\u001b[39m tests/component/BoardViewport.test.tsx \u001b[2m(\u001b[22m\u001b[2m27 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[33m 573\u001b[2mms\u001b[22m\u001b[39m\n\n\u001b[2m Test Files \u001b[22m \u001b[1m\u001b[32m3 passed\u001b[39m\u001b[22m\u001b[90m (3)\u001b[39m\n\u001b[2m      Tests \u001b[22m \u001b[1m\u001b[32m44 passed\u001b[39m\u001b[22m\u001b[90m (44)\u001b[39m\n\u001b[2m   Start at \u001b[22m 15:15:44\n\u001b[2m   Duration \u001b[22m 943ms\u001b[2m (transform 58ms, setup 130ms, collect 102ms, tests 709ms, environment 417ms, prepare 85ms)\u001b[22m\n\n",
+      "passed": 44,
+      "failed": 0
+    },
+    "test:integration": {
+      "exit": "missing"
+    },
+    "test:e2e": {
+      "cmd": "npm run test:e2e -- --project=chromium",
+      "exit": 0,
+      "seconds": 9.2,
+      "tail": "\n> vidi6@0.0.0 test:e2e\n> playwright test --project=chromium\n\n[WebServer] \n[WebServer] > vidi6@0.0.0 build:test\n[WebServer] > vite build --mode test\n[WebServer] \n[WebServer] vite v7.3.6 building client environment for test...\n[WebServer] transforming...\n[WebServer] \u2713 37 modules transformed.\n[WebServer] rendering chunks...\n[WebServer] computing gzip size...\n[WebServer] ../../dist/client/index.html                   0.39 kB \u2502 gzip:  0.26 kB\n[WebServer] ../../dist/client/assets/index-DvqOokEG.css    1.99 kB \u2502 gzip:  0.90 kB\n[WebServer] ../../dist/client/assets/index-D48IjFra.js   231.06 kB \u2502 gzip: 72.33 kB\n[WebServer] \u2713 built in 360ms\n[WebServer] \n[WebServer]  \u26c5\ufe0f wrangler 4.141.0\n[WebServer] \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\n[WebServer] Your Worker has access to the following bindings:\n[WebServer] Binding                                             Resource          Mode\n[WebServer] env.BACKEND (1c0aa1c0aa1c0aa1c0aa1c0aa1c0aa1c)      KV Namespace      local\n[WebServer] env.ASSETS                                          Assets            local\n[WebServer] \n[WebServer] \u2394 Starting local server...\n[WebServer] [wrangler:info] Ready on http://127.0.0.1:8790\n[WebServer] [wrangler:info] GET / 200 OK (15ms)\n\nRunning 7 tests using 1 worker\n\n[WebServer] [wrangler:info] GET / 200 OK (2ms)\n[WebServer] [wrangler:info] GET /assets/index-D48IjFra.js 200 OK (1ms)\n[WebServer] [wrangler:info] GET /assets/index-DvqOokEG.css 200 OK (5ms)\n  \u2713  1 [chromium] \u203a tests/e2e/navigation.spec.ts:38:1 \u203a TC-23: dragging the empty board pans the camera by exactly the pointer delta (759ms)\n[WebServer] [wrangler:info] GET / 200 OK (2ms)\n[WebServer] [wrangler:info] GET /assets/index-D48IjFra.js 200 OK (2ms)\n[WebServer] [wrangler:info] GET /assets/index-DvqOokEG.css 200 OK (5ms)\n  \u2713  2 [chromium] \u203a tests/e2e/navigation.spec.ts:96:1 \u203a TC-24: Ctrl/Cmd + wheel zooms the board and leaves the browser page zoom alone (297ms)\n[WebServer] [wrangler:info] GET / 200 OK (2ms)\n[WebServer] [wrangler:info] GET /assets/index-D48IjFra.js 200 OK (2ms)\n[WebServer] [wrangler:info] GET /assets/index-DvqOokEG.css 200 OK (5ms)\n  \u2713  3 [chromium] \u203a tests/e2e/navigation.spec.ts:128:1 \u203a TC-25: Zoom in steps by one factor per click and disables itself at the maximum (1.3s)\n[WebServer] [wrangler:info] GET / 200 OK (1ms)\n[WebServer] [wrangler:info] GET /assets/index-D48IjFra.js 200 OK (1ms)\n[WebServer] [wrangler:info] GET /assets/index-DvqOokEG.css 200 OK (5ms)\n  \u2713  4 [chromium] \u203a tests/e2e/navigation.spec.ts:155:1 \u203a TC-26: Reset view returns a camera a million pixels away to the known view (184ms)\n[WebServer] [wrangler:info] GET / 200 OK (1ms)\n[WebServer] [wrangler:info] GET /assets/index-D48IjFra.js 200 OK (2ms)\n[WebServer] [wrangler:info] GET /assets/index-DvqOokEG.css 200 OK (4ms)\n  \u2713  5 [chromium] \u203a tests/e2e/navigation.spec.ts:182:1 \u203a TC-27: pan, zoom and reset stay consistent a million pixels away, at 1x and at 2x (1.6s)\n[WebServer] [wrangler:info] GET / 200 OK (3ms)\n[WebServer] [wrangler:info] GET /assets/index-D48IjFra.js 200 OK (1ms)\n[WebServer] [wrangler:info] GET /assets/index-DvqOokEG.css 200 OK (5ms)\n  \u2713  6 [chromium] \u203a tests/e2e/navigation.spec.ts:224:1 \u203a TC-28: the first-use navigation hint appears once and never again (2.0s)\n[WebServer] [wrangler:info] GET / 200 OK (2ms)\n[WebServer] [wrangler:info] GET /assets/index-D48IjFra.js 200 OK (2ms)\n[WebServer] [wrangler:info] GET /assets/index-DvqOokEG.css 200 OK (5ms)\n  \u2713  7 [chromium] \u203a tests/e2e/navigation.spec.ts:245:1 \u203a TC-31: navigation leaves the browser page zoom unchanged (336ms)\n\n  7 passed (8.7s)\n[WebServer] \u25b2 [WARNING] Processing wrangler.jsonc configuration:\n[WebServer] \n[WebServer]     - Unexpected fields found in kv_namespaces[0] field: \"bucket_name\",\"preview_bucket_name\"\n[WebServer] \n[WebServer] \n",
+      "passed": 7,
+      "failed": 0
+    }
+  },
+  "all_green": true
+}

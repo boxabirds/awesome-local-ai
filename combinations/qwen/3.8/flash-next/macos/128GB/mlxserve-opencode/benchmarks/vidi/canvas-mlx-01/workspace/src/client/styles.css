@@ -1,0 +1,149 @@
+:root {
+  --vidi-grid-dot: #c3c9d4;
+  --vidi-surface: #f7f8fa;
+  --vidi-text: #1f2430;
+  --vidi-border: #d7dbe3;
+  --vidi-accent: #2f6feb;
+  font-family:
+    -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  color: var(--vidi-text);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  overflow: hidden;
+  background: var(--vidi-surface);
+}
+
+/* ---------------------------------------------------------------- board */
+
+.vidi-board-viewport {
+  position: fixed;
+  inset: 0;
+  overflow: hidden;
+  background-color: var(--vidi-surface);
+  cursor: grab;
+  touch-action: none;
+  /* the board owns its gestures */
+  overscroll-behavior: none;
+  user-select: none;
+}
+
+.vidi-board-viewport[data-panning='true'] {
+  cursor: grabbing;
+}
+
+.vidi-grid {
+  position: absolute;
+  inset: 0;
+  background-repeat: repeat;
+}
+
+.vidi-world {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 0;
+  height: 0;
+  transform-origin: 0 0;
+  will-change: transform;
+}
+
+.vidi-origin-marker {
+  position: absolute;
+  left: 0;
+  top: 0;
+  overflow: visible;
+  color: #8b93a5;
+  pointer-events: none;
+}
+
+.vidi-origin-marker line {
+  stroke: currentColor;
+  stroke-width: 1;
+}
+
+.vidi-origin-marker circle {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1;
+}
+
+/* ------------------------------------------------------------ controls */
+
+.vidi-zoom-controls {
+  position: fixed;
+  right: 16px;
+  bottom: 16px;
+  display: flex;
+  align-items: stretch;
+  gap: 2px;
+  padding: 4px;
+  background: #ffffff;
+  border: 1px solid var(--vidi-border);
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgb(15 23 42 / 12%);
+  font-size: 13px;
+}
+
+.vidi-zoom-controls button {
+  min-width: 30px;
+  height: 28px;
+  padding: 0 8px;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: #f2f4f8;
+  color: var(--vidi-text);
+  font: inherit;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.vidi-zoom-controls button:hover:not(:disabled) {
+  background: #e6eaf2;
+}
+
+.vidi-zoom-controls button:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.vidi-zoom-controls button:focus-visible {
+  outline: 2px solid var(--vidi-accent);
+  outline-offset: 1px;
+}
+
+.vidi-zoom-label {
+  min-width: 52px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---------------------------------------------------------------- hint */
+
+.vidi-nav-hint {
+  position: fixed;
+  left: 50%;
+  bottom: 20px;
+  transform: translateX(-50%);
+  padding: 8px 14px;
+  background: rgb(31 36 48 / 88%);
+  color: #ffffff;
+  border-radius: 999px;
+  font-size: 13px;
+  white-space: nowrap;
+  pointer-events: none;
+}

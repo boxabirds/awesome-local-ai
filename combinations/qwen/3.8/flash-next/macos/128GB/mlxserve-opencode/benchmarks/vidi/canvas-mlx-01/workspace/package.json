@@ -1,0 +1,35 @@
+{
+  "name": "vidi6",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "build:test": "vite build --mode test",
+    "preview": "wrangler dev",
+    "typecheck": "tsc --noEmit",
+    "test:unit": "vitest run --project unit",
+    "test:component": "vitest run --project component",
+    "test:e2e": "playwright test"
+  },
+  "dependencies": {
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.63.0",
+    "@testing-library/dom": "^10.4.1",
+    "@testing-library/react": "^16.3.0",
+    "@testing-library/user-event": "^14.6.1",
+    "@types/node": "^24.3.0",
+    "@types/react": "^19.2.0",
+    "@types/react-dom": "^19.2.0",
+    "@vitejs/plugin-react": "^5.0.0",
+    "jsdom": "^26.1.0",
+    "typescript": "^5.9.2",
+    "vite": "^7.1.3",
+    "vitest": "^3.2.4",
+    "wrangler": "^4.141.0"
+  }
+}
