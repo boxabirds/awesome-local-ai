@@ -25,6 +25,9 @@ pub const INSPECTOR_BASE: u16 = 7901;
 pub const MAX_BUILDS: u16 = 40;
 const READY_TIMEOUT: Duration = Duration::from_secs(180);
 const READY_POLL: Duration = Duration::from_millis(500);
+/// A running build is checked this often, and marked stopped after this many missed checks in a row.
+const WATCH_EVERY: Duration = Duration::from_secs(3);
+const WATCH_MISSES: u32 = 2;
 const STOP_GRACE: Duration = Duration::from_secs(3);
 const LOG_TAIL_BYTES: usize = 1500;
 const HTTP_SERVER_ERROR: u16 = 500;
@@ -117,6 +120,11 @@ impl Builds {
             &dir,
         )
         .await?;
+        // Build from clean, like the held-out suite: a `.wrangler/` or `dist/` left by an earlier start
+        // can redirect wrangler to a stale config ("assets-only Worker" errors on a build that works).
+        for leftover in [".wrangler", "dist"] {
+            let _ = std::fs::remove_dir_all(ws.join(leftover));
+        }
         self.step(&spec.slug, "installing dependencies (no install scripts)").await;
         run("npm", &["ci", "--ignore-scripts", "--no-audit", "--no-fund"], &ws).await?;
         self.step(&spec.slug, "building").await;
@@ -151,8 +159,38 @@ impl Builds {
         let proxy = tokio::spawn(proxy::serve(listener, upstream, spec.banner));
         let mut inner = self.inner.lock().await;
         inner.live.insert(spec.slug.clone(), Live { pgid, proxy, slot });
-        inner.states.insert(spec.slug, State::Running { url: format!("http://127.0.0.1:{proxy_port}/") });
+        inner.states.insert(spec.slug.clone(), State::Running { url: format!("http://127.0.0.1:{proxy_port}/") });
+        drop(inner);
+        drop(child); // its process group is tracked by pgid; the watch below notices if it dies
+        let me = self.clone();
+        tokio::spawn(async move { me.watch(spec.slug, pgid, upstream, log).await });
         Ok(())
+    }
+
+    /// Mark a running build stopped as soon as its server stops answering, whatever killed it, so
+    /// the page never shows "running" for a dead build. Open restarts it.
+    async fn watch(&self, slug: String, pgid: i32, upstream: SocketAddr, log: PathBuf) {
+        let mut misses = 0;
+        loop {
+            tokio::time::sleep(WATCH_EVERY).await;
+            let still_ours = self.inner.lock().await.live.get(&slug).is_some_and(|l| l.pgid == pgid);
+            if !still_ours {
+                return; // stopped by the gallery, or restarted
+            }
+            misses = if status_of(upstream).await.is_ok() { 0 } else { misses + 1 };
+            if misses < WATCH_MISSES {
+                continue;
+            }
+            let text = std::fs::read_to_string(&log).unwrap_or_default();
+            let tail = text[text.len().saturating_sub(LOG_TAIL_BYTES)..].trim().to_string();
+            self.stop(&slug).await;
+            let why = if tail.is_empty() { "no error in its log, so something outside the gallery probably killed it".to_string() } else { tail };
+            self.inner.lock().await.states.insert(
+                slug.clone(),
+                State::Failed { error: format!("the build's server stopped ({why}). Open restarts it.") },
+            );
+            return;
+        }
     }
 
     pub async fn stop(&self, slug: &str) {
