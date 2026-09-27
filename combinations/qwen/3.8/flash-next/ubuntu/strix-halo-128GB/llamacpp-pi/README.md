@@ -1,5 +1,10 @@
 # Qwen3.8-Flash-Next · Ubuntu 26.04 · Strix Halo 128GB · llama.cpp (Vulkan or ROCm) + MTP + pi
 
+> **Slow prefill, 27 Sep 2026.** This stack writes respectable code (67 of 75 held-out tests in its
+> one complete vidi run), but llama.cpp reads prompts at only 170–350 tokens a second on this chip,
+> so compactions take 6–8 minutes and hard stories run out of time. The chip can read 4× faster
+> (gufo, same weights). See [the findings](../../../../../../../docs/20260927-strix-halo-llamacpp-findings.md).
+
 Qwen3.8-Flash-Next (125B total, about 6B active per token) from Unsloth's
 dynamic GGUF quants, with its MTP draft head, served by llama.cpp on Vulkan
 (RADV) or ROCm on an AMD Ryzen AI Max+ 395 with 128 GB of unified memory,
