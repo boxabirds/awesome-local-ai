@@ -21,6 +21,7 @@ import { pointInRect, type Point, type Rect } from '../../shared/geometry';
 import {
   CONNECTOR_HIT_TOLERANCE_PX,
   CONNECTOR_MIN_LENGTH_WORLD,
+  IMAGE_MIN_SIZE_WORLD,
   PEN_THICKNESS_WORLD,
   SHAPE_MIN_SIZE_WORLD,
   STICKY_MIN_SIZE_WORLD,
@@ -31,7 +32,9 @@ import {
 import type { Endpoint } from '../../shared/geometry/connector-geometry';
 import { distanceToPolyline } from '../../shared/geometry/polyline';
 import { scaledPoints, type StrokeSnap } from '../../shared/objects/stroke';
+
 import { ConnectorObject } from './ConnectorObject';
+import { ImageObject } from './ImageObject';
 import { ShapeObject } from './ShapeObject';
 import { StickyNote } from './StickyNote';
 import { StrokeObject } from './StrokeObject';
@@ -74,6 +77,22 @@ export interface ObjectProps {
   onEndEdit(next: 'selected' | 'unselected'): void;
   /** This tab's undo controller (story 8: editor boundaries + Ctrl/Cmd+Z). */
   undo?: UndoController | null;
+  /** Story 12: per-image render context (progress, retry, identity, clock). */
+  imageContext?: ImageRenderContext;
+}
+
+/** Story 12: what the image component needs beyond the plain snapshot. */
+export interface ImageRenderContext {
+  /** Live upload fraction 0..1 (uploader only). */
+  progress?: number;
+  /** True while the File is kept in memory (Retry is offered). */
+  canRetry: boolean;
+  /** True for the client that started the upload. */
+  isUploader: boolean;
+  /** Clock for the unfinished derivation. */
+  now: number;
+  onRetry(): void;
+  onRemove(): void;
 }
 
 /** Behaviour and rendering of one object type. */
@@ -184,6 +203,17 @@ registerObjectType('connector', {
     };
     return pointInRect(box, point);
   },
+});
+
+/** Image (story 12): aspect-locked proportional resize with a floor
+ *  (image.aspect_resize); states render from doc fields + imageContext. */
+registerObjectType('image', {
+  Component: ImageObject,
+  resizable: true,
+  aspectLocked: true,
+  minSize: IMAGE_MIN_SIZE_WORLD,
+  editableText: false,
+  hitTest: (obj, point) => pointInRect(objectBounds(obj), point),
 });
 
 /** Stroke (story 11): proportional resize only (aspect-locked, min size),

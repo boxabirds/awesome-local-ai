@@ -26,6 +26,8 @@ export interface ToolbarProps {
   shapeKind?: ShapeKind;
   onToolChange?: (tool: ToolId) => void;
   onShapeKindChange?: (kind: ShapeKind) => void;
+  /** Story 12 (image.pick): opens the image file picker (I shortcut). */
+  onOpenImagePicker?: () => void;
 }
 
 const KIND_LABELS: Record<ShapeKind, string> = {
@@ -59,6 +61,7 @@ export function Toolbar({
   shapeKind = 'rect',
   onToolChange,
   onShapeKindChange,
+  onOpenImagePicker,
 }: ToolbarProps): JSX.Element {
   const stop = (event: React.SyntheticEvent) => event.stopPropagation();
   return (
@@ -181,6 +184,21 @@ export function Toolbar({
             stroke="currentColor"
             strokeWidth="1.5"
           />
+        </svg>
+      </button>
+      <button
+        type="button"
+        className="toolbar-image"
+        data-testid="image"
+        aria-label="Image (I)"
+        title="Image (I)"
+        disabled={disabled}
+        onClick={() => onOpenImagePicker?.()}
+      >
+        <svg width="20" height="20" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
+          <rect x="3" y="4" width="14" height="12" rx="1" fill="none" stroke="currentColor" strokeWidth="1.5" />
+          <circle cx="7.5" cy="8.5" r="1.5" fill="currentColor" />
+          <path d="M3 14l4.5-4 4 3.5L15 10l2 2" fill="none" stroke="currentColor" strokeWidth="1.5" />
         </svg>
       </button>
       <UndoButtons {...undo} />

@@ -32,6 +32,7 @@ import {
 } from './config';
 import type { Point, Rect } from './geometry';
 import type { FillColor, ShapeKind, StrokeColor } from './objects/shape';
+import type { ImageStatus } from './objects/image';
 import type { PenColor, PenThickness } from './objects/stroke';
 import { PEN_COLORS, PEN_THICKNESS_WORLD } from './config';
 import {
@@ -79,6 +80,14 @@ export interface ObjectSnapshot {
   /** Connector objects only (story 10); x/y/width/height are the derived bbox. */
   from?: Endpoint;
   to?: Endpoint;
+  /** Image objects only (story 12). */
+  assetKey?: string | null;
+  contentType?: string;
+  naturalWidth?: number;
+  naturalHeight?: number;
+  status?: ImageStatus;
+  uploadStartedAt?: number;
+  uploaderId?: string;
   /** Stacking order; higher is on top. */
   z: number;
   /** Epoch ms. */
@@ -108,7 +117,7 @@ const SCHEMA_VERSION = 1;
 // registerObjectTypeName from its own module top level: board-model imports
 // connector.ts (detachConnectorsTo) and connector.ts imports board-model, so
 // its module body must not touch this set during that circular evaluation.
-const knownTypes = new Set<string>(['sticky', 'shape', 'connector', 'stroke']);
+const knownTypes = new Set<string>(['sticky', 'shape', 'connector', 'stroke', 'image']);
 
 /** Mark a type name as known to the document model (idempotent). */
 export function registerObjectTypeName(type: string): void {
@@ -508,6 +517,44 @@ export function snapshot(doc: Y.Doc): readonly ObjectSnapshot[] {
         text: text.toString(),
         size: size as TextSize,
         widthMode: widthMode as 'auto' | 'fixed',
+        z: z as number,
+        createdAt: createdAt as number,
+      });
+      continue;
+    }
+    if (type === 'image') {
+      const assetKey = object.get('assetKey');
+      const contentType = object.get('contentType');
+      const naturalWidth = object.get('naturalWidth');
+      const naturalHeight = object.get('naturalHeight');
+      const status = object.get('status');
+      const uploadStartedAt = object.get('uploadStartedAt');
+      const uploaderId = object.get('uploaderId');
+      if (
+        (assetKey !== null && typeof assetKey !== 'string') ||
+        typeof contentType !== 'string' ||
+        typeof naturalWidth !== 'number' || !Number.isFinite(naturalWidth) ||
+        typeof naturalHeight !== 'number' || !Number.isFinite(naturalHeight) ||
+        (status !== 'uploading' && status !== 'ready' && status !== 'failed') ||
+        typeof uploadStartedAt !== 'number' ||
+        typeof uploaderId !== 'string'
+      ) {
+        continue;
+      }
+      out.push({
+        id,
+        type,
+        x: x as number,
+        y: y as number,
+        width: width as number,
+        height: height as number,
+        assetKey,
+        contentType,
+        naturalWidth,
+        naturalHeight,
+        status,
+        uploadStartedAt,
+        uploaderId,
         z: z as number,
         createdAt: createdAt as number,
       });

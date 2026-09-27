@@ -34,6 +34,8 @@ export interface BoardKeysOptions {
   setTool?: (tool: AnyTool) => void;
   /** N shortcut: create a sticky note at the board centre. */
   onCreateStickyCenter?: () => void;
+  /** I shortcut (story 12, image.pick): open the image picker. */
+  onInsertImageCenter?: () => void;
 }
 
 function inEditableTarget(target: EventTarget | null): boolean {
@@ -48,7 +50,8 @@ export function useBoardKeys(options: BoardKeysOptions): void {
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
-      const { doc, selection, snapshot, canEdit, undo, tool, setTool, onCreateStickyCenter } = optsRef.current;
+      const { doc, selection, snapshot, canEdit, undo, tool, setTool, onCreateStickyCenter, onInsertImageCenter } =
+        optsRef.current;
       if (inEditableTarget(event.target)) return;
       if (selection.editingId !== null) return;
 
@@ -104,17 +107,21 @@ export function useBoardKeys(options: BoardKeysOptions): void {
         case 'L':
         case 'p':
         case 'P':
-        case 'i':
-        case 'I':
         case 'c':
         case 'C': {
           // Single-letter tool shortcuts (tools.active_tool): s shape, l
-          // connector, p/i/c future tools. Inert when not editable (setTool
-          // would revert to 'select' anyway).
+          // connector, p pen, c comment (future). Inert when not editable
+          // (setTool would revert to 'select' anyway).
           const mapped = TOOL_SHORTCUTS[event.key.toLowerCase()];
           if (mapped !== undefined && setTool !== undefined && canEdit) setTool(mapped);
           return;
         }
+        case 'i':
+        case 'I':
+          // Story 12 (image.pick): I opens the image picker (centred in
+          // view); it is an action, not a tool state.
+          if (onInsertImageCenter !== undefined && canEdit) onInsertImageCenter();
+          return;
         case 'ArrowLeft':
         case 'ArrowRight':
         case 'ArrowUp':

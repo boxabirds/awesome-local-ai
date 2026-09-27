@@ -50,6 +50,9 @@ function mockEnv(): MockEnv {
     // Story 5: the worker now declares a rate limiter binding; unused by the
     // routing tests, but the env must satisfy the interface.
     BOARD_CREATE_LIMITER: { limit: () => Promise.resolve({ success: true }) },
+    // Story 12: asset bindings are unused by the routing tests.
+    ASSETS_BUCKET: {} as unknown as R2Bucket,
+    ASSET_UPLOAD_LIMITER: { limit: () => Promise.resolve({ success: true }) },
   };
   return { env, idFromNameCalls, doFetchCalls, assetFetchCalls };
 }

@@ -14,8 +14,9 @@ Model `qwen3.8-swift-27b`, scope `canvas`, effort `low`, client pi 0.86.0, host 
 | 9 | Write free text anywhere on the board | DONE | 60.1 | None | None | None | — | — | green | 53/57 |  | 0 / 0 | 3 | — | throttled 0%, server peak 26 GB |
 | 10 | Draw shapes and connect them with arrows that follow when moved | DONE | 99.5 | None | None | None | — | — | red | 60/65 |  | 0 / 0 | 4 | — | throttled 0%, server peak 26 GB |
 | 11 | Sketch freehand with a pen | DONE | 32.8 | None | None | None | — | — | red | 65/70 |  | 0 / 0 | 2 | — | throttled 0%, server peak 26 GB |
+| 12 | Drop images onto the board | DONE | 53.5 | None | None | None | — | — | red | 68/75 |  | 0 / 0 | 2 | — | throttled 0%, server peak 26 GB |
 
-**Totals:** 10 stories, 657 agent-minutes, 0 requests, 0 prompt / 0 completion tokens, gate green 7/10, final acceptance 65/70, stalled 0, partial 0, 22298 lines in src+tests.
+**Totals:** 11 stories, 711 agent-minutes, 0 requests, 0 prompt / 0 completion tokens, gate green 7/11, final acceptance 68/75, stalled 0, partial 0, 25820 lines in src+tests.
 
 ## How it happened
 
@@ -33,6 +34,7 @@ Each story's commits, and which story broke or fixed an earlier story's held-out
 | 9 | 9 by the agent | 2440 / 319 | `text.ts` (253), `TextEditor.tsx` (220), `StickyTextEditor.tsx` (195), `textLayout.ts` (162), `TextObject.tsx` (133), `text-edit.ts` (79), +15 more |
 | 10 | 9 by the agent | 3872 / 220 | `ConnectorObject.tsx` (260), `ConnectorTool.tsx` (238), `Toolbar.tsx` (231), `shape.ts` (222), `connector.ts` (205), `connector-geometry.ts` (178), +13 more |
 | 11 | 7 by the agent | 1888 / 22 | `PenTool.tsx` (246), `stroke.ts` (150), `simplify.ts` (122), `styles.css` (120), `StrokeObject.tsx` (94), `PenToolbar.tsx` (83), +10 more |
+| 12 | 1 by the agent | 3122 / 8 | `useImageInsert.ts` (271), `image.ts` (231), `ImageObject.tsx` (185), `assets.ts` (103), `NOTES.md` (77), `measureImage.ts` (73), +14 more |
 
 ### Earlier stories broken or fixed
 

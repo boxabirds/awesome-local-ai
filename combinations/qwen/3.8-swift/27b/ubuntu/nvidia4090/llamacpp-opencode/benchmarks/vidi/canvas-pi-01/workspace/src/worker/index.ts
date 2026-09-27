@@ -3,6 +3,8 @@
 // Routes:
 // - POST /api/boards          create a board (rate limited; 201/429/500)
 // - GET  /api/boards/:id      existence check (200/404; read-only)
+// - POST /api/boards/:id/assets  upload an image asset (story 12)
+// - GET  /api/assets/:boardId/:assetId  serve a stored asset (story 12)
 // - /api/rooms/:boardId       y-websocket route: a valid id with an
 //   `Upgrade: websocket` request is forwarded to that board's BoardRoom
 //   Durable Object (one object per board id, which is what isolates boards).
@@ -16,6 +18,7 @@
 import { isValidBoardId, newBoardId } from '../shared/board-id';
 import { createBoard } from './create-board';
 import { BoardRoom } from './board-room';
+import { handleServe, handleUpload } from './assets';
 
 export { BoardRoom };
 
@@ -24,12 +27,19 @@ export interface Env {
   ASSETS: Fetcher;
   /** Story 5: rate limit for board creation (see wrangler.jsonc). */
   BOARD_CREATE_LIMITER: RateLimit;
+  /** Story 12: image asset storage (R2). */
+  ASSETS_BUCKET: R2Bucket;
+  /** Story 12: per-visitor image upload rate limit (see wrangler.jsonc). */
+  ASSET_UPLOAD_LIMITER: RateLimit;
   /** '1' only in the e2e wrangler environment; unset in production. */
   TEST_HOOKS?: string;
 }
 
 const ROOM_ROUTE = /^\/api\/rooms\/([^/]+)$/;
 const BOARD_BY_ID_ROUTE = /^\/api\/boards\/([^/]+)$/;
+// Story 12 (assets.api): upload to an existing board, and serve stored assets.
+const ASSET_UPLOAD_ROUTE = /^\/api\/boards\/([^/]+)\/assets$/;
+const ASSET_SERVE_ROUTE = /^\/api\/assets\/([^/]+)\/([^/]+)$/;
 // Test-only board maintenance hooks (spec tasks 9 + story 5 TC-31). The room
 // performs the work; the worker only forwards when TEST_HOOKS is set, so the
 // production build never exposes these routes.
@@ -79,6 +89,22 @@ export default {
         const status = result.reason === 'rate_limited' ? 429 : 500;
         return Response.json({ error: result.reason }, { status });
       });
+    }
+    // Story 12 (assets.api): upload an image to an existing board.
+    const assetUploadMatch = ASSET_UPLOAD_ROUTE.exec(url.pathname);
+    if (assetUploadMatch !== null && assetUploadMatch[1] !== undefined) {
+      if (req.method !== 'POST') {
+        return Promise.resolve(new Response('Method Not Allowed', { status: 405 }));
+      }
+      return handleUpload(req, env, decodeURIComponent(assetUploadMatch[1]));
+    }
+    // Story 12 (assets.api): serve a stored asset (immutable, nosniff).
+    const assetServeMatch = ASSET_SERVE_ROUTE.exec(url.pathname);
+    if (assetServeMatch !== null && assetServeMatch[1] !== undefined && assetServeMatch[2] !== undefined) {
+      if (req.method !== 'GET' && req.method !== 'HEAD') {
+        return Promise.resolve(new Response('Method Not Allowed', { status: 405 }));
+      }
+      return handleServe(env, `${decodeURIComponent(assetServeMatch[1])}/${decodeURIComponent(assetServeMatch[2])}`);
     }
     const boardMatch = BOARD_BY_ID_ROUTE.exec(url.pathname);
     if (boardMatch !== null && boardMatch[1] !== undefined) {

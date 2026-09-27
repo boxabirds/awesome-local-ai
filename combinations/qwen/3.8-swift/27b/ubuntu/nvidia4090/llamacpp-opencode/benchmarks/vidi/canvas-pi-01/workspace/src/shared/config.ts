@@ -233,3 +233,36 @@ export const STROKE_MAX_POINTS = 5000;
 export const STROKE_HIT_TOLERANCE_PX = 6;
 /** Smallest size (board units) a stroke may be resized to. */
 export const STROKE_MIN_SIZE_WORLD = 4;
+
+// ---- Images (story 12) ----
+
+/** The raster image types the board accepts (image.types); SVG is excluded
+ *  on purpose (it can carry scripts). */
+export const IMAGE_ACCEPTED_TYPES = ['image/png', 'image/jpeg', 'image/gif', 'image/webp'] as const;
+/** Largest upload (bytes): 10 MB (image.size_limit). */
+export const IMAGE_MAX_BYTES = 10 * 1024 * 1024;
+/** Most files added in one drop/paste/pick action (image.count_limit). */
+export const IMAGE_MAX_FILES_PER_ADD = 20;
+/** Longest side (board units) of a placed image; longer images scale down
+ *  proportionally, shorter ones keep their natural size (image.placement_size). */
+export const IMAGE_MAX_PLACE_SIZE_WORLD = 800;
+/** Smallest side (board units) an image may be resized to (image.aspect_resize). */
+export const IMAGE_MIN_SIZE_WORLD = 16;
+/** Gap (board units) between images placed in a row (image.drop). */
+export const IMAGE_LAYOUT_GAP_WORLD = 24;
+/** An uploading image older than this renders as "unfinished" (image.unfinished). */
+export const IMAGE_UPLOAD_STALE_MS = 5 * 60 * 1000;
+/** Uploads per visitor per IMAGE_UPLOAD_PERIOD_SECONDS (image.rate_limit). Must
+ *  equal the ASSET_UPLOAD_LIMITER entry in wrangler.jsonc. */
+export const IMAGE_UPLOAD_LIMIT = 60;
+/** Window for IMAGE_UPLOAD_LIMIT, in seconds. Must match wrangler.jsonc. */
+export const IMAGE_UPLOAD_PERIOD_SECONDS = 60;
+/** Served assets are immutable (keys are unguessable and never change). */
+export const ASSET_CACHE_MAX_AGE_SECONDS = 31_536_000;
+/** How many leading bytes type sniffing inspects (assets.api). */
+export const IMAGE_SNIFF_BYTES = 12;
+/** Shared re-render tick (ms) while any image is uploading, so the derived
+ *  "unfinished" state appears without interaction (design: 30 s clock). */
+export const IMAGE_STATUS_TICK_MS = 30_000;
+/** Toast auto-dismiss (ms). */
+export const TOAST_DURATION_MS = 4000;

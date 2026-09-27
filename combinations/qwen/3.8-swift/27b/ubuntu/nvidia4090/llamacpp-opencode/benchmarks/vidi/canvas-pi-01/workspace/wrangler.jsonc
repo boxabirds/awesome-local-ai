@@ -13,6 +13,9 @@
       { "name": "BOARD_ROOM", "class_name": "BoardRoom", "hibernation": true }
     ]
   },
+  "r2_buckets": [
+    { "binding": "ASSETS_BUCKET", "bucket_name": "vidi6-assets" }
+  ],
   "migrations": [
     { "tag": "v1", "new_sqlite_classes": ["BoardRoom"] }
   ],
@@ -27,6 +30,17 @@
       "namespace_id": "vidi6-board-create-local",
       "simple": {
         "limit": 10,
+        "period": 60
+      }
+    },
+    // PRD image.rate_limit: 60 image uploads per minute per visitor. The
+    // simple.limit/simple.period must mirror IMAGE_UPLOAD_LIMIT /
+    // IMAGE_UPLOAD_PERIOD_SECONDS in src/shared/config.ts.
+    {
+      "name": "ASSET_UPLOAD_LIMITER",
+      "namespace_id": "vidi6-asset-upload-local",
+      "simple": {
+        "limit": 60,
         "period": 60
       }
     }

@@ -7,10 +7,10 @@
 //     backoff from BOARD_CHECK_RETRY_BASE_MS, capped at RECONNECT_MAX_BACKOFF_MS.
 // All timers are cleared on unmount.
 
-import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react';
+import { useCallback, useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react';
 import { checkBoard } from '../api';
 import { isValidBoardId } from '../../shared/board-id';
-import { BOARD_CHECK_RETRY_BASE_MS, RECONNECT_MAX_BACKOFF_MS } from '../../shared/config';
+import { BOARD_CHECK_RETRY_BASE_MS, IMAGE_STATUS_TICK_MS, RECONNECT_MAX_BACKOFF_MS } from '../../shared/config';
 import { BoardViewport } from '../canvas/BoardViewport';
 import {
   canZoomIn,
@@ -53,6 +53,8 @@ import {
 } from '../../shared/board-model';
 import { unionRects, type Rect } from '../../shared/geometry';
 import { createText, setTextSize } from '../../shared/objects/text';
+import { useImageInsert } from '../images/useImageInsert';
+import { ToastStack, useToasts } from '../ui/Toast';
 import { setShapeStyle, type FillColor, type StrokeColor } from '../../shared/objects/shape';
 import { NotFoundPage } from './NotFoundPage';
 
@@ -203,6 +205,41 @@ function Board({ boardId }: { boardId: string }) {
   // Marquee (Shift+drag) selection: additive, fully-contained objects only.
   const marquee = useMarquee(cam.camera, notes, (ids) => selection.setMany(ids, true));
 
+  // Images (story 12): drop, paste and picker insertion; toasts for every
+  // rejection kind. The uploader identity is the per-tab Yjs client id.
+  const toasts = useToasts();
+  const identityId = `c${doc.clientID}`;
+  const images = useImageInsert({
+    doc,
+    boardId,
+    camera: cam.camera,
+    connection: connectionState,
+    identityId,
+    onToast: toasts.push,
+    viewportEl: rootRef.current,
+    viewportSize: size,
+  });
+  // Re-render every IMAGE_STATUS_TICK_MS while any image is uploading so
+  // the 'unfinished' derivation (displayStatus) kicks in (image.unfinished).
+  const [imageNow, setImageNow] = useState(() => Date.now());
+  const anyImageUploading = notes.some(
+    (n) => n.type === 'image' && (n as { status?: string }).status === 'uploading',
+  );
+  useEffect(() => {
+    if (!anyImageUploading) return;
+    const timer = window.setInterval(() => setImageNow(Date.now()), IMAGE_STATUS_TICK_MS);
+    return () => window.clearInterval(timer);
+  }, [anyImageUploading]);
+  const removeImage = useCallback(
+    (id: string) => {
+      undo.boundary();
+      deleteObjects(doc, [id]);
+      undo.boundary();
+      selection.clear();
+    },
+    [doc, undo, selection],
+  );
+
 
   // Keyboard shortcuts: Ctrl+A, Escape, arrows, Delete, Enter, undo/redo,
   // tool switches (V/T) and N for a new sticky at the centre.
@@ -215,6 +252,9 @@ function Board({ boardId }: { boardId: string }) {
     tool,
     setTool,
     onCreateStickyCenter: () => createStickyAt({ x: size.width / 2, y: size.height / 2 }),
+    onInsertImageCenter: () => {
+      if (editable) images.openPicker();
+    },
   });
 
   // Test-only hook (excluded from production builds).
@@ -387,6 +427,10 @@ function Board({ boardId }: { boardId: string }) {
         onMarqueeMove={marquee.move}
         onMarqueeEnd={marquee.end}
         onMarqueeCancel={marquee.cancel}
+        imageDragActive={images.dragActive}
+        onImageDragOver={(e) => images.onDragOver(e.nativeEvent)}
+        onImageDragLeave={(e) => images.onDragLeave(e.nativeEvent)}
+        onImageDrop={(e) => images.onDrop(e.nativeEvent)}
         screenOverlays={
           tool === 'pen' ? (
             <PenTool
@@ -425,6 +469,20 @@ function Board({ boardId }: { boardId: string }) {
               onStartEdit={selection.startEdit}
               onEndEdit={selection.endEdit}
               undo={undo}
+              imageContext={
+                note.type === 'image'
+                  ? {
+                      progress: images.progress.get(note.id),
+                      canRetry: images.canRetry(note.id),
+                      isUploader: (note as { uploaderId?: string }).uploaderId === identityId,
+                      now: imageNow,
+                      onRetry: () => {
+                        images.retry(note.id);
+                      },
+                      onRemove: () => removeImage(note.id),
+                    }
+                  : undefined
+              }
             />
           );
         })}
@@ -462,6 +520,9 @@ function Board({ boardId }: { boardId: string }) {
         shapeKind={shapeKind}
         onToolChange={setTool}
         onShapeKindChange={setShapeKind}
+        onOpenImagePicker={() => {
+          if (editable) images.openPicker();
+        }}
       />
       {tool === 'pen' && (
         <div className="pen-toolbar-anchor" onPointerDown={(e) => e.stopPropagation()} onDoubleClick={(e) => e.stopPropagation()}>
@@ -481,6 +542,7 @@ function Board({ boardId }: { boardId: string }) {
         </span>
       )}
       <ConnectionStatus state={connectionState} />
+      <ToastStack toasts={toasts.toasts} />
       <ZoomControls
         zoomPercent={zoomPercent(cam.camera)}
         canZoomIn={canZoomIn(cam.camera)}

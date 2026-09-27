@@ -2,6 +2,7 @@
 // and the rendered board (dot grid + world layer, see spec: viewport.input).
 
 import { useEffect, useRef, type ReactNode } from 'react';
+import { DropHighlight } from '../images/DropHighlight';
 import {
   GRID_SPACING_WORLD,
   WHEEL_LINE_DELTA_PIXELS,
@@ -42,6 +43,14 @@ export interface BoardViewportProps {
   /** Screen-space overlays (the Pen tool, story 11): rendered inside the
    *  viewport so wheel/gesture events still reach the camera handlers. */
   screenOverlays?: ReactNode;
+  /** Story 12 (image.drop): files are being dragged over the board. */
+  imageDragActive?: boolean;
+  /** Story 12: drag-over handler (allows the drop, tracks drag state). */
+  onImageDragOver?: (e: React.DragEvent) => void;
+  /** Story 12: drag-leave handler (clears the drop highlight). */
+  onImageDragLeave?: (e: React.DragEvent) => void;
+  /** Story 12: file drop handler. */
+  onImageDrop?: (e: React.DragEvent) => void;
 }
 
 /** Positive modulo in [0, m). */
@@ -62,6 +71,10 @@ export function BoardViewport({
   onMarqueeEnd,
   onMarqueeCancel,
   screenOverlays,
+  imageDragActive = false,
+  onImageDragOver,
+  onImageDragLeave,
+  onImageDrop,
 }: BoardViewportProps) {
   const viewportRef = useRef<HTMLDivElement | null>(null);
   const downPointRef = useRef<Point | null>(null);
@@ -282,6 +295,9 @@ export function BoardViewport({
       onPointerCancel={onPointerCancel}
       onLostPointerCapture={onPointerCancel}
       onDoubleClick={onDoubleClick}
+      onDragOver={onImageDragOver}
+      onDragLeave={onImageDragLeave}
+      onDrop={onImageDrop}
     >
       <div
         data-testid="board-world"
@@ -299,6 +315,7 @@ export function BoardViewport({
         {children}
       </div>
       {screenOverlays}
+      {imageDragActive && <DropHighlight />}
     </div>
   );
 }
