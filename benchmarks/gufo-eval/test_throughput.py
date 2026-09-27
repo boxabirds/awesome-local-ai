@@ -19,3 +19,14 @@ def test_a_reusable_prefix_puts_the_unique_line_last():
     assert c.startswith("PROMPT") and "\nrun " in c
     other = throughput.body("PROMPT", 400, reuse_prefix=True)["messages"][0]["content"]
     assert c != other and c[:len("PROMPT")] == other[:len("PROMPT")]
+
+
+def test_the_request_names_the_model_the_server_lists():
+    """27 Sep: gufo answered every request with 404 model_not_found; "default" is llama.cpp-only."""
+    assert throughput.body("PROMPT", 400, model="Qwen3.8-Flash-Next")["model"] == "Qwen3.8-Flash-Next"
+
+
+def test_the_served_model_is_read_from_v1_models():
+    listing = {"object": "list", "data": [{"id": "qwen3.8-flash-next-ud-q4", "object": "model"}]}
+    assert throughput.served_model(listing) == "qwen3.8-flash-next-ud-q4"
+    assert throughput.served_model({"data": []}) == "default"
