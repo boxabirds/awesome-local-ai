@@ -83,15 +83,66 @@ sessions (checked 27 Sep):
   [#272](https://github.com/gufo-org/gufo/issues/272) GPU busy at idle; [#277](https://github.com/gufo-org/gufo/issues/277)
   sampling defaults. None observed as a cause here.
 
-### H1: which reasoning effort gufo applies — _pending_
+### H1: gufo serves xhigh when the request names no effort — refuted
 
-pi sends no `reasoning_effort` on any stack (`supportsReasoningEffort: false` in the harness). The
-gufo server is started with `--reasoning-effort low`; gufo's docs say a request with no reasoning
-field gets "the server's compiled model defaults", and Flash-Next's compiled default is xhigh.
+pi sends no `reasoning_effort` on any stack (`supportsReasoningEffort: false` in the harness). One
+hard prompt (how Yjs edits merge after 30 s offline), agents' sampler, 6,000-token limit, 3 repeats
+each (`effort_probe.py`, `effort.jsonl`):
 
-### H5: the same requests on each engine — _pending_
+| Engine | Request says | Reasoning chars (3 repeats) | Tokens out |
+|---|---|---|---|
+| gufo (`--reasoning-effort low`) | nothing (as pi sends) | 6,548 / 3,563 / 6,031 | 3,587 / 3,135 / 3,057 |
+| gufo | `reasoning_effort: low` | 4,596 / 10,792 / 7,176 | 2,806 / 4,869 / 2,993 |
+| gufo | `chat_template_kwargs: low` | 2,973 / 4,602 / 9,786 | 2,531 / 2,480 / 3,534 |
+| gufo | `reasoning_effort: xhigh` | 26,864 / 27,417 / 27,039 | 6,000 ×3 (hit the limit) |
+| llama.cpp | nothing | 6,337 / 8,085 / 6,446 | 2,788 / 3,566 / 2,608 |
+| llama.cpp | `reasoning_effort: low` | 6,731 / 5,647 / 2,726 | 2,920 / 3,341 / 1,856 |
 
-### H6: gufo settings (draft depth, prior reasoning) — _pending_
+A request with no effort gets **low** on gufo, like llama.cpp: the same length as an explicit "low",
+a quarter of xhigh, and a different opening (xhigh starts "We need answer user…", low with "The user
+is asking…"). Our gufo server's `--reasoning-effort low` is honoured.
+
+### H5: the same real agent requests on each engine — gufo is not wordier, and it is faster
+
+Real requests taken from the gufo session (pi's system prompt, 4 tools, full history with prior
+reasoning) at ~60k and ~100k tokens of context, replayed unchanged to each engine, 3 times each,
+server-default sampling as in the runs (`replay.py`, `replay.jsonl`). The first repeat reads the
+whole prompt; the next two reuse the cached prompt, as an agent turn does.
+
+| Engine, weights | Context | First token (cold) | Tokens out (3 repeats, median) | Decode, warm (tok/s) |
+|---|---|---|---|---|
+| **gufo**, UD-Q4_K_XL | 60k | **47 s** | 255 / 136 / 300 (255) | 39–52 |
+| llama.cpp, UD-IQ4_XS (as benchmarked) | 60k | 229 s | 127 / 135 / 539 (135) | 27–37 |
+| llama.cpp, UD-Q4_K_XL (gufo's weights) | 60k | 230 s | 339 / 283 / 289 (289) | 27–32 |
+| **gufo**, UD-Q4_K_XL | 100k | **80 s** | 894 / 1,719 / 606 (894) | 36–38 |
+| llama.cpp, UD-IQ4_XS | 100k | 245 s | 1,095 / 2,598 / 1,763 (1,763) | 20–22 |
+| llama.cpp, UD-Q4_K_XL | 100k | 248 s | 1,565 / 1,341 / 1,745 (1,565) | 21–22 |
+
+- **Output length:** the same order on every engine. gufo's replies were, if anything, shorter
+  (median 894 tokens at 100k, against 1,565–1,763). Nothing here makes gufo's agent wordier.
+- **Speed:** gufo reads a cold prompt ~3–5× faster and, at 100k, decodes ~1.7× faster than
+  llama.cpp on either quant (36–38 against 20–22 tok/s).
+- **Quality of the turn:** all 36 replies ended in a `bash` tool call with valid JSON arguments,
+  on every engine. No reasoning-only turns, no malformed calls.
+- **Weights:** llama.cpp on UD-Q4_K_XL behaved like llama.cpp on UD-IQ4_XS; the quant difference
+  between the stacks does not explain anything seen here.
+
+### H6: gufo settings — draft depth doesn't matter; prior reasoning costs ~20% of the context
+
+| gufo variant | Context sent as | First token (cold, 100k) | Tokens out at 100k (median) | Decode, warm |
+|---|---|---|---|---|
+| default (draft 7, preserve auto) | 99,633 | 80 s | 894 | 36–38 |
+| `--draft-tokens 4` (llama.cpp's depth) | 99,633 | 79 s | 2,084 | 36 |
+| `--preserve-thinking off` | **76,094** | **60 s** | 2,111 | 37 |
+
+- Draft depth 4 vs 7: no speed difference.
+- `--preserve-thinking off` drops earlier turns' reasoning from the prompt: the 100k request becomes
+  76k (−24%), the 60k one 47k (−20%). An agent would then fill its context and compact about a
+  fifth less often. It changes what the model sees (Qwen's own template keeps prior reasoning, and
+  llama.cpp keeps it too: its prompt was the same 99.6k), so it is a behaviour change to test on
+  real stories, not a free speed-up.
+- Output lengths vary a lot between repeats at 100k (606–3,221 tokens) on every setting, so these
+  three repeats can't rank the variants on verbosity.
 
 ## Why published gufo results look great and ours looked bad — _pending_
 
