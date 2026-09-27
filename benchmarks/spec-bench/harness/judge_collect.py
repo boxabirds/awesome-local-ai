@@ -31,7 +31,7 @@ import packdir
 
 HERE = Path(__file__).resolve().parent
 OUTPUTS = ("build-A.jsonl", "build-B.jsonl", "test-faults.jsonl", "summary.md")
-CATEGORIES = {"functional", "false-claim", "missing-test", "weak-test", "design-deviation", "gap-fill"}
+CATEGORIES = {"functional", "false-claim", "missing-test", "weak-test", "design-deviation", "gap-fill", "overreach"}
 SEVERITIES = ("high", "medium", "low")
 OWN_WAY = {"works", "partial", "broken", "not-applicable", "not-run"}
 REQUIRED = ("story", "category", "severity", "discrepancy", "evidence")
