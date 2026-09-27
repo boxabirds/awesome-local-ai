@@ -40,14 +40,27 @@ requirements and its **must-nots**. Below, one row per finished build:
   "ready". Restarting the gallery skips what is already prepared.
 - **Open** only starts the prepared build's server (a few seconds) and opens it in its own tab;
   after that the button goes to that tab, so you can switch between implementations.
-- **pass / fail / skip** and a note, saved as you type to the private repo's
-  `analysis/story-reviews.csv` (one row per story and build, by run name).
-- Keys: `1`–`9` pick a build, `o` opens or goes to its tab, `+` pass, `-` fail, space skip,
-  `n` note (`Esc` to leave), `↑`/`↓` build, `←`/`→` story.
+- **One row per path** (a held-out test of the story), with its automated result. Picking one
+  opens the **player**: every person's screen side by side (from the test's Playwright trace), a
+  seek bar with a tick per check (green passed, red failed), and the test's steps beside it; the
+  current step is highlighted as it plays. Drag or click the bar, click a tick or a step, or use
+  `←`/`→` for the previous/next check; every frame is decoded when the path opens, so scrubbing
+  doesn't wait. Long timed waits are drawn narrow and skipped in playback; fast tests start slowed
+  down (0.1×–1×) so they can be watched. "details" opens Playwright's own trace viewer.
+- **Traceability:** above the player, the PRD requirement(s) the test names (`@ref prd:<anchor>`)
+  with their text; below it, the story's tasks with the status the harness recorded for this
+  build, the commits that name each task, and all of the build's commits for the story. The spec
+  doesn't say which task implements which requirement, so the page doesn't pretend to.
+- **The verdict is per path: agree / disagree / skip** with the automated result, and a note, saved
+  as you type to the private repo's `analysis/story-reviews.csv` (one row per story, build and path,
+  by run name). A build's line sums its paths ("3 agree · 1 disagree · 1 to review"); a build with
+  no recorded paths takes a pass / fail / skip of its own.
+- Keys: `j`/`k` next/previous path, space play/pause, `←`/`→` check, `a` agree, `d` disagree,
+  `s` skip, `n` note (`Esc` to leave), `o` open the build, `[`/`]` story.
 
 **Blind by default.** Builds are "Build A", "Build B"…, shuffled each session, and their tabs carry
-a grey "Build C" banner instead of the setup's name. A story's names can be revealed once every build
-has a verdict on it. `--labelled` shows names throughout. The main page (`/`) shows every name, so
+a grey "Build C" banner instead of the setup's name. A story's names can be revealed once every path
+of every build has a verdict on it. `--labelled` shows names throughout. The main page (`/`) shows every name, so
 don't open it during a blind review.
 
 **Order and builds follow the user's journey.** A story is reviewed after the stories a user goes

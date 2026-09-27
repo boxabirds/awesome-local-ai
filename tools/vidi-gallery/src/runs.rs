@@ -286,6 +286,32 @@ pub fn story_commits(metrics: &Value) -> BTreeMap<u64, String> {
     out
 }
 
+/// Each task's status for one story as the harness recorded it (processed[].tasks), by task number.
+pub fn task_status(metrics: &Value, story: u64) -> BTreeMap<u64, String> {
+    metrics
+        .get("processed")
+        .and_then(Value::as_array)
+        .and_then(|p| p.iter().find(|s| s.get("id").and_then(Value::as_u64) == Some(story)))
+        .and_then(|s| s.get("tasks"))
+        .and_then(Value::as_array)
+        .map(|ts| {
+            ts.iter()
+                .filter_map(|t| Some((t.get("n")?.as_u64()?, t.get("status")?.as_str()?.to_string())))
+                .collect()
+        })
+        .unwrap_or_default()
+}
+
+/// The task numbers a commit subject names ("story 7 task 16: …", "Task 3 and task 4").
+pub fn tasks_named(subject: &str) -> Vec<u64> {
+    let words: Vec<String> = subject
+        .split(|c: char| !c.is_ascii_alphanumeric())
+        .filter(|w| !w.is_empty())
+        .map(str::to_lowercase)
+        .collect();
+    words.windows(2).filter(|w| w[0] == "task").filter_map(|w| w[1].parse().ok()).collect()
+}
+
 pub fn load(repo: &Path) -> Vec<Run> {
     discover(repo)
         .into_iter()
@@ -431,6 +457,23 @@ mod tests {
         assert_eq!(j.functional.get("medium"), Some(&1));
         assert_eq!(j.by_category.get("weak-test"), Some(&1));
         assert_eq!(j.own_way.get("works"), Some(&1));
+    }
+
+    #[test]
+    fn task_status_comes_from_the_processed_story_or_is_unknown() {
+        let m = json!({"processed": [{"id": 5, "tasks": [{"n": 1, "status": "verified"}, {"n": 2, "status": "not-started"}]}, {"id": 6}]});
+        let want: BTreeMap<u64, String> = [(1, "verified".to_string()), (2, "not-started".to_string())].into();
+        assert_eq!(task_status(&m, 5), want);
+        assert!(task_status(&m, 6).is_empty());
+        assert!(task_status(&json!({"stories": {}}), 5).is_empty());
+    }
+
+    #[test]
+    fn a_commit_names_a_task_by_number_only_as_a_whole_word() {
+        assert_eq!(tasks_named("story 7 task 16: UI component tests"), vec![16]);
+        assert_eq!(tasks_named("Story 5, Task 3 and task 4: pages"), vec![3, 4]);
+        assert!(tasks_named("story 5: Share a board").is_empty());
+        assert!(tasks_named("multitask 3 and tasks").is_empty());
     }
 
     #[test]

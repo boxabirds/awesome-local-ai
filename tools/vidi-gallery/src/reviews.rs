@@ -1,4 +1,4 @@
-//! Story reviews: one row per (story, build) with a verdict and a note, kept as a CSV in the private
+//! Story reviews: one row per (story, build, path) with a verdict and a note, kept as a CSV in the private
 //! repo (analysis/story-reviews.csv). Rewritten atomically on every change, so stopping the gallery
 //! at any point loses nothing.
 
@@ -7,7 +7,9 @@ use std::path::{Path, PathBuf};
 
 use serde::{Deserialize, Serialize};
 
-pub const VERDICTS: [&str; 3] = ["pass", "fail", "skip"];
+/// A path's verdict is whether the reviewer agrees with its automated result; "skip" defers it.
+/// "pass"/"fail" are the earlier build-level verdicts, still read and accepted.
+pub const VERDICTS: [&str; 5] = ["agree", "disagree", "skip", "pass", "fail"];
 const HEADER: &str = "story,build,path,verdict,notes,updated_at";
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -116,6 +118,15 @@ impl Store {
     }
 }
 
+/// Whether every recorded path of every build has a verdict on `story` (a build with no recorded
+/// paths needs one on the build itself). `builds`: each build's slug and its paths' titles.
+pub fn story_reviewed(story: u64, builds: &[(String, Vec<String>)], rows: &[Review]) -> bool {
+    let judged = |build: &str, path: &str| rows.iter().any(|r| r.story == story && r.build == build && r.path == path && !r.verdict.is_empty());
+    builds.iter().all(|(build, paths)| {
+        if paths.is_empty() { judged(build, "") } else { paths.iter().all(|p| judged(build, p)) }
+    })
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -152,6 +163,38 @@ mod tests {
         s.set(1, "x", "", "pass", "whole build", "t").unwrap();
         assert_eq!(s.all().len(), 2);
         let _ = std::fs::remove_dir_all(dir);
+    }
+
+    #[test]
+    fn a_path_is_judged_agree_or_disagree_with_its_automated_result() {
+        let (s, dir) = store();
+        s.set(5, "x", "a made-up path title", "agree", "", "t").unwrap();
+        s.set(5, "x", "distinct links", "disagree", "the test passed but two links were equal", "t").unwrap();
+        assert_eq!(s.all().iter().map(|r| r.verdict.as_str()).collect::<Vec<_>>(), ["disagree", "agree"]);
+        let _ = std::fs::remove_dir_all(dir);
+    }
+
+    fn row(story: u64, build: &str, path: &str, verdict: &str) -> Review {
+        Review { story, build: build.into(), path: path.into(), verdict: verdict.into(), notes: String::new(), updated_at: String::new() }
+    }
+
+    #[test]
+    fn a_story_is_reviewed_when_every_path_of_every_build_has_a_verdict() {
+        let builds = vec![("a".to_string(), vec!["p1".to_string(), "p2".to_string()]), ("b".to_string(), vec!["p1".to_string()])];
+        let mut rows = vec![row(5, "a", "p1", "agree"), row(5, "a", "p2", "skip")];
+        assert!(!story_reviewed(5, &builds, &rows), "build b's path has no verdict");
+        rows.push(row(5, "b", "p1", ""));
+        assert!(!story_reviewed(5, &builds, &rows), "a note alone is not a verdict");
+        rows.push(row(5, "b", "p1", "disagree"));
+        assert!(story_reviewed(5, &builds, &rows));
+        assert!(!story_reviewed(6, &builds, &rows), "verdicts on another story don't count");
+    }
+
+    #[test]
+    fn a_build_with_no_recorded_paths_needs_a_verdict_on_the_build_itself() {
+        let builds = vec![("a".to_string(), vec![])];
+        assert!(!story_reviewed(5, &builds, &[]));
+        assert!(story_reviewed(5, &builds, &[row(5, "a", "", "skip")]));
     }
 
     #[test]
