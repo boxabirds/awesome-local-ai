@@ -1,0 +1,62 @@
+{
+  "steps": {
+    "install": {
+      "cmd": "bun install",
+      "exit": 0,
+      "seconds": 1.1,
+      "tail": "bun install v1.2.17 (282dda62)\n\nChecked 441 installs across 558 packages (no changes) [1072.00ms]\n\n$ node scripts/ensure-workerd.mjs\n"
+    },
+    "build": {
+      "cmd": "bun run build",
+      "exit": 0,
+      "seconds": 1.6,
+      "tail": "      \u001b[39m\u001b[1m\u001b[2m 21.08 kB\u001b[22m\u001b[1m\u001b[22m\u001b[2m \u2502 gzip:   7.91 kB\u001b[22m\n\u001b[2mdist/\u001b[22m\u001b[2massets/\u001b[22m\u001b[36mWorkspace-C88ZUbK0.js            \u001b[39m\u001b[1m\u001b[2m 89.21 kB\u001b[22m\u001b[1m\u001b[22m\u001b[2m \u2502 gzip:  29.47 kB\u001b[22m\n\u001b[2mdist/\u001b[22m\u001b[2massets/\u001b[22m\u001b[36mindex-B5cPuV_b.js                \u001b[39m\u001b[1m\u001b[33m569.02 kB\u001b[39m\u001b[22m\u001b[2m \u2502 gzip: 178.40 kB\u001b[22m\n\u001b[32m\u2713 built in 1.30s\u001b[39m\n$ vite build apps/web\n\u001b[33mnode_modules/zod/v4/core/util.js (400:0): A comment\n\n\"// Wrapped in a `@__PURE__` IIFE: esbuild never tree-shakes a top-level initializer that contains a member access on `Number`, so the bare object literal survived into every bundle.\"\n\nin \"node_modules/zod/v4/core/util.js\" contains an annotation that Rollup cannot interpret due to the position of the comment. The comment will be removed to avoid issues.\u001b[39m\n\u001b[33mnode_modules/zod/v4/core/regexes.js (74:0): A comment\n\n\"/** Anchors a pattern source. The interpolation lives here rather than at the call site because\n * esbuild will not drop a `@__PURE__` call whose own argument interpolates a variable, but it\n * will drop `anchor(dateSource)`. Keeping it inline pinned `date` into every bundle. */\"\n\nin \"node_modules/zod/v4/core/regexes.js\" contains an annotation that Rollup cannot interpret due to the position of the comment. The comment will be removed to avoid issues.\u001b[39m\n\u001b[33m[plugin vite:reporter] \n(!) ~/.vidi-bench/work/benchmarks__reference__todoodle__opus-5.5__run-2/workspace/apps/web/src/lib/api.ts is dynamically imported by ~/.vidi-bench/work/benchmarks__reference__todoodle__opus-5.5__run-2/workspace/apps/web/src/features/live/network.ts but also statically imported by ~/.vidi-bench/work/benchmarks__reference__todoodle__opus-5.5__run-2/workspace/apps/web/src/features/live/LiveProvider.tsx, ~/.vidi-bench/work/benchmarks__reference__todoodle__opus-5.5__run-2/workspace/apps/web/src/features/projects/queries.ts, ~/.vidi-bench/work/benchmarks__reference__todoodle__opus-5.5__run-2/workspace/apps/web/src/features/projects/useProjectMutations.ts, ~/.vidi-bench/work/benchmarks__reference__todoodle__opus-5.5__run-2/workspace/apps/web/src/features/remembered/api.ts, ~/.vidi-bench/work/benchmarks__reference__todoodle__opus-5.5__run-2/workspace/apps/web/src/features/remembered/useTouchRemembered.ts, ~/.vidi-bench/work/benchmarks__reference__todoodle__opus-5.5__run-2/workspace/apps/web/src/features/share/UnsavedLinkBanner.tsx, ~/.vidi-bench/work/benchmarks__reference__todoodle__opus-5.5__run-2/workspace/apps/web/src/features/share/useWorkspaceLink.ts, ~/.vidi-bench/work/benchmarks__reference__todoodle__opus-5.5__run-2/workspace/apps/web/src/features/tasks/queries.ts, ~/.vidi-bench/work/benchmarks__reference__todoodle__opus-5.5__run-2/workspace/apps/web/src/features/tasks/useCreateTask.ts, ~/.vidi-bench/work/benchmarks__reference__todoodle__opus-5.5__run-2/workspace/apps/web/src/features/tasks/useTaskMutations.ts, ~/.vidi-bench/work/benchmarks__reference__todoodle__opus-5.5__run-2/workspace/apps/web/src/features/workspace/bootOpen.ts, ~/.vidi-bench/work/benchmarks__reference__todoodle__opus-5.5__run-2/workspace/apps/web/src/features/workspace/useCreateWorkspace.ts, ~/.vidi-bench/work/benchmarks__reference__todoodle__opus-5.5__run-2/workspace/apps/web/src/features/workspace/useRenameWorkspace.ts, ~/.vidi-bench/work/benchmarks__reference__todoodle__opus-5.5__run-2/workspace/apps/web/src/features/workspace/workspaceQuery.ts, dynamic import will not move module into another chunk.\n\u001b[39m\n\u001b[33m\n(!) Some chunks are larger than 500 kB after minification. Consider:\n- Using dynamic import() to code-split the application\n- Use build.rollupOptions.output.manualChunks to improve chunking: https://rollupjs.org/configuration-options/#output-manualchunks\n- Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.\u001b[39m\n",
+      "passed": null,
+      "failed": null
+    },
+    "typecheck": {
+      "cmd": "bun run typecheck",
+      "exit": 0,
+      "seconds": 5.6,
+      "tail": "$ tsc -p apps/api && tsc -p apps/api/tsconfig.node.json && tsc -p apps/web && tsc -p packages/shared && tsc -p scripts\n",
+      "passed": null,
+      "failed": null
+    },
+    "lint": {
+      "cmd": "bun run lint",
+      "exit": 0,
+      "seconds": 1.1,
+      "tail": "$ eslint apps/web\n",
+      "passed": null,
+      "failed": null
+    },
+    "test:unit": {
+      "cmd": "bun run test:unit",
+      "exit": 0,
+      "seconds": 7.8,
+      "tail": "\n RUN  v4.1.11 ~/.vidi-bench/work/benchmarks__reference__todoodle__opus-5.5__run-2/workspace/apps/api\n\n\n Test Files  11 passed (11)\n      Tests  119 passed (119)\n   Start at  16:29:11\n   Duration  3.09s (transform 2.37s, setup 9.93s, import 127ms, tests 288ms, environment 0ms)\n\n\n RUN  v4.1.11 ~/.vidi-bench/work/benchmarks__reference__todoodle__opus-5.5__run-2/workspace\n\n\n Test Files  10 passed (10)\n      Tests  126 passed (126)\n   Start at  16:29:14\n   Duration  294ms (transform 247ms, setup 0ms, import 452ms, tests 118ms, environment 0ms)\n\n\n RUN  v4.1.11 ~/.vidi-bench/work/benchmarks__reference__todoodle__opus-5.5__run-2/workspace/apps/web\n\n\n Test Files  28 passed (28)\n      Tests  254 passed (254)\n   Start at  16:29:15\n   Duration  3.12s (transform 1.03s, setup 8.25s, import 914ms, tests 2.29s, environment 5.63s)\n\n$ vitest run --config apps/api/vitest.config.ts --passWithNoTests --project unit && vitest run --config scripts/vitest.config.ts --passWithNoTests --project unit && vitest run --config apps/web/vitest.config.ts --passWithNoTests --project web-unit\n",
+      "passed": 119,
+      "failed": 0
+    },
+    "test:component": {
+      "exit": "missing"
+    },
+    "test:integration": {
+      "cmd": "bun run test:integration",
+      "exit": 0,
+      "seconds": 18.1,
+      "tail": "\n RUN  v4.1.11 ~/.vidi-bench/work/benchmarks__reference__todoodle__opus-5.5__run-2/workspace/apps/api\n\n\n Test Files  19 passed (19)\n      Tests  275 passed (275)\n   Start at  16:29:19\n   Duration  11.68s (transform 2.77s, setup 14.28s, import 522ms, tests 35.09s, environment 1ms)\n\n\n RUN  v4.1.11 ~/.vidi-bench/work/benchmarks__reference__todoodle__opus-5.5__run-2/workspace\n\n\n Test Files  2 passed (2)\n      Tests  14 passed (14)\n   Start at  16:29:30\n   Duration  5.49s (transform 81ms, setup 0ms, import 111ms, tests 5.36s, environment 0ms)\n\n$ vitest run --config apps/api/vitest.config.ts --passWithNoTests --project integration --project production-gate && vitest run --config scripts/vitest.config.ts --passWithNoTests --project integration\n",
+      "passed": 275,
+      "failed": 0
+    },
+    "test:e2e": {
+      "cmd": "bun run test:e2e --project=chromium",
+      "exit": 1,
+      "seconds": 88.7,
+      "tail": "DB --local && vite build apps/web && concurrently -k -n web,api \"vite build apps/web --watch\" \"wrangler dev --ip 127.0.0.1 --port 8787\"\n[WebServer] node_modules/zod/v4/core/regexes.js (74:0): A comment\n[WebServer] \n[WebServer] \"/** Anchors a pattern source. The interpolation lives here rather than at the call site because\n[WebServer]  * esbuild will not drop a `@__PURE__` call whose own argument interpolates a variable, but it\n[WebServer]  * will drop `anchor(dateSource)`. Keeping it inline pinned `date` into every bundle. */\"\n[WebServer] \n[WebServer] in \"node_modules/zod/v4/core/regexes.js\" contains an annotation that Rollup cannot interpret due to the position of the comment. The comment will be removed to avoid issues.\n[WebServer] node_modules/zod/v4/core/util.js (400:0): A comment\n[WebServer] \n[WebServer] \"// Wrapped in a `@__PURE__` IIFE: esbuild never tree-shakes a top-level initializer that contains a member access on `Number`, so the bare object literal survived into every bundle.\"\n[WebServer] \n[WebServer] in \"node_modules/zod/v4/core/util.js\" contains an annotation that Rollup cannot interpret due to the position of the comment. The comment will be removed to avoid issues.\n[WebServer] [plugin vite:reporter] \n[WebServer] (!) ~/.vidi-bench/work/benchmarks__reference__todoodle__opus-5.5__run-2/workspace/apps/web/src/lib/api.ts is dynamically imported by ~/.vidi-bench/work/benchmarks__reference__todoodle__opus-5.5__run-2/workspace/apps/web/src/features/live/network.ts but also statically imported by ~/.vidi-bench/work/benchmarks__reference__todoodle__opus-5.5__run-2/workspace/apps/web/src/features/live/LiveProvider.tsx, ~/.vidi-bench/work/benchmarks__reference__todoodle__opus-5.5__run-2/workspace/apps/web/src/features/projects/queries.ts, ~/.vidi-bench/work/benchmarks__reference__todoodle__opus-5.5__run-2/workspace/apps/web/src/features/projects/useProjectMutations.ts, ~/.vidi-bench/work/benchmarks__reference__todoodle__opus-5.5__run-2/workspace/apps/web/src/features/remembered/api.ts, ~/.vidi-bench/work/benchmarks__reference__todoodle__opus-5.5__run-2/workspace/apps/web/src/features/remembered/useTouchRemembered.ts, ~/.vidi-bench/work/benchmarks__reference__todoodle__opus-5.5__run-2/workspace/apps/web/src/features/share/UnsavedLinkBanner.tsx, ~/.vidi-bench/work/benchmarks__reference__todoodle__opus-5.5__run-2/workspace/apps/web/src/features/share/useWorkspaceLink.ts, ~/.vidi-bench/work/benchmarks__reference__todoodle__opus-5.5__run-2/workspace/apps/web/src/features/tasks/queries.ts, ~/.vidi-bench/work/benchmarks__reference__todoodle__opus-5.5__run-2/workspace/apps/web/src/features/tasks/useCreateTask.ts, ~/.vidi-bench/work/benchmarks__reference__todoodle__opus-5.5__run-2/workspace/apps/web/src/features/tasks/useTaskMutations.ts, ~/.vidi-bench/work/benchmarks__reference__todoodle__opus-5.5__run-2/workspace/apps/web/src/features/workspace/bootOpen.ts, ~/.vidi-bench/work/benchmarks__reference__todoodle__opus-5.5__run-2/workspace/apps/web/src/features/workspace/useCreateWorkspace.ts, ~/.vidi-bench/work/benchmarks__reference__todoodle__opus-5.5__run-2/workspace/apps/web/src/features/workspace/useRenameWorkspace.ts, ~/.vidi-bench/work/benchmarks__reference__todoodle__opus-5.5__run-2/workspace/apps/web/src/features/workspace/workspaceQuery.ts, dynamic import will not move module into another chunk.\n[WebServer] \n[WebServer] \n[WebServer] (!) Some chunks are larger than 500 kB after minification. Consider:\n[WebServer] - Using dynamic import() to code-split the application\n[WebServer] - Use build.rollupOptions.output.manualChunks to improve chunking: https://rollupjs.org/configuration-options/#output-manualchunks\n[WebServer] - Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.\nerror: script \"test:e2e\" exited with code 1\n",
+      "passed": null,
+      "failed": null
+    }
+  },
+  "all_green": false
+}

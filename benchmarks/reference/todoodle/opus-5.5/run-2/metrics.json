@@ -2432,7 +2432,15 @@
           "found": null,
           "total": null
         }
-      ]
+      ],
+      "record": {
+        "committed": true,
+        "pushed": true,
+        "over_size_limit": [
+          "~/.spec-bench/awesome-local-ai/benchmarks/reference/todoodle/opus-5.5/run-2/workspace/apps/web/dist/assets/index-hyPBgFyr.js"
+        ],
+        "commit": "465b26bb"
+      }
     }
   },
   "pack": "todoodle",
