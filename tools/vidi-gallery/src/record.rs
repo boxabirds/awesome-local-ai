@@ -6,6 +6,7 @@
 
 use std::path::{Path, PathBuf};
 use std::process::Stdio;
+use std::time::Duration;
 
 use serde::Serialize;
 use serde_json::Value;
@@ -48,8 +49,12 @@ pub async fn record(acceptance: &Path, config: &Path, ws: &Path, story: u64, pro
     if !acceptance.join(&spec).is_file() {
         anyhow::bail!("the held-out suite has no {spec}");
     }
+    // The suite's control server listens on port + 1; a leftover from an earlier run makes the
+    // whole suite fail with EADDRINUSE, so wait for both ports rather than record a failure.
+    wait_free(&[port, port + 1]).await?;
     let log = std::fs::File::create(out.join("run.log"))?;
-    let status = tokio::process::Command::new("npx")
+    let mut cmd = tokio::process::Command::new("npx");
+    cmd
         .args(["playwright", "test", &spec, "--config"])
         .arg(config)
         .current_dir(acceptance)
@@ -61,9 +66,8 @@ pub async fn record(acceptance: &Path, config: &Path, ws: &Path, story: u64, pro
         .env("SHOT_DIR", out.join("shots"))
         .stdin(Stdio::null())
         .stdout(Stdio::from(log.try_clone()?))
-        .stderr(Stdio::from(log))
-        .status()
-        .await?;
+        .stderr(Stdio::from(log));
+    let status = run_in_own_group(cmd).await?;
     // A failing test exits non-zero; that's a result, not a recording failure. No report is.
     if !out.join("report.json").is_file() {
         anyhow::bail!("playwright exited {status} without a report (see run.log)");
@@ -73,6 +77,42 @@ pub async fn record(acceptance: &Path, config: &Path, ws: &Path, story: u64, pro
         anyhow::bail!("{why} (see run.log)");
     }
     Ok(())
+}
+
+const PORT_WAIT: Duration = Duration::from_secs(30);
+const PORT_POLL: Duration = Duration::from_millis(250);
+
+async fn wait_free(ports: &[u16]) -> anyhow::Result<()> {
+    let deadline = tokio::time::Instant::now() + PORT_WAIT;
+    loop {
+        let busy: Vec<u16> = ports.iter().copied().filter(|&p| std::net::TcpListener::bind(("127.0.0.1", p)).is_err()).collect();
+        if busy.is_empty() {
+            return Ok(());
+        }
+        if tokio::time::Instant::now() >= deadline {
+            anyhow::bail!("port(s) {busy:?} still in use after {}s", PORT_WAIT.as_secs());
+        }
+        tokio::time::sleep(PORT_POLL).await;
+    }
+}
+
+/// Run `cmd` as the leader of its own process group and, when it exits, kill whatever it left
+/// behind (npx → playwright → the app server and the control server). Also killed if this future
+/// is dropped, so a stopped gallery doesn't leave a recording's servers holding the ports.
+pub async fn run_in_own_group(mut cmd: tokio::process::Command) -> anyhow::Result<std::process::ExitStatus> {
+    let mut child = cmd.process_group(0).kill_on_drop(true).spawn()?;
+    let pgid = child.id().map(|id| id as libc::pid_t);
+    struct Reap(Option<libc::pid_t>);
+    impl Drop for Reap {
+        fn drop(&mut self) {
+            if let Some(g) = self.0 {
+                // SAFETY: killpg only sends a signal; the group is the one this child leads.
+                unsafe { libc::killpg(g, libc::SIGKILL) };
+            }
+        }
+    }
+    let _reap = Reap(pgid);
+    Ok(child.wait().await?)
 }
 
 /// Why a recording says nothing about the build, if every non-passing path failed to reach the app.
@@ -154,6 +194,34 @@ pub fn paths(out: &Path, root: &Path) -> Vec<Path_> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[tokio::test]
+    async fn a_run_leaves_nothing_behind_in_its_process_group() {
+        // The child starts a background process that would outlive it, then exits (as npx does
+        // when playwright fails and a server it started keeps running).
+        let pidfile = std::env::temp_dir().join(format!("vidi-rec-orphan-{}", std::process::id()));
+        let mut cmd = tokio::process::Command::new("sh");
+        cmd.arg("-c").arg(format!("sleep 60 & echo $! > {}; exit 1", pidfile.display()));
+        let status = run_in_own_group(cmd).await.unwrap();
+        assert!(!status.success());
+        let pid: libc::pid_t = std::fs::read_to_string(&pidfile).unwrap().trim().parse().unwrap();
+        let _ = std::fs::remove_file(&pidfile);
+        tokio::time::sleep(PORT_POLL).await;
+        // SAFETY: signal 0 only checks that the process exists.
+        let alive = unsafe { libc::kill(pid, 0) } == 0;
+        assert!(!alive, "the background process {pid} survived the run");
+    }
+
+    #[tokio::test]
+    async fn a_port_held_by_someone_else_is_waited_for() {
+        let held = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+        let port = held.local_addr().unwrap().port();
+        let waiter = tokio::spawn(async move { wait_free(&[port]).await });
+        tokio::time::sleep(PORT_POLL * 2).await;
+        assert!(!waiter.is_finished(), "went ahead while the port was held");
+        drop(held);
+        waiter.await.unwrap().unwrap();
+    }
 
     #[test]
     fn processed_stops_at_the_build_and_keeps_statuses() {

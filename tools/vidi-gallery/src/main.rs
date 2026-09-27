@@ -159,19 +159,27 @@ async fn prepare_all(app: Arc<App>) {
             };
             let status = match &result { Ok(_) => "ready".to_string(), Err(e) => format!("failed: {e:#}") };
             app.prep.lock().await.insert(slug, status);
-            if let Ok(ws) = result {
-                // then record the walkthroughs of every story reviewed on this build
-                let reviewed: Vec<u64> = app.stories.iter().filter(|s| s.review_build == story).map(|s| s.id).collect();
-                for s in reviewed {
-                    record_story(&app, &run, s, &ws).await;
-                }
-            }
+            let _ = result;
         }));
     }
     for t in tasks {
         let _ = t.await;
     }
     println!("all review builds prepared");
+    // Then record walkthroughs in review order, story by story, so the story you start with has
+    // every build's recordings first.
+    for s in &stories {
+        for run in &app.review_builds {
+            let slug = story_slug(run, s.review_build);
+            if app.prep.lock().await.get(&slug).map(String::as_str) != Some("ready") {
+                app.rec.lock().await.insert(rec_key(run, s.id), "failed: its build could not be prepared".into());
+                continue;
+            }
+            let ws = app.cache.join("checkouts").join(&slug);
+            record_story(&app, run, s.id, &ws).await;
+        }
+    }
+    println!("all walkthroughs recorded");
 }
 
 fn private_repo(repo: &std::path::Path) -> PathBuf {
