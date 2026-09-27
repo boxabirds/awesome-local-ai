@@ -22,6 +22,10 @@ export interface BoardViewportProps {
   children?: ReactNode;
   /** Shared camera hook result (see structure diagram: all components wire to it). */
   cam: CameraApi;
+  /** Click (down + up, no movement) on empty board space. */
+  onEmptyClick?: () => void;
+  /** Double-click on empty board space, at the screen point of the click. */
+  onCreateStickyAt?: (screenPoint: Point) => void;
 }
 
 /** Positive modulo in [0, m). */
@@ -29,8 +33,9 @@ function mod(value: number, m: number): number {
   return ((value % m) + m) % m;
 }
 
-export function BoardViewport({ children, cam }: BoardViewportProps) {
+export function BoardViewport({ children, cam, onEmptyClick, onCreateStickyAt }: BoardViewportProps) {
   const viewportRef = useRef<HTMLDivElement | null>(null);
+  const downPointRef = useRef<Point | null>(null);
   const { wheel: wheelApi, gestureStart, gestureChange, zoomStep: zoomStepApi, reset: resetApi } = cam;
 
   // Non-passive wheel listener: React's onWheel is passive and cannot
@@ -139,6 +144,7 @@ export function BoardViewport({ children, cam }: BoardViewportProps) {
     } catch {
       // Pointer capture unsupported (e.g. jsdom) — drag still works.
     }
+    downPointRef.current = pointFromEvent(event);
     cam.beginPan(pointFromEvent(event));
   };
 
@@ -146,7 +152,27 @@ export function BoardViewport({ children, cam }: BoardViewportProps) {
     cam.panMove(pointFromEvent(event));
   };
 
-  const endPan = () => cam.endPan();
+  const onPointerUp = (event: React.PointerEvent<HTMLDivElement>) => {
+    const el = viewportRef.current;
+    cam.endPan();
+    // A click on empty space (down + up without movement) clears selection.
+    if (el !== null && event.target === el) {
+      const down = downPointRef.current;
+      const up = pointFromEvent(event);
+      if (down !== null && down.x === up.x && down.y === up.y) {
+        onEmptyClick?.();
+      }
+    }
+    downPointRef.current = null;
+  };
+
+  const onDoubleClick = (event: React.MouseEvent<HTMLDivElement>) => {
+    const el = viewportRef.current;
+    // Double-click creates a note only on the viewport/grid itself; double
+    // clicks on notes are handled by the notes (they stop propagation).
+    if (el === null || event.target !== el) return;
+    onCreateStickyAt?.(pointFromEvent(event));
+  };
 
   const { camera, panning } = cam;
   const spacing = GRID_SPACING_WORLD * camera.zoom;
@@ -170,9 +196,10 @@ export function BoardViewport({ children, cam }: BoardViewportProps) {
       }}
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}
-      onPointerUp={endPan}
-      onPointerCancel={endPan}
-      onLostPointerCapture={endPan}
+      onPointerUp={onPointerUp}
+      onPointerCancel={onPointerUp}
+      onLostPointerCapture={onPointerUp}
+      onDoubleClick={onDoubleClick}
     >
       <div
         data-testid="board-world"

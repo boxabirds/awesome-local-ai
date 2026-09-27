@@ -70,3 +70,64 @@ wires to the one hook.
 - `tests/component/NavigationHint.test.tsx` — TC-22 + visibility/positioning.
 - `tests/e2e/navigation.spec.ts` — TC-23..28, TC-31 (three design workflows +
   page-zoom isolation), on chromium, firefox and webkit.
+
+# Story 2 — Notes
+
+Capture ideas on sticky notes and rearrange them. All tests pass:
+
+- `npm run typecheck` — clean
+- `npm run test:unit` — 41/41 (camera 16 + board-model TC-01..12 = 15 + sticky-text TC-13..17 = 10)
+- `npm run test:component` — 40/40 (sticky.interaction TC-18..22/25/35..37, sticky.text TC-23/24/26/38, sticky.toolbar TC-27..29 + standalone drag-state-machine tests)
+- `npm run test:e2e` — 30/30 (navigation 4 + sticky-notes 6, × chromium/firefox/webkit)
+- `npm run build` — production bundle builds; `window.__vidi6` excluded (test-mode guard)
+
+## Decisions and deviations
+
+- **`createSticky` rejection**: non-finite coordinates return `''` (no id),
+  matching the board-model contract in the design.
+- **Drag end notification**: `onDraggingChange(null)` fires only if a real
+  drag (≥ `DRAG_THRESHOLD_PX`) started, so a plain click never emits a
+  start/end pair (TC-19: "no onDraggingChange calls").
+- **Pointer capture vs. z-reorder**: bringing a note to the front on drag
+  start reorders the DOM (React `insertBefore` removes the node transiently),
+  and browsers release pointer capture on removal. Two consequences:
+  - a defensive `onLostPointerCapture` handler would abort the drag, so it was
+    not used — real cancellations arrive as `pointercancel` (TC-21);
+  - the capture is re-acquired in a post-commit effect once `dragging` turns
+    true, so the drag keeps receiving pointer events even when the pointer
+    outruns the note.
+  This only matters for notes that are *not* already topmost (single-note
+  boards no-op in `bringToFront` and never reorder).
+- **Component tests under fake timers**: React 19's scheduler cannot run
+  scheduled tasks while time is frozen, so raw `dispatchEvent` interactions
+  leave state unflushed. `tests/component/helpers.tsx` wraps clicks/keys/input
+  in `act()` (`click`, `keyOn`, `windowKey`, `inputValue`, `dispatch`).
+- **jsdom colour normalisation**: inline `#F48FB1` reads back as
+  `rgb(244, 143, 177)`, so TC-27 asserts the rgb form.
+- **E2E drag robustness (sticky notes)**: `dragNote` probes 3px after
+  `mouse.down()` and verifies `data-dragging="true"` on the note *under the
+  grab point* (not the first DOM note) before committing; `dragNoteExactly`
+  measures the dragged note's centre before/after and compensates dropped
+  `pointermove` events (WebKit) so asserted movements are exact.
+- **E2E camera fixtures**: `screen = zoom · (world − camera)`, so keeping
+  world (0,0) at screen (640,400) needs camera `(−640/z, −400/z)`: 50% →
+  (−1280,−800), 200% → (−320,−200).
+- **E2E doc inspection**: `page.evaluate` reads the Y.Doc through
+  `window.__vidi6.getDoc()`; `Y.Map` items require `.get('x')`, not
+  property access, and evaluate callbacks must be self-contained (no
+  module-scope references).
+
+## Test-to-spec map (story 2)
+
+- `tests/unit/board-model.test.ts` — TC-01..12 (each mutation test asserts
+  the `update` event count: 1 on success, 0 on rejection).
+- `tests/unit/sticky-text.test.ts` — TC-13..17.
+- `tests/component/StickyNote.test.tsx` — TC-18..22, TC-25(+b), TC-35..37
+  (app level) + standalone drag-state-machine tests against a real Y.Doc
+  (threshold, zoom division, pointercancel, deletion mid-drag).
+- `tests/component/StickyTextEditor.test.tsx` — TC-23, TC-24, TC-26, TC-38.
+- `tests/component/Toolbars.test.tsx` — TC-27..29.
+- `tests/e2e/sticky-notes.spec.ts` — TC-30..34 + the brainstorm golden path,
+  on chromium, firefox and webkit.
+- `tests/fixtures/texts.ts` — shared prose fixtures (short phrase, 1,000 and
+  1,200 character paragraphs).

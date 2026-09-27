@@ -78,6 +78,36 @@ export function pointerEvent(type: string, x: number, y: number): MouseEvent {
   return new MouseEvent(type, { bubbles: true, cancelable: true, clientX: x, clientY: y, button: 0 });
 }
 
+// UI interactions wrapped in act() so React state updates flush under fake
+// timers (the scheduler cannot run its scheduled tasks while time is frozen).
+
+export function dispatch(el: Element, event: Event): void {
+  act(() => {
+    el.dispatchEvent(event);
+  });
+}
+
+export function click(el: Element): void {
+  dispatch(el, new MouseEvent('click', { bubbles: true, cancelable: true }));
+}
+
+export function keyOn(el: Element, key: string): void {
+  dispatch(el, new KeyboardEvent('keydown', { key, bubbles: true, cancelable: true }));
+}
+
+export function windowKey(key: string): void {
+  act(() => {
+    window.dispatchEvent(new KeyboardEvent('keydown', { key, bubbles: true, cancelable: true }));
+  });
+}
+
+export function inputValue(el: HTMLInputElement | HTMLTextAreaElement, value: string): void {
+  act(() => {
+    el.value = value;
+    el.dispatchEvent(new Event('input', { bubbles: true }));
+  });
+}
+
 export function drag(container: HTMLElement, from: { x: number; y: number }, to: { x: number; y: number }): void {
   const el = viewportEl(container);
   el.dispatchEvent(pointerEvent('pointerdown', from.x, from.y));

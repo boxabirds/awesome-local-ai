@@ -1,13 +1,32 @@
-// Top-level layout: full-window board plus the zoom controls and the
-// first-use hint, all wired to a single shared useCamera instance.
+// Top-level layout: full-window board with sticky notes, the left toolbar,
+// the note toolbar, the zoom controls and the first-use hint.
 
 import { useEffect, useRef, useState } from 'react';
 import { BoardViewport } from './canvas/BoardViewport';
-import { canZoomIn, canZoomOut, zoomPercent, type Size } from './canvas/camera';
+import {
+  canZoomIn,
+  canZoomOut,
+  screenToWorld,
+  worldToScreen,
+  zoomPercent,
+  type Size,
+} from './canvas/camera';
 import { NavigationHint } from './canvas/NavigationHint';
 import { installTestHooks } from './canvas/testHooks';
 import { useCamera } from './canvas/useCamera';
 import { ZoomControls } from './canvas/ZoomControls';
+import { useBoardDoc } from './board/useBoardDoc';
+import { useSelection } from './board/useSelection';
+import { Toolbar } from './board/Toolbar';
+import { StickyNote } from './objects/StickyNote';
+import { NoteToolbar } from './objects/NoteToolbar';
+import { createSticky, deleteObject, setStickyColor } from '../shared/board-model';
+import { STICKY_SIZE_WORLD } from '../shared/config';
+
+/** Gap (screen px) between the note toolbar and the note's top edge. */
+const NOTE_TOOLBAR_GAP_PX = 8;
+/** Note toolbar height (screen px); the anchor sits that far above the note. */
+const NOTE_TOOLBAR_HEIGHT_PX = 40;
 
 export function App() {
   const rootRef = useRef<HTMLDivElement | null>(null);
@@ -28,15 +47,114 @@ export function App() {
   }, []);
 
   const cam = useCamera(size);
+  const { doc, notes } = useBoardDoc();
+  const { selectedId, editingId, select, startEdit, endEdit } = useSelection();
+  const [draggingId, setDraggingId] = useState<string | null>(null);
 
   // Test-only hook (excluded from production builds).
   useEffect(() => {
-    installTestHooks({ setCamera: cam.setCamera });
-  }, [cam.setCamera]);
+    installTestHooks({
+      setCamera: cam.setCamera,
+      getDoc: () => doc,
+      deleteNote: (id: string) => deleteObject(doc, id),
+    });
+  }, [cam.setCamera, doc]);
+
+  // If the selected/edited note disappears from the document (deleted while
+  // interacting, TC-37), clear the local state silently.
+  useEffect(() => {
+    if (selectedId !== null && !notes.some((n) => n.id === selectedId)) {
+      select(null);
+    }
+  }, [notes, selectedId, select]);
+
+  const selectedNote = selectedId !== null ? (notes.find((n) => n.id === selectedId) ?? null) : null;
+
+  /** Create a note centred on a screen point, then select and start editing it. */
+  const createStickyAt = (screenPoint: { x: number; y: number }) => {
+    const world = screenToWorld(cam.camera, screenPoint);
+    const id = createSticky(doc, world);
+    startEdit(id);
+  };
+
+  // Keyboard: Enter starts editing the selected note; Delete/Backspace delete
+  // it. Both are ignored while editing text (the textarea owns the keys) and
+  // while focus is in any input.
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      const target = event.target as HTMLElement | null;
+      const inField =
+        target !== null &&
+        (target.tagName === 'TEXTAREA' || target.tagName === 'INPUT' || target.isContentEditable);
+      if (inField || selectedId === null || editingId !== null) return;
+      if (event.key === 'Enter') {
+        event.preventDefault();
+        startEdit(selectedId);
+      } else if (event.key === 'Delete' || event.key === 'Backspace') {
+        event.preventDefault();
+        deleteObject(doc, selectedId);
+        select(null);
+      }
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [selectedId, editingId, doc, startEdit, select]);
+
+  // Note toolbar: screen space, centred above the selected note.
+  let noteToolbar = null;
+  if (selectedNote !== null && editingId === null && draggingId === null) {
+    const centre = worldToScreen(cam.camera, {
+      x: selectedNote.x + STICKY_SIZE_WORLD / 2,
+      y: selectedNote.y,
+    });
+    noteToolbar = (
+      <div
+        className="note-toolbar-anchor"
+        style={{
+          left: centre.x,
+          top: centre.y - NOTE_TOOLBAR_GAP_PX - NOTE_TOOLBAR_HEIGHT_PX,
+        }}
+        onPointerDown={(e) => e.stopPropagation()}
+        onDoubleClick={(e) => e.stopPropagation()}
+      >
+        <NoteToolbar
+          color={selectedNote.color}
+          onColor={(color) => setStickyColor(doc, selectedNote.id, color)}
+          onDelete={() => {
+            deleteObject(doc, selectedNote.id);
+            select(null);
+          }}
+        />
+      </div>
+    );
+  }
 
   return (
     <div ref={rootRef} className="app-root">
-      <BoardViewport cam={cam} />
+      <BoardViewport
+        cam={cam}
+        onEmptyClick={() => select(null)}
+        onCreateStickyAt={createStickyAt}
+      >
+        {notes.map((note) => (
+          <StickyNote
+            key={note.id}
+            note={note}
+            doc={doc}
+            zoom={cam.camera.zoom}
+            selected={selectedId === note.id}
+            editing={editingId === note.id}
+            onSelect={select}
+            onStartEdit={startEdit}
+            onEndEdit={endEdit}
+            onDraggingChange={setDraggingId}
+          />
+        ))}
+      </BoardViewport>
+      <Toolbar
+        onCreateSticky={() => createStickyAt({ x: size.width / 2, y: size.height / 2 })}
+      />
+      {noteToolbar}
       <ZoomControls
         zoomPercent={zoomPercent(cam.camera)}
         canZoomIn={canZoomIn(cam.camera)}
