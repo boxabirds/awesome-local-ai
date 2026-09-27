@@ -52,6 +52,7 @@ wait_up() {
     kill -0 "$SPID" 2>/dev/null || { echo "server exited"; return 1; }
     (( $(date +%s) - t0 > LOAD_TIMEOUT_S )) && { echo "no response in ${LOAD_TIMEOUT_S}s"; return 1; }
   done
+  return 0  # the loop's own status is its body's last command (a false timeout check), not success
 }
 
 stop_server() {
