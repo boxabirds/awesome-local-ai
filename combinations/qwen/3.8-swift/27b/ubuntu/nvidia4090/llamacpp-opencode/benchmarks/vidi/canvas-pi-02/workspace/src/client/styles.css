@@ -1,0 +1,114 @@
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+  overflow: hidden;
+  overscroll-behavior: none;
+}
+
+body {
+  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  background: #f8fafc;
+}
+
+.board-root {
+  position: fixed;
+  inset: 0;
+}
+
+/* The input surface. The dot grid is set inline from the camera so the
+   grid moves and scales with pan and zoom. */
+.board-viewport {
+  position: absolute;
+  inset: 0;
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+}
+
+.board-viewport[data-pan-state='panning'] {
+  cursor: grabbing;
+}
+
+/* World layer: everything positioned in world coordinates. */
+.board-world {
+  position: absolute;
+  inset: 0;
+}
+
+/* Small crosshair at world (0,0) — the board's starting point. */
+.origin-marker {
+  position: absolute;
+  left: -4px;
+  top: -4px;
+  width: 8px;
+  height: 8px;
+  pointer-events: none;
+  background:
+    linear-gradient(to right, transparent 3px, #94a3b8 3px, #94a3b8 5px, transparent 5px),
+    linear-gradient(to bottom, transparent 3px, #94a3b8 3px, #94a3b8 5px, transparent 5px);
+}
+
+.zoom-controls {
+  position: fixed;
+  right: 16px;
+  bottom: 16px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.08);
+  z-index: 10;
+}
+
+.zoom-controls button {
+  appearance: none;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  background: #ffffff;
+  color: #0f172a;
+  font-size: 14px;
+  line-height: 1;
+  padding: 6px 10px;
+  cursor: pointer;
+}
+
+.zoom-controls button:hover:not(:disabled) {
+  background: #f1f5f9;
+}
+
+.zoom-controls button:focus-visible {
+  outline: 2px solid #2563eb;
+  outline-offset: 1px;
+}
+
+.zoom-controls button:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.zoom-label {
+  min-width: 44px;
+  text-align: center;
+  font-size: 13px;
+  color: #0f172a;
+  font-variant-numeric: tabular-nums;
+}
+
+.nav-hint {
+  position: fixed;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 6px 14px;
+  background: rgba(255, 255, 255, 0.92);
+  border: 1px solid #e2e8f0;
+  border-radius: 999px;
+  color: #475569;
+  font-size: 13px;
+  z-index: 10;
+}
