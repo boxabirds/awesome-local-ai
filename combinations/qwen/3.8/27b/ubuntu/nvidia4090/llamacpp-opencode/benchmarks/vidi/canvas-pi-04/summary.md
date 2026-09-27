@@ -14,8 +14,9 @@ Model `qwen3.8-27b`, scope `canvas`, effort `low`, client pi 0.86.0, host 13th G
 | 9 | Write free text anywhere on the board | DONE, on partial 3 | 82.9 | None | None | None | — | — | green | 54/57 |  | 0 / 0 | 4 | — | throttled 0%, server peak 18 GB |
 | 10 | Draw shapes and connect them with arrows that follow when moved | DONE, on partial 3 | 80.1 | None | None | None | — | — | red | 61/65 |  | 0 / 0 | 5 | — | throttled 0%, server peak 18 GB |
 | 11 | Sketch freehand with a pen | PARTIAL (amber), on partial 3 | 147.0 | None | None | None | — | — | green | 65/70 |  | 0 / 5 | 9 | — | throttled 0%, server peak 18 GB |
+| 12 | Drop images onto the board | DONE, on partial 3, 11 | 26.1 | None | None | None | — | — | green | 69/75 |  | 0 / 0 | 1 | — | throttled 0%, server peak 18 GB |
 
-**Totals:** 10 stories, 1135 agent-minutes, 0 requests, 0 prompt / 0 completion tokens, gate green 8/10, final acceptance 65/70, stalled 0, partial 2, 28059 lines in src+tests.
+**Totals:** 11 stories, 1161 agent-minutes, 0 requests, 0 prompt / 0 completion tokens, gate green 9/11, final acceptance 69/75, stalled 0, partial 2, 28392 lines in src+tests.
 
 ### Stories ended early (PARTIAL) and what was built on them
 
@@ -28,6 +29,7 @@ Model `qwen3.8-27b`, scope `canvas`, effort `low`, client pi 0.86.0, host 13th G
 - Story 10, built on partial 3: held-out tests on the partial base 41/45; partial story's tests fixed 0, regressed 0; 0 stub-like lines added to src/.
 - **Story 11 PARTIAL**, ended by the operator (harness (cap)): story cap: 5 nudges without committing (cap 5). Verdict **amber**: gate green, tasks not verified [1, 2, 3, 4, 5, 6] (implementation: [2, 3, 4]), held-out 4/5 (floor 0.6).
 - Story 11, built on partial 3: held-out tests on the partial base 45/50; partial story's tests fixed 0, regressed 0; 12 stub-like lines added to src/.
+- Story 12, built on partial 3, 11: held-out tests on the partial base 49/55; partial story's tests fixed 0, regressed 0; 2 stub-like lines added to src/.
 
 ## How it happened
 
@@ -45,6 +47,7 @@ Each story's commits, and which story broke or fixed an earlier story's held-out
 | 9 | 1 by the agent | 3104 / 230 | `TextEditor.tsx` (235), `StickyTextEditor.tsx` (201), `text.ts` (191), `textLayout.ts` (185), `styles.css` (169), `App.tsx` (117), +17 more |
 | 10 | 1 by the agent | 4300 / 32 | `ConnectorObject.tsx` (324), `connector.ts` (266), `ConnectorTool.tsx` (251), `styles.css` (225), `shape.ts` (203), `ShapeObject.tsx` (156), +15 more |
 | 11 | harness snapshot (agent left work uncommitted) | 4920 / 7 | `useImageInsert.ts` (320), `PenTool.tsx` (291), `styles.css` (267), `image.ts` (230), `stroke.ts` (197), `assets.ts` (150), +23 more |
+| 12 | 1 by the agent | 636 / 195 | `...{image-insert.test.tsx => ImageObject.test.tsx}` (181), `NOTES.md` (108), `useImageInsert.ts` (76), `ImageObject.tsx` (70), `styles.css` (39), `App.tsx` (12), +3 more |
 
 ### Earlier stories broken or fixed
 
