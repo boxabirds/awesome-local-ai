@@ -42,9 +42,10 @@ struct Cli {
     repo: Option<PathBuf>,
     #[arg(long, default_value_t = DEFAULT_PORT)]
     port: u16,
-    /// Story review: show each build's setup and run instead of a letter (default: blind).
+    /// Story review: hide each build's setup and run behind a shuffled letter, revealed once every
+    /// path of the story has a verdict (default: labelled, so the reviewer sees what they judge).
     #[arg(long)]
-    labelled: bool,
+    blind: bool,
 }
 
 struct App {
@@ -602,7 +603,7 @@ async fn main() -> anyhow::Result<()> {
         .canonicalize()?;
     let cache = home().join(".cache/awesome-local-ai/vidi-gallery");
     let builds = Builds::new(cache.clone());
-    let blind = !cli.labelled;
+    let blind = cli.blind;
     let mut review_builds = reviewable(&repo);
     if blind {
         shuffle(&mut review_builds);
