@@ -6,21 +6,21 @@
 <title>Story review</title>
 <style>
 :root { --bg:#fbfbf9; --fg:#1d1d1b; --muted:#6b6b66; --line:#e3e2dc; --card:#fff; --sel:#eef2ff;
-        --pass:#1f7a3f; --fail:#b3261e; --skip:#9a6700; --accent:#2f5bd3; --chip:#efeee8; }
+        --pass:#1f7a3f; --fail:#b3261e; --skip:#9a6700; --accent:#2f5bd3; --chip:#efeee8; --stage:#e9e8e2; }
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
         --bg:#161615; --fg:#ecebe6; --muted:#9b9a94; --line:#2d2d2a; --card:#1e1e1c; --sel:#232a44;
-        --pass:#5cc47f; --fail:#f07167; --skip:#e3b341; --accent:#8aa8ff; --chip:#2a2a27; } }
+        --pass:#5cc47f; --fail:#f07167; --skip:#e3b341; --accent:#8aa8ff; --chip:#2a2a27; --stage:#111110; } }
 * { box-sizing:border-box; }
 body { margin:0; background:var(--bg); color:var(--fg); font:14px/1.45 -apple-system, system-ui, sans-serif; }
-header { position:sticky; top:0; z-index:2; background:var(--bg); border-bottom:1px solid var(--line); padding:8px 16px; display:flex; gap:16px; align-items:center; flex-wrap:wrap; }
+header { position:sticky; top:0; z-index:3; background:var(--bg); border-bottom:1px solid var(--line); padding:8px 16px; display:flex; gap:16px; align-items:center; flex-wrap:wrap; }
 header b { font-size:15px; } .muted { color:var(--muted); } .small { font-size:12px; }
-.layout { display:grid; grid-template-columns:260px 1fr; min-height:calc(100vh - 42px); }
+.layout { display:grid; grid-template-columns:240px minmax(0,1fr); min-height:calc(100vh - 42px); }
 @media (max-width:860px) { .layout { grid-template-columns:1fr; } nav { border-right:0; border-bottom:1px solid var(--line); } }
 nav { border-right:1px solid var(--line); padding:8px 0; }
-nav a { display:flex; justify-content:space-between; gap:8px; padding:6px 16px; color:var(--fg); text-decoration:none; }
+nav a { display:flex; justify-content:space-between; gap:8px; padding:6px 14px; color:var(--fg); text-decoration:none; }
 nav a.on { background:var(--sel); font-weight:600; } nav a .n { color:var(--muted); font-size:12px; white-space:nowrap; }
 nav a .n.done { color:var(--pass); }
-main { padding:12px 16px 40px; max-width:1100px; min-width:0; }
+main { padding:12px 16px 40px; min-width:0; }
 h1 { font-size:19px; margin:4px 0; }
 .summary { color:var(--muted); margin-bottom:10px; }
 .spec { display:grid; grid-template-columns:1.2fr 1fr; gap:12px; }
@@ -28,32 +28,54 @@ h1 { font-size:19px; margin:4px 0; }
 section { background:var(--card); border:1px solid var(--line); border-radius:8px; padding:10px 12px; min-width:0; }
 section h2 { font-size:12px; text-transform:uppercase; letter-spacing:.04em; color:var(--muted); margin:0 0 6px; }
 ol, ul { margin:0; padding-left:20px; } li { margin:2px 0; }
-.reqs { columns:2; column-gap:18px; } @media (max-width:860px) { .reqs { columns:1; } }
-.builds { margin-top:14px; }
-.build { display:grid; grid-template-columns:28px minmax(120px,220px) 150px auto 1fr; gap:10px; align-items:start; padding:8px 10px; border:1px solid var(--line); border-radius:8px; background:var(--card); margin-bottom:6px; }
-@media (max-width:860px) { .build { grid-template-columns:28px 1fr; } .build > :nth-child(n+3) { grid-column:2; } }
-.build.on { outline:2px solid var(--accent); }
-.key { font:600 13px ui-monospace, Menlo, monospace; color:var(--muted); padding-top:4px; }
-.name { font-weight:600; padding-top:3px; word-break:break-word; }
-.status { font-size:12px; color:var(--muted); padding-top:5px; }
-.status.running { color:var(--pass); } .status.failed { color:var(--fail); }
+details > summary { cursor:pointer; color:var(--muted); font-size:12px; text-transform:uppercase; letter-spacing:.04em; }
+.work { display:grid; grid-template-columns:minmax(300px, 420px) minmax(0,1fr); gap:12px; margin-top:12px; align-items:start; }
+@media (max-width:1100px) { .work { grid-template-columns:1fr; } }
+.build { border:1px solid var(--line); border-radius:8px; background:var(--card); margin-bottom:8px; padding:6px 8px; }
+.bhead { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+.bhead .name { font-weight:600; } .bhead .status { font-size:12px; color:var(--muted); }
+.bhead .status.running { color:var(--pass); } .bhead .status.failed { color:var(--fail); }
+.bsum { font-size:12px; color:var(--muted); margin-left:auto; }
+.prow { display:grid; grid-template-columns:52px minmax(0,1fr) auto; gap:6px; align-items:center; padding:3px 4px; border-radius:6px; cursor:pointer; }
+.prow:hover { background:var(--chip); } .prow.on { background:var(--sel); outline:1px solid var(--accent); }
+.prow .t { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:13px; }
+.mark { font-size:11px; border-radius:9px; padding:0 6px; white-space:nowrap; }
+.mark.agree { background:var(--pass); color:#fff; } .mark.disagree { background:var(--fail); color:#fff; } .mark.skip { background:var(--skip); color:#fff; } .mark.todo { color:var(--muted); }
 button { border:1px solid var(--line); background:var(--card); color:var(--fg); border-radius:6px; padding:3px 9px; cursor:pointer; font:inherit; }
-.verdicts { display:flex; gap:4px; flex-wrap:wrap; }
-.verdicts .pass.on { background:var(--pass); color:#fff; } .verdicts .fail.on { background:var(--fail); color:#fff; } .verdicts .skip.on { background:var(--skip); color:#fff; }
-textarea { width:100%; min-height:34px; resize:vertical; background:var(--bg); color:var(--fg); border:1px solid var(--line); border-radius:6px; padding:5px 7px; font:inherit; }
+button:disabled { opacity:.5; cursor:default; } button.on { outline:2px solid var(--accent); }
+.pill { font-size:11px; border-radius:9px; padding:0 6px; text-align:center; background:var(--chip); }
+.pill.passed { color:var(--pass); } .pill.failed, .pill.timedOut { color:var(--fail); }
+#player { position:sticky; top:52px; }
+.phead { display:flex; gap:10px; align-items:baseline; flex-wrap:wrap; }
+.auto { font-weight:700; font-size:15px; } .auto.passed { color:var(--pass); } .auto.failed, .auto.timedOut { color:var(--fail); }
+.req { margin:6px 0; padding:6px 8px; border-left:3px solid var(--accent); background:var(--bg); border-radius:4px; font-size:13px; white-space:pre-wrap; }
+.stage { display:flex; gap:8px; background:var(--stage); border-radius:6px; padding:6px; margin-top:6px; }
+.pane { flex:1 1 0; min-width:0; } .pane .who { font-size:12px; color:var(--muted); margin-bottom:2px; }
+.pane .screen { position:relative; width:100%; background:var(--card); border-radius:4px; overflow:hidden; display:flex; align-items:center; justify-content:center; color:var(--muted); font-size:12px; }
+.pane img { width:100%; display:block; }
+.controls { display:flex; gap:8px; align-items:center; margin-top:6px; flex-wrap:wrap; font-size:12px; }
+.seek { position:relative; height:26px; touch-action:none; user-select:none; background:var(--chip); border-radius:4px; margin-top:6px; cursor:pointer; }
+.seek .tick { position:absolute; top:3px; bottom:3px; width:3px; margin-left:-1px; border-radius:1px; cursor:pointer; }
+.seek .tick.ok { background:var(--pass); } .seek .tick.bad { background:var(--fail); width:5px; margin-left:-2px; }
+.seek .tick.act { background:var(--muted); opacity:.35; top:9px; bottom:9px; width:2px; }
+.seek .wait { position:absolute; top:0; bottom:0; background:repeating-linear-gradient(45deg, transparent 0 4px, var(--line) 4px 6px); }
+.seek .head { position:absolute; top:-2px; bottom:-2px; width:2px; background:var(--accent); }
+.pbody { display:grid; grid-template-columns:minmax(0,1.6fr) minmax(220px,1fr); gap:10px; margin-top:6px; }
+@media (max-width:1300px) { .pbody { grid-template-columns:1fr; } }
+.steps { max-height:360px; overflow:auto; border:1px solid var(--line); border-radius:6px; font-size:12px; }
+.step { display:grid; grid-template-columns:14px minmax(0,1fr) auto; gap:6px; padding:2px 6px; cursor:pointer; border-bottom:1px solid var(--line); }
+.step:hover { background:var(--chip); } .step.cur { background:var(--sel); }
+.step.act, .step.wait { color:var(--muted); } .step.check { font-weight:600; }
+.step .ok { color:var(--pass); } .step .bad { color:var(--fail); }
+.step .err { grid-column:2 / -1; color:var(--fail); font-weight:400; white-space:pre-wrap; }
+.verdict { display:flex; gap:6px; align-items:center; margin-top:8px; flex-wrap:wrap; }
+.verdict .agree.on { background:var(--pass); color:#fff; } .verdict .disagree.on { background:var(--fail); color:#fff; } .verdict .skip.on { background:var(--skip); color:#fff; }
+.verdict input { flex:1 1 200px; min-width:0; background:var(--bg); color:var(--fg); border:1px solid var(--line); border-radius:5px; padding:3px 7px; font:inherit; }
+table { border-collapse:collapse; width:100%; font-size:12px; } td, th { border-bottom:1px solid var(--line); padding:2px 4px; text-align:left; vertical-align:top; }
+.st-verified, .st-committed { color:var(--pass); } .st-not-started, .st-written { color:var(--skip); }
 .keys { margin-top:14px; color:var(--muted); font-size:12px; }
 kbd { background:var(--chip); border-radius:3px; padding:0 4px; font:11px ui-monospace, monospace; }
 .reveal { margin-top:8px; }
-.paths { grid-column: 1 / -1; margin-top:4px; border-top:1px dashed var(--line); padding-top:6px; }
-.path { display:grid; grid-template-columns: 58px 1fr auto minmax(160px, 30%); gap:8px; align-items:center; padding:2px 0; }
-/* narrow: status + title on one row, the links + the note on the next */
-@media (max-width:860px) { .path { grid-template-columns: 10em 1fr; } }
-.path .links { white-space:nowrap; }
-.pill { font-size:11px; border-radius:9px; padding:0 7px; text-align:center; background:var(--chip); }
-.pill.passed { color:var(--pass); } .pill.failed, .pill.timedOut { color:var(--fail); }
-.path .err { color:var(--muted); font-size:12px; }
-.path a { font-size:12px; margin-right:8px; }
-.path input { width:100%; background:var(--bg); color:var(--fg); border:1px solid var(--line); border-radius:5px; padding:2px 6px; font:12px/1.4 inherit; }
 </style>
 </head>
 <body>
@@ -67,18 +89,43 @@ kbd { background:var(--chip); border-radius:3px; padding:0 4px; font:11px ui-mon
   <nav id="nav"></nav>
   <main id="main">Loading…</main>
 </div>
+<script src="/review/player.js"></script>
 <script>
-let S = null, story = 0, sel = 0, status = {};
-const drafts = {};  // "story:key" -> note text typed but not yet saved; never lost to a redraw
-const NOTE_SAVE_MS = 700;
+let S = null, story = 0, status = {};
+let cur = null;  // the selected path: {key, idx}
+const NOTE_SAVE_MS = 700, POLL_MS = 3000;
+const SPEEDS = [0.1, 0.25, 1, 2, 4, 8];
+const MIN_PLAY_MS = 8000;         // a path plays for at least this long by default: fast tests slow down
+const FRAME_FETCHES = 6;          // frames fetched at once when a path opens
+const LONG_WAIT_MS = 2000;       // a timed wait longer than this is skipped in playback and drawn compressed
+const WAIT_SHOWN_MS = 400;       // how much seek-bar time a skipped wait keeps
+const EPS_MS = 0.5;
 const timers = {};
 const $ = id => document.getElementById(id);
 const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 const review = (sid, key, path = "") => S.reviews.find(r => r.story === sid && r.key === key && (r.path || "") === path);
 const pathsCache = {};  // "story:key" -> {state, paths}
+const tasksCache = {};  // "story:key" -> tasks response
 const shortTitle = t => t.replace(/\s*@\S+.*$/, "");
+// "… @ref prd:a prd:b": every PRD requirement the test names.
+const anchorsOf = t => [...((t.split("@ref")[1] || "").matchAll(/prd:(\S+)/g))].map(m => m[1]);
+const sidNow = () => S.stories[story].id;
 
-function counts(sid) { return S.builds.filter(b => review(sid, b.key)?.verdict).length; }
+// ---------- verdicts ----------
+function paths(sid, key) { return pathsCache[`${sid}:${key}`]?.paths || []; }
+function buildDone(sid, key) {
+  const ps = paths(sid, key);
+  return ps.length ? ps.every(p => review(sid, key, p.title)?.verdict) : !!review(sid, key)?.verdict;
+}
+function buildSummary(sid, key) {
+  const ps = paths(sid, key);
+  if (!ps.length) return pathsCache[`${sid}:${key}`] ? (review(sid, key)?.verdict || "not recorded") : "…";
+  const c = {agree: 0, disagree: 0, skip: 0};
+  ps.forEach(p => { const v = review(sid, key, p.title)?.verdict; if (v in c) c[v]++; });
+  const todo = ps.length - c.agree - c.disagree - c.skip;
+  return [c.agree && `${c.agree} agree`, c.disagree && `${c.disagree} disagree`, c.skip && `${c.skip} skipped`, todo && `${todo} to review`].filter(Boolean).join(" · ");
+}
+function counts(sid) { return S.builds.filter(b => buildDone(sid, b.key)).length; }
 
 function renderNav() {
   const n = S.builds.length;
@@ -87,15 +134,17 @@ function renderNav() {
     return `<a href="#" data-i="${i}" class="${i === story ? "on" : ""}"><span>${s.id}. ${esc(s.title)}</span><span class="n ${c === n ? "done" : ""}">${c}/${n}</span></a>`;
   }).join("");
   document.querySelectorAll("nav a").forEach(a => a.onclick = e => { e.preventDefault(); go(+a.dataset.i); });
-  const total = S.stories.length * n, done = S.stories.reduce((t, s) => t + counts(s.id), 0);
-  $("progress").textContent = `${done} of ${total} story × build reviews done`;
+  const sid = sidNow();
+  let total = 0, done = 0;
+  S.builds.forEach(b => paths(sid, b.key).forEach(p => { total++; if (review(sid, b.key, p.title)?.verdict) done++; }));
+  $("progress").textContent = `story ${sid}: ${done} of ${total} paths judged`;
 }
 
 function statusText(key) {
   const st = status[key];
   if (!st) return ["not started", ""];
   if (st.state === "running") return ["running", "running"];
-  if (st.state === "ready") return ["ready: opens in seconds", "running"];
+  if (st.state === "ready") return ["ready", "running"];
   if (st.state === "queued") return ["queued to build", ""];
   if (st.state === "preparing") return [st.step || "preparing…", ""];
   if (st.state === "failed") return ["failed: " + (st.error || "").slice(0, 80), "failed"];
@@ -103,59 +152,40 @@ function statusText(key) {
 }
 
 function renderBuilds() {
-  const sid = S.stories[story].id;
+  const sid = sidNow();
   $("builds").innerHTML = S.builds.map((b, i) => {
-    const r = review(sid, b.key) || {}, [st, cls] = statusText(b.key);
-    const note = drafts[`${sid}:${b.key}`] ?? r.notes ?? "";
-    return `<div class="build ${i === sel ? "on" : ""}" data-i="${i}">
-      <div class="key">${i + 1}</div>
-      <div class="name">${esc(b.label)}</div>
-      <div><button data-open="${i}">${status[b.key]?.state === "running" ? "Go to tab" : "Open"}</button><div class="status ${cls}">${esc(st)}</div></div>
-      <div class="verdicts">${["pass", "fail", "skip"].map(v => `<button class="${v} ${r.verdict === v ? "on" : ""}" data-v="${v}" data-i="${i}">${v}</button>`).join("")}</div>
-      <textarea data-note="${i}" placeholder="what works, what doesn't, questions, scope…">${esc(note)}</textarea>
-      <div class="paths" id="paths-${i}">${renderPaths(sid, b.key)}</div>
-    </div>`;
+    const [st, cls] = statusText(b.key), ps = paths(sid, b.key);
+    const rows = ps.map((p, j) => {
+      const v = review(sid, b.key, p.title)?.verdict || "";
+      const on = cur && cur.key === b.key && cur.idx === j;
+      return `<div class="prow ${on ? "on" : ""}" data-key="${b.key}" data-idx="${j}">
+        <span class="pill ${esc(p.status)}">${esc(p.status)}</span>
+        <span class="t" title="${esc(p.title)}">${esc(shortTitle(p.title))}</span>
+        <span class="mark ${v || "todo"}">${v || "to review"}</span></div>`;
+    }).join("");
+    const noPaths = !ps.length ? `<div class="small muted">no recorded paths (${esc(pathsCache[`${sid}:${b.key}`]?.state || "loading")}); verdict on the build itself:
+        ${["pass", "fail", "skip"].map(v => `<button data-bv="${v}" data-key="${b.key}" class="${review(sid, b.key)?.verdict === v ? "on" : ""}">${v}</button>`).join(" ")}</div>` : "";
+    return `<div class="build">
+      <div class="bhead"><span class="muted small">${i + 1}</span><span class="name">${esc(b.label)}</span>
+        <button data-open="${i}">${status[b.key]?.state === "running" ? "Go to tab" : "Open"}</button>
+        <span class="status ${cls}">${esc(st)}</span><span class="bsum">${esc(buildSummary(sid, b.key))}</span></div>
+      ${rows}${noPaths}</div>`;
   }).join("");
-  document.querySelectorAll("[data-open]").forEach(b => b.onclick = () => { sel = +b.dataset.open; openTab(sel); });
-  document.querySelectorAll("[data-v]").forEach(b => b.onclick = () => { sel = +b.dataset.i; setVerdict(b.dataset.v, false); });
-  document.querySelectorAll("[data-note]").forEach(t => {
-    t.onfocus = () => { sel = +t.dataset.note; document.querySelectorAll(".build").forEach((el, j) => el.classList.toggle("on", j === sel)); };
-    t.oninput = () => {
-      const i = +t.dataset.note, id = `${S.stories[story].id}:${S.builds[i].key}`;
-      drafts[id] = t.value;
-      clearTimeout(timers[id]);
-      timers[id] = setTimeout(() => saveNote(i, t.value), NOTE_SAVE_MS);  // saved as you type
-    };
-    t.onblur = () => saveNote(+t.dataset.note, t.value);
-  });
-  document.querySelectorAll("[data-pathnote]").forEach(inp => {
-    inp.oninput = () => {
-      const key = +inp.dataset.pathnote, path = inp.dataset.path, id = `${sid}:${key}:${path}`;
-      clearTimeout(timers[id]);
-      timers[id] = setTimeout(() => post(key, review(sid, key, path)?.verdict || "", inp.value, path), NOTE_SAVE_MS);
-    };
-  });
-  const all = S.builds.every(b => review(sid, b.key)?.verdict);
-  $("reveal").innerHTML = S.blind ? (all ? `<button id="rv">Reveal which build is which (story ${sid})</button> <span id="rvout" class="small"></span>` : `<span class="muted small">Names are revealed for this story once every build has a verdict.</span>`) : "";
+  document.querySelectorAll("[data-open]").forEach(b => b.onclick = e => { e.stopPropagation(); openTab(+b.dataset.open); });
+  document.querySelectorAll(".prow").forEach(r => r.onclick = () => select(+r.dataset.key, +r.dataset.idx));
+  document.querySelectorAll("[data-bv]").forEach(b => b.onclick = () => post(+b.dataset.key, b.dataset.bv, review(sid, +b.dataset.key)?.notes || "", "").then(() => { renderNav(); renderBuilds(); renderReveal(); }));
+  renderReveal();
+}
+
+function renderReveal() {
+  const sid = sidNow();
+  const all = S.builds.every(b => buildDone(sid, b.key));
+  $("reveal").innerHTML = S.blind ? (all ? `<button id="rv">Reveal which build is which (story ${sid})</button> <span id="rvout" class="small"></span>` : `<span class="muted small">Names are revealed for this story once every path of every build has a verdict.</span>`) : "";
   if ($("rv")) $("rv").onclick = reveal;
 }
 
-function renderPaths(sid, key) {
-  const c = pathsCache[`${sid}:${key}`];
-  if (!c) return `<span class="muted small">walkthroughs: loading…</span>`;
-  if (!c.paths.length) return `<span class="muted small">walkthroughs: ${esc(c.state)}</span>`;
-  return `<div class="muted small">walkthroughs (${c.paths.length} paths, held-out tests; ${esc(c.state)})</div>` + c.paths.map(pa => {
-    const trace = pa.trace ? `/trace/index.html?trace=${encodeURIComponent(location.origin + "/recordings/" + pa.trace)}` : null;
-    const note = review(sid, key, pa.title)?.notes || "";
-    return `<div class="path"><span class="pill ${esc(pa.status)}">${esc(pa.status)}</span>
-      <span>${esc(shortTitle(pa.title))}${pa.error ? `<div class="err">${esc(pa.error)}</div>` : ""}</span>
-      <span class="links">${trace ? `<a href="${trace}" target="_blank">▶ walkthrough</a>` : ""}${pa.video ? `<a href="/recordings/${encodeURI(pa.video)}" target="_blank">video</a>` : ""}</span>
-      <input data-pathnote="${key}" data-path="${esc(pa.title)}" value="${esc(note)}" placeholder="note on this path…"></div>`;
-  }).join("");
-}
-
 async function loadPaths() {
-  const sid = S.stories[story].id;
+  const sid = sidNow();
   await Promise.all(S.builds.map(async b => {
     const k = `${sid}:${b.key}`, c = pathsCache[k];
     if (c && c.state === "done") return;  // finished recordings don't change
@@ -169,30 +199,223 @@ function renderStory() {
     <h1>Story ${s.id}: ${esc(s.title)}</h1>
     <div class="summary">${esc(s.summary)}</div>
     ${s.prerequisites.length ? `<div class="summary"><b>First:</b> ${s.prerequisites.map(id => { const p = S.stories.find(x => x.id === id); return esc(p ? p.title : "story " + id); }).join(", then ")}. Reviewed on the build after story ${s.review_build}, the first that has all of it.</div>` : ""}
-    <div class="spec">
-      <section><h2>Golden path: do this in each build</h2><ol>${s.golden_path.map(g => `<li>${esc(g)}</li>`).join("")}</ol></section>
+    <details><summary>Golden path, must-nots and requirements</summary>
+    <div class="spec" style="margin-top:6px">
+      <section><h2>Golden path</h2><ol>${s.golden_path.map(g => `<li>${esc(g)}</li>`).join("")}</ol></section>
       <section><h2>Must not</h2>${s.non_behaviours.length ? `<ul>${s.non_behaviours.map(n => `<li>${esc(n)}</li>`).join("")}</ul>` : `<span class="muted">nothing listed</span>`}</section>
     </div>
-    <section style="margin-top:12px"><h2>Also required (${s.requirements.length})</h2><ul class="reqs">${s.requirements.map(r => `<li>${esc(r.title)}</li>`).join("")}</ul></section>
-    <div class="builds" id="builds"></div>
-    <div class="reveal" id="reveal"></div>
-    <div class="keys"><kbd>1</kbd>–<kbd>9</kbd> pick a build · <kbd>o</kbd> open or go to its tab · <kbd>+</kbd> pass · <kbd>-</kbd> fail · <kbd>space</kbd> skip · <kbd>n</kbd> note (<kbd>Esc</kbd> to leave) · <kbd>↑</kbd><kbd>↓</kbd> build · <kbd>←</kbd><kbd>→</kbd> story<br>
-    Each build opens <b>as it was after story ${s.review_build}</b>, built from that commit; moving to another story stops these builds. Reviews save to <code>${esc(S.file)}</code>.</div>`;
+    <section style="margin-top:8px"><h2>Requirements (${s.requirements.length})</h2><ul>${s.requirements.map(r => `<li><b>${esc(r.title)}</b> <span class="muted small">${esc(r.anchor)}</span></li>`).join("")}</ul></section>
+    </details>
+    <div class="work"><div><div id="builds"></div><div class="reveal" id="reveal"></div></div><div id="player"><section class="muted">Pick a path on the left (or press <kbd>j</kbd>) to play its recording.</section></div></div>
+    <div class="keys"><kbd>j</kbd>/<kbd>k</kbd> next/previous path · <kbd>space</kbd> play/pause · <kbd>←</kbd><kbd>→</kbd> previous/next check · <kbd>a</kbd> agree · <kbd>d</kbd> disagree · <kbd>s</kbd> skip · <kbd>n</kbd> note (<kbd>Esc</kbd> to leave) · <kbd>o</kbd> open the build · <kbd>[</kbd><kbd>]</kbd> story<br>
+    A verdict says whether <b>you agree with the automated result</b> of that path, having watched it. Each build opens as it was after story ${s.review_build}. Reviews save to <code>${esc(S.file)}</code>.</div>`;
   renderBuilds();
 }
 
 async function go(i) {
-  story = Math.max(0, Math.min(i, S.stories.length - 1)); sel = firstUnreviewed();
-  // Each story is reviewed on the build as it was after that story: the server stops other stories' builds.
-  await fetch(`/api/review/story/${S.stories[story].id}`, {method: "POST"});
+  story = Math.max(0, Math.min(i, S.stories.length - 1)); cur = null; stopPlayer();
+  await fetch(`/api/review/story/${sidNow()}`, {method: "POST"});
   status = {}; await poll(); await loadPaths();
   renderNav(); renderStory();
 }
-function firstUnreviewed() { const sid = S.stories[story].id; const k = S.builds.findIndex(b => !review(sid, b.key)?.verdict); return k < 0 ? 0 : k; }
 
+// ---------- the player ----------
+let P = null;  // {key, idx, w, t, playing, speed, skipWaits, last, raf, waits, checks}
+
+function stopPlayer() {
+  if (P?.raf) cancelAnimationFrame(P.raf);
+  if (P?.urls) Object.values(P.urls).forEach(u => URL.revokeObjectURL(u));
+  P = null;
+}
+
+function flat() {  // every (key, idx) in page order, for j/k
+  const sid = sidNow(), out = [];
+  S.builds.forEach(b => paths(sid, b.key).forEach((_, j) => out.push({key: b.key, idx: j})));
+  return out;
+}
+
+async function select(key, idx) {
+  cur = {key, idx}; renderBuilds();
+  document.querySelector(".prow.on")?.scrollIntoView({block: "nearest"});
+  stopPlayer();
+  const sid = sidNow(), p = paths(sid, key)[idx];
+  if (!p) { $("player").innerHTML = `<section class="muted">This build has no recorded path here.</section>`; return; }
+  $("player").innerHTML = `<section>Loading the recording…</section>`;
+  const [wr, tasks] = await Promise.all([
+    fetch(`/api/review/walkthrough/${sid}/${key}/${idx}`),
+    tasksCache[`${sid}:${key}`] ? Promise.resolve(tasksCache[`${sid}:${key}`]) : fetch(`/api/review/tasks/${sid}/${key}`).then(r => r.json()),
+  ]);
+  tasksCache[`${sid}:${key}`] = tasks;
+  if (!cur || cur.key !== key || cur.idx !== idx) return;  // moved on while loading
+  const w = wr.ok ? await wr.json() : null;
+  // Open on the first frame anyone sees, not on a blank screen.
+  const first = w ? Math.min(...w.people.map(pp => pp.frames[0]?.[0] ?? Infinity), w.end) : 0;
+  P = {key, idx, w, p, t: w ? Math.max(w.start, first) : 0, playing: false, speed: 1, skipWaits: true, last: 0, raf: 0, urls: {}, dragging: false};
+  if (w) {
+    P.waits = w.steps.filter(s => s.kind === "wait" && s.end - s.start > LONG_WAIT_MS).map(s => [s.start, s.end]);
+    P.tl = timeline(w.start, w.end, P.waits, WAIT_SHOWN_MS);
+    P.checks = w.steps.filter(s => s.kind === "check" || s.error);
+    P.frameUrl = name => `/api/review/frame/${sid}/${key}/${idx}/${encodeURIComponent(name)}`;
+    // Waits are skipped in playback, so a path's watchable length is without them.
+    const watchable = w.end - w.start - P.waits.reduce((d, [a, b]) => d + b - a, 0);
+    P.speed = defaultSpeed(watchable, SPEEDS, MIN_PLAY_MS);
+  }
+  renderPlayer(tasks);
+  if (w) preloadFrames(P);
+}
+
+// Seek-bar position of a time and back (player.js), for the open path.
+const pos = t => P.tl.pos(t), timeAt = frac => P.tl.timeAt(frac);
+
+// Every frame of the path fetched and decoded up front, so scrubbing never waits on the network.
+async function preloadFrames(p) {
+  const names = [...new Set(p.w.people.flatMap(pp => pp.frames.map(f => f[1])))];
+  let next = 0, done = 0;
+  const one = async () => {
+    while (next < names.length && P === p) {
+      const name = names[next++];
+      try {
+        const blob = await (await fetch(p.frameUrl(name))).blob();
+        const url = URL.createObjectURL(blob), img = new Image();
+        img.src = url; await img.decode();
+        if (P !== p) { URL.revokeObjectURL(url); return; }
+        p.urls[name] = url;
+      } catch (e) { /* shown from the server instead */ }
+      done++;
+      if ($("frames")) $("frames").textContent = done < names.length ? `frames ${done}/${names.length}` : "";
+    }
+  };
+  await Promise.all(Array.from({length: FRAME_FETCHES}, one));
+  if (P === p) show();
+}
+
+function renderPlayer(tasks) {
+  const sid = sidNow(), {w, p, key, idx} = P;
+  const anchors = anchorsOf(p.title);
+  const v = review(sid, key, p.title) || {};
+  const details = p.trace ? `/trace/index.html?trace=${encodeURIComponent(location.origin + "/recordings/" + p.trace)}` : "";
+  const label = S.builds.find(b => b.key === key)?.label || "";
+  const reqHtml = anchors.length ? anchors.map(a => {
+      const req = S.stories[story].requirements.find(r => r.anchor === a);
+      return req ? `<div class="req"><b>${esc(req.title)}</b> <span class="muted small">prd:${esc(a)} · story ${sid}</span>\n${esc(req.text)}</div>`
+        : `<div class="req muted">prd:${esc(a)} is not an anchor in story ${sid}'s PRD</div>`;
+    }).join("") : `<div class="req muted">this test names no PRD requirement</div>`;
+  const stageHtml = !w ? `<div class="muted small">no trace for this path</div>` : `
+    <div class="stage">${w.people.map((pp, i) => `<div class="pane"><div class="who">${esc(pp.label)}</div><div class="screen" style="aspect-ratio:${pp.width || 16}/${pp.height || 10}"><img id="img${i}" alt=""><span id="none${i}">not on screen yet</span></div></div>`).join("") || `<div class="muted small">no screen frames in this trace</div>`}</div>
+    <div class="seek" id="seek">${P.waits.map(([a, b]) => `<div class="wait" style="left:${pos(a) * 100}%;width:${(pos(b) - pos(a)) * 100}%" title="waits ${((b - a) / 1000).toFixed(1)} s"></div>`).join("")}
+      ${w.steps.map((s, i) => `<div class="tick ${s.error ? "bad" : s.kind === "check" ? "ok" : "act"}" data-tick="${i}" style="left:${pos(s.end) * 100}%" title="${esc(s.title)}"></div>`).join("")}<div class="head" id="head"></div></div>
+    <div class="controls"><button id="play">▶ play</button>
+      ${SPEEDS.map(x => `<button data-speed="${x}" class="${x === P.speed ? "on" : ""}">${x}×</button>`).join("")}
+      <label><input type="checkbox" id="skipw" ${P.skipWaits ? "checked" : ""}> skip long waits</label>
+      <span id="clock" class="muted"></span><span id="frames" class="muted"></span></div>`;
+  const stepsHtml = !w ? "" : `<div class="steps" id="steps">${w.steps.map((s, i) => `<div class="step ${s.kind === "check" ? "check" : s.kind === "wait" ? "wait" : "act"}" data-s="${i}">
+      <span class="${s.error ? "bad" : "ok"}">${s.kind === "check" || s.error ? (s.error ? "✗" : "✓") : ""}</span>
+      <span>${esc(s.title)}${s.person != null && w.people.length > 1 ? ` <span class="muted">· ${esc(w.people[s.person].label)}</span>` : ""}</span>
+      <span class="muted">${((s.end - w.start) / 1000).toFixed(1)}s</span>
+      ${s.error ? `<div class="err">${esc(s.error.split("\n").filter(Boolean).slice(0, 3).join("\n"))}</div>` : ""}</div>`).join("")}
+      ${w.error ? `<div class="step"><span class="bad">✗</span><span class="err" style="grid-column:2/-1">${esc(w.error)}</span></div>` : ""}</div>`;
+  const t = tasks || {};
+  const tasksHtml = `<details style="margin-top:8px"><summary>Tasks of this story in this build (the spec doesn't say which task implements this requirement)</summary>
+    <table><tr><th>#</th><th>task</th><th>type</th><th>status</th><th>commits naming it</th></tr>
+    ${(t.tasks || []).map(x => `<tr><td>${x.n}</td><td>${esc(x.title)}</td><td class="muted">${esc(x.kind)}</td><td class="st-${esc(x.status || "none")}">${esc(x.status || (t.status_recorded ? "—" : "not recorded"))}</td><td>${x.commits.length ? x.commits.map(esc).join("<br>") : `<span class="muted">none</span>`}</td></tr>`).join("")}</table>
+    <div class="small muted" style="margin-top:6px">This build's commits for story ${sid}:</div>
+    <ul class="small">${(t.commits || []).map(c => `<li><code>${esc(c.hash)}</code> ${esc(c.subject)}</li>`).join("") || `<li class="muted">none found</li>`}</ul></details>`;
+  $("player").innerHTML = `<section>
+    <div class="phead"><span class="auto ${esc(p.status)}">Automated: ${esc(p.status.toUpperCase())}</span><b>${esc(shortTitle(p.title))}</b>
+      <span class="muted small">${esc(label)} · path ${idx + 1} of ${paths(sid, key).length}</span>
+      ${details ? `<a class="small" href="${details}" target="_blank">details (trace viewer)</a>` : ""}${p.video ? ` <a class="small" href="/recordings/${encodeURI(p.video)}" target="_blank">video</a>` : ""}</div>
+    ${reqHtml}
+    <div class="pbody"><div>${stageHtml}</div><div>${stepsHtml}</div></div>
+    <div class="verdict"><span class="small">Do you agree with <b>${esc(p.status)}</b>?</span>
+      ${["agree", "disagree", "skip"].map(x => `<button class="${x} ${v.verdict === x ? "on" : ""}" data-pv="${x}">${x}</button>`).join("")}
+      <input id="pnote" value="${esc(v.notes || "")}" placeholder="why — what the recording shows, what the test missed…"></div>
+    ${tasksHtml}</section>`;
+  if (w) {
+    $("play").onclick = togglePlay;
+    document.querySelectorAll("[data-speed]").forEach(b => b.onclick = () => { P.speed = +b.dataset.speed; document.querySelectorAll("[data-speed]").forEach(x => x.classList.toggle("on", +x.dataset.speed === P.speed)); });
+    $("skipw").onchange = e => P.skipWaits = e.target.checked;
+    // Scrub: press and drag anywhere on the bar; pressing a tick goes to that step.
+    const bar = $("seek"), at = e => { const r = bar.getBoundingClientRect(); return timeAt((e.clientX - r.left) / r.width); };
+    bar.onpointerdown = e => {
+      e.preventDefault();
+      bar.setPointerCapture(e.pointerId);
+      P.dragging = true;
+      if (P.playing) togglePlay();
+      const tick = e.target.dataset?.tick;
+      seek(tick !== undefined ? w.steps[+tick].end : at(e));
+    };
+    bar.onpointermove = e => { if (P?.dragging) seek(at(e)); };
+    bar.onpointerup = bar.onpointercancel = e => { if (P) P.dragging = false; bar.releasePointerCapture?.(e.pointerId); };
+    document.querySelectorAll("[data-s]").forEach(el => el.onclick = () => seek(w.steps[+el.dataset.s].end));
+  }
+  document.querySelectorAll("[data-pv]").forEach(b => b.onclick = () => judge(b.dataset.pv));
+  $("pnote").oninput = e => {
+    const id = `${sid}:${key}:${p.title}`;
+    clearTimeout(timers[id]);
+    timers[id] = setTimeout(() => post(key, review(sid, key, p.title)?.verdict || "", e.target.value, p.title), NOTE_SAVE_MS);
+  };
+  if (w) show();
+}
+
+function show() {
+  const {w, t} = P;
+  w.people.forEach((pp, i) => {
+    const name = frameAt(pp.frames, t), img = $(`img${i}`), none = $(`none${i}`);
+    if (!img) return;
+    if (name) {
+      const u = P.urls[name] || P.frameUrl(name);  // decoded up front; the server until then
+      if (img.dataset.u !== u) { img.src = u; img.dataset.u = u; img.dataset.n = name; }
+      img.style.display = ""; none.style.display = "none";
+    }
+    else { img.style.display = "none"; none.style.display = ""; }
+  });
+  if ($("head")) $("head").style.left = `${pos(t) * 100}%`;
+  if ($("clock")) $("clock").textContent = `${((t - w.start) / 1000).toFixed(1)} s of ${((w.end - w.start) / 1000).toFixed(1)} s`;
+  let curStep = -1;
+  w.steps.forEach((s, i) => { if (s.start <= t + EPS_MS) curStep = i; });
+  document.querySelectorAll("[data-s]").forEach(el => el.classList.toggle("cur", +el.dataset.s === curStep));
+  if (P.playing) document.querySelector(`[data-s="${curStep}"]`)?.scrollIntoView({block: "nearest"});
+}
+
+function seek(t) { if (!P?.w) return; P.t = Math.max(P.w.start, Math.min(t, P.w.end)); show(); }
+
+function togglePlay() {
+  if (!P?.w) return;
+  P.playing = !P.playing;
+  if (P.playing && P.t >= P.w.end - EPS_MS) P.t = P.w.start;
+  $("play").textContent = P.playing ? "❚❚ pause" : "▶ play";
+  P.last = performance.now();
+  if (P.playing) P.raf = requestAnimationFrame(tick);
+}
+
+function tick(now) {
+  if (!P?.playing) return;
+  P.t += (now - P.last) * P.speed; P.last = now;
+  if (P.skipWaits) for (const [a, b] of P.waits) if (P.t > a && P.t < b) P.t = b;
+  if (P.t >= P.w.end) { P.t = P.w.end; P.playing = false; $("play").textContent = "▶ play"; }
+  show();
+  if (P.playing) P.raf = requestAnimationFrame(tick);
+}
+
+function stepCheck(dir) {
+  if (!P?.w) return;
+  const list = P.checks.map(s => s.end);
+  const t = dir > 0 ? list.find(x => x > P.t + EPS_MS) : [...list].reverse().find(x => x < P.t - EPS_MS);
+  if (t !== undefined) { seek(t); document.querySelector(".step.cur")?.scrollIntoView({block: "nearest"}); }
+}
+
+async function judge(v) {
+  if (!P) return;
+  const sid = sidNow(), note = $("pnote")?.value ?? review(sid, P.key, P.p.title)?.notes ?? "";
+  if (!(await post(P.key, v, note, P.p.title))) return;
+  document.querySelectorAll("[data-pv]").forEach(b => b.classList.toggle("on", b.dataset.pv === v));
+  renderNav(); renderBuilds();
+}
+
+// ---------- building tabs, saving, reveal ----------
 async function openTab(i) {
   const key = S.builds[i].key;
-  const sid = S.stories[story].id, name = `vidi-build-${key}`;  // one tab per build, reused across stories
+  const sid = sidNow(), name = `vidi-build-${key}`;  // one tab per build, reused across stories
   if (status[key]?.state === "running") { window.open(status[key].url, name); return; }
   const w = window.open("about:blank", name);  // open now, while this is still a user action
   const st = await (await fetch(`/api/review/open/${sid}/${key}`, {method: "POST"})).json();
@@ -200,60 +423,51 @@ async function openTab(i) {
   const wait = async () => {
     await poll();
     if (status[key]?.state === "running") { if (w) w.location = status[key].url; }
-    else if (status[key]?.state !== "failed") setTimeout(wait, 1500);
+    else if (status[key]?.state !== "failed") setTimeout(wait, POLL_MS / 2);
   };
   wait();
 }
 
 async function post(key, verdict, notes, path = "") {
-  const sid = S.stories[story].id;
+  const sid = sidNow();
   const r = await fetch("/api/review/set", {method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify({story: sid, key, path, verdict, notes})});
   if (!r.ok) { $("saved").textContent = "NOT SAVED: " + (await r.text()); return false; }
   const row = review(sid, key, path);
   if (row) { row.verdict = verdict; row.notes = notes; } else S.reviews.push({story: sid, key, path, verdict, notes});
-  if (drafts[`${sid}:${key}`] === notes) delete drafts[`${sid}:${key}`];
   $("saved").textContent = "saved " + new Date().toLocaleTimeString();
   return true;
 }
 
-async function setVerdict(v, advance = true) {
-  const key = S.builds[sel].key, sid = S.stories[story].id;
-  const note = drafts[`${sid}:${key}`] ?? review(sid, key)?.notes ?? "";
-  if (!(await post(key, v, note))) return;
-  if (advance) { const k = firstUnreviewed(); if (k !== sel) sel = k; }
-  renderNav(); renderBuilds();
-}
-
-async function saveNote(i, text) {
-  const key = S.builds[i].key, r = review(S.stories[story].id, key);
-  if ((r?.notes || "") !== text) await post(key, r?.verdict || "", text);
-}
-
 async function reveal() {
-  const r = await fetch(`/api/review/reveal/${S.stories[story].id}`);
+  const r = await fetch(`/api/review/reveal/${sidNow()}`);
   const d = await r.json();
   $("rvout").textContent = r.ok ? d.map(x => `${String.fromCharCode(65 + x.key)} = ${x.setup} ${x.run}`).join(" · ") : d.error;
 }
 
 async function poll() {
-  const sid = S.stories[story].id;
-  for (const s of await (await fetch(`/api/review/status/${sid}`)).json()) status[s.key] = s.status;
+  for (const s of await (await fetch(`/api/review/status/${sidNow()}`)).json()) status[s.key] = s.status;
 }
 
 document.addEventListener("keydown", e => {
-  if (["TEXTAREA", "INPUT"].includes(e.target.tagName)) { if (e.key === "Escape") e.target.blur(); return; }
+  if (["TEXTAREA", "INPUT"].includes(e.target.tagName) && e.target.type !== "checkbox") { if (e.key === "Escape") e.target.blur(); return; }
   if (e.metaKey || e.ctrlKey || e.altKey) return;
-  const k = e.key, n = S.builds.length;
-  if (/^[1-9]$/.test(k) && +k <= n) { sel = +k - 1; renderBuilds(); }
-  else if (k === "o") openTab(sel);
-  else if (k === "+" || k === "=") setVerdict("pass");
-  else if (k === "-") setVerdict("fail");
-  else if (k === " ") { e.preventDefault(); setVerdict("skip"); }
-  else if (k === "n") { e.preventDefault(); document.querySelector(`[data-note="${sel}"]`)?.focus(); }
-  else if (k === "ArrowDown") { e.preventDefault(); sel = Math.min(sel + 1, n - 1); renderBuilds(); }
-  else if (k === "ArrowUp") { e.preventDefault(); sel = Math.max(sel - 1, 0); renderBuilds(); }
-  else if (k === "ArrowRight") go(story + 1);
-  else if (k === "ArrowLeft") go(story - 1);
+  const k = e.key;
+  if (k === "j" || k === "k") {
+    const f = flat(); if (!f.length) return;
+    const i = cur ? f.findIndex(x => x.key === cur.key && x.idx === cur.idx) : -1;
+    const n = k === "j" ? Math.min(i + 1, f.length - 1) : Math.max(i - 1, 0);
+    select(f[n].key, f[n].idx);
+  }
+  else if (k === " ") { e.preventDefault(); togglePlay(); }
+  else if (k === "ArrowRight") { e.preventDefault(); stepCheck(1); }
+  else if (k === "ArrowLeft") { e.preventDefault(); stepCheck(-1); }
+  else if (k === "a") judge("agree");
+  else if (k === "d") judge("disagree");
+  else if (k === "s") judge("skip");
+  else if (k === "n") { e.preventDefault(); $("pnote")?.focus(); }
+  else if (k === "o" && cur) openTab(S.builds.findIndex(b => b.key === cur.key));
+  else if (k === "]") go(story + 1);
+  else if (k === "[") go(story - 1);
 });
 
 (async () => {
@@ -261,9 +475,11 @@ document.addEventListener("keydown", e => {
   $("mode").textContent = `${S.builds.length} builds · ${S.blind ? "blind (letters are shuffled each session)" : "labelled"}`;
   await go(0);
   setInterval(async () => {
+    const before = JSON.stringify([status, S.builds.map(b => pathsCache[`${sidNow()}:${b.key}`]?.state)]);
     await poll(); await loadPaths();
-    if (!["TEXTAREA", "INPUT"].includes(document.activeElement?.tagName)) renderBuilds();
-  }, 3000);
+    // The list only: the player keeps playing.
+    if (before !== JSON.stringify([status, S.builds.map(b => pathsCache[`${sidNow()}:${b.key}`]?.state)])) { renderNav(); renderBuilds(); }
+  }, POLL_MS);
 })();
 </script>
 </body>

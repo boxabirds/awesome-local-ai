@@ -11,6 +11,18 @@ use serde_json::Value;
 pub struct Requirement {
     pub anchor: String,
     pub title: String,
+    /// What it requires: the section's text after the anchor (WHEN … THE SYSTEM SHALL …, verification).
+    pub text: String,
+}
+
+/// One row of a story's tasks.md table. `implements` names design capabilities, not PRD anchors:
+/// the spec doesn't say which task implements which requirement.
+#[derive(Debug, Clone, Serialize, PartialEq)]
+pub struct Task {
+    pub n: u64,
+    pub title: String,
+    pub kind: String,
+    pub implements: Vec<String>,
 }
 
 #[derive(Debug, Clone, Serialize, PartialEq, Default)]
@@ -21,6 +33,7 @@ pub struct Story {
     pub golden_path: Vec<String>,
     pub requirements: Vec<Requirement>,
     pub non_behaviours: Vec<String>,
+    pub tasks: Vec<Task>,
     /// Stories a user must go through first (all of them, transitively), in review order.
     pub prerequisites: Vec<u64>,
     /// The story whose build it is reviewed on: the latest-built of itself and its prerequisites.
@@ -40,8 +53,21 @@ pub fn parse_prd(text: &str) -> Story {
     let mut section = String::new(); // the current "##" or "###" heading
     let mut last_h2 = String::new();
     let mut in_intro = false;
+    let mut in_requirement = false; // after an anchor, until the next heading
     for line in text.lines() {
         let t = line.trim();
+        if t.starts_with('#') {
+            in_requirement = false;
+        }
+        if in_requirement {
+            if let Some(r) = story.requirements.last_mut() {
+                if !(r.text.is_empty() && t.is_empty()) {
+                    r.text.push_str(line.trim_end());
+                    r.text.push('\n');
+                }
+            }
+            continue;
+        }
         if let Some(h) = t.strip_prefix("### ") {
             section = h.trim().to_lowercase();
             continue;
@@ -62,7 +88,8 @@ pub fn parse_prd(text: &str) -> Story {
         }
         if let Some(a) = t.strip_prefix("> Anchor:") {
             let anchor = a.trim().trim_matches('`').to_string();
-            story.requirements.push(Requirement { anchor, title: last_h2.clone() });
+            story.requirements.push(Requirement { anchor, title: last_h2.clone(), text: String::new() });
+            in_requirement = true;
             continue;
         }
         if section == "golden path" {
@@ -77,8 +104,46 @@ pub fn parse_prd(text: &str) -> Story {
             }
         }
     }
+    for r in &mut story.requirements {
+        r.text = r.text.trim().to_string();
+    }
     story
 }
+
+/// The task table at the top of a tasks.md: "| # | Title | Status | Type | Implements |" rows.
+pub fn parse_tasks(text: &str) -> Vec<Task> {
+    let mut tasks = Vec::new();
+    let mut in_table = false;
+    for line in text.lines() {
+        let t = line.trim();
+        if !t.starts_with('|') {
+            if in_table {
+                break; // only the first table: later tables are details
+            }
+            continue;
+        }
+        // Cells split on unescaped pipes; "\|" inside a cell is a literal pipe.
+        let cells: Vec<String> = t.trim_matches('|').replace("\\|", "\u{0}").split('|').map(|c| c.trim().replace('\u{0}', "|")).collect();
+        if cells.first().is_some_and(|c| c == "#") {
+            in_table = true;
+            continue;
+        }
+        let Some(n) = cells.first().and_then(|c| c.parse().ok()) else { continue };
+        if !in_table || cells.len() < TASK_COLUMNS {
+            continue;
+        }
+        tasks.push(Task {
+            n,
+            title: cells[1].clone(),
+            kind: cells[3].clone(),
+            implements: cells[4].split(',').map(|c| c.trim().to_string()).filter(|c| !c.is_empty()).collect(),
+        });
+    }
+    tasks
+}
+
+/// #, title, status, type, implements.
+const TASK_COLUMNS: usize = 5;
 
 /// The stories of a scope in the order the scope lists them (the user journey).
 pub fn load(pack: &Path, scope: &str) -> Vec<Story> {
@@ -96,6 +161,7 @@ pub fn load(pack: &Path, scope: &str) -> Vec<Story> {
                     let prd = std::fs::read_to_string(pack.join("spec/stories").join(dir).join("prd.md")).unwrap_or_default();
                     let mut story = parse_prd(&prd);
                     story.id = id;
+                    story.tasks = parse_tasks(&std::fs::read_to_string(pack.join("spec/stories").join(dir).join("tasks.md")).unwrap_or_default());
                     let heading = std::fs::read_to_string(pack.join("spec/stories").join(dir).join("story.md"))
                         .ok()
                         .and_then(|t| t.lines().find_map(|l| l.strip_prefix("# ").map(|h| h.trim().to_string())));
@@ -195,9 +261,44 @@ mod tests {
         assert_eq!(s.golden_path, vec!["User double-clicks empty board space.", "User types \"Faster onboarding\"."]);
         assert_eq!(s.non_behaviours, vec!["No rich text.", "No note-to-note links."]);
         assert_eq!(s.requirements, vec![
-            Requirement { anchor: "sticky.create_dblclick".into(), title: "Create by double-click".into() },
-            Requirement { anchor: "sticky.delete".into(), title: "Delete a note".into() },
+            Requirement { anchor: "sticky.create_dblclick".into(), title: "Create by double-click".into(), text: "Text.".into() },
+            Requirement { anchor: "sticky.delete".into(), title: "Delete a note".into(), text: String::new() },
         ]);
+    }
+
+    #[test]
+    fn a_requirement_keeps_its_text_up_to_the_next_heading() {
+        let s = parse_prd("## Create\n\n> Anchor: `a.create`\n\nWHEN x THE SYSTEM SHALL y.\n\nVerification: z.\n\n## Next\n\n> Anchor: `a.next`\n");
+        assert_eq!(s.requirements[0].text, "WHEN x THE SYSTEM SHALL y.\n\nVerification: z.");
+        assert_eq!(s.requirements[1].text, "");
+    }
+
+    #[test]
+    fn a_tasks_table_gives_number_title_type_and_what_it_implements() {
+        let t = parse_tasks("# Tasks\n\n| # | Title | Status | Type | Implements |\n|---|---|---|---|---|\n| 1 | Write tests first (TC-01) | proposed | test:unit | share.board_api |\n| 6 | Component tests \\| pages | proposed | test:ui-component | share.pages, share.share_panel |\n\n## Details\n| 9 | not a task row | x | y | z |\n");
+        assert_eq!(t, vec![
+            Task { n: 1, title: "Write tests first (TC-01)".into(), kind: "test:unit".into(), implements: vec!["share.board_api".into()] },
+            Task { n: 6, title: "Component tests | pages".into(), kind: "test:ui-component".into(), implements: vec!["share.pages".into(), "share.share_panel".into()] },
+        ]);
+    }
+
+    #[test]
+    fn the_real_story_5_gives_requirement_text_and_tasks_when_present() {
+        let stories = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../../awesome-local-ai-bench-private/packs/vidi/spec/stories");
+        let Some(dir) = std::fs::read_dir(&stories).ok().and_then(|d| d.filter_map(Result::ok).find(|e| e.file_name().to_string_lossy().starts_with("005-"))) else {
+            return; // the private pack isn't cloned next to this checkout
+        };
+        let prd = parse_prd(&std::fs::read_to_string(dir.path().join("prd.md")).unwrap());
+        let create = prd.requirements.iter().find(|r| r.anchor == "share.create").unwrap();
+        assert_eq!(create.title, "Create a board");
+        assert!(create.text.starts_with("WHEN a person clicks Create a board on the home page THE SYSTEM SHALL create a new empty board"), "{}", create.text);
+        let copy = prd.requirements.iter().find(|r| r.anchor == "share.copy").unwrap();
+        assert!(copy.text.contains("Verification: after clicking"), "{}", copy.text);
+        let tasks = parse_tasks(&std::fs::read_to_string(dir.path().join("tasks.md")).unwrap());
+        assert_eq!(tasks.len(), 7);
+        assert_eq!(tasks[4].n, 5);
+        assert!(tasks[4].title.starts_with("Implement Share panel"));
+        assert_eq!(tasks[5].implements, vec!["share.pages", "share.share_panel"]);
     }
 
     fn prereqs(pairs: &[(u64, &[u64])]) -> std::collections::BTreeMap<u64, Vec<u64>> {

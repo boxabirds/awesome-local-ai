@@ -7,6 +7,7 @@ mod record;
 mod reviews;
 mod runs;
 mod stories;
+mod trace;
 
 use std::net::SocketAddr;
 use std::path::PathBuf;
@@ -24,6 +25,8 @@ use builds::{Builds, Spec};
 const DEFAULT_PORT: u16 = 7800;
 const PAGE: &str = include_str!("page.html");
 const REVIEW_PAGE: &str = include_str!("review.html");
+/// The player's time maths, shared with its node tests (tests/player.test.cjs).
+const PLAYER_JS: &str = include_str!("player.js");
 /// The blind banner's colour: neutral, so it says nothing about the setup.
 const BLIND_COLOUR: &str = "hsl(0 0% 30%)";
 const LETTERS: &str = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
@@ -327,6 +330,10 @@ async fn review_page() -> Html<&'static str> {
     Html(REVIEW_PAGE)
 }
 
+async fn player_js() -> impl IntoResponse {
+    ([(axum::http::header::CONTENT_TYPE, "text/javascript")], PLAYER_JS)
+}
+
 fn build_label(app: &App, i: usize) -> String {
     let r = &app.review_builds[i];
     if app.blind { format!("Build {}", letter(i)) } else { format!("{} · {}", r.setup, r.run) }
@@ -443,18 +450,16 @@ async fn api_review_set(State(app): State<Arc<App>>, Json(body): Json<ReviewIn>)
     }
 }
 
-/// Which build is which, for one story, only once every build has a verdict on it: seeing names
-/// earlier would bias the rest of that story's review.
+/// Which build is which, for one story, only once every path of every build has a verdict on it:
+/// seeing names earlier would bias the rest of that story's review.
 async fn api_review_reveal(State(app): State<Arc<App>>, UrlPath(story): UrlPath<u64>) -> impl IntoResponse {
-    let done: std::collections::HashSet<String> = app
-        .reviews
-        .all()
-        .into_iter()
-        .filter(|r| r.story == story && r.path.is_empty() && !r.verdict.is_empty())
-        .map(|r| r.build)
-        .collect();
-    if app.review_builds.iter().any(|r| !done.contains(&r.slug)) {
-        return (StatusCode::CONFLICT, Json(serde_json::json!({"error": "give every build a verdict on this story first"}))).into_response();
+    let mut builds = Vec::new();
+    for run in &app.review_builds {
+        let titles = recorded_paths(&app, run, story).await.into_iter().map(|p| p.title).collect();
+        builds.push((run.slug.clone(), titles));
+    }
+    if !reviews::story_reviewed(story, &builds, &app.reviews.all()) {
+        return (StatusCode::CONFLICT, Json(serde_json::json!({"error": "give every path of every build a verdict on this story first"}))).into_response();
     }
     let names: Vec<serde_json::Value> = app
         .review_builds
@@ -465,14 +470,82 @@ async fn api_review_reveal(State(app): State<Arc<App>>, UrlPath(story): UrlPath<
     Json(serde_json::json!(names)).into_response()
 }
 
+/// A build's recorded paths of a story, once its recording is finished and valid (a queued or
+/// failed one may hold a stale bad attempt).
+async fn recorded_paths(app: &App, run: &runs::Run, story: u64) -> Vec<record::Path_> {
+    let state = app.rec.lock().await.get(&rec_key(run, story)).cloned().unwrap_or_default();
+    if state == "done" { record::paths(&rec_dir(app, run, story), &app.recordings) } else { Vec::new() }
+}
+
+/// The trace zip of one recorded path (by its index in the build's paths).
+async fn trace_zip(app: &App, story: u64, key: usize, idx: usize) -> Option<PathBuf> {
+    let run = app.review_builds.get(key)?;
+    let rel = recorded_paths(app, run, story).await.into_iter().nth(idx)?.trace?;
+    Some(app.recordings.join(rel))
+}
+
+/// One recorded path as the player needs it: steps and each person's frames (trace::Walkthrough).
+async fn api_review_walkthrough(State(app): State<Arc<App>>, UrlPath((story, key, idx)): UrlPath<(u64, usize, usize)>) -> impl IntoResponse {
+    let Some(zip) = trace_zip(&app, story, key, idx).await else {
+        return (StatusCode::NOT_FOUND, Json(serde_json::json!({"error": "no recording of this path"}))).into_response();
+    };
+    match tokio::task::spawn_blocking(move || trace::load(&zip)).await {
+        Ok(Ok(w)) => Json(serde_json::json!(w)).into_response(),
+        Ok(Err(e)) => (StatusCode::INTERNAL_SERVER_ERROR, Json(serde_json::json!({"error": e.to_string()}))).into_response(),
+        Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, Json(serde_json::json!({"error": e.to_string()}))).into_response(),
+    }
+}
+
+async fn api_review_frame(State(app): State<Arc<App>>, UrlPath((story, key, idx, name)): UrlPath<(u64, usize, usize, String)>) -> impl IntoResponse {
+    let Some(zip) = trace_zip(&app, story, key, idx).await else { return StatusCode::NOT_FOUND.into_response() };
+    match tokio::task::spawn_blocking(move || trace::frame(&zip, &name)).await {
+        Ok(Ok(bytes)) => ([(axum::http::header::CONTENT_TYPE, "image/jpeg"), (axum::http::header::CACHE_CONTROL, "max-age=86400")], bytes).into_response(),
+        _ => StatusCode::NOT_FOUND.into_response(),
+    }
+}
+
+/// A build's work on one story: the story's tasks with the status the harness recorded for this
+/// build, the commits that name each task, and all of the story's commits. The spec doesn't say
+/// which task implements which requirement, so this is the story's tasks, not a requirement's.
+async fn api_review_tasks(State(app): State<Arc<App>>, UrlPath((story, key)): UrlPath<(u64, usize)>) -> impl IntoResponse {
+    let Some(run) = app.review_builds.get(key) else {
+        return (StatusCode::NOT_FOUND, Json(serde_json::json!({"error": "no such build"}))).into_response();
+    };
+    let spec_tasks = app.stories.iter().find(|s| s.id == story).map(|s| s.tasks.clone()).unwrap_or_default();
+    let metrics: serde_json::Value = std::fs::read_to_string(run.path.join("metrics.json")).ok().and_then(|t| serde_json::from_str(&t).ok()).unwrap_or_default();
+    let status = runs::task_status(&metrics, story);
+    let base = std::fs::read_to_string(run.path.join(format!("stories/{story:02}/base-commit"))).unwrap_or_default().trim().to_string();
+    let head = run.story_commits.get(&story).cloned().unwrap_or_default();
+    // The review build's checkout holds the whole history up to (at least) this story.
+    let checkout = app.cache.join("checkouts").join(story_slug(run, review_build(&app, story)));
+    let mut commits: Vec<(String, String)> = Vec::new();
+    if !head.is_empty() && checkout.join(".git").is_dir() {
+        let range = if base.is_empty() { head.clone() } else { format!("{base}..{head}") };
+        let out = tokio::process::Command::new("git").arg("-C").arg(&checkout)
+            .args(["log", "--reverse", "--format=%h%x09%s", &range]).output().await;
+        if let Ok(o) = out {
+            commits = String::from_utf8_lossy(&o.stdout).lines().filter_map(|l| l.split_once('\t')).map(|(h, s)| (h.to_string(), s.to_string())).collect();
+        }
+    }
+    let tasks: Vec<serde_json::Value> = spec_tasks
+        .iter()
+        .map(|t| {
+            let named: Vec<&str> = commits.iter().filter(|(_, s)| runs::tasks_named(s).contains(&t.n)).map(|(_, s)| s.as_str()).collect();
+            serde_json::json!({"n": t.n, "title": t.title, "kind": t.kind, "implements": t.implements,
+                               "status": status.get(&t.n).cloned().unwrap_or_default(), "commits": named})
+        })
+        .collect();
+    let commits: Vec<serde_json::Value> = commits.iter().map(|(h, s)| serde_json::json!({"hash": h, "subject": s})).collect();
+    Json(serde_json::json!({"tasks": tasks, "commits": commits, "status_recorded": !status.is_empty()})).into_response()
+}
+
 /// One build's recorded walkthroughs of a story: each path (held-out test) with its result and links.
 async fn api_review_paths(State(app): State<Arc<App>>, UrlPath((story, key)): UrlPath<(u64, usize)>) -> impl IntoResponse {
     let Some(run) = app.review_builds.get(key) else {
         return (StatusCode::NOT_FOUND, Json(serde_json::json!({"error": "no such build"}))).into_response();
     };
     let state = app.rec.lock().await.get(&rec_key(run, story)).cloned().unwrap_or_else(|| "not recorded".into());
-    // Only a finished, valid recording is shown; a queued or failed one may hold a stale bad attempt.
-    let paths = if state == "done" { record::paths(&rec_dir(&app, run, story), &app.recordings) } else { Vec::new() };
+    let paths = recorded_paths(&app, run, story).await;
     Json(serde_json::json!({"state": state, "paths": paths})).into_response()
 }
 
@@ -556,6 +629,7 @@ async fn main() -> anyhow::Result<()> {
         .route("/api/open/{slug}", post(api_open))
         .route("/api/stop/{slug}", post(api_stop))
         .route("/review", get(review_page))
+        .route("/review/player.js", get(player_js))
         .route("/api/review/state", get(api_review_state))
         .route("/api/review/status/{story}", get(api_review_status))
         .route("/api/review/story/{story}", post(api_review_story))
@@ -563,6 +637,9 @@ async fn main() -> anyhow::Result<()> {
         .route("/api/review/set", post(api_review_set))
         .route("/api/review/reveal/{story}", get(api_review_reveal))
         .route("/api/review/paths/{story}/{key}", get(api_review_paths))
+        .route("/api/review/walkthrough/{story}/{key}/{idx}", get(api_review_walkthrough))
+        .route("/api/review/frame/{story}/{key}/{idx}/{name}", get(api_review_frame))
+        .route("/api/review/tasks/{story}/{key}", get(api_review_tasks))
         .route("/recordings/{*path}", get(recordings_file))
         .route("/trace/{*path}", get(trace_viewer))
         .with_state(app.clone());
