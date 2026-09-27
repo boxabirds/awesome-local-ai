@@ -1,3 +1,39 @@
+commit 5043361da211ce3bd1985fad9c28db47a4244796
+vidi-agent  Sun Sep 27 15:40:29 2026 +0100
+
+    story 7: Select, move, resize and delete several objects at once
+
+
+ NOTES.md                                    |  67 +++++
+ src/client/board/Marquee.tsx                |  93 +++++++
+ src/client/board/SelectionBar.tsx           |  59 ++++
+ src/client/board/SelectionOverlay.tsx       | 100 +++++++
+ src/client/board/useBoardDoc.ts             |  15 +-
+ src/client/board/useBoardKeys.ts            |  98 +++++++
+ src/client/board/useSelection.ts            | 136 +++++++---
+ src/client/board/useTransformGesture.ts     | 315 ++++++++++++++++++++++
+ src/client/canvas/BoardViewport.tsx         |  59 +++-
+ src/client/canvas/testHooks.ts              |   8 +-
+ src/client/objects/StickyNote.tsx           | 238 +++--------------
+ src/client/objects/registry.tsx             |  92 +++++++
+ src/client/pages/BoardPage.tsx              | 213 +++++++++------
+ src/client/styles.css                       |  71 +++++
+ src/shared/board-model.ts                   | 316 ++++++++++++++++++----
+ src/shared/config.ts                        |  13 +
+ src/shared/geometry.ts                      | 165 ++++++++++++
+ tests/component/StickyNote.test.tsx         | 139 +++++++---
+ tests/component/marquee.test.tsx            | 103 +++++++
+ tests/component/selection.test.tsx          | 213 +++++++++++++++
+ tests/component/story7-helpers.tsx          | 101 +++++++
+ tests/component/transform.test.tsx          | 141 ++++++++++
+ tests/e2e/select-move-resize-delete.spec.ts | 400 ++++++++++++++++++++++++++++
+ tests/fixtures/boards.ts                    |  10 +-
+ tests/fixtures/testbox.tsx                  |  67 +++++
+ tests/unit/board-model-group.test.ts        | 261 ++++++++++++++++++
+ tests/unit/geometry.test.ts                 | 128 +++++++++
+ tests/unit/registry.test.ts                 |  51 ++++
+ tests/unit/selection.test.ts                |  91 +++++++
+ 29 files changed, 3341 insertions(+), 422 deletions(-)
 commit 005354bd01fc169b5f8378a0562ec0dc3c6f9ec8
 vidi-agent  Sun Sep 27 14:24:29 2026 +0100
 
