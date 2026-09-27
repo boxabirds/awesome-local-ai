@@ -16,6 +16,7 @@ import json
 import os
 import re
 import subprocess
+import sys
 import time
 from pathlib import Path
 
@@ -150,6 +151,10 @@ def _walk(suite: dict):
 
 # Every harness fault starts with this: the machine lacks something, and no run on it can score.
 MISSING_RESOURCES = "missing resources:"
+# The suite runner was stopped from outside (a signal, or the harness's own timeout) before it wrote
+# a report: the score would be 0 of 0, which says nothing about the app.
+SCORING_INTERRUPTED = "scoring interrupted:"
+ACCEPT_ATTEMPTS = 2
 # Output that means there is no browser to test with, whatever the app does.
 BROWSER_MISSING_SIGNS = (
     "Executable doesn't exist",               # Playwright, launching a browser it has not downloaded
@@ -183,6 +188,18 @@ def missing_chromium(output: str) -> str | None:
 def missing_browser(output: str) -> str | None:
     """The sign, in a test run's output, that it had no browser; None if it had one."""
     return next((sig for sig in BROWSER_MISSING_SIGNS if sig in (output or "")), None)
+
+
+def interrupted(run: dict, report: Path) -> str | None:
+    """Why the suite runner produced no score, if something outside the app stopped it."""
+    if report.exists():
+        return None
+    code = run["exit"]
+    if code == "timeout":
+        return f"{SCORING_INTERRUPTED} the held-out suite timed out after {ACCEPT_TIMEOUT_S}s before writing a report"
+    if isinstance(code, int) and code < 0:
+        return f"{SCORING_INTERRUPTED} the held-out suite was killed by signal {-code} before writing a report"
+    return None
 
 
 def harness_fault(tests: list[dict], runner_tail: str = "") -> str | None:
@@ -228,7 +245,12 @@ def accept(ws: Path, processed: list, out: Path, acceptance: Path | None = ACCEP
            "ACCEPT_JSON": str(report), "ACCEPT_ARTIFACTS": str(out / "artifacts"),
            "SHOT_DIR": str(out / "screenshots")}
     files = [f"tests/story-{s:02d}.spec.ts" for s in done if (acceptance / f"tests/story-{s:02d}.spec.ts").exists()]
-    run = _run(["npx", "playwright", "test", *files], acceptance, ACCEPT_TIMEOUT_S, env)
+    for _ in range(ACCEPT_ATTEMPTS):
+        run = _run(["npx", "playwright", "test", *files], acceptance, ACCEPT_TIMEOUT_S, env)
+        stopped = interrupted(run, report) if files else None
+        if not stopped:
+            break
+        print(f"  {stopped}", file=sys.stderr, flush=True)
     tests = []
     if report.exists():
         doc = json.loads(report.read_text())
@@ -255,7 +277,7 @@ def accept(ws: Path, processed: list, out: Path, acceptance: Path | None = ACCEP
         "on_partial": {"passed": sum(t["status"] == "passed" for t in applicable if t.get("on_partial") is not None),
                        "total": sum(t.get("on_partial") is not None for t in applicable)},
         "by_story": by_story,
-        "harness_fault": harness_fault(tests, run["tail"]),
+        "harness_fault": stopped or harness_fault(tests, run["tail"]),
         "tests": tests,
     }
 
