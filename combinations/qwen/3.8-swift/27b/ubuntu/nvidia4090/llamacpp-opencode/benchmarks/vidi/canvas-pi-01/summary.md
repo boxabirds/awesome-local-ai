@@ -12,8 +12,9 @@ Model `qwen3.8-swift-27b`, scope `canvas`, effort `low`, client pi 0.86.0, host 
 | 7 | Select, move, resize and delete several objects at once | DONE | 70.6 | None | None | None | — | — | green | 41/44 |  | 0 / 0 | 3 | — | throttled 0%, server peak 26 GB |
 | 8 | Undo and redo my own changes without undoing anyone else's | DONE | 53.7 | None | None | None | — | — | green | 48/51 |  | 0 / 0 | 2 | — | throttled 0%, server peak 26 GB |
 | 9 | Write free text anywhere on the board | DONE | 60.1 | None | None | None | — | — | green | 53/57 |  | 0 / 0 | 3 | — | throttled 0%, server peak 26 GB |
+| 10 | Draw shapes and connect them with arrows that follow when moved | DONE | 99.5 | None | None | None | — | — | red | 60/65 |  | 0 / 0 | 4 | — | throttled 0%, server peak 26 GB |
 
-**Totals:** 8 stories, 525 agent-minutes, 0 requests, 0 prompt / 0 completion tokens, gate green 7/8, final acceptance 53/57, stalled 0, partial 0, 16834 lines in src+tests.
+**Totals:** 9 stories, 624 agent-minutes, 0 requests, 0 prompt / 0 completion tokens, gate green 7/9, final acceptance 60/65, stalled 0, partial 0, 20486 lines in src+tests.
 
 ## How it happened
 
@@ -29,11 +30,14 @@ Each story's commits, and which story broke or fixed an earlier story's held-out
 | 7 | 1 by the agent | 3341 / 422 | `board-model.ts` (316), `useTransformGesture.ts` (315), `StickyNote.tsx` (238), `BoardPage.tsx` (213), `geometry.ts` (165), `useSelection.ts` (136), +11 more |
 | 8 | 1 by the agent | 1711 / 16 | `undo.ts` (92), `NOTES.md` (74), `UndoButtons.tsx` (50), `useUndo.ts` (45), `StickyTextEditor.tsx` (38), `BoardPage.tsx` (36), +8 more |
 | 9 | 9 by the agent | 2440 / 319 | `text.ts` (253), `TextEditor.tsx` (220), `StickyTextEditor.tsx` (195), `textLayout.ts` (162), `TextObject.tsx` (133), `text-edit.ts` (79), +15 more |
+| 10 | 9 by the agent | 3872 / 220 | `ConnectorObject.tsx` (260), `ConnectorTool.tsx` (238), `Toolbar.tsx` (231), `shape.ts` (222), `connector.ts` (205), `connector-geometry.ts` (178), +13 more |
 
 ### Earlier stories broken or fixed
 
 - **Story 3 broke 0, fixed 2** earlier held-out tests (story 3: See other people's edits appear live on the same board). Source files it changed most: `board-room.ts` (162), `connectBoard.ts` (144), `NOTES.md` (80), `protocol.ts` (61), `App.tsx` (58), `index.ts` (42), +15 more.
   - story 2: 8/10 → 10/10; fixed 2
+- **Story 10 broke 1, fixed 0** earlier held-out tests (story 10: Draw shapes and connect them with arrows that follow when moved; story 10: component tests for shape/connector tools, objects and active tool (task 14); story 10: connector tool with hover dots, connector object with arrowhead and re-attach handles (task 13); story 10: shape tool, shape object with centred label, shape toolbar (task 12); story 10 task 11: useActiveTool hook and toolbar buttons with shortcuts 1-6; story 10 task 10: implement connector model, geometry, and detach-on-delete; story 10 task 9: connector model and geometry unit tests first (TC-07..TC-14, TC-29); story 10 task 8: implement shape model (create by drag/click/Shift, style validation, label Y.Text); story 10 task 7: shape model unit tests first (TC-01..TC-06) + SHAPE_* settings and stubs). Source files it changed most: `ConnectorObject.tsx` (260), `ConnectorTool.tsx` (238), `Toolbar.tsx` (231), `shape.ts` (222), `connector.ts` (205), `connector-geometry.ts` (178), +13 more.
+  - story 2: 10/10 → 9/10; broke 1.
 
 ### Interruptions and dead time
 
