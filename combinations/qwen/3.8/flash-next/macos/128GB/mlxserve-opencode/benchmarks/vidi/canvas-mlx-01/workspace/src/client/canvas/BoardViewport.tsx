@@ -5,8 +5,9 @@ import {
   useState,
   type JSX,
   type ReactNode,
+  type MouseEvent as ReactMouseEvent,
 } from 'react';
-import { GRID_SPACING_WORLD } from '../../shared/config.js';
+import { DRAG_THRESHOLD_PX, GRID_SPACING_WORLD } from '../../shared/config.js';
 import type { Size } from './camera.js';
 import type { CameraApi } from './useCamera.js';
 import { useViewportSize } from './useCamera.js';
@@ -29,6 +30,10 @@ export interface BoardViewportProps {
   size?: Size;
   /** Reports the measured board area size whenever it changes (window resizes). */
   onViewportSize?(size: Size): void;
+  /** A double-click landed on empty board space, at a viewport-relative screen point. */
+  onCreateAtPoint?(screenPoint: { x: number; y: number }): void;
+  /** A press-and-release on empty board space that never dragged (clears the selection). */
+  onClearSelection?(): void;
 }
 
 /** Convert a wheel delta of any `deltaMode` into CSS pixels. */
@@ -66,6 +71,8 @@ export function BoardViewport(props: BoardViewportProps): JSX.Element {
   const frameRef = useRef(0);
   const queuedMove = useRef<{ x: number; y: number } | null>(null);
   const camera = api.camera;
+  const downPointRef = useRef<{ x: number; y: number } | null>(null);
+  const movedRef = useRef(false);
 
   const onViewportSize = props.onViewportSize;
   useEffect(() => {
@@ -127,6 +134,8 @@ export function BoardViewport(props: BoardViewportProps): JSX.Element {
       if (event.pointerType === 'mouse' && event.button !== 0) return;
       if (!isBoardSurface(event.target)) return;
       panningRef.current = true;
+      movedRef.current = false;
+      downPointRef.current = pointOf(event.clientX, event.clientY);
       setPanning(true);
       el.setPointerCapture?.(event.pointerId);
       api.beginPan(pointOf(event.clientX, event.clientY));
@@ -134,7 +143,12 @@ export function BoardViewport(props: BoardViewportProps): JSX.Element {
 
     const onPointerMove = (event: PointerEvent): void => {
       if (!panningRef.current) return;
-      queueMove(pointOf(event.clientX, event.clientY));
+      const point = pointOf(event.clientX, event.clientY);
+      const down = downPointRef.current;
+      if (down && Math.hypot(point.x - down.x, point.y - down.y) >= DRAG_THRESHOLD_PX) {
+        movedRef.current = true;
+      }
+      queueMove(point);
     };
 
     const onWheel = (event: WheelEvent): void => {
@@ -201,9 +215,18 @@ export function BoardViewport(props: BoardViewportProps): JSX.Element {
     el.addEventListener('gesturestart', onGestureStart as EventListener);
     el.addEventListener('gesturechange', onGestureChange as EventListener);
     el.addEventListener('gestureend', onGestureEnd as EventListener);
+    // A press-and-release on empty board space that never moved clears the selection.
+    const onPointerUp = (event: PointerEvent): void => {
+      const wasPanning = panningRef.current;
+      stopPan();
+      if (wasPanning && !movedRef.current) props.onClearSelection?.();
+      // Release the pointer capture React's synthetic pointerup may have left behind.
+      if (el.hasPointerCapture?.(event.pointerId)) el.releasePointerCapture?.(event.pointerId);
+    };
+
     el.addEventListener('pointerdown', onPointerDown);
     el.addEventListener('pointermove', onPointerMove);
-    el.addEventListener('pointerup', stopPan);
+    el.addEventListener('pointerup', onPointerUp);
     el.addEventListener('pointercancel', stopPan);
     el.addEventListener('lostpointercapture', stopPan);
     window.addEventListener('keydown', onKeyDown);
@@ -215,7 +238,7 @@ export function BoardViewport(props: BoardViewportProps): JSX.Element {
       el.removeEventListener('gestureend', onGestureEnd as EventListener);
       el.removeEventListener('pointerdown', onPointerDown);
       el.removeEventListener('pointermove', onPointerMove);
-      el.removeEventListener('pointerup', stopPan);
+      el.removeEventListener('pointerup', onPointerUp);
       el.removeEventListener('pointercancel', stopPan);
       el.removeEventListener('lostpointercapture', stopPan);
       window.removeEventListener('keydown', onKeyDown);
@@ -224,7 +247,7 @@ export function BoardViewport(props: BoardViewportProps): JSX.Element {
         frameRef.current = 0;
       }
     };
-  }, [api, queueMove, stopPan]);
+  }, [api, queueMove, stopPan, props]);
 
   // Dot grid: a repeating radial gradient on a full-viewport layer in screen space.
   // Its tile size and offset follow the camera, so the dots stay welded to the board.
@@ -236,6 +259,16 @@ export function BoardViewport(props: BoardViewportProps): JSX.Element {
   const offsetX = mod(-camera.x * camera.zoom, spacingPx);
   const offsetY = mod(-camera.y * camera.zoom, spacingPx);
 
+  const onDoubleClick = (event: ReactMouseEvent<HTMLDivElement>): void => {
+    // Only empty board space (or the grid) creates a note; a note stops propagation.
+    const target = event.target;
+    const onEmpty =
+      target === elementRef.current ||
+      (target instanceof Element && target.classList.contains('vidi-grid'));
+    if (!onEmpty) return;
+    props.onCreateAtPoint?.({ x: event.clientX, y: event.clientY });
+  };
+
   return (
     <div
       ref={elementRef}
@@ -244,6 +277,7 @@ export function BoardViewport(props: BoardViewportProps): JSX.Element {
       data-panning={panning ? 'true' : 'false'}
       role="application"
       aria-label="Board"
+      onDoubleClick={onDoubleClick}
     >
       <div
         className="vidi-grid"

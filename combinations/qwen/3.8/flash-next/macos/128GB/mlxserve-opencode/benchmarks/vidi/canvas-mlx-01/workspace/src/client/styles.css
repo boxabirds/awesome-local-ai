@@ -147,3 +147,182 @@ body {
   white-space: nowrap;
   pointer-events: none;
 }
+
+/* --------------------------------------------------------------- left toolbar */
+
+.vidi-toolbar {
+  position: fixed;
+  left: 16px;
+  top: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 6px;
+  background: #ffffff;
+  border: 1px solid var(--vidi-border);
+  border-radius: 10px;
+  box-shadow: 0 2px 8px rgb(15 23 42 / 12%);
+  z-index: 20;
+}
+
+.vidi-toolbar-button {
+  width: 34px;
+  height: 34px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: #f2f4f8;
+  color: var(--vidi-text);
+  cursor: pointer;
+}
+
+.vidi-toolbar-button:hover {
+  background: #e6eaf2;
+}
+
+.vidi-toolbar-button:focus-visible {
+  outline: 2px solid var(--vidi-accent);
+  outline-offset: 1px;
+}
+
+/* --------------------------------------------------------------- sticky notes */
+
+.vidi-note {
+  position: absolute;
+  box-sizing: border-box;
+  border-radius: 4px;
+  box-shadow: 0 4px 12px rgb(15 23 42 / 18%);
+  cursor: grab;
+  outline: none;
+  will-change: transform;
+}
+
+.vidi-note[data-dragging='true'] {
+  cursor: grabbing;
+}
+
+.vidi-note[data-selected='true'] {
+  outline: 2px solid var(--vidi-accent);
+  outline-offset: 1px;
+}
+
+.vidi-note:focus-visible {
+  outline: 2px solid var(--vidi-accent);
+}
+
+/* The measured text box: inset by the padding so scrollHeight maps straight to the
+   content box, flex-centred in both axes; the bottom fade marks clipped overflow. */
+.vidi-note-text {
+  position: absolute;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-content: center;
+  overflow: hidden;
+  white-space: pre-wrap;
+  word-break: break-word;
+  text-align: center;
+  color: var(--vidi-text);
+  line-height: 1.25;
+  pointer-events: none;
+}
+
+.vidi-note-text.vidi-note-overflow::after {
+  content: '';
+  position: absolute;
+  inset: auto 0 0 0;
+  height: 28px;
+  background: linear-gradient(to bottom, rgb(255 255 255 / 0%), rgb(255 255 255 / 85%));
+  pointer-events: none;
+}
+
+/* The editing textarea sits over the display text: transparent glyphs, live caret. */
+.vidi-note-editor {
+  position: absolute;
+  box-sizing: border-box;
+  margin: 0;
+  border: none;
+  resize: none;
+  background: transparent;
+  color: transparent;
+  caret-color: var(--vidi-text);
+  outline: none;
+  overflow: hidden;
+  white-space: pre-wrap;
+  word-break: break-word;
+  text-align: center;
+  font-family: inherit;
+  line-height: 1.25;
+  z-index: 1;
+}
+
+.vidi-note-counter {
+  position: absolute;
+  right: 6px;
+  bottom: 4px;
+  font-size: 10px;
+  color: rgb(31 36 48 / 60%);
+  font-variant-numeric: tabular-nums;
+  pointer-events: none;
+}
+
+/* --------------------------------------------------------------- note toolbar */
+
+.vidi-note-toolbar-layer {
+  position: absolute;
+  left: 0;
+  top: 0;
+  transform-origin: bottom left;
+  z-index: 30;
+}
+
+.vidi-note-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px;
+  background: #ffffff;
+  border: 1px solid var(--vidi-border);
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgb(15 23 42 / 14%);
+  white-space: nowrap;
+}
+
+.vidi-swatch {
+  width: 18px;
+  height: 18px;
+  border: 1px solid rgb(31 36 48 / 25%);
+  border-radius: 50%;
+  padding: 0;
+  cursor: pointer;
+}
+
+.vidi-swatch[aria-pressed='true'] {
+  outline: 2px solid var(--vidi-accent);
+  outline-offset: 1px;
+}
+
+.vidi-swatch:focus-visible {
+  outline: 2px solid var(--vidi-accent);
+  outline-offset: 1px;
+}
+
+.vidi-note-delete {
+  width: 22px;
+  height: 22px;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: #f2f4f8;
+  color: var(--vidi-text);
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.vidi-note-delete:hover {
+  background: #fbe3e6;
+  color: #b3202e;
+}

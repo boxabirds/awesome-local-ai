@@ -1,5 +1,10 @@
 import { expect, type Page } from '@playwright/test';
-import { GRID_SPACING_WORLD } from '../../../src/shared/config';
+import {
+  GRID_SPACING_WORLD,
+  STICKY_SIZE_WORLD,
+  STICKY_FONT_MAX_PX,
+  STICKY_FONT_MIN_PX,
+} from '../../../src/shared/config';
 
 /** The camera, as the running client holds it. */
 export interface Camera {
@@ -199,4 +204,120 @@ export function pageZoomSignals(page: Page): Promise<{ visualViewportScale: numb
 /** A number that stands a million pixels away from the start point. */
 export const FAR = 1_000_000;
 
-export { GRID_SPACING_WORLD, expect };
+// --- sticky note helpers -------------------------------------------------------
+
+/** The state of one note, read live out of the Y.Doc in the running client. */
+export interface NoteState {
+  x: number;
+  y: number;
+  color: string;
+  z: number;
+  text: string;
+}
+
+const inPage = <T>(page: Page, src: string, arg?: unknown): Promise<T> =>
+  page.evaluate(
+    ({ src, value }) =>
+      // eslint-disable-next-line no-new-func
+      new Function('hooks', 'arg', src)(
+        (window as unknown as { __vidi6: unknown }).__vidi6,
+        value,
+      ) as T,
+    { src, value: arg },
+  );
+
+/** Ids of every object currently in the document. */
+export function noteIds(page: Page): Promise<string[]> {
+  return inPage<string[]>(
+    page,
+    'return Array.from(hooks.getDoc().getMap("objects").keys())',
+  );
+}
+
+/** Read a note live from the document (null when it is gone). */
+export function readNote(page: Page, id: string): Promise<NoteState | null> {
+  return inPage<NoteState | null>(
+    page,
+    `const m = hooks.getDoc().getMap('objects').get(arg);
+     if (!m || m.get('type') !== 'sticky') return null;
+     return { x: m.get('x'), y: m.get('y'), color: m.get('color'), z: m.get('z'), text: m.get('text').toString() };`,
+    id,
+  );
+}
+
+/** The screen box of a note (or the single note) as the browser painted it. */
+export async function noteBox(
+  page: Page,
+  id?: string,
+): Promise<{ x: number; y: number; width: number; height: number; cx: number; cy: number }> {
+  const sel = id ? `[data-note-id="${id}"]` : '[data-note-id]';
+  const box = await page.locator(sel).first().boundingBox();
+  if (!box) throw new Error(`note ${sel} is not painted`);
+  return { ...box, cx: box.x + box.width / 2, cy: box.y + box.height / 2 };
+}
+
+/** The world-space centre of a note as the camera would paint it. */
+export function noteWorldCentre(state: NoteState): Point {
+  return { x: state.x + STICKY_SIZE_WORLD / 2, y: state.y + STICKY_SIZE_WORLD / 2 };
+}
+
+/** Double-click empty board space at a screen point (creates + opens for editing). */
+export async function dblClickBoardAt(page: Page, p: Point): Promise<void> {
+  await page.mouse.dblclick(p.x, p.y);
+  await page.waitForSelector('[data-testid="sticky-textarea"]');
+}
+
+/** Type into the focused editor, then press Escape so the note drops back to Selected. */
+export async function typeThenEscape(page: Page, text: string): Promise<void> {
+  await page.keyboard.type(text);
+  await page.keyboard.press('Escape');
+}
+
+/** Click a colour swatch inside a specific note's toolbar. */
+export async function clickSwatchIn(page: Page, id: string, color: string): Promise<void> {
+  await page.locator(`[data-note-id="${id}"] [data-testid="swatch-${color}"]`).click();
+}
+
+/** Grab the note and drag it by a screen-space delta, in steps, then release. */
+export async function dragNote(
+  page: Page,
+  from: Point,
+  delta: Point,
+  steps = 10,
+): Promise<void> {
+  await page.mouse.move(from.x, from.y);
+  await page.mouse.down();
+  for (let i = 1; i <= steps; i++) {
+    await page.mouse.move(
+      from.x + (delta.x * i) / steps,
+      from.y + (delta.y * i) / steps,
+    );
+  }
+  await page.mouse.up();
+}
+
+/** The Sticky note button in the left toolbar. */
+export const createStickyButton = (page: Page) => page.getByTestId('create-sticky');
+
+/** Paste a long value into the focused editor. `insertText` fires the same input
+ * event a real paste does, which the editor clamps to the limit. Cross-browser safe.
+ */
+export async function pasteIntoEditor(page: Page, text: string): Promise<void> {
+  await page.keyboard.insertText(text);
+}
+
+/** The computed font-size (px) of a note's text element. */
+export function noteFontSize(page: Page, id: string): Promise<number> {
+  return page
+    .locator(`[data-note-id="${id}"] .vidi-note-text`)
+    .evaluate((el) => parseFloat(getComputedStyle(el).fontSize));
+}
+
+/** Whether the note's text element currently carries the overflow fade class. */
+export function noteOverflow(page: Page, id: string): Promise<boolean> {
+  return page
+    .locator(`[data-note-id="${id}"] .vidi-note-text`)
+    .evaluate((el) => el.classList.contains('vidi-note-overflow'));
+}
+
+export { GRID_SPACING_WORLD, STICKY_SIZE_WORLD, STICKY_FONT_MAX_PX, STICKY_FONT_MIN_PX, expect };

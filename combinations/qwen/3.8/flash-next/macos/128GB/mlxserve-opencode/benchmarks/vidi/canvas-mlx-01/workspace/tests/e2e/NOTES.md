@@ -45,9 +45,9 @@ Last full run of every required script, in this order, on the machine above:
 ```
 npm run build           exit 0   and `grep -c __vidi6 dist/client/assets/*.js` -> 0
 npm run typecheck       exit 0
-npm run test:unit       exit 0   31 passed
-npm run test:component  exit 0   44 passed
-npm run test:e2e        exit 0   23 passed  (chromium 7, firefox 7, webkit 9)
+npm run test:unit       exit 0   65 passed
+npm run test:component  exit 0   62 passed
+npm run test:e2e        exit 0   41 passed  (chromium 13, firefox 13, webkit 15)
 ```
 
 ## Two configuration decisions that were forced by the environment
@@ -111,3 +111,41 @@ npm run test:e2e        exit 0   23 passed  (chromium 7, firefox 7, webkit 9)
 * **A Playwright `click()` on a disabled button waits for it to become enabled
   again**, i.e. forever at a zoom limit. Negative cases use `forceClick()`, which
   dispatches the click directly, and then assert the camera did not move.
+
+---
+
+# End-to-end notes — story 2 (sticky notes)
+
+Story 2 adds `tests/e2e/sticky-notes.spec.ts` (TC-30 double-click-create, TC-31 move
+at 50%, TC-32 move-at-200%-and-raise, TC-33 long-text fit and clip, TC-34 create while
+panned far away, plus a create→type→move→recolour→delete golden path). Per-browser
+counts in the block above fold these six into each project. Model state is read live
+out of the running client's `Y.Doc` through a new `window.__vidi6.getDoc()` test hook
+(`getSelection()` is exposed too), so TC-31/TC-32 assert exact world `x,y` and `z`
+numbers rather than inferring them from pixels.
+
+## What cannot be automated, and what is asserted instead
+
+| Real interaction | Problem | What the suite asserts instead |
+|---|---|---|
+| Font auto-fit across a real typeface | jsdom lays text out at a nominal single line, so `fitFontSize` cannot be trusted there. | The pure text helpers are unit-tested (`TC-13` diff, `TC-14`..`TC-16` clamp, `TC-17` counter in `sticky-text.test.ts`); the *real* font-fit result is asserted once in the browser (TC-33: computed `font-size` is `STICKY_FONT_MAX_PX` for one word, `STICKY_FONT_MIN_PX` for 1,000 chars, and the overflow fade class is present). |
+| "The grabbed point stays under the pointer" through a drag | Sub-pixel compositor rounding is not observable in headless. | TC-31 asserts the exact world delta (`screen delta / zoom`) from the model **and** that the painted note box translated by exactly the screen delta within 1 CSS px, which is the grab-under-pointer property measured on the node. |
+| Raising a note above an overlapped one | Stacking order is a paint property. | TC-32 reads `z` from the model after the drag and asserts the dragged note's `z` now exceeds the note it overlapped; the CSS `z-index` that paints it is set straight from `z`. |
+| A physical two-finger drag of a note | Same pinch/trackpad limitation as story 1. | Notes are moved with a synthetic `mouse.down`/`move`/`up` drag; the drag state machine itself is covered in the component project (TC-18..TC-22) where `pointercancel` is dispatched directly. |
+
+## Findings worth keeping
+
+* **Re-ordering the DOM under a captured pointer cancels the drag (found and fixed by
+  this suite).** Notes were painted sorted by `z`; `bringToFront` (fired on the first
+  move past `DRAG_THRESHOLD_PX`) re-sorted the list, React re-inserted the note's
+  element to reorder it, and Chromium fired `lostpointercapture` on the just-moved
+  node — which the note read as a real cancellation, so grabbing a note that sat
+  *under* another and dragging it up moved it a single step and stopped (`TC-32` failed
+  at `dx 5` instead of `50`, only when a second overlapping note existed). The fix keeps
+  the render order stable (creation order, `createdAt` then `id`) and paints stacking
+  with CSS `z-index` set from `z`, so raising a note only restyles the same node and
+  never re-inserts it. The drag now lands the full delta in all three browsers.
+* **`insertText` is the cross-browser way to drive a big paste.** TC-33 pastes
+  `PARAGRAPH_1000` with `keyboard.insertText`, which fires the same `input` event a real
+  paste does; the editor clamps it to `STICKY_TEXT_MAX_CHARS` through `clampToLimit`.
+

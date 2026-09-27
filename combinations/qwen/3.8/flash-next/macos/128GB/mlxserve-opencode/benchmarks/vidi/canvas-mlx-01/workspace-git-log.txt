@@ -1,3 +1,59 @@
+commit c5a8bde5c64aeffef03878b17af2b7f7821f5bba
+vidi-agent  Sun Sep 27 16:14:53 2026 +0100
+
+    story 2: Capture ideas on sticky notes and rearrange them
+
+
+ src/client/App.tsx                |  11 ++-
+ src/client/objects/StickyNote.tsx |   1 +
+ tests/e2e/NOTES.md                |  44 ++++++++-
+ tests/e2e/helpers/board.ts        | 125 +++++++++++++++++++++++++-
+ tests/e2e/sticky-notes.spec.ts    | 183 ++++++++++++++++++++++++++++++++++++++
+ 5 files changed, 357 insertions(+), 7 deletions(-)
+commit d1897aa193fccaf0358bc8aad7c9b8bd8233fadb
+vidi-agent  Sun Sep 27 15:50:25 2026 +0100
+
+    task 7: component tests for sticky note, editor, toolbars (TC-18..29, TC-35..38); expose doc/selection test hooks
+
+
+ src/client/App.tsx                        |   9 ++
+ src/client/canvas/testHooks.ts            |  35 +++++-
+ tests/component/StickyNote.test.tsx       | 185 ++++++++++++++++++++++++++++++
+ tests/component/StickyTextEditor.test.tsx | 101 ++++++++++++++++
+ tests/component/Toolbars.test.tsx         |  73 ++++++++++++
+ tests/component/stickyHarness.tsx         | 182 +++++++++++++++++++++++++++++
+ 6 files changed, 581 insertions(+), 4 deletions(-)
+commit ccb304a67e7c297e6880911db6ff26cc695b81a3
+vidi-agent  Sun Sep 27 15:35:56 2026 +0100
+
+    task 3-6: sticky text (diff/clamp/fit), sticky note interaction, toolbar and note toolbar, wired into App
+
+
+ src/client/App.tsx                      |  97 +++++++++++-
+ src/client/board/Toolbar.tsx            |  52 +++++++
+ src/client/board/useSelection.ts        |  40 +++++
+ src/client/canvas/BoardViewport.tsx     |  44 +++++-
+ src/client/objects/NoteToolbar.tsx      |  60 +++++++
+ src/client/objects/StickyNote.tsx       | 268 ++++++++++++++++++++++++++++++++
+ src/client/objects/StickyText.ts        | 124 +++++++++++++++
+ src/client/objects/StickyTextEditor.tsx | 149 ++++++++++++++++++
+ src/client/styles.css                   | 179 +++++++++++++++++++++
+ tests/fixtures/texts.ts                 |  38 +++++
+ tests/unit/sticky-text.test.ts          | 204 ++++++++++++++++++++++++
+ 11 files changed, 1244 insertions(+), 11 deletions(-)
+commit 8bfd14a0ac760dd77a84ce64c1432df57fc32f50
+vidi-agent  Sun Sep 27 15:20:39 2026 +0100
+
+    task 1-2: Yjs board model, config settings, unit tests and useBoardDoc snapshot hook
+
+
+ package-lock.json               |  51 ++++++-
+ package.json                    |   3 +-
+ src/client/board/useBoardDoc.ts |  72 ++++++++++
+ src/shared/board-model.ts       | 210 ++++++++++++++++++++++++++++
+ src/shared/config.ts            |  35 +++++
+ tests/unit/board-model.test.ts  | 295 ++++++++++++++++++++++++++++++++++++++++
+ 6 files changed, 664 insertions(+), 2 deletions(-)
 commit 5f8740677f1bfda762186ab78cbdc7b39754edc2
 vidi-agent  Sun Sep 27 15:15:27 2026 +0100
 
