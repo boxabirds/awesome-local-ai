@@ -58,10 +58,11 @@ requirements and its **must-nots**. Below, one row per finished build:
 - Keys: `j`/`k` next/previous path, space play/pause, `←`/`→` check, `a` agree, `d` disagree,
   `s` skip, `n` note (`Esc` to leave), `o` open the build, `[`/`]` story.
 
-**Blind by default.** Builds are "Build A", "Build B"…, shuffled each session, and their tabs carry
-a grey "Build C" banner instead of the setup's name. A story's names can be revealed once every path
-of every build has a verdict on it. `--labelled` shows names throughout. The main page (`/`) shows every name, so
-don't open it during a blind review.
+**Labelled by default.** Each build is named by its combination and run (e.g.
+`qwen/3.8/27b/ubuntu/nvidia4090/llamacpp-opencode · canvas-pi-03`), so the reviewer sees what they
+judge. `--blind` hides them instead: "Build A", "Build B"…, shuffled each session, tabs with a grey
+"Build C" banner, and a story's names revealed once every path of every build has a verdict. The main
+page (`/`) shows every name, so don't open it during a blind review.
 
 **Order and builds follow the user's journey.** A story is reviewed after the stories a user goes
 through to reach it, and on the build after the latest of those (its own build if it came after
