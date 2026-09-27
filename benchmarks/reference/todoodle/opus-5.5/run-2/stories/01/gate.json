@@ -1,0 +1,57 @@
+{
+  "steps": {
+    "install": {
+      "cmd": "bun install",
+      "exit": 0,
+      "seconds": 1.0,
+      "tail": "bun install v1.2.17 (282dda62)\n\nChecked 269 installs across 387 packages (no changes) [976.00ms]\n\n$ node scripts/ensure-workerd.mjs\n"
+    },
+    "build": {
+      "cmd": "bun run build",
+      "exit": 0,
+      "seconds": 0.7,
+      "tail": "\u001b[36mvite v7.3.6 \u001b[32mbuilding client environment for production...\u001b[36m\u001b[39m\ntransforming...\n\u001b[32m\u2713\u001b[39m 29 modules transformed.\nrendering chunks...\ncomputing gzip size...\n\u001b[2mdist/\u001b[22m\u001b[32mindex.html                 \u001b[39m\u001b[1m\u001b[2m  0.44 kB\u001b[22m\u001b[1m\u001b[22m\u001b[2m \u2502 gzip:  0.28 kB\u001b[22m\n\u001b[2mdist/\u001b[22m\u001b[2massets/\u001b[22m\u001b[35mindex-BZSVmaLy.css  \u001b[39m\u001b[1m\u001b[2m  5.63 kB\u001b[22m\u001b[1m\u001b[22m\u001b[2m \u2502 gzip:  1.91 kB\u001b[22m\n\u001b[2mdist/\u001b[22m\u001b[2massets/\u001b[22m\u001b[36mindex-BPTjAwUo.js   \u001b[39m\u001b[1m\u001b[2m222.93 kB\u001b[22m\u001b[1m\u001b[22m\u001b[2m \u2502 gzip: 69.54 kB\u001b[22m\n\u001b[32m\u2713 built in 438ms\u001b[39m\n$ vite build apps/web\n",
+      "passed": null,
+      "failed": null
+    },
+    "typecheck": {
+      "cmd": "bun run typecheck",
+      "exit": 0,
+      "seconds": 3.1,
+      "tail": "$ tsc -p apps/api && tsc -p apps/api/tsconfig.node.json && tsc -p apps/web && tsc -p packages/shared && tsc -p scripts\n",
+      "passed": null,
+      "failed": null
+    },
+    "lint": {
+      "exit": "missing"
+    },
+    "test:unit": {
+      "cmd": "bun run test:unit",
+      "exit": 0,
+      "seconds": 1.9,
+      "tail": "\n RUN  v4.1.11 ~/.vidi-bench/work/benchmarks__reference__todoodle__opus-5.5__run-2/workspace/apps/api\n\n\n Test Files  4 passed (4)\n      Tests  38 passed (38)\n   Start at  12:47:27\n   Duration  739ms (transform 264ms, setup 638ms, import 29ms, tests 56ms, environment 0ms)\n\n\n RUN  v4.1.11 ~/.vidi-bench/work/benchmarks__reference__todoodle__opus-5.5__run-2/workspace\n\n\n Test Files  5 passed (5)\n      Tests  42 passed (42)\n   Start at  12:47:28\n   Duration  159ms (transform 125ms, setup 0ms, import 184ms, tests 66ms, environment 0ms)\n\n$ vitest run --config apps/api/vitest.config.ts --passWithNoTests --project unit && vitest run --config scripts/vitest.config.ts --passWithNoTests --project unit\n",
+      "passed": 38,
+      "failed": 0
+    },
+    "test:component": {
+      "exit": "missing"
+    },
+    "test:integration": {
+      "cmd": "bun run test:integration",
+      "exit": 0,
+      "seconds": 7.4,
+      "tail": "\n RUN  v4.1.11 ~/.vidi-bench/work/benchmarks__reference__todoodle__opus-5.5__run-2/workspace/apps/api\n\n\n Test Files  6 passed (6)\n      Tests  26 passed (26)\n   Start at  12:47:29\n   Duration  996ms (transform 502ms, setup 1.25s, import 81ms, tests 133ms, environment 0ms)\n\n\n RUN  v4.1.11 ~/.vidi-bench/work/benchmarks__reference__todoodle__opus-5.5__run-2/workspace\n\n\n Test Files  2 passed (2)\n      Tests  14 passed (14)\n   Start at  12:47:30\n   Duration  5.43s (transform 82ms, setup 0ms, import 112ms, tests 5.30s, environment 0ms)\n\n$ vitest run --config apps/api/vitest.config.ts --passWithNoTests --project integration --project production-gate && vitest run --config scripts/vitest.config.ts --passWithNoTests --project integration\n",
+      "passed": 26,
+      "failed": 0
+    },
+    "test:e2e": {
+      "cmd": "bun run test:e2e --project=chromium",
+      "exit": 0,
+      "seconds": 3.6,
+      "tail": "\nRunning 3 tests using 2 workers\n\u00b7\u00b7\u00b7\n  3 passed (3.3s)\n$ playwright test \"--project=chromium\"\n[WebServer] $ vite build apps/web && concurrently -k -n web,api \"vite build apps/web --watch\" \"wrangler dev --ip 127.0.0.1 --port 8787\"\n",
+      "passed": 3,
+      "failed": 0
+    }
+  },
+  "all_green": true
+}

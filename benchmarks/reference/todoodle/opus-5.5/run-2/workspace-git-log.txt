@@ -1,0 +1,241 @@
+commit a75f1360deca1c9500564fc666d5909ecb47028f
+vidi-agent  Sun Sep 27 12:47:10 2026 +0100
+
+    story 1: See which version of Todoodle is live in each environment
+
+
+ NOTES.md | 7 +++++++
+ 1 file changed, 7 insertions(+)
+commit 205e37560781fc6179292bfb58c3080e596f4630
+vidi-agent  Sun Sep 27 12:47:00 2026 +0100
+
+    story 1 task 12: Integration tests: release pipeline end to end with fake wrangler, real git, fs and health server
+
+
+ scripts/test/fake-wrangler.sh     |  90 +++++++++++++++++++
+ scripts/test/pipeline.int.test.ts | 176 ++++++++++++++++++++++++++++++++++++++
+ scripts/test/record.int.test.ts   |  49 +++++++++++
+ scripts/test/release-fixture.ts   | 120 ++++++++++++++++++++++++++
+ 4 files changed, 435 insertions(+)
+commit 0ada154b30ec83dc85632505e0fe595de472a53c
+vidi-agent  Sun Sep 27 12:45:01 2026 +0100
+
+    story 1 task 11: Release command: bun deploy script orchestrating prechecks, scan, migrations, publish, verify, record
+
+
+ NOTES.md                   |   8 ++
+ scripts/deploy.ts          |  22 +++++
+ scripts/deploy/deps.ts     | 108 ++++++++++++++++++++
+ scripts/deploy/pipeline.ts | 238 +++++++++++++++++++++++++++++++++++++++++++++
+ 4 files changed, 376 insertions(+)
+commit f28c181c4b2c3d80874b5ee5c09f10d190e37df1
+vidi-agent  Sun Sep 27 12:43:02 2026 +0100
+
+    story 1 task 10: Unit tests: safety scan, idempotency, retry, health verification, CSV formatting
+
+
+ NOTES.md                            |   3 ++
+ apps/api/src/routes/health.ts       |  23 +-------
+ packages/shared/package.json        |   3 +-
+ packages/shared/src/health.ts       |  27 ++++++++++
+ scripts/test/fixtures/migrations.ts |  90 +++++++++++++++++++++++++++++++
+ scripts/test/idempotency.test.ts    |  57 ++++++++++++++++++++
+ scripts/test/retry.test.ts          |  69 ++++++++++++++++++++++++
+ scripts/test/safety-scan.test.ts    |  97 +++++++++++++++++++++++++++++++++
+ scripts/test/verify.test.ts         | 105 ++++++++++++++++++++++++++++++++++++
+ 9 files changed, 452 insertions(+), 22 deletions(-)
+commit 871386b9c48c5b1f07b56579235bb3087809d49a
+vidi-agent  Sun Sep 27 12:41:08 2026 +0100
+
+    story 1 task 9: Deploy building blocks: migration safety scan, idempotency check, retry, health verification and release record
+
+
+ NOTES.md                      |  8 ++++++
+ docs/ops/deployment-log.csv   |  1 +
+ scripts/deploy/constants.ts   | 39 +++++++++++++++++++++++++++
+ scripts/deploy/idempotency.ts | 20 ++++++++++++++
+ scripts/deploy/record.ts      | 63 +++++++++++++++++++++++++++++++++++++++++++
+ scripts/deploy/retry.ts       | 28 +++++++++++++++++++
+ scripts/deploy/safety-scan.ts | 40 +++++++++++++++++++++++++++
+ scripts/deploy/types.ts       | 20 ++++++++++++++
+ scripts/deploy/verify.ts      | 39 +++++++++++++++++++++++++++
+ 9 files changed, 258 insertions(+)
+commit 3f4e2dd0035131c4577060c0eea0f21af5e9c7a7
+vidi-agent  Sun Sep 27 12:40:00 2026 +0100
+
+    story 1 task 8: E2E: developer golden path and headers on a real document load
+
+
+ NOTES.md                |  3 +++
+ e2e/golden-path.spec.ts | 23 +++++++++++++++++++++++
+ e2e/headers.spec.ts     | 29 +++++++++++++++++++++++++++++
+ 3 files changed, 55 insertions(+)
+commit 0f90a59fb54ac68c0ee5ece350c9d19ed0bb1a94
+vidi-agent  Sun Sep 27 12:38:42 2026 +0100
+
+    story 1 task 7: Integration tests: Worker request handling, health, SPA fallback, test-route gating, storage isolation
+
+
+ apps/api/test/helpers.ts                      |  27 +++++++
+ apps/api/test/integration/health.test.ts      |  58 ++++++++++++++
+ apps/api/test/integration/isolation.test.ts   |  22 ++++++
+ apps/api/test/integration/pipeline.test.ts    | 107 ++++++++++++++++++++++++++
+ apps/api/test/integration/scaffold.test.ts    |  19 +++++
+ apps/api/test/integration/test-routes.test.ts |  52 +++++++++++++
+ apps/api/test/production/test-routes.test.ts  |  37 +++++++++
+ 7 files changed, 322 insertions(+)
+commit e40ae030f7bc9b673efee1a48c590e665e87a4d9
+vidi-agent  Sun Sep 27 12:37:46 2026 +0100
+
+    story 1 task 6: Unit tests: request validation, header finalization, health builder, test-env guard
+
+
+ NOTES.md                                    |   4 +
+ apps/api/src/middleware/validate.ts         |  21 ++-
+ apps/api/test/unit/harness.test.ts          |   6 -
+ apps/api/test/unit/health.test.ts           |  32 ++++
+ apps/api/test/unit/security-headers.test.ts |  74 +++++++++
+ apps/api/test/unit/test-guard.test.ts       |  24 +++
+ apps/api/test/unit/validate.test.ts         | 225 ++++++++++++++++++++++++++++
+ e2e/global-setup.unit.test.ts               |  21 +++
+ 8 files changed, 390 insertions(+), 17 deletions(-)
+commit e9bcb006f5edd268f4a71308ac50ec0b3ad700de
+vidi-agent  Sun Sep 27 12:36:35 2026 +0100
+
+    story 1 task 5: Test-only /test/* routes (reset, throw) gated off in production
+
+
+ apps/api/src/app.ts         |  2 ++
+ apps/api/src/routes/test.ts | 32 ++++++++++++++++++++++++++++++++
+ 2 files changed, 34 insertions(+)
+commit 6b88afc13505fcd0bcab3f5cf283914d8af2d536
+vidi-agent  Sun Sep 27 12:36:32 2026 +0100
+
+    story 1 task 4: Health endpoint on /health and /api/health with injected version metadata
+
+
+ apps/api/src/app.ts           |  4 ++++
+ apps/api/src/routes/health.ts | 30 ++++++++++++++++++++++++++++++
+ 2 files changed, 34 insertions(+)
+commit 25c4e3d604f22a47f608492993486b1dde319a90
+vidi-agent  Sun Sep 27 12:36:00 2026 +0100
+
+    story 1 task 3: Request pipeline: validation, request id, security headers, error handling, SPA fallthrough
+
+
+ apps/api/src/app.ts                         | 27 +++++++++-
+ apps/api/src/lib/errors.ts                  | 25 ++++++++++
+ apps/api/src/middleware/request-id.ts       | 15 ++++++
+ apps/api/src/middleware/security-headers.ts | 26 ++++++++++
+ apps/api/src/middleware/validate.ts         | 76 +++++++++++++++++++++++++++++
+ 5 files changed, 168 insertions(+), 1 deletion(-)
+commit ee3963a9f00b1393dc3c38fe2f193852ef5f0f97
+vidi-agent  Sun Sep 27 12:34:58 2026 +0100
+
+    story 1 task 2: Test harness: vitest-pool-workers, web vitest, Playwright, all guarded to local-only
+
+
+ NOTES.md                           | 10 ++++++++
+ apps/api/src/lib/test-guard.ts     |  9 +++++++
+ apps/api/test/env.d.ts             | 12 ++++++++++
+ apps/api/test/global-setup.ts      | 13 ++++++++++
+ apps/api/test/setup.ts             | 38 +++++++++++++++++++++++++++++
+ apps/api/test/unit/harness.test.ts |  6 +++++
+ apps/api/tsconfig.json             |  3 ++-
+ apps/api/tsconfig.node.json        |  7 ++++++
+ apps/api/vitest.config.ts          | 49 ++++++++++++++++++++++++++++++++++++++
+ apps/web/test/msw.ts               |  4 ++++
+ apps/web/test/setup.ts             | 12 ++++++++++
+ apps/web/vitest.config.ts          | 17 +++++++++++++
+ bun.lock                           | 31 +++++++++++++++++++++---
+ e2e/global-setup.ts                | 15 ++++++++++++
+ package.json                       | 11 +++++----
+ playwright.config.ts               | 20 ++++++++++++++++
+ scripts/tsconfig.json              |  7 ++++++
+ scripts/vitest.config.ts           | 32 +++++++++++++++++++++++++
+ wrangler.toml                      |  2 +-
+ 19 files changed, 288 insertions(+), 10 deletions(-)
+commit d87cf27696ecada09296e2cd5e595160c9b56b78
+vidi-agent  Sun Sep 27 12:32:22 2026 +0100
+
+    story 1 task 1: Scaffold bun monorepo, single Worker with static assets, and local dev loop
+
+
+ .gitignore                    |   9 +
+ NOTES.md                      |  18 +
+ README.md                     |  82 +++-
+ apps/api/package.json         |  14 +
+ apps/api/src/app.ts           |  12 +
+ apps/api/src/env.ts           |   8 +
+ apps/api/src/index.ts         |   8 +
+ apps/api/tsconfig.json        |   8 +
+ apps/web/components.json      |  21 ++
+ apps/web/index.html           |  13 +
+ apps/web/package.json         |  25 ++
+ apps/web/src/index.css        |  25 ++
+ apps/web/src/lib/utils.ts     |   6 +
+ apps/web/src/main.tsx         |  13 +
+ apps/web/src/routes/Home.tsx  |  11 +
+ apps/web/tsconfig.json        |  11 +
+ apps/web/vite.config.ts       |  15 +
+ bun.lock                      | 847 ++++++++++++++++++++++++++++++++++++++++++
+ bunfig.toml                   |   4 +
+ migrations/.gitkeep           |   0
+ package.json                  |  31 ++
+ packages/shared/package.json  |   8 +
+ packages/shared/src/limits.ts |  18 +
+ packages/shared/tsconfig.json |   4 +
+ scripts/ensure-workerd.mjs    |  23 ++
+ tsconfig.base.json            |  17 +
+ wrangler.toml                 |  56 +++
+ 27 files changed, 1305 insertions(+), 2 deletions(-)
+commit 8a297adcd22e1dc8864cd72516831524d926b5c3
+vidi-agent  Sun Sep 27 12:28:59 2026 +0100
+
+    harness: empty repository with spec
+
+
+ README.md                                          |    3 +
+ spec/README.md                                     |   21 +
+ spec/epics/platform.md                             |   11 +
+ spec/epics/tasks.md                                |   14 +
+ spec/epics/workspaces.md                           |   13 +
+ .../design.md                                      |  614 +++++++++++
+ .../prd.md                                         |  112 ++
+ .../story.md                                       |   11 +
+ .../tasks.md                                       |  129 +++
+ .../design.md                                      | 1044 +++++++++++++++++++
+ .../prd.md                                         |  143 +++
+ .../story.md                                       |   11 +
+ .../tasks.md                                       |  215 ++++
+ .../design.md                                      |  757 ++++++++++++++
+ .../prd.md                                         |  135 +++
+ .../story.md                                       |   11 +
+ .../tasks.md                                       |  251 +++++
+ .../design.md                                      |  882 ++++++++++++++++
+ .../prd.md                                         |   99 ++
+ .../story.md                                       |   11 +
+ .../tasks.md                                       |  265 +++++
+ .../design.md                                      |  955 +++++++++++++++++
+ .../prd.md                                         |  226 ++++
+ .../story.md                                       |   11 +
+ .../tasks.md                                       |  415 ++++++++
+ .../design.md                                      |  831 +++++++++++++++
+ .../prd.md                                         |  178 ++++
+ .../story.md                                       |   11 +
+ .../tasks.md                                       |  171 ++++
+ .../design.md                                      |  955 +++++++++++++++++
+ .../prd.md                                         |  175 ++++
+ .../story.md                                       |   11 +
+ .../tasks.md                                       |  254 +++++
+ .../design.md                                      | 1078 ++++++++++++++++++++
+ .../prd.md                                         |  183 ++++
+ .../story.md                                       |   11 +
+ .../tasks.md                                       |  303 ++++++
+ .../prd.md                                         |  136 +++
+ .../story.md                                       |   11 +
+ .../prd.md                                         |  147 +++
+ .../story.md                                       |   11 +
+ .../prd.md                                         |  234 +++++
+ .../story.md                                       |   11 +
+ 43 files changed, 11070 insertions(+)
