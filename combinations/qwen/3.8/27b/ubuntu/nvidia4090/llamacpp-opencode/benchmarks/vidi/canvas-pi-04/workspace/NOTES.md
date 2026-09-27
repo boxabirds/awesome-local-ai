@@ -569,3 +569,129 @@ Decisions and deviations from the design spec, as required by the task brief.
 - integration: 49 (unchanged).
 - e2e: 58 passed + 8 skipped (TC-26/28/30/31 chromium-only) across all three
   browsers — adds story7 TC-32…TC-36.
+
+---
+
+# NOTES — Story 8: Undo and redo my own changes without undoing anyone else's
+
+Decisions and deviations from the design spec, as required by the task brief.
+
+## Scope note (story 3 gap check)
+
+The design's "story 3 gap" to fill was: *a peer's delete of a note that this
+client's undo history still references must not resurrect the note and must
+not throw.* No new model code was needed — Yjs' `UndoManager` already does
+this correctly, and the controller relies on it:
+
+- A step whose target content has been removed by a *peer* (arriving with the
+  sync provider's origin, i.e. **not** a tracked origin) becomes a **dead
+  step**: applying its inverse is a no-op, so the note is not resurrected.
+- `um.undo()` returning `null` (nothing to undo) is handled as `false`; the
+  UI treats it as a no-op. No exception path is added, and none is needed.
+
+This is verified by unit `TC-11` (peer delete of an undoable note → undo is a
+silent no-op, note stays gone) and e2e `TC-23` (two live participants; the
+undoing client never resurrects the peer-deleted note, and its console is
+clean).
+
+## Decisions worth recording
+
+1. **`UndoManager` is the per-client undo engine; the controller is a thin
+   facade.** `createUndo(doc)` (in `src/client/board/undo.ts`) constructs one
+   `Y.UndoManager` over the `objects` map with
+   `trackedOrigins = { LOCAL_ORIGIN }`. That single filter *is* the whole
+   "never undo anyone else's changes" guarantee: a colleague's edits arrive
+   under the sync provider's origin (story 3), so they are never captured into
+   this client's stack, and this client's undo/redo never touches them
+   (`undo.own`). Undo/redo transactions carry the UndoManager's own origin,
+   which Yjs adds to the tracked set, so each undo's inverse lands on the redo
+   stack instead of being re-captured as a new "undo-of-the-undo" step.
+
+2. **History is memory-only and session-scoped (`undo.session_only`).** The
+   controller is created per board doc inside a `useEffect` in `App.tsx` and
+   destroyed on cleanup. A reload / board switch / room restart yields a fresh,
+   empty history — nothing is persisted. Because `StrictMode` double-invokes
+   effects, the controller is created in the effect (not `useMemo`) so the
+   mount→cleanup→mount cycle destroys and rebuilds it cleanly rather than
+   leaking a second manager onto the same doc.
+
+3. **Step structure = capture timeout + explicit boundaries.** Local changes
+   within `UNDO_CAPTURE_TIMEOUT_MS` (500) of each other merge into one step (a
+   typing burst is one step). Discrete actions call `boundary()`
+   (`um.stopCapturing()`) before/after them: a transform gesture (start and
+   end), a multi-delete, a colour change, an arrow nudge, and the text editor
+   (on open and on end). A whole multi-object delete is a single transaction,
+   hence one step (`undo.steps`).
+
+4. **Step cap of 200 per stack (`UNDO_MAX_STEPS`).** On `stack-item-added`
+   with `type === 'undo'`, the controller shifts the oldest undo items until
+   the stack is back at the limit (`undo.limit`). Redo is bounded by
+   construction (redo pops a redo item and pushes a matching undo item), so it
+   never needs its own trim.
+
+5. **The editor owns its own undo key (`undo.typing`).** Inside the sticky's
+   `textarea`, Ctrl/Cmd+Z and Ctrl/Cmd+Shift+Z are intercepted in
+   `StickyTextEditor`'s `onKeyDown` and routed to the controller; the browser's
+   native textarea undo is suppressed (it would desynchronise the textarea from
+   the `Y.Text`). The board-level `useBoardKeys` ignores keydowns whose target
+   is a text input, so the two never fight.
+
+6. **Component tests seed with a non-local origin.** The mocked `connectBoard`
+   in `UndoBoundaries.test.tsx` lays the initial notes in under a dedicated
+   test origin (not `LOCAL_ORIGIN`), mirroring how the real y-websocket
+   provider delivers remote state. This keeps the seeded initial board out of
+   the undo history, so "the whole drag was exactly one step" and the
+   button-disabled assertions are exact.
+
+## Gotchas found while making the tests pass
+
+- **`vi.useFakeTimers()` cannot drive Yjs' capture window.** `lib0/time.js`
+  does `export const getUnixTime = Date.now`, capturing the *function
+  reference* at import time; vitest's fake timers replace `Date.now` on the
+  global *after* that, so Yjs still reads the real clock. To test the
+  500 ms merge boundary deterministically (`TC-12`, `TC-13`), the unit project
+  mocks `lib0/time` with a virtual clock **and** inlines `yjs` + `lib0` in the
+  vitest `server.deps.inline` for that project only, so `vi.mock('lib0/time')`
+  actually intercepts Yjs' internal import of the same module. The component
+  project leaves `yjs` external (it never fakes time there — those tests rely
+  on `boundary()`, not the timeout, to separate steps).
+- **A full multi-object delete is one step because it is one transaction.**
+  `deleteObjects` writes every removal inside a single `doc.transact(…,
+  LOCAL_ORIGIN)`, so the UndoManager captures exactly one step regardless of
+  how many notes were deleted.
+- **Undo of a move must not disturb a peer's concurrent edit.** Because undo
+  only applies the inverse of the captured local delta (and only for the ids
+  and fields this client changed), a peer who moved/coloured the same note in
+  the meantime keeps their value. Verified in unit `TC-11` and e2e `TC-23`.
+- **The board toolbar moved to the bottom-left.** In story 2 it sat at
+  left-centre (`top: 50%; translateY(-50%)`). With the undo/redo pair the
+  stack grew from ~52 px to ~154 px, and — centred — its top edge rose into
+  the zone where e2e clicks a note's top-left corner (the select helpers
+  click at note + (12, 12); a note at screen y≈320 put that point on the
+  toolbar's sticky button, which then *created a note* and story-3/7 pointer
+  tests failed on all three browsers). Bottom-left is the one fixed-UI corner
+  no test interaction and no other fixed panel (share top-right, zoom
+  bottom-right, hint bottom-centre) uses, so the full matrix passes again.
+- **`npm run build` (production) clobbers the e2e dist.** The e2e webServer
+  serves `dist/client`, which must be the `--mode test` build (the
+  `window.__vidi6` hook). Running a production `npm run build` in between
+  silently strips the hook and every camera/ connection-state assertion
+  times out. Always `npm run build:e2e` (or `npm run test:e2e`, which does
+  it) before `playwright test`.
+
+## Manual checks
+
+- `npm run build:e2e && npx wrangler dev --port 8787 --local --var TEST_HOOKS:1`:
+  create/drag/colour/delete a few notes; Ctrl+Z steps back one action at a
+  time, Ctrl+Shift+Z forward; a second participant's edits appear live and are
+  never reversed by the first participant's undo/redo; the Undo/Redo buttons
+  disable exactly when their stacks are empty.
+
+## Test counts
+
+- unit: 16 new (undo-history TC-01…TC-11; undo-boundaries TC-12, TC-13 plus
+  merge-window and peer-interference cases).
+- component: 8 new (UndoBoundaries TC-14…TC-17; UndoControls TC-18…TC-21).
+- e2e: 3 new (undo TC-22 delete-eight/redo lifecycle; TC-23 peer-deleted note
+  never resurrects and throws nothing; TC-24 five concurrent editors each undo
+  only their own typing).

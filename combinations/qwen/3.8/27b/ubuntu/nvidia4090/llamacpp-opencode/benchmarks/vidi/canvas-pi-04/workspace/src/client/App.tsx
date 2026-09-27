@@ -13,12 +13,15 @@
 // overlay holds the marquee rect, the selection outline/handles and the bar.
 
 import type { JSX } from 'react';
+import { useEffect, useState } from 'react';
 import { createSticky, deleteObjects } from '../shared/board-model';
 import { Toolbar } from './board/Toolbar';
 import { useBoardDoc } from './board/useBoardDoc';
 import { useSelection } from './board/useSelection';
 import { useTransformGesture } from './board/useTransformGesture';
 import { useBoardKeys } from './board/useBoardKeys';
+import { createUndo, type UndoController } from './board/undo';
+import { UndoControllerContext, useUndo } from './board/useUndo';
 import { SelectionOverlay } from './board/SelectionOverlay';
 import { SelectionBar } from './board/SelectionBar';
 import { MarqueeRect, useMarquee } from './board/Marquee';
@@ -57,25 +60,49 @@ export function Board(props: { boardId: string }): JSX.Element {
   const editable = canEdit(connectionState);
   const selection = useSelection(objects);
 
+  // Story 8: one undo controller per board doc (undo.session_only). It is
+  // created in an effect (not during render, StrictMode-safe) and destroyed
+  // when the doc goes away, so history never survives a reload, a board
+  // switch or a room restart.
+  const [undoController, setUndoController] = useState<UndoController | null>(null);
+  useEffect(() => {
+    const controller = createUndo(doc);
+    setUndoController(controller);
+    return () => {
+      controller.destroy();
+      setUndoController(null);
+    };
+  }, [doc]);
+  const undo = useUndo(undoController, editable);
+
   // The shared transform gesture: group move (object pointerdown) and
   // bounding-box resize (handle pointerdown) for every registered type.
+  // Story 8: a step boundary before the first moved frame and after the
+  // gesture, so a whole drag/resize is exactly one undo step.
   const gesture = useTransformGesture({
     doc,
     camera,
     selection,
     snapshot: objects,
     canEdit: editable,
+    onGestureStart: () => undoController?.boundary(),
+    onGestureEnd: () => undoController?.boundary(),
   });
 
   // Shift+drag marquee: add the objects inside the rect to the selection.
   const marquee = useMarquee(camera, objects, (ids) => selection.setMany(ids, true));
 
-  // Window keyboard commands (select all, clear, nudge, delete, edit).
-  useBoardKeys({ doc, selection, snapshot: objects, canEdit: editable });
+  // Window keyboard commands (select all, clear, nudge, delete, edit)
+  // plus story 8's undo/redo shortcuts (Ctrl/Cmd+Z, Ctrl/Cmd+Shift+Z, Ctrl+Y).
+  useBoardKeys({ doc, selection, snapshot: objects, canEdit: editable, undo: undoController });
 
   const createAtPoint = (at: { x: number; y: number }): void => {
     if (!editable) return; // load_failed: create is a no-op
+    // Story 8: a new note is its own step, and the typing burst that follows
+    // in the editor is a separate step (boundary on both sides).
+    undoController?.boundary();
     const id = createSticky(doc, at);
+    undoController?.boundary();
     if (id !== null) {
       selection.click(id);
       selection.startEdit(id);
@@ -90,11 +117,16 @@ export function Board(props: { boardId: string }): JSX.Element {
     if (!editable) return;
     const ids = [...selection.ids];
     if (ids.length === 0) return;
+    // Story 8: a multi-delete is one step; boundaries keep it separate from
+    // the actions around it.
+    undoController?.boundary();
     deleteObjects(doc, ids);
+    undoController?.boundary();
     selection.clear();
   };
 
   return (
+    <UndoControllerContext.Provider value={undoController}>
     <div className="app-root">
       <BoardViewport
         onCreateStickyAt={createAtPoint}
@@ -146,7 +178,7 @@ export function Board(props: { boardId: string }): JSX.Element {
         />
       </div>
 
-      <Toolbar onCreateSticky={createAtCenter} canEdit={editable} />
+      <Toolbar onCreateSticky={createAtCenter} canEdit={editable} {...undo} />
       <ZoomControls
         zoomPercent={zoomPercent(camera)}
         canZoomIn={canZoomIn(camera)}
@@ -162,5 +194,6 @@ export function Board(props: { boardId: string }): JSX.Element {
       <NavigationHint visible={!hasNavigated} />
       <ConnectionStatus state={connectionState} />
     </div>
+    </UndoControllerContext.Provider>
   );
 }

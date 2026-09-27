@@ -26,6 +26,12 @@ export default defineConfig({
           name: 'unit',
           environment: 'node',
           include: ['tests/unit/**/*.{test,spec}.ts'],
+          // Story 8: undo-boundaries.test.ts mocks lib0/time to drive a
+          // virtual clock (lib0 captures the Date.now reference at import
+          // time, so vi.useFakeTimers() cannot control Yjs' captureTimeout).
+          // The mock only reaches yjs's internal lib0/time import when both
+          // packages are processed by Vite instead of loaded natively.
+          server: { deps: { inline: ['yjs', 'lib0'] } },
         },
       },
       {

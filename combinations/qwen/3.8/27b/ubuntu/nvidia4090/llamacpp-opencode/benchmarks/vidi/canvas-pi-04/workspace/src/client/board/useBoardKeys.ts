@@ -12,12 +12,15 @@ import { NUDGE_LARGE_STEP_WORLD, NUDGE_STEP_WORLD } from '../../shared/config';
 import type { Point } from '../../shared/geometry';
 import { getObjectType } from '../objects/registry';
 import type { SelectionApi } from './useSelection';
+import type { UndoController } from './undo';
 
 export interface BoardKeysOptions {
   doc: Y.Doc;
   selection: SelectionApi;
   snapshot: readonly ObjectSnapshot[];
   canEdit: boolean;
+  /** Story 8: undo/redo shortcuts and step boundaries for Delete/nudge. */
+  undo?: UndoController | null;
 }
 
 function isTypingTarget(target: EventTarget | null): boolean {
@@ -33,7 +36,7 @@ export function useBoardKeys(opts: BoardKeysOptions): void {
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent): void => {
       if (isTypingTarget(e.target)) return;
-      const { doc, selection, snapshot, canEdit } = optsRef.current;
+      const { doc, selection, snapshot, canEdit, undo } = optsRef.current;
       if (selection.editingId !== null) return;
 
       // Select all (non-mutating: selection only, allowed read-only).
@@ -53,6 +56,22 @@ export function useBoardKeys(opts: BoardKeysOptions): void {
       // Mutating keys are no-ops when the board is read-only.
       if (!canEdit) return;
 
+      // Story 8: undo/redo shortcuts (undo.shortcuts). Personal history
+      // only; preventDefault stops the browser's native undo. The editor's
+      // own textarea handles these keys itself (guarded above by
+      // isTypingTarget and editingId).
+      if (
+        (e.ctrlKey || e.metaKey) &&
+        !e.altKey &&
+        (e.key === 'z' || e.key === 'Z' || e.key === 'y' || e.key === 'Y')
+      ) {
+        if (undo === null || undo === undefined) return;
+        e.preventDefault();
+        if (e.key === 'y' || e.key === 'Y' || e.shiftKey) undo.redo();
+        else undo.undo();
+        return;
+      }
+
       const selected = [...selection.ids];
       const byId = new Map(snapshot.map((o) => [o.id, o]));
 
@@ -70,7 +89,10 @@ export function useBoardKeys(opts: BoardKeysOptions): void {
       if (e.key === 'Delete' || e.key === 'Backspace') {
         if (selected.length === 0) return;
         e.preventDefault();
+        // Story 8: one delete (of any number of objects) is one step.
+        undo?.boundary();
         deleteObjects(doc, selected);
+        undo?.boundary();
         selection.clear();
         return;
       }
@@ -92,7 +114,12 @@ export function useBoardKeys(opts: BoardKeysOptions): void {
         const o = byId.get(id);
         if (o !== undefined) positions.set(id, { x: o.x + dx, y: o.y + dy });
       }
-      if (positions.size > 0) moveObjects(doc, positions);
+      if (positions.size > 0) {
+        // Story 8: each nudge is its own step.
+        undo?.boundary();
+        moveObjects(doc, positions);
+        undo?.boundary();
+      }
     };
 
     window.addEventListener('keydown', onKeyDown);

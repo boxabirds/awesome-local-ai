@@ -160,3 +160,21 @@ export const NUDGE_STEP_WORLD = 1;
 
 /** Arrow-key nudge step, in world units (Shift held). */
 export const NUDGE_LARGE_STEP_WORLD = 10;
+
+// ---------------------------------------------------------------------------
+// Story 8: undo and redo my own changes without undoing anyone else's.
+// ---------------------------------------------------------------------------
+
+/**
+ * Story 8: merge window for the per-client undo history (design decision 3).
+ * Local changes within this time of each other (e.g. a typing burst) collapse
+ * into one undo step; `boundary()` always forces a step break.
+ */
+export const UNDO_CAPTURE_TIMEOUT_MS = 500;
+
+/**
+ * Story 8: maximum number of undo steps kept per client (design decision 4).
+ * The newest step evicts the oldest, and the redo history is kept in the
+ * same bound.
+ */
+export const UNDO_MAX_STEPS = 200;

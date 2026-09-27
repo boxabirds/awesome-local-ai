@@ -131,10 +131,15 @@ body {
 /* --- Story 2: sticky notes ------------------------------------------------ */
 
 .board-toolbar {
+  /* Bottom-left: the left-center position (story 2) let the growing stack
+     (sticky + undo + redo) swallow clicks on notes whose top-left corner
+     sits near the screen's mid-left edge (the e2e selectNote point at
+     note + (12, 12) landed on the buttons). Bottom-left is clear of every
+     board interaction used by the tests and of the other fixed UI
+     (share top-right, zoom bottom-right, hint bottom-centre). */
   position: fixed;
   left: 16px;
-  top: 50%;
-  transform: translateY(-50%);
+  bottom: 16px;
   display: flex;
   flex-direction: column;
   gap: 6px;
@@ -167,6 +172,44 @@ body {
 .board-toolbar__sticky:focus-visible {
   outline: 2px solid var(--focus-ring);
   outline-offset: 1px;
+}
+
+/* Story 8: undo/redo buttons (anchor: undo.buttons). */
+.board-toolbar__undo {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 4px;
+  padding-top: 6px;
+  border-top: 1px solid var(--panel-border);
+}
+
+.board-toolbar__undo-button {
+  appearance: none;
+  border: 1px solid var(--panel-border);
+  background: #fff;
+  color: var(--text-color);
+  border-radius: 8px;
+  width: 40px;
+  height: 40px;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  padding: 0;
+}
+
+.board-toolbar__undo-button:hover:not(:disabled) {
+  background: #f0f3f7;
+}
+
+.board-toolbar__undo-button:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 1px;
+}
+
+.board-toolbar__undo-button:disabled {
+  opacity: 0.4;
+  cursor: default;
 }
 
 .sticky-note {

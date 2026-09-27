@@ -1,3 +1,46 @@
+commit 6a1ab5528b87d2800996a9861b9bd583ba24ebf2
+vidi-agent  Sun Sep 27 02:19:10 2026 +0100
+
+    story 8: Undo and redo my own changes without undoing anyone else's
+
+
+ NOTES.md                                | 126 ++++++++++++++
+ src/client/styles.css                   |   9 +-
+ tests/component/UndoBoundaries.test.tsx | 293 ++++++++++++++++++++++++++++++++
+ tests/component/UndoControls.test.tsx   | 181 ++++++++++++++++++++
+ tests/e2e/undo.spec.ts                  | 204 ++++++++++++++++++++++
+ 5 files changed, 811 insertions(+), 2 deletions(-)
+commit 172610c65cca0887d041ce8972ed3969564a27eb
+vidi-agent  Sun Sep 27 01:35:24 2026 +0100
+
+    task 2+8: per-client undo controller with step boundaries
+
+
+ src/client/App.tsx                      |  39 ++++++++++-
+ src/client/board/SelectionBar.tsx       |   8 ++-
+ src/client/board/Toolbar.tsx            |   9 ++-
+ src/client/board/UndoButtons.tsx        |  69 +++++++++++++++++++
+ src/client/board/undo.ts                | 116 ++++++++++++++++++++++++++++++++
+ src/client/board/useBoardKeys.ts        |  31 ++++++++-
+ src/client/board/useUndo.ts             |  60 +++++++++++++++++
+ src/client/objects/StickyTextEditor.tsx |  24 +++++++
+ src/client/styles.css                   |  38 +++++++++++
+ src/shared/config.ts                    |  18 +++++
+ tests/unit/peer.ts                      |   5 ++
+ tests/unit/undo-boundaries.test.ts      |  78 ++++++++++++++-------
+ tests/unit/undo-history.test.ts         |   6 +-
+ vitest.config.ts                        |   6 ++
+ 14 files changed, 474 insertions(+), 33 deletions(-)
+commit 799326a38a5ead451fb1bd9162b11c9f13badf95
+vidi-agent  Sun Sep 27 01:26:49 2026 +0100
+
+    task 6-7: failing undo history and capture-window unit tests (TC-01..TC-13)
+
+
+ tests/unit/peer.ts                 |  86 +++++++++++
+ tests/unit/undo-boundaries.test.ts | 119 +++++++++++++++
+ tests/unit/undo-history.test.ts    | 291 +++++++++++++++++++++++++++++++++++++
+ 3 files changed, 496 insertions(+)
 commit bf23c7bbada811c96634e24f53f4754001b79794
 vidi-agent  Sun Sep 27 01:01:40 2026 +0100
 

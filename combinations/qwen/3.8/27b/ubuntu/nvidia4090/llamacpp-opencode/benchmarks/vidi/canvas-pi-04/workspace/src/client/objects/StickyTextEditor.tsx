@@ -14,6 +14,7 @@ import type { JSX, RefObject } from 'react';
 import * as Y from 'yjs';
 import { LOCAL_ORIGIN } from '../../shared/board-model';
 import { STICKY_TEXT_MAX_CHARS } from '../../shared/config';
+import { useUndoController } from '../board/useUndo';
 import { applyTextDiff, clampToLimit, counterVisible } from './StickyText';
 
 export function StickyTextEditor(props: {
@@ -30,16 +31,28 @@ export function StickyTextEditor(props: {
   const composing = useRef(false);
   const ended = useRef(false);
 
+  // Story 8: the per-board undo controller. Read through a ref so handlers
+  // created once (mount effect, document pointerdown) still see the current
+  // value.
+  const undo = useUndoController();
+  const undoRef = useRef(undo);
+  undoRef.current = undo;
+
   const end = (next: 'selected' | 'unselected'): void => {
     if (ended.current) return;
     ended.current = true;
+    // Step boundary at edit end: the typing burst is its own undo step,
+    // separate from the note creation and from whatever comes after.
+    undoRef.current?.boundary();
     props.onEnd(next);
   };
 
   // Mount: focus with the caret at the end of the text (PRD sticky.edit_start).
+  // Story 8: step boundary at edit start (typing burst starts fresh).
   useEffect(() => {
     const ta = taRef.current;
     if (!ta) return;
+    undoRef.current?.boundary();
     ta.focus();
     const len = ta.value.length;
     ta.setSelectionRange(len, len);
@@ -125,6 +138,17 @@ export function StickyTextEditor(props: {
   };
 
   const onKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>): void => {
+    // Story 8: personal undo/redo inside the editor (undo.typing). The
+    // textarea's native undo must not run: it would desynchronise the
+    // textarea from the Y.Text, so Ctrl/Cmd+Z and Ctrl/Cmd+Shift+Z are
+    // handled here against the UndoController and the default is prevented.
+    // (The board-level useBoardKeys ignores keydowns from textareas.)
+    if ((e.ctrlKey || e.metaKey) && (e.key === 'z' || e.key === 'Z')) {
+      e.preventDefault();
+      if (e.shiftKey) undoRef.current?.redo();
+      else undoRef.current?.undo();
+      return;
+    }
     if (e.key === 'Escape') {
       e.preventDefault();
       end('selected');

@@ -1,10 +1,16 @@
 // Story 2: the fixed left-side board toolbar (anchor: sticky.toolbar) with
 // the Sticky note button.
+//
+// Story 8: also hosts the Undo/Redo buttons (anchor: undo.buttons).
 
 import type { JSX } from 'react';
 import type { PointerEvent as ReactPointerEvent, MouseEvent as ReactMouseEvent } from 'react';
+import { UndoButtons } from './UndoButtons';
+import type { UndoBinding } from './useUndo';
 
-export function Toolbar(props: { onCreateSticky: () => void; canEdit: boolean }): JSX.Element {
+export function Toolbar(
+  props: { onCreateSticky: () => void; canEdit: boolean } & UndoBinding,
+): JSX.Element {
   const stop = (e: ReactPointerEvent | ReactMouseEvent): void => {
     e.stopPropagation();
   };
@@ -33,6 +39,7 @@ export function Toolbar(props: { onCreateSticky: () => void; canEdit: boolean })
           />
         </svg>
       </button>
+      <UndoButtons {...props} />
     </div>
   );
 }

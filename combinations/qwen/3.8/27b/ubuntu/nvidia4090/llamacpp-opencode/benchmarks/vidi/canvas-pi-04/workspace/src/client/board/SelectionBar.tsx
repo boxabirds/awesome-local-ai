@@ -19,6 +19,7 @@ import { unionRects } from '../../shared/geometry';
 import { DEFAULT_STICKY_COLOR, STICKY_COLORS, type StickyColor } from '../../shared/config';
 import { worldToScreen, type Camera } from '../canvas/camera';
 import { NoteToolbar } from '../objects/NoteToolbar';
+import { useUndoController } from './useUndo';
 
 function pickSelected(snapshot: readonly ObjectSnapshot[], ids: ReadonlySet<string>): ObjectSnapshot[] {
   const byId = new Map(snapshot.map((o) => [o.id, o]));
@@ -90,11 +91,16 @@ function SingleStickyToolbar(props: {
 }): JSX.Element {
   const { note, doc, canEdit, onDelete } = props;
   const color: StickyColor = note.color in STICKY_COLORS ? note.color : DEFAULT_STICKY_COLOR;
+  // Story 8: a colour change is its own undo step (boundaries on both sides).
+  const undo = useUndoController();
   return (
     <NoteToolbar
       color={color}
       onColor={(c) => {
-        if (canEdit) setStickyColor(doc, note.id, c);
+        if (!canEdit) return;
+        undo?.boundary();
+        setStickyColor(doc, note.id, c);
+        undo?.boundary();
       }}
       onDelete={onDelete}
       disabled={!canEdit}
