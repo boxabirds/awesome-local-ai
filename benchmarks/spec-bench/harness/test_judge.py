@@ -62,3 +62,11 @@ def test_a_judging_run_collects_outputs_and_the_judge_cannot_read_home(tmp_path,
     assert (results / "summary.md").read_text() == "# summary (refused)\n"
     # the judge worked on a clone: the original package is untouched
     assert not (package / "summary.md").exists()
+
+
+def test_scorer_faults_are_caught_on_real_records():
+    ref = judge.REPO / "benchmarks" / "reference" / "vidi" / "opus-5.5"
+    broken = ref / "run-2" / "stories" / "12" / "accept.json"  # every test: browser executable missing
+    good = ref / "run-3" / "stories" / "12" / "accept.json"
+    assert "no browser" in judge.scorer_fault(broken)
+    assert judge.scorer_fault(good) is None
