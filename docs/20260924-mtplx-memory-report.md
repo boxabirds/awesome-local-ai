@@ -277,6 +277,24 @@ at most 0.11 GiB compressed and no swap. The compaction at the default limit tha
 survived (10:02) had 17% and 14.7 GiB compressed. One compaction is not proof, but at this point
 in the conversation, a 6 GiB lower limit made the difference between a frozen machine and a normal one.
 
+**The same two stories on llama.cpp (27 Sep, A/B).** From the same code (canvas-pi-03 at the start of
+story 7) and with the same story prompts, the operator ran stories 7 and 8 again on llama.cpp Metal
+(`qwen38-flash-next-metal`, same Flash-Next weights, same pi client, same harness; run
+`combinations/qwen/3.8/flash-next/macos/128GB/llamacpp-pi/benchmarks/vidi/ab-s7s8-01`).
+
+| | Story 7 held-out | Story 8 held-out | Resumes (both stories) | Nudges | Ended in error |
+|---|---|---|---|---|---|
+| MTPLX, 90G limit (canvas-pi-03) | 3/8 | 1/7 | 3 + 3 | 2 + 0 | story 8 |
+| llama.cpp Metal (ab-s7s8-01) | **8/8** | **7/7** | 0 + 0 | 0 + 0 | none |
+| MTPLX default limit (canvas-pi-01, -02) | 5/8, 6/8 | 7/7, 7/7 | – | – | – |
+
+On llama.cpp the Mac stayed at `kern.memorystatus_level` of about 40%, with 72 GiB wired and 2 GiB
+compressed. Under MTPLX at 90G it ran at 18–20%, with 88–90 GiB wired and 14 GiB compressed.
+llama.cpp took longer (2.8 h and 2.2 h agent time, against 2.5 h and 1.0 h), with 4 and 3
+compactions and none refused. With only the server changed, the model completed both stories.
+The low MTPLX scores therefore come from MTPLX's memory behaviour on this Mac, not from the model.
+This is one run per arm, so it is strong evidence, not proof.
+
 **Question for you:** should a cache-miss prefill for a new session wait until the previous
 session's resident snapshot is evicted, or stay under a projected total that includes it?
 This compaction is the request that stops the machine.
