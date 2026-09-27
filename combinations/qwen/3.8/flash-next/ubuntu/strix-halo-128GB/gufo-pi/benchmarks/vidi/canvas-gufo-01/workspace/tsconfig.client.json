@@ -1,0 +1,20 @@
+{
+  "extends": "./tsconfig.base.json",
+  "compilerOptions": {
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "jsx": "react-jsx",
+    "types": ["vite/client", "node"]
+  },
+  "include": [
+    "src/client",
+    "src/shared",
+    "src/worker/create-board.ts",
+    "tests/unit",
+    "tests/component",
+    "tests/e2e",
+    "vite.config.ts",
+    "vitest.unit.config.ts",
+    "vitest.component.config.ts",
+    "playwright.config.ts"
+  ]
+}

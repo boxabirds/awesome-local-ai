@@ -1,0 +1,147 @@
+commit df3354a10244389f7e87294f609d59276053cec3
+vidi-agent  Sun Sep 27 20:58:13 2026 +0000
+
+    story 5: Share a board with others using a link
+
+
+ .gitignore                              |     8 +
+ README.md                               |    46 +
+ index.html                              |    15 +
+ package-lock.json                       |  4764 ++++++++++
+ package.json                            |    45 +
+ playwright.config.ts                    |    77 +
+ src/client/App.tsx                      |    14 +
+ src/client/api.ts                       |    41 +
+ src/client/board/BoardWorkspace.tsx     |   147 +
+ src/client/board/Toolbar.tsx            |    18 +
+ src/client/board/useBoardDoc.ts         |    46 +
+ src/client/board/useSelection.ts        |    38 +
+ src/client/canvas/BoardViewport.tsx     |   238 +
+ src/client/canvas/NavigationHint.tsx    |    16 +
+ src/client/canvas/ZoomControls.tsx      |    46 +
+ src/client/canvas/camera.ts             |    68 +
+ src/client/canvas/useCamera.ts          |    55 +
+ src/client/main.tsx                     |    10 +
+ src/client/objects/NoteToolbar.tsx      |    48 +
+ src/client/objects/StickyNote.tsx       |    90 +
+ src/client/objects/StickyText.tsx       |    31 +
+ src/client/objects/StickyTextEditor.tsx |   175 +
+ src/client/pages/BoardPage.tsx          |    70 +
+ src/client/pages/HomePage.tsx           |    71 +
+ src/client/pages/NotFoundPage.tsx       |    59 +
+ src/client/router.ts                    |    53 +
+ src/client/share/SharePanel.tsx         |   119 +
+ src/client/styles.css                   |   413 +
+ src/client/sync/ConnectionStatus.tsx    |    79 +
+ src/client/sync/connectBoard.ts         |    27 +
+ src/shared/board-id.ts                  |    42 +
+ src/shared/board-model.ts               |   152 +
+ src/shared/config.ts                    |    52 +
+ src/shared/protocol.ts                  |    90 +
+ src/worker/board-room.ts                |   255 +
+ src/worker/board-store.ts               |   331 +
+ src/worker/create-board.ts              |    88 +
+ src/worker/env.ts                       |    11 +
+ src/worker/index.ts                     |    83 +
+ src/worker/test-hooks.ts                |    50 +
+ tests/component/SharePanel.test.tsx     |   149 +
+ tests/component/api.test.ts             |    85 +
+ tests/component/pages.test.tsx          |   197 +
+ tests/component/setup.ts                |    11 +
+ tests/e2e/share.spec.ts                 |   267 +
+ tests/integration/board-api.test.ts     |   461 +
+ tests/unit/create-board.test.ts         |   126 +
+ tsconfig.base.json                      |    18 +
+ tsconfig.client.json                    |    20 +
+ tsconfig.worker.json                    |    14 +
+ vite.config.ts                          |    13 +
+ vitest.component.config.ts              |    14 +
+ vitest.integration.config.ts            |    21 +
+ vitest.unit.config.ts                   |    11 +
+ worker-configuration.d.ts               | 14879 ++++++++++++++++++++++++++++++
+ wrangler.jsonc                          |    40 +
+ 56 files changed, 24407 insertions(+)
+commit d921ebc01ecbe4f46b14ab324401902eb6e2f2c4
+vidi-agent  Sun Sep 27 19:10:09 2026 +0000
+
+    harness: empty repository with spec
+
+
+ README.md                                          |   3 +
+ spec/.DS_Store                                     | Bin 0 -> 6148 bytes
+ spec/README.md                                     |  21 +
+ spec/epics/boards-sharing.md                       |  15 +
+ spec/epics/canvas.md                               |  17 +
+ spec/epics/realtime-collab.md                      |  14 +
+ spec/stories/.DS_Store                             | Bin 0 -> 14340 bytes
+ .../design.md                                      | 358 +++++++++++++
+ .../prd.md                                         | 161 ++++++
+ .../story.md                                       |  11 +
+ .../tasks.md                                       | 157 ++++++
+ .../design.md                                      | 433 +++++++++++++++
+ .../prd.md                                         | 169 ++++++
+ .../story.md                                       |  11 +
+ .../tasks.md                                       | 170 ++++++
+ .../comments.md                                    |   8 +
+ .../design.md                                      | 403 ++++++++++++++
+ .../prd.md                                         | 158 ++++++
+ .../story.md                                       |  11 +
+ .../tasks.md                                       | 171 ++++++
+ .../design.md                                      | 411 ++++++++++++++
+ .../prd.md                                         | 129 +++++
+ .../story.md                                       |  11 +
+ .../tasks.md                                       | 169 ++++++
+ .../design.md                                      | 418 +++++++++++++++
+ .../prd.md                                         | 148 +++++
+ .../story.md                                       |  11 +
+ .../tasks.md                                       | 140 +++++
+ .../comments.md                                    |   8 +
+ .../design.md                                      | 444 +++++++++++++++
+ .../prd.md                                         | 163 ++++++
+ .../story.md                                       |  11 +
+ .../tasks.md                                       | 191 +++++++
+ .../design.md                                      | 512 ++++++++++++++++++
+ .../prd.md                                         | 184 +++++++
+ .../story.md                                       |  11 +
+ .../tasks.md                                       | 218 ++++++++
+ .../design.md                                      | 322 +++++++++++
+ .../prd.md                                         | 139 +++++
+ .../story.md                                       |  11 +
+ .../tasks.md                                       | 133 +++++
+ .../design.md                                      | 415 ++++++++++++++
+ .../prd.md                                         | 157 ++++++
+ .../story.md                                       |  11 +
+ .../tasks.md                                       | 169 ++++++
+ .../design.md                                      | 460 ++++++++++++++++
+ .../prd.md                                         | 174 ++++++
+ .../story.md                                       |  11 +
+ .../tasks.md                                       | 161 ++++++
+ .../011-sketch-freehand-with-a-pen/design.md       | 329 ++++++++++++
+ spec/stories/011-sketch-freehand-with-a-pen/prd.md | 148 +++++
+ .../011-sketch-freehand-with-a-pen/story.md        |  11 +
+ .../011-sketch-freehand-with-a-pen/tasks.md        | 121 +++++
+ .../012-drop-images-onto-the-board/design.md       | 459 ++++++++++++++++
+ spec/stories/012-drop-images-onto-the-board/prd.md | 184 +++++++
+ .../012-drop-images-onto-the-board/story.md        |  11 +
+ .../012-drop-images-onto-the-board/tasks.md        | 171 ++++++
+ .../design.md                                      | 557 +++++++++++++++++++
+ .../prd.md                                         | 172 ++++++
+ .../story.md                                       |  11 +
+ .../tasks.md                                       | 243 +++++++++
+ .../design.md                                      | 593 +++++++++++++++++++++
+ .../prd.md                                         | 185 +++++++
+ .../story.md                                       |  11 +
+ .../tasks.md                                       | 226 ++++++++
+ .../design.md                                      | 474 ++++++++++++++++
+ .../prd.md                                         | 174 ++++++
+ .../story.md                                       |  11 +
+ .../tasks.md                                       | Bin 0 -> 15615 bytes
+ .../design.md                                      | 508 ++++++++++++++++++
+ .../prd.md                                         | 211 ++++++++
+ .../story.md                                       |  11 +
+ .../tasks.md                                       | 203 +++++++
+ .../design.md                                      | 465 ++++++++++++++++
+ .../017-export-a-board-as-an-image-or-pdf/prd.md   | 188 +++++++
+ .../017-export-a-board-as-an-image-or-pdf/story.md |  11 +
+ .../017-export-a-board-as-an-image-or-pdf/tasks.md | 206 +++++++
+ 77 files changed, 13527 insertions(+)
