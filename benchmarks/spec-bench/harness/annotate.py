@@ -8,7 +8,8 @@
 An attempt is one stack's try at one story in one run. For each, the page shows what was asked,
 what the agent claimed, what it changed, how the behaviour eval scored it, and a condensed
 timeline, on one screen. You label it:
-- p: pass; f: fail; s: skip (unsure, a question, a scope issue: review later). Each saves and moves on.
+- + (or =, or p): pass; - (or f): fail; space (or s): skip (unsure, a question, a scope issue: review
+  later). Each saves and moves on. Keys act only when the notes box isn't active.
 - n: write a note (Esc to leave the box). Notes matter most: they become the failure taxonomy.
 - j/k or arrows: previous/next; t: timeline; 1-4: filter all / unlabelled / skipped / failed.
 
