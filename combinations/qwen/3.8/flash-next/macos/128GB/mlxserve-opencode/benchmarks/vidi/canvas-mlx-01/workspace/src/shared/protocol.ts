@@ -19,6 +19,20 @@ export const MESSAGE_QUERY_AWARENESS = 3;
 /** Close code sent to a socket that sent a frame this room cannot understand. */
 export const CLOSE_UNSUPPORTED_DATA = 1003;
 
+/**
+ * Close code sent to a client that opened a board whose saved state cannot be
+ * loaded. The board is NOT presented as an empty editable board (persist.load_failure);
+ * the client shows "This board couldn't be loaded. Retrying…" and keeps retrying.
+ */
+export const CLOSE_BOARD_LOAD_FAILED = 4500;
+
+/**
+ * Close code sent to every socket when the room cannot durably save a change
+ * (persist.save_failure). The board is still readable, so the client maps this to
+ * `reconnecting` (not `load_failed`) and re-sends its unsaved change on reconnect.
+ */
+export const CLOSE_STORAGE_FAILURE = 1011;
+
 /** The result of decoding one client frame. */
 export type Decoded =
   | { kind: 'sync'; payload: Uint8Array }

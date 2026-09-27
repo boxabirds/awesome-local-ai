@@ -18,6 +18,122 @@ export interface DevServer {
   stop(): Promise<void>;
 }
 
+export interface PersistedDevServer extends DevServer {
+  /** The directory `--persist-to` writes into; it survives stop/start and is removed on cleanup. */
+  readonly persistDir: string;
+  /** Reap the persistence directory (call once, after the final stop). */
+  cleanup(): void;
+}
+
+/** Spawn `wrangler dev` on `port` bound to `persistTo`, resolving once it answers. */
+const launch = async (port: number, persistTo: string, vars: Record<string, string>): Promise<ChildProcess> => {
+  const varArgs = Object.entries(vars).flatMap(([key, value]) => ['--var', `${key}:${value}`]);
+  const proc = spawn(
+    'npx',
+    [
+      'wrangler',
+      'dev',
+      '--config',
+      'wrangler.jsonc',
+      '--ip',
+      '127.0.0.1',
+      '--port',
+      String(port),
+      '--persist-to',
+      persistTo,
+      ...varArgs,
+    ],
+    {
+      stdio: ['ignore', 'pipe', 'pipe'],
+      env: { ...process.env, VIDI_PORT: String(port) },
+      // Own process group so a kill signals the workerd children too, not just npx.
+      detached: true,
+    },
+  );
+  proc.stdout!.resume();
+  proc.stderr!.resume();
+  const base = `http://127.0.0.1:${port}`;
+  const deadline = Date.now() + 60_000;
+  for (;;) {
+    let ready = false;
+    try {
+      ready = (await fetch(`${base}/`)).ok;
+    } catch {
+      ready = false;
+    }
+    if (ready) break;
+    if (Date.now() > deadline) throw new Error(`dev server on :${port} did not become ready`);
+    await new Promise((r) => setTimeout(r, 500));
+  }
+  return proc;
+};
+
+/** Wait until `port` stops answering (the old process group is really gone). */
+const waitForGone = async (port: number): Promise<void> => {
+  const base = `http://127.0.0.1:${port}`;
+  const deadline = Date.now() + 15_000;
+  for (;;) {
+    let gone = false;
+    try {
+      await fetch(base, { signal: AbortSignal.timeout(1000) });
+      gone = false;
+    } catch {
+      gone = true;
+    }
+    if (gone) break;
+    if (Date.now() > deadline) break;
+    await new Promise((r) => setTimeout(r, 250));
+  }
+};
+
+/** Kill a process group and wait for its port to free. */
+const killAndWait = async (proc: ChildProcess, port: number): Promise<void> => {
+  try {
+    process.kill(-proc.pid!, 'SIGKILL');
+  } catch {
+    try {
+      proc.kill('SIGKILL');
+    } catch {
+      /* already gone */
+    }
+  }
+  await new Promise<void>((resolve) => {
+    if (proc.exitCode !== null || proc.signalCode !== null) resolve();
+    else proc.once('exit', () => resolve());
+  });
+  await waitForGone(port);
+};
+
+/**
+ * A `wrangler dev` that keeps ONE `--persist-to` directory across stop / start, so stopping
+ * the process (which drops the Durable Object's in-memory `Y.Doc`) and starting a new one
+ * proves the board reloads from durable storage. `cleanup` reaps the directory.
+ */
+export function createPersistedDevServer(port: number, vars: Record<string, string> = {}): PersistedDevServer {
+  const persistDir = mkdtempSync(join(tmpdir(), 'vidi-persist-'));
+  let proc: ChildProcess | null = null;
+  return {
+    base: `http://127.0.0.1:${port}`,
+    persistDir,
+    async start(): Promise<void> {
+      if (proc !== null) throw new Error('dev server already started');
+      proc = await launch(port, persistDir, vars);
+    },
+    async stop(): Promise<void> {
+      if (proc === null) return;
+      await killAndWait(proc, port);
+      proc = null; // the persistence directory is deliberately kept for the next start
+    },
+    cleanup(): void {
+      try {
+        rmSync(persistDir, { recursive: true, force: true });
+      } catch {
+        /* best effort */
+      }
+    },
+  };
+}
+
 /** `wrangler dev` with no persistence on `port`; the client build is served from `dist/`. */
 export function createDevServer(port: number): DevServer {
   let proc: ChildProcess | null = null;

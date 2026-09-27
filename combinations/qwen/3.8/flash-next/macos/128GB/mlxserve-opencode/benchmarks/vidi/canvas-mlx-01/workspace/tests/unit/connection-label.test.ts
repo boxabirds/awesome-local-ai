@@ -6,6 +6,7 @@ describe('formatConnectionStatusLabel', () => {
     expect(formatConnectionStatusLabel('connecting')).toBe('Connecting…');
     expect(formatConnectionStatusLabel('online')).toBe('Connected');
     expect(formatConnectionStatusLabel('offline')).toBe('Offline');
+    expect(formatConnectionStatusLabel('load_failed')).toBe("This board couldn't be loaded. Retrying…");
   });
 
   it('the connecting label is not a substring-collision for "Connected"', () => {

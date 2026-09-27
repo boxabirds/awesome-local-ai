@@ -3,6 +3,8 @@ import type { JSX, PointerEvent } from 'react';
 export interface ToolbarProps {
   /** Create a sticky note centred in the visible board area and start editing it. */
   onCreateSticky(): void;
+  /** When true the Sticky note button is disabled (a board that can't be loaded). */
+  disabled?: boolean;
 }
 
 /** The tooltip / title text for the create button (exact PRD wording). */
@@ -33,6 +35,7 @@ export function Toolbar(props: ToolbarProps): JSX.Element {
         data-testid="create-sticky"
         aria-label="Sticky note"
         title={STICKY_NOTE_TOOLTIP}
+        disabled={props.disabled === true}
         onClick={props.onCreateSticky}
       >
         {/* a small sticky-note glyph */}

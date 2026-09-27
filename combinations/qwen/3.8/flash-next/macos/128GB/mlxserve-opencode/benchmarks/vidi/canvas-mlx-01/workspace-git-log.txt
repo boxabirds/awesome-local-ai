@@ -1,3 +1,65 @@
+commit 677222276a01d9ebeb08e55dedadca72ae092bff
+vidi-agent  Sun Sep 27 20:44:12 2026 +0100
+
+    test(story4): TC-21 wait ceiling = load allowance (avoid fixed-poll flake on reload)
+
+
+ tests/e2e/persistence.spec.ts | 19 ++++++++++++++-----
+ 1 file changed, 14 insertions(+), 5 deletions(-)
+commit 585d16a3a10047c143b171091ee1395c381b1606
+vidi-agent  Sun Sep 27 20:32:06 2026 +0100
+
+    feat(story4): client load_failed state + edit lock; load-failure & persistence e2e
+
+
+ NOTES.md                             |  32 +++++++
+ src/client/App.tsx                   |   2 +
+ src/client/objects/StickyNote.tsx    |   9 ++
+ src/worker/board-room.ts             |  41 ++++++++
+ src/worker/board-store.ts            |  24 +++++
+ src/worker/index.ts                  |  22 +++++
+ tests/component/load-failed.test.tsx |  28 ++++++
+ tests/e2e/NOTES.md                   |  58 +++++++++++
+ tests/e2e/broken-board.spec.ts       |  68 +++++++++++++
+ tests/e2e/helpers/dev-server.ts      | 116 ++++++++++++++++++++++
+ tests/e2e/helpers/seed.ts            |  46 +++++++++
+ tests/e2e/persistence.spec.ts        | 181 +++++++++++++++++++++++++++++++++++
+ tests/unit/connection-label.test.ts  |   1 +
+ 13 files changed, 628 insertions(+)
+commit 89c5435be626078eb2915e465d011f1ceaf1ec3e
+vidi-agent  Sun Sep 27 19:58:44 2026 +0100
+
+    feat(story4): client load_failed status; canEdit gating; component tests
+
+
+ src/client/App.tsx                    |  16 +++-
+ src/client/board/ConnectionStatus.tsx |   5 +
+ src/client/board/Toolbar.tsx          |   3 +
+ src/client/board/connectBoard.ts      |  59 ++++++++++--
+ tests/component/load-failed.test.tsx  | 170 ++++++++++++++++++++++++++++++++++
+ 5 files changed, 240 insertions(+), 13 deletions(-)
+commit f5cb86c6f76dee03347c14a16f09f16a5bbda59c
+vidi-agent  Sun Sep 27 19:47:54 2026 +0100
+
+    feat(story4): SQLite-backed BoardStore + persistent hibernating BoardRoom
+
+
+ NOTES.md                               |  59 +++++
+ src/shared/config.ts                   |  27 ++
+ src/shared/protocol.ts                 |  14 +
+ src/worker/board-room.ts               | 290 ++++++++++++++-------
+ src/worker/board-store-chunks.ts       |  34 +++
+ src/worker/board-store.ts              | 262 +++++++++++++++++++
+ src/worker/room-state.ts               | 127 ++++++++++
+ tests/fixtures/boards.ts               | 187 ++++++++++++++
+ tests/integration/env.d.ts             |   7 +
+ tests/integration/helpers/ws-client.ts |  28 +-
+ tests/integration/room.test.ts         | 326 ++++++++++++++++++++++++
+ tests/integration/store.test.ts        | 451 +++++++++++++++++++++++++++++++++
+ tests/unit/board-store.test.ts         |  72 ++++++
+ tests/unit/damaged-fixtures.test.ts    |  39 +++
+ tests/unit/room-state.test.ts          | 111 ++++++++
+ 15 files changed, 1945 insertions(+), 89 deletions(-)
 commit 26b1f22bd174304c3699e910078b77b2ee648911
 vidi-agent  Sun Sep 27 18:19:33 2026 +0100
 

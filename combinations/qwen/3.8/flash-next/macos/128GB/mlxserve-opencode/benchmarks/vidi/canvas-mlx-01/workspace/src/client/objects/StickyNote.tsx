@@ -37,6 +37,9 @@ export interface StickyNoteProps {
   onSelect(id: string): void;
   onStartEdit(id: string): void;
   onEndEdit(next: 'selected' | 'unselected'): void;
+  /** When false the board is read-only: drags, recolour, delete and edit are ignored.
+   *  Defaults to true; App sets it false for a board the room refused to load. */
+  editable?: boolean;
 }
 
 /** The inner content box of a note: its world size minus the text padding on both edges. */
@@ -57,6 +60,7 @@ type Phase = 'idle' | 'pressed' | 'dragging';
  */
 export function StickyNote(props: StickyNoteProps): JSX.Element {
   const { note, doc, zoom, selected, editing, onSelect, onStartEdit, onEndEdit } = props;
+  const editable = props.editable !== false;
 
   const rootRef = useRef<HTMLDivElement | null>(null);
   const textRef = useRef<HTMLDivElement | null>(null);
@@ -159,6 +163,8 @@ export function StickyNote(props: StickyNoteProps): JSX.Element {
     if (phaseRef.current === 'pressed') {
       // Below the threshold this is still a press; exactly the threshold begins a drag.
       if (distance < DRAG_THRESHOLD_PX) return;
+      // A read-only board still selects (done on press) but never moves or raises the note.
+      if (!editable) return;
       phaseRef.current = 'dragging';
       setDragging(true);
       bringToFront(doc, idRef.current);
@@ -198,14 +204,17 @@ export function StickyNote(props: StickyNoteProps): JSX.Element {
   const onDoubleClick = (event: ReactMouseEvent<HTMLDivElement>): void => {
     // A double-click edits this note; it must not create a new one behind it.
     event.stopPropagation();
+    if (!editable) return; // a read-only board never opens the text editor
     onStartEdit(note.id);
   };
 
   const onColor = (color: StickyColor): void => {
+    if (!editable) return;
     setStickyColor(doc, note.id, color);
   };
 
   const onDelete = (): void => {
+    if (!editable) return;
     // Removing the note also clears the local selection (endEdit('unselected')).
     deleteObject(doc, note.id);
     onEndEdit('unselected');

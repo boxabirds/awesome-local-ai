@@ -6,6 +6,7 @@ import { useCamera } from './canvas/useCamera.js';
 import { screenToWorld, type Size } from './canvas/camera.js';
 import { useBoardDoc } from './board/useBoardDoc.js';
 import { ConnectionStatus } from './board/ConnectionStatus.js';
+import type { ConnectionStatus as ConnectionState } from './board/connectBoard.js';
 import { useSelection } from './board/useSelection.js';
 import { Toolbar } from './board/Toolbar.js';
 import { StickyNote } from './objects/StickyNote.js';
@@ -24,6 +25,13 @@ const focusIsEditable = (): boolean => {
     (el instanceof HTMLElement && el.isContentEditable)
   );
 };
+
+/** Whether the board may be edited for a given connection status. Only a board the room
+ *  refused to LOAD is un-editable; every other state (connecting/online/reconnecting, and
+ *  the create flow's null) edits normally. A repaired board re-enables on first sync. */
+export function canEdit(status: ConnectionState | null): boolean {
+  return status !== 'load_failed';
+}
 
 /** Parse a path into a board id, or undefined for the create flow / an invalid id. */
 function parseBoardId(pathname: string): { boardId?: string; invalid: boolean } {
@@ -83,11 +91,12 @@ export function App(): JSX.Element {
   /** Create a note whose centre lands on a viewport-relative screen point. */
   const createAtScreen = useCallback(
     (screenPoint: { x: number; y: number }): void => {
+      if (!canEdit(connectionStatus)) return; // a board that couldn't be loaded is not editable
       const world = screenToWorld(camera.camera, screenPoint);
       const id = createSticky(doc, world);
       if (id) startEdit(id);
     },
-    [camera.camera, doc, startEdit],
+    [camera.camera, doc, startEdit, connectionStatus],
   );
 
   /** The toolbar button creates a note in the middle of the visible board area. */
@@ -111,11 +120,13 @@ export function App(): JSX.Element {
       if (selectedId === null) return;
 
       if (event.key === 'Enter') {
+        if (!canEdit(connectionStatus)) return; // a read-only board never opens the editor
         event.preventDefault();
         startEdit(selectedId);
         return;
       }
       if (event.key === 'Delete' || event.key === 'Backspace') {
+        if (!canEdit(connectionStatus)) return; // refuse to delete on an un-loadable board
         event.preventDefault();
         deleteObject(doc, selectedId);
         select(null);
@@ -123,7 +134,7 @@ export function App(): JSX.Element {
     };
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [selectedId, editingId, doc, select, startEdit]);
+  }, [selectedId, editingId, doc, select, startEdit, connectionStatus]);
 
   // Expose the real doc and selection to the component / e2e suites (test builds only).
   useEffect(() => {
@@ -154,11 +165,12 @@ export function App(): JSX.Element {
             onSelect={select}
             onStartEdit={startEdit}
             onEndEdit={endEdit}
+            editable={canEdit(connectionStatus)}
           />
         ))}
       </BoardViewport>
 
-      <Toolbar onCreateSticky={createAtCentre} />
+      <Toolbar onCreateSticky={createAtCentre} disabled={!canEdit(connectionStatus)} />
 
       {/* Live connection badge: online/connecting once connected, offline only for a bad
           board id (TC-20). The create flow renders neither — there is no socket. */}

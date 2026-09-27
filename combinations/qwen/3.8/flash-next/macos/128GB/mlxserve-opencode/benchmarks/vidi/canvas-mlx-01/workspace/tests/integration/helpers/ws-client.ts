@@ -57,7 +57,7 @@ export function sameSnapshot(a: readonly StickySnapshot[], b: readonly StickySna
 export const sleep = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms));
 
 export class RoomClient {
-  readonly doc = new Y.Doc();
+  readonly doc: Y.Doc;
   /** Received sync bodies that carried data (SyncStep2 or Update payloads). */
   readonly receivedUpdates: Uint8Array[] = [];
   /** Every raw `message` payload received, in arrival order (for verbatim-relay checks). */
@@ -70,8 +70,9 @@ export class RoomClient {
   private readonly ws: WebSocket;
   private readonly remoteOrigin = Symbol('remote');
 
-  private constructor(ws: WebSocket) {
+  private constructor(ws: WebSocket, doc?: Y.Doc) {
     this.ws = ws;
+    this.doc = doc ?? new Y.Doc();
     ws.binaryType = 'arraybuffer';
     // Local edits (board-model transacts with LOCAL_ORIGIN) go to the room as an update;
     // anything the room applied (origin = remoteOrigin) is never re-sent.
@@ -145,8 +146,27 @@ export class RoomClient {
     return client;
   }
 
-  /** Open a raw upgrade connection and return the socket (for routing/edge tests). */
-  static async raw(boardId: string): Promise<{ status: number; client: WebSocket | null }> {
+  /**
+   * Open a SECOND connection over an EXISTING document, reusing its local state (and its
+   * `update` → send wiring). Used to model a client whose socket dropped after an
+   * unsavable change: the document still holds that change across the reconnect, and the
+   * sync handshake re-sends it so the room can now store it.
+   */
+  static async connectWithDoc(boardId: string, doc: Y.Doc): Promise<RoomClient> {
+    const response = await SELF.fetch(
+      new Request(`http://self/api/rooms/${boardId}`, { headers: { Upgrade: 'websocket' } }),
+    );
+    if (response.status !== 101 || response.webSocket === null) {
+      throw new Error(`upgrade failed: ${response.status}`);
+    }
+    const ws = response.webSocket;
+    ws.accept();
+    const client = new RoomClient(ws, doc);
+    client.send(frameSync((enc) => syncProtocol.writeSyncStep1(enc, doc)));
+    return client;
+  }
+
+  /** Open a raw upgrade connection and return the socket (for routing/edge tests). */  static async raw(boardId: string): Promise<{ status: number; client: WebSocket | null }> {
     const response = await SELF.fetch(
       new Request(`http://self/api/rooms/${boardId}`, { headers: { Upgrade: 'websocket' } }),
     );

@@ -7,8 +7,9 @@ Model `mlxserve-flash-next-mixed-4-8bit`, scope `canvas`, effort `low`, client p
 | 1 | Pan and zoom around an infinite board | DONE | 76.4 | None | None | None | — | — | green | 6/6 |  | 0 / 0 | 2 | — | throttled 71%, server peak 84 GB |
 | 2 | Capture ideas on sticky notes and rearrange them | DONE | 59.0 | None | None | None | — | — | green | 20/20 |  | 0 / 0 | 1 | — | throttled 79%, server peak 84 GB |
 | 3 | See other people's edits appear live on the same board | DONE | 122.9 | None | None | None | — | — | green | 20/27 |  | 0 / 0 | 3 | — | DEGRADED (power) throttled 57%, server peak 84 GB |
+| 4 | Return to a board and find everything as it was left | DONE | 118.1 | None | None | None | — | — | green | 21/31 |  | 0 / 0 | 4 | — | throttled 98%, server peak 84 GB |
 
-**Totals:** 3 stories, 258 agent-minutes, 0 requests, 0 prompt / 0 completion tokens, gate green 3/3, final acceptance 20/27, stalled 0, partial 0, 7759 lines in src+tests.
+**Totals:** 4 stories, 376 agent-minutes, 0 requests, 0 prompt / 0 completion tokens, gate green 4/4, final acceptance 21/31, stalled 0, partial 0, 10388 lines in src+tests.
 
 > Stories 3 ran partly on battery or in Low Power Mode. Their timings are not comparable; re-run them.
 
@@ -21,6 +22,7 @@ Each story's commits, and which story broke or fixed an earlier story's held-out
 | 1 | 8 by the agent | 7809 / 53 | `BoardViewport.tsx` (272), `useCamera.ts` (217), `camera.ts` (175), `styles.css` (155), `playwright.config.ts` (98), `README.md` (65), +15 more |
 | 2 | 4 by the agent | 2846 / 24 | `StickyNote.tsx` (269), `board-model.ts` (210), `styles.css` (179), `StickyTextEditor.tsx` (149), `StickyText.ts` (124), `App.tsx` (117), +8 more |
 | 3 | 4 by the agent | 3830 / 270 | `board-room.ts` (338), `connectBoard.ts` (105), `useBoardDoc.ts` (104), `styles.css` (78), `App.tsx` (69), `protocol.ts` (63), +12 more |
+| 4 | 4 by the agent | 2827 / 107 | `board-room.ts` (331), `board-store.ts` (286), `room-state.ts` (127), `NOTES.md` (91), `connectBoard.ts` (59), `board-store-chunks.ts` (34), +7 more |
 
 ### Earlier stories broken or fixed
 

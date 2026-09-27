@@ -21,10 +21,18 @@ export interface Env {
   BOARD_ROOM: DurableObjectNamespace<BoardRoom>;
   /** The built client (`assets.binding: ASSETS`). */
   ASSETS: Fetcher;
+  /**
+   * When exactly `'1'`, the room exposes a test-only storage corrupt/repair endpoint. The
+   * production and default dev config never set it, so the route is inert in every real run.
+   */
+  TEST_HOOKS?: string;
 }
 
 /** The path prefix of the live-board WebSocket endpoint. */
 const ROOM_PREFIX = '/api/rooms/';
+
+/** The path prefix of the TEST-ONLY board storage control endpoint. */
+const TEST_PREFIX = '/__test/board/';
 
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
@@ -42,6 +50,20 @@ export default {
       // refuses an over-capacity joiner.
       const id = env.BOARD_ROOM.idFromName(boardId);
       return env.BOARD_ROOM.get(id).fetch(request);
+    }
+    // TEST-ONLY (gated on env.TEST_HOOKS === '1'): drive a board's storage into a genuine
+    // load failure and back, so a black-box e2e can prove the honest load-failure badge.
+    if (String(env.TEST_HOOKS) === '1' && url.pathname.startsWith(TEST_PREFIX)) {
+      const rest = decodeURIComponent(url.pathname.slice(TEST_PREFIX.length));
+      const slash = rest.indexOf('/');
+      const boardId = slash === -1 ? rest : rest.slice(0, slash);
+      const op = slash === -1 ? '' : rest.slice(slash + 1);
+      if (!isValidBoardId(boardId)) return new Response('Invalid board id', { status: 400 });
+      if (op !== 'corrupt' && op !== 'repair') return new Response('Not found', { status: 404 });
+      const id = env.BOARD_ROOM.idFromName(boardId);
+      return env.BOARD_ROOM
+        .get(id)
+        .fetch(new Request(`https://do.internal/__test/${op}`, { method: 'POST' }));
     }
     // Every other path is the client, served from static assets with the
     // single-page-application fallback configured in wrangler.jsonc.

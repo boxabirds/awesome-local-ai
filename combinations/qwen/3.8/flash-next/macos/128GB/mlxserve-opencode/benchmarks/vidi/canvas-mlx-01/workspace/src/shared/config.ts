@@ -83,3 +83,30 @@ export const CONNECTED_CONFIRMATION_MS = 2000;
 
 /** The outage length the `live.catch_up` verification disconnects a person for. */
 export const CATCH_UP_TEST_OUTAGE_MS = 30_000;
+
+/* ------------------------------------------------------------ persistence */
+
+/** Compact the update log into a snapshot once this many log rows exist. */
+export const COMPACTION_UPDATE_COUNT = 500;
+
+/** Or once the log bytes reach this total. */
+export const COMPACTION_BYTES = 4 * 1024 * 1024;
+
+/**
+ * Snapshot blob chunk size. Keeps every stored row well under the SQLite-backed
+ * Durable Object per-row size limit; the design deliberately chooses a value far
+ * below any documented limit known at design time.
+ */
+export const SNAPSHOT_CHUNK_BYTES = 512 * 1024;
+
+/** A LoadFailed room retries loading at most this often (also the e2e repair wait). */
+export const LOAD_RETRY_MIN_INTERVAL_MS = 5000;
+
+/** The board size the `persist.large_board` requirement is verified at. */
+export const PERSIST_TESTED_NOTES = 2000;
+
+/** The time budget for opening a board of {@link PERSIST_TESTED_NOTES} notes. */
+export const BOARD_LOAD_BUDGET_MS = 3000;
+
+/** The version of the persisted SQLite tables (distinct from the Yjs `meta` schema). */
+export const STORAGE_SCHEMA_VERSION = 1;

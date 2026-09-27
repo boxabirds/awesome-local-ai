@@ -6,6 +6,9 @@
  */
 import { formatConnectionStatusLabel, type ConnectionStatus } from './connectBoard.js';
 
+/** The load-failure badge is drawn in red (PRD: an honest, unmissable failure colour). */
+export const LOAD_FAILED_COLOR = '#c62828';
+
 export interface ConnectionStatusProps {
   status: ConnectionStatus;
   /** Shown next to the label for the invalid-board-id / offline case. */
@@ -22,8 +25,10 @@ export function ConnectionStatus({
   return (
     <span
       className="board-connection test-connection-status"
+      role="status"
       data-status={status}
       data-peers={peers ?? undefined}
+      style={status === 'load_failed' ? { color: LOAD_FAILED_COLOR } : undefined}
     >
       {formatConnectionStatusLabel(status)}
       {peers !== undefined && peers > 0 ? (
