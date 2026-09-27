@@ -1,3 +1,41 @@
+commit 0b5ec56414b1fdc602a3168f7c4ea5e16080af3f
+vidi-agent  Sun Sep 27 03:49:01 2026 +0100
+
+    story 9: Write free text anywhere on the board
+
+
+ NOTES.md                                |  92 ++++++++++
+ src/client/App.tsx                      | 117 +++++++++++-
+ src/client/board/SelectionBar.tsx       |  41 +++++
+ src/client/board/SelectionOverlay.tsx   |  12 +-
+ src/client/board/Toolbar.tsx            |  50 ++++-
+ src/client/board/useBoardKeys.ts        |  30 ++-
+ src/client/board/useTool.ts             |  39 ++++
+ src/client/board/useTransformGesture.ts |  99 +++++++++-
+ src/client/canvas/BoardViewport.tsx     |  43 ++++-
+ src/client/identity.ts                  |  30 +++
+ src/client/objects/StickyText.ts        |  44 +----
+ src/client/objects/StickyTextEditor.tsx | 201 ++++----------------
+ src/client/objects/TextEditor.tsx       | 235 ++++++++++++++++++++++++
+ src/client/objects/TextObject.tsx       | 100 ++++++++++
+ src/client/objects/TextToolbar.tsx      |  40 ++++
+ src/client/objects/registry.tsx         |  29 ++-
+ src/client/objects/textLayout.ts        | 185 +++++++++++++++++++
+ src/client/objects/useTextBoxSync.ts    |  46 +++++
+ src/client/styles.css                   | 169 +++++++++++++++++
+ src/shared/board-model.ts               |  21 +++
+ src/shared/config.ts                    |  31 ++++
+ src/shared/objects/text.ts              | 191 +++++++++++++++++++
+ src/shared/text-edit.ts                 |  50 +++++
+ tests/component/UndoControls.test.tsx   |   8 +-
+ tests/component/text-box-sync.test.tsx  | 163 +++++++++++++++++
+ tests/component/text-object.test.tsx    | 315 ++++++++++++++++++++++++++++++++
+ tests/component/text-tool.test.tsx      | 208 +++++++++++++++++++++
+ tests/e2e/helpers/story9.ts             | 100 ++++++++++
+ tests/e2e/story9.spec.ts                | 254 +++++++++++++++++++++++++
+ tests/unit/text-layout.test.ts          | 137 ++++++++++++++
+ tests/unit/text-model.test.ts           | 254 +++++++++++++++++++++++++
+ 31 files changed, 3104 insertions(+), 230 deletions(-)
 commit 6a1ab5528b87d2800996a9861b9bd583ba24ebf2
 vidi-agent  Sun Sep 27 02:19:10 2026 +0100
 
