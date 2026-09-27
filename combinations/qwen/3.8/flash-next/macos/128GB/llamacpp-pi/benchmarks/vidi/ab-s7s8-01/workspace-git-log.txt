@@ -1,3 +1,35 @@
+commit c330ab3f10da17eccdd6285580c9e32ba720d29a
+vidi-agent  Sun Sep 27 09:14:16 2026 +0100
+
+    chore: ignore tsc .tsbuildinfo artefacts
+
+
+ .gitignore | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)
+commit e7749e8e6a5fda40398f5cc5751da22c7a8c742d
+vidi-agent  Sun Sep 27 09:14:11 2026 +0100
+
+    story 8: Undo my mistakes, keep others' work
+
+
+ NOTES.md                                |  76 ++++++++++
+ src/client/App.tsx                      |  77 ++++++++--
+ src/client/board/Toolbar.tsx            |  14 +-
+ src/client/board/UndoButtons.tsx        |  38 +++++
+ src/client/board/undo.ts                | 141 +++++++++++++++++
+ src/client/board/useBoardKeys.ts        |  28 +++-
+ src/client/board/useUndo.ts             |  54 +++++++
+ src/client/objects/StickyTextEditor.tsx |  34 ++++-
+ src/client/styles.css                   |  31 ++++
+ src/shared/config.ts                    |  11 ++
+ tests/component/UndoBoundaries.test.tsx | 203 +++++++++++++++++++++++++
+ tests/component/UndoControls.test.tsx   | 164 ++++++++++++++++++++
+ tests/e2e/undo.spec.ts                  | 199 ++++++++++++++++++++++++
+ tests/unit/helpers/peer.ts              |  78 ++++++++++
+ tests/unit/undo-boundaries.test.ts      | 114 ++++++++++++++
+ tests/unit/undo-history.test.ts         | 258 ++++++++++++++++++++++++++++++++
+ vitest.config.ts                        |   4 +
+ 17 files changed, 1509 insertions(+), 15 deletions(-)
 commit 73102838279103cf8a9706cdadd013fe6fe54307
 vidi-agent  Sun Sep 27 06:51:50 2026 +0100
 
