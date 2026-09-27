@@ -13,8 +13,9 @@ Model `mtplx-flash-next-optimized-speed`, scope `canvas`, effort `low`, client p
 | 8 | Undo and redo my own changes without undoing anyone else's | DONE, on partial 3 | 62.0 | 155 | 9188329 | 177299 | 1.9 | 71.1 | green | 38/51 |  | 3 / 0 (ended in error) | 4 | 119407 | throttled 85%, server peak 110 GB |
 | 9 | Write free text anywhere on the board | DONE, on partial 3 | 159.2 | 418 | 29109980 | 353923 | 1.5 | 65.2 | red | 40/57 |  | 3 / 1 (ended in error) | 8 | 120528 | throttled 78%, server peak 104 GB |
 | 10 | Draw shapes and connect them with arrows that follow when moved | DONE, on partial 3 | 105.7 | 31 | 2571349 | 22897 | 1.2 | 62.8 | red | 45/65 |  | 3 / 1 (ended in error) | 15 | 114621 | throttled 71%, server peak 104 GB |
+| 11 | Sketch freehand with a pen | DONE, on partial 3 | 50.6 | 198 | 12621176 | 111960 | 2.0 | 63.4 | red | 45/70 |  | 3 / 0 (ended in error) | 4 | 120819 | throttled 70%, server peak 99 GB |
 
-**Totals:** 9 stories, 880 agent-minutes, 2243 requests, 151,782,176 prompt / 1,800,100 completion tokens, gate green 6/9, final acceptance 45/65, stalled 0, partial 1, 21140 lines in src+tests.
+**Totals:** 10 stories, 931 agent-minutes, 2441 requests, 164,403,352 prompt / 1,912,060 completion tokens, gate green 6/10, final acceptance 45/70, stalled 0, partial 1, 21171 lines in src+tests.
 
 ### Stories ended early (PARTIAL) and what was built on them
 
@@ -25,16 +26,17 @@ Model `mtplx-flash-next-optimized-speed`, scope `canvas`, effort `low`, client p
 - Story 8, built on partial 3: held-out tests on the partial base 19/31; partial story's tests fixed 0, regressed 0; 0 stub-like lines added to src/.
 - Story 9, built on partial 3: held-out tests on the partial base 21/37; partial story's tests fixed 0, regressed 0; 2 stub-like lines added to src/.
 - Story 10, built on partial 3: held-out tests on the partial base 26/45; partial story's tests fixed 0, regressed 0; 0 stub-like lines added to src/.
+- Story 11, built on partial 3: held-out tests on the partial base 26/50; partial story's tests fixed 0, regressed 0; 0 stub-like lines added to src/.
 
 ### Decode tok/s by context (server log, all stories)
 
 | Context | Requests | Decode tok/s (request-weighted median of per-story medians) |
 |---|---|---|
-| 0-16k | 57 | 78.2 |
-| 16-32k | 147 | 73.8 |
-| 32-64k | 828 | 73.5 |
-| 64-100k | 831 | 67.6 |
-| 100-+k | 380 | 57.3 |
+| 0-16k | 66 | 58.8 |
+| 16-32k | 171 | 70.7 |
+| 32-64k | 892 | 68.3 |
+| 64-100k | 909 | 67.6 |
+| 100-+k | 403 | 57.3 |
 
 ## How it happened
 
@@ -51,6 +53,7 @@ Each story's commits, and which story broke or fixed an earlier story's held-out
 | 8 | harness snapshot (agent left work uncommitted) | 231 / 0 | `undo.ts` (122), `config.ts` (10) |
 | 9 | harness snapshot (agent left work uncommitted) | 3715 / 257 | `text-layout.ts` (265), `TextObject.tsx` (224), `App.tsx` (197), `text.ts` (195), `TextEditor.tsx` (191), `StickyTextEditor.tsx` (143), +15 more |
 | 10 | harness snapshot (agent left work uncommitted) | 3676 / 135 | `ConnectorObject.tsx` (277), `ConnectorTool.tsx` (275), `connector.ts` (258), `ShapeObject.tsx` (257), `shape.ts` (215), `App.tsx` (198), +10 more |
+| 11 | harness snapshot (agent left work uncommitted) | 31 / 0 | `config.ts` (31) |
 
 ### Earlier stories broken or fixed
 
@@ -68,7 +71,7 @@ A gap in a story's agent events with a restart or a logged intervention inside i
 | 4 | 26 Sep 14:48 | 20 min | machine freeze | quintus froze a third time today; |
 | 9 | 26 Sep 21:53 | 1 min | operator restart | before story 9: the operator stopped the run and relaunched it unchanged at `MTPLX_MEMORY_LIMIT_BYTES=90G` to restart MTPLX. |
 | 9 | 26 Sep 21:56 | 6 min | restart (no intervention logged) | — |
-| 10 | 27 Sep 00:44 | 18 min | operator restart | the run was stopped (SIGTERM to the whole process tree, recorded as "run stopped: exit 143") and relaunched at 00:51:07Z with the same command (`MTPLX_MEMORY_LIMIT_BYTES=90G`). |
+| 10 | 27 Sep 00:44 | 18 min | operator restart | correction to the entry above: the stop at 00:45Z and the relaunch at 00:51Z were not unattributed. |
 
 | Story | Active | Dead | Recorded |
 |---|---|---|---|
