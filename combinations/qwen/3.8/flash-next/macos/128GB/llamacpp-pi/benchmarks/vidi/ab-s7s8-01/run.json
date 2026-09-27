@@ -1,0 +1,4 @@
+{"install_id": "qwen38-flash-next-metal", "combination": "qwen/3.8/flash-next/macos/128GB/llamacpp-pi", "model_id": "qwen3.8-flash-next",
+ "pack": "vidi", "scope": "canvas", "metered": 0, "reasoning_effort": "low", "context_limit": 131072,
+ "output_limit": 32768, "backend_version": "", "mtplx_memory_limit_bytes": "", "compact_at": "client default", "client": "pi", "client_version": "0.86.0", "backend": "llamacpp", "host": "Apple M5 Max 128GB",
+ "harness_commit": "f0708a9", "pack_version": "vidi-v1.1", "started_at": "2026-09-27T03:04:23Z"}

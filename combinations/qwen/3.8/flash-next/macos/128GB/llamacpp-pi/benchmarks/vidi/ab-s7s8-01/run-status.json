@@ -1,6 +1,6 @@
 {
-  "state": "failed",
-  "reason": "exit 1: raise TimeoutExpired( subprocess.TimeoutExpired: Command '['sandbox-exec', '-p', '(version 1)(allow default)(deny file-read* file-write* (subpath \"~/.spec-bench/awesome-local-ai\") (subpath \"~/.claude\") (subpath \"~/.agents\") (subpath \"~/.codex\")",
-  "at": "2026-09-27T00:51:04Z",
+  "state": "started",
+  "reason": "harness f0708a9, client pi, model qwen3.8-flash-next",
+  "at": "2026-09-27T03:04:23Z",
   "host": "Quintus"
 }
