@@ -125,6 +125,7 @@ function renderStory() {
   $("main").innerHTML = `
     <h1>Story ${s.id}: ${esc(s.title)}</h1>
     <div class="summary">${esc(s.summary)}</div>
+    ${s.prerequisites.length ? `<div class="summary"><b>First:</b> ${s.prerequisites.map(id => { const p = S.stories.find(x => x.id === id); return esc(p ? p.title : "story " + id); }).join(", then ")}. Reviewed on the build after story ${s.review_build}, the first that has all of it.</div>` : ""}
     <div class="spec">
       <section><h2>Golden path: do this in each build</h2><ol>${s.golden_path.map(g => `<li>${esc(g)}</li>`).join("")}</ol></section>
       <section><h2>Must not</h2>${s.non_behaviours.length ? `<ul>${s.non_behaviours.map(n => `<li>${esc(n)}</li>`).join("")}</ul>` : `<span class="muted">nothing listed</span>`}</section>
@@ -133,7 +134,7 @@ function renderStory() {
     <div class="builds" id="builds"></div>
     <div class="reveal" id="reveal"></div>
     <div class="keys"><kbd>1</kbd>–<kbd>9</kbd> pick a build · <kbd>o</kbd> open or go to its tab · <kbd>+</kbd> pass · <kbd>-</kbd> fail · <kbd>space</kbd> skip · <kbd>n</kbd> note (<kbd>Esc</kbd> to leave) · <kbd>↑</kbd><kbd>↓</kbd> build · <kbd>←</kbd><kbd>→</kbd> story<br>
-    Each build opens <b>as it was after story ${s.id}</b>, built from that story's commit; moving to another story stops these builds. Reviews save to <code>${esc(S.file)}</code>.</div>`;
+    Each build opens <b>as it was after story ${s.review_build}</b>, built from that commit; moving to another story stops these builds. Reviews save to <code>${esc(S.file)}</code>.</div>`;
   renderBuilds();
 }
 

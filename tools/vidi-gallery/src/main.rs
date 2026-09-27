@@ -51,14 +51,15 @@ struct App {
     /// The builds under story review, in their (shuffled, when blind) order: key i is letter i.
     review_builds: Vec<runs::Run>,
     reviews: reviews::Store,
+    /// The stories in review order, each with its prerequisites and the build it's reviewed on.
+    stories: Vec<stories::Story>,
     /// Background preparation of every story's builds: slug -> "queued" / step / "failed: …".
     prep: tokio::sync::Mutex<std::collections::HashMap<String, String>>,
 }
 
-/// The story review follows the user's journey (create a board, move around, add content, ...),
-/// from the pack's canvas-journey scope; the plain canvas scope (story-number order) if it's missing.
-fn review_scope(pack: &std::path::Path) -> &'static str {
-    if pack.join("scope/canvas-journey.json").is_file() { "canvas-journey" } else { "canvas" }
+/// The build a story is reviewed on (its own, or a later one that has its prerequisites).
+fn review_build(app: &App, story: u64) -> u64 {
+    app.stories.iter().find(|s| s.id == story).map(|s| s.review_build).unwrap_or(story)
 }
 
 /// How many builds are prepared at once at startup.
@@ -67,13 +68,18 @@ const PREPARE_PARALLEL: usize = 3;
 /// Check out and build every (story, build) the review can open, story 1 first, a few at a time,
 /// so that opening one only starts its server.
 async fn prepare_all(app: Arc<App>) {
-    let pack = private_repo(&app.repo).join("packs/vidi");
-    let stories = stories::load(&pack, review_scope(&pack));
+    let stories = app.stories.clone();
     let mut jobs = Vec::new();
+    let mut builds_needed: Vec<u64> = Vec::new();
     for s in &stories {
+        if !builds_needed.contains(&s.review_build) {
+            builds_needed.push(s.review_build); // in review order, so the first story's builds come first
+        }
+    }
+    for b in builds_needed {
         for r in &app.review_builds {
-            jobs.push((s.id, r.clone()));
-            app.prep.lock().await.insert(story_slug(r, s.id), "queued".into());
+            jobs.push((b, r.clone()));
+            app.prep.lock().await.insert(story_slug(r, b), "queued".into());
         }
     }
     let gate = Arc::new(tokio::sync::Semaphore::new(PREPARE_PARALLEL));
@@ -242,8 +248,7 @@ fn build_label(app: &App, i: usize) -> String {
 }
 
 async fn api_review_state(State(app): State<Arc<App>>) -> impl IntoResponse {
-    let pack = private_repo(&app.repo).join("packs/vidi");
-    let stories = stories::load(&pack, review_scope(&pack));
+    let stories = app.stories.clone();
     let index: std::collections::HashMap<&str, usize> =
         app.review_builds.iter().enumerate().map(|(i, r)| (r.slug.as_str(), i)).collect();
     // Reviews are stored by slug; the page only ever sees keys, so blind stays blind.
@@ -265,6 +270,7 @@ async fn api_review_state(State(app): State<Arc<App>>) -> impl IntoResponse {
 }
 
 async fn api_review_status(State(app): State<Arc<App>>, UrlPath(story): UrlPath<u64>) -> impl IntoResponse {
+    let story = review_build(&app, story);
     let states = app.builds.states().await;
     let prep = app.prep.lock().await.clone();
     let by_key: Vec<serde_json::Value> = app
@@ -292,6 +298,7 @@ async fn api_review_status(State(app): State<Arc<App>>, UrlPath(story): UrlPath<
 /// Moving to another story: stop the builds of every other story, so only one story's builds
 /// hold ports and memory at a time.
 async fn api_review_story(State(app): State<Arc<App>>, UrlPath(story): UrlPath<u64>) -> impl IntoResponse {
+    let story = review_build(&app, story);
     let keep: std::collections::HashSet<String> = app.review_builds.iter().map(|r| story_slug(r, story)).collect();
     for slug in app.builds.states().await.into_keys() {
         if slug.contains('@') && !keep.contains(&slug) {
@@ -305,11 +312,17 @@ async fn api_review_open(State(app): State<Arc<App>>, UrlPath((story, key)): Url
     let Some(run) = app.review_builds.get(key) else {
         return (StatusCode::NOT_FOUND, Json(serde_json::json!({"error": "no such build"}))).into_response();
     };
+    let reviewed = story;
+    let story = review_build(&app, story);
     let workspace = match story_checkout(&app.cache, run, story).await {
         Ok(dir) => dir,
         Err(e) => return (StatusCode::INTERNAL_SERVER_ERROR, Json(serde_json::json!({"state": "failed", "error": e.to_string()}))).into_response(),
     };
-    let label = format!("{} · after story {story}", build_label(&app, key));
+    let label = if story == reviewed {
+        format!("{} · after story {story}", build_label(&app, key))
+    } else {
+        format!("{} · story {reviewed}, on the build after story {story}", build_label(&app, key))
+    };
     let banner = if app.blind {
         proxy::Banner { text: label.clone(), colour: BLIND_COLOUR.to_string(), title: label }
     } else {
@@ -386,7 +399,8 @@ async fn main() -> anyhow::Result<()> {
         shuffle(&mut review_builds);
     }
     let reviews = reviews::Store::new(private_repo(&repo).join("analysis/story-reviews.csv"));
-    let app = Arc::new(App { repo: repo.clone(), builds: builds.clone(), cache, blind, review_builds, reviews, prep: Default::default() });
+    let stories = stories::load_for_review(&private_repo(&repo).join("packs/vidi"), "canvas");
+    let app = Arc::new(App { repo: repo.clone(), builds: builds.clone(), cache, blind, review_builds, reviews, stories, prep: Default::default() });
     tokio::spawn(prepare_all(app.clone()));
     let router = Router::new()
         .route("/", get(page))
