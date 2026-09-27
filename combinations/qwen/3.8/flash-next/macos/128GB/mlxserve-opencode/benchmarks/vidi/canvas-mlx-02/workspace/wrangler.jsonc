@@ -1,0 +1,10 @@
+{
+  "name": "vidi6",
+  "main": "src/worker/index.ts",
+  "compatibility_date": "2026-09-17",
+  "assets": {
+    "directory": "./dist/client",
+    "binding": "ASSETS",
+    "not_found_handling": "single-page-application"
+  }
+}
