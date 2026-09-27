@@ -29,6 +29,7 @@ gradings measures the judge's own noise.
 from __future__ import annotations
 
 import argparse
+import json
 import os
 import shutil
 import subprocess
@@ -40,6 +41,7 @@ HERE = Path(__file__).resolve().parent
 REPO = HERE.parents[2]
 sys.path.insert(0, str(HERE))
 import claims  # noqa: E402
+import gates  # noqa: E402
 import hostenv  # noqa: E402
 import judge_sandbox  # noqa: E402
 import packdir  # noqa: E402
@@ -70,6 +72,14 @@ def last_accept(record: Path) -> Path:
     if not stories:
         raise SystemExit(f"{record}: no stories/NN/accept.json")
     return stories[-1] / "accept.json"
+
+
+def scorer_fault(accept: Path) -> str | None:
+    """Why a run's final held-out results say nothing about the build, or None. A judge given them
+    would grade a machine fault as the build's."""
+    d = json.loads(accept.read_text())
+    tests = d.get("tests") or []
+    return d.get("harness_fault") or gates.harness_fault(tests, d.get("runner_tail") or "")
 
 
 def fetch_workspace(record: str, node: str | None, dest: Path) -> None:
@@ -188,6 +198,10 @@ def main() -> None:
         label, _, rest = b.partition("=")
         record, _, node = rest.partition("@")
         rec = REPO / record
+        fault = scorer_fault(last_accept(rec))
+        if fault:
+            raise SystemExit(f"{label}: {last_accept(rec).relative_to(REPO)} is a scorer fault, not a result "
+                             f"({fault}). Re-score the run before judging it.")
         ws = src / label
         print(f"{label}: workspace from {node or 'this machine'}")
         fetch_workspace(record, node or None, ws)
