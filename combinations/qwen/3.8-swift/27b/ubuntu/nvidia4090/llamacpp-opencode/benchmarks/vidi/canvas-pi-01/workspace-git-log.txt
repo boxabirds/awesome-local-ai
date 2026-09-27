@@ -1,3 +1,78 @@
+commit 7d8b0515f2243adc786caaf84815a93e5f14bff6
+vidi-agent  Sun Sep 27 20:19:50 2026 +0100
+
+    story 11: Sketch freehand with a pen
+
+
+ NOTES.md | 54 ++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 54 insertions(+)
+commit 01f9eab883fc0b46323023fc2052fb9990506d7a
+vidi-agent  Sun Sep 27 20:19:15 2026 +0100
+
+    story 11 task 6: e2e TC-17 to TC-20 (live preview, shared sketch, camera while pen active, tidy-up select/resize/move/delete); cancel pending preview rAF on release
+
+
+ src/client/tools/PenTool.tsx |  11 ++
+ tests/e2e/pen.spec.ts        | 305 +++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 316 insertions(+)
+commit c5a320be1fcce72c3e1601496ac5673f727f436d
+vidi-agent  Sun Sep 27 20:08:12 2026 +0100
+
+    story 11 task 5: component tests TC-09 to TC-16, TC-21 (pen capture, split, options, hit test, fall-through, delete)
+
+
+ tests/component/PenTool.test.tsx      | 165 ++++++++++++++++++++++++++++++++++
+ tests/component/StrokeObject.test.tsx | 133 +++++++++++++++++++++++++++
+ 2 files changed, 298 insertions(+)
+commit 03386166b058222daad4a7ef05720361eebf10f1
+vidi-agent  Sun Sep 27 20:04:39 2026 +0100
+
+    story 11 task 4: StrokeObject render + registry entry, BoardPage wiring, styles
+
+
+ src/client/board/SelectionBar.tsx   |   2 +-
+ src/client/objects/StickyNote.tsx   |   4 +-
+ src/client/objects/StrokeObject.tsx |  94 ++++++++++++++++++++++++++++
+ src/client/objects/registry.tsx     |  40 +++++++++++-
+ src/client/pages/BoardPage.tsx      |  29 +++++++++
+ src/client/styles.css               | 120 ++++++++++++++++++++++++++++++++++++
+ tests/unit/stroke.test.ts           |  18 +++---
+ 7 files changed, 295 insertions(+), 12 deletions(-)
+commit 5b7a7b08092830948c67c10c827b51efd44189ba
+vidi-agent  Sun Sep 27 20:04:39 2026 +0100
+
+    story 11 task 3: Pen tool overlay, Pen toolbar, pen options, viewport screenOverlays, toolbar Pen button
+
+
+ src/client/board/Toolbar.tsx        |  19 +++
+ src/client/canvas/BoardViewport.tsx |   5 +
+ src/client/tools/PenTool.tsx        | 235 ++++++++++++++++++++++++++++++++++++
+ src/client/tools/PenToolbar.tsx     |  83 +++++++++++++
+ src/client/tools/usePenOptions.ts   |  23 ++++
+ 5 files changed, 365 insertions(+)
+commit ccc0293001ca8c4b7cc1d1fe156e2ebcba5b84a6
+vidi-agent  Sun Sep 27 20:00:29 2026 +0100
+
+    story 11 task 2: stroke model (simplify/split/smoothPath/createStroke/scaledPoints) + board-model stroke snapshot
+
+
+ src/shared/geometry/simplify.ts | 82 +++++++++++++++++++++++++++++++++++++++--
+ src/shared/objects/stroke.ts    | 63 ++++++++++++++++++++++++++++++-
+ tests/unit/stroke.test.ts       |  3 +-
+ 3 files changed, 141 insertions(+), 7 deletions(-)
+commit 254d7eae07deb7bce7e63aa6f8765fe90283b45b
+vidi-agent  Sun Sep 27 19:59:28 2026 +0100
+
+    story 11 task 1: unit tests TC-01 to TC-08, settings, fixtures, not-implemented stubs
+
+
+ src/shared/board-model.ts       |  55 ++++++++++++++-
+ src/shared/config.ts            |  29 ++++++++
+ src/shared/geometry/simplify.ts |  40 +++++++++++
+ src/shared/objects/stroke.ts    |  87 +++++++++++++++++++++++
+ tests/fixtures/pen-paths.ts     |  61 ++++++++++++++++
+ tests/unit/stroke.test.ts       | 150 ++++++++++++++++++++++++++++++++++++++++
+ 6 files changed, 419 insertions(+), 3 deletions(-)
 commit 66d6f6158ab0f2cb7e8e7f9eb128ff0e7a6ac3b6
 vidi-agent  Sun Sep 27 19:35:32 2026 +0100
 
