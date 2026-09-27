@@ -32,6 +32,8 @@ MIB = 1024 * 1024
 SAMPLE_EVERY_S = 0.25
 REQUEST_TIMEOUT_S = 3600
 INSTRUCTION = "\n\nContinue the code above: write the next function in the same style."
+# The combination's thinking sampler (config.sh SAMPLING_THINKING), as the coding agents run it.
+AGENT_SAMPLER = {"temperature": 1.0, "top_p": 0.95, "top_k": 20, "min_p": 0.0}
 
 
 def gpu_used_mib() -> int:
@@ -58,19 +60,31 @@ class PeakSampler(threading.Thread):
             time.sleep(SAMPLE_EVERY_S)
 
 
-def request(url: str, prompt: str, decode: int) -> dict:
-    body = {
+def body(prompt: str, decode: int, sampling: str = "greedy", reuse_prefix: bool = False) -> dict:
+    """The request. greedy: temperature 0, thinking off (throughput). agent: the agents' sampler,
+    thinking on. The unique line defeats prefix caching; reuse_prefix puts it last instead, so
+    repeats pay prefill once and only decode is compared."""
+    tag = f"run {uuid.uuid4()}"
+    content = f"{prompt}{INSTRUCTION}\n{tag}" if reuse_prefix else f"{tag}\n{prompt}{INSTRUCTION}"
+    b = {
         "model": "default",
-        "messages": [{"role": "user", "content": f"run {uuid.uuid4()}\n{prompt}{INSTRUCTION}"}],
+        "messages": [{"role": "user", "content": content}],
         "max_tokens": decode,
-        "temperature": 0,
         "stream": True,
         "stream_options": {"include_usage": True},
-        "reasoning_effort": "off",                        # gufo
-        "chat_template_kwargs": {"enable_thinking": False},  # llama.cpp
         "ignore_eos": True,                                # llama.cpp: decode the full budget
     }
-    req = urllib.request.Request(f"{url}/v1/chat/completions", data=json.dumps(body).encode(),
+    if sampling == "agent":
+        b.update(AGENT_SAMPLER, chat_template_kwargs={"enable_thinking": True})
+    else:
+        b.update(temperature=0, reasoning_effort="off",   # gufo
+                 chat_template_kwargs={"enable_thinking": False})  # llama.cpp
+    return b
+
+
+def request(url: str, prompt: str, decode: int, sampling: str = "greedy", reuse_prefix: bool = False) -> dict:
+    body_ = body(prompt, decode, sampling, reuse_prefix)
+    req = urllib.request.Request(f"{url}/v1/chat/completions", data=json.dumps(body_).encode(),
                                  headers={"Content-Type": "application/json"})
     sampler = PeakSampler()
     sampler.start()
@@ -120,6 +134,9 @@ def main() -> None:
     ap.add_argument("--fills", default="2048,32768,65536,120000")
     ap.add_argument("--repeats", type=int, default=3)
     ap.add_argument("--decode", type=int, default=400)
+    ap.add_argument("--sampling", choices=["greedy", "agent"], default="greedy")
+    ap.add_argument("--reuse-prefix", action="store_true", help="unique line last: repeats measure decode only")
+    ap.add_argument("--label", default="", help="recorded with each result, e.g. draft-depth-3")
     a = ap.parse_args()
     a.out.parent.mkdir(parents=True, exist_ok=True)
     for fill in (int(x) for x in a.fills.split(",")):
@@ -127,10 +144,10 @@ def main() -> None:
         runs = []
         for rep in range(1, a.repeats + 1):
             try:
-                r = request(a.url, prompt, a.decode)
+                r = request(a.url, prompt, a.decode, a.sampling, a.reuse_prefix)
             except Exception as e:  # a refusal or a crash is a result too
                 r = {"error": f"{type(e).__name__}: {e}"}
-            r.update({"engine": a.engine, "fill": fill, "repeat": rep})
+            r.update({"engine": a.engine, "label": a.label, "sampling": a.sampling, "fill": fill, "repeat": rep})
             runs.append(r)
             with a.out.open("a") as f:
                 f.write(json.dumps(r) + "\n")
