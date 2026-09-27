@@ -68,6 +68,10 @@ def work_dir_name(record: str) -> str:
 
 
 def last_accept(record: Path) -> Path:
+    """The run's final held-out results: a whole-run re-score if there is one, else the last story's."""
+    for final in ("accept-final.json", "accept.json"):
+        if (record / final).exists():
+            return record / final
     stories = sorted(p for p in (record / "stories").iterdir() if (p / "accept.json").exists())
     if not stories:
         raise SystemExit(f"{record}: no stories/NN/accept.json")

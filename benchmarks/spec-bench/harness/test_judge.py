@@ -64,9 +64,19 @@ def test_a_judging_run_collects_outputs_and_the_judge_cannot_read_home(tmp_path,
     assert not (package / "summary.md").exists()
 
 
+def test_a_whole_run_rescore_wins_over_the_last_story(tmp_path):
+    (tmp_path / "stories" / "12").mkdir(parents=True)
+    (tmp_path / "stories" / "12" / "accept.json").write_text("{}")
+    (tmp_path / "accept-final.json").write_text("{}")
+    assert judge.last_accept(tmp_path) == tmp_path / "accept-final.json"
+
+
 def test_scorer_faults_are_caught_on_real_records():
     ref = judge.REPO / "benchmarks" / "reference" / "vidi" / "opus-5.5"
     broken = ref / "run-2" / "stories" / "12" / "accept.json"  # every test: browser executable missing
     good = ref / "run-3" / "stories" / "12" / "accept.json"
     assert "no browser" in judge.scorer_fault(broken)
     assert judge.scorer_fault(good) is None
+    # run-2's final build was re-scored whole on 25 Sep; that is what a judge gets
+    assert judge.last_accept(ref / "run-2").name == "accept-final.json"
+    assert judge.scorer_fault(judge.last_accept(ref / "run-2")) is None
