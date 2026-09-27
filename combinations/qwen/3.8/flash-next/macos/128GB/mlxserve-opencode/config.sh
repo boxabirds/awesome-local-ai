@@ -202,6 +202,12 @@ SAMPLING_INSTRUCT="--temp 0.7 --top-p 0.80 --top-k 20"
 # refuses any other value rather than pretend to apply it.
 REASONING_EFFORT_DEFAULT="low"
 REASONING_EFFORTS="default low"
+# ...and that implicit "low" also caps thinking at 2048 tokens per request (server.zig
+# implicitEffortBudget) unless --reasoning-budget is set. llama.cpp and gufo bound thinking only by
+# the output limit, so this does too. 27 Sep 2026: canvas-mlx-01 ran without it and hit the cap on
+# 4-42 turns a story (longest thinking ~9k chars against ~50k on the other engines); it is kept as
+# the capped variant.
+REASONING_BUDGET_DEFAULT=32768             # = OUTPUT_LIMIT
 
 # ---- client ---------------------------------------------------------------
 DEFAULT_PROVIDER="mlxserve"
