@@ -696,3 +696,147 @@ body {
   text-align: center;
   color: inherit;
 }
+
+/* --- images (story 12) ---------------------------------------------------- */
+
+/*
+ * The drop highlight (`image.drop`): the board area outlined in dashes while
+ * image files hover over it. It is drawn inside the viewport and never receives
+ * a pointer, so the drop lands on the board behind it.
+ */
+.board-drop-highlight {
+  position: absolute;
+  inset: 4px;
+  z-index: 40;
+  border: 2px dashed #2563eb;
+  border-radius: 8px;
+  background: rgba(37, 99, 235, 0.06);
+  pointer-events: none;
+}
+
+/* The file input the Image button drives: no space of its own, still focusable
+   by the browser when it is asked for a file. */
+.board-image-input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  border: 0;
+  opacity: 0;
+}
+
+/* Toasts: bottom of the board, read when looked at, gone on their own. */
+.board-toast-stack {
+  position: fixed;
+  left: 50%;
+  bottom: 72px;
+  transform: translateX(-50%);
+  z-index: 120;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  pointer-events: none;
+}
+
+.board-toast {
+  max-width: min(560px, calc(100vw - 32px));
+  padding: 8px 14px;
+  border-radius: 8px;
+  background: rgba(15, 23, 42, 0.92);
+  color: #f8fafc;
+  font-size: 13px;
+  line-height: 1.4;
+  box-shadow: 0 6px 18px rgba(15, 23, 42, 0.24);
+}
+
+/*
+ * Image objects. The box is the object's own rectangle, in world units, so every
+ * state occupies exactly the space the picture will (`image.uploading`).
+ */
+.image-object {
+  position: absolute;
+  box-sizing: border-box;
+  overflow: hidden;
+}
+
+.image-object-ready {
+  display: block;
+  object-fit: fill;
+  user-select: none;
+  -webkit-user-drag: none;
+  outline: none;
+}
+
+.image-object-uploading,
+.image-object-unfinished,
+.image-object-failed,
+.image-object-unavailable {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 8px;
+  border: 1px solid #cbd5e1;
+  border-radius: 4px;
+  background: #eef1f5;
+  color: #475569;
+  font-size: 12px;
+  line-height: 1.3;
+  text-align: center;
+}
+
+.image-object-unfinished,
+.image-object-failed {
+  border-color: #fca5a5;
+  background: #fef2f2;
+  color: #7f1d1d;
+}
+
+.image-object[data-selected='true'] {
+  outline: 2px solid #2563eb;
+  outline-offset: 2px;
+}
+
+.image-object-label {
+  overflow: hidden;
+  word-break: break-word;
+}
+
+.image-object-progress {
+  width: min(70%, 160px);
+  height: 6px;
+  border-radius: 3px;
+  background: #cbd5e1;
+  overflow: hidden;
+}
+
+.image-object-progress-fill {
+  height: 100%;
+  background: #2563eb;
+  transition: width 120ms linear;
+}
+
+.image-object-actions {
+  display: flex;
+  gap: 6px;
+}
+
+.image-object-button {
+  padding: 2px 8px;
+  border: 1px solid #94a3b8;
+  border-radius: 4px;
+  background: #ffffff;
+  color: #0f172a;
+  font: inherit;
+  cursor: pointer;
+}
+
+.image-object-button:hover {
+  border-color: #2563eb;
+}

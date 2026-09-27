@@ -1,4 +1,5 @@
 import { isValidBoardId } from '../shared/board-id';
+import { handleServe, handleUpload } from './assets';
 import { createBoard } from './create-board';
 import type { Env } from './env';
 
@@ -7,11 +8,17 @@ export { BoardRoom } from './board-room';
 
 const ROOM_PATH_PREFIX = '/api/rooms/';
 const BOARDS_PATH = '/api/boards';
+/** Image uploads are a subresource of a board (story 12). */
+const ASSETS_SUFFIX = '/assets';
+/** Images are read back by their whole key, `boardId/assetId`. */
+const ASSET_PATH_PREFIX = '/api/assets/';
 
 /**
  * Worker entry.
  *
  * - `POST /api/boards` creates a new board (rate-limited, collision-retried).
+ * - `POST /api/boards/:id/assets` stores an uploaded image (story 12).
+ * - `GET /api/assets/:boardId/:assetId` serves a stored image.
  * - `GET /api/boards/:id` checks whether a board exists.
  * - `/api/rooms/:boardId` upgrades to the board's BoardRoom Durable Object.
  * - Everything else is served from static assets (SPA fallback).
@@ -25,6 +32,24 @@ export default {
       return handleCreateBoard(request, env);
     }
 
+    // POST /api/boards/:id/assets — store an uploaded image. Matched before the
+    // board-existence route, which would otherwise read the id as `:id/assets`.
+    const uploadPath = boardAssetsPath(url.pathname);
+    if (uploadPath !== null) {
+      if (request.method !== 'POST') {
+        return methodNotAllowed();
+      }
+      return handleUpload(request, env, uploadPath);
+    }
+
+    // GET /api/assets/:boardId/:assetId — read a stored image back.
+    if (url.pathname.startsWith(ASSET_PATH_PREFIX)) {
+      if (request.method !== 'GET' && request.method !== 'HEAD') {
+        return methodNotAllowed();
+      }
+      return handleServe(env, decodeURIComponent(url.pathname.slice(ASSET_PATH_PREFIX.length)));
+    }
+
     // GET /api/boards/:id — check board existence
     if (url.pathname.startsWith(BOARDS_PATH + '/') && request.method === 'GET') {
       const id = url.pathname.slice(BOARDS_PATH.length + 1);
@@ -33,10 +58,7 @@ export default {
 
     // Other methods on /api/boards → 405
     if (url.pathname === BOARDS_PATH || url.pathname.startsWith(BOARDS_PATH + '/')) {
-      return new Response(JSON.stringify({ error: 'method_not_allowed' }), {
-        status: 405,
-        headers: { 'Content-Type': 'application/json' },
-      });
+      return methodNotAllowed();
     }
 
     // /api/rooms/:id — WebSocket upgrade
@@ -58,6 +80,23 @@ export default {
     return env.ASSETS.fetch(request);
   },
 };
+
+const methodNotAllowed = (): Response =>
+  new Response(JSON.stringify({ error: 'method_not_allowed' }), {
+    status: 405,
+    headers: { 'Content-Type': 'application/json' },
+  });
+
+/**
+ * The board id of a `POST /api/boards/:id/assets` path, or null when the path is
+ * not the board-assets endpoint. The id itself is validated by the handler, so a
+ * malformed one is refused there with the same answer as any other unknown board.
+ */
+function boardAssetsPath(pathname: string): string | null {
+  if (!pathname.startsWith(BOARDS_PATH + '/') || !pathname.endsWith(ASSETS_SUFFIX)) return null;
+  const boardId = pathname.slice(BOARDS_PATH.length + 1, -ASSETS_SUFFIX.length);
+  return boardId.includes('/') ? null : boardId;
+}
 
 async function handleCreateBoard(request: Request, env: Env): Promise<Response> {
   const visitorKey = request.headers.get('CF-Connecting-IP') ?? 'unknown';

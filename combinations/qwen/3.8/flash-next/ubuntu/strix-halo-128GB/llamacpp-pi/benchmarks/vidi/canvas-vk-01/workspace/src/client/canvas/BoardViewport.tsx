@@ -123,6 +123,21 @@ export interface BoardViewportProps {
   toolLayer?: ReactNode;
   /** Pointer cursor while a drawing tool owns the board. */
   toolCursor?: string;
+  /**
+   * File drags over the board (story 12, `image.drop`). These are native
+   * listeners on the board area rather than React props: a drop is a browser
+   * negotiation — `dragover` has to be answered for `drop` to happen at all — and
+   * the handler wants the real `DragEvent`, with its `dataTransfer`.
+   */
+  onDragEnter?(event: DragEvent): void;
+  onDragOver?(event: DragEvent): void;
+  onDragLeave?(event: DragEvent): void;
+  onDrop?(event: DragEvent): void;
+  /**
+   * A non-interactive layer above the board — the drop highlight. It is the
+   * caller's element, so the viewport stays out of what it means.
+   */
+  overlay?: ReactNode;
 }
 
 /**
@@ -139,6 +154,11 @@ export function BoardViewport({
   onTextToolPlace,
   toolLayer,
   toolCursor,
+  onDragEnter,
+  onDragOver,
+  onDragLeave,
+  onDrop,
+  overlay,
 }: BoardViewportProps): JSX.Element {
   const viewportRef = useRef<HTMLDivElement | null>(null);
   const worldRef = useRef<HTMLDivElement | null>(null);
@@ -167,6 +187,33 @@ export function BoardViewport({
   useEffect(() => {
     callbacksRef.current = { onDblClickEmpty, onEmptyClick, onTextToolPlace };
   });
+
+  // File drags (story 12). Attached natively, once, and read through a ref so the
+  // caller may hand in fresh callbacks without re-binding the board.
+  const dragRef = useRef({ onDragEnter, onDragOver, onDragLeave, onDrop });
+  useEffect(() => {
+    dragRef.current = { onDragEnter, onDragOver, onDragLeave, onDrop };
+  });
+  useEffect(() => {
+    const element = viewportRef.current;
+    if (!element) return;
+    const forward =
+      (which: 'onDragEnter' | 'onDragOver' | 'onDragLeave' | 'onDrop') =>
+      (event: DragEvent): void => {
+        dragRef.current[which]?.(event);
+      };
+    type DragEventName = 'dragenter' | 'dragover' | 'dragleave' | 'drop';
+    const handlers: Array<[DragEventName, (event: DragEvent) => void]> = [
+      ['dragenter', forward('onDragEnter')],
+      ['dragover', forward('onDragOver')],
+      ['dragleave', forward('onDragLeave')],
+      ['drop', forward('onDrop')],
+    ];
+    for (const [name, handler] of handlers) element.addEventListener(name, handler);
+    return () => {
+      for (const [name, handler] of handlers) element.removeEventListener(name, handler);
+    };
+  }, []);
 
   // Wheel must be non-passive so the page never scrolls or zooms over the board.
   useEffect(() => {
@@ -460,6 +507,7 @@ export function BoardViewport({
         />
       )}
       {toolLayer}
+      {overlay}
     </div>
   );
 }

@@ -23,6 +23,9 @@ import { PenTool } from './tools/PenTool';
 import { PenToolbar } from './tools/PenToolbar';
 import { usePenOptions } from './tools/usePenOptions';
 import { useIdentity } from './board/useIdentity';
+import { DropHighlight } from './images/DropHighlight';
+import { ImageInsertContext, useImageInsert } from './images/useImageInsert';
+import { ToastStack } from './ui/Toast';
 import { NoteToolbar } from './objects/NoteToolbar';
 import { ShapeToolbar } from './objects/ShapeToolbar';
 import { getObjectType } from './objects/registry';
@@ -71,7 +74,7 @@ export function ConnectionBadge() {
  * handlers. All sharing one doc and one selection state.
  */
 function BoardContent() {
-  const { doc, notes, connection } = useBoardDoc();
+  const { doc, notes, connection, boardId } = useBoardDoc();
   const selection = useSelection(notes);
   const { camera } = useCameraApi();
 
@@ -79,12 +82,34 @@ function BoardContent() {
   const { ids, editingId, click, toggle, setMany, clear, startEdit, endEdit } = selection;
   // A created shape or arrow is selected and the tool goes back to Select.
   const selectCreated = useCallback((id: string) => click(id), [click]);
+  const penOptions = usePenOptions();
+  const identity = useIdentity();
+
+  // Images (story 12): the three entrances — drop, paste, picker — share one set
+  // of handlers, and the upload state they produce is what every image on the
+  // board draws itself from.
+  const insert = useImageInsert({
+    doc,
+    boardId: boardId ?? '',
+    camera,
+    connection,
+    identityId: identity.id,
+  });
+  const { openPicker, onPaste } = insert;
+
   const { tool, shapeKind, setTool, setShapeKind, toolCreated } = useActiveTool({
     canEdit: editable,
     select: selectCreated,
+    onImageRequest: openPicker,
   });
-  const penOptions = usePenOptions();
-  const identity = useIdentity();
+
+  // Paste is listened for on the document: a keyboard paste goes to whatever has
+  // focus, and the board is only the target when that is not a text editor —
+  // which `onPaste` itself distinguishes (`image.paste`).
+  useEffect(() => {
+    document.addEventListener('paste', onPaste);
+    return () => document.removeEventListener('paste', onPaste);
+  }, [onPaste]);
 
   useEffect(() => {
     if (!editable && editingId !== null) endEdit();
@@ -284,6 +309,7 @@ function BoardContent() {
 
   return (
     <UndoProvider value={undoController}>
+      <ImageInsertContext.Provider value={insert}>
       <Toolbar
         onCreateSticky={handleCreateSticky}
         editable={editable}
@@ -309,6 +335,11 @@ function BoardContent() {
             <PenTool camera={camera} color={penOptions.color} thickness={penOptions.thickness} />
           ) : undefined
         }
+        onDragEnter={editable ? insert.onDragEnter : undefined}
+        onDragOver={editable ? insert.onDragOver : undefined}
+        onDragLeave={insert.onDragLeave}
+        onDrop={editable ? insert.onDrop : undefined}
+        overlay={editable && insert.isDragOver ? <DropHighlight /> : undefined}
       >
         {renderedNotes.map((note) => {
           const spec = getObjectType(note.type);
@@ -385,6 +416,13 @@ function BoardContent() {
           onDelete={handleDelete}
         />
       )}
+
+      {/* The file input the Image button and the `i` shortcut drive, and the
+          refusals that explain why something was not added (`image.pick`,
+          `image.types`, `image.size_limit`, `image.count_limit`, `image.rate_limit`). */}
+      {insert.fileInput}
+      <ToastStack messages={insert.toasts} />
+      </ImageInsertContext.Provider>
     </UndoProvider>
   );
 }

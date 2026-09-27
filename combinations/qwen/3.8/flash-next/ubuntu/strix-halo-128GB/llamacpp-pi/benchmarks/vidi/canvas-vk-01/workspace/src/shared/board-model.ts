@@ -9,6 +9,7 @@ import {
 import { rectContains, type Point, type Rect } from './geometry';
 import type { TextSnapshot } from './objects/text';
 import { shapeSnapshotFrom, type ShapeSnapshot } from './objects/shape';
+import { imageSnapshotFrom, type ImageSnap } from './objects/image';
 import {
   connectorSnapshotFrom,
   detachConnectorsTo,
@@ -58,7 +59,13 @@ const VALID_COLORS = new Set<string>(Object.keys(STICKY_COLORS));
  * object registry calls `registerBoardObjectType` for any type it can render
  * so this set stays in sync without board-model importing React.
  */
-const KNOWN_OBJECT_TYPES = new Set<string>(['sticky']);
+const KNOWN_OBJECT_TYPES = new Set<string>([
+  'sticky',
+  // Images are listed here rather than only registered from the client's object
+  // registry, so the Worker — which never loads that module — keeps image records
+  // in its snapshot instead of dropping them as unknown (`image.placeholder_survives`).
+  'image',
+]);
 
 /** Teach the model about a renderable object type (idempotent). */
 export function registerBoardObjectType(type: string): void {
@@ -158,7 +165,8 @@ export type BoardSnapshot =
   | TextSnapshot
   | ShapeSnapshot
   | ConnectorSnapshot
-  | StrokeSnap;
+  | StrokeSnap
+  | ImageSnap;
 
 export function objectSnapshots(doc: Y.Doc): readonly BoardSnapshot[] {
   const objects = getObjectsMap(doc);
@@ -214,6 +222,11 @@ export function objectSnapshots(doc: Y.Doc): readonly BoardSnapshot[] {
     }
     if (type === 'shape' && KNOWN_OBJECT_TYPES.has('shape')) {
       const snap = shapeSnapshotFrom(id, obj.get('z') as number, obj);
+      if (snap !== null) result.push(snap);
+      return;
+    }
+    if (type === 'image' && KNOWN_OBJECT_TYPES.has('image')) {
+      const snap = imageSnapshotFrom(id, obj.get('z') as number, obj);
       if (snap !== null) result.push(snap);
       return;
     }

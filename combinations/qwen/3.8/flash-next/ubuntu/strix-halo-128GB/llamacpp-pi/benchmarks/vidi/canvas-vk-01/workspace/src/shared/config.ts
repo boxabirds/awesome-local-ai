@@ -224,3 +224,32 @@ export const STROKE_MAX_POINTS = 5000;
 export const STROKE_HIT_TOLERANCE_PX = 6;
 /** Smallest stroke side a resize can reach, in world units. */
 export const STROKE_MIN_SIZE_WORLD = 4;
+
+// Image settings (story 12)
+
+/** The image types a user may add, as MIME types (`image.types`). */
+export const IMAGE_ACCEPTED_TYPES = ['image/png', 'image/jpeg', 'image/gif', 'image/webp'] as const;
+export type AcceptedImageType = (typeof IMAGE_ACCEPTED_TYPES)[number];
+/** Largest image file the board accepts, in bytes (`image.size_limit`). */
+export const IMAGE_MAX_BYTES = 10 * 1024 * 1024;
+/** Largest number of images one add action may place (`image.count_limit`). */
+export const IMAGE_MAX_FILES_PER_ADD = 20;
+/** Longest side of a freshly placed image, in world units (`image.placement_size`). */
+export const IMAGE_MAX_PLACE_SIZE_WORLD = 800;
+/** Smallest side an image resize can reach, in world units (`image.aspect_resize`). */
+export const IMAGE_MIN_SIZE_WORLD = 16;
+/** Gap between images placed in a row, in world units (`image.drop`). */
+export const IMAGE_LAYOUT_GAP_WORLD = 24;
+/**
+ * How long an image may stay `uploading` before everyone is told the upload did
+ * not finish (`image.unfinished`).
+ */
+export const IMAGE_UPLOAD_STALE_MS = 5 * 60 * 1000;
+/** Uploads one visitor may start per period (`image.rate_limit`). */
+export const IMAGE_UPLOAD_LIMIT = 60;
+/** Period of the upload limit, in seconds. Must match wrangler.jsonc ratelimits. */
+export const IMAGE_UPLOAD_PERIOD_SECONDS = 60;
+/** `max-age` of a stored asset in seconds; keys never change, so it is a year. */
+export const ASSET_CACHE_MAX_AGE_SECONDS = 31_536_000;
+/** Bytes read from the head of a file to decide its type by content (`image.types`). */
+export const IMAGE_SNIFF_BYTES = 12;

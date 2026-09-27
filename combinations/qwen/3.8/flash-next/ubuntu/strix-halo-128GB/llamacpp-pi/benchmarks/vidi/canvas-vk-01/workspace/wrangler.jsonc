@@ -25,12 +25,29 @@
       "new_sqlite_classes": ["BoardRoom"]
     }
   ],
+  // Story 12: uploaded images live in R2 under `<boardId>/<assetId>`; the keys
+  // are unguessable, so the bucket is read by key alone.
+  "r2_buckets": [
+    {
+      "binding": "ASSETS_BUCKET",
+      "bucket_name": "vidi6-assets"
+    }
+  ],
   "ratelimits": [
     {
       "name": "BOARD_CREATE_LIMITER",
       "namespace_id": "vidi6-board-create",
       "simple": {
         "limit": 10,
+        "period": 60
+      }
+    },
+    {
+      // PRD image.rate_limit: IMAGE_UPLOAD_LIMIT uploads per IP per period.
+      "name": "ASSET_UPLOAD_LIMITER",
+      "namespace_id": "vidi6-asset-upload",
+      "simple": {
+        "limit": 60,
         "period": 60
       }
     }

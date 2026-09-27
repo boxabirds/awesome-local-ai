@@ -120,6 +120,22 @@ export function Toolbar({
       >
         <span aria-hidden="true">&#x270F;&#xFE0F;</span>
       </button>
+      {/*
+        The Image tool is an action rather than a mode: it opens the file picker
+        and leaves the pointer on Select (`image.pick`), which is why it carries no
+        pressed state.
+      */}
+      <button
+        type="button"
+        aria-label="Image"
+        data-testid="tool-image"
+        title="Image – or press I"
+        onClick={() => onSelectTool?.('image')}
+        disabled={!editable}
+        aria-disabled={!editable}
+      >
+        <span aria-hidden="true">&#x1F5BC;&#xFE0F;</span>
+      </button>
       <button
         type="button"
         aria-label="Sticky note"

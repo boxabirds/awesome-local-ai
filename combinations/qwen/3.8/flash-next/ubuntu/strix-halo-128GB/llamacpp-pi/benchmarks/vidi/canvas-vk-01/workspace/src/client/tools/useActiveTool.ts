@@ -39,6 +39,11 @@ export const TOOL_SHORTCUTS: Record<string, ToolId> = {
 /**
  * The tools this build can actually activate. Stories 11 and 12 extend the list
  * when their tools exist; until then their shortcuts do nothing.
+ *
+ * `image` is deliberately absent: it is not a mode the pointer can be left in.
+ * Pressing it opens the file picker and hands the pointer back to Select, because
+ * the thing the user wants afterwards is to move the picture they just added, not
+ * to keep "holding" the Image tool (`image.pick`).
  */
 export const AVAILABLE_TOOLS: readonly ToolId[] = ['select', 'text', 'shape', 'connector', 'pen'];
 
@@ -47,6 +52,12 @@ export interface UseActiveToolOptions {
   canEdit?: boolean;
   /** Select a freshly created object (`toolCreated`). */
   select?(id: string): void;
+  /**
+   * The Image tool was asked for (`image.pick`). Called synchronously from the
+   * click or key press, because a file picker may only be opened while the
+   * browser still believes the user asked for it.
+   */
+  onImageRequest?(): void;
 }
 
 export interface ActiveToolApi {
@@ -64,7 +75,7 @@ export interface ActiveToolApi {
  * `toolCreated` for the return-to-Select-after-creating rule.
  */
 export function useActiveTool(options: UseActiveToolOptions = {}): ActiveToolApi {
-  const { canEdit = true, select } = options;
+  const { canEdit = true, select, onImageRequest } = options;
   const [tool, setToolState] = useState<ToolId>('select');
   const [shapeKind, setShapeKindState] = useState<ShapeKind>('rect');
 
@@ -75,6 +86,10 @@ export function useActiveTool(options: UseActiveToolOptions = {}): ActiveToolApi
   const selectRef = useRef(select);
   useEffect(() => {
     selectRef.current = select;
+  });
+  const imageRef = useRef(onImageRequest);
+  useEffect(() => {
+    imageRef.current = onImageRequest;
   });
 
   // A board that stops being editable (load failure, closing) holds no tool.
@@ -96,6 +111,15 @@ export function useActiveTool(options: UseActiveToolOptions = {}): ActiveToolApi
       }
       const next = TOOL_SHORTCUTS[event.key.toLowerCase()];
       if (next === undefined) return;
+      if (next === 'image') {
+        if (!canEditRef.current) return;
+        event.preventDefault();
+        // Ask for the file, and leave the pointer on Select: the Image tool is
+        // an action, not a mode (`image.pick`).
+        setToolState('select');
+        imageRef.current?.();
+        return;
+      }
       if (!AVAILABLE_TOOLS.includes(next)) return;
       if (next !== 'select' && !canEditRef.current) return;
       event.preventDefault();
@@ -106,6 +130,12 @@ export function useActiveTool(options: UseActiveToolOptions = {}): ActiveToolApi
   }, []);
 
   const setTool = useCallback((next: ToolId): void => {
+    if (next === 'image') {
+      if (!canEditRef.current) return;
+      setToolState('select');
+      imageRef.current?.();
+      return;
+    }
     if (!AVAILABLE_TOOLS.includes(next)) return;
     if (next !== 'select' && !canEditRef.current) return;
     setToolState(next);

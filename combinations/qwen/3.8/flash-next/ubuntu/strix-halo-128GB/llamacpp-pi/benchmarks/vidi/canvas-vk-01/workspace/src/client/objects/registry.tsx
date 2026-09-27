@@ -173,6 +173,25 @@ function strokeHitTest(obj: ObjectSnapshot, worldPoint: Point, zoom = 1): boolea
   return distanceToPolyline(pts, localPoint) <= tolerance;
 }
 
+// --- images (story 12) ---------------------------------------------------
+import { IMAGE_MIN_SIZE_WORLD } from '../../shared/config';
+import { ImageBoardObject } from './ImageObject';
+
+/**
+ * An image is selected by its rectangle, and resized only in its own proportions:
+ * a picture stretched out of shape is a worse mistake than a slightly small one
+ * (`image.aspect_resize`), and `IMAGE_MIN_SIZE_WORLD` is how small it may get
+ * before it stops being something to click on.
+ */
+registerObjectType('image', {
+  Component: ImageBoardObject,
+  resizable: true,
+  aspectLocked: true,
+  minSize: IMAGE_MIN_SIZE_WORLD,
+  editableText: false,
+  hitTest: stickyHitTest,
+});
+
 registerObjectType('stroke', {
   Component: StrokeObject,
   resizable: true,

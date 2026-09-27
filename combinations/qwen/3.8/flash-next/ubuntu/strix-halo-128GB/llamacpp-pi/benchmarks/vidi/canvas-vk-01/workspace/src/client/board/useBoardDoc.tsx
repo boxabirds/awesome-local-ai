@@ -10,6 +10,11 @@ export interface BoardDocContextValue {
   notes: readonly BoardSnapshot[];
   /** Live connection to the room; `connected` when there is nothing to sync. */
   connection: ConnectionState;
+  /**
+   * Which board this is, when it is a connected one. Uploaded images are stored
+   * under it (story 12), so a board without an id has nowhere to send them.
+   */
+  boardId?: string;
 }
 
 const BoardDocContext = createContext<BoardDocContextValue | null>(null);
@@ -101,7 +106,7 @@ export function BoardDocProvider({
   }, [doc, boardId, report]);
 
   return (
-    <BoardDocContext.Provider value={{ doc, notes, connection }}>
+    <BoardDocContext.Provider value={{ doc, notes, connection, boardId }}>
       {children}
     </BoardDocContext.Provider>
   );
