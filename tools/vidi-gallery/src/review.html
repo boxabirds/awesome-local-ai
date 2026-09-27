@@ -44,6 +44,14 @@ textarea { width:100%; min-height:34px; resize:vertical; background:var(--bg); c
 .keys { margin-top:14px; color:var(--muted); font-size:12px; }
 kbd { background:var(--chip); border-radius:3px; padding:0 4px; font:11px ui-monospace, monospace; }
 .reveal { margin-top:8px; }
+.paths { grid-column: 1 / -1; margin-top:4px; border-top:1px dashed var(--line); padding-top:6px; }
+.path { display:grid; grid-template-columns: 58px 1fr auto minmax(160px, 30%); gap:8px; align-items:center; padding:2px 0; }
+@media (max-width:860px) { .path { grid-template-columns: 58px 1fr; } }
+.pill { font-size:11px; border-radius:9px; padding:0 7px; text-align:center; background:var(--chip); }
+.pill.passed { color:var(--pass); } .pill.failed, .pill.timedOut { color:var(--fail); }
+.path .err { color:var(--muted); font-size:12px; }
+.path a { font-size:12px; margin-right:8px; }
+.path input { width:100%; background:var(--bg); color:var(--fg); border:1px solid var(--line); border-radius:5px; padding:2px 6px; font:12px/1.4 inherit; }
 </style>
 </head>
 <body>
@@ -64,7 +72,9 @@ const NOTE_SAVE_MS = 700;
 const timers = {};
 const $ = id => document.getElementById(id);
 const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
-const review = (sid, key) => S.reviews.find(r => r.story === sid && r.key === key);
+const review = (sid, key, path = "") => S.reviews.find(r => r.story === sid && r.key === key && (r.path || "") === path);
+const pathsCache = {};  // "story:key" -> {state, paths}
+const shortTitle = t => t.replace(/\s*@\S+.*$/, "");
 
 function counts(sid) { return S.builds.filter(b => review(sid, b.key)?.verdict).length; }
 
@@ -101,6 +111,7 @@ function renderBuilds() {
       <div><button data-open="${i}">${status[b.key]?.state === "running" ? "Go to tab" : "Open"}</button><div class="status ${cls}">${esc(st)}</div></div>
       <div class="verdicts">${["pass", "fail", "skip"].map(v => `<button class="${v} ${r.verdict === v ? "on" : ""}" data-v="${v}" data-i="${i}">${v}</button>`).join("")}</div>
       <textarea data-note="${i}" placeholder="what works, what doesn't, questions, scope…">${esc(note)}</textarea>
+      <div class="paths" id="paths-${i}">${renderPaths(sid, b.key)}</div>
     </div>`;
   }).join("");
   document.querySelectorAll("[data-open]").forEach(b => b.onclick = () => { sel = +b.dataset.open; openTab(sel); });
@@ -115,9 +126,39 @@ function renderBuilds() {
     };
     t.onblur = () => saveNote(+t.dataset.note, t.value);
   });
+  document.querySelectorAll("[data-pathnote]").forEach(inp => {
+    inp.oninput = () => {
+      const key = +inp.dataset.pathnote, path = inp.dataset.path, id = `${sid}:${key}:${path}`;
+      clearTimeout(timers[id]);
+      timers[id] = setTimeout(() => post(key, review(sid, key, path)?.verdict || "", inp.value, path), NOTE_SAVE_MS);
+    };
+  });
   const all = S.builds.every(b => review(sid, b.key)?.verdict);
   $("reveal").innerHTML = S.blind ? (all ? `<button id="rv">Reveal which build is which (story ${sid})</button> <span id="rvout" class="small"></span>` : `<span class="muted small">Names are revealed for this story once every build has a verdict.</span>`) : "";
   if ($("rv")) $("rv").onclick = reveal;
+}
+
+function renderPaths(sid, key) {
+  const c = pathsCache[`${sid}:${key}`];
+  if (!c) return `<span class="muted small">walkthroughs: loading…</span>`;
+  if (!c.paths.length) return `<span class="muted small">walkthroughs: ${esc(c.state)}</span>`;
+  return `<div class="muted small">walkthroughs (${c.paths.length} paths, held-out tests; ${esc(c.state)})</div>` + c.paths.map(pa => {
+    const trace = pa.trace ? `/trace/index.html?trace=${encodeURIComponent(location.origin + "/recordings/" + pa.trace)}` : null;
+    const note = review(sid, key, pa.title)?.notes || "";
+    return `<div class="path"><span class="pill ${esc(pa.status)}">${esc(pa.status)}</span>
+      <span>${esc(shortTitle(pa.title))}${pa.error ? `<div class="err">${esc(pa.error)}</div>` : ""}</span>
+      <span>${trace ? `<a href="${trace}" target="_blank">▶ walkthrough</a>` : ""}${pa.video ? `<a href="/recordings/${encodeURI(pa.video)}" target="_blank">video</a>` : ""}</span>
+      <input data-pathnote="${key}" data-path="${esc(pa.title)}" value="${esc(note)}" placeholder="note on this path…"></div>`;
+  }).join("");
+}
+
+async function loadPaths() {
+  const sid = S.stories[story].id;
+  await Promise.all(S.builds.map(async b => {
+    const k = `${sid}:${b.key}`, c = pathsCache[k];
+    if (c && c.state === "done") return;  // finished recordings don't change
+    pathsCache[k] = await (await fetch(`/api/review/paths/${sid}/${b.key}`)).json();
+  }));
 }
 
 function renderStory() {
@@ -142,7 +183,7 @@ async function go(i) {
   story = Math.max(0, Math.min(i, S.stories.length - 1)); sel = firstUnreviewed();
   // Each story is reviewed on the build as it was after that story: the server stops other stories' builds.
   await fetch(`/api/review/story/${S.stories[story].id}`, {method: "POST"});
-  status = {}; await poll();
+  status = {}; await poll(); await loadPaths();
   renderNav(); renderStory();
 }
 function firstUnreviewed() { const sid = S.stories[story].id; const k = S.builds.findIndex(b => !review(sid, b.key)?.verdict); return k < 0 ? 0 : k; }
@@ -162,12 +203,12 @@ async function openTab(i) {
   wait();
 }
 
-async function post(key, verdict, notes) {
+async function post(key, verdict, notes, path = "") {
   const sid = S.stories[story].id;
-  const r = await fetch("/api/review/set", {method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify({story: sid, key, verdict, notes})});
+  const r = await fetch("/api/review/set", {method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify({story: sid, key, path, verdict, notes})});
   if (!r.ok) { $("saved").textContent = "NOT SAVED: " + (await r.text()); return false; }
-  const row = review(sid, key);
-  if (row) { row.verdict = verdict; row.notes = notes; } else S.reviews.push({story: sid, key, verdict, notes});
+  const row = review(sid, key, path);
+  if (row) { row.verdict = verdict; row.notes = notes; } else S.reviews.push({story: sid, key, path, verdict, notes});
   if (drafts[`${sid}:${key}`] === notes) delete drafts[`${sid}:${key}`];
   $("saved").textContent = "saved " + new Date().toLocaleTimeString();
   return true;
@@ -198,7 +239,7 @@ async function poll() {
 }
 
 document.addEventListener("keydown", e => {
-  if (e.target.tagName === "TEXTAREA") { if (e.key === "Escape") e.target.blur(); return; }
+  if (["TEXTAREA", "INPUT"].includes(e.target.tagName)) { if (e.key === "Escape") e.target.blur(); return; }
   if (e.metaKey || e.ctrlKey || e.altKey) return;
   const k = e.key, n = S.builds.length;
   if (/^[1-9]$/.test(k) && +k <= n) { sel = +k - 1; renderBuilds(); }
@@ -217,7 +258,10 @@ document.addEventListener("keydown", e => {
   S = await (await fetch("/api/review/state")).json();
   $("mode").textContent = `${S.builds.length} builds · ${S.blind ? "blind (letters are shuffled each session)" : "labelled"}`;
   await go(0);
-  setInterval(async () => { await poll(); if (document.activeElement?.tagName !== "TEXTAREA") renderBuilds(); }, 3000);
+  setInterval(async () => {
+    await poll(); await loadPaths();
+    if (!["TEXTAREA", "INPUT"].includes(document.activeElement?.tagName)) renderBuilds();
+  }, 3000);
 })();
 </script>
 </body>
