@@ -1,18 +1,23 @@
-// Left-side board toolbar (see spec: sticky.toolbar).
+// Left-side board toolbar (see spec: sticky.toolbar, undo.buttons).
 // Fixed position; the Sticky note button creates a note at the centre of the
-// visible board area and starts editing it.
+// visible board area and starts editing it. Below the tools: the Undo and
+// Redo buttons (story 8), disabled while the matching history is empty.
 
 import type { JSX } from 'react';
+import type { UndoUi } from './useUndo';
+import { UndoButtons } from './UndoButtons';
 
 export const STICKY_BUTTON_TOOLTIP = 'Sticky note – or double-click the board';
 
 export interface ToolbarProps {
   onCreateSticky(): void;
-  /** False while the board is load_failed: the button is disabled. */
+  /** False while the board is load_failed: the buttons are disabled. */
   disabled?: boolean;
+  /** Undo/redo state and actions for this tab's history (story 8). */
+  undo: UndoUi;
 }
 
-export function Toolbar({ onCreateSticky, disabled = false }: ToolbarProps): JSX.Element {
+export function Toolbar({ onCreateSticky, disabled = false, undo }: ToolbarProps): JSX.Element {
   const stop = (event: React.SyntheticEvent) => event.stopPropagation();
   return (
     <div
@@ -36,6 +41,7 @@ export function Toolbar({ onCreateSticky, disabled = false }: ToolbarProps): JSX
           />
         </svg>
       </button>
+      <UndoButtons {...undo} />
     </div>
   );
 }

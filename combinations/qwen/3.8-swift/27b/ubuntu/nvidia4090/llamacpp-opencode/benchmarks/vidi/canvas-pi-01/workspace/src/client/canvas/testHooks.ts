@@ -5,6 +5,7 @@
 
 import * as Y from 'yjs';
 import type { Camera } from './camera';
+import type { UndoController } from '../board/undo';
 
 export interface Vidi6TestApi {
   setCamera(cam: Camera): void;
@@ -20,6 +21,8 @@ export interface Vidi6TestApi {
   setConnectionState(state: string): void;
   /** Count of transform gestures that started/ended on this client. */
   getGestureLog(): { starts: number; ends: number };
+  /** This tab's undo controller (story 8: spy on undo/redo, read stack state). */
+  getUndoController(): UndoController;
 }
 
 declare global {

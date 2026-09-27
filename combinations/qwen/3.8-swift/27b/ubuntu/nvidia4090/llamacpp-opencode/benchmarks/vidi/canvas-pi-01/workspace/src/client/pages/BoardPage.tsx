@@ -28,6 +28,8 @@ import { useBoardDoc } from '../board/useBoardDoc';
 import { useSelection } from '../board/useSelection';
 import { useTransformGesture } from '../board/useTransformGesture';
 import { useBoardKeys } from '../board/useBoardKeys';
+import { createUndo } from '../board/undo';
+import { useUndo } from '../board/useUndo';
 import { useMarquee, MarqueeRect } from '../board/Marquee';
 import { SelectionBar } from '../board/SelectionBar';
 import { SelectionOverlay } from '../board/SelectionOverlay';
@@ -138,8 +140,21 @@ function Board({ boardId }: { boardId: string }) {
   const editable = canEdit(connectionState);
   const selection = useSelection(notes);
 
+  // Per-user undo/redo (story 8): one controller per board doc, tracking only
+  // this tab's LOCAL_ORIGIN transactions; destroyed on unmount (a board
+  // change remounts this component via the page key), so history is
+  // session-only (undo.session_only).
+  const undoRef = useRef<ReturnType<typeof createUndo> | null>(null);
+  if (undoRef.current === null) undoRef.current = createUndo(doc);
+  const undo = undoRef.current;
+  useEffect(() => {
+    return () => undo.destroy();
+  }, [undo]);
+  const undoUi = useUndo(undo, editable);
+
   // Transform gesture: moving (pointer-down on an object) and resizing
-  // (pointer-down on an overlay handle) share one implementation.
+  // (pointer-down on an overlay handle) share one implementation. Gesture
+  // start/end close undo capture windows so one drag is one step.
   const gestureLogRef = useRef({ starts: 0, ends: 0 });
   const gesture = useTransformGesture({
     doc,
@@ -149,9 +164,11 @@ function Board({ boardId }: { boardId: string }) {
     canEdit: editable,
     onGestureStart: () => {
       gestureLogRef.current.starts += 1;
+      undo.boundary();
     },
     onGestureEnd: () => {
       gestureLogRef.current.ends += 1;
+      undo.boundary();
     },
   });
 
@@ -159,8 +176,8 @@ function Board({ boardId }: { boardId: string }) {
   const marquee = useMarquee(cam.camera, notes, (ids) => selection.setMany(ids, true));
 
 
-  // Keyboard shortcuts: Ctrl+A, Escape, arrows, Delete, Enter.
-  useBoardKeys({ doc, selection, snapshot: notes, canEdit: editable });
+  // Keyboard shortcuts: Ctrl+A, Escape, arrows, Delete, Enter, undo/redo.
+  useBoardKeys({ doc, selection, snapshot: notes, canEdit: editable, undo });
 
   // Test-only hook (excluded from production builds).
   useEffect(() => {
@@ -172,6 +189,7 @@ function Board({ boardId }: { boardId: string }) {
       connectionState,
       setConnectionState,
       getGestureLog: () => ({ ...gestureLogRef.current }),
+      getUndoController: () => undo,
     });
   }, [cam.setCamera, doc, connectionState, setConnectionState]);
 
@@ -179,7 +197,9 @@ function Board({ boardId }: { boardId: string }) {
   const createStickyAt = (screenPoint: { x: number; y: number }) => {
     if (!editable) return; // load_failed: no model mutation (persist.client_status)
     const world = screenToWorld(cam.camera, screenPoint);
+    undo.boundary();
     const id = createSticky(doc, world);
+    undo.boundary();
     selection.startEdit(id);
   };
 
@@ -211,10 +231,16 @@ function Board({ boardId }: { boardId: string }) {
             snapshot={notes}
             onColor={(color) => {
               const [id] = selection.ids.values();
-              if (id !== undefined) setStickyColor(doc, id, color);
+              if (id !== undefined) {
+                undo.boundary();
+                setStickyColor(doc, id, color);
+                undo.boundary();
+              }
             }}
             onDelete={() => {
+              undo.boundary();
               deleteObjects(doc, [...selection.ids]);
+              undo.boundary();
               selection.clear();
             }}
           />
@@ -253,6 +279,7 @@ function Board({ boardId }: { boardId: string }) {
               onFocusSelect={(id) => selection.click(id)}
               onStartEdit={selection.startEdit}
               onEndEdit={selection.endEdit}
+              undo={undo}
             />
           );
         })}
@@ -266,6 +293,7 @@ function Board({ boardId }: { boardId: string }) {
       <Toolbar
         disabled={!editable}
         onCreateSticky={() => createStickyAt({ x: size.width / 2, y: size.height / 2 })}
+        undo={undoUi}
       />
       {selectionBar}
       {selection.ids.size > 0 && (

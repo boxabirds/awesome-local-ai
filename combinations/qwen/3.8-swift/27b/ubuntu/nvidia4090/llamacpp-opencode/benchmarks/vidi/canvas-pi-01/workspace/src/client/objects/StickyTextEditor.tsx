@@ -9,6 +9,7 @@ import { useCallback, useEffect, useRef, useState, type JSX } from 'react';
 import * as Y from 'yjs';
 import { LOCAL_ORIGIN } from '../../shared/board-model';
 import { STICKY_SIZE_WORLD, STICKY_TEXT_MAX_CHARS } from '../../shared/config';
+import type { UndoController } from '../board/undo';
 import { applyTextDiff, clampToLimit, counterVisible, fitFontSize, shiftCaret } from './StickyText';
 
 export interface StickyTextEditorProps {
@@ -16,9 +17,16 @@ export interface StickyTextEditorProps {
   /** Last known fitted font size; the editor re-fits itself on mount. */
   fontPx: number;
   onEnd(next: 'selected' | 'unselected'): void;
+  /**
+   * This tab's undo controller (story 8). `boundary()` on mount and on end
+   * keeps the typing burst as one undo step; Ctrl/Cmd+Z inside the textarea
+   * is routed to the controller (with preventDefault) so the browser's
+   * native textarea undo never diverges from the Y.Text.
+   */
+  undo?: UndoController | null;
 }
 
-export function StickyTextEditor({ ytext, fontPx, onEnd }: StickyTextEditorProps): JSX.Element {
+export function StickyTextEditor({ ytext, fontPx, onEnd, undo }: StickyTextEditorProps): JSX.Element {
   const wrapperRef = useRef<HTMLDivElement | null>(null);
   const taRef = useRef<HTMLTextAreaElement | null>(null);
   const composingRef = useRef(false);
@@ -33,18 +41,23 @@ export function StickyTextEditor({ ytext, fontPx, onEnd }: StickyTextEditorProps
     (next: 'selected' | 'unselected') => {
       if (endedRef.current) return;
       endedRef.current = true;
+      // Closing the capture window here keeps the typing burst separate from
+      // whatever happens after the edit (a delete click, a drag, ...).
+      undo?.boundary();
       onEnd(next);
     },
-    [onEnd],
+    [onEnd, undo],
   );
 
-  // Start editing: focus with the caret at the end of the text.
+  // Start editing: close the capture window (this edit is a fresh step) and
+  // focus with the caret at the end of the text.
   useEffect(() => {
+    undo?.boundary();
     const ta = taRef.current;
     if (ta === null) return;
     ta.focus();
     ta.setSelectionRange(ta.value.length, ta.value.length);
-  }, []);
+  }, [undo]);
 
   // Auto-fit: on mount and on every text change (not on zoom — font is in
   // world units, so zoom scales it uniformly).
@@ -112,6 +125,23 @@ export function StickyTextEditor({ ytext, fontPx, onEnd }: StickyTextEditorProps
     if (event.key === 'Escape') {
       event.preventDefault();
       finish('selected');
+      return;
+    }
+    if ((event.ctrlKey || event.metaKey) && !event.altKey && undo != null) {
+      const key = event.key.toLowerCase();
+      if (key === 'z') {
+        // Undo/redo the Y.Text, never the browser's native textarea undo:
+        // the two must not diverge (undo.typing).
+        event.preventDefault();
+        if (event.shiftKey) undo.redo();
+        else undo.undo();
+        return;
+      }
+      if (key === 'y') {
+        event.preventDefault();
+        undo.redo();
+        return;
+      }
     }
     // Enter inserts a newline (default textarea behaviour; not intercepted).
   };

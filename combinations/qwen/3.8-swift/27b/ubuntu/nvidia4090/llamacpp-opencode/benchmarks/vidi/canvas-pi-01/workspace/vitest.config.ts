@@ -15,6 +15,7 @@ export default defineWorkersConfig({
           pool: 'forks',
           environment: 'node',
           include: ['tests/unit/**/*.test.ts'],
+          server: { deps: { inline: ['yjs', 'lib0'] } },
         },
       },
       {

@@ -14,6 +14,7 @@ import { allObjectIds, deleteObjects, moveObjects, type ObjectSnapshot } from '.
 import { NUDGE_LARGE_STEP_WORLD, NUDGE_STEP_WORLD } from '../../shared/config';
 import type { Point } from '../../shared/geometry';
 import { getObjectType } from '../objects/registry';
+import type { UndoController } from './undo';
 import type { useSelection } from './useSelection';
 
 export interface BoardKeysOptions {
@@ -22,6 +23,8 @@ export interface BoardKeysOptions {
   snapshot: readonly ObjectSnapshot[];
   /** The current client may edit the board (false while load_failed). */
   canEdit: boolean;
+  /** This tab's undo controller (story 8: Ctrl/Cmd+Z, Ctrl/Cmd+Shift+Z, Ctrl+Y). */
+  undo?: UndoController;
 }
 
 function inEditableTarget(target: EventTarget | null): boolean {
@@ -36,12 +39,32 @@ export function useBoardKeys(options: BoardKeysOptions): void {
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
-      const { doc, selection, snapshot, canEdit } = optsRef.current;
+      const { doc, selection, snapshot, canEdit, undo } = optsRef.current;
       if (inEditableTarget(event.target)) return;
       if (selection.editingId !== null) return;
 
       if (event.ctrlKey || event.metaKey) {
-        if (event.key === 'a' || event.key === 'A') {
+        const key = event.key.toLowerCase();
+        if (key === 'z' && undo !== undefined) {
+          // Ctrl/Cmd+Z undoes this user's last step; Ctrl/Cmd+Shift+Z redoes.
+          // preventDefault keeps the browser's own undo out of the picture.
+          // While a sticky is being edited the editor handles it (the
+          // editingId guard above returned first), avoiding a double undo.
+          if (canEdit) {
+            event.preventDefault();
+            if (event.shiftKey) undo.redo();
+            else undo.undo();
+          }
+          return;
+        }
+        if (key === 'y' && undo !== undefined) {
+          if (canEdit) {
+            event.preventDefault();
+            undo.redo();
+          }
+          return;
+        }
+        if (key === 'a') {
           event.preventDefault();
           selection.setMany(allObjectIds(snapshot), false);
         }
@@ -67,14 +90,18 @@ export function useBoardKeys(options: BoardKeysOptions): void {
             const obj = byId.get(id);
             if (obj !== undefined) positions.set(id, { x: obj.x + dx, y: obj.y + dy });
           }
+          undo?.boundary();
           moveObjects(doc, positions);
+          undo?.boundary();
           return;
         }
         case 'Delete':
         case 'Backspace': {
           if (!canEdit || selection.ids.size === 0) return;
           event.preventDefault();
+          undo?.boundary();
           deleteObjects(doc, [...selection.ids]);
+          undo?.boundary();
           selection.clear();
           return;
         }

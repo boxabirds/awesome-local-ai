@@ -221,6 +221,37 @@ body {
   outline-offset: 1px;
 }
 
+/* Undo / Redo buttons below the tools (story 8) */
+.undo-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.undo-buttons__button {
+  width: 40px;
+  height: 40px;
+  padding: 8px;
+  border: 1px solid #d9dde3;
+  border-radius: 6px;
+  background: #ffffff;
+  color: #1f2430;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.undo-buttons__button:hover:not(:disabled) {
+  background: #f3f5f8;
+}
+.undo-buttons__button:focus-visible {
+  outline: 2px solid #2563eb;
+  outline-offset: 1px;
+}
+.undo-buttons__button:disabled {
+  color: #a3a9b4;
+  cursor: default;
+}
+
 /* ---- floating note toolbar (screen space, above the selected note) ---- */
 .note-toolbar-anchor {
   position: fixed;

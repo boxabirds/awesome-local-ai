@@ -278,3 +278,77 @@ Both nightly tests pass on this machine:
 - `tests/fixtures/testbox.tsx` — test-only non-locked resizable type.
 - `tests/e2e/select-move-resize-delete.spec.ts` — TC-32..36 (chromium/firefox/
   webkit).
+
+# Story 8 — Notes
+
+Undo and redo my own changes without undoing anyone else's. All tests pass:
+
+- `npm run typecheck` — clean
+- `npm run test:unit` — 141/141 (incl. undo-history TC-01..11, undo-boundaries TC-12..13)
+- `npm run test:component` — 79/79 (incl. UndoBoundaries TC-14..17, UndoControls TC-18..21)
+- `npm run test:e2e` — undo.spec TC-22..24 × chromium/firefox/webkit (the
+  pre-existing load flakes in share/live-collaboration also occur on the
+  unchanged baseline)
+- `npm run build` — production bundle builds
+
+## Decisions and deviations
+
+- **`createUndo` wraps `Y.UndoManager`** over `doc.getMap('objects')` with
+  `trackedOrigins: new Set([LOCAL_ORIGIN])` — only this tab's board-model
+  transactions (which transact with the `LOCAL_ORIGIN` origin) are captured;
+  provider-origin (remote) and LOAD-origin (story 4) transactions never enter
+  the stacks (undo.own). `boundary()` is `stopCapturing()`; `addScope` keeps
+  the manager for story 16; `destroy()` disposes (session-only history).
+- **Capture-timeout boundary values (TC-13):** yjs merges a step when
+  `now - lastChange < captureTimeout` — a gap of exactly 500 ms starts a new
+  step, 499 ms merges. Mocked via `vi.mock('lib0/time')` (yjs captures the
+  `Date.now` reference at module load, so `vi.useFakeTimers` cannot steer it).
+  The mock requires `server.deps.inline: ['yjs', 'lib0']` in the vitest unit
+  project because externalized packages bypass the mock registry.
+- **No-op step skipping (TC-07 / TC-23):** `UndoManager.popStackItem` runs a
+  `while` loop that skips steps whose inverse applies nothing (target
+  remotely deleted) *within one `undo()` call*. So "move a note, colleague
+  deletes it, undo" skips the move AND the creation (also a no-op) in a single
+  call — the note is not resurrected, nothing throws, and the next undo simply
+  finds an empty stack.
+- **Trim on `stack-item-added`** (undo.limit): `undoStack` is trimmed from the
+  front while longer than `UNDO_MAX_STEPS`, so the oldest step is dropped and
+  `canUndo`/`canRedo` stay consistent; `onChange` fires on
+  `stack-item-added`/`stack-item-popped` for the button states.
+- **Boundaries wiring (undo.boundaries):** `boundary()` is passed as
+  `onGestureStart`/`onGestureEnd` to story 7's `useTransformGesture` (including
+  the `pointercancel` path) so every rAF-frame `moveObjects`/`resizeObjects`
+  transaction of one drag merges into one step; `NoteToolbar` colour/delete and
+  the toolbar create wrap their single model call; `useBoardKeys` Delete/nudge
+  wrap theirs. `StickyTextEditor` calls `boundary()` on mount and on end, and
+  intercepts Ctrl/Cmd+Z / Ctrl/Cmd+Shift+Z inside the textarea with
+  `preventDefault`, routing them to the controller so native textarea undo never
+  diverges from the Y.Text history; typing within the capture window merges.
+- **`useBoardKeys` never fires in an editable target** (`TEXTAREA`/`INPUT`/
+  `contentEditable`) or while a note is being edited (TC-21), so the editor's
+  intercepted shortcuts are the only path there.
+- **Test hook:** `window.__vidi6.getUndoController()` exposes the live
+  controller (unit/component/e2e assertions on the real stack).
+- **`tests/unit/peer.ts`:** the simulated remote peer is a second real `Y.Doc`
+  exchanging updates with a non-local origin. Its update listener must be
+  registered **before** `initDoc` on either doc — items created while the
+  counterparty's clock has gaps land in `pendingStructs` and never arrive.
+- **e2e fixtures:** notes are placed inside the home camera's visible region
+  (world −640..640 / −400..400 at 100%) because Firefox clamps out-of-viewport
+  mouse positions, which silently shrinks a marquee. Marquee/click helpers
+  verify their effect and retry (browsers drop input under parallel load, as
+  the story 7 spec already does). Undo/redo propagation is polled with
+  `expectWithin`, and final two-board comparisons use `expectBoardsIdentical`
+  (poll until both views converge — a burst of undos can transiently diverge
+  the views).
+
+## Test-to-spec map (story 8)
+
+- `tests/unit/undo-history.test.ts` — TC-01..11 (+ `onChange`).
+- `tests/unit/undo-boundaries.test.ts` — TC-12, TC-13, empty-boundary no-op.
+- `tests/unit/peer.ts` — simulated remote peer + LOAD-origin helper.
+- `tests/component/UndoBoundaries.test.tsx` — TC-14..17 (full-app gesture /
+  editor boundaries).
+- `tests/component/UndoControls.test.tsx` — TC-18..21 (buttons, shortcuts,
+  edit lock, input focus).
+- `tests/e2e/undo.spec.ts` — TC-22..24 (chromium/firefox/webkit).

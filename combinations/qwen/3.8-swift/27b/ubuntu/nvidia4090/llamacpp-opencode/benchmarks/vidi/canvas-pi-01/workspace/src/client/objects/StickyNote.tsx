@@ -13,7 +13,7 @@ import { StickyTextEditor } from './StickyTextEditor';
 import type { ObjectProps } from './registry';
 
 function StickyNoteInner(props: ObjectProps): JSX.Element {
-  const { obj, doc, selected, editing, dragging, editable, onObjectPointerDown, onFocusSelect, onStartEdit, onEndEdit } = props;
+  const { obj, doc, selected, editing, dragging, editable, onObjectPointerDown, onFocusSelect, onStartEdit, onEndEdit, undo } = props;
   const width = obj.width ?? STICKY_SIZE_WORLD;
   const height = obj.height ?? STICKY_SIZE_WORLD;
   const color = obj.color ?? 'yellow';
@@ -66,7 +66,7 @@ function StickyNoteInner(props: ObjectProps): JSX.Element {
       }}
     >
       {editing ? (
-        <StickyTextEditor ytext={getStickyText(doc, obj.id)!} fontPx={fit.fontPx} onEnd={(next) => onEndEdit(next)} />
+        <StickyTextEditor ytext={getStickyText(doc, obj.id)!} fontPx={fit.fontPx} onEnd={(next) => onEndEdit(next)} undo={undo} />
       ) : (
         <>
           <div ref={textRef} data-testid="sticky-text" className="sticky-text" style={{ fontSize: fit.fontPx }}>

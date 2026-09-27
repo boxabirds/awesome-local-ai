@@ -16,6 +16,7 @@ import {
   registerObjectTypeName,
   type ObjectSnapshot,
 } from '../../shared/board-model';
+import type { UndoController } from '../board/undo';
 import { pointInRect, type Point } from '../../shared/geometry';
 import { STICKY_MIN_SIZE_WORLD } from '../../shared/config';
 import { StickyNote } from './StickyNote';
@@ -48,6 +49,8 @@ export interface ObjectProps {
   onStartEdit(id: string): void;
   /** Leave text-edit mode: 'selected' keeps the note selected, 'unselected' deselects. */
   onEndEdit(next: 'selected' | 'unselected'): void;
+  /** This tab's undo controller (story 8: editor boundaries + Ctrl/Cmd+Z). */
+  undo?: UndoController | null;
 }
 
 /** Behaviour and rendering of one object type. */
