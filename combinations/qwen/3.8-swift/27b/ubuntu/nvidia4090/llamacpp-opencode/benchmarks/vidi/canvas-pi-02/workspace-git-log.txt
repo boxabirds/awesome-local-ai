@@ -1,3 +1,59 @@
+commit c0f2a7984e6031aeb19d313174fd821a8c6446e8
+vidi-agent  Sun Sep 27 22:35:46 2026 +0100
+
+    story 2: Capture ideas on sticky notes and rearrange them
+
+
+ NOTES.md                                           |  84 +++++++-
+ .../tasks.md                                       |  16 +-
+ tests/component/StickyNote.test.tsx                | 229 +++++++++++++++++++++
+ tests/component/StickyTextEditor.test.tsx          |  88 ++++++++
+ tests/component/Toolbars.test.tsx                  |  63 ++++++
+ tests/e2e/helpers/board.ts                         |  17 +-
+ tests/e2e/sticky-notes.spec.ts                     | 136 ++++++++++++
+ 7 files changed, 621 insertions(+), 12 deletions(-)
+commit 222156ec14770248193e3b973ca284826d59111e
+vidi-agent  Sun Sep 27 22:20:43 2026 +0100
+
+    story 2 (tasks 4-6): sticky text editor, note interaction, toolbars, App wiring
+
+
+ src/client/App.tsx                      | 110 +++++++++++++++++-
+ src/client/board/Toolbar.tsx            |  34 ++++++
+ src/client/canvas/BoardViewport.tsx     |  35 +++++-
+ src/client/canvas/testHooks.ts          |  61 +++++++++-
+ src/client/objects/NoteToolbar.tsx      |  57 ++++++++++
+ src/client/objects/StickyNote.tsx       | 192 ++++++++++++++++++++++++++++++++
+ src/client/objects/StickyTextEditor.tsx | 104 +++++++++++++++++
+ src/client/styles.css                   | 175 +++++++++++++++++++++++++++++
+ tests/e2e/helpers/board.ts              |   6 +
+ 9 files changed, 761 insertions(+), 13 deletions(-)
+commit 6a3c0d1677c99050879f837d7d7299eba4f52fea
+vidi-agent  Sun Sep 27 22:15:24 2026 +0100
+
+    story 2 (tasks 2-4a): Yjs board model + useBoardDoc; sticky text unit tests + pure text logic
+
+
+ src/client/board/useBoardDoc.ts  |  48 ++++++++++
+ src/client/board/useSelection.ts |  42 +++++++++
+ src/client/objects/StickyText.ts | 101 +++++++++++++++++++++
+ src/shared/board-model.ts        | 191 +++++++++++++++++++++++++++++++++------
+ tests/fixtures/texts.ts          |  26 ++++++
+ tests/unit/board-model.test.ts   |   8 --
+ tests/unit/sticky-text.test.ts   | 136 ++++++++++++++++++++++++++++
+ 7 files changed, 514 insertions(+), 38 deletions(-)
+commit 895f033e7a35b851305d6ecb29b4b2468676cb02
+vidi-agent  Sun Sep 27 22:05:55 2026 +0100
+
+    story 2 (task 1): board model unit tests first against a real Y.Doc (TC-01..TC-12)
+
+
+ package-lock.json              |  51 ++++++-
+ package.json                   |   3 +-
+ src/shared/board-model.ts      |  68 +++++++++
+ src/shared/config.ts           |  27 ++++
+ tests/unit/board-model.test.ts | 306 +++++++++++++++++++++++++++++++++++++++++
+ 5 files changed, 453 insertions(+), 2 deletions(-)
 commit fc3d12ce65addbfe093cb6d574291f2dcf1f7c6d
 vidi-agent  Sun Sep 27 22:03:10 2026 +0100
 
