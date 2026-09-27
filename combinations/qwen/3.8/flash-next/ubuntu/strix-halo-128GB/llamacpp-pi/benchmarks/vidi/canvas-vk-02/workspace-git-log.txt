@@ -1,3 +1,76 @@
+commit 8d82fdccb2a07dcce603096b13015af37bd46eac
+vidi-agent  Sun Sep 27 11:12:03 2026 +0000
+
+    harness: snapshot after story 3 (uncommitted agent work)
+
+
+ package.json                         |   5 +-
+ playwright.config.ts                 |  13 ++
+ tests/e2e/helpers/participants.ts    | 216 +++++++++++++++++++
+ tests/e2e/live-collaboration.spec.ts | 403 +++++++++++++++++++++++++++++++++++
+ tests/e2e/nightly.spec.ts            | 244 +++++++++++++++++++++
+ tests/e2e/tmp-idle-probe.spec.ts     |  23 ++
+ 6 files changed, 902 insertions(+), 2 deletions(-)
+commit 08881b768c129ec9a62807dfff0e994add4aa1cb
+vidi-agent  Sun Sep 27 10:14:34 2026 +0000
+
+    story 3: connection badge component tests (TC-19 to TC-21)
+
+
+ tests/component/ConnectionStatus.test.tsx | 211 ++++++++++++++++++++++++++++++
+ 1 file changed, 211 insertions(+)
+commit e0f524d8ea1078c42580636d45d347391d1065af
+vidi-agent  Sun Sep 27 10:11:03 2026 +0000
+
+    story 3: board room integration tests (TC-07..TC-18)
+
+
+ src/client/App.tsx                       |  30 +-
+ src/client/board/useBoardDoc.ts          |  31 +-
+ src/client/canvas/testHooks.ts           |  15 +-
+ src/client/styles.css                    |  39 +++
+ src/client/sync/ConnectionStatus.tsx     |  37 ++
+ src/client/sync/connectBoard.ts          | 111 ++++++
+ src/shared/protocol.ts                   |  36 +-
+ src/worker/board-room.ts                 | 276 ++++++++++-----
+ src/worker/index.ts                      |  23 +-
+ tests/integration/board-room.test.ts     | 424 +++++++++++++++++++++++
+ tests/integration/helpers/client.ts      | 570 +++++++++++++++++++++++++++++++
+ tests/integration/worker-routing.test.ts |  58 ++++
+ 12 files changed, 1548 insertions(+), 102 deletions(-)
+commit 4fbed1a9d80b2daf6a534cc0d6ebf74a8fd0ea30
+vidi-agent  Sun Sep 27 07:43:20 2026 +0000
+
+    story 3: Worker entry and BoardRoom Durable Object
+
+
+ package-lock.json               | 359 +++++++++++++++++++++++++++++++++-------
+ package.json                    |  13 +-
+ src/shared/board-id.ts          |   9 +-
+ src/shared/board-model.ts       |   2 +-
+ src/shared/protocol.ts          |  84 +++++++++-
+ src/worker/board-room.ts        | 160 ++++++++++++++++++
+ src/worker/index.ts             |  60 +++++++
+ tests/integration/smoke.test.ts |  11 ++
+ tsconfig.json                   |   6 +-
+ tsconfig.worker.json            |  12 ++
+ vitest.config.ts                |  12 ++
+ wrangler.jsonc                  |  28 +++-
+ 12 files changed, 679 insertions(+), 77 deletions(-)
+commit 70d017ca6ff384efa23e6323757680212bf450a5
+vidi-agent  Sun Sep 27 07:26:48 2026 +0000
+
+    story 3: board id and protocol decode unit tests (red phase) + named settings
+
+
+ package-lock.json           | 954 +++++++++++++++++++++++++++++++++++++-------
+ package.json                |   4 +
+ src/shared/board-id.ts      |  26 ++
+ src/shared/config.ts        |  27 ++
+ src/shared/protocol.ts      |  48 +++
+ tests/unit/board-id.test.ts |  60 +++
+ tests/unit/protocol.test.ts | 143 +++++++
+ 7 files changed, 1108 insertions(+), 154 deletions(-)
 commit 7c30cc3ece22273c0c27fad725e0b252c60e1f84
 vidi-agent  Sun Sep 27 06:58:58 2026 +0000
 
