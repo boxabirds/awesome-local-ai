@@ -80,3 +80,10 @@ def test_scorer_faults_are_caught_on_real_records():
     # run-2's final build was re-scored whole on 25 Sep; that is what a judge gets
     assert judge.last_accept(ref / "run-2").name == "accept-final.json"
     assert judge.scorer_fault(judge.last_accept(ref / "run-2")) is None
+
+
+def test_scored_commit_is_the_last_recorded_story_commit(tmp_path):
+    (tmp_path / "metrics.json").write_text(json.dumps({"stories": {"11": {"commit": "aaa"}, "12": {"commit": "bbb"}, "13": {}}}))
+    assert judge.scored_commit(tmp_path) == "bbb"
+    real = judge.REPO / "combinations/qwen/3.8/27b/ubuntu/nvidia4090/llamacpp-opencode/benchmarks/vidi/canvas-pi-03"
+    assert judge.scored_commit(real).startswith("70f7075")
