@@ -78,15 +78,16 @@ export function encodeRemembered(entries: RememberedEntry[]): string {
   return toBase64url(out);
 }
 
-export function decodeRemembered(value: string): RememberedEntry[] {
+/** The decoded list, or null when the value is not a list this codec wrote. Never throws. */
+export function tryDecodeRemembered(value: string): RememberedEntry[] | null {
   let bytes: Uint8Array;
   try {
     bytes = fromBase64url(value);
   } catch {
-    return [];
+    return null;
   }
   if (bytes.byteLength < 1 || bytes[0] !== FORMAT_VERSION || (bytes.byteLength - 1) % ENTRY_BYTES !== 0) {
-    return [];
+    return null;
   }
   const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
   const entries: RememberedEntry[] = [];
@@ -98,6 +99,21 @@ export function decodeRemembered(value: string): RememberedEntry[] {
     });
   }
   return entries;
+}
+
+export function decodeRemembered(value: string): RememberedEntry[] {
+  return tryDecodeRemembered(value) ?? [];
+}
+
+/**
+ * The cookie as found: `malformed` is true when a tdl_ws cookie is present but does not decode
+ * (the caller heals it by clearing). Absent reads as an empty, well-formed list.
+ */
+export function inspectRemembered(cookieHeader: string | null): { entries: RememberedEntry[]; malformed: boolean } {
+  const raw = cookieHeader ? cookieValue(cookieHeader, REMEMBERED_COOKIE_NAME) : undefined;
+  if (raw === undefined) return { entries: [], malformed: false };
+  const entries = tryDecodeRemembered(raw);
+  return entries ? { entries, malformed: false } : { entries: [], malformed: true };
 }
 
 /** Entries from the Cookie header, most recent first. Never throws: garbage reads as []. */
@@ -118,14 +134,50 @@ export function upsertRemembered(
   return { entries: next.slice(0, max), dropped };
 }
 
-/** The full Set-Cookie value for the remembered list. */
-export function serializeRememberedCookie(
+/**
+ * Moves the entry for `id` to the front with `t = nowSec`, keeping its secret. Null when this
+ * browser does not remember `id` (touch never adds an entry).
+ */
+export function touchRemembered(entries: RememberedEntry[], id: string, nowSec: number): RememberedEntry[] | null {
+  const existing = findEntry(entries, id);
+  if (!existing) return null;
+  return upsertRemembered(entries, { id, s: existing.s, t: nowSec }).entries;
+}
+
+/** The list without `id`, order preserved. `changed` is false when `id` was not there. */
+export function removeRemembered(
   entries: RememberedEntry[],
-  env: Pick<Env, 'ENVIRONMENT'>,
-): string {
-  const attributes = ['HttpOnly', 'SameSite=Lax', 'Path=/api', `Max-Age=${REMEMBERED_COOKIE_MAX_AGE_S}`];
+  id: string,
+): { entries: RememberedEntry[]; changed: boolean } {
+  const next = entries.filter((e) => e.id !== id);
+  return { entries: next, changed: next.length !== entries.length };
+}
+
+type CookieEnv = Pick<Env, 'ENVIRONMENT'>;
+
+/**
+ * The one attribute list for every `tdl_ws` write: HttpOnly (never readable by page scripts),
+ * SameSite=Lax, Path=/api (sent only to the API), and Secure everywhere except local dev.
+ */
+function rememberedAttributes(env: CookieEnv, maxAgeS: number): string {
+  const attributes = ['HttpOnly', 'SameSite=Lax', 'Path=/api', `Max-Age=${maxAgeS}`];
   if (env.ENVIRONMENT !== 'local') attributes.push('Secure');
-  return `${REMEMBERED_COOKIE_NAME}=${encodeRemembered(entries)}; ${attributes.join('; ')}`;
+  return attributes.join('; ');
+}
+
+/** Set-Cookie value storing an already-encoded remembered list. */
+export function rememberedCookieHeader(value: string, env: CookieEnv): string {
+  return `${REMEMBERED_COOKIE_NAME}=${value}; ${rememberedAttributes(env, REMEMBERED_COOKIE_MAX_AGE_S)}`;
+}
+
+/** Set-Cookie value that deletes the remembered list (same name and Path, Max-Age=0). */
+export function clearRememberedCookieHeader(env: CookieEnv): string {
+  return `${REMEMBERED_COOKIE_NAME}=; ${rememberedAttributes(env, 0)}`;
+}
+
+/** The full Set-Cookie value for the remembered list. */
+export function serializeRememberedCookie(entries: RememberedEntry[], env: CookieEnv): string {
+  return rememberedCookieHeader(encodeRemembered(entries), env);
 }
 
 export function findEntry(entries: RememberedEntry[], id: string): RememberedEntry | undefined {

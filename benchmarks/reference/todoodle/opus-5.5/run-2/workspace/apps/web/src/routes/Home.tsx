@@ -1,3 +1,5 @@
+import { ContinueRecent, useContinueTarget } from '@/features/remembered/ContinueRecent';
+import { RememberedList } from '@/features/remembered/RememberedList';
 import { StartButton } from '@/features/workspace/StartButton';
 
 const hero = (
@@ -9,12 +11,18 @@ const hero = (
   </>
 );
 
+/**
+ * Returning visitor: Continue, this browser's workspaces, then a secondary Start. First visit:
+ * Start (primary) with a hint about links. Never redirects on its own.
+ */
 export function Home() {
+  const hasContinue = useContinueTarget() !== null;
   return (
     <main className="mx-auto flex min-h-screen max-w-xl flex-col justify-center gap-6 p-6">
       <div className="flex flex-col gap-4">{hero}</div>
-      {/* Story 3 inserts this browser's remembered workspaces here, above the button. */}
-      <StartButton />
+      <ContinueRecent />
+      <RememberedList variant="home" />
+      <StartButton variant={hasContinue ? 'secondary' : 'primary'} />
     </main>
   );
 }

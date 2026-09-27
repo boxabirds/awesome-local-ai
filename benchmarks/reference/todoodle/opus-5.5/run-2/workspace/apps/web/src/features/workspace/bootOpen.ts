@@ -1,3 +1,4 @@
+import { notifyDropped } from '@/features/remembered/useDroppedNotice';
 import { type OpenResult, openWorkspace } from '@/lib/api';
 import { queryClient } from '@/lib/queryClient';
 import { queryKeys } from '@/lib/queryKeys';
@@ -27,6 +28,8 @@ function openAndPrime(secret: string): Promise<OpenResult> {
   const promise = openWorkspace(secret).then((result) => {
     queryClient.setQueryData(queryKeys.workspace(result.workspace.id), result.workspace);
     rememberSecretWorkspace(secret, result.workspace.id);
+    void queryClient.invalidateQueries({ queryKey: queryKeys.remembered() });
+    notifyDropped(result.dropped);
     return result;
   });
   // The route observes failures through use(); this keeps an unobserved failure quiet.

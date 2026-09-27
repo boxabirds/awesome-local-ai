@@ -1,13 +1,21 @@
 import { QueryClientProvider } from '@tanstack/react-query';
-import { lazy, type ReactNode, Suspense } from 'react';
+import { lazy, type ReactNode, Suspense, useState } from 'react';
 import { BrowserRouter, Route, Routes } from 'react-router';
 import { Toaster } from 'sonner';
+import { loadedWorkspaceRoute, loadWorkspaceRoute } from '@/features/workspace/preloadWorkspaceRoute';
 import { WorkspaceSkeleton } from '@/features/workspace/WorkspaceSkeleton';
 import { queryClient } from '@/lib/queryClient';
 import { Home } from '@/routes/Home';
-import { NotFound } from '@/routes/NotFound';
+import { NotFoundPage } from '@/routes/NotFoundPage';
 
-const Workspace = lazy(() => import('@/routes/Workspace'));
+const LazyWorkspace = lazy(loadWorkspaceRoute);
+
+/** The Workspace route: straight from the chunk when it is already loaded, lazily otherwise. */
+function Workspace() {
+  // Chosen once per mount, so a later re-render never swaps component types (a remount).
+  const [Component] = useState(() => loadedWorkspaceRoute()?.default ?? LazyWorkspace);
+  return <Component />;
+}
 
 /** Route table, shared by the app and the component tests (which use a MemoryRouter). */
 export function AppRoutes() {
@@ -16,7 +24,7 @@ export function AppRoutes() {
       <Route path="/" element={<Home />} />
       <Route path="/w" element={<LazyRoute><Workspace /></LazyRoute>} />
       <Route path="/w/:workspaceId" element={<LazyRoute><Workspace /></LazyRoute>} />
-      <Route path="*" element={<NotFound />} />
+      <Route path="*" element={<NotFoundPage />} />
     </Routes>
   );
 }

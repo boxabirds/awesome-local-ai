@@ -1,8 +1,9 @@
 import { Hono } from 'hono';
 import type { AppEnv } from '../app';
-import { DEFAULT_WORKSPACE_NAME } from '@todoodle/shared/limits';
+import { DEFAULT_WORKSPACE_NAME, MAX_REMEMBERED_WORKSPACES } from '@todoodle/shared/limits';
 import { toPublicWorkspace } from '@todoodle/shared/schemas';
-import { insertWorkspace } from '../db/workspaces';
+import { insertWorkspace, type WorkspaceRow } from '../db/workspaces';
+import { type RememberedEntry, serializeRememberedCookie } from '../lib/cookie';
 import { generateSecret, hashSecret } from '../lib/crypto';
 import { errorResponse } from '../lib/errors';
 
@@ -47,6 +48,26 @@ testRoutes.post('/seed-workspace', async (c) => {
     if (deleted) row = deleted;
   }
   return c.json({ workspace: toPublicWorkspace(row), secret, deleted: row.deleted === 1 }, 201);
+});
+
+/**
+ * Seeds `count` workspaces ("Seeded 1" is the most recent) and returns a Set-Cookie remembering
+ * all of them, oldest last. Body: { count: number } (1..MAX_REMEMBERED_WORKSPACES). For e2e TC-87.
+ */
+testRoutes.post('/remembered-seed', async (c) => {
+  const body = (await c.req.json().catch(() => ({}))) as { count?: unknown };
+  const count = body.count;
+  if (typeof count !== 'number' || !Number.isInteger(count) || count < 1 || count > MAX_REMEMBERED_WORKSPACES) {
+    return errorResponse('validation', 400);
+  }
+  const secrets = Array.from({ length: count }, () => generateSecret());
+  const hashes = await Promise.all(secrets.map((s) => hashSecret(s)));
+  const insert = c.env.DB.prepare('INSERT INTO workspaces (secret_hash, name) VALUES (?, ?) RETURNING *');
+  const results = await c.env.DB.batch<WorkspaceRow>(hashes.map((hash, i) => insert.bind(hash, `Seeded ${i + 1}`)));
+  const now = Math.floor(Date.now() / 1000);
+  const entries: RememberedEntry[] = results.map((r, i) => ({ id: r.results[0]!.id, s: secrets[i]!, t: now - 60 * (i + 1) }));
+  c.header('Set-Cookie', serializeRememberedCookie(entries, c.env));
+  return c.json({ workspaces: results.map((r) => toPublicWorkspace(r.results[0]!)) }, 201);
 });
 
 testRoutes.get('/throw', () => {

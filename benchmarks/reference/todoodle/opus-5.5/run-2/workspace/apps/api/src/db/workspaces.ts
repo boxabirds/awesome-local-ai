@@ -44,3 +44,17 @@ export function renameWorkspace(db: D1Database, id: string, name: string): Promi
     .bind(name, id)
     .first<WorkspaceRow>();
 }
+
+/** The fields remembered-list checks need. */
+export type WorkspaceNameHash = Pick<WorkspaceRow, 'id' | 'name' | 'secret_hash'>;
+
+/** Live (not deleted) workspaces among `ids`, in one prepared statement. Order is not guaranteed. */
+export async function getWorkspacesByIds(db: D1Database, ids: string[]): Promise<WorkspaceNameHash[]> {
+  if (ids.length === 0) return [];
+  const placeholders = ids.map(() => '?').join(', ');
+  const { results } = await db
+    .prepare(`SELECT id, name, secret_hash FROM workspaces WHERE deleted = 0 AND id IN (${placeholders})`)
+    .bind(...ids)
+    .all<WorkspaceNameHash>();
+  return results;
+}

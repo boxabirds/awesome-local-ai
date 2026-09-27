@@ -11,8 +11,10 @@ export default defineConfig({
   retries: 0,
   use: { baseURL: BASE_URL, trace: 'retain-on-failure' },
   projects: [
-    { name: 'chromium', use: { ...devices['Desktop Chrome'] } },
-    { name: 'webkit', use: { ...devices['Desktop Safari'] } },
+    { name: 'chromium', use: { ...devices['Desktop Chrome'] }, testIgnore: '**/*.touch.spec.ts' },
+    { name: 'webkit', use: { ...devices['Desktop Safari'] }, testIgnore: '**/*.touch.spec.ts' },
+    // Real touch layout (no hover, coarse pointer): story 3's TC-91.
+    { name: 'mobile-touch', use: { ...devices['iPhone 13'], hasTouch: true }, testMatch: '**/*.touch.spec.ts' },
   ],
   webServer: {
     command: 'bun run dev',

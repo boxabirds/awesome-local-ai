@@ -1,12 +1,15 @@
 import type { Workspace } from '@todoodle/shared/schemas';
-import { act, render, type RenderResult } from '@testing-library/react';
+import { act, fireEvent, render, type RenderResult } from '@testing-library/react';
+import axe from 'axe-core';
 import type { ReactNode } from 'react';
 import { MemoryRouter, useLocation } from 'react-router';
-import { vi } from 'vitest';
+import { expect, vi } from 'vitest';
 import { AppProviders, AppRoutes } from '@/App';
 import { rememberSecretWorkspace } from '@/features/workspace/bootOpen';
 import { queryClient } from '@/lib/queryClient';
 import { queryKeys } from '@/lib/queryKeys';
+import { resetHoverNoneForTests } from '@/lib/useHoverNone';
+import { server } from './msw';
 
 export type Entry = { pathname: string; hash?: string; state?: unknown };
 
@@ -76,4 +79,48 @@ export function deferred<T = void>() {
 export function titleText(): string | null {
   const titles = [...document.head.querySelectorAll('title')];
   return titles.length ? titles[0]!.textContent : null;
+}
+
+/** Opens a Radix DropdownMenu from its trigger (Radix opens on a primary-button pointerdown). */
+export async function openMenu(trigger: HTMLElement) {
+  await act(async () => {
+    fireEvent.pointerDown(trigger, { button: 0, ctrlKey: false, pointerType: 'mouse' });
+  });
+}
+
+/** Counts requests matching method + path pattern (MSW life-cycle events, handlers untouched). */
+export function countRequests(method: string, pattern: RegExp): { readonly count: number } {
+  const counter = { count: 0 };
+  server.events.on('request:start', ({ request }) => {
+    if (request.method === method && pattern.test(new URL(request.url).pathname)) counter.count++;
+  });
+  return counter;
+}
+
+/** Stubs matchMedia so '(hover: none)' reports `hoverNone`. Call before rendering. */
+export function stubHoverNone(hoverNone: boolean) {
+  resetHoverNoneForTests();
+  vi.spyOn(window, 'matchMedia').mockImplementation(
+    (query: string) =>
+      ({
+        matches: query === '(hover: none)' ? hoverNone : false,
+        media: query,
+        onchange: null,
+        addEventListener: () => {},
+        removeEventListener: () => {},
+        addListener: () => {},
+        removeListener: () => {},
+        dispatchEvent: () => false,
+      }) as MediaQueryList,
+  );
+}
+
+/**
+ * axe-core on the page, or on an open dialog (while a modal is open the page behind it is
+ * aria-hidden on purpose, and Radix's focus guards are aria-hidden too). Colour contrast is covered
+ * by the token contrast unit test.
+ */
+export async function expectNoAxeViolations(node: Element = document.body) {
+  const results = await axe.run(node, { rules: { 'color-contrast': { enabled: false } } });
+  expect(results.violations.map((v) => `${v.id}: ${v.nodes.map((n) => n.target.join(' ')).join(', ')}`)).toEqual([]);
 }

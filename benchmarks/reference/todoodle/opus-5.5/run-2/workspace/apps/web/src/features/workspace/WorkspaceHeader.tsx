@@ -4,6 +4,7 @@ import { useLocation, useNavigate } from 'react-router';
 import { Button } from '@/components/ui/button';
 import type { SharePanelMode } from '@/features/share/SharePanel';
 import { preloadSharePanel, SharePanelLazy } from '@/features/share/SharePanelLazy';
+import { WorkspaceSwitcher } from '@/features/remembered/WorkspaceSwitcher';
 import { UnsavedLinkBanner } from '@/features/share/UnsavedLinkBanner';
 import { WorkspaceNameEditor } from './WorkspaceNameEditor';
 
@@ -38,10 +39,13 @@ export function WorkspaceHeader({
   return (
     <>
       <header className="flex h-14 items-center justify-between gap-4 border-b border-border px-2 sm:px-4">
-        <fieldset disabled={!canEdit} className="contents">
-          <legend className="sr-only">Workspace</legend>
-          <WorkspaceNameEditor workspaceId={workspaceId} name={name} />
-        </fieldset>
+        <div className="flex min-w-0 items-center gap-1">
+          <fieldset disabled={!canEdit} className="contents">
+            <legend className="sr-only">Workspace</legend>
+            <WorkspaceNameEditor workspaceId={workspaceId} name={name} />
+          </fieldset>
+          <WorkspaceSwitcher currentId={workspaceId} currentName={name} />
+        </div>
         <Button
           variant="secondary"
           onClick={() => setPanel({ open: true, mode: 'share' })}

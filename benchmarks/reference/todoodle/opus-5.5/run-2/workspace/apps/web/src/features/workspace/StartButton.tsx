@@ -1,17 +1,19 @@
 import Plus from 'lucide-react/icons/plus';
 import { Button } from '@/components/ui/button';
+import { preloadWorkspaceRoute } from './preloadWorkspaceRoute';
 import { useCreateWorkspace } from './useCreateWorkspace';
 
-/** Warms the lazy Workspace route chunk before the click lands. */
-const preloadWorkspaceRoute = () => void import('@/routes/Workspace');
-
-/** 'Start a new list': one click creates a workspace. Shared by Home and NotFound. */
-export function StartButton() {
+/**
+ * 'Start a new list': one click creates a workspace. Shared by Home and NotFound. Secondary on
+ * Home when 'Continue to ...' is the primary action.
+ */
+export function StartButton({ variant = 'primary' }: { variant?: 'primary' | 'secondary' }) {
   const create = useCreateWorkspace();
   return (
     <div className="flex flex-col items-start gap-3">
       <Button
         size="lg"
+        variant={variant === 'primary' ? 'default' : 'secondary'}
         disabled={create.isPending}
         onClick={() => create.mutate()}
         onPointerEnter={preloadWorkspaceRoute}

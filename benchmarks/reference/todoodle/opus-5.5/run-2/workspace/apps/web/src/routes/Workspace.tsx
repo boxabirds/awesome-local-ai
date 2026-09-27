@@ -2,6 +2,7 @@ import type { Workspace as WorkspaceData } from '@todoodle/shared/schemas';
 import { Component, type ReactNode, Suspense, use, useState } from 'react';
 import { useLocation, useParams } from 'react-router';
 import { useCanEdit } from '@/features/live/canEditStore';
+import { useTouchRemembered } from '@/features/remembered/useTouchRemembered';
 import { discardOpen, knownWorkspaceId, openForRoute } from '@/features/workspace/bootOpen';
 import { useWorkspace } from '@/features/workspace/useWorkspace';
 import { WorkspaceContext, type WorkspaceContextValue } from '@/features/workspace/WorkspaceContext';
@@ -9,13 +10,13 @@ import { WorkspaceHeader } from '@/features/workspace/WorkspaceHeader';
 import { WorkspaceLoadFailed } from '@/features/workspace/WorkspaceLoadFailed';
 import { WorkspaceSkeleton } from '@/features/workspace/WorkspaceSkeleton';
 import { isNotFoundError } from '@/lib/api';
-import { NotFound } from './NotFound';
+import { NotFoundPage } from './NotFoundPage';
 
 /** `/w#<secret>`: the link entry. The fragment is never removed, so reload and bookmarks work. */
 export function WorkspaceByLink() {
   const { hash } = useLocation();
   const secret = hash.slice(1);
-  if (!secret) return <NotFound />;
+  if (!secret) return <NotFoundPage />;
   return <OpenByLink key={secret} secret={secret} />;
 }
 
@@ -54,7 +55,7 @@ class OpenErrorBoundary extends Component<BoundaryProps, { error: unknown }> {
   override render() {
     const { error } = this.state;
     if (error === null) return this.props.children;
-    if (isNotFoundError(error)) return <NotFound />;
+    if (isNotFoundError(error)) return <NotFoundPage />;
     return <WorkspaceLoadFailed onRetry={this.props.onRetry} />;
   }
 }
@@ -62,12 +63,22 @@ class OpenErrorBoundary extends Component<BoundaryProps, { error: unknown }> {
 /** `/w/:workspaceId`: entry from this browser's remembered workspaces (story 3). No secret in JS. */
 export function WorkspaceByIdRoute() {
   const { workspaceId = '' } = useParams();
-  return <WorkspaceById key={workspaceId} workspaceId={workspaceId} />;
+  return <RememberedWorkspace key={workspaceId} workspaceId={workspaceId} />;
 }
 
 /**
- * One workspace by id, from the query cache or GET. Story 3 passes `placeholderData` from its
- * remembered entry so the name shows before GET returns.
+ * Opening from the remembered list, Continue or the switcher: the touch (recency) runs alongside
+ * the workspace GET. A touch 404 means this browser can't open it any more.
+ */
+function RememberedWorkspace({ workspaceId }: { workspaceId: string }) {
+  const touch = useTouchRemembered(workspaceId);
+  if (isNotFoundError(touch.error)) return <NotFoundPage />;
+  return <WorkspaceById workspaceId={workspaceId} />;
+}
+
+/**
+ * One workspace by id, from the query cache or GET. Opened from this browser's list, the query's
+ * placeholder (the remembered name) shows the header at once while the body stays a skeleton.
  */
 export function WorkspaceById({
   workspaceId,
@@ -79,22 +90,44 @@ export function WorkspaceById({
   placeholderData?: WorkspaceData;
 }) {
   const query = useWorkspace(workspaceId, { placeholderData });
-  if (query.data) return <WorkspaceView workspaceId={workspaceId} name={query.data.name} secretFromHash={secretFromHash} />;
+  if (query.data) {
+    return (
+      <WorkspaceView
+        workspaceId={workspaceId}
+        name={query.data.name}
+        secretFromHash={secretFromHash}
+        loading={query.isPlaceholderData}
+      />
+    );
+  }
   if (query.isPending) return <WorkspaceSkeleton />;
-  if (isNotFoundError(query.error)) return <NotFound />;
+  if (isNotFoundError(query.error)) return <NotFoundPage />;
   return <WorkspaceLoadFailed onRetry={() => void query.refetch()} />;
 }
+
+const bar = 'skeleton-shimmer rounded bg-muted';
+const bodySkeleton = (
+  <main aria-busy="true" aria-label="Loading tasks" className="flex flex-1 flex-col gap-4 p-6" data-testid="workspace-body-skeleton">
+    <div className={`${bar} h-5 w-3/4`} />
+    <div className={`${bar} h-5 w-2/3`} />
+    <div className={`${bar} h-5 w-5/6`} />
+  </main>
+);
 
 function WorkspaceView({
   workspaceId,
   name,
   secretFromHash,
+  loading = false,
 }: {
   workspaceId: string;
   name: string;
   secretFromHash?: string;
+  /** Showing the remembered name only: nothing is editable and the body is a skeleton. */
+  loading?: boolean;
 }) {
-  const canEdit = useCanEdit();
+  const liveCanEdit = useCanEdit();
+  const canEdit = liveCanEdit && !loading;
   const [context] = useState<WorkspaceContextValue>(() => ({ workspaceId, secretFromHash }));
   return (
     <WorkspaceContext value={context}>
@@ -109,10 +142,14 @@ function WorkspaceView({
           </nav>
           <fieldset disabled={!canEdit} className="contents">
             <legend className="sr-only">Inbox</legend>
-            <main className="flex flex-1 flex-col gap-2 p-6">
-              <h2 className="text-lg font-semibold">Inbox</h2>
-              <p className="text-muted-foreground">Nothing here yet.</p>
-            </main>
+            {loading ? (
+              bodySkeleton
+            ) : (
+              <main className="flex flex-1 flex-col gap-2 p-6">
+                <h2 className="text-lg font-semibold">Inbox</h2>
+                <p className="text-muted-foreground">Nothing here yet.</p>
+              </main>
+            )}
           </fieldset>
         </div>
       </div>

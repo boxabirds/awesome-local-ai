@@ -69,3 +69,14 @@ export function rowById(id: string): Promise<WorkspaceRow | null> {
 export function randomHexId(): string {
   return Array.from(crypto.getRandomValues(new Uint8Array(16)), (b) => b.toString(16).padStart(2, '0')).join('');
 }
+
+export function del(path: string, cookie?: string | null, headers: Record<string, string> = CLIENT_HEADERS) {
+  return SELF.fetch(`${ORIGIN}${path}`, { method: 'DELETE', headers: { ...headers, ...(cookie ? { Cookie: cookie } : {}) } });
+}
+
+/** A workspace with a chosen name (through the non-production seed route), plus its secret. */
+export async function seedNamedWorkspace(name: string): Promise<{ workspace: Workspace; secret: string }> {
+  const res = await post('/test/seed-workspace', { body: { name } });
+  if (res.status !== 201) throw new Error(`seed failed: ${res.status}`);
+  return (await res.json()) as { workspace: Workspace; secret: string };
+}

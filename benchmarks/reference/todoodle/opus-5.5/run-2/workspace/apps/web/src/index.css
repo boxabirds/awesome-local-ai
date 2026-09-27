@@ -16,9 +16,12 @@
   --color-success: var(--success);
 }
 
-/* Touch targets are at least MIN_TOUCH_TARGET_PX (44px) on touch devices. */
+/*
+ * Touch targets are at least MIN_TOUCH_TARGET_PX (44px, Tailwind min-h-11/min-w-11) on touch
+ * devices: no hover, or a coarse pointer.
+ */
 @utility touch-target {
-  @media (pointer: coarse) {
+  @media (hover: none), (pointer: coarse) {
     min-height: 44px;
     min-width: 44px;
   }

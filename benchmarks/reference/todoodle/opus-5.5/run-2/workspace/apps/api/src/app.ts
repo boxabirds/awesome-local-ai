@@ -5,6 +5,7 @@ import { requestId } from './middleware/request-id';
 import { validate } from './middleware/validate';
 import { workspaceAuth } from './middleware/workspace-auth';
 import { health } from './routes/health';
+import { rememberedRoutes } from './routes/remembered';
 import { testRoutes } from './routes/test';
 import { workspaceRoutes } from './routes/workspaces';
 
@@ -22,6 +23,7 @@ export function createApp() {
   // Every workspace-scoped route (stories 2 to 8) sits behind workspace-auth.
   app.use('/api/w/:workspaceId', workspaceAuth);
   app.use('/api/w/:workspaceId/*', workspaceAuth);
+  app.route('/api/remembered', rememberedRoutes);
   app.route('/api', workspaceRoutes);
 
   app.all('/api', () => errorResponse('not_found', 404));

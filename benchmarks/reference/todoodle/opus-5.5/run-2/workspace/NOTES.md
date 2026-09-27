@@ -137,3 +137,86 @@
   including story 1's specs) against `wrangler dev` with a freshly migrated local D1, 3 runs in a row.
 - Not verified here: the manual Workers Logs check on staging (task 7 step 6); see the invocation
   logs note above.
+
+## Story 3
+
+- **Commit order.** Task 6 (Home) needs task 7's `preloadForgetDialog`, so task 7 was committed
+  just before task 6. Task 13 (NotFound recovery, instant name) is implementation the test tasks
+  9-12 depend on, so it was committed after task 8 and before the tests. Every commit still
+  carries its own task number and title.
+- **`Secure` is added everywhere except `ENVIRONMENT=local`** (story 2's behaviour), not only for
+  staging/production as the design words it. The two agree on local/staging/production (TC-09);
+  an unset ENVIRONMENT stays secure rather than silently dropping the flag. The builders are
+  `rememberedCookieHeader(value, env)` / `clearRememberedCookieHeader(env)`; story 2's
+  `serializeRememberedCookie` now goes through them.
+- **Malformed cookie detection.** `inspectRemembered` tells "absent" (no Set-Cookie) from "present
+  but undecodable" (clearing Set-Cookie). The TC-25 sub-cases "bad JSON" and "schema failure" are
+  base64url(JSON) values, which the packed binary codec (story 2 note) also rejects.
+- **Secret check helper.** The design's `constantTimeEqual` is story 2's `hashesEqual`.
+  `lib/remembered.ts` has `verifiedRows` (one D1 query, hashes in parallel) shared by the list and
+  touch routes. Touch 404s use story 2's byte-identical workspace-not-found body.
+- **Touch runs once per visit.** `useTouchRemembered` uses `staleTime: Infinity` but `gcTime: 0`
+  (the design says `gcTime: Infinity`). With Infinity, going A -> B -> A in one page session would
+  never touch A again and the list order would go stale. With 0 the result is dropped when the
+  route unmounts, and StrictMode's remount re-subscribes before the gc timer fires, so there's
+  still no double request.
+- **`remembered` query uses `retry: false`**, so the list error with Retry shows at once instead
+  of after three silent retries.
+- **Forget error toast** is a sonner error toast whose content is `<span role="alert">`, so it is
+  announced and TC-56 can find it by role.
+- **ForgetDialog has an extra optional prop `returnFocusTo`.** It is opened from a menu item (no
+  Radix Trigger), so focus is handed back to the row's "..." button or the switcher button
+  explicitly, like story 2's SharePanel.
+- **Switcher trigger.** The workspace name is story 2's inline name editor (an input), so the
+  switcher is a "Switch workspace" chevron button right next to it rather than the name itself. It
+  takes `currentName` as well as `currentId` (for the dialog title and the list-error case). If the
+  list doesn't contain the current workspace (error, or just forgotten) the current one is still
+  shown, checked.
+- **Story 2's TC-46** asserted the header has exactly one button. It now asserts the buttons are
+  exactly "Switch workspace" and "Share": the intent (no separate Link button) is unchanged.
+- **Unsaved-link warning copy** uses `useWorkspaceLink(id, {enabled: false}).refetch()`. The hook
+  now also returns `refetch(): Promise<string>`, which resolves with the link or rejects. After a
+  failed clipboard write, the flag is not set even if the user copies the pre-selected field by
+  hand (the design says we can't know it was saved).
+- **Unavailable rows** show "Unavailable" and the last-opened time (the name is never sent for
+  them). Rows show "Opened <relative time>". Relative times use `Intl.RelativeTimeFormat('en',
+  {numeric: 'auto'})` plus "just now" (< 60 s) and "over a year ago" (>= 365 days).
+- **Touch styling.** The `touch-target` utility applies under `(hover: none), (pointer: coarse)`.
+  Hover-revealed controls use the design's classes, and `useHoverNone()` (a shared
+  `matchMedia('(hover: none)')`) also drops `opacity-0` on touch devices, which is what TC-71's
+  matchMedia stub checks.
+- **Instant name.** `workspaceQuery` gets `placeholderData` from `rememberedPlaceholder`, shaped as
+  a `Workspace` with `version: 0, createdAt: ''`. Only the name is shown while
+  `isPlaceholderData`; the name editor is disabled and the body is a skeleton.
+- **Workspace chunk without the lazy delay.** `React.lazy` suspends once even when its chunk has
+  already arrived, and React throttles revealing content after a fallback (~300 ms). That broke
+  TC-92 in chromium. `App.tsx` now renders the loaded module directly (chosen once per mount) and
+  uses `lazy` only on a cold load. Home also warms the chunk when the browser is idle, and rows
+  warm it on hover/focus, like Start and Continue.
+- **NotFound recovery** is wired through `routes/NotFoundPage.tsx`, used for the catch-all route
+  and every not-found case in the Workspace route. Story 2's `NotFound.tsx` has no story 3 imports.
+- **`/test/remembered-seed`** takes `{count}` (1..50) and names the workspaces "Seeded 1" (most
+  recent) to "Seeded N" (oldest).
+- **Dependencies.** `axe-core` was added to apps/web devDependencies by hand (bun wrote
+  `bun.lock` but hit the sandbox error before `package.json`, as in story 2). The axe checks skip
+  colour contrast (the token contrast unit test covers it). With a modal open they run on the
+  dialog element, because the page behind a modal is deliberately `aria-hidden`.
+- **Test infrastructure.** The MSW server now starts with default handlers: an empty remembered
+  list, and touch returns 204. After each test the setup also removes request listeners, dismisses
+  sonner toasts (sonner's store outlives a test) and resets the hover media query.
+- **E2E.** There is a third Playwright project, `mobile-touch` (iPhone 13, `hasTouch`), which only
+  runs `*.touch.spec.ts` (TC-91). The chromium and webkit projects skip those files.
+
+### Story 3 verification (2026-09-27)
+
+- `typecheck`, `build`, `lint` and `test` pass: api unit 85, scripts unit 42, api integration and
+  production-gate 87, scripts integration 14, web unit and ui 164. E2E: 53 passing (chromium and
+  webkit for every spec, plus mobile-touch for TC-91), run twice in a row against `wrangler dev`
+  with fresh local state. TC-92 also passed 5 repeats in each browser.
+- **Bundle size.** The main chunk went from 447 kB to 549 kB (gzip 137 -> 172 kB), which trips
+  Vite's 500 kB warning. Home now renders the Radix DropdownMenu (with its popper) for the row
+  menus, as the design specifies, and the dialog primitives it shares with SharePanel moved into
+  the main chunk with it. ForgetDialog stays a separate 5 kB chunk. The warning is left visible
+  rather than raised; splitting the row menu out would be the next step if it matters.
+- Not verified here: the Secure attribute on real staging/production TLS (covered only by
+  unit TC-09, as the design says), and Safari ITP cookie behaviour.

@@ -221,7 +221,11 @@ describe('SharePanel: share mode from the header', () => {
     const header = screen.getByRole('banner');
     expect(within(header).queryByRole('button', { name: /^Link$/ })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /^Link$/ })).not.toBeInTheDocument();
-    expect(within(header).getAllByRole('button')).toHaveLength(1);
+    // Share is the only link button; story 3 adds the workspace switcher next to the name.
+    expect(within(header).getAllByRole('button').map((b) => b.getAttribute('aria-label') ?? b.textContent)).toEqual([
+      'Switch workspace',
+      'Share',
+    ]);
   });
 
   it('TC-46 Skip for now in save mode closes the panel and Share reopens it', async () => {

@@ -10,12 +10,13 @@ export function linkFromSecret(secret: string): string {
 
 /**
  * The workspace's full link. From the URL fragment when it is there (no request); otherwise
- * fetched from GET /api/w/:id/link only while `enabled`, and never kept in the cache.
+ * fetched from GET /api/w/:id/link only while `enabled` (or on `refetch()`), and never kept in
+ * the cache. `refetch()` resolves to the link or rejects, for callers that fetch on a click.
  */
 export function useWorkspaceLink(
   workspaceId: string,
   opts: { enabled: boolean },
-): { link?: string; status: 'ready' | 'loading' | 'error'; retry(): void } {
+): { link?: string; status: 'ready' | 'loading' | 'error'; retry(): void; refetch(): Promise<string> } {
   const context = useWorkspaceContext();
   const secret = context?.workspaceId === workspaceId ? context.secretFromHash : undefined;
   const query = useQuery({
@@ -26,7 +27,14 @@ export function useWorkspaceLink(
     gcTime: 0,
     retry: false,
   });
-  if (secret) return { link: linkFromSecret(secret), status: 'ready', retry: () => {} };
-  if (query.data) return { link: query.data, status: 'ready', retry: () => void query.refetch() };
-  return { status: query.isError ? 'error' : 'loading', retry: () => void query.refetch() };
+  const retry = () => void query.refetch();
+  const refetch = async () => {
+    if (secret) return linkFromSecret(secret);
+    const result = await query.refetch({ throwOnError: true });
+    if (result.data === undefined) throw new Error('No link');
+    return result.data;
+  };
+  if (secret) return { link: linkFromSecret(secret), status: 'ready', retry: () => {}, refetch };
+  if (query.data) return { link: query.data, status: 'ready', retry, refetch };
+  return { status: query.isError ? 'error' : 'loading', retry, refetch };
 }

@@ -6,8 +6,9 @@ Model `claude-opus-5-5`, scope ``, effort `client default`, client claude 2.1.28
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
 | 1 | See which version of Todoodle is live in each environment | DONE | 18.4 | None | None | None | — | — | green | 11/11 |  | 0 / 0 | 0 | — | throttled 0% |
 | 2 | Start a private workspace instantly, with no sign-up, and get a secret link to return to it | DONE | 29.7 | None | None | None | — | — | red | 30/33 |  | 0 / 0 | 0 | — | throttled 0% |
+| 3 | Get back to my workspaces from this browser without hunting for the link | DONE | 21.5 | None | None | None | — | — | red | 44/48 |  | 0 / 0 | 0 | — | throttled 0% |
 
-**Totals:** 2 stories, 48 agent-minutes, 0 requests, 0 prompt / 0 completion tokens, gate green 1/2, final acceptance 30/33, stalled 0, partial 0, 0 lines in src+tests.
+**Totals:** 3 stories, 70 agent-minutes, 0 requests, 0 prompt / 0 completion tokens, gate green 1/3, final acceptance 44/48, stalled 0, partial 0, 0 lines in src+tests.
 
 ## How it happened
 
@@ -17,6 +18,7 @@ Each story's commits, and which story broke or fixed an earlier story's held-out
 |---|---|---|---|
 | 1 | 13 by the agent | 4124 / 52 | `pipeline.ts` (238), `deps.ts` (108), `validate.ts` (97), `README.md` (82), `record.ts` (63), `NOTES.md` (61), +45 more |
 | 2 | 19 by the agent | 5041 / 71 | `SharePanel.tsx` (170), `cookie.ts` (133), `Workspace.tsx` (130), `tokens.ts` (122), `linkSaved.ts` (109), `workspaces.ts` (92), +55 more |
+| 3 | 14 by the agent | 3142 / 71 | `WorkspaceSwitcher.tsx` (133), `UnsavedLinkWarning.tsx` (102), `RememberedRow.tsx` (87), `NOTES.md` (83), `RememberedList.tsx` (83), `ForgetDialog.tsx` (74), +37 more |
 
 ### Earlier stories broken or fixed
 
