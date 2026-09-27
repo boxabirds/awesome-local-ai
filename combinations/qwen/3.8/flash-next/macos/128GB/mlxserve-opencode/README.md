@@ -83,7 +83,7 @@ building on it.
 | Architecture | `qwen4_exp`: 48 layers, 3 linear-attention (GDN) per full-attention layer, 512 experts, 10 active, 2 KV heads × 256 dims, sparse attention past 2048 tokens |
 | Context | `max_position_embeddings: 262144` |
 | Chat template | thinking on unless `enable_thinking` is false; `reasoning_effort` `xhigh` (default) / `medium` / `low`, anything else raises |
-| Needs mlx-serve | ≥ 26.8.11 (first Flash-Next release, and the card's measurement); this combination pins **26.9.5** |
+| Needs mlx-serve | ≥ 26.8.11 (first Flash-Next release, and the card's measurement); this combination pins **26.9.6** |
 
 **The n-gram table.** The card: the 51B-parameter n-gram table is not in the
 shards but in one 4-bit `ngram_table.bin`; "mlx-serve mmaps the file and, per
@@ -164,10 +164,10 @@ Read from mlx-serve's source, not observed:
 # or: ./install.sh qwen/3.8/flash-next/macos/128GB/mlxserve-opencode
 ```
 
-- **mlx-serve**: an installed `mlx-serve` ≥ 26.9.5 on `PATH` (or
-  `MLXSERVE_BIN=`) is used as is. Otherwise the 26.9.5 release tarball is
+- **mlx-serve**: an installed `mlx-serve` ≥ 26.9.6 on `PATH` (or
+  `MLXSERVE_BIN=`) is used as is. Otherwise the 26.9.6 release tarball is
   downloaded, checked against the sha256 GitHub publishes for it, and unpacked
-  under `~/.local/share/awesome-local-ai/mlx-serve/v26.9.5/`. An older
+  under `~/.local/share/awesome-local-ai/mlx-serve/v26.9.6/`. An older
   Homebrew install is left untouched.
 - **Weights**: `hf download` at the pinned revision into
   `~/.mlx-serve/models/ddalcu/Qwen3.8-Flash-Next-MLX-Serve-mixed-4-8bit/`
@@ -253,7 +253,7 @@ Only when nothing else is serving a large model (not during a Vidi run):
 ~/.local/share/mlxserve-qwen38-flash-next/
     install.env, profiles.tsv, help.txt, client*.sh
     served/mlxserve-flash-next-mixed-4-8bit/   symlinks + generation_config.json
-~/.local/share/awesome-local-ai/mlx-serve/v26.9.5/   only if no suitable mlx-serve was installed
+~/.local/share/awesome-local-ai/mlx-serve/v26.9.6/   only if no suitable mlx-serve was installed
 ~/.local/bin/
     local-ai-mlxserve-server                   shared by mlx-serve combinations
     local-ai-session
