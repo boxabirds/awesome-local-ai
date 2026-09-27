@@ -9197,7 +9197,15 @@
         }
       ],
       "stub_markers": [],
-      "partial_heldout_changes": {}
+      "partial_heldout_changes": {},
+      "record": {
+        "committed": true,
+        "pushed": true,
+        "over_size_limit": [
+          "~/.spec-bench/awesome-local-ai/combinations/qwen/3.8/flash-next/macos/128GB/llamacpp-pi/benchmarks/vidi/ab-s7s8-01/server.log"
+        ],
+        "commit": "79e3015"
+      }
     }
   },
   "processed": [
