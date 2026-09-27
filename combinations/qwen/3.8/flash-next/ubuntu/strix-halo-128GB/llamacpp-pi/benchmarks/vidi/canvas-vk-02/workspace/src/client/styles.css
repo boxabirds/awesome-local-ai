@@ -1,0 +1,172 @@
+:root {
+  --grid-dot: #c7ccd6;
+  --board-background: #fafbfc;
+  --panel-background: #ffffff;
+  --panel-border: #d7dbe2;
+  --text: #1f2430;
+  --text-muted: #5b6472;
+  --focus-ring: #2563eb;
+  font-family:
+    system-ui,
+    -apple-system,
+    'Segoe UI',
+    Roboto,
+    'Helvetica Neue',
+    Arial,
+    sans-serif;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  overflow: hidden;
+  color: var(--text);
+  background: var(--board-background);
+}
+
+/* ------------------------------------------------------------------ board */
+
+.board-area {
+  position: fixed;
+  inset: 0;
+  overflow: hidden;
+}
+
+.board {
+  position: absolute;
+  inset: 0;
+  background-color: var(--board-background);
+  background-repeat: repeat;
+  cursor: grab;
+  overflow: hidden;
+  overscroll-behavior: none;
+  touch-action: none;
+  user-select: none;
+}
+
+.board[data-panning='true'] {
+  cursor: grabbing;
+}
+
+/* World layer: the only thing that moves when the camera changes. */
+.board-world {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 0;
+  height: 0;
+  transform-origin: 0 0;
+}
+
+/* Marker at world (0, 0): the board's starting point. Its centre is exactly
+   on the origin, so its rendered centre is where the start point is on screen. */
+.board-origin {
+  position: absolute;
+  left: -6px;
+  top: -6px;
+  width: 12px;
+  height: 12px;
+}
+
+.board-origin::before,
+.board-origin::after {
+  content: '';
+  position: absolute;
+  background: #9aa3b2;
+}
+
+.board-origin::before {
+  left: 5px;
+  top: 0;
+  width: 2px;
+  height: 12px;
+}
+
+.board-origin::after {
+  left: 0;
+  top: 5px;
+  width: 12px;
+  height: 2px;
+}
+
+/* ---------------------------------------------------------- zoom controls */
+
+.zoom-controls {
+  position: fixed;
+  right: 16px;
+  bottom: 16px;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 4px;
+  background: var(--panel-background);
+  border: 1px solid var(--panel-border);
+  border-radius: 8px;
+  box-shadow: 0 1px 3px rgb(20 26 38 / 12%);
+}
+
+.zoom-controls button {
+  min-width: 30px;
+  height: 28px;
+  padding: 0 8px;
+  font: inherit;
+  font-size: 15px;
+  line-height: 1;
+  color: var(--text);
+  background: transparent;
+  border: 0;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.zoom-controls button:hover:not(:disabled) {
+  background: #eef1f5;
+}
+
+.zoom-controls button:disabled {
+  color: #a8afba;
+  cursor: default;
+}
+
+.zoom-controls button:focus-visible,
+.zoom-reset:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 1px;
+}
+
+.zoom-percent {
+  min-width: 48px;
+  padding: 0 4px;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-muted);
+  text-align: center;
+}
+
+.zoom-reset {
+  font-size: 13px !important;
+  white-space: nowrap;
+}
+
+/* -------------------------------------------------------- navigation hint */
+
+.navigation-hint {
+  position: fixed;
+  left: 50%;
+  bottom: 20px;
+  transform: translateX(-50%);
+  margin: 0;
+  padding: 6px 12px;
+  font-size: 13px;
+  color: var(--text-muted);
+  background: rgb(255 255 255 / 88%);
+  border: 1px solid var(--panel-border);
+  border-radius: 999px;
+  box-shadow: 0 1px 3px rgb(20 26 38 / 8%);
+  pointer-events: none;
+}

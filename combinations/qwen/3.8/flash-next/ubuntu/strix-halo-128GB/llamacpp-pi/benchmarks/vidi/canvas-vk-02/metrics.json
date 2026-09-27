@@ -1,0 +1,590 @@
+{
+  "stories": {
+    "1": {
+      "title": "Pan and zoom around an infinite board",
+      "conditions_start": {
+        "ac": true,
+        "low_power": false,
+        "thermal": "unmonitored"
+      },
+      "started": 1790481704.997124,
+      "agent": {
+        "seconds": 4505.2,
+        "steps": 109,
+        "tool_calls": 123,
+        "compactions": 1,
+        "tool_interruptions": 0,
+        "tokens": {
+          "input": 97564,
+          "output": 110791,
+          "reasoning": 0,
+          "cache_read": 6404863,
+          "cache_write": 0
+        },
+        "exit": 0,
+        "stalled": false,
+        "resumes": 0,
+        "nudges": 0,
+        "errors": [],
+        "ended_by_operator": false,
+        "ended_in_error": false,
+        "sessions": [
+          "01a0e106-a924-76cd-bc16-0ce691ae69e8"
+        ]
+      },
+      "agent_finished": 1790486210.2294083,
+      "conditions": {
+        "samples": 150,
+        "degraded": false,
+        "throttled_share": 0.0,
+        "bad_samples": [],
+        "swap_start_gb": 0.3,
+        "swap_max_gb": 0.3,
+        "aborted_swap": false,
+        "aborted_memory": false,
+        "free_min_pct": 13.909996782749694,
+        "server_footprint_max_gb": 34.058868408203125,
+        "server_footprint_peak_gb": 35.678218841552734,
+        "gpu": {
+          "samples": 150,
+          "busy_mean_pct": 92.3,
+          "sclk_min_busy_mhz": 2892,
+          "sclk_max_mhz": 2900,
+          "power_mean_w": 90.6,
+          "power_max_w": 126.0,
+          "temp_max_c": 76.0,
+          "gtt_max_gb": 68.7,
+          "throttled_samples": 0
+        }
+      },
+      "agent_commits": 3,
+      "gate": {
+        "steps": {
+          "install": {
+            "cmd": "npm ci",
+            "exit": 0,
+            "seconds": 2.3,
+            "tail": "\nadded 140 packages, and audited 141 packages in 2s\n\n31 packages are looking for funding\n  run `npm fund` for details\n\nfound 0 vulnerabilities\nnpm WARN EBADENGINE Unsupported engine {\nnpm WARN EBADENGINE   package: '@asamuzakjp/css-color@7.1.2',\nnpm WARN EBADENGINE   required: { node: '^22.22.2 || ^24.15.0 || >=26.0.0' },\nnpm WARN EBADENGINE   current: { node: 'v22.22.1', npm: '9.2.0' }\nnpm WARN EBADENGINE }\nnpm WARN EBADENGINE Unsupported engine {\nnpm WARN EBADENGINE   package: '@asamuzakjp/dom-selector@9.2.2',\nnpm WARN EBADENGINE   required: { node: '^22.22.2 || ^24.15.0 || >=26.0.0' },\nnpm WARN EBADENGINE   current: { node: 'v22.22.1', npm: '9.2.0' }\nnpm WARN EBADENGINE }\nnpm WARN EBADENGINE Unsupported engine {\nnpm WARN EBADENGINE   package: 'jsdom@30.1.1',\nnpm WARN EBADENGINE   required: { node: '^22.22.2 || ^24.15.0 || >=26.0.0' },\nnpm WARN EBADENGINE   current: { node: 'v22.22.1', npm: '9.2.0' }\nnpm WARN EBADENGINE }\nnpm WARN EBADENGINE Unsupported engine {\nnpm WARN EBADENGINE   package: 'w3c-xmlserializer@6.0.0',\nnpm WARN EBADENGINE   required: { node: '^22.22.2 || ^24.15.0 || >=26.0.0' },\nnpm WARN EBADENGINE   current: { node: 'v22.22.1', npm: '9.2.0' }\nnpm WARN EBADENGINE }\n"
+          },
+          "build": {
+            "cmd": "npm run build",
+            "exit": 0,
+            "seconds": 0.4,
+            "tail": "\n> vidi6@0.0.1 build\n> vite build\n\n\u001b[36mvite v8.3.1 \u001b[32mbuilding client environment for production...\u001b[36m\u001b[39m\ntransforming...\n\u2713 24 modules transformed.\nrendering chunks...\ncomputing gzip size...\ndist/client/index.html                   0.43 kB \u2502 gzip:  0.27 kB\ndist/client/assets/index-BvsVbL10.css    2.12 kB \u2502 gzip:  0.90 kB\ndist/client/assets/index-B9kx_LWN.js   227.04 kB \u2502 gzip: 71.10 kB\n\n\u001b[32m\u2713 built in 79ms\u001b[39m\n",
+            "passed": null,
+            "failed": null
+          },
+          "typecheck": {
+            "cmd": "npm run typecheck",
+            "exit": 0,
+            "seconds": 0.3,
+            "tail": "\n> vidi6@0.0.1 typecheck\n> tsc --noEmit\n\n",
+            "passed": null,
+            "failed": null
+          },
+          "test:unit": {
+            "cmd": "npm run test:unit",
+            "exit": 0,
+            "seconds": 0.6,
+            "tail": "\n> vidi6@0.0.1 test:unit\n> vitest run --project unit\n\n\n\u001b[1m\u001b[30m\u001b[46m RUN \u001b[49m\u001b[39m\u001b[22m \u001b[36mv5.0.2 \u001b[39m\u001b[90m~/.vidi-bench/work/qwen__3.8__flash-next__ubuntu__strix-halo-128GB__llamacpp-pi__benchmarks__vidi__canvas-vk-02/workspace\u001b[39m\n\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[42m unit \u001b[49m\u001b[39m tests/unit/camera.test.ts \u001b[2m(\u001b[22m\u001b[2m22 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 21\u001b[2mms\u001b[22m\u001b[39m\n\n\u001b[2m Test Files \u001b[22m \u001b[1m\u001b[32m1 passed\u001b[39m\u001b[22m\u001b[90m (1)\u001b[39m\n\u001b[2m      Tests \u001b[22m \u001b[1m\u001b[32m22 passed\u001b[39m\u001b[22m\u001b[90m (22)\u001b[39m\n\u001b[2m   Start at \u001b[22m 05:16:53\n\u001b[2m   Duration \u001b[22m 191ms\u001b[2m (transform 48%, tests 35%, import 14%, worker 4%)\u001b[22m\n\n",
+            "passed": 22,
+            "failed": 0
+          },
+          "test:component": {
+            "cmd": "npm run test:component",
+            "exit": 0,
+            "seconds": 1.2,
+            "tail": "\n> vidi6@0.0.1 test:component\n> vitest run --project component\n\n\n\u001b[1m\u001b[30m\u001b[46m RUN \u001b[49m\u001b[39m\u001b[22m \u001b[36mv5.0.2 \u001b[39m\u001b[90m~/.vidi-bench/work/qwen__3.8__flash-next__ubuntu__strix-halo-128GB__llamacpp-pi__benchmarks__vidi__canvas-vk-02/workspace\u001b[39m\n\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[45m component \u001b[49m\u001b[39m tests/component/NavigationHint.test.tsx \u001b[2m(\u001b[22m\u001b[2m5 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 58\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[45m component \u001b[49m\u001b[39m tests/component/ZoomControls.test.tsx \u001b[2m(\u001b[22m\u001b[2m9 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 133\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[45m component \u001b[49m\u001b[39m tests/component/BoardViewport.test.tsx \u001b[2m(\u001b[22m\u001b[2m15 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 106\u001b[2mms\u001b[22m\u001b[39m\n\n\u001b[2m Test Files \u001b[22m \u001b[1m\u001b[32m3 passed\u001b[39m\u001b[22m\u001b[90m (3)\u001b[39m\n\u001b[2m      Tests \u001b[22m \u001b[1m\u001b[32m29 passed\u001b[39m\u001b[22m\u001b[90m (29)\u001b[39m\n\u001b[2m   Start at \u001b[22m 05:16:54\n\u001b[2m   Duration \u001b[22m 698ms\u001b[2m (environment 66%, tests 18%, setup 9%, transform 5%, import 2%, worker 1%)\u001b[22m\n\n",
+            "passed": 29,
+            "failed": 0
+          },
+          "test:integration": {
+            "exit": "missing"
+          },
+          "test:e2e": {
+            "cmd": "npm run test:e2e -- --project=chromium",
+            "exit": 0,
+            "seconds": 4.2,
+            "tail": "erver] [wrangler:info] GET / 200 OK (24ms)\n\nRunning 10 tests using 10 workers\n\n[WebServer] [wrangler:info] GET / 200 OK (5ms)\n[WebServer] [wrangler:info] GET / 200 OK (3ms)\n[WebServer] [wrangler:info] GET /assets/index-dw0V0Zgc.js 200 OK (4ms)\n[WebServer] [wrangler:info] GET /assets/index-BvsVbL10.css 200 OK (9ms)\n[WebServer] [wrangler:info] GET /assets/index-BvsVbL10.css 200 OK (22ms)\n[WebServer] [wrangler:info] GET /assets/index-dw0V0Zgc.js 200 OK (22ms)\n[WebServer] [wrangler:info] GET / 200 OK (25ms)\n[WebServer] [wrangler:info] GET / 200 OK (3ms)\n[WebServer] [wrangler:info] GET /assets/index-dw0V0Zgc.js 200 OK (4ms)\n[WebServer] [wrangler:info] GET /assets/index-BvsVbL10.css 200 OK (8ms)\n[WebServer] [wrangler:info] GET / 200 OK (4ms)\n[WebServer] [wrangler:info] GET /assets/index-dw0V0Zgc.js 200 OK (9ms)\n[WebServer] [wrangler:info] GET /assets/index-dw0V0Zgc.js 200 OK (7ms)\n[WebServer] [wrangler:info] GET /assets/index-BvsVbL10.css 200 OK (7ms)\n[WebServer] [wrangler:info] GET /assets/index-BvsVbL10.css 200 OK (14ms)\n[WebServer] [wrangler:info] GET / 200 OK (7ms)\n[WebServer] [wrangler:info] GET / 200 OK (4ms)\n[WebServer] [wrangler:info] GET / 200 OK (5ms)\n[WebServer] [wrangler:info] GET /assets/index-BvsVbL10.css 200 OK (8ms)\n[WebServer] [wrangler:info] GET / 200 OK (9ms)\n[WebServer] [wrangler:info] GET /assets/index-dw0V0Zgc.js 200 OK (9ms)\n[WebServer] [wrangler:info] GET /assets/index-BvsVbL10.css 200 OK (9ms)\n[WebServer] [wrangler:info] GET /assets/index-dw0V0Zgc.js 200 OK (10ms)\n[WebServer] [wrangler:info] GET / 200 OK (8ms)\n[WebServer] [wrangler:info] GET /assets/index-BvsVbL10.css 200 OK (7ms)\n[WebServer] [wrangler:info] GET /assets/index-dw0V0Zgc.js 200 OK (7ms)\n[WebServer] [wrangler:info] GET /assets/index-dw0V0Zgc.js 200 OK (9ms)\n[WebServer] [wrangler:info] GET /assets/index-BvsVbL10.css 200 OK (7ms)\n[WebServer] [wrangler:info] GET /assets/index-dw0V0Zgc.js 200 OK (5ms)\n[WebServer] [wrangler:info] GET /assets/index-BvsVbL10.css 200 OK (4ms)\n  \u2713   1 [chromium] \u203a tests/e2e/navigation.spec.ts:198:3 \u203a workflow 2 \u2014 limits and recovery \u203a TC-26 Reset view returns to 100% with the board start point centred (267ms)\n  \u2713   8 [chromium] \u203a tests/e2e/navigation.spec.ts:124:3 \u203a workflow 1 \u2014 first visit navigation \u203a TC-24 zooming around the pointer keeps the dot under the pointer, and never zooms the page (263ms)\n  \u2713   5 [chromium] \u203a tests/e2e/navigation.spec.ts:150:3 \u203a workflow 1 \u2014 first visit navigation \u203a TC-24 panning by scrolling moves content opposite to the scroll direction (300ms)\n  \u2713   4 [chromium] \u203a tests/e2e/navigation.spec.ts:86:3 \u203a workflow 1 \u2014 first visit navigation \u203a TC-23 dragging moves the board exactly the distance and direction the pointer moved (354ms)\n  \u2713   3 [chromium] \u203a tests/e2e/navigation.spec.ts:219:3 \u203a workflow 2 \u2014 limits and recovery \u203a TC-31 keyboard Ctrl/Cmd + = / - / 0 step the zoom and reset without zooming the page (401ms)\n  \u2713   7 [chromium] \u203a tests/e2e/navigation.spec.ts:320:3 \u203a board geometry \u203a resizing the window does not move content relative to the board top-left (414ms)\n  \u2713  10 [chromium] \u203a tests/e2e/navigation.spec.ts:264:3 \u203a workflow 3 \u2014 far travel \u203a TC-27 a million units from the start the grid is even and dragging is still exact (447ms)\n[WebServer] [wrangler:info] GET / 304 Not Modified (3ms)\n[WebServer] [wrangler:info] GET /assets/index-dw0V0Zgc.js 304 Not Modified (2ms)\n[WebServer] [wrangler:info] GET /assets/index-BvsVbL10.css 304 Not Modified (2ms)\n  \u2713   6 [chromium] \u203a tests/e2e/navigation.spec.ts:69:3 \u203a workflow 1 \u2014 first visit navigation \u203a TC-28 the navigation hint shows on first visit and disappears after the first pan (567ms)\n  \u2713   2 [chromium] \u203a tests/e2e/navigation.spec.ts:190:3 \u203a workflow 2 \u2014 limits and recovery \u203a TC-25 zooming out with the button stops at 10% with the button disabled (930ms)\n  \u2713   9 [chromium] \u203a tests/e2e/navigation.spec.ts:170:3 \u203a workflow 2 \u2014 limits and recovery \u203a TC-25 zooming in with the button stops at 400% with the button disabled (858ms)\n\n  10 passed (3.6s)\n",
+            "passed": 10,
+            "failed": 0
+          }
+        },
+        "all_green": true
+      },
+      "accept": {
+        "skipped": false,
+        "build_exit": 0,
+        "runner_exit": 1,
+        "passed": 5,
+        "total": 6,
+        "on_partial": {
+          "passed": 0,
+          "total": 0
+        },
+        "by_story": {
+          "01": {
+            "passed": 5,
+            "total": 6
+          }
+        },
+        "harness_fault": null
+      },
+      "commit": "2ce8163dabd48f8132ac5ff66e821ddc66a4e659",
+      "requests": {},
+      "time_split": {
+        "wall_s": 4505.2,
+        "model": {
+          "requests": 109,
+          "prefill_s": 424.2,
+          "prefill_tokens": 97564,
+          "prefill_tok_s": 230.0,
+          "decode_s": 3493.4,
+          "decode_tokens": 110791,
+          "decode_tok_s": 31.7,
+          "draft_acceptance": 0.604,
+          "mean_accepted_len": 3.52
+        },
+        "tools_s": 179.5,
+        "tools_by_kind": {
+          "e2e": 111.1,
+          "bash": 45.9,
+          "unit": 11.3,
+          "build": 11.0,
+          "write": 0.1,
+          "edit": 0.1,
+          "read": 0.0
+        },
+        "compaction_s": 391.0,
+        "compactions": 1,
+        "other_s": 17.1
+      },
+      "loc": {
+        "files": 21,
+        "lines": 2300
+      },
+      "finished": 1790486236.861302,
+      "status": "DONE",
+      "ended_by": "agent",
+      "partial_base": [],
+      "tasks": [
+        {
+          "n": 1,
+          "title": "Scaffold project and write camera maths unit tests first (TC-01 to TC-12)",
+          "type": "test:unit",
+          "implements": [
+            "camera.math"
+          ],
+          "tcs": [
+            "TC-01",
+            "TC-02",
+            "TC-03",
+            "TC-04",
+            "TC-05",
+            "TC-06",
+            "TC-07",
+            "TC-08",
+            "TC-09",
+            "TC-10",
+            "TC-11",
+            "TC-12"
+          ],
+          "status": "verified",
+          "found": 12,
+          "total": 12
+        },
+        {
+          "n": 2,
+          "title": "Implement camera maths to pass unit tests",
+          "type": "implementation",
+          "implements": [
+            "camera.math"
+          ],
+          "tcs": [],
+          "status": "verified",
+          "found": null,
+          "total": null
+        },
+        {
+          "n": 3,
+          "title": "Implement board viewport: drag, wheel, pinch and keyboard navigation with dot grid",
+          "type": "implementation",
+          "implements": [
+            "viewport.input"
+          ],
+          "tcs": [],
+          "status": "verified",
+          "found": null,
+          "total": null
+        },
+        {
+          "n": 4,
+          "title": "Implement zoom controls (\u2212, percentage, +, Reset view)",
+          "type": "implementation",
+          "implements": [
+            "zoom.controls"
+          ],
+          "tcs": [],
+          "status": "verified",
+          "found": null,
+          "total": null
+        },
+        {
+          "n": 5,
+          "title": "Implement first-use navigation hint",
+          "type": "implementation",
+          "implements": [
+            "nav.hint_display"
+          ],
+          "tcs": [],
+          "status": "verified",
+          "found": null,
+          "total": null
+        },
+        {
+          "n": 6,
+          "title": "Component tests for viewport input, zoom controls and hint",
+          "type": "test:ui-component",
+          "implements": [
+            "viewport.input",
+            "zoom.controls",
+            "nav.hint_display"
+          ],
+          "tcs": [
+            "TC-13",
+            "TC-14",
+            "TC-15",
+            "TC-16",
+            "TC-17",
+            "TC-18",
+            "TC-19",
+            "TC-20",
+            "TC-21",
+            "TC-22",
+            "TC-29",
+            "TC-30",
+            "TC-32"
+          ],
+          "status": "verified",
+          "found": 13,
+          "total": 13
+        },
+        {
+          "n": 7,
+          "title": "E2E navigation tests in Chromium, Firefox and WebKit",
+          "type": "test:e2e",
+          "implements": [
+            "viewport.input",
+            "zoom.controls",
+            "nav.hint_display"
+          ],
+          "tcs": [
+            "TC-23",
+            "TC-24",
+            "TC-25",
+            "TC-26",
+            "TC-27",
+            "TC-28",
+            "TC-31"
+          ],
+          "status": "verified",
+          "found": 7,
+          "total": 7
+        }
+      ]
+    }
+  },
+  "pack": "vidi",
+  "scope": "canvas",
+  "model_id": "qwen3.8-flash-next",
+  "client": "pi",
+  "compact_at": null,
+  "processed": [
+    {
+      "id": 1,
+      "title": "Pan and zoom around an infinite board",
+      "status": "DONE",
+      "ended_by": "agent",
+      "started_at": 1790481704.997124,
+      "ended_at": 1790486210.2294083,
+      "agent_minutes": 75.1,
+      "calls": 109,
+      "output_tokens": 110791,
+      "compactions": 1,
+      "last_commit_at": 1790486119.0,
+      "accept": {
+        "passed": 5,
+        "total": 6
+      },
+      "partial_base": [],
+      "tasks": [
+        {
+          "n": 1,
+          "title": "Scaffold project and write camera maths unit tests first (TC-01 to TC-12)",
+          "type": "test:unit",
+          "implements": [
+            "camera.math"
+          ],
+          "tcs": [
+            "TC-01",
+            "TC-02",
+            "TC-03",
+            "TC-04",
+            "TC-05",
+            "TC-06",
+            "TC-07",
+            "TC-08",
+            "TC-09",
+            "TC-10",
+            "TC-11",
+            "TC-12"
+          ],
+          "status": "verified",
+          "found": 12,
+          "total": 12
+        },
+        {
+          "n": 2,
+          "title": "Implement camera maths to pass unit tests",
+          "type": "implementation",
+          "implements": [
+            "camera.math"
+          ],
+          "tcs": [],
+          "status": "verified",
+          "found": null,
+          "total": null
+        },
+        {
+          "n": 3,
+          "title": "Implement board viewport: drag, wheel, pinch and keyboard navigation with dot grid",
+          "type": "implementation",
+          "implements": [
+            "viewport.input"
+          ],
+          "tcs": [],
+          "status": "verified",
+          "found": null,
+          "total": null
+        },
+        {
+          "n": 4,
+          "title": "Implement zoom controls (\u2212, percentage, +, Reset view)",
+          "type": "implementation",
+          "implements": [
+            "zoom.controls"
+          ],
+          "tcs": [],
+          "status": "verified",
+          "found": null,
+          "total": null
+        },
+        {
+          "n": 5,
+          "title": "Implement first-use navigation hint",
+          "type": "implementation",
+          "implements": [
+            "nav.hint_display"
+          ],
+          "tcs": [],
+          "status": "verified",
+          "found": null,
+          "total": null
+        },
+        {
+          "n": 6,
+          "title": "Component tests for viewport input, zoom controls and hint",
+          "type": "test:ui-component",
+          "implements": [
+            "viewport.input",
+            "zoom.controls",
+            "nav.hint_display"
+          ],
+          "tcs": [
+            "TC-13",
+            "TC-14",
+            "TC-15",
+            "TC-16",
+            "TC-17",
+            "TC-18",
+            "TC-19",
+            "TC-20",
+            "TC-21",
+            "TC-22",
+            "TC-29",
+            "TC-30",
+            "TC-32"
+          ],
+          "status": "verified",
+          "found": 13,
+          "total": 13
+        },
+        {
+          "n": 7,
+          "title": "E2E navigation tests in Chromium, Firefox and WebKit",
+          "type": "test:e2e",
+          "implements": [
+            "viewport.input",
+            "zoom.controls",
+            "nav.hint_display"
+          ],
+          "tcs": [
+            "TC-23",
+            "TC-24",
+            "TC-25",
+            "TC-26",
+            "TC-27",
+            "TC-28",
+            "TC-31"
+          ],
+          "status": "verified",
+          "found": 7,
+          "total": 7
+        }
+      ],
+      "baselines": [
+        {
+          "source": "reference opus-5.5 run-1",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 7.9,
+          "calls": 24,
+          "output_tokens": 50987,
+          "accept": {
+            "passed": 10,
+            "total": 10
+          }
+        },
+        {
+          "source": "reference opus-5.5 run-2",
+          "status": "DONE",
+          "gate_green": null,
+          "agent_minutes": 7.9,
+          "calls": null,
+          "output_tokens": null,
+          "accept": null
+        },
+        {
+          "source": "reference opus-5.5 run-3",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 8.2,
+          "calls": 20,
+          "output_tokens": 40848,
+          "accept": {
+            "passed": 6,
+            "total": 6
+          }
+        },
+        {
+          "source": "qwen/3.8/27b/ubuntu/nvidia4090/llamacpp-opencode canvas-pi-02",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 50.2,
+          "calls": 127,
+          "output_tokens": 165888,
+          "accept": {
+            "passed": 5,
+            "total": 6
+          }
+        },
+        {
+          "source": "qwen/3.8/27b/ubuntu/nvidia4090/llamacpp-opencode canvas-pi-03",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 19.9,
+          "calls": 109,
+          "output_tokens": 57101,
+          "accept": {
+            "passed": 6,
+            "total": 6
+          }
+        },
+        {
+          "source": "qwen/3.8/27b/ubuntu/nvidia4090/llamacpp-opencode canvas-pi-04",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 40.0,
+          "calls": 109,
+          "output_tokens": 149683,
+          "accept": {
+            "passed": 6,
+            "total": 6
+          }
+        },
+        {
+          "source": "qwen/3.8/flash-next/macos/128GB/llamacpp-pi ab-s7s8-01",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 34.3,
+          "calls": 99,
+          "output_tokens": 95144,
+          "accept": {
+            "passed": 6,
+            "total": 6
+          }
+        },
+        {
+          "source": "qwen/3.8/flash-next/macos/128GB/mtplx-opencode canvas-pi-01",
+          "status": "DONE",
+          "gate_green": false,
+          "agent_minutes": 55.4,
+          "calls": 136,
+          "output_tokens": 148800,
+          "accept": {
+            "passed": 0,
+            "total": 6
+          }
+        },
+        {
+          "source": "qwen/3.8/flash-next/macos/128GB/mtplx-opencode canvas-pi-02",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 46.1,
+          "calls": 117,
+          "output_tokens": 136475,
+          "accept": {
+            "passed": 6,
+            "total": 6
+          }
+        },
+        {
+          "source": "qwen/3.8/flash-next/macos/128GB/mtplx-opencode canvas-pi-03",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 34.3,
+          "calls": 99,
+          "output_tokens": 95144,
+          "accept": {
+            "passed": 6,
+            "total": 6
+          }
+        },
+        {
+          "source": "qwen/3.8/flash-next/macos/128GB/mtplx-opencode pi-smoke",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 30.1,
+          "calls": 81,
+          "output_tokens": 77274,
+          "accept": {
+            "passed": 0,
+            "total": 6
+          }
+        },
+        {
+          "source": "qwen/3.8/flash-next/ubuntu/strix-halo-128GB/llamacpp-pi canvas-vk-01",
+          "status": "DONE",
+          "gate_green": false,
+          "agent_minutes": 77.8,
+          "calls": 116,
+          "output_tokens": 117649,
+          "accept": {
+            "passed": 6,
+            "total": 6
+          }
+        }
+      ]
+    }
+  ]
+}

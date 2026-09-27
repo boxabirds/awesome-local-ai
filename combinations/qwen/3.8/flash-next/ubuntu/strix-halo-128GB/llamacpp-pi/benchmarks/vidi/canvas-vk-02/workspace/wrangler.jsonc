@@ -1,0 +1,11 @@
+{
+  // Cloudflare Worker configuration. Story 1 is client-only: the Worker just
+  // serves the built client. Worker code (`main`) arrives in story 3.
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "vidi6",
+  "compatibility_date": "2026-09-01",
+  "assets": {
+    "directory": "./dist/client",
+    "not_found_handling": "single-page-application"
+  }
+}
