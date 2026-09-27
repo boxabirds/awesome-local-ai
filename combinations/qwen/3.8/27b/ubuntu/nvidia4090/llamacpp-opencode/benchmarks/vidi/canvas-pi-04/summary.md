@@ -56,3 +56,9 @@ Each story's commits, and which story broke or fixed an earlier story's held-out
   - story 2: 0/10 → 9/10; fixed 9
 - **Story 7 broke 0, fixed 1** earlier held-out tests (story 7: Select, move, resize and delete several objects at once). Source files it changed most: `useTransformGesture.ts` (292), `board-model.ts` (284), `StickyNote.tsx` (226), `geometry.ts` (181), `App.tsx` (163), `useSelection.ts` (137), +10 more.
   - story 2: 9/10 → 10/10; fixed 1
+
+### Interruptions and dead time
+
+A gap in a story's agent events with a restart or a logged intervention inside it is dead time (the machine or the run was down), not agent time. *Active* is the story's event span minus that dead time, across every attempt. *Recorded* is the harness's agent time, which covers only the attempt after the last restart.
+
+No interruptions inside a story.
