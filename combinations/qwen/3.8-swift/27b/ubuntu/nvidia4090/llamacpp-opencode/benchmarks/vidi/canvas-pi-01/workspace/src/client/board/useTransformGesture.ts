@@ -34,6 +34,7 @@ import { clampScale, resizeRect, scaleWithin, unionRects, type Handle, type Poin
 import { DRAG_THRESHOLD_PX, MAX_OBJECT_SIZE_WORLD } from '../../shared/config';
 import type { Camera } from '../canvas/camera';
 import { getObjectType } from '../objects/registry';
+import { setTextsGeometry } from '../../shared/objects/text';
 import type { useSelection } from './useSelection';
 
 export type SelectionApi = ReturnType<typeof useSelection>;
@@ -93,7 +94,21 @@ export function useTransformGesture(options: TransformGestureOptions): Transform
       for (const [id, r] of g.pending) positions.set(id, { x: r.x, y: r.y });
       moveObjects(doc, positions);
     } else {
-      resizeObjects(doc, g.pending);
+      // Text objects get their x + fixed width (height and font size are
+      // untouched; the box is re-measured by the object's box sync), the
+      // rest resizes as before (story 9: text.resizing).
+      const textEntries: { id: string; x: number; width: number }[] = [];
+      const others = new Map<string, Rect>();
+      const byId = new Map(optsRef.current.snapshot.map((o) => [o.id, o]));
+      for (const [id, r] of g.pending) {
+        if (byId.get(id)?.type === 'text') {
+          textEntries.push({ id, x: r.x, width: r.width });
+        } else {
+          others.set(id, r);
+        }
+      }
+      if (textEntries.length > 0) setTextsGeometry(doc, textEntries);
+      if (others.size > 0) resizeObjects(doc, others);
     }
     g.pending = null;
   }, []);
@@ -163,12 +178,20 @@ export function useTransformGesture(options: TransformGestureOptions): Transform
       } else {
         if (g.handle === null) return;
         const byId = new Map(snapshot.map((o) => [o.id, o]));
+        const selectedObjs = g.ids
+          .map((id) => byId.get(id))
+          .filter((o): o is ObjectSnapshot => o !== undefined);
+        // Text-only selections resize on the width axis only (e/w handles,
+        // story 9); mixed selections keep the story-7 behaviour with text
+        // re-expressed proportionally (height and font size unchanged).
+        const allText = selectedObjs.length > 0 && selectedObjs.every((o) => o.type === 'text');
         let aspectLocked = event.shiftKey;
-        for (const id of g.ids) {
-          const obj = byId.get(id);
-          if (obj !== undefined && getObjectType(obj.type)?.aspectLocked) {
-            aspectLocked = true;
-            break;
+        if (!allText) {
+          for (const obj of selectedObjs) {
+            if (getObjectType(obj.type)?.aspectLocked) {
+              aspectLocked = true;
+              break;
+            }
           }
         }
         const target = resizeRect(g.startBox, g.handle, delta, aspectLocked);
@@ -183,9 +206,9 @@ export function useTransformGesture(options: TransformGestureOptions): Transform
         };
         const clamped = clampScale(scale, startRectList, minSizes, MAX_OBJECT_SIZE_WORLD);
         // Aspect-locked selections must stay uniform: both axes share the
-        // more restrictive clamped scale.
-        const sx = aspectLocked ? Math.min(clamped.x, clamped.y) : clamped.x;
-        const sy = aspectLocked ? Math.min(clamped.x, clamped.y) : clamped.y;
+        // more restrictive clamped scale. Text never scales vertically.
+        const sx = allText ? clamped.x : aspectLocked ? Math.min(clamped.x, clamped.y) : clamped.x;
+        const sy = allText ? 1 : aspectLocked ? Math.min(clamped.x, clamped.y) : clamped.y;
         const clampedBox: Rect = {
           x: g.startBox!.x,
           y: g.startBox!.y,
@@ -194,7 +217,22 @@ export function useTransformGesture(options: TransformGestureOptions): Transform
         };
         const pending = new Map<string, Rect>();
         for (const [id, r] of g.startRects) {
-          pending.set(id, scaleWithin(r, g.startBox!, clampedBox));
+          const obj = byId.get(id);
+          if (obj !== undefined && obj.type === 'text') {
+            const scaled = scaleWithin(r, g.startBox!, clampedBox);
+            // A text-only selection is resized by its e/w handle: the drag
+            // sets a FIXED width (story 9, text.resizing). In a mixed
+            // selection only fixed widths scale; auto widths keep theirs.
+            const fixed = allText || obj.widthMode === 'fixed';
+            pending.set(id, {
+              x: scaled.x,
+              y: scaled.y,
+              width: fixed ? scaled.width : r.width,
+              height: r.height,
+            });
+          } else {
+            pending.set(id, scaleWithin(r, g.startBox!, clampedBox));
+          }
         }
         g.pending = pending;
       }

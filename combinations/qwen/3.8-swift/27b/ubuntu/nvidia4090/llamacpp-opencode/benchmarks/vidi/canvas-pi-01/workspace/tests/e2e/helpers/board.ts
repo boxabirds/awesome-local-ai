@@ -126,11 +126,21 @@ export async function settleCamera(page: Page): Promise<void> {
  * each spin up fresh boards without exhausting the shared per-IP window.
  */
 export async function createBoardViaHook(request: APIRequestContext): Promise<string> {
-  const res = await request.post('/__test/boards/create');
-  if (!res.ok()) throw new Error(`test-hook board creation failed: ${res.status()}`);
-  const body = (await res.json()) as { id?: string };
-  if (body.id === undefined) throw new Error('test-hook board creation returned no id');
-  return body.id;
+  // The Durable Object can return 500 ("Please retry the fetch call") when a
+  // stub is invalidated under parallel e2e load; retry a few times with a
+  // short backoff before giving up.
+  let lastStatus = 0;
+  for (let attempt = 0; attempt < 4; attempt++) {
+    const res = await request.post('/__test/boards/create');
+    lastStatus = res.status();
+    if (res.ok()) {
+      const body = (await res.json()) as { id?: string };
+      if (body.id === undefined) throw new Error('test-hook board creation returned no id');
+      return body.id;
+    }
+    if (attempt < 3) await new Promise((r) => setTimeout(r, 250 * (attempt + 1)));
+  }
+  throw new Error(`test-hook board creation failed: ${lastStatus}`);
 }
 
 /** Navigate to a board and wait for the initialised home view. */

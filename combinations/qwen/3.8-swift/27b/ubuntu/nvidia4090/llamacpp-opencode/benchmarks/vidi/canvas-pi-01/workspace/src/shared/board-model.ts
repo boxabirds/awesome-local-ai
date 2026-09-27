@@ -23,7 +23,9 @@ import {
   DEFAULT_STICKY_COLOR,
   STICKY_COLORS,
   STICKY_SIZE_WORLD,
+  TEXT_SIZES,
   type StickyColor,
+  type TextSize,
 } from './config';
 import type { Point, Rect } from './geometry';
 
@@ -44,6 +46,10 @@ export interface ObjectSnapshot {
   /** Sticky notes only. */
   color?: StickyColor;
   text?: string;
+  /** Text objects only (story 9): size preset key. */
+  size?: TextSize;
+  /** Text objects only (story 9): auto or fixed width mode. */
+  widthMode?: 'auto' | 'fixed';
   /** Stacking order; higher is on top. */
   z: number;
   /** Epoch ms. */
@@ -362,6 +368,27 @@ export function snapshot(doc: Y.Doc): readonly ObjectSnapshot[] {
         height: height === undefined ? undefined : (height as number),
         color,
         text: text.toString(),
+        z: z as number,
+        createdAt: createdAt as number,
+      });
+      continue;
+    }
+    if (type === 'text') {
+      const size = object.get('size');
+      const widthMode = object.get('widthMode');
+      if (typeof size !== 'string' || !(size in TEXT_SIZES)) continue;
+      if (widthMode !== 'auto' && widthMode !== 'fixed') continue;
+      if (!(text instanceof Y.Text)) continue;
+      out.push({
+        id,
+        type,
+        x: x as number,
+        y: y as number,
+        width: width === undefined ? undefined : (width as number),
+        height: height === undefined ? undefined : (height as number),
+        text: text.toString(),
+        size: size as TextSize,
+        widthMode: widthMode as 'auto' | 'fixed',
         z: z as number,
         createdAt: createdAt as number,
       });

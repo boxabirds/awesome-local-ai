@@ -132,3 +132,26 @@ export const NUDGE_LARGE_STEP_WORLD = 10;
 export const UNDO_CAPTURE_TIMEOUT_MS = 500;
 /** Most recent undo steps kept per user (oldest discarded beyond this). */
 export const UNDO_MAX_STEPS = 200;
+
+// ---- Free text objects (story 9) ----
+
+/** Maximum width (board units) of an auto-width text before lines wrap. */
+export const TEXT_MAX_AUTO_WIDTH_WORLD = 600;
+/** Minimum width (board units) a fixed-width text may be dragged to. */
+export const TEXT_MIN_WIDTH_WORLD = 40;
+/** Maximum characters a text object may hold (text.limit). */
+export const TEXT_MAX_CHARS = 5000;
+/** The four text size presets, in board units (text.size). */
+export const TEXT_SIZES = { S: 14, M: 20, L: 32, XL: 56 } as const;
+export type TextSize = keyof typeof TEXT_SIZES;
+/** Size of newly created text objects. */
+export const DEFAULT_TEXT_SIZE: TextSize = 'M';
+/** Line height multiplier (line box = size × TEXT_LINE_HEIGHT). */
+export const TEXT_LINE_HEIGHT = 1.3;
+/** Standard board font (text objects stay crisp at every zoom). */
+export const TEXT_FONT_FAMILY = 'Inter, system-ui, sans-serif';
+/**
+ * Average glyph width as a fraction of the font size, used to estimate text
+ * width when no canvas measurer is available (jsdom, worker, first paint).
+ */
+export const TEXT_AVG_GLYPH_WIDTH_RATIO = 0.6;

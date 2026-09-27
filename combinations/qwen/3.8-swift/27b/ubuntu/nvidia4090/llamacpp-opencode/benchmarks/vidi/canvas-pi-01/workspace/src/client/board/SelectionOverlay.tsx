@@ -52,6 +52,11 @@ export function SelectionOverlay(props: SelectionOverlayProps): JSX.Element | nu
   const box = unionRects(selected.map(objectBounds));
   if (box === null) return null;
   const resizable = selected.some((o) => getObjectType(o.type)?.resizable === true);
+  // Text-only selections expose e/w handles only (story 9, text.object);
+  // any other mix keeps the full handle set.
+  const handles: Handle[] = selected.every((o) => getObjectType(o.type)?.handles === 'horizontal')
+    ? ['e', 'w']
+    : HANDLES;
 
   const topLeft = worldToScreen(camera, { x: box.x, y: box.y });
   const width = box.width * camera.zoom;
@@ -75,7 +80,7 @@ export function SelectionOverlay(props: SelectionOverlayProps): JSX.Element | nu
       style={{ position: 'fixed', left: topLeft.x, top: topLeft.y, width, height, pointerEvents: 'none' }}
     >
       {resizable &&
-        HANDLES.map((handle) => (
+        handles.map((handle) => (
           <div
             key={handle}
             data-testid="resize-handle"

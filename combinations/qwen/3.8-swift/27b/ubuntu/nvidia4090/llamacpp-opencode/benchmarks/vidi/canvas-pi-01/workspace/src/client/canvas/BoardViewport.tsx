@@ -26,6 +26,11 @@ export interface BoardViewportProps {
   onEmptyClick?: () => void;
   /** Double-click on empty board space, at the screen point of the click. */
   onCreateStickyAt?: (screenPoint: Point) => void;
+  /** Text tool active (board.text_tool): the cursor is 'text'. */
+  textToolActive?: boolean;
+  /** Text tool: click (down + up, no movement) anywhere, including over
+   *  objects, creates a text object at the screen point. */
+  onCreateTextAt?: (screenPoint: Point) => void;
   /** Marquee selection: Shift+pointerdown on empty board space. */
   onMarqueeBegin?: (screenPoint: Point) => void;
   onMarqueeMove?: (screenPoint: Point) => void;
@@ -43,6 +48,8 @@ export function BoardViewport({
   cam,
   onEmptyClick,
   onCreateStickyAt,
+  textToolActive = false,
+  onCreateTextAt,
   onMarqueeBegin,
   onMarqueeMove,
   onMarqueeEnd,
@@ -157,9 +164,16 @@ export function BoardViewport({
 
   const onPointerDown = (event: React.PointerEvent<HTMLDivElement>) => {
     const el = viewportRef.current;
+    if (el === null) return;
+    if (textToolActive) {
+      // Text tool: remember the down point; a click (no movement) creates a
+      // text object anywhere, including over board objects.
+      downPointRef.current = pointFromEvent(event);
+      return;
+    }
     // Drag starts only on the viewport/grid itself; board objects (later
     // stories) stop propagation from within the world layer.
-    if (el === null || event.target !== el) return;
+    if (event.target !== el) return;
     try {
       el.setPointerCapture(event.pointerId);
     } catch {
@@ -184,6 +198,16 @@ export function BoardViewport({
   };
 
   const onPointerUp = (event: React.PointerEvent<HTMLDivElement>) => {
+    if (textToolActive) {
+      const down = downPointRef.current;
+      downPointRef.current = null;
+      // A click (down + up without movement) creates a text object.
+      const up = pointFromEvent(event);
+      if (down !== null && down.x === up.x && down.y === up.y) {
+        onCreateTextAt?.(up);
+      }
+      return;
+    }
     if (marqueeActiveRef.current) {
       marqueeActiveRef.current = false;
       downPointRef.current = null;
@@ -236,7 +260,7 @@ export function BoardViewport({
         position: 'absolute',
         inset: 0,
         overflow: 'hidden',
-        cursor: panning ? 'grabbing' : 'grab',
+        cursor: textToolActive ? 'text' : panning ? 'grabbing' : 'grab',
         backgroundImage: `radial-gradient(circle, ${DOT_COLOR} ${DOT_RADIUS_PX}px, transparent ${DOT_RADIUS_PX + 1}px)`,
         backgroundSize: `${spacing}px ${spacing}px`,
         backgroundPosition: `${backgroundPositionX}px ${backgroundPositionY}px`,

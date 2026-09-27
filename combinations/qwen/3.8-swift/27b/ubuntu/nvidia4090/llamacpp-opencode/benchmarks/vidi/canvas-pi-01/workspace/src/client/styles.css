@@ -184,6 +184,46 @@ body {
   font-variant-numeric: tabular-nums;
 }
 
+/* ---- text objects (story 9) ---- */
+.text-object {
+  position: absolute;
+  box-sizing: border-box;
+  color: #1f2430;
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: none;
+}
+.text-object[data-selected] {
+  outline: 2px solid #2563eb;
+  outline-offset: 2px;
+}
+.text-object:focus-visible {
+  outline: 2px solid #2563eb;
+  outline-offset: 2px;
+}
+.text-object-content {
+  position: absolute;
+  inset: 0;
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
+  pointer-events: none;
+}
+/* Generalised editor textarea (text objects). */
+.text-editor-textarea {
+  box-sizing: border-box;
+  padding: 0;
+  border: none;
+  resize: none;
+  background: transparent;
+  color: #1f2430;
+  font-family: inherit;
+  text-align: left;
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
+  overflow: hidden;
+  outline: none;
+}
+
 /* ---- left board toolbar ---- */
 .toolbar {
   position: fixed;
@@ -200,6 +240,8 @@ body {
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
   z-index: 10;
 }
+.toolbar-select,
+.toolbar-text,
 .toolbar-sticky {
   width: 40px;
   height: 40px;
@@ -212,6 +254,16 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
+}
+.toolbar-select[aria-pressed='true'],
+.toolbar-text[aria-pressed='true'] {
+  background: #2563eb;
+  border-color: #2563eb;
+  color: #ffffff;
+}
+.toolbar-text:disabled {
+  opacity: 0.4;
+  cursor: default;
 }
 .toolbar-sticky:hover {
   background: #f3f5f8;

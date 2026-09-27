@@ -12,6 +12,10 @@ export const RETRO_ITEM =
 export const THOUSAND_CHAR_PARAGRAPH =
   'The workshop started with a short silence before anyone wrote the first note. We agreed that every idea deserved the same paper, the same size, the same chance to be moved around the table. Half the team filled the wall with small yellow squares, each one a fragment of a longer conversation about onboarding, billing and the empty state that users meet first. Someone suggested that the notes should speak in the customer\'s words, so we rewrote three of them and read them out loud, one at a time, until the room nodded slowly. By the end of the afternoon the board told a story: a confused first visit, a painful second attempt, and a quiet third step where the product finally felt obvious and calm. We kept the best notes pinned near the door and promised to turn them into issues before the next sprint planning, so that the wall would not become a museum of good intentions and forgotten afternoons. Two weeks later we compared the board with the shipped release and found that most of the squa';
 
+/** Exactly 300 characters of English prose (story 9: long text annotation). */
+export const THREE_HUNDRED_CHAR_SENTENCE =
+  'The long annotation wrapped across the board explained exactly how the team structured the review, the decisions they deferred, the follow-up tickets they filed, the small experiments they planned to run, and the metrics they would watch closely before the next launch window opened for the rollouts.';
+
 /** 1,200 characters — pasting this must clamp to the 1,000 limit. */
 export const TWO_THOUSAND_CHARS_PARAGRAPH =
   THOUSAND_CHAR_PARAGRAPH +

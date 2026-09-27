@@ -16,6 +16,7 @@ import type { Point } from '../../shared/geometry';
 import { getObjectType } from '../objects/registry';
 import type { UndoController } from './undo';
 import type { useSelection } from './useSelection';
+import type { Tool } from './useTool';
 
 export interface BoardKeysOptions {
   doc: Y.Doc;
@@ -25,6 +26,11 @@ export interface BoardKeysOptions {
   canEdit: boolean;
   /** This tab's undo controller (story 8: Ctrl/Cmd+Z, Ctrl/Cmd+Shift+Z, Ctrl+Y). */
   undo?: UndoController;
+  /** Active tool (board.text_tool); Escape reverts to 'select'. */
+  tool?: Tool;
+  setTool?: (tool: Tool) => void;
+  /** N shortcut: create a sticky note at the board centre. */
+  onCreateStickyCenter?: () => void;
 }
 
 function inEditableTarget(target: EventTarget | null): boolean {
@@ -39,7 +45,7 @@ export function useBoardKeys(options: BoardKeysOptions): void {
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
-      const { doc, selection, snapshot, canEdit, undo } = optsRef.current;
+      const { doc, selection, snapshot, canEdit, undo, tool, setTool, onCreateStickyCenter } = optsRef.current;
       if (inEditableTarget(event.target)) return;
       if (selection.editingId !== null) return;
 
@@ -73,7 +79,21 @@ export function useBoardKeys(options: BoardKeysOptions): void {
 
       switch (event.key) {
         case 'Escape':
+          // Escape: select tool + clear the selection (board.text_tool).
+          if (setTool !== undefined && tool !== 'select') setTool('select');
           selection.clear();
+          return;
+        case 'v':
+        case 'V':
+          if (setTool !== undefined) setTool('select');
+          return;
+        case 't':
+        case 'T':
+          if (setTool !== undefined && canEdit) setTool('text');
+          return;
+        case 'n':
+        case 'N':
+          if (onCreateStickyCenter !== undefined && canEdit) onCreateStickyCenter();
           return;
         case 'ArrowLeft':
         case 'ArrowRight':

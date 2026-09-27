@@ -7,7 +7,7 @@
 //     backoff from BOARD_CHECK_RETRY_BASE_MS, capped at RECONNECT_MAX_BACKOFF_MS.
 // All timers are cleared on unmount.
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react';
 import { checkBoard } from '../api';
 import { isValidBoardId } from '../../shared/board-id';
 import { BOARD_CHECK_RETRY_BASE_MS, RECONNECT_MAX_BACKOFF_MS } from '../../shared/config';
@@ -28,6 +28,7 @@ import { useBoardDoc } from '../board/useBoardDoc';
 import { useSelection } from '../board/useSelection';
 import { useTransformGesture } from '../board/useTransformGesture';
 import { useBoardKeys } from '../board/useBoardKeys';
+import { useTool } from '../board/useTool';
 import { createUndo } from '../board/undo';
 import { useUndo } from '../board/useUndo';
 import { useMarquee, MarqueeRect } from '../board/Marquee';
@@ -45,6 +46,7 @@ import {
   setStickyColor,
 } from '../../shared/board-model';
 import { unionRects } from '../../shared/geometry';
+import { createText, setTextSize } from '../../shared/objects/text';
 import { NotFoundPage } from './NotFoundPage';
 
 type Phase = 'checking' | 'exists' | 'not_found' | 'unreachable';
@@ -111,6 +113,17 @@ export function canEdit(state: ConnectionState): boolean {
   return state !== 'load_failed';
 }
 
+/** Text tool: objects don't start a move on pointer-down (board.text_tool). */
+function noopObjectPointerDown(_e: ReactPointerEvent<HTMLElement>, _id: string): void {
+  // Intentionally empty: the click bubbles to the viewport, which creates a
+  // text object at the click point.
+}
+
+/** Text tool: resize handles don't start a gesture (board.text_tool). */
+function noopHandlePointerDown(_e: ReactPointerEvent<HTMLElement>, _handle: string): void {
+  // Intentionally empty.
+}
+
 /** Gap (screen px) between the selection bar and the box's top edge. */
 const NOTE_TOOLBAR_GAP_PX = 8;
 /** Selection bar height (screen px); the anchor sits that far above. */
@@ -139,6 +152,10 @@ function Board({ boardId }: { boardId: string }) {
   const { doc, notes, connectionState, setConnectionState } = useBoardDoc(boardId);
   const editable = canEdit(connectionState);
   const selection = useSelection(notes);
+
+  // Active tool (board.text_tool): 'select' by default, reverts to 'select'
+  // when the board becomes non-editable.
+  const { tool, setTool } = useTool(editable);
 
   // Per-user undo/redo (story 8): one controller per board doc, tracking only
   // this tab's LOCAL_ORIGIN transactions; destroyed on unmount (a board
@@ -176,8 +193,18 @@ function Board({ boardId }: { boardId: string }) {
   const marquee = useMarquee(cam.camera, notes, (ids) => selection.setMany(ids, true));
 
 
-  // Keyboard shortcuts: Ctrl+A, Escape, arrows, Delete, Enter, undo/redo.
-  useBoardKeys({ doc, selection, snapshot: notes, canEdit: editable, undo });
+  // Keyboard shortcuts: Ctrl+A, Escape, arrows, Delete, Enter, undo/redo,
+  // tool switches (V/T) and N for a new sticky at the centre.
+  useBoardKeys({
+    doc,
+    selection,
+    snapshot: notes,
+    canEdit: editable,
+    undo,
+    tool,
+    setTool,
+    onCreateStickyCenter: () => createStickyAt({ x: size.width / 2, y: size.height / 2 }),
+  });
 
   // Test-only hook (excluded from production builds).
   useEffect(() => {
@@ -203,12 +230,33 @@ function Board({ boardId }: { boardId: string }) {
     selection.startEdit(id);
   };
 
+  /**
+   * Create a text object with its top-left at the screen point and start
+   * editing it (board.text_tool, text.create). The per-tab Yjs clientID is
+   * the creator identity (story 6 presence reuses the same per-client id).
+   */
+  const createTextAt = (screenPoint: { x: number; y: number }) => {
+    if (!editable) return;
+    const world = screenToWorld(cam.camera, screenPoint);
+    undo.boundary();
+    const id = createText(doc, world, `c${doc.clientID}`);
+    undo.boundary();
+    if (id !== null) {
+      // The tool reverts to select and the new object is edited immediately
+      // (text.tool_ui: click → createText, setTool('select'), start editing).
+      setTool('select');
+      selection.startEdit(id);
+    }
+  };
+
   const selectedObjects = notes.filter((n) => selection.ids.has(n.id));
   const showBar =
     editable &&
     selection.editingId === null &&
     (selectedObjects.length >= 2 ||
-      (selectedObjects.length === 1 && selectedObjects[0] !== undefined && selectedObjects[0].type === 'sticky'));
+      (selectedObjects.length === 1 &&
+        selectedObjects[0] !== undefined &&
+        (selectedObjects[0].type === 'sticky' || selectedObjects[0].type === 'text')));
 
   // Selection bar + overlay: screen space, anchored on the bounding box.
   let selectionBar = null;
@@ -237,6 +285,14 @@ function Board({ boardId }: { boardId: string }) {
                 undo.boundary();
               }
             }}
+            onTextSize={(size) => {
+              const [id] = selection.ids.values();
+              if (id !== undefined) {
+                undo.boundary();
+                setTextSize(doc, id, size);
+                undo.boundary();
+              }
+            }}
             onDelete={() => {
               undo.boundary();
               deleteObjects(doc, [...selection.ids]);
@@ -255,6 +311,8 @@ function Board({ boardId }: { boardId: string }) {
         cam={cam}
         onEmptyClick={() => selection.clear()}
         onCreateStickyAt={createStickyAt}
+        textToolActive={tool === 'text'}
+        onCreateTextAt={createTextAt}
         onMarqueeBegin={marquee.begin}
         onMarqueeMove={marquee.move}
         onMarqueeEnd={marquee.end}
@@ -275,7 +333,9 @@ function Board({ boardId }: { boardId: string }) {
               editing={selection.editingId === note.id}
               dragging={gesture.draggingIds.has(note.id)}
               editable={editable}
-              onObjectPointerDown={gesture.onObjectPointerDown}
+              // Text tool: clicking an object creates text at the click
+              // point instead of starting a move (board.text_tool).
+              onObjectPointerDown={tool === 'text' ? noopObjectPointerDown : gesture.onObjectPointerDown}
               onFocusSelect={(id) => selection.click(id)}
               onStartEdit={selection.startEdit}
               onEndEdit={selection.endEdit}
@@ -288,12 +348,14 @@ function Board({ boardId }: { boardId: string }) {
         ids={selection.ids}
         snapshot={notes}
         camera={cam.camera}
-        onHandlePointerDown={gesture.onHandlePointerDown}
+        onHandlePointerDown={tool === 'text' ? noopHandlePointerDown : gesture.onHandlePointerDown}
       />
       <Toolbar
         disabled={!editable}
         onCreateSticky={() => createStickyAt({ x: size.width / 2, y: size.height / 2 })}
         undo={undoUi}
+        tool={tool}
+        onToolChange={setTool}
       />
       {selectionBar}
       {selection.ids.size > 0 && (

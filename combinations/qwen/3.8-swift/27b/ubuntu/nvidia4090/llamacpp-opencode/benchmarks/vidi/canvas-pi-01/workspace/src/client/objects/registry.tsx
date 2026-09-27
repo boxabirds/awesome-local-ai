@@ -18,8 +18,9 @@ import {
 } from '../../shared/board-model';
 import type { UndoController } from '../board/undo';
 import { pointInRect, type Point } from '../../shared/geometry';
-import { STICKY_MIN_SIZE_WORLD } from '../../shared/config';
+import { STICKY_MIN_SIZE_WORLD, TEXT_MIN_WIDTH_WORLD } from '../../shared/config';
 import { StickyNote } from './StickyNote';
+import { TextObject } from './TextObject';
 
 /**
  * Props every object component receives. The object component stays
@@ -64,11 +65,15 @@ export interface ObjectTypeSpec {
   minSize: number;
   /** Text is editable (double-click / Enter). */
   editableText: boolean;
+  /** Which resize handles the selection overlay shows when this type is the
+   *  only kind selected: 'all' (default) or 'horizontal' (e/w only, text). */
+  handles?: 'all' | 'horizontal';
   /** Hit test in world units (future types may have irregular bounds). */
   hitTest(obj: ObjectSnapshot, worldPoint: Point): boolean;
 }
 
 const registry = new Map<string, ObjectTypeSpec>();
+
 
 /** Register a type; throws on a duplicate (a type registers exactly once). */
 export function registerObjectType(type: string, spec: ObjectTypeSpec): void {
@@ -91,5 +96,16 @@ registerObjectType('sticky', {
   aspectLocked: true,
   minSize: STICKY_MIN_SIZE_WORLD,
   editableText: true,
+  hitTest: (obj, point) => pointInRect(objectBounds(obj), point),
+});
+
+/** Text (story 9): e/w handles only, min width, height follows content. */
+registerObjectType('text', {
+  Component: TextObject,
+  resizable: true,
+  aspectLocked: false,
+  minSize: TEXT_MIN_WIDTH_WORLD,
+  editableText: true,
+  handles: 'horizontal',
   hitTest: (obj, point) => pointInRect(objectBounds(obj), point),
 });
