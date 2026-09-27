@@ -1,11 +1,31 @@
 {
-  // Cloudflare Worker configuration. Story 1 is client-only: the Worker just
-  // serves the built client. Worker code (`main`) arrives in story 3.
+  // Cloudflare Worker configuration. The Worker serves the built client and
+  // routes /api/rooms/:boardId to a BoardRoom Durable Object per board.
+  // The migration is SQLite-backed from the start so story 4 (persistence)
+  // needs no class migration.
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "vidi6",
-  "compatibility_date": "2026-09-01",
+  "compatibility_date": "2026-08-01",
+  "main": "src/worker/index.ts",
   "assets": {
     "directory": "./dist/client",
+    "binding": "ASSETS",
     "not_found_handling": "single-page-application"
-  }
+  },
+  "durable_objects": {
+    "bindings": [
+      {
+        "name": "BOARD_ROOM",
+        "class_name": "BoardRoom"
+      }
+    ]
+  },
+  "migrations": [
+    {
+      "tag": "v1",
+      "new_sqlite_classes": [
+        "BoardRoom"
+      ]
+    }
+  ]
 }

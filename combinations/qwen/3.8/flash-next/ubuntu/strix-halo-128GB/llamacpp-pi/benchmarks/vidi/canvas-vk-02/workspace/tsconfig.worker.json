@@ -1,0 +1,12 @@
+{
+  // Second TypeScript program for the code that runs *inside* workerd: the
+  // Worker, the shared modules it imports, and the integration tests. workerd's
+  // globals come from `@cloudflare/workers-types`; the DOM globals used by the
+  // client cannot be loaded alongside them.
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "lib": ["ES2022"],
+    "types": ["@cloudflare/workers-types"]
+  },
+  "include": ["src/worker", "src/shared", "tests/integration"]
+}

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { BoardViewport } from './canvas/BoardViewport';
 import { NavigationHint } from './canvas/NavigationHint';
@@ -10,9 +10,31 @@ import { useViewportSize } from './canvas/useViewportSize';
 import { useBoardDoc } from './board/useBoardDoc';
 import { useSelection } from './board/useSelection';
 import { Toolbar } from './board/Toolbar';
+import { ConnectionStatus } from './sync/ConnectionStatus';
 import { StickyNote } from './objects/StickyNote';
 import { createSticky, deleteObject } from '../shared/board-model';
+import { newBoardId } from '../shared/board-id';
 import type { Point } from './canvas/camera';
+
+const BOARD_PATH = /^\/b\/([^/]+)\/?$/;
+
+/**
+ * The board this tab is on, taken from the address (`/b/<boardId>`). Story 5
+ * replaces "invent an address when there is none" with server-side creation;
+ * until then opening the site root starts a fresh board at a fresh address.
+ */
+function useBoardId(): string {
+  const [boardId] = useState<string>(
+    () => BOARD_PATH.exec(window.location.pathname)?.[1] ?? newBoardId(),
+  );
+
+  useEffect(() => {
+    const path = window.location.pathname.replace(/\/+$/, '');
+    if (path !== `/b/${boardId}`) window.history.replaceState(null, '', `/b/${boardId}`);
+  }, [boardId]);
+
+  return boardId;
+}
 
 /**
  * Top level: one board, one camera, one document and one local selection.
@@ -25,13 +47,14 @@ export default function App() {
   const boardAreaRef = useRef<HTMLDivElement>(null);
   const viewport = useViewportSize(boardAreaRef);
   const cameraApi = useCamera(viewport);
-  useTestHooks(cameraApi);
 
   const { camera, hasNavigated, zoomStep, reset } = cameraApi;
   const onZoomIn = useCallback(() => zoomStep('in'), [zoomStep]);
   const onZoomOut = useCallback(() => zoomStep('out'), [zoomStep]);
 
-  const { doc, notes } = useBoardDoc();
+  const boardId = useBoardId();
+  const { doc, notes, connectionState } = useBoardDoc(boardId);
+  useTestHooks(cameraApi, connectionState);
   const { selectedId, editingId, select, startEdit, endEdit } = useSelection();
 
   // Create a note centred on a world point, then select and edit it.
@@ -122,6 +145,7 @@ export default function App() {
         onReset={reset}
       />
       <NavigationHint visible={!hasNavigated} />
+      <ConnectionStatus state={connectionState} />
     </CameraContext.Provider>
   );
 }

@@ -86,3 +86,30 @@ export type StickyColor = keyof typeof STICKY_COLORS;
 
 /** Colour of a freshly created note. */
 export const DEFAULT_STICKY_COLOR: StickyColor = 'yellow';
+
+// ---------------------------------------------------------------------------
+// Story 3 — see other people's edits appear live on the same board
+// ---------------------------------------------------------------------------
+
+/**
+ * Simultaneous-editor capacity. A soft design and test target: the product
+ * never refuses or restricts the `MAX_CONCURRENT_EDITORS + 1`-th person, it
+ * only guarantees the latency budget up to this many people. Tests must read
+ * this setting instead of hard-coding a number.
+ */
+export const MAX_CONCURRENT_EDITORS = 5;
+
+/**
+ * Change-delivery budget: from the moment a change shows on the sender's screen
+ * to the moment it shows on every other screen (`live.propagate`).
+ */
+export const LIVE_UPDATE_LATENCY_BUDGET_MS = 1000;
+
+/** Upper bound of the provider's exponential reconnection backoff. */
+export const RECONNECT_MAX_BACKOFF_MS = 10_000;
+
+/** How long the green "Connected" badge stays up after a reconnection. */
+export const CONNECTED_CONFIRMATION_MS = 2000;
+
+/** Outage length used by the catch-up test (`live.catch_up`). */
+export const CATCH_UP_TEST_OUTAGE_MS = 30_000;

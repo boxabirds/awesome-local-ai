@@ -365,3 +365,42 @@ body {
 .note-toolbar__delete:hover {
   background: #f4d7d7;
 }
+
+/* ------------------------------------------------------- connection badge */
+
+/* Top centre, above every other overlay. Informational only: the board keeps
+   working underneath it while the connection is down. */
+.connection-status {
+  position: fixed;
+  top: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 30;
+  padding: 4px 12px;
+  font-size: 13px;
+  font-weight: 500;
+  color: #1f2430;
+  background: #fff3d6;
+  border: 1px solid #e2b96b;
+  border-radius: 999px;
+  box-shadow: 0 1px 3px rgb(20 26 38 / 12%);
+  pointer-events: none;
+}
+
+.connection-status[data-state='connecting'] {
+  color: var(--text-muted);
+  background: rgb(255 255 255 / 88%);
+  border-color: var(--panel-border);
+}
+
+.connection-status[data-state='reconnecting'] {
+  color: #6b4a05;
+  background: #ffe9b3;
+  border-color: #d99e2b;
+}
+
+.connection-status[data-state='confirmed'] {
+  color: #14532d;
+  background: #d7f5de;
+  border-color: #4caf7d;
+}

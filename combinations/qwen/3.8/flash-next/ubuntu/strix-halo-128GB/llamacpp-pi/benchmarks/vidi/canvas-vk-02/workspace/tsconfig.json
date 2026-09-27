@@ -20,5 +20,9 @@
     "allowImportingTsExtensions": true,
     "noEmit": true
   },
-  "include": ["src", "tests", "vite.config.ts", "vitest.config.ts", "playwright.config.ts"]
+  "include": ["src", "tests", "vite.config.ts", "vitest.config.ts", "playwright.config.ts"],
+  // The Worker and the tests that run inside workerd have their own program
+  // (`tsconfig.worker.json`): workerd globals and the DOM globals cannot both be
+  // loaded into one TypeScript program.
+  "exclude": ["src/worker", "tests/integration"]
 }

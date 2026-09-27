@@ -57,7 +57,7 @@ function isColor(value: unknown): value is StickyColor {
 
 /** Ids are UUIDs; a stable tie-break for render order when `z` ties. */
 function newId(): string {
-  return globalThis.crypto.randomUUID();
+  return crypto.randomUUID();
 }
 
 /**

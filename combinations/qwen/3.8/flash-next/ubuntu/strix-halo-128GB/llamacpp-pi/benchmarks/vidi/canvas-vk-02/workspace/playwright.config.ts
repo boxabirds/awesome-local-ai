@@ -3,6 +3,9 @@ import { defineConfig, devices } from '@playwright/test';
 const PORT = Number(process.env.VIDI6_E2E_PORT ?? 8787);
 const BASE_URL = `http://127.0.0.1:${PORT}`;
 
+/** Tests too slow for every commit live in the `nightly` project (TC-29, TC-30). */
+const NIGHTLY_TAG = /@nightly/;
+
 /**
  * E2E runs against `wrangler dev` serving the built client, so the same serving
  * path is used from day one. The client is built in `test` mode, which is the
@@ -31,15 +34,25 @@ export default defineConfig({
   projects: [
     {
       name: 'chromium',
+      grepInvert: NIGHTLY_TAG,
       use: { ...devices['Desktop Chrome'], viewport: { width: 1280, height: 800 } },
     },
     {
       name: 'firefox',
+      grepInvert: NIGHTLY_TAG,
       use: { ...devices['Desktop Firefox'], viewport: { width: 1280, height: 800 } },
     },
     {
       name: 'webkit',
+      grepInvert: NIGHTLY_TAG,
       use: { ...devices['Desktop Safari'], viewport: { width: 1280, height: 800 } },
+    },
+    {
+      // `npm run test:e2e:nightly`, and nothing else: the two tests here hold a
+      // board open for minutes at a time (design: sync.e2e_nightly).
+      name: 'nightly',
+      grep: NIGHTLY_TAG,
+      use: { ...devices['Desktop Chrome'], viewport: { width: 1280, height: 800 } },
     },
   ],
 });
