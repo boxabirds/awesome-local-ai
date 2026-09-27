@@ -50,12 +50,15 @@ a grey "Build C" banner instead of the setup's name. A story's names can be reve
 has a verdict on it. `--labelled` shows names throughout. The main page (`/`) shows every name, so
 don't open it during a blind review.
 
-**Each story is reviewed on the build as it was after that story**, not the final build (where,
-for example, story 5's "Create a board" home page sits in front of story 1's board). The gallery
-checks out that story's recorded commit from the run record's `workspace.bundle` (the run's git
-history) and builds it; moving to another story stops the previous story's builds. Only runs that
-finished every story in scope with a valid score and have a `workspace.bundle` are reviewed (Opus
-run-1 was built outside the harness and has no per-story history).
+**Order and builds follow the user's journey.** A story is reviewed after the stories a user goes
+through to reach it, and on the build after the latest of those (its own build if it came after
+them). From v2, story numbers are the journey, so that is simply story order on each story's own
+build. vidi v1 isn't numbered that way (boards are created in story 5, after pan and zoom in story
+1), so the private pack's `scope/canvas-prerequisites.json` lists each story's prerequisites: story 1
+is reviewed after story 5, on the build after story 5. The page shows "First: …" for each story.
+Builds are checked out from the run record's `workspace.bundle`. Only runs that finished every
+story with a valid score and have a bundle are reviewed (Opus run-1 was built outside the harness
+and has no per-story history).
 
 ## Opening a build
 
