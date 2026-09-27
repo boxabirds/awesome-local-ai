@@ -59,6 +59,8 @@ struct App {
     /// The held-out suite, and where recorded walkthroughs go (git-ignored state/ in the private repo).
     acceptance: PathBuf,
     recordings: PathBuf,
+    /// Names recordings' directories without naming their builds (record::blind_name).
+    rec_secret: String,
     record_config: PathBuf,
     /// Recording of each (run, story): "queued" / "recording" / "done" / "failed: …".
     rec: tokio::sync::Mutex<std::collections::HashMap<String, String>>,
@@ -77,8 +79,13 @@ fn rec_key(run: &runs::Run, story: u64) -> String {
     format!("{}#{story:02}", run.slug)
 }
 
+/// What the gallery's recordings run from: its checkouts and the held-out suite (record::reap_listeners).
+fn owned(app: &App) -> Vec<PathBuf> {
+    [app.cache.join("checkouts"), app.acceptance.clone()].into_iter().map(|p| p.canonicalize().unwrap_or(p)).collect()
+}
+
 fn rec_dir(app: &App, run: &runs::Run, story: u64) -> PathBuf {
-    app.recordings.join(&run.slug).join(format!("story-{story:02}"))
+    app.recordings.join(record::blind_name(&app.rec_secret, &run.slug, story))
 }
 
 /// Record one story's held-out tests on its prepared review build, retrying a failed attempt.
@@ -102,7 +109,7 @@ async fn record_story(app: &App, run: &runs::Run, story: u64, ws: &std::path::Pa
     let mut last = String::new();
     for attempt in 1..=REC_ATTEMPTS {
         app.rec.lock().await.insert(key.clone(), format!("recording (attempt {attempt})"));
-        match record::record(&app.acceptance, &app.record_config, ws, story, &processed, &out, port).await {
+        match record::record(&app.acceptance, &app.record_config, ws, story, &processed, &out, port, &owned(&app)).await {
             Ok(()) => {
                 last.clear();
                 break;
@@ -533,11 +540,12 @@ async fn main() -> anyhow::Result<()> {
     let build_order: Vec<u64> = stories::load(&pack, "canvas").iter().map(|s| s.id).collect();
     let acceptance = pack.join("acceptance");
     let recordings = private_repo(&repo).join("state/recordings");
+    let rec_secret = record::secret(&private_repo(&repo).join("state/recording-secret"))?;
     let record_config = record::write_config(&acceptance, &cache)?;
     let rec_ports = vec![REC_PORT_BASE]; // one recording at a time
     let app = Arc::new(App {
         repo: repo.clone(), builds: builds.clone(), cache, blind, review_builds, reviews, stories,
-        prep: Default::default(), acceptance, recordings, record_config, rec: Default::default(),
+        prep: Default::default(), acceptance, recordings, rec_secret, record_config, rec: Default::default(),
         rec_ports: tokio::sync::Mutex::new(rec_ports), build_order,
     });
     tokio::spawn(prepare_all(app.clone()));
@@ -558,6 +566,7 @@ async fn main() -> anyhow::Result<()> {
         .route("/recordings/{*path}", get(recordings_file))
         .route("/trace/{*path}", get(trace_viewer))
         .with_state(app.clone());
+    let app_for_shutdown = app.clone();
     let addr = SocketAddr::from(([127, 0, 0, 1], cli.port));
     let listener = tokio::net::TcpListener::bind(addr).await?;
     println!("vidi-gallery: http://{addr}/  (repo {})", repo.display());
@@ -574,5 +583,7 @@ async fn main() -> anyhow::Result<()> {
     axum::serve(listener, router).with_graceful_shutdown(shutdown).await?;
     println!("stopping the builds that are running");
     builds.stop_all().await;
+    // A recording cut off here leaves the suite's detached app server behind.
+    record::reap_listeners(&[REC_PORT_BASE, REC_PORT_BASE + 1], &owned(&app_for_shutdown)).await;
     Ok(())
 }

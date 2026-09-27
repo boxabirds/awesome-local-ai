@@ -46,7 +46,9 @@ kbd { background:var(--chip); border-radius:3px; padding:0 4px; font:11px ui-mon
 .reveal { margin-top:8px; }
 .paths { grid-column: 1 / -1; margin-top:4px; border-top:1px dashed var(--line); padding-top:6px; }
 .path { display:grid; grid-template-columns: 58px 1fr auto minmax(160px, 30%); gap:8px; align-items:center; padding:2px 0; }
-@media (max-width:860px) { .path { grid-template-columns: 58px 1fr; } }
+/* narrow: status + title on one row, the links + the note on the next */
+@media (max-width:860px) { .path { grid-template-columns: 10em 1fr; } }
+.path .links { white-space:nowrap; }
 .pill { font-size:11px; border-radius:9px; padding:0 7px; text-align:center; background:var(--chip); }
 .pill.passed { color:var(--pass); } .pill.failed, .pill.timedOut { color:var(--fail); }
 .path .err { color:var(--muted); font-size:12px; }
@@ -147,7 +149,7 @@ function renderPaths(sid, key) {
     const note = review(sid, key, pa.title)?.notes || "";
     return `<div class="path"><span class="pill ${esc(pa.status)}">${esc(pa.status)}</span>
       <span>${esc(shortTitle(pa.title))}${pa.error ? `<div class="err">${esc(pa.error)}</div>` : ""}</span>
-      <span>${trace ? `<a href="${trace}" target="_blank">▶ walkthrough</a>` : ""}${pa.video ? `<a href="/recordings/${encodeURI(pa.video)}" target="_blank">video</a>` : ""}</span>
+      <span class="links">${trace ? `<a href="${trace}" target="_blank">▶ walkthrough</a>` : ""}${pa.video ? `<a href="/recordings/${encodeURI(pa.video)}" target="_blank">video</a>` : ""}</span>
       <input data-pathnote="${key}" data-path="${esc(pa.title)}" value="${esc(note)}" placeholder="note on this path…"></div>`;
   }).join("");
 }
