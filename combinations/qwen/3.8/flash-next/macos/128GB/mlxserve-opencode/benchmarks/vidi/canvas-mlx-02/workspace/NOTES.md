@@ -76,6 +76,20 @@ Story 1 is complete: all `npm run build`, `npm run typecheck`, `npm run test:uni
     zoom (no re-basing). Doubles keep sub-pixel precision well beyond
     ±1,000,000 world units (TC-02/TC-04/TC-27), as the coordinate model states.
 
+12. **Pointer capture breaks if the dragged note is reordered mid-drag.** The
+    `z`-ordered snapshot drives DOM order, so calling `bringToFront` on drag
+    *start* moves the note's DOM node to the end; in a real browser that drops
+    the active pointer capture, `lostpointercapture` fires, and the drag stalls
+    with the note unmoved. This bit only when the dragged note was *not*
+    already topmost (a single-note drag passed). Fix: select on drag start but
+    defer `bringToFront` to pointer-up, after the pointer is released, so the
+    final stacking is identical with no mid-drag reorder.
+
+13. **Colour assertions read `rgb(...)`, not the `#RRGGBB` we set.** Both jsdom
+    and Chromium normalise `style.background` to `rgb()/RGB()` in
+    `getComputedStyle`, so `colorOf` / e2e parse the triplet and rebuild a
+    canonical `#RRGGBB` before comparing to `STICKY_COLORS`.
+
 ## Not implemented (out of scope by instruction)
 Presence, offline copies, sign-in, dashboard, comments, export, Yjs/Durable
 Objects, minimap, view persistence, mobile/touch panning, arrow-key panning, and

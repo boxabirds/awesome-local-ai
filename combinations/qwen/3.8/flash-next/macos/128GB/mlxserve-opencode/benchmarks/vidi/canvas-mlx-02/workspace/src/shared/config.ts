@@ -27,3 +27,35 @@ export const ZOOM_STEP_SNAP_EPSILON = 1e-9;
 // Wheel deltaMode unit conversions to CSS pixels (named to avoid magic numbers).
 export const WHEEL_DELTA_LINE_PX = 16; // one "line" unit in pixels
 export const WHEEL_DELTA_PAGE_PX = 800; // one "page" unit in pixels
+
+// --- Sticky notes (story 2) -------------------------------------------------
+
+// Sticky note size in world units (a square note).
+export const STICKY_SIZE_WORLD = 200;
+
+// Hard limit on the number of characters kept in a note's text.
+export const STICKY_TEXT_MAX_CHARS = 1000;
+
+// The character counter shows only when the remaining characters are <= this.
+export const STICKY_COUNTER_THRESHOLD_CHARS = 50;
+
+// Text auto-fit range in CSS pixels (at 100% zoom, screen px == world units).
+export const STICKY_FONT_MAX_PX = 24;
+export const STICKY_FONT_MIN_PX = 10;
+
+// A pointer must move more than this many screen pixels to start a drag
+// (a shorter press is a select, not a drag).
+export const DRAG_THRESHOLD_PX = 3;
+
+// The six selectable note colours. Names are stable product settings; the hex
+// values may change without touching components.
+export const STICKY_COLORS = {
+  yellow: '#FFF59D',
+  orange: '#FFCC80',
+  green: '#C5E1A5',
+  blue: '#90CAF9',
+  pink: '#F48FB1',
+  violet: '#CE93D8',
+} as const;
+export type StickyColor = keyof typeof STICKY_COLORS;
+export const DEFAULT_STICKY_COLOR: StickyColor = 'yellow';

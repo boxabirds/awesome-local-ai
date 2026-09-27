@@ -6,10 +6,16 @@ declare global {
   interface Window {
     __vidi6?: {
       setCamera(camera: Camera): void;
+      getCamera(): Camera;
     };
   }
 }
 
-export function installTestHooks(setCamera: (camera: Camera) => void): void {
-  window.__vidi6 = { setCamera };
+export interface TestHooksApi {
+  setCamera(camera: Camera): void;
+  getCamera(): Camera;
+}
+
+export function installTestHooks(api: TestHooksApi): void {
+  window.__vidi6 = api;
 }

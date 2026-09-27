@@ -13,3 +13,25 @@ button:focus-visible {
   outline: 2px solid #2563eb;
   outline-offset: 2px;
 }
+
+/* Sticky note (story 2). */
+.sticky-note:focus-visible {
+  outline: 2px solid #2563eb;
+  outline-offset: 2px;
+}
+
+/* When text overflows at the minimum readable size, clip it and fade the bottom
+   edge so the cut is obvious. */
+.sticky-text.sticky-text-overflow {
+  -webkit-mask-image: linear-gradient(to bottom, #000 0, #000 calc(100% - 1.4em), transparent 100%);
+  mask-image: linear-gradient(to bottom, #000 0, #000 calc(100% - 1.4em), transparent 100%);
+}
+
+.sticky-counter {
+  position: absolute;
+  right: 6px;
+  bottom: 4px;
+  font: 11px/1 system-ui, sans-serif;
+  color: rgba(0, 0, 0, 0.55);
+  pointer-events: none;
+}

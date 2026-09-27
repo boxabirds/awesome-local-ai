@@ -1,11 +1,12 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import type React from 'react';
 import { useCamera, type CameraApi } from './useCamera.ts';
-import { worldToScreen, type Camera, type Size } from './camera.ts';
+import { worldToScreen, screenToWorld, type Camera, type Size, type Point } from './camera.ts';
 import {
   GRID_SPACING_WORLD,
   WHEEL_DELTA_LINE_PX,
   WHEEL_DELTA_PAGE_PX,
+  DRAG_THRESHOLD_PX,
 } from '../../shared/config.ts';
 
 // Wheel deltaMode constants (per UI Events spec).
@@ -25,6 +26,8 @@ function mod(value: number, period: number): number {
 
 export interface BoardViewportProps {
   children?: React.ReactNode;
+  onEmptyDoubleClick?(world: Point): void;
+  onEmptyClick?(): void;
 }
 
 export interface ViewportHandles {
@@ -46,11 +49,17 @@ export function useBoardCamera(): {
   const api = useCamera(viewport);
   const { setCamera } = api;
 
+  // Always expose the *live* camera to the test hook via a ref.
+  const camLive = useRef<Camera>(api.camera);
+  camLive.current = api.camera;
+
   // Install the test-only __vidi6 hook. The import is dynamically loaded only
   // when MODE === 'test', so it is dropped from production builds.
   useEffect(() => {
     if (import.meta.env.MODE === 'test') {
-      void import('../testHooks.ts').then((m) => m.installTestHooks(setCamera));
+      void import('../testHooks.ts').then((m) =>
+        m.installTestHooks({ setCamera, getCamera: () => camLive.current }),
+      );
     }
   }, [setCamera]);
 
@@ -90,16 +99,22 @@ export interface BoardViewportHandleProps {
   api: CameraApi;
   rootRef: React.RefObject<HTMLDivElement | null>;
   children?: React.ReactNode;
+  onEmptyDoubleClick?(world: Point): void;
+  onEmptyClick?(): void;
 }
 
 export function BoardViewportRoot({
   api,
   rootRef,
   children,
+  onEmptyDoubleClick,
+  onEmptyClick,
 }: BoardViewportHandleProps): React.JSX.Element {
   const cam = api.camera;
   const dragRef = useRef(false);
   const gestureBaseline = useRef<Camera | null>(null);
+  // Distinguish an empty-space click (clears selection) from a pan drag.
+  const clickStart = useRef<{ x: number; y: number; moved: boolean } | null>(null);
 
   const screenPoint = (e: { clientX: number; clientY: number }) => {
     const rect = rootRef.current?.getBoundingClientRect();
@@ -191,17 +206,34 @@ export function BoardViewportRoot({
         if (e.target !== rootRef.current) return;
         (e.target as Element).setPointerCapture(e.pointerId);
         dragRef.current = true;
-        api.beginPan(screenPoint(e));
+        const p = screenPoint(e);
+        clickStart.current = { x: p.x, y: p.y, moved: false };
+        api.beginPan(p);
       }}
       onPointerMove={(e) => {
         if (!dragRef.current) return;
-        api.panMove(screenPoint(e));
+        const p = screenPoint(e);
+        const c = clickStart.current;
+        if (c && !c.moved && Math.hypot(p.x - c.x, p.y - c.y) >= DRAG_THRESHOLD_PX) {
+          c.moved = true;
+        }
+        api.panMove(p);
       }}
       onPointerUp={(e) => {
         if (!dragRef.current) return;
         dragRef.current = false;
         api.endPan();
+        const c = clickStart.current;
+        clickStart.current = null;
         (e.target as Element).releasePointerCapture?.(e.pointerId);
+        // A press with no movement on empty space is a click: clear selection.
+        if (c && !c.moved) onEmptyClick?.();
+      }}
+      onDoubleClick={(e) => {
+        // Only create from a double-click on empty board space, never on a note.
+        if (e.target !== rootRef.current) return;
+        if (!onEmptyDoubleClick) return;
+        onEmptyDoubleClick(screenToWorld(cam, screenPoint(e)));
       }}
       onPointerCancel={() => {
         // Interrupted drag: keep the camera where it was at the moment of cancel.
@@ -281,7 +313,12 @@ export function BoardViewportRoot({
 export function BoardViewport(props: BoardViewportProps): React.JSX.Element {
   const { api, rootRef } = useBoardCamera();
   return (
-    <BoardViewportRoot api={api} rootRef={rootRef}>
+    <BoardViewportRoot
+      api={api}
+      rootRef={rootRef}
+      onEmptyDoubleClick={props.onEmptyDoubleClick}
+      onEmptyClick={props.onEmptyClick}
+    >
       {props.children}
     </BoardViewportRoot>
   );
