@@ -1,0 +1,64 @@
+"""judge.py: work-dir naming, and a whole judging run with a stand-in judge that tries to peek."""
+import argparse
+import json
+import shutil
+import sys
+from pathlib import Path
+
+import pytest
+
+import judge
+
+mac_only = pytest.mark.skipif(sys.platform != "darwin", reason="sandbox-exec is macOS only")
+
+
+def test_work_dir_name_drops_the_combinations_prefix():
+    assert judge.work_dir_name("combinations/qwen/3.8/27b/ubuntu/nvidia4090/llamacpp-opencode/benchmarks/vidi/canvas-pi-03") \
+        == "qwen__3.8__27b__ubuntu__nvidia4090__llamacpp-opencode__benchmarks__vidi__canvas-pi-03"
+    assert judge.work_dir_name("benchmarks/reference/vidi/opus-5.5/run-2") == "benchmarks__reference__vidi__opus-5.5__run-2"
+
+
+def test_last_accept_is_the_final_story_with_results(tmp_path):
+    for sid in ("01", "02", "03"):
+        (tmp_path / "stories" / sid).mkdir(parents=True)
+    for sid in ("01", "02"):
+        (tmp_path / "stories" / sid / "accept.json").write_text("{}")
+    assert judge.last_accept(tmp_path) == tmp_path / "stories" / "02" / "accept.json"
+
+
+FAKE_JUDGE = """#!/bin/sh
+# Stand-in for codex: try to read the real user's codex config, then write the four outputs.
+if cat "$REAL_SECRET" >/dev/null 2>&1; then peek=read; else peek=refused; fi
+echo "{\\"peek\\": \\"$peek\\"}"
+for f in build-A.jsonl build-B.jsonl test-faults.jsonl; do : > "$f"; done
+echo "# summary ($peek)" > summary.md
+"""
+
+
+@mac_only
+def test_a_judging_run_collects_outputs_and_the_judge_cannot_read_home(tmp_path, monkeypatch):
+    real_secret = Path.home() / ".codex" / "config.toml"
+    if not real_secret.exists():
+        pytest.skip("needs a file in the real home to try to read")
+    bindir = tmp_path / "tools" / "bin"
+    bindir.mkdir(parents=True)
+    fake = bindir / "codex"
+    fake.write_text(FAKE_JUDGE)
+    fake.chmod(0o755)
+    codex_home = tmp_path / "codex-home"
+    codex_home.mkdir()
+    (codex_home / "auth.json").write_text("{}")
+    monkeypatch.setenv("CODEX_HOME", str(codex_home))
+    monkeypatch.setenv("REAL_SECRET", str(real_secret))
+    node_dir = Path(shutil.which("node")).parent
+    monkeypatch.setenv("PATH", f"{bindir}:{node_dir}:{Path(sys.executable).parent}:/usr/bin:/bin")
+    package = tmp_path / "job" / "package"
+    package.mkdir(parents=True)
+    (package / "GRADING.md").write_text("brief")
+    args = argparse.Namespace(model=None, effort=None, label="fake")
+    results = judge.run_judge(tmp_path / "job" / "run-1", package, args)
+    assert sorted(p.name for p in results.iterdir()) == sorted([*judge.OUTPUTS, "transcript.jsonl"])
+    assert json.loads((results / "transcript.jsonl").read_text()) == {"peek": "refused"}
+    assert (results / "summary.md").read_text() == "# summary (refused)\n"
+    # the judge worked on a clone: the original package is untouched
+    assert not (package / "summary.md").exists()

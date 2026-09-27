@@ -66,6 +66,19 @@ def copy_build(name: str, ws: Path, claims: Path, accept: Path, dest: Path) -> l
     return leftovers
 
 
+def key_location_problem(key_path: Path, out: Path, private: Path | None) -> str | None:
+    """Why the key can't go at key_path, or None. Never inside the package. Inside the private repo
+    only where git ignores it (its state/), so it is never committed where anyone with access, or a
+    grader, could read it."""
+    if key_path.is_relative_to(out):
+        return f"--key {key_path} is inside the package {out}, where a grader could read it"
+    if private and key_path.is_relative_to(private):
+        ignored = subprocess.run(["git", "-C", str(private), "check-ignore", "-q", str(key_path)]).returncode == 0
+        if not ignored:
+            return f"--key {key_path} is inside the private repo {private} and not git-ignored, so it could be committed"
+    return None
+
+
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--name", required=True, help="package name, e.g. vidi-v2")
@@ -80,9 +93,9 @@ def main() -> None:
     private = packdir.private_root(pack)
     out = (a.out or ((private or packdir.public_dir()) / "gradings" / a.name)).expanduser().resolve()
     key_path = (a.key or hostenv.bench_home() / "keys" / f"{a.name}.json").expanduser().resolve()
-    for guarded in [out, *([private] if private else [])]:
-        if key_path.is_relative_to(guarded):
-            raise SystemExit(f"--key {key_path} is inside {guarded}, where a grader could read it")
+    problem = key_location_problem(key_path, out, private)
+    if problem:
+        raise SystemExit(problem)
     if out.exists():
         raise SystemExit(f"{out} exists; choose a new name")
     out.mkdir(parents=True)
