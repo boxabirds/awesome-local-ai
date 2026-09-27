@@ -592,7 +592,13 @@
           "found": 5,
           "total": 5
         }
-      ]
+      ],
+      "record": {
+        "committed": true,
+        "pushed": true,
+        "over_size_limit": [],
+        "commit": "a98426aa"
+      }
     }
   },
   "pack": "vidi",
