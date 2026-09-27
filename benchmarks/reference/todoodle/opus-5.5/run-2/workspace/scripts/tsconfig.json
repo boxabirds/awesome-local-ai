@@ -1,0 +1,7 @@
+{
+  "extends": "../tsconfig.base.json",
+  "compilerOptions": {
+    "types": ["node", "bun"]
+  },
+  "include": ["**/*.ts", "../e2e/**/*.ts", "../playwright.config.ts"]
+}

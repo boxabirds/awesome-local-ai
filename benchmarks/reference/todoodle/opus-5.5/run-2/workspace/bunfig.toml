@@ -1,0 +1,4 @@
+# bun is the package manager and script runner.
+# Tests are run by vitest (Worker tests must execute inside workerd), not `bun test`.
+[install]
+exact = false

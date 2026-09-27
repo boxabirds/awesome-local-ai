@@ -1,0 +1,32 @@
+{
+  "name": "todoodle",
+  "private": true,
+  "type": "module",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "postinstall": "node scripts/ensure-workerd.mjs",
+    "dev": "vite build apps/web && concurrently -k -n web,api \"vite build apps/web --watch\" \"wrangler dev --ip 127.0.0.1 --port 8787\"",
+    "build": "vite build apps/web",
+    "typecheck": "tsc -p apps/api && tsc -p apps/api/tsconfig.node.json && tsc -p apps/web && tsc -p packages/shared && tsc -p scripts",
+    "db:migrate:local": "wrangler d1 migrations apply DB --local",
+    "test": "vitest run --config apps/api/vitest.config.ts --passWithNoTests --project unit && vitest run --config scripts/vitest.config.ts --passWithNoTests --project unit && vitest run --config apps/api/vitest.config.ts --passWithNoTests --project integration --project production-gate && vitest run --config scripts/vitest.config.ts --passWithNoTests --project integration && vitest run --config apps/web/vitest.config.ts --passWithNoTests",
+    "test:unit": "vitest run --config apps/api/vitest.config.ts --passWithNoTests --project unit && vitest run --config scripts/vitest.config.ts --passWithNoTests --project unit",
+    "test:integration": "vitest run --config apps/api/vitest.config.ts --passWithNoTests --project integration --project production-gate && vitest run --config scripts/vitest.config.ts --passWithNoTests --project integration",
+    "test:ui": "vitest run --config apps/web/vitest.config.ts --passWithNoTests",
+    "test:e2e": "playwright test",
+    "deploy:staging": "bun scripts/deploy.ts staging",
+    "deploy:production": "bun scripts/deploy.ts production"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.63.0",
+    "concurrently": "^10.0.5",
+    "typescript": "~5.9",
+    "vitest": "~4.1.0",
+    "wrangler": "^4",
+    "@types/node": "^24.0.0",
+    "@types/bun": "^1.4.2"
+  }
+}

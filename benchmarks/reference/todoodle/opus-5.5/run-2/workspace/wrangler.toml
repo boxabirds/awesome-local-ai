@@ -1,0 +1,56 @@
+name = "todoodle"
+main = "apps/api/src/index.ts"
+compatibility_date = "2026-08-15"
+compatibility_flags = ["nodejs_compat"]
+
+[assets]
+directory = "apps/web/dist"
+binding = "ASSETS"
+not_found_handling = "single-page-application"
+run_worker_first = true
+
+# Base environment = local development and tests. Never points at real data.
+[vars]
+ENVIRONMENT = "local"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "todoodle-local"
+database_id = "00000000-0000-0000-0000-000000000000"
+migrations_dir = "migrations"
+
+# WorkspaceRoom Durable Object (owned by story 4, which adds the exported class
+# and the DO migration tag). Placeholder only:
+# [[durable_objects.bindings]]
+# name = "WORKSPACE_ROOM"
+# class_name = "WorkspaceRoom"
+# [[migrations]]
+# tag = "v1"
+# new_sqlite_classes = ["WorkspaceRoom"]
+
+# APP_VERSION, GIT_SHA and DEPLOYED_AT are injected by scripts/deploy.ts via
+# `wrangler deploy --var`, never stored here.
+
+[env.staging]
+name = "todoodle-staging"
+logpush = true
+vars = { ENVIRONMENT = "staging" }
+# Fill database_id after `wrangler d1 create todoodle-staging` (see README).
+d1_databases = [
+  { binding = "DB", database_name = "todoodle-staging", database_id = "REPLACE_WITH_STAGING_D1_ID", migrations_dir = "migrations" },
+]
+
+[env.staging.observability.logs]
+enabled = true
+
+[env.production]
+name = "todoodle-production"
+logpush = true
+vars = { ENVIRONMENT = "production" }
+# Fill database_id after `wrangler d1 create todoodle-production` (see README).
+d1_databases = [
+  { binding = "DB", database_name = "todoodle-production", database_id = "REPLACE_WITH_PRODUCTION_D1_ID", migrations_dir = "migrations" },
+]
+
+[env.production.observability.logs]
+enabled = true

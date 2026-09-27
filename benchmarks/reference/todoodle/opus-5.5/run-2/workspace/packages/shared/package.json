@@ -1,0 +1,9 @@
+{
+  "name": "@todoodle/shared",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./limits": "./src/limits.ts",
+    "./health": "./src/health.ts"
+  }
+}
