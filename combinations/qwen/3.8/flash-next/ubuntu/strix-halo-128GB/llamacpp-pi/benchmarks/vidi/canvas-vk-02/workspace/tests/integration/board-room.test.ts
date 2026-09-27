@@ -373,20 +373,28 @@ describe('a room whose document is gone', () => {
     expect(watcher.text(note)).toBe('from a tab that never lost it');
   });
 
-  it('TC-16: an empty room accepts its first connection after it went away', async () => {
+  it('TC-16: the board is still there for the first connection after it went away', async () => {
+    // Story 3 documented the opposite — an evicted room came back empty and the
+    // first client repopulated it from its own state. That is the behaviour this
+    // story exists to remove: what was stored is here, whoever the room was
+    // rebuilt for.
     const id = boardId();
     const first = await connectRoom(id);
-    first.seedNote('before eviction');
+    const kept = first.seedNote('before eviction');
+    await first.waitFor(() => (first.count === 1 ? true : undefined));
     first.close();
     await evictBoard(id);
 
     const second = await connectRoom(id);
-    expect(second.count).toBe(0);
+    await second.waitFor(() => (second.count === 1 ? true : undefined));
+    expect(second.text(kept)).toBe('before eviction');
+
     const fresh = second.seedNote('after eviction');
     await second.waitFor(() => second.text(fresh));
 
     const third = await connectRoom(id);
-    await third.waitFor(() => third.text(fresh));
+    await third.waitFor(() => (third.count === 2 ? true : undefined));
+    expect(third.text(kept)).toBe('before eviction');
     expect(third.text(fresh)).toBe('after eviction');
   });
 });

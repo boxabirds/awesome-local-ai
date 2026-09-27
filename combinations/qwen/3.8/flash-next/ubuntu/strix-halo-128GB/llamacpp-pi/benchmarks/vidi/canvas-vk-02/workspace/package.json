@@ -15,7 +15,7 @@
     "test": "npm run test:unit && npm run test:component && npm run test:integration",
     "test:unit": "vitest run --project unit",
     "test:component": "vitest run --project component",
-    "test:e2e": "playwright test --project=chromium --project=firefox --project=webkit",
+    "test:e2e": "playwright test --project=chromium --project=firefox --project=webkit --project=persistence",
     "test:integration": "vitest run --project integration",
     "test:e2e:nightly": "playwright test --project=nightly"
   },

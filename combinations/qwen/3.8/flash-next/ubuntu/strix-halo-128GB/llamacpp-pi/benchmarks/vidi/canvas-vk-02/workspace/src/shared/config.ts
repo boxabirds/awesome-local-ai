@@ -113,3 +113,32 @@ export const CONNECTED_CONFIRMATION_MS = 2000;
 
 /** Outage length used by the catch-up test (`live.catch_up`). */
 export const CATCH_UP_TEST_OUTAGE_MS = 30_000;
+
+// ---------------------------------------------------------------------------
+// Story 4 — boards are kept; returning to one finds it as it was left
+// ---------------------------------------------------------------------------
+
+/** Compact the update log into a snapshot once this many rows exist. */
+export const COMPACTION_UPDATE_COUNT = 500;
+
+/** …or once the log holds this many bytes, whichever comes first. */
+export const COMPACTION_BYTES = 4 * 1024 * 1024;
+
+/**
+ * Snapshot chunk size. Every stored row stays well under the per-row size
+ * limit of SQLite-backed Durable Objects (re-checked against Cloudflare's
+ * documentation during implementation; 512 KiB is far below it).
+ */
+export const SNAPSHOT_CHUNK_BYTES = 512 * 1024;
+
+/** A room that failed to load retries the load at most this often. */
+export const LOAD_RETRY_MIN_INTERVAL_MS = 5_000;
+
+/** The board size the persistence guarantees are tested at (`persist.large_board`). */
+export const PERSIST_TESTED_NOTES = 2_000;
+
+/** Showing every note of a `PERSIST_TESTED_NOTES` board must take no longer (`persist.large_board`). */
+export const BOARD_LOAD_BUDGET_MS = 3_000;
+
+/** Version of the Durable Object SQL tables themselves (the Yjs schema version is separate). */
+export const STORAGE_SCHEMA_VERSION = 1;

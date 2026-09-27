@@ -246,3 +246,77 @@ re-render on every change. Because the test owns the document it can seed notes
 and read positions/colours back directly, rather than inferring everything from
 the DOM. As in story 1, Playwright e2e runs against `wrangler dev` on a test-mode
 build and skips Firefox/WebKit where they cannot launch.
+
+# Story 4 — Return to a board and find everything as it was left
+
+## A damaged update is not one missing note
+
+The design asks for `persist.partial_damage` to cost "one change, not the board",
+and the obvious reading is that a load skips the unreadable row and keeps going.
+Measured against real board updates
+(`tests/unit/yjs-damage-semantics.test.ts`), that is not what Yjs does:
+
+- `Y.applyUpdate` with bytes it cannot parse throws *and leaves the document
+  refusing every later update*, silently. So nothing is handed to a document
+  before it has been through `Y.decodeUpdate`, and the load builds the board on a
+  document of its own.
+- An update whose dependencies are missing is not applied and not rejected: it is
+  queued. Every row after it from the same client waits behind it forever,
+  because Yjs updates form a dependency graph — this is why "skip the row and
+  carry on" cannot work at all, and why the design's image of "every other note
+  is present" is not reachable for a change in the middle of a log.
+- A queued update is worse than inert. Handing the document the rows *after* a
+  gap moves content that is already on screen — three notes came back with `z`
+  0 instead of 1, 2, 3, and the state vector, the only thing that reports how
+  much of the log a document holds, did not move to say so.
+
+So `BoardStore.load` stops at the first row that does not become part of the
+document, quarantines that row and every row behind it — with the reason, in
+`quarantined_updates`, so no bytes are lost and what the board holds and what
+storage holds tell one story — and then serves a document rebuilt from the rows
+that were accepted, not the one that met the damage. The result is exactly the
+board a log without that tail would have produced, which `TC-09` asserts by
+replaying the rows below the damage into a second document and comparing.
+
+This is a deliberate narrowing of `persist.partial_damage`: a damaged row costs
+the changes from that row onwards, not that change alone. It is the alternative
+to serving a board that looks fine and is wrong, which is the failure this story
+exists to prevent. The room keeps working after it — the log continues from the
+next sequence number, and compaction folds the board over the gap like any other.
+
+## Random bytes are not damage
+
+Fixtures need damage that fails the same way every run. Random bytes of some
+lengths parse as a legal (empty) update, so a test built on them passes or fails
+on the seed. `unreadableBytes` is a run of `0xFF`, which the update parser refuses
+at every length — measured from 1 to 64 — because the varuint header either runs
+off the end or leaves an integer out of range. `truncatedUpdate` (ten bytes short)
+is used where the design's own fixture asks for it, and the tests that depend on
+it fail loudly if it ever stops being damage.
+
+## Chunking is about row size, not board size
+
+The snapshot is written as `SNAPSHOT_CHUNK_BYTES` slices so a single 4 MB value
+does not have to fit in one SQLite row or one `sql.exec` parameter; `joinChunks`
+refuses a gap or a duplicate index rather than assembling a shorter board in
+silence. Compaction runs when the log passes `COMPACTION_UPDATE_COUNT` rows or
+`COMPACTION_BYTES` bytes, inside one `transactionSync`, so a failure part-way
+leaves the previous snapshot and the whole log in place (`TC-11`) — and it stays
+false-yielding: a compaction that fails is an efficiency loss, never a data loss.
+
+`SNAPSHOT_CHUNK_BYTES` at 512 KB means the board the tests rebuild — 2,000 notes —
+lands in more than one chunk only if the notes carry realistic text, which
+`largeBoard` does (three quarters of them 200–300 characters). A fixture of short
+notes produces a snapshot that fits in one chunk and quietly stops testing the
+chunk path, so `TC-08` asserts the chunk count is above one.
+
+## Storage failure and load failure are different
+
+`storage-failed` means the database refused to answer: the room closes with 1011,
+the browser reconnects, and nothing on screen suggests the board is gone.
+`load-failed` means the bytes are there and cannot be made into a board: the room
+closes with `4500`, the client stops reconnecting and says so. `BoardStore` keeps
+those two apart by returning a reason instead of throwing for the second case and
+letting the SQL error propagate for the first; `room-state.ts` is where the
+difference turns into wire behaviour, and it is a pure function so the whole
+lifecycle is tested without a Durable Object.

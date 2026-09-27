@@ -23,6 +23,8 @@
   "include": ["src", "tests", "vite.config.ts", "vitest.config.ts", "playwright.config.ts"],
   // The Worker and the tests that run inside workerd have their own program
   // (`tsconfig.worker.json`): workerd globals and the DOM globals cannot both be
-  // loaded into one TypeScript program.
-  "exclude": ["src/worker", "tests/integration"]
+  // loaded into one TypeScript program. A unit test that imports a Worker module
+  // for its pure parts travels with it into that program — see the file's entry
+  // in `tsconfig.worker.json`.
+  "exclude": ["src/worker", "tests/integration", "tests/unit/board-store-chunks.test.ts"]
 }

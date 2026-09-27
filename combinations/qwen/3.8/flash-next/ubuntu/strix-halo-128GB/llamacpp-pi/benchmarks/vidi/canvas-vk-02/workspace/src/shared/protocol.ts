@@ -23,6 +23,18 @@ export const MESSAGE_QUERY_AWARENESS = 3;
 /** WebSocket close code for malformed traffic (RFC 6455 "unsupported data"). */
 export const CLOSE_UNSUPPORTED_DATA = 1003;
 
+/**
+ * A saved board could not be loaded (story 4, `persist.load_failure`).
+ *
+ * Deliberately outside the 4400-4499 band the y-websocket client treats as
+ * "reconnecting is pointless": the product keeps retrying, and the client
+ * provider's own backoff is what spaces the retries out.
+ */
+export const CLOSE_BOARD_LOAD_FAILED = 4500;
+
+/** The board's storage failed while it was serving; the room is being rebuilt. */
+export const CLOSE_STORAGE_FAILURE = 1011;
+
 /** `y-protocols/sync` inner message types, repeated here for validation. */
 export const SYNC_STEP_1 = 0;
 export const SYNC_STEP_2 = 1;

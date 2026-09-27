@@ -7,12 +7,15 @@ Model `qwen3.8-flash-next`, scope `canvas`, effort `low`, client pi 0.87.1, host
 | 1 | Pan and zoom around an infinite board | DONE | 75.1 | None | None | None | — | — | green | 5/6 |  | 0 / 0 | 1 | — | throttled 0%, server peak 36 GB |
 | 2 | Capture ideas on sticky notes and rearrange them | DONE | 111.7 | None | None | None | — | — | green | 17/20 |  | 0 / 0 | 2 | — | throttled 0%, server peak 37 GB |
 | 3 | See other people's edits appear live on the same board | PARTIAL (red) | 240.0 | None | None | None | — | — | red | 22/27 |  | 0 / 0 | 4 | — | throttled 0%, server peak 38 GB |
+| 4 | Return to a board and find everything as it was left | PARTIAL (red), on partial 3 | 240.0 | None | None | None | — | — | red | 26/31 |  | 0 / 0 | 4 | — | throttled 0%, server peak 38 GB |
 
-**Totals:** 3 stories, 427 agent-minutes, 0 requests, 0 prompt / 0 completion tokens, gate green 2/3, final acceptance 22/27, stalled 0, partial 1, 8103 lines in src+tests.
+**Totals:** 4 stories, 667 agent-minutes, 0 requests, 0 prompt / 0 completion tokens, gate green 2/4, final acceptance 26/31, stalled 0, partial 2, 11428 lines in src+tests.
 
 ### Stories ended early (PARTIAL) and what was built on them
 
 - **Story 3 PARTIAL**, ended by the operator (harness (cap)): story cap: 4.0 h of agent time (cap 4.0 h). Verdict **red**: gate red, tasks not verified [3, 4, 6, 8, 9] (implementation: [3, 4]), held-out 5/7 (floor 0.0).
+- **Story 4 PARTIAL**, ended by the operator (harness (cap)): story cap: 4.0 h of agent time (cap 4.0 h). Verdict **red**: gate red, tasks not verified [4, 6, 7, 8, 9] (implementation: [4, 7]), held-out 4/4 (floor 0.25).
+- Story 4, built on partial 3: held-out tests on the partial base 9/11; partial story's tests fixed 0, regressed 0; 0 stub-like lines added to src/.
 
 ## How it happened
 
@@ -23,6 +26,7 @@ Each story's commits, and which story broke or fixed an earlier story's held-out
 | 1 | 3 by the agent | 6325 / 24 | `BoardViewport.tsx` (224), `useCamera.ts` (189), `styles.css` (172), `camera.ts` (171), `NOTES.md` (149), `ZoomControls.tsx` (76), +16 more |
 | 2 | 6 by the agent | 2842 / 54 | `StickyNote.tsx` (300), `board-model.ts` (236), `styles.css` (197), `StickyText.ts` (165), `StickyTextEditor.tsx` (118), `NOTES.md` (101), +8 more |
 | 3 | 4 by the agent, + harness snapshot | 4448 / 335 | `board-room.ts` (436), `protocol.ts` (168), `connectBoard.ts` (111), `index.ts` (83), `styles.css` (39), `ConnectionStatus.tsx` (37), +12 more |
+| 4 | 5 by the agent, + harness snapshot | 3567 / 137 | `board-store.ts` (500), `board-room.ts` (464), `room-state.ts` (156), `NOTES.md` (74), `config.ts` (29), `playwright.config.ts` (22), +4 more |
 
 ### Earlier stories broken or fixed
 

@@ -8,5 +8,12 @@
     "lib": ["ES2022"],
     "types": ["@cloudflare/workers-types"]
   },
-  "include": ["src/worker", "src/shared", "tests/integration"]
+  "include": [
+    "src/worker",
+    "src/shared",
+    "tests/integration",
+    // A unit test of the pure parts of a Worker module; it needs workerd's globals
+    // to type the storage the module is written against.
+    "tests/unit/board-store-chunks.test.ts"
+  ]
 }
