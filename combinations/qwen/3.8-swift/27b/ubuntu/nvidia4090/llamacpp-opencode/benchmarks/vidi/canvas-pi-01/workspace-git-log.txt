@@ -1,3 +1,86 @@
+commit 88b6c76dbbd0dde70327b9c680b9fc2ac7079323
+vidi-agent  Sun Sep 27 13:04:23 2026 +0100
+
+    task 7: broken-board e2e (TC-24) + TEST_HOOKS board-maintenance routes
+
+
+ .gitignore                           |   1 +
+ playwright.config.ts                 |   5 +-
+ src/worker/board-room.ts             |  25 +++++++++
+ src/worker/index.ts                  |  17 ++++++
+ tests/e2e/broken-board.spec.ts       | 106 +++++++++++++++++++++++++++++++++++
+ tests/e2e/live-collaboration.spec.ts |  60 +++++++++++---------
+ 6 files changed, 187 insertions(+), 27 deletions(-)
+commit ba89f80c71a82dae795061619023ef7e5dd0a90e
+vidi-agent  Sun Sep 27 12:29:10 2026 +0100
+
+    task 6: room persistence integration tests (TC-12..TC-18, TC-26)
+
+
+ src/worker/board-room.ts                         |  18 ++
+ tests/integration/board-room-persistence.test.ts | 277 +++++++++++++++++++++++
+ tests/integration/helpers/faults.ts              |  39 ++++
+ tests/integration/helpers/ws-client.ts           |  17 ++
+ 4 files changed, 351 insertions(+)
+commit d5e34172e6863616b74de17ddbab6b249a1d9a8f
+vidi-agent  Sun Sep 27 12:21:24 2026 +0100
+
+    task 5: client load_failed state (close 4500 -> red badge, editing gated, canEdit)
+
+
+ src/client/App.tsx                   | 24 ++++++++++++++++++++----
+ src/client/board/Toolbar.tsx         |  5 ++++-
+ src/client/objects/StickyNote.tsx    |  6 +++++-
+ src/client/styles.css                |  4 ++++
+ src/client/sync/ConnectionStatus.tsx |  1 +
+ src/client/sync/connectBoard.ts      | 24 +++++++++++++++++++++++-
+ tests/component/StickyNote.test.tsx  |  1 +
+ 7 files changed, 58 insertions(+), 7 deletions(-)
+commit 5602fb47aa05938401ea69487e794c00a23caa55
+vidi-agent  Sun Sep 27 12:18:09 2026 +0100
+
+    task 4: BoardRoom rewrite (load on construct, write-before-broadcast, hibernation API, load/storage failure handling)
+
+
+ src/worker/board-room.ts | 306 ++++++++++++++++++++++++++++++++++-------------
+ wrangler.jsonc           |   4 +-
+ 2 files changed, 229 insertions(+), 81 deletions(-)
+commit 92cc65860e691cd39b896f8106dbfb8a8dd0d4df
+vidi-agent  Sun Sep 27 12:13:20 2026 +0100
+
+    task 3: BoardStore integration tests (TC-03..TC-11, TC-25) + board fixtures
+
+
+ src/worker/board-store.ts             |   5 +
+ tests/fixtures/boards.ts              | 185 ++++++++++++++++++++
+ tests/integration/board-store.test.ts | 320 ++++++++++++++++++++++++++++++++++
+ tests/integration/env.d.ts            |   6 +
+ 4 files changed, 516 insertions(+)
+commit c04abe4c6ef8c520e6d7f4d1f459c8802ca4715f
+vidi-agent  Sun Sep 27 12:04:44 2026 +0100
+
+    task 2: BoardStore (schema, append, load with quarantine, chunked compaction) + room-state transitions
+
+
+ src/worker/board-store.ts               | 292 ++++++++++++++++++++++++++++----
+ src/worker/room-state.ts                |  31 +++-
+ tests/unit/cloudflare-workers-shim.d.ts |   7 -
+ wrangler.jsonc                          |   5 +-
+ 4 files changed, 292 insertions(+), 43 deletions(-)
+commit ceec1a7cfdb05074f66bd95008f8f67c8d901db7
+vidi-agent  Sun Sep 27 12:00:47 2026 +0100
+
+    task 1: storage and room-state unit tests first (TC-01, TC-02, TC-27)
+
+
+ src/shared/config.ts                    |  17 ++++
+ src/shared/protocol.ts                  |  12 +++
+ src/worker/board-store.ts               |  68 ++++++++++++++++
+ src/worker/room-state.ts                |  55 +++++++++++++
+ tests/unit/board-store-chunks.test.ts   |  81 +++++++++++++++++++
+ tests/unit/cloudflare-workers-shim.d.ts |   7 ++
+ tests/unit/room-state.test.ts           | 135 ++++++++++++++++++++++++++++++++
+ 7 files changed, 375 insertions(+)
 commit 0b5539c90830d773e1b3dd84ff9e27f59445fb54
 vidi-agent  Sun Sep 27 11:50:16 2026 +0100
 
