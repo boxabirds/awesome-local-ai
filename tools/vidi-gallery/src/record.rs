@@ -42,7 +42,7 @@ pub fn processed(build_order: &[u64], statuses: &std::collections::BTreeMap<u64,
 
 /// Run one story's tests against `ws` with recording on. Results land in `out` (report.json and
 /// artifacts/). `port` is the app port; the suite's control server uses port + 1.
-pub async fn record(acceptance: &Path, config: &Path, ws: &Path, story: u64, processed: &str, out: &Path, port: u16) -> anyhow::Result<()> {
+pub async fn record(acceptance: &Path, config: &Path, ws: &Path, story: u64, processed: &str, out: &Path, port: u16, owned: &[PathBuf]) -> anyhow::Result<()> {
     let _ = std::fs::remove_dir_all(out);
     std::fs::create_dir_all(out)?;
     let spec = format!("tests/story-{story:02}.spec.ts");
@@ -51,6 +51,7 @@ pub async fn record(acceptance: &Path, config: &Path, ws: &Path, story: u64, pro
     }
     // The suite's control server listens on port + 1; a leftover from an earlier run makes the
     // whole suite fail with EADDRINUSE, so wait for both ports rather than record a failure.
+    reap_listeners(&[port, port + 1], owned).await;
     wait_free(&[port, port + 1]).await?;
     let log = std::fs::File::create(out.join("run.log"))?;
     let mut cmd = tokio::process::Command::new("npx");
@@ -67,7 +68,9 @@ pub async fn record(acceptance: &Path, config: &Path, ws: &Path, story: u64, pro
         .stdin(Stdio::null())
         .stdout(Stdio::from(log.try_clone()?))
         .stderr(Stdio::from(log));
-    let status = run_in_own_group(cmd).await?;
+    let status = run_in_own_group(cmd).await;
+    reap_listeners(&[port, port + 1], owned).await;
+    let status = status?;
     // A failing test exits non-zero; that's a result, not a recording failure. No report is.
     if !out.join("report.json").is_file() {
         anyhow::bail!("playwright exited {status} without a report (see run.log)");
@@ -77,6 +80,33 @@ pub async fn record(acceptance: &Path, config: &Path, ws: &Path, story: u64, pro
         anyhow::bail!("{why} (see run.log)");
     }
     Ok(())
+}
+
+const SECRET_BYTES: usize = 16;
+
+/// A recording's directory name, from a secret: the review is blind, and a trace carries its output
+/// paths (the viewer shows them), so neither the directory nor the trace may name the build.
+pub fn blind_name(secret: &str, slug: &str, story: u64) -> String {
+    let h = crate::builds::fnv1a(format!("{secret}\n{slug}\n{story}").as_bytes());
+    format!("r{h:016x}")
+}
+
+/// The secret behind blind_name, made on first use and kept (next to the recordings, not under them).
+pub fn secret(path: &Path) -> anyhow::Result<String> {
+    if let Ok(s) = std::fs::read_to_string(path) {
+        if !s.trim().is_empty() {
+            return Ok(s.trim().to_string());
+        }
+    }
+    let mut bytes = [0u8; SECRET_BYTES];
+    use std::io::Read;
+    std::fs::File::open("/dev/urandom")?.read_exact(&mut bytes)?;
+    let s: String = bytes.iter().map(|b| format!("{b:02x}")).collect();
+    if let Some(dir) = path.parent() {
+        std::fs::create_dir_all(dir)?;
+    }
+    std::fs::write(path, &s)?;
+    Ok(s)
 }
 
 const PORT_WAIT: Duration = Duration::from_secs(30);
@@ -94,6 +124,45 @@ async fn wait_free(ports: &[u16]) -> anyhow::Result<()> {
         }
         tokio::time::sleep(PORT_POLL).await;
     }
+}
+
+/// Stop what still listens on `ports` if it is ours: running in (or from) one of `owned`, e.g. the
+/// gallery's checkouts or the held-out suite. The suite starts the app server detached, in its own
+/// session, so a recording that dies (or a gallery that stops) mid-run leaves it holding the port;
+/// the recording's own process group doesn't include it. Anything else on the port is left alone.
+pub async fn reap_listeners(ports: &[u16], owned: &[PathBuf]) {
+    for &port in ports {
+        let out = tokio::process::Command::new("lsof")
+            .args(["-nP", "-t", &format!("-iTCP:{port}"), "-sTCP:LISTEN"])
+            .output().await;
+        let Ok(out) = out else { continue };
+        for pid in String::from_utf8_lossy(&out.stdout).lines().filter_map(|l| l.trim().parse::<libc::pid_t>().ok()) {
+            if !is_ours(pid, owned).await {
+                eprintln!("recording port {port} is held by pid {pid}, which isn't the gallery's; leaving it");
+                continue;
+            }
+            // SAFETY: getpgid/killpg/kill only look up and signal processes.
+            unsafe {
+                let group = libc::getpgid(pid);
+                if group > 1 && group != libc::getpgrp() {
+                    libc::killpg(group, libc::SIGKILL);
+                } else {
+                    libc::kill(pid, libc::SIGKILL);
+                }
+            }
+        }
+    }
+}
+
+async fn is_ours(pid: libc::pid_t, owned: &[PathBuf]) -> bool {
+    let cwd = tokio::process::Command::new("lsof").args(["-a", "-p", &pid.to_string(), "-d", "cwd", "-Fn"]).output().await;
+    let cwd = cwd.map(|o| String::from_utf8_lossy(&o.stdout).lines().find_map(|l| l.strip_prefix('n').map(str::to_string)).unwrap_or_default()).unwrap_or_default();
+    let cmd = tokio::process::Command::new("ps").args(["-o", "command=", "-p", &pid.to_string()]).output().await;
+    let cmd = cmd.map(|o| String::from_utf8_lossy(&o.stdout).to_string()).unwrap_or_default();
+    owned.iter().any(|root| {
+        let r = root.to_string_lossy();
+        !r.is_empty() && (Path::new(&cwd).starts_with(root) || cmd.contains(r.as_ref()))
+    })
 }
 
 /// Run `cmd` as the leader of its own process group and, when it exits, kill whatever it left
@@ -194,6 +263,76 @@ pub fn paths(out: &Path, root: &Path) -> Vec<Path_> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// A listener in its own session (as the suite's app server is), running in `dir`, on `port`.
+    fn detached_listener(dir: &Path, port: u16) -> u32 {
+        std::fs::create_dir_all(dir).unwrap();
+        let py = format!("import os,socket,time\nos.setsid()\ns=socket.socket()\ns.setsockopt(socket.SOL_SOCKET,socket.SO_REUSEADDR,1)\ns.bind(('127.0.0.1',{port}))\ns.listen()\ntime.sleep(60)\n");
+        let child = std::process::Command::new("python3").arg("-c").arg(py).current_dir(dir).spawn().unwrap();
+        let id = child.id();
+        for _ in 0..50 {
+            if std::net::TcpListener::bind(("127.0.0.1", port)).is_err() {
+                return id;
+            }
+            std::thread::sleep(Duration::from_millis(100));
+        }
+        panic!("listener never came up");
+    }
+
+    fn free_port() -> u16 {
+        std::net::TcpListener::bind("127.0.0.1:0").unwrap().local_addr().unwrap().port()
+    }
+
+    #[tokio::test]
+    async fn a_detached_server_of_ours_left_on_a_recording_port_is_stopped() {
+        let root = std::env::temp_dir().join(format!("vidi-reap-{}", std::process::id())).canonicalize_or_self();
+        let port = free_port();
+        let pid = detached_listener(&root.join("checkouts/run@05"), port);
+        reap_listeners(&[port], &[root.clone()]).await;
+        tokio::time::sleep(PORT_POLL).await;
+        assert!(std::net::TcpListener::bind(("127.0.0.1", port)).is_ok(), "port {port} still held by {pid}");
+        let _ = std::fs::remove_dir_all(&root);
+    }
+
+    #[tokio::test]
+    async fn someone_elses_listener_is_left_alone() {
+        let ours = std::env::temp_dir().join(format!("vidi-reap-ours-{}", std::process::id())).canonicalize_or_self();
+        let theirs = std::env::temp_dir().join(format!("vidi-reap-theirs-{}", std::process::id()));
+        let port = free_port();
+        let pid = detached_listener(&theirs, port);
+        reap_listeners(&[port], &[ours.clone()]).await;
+        tokio::time::sleep(PORT_POLL).await;
+        assert!(std::net::TcpListener::bind(("127.0.0.1", port)).is_err(), "killed a listener that isn't ours");
+        unsafe { libc::killpg(pid as libc::pid_t, libc::SIGKILL) };
+        let _ = std::fs::remove_dir_all(&theirs);
+    }
+
+    trait CanonOrSelf { fn canonicalize_or_self(self) -> PathBuf; }
+    impl CanonOrSelf for PathBuf {
+        fn canonicalize_or_self(self) -> PathBuf {
+            std::fs::create_dir_all(&self).unwrap();
+            self.canonicalize().unwrap()
+        }
+    }
+
+    #[test]
+    fn a_recordings_directory_name_says_nothing_about_its_build() {
+        let a = blind_name("s3cret", "qwen_3.8_27b_ubuntu_nvidia4090_llamacpp-opencode_canvas-pi-03", 5);
+        assert!(!a.contains("qwen") && !a.contains("canvas") && !a.contains("nvidia"), "{a}");
+        assert_eq!(a, blind_name("s3cret", "qwen_3.8_27b_ubuntu_nvidia4090_llamacpp-opencode_canvas-pi-03", 5));
+        assert_ne!(a, blind_name("s3cret", "qwen_3.8_27b_ubuntu_nvidia4090_llamacpp-opencode_canvas-pi-03", 6));
+        assert_ne!(a, blind_name("other", "qwen_3.8_27b_ubuntu_nvidia4090_llamacpp-opencode_canvas-pi-03", 5));
+    }
+
+    #[test]
+    fn the_secret_is_made_once_and_then_kept() {
+        let f = std::env::temp_dir().join(format!("vidi-rec-secret-{}", std::process::id()));
+        let _ = std::fs::remove_file(&f);
+        let first = secret(&f).unwrap();
+        assert!(first.len() >= 32);
+        assert_eq!(first, secret(&f).unwrap());
+        let _ = std::fs::remove_file(&f);
+    }
 
     #[tokio::test]
     async fn a_run_leaves_nothing_behind_in_its_process_group() {
