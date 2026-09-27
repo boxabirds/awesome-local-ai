@@ -1,3 +1,16 @@
+commit 89fab92c8d9c6610ac5f5382118db7ebee59004f
+vidi-agent  Sun Sep 27 11:11:21 2026 +0100
+
+    harness: snapshot after story 12 (uncommitted agent work)
+
+
+ src/shared/board-model.ts   |  33 +++++-
+ src/shared/config.ts        |  28 +++++
+ src/shared/image-format.ts  |  71 +++++++++++++
+ src/shared/object-types.ts  |  14 +++
+ src/shared/objects/image.ts | 252 ++++++++++++++++++++++++++++++++++++++++++++
+ src/worker/assets.ts        | 163 ++++++++++++++++++++++++++++
+ 6 files changed, 560 insertions(+), 1 deletion(-)
 commit 1a4358392b0d4bb7ee43be9aac461181960e53cd
 vidi-agent  Sun Sep 27 10:29:07 2026 +0100
 

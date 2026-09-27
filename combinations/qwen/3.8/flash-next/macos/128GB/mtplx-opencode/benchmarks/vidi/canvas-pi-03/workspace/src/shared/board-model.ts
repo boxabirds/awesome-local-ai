@@ -38,6 +38,7 @@ import { isFiniteRect } from './geometry';
 import { getObjectType } from './object-types';
 import { detachConnectorsTo, type Endpoint } from './objects/connector';
 import { connectorBBox, resolveEndpoints } from './geometry/connector-geometry';
+import type { ImageStatus } from './objects/image';
 
 /** Transaction origin used for every local (user-driven) mutation. Story 8 uses
  * it for undo scoping and story 3 to avoid echoing changes back. */
@@ -95,8 +96,22 @@ export interface ConnectorSnapshot extends ObjectSnapshot {
   to: Endpoint;
 }
 
+/** Immutable projection of one image (story 12). Its `x/y/width/height` are the
+ * footprint it is drawn and hit-tested at; the extra fields tell the renderer
+ * whether the bytes have arrived yet. Identical to the shared `ImageSnap`. */
+export interface ImageSnapshot extends ObjectSnapshot {
+  type: 'image';
+  assetKey: string | null;
+  contentType: string;
+  naturalWidth: number;
+  naturalHeight: number;
+  status: ImageStatus;
+  uploadStartedAt: number;
+  uploaderId: string;
+}
+
 /** Anything the board can render and select. */
-export type AnySnapshot = StickySnapshot | TextSnapshot | ShapeSnapshot | ConnectorSnapshot;
+export type AnySnapshot = StickySnapshot | TextSnapshot | ShapeSnapshot | ConnectorSnapshot | ImageSnapshot;
 
 /** The document key holding the object map. */
 const OBJECTS_KEY = 'objects';
@@ -549,6 +564,22 @@ function objectSnapshotOf(
       text: text ? text.toString() : '',
       size: preset !== undefined && preset in TEXT_SIZES ? preset : DEFAULT_TEXT_SIZE,
       widthMode: mode,
+    };
+  }
+  if (obj.get('type') === 'image') {
+    // Image fields are read straight from the record; a missing one falls back to
+    // a benign default so one malformed image never blanks the board (a fully
+    // absent footprint is already rejected by `boundsOf` above).
+    return {
+      ...base,
+      type: 'image',
+      assetKey: (obj.get('assetKey') as string | null) ?? null,
+      contentType: (obj.get('contentType') as string) ?? 'image/png',
+      naturalWidth: typeof obj.get('naturalWidth') === 'number' ? (obj.get('naturalWidth') as number) : size.width,
+      naturalHeight: typeof obj.get('naturalHeight') === 'number' ? (obj.get('naturalHeight') as number) : size.height,
+      status: ((obj.get('status') as ImageStatus) ?? 'uploading') as ImageStatus,
+      uploadStartedAt: typeof obj.get('uploadStartedAt') === 'number' ? (obj.get('uploadStartedAt') as number) : base.createdAt,
+      uploaderId: (obj.get('uploaderId') as string) ?? '',
     };
   }
   return null;

@@ -17,6 +17,7 @@ import {
   TEXT_MIN_WIDTH_WORLD,
   SHAPE_MIN_SIZE_WORLD,
   CONNECTOR_HIT_TOLERANCE_PX,
+  IMAGE_MIN_SIZE_WORLD,
 } from './config';
 import { distanceToPolyline } from './geometry/polyline';
 
@@ -193,6 +194,18 @@ export const SHAPE_SPEC: ObjectTypeSpec = {
   hitTest: (bounds, point) => rectContainsPoint(bounds, point),
 };
 
+/** Images (story 12): always resized proportionally (aspect-locked) down to a
+ * small floor, and hit anywhere inside the drawn box like a note. `editableText`
+ * is false, so no editor ever opens for a picture. */
+export const IMAGE_SPEC: ObjectTypeSpec = {
+  type: 'image',
+  resizable: true,
+  aspectLocked: true,
+  minSize: IMAGE_MIN_SIZE_WORLD,
+  editableText: false,
+  hitTest: (bounds, point) => rectContainsPoint(bounds, point),
+};
+
 /** Connectors: no resize handles and no text editor (contract `connector.ui`).
  *
  * `hitTest` is deliberately the loose bounding-box test: whether a click landed
@@ -222,6 +235,7 @@ function registerBuiltinTypes(): void {
   registerObjectType(STICKY_SPEC);
   registerObjectType(TEXT_SPEC);
   registerObjectType(SHAPE_SPEC);
+  registerObjectType(IMAGE_SPEC);
   registerObjectType(CONNECTOR_SPEC);
 }
 
