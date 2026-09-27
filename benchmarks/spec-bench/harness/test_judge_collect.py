@@ -47,3 +47,7 @@ def test_report_unblinds_and_compares_with_our_audit(tmp_path):
     assert "story 5: judge 0, ours 1" in text and "story 9: judge 1, ours 0" in text
     assert "story 7" not in text
     assert "**Missing outputs:** test-faults.jsonl" in text  # empty counts as not written
+
+
+def test_overreach_and_gap_fill_rows_are_well_formed():
+    assert jc.row_problems([row(category="overreach", severity="medium"), row(category="gap-fill", severity="low")]) == []
