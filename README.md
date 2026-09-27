@@ -54,6 +54,7 @@ half-installing.
 | Qwen3.8-Flash-Next ⁵ | macOS 26 | 128GB Apple silicon | MTPLX + OpenCode | 128k | [`install-qwen-3.8-flash-next-macos-128GB-mtplx-opencode.sh`](install-qwen-3.8-flash-next-macos-128GB-mtplx-opencode.sh) | [README](combinations/qwen/3.8/flash-next/macos/128GB/mtplx-opencode/README.md) |
 | Qwen3.8-Flash-Next mixed 4/8-bit ⁶ | macOS 26.2+ | 128GB Apple silicon | mlx-serve + OpenCode | 128k | [`install-qwen-3.8-flash-next-macos-128GB-mlxserve-opencode.sh`](install-qwen-3.8-flash-next-macos-128GB-mlxserve-opencode.sh) | [README](combinations/qwen/3.8/flash-next/macos/128GB/mlxserve-opencode/README.md) |
 | Qwen3.8-Flash-Next ⁷ | Ubuntu 26.04 | Strix Halo 128GB (Ryzen AI Max+ 395) | llama.cpp *(MTP PR; Vulkan or ROCm)* + pi | 128k | [`install-qwen-3.8-flash-next-ubuntu-strix-halo-128GB-llamacpp-pi.sh`](install-qwen-3.8-flash-next-ubuntu-strix-halo-128GB-llamacpp-pi.sh) | [README](combinations/qwen/3.8/flash-next/ubuntu/strix-halo-128GB/llamacpp-pi/README.md) |
+| Qwen3.8-Flash-Next UD-Q4_K_XL ⁸ | Ubuntu 26.04 | Strix Halo 128GB (Ryzen AI Max+ 395) | gufo *(Podman, ROCm in the image)* + pi | 128k | [`install-qwen-3.8-flash-next-ubuntu-strix-halo-128GB-gufo-pi.sh`](install-qwen-3.8-flash-next-ubuntu-strix-halo-128GB-gufo-pi.sh) | [README](combinations/qwen/3.8/flash-next/ubuntu/strix-halo-128GB/gufo-pi/README.md) |
 | Ternary Bonsai 2 27B ² | Ubuntu 22.04 | RTX 4090 (24GB) | llama.cpp *(fork)* + OpenCode | 128k | [`install-bonsai-2-27b-ubuntu-nvidia4090-llamacpp-opencode.sh`](install-bonsai-2-27b-ubuntu-nvidia4090-llamacpp-opencode.sh) | [README](combinations/bonsai/2/27b/ubuntu/nvidia4090/llamacpp-opencode/README.md) |
 | MiMo-V2.6-Qwen-9B ³ | macOS 26 | 16GB Apple silicon, M3+ ⁴ | MTPLX + OpenCode | **20k**: too small for agentic coding ([tested](docs/20260924-mimo-9b-macbook-air-m2-16gb.md)) | [`install-mimo-2.6-9b-macos-16GB-mtplx-opencode.sh`](install-mimo-2.6-9b-macos-16GB-mtplx-opencode.sh) | [README](combinations/mimo/2.6/9b/macos/16GB/mtplx-opencode/README.md) |
 | Qwen3.8-27B EXL3 3.0bpw ⁵ | Ubuntu (Docker) | RTX 3090 (24GB, sm_86) | SGLang *(container)* + OpenCode | 262k | [`install-qwen-3.8-27b-ubuntu-nvidia3090-sglang-opencode.sh`](install-qwen-3.8-27b-ubuntu-nvidia3090-sglang-opencode.sh) | [README](combinations/qwen/3.8/27b/ubuntu/nvidia3090/sglang-opencode/README.md) |
@@ -128,7 +129,16 @@ llama.cpp cannot load this model's MTP draft head, so it builds the pull
 request that adds it ([#28243](https://github.com/ggml-org/llama.cpp/pull/28243)),
 for Vulkan or ROCm. Published figures from another Strix Halo box are ~17 tok/s
 decode without MTP and 32–56 at 8k with it, on a different fork and head. It ranks below any measured row for the same machine; today it
-is the only Strix Halo row, so `./install.sh` offers it there.
+is the only Strix Halo row `./install.sh` picks by itself (⁸ opts out).
+
+⁸ **The gufo row serves the same model with [gufo](https://github.com/gufo-org/gufo)**,
+a single-model engine for this chip, from its container image (Podman; the
+image brings its own ROCm). Measured on the same Minisforum box with the same
+UD-Q4_K_XL weights, it reads prompts 4–7× faster than the llama.cpp row
+(1,266 vs 302 tok/s at 32k, 1,228 vs 172 at 120k), which is what caps the
+llama.cpp row's agent runs. Whether its code is as good is what its benchmark
+runs measure. It never installs unasked: `./install.sh` lists it but does not
+pick it.
 
 **Want one that isn't here?** See
 [docs/adding-a-combination.md](docs/adding-a-combination.md). A new combination

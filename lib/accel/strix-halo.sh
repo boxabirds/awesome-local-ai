@@ -33,12 +33,16 @@
 #                   (Vulkan0, ROCm0), so the launcher always pins one with
 #                   --device; GPU_BACKEND=vulkan|rocm picks it per run, with
 #                   no rebuild. ACCEL_GPU_BACKENDS tells the manifest which.
+#   GPU_API=none    nothing built on the host: the engine ships its own GPU
+#                   runtime (gufo's ROCm, in a container image). Qualifies the
+#                   device and its memory budget, and needs no host ROCm.
 
 ACCEL_DESC=""; ACCEL_ARCH="gfx1151"; ACCEL_MEM_MIB=0
 ACCEL_RAM_MIB=0; ACCEL_VRAM_MIB=0; ACCEL_MEM_SOURCE=""
 GPU_API="${GPU_API:-vulkan}"
 case "$GPU_API" in
   both) ACCEL_GPU_BACKENDS="vulkan rocm" ;;
+  none) ACCEL_GPU_BACKENDS="" ;;
   *)    ACCEL_GPU_BACKENDS="$GPU_API" ;;
 esac
 
@@ -65,8 +69,8 @@ _sh_mib() {
 qualify_accel() {
   info "Checking AMD Strix Halo GPU (${GPU_API})..."
   case "$GPU_API" in
-    vulkan|rocm|both) ;;
-    *) err "GPU_API='${GPU_API}' is not one this adapter builds. Use vulkan, rocm or both." ;;
+    vulkan|rocm|both|none) ;;
+    *) err "GPU_API='${GPU_API}' is not one this adapter builds. Use vulkan, rocm, both, or none (engine in a container)." ;;
   esac
 
   local gpu
@@ -80,7 +84,8 @@ qualify_accel() {
   _sh_qualify_render_node "$gpu"
   _sh_gtt_budget "$gpu"
 
-  ACCEL_DESC="Radeon 8060S (gfx1151, ${GPU_API}), ${ACCEL_RAM_MIB} MiB RAM + ${ACCEL_VRAM_MIB} MiB BIOS carve-out, ${ACCEL_MEM_MIB} MiB addressable by the GPU"
+  local api="$GPU_API"; [[ "$api" == none ]] && api="engine's own runtime"
+  ACCEL_DESC="Radeon 8060S (gfx1151, ${api}), ${ACCEL_RAM_MIB} MiB RAM + ${ACCEL_VRAM_MIB} MiB BIOS carve-out, ${ACCEL_MEM_MIB} MiB addressable by the GPU"
   ok "GPU: ${ACCEL_DESC}"
   info "  GPU budget from ${ACCEL_MEM_SOURCE}."
 
