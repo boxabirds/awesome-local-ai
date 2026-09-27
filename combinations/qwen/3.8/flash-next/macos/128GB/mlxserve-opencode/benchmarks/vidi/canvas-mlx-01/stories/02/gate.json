@@ -1,0 +1,54 @@
+{
+  "steps": {
+    "install": {
+      "cmd": "npm ci",
+      "exit": 0,
+      "seconds": 2.8,
+      "tail": "\nadded 193 packages, and audited 194 packages in 3s\n\n37 packages are looking for funding\n  run `npm fund` for details\n\n2 moderate severity vulnerabilities\n\nTo address all issues (including breaking changes), run:\n  npm audit fix --force\n\nRun `npm audit` for details.\nnpm warn deprecated whatwg-encoding@3.1.1: Use @exodus/bytes instead for a more spec-conformant and faster implementation\nnpm warn allow-scripts 4 packages have install scripts not yet covered by allowScripts:\nnpm warn allow-scripts   esbuild@0.28.2 (postinstall: node install.js)\nnpm warn allow-scripts   fsevents@2.3.3 (install: (install scripts present))\nnpm warn allow-scripts   workerd@1.20260925.1 (postinstall: node install.js)\nnpm warn allow-scripts   esbuild@0.28.1 (postinstall: node install.js)\nnpm warn allow-scripts\nnpm warn allow-scripts Run `npm approve-scripts --allow-scripts-pending` to review, or `npm approve-scripts <pkg>` to allow.\n"
+    },
+    "build": {
+      "cmd": "npm run build",
+      "exit": 0,
+      "seconds": 1.0,
+      "tail": "\n> vidi6@0.0.0 build\n> vite build\n\n\u001b[36mvite v7.3.6 \u001b[32mbuilding client environment for production...\u001b[36m\u001b[39m\ntransforming...\n\u001b[32m\u2713\u001b[39m 81 modules transformed.\nrendering chunks...\ncomputing gzip size...\n\u001b[2m../../dist/client/\u001b[22m\u001b[32mindex.html                 \u001b[39m\u001b[1m\u001b[2m  0.39 kB\u001b[22m\u001b[1m\u001b[22m\u001b[2m \u2502 gzip:  0.26 kB\u001b[22m\n\u001b[2m../../dist/client/\u001b[22m\u001b[2massets/\u001b[22m\u001b[35mindex-42-59AJP.css  \u001b[39m\u001b[1m\u001b[2m  4.58 kB\u001b[22m\u001b[1m\u001b[22m\u001b[2m \u2502 gzip:  1.37 kB\u001b[22m\n\u001b[2m../../dist/client/\u001b[22m\u001b[2massets/\u001b[22m\u001b[36mindex-nKB0k4Qs.js   \u001b[39m\u001b[1m\u001b[2m305.35 kB\u001b[22m\u001b[1m\u001b[22m\u001b[2m \u2502 gzip: 95.91 kB\u001b[22m\n\u001b[32m\u2713 built in 394ms\u001b[39m\n",
+      "passed": null,
+      "failed": null
+    },
+    "typecheck": {
+      "cmd": "npm run typecheck",
+      "exit": 0,
+      "seconds": 0.8,
+      "tail": "\n> vidi6@0.0.0 typecheck\n> tsc --noEmit\n\n",
+      "passed": null,
+      "failed": null
+    },
+    "test:unit": {
+      "cmd": "npm run test:unit",
+      "exit": 0,
+      "seconds": 0.6,
+      "tail": "\n> vidi6@0.0.0 test:unit\n> vitest run --project unit\n\n\n\u001b[1m\u001b[46m RUN \u001b[49m\u001b[22m \u001b[36mv3.2.7 \u001b[39m\u001b[90m~/.vidi-bench/work/qwen__3.8__flash-next__macos__128GB__mlxserve-opencode__benchmarks__vidi__canvas-mlx-01/workspace\u001b[39m\n\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[42m unit \u001b[49m\u001b[39m tests/unit/board-model.test.ts \u001b[2m(\u001b[22m\u001b[2m18 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 7\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[42m unit \u001b[49m\u001b[39m tests/unit/sticky-text.test.ts \u001b[2m(\u001b[22m\u001b[2m16 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 7\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[42m unit \u001b[49m\u001b[39m tests/unit/camera.test.ts \u001b[2m(\u001b[22m\u001b[2m31 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 27\u001b[2mms\u001b[22m\u001b[39m\n\n\u001b[2m Test Files \u001b[22m \u001b[1m\u001b[32m3 passed\u001b[39m\u001b[22m\u001b[90m (3)\u001b[39m\n\u001b[2m      Tests \u001b[22m \u001b[1m\u001b[32m65 passed\u001b[39m\u001b[22m\u001b[90m (65)\u001b[39m\n\u001b[2m   Start at \u001b[22m 16:16:12\n\u001b[2m   Duration \u001b[22m 184ms\u001b[2m (transform 64ms, setup 0ms, collect 115ms, tests 40ms, environment 0ms, prepare 75ms)\u001b[22m\n\n",
+      "passed": 65,
+      "failed": 0
+    },
+    "test:component": {
+      "cmd": "npm run test:component",
+      "exit": 0,
+      "seconds": 1.4,
+      "tail": "\n> vidi6@0.0.0 test:component\n> vitest run --project component\n\n\n\u001b[1m\u001b[46m RUN \u001b[49m\u001b[22m \u001b[36mv3.2.7 \u001b[39m\u001b[90m~/.vidi-bench/work/qwen__3.8__flash-next__macos__128GB__mlxserve-opencode__benchmarks__vidi__canvas-mlx-01/workspace\u001b[39m\n\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[45m component \u001b[49m\u001b[39m tests/component/ZoomControls.test.tsx \u001b[2m(\u001b[22m\u001b[2m10 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 112\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[45m component \u001b[49m\u001b[39m tests/component/NavigationHint.test.tsx \u001b[2m(\u001b[22m\u001b[2m7 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 130\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[45m component \u001b[49m\u001b[39m tests/component/StickyTextEditor.test.tsx \u001b[2m(\u001b[22m\u001b[2m4 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 141\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[45m component \u001b[49m\u001b[39m tests/component/Toolbars.test.tsx \u001b[2m(\u001b[22m\u001b[2m3 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 156\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[45m component \u001b[49m\u001b[39m tests/component/StickyNote.test.tsx \u001b[2m(\u001b[22m\u001b[2m11 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[33m 344\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[45m component \u001b[49m\u001b[39m tests/component/BoardViewport.test.tsx \u001b[2m(\u001b[22m\u001b[2m27 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[33m 592\u001b[2mms\u001b[22m\u001b[39m\n\n\u001b[2m Test Files \u001b[22m \u001b[1m\u001b[32m6 passed\u001b[39m\u001b[22m\u001b[90m (6)\u001b[39m\n\u001b[2m      Tests \u001b[22m \u001b[1m\u001b[32m62 passed\u001b[39m\u001b[22m\u001b[90m (62)\u001b[39m\n\u001b[2m   Start at \u001b[22m 16:16:13\n\u001b[2m   Duration \u001b[22m 1.08s\u001b[2m (transform 176ms, setup 366ms, collect 501ms, tests 1.47s, environment 1.13s, prepare 177ms)\u001b[22m\n\n",
+      "passed": 62,
+      "failed": 0
+    },
+    "test:integration": {
+      "exit": "missing"
+    },
+    "test:e2e": {
+      "cmd": "npm run test:e2e -- --project=chromium",
+      "exit": 0,
+      "seconds": 12.9,
+      "tail": "wrangler:info] GET / 200 OK (1ms)\n[WebServer] [wrangler:info] GET /assets/index-C1TmyPXZ.js 200 OK (1ms)\n[WebServer] [wrangler:info] GET /assets/index-42-59AJP.css 200 OK (7ms)\n  \u2713   3 [chromium] \u203a tests/e2e/navigation.spec.ts:128:1 \u203a TC-25: Zoom in steps by one factor per click and disables itself at the maximum (1.1s)\n[WebServer] [wrangler:info] GET / 200 OK (1ms)\n[WebServer] [wrangler:info] GET /assets/index-C1TmyPXZ.js 200 OK (1ms)\n[WebServer] [wrangler:info] GET /assets/index-42-59AJP.css 200 OK (6ms)\n  \u2713   4 [chromium] \u203a tests/e2e/navigation.spec.ts:155:1 \u203a TC-26: Reset view returns a camera a million pixels away to the known view (202ms)\n[WebServer] [wrangler:info] GET / 200 OK (1ms)\n[WebServer] [wrangler:info] GET /assets/index-C1TmyPXZ.js 200 OK (1ms)\n[WebServer] [wrangler:info] GET /assets/index-42-59AJP.css 200 OK (5ms)\n  \u2713   5 [chromium] \u203a tests/e2e/navigation.spec.ts:182:1 \u203a TC-27: pan, zoom and reset stay consistent a million pixels away, at 1x and at 2x (2.0s)\n[WebServer] [wrangler:info] GET / 200 OK (2ms)\n[WebServer] [wrangler:info] GET /assets/index-C1TmyPXZ.js 200 OK (1ms)\n[WebServer] [wrangler:info] GET /assets/index-42-59AJP.css 200 OK (6ms)\n  \u2713   6 [chromium] \u203a tests/e2e/navigation.spec.ts:224:1 \u203a TC-28: the first-use navigation hint appears once and never again (1.9s)\n[WebServer] [wrangler:info] GET / 200 OK (1ms)\n[WebServer] [wrangler:info] GET /assets/index-C1TmyPXZ.js 200 OK (2ms)\n[WebServer] [wrangler:info] GET /assets/index-42-59AJP.css 200 OK (7ms)\n  \u2713   7 [chromium] \u203a tests/e2e/navigation.spec.ts:245:1 \u203a TC-31: navigation leaves the browser page zoom unchanged (332ms)\n[WebServer] [wrangler:info] GET / 200 OK (2ms)\n[WebServer] [wrangler:info] GET /assets/index-C1TmyPXZ.js 200 OK (1ms)\n[WebServer] [wrangler:info] GET /assets/index-42-59AJP.css 200 OK (6ms)\n  \u2713   8 [chromium] \u203a tests/e2e/sticky-notes.spec.ts:32:3 \u203a sticky notes \u203a TC-30 double-click creates a note centred on the click and types into it (91ms)\n[WebServer] [wrangler:info] GET / 200 OK (2ms)\n[WebServer] [wrangler:info] GET /assets/index-C1TmyPXZ.js 200 OK (1ms)\n[WebServer] [wrangler:info] GET /assets/index-42-59AJP.css 200 OK (5ms)\n  \u2713   9 [chromium] \u203a tests/e2e/sticky-notes.spec.ts:55:3 \u203a sticky notes \u203a TC-31 at 50% zoom a (100,50) drag moves the world by (200,100) and keeps the grab under the pointer (728ms)\n[WebServer] [wrangler:info] GET / 200 OK (2ms)\n[WebServer] [wrangler:info] GET /assets/index-C1TmyPXZ.js 200 OK (1ms)\n[WebServer] [wrangler:info] GET /assets/index-42-59AJP.css 200 OK (6ms)\n  \u2713  10 [chromium] \u203a tests/e2e/sticky-notes.spec.ts:79:3 \u203a sticky notes \u203a TC-32 at 200% zoom a (100,50) drag moves the world by (50,25) and raises the note above an overlap (1.0s)\n[WebServer] [wrangler:info] GET / 200 OK (1ms)\n[WebServer] [wrangler:info] GET /assets/index-C1TmyPXZ.js 200 OK (1ms)\n[WebServer] [wrangler:info] GET /assets/index-42-59AJP.css 200 OK (6ms)\n  \u2713  11 [chromium] \u203a tests/e2e/sticky-notes.spec.ts:105:3 \u203a sticky notes \u203a TC-33 short text uses the max font size and 1,000 pasted chars clip at the minimum with the fade (96ms)\n[WebServer] [wrangler:info] GET / 200 OK (1ms)\n[WebServer] [wrangler:info] GET /assets/index-C1TmyPXZ.js 200 OK (1ms)\n[WebServer] [wrangler:info] GET /assets/index-42-59AJP.css 200 OK (6ms)\n  \u2713  12 [chromium] \u203a tests/e2e/sticky-notes.spec.ts:138:3 \u203a sticky notes \u203a TC-34 creating from the toolbar while panned far away shows a note at the screen centre (192ms)\n[WebServer] [wrangler:info] GET / 200 OK (1ms)\n[WebServer] [wrangler:info] GET /assets/index-C1TmyPXZ.js 200 OK (1ms)\n[WebServer] [wrangler:info] GET /assets/index-42-59AJP.css 200 OK (5ms)\n  \u2713  13 [chromium] \u203a tests/e2e/sticky-notes.spec.ts:154:3 \u203a sticky notes \u203a golden path: create, type, move at 50%, recolour, delete (843ms)\n\n  13 passed (12.4s)\n[WebServer] \u25b2 [WARNING] Processing wrangler.jsonc configuration:\n[WebServer] \n[WebServer]     - Unexpected fields found in kv_namespaces[0] field: \"bucket_name\",\"preview_bucket_name\"\n[WebServer] \n[WebServer] \n",
+      "passed": 13,
+      "failed": 0
+    }
+  },
+  "all_green": true
+}
