@@ -11,7 +11,6 @@
 
 import { expect, test, type Page } from '@playwright/test';
 import {
-  allSnaps,
   marqueeDrag,
   mouseDrag,
   objectsSnapshot,
@@ -23,11 +22,9 @@ import {
   textBox,
   textCenter,
   toolState,
-  typeText,
-  waitConverged,
 } from './helpers/board';
-import { openRoom } from './helpers/live';
-import { TEXT_LINE_HEIGHT, TEXT_MAX_AUTO_WIDTH_WORLD, TEXT_PADDING_WORLD, TEXT_SIZES } from '../../src/shared/config';
+import { allSnaps, openRoom, waitConverged } from './helpers/live';
+import { TEXT_LINE_HEIGHT, TEXT_MAX_AUTO_WIDTH_WORLD, TEXT_SIZES } from '../../src/shared/config';
 import { LONG_PROSE, SHORT_PHRASE } from '../fixtures/texts';
 
 /** One text block's stored state, read from the page's own document. */

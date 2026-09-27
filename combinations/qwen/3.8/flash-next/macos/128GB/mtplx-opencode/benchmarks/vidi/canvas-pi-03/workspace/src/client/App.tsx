@@ -10,19 +10,23 @@ import { useSelection } from './board/useSelection';
 import { ConnectionStatus } from './sync/ConnectionStatus';
 import { canEdit } from './sync/connectBoard';
 import type { ConnectBoardOptions } from './sync/connectBoard';
-import { StickyNote } from './objects/StickyNote';
 import { NoteToolbar } from './objects/NoteToolbar';
+import { ShapeToolbar } from './objects/ShapeToolbar';
+import { renderObject } from './objects/registry';
+import { ShapeTool } from './tools/ShapeTool';
+import { ConnectorTool } from './tools/ConnectorTool';
+import { useActiveTool, toolForKey, isCreationTool, type ToolId } from './tools/useActiveTool';
 import { createSticky, deleteObject, deleteObjects, getStickyText, moveObject, moveObjects, objectBounds, objectSnapshots, objectsInRect, resizeObjects, setStickyColor, LOCAL_ORIGIN } from '../shared/board-model';
 import { createText, getTextObject, setTextWidthFixed, setTextSize } from '../shared/objects/text';
-import { TextObject } from './objects/TextObject';
-import { toolForKey } from './board/tools';
-import { useTool } from './board/useTool';
+import { createShape, getShapeLabel, setShapeStyle } from '../shared/objects/shape';
+import { createConnector, getConnectorEnds, resolveConnector } from '../shared/objects/connector';
+import type { ShapeSnapshot } from '../shared/board-model';
 import { SelectionBar, selectionScreenBounds } from '../canvas/SelectionBar';
 import { SelectionBox, type SelectionTransform } from '../canvas/SelectionBox';
 import { clampScale, scaleWithin, unionRect, type Rect } from '../shared/geometry';
 import { anyAspectLocked, minSizeOf, selectionResizeMode, allFreeResize } from '../shared/object-types';
 import { TransformGesture } from './board/transform-gesture';
-import { STICKY_SIZE_WORLD, NUDGE_STEP_WORLD, NUDGE_LARGE_STEP_WORLD, STICKY_MIN_SIZE_WORLD, TEXT_MIN_WIDTH_WORLD, type StickyColor, type TextSize } from '../shared/config';
+import { STICKY_SIZE_WORLD, NUDGE_STEP_WORLD, NUDGE_LARGE_STEP_WORLD, STICKY_MIN_SIZE_WORLD, TEXT_MIN_WIDTH_WORLD, type StickyColor, type TextSize, type FillColor, type StrokeColor } from '../shared/config';
 import { canZoomIn, canZoomOut, zoomPercent, screenToWorld, worldToScreen, type Size } from './canvas/camera';
 
 function initialSize(): Size {
@@ -70,13 +74,6 @@ export function App({ boardId = null, providerFactory }: AppProps = {}) {
   const connRef = useRefLike(connectionState);
   const editable = canEdit(connectionState);
   const editableRef = useRefLike(editable);
-  // The board's tool (story 9): 'select' by default, 'text' after T or the
-  // palette button, and back to 'select' as soon as a block is placed. A board
-  // that cannot be edited has no tools at all.
-  const tools = useTool(editable);
-  const tool = tools.tool;
-  const toolRef = useRefLike(tool);
-  const setToolRef = useRefLike(tools.setTool);
   // Undo goes through the store's UndoManager (local-origin edits only).
   const undoRef = useRefLike(undo);
 
@@ -86,6 +83,27 @@ export function App({ boardId = null, providerFactory }: AppProps = {}) {
   const docRef = useRefLike(doc);
   const apiRef = useRefLike(api);
   const sizeRef = useRefLike(size);
+
+  // The board's tool (story 9, grown to the story 10 family): 'select' by
+  // default, a creation tool after its shortcut or palette button, and back to
+  // 'select' as soon as something is placed. A board that cannot be edited has
+  // no tools at all.
+  const tools = useActiveTool({
+    canEdit: editable,
+    select: (id: string | null) => selRef.current?.select(id),
+  });
+  const tool = tools.tool;
+  const toolRef = useRefLike(tool);
+  const setToolRef = useRefLike(tools.setTool);
+  const toolsRef = useRefLike(tools);
+
+  // A creation gesture that produced something: the new object becomes the
+  // selection and the board drops back to Select (contract
+  // `tools.return_to_select`). A gesture that drew nothing never gets here, so
+  // the tool stays armed for the next one.
+  const created = useCallback((id: string) => {
+    toolsRef.current.toolCreated(id);
+  }, [toolsRef]);
 
   const handleResize = useCallback((next: Size) => {
     setSize((prev) => (prev.width === next.width && prev.height === next.height ? prev : next));
@@ -205,7 +223,7 @@ export function App({ boardId = null, providerFactory }: AppProps = {}) {
         return;
       }
 
-      if (toolRef.current === 'text') return; // the Text tool owns the pointer
+      if (isCreationTool(toolRef.current)) return; // a creation tool owns the pointer
       if (e.key === 'n' || e.key === 'N') {
         // "Sticky note" tool shortcut: create a note at the viewport centre.
         e.preventDefault();
@@ -274,6 +292,30 @@ export function App({ boardId = null, providerFactory }: AppProps = {}) {
         }
         return id;
       },
+      // Story-10 seams: place a shape and an arrow the same way the tools do,
+      // and read any object's box so a spec can aim a real pointer at it.
+      seedShape: (x: number, y: number, kind?: string, label?: string) => {
+        const id = createShape(docRef.current, { kind: kind ?? 'rect', at: { x, y }, rect: null }, 'local');
+        if (id !== null && label !== undefined && label !== '') {
+          const text = getShapeLabel(docRef.current, id);
+          text?.insert(0, label);
+        }
+        return id;
+      },
+      seedConnector: (
+        from: string | { x: number; y: number },
+        to: string | { x: number; y: number },
+      ) =>
+        createConnector(
+          docRef.current,
+          typeof from === 'string' ? { kind: 'attached', objectId: from, fallback: { x: 0, y: 0 } } : { kind: 'free', ...from },
+          typeof to === 'string' ? { kind: 'attached', objectId: to, fallback: { x: 0, y: 0 } } : { kind: 'free', ...to },
+          'local',
+        ),
+      objectBox: (id: string) => objectBounds(docRef.current, id),
+      connectorEnds: (id: string) => getConnectorEnds(docRef.current, id),
+      /** Where the arrow is DRAWN right now (its resolved ends, world units). */
+      connectorPoints: (id: string) => resolveConnector(docRef.current, id),
       tool: () => toolRef.current,
       textBlock: (id: string) => getTextObject(docRef.current, id),
       // Every selectable object, notes and text blocks alike: story 9 asserts
@@ -498,6 +540,41 @@ export function App({ boardId = null, providerFactory }: AppProps = {}) {
     selRef.current.select(null);
   }, [docRef, selRef]);
 
+  // Every box on the board, keyed by id: the map an arrow resolves its ends
+  // against. Derived from the same snapshot the arrows are drawn from, so a
+  // move (by anyone) redraws the arrows in the same frame it moves the box.
+  const rects = useMemo(() => {
+    const map = new Map<string, Rect>();
+    for (const object of objects) {
+      if (object.type === 'connector') continue;
+      map.set(object.id, { x: object.x, y: object.y, width: object.width, height: object.height });
+    }
+    return map;
+  }, [objects]);
+
+  const toWorld = useCallback((point: { x: number; y: number }) => screenToWorld(cam, point), [cam]);
+
+  // The render context shared by every object renderer (see objects/registry).
+  const renderContext = useMemo(
+    () => ({
+      doc,
+      camera: cam,
+      zoom: cam.zoom,
+      selected: selectedSet,
+      editingId: sel.editingId,
+      groupIds: sel.ids,
+      gesture,
+      editable,
+      rects,
+      toWorld,
+      onSelect: (id: string) => sel.select(id),
+      onStartEdit: (id: string) => sel.startEdit(id),
+      onEndEdit: sel.endEdit,
+    }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [doc, cam, selectedSet, sel.ids, sel.editingId, gesture, editable, rects, toWorld, sel.endEdit],
+  );
+
   // Screen-space toolbar for the selected note (hidden while editing). It is a
   // sibling of the viewport, so its clicks never reach the board.
   const selectedNote =
@@ -511,6 +588,17 @@ export function App({ boardId = null, providerFactory }: AppProps = {}) {
       })
     : null;
 
+  // The shape toolbar: colours for one selected shape, anchored above its top
+  // edge. A shape is never a note, so the two toolbars can never both show.
+  const selectedShape: ShapeSnapshot | undefined =
+    sel.editingId == null && selectedObject !== undefined && selectedObject.type === 'shape'
+      ? selectedObject
+      : undefined;
+  const shapeToolbarPos =
+    selectedShape !== undefined
+      ? worldToScreen(cam, { x: selectedShape.x + selectedShape.width / 2, y: selectedShape.y })
+      : null;
+
   return (
     <>
       <ConnectionStatus state={connectionState} />
@@ -520,50 +608,64 @@ export function App({ boardId = null, providerFactory }: AppProps = {}) {
         onEmptyClick={handleEmptyClick}
         onEmptyDblClick={handleEmptyDblClick}
         onMarqueeCommit={handleMarqueeCommit}
-        tool={tool}
+        tool={tool === 'text' ? 'text' : 'select'}
         onCreateBlock={createBlock}
       >
-        {objects.map((object) =>
-          object.type === 'text' ? (
-            <TextObject
-              key={object.id}
-              block={object}
-              doc={doc}
-              selected={selectedSet.has(object.id)}
-              groupIds={sel.ids}
-              gesture={gesture}
-              editing={sel.editingId === object.id}
-              editable={editable}
-              onSelect={(id) => sel.select(id)}
-              onStartEdit={(id) => sel.startEdit(id)}
-              onEndEdit={sel.endEdit}
-            />
-          ) : null,
-        )}
-        {notes.map((note) => (
-          <StickyNote
-            key={note.id}
-            note={note}
-            doc={doc}
-            zoom={cam.zoom}
-            selected={selectedSet.has(note.id)}
-            groupIds={sel.ids}
-            gesture={gesture}
-            editing={sel.editingId === note.id}
-            editable={editable}
-            onSelect={(id) => sel.select(id)}
-            onStartEdit={(id) => sel.startEdit(id)}
-            onEndEdit={sel.endEdit}
-          />
-        ))}
+        {objects.map((object) => renderObject(object, renderContext))}
       </BoardViewport>
+
+      {tool === 'shape' && (
+        <ShapeTool
+          key="shape-tool"
+          doc={doc}
+          kind={tools.shapeKind}
+          camera={cam}
+          onCreated={created}
+        />
+      )}
+      {tool === 'connector' && (
+        <ConnectorTool
+          key="connector-tool"
+          doc={doc}
+          camera={cam}
+          snapshot={objects}
+          editable={editable}
+          onCreated={created}
+        />
+      )}
 
       <Toolbar
         onCreateSticky={handleCreateSticky}
         tool={tool}
-        onSelectTool={(next) => setToolRef.current(next)}
+        shapeKind={tools.shapeKind}
+        onSelectTool={(next: ToolId) => tools.setTool(next)}
+        onSelectShapeKind={(kind) => tools.setShapeKind(kind)}
         disabled={!editable}
       />
+
+      {selectedShape !== undefined && shapeToolbarPos !== null && (
+        <div
+          style={{
+            position: 'fixed',
+            left: shapeToolbarPos.x,
+            top: shapeToolbarPos.y - 10,
+            transform: 'translate(-50%, -100%)',
+            zIndex: 20,
+          }}
+        >
+          <ShapeToolbar
+            fill={selectedShape.fill as FillColor}
+            stroke={selectedShape.stroke as StrokeColor}
+            disabled={!editable}
+            onFill={(c) => {
+              setShapeStyle(doc, selectedShape.id, { fill: c });
+            }}
+            onStroke={(c) => {
+              setShapeStyle(doc, selectedShape.id, { stroke: c });
+            }}
+          />
+        </div>
+      )}
 
       {selectedNote && toolbarPos && (
         <div

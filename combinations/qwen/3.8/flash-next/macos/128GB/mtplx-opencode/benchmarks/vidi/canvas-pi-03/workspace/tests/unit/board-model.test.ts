@@ -176,12 +176,14 @@ describe('board.model contract', () => {
   it('TC-12 unknown object type skipped by snapshot, no throw', () => {
     createSticky(doc, { x: 0, y: 0 });
     const objects = doc.getMap<Y.Map<unknown>>('objects');
-    const shape = new Y.Map<unknown>();
-    shape.set('type', 'shape');
-    shape.set('x', 0);
-    shape.set('y', 0);
+    // 'widget' is invented for this test: story 10 registered real 'shape' and
+    // 'connector' types, so an UNKNOWN type has to be made up.
+    const widget = new Y.Map<unknown>();
+    widget.set('type', 'widget');
+    widget.set('x', 0);
+    widget.set('y', 0);
     doc.transact(() => {
-      objects.set('shape-1', shape);
+      objects.set('widget-1', widget);
     });
     const snap = snapshot(doc);
     expect(snap).toHaveLength(1);

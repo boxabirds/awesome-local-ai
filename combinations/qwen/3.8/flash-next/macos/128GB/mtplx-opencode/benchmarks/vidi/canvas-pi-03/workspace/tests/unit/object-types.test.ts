@@ -6,9 +6,10 @@ import {
   anyResizable,
   anyAspectLocked,
   minSizeOf,
+  selectionResizeMode,
   STICKY_SPEC,
 } from '../../src/shared/object-types';
-import { STICKY_MIN_SIZE_WORLD, STICKY_SIZE_WORLD } from '../../src/shared/config';
+import { STICKY_MIN_SIZE_WORLD, STICKY_SIZE_WORLD, SHAPE_MIN_SIZE_WORLD } from '../../src/shared/config';
 import type { ObjectTypeSpec } from '../../src/shared/object-types';
 
 describe('object type registry (sel.registry)', () => {
@@ -36,7 +37,27 @@ describe('object type registry (sel.registry)', () => {
   it('TC-12: an unknown type resolves to undefined', () => {
     expect(getObjectType('unknown')).toBeUndefined();
     expect(getObjectType(undefined)).toBeUndefined();
-    expect(getObjectType('shape')).toBeUndefined();
+    expect(getObjectType('triangle')).toBeUndefined();
+  });
+
+  it('story 10: shapes and connectors declare themselves in the registry', () => {
+    const shape = getObjectType('shape');
+    expect(shape).toBeDefined();
+    expect(shape?.resizable).toBe(true);
+    expect(shape?.aspectLocked).toBe(false);
+    expect(shape?.minSize).toBe(SHAPE_MIN_SIZE_WORLD);
+    expect(shape?.editableText).toBe(true);
+    // An arrow takes no handles, no editor and no group translation: its
+    // geometry is derived from its ends (contract connector.ui).
+    const connector = getObjectType('connector');
+    expect(connector).toBeDefined();
+    expect(connector?.resizable).toBe(false);
+    expect(connector?.editableText).toBe(false);
+    expect(connector?.movable).toBe(false);
+    // A mixed selection of an arrow and anything else loses the handles.
+    expect(selectionResizeMode(['shape'])).toBe('all');
+    expect(selectionResizeMode(['connector', 'shape'])).toBe('none');
+    expect(selectionResizeMode(['connector'])).toBe('none');
   });
 
   it('registering the same type twice throws (programming error)', () => {

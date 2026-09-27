@@ -12,7 +12,13 @@
 
 import type { Point, Rect } from './geometry';
 import { rectContainsPoint } from './geometry';
-import { STICKY_MIN_SIZE_WORLD, TEXT_MIN_WIDTH_WORLD } from './config';
+import {
+  STICKY_MIN_SIZE_WORLD,
+  TEXT_MIN_WIDTH_WORLD,
+  SHAPE_MIN_SIZE_WORLD,
+  CONNECTOR_HIT_TOLERANCE_PX,
+} from './config';
+import { distanceToPolyline } from './geometry/polyline';
 
 export interface ObjectTypeSpec {
   /** Registry key, matching the `type` field stored on the object. */
@@ -29,6 +35,9 @@ export interface ObjectTypeSpec {
   minSize: number;
   /** True → Enter / double-click opens a text editor for it. */
   editableText: boolean;
+  /** False → a group move leaves this type alone. An arrow's position is
+   * derived from its ends, so translating a stored x/y would be meaningless. */
+  movable?: boolean;
   /** Which resize handles a selection of ONLY this kind shows. 'all' is the
    * eight-handle box; 'horizontal' means the height is derived from the
    * content and only the left/right edges resize (contract `text.height`).
@@ -173,9 +182,47 @@ export const TEXT_SPEC: ObjectTypeSpec = {
   hitTest: (bounds, point) => rectContainsPoint(bounds, point),
 };
 
+/** Shapes: resizable in both axes (no aspect lock), and hit anywhere inside
+ * the drawn box, like a note. */
+export const SHAPE_SPEC: ObjectTypeSpec = {
+  type: 'shape',
+  resizable: true,
+  aspectLocked: false,
+  minSize: SHAPE_MIN_SIZE_WORLD,
+  editableText: true,
+  hitTest: (bounds, point) => rectContainsPoint(bounds, point),
+};
+
+/** Connectors: no resize handles and no text editor (contract `connector.ui`).
+ *
+ * `hitTest` is deliberately the loose bounding-box test: whether a click landed
+ * on the line itself is decided by `hitConnector` (the polyline distance, in
+ * SCREEN pixels over zoom), which is what the renderer and the tests use. The
+ * rectangle test here only answers "is this point anywhere near the arrow", and
+ * that is all the marquee and the group transform need.
+ */
+export const CONNECTOR_SPEC: ObjectTypeSpec = {
+  type: 'connector',
+  resizable: false,
+  aspectLocked: false,
+  minSize: 0,
+  editableText: false,
+  movable: false,
+  hitTest: (bounds, point) => rectContainsPoint(bounds, point),
+};
+
+/** True when a point is within CONNECTOR_HIT_TOLERANCE_PX SCREEN pixels of an
+ * arrow's line (`tolerance / zoom` world units). */
+export function hitConnector(ends: readonly Point[], point: Point, zoom: number): boolean {
+  const tolerance = CONNECTOR_HIT_TOLERANCE_PX / (Number.isFinite(zoom) && zoom > 0 ? zoom : 1);
+  return distanceToPolyline(ends, point) <= tolerance;
+}
+
 function registerBuiltinTypes(): void {
   registerObjectType(STICKY_SPEC);
   registerObjectType(TEXT_SPEC);
+  registerObjectType(SHAPE_SPEC);
+  registerObjectType(CONNECTOR_SPEC);
 }
 
 // Registered on module load; `resetObjectTypes` re-registers after a test wipe.

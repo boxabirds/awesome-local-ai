@@ -12,8 +12,9 @@ Model `mtplx-flash-next-optimized-speed`, scope `canvas`, effort `low`, client p
 | 7 | Select, move, resize and delete several objects at once | DONE, on partial 3 | 149.9 | 431 | 29011734 | 347427 | 1.3 | 67.9 | green | 37/44 |  | 3 / 2 (ended in error) | 11 | 123269 | throttled 72%, server peak 110 GB |
 | 8 | Undo and redo my own changes without undoing anyone else's | DONE, on partial 3 | 62.0 | 155 | 9188329 | 177299 | 1.9 | 71.1 | green | 38/51 |  | 3 / 0 (ended in error) | 4 | 119407 | throttled 85%, server peak 110 GB |
 | 9 | Write free text anywhere on the board | DONE, on partial 3 | 159.2 | 418 | 29109980 | 353923 | 1.5 | 65.2 | red | 40/57 |  | 3 / 1 (ended in error) | 8 | 120528 | throttled 78%, server peak 104 GB |
+| 10 | Draw shapes and connect them with arrows that follow when moved | DONE, on partial 3 | 105.7 | 31 | 2571349 | 22897 | 1.2 | 62.8 | red | 45/65 |  | 3 / 1 (ended in error) | 15 | 114621 | throttled 71%, server peak 104 GB |
 
-**Totals:** 8 stories, 775 agent-minutes, 2212 requests, 149,210,827 prompt / 1,777,203 completion tokens, gate green 6/8, final acceptance 40/57, stalled 0, partial 1, 17599 lines in src+tests.
+**Totals:** 9 stories, 880 agent-minutes, 2243 requests, 151,782,176 prompt / 1,800,100 completion tokens, gate green 6/9, final acceptance 45/65, stalled 0, partial 1, 21140 lines in src+tests.
 
 ### Stories ended early (PARTIAL) and what was built on them
 
@@ -23,16 +24,17 @@ Model `mtplx-flash-next-optimized-speed`, scope `canvas`, effort `low`, client p
 - Story 7, built on partial 3: held-out tests on the partial base 18/24; partial story's tests fixed 0, regressed 0; 0 stub-like lines added to src/.
 - Story 8, built on partial 3: held-out tests on the partial base 19/31; partial story's tests fixed 0, regressed 0; 0 stub-like lines added to src/.
 - Story 9, built on partial 3: held-out tests on the partial base 21/37; partial story's tests fixed 0, regressed 0; 2 stub-like lines added to src/.
+- Story 10, built on partial 3: held-out tests on the partial base 26/45; partial story's tests fixed 0, regressed 0; 0 stub-like lines added to src/.
 
 ### Decode tok/s by context (server log, all stories)
 
 | Context | Requests | Decode tok/s (request-weighted median of per-story medians) |
 |---|---|---|
-| 0-16k | 56 | 78.2 |
-| 16-32k | 145 | 73.8 |
-| 32-64k | 822 | 73.5 |
-| 64-100k | 825 | 67.6 |
-| 100-+k | 364 | 57.3 |
+| 0-16k | 57 | 78.2 |
+| 16-32k | 147 | 73.8 |
+| 32-64k | 828 | 73.5 |
+| 64-100k | 831 | 67.6 |
+| 100-+k | 380 | 57.3 |
 
 ## How it happened
 
@@ -48,6 +50,7 @@ Each story's commits, and which story broke or fixed an earlier story's held-out
 | 7 | harness snapshot (agent left work uncommitted) | 2902 / 53 | `transform-gesture.ts` (282), `App.tsx` (209), `board-model.ts` (205), `geometry.ts` (202), `SelectionBox.tsx` (199), `selection-controller.ts` (143), +9 more |
 | 8 | harness snapshot (agent left work uncommitted) | 231 / 0 | `undo.ts` (122), `config.ts` (10) |
 | 9 | harness snapshot (agent left work uncommitted) | 3715 / 257 | `text-layout.ts` (265), `TextObject.tsx` (224), `App.tsx` (197), `text.ts` (195), `TextEditor.tsx` (191), `StickyTextEditor.tsx` (143), +15 more |
+| 10 | harness snapshot (agent left work uncommitted) | 3676 / 135 | `ConnectorObject.tsx` (277), `ConnectorTool.tsx` (275), `connector.ts` (258), `ShapeObject.tsx` (257), `shape.ts` (215), `App.tsx` (198), +10 more |
 
 ### Earlier stories broken or fixed
 
@@ -57,16 +60,19 @@ No story changed an earlier story's held-out results.
 
 A gap in a story's agent events with a restart or a logged intervention inside it is dead time (the machine or the run was down), not agent time. *Active* is the story's event span minus that dead time, across every attempt. *Recorded* is the harness's agent time, which covers only the attempt after the last restart.
 
-**2 machine freezes, 1 operator restart; 43 min dead in total.**
+**2 machine freezes, 2 operator restarts, 1 restart (no intervention logged); 68 min dead in total.**
 
 | Story | When (UTC) | Down for | Kind | Logged cause |
 |---|---|---|---|---|
 | 3 | 26 Sep 08:57 | 22 min | machine freeze | quintus froze (last system log 08:57:29.5Z; |
 | 4 | 26 Sep 14:48 | 20 min | machine freeze | quintus froze a third time today; |
 | 9 | 26 Sep 21:53 | 1 min | operator restart | before story 9: the operator stopped the run and relaunched it unchanged at `MTPLX_MEMORY_LIMIT_BYTES=90G` to restart MTPLX. |
+| 9 | 26 Sep 21:56 | 6 min | restart (no intervention logged) | — |
+| 10 | 27 Sep 00:44 | 18 min | operator restart | the run was stopped (SIGTERM to the whole process tree, recorded as "run stopped: exit 143") and relaunched at 00:51:07Z with the same command (`MTPLX_MEMORY_LIMIT_BYTES=90G`). |
 
 | Story | Active | Dead | Recorded |
 |---|---|---|---|
 | 3 | 206 min | 22 min | 166 min |
 | 4 | 218 min | 20 min | 56 min |
-| 9 | 163 min | 1 min | 159 min |
+| 9 | 157 min | 7 min | 159 min |
+| 10 | 109 min | 18 min | 106 min |

@@ -14,7 +14,7 @@ export interface StickySnapshot {
   text: string;
 }
 
-/** One board object as the test hook reports it: notes AND text blocks. */
+/** One board object as the test hook reports it: every selectable type. */
 export interface BoardObject {
   id: string;
   type: string;
@@ -25,6 +25,14 @@ export interface BoardObject {
   text: string;
   size?: string;
   widthMode?: string;
+  /** Shapes only. */
+  kind?: string;
+  fill?: string;
+  stroke?: string;
+  label?: string;
+  /** Arrows only: the stored endpoints, in world units. */
+  from?: { kind: string; objectId?: string; x?: number; y?: number };
+  to?: { kind: string; objectId?: string; x?: number; y?: number };
 }
 
 declare global {
@@ -38,6 +46,13 @@ declare global {
       seedSticky(x: number, y: number, color?: string): string;
       seedText(x: number, y: number): string | null;
       tool(): string;
+      seedShape(x: number, y: number, kind?: string, label?: string): string | null;
+      seedConnector(
+        from: string | { x: number; y: number },
+        to: string | { x: number; y: number },
+      ): string | null;
+      objectBox(id: string): { x: number; y: number; width: number; height: number } | null;
+      connectorEnds(id: string): { from: { x: number; y: number }; to: { x: number; y: number } } | null;
       textBlock(id: string): { text: string; size: string; widthMode: string; width: number; height: number } | null;
       selection(): string[];
       snapshot(): BoardObject[];
@@ -262,6 +277,76 @@ export async function placeTextByTool(page: Page, x: number, y: number): Promise
   await page.mouse.click(x, y);
 }
 
+// ---- Shape & connector (story 10) helpers ----
+
+/** Every shape on the board, in paint order. */
+export async function shapes(page: Page): Promise<BoardObject[]> {
+  return (await objectsSnapshot(page)).filter((o) => o.type === 'shape');
+}
+
+/** Every arrow on the board, in paint order. */
+export async function connectors(page: Page): Promise<BoardObject[]> {
+  return (await objectsSnapshot(page)).filter((o) => o.type === 'connector');
+}
+
+/** Seed a shape through the test hook (a centred default box, like a click).
+ * Pass a label to give it text without going through the editor. */
+export function seedShape(page: Page, x: number, y: number, kind?: string, label?: string): Promise<string | null> {
+  return page.evaluate((a) => window.__vidi6!.seedShape(a.x, a.y, a.kind, a.label), { x, y, kind, label });
+}
+
+/** Seed an arrow between two ids (or two board points). */
+export function seedConnector(
+  page: Page,
+  from: string | { x: number; y: number },
+  to: string | { x: number; y: number },
+): Promise<string | null> {
+  return page.evaluate((a) => window.__vidi6!.seedConnector(a.from, a.to), { from, to });
+}
+
+/** The stored endpoints of an arrow, in world units. */
+export function connectorEnds(
+  page: Page,
+  id: string,
+): Promise<{ from: { x: number; y: number }; to: { x: number; y: number } } | null> {
+  return page.evaluate((i) => window.__vidi6!.connectorEnds(i), id);
+}
+
+/** Locate a rendered shape by id. */
+export function shapeByld(page: Page, id: string): Locator {
+  return page.locator(`[data-shape-id="${id}"]`);
+}
+
+/** Locate a rendered arrow by id. */
+export function connectorByld(page: Page, id: string): Locator {
+  return page.locator(`[data-connector-id="${id}"]`);
+}
+
+/** Page-space box of any board object, read from its own rendered element. */
+export async function objectBox(
+  page: Page,
+  id: string,
+): Promise<{ x: number; y: number; width: number; height: number }> {
+  const el = page.locator(`[data-shape-id="${id}"], [data-note-id="${id}"], [data-block-id="${id}"]`);
+  await el.waitFor({ state: 'visible', timeout: 5_000 });
+  const box = await el.boundingBox();
+  if (!box) throw new Error(`object ${id} has no bounding box`);
+  return box;
+}
+
+/** Page-space centre of any board object. */
+export async function objectCenter(page: Page, id: string): Promise<{ x: number; y: number }> {
+  const box = await objectBox(page, id);
+  return { x: box.x + box.width / 2, y: box.y + box.height / 2 };
+}
+
+/** Where an arrow is drawn right now: the two ends it resolves to. */
+export async function connectorPoints(page: Page, id: string): Promise<{ x: number; y: number }[]> {
+  const ends = await connectorEnds(page, id);
+  if (!ends) return [];
+  return [await worldToScreen(page, ends.from), await worldToScreen(page, ends.to)];
+}
+
 /** A Shift+drag over empty board: the marquee gesture. */
 export async function marqueeDrag(page: Page, sx: number, sy: number, dx: number, dy: number) {
   await page.keyboard.down('Shift');
@@ -270,20 +355,4 @@ export async function marqueeDrag(page: Page, sx: number, sy: number, dx: number
   await page.mouse.move(sx + dx, sy + dy, { steps: 4 });
   await page.mouse.up();
   await page.keyboard.up('Shift');
-}
-
-/**
- * Type into a text block the real way: double-click to open the in-place
- * editor, fill the textarea, then Escape to close it.
- */
-export async function typeText(page: Page, id: string, text: string): Promise<void> {
-  await page.keyboard.press('Escape');
-  await page.waitForTimeout(30);
-  const c = await textCenter(page, id);
-  await page.mouse.dblclick(c.x, c.y);
-  const editor = page.getByTestId('text-editor');
-  await editor.waitFor({ state: 'visible', timeout: 3_000 });
-  await editor.fill(text);
-  await page.keyboard.press('Escape');
-  await page.waitForTimeout(30);
 }

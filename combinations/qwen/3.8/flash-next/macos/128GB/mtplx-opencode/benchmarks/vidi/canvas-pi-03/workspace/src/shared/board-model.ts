@@ -26,14 +26,18 @@ import {
   MAX_OBJECT_SIZE_WORLD,
   DEFAULT_STICKY_COLOR,
   STICKY_COLORS,
+  DEFAULT_SHAPE_FILL,
+  DEFAULT_SHAPE_STROKE,
   TEXT_SIZES,
   DEFAULT_TEXT_SIZE,
   type StickyColor,
   type TextSize,
 } from './config';
-import type { Rect } from './geometry';
+import type { Point, Rect } from './geometry';
 import { isFiniteRect } from './geometry';
 import { getObjectType } from './object-types';
+import { detachConnectorsTo, type Endpoint } from './objects/connector';
+import { connectorBBox, resolveEndpoints } from './geometry/connector-geometry';
 
 /** Transaction origin used for every local (user-driven) mutation. Story 8 uses
  * it for undo scoping and story 3 to avoid echoing changes back. */
@@ -71,8 +75,28 @@ export interface TextSnapshot extends ObjectSnapshot {
   widthMode: 'auto' | 'fixed';
 }
 
+/** Immutable projection of one shape (story 10). */
+export interface ShapeSnapshot extends ObjectSnapshot {
+  type: 'shape';
+  kind: string;
+  fill: string;
+  stroke: string;
+  label: string;
+}
+
+/** Immutable projection of one connector (story 10).
+ *
+ * `x/y/width/height` are DERIVED from `from`/`to` on every read: an arrow never
+ * stores a position of its own, which is what lets it follow the boxes it is
+ * attached to. */
+export interface ConnectorSnapshot extends ObjectSnapshot {
+  type: 'connector';
+  from: Endpoint;
+  to: Endpoint;
+}
+
 /** Anything the board can render and select. */
-export type AnySnapshot = StickySnapshot | TextSnapshot;
+export type AnySnapshot = StickySnapshot | TextSnapshot | ShapeSnapshot | ConnectorSnapshot;
 
 /** The document key holding the object map. */
 const OBJECTS_KEY = 'objects';
@@ -183,12 +207,17 @@ export function setStickyColor(doc: Y.Doc, id: string, color: string): boolean {
   return true;
 }
 
-/** Remove a note. Rejects stale ids with `false` and no transaction. */
+/** Remove a note. Rejects stale ids with `false` and no transaction.
+ *
+ * An arrow attached to the deleted note is detached in the SAME transaction (it
+ * becomes a free end at the anchor it was using), so one delete is one update
+ * and one undo step, and no arrow is ever left pointing at nothing. */
 export function deleteObject(doc: Y.Doc, id: string): boolean {
   const objects = objectsMap(doc);
   const note = objects.get(id);
   if (!note || !isSticky(note)) return false;
   doc.transact(() => {
+    detachConnectorsTo(doc, [id]);
     objects.delete(id);
   }, LOCAL_ORIGIN);
   return true;
@@ -218,6 +247,9 @@ export function getStickyText(doc: Y.Doc, id: string): Y.Text | undefined {
 export function objectBounds(doc: Y.Doc, id: string): Rect | null {
   const obj = objectsMap(doc).get(id);
   if (!obj || !isSelectable(obj)) return null;
+  // An arrow has no footprint of its own: its bounding box is derived from its
+  // two ends and the live boxes they point at.
+  if (obj.get('type') === 'connector') return connectorBoundsOf(rectMap(doc), obj);
   const x = obj.get('x');
   const y = obj.get('y');
   if (typeof x !== 'number' || typeof y !== 'number') return null;
@@ -284,7 +316,11 @@ export function moveObjects(doc: Y.Doc, ids: readonly string[], dx: number, dy: 
   const targets: Y.Map<unknown>[] = [];
   for (const id of ids) {
     const note = objects.get(id);
-    if (note !== undefined && isSelectable(note)) targets.push(note);
+    if (note === undefined || !isSelectable(note)) continue;
+    // A type may declare itself immovable (an arrow's position is derived from
+    // its ends), in which case a group drag simply leaves it where it is.
+    if (getObjectType(note.get('type') as string | undefined)?.movable === false) continue;
+    targets.push(note);
   }
   if (targets.length === 0) return 0;
   let count = 0;
@@ -302,7 +338,9 @@ export function moveObjects(doc: Y.Doc, ids: readonly string[], dx: number, dy: 
 }
 
 /** Remove several objects in one transaction. Missing ids are skipped. Returns
- * the number actually deleted. */
+ * the number actually deleted. Every arrow that pointed at one of them has that
+ * end detached in the SAME transaction (contract `connector.target_deleted`), so
+ * the whole delete stays one update and one undo step. */
 export function deleteObjects(doc: Y.Doc, ids: readonly string[]): number {
   const objects = objectsMap(doc);
   const present = ids.filter((id) => {
@@ -312,6 +350,7 @@ export function deleteObjects(doc: Y.Doc, ids: readonly string[]): number {
   if (present.length === 0) return 0;
   let count = 0;
   doc.transact(() => {
+    detachConnectorsTo(doc, present);
     for (const id of present) {
       objects.delete(id);
       count += 1;
@@ -332,8 +371,11 @@ export function resizeObjects(doc: Y.Doc, items: ReadonlyMap<string, Rect>): num
     if (!note || !isSelectable(note)) continue;
     if (!rect || !Number.isFinite(rect.x) || !Number.isFinite(rect.y)) continue;
     if (!Number.isFinite(rect.width) || !Number.isFinite(rect.height)) continue;
+    const spec = getObjectType(note.get('type') as string | undefined);
+    // A type that takes no resize handles (an arrow) is never resized either.
+    if (spec && !spec.resizable) continue;
     // Each object stops at its OWN declared minimum (contract sel.size_limits).
-    const minSize = getObjectType(note.get('type') as string | undefined)?.minSize ?? STICKY_MIN_SIZE_WORLD;
+    const minSize = spec?.minSize ?? STICKY_MIN_SIZE_WORLD;
     let w = rect.width;
     let h = rect.height;
     if (w < minSize || h < minSize) continue;
@@ -390,10 +432,87 @@ export function bringObjectsToFront(doc: Y.Doc, ids: readonly string[]): number 
   return raised;
 }
 
+/** The board's boxes, keyed by id: what arrow geometry resolves against. An
+ * arrow is never an attach target, so it is never part of its own input. */
+function rectMap(doc: Y.Doc): Map<string, Rect> {
+  const rects = new Map<string, Rect>();
+  objectsMap(doc).forEach((obj, id) => {
+    if (obj.get('type') === 'connector') return;
+    const rect = rectOfObject(obj);
+    if (rect !== null) rects.set(id, rect);
+  });
+  return rects;
+}
+
+/** One object's stored footprint, or null when it has none to speak of. */
+function rectOfObject(obj: Y.Map<unknown>): Rect | null {
+  const x = obj.get('x');
+  const y = obj.get('y');
+  if (typeof x !== 'number' || typeof y !== 'number') return null;
+  const type = obj.get('type') as string | undefined;
+  const spec = getObjectType(type);
+  if (spec === undefined) return null;
+  const fallback = type === 'sticky' ? STICKY_SIZE_WORLD : (spec.minSize ?? 0);
+  const width = typeof obj.get('width') === 'number' ? (obj.get('width') as number) : fallback;
+  const height = typeof obj.get('height') === 'number' ? (obj.get('height') as number) : fallback;
+  if (!isFiniteRect({ x, y, width, height })) return null;
+  return { x, y, width, height };
+}
+
+/** A straight-ahead arrow keeps a one-unit band instead of a zero-area box: a
+ * zero-area footprint can never be hit, so the arrow would be unselectable. */
+const CONNECTOR_MIN_BAND = 1;
+
+function connectorRectOf(from: Point, to: Point): Rect {
+  const box = connectorBBox(from, to);
+  const flatX = box.width < CONNECTOR_MIN_BAND;
+  const flatY = box.height < CONNECTOR_MIN_BAND;
+  return {
+    x: flatX ? box.x - CONNECTOR_MIN_BAND / 2 : box.x,
+    y: flatY ? box.y - CONNECTOR_MIN_BAND / 2 : box.y,
+    width: flatX ? CONNECTOR_MIN_BAND : box.width,
+    height: flatY ? CONNECTOR_MIN_BAND : box.height,
+  };
+}
+
+function connectorBoundsOf(
+  rects: ReadonlyMap<string, Rect>,
+  obj: Y.Map<unknown>,
+): Rect | null {
+  const from = obj.get('from') as Endpoint | undefined;
+  const to = obj.get('to') as Endpoint | undefined;
+  if (!from || !to) return null;
+  const ends = resolveEndpoints({ from, to }, rects);
+  const rect = connectorRectOf(ends.from, ends.to);
+  return isFiniteRect(rect) ? rect : null;
+}
+
 /** Project one object into its render-ready snapshot, or null when its type is
  * unknown or its footprint is malformed (a malformed footprint renders nothing
  * at all, and cannot be selected either). */
-function objectSnapshotOf(id: string, obj: Y.Map<unknown>): AnySnapshot | null {
+function objectSnapshotOf(
+  id: string,
+  obj: Y.Map<unknown>,
+  rects: ReadonlyMap<string, Rect>,
+): AnySnapshot | null {
+  if (obj.get('type') === 'connector') {
+    const box = connectorBoundsOf(rects, obj);
+    const from = obj.get('from') as Endpoint;
+    const to = obj.get('to') as Endpoint;
+    if (box === null) return null;
+    return {
+      id,
+      x: box.x,
+      y: box.y,
+      width: box.width,
+      height: box.height,
+      z: obj.get('z') as number,
+      createdAt: obj.get('createdAt') as number,
+      type: 'connector',
+      from,
+      to,
+    };
+  }
   const text = obj.get('text') as Y.Text | undefined;
   const size = boundsOf(obj);
   if (!size) return null;
@@ -406,6 +525,17 @@ function objectSnapshotOf(id: string, obj: Y.Map<unknown>): AnySnapshot | null {
     z: obj.get('z') as number,
     createdAt: obj.get('createdAt') as number,
   };
+  if (obj.get('type') === 'shape') {
+    const label = obj.get('label') as Y.Text | undefined;
+    return {
+      ...base,
+      type: 'shape',
+      kind: (obj.get('kind') as string) ?? 'rect',
+      fill: (obj.get('fill') as string) ?? DEFAULT_SHAPE_FILL,
+      stroke: (obj.get('stroke') as string) ?? DEFAULT_SHAPE_STROKE,
+      label: label ? label.toString() : '',
+    };
+  }
   if (obj.get('type') === 'sticky') {
     const color = obj.get('color') as StickyColor;
     return { ...base, type: 'sticky', color: color ?? DEFAULT_STICKY_COLOR, text: text ? text.toString() : '' };
@@ -429,9 +559,12 @@ function objectSnapshotOf(id: string, obj: Y.Map<unknown>): AnySnapshot | null {
  * story 9's text blocks and the sticky notes come out of here, in paint order. */
 export function objectSnapshots(doc: Y.Doc): readonly AnySnapshot[] {
   const result: AnySnapshot[] = [];
+  // One pass for the boxes, then the arrows are resolved against them: an
+  // arrow's footprint only exists relative to what it points at.
+  const rects = rectMap(doc);
   objectsMap(doc).forEach((obj, id) => {
     if (!isSelectable(obj)) return; // skip unknown types
-    const snap = objectSnapshotOf(id, obj);
+    const snap = objectSnapshotOf(id, obj, rects);
     if (snap !== null) result.push(snap);
   });
   // Stable render order: sort by stacking, then by id so concurrent equal z

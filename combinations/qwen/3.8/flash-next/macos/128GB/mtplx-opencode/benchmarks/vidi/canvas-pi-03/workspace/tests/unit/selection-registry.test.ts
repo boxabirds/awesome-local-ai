@@ -57,14 +57,14 @@ describe('object registry: resize modes', () => {
 
   it('a new type is added by registering it, not by editing a widget', () => {
     registerObjectType({
-      type: 'shape',
+      type: 'widget',
       resizable: false,
       aspectLocked: false,
       minSize: 10,
       editableText: false,
       hitTest: (bounds, point) => rectContainsPoint(bounds, point),
     });
-    expect(resizeModeOf('shape')).toBe('none');
-    expect(selectionResizeMode(['shape', 'text'])).toBe('none');
+    expect(resizeModeOf('widget')).toBe('none');
+    expect(selectionResizeMode(['widget', 'text'])).toBe('none');
   });
 });

@@ -110,15 +110,18 @@ describe('board-model group operations', () => {
   it('allObjectIds / objectBounds / objectsInRect skip unknown types', () => {
     const a = createSticky(doc, { x: 0, y: 0 });
     const objects = doc.getMap<Y.Map<unknown>>('objects');
-    const shape = new Y.Map<unknown>();
-    shape.set('type', 'shape');
-    shape.set('x', 0);
-    shape.set('y', 0);
-    doc.transact(() => objects.set('shape-1', shape));
+    // 'widget' is deliberately NOT a registered type: story 7's generic
+    // operations skip anything the registry does not know (story 10 added real
+    // 'shape' and 'connector' types, so an unknown one has to be invented).
+    const widget = new Y.Map<unknown>();
+    widget.set('type', 'widget');
+    widget.set('x', 0);
+    widget.set('y', 0);
+    doc.transact(() => objects.set('widget-1', widget));
 
     expect(allObjectIds(doc)).toEqual([a]);
     expect(objectBounds(doc, a)).not.toBeNull();
-    expect(objectBounds(doc, 'shape-1')).toBeNull();
+    expect(objectBounds(doc, 'widget-1')).toBeNull();
     expect(objectsInRect(doc, { x: -200, y: -200, width: 1000, height: 1000 })).toEqual([a]);
     // A rect that does not fully enclose the note selects nothing.
     expect(objectsInRect(doc, { x: 0, y: 0, width: 1000, height: 1000 })).toEqual([]);

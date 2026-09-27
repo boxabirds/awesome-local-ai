@@ -164,3 +164,57 @@ export const TEXT_FONT_FAMILY = 'Inter, system-ui, sans-serif';
 export const TEXT_AVG_GLYPH_RATIO = 0.55;
 /** Default tool of the board (Text is entered with T or the toolbar). */
 export const DEFAULT_TOOL = 'select';
+
+// --- Shapes & connectors (story 10) -----------------------------------------
+
+/** The three shape kinds a user may draw. There is no triangle/star library. */
+export const SHAPE_KINDS = ['rect', 'ellipse', 'diamond'] as const;
+export type ShapeKind = (typeof SHAPE_KINDS)[number];
+/** Size of a shape dropped by a click (or a drag below the minimum size). */
+export const SHAPE_DEFAULT_SIZE_WORLD = 160;
+/** Smallest shape a drag may create, in world units; smaller is a click. */
+export const SHAPE_MIN_SIZE_WORLD = 20;
+/** Maximum characters kept in a shape's label. */
+export const SHAPE_LABEL_MAX_CHARS = 500;
+/** Shape outline width in world units (scales with zoom). */
+export const SHAPE_STROKE_WIDTH_WORLD = 2;
+/** Font size a shape label starts with, in world units; it shrinks to fit
+ * (see `fitFontSize`), and the label box is the shape's own footprint. */
+export const SHAPE_LABEL_FONT_WORLD = 16;
+
+/** The seven fills of the shape toolbar: six colours plus "no fill". */
+export const SHAPE_FILL_COLORS = {
+  none: 'transparent',
+  white: '#FFFFFF',
+  blue: '#BBDEFB',
+  green: '#C8E6C9',
+  yellow: '#FFF9C4',
+  pink: '#F8BBD0',
+  grey: '#E0E0E0',
+} as const;
+export type FillColor = keyof typeof SHAPE_FILL_COLORS;
+
+/** The six outline colours of the shape toolbar. */
+export const SHAPE_STROKE_COLORS = {
+  dark: '#263238',
+  blue: '#1E88E5',
+  green: '#43A047',
+  orange: '#FB8C00',
+  red: '#E53935',
+  grey: '#9E9E9E',
+} as const;
+export type StrokeColor = keyof typeof SHAPE_STROKE_COLORS;
+
+export const DEFAULT_SHAPE_FILL: FillColor = 'white';
+export const DEFAULT_SHAPE_STROKE: StrokeColor = 'dark';
+
+/** A connector drag shorter than this (in world units) creates nothing. */
+export const CONNECTOR_MIN_LENGTH_WORLD = 8;
+/** Clicking within this many SCREEN pixels of an arrow's line selects it. */
+export const CONNECTOR_HIT_TOLERANCE_PX = 6;
+/** Arrow line width in world units. */
+export const CONNECTOR_STROKE_WIDTH_WORLD = 2;
+/** Arrowhead length in world units. */
+export const CONNECTOR_ARROWHEAD_SIZE_WORLD = 10;
+/** Radius of a connector's hover dots AND end handles, in screen pixels. */
+export const CONNECTOR_DOT_RADIUS_PX = 4;
