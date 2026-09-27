@@ -49,3 +49,40 @@ export const WHEEL_DELTA_MODE_LINE_PX = 16;
 
 /** Dot radius in screen pixels (the grid stays a fixed size on screen). */
 export const GRID_DOT_RADIUS_PX = 1;
+
+// ---------------------------------------------------------------------------
+// Story 2 — sticky notes
+// ---------------------------------------------------------------------------
+
+/** Sticky note size in world units (a square). */
+export const STICKY_SIZE_WORLD = 200;
+
+/** Hard limit on the number of characters kept in a note. */
+export const STICKY_TEXT_MAX_CHARS = 1000;
+
+/** The character counter shows when this many characters (or fewer) remain. */
+export const STICKY_COUNTER_THRESHOLD_CHARS = 50;
+
+/** Largest note font size, in px at 100% zoom. */
+export const STICKY_FONT_MAX_PX = 24;
+
+/** Smallest note font size, in px at 100% zoom; below this text overflows. */
+export const STICKY_FONT_MIN_PX = 10;
+
+/** Pointer movement, in screen pixels, that turns a press into a drag. */
+export const DRAG_THRESHOLD_PX = 3;
+
+/** The six preset note colours, keyed by the name used in the UI and schema. */
+export const STICKY_COLORS = {
+  yellow: '#FFF59D',
+  orange: '#FFCC80',
+  green: '#C5E1A5',
+  blue: '#90CAF9',
+  pink: '#F48FB1',
+  violet: '#CE93D8',
+} as const;
+
+export type StickyColor = keyof typeof STICKY_COLORS;
+
+/** Colour of a freshly created note. */
+export const DEFAULT_STICKY_COLOR: StickyColor = 'yellow';

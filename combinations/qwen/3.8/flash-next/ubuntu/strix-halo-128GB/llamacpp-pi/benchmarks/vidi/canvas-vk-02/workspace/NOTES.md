@@ -142,8 +142,107 @@ falls back to a `window` resize listener when `ResizeObserver` is undefined, and
 
 The design suggested fake timers for the camera hook's rAF. Instead
 `tests/component/setup.ts` stubs `requestAnimationFrame` onto `setTimeout(..., 0)`
-and the tests flush it with `await flushFrame()` (inside `act`). The stub must not
+and the tests flush it with `act(() => vi.advanceTimersByTime(...))`. The stub must not
 fire synchronously — the hook stores the frame handle and, called synchronously,
 would clear it before scheduling the next frame — and a macrotask stub keeps the
 tests readable without a fake clock that also owns `queueMicrotask` and
 `cleanup`.
+
+---
+
+# Story 2 — Capture ideas on sticky notes and rearrange them
+
+Nothing here contradicts
+`spec/stories/002-.../design.md`; open choices and their reasons are recorded.
+
+## Status
+
+| Task | State |
+|---|---|
+| 1 Board-model unit tests (red) | done — 22 tests (TC-01..TC-12 + non-finite + idempotent init) |
+| 2 Yjs board model + `useBoardDoc`/`useSelection` | done |
+| 3 Sticky-text unit tests (red) | done — 15 tests (TC-13..TC-17 + surrogates) |
+| 4 Sticky text logic + editor | done |
+| 5 Note interaction (select / drag / dbl-click / keys) | done |
+| 6 Toolbars (board + note) | done |
+| 7 Component tests | done — 57 tests pass (TC-18..TC-29, TC-35..TC-37) |
+| 8 E2E | done — 7 tests pass in Chromium; Firefox/WebKit skip on this host |
+
+Verification: `npm run build`, `npm run typecheck`, `npm run test:unit` (59),
+`npm run test:component` (57) and `npm run test:e2e` all pass. Font-fit feel,
+IME composition and the 500-note performance run are the design's manual checks.
+
+## The Yjs document exists from day one, but nothing syncs it yet
+
+Story 2 has no network and no persistence, but the notes live in a real `Y.Doc`
+(`src/shared/board-model.ts`) with `LOCAL_ORIGIN` stamped on every local
+transaction. That is the seam stories 3–4 build on, and it is why the model
+tests assert *Yjs update counts* (a rejected no-op — stale id, invalid colour,
+bring-to-front on the topmost note — must emit **zero** updates, which would be
+pointless sync traffic later).
+
+## Selection and editing are per-client, never in the document
+
+`useSelection` holds `selectedId` / `editingId` in React state only. Two people
+selecting the same note must not fight over it, so the highlight and the open
+text editor are strictly local. A note removed from the document by any route
+drops out of selection and editing through a small effect in `App` (the same one
+the component harness mirrors), so a stale id can never leave a dangling outline
+or an editor whose target is gone.
+
+## Dragging is screen-space in, world-space out, throttled per frame
+
+A note records the pointer's start screen position and the note's start world
+position; each move applies `(screenDelta / zoom)` to the world position, so a
+note keeps its position under the pointer at any zoom (TC-31/TC-32). The applied
+move is coalesced with the same per-frame trick the camera uses, and
+`bringToFront` runs exactly once, when the press crosses `DRAG_THRESHOLD_PX`.
+The note `stopPropagation()`s every pointer event, so a note press never pans the
+board (TC-20 asserts the camera and `data-panning` are untouched). If the note is
+deleted mid-drag, `moveObject` returns false and the drag stops without an
+exception (TC-37).
+
+## Font fit is measured, and only meaningful in a browser
+
+`fitFontSize` binary-searches the largest integer px in `[MIN, MAX]` whose
+`scrollHeight` fits the box. jsdom reports `scrollHeight === 0`, so it always
+returns `MAX` there; that path is exercised, but the real shrink-then-clip
+behaviour (one word → 24px, 1,000 chars → 10px with a bottom fade) is verified
+end to end (TC-33). It runs on a `useLayoutEffect` keyed to the note text, so it
+refits live while typing.
+
+## The note toolbar floats above the note and must not be clipped
+
+The colour/delete toolbar is counter-scaled (`scale(1/zoom)`) and anchored above
+the note so it stays a fixed size on screen at any zoom while remaining attached.
+The note root therefore uses `overflow: visible` — the text is clipped by
+`.sticky-note__text` itself, and the toolbar needs to render outside the note box
+(over it). Clipping the root hid the toolbar behind the board and its clicks were
+caught by the board.
+
+## Text writes are minimal diffs, surrogate-safe
+
+`applyTextDiff` keeps the common prefix and suffix and replaces only the middle
+in one transaction, and the prefix/suffix scan never splits a surrogate pair, so
+once story 3 lands a remote editor's characters are not destroyed. Every input is
+written immediately (clamped to 1,000), so ending editing — Escape or blur — does
+no extra write and cannot lose a character; IME text is committed once on
+`compositionend`.
+
+## Counter threshold is measured from the limit, not from zero
+
+`counterVisible(len)` is `MAX - len <= STICKY_COUNTER_THRESHOLD_CHARS`, i.e. the
+counter appears within 50 characters of the 1,000 limit (949 hidden, 950/951
+shown), matching the PRD. A fixture used in e2e was initially built with a
+mis-placed `.repeat`, yielding 846 chars, and hid the counter — the fixture is now
+a clean `(sentence).repeat(n).slice(0, 1000)`.
+
+## Component harness mirrors App, with an injectable document
+
+`tests/component/stickyHarness.tsx` wires the camera context, an injected
+`Y.Doc`, `useSelection`, the board keyboard handling and the stale-selection
+clearing exactly as `App` does, and subscribes to `observeDeep` so the notes
+re-render on every change. Because the test owns the document it can seed notes
+and read positions/colours back directly, rather than inferring everything from
+the DOM. As in story 1, Playwright e2e runs against `wrangler dev` on a test-mode
+build and skips Firefox/WebKit where they cannot launch.

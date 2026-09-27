@@ -2,6 +2,7 @@ import {
   useEffect,
   useRef,
   useState,
+  type MouseEvent as ReactMouseEvent,
   type PointerEvent as ReactPointerEvent,
   type ReactNode,
 } from 'react';
@@ -13,6 +14,14 @@ import { useCameraContext } from './useCamera';
 export interface BoardViewportProps {
   /** Board content, rendered in world coordinates (story 2 onwards). */
   children?: ReactNode;
+  /**
+   * A double-click on empty board space, in board-local screen coordinates
+   * (relative to the board's top-left). Objects stop propagation so this only
+   * fires for empty space. Story 2 creates a note here.
+   */
+  onEmptyDblClick?(point: Point): void;
+  /** A click on empty board space (a press with no pan). Clears the selection. */
+  onEmptyClick?(): void;
 }
 
 /** Safari pinch-to-zoom events (not in the web standards types). */
@@ -35,7 +44,7 @@ const GESTURE_END = 'gestureend';
  * translated from the camera, the grid is a repeating background sized and
  * positioned from the camera. There are no edges — the board is unbounded.
  */
-export function BoardViewport({ children }: BoardViewportProps) {
+export function BoardViewport({ children, onEmptyDblClick, onEmptyClick }: BoardViewportProps) {
   const { camera, beginPan, panMove, endPan, wheel, pinch, zoomStep, reset } = useCameraContext();
   const elementRef = useRef<HTMLDivElement>(null);
   const [isPanning, setIsPanning] = useState(false);
@@ -169,6 +178,16 @@ export function BoardViewport({ children }: BoardViewportProps) {
       // Capture already released.
     }
     stopPanning();
+    // The press began on empty board space, so a click there clears the
+    // selection (a note's own click stops propagation and never reaches here).
+    onEmptyClick?.();
+  };
+
+  const onDoubleClick = (event: ReactMouseEvent<HTMLDivElement>) => {
+    const element = elementRef.current;
+    if (element === null) return;
+    if (!isBoardSurface(event.target, element)) return;
+    onEmptyDblClick?.(localPoint(event));
   };
 
   const spacing = GRID_SPACING_WORLD * camera.zoom;
@@ -185,6 +204,7 @@ export function BoardViewport({ children }: BoardViewportProps) {
       onPointerUp={onPointerUp}
       onPointerCancel={stopPanning}
       onLostPointerCapture={stopPanning}
+      onDoubleClick={onDoubleClick}
       style={{
         backgroundImage: `radial-gradient(circle at center, var(--grid-dot) 0 ${dotDiameter}px, transparent ${dotDiameter}px)`,
         backgroundSize: `${spacing}px ${spacing}px`,

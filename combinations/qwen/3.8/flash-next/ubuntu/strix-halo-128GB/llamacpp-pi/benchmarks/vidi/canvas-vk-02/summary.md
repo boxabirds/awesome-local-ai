@@ -5,8 +5,9 @@ Model `qwen3.8-flash-next`, scope `canvas`, effort `low`, client pi 0.87.1, host
 | Story | Title | Status | Agent min | Requests | Prompt tok | Completion tok | TTFT med s | Decode tok/s med | Gate | Accept (cumulative) | Stalled | Resumes / nudges | Compactions | Max ctx | Conditions |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
 | 1 | Pan and zoom around an infinite board | DONE | 75.1 | None | None | None | — | — | green | 5/6 |  | 0 / 0 | 1 | — | throttled 0%, server peak 36 GB |
+| 2 | Capture ideas on sticky notes and rearrange them | DONE | 111.7 | None | None | None | — | — | green | 17/20 |  | 0 / 0 | 2 | — | throttled 0%, server peak 37 GB |
 
-**Totals:** 1 stories, 75 agent-minutes, 0 requests, 0 prompt / 0 completion tokens, gate green 1/1, final acceptance 5/6, stalled 0, partial 0, 2300 lines in src+tests.
+**Totals:** 2 stories, 187 agent-minutes, 0 requests, 0 prompt / 0 completion tokens, gate green 2/2, final acceptance 17/20, stalled 0, partial 0, 4942 lines in src+tests.
 
 ## How it happened
 
@@ -15,6 +16,7 @@ Each story's commits, and which story broke or fixed an earlier story's held-out
 | Story | Commits | + / − lines | Most-changed source files (lines; tests and lockfiles left out) |
 |---|---|---|---|
 | 1 | 3 by the agent | 6325 / 24 | `BoardViewport.tsx` (224), `useCamera.ts` (189), `styles.css` (172), `camera.ts` (171), `NOTES.md` (149), `ZoomControls.tsx` (76), +16 more |
+| 2 | 6 by the agent | 2842 / 54 | `StickyNote.tsx` (300), `board-model.ts` (236), `styles.css` (197), `StickyText.ts` (165), `StickyTextEditor.tsx` (118), `NOTES.md` (101), +8 more |
 
 ### Earlier stories broken or fixed
 

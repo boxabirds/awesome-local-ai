@@ -1,3 +1,72 @@
+commit 7c30cc3ece22273c0c27fad725e0b252c60e1f84
+vidi-agent  Sun Sep 27 06:58:58 2026 +0000
+
+    story 2: Capture ideas on sticky notes and rearrange them
+
+
+ NOTES.md                 | 101 +++++++++++++++++++-
+ src/client/styles.css    |   4 +-
+ tests/e2e/sticky.spec.ts | 241 +++++++++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 344 insertions(+), 2 deletions(-)
+commit 1166dfb045c04441e7d8611b9658156faff15a80
+vidi-agent  Sun Sep 27 06:27:36 2026 +0000
+
+    story 2: component tests for sticky interaction, text editor and toolbars
+
+
+ src/client/objects/StickyNote.tsx           |   2 +
+ tests/component/sticky-interaction.test.tsx | 254 ++++++++++++++++++++++++++++
+ tests/component/sticky-text-editor.test.tsx | 133 +++++++++++++++
+ tests/component/stickyHarness.tsx           | 128 ++++++++++++++
+ tests/component/toolbars.test.tsx           |  66 ++++++++
+ 5 files changed, 583 insertions(+)
+commit 82072e61f69dc097e8c95fa32f91214ac5d10050
+vidi-agent  Sun Sep 27 06:02:08 2026 +0000
+
+    story 2: implement sticky text editor, note interaction, toolbars + board wiring
+
+
+ src/client/App.tsx                      |  97 ++++++++++-
+ src/client/board/Toolbar.tsx            |  43 +++++
+ src/client/canvas/BoardViewport.tsx     |  22 ++-
+ src/client/objects/NoteToolbar.tsx      |  59 +++++++
+ src/client/objects/StickyNote.tsx       | 298 ++++++++++++++++++++++++++++++++
+ src/client/objects/StickyText.ts        | 133 ++++++++++++--
+ src/client/objects/StickyTextEditor.tsx | 118 +++++++++++++
+ src/client/styles.css                   | 193 +++++++++++++++++++++
+ 8 files changed, 937 insertions(+), 26 deletions(-)
+commit 4858b9450899c4a96bef899c2bceffb5b52bbeb0
+vidi-agent  Sun Sep 27 05:46:35 2026 +0000
+
+    story 2: sticky text unit tests (red phase) + text fixtures
+
+
+ src/client/objects/StickyText.ts |  32 +++++++
+ tests/fixtures/texts.ts          |  33 +++++++
+ tests/unit/sticky-text.test.ts   | 186 +++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 251 insertions(+)
+commit 0594ad3d9ea7ee40fab6dfe0b8965515c340cb07
+vidi-agent  Sun Sep 27 05:40:13 2026 +0000
+
+    story 2: implement Yjs board model + useBoardDoc/useSelection hooks
+
+
+ src/client/board/useBoardDoc.ts  |  55 +++++++++++++
+ src/client/board/useSelection.ts |  39 +++++++++
+ src/shared/board-model.ts        | 174 +++++++++++++++++++++++++++++++++------
+ 3 files changed, 244 insertions(+), 24 deletions(-)
+commit 6c9c9dadcb1a443c5fc35c2e900568b91b416ae8
+vidi-agent  Sun Sep 27 05:37:47 2026 +0000
+
+    story 2: board-model + sticky text unit tests (red phase)
+
+
+ package-lock.json              |  48 +++++-
+ package.json                   |   3 +-
+ src/shared/board-model.ts      |  62 ++++++++
+ src/shared/config.ts           |  37 +++++
+ tests/unit/board-model.test.ts | 335 +++++++++++++++++++++++++++++++++++++++++
+ 5 files changed, 483 insertions(+), 2 deletions(-)
 commit 2ce8163dabd48f8132ac5ff66e821ddc66a4e659
 vidi-agent  Sun Sep 27 05:15:19 2026 +0000
 

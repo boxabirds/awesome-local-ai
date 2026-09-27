@@ -170,3 +170,198 @@ body {
   box-shadow: 0 1px 3px rgb(20 26 38 / 8%);
   pointer-events: none;
 }
+
+/* --------------------------------------------------------- board toolbar */
+
+.toolbar {
+  position: fixed;
+  left: 16px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 4px;
+  background: var(--panel-background);
+  border: 1px solid var(--panel-border);
+  border-radius: 10px;
+  box-shadow: 0 1px 3px rgb(20 26 38 / 12%);
+}
+
+.toolbar__button {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  width: 52px;
+  padding: 8px 4px;
+  font: inherit;
+  font-size: 11px;
+  line-height: 1.1;
+  color: var(--text);
+  background: transparent;
+  border: 0;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.toolbar__button:hover {
+  background: #eef1f5;
+}
+
+.toolbar__button:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 1px;
+}
+
+.toolbar__button-label {
+  text-align: center;
+}
+
+/* ------------------------------------------------------------ sticky note */
+
+.sticky-note {
+  border-radius: 4px;
+  box-shadow: 0 4px 10px rgb(20 26 38 / 18%);
+  cursor: grab;
+  /* The text clips itself; the root must not clip, or the note toolbar that
+     floats above the note would be cut off. */
+  overflow: visible;
+  color: var(--text);
+  outline: 2px solid transparent;
+  outline-offset: 2px;
+}
+
+.sticky-note[data-dragging='true'] {
+  cursor: grabbing;
+}
+
+.sticky-note[data-selected='true'] {
+  outline-color: var(--focus-ring);
+}
+
+.sticky-note:focus-visible {
+  outline-color: var(--focus-ring);
+}
+
+.sticky-note__text {
+  position: absolute;
+  inset: 0;
+  box-sizing: border-box;
+  overflow: hidden;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  text-align: center;
+  font-weight: 500;
+}
+
+/* Bottom fade shown when text overflows at the minimum font size. */
+.sticky-note__fade {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 28px;
+  pointer-events: none;
+  background: linear-gradient(to bottom, transparent 0%, var(--note-bg, #fff) 90%);
+}
+
+/* Floating chrome (the note toolbar) is counter-scaled so it stays a fixed
+   size on screen while remaining attached to the note. */
+.sticky-note__chrome {
+  position: absolute;
+  left: 0;
+  bottom: 100%;
+  padding-bottom: 6px;
+  pointer-events: none;
+}
+
+/* ---------------------------------------------------------- note editor */
+
+.sticky-note__editor {
+  position: absolute;
+  inset: 0;
+}
+
+.sticky-note__input {
+  width: 100%;
+  height: 100%;
+  box-sizing: border-box;
+  margin: 0;
+  padding: 16px;
+  font-family: inherit;
+  font-weight: 500;
+  line-height: 1.25;
+  color: var(--text);
+  text-align: center;
+  background: transparent;
+  border: 0;
+  outline: 0;
+  resize: none;
+  overflow: hidden;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.sticky-note__counter {
+  position: absolute;
+  right: 8px;
+  bottom: 6px;
+  padding: 1px 5px;
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  color: var(--text);
+  background: rgb(255 255 255 / 72%);
+  border-radius: 6px;
+  pointer-events: none;
+}
+
+/* --------------------------------------------------------- note toolbar */
+
+.note-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px;
+  pointer-events: auto;
+  background: var(--panel-background);
+  border: 1px solid var(--panel-border);
+  border-radius: 8px;
+  box-shadow: 0 2px 6px rgb(20 26 38 / 18%);
+  white-space: nowrap;
+}
+
+.note-toolbar__swatch {
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border: 1px solid rgb(20 26 38 / 25%);
+  border-radius: 50%;
+  cursor: pointer;
+}
+
+.note-toolbar__swatch[aria-pressed='true'] {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 1px;
+}
+
+.note-toolbar__delete {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  font-size: 14px;
+  line-height: 1;
+  color: var(--text);
+  background: transparent;
+  border: 0;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.note-toolbar__delete:hover {
+  background: #f4d7d7;
+}
