@@ -1,0 +1,29 @@
+:root {
+  --grid-dot: #c9ced6;
+  --board-bg: #fafbfc;
+  --ui-bg: #ffffff;
+  --ui-border: #d7dbe0;
+  --ui-text: #1f2733;
+  --ui-muted: #5b6673;
+  --focus-ring: #2f7ef7;
+  color-scheme: light;
+  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  overflow: hidden;
+  background: var(--board-bg);
+  color: var(--ui-text);
+}
