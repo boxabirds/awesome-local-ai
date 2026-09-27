@@ -3,7 +3,9 @@
 
 mod builds;
 mod proxy;
+mod reviews;
 mod runs;
+mod stories;
 
 use std::net::SocketAddr;
 use std::path::PathBuf;
@@ -20,6 +22,10 @@ use builds::{Builds, Spec};
 
 const DEFAULT_PORT: u16 = 7800;
 const PAGE: &str = include_str!("page.html");
+const REVIEW_PAGE: &str = include_str!("review.html");
+/// The blind banner's colour: neutral, so it says nothing about the setup.
+const BLIND_COLOUR: &str = "hsl(0 0% 30%)";
+const LETTERS: &str = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
 /// Setup colours: evenly spread hues, one per setup in discovery order.
 const HUE_STEP: usize = 67;
 const DEGREES: usize = 360;
@@ -32,12 +38,53 @@ struct Cli {
     repo: Option<PathBuf>,
     #[arg(long, default_value_t = DEFAULT_PORT)]
     port: u16,
+    /// Story review: show each build's setup and run instead of a letter (default: blind).
+    #[arg(long)]
+    labelled: bool,
 }
 
-#[derive(Clone)]
 struct App {
     repo: PathBuf,
     builds: Builds,
+    blind: bool,
+    /// The builds under story review, in their (shuffled, when blind) order: key i is letter i.
+    review_builds: Vec<runs::Run>,
+    reviews: reviews::Store,
+}
+
+fn private_repo(repo: &std::path::Path) -> PathBuf {
+    repo.parent().map(|p| p.join("awesome-local-ai-bench-private")).unwrap_or_default()
+}
+
+/// Whether a run is a whole build worth reviewing story by story: every story in scope done (an
+/// A/B run that built two stories on seeded code isn't), and a valid final score.
+fn is_reviewable(r: &runs::Run) -> bool {
+    !r.in_progress
+        && !r.score.void
+        && r.score.total.is_some()
+        && r.stories_in_scope.is_some_and(|n| r.stories_finished >= n)
+}
+
+/// Finished, validly scored runs: the builds a story review compares.
+fn reviewable(repo: &std::path::Path) -> Vec<runs::Run> {
+    let mut list: Vec<runs::Run> = runs::load(repo).into_iter().filter(is_reviewable).collect();
+    list.sort_by(|a, b| a.slug.cmp(&b.slug));
+    list
+}
+
+/// A per-session shuffle (xorshift on the clock), so blind letters don't stick to a setup across sessions.
+fn shuffle<T>(items: &mut [T]) {
+    let mut x = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.as_nanos() as u64).unwrap_or(1) | 1;
+    for i in (1..items.len()).rev() {
+        x ^= x << 13;
+        x ^= x >> 7;
+        x ^= x << 17;
+        items.swap(i, (x % (i as u64 + 1)) as usize);
+    }
+}
+
+fn letter(i: usize) -> String {
+    LETTERS.chars().nth(i).map(String::from).unwrap_or_else(|| format!("#{}", i + 1))
 }
 
 fn home() -> PathBuf {
@@ -72,7 +119,7 @@ async fn page() -> Html<&'static str> {
 async fn api_runs(State(app): State<Arc<App>>) -> impl IntoResponse {
     let runs = runs::load(&app.repo);
     let colours = setup_colours(&runs);
-    let private = app.repo.parent().map(|p| p.join("awesome-local-ai-bench-private")).unwrap_or_default();
+    let private = private_repo(&app.repo);
     let judges = runs::judges(&private, &home().join(".vidi-bench/keys"));
     Json(serde_json::json!({ "runs": runs, "colours": colours, "judges": judges }))
 }
@@ -107,6 +154,117 @@ async fn api_stop(State(app): State<Arc<App>>, UrlPath(slug): UrlPath<String>) -
     StatusCode::NO_CONTENT
 }
 
+// ---------- story review ----------
+
+async fn review_page() -> Html<&'static str> {
+    Html(REVIEW_PAGE)
+}
+
+fn build_label(app: &App, i: usize) -> String {
+    let r = &app.review_builds[i];
+    if app.blind { format!("Build {}", letter(i)) } else { format!("{} · {}", r.setup, r.run) }
+}
+
+async fn api_review_state(State(app): State<Arc<App>>) -> impl IntoResponse {
+    let pack = private_repo(&app.repo).join("packs/vidi");
+    let stories = stories::load(&pack, "canvas");
+    let index: std::collections::HashMap<&str, usize> =
+        app.review_builds.iter().enumerate().map(|(i, r)| (r.slug.as_str(), i)).collect();
+    // Reviews are stored by slug; the page only ever sees keys, so blind stays blind.
+    let reviews: Vec<serde_json::Value> = app
+        .reviews
+        .all()
+        .into_iter()
+        .filter_map(|r| {
+            let key = *index.get(r.build.as_str())?;
+            Some(serde_json::json!({"story": r.story, "key": key, "verdict": r.verdict, "notes": r.notes}))
+        })
+        .collect();
+    let builds: Vec<serde_json::Value> =
+        (0..app.review_builds.len()).map(|i| serde_json::json!({"key": i, "label": build_label(&app, i)})).collect();
+    Json(serde_json::json!({
+        "blind": app.blind, "stories": stories, "builds": builds, "reviews": reviews,
+        "file": app.reviews.path().display().to_string(),
+    }))
+}
+
+async fn api_review_status(State(app): State<Arc<App>>) -> impl IntoResponse {
+    let states = app.builds.states().await;
+    let by_key: Vec<serde_json::Value> = app
+        .review_builds
+        .iter()
+        .enumerate()
+        .map(|(i, r)| serde_json::json!({"key": i, "status": states.get(&r.slug)}))
+        .collect();
+    Json(by_key)
+}
+
+async fn api_review_open(State(app): State<Arc<App>>, UrlPath(key): UrlPath<usize>) -> impl IntoResponse {
+    let Some(run) = app.review_builds.get(key) else {
+        return (StatusCode::NOT_FOUND, Json(serde_json::json!({"error": "no such build"}))).into_response();
+    };
+    let label = build_label(&app, key);
+    let banner = if app.blind {
+        proxy::Banner { text: label.clone(), colour: BLIND_COLOUR.to_string(), title: label }
+    } else {
+        let colours = setup_colours(&runs::load(&app.repo));
+        proxy::Banner {
+            text: label,
+            colour: colours.iter().find(|(s, _)| *s == run.setup).map(|(_, c)| c.clone()).unwrap_or_else(|| colour(0)),
+            title: format!("{} {}", short_name(&run.setup), run.run),
+        }
+    };
+    let state = app.builds.open(Spec { slug: run.slug.clone(), workspace: run.path.join("workspace"), banner }).await;
+    Json(serde_json::json!(state)).into_response()
+}
+
+#[derive(serde::Deserialize)]
+struct ReviewIn {
+    story: u64,
+    key: usize,
+    verdict: String,
+    notes: String,
+}
+
+async fn api_review_set(State(app): State<Arc<App>>, Json(body): Json<ReviewIn>) -> impl IntoResponse {
+    let Some(run) = app.review_builds.get(body.key) else {
+        return (StatusCode::NOT_FOUND, Json(serde_json::json!({"error": "no such build"}))).into_response();
+    };
+    let now = utc_now();
+    match app.reviews.set(body.story, &run.slug, &body.verdict, &body.notes, &now) {
+        Ok(_) => Json(serde_json::json!({"saved": now})).into_response(),
+        Err(e) => (StatusCode::BAD_REQUEST, Json(serde_json::json!({"error": e.to_string()}))).into_response(),
+    }
+}
+
+/// Which build is which, for one story, only once every build has a verdict on it: seeing names
+/// earlier would bias the rest of that story's review.
+async fn api_review_reveal(State(app): State<Arc<App>>, UrlPath(story): UrlPath<u64>) -> impl IntoResponse {
+    let done: std::collections::HashSet<String> = app
+        .reviews
+        .all()
+        .into_iter()
+        .filter(|r| r.story == story && !r.verdict.is_empty())
+        .map(|r| r.build)
+        .collect();
+    if app.review_builds.iter().any(|r| !done.contains(&r.slug)) {
+        return (StatusCode::CONFLICT, Json(serde_json::json!({"error": "give every build a verdict on this story first"}))).into_response();
+    }
+    let names: Vec<serde_json::Value> = app
+        .review_builds
+        .iter()
+        .enumerate()
+        .map(|(i, r)| serde_json::json!({"key": i, "setup": r.setup, "run": r.run}))
+        .collect();
+    Json(serde_json::json!(names)).into_response()
+}
+
+fn utc_now() -> String {
+    let secs = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.as_secs()).unwrap_or(0);
+    let out = std::process::Command::new("date").args(["-u", "-r", &secs.to_string(), "+%Y-%m-%dT%H:%M:%SZ"]).output();
+    out.ok().and_then(|o| String::from_utf8(o.stdout).ok()).map(|s| s.trim().to_string()).unwrap_or_else(|| secs.to_string())
+}
+
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     let cli = Cli::parse();
@@ -115,19 +273,38 @@ async fn main() -> anyhow::Result<()> {
         .unwrap_or_else(|| PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../.."))
         .canonicalize()?;
     let builds = Builds::new(home().join(".cache/awesome-local-ai/vidi-gallery"));
-    let app = Arc::new(App { repo: repo.clone(), builds: builds.clone() });
+    let blind = !cli.labelled;
+    let mut review_builds = reviewable(&repo);
+    if blind {
+        shuffle(&mut review_builds);
+    }
+    let reviews = reviews::Store::new(private_repo(&repo).join("analysis/story-reviews.csv"));
+    let app = Arc::new(App { repo: repo.clone(), builds: builds.clone(), blind, review_builds, reviews });
     let router = Router::new()
         .route("/", get(page))
         .route("/api/runs", get(api_runs))
         .route("/api/status", get(api_status))
         .route("/api/open/{slug}", post(api_open))
         .route("/api/stop/{slug}", post(api_stop))
-        .with_state(app);
+        .route("/review", get(review_page))
+        .route("/api/review/state", get(api_review_state))
+        .route("/api/review/status", get(api_review_status))
+        .route("/api/review/open/{key}", post(api_review_open))
+        .route("/api/review/set", post(api_review_set))
+        .route("/api/review/reveal/{story}", get(api_review_reveal))
+        .with_state(app.clone());
     let addr = SocketAddr::from(([127, 0, 0, 1], cli.port));
     let listener = tokio::net::TcpListener::bind(addr).await?;
     println!("vidi-gallery: http://{addr}/  (repo {})", repo.display());
+    println!("story review: http://{addr}/review  ({} builds, {})", app.review_builds.len(), if blind { "blind" } else { "labelled" });
+    // Ctrl-C or a plain `kill` (SIGTERM): either way, stop every build first, or their wrangler
+    // processes outlive the gallery and hold its ports.
     let shutdown = async {
-        let _ = tokio::signal::ctrl_c().await;
+        let mut term = tokio::signal::unix::signal(tokio::signal::unix::SignalKind::terminate()).expect("SIGTERM handler");
+        tokio::select! {
+            _ = tokio::signal::ctrl_c() => {}
+            _ = term.recv() => {}
+        }
     };
     axum::serve(listener, router).with_graceful_shutdown(shutdown).await?;
     println!("stopping the builds that are running");

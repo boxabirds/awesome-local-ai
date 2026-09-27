@@ -27,6 +27,28 @@ per run found under `combinations/**/benchmarks/vidi/<run>/` or `benchmarks/refe
 - **Cost:** agent time, model calls and output tokens over the finished stories.
 - Runs still going say so ("in progress, 4/11 stories").
 
+## Story review: score each build story by story, blind
+
+`http://127.0.0.1:7800/review` walks the stories in journey order (the scope's order: pan and zoom,
+sticky notes, live sync, … images). For each story it shows what the user must be able to do: the
+PRD's one-line summary, its **golden path** (the steps to follow in every build), its named
+requirements and its **must-nots**. Below, one row per finished build:
+
+- **Open** starts the build (as below) and opens it in its own tab; after that the button goes to
+  that tab, so you can switch between implementations.
+- **pass / fail / skip** and a note, saved as you type to the private repo's
+  `analysis/story-reviews.csv` (one row per story and build, by run name).
+- Keys: `1`–`9` pick a build, `o` opens or goes to its tab, `+` pass, `-` fail, space skip,
+  `n` note (`Esc` to leave), `↑`/`↓` build, `←`/`→` story.
+
+**Blind by default.** Builds are "Build A", "Build B"…, shuffled each session, and their tabs carry
+a grey "Build C" banner instead of the setup's name. A story's names can be revealed once every build
+has a verdict on it. `--labelled` shows names throughout. The main page (`/`) shows every name, so
+don't open it during a blind review.
+
+Only runs that finished every story in scope with a valid score are reviewed. These are **final**
+builds: a later story's features (and regressions) are present when you review an earlier story.
+
 ## Opening a build
 
 **Open** runs that run's final committed workspace, on demand (never all at once):
