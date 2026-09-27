@@ -31,6 +31,7 @@ from pathlib import Path
 MIB = 1024 * 1024
 SAMPLE_EVERY_S = 0.25
 REQUEST_TIMEOUT_S = 3600
+LISTING_TIMEOUT_S = 10
 INSTRUCTION = "\n\nContinue the code above: write the next function in the same style."
 # The combination's thinking sampler (config.sh SAMPLING_THINKING), as the coding agents run it.
 AGENT_SAMPLER = {"temperature": 1.0, "top_p": 0.95, "top_k": 20, "min_p": 0.0}
@@ -60,14 +61,26 @@ class PeakSampler(threading.Thread):
             time.sleep(SAMPLE_EVERY_S)
 
 
-def body(prompt: str, decode: int, sampling: str = "greedy", reuse_prefix: bool = False) -> dict:
+def served_model(listing: dict) -> str:
+    """The model id a server lists at /v1/models. gufo only answers requests naming it; llama.cpp
+    takes any name, so "default" is a fallback, not a guess."""
+    data = listing.get("data") or []
+    return data[0].get("id", "default") if data else "default"
+
+
+def fetch_served_model(url: str) -> str:
+    with urllib.request.urlopen(f"{url}/v1/models", timeout=LISTING_TIMEOUT_S) as r:
+        return served_model(json.loads(r.read()))
+
+
+def body(prompt: str, decode: int, sampling: str = "greedy", reuse_prefix: bool = False, model: str = "default") -> dict:
     """The request. greedy: temperature 0, thinking off (throughput). agent: the agents' sampler,
     thinking on. The unique line defeats prefix caching; reuse_prefix puts it last instead, so
     repeats pay prefill once and only decode is compared."""
     tag = f"run {uuid.uuid4()}"
     content = f"{prompt}{INSTRUCTION}\n{tag}" if reuse_prefix else f"{tag}\n{prompt}{INSTRUCTION}"
     b = {
-        "model": "default",
+        "model": model,
         "messages": [{"role": "user", "content": content}],
         "max_tokens": decode,
         "stream": True,
@@ -82,8 +95,9 @@ def body(prompt: str, decode: int, sampling: str = "greedy", reuse_prefix: bool 
     return b
 
 
-def request(url: str, prompt: str, decode: int, sampling: str = "greedy", reuse_prefix: bool = False) -> dict:
-    body_ = body(prompt, decode, sampling, reuse_prefix)
+def request(url: str, prompt: str, decode: int, sampling: str = "greedy", reuse_prefix: bool = False,
+            model: str = "default") -> dict:
+    body_ = body(prompt, decode, sampling, reuse_prefix, model)
     req = urllib.request.Request(f"{url}/v1/chat/completions", data=json.dumps(body_).encode(),
                                  headers={"Content-Type": "application/json"})
     sampler = PeakSampler()
@@ -139,15 +153,17 @@ def main() -> None:
     ap.add_argument("--label", default="", help="recorded with each result, e.g. draft-depth-3")
     a = ap.parse_args()
     a.out.parent.mkdir(parents=True, exist_ok=True)
+    model = fetch_served_model(a.url)
+    print(f"== {a.engine}: model {model!r}", flush=True)
     for fill in (int(x) for x in a.fills.split(",")):
         prompt = (a.prompts / f"fill-{fill}.txt").read_text()
         runs = []
         for rep in range(1, a.repeats + 1):
             try:
-                r = request(a.url, prompt, a.decode, a.sampling, a.reuse_prefix)
+                r = request(a.url, prompt, a.decode, a.sampling, a.reuse_prefix, model)
             except Exception as e:  # a refusal or a crash is a result too
                 r = {"error": f"{type(e).__name__}: {e}"}
-            r.update({"engine": a.engine, "label": a.label, "sampling": a.sampling, "fill": fill, "repeat": rep})
+            r.update({"model": model, "engine": a.engine, "label": a.label, "sampling": a.sampling, "fill": fill, "repeat": rep})
             runs.append(r)
             with a.out.open("a") as f:
                 f.write(json.dumps(r) + "\n")
