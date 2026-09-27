@@ -11,7 +11,10 @@ import { server } from '../msw';
 import { currentLocation, deferred, primeCreated, renderApp, restoreClipboard, stubClipboard, titleText } from '../render';
 
 const edit = vi.hoisted(() => ({ canEdit: true }));
-vi.mock('@/features/live/canEditStore', () => ({ useCanEdit: () => edit.canEdit }));
+vi.mock('@/features/live/canEdit', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/features/live/canEdit')>()),
+  useCanEdit: () => edit.canEdit,
+}));
 
 beforeEach(() => {
   edit.canEdit = true;

@@ -1,17 +1,12 @@
 import { DEFAULT_WORKSPACE_NAME } from '@todoodle/shared/limits';
-import { OpenWorkspaceBody, RenameWorkspaceBody, toPublicWorkspace, type Workspace } from '@todoodle/shared/schemas';
+import { OpenWorkspaceBody, RenameWorkspaceBody, toPublicWorkspace } from '@todoodle/shared/schemas';
 import { Hono } from 'hono';
 import type { AppEnv } from '../app';
 import { findActiveBySecretHash, insertWorkspace, renameWorkspace } from '../db/workspaces';
 import { readRemembered, serializeRememberedCookie, upsertRemembered } from '../lib/cookie';
 import { generateSecret, hashSecret, isWellFormedSecret } from '../lib/crypto';
 import { errorResponse, workspaceNotFound } from '../lib/errors';
-
-/**
- * Hook point for story 4, which broadcasts `workspace.updated` to everyone in the workspace.
- * Deliberately a no-op until then.
- */
-export function onWorkspaceUpdated(_env: AppEnv['Bindings'], _workspace: Workspace): void {}
+import { broadcast } from '../live/broadcast';
 
 const nowSeconds = () => Math.floor(Date.now() / 1000);
 
@@ -70,10 +65,13 @@ workspaceRoutes.patch('/w/:workspaceId', async (c) => {
   const parsed = RenameWorkspaceBody.safeParse(body);
   if (!parsed.success) return errorResponse('validation', 400);
 
-  const row = await renameWorkspace(c.env.DB, c.get('workspace').id, parsed.data.name);
+  const current = c.get('workspace');
+  // Same name: a no-op write (version unchanged, nothing broadcast).
+  if (parsed.data.name === current.name) return c.json({ workspace: toPublicWorkspace(current) });
+  const row = await renameWorkspace(c.env.DB, current.id, parsed.data.name);
   if (!row) return workspaceNotFound();
   const workspace = toPublicWorkspace(row);
-  onWorkspaceUpdated(c.env, workspace);
+  broadcast(c, workspace.id, { type: 'workspace.updated', entity: workspace, version: workspace.version });
   return c.json({ workspace });
 });
 

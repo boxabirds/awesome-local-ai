@@ -1228,6 +1228,334 @@
           "found": null,
           "total": null
         }
+      ],
+      "record": {
+        "committed": true,
+        "pushed": true,
+        "over_size_limit": [
+          "~/.spec-bench/awesome-local-ai/benchmarks/reference/todoodle/opus-5.5/run-2/workspace/apps/web/dist/assets/index-Ba439q9w.js"
+        ],
+        "commit": "09cc926b"
+      }
+    },
+    "4": {
+      "title": "Bring others into a workspace by sharing its link",
+      "conditions_start": {
+        "ac": true,
+        "low_power": false,
+        "thermal": "nominal"
+      },
+      "started": 1790513112.182388,
+      "agent": {
+        "seconds": 2196.0,
+        "steps": 115,
+        "tool_calls": 118,
+        "compactions": 0,
+        "tool_interruptions": 0,
+        "tokens": {
+          "input": 230,
+          "output": 150204,
+          "reasoning": 0,
+          "cache_read": 19627798,
+          "cache_write": 268503
+        },
+        "exit": 0,
+        "stalled": false,
+        "resumes": 0,
+        "nudges": 0,
+        "errors": [],
+        "ended_by_operator": false,
+        "ended_in_error": false,
+        "sessions": [
+          "796b3899-2514-470d-8b66-9ebbbc8f1990"
+        ]
+      },
+      "agent_finished": 1790515308.321766,
+      "conditions": {
+        "samples": 73,
+        "degraded": false,
+        "throttled_share": 0.0,
+        "bad_samples": [],
+        "swap_start_gb": 0.34,
+        "swap_max_gb": 0.34,
+        "aborted_swap": false,
+        "aborted_memory": false,
+        "free_min_pct": 70.0,
+        "server_footprint_max_gb": null,
+        "server_footprint_peak_gb": null,
+        "gpu": null
+      },
+      "agent_commits": 13,
+      "gate": {
+        "steps": {
+          "install": {
+            "cmd": "bun install",
+            "exit": 0,
+            "seconds": 1.0,
+            "tail": "bun install v1.2.17 (282dda62)\n\nChecked 440 installs across 557 packages (no changes) [1004.00ms]\n\n$ node scripts/ensure-workerd.mjs\n"
+          },
+          "build": {
+            "cmd": "bun run build",
+            "exit": 0,
+            "seconds": 1.4,
+            "tail": "st/\u001b[22m\u001b[32mindex.html                           \u001b[39m\u001b[1m\u001b[2m  0.44 kB\u001b[22m\u001b[1m\u001b[22m\u001b[2m \u2502 gzip:   0.28 kB\u001b[22m\n\u001b[2mdist/\u001b[22m\u001b[2massets/\u001b[22m\u001b[35mindex-CWEFHvOY.css            \u001b[39m\u001b[1m\u001b[2m 19.26 kB\u001b[22m\u001b[1m\u001b[22m\u001b[2m \u2502 gzip:   4.92 kB\u001b[22m\n\u001b[2mdist/\u001b[22m\u001b[2massets/\u001b[22m\u001b[36museWorkspaceLink-BlQaHgxz.js  \u001b[39m\u001b[1m\u001b[2m  2.12 kB\u001b[22m\u001b[1m\u001b[22m\u001b[2m \u2502 gzip:   1.02 kB\u001b[22m\n\u001b[2mdist/\u001b[22m\u001b[2massets/\u001b[22m\u001b[36mindex-CNbDsP_k.js             \u001b[39m\u001b[1m\u001b[2m  4.67 kB\u001b[22m\u001b[1m\u001b[22m\u001b[2m \u2502 gzip:   1.68 kB\u001b[22m\n\u001b[2mdist/\u001b[22m\u001b[2massets/\u001b[22m\u001b[36mForgetDialog-Dy8Vk04J.js      \u001b[39m\u001b[1m\u001b[2m  4.85 kB\u001b[22m\u001b[1m\u001b[22m\u001b[2m \u2502 gzip:   1.93 kB\u001b[22m\n\u001b[2mdist/\u001b[22m\u001b[2massets/\u001b[22m\u001b[36mSharePanel-C4UxMo4h.js        \u001b[39m\u001b[1m\u001b[2m  4.95 kB\u001b[22m\u001b[1m\u001b[22m\u001b[2m \u2502 gzip:   2.26 kB\u001b[22m\n\u001b[2mdist/\u001b[22m\u001b[2massets/\u001b[22m\u001b[36mWorkspace-DckYoUP0.js         \u001b[39m\u001b[1m\u001b[2m 23.23 kB\u001b[22m\u001b[1m\u001b[22m\u001b[2m \u2502 gzip:   8.18 kB\u001b[22m\n\u001b[2mdist/\u001b[22m\u001b[2massets/\u001b[22m\u001b[36mindex-NMMteu7r.js             \u001b[39m\u001b[1m\u001b[33m556.36 kB\u001b[39m\u001b[22m\u001b[2m \u2502 gzip: 174.50 kB\u001b[22m\n\u001b[32m\u2713 built in 1.14s\u001b[39m\n$ vite build apps/web\n\u001b[33mnode_modules/zod/v4/core/regexes.js (74:0): A comment\n\n\"/** Anchors a pattern source. The interpolation lives here rather than at the call site because\n * esbuild will not drop a `@__PURE__` call whose own argument interpolates a variable, but it\n * will drop `anchor(dateSource)`. Keeping it inline pinned `date` into every bundle. */\"\n\nin \"node_modules/zod/v4/core/regexes.js\" contains an annotation that Rollup cannot interpret due to the position of the comment. The comment will be removed to avoid issues.\u001b[39m\n\u001b[33mnode_modules/zod/v4/core/util.js (400:0): A comment\n\n\"// Wrapped in a `@__PURE__` IIFE: esbuild never tree-shakes a top-level initializer that contains a member access on `Number`, so the bare object literal survived into every bundle.\"\n\nin \"node_modules/zod/v4/core/util.js\" contains an annotation that Rollup cannot interpret due to the position of the comment. The comment will be removed to avoid issues.\u001b[39m\n\u001b[33m[plugin vite:reporter] \n(!) ~/.vidi-bench/work/benchmarks__reference__todoodle__opus-5.5__run-2/workspace/apps/web/src/lib/api.ts is dynamically imported by ~/.vidi-bench/work/benchmarks__reference__todoodle__opus-5.5__run-2/workspace/apps/web/src/features/live/network.ts but also statically imported by ~/.vidi-bench/work/benchmarks__reference__todoodle__opus-5.5__run-2/workspace/apps/web/src/features/live/LiveProvider.tsx, ~/.vidi-bench/work/benchmarks__reference__todoodle__opus-5.5__run-2/workspace/apps/web/src/features/remembered/api.ts, ~/.vidi-bench/work/benchmarks__reference__todoodle__opus-5.5__run-2/workspace/apps/web/src/features/remembered/useTouchRemembered.ts, ~/.vidi-bench/work/benchmarks__reference__todoodle__opus-5.5__run-2/workspace/apps/web/src/features/share/UnsavedLinkBanner.tsx, ~/.vidi-bench/work/benchmarks__reference__todoodle__opus-5.5__run-2/workspace/apps/web/src/features/share/useWorkspaceLink.ts, ~/.vidi-bench/work/benchmarks__reference__todoodle__opus-5.5__run-2/workspace/apps/web/src/features/workspace/bootOpen.ts, ~/.vidi-bench/work/benchmarks__reference__todoodle__opus-5.5__run-2/workspace/apps/web/src/features/workspace/useCreateWorkspace.ts, ~/.vidi-bench/work/benchmarks__reference__todoodle__opus-5.5__run-2/workspace/apps/web/src/features/workspace/useRenameWorkspace.ts, ~/.vidi-bench/work/benchmarks__reference__todoodle__opus-5.5__run-2/workspace/apps/web/src/features/workspace/workspaceQuery.ts, dynamic import will not move module into another chunk.\n\u001b[39m\n\u001b[33m\n(!) Some chunks are larger than 500 kB after minification. Consider:\n- Using dynamic import() to code-split the application\n- Use build.rollupOptions.output.manualChunks to improve chunking: https://rollupjs.org/configuration-options/#output-manualchunks\n- Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.\u001b[39m\n",
+            "passed": null,
+            "failed": null
+          },
+          "typecheck": {
+            "cmd": "bun run typecheck",
+            "exit": 0,
+            "seconds": 4.3,
+            "tail": "$ tsc -p apps/api && tsc -p apps/api/tsconfig.node.json && tsc -p apps/web && tsc -p packages/shared && tsc -p scripts\n",
+            "passed": null,
+            "failed": null
+          },
+          "lint": {
+            "cmd": "bun run lint",
+            "exit": 0,
+            "seconds": 0.6,
+            "tail": "$ eslint apps/web\n",
+            "passed": null,
+            "failed": null
+          },
+          "test:unit": {
+            "cmd": "bun run test:unit",
+            "exit": 0,
+            "seconds": 5.2,
+            "tail": "\n RUN  v4.1.11 ~/.vidi-bench/work/benchmarks__reference__todoodle__opus-5.5__run-2/workspace/apps/api\n\n\n Test Files  9 passed (9)\n      Tests  98 passed (98)\n   Start at  14:21:56\n   Duration  2.57s (transform 2.12s, setup 8.13s, import 134ms, tests 232ms, environment 1ms)\n\n\n RUN  v4.1.11 ~/.vidi-bench/work/benchmarks__reference__todoodle__opus-5.5__run-2/workspace\n\n\n Test Files  5 passed (5)\n      Tests  42 passed (42)\n   Start at  14:21:59\n   Duration  153ms (transform 131ms, setup 0ms, import 187ms, tests 65ms, environment 0ms)\n\n\n RUN  v4.1.11 ~/.vidi-bench/work/benchmarks__reference__todoodle__opus-5.5__run-2/workspace/apps/web\n\n\n Test Files  11 passed (11)\n      Tests  137 passed (137)\n   Start at  14:21:59\n   Duration  1.34s (transform 615ms, setup 3.04s, import 604ms, tests 1.11s, environment 1.90s)\n\n$ vitest run --config apps/api/vitest.config.ts --passWithNoTests --project unit && vitest run --config scripts/vitest.config.ts --passWithNoTests --project unit && vitest run --config apps/web/vitest.config.ts --passWithNoTests --project web-unit\n",
+            "passed": 98,
+            "failed": 0
+          },
+          "test:component": {
+            "exit": "missing"
+          },
+          "test:integration": {
+            "cmd": "bun run test:integration",
+            "exit": 0,
+            "seconds": 10.4,
+            "tail": "\n RUN  v4.1.11 ~/.vidi-bench/work/benchmarks__reference__todoodle__opus-5.5__run-2/workspace/apps/api\n\n\n Test Files  10 passed (10)\n      Tests  116 passed (116)\n   Start at  14:22:01\n   Duration  4.19s (transform 2.43s, setup 9.17s, import 227ms, tests 4.70s, environment 1ms)\n\n\n RUN  v4.1.11 ~/.vidi-bench/work/benchmarks__reference__todoodle__opus-5.5__run-2/workspace\n\n\n Test Files  2 passed (2)\n      Tests  14 passed (14)\n   Start at  14:22:06\n   Duration  5.22s (transform 81ms, setup 0ms, import 111ms, tests 5.09s, environment 0ms)\n\n$ vitest run --config apps/api/vitest.config.ts --passWithNoTests --project integration --project production-gate && vitest run --config scripts/vitest.config.ts --passWithNoTests --project integration\n",
+            "passed": 116,
+            "failed": 0
+          },
+          "test:e2e": {
+            "cmd": "bun run test:e2e --project=chromium",
+            "exit": 1,
+            "seconds": 43.4,
+            "tail": "ath-deep-links-fall-back-to-the-app-chromium/error-context.md\n\n    attachment #2: trace (application/zip) \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\n    test-results/golden-path-deep-links-fall-back-to-the-app-chromium/trace.zip\n    Usage:\n\n        npx playwright show-trace test-results/golden-path-deep-links-fall-back-to-the-app-chromium/trace.zip\n\n    \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\n\n  1 failed\n    [chromium] \u203a e2e/golden-path.spec.ts:20:1 \u203a deep links fall back to the app \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\n  33 passed (43.1s)\n$ playwright test \"--project=chromium\"\n[WebServer] $ wrangler d1 migrations apply DB --local && vite build apps/web && concurrently -k -n web,api \"vite build apps/web --watch\" \"wrangler dev --ip 127.0.0.1 --port 8787\"\n[WebServer] node_modules/zod/v4/core/util.js (400:0): A comment\n[WebServer] \n[WebServer] \"// Wrapped in a `@__PURE__` IIFE: esbuild never tree-shakes a top-level initializer that contains a member access on `Number`, so the bare object literal survived into every bundle.\"\n[WebServer] \n[WebServer] in \"node_modules/zod/v4/core/util.js\" contains an annotation that Rollup cannot interpret due to the position of the comment. The comment will be removed to avoid issues.\n[WebServer] node_modules/zod/v4/core/regexes.js (74:0): A comment\n[WebServer] \n[WebServer] \"/** Anchors a pattern source. The interpolation lives here rather than at the call site because\n[WebServer]  * esbuild will not drop a `@__PURE__` call whose own argument interpolates a variable, but it\n[WebServer]  * will drop `anchor(dateSource)`. Keeping it inline pinned `date` into every bundle. */\"\n[WebServer] \n[WebServer] in \"node_modules/zod/v4/core/regexes.js\" contains an annotation that Rollup cannot interpret due to the position of the comment. The comment will be removed to avoid issues.\n[WebServer] [plugin vite:reporter] \n[WebServer] (!) ~/.vidi-bench/work/benchmarks__reference__todoodle__opus-5.5__run-2/workspace/apps/web/src/lib/api.ts is dynamically imported by ~/.vidi-bench/work/benchmarks__reference__todoodle__opus-5.5__run-2/workspace/apps/web/src/features/live/network.ts but also statically imported by ~/.vidi-bench/work/benchmarks__reference__todoodle__opus-5.5__run-2/workspace/apps/web/src/features/live/LiveProvider.tsx, ~/.vidi-bench/work/benchmarks__reference__todoodle__opus-5.5__run-2/workspace/apps/web/src/features/remembered/api.ts, ~/.vidi-bench/work/benchmarks__reference__todoodle__opus-5.5__run-2/workspace/apps/web/src/features/remembered/useTouchRemembered.ts, ~/.vidi-bench/work/benchmarks__reference__todoodle__opus-5.5__run-2/workspace/apps/web/src/features/share/UnsavedLinkBanner.tsx, ~/.vidi-bench/work/benchmarks__reference__todoodle__opus-5.5__run-2/workspace/apps/web/src/features/share/useWorkspaceLink.ts, ~/.vidi-bench/work/benchmarks__reference__todoodle__opus-5.5__run-2/workspace/apps/web/src/features/workspace/bootOpen.ts, ~/.vidi-bench/work/benchmarks__reference__todoodle__opus-5.5__run-2/workspace/apps/web/src/features/workspace/useCreateWorkspace.ts, ~/.vidi-bench/work/benchmarks__reference__todoodle__opus-5.5__run-2/workspace/apps/web/src/features/workspace/useRenameWorkspace.ts, ~/.vidi-bench/work/benchmarks__reference__todoodle__opus-5.5__run-2/workspace/apps/web/src/features/workspace/workspaceQuery.ts, dynamic import will not move module into another chunk.\n[WebServer] \n[WebServer] \n[WebServer] (!) Some chunks are larger than 500 kB after minification. Consider:\n[WebServer] - Using dynamic import() to code-split the application\n[WebServer] - Use build.rollupOptions.output.manualChunks to improve chunking: https://rollupjs.org/configuration-options/#output-manualchunks\n[WebServer] - Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.\nerror: script \"test:e2e\" exited with code 1\n",
+            "passed": 33,
+            "failed": 1
+          }
+        },
+        "all_green": false
+      },
+      "accept": {
+        "skipped": false,
+        "build_exit": 0,
+        "runner_exit": 1,
+        "passed": 46,
+        "total": 51,
+        "on_partial": {
+          "passed": 0,
+          "total": 0
+        },
+        "by_story": {
+          "01": {
+            "passed": 11,
+            "total": 11
+          },
+          "02": {
+            "passed": 19,
+            "total": 22
+          },
+          "03": {
+            "passed": 14,
+            "total": 15
+          },
+          "04": {
+            "passed": 2,
+            "total": 3
+          }
+        },
+        "harness_fault": null
+      },
+      "commit": "8a267fcfd3b734add0d4ca062b643ccb2b3977e6",
+      "requests": {},
+      "time_split": {
+        "wall_s": 2196.1,
+        "model": null,
+        "tools_s": 0,
+        "tools_by_kind": {},
+        "compaction_s": 0,
+        "compactions": 0,
+        "other_s": 2196.1
+      },
+      "loc": {
+        "files": 0,
+        "lines": 0
+      },
+      "finished": 1790515506.004839,
+      "status": "DONE",
+      "ended_by": "agent",
+      "partial_base": [],
+      "tasks": [
+        {
+          "n": 1,
+          "title": "Define shared live event contract and live constants",
+          "type": "implementation",
+          "implements": [
+            "live.broadcast"
+          ],
+          "tcs": [],
+          "status": "committed",
+          "found": null,
+          "total": null
+        },
+        {
+          "n": 2,
+          "title": "WorkspaceRoom Durable Object and authenticated /live upgrade endpoint",
+          "type": "implementation",
+          "implements": [
+            "live.room"
+          ],
+          "tcs": [],
+          "status": "committed",
+          "found": null,
+          "total": null
+        },
+        {
+          "n": 3,
+          "title": "Broadcast helper and wire workspace rename to live events",
+          "type": "implementation",
+          "implements": [
+            "live.broadcast"
+          ],
+          "tcs": [],
+          "status": "committed",
+          "found": null,
+          "total": null
+        },
+        {
+          "n": 4,
+          "title": "Verify story 2's single SharePanel meets the share requirements (no new share UI)",
+          "type": "implementation",
+          "implements": [
+            "share.panel"
+          ],
+          "tcs": [],
+          "status": "committed",
+          "found": null,
+          "total": null
+        },
+        {
+          "n": 5,
+          "title": "Join via shared link starts the live connection",
+          "type": "implementation",
+          "implements": [
+            "share.join"
+          ],
+          "tcs": [],
+          "status": "committed",
+          "found": null,
+          "total": null
+        },
+        {
+          "n": 6,
+          "title": "Client live connection, handler registry, per-frame batching and screen-reader announcer",
+          "type": "implementation",
+          "implements": [
+            "live.client_sync"
+          ],
+          "tcs": [],
+          "status": "committed",
+          "found": null,
+          "total": null
+        },
+        {
+          "n": 7,
+          "title": "Live paused vs offline: reconnect, health probe, Reconnecting pill, offline banner and fieldset edit gate",
+          "type": "implementation",
+          "implements": [
+            "live.connection_status"
+          ],
+          "tcs": [],
+          "status": "committed",
+          "found": null,
+          "total": null
+        },
+        {
+          "n": 8,
+          "title": "Reusable edit guard with conflict choice (Use my version / Keep theirs) and deleted notices",
+          "type": "implementation",
+          "implements": [
+            "live.conflict_notice"
+          ],
+          "tcs": [],
+          "status": "committed",
+          "found": null,
+          "total": null
+        },
+        {
+          "n": 9,
+          "title": "Unit tests: event contract, room, dispatch/registry/batching/announcer, socket+network+derived UI, edit guard matrix",
+          "type": "test:unit",
+          "implements": [
+            "live.broadcast",
+            "live.room",
+            "live.client_sync",
+            "live.connection_status",
+            "live.conflict_notice"
+          ],
+          "tcs": [],
+          "status": "committed",
+          "found": null,
+          "total": null
+        },
+        {
+          "n": 10,
+          "title": "Integration tests: live endpoint auth/origin, DO fan-out, broadcast, link and join contracts",
+          "type": "test:integration",
+          "implements": [
+            "live.room",
+            "live.broadcast",
+            "share.panel",
+            "share.join"
+          ],
+          "tcs": [],
+          "status": "committed",
+          "found": null,
+          "total": null
+        },
+        {
+          "n": 11,
+          "title": "UI-component tests: shared SharePanel pins, live provider/announcer, pill vs banner gating, conflict choice",
+          "type": "test:ui-component",
+          "implements": [
+            "share.panel",
+            "live.client_sync",
+            "live.connection_status",
+            "live.conflict_notice"
+          ],
+          "tcs": [],
+          "status": "committed",
+          "found": null,
+          "total": null
+        },
+        {
+          "n": 12,
+          "title": "E2E tests: share, join, live propagation, offline vs live-paused, conflict choice",
+          "type": "test:e2e",
+          "implements": [
+            "share.panel",
+            "share.join",
+            "live.client_sync",
+            "live.connection_status",
+            "live.conflict_notice"
+          ],
+          "tcs": [],
+          "status": "committed",
+          "found": null,
+          "total": null
+        }
       ]
     }
   },
@@ -2554,6 +2882,336 @@
           "accept": {
             "passed": 6,
             "total": 7
+          }
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "title": "Bring others into a workspace by sharing its link",
+      "status": "DONE",
+      "ended_by": "agent",
+      "started_at": 1790513112.182388,
+      "ended_at": 1790515308.321766,
+      "agent_minutes": 36.6,
+      "calls": 115,
+      "output_tokens": 150204,
+      "compactions": 0,
+      "last_commit_at": 1790515293.0,
+      "accept": {
+        "passed": 2,
+        "total": 3
+      },
+      "partial_base": [],
+      "tasks": [
+        {
+          "n": 1,
+          "title": "Define shared live event contract and live constants",
+          "type": "implementation",
+          "implements": [
+            "live.broadcast"
+          ],
+          "tcs": [],
+          "status": "committed",
+          "found": null,
+          "total": null
+        },
+        {
+          "n": 2,
+          "title": "WorkspaceRoom Durable Object and authenticated /live upgrade endpoint",
+          "type": "implementation",
+          "implements": [
+            "live.room"
+          ],
+          "tcs": [],
+          "status": "committed",
+          "found": null,
+          "total": null
+        },
+        {
+          "n": 3,
+          "title": "Broadcast helper and wire workspace rename to live events",
+          "type": "implementation",
+          "implements": [
+            "live.broadcast"
+          ],
+          "tcs": [],
+          "status": "committed",
+          "found": null,
+          "total": null
+        },
+        {
+          "n": 4,
+          "title": "Verify story 2's single SharePanel meets the share requirements (no new share UI)",
+          "type": "implementation",
+          "implements": [
+            "share.panel"
+          ],
+          "tcs": [],
+          "status": "committed",
+          "found": null,
+          "total": null
+        },
+        {
+          "n": 5,
+          "title": "Join via shared link starts the live connection",
+          "type": "implementation",
+          "implements": [
+            "share.join"
+          ],
+          "tcs": [],
+          "status": "committed",
+          "found": null,
+          "total": null
+        },
+        {
+          "n": 6,
+          "title": "Client live connection, handler registry, per-frame batching and screen-reader announcer",
+          "type": "implementation",
+          "implements": [
+            "live.client_sync"
+          ],
+          "tcs": [],
+          "status": "committed",
+          "found": null,
+          "total": null
+        },
+        {
+          "n": 7,
+          "title": "Live paused vs offline: reconnect, health probe, Reconnecting pill, offline banner and fieldset edit gate",
+          "type": "implementation",
+          "implements": [
+            "live.connection_status"
+          ],
+          "tcs": [],
+          "status": "committed",
+          "found": null,
+          "total": null
+        },
+        {
+          "n": 8,
+          "title": "Reusable edit guard with conflict choice (Use my version / Keep theirs) and deleted notices",
+          "type": "implementation",
+          "implements": [
+            "live.conflict_notice"
+          ],
+          "tcs": [],
+          "status": "committed",
+          "found": null,
+          "total": null
+        },
+        {
+          "n": 9,
+          "title": "Unit tests: event contract, room, dispatch/registry/batching/announcer, socket+network+derived UI, edit guard matrix",
+          "type": "test:unit",
+          "implements": [
+            "live.broadcast",
+            "live.room",
+            "live.client_sync",
+            "live.connection_status",
+            "live.conflict_notice"
+          ],
+          "tcs": [],
+          "status": "committed",
+          "found": null,
+          "total": null
+        },
+        {
+          "n": 10,
+          "title": "Integration tests: live endpoint auth/origin, DO fan-out, broadcast, link and join contracts",
+          "type": "test:integration",
+          "implements": [
+            "live.room",
+            "live.broadcast",
+            "share.panel",
+            "share.join"
+          ],
+          "tcs": [],
+          "status": "committed",
+          "found": null,
+          "total": null
+        },
+        {
+          "n": 11,
+          "title": "UI-component tests: shared SharePanel pins, live provider/announcer, pill vs banner gating, conflict choice",
+          "type": "test:ui-component",
+          "implements": [
+            "share.panel",
+            "live.client_sync",
+            "live.connection_status",
+            "live.conflict_notice"
+          ],
+          "tcs": [],
+          "status": "committed",
+          "found": null,
+          "total": null
+        },
+        {
+          "n": 12,
+          "title": "E2E tests: share, join, live propagation, offline vs live-paused, conflict choice",
+          "type": "test:e2e",
+          "implements": [
+            "share.panel",
+            "share.join",
+            "live.client_sync",
+            "live.connection_status",
+            "live.conflict_notice"
+          ],
+          "tcs": [],
+          "status": "committed",
+          "found": null,
+          "total": null
+        }
+      ],
+      "baselines": [
+        {
+          "source": "reference opus-5.5 run-1",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 35.8,
+          "calls": 72,
+          "output_tokens": 121862,
+          "accept": {
+            "passed": 4,
+            "total": 4
+          }
+        },
+        {
+          "source": "reference opus-5.5 run-2",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 32.3,
+          "calls": 93,
+          "output_tokens": 86802,
+          "accept": {
+            "passed": 4,
+            "total": 4
+          }
+        },
+        {
+          "source": "reference opus-5.5 run-3",
+          "status": "DONE",
+          "gate_green": false,
+          "agent_minutes": 22.1,
+          "calls": 79,
+          "output_tokens": 85940,
+          "accept": {
+            "passed": 4,
+            "total": 4
+          }
+        },
+        {
+          "source": "qwen/3.8/27b/ubuntu/nvidia4090/llamacpp-opencode canvas-pi-02",
+          "status": "DONE",
+          "gate_green": false,
+          "agent_minutes": 230.2,
+          "calls": 605,
+          "output_tokens": 469592,
+          "accept": {
+            "passed": 4,
+            "total": 4
+          }
+        },
+        {
+          "source": "qwen/3.8/27b/ubuntu/nvidia4090/llamacpp-opencode canvas-pi-03",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 252.4,
+          "calls": 585,
+          "output_tokens": 776497,
+          "accept": {
+            "passed": 4,
+            "total": 4
+          }
+        },
+        {
+          "source": "qwen/3.8/27b/ubuntu/nvidia4090/llamacpp-opencode canvas-pi-04",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 170.6,
+          "calls": 633,
+          "output_tokens": 522082,
+          "accept": {
+            "passed": 4,
+            "total": 4,
+            "on_partial_total": 4,
+            "on_partial_passed": 4
+          }
+        },
+        {
+          "source": "qwen/3.8/flash-next/macos/128GB/llamacpp-pi ab-s7s8-01",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 55.8,
+          "calls": 163,
+          "output_tokens": 100735,
+          "accept": {
+            "passed": 4,
+            "total": 4,
+            "on_partial_total": 4,
+            "on_partial_passed": 4
+          }
+        },
+        {
+          "source": "qwen/3.8/flash-next/macos/128GB/mtplx-opencode canvas-pi-01",
+          "status": "DONE",
+          "gate_green": false,
+          "agent_minutes": 125.5,
+          "calls": 408,
+          "output_tokens": 317444,
+          "accept": {
+            "passed": 3,
+            "total": 4
+          }
+        },
+        {
+          "source": "qwen/3.8/flash-next/macos/128GB/mtplx-opencode canvas-pi-02",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 138.7,
+          "calls": 363,
+          "output_tokens": 307079,
+          "accept": {
+            "passed": 1,
+            "total": 4
+          }
+        },
+        {
+          "source": "qwen/3.8/flash-next/macos/128GB/mtplx-opencode canvas-pi-03",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 55.8,
+          "calls": 163,
+          "output_tokens": 100735,
+          "accept": {
+            "passed": 4,
+            "total": 4,
+            "on_partial_total": 4,
+            "on_partial_passed": 4
+          }
+        },
+        {
+          "source": "qwen/3.8/flash-next/ubuntu/strix-halo-128GB/llamacpp-pi canvas-vk-01",
+          "status": "DONE",
+          "gate_green": false,
+          "agent_minutes": 158.4,
+          "calls": 191,
+          "output_tokens": 182994,
+          "accept": {
+            "passed": 4,
+            "total": 4
+          }
+        },
+        {
+          "source": "qwen/3.8-swift/27b/ubuntu/nvidia4090/llamacpp-opencode canvas-pi-01",
+          "status": "DONE",
+          "gate_green": false,
+          "agent_minutes": 71.5,
+          "calls": 252,
+          "output_tokens": 199226,
+          "accept": {
+            "passed": 4,
+            "total": 4
           }
         }
       ]

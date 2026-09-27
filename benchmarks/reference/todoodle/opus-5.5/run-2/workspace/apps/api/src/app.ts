@@ -5,6 +5,7 @@ import { requestId } from './middleware/request-id';
 import { validate } from './middleware/validate';
 import { workspaceAuth } from './middleware/workspace-auth';
 import { health } from './routes/health';
+import { liveRoutes } from './routes/live';
 import { rememberedRoutes } from './routes/remembered';
 import { testRoutes } from './routes/test';
 import { workspaceRoutes } from './routes/workspaces';
@@ -20,6 +21,8 @@ export function createApp() {
   app.route('/health', health);
   app.route('/api/health', health);
   app.route('/test', testRoutes);
+  // The live socket runs its Upgrade and Origin checks before workspace-auth (see routes/live.ts).
+  app.route('/api', liveRoutes);
   // Every workspace-scoped route (stories 2 to 8) sits behind workspace-auth.
   app.use('/api/w/:workspaceId', workspaceAuth);
   app.use('/api/w/:workspaceId/*', workspaceAuth);

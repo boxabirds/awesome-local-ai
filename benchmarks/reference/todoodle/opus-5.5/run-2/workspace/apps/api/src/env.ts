@@ -1,9 +1,11 @@
 import type { WorkspaceRow } from './db/workspaces';
 import type { RememberedEntry } from './lib/cookie';
+import type { WorkspaceRoom } from './live/WorkspaceRoom';
 
 export interface Env {
   DB: D1Database;
   ASSETS: Fetcher;
+  WORKSPACE_ROOM: DurableObjectNamespace<WorkspaceRoom>;
   ENVIRONMENT?: string;
   APP_VERSION?: string;
   GIT_SHA?: string;

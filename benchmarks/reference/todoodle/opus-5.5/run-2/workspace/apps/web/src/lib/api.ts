@@ -9,38 +9,40 @@ import {
   WorkspaceResponse,
 } from '@todoodle/shared/schemas';
 import type { z } from 'zod';
-
-/**
- * A failed API call. Carries only the error code and HTTP status (0 for network failures):
- * never the request body, URL fragment or any secret.
- */
-export class ApiError extends Error {
-  constructor(
-    readonly code: string,
-    readonly status: number,
-  ) {
-    super(`API request failed: ${code} (${status})`);
-    this.name = 'ApiError';
-  }
-}
-
-/** True for answers that mean "no such workspace" (404, or 400 for a malformed open request). */
-export function isNotFoundError(error: unknown): boolean {
-  return error instanceof ApiError && (error.status === 404 || error.status === 400);
-}
+import { canEditStore } from '@/features/live/canEdit';
+import { CLIENT_ID_HEADER, clientId } from '@/features/live/clientId';
+import { networkMonitor } from '@/features/live/network';
+import { ApiError, GoneError, NetworkError, OfflineError } from './errors';
 
 const MUTATION_HEADERS = { [CLIENT_HEADER]: CLIENT_HEADER_VALUE };
 
-/** fetch that turns network failures and non-2xx answers into ApiError. */
+/** Workspace edits (anything but a read under /api/w/) are refused while editing is off. */
+function isWorkspaceEdit(path: string, init?: RequestInit): boolean {
+  return (init?.method ?? 'GET').toUpperCase() !== 'GET' && path.startsWith('/api/w/');
+}
+
+/**
+ * fetch that turns failures into errors. While editing is off a workspace edit rejects with
+ * OfflineError and sends nothing. A fetch that never gets an answer is a NetworkError and tells
+ * NetworkMonitor (HTTP error statuses are answers, not offline). 410 is GoneError.
+ */
 async function send(path: string, init?: RequestInit): Promise<Response> {
+  if (isWorkspaceEdit(path, init) && !canEditStore.getSnapshot()) throw new OfflineError();
   let res: Response;
   try {
-    res = await fetch(path, { credentials: 'same-origin', ...init });
-  } catch {
+    const headers = new Headers(init?.headers);
+    headers.set(CLIENT_ID_HEADER, clientId);
+    res = await fetch(path, { credentials: 'same-origin', ...init, headers });
+  } catch (error) {
+    if (error instanceof TypeError) {
+      networkMonitor.reportNetworkFailure();
+      throw new NetworkError();
+    }
     throw new ApiError('network', 0);
   }
   if (!res.ok) {
     const body = (await res.json().catch(() => null)) as { error?: unknown } | null;
+    if (res.status === 410) throw new GoneError();
     throw new ApiError(typeof body?.error === 'string' ? body.error : 'http_error', res.status);
   }
   return res;
@@ -105,4 +107,10 @@ export async function touchRemembered(id: string): Promise<void> {
 /** Forgets the workspace on this browser only. */
 export async function forgetRemembered(id: string): Promise<void> {
   await send(`/api/remembered/${encodeURIComponent(id)}`, bodyless('DELETE'));
+}
+
+/** The offline probe: resolves when Todoodle answers GET /api/health with 2xx, rejects otherwise. */
+export async function health(): Promise<void> {
+  const res = await fetch('/api/health', { cache: 'no-store', credentials: 'same-origin' });
+  if (!res.ok) throw new ApiError('health', res.status);
 }

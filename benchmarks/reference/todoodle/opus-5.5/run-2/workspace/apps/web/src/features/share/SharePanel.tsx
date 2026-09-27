@@ -5,6 +5,7 @@ import { useRef, useState } from 'react';
 import { Button, buttonClasses } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog';
 import { useWorkspaceContext } from '@/features/workspace/WorkspaceContext';
+import { ACCESS_EDIT_SENTENCE, ACCESS_KEY_SENTENCE, SAVE_WARNING } from './copy';
 import { markLinkSaved } from './linkSaved';
 import { platformShortcut } from './platformShortcut';
 import { useCopyLink } from './useCopyLink';
@@ -100,9 +101,9 @@ function SharePanelBody({
       <DialogTitle className="text-xl font-semibold">{mode === 'save' ? 'Save your link' : 'Share'}</DialogTitle>
       <DialogDescription id="share-panel-description" asChild>
         <div className="flex flex-col gap-2 text-sm">
-          <p>This link is the key to this workspace — for you and anyone you send it to.</p>
-          {mode === 'save' ? <p>It's the only way back in: if you lose it, you lose access.</p> : null}
-          <p>Anyone with it can see and change everything. Access can't be removed yet.</p>
+          <p>{ACCESS_KEY_SENTENCE}</p>
+          {mode === 'save' ? <p>{SAVE_WARNING}</p> : null}
+          <p>{ACCESS_EDIT_SENTENCE}</p>
         </div>
       </DialogDescription>
 

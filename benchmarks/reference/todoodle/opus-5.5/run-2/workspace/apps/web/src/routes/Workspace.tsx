@@ -1,15 +1,14 @@
 import type { Workspace as WorkspaceData } from '@todoodle/shared/schemas';
 import { Component, type ReactNode, Suspense, use, useState } from 'react';
 import { useLocation, useParams } from 'react-router';
-import { useCanEdit } from '@/features/live/canEditStore';
+import { LiveProvider } from '@/features/live/LiveProvider';
 import { useTouchRemembered } from '@/features/remembered/useTouchRemembered';
 import { discardOpen, knownWorkspaceId, openForRoute } from '@/features/workspace/bootOpen';
 import { useWorkspace } from '@/features/workspace/useWorkspace';
-import { WorkspaceContext, type WorkspaceContextValue } from '@/features/workspace/WorkspaceContext';
-import { WorkspaceHeader } from '@/features/workspace/WorkspaceHeader';
 import { WorkspaceLoadFailed } from '@/features/workspace/WorkspaceLoadFailed';
+import { WorkspaceShell } from '@/features/workspace/WorkspaceShell';
 import { WorkspaceSkeleton } from '@/features/workspace/WorkspaceSkeleton';
-import { isNotFoundError } from '@/lib/api';
+import { isNotFoundError } from '@/lib/errors';
 import { NotFoundPage } from './NotFoundPage';
 
 /** `/w#<secret>`: the link entry. The fragment is never removed, so reload and bookmarks work. */
@@ -92,69 +91,21 @@ export function WorkspaceById({
   const query = useWorkspace(workspaceId, { placeholderData });
   if (query.data) {
     return (
-      <WorkspaceView
-        workspaceId={workspaceId}
-        name={query.data.name}
-        secretFromHash={secretFromHash}
-        loading={query.isPlaceholderData}
-      />
+      // The live socket starts once the workspace is known (open or GET returned); the data
+      // queries and the socket then run in parallel. A 404 never gets here, so no socket.
+      <LiveProvider workspaceId={workspaceId} enabled={!query.isPlaceholderData} notFound={<NotFoundPage />}>
+        <WorkspaceShell
+          workspaceId={workspaceId}
+          name={query.data.name}
+          secretFromHash={secretFromHash}
+          loading={query.isPlaceholderData}
+        />
+      </LiveProvider>
     );
   }
   if (query.isPending) return <WorkspaceSkeleton />;
   if (isNotFoundError(query.error)) return <NotFoundPage />;
   return <WorkspaceLoadFailed onRetry={() => void query.refetch()} />;
-}
-
-const bar = 'skeleton-shimmer rounded bg-muted';
-const bodySkeleton = (
-  <main aria-busy="true" aria-label="Loading tasks" className="flex flex-1 flex-col gap-4 p-6" data-testid="workspace-body-skeleton">
-    <div className={`${bar} h-5 w-3/4`} />
-    <div className={`${bar} h-5 w-2/3`} />
-    <div className={`${bar} h-5 w-5/6`} />
-  </main>
-);
-
-function WorkspaceView({
-  workspaceId,
-  name,
-  secretFromHash,
-  loading = false,
-}: {
-  workspaceId: string;
-  name: string;
-  secretFromHash?: string;
-  /** Showing the remembered name only: nothing is editable and the body is a skeleton. */
-  loading?: boolean;
-}) {
-  const liveCanEdit = useCanEdit();
-  const canEdit = liveCanEdit && !loading;
-  const [context] = useState<WorkspaceContextValue>(() => ({ workspaceId, secretFromHash }));
-  return (
-    <WorkspaceContext value={context}>
-      <title>{`Todoodle - ${name}`}</title>
-      <div className="flex min-h-screen flex-col">
-        <WorkspaceHeader workspaceId={workspaceId} name={name} canEdit={canEdit} />
-        <div className="flex flex-1">
-          <nav aria-label="Lists" className="hidden w-60 flex-col gap-1 border-r border-border p-3 sm:flex">
-            <span aria-current="page" className="rounded-md bg-muted px-3 py-2 text-sm font-medium">
-              Inbox
-            </span>
-          </nav>
-          <fieldset disabled={!canEdit} className="contents">
-            <legend className="sr-only">Inbox</legend>
-            {loading ? (
-              bodySkeleton
-            ) : (
-              <main className="flex flex-1 flex-col gap-2 p-6">
-                <h2 className="text-lg font-semibold">Inbox</h2>
-                <p className="text-muted-foreground">Nothing here yet.</p>
-              </main>
-            )}
-          </fieldset>
-        </div>
-      </div>
-    </WorkspaceContext>
-  );
 }
 
 export default function Workspace() {

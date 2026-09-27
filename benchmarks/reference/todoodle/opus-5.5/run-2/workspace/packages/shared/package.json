@@ -6,6 +6,7 @@
     "./limits": "./src/limits.ts",
     "./health": "./src/health.ts",
     "./schemas": "./src/schemas.ts",
+    "./events": "./src/events.ts",
     "./tokens": "./src/tokens.ts",
     "./contrast": "./src/contrast.ts"
   },

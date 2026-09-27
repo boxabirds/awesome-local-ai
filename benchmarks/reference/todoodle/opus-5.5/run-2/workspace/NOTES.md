@@ -220,3 +220,69 @@
   rather than raised; splitting the row menu out would be the next step if it matters.
 - Not verified here: the Secure attribute on real staging/production TLS (covered only by
   unit TC-09, as the design says), and Safari ITP cookie behaviour.
+
+## Story 4
+
+- **Commit order.** Task 5 (wrap the shell in `LiveProvider`) needs task 6's provider, so task 6
+  was committed before task 5. `LiveConnection`'s full socket state machine (backoff, heartbeat,
+  `pausedLong`, heal, not_found) landed with task 6's class; task 7 added the network monitor,
+  the edit gate and the indicators. Every commit still carries its own task number and title.
+- **Dependencies.** `mock-socket` was added to apps/web devDependencies by hand (same bun sandbox
+  error as stories 2 and 3; bun wrote `bun.lock`).
+- **Event union has 8 types, not 9.** The design says "9 type literals" but its union lists 8
+  (`workspace.updated`, `project.upserted|restored|deleted`, `task.upserted|restored|deleted`,
+  `tasks.bulk`); `events.ts` implements exactly the listed union. `ProjectDTO`/`TaskDTO` are
+  loose placeholders (`id`, `version`) for stories 5 and 7.
+- **Constants the design uses but doesn't value:** `LIVE_RECONNECT_MAX_MS = 30_000` (from the
+  backoff boundary cases), `LIVE_PING_INTERVAL_MS = 20_000`, `LIVE_UPDATE_TARGET_MS = 5_000`.
+  `LIVE_OFFLINE_AFTER_MS` never existed in this repository, so there was nothing to retire.
+  `COPY_CONFIRM_MS` was already added by story 2.
+- **No-op rename.** Renaming to the current name now returns 200 with the unchanged workspace
+  (version not bumped, nothing broadcast), per TC-B06. Story 2 always bumped the version.
+- **`copy.ts`** did not exist in story 2's code; it was added (`features/share/copy.ts`) with the
+  access sentences, and `SharePanel` renders them from it. Wording unchanged.
+- **`WorkspaceShell`** did not exist as a file: story 2's `WorkspaceView` (inside
+  `routes/Workspace.tsx`) was moved to `features/workspace/WorkspaceShell.tsx`. The name editor
+  sits in the header, so the gate is two `<fieldset disabled>`s driven by the same `canEdit`
+  (header name, and the sidebar/main area); Share, the switcher and navigation stay outside.
+  Story 2's `canEditStore.ts` stub was replaced by `canEdit.ts` (design name).
+- **`WorkspaceName` in the design is story 2's `WorkspaceNameEditor.tsx`.** It now leaves its
+  draft `null` until the user types, keeps the draft when a blur happens while editing is off,
+  and wires `useEditGuard`. The conflict notice's buttons prevent mousedown focus, and blurring
+  into the notice keeps the editor open (Safari doesn't focus buttons on click).
+- **Edit-guard refinement.** While Editing, a field conflicts only if both the user and the
+  other person changed it (relative to its value when editing began) to different values.
+  Otherwise merely focusing the name and someone else renaming would show a spurious notice
+  (and blur would write the old name back). TC-G05/G06 follow this.
+- **404 on the socket upgrade.** Browsers can't see an upgrade's HTTP status, so when a socket
+  closes before ever opening, `LiveConnection` asks `GET /api/w/:id` (`checkAccess`); a 404
+  there is the terminal `not_found` (the route shows Not Found). Close code 4404 does the same.
+- **Mutations use `networkMode: 'always'`.** TanStack's `onlineManager` also listens to the
+  window `offline` event and would *pause* mutations and send them when back online: an
+  offline edit queue, which the PRD rules out. Edits now fail at once (api.ts `OfflineError`).
+- **Cycle break.** `api.ts` reports network failures to `NetworkMonitor`, so the monitor loads
+  `api.health()` with a dynamic import instead of a static one.
+- **`ApiError`/`isNotFoundError` moved to `lib/errors.ts`** (with `NetworkError`, `OfflineError`,
+  `GoneError`, `handleMutationError`) to avoid a class-extends import cycle with `api.ts`.
+- **Tests.** TC-R01/R02 call the `WorkspaceRoom` methods on a fake `ctx` via the prototype (the
+  runtime refuses to construct a DurableObject without a real state); the ping/pong auto-response
+  is covered by integration TC-R04. The share/join integration tests are in
+  `apps/api/test/integration/share-join.test.ts` (the include pattern) rather than
+  `apps/api/test/share-join.test.ts`. Testing Library's user-event isn't installed, so TC-G24
+  checks the tab order from the DOM and activates Keep theirs with focus + click. TC-G26's
+  synthetic task editor uses a real api.ts mutation (the rename call) as its transport, since
+  story 4 has no task endpoint. Component tests default to an `IdleWebSocket` (never connects);
+  live tests install mock-socket or a hand-driven fake. Test setup also resets the network
+  monitor, the edit gate and TanStack's `onlineManager` after each test.
+- **E2E** (`e2e/sharing.spec.ts`) runs in Chromium only, as the design says; the webkit project
+  skips it. W8 drops the socket with `page.routeWebSocket` (closing in the handler looks to the
+  page like a refused upgrade, so the pill shows while HTTP still works).
+
+### Story 4 verification (2026-09-27)
+
+- `build`, `typecheck`, `lint` and `test` pass: api unit 98, scripts unit 42, api integration
+  and production-gate 116, scripts integration 14, web unit and ui 258. E2E: 61 passing (8
+  skipped: story 4's specs under webkit), run twice in a row against `wrangler dev` with fresh
+  local state.
+- Not verified here: Durable Object behaviour on real Cloudflare (regions, evictions), and
+  more than 10 concurrent clients, as the design says.

@@ -17,6 +17,8 @@ function isPrivatePath(path: string): boolean {
  * override whatever the handler set; status and body are preserved.
  */
 export function finalizeResponse(res: Response, ctx: { requestId: string; path: string }): Response {
+  // A WebSocket upgrade passes through untouched: rebuilding it would drop `webSocket`.
+  if (res.status === 101) return res;
   // Copy: responses from fetch/ASSETS have immutable headers.
   const out = new Response(res.body, res);
   for (const [name, value] of Object.entries(BASELINE_HEADERS)) out.headers.set(name, value);

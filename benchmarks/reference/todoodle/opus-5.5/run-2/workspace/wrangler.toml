@@ -19,14 +19,16 @@ database_name = "todoodle-local"
 database_id = "00000000-0000-0000-0000-000000000000"
 migrations_dir = "migrations"
 
-# WorkspaceRoom Durable Object (owned by story 4, which adds the exported class
-# and the DO migration tag). Placeholder only:
-# [[durable_objects.bindings]]
-# name = "WORKSPACE_ROOM"
-# class_name = "WorkspaceRoom"
-# [[migrations]]
-# tag = "v1"
-# new_sqlite_classes = ["WorkspaceRoom"]
+# WorkspaceRoom Durable Object (story 4): one room per workspace fans out live events over
+# hibernatable WebSockets. It holds no data of record. Bindings are not inherited by
+# environments, so staging and production repeat them.
+[[durable_objects.bindings]]
+name = "WORKSPACE_ROOM"
+class_name = "WorkspaceRoom"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["WorkspaceRoom"]
 
 # APP_VERSION, GIT_SHA and DEPLOYED_AT are injected by scripts/deploy.ts via
 # `wrangler deploy --var`, never stored here.
@@ -39,6 +41,10 @@ vars = { ENVIRONMENT = "staging" }
 d1_databases = [
   { binding = "DB", database_name = "todoodle-staging", database_id = "REPLACE_WITH_STAGING_D1_ID", migrations_dir = "migrations" },
 ]
+
+[[env.staging.durable_objects.bindings]]
+name = "WORKSPACE_ROOM"
+class_name = "WorkspaceRoom"
 
 [env.staging.observability.logs]
 enabled = true
@@ -54,6 +60,10 @@ vars = { ENVIRONMENT = "production" }
 d1_databases = [
   { binding = "DB", database_name = "todoodle-production", database_id = "REPLACE_WITH_PRODUCTION_D1_ID", migrations_dir = "migrations" },
 ]
+
+[[env.production.durable_objects.bindings]]
+name = "WORKSPACE_ROOM"
+class_name = "WorkspaceRoom"
 
 [env.production.observability.logs]
 enabled = true

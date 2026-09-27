@@ -43,3 +43,32 @@ export const MIN_TOUCH_TARGET_PX = 44;
 
 /** Below this viewport width the layout switches to its phone form (bottom sheet, full-width buttons). */
 export const MOBILE_BREAKPOINT_PX = 640;
+
+/* Live updates (story 4). Socket loss only pauses live updates; it never means offline. */
+
+/** Reconnect / offline-probe backoff: attempt n waits min(BASE * 2^n, MAX) +/- JITTER. */
+export const LIVE_RECONNECT_BASE_MS = 1_000;
+export const LIVE_RECONNECT_MAX_MS = 30_000;
+export const LIVE_RECONNECT_JITTER = 0.2;
+
+/** Client heartbeat: a `ping` every interval; no `pong` within one interval means the socket is dead. */
+export const LIVE_PING_INTERVAL_MS = 20_000;
+
+/** Continuous connecting/reconnecting time before the "Reconnecting…" pill shows. */
+export const LIVE_PAUSED_AFTER_MS = 5_000;
+
+/** Others' changes should appear within this time. */
+export const LIVE_UPDATE_TARGET_MS = 5_000;
+
+/** Largest serialised live event the broadcast helper sends. */
+export const LIVE_MAX_EVENT_BYTES = 16_384;
+
+/** WebSocket close codes. */
+export const LIVE_CLOSE_NOT_FOUND = 4404;
+export const LIVE_CLOSE_BAD_ORIGIN = 4403;
+
+/** At most one screen-reader announcement of others' changes per window. */
+export const LIVE_ANNOUNCE_THROTTLE_MS = 10_000;
+
+/** After our own save, another person's change within this window is a conflict. */
+export const CONFLICT_RECENT_EDIT_WINDOW_MS = 10_000;

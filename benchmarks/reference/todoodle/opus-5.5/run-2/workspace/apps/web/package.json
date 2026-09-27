@@ -25,6 +25,7 @@
     "axe-core": "^4.13.0",
     "eslint": "^10.11.0",
     "happy-dom": "^20.0.0",
+    "mock-socket": "^9.3.1",
     "msw": "^2.11.0",
     "tailwindcss": "^4.1.0",
     "typescript-eslint": "^8.70.1",
