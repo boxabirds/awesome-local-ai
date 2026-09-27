@@ -8,8 +8,8 @@ export const DialogDescription = DialogPrimitive.Description;
 export const DialogClose = DialogPrimitive.Close;
 
 /**
- * Centered dialog on desktop; a full-width bottom sheet below MOBILE_BREAKPOINT_PX (Tailwind `sm`,
- * 640px), so one component serves both the shadcn Dialog and Sheet roles.
+ * Centered dialog on desktop; a full-width bottom sheet below Tailwind `sm` (640px), so one
+ * component serves both the shadcn Dialog and Sheet roles. (The side drawer is ui/sheet.tsx.)
  */
 export function DialogContent({ className, children, ...props }: ComponentProps<typeof DialogPrimitive.Content>) {
   return (

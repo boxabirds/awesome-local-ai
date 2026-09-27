@@ -52,6 +52,8 @@ afterEach(async () => {
       { resetHoverNoneForTests },
       { networkMonitor },
       { canEditStore },
+      { resetShortcutsForTests },
+      { resetIsNarrowForTests },
     ] = await Promise.all([
       import('@/lib/queryClient'),
       import('@/features/workspace/bootOpen'),
@@ -59,7 +61,11 @@ afterEach(async () => {
       import('@/lib/useHoverNone'),
       import('@/features/live/network'),
       import('@/features/live/canEdit'),
+      import('@/lib/shortcuts'),
+      import('@/features/workspace/useIsNarrow'),
     ]);
+    resetIsNarrowForTests();
+    resetShortcutsForTests();
     queryClient.clear();
     // Online again, as after a page load.
     networkMonitor.reset(true);

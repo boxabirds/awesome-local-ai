@@ -1,9 +1,16 @@
 import { CLIENT_HEADER, CLIENT_HEADER_VALUE } from '@todoodle/shared/limits';
 import {
+  type Counts,
+  CountsSchema,
+  type CreateTaskInput,
   CreateWorkspaceResponse,
   OpenWorkspaceResponse,
   type RememberedPublic,
   RememberedListResponse,
+  type Task,
+  type TaskList,
+  TaskListResponse,
+  TaskResponse,
   type Workspace,
   WorkspaceLinkResponse,
   WorkspaceResponse,
@@ -113,4 +120,24 @@ export async function forgetRemembered(id: string): Promise<void> {
 export async function health(): Promise<void> {
   const res = await fetch('/api/health', { cache: 'no-store', credentials: 'same-origin' });
   if (!res.ok) throw new ApiError('health', res.status);
+}
+
+/** Open tasks of one list, in list order. */
+export async function listTasks(workspaceId: string, list: TaskList, signal?: AbortSignal): Promise<Task[]> {
+  const path = `/api/w/${encodeURIComponent(workspaceId)}/tasks?list=${encodeURIComponent(list)}`;
+  return (await request(TaskListResponse, path, { signal })).tasks;
+}
+
+/** Open-task counts per list. */
+export function getCounts(workspaceId: string, signal?: AbortSignal): Promise<Counts> {
+  return request(CountsSchema, `/api/w/${encodeURIComponent(workspaceId)}/counts`, { signal });
+}
+
+/**
+ * Creates a task with a client-generated id. Idempotent: sending the same id again returns the
+ * task that already exists (200), so a retry after a lost response never makes a duplicate.
+ */
+export async function createTask(workspaceId: string, input: CreateTaskInput, signal?: AbortSignal): Promise<Task> {
+  const init = { ...mutation('POST', input), signal };
+  return (await request(TaskResponse, `/api/w/${encodeURIComponent(workspaceId)}/tasks`, init)).task;
 }

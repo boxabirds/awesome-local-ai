@@ -8,8 +8,9 @@ Model `claude-opus-5-5`, scope ``, effort `client default`, client claude 2.1.28
 | 2 | Start a private workspace instantly, with no sign-up, and get a secret link to return to it | DONE | 29.7 | None | None | None | — | — | red | 30/33 |  | 0 / 0 | 0 | — | throttled 0% |
 | 3 | Get back to my workspaces from this browser without hunting for the link | DONE | 21.5 | None | None | None | — | — | red | 44/48 |  | 0 / 0 | 0 | — | throttled 0% |
 | 4 | Bring others into a workspace by sharing its link | DONE | 36.6 | None | None | None | — | — | red | 46/51 |  | 0 / 0 | 0 | — | throttled 0% |
+| 5 | Capture a task into my Inbox in seconds | DONE | 32.8 | None | None | None | — | — | green | 0/0 |  | 0 / 0 | 0 | — | throttled 0% |
 
-**Totals:** 4 stories, 106 agent-minutes, 0 requests, 0 prompt / 0 completion tokens, gate green 1/4, final acceptance 46/51, stalled 0, partial 0, 0 lines in src+tests.
+**Totals:** 5 stories, 139 agent-minutes, 0 requests, 0 prompt / 0 completion tokens, gate green 2/5, final acceptance 0/0, stalled 0, partial 0, 0 lines in src+tests.
 
 ## How it happened
 
@@ -21,6 +22,7 @@ Each story's commits, and which story broke or fixed an earlier story's held-out
 | 2 | 19 by the agent | 5041 / 71 | `SharePanel.tsx` (170), `cookie.ts` (133), `Workspace.tsx` (130), `tokens.ts` (122), `linkSaved.ts` (109), `workspaces.ts` (92), +55 more |
 | 3 | 14 by the agent | 3142 / 71 | `WorkspaceSwitcher.tsx` (133), `UnsavedLinkWarning.tsx` (102), `RememberedRow.tsx` (87), `NOTES.md` (83), `RememberedList.tsx` (83), `ForgetDialog.tsx` (74), +37 more |
 | 4 | 13 by the agent | 4070 / 140 | `LiveConnection.ts` (286), `editGuard.ts` (223), `network.ts` (137), `useEditGuard.ts` (106), `LiveProvider.tsx` (98), `errors.ts` (77), +38 more |
+| 5 | 19 by the agent | 4897 / 125 | `shortcuts.ts` (186), `InboxView.tsx` (178), `QuickAdd.tsx` (149), `useRovingList.ts` (132), `AppShell.tsx` (114), `useCreateTask.ts` (112), +51 more |
 
 ### Earlier stories broken or fixed
 

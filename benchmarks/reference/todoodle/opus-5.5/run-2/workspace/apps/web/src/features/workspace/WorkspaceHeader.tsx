@@ -1,5 +1,5 @@
 import Share2 from 'lucide-react/icons/share-2';
-import { useState } from 'react';
+import { type ReactNode, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router';
 import { Button } from '@/components/ui/button';
 import type { SharePanelMode } from '@/features/share/SharePanel';
@@ -18,10 +18,16 @@ export function WorkspaceHeader({
   workspaceId,
   name,
   canEdit,
+  leading = null,
+  actions = null,
 }: {
   workspaceId: string;
   name: string;
   canEdit: boolean;
+  /** Before the name: the phone navigation button. */
+  leading?: ReactNode;
+  /** Trailing actions beside Share (story 11's search). */
+  actions?: ReactNode;
 }) {
   const location = useLocation();
   const navigate = useNavigate();
@@ -40,21 +46,25 @@ export function WorkspaceHeader({
     <>
       <header className="flex h-14 items-center justify-between gap-4 border-b border-border px-2 sm:px-4">
         <div className="flex min-w-0 items-center gap-1">
+          {leading}
           <fieldset disabled={!canEdit} className="contents">
             <legend className="sr-only">Workspace</legend>
             <WorkspaceNameEditor workspaceId={workspaceId} name={name} />
           </fieldset>
           <WorkspaceSwitcher currentId={workspaceId} currentName={name} />
         </div>
-        <Button
-          variant="secondary"
-          onClick={() => setPanel({ open: true, mode: 'share' })}
-          onPointerEnter={preloadSharePanel}
-          onFocus={preloadSharePanel}
-        >
-          <Share2 aria-hidden="true" className="size-4" />
-          Share
-        </Button>
+        <div className="flex items-center gap-1">
+          {actions}
+          <Button
+            variant="secondary"
+            onClick={() => setPanel({ open: true, mode: 'share' })}
+            onPointerEnter={preloadSharePanel}
+            onFocus={preloadSharePanel}
+          >
+            <Share2 aria-hidden="true" className="size-4" />
+            Share
+          </Button>
+        </div>
       </header>
       <UnsavedLinkBanner onNeedPanel={() => setPanel({ open: true, mode: 'share' })} />
       <SharePanelLazy open={panel.open} mode={panel.mode} onOpenChange={onOpenChange} />

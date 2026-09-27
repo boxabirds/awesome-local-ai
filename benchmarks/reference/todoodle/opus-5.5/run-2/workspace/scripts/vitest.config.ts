@@ -13,7 +13,7 @@ export default defineConfig({
           name: 'unit',
           root,
           environment: 'node',
-          include: ['scripts/test/**/*.test.ts', 'e2e/**/*.unit.test.ts'],
+          include: ['scripts/test/**/*.test.ts', 'e2e/**/*.unit.test.ts', 'packages/shared/test/**/*.test.ts'],
           exclude: ['scripts/test/**/*.int.test.ts'],
         },
       },

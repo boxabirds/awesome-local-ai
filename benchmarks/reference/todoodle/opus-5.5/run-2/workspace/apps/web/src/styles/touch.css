@@ -1,0 +1,14 @@
+/*
+ * Touch screens (no hover-capable pointer): every interactive control in the app shell, the task
+ * list, quick add and the navigation drawer is at least --min-touch-target (MIN_TOUCH_TARGET_PX)
+ * in both dimensions.
+ */
+@media (hover: none) {
+  [data-app-shell] :is(button, a[href], [role='checkbox'], [role='option'], input:not([type='hidden']), textarea, select) {
+    min-height: var(--min-touch-target);
+  }
+
+  [data-app-shell] :is(button, a[href], [role='checkbox']) {
+    min-width: var(--min-touch-target);
+  }
+}

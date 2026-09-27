@@ -286,3 +286,81 @@
   local state.
 - Not verified here: Durable Object behaviour on real Cloudflare (regions, evictions), and
   more than 10 concurrent clients, as the design says.
+
+## Story 5
+
+- **Commit order.** The API tests (tasks 8-10) were committed right after the API (tasks 1-3).
+  Tasks 5 and 6 need task 15's shortcut registry, and task 7's hook replaces the create call task 6
+  wired in, so the order was 1, 2, 3, 8, 9, 10, 4, 15, 5, 6, 16, 7, 11, 12, 13, 17, 18, 14. Every
+  commit still carries its own task number and title. Task 6's interim (non-optimistic) create in
+  `InboxView` was replaced by `useCreateTask` in task 7.
+- **Lengths are UTF-16 code units on both sides.** zod 4's `.max()` counts code points, so an
+  emoji-heavy name could pass the server while the client says it is over. `CreateTaskInputSchema`
+  checks `String.length` with a refine instead (TC-30 covers an emoji boundary).
+- **Where the loader runs.** The app uses `<BrowserRouter>` + `<Routes>` (no data router), so there
+  is no router `loader` hook. `workspaceLoader({params})` has the loader shape and runs as soon as
+  the workspace id is known: from `main.tsx` for `/w/:id` page loads (in parallel with the route
+  chunk) and on the first render of `WorkspaceById` (both routes, including `/w#secret` once the
+  open resolves). It starts both prefetches without awaiting and returns `null` (TC-91).
+- **`qk`** is an alias of story 2's `queryKeys` factory; `tasks(id, {list})` and `counts(id)` were
+  added to it.
+- **Unsaved rows survive refetches.** `tasksQuery`'s queryFn merges this tab's local rows (saving,
+  failed, rejected) that the server list doesn't contain (`mergeLocalRows`), so a focus refetch or
+  story 4's reconnect/recovery refetch never drops typed text. If the server already has the id
+  (the lost-response case), the server's row wins and the row simply shows as saved.
+- **Create timeout** uses an `AbortController` with a plain `setTimeout` instead of
+  `AbortSignal.timeout`, so fake timers drive TC-70. Failed vs rejected: 400/409/410 are rejected
+  (Discard only); network errors, timeouts, 403, 404 and 5xx are failed (Retry and Discard).
+- **One `useMutation` per Inbox, not per task id.** TanStack runs each `mutate()` call as its own
+  mutation (its own variables and callbacks), so concurrent creates and retries of different tasks
+  don't interfere; the key is `['ws', id, 'create-task']`.
+- **Live handler per event.** Story 4's registry calls handlers once per event (inside one
+  notification batch per animation frame), so `applyTaskUpserted` calls
+  `applyTaskEvents(list, [event])`; the helper itself takes a batch with one id index (TC-121).
+  A new open task from someone else also adds 1 to the Inbox count. `TaskDTO` in `events.ts` stays
+  loose (story 4's tests use partial task entities); the handler validates with `TaskSchema` and
+  refetches instead of guessing when an entity doesn't parse.
+- **Phone layout constant.** `MOBILE_BREAKPOINT_PX` is now 768 (was 640 from story 2). The shell
+  (drawer, FAB, inline sidebar, skeleton) follows it; story 2/3 dialogs and banners keep their
+  Tailwind `sm` (640) switch, and dialog.tsx's comment no longer refers to the constant.
+  `styles/constants.css` (`--mobile-breakpoint`, `--min-touch-target`) is generated from
+  `limits.ts` by `scripts/build-tokens.ts` (`bun run tokens`) and by a Vite plugin at build start.
+  CSS custom properties can't be used inside media queries, so the breakpoint itself is applied in
+  JS (`useIsNarrow`) and with Tailwind `md:`.
+- **Floating add button and the empty-state wording use JS, not CSS only.** The design has CSS show
+  the FAB under `(hover: none)`; here `InboxView` shows the FAB (and hides "+ Add task") when
+  `useIsNarrow() || useHoverNone()` (story 3's shared hover hook), and `EmptyInbox` picks "Press Q"
+  or "Tap +" from the same flag. With CSS only, both buttons (same accessible name "Add task") and
+  both sentences would exist in the DOM at once. The FAB is rendered by `InboxView`, which owns the
+  quick-add state it opens.
+- **Counter announcements.** The visible counter (the field's `aria-describedby` target) is always
+  current; a separate `sr-only` `aria-live="polite"` element repeats it at most once per
+  `COUNTER_ANNOUNCE_THROTTLE_MS`. Counters use singular/plural ("1 character over").
+- **Shortcut registry details.** The dispatcher also ignores key events another handler already
+  prevented. Shift is accepted only for keys that are themselves shifted characters (not letters or
+  digits). `describeShortcut()` entries (the list's ↑/↓, j/k, Home/End) are always listed in the
+  `?` panel. Q is disabled while editing is off.
+- **Rows** are `role=option` with `aria-selected=false` (nothing is selectable yet). `taskRowRenders`
+  is a test-only render counter (guarded by `import.meta.env.MODE === 'test'`) for TC-45/TC-110.
+- **Test layout.** Test files are where the design puts them; the vitest configs gained include
+  patterns for them: `apps/api/test/db`, `apps/api/test/routes`, `apps/web/test/lib`,
+  `apps/web/test/features` (`.ts` in `web-unit`, `.tsx` and the loader test in `ui`), and
+  `packages/shared/test` (run by the scripts `unit` project, which uses node). MSW now starts with
+  an empty Inbox (`test/msw/tasks.ts`). Story 2's "Nothing here yet." assertions (a UI test and an
+  e2e) now expect the empty Inbox text, which replaced that placeholder.
+- **E2E notes.** axe is evaluated in the page (the app's CSP refuses the inline script tag
+  `addScriptTag` would add); colour contrast is checked for real in TC-98. TC-86 "pastes" with
+  `keyboard.insertText`. TC-114 tabs with Alt+Tab in WebKit (Safari's Tab skips non-form
+  controls). In TC-82 the aborted answer makes story 4's network monitor go offline (so Retry is
+  disabled for about a second), and its recovery refetch would already show the committed task as
+  saved; the test answers that list refetch with 503 until Retry, so the Retry path itself (same id,
+  200 replay) is what's checked. The touch spec also runs a 1024x768 touch tablet (iPad profile).
+
+### Story 5 verification (2026-09-27)
+
+- `typecheck`, `build`, `lint` and `test` pass: api unit 102, scripts + shared unit 60, api
+  integration and production-gate 162, scripts integration 14, web unit and ui 357. E2E: 92 passing
+  (8 skipped: story 4's Chromium-only specs under WebKit), against `wrangler dev` with a freshly
+  migrated local D1 (`npm run dev`, as in earlier stories).
+- Not verified here: real on-screen keyboards on physical phones (the inset maths is unit-tested and
+  docked placement checked in emulation) and real screen readers, as the design says.

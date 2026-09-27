@@ -65,7 +65,8 @@ describe('workspace route: /w#secret', () => {
     expect(opens).toEqual([{ secret: SECRET }]);
     expect(currentLocation.value?.hash).toBe(`#${SECRET}`);
     expect(screen.getByRole('heading', { name: 'Inbox' })).toBeInTheDocument();
-    expect(screen.getByText('Nothing here yet.')).toBeInTheDocument();
+    // Story 5 replaced the placeholder with the real empty Inbox.
+    expect(await screen.findByText('Your Inbox is clear. Press Q to add a task.')).toBeInTheDocument();
   });
 
   it('TC-78 while open is pending: skeleton with aria-busy, no NotFound', async () => {

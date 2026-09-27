@@ -41,8 +41,11 @@ export const COPY_CONFIRM_MS = 2_000;
 /** Minimum height and width of touch targets, in CSS pixels. */
 export const MIN_TOUCH_TARGET_PX = 44;
 
-/** Below this viewport width the layout switches to its phone form (bottom sheet, full-width buttons). */
-export const MOBILE_BREAKPOINT_PX = 640;
+/**
+ * Below this viewport width the workspace uses its phone layout (story 5): the sidebar becomes a
+ * drawer behind a menu button and a floating add button appears. Tailwind `md`.
+ */
+export const MOBILE_BREAKPOINT_PX = 768;
 
 /* Live updates (story 4). Socket loss only pauses live updates; it never means offline. */
 
@@ -72,3 +75,37 @@ export const LIVE_ANNOUNCE_THROTTLE_MS = 10_000;
 
 /** After our own save, another person's change within this window is a conflict. */
 export const CONFLICT_RECENT_EDIT_WINDOW_MS = 10_000;
+
+/* Tasks (story 5). */
+
+/** Longest task name and description, in UTF-16 code units (String.length), after trimming. */
+export const TASK_NAME_MAX = 500;
+export const TASK_DESCRIPTION_MAX = 5_000;
+
+/** Gap between the sort_order of consecutive new tasks. */
+export const TASK_SORT_STEP = 1;
+
+/** Random bytes in a client-generated task id (32 lowercase hex characters). */
+export const TASK_ID_BYTES = 16;
+
+/** A length counter appears once a field reaches this share of its limit (ceil(limit * ratio)). */
+export const LENGTH_WARNING_RATIO = 0.9;
+
+/** Keyboard shortcuts: open quick add, and show the shortcuts panel. */
+export const QUICK_ADD_KEY = 'q';
+export const SHORTCUT_HELP_KEY = '?';
+
+/** Placeholder rows shown while a task list loads for the first time. */
+export const SKELETON_ROW_COUNT = 5;
+
+/** Estimated row height for `contain-intrinsic-size` (off-screen rows skip layout). */
+export const TASK_ROW_INTRINSIC_HEIGHT_PX = 44;
+
+/** A length counter's screen-reader announcements are throttled to at most one per interval. */
+export const COUNTER_ANNOUNCE_THROTTLE_MS = 1_000;
+
+/** The quick-add description grows with its text up to this many lines, then scrolls. */
+export const QUICK_ADD_MAX_DESCRIPTION_ROWS = 6;
+
+/** A task create with no answer within this time is marked failed (Retry resends the same id). */
+export const CREATE_TASK_TIMEOUT_MS = 10_000;

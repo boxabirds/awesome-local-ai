@@ -88,7 +88,7 @@ test.describe('secret-link workspaces', () => {
     await saveLinkFromPanel(page, browserName, created.link);
     // The empty Inbox (hidden from the accessibility tree while the modal panel was open).
     await expect(page.getByRole('heading', { name: 'Inbox' })).toBeVisible();
-    await expect(page.getByText('Nothing here yet.')).toBeVisible();
+    await expect(page.getByText('Your Inbox is clear. Press Q to add a task.')).toBeVisible();
 
     await page.getByRole('button', { name: 'Share' }).click();
     const share = page.getByRole('dialog', { name: 'Share' });

@@ -22,7 +22,7 @@ export default defineConfig({
         plugins: [workers()],
         test: {
           name: 'unit',
-          include: ['test/unit/**/*.test.ts'],
+          include: ['test/unit/**/*.test.ts', 'test/db/rowToTask.test.ts'],
           setupFiles: ['test/setup.ts'],
         },
       },
@@ -30,7 +30,7 @@ export default defineConfig({
         plugins: [workers()],
         test: {
           name: 'integration',
-          include: ['test/integration/**/*.test.ts'],
+          include: ['test/integration/**/*.test.ts', 'test/db/tasks.test.ts', 'test/routes/**/*.test.ts'],
           setupFiles: ['test/setup.ts'],
         },
       },

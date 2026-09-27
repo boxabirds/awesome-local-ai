@@ -4,9 +4,11 @@ import { errorResponse, logRequestError } from './lib/errors';
 import { requestId } from './middleware/request-id';
 import { validate } from './middleware/validate';
 import { workspaceAuth } from './middleware/workspace-auth';
+import { countRoutes } from './routes/counts';
 import { health } from './routes/health';
 import { liveRoutes } from './routes/live';
 import { rememberedRoutes } from './routes/remembered';
+import { taskRoutes } from './routes/tasks';
 import { testRoutes } from './routes/test';
 import { workspaceRoutes } from './routes/workspaces';
 
@@ -27,6 +29,8 @@ export function createApp() {
   app.use('/api/w/:workspaceId', workspaceAuth);
   app.use('/api/w/:workspaceId/*', workspaceAuth);
   app.route('/api/remembered', rememberedRoutes);
+  app.route('/api/w/:workspaceId/tasks', taskRoutes);
+  app.route('/api/w/:workspaceId/counts', countRoutes);
   app.route('/api', workspaceRoutes);
 
   app.all('/api', () => errorResponse('not_found', 404));

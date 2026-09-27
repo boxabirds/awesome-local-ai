@@ -7,7 +7,7 @@ const skeleton = (
       <div className={`${bar} h-9 w-20`} />
     </header>
     <div className="flex flex-1">
-      <aside className="hidden w-60 flex-col gap-3 border-r border-border p-4 sm:flex">
+      <aside className="hidden w-60 flex-col gap-3 border-r border-border p-4 md:flex">
         <div className={`${bar} h-5 w-32`} />
         <div className={`${bar} h-5 w-24`} />
         <div className={`${bar} h-5 w-28`} />

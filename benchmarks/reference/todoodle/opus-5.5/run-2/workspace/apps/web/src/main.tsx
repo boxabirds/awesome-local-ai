@@ -6,6 +6,7 @@ import { rememberedQuery } from './features/remembered/api';
 import { startBootOpen } from './features/workspace/bootOpen';
 import { preloadWorkspaceRoute } from './features/workspace/preloadWorkspaceRoute';
 import { queryClient } from './lib/queryClient';
+import { workspaceLoader } from './routes/workspaceLoader';
 
 // Start opening /w#<secret> now, in parallel with the Workspace route chunk download.
 startBootOpen(window.location);
@@ -16,6 +17,10 @@ if (window.location.pathname === '/') {
   if ('requestIdleCallback' in window) window.requestIdleCallback(preloadWorkspaceRoute);
   else setTimeout(preloadWorkspaceRoute, 0);
 }
+
+// Opening /w/:workspaceId: the Inbox list and counts load in parallel with the route chunk.
+const byId = /^\/w\/([^/]+)\/?$/.exec(window.location.pathname);
+if (byId) workspaceLoader({ params: { workspaceId: decodeURIComponent(byId[1]!) } });
 
 const root = document.getElementById('root');
 if (!root) throw new Error('Missing #root element');

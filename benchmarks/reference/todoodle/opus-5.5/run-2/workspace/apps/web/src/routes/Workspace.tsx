@@ -10,6 +10,7 @@ import { WorkspaceShell } from '@/features/workspace/WorkspaceShell';
 import { WorkspaceSkeleton } from '@/features/workspace/WorkspaceSkeleton';
 import { isNotFoundError } from '@/lib/errors';
 import { NotFoundPage } from './NotFoundPage';
+import { workspaceLoader } from './workspaceLoader';
 
 /** `/w#<secret>`: the link entry. The fragment is never removed, so reload and bookmarks work. */
 export function WorkspaceByLink() {
@@ -88,6 +89,9 @@ export function WorkspaceById({
   secretFromHash?: string;
   placeholderData?: WorkspaceData;
 }) {
+  // The route loader: once the id is known, the Inbox list and the counts start together,
+  // alongside the workspace GET, before the shell renders (once per mount; prefetches dedupe).
+  useState(() => workspaceLoader({ params: { workspaceId } }));
   const query = useWorkspace(workspaceId, { placeholderData });
   if (query.data) {
     return (

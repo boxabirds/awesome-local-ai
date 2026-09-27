@@ -11,7 +11,7 @@ import { errorResponse } from '../lib/errors';
  * Tables emptied by POST /test/reset, children first (FK-safe order). Story 2 adds workspaces;
  * later stories append their tables (workspaces, tasks, projects, ...).
  */
-export const TEST_RESET_TABLES: string[] = ['workspaces'];
+export const TEST_RESET_TABLES: string[] = ['tasks', 'workspaces'];
 
 /** Test-only routes. In production they do not exist: same 404 as any unknown API route. */
 export const testRoutes = new Hono<AppEnv>();
