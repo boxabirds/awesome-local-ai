@@ -55,6 +55,12 @@ struct App {
     prep: tokio::sync::Mutex<std::collections::HashMap<String, String>>,
 }
 
+/// The story review follows the user's journey (create a board, move around, add content, ...),
+/// from the pack's canvas-journey scope; the plain canvas scope (story-number order) if it's missing.
+fn review_scope(pack: &std::path::Path) -> &'static str {
+    if pack.join("scope/canvas-journey.json").is_file() { "canvas-journey" } else { "canvas" }
+}
+
 /// How many builds are prepared at once at startup.
 const PREPARE_PARALLEL: usize = 3;
 
@@ -62,7 +68,7 @@ const PREPARE_PARALLEL: usize = 3;
 /// so that opening one only starts its server.
 async fn prepare_all(app: Arc<App>) {
     let pack = private_repo(&app.repo).join("packs/vidi");
-    let stories = stories::load(&pack, "canvas");
+    let stories = stories::load(&pack, review_scope(&pack));
     let mut jobs = Vec::new();
     for s in &stories {
         for r in &app.review_builds {
@@ -237,7 +243,7 @@ fn build_label(app: &App, i: usize) -> String {
 
 async fn api_review_state(State(app): State<Arc<App>>) -> impl IntoResponse {
     let pack = private_repo(&app.repo).join("packs/vidi");
-    let stories = stories::load(&pack, "canvas");
+    let stories = stories::load(&pack, review_scope(&pack));
     let index: std::collections::HashMap<&str, usize> =
         app.review_builds.iter().enumerate().map(|(i, r)| (r.slug.as_str(), i)).collect();
     // Reviews are stored by slug; the page only ever sees keys, so blind stays blind.
