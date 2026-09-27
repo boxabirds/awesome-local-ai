@@ -33,7 +33,11 @@
 #     budget (server.zig implicitEffortBudget, chat.zig qwen38EffortFor;
 #     mlx-serve 26.9.5 changelog). REASONING_EFFORT therefore only accepts
 #     what the server will actually do; REASONING_BUDGET maps to
-#     --reasoning-budget, which does apply server-side.
+#     --reasoning-budget, which does apply server-side. Leaving it unset is not
+#     "unlimited": mlx-serve then gives a request that names no effort a hard
+#     2048-token thinking budget (server.zig implicitEffortBudget, 26.9.6), so a
+#     combination sets REASONING_BUDGET_DEFAULT to bound thinking like the other
+#     engines do -- by the output limit.
 
 set -euo pipefail
 
@@ -140,8 +144,12 @@ if [[ "$THINKING" != "0" && "$REASONING_EFFORT" != "default" ]] \
   echo "         REASONING_BUDGET=<tokens> changes the budget server-side." >&2
   exit 1
 fi
-if [[ -n "${REASONING_BUDGET:-}" && ! "${REASONING_BUDGET}" =~ ^-?[0-9]+$ ]]; then
-  echo "${SERVER_CMD}: REASONING_BUDGET must be an integer (tokens; -1 = unlimited)." >&2
+REASONING_BUDGET="${REASONING_BUDGET:-${REASONING_BUDGET_DEFAULT:-}}"
+# A negative budget is mlx-serve's "none set", which brings back the implicit 2048 cap.
+if [[ -n "${REASONING_BUDGET:-}" && ! "${REASONING_BUDGET}" =~ ^[0-9]+$ ]]; then
+  echo "${SERVER_CMD}: REASONING_BUDGET must be a whole number of tokens (0 or more)." >&2
+  echo "         A negative value does not mean unlimited on mlx-serve: it restores the" >&2
+  echo "         implicit 2048-token cap. Use the output limit for no practical cap." >&2
   exit 1
 fi
 

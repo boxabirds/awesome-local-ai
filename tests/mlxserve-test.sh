@@ -182,6 +182,7 @@ echo '{"temperature": 1.0, "top_k": 20, "top_p": 0.95}' > "$LPACK/generation_con
     printf 'MODEL_SUBDIR=.mlx-serve/models/ddalcu\nMODEL_FILE=Qwen3.8-Flash-Next-MLX-Serve-mixed-4-8bit\n'
     printf 'MODEL_ALIAS_DEFAULT=%q\nDEFAULT_PROFILE=%q\nDEFAULT_PORT=%q\n' "$MODEL_ALIAS_DEFAULT" "$DEFAULT_PROFILE" "$DEFAULT_PORT"
     printf 'REASONING_EFFORT_DEFAULT=%q\nREASONING_EFFORTS=%q\n' "$REASONING_EFFORT_DEFAULT" "$REASONING_EFFORTS"
+    printf 'REASONING_BUDGET_DEFAULT=%q\n' "$REASONING_BUDGET_DEFAULT"
     printf 'SAMPLING_THINKING=%q\nSAMPLING_INSTRUCT=%q\nSERVER_CMD=test-server\n' "$SAMPLING_THINKING" "$SAMPLING_INSTRUCT"
     backend_manifest_extra
   } > "$X/install.env"
@@ -228,7 +229,10 @@ assert_ok "agent: one resident model"               has_pair --max-resident-mode
 assert_ok "agent: 16 GiB OS reserve"                has_pair --os-reserve-gib 16
 assert_ok "agent: vision off by default"            has_arg --no-vision
 assert_ok "agent: the checkpoint's sampler"         has_pair --temp 1.0
-assert_fails "agent: no reasoning budget unless asked" has_arg --reasoning-budget
+# mlx-serve 26.9.6 gives a request that names no effort a hard 2048-token thinking budget unless
+# --reasoning-budget is set (server.zig implicitEffortBudget); the other engines bound thinking only
+# by the output limit. 27 Sep 2026: canvas-mlx-01 hit the 2048 cap up to 42 times a story.
+assert_ok "agent: thinking bounded by the output limit, not the implicit 2048" has_pair --reasoning-budget 32768
 assert_ok "served dir links the pack's files"       test -L "$SERVED/config.json"
 assert_ok "...the n-gram table included"            test -L "$SERVED/ngram_table.bin"
 assert_fails "...but generation_config.json is a real file" test -L "$SERVED/generation_config.json"
@@ -258,6 +262,7 @@ rm -f "$ARGV"
 assert_fails "an effort mlx-serve cannot apply is refused before launch" launch REASONING_EFFORT=medium
 assert_fails "...and mlx-serve was never run"       test -f "$ARGV"
 assert_fails "a non-numeric REASONING_BUDGET is refused" launch REASONING_BUDGET=lots
+assert_fails "a negative REASONING_BUDGET is refused (in 26.9.6 it brings back the 2048 cap)" launch REASONING_BUDGET=-1
 assert_fails "an unknown profile is refused"        launch PROFILE=nope
 assert_fails "a LAN bind without an API key is refused" launch HOST=0.0.0.0
 rm -f "$ARGV"; launch HOST=0.0.0.0 MLXSERVE_API_KEY=k
