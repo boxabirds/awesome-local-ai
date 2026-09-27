@@ -1,3 +1,11 @@
+commit 1a4358392b0d4bb7ee43be9aac461181960e53cd
+vidi-agent  Sun Sep 27 10:29:07 2026 +0100
+
+    harness: snapshot after story 11 (uncommitted agent work)
+
+
+ src/shared/config.ts | 31 +++++++++++++++++++++++++++++++
+ 1 file changed, 31 insertions(+)
 commit 0e11722ff28274e1d9a8ad82acab1ddd1a2bf11b
 vidi-agent  Sun Sep 27 04:02:27 2026 +0100
 
