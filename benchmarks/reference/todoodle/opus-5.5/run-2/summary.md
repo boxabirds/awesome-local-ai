@@ -9,8 +9,9 @@ Model `claude-opus-5-5`, scope ``, effort `client default`, client claude 2.1.28
 | 3 | Get back to my workspaces from this browser without hunting for the link | DONE | 21.5 | None | None | None | — | — | red | 44/48 |  | 0 / 0 | 0 | — | throttled 0% |
 | 4 | Bring others into a workspace by sharing its link | DONE | 36.6 | None | None | None | — | — | red | 46/51 |  | 0 / 0 | 0 | — | throttled 0% |
 | 5 | Capture a task into my Inbox in seconds | DONE | 32.8 | None | None | None | — | — | green | 0/0 |  | 0 / 0 | 0 | — | throttled 0% |
+| 6 | Tick off, edit, and remove tasks — with undo when I slip | DONE | 42.2 | None | None | None | — | — | green | 57/104 |  | 0 / 0 | 0 | — | throttled 0% |
 
-**Totals:** 5 stories, 139 agent-minutes, 0 requests, 0 prompt / 0 completion tokens, gate green 2/5, final acceptance 0/0, stalled 0, partial 0, 0 lines in src+tests.
+**Totals:** 6 stories, 181 agent-minutes, 0 requests, 0 prompt / 0 completion tokens, gate green 3/6, final acceptance 57/104, stalled 0, partial 0, 0 lines in src+tests.
 
 ## How it happened
 
@@ -23,6 +24,7 @@ Each story's commits, and which story broke or fixed an earlier story's held-out
 | 3 | 14 by the agent | 3142 / 71 | `WorkspaceSwitcher.tsx` (133), `UnsavedLinkWarning.tsx` (102), `RememberedRow.tsx` (87), `NOTES.md` (83), `RememberedList.tsx` (83), `ForgetDialog.tsx` (74), +37 more |
 | 4 | 13 by the agent | 4070 / 140 | `LiveConnection.ts` (286), `editGuard.ts` (223), `network.ts` (137), `useEditGuard.ts` (106), `LiveProvider.tsx` (98), `errors.ts` (77), +38 more |
 | 5 | 19 by the agent | 4897 / 125 | `shortcuts.ts` (186), `InboxView.tsx` (178), `QuickAdd.tsx` (149), `useRovingList.ts` (132), `AppShell.tsx` (114), `useCreateTask.ts` (112), +51 more |
+| 6 | 14 by the agent | 5036 / 144 | `useTaskMutations.ts` (298), `TaskDetailSheet.tsx` (267), `TaskRow.tsx` (184), `tasks.ts` (139), `createUndo.ts` (133), `InboxView.tsx` (110), +40 more |
 
 ### Earlier stories broken or fixed
 
