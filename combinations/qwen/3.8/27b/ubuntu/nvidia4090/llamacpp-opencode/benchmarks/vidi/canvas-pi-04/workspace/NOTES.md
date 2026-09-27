@@ -787,3 +787,111 @@ story 2's callers and tests are unchanged.
   rewrap; TC-28 heading create/XL/move/delete/undo; TC-29 two peers keep every
   character; TC-30 five concurrent creators; TC-31 abandoned text leaves no
   object).
+
+# NOTES — Story 12: Drop images onto the board
+
+## Status
+
+The story was largely implemented in the previous (snapshotted) session.
+This pass made the implementation conform to the spec's exact contracts and
+strengthened the tests that were under-asserting:
+
+## Deviations fixed
+
+1. **R2 binding/bucket names (design R2).** The binding was
+   `IMAGE_BUCKET` → `vidi6-images`; the design names it `ASSETS_BUCKET` →
+   `vidi6-assets`. Renamed in `wrangler.jsonc`, `src/worker/assets.ts`,
+   `src/worker/board-room.ts` and the integration tests.
+2. **Offline gate uses ConnectionState, not `navigator.onLine`
+   (design image.offline).** `useImageInsert` now takes
+   `connection: ConnectionState` (wired from the board's connection state in
+   `App.tsx`); drop/paste/picker are gated on `connected`/`confirmed`, so a
+   `reconnecting` board refuses adds with the offline toast. TC-19 now drives
+   the gate with `MOCK.state = 'reconnecting'` (per the design's coverage
+   row) instead of stubbing `navigator.onLine`.
+3. **Picker returns the tool to Select (design image.pick).** `App.tsx` wraps
+   `openPicker` in `openImagePicker` (`setTool('select')` then open) for both
+   the Image button and the I shortcut.
+4. **PRD-exact placeholder structure.**
+   - failed + uploader: "Upload failed" (was "Image unavailable") + Retry
+     (only when the file is still in memory) + Remove, in a red-bordered box
+     (`.image-object--failed`).
+   - uploading + uploader: photo icon + progress bar with percentage, shown
+     from 0% at drop time (previously only from the first XHR progress
+     event).
+   - unavailable (client load error / failed for others): broken-image icon +
+     "Image unavailable".
+   - ready: `<img alt="Image" draggable=false decoding=async loading=lazy>`
+     per the design.
+5. **Toast placement.** The component renders `.toast-stack` but the CSS
+   styled `.toasts` (top-right); the design says bottom-centre. CSS fixed to
+   `.toast-stack`, fixed bottom-centre.
+6. **Copy indicator (PRD).** `onDragOver` sets `dataTransfer.dropEffect =
+   'copy'` so the pointer shows the copy indicator over the board.
+7. **`useImageInsert` design interface.** Exposes `progress:
+   ReadonlyMap<string, number>`, `retry(id): boolean`, `canRetry(id):
+   boolean` and `onPaste` (also attached to `window` internally).
+8. **Component test files split per design.** The combined
+   `tests/component/image-insert.test.tsx` became
+   `tests/component/useImageInsert.test.tsx` (TC-17..20, TC-29) and
+   `tests/component/ImageObject.test.tsx` (TC-21..24).
+9. **Under-asserting tests strengthened.**
+   - TC-17: now asserts the row layout (left→right from the drop point,
+     tops aligned, `IMAGE_LAYOUT_GAP_WORLD` gaps).
+   - TC-18: added the design's negative case — pasting while a note's text
+     is being edited adds no image (the editor owns the event).
+   - TC-20: now goes through the picker input (design row says "picker").
+   - TC-21a: asserts the exact "Upload failed" text.
+   - e2e TC-25: delays Sam's uploads 1.2 s via `page.route` and asserts Dana
+     sees three "Uploading…" placeholders within
+     `LIVE_UPDATE_LATENCY_BUDGET_MS` before the images land.
+
+## Decisions worth recording
+
+1. **Uploader progress from 0%.** `ImageObject` shows the uploader's progress
+   bar whenever `progress !== undefined || canRetry` (the file is in memory),
+   defaulting to 0% before the first XHR progress event; everyone else sees
+   "Uploading…". After a reload `canRetry` is false, so a reloaded uploader
+   of a still-fresh upload sees "Uploading…" until it flips to `unfinished`
+   — no dead 0% bar.
+2. **30 s stale tick per design.** An uploading image re-renders on a 30 s
+   interval so `unfinished` appears live (design image.object).
+3. **Paste ownership.** The window paste listener checks `e.target`: a
+   `TEXTAREA`/`INPUT`/contenteditable target owns the paste (the sticky-note
+   editor case); anything else is treated as the board having focus.
+4. **TC-25's upload delay is via `page.route` + `setTimeout`.** This
+   Playwright version's `route.continue()` type has no `delay` option, so the
+   delay is a manual wait before `continue()`.
+
+## Gotchas found while making the tests pass
+
+- **A plain `npm run build` clobbers the e2e bundle.** The e2e harness needs
+  `npm run build:e2e` (`--mode test`) so `window.__vidi6` exists; running
+  Playwright against a production-mode `dist/client` makes every test time
+  out in `waitForConnected` (the `__vidi6` hook is undefined).
+- The workerd `WebSocket send() after close` log lines in the board-room
+  integration output are pre-existing test-teardown noise, not failures.
+- Pre-existing webkit concurrency flakiness (story 7 TC-36, story 8 TC-23,
+  story 9 TC-30) is unrelated to this story; they pass on retry.
+
+## Manual checks
+
+- `npm run build:e2e && npx wrangler dev --port 8787 --var TEST_HOOKS:1`:
+  drag three screenshots onto the board (copy indicator + dashed outline,
+  three grey placeholders in a row, progress bars on mine, "Uploading…" for
+  a second participant, all three images after upload); paste a screenshot
+  with Ctrl+V (centres in view); press I → picker → photo appears centred and
+  the tool returns to Select; drag a photo's corner handle (scales
+  proportionally, stops at the floor); drop a PDF (toast), an 11 MB file
+  (toast), 21 files at once (first 20 + toast); abort an upload in devtools
+  (red "Upload failed" box with Retry/Remove; Retry after restoring the
+  network completes it; the colleague sees "Image unavailable").
+
+## Test counts
+
+- unit: 20 (image-format TC-01/02 5; image-model TC-03..07 10;
+  validate-files TC-08/09 5).
+- component: 11 (useImageInsert TC-17..20, TC-29; ImageObject TC-21a/b,
+  TC-22, TC-23, TC-24a/b).
+- integration: 7 (assets TC-10..16, real Miniflare R2 + BoardRoom).
+- e2e: 4 (TC-25..28) × chromium/firefox/webkit — all pass.

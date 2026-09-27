@@ -80,7 +80,7 @@ export interface Env {
   /**
    * Story 12 (assets.api / image.shared): the R2 bucket holding image assets.
    */
-  IMAGE_BUCKET?: R2Bucket;
+  ASSETS_BUCKET?: R2Bucket;
   /**
    * Story 12 (image.rate_limit): the Workers `ratelimits` binding for image
    * uploads. Undefined in runtimes that don't materialize it locally;

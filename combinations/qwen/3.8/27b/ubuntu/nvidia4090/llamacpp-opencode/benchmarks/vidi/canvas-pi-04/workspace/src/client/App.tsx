@@ -117,7 +117,15 @@ export function Board(props: { boardId: string }): JSX.Element {
     identityId: getIdentityId(),
     canEdit: editable,
     undo: undoController,
+    connection: connectionState,
   });
+
+  // Story 12 (image.pick): the Image button and the I shortcut open the file
+  // picker, then the tool returns to Select.
+  const openImagePicker = useCallback((): void => {
+    setTool('select');
+    imageInsert.openPicker();
+  }, [imageInsert, setTool]);
 
   // The shared transform gesture: group move (object pointerdown) and
   // bounding-box resize (handle pointerdown) for every registered type.
@@ -202,7 +210,7 @@ export function Board(props: { boardId: string }): JSX.Element {
     undo: undoController,
     tool: { tool, setTool },
     onCreateStickyAtCenter: createAtCenter,
-    onImagePicker: imageInsert.openPicker,
+    onImagePicker: openImagePicker,
   });
 
   // Story 9 (text.create): a click while the Text tool is active creates a
@@ -400,7 +408,7 @@ export function Board(props: { boardId: string }): JSX.Element {
         setTool={setTool}
         shapeKind={shapeKind}
         setShapeKind={setShapeKind}
-        onImage={imageInsert.openPicker}
+        onImage={openImagePicker}
         {...undo}
       />
       <ZoomControls

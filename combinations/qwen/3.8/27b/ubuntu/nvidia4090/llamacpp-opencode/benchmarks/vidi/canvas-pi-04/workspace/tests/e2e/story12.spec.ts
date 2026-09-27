@@ -12,7 +12,7 @@ import {
   type Participant,
 } from './participants';
 import { setCamera } from './helpers/board';
-import { IMAGE_MIN_SIZE_WORLD } from '../../src/shared/config';
+import { IMAGE_MIN_SIZE_WORLD, LIVE_UPDATE_LATENCY_BUDGET_MS } from '../../src/shared/config';
 
 // Camera with the origin at the viewport top-left (world == screen at zoom 1).
 const ZOOM1 = { x: 0, y: 0, zoom: 1 };
@@ -45,6 +45,7 @@ import {
   IMAGE_FAILED,
   IMAGE_RETRY,
   TOAST,
+  IMAGE_UPLOADING,
 } from './helpers/story12';
 
 const UPLOAD_ROUTE = /\/api\/boards\/[^/]+\/assets$/;
@@ -66,17 +67,29 @@ test('TC-25: drop three files -> they render, sync, and are served immutable', a
       });
     });
 
+    // Delay Sam's uploads so Dana observes the "Uploading…" placeholders
+    // before the images land (design TC-25).
+    await sam.page.route(UPLOAD_ROUTE, async (route) => {
+      await new Promise((r) => setTimeout(r, 1200));
+      await route.continue();
+    });
+
     await dropFilesAtCenter(sam.page, [RED_PNG, BLUE_PNG, GREEN_PNG]);
 
-    // three placeholders appear immediately on Sam's screen...
-    await expectImages(sam.page, 3);
-    // ...and resolve to ready images.
-    await expectAllStatus(sam.page, 'ready');
+    // Dana (a second participant) sees the "Uploading…" placeholders within
+    // the live-update budget...
+    await expect(dana.page.locator(IMAGE_UPLOADING)).toHaveCount(3, {
+      timeout: LIVE_UPDATE_LATENCY_BUDGET_MS,
+    });
 
-    // Dana (a second participant) receives the same three ready images.
+    // ...then the same three ready images (and so does Sam).
     await expectImages(dana.page, 3);
     await expectAllStatus(dana.page, 'ready');
     await expect(dana.page.locator(IMAGE_READY)).toHaveCount(3);
+
+    // Sam's own placeholders resolve to ready images.
+    await expectImages(sam.page, 3);
+    await expectAllStatus(sam.page, 'ready');
 
     // Every served asset carries the long immutable cache.
     await expect

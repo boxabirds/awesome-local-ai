@@ -40,7 +40,7 @@ export interface AssetsEnv {
   /** The board namespace (for the exists check before storing). */
   BOARD_ROOM?: AssetBoardNamespace;
   /** The R2 bucket holding image assets (absent when not materialised). */
-  IMAGE_BUCKET?: R2Bucket;
+  ASSETS_BUCKET?: R2Bucket;
   /** The Workers `ratelimits` binding for uploads (falls back to memory). */
   ASSET_UPLOAD_LIMITER?: Limiter;
 }
@@ -104,7 +104,7 @@ export async function handleUpload(
     return json({ error: 'unsupported_type' }, 415);
   }
 
-  const bucket = env.IMAGE_BUCKET;
+  const bucket = env.ASSETS_BUCKET;
   if (bucket === undefined) {
     return json({ error: 'no_storage' }, 500);
   }
@@ -128,7 +128,7 @@ export async function handleServe(env: AssetsEnv, key: string): Promise<Response
   if (!ASSET_KEY_PATTERN.test(key)) {
     return new Response('not found', { status: 404 });
   }
-  const bucket = env.IMAGE_BUCKET;
+  const bucket = env.ASSETS_BUCKET;
   if (bucket === undefined) {
     return new Response('not found', { status: 404 });
   }

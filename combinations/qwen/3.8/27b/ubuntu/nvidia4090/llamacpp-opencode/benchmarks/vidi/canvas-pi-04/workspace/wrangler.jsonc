@@ -22,8 +22,8 @@
   // dashboard.
   "r2_buckets": [
     {
-      "binding": "IMAGE_BUCKET",
-      "bucket_name": "vidi6-images"
+      "binding": "ASSETS_BUCKET",
+      "bucket_name": "vidi6-assets"
     }
   ],
   // Story 5 (share.board_api): rate limit for POST /api/boards, keyed per

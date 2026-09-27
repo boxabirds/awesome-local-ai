@@ -1213,6 +1213,31 @@ body {
   outline-offset: 1px;
 }
 
+/* A failed upload is a red-bordered box (PRD structure). */
+.image-object--failed {
+  border: 2px solid #d64545;
+}
+
+.image-object--failed .image-object__state {
+  color: #8a2f2f;
+  background: repeating-linear-gradient(
+    45deg,
+    #fdf3f3,
+    #fdf3f3 8px,
+    #fbecec 8px,
+    #fbecec 16px
+  );
+}
+
+/* The placeholder icons (photo glyph, broken-image glyph). */
+.image-object__icon {
+  color: #8a93a0;
+}
+
+.image-object__icon--broken {
+  color: #b05656;
+}
+
 .image-object__img {
   width: 100%;
   height: 100%;
@@ -1298,22 +1323,24 @@ body {
   color: #2f6fea;
 }
 
-/* --- Story 12: toasts (top-right, transient) -------------------------- */
+/* --- Story 12: toasts (bottom-centre, transient) ---------------------- */
 
-.toasts {
+.toast-stack {
   position: fixed;
-  top: 12px;
-  right: 12px;
+  bottom: 16px;
+  left: 50%;
+  transform: translateX(-50%);
   z-index: 60;
   display: flex;
   flex-direction: column;
+  align-items: center;
   gap: 8px;
-  max-width: 320px;
+  max-width: 480px;
   pointer-events: none;
 }
 
 .toast {
-  padding: 8px 12px;
+  padding: 8px 14px;
   border-radius: 6px;
   background: #2b2f36;
   color: #ffffff;

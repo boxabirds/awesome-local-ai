@@ -1,3 +1,23 @@
+commit e6c56f236ca13292a3a48141a3baee4f3cbe0ed3
+vidi-agent  Sun Sep 27 08:27:04 2026 +0100
+
+    story 12: Drop images onto the board
+
+
+ NOTES.md                                           | 108 ++++++++
+ src/client/App.tsx                                 |  12 +-
+ src/client/images/useImageInsert.ts                |  76 +++++-
+ src/client/objects/ImageObject.tsx                 |  70 +++--
+ src/client/styles.css                              |  39 ++-
+ src/worker/assets.ts                               |   6 +-
+ src/worker/board-room.ts                           |   2 +-
+ ...{image-insert.test.tsx => ImageObject.test.tsx} | 181 +++----------
+ tests/component/useImageInsert.test.tsx            | 301 +++++++++++++++++++++
+ tests/e2e/helpers/story12.ts                       |   1 +
+ tests/e2e/story12.spec.ts                          |  25 +-
+ tests/integration/assets.test.ts                   |   6 +-
+ wrangler.jsonc                                     |   4 +-
+ 13 files changed, 636 insertions(+), 195 deletions(-)
 commit f437cc330e768ea7a0f82ade6301c3bab68f0e95
 vidi-agent  Sun Sep 27 08:01:00 2026 +0100
 

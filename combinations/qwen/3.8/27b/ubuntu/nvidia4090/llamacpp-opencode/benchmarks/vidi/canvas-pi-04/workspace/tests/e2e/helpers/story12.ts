@@ -15,6 +15,7 @@ export const IMAGE = '[data-testid="image-object"]';
 export const IMAGE_READY = '[data-testid="image-img"]';
 export const IMAGE_PROGRESS = '[data-testid="image-progress-text"]';
 export const IMAGE_UNAVAILABLE = '[data-testid="image-unavailable"]';
+export const IMAGE_UPLOADING = '[data-testid="image-uploading"]';
 export const IMAGE_FAILED = '[data-testid="image-failed"]';
 export const IMAGE_RETRY = '[data-testid="image-retry"]';
 export const IMAGE_REMOVE = '[data-testid="image-remove"]';

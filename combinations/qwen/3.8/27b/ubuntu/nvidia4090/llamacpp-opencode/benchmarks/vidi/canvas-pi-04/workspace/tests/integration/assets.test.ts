@@ -67,7 +67,7 @@ describe('asset API (story 12, assets.api)', () => {
     expect(assetKey.startsWith(`${boardId}/`)).toBe(true);
     expect(contentType).toBe('image/png');
     // The R2 object exists with the stored content type.
-    const obj = await (env as { IMAGE_BUCKET: { get: (k: string) => Promise<{ httpMetadata?: { contentType?: string } } | null> } }).IMAGE_BUCKET.get(assetKey);
+    const obj = await (env as { ASSETS_BUCKET: { get: (k: string) => Promise<{ httpMetadata?: { contentType?: string } } | null> } }).ASSETS_BUCKET.get(assetKey);
     expect(obj).not.toBeNull();
     expect(obj!.httpMetadata?.contentType).toBe('image/png');
   });
@@ -128,12 +128,12 @@ describe('asset API (story 12, assets.api)', () => {
     const boardId = await makeBoard('10.40.0.15');
     const throwing: AssetsEnv = {
       ...env,
-      IMAGE_BUCKET: {
+      ASSETS_BUCKET: {
         put: async (): Promise<unknown> => {
           throw new Error('r2 down');
         },
         get: async (): Promise<null> => null,
-      } as AssetsEnv['IMAGE_BUCKET'],
+      } as AssetsEnv['ASSETS_BUCKET'],
     } as unknown as AssetsEnv;
     const res = await worker.fetch(
       new Request(boardAssets(boardId), { method: 'POST', body: PNG }),

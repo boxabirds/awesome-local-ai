@@ -20,6 +20,7 @@ import type { ChangeEvent, DragEvent, RefObject } from 'react';
 import type * as Y from 'yjs';
 import type { Point } from '../../shared/geometry';
 import { deleteObjects } from '../../shared/board-model';
+import type { ConnectionState } from '../sync/connectBoard';
 import {
   createImagePlaceholders,
   layoutRow,
@@ -45,6 +46,12 @@ export interface UseImageInsertArgs {
   identityId: string;
   canEdit: boolean;
   undo: UndoController | null;
+  /**
+   * The board's connection state (story 3). Adding images requires a live
+   * connection: while the board is not `connected`/`confirmed` (connecting,
+   * reconnecting, load_failed) no upload is started (image.offline).
+   */
+  connection: ConnectionState;
 }
 
 export interface UseImageInsert {
@@ -56,6 +63,8 @@ export interface UseImageInsert {
   /** Open the hidden file picker (Image button / I shortcut). */
   openPicker(): void;
   onInputChange(e: ChangeEvent<HTMLInputElement>): void;
+  /** Paste handler (also attached to `window` internally). */
+  onPaste(e: ClipboardEvent): void;
   /** Window-level drag/drop handlers for the board root. */
   dropHandlers: {
     onDragEnter: (e: DragEvent) => void;
@@ -63,6 +72,12 @@ export interface UseImageInsert {
     onDragLeave: (e: DragEvent) => void;
     onDrop: (e: DragEvent) => void;
   };
+  /** Upload progress per object id (0..1), uploader-side only. */
+  progress: ReadonlyMap<string, number>;
+  /** Re-upload a failed image; true when the file was still in memory. */
+  retry(id: string): boolean;
+  /** True when a retry of `id` is possible (file not lost to a reload). */
+  canRetry(id: string): boolean;
   /** The accept string for the hidden file input. */
   accept: string;
   /** Ref for the hidden file input the caller renders. */
@@ -72,7 +87,7 @@ export interface UseImageInsert {
 const VIEWPORT_TESTID = 'board-viewport';
 
 export function useImageInsert(args: UseImageInsertArgs): UseImageInsert {
-  const { doc, boardId, camera, viewport, identityId, canEdit, undo } = args;
+  const { doc, boardId, camera, viewport, identityId, canEdit, undo, connection } = args;
 
   // Latest values for the async flow and window listeners.
   const cameraRef = useRef(camera);
@@ -81,10 +96,16 @@ export function useImageInsert(args: UseImageInsertArgs): UseImageInsert {
   viewportRef.current = viewport;
   const canEditRef = useRef(canEdit);
   canEditRef.current = canEdit;
+  const connectionRef = useRef(connection);
+  connectionRef.current = connection;
   const undoRef = useRef(undo);
   undoRef.current = undo;
   const docRef = useRef(doc);
   docRef.current = doc;
+
+  // Adding images requires a live board connection (image.offline).
+  const isConnected = (): boolean =>
+    connectionRef.current === 'connected' || connectionRef.current === 'confirmed';
 
   const [isDragActive, setIsDragActive] = useState(false);
   const [progress, setProgress] = useState<Record<string, number>>({});
@@ -134,8 +155,9 @@ export function useImageInsert(args: UseImageInsertArgs): UseImageInsert {
       const files = Array.from(fileList);
       if (files.length === 0) return;
 
-      // Offline before start (image.offline).
-      if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+      // Offline or reconnecting before start (image.offline): nothing is
+      // added and no upload starts while the board is not connected.
+      if (!isConnected()) {
         push(REJECTION_MESSAGES.offline);
         return;
       }
@@ -201,11 +223,13 @@ export function useImageInsert(args: UseImageInsertArgs): UseImageInsert {
     return screenToWorld(cameraRef.current, { x: clientX - rect.left, y: clientY - rect.top });
   }, []);
 
-  // Paste (window-level): only when editable and the clipboard has image files;
-  // a text editor/input owns the event (focus is inside it).
-  useEffect(() => {
-    if (!canEdit) return;
-    const onPaste = (e: ClipboardEvent): void => {
+  // Paste (image.paste): only when the board has focus (focus is NOT inside a
+  // text editor/input, which owns the event) and the clipboard has image
+  // files. The handler is attached to `window` (paste does not bubble to the
+  // board root) and also exposed for direct wiring.
+  const onPaste = useCallback(
+    (e: ClipboardEvent): void => {
+      if (!canEditRef.current) return;
       const target = e.target as HTMLElement | null;
       // Let the editor handle paste of image data into a text field.
       if (target !== null && (target.isContentEditable || target.tagName === 'TEXTAREA' || target.tagName === 'INPUT')) {
@@ -223,10 +247,15 @@ export function useImageInsert(args: UseImageInsertArgs): UseImageInsert {
       if (files.length === 0) return;
       e.preventDefault();
       void handleFiles(files, 'paste');
-    };
+    },
+    [handleFiles],
+  );
+
+  useEffect(() => {
+    if (!canEdit) return;
     window.addEventListener('paste', onPaste);
     return () => window.removeEventListener('paste', onPaste);
-  }, [canEdit, handleFiles]);
+  }, [canEdit, onPaste]);
 
   // Drag-and-drop (window-level handlers on the board root).
   const hasFiles = (e: DragEvent): boolean =>
@@ -245,6 +274,8 @@ export function useImageInsert(args: UseImageInsertArgs): UseImageInsert {
   const onDragOver = useCallback((e: DragEvent): void => {
     if (!canEditRef.current || !hasFiles(e)) return;
     e.preventDefault(); // allow the drop
+    // The pointer shows the copy indicator while files are dragged over.
+    if (e.dataTransfer !== null) e.dataTransfer.dropEffect = 'copy';
   }, []);
 
   const onDragLeave = useCallback((e: DragEvent): void => {
@@ -268,8 +299,14 @@ export function useImageInsert(args: UseImageInsertArgs): UseImageInsert {
 
   const openPicker = useCallback((): void => {
     if (!canEditRef.current) return;
+    // Adding images requires a connection (image.offline): no picker while
+    // the board is not connected.
+    if (!isConnected()) {
+      push(REJECTION_MESSAGES.offline);
+      return;
+    }
     pickerRef.current?.click();
-  }, []);
+  }, [push]);
 
   const onInputChange = useCallback(
     (e: ChangeEvent<HTMLInputElement>): void => {
@@ -307,13 +344,30 @@ export function useImageInsert(args: UseImageInsertArgs): UseImageInsert {
 
   const accept = (IMAGE_ACCEPTED_TYPES as readonly string[]).join(',');
 
+  // Design interface: progress / retry / canRetry (uploader-side only).
+  const progressMap = useMemo(() => new Map(Object.entries(progress)), [progress]);
+  const retry = useCallback(
+    (id: string): boolean => {
+      const file = filesRef.current.get(id);
+      if (file === undefined) return false; // lost to a reload
+      beginUpload(id, file, true);
+      return true;
+    },
+    [beginUpload],
+  );
+  const canRetry = useCallback((id: string): boolean => filesRef.current.has(id), []);
+
   return {
     isDragActive,
     toasts,
     uploadApi,
     openPicker,
     onInputChange,
+    onPaste,
     dropHandlers: { onDragEnter, onDragOver, onDragLeave, onDrop },
+    progress: progressMap,
+    retry,
+    canRetry,
     accept,
     pickerRef,
   };
