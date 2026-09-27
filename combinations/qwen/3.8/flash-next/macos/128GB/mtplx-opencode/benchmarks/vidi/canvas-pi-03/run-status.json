@@ -1,6 +1,6 @@
 {
-  "state": "started",
-  "reason": "harness caace01, client pi, model mtplx-flash-next-optimized-speed",
-  "at": "2026-09-27T08:24:12Z",
+  "state": "finished",
+  "reason": "",
+  "at": "2026-09-27T10:11:29Z",
   "host": "Quintus"
 }
