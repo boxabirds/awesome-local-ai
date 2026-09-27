@@ -399,9 +399,21 @@ function tick(now) {
 
 function stepCheck(dir) {
   if (!P?.w) return;
-  const list = P.checks.map(s => s.end);
-  const t = dir > 0 ? list.find(x => x > P.t + EPS_MS) : [...list].reverse().find(x => x < P.t - EPS_MS);
-  if (t !== undefined) { seek(t); document.querySelector(".step.cur")?.scrollIntoView({block: "nearest"}); }
+  const t = nextCheck(P.checks.map(s => s.end), P.t, dir, EPS_MS);
+  if (t === null) return movePath(dir);   // off either end of the path: on to the next or previous one
+  seek(t); document.querySelector(".step.cur")?.scrollIntoView({block: "nearest"});
+}
+
+// The next or previous path, carrying on into the next or previous story at either end.
+async function movePath(dir) {
+  const f = flat(), i = cur ? f.findIndex(x => x.key === cur.key && x.idx === cur.idx) : -1;
+  const to = nextSpot(f.length, i, dir);
+  if (to.path !== undefined) return select(f[to.path].key, f[to.path].idx);
+  const next = story + to.story;
+  if (next < 0 || next >= S.stories.length) return;
+  await go(next);
+  const g = flat();
+  if (g.length) { const p = dir > 0 ? g[0] : g[g.length - 1]; select(p.key, p.idx); }
 }
 
 async function judge(v) {
@@ -452,12 +464,7 @@ document.addEventListener("keydown", e => {
   if (["TEXTAREA", "INPUT"].includes(e.target.tagName) && e.target.type !== "checkbox") { if (e.key === "Escape") e.target.blur(); return; }
   if (e.metaKey || e.ctrlKey || e.altKey) return;
   const k = e.key;
-  if (k === "j" || k === "k") {
-    const f = flat(); if (!f.length) return;
-    const i = cur ? f.findIndex(x => x.key === cur.key && x.idx === cur.idx) : -1;
-    const n = k === "j" ? Math.min(i + 1, f.length - 1) : Math.max(i - 1, 0);
-    select(f[n].key, f[n].idx);
-  }
+  if (k === "j" || k === "k") movePath(k === "j" ? 1 : -1);
   else if (k === " ") { e.preventDefault(); togglePlay(); }
   else if (k === "ArrowRight") { e.preventDefault(); stepCheck(1); }
   else if (k === "ArrowLeft") { e.preventDefault(); stepCheck(-1); }
