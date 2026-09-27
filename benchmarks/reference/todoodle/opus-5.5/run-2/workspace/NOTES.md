@@ -59,3 +59,81 @@
   `wrangler dev` started from a fresh `.wrangler` state.
 - Not verified here (as the design says): real releases to staging/production. The first staging release
   is the acceptance check, after filling in the D1 ids in `wrangler.toml` and the base URLs.
+
+## Story 2
+
+- **Dependencies.** `bun add` downloads packages but then hits the sandbox's
+  `CouldntReadCurrentDirectory` error before it writes `package.json`, so the new dependencies
+  (react-router, @tanstack/react-query, radix-ui, sonner, lucide-react, zod, eslint,
+  typescript-eslint) were added to the package.json files by hand at the installed versions;
+  `bun.lock` was written by bun.
+- **Workspace ids are lowercase hex** (`lower(hex(randomblob(16)))`). The design writes
+  `hex(randomblob(16))`, which is uppercase; lowercase matches the cookie codec's "32 hex" rule
+  either way and reads better in URLs (`/w/:id`).
+- **`tdl_ws` cookie encoding is packed binary, not base64url(JSON).** base64url(JSON) of 50
+  entries is about 7 KB, so TC-12 (Set-Cookie under 4096 bytes at 50 entries) could not pass.
+  The value is base64url of `[version byte][16-byte id][32-byte secret][uint32 t]...` (3.5 KB at
+  50 entries). Decoding still never throws: anything with the wrong alphabet, version byte or
+  length reads as `[]` (a base64url(JSON) value included). Entries that can't be packed are left
+  out when encoding. The exported functions and `RememberedEntry` shape are as designed.
+- **Non-JSON bodies stay 415 `unsupported_media_type`.** The story 2 design says a body with a
+  non-JSON content type is 403 `forbidden_client` (TC-19), but story 1's validate middleware owns
+  that rule and its tests (TC-P05, TC-P20) pin 415. The design says story 2 consumes the rule
+  rather than redefining it, so TC-19 asserts 415 and an unchanged row count.
+- **Sanitised logger keeps the error message.** Story 1's TC-P13 requires the thrown error's
+  message in the log; `logRequestError` logs `{requestId, method, pathname, status, errorName,
+  errorMessage}` and nothing from the request (the stack is no longer logged).
+- **Workers invocation logs are off** (`invocation_logs = false`) for staging and production.
+  The manual check of staging Workers Logs (task 7 step 6) can't be done from the build sandbox;
+  invocation logs record request metadata, so they are turned off pre-emptively rather than
+  after the check. Our own sanitised `console.error` lines are still kept.
+- **Commit order.** Tasks 8-11 depend on tasks 16-18 (link endpoint, linkSaved/copyText/banner,
+  theme tokens), so those were committed right after task 11 and before the test tasks 12-15.
+  Every commit still carries its own task number and title.
+- **Create error text uses the PRD's em dash**: "Couldn't create your list — try again". The
+  design and tasks write it with a hyphen; the PRD is the source for what users see.
+- **NotFound has a small `h1` "Todoodle" (link home) and the `h2` "Workspace not found".** Story 1's
+  e2e test expects an `h1` named Todoodle on `/w`, which is now the not-found page (empty hash).
+- **One dialog serves as Dialog and Sheet.** `components/ui/dialog.tsx` is a centred dialog from
+  `MOBILE_BREAKPOINT_PX` (640px, Tailwind `sm`) up and a full-width bottom sheet below it, with
+  full-width buttons; a separate shadcn Sheet component would duplicate it.
+- **SharePanel focus return.** The panel opens from plain buttons, not a Radix `Dialog.Trigger`, so
+  Radix has no trigger to refocus; the panel remembers what had focus when it opened and refocuses
+  it on close (TC-46).
+- **Email in save mode also closes the panel** (PRD: "After copying or emailing, the panel is
+  closed"). It closes on the next tick so the `mailto:` navigation is handed off first.
+- Bookmark hint text: "Press ⌘D to bookmark this page." / "Press Ctrl+D to bookmark this page.".
+  Rename failure toast: "Couldn't rename the workspace — try again.".
+- **Just-created workspaces render from cache.** `bootOpen.ts` keeps an in-memory (never
+  persisted) secret -> workspace id map filled by create and open, so `/w#secret` renders
+  immediately with no skeleton and no second request after creation. Opens are shared per secret
+  (`openForRoute`), so re-renders and StrictMode don't repeat them; Try again discards the failed one.
+- `workspaceQuery` uses `staleTime` 10 s and `retry: false`: no GET straight after an open that
+  already returned the workspace, focus refetches after that, and a 404/5xx surfaces at once.
+- The name editor shows the mutation's pending name while a rename is in flight (TanStack's
+  "optimistic via variables"), so the old name never flashes before the cache write lands.
+- **Extra token `warning-surface`** (banner background), with `foreground` on it in the text pairs.
+  All token pairs and the 12 project colours pass the contrast test in both themes.
+- **Per-icon lucide imports.** lucide-react 1.x has no subpath exports, so `lucide-react/icons/<name>`
+  is a Vite/vitest alias to `dist/esm/icons/<name>.mjs` with an ambient type declaration
+  (`src/types/lucide-icons.d.ts`). The lint rule allows type-only imports from the package root.
+- **Lint** runs `eslint apps/web` (flat config in `apps/web/eslint.config.js`); `test` runs it first.
+- **Web tests** are two vitest projects: `web-unit` (part of `test:unit`) and `ui` (`test:ui`).
+  Component tests render inside an awaited `act()`: React 19 does not retry a component that
+  suspended on `use()` inside a synchronous act scope. Test-only reset hooks
+  (`resetBootOpenForTests`, `resetLinkSavedCacheForTests`) stand in for a fresh page load.
+- **`/test/seed-workspace`** (non-production only) creates a workspace, optionally soft-deleted,
+  for TC-25/TC-32. `workspaces` is registered with `/test/reset`.
+- **E2E**: Playwright runs chromium and webkit. In webkit the clipboard is forced to refuse (init
+  script) so the manual-copy fallback is what gets tested, as the design specifies. `bun run dev`
+  now applies local migrations first (a fresh checkout works), and the Playwright global setup
+  empties the local D1 through `/test/reset`. The sandbox run used a server started with
+  `npm run dev` (see story 1's note).
+
+### Story 2 verification (2026-09-27)
+
+- `build`, `typecheck`, `lint` and `test` pass: api unit 69, scripts unit 42, api integration +
+  production-gate 66, scripts integration 14, web unit + ui 110. E2E: 28 passing (chromium + webkit,
+  including story 1's specs) against `wrangler dev` with a freshly migrated local D1, 3 runs in a row.
+- Not verified here: the manual Workers Logs check on staging (task 7 step 6); see the invocation
+  logs note above.

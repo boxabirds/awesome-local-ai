@@ -34,4 +34,15 @@ describe('test-only routes in production', () => {
     expect(res.status).toBe(404);
     expect(await res.json()).toMatchObject({ error: 'not_found' });
   });
+
+  it('POST /test/seed-workspace is 404 and creates nothing', async () => {
+    const res = await SELF.fetch(`${ORIGIN}/test/seed-workspace`, {
+      method: 'POST',
+      headers: { ...CLIENT_HEADERS, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ deleted: true }),
+    });
+    expect(res.status).toBe(404);
+    const row = await env.DB.prepare('SELECT COUNT(*) AS n FROM workspaces').first<{ n: number }>();
+    expect(row?.n).toBe(0);
+  });
 });

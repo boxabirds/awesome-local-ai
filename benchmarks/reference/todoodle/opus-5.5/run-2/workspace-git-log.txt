@@ -1,3 +1,235 @@
+commit c45bafb64c006feead637782319c686885642706
+vidi-agent  Sun Sep 27 13:17:32 2026 +0100
+
+    story 2: Start a private workspace instantly, with no sign-up, and get a secret link to return to it
+
+
+ NOTES.md                                        | 50 +++++++++++++++++++++++++
+ README.md                                       |  8 ++--
+ apps/web/src/features/workspace/StartButton.tsx |  2 +-
+ apps/web/test/ui/landing.test.tsx               |  6 +--
+ scripts/tsconfig.json                           |  2 +
+ 5 files changed, 61 insertions(+), 7 deletions(-)
+commit 857531f942fb586d3b6b31a0a5c3a321e262e978
+vidi-agent  Sun Sep 27 13:15:29 2026 +0100
+
+    story 2 task 15: E2E tests: create/save link, return by link, bad link, rename, no leak, boot parallelism, dark mode
+
+
+ e2e/global-setup.ts   |   6 ++
+ e2e/workspace.spec.ts | 274 ++++++++++++++++++++++++++++++++++++++++++++++++++
+ package.json          |   2 +-
+ playwright.config.ts  |   5 +-
+ 4 files changed, 285 insertions(+), 2 deletions(-)
+commit c4e2f963ebeadf9806390bbe30f2eaf510214a17
+vidi-agent  Sun Sep 27 13:09:21 2026 +0100
+
+    story 2 task 14: UI component tests: landing, workspace shell states, SharePanel, unsaved-link banner, not-found
+
+
+ apps/web/src/features/share/SharePanel.tsx         |  27 +-
+ .../src/features/workspace/WorkspaceNameEditor.tsx |  10 +-
+ apps/web/src/routes/Workspace.tsx                  |  17 +-
+ apps/web/test/render.tsx                           |  79 +++++
+ apps/web/test/ui/banner.test.tsx                   | 177 +++++++++++
+ apps/web/test/ui/landing.test.tsx                  |  59 ++++
+ apps/web/test/ui/notFound.test.tsx                 |  76 +++++
+ apps/web/test/ui/sharePanel.test.tsx               | 290 +++++++++++++++++
+ apps/web/test/ui/workspaceShell.test.tsx           | 351 +++++++++++++++++++++
+ 9 files changed, 1076 insertions(+), 10 deletions(-)
+commit 49fb5f5a86eddfec03484fab9489702e047d767b
+vidi-agent  Sun Sep 27 13:02:23 2026 +0100
+
+    story 2 task 13: Integration tests: workspace API, auth and headers
+
+
+ apps/api/src/routes/test.ts                  |  24 ++
+ apps/api/test/integration/workspaces.test.ts | 372 +++++++++++++++++++++++++++
+ apps/api/test/production/test-routes.test.ts |  11 +
+ apps/api/test/workspace-helpers.ts           |  71 +++++
+ 4 files changed, 478 insertions(+)
+commit 1528608a94ff698208ef6e790dbdfa02d0b8e5d0
+vidi-agent  Sun Sep 27 13:00:48 2026 +0100
+
+    story 2 task 12: Unit tests: secret crypto, cookie codec, query keys, boot open, link-saved store, theme contrast, import lint
+
+
+ apps/api/test/unit/cookie.test.ts    | 147 +++++++++++++++++++++++++++++++++++
+ apps/api/test/unit/crypto.test.ts    |  65 ++++++++++++++++
+ apps/web/test/fixtures.ts            |  22 ++++++
+ apps/web/test/setup.ts               |  23 +++++-
+ apps/web/test/unit/bootOpen.test.ts  |  71 +++++++++++++++++
+ apps/web/test/unit/contrast.test.ts  |  47 +++++++++++
+ apps/web/test/unit/copyText.test.ts  |  99 +++++++++++++++++++++++
+ apps/web/test/unit/linkSaved.test.ts | 117 ++++++++++++++++++++++++++++
+ apps/web/test/unit/lint.test.ts      |  42 ++++++++++
+ apps/web/test/unit/queryKeys.test.ts |  41 ++++++++++
+ apps/web/vitest.config.ts            |  31 ++++++--
+ 11 files changed, 698 insertions(+), 7 deletions(-)
+commit a77f2f89198376d94e42b85c6979e546b1ad556d
+vidi-agent  Sun Sep 27 13:00:48 2026 +0100
+
+    story 2 task 18: Add light/dark theme tokens and enforce direct (non-barrel) imports
+
+
+ apps/web/eslint.config.js        |  46 +++++++++++++++
+ apps/web/scripts/build-tokens.ts |  41 +++++++++++++
+ apps/web/src/index.css           |  48 ++++++++++-----
+ apps/web/src/styles/tokens.css   |  67 +++++++++++++++++++++
+ package.json                     |  10 ++--
+ packages/shared/package.json     |   4 +-
+ packages/shared/src/contrast.ts  |  26 +++++++++
+ packages/shared/src/tokens.ts    | 122 +++++++++++++++++++++++++++++++++++++++
+ 8 files changed, 346 insertions(+), 18 deletions(-)
+commit cd2db0f904404fb9403fca679c49a3092fbaff8f
+vidi-agent  Sun Sep 27 13:00:45 2026 +0100
+
+    story 2 task 17: Build unsaved-link reminder banner, linkSaved store and copyText helper
+
+
+ apps/web/src/features/share/UnsavedLinkBanner.tsx |  52 +++++++++++
+ apps/web/src/features/share/copyText.ts           |  38 ++++++++
+ apps/web/src/features/share/linkSaved.ts          | 109 ++++++++++++++++++++++
+ 3 files changed, 199 insertions(+)
+commit 470503910d5a09428d081fb90f031cc2e8042fe2
+vidi-agent  Sun Sep 27 13:00:45 2026 +0100
+
+    story 2 task 16: Implement GET workspace link endpoint
+
+
+ apps/api/src/routes/workspaces.ts | 10 ++++++++++
+ 1 file changed, 10 insertions(+)
+commit 2032bb8270e85b1d7f6c17040e34fa6520bb5340
+vidi-agent  Sun Sep 27 12:58:18 2026 +0100
+
+    story 2 task 11: Build workspace-not-found page
+
+
+ apps/web/src/routes/NotFound.tsx | 29 +++++++++++++++++++++++++++++
+ 1 file changed, 29 insertions(+)
+commit 33fc089748b76ba4c1c16760555ee0f549c78f37
+vidi-agent  Sun Sep 27 12:58:18 2026 +0100
+
+    story 2 task 10: Build SharePanel (save-your-link + single Share button), copy/email/bookmark actions and clipboard fallback
+
+
+ apps/web/src/components/ui/dialog.tsx           |  30 +++++
+ apps/web/src/features/share/SharePanel.tsx      | 143 ++++++++++++++++++++++++
+ apps/web/src/features/share/SharePanelLazy.tsx  |  19 ++++
+ apps/web/src/features/share/platformShortcut.ts |   7 ++
+ apps/web/src/features/share/useCopyLink.ts      |  30 +++++
+ apps/web/src/features/share/useWorkspaceLink.ts |  32 ++++++
+ 6 files changed, 261 insertions(+)
+commit 17da81ddb39281e0ce7f0e330df897484732483c
+vidi-agent  Sun Sep 27 12:58:18 2026 +0100
+
+    story 2 task 9: Build workspace route shell: query-key factory, boot open, skeleton/failed states, <title>, header rename
+
+
+ apps/web/src/features/live/canEditStore.ts         |  12 +++
+ .../src/features/workspace/WorkspaceContext.tsx    |  10 ++
+ .../web/src/features/workspace/WorkspaceHeader.tsx |  59 +++++++++++
+ .../src/features/workspace/WorkspaceLoadFailed.tsx |  13 +++
+ .../src/features/workspace/WorkspaceNameEditor.tsx |  67 ++++++++++++
+ .../src/features/workspace/WorkspaceSkeleton.tsx   |  29 ++++++
+ apps/web/src/features/workspace/bootOpen.ts        |  76 ++++++++++++++
+ .../src/features/workspace/useRenameWorkspace.ts   |  28 +++++
+ apps/web/src/features/workspace/useWorkspace.ts    |   7 ++
+ apps/web/src/features/workspace/workspaceQuery.ts  |  19 ++++
+ apps/web/src/main.tsx                              |   8 +-
+ apps/web/src/routes/Workspace.tsx                  | 113 +++++++++++++++++++++
+ 12 files changed, 439 insertions(+), 2 deletions(-)
+commit e6af45c60071c41a96e25743c29fac1dbe7659dc
+vidi-agent  Sun Sep 27 12:58:18 2026 +0100
+
+    story 2 task 8: Build landing page with one-click start
+
+
+ apps/web/src/App.tsx                               | 46 ++++++++++++++++++++++
+ apps/web/src/components/ui/button.tsx              | 40 +++++++++++++++++++
+ apps/web/src/features/workspace/StartButton.tsx    | 30 ++++++++++++++
+ .../src/features/workspace/useCreateWorkspace.ts   | 21 ++++++++++
+ apps/web/src/lib/queryClient.ts                    |  8 ++++
+ apps/web/src/lib/queryKeys.ts                      | 13 ++++++
+ apps/web/src/routes/Home.tsx                       | 21 +++++++---
+ apps/web/src/types/lucide-icons.d.ts               |  7 ++++
+ apps/web/vite.config.ts                            |  5 ++-
+ apps/web/vitest.config.ts                          |  5 ++-
+ 10 files changed, 188 insertions(+), 8 deletions(-)
+commit f41fb13f738a5c44bf663c01c074ec47dca7216c
+vidi-agent  Sun Sep 27 12:52:01 2026 +0100
+
+    story 2 task 7: Enforce no-leak measures and verify platform logs
+
+
+ NOTES.md                   | 28 ++++++++++++++++
+ apps/api/src/app.ts        | 13 ++++----
+ apps/api/src/lib/errors.ts | 26 +++++++++++++++
+ apps/web/src/lib/api.ts    | 80 ++++++++++++++++++++++++++++++++++++++++++++++
+ wrangler.toml              |  6 ++++
+ 5 files changed, 146 insertions(+), 7 deletions(-)
+commit 06fe07c89bdd1a1b59e484a3326c36a896dffb07
+vidi-agent  Sun Sep 27 12:51:14 2026 +0100
+
+    story 2 task 6: Implement rename workspace endpoint
+
+
+ apps/api/src/routes/workspaces.ts | 27 +++++++++++++++++++++++++--
+ 1 file changed, 25 insertions(+), 2 deletions(-)
+commit e10bb56ee5ee081bf26b40e9ca4a6a66f911e29c
+vidi-agent  Sun Sep 27 12:51:06 2026 +0100
+
+    story 2 task 5: Implement workspace-auth middleware and GET workspace
+
+
+ apps/api/src/app.ts                       |  8 ++++++--
+ apps/api/src/env.ts                       | 12 ++++++++++++
+ apps/api/src/middleware/workspace-auth.ts | 24 ++++++++++++++++++++++++
+ apps/api/src/routes/workspaces.ts         |  2 ++
+ 4 files changed, 44 insertions(+), 2 deletions(-)
+commit eafd4f685b3dab8bbaa8866180b04e8fbac84896
+vidi-agent  Sun Sep 27 12:50:54 2026 +0100
+
+    story 2 task 4: Implement create and open workspace endpoints
+
+
+ apps/api/src/app.ts               |  2 ++
+ apps/api/src/lib/errors.ts        | 12 +++++++++
+ apps/api/src/routes/workspaces.ts | 53 +++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 67 insertions(+)
+commit 3b302c7f200e276900e452e47496b83fcb8830fc
+vidi-agent  Sun Sep 27 12:49:57 2026 +0100
+
+    story 2 task 3: Implement remembered-workspaces cookie codec
+
+
+ apps/api/src/lib/cookie.ts | 133 +++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 133 insertions(+)
+commit c262d79ed4506e6dad6605cee788916a81e9a85c
+vidi-agent  Sun Sep 27 12:49:44 2026 +0100
+
+    story 2 task 2: Implement secret generation, hashing and constant-time compare
+
+
+ apps/api/src/lib/crypto.ts | 51 ++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 51 insertions(+)
+commit 49cae9ae073a9f5a89afcea8a265ce4990a9d68b
+vidi-agent  Sun Sep 27 12:49:34 2026 +0100
+
+    story 2 task 1: Add workspaces migration and query module
+
+
+ apps/api/package.json          |   3 +-
+ apps/api/src/db/workspaces.ts  |  46 ++++++
+ apps/api/src/routes/test.ts    |   4 +-
+ apps/web/package.json          |  10 +-
+ bun.lock                       | 352 ++++++++++++++++++++++++++++++++++++++++-
+ migrations/.gitkeep            |   0
+ migrations/0001_workspaces.sql |  12 ++
+ packages/shared/package.json   |   6 +-
+ packages/shared/src/limits.ts  |  27 ++++
+ packages/shared/src/schemas.ts |  51 ++++++
+ 10 files changed, 505 insertions(+), 6 deletions(-)
 commit a75f1360deca1c9500564fc666d5909ecb47028f
 vidi-agent  Sun Sep 27 12:47:10 2026 +0100
 

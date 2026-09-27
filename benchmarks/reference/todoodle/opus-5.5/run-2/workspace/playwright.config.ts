@@ -10,7 +10,10 @@ export default defineConfig({
   fullyParallel: false,
   retries: 0,
   use: { baseURL: BASE_URL, trace: 'retain-on-failure' },
-  projects: [{ name: 'chromium', use: { ...devices['Desktop Chrome'] } }],
+  projects: [
+    { name: 'chromium', use: { ...devices['Desktop Chrome'] } },
+    { name: 'webkit', use: { ...devices['Desktop Safari'] } },
+  ],
   webServer: {
     command: 'bun run dev',
     url: `${BASE_URL}/health`,

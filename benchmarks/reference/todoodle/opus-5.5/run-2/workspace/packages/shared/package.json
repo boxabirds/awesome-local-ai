@@ -4,6 +4,12 @@
   "type": "module",
   "exports": {
     "./limits": "./src/limits.ts",
-    "./health": "./src/health.ts"
+    "./health": "./src/health.ts",
+    "./schemas": "./src/schemas.ts",
+    "./tokens": "./src/tokens.ts",
+    "./contrast": "./src/contrast.ts"
+  },
+  "dependencies": {
+    "zod": "^4.6.5"
   }
 }

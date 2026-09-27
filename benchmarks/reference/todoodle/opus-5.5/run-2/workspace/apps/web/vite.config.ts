@@ -6,7 +6,10 @@ import { defineConfig } from 'vite';
 export default defineConfig({
   plugins: [react(), tailwindcss()],
   resolve: {
-    alias: { '@': fileURLToPath(new URL('./src', import.meta.url)) },
+    alias: [
+      { find: /^lucide-react\/icons\/(.+)$/, replacement: 'lucide-react/dist/esm/icons/$1.mjs' },
+      { find: '@', replacement: fileURLToPath(new URL('./src', import.meta.url)) },
+    ],
   },
   build: {
     outDir: 'dist',

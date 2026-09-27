@@ -12,4 +12,10 @@ export default async function globalSetup(config: FullConfig) {
   const baseURL = config.projects[0]?.use.baseURL;
   if (!baseURL) throw new Error('Playwright baseURL is not configured');
   await assertLocalServer(baseURL);
+  // Start from an empty local D1 (the route only exists outside production).
+  const reset = await fetch(new URL('/test/reset', baseURL), {
+    method: 'POST',
+    headers: { 'X-Todoodle-Client': 'web' },
+  });
+  if (!reset.ok) throw new Error(`POST /test/reset failed: ${reset.status}`);
 }

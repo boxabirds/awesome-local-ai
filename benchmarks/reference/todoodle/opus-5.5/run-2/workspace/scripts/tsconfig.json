@@ -1,6 +1,8 @@
 {
   "extends": "../tsconfig.base.json",
   "compilerOptions": {
+    "lib": ["ES2022", "DOM"],
+    // DOM: Playwright page.evaluate callbacks in e2e/ run in the browser.
     "types": ["node", "bun"]
   },
   "include": ["**/*.ts", "../e2e/**/*.ts", "../playwright.config.ts"]

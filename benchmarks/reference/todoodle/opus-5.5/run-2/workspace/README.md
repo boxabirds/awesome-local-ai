@@ -18,14 +18,14 @@ e2e/             Playwright end-to-end tests
 
 - [bun](https://bun.sh) 1.2+ (package manager and script runner)
 - Node.js 20+ (used internally by wrangler, vitest and Playwright)
-- For e2e tests: `bunx playwright install chromium` once
+- For e2e tests: `bunx playwright install chromium webkit` once
 
 ## Local development
 
 ```sh
 bun install                 # installs every workspace
 bun run db:migrate:local    # applies migrations to the local D1 in .wrangler/state
-bun run dev                 # builds the SPA (watch mode) and runs wrangler dev
+bun run dev                 # applies local migrations, builds the SPA (watch mode), runs wrangler dev
 ```
 
 Open http://127.0.0.1:8787. Local development never connects to staging or production:
@@ -45,12 +45,14 @@ curl http://127.0.0.1:8787/health
 All tests run offline and refuse to run against anything other than `ENVIRONMENT=local`.
 
 ```sh
-bun run test               # unit + integration + ui
+bun run test               # lint + unit + integration + ui
 bun run test:unit
 bun run test:integration
 bun run test:ui            # web component tests (happy-dom)
 bun run test:e2e           # Playwright; starts `bun run dev` itself
 bun run typecheck
+bun run lint               # web import rules (no barrels, per-icon lucide imports)
+bun run tokens             # regenerate apps/web/src/styles/tokens.css from packages/shared/src/tokens.ts
 ```
 
 Worker tests run inside workerd via `@cloudflare/vitest-pool-workers`, so tests are started by bun but
