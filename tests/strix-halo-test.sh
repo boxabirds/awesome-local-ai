@@ -64,6 +64,20 @@ assert_fails "...without Vulkan"               grep -q VULKAN <<< "$(GPU_API=roc
 assert_eq "the build key says which API"       "strix-halo=both;gfx1151"   "$(adapter 'accel_build_key')"
 assert_eq "...so switching API rebuilds"       "strix-halo=rocm;gfx1151"   "$(GPU_API=rocm adapter 'accel_build_key')"
 assert_fails "an unknown GPU_API is refused"   adapter 'GPU_API=metal; qualify_accel'
+assert_eq "GPU_API=none: no host GPU backend to pin" "" "$(GPU_API=none adapter 'echo "$ACCEL_GPU_BACKENDS"')"
+# The device checks are stubbed; only the GPU_API branch is under test: a host
+# ROCm (hipconfig) is demanded for rocm, not for none.
+qualify_api() {
+  adapter 'GPU_API='"$1"'
+    _sh_gpu_dir() { echo /x; }; _sh_gtt_budget() { ACCEL_MEM_MIB=1; }
+    for f in _sh_qualify_kernel _sh_qualify_firmware _sh_qualify_render_node _sh_qualify_carveout \
+             _sh_qualify_lockup_timeout _sh_qualify_budget _sh_report_perf_level _sh_report_machine; do
+      eval "$f() { :; }"; done
+    _sh_ensure_hip() { exit 7; }
+    qualify_accel'
+}
+assert_ok    "...and qualifies without a host ROCm"  qualify_api none
+assert_fails "...where GPU_API=rocm demands one"     qualify_api rocm
 fake_bin() { printf '#!/bin/bash\necho "%s"\n' "$1" > "$SCRATCH/lsd"; chmod +x "$SCRATCH/lsd"; }
 fake_bin "Available devices: Vulkan0: AMD Radeon 8060S (RADV GFX1151)  ROCm0: AMD Radeon 8060S"
 assert_ok "a two-backend binary passes the probe" adapter 'accel_probe_binary "$SCRATCH/lsd"'
