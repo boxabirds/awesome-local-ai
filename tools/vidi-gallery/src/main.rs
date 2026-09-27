@@ -51,6 +51,45 @@ struct App {
     /// The builds under story review, in their (shuffled, when blind) order: key i is letter i.
     review_builds: Vec<runs::Run>,
     reviews: reviews::Store,
+    /// Background preparation of every story's builds: slug -> "queued" / step / "failed: …".
+    prep: tokio::sync::Mutex<std::collections::HashMap<String, String>>,
+}
+
+/// How many builds are prepared at once at startup.
+const PREPARE_PARALLEL: usize = 3;
+
+/// Check out and build every (story, build) the review can open, story 1 first, a few at a time,
+/// so that opening one only starts its server.
+async fn prepare_all(app: Arc<App>) {
+    let pack = private_repo(&app.repo).join("packs/vidi");
+    let stories = stories::load(&pack, "canvas");
+    let mut jobs = Vec::new();
+    for s in &stories {
+        for r in &app.review_builds {
+            jobs.push((s.id, r.clone()));
+            app.prep.lock().await.insert(story_slug(r, s.id), "queued".into());
+        }
+    }
+    let gate = Arc::new(tokio::sync::Semaphore::new(PREPARE_PARALLEL));
+    let mut tasks = Vec::new();
+    for (story, run) in jobs {
+        let (app, gate) = (app.clone(), gate.clone());
+        tasks.push(tokio::spawn(async move {
+            let _permit = gate.acquire().await;
+            let slug = story_slug(&run, story);
+            app.prep.lock().await.insert(slug.clone(), "preparing".into());
+            let result = match story_checkout(&app.cache, &run, story).await {
+                Ok(ws) => builds::prepare(&ws, &app.cache.join("modules")).await,
+                Err(e) => Err(e),
+            };
+            let status = match result { Ok(()) => "ready".to_string(), Err(e) => format!("failed: {e:#}") };
+            app.prep.lock().await.insert(slug, status);
+        }));
+    }
+    for t in tasks {
+        let _ = t.await;
+    }
+    println!("all review builds prepared");
 }
 
 fn private_repo(repo: &std::path::Path) -> PathBuf {
@@ -176,7 +215,7 @@ async fn api_open(State(app): State<Arc<App>>, UrlPath(slug): UrlPath<String>) -
         colour: colours.iter().find(|(s, _)| *s == run.setup).map(|(_, c)| c.clone()).unwrap_or_else(|| colour(0)),
         title: format!("{} {}", short_setup, run.run),
     };
-    let state = app.builds.open(Spec { slug: slug.clone(), workspace: run.path.join("workspace"), banner }).await;
+    let state = app.builds.open(Spec { slug: slug.clone(), workspace: run.path.join("workspace"), banner, in_place: false }).await;
     Json(serde_json::json!(state)).into_response()
 }
 
@@ -221,11 +260,25 @@ async fn api_review_state(State(app): State<Arc<App>>) -> impl IntoResponse {
 
 async fn api_review_status(State(app): State<Arc<App>>, UrlPath(story): UrlPath<u64>) -> impl IntoResponse {
     let states = app.builds.states().await;
+    let prep = app.prep.lock().await.clone();
     let by_key: Vec<serde_json::Value> = app
         .review_builds
         .iter()
         .enumerate()
-        .map(|(i, r)| serde_json::json!({"key": i, "status": states.get(&story_slug(r, story))}))
+        .map(|(i, r)| {
+            let slug = story_slug(r, story);
+            let status = match states.get(&slug) {
+                Some(s) => serde_json::json!(s),
+                None => match prep.get(&slug).map(String::as_str) {
+                    Some("ready") => serde_json::json!({"state": "ready"}),
+                    Some("queued") => serde_json::json!({"state": "queued"}),
+                    Some("preparing") => serde_json::json!({"state": "preparing", "step": "installing and building"}),
+                    Some(f) => serde_json::json!({"state": "failed", "error": f}),
+                    None => serde_json::Value::Null,
+                },
+            };
+            serde_json::json!({"key": i, "status": status})
+        })
         .collect();
     Json(by_key)
 }
@@ -261,7 +314,7 @@ async fn api_review_open(State(app): State<Arc<App>>, UrlPath((story, key)): Url
             title: format!("{} {}", short_name(&run.setup), run.run),
         }
     };
-    let state = app.builds.open(Spec { slug: story_slug(run, story), workspace, banner }).await;
+    let state = app.builds.open(Spec { slug: story_slug(run, story), workspace, banner, in_place: true }).await;
     Json(serde_json::json!(state)).into_response()
 }
 
@@ -327,7 +380,8 @@ async fn main() -> anyhow::Result<()> {
         shuffle(&mut review_builds);
     }
     let reviews = reviews::Store::new(private_repo(&repo).join("analysis/story-reviews.csv"));
-    let app = Arc::new(App { repo: repo.clone(), builds: builds.clone(), cache, blind, review_builds, reviews });
+    let app = Arc::new(App { repo: repo.clone(), builds: builds.clone(), cache, blind, review_builds, reviews, prep: Default::default() });
+    tokio::spawn(prepare_all(app.clone()));
     let router = Router::new()
         .route("/", get(page))
         .route("/api/runs", get(api_runs))

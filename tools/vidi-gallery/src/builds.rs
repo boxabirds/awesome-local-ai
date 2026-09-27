@@ -64,6 +64,52 @@ pub struct Spec {
     pub slug: String,
     pub workspace: PathBuf,
     pub banner: Banner,
+    /// Serve `workspace` where it is, already prepared (see `prepare`), instead of copying,
+    /// installing and building it on open.
+    pub in_place: bool,
+}
+
+/// Marks a workspace that `prepare` finished: dependencies installed and built.
+const PREPARED_MARKER: &str = ".gallery-prepared";
+
+pub fn is_prepared(ws: &Path) -> bool {
+    ws.join(PREPARED_MARKER).is_file()
+}
+
+/// Install and build a workspace so that opening it only has to start wrangler. Starts from clean
+/// (no dist/ or .wrangler/, which can hold a stale config). node_modules is shared between
+/// workspaces with the same package-lock.json: installed once into `modules/<hash>`, then cloned
+/// (APFS copy-on-write, `cp -c`), so 99 builds don't need 99 copies of ~500 MB.
+pub async fn prepare(ws: &Path, modules: &Path) -> anyhow::Result<()> {
+    if is_prepared(ws) {
+        return Ok(());
+    }
+    for leftover in [".wrangler", "dist", "node_modules"] {
+        let _ = std::fs::remove_dir_all(ws.join(leftover));
+    }
+    let lock = std::fs::read(ws.join("package-lock.json")).unwrap_or_default();
+    let key = format!("{:016x}", fnv1a(&lock));
+    let shared = modules.join(&key);
+    if !shared.is_dir() {
+        run("npm", &["ci", "--ignore-scripts", "--no-audit", "--no-fund"], ws).await?;
+        std::fs::create_dir_all(modules)?;
+        let tmp = modules.join(format!("{key}.tmp"));
+        let _ = std::fs::remove_dir_all(&tmp);
+        run("cp", &["-Rc", "node_modules", &tmp.display().to_string()], ws).await?;
+        let _ = std::fs::rename(&tmp, &shared); // another prepare may have won the race; either copy is fine
+    } else {
+        run("cp", &["-Rc", &shared.display().to_string(), "node_modules"], ws).await?;
+    }
+    run("npm", &["run", "build"], ws).await?;
+    std::fs::write(ws.join(PREPARED_MARKER), key)?;
+    Ok(())
+}
+
+/// A stable 64-bit hash (FNV-1a) of the lockfile, to name its shared node_modules.
+fn fnv1a(bytes: &[u8]) -> u64 {
+    const OFFSET: u64 = 0xcbf2_9ce4_8422_2325;
+    const PRIME: u64 = 0x0000_0100_0000_01b3;
+    bytes.iter().fold(OFFSET, |h, b| (h ^ u64::from(*b)).wrapping_mul(PRIME))
 }
 
 impl Builds {
@@ -110,25 +156,20 @@ impl Builds {
 
     async fn start(&self, spec: Spec, slot: u16) -> anyhow::Result<()> {
         let dir = self.cache.join(&spec.slug);
-        let ws = dir.join("ws");
-        std::fs::create_dir_all(&ws)?;
+        std::fs::create_dir_all(&dir)?;
         let log = dir.join("wrangler.log");
-        run(
-            "rsync",
-            &["-a", "--delete", "--exclude", "node_modules", "--exclude", "dist", "--exclude", ".wrangler",
-              &format!("{}/", spec.workspace.display()), &format!("{}/", ws.display())],
-            &dir,
-        )
-        .await?;
-        // Build from clean, like the held-out suite: a `.wrangler/` or `dist/` left by an earlier start
-        // can redirect wrangler to a stale config ("assets-only Worker" errors on a build that works).
-        for leftover in [".wrangler", "dist"] {
-            let _ = std::fs::remove_dir_all(ws.join(leftover));
-        }
-        self.step(&spec.slug, "installing dependencies (no install scripts)").await;
-        run("npm", &["ci", "--ignore-scripts", "--no-audit", "--no-fund"], &ws).await?;
-        self.step(&spec.slug, "building").await;
-        run("npm", &["run", "build"], &ws).await?;
+        let ws = if spec.in_place {
+            if !is_prepared(&spec.workspace) {
+                self.step(&spec.slug, "installing and building").await;
+                prepare(&spec.workspace, &self.cache.join("modules")).await?;
+            }
+            spec.workspace.clone()
+        } else {
+            let ws = dir.join("ws");
+            std::fs::create_dir_all(&ws)?;
+            self.copy_install_build(&spec.slug, &spec.workspace, &ws, &dir).await?;
+            ws
+        };
         self.step(&spec.slug, "starting wrangler dev").await;
 
         let upstream_port = UPSTREAM_BASE + slot;
@@ -191,6 +232,27 @@ impl Builds {
             );
             return;
         }
+    }
+
+    /// The gallery's final-build view: copy the record's workspace, then install and build it.
+    async fn copy_install_build(&self, slug: &str, src: &Path, ws: &Path, dir: &Path) -> anyhow::Result<()> {
+        run(
+            "rsync",
+            &["-a", "--delete", "--exclude", "node_modules", "--exclude", "dist", "--exclude", ".wrangler",
+              &format!("{}/", src.display()), &format!("{}/", ws.display())],
+            &dir,
+        )
+        .await?;
+        // Build from clean, like the held-out suite: a `.wrangler/` or `dist/` left by an earlier start
+        // can redirect wrangler to a stale config ("assets-only Worker" errors on a build that works).
+        for leftover in [".wrangler", "dist"] {
+            let _ = std::fs::remove_dir_all(ws.join(leftover));
+        }
+        self.step(slug, "installing dependencies (no install scripts)").await;
+        run("npm", &["ci", "--ignore-scripts", "--no-audit", "--no-fund"], &ws).await?;
+        self.step(slug, "building").await;
+        run("npm", &["run", "build"], &ws).await?;
+        Ok(())
     }
 
     pub async fn stop(&self, slug: &str) {

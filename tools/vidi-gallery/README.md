@@ -34,8 +34,12 @@ sticky notes, live sync, … images). For each story it shows what the user must
 PRD's one-line summary, its **golden path** (the steps to follow in every build), its named
 requirements and its **must-nots**. Below, one row per finished build:
 
-- **Open** starts the build (as below) and opens it in its own tab; after that the button goes to
-  that tab, so you can switch between implementations.
+- **Everything is prepared at startup, in the background:** each story's commit of each build is
+  checked out, installed and built (story 1 first, three at a time). Builds with the same
+  package-lock.json share one node_modules, cloned copy-on-write. A row says "queued", then
+  "ready". Restarting the gallery skips what is already prepared.
+- **Open** only starts the prepared build's server (a few seconds) and opens it in its own tab;
+  after that the button goes to that tab, so you can switch between implementations.
 - **pass / fail / skip** and a note, saved as you type to the private repo's
   `analysis/story-reviews.csv` (one row per story and build, by run name).
 - Keys: `1`–`9` pick a build, `o` opens or goes to its tab, `+` pass, `-` fail, space skip,
