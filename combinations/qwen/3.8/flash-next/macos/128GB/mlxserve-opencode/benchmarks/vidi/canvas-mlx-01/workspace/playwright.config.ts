@@ -28,6 +28,9 @@ export default defineConfig({
   fullyParallel: false,
   workers: 1,
   retries: process.env.CI ? 2 : 0,
+  // The story-3 restart / catch-up cases restart a real `wrangler dev` process and are
+  // tagged `@slow`; run them in the nightly job with E2E_NIGHTLY=1, not in every commit.
+  grepInvert: process.env.E2E_NIGHTLY ? undefined : /@slow/,
   timeout: 60_000,
   expect: { timeout: 5_000 },
   reporter: [['list'], ['html', { open: 'never' }]],

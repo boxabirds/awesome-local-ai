@@ -1,3 +1,70 @@
+commit 26b1f22bd174304c3699e910078b77b2ee648911
+vidi-agent  Sun Sep 27 18:19:33 2026 +0100
+
+    test(story3): live-collaboration e2e + nightly suites; room awareness presence fix
+
+
+ playwright.config.ts                               |   3 +
+ .../tasks.md                                       |  18 +-
+ src/client/App.tsx                                 |  14 +-
+ src/client/board/ConnectionStatus.tsx              |  22 ++-
+ src/client/board/connectBoard.ts                   |  39 +++-
+ src/client/board/useBoardDoc.ts                    |  15 +-
+ src/client/styles.css                              |  78 ++++++++
+ src/worker/board-room.ts                           | 133 ++++++++++---
+ tests/component/ConnectionStatus.test.tsx          |  40 ++++
+ tests/e2e/NOTES.md                                 | 215 +++++++--------------
+ tests/e2e/capacity.spec.ts                         |  61 ++++++
+ tests/e2e/helpers/dev-server.ts                    | 116 +++++++++++
+ tests/e2e/helpers/live.ts                          | 186 ++++++++++++++++++
+ tests/e2e/live-editing.spec.ts                     | 162 ++++++++++++++++
+ tests/e2e/nightly.spec.ts                          | 191 ++++++++++++++++++
+ tests/unit/connection-label.test.ts                |  14 ++
+ 16 files changed, 1112 insertions(+), 195 deletions(-)
+commit e77fc8d96d5872458b52a07a06daeb3621866d9e
+vidi-agent  Sun Sep 27 16:56:16 2026 +0100
+
+    feat(story3): client connection layer, connection badge, /b/:id routing
+
+
+ src/client/App.tsx                    | 55 +++++++++++++++++++++-
+ src/client/board/ConnectionStatus.tsx | 23 +++++++++
+ src/client/board/connectBoard.ts      | 66 ++++++++++++++++++++++++++
+ src/client/board/useBoardDoc.ts       | 89 ++++++++++++++++++++---------------
+ 4 files changed, 195 insertions(+), 38 deletions(-)
+commit c5e136d115384fe94a9757a50296383cd0e8dfd5
+vidi-agent  Sun Sep 27 16:51:40 2026 +0100
+
+    test(story3): integration suite — merge, broadcast, echo, edges, capacity, cold start (19 green)
+
+
+ tests/integration/edge.test.ts         | 113 +++++++++++++++++++++++++++
+ tests/integration/helpers/ws-client.ts |  10 +++
+ tests/integration/sync.test.ts         | 139 +++++++++++++++++++++++++++++++++
+ 3 files changed, 262 insertions(+)
+commit f3e6898ac8f0c15b2b3b70d5fc2611967a600d9d
+vidi-agent  Sun Sep 27 16:47:00 2026 +0100
+
+    feat(story3): BoardRoom DO + worker routing; unit and routing integration tests green
+
+
+ package-lock.json                      | 1368 ++++++++++++++++++++++++++++++++
+ package.json                           |   11 +-
+ src/shared/board-id.ts                 |   31 +
+ src/shared/config.ts                   |   28 +
+ src/shared/protocol.ts                 |   63 ++
+ src/worker/board-room.ts               |  205 +++++
+ src/worker/index.ts                    |   63 +-
+ tests/integration/helpers/ws-client.ts |  257 ++++++
+ tests/integration/worker.test.ts       |   42 +
+ tests/unit/board-id.test.ts            |   51 ++
+ tests/unit/protocol.test.ts            |   95 +++
+ tsconfig.json                          |   14 +-
+ tsconfig.worker.json                   |   10 +
+ vitest.config.ts                       |    5 +
+ vitest.worker.config.ts                |   24 +
+ wrangler.jsonc                         |   31 +-
+ 16 files changed, 2261 insertions(+), 37 deletions(-)
 commit c5a8bde5c64aeffef03878b17af2b7f7821f5bba
 vidi-agent  Sun Sep 27 16:14:53 2026 +0100
 

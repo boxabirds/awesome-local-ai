@@ -1,46 +1,50 @@
-import { useCallback, useEffect, useMemo, useRef, useSyncExternalStore } from 'react';
+/**
+ * Owns the board's single `Y.Doc`, exposes an immutable snapshot of its sticky notes to
+ * React, and — when a board id is present (a `/b/:id` route) — attaches the live
+ * connection and mirrors its status.
+ *
+ * The document is created once per `boardId` and prepared with `initDoc`. Snapshot
+ * invalidation listens to `objects.observeDeep`, so it fires for note add/remove, a
+ * moved/repainted field, and text edits inside a note's `Y.Text` — but not for `meta`.
+ * The create flow (`/`) passes no board id, so it has no connection and
+ * `connectionStatus` is null; the badge is then not rendered.
+ */
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import * as Y from 'yjs';
 import { initDoc, snapshot, type StickySnapshot } from '../../shared/board-model.js';
+import { connectBoard, type ConnectionStatus } from './connectBoard.js';
 
-export interface BoardDoc {
-  /** The live Yjs document every mutation and (from story 3) the provider attach to. */
-  readonly doc: Y.Doc;
-  /**
-   * An immutable snapshot of every sticky note, sorted by (z, id). It is recomputed
-   * only when the document actually changes, so React re-renders on content edits.
-   */
-  readonly notes: readonly StickySnapshot[];
+export interface UseBoardDocOptions {
+  /** When set (a `/b/:id` route), the doc is connected live to that board's room. */
+  boardId?: string;
 }
 
-/**
- * Owns the board's single `Y.Doc` and exposes an immutable snapshot of its sticky
- * notes to React through `useSyncExternalStore`.
- *
- * The document is created once for the lifetime of the component tree and prepared
- * with `initDoc` (which sets `meta.schemaVersion`). Snapshot invalidation listens to
- * `objects.observeDeep`, so it fires for note add/remove, for a moved/repainted field,
- * and for text edits inside a note's `Y.Text` — but not for the `meta` map. Story 3
- * only needs to attach a network provider to the returned `doc`.
- */
-export function useBoardDoc(): BoardDoc {
-  // One document for the whole component lifetime; StrictMode's double-invoke of the
-  // initialiser would otherwise create two docs, so keep it in a ref guarded by lazy init.
-  const docRef = useRef<Y.Doc | null>(null);
-  if (docRef.current === null) docRef.current = new Y.Doc();
-  const doc = docRef.current;
+export interface BoardDoc {
+  /** The live Yjs document every mutation and the provider attach to. */
+  readonly doc: Y.Doc;
+  /** An immutable snapshot of every sticky note, recomputed when the doc changes. */
+  readonly notes: readonly StickySnapshot[];
+  /** Live connection status, or null when there is no connection (the create flow). */
+  readonly connectionStatus: ConnectionStatus | null;
+  /** Other present editors (self excluded), or null when there is no connection. */
+  readonly peerCount: number | null;
+}
 
-  // The snapshot cache. `getSnapshot` must return a stable reference between calls
-  // unless the underlying data changed, so React does not loop; it is refreshed only
-  // inside the observer and returned as-is from `getSnapshot`.
+export function useBoardDoc(options?: UseBoardDocOptions): BoardDoc {
+  const boardId = options?.boardId;
+
+  // One document per board id; StrictMode's double-invoke must not create two docs.
+  const docRef = useRef<{ boardId: string | undefined; doc: Y.Doc } | null>(null);
+  if (docRef.current === null || docRef.current.boardId !== boardId) {
+    const doc = new Y.Doc();
+    initDoc(doc);
+    docRef.current = { boardId, doc };
+  }
+  const doc = docRef.current.doc;
+
+  // The snapshot cache: `getSnapshot` must return a stable reference unless data changed.
   const cacheRef = useRef<readonly StickySnapshot[]>(snapshot(doc));
   const listenersRef = useRef<Set<() => void>>(new Set());
-
-  // Recompute once on mount in case the document changed before the observer ran
-  // (e.g. `initDoc` already ran). `initDoc` is idempotent, so a warm document is safe.
-  useEffect(() => {
-    initDoc(doc);
-    cacheRef.current = snapshot(doc);
-  }, [doc]);
 
   const subscribe = useCallback(
     (onStoreChange: () => void): (() => void) => {
@@ -61,12 +65,32 @@ export function useBoardDoc(): BoardDoc {
   );
 
   const getSnapshot = useCallback((): readonly StickySnapshot[] => cacheRef.current, []);
-
   const notes = useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
 
-  // Identity is stable while the cached array is unchanged; memo is a no-op guard so a
-  // future provider that re-subscribes does not churn the returned object.
-  const value = useMemo<BoardDoc>(() => ({ doc, notes }), [doc, notes]);
+  // Live connection: only a board route connects. `connectBoard` reports 'connecting'
+  // synchronously, so the badge never shows an offline first frame.
+  const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus | null>(null);
+  const [peerCount, setPeerCount] = useState<number | null>(null);
+  useEffect(() => {
+    if (boardId === undefined) {
+      setConnectionStatus(null);
+      setPeerCount(null);
+      return;
+    }
+    cacheRef.current = snapshot(doc);
+    const connection = connectBoard({
+      doc,
+      boardId,
+      onStatus: setConnectionStatus,
+      onPeers: setPeerCount,
+    });
+    return () => {
+      connection.destroy();
+    };
+  }, [doc, boardId]);
 
-  return value;
+  return useMemo<BoardDoc>(
+    () => ({ doc, notes, connectionStatus, peerCount }),
+    [doc, notes, connectionStatus, peerCount],
+  );
 }

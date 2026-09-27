@@ -1,41 +1,50 @@
 /**
  * vidi6 entry Worker.
  *
- * Story 1 is entirely client-side, so this Worker does nothing but hand out the
- * built client: Cloudflare serves a static asset when the path matches one, and
- * everything else falls through to the single-page-application entry point.
+ * Routes the live-board WebSocket endpoint `/api/rooms/:boardId` to the `BoardRoom`
+ * Durable Object that owns that board, and serves everything else from the built
+ * client (the single-page-application fallback comes from `assets.not_found_handling`).
  *
- * `wrangler.jsonc` binds the bucket `vidi6-backend` as the `BACKEND` namespace;
- * the types below are declared locally so the Worker does not need the DOM lib.
+ * A board id that fails {@link isValidBoardId} is a client error (400) and never
+ * touches a Durable Object, and a valid id without a WebSocket upgrade is answered
+ * 426. `idFromName(boardId)` gives every board its own object, which is what keeps
+ * boards isolated; there is deliberately no participant-count check — the capacity
+ * setting is soft, so an over-capacity joiner is never refused.
  */
+import { isValidBoardId } from '../shared/board-id.js';
+import { BoardRoom } from './board-room.js';
 
-interface KVNamespaceLike {
-  get(key: string): Promise<string | null>;
-  put(key: string, value: string): Promise<void>;
+export { BoardRoom };
+
+export interface Env {
+  /** The per-board room object namespace (`durable_objects.bindings: BOARD_ROOM`). */
+  BOARD_ROOM: DurableObjectNamespace<BoardRoom>;
+  /** The built client (`assets.binding: ASSETS`). */
+  ASSETS: Fetcher;
 }
 
-interface Env {
-  /** Asset binding declared in wrangler.jsonc (`binding: "ASSETS"`). */
-  ASSETS: { fetch(request: Request): Promise<Response> };
-  /** KV binding for the bucket `vidi6-backend` (`binding: "BACKEND"`). */
-  BACKEND: KVNamespaceLike;
-}
+/** The path prefix of the live-board WebSocket endpoint. */
+const ROOM_PREFIX = '/api/rooms/';
 
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     const url = new URL(request.url);
-    const asset = await env.ASSETS.fetch(request);
-    if (asset.status !== 404) {
-      return asset;
+    if (url.pathname.startsWith(ROOM_PREFIX)) {
+      const boardId = decodeURIComponent(url.pathname.slice(ROOM_PREFIX.length));
+      if (!isValidBoardId(boardId)) {
+        return new Response('Invalid board id', { status: 400 });
+      }
+      const upgrade = request.headers.get('Upgrade');
+      if (!upgrade || upgrade.toLowerCase() !== 'websocket') {
+        return new Response('Expected a WebSocket upgrade', { status: 426 });
+      }
+      // One object per board id isolates boards and, with no count check, never
+      // refuses an over-capacity joiner.
+      const id = env.BOARD_ROOM.idFromName(boardId);
+      return env.BOARD_ROOM.get(id).fetch(request);
     }
-    // Unknown path: the SPA fallback comes from `not_found_handling` when Wrangler
-    // can serve it, so this is the safety net for requests that reach the Worker.
-    const indexUrl = new URL(request.url);
-    indexUrl.pathname = '/index.html';
-    if (url.pathname.startsWith('/assets/')) {
-      // A missing hashed asset is a build problem, not a route to hide.
-      return new Response('Not found', { status: 404 });
-    }
-    return env.ASSETS.fetch(new Request(indexUrl, { method: 'GET' }));
+    // Every other path is the client, served from static assets with the
+    // single-page-application fallback configured in wrangler.jsonc.
+    return env.ASSETS.fetch(request);
   },
-} satisfies { fetch(request: Request, env: Env, ctx: unknown): Promise<Response> };
+} satisfies { fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> };

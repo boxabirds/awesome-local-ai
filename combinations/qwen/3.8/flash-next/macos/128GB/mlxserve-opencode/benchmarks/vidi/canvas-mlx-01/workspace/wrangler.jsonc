@@ -1,21 +1,38 @@
 {
   // vidi6 deployment configuration (design requirement).
   //
-  // The client build in `dist/client` is the whole story-1 experience; the entry
-  // Worker exists so the `ASSETS` binding is valid and so `BACKEND` is available
-  // to Worker code (the collaborative backend itself arrives in story 3).
+  // The Worker serves the live-board WebSocket endpoint `/api/rooms/:boardId` from a
+  // `BoardRoom` Durable Object (one per board) and everything else from the built
+  // client with a single-page-application fallback. The migration is declared now as
+  // `new_sqlite_classes` so story 4's persistence needs no class migration.
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "vidi6",
   "compatibility_date": "2026-09-01",
   "main": "src/worker/index.ts",
 
-  // The Worker context has an `env.BACKEND` value bound to this bucket.
+  "durable_objects": {
+    "bindings": [
+      {
+        "name": "BOARD_ROOM",
+        "class_name": "BoardRoom"
+      }
+    ]
+  },
+
+  "migrations": [
+    {
+      "tag": "v1",
+      "new_sqlite_classes": ["BoardRoom"]
+    }
+  ],
+
+  // Declared for parity with the deployment shape; the Worker context does not use it
+  // (story 4 owns persistence). Only `binding`/`id` so the workers vitest pool's
+  // bundled wrangler schema accepts it.
   "kv_namespaces": [
     {
       "binding": "BACKEND",
-      "id": "1c0aa1c0aa1c0aa1c0aa1c0aa1c0aa1c",
-      "bucket_name": "vidi6-backend",
-      "preview_bucket_name": "vidi6-backend"
+      "id": "1c0aa1c0aa1c0aa1c0aa1c0aa1c0aa1c"
     }
   ],
 

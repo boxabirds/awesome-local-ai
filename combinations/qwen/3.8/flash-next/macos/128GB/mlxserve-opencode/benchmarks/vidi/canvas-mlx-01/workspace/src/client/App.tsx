@@ -5,10 +5,13 @@ import { ZoomControls } from './canvas/ZoomControls.js';
 import { useCamera } from './canvas/useCamera.js';
 import { screenToWorld, type Size } from './canvas/camera.js';
 import { useBoardDoc } from './board/useBoardDoc.js';
+import { ConnectionStatus } from './board/ConnectionStatus.js';
 import { useSelection } from './board/useSelection.js';
 import { Toolbar } from './board/Toolbar.js';
 import { StickyNote } from './objects/StickyNote.js';
 import { createSticky, deleteObject } from '../shared/board-model.js';
+import { newBoardId } from '../shared/board-id.js';
+import { MAX_CONCURRENT_EDITORS } from '../shared/config.js';
 import { registerBoardTestHooks } from './canvas/testHooks.js';
 
 /** True when focus is in a text field, so board keyboard shortcuts stand down. */
@@ -22,6 +25,19 @@ const focusIsEditable = (): boolean => {
   );
 };
 
+/** Parse a path into a board id, or undefined for the create flow / an invalid id. */
+function parseBoardId(pathname: string): { boardId?: string; invalid: boolean } {
+  const match = /^\/b\/([^/?#]+)/.exec(pathname);
+  if (!match) return { invalid: false };
+  const candidate = decodeURIComponent(match[1]!);
+  return candidate.length === BOARD_ID_LENGTH && BOARD_ID_CHARS.test(candidate)
+    ? { boardId: candidate, invalid: false }
+    : { invalid: true };
+}
+
+const BOARD_ID_LENGTH = 22;
+const BOARD_ID_CHARS = /^[A-Za-z0-9_-]+$/;
+
 /**
  * Top-level layout: the infinite board with its sticky notes, the left toolbar that
  * creates notes, the zoom control and the first-use hint. Notes live in a `Y.Doc`
@@ -30,7 +46,25 @@ const focusIsEditable = (): boolean => {
 export function App(): JSX.Element {
   const [viewport, setViewport] = useState<Size>({ width: 0, height: 0 });
   const camera = useCamera(viewport);
-  const { doc, notes } = useBoardDoc();
+
+  // Routing: `/` is the create flow (no connection), `/b/:boardId` is a live board.
+  const [path, setPath] = useState<string>(() =>
+    typeof window === 'undefined' ? '/' : window.location.pathname,
+  );
+  useEffect(() => {
+    const onPop = (): void => {
+      setPath(window.location.pathname);
+    };
+    window.addEventListener('popstate', onPop);
+    return () => window.removeEventListener('popstate', onPop);
+  }, []);
+  const go = useCallback((next: string): void => {
+    if (window.location.pathname !== next) window.history.pushState({}, '', next);
+    setPath(next);
+  }, []);
+  const route = parseBoardId(path);
+
+  const { doc, notes, connectionStatus, peerCount } = useBoardDoc({ boardId: route.boardId });
   const selection = useSelection();
   const { select, startEdit, endEdit } = selection;
   const zoom = camera.camera.zoom;
@@ -60,6 +94,11 @@ export function App(): JSX.Element {
   const createAtCentre = useCallback((): void => {
     createAtScreen({ x: viewport.width / 2, y: viewport.height / 2 });
   }, [createAtScreen, viewport.width, viewport.height]);
+
+  /** The create flow starts a live board at a fresh board id and routes to it. */
+  const startBoard = useCallback((): void => {
+    go(`/b/${newBoardId()}`);
+  }, [go]);
 
   // Board-level keyboard: Enter edits the selected note; Delete/Backspace removes it.
   // Both stand down while a note is being edited (then those keys belong to the textarea).
@@ -120,6 +159,30 @@ export function App(): JSX.Element {
       </BoardViewport>
 
       <Toolbar onCreateSticky={createAtCentre} />
+
+      {/* Live connection badge: online/connecting once connected, offline only for a bad
+          board id (TC-20). The create flow renders neither — there is no socket. */}
+      {route.invalid ? (
+        <ConnectionStatus status="offline" message="This board link is not valid." />
+      ) : connectionStatus !== null ? (
+        <ConnectionStatus status={connectionStatus} peers={peerCount ?? undefined} />
+      ) : null}
+
+      {/* Advisory over-capacity note. The limit is soft: a joiner is never refused, it
+          only sees this notice once there are at least MAX_CONCURRENT_EDITORS other
+          editors present (i.e. the board is over its advisory limit). Editing continues. */}
+      {peerCount !== null && peerCount >= MAX_CONCURRENT_EDITORS ? (
+        <span className="vidi-soft-capacity test-soft-capacity" data-peer-count={peerCount}>
+          {`Heads up — ${peerCount} other editors are on this board. You can keep editing.`}
+        </span>
+      ) : null}
+
+      {/* Create-flow affordance: begin a live board and route to its `/b/:id`. */}
+      {!route.boardId && !route.invalid ? (
+        <button type="button" data-testid="create-board" className="vidi-create-board" onClick={startBoard}>
+          Start a board
+        </button>
+      ) : null}
 
       <ZoomControls
         zoomPercent={camera.zoomPercent}

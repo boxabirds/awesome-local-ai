@@ -55,3 +55,31 @@ export type StickyColor = keyof typeof STICKY_COLORS;
 
 /** The colour a freshly created note has. */
 export const DEFAULT_STICKY_COLOR: StickyColor = 'yellow';
+
+/* ------------------------------------------------------------ live collaboration */
+
+/**
+ * Soft simultaneous-editor capacity: a single product setting that both the design
+ * and the tests reason about. It is never enforced — a further person is never
+ * refused — it only states the number of concurrent editors the 1-second latency
+ * requirement is designed and tested for (`live.capacity`, `live.over_capacity`).
+ */
+export const MAX_CONCURRENT_EDITORS = 5;
+
+/**
+ * `live.propagate`: the budget, in milliseconds, from a change appearing on the
+ * sender's screen to it appearing on every other connected person's screen.
+ */
+export const LIVE_UPDATE_LATENCY_BUDGET_MS = 1000;
+
+/**
+ * Passed to `WebsocketProvider`'s `maxBackoffTime`: the largest gap between
+ * reconnection attempts after the connection is lost.
+ */
+export const RECONNECT_MAX_BACKOFF_MS = 10_000;
+
+/** How long the green "Connected" confirmation shows after a reconnection. */
+export const CONNECTED_CONFIRMATION_MS = 2000;
+
+/** The outage length the `live.catch_up` verification disconnects a person for. */
+export const CATCH_UP_TEST_OUTAGE_MS = 30_000;
