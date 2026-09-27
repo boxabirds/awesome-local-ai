@@ -33,6 +33,17 @@ printf 'ab' > "$W/sub/model.gguf"
 assert_eq "a short file -> missing, naming it" "missing sub/model.gguf (2 of 5 bytes)" "$(_gufo_weights_state "$W")"
 
 echo
+echo "smoke test: what gufo actually answers (fields as seen on tritus, 27 Sep 2026)"
+RESP='{"usage":{"completion_tokens":120,"draft_tokens":133,"draft_tokens_accepted":104,"gufo":{"prefill_tokens":25}}}'
+assert_eq "draft counters read from usage" "104 133" "$(_gufo_draft_counts <<< "$RESP")"
+assert_eq "no counters -> nothing" "" "$(_gufo_draft_counts <<< '{"usage":{"completion_tokens":5}}')"
+smoke_extra() { # the SMOKE_REQUEST_EXTRA the installer would send, with the combination loaded
+  bash -c 'LOG_FILE=/dev/null; . "$1/lib/common.sh"; . "$2"; . "$1/lib/gufo.sh"; printf "%s" "$SMOKE_REQUEST_EXTRA"' _ "$REPO_ROOT" "$CFG"
+}
+assert_ok "the generic smoke request names the model (gufo answers 400 missing_model otherwise)" \
+  grep -qF '"model":"qwen3.8-flash-next-gufo"' <<< "$(smoke_extra)"
+
+echo
 echo "combination config"
 assert_ok "image pinned by digest"          grep -qE '^GUFO_IMAGE="[^"]+@sha256:[0-9a-f]{64}"' "$CFG"
 assert_ok "engine version named"            grep -qE '^GUFO_VERSION="[0-9a-f]{7,}"' "$CFG"

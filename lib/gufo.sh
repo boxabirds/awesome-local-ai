@@ -57,10 +57,11 @@ GUFO_MODEL_CACHE_REL="${GUFO_MODEL_CACHE_REL:-gufo/models}"
 # A cold load of ~111 GB reads the whole file; 900 s covers a cold page cache.
 SMOKE_TIMEOUT="${SMOKE_TIMEOUT:-900}"
 
-# The generic smoke request ("Reply with exactly: OK", 256 tokens) with
-# thinking off, so a reasoning default cannot spend every token thinking.
+# The generic smoke request ("Reply with exactly: OK", 256 tokens) must name the
+# model -- gufo answers a request without one with 400 missing_model -- and
+# turns thinking off, so a reasoning default cannot spend every token thinking.
 if [[ -z "${SMOKE_REQUEST_EXTRA:-}" ]]; then
-  SMOKE_REQUEST_EXTRA='"chat_template_kwargs":{"enable_thinking":false}'
+  SMOKE_REQUEST_EXTRA='"model":"'"${MODEL_ALIAS_DEFAULT:-}"'","chat_template_kwargs":{"enable_thinking":false}'
 fi
 
 GUFO_IMAGE_VERSION=""
@@ -227,28 +228,33 @@ m=(json.load(sys.stdin).get("data") or [{}])[0]
 print(m.get("context_length") or m.get("max_model_len") or m.get("n_ctx") or "?")' 2>/dev/null
 }
 
-# Proof that the MTP head is drafting, from gufo's per-request accounting in
-# the response's usage.gufo. Field names are the ones gufo reported on
-# tritus; if none is present, say so rather than infer it from speed.
+# "<accepted> <drafted>" from a chat completion's usage, or nothing. gufo
+# reports usage.draft_tokens and usage.draft_tokens_accepted (seen on tritus,
+# 27 Sep 2026, gufo b722a61); without drafting neither is there.
+_gufo_draft_counts() {
+  python3 -c '
+import sys, json
+u = (json.load(sys.stdin).get("usage") or {})
+if u.get("draft_tokens"):
+    print(u.get("draft_tokens_accepted", 0), u["draft_tokens"])
+' 2>/dev/null
+}
+
+# Proof that the MTP head is drafting, from gufo's own per-request accounting,
+# not an inference from speed.
 backend_smoke_assert() {
-  local port="$2" resp
+  local port="$2" resp counts
   resp="$(curl -sf --max-time 180 "http://127.0.0.1:${port}/v1/chat/completions" \
     -H 'Content-Type: application/json' \
-    -d "{\"model\":\"${MODEL_ALIAS:-$MODEL_ALIAS_DEFAULT}\",\"messages\":[{\"role\":\"user\",\"content\":\"Count from 1 to 40, separated by commas.\"}],\"max_tokens\":128,\"temperature\":0,\"chat_template_kwargs\":{\"enable_thinking\":false}}" \
+    -d "{\"model\":\"${MODEL_ALIAS_DEFAULT}\",\"messages\":[{\"role\":\"user\",\"content\":\"Count from 1 to 40, separated by commas.\"}],\"max_tokens\":128,\"temperature\":0,\"chat_template_kwargs\":{\"enable_thinking\":false}}" \
     2>/dev/null)" || { warn "The MTP check request failed; unable to confirm speculative decoding."; return 0; }
-  local verdict
-  verdict="$(printf '%s' "$resp" | python3 -c '
-import sys, json
-g = ((json.load(sys.stdin).get("usage") or {}).get("gufo") or {})
-d = next((g[k] for k in ("draft_tokens", "mtp_drafted", "spec_drafted", "drafted_tokens") if k in g), None)
-a = next((g[k] for k in ("accepted_tokens", "mtp_accepted", "spec_accepted", "draft_accepted") if k in g), None)
-print("ok %s %s" % (a, d) if d else "none")
-' 2>/dev/null || echo none)"
-  case "$verdict" in
-    ok\ *) local _ a d; read -r _ a d <<< "$verdict"
-           SMOKE_ACC="MTP, ${a} of ${d} drafted tokens accepted"
-           ok "MTP drafting live: ${a} of ${d} drafted tokens accepted." ;;
-    *)     warn "gufo reported no draft counters for the MTP check request; speculative decoding is configured"
-           warn "  (--speculative mtp) but not proven here. Check ${INSTALL_ROOT}/smoke.log." ;;
-  esac
+  counts="$(_gufo_draft_counts <<< "$resp")"
+  if [[ -n "$counts" ]]; then
+    local a d; read -r a d <<< "$counts"
+    SMOKE_ACC="MTP, ${a} of ${d} drafted tokens accepted"
+    ok "MTP drafting live: ${a} of ${d} drafted tokens accepted."
+  else
+    warn "gufo reported no draft counters (usage.draft_tokens) for the MTP check request; speculative"
+    warn "  decoding is configured (--speculative mtp) but not proven here. Check ${INSTALL_ROOT}/smoke.log."
+  fi
 }
