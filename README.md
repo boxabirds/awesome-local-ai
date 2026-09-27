@@ -51,7 +51,7 @@ half-installing.
 | Qwen3.8-27B | Ubuntu 22.04 | RTX 4090 (24GB) | llama.cpp + OpenCode | 128k | [`install-qwen-3.8-27b-ubuntu-nvidia4090-llamacpp-opencode.sh`](install-qwen-3.8-27b-ubuntu-nvidia4090-llamacpp-opencode.sh) | [README](combinations/qwen/3.8/27b/ubuntu/nvidia4090/llamacpp-opencode/README.md) |
 | Swift-Qwen3.8-27B | Ubuntu 22.04 | RTX 4090 (24GB) | llama.cpp + OpenCode | 128k | [`install-qwen-3.8-swift-27b-ubuntu-nvidia4090-llamacpp-opencode.sh`](install-qwen-3.8-swift-27b-ubuntu-nvidia4090-llamacpp-opencode.sh) | [README](combinations/qwen/3.8-swift/27b/ubuntu/nvidia4090/llamacpp-opencode/README.md) |
 | Qwen3.8-27B | macOS 26 | 64GB Apple silicon ¹ | MTPLX + OpenCode | 128k | [`install-qwen-3.8-27b-macos-64GB-mtplx-opencode.sh`](install-qwen-3.8-27b-macos-64GB-mtplx-opencode.sh) | [README](combinations/qwen/3.8/27b/macos/64GB/mtplx-opencode/README.md) |
-| Qwen3.8-Flash-Next | macOS 26 | 128GB Apple silicon | MTPLX + OpenCode | 128k | [`install-qwen-3.8-flash-next-macos-128GB-mtplx-opencode.sh`](install-qwen-3.8-flash-next-macos-128GB-mtplx-opencode.sh) | [README](combinations/qwen/3.8/flash-next/macos/128GB/mtplx-opencode/README.md) |
+| Qwen3.8-Flash-Next ⁵ | macOS 26 | 128GB Apple silicon | MTPLX + OpenCode | 128k | [`install-qwen-3.8-flash-next-macos-128GB-mtplx-opencode.sh`](install-qwen-3.8-flash-next-macos-128GB-mtplx-opencode.sh) | [README](combinations/qwen/3.8/flash-next/macos/128GB/mtplx-opencode/README.md) |
 | Qwen3.8-Flash-Next mixed 4/8-bit ⁶ | macOS 26.2+ | 128GB Apple silicon | mlx-serve + OpenCode | 128k | [`install-qwen-3.8-flash-next-macos-128GB-mlxserve-opencode.sh`](install-qwen-3.8-flash-next-macos-128GB-mlxserve-opencode.sh) | [README](combinations/qwen/3.8/flash-next/macos/128GB/mlxserve-opencode/README.md) |
 | Qwen3.8-Flash-Next ⁷ | Ubuntu 26.04 | Strix Halo 128GB (Ryzen AI Max+ 395) | llama.cpp *(MTP PR; Vulkan or ROCm)* + pi | 128k | [`install-qwen-3.8-flash-next-ubuntu-strix-halo-128GB-llamacpp-pi.sh`](install-qwen-3.8-flash-next-ubuntu-strix-halo-128GB-llamacpp-pi.sh) | [README](combinations/qwen/3.8/flash-next/ubuntu/strix-halo-128GB/llamacpp-pi/README.md) |
 | Ternary Bonsai 2 27B ² | Ubuntu 22.04 | RTX 4090 (24GB) | llama.cpp *(fork)* + OpenCode | 128k | [`install-bonsai-2-27b-ubuntu-nvidia4090-llamacpp-opencode.sh`](install-bonsai-2-27b-ubuntu-nvidia4090-llamacpp-opencode.sh) | [README](combinations/bonsai/2/27b/ubuntu/nvidia4090/llamacpp-opencode/README.md) |
@@ -86,6 +86,11 @@ In a real pi session it prefilled at **~55 tok/s** and decoded at **~5 tok/s**
 The first install attempt froze the Mac (the memory check warned, then carried
 on). Those speeds are an M2's, without native BF16 (see ⁴). Use a 16 GB Mac as
 the client for a model served by a bigger machine instead.
+
+⁵ **Not recommended at present (27 Sep 2026).** MTPLX 2.12.0 refuses or overruns memory at the
+agent's context compaction in long sessions: repeated Mac freezes, and stories that collapse after
+refused compactions. See the [combination README](combinations/qwen/3.8/flash-next/macos/128GB/mtplx-opencode/README.md).
+On this Mac, use llama.cpp + pi (`combinations/qwen/3.8/flash-next/macos/128GB/llamacpp-pi`).
 
 ⁴ **Chip generation, not just memory.** MTPLX offers MiMo V2.6 Qwen 9B (a
 coding/agent fine-tune by Xiaomi MiMo, BF16 vision tower and draft head) on

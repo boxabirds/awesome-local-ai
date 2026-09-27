@@ -48,9 +48,15 @@ MIN_DEVICE_MEM_MIB=92000
 # measured on it). An installed mlx-serve older than this is left alone and a
 # pinned copy is unpacked under $HOME instead -- Homebrew's formula in the
 # upstream tap was still at 26.9.2 when this was written.
-MLXSERVE_VERSION="26.9.5"
+#
+# Pinned to v26.9.6 (2026-09-26) for the benchmark: its changelog has two changes that bear directly
+# on long agent sessions. Earlier turns' Qwen3.8 thinking is no longer replayed into the prompt
+# (about half the context in long sessions; `chat_template_kwargs: {"preserve_thinking": true}`
+# restores the old behaviour), and a long prompt that does not fit now evicts other cached chats
+# instead of failing.
+MLXSERVE_VERSION="26.9.6"
 # The sha256 GitHub publishes for the release asset mlx-serve-bin-macos-arm64.tar.gz.
-MLXSERVE_TARBALL_SHA256="06c087e623a729070fb4b51832bf6acbafc3037ac23368b469f25066413cdbba"
+MLXSERVE_TARBALL_SHA256="bb4ec3f6ee250745a1d04ef685d3f15b734b560f482a65d0e8bacb512e78bacf"
 # Free RAM mlx-serve leaves out of every memory plan. Its default on a 128 GB
 # Mac is 8 GB (an eighth of RAM, capped at 8). 16 is this repo's choice after
 # the 24 Sep 2026 kernel panic, not a measured optimum.

@@ -1,5 +1,27 @@
 # Qwen3.8-Flash-Next · macOS · 128GB Apple silicon · MTPLX + OpenCode
 
+> **Not recommended at present (27 Sep 2026): showstopper bugs in MTPLX 2.12.0 for agentic coding.**
+> In long agent sessions, MTPLX's memory guard either refuses the agent's context-compaction
+> request (HTTP 507) or admits it and overshoots, which froze a 128 GB M5 Max repeatedly. A refused
+> compaction leaves the agent stuck at the edge of its context, and the story's work is lost:
+> across three full benchmark runs, stories with 3 or more refusals scored 56 points below
+> llama.cpp on the same story, while stories with none scored within noise of it. In a
+> same-code A/B on the same Mac, llama.cpp Metal passed 15 of 15 held-out tests on stories 7–8
+> where MTPLX passed 4.
+>
+> The causes, reported to MTPLX's author with source references:
+> 1. At a compaction, the guard cannot free the conversation being replaced: it clears entries
+>    under the *new* session's id, and protects the old one as recently active.
+> 2. The engine-limit check counts the new prompt's memory once, though the session bank holds
+>    two copies.
+> 3. Memory outside the allocator is forgiven up to an allowance that grows as the limit is
+>    lowered, so lowering the limit does not lower the real ceiling.
+>
+> MTPLX is fast (about twice llama.cpp's decode on this Mac) and, without refusals, as good. Use
+> [llama.cpp + pi](../llamacpp-pi/README.md) on this Mac until a release fixes these. Details:
+> [the MTPLX memory report](../../../../../../docs/20260924-mtplx-memory-report.md) and this
+> combination's [run records](benchmarks/vidi/).
+
 A 512-expert MoE served locally at ~50 tok/s decode, with native MTP
 speculative decoding, driven by OpenCode.
 
