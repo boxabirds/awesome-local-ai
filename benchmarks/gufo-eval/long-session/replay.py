@@ -86,8 +86,10 @@ def main() -> None:
     ap.add_argument("--max-tokens", type=int, default=0, help="cap max_completion_tokens (0: as captured)")
     a = ap.parse_args()
     model = served_model(a.url)
-    for rep in range(1, a.repeats + 1):
-        for path in a.requests:
+    # repeats of one request back to back: llama.cpp keeps one prompt per slot, so interleaving
+    # requests would re-read the whole prompt (minutes at 100k on this machine) every time
+    for path in a.requests:
+        for rep in range(1, a.repeats + 1):
             body = json.loads(path.read_text())
             body.update(model=model, stream=True, stream_options={"include_usage": True}, **VARIANTS[a.variant])
             if a.max_tokens:
