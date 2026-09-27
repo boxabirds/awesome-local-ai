@@ -39,10 +39,14 @@ function firstNote(container: HTMLElement): HTMLElement {
   return el;
 }
 
+/** Activate the sticky tool (story 10) and click the viewport centre. */
 function createNoteViaButton(): void {
   const button = document.querySelector<HTMLButtonElement>('button[aria-label="Sticky note"]');
   if (button === null) throw new Error('toolbar button not rendered');
   click(button);
+  const vp = viewportEl(document.body);
+  dispatch(vp, pointerEvent('pointerdown', NOTE_CENTRE.x, NOTE_CENTRE.y));
+  dispatch(vp, pointerEvent('pointerup', NOTE_CENTRE.x, NOTE_CENTRE.y));
 }
 
 function clickEmpty(container: HTMLElement): void {

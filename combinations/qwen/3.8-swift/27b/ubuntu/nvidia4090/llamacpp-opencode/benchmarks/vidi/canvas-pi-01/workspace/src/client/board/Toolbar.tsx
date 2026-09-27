@@ -1,35 +1,64 @@
 // Left-side board toolbar (see spec: sticky.toolbar, board.text_tool,
-// undo.buttons). Fixed position; the Select/Text tool pair (V/T), the Sticky
-// note button (creates a note at the centre of the visible board area and
-// starts editing it). Below the tools: the Undo and Redo buttons (story 8),
-// disabled while the matching history is empty.
+// tools.active_tool, shape.ui, connector.ui, undo.buttons). Fixed position;
+// the tool buttons (Select V, Text T, Sticky note, Shape S with kind menu,
+// Connector L) and below them the Undo and Redo buttons (story 8), disabled
+// while the matching history is empty.
 
 import type { JSX } from 'react';
 import type { UndoUi } from './useUndo';
 import { UndoButtons } from './UndoButtons';
-import type { Tool } from './useTool';
+import { SHAPE_KINDS } from '../../shared/config';
+import type { ShapeKind } from '../../shared/objects/shape';
+import type { ToolId } from '../tools/useActiveTool';
 
 export const STICKY_BUTTON_TOOLTIP = 'Sticky note – or double-click the board';
 export const SELECT_TOOL_ARIA = 'Select (V)';
 export const TEXT_TOOL_ARIA = 'Text (T)';
 
 export interface ToolbarProps {
-  onCreateSticky(): void;
   /** False while the board is load_failed: the buttons are disabled. */
   disabled?: boolean;
   /** Undo/redo state and actions for this tab's history (story 8). */
   undo: UndoUi;
-  /** Active tool (board.text_tool); the pair is reflected with aria-pressed. */
-  tool?: Tool;
-  onToolChange?: (tool: Tool) => void;
+  /** Active tool; reflected with aria-pressed. */
+  tool?: ToolId;
+  /** The kind the Shape tool draws (Shape menu selection). */
+  shapeKind?: ShapeKind;
+  onToolChange?: (tool: ToolId) => void;
+  onShapeKindChange?: (kind: ShapeKind) => void;
 }
 
+const KIND_LABELS: Record<ShapeKind, string> = {
+  rect: 'Rectangle',
+  ellipse: 'Ellipse',
+  diamond: 'Diamond',
+};
+
+const KIND_ICONS: Record<ShapeKind, JSX.Element> = {
+  rect: (
+    <svg width="20" height="20" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
+      <rect x="3" y="5" width="14" height="10" rx="1" fill="none" stroke="currentColor" strokeWidth="1.5" />
+    </svg>
+  ),
+  ellipse: (
+    <svg width="20" height="20" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
+      <ellipse cx="10" cy="10" rx="7" ry="5" fill="none" stroke="currentColor" strokeWidth="1.5" />
+    </svg>
+  ),
+  diamond: (
+    <svg width="20" height="20" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
+      <path d="M10 3l7 7-7 7-7-7z" fill="none" stroke="currentColor" strokeWidth="1.5" />
+    </svg>
+  ),
+};
+
 export function Toolbar({
-  onCreateSticky,
   disabled = false,
   undo,
   tool = 'select',
+  shapeKind = 'rect',
   onToolChange,
+  onShapeKindChange,
 }: ToolbarProps): JSX.Element {
   const stop = (event: React.SyntheticEvent) => event.stopPropagation();
   return (
@@ -75,14 +104,64 @@ export function Toolbar({
         className="toolbar-sticky"
         aria-label="Sticky note"
         title={STICKY_BUTTON_TOOLTIP}
+        aria-pressed={tool === 'sticky'}
         disabled={disabled}
-        onClick={onCreateSticky}
+        onClick={() => onToolChange?.('sticky')}
       >
         <svg width="20" height="20" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
           <path
             d="M3 3h14v9l-5 5H3V3zm11 11.5L15.5 14H14V11.5h-1.5V14H3v-11h11v7.5z"
             fill="currentColor"
           />
+        </svg>
+      </button>
+      <button
+        type="button"
+        className="toolbar-shape"
+        data-testid="shape"
+        aria-label="Shape (S)"
+        aria-pressed={tool === 'shape'}
+        title="Shape (S)"
+        disabled={disabled}
+        onClick={() => onToolChange?.('shape')}
+      >
+        {KIND_ICONS[shapeKind]}
+      </button>
+      {tool === 'shape' && (
+        <span
+          data-testid="shape-kind-menu"
+          className="shape-kind-menu"
+          role="group"
+          aria-label="Shape kind"
+        >
+          {SHAPE_KINDS.map((k) => (
+            <button
+              key={k}
+              type="button"
+              className="shape-kind-menu__item"
+              data-testid={`shape-kind-${k}`}
+              aria-label={KIND_LABELS[k]}
+              aria-pressed={shapeKind === k}
+              title={KIND_LABELS[k]}
+              onClick={() => onShapeKindChange?.(k)}
+            >
+              {KIND_ICONS[k]}
+            </button>
+          ))}
+        </span>
+      )}
+      <button
+        type="button"
+        className="toolbar-connector"
+        data-testid="connector"
+        aria-label="Connector (L)"
+        aria-pressed={tool === 'connector'}
+        title="Connector (L)"
+        disabled={disabled}
+        onClick={() => onToolChange?.('connector')}
+      >
+        <svg width="20" height="20" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
+          <path d="M3 17L15 5M15 5h-5m5 0v5" fill="none" stroke="currentColor" strokeWidth="1.5" />
         </svg>
       </button>
       <UndoButtons {...undo} />

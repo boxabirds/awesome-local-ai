@@ -79,9 +79,11 @@ export async function noteTexts(page: Page): Promise<string[]> {
     .allTextContents();
 }
 
-/** Create a note via the toolbar button (centres it and starts editing). */
+/** Create a note via the sticky tool (story 10: the button activates the
+tool; a click on the board centre creates the note and starts editing). */
 export async function createNote(page: Page): Promise<void> {
   await page.getByRole('button', { name: 'Sticky note' }).click();
+  await page.mouse.click(640, 400);
 }
 
 /** Select a note by index (a plain click selects without editing). */

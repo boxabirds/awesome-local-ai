@@ -81,8 +81,10 @@ describe('text.tool_ui', () => {
   });
 
   it('TC-16 T pressed while editing a sticky → character typed, tool unchanged (negative)', async () => {
-    await renderApp();
+    const { container } = await renderApp();
+    // Story 10: the sticky button activates the tool; a click creates the note.
     click(stickyBtn());
+    clickViewportAt(container, 640, 400);
     const ta = document.querySelector<HTMLTextAreaElement>('[data-testid="sticky-editor"] textarea');
     if (ta === null) throw new Error('sticky editor not mounted');
     // Focus is inside the editor: typing 't' (input targets the textarea).

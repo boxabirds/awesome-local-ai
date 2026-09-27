@@ -16,7 +16,10 @@ import type { Point } from '../../shared/geometry';
 import { getObjectType } from '../objects/registry';
 import type { UndoController } from './undo';
 import type { useSelection } from './useSelection';
-import type { Tool } from './useTool';
+import { TOOL_SHORTCUTS, type ToolId } from '../tools/useActiveTool';
+
+/** A board tool (1-6) or the text tool (story 9, 't'). */
+export type AnyTool = ToolId | 'text';
 
 export interface BoardKeysOptions {
   doc: Y.Doc;
@@ -26,9 +29,9 @@ export interface BoardKeysOptions {
   canEdit: boolean;
   /** This tab's undo controller (story 8: Ctrl/Cmd+Z, Ctrl/Cmd+Shift+Z, Ctrl+Y). */
   undo?: UndoController;
-  /** Active tool (board.text_tool); Escape reverts to 'select'. */
-  tool?: Tool;
-  setTool?: (tool: Tool) => void;
+  /** Active tool; Escape reverts to 'select'. */
+  tool?: AnyTool;
+  setTool?: (tool: AnyTool) => void;
   /** N shortcut: create a sticky note at the board centre. */
   onCreateStickyCenter?: () => void;
 }
@@ -95,6 +98,23 @@ export function useBoardKeys(options: BoardKeysOptions): void {
         case 'N':
           if (onCreateStickyCenter !== undefined && canEdit) onCreateStickyCenter();
           return;
+        case 's':
+        case 'S':
+        case 'l':
+        case 'L':
+        case 'p':
+        case 'P':
+        case 'i':
+        case 'I':
+        case 'c':
+        case 'C': {
+          // Single-letter tool shortcuts (tools.active_tool): s shape, l
+          // connector, p/i/c future tools. Inert when not editable (setTool
+          // would revert to 'select' anyway).
+          const mapped = TOOL_SHORTCUTS[event.key.toLowerCase()];
+          if (mapped !== undefined && setTool !== undefined && canEdit) setTool(mapped);
+          return;
+        }
         case 'ArrowLeft':
         case 'ArrowRight':
         case 'ArrowUp':

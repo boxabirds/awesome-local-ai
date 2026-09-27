@@ -46,7 +46,18 @@ function clickNote(container: HTMLElement): void {
   dispatch(note, pointerEvent('pointerup', NOTE_CENTRE.x, NOTE_CENTRE.y));
 }
 
+/** Activate the sticky tool (story 10) and click the viewport centre. */
 function createNoteViaButton(): void {
+  const button = document.querySelector<HTMLButtonElement>('button[aria-label="Sticky note"]');
+  if (button === null) throw new Error('toolbar button not rendered');
+  click(button);
+  const vp = viewportEl(document.body);
+  dispatch(vp, pointerEvent('pointerdown', 640, 400));
+  dispatch(vp, pointerEvent('pointerup', 640, 400));
+}
+
+/** Click the sticky tool button (activates the tool; no note yet). */
+function activateStickyTool(): void {
   const button = document.querySelector<HTMLButtonElement>('button[aria-label="Sticky note"]');
   if (button === null) throw new Error('toolbar button not rendered');
   click(button);
@@ -77,9 +88,18 @@ describe('sticky.toolbar', () => {
     expect(pink!.getAttribute('aria-pressed')).toBe('true');
   });
 
-  it('TC-28 the Sticky note button creates one note centred on the viewport, in edit mode', async () => {
+  it('TC-28 the sticky tool button activates the tool; a click creates a note at the point, in edit mode', async () => {
     const { container } = await renderApp();
-    createNoteViaButton();
+    activateStickyTool();
+
+    // Tool active, no note created yet.
+    const button = document.querySelector<HTMLButtonElement>('button[aria-label="Sticky note"]');
+    expect(button!.getAttribute('aria-pressed')).toBe('true');
+    expect(noteEls(container)).toHaveLength(0);
+
+    const vp = viewportEl(container);
+    dispatch(vp, pointerEvent('pointerdown', 640, 400));
+    dispatch(vp, pointerEvent('pointerup', 640, 400));
 
     const notes = noteEls(container);
     expect(notes).toHaveLength(1);

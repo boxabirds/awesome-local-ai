@@ -21,6 +21,9 @@
 import * as Y from 'yjs';
 import {
   DEFAULT_STICKY_COLOR,
+  SHAPE_FILL_COLORS,
+  SHAPE_KINDS,
+  SHAPE_STROKE_COLORS,
   STICKY_COLORS,
   STICKY_SIZE_WORLD,
   TEXT_SIZES,
@@ -28,6 +31,14 @@ import {
   type TextSize,
 } from './config';
 import type { Point, Rect } from './geometry';
+import type { FillColor, ShapeKind, StrokeColor } from './objects/shape';
+import {
+  connectorBBox,
+  parseEndpoint,
+  resolveEndpoints,
+  type Endpoint,
+} from './geometry/connector-geometry';
+import { detachConnectorsTo } from './objects/connector';
 
 /** Transaction origin for all local mutations (story 8 undo, story 3 echo filter). */
 export const LOCAL_ORIGIN: unique symbol = Symbol('vidi6.local');
@@ -50,6 +61,14 @@ export interface ObjectSnapshot {
   size?: TextSize;
   /** Text objects only (story 9): auto or fixed width mode. */
   widthMode?: 'auto' | 'fixed';
+  /** Shape objects only (story 10). */
+  kind?: ShapeKind;
+  fill?: FillColor;
+  stroke?: StrokeColor;
+  label?: string;
+  /** Connector objects only (story 10); x/y/width/height are the derived bbox. */
+  from?: Endpoint;
+  to?: Endpoint;
   /** Stacking order; higher is on top. */
   z: number;
   /** Epoch ms. */
@@ -73,7 +92,13 @@ const SCHEMA_VERSION = 1;
 // the names (which objects snapshot(), which ids are selectable) while the
 // client registry owns the components and resize rules.
 
-const knownTypes = new Set<string>(['sticky']);
+// 'shape' and 'connector' are known to the document model without the
+// client registry loading (worker, unit tests); the client registry's
+// registerObjectType re-asserts them (idempotent). 'connector' cannot call
+// registerObjectTypeName from its own module top level: board-model imports
+// connector.ts (detachConnectorsTo) and connector.ts imports board-model, so
+// its module body must not touch this set during that circular evaluation.
+const knownTypes = new Set<string>(['sticky', 'shape', 'connector']);
 
 /** Mark a type name as known to the document model (idempotent). */
 export function registerObjectTypeName(type: string): void {
@@ -280,6 +305,10 @@ export function deleteObjects(doc: Y.Doc, ids: readonly string[]): number {
   const existing = ids.filter((id) => objects(doc).get(id) !== undefined);
   if (existing.length === 0) return 0;
   doc.transact(() => {
+    // Connector ends attached to deleted objects stay as arrows: each is
+    // fixed free at its current anchor (connector.target_deleted), in this
+    // same transaction (one update, one undo step).
+    detachConnectorsTo(doc, existing);
     for (const id of existing) {
       objects(doc).delete(id);
     }
@@ -345,6 +374,7 @@ function isValidObject(
  */
 export function snapshot(doc: Y.Doc): readonly ObjectSnapshot[] {
   const out: ObjectSnapshot[] = [];
+  const connectorEntries: { id: string; object: Y.Map<unknown>; z: number; createdAt: number }[] = [];
   for (const [id, object] of objects(doc)) {
     const type = object.get('type');
     const x = object.get('x');
@@ -354,6 +384,14 @@ export function snapshot(doc: Y.Doc): readonly ObjectSnapshot[] {
     const width = object.get('width');
     const height = object.get('height');
     if (typeof type !== 'string' || !isKnownObjectType(type)) continue;
+    if (type === 'connector') {
+      // x/y/width/height are derived below from the live object rects;
+      // the stored values (0) need no size validation.
+      if (typeof x !== 'number' || typeof y !== 'number' || typeof z !== 'number' || typeof createdAt !== 'number') continue;
+      if (!Number.isFinite(x) || !Number.isFinite(y) || !Number.isFinite(z)) continue;
+      connectorEntries.push({ id, object, z: z as number, createdAt: createdAt as number });
+      continue;
+    }
     if (!isValidObject(x, y, z, createdAt, width, height)) continue;
     const color = object.get('color');
     const text = object.get('text');
@@ -368,6 +406,38 @@ export function snapshot(doc: Y.Doc): readonly ObjectSnapshot[] {
         height: height === undefined ? undefined : (height as number),
         color,
         text: text.toString(),
+        z: z as number,
+        createdAt: createdAt as number,
+      });
+      continue;
+    }
+    if (type === 'shape') {
+      const kind = object.get('kind');
+      const fill = object.get('fill');
+      const stroke = object.get('stroke');
+      const label = object.get('label');
+      if (
+        typeof kind !== 'string' ||
+        !(SHAPE_KINDS as readonly string[]).includes(kind) ||
+        typeof fill !== 'string' ||
+        !(fill in SHAPE_FILL_COLORS) ||
+        typeof stroke !== 'string' ||
+        !(stroke in SHAPE_STROKE_COLORS) ||
+        !(label instanceof Y.Text)
+      ) {
+        continue;
+      }
+      out.push({
+        id,
+        type,
+        x: x as number,
+        y: y as number,
+        width: width === undefined ? undefined : (width as number),
+        height: height === undefined ? undefined : (height as number),
+        kind: kind as ShapeKind,
+        fill: fill as FillColor,
+        stroke: stroke as StrokeColor,
+        label: label.toString(),
         z: z as number,
         createdAt: createdAt as number,
       });
@@ -404,6 +474,34 @@ export function snapshot(doc: Y.Doc): readonly ObjectSnapshot[] {
       z: z as number,
       createdAt: createdAt as number,
     });
+  }
+  // Connectors: endpoints resolve against the live rects of every other
+  // object, so local or remote moves and resizes redraw arrows without
+  // writes (connector.follow); missing targets fall back to their stored
+  // anchor (connector.target_deleted race). x/y/width/height are the
+  // derived bounding box of the two anchor points.
+  if (connectorEntries.length > 0) {
+    const rects = new Map<string, Rect>();
+    for (const o of out) rects.set(o.id, objectBounds(o));
+    for (const { id, object, z, createdAt } of connectorEntries) {
+      const from = parseEndpoint(object.get('from'));
+      const to = parseEndpoint(object.get('to'));
+      if (from === null || to === null) continue;
+      const resolved = resolveEndpoints({ from, to }, rects);
+      const box = connectorBBox(resolved.from, resolved.to);
+      out.push({
+        id,
+        type: 'connector',
+        x: box.x,
+        y: box.y,
+        width: box.width,
+        height: box.height,
+        from,
+        to,
+        z,
+        createdAt,
+      });
+    }
   }
   out.sort((a, b) => (a.z === b.z ? (a.id < b.id ? -1 : 1) : a.z - b.z));
   return out;

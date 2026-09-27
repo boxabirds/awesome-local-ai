@@ -148,6 +148,55 @@ export type TextSize = keyof typeof TEXT_SIZES;
 export const DEFAULT_TEXT_SIZE: TextSize = 'M';
 /** Line height multiplier (line box = size × TEXT_LINE_HEIGHT). */
 export const TEXT_LINE_HEIGHT = 1.3;
+
+// ---- Shapes and connectors (story 10) ----
+
+/** The three shape kinds a user can draw (shape.create_drag). */
+export const SHAPE_KINDS = ['rect', 'ellipse', 'diamond'] as const;
+/** Standard size (board units) of a shape dropped by clicking (shape.create_click). */
+export const SHAPE_DEFAULT_SIZE_WORLD = 160;
+/** Smallest drag (board units) that counts as a drag, not a click (shape.create_click). */
+export const SHAPE_MIN_SIZE_WORLD = 20;
+/** Maximum characters a shape label may hold (shape.label). */
+export const SHAPE_LABEL_MAX_CHARS = 500;
+/** Outline thickness (board units) of a shape (shape.style). */
+export const SHAPE_STROKE_WIDTH_WORLD = 2;
+/** Fill swatches of the shape toolbar, including 'none' (shape.style). */
+export const SHAPE_FILL_COLORS = {
+  none: 'transparent',
+  white: '#FFFFFF',
+  blue: '#BBDEFB',
+  green: '#C8E6C9',
+  yellow: '#FFF9C4',
+  pink: '#F8BBD0',
+  grey: '#E0E0E0',
+} as const;
+/** Outline swatches of the shape toolbar (shape.style). */
+export const SHAPE_STROKE_COLORS = {
+  dark: '#263238',
+  blue: '#1E88E5',
+  green: '#43A047',
+  orange: '#FB8C00',
+  red: '#E53935',
+  grey: '#9E9E9E',
+} as const;
+/** Fill of newly created shapes. */
+export const DEFAULT_SHAPE_FILL = 'white';
+/** Outline of newly created shapes. */
+export const DEFAULT_SHAPE_STROKE = 'dark';
+/** Minimum length (board units) of a connector; shorter drags create nothing
+ *  (connector.no_accidental). */
+export const CONNECTOR_MIN_LENGTH_WORLD = 8;
+/** Clicks within this many SCREEN pixels of an arrow's line select it
+ *  (connector.select). */
+export const CONNECTOR_HIT_TOLERANCE_PX = 6;
+/** Line thickness (board units) of a connector. */
+export const CONNECTOR_STROKE_WIDTH_WORLD = 2;
+/** Arrowhead size (board units) at the end of a connector. */
+export const CONNECTOR_ARROWHEAD_SIZE_WORLD = 10;
+/** Radius (screen px) of the connection dots shown by the Connector tool
+ *  (connector.hover_points). */
+export const CONNECTOR_DOT_RADIUS_PX = 4;
 /** Standard board font (text objects stay crisp at every zoom). */
 export const TEXT_FONT_FAMILY = 'Inter, system-ui, sans-serif';
 /**

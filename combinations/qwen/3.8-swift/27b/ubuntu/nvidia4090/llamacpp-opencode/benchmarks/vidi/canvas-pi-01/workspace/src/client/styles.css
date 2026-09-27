@@ -587,3 +587,160 @@ body {
   white-space: nowrap;
   border: 0;
 }
+
+/* ---- shapes (story 10) ---- */
+.shape-object {
+  position: absolute;
+  box-sizing: border-box;
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: none;
+}
+.shape-object[data-selected] {
+  outline: 2px solid #2563eb;
+  outline-offset: 2px;
+}
+.shape-object:focus-visible {
+  outline: 2px solid #2563eb;
+  outline-offset: 2px;
+}
+/* Centre-aligned label inside the shape's foreignObject. */
+.shape-label {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  white-space: pre-wrap;
+  word-break: break-word;
+  overflow: hidden;
+  pointer-events: none;
+  color: #1f2430;
+}
+/* Shape editor (story 2 editor) fills the foreignObject. */
+.shape-editor {
+  width: 100%;
+  height: 100%;
+}
+.shape-editor-textarea {
+  width: 100%;
+  height: 100%;
+  box-sizing: border-box;
+  padding: 4px;
+  border: none;
+  resize: none;
+  background: transparent;
+  color: #1f2430;
+  font-family: inherit;
+  text-align: center;
+  white-space: pre-wrap;
+  word-break: break-word;
+  overflow: hidden;
+  outline: none;
+}
+
+/* ---- shape drawing tool overlay ---- */
+.shape-tool {
+  position: absolute;
+  inset: 0;
+  cursor: crosshair;
+}
+.shape-draft {
+  position: absolute;
+  border: 1.5px dashed #2563eb;
+  background: rgba(37, 99, 235, 0.08);
+  pointer-events: none;
+}
+
+/* ---- shape toolbar (swatches, above the selected shape) ---- */
+.shape-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 8px;
+  background: #ffffff;
+  border: 1px solid #d9dde3;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+.shape-toolbar__group {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+.shape-toolbar__swatch {
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border: 1px solid rgba(0, 0, 0, 0.25);
+  border-radius: 4px;
+  cursor: pointer;
+}
+.shape-toolbar__swatch[aria-pressed='true'] {
+  outline: 2px solid #2563eb;
+  outline-offset: 1px;
+}
+.shape-toolbar__swatch:focus-visible {
+  outline: 2px solid #2563eb;
+  outline-offset: 1px;
+}
+
+/* ---- shape kind menu (next to the Shape toolbar button) ---- */
+.shape-kind-menu {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 4px;
+  background: #ffffff;
+  border: 1px solid #d9dde3;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+.shape-kind-menu__item {
+  width: 28px;
+  height: 28px;
+  padding: 4px;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: transparent;
+  color: #334155;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.shape-kind-menu__item[aria-pressed='true'] {
+  background: #eef2ff;
+  border-color: #2563eb;
+  color: #2563eb;
+}
+.shape-kind-menu__item:focus-visible {
+  outline: 2px solid #2563eb;
+  outline-offset: 1px;
+}
+
+/* ---- connector tool: hover dots, preview, end handles (story 10) ---- */
+.connector-tool {
+  position: absolute;
+  inset: 0;
+  cursor: crosshair;
+}
+.connector-dot {
+  position: absolute;
+  border-radius: 50%;
+  background: #ffffff;
+  border: 1.5px solid #2563eb;
+  pointer-events: none;
+}
+.connector-dot[data-highlighted] {
+  background: #2563eb;
+}
+.connector-object .connector-handle {
+  fill: #ffffff;
+  stroke: #2563eb;
+  stroke-width: 1.5;
+}
+.connector-handle:hover {
+  fill: #2563eb;
+}

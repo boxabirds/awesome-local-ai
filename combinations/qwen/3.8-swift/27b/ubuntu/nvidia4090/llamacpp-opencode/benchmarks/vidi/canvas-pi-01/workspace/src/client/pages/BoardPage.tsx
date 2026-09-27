@@ -28,12 +28,15 @@ import { useBoardDoc } from '../board/useBoardDoc';
 import { useSelection } from '../board/useSelection';
 import { useTransformGesture } from '../board/useTransformGesture';
 import { useBoardKeys } from '../board/useBoardKeys';
-import { useTool } from '../board/useTool';
+import { useActiveTool } from '../tools/useActiveTool';
 import { createUndo } from '../board/undo';
 import { useUndo } from '../board/useUndo';
 import { useMarquee, MarqueeRect } from '../board/Marquee';
 import { SelectionBar } from '../board/SelectionBar';
 import { SelectionOverlay } from '../board/SelectionOverlay';
+import { ShapeToolbar } from '../board/ShapeToolbar';
+import { ConnectorTool } from '../tools/ConnectorTool';
+import { ShapeTool } from '../tools/ShapeTool';
 import { Toolbar } from '../board/Toolbar';
 import { getObjectType } from '../objects/registry';
 import { ConnectionStatus } from '../sync/ConnectionStatus';
@@ -45,8 +48,9 @@ import {
   objectBounds,
   setStickyColor,
 } from '../../shared/board-model';
-import { unionRects } from '../../shared/geometry';
+import { unionRects, type Rect } from '../../shared/geometry';
 import { createText, setTextSize } from '../../shared/objects/text';
+import { setShapeStyle, type FillColor, type StrokeColor } from '../../shared/objects/shape';
 import { NotFoundPage } from './NotFoundPage';
 
 type Phase = 'checking' | 'exists' | 'not_found' | 'unreachable';
@@ -153,9 +157,9 @@ function Board({ boardId }: { boardId: string }) {
   const editable = canEdit(connectionState);
   const selection = useSelection(notes);
 
-  // Active tool (board.text_tool): 'select' by default, reverts to 'select'
-  // when the board becomes non-editable.
-  const { tool, setTool } = useTool(editable);
+  // Active tool (tools.active_tool): 'select' by default, reverts to
+  // 'select' when the board becomes non-editable.
+  const { tool, shapeKind, setTool, setShapeKind, toolCreated } = useActiveTool(editable, selection);
 
   // Per-user undo/redo (story 8): one controller per board doc, tracking only
   // this tab's LOCAL_ORIGIN transactions; destroyed on unmount (a board
@@ -227,6 +231,11 @@ function Board({ boardId }: { boardId: string }) {
     undo.boundary();
     const id = createSticky(doc, world);
     undo.boundary();
+    if (tool === 'sticky') {
+      // One-shot tool: the sticky button creates a single note and reverts
+      // to select (like the text tool; sticky.tool_ui, story 3 behaviour).
+      setTool('select');
+    }
     selection.startEdit(id);
   };
 
@@ -250,6 +259,25 @@ function Board({ boardId }: { boardId: string }) {
   };
 
   const selectedObjects = notes.filter((n) => selection.ids.has(n.id));
+
+  // Live rects of every attachable object (connector endpoint resolution,
+  // story 10). Rebuilt on every snapshot; connectors are excluded.
+  const attachableRects: ReadonlyMap<string, Rect> = (() => {
+    const m = new Map<string, Rect>();
+    for (const n of notes) {
+      if (n.type === 'connector') continue;
+      m.set(n.id, objectBounds(n));
+    }
+    return m;
+  })();
+  const singleShape =
+    editable && selection.ids.size === 1
+      ? (() => {
+          const [id] = selection.ids.values();
+          const o = notes.find((n) => n.id === id);
+          return o !== undefined && o.type === 'shape' ? o : null;
+        })()
+      : null;
   const showBar =
     editable &&
     selection.editingId === null &&
@@ -305,6 +333,40 @@ function Board({ boardId }: { boardId: string }) {
     }
   }
 
+  // Shape toolbar (shape.style): shown above a single selected shape.
+  let shapeToolbar = null;
+  if (singleShape !== null && selection.editingId === null) {
+    const box = objectBounds(singleShape);
+    const anchor = worldToScreen(cam.camera, { x: box.x + box.width / 2, y: box.y });
+    shapeToolbar = (
+      <div
+        className="note-toolbar-anchor"
+        style={{
+          left: anchor.x,
+          top: anchor.y - NOTE_TOOLBAR_GAP_PX - NOTE_TOOLBAR_HEIGHT_PX,
+        }}
+        onPointerDown={(e) => e.stopPropagation()}
+        onDoubleClick={(e) => e.stopPropagation()}
+      >
+        <ShapeToolbar
+          kind={singleShape.kind ?? 'rect'}
+          fill={(singleShape.fill ?? 'white') as FillColor}
+          stroke={(singleShape.stroke ?? 'dark') as StrokeColor}
+          onFill={(color) => {
+            undo.boundary();
+            setShapeStyle(doc, singleShape.id, { fill: color });
+            undo.boundary();
+          }}
+          onStroke={(color) => {
+            undo.boundary();
+            setShapeStyle(doc, singleShape.id, { stroke: color });
+            undo.boundary();
+          }}
+        />
+      </div>
+    );
+  }
+
   return (
     <div ref={rootRef} className="app-root">
       <BoardViewport
@@ -313,6 +375,7 @@ function Board({ boardId }: { boardId: string }) {
         onCreateStickyAt={createStickyAt}
         textToolActive={tool === 'text'}
         onCreateTextAt={createTextAt}
+        stickyToolActive={tool === 'sticky'}
         onMarqueeBegin={marquee.begin}
         onMarqueeMove={marquee.move}
         onMarqueeEnd={marquee.end}
@@ -327,8 +390,11 @@ function Board({ boardId }: { boardId: string }) {
             <Component
               key={note.id}
               obj={note}
+              snapshot={notes}
               doc={doc}
+              camera={cam.camera}
               zoom={cam.camera.zoom}
+              rects={attachableRects}
               selected={selection.ids.has(note.id)}
               editing={selection.editingId === note.id}
               dragging={gesture.draggingIds.has(note.id)}
@@ -344,6 +410,26 @@ function Board({ boardId }: { boardId: string }) {
           );
         })}
       </BoardViewport>
+      {tool === 'shape' && (
+        <ShapeTool
+          kind={shapeKind}
+          doc={doc}
+          camera={cam.camera}
+          undo={undo}
+          by={`c${doc.clientID}`}
+          onCreated={toolCreated}
+        />
+      )}
+      {tool === 'connector' && (
+        <ConnectorTool
+          camera={cam.camera}
+          snapshot={notes}
+          doc={doc}
+          undo={undo}
+          by={`c${doc.clientID}`}
+          onCreated={toolCreated}
+        />
+      )}
       <SelectionOverlay
         ids={selection.ids}
         snapshot={notes}
@@ -352,12 +438,14 @@ function Board({ boardId }: { boardId: string }) {
       />
       <Toolbar
         disabled={!editable}
-        onCreateSticky={() => createStickyAt({ x: size.width / 2, y: size.height / 2 })}
         undo={undoUi}
         tool={tool}
+        shapeKind={shapeKind}
         onToolChange={setTool}
+        onShapeKindChange={setShapeKind}
       />
       {selectionBar}
+      {shapeToolbar}
       {selection.ids.size > 0 && (
         <span data-testid="selection-count" aria-live="polite" className="sr-only">
           {selection.ids.size} selected

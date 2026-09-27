@@ -95,6 +95,13 @@ export function useSelection(snapshot: readonly ObjectSnapshot[]) {
     if (presentRef.current.has(id)) dispatch({ type: 'click', id });
   }, []);
 
+  // No presence check: a just-created object is not in the snapshot until the
+  // next render (same reason as startEdit). Prune keeps it once the snapshot
+  // catches up; if it never materialises, prune drops it.
+  const select = useCallback((id: string) => {
+    dispatch({ type: 'click', id });
+  }, []);
+
   const toggle = useCallback((id: string) => {
     if (presentRef.current.has(id)) dispatch({ type: 'toggle', id });
   }, []);
@@ -118,5 +125,5 @@ export function useSelection(snapshot: readonly ObjectSnapshot[]) {
     dispatch({ type: 'end-edit', next });
   }, []);
 
-  return { ids: state.ids, editingId: state.editingId, click, toggle, setMany, clear, startEdit, endEdit };
+  return { ids: state.ids, editingId: state.editingId, click, select, toggle, setMany, clear, startEdit, endEdit };
 }

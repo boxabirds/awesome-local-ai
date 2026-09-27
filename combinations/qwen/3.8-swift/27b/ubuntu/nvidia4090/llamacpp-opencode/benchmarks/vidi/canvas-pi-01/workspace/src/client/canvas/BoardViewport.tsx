@@ -31,6 +31,9 @@ export interface BoardViewportProps {
   /** Text tool: click (down + up, no movement) anywhere, including over
    *  objects, creates a text object at the screen point. */
   onCreateTextAt?: (screenPoint: Point) => void;
+  /** Sticky tool active (sticky.tool_ui): the cursor is crosshair and a
+   *  click anywhere (no movement) creates a sticky at the screen point. */
+  stickyToolActive?: boolean;
   /** Marquee selection: Shift+pointerdown on empty board space. */
   onMarqueeBegin?: (screenPoint: Point) => void;
   onMarqueeMove?: (screenPoint: Point) => void;
@@ -50,6 +53,7 @@ export function BoardViewport({
   onCreateStickyAt,
   textToolActive = false,
   onCreateTextAt,
+  stickyToolActive = false,
   onMarqueeBegin,
   onMarqueeMove,
   onMarqueeEnd,
@@ -165,9 +169,9 @@ export function BoardViewport({
   const onPointerDown = (event: React.PointerEvent<HTMLDivElement>) => {
     const el = viewportRef.current;
     if (el === null) return;
-    if (textToolActive) {
-      // Text tool: remember the down point; a click (no movement) creates a
-      // text object anywhere, including over board objects.
+    if (textToolActive || stickyToolActive) {
+      // Placement tools: remember the down point; a click (no movement)
+      // creates the object anywhere, including over board objects.
       downPointRef.current = pointFromEvent(event);
       return;
     }
@@ -198,13 +202,14 @@ export function BoardViewport({
   };
 
   const onPointerUp = (event: React.PointerEvent<HTMLDivElement>) => {
-    if (textToolActive) {
+    if (textToolActive || stickyToolActive) {
       const down = downPointRef.current;
       downPointRef.current = null;
-      // A click (down + up without movement) creates a text object.
+      // A click (down + up without movement) creates the object.
       const up = pointFromEvent(event);
       if (down !== null && down.x === up.x && down.y === up.y) {
-        onCreateTextAt?.(up);
+        if (textToolActive) onCreateTextAt?.(up);
+        else onCreateStickyAt?.(up);
       }
       return;
     }
@@ -241,7 +246,9 @@ export function BoardViewport({
     const el = viewportRef.current;
     // Double-click creates a note only on the viewport/grid itself; double
     // clicks on notes are handled by the notes (they stop propagation).
-    if (el === null || event.target !== el) return;
+    // Suppressed while the sticky tool is active: every click already
+    // creates one, so a double-click would triple it.
+    if (el === null || event.target !== el || stickyToolActive) return;
     onCreateStickyAt?.(pointFromEvent(event));
   };
 
@@ -260,7 +267,7 @@ export function BoardViewport({
         position: 'absolute',
         inset: 0,
         overflow: 'hidden',
-        cursor: textToolActive ? 'text' : panning ? 'grabbing' : 'grab',
+        cursor: textToolActive ? 'text' : stickyToolActive ? 'crosshair' : panning ? 'grabbing' : 'grab',
         backgroundImage: `radial-gradient(circle, ${DOT_COLOR} ${DOT_RADIUS_PX}px, transparent ${DOT_RADIUS_PX + 1}px)`,
         backgroundSize: `${spacing}px ${spacing}px`,
         backgroundPosition: `${backgroundPositionX}px ${backgroundPositionY}px`,

@@ -111,8 +111,10 @@ async function dragNoteExactly(
   return after;
 }
 
+/** Story 10: the button activates the sticky tool; a click creates the note. */
 async function createNoteViaButton(page: Page): Promise<void> {
   await page.getByRole('button', { name: 'Sticky note' }).click();
+  await page.mouse.click(640, 400);
 }
 
 test.describe('sticky notes (story 2)', () => {

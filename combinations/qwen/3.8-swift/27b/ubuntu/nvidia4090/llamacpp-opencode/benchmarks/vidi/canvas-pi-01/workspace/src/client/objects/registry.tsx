@@ -17,10 +17,20 @@ import {
   type ObjectSnapshot,
 } from '../../shared/board-model';
 import type { UndoController } from '../board/undo';
-import { pointInRect, type Point } from '../../shared/geometry';
-import { STICKY_MIN_SIZE_WORLD, TEXT_MIN_WIDTH_WORLD } from '../../shared/config';
+import { pointInRect, type Point, type Rect } from '../../shared/geometry';
+import {
+  CONNECTOR_HIT_TOLERANCE_PX,
+  CONNECTOR_MIN_LENGTH_WORLD,
+  SHAPE_MIN_SIZE_WORLD,
+  STICKY_MIN_SIZE_WORLD,
+  TEXT_MIN_WIDTH_WORLD,
+} from '../../shared/config';
+import type { Endpoint } from '../../shared/geometry/connector-geometry';
+import { ConnectorObject } from './ConnectorObject';
+import { ShapeObject } from './ShapeObject';
 import { StickyNote } from './StickyNote';
 import { TextObject } from './TextObject';
+import type { Camera } from '../canvas/camera';
 
 /**
  * Props every object component receives. The object component stays
@@ -30,10 +40,16 @@ import { TextObject } from './TextObject';
 export interface ObjectProps {
   /** This object's snapshot (re-rendered on every doc change). */
   obj: ObjectSnapshot;
+  /** Every object's snapshot (cross-object behaviour, e.g. connectors). */
+  snapshot?: readonly ObjectSnapshot[];
   /** The live Y.Doc (for Y.Text editing). */
   doc: Y.Doc;
+  /** Current camera (screen ↔ world conversion). */
+  camera?: Camera | null;
   /** Current camera zoom, for screen-space sizing. */
   zoom: number;
+  /** Live rects of every attachable object (connector endpoint resolution). */
+  rects?: ReadonlyMap<string, Rect>;
   /** Selected (part of the current selection). */
   selected: boolean;
   /** In text-edit mode (its editor is mounted). */
@@ -108,4 +124,57 @@ registerObjectType('text', {
   editableText: true,
   handles: 'horizontal',
   hitTest: (obj, point) => pointInRect(objectBounds(obj), point),
+});
+
+/** Shape (story 10): free resize, no aspect lock, editable label. */
+registerObjectType('shape', {
+  Component: ShapeObject,
+  resizable: true,
+  aspectLocked: false,
+  minSize: SHAPE_MIN_SIZE_WORLD,
+  editableText: true,
+  hitTest: (obj, point) => pointInRect(objectBounds(obj), point),
+});
+
+/** The stored anchor point of an endpoint (free point or attached fallback). */
+function endpointPoint(e: Endpoint | undefined): Point | null {
+  if (e === undefined || e === null) return null;
+  return e.kind === 'free' ? { x: e.x, y: e.y } : e.fallback;
+}
+
+/** Connector (story 10): not resizable; a wide invisible line hit-tests it
+ *  (distanceToPolyline <= CONNECTOR_HIT_TOLERANCE_PX / zoom, in the DOM); the
+ *  bbox hitTest below is a coarse fallback. */
+registerObjectType('connector', {
+  Component: (props: ObjectProps) => (
+    <ConnectorObject
+      connector={props.obj as import('../../shared/objects/connector').ConnectorSnap}
+      snapshot={props.snapshot ?? []}
+      rects={props.rects ?? new Map<string, Rect>()}
+      doc={props.doc}
+      camera={props.camera ?? null}
+      zoom={props.zoom}
+      selected={props.selected}
+      editable={props.editable}
+      onObjectPointerDown={props.onObjectPointerDown}
+      onFocusSelect={props.onFocusSelect}
+      undo={props.undo}
+    />
+  ),
+  resizable: false,
+  aspectLocked: false,
+  minSize: CONNECTOR_MIN_LENGTH_WORLD,
+  editableText: false,
+  hitTest: (obj, point) => {
+    const a = endpointPoint(obj.from as Endpoint | undefined);
+    const b = endpointPoint(obj.to as Endpoint | undefined);
+    if (a === null || b === null) return false;
+    const box = {
+      x: Math.min(a.x, b.x) - CONNECTOR_HIT_TOLERANCE_PX,
+      y: Math.min(a.y, b.y) - CONNECTOR_HIT_TOLERANCE_PX,
+      width: Math.abs(a.x - b.x) + 2 * CONNECTOR_HIT_TOLERANCE_PX,
+      height: Math.abs(a.y - b.y) + 2 * CONNECTOR_HIT_TOLERANCE_PX,
+    };
+    return pointInRect(box, point);
+  },
 });

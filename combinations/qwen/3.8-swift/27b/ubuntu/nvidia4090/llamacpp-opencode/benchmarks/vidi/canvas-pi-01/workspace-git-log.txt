@@ -1,3 +1,112 @@
+commit 66d6f6158ab0f2cb7e8e7f9eb128ff0e7a6ac3b6
+vidi-agent  Sun Sep 27 19:35:32 2026 +0100
+
+    story 10: Draw shapes and connect them with arrows that follow when moved
+
+
+ tests/e2e/connectors.spec.ts | 527 +++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 527 insertions(+)
+commit 813414ba0652c3b1b92088be8cfc421fec763198
+vidi-agent  Sun Sep 27 18:36:47 2026 +0100
+
+    story 10: component tests for shape/connector tools, objects and active tool (task 14)
+
+
+ src/client/board/useSelection.ts       |   9 +-
+ src/client/objects/ConnectorObject.tsx |  21 ++--
+ src/client/tools/useActiveTool.ts      |   4 +-
+ tests/component/Connector.test.tsx     | 174 ++++++++++++++++++++++++++++
+ tests/component/Shape.test.tsx         | 202 +++++++++++++++++++++++++++++++++
+ tests/component/useActiveTool.test.tsx |  84 ++++++++++++++
+ 6 files changed, 479 insertions(+), 15 deletions(-)
+commit 223533a316fdaa2be7a5092f6ee2ff75de543be4
+vidi-agent  Sun Sep 27 18:30:26 2026 +0100
+
+    story 10: connector tool with hover dots, connector object with arrowhead and re-attach handles (task 13)
+
+
+ src/client/objects/ConnectorObject.tsx | 239 +++++++++++++++++++++++++++++++++
+ src/client/objects/registry.tsx        |  62 ++++++++-
+ src/client/pages/BoardPage.tsx         |  27 +++-
+ src/client/styles.css                  |  25 ++++
+ src/client/tools/ConnectorTool.tsx     | 238 ++++++++++++++++++++++++++++++++
+ 5 files changed, 588 insertions(+), 3 deletions(-)
+commit f6700a2a9397be308078606d3ac6ee6e0a6274da
+vidi-agent  Sun Sep 27 18:25:35 2026 +0100
+
+    story 10: shape tool, shape object with centred label, shape toolbar (task 12)
+
+
+ src/client/board/ShapeToolbar.tsx  |  85 +++++++++++++++++++++
+ src/client/board/Toolbar.tsx       | 150 +++++++++++++++++++++----------------
+ src/client/board/useBoardKeys.ts   |  23 +++---
+ src/client/objects/ShapeObject.tsx | 132 ++++++++++++++++++++++++++++++++
+ src/client/objects/registry.tsx    |  13 +++-
+ src/client/pages/BoardPage.tsx     |  65 +++++++++++++++-
+ src/client/styles.css              | 132 ++++++++++++++++++++++++++++++++
+ src/client/tools/ShapeTool.tsx     | 149 ++++++++++++++++++++++++++++++++++++
+ src/client/tools/useActiveTool.ts  |  93 ++++++++++++++++-------
+ 9 files changed, 735 insertions(+), 107 deletions(-)
+commit 6fd406109edb76a4b12ebc5ab724838e6fc8da4a
+vidi-agent  Sun Sep 27 18:15:59 2026 +0100
+
+    story 10 task 11: useActiveTool hook and toolbar buttons with shortcuts 1-6
+
+
+ src/client/board/Toolbar.tsx              | 81 ++++++++++++++++++++++++++-----
+ src/client/board/useBoardKeys.ts          | 23 +++++++--
+ src/client/canvas/BoardViewport.tsx       | 23 ++++++---
+ src/client/pages/BoardPage.tsx            | 16 ++++--
+ src/client/tools/useActiveTool.ts         | 48 ++++++++++++++++++
+ tests/component/StickyNote.test.tsx       |  8 ++-
+ tests/component/StickyTextEditor.test.tsx |  4 ++
+ tests/component/Tool.test.tsx             |  4 +-
+ tests/component/Toolbars.test.tsx         | 24 ++++++++-
+ tests/e2e/helpers/participants.ts         |  4 +-
+ tests/e2e/sticky-notes.spec.ts            |  2 +
+ 11 files changed, 204 insertions(+), 33 deletions(-)
+commit 132c37be5da316fa3488062395ba896823512968
+vidi-agent  Sun Sep 27 18:10:37 2026 +0100
+
+    story 10 task 10: implement connector model, geometry, and detach-on-delete
+
+
+ src/shared/board-model.ts                 |  51 ++++++++++++
+ src/shared/geometry/connector-geometry.ts | 109 ++++++++++++++++++++----
+ src/shared/geometry/polyline.ts           |  15 ++--
+ src/shared/objects/connector.ts           | 133 +++++++++++++++++++++++++++---
+ tests/unit/connector-model.test.ts        |   8 +-
+ 5 files changed, 282 insertions(+), 34 deletions(-)
+commit fff43cac195111594dac2818edc7503cbee1b86e
+vidi-agent  Sun Sep 27 18:06:45 2026 +0100
+
+    story 10 task 9: connector model and geometry unit tests first (TC-07..TC-14, TC-29)
+
+
+ src/shared/geometry/connector-geometry.ts |  69 +++++++
+ src/shared/geometry/polyline.ts           |  27 +++
+ src/shared/objects/connector.ts           |  72 +++++++
+ tests/unit/connector-model.test.ts        | 326 ++++++++++++++++++++++++++++++
+ 4 files changed, 494 insertions(+)
+commit 778bb13c8dd4b91613551b241ebf58aa4417849a
+vidi-agent  Sun Sep 27 18:03:10 2026 +0100
+
+    story 10 task 8: implement shape model (create by drag/click/Shift, style validation, label Y.Text)
+
+
+ src/shared/board-model.ts   |  49 ++++++++++++++-
+ src/shared/objects/shape.ts | 144 +++++++++++++++++++++++++++++++++++---------
+ 2 files changed, 165 insertions(+), 28 deletions(-)
+commit fe0096b22c8ad93a2125e7e99bc624082c89d932
+vidi-agent  Sun Sep 27 18:02:05 2026 +0100
+
+    story 10 task 7: shape model unit tests first (TC-01..TC-06) + SHAPE_* settings and stubs
+
+
+ src/shared/config.ts           |  49 ++++++++
+ src/shared/objects/shape.ts    |  78 ++++++++++++
+ tests/unit/shape-model.test.ts | 271 +++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 398 insertions(+)
 commit 1975c80260cdaf2d308a4603ffe73ffa0e5a8dc7
 vidi-agent  Sun Sep 27 17:48:10 2026 +0100
 
