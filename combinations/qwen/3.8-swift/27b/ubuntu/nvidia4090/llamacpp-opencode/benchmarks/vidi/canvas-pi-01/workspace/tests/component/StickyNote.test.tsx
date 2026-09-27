@@ -101,8 +101,8 @@ function exitEditingAndDeselect(container: HTMLElement): void {
 }
 
 describe('sticky.interaction — app level', () => {
-  it('TC-18 press + release without movement selects: outline and note toolbar shown', () => {
-    const { container } = renderApp();
+  it('TC-18 press + release without movement selects: outline and note toolbar shown', async () => {
+    const { container } = await renderApp();
     createNoteViaButton();
     exitEditingAndDeselect(container);
     expect(firstNote(container).hasAttribute('data-selected')).toBe(false);
@@ -115,7 +115,7 @@ describe('sticky.interaction — app level', () => {
   });
 
   it('TC-19 move 2px (< DRAG_THRESHOLD_PX) then release: selected, note not moved', async () => {
-    const { container } = renderApp();
+    const { container } = await renderApp();
     createNoteViaButton();
     exitEditingAndDeselect(container);
     clickNote(container);
@@ -132,7 +132,7 @@ describe('sticky.interaction — app level', () => {
   });
 
   it('TC-20 drag on a note never pans the board (camera unchanged)', async () => {
-    const { container } = renderApp();
+    const { container } = await renderApp();
     createNoteViaButton();
     exitEditingAndDeselect(container);
     clickNote(container);
@@ -152,8 +152,8 @@ describe('sticky.interaction — app level', () => {
     expect(moved?.y).toBe(-STICKY_SIZE_WORLD / 2 + 25);
   });
 
-  it('TC-22 click empty board clears the selection and the toolbar', () => {
-    const { container } = renderApp();
+  it('TC-22 click empty board clears the selection and the toolbar', async () => {
+    const { container } = await renderApp();
     createNoteViaButton();
     keyOn(editingTextarea(), 'Escape');
     clickNote(container);
@@ -166,8 +166,8 @@ describe('sticky.interaction — app level', () => {
     expect(container.querySelector('[data-testid="note-toolbar"]')).toBeNull();
   });
 
-  it('TC-25 Delete key removes the selected note', () => {
-    const { container } = renderApp();
+  it('TC-25 Delete key removes the selected note', async () => {
+    const { container } = await renderApp();
     createNoteViaButton();
     keyOn(editingTextarea(), 'Escape');
     clickNote(container);
@@ -179,8 +179,8 @@ describe('sticky.interaction — app level', () => {
     expect(container.querySelector('[data-testid="note-toolbar"]')).toBeNull();
   });
 
-  it('TC-25b Backspace removes the selected note (separate run)', () => {
-    const { container } = renderApp();
+  it('TC-25b Backspace removes the selected note (separate run)', async () => {
+    const { container } = await renderApp();
     createNoteViaButton();
     keyOn(editingTextarea(), 'Escape');
     clickNote(container);
@@ -191,8 +191,8 @@ describe('sticky.interaction — app level', () => {
     expect(noteEls(container)).toHaveLength(0);
   });
 
-  it('TC-35 double-click on an existing note edits it and creates no new note', () => {
-    const { container } = renderApp();
+  it('TC-35 double-click on an existing note edits it and creates no new note', async () => {
+    const { container } = await renderApp();
     createNoteViaButton();
     exitEditingAndDeselect(container);
     expect(noteEls(container)).toHaveLength(1);
@@ -203,14 +203,14 @@ describe('sticky.interaction — app level', () => {
     expect(editingTextarea()).not.toBeNull();
   });
 
-  it('TC-36 Enter with nothing selected creates no note (negative)', () => {
-    renderApp();
+  it('TC-36 Enter with nothing selected creates no note (negative)', async () => {
+    await renderApp();
     windowKey('Enter');
     expect(noteEls(document.body)).toHaveLength(0);
   });
 
-  it('TC-37b note deleted via model while editing: interaction ends, no crash, note not recreated', () => {
-    const { container } = renderApp();
+  it('TC-37b note deleted via model while editing: interaction ends, no crash, note not recreated', async () => {
+    const { container } = await renderApp();
     createNoteViaButton();
     const note = firstNote(container);
     const id = note.dataset.id as string;

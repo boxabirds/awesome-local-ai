@@ -348,6 +348,8 @@ describe('BoardRoom sync (real worker)', () => {
     const id = createSticky(a.doc, { x: 9, y: 9 });
     getStickyText(a.doc, id)!.insert(0, 'after idle');
     await waitFor(() => b.noteCount() === 1, 4000, 'B sees the post-idle note');
-    expect(b.boardState()[0]?.text).toBe('after idle');
+    // The text is a second update frame right after the note: wait for it to
+    // converge rather than racing the relay.
+    await waitFor(() => b.boardState()[0]?.text === 'after idle', 4000, 'text converges');
   }, 30000);
 });

@@ -10,6 +10,12 @@
 //
 // Guarantees (spec):
 // - migrate() writes no update rows (TC-25);
+// - existsReadOnly() reads only (story 5: probing an unknown link must not
+//   create storage); a board exists if storage_meta has created_at, or (a
+//   pre-story-5 legacy board) any updates/snapshot_chunks row exists;
+// - load() treats missing tables as an empty board without creating them;
+// - migrate() runs from the room's initialize() and lazily before the first
+//   append(), so nothing is written until a board is created or edited;
 // - append() rethrows SQL errors so the room can reset (persist.save_failure);
 // - load() converts a damaged snapshot to ok:false (persist.load_failure) and
 //   quarantines damaged log rows without touching anything else
@@ -98,6 +104,48 @@ export class BoardStore {
     this.storage = storage;
   }
 
+  /** True when the schema tables exist (never creates anything). */
+  hasSchema(): boolean {
+    const rows = this.storage.sql
+      .exec("SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'storage_meta'")
+      .toArray();
+    return rows.length > 0;
+  }
+
+  /**
+   * Story 5 existence rule (share.board_api): a board exists if storage_meta
+   * has created_at, or — legacy boards saved before story 5 — if any update
+   * or snapshot row exists. Read-only: for an unknown id no tables exist and
+   * nothing is written (TC-06 / TC-09 negative).
+   */
+  existsReadOnly(): boolean {
+    if (!this.hasSchema()) return false;
+    const sql = this.storage.sql;
+    const meta = sql.exec('SELECT value FROM storage_meta WHERE key = ?', 'created_at').toArray();
+    if (meta.length > 0) return true;
+    const updates = sql.exec('SELECT COUNT(*) AS n FROM updates').toArray();
+    if ((updates[0]?.n as number | undefined) !== 0 && updates[0]?.n !== undefined) return true;
+    const chunks = sql.exec('SELECT COUNT(*) AS n FROM snapshot_chunks').toArray();
+    return (chunks[0]?.n as number | undefined) !== 0 && chunks[0]?.n !== undefined;
+  }
+
+  /**
+   * Story 5: mark the board as created. Migrates the schema (if absent) and
+   * records created_at (epoch ms) exactly once; a second call on an existing
+   * board is a no-op (TC-11 / TC-15). Returns true only when created_at was
+   * set by this call.
+   */
+  initializeBoard(): boolean {
+    this.migrate();
+    if (this.metaValue('created_at') !== null) return false;
+    this.storage.sql.exec(
+      'INSERT INTO storage_meta (key, value) VALUES (?, ?)',
+      'created_at',
+      String(Date.now()),
+    );
+    return true;
+  }
+
   /**
    * Create the tables (if absent) and record the storage schema version.
    * Writes no update rows: opening a never-edited board creates only tables
@@ -125,8 +173,11 @@ export class BoardStore {
   /**
    * Append one update to the log. Rethrows SQL errors: the caller (the room)
    * resets itself and closes all sockets with CLOSE_STORAGE_FAILURE.
+   * Lazily migrates first: a board's first edit creates the schema (story 5
+   * moved migrate() out of the room's constructor).
    */
   append(update: Uint8Array): void {
+    if (!this.hasSchema()) this.migrate();
     this.storage.sql.exec('INSERT INTO updates (data, bytes) VALUES (?, ?)', update, update.length);
     this.rowCount += 1;
     this.byteTotal += update.length;
@@ -145,6 +196,9 @@ export class BoardStore {
    */
   load(doc: Y.Doc): LoadResult {
     try {
+      // Story 5: never-created boards have no tables; loading them yields an
+      // empty board without creating any storage (probing leaves no traces).
+      if (!this.hasSchema()) return { ok: true, quarantined: 0 };
       const through = this.metaValue(META_THROUGH_SEQ);
       const base = through === null ? 0 : Number(through);
 

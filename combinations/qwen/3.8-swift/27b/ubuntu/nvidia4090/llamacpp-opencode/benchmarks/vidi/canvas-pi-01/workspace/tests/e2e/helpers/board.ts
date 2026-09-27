@@ -5,7 +5,7 @@
 // fully self-contained (no references to module-scope helpers), because
 // Playwright serializes them into the browser.
 
-import { Locator, Page } from '@playwright/test';
+import { APIRequestContext, Locator, Page } from '@playwright/test';
 import type { Camera } from '../../../src/client/canvas/camera';
 import { UNBOUNDED_PAN_TESTED_EXTENT } from '../../../src/shared/config';
 
@@ -118,6 +118,25 @@ export async function settleCamera(page: Page): Promise<void> {
       requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
     }),
   );
+}
+
+/**
+ * Create a board via the test-only hook (TEST_HOOKS=1 dev server). The hook
+ * bypasses the BOARD_CREATE_LIMIT rate limiter, so parallel e2e specs can
+ * each spin up fresh boards without exhausting the shared per-IP window.
+ */
+export async function createBoardViaHook(request: APIRequestContext): Promise<string> {
+  const res = await request.post('/__test/boards/create');
+  if (!res.ok()) throw new Error(`test-hook board creation failed: ${res.status()}`);
+  const body = (await res.json()) as { id?: string };
+  if (body.id === undefined) throw new Error('test-hook board creation returned no id');
+  return body.id;
+}
+
+/** Navigate to a board and wait for the initialised home view. */
+export async function openBoard(page: Page, boardId: string): Promise<void> {
+  await page.goto(`/b/${boardId}`);
+  await homeViewReady(page);
 }
 
 /**

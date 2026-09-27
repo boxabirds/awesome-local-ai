@@ -9,7 +9,7 @@
 import { expect, test } from '@playwright/test';
 import {
   closeParticipant,
-  freshBoardId,
+  createFreshBoard,
   openParticipant,
 } from '../helpers/participants';
 
@@ -17,11 +17,11 @@ import {
 const IDLE_DURATION_MS = 45_000;
 const IDLE_TICK_MS = 1000;
 
-test('TC-29: an idle connection never leaves the connected state for 45 s', async ({
-  browser,
+test('TC-29: an idle connection never leaves the connected state for 45 s', async ({  browser,
+  request,
 }) => {
   test.setTimeout(IDLE_DURATION_MS + 60_000);
-  const boardId = freshBoardId();
+  const boardId = await createFreshBoard(request);
   const a = await openParticipant(browser, boardId);
   const b = await openParticipant(browser, boardId);
   try {

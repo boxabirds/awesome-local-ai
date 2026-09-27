@@ -7,6 +7,7 @@
 
 import { act, render, type RenderResult } from '@testing-library/react';
 import { vi } from 'vitest';
+
 import { App } from '../../src/client/App';
 import type { Camera } from '../../src/client/canvas/camera';
 
@@ -40,14 +41,28 @@ export function installResizeObserverMock(): void {
   vi.stubGlobal('ResizeObserver', ResizeObserverMock);
 }
 
-/** Render the app and give the viewport its fixture size (1280x800). */
-export function renderApp(): RenderResult {
+/**
+ * Render the app at `path` (default: a board URL, so the board mounts as in
+ * stories 1–4) and give the viewport its fixture size (1280x800). The path is
+ * pushed before render; story 5's App is a route switch, so tests that need
+ * the home / not-found pages pass the path explicitly.
+ */
+export async function renderApp(path: string = `/b/${MOCK_BOARD_ID}`): Promise<RenderResult> {
+  window.history.pushState(null, '', path);
   const result = render(<App />);
+  // Story 5: BoardPage checks the board's existence before mounting the
+  // board (the mock resolves it); flush the 0-delay check under act so the
+  // board is up when the test body runs. (Component tests use fake timers.)
+  await act(async () => {
+    vi.advanceTimersByTime(0);
+  });
   const observer = ResizeObserverMock.instances[ResizeObserverMock.instances.length - 1];
-  if (observer === undefined) throw new Error('no ResizeObserver instance created');
-  observer.fire(TEST_VIEWPORT_WIDTH, TEST_VIEWPORT_HEIGHT);
+  if (observer !== undefined) observer.fire(TEST_VIEWPORT_WIDTH, TEST_VIEWPORT_HEIGHT);
   return result;
 }
+
+/** The board id used by renderApp's default path (valid 22-char code). */
+export const MOCK_BOARD_ID = 'mockboardid1234567890a';
 
 /** Advance one fake frame so a pending rAF camera update renders. */
 export function flushRaf(): Promise<void> {

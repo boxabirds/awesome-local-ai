@@ -74,8 +74,8 @@ function typeInEditor(value: string): void {
 }
 
 describe('sticky.text — editing', () => {
-  it('TC-23 Enter on a selected note starts editing with the caret at the end', () => {
-    const { container } = renderApp();
+  it('TC-23 Enter on a selected note starts editing with the caret at the end', async () => {
+    const { container } = await renderApp();
     createNoteViaButton();
     typeInEditor('ab');
     keyOn(editingTextarea(), 'Escape');
@@ -92,8 +92,8 @@ describe('sticky.text — editing', () => {
     expect(ta.selectionEnd).toBe(ta.value.length);
   });
 
-  it('TC-24 Escape ends editing and keeps the text; the note stays selected', () => {
-    const { container } = renderApp();
+  it('TC-24 Escape ends editing and keeps the text; the note stays selected', async () => {
+    const { container } = await renderApp();
     createNoteViaButton();
     typeInEditor('Hello world');
 
@@ -104,8 +104,8 @@ describe('sticky.text — editing', () => {
     expect(firstNote(container).hasAttribute('data-selected')).toBe(true);
   });
 
-  it("TC-26 Backspace while editing 'ab' edits the text, never deletes the note", () => {
-    const { container } = renderApp();
+  it("TC-26 Backspace while editing 'ab' edits the text, never deletes the note", async () => {
+    const { container } = await renderApp();
     createNoteViaButton();
     typeInEditor('ab');
     const ta = editingTextarea();
@@ -128,8 +128,8 @@ describe('sticky.text — editing', () => {
     expect(noteEls(container)).toHaveLength(1);
   });
 
-  it("TC-38 type 'abc' then click outside: editor unmounted, text kept, unselected", () => {
-    const { container } = renderApp();
+  it("TC-38 type 'abc' then click outside: editor unmounted, text kept, unselected", async () => {
+    const { container } = await renderApp();
     createNoteViaButton();
     typeInEditor('abc');
 

@@ -13,6 +13,9 @@ const NIGHTLY = process.env.NIGHTLY === '1';
 export default defineConfig({
   testDir: 'tests/e2e',
   testIgnore: NIGHTLY ? [] : ['**/nightly/**'],
+  // One dev server serves every project; too many workers makes the
+  // 1 s live-update budgets flake under load.
+  workers: 4,
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,

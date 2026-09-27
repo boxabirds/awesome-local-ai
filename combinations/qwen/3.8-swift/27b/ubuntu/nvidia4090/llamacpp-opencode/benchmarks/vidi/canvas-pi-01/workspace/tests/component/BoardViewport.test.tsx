@@ -66,7 +66,7 @@ afterEach(() => {
 
 describe('viewport.input (BoardViewport)', () => {
   it('TC-13 drag pans the board exactly and cycles Idle -> Panning -> Idle', async () => {
-    const { container } = renderApp();
+    const { container } = await renderApp();
     const el = viewportEl(container);
     expect(worldTransform(container)).toBe(expectedTransform(HOME));
     expect(el.getAttribute('data-panning')).toBe('false');
@@ -90,7 +90,7 @@ describe('viewport.input (BoardViewport)', () => {
   });
 
   it('TC-14 pointercancel mid-drag freezes the camera; later moves are ignored', async () => {
-    const { container } = renderApp();
+    const { container } = await renderApp();
     const el = viewportEl(container);
 
     el.dispatchEvent(pointerEvent('pointerdown', 100, 100));
@@ -106,7 +106,7 @@ describe('viewport.input (BoardViewport)', () => {
   });
 
   it('TC-15 a plain wheel pans and is always prevented', async () => {
-    const { container } = renderApp();
+    const { container } = await renderApp();
     const el = viewportEl(container);
     const event = wheel(el, { deltaX: 0, deltaY: 100 });
     expect(event.defaultPrevented).toBe(true);
@@ -116,7 +116,7 @@ describe('viewport.input (BoardViewport)', () => {
   });
 
   it('TC-16 a Ctrl wheel zooms around the pointer and is prevented', async () => {
-    const { container } = renderApp();
+    const { container } = await renderApp();
     const el = viewportEl(container);
     const event = wheel(el, { deltaX: 0, deltaY: -100, clientX: 300, clientY: 200, ctrlKey: true });
     expect(event.defaultPrevented).toBe(true);
@@ -128,7 +128,7 @@ describe('viewport.input (BoardViewport)', () => {
   });
 
   it('TC-17 a Safari gesturechange zooms by the scale ratio and is prevented', async () => {
-    const { container } = renderApp();
+    const { container } = await renderApp();
     const el = viewportEl(container);
     const event = new Event('gesturechange', { bubbles: true, cancelable: true });
     Object.assign(event, { scale: 2, clientX: 300, clientY: 200 });
@@ -139,7 +139,7 @@ describe('viewport.input (BoardViewport)', () => {
   });
 
   it('TC-18 Ctrl+= / Ctrl+- / Ctrl+0 step, unstep and reset (all prevented)', async () => {
-    const { container } = renderApp();
+    const { container } = await renderApp();
 
     const plus = key('keydown', '=', { ctrlKey: true });
     expect(plus.defaultPrevented).toBe(true);
@@ -158,7 +158,7 @@ describe('viewport.input (BoardViewport)', () => {
   });
 
   it('TC-29 a click without moving leaves the camera and the hint untouched', async () => {
-    const { container } = renderApp();
+    const { container } = await renderApp();
     const el = viewportEl(container);
     expect(container.querySelector('[data-testid="nav-hint"]')).not.toBeNull();
 
@@ -171,7 +171,7 @@ describe('viewport.input (BoardViewport)', () => {
   });
 
   it('TC-30 a Ctrl wheel over the zoom controls does not zoom the board', async () => {
-    const { container } = renderApp();
+    const { container } = await renderApp();
     const controls = container.querySelector<HTMLElement>('[data-testid="zoom-controls"]');
     if (controls === null) throw new Error('zoom controls not found');
     wheel(controls, { deltaY: -100, clientX: 1200, clientY: 700, ctrlKey: true });
@@ -180,7 +180,7 @@ describe('viewport.input (BoardViewport)', () => {
   });
 
   it('a plain Ctrl/Cmd-free wheel with deltaX pans horizontally', async () => {
-    const { container } = renderApp();
+    const { container } = await renderApp();
     const el = viewportEl(container);
     const event = wheel(el, { deltaX: -80, deltaY: 0 });
     expect(event.defaultPrevented).toBe(true);
@@ -190,7 +190,7 @@ describe('viewport.input (BoardViewport)', () => {
   });
 
   it('drag only starts when pressing on the viewport/grid itself', async () => {
-    const { container } = renderApp();
+    const { container } = await renderApp();
     const world = container.querySelector('[data-testid="board-world"]');
     if (world === null) throw new Error('world layer not found');
     world.dispatchEvent(pointerEvent('pointerdown', 100, 100));

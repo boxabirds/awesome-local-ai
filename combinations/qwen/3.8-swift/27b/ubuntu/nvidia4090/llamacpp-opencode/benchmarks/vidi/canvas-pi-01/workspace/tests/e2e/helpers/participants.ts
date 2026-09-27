@@ -5,9 +5,9 @@
 // BoardRoom Durable Object. Helpers drive the real UI (toolbar, notes,
 // colour swatches, editor) and assert delivery within the live-update budget.
 
-import { Browser, BrowserContext, Locator, Page, expect } from '@playwright/test';
-import { newBoardId } from '../../../src/shared/board-id';
+import { APIRequestContext, Browser, BrowserContext, Locator, Page, expect } from '@playwright/test';
 import { LIVE_UPDATE_LATENCY_BUDGET_MS } from '../../../src/shared/config';
+import { createBoardViaHook } from './board';
 
 export interface Participant {
   context: BrowserContext;
@@ -15,9 +15,13 @@ export interface Participant {
   boardId: string;
 }
 
-/** A fresh, content-free board id. */
-export function freshBoardId(): string {
-  return newBoardId();
+/**
+ * A fresh, content-free board, created via the test hook (story 5: opening a
+ * board link requires the board to exist; the hook bypasses the rate
+ * limiter so parallel specs don't exhaust the shared window).
+ */
+export async function createFreshBoard(request: APIRequestContext): Promise<string> {
+  return createBoardViaHook(request);
 }
 
 /**

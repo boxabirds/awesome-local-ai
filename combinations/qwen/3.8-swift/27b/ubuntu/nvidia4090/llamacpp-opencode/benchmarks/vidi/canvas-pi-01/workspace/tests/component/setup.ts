@@ -15,3 +15,12 @@ vi.mock('../../src/client/sync/connectBoard', async (importOriginal) => {
     connectBoard: vi.fn(() => ({ destroy: vi.fn() })),
   };
 });
+
+// Story 5: BoardPage asks the server whether the board exists before
+// mounting; by default the board exists and creation succeeds. Individual
+// tests (pages.test.tsx) override the mocks with vi.mocked(...).mockReset()
+// and their own implementations.
+vi.mock('../../src/client/api', () => ({
+  createBoardRequest: vi.fn(async () => ({ status: 'created', id: 'mockboardid1234567890a' })),
+  checkBoard: vi.fn(async () => ({ status: 'exists' as const })),
+}));

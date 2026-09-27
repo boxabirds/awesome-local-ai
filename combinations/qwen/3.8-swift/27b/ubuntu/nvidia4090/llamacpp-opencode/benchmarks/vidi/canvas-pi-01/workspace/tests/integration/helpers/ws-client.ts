@@ -4,7 +4,7 @@
 // in-isolate upgrade) and applies the sync + awareness protocols with
 // y-protocols, so the tests drive the *real* DO with real protocol traffic.
 
-import { SELF } from 'cloudflare:test';
+import { SELF, env, runInDurableObject } from 'cloudflare:test';
 import { AWARENESS_HEARTBEAT_MS } from '../../../src/shared/config';
 import * as decoding from 'lib0/decoding';
 import * as encoding from 'lib0/encoding';
@@ -158,6 +158,12 @@ export class RoomClient {
 
 /** Connect a live client to the room for `boardId` via the worker. */
 export async function connectRoom(boardId: string, options: RoomClientOptions = {}): Promise<RoomClient> {
+  // Story 5: rooms no longer create storage implicitly — initialize the
+  // board first (what POST /api/boards does in the product), then connect.
+  // initialize() never throws ('error' just means the room will handle the
+  // board's state itself on connect — e.g. the failing-store test TC-26).
+  const stub = env.BOARD_ROOM.get(env.BOARD_ROOM.idFromName(boardId));
+  await runInDurableObject(stub, (room) => room.initialize());
   const res = await SELF.fetch(`http://localhost/api/rooms/${boardId}`, {
     headers: { Upgrade: 'websocket', Connection: 'Upgrade' },
   });

@@ -47,6 +47,9 @@ function mockEnv(): MockEnv {
         );
       },
     } as unknown as Fetcher,
+    // Story 5: the worker now declares a rate limiter binding; unused by the
+    // routing tests, but the env must satisfy the interface.
+    BOARD_CREATE_LIMITER: { limit: () => Promise.resolve({ success: true }) },
   };
   return { env, idFromNameCalls, doFetchCalls, assetFetchCalls };
 }
@@ -61,10 +64,12 @@ function request(path: string, upgrade = false): Request {
 }
 
 describe('worker entry routing', () => {
-  it('TC-04: invalid board id → 400 and no Durable Object is instantiated', async () => {
+  // Story 5 (share.board_api): malformed ids are unknown boards → 404 (was
+  // 400 in story 3); the namespace is never touched.
+  it('TC-04: invalid board id → 404 and no Durable Object is instantiated', async () => {
     const { env, idFromNameCalls } = mockEnv();
     const res = await worker.fetch(request('/api/rooms/bad!id', true), env);
-    expect(res.status).toBe(400);
+    expect(res.status).toBe(404);
     expect(idFromNameCalls).toEqual([]);
   });
 
@@ -72,7 +77,7 @@ describe('worker entry routing', () => {
     const { env, idFromNameCalls } = mockEnv();
     const tooLong = 'a'.repeat(64);
     const res = await worker.fetch(request(`/api/rooms/${tooLong}`, true), env);
-    expect(res.status).toBe(400);
+    expect(res.status).toBe(404);
     expect(idFromNameCalls).toEqual([]);
   });
 

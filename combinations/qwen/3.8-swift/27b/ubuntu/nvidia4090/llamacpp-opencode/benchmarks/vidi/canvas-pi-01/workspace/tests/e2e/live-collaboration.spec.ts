@@ -14,11 +14,11 @@ import {
   deleteSelected,
   dragNote,
   expectWithin,
-  freshBoardId,
   noteColor,
   noteCount,
   noteTexts,
   notes,
+  createFreshBoard,
   openParticipant,
   selectNote,
   setNoteColor,
@@ -47,10 +47,10 @@ async function captureConsoleErrors(p: Participant): Promise<string[]> {
 }
 
 test.describe('Two-person workshop', () => {
-  test('TC-22: create / move / recolour / type / delete are each seen by the other', async ({
-    browser,
+  test('TC-22: create / move / recolour / type / delete are each seen by the other', async ({    browser,
+    request,
   }) => {
-    const boardId = freshBoardId();
+    const boardId = await createFreshBoard(request);
     const alex = await openParticipant(browser, boardId);
     const sam = await openParticipant(browser, boardId);
     try {
@@ -96,10 +96,10 @@ test.describe('Two-person workshop', () => {
     }
   });
 
-  test('TC-23: simultaneous typing into one note merges on both pages', async ({
-    browser,
+  test('TC-23: simultaneous typing into one note merges on both pages', async ({    browser,
+    request,
   }) => {
-    const boardId = freshBoardId();
+    const boardId = await createFreshBoard(request);
     const alex = await openParticipant(browser, boardId);
     const sam = await openParticipant(browser, boardId);
     try {
@@ -132,10 +132,10 @@ test.describe('Two-person workshop', () => {
     }
   });
 
-  test('TC-24: simultaneous drags of the same note settle to one position', async ({
-    browser,
+  test('TC-24: simultaneous drags of the same note settle to one position', async ({    browser,
+    request,
   }) => {
-    const boardId = freshBoardId();
+    const boardId = await createFreshBoard(request);
     const alex = await openParticipant(browser, boardId);
     const sam = await openParticipant(browser, boardId);
     try {
@@ -159,10 +159,10 @@ test.describe('Two-person workshop', () => {
     }
   });
 
-  test('TC-25: a delete wins over a concurrent edit; no console errors', async ({
-    browser,
+  test('TC-25: a delete wins over a concurrent edit; no console errors', async ({    browser,
+    request,
   }) => {
-    const boardId = freshBoardId();
+    const boardId = await createFreshBoard(request);
     const alex = await openParticipant(browser, boardId);
     const sam = await openParticipant(browser, boardId);
     try {
@@ -195,11 +195,11 @@ test.describe('Two-person workshop', () => {
 });
 
 test.describe('Full-capacity session', () => {
-  test('TC-26: every change at MAX_CONCURRENT_EDITORS is seen by all, snapshots identical', async ({
-    browser,
+  test('TC-26: every change at MAX_CONCURRENT_EDITORS is seen by all, snapshots identical', async ({    browser,
+    request,
   }) => {
     test.setTimeout(120_000);
-    const boardId = freshBoardId();
+    const boardId = await createFreshBoard(request);
     const count = 5; // MAX_CONCURRENT_EDITORS
     const participants: Participant[] = [];
     for (let i = 0; i < count; i++) {
@@ -255,11 +255,11 @@ test.describe('Full-capacity session', () => {
 });
 
 test.describe('Flaky Wi-Fi', () => {
-  test('TC-27: offline edits catch up; badge Reconnecting → Connected; both show 6', async ({
-    browser,
+  test('TC-27: offline edits catch up; badge Reconnecting → Connected; both show 6', async ({    browser,
+    request,
   }) => {
     test.setTimeout(CATCH_UP_TEST_OUTAGE_MS + 60_000);
-    const boardId = freshBoardId();
+    const boardId = await createFreshBoard(request);
     const alex = await openParticipant(browser, boardId);
     const sam = await openParticipant(browser, boardId);
     try {
@@ -309,10 +309,10 @@ test.describe('Flaky Wi-Fi', () => {
 });
 
 test.describe('Selection is local', () => {
-  test('TC-28: selecting/editing a note is not visible to the other peer', async ({
-    browser,
+  test('TC-28: selecting/editing a note is not visible to the other peer', async ({    browser,
+    request,
   }) => {
-    const boardId = freshBoardId();
+    const boardId = await createFreshBoard(request);
     const alex = await openParticipant(browser, boardId);
     const sam = await openParticipant(browser, boardId);
     try {

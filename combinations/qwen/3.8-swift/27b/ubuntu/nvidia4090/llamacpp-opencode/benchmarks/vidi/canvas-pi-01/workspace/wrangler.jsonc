@@ -15,5 +15,20 @@
   },
   "migrations": [
     { "tag": "v1", "new_sqlite_classes": ["BoardRoom"] }
+  ],
+  // PRD share.rate_limit: 10 board creations per minute per visitor. The
+  // simple.limit/simple.period must mirror BOARD_CREATE_LIMIT /
+  // BOARD_CREATE_PERIOD_SECONDS in src/shared/config.ts (unit test TC-03
+  // asserts equality). The namespace_id is a local placeholder: in
+  // production the account's real id goes here.
+  "ratelimits": [
+    {
+      "name": "BOARD_CREATE_LIMITER",
+      "namespace_id": "vidi6-board-create-local",
+      "simple": {
+        "limit": 10,
+        "period": 60
+      }
+    }
   ]
 }

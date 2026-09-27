@@ -10,8 +10,7 @@
 //      editing re-enables — on the same page, with no reload.
 
 import { expect, test, type Page } from '@playwright/test';
-import { newBoardId } from '../../src/shared/board-id';
-import { homeViewReady } from './helpers/board';
+import { createBoardViaHook, homeViewReady } from './helpers/board';
 import { createNote, noteCount } from './helpers/participants';
 
 const BADGE = '[data-testid="connection-status"]';
@@ -40,9 +39,9 @@ async function seedNotes(page: Page, n: number): Promise<void> {
 }
 
 test.describe('Broken board (TC-24)', () => {
-  test('fails honestly, locks editing, and recovers without a reload', async ({ browser }) => {
+  test('fails honestly, locks editing, and recovers without a reload', async ({ browser, request }) => {
     test.setTimeout(120_000);
-    const boardId = newBoardId();
+    const boardId = await createBoardViaHook(request);
 
     // ---- 1. Create a 25-note board, compact it, corrupt its snapshot. ----
     const setup = await browser.newContext();

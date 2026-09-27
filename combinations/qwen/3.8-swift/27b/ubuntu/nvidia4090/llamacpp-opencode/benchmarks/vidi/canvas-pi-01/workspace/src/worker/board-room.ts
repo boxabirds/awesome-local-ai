@@ -7,8 +7,11 @@
 // truth for sockets; they survive hibernation).
 //
 // Lifecycle (state diagram in src/worker/room-state.ts):
-// - The constructor runs `migrate` + `load` inside blockConcurrencyWhile, so
-//   the first fetch only ever sees a loaded (or load-failed) room.
+// - The constructor runs `load` (read-only; missing tables = empty board)
+//   inside blockConcurrencyWhile, so the first fetch only ever sees a loaded
+//   (or load-failed) room. Story 5: migrate() is no longer run here —
+//   initialize() (board creation) and the first append() own schema creation,
+//   and fetch() rejects boards that do not exist with 404 (share.board_api).
 // - Append: every update is stored before it is broadcast; an insert that
 //   throws resets the room (all sockets closed 1011, doc discarded) and the
 //   next connection reloads from storage (persist.save_failure).
@@ -39,6 +42,7 @@ import {
 import { LOAD_RETRY_MIN_INTERVAL_MS } from '../shared/config';
 import { BoardStore, type BoardStorage, type LoadResult } from './board-store';
 import { nextRoomState, type RoomState } from './room-state';
+import { seedLegacyUpdates } from './test-hooks';
 
 type RoomSocket = WebSocket;
 
@@ -56,10 +60,43 @@ export class BoardRoom extends DurableObject<Env> {
     this.doc = this.createDoc();
     // Load before the first fetch can arrive: fetches are blocked until this
     // settles, so a (re)constructed room never serves a half-loaded doc.
+    // Story 5: no migrate here — probing an unknown link must not write
+    // storage. The schema is created by initialize() (board creation) or
+    // lazily before the first append().
     this.ctx.blockConcurrencyWhile(async () => {
-      this.store.migrate();
       this.tryLoad();
     });
+  }
+
+  // ---- board creation / existence RPC (story 5) ----
+
+  /**
+   * Create the board's storage: migrate the schema and record created_at
+   * exactly once (share.board_api). Returns 'exists' when the board was
+   * already created (a colliding id is never re-initialised: TC-11, TC-15)
+   * and 'error' when storage itself fails — never throws: an unhandled
+   * rejection inside the DO breaks workerd's input gate for the object.
+   */
+  async initialize(): Promise<'created' | 'exists' | 'error'> {
+    let created = false;
+    let failed = false;
+    await this.ctx.blockConcurrencyWhile(async () => {
+      try {
+        created = this.store.initializeBoard();
+      } catch {
+        failed = true;
+      }
+    });
+    if (failed) return 'error';
+    return created ? 'created' : 'exists';
+  }
+
+  /**
+   * Read-only existence check (share.board_api): created_at, or any
+   * legacy update/snapshot row. Never writes (TC-06 negative).
+   */
+  async exists(): Promise<boolean> {
+    return this.store.existsReadOnly();
   }
 
   // ---- Durable Object surface ----
@@ -89,6 +126,28 @@ export class BoardRoom extends DurableObject<Env> {
         const result = this.reconstructForTests();
         return Promise.resolve(Response.json({ ok: result.ok }));
       }
+      if (pathname.endsWith('/seed-legacy')) {
+        // Story 5 TC-31: seed a pre-story-5 board (updates, no created_at),
+        // then reload the doc so the seeded notes are in the live doc that
+        // the next connection's sync serves (waking the room loads an empty
+        // doc; the seed only reaches storage).
+        const seeded = this.seedLegacyForTests(3);
+        this.tryLoad();
+        return Promise.resolve(Response.json({ ok: true, notes: seeded }));
+      }
+    }
+    // Story 5: unknown boards are rejected before anything is accepted or
+    // written — rooms can no longer be created implicitly by connecting.
+    // A storage read failure is not "not found": proceed to the normal
+    // accept path, where a LoadFailed room closes the socket with 4500.
+    let exists = true;
+    try {
+      exists = this.store.existsReadOnly();
+    } catch {
+      exists = true;
+    }
+    if (!exists) {
+      return Promise.resolve(new Response('Board not found', { status: 404 }));
     }
     const headers = new Headers(req.headers);
     if (headers.get('Upgrade') !== 'websocket') {
@@ -239,7 +298,6 @@ export class BoardRoom extends DurableObject<Env> {
     this.lastLoadAttemptMs = Date.now();
     let result: LoadResult;
     try {
-      this.store.migrate();
       result = this.store.load(doc);
     } catch (err) {
       result = { ok: false, reason: 'sql-error', error: String(err) };
@@ -322,7 +380,6 @@ export class BoardRoom extends DurableObject<Env> {
     this.lastLoadAttemptMs = Date.now();
     let result: LoadResult;
     try {
-      this.store.migrate();
       result = this.store.load(this.doc);
     } catch (err) {
       result = { ok: false, reason: 'sql-error', error: String(err) };
@@ -347,5 +404,13 @@ export class BoardRoom extends DurableObject<Env> {
   /** Test-only: how many sockets the hibernation runtime is tracking. */
   socketCountForTests(): number {
     return this.ctx.getWebSockets().length;
+  }
+
+  /**
+   * Test-only (story 5 TC-31): seed a legacy board — real update rows with
+   * no created_at, as pre-story-5 boards had (share.legacy_boards).
+   */
+  seedLegacyForTests(notes: number): number {
+    return seedLegacyUpdates(this.store, notes);
   }
 }

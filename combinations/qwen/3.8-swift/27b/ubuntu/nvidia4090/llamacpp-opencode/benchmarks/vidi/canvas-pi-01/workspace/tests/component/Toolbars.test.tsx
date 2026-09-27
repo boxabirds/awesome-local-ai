@@ -59,8 +59,8 @@ function editingTextarea(): HTMLTextAreaElement {
 }
 
 describe('sticky.toolbar', () => {
-  it('TC-27 clicking the Pink swatch changes the model colour and keeps the selection', () => {
-    const { container } = renderApp();
+  it('TC-27 clicking the Pink swatch changes the model colour and keeps the selection', async () => {
+    const { container } = await renderApp();
     createNoteViaButton();
     keyOn(editingTextarea(), 'Escape');
     clickEmpty(container);
@@ -77,8 +77,8 @@ describe('sticky.toolbar', () => {
     expect(pink!.getAttribute('aria-pressed')).toBe('true');
   });
 
-  it('TC-28 the Sticky note button creates one note centred on the viewport, in edit mode', () => {
-    const { container } = renderApp();
+  it('TC-28 the Sticky note button creates one note centred on the viewport, in edit mode', async () => {
+    const { container } = await renderApp();
     createNoteViaButton();
 
     const notes = noteEls(container);
@@ -92,8 +92,8 @@ describe('sticky.toolbar', () => {
     expect(ta.value).toBe('');
   });
 
-  it('TC-29 the bin button deletes the note and clears the selection', () => {
-    const { container } = renderApp();
+  it('TC-29 the bin button deletes the note and clears the selection', async () => {
+    const { container } = await renderApp();
     createNoteViaButton();
     keyOn(editingTextarea(), 'Escape');
     clickNote(container);

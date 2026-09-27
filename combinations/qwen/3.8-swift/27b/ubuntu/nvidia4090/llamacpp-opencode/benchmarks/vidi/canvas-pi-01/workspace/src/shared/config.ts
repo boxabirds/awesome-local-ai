@@ -85,3 +85,30 @@ export const PERSIST_TESTED_NOTES = 2000;
 export const BOARD_LOAD_BUDGET_MS = 3000;
 /** Versions the SQLite tables (storage_meta.storage_schema_version). */
 export const STORAGE_SCHEMA_VERSION = 1;
+
+// ---- Sharing (story 5) ----
+
+/**
+ * Boards one visitor may create per BOARD_CREATE_PERIOD_SECONDS (PRD
+ * share.rate_limit: "more than 10 boards within one minute"). Must equal the
+ * `ratelimits` entry in wrangler.jsonc (TC-03 asserts equality).
+ */
+export const BOARD_CREATE_LIMIT = 10;
+/** Window for BOARD_CREATE_LIMIT, in seconds. Must match wrangler.jsonc. */
+export const BOARD_CREATE_PERIOD_SECONDS = 60;
+/**
+ * Id generation attempts per create request before giving up (share.unique:
+ * a colliding code is never handed out). 128-bit ids make even one collision
+ * astronomically unlikely; this is defence in depth.
+ */
+export const CREATE_ID_MAX_ATTEMPTS = 3;
+/** PRD share.create: create + open within 2 s on a typical connection. */
+export const CREATE_BUDGET_MS = 2000;
+/** How long the Copy link button shows "Link copied" (PRD share.copy). */
+export const LINK_COPIED_MS = 2000;
+/**
+ * BoardPage existence-check retry backoff base: delays are
+ * BASE, BASE*2, BASE*4, … capped at RECONNECT_MAX_BACKOFF_MS
+ * (PRD share.unreachable).
+ */
+export const BOARD_CHECK_RETRY_BASE_MS = 1000;

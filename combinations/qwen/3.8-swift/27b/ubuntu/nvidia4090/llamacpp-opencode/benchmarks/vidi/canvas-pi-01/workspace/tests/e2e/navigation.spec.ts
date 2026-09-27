@@ -7,8 +7,9 @@ import { expect, test } from '@playwright/test';
 import { GRID_SPACING_WORLD } from '../../src/shared/config';
 import {
   cameraFromRender,
+  createBoardViaHook,
   dragBoard,
-  homeViewReady,
+  openBoard,
   originMarkerCenter,
   settleCamera,
   setCamera,
@@ -29,11 +30,10 @@ const CLICKS_TO_MAX_ZOOM = 7;
 const EXACT_PX = 1;
 
 test.describe('first visit navigation (workflow 1)', () => {
-  test('TC-28/23/24: hint shows, drag moves the board exactly, Ctrl+wheel zooms around the pointer', async ({
-    page,
+  test('TC-28/23/24: hint shows, drag moves the board exactly, Ctrl+wheel zooms around the pointer', async ({    page,
+    request,
   }) => {
-    await page.goto('/');
-    await homeViewReady(page);
+    await openBoard(page, await createBoardViaHook(request));
 
     // TC-28: the first-use hint is visible on load.
     const hint = page.getByText(HINT_TEXT);
@@ -78,11 +78,10 @@ test.describe('first visit navigation (workflow 1)', () => {
 });
 
 test.describe('limits and recovery (workflow 2)', () => {
-  test('TC-25/26: zoom to the maximum disables +, Reset view returns to 100% centred', async ({
-    page,
+  test('TC-25/26: zoom to the maximum disables +, Reset view returns to 100% centred', async ({    page,
+    request,
   }) => {
-    await page.goto('/');
-    await homeViewReady(page);
+    await openBoard(page, await createBoardViaHook(request));
 
     // TC-25: click + until disabled; the label ends at 400%.
     const zoomIn = page.getByRole('button', { name: ZOOM_IN });
@@ -104,9 +103,8 @@ test.describe('limits and recovery (workflow 2)', () => {
 });
 
 test.describe('far travel (workflow 3)', () => {
-  test('TC-27: at 1,000,000 units the board pans exactly and the grid stays even', async ({ page }) => {
-    await page.goto('/');
-    await homeViewReady(page);
+  test('TC-27: at 1,000,000 units the board pans exactly and the grid stays even', async ({ page, request }) => {
+    await openBoard(page, await createBoardViaHook(request));
 
     await setCamera(page, { x: UNBOUNDED_PAN_TESTED_EXTENT, y: UNBOUNDED_PAN_TESTED_EXTENT, zoom: 1 });
     const before = await cameraFromRender(page);
@@ -139,9 +137,8 @@ test.describe('far travel (workflow 3)', () => {
 });
 
 test.describe('page zoom stays untouched (TC-31)', () => {
-  test('Ctrl+wheel and Ctrl+=/- /0 over the board never change page zoom', async ({ page }) => {
-    await page.goto('/');
-    await homeViewReady(page);
+  test('Ctrl+wheel and Ctrl+=/- /0 over the board never change page zoom', async ({ page, request }) => {
+    await openBoard(page, await createBoardViaHook(request));
 
     const before = await page.evaluate(() => ({
       devicePixelRatio: window.devicePixelRatio,

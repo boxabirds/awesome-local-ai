@@ -6,7 +6,7 @@
 import { expect, test, type Page } from '@playwright/test';
 import type * as Y from 'yjs';
 import { THOUSAND_CHAR_PARAGRAPH } from '../fixtures/texts';
-import { homeViewReady, settleCamera, setCamera } from './helpers/board';
+import { createBoardViaHook, openBoard, settleCamera, setCamera } from './helpers/board';
 
 const NOTE = '[data-testid="sticky-note"]';
 /** Pixel tolerance for "exact" pointer tracking (spec: within 1 pixel). */
@@ -116,11 +116,10 @@ async function createNoteViaButton(page: Page): Promise<void> {
 }
 
 test.describe('sticky notes (story 2)', () => {
-  test('TC-30 double-click creates a note centred on the pointer; typing fills it', async ({
-    page,
+  test('TC-30 double-click creates a note centred on the pointer; typing fills it', async ({    page,
+    request,
   }) => {
-    await page.goto('/');
-    await homeViewReady(page);
+    await openBoard(page, await createBoardViaHook(request));
 
     await page.mouse.dblclick(400, 300);
     await expect(notes(page)).toHaveCount(1);
@@ -135,11 +134,10 @@ test.describe('sticky notes (story 2)', () => {
     await expect(page.locator('[data-testid="sticky-text"]')).toHaveText('Hello');
   });
 
-  test('TC-31 at 50%: a 100,50 screen-px drag moves the note +200,+100 world', async ({
-    page,
+  test('TC-31 at 50%: a 100,50 screen-px drag moves the note +200,+100 world', async ({    page,
+    request,
   }) => {
-    await page.goto('/');
-    await homeViewReady(page);
+    await openBoard(page, await createBoardViaHook(request));
     // screen = zoom * (world - camera): keep world (0,0) at screen (640,400).
     await setCamera(page, { x: -1280, y: -800, zoom: 0.5 });
     await createNoteViaButton(page);
@@ -156,11 +154,10 @@ test.describe('sticky notes (story 2)', () => {
     expect(world.y).toBeCloseTo(0, 6);
   });
 
-  test('TC-32 at 200%: a 100,50 screen-px drag moves +50,+25 world and brings the note to the front', async ({
-    page,
+  test('TC-32 at 200%: a 100,50 screen-px drag moves +50,+25 world and brings the note to the front', async ({    page,
+    request,
   }) => {
-    await page.goto('/');
-    await homeViewReady(page);
+    await openBoard(page, await createBoardViaHook(request));
     // Keep world (0,0) at screen (640,400) at 200%.
     await setCamera(page, { x: -320, y: -200, zoom: 2 });
 
@@ -193,11 +190,10 @@ test.describe('sticky notes (story 2)', () => {
     expect(await topNoteIdAt(page, shared.x, shared.y)).toBe(idA);
   });
 
-  test('TC-33 short text fits at 24px; 1,000 pasted chars fit at 10px with a clipped fade', async ({
-    page,
+  test('TC-33 short text fits at 24px; 1,000 pasted chars fit at 10px with a clipped fade', async ({    page,
+    request,
   }) => {
-    await page.goto('/');
-    await homeViewReady(page);
+    await openBoard(page, await createBoardViaHook(request));
     await createNoteViaButton(page);
 
     const font = async () =>
@@ -233,11 +229,10 @@ test.describe('sticky notes (story 2)', () => {
     await expect(page.locator('[data-testid="sticky-text"]')).toBeVisible();
   });
 
-  test('TC-34 creating from the toolbar while panned far away lands at the screen centre', async ({
-    page,
+  test('TC-34 creating from the toolbar while panned far away lands at the screen centre', async ({    page,
+    request,
   }) => {
-    await page.goto('/');
-    await homeViewReady(page);
+    await openBoard(page, await createBoardViaHook(request));
     await setCamera(page, { x: -5000, y: -4000, zoom: 1 });
     expect(await notes(page).count()).toBe(0);
 
@@ -248,9 +243,8 @@ test.describe('sticky notes (story 2)', () => {
     expect(Math.abs(centre.y - 400)).toBeLessThanOrEqual(2);
   });
 
-  test('golden path: create, type, move at 50%, recolour pink, delete', async ({ page }) => {
-    await page.goto('/');
-    await homeViewReady(page);
+  test('golden path: create, type, move at 50%, recolour pink, delete', async ({ page, request }) => {
+    await openBoard(page, await createBoardViaHook(request));
 
     // Create by double-click and type.
     await page.mouse.dblclick(400, 300);

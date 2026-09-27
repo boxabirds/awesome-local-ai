@@ -10,7 +10,7 @@ import {
 } from './helpers';
 
 describe('nav.hint_display (NavigationHint)', () => {
-  it('renders the exact hint text when visible and nothing when not', () => {
+  it('renders the exact hint text when visible and nothing when not', async () => {
     const { unmount } = render(<NavigationHint visible />);
     expect(document.querySelector('[data-testid="nav-hint"]')?.textContent).toBe(NAVIGATION_HINT_TEXT);
     unmount();
@@ -19,7 +19,7 @@ describe('nav.hint_display (NavigationHint)', () => {
   });
 
   it('TC-22 visible -> hidden after the first camera change -> stays hidden', async () => {
-    const { container } = renderApp();
+    const { container } = await renderApp();
     const hint = () => container.querySelector('[data-testid="nav-hint"]');
 
     expect(hint()).not.toBeNull();
@@ -36,7 +36,7 @@ describe('nav.hint_display (NavigationHint)', () => {
   });
 
   it('a zoom also dismisses the hint for the rest of the visit', async () => {
-    const { container } = renderApp();
+    const { container } = await renderApp();
     const el = viewportEl(container);
     const event = new WheelEvent('wheel', {
       bubbles: true,

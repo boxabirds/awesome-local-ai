@@ -16,8 +16,8 @@ import {
   createNote,
   dragNote,
   expectWithin,
-  freshBoardId,
   noteCount,
+  createFreshBoard,
   openParticipant,
   setNoteColor,
   typeInNote,
@@ -34,11 +34,11 @@ function percentile(sorted: number[], p: number): number {
   return sorted[idx];
 }
 
-test('TC-30: continuous edits at full capacity deliver within budget', async ({
-  browser,
+test('TC-30: continuous edits at full capacity deliver within budget', async ({  browser,
+  request,
 }) => {
   test.setTimeout(SOAK_DURATION_MS + 120_000);
-  const boardId = freshBoardId();
+  const boardId = await createFreshBoard(request);
   const participants: Participant[] = [];
   for (let i = 0; i < MAX_CONCURRENT_EDITORS; i++) {
     participants.push(await openParticipant(browser, boardId));
