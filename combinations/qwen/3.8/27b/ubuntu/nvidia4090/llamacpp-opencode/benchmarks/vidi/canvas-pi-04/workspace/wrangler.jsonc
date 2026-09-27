@@ -16,10 +16,22 @@
       }
     ]
   },
+  // Story 12 (assets.api / image.shared): image assets are stored in an R2
+  // bucket behind an unguessable <boardId>/<assetId> key. The bucket name is
+  // the local/runtime name; production is provisioned in the Cloudflare
+  // dashboard.
+  "r2_buckets": [
+    {
+      "binding": "IMAGE_BUCKET",
+      "bucket_name": "vidi6-images"
+    }
+  ],
   // Story 5 (share.board_api): rate limit for POST /api/boards, keyed per
   // visitor (CF-Connecting-IP). MUST stay in sync with BOARD_CREATE_LIMIT /
   // BOARD_CREATE_PERIOD_SECONDS in src/shared/config.ts (enforced by
   // tests/unit/create-board.test.ts, TC-03).
+  // Story 12 (image.rate_limit): rate limit for image uploads, keyed per
+  // visitor. MUST stay in sync with IMAGE_UPLOAD_LIMIT / IMAGE_UPLOAD_PERIOD_SECONDS.
   "ratelimits": [
     {
       "name": "BOARD_CREATE_LIMITER",
@@ -27,6 +39,11 @@
       // dashboard (Rate limits); local runtimes accept any string here.
       "namespace_id": "vidi6-board-creation",
       "simple": { "limit": 10, "period": 60 }
+    },
+    {
+      "name": "ASSET_UPLOAD_LIMITER",
+      "namespace_id": "vidi6-image-upload",
+      "simple": { "limit": 60, "period": 60 }
     }
   ],
   "migrations": [

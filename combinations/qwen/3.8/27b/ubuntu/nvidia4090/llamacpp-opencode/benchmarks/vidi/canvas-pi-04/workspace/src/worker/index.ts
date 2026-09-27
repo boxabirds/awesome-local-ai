@@ -15,11 +15,14 @@
 import { isValidBoardId } from '../shared/board-id';
 import { BoardRoom, type Env } from './board-room';
 import { createBoard } from './create-board';
+import { handleServe, handleUpload } from './assets';
 import { handleTestHooks } from './test-hooks';
 
 const BOARDS_PATH = '/api/boards';
 const BOARD_PATH = /^\/api\/boards\/([^/]+)\/?$/;
+const BOARD_ASSET_PATH = /^\/api\/boards\/([^/]+)\/assets$/;
 const ROOM_PATH_PREFIX = '/api/rooms/';
+const ASSET_PATH_PREFIX = '/api/assets/';
 
 function json(body: unknown, status: number): Response {
   return new Response(JSON.stringify(body), {
@@ -81,6 +84,28 @@ export default {
         return json({ error: 'not_found' }, 404);
       }
       return json({ id: boardId }, 200);
+    }
+
+    // POST /api/boards/:boardId/assets: upload an image (story 12, assets.api).
+    const boardAssetMatch = BOARD_ASSET_PATH.exec(url.pathname);
+    if (boardAssetMatch !== null) {
+      if (req.method !== 'POST') {
+        return json({ error: 'method_not_allowed' }, 405);
+      }
+      const boardId = boardAssetMatch[1]!;
+      if (!isValidBoardId(boardId)) {
+        return json({ error: 'not_found' }, 404);
+      }
+      return handleUpload(req, env, boardId);
+    }
+
+    // GET /api/assets/:boardId/:assetId: serve a stored image (story 12, image.shared).
+    if (url.pathname.startsWith(ASSET_PATH_PREFIX)) {
+      if (req.method !== 'GET') {
+        return json({ error: 'method_not_allowed' }, 405);
+      }
+      const key = url.pathname.slice(ASSET_PATH_PREFIX.length);
+      return handleServe(env, decodeURIComponent(key));
     }
 
     if (url.pathname.startsWith(ROOM_PATH_PREFIX)) {

@@ -34,6 +34,8 @@ export function Toolbar(
     setTool(tool: Tool): void;
     shapeKind: ShapeKind;
     setShapeKind(kind: ShapeKind): void;
+    /** Story 12: open the image picker (I); the tool returns to Select. */
+    onImage?: () => void;
   } & UndoBinding,
 ): JSX.Element {
   const stop = (e: ReactPointerEvent | ReactMouseEvent): void => {
@@ -140,6 +142,55 @@ export function Toolbar(
             stroke="currentColor"
             strokeWidth="1.5"
             strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+        </svg>
+      </button>
+      <button
+        type="button"
+        className="board-toolbar__tool"
+        title={props.canEdit ? 'Pen – P' : 'Board unavailable'}
+        aria-label="Pen (P)"
+        aria-pressed={props.tool === 'pen'}
+        disabled={!props.canEdit}
+        onClick={() => props.setTool('pen')}
+      >
+        <svg width="20" height="20" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
+          <path
+            d="M13.5 3.5l3 3L7 16H4v-3L13.5 3.5zM11 6l3 3"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.5"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+        </svg>
+      </button>
+      <button
+        type="button"
+        className="board-toolbar__tool"
+        title={props.canEdit ? 'Image – I' : 'Board unavailable'}
+        aria-label="Image (I)"
+        disabled={!props.canEdit}
+        onClick={props.onImage}
+      >
+        <svg width="20" height="20" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
+          <rect
+            x="3"
+            y="4"
+            width="14"
+            height="12"
+            rx="1"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.5"
+          />
+          <circle cx="7.5" cy="8.5" r="1.5" fill="currentColor" stroke="none" />
+          <path
+            d="M4 14l4-4 3 3 2-2 3 3"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.5"
             strokeLinejoin="round"
           />
         </svg>

@@ -1,3 +1,57 @@
+commit f437cc330e768ea7a0f82ade6301c3bab68f0e95
+vidi-agent  Sun Sep 27 08:01:00 2026 +0100
+
+    harness: snapshot after story 11 (uncommitted agent work)
+
+
+ src/client/App.tsx                       |  66 +++++-
+ src/client/board/Toolbar.tsx             |  51 ++++
+ src/client/board/useBoardKeys.ts         |  15 +-
+ src/client/board/useTool.ts              |   2 +-
+ src/client/canvas/BoardViewport.tsx      |  10 +-
+ src/client/images/DropHighlight.tsx      |  16 ++
+ src/client/images/ImageUploadContext.tsx |  36 +++
+ src/client/images/readImageSize.ts       |  36 +++
+ src/client/images/uploadImage.ts         |  68 ++++++
+ src/client/images/useImageInsert.ts      | 320 +++++++++++++++++++++++++
+ src/client/images/validateFiles.ts       |  67 ++++++
+ src/client/objects/ImageObject.tsx       | 145 ++++++++++++
+ src/client/objects/StrokeObject.tsx      | 121 ++++++++++
+ src/client/objects/registry.tsx          |  52 +++-
+ src/client/styles.css                    | 267 +++++++++++++++++++++
+ src/client/tools/PenTool.tsx             | 291 +++++++++++++++++++++++
+ src/client/tools/PenToolbar.tsx          |  91 +++++++
+ src/client/tools/usePenOptions.ts        |  27 +++
+ src/client/ui/Toast.tsx                  |  74 ++++++
+ src/shared/board-model.ts                |  46 ++++
+ src/shared/config.ts                     | 119 ++++++++++
+ src/shared/geometry/simplify.ts          | 122 ++++++++++
+ src/shared/image-format.ts               |  74 ++++++
+ src/shared/objects/image.ts              | 230 ++++++++++++++++++
+ src/shared/objects/stroke.ts             | 197 ++++++++++++++++
+ src/worker/assets.ts                     | 150 ++++++++++++
+ src/worker/board-room.ts                 |  12 +-
+ src/worker/index.ts                      |  25 ++
+ tests/component/image-insert.test.tsx    | 391 +++++++++++++++++++++++++++++++
+ tests/component/pen-tool.test.tsx        | 217 +++++++++++++++++
+ tests/component/stroke-object.test.tsx   | 191 +++++++++++++++
+ tests/e2e/helpers/story11.ts             | 114 +++++++++
+ tests/e2e/helpers/story12.ts             | 128 ++++++++++
+ tests/e2e/story11.spec.ts                | 207 ++++++++++++++++
+ tests/e2e/story12.spec.ts                | 183 +++++++++++++++
+ tests/fixtures/doc.pdf                   |  10 +
+ tests/fixtures/img-blue.png              | Bin 0 -> 909 bytes
+ tests/fixtures/img-green.png             | Bin 0 -> 1468 bytes
+ tests/fixtures/img-orange.jpg            | Bin 0 -> 406 bytes
+ tests/fixtures/img-red.png               | Bin 0 -> 909 bytes
+ tests/fixtures/pen-paths.ts              |  72 ++++++
+ tests/integration/assets.test.ts         | 167 +++++++++++++
+ tests/unit/image-format.test.ts          |  66 ++++++
+ tests/unit/image-model.test.ts           | 190 +++++++++++++++
+ tests/unit/stroke-model.test.ts          | 183 +++++++++++++++
+ tests/unit/validate-files.test.ts        |  61 +++++
+ wrangler.jsonc                           |  17 ++
+ 47 files changed, 4920 insertions(+), 7 deletions(-)
 commit 23e9fdc6942aaeed3ae637502473b9d0552412a6
 vidi-agent  Sun Sep 27 05:16:41 2026 +0100
 

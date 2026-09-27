@@ -299,3 +299,122 @@ export const CONNECTOR_HANDLE_RADIUS_PX = 5;
  * (connector.attach). Dots outside it stay free.
  */
 export const CONNECTOR_SNAP_RADIUS_PX = 12;
+
+// ---------------------------------------------------------------------------
+// Story 11: sketch freehand with a pen.
+// ---------------------------------------------------------------------------
+
+/** The six pen colours, keyed by name (names are the stored values). */
+export const PEN_COLORS = {
+  black: '#212121',
+  blue: '#1E88E5',
+  red: '#E53935',
+  green: '#43A047',
+  orange: '#FB8C00',
+  purple: '#8E24AA',
+} as const;
+
+/** One of the {@link PEN_COLORS} names (stroke.color). */
+export type PenColor = keyof typeof PEN_COLORS;
+
+/** The three pen thicknesses, in world units (board units, scale with zoom). */
+export const PEN_THICKNESS_WORLD = { thin: 2, medium: 4, thick: 8 } as const;
+
+/** One of the {@link PEN_THICKNESS_WORLD} names (stroke.thickness). */
+export type PenThickness = keyof typeof PEN_THICKNESS_WORLD;
+
+/** Colour of newly created strokes. */
+export const DEFAULT_PEN_COLOR: PenColor = 'black';
+
+/** Thickness of newly created strokes. */
+export const DEFAULT_PEN_THICKNESS: PenThickness = 'medium';
+
+/**
+ * Ramer-Douglas-Peucker tolerance, in SCREEN px at the zoom used while
+ * drawing (pen.smooth): PenTool passes this divided by the zoom, so no
+ * finished point lies farther than one screen pixel from what was drawn.
+ */
+export const STROKE_SIMPLIFY_TOLERANCE_PX = 1;
+
+/**
+ * Maximum raw points in one stroke (pen.long_stroke): at this count the
+ * in-progress part is committed and drawing continues as a new stroke from
+ * the same last point.
+ */
+export const STROKE_MAX_POINTS = 5000;
+
+/**
+ * Screen-space selection tolerance around a stroke's line (pen.select): a
+ * click selects within ±this many screen px of the line (or half the
+ * thickness, whichever is larger).
+ */
+export const STROKE_HIT_TOLERANCE_PX = 6;
+
+/** Smallest a stroke may be resized, in world units (either dimension). */
+export const STROKE_MIN_SIZE_WORLD = 4;
+
+// ---------------------------------------------------------------------------
+// Story 12: drop images onto the board (image.*).
+//
+// Named product settings for the image object (image.types / image.size_limit /
+// image.count_limit / image.placement_size / image.aspect_resize /
+// image.uploading / image.unfinished / image.rate_limit). The asset-serving
+// cache age and the sniff window round out the worker contract (assets.api).
+// ---------------------------------------------------------------------------
+
+/**
+ * MIME types accepted for board images (image.types). SVG is deliberately
+ * excluded: a vector can carry scripts and must never be stored or served.
+ */
+export const IMAGE_ACCEPTED_TYPES = ['image/png', 'image/jpeg', 'image/gif', 'image/webp'] as const;
+
+/** One of {@link IMAGE_ACCEPTED_TYPES} (the sniffed asset content type). */
+export type AcceptedImageType = (typeof IMAGE_ACCEPTED_TYPES)[number];
+
+/** Maximum image size in bytes (image.size_limit): 10 MB. */
+export const IMAGE_MAX_BYTES = 10 * 1024 * 1024;
+
+/** Maximum images added in one drop/paste/pick action (image.count_limit). */
+export const IMAGE_MAX_FILES_PER_ADD = 20;
+
+/**
+ * Longest-side cap for a newly placed image, in world units
+ * (image.placement_size): natural pixels, scaled down so the longest side is
+ * at most this; never upscaled.
+ */
+export const IMAGE_MAX_PLACE_SIZE_WORLD = 800;
+
+/** Smallest an image may be resized to, in world units (image.aspect_resize). */
+export const IMAGE_MIN_SIZE_WORLD = 16;
+
+/** Horizontal gap between images placed in a row, in world units (image.drop). */
+export const IMAGE_LAYOUT_GAP_WORLD = 24;
+
+/**
+ * An upload still in flight after this long is shown as "didn't finish"
+ * (image.unfinished), instead of "Uploading…" forever.
+ */
+export const IMAGE_UPLOAD_STALE_MS = 5 * 60 * 1000;
+
+/**
+ * Upload rate limit (image.rate_limit): at most this many image uploads per
+ * visitor per window. MUST stay in sync with the ASSET_UPLOAD_LIMITER
+ * `ratelimits` binding in wrangler.jsonc.
+ */
+export const IMAGE_UPLOAD_LIMIT = 60;
+
+/** Window for {@link IMAGE_UPLOAD_LIMIT}, in seconds. */
+export const IMAGE_UPLOAD_PERIOD_SECONDS = 60;
+
+/**
+ * How long served assets are cached. Keys are unguessable and immutable, so
+ * `immutable` caching is safe (image.shared / story 17 export).
+ */
+export const ASSET_CACHE_MAX_AGE_SECONDS = 31_536_000;
+
+/**
+ * How many leading bytes the worker reads to sniff the image type
+ * (image.types): enough for the PNG (8-byte) and WebP (RIFF + WEBP at 8-12)
+ * signatures.
+ */
+export const IMAGE_SNIFF_BYTES = 12;

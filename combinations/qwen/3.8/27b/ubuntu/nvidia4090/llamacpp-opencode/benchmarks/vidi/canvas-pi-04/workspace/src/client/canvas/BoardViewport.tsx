@@ -49,6 +49,12 @@ export function BoardViewport(props: {
    * starts the draw (shapes.create / connector.attach).
    */
   drawingToolActive?: boolean;
+  /**
+   * Story 11: true while the Pen tool is active. The OS cursor is hidden
+   * (the PenTool renders a round cursor sized to the thickness instead);
+   * the viewport still does not pan/marquee (that is drawingToolActive).
+   */
+  penToolActive?: boolean;
 }): JSX.Element {
   const viewportRef = useRef<HTMLDivElement | null>(null);
   const size = useElementSize(viewportRef);
@@ -294,7 +300,9 @@ export function BoardViewport(props: {
       ref={viewportRef}
       className={`board-viewport${panning ? ' is-panning' : ''}${
         props.textToolActive ? ' is-text-tool' : ''
-      }${props.drawingToolActive ? ' is-drawing-tool' : ''}`}
+      }${props.drawingToolActive ? ' is-drawing-tool' : ''}${
+        props.penToolActive ? ' is-pen-tool' : ''
+      }`}
       data-testid="board-viewport"
       style={{
         backgroundImage:

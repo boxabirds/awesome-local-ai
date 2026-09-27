@@ -16,12 +16,24 @@ import { objectBounds } from '../../shared/board-model';
 import type { ObjectSnapshot } from '../../shared/board-model';
 import { distanceToPolyline } from '../../shared/geometry/polyline';
 import type { Point } from '../../shared/geometry';
-import { CONNECTOR_HIT_TOLERANCE_PX, SHAPE_MIN_SIZE_WORLD, STICKY_MIN_SIZE_WORLD, TEXT_MIN_WIDTH_WORLD } from '../../shared/config';
+import {
+  CONNECTOR_HIT_TOLERANCE_PX,
+  IMAGE_MIN_SIZE_WORLD,
+  SHAPE_MIN_SIZE_WORLD,
+  STICKY_MIN_SIZE_WORLD,
+  STROKE_HIT_TOLERANCE_PX,
+  STROKE_MIN_SIZE_WORLD,
+  TEXT_MIN_WIDTH_WORLD,
+} from '../../shared/config';
 import type { ConnectorSnap } from '../../shared/objects/connector';
 import type { ShapeSnap } from '../../shared/objects/shape';
+import type { StrokeSnap } from '../../shared/objects/stroke';
+import { scaledPoints } from '../../shared/objects/stroke';
 import { ConnectorObject } from './ConnectorObject';
+import { ImageObject } from './ImageObject';
 import { ShapeObject } from './ShapeObject';
 import { StickyNote } from './StickyNote';
+import { StrokeObject } from './StrokeObject';
 import { TextObject } from './TextObject';
 
 /**
@@ -160,8 +172,46 @@ registerObjectType('connector', {
   },
 });
 
+// Story 11: freehand strokes (anchor: stroke.object). Resizable, aspect-
+// locked (pen.resize), minimum side STROKE_MIN_SIZE_WORLD; selection is by
+// the hit band around the drawn line, so clicks inside the bbox but away
+// from the line fall through to objects below (pen.select).
+registerObjectType('stroke', {
+  Component: StrokeObject,
+  resizable: true,
+  aspectLocked: true,
+  minSize: STROKE_MIN_SIZE_WORLD,
+  editableText: false,
+  // Coarse world-unit approximation (the registry API has no zoom); the
+  // precise ±STROKE_HIT_TOLERANCE_PX screen-px band is the DOM hit line in
+  // StrokeObject.
+  hitTest: (obj, point) => {
+    const snap = obj as StrokeSnap;
+    return distanceToPolyline(scaledPoints(snap), point) <= STROKE_HIT_TOLERANCE_PX;
+  },
+});
+
 // Story 9: free text (anchor: text.object). Resizable by width only (e/w
 // handles), never aspect-locked, minimum side TEXT_MIN_WIDTH_WORLD.
+// Story 12: images (anchor: image.object). Resizable, aspect-locked
+// (image.aspect_resize), minimum side IMAGE_MIN_SIZE_WORLD, no editable text.
+registerObjectType('image', {
+  Component: ImageObject,
+  resizable: true,
+  aspectLocked: true,
+  minSize: IMAGE_MIN_SIZE_WORLD,
+  editableText: false,
+  hitTest: (obj, point) => {
+    const b = objectBounds(obj);
+    return (
+      point.x >= b.x &&
+      point.x < b.x + b.width &&
+      point.y >= b.y &&
+      point.y < b.y + b.height
+    );
+  },
+});
+
 registerObjectType('text', {
   Component: TextObject,
   resizable: true,

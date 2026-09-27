@@ -16,7 +16,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { ShapeKind } from '../../shared/config';
 
-export type Tool = 'select' | 'text' | 'shape' | 'connector';
+export type Tool = 'select' | 'text' | 'shape' | 'connector' | 'pen';
 
 export interface ToolApi {
   tool: Tool;

@@ -47,6 +47,13 @@ import { useTool } from './board/useTool';
 import { getIdentityId } from './identity';
 import { ShapeTool } from './tools/ShapeTool';
 import { ConnectorTool } from './tools/ConnectorTool';
+import { PenTool } from './tools/PenTool';
+import { PenToolbar } from './tools/PenToolbar';
+import { usePenOptions } from './tools/usePenOptions';
+import { useImageInsert } from './images/useImageInsert';
+import { DropHighlight } from './images/DropHighlight';
+import { ImageUploadContext } from './images/ImageUploadContext';
+import { Toasts } from './ui/Toast';
 import type { Point, Rect } from '../shared/geometry';
 import { HomePage } from './pages/HomePage';
 import { BoardPage } from './pages/BoardPage';
@@ -81,6 +88,8 @@ export function Board(props: { boardId: string }): JSX.Element {
   const { tool, shapeKind, setTool, setShapeKind, toolCreated } = useTool(editable, {
     onSelectCreated: (id) => selection.click(id),
   });
+  // Story 11: the pen's colour and thickness (per-client session state).
+  const penOptions = usePenOptions();
   const measure = sharedMeasurer();
 
   // Story 8: one undo controller per board doc (undo.session_only). It is
@@ -97,6 +106,18 @@ export function Board(props: { boardId: string }): JSX.Element {
     };
   }, [doc]);
   const undo = useUndo(undoController, editable);
+
+  // Story 12: image insertion (drop / paste / picker) + the per-image upload
+  // API (progress, retry, remove) provided to ImageObjects via context.
+  const imageInsert = useImageInsert({
+    doc,
+    boardId: props.boardId,
+    camera,
+    viewport,
+    identityId: getIdentityId(),
+    canEdit: editable,
+    undo: undoController,
+  });
 
   // The shared transform gesture: group move (object pointerdown) and
   // bounding-box resize (handle pointerdown) for every registered type.
@@ -181,6 +202,7 @@ export function Board(props: { boardId: string }): JSX.Element {
     undo: undoController,
     tool: { tool, setTool },
     onCreateStickyAtCenter: createAtCenter,
+    onImagePicker: imageInsert.openPicker,
   });
 
   // Story 9 (text.create): a click while the Text tool is active creates a
@@ -260,7 +282,14 @@ export function Board(props: { boardId: string }): JSX.Element {
 
   return (
     <UndoControllerContext.Provider value={undoController}>
-    <div className="app-root">
+    <ImageUploadContext.Provider value={imageInsert.uploadApi}>
+    <div
+      className="app-root"
+      onDragEnter={imageInsert.dropHandlers.onDragEnter}
+      onDragOver={imageInsert.dropHandlers.onDragOver}
+      onDragLeave={imageInsert.dropHandlers.onDragLeave}
+      onDrop={imageInsert.dropHandlers.onDrop}
+    >
       <BoardViewport
         onCreateStickyAt={createAtPoint}
         onClearSelection={() => selection.clear()}
@@ -270,7 +299,8 @@ export function Board(props: { boardId: string }): JSX.Element {
         onMarqueeCancel={marquee.cancel}
         textToolActive={tool === 'text'}
         onTextCreateAt={createTextAt}
-        drawingToolActive={tool === 'shape' || tool === 'connector'}
+        drawingToolActive={tool === 'shape' || tool === 'connector' || tool === 'pen'}
+        penToolActive={tool === 'pen'}
       >
         {objects.map((obj) => {
           const spec = getObjectType(obj.type);
@@ -309,6 +339,7 @@ export function Board(props: { boardId: string }): JSX.Element {
           pointer-events: none except the interactive handles/bar, so pans,
           marquee and object presses still reach the board beneath. */}
       <div className="board-overlay">
+        <DropHighlight active={imageInsert.isDragActive} />
         <MarqueeRect rect={marquee.rect} camera={camera} />
         <SelectionOverlay
           ids={selection.ids}
@@ -340,6 +371,26 @@ export function Board(props: { boardId: string }): JSX.Element {
             onCreateConnector={createConnectorFromGesture}
           />
         )}
+        {/* Story 11: the pen's preview + round cursor (pointer-events none;
+            the tool listens on window). The options toolbar sits beside the
+            left toolbar. */}
+        {tool === 'pen' && (
+          <PenTool
+            camera={camera}
+            color={penOptions.color}
+            thickness={penOptions.thickness}
+            doc={doc}
+            identityId={getIdentityId()}
+          />
+        )}
+        {tool === 'pen' && (
+          <PenToolbar
+            color={penOptions.color}
+            thickness={penOptions.thickness}
+            onColor={penOptions.setColor}
+            onThickness={penOptions.setThickness}
+          />
+        )}
       </div>
 
       <Toolbar
@@ -349,6 +400,7 @@ export function Board(props: { boardId: string }): JSX.Element {
         setTool={setTool}
         shapeKind={shapeKind}
         setShapeKind={setShapeKind}
+        onImage={imageInsert.openPicker}
         {...undo}
       />
       <ZoomControls
@@ -365,7 +417,17 @@ export function Board(props: { boardId: string }): JSX.Element {
       />
       <NavigationHint visible={!hasNavigated} />
       <ConnectionStatus state={connectionState} />
+      <Toasts toasts={imageInsert.toasts} />
+      <input
+        type="file"
+        ref={imageInsert.pickerRef}
+        accept={imageInsert.accept}
+        multiple
+        className="image-picker-input"
+        onChange={imageInsert.onInputChange}
+      />
     </div>
+    </ImageUploadContext.Provider>
     </UndoControllerContext.Provider>
   );
 }

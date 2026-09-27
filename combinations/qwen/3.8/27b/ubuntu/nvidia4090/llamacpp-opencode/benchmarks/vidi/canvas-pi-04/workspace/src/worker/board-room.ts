@@ -30,7 +30,7 @@
 // anything decodeMessage marks invalid closes the SENDER's socket with
 // CLOSE_UNSUPPORTED_DATA (1003).
 
-import { DurableObject, DurableObjectNamespace } from 'cloudflare:workers';
+import { DurableObject, DurableObjectNamespace, type R2Bucket } from 'cloudflare:workers';
 import { createDecoder } from 'lib0/decoding';
 import {
   createEncoder,
@@ -77,6 +77,16 @@ export interface Env {
    * create-board.ts then falls back to an in-memory limiter.
    */
   BOARD_CREATE_LIMITER?: Limiter;
+  /**
+   * Story 12 (assets.api / image.shared): the R2 bucket holding image assets.
+   */
+  IMAGE_BUCKET?: R2Bucket;
+  /**
+   * Story 12 (image.rate_limit): the Workers `ratelimits` binding for image
+   * uploads. Undefined in runtimes that don't materialize it locally;
+   * assets.ts then falls back to an in-memory limiter.
+   */
+  ASSET_UPLOAD_LIMITER?: Limiter;
 }
 
 /** One seeded shape (story 10 seed-flow hook). */

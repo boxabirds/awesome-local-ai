@@ -10,12 +10,18 @@
 
 import * as Y from 'yjs';
 import {
+  DEFAULT_PEN_COLOR,
+  DEFAULT_PEN_THICKNESS,
   DEFAULT_SHAPE_FILL,
   DEFAULT_SHAPE_STROKE,
   DEFAULT_STICKY_COLOR,
+  PEN_COLORS,
+  PEN_THICKNESS_WORLD,
   STICKY_COLORS,
   STICKY_SIZE_WORLD,
   TEXT_SIZES,
+  type PenColor,
+  type PenThickness,
   type StickyColor,
 } from './config';
 import { rectContains } from './geometry';
@@ -518,6 +524,46 @@ export function objectSnapshot(doc: Y.Doc): readonly ObjectSnapshot[] {
       text.createdAt = asNumber(obj.get('createdAt'), 0);
       const createdBy = obj.get('createdBy');
       text.createdBy = typeof createdBy === 'string' ? createdBy : '';
+    } else if (type === 'stroke') {
+      // Story 11: the flattened points (bbox-relative, creation size) plus the
+      // creation size and style. Read here (not via the stroke module) so the
+      // shared layer stays free of the object-module dependency.
+      const stroke = snap as import('./objects/stroke').StrokeSnap;
+      const rawPoints = obj.get('points');
+      const flat: number[] = [];
+      if (Array.isArray(rawPoints)) {
+        for (const v of rawPoints) {
+          if (typeof v === 'number' && Number.isFinite(v)) flat.push(v);
+        }
+      }
+      stroke.points = flat;
+      stroke.baseWidth = asNumber(obj.get('baseWidth'), 0);
+      stroke.baseHeight = asNumber(obj.get('baseHeight'), 0);
+      const color = obj.get('color');
+      stroke.color = typeof color === 'string' && color in PEN_COLORS ? (color as PenColor) : DEFAULT_PEN_COLOR;
+      const thickness = obj.get('thickness');
+      stroke.thickness =
+        typeof thickness === 'string' && thickness in PEN_THICKNESS_WORLD ? (thickness as PenThickness) : DEFAULT_PEN_THICKNESS;
+      stroke.createdAt = asNumber(obj.get('createdAt'), 0);
+      const createdBy = obj.get('createdBy');
+      stroke.createdBy = typeof createdBy === 'string' ? createdBy : '';
+    } else if (type === 'image') {
+      // Story 12: the asset reference, natural size and upload status
+      // (image.model). Read here so the shared layer stays free of the
+      // object-module dependency.
+      const image = snap as import('./objects/image').ImageSnap;
+      const assetKey = obj.get('assetKey');
+      image.assetKey = typeof assetKey === 'string' ? assetKey : null;
+      const contentType = obj.get('contentType');
+      image.contentType = typeof contentType === 'string' ? contentType : '';
+      image.naturalWidth = asNumber(obj.get('naturalWidth'), 0);
+      image.naturalHeight = asNumber(obj.get('naturalHeight'), 0);
+      const status = obj.get('status');
+      image.status =
+        status === 'ready' || status === 'failed' ? status : 'uploading';
+      image.uploadStartedAt = asNumber(obj.get('uploadStartedAt'), 0);
+      const uploaderId = obj.get('uploaderId');
+      image.uploaderId = typeof uploaderId === 'string' ? uploaderId : '';
     }
     out.push(snap);
   }

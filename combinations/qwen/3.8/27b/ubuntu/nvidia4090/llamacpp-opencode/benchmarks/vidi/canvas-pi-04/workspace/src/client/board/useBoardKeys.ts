@@ -26,6 +26,8 @@ export interface BoardKeysOptions {
   tool?: { tool: Tool; setTool(tool: Tool): void } | null;
   /** Story 9: N creates a sticky note at the view centre (story 2 behaviour). */
   onCreateStickyAtCenter?: (() => void) | null;
+  /** Story 12: I opens the image picker (then the tool returns to Select). */
+  onImagePicker?: (() => void) | null;
 }
 
 function isTypingTarget(target: EventTarget | null): boolean {
@@ -41,7 +43,7 @@ export function useBoardKeys(opts: BoardKeysOptions): void {
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent): void => {
       if (isTypingTarget(e.target)) return;
-      const { doc, selection, snapshot, canEdit, undo, tool, onCreateStickyAtCenter } =
+      const { doc, selection, snapshot, canEdit, undo, tool, onCreateStickyAtCenter, onImagePicker } =
         optsRef.current;
       if (selection.editingId !== null) return;
 
@@ -74,8 +76,19 @@ export function useBoardKeys(opts: BoardKeysOptions): void {
           tool?.setTool('connector');
           return;
         }
+        // Story 11 (pen.tool): P -> Pen (stays active after each stroke);
+        // ignored read-only (the hook's setTool enforces that).
+        if (e.key === 'p' || e.key === 'P') {
+          tool?.setTool('pen');
+          return;
+        }
         if (e.key === 'n' || e.key === 'N') {
           if (canEdit) onCreateStickyAtCenter?.();
+          return;
+        }
+        // Story 12 (image.pick): I opens the picker; ignored read-only.
+        if (e.key === 'i' || e.key === 'I') {
+          if (canEdit) onImagePicker?.();
           return;
         }
       }
