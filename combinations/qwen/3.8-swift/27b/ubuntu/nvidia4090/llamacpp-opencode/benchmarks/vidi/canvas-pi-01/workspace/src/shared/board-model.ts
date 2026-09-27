@@ -32,6 +32,8 @@ import {
 } from './config';
 import type { Point, Rect } from './geometry';
 import type { FillColor, ShapeKind, StrokeColor } from './objects/shape';
+import type { PenColor, PenThickness } from './objects/stroke';
+import { PEN_COLORS, PEN_THICKNESS_WORLD } from './config';
 import {
   connectorBBox,
   parseEndpoint,
@@ -54,9 +56,17 @@ export interface ObjectSnapshot {
   /** Explicit size (world units); absent for stickies created before story 7. */
   width?: number;
   height?: number;
-  /** Sticky notes only. */
-  color?: StickyColor;
+  /** Sticky notes (sticky colour name) and strokes (pen colour name). */
+  color?: StickyColor | PenColor;
   text?: string;
+  /** Stroke objects only (story 11): flattened [x0, y0, ...] relative to
+   *  (x, y), at the base size. */
+  points?: readonly number[];
+  /** Stroke objects only (story 11): bbox size at creation. */
+  baseWidth?: number;
+  baseHeight?: number;
+  /** Stroke objects only (story 11): thickness preset key. */
+  thickness?: PenThickness;
   /** Text objects only (story 9): size preset key. */
   size?: TextSize;
   /** Text objects only (story 9): auto or fixed width mode. */
@@ -98,7 +108,7 @@ const SCHEMA_VERSION = 1;
 // registerObjectTypeName from its own module top level: board-model imports
 // connector.ts (detachConnectorsTo) and connector.ts imports board-model, so
 // its module body must not touch this set during that circular evaluation.
-const knownTypes = new Set<string>(['sticky', 'shape', 'connector']);
+const knownTypes = new Set<string>(['sticky', 'shape', 'connector', 'stroke']);
 
 /** Mark a type name as known to the document model (idempotent). */
 export function registerObjectTypeName(type: string): void {
@@ -351,6 +361,14 @@ export function getStickyText(doc: Y.Doc, id: string): Y.Text | undefined {
   return text instanceof Y.Text ? text : undefined;
 }
 
+function isFiniteNumberArray(value: unknown): value is readonly number[] {
+  if (!Array.isArray(value)) return false;
+  for (const v of value) {
+    if (typeof v !== 'number' || !Number.isFinite(v)) return false;
+  }
+  return true;
+}
+
 function isValidObject(
   x: unknown,
   y: unknown,
@@ -438,6 +456,37 @@ export function snapshot(doc: Y.Doc): readonly ObjectSnapshot[] {
         fill: fill as FillColor,
         stroke: stroke as StrokeColor,
         label: label.toString(),
+        z: z as number,
+        createdAt: createdAt as number,
+      });
+      continue;
+    }
+    if (type === 'stroke') {
+      const points = object.get('points');
+      const baseWidth = object.get('baseWidth');
+      const baseHeight = object.get('baseHeight');
+      const thickness = object.get('thickness');
+      if (
+        !isFiniteNumberArray(points) ||
+        typeof baseWidth !== 'number' || !Number.isFinite(baseWidth) || baseWidth <= 0 ||
+        typeof baseHeight !== 'number' || !Number.isFinite(baseHeight) || baseHeight <= 0 ||
+        typeof color !== 'string' || !(color in PEN_COLORS) ||
+        typeof thickness !== 'string' || !(thickness in PEN_THICKNESS_WORLD)
+      ) {
+        continue;
+      }
+      out.push({
+        id,
+        type,
+        x: x as number,
+        y: y as number,
+        width: width as number,
+        height: height as number,
+        points: points as readonly number[],
+        baseWidth: baseWidth as number,
+        baseHeight: baseHeight as number,
+        color: color as PenColor,
+        thickness: thickness as PenThickness,
         z: z as number,
         createdAt: createdAt as number,
       });

@@ -204,3 +204,32 @@ export const TEXT_FONT_FAMILY = 'Inter, system-ui, sans-serif';
  * width when no canvas measurer is available (jsdom, worker, first paint).
  */
 export const TEXT_AVG_GLYPH_WIDTH_RATIO = 0.6;
+
+// ---- Pen (story 11) ----
+
+/** The six pen colours (pen.options). */
+export const PEN_COLORS = {
+  black: '#212121',
+  blue: '#1E88E5',
+  red: '#E53935',
+  green: '#43A047',
+  orange: '#FB8C00',
+  purple: '#8E24AA',
+} as const;
+/** The three pen thicknesses, in board units (pen.options). */
+export const PEN_THICKNESS_WORLD = { thin: 2, medium: 4, thick: 8 } as const;
+/** Colour of newly created strokes. */
+export const DEFAULT_PEN_COLOR: keyof typeof PEN_COLORS = 'black';
+/** Thickness of newly created strokes. */
+export const DEFAULT_PEN_THICKNESS: keyof typeof PEN_THICKNESS_WORLD = 'medium';
+/** Smoothing fidelity: finished strokes stay within this many screen pixels
+ *  of the drawn path, at the zoom used while drawing (pen.smooth). */
+export const STROKE_SIMPLIFY_TOLERANCE_PX = 1;
+/** A stroke being drawn is finished (and a new one started) at this many
+ *  recorded points (pen.long_stroke). */
+export const STROKE_MAX_POINTS = 5000;
+/** Clicks within this many SCREEN pixels of a stroke's line select it
+ *  (pen.select). */
+export const STROKE_HIT_TOLERANCE_PX = 6;
+/** Smallest size (board units) a stroke may be resized to. */
+export const STROKE_MIN_SIZE_WORLD = 4;

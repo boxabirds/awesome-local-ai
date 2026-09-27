@@ -37,6 +37,9 @@ import { SelectionOverlay } from '../board/SelectionOverlay';
 import { ShapeToolbar } from '../board/ShapeToolbar';
 import { ConnectorTool } from '../tools/ConnectorTool';
 import { ShapeTool } from '../tools/ShapeTool';
+import { PenToolbar } from '../tools/PenToolbar';
+import { PenTool } from '../tools/PenTool';
+import { usePenOptions } from '../tools/usePenOptions';
 import { Toolbar } from '../board/Toolbar';
 import { getObjectType } from '../objects/registry';
 import { ConnectionStatus } from '../sync/ConnectionStatus';
@@ -160,6 +163,10 @@ function Board({ boardId }: { boardId: string }) {
   // Active tool (tools.active_tool): 'select' by default, reverts to
   // 'select' when the board becomes non-editable.
   const { tool, shapeKind, setTool, setShapeKind, toolCreated } = useActiveTool(editable, selection);
+
+  // Pen options (story 11): session-only colour + thickness, shared by the
+  // Pen toolbar and the Pen tool.
+  const pen = usePenOptions();
 
   // Per-user undo/redo (story 8): one controller per board doc, tracking only
   // this tab's LOCAL_ORIGIN transactions; destroyed on unmount (a board
@@ -380,6 +387,18 @@ function Board({ boardId }: { boardId: string }) {
         onMarqueeMove={marquee.move}
         onMarqueeEnd={marquee.end}
         onMarqueeCancel={marquee.cancel}
+        screenOverlays={
+          tool === 'pen' ? (
+            <PenTool
+              camera={cam.camera}
+              color={pen.color}
+              thickness={pen.thickness}
+              doc={doc}
+              identityId={`c${doc.clientID}`}
+              undo={undo}
+            />
+          ) : undefined
+        }
       >
         <MarqueeRect rect={marquee.rect} />
         {notes.map((note) => {
@@ -444,6 +463,16 @@ function Board({ boardId }: { boardId: string }) {
         onToolChange={setTool}
         onShapeKindChange={setShapeKind}
       />
+      {tool === 'pen' && (
+        <div className="pen-toolbar-anchor" onPointerDown={(e) => e.stopPropagation()} onDoubleClick={(e) => e.stopPropagation()}>
+          <PenToolbar
+            color={pen.color}
+            thickness={pen.thickness}
+            onColor={pen.setColor}
+            onThickness={pen.setThickness}
+          />
+        </div>
+      )}
       {selectionBar}
       {shapeToolbar}
       {selection.ids.size > 0 && (

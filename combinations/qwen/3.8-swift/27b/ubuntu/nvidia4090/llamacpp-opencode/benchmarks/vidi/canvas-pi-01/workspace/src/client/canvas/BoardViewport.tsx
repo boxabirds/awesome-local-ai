@@ -39,6 +39,9 @@ export interface BoardViewportProps {
   onMarqueeMove?: (screenPoint: Point) => void;
   onMarqueeEnd?: () => void;
   onMarqueeCancel?: () => void;
+  /** Screen-space overlays (the Pen tool, story 11): rendered inside the
+   *  viewport so wheel/gesture events still reach the camera handlers. */
+  screenOverlays?: ReactNode;
 }
 
 /** Positive modulo in [0, m). */
@@ -58,6 +61,7 @@ export function BoardViewport({
   onMarqueeMove,
   onMarqueeEnd,
   onMarqueeCancel,
+  screenOverlays,
 }: BoardViewportProps) {
   const viewportRef = useRef<HTMLDivElement | null>(null);
   const downPointRef = useRef<Point | null>(null);
@@ -294,6 +298,7 @@ export function BoardViewport({
         <div data-testid="origin-marker" aria-hidden="true" className="origin-marker" />
         {children}
       </div>
+      {screenOverlays}
     </div>
   );
 }

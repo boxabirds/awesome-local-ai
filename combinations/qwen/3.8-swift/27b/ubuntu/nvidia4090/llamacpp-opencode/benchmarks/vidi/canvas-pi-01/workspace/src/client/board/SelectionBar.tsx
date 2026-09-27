@@ -54,7 +54,7 @@ export function SelectionBar(props: SelectionBarProps): JSX.Element | null {
     const [id] = ids.values();
     const obj = snapshot.find((o) => o.id === id);
     if (obj !== undefined && obj.type === 'sticky') {
-      return <NoteToolbar color={obj.color ?? DEFAULT_STICKY_COLOR} onColor={onColor} onDelete={onDelete} />;
+      return <NoteToolbar color={(obj.color ?? DEFAULT_STICKY_COLOR) as StickyColor} onColor={onColor} onDelete={onDelete} />;
     }
     if (obj !== undefined && obj.type === 'text') {
       const size = (obj as ObjectSnapshot & TextSnapshot).size;

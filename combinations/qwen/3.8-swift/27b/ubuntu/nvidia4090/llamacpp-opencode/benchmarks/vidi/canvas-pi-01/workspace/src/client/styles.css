@@ -744,3 +744,123 @@ body {
 .connector-handle:hover {
   fill: #2563eb;
 }
+
+/* ---- pen tool: cursor ring + preview, screen-space (story 11) ---- */
+.pen-tool {
+  position: absolute;
+  inset: 0;
+  cursor: none;
+  z-index: 5;
+}
+.pen-tool__preview {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  pointer-events: none;
+}
+.pen-tool__cursor {
+  position: absolute;
+  left: 0;
+  top: 0;
+  border-radius: 50%;
+  border: 1.5px solid;
+  box-sizing: border-box;
+  pointer-events: none;
+}
+
+/* ---- pen toolbar (next to the left toolbar, story 11) ---- */
+.pen-toolbar-anchor {
+  position: fixed;
+  left: 88px;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 10;
+}
+.pen-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px;
+  background: #ffffff;
+  border: 1px solid #d9dde3;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+.pen-toolbar__group {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+.pen-toolbar__swatch {
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border: 1px solid rgba(0, 0, 0, 0.25);
+  border-radius: 50%;
+  cursor: pointer;
+}
+.pen-toolbar__swatch[aria-pressed='true'] {
+  outline: 2px solid #2563eb;
+  outline-offset: 1px;
+}
+.pen-toolbar__swatch:focus-visible {
+  outline: 2px solid #2563eb;
+  outline-offset: 1px;
+}
+.pen-toolbar__thickness {
+  width: 26px;
+  height: 26px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  cursor: pointer;
+}
+.pen-toolbar__thickness[aria-pressed='true'] {
+  background: #eef4ff;
+  border-color: #2563eb;
+}
+.pen-toolbar__thickness:focus-visible {
+  outline: 2px solid #2563eb;
+  outline-offset: 1px;
+}
+.pen-toolbar__thickness-dot {
+  border-radius: 50%;
+  background: #212121;
+  display: block;
+}
+
+/* ---- toolbar pen button (story 11) ---- */
+.toolbar-pen {
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: none;
+  border-radius: 6px;
+  color: #374151;
+  cursor: pointer;
+}
+.toolbar-pen:hover {
+  background: #f1f3f6;
+}
+.toolbar-pen[aria-pressed='true'] {
+  background: #2563eb;
+  color: #ffffff;
+}
+.toolbar-pen:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+/* ---- stroke object (story 11) ---- */
+.stroke-object {
+  overflow: visible;
+}

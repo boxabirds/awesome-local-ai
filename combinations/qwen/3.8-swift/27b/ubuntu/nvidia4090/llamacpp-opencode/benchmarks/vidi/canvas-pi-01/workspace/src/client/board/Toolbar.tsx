@@ -164,6 +164,25 @@ export function Toolbar({
           <path d="M3 17L15 5M15 5h-5m5 0v5" fill="none" stroke="currentColor" strokeWidth="1.5" />
         </svg>
       </button>
+      <button
+        type="button"
+        className="toolbar-pen"
+        data-testid="pen"
+        aria-label="Pen (P)"
+        aria-pressed={tool === 'pen'}
+        title="Pen (P)"
+        disabled={disabled}
+        onClick={() => onToolChange?.('pen')}
+      >
+        <svg width="20" height="20" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
+          <path
+            d="M13.6 2.4l4 4L7 17l-5 1 1-5L13.6 2.4z"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.5"
+          />
+        </svg>
+      </button>
       <UndoButtons {...undo} />
     </div>
   );

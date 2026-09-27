@@ -352,3 +352,57 @@ Undo and redo my own changes without undoing anyone else's. All tests pass:
 - `tests/component/UndoControls.test.tsx` — TC-18..21 (buttons, shortcuts,
   edit lock, input focus).
 - `tests/e2e/undo.spec.ts` — TC-22..24 (chromium/firefox/webkit).
+
+# Story 11 — Notes
+
+Sketch freehand with a pen. All tests pass:
+
+- `npm run typecheck` — clean
+- `npm run test:unit` — 183/183 (incl. stroke TC-01..08)
+- `npm run test:component` — 116/116 (incl. PenTool TC-09..14, StrokeObject TC-16, TC-21)
+- `npm run test:e2e` — pen.spec TC-17..20 × chromium/firefox/webkit
+- `npm run build` — production bundle builds
+
+## Decisions and deviations
+
+- **Pen overlay lives in `BoardViewport`'s `screenOverlays`** so wheel/gesture
+  events bubble to the viewport's native listener — pan/zoom still work with the
+  pen active (TC-19). Existing `event.target !== el` guards in the viewport's
+  pan / empty-click / double-click-sticky handlers ignore the overlay, so the
+  pen never fights the camera.
+- **`stroke.points` are bbox-relative** (stored as a flat `[x0,y0,x1,y1,…]`,
+  each coordinate = world − bbox origin). `scaledPoints` rebuilds them from the
+  bbox + scale factor, so a proportional resize (aspect-locked) rescales the ink
+  geometry while `thickness` stays a world-unit preset (TC-20 asserts the
+  rendered `stroke-width` is unchanged).
+- **Registry `hitTest(obj, worldPoint, zoom?)`** gained an optional `zoom` so a
+  screen-px tolerance (`STROKE_HIT_TOLERANCE_PX / zoom`, floored by
+  `thickness/2`) converts correctly at any zoom; the existing 2-arg call
+  (zoom 1) is backward compatible. The stroke's hit path is an invisible,
+  wider `stroke`-pointer-events path over the visible path (TC-15).
+- **Preview is rAF-coalesced** (`schedulePreview` → one flush per frame) and
+  **cancelled on release** (`cancelPreview` in `finish`/`onCancel`/
+  `onLostPointerCapture`) — a pending flush that fires after `pointerup` would
+  otherwise re-set the preview `d` after it was cleared (the e2e TC-17 caught
+  this race).
+- **`ObjectSnapshot.color` widened to `StickyColor | PenColor`**; `StickyNote`
+  and `SelectionBar` cast back to `StickyColor` (a sticky never carries a pen
+  colour).
+- **`splitPoints` trailing join:** a lone join point (input length an exact
+  multiple of `STROKE_MAX_POINTS`) is not a new part (`part.length > 1` guard),
+  so a 5010-point drag commits exactly 2 strokes of 5000 + 10 (TC-11).
+- **jsdom component tests** dispatch `MouseEvent` (no `PointerEvent`), and
+  `getBoundingClientRect` returns zeros so world = screen under the home camera;
+  `setPointerCapture` is a no-op there (moves still arrive on the overlay).
+
+## Test-to-spec map (story 11)
+
+- `tests/unit/stroke.test.ts` — TC-01..08 (simplify, smoothPath, createStroke,
+  scaledPoints, validation).
+- `tests/fixtures/pen-paths.ts` — deterministic HANDWRITTEN_LOOP / UNDERLINE /
+  LONG_SPIRAL fixtures (seeded PRNG).
+- `tests/component/PenTool.test.tsx` — TC-09..14 (capture, rAF preview, coalesced
+  moves, max-point split, options).
+- `tests/component/StrokeObject.test.tsx` — TC-16 (hit fall-through), TC-21
+  (delete clears selection).
+- `tests/e2e/pen.spec.ts` — TC-17..20 (chromium/firefox/webkit).

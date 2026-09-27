@@ -21,14 +21,20 @@ import { pointInRect, type Point, type Rect } from '../../shared/geometry';
 import {
   CONNECTOR_HIT_TOLERANCE_PX,
   CONNECTOR_MIN_LENGTH_WORLD,
+  PEN_THICKNESS_WORLD,
   SHAPE_MIN_SIZE_WORLD,
   STICKY_MIN_SIZE_WORLD,
+  STROKE_HIT_TOLERANCE_PX,
+  STROKE_MIN_SIZE_WORLD,
   TEXT_MIN_WIDTH_WORLD,
 } from '../../shared/config';
 import type { Endpoint } from '../../shared/geometry/connector-geometry';
+import { distanceToPolyline } from '../../shared/geometry/polyline';
+import { scaledPoints, type StrokeSnap } from '../../shared/objects/stroke';
 import { ConnectorObject } from './ConnectorObject';
 import { ShapeObject } from './ShapeObject';
 import { StickyNote } from './StickyNote';
+import { StrokeObject } from './StrokeObject';
 import { TextObject } from './TextObject';
 import type { Camera } from '../canvas/camera';
 
@@ -84,8 +90,9 @@ export interface ObjectTypeSpec {
   /** Which resize handles the selection overlay shows when this type is the
    *  only kind selected: 'all' (default) or 'horizontal' (e/w only, text). */
   handles?: 'all' | 'horizontal';
-  /** Hit test in world units (future types may have irregular bounds). */
-  hitTest(obj: ObjectSnapshot, worldPoint: Point): boolean;
+  /** Hit test in world units (future types may have irregular bounds).
+   *  `zoom` (default 1) lets screen-px tolerances be converted to world. */
+  hitTest(obj: ObjectSnapshot, worldPoint: Point, zoom?: number): boolean;
 }
 
 const registry = new Map<string, ObjectTypeSpec>();
@@ -176,5 +183,34 @@ registerObjectType('connector', {
       height: Math.abs(a.y - b.y) + 2 * CONNECTOR_HIT_TOLERANCE_PX,
     };
     return pointInRect(box, point);
+  },
+});
+
+/** Stroke (story 11): proportional resize only (aspect-locked, min size),
+ *  no text; a click within max(thickness/2, STROKE_HIT_TOLERANCE_PX / zoom)
+ *  of the line selects it (pen.select). */
+registerObjectType('stroke', {
+  Component: (props: ObjectProps) => (
+    <StrokeObject
+      stroke={props.obj as StrokeSnap}
+      zoom={props.zoom}
+      selected={props.selected}
+      editable={props.editable}
+      onObjectPointerDown={props.onObjectPointerDown}
+      onFocusSelect={props.onFocusSelect}
+    />
+  ),
+  resizable: true,
+  aspectLocked: true,
+  minSize: STROKE_MIN_SIZE_WORLD,
+  editableText: false,
+  hitTest: (obj, point, zoom = 1) => {
+    const stroke = obj as StrokeSnap;
+    if (stroke.points === undefined) return false;
+    const tolerance = Math.max(
+      PEN_THICKNESS_WORLD[stroke.thickness] / 2,
+      STROKE_HIT_TOLERANCE_PX / zoom,
+    );
+    return distanceToPolyline(scaledPoints(stroke), point) <= tolerance;
   },
 });

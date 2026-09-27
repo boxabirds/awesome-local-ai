@@ -7,7 +7,7 @@
 
 import { memo, useEffect, useRef, useState, type JSX } from 'react';
 import { getStickyText } from '../../shared/board-model';
-import { STICKY_COLORS, STICKY_FONT_MAX_PX, STICKY_SIZE_WORLD } from '../../shared/config';
+import { STICKY_COLORS, STICKY_FONT_MAX_PX, STICKY_SIZE_WORLD, type StickyColor } from '../../shared/config';
 import { fitFontSize } from './StickyText';
 import { StickyTextEditor } from './StickyTextEditor';
 import type { ObjectProps } from './registry';
@@ -16,7 +16,7 @@ function StickyNoteInner(props: ObjectProps): JSX.Element {
   const { obj, doc, selected, editing, dragging, editable, onObjectPointerDown, onFocusSelect, onStartEdit, onEndEdit, undo } = props;
   const width = obj.width ?? STICKY_SIZE_WORLD;
   const height = obj.height ?? STICKY_SIZE_WORLD;
-  const color = obj.color ?? 'yellow';
+  const color = (obj.color ?? 'yellow') as StickyColor; // stickies carry sticky colours
   const text = obj.text ?? '';
   const noteRef = useRef<HTMLDivElement | null>(null);
   const textRef = useRef<HTMLDivElement | null>(null);
