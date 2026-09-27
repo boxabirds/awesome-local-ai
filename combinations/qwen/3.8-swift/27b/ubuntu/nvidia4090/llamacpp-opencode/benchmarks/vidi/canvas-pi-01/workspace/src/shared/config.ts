@@ -48,3 +48,23 @@ export const STICKY_COLORS = {
 export type StickyColor = keyof typeof STICKY_COLORS;
 /** Colour of newly created sticky notes. */
 export const DEFAULT_STICKY_COLOR: StickyColor = 'yellow';
+
+// ---- Live collaboration (story 3) ----
+
+/** Soft simultaneous-editor capacity: design + test target, never enforced. */
+export const MAX_CONCURRENT_EDITORS = 5;
+/** PRD live.propagate: a change must appear on other screens within 1 second. */
+export const LIVE_UPDATE_LATENCY_BUDGET_MS = 1000;
+/** Passed to WebsocketProvider as maxBackoffTime. */
+export const RECONNECT_MAX_BACKOFF_MS = 10_000;
+/** Green "Connected" badge duration after a reconnection. */
+export const CONNECTED_CONFIRMATION_MS = 2000;
+/** PRD live.catch_up: verification outage length. */
+export const CATCH_UP_TEST_OUTAGE_MS = 30_000;
+/**
+ * y-websocket closes a socket that receives no message for 30 s. An idle
+ * client sends a tiny awareness "heartbeat" at this interval (well below the
+ * 30 s watchdog) so the room's awareness relay keeps the connection alive
+ * with no user activity (TC-29).
+ */
+export const AWARENESS_HEARTBEAT_MS = 10_000;

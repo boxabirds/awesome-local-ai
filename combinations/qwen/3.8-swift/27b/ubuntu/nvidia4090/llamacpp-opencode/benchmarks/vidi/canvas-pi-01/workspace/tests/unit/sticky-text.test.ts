@@ -2,7 +2,7 @@
 
 import { describe, expect, it } from 'vitest';
 import * as Y from 'yjs';
-import { applyTextDiff, clampToLimit, counterVisible } from '../../src/client/objects/StickyText';
+import { applyTextDiff, clampToLimit, counterVisible, shiftCaret } from '../../src/client/objects/StickyText';
 import { STICKY_COUNTER_THRESHOLD_CHARS, STICKY_TEXT_MAX_CHARS } from '../../src/shared/config';
 import { SHORT_PHRASE, THOUSAND_CHAR_PARAGRAPH, TWO_THOUSAND_CHARS_PARAGRAPH } from '../fixtures/texts';
 
@@ -119,5 +119,38 @@ describe('sticky.text', () => {
     expect(counterVisible(STICKY_TEXT_MAX_CHARS - STICKY_COUNTER_THRESHOLD_CHARS + 1)).toBe(true); // 951
     expect(counterVisible(0)).toBe(false);
     expect(counterVisible(STICKY_TEXT_MAX_CHARS)).toBe(true);
+  });
+
+  describe('shiftCaret (live concurrent text)', () => {
+    it('insert before the caret shifts it right', () => {
+      expect(shiftCaret([{ retain: 1 }, { insert: 'XY' }], 2, 2)).toEqual({ start: 4, end: 4 });
+    });
+
+    it('insert after the caret leaves it untouched', () => {
+      expect(shiftCaret([{ retain: 3 }, { insert: 'Q' }], 2, 2)).toEqual({ start: 2, end: 2 });
+    });
+
+    it('insert at the caret shifts it right', () => {
+      expect(shiftCaret([{ retain: 2 }, { insert: 'A' }], 2, 2)).toEqual({ start: 3, end: 3 });
+    });
+
+    it('delete before the caret shifts it left', () => {
+      expect(shiftCaret([{ delete: 2 }, { retain: 3 }], 3, 3)).toEqual({ start: 1, end: 1 });
+    });
+
+    it('delete spanning the caret clamps it', () => {
+      expect(shiftCaret([{ retain: 1 }, { delete: 3 }], 2, 2)).toEqual({ start: 1, end: 1 });
+    });
+
+    it('combined retain + insert + delete at the caret', () => {
+      // 'abc', caret at 1 (a|bc): retain a, insert X at 1, delete b, retain c
+      //  -> 'aXc', caret after the inserted X (aX|c) = 2.
+      const r = shiftCaret([{ retain: 1 }, { insert: 'X' }, { delete: 1 }, { retain: 1 }], 1, 1);
+      expect(r).toEqual({ start: 2, end: 2 });
+    });
+
+    it('no changes leaves the caret unchanged', () => {
+      expect(shiftCaret([], 5, 7)).toEqual({ start: 5, end: 7 });
+    });
   });
 });

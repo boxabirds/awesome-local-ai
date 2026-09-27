@@ -12,6 +12,8 @@ export interface Vidi6TestApi {
   getDoc(): Y.Doc;
   /** board-model deleteObject (component tests, TC-37). */
   deleteNote(id: string): boolean;
+  /** Mapped connection state (e2e: badge + reconnect assertions, TC-27/29). */
+  connectionState: string;
 }
 
 declare global {

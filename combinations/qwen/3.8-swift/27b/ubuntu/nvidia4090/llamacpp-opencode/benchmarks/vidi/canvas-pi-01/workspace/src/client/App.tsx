@@ -1,5 +1,10 @@
 // Top-level layout: full-window board with sticky notes, the left toolbar,
-// the note toolbar, the zoom controls and the first-use hint.
+// the note toolbar, the zoom controls, the connection status badge and the
+// first-use hint.
+//
+// Routes (story 3): the board is reached by address, /b/:boardId. `/` is a
+// temporary client-side redirect to a freshly generated board id; story 5
+// replaces it with server-side board creation.
 
 import { useEffect, useRef, useState } from 'react';
 import { BoardViewport } from './canvas/BoardViewport';
@@ -20,15 +25,48 @@ import { useSelection } from './board/useSelection';
 import { Toolbar } from './board/Toolbar';
 import { StickyNote } from './objects/StickyNote';
 import { NoteToolbar } from './objects/NoteToolbar';
+import { ConnectionStatus } from './sync/ConnectionStatus';
 import { createSticky, deleteObject, setStickyColor } from '../shared/board-model';
+import { isValidBoardId, newBoardId } from '../shared/board-id';
 import { STICKY_SIZE_WORLD } from '../shared/config';
+
+function parseBoardId(pathname: string): string | null {
+  const match = /^\/b\/([^/]+)$/.exec(pathname);
+  if (match === null || match[1] === undefined) return null;
+  return isValidBoardId(match[1]) ? match[1] : null;
+}
+
+export function App() {
+  const [pathname, setPathname] = useState(() => window.location.pathname);
+
+  useEffect(() => {
+    const onPopState = () => setPathname(window.location.pathname);
+    window.addEventListener('popstate', onPopState);
+    return () => window.removeEventListener('popstate', onPopState);
+  }, []);
+
+  const boardId = parseBoardId(pathname);
+
+  // No valid board address: redirect to a fresh board (story 5 replaces this
+  // with server-side creation). replaceState keeps the history clean.
+  useEffect(() => {
+    if (boardId === null) {
+      const target = `/b/${newBoardId()}`;
+      window.history.replaceState(null, '', target);
+      setPathname(target);
+    }
+  }, [boardId]);
+
+  if (boardId === null) return null;
+  return <Board boardId={boardId} />;
+}
 
 /** Gap (screen px) between the note toolbar and the note's top edge. */
 const NOTE_TOOLBAR_GAP_PX = 8;
 /** Note toolbar height (screen px); the anchor sits that far above the note. */
 const NOTE_TOOLBAR_HEIGHT_PX = 40;
 
-export function App() {
+function Board({ boardId }: { boardId: string }) {
   const rootRef = useRef<HTMLDivElement | null>(null);
   const [size, setSize] = useState<Size>({ width: 0, height: 0 });
 
@@ -47,8 +85,8 @@ export function App() {
   }, []);
 
   const cam = useCamera(size);
-  const { doc, notes } = useBoardDoc();
-  const { selectedId, editingId, select, startEdit, endEdit } = useSelection();
+  const { doc, notes, connectionState } = useBoardDoc(boardId);
+  const { selectedId, editingId, select, startEdit, endEdit } = useSelection(notes);
   const [draggingId, setDraggingId] = useState<string | null>(null);
 
   // Test-only hook (excluded from production builds).
@@ -57,16 +95,9 @@ export function App() {
       setCamera: cam.setCamera,
       getDoc: () => doc,
       deleteNote: (id: string) => deleteObject(doc, id),
+      connectionState,
     });
-  }, [cam.setCamera, doc]);
-
-  // If the selected/edited note disappears from the document (deleted while
-  // interacting, TC-37), clear the local state silently.
-  useEffect(() => {
-    if (selectedId !== null && !notes.some((n) => n.id === selectedId)) {
-      select(null);
-    }
-  }, [notes, selectedId, select]);
+  }, [cam.setCamera, doc, connectionState]);
 
   const selectedNote = selectedId !== null ? (notes.find((n) => n.id === selectedId) ?? null) : null;
 
@@ -155,6 +186,7 @@ export function App() {
         onCreateSticky={() => createStickyAt({ x: size.width / 2, y: size.height / 2 })}
       />
       {noteToolbar}
+      <ConnectionStatus state={connectionState} />
       <ZoomControls
         zoomPercent={zoomPercent(cam.camera)}
         canZoomIn={canZoomIn(cam.camera)}

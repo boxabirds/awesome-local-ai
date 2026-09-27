@@ -53,6 +53,45 @@ export function applyTextDiff(ytext: Y.Text, next: string, origin: unknown): voi
   }
 }
 
+/** A single operation in the Quill-delta change list of a Y.Text event. */
+export interface TextDeltaOp {
+  insert?: string | object;
+  delete?: number;
+  retain?: number;
+}
+
+/**
+ * Map a caret (start, end) through a Quill-delta change list, so a live
+ * textarea can be updated with a remote Y.Text edit without losing the caret
+ * (spec: live.concurrent_text — concurrent inserts are all kept).
+ */
+export function shiftCaret(
+  changes: TextDeltaOp[],
+  start: number,
+  end: number,
+): { start: number; end: number } {
+  let pos = 0;
+  let nstart = start;
+  let nend = end;
+  for (const op of changes) {
+    if (op.retain) pos += op.retain;
+    if (op.insert != null && typeof op.insert === 'string') {
+      const len = op.insert.length;
+      if (pos <= start) nstart += len;
+      if (pos <= end) nend += len;
+    }
+    if (op.delete) {
+      const delEnd = pos + op.delete;
+      if (pos < start) nstart -= Math.min(delEnd, start) - pos;
+      if (pos < end) nend -= Math.max(0, Math.min(delEnd, end) - pos);
+      pos = delEnd;
+    }
+  }
+  nstart = Math.max(0, nstart);
+  nend = Math.max(nstart, nend);
+  return { start: nstart, end: nend };
+}
+
 /** True while the remaining character budget <= STICKY_COUNTER_THRESHOLD_CHARS. */
 export function counterVisible(length: number): boolean {
   return STICKY_TEXT_MAX_CHARS - length <= STICKY_COUNTER_THRESHOLD_CHARS;

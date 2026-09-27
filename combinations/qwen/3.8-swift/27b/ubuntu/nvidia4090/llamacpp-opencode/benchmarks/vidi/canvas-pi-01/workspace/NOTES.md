@@ -131,3 +131,83 @@ Capture ideas on sticky notes and rearrange them. All tests pass:
   on chromium, firefox and webkit.
 - `tests/fixtures/texts.ts` — shared prose fixtures (short phrase, 1,000 and
   1,200 character paragraphs).
+
+# Story 3 — Notes
+
+See other people's edits appear live on the same board. All tests pass:
+
+- `npm run typecheck` — clean (client + worker tsconfigs)
+- `npm run test:unit` — 60/60 (board-model, board-id, protocol, sticky-text incl. `shiftCaret`)
+- `npm run test:component` — 44/44
+- `npm run test:integration` — 18/18 (BoardRoom real-worker sync TC-07..18/31 + worker entry routing)
+- `npm run test:e2e` — 17/17 on chromium (navigation 4 + sticky-notes 6 + live-collaboration 7, TC-22..28); TC-22/TC-23 also pass on firefox and webkit
+- `npm run test:e2e:nightly` — 2/2 (TC-29 idle 45 s; TC-30 capacity)
+- `npm run build` — production bundle builds; `window.__vidi6` excluded (test-mode guard)
+
+## Nightly results (recorded per spec)
+
+Both nightly tests pass on this machine:
+
+- **TC-29** (idle connection stays `connected` for 45 s) — **pass**. The
+  awareness heartbeat + room relay defeat y-websocket's 30 s no-message watchdog.
+- **TC-30** (continuous edits at `MAX_CONCURRENT_EDITORS` deliver within budget) —
+  **pass**. Delivery latency over 40 measured changes: **p50 = 28 ms,
+  p95 = 61 ms, max = 100 ms** (budget `LIVE_UPDATE_LATENCY_BUDGET_MS` = 1000 ms).
+
+## Decisions and deviations
+
+- **WebSocketPair / WebSocket are workerd globals**: only `DurableObject` is
+  imported from `cloudflare:workers`. The upgrade response uses the new
+  `{ status: 101, webSocket: client }` form (not `body`).
+- **`SELF.fetch` needs absolute URLs** and returns a `Response` whose
+  `.webSocket` is the server socket (call `.accept()` on it).
+- **Raw Yjs updates are not sync messages**: the room wraps broadcast updates
+  with `syncProtocol.writeUpdate` (type prefix) before sending, mirroring
+  y-websocket.
+- **y-protocols swallows Yjs update errors** unless an `errorHandler` (5th arg to
+  `readSyncMessage`) is supplied; the room uses it to close the offending socket
+  (TC-15).
+- **Offline catch-up**: y-websocket only sends a state vector (SyncStep1) on
+  (re)connect, so local edits made while offline are lost. `connectBoard` sends a
+  full `Y.encodeStateAsUpdate(doc)` update on every `connected` status; the doc is
+  small (a whiteboard), so this is cheap and guarantees no offline edit is dropped
+  (TC-27).
+- **Connection badge states**: `connecting → connected` (hidden) on first connect;
+  `disconnected`/`connecting` after having connected → `reconnecting`
+  ("Reconnecting…"); re-`connected` → `confirmed` (green "Connected" for
+  `CONNECTED_CONFIRMATION_MS`) → back to `connected` (hidden).
+- **TC-27 badge timing**: the browser does not reliably fire WebSocket `close` on
+  network loss (a known y-websocket limitation), so the provider only notices the
+  drop via its 30 s no-message watchdog. The test allows 40 s for the
+  "Reconnecting…" badge to appear; the authoritative assertions are that both
+  pages converge on all 6 notes and the badge is hidden after reconnection.
+- **Concurrent typing**: `StickyTextEditor` observes `Y.Text` for remote changes
+  and re-syncs the textarea while preserving the caret via `shiftCaret` (a pure
+  delta→caret mapper, unit-tested); local-origin transactions are skipped.
+- **IDs are per-client**: note ids are `crypto.randomUUID()` (not Yjs counters),
+  so they differ between peers; integration snapshot comparison excludes `id` and
+  `createdAt`.
+- **tsconfig split**: the main config excludes `src/worker` and `tests/integration`;
+  `tsconfig.worker.json` typechecks the worker against `@cloudflare/workers-types`.
+- **vitest projects**: unit/component run on the `forks` pool; integration runs on
+  `@cloudflare/vitest-pool-workers` with `singleWorker: true` + `isolatedStorage:
+  false` (avoids workerd's 255-char path limit and the sqlite sidecar-file
+  assertion). Integration tests are run through the `/tmp/vidi6ws` symlink for the
+  same path-length reason.
+
+## Test-to-spec map (story 3)
+
+- `tests/unit/board-id.test.ts` — id shape / validation / generation.
+- `tests/unit/protocol.test.ts` — frame encode/decode round-trips + malformed input.
+- `tests/unit/sticky-text.test.ts` — TC-13..17 + `shiftCaret` (remote-delta caret
+  mapping).
+- `tests/component/ConnectionStatus.test.tsx` — badge text / visibility per state.
+- `tests/component/StickyTextEditor.test.tsx` — remote-change re-sync + caret.
+- `tests/integration/board-room.test.ts` — TC-07..18, TC-31 against the real
+  worker (two/three clients, malformed frames, board isolation, idle keep-alive).
+- `tests/integration/worker.test.ts` — `/api/rooms/:boardId` routing (valid/invalid
+  id, upgrade required).
+- `tests/e2e/live-collaboration.spec.ts` — TC-22..28 (chromium; TC-22/23 also
+  firefox/webkit).
+- `tests/e2e/nightly/idle.spec.ts` — TC-29.
+- `tests/e2e/nightly/capacity.spec.ts` — TC-30.

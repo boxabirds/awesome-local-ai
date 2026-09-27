@@ -274,3 +274,31 @@ body {
   outline: 2px solid #2563eb;
   outline-offset: 1px;
 }
+
+/* ---- connection status badge (story 3): top centre, hidden when connected ---- */
+.connection-badge {
+  position: fixed;
+  top: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 10;
+  padding: 4px 12px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.4;
+  pointer-events: none;
+  box-shadow: 0 1px 4px rgb(0 0 0 / 0.15);
+}
+.connection-badge--connecting {
+  background: #eef2f7;
+  color: #334155;
+}
+.connection-badge--reconnecting {
+  background: #f59e0b;
+  color: #451a03;
+}
+.connection-badge--confirmed {
+  background: #16a34a;
+  color: #ffffff;
+}

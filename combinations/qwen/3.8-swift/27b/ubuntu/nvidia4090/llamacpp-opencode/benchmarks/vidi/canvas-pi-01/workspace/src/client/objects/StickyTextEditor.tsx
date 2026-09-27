@@ -9,7 +9,7 @@ import { useCallback, useEffect, useRef, useState, type JSX } from 'react';
 import * as Y from 'yjs';
 import { LOCAL_ORIGIN } from '../../shared/board-model';
 import { STICKY_SIZE_WORLD, STICKY_TEXT_MAX_CHARS } from '../../shared/config';
-import { applyTextDiff, clampToLimit, counterVisible, fitFontSize } from './StickyText';
+import { applyTextDiff, clampToLimit, counterVisible, fitFontSize, shiftCaret } from './StickyText';
 
 export interface StickyTextEditorProps {
   ytext: Y.Text;
@@ -53,6 +53,25 @@ export function StickyTextEditor({ ytext, fontPx, onEnd }: StickyTextEditorProps
     if (ta === null) return;
     setMeasured(fitFontSize(ta, STICKY_SIZE_WORLD));
   }, [value]);
+
+  // Keep the textarea in lockstep with REMOTE Y.Text changes so concurrent
+  // typing merges instead of clobbering (spec: live.concurrent_text). Local
+  // edits are skipped (they are already reflected in the textarea); the caret
+  // is preserved by mapping it through the change list.
+  useEffect(() => {
+    const handler = (event: Y.YTextEvent, transaction: Y.Transaction) => {
+      if (transaction.origin === LOCAL_ORIGIN) return;
+      const ta = taRef.current;
+      if (ta === null) return;
+      if (composingRef.current) return; // flushed on compositionend
+      const next = shiftCaret(event.changes.delta, ta.selectionStart, ta.selectionEnd);
+      ta.value = ytext.toString();
+      setValue(ta.value);
+      ta.setSelectionRange(next.start, next.end);
+    };
+    ytext.observe(handler);
+    return () => ytext.unobserve(handler);
+  }, [ytext]);
 
   // A pointerdown anywhere outside this note ends editing as 'unselected'.
   useEffect(() => {
