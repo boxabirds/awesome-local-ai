@@ -12,8 +12,9 @@ Model `qwen3.8-swift-27b`, scope `canvas`, effort `low`, client pi 0.86.0, host 
 | 7 | Select, move, resize and delete several objects at once | DONE | 80.7 | None | None | None | — | — | red | 36/44 |  | 0 / 0 | 4 | — | throttled 0%, server peak 27 GB |
 | 8 | Undo and redo my own changes without undoing anyone else's | DONE | 50.9 | None | None | None | — | — | red | 43/51 |  | 0 / 0 | 2 | — | throttled 0%, server peak 27 GB |
 | 9 | Write free text anywhere on the board | DONE | 55.4 | None | None | None | — | — | red | 48/57 |  | 0 / 0 | 3 | — | throttled 0%, server peak 27 GB |
+| 10 | Draw shapes and connect them with arrows that follow when moved | DONE | 54.8 | None | None | None | — | — | red | 56/65 |  | 0 / 0 | 3 | — | throttled 0%, server peak 27 GB |
 
-**Totals:** 8 stories, 746 agent-minutes, 0 requests, 0 prompt / 0 completion tokens, gate green 3/8, final acceptance 48/57, stalled 0, partial 0, 17461 lines in src+tests.
+**Totals:** 9 stories, 801 agent-minutes, 0 requests, 0 prompt / 0 completion tokens, gate green 3/9, final acceptance 56/65, stalled 0, partial 0, 21170 lines in src+tests.
 
 ## How it happened
 
@@ -29,6 +30,7 @@ Each story's commits, and which story broke or fixed an earlier story's held-out
 | 7 | 4 by the agent | 3109 / 381 | `useTransformGesture.ts` (353), `board-model.ts` (251), `BoardPage.tsx` (215), `StickyNote.tsx` (184), `geometry.ts` (178), `useSelection.ts` (164), +12 more |
 | 8 | 1 by the agent | 1538 / 19 | `undo.ts` (118), `NOTES.md` (59), `UndoButtons.tsx` (54), `BoardPage.tsx` (41), `useBoardKeys.ts` (35), `useUndo.ts` (33), +7 more |
 | 9 | 8 by the agent | 3001 / 279 | `text.ts` (294), `TextEditor.tsx` (183), `textLayout.ts` (177), `styles.css` (166), `StickyTextEditor.tsx` (153), `TextObject.tsx` (113), +16 more |
+| 10 | 1 by the agent | 3883 / 95 | `connector.ts` (329), `shape.ts` (228), `ShapeTool.tsx` (221), `ConnectorTool.tsx` (217), `styles.css` (189), `testHooks.ts` (178), +18 more |
 
 ### Earlier stories broken or fixed
 
