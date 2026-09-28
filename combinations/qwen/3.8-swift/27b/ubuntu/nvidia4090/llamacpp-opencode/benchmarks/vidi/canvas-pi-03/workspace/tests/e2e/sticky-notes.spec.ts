@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { setCamera, getNotes, getNoteCenter } from './helpers/board';
+import { setCamera, getNotes, getNoteCenter, createBoardIdForPage } from './helpers/board';
 import { STICKY_FONT_MAX_PX, STICKY_FONT_MIN_PX, STICKY_SIZE_WORLD } from 'src/shared/config';
 import { LONG_TEXT, assertLongTextLength } from '../fixtures/texts';
 
@@ -12,7 +12,10 @@ assertLongTextLength();
  * listeners is lost).
  */
 async function openBoard(page: import('@playwright/test').Page) {
-  await page.goto('/');
+  // Story 5: create the board through the API first — an unknown link is
+  // "Board not found", not a fresh board.
+  const id = await createBoardIdForPage(page);
+  await page.goto(`/b/${id}`);
   await page.waitForFunction(() => (window as any).__vidi6?.doc != null, null, { timeout: 5000 });
 }
 

@@ -1,5 +1,29 @@
 import type { Page } from '@playwright/test';
 
+/**
+ * Story 5: boards must be created via the API before their links work
+ * (opening an unknown link shows Board not found and writes nothing).
+ * These helpers replace the old "any random id is a board" pattern.
+ */
+
+/** Create a board through the real API against an absolute base URL. */
+export async function createBoardId(baseUrl: string): Promise<string> {
+  const res = await fetch(`${baseUrl}/api/boards`, { method: 'POST' });
+  if (res.status !== 201) throw new Error(`board creation failed: HTTP ${res.status}`);
+  const body = (await res.json()) as { id?: string };
+  if (!body.id) throw new Error('board creation returned no id');
+  return body.id;
+}
+
+/** Create a board through the page's request context (relative baseURL). */
+export async function createBoardIdForPage(page: Page): Promise<string> {
+  const res = await page.request.post('/api/boards');
+  if (res.status() !== 201) throw new Error(`board creation failed: HTTP ${res.status()}`);
+  const body = (await res.json()) as { id?: string };
+  if (!body.id) throw new Error('board creation returned no id');
+  return body.id;
+}
+
 export async function getOriginMarkerPos(page: Page): Promise<{ x: number; y: number }> {
   const marker = page.getByTestId('origin-marker');
   const box = await marker.boundingBox();

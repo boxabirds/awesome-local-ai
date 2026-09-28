@@ -37,6 +37,7 @@ import {
 } from 'src/client/sync/connectBoard';
 import { ConnectionStatus, LOAD_FAILED_MESSAGE } from 'src/client/sync/ConnectionStatus';
 import { App } from 'src/client/App';
+import { boardReady } from './ready';
 import { createSticky, getStickyText, snapshot } from 'src/shared/board-model';
 import { CLOSE_BOARD_LOAD_FAILED, CLOSE_STORAGE_FAILURE } from 'src/shared/protocol';
 
@@ -116,6 +117,7 @@ describe('persist.client_status edit lock (TC-23)', () => {
   it('create, delete, drag, colour and text edit are all no-ops while locked', async () => {
     const user = userEvent.setup();
     render(<App />);
+    await boardReady();
     const doc = getDoc();
 
     // Seed one note directly in the model (setup, not a UI interaction).

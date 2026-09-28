@@ -126,12 +126,31 @@ export async function settleBoards(): Promise<void> {
   }
 }
 
+/**
+ * Story 5: rooms are no longer created implicitly by connecting — the board
+ * must exist first. These helpers (integration tests only, TEST_HOOKS=1) mark
+ * the board created via the gated `initialize` test op, which is idempotent
+ * ('created' then 'exists'). This mirrors what POST /api/boards does in the
+ * real flow without consuming rate-limit budget.
+ */
+export async function ensureBoardInitialized(boardId: string): Promise<void> {
+  const res = await SELF.fetch(`http://localhost/__test/boards/${boardId}/initialize`, {
+    method: 'POST',
+  });
+  if (res.status !== 200) {
+    throw new Error(`failed to initialize board ${boardId}: ${res.status}`);
+  }
+  await res.json();
+}
+
 export async function connectRoomClient(
   boardId: string,
   existingDoc?: Y.Doc,
 ): Promise<RoomClient> {
   // Track unique boards constructed (used by settleBoards to schedule eviction).
   liveBoardIds.add(boardId);
+  // Story 5: the room refuses unknown boards; make sure this one exists.
+  await ensureBoardInitialized(boardId);
 
   const res = await SELF.fetch(`http://localhost/api/rooms/${boardId}`, {
     headers: { Upgrade: 'websocket', Connection: 'Upgrade' },

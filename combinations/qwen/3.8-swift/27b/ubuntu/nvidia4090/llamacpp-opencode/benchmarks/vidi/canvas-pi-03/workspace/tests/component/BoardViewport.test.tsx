@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { render, within, act, cleanup } from '@testing-library/react';
 import { App } from 'src/client/App';
+import { boardReady } from './ready';
 
 class MockResizeObserver {
   observe = vi.fn();
@@ -19,8 +20,9 @@ function makePointerEvent(type: string, opts: any = {}) {
 }
 
 describe('TC-13: pointerdown/move(200,100)/up - world layer transform matches camera', () => {
-  it('world layer transform changes after drag', () => {
+  it('world layer transform changes after drag', async () => {
     const { container } = render(<App />);
+    await boardReady();
     const viewport = within(container).getByTestId('board-viewport');
     const world = within(container).getByTestId('world-layer');
 
@@ -42,8 +44,9 @@ describe('TC-13: pointerdown/move(200,100)/up - world layer transform matches ca
 });
 
 describe('TC-14: pointercancel mid-drag - camera frozen at cancel', () => {
-  it('camera frozen at cancel; later moves ignored', () => {
+  it('camera frozen at cancel; later moves ignored', async () => {
     const { container } = render(<App />);
+    await boardReady();
     const viewport = within(container).getByTestId('board-viewport');
     const world = within(container).getByTestId('world-layer');
 
@@ -69,8 +72,9 @@ describe('TC-14: pointercancel mid-drag - camera frozen at cancel', () => {
 });
 
 describe('TC-15: plain wheel deltaY +100 - camera y increases', () => {
-  it('camera y += 100/zoom; defaultPrevented true', () => {
+  it('camera y += 100/zoom; defaultPrevented true', async () => {
     const { container } = render(<App />);
+    await boardReady();
     const viewport = within(container).getByTestId('board-viewport');
     const world = within(container).getByTestId('world-layer');
 
@@ -88,8 +92,9 @@ describe('TC-15: plain wheel deltaY +100 - camera y increases', () => {
 });
 
 describe('TC-16: Ctrl wheel deltaY -100 at (300,200) - zoom increases', () => {
-  it('zoom increases; defaultPrevented true', () => {
+  it('zoom increases; defaultPrevented true', async () => {
     const { container } = render(<App />);
+    await boardReady();
     const viewport = within(container).getByTestId('board-viewport');
     const world = within(container).getByTestId('world-layer');
 
@@ -107,8 +112,9 @@ describe('TC-16: Ctrl wheel deltaY -100 at (300,200) - zoom increases', () => {
 });
 
 describe('TC-17: synthetic gesturechange scale 2 - zoom changes', () => {
-  it('zoom changes; defaultPrevented true', () => {
+  it('zoom changes; defaultPrevented true', async () => {
     const { container } = render(<App />);
+    await boardReady();
     const viewport = within(container).getByTestId('board-viewport');
     const world = within(container).getByTestId('world-layer');
 
@@ -134,8 +140,9 @@ describe('TC-17: synthetic gesturechange scale 2 - zoom changes', () => {
 });
 
 describe('TC-18: Ctrl+=, Ctrl+-, Ctrl+0 keyboard shortcuts', () => {
-  it('1.0 -> 1.25 -> 1.0 -> reset, each defaultPrevented', () => {
+  it('1.0 -> 1.25 -> 1.0 -> reset, each defaultPrevented', async () => {
     const { container } = render(<App />);
+    await boardReady();
     const world = within(container).getByTestId('world-layer');
 
     let p1 = false;
@@ -164,8 +171,9 @@ describe('TC-18: Ctrl+=, Ctrl+-, Ctrl+0 keyboard shortcuts', () => {
 });
 
 describe('TC-29: click without move - camera unchanged, hint not dismissed', () => {
-  it('camera unchanged and hint still visible', () => {
+  it('camera unchanged and hint still visible', async () => {
     const { container } = render(<App />);
+    await boardReady();
     const viewport = within(container).getByTestId('board-viewport');
     const hint = within(container).getByTestId('navigation-hint');
     const world = within(container).getByTestId('world-layer');
@@ -187,8 +195,9 @@ describe('TC-29: click without move - camera unchanged, hint not dismissed', () 
 });
 
 describe('TC-30: Ctrl wheel over zoom control - board camera unchanged', () => {
-  it('board camera unchanged when wheel over controls', () => {
+  it('board camera unchanged when wheel over controls', async () => {
     const { container } = render(<App />);
+    await boardReady();
     const controls = within(container).getByTestId('zoom-controls');
     const world = within(container).getByTestId('world-layer');
 

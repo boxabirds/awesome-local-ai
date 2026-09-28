@@ -8,8 +8,7 @@
 import type { Browser, BrowserContext, Page } from '@playwright/test';
 import { expect } from '@playwright/test';
 import { LIVE_UPDATE_LATENCY_BUDGET_MS } from 'src/shared/config';
-import { newBoardId } from 'src/shared/board-id';
-import { getNotes, getNoteCenter } from './board';
+import { getNotes, getNoteCenter, createBoardIdForPage } from './board';
 
 export const BUDGET = LIVE_UPDATE_LATENCY_BUDGET_MS;
 
@@ -24,7 +23,12 @@ export interface Participant {
  * reached the `connected` state (handshake + initial sync complete).
  */
 export async function openParticipants(browser: Browser, count: number): Promise<Participant[]> {
-  const boardId = newBoardId();
+  // Story 5: the board must exist before its link works — create it through
+  // the API (a scratch page's request context carries the baseURL).
+  const scratch = await browser.newContext();
+  const scratchPage = await scratch.newPage();
+  const boardId = await createBoardIdForPage(scratchPage);
+  await scratch.close();
   const out: Participant[] = [];
   for (let i = 0; i < count; i++) {
     const context = await browser.newContext();

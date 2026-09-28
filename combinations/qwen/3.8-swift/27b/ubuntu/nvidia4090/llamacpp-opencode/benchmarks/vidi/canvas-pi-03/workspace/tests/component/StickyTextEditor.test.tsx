@@ -3,6 +3,7 @@ import { render, screen, fireEvent, act } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import * as Y from 'yjs';
 import { App } from 'src/client/App';
+import { boardReady } from './ready';
 import { snapshot, getStickyText } from 'src/shared/board-model';
 
 function getDoc(): Y.Doc {
@@ -17,8 +18,9 @@ async function createNoteByDblClick() {
 }
 
 describe('sticky.text (component)', () => {
-  beforeEach(() => {
+  beforeEach(async () => {
     render(<App />);
+    await boardReady();
   });
 
   it('TC-23: Enter on a selected note starts editing with the caret at the end', async () => {

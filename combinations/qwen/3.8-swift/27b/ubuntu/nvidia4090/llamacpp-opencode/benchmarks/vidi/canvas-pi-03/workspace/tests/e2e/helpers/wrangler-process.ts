@@ -75,46 +75,68 @@ async function waitForReady(port: number, proc: ChildProcess): Promise<void> {
 /**
  * Start `wrangler dev --persist-to <dir>`. Pass `persistDir` to restart the
  * process against existing storage (the "kill and restart" scenario).
+ * `configFile` defaults to wrangler.e2e.jsonc; TC-30 passes wrangler.test.jsonc
+ * (its board-create limit equals BOARD_CREATE_LIMIT exactly).
  */
-export async function startWranglerProcess(persistDir?: string): Promise<ServerHandle> {
+export async function startWranglerProcess(
+  persistDir?: string,
+  configFile = 'wrangler.e2e.jsonc',
+): Promise<ServerHandle> {
   ensureClientBuilt();
-  const port = await findFreePort();
   const dir = persistDir ?? mkdtempSync(join(tmpdir(), 'vidi6-e2e-'));
-  const proc = spawn(
-    'npx',
-    [
-      'wrangler',
-      'dev',
-      '--port',
-      String(port),
-      '--ip',
-      '127.0.0.1',
-      '--persist-to',
-      dir,
-      '--config',
-      'wrangler.e2e.jsonc',
-      '--no-show-interactive-dev-session',
-    ],
-    { cwd: process.cwd(), stdio: ['ignore', 'pipe', 'pipe'] },
-  );
-  let output = '';
-  proc.stdout?.on('data', (d) => (output += d));
-  proc.stderr?.on('data', (d) => (output += d));
 
-  try {
-    await waitForReady(port, proc);
-  } catch (err) {
+  // Under parallel load wrangler can fail to bind its port (findFreePort
+  // releases the port before wrangler binds it) or exit early; retry the whole
+  // start a few times before giving up.
+  const MAX_ATTEMPTS = 3;
+  let lastError: unknown = null;
+  let proc: ChildProcess | null = null;
+  let port = 0;
+  let output = '';
+  for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+    port = await findFreePort();
+    proc = spawn(
+      'npx',
+      [
+        'wrangler',
+        'dev',
+        '--port',
+        String(port),
+        '--ip',
+        '127.0.0.1',
+        '--persist-to',
+        dir,
+        '--config',
+        configFile,
+        '--no-show-interactive-dev-session',
+      ],
+      { cwd: process.cwd(), stdio: ['ignore', 'pipe', 'pipe'] },
+    );
+    output = '';
+    proc.stdout?.on('data', (d) => (output += d));
+    proc.stderr?.on('data', (d) => (output += d));
     try {
-      proc.kill('SIGKILL');
-    } catch {
-      /* ignore */
+      await waitForReady(port, proc);
+      lastError = null;
+      break;
+    } catch (err) {
+      lastError = err;
+      try {
+        proc.kill('SIGKILL');
+      } catch {
+        /* ignore */
+      }
     }
-    throw new Error(`failed to start wrangler dev: ${err}\n--- output ---\n${output}`);
+  }
+  if (lastError !== null || !proc || proc.exitCode !== null) {
+    throw new Error(
+      `failed to start wrangler dev: ${lastError}\n--- output ---\n${output}`,
+    );
   }
 
   const stop = async () => {
     try {
-      proc.kill('SIGKILL');
+      proc!.kill('SIGKILL');
     } catch {
       /* ignore */
     }

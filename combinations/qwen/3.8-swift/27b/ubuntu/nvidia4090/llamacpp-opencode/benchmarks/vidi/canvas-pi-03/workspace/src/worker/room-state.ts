@@ -23,6 +23,7 @@
 import { LOAD_RETRY_MIN_INTERVAL_MS } from 'src/shared/config';
 
 export type RoomLifecycle =
+  | 'uninitialized'
   | 'loading'
   | 'ready'
   | 'compacting'
@@ -31,7 +32,7 @@ export type RoomLifecycle =
   | 'load-failed';
 
 /** The resting states the contract exposes for the connection gate. */
-export type RoomState = 'ready' | 'load-failed' | 'storage-failed';
+export type RoomState = 'uninitialized' | 'ready' | 'load-failed' | 'storage-failed';
 
 export type RoomEventType =
   | 'loaded'
@@ -55,6 +56,11 @@ export interface RoomEvent {
 
 export function nextRoomState(state: RoomLifecycle, event: RoomEvent): RoomLifecycle {
   switch (state) {
+    case 'uninitialized':
+      // Story 5: initialize() (or a legacy load) provides the doc.
+      if (event.type === 'loaded') return 'ready';
+      return state;
+
     case 'loading':
       if (event.type === 'loaded') return 'ready';
       if (event.type === 'load-failed') return 'load-failed';
@@ -103,6 +109,8 @@ export function nextRoomState(state: RoomLifecycle, event: RoomEvent): RoomLifec
 /** Maps a lifecycle state to the resting state the connection gate uses. */
 export function restingState(state: RoomLifecycle): RoomState {
   switch (state) {
+    case 'uninitialized':
+      return 'uninitialized';
     case 'ready':
       return 'ready';
     case 'load-failed':

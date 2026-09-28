@@ -40,12 +40,14 @@ async function fetchViaWorker(url: string, headers: Record<string, string> = {})
 }
 
 describe('sync.worker_entry routing', () => {
-  it('TC-04: invalid board id with Upgrade → 400, object namespace never called', async () => {
+  it('TC-04: invalid board id with Upgrade → 404, object namespace never called', async () => {
+    // Story 5: malformed ids now get 404 (story 3's 400) — indistinguishable
+    // from unknown ids, and they never touch the object namespace.
     const out = await fetchViaWorker('/api/rooms/bad!id', {
       Upgrade: 'websocket',
       Connection: 'Upgrade',
     });
-    expect(out.res.status).toBe(400);
+    expect(out.res.status).toBe(404);
     expect(out.idFromName).not.toHaveBeenCalled();
     expect(out.get).not.toHaveBeenCalled();
   });

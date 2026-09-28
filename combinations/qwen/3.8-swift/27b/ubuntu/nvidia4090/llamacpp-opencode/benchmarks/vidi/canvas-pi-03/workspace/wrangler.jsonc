@@ -15,6 +15,18 @@
       }
     ]
   },
+  // Story 5: board-creation rate limit. simple.limit/period mirror
+  // BOARD_CREATE_LIMIT and BOARD_CREATE_PERIOD_SECONDS in src/shared/config.ts
+  // (unit TC-03 asserts the two do not drift). namespace_id is the UUID of the
+  // Cloudflare rate-limit namespace; the zero UUID is a local placeholder —
+  // deploy with the real namespace id created in the Cloudflare dashboard.
+  "ratelimits": [
+    {
+      "name": "BOARD_CREATE_LIMITER",
+      "namespace_id": "00000000-0000-0000-0000-000000000000",
+      "simple": { "limit": 10, "period": 60 }
+    }
+  ],
   "migrations": [
     {
       "tag": "v1",

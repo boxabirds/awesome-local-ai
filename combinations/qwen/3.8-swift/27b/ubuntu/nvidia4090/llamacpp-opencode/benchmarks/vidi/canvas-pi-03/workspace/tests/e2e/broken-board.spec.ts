@@ -11,8 +11,7 @@
  */
 import { test, expect, type Browser, type Page } from '@playwright/test';
 import { startWranglerProcess, type ServerHandle } from './helpers/wrangler-process';
-import { getNotes } from './helpers/board';
-import { newBoardId } from 'src/shared/board-id';
+import { getNotes, createBoardId } from './helpers/board';
 import { LOAD_FAILED_MESSAGE } from 'src/client/sync/ConnectionStatus';
 
 // Local workerd evicts an idle Durable Object after ~10 s; the corruption only
@@ -51,7 +50,7 @@ async function roomNoteCount(server: ServerHandle, boardId: string): Promise<num
 test.describe('persist.client_status e2e', () => {
   test('TC-24: broken board → honest failure + edit lock → recovery without reload', async ({ browser }) => {
     const server = await startWranglerProcess();
-    const boardId = newBoardId();
+    const boardId = await createBoardId(server.url);
     try {
       // 1. Create a 25-note board, compact it, then corrupt the snapshot.
       const setup = await openBoard(browser, server, boardId);

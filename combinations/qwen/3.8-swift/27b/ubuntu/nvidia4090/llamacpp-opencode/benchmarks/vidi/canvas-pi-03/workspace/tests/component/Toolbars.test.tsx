@@ -3,6 +3,7 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import * as Y from 'yjs';
 import { App } from 'src/client/App';
+import { boardReady } from './ready';
 import { snapshot } from 'src/shared/board-model';
 
 function getDoc(): Y.Doc {
@@ -17,8 +18,9 @@ async function createNoteByDblClick() {
 }
 
 describe('sticky.toolbar (component)', () => {
-  beforeEach(() => {
+  beforeEach(async () => {
     render(<App />);
+    await boardReady();
   });
 
   it('TC-27: clicking the Pink swatch changes the model colour and keeps the selection', async () => {

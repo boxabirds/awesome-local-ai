@@ -1,14 +1,27 @@
-import { expect, afterEach, beforeEach } from 'vitest';
+import { expect, afterEach, beforeEach, vi } from 'vitest';
 import * as jestDom from '@testing-library/jest-dom/matchers';
 import { cleanup } from '@testing-library/react';
 
 expect.extend(jestDom);
 
+// Story 5: board pages check existence before mounting the board. The default
+// mock says the board exists so existing board tests render unchanged; tests
+// that exercise the check itself override per-test with mockResolvedValueOnce.
+vi.mock('src/client/api', () => ({
+  checkBoard: vi.fn().mockResolvedValue({ kind: 'exists' }),
+  createBoardRequest: vi.fn().mockResolvedValue({ kind: 'created', id: 'mock-id' }),
+}));
+
 // Story 3 routes the board to `/b/<boardId>`. Component tests render <App/>
-// directly, so place them on a valid board URL so the board renders instead
-// of triggering the client-side redirect to a fresh board.
+// directly, so place them on a valid board URL. The board must pass the
+// story 5 existence check (mocked 'exists' above) before it renders; use
+// `boardReady()` from tests/component/ready after each render(<App />).
 beforeEach(() => {
   window.history.pushState({}, '', '/b/abcdefghijklmnopqrstuv');
+  // Clear the board test hook so boardReady() only resolves once THIS test's
+  // Board has mounted (window is shared across tests in a file; a stale hook
+  // would let boardReady return before the board's listeners are attached).
+  delete (window as unknown as Record<string, unknown>).__vidi6;
 });
 
 // No vitest globals: disable @testing-library/react's auto-cleanup, so clean

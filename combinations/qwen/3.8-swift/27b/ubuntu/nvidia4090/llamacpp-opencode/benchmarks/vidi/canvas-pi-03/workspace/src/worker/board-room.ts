@@ -70,8 +70,36 @@ export class BoardRoom extends DurableObject<RoomEnv> {
     ctx.blockConcurrencyWhile(() => Promise.resolve(this.load()));
   }
 
-  private load(): void {
+  /** RPC (share.board_api): idempotently mark the board as created. */
+  async initialize(): Promise<'created' | 'exists'> {
+    if (this.store.hasCreatedAt()) return 'exists';
     this.store.migrate();
+    this.store.setCreatedAt(Date.now());
+    if (!this.doc) {
+      // A fresh board: serve an empty doc (the init op is stored via the
+      // update handler, same as a loaded board).
+      const doc = new Y.Doc();
+      this.attachDocListeners(doc);
+      initDoc(doc);
+      this.doc = doc;
+      this.state = nextRoomState(this.state, { type: 'loaded' });
+    }
+    return 'created';
+  }
+
+  /** RPC (share.board_api): read-only existence check (no writes). */
+  async exists(): Promise<boolean> {
+    return this.store.existsReadOnly();
+  }
+
+  private load(): void {
+    // Story 5: no tables → unknown board (never initialized, no legacy data).
+    // Nothing is loaded and nothing is written; fetch refuses with 404.
+    if (!this.store.hasTables()) {
+      this.doc = null;
+      this.state = 'uninitialized';
+      return;
+    }
     const now = Date.now();
     const status = this.store.loadStatus();
     // Honor the LoadFailed retry interval: if a recent attempt failed, do not
@@ -121,6 +149,19 @@ export class BoardRoom extends DurableObject<RoomEnv> {
       }
       return handleTestOp(this.ctx.storage, req);
     }
+    // Story 5: unknown boards (never initialized, no legacy data) are refused
+    // BEFORE accepting a socket — no 101, no storage written (share.not_found).
+    // The check reads storage (not this.state) so it is always current, even
+    // if the board was created while this instance was already constructed.
+    if (!this.store.existsReadOnly()) {
+      return new Response(JSON.stringify({ error: 'not_found' }), {
+        status: 404,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    }
+    // The board exists but this instance was constructed before it did (e.g.
+    // created through a test op on this same instance): load now.
+    if (restingState(this.state) === 'uninitialized') this.load();
     const pair = new WebSocketPair();
     const client = pair[0];
     const server = pair[1];

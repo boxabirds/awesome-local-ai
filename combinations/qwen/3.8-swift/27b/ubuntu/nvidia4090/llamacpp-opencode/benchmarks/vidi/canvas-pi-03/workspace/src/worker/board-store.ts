@@ -57,6 +57,7 @@ export function shouldCompact(count: number, bytes: number): boolean {
 }
 
 const META_SCHEMA_VERSION = 'storage_schema_version';
+const META_CREATED_AT = 'created_at';
 const META_SNAPSHOT_THROUGH = 'snapshot_through_seq';
 const META_LOAD_STATUS = 'load_status';
 const META_LAST_LOAD_ATTEMPT = 'last_load_attempt_at';
@@ -72,6 +73,61 @@ export class BoardStore {
 
   private get sql(): DurableObjectStorage['sql'] {
     return this.storage.sql;
+  }
+
+  /** True when the store's tables exist (created by `migrate`). */
+  hasTables(): boolean {
+    const rows = this.sql
+      .exec(
+        "SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'storage_meta'",
+      )
+      .toArray();
+    return rows.length > 0;
+  }
+
+  /** Story 5: true when `initialize()` has marked this board as created. */
+  hasCreatedAt(): boolean {
+    if (!this.hasTables()) return false;
+    const rows = this.sql
+      .exec('SELECT value FROM storage_meta WHERE key = ?', META_CREATED_AT)
+      .toArray();
+    return rows.length > 0;
+  }
+
+  /** Story 5: records the board's creation time (epoch ms). */
+  setCreatedAt(at: number): void {
+    this.sql.exec(
+      'INSERT OR REPLACE INTO storage_meta (key, value) VALUES (?, ?)',
+      META_CREATED_AT,
+      String(at),
+    );
+  }
+
+  /** Story 5: creation time (epoch ms), or null when never initialized. */
+  createdAt(): number | null {
+    if (!this.hasTables()) return null;
+    const rows = this.sql
+      .exec('SELECT value FROM storage_meta WHERE key = ?', META_CREATED_AT)
+      .toArray();
+    return rows.length > 0 ? Number(rows[0].value) : null;
+  }
+
+  /**
+   * Story 5: read-only existence check. A board exists when
+   * `storage_meta.created_at` is set, **or** (legacy boards, share.legacy_boards)
+   * it has at least one row in `updates` or `snapshot_chunks`. Queries
+   * `sqlite_master` first; for an unknown id no tables exist and nothing is
+   * written, so probing links leaves no storage behind.
+   */
+  existsReadOnly(): boolean {
+    if (!this.hasTables()) return false;
+    if (this.hasCreatedAt()) return true;
+    const updates = Number(this.sql.exec('SELECT COUNT(*) AS c FROM updates').one().c);
+    if (updates > 0) return true;
+    const chunks = Number(
+      this.sql.exec('SELECT COUNT(*) AS c FROM snapshot_chunks').one().c,
+    );
+    return chunks > 0;
   }
 
   /** Creates tables (if absent) and records the schema version. No rows. */
@@ -106,6 +162,7 @@ export class BoardStore {
 
   /** Records the schema version for a loaded store (used by tests). */
   schemaVersion(): number {
+    if (!this.hasTables()) return 0;
     const rows = this.sql
       .exec('SELECT value FROM storage_meta WHERE key = ?', META_SCHEMA_VERSION)
       .toArray();
@@ -121,6 +178,9 @@ export class BoardStore {
       this.appendFailNext = false;
       throw new Error('injected append failure');
     }
+    // Story 5: migrate lazily before the first write (initialize() normally
+    // runs first; this covers legacy and test-seeded boards).
+    if (!this.hasTables()) this.migrate();
     this.sql.exec(
       'INSERT INTO updates (data, bytes) VALUES (?, ?)',
       update,
@@ -171,6 +231,14 @@ export class BoardStore {
    * 3. Any SQL error → `sql-error`.
    */
   load(doc: Y.Doc): LoadResult {
+    // Story 5: a board with no tables at all (never initialized, no legacy
+    // data) loads as an empty board WITHOUT creating any storage — probing an
+    // unknown link must not leave tables behind (share.board_api no-write).
+    if (!this.hasTables()) {
+      this.updateCount = 0;
+      this.updateBytes = 0;
+      return { ok: true, quarantined: 0 };
+    }
     try {
       const armed = this.sql
         .exec('SELECT value FROM storage_meta WHERE key = ?', META_ARM_SELECT_FAIL)

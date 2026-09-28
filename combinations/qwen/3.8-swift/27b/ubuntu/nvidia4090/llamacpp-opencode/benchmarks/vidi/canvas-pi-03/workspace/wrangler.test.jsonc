@@ -22,6 +22,16 @@
   "migrations": [
     { "tag": "v1", "new_sqlite_classes": ["BoardRoom"] }
   ],
+  // Story 5: mirrors wrangler.jsonc. The local runtime does not implement the
+  // ratelimits binding, so the worker falls back to an in-memory limiter with
+  // the same limit/period (see src/worker/create-board.ts).
+  "ratelimits": [
+    {
+      "name": "BOARD_CREATE_LIMITER",
+      "namespace_id": "00000000-0000-0000-0000-000000000000",
+      "simple": { "limit": 10, "period": 60 }
+    }
+  ],
   // Enables the /__test/ ops routes for the integration + e2e suites. This is
   // ONLY in the test config — the production wrangler.jsonc never sets it, so
   // the hook routes are absent in production builds.

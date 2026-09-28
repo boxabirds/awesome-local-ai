@@ -26,6 +26,13 @@ export const LOAD_RETRY_MIN_INTERVAL_MS = 5000;      // LoadFailed room retries 
 export const PERSIST_TESTED_NOTES = 2000;            // PRD persist.large_board
 export const BOARD_LOAD_BUDGET_MS = 3000;            // PRD persist.large_board
 export const STORAGE_SCHEMA_VERSION = 1;
+// Story 5: share a board with others using a link
+export const BOARD_CREATE_LIMIT = 10;              // per visitor, per period (PRD share.rate_limit)
+export const BOARD_CREATE_PERIOD_SECONDS = 60;     // must match wrangler.jsonc ratelimits (TC-03 asserts equality)
+export const CREATE_ID_MAX_ATTEMPTS = 3;           // collision retries when a generated id is already taken
+export const CREATE_BUDGET_MS = 2000;              // PRD share.create: board opens within 2 s
+export const LINK_COPIED_MS = 2000;                // PRD share.copy: "Link copied" duration
+export const BOARD_CHECK_RETRY_BASE_MS = 1000;     // backoff doubles up to RECONNECT_MAX_BACKOFF_MS (story 3)
 
 export const STICKY_COLORS = {
   yellow: '#FFF59D',

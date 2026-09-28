@@ -9,8 +9,12 @@
  * `ctx.storage` and returns a JSON response.
  *
  * Ops:
- *   GET  /inspect            → schema version + row/chunk counts + notes
+ *   GET  /inspect            → schema version + tables + row/chunk counts + notes
+ *   POST /initialize         → story 5: mark the board created (created_at) once
+ *   GET  /echo               → story 5: echo the request headers the worker sees
+ *                              (verifies CF-Connecting-IP visibility in dev)
  *   POST /append             → append one or more Yjs updates to the log
+ *   POST /seed-legacy        → story 5 TC-31: seed notes with NO created_at
  *   POST /load               → load into a fresh Y.Doc (quarantine path)
  *   POST /compact            → load then compactIfNeeded
  *   POST /force-compact      → load then compact unconditionally (small boards)
@@ -21,7 +25,7 @@
  */
 import * as Y from 'yjs';
 import { BoardStore } from './board-store';
-import { snapshot, initDoc } from 'src/shared/board-model';
+import { snapshot, initDoc, createSticky, getStickyText } from 'src/shared/board-model';
 
 function toBase64(bytes: Uint8Array): string {
   let bin = '';
@@ -63,8 +67,48 @@ async function handleTestOp(storage: DurableObjectStorage, req: Request): Promis
   const sql = storage.sql;
 
   switch (op) {
+    case 'initialize': {
+      // Story 5: mirror BoardRoom.initialize() at the storage level (the DO's
+      // storage is the same database), so tests can create a board by id.
+      const store = new BoardStore(storage);
+      const created = !store.hasCreatedAt();
+      if (created) {
+        store.migrate();
+        store.setCreatedAt(Date.now());
+      }
+      return json({ ok: true, result: created ? 'created' : 'exists' });
+    }
+
+    case 'echo': {
+      // Test-only: report the headers as the worker sees them (used to verify
+      // CF-Connecting-IP handling under `wrangler dev` for rate-limit tests).
+      const headers: Record<string, string> = {};
+      req.headers.forEach((v, k) => {
+        headers[k] = v;
+      });
+      return json({ headers });
+    }
+
     case 'inspect': {
       const store = new BoardStore(storage);
+      // Table names (empty for a never-initialized board — the check must not
+      // create storage itself).
+      const tables = sql
+        .exec("SELECT name FROM sqlite_master WHERE type = 'table' ORDER BY name")
+        .toArray()
+        .map((r) => String(r.name));
+      if (!store.hasTables()) {
+        return json({
+          schemaVersion: 0,
+          tables,
+          createdAt: null,
+          updateCount: 0,
+          chunkCount: 0,
+          quarantinedCount: 0,
+          throughSeq: 0,
+          notes: [],
+        });
+      }
       const updateCount = Number(sql.exec('SELECT COUNT(*) AS c FROM updates').one().c);
       const chunkCount = Number(sql.exec('SELECT COUNT(*) AS c FROM snapshot_chunks').one().c);
       const quarantinedCount = Number(sql.exec('SELECT COUNT(*) AS c FROM quarantined_updates').one().c);
@@ -77,6 +121,8 @@ async function handleTestOp(storage: DurableObjectStorage, req: Request): Promis
       store.load(doc);
       return json({
         schemaVersion: store.schemaVersion(),
+        tables,
+        createdAt: store.createdAt(),
         updateCount,
         chunkCount,
         quarantinedCount,
@@ -93,6 +139,24 @@ async function handleTestOp(storage: DurableObjectStorage, req: Request): Promis
       const store = new BoardStore(storage);
       for (const b64 of updates) store.append(fromBase64(b64));
       return json({ ok: true, appended: updates.length });
+    }
+
+    case 'seed-legacy': {
+      // Story 5 TC-31: seed a board the way story 3 legacy boards look —
+      // tables + `updates` rows but NO `created_at` (the pre-share story 5
+      // rooms never set it). `append` lazy-migrates, so no explicit migrate/
+      // setCreatedAt call; the existence rule must then treat it as existing.
+      const body = (await req.json().catch(() => null)) as { notes?: number } | null;
+      const count = Math.max(0, Math.min(100, body?.notes ?? 1));
+      const doc = new Y.Doc();
+      initDoc(doc);
+      for (let i = 0; i < count; i++) {
+        const id = createSticky(doc, { x: (i % 5) * 120, y: Math.floor(i / 5) * 120 }, 'yellow', `legacy-${i}`);
+        if (id) getStickyText(doc, id)?.insert(0, `legacy ${i}`);
+      }
+      const store = new BoardStore(storage);
+      store.append(Y.encodeStateAsUpdate(doc));
+      return json({ ok: true, notes: count, createdAt: store.createdAt() });
     }
 
     case 'load': {

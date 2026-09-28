@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { render, within, act, cleanup } from '@testing-library/react';
 import { App } from 'src/client/App';
+import { boardReady } from './ready';
 
 class MockResizeObserver {
   observe = vi.fn();
@@ -19,8 +20,9 @@ function makePointerEvent(type: string, opts: any = {}) {
 }
 
 describe('TC-22: hint visible -> hidden after first camera change -> stays hidden', () => {
-  it('visible on load, hidden after pan, stays hidden after second change', () => {
+  it('visible on load, hidden after pan, stays hidden after second change', async () => {
     const { container } = render(<App />);
+    await boardReady();
 
     expect(within(container).getByTestId('navigation-hint')).toBeTruthy();
 

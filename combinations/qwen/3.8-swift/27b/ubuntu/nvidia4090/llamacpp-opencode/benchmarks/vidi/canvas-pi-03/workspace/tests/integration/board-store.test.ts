@@ -3,10 +3,12 @@
  * real Durable Object SQLite, driven through the test-only ops routes. Each
  * test uses a fresh board id so per-object storage never collides.
  *
- * Note: constructing a board's Durable Object runs `initDoc`, which stores one
- * schema row. So a fresh board has one log row (the schema) and zero notes.
- * Appended updates are complete histories (schema + notes) so they apply to the
- * board's doc on load.
+ * Story 5 changed the storage contract: constructing a board's Durable Object
+ * NO LONGER migrates (the constructor must not write for unknown ids); tables
+ * are created by `initialize()` or lazily before the first `append`. A never
+ * initialized board therefore has no tables at all (probing leaves no
+ * storage behind). Appended updates are complete histories (schema + notes) so
+ * they apply to the board's doc on load.
  */
 import { describe, it, expect, afterEach } from 'vitest';
 import { SELF } from 'cloudflare:test';
@@ -80,8 +82,13 @@ function sameNotes(a: unknown, b: unknown): boolean {
 }
 
 describe('persist.board_store (real DO SQLite)', () => {
-  it('TC-03: empty board → tables exist, doc empty, schema version set', async () => {
+  it('TC-03: empty board → no storage until initialize, then tables + schema version, empty doc', async () => {
+    // Story 5: a never-initialized board has NO tables (no-write guarantee);
+    // initialize() creates them and records the schema version.
     const id = newBoardId();
+    const before = await op(id, 'inspect');
+    expect(before.tables).toEqual([]);
+    await op(id, 'initialize');
     const out = await op(id, 'inspect');
     expect(out.schemaVersion).toBe(STORAGE_SCHEMA_VERSION);
     expect(out.chunkCount).toBe(0);
@@ -160,10 +167,10 @@ describe('persist.board_store (real DO SQLite)', () => {
     const id = newBoardId();
     const { updates, notes } = buildNotes(10, 4);
     await op(id, 'append', { updates: updates.map(b64) });
-    // Damage the LAST note row (nothing after it to cascade). The board has 1
-    // constructor-schema row, then our `updates.length` rows; the last note is
-    // the final row.
-    const lastSeq = updates.length + 1;
+    // Damage the LAST note row (nothing after it to cascade). Story 5: there
+    // is no constructor-schema row, so the appended rows occupy seq 1..N and
+    // the last note is the final row.
+    const lastSeq = updates.length;
     // Same-length random bytes are guaranteed undecodable by Yjs.
     const dmg = await op(id, 'damage-log-row', { seq: lastSeq, mode: 'random' });
     expect(dmg.ok).toBe(true);
@@ -212,8 +219,9 @@ describe('persist.board_store (real DO SQLite)', () => {
     expect(out.afterUpdates).toBe(out.beforeUpdates);
   });
 
-  it('TC-25: migrate on a never-edited board writes no snapshot rows, doc stays empty', async () => {
+  it('TC-25: initialize on a never-edited board writes no snapshot rows, doc stays empty', async () => {
     const id = newBoardId();
+    await op(id, 'initialize');
     const out = await op(id, 'inspect');
     expect(out.schemaVersion).toBe(STORAGE_SCHEMA_VERSION);
     expect(out.chunkCount).toBe(0);

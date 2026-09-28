@@ -43,7 +43,10 @@ export default defineConfig({
     },
   ],
   webServer: {
-    command: 'npm run build:test && npx wrangler dev --port 8787',
+    // wrangler.e2e.jsonc (not the production config): TEST_HOOKS enabled and
+    // a high board-create rate limit, since the whole suite creates boards
+    // through the API (see share.spec.ts TC-30 for the exact-limit test).
+    command: 'npm run build:test && npx wrangler dev --config wrangler.e2e.jsonc --port 8787',
     port: 8787,
     reuseExistingServer: true,
     timeout: 120_000,

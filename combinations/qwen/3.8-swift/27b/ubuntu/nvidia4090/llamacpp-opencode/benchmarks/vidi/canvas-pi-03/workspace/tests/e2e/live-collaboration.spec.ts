@@ -17,7 +17,6 @@ import {
   typeInNote,
   noteById,
   expectWithin,
-  within,
   BUDGET,
 } from './helpers/participants';
 import { getNotes, setCamera } from './helpers/board';
@@ -116,10 +115,19 @@ test.describe('Workflow: Two-person workshop', () => {
     // Both drag the same note to different spots simultaneously.
     await Promise.all([moveNote(alex.page, id, 60, 20), moveNote(sam.page, id, -40, 40)]);
 
-    // Both pages converge to the identical (x, y).
-    const posA = (await noteById(alex.page, id))!;
-    await expectWithin(async () => (await noteById(sam.page, id))!.x, posA.x);
-    await expectWithin(async () => (await noteById(sam.page, id))!.y, posA.y);
+    // Both pages converge to the identical (x, y). Poll until the two agree
+    // with each other: reading one page as a fixed reference right after the
+    // drag would capture a still-settling position the other never matches.
+    await expect
+      .poll(
+        async () => {
+          const a = await noteById(alex.page, id);
+          const s = await noteById(sam.page, id);
+          return a !== null && s !== null && a.x === s.x && a.y === s.y;
+        },
+        { timeout: BUDGET * 2 },
+      )
+      .toBe(true);
 
     alex.context.close();
     sam.context.close();
@@ -209,10 +217,24 @@ test.describe('Workflow: Full-capacity session', () => {
           .map((n) => `${n.id}:${n.x},${n.y}`)
           .sort(),
       );
-    const ref = await snap(ps[0].page);
-    for (const p of ps) {
-      await within(BUDGET, () => snap(p.page)).toEqual(ref);
-    }
+    // Poll until every page agrees with the first. Capturing a single reference
+    // right after the last local move would race that move's propagation to the
+    // reference page, so compare all pages on each poll instead.
+    await expect
+      .poll(
+        async () => {
+          const first = JSON.stringify(await snap(ps[0].page));
+          for (const p of ps) {
+            if (JSON.stringify(await snap(p.page)) !== first) return false;
+          }
+          return true;
+        },
+        // Generous margin for a loaded machine: five-way convergence on
+        // localhost is well under a second, so this does not mask a real
+        // divergence (which would never converge and fail at the timeout).
+        { timeout: BUDGET * ps.length * 2 },
+      )
+      .toBe(true);
 
     for (const p of ps) p.context.close();
   });

@@ -8,8 +8,7 @@
  */
 import { test, expect, type Browser, type Page } from '@playwright/test';
 import { startWranglerProcess, type ServerHandle } from './helpers/wrangler-process';
-import { getNotes } from './helpers/board';
-import { newBoardId } from 'src/shared/board-id';
+import { getNotes, createBoardId } from './helpers/board';
 import { PERSIST_TESTED_NOTES, BOARD_LOAD_BUDGET_MS } from 'src/shared/config';
 
 /** Call a gated test hook (enabled in the e2e wrangler config only). */
@@ -64,7 +63,7 @@ async function restart(server: ServerHandle): Promise<ServerHandle> {
 test.describe('persist.room e2e', () => {
   test('TC-19: overnight return — 25 notes survive a process restart', async ({ browser }) => {
     const server = await startWranglerProcess();
-    const boardId = newBoardId();
+    const boardId = await createBoardId(server.url);
     try {
       const { context, page } = await openBoard(browser, server, boardId);
       await seed(page, 25);
@@ -100,7 +99,7 @@ test.describe('persist.room e2e', () => {
 
   test('TC-20: leave immediately — append-before-broadcast survives a fast kill', async ({ browser }) => {
     const server = await startWranglerProcess();
-    const boardId = newBoardId();
+    const boardId = await createBoardId(server.url);
     try {
       // Alex creates a note (and the room stores it before Sam joins).
       const alex = await openBoard(browser, server, boardId);
@@ -142,8 +141,11 @@ test.describe('persist.room e2e', () => {
   });
 
   test('TC-21: big board opens within the load budget', async ({ browser }) => {
+    // Seeding 2000 notes + a fresh load is heavy; give the whole test wall-clock
+    // headroom beyond the default 30s (the in-test load budget assert is unchanged).
+    test.setTimeout(120_000);
     const server = await startWranglerProcess();
-    const boardId = newBoardId();
+    const boardId = await createBoardId(server.url);
     try {
       // Seed the large board through the client (triggers compaction server-side).
       const seedCtx = await openBoard(browser, server, boardId);

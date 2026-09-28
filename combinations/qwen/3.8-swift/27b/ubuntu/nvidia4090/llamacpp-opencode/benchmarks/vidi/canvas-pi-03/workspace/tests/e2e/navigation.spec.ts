@@ -1,10 +1,21 @@
-import { test, expect } from '@playwright/test';
-import { getOriginMarkerPos, setCamera } from './helpers/board';
+import { test, expect, type Page } from '@playwright/test';
+import { getOriginMarkerPos, setCamera, createBoardIdForPage } from './helpers/board';
 import { GRID_SPACING_WORLD, UNBOUNDED_PAN_TESTED_EXTENT } from 'src/shared/config';
+
+/**
+ * Story 5: '/' is the home page; every board workflow starts by creating a
+ * board through the API and opening its link (the board mounts only for
+ * existing ids).
+ */
+async function openBoard(page: Page) {
+  const id = await createBoardIdForPage(page);
+  await page.goto(`/b/${id}`);
+  await page.waitForFunction(() => (window as any).__vidi6?.doc != null, null, { timeout: 10000 });
+}
 
 test.describe('Workflow 1: First visit navigation', () => {
   test('TC-28: hint visible on load, removed after drag', async ({ page }) => {
-    await page.goto('/');
+    await openBoard(page);
 
     // Hint visible
     const hint = page.getByTestId('navigation-hint');
@@ -26,7 +37,7 @@ test.describe('Workflow 1: First visit navigation', () => {
   });
 
   test('TC-23: mouse drag (200,100) moves origin marker exactly', async ({ page }) => {
-    await page.goto('/');
+    await openBoard(page);
 
     const before = await getOriginMarkerPos(page);
 
@@ -46,7 +57,7 @@ test.describe('Workflow 1: First visit navigation', () => {
   });
 
   test('TC-24: Ctrl+wheel over a dot keeps it under pointer, page zoom unchanged', async ({ page }) => {
-    await page.goto('/');
+    await openBoard(page);
 
     const before = await getOriginMarkerPos(page);
     const scaleBefore = await page.evaluate(() => window.visualViewport?.scale ?? 1);
@@ -71,7 +82,7 @@ test.describe('Workflow 1: First visit navigation', () => {
 
 test.describe('Workflow 2: Limits and recovery', () => {
   test('TC-25: click + until disabled, label ends at 400%', async ({ page }) => {
-    await page.goto('/');
+    await openBoard(page);
 
     const zoomIn = page.getByLabel('Zoom in');
     const label = page.getByTestId('zoom-label');
@@ -88,7 +99,7 @@ test.describe('Workflow 2: Limits and recovery', () => {
   });
 
   test('TC-26: jump far via test hook, reset returns to 100% centred', async ({ page }) => {
-    await page.goto('/');
+    await openBoard(page);
 
     // Jump far away and zoom in
     await setCamera(page, -UNBOUNDED_PAN_TESTED_EXTENT, -UNBOUNDED_PAN_TESTED_EXTENT, 4);
@@ -113,7 +124,7 @@ test.describe('Workflow 2: Limits and recovery', () => {
 
 test.describe('Workflow 3: Far travel', () => {
   test('TC-27: at 1M units, drag (200,100) exact movement', async ({ page }) => {
-    await page.goto('/');
+    await openBoard(page);
 
     // Jump to far position
     await setCamera(page, -UNBOUNDED_PAN_TESTED_EXTENT, -UNBOUNDED_PAN_TESTED_EXTENT, 1);
@@ -145,7 +156,7 @@ test.describe('Workflow 3: Far travel', () => {
 
 test.describe('TC-31: Board gestures do not zoom the page', () => {
   test('Ctrl+wheel and Ctrl+=/-/0 do not change page zoom', async ({ page }) => {
-    await page.goto('/');
+    await openBoard(page);
 
     const scaleBefore = await page.evaluate(() => window.visualViewport?.scale ?? 1);
     const dprBefore = await page.evaluate(() => window.devicePixelRatio);

@@ -7,6 +7,7 @@ import { render, screen, fireEvent, act } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import * as Y from 'yjs';
 import { App } from 'src/client/App';
+import { boardReady } from './ready';
 import { snapshot, deleteObject } from 'src/shared/board-model';
 
 function getDoc(): Y.Doc {
@@ -48,8 +49,9 @@ function pressRelease(
 }
 
 describe('sticky.interaction (component)', () => {
-  beforeEach(() => {
+  beforeEach(async () => {
     render(<App />);
+    await boardReady();
   });
 
   it('TC-18: press+release without move selects the note (outline + toolbar)', async () => {
