@@ -1,0 +1,4 @@
+{"install_id": "mlxserve-qwen38-flash-next", "combination": "qwen/3.8/flash-next/macos/128GB/mlxserve-opencode", "model_id": "mlxserve-flash-next-mixed-4-8bit",
+ "pack": "vidi", "scope": "canvas", "metered": 0, "reasoning_effort": "low", "client_thinking": "", "known_good_from": "benchmarks/reference/vidi/opus-5.5/run-3", "context_limit": 131072,
+ "output_limit": 32768, "backend_version": "", "mtplx_memory_limit_bytes": "", "compact_at": "client default", "client": "pi", "client_version": "0.86.0", "backend": "mlxserve", "host": "Apple M5 Max 128GB",
+ "harness_commit": "5ca69ba9", "pack_version": "vidi-v1.1", "started_at": "2026-09-28T20:50:22Z"}
