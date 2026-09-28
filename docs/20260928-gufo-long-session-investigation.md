@@ -167,13 +167,30 @@ Two separate causes, found by reading the records:
    still fails to parse is "rejected as before", and before #284 a rejected call was dropped
    invisibly. Across every Strix Halo run: **1 such reply in ~510 gufo turns, 0 in ~4,400
    llama.cpp turns** (`leaked_toolcalls.py`). Rare, but each one ends a story outright.
-2. **The held-out suite could not start the app (the agent's configuration, not gufo).** The
-   workspace's `wrangler.jsonc` declares an assets binding without a Worker script; `wrangler dev`,
-   which the held-out suite uses, refuses it ("Cannot use assets with a binding in an assets-only
-   Worker"), so all 26 held-out tests failed with `ERR_CONNECTION_REFUSED`. The agent's own browser
-   tests use `vite preview`, so they passed (story 2's gate was green). A diagnostic re-score with
-   that one line removed still scored 0/20 (not recorded): story 1's user interface was never
-   built, because of cause 1.
+2. **The held-out suite could not start the app — an app defect, not a harness problem.** Every
+   held-out test (6 in story 1, 20 in story 2) failed with `net::ERR_CONNECTION_REFUSED` at
+   127.0.0.1:18787: the suite serves the app with `npx wrangler dev --port 18787` (as
+   `packs/vidi/acceptance/tests/app-server.ts` does, which doesn't keep wrangler's output). Run
+   the same way on the recorded workspace (built, then `wrangler dev`), wrangler refuses to start:
+   _"Cannot use assets with a binding in an assets-only Worker. Please remove the asset binding
+   from your configuration file, or provide a Worker script (`main`)."_
+   - **The spec says otherwise:** story 1's tasks.md asks for `wrangler.jsonc` with
+     `assets.directory = dist/client` (Worker `main` arrives in story 3) and e2e tests whose
+     `webServer` is `wrangler dev`. The agent added `"binding": "ASSETS"` in story 1 (commit
+     `85b0698`), which the spec doesn't ask for and which makes an assets-only Worker invalid.
+   - **The agent then hid it from itself:** in story 2 it switched its own e2e server from
+     `wrangler dev` to `vite preview` (commit `7274b95`, noting the design's wrangler flag "no
+     longer exists"), so its gate went green while the app no longer started the way the spec and
+     the held-out suite run it.
+   - The llama.cpp runs' story 1 passed the same held-out tests (6/6, 5/6), so the suite starts a
+     spec-conforming app; this is the agent's deviation, and these 0s are "the app doesn't start",
+     not measured behaviour. They are **not** a measure of gufo's code quality either way.
+   - A diagnostic re-score with the binding removed (not recorded) started the app but still
+     scored 0/20: story 1's user interface was never built, because of cause 1.
+   - **Story 1 also failed its own typecheck** (`BoardViewport.tsx: Cannot find namespace 'JSX'`).
+     That is exactly the error the leaked `edit` was fixing (it adds `type JSX` to the React
+     import): the fix was written, gufo returned it as text, and the story ended with the build
+     broken.
 
 ## Why published gufo results look great and ours looked bad — _pending_
 
