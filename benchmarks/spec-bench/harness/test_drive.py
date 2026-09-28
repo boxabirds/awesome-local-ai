@@ -794,3 +794,85 @@ def test_a_cut_off_event_line_does_not_crash_the_end_of_a_story(tmp_path):
     log.write_text(_json.dumps(good[0]) + "\n" + '{"_rx": 2.0, "type": "message_end", "message": {"content": "cut of\n'
                    + _json.dumps(good[1]) + "\n")
     assert [e["_rx"] for e in _stamped_events(log)] == [1.0, 3.0]
+
+
+LEAKED_CALL = ("<tool_call>\n<function=edit>\n<parameter=path>\nsrc/a.tsx\n</parameter>\n"
+               "<parameter=edits>\n[{\"oldText\": \"a,\n  b\", \"newText\": \"a,\n  c\"}]\n</parameter>\n"
+               "</function>\n</tool_call>")
+
+
+def _event(role, *parts):
+    return json.dumps({"type": "message_end", "message": {"role": role, "content": list(parts)}}) + "\n"
+
+
+def test_the_final_reply_is_the_last_assistant_messages_text(tmp_path):
+    import drive
+    ev = tmp_path / "ev.jsonl"
+    ev.write_text(_event("assistant", {"type": "text", "text": "first"})
+                  + _event("assistant", {"type": "thinking", "thinking": "hmm"}, {"type": "text", "text": LEAKED_CALL})
+                  + _event("toolResult", {"type": "text", "text": "not this"}) + "not json\n")
+    assert drive.final_reply_text(ev) == LEAKED_CALL
+    assert drive.final_reply_text(tmp_path / "missing.jsonl") == ""
+
+
+def test_a_tool_call_written_as_text_is_recognised():
+    """28 Sep: gufo b722a61 returned an `edit` call with raw newlines in its JSON argument as plain
+    text (gufo-org/gufo#304); pi read it as "finished" and the story ended mid-work."""
+    import drive
+    assert drive.tool_call_as_text(LEAKED_CALL)
+    assert drive.tool_call_as_text("Now fixing the import.\n" + LEAKED_CALL)
+    assert not drive.tool_call_as_text("All tasks are done and committed.")
+    assert not drive.tool_call_as_text("")
+
+
+def _no_guard(monkeypatch):
+    import drive
+
+    class NoGuard:
+        def __init__(self, *a): pass
+        def start(self): pass
+        def stop(self): return 0
+    monkeypatch.setattr(drive, "ToolHangGuard", NoGuard)
+    monkeypatch.setattr(drive, "sh", lambda *a, **k: "HEAD")
+
+
+def test_a_session_that_ends_on_a_tool_call_written_as_text_is_continued_and_logged(tmp_path, monkeypatch):
+    import drive
+    clean = {"stalled": False, "error": None, "session": "s", "steps": 3, "tool_calls": 2, "exit": 0,
+             "seconds": 60, "compactions": 0, "tokens": {"input": 1, "output": 1}}
+    run = tmp_path / "run"
+    ev = run / "stories" / "01" / "agent-events.jsonl"
+    ev.parent.mkdir(parents=True)
+    finals = [LEAKED_CALL, "Done: all tasks committed."]
+    prompts = []
+
+    def fake_run_agent(client, ws, env, model_id, prompt, events_path, resume_from=None, fork=True):
+        prompts.append(prompt)
+        with events_path.open("a") as f:
+            f.write(_event("assistant", {"type": "text", "text": finals[len(prompts) - 1]}))
+        return dict(clean)
+    monkeypatch.setattr(drive, "run_agent", fake_run_agent)
+    monkeypatch.setattr(drive, "commits_since", lambda ws, head: 1)   # it had committed: no nudge
+    _no_guard(monkeypatch)
+    res = drive.run_story_agent(None, tmp_path, {}, "m", "go", ev)
+    assert prompts == ["go", drive.TOOLCALL_AS_TEXT_PROMPT]
+    assert res["toolcall_text_resumes"] == 1 and res["nudges"] == 0
+    assert "tool call written as text" in (run / "interventions.md").read_text()
+
+
+def test_tool_call_as_text_resumes_are_capped(tmp_path, monkeypatch):
+    import drive
+    clean = {"stalled": False, "error": None, "session": "s", "steps": 3, "tool_calls": 2, "exit": 0,
+             "seconds": 60, "compactions": 0, "tokens": {"input": 1, "output": 1}}
+    ev = tmp_path / "run" / "stories" / "01" / "agent-events.jsonl"
+    ev.parent.mkdir(parents=True)
+
+    def fake_run_agent(client, ws, env, model_id, prompt, events_path, resume_from=None, fork=True):
+        with events_path.open("a") as f:
+            f.write(_event("assistant", {"type": "text", "text": LEAKED_CALL}))
+        return dict(clean)
+    monkeypatch.setattr(drive, "run_agent", fake_run_agent)
+    monkeypatch.setattr(drive, "commits_since", lambda ws, head: 1)
+    _no_guard(monkeypatch)
+    res = drive.run_story_agent(None, tmp_path, {}, "m", "go", ev)
+    assert res["toolcall_text_resumes"] == drive.MAX_TOOLCALL_TEXT_RESUMES
