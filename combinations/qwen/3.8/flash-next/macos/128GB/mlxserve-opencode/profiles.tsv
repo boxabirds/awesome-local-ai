@@ -9,7 +9,7 @@
 #             = 24,576 B/token, + MTP head 2,048 + sparse-attention indexer
 #             768 = 27,392 B/token                        3,424 MiB at 131072
 #   GDN       36 linear-attention layers, fixed f32 state   108 MiB
-#   prefix    mlx-serve's default --prefix-cache-mem cap  2,048 MiB
+#   prefix    --prefix-cache-mem 16GB (config.sh)          16,384 MiB
 #
 # NOT included: the prefill working set (unmeasured; the launcher demands
 # MLXSERVE_PREFLIGHT_HEADROOM_MIB on top), and the 29.8 GiB n-gram table, which
@@ -20,6 +20,6 @@
 # and a session there reached a 97 GiB peak at ~115k context. An estimate of
 # weights + KV would have said ~75 GiB for that too, so treat these rows as a
 # floor, not a ceiling.
-agent|131072|1|off|32768|76538|ESTIMATED|default; 128k ctx, native MTP head on (author: +41% decode on code)
-serial|131072|0|off|32768|76538|ESTIMATED|same, MTP off (author: MTP is a few percent slower on prose)
-lean|65536|1|8|32768|74024|ESTIMATED|64k ctx, 8-bit KV cache; the smallest footprint here
+agent|131072|1|off|32768|90874|ESTIMATED|default; 128k ctx, native MTP head on (author: +41% decode on code)
+serial|131072|0|off|32768|90874|ESTIMATED|same, MTP off (author: MTP is a few percent slower on prose)
+lean|65536|1|8|32768|88360|ESTIMATED|64k ctx, 8-bit KV cache; the smallest footprint here
