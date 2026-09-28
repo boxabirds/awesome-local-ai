@@ -1,25 +1,51 @@
-// A sticky note on the board (story 2): renders, selects, drags to move and
-// edits its text. Selection/editing are props (never stored in the doc); all
+// A sticky note on the board (story 2), rendered through the story 7 generic
+// object machinery: it draws itself (size included) and delegates the grab to
+// useTransformGesture through `onObjectPointerDown`; in the generic path it owns
+// no drag code. Selection/editing are props (never stored in the doc); all
 // mutations go through the board-model.
+//
+// It accepts TWO prop shapes:
+//  * ObjectProps (what the board renders, via the object registry) - the story 7
+//    path: the pointer is handed to the shared gesture, which moves, resizes and
+//    deletes whatever the selection contains, and whose SelectionBar shows the
+//    note toolbar;
+//  * the story 2 props (`note`, `onSelect`, `onColor`, `onDelete`, ...) - the
+//    direct-mount path story 2's own component suite uses, which still drags the
+//    note itself with moveObject. The board never uses this shape; it exists so
+//    the story 2 suite can keep driving one note in isolation (see NOTES.md).
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import type React from 'react';
 import type * as Y from 'yjs';
-import { getStickyText, moveObject, bringToFront, type StickySnapshot } from '../../shared/board-model.ts';
+import {
+  getStickyText,
+  moveObject,
+  bringToFront,
+  type StickySnapshot,
+  type ObjectSnapshot,
+} from '../../shared/board-model.ts';
 import {
   STICKY_SIZE_WORLD,
   STICKY_COLORS,
   DRAG_THRESHOLD_PX,
+  type StickyColor,
 } from '../../shared/config.ts';
 import { fitFontSize } from './StickyText.ts';
 import { StickyTextEditor, StickyCharCounter } from './StickyTextEditor.tsx';
 import { NoteToolbar } from './NoteToolbar.tsx';
+import type { ObjectProps } from './registry.tsx';
 import type { EndMode } from '../board/useSelection.ts';
 
 const PADDING = 12;
-const CONTENT_W = STICKY_SIZE_WORLD - PADDING * 2;
-const CONTENT_H = STICKY_SIZE_WORLD - PADDING * 2;
 
-export interface StickyNoteProps {
+function sizeOf(obj: ObjectSnapshot): { width: number; height: number } {
+  return {
+    width: typeof obj.width === 'number' && Number.isFinite(obj.width) && obj.width > 0 ? obj.width : STICKY_SIZE_WORLD,
+    height: typeof obj.height === 'number' && Number.isFinite(obj.height) && obj.height > 0 ? obj.height : STICKY_SIZE_WORLD,
+  };
+}
+
+
+export interface LegacyStickyNoteProps {
   note: StickySnapshot;
   doc: Y.Doc;
   zoom: number;
@@ -32,35 +58,44 @@ export interface StickyNoteProps {
    * model is never called.
    */
   editable?: boolean;
-  onSelect(id: string): void;
+  onSelect(id: string | null): void;
   onStartEdit(id: string): void;
   onEndEdit(next: EndMode): void;
   onColor(id: string, color: string): void;
   onDelete(id: string): void;
 }
 
+export type StickyNoteProps = ObjectProps | LegacyStickyNoteProps;
+
+function isLegacy(props: StickyNoteProps): props is LegacyStickyNoteProps {
+  return (props as LegacyStickyNoteProps).note !== undefined;
+}
+
 type DragState = 'none' | 'pressed' | 'dragging';
 
 export function StickyNote(props: StickyNoteProps): React.JSX.Element {
-  const {
-    note,
-    doc,
-    zoom,
-    selected,
-    editing,
-    editable = true,
-    onSelect,
-    onStartEdit,
-    onEndEdit,
-    onColor,
-    onDelete,
-  } = props;
+  const legacy = isLegacy(props);
+  const obj: ObjectSnapshot = legacy ? (props as LegacyStickyNoteProps).note : (props as ObjectProps).obj;
+  const doc = props.doc;
+  const zoom = props.zoom;
+  const selected = props.selected;
+  const editing = props.editing;
+  const editable = (props as { editable?: boolean }).editable ?? true;
+  const note = obj as StickySnapshot; // sticky-specific fields (color, text)
+  const legacyProps = legacy ? (props as LegacyStickyNoteProps) : null;
+  const genericProps = legacy ? null : (props as ObjectProps);
 
   const elRef = useRef<HTMLDivElement | null>(null);
   const measureRef = useRef<HTMLDivElement | null>(null);
 
-  // Font auto-fit: run on mount and whenever the text changes (never on zoom —
-  // the world font scales uniformly with the board).
+  const { width, height } = sizeOf(obj);
+  // Text auto-fit measures inside the note's own box (story 7: resizing a note
+  // re-fits its text).
+  const contentW = Math.max(1, width - PADDING * 2);
+  const contentH = Math.max(1, height - PADDING * 2);
+
+  // Font auto-fit: run on mount and whenever the text or the box changes (never
+  // on zoom - the world font scales uniformly with the board).
   const [fit, setFit] = useState({ fontPx: 24, overflow: false });
   // Reactive copy of the drag state so the floating toolbar hides while dragging.
   const [dragging, setDragging] = useState(false);
@@ -68,28 +103,21 @@ export function StickyNote(props: StickyNoteProps): React.JSX.Element {
   const measure = useCallback(() => {
     const el = measureRef.current;
     if (!el) return;
-    el.textContent = note.text;
-    const r = fitFontSize(el, CONTENT_H);
+    el.style.width = `${contentW}px`;
+    el.textContent = note.text ?? '';
+    const r = fitFontSize(el, contentH);
     setFit((prev) => (prev.fontPx === r.fontPx && prev.overflow === r.overflow ? prev : r));
-  }, [note.text]);
+  }, [note.text, contentW, contentH]);
 
   useLayoutEffect(() => {
     measure();
   }, [measure]);
 
-  // Drag state kept in refs so pointer handlers read live values.
-  const drag = useRef<{
-    state: DragState;
-    pointerId: number;
-    startClientX: number;
-    startClientY: number;
-    startWorldX: number;
-    startWorldY: number;
-    lastX: number;
-    lastY: number;
-    raf: number | null;
-  }>({
-    state: 'none',
+  // ---- story 2 direct-mount drag (legacy shape only) -----------------------
+  // Kept for the story 2 suite; the board renders the generic shape below and
+  // never enters this branch, because useTransformGesture moves the selection.
+  const drag = useRef({
+    state: 'none' as DragState,
     pointerId: 0,
     startClientX: 0,
     startClientY: 0,
@@ -97,30 +125,13 @@ export function StickyNote(props: StickyNoteProps): React.JSX.Element {
     startWorldY: 0,
     lastX: 0,
     lastY: 0,
-    raf: null,
+    raf: null as number | null,
   });
-
-  const flushMove = useCallback(() => {
-    const d = drag.current;
-    d.raf = null;
-    const ok = moveObject(doc, note.id, d.lastX, d.lastY);
-    if (!ok) {
-      // Note vanished mid-drag: end interaction silently (TC-37).
-      cancelDrag();
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [doc, note.id]);
-
-  const scheduleMove = useCallback(() => {
-    const d = drag.current;
-    if (d.raf != null) return; // one moveObject per frame
-    d.raf = requestAnimationFrame(flushMove);
-  }, [flushMove]);
 
   const cancelDrag = useCallback(() => {
     const d = drag.current;
     if (d.raf != null) {
-      cancelAnimationFrame(d.raf);
+      if (typeof cancelAnimationFrame === 'function') cancelAnimationFrame(d.raf);
       d.raf = null;
     }
     d.state = 'none';
@@ -129,23 +140,29 @@ export function StickyNote(props: StickyNoteProps): React.JSX.Element {
   // Clean up a pending rAF on unmount.
   useEffect(() => () => cancelDrag(), [cancelDrag]);
 
-  const onPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
-    if (e.button !== 0) return;
+  const flushMove = useCallback(() => {
+    const d = drag.current;
+    d.raf = null;
+    const ok = moveObject(doc, obj.id, d.lastX, d.lastY);
+    if (!ok) cancelDrag(); // note vanished mid-drag (TC-37)
+  }, [doc, obj.id, cancelDrag]);
+
+  const legacyPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (e.button !== 0 || legacyProps === null) return;
     // A read-only board does not swallow the press: panning over a note still
     // works, and nothing below this line can reach the model.
     if (!editable) return;
-    // The board must never pan when a note is grabbed.
-    e.stopPropagation();
+    e.stopPropagation(); // the board must never pan when a note is grabbed
     if (editing) return; // clicks inside the editor are handled there
     const d = drag.current;
     d.state = 'pressed';
     d.pointerId = e.pointerId;
     d.startClientX = e.clientX;
     d.startClientY = e.clientY;
-    d.startWorldX = note.x;
-    d.startWorldY = note.y;
-    d.lastX = note.x;
-    d.lastY = note.y;
+    d.startWorldX = obj.x;
+    d.startWorldY = obj.y;
+    d.lastX = obj.x;
+    d.lastY = obj.y;
     try {
       (e.currentTarget as Element).setPointerCapture(e.pointerId);
     } catch {
@@ -153,44 +170,38 @@ export function StickyNote(props: StickyNoteProps): React.JSX.Element {
     }
   };
 
-  const onPointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
+  const legacyPointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
     const d = drag.current;
-    if (d.state === 'none' || e.pointerId !== d.pointerId) return;
+    if (d.state === 'none' || e.pointerId !== d.pointerId || legacyProps === null) return;
     e.stopPropagation();
     if (d.state === 'pressed') {
       const dx = e.clientX - d.startClientX;
       const dy = e.clientY - d.startClientY;
       if (Math.hypot(dx, dy) < DRAG_THRESHOLD_PX) return; // still a possible click
-      // Crossing the threshold starts a real drag: select it now. Coming to the
-      // front is deferred to pointerup so the DOM node is not reordered mid-drag
-      // (reordering can drop pointer capture).
-      onSelect(note.id);
+      legacyProps.onSelect(obj.id);
       d.state = 'dragging';
       setDragging(true);
     }
-    const wx = d.startWorldX + (e.clientX - d.startClientX) / zoom;
-    const wy = d.startWorldY + (e.clientY - d.startClientY) / zoom;
-    d.lastX = wx;
-    d.lastY = wy;
-    scheduleMove();
+    d.lastX = d.startWorldX + (e.clientX - d.startClientX) / zoom;
+    d.lastY = d.startWorldY + (e.clientY - d.startClientY) / zoom;
+    if (d.raf == null) d.raf = requestAnimationFrame(flushMove);
   };
 
-  const endPointer = (e: React.PointerEvent<HTMLDivElement>) => {
+  const legacyPointerEnd = (e: React.PointerEvent<HTMLDivElement>) => {
     const d = drag.current;
-    if (d.state === 'none' || e.pointerId !== d.pointerId) return;
+    if (d.state === 'none' || e.pointerId !== d.pointerId || legacyProps === null) return;
     e.stopPropagation();
     if (d.raf != null) {
-      // Apply the final position immediately rather than waiting for a frame.
-      cancelAnimationFrame(d.raf);
+      if (typeof cancelAnimationFrame === 'function') cancelAnimationFrame(d.raf);
       d.raf = null;
     }
     const wasDragging = d.state === 'dragging';
     d.state = 'none';
     if (wasDragging) {
-      // Commit the last shown position and bring the note to the front now that
-      // the pointer is released (no mid-drag DOM reorder to break capture).
-      moveObject(doc, note.id, d.lastX, d.lastY);
-      bringToFront(doc, note.id);
+      // Commit the last shown position, then raise the note: reordering the DOM
+      // mid-drag can drop pointer capture.
+      moveObject(doc, obj.id, d.lastX, d.lastY);
+      bringToFront(doc, obj.id);
       setDragging(false);
     }
     try {
@@ -199,25 +210,40 @@ export function StickyNote(props: StickyNoteProps): React.JSX.Element {
       /* ignore */
     }
     // A short press (or the end of a drag) leaves the note selected.
-    onSelect(note.id);
+    legacyProps.onSelect(obj.id);
+  };
+
+  // ---- generic (story 7) grab: the shared gesture owns everything ----------
+  const genericPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (e.button !== 0) return;
+    if (!editable) return; // panning over a note still works on a read-only board
+    e.stopPropagation(); // the board must never pan when a note is grabbed
+    if (editing) return; // clicks inside the editor are handled there
+    genericProps!.onObjectPointerDown(e, obj.id);
   };
 
   const onDoubleClick = (e: React.MouseEvent<HTMLDivElement>) => {
     if (!editable) return; // the viewport's own create is gated the same way
     e.stopPropagation();
     if (editing) return;
-    onStartEdit(note.id);
+    if (legacyProps) legacyProps.onStartEdit(obj.id);
+    else genericProps!.onStartEdit(obj.id);
   };
 
-  const ytext = getStickyText(doc, note.id);
+  const endEdit = (next: EndMode) => {
+    if (legacyProps) legacyProps.onEndEdit(next);
+    else genericProps!.onEndEdit(next);
+  };
+
+  const ytext = getStickyText(doc, obj.id);
 
   const style: React.CSSProperties = {
     position: 'absolute',
-    left: note.x,
-    top: note.y,
-    width: STICKY_SIZE_WORLD,
-    height: STICKY_SIZE_WORLD,
-    background: STICKY_COLORS[note.color],
+    left: obj.x,
+    top: obj.y,
+    width,
+    height,
+    background: STICKY_COLORS[note.color] ?? STICKY_COLORS.yellow,
     boxShadow: '0 2px 6px rgba(0,0,0,0.18)',
     borderRadius: 2,
     color: '#202020',
@@ -235,21 +261,28 @@ export function StickyNote(props: StickyNoteProps): React.JSX.Element {
       ref={elRef}
       role="group"
       aria-label="Sticky note"
-      data-testid={`sticky-${note.id}`}
+      data-testid={`sticky-${obj.id}`}
+      data-object-id={obj.id}
       data-selected={selected}
       data-editable={editable}
       data-editing={editing}
+      data-width={width}
+      data-height={height}
       tabIndex={0}
       style={style}
-      onPointerDown={onPointerDown}
-      onPointerMove={onPointerMove}
-      onPointerUp={endPointer}
-      onPointerCancel={endPointer}
-      onLostPointerCapture={() => {
-        // Pointer captured then lost (e.g. released outside): keep last position.
-        cancelDrag();
-        setDragging(false);
-      }}
+      onPointerDown={legacy ? legacyPointerDown : genericPointerDown}
+      onPointerMove={legacy ? legacyPointerMove : undefined}
+      onPointerUp={legacy ? legacyPointerEnd : undefined}
+      onPointerCancel={legacy ? legacyPointerEnd : undefined}
+      onLostPointerCapture={
+        legacy
+          ? () => {
+              // Pointer captured then lost (e.g. released outside): keep last position.
+              cancelDrag();
+              setDragging(false);
+            }
+          : undefined
+      }
       onDoubleClick={onDoubleClick}
     >
       {/* Hidden measuring mirror: same metrics as the visible text, used to pick
@@ -257,12 +290,12 @@ export function StickyNote(props: StickyNoteProps): React.JSX.Element {
       <div
         ref={measureRef}
         aria-hidden="true"
-        data-testid={`sticky-measure-${note.id}`}
+        data-testid={`sticky-measure-${obj.id}`}
         style={{
           position: 'absolute',
           left: 0,
           top: 0,
-          width: CONTENT_W,
+          width: contentW,
           visibility: 'hidden',
           pointerEvents: 'none',
           whiteSpace: 'pre-wrap',
@@ -275,7 +308,7 @@ export function StickyNote(props: StickyNoteProps): React.JSX.Element {
 
       {/* Displayed text (hidden while editing, where the editor shows the text). */}
       <div
-        data-testid={`sticky-text-${note.id}`}
+        data-testid={`sticky-text-${obj.id}`}
         className={`sticky-text${fit.overflow ? ' sticky-text-overflow' : ''}`}
         style={{
           position: 'absolute',
@@ -300,13 +333,14 @@ export function StickyNote(props: StickyNoteProps): React.JSX.Element {
         {note.text}
       </div>
 
-      {editing && editable && ytext && <StickyTextEditor ytext={ytext} fontPx={fit.fontPx} onEnd={onEndEdit} />}
-      {editing && editable && <StickyCharCounter length={note.text.length} />}
+      {editing && editable && ytext && <StickyTextEditor ytext={ytext} fontPx={fit.fontPx} onEnd={endEdit} />}
+      {editing && editable && <StickyCharCounter length={(note.text ?? '').length} />}
 
-      {/* Colour / delete toolbar above the note, inverse-scaled so it stays a
-          constant screen size; hidden while dragging or editing, and never shown
-          on a board that cannot be edited. */}
-      {selected && !editing && !dragging && editable && (
+      {/* The note toolbar: in the generic path the story 7 SelectionBar shows it
+          above the selection instead, so it is rendered here only for the story 2
+          direct-mount shape. Hidden while dragging or editing, and never shown on
+          a board that cannot be edited. */}
+      {legacy && selected && !editing && !dragging && editable && (
         <div
           style={{
             position: 'absolute',
@@ -320,8 +354,8 @@ export function StickyNote(props: StickyNoteProps): React.JSX.Element {
         >
           <NoteToolbar
             color={note.color}
-            onColor={(c) => onColor(note.id, c)}
-            onDelete={() => onDelete(note.id)}
+            onColor={(c: StickyColor) => legacyProps!.onColor(obj.id, c)}
+            onDelete={() => legacyProps!.onDelete(obj.id)}
           />
         </div>
       )}

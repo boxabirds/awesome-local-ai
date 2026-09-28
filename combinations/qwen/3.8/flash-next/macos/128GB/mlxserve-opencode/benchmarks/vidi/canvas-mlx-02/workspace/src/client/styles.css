@@ -231,3 +231,56 @@ button:focus-visible {
   color: #b26a00;
   font: 500 13px/1 system-ui, sans-serif;
 }
+
+/* ---- Selection overlay, marquee and selection bar (story 7). ----
+   The overlay is drawn in SCREEN pixels above the board (its own layer, not the
+   world layer), so outlines stay 1.5 px and handles stay HANDLE_SIZE_PX at any
+   zoom. The container never takes the pointer; only the handles do, so a drag
+   that starts anywhere else still pans the board. */
+.selection-overlay {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 12;
+}
+
+.selection-outline {
+  position: absolute;
+  box-sizing: border-box;
+  border: 1.5px solid rgba(37, 99, 235, 0.55);
+  border-radius: 2px;
+}
+
+.selection-box {
+  position: absolute;
+  box-sizing: border-box;
+  border: 1px solid #2563eb;
+  border-radius: 2px;
+}
+
+.selection-handle {
+  position: absolute;
+  box-sizing: border-box;
+  background: #ffffff;
+  border: 1.5px solid #2563eb;
+  border-radius: 2px;
+  pointer-events: auto;
+  padding: 0;
+}
+
+.selection-handle:focus-visible {
+  outline: 2px solid #2563eb;
+  outline-offset: 1px;
+}
+
+/* Shift+drag selection rectangle: drawn in the world layer, in world units, so
+   it stays glued to the objects it is selecting. Its 1 px border and its fill
+   are set inline from the zoom. */
+.marquee {
+  position: absolute;
+  box-sizing: border-box;
+  border-style: solid;
+  border-color: #2563eb;
+  background: rgba(37, 99, 235, 0.12);
+  pointer-events: none;
+}

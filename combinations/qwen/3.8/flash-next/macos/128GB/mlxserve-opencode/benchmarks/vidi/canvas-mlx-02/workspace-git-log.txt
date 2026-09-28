@@ -1,3 +1,40 @@
+commit cfeab2123c18775e15fd07981e9c3ba579b62807
+vidi-agent  Mon Sep 28 12:20:22 2026 +0100
+
+    story 7: Select, move, resize and delete several objects at once
+
+
+ NOTES.md                                     | 146 ++++++++
+ src/client/board/BoardApp.tsx                | 219 +++++++-----
+ src/client/board/Marquee.tsx                 | 117 +++++++
+ src/client/board/SelectionBar.tsx            | 123 +++++++
+ src/client/board/SelectionOverlay.tsx        | 158 +++++++++
+ src/client/board/useBoardDoc.ts              |  31 +-
+ src/client/board/useBoardKeys.ts             |  85 +++++
+ src/client/board/useSelection.ts             | 190 +++++++++--
+ src/client/board/useTransformGesture.ts      | 330 ++++++++++++++++++
+ src/client/canvas/BoardViewport.tsx          |  61 +++-
+ src/client/objects/StickyNote.tsx            | 260 ++++++++------
+ src/client/objects/registry.tsx              |  84 +++++
+ src/client/styles.css                        |  53 +++
+ src/shared/board-model.ts                    | 295 ++++++++++++++--
+ src/shared/config.ts                         |  19 ++
+ src/shared/geometry.ts                       | 211 ++++++++++++
+ tests/component/BoardKeys.test.tsx           | 267 +++++++++++++++
+ tests/component/Marquee.test.tsx             | 133 ++++++++
+ tests/component/SelectionBar.test.tsx        | 132 +++++++
+ tests/component/SelectionOverlay.test.tsx    | 247 ++++++++++++++
+ tests/component/TransformGesture.test.tsx    | 281 +++++++++++++++
+ tests/component/story7TestUtils.tsx          | 343 +++++++++++++++++++
+ tests/component/useTransformGesture.test.tsx | 245 +++++++++++++
+ tests/e2e/selection.spec.ts                  | 494 +++++++++++++++++++++++++++
+ tests/fixtures/testbox.tsx                   |  64 ++++
+ tests/unit/board-model-group.test.ts         | 357 +++++++++++++++++++
+ tests/unit/geometry.test.ts                  | 235 +++++++++++++
+ tests/unit/registry.test.ts                  |  67 ++++
+ tests/unit/selection-reducer.test.ts         | 126 +++++++
+ tsconfig.worker.json                         |   7 +-
+ 30 files changed, 5121 insertions(+), 259 deletions(-)
 commit 26465472f08ce59b72f108a4eab862b776b1de37
 vidi-agent  Mon Sep 28 06:14:03 2026 +0100
 

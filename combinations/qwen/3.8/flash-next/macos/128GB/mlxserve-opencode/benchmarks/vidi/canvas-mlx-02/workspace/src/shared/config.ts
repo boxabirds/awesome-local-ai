@@ -137,3 +137,22 @@ export const LINK_COPIED_MS = 2000;
 // doubles it, capped at RECONNECT_MAX_BACKOFF_MS (story 3), so a service that
 // comes back is picked up without the person reloading.
 export const BOARD_CHECK_RETRY_BASE_MS = 1000;
+
+// --- Multi-select, move, resize (story 7) -----------------------------------
+
+// Resize handles on the selection's bounding box are this many SCREEN pixels,
+// at any zoom (the overlay inverts the zoom so they stay this size).
+export const HANDLE_SIZE_PX = 8;
+
+// A sticky note may never be resized smaller than this many board (world)
+// units on a side.
+export const STICKY_MIN_SIZE_WORLD = 50;
+
+// No board object may be resized larger than this many world units on a side.
+export const MAX_OBJECT_SIZE_WORLD = 20_000;
+
+// An arrow key nudges the selection this many world units.
+export const NUDGE_STEP_WORLD = 1;
+
+// Shift+arrow nudges this many world units.
+export const NUDGE_LARGE_STEP_WORLD = 10;

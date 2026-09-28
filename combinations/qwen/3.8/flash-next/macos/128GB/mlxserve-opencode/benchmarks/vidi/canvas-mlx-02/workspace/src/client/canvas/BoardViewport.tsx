@@ -2,6 +2,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import type React from 'react';
 import { useCamera, type CameraApi } from './useCamera.ts';
 import { worldToScreen, screenToWorld, type Camera, type Size, type Point } from './camera.ts';
+import { MarqueeRect, type Marquee } from '../board/Marquee.tsx';
 import {
   GRID_SPACING_WORLD,
   WHEEL_DELTA_LINE_PX,
@@ -28,6 +29,7 @@ export interface BoardViewportProps {
   children?: React.ReactNode;
   onEmptyDoubleClick?(world: Point): void;
   onEmptyClick?(): void;
+  marquee?: Marquee;
 }
 
 export interface ViewportHandles {
@@ -101,6 +103,11 @@ export interface BoardViewportHandleProps {
   children?: React.ReactNode;
   onEmptyDoubleClick?(world: Point): void;
   onEmptyClick?(): void;
+  /**
+   * Story 7: Shift + drag on empty space selects the objects inside the rectangle
+   * it draws instead of panning. A drag without Shift pans, exactly as in story 1.
+   */
+  marquee?: Marquee;
 }
 
 export function BoardViewportRoot({
@@ -109,9 +116,13 @@ export function BoardViewportRoot({
   children,
   onEmptyDoubleClick,
   onEmptyClick,
+  marquee,
 }: BoardViewportHandleProps): React.JSX.Element {
   const cam = api.camera;
   const dragRef = useRef(false);
+  // True between a Shift+pointerdown and its pointerup: the moves belong to the
+  // marquee, not to the camera.
+  const marqueeRef = useRef(false);
   const gestureBaseline = useRef<Camera | null>(null);
   // Distinguish an empty-space click (clears selection) from a pan drag.
   const clickStart = useRef<{ x: number; y: number; moved: boolean } | null>(null);
@@ -185,6 +196,21 @@ export function BoardViewportRoot({
     return () => window.removeEventListener('keydown', onKeyDown);
   }, [api]);
 
+  // Escape while a marquee is being drawn discards it and leaves the selection
+  // exactly as it was; the board's own Escape shortcut is gated on this too.
+  const marqueeApi = useRef(marquee);
+  marqueeApi.current = marquee;
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && marqueeRef.current) {
+        marqueeRef.current = false;
+        marqueeApi.current?.cancel();
+      }
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, []);
+
   const origin = worldToScreen(cam, { x: 0, y: 0 });
 
   return (
@@ -204,15 +230,26 @@ export function BoardViewportRoot({
         // Only start a drag when the target is the viewport/grid itself, so later
         // object stories can keep their objects' own pointer handling.
         if (e.target !== rootRef.current) return;
+        const p = screenPoint(e);
+        if (e.shiftKey && marquee) {
+          // Shift on empty space is a marquee, never a pan (TC-20).
+          (e.target as Element).setPointerCapture(e.pointerId);
+          marqueeRef.current = true;
+          marquee.begin(p);
+          return;
+        }
         (e.target as Element).setPointerCapture(e.pointerId);
         dragRef.current = true;
-        const p = screenPoint(e);
         clickStart.current = { x: p.x, y: p.y, moved: false };
         api.beginPan(p);
       }}
       onPointerMove={(e) => {
-        if (!dragRef.current) return;
         const p = screenPoint(e);
+        if (marqueeRef.current) {
+          marquee?.move(p);
+          return;
+        }
+        if (!dragRef.current) return;
         const c = clickStart.current;
         if (c && !c.moved && Math.hypot(p.x - c.x, p.y - c.y) >= DRAG_THRESHOLD_PX) {
           c.moved = true;
@@ -220,6 +257,13 @@ export function BoardViewportRoot({
         api.panMove(p);
       }}
       onPointerUp={(e) => {
+        if (marqueeRef.current) {
+          // The marquee decides what to add to the selection; the camera never moved.
+          marqueeRef.current = false;
+          (e.target as Element).releasePointerCapture?.(e.pointerId);
+          marquee?.end();
+          return;
+        }
         if (!dragRef.current) return;
         dragRef.current = false;
         api.endPan();
@@ -237,10 +281,21 @@ export function BoardViewportRoot({
       }}
       onPointerCancel={() => {
         // Interrupted drag: keep the camera where it was at the moment of cancel.
+        if (marqueeRef.current) {
+          // A marquee that never finished selects nothing (TC-22).
+          marqueeRef.current = false;
+          marquee?.cancel();
+          return;
+        }
         dragRef.current = false;
         api.endPan();
       }}
       onLostPointerCapture={() => {
+        if (marqueeRef.current) {
+          marqueeRef.current = false;
+          marquee?.cancel();
+          return;
+        }
         dragRef.current = false;
         api.endPan();
       }}
@@ -298,6 +353,7 @@ export function BoardViewportRoot({
           />
         </div>
         {children}
+        {marquee && <MarqueeRect rect={marquee.rect} camera={cam} />}
       </div>
       {/* Expose the origin's screen position for tests via a data attribute. */}
       <span
@@ -318,6 +374,7 @@ export function BoardViewport(props: BoardViewportProps): React.JSX.Element {
       rootRef={rootRef}
       onEmptyDoubleClick={props.onEmptyDoubleClick}
       onEmptyClick={props.onEmptyClick}
+      marquee={props.marquee}
     >
       {props.children}
     </BoardViewportRoot>

@@ -450,3 +450,149 @@ Story 5 is complete: `npm run typecheck`, `npm run test:unit` (132),
     `tests/integration/api.test.ts`: miniflare names a DO's storage directory after
     the test file path plus class name, and macOS caps one path component at 255
     bytes — a longer name fails to start the DO, with an error about filenames.
+
+---
+
+# Notes — Story 7: Select, move, resize and delete several objects at once
+
+Story 7 is complete: `npm run build`, `npm run typecheck`, `npm run test:unit`
+(179 across 16 files), `npm run test:component` (132 across 17 files),
+`npm run test:integration` (65) and `npm run test:e2e` (58 across Chromium +
+WebKit, selection.spec 5 per browser) pass. Story 1–5 suites pass unchanged,
+including every story-2 sticky-note test that drives a note by dragging it.
+
+## Decisions & deviations
+
+1. **Selection lives in a reducer, and in a ref next to it.** `useSelection` holds
+   `{ids: Map<string, boolean>, editingId}` in `useReducer` state — the actions the
+   design names (`click`, `toggle`, `setMany`, `clear`, `prune`) are pure and take
+   the snapshot as an argument, so TC-13 to TC-15 test them without React. The same
+   state is mirrored into a ref on every render because gesture handlers are long
+  -lived closures that must read "is this id already selected?" at pointerdown
+   without re-subscribing to the doc on every selection change.
+
+2. **Pruning listens to the doc, not to React.** An `observeDeep` on the objects
+   map dispatches `prune` with the surviving ids, so a note a colleague deletes
+   leaves the selection the moment the update lands rather than at the next render.
+   A pruned `editingId` ends editing with it. Local deletes prune through the same
+   path: `observeDeep` fires for local transactions too, so nothing calls a
+   `refresh()`.
+
+3. **`SelectionBar` takes three props the design's contract does not have.**
+   The design fixes it at `{ids, snapshot, onDelete}`. `camera` was added because
+   the bar floats above the selection's box in screen space and must be told where
+   that box is; `onColor` because story 2's `NoteToolbar` recolours the single
+   selected note and the bar hands it that callback; `editing` because story 2's
+   rule that nothing floats over a note you are typing into applies to the count
+   bar as much as to the note toolbar. With one sticky selected the bar renders
+   `NoteToolbar`, exactly as designed, which is why the e2e reads selection from
+   `data-selected` on the objects instead of from `[data-testid="selection-count"]`:
+   TC-32 and TC-35 were first written against the bar's number, passed nothing at
+   all, and were measuring a bar that was never meant to be there.
+
+4. **`SelectionOverlay` draws more than the outlines the design assigns it.** It
+   owns all selection geometry: per-object outlines, the one bounding box for a
+   multi-selection, and the 8 handles the design mentions only in the bar's prose.
+   It renders in screen space through `worldToScreen` rather than inside the world
+   layer, so handles keep their pixel size at every zoom level and the container is
+   `pointer-events: none` with the handles switched back to `auto`. Outlines carry
+   `data-object-id` and `data-selected` like the objects do, so a test can ask the
+   board what is selected without knowing which components drew it.
+
+5. **`StickyNote` answers two prop shapes.** Story 2's component tests mount notes
+   with the old props (`note`, position, callbacks) and the task forbids rewriting
+   them; the board mounts the same component through the generic `ObjectProps`
+   path, which adds `data-object-id`, `data-selected`, `data-editable` and
+   `width`/`height` rendering, and delegates pointerdown to the gesture hook.
+   `data-editable` marks the contenteditable element the overlay must not paint over
+   while text is being typed.
+
+6. **Registration happens at module load, not through a `registerBuiltinTypes()`.**
+   `src/client/objects/registry.tsx` registers `sticky` as it is imported, the way
+   story 2 already worked, so nothing has to remember to call an init function and
+   the object type cannot be rendered without its spec. `board-model.ts` keeps the
+   two-tier split the design needs: `registerReadableType` for the type names the
+   document may contain, `registerObjectType` (which calls it) for a React spec.
+   A type nobody registered is invisible to `allObjectIds`/`objectsInRect` and never
+   moved, resized or deleted by a selection action — forward compatibility with
+   types this story has not heard of.
+
+7. **A creation that opens an editor parks the id.** `createSticky` writes to the
+   doc and the click handler then wants to select and edit that id, but the snapshot
+   in that same closure predates the write, and the reducer correctly refuses
+   actions for ids it cannot see. `BoardApp` therefore parks the new id in a
+   `pendingEdit` state and a `useEffect` calls `startEdit` once the object appears
+   in the snapshot. Without this, note creation appeared to work in jsdom (which
+   re-reads the doc between the events a real browser delivers in one frame) and
+   would have opened no editor on a real board.
+
+8. **Gesture frames are rAF-throttled and flushed, including on cancel.** Move and
+   resize write absolute rects from the gesture's baseline (`start + delta`), one
+   frame per `requestAnimationFrame`, and the pending frame is applied synchronously
+   on `pointerup` *and* on `pointercancel`. "Last applied state kept" means the note
+   freezes where the pointer last put it, which is the flushed frame, not the
+   position from before it: story 2's TC-21 asserts exactly that for a single drag.
+   `onGestureEnd` is not announced for a press that never crossed
+   `DRAG_THRESHOLD_PX`, because that was a selection, not a gesture, and story 8
+   will draw undo boundaries from these callbacks.
+
+9. **`bringObjectsToFront` fires at gesture start, and only for moves.** A move
+   raises the whole selection above the notes it is not made of, once, at the moment
+   the drag starts; a resize reorders nothing. The call only ever raises, so a note
+   that was already topmost stays a no-op as in story 2.
+
+10. **Marquee is Shift, and nothing else.** A plain drag on empty space still pans,
+    exactly as in story 1; `BoardViewport` starts a marquee only when the pointerdown
+    lands on the viewport itself *and* Shift is held. Marquee selection is additive
+    (`setMany(ids, true)`), so a test that wants a rectangle measured on its own has
+    to clear first — the reason `clearSelection()` exists in `selection.spec.ts`.
+    Escape during a marquee discards it and leaves the selection untouched, which is
+    also why `useBoardKeys` takes an `escapeBlocked()` guard: the board's own Escape
+    shortcut must not fire in the same keystroke.
+
+11. **`clampScale` clamps uniformly when the two axes agree.** The design's snippet
+    clamps each axis independently, which silently shears an aspect-locked selection
+    that hits `MAX_OBJECT_SIZE_WORLD` on one axis only. When `sx === sy` (the case a
+    sticky resize produces) the single scale is clamped once instead, so a note that
+    is square at the limit stays square.
+
+12. **`resizeObjects` returns the rects it wrote and there is no rollback helper.**
+    The design's file list contains no `restoreObjectsBounds`, so the gesture hook
+    keeps each object's start rect in its own closure and never writes a rect it did
+    not compute from that baseline. `objectBounds` and `objectsInRect` work off the
+    registry rather than `if (type === 'sticky')` branches, which is what keeps the
+    board model type-agnostic as it grows.
+
+13. **Two settings the design's table does not list**: `STICKY_MIN_SIZE_WORLD` and
+    `MAX_OBJECT_SIZE_WORLD` are the floor and ceiling the story's own acceptance
+    text asks for (a note you cannot shrink below the text you typed into it, a
+    selection you cannot inflate past the board), and `NUDGE_STEP_WORLD` /
+    `NUDGE_LARGE_STEP_WORLD` are 1 and 10 world units. Shift+arrow is the large
+    step; Ctrl/Cmd+arrow is not a second size (TC-29), and arrow keys never pan the
+    camera. Delete, Backspace and Escape all call `preventDefault()` — Backspace
+    would otherwise navigate back a page.
+
+14. **E2E asserts geometry, not implementation.** TC-33 first asserted "the box
+    corner lands under the pointer", which is true of a free resize and false of an
+    aspect-locked one: the axis pulled further for its own length sets the scale and
+    the other follows the shape. The test now asserts that one axis received exactly
+    the drag it was given, the other deliberately did not, and the two ratios agree.
+    `tests/e2e/selection.spec.ts` also verifies that any pointer point it uses is
+    clear of the toolbar, zoom control and share button, because a click that lands
+    on chrome is a mystery failure at 1 a.m.
+
+15. **`tests/fixtures/testbox.tsx` is excluded from `tsconfig.worker.json`.** It is a
+    React object type used by the component and unit suites, and it sits in
+    `tests/fixtures`, which the worker program includes; a program whose `lib` is
+    `["ES2022"]` with no DOM then reported every `src/client` component as not
+    knowing what `document` is. The client program (`tsconfig.json`, which includes
+    `tests/`) is where that fixture is typechecked; the exclusion is the file, not
+    the directory, so the integration fixtures stay in the worker program.
+
+## Not implemented (out of scope by instruction)
+
+Permanent groups and grouping/ungrouping, lock, align, distribute, snap and smart
+guides (the PRD's out-of-scope list), "move to front / move to back" buttons,
+rotation handles and a lasso, per-object nudging, marquee without Shift, marquee
+that intersects rather than encloses, and typing together into one note. Selection
+is local per client and is never written to the Y.Doc.

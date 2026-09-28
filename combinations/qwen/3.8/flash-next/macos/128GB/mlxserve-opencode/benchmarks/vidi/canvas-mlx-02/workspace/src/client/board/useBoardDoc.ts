@@ -3,7 +3,13 @@
 // provider to the same doc; story 4 persists it.
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import * as Y from 'yjs';
-import { initDoc, snapshot, type StickySnapshot } from '../../shared/board-model.ts';
+import {
+  initDoc,
+  snapshot,
+  objectsSnapshot,
+  type ObjectSnapshot,
+  type StickySnapshot,
+} from '../../shared/board-model.ts';
 import {
   connectBoard,
   type BoardProvider,
@@ -14,6 +20,12 @@ import {
 export interface BoardDoc {
   doc: Y.Doc;
   notes: readonly StickySnapshot[];
+  /**
+   * Every object on the board, whatever its type (story 7): what the generic
+   * rendering, selection, marquee and keyboard code reads. `notes` stays the
+   * sticky-only view the story 2 components are typed against.
+   */
+  objects: readonly ObjectSnapshot[];
   /** Live collaboration status of the underlying provider. */
   connectionState: ConnectionState;
   /** The provider, exposed for the test hook's forced connect/disconnect. */
@@ -50,6 +62,9 @@ export function useBoardDoc(boardId: string, makeProvider?: ProviderFactory): Bo
   // differs from `computed`. Keeps a stable object identity between changes
   // so useSyncExternalStore does not loop.
   const cache = useRef({ version: 0, computed: -1, value: [] as readonly StickySnapshot[] });
+  // The objects view shares the `version` counter above; only its own `computed`
+  // marker is separate.
+  const objectsCache = useRef({ computed: -1, value: [] as readonly ObjectSnapshot[] });
 
   const subscribe = useCallback(
     (onStoreChange: () => void) => {
@@ -78,13 +93,23 @@ export function useBoardDoc(boardId: string, makeProvider?: ProviderFactory): Bo
     return c.value;
   }, [doc]);
 
+  const getObjects = useCallback((): readonly ObjectSnapshot[] => {
+    const c = objectsCache.current;
+    if (c.computed !== cache.current.version) {
+      c.value = objectsSnapshot(doc);
+      c.computed = cache.current.version;
+    }
+    return c.value;
+  }, [doc]);
+
   const notes = useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
+  const objects = useSyncExternalStore(subscribe, getObjects, getObjects);
 
   // The provider ref is stable for a given board; connectionState already drives
   // re-renders, so we deliberately do NOT include providerRef in the memo deps.
   // eslint-disable-next-line react-hooks/exhaustive-deps
   return useMemo(
-    () => ({ doc, notes, connectionState, provider: providerRef.current }),
-    [doc, notes, connectionState],
+    () => ({ doc, notes, objects, connectionState, provider: providerRef.current }),
+    [doc, notes, objects, connectionState],
   );
 }

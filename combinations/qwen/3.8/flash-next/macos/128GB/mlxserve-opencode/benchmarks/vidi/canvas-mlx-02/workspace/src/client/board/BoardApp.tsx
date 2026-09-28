@@ -1,26 +1,49 @@
-import { useCallback, useEffect, useMemo, useRef } from 'react';
+// The board itself: canvas, objects, toolbar, zoom, connection badge, share
+// panel - the whole of stories 1-4 - plus the story 7 selection machinery: one
+// selection, one gesture, one overlay and one bar for every object type.
+//
+// It is a component rather than a page because a board is what a route *opens*,
+// not what a route *is*: story 5 put the routing in <App /> and the checking of a
+// link in <BoardPage />, and this is what a link that was checked renders. Both
+// `boardId` and `makeProvider` are props: a board UI that read the address bar
+// itself could not be rendered against a board a test chose, and the component
+// suite (the read-only board, the gesture tests) does exactly that.
+//
+// The story 7 parts are all generic. Objects are rendered by looking their type
+// up in the object registry and handing it the same `ObjectProps`; the selection
+// is a Set of ids that lives only in this client; moving, resizing, nudging and
+// deleting act on the whole Set through the board model; and a new object type
+// gets all of it by registering itself, without touching this file.
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { BoardViewportRoot, useBoardCamera } from '../canvas/BoardViewport.tsx';
 import { ZoomControls } from '../canvas/ZoomControls.tsx';
 import { NavigationHint } from '../canvas/NavigationHint.tsx';
 import { Toolbar } from './Toolbar.tsx';
 import { useBoardDoc } from './useBoardDoc.ts';
 import { useSelection } from './useSelection.ts';
+import { useTransformGesture } from './useTransformGesture.ts';
+import { useBoardKeys } from './useBoardKeys.ts';
+import { useMarquee } from './Marquee.tsx';
+import { SelectionOverlay } from './SelectionOverlay.tsx';
+import { SelectionBar } from './SelectionBar.tsx';
 import { ConnectionStatus } from '../collab/ConnectionStatus.tsx';
 import type { ConnectionState, ProviderFactory } from '../collab/connectBoard.ts';
-import { StickyNote } from '../objects/StickyNote.tsx';
+import { getObjectType } from '../objects/registry.tsx';
 import { zoomPercent, canZoomIn, canZoomOut, screenToWorld } from '../canvas/camera.ts';
 import { SharePanel } from '../share/SharePanel.tsx';
 import {
   createSticky,
-  deleteObject,
+  deleteObjects,
   setStickyColor,
-  type StickySnapshot,
+  type ObjectSnapshot,
 } from '../../shared/board-model.ts';
+import type { StickyColor } from '../../shared/config.ts';
 
 // True when the board can be mutated at all (story 4). Everything else about a
 // board stays usable while it is unloadable - you can pan, zoom and read it - so
 // this one predicate is the only gate on every mutation path: toolbar creation,
-// double-click creation, dragging, text editing, recolouring and deleting.
+// double-click creation, dragging, resizing, nudging, text editing, recolouring
+// and deleting.
 export function canEdit(state: ConnectionState): boolean {
   return state !== 'load_failed';
 }
@@ -34,15 +57,6 @@ function isEditableFocus(): boolean {
   return tag === 'INPUT' || tag === 'TEXTAREA' || (el as HTMLElement).isContentEditable === true;
 }
 
-// The board itself: canvas, toolbar, zoom, connection badge, share panel - the
-// whole of stories 1-4, for one board whose address it is given.
-//
-// It is a component rather than a page because a board is what a route *opens*,
-// not what a route *is*: story 5 put the routing in <App /> and the checking of a
-// link in <BoardPage />, and this is what a link that was checked renders. Both
-// `boardId` and `makeProvider` are props: a board UI that read the address bar
-// itself could not be rendered against a board a test chose, and the component
-// suite (TC-23's read-only board, story 2's gesture tests) does exactly that.
 export interface BoardAppProps {
   /** Which board this is: the code from the address that opened it. */
   boardId: string;
@@ -50,14 +64,10 @@ export interface BoardAppProps {
 }
 
 export default function BoardApp({ boardId, makeProvider }: BoardAppProps) {
-
   const { api, rootRef, viewport } = useBoardCamera();
   const board = useBoardDoc(boardId, makeProvider);
-  const { doc, notes } = board;
-  const selection = useSelection();
+  const { doc, objects } = board;
   const cam = api.camera;
-
-  const { select, startEdit, endEdit, selectedId, editingId } = selection;
 
   // The single editing gate for this render (see canEdit). Held in a ref too so
   // the mutation callbacks keep a stable identity when only the state changed.
@@ -65,16 +75,34 @@ export default function BoardApp({ boardId, makeProvider }: BoardAppProps) {
   const connectionStateRef = useRef<ConnectionState>(board.connectionState);
   connectionStateRef.current = board.connectionState;
 
-  // A remote delete must not leave a phantom selection/editor: drop any selected
-  // or edited id that has left the document (TC-25).
-  const liveIds = useMemo(() => new Set(notes.map((n) => n.id)), [notes]);
-  const pruneTo = selection.pruneTo;
-  useEffect(() => {
-    pruneTo(liveIds);
-  }, [liveIds, pruneTo]);
+  // The selection: a Set of ids owned by THIS client, never written to the doc.
+  // It prunes itself as objects disappear (a remote delete), and so does the
+  // text editor of an object that is no longer there.
+  const selection = useSelection(objects);
+  const { ids: selectedIds, editingId, setMany, clear, startEdit, endEdit } = selection;
+
+  // Shift+drag on empty space; `setMany(..., true)` so a marquee adds to the
+  // selection instead of replacing it.
+  const onSelectMarquee = useCallback((ids: string[]) => setMany(ids, true), [setMany]);
+  const marquee = useMarquee(cam, objects, onSelectMarquee);
+
+  // One gesture for every type: it moves or resizes whatever the selection
+  // holds, and it is the only place a grab turns into model writes.
+  const gesture = useTransformGesture({ doc, camera: cam, selection, snapshot: objects, canEdit: editable });
+
+  // Select all, clear, nudge, delete. Escape is the board's own shortcut unless
+  // a marquee is being drawn, in which case the viewport discards it and the
+  // selection stays as it is.
+  useBoardKeys({
+    doc,
+    selection,
+    snapshot: objects,
+    canEdit: editable,
+    escapeBlocked: () => marquee.rect !== null,
+  });
 
   // Mirror the live connection state + socket controls onto the test-only hook
-  // for e2e reconnect assertions (TC-28/29/30); dead-code eliminated in prod.
+  // for e2e reconnect assertions; dead-code eliminated in prod.
   const provider = board.provider;
   useEffect(() => {
     const hook = window.__vidi6;
@@ -84,14 +112,26 @@ export default function BoardApp({ boardId, makeProvider }: BoardAppProps) {
     hook.connect = () => provider?.connect?.();
   }, [board.connectionState, provider]);
 
+  // A note created by the toolbar or a double-click opens its editor. The id is
+  // not in this render's snapshot yet (the store updates after the write), and
+  // the selection ignores ids it has never seen, so the request is parked and
+  // taken as soon as the object exists.
+  const [pendingEdit, setPendingEdit] = useState<string | null>(null);
+  useEffect(() => {
+    if (pendingEdit === null) return;
+    if (!objects.some((obj) => obj.id === pendingEdit)) return;
+    startEdit(pendingEdit);
+    setPendingEdit(null);
+  }, [pendingEdit, objects, startEdit]);
+
   // Create a note centred on a world point and immediately edit it.
   const createAt = useCallback(
     (world: { x: number; y: number }) => {
       if (!canEdit(connectionStateRef.current)) return;
       const id = createSticky(doc, world);
-      startEdit(id);
+      setPendingEdit(id);
     },
-    [doc, startEdit],
+    [doc],
   );
 
   // Toolbar button creates at the centre of the visible board area.
@@ -103,11 +143,9 @@ export default function BoardApp({ boardId, makeProvider }: BoardAppProps) {
   // Empty-space double-click creates centred on the clicked point.
   const onEmptyDoubleClick = useCallback((world: { x: number; y: number }) => createAt(world), [createAt]);
 
-  // Empty-space click clears the selection (and ends any edit as unselected).
-  const onEmptyClick = useCallback(() => {
-    if (editingId !== null) endEdit('unselected');
-    else select(null);
-  }, [editingId, endEdit, select]);
+  // A click on empty space clears the selection; when a text editor was open it
+  // ends it as unselected, exactly as the note's own "click away" did (TC-38).
+  const onEmptyClick = useCallback(() => clear(), [clear]);
 
   const onColor = useCallback(
     (id: string, color: string) => {
@@ -117,59 +155,66 @@ export default function BoardApp({ boardId, makeProvider }: BoardAppProps) {
     [doc],
   );
 
-  const onDelete = useCallback(
-    (id: string) => {
-      if (!canEdit(connectionStateRef.current)) return;
-      deleteObject(doc, id);
-      select(null);
-    },
-    [doc, select],
-  );
+  // The selection bar's Delete: one transaction removes every selected object
+  // (one undo step in story 8), then the selection that referred to them is gone.
+  // A single object's delete is this same call with one id in the Set.
+  const onDeleteSelection = useCallback(() => {
+    if (!canEdit(connectionStateRef.current)) return;
+    deleteObjects(doc, [...selection.ids]);
+    clear();
+  }, [doc, selection, clear]);
 
-  // Board-level keyboard: Enter starts editing the selected note; Delete /
-  // Backspace delete it. Both are ignored while editing or while focus is in a
-  // text control (so Backspace edits text instead of deleting the note).
+  // Board-level keyboard left over from story 2: Enter opens the text editor of
+  // the one selected object, when its type has editable text. The rest of the
+  // selection keyboard lives in useBoardKeys.
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
       if (editingId !== null) return;
       if (isEditableFocus()) return;
-      if (selectedId === null) return;
-      if (e.key === 'Enter') {
-        e.preventDefault();
-        if (!canEdit(connectionStateRef.current)) return;
-        startEdit(selectedId);
-      } else if (e.key === 'Delete' || e.key === 'Backspace') {
-        e.preventDefault();
-        if (!canEdit(connectionStateRef.current)) return;
-        deleteObject(doc, selectedId);
-        select(null);
-      }
+      if (e.key !== 'Enter') return;
+      if (selection.ids.size !== 1) return;
+      const id = [...selection.ids][0];
+      const obj = objects.find((o) => o.id === id);
+      if (!obj) return;
+      const spec = getObjectType(obj.type);
+      if (!spec || !spec.editableText) return;
+      e.preventDefault();
+      if (!canEdit(connectionStateRef.current)) return;
+      startEdit(id);
     };
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [editingId, selectedId, doc, startEdit, select]);
+  }, [editingId, selection, objects, doc, startEdit]);
 
-  const renderedNotes = useMemo(
+  // One rendered object per entry in the snapshot, whatever its type: the
+  // registry decides which component draws it. A type this build does not know
+  // is not drawn (its data survives untouched for the story that adds it).
+  const renderedObjects = useMemo(
     () =>
-      notes.map((note: StickySnapshot) => (
-        <StickyNote
-          key={note.id}
-          note={note}
-          doc={doc}
-          zoom={cam.zoom}
-          selected={note.id === selectedId}
-          editing={note.id === editingId}
-          editable={editable}
-          onSelect={select}
-          onStartEdit={startEdit}
-          onEndEdit={endEdit}
-          onColor={onColor}
-          onDelete={onDelete}
-        />
-      )),
+      objects.map((obj: ObjectSnapshot) => {
+        const spec = getObjectType(obj.type);
+        if (!spec) return null;
+        const Component = spec.Component;
+        return (
+          <Component
+            key={obj.id}
+            obj={obj}
+            doc={doc}
+            zoom={cam.zoom}
+            selected={selectedIds.has(obj.id)}
+            editing={obj.id === editingId}
+            editable={editable}
+            onObjectPointerDown={gesture.onObjectPointerDown}
+            onStartEdit={startEdit}
+            onEndEdit={endEdit}
+            onColor={onColor}
+          />
+        );
+      }),
     // `editable` is a dependency so that a board which becomes uneditable (story 4)
-    // actually re-renders its notes as read-only.
-    [notes, doc, cam.zoom, selectedId, editingId, editable, select, startEdit, endEdit, onColor, onDelete],
+    // actually re-renders its objects as read-only. The gesture's handlers are
+    // stable, so it is deliberately not a dependency.
+    [objects, doc, cam.zoom, selectedIds, editingId, editable, gesture.onObjectPointerDown, startEdit, endEdit, onColor],
   );
 
   return (
@@ -179,8 +224,9 @@ export default function BoardApp({ boardId, makeProvider }: BoardAppProps) {
         rootRef={rootRef}
         onEmptyDoubleClick={onEmptyDoubleClick}
         onEmptyClick={onEmptyClick}
+        marquee={marquee}
       >
-        {renderedNotes}
+        {renderedObjects}
       </BoardViewportRoot>
 
       <ConnectionStatus state={board.connectionState} />
@@ -198,6 +244,25 @@ export default function BoardApp({ boardId, makeProvider }: BoardAppProps) {
       <NavigationHint visible={!api.hasNavigated} />
 
       <SharePanel boardId={boardId} connectionState={board.connectionState} />
+
+      {/* Outlines and resize handles, drawn in screen pixels above the board. */}
+      <SelectionOverlay
+        ids={selectedIds}
+        snapshot={objects}
+        camera={cam}
+        onHandlePointerDown={gesture.onHandlePointerDown}
+      />
+
+      {/* "N selected" + Delete above the selection - or the note's own colour and
+          delete toolbar when exactly one note is selected. */}
+      <SelectionBar
+        ids={selectedIds}
+        snapshot={objects}
+        camera={cam}
+        editing={editingId !== null}
+        onDelete={onDeleteSelection}
+        onColor={(id: string, color: StickyColor) => onColor(id, color)}
+      />
     </>
   );
 }
