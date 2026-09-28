@@ -67,7 +67,81 @@ def probe_replay(url: str, cfg: dict):
                 yield {**r, "variant": v, "request": p.name, "repeat": rep}
 
 
-PROBES = {"effort-silence": probe_effort_silence, "replay": probe_replay}
+CHARS_PER_TOKEN = 4          # rough, for sizing padding; the server's own count is what gets recorded
+MEMORY_SAMPLE_S = 2
+BYTES_PER_KB = 1024
+
+
+def pad_request(body: dict, target_tokens: int, sources: list[Path]) -> dict:
+    """Insert reference text after the system prompt until the request is about target_tokens long,
+    keeping the rest of the conversation as captured."""
+    text = "\n\n".join(Path(p).read_text(errors="replace") for p in sources)
+    need = target_tokens * CHARS_PER_TOKEN - len(json.dumps(body))
+    pad = (text * (need // max(1, len(text)) + 1))[:max(0, need)]
+    msgs = list(body.get("messages") or [])
+    at = 1 if msgs and msgs[0].get("role") == "system" else 0
+    msgs.insert(at, {"role": "user", "content": "Reference material for this project:\n\n" + pad})
+    return {**body, "messages": msgs}
+
+
+def _server_rss_mb(match: str) -> float | None:
+    import subprocess
+    pids = subprocess.run(["pgrep", "-f", match], capture_output=True, text=True).stdout.split()
+    total = 0
+    for pid in pids:
+        out = subprocess.run(["ps", "-o", "rss=", "-p", pid], capture_output=True, text=True).stdout.strip()
+        total += int(out) if out.isdigit() else 0
+    return total / BYTES_PER_KB if pids else None
+
+
+def _swap_used_mb() -> float | None:
+    import re, subprocess
+    if sys.platform == "darwin":
+        out = subprocess.run(["sysctl", "-n", "vm.swapusage"], capture_output=True, text=True).stdout
+        m = re.search(r"used = ([\d.]+)M", out)
+        return float(m.group(1)) if m else None
+    try:
+        info = dict(l.split(":", 1) for l in open("/proc/meminfo"))
+        return (int(info["SwapTotal"].split()[0]) - int(info["SwapFree"].split()[0])) / BYTES_PER_KB
+    except Exception:
+        return None
+
+
+def probe_long_context(url: str, cfg: dict):
+    """One real agent request padded to a long context: does the server take it, how fast does it
+    generate at that depth, and what do server memory and swap do meanwhile?"""
+    import threading
+    model = replay_mod.served_model(url)
+    base = json.loads(Path(cfg["request"]).read_text() if Path(cfg["request"]).is_absolute()
+                      else (HERE / cfg["request"]).read_text())
+    sources = [Path(p) if Path(p).is_absolute() else HERE / p for p in cfg.get("pad_from", [])]
+    sources = [p for s in sources for p in (sorted(s.parent.glob(s.name)) if "*" in s.name else [s])]
+    body = pad_request(base, cfg["target_tokens"], sources)
+    body.update(model=model, stream=True, stream_options={"include_usage": True})
+    if cfg.get("max_tokens"):
+        body["max_completion_tokens"] = cfg["max_tokens"]
+    match = cfg.get("server_process_match", "mlx-serve")
+    peak = {"rss": _server_rss_mb(match)}; swap0 = _swap_used_mb(); stop = threading.Event()
+    def sample():
+        while not stop.wait(MEMORY_SAMPLE_S):
+            r = _server_rss_mb(match)
+            if r is not None and (peak["rss"] is None or r > peak["rss"]):
+                peak["rss"] = r
+    t = threading.Thread(target=sample, daemon=True); t.start()
+    try:
+        r = replay_mod.replay(url, body)
+    except Exception as e:
+        r = {"error": f"{type(e).__name__}: {e}"}
+    stop.set(); t.join()
+    gen_s = (r.get("seconds") or 0) - (r.get("ttft_s") or 0)
+    swap1 = _swap_used_mb()
+    yield {**r, "variant": str(cfg["target_tokens"]),
+           "decode_tok_s": round(r["completion_tokens"] / gen_s, 1) if r.get("completion_tokens") and gen_s > 0 else None,
+           "peak_server_rss_mb": round(peak["rss"], 0) if peak["rss"] is not None else None,
+           "swap_growth_mb": round(swap1 - swap0, 0) if swap0 is not None and swap1 is not None else None}
+
+
+PROBES = {"effort-silence": probe_effort_silence, "replay": probe_replay, "long-context": probe_long_context}
 
 
 def _median(xs):
@@ -90,6 +164,10 @@ def summarise(rows: list[dict]) -> dict:
                 "median_completion_tokens": _median([r.get("completion_tokens") for r in ok]),
                 "median_seconds": _median([r.get("seconds") for r in ok]),
                 "valid_tool_rate": (sum(tool) / len(tool)) if tool else None,
+                "min_prompt_tokens": min((r.get("prompt_tokens") for r in ok if r.get("prompt_tokens")), default=None),
+                "min_decode_tok_s": min((r["decode_tok_s"] for r in ok if r.get("decode_tok_s")), default=None),
+                "max_server_rss_mb": max((r["peak_server_rss_mb"] for r in ok if r.get("peak_server_rss_mb")), default=None),
+                "max_swap_growth_mb": max((r["swap_growth_mb"] for r in ok if r.get("swap_growth_mb") is not None), default=None),
             }
     return out
 
@@ -103,7 +181,8 @@ def verdict(summary: dict, criteria: list[dict]) -> dict:
     results = []
     for c in criteria:
         try:
-            ok = bool(eval(c["expr"], {"__builtins__": {}}, {**summary, "ratio": _ratio}))  # our own plan files only
+            names = {k.replace("-", "_"): v for k, v in summary.items()}  # "long-context" -> long_context
+            ok = bool(eval(c["expr"], {"__builtins__": {}}, {**names, "ratio": _ratio}))  # our own plan files only
             results.append({"name": c["name"], "expr": c["expr"], "passed": ok})
         except Exception as e:
             results.append({"name": c["name"], "expr": c["expr"], "passed": False, "error": f"{type(e).__name__}: {e}"})

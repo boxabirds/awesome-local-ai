@@ -1,0 +1,21 @@
+{
+  "name": "context-262k",
+  "about": "Can the server run at the model's native 262,144-token context: does a ~200k-token agent request fit in memory without swapping, generate at a usable speed, and still end in a valid tool call? (Whether fewer compactions reduce regressions needs a full run.)",
+  "server_note": "start the server with CTX=262144 (harness: BENCH_CONTEXT=262144)",
+  "probes": [
+    {"probe": "replay", "variants": ["as-is"], "repeats": 1, "max_tokens": 8192,
+     "requests": ["requests/flash-next-pi/replay-30k.json"]},
+    {"probe": "long-context", "request": "requests/flash-next-pi/replay-100k.json", "target_tokens": 200000,
+     "max_tokens": 4096, "server_process_match": "mlx-serve-macos",
+     "pad_from": ["../vidi/spec/stories/*/prd.md", "../vidi/spec/stories/*/design.md", "../vidi/spec/stories/*/tasks.md"]}
+  ],
+  "criteria": [
+    {"name": "the long request is accepted and answered", "expr": "long_context['200000']['errors'] == 0 and long_context['200000']['n'] == 1"},
+    {"name": "it really was a long context (at least 190k prompt tokens)", "expr": "long_context['200000']['min_prompt_tokens'] >= 190000"},
+    {"name": "generation stays usable at that depth (at least 20 tok/s)", "expr": "long_context['200000']['min_decode_tok_s'] >= 20"},
+    {"name": "server memory stays under 100 GB", "expr": "long_context['200000']['max_server_rss_mb'] <= 100000"},
+    {"name": "no swap growth over 1 GB", "expr": "long_context['200000']['max_swap_growth_mb'] <= 1024"},
+    {"name": "the reply still ends in a valid tool call", "expr": "long_context['200000']['valid_tool_rate'] == 1.0"},
+    {"name": "ordinary requests still work", "expr": "replay['as-is']['errors'] == 0"}
+  ]
+}

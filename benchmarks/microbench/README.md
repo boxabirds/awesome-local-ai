@@ -22,12 +22,20 @@ A plan is a JSON file in `plans/`: which probes to run with what settings, and p
 | Plan | Question | About |
 |---|---|---|
 | [`effort-low.json`](plans/effort-low.json) | Does low reasoning effort shorten thinking on real agent turns without breaking tool calls? Which effort does a server apply when none is named? | 15 min on quintus |
+| [`context-262k.json`](plans/context-262k.json) | Can the server run at the native 262,144-token context: does a ~200k-token agent request fit without swapping, generate at a usable speed and end in a valid tool call? Start the server with `CTX=262144`. | 10–15 min |
+
+Results so far:
+
+| Plan | Where | When | Verdict |
+|---|---|---|---|
+| `effort-low` | quintus, mlx-serve | 28 Sep 2026 | **FAIL**: on real agent turns low effort didn't shorten thinking (median 485 as captured, 533 at low). With no effort named, mlx-serve behaved between low and xhigh on a short prompt, not like xhigh. |
 
 ## Probes
 
 | Probe | What it does |
 |---|---|
 | `effort-silence` | Sends one short reasoning prompt with no effort named and with named efforts (`none`, `low`, `medium`, `xhigh`), to see which effort the server applies when a request names none. |
+| `long-context` | Pads one real agent request to a target length with reference text (the public vidi spec) and records whether it is answered, generation speed at that depth, peak server memory and swap growth. |
 | `replay` | Sends real captured agent requests as captured and in variants (`as-is`, `effort-low`, `effort-medium`, `effort-xhigh`). Records thinking length, time, and whether the reply still ends in a tool call with valid arguments. |
 
 To add a probe, write a function that takes the server URL and its settings and yields one result row per request, and register it in `PROBES` in `microbench.py`. The request helpers come from `benchmarks/gufo-eval/long-session/`.
