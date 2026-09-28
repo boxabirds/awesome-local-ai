@@ -2,7 +2,7 @@ import type { JSX } from 'react';
 /**
  * Left-side vertical toolbar with the Sticky note button.
  */
-export function Toolbar(props: { onCreateSticky(): void }): JSX.Element {
+export function Toolbar(props: { onCreateSticky(): void; disabled?: boolean }): JSX.Element {
   return (
     <div className="toolbar" data-testid="toolbar">
       <button
@@ -10,6 +10,7 @@ export function Toolbar(props: { onCreateSticky(): void }): JSX.Element {
         className="toolbar-button"
         aria-label="Sticky note"
         title="Sticky note – or double-click the board"
+        disabled={props.disabled === true}
         onPointerDown={(e) => e.stopPropagation()}
         onClick={props.onCreateSticky}
       >

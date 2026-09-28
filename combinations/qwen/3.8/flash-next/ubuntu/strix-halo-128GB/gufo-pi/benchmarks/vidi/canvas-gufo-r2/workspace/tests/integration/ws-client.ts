@@ -19,14 +19,24 @@ export interface TestClient {
   waitForSync(): Promise<void>;
   snapshot(): readonly { id: string; text: string; x: number; y: number; color: string }[];
   close(): void;
-  send(data: ArrayBuffer | string): void;
+  send(data: ArrayBuffer | ArrayBufferView | string): void;
   boardId: string;
 }
 
 /**
  * Connect to a board room via WebSocket using SELF.fetch.
  */
-export async function connectRoom(boardId?: string): Promise<TestClient> {
+export interface ConnectOptions {
+  /** Reuse an existing doc, as a reconnecting client does. */
+  doc?: Y.Doc;
+  /** Called with the close code when the socket closes. */
+  onclose?: (code: number, reason: string) => void;
+}
+
+/**
+ * Connect to a board room via WebSocket using SELF.fetch.
+ */
+export async function connectRoom(boardId?: string, options: ConnectOptions = {}): Promise<TestClient> {
   const id = boardId ?? newBoardId();
   const url = `http://localhost/api/rooms/${id}`;
 
@@ -42,7 +52,7 @@ export async function connectRoom(boardId?: string): Promise<TestClient> {
   const ws = res.webSocket;
   if (!ws) throw new Error('No webSocket in response');
 
-  const doc = new Y.Doc();
+  const doc = options.doc ?? new Y.Doc();
   const receivedUpdates: Uint8Array[] = [];
   const allMessages: (ArrayBuffer | string)[] = [];
   let syncComplete = false;
@@ -102,6 +112,11 @@ export async function connectRoom(boardId?: string): Promise<TestClient> {
   });
 
   ws.accept();
+  if (options.onclose) {
+    ws.addEventListener('close', (event) => {
+      options.onclose?.(event.code, event.reason);
+    });
+  }
 
   // Initiate sync: send SyncStep1
   const enc = encoding.createEncoder();
@@ -145,8 +160,8 @@ export async function connectRoom(boardId?: string): Promise<TestClient> {
     close() {
       ws.close();
     },
-    send(data: ArrayBuffer | string) {
-      ws.send(data);
+    send(data: ArrayBuffer | ArrayBufferView | string) {
+      ws.send(data as ArrayBuffer);
     },
     boardId: id,
   };

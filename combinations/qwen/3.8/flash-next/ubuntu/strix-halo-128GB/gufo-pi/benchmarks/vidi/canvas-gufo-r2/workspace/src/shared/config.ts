@@ -88,3 +88,30 @@ export const CONNECTED_CONFIRMATION_MS = 2000;
 
 /** PRD live.catch_up verification outage duration. */
 export const CATCH_UP_TEST_OUTAGE_MS = 30_000;
+
+// ----------------------------------------------------------- persistence (story 4)
+
+/** Number of un-compacted update rows that triggers a snapshot compaction. */
+export const COMPACTION_UPDATE_COUNT = 500;
+
+/** Total bytes of un-compacted update rows that triggers a snapshot compaction. */
+export const COMPACTION_BYTES = 4 * 1024 * 1024;
+
+/**
+ * Snapshot rows are written in chunks of this size so a single row never comes
+ * near the SQLite-backed Durable Object row size limit. Chunk size is the first
+ * escalation knob if a row-size limit is ever hit.
+ */
+export const SNAPSHOT_CHUNK_BYTES = 512 * 1024;
+
+/** How long a room remembers a failed board load before retrying on a new connection. */
+export const LOAD_RETRY_MIN_INTERVAL_MS = 5000;
+
+/** Board size the persistence path is tested at; also the large-board load test size. */
+export const PERSIST_TESTED_NOTES = 2000;
+
+/** Client-side budget from navigation to full render at PERSIST_TESTED_NOTES. */
+export const BOARD_LOAD_BUDGET_MS = 3000;
+
+/** Version recorded in `board_meta`; future migrations branch on it. */
+export const STORAGE_SCHEMA_VERSION = 1;

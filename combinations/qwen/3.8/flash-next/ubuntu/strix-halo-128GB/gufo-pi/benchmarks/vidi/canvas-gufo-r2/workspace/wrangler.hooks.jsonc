@@ -1,0 +1,31 @@
+{
+  // Local config used by the story 4 e2e tests and the hook integration tests.
+  // Identical to wrangler.jsonc except that the test-only storage hooks are
+  // enabled. Production deploys use wrangler.jsonc, which never sets TEST_HOOKS.
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "vidi6-test-hooks",
+  "compatibility_date": "2025-10-01",
+  "main": "src/worker/index.ts",
+  "vars": {
+    "TEST_HOOKS": "1"
+  },
+  "durable_objects": {
+    "bindings": [
+      {
+        "name": "BOARD_ROOM",
+        "class_name": "BoardRoom"
+      }
+    ]
+  },
+  "migrations": [
+    {
+      "tag": "v1",
+      "new_sqlite_classes": ["BoardRoom"]
+    }
+  ],
+  "assets": {
+    "directory": "./dist/client",
+    "not_found_handling": "single-page-application",
+    "binding": "ASSETS"
+  }
+}

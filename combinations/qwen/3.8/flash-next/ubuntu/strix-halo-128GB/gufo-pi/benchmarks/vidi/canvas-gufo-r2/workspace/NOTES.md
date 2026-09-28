@@ -179,3 +179,122 @@ All guarded by `window.__vidi6 !== undefined` (only set in test builds).
 |------|--------|-------|
 | TC-29 (idle 45s) | ✅ PASS | No reconnects, badge stayed hidden, pan works |
 | TC-30 (soak 60s) | ✅ PASS | p50=131ms, p95=1030ms, max=1054ms (n=164 ops) |
+
+---
+
+# Notes — story 4 (return to a board and find everything as it was left)
+
+## Architecture
+
+- **SQLite-backed Durable Object.** `wrangler.jsonc` declares
+  `new_sqlite_classes: ["BoardRoom"]`, so persistence uses the synchronous
+  `ctx.storage.sql` API — no async driver, no await between reading a board and
+  accepting sockets for it.
+- **`src/worker/board-store.ts`** owns the schema and nothing else:
+  `storage_meta` (schema version, `snapshot_through_seq`),
+  `updates(seq, data, bytes)` (the write-ahead log),
+  `snapshot_chunks(idx, data)` (one encoded Yjs update, split),
+  `quarantined_updates(seq, data, error, quarantined_at)`.
+- **Snapshot plus log.** A load applies the snapshot chunks, then every
+  `updates` row with `seq > snapshot_through_seq`. A write is one
+  `INSERT` into `updates`, so a single client edit costs one row.
+- **Chunking at `SNAPSHOT_CHUNK_BYTES` (512 KiB)** keeps every row well inside
+  the per-row limit; `chunkBytes`/`joinChunks` are pure and unit-tested
+  (TC-01), including the multi-megabyte round trip.
+- **Compaction** folds the log into a fresh snapshot at
+  `COMPACTION_UPDATE_COUNT` (500 rows) or `COMPACTION_BYTES` (4 MiB), inside
+  `transactionSync`, so a failure mid-compaction leaves the previous snapshot
+  and the whole log intact (TC-11).
+- **Hibernation.** `ctx.acceptWebSocket()` with a `{ boardId }` tag; the room
+  never keeps a `Set` of sockets. Broadcast, close and error handling all come
+  from `ctx.getWebSockets()`, so sockets survive the object being evicted and
+  woken (TC-18).
+- **Write before broadcast.** Every update is inserted before it is relayed. An
+  insert that throws moves the room to `storage-failed`: all sockets close 1011,
+  the doc is released, and the next connection reloads from storage — the room
+  never serves a state it could not write down (TC-14).
+- **Damage policy.** A damaged *log* row is moved to `quarantined_updates` and
+  the load continues with the rest (TC-09). A damaged *snapshot* cannot be
+  skipped — the state is unrecoverable, so the load reports
+  `snapshot-unreadable`, nothing is deleted, and clients get 4500 (TC-10, TC-15).
+- **`src/worker/room-state.ts`** is the lifecycle machine as a pure function
+  (`nextRoomState`), unit-tested separately from the room (TC-27).
+- **Client.** `ConnectionState` gained `load_failed`. Close code 4500 sets it
+  (1011 stays `reconnecting`), the badge turns red with
+  "This board couldn't be loaded. Retrying…", and `canEdit()` returns false, so
+  double-click, toolbar, colour, delete and drag are all inert while the board is
+  unusable (TC-22, TC-23). y-websocket keeps retrying 4500 — it is outside the
+  permanent 4400–4499 band — and the room throttles those retries to one load
+  attempt per `LOAD_RETRY_MIN_INTERVAL_MS` (TC-16).
+
+## Deviations from the design
+
+1. **`BoardStorageLike` instead of the `DurableObjectStorage` global type.** The
+   worker and test type roots disagree on `exec()`'s binding and cursor types, so
+   the store declares the narrow interface it actually uses. The real
+   `DurableObjectStorage` satisfies it structurally; tests can too.
+2. **`BoardStoreOptions` overrides the thresholds and chunk size.** Without it,
+   exercising byte-threshold compaction or a multi-chunk snapshot would need
+   multiple megabytes of writes per test. Defaults are unchanged in production.
+3. **Compaction happens when the last socket leaves**, not from a Durable Object
+   alarm. An alarm would wake the object just to compact it, which is the opposite
+   of the story's point; the log is folded before the instance goes idle, and
+   `compactIfNeeded` still guards the write path.
+4. **Garbage detection needs `readSyncMessage`'s `errorHandler`.**
+   `y-protocols` catches `applyUpdate` errors internally and only logs them, so a
+   corrupt frame would otherwise be silently dropped instead of answered with 1003
+   (TC-17). The room passes the fifth argument and closes the sender if it fires.
+   The test sends a *truncated real* update: random bytes can decode as a valid
+   empty update, which is why `undecodableBytes` is not used there.
+5. **Test-only storage routes** (`POST /__test/boards/:id/{seed,compact,
+   corrupt-snapshot,repair-snapshot,repair,stats}`; `repair` is the tasks.md spelling of
+   `repair-snapshot`) live in the room itself, gated on
+   `env.TEST_HOOKS === '1'` in both the router and the room. They are enabled by
+   `wrangler.hooks.jsonc`, a copy of the production config with that var set;
+   `wrangler.jsonc` never sets it. There is a matching vitest project
+   (`npm run test:hooks`) because the workerd test pool cannot have its bindings
+   mutated per test.
+6. **TC-20's "within one second"** is asserted as durability rather than as a
+   stopwatch: the note is created, the *other* participant is seen to have it
+   (which happens only after the row is written), both contexts close, and the
+   process is then killed and restarted. A local `wrangler dev` restart itself
+   takes several seconds and cannot fit inside the one-second window.
+7. **TC-24 corrupts the snapshot before the visitor arrives**, so the badge shows
+   the failure of the load path itself instead of racing an already-synced session
+   whose in-memory board would still work.
+8. **The design's second escalation was not needed.** A 2000-note board measures
+   ~1.1 s from navigation to full render against a 3000 ms budget (measured in
+   TC-21; the room's own wake-and-load from SQLite is ~70 ms), so notes are still
+   rendered eagerly and no virtualisation was added.
+9. **The restart helper is `tests/e2e/helpers/wrangler-process.ts`** (the design
+   calls it `wrangler-process.ts`), and the persistence specs keep running under
+   the shared Playwright `webServer` instead of a project without one: that
+   server is what builds the client in test mode, and the private `wrangler dev`
+   serves that same `dist/client` — the specs need both, the bundle hook and the
+   disposable process.
+10. **TC numbering is story-local**, as in stories 1–3: story 4's TC-19…TC-24 live
+   in `tests/e2e/persistence.spec.ts` and story 3 has its own tests with those
+   numbers. Run this story's e2e set with `npx playwright test persistence`.
+11. **Chromium-only default e2e** still applies (story 1, note 5).
+
+## Measurements from this run
+
+| measurement | value |
+|---|---|
+| 2000-note board, seeded | 2 snapshot chunks at 512 KiB |
+| TC-21 navigation → all notes rendered | 1187 ms (budget 3000 ms) |
+| DO wake + SQLite load, 2000 notes | ~70 ms |
+| TC-19 restart | 25 notes identical in id, text, colour, position and z-order |
+
+## Test inventory (story 4)
+
+- unit: `tests/unit/board-store-chunks.test.ts` (TC-01, TC-02),
+  `tests/unit/room-state.test.ts` (TC-27)
+- integration (`npm run test:integration`):
+  `tests/integration/board-store.test.ts` (TC-03…TC-11),
+  `tests/integration/board-room-persistence.test.ts` (TC-12…TC-18, TC-25, TC-26)
+- hooks (`npm run test:hooks`): `tests/hooks/board-hooks.test.ts`
+- component: `tests/component/BoardLoadFailed.test.tsx` (TC-22, TC-23)
+- e2e (`npx playwright test persistence`): TC-19, TC-20, TC-21, TC-24 — these
+  start their own `wrangler dev --persist-to` (port 8791) and kill/restart it via
+  `tests/e2e/helpers/wrangler-process.ts`.

@@ -11,6 +11,7 @@
     "typecheck": "tsc --noEmit && tsc -p tsconfig.worker.json --noEmit",
     "test:unit": "vitest run --project unit",
     "test:integration": "vitest run --config vitest.integration.config.ts",
+    "test:hooks": "vitest run --config vitest.hooks.config.ts",
     "test:component": "vitest run --project component",
     "test:e2e": "playwright test --project=chromium --grep-invert @nightly",
     "test:e2e:all": "playwright test",

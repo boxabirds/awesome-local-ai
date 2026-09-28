@@ -379,6 +379,11 @@ body {
   color: #92400e;
 }
 
+.connection-status--load-failed {
+  background: #fee2e2;
+  color: #b91c1c;
+}
+
 .connection-status--confirmed {
   background: #d1fae5;
   color: #065f46;

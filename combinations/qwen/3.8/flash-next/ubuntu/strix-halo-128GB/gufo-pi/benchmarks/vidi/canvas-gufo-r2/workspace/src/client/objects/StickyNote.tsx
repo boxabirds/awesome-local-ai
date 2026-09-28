@@ -33,11 +33,13 @@ export function StickyNote(props: {
   zoom: number;
   selected: boolean;
   editing: boolean;
+  /** Board is not editable (load failure): no dragging, no edit mode. */
+  readOnly?: boolean;
   onSelect(id: string): void;
   onStartEdit(id: string): void;
   onEndEdit(next: 'selected' | 'unselected'): void;
 }): JSX.Element {
-  const { note, doc, zoom, selected, editing } = props;
+  const { note, doc, zoom, selected, editing, readOnly = false } = props;
   const rootRef = useRef<HTMLDivElement | null>(null);
   const measureRef = useRef<HTMLDivElement | null>(null);
   const phaseRef = useRef<Phase>('idle');
@@ -93,6 +95,7 @@ export function StickyNote(props: {
   const handlePointerDown = useCallback(
     (e: React.PointerEvent) => {
       if (e.button !== 0) return;
+      if (readOnly) return;
       // Stop propagation so the board viewport does not start panning
       e.stopPropagation();
       // If editing this note, don't start a drag; let textarea handle events
@@ -115,7 +118,7 @@ export function StickyNote(props: {
       };
       phaseRef.current = 'pressed';
     },
-    [editing, note.x, note.y],
+    [editing, note.x, note.y, readOnly],
   );
 
   const handlePointerMove = useCallback(
@@ -192,9 +195,10 @@ export function StickyNote(props: {
     (e: React.MouseEvent) => {
       // Stop propagation so BoardViewport doesn't create a new note
       e.stopPropagation();
+      if (readOnly) return;
       props.onStartEdit(note.id);
     },
-    [note.id, props],
+    [note.id, props, readOnly],
   );
 
   // Position in world layer (top-left at note.x, note.y)

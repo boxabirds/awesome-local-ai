@@ -10,6 +10,7 @@ import { Toolbar } from './board/Toolbar';
 import { StickyNote } from './objects/StickyNote';
 import { NoteToolbar } from './objects/NoteToolbar';
 import { ConnectionStatus } from './sync/ConnectionStatus';
+import type { ConnectionState } from './sync/connectBoard';
 import {
   createSticky,
   deleteObject,
@@ -36,25 +37,28 @@ function BoardChrome(props: {
 }) {
   const { camera, hasNavigated, zoomStep, reset } = useBoardCamera();
   const { selection, doc, selectedColor, onCreateSticky, connectionState } = props;
+  const editable = canEdit(connectionState);
 
   const handleColor = useCallback(
     (color: StickyColor) => {
+      if (!canEdit(connectionState)) return;
       if (selection.selectedId) setStickyColor(doc, selection.selectedId, color);
     },
-    [doc, selection.selectedId],
+    [doc, selection, connectionState],
   );
 
   const handleDelete = useCallback(() => {
+    if (!canEdit(connectionState)) return;
     if (selection.selectedId) {
       deleteObject(doc, selection.selectedId);
       selection.select(null);
     }
-  }, [doc, selection]);
+  }, [doc, selection, connectionState]);
 
   return (
     <>
       <ConnectionStatus state={connectionState} />
-      <Toolbar onCreateSticky={onCreateSticky} />
+      <Toolbar onCreateSticky={onCreateSticky} disabled={!editable} />
       {selectedColor !== null && !selection.editingId && (
         <NoteToolbar color={selectedColor} onColor={handleColor} onDelete={handleDelete} />
       )}
@@ -100,9 +104,10 @@ function BoardObjects(props: {
   notes: ReturnType<typeof useBoardDoc>['notes'];
   doc: ReturnType<typeof useBoardDoc>['doc'];
   selection: SelectionState;
+  readOnly: boolean;
 }) {
   const { camera } = useBoardCamera();
-  const { notes, doc, selection } = props;
+  const { notes, doc, selection, readOnly } = props;
 
   return (
     <>
@@ -120,6 +125,7 @@ function BoardObjects(props: {
             zoom={camera.zoom}
             selected={note.id === selection.selectedId}
             editing={note.id === selection.editingId}
+            readOnly={readOnly}
             onSelect={selection.select}
             onStartEdit={selection.startEdit}
             onEndEdit={selection.endEdit}
@@ -133,6 +139,15 @@ function BoardObjects(props: {
 function getBoardIdFromPath(): string | undefined {
   const match = window.location.pathname.match(/^\/b\/([A-Za-z0-9_-]+)/);
   return match?.[1];
+}
+
+/**
+ * Board editing is refused while the server cannot load the board: writing to
+ * a doc that never received the stored state would produce a board that
+ * conflicts with whatever is on the server.
+ */
+export function canEdit(state: ConnectionState): boolean {
+  return state !== 'load_failed';
 }
 
 /**
@@ -167,6 +182,7 @@ export function App(props: { doc?: Y.Doc } = {}) {
   // Keyboard handling: Enter -> start editing; Delete/Backspace -> delete note.
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
+      if (!canEdit(connectionState)) return;
       const target = e.target as HTMLElement | null;
       const tag = target?.tagName;
       if (tag === 'INPUT' || tag === 'TEXTAREA' || target?.isContentEditable) return;
@@ -190,26 +206,28 @@ export function App(props: { doc?: Y.Doc } = {}) {
     };
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [doc, selection]);
+  }, [doc, selection, connectionState]);
 
   const handleBoardDblClick = useCallback(
     (point: Point) => {
+      if (!canEdit(connectionState)) return;
       const b = bridgeRef.current;
       const world = b ? b.toWorld(point) : point;
       const id = createSticky(doc, world);
       selection.select(id);
       selection.startEdit(id);
     },
-    [doc, selection],
+    [doc, selection, connectionState],
   );
 
   const handleCreateSticky = useCallback(() => {
+    if (!canEdit(connectionState)) return;
     const b = bridgeRef.current;
     const world = b ? b.viewportCentreWorld() : { x: 0, y: 0 };
     const id = createSticky(doc, world);
     selection.select(id);
     selection.startEdit(id);
-  }, [doc, selection]);
+  }, [doc, selection, connectionState]);
 
   const handleEmptyClick = useCallback(() => {
     selection.select(null);
@@ -223,7 +241,7 @@ export function App(props: { doc?: Y.Doc } = {}) {
       children={
         <>
           <CameraBridge register={registerBridge} />
-          <BoardObjects notes={notes} doc={doc} selection={selection} />
+          <BoardObjects notes={notes} doc={doc} selection={selection} readOnly={!canEdit(connectionState)} />
         </>
       }
       overlay={
