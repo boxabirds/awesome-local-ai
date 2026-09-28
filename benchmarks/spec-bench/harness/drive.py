@@ -30,6 +30,7 @@ from collections import deque
 from pathlib import Path
 
 import gates
+import history
 import hostenv
 import pack as packmod
 import packdir
@@ -372,6 +373,82 @@ def setup_workspace(ws: Path) -> None:
     sh(["git", "add", "-A"], ws)
     sh(["git", "commit", "-qm", "harness: empty repository with spec"], ws, GIT_IDENTITY)
 
+
+
+# ---- known-good mode (EVALUATION-POLICY rule 7) --------------------------------------------------
+KNOWN_GOOD_BY = "known-good base"
+
+
+def known_good_base(ref_run: Path, sid: int) -> dict:
+    """Another run's code as it was when the story before sid ended, and the stories it had processed
+    by then: the base a known-good run builds story sid on."""
+    bundle = ref_run / "workspace.bundle"
+    if not bundle.exists():
+        raise SystemExit(f"known-good: {ref_run} has no workspace.bundle")
+    m = json.loads((ref_run / "metrics.json").read_text())
+    processed = load_processed(m, [{"id": int(k)} for k in sorted(m["stories"], key=int)])
+    ids = [p["id"] for p in processed]
+    if sid not in ids:
+        raise SystemExit(f"known-good: the reference run never processed story {sid}")
+    before = processed[:ids.index(sid)]
+    if not before:
+        raise SystemExit(f"known-good: story {sid} is the reference run's first; run it from empty instead")
+    return {"bundle": bundle, "from_run": ref_run, "story": sid,
+            "commit": m["stories"][str(before[-1]["id"])]["commit"],
+            "processed": [{**p, "ended_by": KNOWN_GOOD_BY} for p in before]}
+
+
+def setup_workspace_from(ws: Path, base: dict, spec: Path) -> None:
+    """The workspace as the reference run left it at base["commit"], on main, with every later commit
+    gone: the bundle holds the whole run, including how the story about to be built was done."""
+    if (ws / ".git").exists():
+        return
+    ws.parent.mkdir(parents=True, exist_ok=True)
+    sh(["git", "clone", "-q", "--no-checkout", str(base["bundle"]), str(ws)], ws.parent)
+    sh(["git", "reset", "-q", "--hard", base["commit"]], ws)
+    sh(["git", "remote", "remove", "origin"], ws)
+    for ref in sh(["git", "for-each-ref", "--format=%(refname)"], ws).split():
+        if ref != "refs/heads/main":
+            sh(["git", "update-ref", "-d", ref], ws)
+    sh(["git", "reflog", "expire", "--expire=now", "--all"], ws)
+    sh(["git", "gc", "-q", "--prune=now"], ws)
+    # The agent works from this pack's spec either way; a reference built before a spec revision gets it
+    # in a harness commit, recorded (the summary says so).
+    base["spec_updated"] = _spec_hash(ws / "spec") != _spec_hash(spec)
+    if base["spec_updated"]:
+        shutil.rmtree(ws / "spec")
+        shutil.copytree(spec, ws / "spec", ignore=shutil.ignore_patterns(*FINDER_FILES))
+        sh(["git", "add", "-A", "spec"], ws)
+        sh(["git", "commit", "-qm", "harness: spec updated to this pack's version (known-good base)"], ws, GIT_IDENTITY)
+    for f in (ws / "spec").rglob("*"):
+        if f.is_file():
+            f.chmod(0o444)
+
+
+NPM_CI_TIMEOUT_S = 900
+
+
+def install_base_deps(ws: Path) -> None:
+    """The dependencies the reference run's agent had installed by then (a bundle holds no node_modules),
+    from the base's own lockfile, so neither the base's score nor the story's time pays for them."""
+    if (ws / "package-lock.json").exists() and not (ws / "node_modules").exists():
+        p = subprocess.run(["npm", "ci", "--no-audit", "--no-fund"], cwd=ws, capture_output=True, text=True,
+                           timeout=NPM_CI_TIMEOUT_S)
+        if p.returncode != 0:
+            raise SystemExit(f"known-good: npm ci failed in the base: {p.stderr[-2000:]}")
+
+
+FINDER_FILES = (".DS_Store",)
+
+
+def _spec_hash(root: Path) -> str:
+    """The spec's content, without the files macOS Finder drops into folders."""
+    h = hashlib.sha256()
+    for f in sorted(root.rglob("*")):
+        if f.is_file() and f.name not in FINDER_FILES:
+            h.update(str(f.relative_to(root)).encode())
+            h.update(f.read_bytes())
+    return h.hexdigest()
 
 def link_agent_browsers(home: Path, real_home: Path) -> None:
     """Put the agents' browsers where Playwright looks by default in the agent's home, as well as in
@@ -1222,6 +1299,9 @@ def main() -> None:
     ap.add_argument("--client-thinking", choices=PI_THINKING_LEVELS,
                     help="reasoning effort the agent sends with each request, for servers that can't apply one (pi only)")
     ap.add_argument("--only", help="comma list of story ids to run (smoke tests)")
+    ap.add_argument("--from-run", type=Path,
+                    help="known-good mode (diagnostic): run the one --only story on this finished run's code "
+                         "as it was when the story before ended")
     ap.add_argument("--record", action="store_true",
                     help="after each story, commit this run's directory and push (a per-story record)")
     a = ap.parse_args()
@@ -1239,10 +1319,16 @@ def main() -> None:
         print(f"pack {PK.name} at {PK.dir}")
         print(f"scope {scope_label}: stories {[s['id'] for s in stories]}")
         print(f"held-out suite: {PK.acceptance or 'none (acceptance reported n/a)'}; gate: {PK.gate}")
+        kg = known_good_base(a.from_run.resolve(), stories[0]["id"]) if a.from_run and len(stories) == 1 else None
+        if kg:
+            print(f"known-good base: {kg['from_run']} at {kg['commit'][:12]}, "
+                  f"processed {[p['id'] for p in kg['processed']]}")
         if stories:
             print("--- first prompt ---")
-            print(render_prompt(stories[0], story_title(stories[0]), [], scope))
+            print(render_prompt(stories[0], story_title(stories[0]), kg["processed"] if kg else [], scope))
         return
+    if a.from_run and len(stories) != 1:
+        ap.error("--from-run runs exactly one story: give it with --only")
     missing = [f"--{n.replace('_', '-')}" for n in ("run_dir", "base_url", "model_id") if not getattr(a, n)]
     if missing:
         ap.error(f"{', '.join(missing)} required (or --dry-run)")
@@ -1251,7 +1337,12 @@ def main() -> None:
     run.mkdir(parents=True, exist_ok=True)
     work = work_dir_for(run)
     ws = work / "workspace"
-    setup_workspace(ws)
+    known_good = known_good_base(a.from_run.resolve(), stories[0]["id"]) if a.from_run else None
+    if known_good:
+        setup_workspace_from(ws, known_good, SPEC)
+        install_base_deps(ws)
+    else:
+        setup_workspace(ws)
     (run / "work_dir.txt").write_text(str(work))
     spec_hash = tree_hash(ws / "spec")
     env = agent_env(work)
@@ -1262,8 +1353,20 @@ def main() -> None:
     metrics = load_metrics(run)
     metrics.update({"pack": PK.name, "scope": scope_label, "model_id": a.model_id, "client": a.client,
                     "compact_at": a.compact_at, "client_thinking": a.client_thinking})
+    if known_good:
+        ref = known_good["from_run"]
+        metrics.setdefault("known_good", {"from_run": str(ref.relative_to(REPO_ROOT)) if ref.is_relative_to(REPO_ROOT) else str(ref),
+                                 "commit": known_good["commit"], "story": known_good["story"],
+                                 "spec_updated": known_good.get("spec_updated", False)})  # kept across restarts
+        metrics.setdefault("processed", known_good["processed"])
     processed = load_processed(metrics, scope["stories"])
     metrics["processed"] = processed
+    if known_good and not (run / history.BASE_DIR / "accept.json").exists():
+        # The base's own held-out results, so the story's regressions and repairs can be measured.
+        print(f"[known-good] scoring the base (stories {[p['id'] for p in processed]})", flush=True)
+        acc = gates.accept(ws, processed, run / history.BASE_DIR, PK.acceptance)
+        (run / history.BASE_DIR / "accept.json").write_text(json.dumps(acc, indent=2))
+        kill_strays(ws)
     progress.write_progress(run, scope, stories, metrics, None)
 
     for story in stories:

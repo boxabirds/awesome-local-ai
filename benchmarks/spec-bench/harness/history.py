@@ -100,8 +100,14 @@ def source_files(commits: list[dict]) -> list[tuple[str, int]]:
     return total.most_common()
 
 
+BASE_DIR = "base"   # a known-good run's held-out results on its base, before the agent starts
+
+
 def _tests(run: Path, sid: str) -> dict[tuple, dict]:
-    f = run / "stories" / f"{int(sid):02d}" / "accept.json"
+    return _accept_tests(run / "stories" / f"{int(sid):02d}" / "accept.json")
+
+
+def _accept_tests(f: Path) -> dict[tuple, dict]:
     try:
         tests = json.loads(f.read_text()).get("tests", [])
     except (OSError, json.JSONDecodeError):
@@ -329,7 +335,8 @@ def per_story(run: Path) -> list[dict]:
     """Per story (EVALUATION-POLICY rule 6): its own held-out tests (new work), earlier stories'
     tests it broke (regressions) or repaired, and the cumulative score after it."""
     sids = sorted(int(d.name) for d in (run / "stories").glob("[0-9]*") if (d / "accept.json").exists())
-    rows, prev = [], None
+    base = run / BASE_DIR / "accept.json"
+    rows, prev = [], (_accept_tests(base) if base.exists() else None)
     for sid in sids:
         tests = _tests(run, str(sid))
         own = [t for (f, _), t in tests.items() if str(f or "").startswith(f"story-{sid:02d}")]

@@ -27,6 +27,7 @@ stack).
 | `stories/NN/agent-events.compact.jsonl.gz` | yes | the agent's session, stream deltas dropped, long strings cut, home paths redacted |
 | `stories/NN/agent-events.jsonl` | no (git-ignored) | the full session as pi streamed it, each line stamped `_rx` on arrival |
 | `stories/NN/gate.json`, `accept.json`, `accept-report.json`, `screenshots/`, `artifacts/` | yes | the agent's own checks and the held-out suite |
+| `base/accept.json` | yes, known-good runs only | the held-out suite on the base before the agent starts, so the story's regressions and repairs are measured |
 | `server.log` | no (`*.log` is ignored) | the model server's own log, appended across restarts, each start after a `=== server start <epoch> ===` marker |
 | `requests.jsonl` | yes, if present | per-request figures from the Python metering proxy; only with `run.sh --meter` (off by default; it adds a hop) |
 
@@ -39,9 +40,19 @@ pull records and failure reasons in `~/.dbench/jobs/` on the node (`dbench statu
 `mtplx_memory_limit_bytes` (MTPLX only), `client`, `client_version`, `reasoning_effort` (what the
 harness passed to the server launcher; a server without server-side effort, such as mlx-serve, ignores
 it), `client_thinking` (the effort pi itself sends with each request, empty when it sends none),
-`context_limit`, `output_limit`, `compact_at` (the client's compaction threshold), `metered`
+`known_good_from` (known-good mode's reference run, empty for a full run), `context_limit`, `output_limit`, `compact_at` (the client's compaction threshold), `metered`
 (whether the Python proxy was on), `host` (CPU, RAM, GPU), `harness_commit`, `pack_version`,
 `started_at`.
+
+## Per run: `metrics.json` top level
+
+`processed` (the stories processed so far, in order, each with its `status` and `ended_by`), and for a
+known-good run (EVALUATION-POLICY rule 7) `known_good`: `from_run` (the reference run), `commit` (its
+code when the story before ended, the workspace's starting point), `story` (the one story run) and
+`spec_updated` (the reference predates this pack's spec, so the base got the current spec in a harness
+commit). A
+known-good run's earlier stories are in `processed` with `ended_by` "known-good base"; progress
+baselines and the review tool leave these runs out.
 
 ## Per story: `metrics.json` → `stories[]`
 

@@ -279,6 +279,17 @@ def test_baselines_find_every_reference_run_and_ignore_void_scores(tmp_path):
     assert got == {"reference opus-5.5 run-1": {"passed": 7, "total": 7}, "reference opus-5.5 run-2": None}
 
 
+
+def test_baselines_leave_out_known_good_runs(tmp_path):
+    """EVALUATION-POLICY rule 7: a known-good run started from someone else's code, so its story
+    says nothing about what a stack does in a full run."""
+    runs = tmp_path / "combinations" / "some" / "stack" / "benchmarks" / "vidi"
+    story = {"3": {"finished": 1, "accept": {"by_story": {"03": {"passed": 7, "total": 7}}}}}
+    _write(runs / "full-01" / "metrics.json", {"stories": story})
+    _write(runs / "kg-3" / "metrics.json", {"stories": story, "known_good": {"from_run": "x", "commit": "c", "story": 3}})
+    got = [b["source"] for b in progress.baselines(tmp_path, 3, tmp_path / "elsewhere")]
+    assert got == ["some/stack full-01"]
+
 def test_evidence_survives_bytes_that_are_not_utf8(tmp_path):
     # Story 12 (images) crashed the harness: a file git diffs as text carried a PNG-like 0x89 byte,
     # and the harness decoded git's output strictly (canvas-pi-02 on the 4090).

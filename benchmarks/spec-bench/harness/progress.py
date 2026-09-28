@@ -226,6 +226,8 @@ def baselines(repo_root: Path, story_id: int, exclude: Path) -> list[dict]:
             m = json.loads(mf.read_text())
         except (OSError, json.JSONDecodeError):
             continue
+        if m.get("known_good"):
+            continue  # diagnostic, built on another run's code: never a baseline for full runs
         s = m.get("stories", {}).get(str(story_id))
         if not s or not s.get("finished"):
             continue
