@@ -3,6 +3,7 @@
 
 mod csvlog;
 mod plugs;
+mod smc;
 mod sources;
 
 use std::collections::HashMap;
@@ -24,7 +25,7 @@ const DISCOVERY_TIMEOUT_S: u64 = 3;
 const MILLIWATTS_PER_WATT: f64 = 1000.0;
 
 #[derive(Parser)]
-#[command(about = "Record this machine's power (wall plugs by MAC, macOS telemetry, NVIDIA GPUs)")]
+#[command(about = "Record this machine's power (wall plugs by MAC, macOS telemetry, NVIDIA GPUs) and die temperatures")]
 struct Cli {
     #[command(subcommand)]
     mode: Mode,
@@ -57,6 +58,9 @@ struct Config {
     macos: bool,
     #[serde(default)]
     nvidia: bool,
+    /// macOS: die temperatures from the SMC.
+    #[serde(default)]
+    temps: bool,
 }
 
 fn home() -> PathBuf {
@@ -130,6 +134,8 @@ enum Source {
     Tapo(Plugs<TapoLan>),
     MacOS,
     Nvidia,
+    #[cfg(target_os = "macos")]
+    Temps(smc::Smc),
 }
 
 impl Source {
@@ -138,6 +144,8 @@ impl Source {
             Source::Tapo(_) => "tapo",
             Source::MacOS => "macos",
             Source::Nvidia => "nvidia",
+            #[cfg(target_os = "macos")]
+            Source::Temps(_) => "temps",
         }
     }
 
@@ -153,6 +161,8 @@ impl Source {
             }
             Source::MacOS => sources::read_macos().await,
             Source::Nvidia => sources::read_nvidia().await,
+            #[cfg(target_os = "macos")]
+            Source::Temps(smc) => Ok(smc::summarise(&smc.read_all())),
         }
     }
 }
@@ -176,6 +186,12 @@ fn build_sources(config: Config, env_file: &Path) -> anyhow::Result<Vec<Source>>
     }
     if config.macos && cfg!(target_os = "macos") {
         out.push(Source::MacOS);
+    }
+    #[cfg(target_os = "macos")]
+    if config.temps {
+        let smc = smc::Smc::open()?;
+        eprintln!("temps: {} SMC temperature keys", smc.key_count());
+        out.push(Source::Temps(smc));
     }
     if config.nvidia && which("nvidia-smi") {
         out.push(Source::Nvidia);

@@ -8,12 +8,13 @@ per model request). One collector per machine, as a background service that star
 | `tapo` | Wall power at a Tapo P110-class energy-monitoring plug (P110, P110M, P115; a P100 can't measure). Plugs are found by MAC on the LAN, never by a stored IP, and followed when the router moves them. Expired sessions (about every 30 s) are renewed in place. | about 2 s (the plug smooths over a few seconds) |
 | `macos` | A Mac's own telemetry: system and adapter watts, battery charge and flow. A MacBook under heavy load draws from its battery even on AC, so the wall plug alone undercounts; this also covers a laptop away from its plug. | the Mac updates it about once a minute |
 | `nvidia` | GPU board power from `nvidia-smi`. | 2 s |
+| `temps` | macOS, Apple Silicon: die temperatures from the SMC, in °C. `temp_max_c` is the hottest sensor, `temp_cpu_c` the hottest `Tp*` key (CPU cores) and `temp_gpu_c` the hottest `Tg*` key (GPU). Apple doesn't document the keys, so every temperature key is found at startup (319 on an M5 Max); the CPU/GPU grouping follows the M1–M4 naming and is not verified on M5. Written to its own `temps-YYYY-MM-DD.csv`. | 2 s |
 
 ## Set up a machine
 
 1. Config, outside the repo (it names your devices), `~/.config/awesome-local-ai/power.json`:
    ```json
-   {"tapo": [{"mac": "<plug MAC>", "label": "<machine>"}], "macos": true, "nvidia": false}
+   {"tapo": [{"mac": "<plug MAC>", "label": "<machine>"}], "macos": true, "temps": true, "nvidia": false}
    ```
    A plug's MAC is on its sticker, or in the Tapo app (the plug, then the gear, then Device Info).
    Give each plug one reader: two machines polling the same plug fight over its session.
