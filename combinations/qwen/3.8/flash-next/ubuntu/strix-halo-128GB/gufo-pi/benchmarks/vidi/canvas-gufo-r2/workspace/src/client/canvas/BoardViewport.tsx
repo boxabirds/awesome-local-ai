@@ -32,6 +32,10 @@ export interface BoardViewportProps {
   snapshot?: readonly ObjectSnapshot[];
   /** Called when a marquee completes with the ids fully inside it (always additive). */
   onMarqueeSelect?: (ids: string[], additive: boolean) => void;
+  /** Active tool (story 9): 'text' changes cursor and click behavior. */
+  tool?: 'select' | 'text';
+  /** Called when the board is clicked while the text tool is active (screen point). */
+  onTextToolClick?: (point: { x: number; y: number }) => void;
 }
 
 const BoardCameraContext = createContext<CameraController | null>(null);
@@ -95,6 +99,12 @@ export function BoardViewport(props: BoardViewportProps) {
   const [viewport, setViewport] = useState<Size>({ width: 0, height: 0 });
   const [isPanning, setIsPanning] = useState(false);
   const controller = useCamera(viewport);
+
+  // Story 9: track tool state for cursor and click behavior
+  const toolRef = useRef(props.tool ?? 'select');
+  toolRef.current = props.tool ?? 'select';
+  const textClickRef = useRef(props.onTextToolClick ?? null);
+  textClickRef.current = props.onTextToolClick ?? null;
 
   // Marquee selection (Shift+drag over the board surface).
   const marqueeSnapshot = props.snapshot ?? EMPTY_SNAPSHOT;
@@ -176,14 +186,19 @@ export function BoardViewport(props: BoardViewportProps) {
         setIsPanning(false);
         return;
       }
-      // Detect a short click on empty board space (no drag) -> clear selection
+      // Detect a short click on empty board space (no drag)
       const down = downPosRef.current;
       downPosRef.current = null;
       if (e && down) {
         const up = pointerPoint(e);
         const dist = Math.hypot(up.x - down.x, up.y - down.y);
-        if (dist < 3 && emptyClickRef.current) {
-          emptyClickRef.current();
+        if (dist < 3) {
+          // Story 9: if text tool is active, create text at click point
+          if (toolRef.current === 'text' && textClickRef.current) {
+            textClickRef.current(up);
+          } else if (emptyClickRef.current) {
+            emptyClickRef.current();
+          }
         }
       }
       api().endPan();
@@ -195,6 +210,16 @@ export function BoardViewport(props: BoardViewportProps) {
       const button = e.button as number | undefined;
       if (button !== undefined && button !== 0) return;
       if (!isBoardSurface(e.target)) return;
+      // Story 9: when text tool is active, skip panning and marquee entirely;
+      // the pointerup in endPan will fire the text click.
+      if (toolRef.current === 'text') {
+        downPosRef.current = pointerPoint(e);
+        pointerId = e.pointerId;
+        if (typeof el.setPointerCapture === 'function') {
+          try { el.setPointerCapture(e.pointerId); } catch { /* best effort */ }
+        }
+        return;
+      }
       // Shift+drag on the board surface starts a marquee instead of a pan.
       if (e.shiftKey && marqueeSelectRef.current) {
         downPosRef.current = null;
@@ -376,12 +401,32 @@ export function BoardViewport(props: BoardViewportProps) {
         data-camera-zoom={camera.zoom}
         data-panning={isPanning ? 'true' : 'false'}
         data-grid-spacing={gridSpacingPx}
-        style={gridStyle}
+        style={{ ...gridStyle, cursor: props.tool === 'text' ? 'text' : undefined }}
       >
         <div className="board-world" data-testid="board-world" style={worldStyle}>
           {children}
           <MarqueeRect rect={marquee.rect} camera={controller.camera} />
         </div>
+        {props.tool === 'text' && (
+          <div
+            className="text-tool-overlay"
+            data-testid="text-tool-overlay"
+            style={{
+              position: 'absolute',
+              inset: 0,
+              cursor: 'text',
+              zIndex: 10000,
+            }}
+            onPointerDown={(e) => {
+              // Capture click and forward to text tool handler
+              const el = boardRef.current;
+              if (!el) return;
+              const rect = el.getBoundingClientRect();
+              const point = { x: e.clientX - rect.left, y: e.clientY - rect.top };
+              textClickRef.current?.(point);
+            }}
+          />
+        )}
         <div className="board-overlay">
           <div
             className="origin-marker"

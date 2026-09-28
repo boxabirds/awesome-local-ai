@@ -21,6 +21,7 @@ import {
   resizeObjects,
   type ObjectSnapshot,
 } from '../../shared/board-model';
+import { setTextWidthFixed } from '../../shared/objects/text';
 import {
   clampScale,
   resizeRect,
@@ -54,6 +55,7 @@ interface GestureState {
   handle: Handle;
   aspect: boolean;
   started: boolean;
+  allHorizontal: boolean;
   raf: number | null;
   pending: (() => void) | null;
 }
@@ -71,6 +73,7 @@ function initialState(): GestureState {
     handle: 'se',
     aspect: false,
     started: false,
+    allHorizontal: false,
     raf: null,
     pending: null,
   };
@@ -185,13 +188,24 @@ export function useTransformGesture(opts: {
     flush();
     const st = s.current;
     if (st.started) {
+      // Story 9: after a horizontal resize, set text objects to fixed-width mode
+      if (st.mode === 'resizing' && (st.handle === 'e' || st.handle === 'w') && st.allHorizontal) {
+        const objectsMap = doc.getMap('objects') as unknown as Y.Map<Y.Map<unknown>>;
+        for (const id of st.ids) {
+          const obj = objectsMap.get(id);
+          if (obj && obj.get('type') === 'text') {
+            const newWidth = obj.get('width') as number | undefined;
+            if (newWidth != null) setTextWidthFixed(doc, id, newWidth);
+          }
+        }
+      }
       st.started = false;
       endCbRef.current?.();
     }
     s.current = initialState();
     detach();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [flush]);
+  }, [flush, doc]);
 
   // Stable window-listener identity that always dispatches to the latest logic.
   const moveListener = useRef((e: PointerEvent) => handleMove(e)).current;
@@ -248,6 +262,7 @@ export function useTransformGesture(opts: {
 
       const byId = snapshotRef.current;
       let anyResizable = false;
+      let allHorizontal = true;
       let aspect = e.shiftKey;
       const minSizes: number[] = [];
       const rects: Rect[] = [];
@@ -257,6 +272,7 @@ export function useTransformGesture(opts: {
         const spec = obj ? getObjectType(obj.type) : undefined;
         if (!obj || !spec) continue;
         if (spec.resizable) anyResizable = true;
+        if (spec.handles !== 'horizontal') allHorizontal = false;
         if (spec.aspectLocked) aspect = true;
         minSizes.push(spec.minSize);
         const r = objectBounds(obj);
@@ -277,6 +293,7 @@ export function useTransformGesture(opts: {
       st.startBox = startBox;
       st.handle = handle;
       st.aspect = aspect;
+      st.allHorizontal = allHorizontal;
       st.started = false;
       attach();
     },

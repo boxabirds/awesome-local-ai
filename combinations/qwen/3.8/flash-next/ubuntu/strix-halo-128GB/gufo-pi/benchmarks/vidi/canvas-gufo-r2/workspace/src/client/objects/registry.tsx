@@ -38,6 +38,8 @@ export interface ObjectTypeSpec {
   aspectLocked: boolean;
   minSize: number;
   editableText: boolean;
+  /** Handle set: 'all' (default) shows 8 handles; 'horizontal' shows only e/w. */
+  handles?: 'all' | 'horizontal';
   hitTest(obj: ObjectSnapshot, worldPoint: Point): boolean;
 }
 
@@ -59,6 +61,8 @@ export function getObjectType(type: string): ObjectTypeSpec | undefined {
 // Import is deferred to avoid a cycle at module-evaluation time: the sticky
 // component does not import the registry, so this import is one-directional.
 import { StickyNote } from './StickyNote';
+import { TextObject } from './TextObject';
+import { TEXT_MIN_WIDTH_WORLD } from '../../shared/config';
 
 registerObjectType('sticky', {
   Component: StickyNote,
@@ -66,6 +70,24 @@ registerObjectType('sticky', {
   aspectLocked: true,
   minSize: STICKY_MIN_SIZE_WORLD,
   editableText: true,
+  handles: 'all',
+  hitTest(obj, worldPoint) {
+    return rectContains(objectBounds(obj), {
+      x: worldPoint.x,
+      y: worldPoint.y,
+      width: 0,
+      height: 0,
+    });
+  },
+});
+
+registerObjectType('text', {
+  Component: TextObject,
+  resizable: true,
+  aspectLocked: false,
+  minSize: TEXT_MIN_WIDTH_WORLD,
+  editableText: true,
+  handles: 'horizontal',
   hitTest(obj, worldPoint) {
     return rectContains(objectBounds(obj), {
       x: worldPoint.x,

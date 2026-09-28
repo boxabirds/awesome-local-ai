@@ -1,11 +1,14 @@
 import type { JSX } from 'react';
 import type { UseUndoResult } from './useUndo';
 import { UndoButtons } from './UndoButtons';
+import type { Tool } from './useTool';
 
 /**
- * Left-side vertical toolbar with the Sticky note button and Undo/Redo buttons.
+ * Left-side vertical toolbar with tool buttons, Sticky note button, and Undo/Redo buttons.
  */
 export function Toolbar(props: {
+  tool: Tool;
+  onToolChange(t: Tool): void;
   onCreateSticky(): void;
   disabled?: boolean;
   undoState?: UseUndoResult;
@@ -15,8 +18,36 @@ export function Toolbar(props: {
       <button
         type="button"
         className="toolbar-button"
+        aria-label="Select (V)"
+        title="Select tool – or press V"
+        aria-pressed={props.tool === 'select'}
+        disabled={props.disabled === true}
+        onPointerDown={(e) => e.stopPropagation()}
+        onClick={() => props.onToolChange('select')}
+      >
+        <svg width="20" height="20" viewBox="0 0 20 20" aria-hidden="true">
+          <path d="M4 2l12 9-5 1-2 5-5-15z" fill="currentColor" stroke="none" />
+        </svg>
+      </button>
+      <button
+        type="button"
+        className="toolbar-button"
+        aria-label="Text (T)"
+        title="Text tool – or press T"
+        aria-pressed={props.tool === 'text'}
+        disabled={props.disabled === true}
+        onPointerDown={(e) => e.stopPropagation()}
+        onClick={() => props.onToolChange('text')}
+      >
+        <svg width="20" height="20" viewBox="0 0 20 20" aria-hidden="true">
+          <text x="4" y="15" fontSize="14" fontFamily="sans-serif" fill="currentColor">T</text>
+        </svg>
+      </button>
+      <button
+        type="button"
+        className="toolbar-button"
         aria-label="Sticky note"
-        title="Sticky note – or double-click the board"
+        title="Sticky note – or press N"
         disabled={props.disabled === true}
         onPointerDown={(e) => e.stopPropagation()}
         onClick={props.onCreateSticky}

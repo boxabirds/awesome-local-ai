@@ -9,10 +9,12 @@ import { useBoardDoc } from './board/useBoardDoc';
 import { useSelection, type SelectionApi } from './board/useSelection';
 import { Toolbar } from './board/Toolbar';
 import { NoteToolbar } from './objects/NoteToolbar';
+import { TextToolbar } from './objects/TextToolbar';
 import { SelectionOverlay } from './board/SelectionOverlay';
 import { SelectionBar } from './board/SelectionBar';
 import { useTransformGesture } from './board/useTransformGesture';
 import { useBoardKeys } from './board/useBoardKeys';
+import { useTool, type Tool } from './board/useTool';
 import { createUndo, type UndoController } from './board/undo';
 import { useUndo } from './board/useUndo';
 import { getObjectType } from './objects/registry';
@@ -24,6 +26,8 @@ import {
   setStickyColor,
   type ObjectSnapshot,
 } from '../shared/board-model';
+import { createText, setTextSize } from '../shared/objects/text';
+import type { TextSize } from '../shared/config';
 import { type StickyColor } from '../shared/config';
 import type { Point } from './canvas/camera';
 import { useRoute } from './router';
@@ -45,17 +49,19 @@ const FALLBACK_CAMERA: Camera = { x: 0, y: 0, zoom: 1 };
 /** Screen-space chrome over the board: toolbars, zoom control, hint. */
 function BoardChrome(props: {
   connectionState: ReturnType<typeof useBoardDoc>['connectionState'];
+  tool: Tool;
+  onToolChange(t: Tool): void;
   onCreateSticky(): void;
   undoState: ReturnType<typeof useUndo>;
 }): JSX.Element {
   const { camera, hasNavigated, zoomStep, reset } = useBoardCamera();
-  const { connectionState, onCreateSticky, undoState } = props;
+  const { connectionState, tool, onToolChange, onCreateSticky, undoState } = props;
   const editable = canEdit(connectionState);
 
   return (
     <>
       <ConnectionStatus state={connectionState} />
-      <Toolbar onCreateSticky={onCreateSticky} disabled={!editable} undoState={undoState} />
+      <Toolbar tool={tool} onToolChange={onToolChange} onCreateSticky={onCreateSticky} disabled={!editable} undoState={undoState} />
       <ZoomControls
         zoomPercent={zoomPercent(camera)}
         canZoomIn={canZoomIn(camera)}
@@ -147,7 +153,7 @@ export function canEdit(state: ConnectionState): boolean {
 }
 
 /**
- * The board UI (stories 1–8). Mounted by BoardPage when the board exists.
+ * The board UI (stories 1–9). Mounted by BoardPage when the board exists.
  */
 export function App(props: { doc?: Y.Doc; boardId?: string } = {}) {
   const boardId = props.boardId ?? getBoardIdFromPath();
@@ -159,6 +165,9 @@ export function App(props: { doc?: Y.Doc; boardId?: string } = {}) {
   useEffect(() => () => undoController.destroy(), [undoController]);
 
   const undoState = useUndo(undoController, canEditBoard);
+
+  // Story 9: tool state
+  const { tool, setTool } = useTool(canEditBoard);
 
   const bridgeRef = useRef<BoardBridge | null>(null);
   const registerBridge = useCallback((b: BoardBridge | null) => {
@@ -178,7 +187,18 @@ export function App(props: { doc?: Y.Doc; boardId?: string } = {}) {
     onGestureEnd: undoController.boundary,
   });
 
-  useBoardKeys({ doc, selection, snapshot: notes, canEdit: canEditBoard, undo: undoController });
+  const handleCreateSticky = useCallback(() => {
+    if (!canEditBoard) return;
+    const b = bridgeRef.current;
+    const world = b ? b.viewportCentreWorld() : { x: 0, y: 0 };
+    undoController.boundary();
+    const id = createSticky(doc, world);
+    undoController.boundary();
+    selection.click(id);
+    selection.startEdit(id);
+  }, [canEditBoard, doc, selection, undoController]);
+
+  useBoardKeys({ doc, selection, snapshot: notes, canEdit: canEditBoard, undo: undoController, tool, setTool, onCreateSticky: handleCreateSticky });
 
   const handleStartEdit = useCallback(
     (id: string) => {
@@ -217,18 +237,25 @@ export function App(props: { doc?: Y.Doc; boardId?: string } = {}) {
     [canEditBoard, doc, selection, undoController],
   );
 
-  const handleCreateSticky = useCallback(() => {
-    if (!canEditBoard) return;
-    const b = bridgeRef.current;
-    const world = b ? b.viewportCentreWorld() : { x: 0, y: 0 };
-    undoController.boundary();
-    const id = createSticky(doc, world);
-    undoController.boundary();
-    selection.click(id);
-    selection.startEdit(id);
-  }, [canEditBoard, doc, selection, undoController]);
-
   const handleEmptyClick = useCallback(() => selection.clear(), [selection]);
+
+  // Story 9: when text tool is active, a board click creates text and returns to select
+  const handleTextToolClick = useCallback(
+    (point: Point) => {
+      if (!canEditBoard) return;
+      const b = bridgeRef.current;
+      const world = b ? b.toWorld(point) : point;
+      undoController.boundary();
+      const id = createText(doc, world, 'user');
+      undoController.boundary();
+      if (id) {
+        setTool('select');
+        selection.click(id);
+        selection.startEdit(id);
+      }
+    },
+    [canEditBoard, doc, selection, undoController, setTool],
+  );
 
   const handleColor = useCallback(
     (color: StickyColor) => {
@@ -241,10 +268,28 @@ export function App(props: { doc?: Y.Doc; boardId?: string } = {}) {
     [canEditBoard, doc, selection, undoController],
   );
 
+  // Story 9: text size change
+  const handleTextSize = useCallback(
+    (size: TextSize) => {
+      if (!canEditBoard || selection.ids.size !== 1) return;
+      const [id] = [...selection.ids];
+      undoController.boundary();
+      setTextSize(doc, id, size);
+      undoController.boundary();
+    },
+    [canEditBoard, doc, selection, undoController],
+  );
+
   // NoteToolbar (colour + delete) for a single selected sticky, not editing.
   const selectedSticky: ObjectSnapshot | null =
     canEditBoard && selection.ids.size === 1 && selection.editingId === null
       ? notes.find((n) => n.id === [...selection.ids][0] && n.type === 'sticky') ?? null
+      : null;
+
+  // Story 9: TextToolbar for a single selected text object, not editing.
+  const selectedText: ObjectSnapshot | null =
+    canEditBoard && selection.ids.size === 1 && selection.editingId === null
+      ? notes.find((n) => n.id === [...selection.ids][0] && n.type === 'text') ?? null
       : null;
 
   return (
@@ -253,6 +298,8 @@ export function App(props: { doc?: Y.Doc; boardId?: string } = {}) {
       <BoardViewport
         snapshot={notes}
         onMarqueeSelect={(ids, additive) => selection.setMany(ids, additive)}
+        tool={tool}
+        onTextToolClick={handleTextToolClick}
         children={
           <>
             <CameraBridge register={registerBridge} />
@@ -288,8 +335,17 @@ export function App(props: { doc?: Y.Doc; boardId?: string } = {}) {
                 onDelete={handleDeleteSelection}
               />
             )}
+            {selectedText && (
+              <TextToolbar
+                size={(selectedText.size as TextSize) ?? 'M'}
+                onSize={handleTextSize}
+                onDelete={handleDeleteSelection}
+              />
+            )}
             <BoardChrome
               connectionState={connectionState}
+              tool={tool}
+              onToolChange={setTool}
               onCreateSticky={handleCreateSticky}
               undoState={undoState}
             />

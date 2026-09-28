@@ -34,6 +34,10 @@ export interface ObjectSnapshot {
   /** Sticky-specific; present only for sticky notes. */
   color?: StickyColor;
   text?: string;
+  /** Text-object-specific (story 9). */
+  size?: string;
+  widthMode?: 'auto' | 'fixed';
+  createdBy?: string;
 }
 
 export interface StickySnapshot extends Omit<ObjectSnapshot, 'type' | 'color' | 'text'> {
@@ -351,6 +355,12 @@ export function snapshotAll(doc: Y.Doc): readonly ObjectSnapshot[] {
       snap.color = obj.get('color') as StickyColor;
       const text = obj.get('text');
       snap.text = text instanceof Y.Text ? text.toString() : ((text as string) ?? '');
+    } else if (type === 'text') {
+      const text = obj.get('text');
+      snap.text = text instanceof Y.Text ? text.toString() : ((text as string) ?? '');
+      snap.size = obj.get('size') as string;
+      snap.widthMode = obj.get('widthMode') as 'auto' | 'fixed';
+      snap.createdBy = obj.get('createdBy') as string | undefined;
     }
     result.push(snap);
   });

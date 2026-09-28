@@ -32,8 +32,14 @@ export function useBoardKeys(opts: {
   snapshot: readonly ObjectSnapshot[];
   canEdit: boolean;
   undo?: UndoController;
+  /** Current active tool (story 9). */
+  tool?: 'select' | 'text';
+  /** Set the active tool (story 9). */
+  setTool?: (t: 'select' | 'text') => void;
+  /** Create a sticky at viewport centre (story 2 behaviour, triggered by N). */
+  onCreateSticky?: () => void;
 }): void {
-  const { doc, selection, snapshot, canEdit, undo } = opts;
+  const { doc, selection, snapshot, canEdit, undo, setTool, onCreateSticky } = opts;
 
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {
@@ -75,6 +81,7 @@ export function useBoardKeys(opts: {
       }
       if (key === 'Escape') {
         selection.clear();
+        if (setTool) setTool('select');
         return;
       }
 
@@ -92,6 +99,23 @@ export function useBoardKeys(opts: {
       }
 
       if (!canEdit) return;
+
+      // Story 9: tool shortcuts
+      if (setTool) {
+        if (key === 'v' || key === 'V') {
+          setTool('select');
+          return;
+        }
+        if (key === 't' || key === 'T') {
+          setTool('text');
+          return;
+        }
+      }
+      if ((key === 'n' || key === 'N') && onCreateSticky) {
+        e.preventDefault();
+        onCreateSticky();
+        return;
+      }
 
       if (key === 'Delete' || key === 'Backspace') {
         if (selection.ids.size === 0) return;

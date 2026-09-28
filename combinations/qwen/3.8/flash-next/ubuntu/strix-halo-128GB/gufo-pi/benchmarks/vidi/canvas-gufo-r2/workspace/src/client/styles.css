@@ -295,6 +295,57 @@ body {
 
 /* --------------------------------------------------------- note toolbar */
 
+/* --------------------------------------------------------- text toolbar (story 9) */
+.text-toolbar {
+  position: fixed;
+  top: 52px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 6px;
+  background: #ffffff;
+  border: 1px solid #d6dae1;
+  border-radius: 6px;
+  box-shadow: 0 1px 4px rgb(16 22 26 / 12%);
+  pointer-events: auto;
+  z-index: 100;
+}
+
+.text-size-button {
+  padding: 4px 8px;
+  border: 1px solid #d6dae1;
+  border-radius: 4px;
+  background: #fff;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.text-size-button[aria-pressed="true"] {
+  background: #e3f2fd;
+  border-color: #4A90D9;
+  color: #1565c0;
+}
+
+.text-size-button:hover {
+  background: #f5f5f5;
+}
+
+.text-delete {
+  padding: 4px;
+  border: none;
+  background: none;
+  cursor: pointer;
+  color: #666;
+  margin-left: 4px;
+}
+
+.text-delete:hover {
+  color: #d32f2f;
+}
+
 .note-toolbar {
   position: fixed;
   top: 10px;

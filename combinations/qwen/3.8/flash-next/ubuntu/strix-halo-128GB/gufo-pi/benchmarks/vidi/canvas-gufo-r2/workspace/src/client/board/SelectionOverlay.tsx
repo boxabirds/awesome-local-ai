@@ -1,8 +1,8 @@
 /**
- * Selection bounding box + 8 resize handles, rendered in screen space (story 7,
+ * Selection bounding box + resize handles, rendered in screen space (story 7,
  * sel.marquee_ui / handles). Handles only appear when at least one selected
- * object type is resizable. Each handle has a stable `data-resize-handle`
- * attribute for tests and hit-testing.
+ * object type is resizable. When ALL selected specs declare `handles: 'horizontal'`,
+ * only e and w handles are shown (story 9, text.height).
  */
 import type { PointerEvent as ReactPointerEvent, JSX } from 'react';
 import type { ObjectSnapshot } from '../../shared/board-model';
@@ -35,6 +35,8 @@ const CURSOR: Record<Handle, string> = {
   w: 'ew-resize',
 };
 
+const HORIZONTAL_HANDLES: readonly Handle[] = ['e', 'w'];
+
 export function SelectionOverlay(props: {
   ids: ReadonlySet<string>;
   snapshot: readonly ObjectSnapshot[];
@@ -44,10 +46,18 @@ export function SelectionOverlay(props: {
   const bounds = selectionBounds(props.ids, props.snapshot);
   if (!bounds || props.ids.size === 0) return null;
 
-  const anyResizable = [...props.ids].some((id) => {
+  let anyResizable = false;
+  let allHorizontal = true;
+  for (const id of props.ids) {
     const obj = props.snapshot.find((o) => o.id === id);
-    return obj ? getObjectType(obj.type)?.resizable === true : false;
-  });
+    if (!obj) continue;
+    const spec = getObjectType(obj.type);
+    if (!spec) continue;
+    if (spec.resizable) anyResizable = true;
+    if (spec.handles !== 'horizontal') allHorizontal = false;
+  }
+
+  const visibleHandles = allHorizontal ? HORIZONTAL_HANDLES : HANDLES;
 
   const tl = worldToScreen(camera, { x: bounds.x, y: bounds.y });
   const w = bounds.width * camera.zoom;
@@ -68,7 +78,7 @@ export function SelectionOverlay(props: {
       }}
     >
       {anyResizable &&
-        HANDLES.map((label) => {
+        visibleHandles.map((label) => {
           const pos = HANDLE_POS[label];
           return (
             <div
