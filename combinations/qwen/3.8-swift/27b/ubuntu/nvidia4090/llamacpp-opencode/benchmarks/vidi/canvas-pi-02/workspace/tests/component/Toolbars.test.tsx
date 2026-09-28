@@ -1,9 +1,9 @@
 // Component tests for the toolbars (sticky.toolbar):
 // TC-27, TC-28, TC-29.
 
-import { act, fireEvent, render, screen } from '@testing-library/react';
+import { act, fireEvent, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import App from '../../src/client/App';
+import { renderAppAt } from './render-app';
 
 function notes(): Array<{ id: string; x: number; y: number; color: string; text: string; z: number }> {
   return window.__vidi6?.getStickyNotes() ?? [];
@@ -19,7 +19,7 @@ afterEach(() => {
 
 describe('sticky.toolbar', () => {
   it('TC-27: a colour swatch changes the model colour; selection is kept', async () => {
-    render(<App />);
+    await renderAppAt();
     fireEvent.click(screen.getByRole('button', { name: 'Sticky note' }));
     fireEvent.keyDown(screen.getByTestId('sticky-editor-input'), { key: 'Escape' });
     expect(notes()[0].color).toBe('yellow'); // default
@@ -33,7 +33,7 @@ describe('sticky.toolbar', () => {
   });
 
   it('TC-28: the Sticky note button creates one note centred on the viewport, in Editing', async () => {
-    render(<App />);
+    await renderAppAt();
     expect(notes()).toHaveLength(0);
 
     fireEvent.click(screen.getByRole('button', { name: 'Sticky note' }));
@@ -48,7 +48,7 @@ describe('sticky.toolbar', () => {
   });
 
   it('TC-29: the bin button deletes the note and clears the selection', async () => {
-    render(<App />);
+    await renderAppAt();
     fireEvent.click(screen.getByRole('button', { name: 'Sticky note' }));
     fireEvent.keyDown(screen.getByTestId('sticky-editor-input'), { key: 'Escape' });
     expect(notes()).toHaveLength(1);

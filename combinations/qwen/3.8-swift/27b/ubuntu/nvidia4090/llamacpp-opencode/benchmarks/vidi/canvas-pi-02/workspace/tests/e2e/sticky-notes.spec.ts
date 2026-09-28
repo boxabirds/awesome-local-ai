@@ -3,7 +3,7 @@
 // window.__vidi6 seeding hooks.
 
 import { expect, test } from '@playwright/test';
-import { setCamera } from './helpers/board';
+import { openBoard, setCamera } from './helpers/board';
 
 interface StickyInfo {
   id: string;
@@ -39,7 +39,7 @@ async function drag(page: import('@playwright/test').Page, x1: number, y1: numbe
 const CENTER = { x: 640, y: 400 }; // 1280x800 viewport centre (playwright.config)
 
 test('TC-30: double-click empty board creates a note centred on the click point, in editing', async ({ page }) => {
-  await page.goto('/');
+  await openBoard(page);
   await setCamera(page, 0, 0, 1);
   await page.mouse.dblclick(CENTER.x, CENTER.y);
 
@@ -55,7 +55,7 @@ test('TC-30: double-click empty board creates a note centred on the click point,
 });
 
 test('TC-31: the toolbar Sticky note button creates one note centred on the viewport, in editing', async ({ page }) => {
-  await page.goto('/');
+  await openBoard(page);
   await setCamera(page, 0, 0, 1);
   await page.getByRole('button', { name: 'Sticky note' }).click();
 
@@ -67,7 +67,7 @@ test('TC-31: the toolbar Sticky note button creates one note centred on the view
 });
 
 test('TC-32: dragging a note 200 screen px at zoom 1 moves it exactly 200 world units', async ({ page }) => {
-  await page.goto('/');
+  await openBoard(page);
   await setCamera(page, 0, 0, 1);
   await createNoteAt(page, 300, 400); // note centre at world (300,400)
 
@@ -80,7 +80,7 @@ test('TC-32: dragging a note 200 screen px at zoom 1 moves it exactly 200 world 
 });
 
 test('TC-33: dragging at zoom 50% divides the screen delta by 0.5', async ({ page }) => {
-  await page.goto('/');
+  await openBoard(page);
   await setCamera(page, 0, 0, 0.5);
   await createNoteAt(page, 200, 150); // world centre (200,150) → screen (100,75) at zoom 0.5
 
@@ -94,7 +94,7 @@ test('TC-33: dragging at zoom 50% divides the screen delta by 0.5', async ({ pag
 });
 
 test('TC-34: a note dragged once comes to the front; a second drag does not change the z-order', async ({ page }) => {
-  await page.goto('/');
+  await openBoard(page);
   await setCamera(page, 0, 0, 1);
   const a = await createNoteAt(page, 300, 400);
   const b = await createNoteAt(page, 500, 400);
@@ -116,7 +116,7 @@ test('TC-34: a note dragged once comes to the front; a second drag does not chan
 });
 
 test('TC-39: double-click at the minimum zoom creates a note at the correct world point', async ({ page }) => {
-  await page.goto('/');
+  await openBoard(page);
   await setCamera(page, 0, 0, 1);
   // Drive the zoom to its floor (0.1) with the zoom-out control. From 100%,
   // exactly 11 steps of ×1/1.25 (clamped at the floor) reach 10%; the button

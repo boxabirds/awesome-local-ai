@@ -1,9 +1,9 @@
 // Component tests for sticky note interaction (sticky.interaction):
 // TC-18 to TC-22, TC-25, TC-35 to TC-37.
 
-import { act, fireEvent, render, screen } from '@testing-library/react';
+import { act, fireEvent, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import App from '../../src/client/App';
+import { renderAppAt } from './render-app';
 import * as boardModel from '../../src/shared/board-model';
 
 /** jsdom has no PointerEvent; dispatch a plain event carrying pointer fields. */
@@ -59,7 +59,7 @@ afterEach(() => {
 
 describe('sticky.interaction', () => {
   it('TC-18: press+release without move → Selected; outline attribute and NoteToolbar rendered', async () => {
-    render(<App />);
+    await renderAppAt();
     createNote();
     endEditing();
     const note = screen.getByTestId('sticky-note');
@@ -76,7 +76,7 @@ describe('sticky.interaction', () => {
 
   it('TC-19: move 2px (< DRAG_THRESHOLD_PX) stays Selected, moveObject not called', async () => {
     const moveSpy = vi.spyOn(boardModel, 'moveObject').mockImplementation(() => true);
-    render(<App />);
+    await renderAppAt();
     createNote();
     endEditing();
     const note = screen.getByTestId('sticky-note');
@@ -92,7 +92,7 @@ describe('sticky.interaction', () => {
   });
 
   it('TC-20: move 3px (= threshold) → Dragging; board camera unchanged (no pan)', async () => {
-    render(<App />);
+    await renderAppAt();
     createNote();
     endEditing();
     const note = screen.getByTestId('sticky-note');
@@ -113,7 +113,7 @@ describe('sticky.interaction', () => {
   });
 
   it('TC-21: pointercancel during drag → Selected at the last applied position', async () => {
-    render(<App />);
+    await renderAppAt();
     createNote();
     endEditing();
     const note = screen.getByTestId('sticky-note');
@@ -129,7 +129,7 @@ describe('sticky.interaction', () => {
   });
 
   it('TC-22: click empty board → Unselected; toolbar gone', async () => {
-    render(<App />);
+    await renderAppAt();
     createNote();
     endEditing();
     const note = screen.getByTestId('sticky-note');
@@ -143,7 +143,7 @@ describe('sticky.interaction', () => {
   });
 
   it('TC-25: Delete key on a selected (not editing) note removes it', async () => {
-    render(<App />);
+    await renderAppAt();
     createNote();
     endEditing();
     expect(notes()).toHaveLength(1);
@@ -155,7 +155,7 @@ describe('sticky.interaction', () => {
   });
 
   it('TC-25: Backspace key on a selected (not editing) note removes it', async () => {
-    render(<App />);
+    await renderAppAt();
     createNote();
     endEditing();
     expect(notes()).toHaveLength(1);
@@ -167,7 +167,7 @@ describe('sticky.interaction', () => {
   });
 
   it('TC-35 (negative): dblclick on an existing note does not create a new note; it edits', async () => {
-    render(<App />);
+    await renderAppAt();
     createNote();
     endEditing();
     const note = screen.getByTestId('sticky-note');
@@ -180,7 +180,7 @@ describe('sticky.interaction', () => {
   });
 
   it('TC-36 (negative): Enter while nothing selected does nothing', async () => {
-    render(<App />);
+    await renderAppAt();
 
     windowKey('Enter');
 
@@ -189,7 +189,7 @@ describe('sticky.interaction', () => {
   });
 
   it('TC-37: note deleted while Dragging → interaction ends, no exception, note not recreated', async () => {
-    render(<App />);
+    await renderAppAt();
     createNote();
     endEditing();
     const note = screen.getByTestId('sticky-note');
@@ -211,7 +211,7 @@ describe('sticky.interaction', () => {
   });
 
   it('TC-37: note deleted while Editing → interaction ends, no exception, note not recreated', async () => {
-    render(<App />);
+    await renderAppAt();
     createNote();
     const id = notes()[0].id;
     expect(screen.getByTestId('sticky-editor-input')).toBeTruthy();

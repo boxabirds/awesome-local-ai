@@ -87,11 +87,39 @@ export default class BoardRoom extends DurableObject {
     this.store = new BoardStore(ctx.storage);
     // Load inside blockConcurrencyWhile: the first connection (or the wake
     // message) waits for the board to be readable before being served.
+    // NOTE: no migrate here (story 5): storage must not be written for a
+    // board that was only probed via a link; tables are created by
+    // initialize() (POST /api/boards) or lazily before the first append.
     ctx.blockConcurrencyWhile(() => {
-      this.store.migrate();
       this.loadDoc();
       return Promise.resolve();
     });
+  }
+
+  /** RPC (share.board_api): initialise this board. Migrates the schema and
+   *  writes created_at exactly once. A board that already has created_at
+   *  (or any legacy data) is reported as 'exists' and is never re-
+   *  initialised (TC-11, TC-15). */
+  async initialize(): Promise<'created' | 'exists'> {
+    this.store.migrate();
+    const sql = this.ctx.storage.sql;
+    const row = oneRow(sql.exec<{ value: string }>(
+      'SELECT value FROM storage_meta WHERE key = ?',
+      'created_at',
+    ));
+    if (row !== null) return 'exists';
+    sql.exec(
+      'INSERT INTO storage_meta (key, value) VALUES (?, ?)',
+      'created_at',
+      String(Date.now()),
+    );
+    return 'created';
+  }
+
+  /** RPC (share.board_api): read-only existence (created_at, or legacy
+   *  updates/snapshot rows). Used by GET /api/boards/:id. */
+  async exists(): Promise<boolean> {
+    return this.store.existsReadOnly();
   }
 
   private now(): number {
@@ -146,6 +174,12 @@ export default class BoardRoom extends DurableObject {
   fetch(req: Request): Promise<Response> {
     if (!req.headers.get('Upgrade')?.toLowerCase().includes('websocket')) {
       return Promise.resolve(new Response('Upgrade Required', { status: 426 }));
+    }
+    // Story 5: rooms are no longer created implicitly by connecting — an
+    // unknown board is rejected BEFORE a socket is accepted, and the check
+    // is read-only, so probing links writes no storage (TC-09).
+    if (!this.store.existsReadOnly()) {
+      return Promise.resolve(new Response('Board not found', { status: 404 }));
     }
     this.ensureLoaded();
     if (this.lifecycle === 'load-failed') {
@@ -417,6 +451,40 @@ export default class BoardRoom extends DurableObject {
     return written.rowsWritten;
   }
 
+  /** Test seam: application table names (empty for a never-initialised
+   *  board — proves a probe wrote no storage, TC-06/TC-09). */
+  testTableNames(): string[] {
+    return [...this.store.tableNames()].sort();
+  }
+
+  /** Test seam: the created_at epoch ms (null when the board was never
+   *  initialised — legacy boards have data but no created_at). */
+  testGetCreatedAt(): number | null {
+    if (!this.store.tableNames().has('storage_meta')) return null;
+    const row = oneRow(this.ctx.storage.sql.exec<{ value: string }>(
+      'SELECT value FROM storage_meta WHERE key = ?',
+      'created_at',
+    ));
+    return row === null ? null : Number(row.value);
+  }
+
+  /** Test seam: seed a LEGACY board (share.legacy_boards) — schema tables
+   *  plus the given Yjs updates as log rows, WITHOUT created_at. Forgets
+   *  the in-memory doc afterwards so the next connection reloads the seeded
+   *  rows from storage. Returns the number of rows written. */
+  testSeedLegacyUpdates(updates: Uint8Array[]): number {
+    this.store.migrate();
+    const sql = this.ctx.storage.sql;
+    for (const update of updates) {
+      sql.exec('INSERT INTO updates (data, bytes) VALUES (?, ?)', update, update.length);
+    }
+    if (this.lifecycle === 'ready') {
+      this.lifecycle = nextRoomState('ready', 'hibernate');
+      this.doc = null;
+    }
+    return updates.length;
+  }
+
   /** Test seam: raw row counts and metadata for storage assertions. */
   testInspectStorage(): {
     updates: number;
@@ -429,36 +497,55 @@ export default class BoardRoom extends DurableObject {
     throughSeq: number | null;
   } {
     const sql = this.ctx.storage.sql;
-    const updates = oneRow(sql.exec<{ n: number }>('SELECT COUNT(*) AS n FROM updates'));
-    const latest = oneRow(sql.exec<{ bytes: number }>('SELECT bytes FROM updates ORDER BY seq DESC LIMIT 1'));
-    const chunks = oneRow(sql.exec<{ n: number }>('SELECT COUNT(*) AS n FROM snapshot_chunks'));
-    const q = oneRow(sql.exec<{ n: number }>('SELECT COUNT(*) AS n FROM quarantined_updates'));
-    const qRow = oneRow(
-      sql.exec<{ seq: number; error: string }>(
-        'SELECT seq, error FROM quarantined_updates ORDER BY seq LIMIT 1',
-      ),
-    );
-    const schema = oneRow(
-      sql.exec<{ value: string }>(
-        'SELECT value FROM storage_meta WHERE key = ?',
-        'storage_schema_version',
-      ),
-    );
-    const through = oneRow(
-      sql.exec<{ value: string }>(
-        'SELECT value FROM storage_meta WHERE key = ?',
-        'snapshot_through_seq',
-      ),
-    );
+    // A probed (never-initialised) board has no tables; read only what
+    // exists so this seam never throws on an unknown id.
+    const tables = this.store.tableNames();
+    const count = (query: string): number => {
+      const row = oneRow(sql.exec<{ n: number }>(query));
+      return row === null ? 0 : row.n;
+    };
+    const updates = tables.has('updates') ? count('SELECT COUNT(*) AS n FROM updates') : 0;
+    const latest =
+      tables.has('updates') &&
+      oneRow(sql.exec<{ bytes: number }>('SELECT bytes FROM updates ORDER BY seq DESC LIMIT 1'));
+    const snapshotChunks = tables.has('snapshot_chunks')
+      ? count('SELECT COUNT(*) AS n FROM snapshot_chunks')
+      : 0;
+    const q = tables.has('quarantined_updates')
+      ? count('SELECT COUNT(*) AS n FROM quarantined_updates')
+      : 0;
+    const qRow =
+      tables.has('quarantined_updates') &&
+      oneRow(
+        sql.exec<{ seq: number; error: string }>(
+          'SELECT seq, error FROM quarantined_updates ORDER BY seq LIMIT 1',
+        ),
+      );
+    const schema =
+      tables.has('storage_meta') &&
+      oneRow(
+        sql.exec<{ value: string }>(
+          'SELECT value FROM storage_meta WHERE key = ?',
+          'storage_schema_version',
+        ),
+      );
+    const through =
+      tables.has('storage_meta') &&
+      oneRow(
+        sql.exec<{ value: string }>(
+          'SELECT value FROM storage_meta WHERE key = ?',
+          'snapshot_through_seq',
+        ),
+      );
     return {
-      updates: updates === null ? 0 : updates.n,
-      updateBytes: latest === null ? 0 : latest.bytes,
-      snapshotChunks: chunks === null ? 0 : chunks.n,
-      quarantined: q === null ? 0 : q.n,
-      quarantinedSeq: qRow === null ? null : qRow.seq,
-      quarantinedError: qRow === null ? null : qRow.error,
-      schemaVersion: schema === null ? null : schema.value,
-      throughSeq: through === null ? null : Number(through.value),
+      updates,
+      updateBytes: latest === null || latest === false ? 0 : latest.bytes,
+      snapshotChunks,
+      quarantined: q,
+      quarantinedSeq: qRow === null || qRow === false ? null : qRow.seq,
+      quarantinedError: qRow === null || qRow === false ? null : qRow.error,
+      schemaVersion: schema === null || schema === false ? null : schema.value,
+      throughSeq: through === null || through === false ? null : Number(through.value),
     };
   }
 

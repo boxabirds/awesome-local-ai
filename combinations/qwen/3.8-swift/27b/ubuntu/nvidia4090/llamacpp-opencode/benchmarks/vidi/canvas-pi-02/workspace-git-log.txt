@@ -1,3 +1,117 @@
+commit fda1bfd875b93b43b393047ac2efd04f3674433f
+vidi-agent  Mon Sep 28 07:04:26 2026 +0100
+
+    mark story 5 tasks done
+
+
+ .../005-share-a-board-with-others-using-a-link/tasks.md    | 14 +++++++-------
+ 1 file changed, 7 insertions(+), 7 deletions(-)
+commit 056e1d8beb10efe04b9f6976d62c228d01607ec2
+vidi-agent  Mon Sep 28 07:04:20 2026 +0100
+
+    align story 5 UI to tasks.md: exact create/rate-limit messages, manual-copy fallback, Board not found page, retrying state; component TC-16..25 and e2e TC-26..31 restructured to spec
+
+
+ src/client/BoardPage.tsx       |  33 +++-
+ src/client/Home.tsx            |   8 +-
+ src/client/NotFound.tsx        |  48 +++++-
+ src/client/Share.tsx           |  87 ++++++-----
+ src/client/api.ts              |  29 +++-
+ tests/component/share.test.tsx | 337 ++++++++++++++++++++++++++---------------
+ tests/e2e/share.spec.ts        | 313 +++++++++++++++++++++-----------------
+ 7 files changed, 547 insertions(+), 308 deletions(-)
+commit 5db41cb99fa236cae236fa983dd96848f944456c
+vidi-agent  Mon Sep 28 06:41:45 2026 +0100
+
+    share panel closes on Escape and outside click (TC-25); component test
+
+
+ src/client/Share.tsx           | 23 +++++++++++++++++++++--
+ tests/component/share.test.tsx | 34 ++++++++++++++++++++++++++++++++++
+ 2 files changed, 55 insertions(+), 2 deletions(-)
+commit cdf272b31c20c0299da463173e11531c5bbbe540
+vidi-agent  Mon Sep 28 06:40:12 2026 +0100
+
+    e2e: story 5 share tests TC-26..TC-31; board-creation via TEST_HOOKS init; cross-browser clipboard
+
+
+ playwright.config.ts                      |   6 +-
+ tests/component/BoardViewport.test.tsx    |   2 +-
+ tests/component/StickyNote.test.tsx       |   2 +-
+ tests/component/StickyTextEditor.test.tsx |   2 +-
+ tests/component/Toolbars.test.tsx         |   2 +-
+ tests/component/load-failure.test.tsx     |   2 +-
+ tests/component/share.test.tsx            |   6 +-
+ tests/e2e/e2e.env                         |   6 ++
+ tests/e2e/helpers/board.ts                |  18 ++++
+ tests/e2e/helpers/participants.ts         |   9 ++
+ tests/e2e/helpers/wrangler-process.ts     |  11 ++-
+ tests/e2e/navigation.spec.ts              |   9 +-
+ tests/e2e/persistence.spec.ts             |   3 +
+ tests/e2e/share.spec.ts                   | 150 ++++++++++++++++++++++++++++++
+ tests/e2e/sticky-notes.spec.ts            |  14 +--
+ 15 files changed, 220 insertions(+), 22 deletions(-)
+commit fa6b6bac4b98d0f3dd277fc5e43f767400cea860
+vidi-agent  Mon Sep 28 06:02:54 2026 +0100
+
+    client: router (Home/BoardPage/NotFound), board existence check with backoff, Share panel; component tests TC-16..TC-23
+
+
+ package-lock.json                         |  46 ++++-
+ package.json                              |   1 +
+ src/client/App.tsx                        | 237 +++----------------------
+ src/client/BoardPage.tsx                  | 281 ++++++++++++++++++++++++++++++
+ src/client/Home.tsx                       |  41 +++++
+ src/client/NotFound.tsx                   |  20 +++
+ src/client/Share.tsx                      |  96 ++++++++++
+ src/client/api.ts                         |  36 ++++
+ src/client/main.tsx                       |   7 +-
+ src/client/styles.css                     | 214 +++++++++++++++++++++++
+ src/shared/config.ts                      |   9 +-
+ tests/component/BoardViewport.test.tsx    |  18 +-
+ tests/component/StickyNote.test.tsx       |  24 +--
+ tests/component/StickyTextEditor.test.tsx |  10 +-
+ tests/component/Toolbars.test.tsx         |   8 +-
+ tests/component/load-failure.test.tsx     |   4 +-
+ tests/component/render-app.tsx            |  33 ++++
+ tests/component/setup.ts                  |  40 +++++
+ tests/component/share.test.tsx            | 192 ++++++++++++++++++++
+ tests/integration/board-api.test.ts       |  14 ++
+ tests/integration/ws-client.ts            |   4 +-
+ 21 files changed, 1084 insertions(+), 251 deletions(-)
+commit d49e85a98b46b03ee362bc60f521270287964160
+vidi-agent  Mon Sep 28 05:54:56 2026 +0100
+
+    worker+integration: board API (POST/GET /api/boards), 404 on unknown boards, lazy migrate, legacy detection, rate limit
+
+
+ index.html                            |   2 +
+ src/worker/board-room.ts              | 147 +++++++++++++++++-----
+ src/worker/board-store.ts             |  86 +++++++++++--
+ src/worker/create-board.ts            |  13 +-
+ src/worker/env.d.ts                   |   4 +-
+ src/worker/index.ts                   |  64 ++++++++--
+ src/worker/test-hooks.ts              |  16 +++
+ tests/integration/board-api.test.ts   | 222 ++++++++++++++++++++++++++++++++++
+ tests/integration/board-store.test.ts |  10 +-
+ tests/integration/worker.test.ts      |   6 +-
+ tests/integration/ws-client.ts        |   7 +-
+ tests/unit/create-board.test.ts       |  10 +-
+ vitest.integration.config.ts          |   5 +-
+ wrangler.jsonc                        |   8 +-
+ wrangler.local.jsonc                  |  21 ++++
+ 15 files changed, 556 insertions(+), 65 deletions(-)
+commit ae5d679621d6eb7106c92aef867241bf87c2efce
+vidi-agent  Mon Sep 28 05:36:21 2026 +0100
+
+    story 5 (task 1): board creation unit tests first (TC-01 to TC-04), named settings, create-board module
+
+
+ src/shared/config.ts            |  18 +++++
+ src/worker/create-board.ts      | 119 +++++++++++++++++++++++++++++
+ tests/unit/create-board.test.ts | 164 ++++++++++++++++++++++++++++++++++++++++
+ wrangler.jsonc                  |   4 +
+ 4 files changed, 305 insertions(+)
 commit 6e8c2eb54d7488528b754a106303cd751b603e44
 vidi-agent  Mon Sep 28 05:22:57 2026 +0100
 

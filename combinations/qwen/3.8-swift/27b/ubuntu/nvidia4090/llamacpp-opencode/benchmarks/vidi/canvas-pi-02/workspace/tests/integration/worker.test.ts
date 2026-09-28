@@ -16,12 +16,14 @@ const UPGRADE_HEADERS: Record<string, string> = {
 };
 
 describe('sync.worker_entry', () => {
-  it('TC-04: invalid board id with Upgrade -> 400, no object instance created', async () => {
+  it('TC-04: invalid board id with Upgrade -> 404, no object instance created', async () => {
+    // Story 5 contract: malformed ids get 404 (not 400) — no distinction
+    // from unknown ids, nothing leaked, and the DO namespace is untouched.
     const spy = vi.spyOn(env.BOARD_ROOM, 'idFromName');
     const resp = await SELF.fetch(
       new Request('http://localhost/api/rooms/bad!id', { headers: UPGRADE_HEADERS }),
     );
-    expect(resp.status).toBe(400);
+    expect(resp.status).toBe(404);
     expect(spy).not.toHaveBeenCalled();
     spy.mockRestore();
   });

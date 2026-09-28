@@ -4,9 +4,9 @@
 // that lets the tests drive status/sync/close-code events exactly as the
 // room would send them.
 
-import { act, render, screen } from '@testing-library/react';
+import { act, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
-import App from '../../src/client/App';
+import { renderAppAt } from './render-app';
 import {
   canEdit,
   createConnectionTracker,
@@ -96,7 +96,7 @@ const noteCount = (doc: Y.Doc): number => doc.getMap('objects').size;
 /** Renders <App/>, connects, syncs, and (when `fail`) closes with the
  *  board-load-failed code; returns the provider's doc. */
 async function setupApp(fail: boolean): Promise<Y.Doc> {
-  render(<App />);
+  await renderAppAt();
   const provider = lastProvider();
   act(() => provider.open());
   act(() => provider.doSync());

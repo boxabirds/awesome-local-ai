@@ -1,8 +1,8 @@
 // Component tests for board viewport input (TC-13 to TC-18, TC-29, TC-30).
 
-import { act, render, screen } from '@testing-library/react';
+import { act, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import App from '../../src/client/App';
+import { renderAppAt } from './render-app';
 import { WHEEL_ZOOM_SENSITIVITY } from '../../src/shared/config';
 
 /** jsdom has no PointerEvent; dispatch a plain event carrying pointer fields. */
@@ -48,7 +48,7 @@ afterEach(() => {
 
 describe('viewport.input', () => {
   it('TC-13: drag pans the world layer; state goes Idle to Panning to Idle', async () => {
-    render(<App />);
+    await renderAppAt();
     const viewport = screen.getByTestId('board-viewport');
     expect(viewport.dataset.panState).toBe('idle');
 
@@ -66,7 +66,7 @@ describe('viewport.input', () => {
   });
 
   it('TC-14: pointercancel freezes the camera and later moves are ignored', async () => {
-    render(<App />);
+    await renderAppAt();
     const viewport = screen.getByTestId('board-viewport');
 
     fire(viewport, pointerEvent('pointerdown', 100, 100));
@@ -82,7 +82,7 @@ describe('viewport.input', () => {
   });
 
   it('TC-15: a plain wheel pans by the delta and is default-prevented', async () => {
-    render(<App />);
+    await renderAppAt();
     const viewport = screen.getByTestId('board-viewport');
     const e = new WheelEvent('wheel', { bubbles: true, cancelable: true, deltaX: 0, deltaY: 100 });
     fire(viewport, e);
@@ -96,7 +96,7 @@ describe('viewport.input', () => {
   });
 
   it('TC-16: a Ctrl wheel zooms around the pointer and is default-prevented', async () => {
-    render(<App />);
+    await renderAppAt();
     const viewport = screen.getByTestId('board-viewport');
     const e = new WheelEvent('wheel', {
       bubbles: true,
@@ -115,7 +115,7 @@ describe('viewport.input', () => {
   });
 
   it('TC-17: a Safari gesturechange zooms by the scale and is default-prevented', async () => {
-    render(<App />);
+    await renderAppAt();
     const viewport = screen.getByTestId('board-viewport');
     const e = new Event('gesturechange', { bubbles: true, cancelable: true });
     Object.assign(e, { scale: 2, clientX: 0, clientY: 0 });
@@ -127,7 +127,7 @@ describe('viewport.input', () => {
   });
 
   it('TC-18: Ctrl+=, Ctrl+-, Ctrl+0 zoom step in, out and reset, each prevented', async () => {
-    render(<App />);
+    await renderAppAt();
     const press = async (key: string): Promise<void> => {
       const e = new KeyboardEvent('keydown', { bubbles: true, cancelable: true, key, ctrlKey: true });
       fire(window, e);
@@ -149,7 +149,7 @@ describe('viewport.input', () => {
   });
 
   it('TC-29: a click without moving leaves the camera and the hint unchanged', async () => {
-    render(<App />);
+    await renderAppAt();
     const viewport = screen.getByTestId('board-viewport');
     expect(screen.getByTestId('nav-hint')).toBeTruthy();
 
@@ -165,7 +165,7 @@ describe('viewport.input', () => {
   });
 
   it('TC-30: a Ctrl wheel over the zoom controls does not zoom the board', async () => {
-    render(<App />);
+    await renderAppAt();
     const controls = screen.getByTestId('zoom-controls');
     const e = new WheelEvent('wheel', {
       bubbles: true,

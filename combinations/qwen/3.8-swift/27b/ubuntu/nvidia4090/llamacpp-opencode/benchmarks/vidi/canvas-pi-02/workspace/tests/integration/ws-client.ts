@@ -10,7 +10,7 @@ import {
   writeVarUint,
   writeVarUint8Array,
 } from 'lib0/encoding';
-import { SELF } from 'cloudflare:test';
+import { SELF, env } from 'cloudflare:test';
 import * as Y from 'yjs';
 import * as sync from 'y-protocols/sync';
 import {
@@ -69,6 +69,13 @@ export class RoomClient {
   }
 
   static async connect(boardId: string, doc?: Y.Doc): Promise<RoomClient> {
+    // Story 5: rooms are no longer created implicitly by connecting; the
+    // test board is created directly via the DO RPC (bypassing the creation
+    // API and its rate limit).
+    const room = env.BOARD_ROOM.get(
+      env.BOARD_ROOM.idFromName(boardId),
+    ) as unknown as { initialize(): Promise<'created' | 'exists'> };
+    await room.initialize();
     const resp = await SELF.fetch(
       new Request(`http://localhost/api/rooms/${boardId}`, {
         headers: { Upgrade: 'websocket', Connection: 'Upgrade' },

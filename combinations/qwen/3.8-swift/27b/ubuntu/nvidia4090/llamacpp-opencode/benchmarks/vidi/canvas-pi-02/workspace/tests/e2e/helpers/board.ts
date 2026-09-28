@@ -2,6 +2,23 @@
 
 import { expect, type Page } from '@playwright/test';
 import { GRID_SPACING_WORLD } from '../../../src/shared/config';
+import { newBoardId } from '../../../src/shared/board-id';
+
+/**
+ * Creates a board via the TEST_HOOKS initialize endpoint (bypassing the
+ * rate-limited creation API) and opens it at /b/<id>. Resolves once the
+ * board viewport is rendered. Returns the board id.
+ */
+export async function openBoard(page: Page, boardId?: string): Promise<string> {
+  const id = boardId ?? newBoardId();
+  const res = await page.request.post(`/_test/${id}/initialize`);
+  if (res.status() !== 200) {
+    throw new Error(`board initialize failed: ${res.status()} ${await res.text()}`);
+  }
+  await page.goto(`/b/${id}`);
+  await page.getByTestId('board-viewport').waitFor();
+  return id;
+}
 
 export async function originMarkerCenter(page: Page): Promise<{ x: number; y: number }> {
   const box = (await page.getByTestId('origin-marker').boundingBox())!;
@@ -51,3 +68,4 @@ export async function gridSpacingPx(page: Page): Promise<string> {
 }
 
 export { GRID_SPACING_WORLD };
+export { newBoardId };

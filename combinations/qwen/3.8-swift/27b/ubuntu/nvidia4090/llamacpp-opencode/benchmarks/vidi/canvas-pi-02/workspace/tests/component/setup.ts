@@ -34,3 +34,43 @@ if (!Element.prototype.hasPointerCapture) {
     return false;
   };
 }
+
+// Story 5: jsdom has no fetch. Answer the board API by default so the board
+// page's existence check (GET /api/boards/:id) succeeds and the board
+// mounts. Tests override with vi.stubGlobal('fetch', ...) when a test needs
+// a 404 (share.check retries) or a creation (POST /api/boards).
+const VALID_BOARD_ID = 'a'.repeat(22);
+function apiResponse(
+  url: string,
+  method: string,
+): Response | null {
+  if (method === 'POST' && url === '/api/boards') {
+    return new Response(JSON.stringify({ id: VALID_BOARD_ID }), {
+      status: 201,
+      headers: { 'Content-Type': 'application/json' },
+    });
+  }
+  const match = url.match(/^\/api\/boards\/([^/]+)$/);
+  if (method === 'GET' && match !== null) {
+    return new Response(JSON.stringify({ id: match[1] }), {
+      status: 200,
+      headers: { 'Content-Type': 'application/json' },
+    });
+  }
+  return null;
+}
+
+// Always installed (not just when absent): Node 18+ ships a real global
+// fetch, which would try the network for the relative /api/boards URLs.
+Object.defineProperty(globalThis, 'fetch', {
+  value: (input: RequestInfo | URL): Promise<Response> => {
+    const url =
+      typeof input === 'string' ? input : input instanceof URL ? input.pathname : input.url;
+    const method = typeof input === 'object' && 'method' in input ? input.method : 'GET';
+    const res = apiResponse(url, method);
+    if (res !== null) return Promise.resolve(res);
+    return Promise.reject(new Error(`mock fetch: unhandled ${method} ${url}`));
+  },
+  configurable: true,
+  writable: true,
+});

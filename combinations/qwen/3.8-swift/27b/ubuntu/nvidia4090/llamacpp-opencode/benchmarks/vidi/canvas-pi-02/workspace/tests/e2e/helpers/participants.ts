@@ -37,6 +37,15 @@ export async function connectParticipants(
   boardId: string,
   count: number,
 ): Promise<Participant[]> {
+  // Story 5: rooms are created explicitly (POST /api/boards or the
+  // TEST_HOOKS initialize endpoint); an uncreated board is a 404. Use the
+  // test seam so specs don't trip the creation rate limit.
+  const probe = await browser.newContext();
+  const init = await probe.request.post(`/_test/${boardId}/initialize`);
+  await probe.close();
+  if (init.status() !== 200) {
+    throw new Error(`board initialize failed: ${init.status()} ${await init.text()}`);
+  }
   const participants: Participant[] = [];
   for (let i = 0; i < count; i++) {
     const context = await browser.newContext();

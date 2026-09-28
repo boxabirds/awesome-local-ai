@@ -1,9 +1,9 @@
 // Component tests for sticky note text editing (sticky.text):
 // TC-23, TC-24, TC-26, TC-38.
 
-import { act, fireEvent, render, screen } from '@testing-library/react';
+import { act, fireEvent, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import App from '../../src/client/App';
+import { renderAppAt } from './render-app';
 
 function notes(): Array<{ id: string; x: number; y: number; color: string; text: string; z: number }> {
   return window.__vidi6?.getStickyNotes() ?? [];
@@ -25,7 +25,7 @@ afterEach(() => {
 
 describe('sticky.text', () => {
   it('TC-23: Enter on a selected note starts Editing; textarea focused with caret at text end', async () => {
-    render(<App />);
+    await renderAppAt();
     fireEvent.click(screen.getByRole('button', { name: 'Sticky note' }));
     // Type a bit of text, then end editing.
     fireEvent.change(screen.getByTestId('sticky-editor-input'), { target: { value: 'Hello' } });
@@ -41,7 +41,7 @@ describe('sticky.text', () => {
   });
 
   it('TC-24: Escape → Selected; typed text preserved', async () => {
-    render(<App />);
+    await renderAppAt();
     fireEvent.click(screen.getByRole('button', { name: 'Sticky note' }));
     fireEvent.change(screen.getByTestId('sticky-editor-input'), { target: { value: 'Hello' } });
     fireEvent.keyDown(screen.getByTestId('sticky-editor-input'), { key: 'Escape' });
@@ -54,7 +54,7 @@ describe('sticky.text', () => {
   });
 
   it('TC-26: Backspace while editing text does not delete the note; the text is edited', async () => {
-    render(<App />);
+    await renderAppAt();
     fireEvent.click(screen.getByRole('button', { name: 'Sticky note' }));
     const ta = screen.getByTestId('sticky-editor-input');
     fireEvent.change(ta, { target: { value: 'a' } });
@@ -69,7 +69,7 @@ describe('sticky.text', () => {
   });
 
   it('TC-38: type text then click outside → editor unmounted, Y.Text has the text, Unselected', async () => {
-    render(<App />);
+    await renderAppAt();
     fireEvent.click(screen.getByRole('button', { name: 'Sticky note' }));
     const ta = screen.getByTestId('sticky-editor-input');
     fireEvent.change(ta, { target: { value: 'abc' } });

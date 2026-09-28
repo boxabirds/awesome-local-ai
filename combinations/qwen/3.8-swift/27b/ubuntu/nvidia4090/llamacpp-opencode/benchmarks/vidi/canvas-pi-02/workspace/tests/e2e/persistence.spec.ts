@@ -44,6 +44,9 @@ async function openBoard(
   url: string,
   boardId: string,
 ) {
+  // Story 5: create the board first (test seam) — unknown boards are 404.
+  const init = await fetch(`${url}/_test/${boardId}/initialize`, { method: 'POST' });
+  if (init.status !== 200) throw new Error(`initialize failed: ${init.status}`);
   const context = await browser.newContext();
   const page = await context.newPage();
   await page.goto(`${url}/b/${boardId}`);

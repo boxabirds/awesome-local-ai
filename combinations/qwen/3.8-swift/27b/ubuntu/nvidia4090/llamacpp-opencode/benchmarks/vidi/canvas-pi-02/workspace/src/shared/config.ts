@@ -102,3 +102,28 @@ export const BOARD_LOAD_BUDGET_MS = 3000;
 /** Versions the storage tables (storage_meta.storage_schema_version). The
  *  Yjs document schema version is separate and unchanged. */
 export const STORAGE_SCHEMA_VERSION = 1;
+
+/* --- Story 5: share a board with others using a link --- */
+
+/** PRD share.rate_limit: boards one visitor may create per period. */
+export const BOARD_CREATE_LIMIT = 10;
+/** Creation window in seconds. Must match the BOARD_CREATE_LIMITER entry in
+ *  wrangler.jsonc (TC-03 asserts the two cannot drift). */
+export const BOARD_CREATE_PERIOD_SECONDS = 60;
+/** Id-collision attempts per creation (share.unique): a taken code gets a
+ *  different one, up to this many. */
+export const CREATE_ID_MAX_ATTEMPTS = 3;
+/** PRD share.create: a new board must open within this (ms). */
+export const CREATE_BUDGET_MS = 2000;
+/** How long the Share panel shows "Link copied" before reverting (ms). */
+export const LINK_COPIED_MS = 2000;
+/** First retry delay after a failed board existence check (ms); the backoff
+ *  doubles per attempt, capped at BOARD_CHECK_RETRY_MAX_DELAY_MS. */
+export const BOARD_CHECK_RETRY_BASE_MS = 1000;
+/** Delay cap (ms) for the existence-check backoff (PRD share.check: about a
+ *  minute of total retries). */
+export const BOARD_CHECK_RETRY_MAX_DELAY_MS = 5000;
+/** Existence-check attempts (including the first) before the board is
+ *  declared missing (share.check: an object-storage hiccup must not show
+ *  "not found" for a board that exists). */
+export const BOARD_CHECK_MAX_RETRIES = 8;

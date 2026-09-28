@@ -25,6 +25,10 @@ export interface StartOptions {
    *  A fresh dir is created when omitted. */
   persistDir?: string;
   timeoutMs?: number;
+  /** Skip wiping the shared .wrangler/tmp build cache. Default true (a
+   *  stale cache can serve an older worker bundle). Set false when ANOTHER
+   *  dev server is running: wiping the cache directory hangs it. */
+  wipeBuildCache?: boolean;
 }
 
 /** Starts `wrangler dev --persist-to <dir>` and resolves once the server
@@ -39,8 +43,11 @@ export async function startWrangler(
   const envFile = path.join(persistDir, 'e2e.env');
   await writeFile(envFile, 'TEST_HOOKS=1\n');
   // Force a fresh worker build: wrangler's dev build cache (.wrangler/tmp)
-  // can go stale and serve an older bundle of the worker source.
-  await rm(path.join(WORKSPACE_ROOT, '.wrangler', 'tmp'), { recursive: true, force: true });
+  // can go stale and serve an older bundle of the worker source. (Skipped
+  // when another dev server is live — removing the dir hangs it.)
+  if (options.wipeBuildCache !== false) {
+    await rm(path.join(WORKSPACE_ROOT, '.wrangler', 'tmp'), { recursive: true, force: true });
+  }
   const url = `http://127.0.0.1:${port}`;
   const attemptTimeout = options.timeoutMs ?? 120_000;
   const attempts = 4;

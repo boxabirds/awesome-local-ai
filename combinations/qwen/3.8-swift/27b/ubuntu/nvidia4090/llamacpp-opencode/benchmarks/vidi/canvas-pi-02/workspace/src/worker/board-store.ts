@@ -95,6 +95,11 @@ function oneRow<T extends Record<string, SqlStorageValue>>(cursor: SqlStorageCur
 
 export class BoardStore {
   private storage: DurableObjectStorage;
+  /** True once migrate() has run for this store instance. The room calls it
+   *  in initialize() and before the first append(); load() and
+   *  existsReadOnly() never create tables, so probing an unknown link leaves
+   *  no storage behind (share.not_found negative: TC-06, TC-09). */
+  private migrated = false;
   /** Rows with seq > snapshot_through_seq, tracked in memory after load so
    *  appends never need COUNT(*). */
   private logCount = 0;
@@ -111,6 +116,7 @@ export class BoardStore {
    *  Writes no update rows: a never-edited board opened by someone stays
    *  row-free (TC-25). */
   migrate(): void {
+    this.migrated = true;
     const sql = this.storage.sql;
     sql.exec('CREATE TABLE IF NOT EXISTS storage_meta (key TEXT PRIMARY KEY, value TEXT NOT NULL)');
     sql.exec(
@@ -136,6 +142,7 @@ export class BoardStore {
   /** Appends one applied Yjs update to the log. Rethrows SQL errors so the
    *  caller can reset the room (persist.save_failure). */
   append(update: Uint8Array): void {
+    if (!this.migrated) this.migrate();
     const fault = appendFault;
     if (fault !== null) {
       appendFault = null; // one-shot
@@ -152,7 +159,10 @@ export class BoardStore {
    *  snapshot chunks, then every log row with seq > snapshot_through_seq.
    *  A damaged log row is quarantined (moved out of `updates` in one
    *  transaction) and counted; the rest apply. An unreadable snapshot or a
-   *  SQL failure returns ok:false with nothing deleted or quarantined. */
+   *  SQL failure returns ok:false with nothing deleted or quarantined.
+   *  Missing tables are an EMPTY board (nothing was ever written), not an
+   *  error: load never creates tables, so a room for a probed link stays
+   *  row-free. */
   load(doc: Y.Doc): LoadResult {
     // Which phase is in flight decides the failure reason: a throw while
     // applying the snapshot is 'snapshot-unreadable'; a throw in any SQL
@@ -166,15 +176,22 @@ export class BoardStore {
         readFault();
       }
       const sql = this.storage.sql;
-      const meta = oneRow(sql.exec<{ value: string }>(
-        'SELECT value FROM storage_meta WHERE key = ?',
-        'snapshot_through_seq',
-      ));
-      this.throughSeq = meta === null ? 0 : Number(meta.value);
+      const tables = this.tableNames();
+      let throughSeq = 0;
+      if (tables.has('storage_meta')) {
+        const meta = oneRow(sql.exec<{ value: string }>(
+          'SELECT value FROM storage_meta WHERE key = ?',
+          'snapshot_through_seq',
+        ));
+        throughSeq = meta === null ? 0 : Number(meta.value);
+      }
+      this.throughSeq = throughSeq;
 
       const chunks: Uint8Array[] = [];
-      for (const row of sql.exec<{ data: ArrayBuffer }>('SELECT data FROM snapshot_chunks ORDER BY idx')) {
-        chunks.push(new Uint8Array(row.data));
+      if (tables.has('snapshot_chunks')) {
+        for (const row of sql.exec<{ data: ArrayBuffer }>('SELECT data FROM snapshot_chunks ORDER BY idx')) {
+          chunks.push(new Uint8Array(row.data));
+        }
       }
       if (chunks.length > 0) {
         phase = 'snapshot';
@@ -182,11 +199,13 @@ export class BoardStore {
       }
 
       const rows: { seq: number; data: Uint8Array; bytes: number }[] = [];
-      for (const row of sql.exec<{ seq: number; data: ArrayBuffer; bytes: number }>(
-        'SELECT seq, data, bytes FROM updates WHERE seq > ? ORDER BY seq',
-        this.throughSeq,
-      )) {
-        rows.push({ seq: row.seq, data: new Uint8Array(row.data), bytes: row.bytes });
+      if (tables.has('updates')) {
+        for (const row of sql.exec<{ seq: number; data: ArrayBuffer; bytes: number }>(
+          'SELECT seq, data, bytes FROM updates WHERE seq > ? ORDER BY seq',
+          this.throughSeq,
+        )) {
+          rows.push({ seq: row.seq, data: new Uint8Array(row.data), bytes: row.bytes });
+        }
       }
       let quarantined = 0;
       let applied = 0;
@@ -277,5 +296,46 @@ export class BoardStore {
   compactIfNeeded(doc: Y.Doc): boolean {
     if (!this.shouldCompactNow()) return false;
     return this.compact(doc);
+  }
+
+  /** Read-only existence check (share.legacy_boards): a board exists when
+   *  storage_meta has created_at, OR (legacy, pre-share boards) it has at
+   *  least one row in updates or snapshot_chunks. Checks sqlite_master
+   *  first and never creates tables, so probing an unknown id writes
+   *  nothing (TC-06, TC-09). */
+  existsReadOnly(): boolean {
+    const sql = this.storage.sql;
+    const tables = this.tableNames();
+    if (tables.has('storage_meta')) {
+      const row = oneRow(sql.exec<{ value: string }>(
+        'SELECT value FROM storage_meta WHERE key = ?',
+        'created_at',
+      ));
+      if (row !== null) return true;
+    }
+    if (tables.has('updates') && this.countRows('SELECT COUNT(*) AS n FROM updates') > 0) {
+      return true;
+    }
+    if (tables.has('snapshot_chunks') && this.countRows('SELECT COUNT(*) AS n FROM snapshot_chunks') > 0) {
+      return true;
+    }
+    return false;
+  }
+
+  /** Application table names in this database (sqlite_master, minus the
+   *  runtime's own sqlite_% tables). */
+  tableNames(): Set<string> {
+    const names = new Set<string>();
+    for (const row of this.storage.sql.exec<{ name: string }>(
+      "SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%'",
+    )) {
+      names.add(row.name);
+    }
+    return names;
+  }
+
+  private countRows(query: string): number {
+    const row = oneRow(this.storage.sql.exec<{ n: number }>(query));
+    return row === null ? 0 : row.n;
   }
 }

@@ -74,9 +74,15 @@ function manyOps(): Updator {
 }
 
 describe('persist.board_store', () => {
-  it('TC-03: empty board — tables exist, load is clean, schema version set', async () => {
+  it('TC-03: empty board — construct writes nothing; initialize sets schema version; load clean', async () => {
     const id = newBoardId();
-    const room = await roomFor(id); // constructor runs migrate + load
+    const room = await roomFor(id); // constructor loads (no migrate: story 5)
+
+    // A probed board has NO tables (share.not_found negative).
+    expect(await room.testTableNames()).toEqual([]);
+
+    // initialize() (POST /api/boards) creates the schema and created_at.
+    expect(await room.initialize()).toBe('created');
 
     const info = await room.testInspectStorage();
     expect(info.schemaVersion).toBe(String(STORAGE_SCHEMA_VERSION));

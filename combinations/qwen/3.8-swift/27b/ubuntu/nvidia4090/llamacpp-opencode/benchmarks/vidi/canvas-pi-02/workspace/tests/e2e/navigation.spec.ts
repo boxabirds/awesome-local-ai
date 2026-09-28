@@ -4,6 +4,7 @@ import { expect, test, type Page } from '@playwright/test';
 import {
   GRID_SPACING_WORLD,
   gridSpacingPx,
+  openBoard,
   originMarkerCenter,
   setCamera,
   zoomLabel,
@@ -25,7 +26,7 @@ test.describe('first visit navigation', () => {
   test('TC-28/TC-23/TC-24: hint shows, drag moves exactly, pointer zoom stays put', async ({
     page,
   }) => {
-    await page.goto('/');
+    await openBoard(page);
 
     // TC-28: the hint is visible on first load.
     const hint = page.getByTestId('nav-hint');
@@ -64,7 +65,7 @@ test.describe('first visit navigation', () => {
 
 test.describe('limits and recovery', () => {
   test('TC-25/TC-26: zoom to max disables +, reset returns to 100% centred', async ({ page }) => {
-    await page.goto('/');
+    await openBoard(page);
     // Settle the initial centred view before jumping the camera (the
     // one-shot initial centering must not race the test hook).
     await expectMarkerNear(page, 640, 400);
@@ -93,7 +94,7 @@ test.describe('far travel', () => {
   test('TC-27: at 1,000,000 units the board pans exactly and the grid is intact', async ({
     page,
   }) => {
-    await page.goto('/');
+    await openBoard(page);
     // Settle the initial centred view before jumping the camera (the
     // one-shot initial centering must not race the test hook).
     await expectMarkerNear(page, 640, 400);
@@ -114,7 +115,7 @@ test.describe('far travel', () => {
 
 test.describe('no page zoom', () => {
   test('TC-31: board gestures never change the page zoom', async ({ page }) => {
-    await page.goto('/');
+    await openBoard(page);
     const before = await page.evaluate(() => ({
       scale: window.visualViewport?.scale ?? 1,
       dpr: window.devicePixelRatio,

@@ -8,7 +8,10 @@ import { cloudflareTest } from '@cloudflare/vitest-pool-workers';
 import { defineConfig } from 'vitest/config';
 
 export default defineConfig({
-  plugins: [cloudflareTest({ wrangler: { configPath: 'wrangler.jsonc' } })],
+  // wrangler.local.jsonc: identical to wrangler.jsonc minus the ratelimits
+  // binding, which this workerd build does not implement (see that file's
+  // header). The worker's local-limiter stand-in is exercised instead.
+  plugins: [cloudflareTest({ wrangler: { configPath: 'wrangler.local.jsonc' } })],
   test: {
     name: 'integration',
     include: ['tests/integration/**/*.test.ts'],

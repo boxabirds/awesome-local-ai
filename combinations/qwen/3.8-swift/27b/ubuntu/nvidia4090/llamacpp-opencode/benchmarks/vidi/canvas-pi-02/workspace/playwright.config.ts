@@ -27,7 +27,11 @@ export default defineConfig({
     { name: 'nightly', testMatch: /nightly[\\/].*\.nightly\.spec\.ts$/, use: { browserName: 'chromium' } },
   ],
   webServer: {
-    command: 'npm run build:e2e && wrangler dev --port 8787 --ip 127.0.0.1',
+    // --env-file sets TEST_HOOKS=1 (worker binding; wrangler dev does not
+    // inherit shell env): exposes /_test/:id/initialize so specs can create
+    // boards with pinned ids without tripping the creation rate limit
+    // (story 5); production config never sets it (TC-24).
+    command: 'npm run build:e2e && wrangler dev --port 8787 --ip 127.0.0.1 --env-file tests/e2e/e2e.env',
     url: 'http://127.0.0.1:8787',
     reuseExistingServer: true,
     timeout: 180_000,
