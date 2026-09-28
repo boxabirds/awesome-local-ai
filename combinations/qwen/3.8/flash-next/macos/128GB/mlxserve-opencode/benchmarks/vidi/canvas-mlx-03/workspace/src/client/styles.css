@@ -1,0 +1,22 @@
+html,
+body,
+#root {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  width: 100%;
+  overflow: hidden;
+  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  background: #f7f8f9;
+}
+
+.vidi6-root {
+  position: fixed;
+  inset: 0;
+}
+
+button:focus-visible,
+[role='button']:focus-visible {
+  outline: 2px solid #2f6fed;
+  outline-offset: 1px;
+}

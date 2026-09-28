@@ -1,0 +1,7 @@
+{
+  "name": "vidi6",
+  "compatibility_date": "2025-07-18",
+  "assets": {
+    "directory": "./dist/client"
+  }
+}
