@@ -8,7 +8,8 @@
 #
 # Needs ~/.config/awesome-local-ai/power.json (see README.md). Builds with cargo, installs the binary to
 # ~/.local/bin/power-collector only if it changed (a firewall such as Little Snitch asks again for a
-# changed binary), takes one reading from every source and refuses to install if any fails.
+# changed binary), then waits until the running service has recorded every source, and fails if any
+# didn't.
 # Data goes to ~/.local/share/awesome-local-ai/power/.
 set -euo pipefail
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -21,7 +22,7 @@ while [[ $# -gt 0 ]]; do
   case "$1" in
     --env-file) ENV_FILE="$2"; shift 2 ;;
     --uninstall) UNINSTALL=1; shift ;;
-    -h|--help) sed -n '2,12p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'; exit 0 ;;
+    -h|--help) sed -n '2,13p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'; exit 0 ;;
     *) echo "unknown option $1" >&2; exit 2 ;;
   esac
 done
@@ -46,9 +47,10 @@ if cmp -s "$HERE/target/release/power-collector" "$BIN"; then echo "binary uncha
 else cp "$HERE/target/release/power-collector" "$BIN.new" && mv "$BIN.new" "$BIN"; echo "installed binary: $BIN"; fi
 CMD=("$BIN" run --env-file "$ENV_FILE" --out "$OUT")
 
-echo "one reading first:"
-"$BIN" once --env-file "$ENV_FILE" || { echo "not installing: a source above gave no reading" >&2; exit 1; }
 mkdir -p "$OUT"
+# Checked after the service starts, not from this shell: a firewall such as Little Snitch judges the
+# process making the connection, and a reading from a terminal can fail where the service succeeds.
+STARTED="$(date +%s)"
 
 if [[ "$(uname)" == Darwin ]]; then
   mkdir -p "$(dirname "$PLIST")"
@@ -89,8 +91,13 @@ WantedBy=default.target
 EOF
   systemctl --user daemon-reload
   systemctl --user enable --now "$UNIT"
+  systemctl --user restart "$UNIT"
   echo "installed: systemd user service $UNIT (journalctl --user -u $UNIT)"
   if [[ "$(loginctl show-user "$USER" -p Linger --value 2>/dev/null)" != yes ]]; then
     echo "NOTE: user services stop when you log out. To keep this running: sudo loginctl enable-linger $USER"
   fi
 fi
+
+echo "waiting for the service to write a complete row from every source:"
+"$BIN" verify --env-file "$ENV_FILE" --out "$OUT" --since "$STARTED" || {
+  echo "installed, but a source above isn't recording; see $OUT/collector.log" >&2; exit 1; }

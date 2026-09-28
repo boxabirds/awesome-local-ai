@@ -23,6 +23,8 @@ const ERROR_LOG_EVERY: Duration = Duration::from_secs(60);
 const DISCOVERY_TARGET: &str = "255.255.255.255";
 const DISCOVERY_TIMEOUT_S: u64 = 3;
 const MILLIWATTS_PER_WATT: f64 = 1000.0;
+/// Long enough for a restarted collector to rediscover a plug on the LAN (about 75 s seen on quintus).
+const VERIFY_TIMEOUT: Duration = Duration::from_secs(180);
 
 #[derive(Parser)]
 #[command(about = "Record this machine's power (wall plugs by MAC, macOS telemetry, NVIDIA GPUs) and die temperatures")]
@@ -48,6 +50,15 @@ enum Mode {
     Once,
     /// Keep sampling into CSVs.
     Run,
+    /// Wait until the running collector has written a complete row for every configured source; exits 1
+    /// naming each source that didn't. Checks the service itself, so a firewall judges the right process.
+    Verify {
+        /// epoch seconds; rows before this don't count (default: now)
+        #[arg(long)]
+        since: Option<f64>,
+        #[arg(long, default_value_t = VERIFY_TIMEOUT.as_secs())]
+        timeout_s: u64,
+    },
 }
 
 #[derive(serde::Deserialize, Default)]
@@ -218,6 +229,28 @@ async fn main() -> anyhow::Result<()> {
     let sources = build_sources(config, &env_file)?;
 
     match cli.mode {
+        Mode::Verify { since, timeout_s } => {
+            let since = since.unwrap_or_else(now);
+            let deadline = Instant::now() + Duration::from_secs(timeout_s);
+            loop {
+                let status: Vec<(&str, Result<(), String>)> = sources
+                    .iter()
+                    .map(|s| {
+                        let text = std::fs::read_to_string(csvlog::path(&out, s.name(), now())).unwrap_or_default();
+                        (s.name(), csvlog::fresh(&text, since))
+                    })
+                    .collect();
+                if status.iter().all(|(_, r)| r.is_ok()) || Instant::now() >= deadline {
+                    let mut failed = false;
+                    for (name, r) in &status {
+                        failed |= r.is_err();
+                        println!("  {name}: {}", r.as_ref().err().map_or("ok".to_string(), |e| e.clone()));
+                    }
+                    std::process::exit(i32::from(failed));
+                }
+                tokio::time::sleep(INTERVAL).await;
+            }
+        }
         Mode::Once => {
             let results = futures::future::join_all(sources.iter().map(|s| s.read())).await;
             let mut failed = false;
