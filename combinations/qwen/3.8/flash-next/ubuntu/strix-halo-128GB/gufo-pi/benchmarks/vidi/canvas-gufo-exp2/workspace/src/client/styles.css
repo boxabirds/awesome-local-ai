@@ -1,0 +1,153 @@
+:root {
+  --grid-dot: rgba(15, 23, 42, 0.22);
+  --surface: #f7f8fa;
+  --chrome-bg: #ffffff;
+  --chrome-border: #d5d9e0;
+  --chrome-text: #1f2937;
+  --accent: #2563eb;
+  font-family:
+    system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial,
+    sans-serif;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  overflow: hidden;
+  overscroll-behavior: none;
+  background: var(--surface);
+  color: var(--chrome-text);
+}
+
+/* ------------------------------------------------------------------ board */
+
+.board-viewport {
+  position: fixed;
+  inset: 0;
+  overflow: hidden;
+  background-color: var(--surface);
+  cursor: grab;
+  /* The board owns these gestures; the page must not scroll or zoom. */
+  touch-action: none;
+  overscroll-behavior: none;
+  user-select: none;
+}
+
+.board-viewport[data-panning='true'] {
+  cursor: grabbing;
+}
+
+/* World layer: everything here is drawn in world coordinates. */
+.board-world {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 0;
+  height: 0;
+  pointer-events: none;
+}
+
+/* Small crosshair at world (0, 0): the board's starting point. */
+.origin-marker {
+  position: absolute;
+  left: -7px;
+  top: -7px;
+  width: 14px;
+  height: 14px;
+}
+
+.origin-marker::before,
+.origin-marker::after {
+  content: '';
+  position: absolute;
+  background: rgba(37, 99, 235, 0.7);
+}
+
+.origin-marker::before {
+  left: 6.5px;
+  top: 0;
+  width: 1px;
+  height: 14px;
+}
+
+.origin-marker::after {
+  left: 0;
+  top: 6.5px;
+  width: 14px;
+  height: 1px;
+}
+
+/* ----------------------------------------------------------- zoom control */
+
+.zoom-controls {
+  position: fixed;
+  right: 16px;
+  bottom: 16px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px;
+  background: var(--chrome-bg);
+  border: 1px solid var(--chrome-border);
+  border-radius: 8px;
+  box-shadow: 0 1px 4px rgba(15, 23, 42, 0.12);
+}
+
+.zoom-button,
+.reset-button {
+  font: inherit;
+  color: var(--chrome-text);
+  background: var(--chrome-bg);
+  border: 1px solid transparent;
+  border-radius: 6px;
+  padding: 4px 10px;
+  min-width: 32px;
+  cursor: pointer;
+}
+
+.reset-button {
+  margin-left: 4px;
+}
+
+.zoom-button:hover:not(:disabled),
+.reset-button:hover {
+  background: #eef1f5;
+}
+
+.zoom-button:disabled {
+  cursor: default;
+  opacity: 0.4;
+}
+
+.zoom-button:focus-visible,
+.reset-button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.zoom-label {
+  min-width: 52px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ------------------------------------------------------------------- hint */
+
+.navigation-hint {
+  position: fixed;
+  left: 50%;
+  bottom: 20px;
+  transform: translateX(-50%);
+  padding: 6px 14px;
+  border-radius: 999px;
+  background: rgba(31, 41, 55, 0.82);
+  color: #f9fafb;
+  font-size: 13px;
+  white-space: nowrap;
+  pointer-events: none;
+}
