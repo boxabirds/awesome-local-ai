@@ -10,8 +10,9 @@ Model `qwen3.8-swift-27b`, scope `canvas`, effort `low`, client pi 0.86.0, host 
 | 4 | Return to a board and find everything as it was left | DONE | 211.0 | None | None | None | — | — | red | 26/31 |  | 0 / 0 | 7 | — | throttled 0%, server peak 24 GB |
 | 5 | Share a board with others using a link | DONE | 97.9 | None | None | None | — | — | red | 28/36 |  | 0 / 0 | 3 | — | throttled 0%, server peak 24 GB |
 | 7 | Select, move, resize and delete several objects at once | DONE | 80.7 | None | None | None | — | — | red | 36/44 |  | 0 / 0 | 4 | — | throttled 0%, server peak 27 GB |
+| 8 | Undo and redo my own changes without undoing anyone else's | DONE | 50.9 | None | None | None | — | — | red | 43/51 |  | 0 / 0 | 2 | — | throttled 0%, server peak 27 GB |
 
-**Totals:** 6 stories, 640 agent-minutes, 0 requests, 0 prompt / 0 completion tokens, gate green 3/6, final acceptance 36/44, stalled 0, partial 0, 13347 lines in src+tests.
+**Totals:** 7 stories, 690 agent-minutes, 0 requests, 0 prompt / 0 completion tokens, gate green 3/7, final acceptance 43/51, stalled 0, partial 0, 14807 lines in src+tests.
 
 ## How it happened
 
@@ -25,6 +26,7 @@ Each story's commits, and which story broke or fixed an earlier story's held-out
 | 4 | 2 by the agent | 2783 / 122 | `board-room.ts` (466), `board-store.ts` (311), `NOTES.md` (83), `room-state.ts` (80), `connectBoard.ts` (76), `test-hooks.ts` (48), +15 more |
 | 5 | 7 by the agent | 2774 / 655 | `BoardPage.tsx` (314), `App.tsx` (237), `styles.css` (214), `Share.tsx` (206), `board-room.ts` (147), `create-board.ts` (132), +16 more |
 | 7 | 4 by the agent | 3109 / 381 | `useTransformGesture.ts` (353), `board-model.ts` (251), `BoardPage.tsx` (215), `StickyNote.tsx` (184), `geometry.ts` (178), `useSelection.ts` (164), +12 more |
+| 8 | 1 by the agent | 1538 / 19 | `undo.ts` (118), `NOTES.md` (59), `UndoButtons.tsx` (54), `BoardPage.tsx` (41), `useBoardKeys.ts` (35), `useUndo.ts` (33), +7 more |
 
 ### Earlier stories broken or fixed
 
