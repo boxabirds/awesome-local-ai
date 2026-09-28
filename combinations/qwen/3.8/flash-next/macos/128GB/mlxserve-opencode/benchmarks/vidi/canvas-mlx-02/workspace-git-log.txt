@@ -1,3 +1,38 @@
+commit 94e40254865e3dae8c59feee3e2dbf562b4ad618
+vidi-agent  Mon Sep 28 16:14:13 2026 +0100
+
+    story 9: Write free text anywhere on the board
+
+
+ src/client/board/BoardApp.tsx           |  67 ++++++-
+ src/client/board/SelectionBar.tsx       |  28 ++-
+ src/client/board/SelectionOverlay.tsx   |  10 +-
+ src/client/board/Toolbar.tsx            |  68 ++++++-
+ src/client/board/localIdentity.ts       |  17 ++
+ src/client/board/useBoardKeys.ts        |  43 ++++-
+ src/client/board/useTool.ts             |  44 +++++
+ src/client/board/useTransformGesture.ts |  62 ++++++-
+ src/client/canvas/BoardViewport.tsx     |  66 ++++++-
+ src/client/objects/StickyText.ts        |  50 ++----
+ src/client/objects/StickyTextEditor.tsx | 173 +++---------------
+ src/client/objects/TextEditor.tsx       | 198 ++++++++++++++++++++
+ src/client/objects/TextObject.tsx       | 146 +++++++++++++++
+ src/client/objects/TextToolbar.tsx      |  97 ++++++++++
+ src/client/objects/registry.tsx         |  27 ++-
+ src/client/objects/textLayout.ts        | 209 +++++++++++++++++++++
+ src/client/objects/useTextBoxSync.ts    |  92 ++++++++++
+ src/shared/board-model.ts               |  30 +++-
+ src/shared/config.ts                    |  35 ++++
+ src/shared/objects/text.ts              | 221 +++++++++++++++++++++++
+ src/shared/text-edit.ts                 |  48 +++++
+ tests/component/TextBoxSync.test.tsx    | 194 ++++++++++++++++++++
+ tests/component/TextObject.test.tsx     | 309 ++++++++++++++++++++++++++++++++
+ tests/component/Tool.test.tsx           | 166 +++++++++++++++++
+ tests/component/setup.ts                |   7 +
+ tests/e2e/text.spec.ts                  | 242 +++++++++++++++++++++++++
+ tests/unit/text-layout.test.ts          | 169 +++++++++++++++++
+ tests/unit/text-model.test.ts           | 253 ++++++++++++++++++++++++++
+ 28 files changed, 2861 insertions(+), 210 deletions(-)
 commit 205946d33b66a331f4296e63117907d520bea080
 vidi-agent  Mon Sep 28 14:27:48 2026 +0100
 
