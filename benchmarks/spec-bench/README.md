@@ -32,6 +32,10 @@ held-out suite is run on the base first so regressions still count, and the summ
 diagnostic. It isn't mixed with full runs (EVALUATION-POLICY rule 7). The reference run must have been
 built from the same spec.
 
+## Protecting the machine
+
+While the agent works, the harness stops it if swap grows by more than 4 GB or free memory falls below 8%, and records which processes held the memory at the story's lowest point. On Linux the agent is also started with the highest OOM score (`oom_score_adj` 1000), which everything it runs inherits: its tests, dev servers and browsers. If memory runs out before the guard acts, the kernel kills one of those instead of the model server, which would otherwise be its first choice as the biggest process. Raising a score needs no root and lasts only as long as those processes; nothing on the machine changes.
+
 ## What gets recorded
 
 Every run and story records its configuration, what the agent did, where the time went (model

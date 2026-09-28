@@ -147,6 +147,21 @@ def mem_free_pct() -> float | None:
 
 
 
+
+# ---------- who the kernel kills first ----------
+# Linux's OOM killer picks the biggest process, which on a bench machine is the model server. The
+# agent's whole process tree (its tests, dev servers, browsers) is made the preferred victim instead.
+# Raising a score needs no root, and it lives and dies with the processes: nothing on the system changes.
+AGENT_OOM_SCORE_ADJ = 1000
+
+
+def oom_first(cmd: list[str], linux: bool = not IS_MAC) -> list[str]:
+    """cmd, started with a raised OOM score that every child inherits (from before its first fork)."""
+    if not linux:
+        return cmd
+    return ["sh", "-c", f'echo {AGENT_OOM_SCORE_ADJ} > /proc/self/oom_score_adj 2>/dev/null; exec "$@"',
+            "oom-first", *cmd]
+
 # ---------- what holds memory, when it runs low ----------
 SNAPSHOT_TOP = 15
 SNAPSHOT_PROGRAMS = 10

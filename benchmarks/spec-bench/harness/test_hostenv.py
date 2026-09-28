@@ -1,6 +1,9 @@
 """Host adapters: parsers are tested on captured output from each platform; the bwrap
 command is tested for mount order (later mounts win, so own_dir must come after the masks)."""
+import sys
 from pathlib import Path
+
+import pytest
 
 import hostenv
 
@@ -157,3 +160,23 @@ def test_memory_snapshot_names_programs_whose_path_has_spaces():
     comm = "  7 /Applications/Google Chrome.app/Contents/MacOS/Google Chrome\n"
     snap = parse_memory_snapshot(args, home="/Users/u", comm_out=comm)
     assert snap["by_program"][0]["program"] == "Google Chrome"
+
+
+def test_agent_is_the_first_to_go_when_linux_runs_out_of_memory():
+    """The kernel's OOM killer picks the biggest process, which on a bench machine is the model
+    server (gruntus llama-server: score 810 of 1000). The agent's command raises its own tree's
+    score instead, so a runaway test dies first. Raising needs no root; nothing outlives the process."""
+    from hostenv import oom_first, AGENT_OOM_SCORE_ADJ
+    cmd = oom_first(["bwrap", "--", "pi", "-p", "a prompt with 'quotes'"], linux=True)
+    assert cmd[:2] == ["sh", "-c"] and f"echo {AGENT_OOM_SCORE_ADJ} > /proc/self/oom_score_adj" in cmd[2]
+    assert 'exec "$@"' in cmd[2] and cmd[4:] == ["bwrap", "--", "pi", "-p", "a prompt with 'quotes'"]
+    assert oom_first(["pi"], linux=False) == ["pi"]   # macOS has no such setting
+
+
+@pytest.mark.skipif(sys.platform != "linux", reason="Linux /proc only")
+def test_oom_first_is_inherited_by_children():
+    import subprocess
+    from hostenv import oom_first, AGENT_OOM_SCORE_ADJ
+    out = subprocess.run(oom_first(["sh", "-c", "sh -c 'cat /proc/self/oom_score_adj'"], linux=True),
+                         capture_output=True, text=True).stdout.strip()
+    assert out == str(AGENT_OOM_SCORE_ADJ)
