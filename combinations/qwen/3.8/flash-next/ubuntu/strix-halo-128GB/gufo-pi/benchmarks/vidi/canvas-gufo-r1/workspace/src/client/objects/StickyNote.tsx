@@ -5,6 +5,7 @@ import { getStickyText } from '../../shared/board-model';
 import { STICKY_COLORS, STICKY_SIZE_WORLD } from '../../shared/config';
 import { fitFontSize } from './StickyText';
 import { StickyTextEditor } from './StickyTextEditor';
+import type { UndoController } from '../board/undo';
 
 export interface StickyNoteProps {
   note: StickySnapshot;
@@ -18,12 +19,14 @@ export interface StickyNoteProps {
   onStartEdit(id: string): void;
   onEndEdit(): void;
   onObjectPointerDown?(e: PointerEvent, id: string): void;
+  undoController?: UndoController | null;
 }
 
 export function StickyNote(props: StickyNoteProps) {
   const {
     note, doc, selected, editing, editable = true,
     onSelect, onToggleSelect, onStartEdit, onEndEdit, onObjectPointerDown,
+    undoController,
   } = props;
   const elRef = useRef<HTMLDivElement>(null);
   const textRef = useRef<HTMLDivElement>(null);
@@ -112,6 +115,7 @@ export function StickyNote(props: StickyNoteProps) {
           ytext={ytext}
           fontPx={fontPx}
           onEnd={() => onEndEdit()}
+          undoController={undoController}
         />
       ) : (
         <div

@@ -2,11 +2,13 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import type * as Y from 'yjs';
 import { clampToLimit, applyTextDiff, counterVisible } from './StickyText';
 import { STICKY_TEXT_MAX_CHARS } from '../../shared/config';
+import type { UndoController } from '../board/undo';
 
 export interface StickyTextEditorProps {
   ytext: Y.Text;
   fontPx: number;
   onEnd(next: 'selected' | 'unselected'): void;
+  undoController?: UndoController | null;
 }
 
 /**
@@ -17,10 +19,12 @@ export interface StickyTextEditorProps {
  * - Escape: ends editing with 'selected'.
  * - Click outside / blur: ends editing with 'unselected'.
  * - Enter inserts newline (not intercepted).
+ * - Ctrl/Cmd+Z: undo within the controller (prevents native textarea undo divergence).
+ * - Ctrl/Cmd+Shift+Z: redo within the controller.
  * - Shows character counter when near limit.
  */
 export function StickyTextEditor(props: StickyTextEditorProps) {
-  const { ytext, fontPx, onEnd } = props;
+  const { ytext, fontPx, onEnd, undoController } = props;
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const composingRef = useRef(false);
   const [showCounter, setShowCounter] = useState(
@@ -29,15 +33,16 @@ export function StickyTextEditor(props: StickyTextEditorProps) {
   const [charCount, setCharCount] = useState(ytext.toString().length);
   const noteRef = useRef<HTMLDivElement>(null);
 
-  // On mount: set value, focus, caret at end
+  // On mount: call boundary (start of edit), set value, focus, caret at end
   useEffect(() => {
+    undoController?.boundary();
     const ta = textareaRef.current;
     if (!ta) return;
     ta.value = ytext.toString();
     ta.focus();
     const len = ta.value.length;
     ta.setSelectionRange(len, len);
-  }, [ytext]);
+  }, [ytext, undoController]);
 
   // Handle remote changes: update textarea when ytext changes from remote
   useEffect(() => {
@@ -102,11 +107,41 @@ export function StickyTextEditor(props: StickyTextEditorProps) {
       if (e.key === 'Escape') {
         e.preventDefault();
         e.stopPropagation();
+        // End of editing: call boundary
+        undoController?.boundary();
         onEnd('selected');
+        return;
       }
+
+      const isMod = e.ctrlKey || e.metaKey;
+
+      // Ctrl/Cmd+Z inside editor: undo in the controller, prevent native textarea undo
+      if (isMod && e.key === 'z' && !e.shiftKey) {
+        e.preventDefault();
+        e.stopPropagation();
+        if (undoController) undoController.undo();
+        return;
+      }
+
+      // Ctrl/Cmd+Shift+Z inside editor: redo in the controller
+      if (isMod && e.key === 'z' && e.shiftKey) {
+        e.preventDefault();
+        e.stopPropagation();
+        if (undoController) undoController.redo();
+        return;
+      }
+
+      // Ctrl+Y inside editor: redo in the controller
+      if (e.ctrlKey && !e.metaKey && !e.shiftKey && (e.key === 'y' || e.key === 'Y')) {
+        e.preventDefault();
+        e.stopPropagation();
+        if (undoController) undoController.redo();
+        return;
+      }
+
       // Enter inserts newline in textarea (default behavior, not intercepted)
     },
-    [onEnd],
+    [onEnd, undoController],
   );
 
   return (

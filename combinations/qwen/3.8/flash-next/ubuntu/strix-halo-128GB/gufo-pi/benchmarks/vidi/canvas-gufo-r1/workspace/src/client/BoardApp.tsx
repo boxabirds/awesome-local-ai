@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { BoardViewport } from './canvas/BoardViewport';
 import { screenToWorld, worldToScreen, type Size } from './canvas/camera';
 import { useBoardDoc } from './board/useBoardDoc';
@@ -9,17 +9,40 @@ import { useBoardKeys } from './board/useBoardKeys';
 import { SelectionOverlay } from './board/SelectionOverlay';
 import { SelectionBar } from './board/SelectionBar';
 import { Toolbar } from './board/Toolbar';
+import { useUndo } from './board/useUndo';
+import { createUndo } from './board/undo';
 import { StickyNote } from './objects/StickyNote';
 import { NoteToolbar } from './objects/NoteToolbar';
 import { ConnectionStatus } from './sync/ConnectionStatus';
 import { canEdit } from './sync/connectBoard';
-import { createSticky, deleteObjects, setStickyColor } from '../shared/board-model';
+import { createSticky, deleteObjects, setStickyColor, LOCAL_ORIGIN } from '../shared/board-model';
 import type { StickyColor } from '../shared/config';
+import { IS_TEST_MODE } from './canvas/testHooks';
 
 export function BoardApp({ boardId }: { boardId: string }) {
   const { doc, notes, connectionState } = useBoardDoc(boardId);
   const selection = useSelection(notes);
   const editable = canEdit(connectionState);
+
+  // Undo controller: one per board doc, destroyed on board change/unmount
+  const undoController = useMemo(() => createUndo(doc), [doc]);
+  useEffect(() => {
+    return () => undoController.destroy();
+  }, [undoController]);
+
+  // Expose undo controller for e2e tests
+  useEffect(() => {
+    if (!IS_TEST_MODE) return;
+    const hooks = (window as any).__vidi6 ??= {};
+    hooks.undoManager = { boundary: () => undoController.boundary() };
+    hooks.LOCAL_ORIGIN = LOCAL_ORIGIN;
+    return () => {
+      delete hooks.undoManager;
+      delete hooks.LOCAL_ORIGIN;
+    };
+  }, [undoController]);
+
+  const undoState = useUndo(undoController, editable);
 
   const [camState, setCamState] = useState({ x: 0, y: 0, zoom: 1, vw: 0, vh: 0 });
   const camRef = useRef(camState);
@@ -37,19 +60,23 @@ export function BoardApp({ boardId }: { boardId: string }) {
     const cam = camRef.current;
     const centre = { x: cam.vw / 2, y: cam.vh / 2 };
     const world = screenToWorld(cam, centre);
+    undoController.boundary();
     const id = createSticky(doc, world);
+    undoController.boundary();
     selection.click(id);
     selection.startEdit(id);
-  }, [doc, selection, editable]);
+  }, [doc, selection, editable, undoController]);
 
   const handleDblClickEmpty = useCallback(
     (worldPoint: { x: number; y: number }) => {
       if (!editable) return;
+      undoController.boundary();
       const id = createSticky(doc, worldPoint);
+      undoController.boundary();
       selection.click(id);
       selection.startEdit(id);
     },
-    [doc, selection, editable],
+    [doc, selection, editable, undoController],
   );
 
   const handleEmptyClick = useCallback(() => {
@@ -79,13 +106,15 @@ export function BoardApp({ boardId }: { boardId: string }) {
     marquee.cancel();
   }, [marquee]);
 
-  // Transform gesture
+  // Transform gesture — wire boundary to undo controller
   const gesture = useTransformGesture({
     doc,
     camera: camState,
     selection,
     snapshot: notes,
     canEdit: editable,
+    onGestureStart: undoController.boundary,
+    onGestureEnd: undoController.boundary,
   });
 
   // Keyboard
@@ -94,6 +123,7 @@ export function BoardApp({ boardId }: { boardId: string }) {
     selection,
     snapshot: notes,
     canEdit: editable,
+    undoController,
   });
 
   // Enter to edit a single selected sticky
@@ -120,18 +150,22 @@ export function BoardApp({ boardId }: { boardId: string }) {
       if (selection.ids.size !== 1) return;
       if (!editable) return;
       const [id] = [...selection.ids];
+      undoController.boundary();
       setStickyColor(doc, id, color);
+      undoController.boundary();
     },
-    [doc, selection.ids, editable],
+    [doc, selection.ids, editable, undoController],
   );
 
   const handleDelete = useCallback(() => {
     if (!editable) return;
     const ids = [...selection.ids];
     if (ids.length === 0) return;
+    undoController.boundary();
     deleteObjects(doc, ids);
+    undoController.boundary();
     selection.clear();
-  }, [doc, selection, editable]);
+  }, [doc, selection, editable, undoController]);
 
   const zoom = camState.zoom;
   const cam = camState;
@@ -181,7 +215,7 @@ export function BoardApp({ boardId }: { boardId: string }) {
   return (
     <div onKeyDown={handleKeyDown} data-testid="app-root" tabIndex={-1}>
       <ConnectionStatus state={connectionState} />
-      <Toolbar onCreateSticky={handleCreateSticky} disabled={!editable} />
+      <Toolbar onCreateSticky={handleCreateSticky} disabled={!editable} undoState={undoState} />
       <BoardViewport
         onDblClickEmpty={handleDblClickEmpty}
         onEmptyClick={handleEmptyClick}
@@ -205,6 +239,7 @@ export function BoardApp({ boardId }: { boardId: string }) {
             onStartEdit={(id) => selection.startEdit(id)}
             onEndEdit={() => selection.endEdit()}
             onObjectPointerDown={gesture.onObjectPointerDown}
+            undoController={undoController}
           />
         ))}
         <MarqueeRect rect={marquee.rect} camera={camState} />

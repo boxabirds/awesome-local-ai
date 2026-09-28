@@ -10,8 +10,9 @@ Model `qwen3.8-flash-next-gufo`, scope `canvas`, effort `low`, client pi 0.87.1,
 | 4 | Return to a board and find everything as it was left | PARTIAL (amber), on partial 3 | 75.4 | None | None | None | — | — | green | 25/31 |  | 0 / 5 | 2 | — | throttled 0%, server peak 0 GB |
 | 5 | Share a board with others using a link | PARTIAL (red), on partial 3, 4 | 40.4 | None | None | None | — | — | red | 1/36 |  | 0 / 5 | 1 | — | throttled 0%, server peak 0 GB |
 | 7 | Select, move, resize and delete several objects at once | DONE, on partial 3, 4, 5 | 55.4 | None | None | None | — | — | green | 38/44 |  | 0 / 0 | 2 | — | throttled 0%, server peak 0 GB |
+| 8 | Undo and redo my own changes without undoing anyone else's | DONE, on partial 3, 4, 5 | 23.8 | None | None | None | — | — | green | 43/51 |  | 0 / 0 | 0 | — | throttled 0%, server peak 0 GB |
 
-**Totals:** 6 stories, 293 agent-minutes, 0 requests, 0 prompt / 0 completion tokens, gate green 5/6, final acceptance 38/44, stalled 0, partial 3, 12626 lines in src+tests.
+**Totals:** 7 stories, 317 agent-minutes, 0 requests, 0 prompt / 0 completion tokens, gate green 6/7, final acceptance 43/51, stalled 0, partial 3, 14344 lines in src+tests.
 
 ### Stories ended early (PARTIAL) and what was built on them
 
@@ -21,6 +22,7 @@ Model `qwen3.8-flash-next-gufo`, scope `canvas`, effort `low`, client pi 0.87.1,
 - **Story 5 PARTIAL**, ended by the operator (harness (cap)): story cap: 5 nudges without committing (cap 5). Verdict **red**: gate red, tasks not verified [1, 2, 3, 4, 5, 6, 7] (implementation: [2, 4, 5]), held-out 1/5 (floor 1.0).
 - Story 5, built on partial 3, 4: held-out tests on the partial base 1/16; partial story's tests fixed 0, regressed 7; 4 stub-like lines added to src/.
 - Story 7, built on partial 3, 4, 5: held-out tests on the partial base 20/24; partial story's tests fixed 4, regressed 0; 0 stub-like lines added to src/.
+- Story 8, built on partial 3, 4, 5: held-out tests on the partial base 25/31; partial story's tests fixed 4, regressed 0; 0 stub-like lines added to src/.
 
 ## How it happened
 
@@ -34,6 +36,7 @@ Each story's commits, and which story broke or fixed an earlier story's held-out
 | 4 | harness snapshot (agent left work uncommitted) | 2516 / 69 | `board-room.ts` (334), `board-store.ts` (167), `room-state.ts` (86), `test-hooks.ts` (47), `connectBoard.ts` (42), `board-store-utils.ts` (39), +16 more |
 | 5 | harness snapshot (agent left work uncommitted) | 1880 / 302 | `App.tsx` (187), `styles.css` (148), `BoardApp.tsx` (132), `SharePanel.tsx` (125), `board-room.ts` (106), `BoardPage.tsx` (72), +13 more |
 | 7 | 1 by the agent | 3120 / 336 | `useTransformGesture.ts` (302), `board-model.ts` (231), `StickyNote.tsx` (214), `geometry.ts` (189), `BoardApp.tsx` (182), `SelectionOverlay.tsx` (154), +15 more |
+| 8 | 1 by the agent | 1779 / 17 | `undo.ts` (99), `BoardApp.tsx` (51), `useUndo.ts` (49), `useBoardKeys.ts` (46), `NOTES.md` (44), `StickyTextEditor.tsx` (43), +5 more |
 
 ### Earlier stories broken or fixed
 

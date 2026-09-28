@@ -1,13 +1,17 @@
+import type { UseUndoResult } from './useUndo';
+import { UndoButtons } from './UndoButtons';
+
 export interface ToolbarProps {
   onCreateSticky(): void;
   disabled?: boolean;
+  undoState?: UseUndoResult;
 }
 
 /**
- * Fixed left-side toolbar with the Sticky note creation button.
+ * Fixed left-side toolbar with the Sticky note creation button and undo/redo buttons.
  */
 export function Toolbar(props: ToolbarProps) {
-  const { onCreateSticky, disabled } = props;
+  const { onCreateSticky, disabled, undoState } = props;
 
   const handlePointerDown = (e: React.PointerEvent) => {
     e.stopPropagation();
@@ -33,6 +37,7 @@ export function Toolbar(props: ToolbarProps) {
         </span>
         <span className="toolbar-btn-label">Sticky note</span>
       </button>
+      {undoState && <UndoButtons {...undoState} />}
     </div>
   );
 }

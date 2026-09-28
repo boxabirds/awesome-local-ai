@@ -9,6 +9,8 @@ export interface BoardTestHooks {
   provider?: unknown;
   Y?: typeof YType;
   createSticky?: (doc: YType.Doc, pos: { x: number; y: number }) => string;
+  undoManager?: { boundary(): void };
+  LOCAL_ORIGIN?: symbol;
 }
 
 declare global {

@@ -1,5 +1,49 @@
 # Implementation Notes
 
+## Story 8: Undo and redo my own changes without undoing anyone else's
+
+### Key Decisions
+
+1. **Origin filtering via `trackedOrigins`**: The `Y.UndoManager` is configured with `trackedOrigins: new Set([LOCAL_ORIGIN])`. Only transactions made by this tab (using the `LOCAL_ORIGIN` symbol from `board-model`) enter the undo/redo stacks. Remote changes (from the WebSocket provider) and load-origin updates are never captured.
+
+2. **One controller per board doc**: Created in `BoardApp.tsx` via `useMemo(() => createUndo(doc), [doc])`, destroyed on unmount. History is session-only (does not survive reload or board change).
+
+3. **Boundary = `stopCapturing()`**: The `boundary()` method calls `UndoManager.stopCapturing()`, which sets `lastChange = 0`, preventing the next transaction from merging with the current stack item. Called at gesture start/end, edit start/end, and around group operations (delete, colour, create) to ensure each user action is exactly one undo step.
+
+4. **Typing bursts merge naturally**: Yjs uses `Date.now()` for capture timing. Synchronous transactions (same tick) always merge because `now - lastChange = 0 < captureTimeout`. Typing within an editor merges into one step; `boundary()` at edit start/end prevents merging with neighbouring actions.
+
+5. **Yjs `popStackItem` behavior**: When undoing a move of a remotely-deleted object, Yjs's internal `while` loop in `popStackItem` transparently skips the no-op and applies the next effective step. This matches the PRD requirement: "nothing visible happens, no error; the next undo continues normally."
+
+6. **Capture timeout testing**: Yjs captures `Date.now` at module load time (`export const getUnixTime = Date.now`), so `vi.useFakeTimers()` cannot intercept it. Tests use same-tick merging (which naturally exercises the captureTimeout path) and explicit `boundary()` calls to test separation.
+
+7. **Stack trimming**: On `stack-item-added`, the controller trims `undoStack` from the front while `length > maxSteps` (default 200).
+
+8. **Undo shortcuts in `useBoardKeys`**: Ctrl/Cmd+Z → undo; Ctrl/Cmd+Shift+Z and Ctrl+Y → redo. All with `preventDefault`. Guarded by: not while editing in a sticky (the editor handles it), not when focus is in a non-board input/textarea, and not when `canEdit` is false.
+
+9. **StickyTextEditor intercepts undo**: Ctrl/Cmd+Z and Ctrl/Cmd+Shift+Z inside the textarea call the controller (with `preventDefault` and `stopPropagation`) so native textarea undo never diverges from Y.Text. Boundary is called on mount (edit start) and on Escape (edit end).
+
+### Files Added/Modified
+
+| File | Change |
+|---|---|
+| `src/shared/config.ts` | Added `UNDO_CAPTURE_TIMEOUT_MS` (500) and `UNDO_MAX_STEPS` (200) |
+| `src/client/board/undo.ts` | New: `createUndo()` → `UndoController` |
+| `src/client/board/useUndo.ts` | New: React binding `useUndo()` |
+| `src/client/board/UndoButtons.tsx` | New: toolbar buttons with `aria-label="Undo"/"Redo"` |
+| `src/client/board/Toolbar.tsx` | Modified: renders `UndoButtons` |
+| `src/client/board/useBoardKeys.ts` | Modified: undo/redo keyboard shortcuts |
+| `src/client/board/useTransformGesture.ts` | Modified: calls `onGestureStart`/`onGestureEnd` (wired to boundary) |
+| `src/client/objects/StickyTextEditor.tsx` | Modified: boundary + undo/redo interception |
+| `src/client/objects/StickyNote.tsx` | Modified: passes `undoController` to editor |
+| `src/client/BoardApp.tsx` | Modified: creates controller, wires boundaries |
+| `src/client/canvas/testHooks.ts` | Modified: exposes `undoManager` and `LOCAL_ORIGIN` for e2e |
+| `tests/unit/undo-history.test.ts` | New: TC-01 to TC-11 |
+| `tests/unit/undo-boundaries.test.ts` | New: TC-12, TC-13 |
+| `tests/unit/undo-peer.ts` | New: simulated peer helper |
+| `tests/component/UndoBoundaries.test.tsx` | New: TC-14 to TC-17 |
+| `tests/component/UndoControls.test.tsx` | New: TC-18 to TC-21 |
+| `tests/e2e/undo.spec.ts` | New: TC-22 to TC-24 |
+
 ## Story 5: Share a board with others using a link
 
 ### Key Decisions
