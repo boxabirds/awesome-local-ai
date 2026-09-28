@@ -10,7 +10,8 @@ const PLAUSIBLE_C: std::ops::Range<f64> = 20.0..150.0;
 const CPU_PREFIX: &str = "Tp";
 const GPU_PREFIX: &str = "Tg";
 
-/// The hottest reading overall, among CPU keys and among GPU keys, in °C.
+/// The hottest CPU or GPU reading, the hottest CPU reading and the hottest GPU reading, in °C. Keys
+/// outside the two groups are not counted: on the M5 Max some (`Tf06`, `Tf16`) sit at ~99 °C at idle.
 pub fn summarise(readings: &[(String, f64)]) -> Values {
     let max_where = |pred: &dyn Fn(&str) -> bool| {
         readings
@@ -20,7 +21,7 @@ pub fn summarise(readings: &[(String, f64)]) -> Values {
             .fold(None, |m: Option<f64>, v| Some(m.map_or(v, |m| m.max(v))))
     };
     vec![
-        ("temp_max_c".into(), max_where(&|_| true)),
+        ("temp_max_c".into(), max_where(&|k| k.starts_with(CPU_PREFIX) || k.starts_with(GPU_PREFIX))),
         ("temp_cpu_c".into(), max_where(&|k| k.starts_with(CPU_PREFIX))),
         ("temp_gpu_c".into(), max_where(&|k| k.starts_with(GPU_PREFIX))),
     ]
@@ -190,26 +191,29 @@ mod tests {
         assert_eq!(from_fourcc(fourcc("Tp0C")), "Tp0C");
     }
 
+    /// Quintus, 28 Sep, idle at 42 °C: Tf06/Tf16 read 98.5/99.6 whatever the load (limits, not
+    /// sensors), so a max over every key sat at 99.6 °C 89% of the time. The hottest is CPU or GPU only.
     #[test]
-    fn summary_is_the_hottest_sensor_overall_cpu_and_gpu() {
-        let r: Vec<(String, f64)> = vec![
-            ("Tp00".into(), 77.2),
-            ("Tp04".into(), 74.5),
-            ("Tg08".into(), 73.8),
+    fn hottest_is_the_hottest_cpu_or_gpu_sensor_not_any_key() {
+        let idle: Vec<(String, f64)> = vec![
+            ("Tp00".into(), 42.3),
+            ("Tp04".into(), 41.9),
+            ("Tg08".into(), 43.1),
+            ("Tf06".into(), 98.5),
             ("Tf16".into(), 99.6),
             ("TV05".into(), 12.0), // unpopulated: below the plausible range
         ];
-        assert_eq!(summarise(&r), vec![
-            ("temp_max_c".into(), Some(99.6)),
-            ("temp_cpu_c".into(), Some(77.2)),
-            ("temp_gpu_c".into(), Some(73.8)),
+        assert_eq!(summarise(&idle), vec![
+            ("temp_max_c".into(), Some(43.1)),
+            ("temp_cpu_c".into(), Some(42.3)),
+            ("temp_gpu_c".into(), Some(43.1)),
         ]);
     }
 
     #[test]
     fn a_missing_group_is_empty_not_zero() {
         assert_eq!(summarise(&[("TB0T".into(), 35.4)]), vec![
-            ("temp_max_c".into(), Some(35.4)),
+            ("temp_max_c".into(), None),
             ("temp_cpu_c".into(), None),
             ("temp_gpu_c".into(), None),
         ]);
@@ -229,5 +233,8 @@ mod tests {
         let got = summarise(&smc.read_all());
         assert!(smc.key_count() > 0);
         assert!(got.iter().all(|(_, v)| v.is_some_and(|c| PLAUSIBLE_C.contains(&c))), "{got:?}");
+        // The hottest is one of the two groups, never a key outside them.
+        let [max, cpu, gpu] = [0, 1, 2].map(|i| got[i].1.unwrap());
+        assert_eq!(max, cpu.max(gpu), "{got:?}");
     }
 }
