@@ -41,25 +41,20 @@ Either way, this is where prefill speed really hurts.
 >
 > The caching part isn't cloud-only. Local engines keep the cache while they're running, and llama.cpp can save it to disk (its `--slot-save-path` option). The speed of reading is the real difference.
 >
-> Reading a prompt is mostly maths, so the chip's maths speed sets the limit. Here's how Strix Halo compares with the two chips most AI clouds run on today, NVIDIA's H200 and B200. The figures are trillions of operations per second (TFLOPS) at the 16-bit precision used for this kind of work:
+> Cloud hardware is very expensive and very fast. The chips in AI data centres read far faster than anything you can practically own, and they come several to a server.
 >
-> | Chip | Maths speed (TFLOPS) | Times Strix Halo |
+> At home, reading speed depends a lot on what you buy. The llama.cpp developers' own tests (the same change discussed in point 2) give a fair comparison: the same model (Qwen3.8 27B), the same software, reading a 2,000-token prompt.
+>
+> | Machine | Tokens per second | Memory for the model |
 > |---|---|---|
-> | AMD Strix Halo (tritus) | 59 | 1x |
-> | NVIDIA H200 | about 990 | about 17x |
-> | NVIDIA B200 | about 2,250 | about 38x |
+> | Strix Halo | 331 | 128 GB (shared) |
+> | RTX 3090 | 1,150 | 24 GB |
+> | RTX 4090 | 2,948 | 24 GB |
+> | RTX 5090 | 3,852 | 32 GB |
 >
-> And a cloud server usually has eight of them working together.
+> My own RTX 4090 machine measures the same, about 2,900 tokens a second. So a current gaming card (4090 or 5090) reads 9 to 12 times faster than Strix Halo, and even the older 3090 reads 3½ times faster. The catch is memory. A model this size (111 GB) doesn't fit on a 24 or 32 GB card at all, and Strix Halo's 128 GB is the reason to buy one. You're trading reading speed for the ability to run big models at home.
 >
-> Real speeds depend on the software too, so the gap in practice is smaller than those ratios. One direct comparison comes from the llama.cpp developers' own tests (the same change discussed in point 2), with the same model and the same software on each machine, reading a 2,000-token prompt with Qwen3.8 27B:
->
-> | Machine | Tokens per second |
-> |---|---|
-> | Strix Halo | 331 |
-> | RTX 4090 (a gaming card) | 2,948 |
-> | RTX PRO 6000 Blackwell (a workstation and cloud card) | 3,977 |
->
-> That's 9 to 12 times Strix Halo, from cards well below a B200. For the exact model in this guide, SemiAnalysis measured one H200 handling about 16,000 tokens a second, and one B200 about 58,000. Those totals are spread across many users at once, so they aren't the reading speed of one conversation, but they give a sense of scale.
+> Note: tokens per second can't be compared across different models, because a bigger model does more maths per token. Qwen3.8 27B uses all of its 27 billion numbers for every token, while Flash-Next only uses about 6 billion of its 176 billion, which is why Strix Halo reads Flash-Next faster than 27B.
 
 ## The numbers
 
@@ -139,7 +134,7 @@ It became so popular that it now supports almost every model on almost every chi
 ## Sources
 
 - Cloud prompt caching: [Anthropic](https://platform.claude.com/docs/en/docs/build-with-claude/prompt-caching), [OpenAI](https://developers.openai.com/api/docs/guides/prompt-caching), [DeepSeek's 2024 announcement](https://api-docs.deepseek.com/news/news0802/) (the 13 s to 0.5 s figure) and Moonshot's [Mooncake paper](https://arxiv.org/abs/2407.00079), read on 28 September 2026.
-- Chip maths speeds: NVIDIA's [H200](https://www.nvidia.com/en-us/data-center/h200/) (1,979 TFLOPS FP16 with sparsity, so about 990 without) and [HGX B200](https://www.nvidia.com/en-us/data-center/hgx/) (36 PFLOPS FP16 for eight GPUs with sparsity, so about 2,250 per GPU without) spec pages; Strix Halo's 59 TFLOPS is the ceiling gufo measured on this chip. Machine comparison: the tables in [llama.cpp #29353](https://github.com/ggml-org/llama.cpp/pull/29353) (the numbers before the change; the quantisations differ slightly between machines). Whole-GPU throughput: SemiAnalysis InferenceX for Qwen3.8 Flash-Next on [H200](https://inferencex.semianalysis.com/run/qwen-3-8-flash-next-on-h200) (FP8, 16,353 tokens/s per GPU at 50 tokens/s per user) and [B200](https://inferencex.semianalysis.com/run/qwen-3-8-flash-next-on-b200) (FP4, 57,615 at 100 tokens/s per user).
+- Home graphics cards: the tables in [llama.cpp #29353](https://github.com/ggml-org/llama.cpp/pull/29353) (the numbers before the change; the quantisations differ slightly: Q8 on Strix Halo, Q4_K_M on the NVIDIA cards), and my RTX 4090 measurement in the [Qwen3.8 27B combination](../../../../27b/ubuntu/nvidia4090/llamacpp-opencode/README.md) (pp2048 at about 2,915 tokens/s).
 - llama.cpp's reach: the GitHub pages for [ggml-org/llama.cpp](https://github.com/ggml-org/llama.cpp) (stars, forks, latest release b11223) and [ollama/ollama](https://github.com/ollama/ollama) (its `LLAMA_CPP_VERSION` file pins llama.cpp), and the [GGUF model list on Hugging Face](https://huggingface.co/models?library=gguf), all on 28 September 2026.
 
 - Speed measurements: test A on tritus, in `benchmarks/gufo-eval/results/` (runs of 27 September 2026).
