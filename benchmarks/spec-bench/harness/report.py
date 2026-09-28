@@ -98,6 +98,7 @@ def summary(run: Path) -> str:
              f"Model `{meta.get('model_id')}`, scope `{meta.get('scope')}`, effort `{meta.get('reasoning_effort')}`, "
              f"client {meta.get('client', 'opencode')} {meta.get('client_version') or meta.get('opencode', '')}, "
              f"host {meta.get('host')}.", "",
+             *([history.render_per_story(run).rstrip(), ""] if history.render_per_story(run) else []),
              "| Story | Title | Status | Agent min | Requests | Prompt tok | Completion tok | TTFT med s | Decode tok/s med | Gate | Accept (cumulative) | Stalled | Resumes / nudges | Compactions | Max ctx | Conditions |",
              "|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|"]
     for sid, s in m["stories"].items():

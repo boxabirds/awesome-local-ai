@@ -15,6 +15,10 @@ benchmarks/spec-bench/harness/drive.py --pack benchmarks/<name> [--epic NAME] --
 `combinations/<COMBINATION>/benchmarks/<pack-name>/<run-id>/`. dbench runs this harness when a job
 names a pack (`dbench submit … --pack benchmarks/<name>`).
 
+## How runs are judged
+
+[EVALUATION-POLICY.md](EVALUATION-POLICY.md): what held-out tests may check, when a failure counts against the agent, and what every run reports. A pack meets it before it's used.
+
 ## What gets recorded
 
 Every run and story records its configuration, what the agent did, where the time went (model

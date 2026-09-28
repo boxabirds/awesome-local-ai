@@ -181,3 +181,34 @@ def test_notes_that_are_not_interruptions_mark_no_dead_time(tmp_path):
                 "- 2026-09-26T11:03:00Z held-out suite fixed mid-run (commit above).\n")
     h = history.analyse(run)
     assert [i["kind"] for i in h["interruptions"]] == ["machine freeze"]
+
+
+def _write_accept(run: Path, sid: int, results: dict[tuple[str, str], str]) -> None:
+    d = run / "stories" / f"{sid:02d}"
+    d.mkdir(parents=True, exist_ok=True)
+    tests = [{"file": f, "title": t, "status": s} for (f, t), s in results.items()]
+    (d / "accept.json").write_text(json.dumps({"passed": sum(s == "passed" for s in results.values()),
+                                               "total": len(results), "tests": tests}))
+
+
+def test_per_story_separates_new_work_regressions_and_repairs(tmp_path):
+    """EVALUATION-POLICY rule 6: each story's own held-out tests, the earlier tests it broke and
+    the ones it repaired, beside the cumulative score."""
+    a1, a2 = ("story-01.spec.ts", "a1"), ("story-01.spec.ts", "a2")
+    b1, b2 = ("story-02.spec.ts", "b1"), ("story-02.spec.ts", "b2")
+    c1 = ("story-03.spec.ts", "c1")
+    _write_accept(tmp_path, 1, {a1: "passed", a2: "failed"})
+    _write_accept(tmp_path, 2, {a1: "failed", a2: "failed", b1: "passed", b2: "passed"})   # breaks a1
+    _write_accept(tmp_path, 3, {a1: "passed", a2: "passed", b1: "failed", b2: "passed", c1: "passed"})  # repairs a1, a2; breaks b1
+    rows = {r["story"]: r for r in history.per_story(tmp_path)}
+    assert (rows[1]["new_passed"], rows[1]["new_total"], rows[1]["regressions"], rows[1]["repairs"]) == (1, 2, 0, 0)
+    assert (rows[2]["new_passed"], rows[2]["new_total"], rows[2]["regressions"], rows[2]["repairs"]) == (2, 2, 1, 0)
+    assert (rows[3]["new_passed"], rows[3]["regressions"], rows[3]["repairs"]) == (1, 1, 2)
+    assert (rows[3]["cumulative_passed"], rows[3]["cumulative_total"]) == (4, 5)
+
+
+def test_per_story_table_leads_the_summary(tmp_path):
+    _write_accept(tmp_path, 1, {("story-01.spec.ts", "a1"): "passed"})
+    text = history.render_per_story(tmp_path)
+    assert "New work" in text and "Regressions" in text and "Repairs" in text and "Cumulative" in text
+    assert "| 1 | 1/1 | 0 | 0 | 1/1 |" in text
