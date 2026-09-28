@@ -1,0 +1,119 @@
+commit 753bb356630387f5f3dc59d397c63c25390a6f5f
+vidi-agent  Mon Sep 28 14:08:25 2026 +0100
+
+    story 1: Pan and zoom around an infinite board
+
+
+ .gitignore                              |    6 +
+ NOTES.md                                |   24 +
+ index.html                              |   17 +
+ package-lock.json                       | 5903 +++++++++++++++++++++++++++++++
+ package.json                            |   32 +
+ playwright.config.ts                    |   33 +
+ src/client/App.tsx                      |   43 +
+ src/client/canvas/BoardViewport.tsx     |  219 ++
+ src/client/canvas/NavigationHint.tsx    |   26 +
+ src/client/canvas/ZoomControls.tsx      |   97 +
+ src/client/canvas/camera.ts             |  115 +
+ src/client/canvas/useCamera.ts          |  121 +
+ src/client/main.tsx                     |    5 +
+ src/shared/config.ts                    |    6 +
+ src/vite-env.d.ts                       |    1 +
+ tests/component/BoardViewport.test.tsx  |  204 ++
+ tests/component/NavigationHint.test.tsx |   53 +
+ tests/component/ZoomControls.test.tsx   |  103 +
+ tests/component/setup.ts                |   27 +
+ tests/e2e/helpers/board.ts              |   22 +
+ tests/e2e/navigation.spec.ts            |  181 +
+ tests/jest-dom.d.ts                     |    1 +
+ tests/unit/camera.test.ts               |  267 ++
+ tsconfig.json                           |   25 +
+ vite.config.ts                          |   15 +
+ vitest.config.ts                        |   32 +
+ vitest.workspace.ts                     |   29 +
+ wrangler.jsonc                          |    8 +
+ 28 files changed, 7615 insertions(+)
+commit d036cbc8d8429c7bff56fdd84ea0831ee8d075c6
+vidi-agent  Mon Sep 28 13:58:10 2026 +0100
+
+    harness: empty repository with spec
+
+
+ README.md                                          |   3 +
+ spec/.DS_Store                                     | Bin 0 -> 6148 bytes
+ spec/README.md                                     |  21 +
+ spec/epics/boards-sharing.md                       |  15 +
+ spec/epics/canvas.md                               |  17 +
+ spec/epics/realtime-collab.md                      |  14 +
+ spec/stories/.DS_Store                             | Bin 0 -> 14340 bytes
+ .../design.md                                      | 358 +++++++++++++
+ .../prd.md                                         | 161 ++++++
+ .../story.md                                       |  11 +
+ .../tasks.md                                       | 157 ++++++
+ .../design.md                                      | 433 +++++++++++++++
+ .../prd.md                                         | 169 ++++++
+ .../story.md                                       |  11 +
+ .../tasks.md                                       | 170 ++++++
+ .../comments.md                                    |   8 +
+ .../design.md                                      | 403 ++++++++++++++
+ .../prd.md                                         | 158 ++++++
+ .../story.md                                       |  11 +
+ .../tasks.md                                       | 171 ++++++
+ .../design.md                                      | 411 ++++++++++++++
+ .../prd.md                                         | 129 +++++
+ .../story.md                                       |  11 +
+ .../tasks.md                                       | 169 ++++++
+ .../design.md                                      | 418 +++++++++++++++
+ .../prd.md                                         | 148 +++++
+ .../story.md                                       |  11 +
+ .../tasks.md                                       | 140 +++++
+ .../comments.md                                    |   8 +
+ .../design.md                                      | 444 +++++++++++++++
+ .../prd.md                                         | 163 ++++++
+ .../story.md                                       |  11 +
+ .../tasks.md                                       | 191 +++++++
+ .../design.md                                      | 512 ++++++++++++++++++
+ .../prd.md                                         | 184 +++++++
+ .../story.md                                       |  11 +
+ .../tasks.md                                       | 218 ++++++++
+ .../design.md                                      | 322 +++++++++++
+ .../prd.md                                         | 139 +++++
+ .../story.md                                       |  11 +
+ .../tasks.md                                       | 133 +++++
+ .../design.md                                      | 415 ++++++++++++++
+ .../prd.md                                         | 157 ++++++
+ .../story.md                                       |  11 +
+ .../tasks.md                                       | 169 ++++++
+ .../design.md                                      | 460 ++++++++++++++++
+ .../prd.md                                         | 174 ++++++
+ .../story.md                                       |  11 +
+ .../tasks.md                                       | 161 ++++++
+ .../011-sketch-freehand-with-a-pen/design.md       | 329 ++++++++++++
+ spec/stories/011-sketch-freehand-with-a-pen/prd.md | 148 +++++
+ .../011-sketch-freehand-with-a-pen/story.md        |  11 +
+ .../011-sketch-freehand-with-a-pen/tasks.md        | 121 +++++
+ .../012-drop-images-onto-the-board/design.md       | 459 ++++++++++++++++
+ spec/stories/012-drop-images-onto-the-board/prd.md | 184 +++++++
+ .../012-drop-images-onto-the-board/story.md        |  11 +
+ .../012-drop-images-onto-the-board/tasks.md        | 171 ++++++
+ .../design.md                                      | 557 +++++++++++++++++++
+ .../prd.md                                         | 172 ++++++
+ .../story.md                                       |  11 +
+ .../tasks.md                                       | 243 +++++++++
+ .../design.md                                      | 593 +++++++++++++++++++++
+ .../prd.md                                         | 185 +++++++
+ .../story.md                                       |  11 +
+ .../tasks.md                                       | 226 ++++++++
+ .../design.md                                      | 474 ++++++++++++++++
+ .../prd.md                                         | 174 ++++++
+ .../story.md                                       |  11 +
+ .../tasks.md                                       | Bin 0 -> 15615 bytes
+ .../design.md                                      | 508 ++++++++++++++++++
+ .../prd.md                                         | 211 ++++++++
+ .../story.md                                       |  11 +
+ .../tasks.md                                       | 203 +++++++
+ .../design.md                                      | 465 ++++++++++++++++
+ .../017-export-a-board-as-an-image-or-pdf/prd.md   | 188 +++++++
+ .../017-export-a-board-as-an-image-or-pdf/story.md |  11 +
+ .../017-export-a-board-as-an-image-or-pdf/tasks.md | 206 +++++++
+ 77 files changed, 13527 insertions(+)
