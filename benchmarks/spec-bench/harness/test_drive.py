@@ -404,6 +404,78 @@ def test_kill_strays_catches_processes_by_working_directory(tmp_path):
             p.kill()
 
 
+def test_hang_guard_kills_a_tool_child_that_left_the_workspace(tmp_path):
+    """canvas-mlx-02 story 7 (quintus): the agent ran `cd <ws> && ...; find / ...`. find changed
+    directory as it walked the disk and has no workspace path in its command line, so killing only
+    matching processes left it running, holding the tool's output pipe, and the story froze for 3 h
+    through 367 "interrupts". The guard must kill the tool's whole process group."""
+    import json as _json, os, subprocess, time
+    from drive import tool_hang_check
+    ws = tmp_path / "workspace"
+    ws.mkdir()
+    # pi starts each bash tool call in its own session; the child leaves the workspace.
+    tool = subprocess.Popen(["/bin/bash", "-c", f"cd {ws} && true; python3 -c "
+                             "'import os,time; os.chdir(\"/\"); time.sleep(300)'"],
+                            start_new_session=True, stdout=subprocess.PIPE)
+    events = tmp_path / "agent-events.jsonl"
+    events.write_text(_json.dumps({"type": "tool_execution_start"}) + "\n")
+    old = time.time() - 700
+    os.utime(events, (old, old))
+    try:
+        time.sleep(1)
+        child = subprocess.run(["pgrep", "-P", str(tool.pid)], capture_output=True, text=True).stdout.split()
+        assert child, "the tool's child should be running"
+        assert tool_hang_check(events, ws, idle_s=600)
+        time.sleep(1)
+        alive = subprocess.run(["ps", "-p", child[0]], capture_output=True).returncode == 0
+        assert tool.poll() is not None and not alive, "the tool and everything it started must be killed"
+    finally:
+        try:
+            os.killpg(tool.pid, 9)
+        except ProcessLookupError:
+            pass
+
+
+def test_hang_guard_is_not_fooled_by_a_workspace_path_that_names_a_client(tmp_path):
+    """Combination directories are named after their client (mlxserve-opencode), so the workspace
+    path itself contains "opencode". Every tool process carrying the path looked like the agent and
+    was spared: the guard on quintus never killed anything."""
+    import json as _json, os, subprocess, time
+    from drive import tool_hang_check
+    ws = tmp_path / "qwen__flash-next__mlxserve-opencode__canvas" / "workspace"
+    ws.mkdir(parents=True)
+    tool = subprocess.Popen(["/bin/sh", "-c", f"sleep 300; true # {ws}"], start_new_session=True)
+    events = tmp_path / "agent-events.jsonl"
+    events.write_text(_json.dumps({"type": "tool_execution_start"}) + "\n")
+    old = time.time() - 700
+    os.utime(events, (old, old))
+    try:
+        time.sleep(0.3)
+        assert tool_hang_check(events, ws, idle_s=600)
+        time.sleep(1)
+        assert tool.poll() is not None, "a tool process must not be mistaken for the agent"
+    finally:
+        try:
+            os.killpg(tool.pid, 9)
+        except ProcessLookupError:
+            pass
+
+
+def test_agent_home_has_playwright_browsers_where_playwright_looks_by_default(tmp_path, monkeypatch):
+    """canvas-mlx-02 story 7: the agent looked for browsers in ~/Library/Caches/ms-playwright, found
+    nothing (HOME is the sandbox home) and searched the whole disk. PLAYWRIGHT_BROWSERS_PATH points
+    to the agents' cache; the default location in the agent's home must lead there too."""
+    import drive, hostenv
+    real = tmp_path / "real-home"
+    (real / ".cache" / "vidi-agent-ms-playwright" / "chromium-1").mkdir(parents=True)
+    monkeypatch.setattr(drive.Path, "home", classmethod(lambda cls: real))
+    env = drive.agent_env(tmp_path / "run")
+    default = hostenv.playwright_cache(drive.Path(env["HOME"]))
+    assert (default / "chromium-1").is_dir(), default
+    assert default.resolve() == drive.Path(env["PLAYWRIGHT_BROWSERS_PATH"]).resolve()
+    drive.agent_env(tmp_path / "run")      # idempotent on a resumed run
+
+
 def test_hang_guard_spares_the_agent_whose_cwd_is_the_workspace(tmp_path):
     import json as _json, os, subprocess, time
     from drive import tool_hang_check, kill_strays
