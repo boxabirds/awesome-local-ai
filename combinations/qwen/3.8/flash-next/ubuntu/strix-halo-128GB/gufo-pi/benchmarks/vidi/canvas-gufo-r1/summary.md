@@ -9,8 +9,9 @@ Model `qwen3.8-flash-next-gufo`, scope `canvas`, effort `low`, client pi 0.87.1,
 | 3 | See other people's edits appear live on the same board | PARTIAL (amber) | 53.8 | None | None | None | — | — | green | 23/27 |  | 0 / 5 | 1 | — | throttled 0%, server peak 0 GB |
 | 4 | Return to a board and find everything as it was left | PARTIAL (amber), on partial 3 | 75.4 | None | None | None | — | — | green | 25/31 |  | 0 / 5 | 2 | — | throttled 0%, server peak 0 GB |
 | 5 | Share a board with others using a link | PARTIAL (red), on partial 3, 4 | 40.4 | None | None | None | — | — | red | 1/36 |  | 0 / 5 | 1 | — | throttled 0%, server peak 0 GB |
+| 7 | Select, move, resize and delete several objects at once | DONE, on partial 3, 4, 5 | 55.4 | None | None | None | — | — | green | 38/44 |  | 0 / 0 | 2 | — | throttled 0%, server peak 0 GB |
 
-**Totals:** 5 stories, 238 agent-minutes, 0 requests, 0 prompt / 0 completion tokens, gate green 4/5, final acceptance 1/36, stalled 0, partial 3, 9877 lines in src+tests.
+**Totals:** 6 stories, 293 agent-minutes, 0 requests, 0 prompt / 0 completion tokens, gate green 5/6, final acceptance 38/44, stalled 0, partial 3, 12626 lines in src+tests.
 
 ### Stories ended early (PARTIAL) and what was built on them
 
@@ -19,6 +20,7 @@ Model `qwen3.8-flash-next-gufo`, scope `canvas`, effort `low`, client pi 0.87.1,
 - Story 4, built on partial 3: held-out tests on the partial base 7/11; partial story's tests fixed 0, regressed 0; 2 stub-like lines added to src/.
 - **Story 5 PARTIAL**, ended by the operator (harness (cap)): story cap: 5 nudges without committing (cap 5). Verdict **red**: gate red, tasks not verified [1, 2, 3, 4, 5, 6, 7] (implementation: [2, 4, 5]), held-out 1/5 (floor 1.0).
 - Story 5, built on partial 3, 4: held-out tests on the partial base 1/16; partial story's tests fixed 0, regressed 7; 4 stub-like lines added to src/.
+- Story 7, built on partial 3, 4, 5: held-out tests on the partial base 20/24; partial story's tests fixed 4, regressed 0; 0 stub-like lines added to src/.
 
 ## How it happened
 
@@ -31,6 +33,7 @@ Each story's commits, and which story broke or fixed an earlier story's held-out
 | 3 | harness snapshot (agent left work uncommitted) | 2951 / 161 | `NOTES.md` (179), `board-room.ts` (124), `connectBoard.ts` (96), `protocol.ts` (47), `ConnectionStatus.tsx` (39), `index.ts` (39), +15 more |
 | 4 | harness snapshot (agent left work uncommitted) | 2516 / 69 | `board-room.ts` (334), `board-store.ts` (167), `room-state.ts` (86), `test-hooks.ts` (47), `connectBoard.ts` (42), `board-store-utils.ts` (39), +16 more |
 | 5 | harness snapshot (agent left work uncommitted) | 1880 / 302 | `App.tsx` (187), `styles.css` (148), `BoardApp.tsx` (132), `SharePanel.tsx` (125), `board-room.ts` (106), `BoardPage.tsx` (72), +13 more |
+| 7 | 1 by the agent | 3120 / 336 | `useTransformGesture.ts` (302), `board-model.ts` (231), `StickyNote.tsx` (214), `geometry.ts` (189), `BoardApp.tsx` (182), `SelectionOverlay.tsx` (154), +15 more |
 
 ### Earlier stories broken or fixed
 
@@ -39,6 +42,12 @@ Each story's commits, and which story broke or fixed an earlier story's held-out
   - story 2: 8/10 → 0/10; broke 8.
   - story 3: 5/7 → 0/7; broke 5.
   - story 4: 2/4 → 0/4; broke 2.
+- **Story 7 broke 0, fixed 29** earlier held-out tests (story 7: Select, move, resize and delete several objects at once). Source files it changed most: `useTransformGesture.ts` (302), `board-model.ts` (231), `StickyNote.tsx` (214), `geometry.ts` (189), `BoardApp.tsx` (182), `SelectionOverlay.tsx` (154), +15 more.
+  - story 1: 0/10 → 10/10; fixed 10
+  - story 2: 0/10 → 8/10; fixed 8
+  - story 3: 0/7 → 5/7; fixed 5
+  - story 4: 0/4 → 2/4; fixed 2
+  - story 5: 1/5 → 5/5; fixed 4
 
 ### Interruptions and dead time
 

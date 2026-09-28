@@ -21,7 +21,8 @@ export const IS_TEST_MODE = import.meta.env.MODE === 'test';
 
 export function installTestHooks(setCamera: BoardTestHooks['setCamera']): () => void {
   if (!IS_TEST_MODE) return () => {};
-  window.__vidi6 = { setCamera };
+  const hooks = window.__vidi6 ??= {} as BoardTestHooks;
+  hooks.setCamera = setCamera;
   return () => {
     delete window.__vidi6;
   };
@@ -30,9 +31,7 @@ export function installTestHooks(setCamera: BoardTestHooks['setCamera']): () => 
 /** Expose Y namespace and createSticky for E2E board seeding (test mode only). */
 export function installDocHooks(Y: typeof YType, createSticky: BoardTestHooks['createSticky']): void {
   if (!IS_TEST_MODE) return;
-  const hooks = window.__vidi6;
-  if (hooks) {
-    hooks.Y = Y;
-    hooks.createSticky = createSticky;
-  }
+  const hooks = window.__vidi6 ??= {} as BoardTestHooks;
+  hooks.Y = Y;
+  hooks.createSticky = createSticky;
 }

@@ -6,18 +6,42 @@ import { createBoard, type Limiter } from './create-board';
 export interface Env {
   BOARD_ROOM: DurableObjectNamespace<BoardRoom>;
   ASSETS: Fetcher;
-  BOARD_CREATE_LIMITER: Limiter;
+  BOARD_CREATE_LIMITER?: Limiter;
   TEST_HOOKS?: string;
 }
+
+// Simple in-memory rate limiter for local dev (wrangler doesn't support ratelimits locally)
+class MemoryLimiter implements Limiter {
+  private hits = new Map<string, { count: number; resetAt: number }>();
+  constructor(private limitPer = 10, private periodMs = 60_000) {}
+  async limit({ key }: { key: string }): Promise<{ success: boolean }> {
+    const now = Date.now();
+    const entry = this.hits.get(key);
+    if (!entry || entry.resetAt < now) {
+      this.hits.set(key, { count: 1, resetAt: now + this.periodMs });
+      return { success: true };
+    }
+    entry.count++;
+    return { success: entry.count <= this.limitPer };
+  }
+  reset() { this.hits.clear(); }
+}
+export const localLimiter = new MemoryLimiter();
 
 export default {
   async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
     const url = new URL(request.url);
 
+    // POST /api/test/reset-rate-limit (resets in-memory limiter used in local dev when native ratelimits unavailable)
+    if (url.pathname === '/api/test/reset-rate-limit' && request.method === 'POST') {
+      if (env.TEST_HOOKS === '1') localLimiter.reset();
+      return new Response('ok');
+    }
+
     // POST /api/boards — create a new board
     if (url.pathname === '/api/boards' && request.method === 'POST') {
       const visitorKey = request.headers.get('CF-Connecting-IP') || '127.0.0.1';
-      const result = await createBoard(env, visitorKey);
+      const result = await createBoard({ BOARD_ROOM: env.BOARD_ROOM, BOARD_CREATE_LIMITER: env.BOARD_CREATE_LIMITER ?? localLimiter }, visitorKey);
       if (result.ok) {
         return new Response(JSON.stringify({ id: result.id }), {
           status: 201,
@@ -94,7 +118,7 @@ export default {
     }
 
     // Test hooks (only available when TEST_HOOKS=1 in the environment)
-    const testHookResponse = await handleTestHook(request, env);
+    const testHookResponse = await handleTestHook(request, { ...env, localLimiter });
     if (testHookResponse) return testHookResponse;
 
     // Everything else: serve static assets (SPA fallback handled by wrangler config)

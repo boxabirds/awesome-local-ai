@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import * as Y from 'yjs';
 import { initDoc, snapshot, createSticky, type StickySnapshot } from '../../shared/board-model';
 import { connectBoard, type ConnectionState } from '../sync/connectBoard';
@@ -12,7 +12,7 @@ export interface BoardDocState {
 
 /**
  * Owns a single Y.Doc, subscribes to deep changes on `objects`,
- * and exposes an immutable snapshot via useSyncExternalStore.
+ * and exposes an immutable snapshot via useState.
  * Also manages the WebSocket connection for live collaboration.
  */
 export function useBoardDoc(boardId: string): BoardDocState {
@@ -28,25 +28,17 @@ export function useBoardDoc(boardId: string): BoardDocState {
     [doc],
   );
 
-  const snapRef = useRef<readonly StickySnapshot[]>(snapshot(doc));
+  const [notes, setNotes] = useState<readonly StickySnapshot[]>(() => snapshot(doc));
 
-  const subscribe = useCallback(
-    (onStoreChange: () => void) => {
-      const observer = () => {
-        snapRef.current = snapshot(doc);
-        onStoreChange();
-      };
-      objectsMap.observeDeep(observer);
-      return () => {
-        objectsMap.unobserveDeep(observer);
-      };
-    },
-    [doc, objectsMap],
-  );
-
-  const getSnapshot = useCallback(() => snapRef.current, []);
-
-  const notes = useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
+  useEffect(() => {
+    const observer = () => {
+      setNotes(snapshot(doc));
+    };
+    objectsMap.observeDeep(observer);
+    return () => {
+      objectsMap.unobserveDeep(observer);
+    };
+  }, [doc, objectsMap]);
 
   // Connection state
   const [connectionState, setConnectionState] = useState<ConnectionState>('connecting');

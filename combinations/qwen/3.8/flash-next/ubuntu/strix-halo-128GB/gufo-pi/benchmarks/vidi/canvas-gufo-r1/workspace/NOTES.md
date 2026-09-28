@@ -40,3 +40,36 @@
 
 - Integration tests use unique `CF-Connecting-IP` headers per test to avoid mutual rate-limit interference.
 - TC-13 specifically tests the limit boundary (10 from same IP → 201, 11th → 429).
+
+## Story 7: Select, move, resize and delete several objects at once
+
+### Key Decisions
+
+1. **Selection is a reducer**: `useSelection` uses `useReducer` with `SelectionState = { ids: ReadonlySet<string>, editingId: string|null }` and actions: `click`, `toggle`, `setMany`, `clear`, `prune`, `edit`. The reducer is exported for unit testing.
+
+2. **Group model functions**: `moveObjects`, `resizeObjects`, `bringObjectsToFront`, `deleteObjects` operate on arrays of ids. Existing single-object functions (`moveObject`, `bringToFront`, `deleteObject`) are thin wrappers.
+
+3. **Geometry helpers**: `src/shared/geometry.ts` provides `Rect`, `Point`, `Handle` types and pure functions (`rectContains`, `unionRects`, `normalizeRect`, `resizeRect`, `clampScale`, `scaleWithin`).
+
+4. **Object type registry**: `src/client/objects/registry.tsx` defines `ObjectTypeSpec` with `resizable`, `aspectLocked`, `minSize`, `editableText`, `hitTest`. Only `sticky` is registered so far.
+
+5. **Transform gesture**: `useTransformGesture` handles group move (drag any selected object → all move) and handle resize (bounding-box proportional scaling with `scaleWithin`). RAF-coalesced writes. `onGestureStart`/`onGestureEnd` hooks for suppressing edit UI.
+
+6. **Marquee selection**: Shift+pointerdown on empty board starts marquee. Only fully-contained objects are added to the selection. Plain drag (no Shift) pans camera. `useMarquee` hook + `MarqueeRect` component.
+
+7. **Keyboard commands**: `useBoardKeys` handles Ctrl/Cmd+A (select all), Escape (clear), arrows (nudge 1/10 world units), Delete/Backspace (delete selection). Guards on `editingId` and input focus.
+
+8. **Resize is aspect-locked for stickies**: `scaleWithin` maps child rects proportionally from source bbox to target bbox. `clampScale` prevents below `STICKY_MIN_SIZE_WORLD` or above `MAX_OBJECT_SIZE_WORLD`.
+
+9. **Selection auto-prunes**: When the snapshot changes, remote-deleted ids are automatically removed from the selection set (prune action in reducer).
+
+10. **`useBoardDoc` uses `useState` instead of `useSyncExternalStore`**: `useSyncExternalStore` with React 19 had an issue where text-only Y.Doc updates fired `observeDeep` but did not trigger re-renders. Switched to `useState` + `useEffect` observer pattern.
+
+### Gaps in Prior Stories
+
+- **Story 3/5 (e2e tests)**: Wrangler v3 doesn't support `ratelimits` binding locally. Added an in-memory `MemoryLimiter` fallback in `src/worker/index.ts` and a `POST /api/test/reset-rate-limit` endpoint for tests.
+- **Story 5 (`.dev.vars`)**: Created `.dev.vars` file with `TEST_HOOKS=1` since wrangler doesn't pass shell env vars to worker code.
+- **Story 5 (`run_worker_first`)**: Added `run_worker_first: true` to `wrangler.jsonc` assets config so the worker handles `/api/*` and `/__test/*` paths before the static asset middleware (which returns 405 for POST to non-existent paths).
+- **Story 5 (`testHooks.ts`)**: Fixed `installDocHooks` to create `window.__vidi6` if it doesn't exist (was previously silently failing when `installDocHooks` ran before `installTestHooks`).
+- **Story 2 (`StickyNote`)**: Sticky note pointer events now delegate to `onObjectPointerDown` prop for the transform gesture, instead of internal drag logic.
+- **Share-board TC-26**: Updated test to use `create-sticky-btn` (was `add-sticky-btn`) and `toPass()` retry block to handle textarea value vs textContent for edit-mode sync.

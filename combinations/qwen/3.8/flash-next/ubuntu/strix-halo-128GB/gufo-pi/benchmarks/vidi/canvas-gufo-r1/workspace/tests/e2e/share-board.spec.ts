@@ -47,15 +47,23 @@ test.describe('TC-26: Create a board, share, open link in second context', () =>
     await expect(pageB.locator('[data-testid="board-viewport"]')).toBeVisible({ timeout: 10_000 });
 
     // Add a sticky on page A, verify it appears on page B
-    await pageA.getByTestId('add-sticky-btn').click();
+    await pageA.getByTestId('create-sticky-btn').click();
     await expect(pageB.locator('[data-testid^="sticky-note-"]').first()).toBeVisible({ timeout: 5_000 });
 
     // Sam (page B) edits the note text
     const noteB = pageB.locator('[data-testid^="sticky-note-"]').first();
     await noteB.dblclick();
+    await pageB.locator('[data-testid="sticky-textarea"]').waitFor({ state: 'visible', timeout: 3000 });
     await pageB.keyboard.type('hello from Sam');
-    // Maya (page A) sees the edit
-    await expect(pageA.locator('[data-testid^="sticky-note-"]').first()).toContainText('hello from Sam', { timeout: 5_000 });
+    // Maya (page A) sees the edit — check textarea value if still editing, or textContent if not
+    await expect(async () => {
+      const ta = pageA.locator('[data-testid="sticky-textarea"]');
+      if (await ta.isVisible().catch(() => false)) {
+        expect(await ta.inputValue()).toBe('hello from Sam');
+      } else {
+        expect(await pageA.locator('[data-testid^="sticky-note-"]').first().textContent()).toBe('hello from Sam');
+      }
+    }).toPass({ timeout: 5000 });
 
     await ctxA.close();
     await ctxB.close();

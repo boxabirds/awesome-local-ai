@@ -44,6 +44,7 @@ interface PointerLike extends Event {
   clientX: number;
   clientY: number;
   pointerId: number;
+  shiftKey?: boolean;
 }
 
 function isBoardSurface(target: EventTarget | null, surface: HTMLElement | null): boolean {
@@ -62,13 +63,27 @@ export interface BoardViewportProps {
   onDblClickEmpty?(worldPoint: { x: number; y: number }): void;
   onEmptyClick?(): void;
   onCameraChange?(camera: { x: number; y: number; zoom: number }, viewport: Size): void;
+  onMarqueeBegin?(screen: { x: number; y: number }): void;
+  onMarqueeMove?(screen: { x: number; y: number }): void;
+  onMarqueeEnd?(): void;
+  onMarqueeCancel?(): void;
 }
 
-export function BoardViewport({ children, onDblClickEmpty, onEmptyClick, onCameraChange }: BoardViewportProps) {
+export function BoardViewport({
+  children,
+  onDblClickEmpty,
+  onEmptyClick,
+  onCameraChange,
+  onMarqueeBegin,
+  onMarqueeMove,
+  onMarqueeEnd,
+  onMarqueeCancel,
+}: BoardViewportProps) {
   const surfaceRef = useRef<HTMLDivElement>(null);
   const [viewport, setViewport] = useState<Size>({ width: 0, height: 0 });
   const [panning, setPanning] = useState(false);
   const panningRef = useRef(false);
+  const marqueeActiveRef = useRef(false);
 
   const controller: CameraController = useCamera(viewport);
   const controllerRef = useRef(controller);
@@ -182,12 +197,24 @@ export function BoardViewport({ children, onDblClickEmpty, onEmptyClick, onCamer
   // Drag to pan via native pointer listeners. Pointer capture keeps events
   // flowing while the pointer is over other elements; if the environment has no
   // PointerEvent, panning still works from the event stream.
+  // If shift is held, start a marquee instead.
   useEffect(() => {
     const el = surfaceRef.current;
     if (!el) return;
 
-    const beginPan = (e: PointerLike) => {
+    const beginPointer = (e: PointerLike) => {
       if (!isBoardSurface(e.target, el)) return;
+      // If shift is held, start marquee instead of pan
+      if (e.shiftKey) {
+        try {
+          el.setPointerCapture(e.pointerId);
+        } catch { /* jsdom */ }
+        marqueeActiveRef.current = true;
+        const rect = el.getBoundingClientRect();
+        onMarqueeBeginRef.current?.({ x: e.clientX - rect.left, y: e.clientY - rect.top });
+        return;
+      }
+      // Normal pan
       try {
         el.setPointerCapture(e.pointerId);
       } catch {
@@ -198,12 +225,25 @@ export function BoardViewport({ children, onDblClickEmpty, onEmptyClick, onCamer
       controllerRef.current.beginPan({ x: e.clientX, y: e.clientY });
     };
 
-    const movePan = (e: PointerLike) => {
+    const movePointer = (e: PointerLike) => {
+      if (marqueeActiveRef.current) {
+        const rect = el.getBoundingClientRect();
+        onMarqueeMoveRef.current?.({ x: e.clientX - rect.left, y: e.clientY - rect.top });
+        return;
+      }
       if (!panningRef.current) return;
       controllerRef.current.panMove({ x: e.clientX, y: e.clientY });
     };
 
-    const endPan = (e: PointerLike) => {
+    const endPointer = (e: PointerLike) => {
+      if (marqueeActiveRef.current) {
+        try {
+          el.releasePointerCapture(e.pointerId);
+        } catch { /* already released */ }
+        marqueeActiveRef.current = false;
+        onMarqueeEndRef.current?.();
+        return;
+      }
       if (!panningRef.current) return;
       try {
         el.releasePointerCapture(e.pointerId);
@@ -215,17 +255,32 @@ export function BoardViewport({ children, onDblClickEmpty, onEmptyClick, onCamer
       controllerRef.current.endPan();
     };
 
-    el.addEventListener('pointerdown', beginPan as EventListener);
-    el.addEventListener('pointermove', movePan as EventListener);
-    el.addEventListener('pointerup', endPan as EventListener);
-    el.addEventListener('pointercancel', endPan as EventListener);
-    el.addEventListener('lostpointercapture', endPan as EventListener);
+    const cancelPointer = (e: PointerLike) => {
+      if (marqueeActiveRef.current) {
+        marqueeActiveRef.current = false;
+        onMarqueeCancelRef.current?.();
+        return;
+      }
+      if (!panningRef.current) return;
+      try {
+        el.releasePointerCapture(e.pointerId);
+      } catch { /* ignore */ }
+      panningRef.current = false;
+      setPanning(false);
+      controllerRef.current.endPan();
+    };
+
+    el.addEventListener('pointerdown', beginPointer as EventListener);
+    el.addEventListener('pointermove', movePointer as EventListener);
+    el.addEventListener('pointerup', endPointer as EventListener);
+    el.addEventListener('pointercancel', cancelPointer as EventListener);
+    el.addEventListener('lostpointercapture', cancelPointer as EventListener);
     return () => {
-      el.removeEventListener('pointerdown', beginPan as EventListener);
-      el.removeEventListener('pointermove', movePan as EventListener);
-      el.removeEventListener('pointerup', endPan as EventListener);
-      el.removeEventListener('pointercancel', endPan as EventListener);
-      el.removeEventListener('lostpointercapture', endPan as EventListener);
+      el.removeEventListener('pointerdown', beginPointer as EventListener);
+      el.removeEventListener('pointermove', movePointer as EventListener);
+      el.removeEventListener('pointerup', endPointer as EventListener);
+      el.removeEventListener('pointercancel', cancelPointer as EventListener);
+      el.removeEventListener('lostpointercapture', cancelPointer as EventListener);
     };
   }, []);
 
@@ -236,6 +291,8 @@ export function BoardViewport({ children, onDblClickEmpty, onEmptyClick, onCamer
     if (!el) return;
     const onDown = (e: PointerLike) => {
       if (!isBoardSurface(e.target, el)) return;
+      // Don't track for empty-click if shift is held (marquee mode)
+      if (e.shiftKey) return;
       emptyClickRef.current = { x: e.clientX, y: e.clientY };
     };
     const onUp = (e: PointerLike) => {
@@ -259,6 +316,15 @@ export function BoardViewport({ children, onDblClickEmpty, onEmptyClick, onCamer
 
   const onEmptyClickRef = useRef(onEmptyClick);
   onEmptyClickRef.current = onEmptyClick;
+
+  const onMarqueeBeginRef = useRef(onMarqueeBegin);
+  onMarqueeBeginRef.current = onMarqueeBegin;
+  const onMarqueeMoveRef = useRef(onMarqueeMove);
+  onMarqueeMoveRef.current = onMarqueeMove;
+  const onMarqueeEndRef = useRef(onMarqueeEnd);
+  onMarqueeEndRef.current = onMarqueeEnd;
+  const onMarqueeCancelRef = useRef(onMarqueeCancel);
+  onMarqueeCancelRef.current = onMarqueeCancel;
 
   // Double-click on empty board space → create sticky
   const onDblClickEmptyRef = useRef(onDblClickEmpty);

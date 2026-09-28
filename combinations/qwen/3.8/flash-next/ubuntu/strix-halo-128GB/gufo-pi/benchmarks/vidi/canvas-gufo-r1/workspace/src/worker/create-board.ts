@@ -35,12 +35,14 @@ export async function createWithRetries(
 }
 
 export async function createBoard(
-  env: { BOARD_ROOM: DONamespace; BOARD_CREATE_LIMITER: Limiter },
+  env: { BOARD_ROOM: DONamespace; BOARD_CREATE_LIMITER?: Limiter },
   visitorKey: string,
 ): Promise<CreateResult> {
-  const limitResult = await env.BOARD_CREATE_LIMITER.limit({ key: visitorKey });
-  if (!limitResult.success) {
-    return { ok: false, reason: 'rate_limited' };
+  if (env.BOARD_CREATE_LIMITER) {
+    const limitResult = await env.BOARD_CREATE_LIMITER.limit({ key: visitorKey });
+    if (!limitResult.success) {
+      return { ok: false, reason: 'rate_limited' };
+    }
   }
 
   try {

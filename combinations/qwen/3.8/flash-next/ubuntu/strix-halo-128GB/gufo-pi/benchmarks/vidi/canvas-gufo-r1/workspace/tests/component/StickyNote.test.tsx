@@ -19,8 +19,9 @@ function mountNote(
     selected: boolean;
     editing: boolean;
     onSelect: (id: string) => void;
+    onToggleSelect: (id: string) => void;
     onStartEdit: (id: string) => void;
-    onEndEdit: (next: 'selected' | 'unselected') => void;
+    onEndEdit: () => void;
     zoom: number;
   }> = {},
 ) {
@@ -33,6 +34,7 @@ function mountNote(
     selected: overrides.selected ?? false,
     editing: overrides.editing ?? false,
     onSelect: overrides.onSelect ?? vi.fn(),
+    onToggleSelect: overrides.onToggleSelect ?? vi.fn(),
     onStartEdit: overrides.onStartEdit ?? vi.fn(),
     onEndEdit: overrides.onEndEdit ?? vi.fn(),
   };
@@ -80,19 +82,31 @@ describe('StickyNote interaction', () => {
     expect(onSelect).toHaveBeenCalled();
   });
 
-  // TC-20: move >= threshold → drag; board camera unchanged
-  it('TC-20 move at threshold triggers drag (moves note)', () => {
+  // TC-20: move >= threshold → drag; delegate to onObjectPointerDown
+  it('TC-20 pointerdown delegates to onObjectPointerDown (drag handled by gesture)', () => {
     const doc = makeDoc();
     const onSelect = vi.fn();
-    const { el } = mountNote(doc, { onSelect });
-    const noteEl = el();
-    const beforeX = snapshot(doc)[0].x;
+    const onObjectPointerDown = vi.fn();
+    const id = createSticky(doc, { x: 200, y: 200 });
+    const note = snapshot(doc)[0];
+    const props = {
+      note,
+      doc,
+      zoom: 1,
+      selected: false,
+      editing: false,
+      onSelect,
+      onToggleSelect: vi.fn(),
+      onStartEdit: vi.fn(),
+      onEndEdit: vi.fn(),
+      onObjectPointerDown,
+    };
+    render(<StickyNote {...props} />);
+    const noteEl = screen.getByTestId(`sticky-note-${id}`);
     pointer('pointerdown', noteEl, 100, 100);
-    pointer('pointermove', noteEl, 100 + DRAG_THRESHOLD_PX, 100);
-    pointer('pointerup', noteEl, 100 + DRAG_THRESHOLD_PX, 100);
-    // After a drag, the note should have moved (world x changed)
-    const afterX = snapshot(doc)[0].x;
-    expect(afterX).not.toBe(beforeX);
+    // The onObjectPointerDown callback should have been invoked
+    expect(onObjectPointerDown).toHaveBeenCalledTimes(1);
+    expect(onObjectPointerDown).toHaveBeenCalledWith(expect.anything(), id);
   });
 
   // TC-21: pointercancel during drag → ends at last position

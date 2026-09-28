@@ -6,8 +6,14 @@ export interface Participant {
   page: Page;
 }
 
+/** Reset the local in-memory rate limiter (test-mode only). */
+export async function resetRateLimit(page: Page): Promise<void> {
+  await page.request.post('/api/test/reset-rate-limit');
+}
+
 /** Create a board via the API and return its ID. */
 export async function createBoard(page: Page): Promise<string> {
+  await page.request.post('/api/test/reset-rate-limit');
   const res = await page.request.post('/api/boards');
   if (!res.ok()) {
     throw new Error(`POST /api/boards failed: ${res.status()}`);

@@ -8,11 +8,13 @@ import type { BoardRoom } from './board-room';
  */
 export async function handleTestHook(
   request: Request,
-  env: { BOARD_ROOM: DurableObjectNamespace<BoardRoom>; TEST_HOOKS?: string },
+  env: { BOARD_ROOM: DurableObjectNamespace<BoardRoom>; TEST_HOOKS?: string; localLimiter?: { reset(): void } },
 ): Promise<Response | null> {
   const url = new URL(request.url);
-  if (!url.pathname.startsWith('/__test/boards/')) return null;
+  if (!url.pathname.startsWith('/__test/')) return null;
   if (env.TEST_HOOKS !== '1') return null;
+
+  if (!url.pathname.startsWith('/__test/boards/')) return null;
 
   // POST /__test/boards/:id/corrupt-snapshot
   // POST /__test/boards/:id/repair

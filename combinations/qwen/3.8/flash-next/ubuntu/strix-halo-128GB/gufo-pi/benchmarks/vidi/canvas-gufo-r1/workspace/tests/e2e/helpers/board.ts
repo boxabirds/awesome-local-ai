@@ -10,6 +10,8 @@ export interface Center {
 }
 
 export async function gotoBoard(page: Page): Promise<void> {
+  // Reset rate limiter (test-mode only, no-op if not available)
+  await page.request.post('/api/test/reset-rate-limit');
   // Create a board via API, then navigate to it
   const res = await page.request.post('/api/boards');
   if (!res.ok()) throw new Error('Failed to create board');
