@@ -1,3 +1,41 @@
+commit b65d6fea65579ec94b6c486e2f3ac012c0adb2e6
+vidi-agent  Mon Sep 28 08:20:35 2026 +0000
+
+    harness: snapshot after story 3 (uncommitted agent work)
+
+
+ NOTES.md                                  | 179 ++----
+ package-lock.json                         | 932 +++++++++++++++++++++++++++++-
+ package.json                              |  11 +-
+ playwright.config.ts                      |   1 +
+ playwright.nightly.config.ts              |  29 +
+ src/client/App.tsx                        |  25 +-
+ src/client/board/Toolbar.tsx              |   1 +
+ src/client/board/useBoardDoc.ts           |  17 +-
+ src/client/canvas/testHooks.ts            |   2 +
+ src/client/objects/StickyTextEditor.tsx   |  19 +
+ src/client/styles.css                     |  29 +
+ src/client/sync/ConnectionStatus.tsx      |  39 ++
+ src/client/sync/connectBoard.ts           |  96 +++
+ src/shared/board-id.ts                    |  20 +
+ src/shared/config.ts                      |  17 +
+ src/shared/protocol.ts                    |  47 ++
+ src/worker/board-room.ts                  | 124 ++++
+ src/worker/index.ts                       |  39 ++
+ tests/component/ConnectionStatus.test.tsx |  82 +++
+ tests/e2e/helpers/participants.ts         |  59 ++
+ tests/e2e/live-collaboration.spec.ts      | 273 +++++++++
+ tests/e2e/nightly.spec.ts                 | 163 ++++++
+ tests/integration/board-room.test.ts      | 514 ++++++++++++++++
+ tests/integration/worker.test.ts          |  81 +++
+ tests/integration/ws-client.ts            | 132 +++++
+ tests/unit/board-id.test.ts               |  52 ++
+ tests/unit/protocol.test.ts               |  81 +++
+ tsconfig.json                             |   5 +
+ tsconfig.worker.json                      |   8 +
+ vitest.integration.config.ts              |  14 +
+ wrangler.jsonc                            |  21 +-
+ 31 files changed, 2951 insertions(+), 161 deletions(-)
 commit 2d98bcf7acd6f518d5eb8d65892602348b86fe5b
 vidi-agent  Mon Sep 28 07:23:49 2026 +0000
 
