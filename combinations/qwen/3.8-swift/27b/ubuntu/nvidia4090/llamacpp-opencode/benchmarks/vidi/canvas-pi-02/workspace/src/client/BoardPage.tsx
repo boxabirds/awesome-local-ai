@@ -4,6 +4,7 @@
 // view when the board is gone, and a Share button/panel for the link.
 
 import { useCallback, useEffect, useRef, useState, type ReactElement } from 'react';
+import * as Y from 'yjs';
 import { BoardViewport } from './canvas/BoardViewport';
 import { NavigationHint } from './canvas/NavigationHint';
 import { ZoomControls } from './canvas/ZoomControls';
@@ -22,6 +23,7 @@ import { useBoardDoc } from './board/useBoardDoc';
 import { ConnectionStatus } from './sync/ConnectionStatus';
 import { useSelection } from './board/useSelection';
 import { useBoardKeys } from './board/useBoardKeys';
+import { useTool } from './board/useTool';
 import { useMarquee, MarqueeRect } from './board/useMarquee';
 import { useTransformGesture } from './board/useTransformGesture';
 import { SelectionBar } from './board/SelectionBar';
@@ -37,6 +39,10 @@ import {
   objectBounds,
   setStickyColor,
 } from '../shared/board-model';
+import { createText, setTextSize, textSnapshot } from '../shared/objects/text';
+import { TEXT_FONT_FAMILY, type TextSize } from '../shared/config';
+import { remeasureTextObject } from './objects/useTextBoxSync';
+import { createCanvasMeasurer, type Measurer } from './objects/textLayout';
 import { unionRects } from '../shared/geometry';
 import {
   STICKY_SIZE_WORLD,
@@ -140,6 +146,19 @@ function Board({ boardId }: { boardId: string }): ReactElement {
   // reports a load failure; every edit path below checks this flag.
   const editable = canEdit(connectionState);
 
+  // Story 9 (text.tool): the active tool — 'select' (default) or 'text'
+  // (one-shot: creating a text reverts to select).
+  const { tool, setTool } = useTool(editable);
+
+  // Story 6 (creator identity) is out of scope: createdBy is a session-
+  // unique client id (see NOTES.md).
+  const clientIdRef = useRef('');
+  if (clientIdRef.current === '') clientIdRef.current = crypto.randomUUID();
+
+  // One shared canvas measurer for text layout (text.layout).
+  const measurerRef = useRef<Measurer | null>(null);
+  if (measurerRef.current === null) measurerRef.current = createCanvasMeasurer(TEXT_FONT_FAMILY);
+
   // Story 8 (undo.history): one personal undo controller per board doc,
   // tracking LOCAL_ORIGIN only. History is session-only: destroyed on
   // unmount, a fresh controller after reload starts empty (undo.session_only).
@@ -174,15 +193,32 @@ function Board({ boardId }: { boardId: string }): ReactElement {
       undoRef.current?.boundary();
     },
     onDraggingChange: setDragging,
+    // Story 9: a single text's fixed width changed (e/w handle) → re-
+    // measure its box inside the gesture's capture window.
+    onTextWidthChanged: (id) => {
+      remeasureTextObject(docRef.current, id, measurerRef.current!);
+    },
   });
+
+  // Story 9 (text.box_sync, TC-25): my own undo/redo reverts my text
+  // changes, and my stored box is part of those steps — re-measure the
+  // local text objects after every history change so text and box revert
+  // together in one visible step. A no-op when a box is already in sync;
+  // remote changes never trigger a re-measure (text.box_sync).
+  useEffect(() => {
+    return undoController.onChange(() => {
+      const d = docRef.current;
+      for (const o of d.getMap('objects').values()) {
+        const rec = o as Y.Map<unknown>;
+        if (rec.get('type') === 'text' && typeof rec.get('id') === 'string') {
+          remeasureTextObject(d, rec.get('id') as string, measurerRef.current!);
+        }
+      }
+    });
+  }, [undoController]);
 
   // Shift+drag marquee on empty space (story 7, sel.marquee_ui).
   const marquee = useMarquee(camera.camera, objects, (ids) => selection.setMany(ids, true));
-
-  // Board keyboard shortcuts (story 7, sel.keyboard + story 8 undo.shortcuts):
-  // Ctrl+A, Escape, arrows, Shift+arrows, Delete/Backspace, Enter, and
-  // Ctrl/Cmd+Z / Ctrl/Cmd+Shift+Z / Ctrl+Y undo and redo.
-  useBoardKeys({ doc, selection, snapshot: objects, canEdit: editable, undo: undoController });
 
   useEffect(() => {
     installTestHooks(
@@ -209,6 +245,44 @@ function Board({ boardId }: { boardId: string }): ReactElement {
   const createStickyAtCenter = (): void => {
     createStickyAtScreen({ x: viewport.width / 2, y: viewport.height / 2 });
   };
+
+  // Story 9 (text.create): a Text-tool click creates a size-M auto-width
+  // text object with its top-left at the clicked point (world), starts
+  // editing it and reverts the tool to Select. One creation is one undo
+  // step (undo.steps).
+  const createTextAtScreen = (p: Point): void => {
+    if (!canEdit(connectionStateRef.current)) return; // load-failed: locked
+    const world = screenToWorld(cameraRef.current.camera, p);
+    undoRef.current?.boundary();
+    const id = createText(docRef.current, world, clientIdRef.current);
+    undoRef.current?.boundary();
+    setTool('select'); // the tool is one-shot (text.tool)
+    if (id !== null) selectionRef.current.startEdit(id);
+  };
+
+  // Story 9 (text.size): one size change (+ box re-measure) is one undo
+  // step; x/y stay put.
+  const changeTextSize = (id: string, size: TextSize): void => {
+    if (!canEdit(connectionStateRef.current)) return; // load-failed: locked
+    undoRef.current?.boundary();
+    setTextSize(docRef.current, id, size);
+    remeasureTextObject(docRef.current, id, measurerRef.current!);
+    undoRef.current?.boundary();
+  };
+
+  // Board keyboard shortcuts (story 7, sel.keyboard + story 8 undo.shortcuts +
+  // story 9 tool shortcuts): Ctrl+A, Escape, arrows, Shift+arrows,
+  // Delete/Backspace, Enter, Ctrl/Cmd+Z etc. undo/redo, and V/T/N tools.
+  useBoardKeys({
+    doc,
+    selection,
+    snapshot: objects,
+    canEdit: editable,
+    undo: undoController,
+    tool,
+    setTool,
+    onCreateStickyCenter: createStickyAtCenter,
+  });
 
   const deleteSelection = useCallback((): void => {
     if (!canEdit(connectionStateRef.current)) return; // load-failed: locked
@@ -257,6 +331,8 @@ function Board({ boardId }: { boardId: string }): ReactElement {
       {shareOpen && <SharePanel boardId={boardId} onClose={() => setShareOpen(false)} />}
       <BoardViewport
         camera={camera}
+        textToolActive={tool === 'text'}
+        onTextClick={createTextAtScreen}
         onDblClickEmpty={(p) => createStickyAtScreen(p)}
         onEmptyClick={() => {
           if (selection.editingId !== null) selection.endEdit();
@@ -283,7 +359,9 @@ function Board({ boardId }: { boardId: string }): ReactElement {
               onSelect={selection.click}
               onStartEdit={selection.startEdit}
               onEndEdit={selection.endEdit}
+              onClearSelection={selection.clear}
               undo={undoController}
+              note={o.type === 'text' ? textSnapshot(doc, o.id) ?? undefined : undefined}
             />
           );
         })}
@@ -318,10 +396,22 @@ function Board({ boardId }: { boardId: string }): ReactElement {
               setStickyColor(doc, id, color);
               undoRef.current?.boundary();
             }}
+            textSize={
+              selectedObjects.length === 1 && selectedObjects[0].type === 'text'
+                ? textSnapshot(doc, selectedObjects[0].id)?.size
+                : undefined
+            }
+            onTextSize={changeTextSize}
           />
         </div>
       )}
-      <Toolbar onCreateSticky={createStickyAtCenter} disabled={!editable} undo={undoApi} />
+      <Toolbar
+        tool={tool}
+        onTool={setTool}
+        onCreateSticky={createStickyAtCenter}
+        disabled={!editable}
+        undo={undoApi}
+      />
       <ZoomControls
         zoomPercent={zoomPercent(camera.camera)}
         canZoomIn={canZoomIn(camera.camera)}

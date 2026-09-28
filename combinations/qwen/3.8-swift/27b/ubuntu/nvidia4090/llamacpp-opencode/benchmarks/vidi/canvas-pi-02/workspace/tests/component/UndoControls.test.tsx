@@ -69,7 +69,16 @@ function ButtonsHarness({ controller, canEdit = true }: { controller: UndoContro
 
 function KeysHarness({ controller, canEdit = true }: { controller: UndoController; canEdit?: boolean }) {
   const doc = new Y.Doc();
-  useBoardKeys({ doc, selection: fakeSelection(), snapshot: objectsSnapshot(doc), canEdit, undo: controller });
+  useBoardKeys({
+    doc,
+    selection: fakeSelection(),
+    snapshot: objectsSnapshot(doc),
+    canEdit,
+    undo: controller,
+    tool: 'select',
+    setTool: () => {},
+    onCreateStickyCenter: () => {},
+  });
   return null;
 }
 

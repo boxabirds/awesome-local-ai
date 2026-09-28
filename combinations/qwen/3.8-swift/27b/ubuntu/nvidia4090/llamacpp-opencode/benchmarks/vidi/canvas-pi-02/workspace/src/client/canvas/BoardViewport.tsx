@@ -34,6 +34,14 @@ export interface BoardViewportProps {
    * panning (TC-21).
    */
   marquee?: MarqueeApi | null;
+  /** Story 9: the Text tool is active. The cursor becomes 'text'; pointer-
+   *  down no longer pans/marquees and a click — on the empty board OR on an
+   *  object (the click bubbles through) — calls onTextClick with the local
+   *  point. Empty-board double-clicks are suppressed. */
+  textToolActive?: boolean;
+  /** Story 9: a click while the Text tool is active, with the viewport-local
+   *  screen point. */
+  onTextClick?(point: Point): void;
 }
 
 function positiveMod(value: number, modulus: number): number {
@@ -52,6 +60,8 @@ export function BoardViewport({
   onDblClickEmpty,
   onEmptyClick,
   marquee,
+  textToolActive,
+  onTextClick,
 }: BoardViewportProps): ReactElement {
   const containerRef = useRef<HTMLDivElement>(null);
   const worldRef = useRef<HTMLDivElement>(null);
@@ -66,6 +76,10 @@ export function BoardViewport({
   onEmptyClickRef.current = onEmptyClick;
   const onDblClickEmptyRef = useRef(onDblClickEmpty);
   onDblClickEmptyRef.current = onDblClickEmpty;
+  const textToolActiveRef = useRef(textToolActive ?? false);
+  textToolActiveRef.current = textToolActive ?? false;
+  const onTextClickRef = useRef(onTextClick);
+  onTextClickRef.current = onTextClick;
 
   // Escape cancels a live marquee (story 7, sel.marquee_ui).
   useEffect(() => {
@@ -167,6 +181,9 @@ export function BoardViewport({
   // Drag starts only on empty board space (the viewport or world layer
   // themselves), so later object stories can stop propagation on their nodes.
   const onPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+    // Story 9: the Text tool never pans/marquees; the click below creates
+    // the text.
+    if (textToolActiveRef.current) return;
     if (!onEmptySpace(e)) return;
     e.currentTarget.setPointerCapture(e.pointerId);
     // Shift+drag on empty space starts the marquee (story 7); a plain drag
@@ -210,10 +227,19 @@ export function BoardViewport({
   };
 
   // Double-click on empty space creates a note (story 2); double-clicks on
-  // notes are stopped by the note itself.
+  // notes are stopped by the note itself. Story 9: suppressed while the Text
+  // tool is active (a click already created the text).
   const onDoubleClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (textToolActiveRef.current) return;
     if (!onEmptySpace(e)) return;
     onDblClickEmptyRef.current?.(toLocal(e));
+  };
+
+  // Story 9: a Text-tool click (on the empty board or on an object — clicks
+  // bubble) creates a text at the point.
+  const onClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (!textToolActiveRef.current) return;
+    onTextClickRef.current?.(toLocal(e));
   };
 
   return (
@@ -227,6 +253,8 @@ export function BoardViewport({
         backgroundImage: `radial-gradient(circle, ${GRID_DOT_COLOR} ${GRID_DOT_RADIUS_PX}px, transparent ${GRID_DOT_RADIUS_PX + 0.5}px)`,
         backgroundSize: `${spacing}px ${spacing}px`,
         backgroundPosition: `${offsetX}px ${offsetY}px`,
+        // Story 9: the Text tool shows the text cursor.
+        cursor: textToolActiveRef.current ? 'text' : undefined,
       }}
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}
@@ -234,6 +262,7 @@ export function BoardViewport({
       onPointerCancel={finishPan}
       onLostPointerCapture={finishPan}
       onDoubleClick={onDoubleClick}
+      onClick={onClick}
     >
       <div
         ref={worldRef}

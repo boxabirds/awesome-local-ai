@@ -13,6 +13,7 @@ import type { Point } from '../../shared/geometry';
 import { getObjectType } from '../objects/registry';
 import type { UndoController } from './undo';
 import type { SelectionApi } from './useSelection';
+import type { Tool } from './useTool';
 
 interface BoardKeysOptions {
   doc: Y.Doc;
@@ -22,6 +23,13 @@ interface BoardKeysOptions {
   /** Personal undo history (story 8): undo/redo shortcuts and step
    *  boundaries around the nudge/delete operations. */
   undo?: UndoController;
+  /** Story 9: the active board tool. */
+  tool: Tool;
+  /** Story 9: switch the board tool (V → select, T → text, Escape → select). */
+  setTool(tool: Tool): void;
+  /** Story 9: the N shortcut creates a sticky at the view centre (story 2
+   *  behaviour preserved). */
+  onCreateStickyCenter(): void;
 }
 
 function isTypingTarget(target: EventTarget | null): boolean {
@@ -39,7 +47,7 @@ export function useBoardKeys(opts: BoardKeysOptions): void {
 
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent): void => {
-      const { doc, selection, snapshot, canEdit, undo } = ref.current;
+      const { doc, selection, snapshot, canEdit, undo, setTool, onCreateStickyCenter } = ref.current;
 
       if (selection.editingId !== null) return; // the editor owns the keyboard
       if (isTypingTarget(e.target)) return;
@@ -51,8 +59,28 @@ export function useBoardKeys(opts: BoardKeysOptions): void {
         return;
       }
 
+      // Story 9 tool shortcuts: plain keys only (never with modifiers, so
+      // Ctrl+V paste etc. are untouched); they never fire while an editor
+      // has focus — the guards above return first.
+      if (!e.ctrlKey && !e.metaKey && !e.altKey) {
+        if (e.key === 'v' || e.key === 'V') {
+          setTool('select');
+          return;
+        }
+        if (e.key === 't' || e.key === 'T') {
+          if (canEdit) setTool('text');
+          return;
+        }
+        if (e.key === 'n' || e.key === 'N') {
+          if (canEdit) onCreateStickyCenter();
+          return;
+        }
+      }
+
       // Clear selection (also ends editing, which is already null here).
       if (e.key === 'Escape') {
+        // Story 9: the Text tool reverts to Select on Escape (text.tool).
+        if (ref.current.tool === 'text') setTool('select');
         selection.clear();
         return;
       }

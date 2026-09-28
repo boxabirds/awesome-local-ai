@@ -66,6 +66,13 @@ export function SelectionOverlay(props: SelectionOverlayProps): ReactElement | n
   if (box === null) return null;
 
   const resizable = selected.some((o) => getObjectType(o.type)?.resizable === true);
+  // Story 9: a selection where EVERY object is a horizontal-resize type
+  // (single text object) shows only the e/w handles (text.resize); any
+  // other selection keeps the story 7 bounding-box handles.
+  const horizontalOnly =
+    selected.length > 0 &&
+    selected.every((o) => getObjectType(o.type)?.handles === 'horizontal');
+  const visibleHandles = !resizable ? [] : horizontalOnly ? (['e', 'w'] as const) : HANDLES;
   const origin = worldToScreen(props.camera, { x: box.x, y: box.y });
   const w = box.width * props.camera.zoom;
   const h = box.height * props.camera.zoom;
@@ -85,8 +92,7 @@ export function SelectionOverlay(props: SelectionOverlayProps): ReactElement | n
         zIndex: 20,
       }}
     >
-      {resizable &&
-        HANDLES.map((handle) => {
+      {visibleHandles.map((handle) => {
           const pos = handleOffset(handle, w, h);
           return (
             <button

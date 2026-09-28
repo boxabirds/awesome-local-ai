@@ -154,3 +154,26 @@ export const UNDO_CAPTURE_TIMEOUT_MS = 500;
 /** Maximum steps a personal undo history keeps; the oldest step is
  *  discarded beyond this (undo.limit). */
 export const UNDO_MAX_STEPS = 200;
+
+/* --- Story 9: free text anywhere on the board --- */
+
+/** Maximum automatic width (board units): auto-width text wraps beyond it. */
+export const TEXT_MAX_AUTO_WIDTH_WORLD = 600;
+/** Minimum width (board units) a fixed width may take (side handle drag). */
+export const TEXT_MIN_WIDTH_WORLD = 40;
+/** Maximum characters a text object may hold (text.limit). */
+export const TEXT_MAX_CHARS = 5000;
+/** Text size presets: font size in board units (text.size). */
+export const TEXT_SIZES = { S: 14, M: 20, L: 32, XL: 56 } as const;
+export type TextSize = keyof typeof TEXT_SIZES;
+/** Size of a newly created text object. */
+export const DEFAULT_TEXT_SIZE: TextSize = 'M';
+/** Line-height multiplier (height = lines × size × this). */
+export const TEXT_LINE_HEIGHT = 1.3;
+/** The board's standard sans-serif font for text objects. */
+export const TEXT_FONT_FAMILY = 'Inter, system-ui, sans-serif';
+/** Horizontal padding (board units) inside a text box, each side. */
+export const TEXT_PADDING_WORLD = 4;
+/** Average glyph width as a fraction of the font size; the measurement
+ *  fallback when no canvas is available (jsdom, workers). */
+export const TEXT_GLYPH_WIDTH_RATIO = 0.6;

@@ -1,3 +1,95 @@
+commit 542bb4cf342ccd60dfd7fd4d5478c8e72122311c
+vidi-agent  Mon Sep 28 10:34:31 2026 +0100
+
+    story 9: Write free text anywhere on the board
+
+
+ NOTES.md                              |  68 ++++++++
+ src/client/canvas/testHooks.ts        |  25 +++
+ tests/component/text-objects.test.tsx |   4 +-
+ tests/component/text-tool.test.tsx    |   5 +-
+ tests/e2e/text.spec.ts                | 283 ++++++++++++++++++++++++++++++++++
+ 5 files changed, 381 insertions(+), 4 deletions(-)
+commit d3467d14f8c2091b60bcb375a2a1fea158f28011
+vidi-agent  Mon Sep 28 10:19:09 2026 +0100
+
+    story 9 (tasks 7, 9): component tests for the Text tool and text objects
+
+
+ src/client/BoardPage.tsx              |  18 ++
+ tests/component/text-objects.test.tsx | 316 ++++++++++++++++++++++++++++++++++
+ tests/component/text-tool.test.tsx    | 221 ++++++++++++++++++++++++
+ 3 files changed, 555 insertions(+)
+commit 5dd5edc0b5d6dbdfd21b7b1128c2fee0a27af224
+vidi-agent  Mon Sep 28 10:14:01 2026 +0100
+
+    story 9 (task 6): text tool, TextObject, toolbar, resize wiring
+
+
+ src/client/BoardPage.tsx                |  84 +++++++++++++--
+ src/client/board/SelectionBar.tsx       |  31 ++++--
+ src/client/board/SelectionOverlay.tsx   |  10 +-
+ src/client/board/Toolbar.tsx            |  76 +++++++++----
+ src/client/board/useBoardKeys.ts        |  30 +++++-
+ src/client/board/useTool.ts             |  31 ++++++
+ src/client/board/useTransformGesture.ts | 100 +++++++++++++++--
+ src/client/canvas/BoardViewport.tsx     |  31 +++++-
+ src/client/canvas/testHooks.ts          |  45 ++++++++
+ src/client/objects/StickyTextEditor.tsx | 153 +++++---------------------
+ src/client/objects/TextEditor.tsx       | 183 ++++++++++++++++++++++++++++++++
+ src/client/objects/TextObject.tsx       | 113 ++++++++++++++++++++
+ src/client/objects/TextToolbar.tsx      |  63 +++++++++++
+ src/client/objects/registry.tsx         |  30 +++++-
+ src/client/styles.css                   | 166 +++++++++++++++++++++++++++++
+ tests/component/UndoControls.test.tsx   |  11 +-
+ 16 files changed, 984 insertions(+), 173 deletions(-)
+commit c38a4c8eb4b2cc55c2626d8a31a399af1c6b92d4
+vidi-agent  Mon Sep 28 09:56:25 2026 +0100
+
+    story 9 (task 5): box sync component tests (TC-12, TC-13)
+
+
+ tests/component/TextBoxSync.test.tsx | 177 +++++++++++++++++++++++++++++++++++
+ 1 file changed, 177 insertions(+)
+commit b41da5a1aa54439b9700ab9d1ee61d5d282a30b8
+vidi-agent  Mon Sep 28 09:55:08 2026 +0100
+
+    story 9 (task 4): implement text layout and local-only box sync
+
+
+ src/client/objects/textLayout.ts     | 130 ++++++++++++++++++++++++++++++++---
+ src/client/objects/useTextBoxSync.ts |  58 ++++++++++++++++
+ src/shared/objects/text.ts           |   8 ++-
+ 3 files changed, 186 insertions(+), 10 deletions(-)
+commit 24572d2bfa061867d446075eb49f163ee6d815be
+vidi-agent  Mon Sep 28 09:52:38 2026 +0100
+
+    story 9 (task 3): text layout unit tests first with fake measurer (TC-07 to TC-11, TC-32)
+
+
+ src/client/objects/textLayout.ts |  47 ++++++++++++++++
+ tests/unit/text-layout.test.ts   | 112 +++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 159 insertions(+)
+commit ef4dc6aa5a60bb3e7c90f2f3022346d564b442d7
+vidi-agent  Mon Sep 28 09:51:38 2026 +0100
+
+    story 9 (task 2): implement text object model and shared text-edit helpers
+
+
+ src/shared/objects/text.ts | 163 ++++++++++++++++++++++++++++++++++-----------
+ 1 file changed, 124 insertions(+), 39 deletions(-)
+commit 98eb9d9b4cf5dc1d948595f1ce629493d9168948
+vidi-agent  Mon Sep 28 09:50:40 2026 +0100
+
+    story 9 (task 1): text model unit tests first (TC-01 to TC-06) + TEXT_* settings + stubs
+
+
+ src/client/objects/StickyText.ts |  61 ++---------
+ src/shared/config.ts             |  23 +++++
+ src/shared/objects/text.ts       | 123 ++++++++++++++++++++++
+ src/shared/text-edit.ts          |  66 ++++++++++++
+ tests/unit/text-model.test.ts    | 215 +++++++++++++++++++++++++++++++++++++++
+ 5 files changed, 435 insertions(+), 53 deletions(-)
 commit 11c3fb48ba95dccbe1efa8efc75d3e53325baa30
 vidi-agent  Mon Sep 28 09:29:56 2026 +0100
 

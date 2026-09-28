@@ -626,3 +626,169 @@ body {
   opacity: 0.5;
   cursor: not-allowed;
 }
+
+/* --- Story 9: free text anywhere on the board --- */
+
+/* Text tool button: the pressed tool is highlighted. */
+.toolbar-tool[aria-pressed='true'] {
+  background: #dbeafe;
+  border-color: #2563eb;
+  color: #1d4ed8;
+}
+
+.toolbar button:disabled {
+  cursor: default;
+  color: #94a3b8;
+  background: #f8fafc;
+}
+
+/* A text object in the world layer: the box is the stored (measured) size;
+   font family/size/line-height are set inline by the component. */
+.text-object {
+  position: absolute;
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+  color: #1f2937;
+}
+
+.text-object.text-object--dragging {
+  cursor: grabbing;
+}
+
+/* Blue selection outline (story 7 convention). */
+.text-object[data-selected='true'] {
+  outline: 2px solid #2563eb;
+}
+
+.text-object:focus-visible {
+  outline: 2px solid #2563eb;
+  outline-offset: 2px;
+}
+
+.text-object[data-editing='true'] {
+  cursor: text;
+}
+
+/* The displayed text: left-aligned, the measured lines, 4px padding each
+   side (TEXT_PADDING_WORLD). Overflow is allowed: a single over-long word
+   overflows instead of splitting (pre-wrap semantics). */
+.text-object-text {
+  position: absolute;
+  inset: 4px;
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
+  text-align: left;
+  overflow: visible;
+  pointer-events: none;
+}
+
+/* The editor fills the object box (the box already carries the padding via
+   the inset below). */
+.text-editor {
+  position: absolute;
+  inset: 0;
+}
+
+.text-editor textarea {
+  position: absolute;
+  inset: 4px;
+  border: none;
+  outline: none;
+  background: transparent;
+  resize: none;
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
+  text-align: left;
+  overflow: hidden;
+  font-family: inherit;
+  color: inherit;
+  cursor: text;
+}
+
+/* The sticky note editor is a TextEditor too; it keeps the story 2
+   geometry (12px inset, centred). These rules come after the text-editor
+   ones above and restore the sticky appearance. */
+.sticky-editor,
+.sticky-editor textarea {
+  text-align: center;
+}
+
+.sticky-editor textarea {
+  inset: 12px;
+  line-height: 1.25;
+}
+
+/* The text object's selection toolbar (above a single selected text). */
+.text-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 8px;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.12);
+}
+
+.text-toolbar-size {
+  appearance: none;
+  min-width: 26px;
+  height: 24px;
+  padding: 0 5px;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  background: #ffffff;
+  color: #0f172a;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.text-toolbar-size:hover:not(:disabled) {
+  background: #f1f5f9;
+}
+
+.text-toolbar-size:focus-visible {
+  outline: 2px solid #2563eb;
+  outline-offset: 1px;
+}
+
+/* The current size is pressed/highlighted. */
+.text-toolbar-size[aria-pressed='true'] {
+  background: #dbeafe;
+  border-color: #2563eb;
+  color: #1d4ed8;
+}
+
+.text-toolbar-size:disabled {
+  cursor: default;
+  color: #94a3b8;
+  background: #f8fafc;
+}
+
+.text-toolbar-delete {
+  border: none;
+  background: transparent;
+  padding: 3px;
+  margin-left: 2px;
+  color: #334155;
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+  border-radius: 4px;
+}
+
+.text-toolbar-delete:hover:not(:disabled) {
+  color: #b91c1c;
+}
+
+.text-toolbar-delete:focus-visible {
+  outline: 2px solid #2563eb;
+  outline-offset: 1px;
+}
+
+.text-toolbar-delete:disabled {
+  cursor: default;
+  opacity: 0.5;
+}

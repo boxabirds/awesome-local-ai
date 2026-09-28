@@ -14,6 +14,7 @@ import {
   setStickyColor,
 } from '../../shared/board-model';
 import { STICKY_COLORS, type StickyColor } from '../../shared/config';
+import { getTextContent, textSnapshot } from '../../shared/objects/text';
 
 export interface Vidi6TestApi {
   /** Current connection badge state (story 3): connecting | connected |
@@ -34,6 +35,31 @@ export interface Vidi6TestApi {
     text: string;
     z: number;
   }>;
+  /** Snapshot of every object on the board (all known types). */
+  getAllObjects(): Array<{
+    id: string;
+    type: string;
+    x: number;
+    y: number;
+    width: number | null;
+    height: number | null;
+    text: string;
+    z: number;
+  }>;
+  /** Story 9: every text object with its extended fields (size/widthMode). */
+  getTextObjects(): Array<{
+    id: string;
+    x: number;
+    y: number;
+    width: number | null;
+    height: number | null;
+    text: string;
+    size: string | null;
+    widthMode: 'auto' | 'fixed' | null;
+    z: number;
+  }>;
+  /** Story 9: sets a text object's text (test seeding; replaces content). */
+  setTextObjectText(id: string, text: string): boolean;
   /** Ids of all currently selected objects (empty when nothing is selected). */
   getSelectedIds(): string[];
   /** Id of the currently selected note, or null (only for a single note
@@ -105,6 +131,50 @@ export function installTestHooks(
           text: n.text,
           z: n.z,
         }));
+    },
+    getAllObjects() {
+      const doc = getDoc();
+      if (doc === null) return [];
+      return objectsSnapshot(doc).map((o) => ({
+        id: o.id,
+        type: o.type,
+        x: o.x,
+        y: o.y,
+        width: o.width ?? null,
+        height: o.height ?? null,
+        text: o.text,
+        z: o.z,
+      }));
+    },
+    getTextObjects() {
+      const doc = getDoc();
+      if (doc === null) return [];
+      return objectsSnapshot(doc)
+        .filter((o) => o.type === 'text')
+        .map((o) => {
+          const snap = textSnapshot(doc, o.id);
+          return {
+            id: o.id,
+            x: o.x,
+            y: o.y,
+            width: o.width ?? null,
+            height: o.height ?? null,
+            text: o.text,
+            size: snap?.size ?? null,
+            widthMode: snap?.widthMode ?? null,
+            z: o.z,
+          };
+        });
+    },
+    setTextObjectText(id, text) {
+      const doc = getDoc();
+      if (doc === null) return false;
+      if (textSnapshot(doc, id) === null) return false;
+      const y = getTextContent(doc, id);
+      if (y === undefined) return false;
+      y.delete(0, y.length);
+      if (text !== '') y.insert(0, text);
+      return true;
     },
     getSelectedIds() {
       return getSelectedIds();

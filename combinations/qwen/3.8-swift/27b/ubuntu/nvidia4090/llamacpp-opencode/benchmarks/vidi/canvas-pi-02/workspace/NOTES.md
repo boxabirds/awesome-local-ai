@@ -476,6 +476,74 @@ and the e2e trio TC-22…24).
 The e2e spec passes in chromium, firefox and webkit. The pre-existing
 live-collab TC-23/TC-25 flake is unchanged.
 
+## Story 9: Write free text anywhere on the board
+
+### How it works
+
+- **Model** (`src/shared/objects/text.ts`): a text object stores `text`,
+  `size` (`S|M|L|XL`), the measured `width`/`height` and `widthMode`
+  (`auto` | `fixed`). `createText` inserts an empty object with the default
+  auto box. `setTextWidthFixed` (drag) and `setTextSize` (toolbar) remeasure
+  through the client and write `width`/`height` back; `deleteIfEmpty`
+  removes a text whose content was cleared. All writes go through
+  `LOCAL_ORIGIN` transactions so personal undo history stays clean (story 8).
+- **Layout** (`src/client/objects/textLayout.ts`): a pure word-wrap over a
+  `TextMeasureContext` (canvas `measureText` in the browser, a
+  `TEXT_GLYPH_WIDTH_RATIO` estimate fallback in jsdom). Auto width is
+  `min(longest line + 2×padding, TEXT_MAX_AUTO_WIDTH_WORLD)` and height is
+  `line count × fontPx × TEXT_LINE_HEIGHT`. Fixed width clamps to
+  `TEXT_MIN_WIDTH_WORLD`.
+- **Tool** (`useTool`): `select` (default) and `text` (one-shot — creating
+  a text reverts to `select`). `V`/`T` shortcuts; `Escape` reverts `text`
+  to `select`; `N` still creates a sticky at the centre (regression kept).
+  Creation: Text tool + click → `createTextAtScreen` at the world point.
+- **Editing**: double-click (or clicking a text with the Text tool) opens
+  the shared `TextEditor` (a `textarea`, `white-space: pre-wrap`, no
+  placeholder, no char counter). Enter inserts a newline (no commit),
+  Escape commits. `StickyTextEditor` is now a thin wrapper over the shared
+  editor, preserving its test ids and centred styling.
+- **Sizing** (`useTextBoxSync`): every text render remeasures through the
+  client's canvas and writes `width`/`height` back only when they drift
+  from the stored values — so typing, resizing and font changes keep the
+  box in sync, and remote text arrives with its box already measured.
+- **Toolbar**: a single text selection shows the text toolbar (S/M/L/XL +
+  Delete text). `size` is a first-class field (not a derived CSS class) so
+  undo/redo and the toolbar stay in sync; changing size re-measures the box.
+- **Resize**: a single text exposes **horizontal-only** handles (`e`/`w`;
+  the registry spec `handles: 'horizontal'` drives `SelectionOverlay`).
+  The `textWidth` gesture sets `widthMode: 'fixed'` and re-measures height.
+  Mixed sticky+text selections still resize with the 8-handle sticky path
+  (aspect-locked for stickies; text keeps its own width).
+- **Abandoned text**: creating with the Text tool and pressing Escape
+  before typing calls `deleteIfEmpty` (inside the creation's undo
+  boundary), so an empty click leaves no object and nothing to undo.
+
+### Caveats
+
+- Component tests run in jsdom, which has no real canvas `measureText`:
+  the layout falls back to the `TEXT_GLYPH_WIDTH_RATIO` estimator there,
+  so exact pixel widths are asserted only in e2e (real canvas) and in
+  unit tests (fake measurer). The estimator keeps component tests
+  deterministic.
+- The `dev:test` Vite build exposes `getTextObjects`/`setTextObjectText`
+  test hooks (dead-code-eliminated in production).
+- E2E runs against `wrangler dev`, which occasionally returns
+  `500 Network connection lost` from the board-initialise endpoint under
+  load; re-running a test that fails at `openBoard`/`newBoard` with that
+  exact error is a flake, not a product regression.
+- The pre-existing live-collab flake (TC-23/TC-25/TC-26 in
+  `live-collab.spec.ts`) is unchanged by this story.
+
+### Test matrix (story 9)
+
+| Layer | Command | Added |
+| ----- | ------- | ----- |
+| Unit | `npm run test:unit` | text model (TC-01…06 + stale id), layout (TC-07…11, 32) |
+| Component | `npm run test:component` | box sync (TC-12/13), tool (TC-14…18), text objects (TC-19…25) |
+| E2E | `npm run test:e2e` | TC-26 (long annotation width/lines), TC-27 (e/w rewrap), TC-28 (title + marquee + delete + undo), TC-29 (two contexts typing), TC-30 (5-way concurrent creation), TC-31 (abandoned text) |
+
+The e2e spec passes in chromium, firefox and webkit.
+
 ## Next story
 
 Story 6 (presence: cursors and "who's here") rides the same provider;

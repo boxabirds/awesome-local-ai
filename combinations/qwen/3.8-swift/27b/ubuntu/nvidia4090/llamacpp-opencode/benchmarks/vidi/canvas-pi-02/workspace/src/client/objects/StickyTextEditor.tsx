@@ -1,14 +1,15 @@
-// The sticky note's text editor (story 2, sticky.text): a transparent
-// textarea diffed minimally into the note's Y.Text. Every input event is
-// committed immediately, so ending editing never writes anything extra —
-// text typed so far is already in the document.
+// The sticky note's text editor (story 2, sticky.text): a thin wrapper
+// around the shared TextEditor (story 9) that keeps the sticky behaviour
+// exactly as story 7/8 left it: 1,000-char limit, centred font auto-fit
+// size, the character counter, and onEnd semantics (the caller decides the
+// next selection state).
 
-import { useCallback, useEffect, useRef, type ReactElement } from 'react';
+import type { ReactElement } from 'react';
 import * as Y from 'yjs';
-import { LOCAL_ORIGIN } from '../../shared/board-model';
 import { STICKY_TEXT_MAX_CHARS } from '../../shared/config';
 import type { UndoController } from '../board/undo';
-import { applyTextDiff, clampToLimit, counterVisible } from './StickyText';
+import { counterVisible } from './StickyText';
+import { TextEditor } from './TextEditor';
 
 export interface StickyTextEditorProps {
   ytext: Y.Text;
@@ -16,129 +17,29 @@ export interface StickyTextEditorProps {
   /** The editor has ended (Escape or blur); the caller decides the next
    *  selection/editing state (story 7 keeps the selection on Escape). */
   onEnd(): void;
-  /** Personal undo history (story 8, undo.boundaries): boundary() on edit
-   *  start/end and Ctrl/Cmd+Z inside the editor undoes typing via the
-   *  controller (never the browser's native textarea undo). */
+  /** Personal undo history (story 8, undo.boundaries). */
   undo?: UndoController;
 }
 
 export function StickyTextEditor(props: StickyTextEditorProps): ReactElement {
-  const { ytext, fontPx, onEnd } = props;
-  const taRef = useRef<HTMLTextAreaElement>(null);
-  const composingRef = useRef(false);
-  const endedRef = useRef(false);
-  const lastRef = useRef('');
-  const undoRef = useRef(props.undo);
-  undoRef.current = props.undo;
-
-  // On mount: value from Y.Text, focused, caret at the end of the text.
-  // While editing, remote changes to the note's text are merged into the
-  // textarea (caret moved to the end) so a concurrent editor's characters are
-  // never deleted by this editor's next commit. Own commits (LOCAL_ORIGIN)
-  // are skipped: they are already reflected in the textarea.
-  useEffect(() => {
-    const ta = taRef.current;
-    if (!ta) return;
-    const initial = ytext.toString();
-    lastRef.current = initial;
-    ta.value = initial;
-    ta.focus();
-    ta.setSelectionRange(initial.length, initial.length);
-
-    const onRemoteChange = (_event: unknown, transaction: Y.Transaction): void => {
-      if (composingRef.current) return;
-      if (transaction.origin === LOCAL_ORIGIN) return;
-      ta.value = ytext.toString();
-      lastRef.current = ta.value;
-      ta.setSelectionRange(ta.value.length, ta.value.length);
-    };
-    ytext.observe(onRemoteChange);
-    // Edit start closes any in-flight capture window (undo.boundaries):
-    // typing in this note is one step, distinct from earlier actions.
-    undoRef.current?.boundary();
-    return () => ytext.unobserve(onRemoteChange);
-  }, [ytext]);
-
-  const commit = useCallback(
-    (value: string) => {
-      const kept = clampToLimit(value);
-      if (kept !== lastRef.current) {
-        applyTextDiff(ytext, kept, LOCAL_ORIGIN);
-        lastRef.current = kept;
-      }
-      // If the value was truncated to the limit, restore the caret to the
-      // end of the kept text.
-      const ta = taRef.current;
-      if (ta && ta.value.length > kept.length) {
-        ta.setSelectionRange(kept.length, kept.length);
-      }
-    },
-    [ytext],
-  );
-
-  const finish = useCallback(() => {
-    if (endedRef.current) return;
-    endedRef.current = true;
-    // Defensive flush: every input event already committed, so this is a
-    // no-op in practice (guards an uncommitted value, e.g. IME).
-    const ta = taRef.current;
-    if (ta && ta.value !== lastRef.current) commit(ta.value);
-    // Edit end closes the typing capture window (undo.boundaries): the
-    // typing burst is one step, and later actions start new steps.
-    undoRef.current?.boundary();
-    onEnd();
-  }, [commit, onEnd]);
-
-  const length = ytext.toString().length;
-
   return (
-    <div className="sticky-editor" data-testid="sticky-editor">
-      <textarea
-        ref={taRef}
-        data-testid="sticky-editor-input"
-        aria-label="Sticky note text"
-        spellCheck={false}
-        style={{ fontSize: fontPx }}
-        onChange={(e) => {
-          if (composingRef.current) return; // handled on compositionend
-          commit(e.currentTarget.value);
-        }}
-        onCompositionStart={() => {
-          composingRef.current = true;
-        }}
-        onCompositionEnd={(e) => {
-          composingRef.current = false;
-          commit(e.currentTarget.value);
-        }}
-        onKeyDown={(e) => {
-          if (e.key === 'Escape') {
-            e.preventDefault();
-            finish();
-            return;
-          }
-          // Ctrl/Cmd+Z (and redo variants) undo/redo via the personal
-          // history (undo.boundaries): preventDefault keeps the browser's
-          // native textarea undo from diverging from the Y.Text.
-          if ((e.ctrlKey || e.metaKey) && (e.key === 'z' || e.key === 'Z')) {
-            e.preventDefault();
-            if (e.shiftKey) undoRef.current?.redo();
-            else undoRef.current?.undo();
-            return;
-          }
-          if ((e.ctrlKey || e.metaKey) && (e.key === 'y' || e.key === 'Y')) {
-            e.preventDefault();
-            undoRef.current?.redo();
-            return;
-          }
-          // Enter intentionally not intercepted: it inserts a new line.
-        }}
-        onBlur={() => finish()}
-      />
-      {counterVisible(length) && (
-        <span className="sticky-counter" data-testid="sticky-char-counter">
-          {length}/{STICKY_TEXT_MAX_CHARS}
-        </span>
-      )}
-    </div>
+    <TextEditor
+      ytext={props.ytext}
+      maxChars={STICKY_TEXT_MAX_CHARS}
+      fontPx={props.fontPx}
+      onInput={() => {}}
+      onEnd={() => props.onEnd()}
+      className="text-editor sticky-editor"
+      undo={props.undo}
+      renderCounter={(length) =>
+        counterVisible(length) ? (
+          <span className="sticky-counter" data-testid="sticky-char-counter">
+            {length}/{STICKY_TEXT_MAX_CHARS}
+          </span>
+        ) : null
+      }
+      containerTestId="sticky-editor"
+      inputTestId="sticky-editor-input"
+    />
   );
 }

@@ -6,8 +6,9 @@
 
 import type { ReactElement } from 'react';
 import type { ObjectSnapshot } from '../../shared/board-model';
-import type { StickyColor } from '../../shared/config';
+import type { StickyColor, TextSize } from '../../shared/config';
 import { NoteToolbar } from '../objects/NoteToolbar';
+import { TextToolbar } from '../objects/TextToolbar';
 
 export interface SelectionBarProps {
   ids: ReadonlySet<string>;
@@ -15,6 +16,10 @@ export interface SelectionBarProps {
   disabled?: boolean;
   onDelete(): void;
   onColor(id: string, color: StickyColor): void;
+  /** Story 9: the size of the single selected text object (drives the
+   *  TextToolbar); undefined when the selection is not a single text. */
+  textSize?: TextSize;
+  onTextSize?(id: string, size: TextSize): void;
 }
 
 export function SelectionBar(props: SelectionBarProps): ReactElement | null {
@@ -23,24 +28,32 @@ export function SelectionBar(props: SelectionBarProps): ReactElement | null {
 
   // Exactly one sticky note: story 2's note toolbar, unchanged.
   if (objects.length === 1) {
-    const sticky = objects[0];
-    const color = sticky.color;
-    if (sticky.type === 'sticky' && color !== undefined) {
+    const single = objects[0];
+    const color = single.color;
+    if (single.type === 'sticky' && color !== undefined) {
       return (
         <NoteToolbar
           color={color}
           disabled={props.disabled}
-          onColor={(c) => props.onColor(sticky.id, c)}
+          onColor={(c) => props.onColor(single.id, c)}
           onDelete={props.onDelete}
         />
       );
     }
-    // A single non-sticky object gets no toolbar yet (stories 9-12).
+    // Story 9: a single text object gets the text toolbar (size + delete).
+    if (single.type === 'text' && props.textSize !== undefined && props.onTextSize !== undefined) {
+      return (
+        <TextToolbar
+          size={props.textSize}
+          disabled={props.disabled}
+          onSize={(s) => props.onTextSize?.(single.id, s)}
+          onDelete={props.onDelete}
+        />
+      );
+    }
+    // A single object of any other type gets no toolbar (stories 10-12).
     return null;
   }
-
-  // A single non-sticky object gets no toolbar yet (stories 9-12).
-  if (objects.length === 1) return null;
 
   return (
     <div
