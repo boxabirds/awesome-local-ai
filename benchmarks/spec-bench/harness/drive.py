@@ -121,6 +121,7 @@ MAX_TOOLCALL_TEXT_RESUMES = 3
 # person would: Ctrl-C the processes under the workspace. The agent then sees the tool end.
 TOOL_HANG_S = 10 * 60
 TOOL_HANG_POLL_S = 30
+KILL_GRACE_S = 2          # between SIGTERM and SIGKILL for a hung tool's process group
 TOOL_EVENT_TYPES = {"tool_execution_start", "tool_execution_update", "tool_use"}
 EVENT_TAIL_BYTES = 64 * 1024
 GIT_IDENTITY = {"GIT_AUTHOR_NAME": "vidi-agent", "GIT_AUTHOR_EMAIL": "agent@vidi.invalid",
@@ -372,11 +373,24 @@ def setup_workspace(ws: Path) -> None:
     sh(["git", "commit", "-qm", "harness: empty repository with spec"], ws, GIT_IDENTITY)
 
 
+def link_agent_browsers(home: Path, real_home: Path) -> None:
+    """Put the agents' browsers where Playwright looks by default in the agent's home, as well as in
+    PLAYWRIGHT_BROWSERS_PATH, so an agent that checks `~/Library/Caches/ms-playwright` (or
+    `~/.cache/ms-playwright`) finds them instead of searching the disk."""
+    default = hostenv.playwright_cache(home)
+    target = hostenv.agent_playwright_cache(real_home)
+    if default.is_symlink() or default.exists():
+        return
+    default.parent.mkdir(parents=True, exist_ok=True)
+    default.symlink_to(target, target_is_directory=True)
+
+
 def agent_env(work: Path) -> dict:
     """Isolated HOME + XDG so the user's own config, skills and plugins never reach the agent."""
     home = work / "agent-home"
     home.mkdir(parents=True, exist_ok=True)
     real_home = Path.home()
+    link_agent_browsers(home, real_home)
     return {
         "HOME": str(home),
         # Node tools (OpenCode, pi) trust $PWD; an inherited one points into the denied repo.
@@ -470,7 +484,7 @@ def tool_hang_check(events: Path, ws: Path, idle_s: float = TOOL_HANG_S) -> bool
         return False
     if _last_event_type(events) not in TOOL_EVENT_TYPES:
         return False
-    kill_pids(workspace_pids(ws, spare_agent=True))
+    kill_workspace_tools(ws)
     return True
 
 
@@ -729,6 +743,14 @@ def run_story_agent(client, ws: Path, env: dict, model_id: str, prompt: str, eve
 AGENT_PROC_MARKERS = ("pi-coding-agent", "sandbox-exec", "opencode", "claude ")
 
 
+def is_agent_process(pid: int, run_dir: Path) -> bool:
+    """The agent itself, by its command line with the run's own directory removed: combination
+    directories are named after their client (mlxserve-opencode), so the path alone would match."""
+    cmd = subprocess.run(["ps", "-o", "command=", "-p", str(pid)], capture_output=True, text=True).stdout.strip()
+    cmd = cmd.replace(str(run_dir), "")
+    return cmd == "pi" or cmd.startswith("pi ") or any(m in cmd for m in AGENT_PROC_MARKERS)
+
+
 def workspace_pids(ws: Path, spare_agent: bool = False) -> set[int]:
     """Processes running in the workspace: its path in their command line OR their working directory
     inside it. Agents start servers with relative paths (`node node_modules/vite/bin/vite.js preview`),
@@ -744,10 +766,7 @@ def workspace_pids(ws: Path, spare_agent: bool = False) -> set[int]:
             pids.add(pid)
     pids.discard(os.getpid())
     if spare_agent:
-        def is_agent(p: int) -> bool:
-            cmd = subprocess.run(["ps", "-o", "command=", "-p", str(p)], capture_output=True, text=True).stdout.strip()
-            return cmd == "pi" or cmd.startswith("pi ") or any(m in cmd for m in AGENT_PROC_MARKERS)
-        pids = {p for p in pids if not is_agent(p)}
+        pids = {p for p in pids if not is_agent_process(p, ws.resolve().parent)}
     return pids
 
 
@@ -759,9 +778,61 @@ def kill_pids(pids: set[int]) -> None:
             pass
 
 
+def _pgid(pid: int) -> int | None:
+    try:
+        return os.getpgid(pid)
+    except (ProcessLookupError, PermissionError):
+        return None
+
+
+def kill_process_groups(pids: set[int], spare_pgids: set[int]) -> None:
+    """Kill each process with everything in its process group. A tool's children can leave the
+    workspace (`find /` changes directory as it walks) yet still hold the tool's output pipe, so
+    killing only the matching processes leaves the tool call hanging. Groups in spare_pgids (the
+    harness's own, the agent's) are never signalled as a whole; their members are killed one by one."""
+    groups, singles = set(), set()
+    for p in pids:
+        g = _pgid(p)
+        if g is None:
+            continue
+        if g in spare_pgids:
+            singles.add(p)
+        else:
+            groups.add(g)
+    for sig in (signal.SIGTERM, signal.SIGKILL):
+        for g in groups:
+            try:
+                os.killpg(g, sig)
+            except (ProcessLookupError, PermissionError):
+                pass
+        if sig == signal.SIGTERM:
+            kill_pids(singles)
+            groups = {g for g in groups if _group_alive(g)}
+            if not groups:
+                return
+            time.sleep(KILL_GRACE_S)
+
+
+def _group_alive(pgid: int) -> bool:
+    try:
+        os.killpg(pgid, 0)
+        return True
+    except (ProcessLookupError, PermissionError):
+        return False
+
+
+def kill_workspace_tools(ws: Path) -> None:
+    """The hang guard's kill: every tool process in the workspace with its whole group, sparing the
+    agent (and its group) and the harness."""
+    everything = workspace_pids(ws)
+    tools = workspace_pids(ws, spare_agent=True)
+    spare = {os.getpgrp()} | {g for g in map(_pgid, everything - tools) if g is not None}
+    kill_process_groups(tools, spare)
+
+
 def kill_strays(ws: Path) -> None:
     """Dev servers or test runners the agent left running would skew the gates and the next story."""
-    kill_pids(workspace_pids(ws))
+    kill_process_groups(workspace_pids(ws), {os.getpgrp()})
 
 
 def _median(xs):
