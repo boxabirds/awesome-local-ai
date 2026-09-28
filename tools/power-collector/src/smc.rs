@@ -28,10 +28,12 @@ pub fn summarise(readings: &[(String, f64)]) -> Values {
 }
 
 /// A four-character SMC key as the SMC's big-endian u32.
+#[cfg_attr(not(target_os = "macos"), allow(dead_code))]
 pub fn fourcc(key: &str) -> u32 {
     key.bytes().fold(0, |acc, b| (acc << 8) | u32::from(b))
 }
 
+#[cfg_attr(not(target_os = "macos"), allow(dead_code))]
 pub fn from_fourcc(v: u32) -> String {
     v.to_be_bytes().iter().map(|&b| b as char).collect()
 }
