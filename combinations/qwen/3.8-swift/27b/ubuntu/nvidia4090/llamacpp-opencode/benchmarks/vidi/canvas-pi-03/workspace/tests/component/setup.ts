@@ -1,11 +1,27 @@
-import { expect } from 'vitest';
+import { expect, afterEach } from 'vitest';
 import * as jestDom from '@testing-library/jest-dom/matchers';
+import { cleanup } from '@testing-library/react';
 
 expect.extend(jestDom);
+
+// No vitest globals: disable @testing-library/react's auto-cleanup, so clean
+// up manually between tests.
+afterEach(() => {
+  cleanup();
+});
 
 // Mock pointer capture for jsdom
 Element.prototype.setPointerCapture = Element.prototype.setPointerCapture || function() {};
 Element.prototype.releasePointerCapture = Element.prototype.releasePointerCapture || function() {};
+
+// Mock ResizeObserver for jsdom (not implemented)
+if (typeof globalThis.ResizeObserver === 'undefined') {
+  (globalThis as any).ResizeObserver = class ResizeObserver {
+    observe() {}
+    unobserve() {}
+    disconnect() {}
+  };
+}
 
 // Mock PointerEvent for jsdom (not available in older jsdom versions)
 if (typeof globalThis.PointerEvent === 'undefined') {

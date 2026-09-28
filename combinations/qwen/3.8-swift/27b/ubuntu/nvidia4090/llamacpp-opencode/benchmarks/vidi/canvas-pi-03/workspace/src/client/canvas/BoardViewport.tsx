@@ -1,5 +1,6 @@
 import { useRef, useEffect, useCallback, type ReactNode, type JSX } from 'react';
 import type { Camera, Point } from './camera';
+import { screenToWorld } from './camera';
 import { GRID_SPACING_WORLD, WHEEL_ZOOM_SENSITIVITY } from '../../shared/config';
 
 // Delta mode conversion constants
@@ -23,6 +24,10 @@ export interface BoardViewportProps {
   zoomStepOut: () => void;
   reset: () => void;
   setCamera: (cam: Camera) => void;
+  /** Story 2: double-click on empty board space creates a sticky note centred on that world point. */
+  onCreateStickyAt: (world: Point) => void;
+  /** Story 2: a click (press+release without movement) on empty board space clears the selection. */
+  onEmptyClick: () => void;
 }
 
 export function BoardViewport(props: BoardViewportProps): JSX.Element {
@@ -42,6 +47,10 @@ export function BoardViewport(props: BoardViewportProps): JSX.Element {
   const camRef = useRef(props);
   camRef.current = props;
 
+  // Tracks a press that started on empty board space, so a release without
+  // meaningful movement counts as a click (clears the selection, story 2).
+  const emptyPressRef = useRef<{ x: number; y: number } | null>(null);
+
   // Pointer drag handlers
   const handlePointerDown = useCallback((e: React.PointerEvent) => {
     const target = e.target as HTMLElement;
@@ -49,6 +58,7 @@ export function BoardViewport(props: BoardViewportProps): JSX.Element {
     if (!container) return;
     if (target === container || target === worldRef.current) {
       container.setPointerCapture(e.pointerId);
+      emptyPressRef.current = { x: e.clientX, y: e.clientY };
       const rect = container.getBoundingClientRect();
       camRef.current.beginPan({ x: e.clientX - rect.left, y: e.clientY - rect.top });
     }
@@ -65,12 +75,34 @@ export function BoardViewport(props: BoardViewportProps): JSX.Element {
     const container = containerRef.current;
     if (container) container.releasePointerCapture(e.pointerId);
     camRef.current.endPan();
+    const press = emptyPressRef.current;
+    emptyPressRef.current = null;
+    if (press && Math.hypot(e.clientX - press.x, e.clientY - press.y) < 5) {
+      camRef.current.onEmptyClick();
+    }
   }, []);
 
   const handlePointerCancel = useCallback((e: React.PointerEvent) => {
     const container = containerRef.current;
     if (container) container.releasePointerCapture(e.pointerId);
+    emptyPressRef.current = null;
     camRef.current.endPan();
+  }, []);
+
+  // Double-click on empty board space creates a sticky note centred there
+  // (sticky.create_dblclick). Dblclicks on notes are stopped by the notes
+  // themselves, so only empty space reaches this handler.
+  const handleDoubleClick = useCallback((e: React.MouseEvent) => {
+    const target = e.target as HTMLElement;
+    const container = containerRef.current;
+    if (!container) return;
+    if (target !== container && target !== worldRef.current) return;
+    const rect = container.getBoundingClientRect();
+    const world = screenToWorld(camRef.current.camera, {
+      x: e.clientX - rect.left,
+      y: e.clientY - rect.top,
+    });
+    camRef.current.onCreateStickyAt(world);
   }, []);
 
   // Wheel handler (non-passive)
@@ -185,6 +217,7 @@ export function BoardViewport(props: BoardViewportProps): JSX.Element {
       onPointerUp={handlePointerUp}
       onPointerCancel={handlePointerCancel}
       onLostPointerCapture={handlePointerCancel}
+      onDoubleClick={handleDoubleClick}
     >
       <div
         ref={worldRef}
