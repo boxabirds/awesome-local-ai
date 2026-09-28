@@ -19,6 +19,19 @@ names a pack (`dbench submit … --pack benchmarks/<name>`).
 
 [EVALUATION-POLICY.md](EVALUATION-POLICY.md): what held-out tests may check, when a failure counts against the agent, and what every run reports. A pack meets it before it's used.
 
+## Known-good mode: one story on its own
+
+```sh
+benchmarks/spec-bench/harness/run.sh <install-id> --only 7 --from-run benchmarks/reference/vidi/opus-5.5/run-3 --run-id kg-07-01
+```
+
+Runs one story on another finished run's code as it was when the story before ended, so a stack's
+work on that story is measured without earlier mistakes carried in, in the time of one story instead of
+a whole run. The workspace keeps the reference run's history up to that point and nothing after, the
+held-out suite is run on the base first so regressions still count, and the summary is labelled
+diagnostic. It isn't mixed with full runs (EVALUATION-POLICY rule 7). The reference run must have been
+built from the same spec.
+
 ## What gets recorded
 
 Every run and story records its configuration, what the agent did, where the time went (model

@@ -948,3 +948,91 @@ def test_tool_call_as_text_resumes_are_capped(tmp_path, monkeypatch):
     _no_guard(monkeypatch)
     res = drive.run_story_agent(None, tmp_path, {}, "m", "go", ev)
     assert res["toolcall_text_resumes"] == drive.MAX_TOOLCALL_TEXT_RESUMES
+
+
+def _reference_run(tmp_path, spec_text="the spec"):
+    """A finished reference run: workspace.bundle with one commit per story, and metrics naming
+    each story's end commit, as a real run leaves them."""
+    import subprocess
+    ws, run = tmp_path / "ref-ws", tmp_path / "ref-run"
+    (ws / "spec").mkdir(parents=True)
+    (ws / "spec" / "prd.md").write_text(spec_text)
+    git = lambda *a: subprocess.run(["git", "-c", "user.name=t", "-c", "user.email=t@t", *a], cwd=ws,
+                                    check=True, capture_output=True, text=True).stdout.strip()
+    git("init", "-q", "-b", "main"); git("add", "-A"); git("commit", "-qm", "harness: empty repository with spec")
+    stories, processed = {}, []
+    for sid in (1, 2, 3):
+        (ws / f"story{sid}.ts").write_text(f"story {sid}")
+        git("add", "-A"); git("commit", "-qm", f"story {sid}: feature {sid}")
+        stories[str(sid)] = {"title": f"feature {sid}", "commit": git("rev-parse", "HEAD")}
+        processed.append({"id": sid, "title": f"feature {sid}", "status": "DONE", "ended_by": "agent"})
+    run.mkdir()
+    git("bundle", "create", str(run / "workspace.bundle"), "--all")
+    (run / "metrics.json").write_text(json.dumps({"stories": stories, "processed": processed}))
+    return run, stories
+
+
+def test_known_good_base_is_the_reference_runs_code_at_the_end_of_the_previous_story(tmp_path):
+    """EVALUATION-POLICY rule 7: known-good mode runs one story on another run's code as it was
+    when the previous story ended, with the earlier stories counted as processed."""
+    from drive import known_good_base
+    ref, stories = _reference_run(tmp_path)
+    base = known_good_base(ref, 3)
+    assert base["commit"] == stories["2"]["commit"]
+    assert [p["id"] for p in base["processed"]] == [1, 2]
+    assert all(p["ended_by"] == "known-good base" for p in base["processed"])
+    with pytest.raises(SystemExit, match="story 1"):
+        known_good_base(ref, 1)   # nothing before it: a full run from empty is the same thing
+    with pytest.raises(SystemExit, match="story 9"):
+        known_good_base(ref, 9)   # the reference run never got there
+
+
+def test_known_good_workspace_holds_no_trace_of_later_stories(tmp_path):
+    """The bundle holds the reference run's whole history: the agent must not be able to read how
+    the story it is about to build was done."""
+    import subprocess
+    from drive import known_good_base, setup_workspace_from
+    ref, stories = _reference_run(tmp_path)
+    spec = tmp_path / "ref-ws" / "spec"
+    ws = tmp_path / "work" / "workspace"
+    setup_workspace_from(ws, known_good_base(ref, 3), spec)
+    git = lambda *a: subprocess.run(["git", *a], cwd=ws, check=True, capture_output=True, text=True).stdout
+    assert git("rev-parse", "HEAD").strip() == stories["2"]["commit"]
+    assert git("branch", "--show-current").strip() == "main"
+    assert git("remote").strip() == ""
+    assert stories["3"]["commit"] not in git("rev-list", "--all", "--reflog")
+    assert subprocess.run(["git", "cat-file", "-e", stories["3"]["commit"]], cwd=ws).returncode != 0
+    assert not (ws / "story3.ts").exists() and (ws / "story2.ts").exists()
+
+
+def test_known_good_brings_an_older_reference_up_to_this_packs_spec(tmp_path):
+    """The reference may predate a spec revision (Opus run-3 is vidi-v1, the pack is now v1.1): the
+    agent works from today's spec either way, so the base gets it in a harness commit, recorded."""
+    import subprocess
+    from drive import known_good_base, setup_workspace_from
+    ref, stories = _reference_run(tmp_path, spec_text="an older spec")
+    current = tmp_path / "current-spec"
+    current.mkdir()
+    (current / "prd.md").write_text("the spec as it is now")
+    (current / ".DS_Store").write_bytes(b"finder noise")
+    ws = tmp_path / "work" / "workspace"
+    base = known_good_base(ref, 3)
+    setup_workspace_from(ws, base, current)
+    assert (ws / "spec" / "prd.md").read_text() == "the spec as it is now"
+    assert base["spec_updated"] is True
+    log = subprocess.run(["git", "log", "--format=%s", "-2"], cwd=ws, capture_output=True, text=True).stdout
+    assert log.splitlines()[0].startswith("harness: spec updated")
+    assert log.splitlines()[1] == "story 2: feature 2"
+    assert subprocess.run(["git", "status", "--porcelain"], cwd=ws, capture_output=True, text=True).stdout == ""
+
+
+def test_known_good_ignores_finder_files_when_comparing_specs(tmp_path):
+    from drive import known_good_base, setup_workspace_from
+    ref, _ = _reference_run(tmp_path)
+    current = tmp_path / "current-spec"
+    current.mkdir()
+    (current / "prd.md").write_text("the spec")
+    (current / ".DS_Store").write_bytes(b"finder noise")
+    base = known_good_base(ref, 3)
+    setup_workspace_from(tmp_path / "work" / "workspace", base, current)
+    assert base["spec_updated"] is False

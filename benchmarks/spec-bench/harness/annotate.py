@@ -59,7 +59,15 @@ def run_dirs(repo: Path) -> list[Path]:
     """Every recorded vidi run: combinations/**/benchmarks/vidi/<run> and benchmarks/reference/vidi/<model>/<run>."""
     found = [p.parent for p in repo.glob("combinations/**/benchmarks/vidi/*/metrics.json")]
     found += [p.parent for p in repo.glob("benchmarks/reference/vidi/*/*/metrics.json")]
-    return sorted(set(found))
+    return sorted(r for r in set(found) if not _known_good(r))
+
+
+def _known_good(run: Path) -> bool:
+    """A known-good run (EVALUATION-POLICY rule 7) is diagnostic: never reviewed beside full runs."""
+    try:
+        return bool(json.loads((run / "metrics.json").read_text()).get("known_good"))
+    except (OSError, json.JSONDecodeError):
+        return False
 
 
 def stack_of(run: Path, repo: Path) -> str:

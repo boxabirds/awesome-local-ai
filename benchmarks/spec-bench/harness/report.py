@@ -22,6 +22,21 @@ def load(run: Path) -> tuple[dict, dict]:
     return meta, json.loads((run / "metrics.json").read_text())
 
 
+SHORT_SHA = 7
+
+
+def known_good_note(m: dict) -> list[str]:
+    """EVALUATION-POLICY rule 7: a known-good run is never to be read as a full run."""
+    kg = m.get("known_good")
+    if not kg:
+        return []
+    return [f"**Known-good mode (diagnostic).** Story {kg['story']} only, built on `{kg['from_run']}` at commit "
+            f"`{kg['commit'][:SHORT_SHA]}` (its code when the story before ended). It measures that story on its own, "
+            "with no earlier mistakes carried in; not comparable with full runs."
+            + (" The reference was built from an older spec, so the base's spec was brought up to this pack's version."
+               if kg.get("spec_updated") else ""), ""]
+
+
 def fmt(x, nd=1):
     return "—" if x is None else (f"{x:.{nd}f}" if isinstance(x, float) else str(x))
 
@@ -98,6 +113,7 @@ def summary(run: Path) -> str:
              f"Model `{meta.get('model_id')}`, scope `{meta.get('scope')}`, effort `{meta.get('reasoning_effort')}`, "
              f"client {meta.get('client', 'opencode')} {meta.get('client_version') or meta.get('opencode', '')}, "
              f"host {meta.get('host')}.", "",
+             *known_good_note(m),
              *([history.render_per_story(run).rstrip(), ""] if history.render_per_story(run) else []),
              "| Story | Title | Status | Agent min | Requests | Prompt tok | Completion tok | TTFT med s | Decode tok/s med | Gate | Accept (cumulative) | Stalled | Resumes / nudges | Compactions | Max ctx | Conditions |",
              "|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|"]
