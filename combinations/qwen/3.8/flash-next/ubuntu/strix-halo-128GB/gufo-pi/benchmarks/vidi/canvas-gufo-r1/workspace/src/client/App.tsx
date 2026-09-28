@@ -6,7 +6,9 @@ import { useSelection } from './board/useSelection';
 import { Toolbar } from './board/Toolbar';
 import { StickyNote } from './objects/StickyNote';
 import { NoteToolbar } from './objects/NoteToolbar';
+import { ConnectionStatus } from './sync/ConnectionStatus';
 import { createSticky, deleteObject, setStickyColor } from '../shared/board-model';
+import { newBoardId } from '../shared/board-id';
 import type { StickyColor } from '../shared/config';
 
 interface CameraState {
@@ -15,8 +17,28 @@ interface CameraState {
   zoom: number;
 }
 
+/** Extract boardId from /b/:boardId, or redirect / to a new board. */
+function getBoardId(): string | null {
+  const match = window.location.pathname.match(/^\/b\/([A-Za-z0-9_-]{22})$/);
+  return match ? match[1]! : null;
+}
+
 export function App() {
-  const { doc, notes } = useBoardDoc();
+  const boardId = getBoardId();
+
+  // If no boardId in URL, redirect to a new board
+  if (!boardId) {
+    const newId = newBoardId();
+    window.history.replaceState(null, '', `/b/${newId}`);
+    // Force a re-render by using the new ID
+    return <BoardApp boardId={newId} />;
+  }
+
+  return <BoardApp boardId={boardId} />;
+}
+
+function BoardApp({ boardId }: { boardId: string }) {
+  const { doc, notes, connectionState } = useBoardDoc(boardId);
   const { selectedId, editingId, select, startEdit, endEdit } = useSelection();
 
   const [camState, setCamState] = useState<CameraState & { vw: number; vh: number }>({
@@ -113,6 +135,7 @@ export function App() {
 
   return (
     <div onKeyDown={handleKeyDown} data-testid="app-root" tabIndex={-1}>
+      <ConnectionStatus state={connectionState} />
       <Toolbar onCreateSticky={handleCreateSticky} />
       <BoardViewport
         onDblClickEmpty={handleDblClickEmpty}

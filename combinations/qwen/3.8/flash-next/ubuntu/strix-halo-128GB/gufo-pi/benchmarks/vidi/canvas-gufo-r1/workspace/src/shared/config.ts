@@ -55,3 +55,20 @@ export type StickyColor = keyof typeof STICKY_COLORS;
 
 /** Default colour applied to newly created sticky notes. */
 export const DEFAULT_STICKY_COLOR: StickyColor = 'yellow';
+
+// ─── Story 3: Live collaboration ────────────────────────────────────────────
+
+/** Soft capacity: design + test target for simultaneous editors, never enforced. */
+export const MAX_CONCURRENT_EDITORS = 5;
+
+/** Latency budget for change delivery (PRD live.propagate). */
+export const LIVE_UPDATE_LATENCY_BUDGET_MS = 1000;
+
+/** Maximum reconnect backoff passed to WebsocketProvider. */
+export const RECONNECT_MAX_BACKOFF_MS = 10_000;
+
+/** Duration of the green "Connected" badge after reconnection. */
+export const CONNECTED_CONFIRMATION_MS = 2000;
+
+/** Outage duration used in catch-up test (PRD live.catch_up verification). */
+export const CATCH_UP_TEST_OUTAGE_MS = 30_000;

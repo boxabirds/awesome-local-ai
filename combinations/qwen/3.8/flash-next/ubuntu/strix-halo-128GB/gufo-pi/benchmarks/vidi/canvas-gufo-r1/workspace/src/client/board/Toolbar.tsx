@@ -23,6 +23,7 @@ export function Toolbar(props: ToolbarProps) {
         aria-label="Sticky note"
         title={`Sticky note \u2013 or double-click the board`}
         className="toolbar-btn"
+        data-testid="create-sticky-btn"
         onClick={onCreateSticky}
       >
         <span className="toolbar-btn-icon" aria-hidden="true">

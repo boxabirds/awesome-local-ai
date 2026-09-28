@@ -4,6 +4,8 @@
 
 export interface BoardTestHooks {
   setCamera(x: number, y: number, zoom?: number): void;
+  connectionState?: string;
+  provider?: unknown;
 }
 
 declare global {

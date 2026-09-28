@@ -25,6 +25,11 @@
     "tests",
     "vite.config.ts",
     "vitest.config.ts",
+    "vitest.integration.config.ts",
     "playwright.config.ts"
+  ],
+  "exclude": [
+    "src/worker",
+    "tests/integration"
   ]
 }

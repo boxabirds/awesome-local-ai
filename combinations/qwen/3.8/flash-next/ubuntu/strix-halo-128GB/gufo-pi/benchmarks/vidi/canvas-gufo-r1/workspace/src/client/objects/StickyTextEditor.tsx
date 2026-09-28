@@ -13,6 +13,7 @@ export interface StickyTextEditorProps {
  * Textarea-based editor for a sticky note.
  * - On mount: sets value from Y.Text, focuses, caret at end.
  * - On input: clamps, applies minimal diff to Y.Text.
+ * - On remote ytext changes: updates textarea, preserves caret at end.
  * - Escape: ends editing with 'selected'.
  * - Click outside / blur: ends editing with 'unselected'.
  * - Enter inserts newline (not intercepted).
@@ -36,6 +37,24 @@ export function StickyTextEditor(props: StickyTextEditorProps) {
     ta.focus();
     const len = ta.value.length;
     ta.setSelectionRange(len, len);
+  }, [ytext]);
+
+  // Handle remote changes: update textarea when ytext changes from remote
+  useEffect(() => {
+    const handler = (event: Y.YTextEvent, transaction: { local: boolean }) => {
+      if (transaction.local) return;
+      const ta = textareaRef.current;
+      if (!ta) return;
+      const newText = event.target.toString();
+      ta.value = newText;
+      // Place caret at end
+      const len = ta.value.length;
+      ta.setSelectionRange(len, len);
+      setCharCount(newText.length);
+      setShowCounter(counterVisible(newText.length));
+    };
+    ytext.observe(handler);
+    return () => ytext.unobserve(handler);
   }, [ytext]);
 
   // Handle click outside to end editing
