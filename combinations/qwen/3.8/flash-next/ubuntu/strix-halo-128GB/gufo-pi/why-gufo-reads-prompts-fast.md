@@ -6,7 +6,7 @@ On my Strix Halo machine, **gufo reads a long coding conversation up to 7x faste
 
 gufo gets there by being built for one chip and a small number of models, and tuning everything for them. That has costs too, which I cover at the end.
 
-Note: part of this lead is likely temporary. What I believe is the biggest single reason for it (point 2 below) is a general method that isn't tied to AMD's chip, and llama.cpp developers have already written it. It isn't merged yet: the version for the graphics interface tritus uses has been a draft since March 2026, and the version for AMD's ROCm was opened on 24 September 2026. When it lands, llama.cpp should close some of the gap, and I'll re-test it.
+Note: part of this lead is likely temporary, because of an upcoming change to llama.cpp. What I believe is the biggest single reason for it (point 2 below) is a general method that isn't tied to AMD's chip, and llama.cpp developers have already written it. It isn't merged yet: the version for the graphics interface tritus uses has been a draft since March 2026, and the version for AMD's ROCm was opened on 24 September 2026. When it lands, llama.cpp should close some of the gap, and I'll re-test it.
 
 ## Some background first
 
