@@ -251,10 +251,11 @@ evidence the model wrote raw line breaks there).
   faster where agent sessions spend their waiting time (prompt reading after a compaction or a
   cache miss) and no less careful per turn.
 - **But not without a guard for the tool-call leak.** Until gufo accepts (or repairs) such values,
-  a leaked call silently ends a story. Two options, not yet built:
+  a leaked call silently ends a story. Two options, both now in place:
   1. In the harness: treat a final assistant message containing `<tool_call>` markup as an
      interrupted turn, and continue the session (as it already does after an error), recording it
-     as an intervention. Cheap, engine-independent, visible in the records.
+     as an intervention. Cheap, engine-independent, visible in the records. **Built** (b05c5972,
+     `toolcall_text_resumes` in the run records; up to 3 resumes per story).
   2. Upstream: reported as [gufo#304](https://github.com/gufo-org/gufo/issues/304) — with the leaked text and the parser path above (a string value
      inside a JSON-typed parameter, with raw line breaks, could be repaired by escaping control
      characters before parsing, as lenient JSON parsers do).
@@ -265,8 +266,7 @@ evidence the model wrote raw line breaks there).
 
 ## Decisions needed
 
-1. Build the harness guard (option 1 above) before any further gufo runs? Without it, each gufo
-   run carries a small chance per turn of ending a story early.
+1. ~~Build the harness guard (option 1 above) before any further gufo runs?~~ Done: b05c5972.
 2. ~~Report the parser issue upstream to gufo~~ Done: filed as [gufo-org/gufo#304](https://github.com/gufo-org/gufo/issues/304) (28 Sep 2026), with a parser-level reproduction and a proposed patch.
 3. Keep gufo runs in journey order (story 5 first, as canvas-gufo-01) or number order (as the
    other stacks, like canvas-gufo-exp1/-exp2)? Only number order compares per story.
