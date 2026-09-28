@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, act } from '@testing-library/react';
+import { render, screen, act, cleanup } from '@testing-library/react';
 import { ConnectionStatus } from '../../src/client/sync/ConnectionStatus';
 import { CONNECTED_CONFIRMATION_MS } from '../../src/shared/config';
 
@@ -11,6 +11,7 @@ describe('ConnectionStatus component', () => {
 
   afterEach(() => {
     vi.useRealTimers();
+    cleanup();
   });
 
   describe('TC-19: connecting → connected', () => {
@@ -77,6 +78,20 @@ describe('ConnectionStatus component', () => {
     it('badge has role=status', () => {
       const { container } = render(<ConnectionStatus state="reconnecting" />);
       expect(container.querySelector('[role="status"]')).toBeInTheDocument();
+    });
+  });
+
+  describe('TC-22: load_failed renders red message with role=status', () => {
+    it('shows red text when state is load_failed', () => {
+      render(<ConnectionStatus state="load_failed" />);
+      const badge = screen.getByRole('status');
+      expect(badge).toHaveTextContent("This board couldn't be loaded. Retrying…");
+      expect(badge.className).toContain('connection-status--load-failed');
+    });
+
+    it('is visible (not null) when load_failed', () => {
+      render(<ConnectionStatus state="load_failed" />);
+      expect(screen.getByRole('status')).toBeInTheDocument();
     });
   });
 });

@@ -48,7 +48,7 @@ function buildProjects(): Project[] {
 
 export default defineConfig({
   testDir: './tests/e2e',
-  testIgnore: 'nightly.spec.ts',
+  testIgnore: ['nightly.spec.ts', 'persistence.spec.ts', 'broken-board.spec.ts'],
   fullyParallel: false,
   workers: 1,
   reporter: [['list']],

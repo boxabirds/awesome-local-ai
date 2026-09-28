@@ -9,6 +9,7 @@ export interface WsClient {
   doc: Y.Doc;
   ws: WebSocket;
   receivedMessages: ArrayBuffer[];
+  closeCode: number | undefined;
   waitForSync(timeout?: number): Promise<void>;
   snapshot(): readonly StickySnapshot[];
   close(): void;
@@ -40,6 +41,7 @@ export async function createWsClient(
   const receivedMessages: ArrayBuffer[] = [];
   let syncComplete = false;
   let applyingRemote = false;
+  let closeCode: number | undefined;
 
   ws.addEventListener('message', (event: MessageEvent) => {
     const data = event.data as ArrayBuffer;
@@ -47,8 +49,8 @@ export async function createWsClient(
     handleIncoming(data);
   });
 
-  ws.addEventListener('close', () => {
-    // server closed connection
+  ws.addEventListener('close', (event) => {
+    closeCode = event.code;
   });
 
   function handleIncoming(data: ArrayBuffer) {
@@ -109,6 +111,7 @@ export async function createWsClient(
     doc,
     ws,
     receivedMessages,
+    get closeCode() { return closeCode; },
     waitForSync,
     snapshot: () => snapshot(doc),
     close: () => ws.close(),

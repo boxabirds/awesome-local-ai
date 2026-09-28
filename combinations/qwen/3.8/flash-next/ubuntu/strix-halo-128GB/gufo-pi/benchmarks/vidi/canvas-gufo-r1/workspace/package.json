@@ -13,6 +13,7 @@
     "test:component": "vitest run --config vitest.config.ts --project component",
     "test:integration": "vitest run --config vitest.integration.config.ts",
     "test:e2e": "playwright test",
+    "test:e2e:persistence": "playwright test --config=playwright.persistence.config.ts",
     "test:e2e:nightly": "playwright test --config=playwright.nightly.config.ts"
   },
   "dependencies": {

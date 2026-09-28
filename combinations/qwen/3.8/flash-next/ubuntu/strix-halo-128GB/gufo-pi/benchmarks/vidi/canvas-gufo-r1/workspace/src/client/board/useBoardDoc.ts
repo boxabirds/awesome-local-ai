@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import * as Y from 'yjs';
-import { initDoc, snapshot, type StickySnapshot } from '../../shared/board-model';
+import { initDoc, snapshot, createSticky, type StickySnapshot } from '../../shared/board-model';
 import { connectBoard, type ConnectionState } from '../sync/connectBoard';
+import { installDocHooks } from '../canvas/testHooks';
 
 export interface BoardDocState {
   doc: Y.Doc;
@@ -18,6 +19,7 @@ export function useBoardDoc(boardId: string): BoardDocState {
   const doc = useMemo(() => {
     const d = new Y.Doc();
     initDoc(d);
+    installDocHooks(Y, (doc, pos) => createSticky(doc, pos));
     return d;
   }, []);
 

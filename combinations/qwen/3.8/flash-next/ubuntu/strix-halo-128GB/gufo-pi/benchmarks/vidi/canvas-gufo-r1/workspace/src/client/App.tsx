@@ -7,6 +7,7 @@ import { Toolbar } from './board/Toolbar';
 import { StickyNote } from './objects/StickyNote';
 import { NoteToolbar } from './objects/NoteToolbar';
 import { ConnectionStatus } from './sync/ConnectionStatus';
+import { canEdit } from './sync/connectBoard';
 import { createSticky, deleteObject, setStickyColor } from '../shared/board-model';
 import { newBoardId } from '../shared/board-id';
 import type { StickyColor } from '../shared/config';
@@ -41,6 +42,8 @@ function BoardApp({ boardId }: { boardId: string }) {
   const { doc, notes, connectionState } = useBoardDoc(boardId);
   const { selectedId, editingId, select, startEdit, endEdit } = useSelection();
 
+  const editable = canEdit(connectionState);
+
   const [camState, setCamState] = useState<CameraState & { vw: number; vh: number }>({
     x: 0, y: 0, zoom: 1, vw: 0, vh: 0,
   });
@@ -54,21 +57,23 @@ function BoardApp({ boardId }: { boardId: string }) {
 
   // Create a sticky note at the centre of the visible viewport
   const handleCreateSticky = useCallback(() => {
+    if (!editable) return;
     const centre: { x: number; y: number } = { x: camState.vw / 2, y: camState.vh / 2 };
     const world = screenToWorld(camState, centre);
     const id = createSticky(doc, world);
     select(id);
     startEdit(id);
-  }, [doc, select, startEdit, camState]);
+  }, [doc, select, startEdit, camState, editable]);
 
   // Double-click on empty space creates a note centred on the clicked point
   const handleDblClickEmpty = useCallback(
     (worldPoint: { x: number; y: number }) => {
+      if (!editable) return;
       const id = createSticky(doc, worldPoint);
       select(id);
       startEdit(id);
     },
-    [doc, select, startEdit],
+    [doc, select, startEdit, editable],
   );
 
   // Click on empty space clears selection
@@ -87,32 +92,34 @@ function BoardApp({ boardId }: { boardId: string }) {
       if (!selectedId) return;
 
       if (e.key === 'Enter') {
+        if (!editable) return;
         e.preventDefault();
         startEdit(selectedId);
       } else if (e.key === 'Delete' || e.key === 'Backspace') {
+        if (!editable) return;
         e.preventDefault();
         deleteObject(doc, selectedId);
         select(null);
       }
     },
-    [doc, editingId, selectedId, select, startEdit],
+    [doc, editingId, selectedId, select, startEdit, editable],
   );
 
   // Handle colour change for the selected note
   const handleColor = useCallback(
     (color: StickyColor) => {
-      if (!selectedId) return;
+      if (!selectedId || !editable) return;
       setStickyColor(doc, selectedId, color);
     },
-    [doc, selectedId],
+    [doc, selectedId, editable],
   );
 
   // Handle delete button in NoteToolbar
   const handleDelete = useCallback(() => {
-    if (!selectedId) return;
+    if (!selectedId || !editable) return;
     deleteObject(doc, selectedId);
     select(null);
-  }, [doc, selectedId, select]);
+  }, [doc, selectedId, select, editable]);
 
   const zoom = camState.zoom;
   const cam = camState;
@@ -136,7 +143,7 @@ function BoardApp({ boardId }: { boardId: string }) {
   return (
     <div onKeyDown={handleKeyDown} data-testid="app-root" tabIndex={-1}>
       <ConnectionStatus state={connectionState} />
-      <Toolbar onCreateSticky={handleCreateSticky} />
+      <Toolbar onCreateSticky={handleCreateSticky} disabled={!editable} />
       <BoardViewport
         onDblClickEmpty={handleDblClickEmpty}
         onEmptyClick={handleEmptyClick}
@@ -150,6 +157,7 @@ function BoardApp({ boardId }: { boardId: string }) {
             zoom={zoom}
             selected={note.id === selectedId}
             editing={note.id === editingId}
+            editable={editable}
             onSelect={select}
             onStartEdit={startEdit}
             onEndEdit={endEdit}

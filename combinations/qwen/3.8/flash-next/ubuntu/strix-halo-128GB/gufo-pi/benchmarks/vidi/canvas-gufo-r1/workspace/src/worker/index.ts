@@ -1,9 +1,11 @@
 import { isValidBoardId } from '../shared/board-id';
 import { BoardRoom } from './board-room';
+import { handleTestHook } from './test-hooks';
 
 export interface Env {
   BOARD_ROOM: DurableObjectNamespace<BoardRoom>;
   ASSETS: Fetcher;
+  TEST_HOOKS?: string;
 }
 
 export default {
@@ -30,6 +32,10 @@ export default {
       const roomStub = env.BOARD_ROOM.get(doId);
       return roomStub.fetch(request);
     }
+
+    // Test hooks (only available when TEST_HOOKS=1 in the environment)
+    const testHookResponse = await handleTestHook(request, env);
+    if (testHookResponse) return testHookResponse;
 
     // Everything else: serve static assets (SPA fallback handled by wrangler config)
     return env.ASSETS.fetch(request);

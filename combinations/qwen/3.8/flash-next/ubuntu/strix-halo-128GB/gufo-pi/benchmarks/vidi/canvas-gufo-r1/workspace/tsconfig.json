@@ -26,7 +26,8 @@
     "vite.config.ts",
     "vitest.config.ts",
     "vitest.integration.config.ts",
-    "playwright.config.ts"
+    "playwright.config.ts",
+    "playwright.persistence.config.ts"
   ],
   "exclude": [
     "src/worker",

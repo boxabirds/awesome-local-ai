@@ -1,3 +1,43 @@
+commit 9778bf9f11be6017ae273ef14aa352b4a7c631bc
+vidi-agent  Mon Sep 28 09:38:20 2026 +0000
+
+    harness: snapshot after story 4 (uncommitted agent work)
+
+
+ package.json                              |   1 +
+ playwright.config.ts                      |   2 +-
+ playwright.persistence.config.ts          |  20 ++
+ src/client/App.tsx                        |  24 +-
+ src/client/board/Toolbar.tsx              |   4 +-
+ src/client/board/useBoardDoc.ts           |   4 +-
+ src/client/canvas/testHooks.ts            |  13 +
+ src/client/objects/StickyNote.tsx         |  10 +-
+ src/client/styles.css                     |   5 +
+ src/client/sync/ConnectionStatus.tsx      |   5 +
+ src/client/sync/connectBoard.ts           |  42 +++-
+ src/shared/config.ts                      |  23 ++
+ src/shared/protocol.ts                    |   2 +
+ src/worker/board-room.ts                  | 334 ++++++++++++++++++++++----
+ src/worker/board-store-utils.ts           |  39 +++
+ src/worker/board-store.ts                 | 167 +++++++++++++
+ src/worker/index.ts                       |   6 +
+ src/worker/room-state.ts                  |  86 +++++++
+ src/worker/test-hooks.ts                  |  47 ++++
+ tests/component/ConnectionStatus.test.tsx |  17 +-
+ tests/component/LoadFailure.test.tsx      | 175 ++++++++++++++
+ tests/e2e/broken-board.spec.ts            | 131 ++++++++++
+ tests/e2e/helpers/wrangler-process.ts     |  93 ++++++++
+ tests/e2e/persistence.spec.ts             | 252 ++++++++++++++++++++
+ tests/fixtures/boards.ts                  | 139 +++++++++++
+ tests/integration/board-store.test.ts     | 381 ++++++++++++++++++++++++++++++
+ tests/integration/room-persist.test.ts    | 358 ++++++++++++++++++++++++++++
+ tests/integration/ws-client.ts            |   7 +-
+ tests/unit/board-store-chunks.test.ts     |  94 ++++++++
+ tests/unit/room-state.test.ts             |  98 ++++++++
+ tsconfig.json                             |   3 +-
+ tsconfig.worker.json                      |   2 +-
+ vitest.integration.config.ts              |   1 +
+ 33 files changed, 2516 insertions(+), 69 deletions(-)
 commit b65d6fea65579ec94b6c486e2f3ac012c0adb2e6
 vidi-agent  Mon Sep 28 08:20:35 2026 +0000
 

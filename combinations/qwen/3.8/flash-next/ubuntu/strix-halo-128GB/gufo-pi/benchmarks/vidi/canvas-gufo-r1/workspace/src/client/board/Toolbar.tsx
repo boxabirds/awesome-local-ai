@@ -1,12 +1,13 @@
 export interface ToolbarProps {
   onCreateSticky(): void;
+  disabled?: boolean;
 }
 
 /**
  * Fixed left-side toolbar with the Sticky note creation button.
  */
 export function Toolbar(props: ToolbarProps) {
-  const { onCreateSticky } = props;
+  const { onCreateSticky, disabled } = props;
 
   const handlePointerDown = (e: React.PointerEvent) => {
     e.stopPropagation();
@@ -25,6 +26,7 @@ export function Toolbar(props: ToolbarProps) {
         className="toolbar-btn"
         data-testid="create-sticky-btn"
         onClick={onCreateSticky}
+        disabled={disabled}
       >
         <span className="toolbar-btn-icon" aria-hidden="true">
           {'\u25A1'}

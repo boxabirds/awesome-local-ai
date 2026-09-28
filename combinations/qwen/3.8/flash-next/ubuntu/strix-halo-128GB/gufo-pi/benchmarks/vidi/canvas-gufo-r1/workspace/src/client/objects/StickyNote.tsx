@@ -12,6 +12,7 @@ export interface StickyNoteProps {
   zoom: number;
   selected: boolean;
   editing: boolean;
+  editable?: boolean;
   onSelect(id: string): void;
   onStartEdit(id: string): void;
   onEndEdit(next: 'selected' | 'unselected'): void;
@@ -20,7 +21,7 @@ export interface StickyNoteProps {
 type NoteState = 'unselected' | 'pressed' | 'selected' | 'dragging' | 'editing';
 
 export function StickyNote(props: StickyNoteProps) {
-  const { note, doc, zoom, selected, editing, onSelect, onStartEdit, onEndEdit } = props;
+  const { note, doc, zoom, selected, editing, editable = true, onSelect, onStartEdit, onEndEdit } = props;
   const elRef = useRef<HTMLDivElement>(null);
   const textRef = useRef<HTMLDivElement>(null);
   const [fontPx, setFontPx] = useState(24);
@@ -93,7 +94,7 @@ export function StickyNote(props: StickyNoteProps) {
   const handlePointerDown = useCallback(
     (e: React.PointerEvent) => {
       e.stopPropagation();
-      if (editing) return;
+      if (editing || !editable) return;
 
       const target = e.currentTarget;
       try {
@@ -111,7 +112,7 @@ export function StickyNote(props: StickyNoteProps) {
       };
       stateRef.current = 'pressed';
     },
-    [editing, note.x, note.y],
+    [editing, editable, note.x, note.y],
   );
 
   const handlePointerMove = useCallback(
@@ -211,10 +212,11 @@ export function StickyNote(props: StickyNoteProps) {
     (e: React.MouseEvent) => {
       e.stopPropagation();
       e.preventDefault();
+      if (!editable) return;
       onSelect(note.id);
       onStartEdit(note.id);
     },
-    [note.id, onSelect, onStartEdit],
+    [note.id, onSelect, onStartEdit, editable],
   );
 
   const handleEndEdit = useCallback(

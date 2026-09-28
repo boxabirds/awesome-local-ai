@@ -1,15 +1,24 @@
 import * as Y from 'yjs';
 import { WebsocketProvider } from 'y-websocket';
 import { RECONNECT_MAX_BACKOFF_MS, CONNECTED_CONFIRMATION_MS } from '../../shared/config';
+import { CLOSE_BOARD_LOAD_FAILED, CLOSE_STORAGE_FAILURE } from '../../shared/protocol';
 
-export type ConnectionState = 'connecting' | 'connected' | 'reconnecting' | 'confirmed';
+export type ConnectionState = 'connecting' | 'connected' | 'reconnecting' | 'confirmed' | 'load_failed';
 
 export interface BoardConnection {
   destroy(): void;
 }
 
 /**
- * Creates a WebsocketProvider and maps its status/sync events to our ConnectionState.
+ * Returns true if the board is editable in this connection state.
+ * Editing is disabled only when the server explicitly refused to load the board.
+ */
+export function canEdit(state: ConnectionState): boolean {
+  return state !== 'load_failed';
+}
+
+/**
+ * Creates a WebsocketProvider and maps its status/sync/connection-close events to our ConnectionState.
  */
 export function connectBoard(
   doc: Y.Doc,
@@ -55,7 +64,10 @@ export function connectBoard(
           clearTimeout(confirmationTimer);
           confirmationTimer = null;
         }
-        setState('reconnecting');
+        // Don't downgrade from load_failed to reconnecting
+        if (currentState !== 'load_failed') {
+          setState('reconnecting');
+        }
       }
     } else if (status === 'connecting') {
       if (!hasEverConnected) {
@@ -65,26 +77,42 @@ export function connectBoard(
   };
 
   const syncHandler = (state: boolean) => {
-    if (state && !hasEverConnected) {
-      hasEverConnected = true;
-      setState('connected');
+    if (state) {
+      if (!hasEverConnected) {
+        hasEverConnected = true;
+        setState('connected');
+      } else if (currentState === 'load_failed') {
+        // Recovered from load failure: first successful sync re-enables editing
+        setState('connected');
+      }
+    }
+  };
+
+  const connectionCloseHandler = (event: { code: number } | null) => {
+    if (!event) return;
+    if (event.code === CLOSE_BOARD_LOAD_FAILED) {
+      setState('load_failed');
+    } else if (event.code === CLOSE_STORAGE_FAILURE) {
+      // Storage failure: board is readable, changes re-sent on reconnect
+      setState('reconnecting');
     }
   };
 
   provider.on('status', statusHandler as (...args: unknown[]) => void);
   provider.on('sync', syncHandler as (...args: unknown[]) => void);
+  provider.on('connection-close', connectionCloseHandler as (...args: unknown[]) => void);
 
   // Expose for testing (e2e tests use this to simulate disconnection and check state)
   const hooks = (window as any).__vidi6 ??= {};
   hooks.provider = provider;
   hooks.connectionState = currentState;
 
-
   return {
     destroy(): void {
       if (confirmationTimer) clearTimeout(confirmationTimer);
       provider.off('status', statusHandler as (...args: unknown[]) => void);
       provider.off('sync', syncHandler as (...args: unknown[]) => void);
+      provider.off('connection-close', connectionCloseHandler as (...args: unknown[]) => void);
       provider.destroy();
       const h = (window as any).__vidi6;
       if (h) {
