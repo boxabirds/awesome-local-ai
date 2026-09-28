@@ -22,12 +22,21 @@ def empty_state() -> dict:
             "tokens": {"input": 0, "output": 0, "reasoning": 0, "cache_read": 0, "cache_write": 0}}
 
 
+PI_THINKING_LEVELS = ("off", "minimal", "low", "medium", "high", "xhigh", "max")
+
+
 class PiClient:
-    """pi (pi.dev): `pi -p --mode json`, config under PI_CODING_AGENT_DIR."""
+    """pi (pi.dev): `pi -p --mode json`, config under PI_CODING_AGENT_DIR.
+
+    thinking: a reasoning effort pi sends with every request, for servers that cannot apply one
+    themselves (mlx-serve). None leaves it to the server, as for gufo and llama.cpp."""
 
     name = "pi"
 
-    def __init__(self, work: Path):
+    def __init__(self, work: Path, thinking: str | None = None):
+        if thinking is not None and thinking not in PI_THINKING_LEVELS:
+            raise ValueError(f"unknown pi thinking level {thinking!r}; one of {', '.join(PI_THINKING_LEVELS)}")
+        self.thinking = thinking
         self.agent_dir = work / "pi-agent"
         self.session_dir = work / "pi-sessions"
 
@@ -43,7 +52,8 @@ class PiClient:
             "baseUrl": base_url, "api": "openai-completions", "apiKey": "local",
             "models": [{"id": model_id, "name": model_id, "input": ["text"],
                         "contextWindow": ctx, "maxTokens": out, "reasoning": True,
-                        "compat": {"supportsDeveloperRole": False, "supportsReasoningEffort": False}}],
+                        "compat": {"supportsDeveloperRole": False,
+                                   "supportsReasoningEffort": self.thinking is not None}}],
         }}}
         (self.agent_dir / "models.json").write_text(json.dumps(models, indent=2))
         # pi's own defaults for compaction and retries, except timeouts (see CLIENT_IDLE_TIMEOUT_MS).
@@ -57,7 +67,8 @@ class PiClient:
     def command(self, model_id: str, prompt: str, resume_from: str | None = None, fork: bool = True) -> list[str]:
         # fork: after an error (new id, same history). Not fork: a nudge continues the same session.
         resume = (["--fork", resume_from] if fork else ["--session", resume_from]) if resume_from else []
-        return ["pi", "-p", "--mode", "json", "--model", f"{PROVIDER}/{model_id}",
+        thinking = ["--thinking", self.thinking] if self.thinking else []
+        return ["pi", "-p", "--mode", "json", "--model", f"{PROVIDER}/{model_id}", *thinking,
                 "--no-extensions", "--no-skills", "--no-prompt-templates", "--no-context-files",
                 "--no-approve", "--session-dir", str(self.session_dir), *resume, "--", prompt]
 

@@ -36,7 +36,9 @@ pull records and failure reasons in `~/.dbench/jobs/` on the node (`dbench statu
 ## Per run: `run.json`
 
 `install_id`, `combination`, `model_id`, `pack`, `scope`, `backend`, `backend_version`,
-`mtplx_memory_limit_bytes` (MTPLX only), `client`, `client_version`, `reasoning_effort`,
+`mtplx_memory_limit_bytes` (MTPLX only), `client`, `client_version`, `reasoning_effort` (what the
+harness passed to the server launcher; a server without server-side effort, such as mlx-serve, ignores
+it), `client_thinking` (the effort pi itself sends with each request, empty when it sends none),
 `context_limit`, `output_limit`, `compact_at` (the client's compaction threshold), `metered`
 (whether the Python proxy was on), `host` (CPU, RAM, GPU), `harness_commit`, `pack_version`,
 `started_at`.
