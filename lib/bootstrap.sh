@@ -85,6 +85,7 @@ SAMPLING_INSTRUCT="${SAMPLING_INSTRUCT:-}"
 REASONING_EFFORT_DEFAULT="${REASONING_EFFORT_DEFAULT:-default}"
 REASONING_EFFORTS="${REASONING_EFFORTS:-}"
 REASONING_BUDGET_DEFAULT="${REASONING_BUDGET_DEFAULT:-}"  # mlx-serve: --reasoning-budget
+PREFIX_CACHE_MEM_DEFAULT="${PREFIX_CACHE_MEM_DEFAULT:-}"  # mlx-serve: --prefix-cache-mem, e.g. 16GB
 SAFE_KV_TYPES="${SAFE_KV_TYPES:-n/a}"       # llama.cpp: which KV types have a kernel
 SPEC_DRAFT_N_MAX="${SPEC_DRAFT_N_MAX:-}"    # llama.cpp: draft tokens per step
 SPEC_DRAFT_P_MIN="${SPEC_DRAFT_P_MIN:-}"    # llama.cpp: drop draft tokens below this probability; unset = llama.cpp default

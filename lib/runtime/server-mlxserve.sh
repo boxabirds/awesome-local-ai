@@ -153,6 +153,12 @@ if [[ -n "${REASONING_BUDGET:-}" && ! "${REASONING_BUDGET}" =~ ^[0-9]+$ ]]; then
   exit 1
 fi
 
+PREFIX_CACHE_MEM="${PREFIX_CACHE_MEM:-${PREFIX_CACHE_MEM_DEFAULT:-}}"
+if [[ -n "${PREFIX_CACHE_MEM:-}" && ! "${PREFIX_CACHE_MEM}" =~ ^[0-9]+(KB|MB|GB)$ ]]; then
+  echo "${SERVER_CMD}: PREFIX_CACHE_MEM must be a size with a unit, e.g. 16GB or 512MB." >&2
+  exit 1
+fi
+
 # Whether the user sized this by hand. Read before the profile defaults apply:
 # it turns the memory pre-flight into a warning, since need_mib describes the
 # profile, not whatever they asked for.
@@ -325,6 +331,7 @@ if [[ "$MTP" == "1" ]]; then ARGS+=(--mtp); else ARGS+=(--no-mtp); fi
 # Neither client config in this repo sends images; the tower is ~0.84 GiB.
 if [[ "${VISION:-0}" != "1" ]]; then ARGS+=(--no-vision); fi
 if [[ -n "${REASONING_BUDGET:-}" ]]; then ARGS+=(--reasoning-budget "$REASONING_BUDGET"); fi
+if [[ -n "${PREFIX_CACHE_MEM:-}" ]]; then ARGS+=(--prefix-cache-mem "$PREFIX_CACHE_MEM"); fi
 if [[ -n "${MLXSERVE_API_KEY:-}" ]]; then ARGS+=(--api-key "$MLXSERVE_API_KEY"); fi
 # Sampling defaults for requests that name none, a matched pair with THINKING.
 if [[ "$THINKING" == "0" ]]; then

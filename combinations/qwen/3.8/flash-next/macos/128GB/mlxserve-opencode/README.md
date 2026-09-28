@@ -107,8 +107,8 @@ From the file sizes and `config.json`, vision off:
 | Weights | 74,405,350,320 B of shards | 69.30 GiB | 69.30 | 69.30 |
 | KV cache (bf16) | 12 full-attention layers × 2 heads × 256 × 2 B × K+V = 24,576 B/token, + MTP head 2,048 + indexer 768 = **27,392 B/token** | 0.84 | 1.67 | 3.34 |
 | GDN state | 36 layers × 48 heads × 128 × 128 × 4 B, fixed | 0.11 | 0.11 | 0.11 |
-| Prefix cache | mlx-serve's default cap | 2.00 | 2.00 | 2.00 |
-| **Total** | | **72.2 GiB** | **73.1 GiB** | **74.7 GiB** |
+| Prefix cache | `--prefix-cache-mem 16GB` (config `PREFIX_CACHE_MEM_DEFAULT`; one snapshot is ~2 GB at agent context lengths, so the 2 GB default held one) | 16.00 | 16.00 | 16.00 |
+| **Total** | | **86.2 GiB** | **87.1 GiB** | **88.7 GiB** |
 
 Not included: the prefill working set (unmeasured; mlx-serve's changelog says
 8192-token prefill steps cost "~3 GB more peak" than smaller ones), and the

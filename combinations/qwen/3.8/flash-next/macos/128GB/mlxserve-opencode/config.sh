@@ -208,6 +208,10 @@ REASONING_EFFORTS="default low"
 # 4-42 turns a story (longest thinking ~9k chars against ~50k on the other engines); it is kept as
 # the capped variant.
 REASONING_BUDGET_DEFAULT=32768             # = OUTPUT_LIMIT
+# mlx-serve's prefix cache keeps whole-state snapshots for this hybrid model, ~2 GB each at agent
+# context lengths, so its 2 GB default holds one: canvas-mlx-02 evicted 930 times and re-read
+# >4k tokens on 607 of 1,852 requests (28 Sep 2026). 16 GB holds several.
+PREFIX_CACHE_MEM_DEFAULT="16GB"
 
 # ---- client ---------------------------------------------------------------
 DEFAULT_PROVIDER="mlxserve"
