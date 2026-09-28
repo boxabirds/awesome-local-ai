@@ -39,7 +39,27 @@ Either way, this is where prefill speed really hurts.
 >
 > When the cache has expired, as it usually will if you come back the next day, the cloud does re-read the whole conversation. But DeepSeek's 13 seconds for 128,000 tokens with no cache works out at roughly 10,000 tokens a second. That's about 8 times gufo on tritus and over 50 times llama.cpp, so the re-read takes seconds, not minutes.
 >
-> The caching part isn't cloud-only. Local engines keep the cache while they're running, and llama.cpp can save it to disk (its `--slot-save-path` option). The speed of reading is the real difference: a data-centre GPU is simply much faster at it than a home machine.
+> The caching part isn't cloud-only. Local engines keep the cache while they're running, and llama.cpp can save it to disk (its `--slot-save-path` option). The speed of reading is the real difference.
+>
+> Reading a prompt is mostly maths, so the chip's maths speed sets the limit. Here's how Strix Halo compares with the two chips most AI clouds run on today, NVIDIA's H200 and B200. The figures are trillions of operations per second (TFLOPS) at the 16-bit precision used for this kind of work:
+>
+> | Chip | Maths speed (TFLOPS) | Times Strix Halo |
+> |---|---|---|
+> | AMD Strix Halo (tritus) | 59 | 1x |
+> | NVIDIA H200 | about 990 | about 17x |
+> | NVIDIA B200 | about 2,250 | about 38x |
+>
+> And a cloud server usually has eight of them working together.
+>
+> Real speeds depend on the software too, so the gap in practice is smaller than those ratios. One direct comparison comes from the llama.cpp developers' own tests (the same change discussed in point 2), with the same model and the same software on each machine, reading a 2,000-token prompt with Qwen3.8 27B:
+>
+> | Machine | Tokens per second |
+> |---|---|
+> | Strix Halo | 331 |
+> | RTX 4090 (a gaming card) | 2,948 |
+> | RTX PRO 6000 Blackwell (a workstation and cloud card) | 3,977 |
+>
+> That's 9 to 12 times Strix Halo, from cards well below a B200. For the exact model in this guide, SemiAnalysis measured one H200 handling about 16,000 tokens a second, and one B200 about 58,000. Those totals are spread across many users at once, so they aren't the reading speed of one conversation, but they give a sense of scale.
 
 ## The numbers
 
@@ -119,6 +139,7 @@ It became so popular that it now supports almost every model on almost every chi
 ## Sources
 
 - Cloud prompt caching: [Anthropic](https://platform.claude.com/docs/en/docs/build-with-claude/prompt-caching), [OpenAI](https://developers.openai.com/api/docs/guides/prompt-caching), [DeepSeek's 2024 announcement](https://api-docs.deepseek.com/news/news0802/) (the 13 s to 0.5 s figure) and Moonshot's [Mooncake paper](https://arxiv.org/abs/2407.00079), read on 28 September 2026.
+- Chip maths speeds: NVIDIA's [H200](https://www.nvidia.com/en-us/data-center/h200/) (1,979 TFLOPS FP16 with sparsity, so about 990 without) and [HGX B200](https://www.nvidia.com/en-us/data-center/hgx/) (36 PFLOPS FP16 for eight GPUs with sparsity, so about 2,250 per GPU without) spec pages; Strix Halo's 59 TFLOPS is the ceiling gufo measured on this chip. Machine comparison: the tables in [llama.cpp #29353](https://github.com/ggml-org/llama.cpp/pull/29353) (the numbers before the change; the quantisations differ slightly between machines). Whole-GPU throughput: SemiAnalysis InferenceX for Qwen3.8 Flash-Next on [H200](https://inferencex.semianalysis.com/run/qwen-3-8-flash-next-on-h200) (FP8, 16,353 tokens/s per GPU at 50 tokens/s per user) and [B200](https://inferencex.semianalysis.com/run/qwen-3-8-flash-next-on-b200) (FP4, 57,615 at 100 tokens/s per user).
 - llama.cpp's reach: the GitHub pages for [ggml-org/llama.cpp](https://github.com/ggml-org/llama.cpp) (stars, forks, latest release b11223) and [ollama/ollama](https://github.com/ollama/ollama) (its `LLAMA_CPP_VERSION` file pins llama.cpp), and the [GGUF model list on Hugging Face](https://huggingface.co/models?library=gguf), all on 28 September 2026.
 
 - Speed measurements: test A on tritus, in `benchmarks/gufo-eval/results/` (runs of 27 September 2026).
