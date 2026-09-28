@@ -6,8 +6,9 @@ Model `qwen3.8-swift-27b`, scope `canvas`, effort `low`, client pi 0.86.0, host 
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
 | 1 | Pan and zoom around an infinite board | DONE | 10.4 | None | None | None | — | — | green | 0/6 |  | 0 / 0 | 0 | — | throttled 0%, server peak 17 GB |
 | 2 | Capture ideas on sticky notes and rearrange them | DONE | 33.5 | None | None | None | — | — | red | 0/20 |  | 0 / 0 | 1 | — | throttled 0%, server peak 19 GB |
+| 3 | See other people's edits appear live on the same board | DONE | 91.7 | None | None | None | — | — | green | 26/27 |  | 0 / 0 | 4 | — | throttled 0%, server peak 26 GB |
 
-**Totals:** 2 stories, 44 agent-minutes, 0 requests, 0 prompt / 0 completion tokens, gate green 1/2, final acceptance 0/20, stalled 0, partial 0, 3769 lines in src+tests.
+**Totals:** 3 stories, 136 agent-minutes, 0 requests, 0 prompt / 0 completion tokens, gate green 2/3, final acceptance 26/27, stalled 0, partial 0, 5963 lines in src+tests.
 
 ## How it happened
 
@@ -17,10 +18,13 @@ Each story's commits, and which story broke or fixed an earlier story's held-out
 |---|---|---|---|
 | 1 | 1 by the agent | 7615 / 0 | `BoardViewport.tsx` (219), `useCamera.ts` (121), `camera.ts` (115), `ZoomControls.tsx` (97), `App.tsx` (43), `playwright.config.ts` (33), +13 more |
 | 2 | 1 by the agent | 2335 / 7 | `StickyNote.tsx` (272), `board-model.ts` (189), `StickyTextEditor.tsx` (174), `App.tsx` (148), `NoteToolbar.tsx` (102), `StickyText.ts` (96), +6 more |
+| 3 | 1 by the agent | 3768 / 42 | `board-room.ts` (165), `connectBoard.ts` (149), `protocol.ts` (81), `useBoardDoc.ts` (52), `ConnectionStatus.tsx` (50), `App.tsx` (48), +15 more |
 
 ### Earlier stories broken or fixed
 
-No story changed an earlier story's held-out results.
+- **Story 3 broke 0, fixed 20** earlier held-out tests (story 3: See other people's edits appear live on the same board). Source files it changed most: `board-room.ts` (165), `connectBoard.ts` (149), `protocol.ts` (81), `useBoardDoc.ts` (52), `ConnectionStatus.tsx` (50), `App.tsx` (48), +15 more.
+  - story 1: 0/10 → 10/10; fixed 10
+  - story 2: 0/10 → 10/10; fixed 10
 
 ### Interruptions and dead time
 
