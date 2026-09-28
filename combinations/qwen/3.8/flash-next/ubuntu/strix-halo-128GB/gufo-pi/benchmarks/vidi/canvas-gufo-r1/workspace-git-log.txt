@@ -1,3 +1,33 @@
+commit aaae0fc359514a294f5fc4d6b12c1372a02f42a8
+vidi-agent  Mon Sep 28 13:16:09 2026 +0000
+
+    story 10: Draw shapes and connect them with arrows that follow when moved
+
+
+ NOTES.md                                      |  55 ++++++
+ src/client/BoardApp.tsx                       | 164 +++++++++++++++++-
+ src/client/board/Toolbar.tsx                  | 150 ++++++++++++++++-
+ src/client/objects/ConnectorObject.tsx        | 203 ++++++++++++++++++++++
+ src/client/objects/ShapeObject.tsx            | 200 ++++++++++++++++++++++
+ src/client/objects/ShapeToolbar.tsx           |  65 ++++++++
+ src/client/objects/registry.tsx               |  37 +++-
+ src/client/tools/ConnectorTool.tsx            | 217 ++++++++++++++++++++++++
+ src/client/tools/ShapeTool.tsx                | 129 ++++++++++++++
+ src/client/tools/useActiveTool.ts             |  96 +++++++++++
+ src/shared/board-model.ts                     | 156 ++++++++++++++++-
+ src/shared/config.ts                          |  42 +++++
+ src/shared/geometry/connector-geometry.ts     | 122 ++++++++++++++
+ src/shared/{geometry.ts => geometry/index.ts} |   0
+ src/shared/geometry/polyline.ts               |  34 ++++
+ src/shared/objects/connector.ts               | 224 +++++++++++++++++++++++++
+ src/shared/objects/shape.ts                   | 150 +++++++++++++++++
+ tests/component/ConnectorTool.test.tsx        | 175 +++++++++++++++++++
+ tests/component/ShapeTool.test.tsx            | 142 ++++++++++++++++
+ tests/component/setup.ts                      |  29 ++++
+ tests/e2e/shapes-connectors.spec.ts           | 206 +++++++++++++++++++++++
+ tests/unit/connector-model.test.ts            | 232 ++++++++++++++++++++++++++
+ tests/unit/shape-model.test.ts                | 143 ++++++++++++++++
+ 23 files changed, 2950 insertions(+), 21 deletions(-)
 commit 47d66d786130c876f55da7f2f3a4102a89562fda
 vidi-agent  Mon Sep 28 12:26:26 2026 +0000
 
