@@ -28,6 +28,21 @@ export interface BoardViewportProps {
   onCreateStickyAt: (world: Point) => void;
   /** Story 2: a click (press+release without movement) on empty board space clears the selection. */
   onEmptyClick: () => void;
+  /**
+   * Story 7: marquee selection. A Shift+drag on empty space is routed here
+   * instead of to pan; Escape while `active` cancels it (the Escape keydown
+   * is stopped here so the board-level "clear selection" handler does not
+   * also fire).
+   */
+  marquee?: MarqueeController;
+}
+
+export interface MarqueeController {
+  active: boolean;
+  begin: (screen: Point) => void;
+  move: (screen: Point) => void;
+  end: () => void;
+  cancel: () => void;
 }
 
 export function BoardViewport(props: BoardViewportProps): JSX.Element {
@@ -50,6 +65,10 @@ export function BoardViewport(props: BoardViewportProps): JSX.Element {
   // Tracks a press that started on empty board space, so a release without
   // meaningful movement counts as a click (clears the selection, story 2).
   const emptyPressRef = useRef<{ x: number; y: number } | null>(null);
+  // Story 7: a Shift+drag on empty space is a marquee, not a pan.
+  const marqueeActiveRef = useRef(false);
+  const marqueeRef = useRef<MarqueeController | undefined>(props.marquee);
+  marqueeRef.current = props.marquee;
 
   // Pointer drag handlers
   const handlePointerDown = useCallback((e: React.PointerEvent) => {
@@ -58,9 +77,16 @@ export function BoardViewport(props: BoardViewportProps): JSX.Element {
     if (!container) return;
     if (target === container || target === worldRef.current) {
       container.setPointerCapture(e.pointerId);
-      emptyPressRef.current = { x: e.clientX, y: e.clientY };
       const rect = container.getBoundingClientRect();
-      camRef.current.beginPan({ x: e.clientX - rect.left, y: e.clientY - rect.top });
+      const screen = { x: e.clientX - rect.left, y: e.clientY - rect.top };
+      if (e.shiftKey && marqueeRef.current) {
+        // Story 7: Shift+drag on empty space draws a marquee, not a pan.
+        marqueeActiveRef.current = true;
+        marqueeRef.current.begin(screen);
+        return;
+      }
+      emptyPressRef.current = { x: e.clientX, y: e.clientY };
+      camRef.current.beginPan(screen);
     }
   }, []);
 
@@ -68,12 +94,25 @@ export function BoardViewport(props: BoardViewportProps): JSX.Element {
     const container = containerRef.current;
     if (!container) return;
     const rect = container.getBoundingClientRect();
-    camRef.current.panMove({ x: e.clientX - rect.left, y: e.clientY - rect.top });
+    const screen = { x: e.clientX - rect.left, y: e.clientY - rect.top };
+    if (marqueeActiveRef.current) {
+      marqueeRef.current?.move(screen);
+      return;
+    }
+    camRef.current.panMove(screen);
   }, []);
 
   const handlePointerUp = useCallback((e: React.PointerEvent) => {
     const container = containerRef.current;
     if (container) container.releasePointerCapture(e.pointerId);
+    if (marqueeActiveRef.current) {
+      marqueeActiveRef.current = false;
+      // Releasing the marquee selects (unioned) the objects it contains; an
+      // empty result changes nothing and does NOT clear the previous
+      // selection (sel.marquee_empty). It is not an empty-board click.
+      marqueeRef.current?.end();
+      return;
+    }
     camRef.current.endPan();
     const press = emptyPressRef.current;
     emptyPressRef.current = null;
@@ -85,6 +124,10 @@ export function BoardViewport(props: BoardViewportProps): JSX.Element {
   const handlePointerCancel = useCallback((e: React.PointerEvent) => {
     const container = containerRef.current;
     if (container) container.releasePointerCapture(e.pointerId);
+    if (marqueeActiveRef.current) {
+      marqueeActiveRef.current = false;
+      marqueeRef.current?.cancel();
+    }
     emptyPressRef.current = null;
     camRef.current.endPan();
   }, []);
@@ -176,6 +219,14 @@ export function BoardViewport(props: BoardViewportProps): JSX.Element {
         } else if (e.key === '0') {
           e.preventDefault();
           camRef.current.reset();
+        }
+      } else if (e.key === 'Escape') {
+        // Story 7: Escape cancels an in-progress marquee. stopImmediatePropagation
+        // keeps the board-level "clear selection" handler from firing too.
+        if (marqueeRef.current?.active) {
+          marqueeActiveRef.current = false;
+          marqueeRef.current.cancel();
+          e.stopImmediatePropagation();
         }
       }
     };

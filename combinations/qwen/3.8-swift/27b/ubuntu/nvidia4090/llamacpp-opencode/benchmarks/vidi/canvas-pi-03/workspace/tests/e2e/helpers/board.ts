@@ -50,6 +50,8 @@ export interface NoteInfo {
   x: number;
   y: number;
   z: number;
+  width: number;
+  height: number;
   color: string;
   text: string;
 }
@@ -68,6 +70,8 @@ export async function getNotes(page: Page): Promise<NoteInfo[]> {
         x: obj.get('x'),
         y: obj.get('y'),
         z: obj.get('z'),
+        width: obj.get('width'),
+        height: obj.get('height'),
         color: obj.get('color'),
         text: obj.get('text')?.toString() ?? '',
       };

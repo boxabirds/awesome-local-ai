@@ -1,4 +1,5 @@
 import * as Y from 'yjs';
+import { rectContains, type Rect } from './geometry';
 import {
   STICKY_COLORS,
   STICKY_SIZE_WORLD,
@@ -11,15 +12,39 @@ import {
 export const LOCAL_ORIGIN = Symbol('vidi6-local-origin');
 export type LocalOrigin = typeof LOCAL_ORIGIN;
 
-export interface StickySnapshot {
+/**
+ * Generic board object snapshot (story 7). `width`/`height` are optional:
+ * sticky notes created before story 7 carry no explicit size and render at
+ * STICKY_SIZE_WORLD (additive field, no migration). Later object types
+ * (stories 9–12) plug in here with their own fields.
+ */
+export interface ObjectSnapshot {
   id: string;
-  type: 'sticky';
+  type: string;
   x: number;
   y: number;
+  z: number;
+  width?: number;
+  height?: number;
+}
+
+export interface StickySnapshot extends ObjectSnapshot {
+  type: 'sticky';
   color: StickyColor;
   text: string;
-  z: number;
   createdAt: number;
+}
+
+/**
+ * Object types the client knows how to select, move, resize and delete.
+ * `sticky` is built in (board-model creates it natively); client-side types
+ * register through `registerKnownObjectType` (the story 7 object registry).
+ * Unknown types stay in the doc untouched: never selectable, never mutated.
+ */
+const KNOWN_TYPES = new Set<string>(['sticky']);
+
+export function registerKnownObjectType(type: string): void {
+  KNOWN_TYPES.add(type);
 }
 
 const SCHEMA_VERSION = 1;
@@ -41,6 +66,13 @@ function isValidColor(color: unknown): color is StickyColor {
 
 function isFinitePoint(p: { x: number; y: number }): boolean {
   return Number.isFinite(p.x) && Number.isFinite(p.y);
+}
+
+function isFiniteSize(s: { width?: number; height?: number }): boolean {
+  return (
+    (s.width === undefined || Number.isFinite(s.width)) &&
+    (s.height === undefined || Number.isFinite(s.height))
+  );
 }
 
 function maxZ(objects: Y.Map<ObjectMap>): number {
@@ -94,35 +126,21 @@ export function createSticky(
 }
 
 /**
- * Moves a note's top-left to world (x, y). Returns true when a change was
- * applied; false for a stale id, non-finite coordinates, or a no-op move.
+ * Moves a note's top-left to world (x, y). Story 7: thin wrapper over the
+ * group operation. Returns true when a change was applied; false for a stale
+ * id, non-finite coordinates, or a no-op move.
  */
 export function moveObject(doc: Y.Doc, id: string, x: number, y: number): boolean {
-  if (!Number.isFinite(x) || !Number.isFinite(y)) return false;
-  const obj = stickyOf(doc, id);
-  if (!obj) return false;
-  if (obj.get('x') === x && obj.get('y') === y) return false;
-  doc.transact(() => {
-    obj.set('x', x);
-    obj.set('y', y);
-  }, LOCAL_ORIGIN);
-  return true;
+  return moveObjects(doc, new Map([[id, { x, y }]])) === 1;
 }
 
 /**
- * Brings a note to the top of the stacking order (z = maxZ + 1).
- * Returns false (no update) for a stale id or a note already on top.
+ * Brings a note to the top of the stacking order (z = maxZ + 1). Story 7:
+ * thin wrapper over the group operation. Returns false (no update) for a
+ * stale id or a note already on top.
  */
 export function bringToFront(doc: Y.Doc, id: string): boolean {
-  const obj = stickyOf(doc, id);
-  if (!obj) return false;
-  const z = obj.get('z');
-  if (typeof z !== 'number') return false;
-  if (z >= maxZ(objectsOf(doc))) return false;
-  doc.transact(() => {
-    obj.set('z', maxZ(objectsOf(doc)) + 1);
-  }, LOCAL_ORIGIN);
-  return true;
+  return bringObjectsToFront(doc, [id]) === 1;
 }
 
 /**
@@ -141,14 +159,11 @@ export function setStickyColor(doc: Y.Doc, id: string, color: string): boolean {
 }
 
 /**
- * Removes a note from the doc. Returns false (no update) for a stale id.
+ * Removes a note from the doc. Story 7: thin wrapper over the group
+ * operation. Returns false (no update) for a stale id.
  */
 export function deleteObject(doc: Y.Doc, id: string): boolean {
-  if (!stickyOf(doc, id)) return false;
-  doc.transact(() => {
-    objectsOf(doc).delete(id);
-  }, LOCAL_ORIGIN);
-  return true;
+  return deleteObjects(doc, [id]) === 1;
 }
 
 /** Returns the note's Y.Text, or undefined for a stale id. */
@@ -178,6 +193,8 @@ export function snapshot(doc: Y.Doc): readonly StickySnapshot[] {
     if (!(obj instanceof Y.Map)) return;
     if (obj.get('type') !== 'sticky') return;
     const text = obj.get('text');
+    const width = obj.get('width');
+    const height = obj.get('height');
     out.push({
       id: key as string,
       type: 'sticky',
@@ -187,6 +204,8 @@ export function snapshot(doc: Y.Doc): readonly StickySnapshot[] {
       text: text instanceof Y.Text ? text.toString() : '',
       z: (obj.get('z') as number) ?? 0,
       createdAt: (obj.get('createdAt') as number) ?? 0,
+      ...(typeof width === 'number' && Number.isFinite(width) ? { width } : {}),
+      ...(typeof height === 'number' && Number.isFinite(height) ? { height } : {}),
     });
   });
   out.sort((a, b) => {
@@ -196,4 +215,207 @@ export function snapshot(doc: Y.Doc): readonly StickySnapshot[] {
     return 0;
   });
   return out;
+}
+
+/**
+ * Immutable snapshot of EVERY object on the board (all types), sorted by
+ * (z, id) like `snapshot`. Used by the client for rendering through the
+ * object registry, multi-selection, marquee and select-all.
+ */
+export function allObjects(doc: Y.Doc): readonly ObjectSnapshot[] {
+  const out: ObjectSnapshot[] = [];
+  objectsOf(doc).forEach((obj, key) => {
+    if (!(obj instanceof Y.Map)) return;
+    const type = obj.get('type');
+    if (typeof type !== 'string') return;
+    const x = obj.get('x');
+    const y = obj.get('y');
+    if (typeof x !== 'number' || typeof y !== 'number') return;
+    const width = obj.get('width');
+    const height = obj.get('height');
+    out.push({
+      id: key as string,
+      type,
+      x,
+      y,
+      z: (obj.get('z') as number) ?? 0,
+      ...(typeof width === 'number' && Number.isFinite(width) ? { width } : {}),
+      ...(typeof height === 'number' && Number.isFinite(height) ? { height } : {}),
+    });
+  });
+  out.sort((a, b) => {
+    if (a.z !== b.z) return a.z - b.z;
+    if (a.id < b.id) return -1;
+    if (a.id > b.id) return 1;
+    return 0;
+  });
+  return out;
+}
+
+// ---------------------------------------------------------------------------
+// Story 7: generic group operations (sel.geometry_ops).
+//
+// Every mutating call: non-finite values or an empty id list → 0 and no
+// transaction; ids missing from the doc are skipped; otherwise exactly one
+// LOCAL_ORIGIN transaction, returning the number of objects changed.
+//
+// Gestures write ABSOLUTE positions/rects computed from the gesture-start
+// snapshot, so concurrent remote moves converge to the last writer with
+// identical results on every screen (key decision 1).
+// ---------------------------------------------------------------------------
+
+/**
+ * An object's world rect. `width`/`height` fall back to STICKY_SIZE_WORLD:
+ * pre-story-7 stickies have no explicit size (key decision 5).
+ */
+export function objectBounds(obj: ObjectSnapshot): Rect {
+  const width = obj.width ?? STICKY_SIZE_WORLD;
+  const height = obj.height ?? STICKY_SIZE_WORLD;
+  return { x: obj.x, y: obj.y, width, height };
+}
+
+/**
+ * Ids of the objects lying ENTIRELY inside `rect` (marquee rule, sel.marquee:
+ * touching-but-not-enclosed objects are not selected).
+ */
+export function objectsInRect(snapshot: readonly ObjectSnapshot[], rect: Rect): string[] {
+  return snapshot.filter((obj) => rectContains(rect, objectBounds(obj))).map((obj) => obj.id);
+}
+
+/**
+ * Ids of every object with a registered type (select-all, sel.all). Objects
+ * of unregistered types are excluded: they are not selectable or resizable.
+ */
+export function allObjectIds(snapshot: readonly ObjectSnapshot[]): string[] {
+  return snapshot.filter((obj) => KNOWN_TYPES.has(obj.type)).map((obj) => obj.id);
+}
+
+/**
+ * Moves objects to ABSOLUTE top-left positions (world units). Used by the
+ * group-move gesture and arrow-key nudging. Returns the number of objects
+ * moved; missing ids are skipped.
+ */
+/**
+ * True when at least one of `ids` is a present object in the doc. The
+ * transform gesture uses this to tell "the whole selection was deleted
+ * remotely" (stop) from "this frame happened not to move anything" (continue).
+ */
+export function anyObjectPresent(doc: Y.Doc, ids: Iterable<string>): boolean {
+  const objects = objectsOf(doc);
+  for (const id of ids) {
+    const obj = objects.get(id);
+    if (obj instanceof Y.Map) return true;
+  }
+  return false;
+}
+
+export function moveObjects(doc: Y.Doc, positions: ReadonlyMap<string, { x: number; y: number }>): number {
+  if (positions.size === 0) return 0;
+  const objects = objectsOf(doc);
+  const pending: Array<[ObjectMap, number, number]> = [];
+  for (const [id, p] of positions) {
+    if (!Number.isFinite(p.x) || !Number.isFinite(p.y)) return 0; // whole call rejected
+    const obj = objects.get(id);
+    if (!(obj instanceof Y.Map)) continue; // missing id: skipped
+    pending.push([obj, p.x, p.y]);
+  }
+  if (pending.length === 0) return 0;
+  let changed = 0;
+  doc.transact(() => {
+    for (const [obj, x, y] of pending) {
+      if (obj.get('x') !== x || obj.get('y') !== y) changed += 1;
+      obj.set('x', x);
+      obj.set('y', y);
+    }
+  }, LOCAL_ORIGIN);
+  return changed;
+}
+
+/**
+ * Resizes objects to ABSOLUTE world rects, writing `x`, `y` and BOTH
+ * `width` and `height` (a pre-story-7 sticky becomes explicit on its first
+ * resize — key decision 5). Returns the number of objects resized.
+ */
+export function resizeObjects(doc: Y.Doc, rects: ReadonlyMap<string, Rect>): number {
+  if (rects.size === 0) return 0;
+  const objects = objectsOf(doc);
+  const pending: Array<[ObjectMap, Rect]> = [];
+  for (const [id, r] of rects) {
+    if (!isFiniteSize(r)) return 0; // whole call rejected (non-finite)
+    const obj = objects.get(id);
+    if (!(obj instanceof Y.Map)) continue; // missing id: skipped
+    pending.push([obj, r]);
+  }
+  if (pending.length === 0) return 0;
+  let changed = 0;
+  doc.transact(() => {
+    for (const [obj, r] of pending) {
+      if (
+        obj.get('x') !== r.x ||
+        obj.get('y') !== r.y ||
+        obj.get('width') !== r.width ||
+        obj.get('height') !== r.height
+      ) {
+        changed += 1;
+      }
+      obj.set('x', r.x);
+      obj.set('y', r.y);
+      obj.set('width', r.width);
+      obj.set('height', r.height);
+    }
+  }, LOCAL_ORIGIN);
+  return changed;
+}
+
+/**
+ * Raises the whole selection above every unselected object while preserving
+ * the relative stacking order among selected objects (key decision 4):
+ * selected ids are ranked by their current (z, id) and reassigned
+ * z = maxUnselectedZ + rank. Returns the number of objects re-assigned; 0
+ * (no transaction) when nothing needs to change.
+ */
+export function bringObjectsToFront(doc: Y.Doc, ids: readonly string[]): number {
+  if (ids.length === 0) return 0;
+  const objects = objectsOf(doc);
+  const selected: Array<{ id: string; obj: ObjectMap; z: number }> = [];
+  for (const id of ids) {
+    const obj = objects.get(id);
+    if (!(obj instanceof Y.Map)) continue; // missing id: skipped
+    const z = obj.get('z');
+    if (typeof z !== 'number' || !Number.isFinite(z)) continue;
+    selected.push({ id, obj, z });
+  }
+  if (selected.length === 0) return 0;
+
+  const selectedIds = new Set(selected.map((s) => s.id));
+  let maxUnselected = 0;
+  objects.forEach((obj, key) => {
+    if (selectedIds.has(key as string)) return;
+    if (!(obj instanceof Y.Map)) return;
+    const z = obj.get('z');
+    if (typeof z === 'number' && z > maxUnselected) maxUnselected = z;
+  });
+
+  selected.sort((a, b) => (a.z !== b.z ? a.z - b.z : a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
+  const targets = selected.map((s, i) => ({ obj: s.obj, z: maxUnselected + i + 1 }));
+  if (targets.every((t) => t.obj.get('z') === t.z)) return 0; // already in place
+  doc.transact(() => {
+    for (const t of targets) t.obj.set('z', t.z);
+  }, LOCAL_ORIGIN);
+  return targets.length;
+}
+
+/**
+ * Removes every selected object at once. Returns the number removed; missing
+ * ids are skipped.
+ */
+export function deleteObjects(doc: Y.Doc, ids: readonly string[]): number {
+  if (ids.length === 0) return 0;
+  const objects = objectsOf(doc);
+  const present = ids.filter((id) => objects.get(id) instanceof Y.Map);
+  if (present.length === 0) return 0;
+  doc.transact(() => {
+    for (const id of present) objects.delete(id);
+  }, LOCAL_ORIGIN);
+  return present.length;
 }

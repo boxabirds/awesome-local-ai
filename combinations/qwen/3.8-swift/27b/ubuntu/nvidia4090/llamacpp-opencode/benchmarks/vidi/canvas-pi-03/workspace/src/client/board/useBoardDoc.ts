@@ -1,11 +1,13 @@
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import * as Y from 'yjs';
-import { snapshot, type StickySnapshot } from 'src/shared/board-model';
+import { snapshot, allObjects, type ObjectSnapshot, type StickySnapshot } from 'src/shared/board-model';
 import { connectBoard, type ConnectionState } from 'src/client/sync/connectBoard';
 
 export interface BoardDoc {
   doc: Y.Doc;
   notes: readonly StickySnapshot[];
+  /** Story 7: every object of every registered type (generic machinery). */
+  objects: readonly ObjectSnapshot[];
   connectionState: ConnectionState;
   /** Test seam: drop the sync socket (flaky Wi-Fi). Pair with `resumeSocket`. */
   dropSocket: () => void;
@@ -13,7 +15,12 @@ export interface BoardDoc {
   resumeSocket: () => void;
 }
 
-const EMPTY_NOTES: readonly StickySnapshot[] = [];
+interface BoardCache {
+  notes: readonly StickySnapshot[];
+  objects: readonly ObjectSnapshot[];
+}
+
+const EMPTY: BoardCache = { notes: [], objects: [] };
 
 /**
  * Owns the in-memory Y.Doc for the current board and exposes an immutable
@@ -27,7 +34,7 @@ const EMPTY_NOTES: readonly StickySnapshot[] = [];
  */
 export function useBoardDoc(boardId: string): BoardDoc {
   const docRef = useRef<Y.Doc | null>(null);
-  const cacheRef = useRef<{ notes: readonly StickySnapshot[] } | null>(null);
+  const cacheRef = useRef<BoardCache | null>(null);
   const connRef = useRef<ReturnType<typeof connectBoard> | null>(null);
   if (docRef.current === null) {
     // The server is the authority: it creates the initial state (meta.schemaVersion).
@@ -35,7 +42,7 @@ export function useBoardDoc(boardId: string): BoardDoc {
     // (different Yjs client ID) and cause endless re-sync churn.
     const doc = new Y.Doc();
     docRef.current = doc;
-    cacheRef.current = { notes: snapshot(doc) };
+    cacheRef.current = { notes: snapshot(doc), objects: allObjects(doc) };
   }
   const doc = docRef.current;
 
@@ -57,9 +64,7 @@ export function useBoardDoc(boardId: string): BoardDoc {
     (onChange: () => void) => {
       const objects = doc.getMap('objects');
       const handler = () => {
-        if (cacheRef.current) {
-          cacheRef.current.notes = snapshot(doc);
-        }
+        cacheRef.current = { notes: snapshot(doc), objects: allObjects(doc) };
         onChange();
       };
       objects.observeDeep(handler);
@@ -71,11 +76,11 @@ export function useBoardDoc(boardId: string): BoardDoc {
   );
 
   const getSnapshot = useCallback(
-    () => (cacheRef.current ? cacheRef.current.notes : EMPTY_NOTES),
+    () => cacheRef.current ?? EMPTY,
     [],
   );
 
-  const notes = useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
+  const board = useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
 
   const dropSocket = useCallback(() => {
     connRef.current?.dropSocket();
@@ -84,5 +89,5 @@ export function useBoardDoc(boardId: string): BoardDoc {
     connRef.current?.resumeSocket();
   }, []);
 
-  return { doc, notes, connectionState, dropSocket, resumeSocket };
+  return { doc, notes: board.notes, objects: board.objects, connectionState, dropSocket, resumeSocket };
 }

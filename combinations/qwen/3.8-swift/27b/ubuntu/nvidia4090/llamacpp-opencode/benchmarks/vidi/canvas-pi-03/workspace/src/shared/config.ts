@@ -26,6 +26,12 @@ export const LOAD_RETRY_MIN_INTERVAL_MS = 5000;      // LoadFailed room retries 
 export const PERSIST_TESTED_NOTES = 2000;            // PRD persist.large_board
 export const BOARD_LOAD_BUDGET_MS = 3000;            // PRD persist.large_board
 export const STORAGE_SCHEMA_VERSION = 1;
+// Story 7: multi-selection, group move/resize, nudge, delete
+export const HANDLE_SIZE_PX = 8; // resize handles stay this size on screen at any zoom
+export const STICKY_MIN_SIZE_WORLD = 50; // sticky notes cannot be resized below this
+export const MAX_OBJECT_SIZE_WORLD = 20_000; // no object may be resized above this
+export const NUDGE_STEP_WORLD = 1; // arrow-key nudge step
+export const NUDGE_LARGE_STEP_WORLD = 10; // Shift+arrow nudge step
 // Story 5: share a board with others using a link
 export const BOARD_CREATE_LIMIT = 10;              // per visitor, per period (PRD share.rate_limit)
 export const BOARD_CREATE_PERIOD_SECONDS = 60;     // must match wrangler.jsonc ratelimits (TC-03 asserts equality)
