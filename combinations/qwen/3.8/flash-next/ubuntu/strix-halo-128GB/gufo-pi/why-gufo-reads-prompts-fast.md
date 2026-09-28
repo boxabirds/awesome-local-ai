@@ -6,6 +6,8 @@ On my Strix Halo machine, **gufo reads a long coding conversation up to 7x faste
 
 gufo gets there by being built for one chip and a small number of models, and tuning everything for them. That has costs too, which I cover at the end.
 
+Note: part of this lead is likely temporary. What I believe is the biggest single reason for it (point 2 below) is a general method that isn't tied to AMD's chip, and llama.cpp developers have already written it. It isn't merged yet: the version for the graphics interface tritus uses has been a draft since March 2026, and the version for AMD's ROCm was opened on 24 September 2026. When it lands, llama.cpp should close some of the gap, and I'll re-test it.
+
 ## Some background first
 
 Programs that run AI models on your own computer are called **inference engines**. llama.cpp is the one most people use. gufo is a newer one written specifically for AMD's Ryzen AI MAX+ 395 chip, better known as "Strix Halo". My test machine, tritus, has one of these chips and 128 GB of memory.
@@ -79,7 +81,7 @@ It's not free though.
 
 **Every new model gufo supports likely needs some dedicated attention.** A lot carries over: the server, the model-file reader, the sampling and the batching all work across models, and similar models share code. gufo already covers several: Qwen3.8 27B and Flash-Next, DeepSeek V4 Flash, MiniMax H3, and some image and speech models. But the tuned maths routines are copied per model and then tuned for that model's layer sizes, and any new kind of layer needs new code. Even the same model stored a different way ("quantisation") needs its unpacking code added to those routines, which is why gufo only supports one set of files for this model (UD-Q4_K_XL). So when a new model is released, llama.cpp usually runs it within days (slowly), while gufo runs it fast once someone has done that work.
 
-**Part of the lead is temporary.** Processing the shortcut layers in parallel (point 2) is a general method that works on any chip, and llama.cpp already has that code written. Once it's merged, a large part of the gap should close. The chip- and model-specific parts (points 1, 3, 4 and 5) will stay. That will be the time to re-test llama.cpp on tritus.
+**Part of the lead is temporary.** As I said at the top, llama.cpp has the parallel version of point 2 written but not merged. The chip- and model-specific parts (points 1, 3, 4 and 5) will stay.
 
 **The newer parts are outside the maths.** gufo's number-crunching is very well tuned. The part that turns the model's text into tool calls for the agent is newer, and that's where my long agent runs found a bug. Now and then, when the model writes an edit containing line breaks, gufo hands the tool call back as plain text. The agent reads that as "finished" and stops. It happens about once every 500 turns, so you'd never see it in a speed test, but over hours of agent work it cuts stories off halfway. I've reported it as [gufo-org/gufo#304](https://github.com/gufo-org/gufo/issues/304), and my test harness now tells the agent to carry on when it happens.
 
