@@ -1,6 +1,6 @@
 {
-  "state": "stopped",
-  "reason": "exit 143:",
-  "at": "2026-09-28T08:55:03Z",
+  "state": "started",
+  "reason": "harness f3d8dca5, client pi, model mlxserve-flash-next-mixed-4-8bit",
+  "at": "2026-09-28T08:56:43Z",
   "host": "Quintus"
 }

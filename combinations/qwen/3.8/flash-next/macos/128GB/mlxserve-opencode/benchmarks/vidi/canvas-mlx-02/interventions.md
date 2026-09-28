@@ -377,3 +377,4 @@ Every manual or automatic intervention in this run, oldest first. The run's numb
 2026-09-28T08:46:39Z 07: interrupted a tool call silent for 600s (killed processes under the workspace)
 2026-09-28T08:47:09Z 07: interrupted a tool call silent for 600s (killed processes under the workspace)
 2026-09-28T08:47:39Z 07: interrupted a tool call silent for 600s (killed processes under the workspace)
+2026-09-28T08:55:43Z 07: VOIDED and restarted by the operator. The first attempt froze for 3 h on one tool call (find / walking ~/Library), which the old hang guard could not kill (harness fix 47f80ab6). Workspace reset to the story base; the frozen attempt is kept on quintus in ~/.spec-bench/voided/canvas-mlx-02-story07-20260928/.
