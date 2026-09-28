@@ -85,10 +85,18 @@ export function SelectionOverlay(props: SelectionOverlayProps): React.JSX.Elemen
   if (box === null) return null;
 
   let anyResizable = false;
+  let allHorizontal = true;
   for (const obj of selected) {
     const spec = getObjectType(obj.type);
     if (spec && spec.resizable) anyResizable = true;
+    // A type whose box height is computed (story 9's text) is resized only
+    // sideways; the full eight handles return as soon as ANY selected object
+    // wants them (a text next to a sticky drags as a group again).
+    if (!spec || !spec.resizable || spec.handles !== 'horizontal') allHorizontal = false;
   }
+  const shownHandles: readonly Handle[] = allHorizontal
+    ? HANDLES.filter((h) => h === 'e' || h === 'w')
+    : HANDLES;
 
   const origin = worldToScreen(camera, { x: box.x, y: box.y });
   const half = HANDLE_SIZE_PX / 2;
@@ -125,7 +133,7 @@ export function SelectionOverlay(props: SelectionOverlayProps): React.JSX.Elemen
         }}
       />
       {anyResizable &&
-        HANDLES.map((handle) => {
+        shownHandles.map((handle) => {
           const point = handlePoint(box, handle);
           const screen = worldToScreen(camera, point);
           return (

@@ -35,6 +35,7 @@ import {
   objectBounds,
   type ObjectSnapshot,
 } from '../../shared/board-model.ts';
+import { setTextWidthFixed } from '../../shared/objects/text.ts';
 import {
   resizeRect,
   clampScale,
@@ -44,7 +45,7 @@ import {
   type Handle,
   type Rect,
 } from '../../shared/geometry.ts';
-import { DRAG_THRESHOLD_PX, MAX_OBJECT_SIZE_WORLD } from '../../shared/config.ts';
+import { DRAG_THRESHOLD_PX, MAX_OBJECT_SIZE_WORLD, TEXT_MIN_WIDTH_WORLD } from '../../shared/config.ts';
 import { getObjectType } from '../objects/registry.tsx';
 import type { useSelection } from './useSelection.ts';
 
@@ -55,6 +56,14 @@ interface StartRect {
   rect: Rect;
   /** the minimum side its type allows */
   minSize: number;
+  /**
+   * True for a type whose box height is computed by its layout (story 9's
+   * text): it is never dragged vertically, and in a group resize only its
+   * position - and its fixed width, if it has one - follows the box.
+   */
+  horizontal: boolean;
+  /** a horizontal object whose WIDTH is pinned ('fixed' width mode) */
+  fixed: boolean;
 }
 
 interface Gesture {
@@ -135,6 +144,28 @@ export function useTransformGesture(opts: TransformGestureOptions): TransformGes
 
     if (g.handle === null || g.startBox === null || !isFiniteRect(g.startBox)) return;
     const from = g.startBox;
+
+    // A single horizontal object (story 9's text) takes the short path: the
+    // side handle pins its width - resizeRect supplies the dragged edge, the
+    // model call does the floor - and the height is whatever the new width
+    // lays out to, which the box sync writes in this same undo step. The West
+    // handle additionally moves x so the opposite edge stays put; the height
+    // is never written here.
+    if (g.ids.length === 1) {
+      const only = g.startRects.get(g.ids[0]);
+      if (only?.horizontal && (g.handle === 'e' || g.handle === 'w')) {
+        const id = g.ids[0];
+        const target = resizeRect(from, g.handle, { x: dx, y: dy }, false);
+        if (!isFiniteRect(target)) return;
+        const width = Math.min(MAX_OBJECT_SIZE_WORLD, Math.max(TEXT_MIN_WIDTH_WORLD, target.width));
+        setTextWidthFixed(doc, id, width);
+        if (g.handle === 'w') {
+          moveObjects(doc, new Map([[id, { x: from.x + from.width - width, y: only.rect.y }]]));
+        }
+        return;
+      }
+    }
+
     const target = resizeRect(from, g.handle, { x: dx, y: dy }, g.aspectLocked);
     if (!isFiniteRect(target)) return;
     const rects: Rect[] = [];
@@ -144,7 +175,9 @@ export function useTransformGesture(opts: TransformGestureOptions): TransformGes
       const start = g.startRects.get(id);
       if (!start) continue;
       rects.push(start.rect);
-      minSizes.push(start.minSize);
+      // A horizontal object's box is the layout's, not the group's: it must not
+      // hold the shared scale hostage (its height has no drag-side minimum).
+      minSizes.push(start.horizontal ? 0 : start.minSize);
       ids.push(id);
     }
     if (rects.length === 0) return;
@@ -169,7 +202,23 @@ export function useTransformGesture(opts: TransformGestureOptions): TransformGes
     const next = new Map<string, Rect>();
     for (const id of ids) {
       const start = g.startRects.get(id)!;
-      next.set(id, scaleWithin(start.rect, from, to));
+      const scaled = scaleWithin(start.rect, from, to);
+      if (start.horizontal) {
+        // In a mixed group a text is REPOSITIONED proportionally, and a fixed
+        // width scales with the box - but its height, and its auto width,
+        // belong to the layout alone (TC-23); the box sync re-measures the
+        // height right after this write, inside the same gesture step.
+        next.set(id, {
+          x: scaled.x,
+          y: scaled.y,
+          width: start.fixed
+            ? Math.min(MAX_OBJECT_SIZE_WORLD, Math.max(TEXT_MIN_WIDTH_WORLD, scaled.width))
+            : start.rect.width,
+          height: start.rect.height,
+        });
+      } else {
+        next.set(id, scaled);
+      }
     }
     resizeObjects(doc, next);
   };
@@ -181,7 +230,12 @@ export function useTransformGesture(opts: TransformGestureOptions): TransformGes
     for (const obj of objectsSnapshot(doc)) {
       if (!wanted.has(obj.id)) continue;
       const spec = getObjectType(obj.type);
-      rects.set(obj.id, { rect: objectBounds(obj), minSize: spec ? spec.minSize : 0 });
+      rects.set(obj.id, {
+        rect: objectBounds(obj),
+        minSize: spec ? spec.minSize : 0,
+        horizontal: spec ? spec.handles === 'horizontal' : false,
+        fixed: obj.widthMode === 'fixed',
+      });
     }
     g.startRects = rects;
     g.ids = [...rects.keys()]; // ids that vanished between press and start drop out

@@ -3,6 +3,7 @@ import type React from 'react';
 import { useCamera, type CameraApi } from './useCamera.ts';
 import { worldToScreen, screenToWorld, type Camera, type Size, type Point } from './camera.ts';
 import { MarqueeRect, type Marquee } from '../board/Marquee.tsx';
+import type { Tool } from '../board/useTool.ts';
 import {
   GRID_SPACING_WORLD,
   WHEEL_DELTA_LINE_PX,
@@ -30,6 +31,8 @@ export interface BoardViewportProps {
   onEmptyDoubleClick?(world: Point): void;
   onEmptyClick?(): void;
   marquee?: Marquee;
+  tool?: Tool;
+  onTextToolClick?(world: Point): void;
 }
 
 export interface ViewportHandles {
@@ -108,6 +111,13 @@ export interface BoardViewportHandleProps {
    * it draws instead of panning. A drag without Shift pans, exactly as in story 1.
    */
   marquee?: Marquee;
+  /**
+   * Story 9: while the Text tool is active a press anywhere on the board -
+   * empty space or on top of an object - neither pans nor marquees; a click
+   * (a press with no movement) becomes `onTextToolClick` at that world point.
+   */
+  tool?: Tool;
+  onTextToolClick?(world: Point): void;
 }
 
 export function BoardViewportRoot({
@@ -117,12 +127,18 @@ export function BoardViewportRoot({
   onEmptyDoubleClick,
   onEmptyClick,
   marquee,
+  tool,
+  onTextToolClick,
 }: BoardViewportHandleProps): React.JSX.Element {
   const cam = api.camera;
   const dragRef = useRef(false);
   // True between a Shift+pointerdown and its pointerup: the moves belong to the
   // marquee, not to the camera.
   const marqueeRef = useRef(false);
+  // The same for the Text tool (story 9): between its pointerdown and its
+  // pointerup nothing else owns the pointer, and the release decides whether
+  // the press was a click (create a text here) or a drag (nothing at all).
+  const textPress = useRef<{ x: number; y: number; moved: boolean } | null>(null);
   const gestureBaseline = useRef<Camera | null>(null);
   // Distinguish an empty-space click (clears selection) from a pan drag.
   const clickStart = useRef<{ x: number; y: number; moved: boolean } | null>(null);
@@ -223,10 +239,29 @@ export function BoardViewportRoot({
         inset: 0,
         overflow: 'hidden',
         touchAction: 'none',
+        // The Text tool's cursor, over the whole board (story 9).
+        cursor: tool === 'text' ? 'text' : undefined,
         ...dotGridBackground(cam),
+      }}
+      onPointerDownCapture={(e) => {
+        // The Text tool intercepts every press on the board while it is open,
+        // in the capture phase: the pointer never reaches the pan, the marquee
+        // or an object underneath, and the click - if it stays a click - lands
+        // a new text on top of whatever was pressed.
+        if (tool !== 'text' || e.button !== 0) return;
+        e.stopPropagation();
+        if (e.cancelable) e.preventDefault();
+        const p = screenPoint(e);
+        textPress.current = { x: p.x, y: p.y, moved: false };
+        try {
+          (e.currentTarget as Element).setPointerCapture(e.pointerId);
+        } catch {
+          /* jsdom / unsupported */
+        }
       }}
       onPointerDown={(e) => {
         if (e.button !== 0) return;
+        if (textPress.current) return; // the Text tool owns this press
         // Only start a drag when the target is the viewport/grid itself, so later
         // object stories can keep their objects' own pointer handling.
         if (e.target !== rootRef.current) return;
@@ -245,6 +280,12 @@ export function BoardViewportRoot({
       }}
       onPointerMove={(e) => {
         const p = screenPoint(e);
+        if (textPress.current) {
+          // The Text tool's press is still just a press until it moves.
+          const t = textPress.current;
+          if (!t.moved && Math.hypot(p.x - t.x, p.y - t.y) >= DRAG_THRESHOLD_PX) t.moved = true;
+          return;
+        }
         if (marqueeRef.current) {
           marquee?.move(p);
           return;
@@ -257,6 +298,15 @@ export function BoardViewportRoot({
         api.panMove(p);
       }}
       onPointerUp={(e) => {
+        const tp = textPress.current;
+        if (tp) {
+          // The Text tool's release: a press that never moved is a click, and a
+          // click places a new text at this world point; a drag was nothing.
+          textPress.current = null;
+          (e.target as Element).releasePointerCapture?.(e.pointerId);
+          if (!tp.moved) onTextToolClick?.(screenToWorld(cam, screenPoint(e)));
+          return;
+        }
         if (marqueeRef.current) {
           // The marquee decides what to add to the selection; the camera never moved.
           marqueeRef.current = false;
@@ -274,13 +324,19 @@ export function BoardViewportRoot({
         if (c && !c.moved) onEmptyClick?.();
       }}
       onDoubleClick={(e) => {
-        // Only create from a double-click on empty board space, never on a note.
+        // Only create from a double-click on empty board space, never on a note;
+        // and never while the Text tool is open, where every press is a text.
+        if (tool === 'text') return;
         if (e.target !== rootRef.current) return;
         if (!onEmptyDoubleClick) return;
         onEmptyDoubleClick(screenToWorld(cam, screenPoint(e)));
       }}
       onPointerCancel={() => {
-        // Interrupted drag: keep the camera where it was at the moment of cancel.
+        if (textPress.current) {
+          // An interrupted Text-tool press creates nothing.
+          textPress.current = null;
+          return;
+        }
         if (marqueeRef.current) {
           // A marquee that never finished selects nothing (TC-22).
           marqueeRef.current = false;
@@ -291,6 +347,10 @@ export function BoardViewportRoot({
         api.endPan();
       }}
       onLostPointerCapture={() => {
+        if (textPress.current) {
+          textPress.current = null;
+          return;
+        }
         if (marqueeRef.current) {
           marqueeRef.current = false;
           marquee?.cancel();
@@ -375,6 +435,8 @@ export function BoardViewport(props: BoardViewportProps): React.JSX.Element {
       onEmptyDoubleClick={props.onEmptyDoubleClick}
       onEmptyClick={props.onEmptyClick}
       marquee={props.marquee}
+      tool={props.tool}
+      onTextToolClick={props.onTextToolClick}
     >
       {props.children}
     </BoardViewportRoot>

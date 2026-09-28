@@ -9,7 +9,10 @@ import * as Y from 'yjs';
 import {
   STICKY_SIZE_WORLD,
   DEFAULT_STICKY_COLOR,
+  DEFAULT_TEXT_SIZE,
+  TEXT_SIZES,
   type StickyColor,
+  type TextSize,
 } from './config.ts';
 import type { Point, Rect } from './geometry.ts';
 import { rectContains } from './geometry.ts';
@@ -19,11 +22,12 @@ export const SCHEMA_VERSION = 1;
 export const LOCAL_ORIGIN: unique symbol = Symbol('vidi6.local');
 
 // Object types this build of the board model can read. Stories 2-7 ship
-// 'sticky'; each later object type becomes readable when its client registry
-// entry is registered (registerReadableType), and an object of a type nobody
-// has registered is invisible — forward compatibility, TC-12).
+// 'sticky' and story 9 ships 'text'; any later object type becomes readable
+// when its client registry entry is registered (registerReadableType), and an
+// object of a type nobody has registered is invisible — forward compatibility,
+// TC-12).
 type ReadableType = string;
-const KNOWN_TYPES = new Set<ReadableType>(['sticky']);
+const KNOWN_TYPES = new Set<ReadableType>(['sticky', 'text']);
 
 // Mark a board object type as readable by the board model. Called by the
 // client object registry so ONE registration per type exists (stories 9-12
@@ -46,6 +50,10 @@ export interface ObjectSnapshot {
   createdAt: number;
   width?: number;
   height?: number;
+  /** Free text (story 9): the font-size key and the width mode; only text
+   *  objects carry them. */
+  size?: TextSize;
+  widthMode?: 'auto' | 'fixed';
   color?: StickyColor;
   text?: string;
 }
@@ -58,6 +66,7 @@ export interface StickySnapshot extends ObjectSnapshot {
 }
 
 const STICKY_TYPE = 'sticky';
+const TEXT_TYPE = 'text';
 
 // Known colour names (the six product presets).
 const COLOR_NAMES = new Set<string>([
@@ -246,6 +255,19 @@ function readObject(id: string, m: Y.Map<unknown>): ObjectSnapshot | null {
     obj.color = isColor(m.get('color')) ? (m.get('color') as StickyColor) : DEFAULT_STICKY_COLOR;
     const text = m.get('text');
     obj.text = text instanceof Y.Text ? text.toString() : '';
+  }
+  if (type === TEXT_TYPE) {
+    // Story 9: the text read as a string, the size validated (a foreign value
+    // falls back to the default) and the width mode likewise (anything but an
+    // explicit 'fixed' is the auto mode).
+    const text = m.get('text');
+    obj.text = text instanceof Y.Text ? text.toString() : '';
+    const size = m.get('size');
+    obj.size =
+      typeof size === 'string' && Object.prototype.hasOwnProperty.call(TEXT_SIZES, size)
+        ? (size as TextSize)
+        : DEFAULT_TEXT_SIZE;
+    obj.widthMode = m.get('widthMode') === 'fixed' ? 'fixed' : 'auto';
   }
   return obj;
 }

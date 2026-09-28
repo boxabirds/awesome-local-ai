@@ -24,6 +24,8 @@ import { useBoardDoc } from './useBoardDoc.ts';
 import { useSelection } from './useSelection.ts';
 import { useTransformGesture } from './useTransformGesture.ts';
 import { useBoardKeys } from './useBoardKeys.ts';
+import { useTool } from './useTool.ts';
+import { localIdentityId } from './localIdentity.ts';
 import { useMarquee } from './Marquee.tsx';
 import { SelectionOverlay } from './SelectionOverlay.tsx';
 import { SelectionBar } from './SelectionBar.tsx';
@@ -40,7 +42,9 @@ import {
   setStickyColor,
   type ObjectSnapshot,
 } from '../../shared/board-model.ts';
-import type { StickyColor } from '../../shared/config.ts';
+import { createText, setTextSize } from '../../shared/objects/text.ts';
+import type { StickyColor, TextSize } from '../../shared/config.ts';
+import type { Point } from '../canvas/camera.ts';
 
 // True when the board can be mutated at all (story 4). Everything else about a
 // board stays usable while it is unloadable - you can pan, zoom and read it - so
@@ -105,6 +109,12 @@ export default function BoardApp({ boardId, makeProvider }: BoardAppProps) {
   const selection = useSelection(objects);
   const { ids: selectedIds, editingId, setMany, clear, startEdit, endEdit } = selection;
 
+  // The board's tool (story 9): this tab's pointer meaning, never the doc's.
+  // The Text tool is a mutation door, so it is gated by the same `editable`
+  // as every other path - a board that cannot be edited cannot be put into it.
+  const tools = useTool(editable);
+  const { tool, setTool } = tools;
+
   // Shift+drag on empty space; `setMany(..., true)` so a marquee adds to the
   // selection instead of replacing it.
   const onSelectMarquee = useCallback((ids: string[]) => setMany(ids, true), [setMany]);
@@ -135,6 +145,10 @@ export default function BoardApp({ boardId, makeProvider }: BoardAppProps) {
     canEdit: editable,
     undo: undoController,
     escapeBlocked: () => marquee.rect !== null,
+    tools,
+    // N keeps its story 2 meaning; the callback is invoked long after this
+    // render, when the const below is long since initialised.
+    onCreateSticky: () => onCreateSticky(),
   });
 
   // Mirror the live connection state + socket controls onto the test-only hook
@@ -193,6 +207,46 @@ export default function BoardApp({ boardId, makeProvider }: BoardAppProps) {
       // One click on a colour is one step of its own.
       undoController.boundary();
       setStickyColor(doc, id, color);
+      undoController.boundary();
+    },
+    [doc, undoController],
+  );
+
+  // A text created by the Text tool lands exactly on the pressed point (not
+  // centred on it like a note does) and opens its editor at once - the two
+  // boundaries around the creation make "a text was created" one undo step
+  // before the first keystroke joins what is typed into it (story 8, TC-25).
+  const createTextAt = useCallback(
+    (world: Point) => {
+      if (!canEdit(connectionStateRef.current)) return;
+      undoController.boundary();
+      // Story 6 has not run: `createdBy` is this tab's locally generated id
+      // (see localIdentity.ts) until real identities arrive.
+      const id = createText(doc, world, localIdentityId());
+      undoController.boundary();
+      if (id !== null) setPendingEdit(id);
+    },
+    [doc, undoController],
+  );
+
+  // The Text tool's click: a new text exactly there, the tool given back to
+  // Select, and the editor open on it (TC-17).
+  const onTextToolClick = useCallback(
+    (world: Point) => {
+      createTextAt(world);
+      setTool('select');
+    },
+    [createTextAt, setTool],
+  );
+
+  // The size toolbar's press: one step of its own, exactly like a colour
+  // choice. The box re-measures inside the same boundaries, so "the size
+  // changed" - size and grown box together - is a single undo step.
+  const onTextSize = useCallback(
+    (id: string, size: TextSize) => {
+      if (!canEdit(connectionStateRef.current)) return;
+      undoController.boundary();
+      setTextSize(doc, id, size);
       undoController.boundary();
     },
     [doc, undoController],
@@ -275,13 +329,21 @@ export default function BoardApp({ boardId, makeProvider }: BoardAppProps) {
         onEmptyDoubleClick={onEmptyDoubleClick}
         onEmptyClick={onEmptyClick}
         marquee={marquee}
+        tool={tool}
+        onTextToolClick={onTextToolClick}
       >
         {renderedObjects}
       </BoardViewportRoot>
 
       <ConnectionStatus state={board.connectionState} />
 
-      <Toolbar onCreateSticky={onCreateSticky} disabled={!editable} undo={undoState} />
+      <Toolbar
+        onCreateSticky={onCreateSticky}
+        disabled={!editable}
+        undo={undoState}
+        tool={tool}
+        onTool={setTool}
+      />
 
       <ZoomControls
         zoomPercent={zoomPercent(cam)}
@@ -312,6 +374,7 @@ export default function BoardApp({ boardId, makeProvider }: BoardAppProps) {
         editing={editingId !== null}
         onDelete={onDeleteSelection}
         onColor={(id: string, color: StickyColor) => onColor(id, color)}
+        onTextSize={(id: string, size: TextSize) => onTextSize(id, size)}
       />
     </UndoContext.Provider>
   );

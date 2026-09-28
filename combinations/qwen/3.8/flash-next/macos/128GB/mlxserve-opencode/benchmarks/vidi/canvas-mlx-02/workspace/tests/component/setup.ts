@@ -39,6 +39,13 @@ if (!('setPointerCapture' in Element.prototype)) {
   proto.releasePointerCapture = () => {};
 }
 
+// jsdom has no canvas: getContext('2d') logs "Not implemented" to the virtual
+// console on every call before returning null. The board's text measurer
+// already falls back to the documented estimate on null, so answer null here
+// quietly instead of noisily.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+(HTMLCanvasElement.prototype as any).getContext = () => null;
+
 afterEach(() => {
   cleanup();
   vi.useRealTimers();

@@ -4,7 +4,15 @@
 // measurement used by the display/editor. The minimal diff is required so that
 // concurrent typing by other users (story 3) is preserved: a full replace
 // would destroy their inserts.
-import type * as Y from 'yjs';
+//
+// Story 9 lifted the clamp and the diff into src/shared/text-edit.ts so the
+// free text object clamps and diffs the same way with its own limit; what is
+// left here is the sticky note's 1,000-character default, the character
+// counter and the font fit — all unchanged.
+import {
+  clampToLimit as clampToGeneric,
+  applyTextDiff,
+} from '../../shared/text-edit.ts';
 import {
   STICKY_TEXT_MAX_CHARS,
   STICKY_COUNTER_THRESHOLD_CHARS,
@@ -12,49 +20,19 @@ import {
   STICKY_FONT_MAX_PX,
 } from '../../shared/config.ts';
 
+export { applyTextDiff };
+
 // Drop characters beyond the limit; the kept text is a prefix of the input.
+// Sticky notes default to STICKY_TEXT_MAX_CHARS; a call with an explicit
+// maximum (the unit tests) passes one.
 export function clampToLimit(next: string, max: number = STICKY_TEXT_MAX_CHARS): string {
-  return next.length > max ? next.slice(0, max) : next;
+  return clampToGeneric(next, max);
 }
 
 // Whether the character counter should be shown for a note of `length`
 // characters: only when the remaining characters are within the threshold.
 export function counterVisible(length: number): boolean {
   return STICKY_TEXT_MAX_CHARS - length <= STICKY_COUNTER_THRESHOLD_CHARS;
-}
-
-// Apply the minimal edit (common prefix + common suffix) that turns the current
-// Y.Text content into `next`, inside a single transaction with the given origin.
-// No transaction is opened when the text is unchanged.
-export function applyTextDiff(ytext: Y.Text, next: string, origin: unknown): void {
-  const prev = ytext.toString();
-  if (prev === next) return;
-
-  const maxPrefix = Math.min(prev.length, next.length);
-  let prefix = 0;
-  while (prefix < maxPrefix && prev.charCodeAt(prefix) === next.charCodeAt(prefix)) {
-    prefix++;
-  }
-
-  const maxSuffix = Math.min(prev.length - prefix, next.length - prefix);
-  let suffix = 0;
-  while (
-    suffix < maxSuffix &&
-    prev.charCodeAt(prev.length - 1 - suffix) === next.charCodeAt(next.length - 1 - suffix)
-  ) {
-    suffix++;
-  }
-
-  const deleteLen = prev.length - prefix - suffix;
-  const insertStr = next.slice(prefix, next.length - suffix);
-
-  const doc = ytext.doc;
-  const run = () => {
-    if (deleteLen > 0) ytext.delete(prefix, deleteLen);
-    if (insertStr.length > 0) ytext.insert(prefix, insertStr);
-  };
-  if (doc) doc.transact(run, origin);
-  else run();
 }
 
 export interface FitResult {

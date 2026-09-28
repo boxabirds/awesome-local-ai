@@ -22,7 +22,9 @@ const BAR_GAP_PX = 10;
 import { objectBounds, type ObjectSnapshot, type StickySnapshot } from '../../shared/board-model.ts';
 import { unionRects } from '../../shared/geometry.ts';
 import { NoteToolbar } from '../objects/NoteToolbar.tsx';
-import type { StickyColor } from '../../shared/config.ts';
+import { TextToolbar } from '../objects/TextToolbar.tsx';
+import { DEFAULT_TEXT_SIZE } from '../../shared/config.ts';
+import type { StickyColor, TextSize } from '../../shared/config.ts';
 
 export interface SelectionBarProps {
   /** the selected ids; nothing is rendered while it is empty */
@@ -35,6 +37,11 @@ export interface SelectionBarProps {
   /** sticky-only: recolour the single selected note */
   onColor?(id: string, color: StickyColor): void;
   /**
+   * text-only (story 9): choose the font size of the single selected text.
+   * The bar asks; the caller owns the model call and its undo boundaries.
+   */
+  onTextSize?(id: string, size: TextSize): void;
+  /**
    * True while one of the selected objects has its text editor open. Story 2
    * kept its toolbar off a note being typed into; the bar stands down the same
    * way, so nothing floats over the words you are writing.
@@ -43,7 +50,7 @@ export interface SelectionBarProps {
 }
 
 export function SelectionBar(props: SelectionBarProps): React.JSX.Element | null {
-  const { ids, snapshot, camera, onDelete, onColor, editing } = props;
+  const { ids, snapshot, camera, onDelete, onColor, onTextSize, editing } = props;
   if (ids.size === 0 || editing) return null;
   const selected = snapshot.filter((obj) => ids.has(obj.id));
   if (selected.length === 0) return null; // every id is gone: the prune is on its way
@@ -69,6 +76,23 @@ export function SelectionBar(props: SelectionBarProps): React.JSX.Element | null
           <NoteToolbar
             color={note.color ?? 'yellow'}
             onColor={(c: StickyColor) => onColor?.(note.id, c)}
+            onDelete={onDelete}
+          />
+        </div>
+      </div>
+    );
+  }
+
+  // One free text selected (story 9): its size toolbar takes the bar's place,
+  // exactly the way the note's colour toolbar does - same anchor, same rules.
+  if (selected.length === 1 && selected[0].type === 'text') {
+    const textObj = selected[0];
+    return (
+      <div data-testid="selection-toolbar" style={wrapper}>
+        <div style={{ pointerEvents: 'auto' }}>
+          <TextToolbar
+            size={textObj.size ?? DEFAULT_TEXT_SIZE}
+            onSize={(s: TextSize) => onTextSize?.(textObj.id, s)}
             onDelete={onDelete}
           />
         </div>

@@ -23,6 +23,7 @@ import { allObjectIds, deleteObjects, moveObjects } from '../../shared/board-mod
 import { NUDGE_STEP_WORLD, NUDGE_LARGE_STEP_WORLD } from '../../shared/config.ts';
 import type { useSelection } from './useSelection.ts';
 import type { UndoController } from './undo.ts';
+import type { ToolState } from './useTool.ts';
 
 export interface BoardKeysOptions {
   doc: Y.Doc;
@@ -40,6 +41,17 @@ export interface BoardKeysOptions {
    * and Escape must discard IT and leave the selection as it is.
    */
   escapeBlocked?(): boolean;
+  /**
+   * The board's tool state (story 9): V asks for Select, T asks for Text - a
+   * read-only board's setTool ignores that request itself - and Escape gives
+   * the tool back. Without it none of these keys are board commands at all.
+   */
+  tools?: ToolState;
+  /**
+   * N keeps its story 2 behaviour: create a sticky note at the centre of the
+   * view. The callback owns the editability gate; this one only routes the key.
+   */
+  onCreateSticky?(): void;
 }
 
 // The handlers read their inputs through a ref so the window keydown listener is
@@ -64,9 +76,14 @@ export function useBoardKeys(opts: BoardKeysOptions): void {
         return;
       }
       if (key === 'Escape') {
-        // Escape is the board's to take once no text editor is open: it gives up
-        // the selection (a dialog, if one ever opens, is not listening here).
+        // Escape is the board's to take once no text editor is open: with the
+        // Text tool open it gives the tool back first (story 9), and otherwise
+        // it gives up the selection (a dialog, if one ever opens, is not listening here).
         e.preventDefault();
+        if (o.tools && o.tools.tool === 'text') {
+          o.tools.setTool('select');
+          return;
+        }
         if (!o.escapeBlocked || !o.escapeBlocked()) o.selection.clear();
         return;
       }
@@ -87,6 +104,28 @@ export function useBoardKeys(opts: BoardKeysOptions): void {
         e.preventDefault();
         own.redo();
         return;
+      }
+      // The tools (story 9), before the selection gate: they change what the
+      // next CLICK means, not what the selection holds, and a read-only board
+      // neither opens the Text tool (setTool refuses it) nor creates anything
+      // (N is left to the browser there, exactly like the creation button is inert).
+      const tools = o.tools;
+      if (tools && !e.ctrlKey && !e.metaKey && !e.altKey) {
+        if (lower === 'v') {
+          e.preventDefault();
+          tools.setTool('select');
+          return;
+        }
+        if (lower === 't' && o.canEdit) {
+          e.preventDefault();
+          tools.setTool('text');
+          return;
+        }
+        if (lower === 'n' && o.canEdit) {
+          e.preventDefault();
+          o.onCreateSticky?.();
+          return;
+        }
       }
       const hasSelection = o.selection.ids.size > 0;
       if (!hasSelection || !o.canEdit) return; // a read-only board writes nothing

@@ -157,6 +157,41 @@ export const NUDGE_STEP_WORLD = 1;
 // Shift+arrow nudges this many world units.
 export const NUDGE_LARGE_STEP_WORLD = 10;
 
+// --- Free text (story 9) -----------------------------------------------------
+
+// The width a free text box grows to on its own; a longer line wraps at it
+// (world units).
+export const TEXT_MAX_AUTO_WIDTH_WORLD = 600;
+
+// No text box may be narrower than this many world units; it is also the
+// minimum a side-handle drag leaves behind.
+export const TEXT_MIN_WIDTH_WORLD = 40;
+
+// Hard limit on the number of characters kept in a text object's text.
+export const TEXT_MAX_CHARS = 5000;
+
+// The four font sizes of a text object, in CSS pixels (at 100% zoom, screen
+// px == world units).
+export const TEXT_SIZES = { S: 14, M: 20, L: 32, XL: 56 } as const;
+export type TextSize = keyof typeof TEXT_SIZES;
+
+// The size a new text object starts with.
+export const DEFAULT_TEXT_SIZE: TextSize = 'M';
+
+// Line height of a text object, as a multiple of its font size.
+export const TEXT_LINE_HEIGHT = 1.3;
+
+// The font of a text object; measuring and rendering must agree on it.
+export const TEXT_FONT_FAMILY = 'Inter, system-ui, sans-serif';
+
+// Slack added to the longest measured line so the glyphs of a line never
+// touch the box edge (world units).
+export const TEXT_LAYOUT_PADDING_WORLD = 8;
+
+// Average glyph width (× font size) estimated when no canvas text measuring
+// exists (the createCanvasMeasurer fallback).
+export const TEXT_GLYPH_WIDTH_RATIO = 0.5;
+
 // --- Undo and redo (story 8) ------------------------------------------------
 
 // A typing pause of THIS many milliseconds ends a typing burst: the next
