@@ -120,6 +120,24 @@ export function Toolbar(props: ToolbarProps): ReactElement {
           />
         </svg>
       </button>
+      {/* Story 11: the Pen tool (P); sticky until Escape / another tool. */}
+      <button
+        type="button"
+        className="toolbar-tool"
+        aria-label="Pen (P)"
+        title="Pen – P"
+        aria-pressed={props.tool === 'pen'}
+        disabled={props.disabled}
+        onClick={() => props.onTool('pen')}
+      >
+        {/* Pen nib glyph. */}
+        <svg width="20" height="20" viewBox="0 0 20 20" aria-hidden="true">
+          <path
+            d="M4 16l1-4L13.5 3.5a1.8 1.8 0 012.5 0l.5.5a1.8 1.8 0 010 2.5L8 15l-4 1z"
+            fill="currentColor"
+          />
+        </svg>
+      </button>
       <button
         type="button"
         className="toolbar-sticky"

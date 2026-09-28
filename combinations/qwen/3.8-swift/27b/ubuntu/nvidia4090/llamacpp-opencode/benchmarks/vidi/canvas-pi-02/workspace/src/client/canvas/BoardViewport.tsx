@@ -45,6 +45,21 @@ export interface BoardViewportProps {
   /** Story 9: a click while the Text tool is active, with the viewport-local
    *  screen point. */
   onTextClick?(point: Point): void;
+  /** Story 11: the Pen tool is active. Pointer drags are routed to the pen
+   *  callbacks (including drags starting over objects — the board passes a
+   *  no-op object pointer handler) and NEVER pan the board or start the
+   *  marquee; wheel/pinch navigation is untouched (pen.navigation). */
+  penToolActive?: boolean;
+  /** Story 11: a pen pointer gesture event (routed while penToolActive). */
+  onPenPointerDown?(e: React.PointerEvent): void;
+  onPenPointerMove?(e: React.PointerEvent): void;
+  onPenPointerUp?(e: React.PointerEvent): void;
+  /** Story 11: the pen gesture was interrupted (pointercancel or the
+   *  pointer capture was lost) — the stroke so far is kept (pen.interrupted).
+   */
+  onPenPointerCancel?(e: React.PointerEvent): void;
+  /** Story 11: the pointer left the board (hide the round pen cursor). */
+  onPenPointerLeave?(): void;
 }
 
 function positiveMod(value: number, modulus: number): number {
@@ -65,6 +80,12 @@ export function BoardViewport({
   marquee,
   textToolActive,
   onTextClick,
+  penToolActive,
+  onPenPointerDown,
+  onPenPointerMove,
+  onPenPointerUp,
+  onPenPointerCancel,
+  onPenPointerLeave,
 }: BoardViewportProps): ReactElement {
   const containerRef = useRef<HTMLDivElement>(null);
   const worldRef = useRef<HTMLDivElement>(null);
@@ -83,6 +104,18 @@ export function BoardViewport({
   textToolActiveRef.current = textToolActive ?? false;
   const onTextClickRef = useRef(onTextClick);
   onTextClickRef.current = onTextClick;
+  const penToolActiveRef = useRef(penToolActive ?? false);
+  penToolActiveRef.current = penToolActive ?? false;
+  const onPenPointerDownRef = useRef(onPenPointerDown);
+  onPenPointerDownRef.current = onPenPointerDown;
+  const onPenPointerMoveRef = useRef(onPenPointerMove);
+  onPenPointerMoveRef.current = onPenPointerMove;
+  const onPenPointerUpRef = useRef(onPenPointerUp);
+  onPenPointerUpRef.current = onPenPointerUp;
+  const onPenPointerCancelRef = useRef(onPenPointerCancel);
+  onPenPointerCancelRef.current = onPenPointerCancel;
+  const onPenPointerLeaveRef = useRef(onPenPointerLeave);
+  onPenPointerLeaveRef.current = onPenPointerLeave;
 
   // Escape cancels a live marquee (story 7, sel.marquee_ui).
   useEffect(() => {
@@ -184,6 +217,15 @@ export function BoardViewport({
   // Drag starts only on empty board space (the viewport or world layer
   // themselves), so later object stories can stop propagation on their nodes.
   const onPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+    // Story 11: the Pen tool routes EVERY pointer drag to the pen (even over
+    // objects, which pass a no-op pointer handler) and never pans (pen.
+    // navigation / pen.draw).
+    if (penToolActiveRef.current) {
+      if (e.pointerType === 'mouse' && e.button !== 0) return;
+      e.currentTarget.setPointerCapture(e.pointerId);
+      onPenPointerDownRef.current?.(e);
+      return;
+    }
     // Story 9: the Text tool never pans/marquees; the click below creates
     // the text.
     if (textToolActiveRef.current) return;
@@ -203,6 +245,10 @@ export function BoardViewport({
   };
 
   const onPointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (penToolActiveRef.current) {
+      onPenPointerMoveRef.current?.(e);
+      return;
+    }
     if (marqueeActiveRef.current) {
       marqueeRef.current?.move(toLocal(e));
       return;
@@ -213,6 +259,17 @@ export function BoardViewport({
   };
 
   const finishPan = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (penToolActiveRef.current) {
+      if (e.currentTarget.hasPointerCapture(e.pointerId)) {
+        e.currentTarget.releasePointerCapture(e.pointerId);
+      }
+      if (e.type === 'pointercancel' || e.type === 'lostpointercapture') {
+        onPenPointerCancelRef.current?.(e);
+      } else {
+        onPenPointerUpRef.current?.(e);
+      }
+      return;
+    }
     if (marqueeActiveRef.current) {
       marqueeActiveRef.current = false;
       setMarqueeActive(false);
@@ -233,7 +290,8 @@ export function BoardViewport({
   // notes are stopped by the note itself. Story 9: suppressed while the Text
   // tool is active (a click already created the text).
   const onDoubleClick = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (textToolActiveRef.current) return;
+    // Story 11: a pen double-click draws two dots, never a sticky note.
+    if (textToolActiveRef.current || penToolActiveRef.current) return;
     if (!onEmptySpace(e)) return;
     onDblClickEmptyRef.current?.(toLocal(e));
   };
@@ -256,14 +314,19 @@ export function BoardViewport({
         backgroundImage: `radial-gradient(circle, ${GRID_DOT_COLOR} ${GRID_DOT_RADIUS_PX}px, transparent ${GRID_DOT_RADIUS_PX + 0.5}px)`,
         backgroundSize: `${spacing}px ${spacing}px`,
         backgroundPosition: `${offsetX}px ${offsetY}px`,
-        // Story 9: the Text tool shows the text cursor.
-        cursor: textToolActiveRef.current ? 'text' : undefined,
+        // Story 9: the Text tool shows the text cursor; Story 11: the Pen
+        // tool hides the pointer (the round pen cursor renders instead).
+        cursor:
+          textToolActiveRef.current ? 'text' : penToolActiveRef.current ? 'none' : undefined,
       }}
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}
       onPointerUp={finishPan}
       onPointerCancel={finishPan}
       onLostPointerCapture={finishPan}
+      onPointerLeave={() => {
+        if (penToolActiveRef.current) onPenPointerLeaveRef.current?.();
+      }}
       onDoubleClick={onDoubleClick}
       onClick={onClick}
     >

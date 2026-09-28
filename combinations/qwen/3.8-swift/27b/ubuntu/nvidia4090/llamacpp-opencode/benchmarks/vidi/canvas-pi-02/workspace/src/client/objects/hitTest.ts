@@ -8,6 +8,7 @@ import type { Point } from '../../shared/geometry';
 import { distanceToPolyline } from '../../shared/geometry/polyline';
 import { objectBounds, type ObjectSnapshot } from '../../shared/board-model';
 import { connectorResolved } from '../../shared/objects/connector';
+import { strokeHitsPoint } from '../../shared/objects/stroke';
 import * as Y from 'yjs';
 
 /** True when `p` (world) is inside `obj`'s hit area. */
@@ -16,6 +17,11 @@ function hitsObject(doc: Y.Doc, o: ObjectSnapshot, p: Point, zoom: number): bool
     const line = connectorResolved(doc, o.id);
     if (line === null) return false;
     return distanceToPolyline([line.from, line.to], p) <= CONNECTOR_HIT_TOLERANCE_PX / zoom;
+  }
+  if (o.type === 'stroke') {
+    // Story 11 (pen.select): distance to the scaled line within the larger
+    // of half the stroke thickness and the screen tolerance.
+    return strokeHitsPoint(o, p, zoom);
   }
   const b = objectBounds(o);
   return p.x >= b.x && p.x <= b.x + b.width && p.y >= b.y && p.y <= b.y + b.height;

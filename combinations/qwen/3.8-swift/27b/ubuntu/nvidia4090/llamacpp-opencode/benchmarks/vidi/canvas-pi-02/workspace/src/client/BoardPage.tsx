@@ -26,6 +26,9 @@ import { useBoardKeys } from './board/useBoardKeys';
 import { useActiveTool } from './tools/useActiveTool';
 import { ShapeTool } from './tools/ShapeTool';
 import { ConnectorTool } from './tools/ConnectorTool';
+import { PenTool, type PenToolApi } from './tools/PenTool';
+import { PenToolbar } from './tools/PenToolbar';
+import { usePenOptions } from './tools/usePenOptions';
 import { useMarquee, MarqueeRect } from './board/useMarquee';
 import { useTransformGesture } from './board/useTransformGesture';
 import { SelectionBar } from './board/SelectionBar';
@@ -44,6 +47,7 @@ import {
 import { createText, setTextSize, textSnapshot } from '../shared/objects/text';
 import { shapeSnapshot, setShapeStyle } from '../shared/objects/shape';
 import { connectorSnapshot, setConnectorEndpoint, connectorResolved } from '../shared/objects/connector';
+import { strokeSnapshot } from '../shared/objects/stroke';
 import { nearestSide, sideAnchor } from '../shared/geometry/connector-geometry';
 import { TEXT_FONT_FAMILY, type TextSize } from '../shared/config';
 import { remeasureTextObject } from './objects/useTextBoxSync';
@@ -160,6 +164,11 @@ function Board({ boardId }: { boardId: string }): ReactElement {
     isEditing: () => selectionRef.current.editingId !== null,
     select: (id) => selectionRef.current.selectCreated(id),
   });
+
+  // Story 11 (pen.options): session-only pen colour/thickness; the choices
+  // affect only SUBSEQUENT strokes (existing strokes keep their own).
+  const penOptions = usePenOptions();
+  const penToolRef = useRef<PenToolApi>(null);
 
   // Story 6 (creator identity) is out of scope: createdBy is a session-
   // unique client id (see NOTES.md).
@@ -391,8 +400,17 @@ function Board({ boardId }: { boardId: string }): ReactElement {
         camera={camera}
         textToolActive={tool === 'text'}
         onTextClick={createTextAtScreen}
+        penToolActive={tool === 'pen' && editable}
+        onPenPointerDown={(e) => penToolRef.current?.pointerDown(e)}
+        onPenPointerMove={(e) => penToolRef.current?.pointerMove(e)}
+        onPenPointerUp={(e) => penToolRef.current?.pointerUp(e)}
+        onPenPointerCancel={(e) => penToolRef.current?.pointerCancel(e)}
+        onPenPointerLeave={() => penToolRef.current?.pointerLeave()}
         onDblClickEmpty={(p) => createStickyAtScreen(p)}
         onEmptyClick={(p) => {
+          // Story 11: while the Pen is active a click drew a stroke/dot —
+          // never deselect.
+          if (tool === 'pen') return;
           if (selection.editingId !== null) {
             selection.endEdit();
             return;
@@ -421,7 +439,9 @@ function Board({ boardId }: { boardId: string }): ReactElement {
               editing={selection.editingId === o.id}
               locked={!editable}
               dragging={dragging}
-              onPointerDown={gesture.onObjectPointerDown}
+              // Story 11: while the Pen is active, drags on objects are the
+              // pen's (pen.draw: strokes draw OVER objects).
+              onPointerDown={tool === 'pen' ? () => {} : gesture.onObjectPointerDown}
               onSelect={selection.click}
               onStartEdit={selection.startEdit}
               onEndEdit={selection.endEdit}
@@ -430,6 +450,7 @@ function Board({ boardId }: { boardId: string }): ReactElement {
               note={o.type === 'text' ? textSnapshot(doc, o.id) ?? undefined : undefined}
               shape={o.type === 'shape' ? shapeSnapshot(doc, o.id) ?? undefined : undefined}
               connector={o.type === 'connector' ? connectorSnapshot(doc, o.id) ?? undefined : undefined}
+              stroke={o.type === 'stroke' ? strokeSnapshot(doc, o.id) ?? undefined : undefined}
               rects={rectsMap}
               onReattachEnd={onConnectorReattachEnd}
             />
@@ -462,6 +483,20 @@ function Board({ boardId }: { boardId: string }): ReactElement {
             undoRef.current?.boundary();
             toolCreated(id);
           }}
+        />
+      )}
+      {/* Story 11: the Pen tool — screen-space preview overlay + round
+          cursor; stays active after each stroke (pen.stay_active). */}
+      {tool === 'pen' && editable && (
+        <PenTool
+          ref={penToolRef}
+          camera={camera.camera}
+          color={penOptions.color}
+          thickness={penOptions.thickness}
+          doc={doc}
+          identityId={clientIdRef.current}
+          onBoundary={() => undoRef.current?.boundary()}
+          onCreated={(id) => selectionRef.current.selectCreated(id)}
         />
       )}
       <SelectionOverlay
@@ -521,6 +556,16 @@ function Board({ boardId }: { boardId: string }): ReactElement {
         disabled={!editable}
         undo={undoApi}
       />
+      {/* Story 11 (pen.options): pen colour/thickness next to the toolbar
+          while the Pen tool is active. */}
+      {tool === 'pen' && editable && (
+        <PenToolbar
+          color={penOptions.color}
+          thickness={penOptions.thickness}
+          onColor={penOptions.setColor}
+          onThickness={penOptions.setThickness}
+        />
+      )}
       <ZoomControls
         zoomPercent={zoomPercent(camera.camera)}
         canZoomIn={canZoomIn(camera.camera)}

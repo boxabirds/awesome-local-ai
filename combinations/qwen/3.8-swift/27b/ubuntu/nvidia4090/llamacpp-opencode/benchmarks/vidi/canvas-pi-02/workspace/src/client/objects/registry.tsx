@@ -12,11 +12,13 @@ import {
   CONNECTOR_HIT_TOLERANCE_PX,
   SHAPE_MIN_SIZE_WORLD,
   STICKY_MIN_SIZE_WORLD,
+  STROKE_MIN_SIZE_WORLD,
   TEXT_SIZES,
 } from '../../shared/config';
 import type { TextSnapshot } from '../../shared/objects/text';
 import { ensureShapeType, type ShapeSnap } from '../../shared/objects/shape';
 import { ensureConnectorType, type ConnectorSnap } from '../../shared/objects/connector';
+import { ensureStrokeType, strokeHitsPoint, type StrokeSnap } from '../../shared/objects/stroke';
 
 // Register the board types for THIS client at module load (story 10):
 // objectsSnapshot filters unknown types, so every client must know
@@ -27,11 +29,14 @@ import { ensureConnectorType, type ConnectorSnap } from '../../shared/objects/co
 // registration is TDZ-safe.
 ensureShapeType();
 ensureConnectorType();
+ensureStrokeType();
+
 import type { UndoController } from '../board/undo';
 import { StickyNote } from './StickyNote';
 import { TextObject } from './TextObject';
 import { ShapeObject } from './ShapeObject';
 import { ConnectorObject } from './ConnectorObject';
+import { StrokeObject } from './StrokeObject';
 
 /** Props every board object component receives from the generic renderer. */
 export interface ObjectProps {
@@ -66,6 +71,9 @@ export interface ObjectProps {
   /** Story 10: the connector's extended snapshot (endpoints); only
    *  connector objects receive it. */
   connector?: ConnectorSnap;
+  /** Story 11: the stroke's extended snapshot (points/base size/colour/
+   *  thickness); only stroke objects receive it. */
+  stroke?: StrokeSnap;
   /** Story 10: live world rects of the non-connector objects (connector
    *  endpoint resolution for rendering, conn.follow). */
   rects?: ReadonlyMap<string, Rect>;
@@ -167,4 +175,18 @@ registerObjectType('connector', {
     const t = CONNECTOR_HIT_TOLERANCE_PX / zoom;
     return p.x >= b.x - t && p.x <= b.x + b.width + t && p.y >= b.y - t && p.y <= b.y + b.height + t;
   },
+});
+
+// The stroke type (story 11, pen.select / pen.resize): resizable with an
+// ASPECT LOCK (both dimensions scale, so the line stays proportional and
+// thickness is a separate field), minimum size STROKE_MIN_SIZE_WORLD. Hit
+// test: distance to the scaled line within the larger of half the stroke
+// thickness and STROKE_HIT_TOLERANCE_PX / zoom (pen.select).
+registerObjectType('stroke', {
+  Component: StrokeObject,
+  resizable: true,
+  aspectLocked: true,
+  minSize: STROKE_MIN_SIZE_WORLD,
+  editableText: false,
+  hitTest: (obj, p, zoom = 1) => strokeHitsPoint(obj, p, zoom),
 });

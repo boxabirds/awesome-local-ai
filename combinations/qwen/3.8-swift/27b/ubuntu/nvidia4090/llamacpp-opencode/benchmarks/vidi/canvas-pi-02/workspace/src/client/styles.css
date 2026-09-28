@@ -981,3 +981,113 @@ body {
   stroke: #ffffff;
   stroke-width: 1.5;
 }
+
+/* Story 11: freehand strokes (world layer). The container is transparent
+   to the pointer (the padded bbox must not block empty-board clicks); only
+   the line's transparent hit path is clickable (pen.select). */
+.stroke-object {
+  position: absolute;
+  box-sizing: border-box;
+}
+
+.stroke-object .stroke-svg {
+  display: block;
+  overflow: visible;
+}
+
+.stroke-object--selected .stroke-svg path:first-child {
+  filter: drop-shadow(0 0 3px rgba(37, 99, 235, 0.85));
+}
+
+/* Story 11: the Pen tool's screen-space preview overlay (above the board
+   world, below the selection overlay / toolbar). */
+.pen-tool {
+  position: absolute;
+  inset: 0;
+  z-index: 10;
+  pointer-events: none;
+  cursor: none;
+}
+
+.pen-tool svg.pen-tool-preview {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+.pen-cursor {
+  position: absolute;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.8);
+  border: 1px solid rgba(15, 23, 42, 0.55);
+  box-shadow: 0 0 0 1px rgba(15, 23, 42, 0.15);
+}
+
+/* Story 11 (pen.options): pen colour/thickness next to the left toolbar. */
+.pen-toolbar {
+  position: fixed;
+  left: 76px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  gap: 12px;
+  padding: 8px;
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.12);
+  z-index: 10;
+}
+
+.pen-toolbar-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.pen-swatch {
+  appearance: none;
+  width: 22px;
+  height: 22px;
+  border: 2px solid rgba(15, 23, 42, 0.15);
+  border-radius: 50%;
+  cursor: pointer;
+  padding: 0;
+}
+
+.pen-swatch[aria-pressed='true'] {
+  outline: 2px solid #2563eb;
+  outline-offset: 1px;
+}
+
+.pen-swatch:focus-visible {
+  outline: 2px solid #2563eb;
+  outline-offset: 1px;
+}
+
+.pen-thickness {
+  appearance: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 26px;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  background: #ffffff;
+  color: #334155;
+  cursor: pointer;
+  padding: 0;
+}
+
+.pen-thickness[aria-pressed='true'] {
+  outline: 2px solid #2563eb;
+  outline-offset: 1px;
+}
+
+.pen-thickness:focus-visible {
+  outline: 2px solid #2563eb;
+  outline-offset: 1px;
+}

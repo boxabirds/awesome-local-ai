@@ -231,3 +231,34 @@ export const CONNECTOR_STROKE_WIDTH_WORLD = 2;
 export const CONNECTOR_ARROWHEAD_SIZE_WORLD = 10;
 /** Screen-pixel radius of the connector's side dots and end handles. */
 export const CONNECTOR_DOT_RADIUS_PX = 4;
+
+/* --- Story 11: sketch freehand with a pen --- */
+
+/** The six pen colours (pen.options). */
+export const PEN_COLORS = {
+  black: '#212121',
+  blue: '#1E88E5',
+  red: '#E53935',
+  green: '#43A047',
+  orange: '#FB8C00',
+  purple: '#8E24AA',
+} as const;
+/** Stroke thicknesses in world units (pen.options); strokes scale with zoom.
+ */
+export const PEN_THICKNESS_WORLD = { thin: 2, medium: 4, thick: 8 } as const;
+/** The pen's colour presets (keys of PEN_COLORS). */
+export const DEFAULT_PEN_COLOR: keyof typeof PEN_COLORS = 'black';
+/** Thickness of a newly created stroke (keys of PEN_THICKNESS_WORLD). */
+export const DEFAULT_PEN_THICKNESS: keyof typeof PEN_THICKNESS_WORLD = 'medium';
+/** RDP simplification tolerance in SCREEN pixels at the drawing zoom
+ *  (pen.smooth): no finished point lies farther than this from the drawn
+ *  path. */
+export const STROKE_SIMPLIFY_TOLERANCE_PX = 1;
+/** Raw points per stroke before a continuous stroke is split into
+ *  consecutive, seamlessly-joined strokes (pen.long_stroke). */
+export const STROKE_MAX_POINTS = 5000;
+/** Screen-pixel distance within which a click selects a stroke's line
+ *  (pen.select); the larger of this and half the thickness wins. */
+export const STROKE_HIT_TOLERANCE_PX = 6;
+/** Minimum side length (world units) of a stroke's bbox on resize. */
+export const STROKE_MIN_SIZE_WORLD = 4;

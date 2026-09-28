@@ -1,12 +1,14 @@
 // Board tool state (story 10, tools.shortcuts): the active tool, the Shape
 // tool's selected kind, and the plain-key shortcuts (V select, T text, S
-// shape, L connector, Escape → Select).
+// shape, L connector, P pen, Escape → Select).
 //
 // The Text/Shape/Connector tools are one-shot: toolCreated(id) selects the
-// new object and switches back to Select (tools.one_shot). The 'n' shortcut
-// (sticky at view centre) is an ACTION, not a tool switch — it stays in
-// useBoardKeys (story 2 behaviour). Pen/Image/Comment ids are declared for
-// the toolbar layout but not usable in this build.
+// new object and switches back to Select (tools.one_shot). The Pen tool is
+// STICKY: it stays active after each finished stroke until Escape or another
+// tool (pen.stay_active, story 11). The 'n' shortcut (sticky at view centre)
+// is an ACTION, not a tool switch — it stays in useBoardKeys (story 2
+// behaviour). Image/Comment ids are declared for the toolbar layout but not
+// usable in this build.
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { SHAPE_KINDS, type ShapeKind } from '../../shared/config';
@@ -21,10 +23,11 @@ const TOOL_SHORTCUTS: Record<string, ToolId> = {
   t: 'text',
   s: 'shape',
   l: 'connector',
+  p: 'pen',
 };
 
-/** The tools usable in this build (pen/image/comment come later). */
-const AVAILABLE: ReadonlySet<ToolId> = new Set<ToolId>(['select', 'text', 'shape', 'connector']);
+/** The tools usable in this build (image/comment come later). */
+const AVAILABLE: ReadonlySet<ToolId> = new Set<ToolId>(['select', 'text', 'shape', 'connector', 'pen']);
 
 export interface ActiveToolOptions {
   /** False while the board is locked (load failed): creation tools cannot
@@ -66,7 +69,7 @@ export function useActiveTool(opts: ActiveToolOptions): ActiveToolApi {
   optsRef.current = opts;
 
   const setTool = useCallback((t: ToolId): void => {
-    if (!AVAILABLE.has(t)) return; // pen/image/comment are not usable yet
+    if (!AVAILABLE.has(t)) return; // image/comment are not usable yet
     if (t !== 'select' && !optsRef.current.canEdit) return; // tools.not_editable
     setToolState(t);
   }, []);

@@ -27,6 +27,7 @@ import {
 import { rectContains, type Point, type Rect } from './geometry';
 import { connectorBBox, resolveEndpoints } from './geometry/connector-geometry';
 import { detachConnectorsTo, readStoredEndpoint } from './objects/connector';
+import type { PenThickness } from './objects/stroke';
 
 /** Origin for local (this client's) transactions; undo (story 8) and
  *  echo-suppression (story 3) key off it. */
@@ -196,6 +197,15 @@ export interface ObjectSnapshot {
   color: StickyColor | undefined;
   /** sticky only. */
   text: string;
+  /** stroke only: flattened [x0, y0, ...] relative to the bbox origin at
+   *  the creation (base) size (story 11). */
+  points?: readonly number[];
+  /** stroke only: bbox size at creation (story 11). */
+  baseWidth?: number;
+  /** stroke only. */
+  baseHeight?: number;
+  /** stroke only (story 11). */
+  thickness?: PenThickness;
 }
 
 export function objectsSnapshot(doc: Y.Doc): readonly ObjectSnapshot[] {
@@ -219,6 +229,10 @@ export function objectsSnapshot(doc: Y.Doc): readonly ObjectSnapshot[] {
       createdAt: entry.get('createdAt') as number,
       color: type === STICKY_TYPE ? (entry.get('color') as StickyColor) : undefined,
       text: text instanceof Y.Text ? text.toString() : '',
+      points: type === 'stroke' && Array.isArray(entry.get('points')) ? (entry.get('points') as readonly number[]) : undefined,
+      baseWidth: type === 'stroke' && typeof entry.get('baseWidth') === 'number' ? (entry.get('baseWidth') as number) : undefined,
+      baseHeight: type === 'stroke' && typeof entry.get('baseHeight') === 'number' ? (entry.get('baseHeight') as number) : undefined,
+      thickness: type === 'stroke' && typeof entry.get('thickness') === 'string' ? (entry.get('thickness') as PenThickness) : undefined,
     };
     if (type === 'connector') {
       // Story 10: a connector's bbox is DERIVED from its resolved endpoints

@@ -18,6 +18,7 @@ import { SHAPE_DEFAULT_SIZE_WORLD, STICKY_COLORS, type ShapeKind, type StickyCol
 import { getTextContent, textSnapshot } from '../../shared/objects/text';
 import { createShape, shapeSnapshot } from '../../shared/objects/shape';
 import { connectorSnapshot, createConnector, connectorResolved, setConnectorEndpoint } from '../../shared/objects/connector';
+import { strokeSnapshot } from '../../shared/objects/stroke';
 import { nearestSide, sideAnchor } from '../../shared/geometry/connector-geometry';
 
 export interface Vidi6TestApi {
@@ -100,6 +101,21 @@ export interface Vidi6TestApi {
     fill: string;
     stroke: string;
     label: string;
+    z: number;
+  }>;
+  /** Story 11: the strokes with their extended fields (points in base
+   *  coordinates, colour, thickness), ascending z. */
+  getStrokes(): Array<{
+    id: string;
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+    baseWidth: number;
+    baseHeight: number;
+    color: string;
+    thickness: string;
+    points: number[];
     z: number;
   }>;
   /** Story 10: the connectors with their RAW stored endpoints plus the
@@ -297,6 +313,33 @@ export function installTestHooks(
             z: o.z,
           };
         });
+    },
+    getStrokes() {
+      const doc = getDoc();
+      if (!doc) return [];
+      return objectsSnapshot(doc)
+        .filter((o) => o.type === 'stroke')
+        .map((o) => {
+          const snap = strokeSnapshot(doc, o.id);
+          if (snap === null) {
+            // Defensive: a corrupt stroke is invisible to the renderer too.
+            return null;
+          }
+          return {
+            id: o.id,
+            x: o.x,
+            y: o.y,
+            width: o.width ?? 0,
+            height: o.height ?? 0,
+            baseWidth: snap.baseWidth,
+            baseHeight: snap.baseHeight,
+            color: snap.color,
+            thickness: snap.thickness,
+            points: [...snap.points],
+            z: o.z,
+          };
+        })
+        .filter((s): s is NonNullable<typeof s> => s !== null);
     },
     getConnectors() {
       const doc = getDoc();
