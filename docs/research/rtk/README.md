@@ -7,6 +7,7 @@ Can [RTK](https://github.com/rtk-ai/rtk) ("Rust Token Killer"), which compresses
 | Step | What | Status |
 |---|---|---|
 | 0 | [How much of our agents' tool output RTK could even touch](02-reach-analysis.md) | **done, 28 Sep 2026** |
+| 0b | [Local replay: what RTK actually does to our commands](04-local-replay.md) | **done, 28 Sep 2026** |
 | 1 | [A/B test on one stack](03-ab-test-plan.md) | not scheduled; see the decision below |
 
 ## Documents
@@ -14,7 +15,9 @@ Can [RTK](https://github.com/rtk-ai/rtk) ("Rust Token Killer"), which compresses
 1. [What RTK is](01-what-rtk-is.md): how it works, what it supports, and the independent evidence on this kind of tool.
 2. [Reach analysis (step 0)](02-reach-analysis.md): 8,136 recorded tool calls from three stacks, classified with RTK's own rewrite rules.
 3. [A/B test plan](03-ab-test-plan.md): the design, the decision rule and what it needs.
+4. [Local replay](04-local-replay.md): the agents' real commands re-run with and without RTK, plus test runners with a deliberately failing test.
 
 ## Decisions so far
 
 - **28 Sep 2026, after step 0:** RTK can reach only about 18–30% of our agents' tool output. Half or more of it comes from pi's own `read` tool, which RTK never sees, and most test-runner output is already piped into `tail` by the agents, which RTK then leaves alone. The upside is modest, perhaps a 4–17% smaller conversation, which is an estimate and not a measurement. Running the A/B test is still open.
+- **28 Sep 2026, after the local replay:** on the agent's own commands RTK made the output 1% smaller, with nothing lost. Its test filter works well (a passing vitest run shrinks to one line, a failure keeps what matters), but only for direct `vitest` calls, and our agents run tests through `npm run` scripts. RTK as installed would change almost nothing, so an A/B test of it as-is would measure noise. The open question becomes whether to also change how the agent runs commands, which is a different experiment.
