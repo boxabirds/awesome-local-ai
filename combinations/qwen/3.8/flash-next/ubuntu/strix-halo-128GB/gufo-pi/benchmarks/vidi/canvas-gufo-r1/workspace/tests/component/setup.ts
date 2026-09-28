@@ -58,6 +58,35 @@ Object.defineProperty(HTMLElement.prototype, 'clientHeight', {
   },
 });
 
+// PointerEvent is not implemented in jsdom - add a polyfill so React can handle it
+class PointerEvent extends MouseEvent {
+  readonly pointerId: number;
+  readonly pointerType: string;
+  readonly isPrimary: boolean;
+  readonly width: number;
+  readonly height: number;
+  readonly pressure: number;
+  constructor(type: string, params: PointerEventInit = {}) {
+    super(type, params);
+    this.pointerId = params.pointerId ?? 0;
+    this.pointerType = params.pointerType ?? 'mouse';
+    this.isPrimary = params.isPrimary ?? true;
+    this.width = params.width ?? 1;
+    this.height = params.height ?? 1;
+    this.pressure = params.pressure ?? 0;
+  }
+}
+if (!('PointerEvent' in globalThis)) {
+  (globalThis as any).PointerEvent = PointerEvent;
+}
+// jsdom doesn't have setPointerCapture/releasePointerCapture
+if (!Element.prototype.setPointerCapture) {
+  Element.prototype.setPointerCapture = function() {};
+}
+if (!Element.prototype.releasePointerCapture) {
+  Element.prototype.releasePointerCapture = function() {};
+}
+
 // A minimal getBoundingClientRect covering the viewport from the origin.
 Element.prototype.getBoundingClientRect = function () {
   return {

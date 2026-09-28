@@ -2,7 +2,7 @@ import type { ComponentType } from 'react';
 import type { ObjectSnapshot } from '../../shared/board-model';
 import { objectBounds } from '../../shared/board-model';
 import type { Point } from '../../shared/geometry';
-import { STICKY_MIN_SIZE_WORLD, TEXT_MIN_WIDTH_WORLD } from '../../shared/config';
+import { STICKY_MIN_SIZE_WORLD, TEXT_MIN_WIDTH_WORLD, SHAPE_MIN_SIZE_WORLD } from '../../shared/config';
 import { StickyNote } from './StickyNote';
 import { TextObject } from './TextObject';
 
@@ -78,5 +78,40 @@ registerObjectType('text', {
       worldPoint.y >= bounds.y &&
       worldPoint.y <= bounds.y + bounds.height
     );
+  },
+});
+
+// ─── Register shape ───────────────────────────────────────────────────────────────────
+
+registerObjectType('shape', {
+  Component: () => null, // Rendered by BoardApp directly
+  resizable: true,
+  aspectLocked: false,
+  minSize: SHAPE_MIN_SIZE_WORLD,
+  editableText: true,
+  handles: 'all',
+  hitTest(obj: ObjectSnapshot, worldPoint: Point): boolean {
+    const bounds = objectBounds(obj);
+    return (
+      worldPoint.x >= bounds.x &&
+      worldPoint.x <= bounds.x + bounds.width &&
+      worldPoint.y >= bounds.y &&
+      worldPoint.y <= bounds.y + bounds.height
+    );
+  },
+});
+
+// ─── Register connector ───────────────────────────────────────────────────────────────
+
+registerObjectType('connector', {
+  Component: () => null, // Rendered by BoardApp directly
+  resizable: false,
+  aspectLocked: false,
+  minSize: 0,
+  editableText: false,
+  hitTest(obj: ObjectSnapshot, _worldPoint: Point, _zoom: number = 1): boolean {
+    if (obj.type !== 'connector') return false;
+    // Handled by BoardApp
+    return false;
   },
 });

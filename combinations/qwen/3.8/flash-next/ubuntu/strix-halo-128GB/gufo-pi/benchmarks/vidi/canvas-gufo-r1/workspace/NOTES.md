@@ -117,3 +117,58 @@
 - **Story 5 (`testHooks.ts`)**: Fixed `installDocHooks` to create `window.__vidi6` if it doesn't exist (was previously silently failing when `installDocHooks` ran before `installTestHooks`).
 - **Story 2 (`StickyNote`)**: Sticky note pointer events now delegate to `onObjectPointerDown` prop for the transform gesture, instead of internal drag logic.
 - **Share-board TC-26**: Updated test to use `create-sticky-btn` (was `add-sticky-btn`) and `toPass()` retry block to handle textarea value vs textContent for edit-mode sync.
+
+## Story 10: Draw shapes and connect them with arrows that follow when moved
+
+### Key Decisions
+
+1. **Shape model (`src/shared/objects/shape.ts`)**: `createShape(doc, { kind, rect | null, at }, by)` creates a shape with validation. `rect=null` uses default size centred on `at`. Below `SHAPE_MIN_SIZE_WORLD` falls back to default. Shift+drag creates square (uses larger dimension). Supports `rect`, `ellipse`, `diamond` kinds.
+
+2. **Connector model (`src/shared/objects/connector.ts`)**: `createConnector(doc, from, to, by)` validates finiteness, rejects self-loops, and checks minimum length (`CONNECTOR_MIN_LENGTH_WORLD`). Endpoints are `{ kind: 'attached', objectId, fallback: Point }` or `{ kind: 'free', x, y }`. The `fallback` is the anchor position at creation time.
+
+3. **Endpoint resolution (`src/shared/geometry/connector-geometry.ts`)**: `resolveEndpoints(from, to, rects)` computes world-space line endpoints dynamically. For attached endpoints, it determines the anchor side using `nearestSide(rect, otherPoint)` — the arrow always connects to the side closest to the other end. `connectorBBox(from, to)` computes the bounding box for hit testing.
+
+4. **`detachConnectorsTo` in `deleteObjects`**: When objects are deleted, any connector endpoints pointing at deleted IDs are converted from `attached` to `free` endpoints at their current anchor position. This is done inline within `deleteObjects` (not in connector.ts) to avoid circular imports.
+
+5. **Connector snapshot derives x/y/width/height from resolved endpoints**: In `board-model.ts`'s `snapshot()`, connectors go through a second pass after all other objects are collected. The rects map is built first, then each connector's bbox is computed via `resolveEndpoints` + `connectorBBox`.
+
+6. **Tool state: two-layer design**: `useTool` (existing) handles `select | text` (via `useBoardKeys`). `useActiveTool` (new) handles `select | shape | connector` keyboard shortcuts (S, L, V, Escape). Shape/connector overlays are suppressed when the other's tool state is active. Text tool click behavior is gated by `toolState.tool === 'text' && activeToolState.tool === 'select'`.
+
+7. **Overlays rendered outside `<BoardViewport>`**: The `.board-world` has CSS `transform` + `width:0; height:0`. Fixed-position overlays inside it would be positioned relative to the transform, not viewport. Shape and connector tool overlays are rendered as siblings to `<BoardViewport>` with `position: fixed`.
+
+8. **ConnectorObject renders as SVG line + polygon arrowhead**: The line coordinates are derived from `resolveEndpoints` on each render. Selection shows two circular handles for re-attach. Re-attach uses `window.pointermove/pointerup` listeners during drag.
+
+9. **ShapeObject renders as SVG shapes (rect/ellipse/polygon) with centered label**: The `foreignObject` + `contentEditable` pattern is used for inline label editing (same as sticky notes). Labels are clamped to `SHAPE_LABEL_MAX_CHARS` (500).
+
+10. **Shape toolbar with fill/stroke swatches**: `ShapeToolbar` renders color swatches from `SHAPE_FILL_COLORS` and `SHAPE_STROKE_COLORS` (5 colors each). Clicking a swatch calls `setShapeStyle()` which validates the color key before writing.
+
+11. **PointerEvent polyfill in test setup**: jsdom lacks `PointerEvent` and `setPointerCapture`. Added a polyfill class and no-op capture methods to `tests/component/setup.ts`.
+
+12. **`text-tool-btn` uses `tool` state not `activeTool`**: Existing ToolMode tests expect text button pressed state from `toolState.tool === 'text'`. Toolbar renders `aria-pressed={tool === 'text'}` for text button, `aria-pressed={activeTool === 'shape'}` for shape button.
+
+### Files Added/Modified
+
+| File | Change |
+|---|---|
+| `src/shared/geometry/connector-geometry.ts` | New: `sideAnchor`, `nearestSide`, `resolveEndpoints`, `connectorBBox`, `Endpoint` types |
+| `src/shared/geometry/polyline.ts` | New: `distanceToPolyline` helper |
+| `src/shared/objects/shape.ts` | New: `createShape`, `setShapeStyle`, `getShapeLabel` |
+| `src/shared/objects/connector.ts` | New: `createConnector`, `setConnectorEndpoint`, `detachConnectorsTo`, `getConnectorSnapshot` |
+| `src/shared/config.ts` | Modified: added shape/connector constants (SHAPE_KINDS, SHAPE_DEFAULT_SIZE_WORLD, etc.) |
+| `src/shared/board-model.ts` | Modified: added ShapeObjectSnapshot, ConnectorObjectSnapshot to union; connector detach in deleteObjects |
+| `src/shared/geometry/index.ts` | Renamed from geometry.ts; re-exports |
+| `src/client/tools/useActiveTool.ts` | New: ToolId type, keyboard shortcuts, toolCreated |
+| `src/client/tools/ShapeTool.tsx` | New: drag-to-create overlay |
+| `src/client/tools/ConnectorTool.tsx` | New: drag-from-shape-to-shape overlay |
+| `src/client/objects/ShapeObject.tsx` | New: SVG shape rendering + label editing |
+| `src/client/objects/ConnectorObject.tsx` | New: SVG line + arrowhead + re-attach handles |
+| `src/client/objects/ShapeToolbar.tsx` | New: fill/stroke color swatches |
+| `src/client/objects/registry.tsx` | Modified: register shape and connector types |
+| `src/client/board/Toolbar.tsx` | Modified: Shape and Connector buttons, shape kind submenu |
+| `src/client/BoardApp.tsx` | Modified: integrated ShapeTool, ConnectorTool, ShapeObject, ConnectorObject |
+| `tests/component/setup.ts` | Modified: PointerEvent polyfill |
+| `tests/unit/shape-model.test.ts` | New: TC-01 to TC-06 |
+| `tests/unit/connector-model.test.ts` | New: TC-07 to TC-14, TC-29 |
+| `tests/component/ShapeTool.test.tsx` | New: TC-15 to TC-17, TC-28 |
+| `tests/component/ConnectorTool.test.tsx` | New: TC-18 to TC-22 |
+| `tests/e2e/shapes-connectors.spec.ts` | New: TC-23 to TC-27 |

@@ -14,16 +14,33 @@ import { useTool } from './board/useTool';
 import { createUndo } from './board/undo';
 import { StickyNote } from './objects/StickyNote';
 import { TextObject } from './objects/TextObject';
+import { ShapeObject } from './objects/ShapeObject';
+import { ConnectorObject } from './objects/ConnectorObject';
 import { NoteToolbar } from './objects/NoteToolbar';
 import { TextToolbar } from './objects/TextToolbar';
+import { ShapeToolbar } from './objects/ShapeToolbar';
 import { ConnectionStatus } from './sync/ConnectionStatus';
 import { canEdit } from './sync/connectBoard';
-import { createSticky, deleteObjects, setStickyColor, LOCAL_ORIGIN, objectBounds } from '../shared/board-model';
-import type { StickySnapshot, TextObjectSnapshot } from '../shared/board-model';
+import {
+  createSticky,
+  deleteObjects,
+  setStickyColor,
+  LOCAL_ORIGIN,
+  objectBounds,
+  type ShapeObjectSnapshot,
+  type ConnectorObjectSnapshot,
+  type StickySnapshot,
+  type TextObjectSnapshot,
+} from '../shared/board-model';
 import { createText, setTextSize, setTextBox } from '../shared/objects/text';
+import { setShapeStyle } from '../shared/objects/shape';
 import { createCanvasMeasurer, layoutText } from './objects/textLayout';
-import type { StickyColor, TextSize } from '../shared/config';
+import type { StickyColor, TextSize, FillColor, StrokeColor } from '../shared/config';
 import { IS_TEST_MODE } from './canvas/testHooks';
+import { useActiveTool } from './tools/useActiveTool';
+import { ShapeTool } from './tools/ShapeTool';
+import { ConnectorTool } from './tools/ConnectorTool';
+import type { Rect } from '../shared/geometry';
 
 // Generate a per-session identity for createdBy
 let _sessionId: string | null = null;
@@ -41,6 +58,11 @@ export function BoardApp({ boardId }: { boardId: string }) {
   const selection = useSelection(notes);
   const editable = canEdit(connectionState);
   const toolState = useTool(editable);
+
+  const activeToolState = useActiveTool({
+    onSelect: (id) => selection.click(id),
+    canEdit: editable,
+  });
 
   // Undo controller: one per board doc, destroyed on board change/unmount
   const undoController = useMemo(() => createUndo(doc), [doc]);
@@ -88,13 +110,15 @@ export function BoardApp({ boardId }: { boardId: string }) {
   const handleDblClickEmpty = useCallback(
     (worldPoint: { x: number; y: number }) => {
       if (!editable) return;
+      // Don't create sticky on dblclick when shape/connector tool is active
+      if (activeToolState.tool === 'shape' || activeToolState.tool === 'connector') return;
       undoController.boundary();
       const id = createSticky(doc, worldPoint);
       undoController.boundary();
       selection.click(id);
       selection.startEdit(id);
     },
-    [doc, selection, editable, undoController],
+    [doc, selection, editable, undoController, activeToolState.tool],
   );
 
   const handleEmptyClick = useCallback(() => {
@@ -207,7 +231,6 @@ export function BoardApp({ boardId }: { boardId: string }) {
       const [id] = [...selection.ids];
       undoController.boundary();
       setTextSize(doc, id, size);
-      // Remeasure the text box after size change
       const objects = doc.getMap('objects') as unknown as import('yjs').Map<import('yjs').Map<unknown>>;
       const obj = objects.get(id);
       if (obj && obj.get('type') === 'text') {
@@ -223,18 +246,70 @@ export function BoardApp({ boardId }: { boardId: string }) {
     [doc, selection.ids, editable, undoController],
   );
 
+  const handleShapeFill = useCallback(
+    (color: FillColor) => {
+      if (selection.ids.size !== 1) return;
+      if (!editable) return;
+      const [id] = [...selection.ids];
+      undoController.boundary();
+      setShapeStyle(doc, id, { fill: color });
+      undoController.boundary();
+    },
+    [doc, selection.ids, editable, undoController],
+  );
+
+  const handleShapeStroke = useCallback(
+    (color: StrokeColor) => {
+      if (selection.ids.size !== 1) return;
+      if (!editable) return;
+      const [id] = [...selection.ids];
+      undoController.boundary();
+      setShapeStyle(doc, id, { stroke: color });
+      undoController.boundary();
+    },
+    [doc, selection.ids, editable, undoController],
+  );
+
+  const handleShapeCreated = useCallback(
+    (id: string) => {
+      undoController.boundary();
+      activeToolState.toolCreated(id);
+    },
+    [undoController, activeToolState],
+  );
+
+  const handleConnectorCreated = useCallback(
+    (id: string) => {
+      undoController.boundary();
+      activeToolState.toolCreated(id);
+    },
+    [undoController, activeToolState],
+  );
+
   const zoom = camState.zoom;
   const cam = camState;
 
-  // Determine if we show the single-note toolbar (sticky or text)
+  // Build rects map for connectors
+  const rectsMap = useMemo(() => {
+    const m = new Map<string, Rect>();
+    for (const obj of notes) {
+      if (obj.type === 'connector') continue;
+      const bounds = objectBounds(obj);
+      m.set(obj.id, bounds);
+    }
+    return m;
+  }, [notes]);
+
+  // Determine if we show the single-note toolbar (sticky, text, or shape)
   const isSingleSelected = selection.ids.size === 1;
   const selectedId = isSingleSelected ? [...selection.ids][0] : null;
   const selectedObj = selectedId ? notes.find((n) => n.id === selectedId) : null;
   const showNoteToolbar = selectedObj && !selection.editingId && selectedObj.type === 'sticky';
   const showTextToolbar = selectedObj && !selection.editingId && selectedObj.type === 'text';
+  const showShapeToolbar = selectedObj && !selection.editingId && selectedObj.type === 'shape';
 
   let noteToolbarStyle: React.CSSProperties | undefined;
-  if (selectedObj && (showNoteToolbar || showTextToolbar)) {
+  if (selectedObj && (showNoteToolbar || showTextToolbar || showShapeToolbar)) {
     const bounds = objectBounds(selectedObj);
     const screenPt = worldToScreen(cam, { x: bounds.x + bounds.width / 2, y: bounds.y });
     noteToolbarStyle = {
@@ -277,6 +352,10 @@ export function BoardApp({ boardId }: { boardId: string }) {
         undoState={undoState}
         tool={toolState.tool}
         onToolChange={toolState.setTool}
+        activeTool={activeToolState.tool}
+        shapeKind={activeToolState.shapeKind}
+        onActiveToolChange={activeToolState.setTool}
+        onShapeKindChange={activeToolState.setShapeKind}
       />
       <BoardViewport
         onDblClickEmpty={handleDblClickEmpty}
@@ -286,10 +365,45 @@ export function BoardApp({ boardId }: { boardId: string }) {
         onMarqueeMove={handleMarqueeMove}
         onMarqueeEnd={handleMarqueeEnd}
         onMarqueeCancel={handleMarqueeCancel}
-        textToolActive={toolState.tool === 'text'}
+        textToolActive={toolState.tool === 'text' && activeToolState.tool === 'select'}
         onTextClick={handleTextClick}
       >
         {notes.map((note) => {
+          if (note.type === 'connector') {
+            return (
+              <ConnectorObject
+                key={note.id}
+                connector={note as ConnectorObjectSnapshot}
+                rects={rectsMap}
+                doc={doc}
+                selected={selection.ids.has(note.id)}
+                zoom={zoom}
+                camera={camState}
+                snapshot={notes}
+                onSelect={(id) => selection.click(id)}
+                onBoundary={undoController.boundary}
+              />
+            );
+          }
+          if (note.type === 'shape') {
+            return (
+              <ShapeObject
+                key={note.id}
+                shape={note as ShapeObjectSnapshot}
+                doc={doc}
+                zoom={zoom}
+                selected={selection.ids.has(note.id)}
+                editing={note.id === selection.editingId}
+                editable={editable}
+                onSelect={(id) => selection.click(id)}
+                onToggleSelect={(id) => selection.toggle(id)}
+                onStartEdit={(id) => selection.startEdit(id)}
+                onEndEdit={() => selection.endEdit()}
+                onObjectPointerDown={gesture.onObjectPointerDown}
+                undoController={undoController}
+              />
+            );
+          }
           if (note.type === 'text') {
             return (
               <TextObject
@@ -331,6 +445,28 @@ export function BoardApp({ boardId }: { boardId: string }) {
         <MarqueeRect rect={marquee.rect} camera={camState} />
       </BoardViewport>
 
+      {/* Shape tool overlay - outside viewport to avoid transform issues */}
+      {activeToolState.tool === 'shape' && editable && (
+        <ShapeTool
+          kind={activeToolState.shapeKind}
+          camera={camState}
+          doc={doc}
+          onCreated={handleShapeCreated}
+          onBoundary={undoController.boundary}
+        />
+      )}
+
+      {/* Connector tool overlay - outside viewport to avoid transform issues */}
+      {activeToolState.tool === 'connector' && editable && (
+        <ConnectorTool
+          camera={camState}
+          snapshot={notes}
+          doc={doc}
+          onCreated={handleConnectorCreated}
+          onBoundary={undoController.boundary}
+        />
+      )}
+
       {/* Selection overlay (handles) */}
       {!selection.editingId && selection.ids.size >= 1 && (
         <SelectionOverlay
@@ -366,6 +502,18 @@ export function BoardApp({ boardId }: { boardId: string }) {
             size={(selectedObj as TextObjectSnapshot).size}
             onSize={handleTextSize}
             onDelete={handleDelete}
+          />
+        </div>
+      )}
+
+      {/* Shape toolbar for single shape */}
+      {showShapeToolbar && selectedObj && (
+        <div style={noteToolbarStyle}>
+          <ShapeToolbar
+            fill={(selectedObj as ShapeObjectSnapshot).fill}
+            stroke={(selectedObj as ShapeObjectSnapshot).stroke}
+            onFill={handleShapeFill}
+            onStroke={handleShapeStroke}
           />
         </div>
       )}

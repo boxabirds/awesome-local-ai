@@ -5,8 +5,18 @@ import {
   STICKY_SIZE_WORLD,
   type StickyColor,
   type TextSize,
+  type ShapeKind,
+  type FillColor,
+  type StrokeColor,
 } from './config';
 import { type Rect, rectContains } from './geometry';
+import {
+  sideAnchor,
+  nearestSide,
+  type Endpoint,
+  resolveEndpoints,
+  connectorBBox,
+} from './geometry/connector-geometry';
 
 export const LOCAL_ORIGIN: unique symbol = Symbol('local');
 
@@ -38,8 +48,40 @@ export interface TextObjectSnapshot {
   widthMode: 'auto' | 'fixed';
 }
 
+export interface ShapeObjectSnapshot {
+  id: string;
+  type: 'shape';
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  z: number;
+  createdAt: number;
+  createdBy: string;
+  kind: ShapeKind;
+  fill: FillColor;
+  stroke: StrokeColor;
+  label: string;
+  text: string; // alias for label, for union compatibility
+}
+
 /** Generic object snapshot - any type that can appear on the board */
-export type ObjectSnapshot = StickySnapshot | TextObjectSnapshot;
+export type ObjectSnapshot = StickySnapshot | TextObjectSnapshot | ShapeObjectSnapshot | ConnectorObjectSnapshot;
+
+export interface ConnectorObjectSnapshot {
+  id: string;
+  type: 'connector';
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  z: number;
+  createdAt: number;
+  createdBy: string;
+  from: Endpoint;
+  to: Endpoint;
+  text: string; // empty, for union compatibility
+}
 
 const COLOR_KEYS: Set<string> = new Set(Object.keys(STICKY_COLORS));
 
@@ -176,7 +218,70 @@ export function snapshot(doc: Y.Doc): readonly ObjectSnapshot[] {
         widthMode: obj.get('widthMode') as 'auto' | 'fixed',
       };
       result.push(snap);
+    } else if (type === 'shape') {
+      const labelYText = obj.get('label');
+      if (!labelYText || !(labelYText instanceof Y.Text)) {
+        // Malformed shape object (missing required fields) - skip
+        return;
+      }
+      const snap: ShapeObjectSnapshot = {
+        id,
+        type: 'shape',
+        x: obj.get('x') as number,
+        y: obj.get('y') as number,
+        width: obj.get('width') as number,
+        height: obj.get('height') as number,
+        z: obj.get('z') as number,
+        createdAt: obj.get('createdAt') as number,
+        createdBy: (obj.get('createdBy') as string) ?? '',
+        kind: obj.get('kind') as ShapeKind,
+        fill: obj.get('fill') as FillColor,
+        stroke: obj.get('stroke') as StrokeColor,
+        label: (obj.get('label') as Y.Text).toString(),
+        text: (obj.get('label') as Y.Text).toString(),
+      };
+      result.push(snap);
+    } else if (type === 'connector') {
+      // Connector bbox derived from resolved endpoints - handled after loop
     }
+  });
+  // Second pass: resolve connector bboxes
+  const rects = new Map<string, Rect>();
+  objects.forEach((obj, id) => {
+    const type = obj.get('type') as string;
+    if (type === 'connector') return;
+    const x = obj.get('x') as number;
+    const y = obj.get('y') as number;
+    let w = obj.get('width') as number | undefined;
+    let h = obj.get('height') as number | undefined;
+    if (w == null || h == null) {
+      w = STICKY_SIZE_WORLD;
+      h = STICKY_SIZE_WORLD;
+    }
+    rects.set(id, { x, y, width: w, height: h });
+  });
+  objects.forEach((obj, id) => {
+    const type = obj.get('type') as string;
+    if (type !== 'connector') return;
+    const from = obj.get('from') as Endpoint;
+    const to = obj.get('to') as Endpoint;
+    const resolved = resolveEndpoints(from, to, rects);
+    const bbox = connectorBBox(resolved.from, resolved.to);
+    const snap: ConnectorObjectSnapshot = {
+      id,
+      type: 'connector',
+      x: bbox.x,
+      y: bbox.y,
+      width: bbox.width,
+      height: bbox.height,
+      z: obj.get('z') as number,
+      createdAt: obj.get('createdAt') as number,
+      createdBy: (obj.get('createdBy') as string) ?? '',
+      from,
+      to,
+      text: '',
+    };
+    result.push(snap);
   });
   result.sort((a, b) => {
     if (a.z !== b.z) return a.z - b.z;
@@ -192,7 +297,13 @@ export function snapshot(doc: Y.Doc): readonly ObjectSnapshot[] {
  * for stickies without explicit width/height.
  */
 export function objectBounds(obj: ObjectSnapshot): Rect {
+  if (obj.type === 'connector') {
+    return { x: obj.x, y: obj.y, width: obj.width || 1, height: obj.height || 1 };
+  }
   if (obj.type === 'text') {
+    return { x: obj.x, y: obj.y, width: obj.width, height: obj.height };
+  }
+  if (obj.type === 'shape') {
     return { x: obj.x, y: obj.y, width: obj.width, height: obj.height };
   }
   return {
@@ -226,8 +337,7 @@ export function objectsInRect(
 export function allObjectIds(
   snapshotArr: readonly ObjectSnapshot[],
 ): string[] {
-  const knownTypes = new Set(['sticky', 'text']);
-  const result: string[] = [];
+  const knownTypes = new Set(['sticky', 'text', 'shape']);  const result: string[] = [];
   for (const obj of snapshotArr) {
     if (knownTypes.has(obj.type)) {
       result.push(obj.id);
@@ -356,6 +466,46 @@ export function deleteObjects(
   const objects = objectsMap(doc);
   let count = 0;
   doc.transact(() => {
+    // Detach connector endpoints pointing at deleted ids
+    const idSet = new Set(ids);
+    const rects = new Map<string, Rect>();
+    objects.forEach((obj, oid) => {
+      const t = obj.get('type') as string;
+      if (t === 'connector') return;
+      const x = obj.get('x') as number;
+      const y = obj.get('y') as number;
+      let w = obj.get('width') as number | undefined;
+      let h = obj.get('height') as number | undefined;
+      if (w == null || h == null) { w = STICKY_SIZE_WORLD; h = STICKY_SIZE_WORLD; }
+      rects.set(oid, { x, y, width: w, height: h });
+    });
+    objects.forEach((obj) => {
+      if (obj.get('type') !== 'connector') return;
+      const from = obj.get('from') as Endpoint | undefined;
+      const to = obj.get('to') as Endpoint | undefined;
+      if (!from || !to) return;
+      if (from.kind === 'attached' && idSet.has(from.objectId)) {
+        const r = rects.get(from.objectId);
+        if (r) {
+          const otherPt = to.kind === 'free' ? { x: to.x, y: to.y } : (() => { const or2 = rects.get(to.objectId); return or2 ? { x: or2.x + or2.width / 2, y: or2.y + or2.height / 2 } : { x: to.fallback.x, y: to.fallback.y }; })();
+          const anchor = sideAnchor(r, nearestSide(r, otherPt));
+          obj.set('from', { kind: 'free', x: anchor.x, y: anchor.y });
+        } else {
+          obj.set('from', { kind: 'free', x: from.fallback.x, y: from.fallback.y });
+        }
+      }
+      if (to.kind === 'attached' && idSet.has(to.objectId)) {
+        const r = rects.get(to.objectId);
+        if (r) {
+          const otherPt = from.kind === 'free' ? { x: from.x, y: from.y } : (() => { const or2 = rects.get(from.objectId); return or2 ? { x: or2.x + or2.width / 2, y: or2.y + or2.height / 2 } : { x: from.fallback.x, y: from.fallback.y }; })();
+          const anchor = sideAnchor(r, nearestSide(r, otherPt));
+          obj.set('to', { kind: 'free', x: anchor.x, y: anchor.y });
+        } else {
+          obj.set('to', { kind: 'free', x: to.fallback.x, y: to.fallback.y });
+        }
+      }
+    });
+    // Delete the objects
     for (const id of ids) {
       if (objects.has(id)) {
         objects.delete(id);
