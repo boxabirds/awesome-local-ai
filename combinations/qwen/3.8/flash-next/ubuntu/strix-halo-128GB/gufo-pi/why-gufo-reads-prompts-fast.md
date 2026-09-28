@@ -23,7 +23,23 @@ gufo is a newer one written specifically for AMD's Ryzen AI MAX+ 395 chip, bette
 
 Before a model can write its reply, it has to read the whole conversation so far: every earlier message, every file it opened and every tool output. This reading step is called **prefill**. It's measured in **tokens**, which are small pieces of text (roughly ¾ of a word each). A coding agent's conversation is often 50,000–120,000 tokens long.
 
-Normally the engine keeps what it has already read and only reads the new part. But sometimes it has to read the whole conversation again. The most common reason is a **compaction**, when the agent summarises its own history to free up space: the conversation has changed, so the engine starts over. Another is resuming a session, for example when you reopen your coding agent the next day. Unless the engine still has that conversation in memory, it reads the whole thing from the start. This is where prefill speed really hurts.
+Normally the engine keeps what it has already read and only reads the new part. But sometimes it has to read the whole conversation again, and there are two common reasons.
+
+The first is resuming a session, for example when you reopen your coding agent the next day. Unless the engine still has that conversation in memory, it reads the whole thing from the start. This catches people out, because it's new behaviour for anyone used to cloud AI. You reopen a long session and wait minutes before anything happens, and it's not obvious why. On tritus, reopening a 120,000-token session means about 11½ minutes of waiting with llama.cpp.
+
+The second is a **compaction**, when the agent summarises its own history to free up space. The conversation has changed, so the engine starts over. How often this happens depends on the **context window**, which is the most the model can read at once. Many of today's frontier cloud models offer around a million tokens. The model I'm using can go up to 262,144, but I run it at 131,072 (128k) as a balance: a bigger window needs more memory, and a smaller one means more compactions, each of which interrupts the work. Local setups usually end up with smaller windows than the cloud, so they compact more often.
+
+Either way, this is where prefill speed really hurts.
+
+> **Sidebar: how do cloud models resume so quickly?**
+>
+> Mostly because they don't re-read, and when they do, they read very fast.
+>
+> The providers keep the model's working memory of a conversation (its **KV cache**) for a while after each request, and reuse it when the same conversation comes back. This is called **prompt caching**. Anthropic keeps it for 5 minutes by default, or an hour if you pay for it, and charges a tenth of the normal price or less to reuse it. OpenAI keeps it for about 30 minutes on its newest models. DeepSeek saves it to disk for hours to days, and said in 2024 that a cached 128,000-token prompt starts replying in half a second instead of 13 seconds. Moonshot, which runs the Kimi service, has published how it does this at scale ("Mooncake"): the saved memory is spread across the spare RAM and SSDs of the whole GPU cluster.
+>
+> When the cache has expired, as it usually will if you come back the next day, the cloud does re-read the whole conversation. But DeepSeek's 13 seconds for 128,000 tokens with no cache works out at roughly 10,000 tokens a second. That's about 8 times gufo on tritus and over 50 times llama.cpp, so the re-read takes seconds, not minutes.
+>
+> The caching part isn't cloud-only. Local engines keep the cache while they're running, and llama.cpp can save it to disk (its `--slot-save-path` option). The speed of reading is the real difference: a data-centre GPU is simply much faster at it than a home machine.
 
 ## The numbers
 
@@ -102,6 +118,7 @@ It became so popular that it now supports almost every model on almost every chi
 
 ## Sources
 
+- Cloud prompt caching: [Anthropic](https://platform.claude.com/docs/en/docs/build-with-claude/prompt-caching), [OpenAI](https://developers.openai.com/api/docs/guides/prompt-caching), [DeepSeek's 2024 announcement](https://api-docs.deepseek.com/news/news0802/) (the 13 s to 0.5 s figure) and Moonshot's [Mooncake paper](https://arxiv.org/abs/2407.00079), read on 28 September 2026.
 - llama.cpp's reach: the GitHub pages for [ggml-org/llama.cpp](https://github.com/ggml-org/llama.cpp) (stars, forks, latest release b11223) and [ollama/ollama](https://github.com/ollama/ollama) (its `LLAMA_CPP_VERSION` file pins llama.cpp), and the [GGUF model list on Hugging Face](https://huggingface.co/models?library=gguf), all on 28 September 2026.
 
 - Speed measurements: test A on tritus, in `benchmarks/gufo-eval/results/` (runs of 27 September 2026).
