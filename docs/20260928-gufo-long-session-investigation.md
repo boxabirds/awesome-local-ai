@@ -5,7 +5,24 @@ pi agent, the vidi canvas benchmark. Data, scripts and a timestamped log are in
 `benchmarks/gufo-eval/results/20260928-long-session/` on tritus; the tools are in
 [`benchmarks/gufo-eval/long-session/`](../benchmarks/gufo-eval/long-session/).
 
-**Status: IN PROGRESS.** Sections marked _pending_ are filled in as the experiments finish.
+**Status:** experiments done; a second like-for-like run (canvas-gufo-exp2, stories 1–2) was
+still running at the time of writing — see the end.
+
+## In short
+
+- **gufo is not slow and does not degrade over long sessions.** On the same real agent requests it
+  reads prompts 3–5× faster than llama.cpp and decodes ~1.7× faster at 100k context, with
+  replies of the same length and valid tool calls (H3, H5).
+- **The story-5 "regression" was mostly a bad comparison.** gufo's story 5 was the first story
+  on an empty repository (journey order); llama.cpp's story 5 was built on four finished
+  stories (H2).
+- **gufo has one real, rare, fatal bug here:** when the model writes a multi-line `edit` with raw
+  line breaks inside its JSON argument, gufo can't parse the call and returns it to the agent as
+  plain text. The agent reads that as "finished" and the story ends. Seen once in ~510 gufo turns
+  (0 in ~4,400 llama.cpp turns); it ended story 1 of canvas-gufo-exp1 after 17 minutes with the
+  build broken (H7, source-confirmed).
+- **Reasoning effort is fine** (low, as configured) and neither draft depth nor quant explains
+  anything (H1, H5, H6).
 
 ## The question
 
@@ -192,13 +209,75 @@ Two separate causes, found by reading the records:
      import): the fix was written, gufo returned it as text, and the story ended with the build
      broken.
 
-## Why published gufo results look great and ours looked bad — _pending_
+### The leak, at source level (gufo b722a61)
 
-## Recommended configuration — _pending_
+`ParseQwenCalls` in `src/cli/serve/openai_chat.cpp` parses each `<parameter=…>` value. When the
+tool's schema says the parameter is not a string (pi's `edit` tool declares `edits` as an array),
+the value must parse as strict JSON (`TryParseJson`, with a Python-literal retry). gufo's JSON parser
+rejects raw control characters inside strings (`src/core/json.hpp`: "unescaped control
+character"). The model sometimes writes multi-line `oldText`/`newText` with literal line breaks
+instead of `\n`; the value then fails, the call is marked invalid, and — as for any unparsed call —
+its text is returned as ordinary content with `finish_reason: stop` and no error. pi treats a
+reply without a tool call as the end of the turn, and the harness takes the session as finished.
 
-## Decisions needed — _pending_
+Replaying the exact request that produced it 8 times on gufo and 8 times on llama.cpp (same
+UD-Q4_K_XL weights) gave 16 valid tool calls and no leak (`leak-repro.jsonl`): the trigger is a
+particular sampled output, not the request. Whether llama.cpp would accept such a value if the
+model produced it there is **not measured** (no leak in ~4,400 llama.cpp turns, but also no
+evidence the model wrote raw line breaks there).
+
+## Why gufo looks great in published results and looked bad here
+
+- **Published results measure one request at a time.** gufo's benchmarks (and our test A) time
+  prompt reading and generation on single requests. On those, gufo is genuinely excellent here
+  too: ~1,230 tok/s prompt reading at 32–120k against llama.cpp's 170–300.
+- **An agent session is hundreds of turns of tool calls.** A benchmark of single requests never
+  exercises the tool-call parser on hundreds of long, multi-line `edit` calls. A failure that
+  happens once in ~500 turns is invisible there, and ends a 2-hour agent story here. That, not
+  speed or long-context degradation, is the long-session stress you suspected.
+- **Our first comparison was also unfair to gufo:** its "slow" story 5 was the whole project's
+  foundation on an empty repository, compared with llama.cpp's story 5 on top of four finished
+  stories.
+- **The agent's own mistakes land on whichever engine is running.** canvas-gufo-exp1's app didn't
+  start under `wrangler dev` because the agent added a config line the spec doesn't ask for;
+  llama.cpp's runs happened not to. One such mistake zeroes a run's held-out score, so single
+  runs say little about an engine's code quality either way.
+
+## Recommended configuration
+
+- **Engine: gufo** for long agent sessions on tritus, with its current settings (effort low,
+  thinking on, the agents' sampler, draft depth 7 — depth 4 was no faster). It is several times
+  faster where agent sessions spend their waiting time (prompt reading after a compaction or a
+  cache miss) and no less careful per turn.
+- **But not without a guard for the tool-call leak.** Until gufo accepts (or repairs) such values,
+  a leaked call silently ends a story. Two options, not yet built:
+  1. In the harness: treat a final assistant message containing `<tool_call>` markup as an
+     interrupted turn, and continue the session (as it already does after an error), recording it
+     as an intervention. Cheap, engine-independent, visible in the records.
+  2. Upstream: report it to gufo with the leaked text and the parser path above (a string value
+     inside a JSON-typed parameter, with raw line breaks, could be repaired by escaping control
+     characters before parsing, as lenient JSON parsers do).
+- **`--preserve-thinking off`** cuts the prompt by 20–24% and would reduce compactions, but
+  changes what the model sees; test it on real stories before adopting it.
+- **llama.cpp on tritus stays stopped** (prefill 170–350 tok/s; see
+  [the findings](20260927-strix-halo-llamacpp-findings.md)).
+
+## Decisions needed
+
+1. Build the harness guard (option 1 above) before any further gufo runs? Without it, each gufo
+   run carries a small chance per turn of ending a story early.
+2. Report the parser issue upstream to gufo (a public issue with the reproduction)?
+3. Keep gufo runs in journey order (story 5 first, as canvas-gufo-01) or number order (as the
+   other stacks, like canvas-gufo-exp1/-exp2)? Only number order compares per story.
+4. The held-out suite gives 0 to an app that doesn't start under `wrangler dev`, whatever it does.
+   That is correct per the spec, but it makes one config mistake worth a whole run; worth
+   recording "app did not start" as its own outcome in the summaries so it isn't read as
+   "every feature broken".
 
 ## Caveats
 
-- One gufo story so far. Agent runs vary a lot between runs of the same stack.
+- Few gufo stories so far (canvas-gufo-01 story 5; canvas-gufo-exp1 stories 1–2; exp2 below).
+  Agent runs vary a lot between runs of the same stack.
+- Replays use three repeats per request; enough to compare speed and order of magnitude of output,
+  not to rank verbosity finely.
 - gufo runs UD-Q4_K_XL (111 GB); llama.cpp runs UD-IQ4_XS (94 GB). Different weights.
