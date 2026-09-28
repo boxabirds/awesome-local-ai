@@ -31,7 +31,15 @@ fits this machine to choose from; pass a selector (or `--list`, `--dry-run` or
 ./install.sh --list      # what fits this machine, and why the rest do not
 ./install.sh --dry-run   # show the choice, install nothing
 ./install.sh qwen/3.8/27b/macos/64GB/mtplx-opencode   # or choose yourself
+./install.sh --no-web-testing   # skip the browsers for web testing
 ```
+
+Coding agents test web apps in a real browser, so every install also sets up
+Playwright's Chromium, on by default. It goes where Playwright looks for it
+(`~/Library/Caches/ms-playwright` on macOS, `~/.cache/ms-playwright` on Linux),
+the same place whichever combination you install. Browsers you already have
+there, or under `PLAYWRIGHT_BROWSERS_PATH`, are reused rather than downloaded
+again, and the install launches Chromium once to prove it works.
 
 `start.sh` reads the manifests the installer left behind, so it runs whatever
 this machine actually has — no arguments needed for the common case, and a
