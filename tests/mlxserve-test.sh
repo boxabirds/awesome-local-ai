@@ -183,6 +183,7 @@ echo '{"temperature": 1.0, "top_k": 20, "top_p": 0.95}' > "$LPACK/generation_con
     printf 'MODEL_ALIAS_DEFAULT=%q\nDEFAULT_PROFILE=%q\nDEFAULT_PORT=%q\n' "$MODEL_ALIAS_DEFAULT" "$DEFAULT_PROFILE" "$DEFAULT_PORT"
     printf 'REASONING_EFFORT_DEFAULT=%q\nREASONING_EFFORTS=%q\n' "$REASONING_EFFORT_DEFAULT" "$REASONING_EFFORTS"
     printf 'REASONING_BUDGET_DEFAULT=%q\n' "$REASONING_BUDGET_DEFAULT"
+    printf 'PREFIX_CACHE_MEM_DEFAULT=%q\n' "$PREFIX_CACHE_MEM_DEFAULT"
     printf 'SAMPLING_THINKING=%q\nSAMPLING_INSTRUCT=%q\nSERVER_CMD=test-server\n' "$SAMPLING_THINKING" "$SAMPLING_INSTRUCT"
     backend_manifest_extra
   } > "$X/install.env"
@@ -233,6 +234,9 @@ assert_ok "agent: the checkpoint's sampler"         has_pair --temp 1.0
 # --reasoning-budget is set (server.zig implicitEffortBudget); the other engines bound thinking only
 # by the output limit. 27 Sep 2026: canvas-mlx-01 hit the 2048 cap up to 42 times a story.
 assert_ok "agent: thinking bounded by the output limit, not the implicit 2048" has_pair --reasoning-budget 32768
+# One Flash-Next prefix-cache snapshot is ~2 GB at agent context lengths, so mlx-serve's 2 GB default
+# holds one: canvas-mlx-02 evicted 930 times and re-read >4k tokens on 607 of 1,852 requests (28 Sep).
+assert_ok "agent: a 16 GB prefix cache, room for several snapshots" has_pair --prefix-cache-mem 16GB
 assert_ok "served dir links the pack's files"       test -L "$SERVED/config.json"
 assert_ok "...the n-gram table included"            test -L "$SERVED/ngram_table.bin"
 assert_fails "...but generation_config.json is a real file" test -L "$SERVED/generation_config.json"
@@ -257,6 +261,10 @@ rm -f "$ARGV"; launch REASONING_EFFORT=low REASONING_BUDGET=4096 VISION=1
 assert_ok    "REASONING_EFFORT=low is accepted"     test -f "$ARGV"
 assert_ok    "REASONING_BUDGET -> --reasoning-budget" has_pair --reasoning-budget 4096
 assert_fails "VISION=1 keeps the vision tower"      has_arg --no-vision
+
+rm -f "$ARGV"; launch PREFIX_CACHE_MEM=4GB
+assert_ok    "PREFIX_CACHE_MEM -> --prefix-cache-mem" has_pair --prefix-cache-mem 4GB
+assert_fails "a PREFIX_CACHE_MEM without a unit is refused" launch PREFIX_CACHE_MEM=16
 
 rm -f "$ARGV"
 assert_fails "an effort mlx-serve cannot apply is refused before launch" launch REASONING_EFFORT=medium
