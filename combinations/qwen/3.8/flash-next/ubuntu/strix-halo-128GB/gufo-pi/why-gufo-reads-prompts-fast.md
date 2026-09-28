@@ -25,11 +25,15 @@ Before a model can write its reply, it has to read the whole conversation so far
 
 Normally the engine keeps what it has already read and only reads the new part. But sometimes it has to read the whole conversation again, and there are two common reasons.
 
-The first is resuming a session, for example when you reopen your coding agent the next day. Unless the engine still has that conversation in memory, it reads the whole thing from the start. This catches people out, because it's new behaviour for anyone used to cloud AI. You reopen a long session and wait minutes before anything happens, and it's not obvious why. On tritus, reopening a 120,000-token session means about 11½ minutes of waiting with llama.cpp.
+The first is resuming a session, for example when you reopen your coding agent the next day. Unless the engine still has that conversation in memory, it reads the whole thing from the start. This catches people out, because it's new behaviour for anyone used to cloud AI. You reopen a long session and wait minutes before anything happens, and it's not obvious why.
 
 The second is a **compaction**, when the agent summarises its own history to free up space. The conversation has changed, so the engine starts over. How often this happens depends on the **context window**, which is the most the model can read at once. Many of today's frontier cloud models offer around a million tokens. The model I'm using can go up to 262,144, but I run it at 131,072 (128k) as a balance: a bigger window needs more memory, and a smaller one means more compactions, each of which interrupts the work. Local setups usually end up with smaller windows than the cloud, so they compact more often.
 
-Either way, this is where prefill speed really hurts.
+**Prefill speed directly affects how long compactions and resumed sessions take, and gufo makes Strix Halo's prefill times practical.** Re-reading a 120,000-token conversation takes about 11½ minutes on llama.cpp and about a minute and a half on gufo.
+
+The wait is a fairly new experience for most people. Cloud AI runs on very expensive hardware that reads something like 10 times faster than even gufo manages on Strix Halo, so you rarely notice it there (see the sidebar).
+
+It's also one of the benefits of owning an RTX graphics card. A current card like the RTX 4090 or 5090 reads the model that fits on it (Qwen3.8 27B) at about 2,900 to 3,900 tokens a second, which is 2 to 3 times gufo's speed here. RTX owners notice compactions and resumed sessions much less.
 
 > **Sidebar: how do cloud models resume so quickly?**
 >
@@ -37,24 +41,9 @@ Either way, this is where prefill speed really hurts.
 >
 > The providers keep the model's working memory of a conversation (its **KV cache**) for a while after each request, and reuse it when the same conversation comes back. This is called **prompt caching**. Anthropic keeps it for 5 minutes by default, or an hour if you pay for it, and charges a tenth of the normal price or less to reuse it. OpenAI keeps it for about 30 minutes on its newest models. DeepSeek saves it to disk for hours to days, and said in 2024 that a cached 128,000-token prompt starts replying in half a second instead of 13 seconds. Moonshot, which runs the Kimi service, has published how it does this at scale ("Mooncake"): the saved memory is spread across the spare RAM and SSDs of the whole GPU cluster.
 >
-> When the cache has expired, as it usually will if you come back the next day, the cloud does re-read the whole conversation. But DeepSeek's 13 seconds for 128,000 tokens with no cache works out at roughly 10,000 tokens a second. That's about 8 times gufo on tritus and over 50 times llama.cpp, so the re-read takes seconds, not minutes.
+> When the cache has expired, as it usually will if you come back the next day, the cloud does re-read the whole conversation. But DeepSeek's 13 seconds for 128,000 tokens with no cache works out at roughly 10,000 tokens a second, on 2024 hardware. That's about 8 times gufo on tritus and over 50 times llama.cpp, so the re-read takes seconds, not minutes.
 >
 > The caching part isn't cloud-only. Local engines keep the cache while they're running, and llama.cpp can save it to disk (its `--slot-save-path` option). The speed of reading is the real difference.
->
-> Cloud hardware is very expensive and very fast. The chips in AI data centres read far faster than anything you can practically own, and they come several to a server.
->
-> At home, reading speed depends a lot on what you buy. The llama.cpp developers' own tests (the same change discussed in point 2) give a fair comparison: the same model (Qwen3.8 27B), the same software, reading a 2,000-token prompt.
->
-> | Machine | Tokens per second | Memory for the model |
-> |---|---|---|
-> | Strix Halo | 331 | 128 GB (shared) |
-> | RTX 3090 | 1,150 | 24 GB |
-> | RTX 4090 | 2,948 | 24 GB |
-> | RTX 5090 | 3,852 | 32 GB |
->
-> My own RTX 4090 machine measures the same, about 2,900 tokens a second. So a current gaming card (4090 or 5090) reads 9 to 12 times faster than Strix Halo, and even the older 3090 reads 3½ times faster. The catch is memory. A model this size (111 GB) doesn't fit on a 24 or 32 GB card at all, and Strix Halo's 128 GB is the reason to buy one. You're trading reading speed for the ability to run big models at home.
->
-> Note: tokens per second can't be compared across different models, because a bigger model does more maths per token. Qwen3.8 27B uses all of its 27 billion numbers for every token, while Flash-Next only uses about 6 billion of its 176 billion, which is why Strix Halo reads Flash-Next faster than 27B.
 
 ## The numbers
 
