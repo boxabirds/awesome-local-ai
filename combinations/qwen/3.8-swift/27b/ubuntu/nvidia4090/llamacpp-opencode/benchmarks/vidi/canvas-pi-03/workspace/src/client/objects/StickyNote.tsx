@@ -32,7 +32,7 @@ const SELECTION_OUTLINE = '#1A73E8';
  * (Escape) / Unselected (click outside).
  */
 export function StickyNote(props: ObjectProps): JSX.Element {
-  const { obj, doc, selected, editing, editable = true, onStartEdit, onEndEdit } = props;
+  const { obj, doc, selected, editing, editable = true, onStartEdit, onEndEdit, undo } = props;
   const note = obj as StickySnapshot;
 
   const rootRef = useRef<HTMLDivElement>(null);
@@ -151,7 +151,7 @@ export function StickyNote(props: ObjectProps): JSX.Element {
         />
       )}
       {editing && ytext && (
-        <StickyTextEditor ytext={ytext} fontPx={fit.fontPx} onEnd={onEndEdit} />
+        <StickyTextEditor ytext={ytext} fontPx={fit.fontPx} onEnd={onEndEdit} undo={undo} />
       )}
     </div>
   );

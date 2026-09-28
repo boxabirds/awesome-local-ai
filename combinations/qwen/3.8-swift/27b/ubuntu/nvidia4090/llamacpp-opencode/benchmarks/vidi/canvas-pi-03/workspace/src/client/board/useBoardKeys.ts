@@ -24,6 +24,7 @@ import {
 import { getObjectType } from '../objects/registry';
 import { NUDGE_STEP_WORLD, NUDGE_LARGE_STEP_WORLD } from 'src/shared/config';
 import type { Selection } from './useSelection';
+import type { UndoController } from './undo';
 
 /** True when the event target is a text-control-like element. */
 function focusIsInTextControl(target: EventTarget | null): boolean {
@@ -37,6 +38,8 @@ export interface BoardKeysOptions {
   selection: Selection;
   snapshot: readonly ObjectSnapshot[];
   canEdit: boolean;
+  /** Story 8: per-user undo controller (undo/redo shortcuts + boundaries). */
+  undo: UndoController;
 }
 
 export function useBoardKeys(opts: BoardKeysOptions): void {
@@ -63,7 +66,26 @@ export function useBoardKeys(opts: BoardKeysOptions): void {
 
       if (!canEdit) return;
 
-      // Nudge.
+      // Story 8: undo / redo (undo.shortcuts). The text-control and editing
+      // checks above already returned, so Ctrl/Cmd+Z inside a sticky's editor
+      // is handled by the editor itself (no double undo).
+      if ((e.ctrlKey || e.metaKey) && (e.key === 'z' || e.key === 'Z')) {
+        e.preventDefault();
+        if (e.shiftKey) {
+          optsRef.current.undo.redo();
+        } else {
+          optsRef.current.undo.undo();
+        }
+        return;
+      }
+      if ((e.ctrlKey || e.metaKey) && (e.key === 'y' || e.key === 'Y')) {
+        e.preventDefault();
+        optsRef.current.undo.redo();
+        return;
+      }
+
+      // Nudge. Each nudge is exactly one undo step (boundaries around the
+      // single model call, undo.boundaries).
       if (e.key === 'ArrowLeft' || e.key === 'ArrowRight' || e.key === 'ArrowUp' || e.key === 'ArrowDown') {
         if (selection.ids.size === 0) return;
         e.preventDefault();
@@ -74,15 +96,19 @@ export function useBoardKeys(opts: BoardKeysOptions): void {
         for (const o of snapshot) {
           if (selection.ids.has(o.id)) positions.set(o.id, { x: o.x + dx, y: o.y + dy });
         }
+        optsRef.current.undo.boundary();
         moveObjects(doc, positions);
+        optsRef.current.undo.boundary();
         return;
       }
 
-      // Delete / Backspace: remove the selected objects.
+      // Delete / Backspace: remove the selected objects — one undo step.
       if (e.key === 'Delete' || e.key === 'Backspace') {
         if (selection.ids.size === 0) return;
         e.preventDefault();
+        optsRef.current.undo.boundary();
         deleteObjects(doc, [...selection.ids]);
+        optsRef.current.undo.boundary();
         selection.clear();
         return;
       }

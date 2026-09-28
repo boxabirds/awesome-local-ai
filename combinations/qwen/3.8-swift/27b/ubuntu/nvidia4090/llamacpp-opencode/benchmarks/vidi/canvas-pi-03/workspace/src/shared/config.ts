@@ -32,6 +32,9 @@ export const STICKY_MIN_SIZE_WORLD = 50; // sticky notes cannot be resized below
 export const MAX_OBJECT_SIZE_WORLD = 20_000; // no object may be resized above this
 export const NUDGE_STEP_WORLD = 1; // arrow-key nudge step
 export const NUDGE_LARGE_STEP_WORLD = 10; // Shift+arrow nudge step
+// Story 8: per-user undo/redo
+export const UNDO_CAPTURE_TIMEOUT_MS = 500; // typing pause that ends a burst
+export const UNDO_MAX_STEPS = 200;          // per-user history length
 // Story 5: share a board with others using a link
 export const BOARD_CREATE_LIMIT = 10;              // per visitor, per period (PRD share.rate_limit)
 export const BOARD_CREATE_PERIOD_SECONDS = 60;     // must match wrangler.jsonc ratelimits (TC-03 asserts equality)

@@ -1,13 +1,18 @@
 import type { JSX } from 'react';
+import { UndoButtons } from './UndoButtons';
+import type { UndoState } from './useUndo';
 
 export interface ToolbarProps {
   onCreateSticky: () => void;
   /** When true (board `load_failed`) the Sticky note button is disabled. */
   disabled?: boolean;
+  /** Story 8: undo/redo state for the toolbar buttons (below the tools). */
+  undo?: UndoState;
 }
 
 /**
- * Fixed left-side toolbar with the Sticky note button.
+ * Fixed left-side toolbar with the Sticky note button and, below the tools,
+ * the Undo / Redo buttons (story 8).
  * Stops pointer propagation so clicks never reach the viewport
  * (which would pan / clear the selection).
  */
@@ -61,6 +66,7 @@ export function Toolbar(props: ToolbarProps): JSX.Element {
           <path d="M13 19v-6h6" fill="none" stroke="#8a7a2a" strokeWidth="1.5" />
         </svg>
       </button>
+      {props.undo && <UndoButtons {...props.undo} />}
     </div>
   );
 }

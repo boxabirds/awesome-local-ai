@@ -17,6 +17,7 @@ import {
   type ObjectSnapshot,
 } from 'src/shared/board-model';
 import { STICKY_MIN_SIZE_WORLD } from 'src/shared/config';
+import type { UndoController } from '../board/undo';
 import { StickyNote } from './StickyNote';
 
 /**
@@ -37,6 +38,8 @@ export interface ObjectProps {
   onSelect: (id: string) => void;
   onStartEdit: (id: string) => void;
   onEndEdit: (next: 'selected' | 'unselected') => void;
+  /** Story 8: the board's per-user undo controller (text-editor boundaries). */
+  undo: UndoController;
 }
 
 export interface ObjectTypeSpec {

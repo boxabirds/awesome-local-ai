@@ -15,6 +15,9 @@ export default defineWorkspace([
       name: 'unit',
       environment: 'node',
       include: ['tests/unit/**/*.test.{ts,tsx}'],
+      // Inline yjs/lib0 so vi.mock('lib0/time') (undo clock tests) applies to
+      // yjs' internal imports instead of Node's externalized ESM loader.
+      server: { deps: { inline: ['yjs', 'lib0'] } },
     },
   },
   {

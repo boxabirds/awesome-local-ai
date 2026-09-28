@@ -3,11 +3,14 @@ import * as Y from 'yjs';
 import { STICKY_TEXT_MAX_CHARS } from 'src/shared/config';
 import { clampToLimit, applyTextDiff, adjustCaret, counterVisible } from './StickyText';
 import { LOCAL_ORIGIN } from 'src/shared/board-model';
+import type { UndoController } from '../board/undo';
 
 export interface StickyTextEditorProps {
   ytext: Y.Text;
   fontPx: number;
   onEnd: (next: 'selected' | 'unselected') => void;
+  /** Story 8: the board's per-user undo controller. */
+  undo: UndoController;
 }
 
 const PADDING = 12; // world units; must match the display-mode text padding in StickyNote
@@ -19,18 +22,23 @@ const PADDING = 12; // world units; must match the display-mode text padding in 
  * additional write and can never lose typed characters.
  */
 export function StickyTextEditor(props: StickyTextEditorProps): JSX.Element {
-  const { ytext, fontPx, onEnd } = props;
+  const { ytext, fontPx, onEnd, undo } = props;
   const ref = useRef<HTMLTextAreaElement>(null);
   const composingRef = useRef(false);
   const endedRef = useRef(false);
+  const undoRef = useRef(undo);
+  undoRef.current = undo;
   const [length, setLength] = useState(() => ytext.length);
 
-  // On mount: focus and put the caret at the end of the text (sticky.edit_start).
+  // Story 8: an edit session starts its own undo step — the boundary closes
+  // the capture window so typing never merges with the action that started
+  // the edit (undo.boundaries).
   useEffect(() => {
     const el = ref.current;
     if (!el) return;
     el.focus();
     el.setSelectionRange(el.value.length, el.value.length);
+    undoRef.current.boundary();
   }, []);
   // Reflect REMOTE Y.Text changes into the (uncontrolled) textarea in real
   // time, keeping the local caret stable. Without this, a subsequent local
@@ -68,6 +76,9 @@ export function StickyTextEditor(props: StickyTextEditorProps): JSX.Element {
   const end = (next: 'selected' | 'unselected') => {
     if (endedRef.current) return;
     endedRef.current = true;
+    // Story 8: ending the edit closes the capture window, so the burst of
+    // typing is one finished step and the next action starts a new one.
+    undoRef.current.boundary();
     onEnd(next);
   };
 
@@ -107,6 +118,23 @@ export function StickyTextEditor(props: StickyTextEditorProps): JSX.Element {
       e.preventDefault();
       end('selected');
       return;
+    }
+    // Story 8: Ctrl/Cmd+Z / Ctrl/Cmd+Shift+Z / Ctrl+Y inside the editor are
+    // routed to the board's controller with preventDefault, so the browser's
+    // native textarea undo can never diverge from the Y.Text (and
+    // useBoardKeys ignores the event while a sticky is being edited).
+    if (e.ctrlKey || e.metaKey) {
+      if (e.key === 'z' || e.key === 'Z') {
+        e.preventDefault();
+        if (e.shiftKey) undoRef.current.redo();
+        else undoRef.current.undo();
+        return;
+      }
+      if (e.key === 'y' || e.key === 'Y') {
+        e.preventDefault();
+        undoRef.current.redo();
+        return;
+      }
     }
     // Enter is NOT intercepted: it inserts a newline inside the note.
   };

@@ -4,7 +4,7 @@
  * the board's existence check succeeds; the `__vidi6` test hook (test build
  * only) stays here with the board.
  */
-import { type JSX, useState, useEffect, useCallback, useRef } from 'react';
+import { type JSX, useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { BoardViewport } from '../canvas/BoardViewport';
 import { ZoomControls } from '../canvas/ZoomControls';
 import { NavigationHint } from '../canvas/NavigationHint';
@@ -20,6 +20,8 @@ import { SelectionBar } from './SelectionBar';
 import { ConnectionStatus } from '../sync/ConnectionStatus';
 import { canEdit } from '../sync/connectBoard';
 import { Toolbar } from './Toolbar';
+import { createUndo } from './undo';
+import { useUndo } from './useUndo';
 import { getObjectType } from '../objects/registry';
 import { NoteToolbar } from '../objects/NoteToolbar';
 import {
@@ -50,9 +52,22 @@ export function Board({ boardId }: { boardId: string }): JSX.Element {
   const gestureStartsRef = useRef(0);
   const gestureEndsRef = useRef(0);
 
+  // Story 8: ONE per-user undo controller per board doc (key decision 5).
+  // BoardPage remounts Board per board id (key={route.id}) and a reload
+  // starts a fresh tab, so history is session-only (undo.session_only).
+  const undoController = useMemo(() => createUndo(doc), [doc]);
+  useEffect(() => {
+    return () => {
+      undoController.destroy();
+    };
+  }, [undoController]);
+  const undoState = useUndo(undoController, editable);
+
   // Story 7: the generic transform gesture — group move (drag any selected
   // object), single-object drag, handle resize with aspect lock + size
   // limits. Works for every registered object type (sel.all_types).
+  // Story 8: gesture start/end (including pointercancel) close undo capture
+  // windows, so one drag is exactly one undo step (undo.boundaries).
   const gesture = useTransformGesture({
     doc,
     camera: cam.camera,
@@ -61,10 +76,12 @@ export function Board({ boardId }: { boardId: string }): JSX.Element {
     canEdit: editable,
     onGestureStart: () => {
       gestureStartsRef.current += 1;
+      undoController.boundary();
       setDragging(true);
     },
     onGestureEnd: () => {
       gestureEndsRef.current += 1;
+      undoController.boundary();
       setDragging(false);
     },
   });
@@ -74,7 +91,8 @@ export function Board({ boardId }: { boardId: string }): JSX.Element {
   const marquee = useMarquee(cam.camera, objects, (ids) => sel.setMany(ids, true));
 
   // Story 7: Ctrl+A / Escape / arrows / Delete / Enter (sel.keyboard).
-  useBoardKeys({ doc, selection: sel, snapshot: objects, canEdit: editable });
+  // Story 8: + Ctrl/Cmd+Z / Ctrl/Cmd+Shift+Z / Ctrl+Y undo and redo.
+  useBoardKeys({ doc, selection: sel, snapshot: objects, canEdit: editable, undo: undoController });
 
   // Test hook: story 1 exposes setCamera; story 2 additionally exposes the
   // board doc so tests can drive the model directly (e.g. TC-37).
@@ -83,7 +101,9 @@ export function Board({ boardId }: { boardId: string }): JSX.Element {
       // seedNotes creates `count` varied notes via the real board-model so the
       // Yjs updates flow through the normal sync → store path (deterministic
       // e2e seeding without 25× UI interactions).
-      const seedNotes = (count: number): string[] => {
+      // `start` offsets both ids and grid positions so several calls never
+      // collide (story 8 TC-23 seeds one note per undo step).
+      const seedNotes = (count: number, start = 0): string[] => {
         const colors: Array<'yellow' | 'orange' | 'green' | 'blue' | 'pink' | 'violet'> = [
           'yellow',
           'orange',
@@ -94,14 +114,15 @@ export function Board({ boardId }: { boardId: string }): JSX.Element {
         ];
         const ids: string[] = [];
         for (let i = 0; i < count; i++) {
+          const n = start + i;
           const id = createSticky(
             doc,
-            { x: (i % 5) * 120, y: Math.floor(i / 5) * 120 },
-            colors[i % colors.length],
-            `seed-${i}`,
+            { x: (n % 5) * 120, y: Math.floor(n / 5) * 120 },
+            colors[n % colors.length],
+            `seed-${n}`,
           );
           if (id) {
-            getStickyText(doc, id)?.insert(0, `Note ${i}: the quick brown fox`);
+            getStickyText(doc, id)?.insert(0, `Note ${n}: the quick brown fox`);
             ids.push(id);
           }
         }
@@ -118,19 +139,24 @@ export function Board({ boardId }: { boardId: string }): JSX.Element {
         gestureStarts: () => gestureStartsRef.current,
         gestureEnds: () => gestureEndsRef.current,
         dragging,
+        // Story 8: the per-user undo controller (component/e2e tests).
+        undo: undoController,
       };
     }
-  }, [cam.setCamera, doc, connectionState, dropSocket, resumeSocket, dragging]);
+  }, [cam.setCamera, doc, connectionState, dropSocket, resumeSocket, dragging, undoController]);
 
   // Double-click on empty board space: create a note centred on the point,
   // select it and start editing (sticky.create_dblclick). No-op when locked.
   const handleCreateStickyAt = useCallback(
     (world: { x: number; y: number }) => {
       if (!editable) return;
+      // Story 8: one note creation is exactly one undo step.
+      undoController.boundary();
       const id = createSticky(doc, world);
+      undoController.boundary();
       if (id) sel.startEdit(id);
     },
-    [doc, sel, editable],
+    [doc, sel, editable, undoController],
   );
 
   // Toolbar button: create a note at the centre of the visible board area
@@ -142,17 +168,23 @@ export function Board({ boardId }: { boardId: string }): JSX.Element {
       x: size.width / 2,
       y: size.height / 2,
     });
+    // Story 8: one note creation is exactly one undo step.
+    undoController.boundary();
     const id = createSticky(doc, centre);
+    undoController.boundary();
     if (id) sel.startEdit(id);
-  }, [cam.camera, size, doc, sel, editable]);
+  }, [cam.camera, size, doc, sel, editable, undoController]);
 
   // Story 7: a group delete removes every selected object at once and clears
   // the selection (sel.delete_multi). No-op when the board is locked.
+  // Story 8: the whole group delete is exactly one undo step.
   const handleDeleteSelection = useCallback(() => {
     if (!editable || sel.ids.size === 0) return;
+    undoController.boundary();
     deleteObjects(doc, [...sel.ids]);
+    undoController.boundary();
     sel.clear();
-  }, [doc, editable, sel]);
+  }, [doc, editable, sel, undoController]);
 
   // The single selected sticky note (for the story 2 note toolbar — shown
   // only when EXACTLY one object is selected; with 2+ the selection bar
@@ -230,11 +262,16 @@ export function Board({ boardId }: { boardId: string }): JSX.Element {
                 onSelect={sel.click}
                 onStartEdit={sel.startEdit}
                 onEndEdit={sel.endEdit}
+                undo={undoController}
               />
             );
           })}
       </BoardViewport>
-      <Toolbar onCreateSticky={handleCreateStickyCentred} disabled={!editable} />
+      <Toolbar
+        onCreateSticky={handleCreateStickyCentred}
+        disabled={!editable}
+        undo={undoState}
+      />
       <SelectionOverlay
         ids={sel.ids}
         snapshot={objects}
@@ -246,9 +283,17 @@ export function Board({ boardId }: { boardId: string }): JSX.Element {
           <NoteToolbar
             color={singleSticky.color}
             editable={editable}
-            onColor={(c) => setStickyColor(doc, singleSticky.id, c)}
+            onColor={(c) => {
+              // Story 8: one colour change is exactly one undo step.
+              undoController.boundary();
+              setStickyColor(doc, singleSticky.id, c);
+              undoController.boundary();
+            }}
             onDelete={() => {
+              // Story 8: one delete is exactly one undo step.
+              undoController.boundary();
               if (deleteObject(doc, singleSticky.id)) sel.clear();
+              undoController.boundary();
             }}
           />
         </div>

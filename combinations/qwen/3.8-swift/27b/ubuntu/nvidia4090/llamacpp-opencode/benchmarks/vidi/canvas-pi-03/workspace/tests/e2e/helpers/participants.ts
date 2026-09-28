@@ -63,7 +63,12 @@ export async function expectWithin<T>(
 /** Create a note centred on screen point (x, y); optionally type text. */
 export async function createNote(page: Page, x: number, y: number, text = ''): Promise<void> {
   await page.mouse.dblclick(x, y);
-  if (text) await page.keyboard.type(text);
+  if (text) {
+    // Wait for the editor to mount and focus before typing, so no keystrokes
+    // are lost in the render gap after the double-click.
+    await page.getByTestId('sticky-note-textarea').waitFor({ timeout: 5000 });
+    await page.keyboard.type(text);
+  }
   await page.keyboard.press('Escape');
 }
 
