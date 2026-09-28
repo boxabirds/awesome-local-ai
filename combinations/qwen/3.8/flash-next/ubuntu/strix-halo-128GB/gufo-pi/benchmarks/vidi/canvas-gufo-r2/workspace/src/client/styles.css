@@ -152,3 +152,204 @@ body {
   white-space: nowrap;
   pointer-events: none;
 }
+
+/* --------------------------------------------------------- toolbar (story 2) */
+
+.toolbar {
+  position: fixed;
+  left: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 4px;
+  background: #ffffff;
+  border: 1px solid #d6dae1;
+  border-radius: 8px;
+  box-shadow: 0 1px 4px rgb(16 22 26 / 12%);
+  pointer-events: auto;
+  z-index: 100;
+}
+
+.toolbar-button {
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  cursor: pointer;
+}
+
+.toolbar-button:hover {
+  background: #eef1f4;
+}
+
+.toolbar-button:focus-visible {
+  outline: 2px solid #2f6feb;
+  outline-offset: 1px;
+}
+
+/* --------------------------------------------------------- sticky note */
+
+.sticky-note {
+  border-radius: 3px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  cursor: default;
+  user-select: none;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.sticky-note:focus-visible {
+  outline: 2px solid #2f6feb;
+}
+
+.sticky-selected {
+  outline: 2px solid #2f6feb;
+}
+
+.sticky-text {
+  width: 100%;
+  height: 100%;
+  padding: 12px;
+  text-align: center;
+  white-space: pre-wrap;
+  word-break: break-word;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #1f2328;
+  overflow: hidden;
+  position: relative;
+  box-sizing: border-box;
+}
+
+.sticky-text-overflow {
+  align-items: flex-start;
+}
+
+.sticky-text-overflow::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 24px;
+  pointer-events: none;
+  background: linear-gradient(to bottom, transparent, rgba(255, 255, 255, 0.75));
+}
+
+/* Hidden measurement element used to compute font fit. */
+.sticky-text-measure {
+  position: absolute;
+  left: -99999px;
+  top: 0;
+  width: 176px; /* STICKY_SIZE_WORLD - 24 padding allowance */
+  visibility: hidden;
+  pointer-events: none;
+  white-space: pre-wrap;
+  word-break: break-word;
+  line-height: 1.3;
+  font-family: inherit;
+}
+
+/* --------------------------------------------------------- sticky editor */
+
+.sticky-editor {
+  width: 100%;
+  height: 100%;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.sticky-textarea {
+  width: calc(100% - 24px);
+  height: calc(100% - 24px);
+  margin: 12px;
+  border: none;
+  outline: none;
+  background: transparent;
+  resize: none;
+  text-align: center;
+  font-family: inherit;
+  color: #1f2328;
+  line-height: 1.3;
+  overflow: hidden;
+}
+
+.sticky-counter {
+  position: absolute;
+  bottom: 4px;
+  right: 8px;
+  font-size: 11px;
+  color: #666;
+}
+
+/* --------------------------------------------------------- note toolbar */
+
+.note-toolbar {
+  position: fixed;
+  top: 10px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 6px;
+  background: #ffffff;
+  border: 1px solid #d6dae1;
+  border-radius: 6px;
+  box-shadow: 0 1px 4px rgb(16 22 26 / 12%);
+  pointer-events: auto;
+  z-index: 100;
+}
+
+.note-swatch {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: 2px solid transparent;
+  cursor: pointer;
+  padding: 0;
+}
+
+.note-swatch[aria-pressed='true'] {
+  border-color: #1f2328;
+}
+
+.note-swatch:focus-visible {
+  outline: 2px solid #2f6feb;
+  outline-offset: 1px;
+}
+
+.note-delete {
+  width: 26px;
+  height: 26px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  color: #586069;
+  cursor: pointer;
+  margin-left: 4px;
+}
+
+.note-delete:hover {
+  background: #ffeef0;
+  color: #d73a49;
+}
+
+.note-delete:focus-visible {
+  outline: 2px solid #2f6feb;
+  outline-offset: 1px;
+}

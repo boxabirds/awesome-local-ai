@@ -22,6 +22,10 @@ export interface BoardViewportProps {
   children?: ReactNode;
   /** Rendered in screen space above the board: zoom controls, hints, later presence. */
   overlay?: ReactNode;
+  /** Called on double-click over empty board space with the screen-space point. */
+  onBoardDblClick?: (point: { x: number; y: number }) => void;
+  /** Called when the user clicks empty board space (short press, no drag). */
+  onBoardEmptyClick?: () => void;
 }
 
 const BoardCameraContext = createContext<CameraController | null>(null);
@@ -77,7 +81,7 @@ function wheelPixels(e: WheelEvent, viewport: Size): { deltaX: number; deltaY: n
  * positioned with CSS from the camera. Handles drag-to-pan, scroll, Ctrl/Cmd
  * wheel + Safari pinch zoom, and the Ctrl/Cmd + = / - / 0 shortcuts.
  */
-export function BoardViewport({ children, overlay }: BoardViewportProps) {
+export function BoardViewport({ children, overlay, onBoardDblClick, onBoardEmptyClick }: BoardViewportProps) {
   const boardRef = useRef<HTMLDivElement | null>(null);
   const [viewport, setViewport] = useState<Size>({ width: 0, height: 0 });
   const [isPanning, setIsPanning] = useState(false);
@@ -116,6 +120,11 @@ export function BoardViewport({ children, overlay }: BoardViewportProps) {
   }, []);
 
   const lastPointerRef = useRef<Point | null>(null);
+  const downPosRef = useRef<Point | null>(null);
+  const dblClickRef = useRef<((point: Point) => void) | null>(null);
+  const emptyClickRef = useRef<(() => void) | null>(null);
+  dblClickRef.current = onBoardDblClick ?? null;
+  emptyClickRef.current = onBoardEmptyClick ?? null;
 
   // Pointer drag, wheel and Safari gesture listeners on the board surface.
   useEffect(() => {
@@ -128,12 +137,22 @@ export function BoardViewport({ children, overlay }: BoardViewportProps) {
     const isBoardSurface = (target: EventTarget | null): boolean =>
       target === el || (target instanceof HTMLElement && target.dataset.boardSurface === 'true');
 
-    const endPan = () => {
+    const endPan = (e?: PointerEvent) => {
       if (pointerId === null) return;
       const released = pointerId;
       pointerId = null;
       if (typeof el.releasePointerCapture === 'function' && el.hasPointerCapture?.(released)) {
         el.releasePointerCapture(released);
+      }
+      // Detect a short click on empty board space (no drag) -> clear selection
+      const down = downPosRef.current;
+      downPosRef.current = null;
+      if (e && down) {
+        const up = pointerPoint(e);
+        const dist = Math.hypot(up.x - down.x, up.y - down.y);
+        if (dist < 3 && emptyClickRef.current) {
+          emptyClickRef.current();
+        }
       }
       api().endPan();
       setIsPanning(false);
@@ -144,6 +163,7 @@ export function BoardViewport({ children, overlay }: BoardViewportProps) {
       const button = e.button as number | undefined;
       if (button !== undefined && button !== 0) return;
       if (!isBoardSurface(e.target)) return;
+      downPosRef.current = pointerPoint(e);
       pointerId = e.pointerId;
       if (typeof el.setPointerCapture === 'function') {
         try {
@@ -210,10 +230,18 @@ export function BoardViewport({ children, overlay }: BoardViewportProps) {
       gestureScale = 1;
     };
 
+    const onDblClick = (e: MouseEvent) => {
+      if (!isBoardSurface(e.target)) return;
+      if (dblClickRef.current) {
+        dblClickRef.current(pointerPoint(e));
+      }
+    };
+
+    el.addEventListener('dblclick', onDblClick);
     el.addEventListener('pointerdown', onPointerDown);
     el.addEventListener('pointermove', onPointerMove);
-    el.addEventListener('pointerup', endPan);
-    el.addEventListener('pointercancel', endPan);
+    el.addEventListener('pointerup', endPan as EventListener);
+    el.addEventListener('pointercancel', endPan as EventListener);
     el.addEventListener('lostpointercapture', endPan);
     el.addEventListener('wheel', onWheel, { passive: false });
     el.addEventListener('gesturestart', onGestureStart as EventListener, { passive: false });
@@ -221,10 +249,11 @@ export function BoardViewport({ children, overlay }: BoardViewportProps) {
     el.addEventListener('gestureend', onGestureEnd as EventListener, { passive: false });
 
     return () => {
+      el.removeEventListener('dblclick', onDblClick);
       el.removeEventListener('pointerdown', onPointerDown);
       el.removeEventListener('pointermove', onPointerMove);
-      el.removeEventListener('pointerup', endPan);
-      el.removeEventListener('pointercancel', endPan);
+      el.removeEventListener('pointerup', endPan as EventListener);
+      el.removeEventListener('pointercancel', endPan as EventListener);
       el.removeEventListener('lostpointercapture', endPan);
       el.removeEventListener('wheel', onWheel);
       el.removeEventListener('gesturestart', onGestureStart as EventListener);
