@@ -1,4 +1,4 @@
-# gufo reads prompts 320–600% faster ("prefill") through a suite of hardware optimisations specific to this chip and model
+# gufo reads prompts 320–600% faster ("prefill") primarily by doing the model's core multiplications much faster on this chip, plus a suite of hardware optimisations specific to this model
 
 *28 September 2026*
 
@@ -6,7 +6,7 @@ On my Strix Halo machine, **gufo reads a long coding conversation up to 7x faste
 
 gufo gets there by being built for one chip and a small number of models, and tuning everything for them. That has costs too, which I cover at the end.
 
-Note: an earlier version of this page said the main reason was point 2 below, and that an upcoming change to llama.cpp would close much of the gap. That was wrong. The llama.cpp developers who wrote that change measured it at about 7% faster prompt reading on this chip, which is nowhere near a 4 to 7 times gap. I'm now measuring where llama.cpp's time actually goes, and I'll update this page with what I find.
+Note: an earlier version of this page said the main reason was the way gufo handles the model's shortcut layers (point 2 below), and that an upcoming change to llama.cpp would close much of the gap. That was wrong. I've since measured where llama.cpp's time goes, and those layers take less than 2% of it. Most of its time goes on the model's core multiplications, and gufo simply does those much faster.
 
 ## Some background first
 
@@ -62,6 +62,24 @@ Note: llama.cpp gets slower as the conversation grows, while gufo stays almost f
 
 (Versions: gufo `b722a61`, and llama.cpp commit `6fcaa16` using its Vulkan graphics interface. Both used the UD-Q4_K_XL model files. The raw results are in `benchmarks/gufo-eval/results/` on tritus: `20260927-172049-tritus` for llama.cpp and `20260927-181814-tritus` for gufo. The method is in the [test A plan](../../../../../../../docs/20260926-gufo-vs-llamacpp-eval-plan.md).)
 
+## Where llama.cpp's time goes
+
+To find out, I timed every step llama.cpp takes while reading a prompt (a "profile"), using the same model files and the same settings as the speed test.
+
+| Prompt length | llama.cpp speed | Core multiplications | Attention | Shortcut layers |
+|---|---|---|---|---|
+| 2,000 tokens | 491 tokens/s | 77% | 1.5% | 1.9% |
+| 32,000 tokens | 384 tokens/s | 62% | 20% | 1.5% |
+| 64,000 tokens | 284 tokens/s | 58% | 23% | 1.6% |
+
+Two things stand out.
+
+**Most of the time goes on the core multiplications**, where the conversation is multiplied by the model's weights. That's the same in gufo: its own profile puts about 64% of its time there. The difference is speed. At 32,000 tokens llama.cpp spends about 52 seconds on these multiplications alone, which is twice as long as gufo takes to read the whole prompt (26 seconds).
+
+**Attention is the part that grows.** Attention is the step where each new piece of text looks back over the conversation so far. It's 1.5% of llama.cpp's time on a short prompt and nearly a quarter of it at 64,000 tokens. That's why llama.cpp slows down as the conversation grows.
+
+Note: this profile used llama.cpp's own benchmark tool, which reads a little faster than the server did in my speed test (384 against 303 tokens per second at 32,000 tokens). The timing itself cost almost nothing: the same run without it was 389 tokens per second.
+
 ## Why gufo is faster
 
 ### 1. It's built for one chip, a few models and one set of files
@@ -78,15 +96,13 @@ Most of this model's layers use a cheaper, shortcut way of reading the conversat
 
 According to gufo's own measurements, these layers take just 9.5% of its prompt-reading time. llama.cpp's public issue tracker says its graphics-chip code for these layers still processes the tokens one after another. The parallel version has been written for both of llama.cpp's graphics back ends ([#20377](https://github.com/ggml-org/llama.cpp/pull/20377) for Vulkan and [#29353](https://github.com/ggml-org/llama.cpp/pull/29353) for AMD's ROCm), but it isn't merged or switched on yet.
 
-**This turns out to be a small part of the gap.** The developer of the ROCm version measured it on several machines, including a Strix Halo, where prompt reading got 6.8–7.0% faster (on the 27B version of Qwen3.8). The layers themselves only take 9.5% of gufo's time too.
-
-There's a simpler clue in my own numbers. These layers cost the same for every token however long the conversation is, so they can't explain a gap that grows as the conversation gets longer. That points to point 5 instead.
+**This turns out to be a tiny part of the gap.** In my profile these layers take less than 2% of llama.cpp's time, even processed one token after another. The developer of the ROCm version measured the parallel code at 6.8–7.0% faster prompt reading on a Strix Halo (with the 27B version of Qwen3.8, where the layers take a bigger share). They're a larger share of gufo's time (9.5%) only because gufo does everything else so much faster.
 
 ### 3. It reads in big batches
 
 On this chip, fetching the weights from memory takes longer than the maths itself. So the aim is to fetch each weight once and use it for as many tokens as possible.
 
-gufo pushes **2,048 tokens** through each layer at a time, while llama.cpp on tritus does 512. That's four times as much work for every weight fetched. gufo also keeps the graphics chip (the **GPU**) busy almost all the time: its profile shows 1,363 ms of work in a 1,380 ms prompt-reading step.
+gufo pushes **2,048 tokens** through each layer at a time, while llama.cpp on tritus does 512. That's four times as much work for every weight fetched. But bigger batches alone don't do it: I tried llama.cpp at 2,048 too. It was a little faster on a short prompt (530 tokens per second against 491) and slower on long ones (233 against 284 at 64,000 tokens). The batch size only pays off because of what gufo's code does with it. gufo also keeps the graphics chip (the **GPU**) busy almost all the time: its profile shows 1,363 ms of work in a 1,380 ms prompt-reading step.
 
 ### 4. It uses the chip's maths units directly
 
@@ -94,11 +110,13 @@ The GPU has special circuits for multiplying grids of numbers, called **matrix u
 
 gufo also tried AMD's own ready-made maths library (**hipBLASLt**) for the same work, and dropped it because it only reached 19–26 TFLOPS.
 
+**This is the biggest single reason for the gap.** The core multiplications are most of the work in both engines (see the profile above), and this is where gufo is much faster.
+
 ### 5. It doesn't slow down as the conversation grows
 
 The model's other layers don't read everything. A small scoring step picks out the parts of the conversation worth looking at. This is called **sparse attention**, and this model's version is called **QSA**.
 
-gufo does this scoring step efficiently, so its speed stays almost flat: 1,266 tokens per second at 32,000 tokens and 1,228 at 120,000. Over the same range llama.cpp drops from 303 to 176. That suggests llama.cpp's version of this step copes less well with long conversations, and it's the part of the gap that grows with length. I haven't measured inside llama.cpp to confirm it yet.
+gufo does this scoring step efficiently, so its speed stays almost flat: 1,266 tokens per second at 32,000 tokens and 1,228 at 120,000. Over the same range llama.cpp drops from 303 to 176, and the profile shows why: its attention step grows from 1.5% of its time on a short prompt to nearly a quarter at 64,000 tokens. That's the part of the gap that grows with length.
 
 ### 6. It only keeps speed-ups that don't change the output
 
@@ -110,7 +128,7 @@ It's not free though.
 
 **Every new model gufo supports likely needs some dedicated attention.** A lot carries over: the server, the model-file reader, the sampling and the batching all work across models, and similar models share code. gufo already covers several: Qwen3.8 27B and Flash-Next, DeepSeek V4 Flash, MiniMax H3, and some image and speech models. But the tuned maths routines are copied per model and then tuned for that model's layer sizes, and any new kind of layer needs new code. Even the same model stored a different way ("quantisation") needs its unpacking code added to those routines, which is why gufo only supports one set of files for this model (UD-Q4_K_XL). So when a new model is released, llama.cpp usually runs it within days (slowly), while gufo runs it fast once someone has done that work.
 
-**A small part of the lead is temporary.** llama.cpp has the parallel version of point 2 written but not merged, and it's worth about 7% on this chip. The chip- and model-specific parts (points 1, 3, 4 and 5) will stay.
+**Very little of the lead is temporary.** llama.cpp has the parallel version of point 2 written but not merged, and on this setup it can save at most the 2% those layers take. The chip- and model-specific parts (points 1, 3, 4 and 5) are where the gap is, and they'll stay.
 
 **The newer parts are outside the maths.** gufo's number-crunching is very well tuned. The part that turns the model's text into tool calls for the agent is newer, and that's where my long agent runs found a bug. Now and then, when the model writes an edit containing line breaks, gufo hands the tool call back as plain text. The agent reads that as "finished" and stops. It happens about once every 500 turns, so you'd never see it in a speed test, but over hours of agent work it cuts stories off halfway. I've reported it as [gufo-org/gufo#304](https://github.com/gufo-org/gufo/issues/304), and my test harness now tells the agent to carry on when it happens.
 
@@ -121,6 +139,8 @@ llama.cpp started in March 2023 in much the same way. One person ported one mode
 It became so popular that it now supports almost every model on almost every chip, and that is exactly why it's slow on this chip with this model. Some of gufo's fastest routines started life as llama.cpp code, copied and then tuned for one chip and one model. gufo is doing what llama.cpp did at the start, and if it's successful it will face the same pressure to support everything.
 
 ## Sources
+
+- llama.cpp profile: `benchmarks/gufo-eval/results/20260928-032534-llama-prefill-profile` on tritus, made with [llama-prefill-profile.sh](../../../../../../../benchmarks/gufo-eval/llama-prefill-profile.sh) (llama.cpp `6fcaa16`, Vulkan, `GGML_VK_PERF_LOGGER`). "Core multiplications" is `MUL_MAT` plus `MUL_MAT_ID`, "attention" is `FLASH_ATTN_EXT` plus `TOPK_QSA`, and "shortcut layers" is `GATED_DELTA_NET`. gufo's shares are from its d0 and d32K profiles in its experiment log.
 
 - Cloud prompt caching: [Anthropic](https://platform.claude.com/docs/en/docs/build-with-claude/prompt-caching), [OpenAI](https://developers.openai.com/api/docs/guides/prompt-caching), [DeepSeek's 2024 announcement](https://api-docs.deepseek.com/news/news0802/) (the 13 s to 0.5 s figure) and Moonshot's [Mooncake paper](https://arxiv.org/abs/2407.00079), read on 28 September 2026.
 - Home graphics cards: the tables in [llama.cpp #29353](https://github.com/ggml-org/llama.cpp/pull/29353) (the numbers before the change; the quantisations differ slightly: Q8 on Strix Halo, Q4_K_M on the NVIDIA cards), and my RTX 4090 measurement in the [Qwen3.8 27B combination](../../../../27b/ubuntu/nvidia4090/llamacpp-opencode/README.md) (pp2048 at about 2,915 tokens/s).
