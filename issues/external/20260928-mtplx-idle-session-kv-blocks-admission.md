@@ -1,12 +1,380 @@
-> **Draft**, not filed. For sharing with the MTPLX maintainer.
+> **Draft**, not filed. Laid out to match the MTPLX bug report form: paste each section into the field of the same name.
 
-**Title:** An idle session's live KV can't be reclaimed by the admission shed, so a smaller new request is refused (507) until restart
+## Title
 
-**Version:** MTPLX 2.12.0 (the latest release as of 28 Sep 2026)
-**Machine:** Apple M5 Max, 128 GB, macOS 26.4 (25E246). Default memory limit (`limit_bytes` = 96.0 GiB in the guard events); `iogpu.wired_limit_mb` untouched.
-**Model:** Qwen3.8 Flash-Next (`mtplx-flash-next-optimized-speed`)
-**Launch flags:** `--paged-kv-quantization off --retrieval-max-resident 2 --no-auth --context-window 131072 --ssd-session-cache on --ssd-session-cache-max-size auto --ssd-session-cache-min-prefix-tokens 512 --draft-temperature 1.0 --draft-top-p 0.95 --draft-top-k 20`
-**Client:** the pi coding agent, one conversation at a time. Its tools are bash, read, edit and write. It compacts at the context window minus 16,384 tokens (about 114k).
+An idle session's live KV can't be reclaimed by the admission shed, so a smaller new request is refused (507) until restart
+
+## mtplx doctor --json
+
+Captured on 28 Sep 2026 on the same machine and MTPLX version (2.12.0), with no MTPLX server running. The incident itself was on 24 Sep. Home-directory paths are shortened to `~`. `default_model` shows the 27B pack, doctor's default; the incident used the Flash-Next pack named in the command below.
+
+```json
+{
+  "compiled_verify": {
+    "above_fence_behavior": "eager verify per call",
+    "default_model": "~/.mtplx/models/Youssofal--Qwen3.8-27B-MTPLX-Optimized-Speed",
+    "fenced": true,
+    "max_context_source": "turbo profile",
+    "max_context_tokens": 32768,
+    "mode": "on",
+    "mode_source": "turbo profile",
+    "resolved_default_profile": "turbo"
+  },
+  "diagnostics": {
+    "checks": [
+      {
+        "command": null,
+        "docs_url": "https://ml-explore.github.io/mlx/build/html/install.html",
+        "expected": "macOS >= 14.0 on Apple Silicon",
+        "fix": "Upgrade to macOS 14+; MLX does not support older macOS.",
+        "id": "os.macos_version",
+        "observed": "26.4",
+        "severity": "error",
+        "status": "pass"
+      },
+      {
+        "command": "python3 -c \"import platform; print(platform.machine(), platform.processor())\"",
+        "docs_url": "https://ml-explore.github.io/mlx/build/html/install.html",
+        "expected": "native arm64 Python, not Rosetta",
+        "fix": "Install/use a native arm64 Python. If needed, reinstall via Homebrew arm64 or uv.",
+        "id": "python.native_arm64",
+        "observed": {
+          "machine": "arm64",
+          "processor": "arm"
+        },
+        "severity": "error",
+        "status": "pass"
+      },
+      {
+        "command": null,
+        "docs_url": "https://ml-explore.github.io/mlx/build/html/install.html",
+        "expected": "Python >= 3.11",
+        "fix": "Install Python 3.11 or newer.",
+        "id": "python.version",
+        "observed": "3.13.7",
+        "severity": "error",
+        "status": "pass"
+      },
+      {
+        "command": "python3 -m pip install --force-reinstall mlx 'mtplx[server]'",
+        "docs_url": "https://ml-explore.github.io/mlx/build/html/install.html",
+        "expected": "mlx importable",
+        "fix": "MLX is broken or mismatched in this environment. App installs: quit and relaunch the MTPLX app \u2014 it verifies and repairs its own runtime. CLI installs: force-reinstall with the command below.",
+        "id": "mlx.import",
+        "observed": {
+          "default_device": "Device(gpu, 0)",
+          "get_active_memory": 0,
+          "get_peak_memory": 0,
+          "gpu_architecture": "applegpu_g17s",
+          "mlx": "0.32.2",
+          "mlx_lm": "0.31.3"
+        },
+        "severity": "error",
+        "status": "pass"
+      },
+      {
+        "command": "which -a mtplx",
+        "docs_url": null,
+        "expected": "the `mtplx` on PATH runs the same MTPLX this doctor imported",
+        "fix": "Two MTPLX runtimes are installed (an installer launcher in ~/.local/bin, a Homebrew venv, the app runtime, a source checkout) and the first on PATH is not this one. `which -a mtplx` lists them; run the one you mean, or move the other off PATH.",
+        "id": "runtime.identity",
+        "observed": {
+          "gpu_architecture": "applegpu_g17s",
+          "launcher_matches_this_python": false,
+          "mtplx_on_path": "~/.local/bin/mtplx",
+          "mtplx_path": "~/.local/share/uv/tools/mtplx/lib/python3.13/site-packages/mtplx",
+          "mtplx_version": "2.12.0",
+          "nax_route_available": true,
+          "python_executable": "~/.local/share/uv/tools/mtplx/bin/python3"
+        },
+        "severity": "warning",
+        "status": "warn"
+      },
+      {
+        "command": null,
+        "docs_url": null,
+        "expected": "the model this Mac's default routes to fits: measured peak <= unified memory (comfortable at 1.5x)",
+        "fix": null,
+        "id": "resource.memory",
+        "observed": {
+          "default_model": "Youssofal/Qwen3.8-27B-MTPLX-Optimized-Speed",
+          "estimated_peak_gib": 25.0,
+          "unified_memory_gib": 128.0
+        },
+        "severity": "warning",
+        "status": "pass"
+      },
+      {
+        "command": null,
+        "docs_url": null,
+        "expected": "free space for model + temp download + safety headroom",
+        "fix": "Free disk space or set MTPLX_MODEL_DIR to a larger volume.",
+        "id": "resource.model_cache_disk",
+        "observed": {
+          "cache_dir": "~/.mtplx/models",
+          "free_gib": 379.95,
+          "required_gib": 49.63
+        },
+        "severity": "warning",
+        "status": "pass"
+      },
+      {
+        "command": "mtplx pull Youssofal/Qwen3.8-27B-MTPLX-Optimized-Speed",
+        "docs_url": "https://huggingface.co/Youssofal/Qwen3.8-27B-MTPLX-Optimized-Speed",
+        "expected": "default model available in the HF cache or as the verified local startup model",
+        "fix": "No action needed.",
+        "id": "model.cache",
+        "observed": {
+          "hf_cache_exists": true,
+          "hf_cache_path": "~/.mtplx/models/Youssofal--Qwen3.8-27B-MTPLX-Optimized-Speed",
+          "hf_cache_validation": {
+            "contract_arch_id": "qwen3-next-mtp",
+            "contract_error": null,
+            "contract_present": true,
+            "missing_files": [],
+            "mtp_sidecar_candidates": [
+              "mtp.safetensors",
+              "mtp/weights.safetensors",
+              "model-mtp.safetensors"
+            ],
+            "ok": true,
+            "required_files": [
+              "config.json",
+              "tokenizer.json",
+              "model.safetensors.index.json",
+              "mtplx_runtime.json",
+              "mtp.safetensors"
+            ]
+          },
+          "startup_default_model": null
+        },
+        "severity": "warning",
+        "status": "pass"
+      },
+      {
+        "command": "mtplx pull Youssofal/Qwen3.8-27B-MTPLX-Optimized-Speed",
+        "docs_url": "https://huggingface.co/Youssofal/Qwen3.8-27B-MTPLX-Optimized-Speed",
+        "expected": "a published Youssofal/... repo (not a local mtplx/ or models/ path)",
+        "fix": "Pull the default model, or pass --model to serve a different one.",
+        "id": "model.default_repo",
+        "observed": "Youssofal/Qwen3.8-27B-MTPLX-Optimized-Speed",
+        "severity": "error",
+        "status": "pass"
+      },
+      {
+        "command": null,
+        "docs_url": "https://docs.docker.com/desktop/setup/install/mac-install/",
+        "expected": "Docker Desktop installed for Open WebUI Docker path",
+        "fix": "Install Docker Desktop if you want the Open WebUI Docker integration.",
+        "id": "docker.binary",
+        "observed": "/opt/homebrew/bin/docker",
+        "severity": "warning",
+        "status": "pass"
+      },
+      {
+        "command": null,
+        "docs_url": null,
+        "expected": "port free before starting mtplx serve, or already a healthy MTPLX server",
+        "fix": "A healthy MTPLX server already on this port is fine to keep using; if something else holds it, stop that process or use --port 8001.",
+        "id": "port.mtplx_server",
+        "observed": {
+          "host": "127.0.0.1",
+          "open": false,
+          "port": 8000
+        },
+        "severity": "warning",
+        "status": "pass"
+      },
+      {
+        "command": null,
+        "docs_url": null,
+        "expected": "port free before starting Open WebUI, or already an Open WebUI container",
+        "fix": "Use a different Open WebUI host port or stop the process on 3000.",
+        "id": "port.openwebui",
+        "observed": {
+          "host": "127.0.0.1",
+          "open": false,
+          "port": 3000
+        },
+        "severity": "warning",
+        "status": "pass"
+      },
+      {
+        "command": null,
+        "docs_url": null,
+        "expected": "ThermalForge or TG Pro available for explicit --max only",
+        "fix": "Install ThermalForge only if you want opt-in fan boost.",
+        "id": "thermal.control",
+        "observed": "none",
+        "severity": "warning",
+        "status": "warn"
+      },
+      {
+        "command": null,
+        "docs_url": null,
+        "expected": "Low Power Mode off for best sustained decode",
+        "fix": "Turn off Low Power Mode before benchmarking or serving long responses.",
+        "id": "power.low_power_mode",
+        "observed": {
+          "available": true,
+          "lowpowermode": null,
+          "powermode": "0",
+          "thermal": "Note: No thermal warning level has been recorded\nNote: No performance warning level has been recorded\nNote: No CPU power status has been recorded",
+          "thermal_ok": true
+        },
+        "severity": "warning",
+        "status": "pass"
+      },
+      {
+        "command": null,
+        "docs_url": null,
+        "expected": "no recorded thermal or performance warning",
+        "fix": "Let the Mac cool down or improve airflow before sustained benchmarks.",
+        "id": "power.thermal_pressure",
+        "observed": "Note: No thermal warning level has been recorded\nNote: No performance warning level has been recorded\nNote: No CPU power status has been recorded",
+        "severity": "warning",
+        "status": "pass"
+      },
+      {
+        "command": null,
+        "docs_url": null,
+        "expected": "no recent failed start recorded by the app",
+        "fix": null,
+        "id": "app.last_failed_start",
+        "observed": null,
+        "severity": "warning",
+        "status": "pass"
+      }
+    ],
+    "created_at": "2026-09-28T18:12:12+0100",
+    "host": {
+      "cache_dir": "~/.mtplx/models",
+      "chip": "Apple M5 Max",
+      "disk_free_bytes": 407965798400,
+      "disk_free_gib": 379.95,
+      "mac_model": "Mac17,7",
+      "machine": "arm64",
+      "macos_version": "26.4",
+      "memory_bytes": 137438953472,
+      "memory_gib": 128.0,
+      "model_dirs": [
+        "~/.mtplx/models"
+      ],
+      "platform": "macOS-26.4-arm64-arm-64bit-Mach-O",
+      "processor": "arm",
+      "python_executable": "~/.local/share/uv/tools/mtplx/bin/python3",
+      "python_version": "3.13.7",
+      "system": "Darwin"
+    },
+    "overall": "warn",
+    "resources": {
+      "default_model_size_bytes": 21313949792,
+      "estimated_runtime_memory_bytes": 42788786272,
+      "required_download_free_bytes": 53284874480
+    },
+    "schema_version": 1,
+    "support_matrix": {
+      "preview_test_targets": [
+        "M3 Max",
+        "M4 Max",
+        "M3 Ultra / Mac Studio",
+        "M5 Max"
+      ],
+      "supported": {
+        "default_model": "Youssofal/Qwen3.8-27B-MTPLX-Optimized-Speed",
+        "default_profile": "turbo",
+        "docker": "Docker Desktop current plus previous two macOS major releases",
+        "macos": ">= 14.0",
+        "platform": "Apple Silicon arm64 Mac",
+        "python": "native arm64 Python >= 3.11"
+      }
+    }
+  },
+  "environment": {
+    "git_branch": "not a git worktree",
+    "git_status": "not a git worktree",
+    "hf_path": "~/.local/bin/hf",
+    "mlx": {
+      "default_device": "Device(gpu, 0)",
+      "get_active_memory": 0,
+      "get_peak_memory": 0,
+      "gpu_architecture": "applegpu_g17s",
+      "mlx": "0.32.2",
+      "mlx_lm": "0.31.3"
+    },
+    "platform": "macOS-26.4-arm64-arm-64bit-Mach-O",
+    "project_root": "~",
+    "python_executable": "~/.local/share/uv/tools/mtplx/bin/python3",
+    "python_version": "3.13.7 (main, Aug 14 2025, 11:12:11) [Clang 17.0.0 (clang-1700.0.13.3)]",
+    "uv_path": "~/.local/bin/uv"
+  },
+  "huggingface": {
+    "cache_dir": "~/.mtplx/models",
+    "cache_exists": true,
+    "cache_writable": true,
+    "cached_models": 3,
+    "disk_free_bytes": 407965810688,
+    "disk_free_gb": 407.966,
+    "model_roots": [
+      "~/.mtplx/models"
+    ],
+    "token_policy": "mtplx pull sends the HF_TOKEN / HUGGING_FACE_HUB_TOKEN token, else the `hf auth login` token, else nothing; public models never need one",
+    "token_present": true,
+    "token_source": "login",
+    "token_used_by_pull": true
+  },
+  "policy": {
+    "benchmark_exactness_smoke_context": 2048,
+    "fanmax_counts_for_product_gate": false
+  },
+  "thermal_control": {
+    "available": false,
+    "clock_anchor_enabled": false,
+    "clock_anchor_policy": "explicit experimental only; never used for product claims",
+    "instructions": "Run `mtplx max --install` to install ThermalForge automatically, or install TG Pro manually if you prefer. MTPLX will continue without fan control when --max is requested and no supported tool is present.",
+    "selected": null,
+    "tools": []
+  },
+  "tools": {
+    "powermetrics": "/usr/bin/powermetrics",
+    "python": "~/.local/share/uv/tools/mtplx/bin/python3",
+    "smc_atlas": null,
+    "smc_atlas_exists": false,
+    "sovereign": null,
+    "sovereign_exists": false,
+    "sudo": "/usr/bin/sudo"
+  }
+}
+```
+
+## Exact command
+
+```
+python -m mtplx.server.openai --model ~/.mtplx/models/Youssofal--Qwen3.8-Flash-Next-MTPLX-Optimized-Speed \
+  --backend-id native_mtp --host 127.0.0.1 --port 18010 --depth 3 --generation-mode mtp --profile turbo \
+  --reasoning-mode on --preserve-thinking auto --verify-strategy batched --verify-core linear-gdn-from-conv-tape \
+  --draft-lm-head-bits 4 --draft-lm-head-group-size 64 --draft-lm-head-mode affine --rate-limit 0 --stream-interval 1 \
+  --scheduler-mode serial --batching-preset latency --mtp-batch-numerics throughput --warmup-tokens 16 \
+  --model-id mtplx-flash-next-optimized-speed --paged-kv-quantization off --fan-mode default --retrieval-max-resident 2 \
+  --no-auth --context-window 131072 --ssd-session-cache on --ssd-session-cache-max-size auto \
+  --ssd-session-cache-min-prefix-tokens 512 --draft-temperature 1.0 --draft-top-p 0.95 --draft-top-k 20 \
+  --draft-sampler-source default --tool-prompt-mode hybrid --chat-template-profile tokenizer --max-response-tokens 32768 \
+  --temperature 1.0 --top-p 0.95 --top-k 20 --enable-thinking --reasoning-parser qwen3 --reasoning-effort low
+```
+
+The client was the pi coding agent, one conversation at a time. Its tools are bash, read, edit and write, and it compacts at the context window minus 16,384 tokens (about 114k).
+
+## Model path or repo id
+
+`~/.mtplx/models/Youssofal--Qwen3.8-Flash-Next-MTPLX-Optimized-Speed` (served as `mtplx-flash-next-optimized-speed`)
+
+## Chip, RAM, macOS version
+
+Apple M5 Max, 128 GB, macOS 26.4 (25E246). Default memory limit (`limit_bytes` = 96.0 GiB in the guard events); `iogpu.wired_limit_mb` untouched.
+
+## Description
+
+(Paste the rest of this section into the form's description field.)
 
 ### What happened
 
