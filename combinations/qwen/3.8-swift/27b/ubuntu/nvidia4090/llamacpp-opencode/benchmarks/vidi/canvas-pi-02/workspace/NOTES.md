@@ -275,9 +275,84 @@ under the 1000 ms budget, ~3600 propagations per run).
 | E2E (live collab)      | `npm run test:e2e`       | added: TC-22…TC-28 (3 browsers) |
 | E2E nightly            | `npm run test:e2e:nightly` | TC-29 (idle 45 s), TC-30 (60 s 5-way soak) |
 
+## Story 4: Return to a board and find everything as it was left
+
+### How it works
+
+- **Storage**: each board is a SQLite-backed Durable Object
+  (`workerd`'s `storage.sql`). Two tables: `updates` (append-only Yjs update
+  rows — the source of truth) and `snapshot_chunks` (a redundant snapshot,
+  rebuilt by compaction). `BoardStore` wraps both: `load()` applies snapshot
+  plus remaining rows row-by-row (quarantining rows that fail to apply),
+  `compact()` swaps snapshot+rows on one seq boundary with rollback on
+  failure, `shouldCompactNow()` keeps compaction off the hot path.
+- **Lifecycle**: `RoomState` machine (connecting/ready/hibernated/
+  load-failed). A room with no clients hibernates after
+  `HIBERNATE_DELAY_MS` (forgets its in-memory doc); the next connection
+  wakes it and reloads from storage. A load failure parks the room in
+  `load-failed` for `LOAD_RETRY_MIN_INTERVAL_MS`; connecting clients are
+  closed with code **4500** (y-websocket's "transient" range: the provider
+  keeps retrying).
+- **Client**: the `connectBoard.ts` state machine gains `load_failed`
+  (close code 4500). In it the board is **read-only**: the red badge
+  "This board couldn't be loaded. Retrying…" (role=status), toolbar
+  buttons disabled, and every edit path gated by `canEdit(state)`. The
+  provider's own retry loop recovers to `connected` on the first
+  successful sync — **no page reload**.
+- **Performance**: the canvas culls notes outside the viewport
+  (`App.tsx`) so large boards (2000 notes) render instantly — the
+  design-sanctioned virtualisation escalation for persist.large_board.
+- **Test hooks**: `src/worker/test-hooks.ts` exposes
+  `/_test/:boardId/{state,compact,corrupt-snapshot,repair-snapshot}`,
+  enabled only when `env.TEST_HOOKS === '1'` (a temp dev env file written
+  by `tests/e2e/helpers/wrangler-process.ts`). Production `wrangler.jsonc`
+  never sets it, so the routes fall through to SPA assets there (covered
+  by an integration test).
+
+### Gotchas learned (Story 4)
+
+- **Local workerd drops buffered WS frames during a DO durable write.** In
+  miniflare 5 local dev, when a DO performs a `storage.sql` write the
+  instance hibernates and buffered inbound WS frames are silently dropped —
+  the TCP connection stays open and the provider still reports connected.
+  Fast-fire WS writes + per-update durable writes lose updates. The e2e
+  suite paces seeding (60 ms/note), the only reliable local workaround.
+  (`unsafePreventEviction` stops instance rekeying but not this drop.)
+- **HTTP fetch to a DO with an active WS (local dev) kills the WS**: the
+  fetch instantiates a second DO instance, evicting the socket-holding
+  one. E2E must never poll `/_test/:id/state` while the browser is
+  connected.
+- **`wrangler dev` needs `--log-level debug` for worker `console.log`** in
+  non-TTY mode.
+- **Wrangler 4's `--var KEY=VALUE` mangles the key** (the whole token
+  becomes the env key). `wrangler-process.ts` writes `TEST_HOOKS=1` to a
+  temp env file and passes `--env-file` instead.
+- **Yjs clock gaps**: a quarantined middle row from one client blocks all
+  later rows of the *same* client (the clock gap never fills); multi-client
+  streams are unaffected (independent clock spaces).
+- **The notes map key is `objects`** (`doc.getMap('objects')`), not
+  `notes`.
+- **`sql.exec` cursor `.one()` throws on empty result** in this workerd —
+  `oneRow()` wraps it; BLOBs come back as `ArrayBuffer`.
+- **Stale workerd in the dev registry**: a leftover `workerd serve` makes a
+  new `wrangler dev` silently skip registration ("already registered by
+  another process") and serve the old build. Kill lingering workerd
+  processes before a flaky run; `.wrangler/tmp` is cleared on each start.
+
+### Test coverage (Story 4)
+
+| Layer | Command | Added |
+| ----- | ------- | ----- |
+| Unit | `npm run test:unit` | TC-01/02/27: chunk framing, config, protocol close codes |
+| Integration | `npm run test:integration` | TC-03…TC-11, TC-25 (BoardStore); TC-12…TC-18, TC-26 (BoardRoom persistence); TC-24-production (hooks absent) |
+| Component | `npm run test:component` | TC-22 (red badge), TC-23 (App edit lock), close-code mapping + recovery |
+| E2E persistence | `npm run test:e2e:persistence` | TC-19 (25 notes across a real restart), TC-20 (two clients), TC-21 (2000 notes), TC-24 (corrupt → locked → recovered without reload) |
+
+(E2E TC numbers follow the story-4 spec; they overlap story 3's TC ids,
+which are scoped per story.)
+
 ## Next story
 
-Story 4 builds on the live board: presence (cursors/selection over the awareness
-channel) and/or history/undo. The sync layer (BoardRoom + y-websocket provider)
-is in place, so new real-time features can ride the existing awareness channel
-without changing the relay.
+Story 5 (share a board with others using a link) builds on the same sync
+layer; persistence and the load-failure path are already in place.
+Presence/cursors (story 6) can ride the awareness channel.

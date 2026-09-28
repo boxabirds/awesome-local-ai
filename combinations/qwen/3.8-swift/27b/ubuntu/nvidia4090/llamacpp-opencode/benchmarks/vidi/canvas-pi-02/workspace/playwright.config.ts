@@ -16,10 +16,12 @@ export default defineConfig({
     viewport: { width: 1280, height: 800 },
   },
   projects: [
-    // Default e2e: every browser, excluding the slow nightly specs.
-    { name: 'chromium', testMatch: /.*\.spec\.ts$/, testIgnore: /nightly[\\/]/, use: { browserName: 'chromium' } },
-    { name: 'firefox', testMatch: /.*\.spec\.ts$/, testIgnore: /nightly[\\/]/, use: { browserName: 'firefox' } },
-    { name: 'webkit', testMatch: /.*\.spec\.ts$/, testIgnore: /nightly[\\/]/, use: { browserName: 'webkit' } },
+    // Default e2e: every browser, excluding the slow nightly specs. The
+    // persistence spec is excluded: it manages its own wrangler process
+    // (kill/restart) and runs via playwright.persistence.config.ts.
+    { name: 'chromium', testMatch: /.*\.spec\.ts$/, testIgnore: /nightly[\\/]|persistence\.spec\.ts$/, use: { browserName: 'chromium' } },
+    { name: 'firefox', testMatch: /.*\.spec\.ts$/, testIgnore: /nightly[\\/]|persistence\.spec\.ts$/, use: { browserName: 'firefox' } },
+    { name: 'webkit', testMatch: /.*\.spec\.ts$/, testIgnore: /nightly[\\/]|persistence\.spec\.ts$/, use: { browserName: 'webkit' } },
     // Nightly: timing-sensitive long-running sync.client verification
     // (chromium only). Excluded from `test:e2e`; run via `test:e2e:nightly`.
     { name: 'nightly', testMatch: /nightly[\\/].*\.nightly\.spec\.ts$/, use: { browserName: 'chromium' } },

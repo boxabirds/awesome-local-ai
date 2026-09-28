@@ -8,6 +8,7 @@ import {
   bringToFront,
   createSticky,
   deleteObject,
+  getStickyText,
   moveObject,
   setStickyColor,
   snapshot,
@@ -29,6 +30,10 @@ export interface Vidi6TestApi {
   moveSticky(id: string, x: number, y: number): boolean;
   bringStickyToFront(id: string): boolean;
   setStickyColor(id: string, color: string): boolean;
+  /** Replaces a note's text (test seeding). */
+  setStickyText(id: string, text: string): boolean;
+  /** Test-only: provider connection internals (diagnosing sync issues). */
+  connectionDebug(): { status: string; synced: boolean; wsconnected: boolean; wsReadyState: number | null } | null;
   /** Simulates a network drop for this client (badge → Reconnecting…). */
   dropConnection(): void;
   /** Restores the network, letting the client reconnect. */
@@ -53,6 +58,7 @@ export function installTestHooks(
   getSelectedId: () => string | null,
 ): void {
   if (import.meta.env.MODE !== 'test') return;
+  (window as unknown as Record<string, unknown>).__vidi6Doc = getDoc();
   window.__vidi6 = {
     get connectionState() {
       return getConnectionState();
@@ -89,6 +95,15 @@ export function installTestHooks(
     setStickyColor(id, color) {
       const doc = getDoc();
       return doc ? setStickyColor(doc, id, color) : false;
+    },
+    setStickyText(id, text) {
+      const doc = getDoc();
+      if (doc === null || !snapshot(doc).some((n) => n.id === id)) return false;
+      getStickyText(doc, id)?.insert(0, text);
+      return true;
+    },
+    connectionDebug() {
+      return getConnection()?.debug?.() ?? null;
     },
     dropConnection() {
       getConnection()?.dropNetwork?.();

@@ -316,3 +316,9 @@ body {
   color: #166534;
   border: 1px solid #86efac;
 }
+
+.connection-status.is-red {
+  background: #fee2e2;
+  color: #991b1b;
+  border: 1px solid #fca5a5;
+}

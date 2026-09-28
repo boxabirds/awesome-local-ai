@@ -12,7 +12,9 @@
     "test:component": "vitest run --project component",
     "pretest:integration": "npm run build",
     "test:integration": "vitest run -c vitest.integration.config.ts",
-    "test:e2e": "playwright test --project=chromium --project=firefox --project=webkit",
+    "test:e2e": "playwright test --project=chromium --project=firefox --project=webkit && npm run test:e2e:persistence",
+    "pretest:e2e:persistence": "npm run build:e2e",
+    "test:e2e:persistence": "playwright test -c playwright.persistence.config.ts",
     "test:e2e:nightly": "playwright test --project=nightly"
   },
   "dependencies": {
@@ -30,6 +32,7 @@
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.0",
     "@testing-library/user-event": "^14.6.1",
+    "@types/node": "^26.6.3",
     "@types/react": "^19.1.0",
     "@types/react-dom": "^19.1.0",
     "@vitejs/plugin-react": "^5.0.0",

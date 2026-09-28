@@ -7,7 +7,7 @@ export const STICKY_BUTTON_TOOLTIP = 'Sticky note – or double-click the board'
 
 const stop = (e: React.SyntheticEvent): void => e.stopPropagation();
 
-export function Toolbar(props: { onCreateSticky(): void }): ReactElement {
+export function Toolbar(props: { onCreateSticky(): void; disabled?: boolean }): ReactElement {
   return (
     <div
       className="toolbar"
@@ -22,6 +22,7 @@ export function Toolbar(props: { onCreateSticky(): void }): ReactElement {
         className="toolbar-sticky"
         aria-label="Sticky note"
         title={STICKY_BUTTON_TOOLTIP}
+        disabled={props.disabled}
         onClick={props.onCreateSticky}
       >
         <svg width="20" height="20" viewBox="0 0 20 20" aria-hidden="true">

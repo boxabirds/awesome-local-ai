@@ -18,6 +18,7 @@ import { NOTE_TOOLBAR_GAP_PX, NoteToolbar } from './objects/NoteToolbar';
 import { StickyNote } from './objects/StickyNote';
 import { deleteObject, setStickyColor, createSticky } from '../shared/board-model';
 import { STICKY_SIZE_WORLD } from '../shared/config';
+import { canEdit } from './sync/connectBoard';
 
 function useViewportSize(ref: React.RefObject<HTMLDivElement | null>): Size {
   const [size, setSize] = useState<Size>({ width: 0, height: 0 });
@@ -87,12 +88,17 @@ export default function App(): ReactElement {
     if (editingId !== null && !notes.some((n) => n.id === editingId)) endEdit('unselected');
   }, [notes, selectedId, editingId, select, endEdit]);
 
+  // Story 4 (persist.client_status): the board is locked while the room
+  // reports a load failure; every edit path below checks this flag.
+  const editable = canEdit(connectionState);
+
   // Window keyboard: Enter starts editing the selected note; Delete/Backspace
   // delete it. Ignored while editing text (the textarea owns those keys) and
   // when focus is in any input.
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent): void => {
       if (editingId !== null) return;
+      if (!canEdit(connectionStateRef.current)) return; // load-failed: locked
       const target = e.target as HTMLElement | null;
       if (target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement) return;
       if (selectedId === null) return; // nothing selected: nothing happens
@@ -109,6 +115,7 @@ export default function App(): ReactElement {
   }, [selectedId, editingId, startEdit, select, doc]);
 
   const createStickyAtScreen = (p: Point): void => {
+    if (!canEdit(connectionStateRef.current)) return; // load-failed: locked
     const world = screenToWorld(cameraRef.current.camera, p);
     const id = createSticky(doc, world);
     if (id !== '') startEdit(id);
@@ -122,6 +129,29 @@ export default function App(): ReactElement {
   const noteTopLeft =
     selectedNote !== null ? worldToScreen(camera.camera, { x: selectedNote.x, y: selectedNote.y }) : null;
 
+  // Viewport culling (story 4, persist.large_board): only mount notes that
+  // intersect the visible world rect (with one note-width of margin). A
+  // board of thousands of notes must open within BOARD_LOAD_BUDGET_MS, and
+  // every mounted note costs a contentEditable plus a text fit pass — the
+  // design's sanctioned escalation is to virtualise off-screen notes. The
+  // selected and editing notes stay mounted so interaction state survives
+  // the camera moving away from them.
+  const viewTopLeft = screenToWorld(camera.camera, { x: 0, y: 0 });
+  const viewBottomRight = screenToWorld(camera.camera, {
+    x: viewport.width,
+    y: viewport.height,
+  });
+  const margin = STICKY_SIZE_WORLD;
+  const visibleNotes = notes.filter(
+    (n) =>
+      n.id === selectedId ||
+      n.id === editingId ||
+      (n.x + STICKY_SIZE_WORLD > viewTopLeft.x - margin &&
+        n.x < viewBottomRight.x + margin &&
+        n.y + STICKY_SIZE_WORLD > viewTopLeft.y - margin &&
+        n.y < viewBottomRight.y + margin),
+  );
+
   return (
     <div className="board-root" ref={rootRef}>
       <ConnectionStatus state={connectionState} />
@@ -133,7 +163,7 @@ export default function App(): ReactElement {
           else select(null);
         }}
       >
-        {notes.map((n) => (
+        {visibleNotes.map((n) => (
           <StickyNote
             key={n.id}
             note={n}
@@ -141,6 +171,7 @@ export default function App(): ReactElement {
             zoom={camera.camera.zoom}
             selected={n.id === selectedId}
             editing={n.id === editingId}
+            locked={!editable}
             onSelect={select}
             onStartEdit={startEdit}
             onEndEdit={endEdit}
@@ -148,7 +179,7 @@ export default function App(): ReactElement {
           />
         ))}
       </BoardViewport>
-      <Toolbar onCreateSticky={createStickyAtCenter} />
+      <Toolbar onCreateSticky={createStickyAtCenter} disabled={!editable} />
       {selectedNote !== null && noteTopLeft !== null && !editingId && !dragging && (
         <div
           className="note-toolbar-anchor"
@@ -163,8 +194,13 @@ export default function App(): ReactElement {
         >
           <NoteToolbar
             color={selectedNote.color}
-            onColor={(c) => setStickyColor(doc, selectedNote.id, c)}
+            disabled={!editable}
+            onColor={(c) => {
+              if (!canEdit(connectionStateRef.current)) return; // load-failed: locked
+              setStickyColor(doc, selectedNote.id, c);
+            }}
             onDelete={() => {
+              if (!canEdit(connectionStateRef.current)) return; // load-failed: locked
               deleteObject(doc, selectedNote.id);
               select(null);
             }}

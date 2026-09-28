@@ -47,10 +47,14 @@ export interface StickyNoteProps {
   onEndEdit(next: EditEnd): void;
   /** Reports the drag state so App can hide the note toolbar while dragging. */
   onDraggingChange?(dragging: boolean): void;
+  /** Story 4 (persist.client_status): while the board is locked (load
+   *  failed) dragging and text editing are no-ops; selection stays allowed
+   *  so the locked state is visible on the note. */
+  locked?: boolean;
 }
 
 export function StickyNote(props: StickyNoteProps): ReactElement {
-  const { note, doc, zoom, selected, editing, onSelect, onStartEdit, onEndEdit, onDraggingChange } = props;
+  const { note, doc, zoom, selected, editing, onSelect, onStartEdit, onEndEdit, onDraggingChange, locked } = props;
   const ref = useRef<HTMLDivElement>(null);
   const textElRef = useRef<HTMLDivElement>(null);
   const dragRef = useRef<DragState | null>(null);
@@ -101,8 +105,9 @@ export function StickyNote(props: StickyNoteProps): ReactElement {
     // The board must never pan while interacting with a note.
     e.stopPropagation();
     if (editing) return; // the textarea owns the pointer while editing
-    e.currentTarget.setPointerCapture(e.pointerId);
     onSelect(note.id);
+    if (locked) return; // load-failed: selection only, no drag, no doc writes
+    e.currentTarget.setPointerCapture(e.pointerId);
     dragRef.current = {
       pointerId: e.pointerId,
       startClientX: e.clientX,
@@ -141,6 +146,7 @@ export function StickyNote(props: StickyNoteProps): ReactElement {
 
   const onDoubleClick = (e: React.MouseEvent<HTMLDivElement>): void => {
     e.stopPropagation(); // editing the note, never creating a new one
+    if (locked) return; // load-failed: no text editing
     onStartEdit(note.id);
   };
 

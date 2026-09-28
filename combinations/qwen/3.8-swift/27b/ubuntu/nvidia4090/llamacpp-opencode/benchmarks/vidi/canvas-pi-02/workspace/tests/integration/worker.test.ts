@@ -79,6 +79,26 @@ describe('sync.worker_entry', () => {
     a.close();
     b.close();
   });
+
+  it('TC-24 (production): /_test/ hooks are absent without TEST_HOOKS', async () => {
+    // This suite runs with wrangler.jsonc (production), which never sets
+    // TEST_HOOKS, so the hooks must fall through to the SPA assets.
+    const boardId = newBoardId();
+    const state = await SELF.fetch(
+      new Request(`http://localhost/_test/${boardId}/state`),
+    );
+    expect(state.status).toBe(200);
+    expect(await state.text()).toContain('<div id="root">');
+
+    const corrupt = await SELF.fetch(
+      new Request(`http://localhost/_test/${boardId}/corrupt-snapshot`, {
+        method: 'POST',
+      }),
+    );
+    // Static assets answer POST with a non-hook status (405), never JSON.
+    expect(corrupt.status).toBe(405);
+    expect((corrupt.headers.get('Content-Type') ?? '').includes('application/json')).toBe(false);
+  });
 });
 
 async function waitForNote(client: RoomClient, id: string): Promise<void> {

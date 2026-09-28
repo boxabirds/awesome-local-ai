@@ -15,6 +15,9 @@ function capitalize(color: StickyColor): string {
 
 export interface NoteToolbarProps {
   color: StickyColor;
+  /** Story 4 (persist.client_status): disable the whole toolbar while the
+   *  board is locked (load failed). */
+  disabled?: boolean;
   onColor(c: StickyColor): void;
   onDelete(): void;
 }
@@ -37,11 +40,19 @@ export function NoteToolbar(props: NoteToolbarProps): ReactElement {
           aria-label={`${capitalize(c)} colour`}
           aria-pressed={props.color === c}
           title={capitalize(c)}
+          disabled={props.disabled}
           style={{ background: STICKY_COLORS[c] }}
           onClick={() => props.onColor(c)}
         />
       ))}
-      <button type="button" className="note-toolbar-delete" aria-label="Delete note" title="Delete note" onClick={props.onDelete}>
+      <button
+        type="button"
+        className="note-toolbar-delete"
+        aria-label="Delete note"
+        title="Delete note"
+        disabled={props.disabled}
+        onClick={props.onDelete}
+      >
         <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true">
           <path
             d="M2.5 4h11M6.5 4V2.5h3V4M4 4l.7 9.5h6.6L12 4M6.5 6.5v4.5M9.5 6.5v4.5"

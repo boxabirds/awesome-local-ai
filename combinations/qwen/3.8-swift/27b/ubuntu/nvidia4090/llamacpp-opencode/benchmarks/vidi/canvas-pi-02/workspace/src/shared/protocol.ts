@@ -24,6 +24,14 @@ export const MESSAGE_QUERY_AWARENESS = 3;
 /** Close code for a frame the room cannot interpret (string, truncated,
  *  unknown type, or an update Yjs rejects). */
 export const CLOSE_UNSUPPORTED_DATA = 1003;
+/** The room's saved board cannot be loaded (damaged snapshot or SQL read
+ *  error): the client shows the red load-failed message and keeps retrying.
+ *  4500 is outside y-websocket's permanent 4400-4499 range, so the provider
+ *  keeps reconnecting on its normal backoff. */
+export const CLOSE_BOARD_LOAD_FAILED = 4500;
+/** The room lost its storage (insert failed): sockets are closed and the
+ *  client reconnects; open pages re-send unsaved changes on reconnection. */
+export const CLOSE_STORAGE_FAILURE = 1011;
 
 export type Decoded =
   | { kind: 'sync'; payload: Uint8Array }

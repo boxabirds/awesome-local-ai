@@ -15,6 +15,7 @@
     "noUnusedParameters": true,
     "types": [
       "vite/client",
+      "node",
       "@cloudflare/workers-types",
       "@cloudflare/vitest-pool-workers/types"
     ]
