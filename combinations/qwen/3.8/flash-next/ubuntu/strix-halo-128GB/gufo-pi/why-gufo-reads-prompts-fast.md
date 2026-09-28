@@ -23,7 +23,7 @@ gufo is a newer one written specifically for AMD's Ryzen AI MAX+ 395 chip, bette
 
 Before a model can write its reply, it has to read the whole conversation so far: every earlier message, every file it opened and every tool output. This reading step is called **prefill**. It's measured in **tokens**, which are small pieces of text (roughly ¾ of a word each). A coding agent's conversation is often 50,000–120,000 tokens long.
 
-Normally the engine keeps what it has already read and only reads the new part. But when that saved copy is lost, it has to read the whole conversation again. The most common reason is a **compaction**, when the agent summarises its own history to free up space. This is where prefill speed really hurts.
+Normally the engine keeps what it has already read and only reads the new part. But sometimes it has to read the whole conversation again. The most common reason is a **compaction**, when the agent summarises its own history to free up space: the conversation has changed, so the engine starts over. Another is resuming a session, for example when you reopen your coding agent the next day. Unless the engine still has that conversation in memory, it reads the whole thing from the start. This is where prefill speed really hurts.
 
 ## The numbers
 
