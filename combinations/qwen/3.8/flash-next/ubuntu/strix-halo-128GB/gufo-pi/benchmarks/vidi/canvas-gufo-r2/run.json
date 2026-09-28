@@ -1,0 +1,4 @@
+{"install_id": "qwen38-flash-next-strix-gufo", "combination": "qwen/3.8/flash-next/ubuntu/strix-halo-128GB/gufo-pi", "model_id": "qwen3.8-flash-next-gufo",
+ "pack": "vidi", "scope": "canvas", "metered": 0, "reasoning_effort": "low", "context_limit": 131072,
+ "output_limit": 32768, "backend_version": "", "mtplx_memory_limit_bytes": "", "compact_at": "client default", "client": "pi", "client_version": "0.87.1", "backend": "gufo", "host": "AMD RYZEN AI MAX+ 395 w/ Radeon 8060S 122GB",
+ "harness_commit": "00f7e698", "pack_version": "vidi-v1.1", "started_at": "2026-09-28T14:33:44Z"}
