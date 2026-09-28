@@ -68,8 +68,12 @@ an RTX 4090 with llama.cpp reads **1,870–2,220 tok/s**.
   ([#20377](https://github.com/ggml-org/llama.cpp/pull/20377)) and for CUDA/ROCm
   ([#29353](https://github.com/ggml-org/llama.cpp/pull/29353)), unmerged. We first named this as the
   likely cause. #29353 measures the chunked kernel at +6.8–7.0% prefill on Strix Halo, and Gated
-  DeltaNet cost per token doesn't grow with context, while our slowdown does. The cause of the
-  steady fall with context is still unmeasured; a per-operation profile of llama.cpp on tritus is next.
+  DeltaNet cost per token doesn't grow with context, while our slowdown does. A per-operation
+  profile on tritus (28 Sep, `GGML_VK_PERF_LOGGER`, -ub 512) settles it: Gated DeltaNet is 1.5–1.9% of
+  prefill time; the weight matmuls (`MUL_MAT` + `MUL_MAT_ID`) are 58–77%, and attention
+  (`FLASH_ATTN_EXT` + `TOPK_QSA`) grows from 1.5% at 2k to 23% at 64k, which is the fall with
+  context. -ub 2048 is 8% faster at 2k but slower at depth (233 vs 284 tok/s at 64k). Details in the
+  [gufo prefill guide](../combinations/qwen/3.8/flash-next/ubuntu/strix-halo-128GB/gufo-pi/why-gufo-reads-prompts-fast.md).
 - **Tuning won't close the gap.** Settings reported to help (IOMMU off, a newer Mesa, GPU clock
   pinned high, which ours already is) are worth tens of percent, not the 4× the chip allows. Larger
   micro-batches reportedly make Vulkan prefill worse at depth.
