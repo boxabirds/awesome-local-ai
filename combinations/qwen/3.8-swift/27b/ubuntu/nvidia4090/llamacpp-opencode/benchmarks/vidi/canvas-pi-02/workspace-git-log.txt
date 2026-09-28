@@ -1,3 +1,50 @@
+commit 6e8c2eb54d7488528b754a106303cd751b603e44
+vidi-agent  Mon Sep 28 05:22:57 2026 +0100
+
+    Story 4: return to a board and find everything as it was left
+
+
+ NOTES.md                                         |  83 +++-
+ package-lock.json                                |  18 +
+ package.json                                     |   5 +-
+ playwright.config.ts                             |  10 +-
+ playwright.persistence.config.ts                 |  18 +
+ src/client/App.tsx                               |  42 +-
+ src/client/board/Toolbar.tsx                     |   3 +-
+ src/client/canvas/testHooks.ts                   |  15 +
+ src/client/objects/NoteToolbar.tsx               |  13 +-
+ src/client/objects/StickyNote.tsx                |  10 +-
+ src/client/styles.css                            |   6 +
+ src/client/sync/ConnectionStatus.tsx             |   9 +-
+ src/client/sync/connectBoard.ts                  |  76 +++-
+ src/worker/board-room.ts                         | 466 +++++++++++++++++++----
+ src/worker/board-store.ts                        | 258 ++++++++++++-
+ src/worker/env.d.ts                              |   8 +
+ src/worker/index.ts                              |  15 +-
+ src/worker/test-hooks.ts                         |  48 +++
+ tests/component/load-failure.test.tsx            | 213 +++++++++++
+ tests/e2e/helpers/wrangler-process.ts            | 145 +++++++
+ tests/e2e/persistence.spec.ts                    | 313 +++++++++++++++
+ tests/fixtures/boards.ts                         | 153 ++++++++
+ tests/integration/board-room-persistence.test.ts | 298 +++++++++++++++
+ tests/integration/board-store.test.ts            | 307 +++++++++++++++
+ tests/integration/worker.test.ts                 |  20 +
+ tests/unit/board-store-chunks.test.ts            |   7 +-
+ tsconfig.json                                    |   1 +
+ 27 files changed, 2438 insertions(+), 122 deletions(-)
+commit f5d5985807c8b7040b2c87d57d3b1600c5394588
+vidi-agent  Mon Sep 28 02:04:54 2026 +0100
+
+    story 4 task 1: storage and room-state unit tests first (TC-01, TC-02, TC-27)
+
+
+ src/shared/config.ts                  |  20 ++++++
+ src/shared/protocol.ts                |   8 +++
+ src/worker/board-store.ts             |  53 ++++++++++++++++
+ src/worker/room-state.ts              |  80 ++++++++++++++++++++++++
+ tests/unit/board-store-chunks.test.ts |  71 +++++++++++++++++++++
+ tests/unit/room-state.test.ts         | 113 ++++++++++++++++++++++++++++++++++
+ 6 files changed, 345 insertions(+)
 commit ee6e5b88d28bfc2d1e0069f1862aa8d117c357e7
 vidi-agent  Mon Sep 28 01:49:14 2026 +0100
 
