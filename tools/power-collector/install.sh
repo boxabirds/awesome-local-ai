@@ -37,6 +37,10 @@ fi
 BIN="$HOME/.local/bin/power-collector"
 command -v cargo >/dev/null || { echo "cargo not found (https://rustup.rs)" >&2; exit 1; }
 (cd "$HERE" && cargo build --release --quiet)
+# macOS: the linker's ad-hoc signature embeds a build hash in its identifier, so a firewall such as
+# Little Snitch sees every build as a new program. Re-sign with a fixed identifier (deterministic, so the
+# unchanged check below still works).
+[[ "$(uname)" == Darwin ]] && codesign -s - -f --identifier "$LABEL" "$HERE/target/release/power-collector" 2>/dev/null
 mkdir -p "$(dirname "$BIN")"
 if cmp -s "$HERE/target/release/power-collector" "$BIN"; then echo "binary unchanged: $BIN"
 else cp "$HERE/target/release/power-collector" "$BIN.new" && mv "$BIN.new" "$BIN"; echo "installed binary: $BIN"; fi
