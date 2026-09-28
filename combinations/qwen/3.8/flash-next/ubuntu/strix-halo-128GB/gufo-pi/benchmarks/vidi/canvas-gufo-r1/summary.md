@@ -13,8 +13,9 @@ Model `qwen3.8-flash-next-gufo`, scope `canvas`, effort `low`, client pi 0.87.1,
 | 8 | Undo and redo my own changes without undoing anyone else's | DONE, on partial 3, 4, 5 | 23.8 | None | None | None | — | — | green | 43/51 |  | 0 / 0 | 0 | — | throttled 0%, server peak 0 GB |
 | 9 | Write free text anywhere on the board | DONE, on partial 3, 4, 5 | 25.8 | None | None | None | — | — | green | 47/57 |  | 0 / 0 | 1 | — | throttled 0%, server peak 0 GB |
 | 10 | Draw shapes and connect them with arrows that follow when moved | DONE, on partial 3, 4, 5 | 42.1 | None | None | None | — | — | green | 54/65 |  | 0 / 0 | 1 | — | throttled 0%, server peak 0 GB |
+| 11 | Sketch freehand with a pen | DONE, on partial 3, 4, 5 | 22.0 | None | None | None | — | — | green | 59/70 |  | 0 / 0 | 1 | — | throttled 0%, server peak 0 GB |
 
-**Totals:** 9 stories, 385 agent-minutes, 0 requests, 0 prompt / 0 completion tokens, gate green 8/9, final acceptance 54/65, stalled 0, partial 3, 19206 lines in src+tests.
+**Totals:** 10 stories, 407 agent-minutes, 0 requests, 0 prompt / 0 completion tokens, gate green 9/10, final acceptance 59/70, stalled 0, partial 3, 20764 lines in src+tests.
 
 ### Stories ended early (PARTIAL) and what was built on them
 
@@ -27,6 +28,7 @@ Model `qwen3.8-flash-next-gufo`, scope `canvas`, effort `low`, client pi 0.87.1,
 - Story 8, built on partial 3, 4, 5: held-out tests on the partial base 25/31; partial story's tests fixed 4, regressed 0; 0 stub-like lines added to src/.
 - Story 9, built on partial 3, 4, 5: held-out tests on the partial base 29/37; partial story's tests fixed 4, regressed 0; 0 stub-like lines added to src/.
 - Story 10, built on partial 3, 4, 5: held-out tests on the partial base 36/45; partial story's tests fixed 4, regressed 0; 0 stub-like lines added to src/.
+- Story 11, built on partial 3, 4, 5: held-out tests on the partial base 41/50; partial story's tests fixed 4, regressed 0; 0 stub-like lines added to src/.
 
 ## How it happened
 
@@ -43,6 +45,7 @@ Each story's commits, and which story broke or fixed an earlier story's held-out
 | 8 | 1 by the agent | 1779 / 17 | `undo.ts` (99), `BoardApp.tsx` (51), `useUndo.ts` (49), `useBoardKeys.ts` (46), `NOTES.md` (44), `StickyTextEditor.tsx` (43), +5 more |
 | 9 | 1 by the agent | 2265 / 277 | `BoardApp.tsx` (171), `TextEditor.tsx` (167), `StickyTextEditor.tsx` (166), `text.ts` (163), `TextObject.tsx` (150), `textLayout.ts` (133), +16 more |
 | 10 | 1 by the agent | 2950 / 21 | `connector.ts` (224), `ConnectorTool.tsx` (217), `ConnectorObject.tsx` (203), `ShapeObject.tsx` (200), `BoardApp.tsx` (164), `board-model.ts` (156), +11 more |
+| 11 | 1 by the agent | 1614 / 9 | `PenTool.tsx` (264), `stroke.ts` (132), `simplify.ts` (119), `StrokeObject.tsx` (85), `PenToolbar.tsx` (83), `NOTES.md` (47), +8 more |
 
 ### Earlier stories broken or fixed
 

@@ -66,21 +66,21 @@ export function useActiveTool(opts: UseActiveToolOptions = {}): UseActiveToolRes
     const handler = (e: KeyboardEvent) => {
       if (isEditingContext(e.target)) return;
 
-      // Escape: return to Select from shape or connector
+      // Escape: return to Select from shape, connector, or pen
       if (e.key === 'Escape') {
         const current = toolRef.current;
-        if (current === 'shape' || current === 'connector') {
+        if (current === 'shape' || current === 'connector' || current === 'pen') {
           setToolState('select');
         }
         return;
       }
 
-      // Only handle shape, connector and select (v) shortcuts; t/n/p/i/c handled by useBoardKeys
+      // Handle shape, connector, pen and select (v) shortcuts
       if (e.ctrlKey || e.metaKey || e.altKey) return;
       const key = e.key.toLowerCase();
       if (key === 'v') {
         setToolState('select');
-      } else if (key === 's' || key === 'l') {
+      } else if (key === 's' || key === 'l' || key === 'p') {
         const targetTool = TOOL_SHORTCUTS[key];
         if (targetTool && canEditRef.current) {
           setToolState(targetTool);

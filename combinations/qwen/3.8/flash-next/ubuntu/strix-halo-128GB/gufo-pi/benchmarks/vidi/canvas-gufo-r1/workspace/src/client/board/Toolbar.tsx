@@ -189,6 +189,21 @@ export function Toolbar(props: ToolbarProps) {
             </span>
             <span className="toolbar-btn-label">Connector</span>
           </button>
+          <button
+            type="button"
+            aria-label="Pen (P)"
+            aria-pressed={t === 'pen'}
+            title="Pen tool"
+            className={`toolbar-btn${t === 'pen' ? ' toolbar-btn-active' : ''}`}
+            data-testid="pen-tool-btn"
+            onClick={() => onActiveToolChange('pen')}
+            disabled={disabled}
+          >
+            <span className="toolbar-btn-icon" aria-hidden="true">
+              {'\u270E'}
+            </span>
+            <span className="toolbar-btn-label">Pen</span>
+          </button>
         </>
       )}
       <button

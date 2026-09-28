@@ -172,3 +172,50 @@
 | `tests/component/ShapeTool.test.tsx` | New: TC-15 to TC-17, TC-28 |
 | `tests/component/ConnectorTool.test.tsx` | New: TC-18 to TC-22 |
 | `tests/e2e/shapes-connectors.spec.ts` | New: TC-23 to TC-27 |
+
+---
+
+## Story 11: Sketch freehand with a pen
+
+### Key Decisions
+
+1. **Stroke model as `StrokeObjectSnapshot`**: Stored as a new `type: 'stroke'` in the `ObjectSnapshot` union in `board-model.ts`. Points are stored as a flat array (`points: number[]`) relative to the object's bounding box origin, making move operations O(1) (just change x/y). The `baseWidth/baseHeight` fields allow proportional scaling via `scaledPoints()`.
+
+2. **RDP simplification**: Uses Ramer-Douglas-Peucker (`simplify.ts`) with a configurable tolerance (`STROKE_SIMPLIFY_TOLERANCE_PX / zoom`). Runs once on pen-up — never mutates committed strokes.
+
+3. **Smooth path rendering**: Quadratic Bezier curves through midpoints (`smoothPath()`) produce a smooth visual path from discrete points. This gives the handwritten look without complex spline math.
+
+4. **Coalesced events for pointer input**: PenTool uses `e.getCoalescedEvents()` to capture all high-frequency pointer samples between frames, reducing input lag and improving path fidelity on high-rate devices.
+
+5. **Session-only pen options**: Colour and thickness (`usePenOptions`) are per-tab React state, not persisted. Defaults: black, medium (2px world).
+
+6. **Proportional resize only**: Stroke objects set `aspectLocked: true` in the type registry, so resize always maintains aspect ratio.
+
+7. **Hit test by line distance**: Unlike filled shapes, strokes hit-test by `distanceToPolyline` — the tolerance is `max(thickness/2, HIT_TOLERANCE_PX / zoom)`, giving generous clicks at any zoom level.
+
+8. **Stroke commit lifecycle**: Pointer events → coalesced points → simplify → split at STROKE_MAX_POINTS (5000) → `transact()` → one Y.Doc note per segment. The PenTool overlay uses `position: absolute` inside the viewport so it doesn't interfere with zoom controls.
+
+9. **Wheel-pan preserved during pen**: The BoardViewport's wheel handler runs before pointer capture check; pen's pointer capture only blocks drag-based panning. This satisfies the "wheel pans while pen active" requirement.
+
+### Files Created/Modified
+
+| File | Role |
+|------|------|
+| `src/shared/config.ts` | Added PEN_COLORS, PEN_THICKNESS_WORLD, STROKE_* constants |
+| `src/shared/geometry/simplify.ts` | RDP, splitPoints, smoothPath |
+| `src/shared/objects/stroke.ts` | createStroke, scaledPoints, StrokeSnap type |
+| `src/shared/board-model.ts` | StrokeObjectSnapshot in union, objectBounds/allObjectIds/snapshot |
+| `src/client/tools/PenTool.tsx` | Freehand capture component |
+| `src/client/tools/PenToolbar.tsx` | Colour/thickness sub-toolbar |
+| `src/client/tools/usePenOptions.ts` | Per-session pen state |
+| `src/client/tools/useActiveTool.ts` | P shortcut, Escape handling |
+| `src/client/tools/Toolbar.tsx` | Pen button |
+| `src/client/objects/StrokeObject.tsx` | SVG path rendering + selection |
+| `src/client/objects/registry.tsx` | Stroke type registration, hit test |
+| `src/client/canvas/BoardViewport.tsx` | penToolActive/penOverlay props |
+| `src/client/BoardApp.tsx` | PenTool/PenToolbar/StrokeObject integration |
+| `tests/unit/stroke.test.ts` | TC-01 to TC-08 |
+| `tests/fixtures/pen-paths.ts` | Hand-drawn path fixtures |
+| `tests/component/PenTool.test.tsx` | TC-09 to TC-14 |
+| `tests/component/StrokeObject.test.tsx` | TC-15, TC-16, TC-21 |
+| `tests/e2e/pen.spec.ts` | TC-17 to TC-20 |

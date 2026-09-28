@@ -8,6 +8,8 @@ import {
   type ShapeKind,
   type FillColor,
   type StrokeColor,
+  type PenColor,
+  type PenThickness,
 } from './config';
 import { type Rect, rectContains } from './geometry';
 import {
@@ -65,8 +67,26 @@ export interface ShapeObjectSnapshot {
   text: string; // alias for label, for union compatibility
 }
 
+export interface StrokeObjectSnapshot {
+  id: string;
+  type: 'stroke';
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  z: number;
+  createdAt: number;
+  createdBy: string;
+  points: readonly number[];
+  baseWidth: number;
+  baseHeight: number;
+  color: PenColor;
+  thickness: PenThickness;
+  text: string; // for union compatibility
+}
+
 /** Generic object snapshot - any type that can appear on the board */
-export type ObjectSnapshot = StickySnapshot | TextObjectSnapshot | ShapeObjectSnapshot | ConnectorObjectSnapshot;
+export type ObjectSnapshot = StickySnapshot | TextObjectSnapshot | ShapeObjectSnapshot | ConnectorObjectSnapshot | StrokeObjectSnapshot;
 
 export interface ConnectorObjectSnapshot {
   id: string;
@@ -241,6 +261,25 @@ export function snapshot(doc: Y.Doc): readonly ObjectSnapshot[] {
         text: (obj.get('label') as Y.Text).toString(),
       };
       result.push(snap);
+    } else if (type === 'stroke') {
+      const snap: StrokeObjectSnapshot = {
+        id,
+        type: 'stroke',
+        x: obj.get('x') as number,
+        y: obj.get('y') as number,
+        width: obj.get('width') as number,
+        height: obj.get('height') as number,
+        z: obj.get('z') as number,
+        createdAt: obj.get('createdAt') as number,
+        createdBy: (obj.get('createdBy') as string) ?? '',
+        points: obj.get('points') as readonly number[],
+        baseWidth: obj.get('baseWidth') as number,
+        baseHeight: obj.get('baseHeight') as number,
+        color: obj.get('color') as PenColor,
+        thickness: obj.get('thickness') as PenThickness,
+        text: '',
+      };
+      result.push(snap);
     } else if (type === 'connector') {
       // Connector bbox derived from resolved endpoints - handled after loop
     }
@@ -303,7 +342,7 @@ export function objectBounds(obj: ObjectSnapshot): Rect {
   if (obj.type === 'text') {
     return { x: obj.x, y: obj.y, width: obj.width, height: obj.height };
   }
-  if (obj.type === 'shape') {
+  if (obj.type === 'shape' || obj.type === 'stroke') {
     return { x: obj.x, y: obj.y, width: obj.width, height: obj.height };
   }
   return {
@@ -337,7 +376,7 @@ export function objectsInRect(
 export function allObjectIds(
   snapshotArr: readonly ObjectSnapshot[],
 ): string[] {
-  const knownTypes = new Set(['sticky', 'text', 'shape']);  const result: string[] = [];
+  const knownTypes = new Set(['sticky', 'text', 'shape', 'stroke']);  const result: string[] = [];
   for (const obj of snapshotArr) {
     if (knownTypes.has(obj.type)) {
       result.push(obj.id);

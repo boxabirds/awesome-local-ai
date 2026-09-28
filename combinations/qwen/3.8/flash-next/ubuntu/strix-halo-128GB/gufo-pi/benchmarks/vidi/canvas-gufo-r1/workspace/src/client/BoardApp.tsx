@@ -16,6 +16,7 @@ import { StickyNote } from './objects/StickyNote';
 import { TextObject } from './objects/TextObject';
 import { ShapeObject } from './objects/ShapeObject';
 import { ConnectorObject } from './objects/ConnectorObject';
+import { StrokeObject } from './objects/StrokeObject';
 import { NoteToolbar } from './objects/NoteToolbar';
 import { TextToolbar } from './objects/TextToolbar';
 import { ShapeToolbar } from './objects/ShapeToolbar';
@@ -29,6 +30,7 @@ import {
   objectBounds,
   type ShapeObjectSnapshot,
   type ConnectorObjectSnapshot,
+  type StrokeObjectSnapshot,
   type StickySnapshot,
   type TextObjectSnapshot,
 } from '../shared/board-model';
@@ -40,6 +42,9 @@ import { IS_TEST_MODE } from './canvas/testHooks';
 import { useActiveTool } from './tools/useActiveTool';
 import { ShapeTool } from './tools/ShapeTool';
 import { ConnectorTool } from './tools/ConnectorTool';
+import { PenTool } from './tools/PenTool';
+import { PenToolbar } from './tools/PenToolbar';
+import { usePenOptions } from './tools/usePenOptions';
 import type { Rect } from '../shared/geometry';
 
 // Generate a per-session identity for createdBy
@@ -63,6 +68,8 @@ export function BoardApp({ boardId }: { boardId: string }) {
     onSelect: (id) => selection.click(id),
     canEdit: editable,
   });
+
+  const penOptions = usePenOptions();
 
   // Undo controller: one per board doc, destroyed on board change/unmount
   const undoController = useMemo(() => createUndo(doc), [doc]);
@@ -367,8 +374,33 @@ export function BoardApp({ boardId }: { boardId: string }) {
         onMarqueeCancel={handleMarqueeCancel}
         textToolActive={toolState.tool === 'text' && activeToolState.tool === 'select'}
         onTextClick={handleTextClick}
+        penToolActive={activeToolState.tool === 'pen'}
+        penOverlay={activeToolState.tool === 'pen' && editable ? (
+          <PenTool
+            camera={camState}
+            color={penOptions.color}
+            thickness={penOptions.thickness}
+            doc={doc}
+            identityId={getSessionId()}
+            onCommit={() => undoController.boundary()}
+          />
+        ) : undefined}
       >
         {notes.map((note) => {
+          if (note.type === 'stroke') {
+            return (
+              <StrokeObject
+                key={note.id}
+                stroke={note as StrokeObjectSnapshot}
+                selected={selection.ids.has(note.id)}
+                zoom={zoom}
+                camera={camState}
+                onSelect={(id) => selection.click(id)}
+                onToggleSelect={(id) => selection.toggle(id)}
+                onObjectPointerDown={gesture.onObjectPointerDown}
+              />
+            );
+          }
           if (note.type === 'connector') {
             return (
               <ConnectorObject
@@ -464,6 +496,16 @@ export function BoardApp({ boardId }: { boardId: string }) {
           doc={doc}
           onCreated={handleConnectorCreated}
           onBoundary={undoController.boundary}
+        />
+      )}
+
+      {/* Pen toolbar - visible while pen is active */}
+      {activeToolState.tool === 'pen' && editable && (
+        <PenToolbar
+          color={penOptions.color}
+          thickness={penOptions.thickness}
+          onColor={penOptions.setColor}
+          onThickness={penOptions.setThickness}
         />
       )}
 

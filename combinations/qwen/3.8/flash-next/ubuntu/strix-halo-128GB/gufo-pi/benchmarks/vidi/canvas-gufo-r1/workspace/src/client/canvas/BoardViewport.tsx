@@ -69,6 +69,8 @@ export interface BoardViewportProps {
   onMarqueeCancel?(): void;
   textToolActive?: boolean;
   onTextClick?(worldPoint: { x: number; y: number }): void;
+  penToolActive?: boolean;
+  penOverlay?: ReactNode;
 }
 
 export function BoardViewport({
@@ -82,11 +84,15 @@ export function BoardViewport({
   onMarqueeCancel,
   textToolActive,
   onTextClick,
+  penToolActive,
+  penOverlay,
 }: BoardViewportProps) {
   const surfaceRef = useRef<HTMLDivElement>(null);
   const [viewport, setViewport] = useState<Size>({ width: 0, height: 0 });
   const [panning, setPanning] = useState(false);
   const panningRef = useRef(false);
+  const penActiveRef = useRef(false);
+  penActiveRef.current = !!penToolActive;
   const marqueeActiveRef = useRef(false);
 
   const controller: CameraController = useCamera(viewport);
@@ -208,6 +214,8 @@ export function BoardViewport({
 
     const beginPointer = (e: PointerLike) => {
       if (!isBoardSurface(e.target, el)) return;
+      // Pen tool overlay handles its own pointer events; skip panning
+      if (penActiveRef.current) return;
       // If shift is held, start marquee instead of pan
       if (e.shiftKey) {
         try {
@@ -403,6 +411,8 @@ export function BoardViewport({
         <div className="origin-marker" data-testid="origin-marker" aria-hidden="true" />
         {children}
       </div>
+
+      {penOverlay}
 
       <ZoomControls
         zoomPercent={zoomPercent(cam)}
