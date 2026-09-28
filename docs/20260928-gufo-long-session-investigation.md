@@ -5,8 +5,7 @@ pi agent, the vidi canvas benchmark. Data, scripts and a timestamped log are in
 `benchmarks/gufo-eval/results/20260928-long-session/` on tritus; the tools are in
 [`benchmarks/gufo-eval/long-session/`](../benchmarks/gufo-eval/long-session/).
 
-**Status:** experiments done; a second like-for-like run (canvas-gufo-exp2, stories 1–2) was
-still running at the time of writing — see the end.
+**Status:** complete (28 Sep, 07:15 BST). tritus left idle, no servers or containers running.
 
 ## In short
 
@@ -18,9 +17,11 @@ still running at the time of writing — see the end.
   stories (H2).
 - **gufo has one real, rare, fatal bug here:** when the model writes a multi-line `edit` with raw
   line breaks inside its JSON argument, gufo can't parse the call and returns it to the agent as
-  plain text. The agent reads that as "finished" and the story ends. Seen once in ~510 gufo turns
-  (0 in ~4,400 llama.cpp turns); it ended story 1 of canvas-gufo-exp1 after 17 minutes with the
-  build broken (H7, source-confirmed).
+  plain text. The agent reads that as "finished". Seen **4 times in ~790 gufo turns** (0 in ~4,400
+  llama.cpp turns). Once it ended a story with the build broken (canvas-gufo-exp1 story 1, 17 min);
+  when the harness happened to nudge the agent on, it cost nothing (H7, source-confirmed).
+- **When nothing goes wrong, gufo's code is good:** a second run of the same two stories
+  (canvas-gufo-exp2) scored **6/6 and 20/20**, against llama.cpp's 6/6, 17/20 and 5/6, 17/20.
 - **Reasoning effort is fine** (low, as configured) and neither draft depth nor quant explains
   anything (H1, H5, H6).
 
@@ -274,9 +275,27 @@ evidence the model wrote raw line breaks there).
    recording "app did not start" as its own outcome in the summaries so it isn't read as
    "every feature broken".
 
+### H7b: a second like-for-like run (canvas-gufo-exp2) — 20/20
+
+| Run | Story 1 | Story 2 | Held-out, cumulative | Leaked tool calls |
+|---|---|---|---|---|
+| gufo, canvas-gufo-exp2 | 34 min, 95 calls, 78k out | 94 min, 184 calls, 195k out, 3 nudges | **6/6, 20/20** | 1 (story 1), 2 (story 2) |
+| gufo, canvas-gufo-exp1 | 17 min, ended by a leak | 59 min | 0/6, 0/20 (app didn't start) | 1 (story 1) |
+| llama.cpp, canvas-vk-01 | 78 min | 98 min | 6/6, 17/20 | 0 |
+| llama.cpp, canvas-vk-02 | 75 min | 112 min | 5/6, 17/20 | 0 |
+
+- **gufo's best case beats llama.cpp's** on the same stories and in less time on story 1.
+- **The leaks are not rare enough to ignore:** 4 in ~790 gufo turns across the night. In exp2's
+  story 2 the harness answered two of them with its "stopped without committing" nudge
+  (`dbench logs tritus canvas-gufo-exp2`), which continued the session and cost little. In exp1's
+  story 1 the leak came after commits, so no nudge fired and the story simply ended. Whether a leak
+  costs nothing or a whole story is luck — hence the guard in the recommendations.
+- Story 2 of exp2 used more output (195k) and time (94 min) than exp1's, and needed 3 nudges;
+  two of those were leaks, the third an ordinary stop.
+
 ## Caveats
 
-- Few gufo stories so far (canvas-gufo-01 story 5; canvas-gufo-exp1 stories 1–2; exp2 below).
+- Few gufo stories so far (canvas-gufo-01 story 5; canvas-gufo-exp1 and -exp2, stories 1–2).
   Agent runs vary a lot between runs of the same stack.
 - Replays use three repeats per request; enough to compare speed and order of magnitude of output,
   not to rank verbosity finely.
