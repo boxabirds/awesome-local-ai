@@ -992,6 +992,7 @@ def wait_for_conditions() -> dict:
 SWAP_ABORT_GROWTH_GB = 4.0
 # Free memory below this share stops the run the same way (was an external watchdog loop).
 MEM_FREE_ABORT_PCT = 8
+MEM_SNAPSHOT_PCT = 20       # below this, record which processes hold the memory, at each new low
 MIB_PER_GIB = 1024
 
 
@@ -1054,6 +1055,7 @@ class ConditionSampler(threading.Thread):
         self.aborted = threading.Event()
         self.aborted_memory = False
         self.free_min_pct: float | None = None
+        self.memory_snapshot: dict | None = None
         self._halt = threading.Event()
 
     def run(self):
@@ -1075,6 +1077,8 @@ class ConditionSampler(threading.Thread):
                 self.footprint_peak = max(self.footprint_peak or 0.0, fp_peak or 0.0)
             free = mem_free_pct()
             if free is not None:
+                if free < MEM_SNAPSHOT_PCT and (self.free_min_pct is None or free < self.free_min_pct):
+                    self._snapshot(free)
                 self.free_min_pct = free if self.free_min_pct is None else min(self.free_min_pct, free)
             if self.aborted.is_set():
                 continue
@@ -1084,6 +1088,14 @@ class ConditionSampler(threading.Thread):
             elif free is not None and free < MEM_FREE_ABORT_PCT:
                 self.aborted_memory = True
                 self._abort(f"MEMORY GUARD: free memory {free:.0f}% < {MEM_FREE_ABORT_PCT}%")
+
+    def _snapshot(self, free: float) -> None:
+        """What held the memory at the story's lowest point so far (gruntus canvas-pi-03 story 5 lost
+        about 28 GB to processes nobody could name afterwards)."""
+        try:
+            self.memory_snapshot = {"t": time.time(), "free_pct": free, **hostenv.memory_snapshot()}
+        except Exception as e:  # noqa: BLE001  informational: must not stop the guards
+            print(f"    memory snapshot failed: {e}", flush=True)
 
     def _abort(self, why: str) -> None:
         self.aborted.set()
@@ -1099,6 +1111,7 @@ class ConditionSampler(threading.Thread):
                 "swap_max_gb": round(self.swap_max, 2),
                 "aborted_swap": self.aborted.is_set() and not self.aborted_memory,
                 "aborted_memory": self.aborted_memory, "free_min_pct": self.free_min_pct,
+                "memory_snapshot": self.memory_snapshot,
                 "server_footprint_max_gb": self.footprint_max, "server_footprint_peak_gb": self.footprint_peak,
                 "gpu": hostenv.summarise_gpu(self.gpu)}
 

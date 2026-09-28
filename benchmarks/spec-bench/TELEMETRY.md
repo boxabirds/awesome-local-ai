@@ -105,6 +105,7 @@ Sampled every 30 s (`CONDITION_POLL_S`).
 | `samples`, `degraded`, `throttled_share`, `bad_samples` | power trouble marks the story DEGRADED (not comparable); thermal throttling is reported as a share, since that is how the setup really performs |
 | `swap_start_gb`, `swap_max_gb`, `aborted_swap` | the swap guard stops the story if swap grows more than 4 GB |
 | `free_min_pct`, `aborted_memory` | the memory guard stops it below 8% free |
+| `memory_snapshot` | what held memory at the story's lowest point, once free memory fell below 20%: `t`, `free_pct`, `total_rss_gb`, `processes` (the 15 largest: `pid`, `rss_gb`, `command` with home paths and keys hidden) and `by_program` (totals per program: `program`, `count`, `rss_gb`). Null when memory never ran that low |
 | `server_footprint_max_gb`, `server_footprint_peak_gb` | the model server's memory |
 | `gpu` | the GPU, summarised: `samples`, `busy_mean_pct`, `sclk_min_busy_mhz` (the lowest shader clock while more than 50% busy: a drop here is throttling, not idling), `sclk_max_mhz`, `power_mean_w`, `power_max_w`, `temp_max_c`, `gtt_max_gb` (amdgpu: unified memory mapped for the GPU) or `vram_max_gb` (NVIDIA), `throttled_samples` (NVIDIA's clock throttle reasons) |
 

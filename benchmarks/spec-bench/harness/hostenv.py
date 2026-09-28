@@ -146,6 +146,53 @@ def mem_free_pct() -> float | None:
     return free_pct_from_meminfo(parse_meminfo(Path("/proc/meminfo").read_text()))
 
 
+
+# ---------- what holds memory, when it runs low ----------
+SNAPSHOT_TOP = 15
+SNAPSHOT_PROGRAMS = 10
+COMMAND_CHARS = 200
+_SECRET_FLAG = re.compile(r"(--?[\w-]*(?:key|token|secret|password)[\w-]*)([ =])(\S+)", re.I)
+
+
+def _clean_command(args: str, home: str) -> str:
+    """Run folders are published: no home paths and no keys in a recorded command line."""
+    args = _SECRET_FLAG.sub(lambda m: f"{m.group(1)}{m.group(2)}***", args.replace(home, "~"))
+    return args[:COMMAND_CHARS]
+
+
+def parse_memory_snapshot(ps_out: str, home: str, top: int = SNAPSHOT_TOP, comm_out: str = "") -> dict:
+    """`ps -axo pid=,rss=,args=` (rss in KiB, on macOS and Linux alike): the biggest processes, and
+    totals per program so that many small processes (a dozen browsers) show up too. Program names
+    come from `ps -axo pid=,comm=` when given: an executable path may contain spaces."""
+    names = {}
+    for line in comm_out.splitlines():
+        parts = line.strip().split(None, 1)
+        if len(parts) == 2 and parts[0].isdigit():
+            names[int(parts[0])] = Path(parts[1].strip()).name
+    procs = []
+    for line in ps_out.splitlines():
+        parts = line.split(None, 2)
+        if len(parts) < 3 or not parts[0].isdigit() or not parts[1].isdigit():
+            continue
+        procs.append({"pid": int(parts[0]), "rss_gb": int(parts[1]) / KIB_PER_GIB, "args": parts[2]})
+    procs.sort(key=lambda p: -p["rss_gb"])
+    by_program: dict[str, dict] = {}
+    for p in procs:
+        name = names.get(p["pid"]) or Path(p["args"].split()[0]).name
+        g = by_program.setdefault(name, {"program": name, "count": 0, "rss_gb": 0.0})
+        g["count"] += 1
+        g["rss_gb"] += p["rss_gb"]
+    programs = sorted(by_program.values(), key=lambda g: -g["rss_gb"])[:SNAPSHOT_PROGRAMS]
+    return {"total_rss_gb": round(sum(p["rss_gb"] for p in procs), GB_DECIMALS),
+            "processes": [{"pid": p["pid"], "rss_gb": round(p["rss_gb"], GB_DECIMALS),
+                           "command": _clean_command(p["args"], home)} for p in procs[:top]],
+            "by_program": [{**g, "rss_gb": round(g["rss_gb"], GB_DECIMALS)} for g in programs]}
+
+
+def memory_snapshot() -> dict:
+    return parse_memory_snapshot(_out(["ps", "-axo", "pid=,rss=,args="]), str(Path.home()),
+                                 comm_out=_out(["ps", "-axo", "pid=,comm="]))
+
 def linux_swap_used_gb() -> float:
     return swap_used_gb_from_meminfo(parse_meminfo(Path("/proc/meminfo").read_text()))
 
