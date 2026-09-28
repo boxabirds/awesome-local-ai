@@ -17,6 +17,8 @@ import {
   type StickyColor,
 } from './config';
 import { rectContains, type Point, type Rect } from './geometry';
+import { detachConnectorsTo, endpointFromPlain, type Endpoint } from './objects/connector';
+import { resolveEndpoints, connectorBBox } from './geometry/connector-geometry';
 
 /** Transaction origin marking local user actions. */
 export const LOCAL_ORIGIN: unique symbol = Symbol('local');
@@ -38,6 +40,14 @@ export interface ObjectSnapshot {
   size?: string;
   widthMode?: 'auto' | 'fixed';
   createdBy?: string;
+  /** Shape-specific (story 10). */
+  kind?: string;
+  fill?: string;
+  stroke?: string;
+  label?: string;
+  /** Connector-specific (story 10). */
+  from?: Endpoint;
+  to?: Endpoint;
 }
 
 export interface StickySnapshot extends Omit<ObjectSnapshot, 'type' | 'color' | 'text'> {
@@ -245,6 +255,8 @@ export function bringObjectsToFront(doc: Y.Doc, ids: readonly string[]): number 
 /**
  * Delete objects. Missing ids are skipped. Empty list → 0 with no transaction.
  * One transaction per successful call; returns the number deleted.
+ * Story 10: connectors attached to deleted objects have their ends detached
+ * (converted to `free` at the current anchor) inside the same transaction.
  */
 export function deleteObjects(doc: Y.Doc, ids: readonly string[]): number {
   if (ids.length === 0) return 0;
@@ -252,6 +264,7 @@ export function deleteObjects(doc: Y.Doc, ids: readonly string[]): number {
   const present = ids.filter((id) => objects.has(id));
   if (present.length === 0) return 0;
   doc.transact(() => {
+    detachConnectorsTo(doc, present);
     for (const id of present) objects.delete(id);
   }, LOCAL_ORIGIN);
   return present.length;
@@ -361,6 +374,21 @@ export function snapshotAll(doc: Y.Doc): readonly ObjectSnapshot[] {
       snap.size = obj.get('size') as string;
       snap.widthMode = obj.get('widthMode') as 'auto' | 'fixed';
       snap.createdBy = obj.get('createdBy') as string | undefined;
+    } else if (type === 'shape') {
+      snap.kind = obj.get('kind') as string;
+      snap.fill = obj.get('fill') as string;
+      snap.stroke = obj.get('stroke') as string;
+      const label = obj.get('label');
+      snap.label = label instanceof Y.Text ? label.toString() : ((label as string) ?? '');
+      snap.createdBy = obj.get('createdBy') as string | undefined;
+    } else if (type === 'connector') {
+      const fromRaw = obj.get('from');
+      const toRaw = obj.get('to');
+      const fromEp = endpointFromPlain(fromRaw);
+      const toEp = endpointFromPlain(toRaw);
+      if (fromEp) snap.from = fromEp;
+      if (toEp) snap.to = toEp;
+      snap.createdBy = obj.get('createdBy') as string | undefined;
     }
     result.push(snap);
   });
@@ -368,5 +396,26 @@ export function snapshotAll(doc: Y.Doc): readonly ObjectSnapshot[] {
     if (a.z !== b.z) return a.z - b.z;
     return a.id < b.id ? -1 : a.id > b.id ? 1 : 0;
   });
+
+  // Derive connector bboxes from resolved endpoints and other object rects
+  const objectRects = new Map<string, Rect>();
+  for (const s of result) {
+    if (s.type !== 'connector') {
+      const w = s.width ?? STICKY_SIZE_WORLD;
+      const h = s.height ?? STICKY_SIZE_WORLD;
+      objectRects.set(s.id, { x: s.x, y: s.y, width: w, height: h });
+    }
+  }
+  for (const s of result) {
+    if (s.type === 'connector' && s.from && s.to) {
+      const resolved = resolveEndpoints({ from: s.from, to: s.to }, objectRects);
+      const bbox = connectorBBox(resolved.from, resolved.to);
+      s.x = bbox.x;
+      s.y = bbox.y;
+      s.width = bbox.width;
+      s.height = bbox.height;
+    }
+  }
+
   return result;
 }

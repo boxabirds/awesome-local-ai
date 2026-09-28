@@ -19,6 +19,7 @@ import { NUDGE_STEP_WORLD, NUDGE_LARGE_STEP_WORLD } from '../../shared/config';
 import type { SelectionApi } from './useSelection';
 import type { UndoController } from './undo';
 import { getObjectType } from '../objects/registry';
+import type { ToolId } from '../tools/useActiveTool';
 
 function isTypingTarget(el: EventTarget | null): boolean {
   if (!(el instanceof HTMLElement)) return false;
@@ -33,9 +34,9 @@ export function useBoardKeys(opts: {
   canEdit: boolean;
   undo?: UndoController;
   /** Current active tool (story 9). */
-  tool?: 'select' | 'text';
+  tool?: ToolId;
   /** Set the active tool (story 9). */
-  setTool?: (t: 'select' | 'text') => void;
+  setTool?: (t: ToolId) => void;
   /** Create a sticky at viewport centre (story 2 behaviour, triggered by N). */
   onCreateSticky?: () => void;
 }): void {

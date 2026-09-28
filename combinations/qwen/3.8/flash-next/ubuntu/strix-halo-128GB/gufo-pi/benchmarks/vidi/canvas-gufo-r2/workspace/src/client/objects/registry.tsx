@@ -62,7 +62,10 @@ export function getObjectType(type: string): ObjectTypeSpec | undefined {
 // component does not import the registry, so this import is one-directional.
 import { StickyNote } from './StickyNote';
 import { TextObject } from './TextObject';
-import { TEXT_MIN_WIDTH_WORLD } from '../../shared/config';
+import { ShapeObject } from './ShapeObject';
+import { ConnectorObject } from './ConnectorObject';
+import { TEXT_MIN_WIDTH_WORLD, SHAPE_MIN_SIZE_WORLD, CONNECTOR_HIT_TOLERANCE_PX } from '../../shared/config';
+import { distanceToPolyline } from '../../shared/geometry/polyline';
 
 registerObjectType('sticky', {
   Component: StickyNote,
@@ -95,5 +98,39 @@ registerObjectType('text', {
       width: 0,
       height: 0,
     });
+  },
+});
+
+registerObjectType('shape', {
+  Component: ShapeObject,
+  resizable: true,
+  aspectLocked: false,
+  minSize: SHAPE_MIN_SIZE_WORLD,
+  editableText: true,
+  hitTest(obj, worldPoint) {
+    return rectContains(objectBounds(obj), {
+      x: worldPoint.x,
+      y: worldPoint.y,
+      width: 0,
+      height: 0,
+    });
+  },
+});
+
+registerObjectType('connector', {
+  Component: ConnectorObject as any,
+  resizable: false,
+  aspectLocked: false,
+  minSize: 0,
+  editableText: false,
+  hitTest(obj, worldPoint) {
+    const from = (obj as any).from;
+    const to = (obj as any).to;
+    if (!from || !to) return false;
+    const fromPt = from.kind === 'free' ? { x: from.x, y: from.y } : from.fallback;
+    const toPt = to.kind === 'free' ? { x: to.x, y: to.y } : to.fallback;
+    if (!fromPt || !toPt) return false;
+    const dist = distanceToPolyline([fromPt, toPt], worldPoint);
+    return dist <= CONNECTOR_HIT_TOLERANCE_PX;
   },
 });

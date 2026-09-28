@@ -10,11 +10,14 @@ import { useSelection, type SelectionApi } from './board/useSelection';
 import { Toolbar } from './board/Toolbar';
 import { NoteToolbar } from './objects/NoteToolbar';
 import { TextToolbar } from './objects/TextToolbar';
+import { ShapeToolbar } from './objects/ShapeToolbar';
 import { SelectionOverlay } from './board/SelectionOverlay';
 import { SelectionBar } from './board/SelectionBar';
 import { useTransformGesture } from './board/useTransformGesture';
 import { useBoardKeys } from './board/useBoardKeys';
-import { useTool, type Tool } from './board/useTool';
+import { useActiveTool, type ToolId } from './tools/useActiveTool';
+import { ShapeTool } from './tools/ShapeTool';
+import { ConnectorTool } from './tools/ConnectorTool';
 import { createUndo, type UndoController } from './board/undo';
 import { useUndo } from './board/useUndo';
 import { getObjectType } from './objects/registry';
@@ -27,9 +30,11 @@ import {
   type ObjectSnapshot,
 } from '../shared/board-model';
 import { createText, setTextSize } from '../shared/objects/text';
-import type { TextSize } from '../shared/config';
+import { setShapeStyle } from '../shared/objects/shape';
+import type { TextSize, FillColor, StrokeColor, ShapeKind } from '../shared/config';
 import { type StickyColor } from '../shared/config';
 import type { Point } from './canvas/camera';
+import type { Rect } from '../shared/geometry';
 import { useRoute } from './router';
 import { HomePage } from './pages/HomePage';
 import { BoardPage } from './pages/BoardPage';
@@ -42,6 +47,7 @@ interface BoardBridge {
   toWorld(screenPoint: Point): Point;
   viewportCentreWorld(): Point;
   getCamera(): Camera;
+  getBoardRect(): DOMRect | null;
 }
 
 const FALLBACK_CAMERA: Camera = { x: 0, y: 0, zoom: 1 };
@@ -49,19 +55,29 @@ const FALLBACK_CAMERA: Camera = { x: 0, y: 0, zoom: 1 };
 /** Screen-space chrome over the board: toolbars, zoom control, hint. */
 function BoardChrome(props: {
   connectionState: ReturnType<typeof useBoardDoc>['connectionState'];
-  tool: Tool;
-  onToolChange(t: Tool): void;
+  tool: ToolId;
+  onToolChange(t: ToolId): void;
   onCreateSticky(): void;
+  shapeKind: ShapeKind;
+  onShapeKindChange(k: ShapeKind): void;
   undoState: ReturnType<typeof useUndo>;
 }): JSX.Element {
   const { camera, hasNavigated, zoomStep, reset } = useBoardCamera();
-  const { connectionState, tool, onToolChange, onCreateSticky, undoState } = props;
+  const { connectionState, tool, onToolChange, onCreateSticky, shapeKind, onShapeKindChange, undoState } = props;
   const editable = canEdit(connectionState);
 
   return (
     <>
       <ConnectionStatus state={connectionState} />
-      <Toolbar tool={tool} onToolChange={onToolChange} onCreateSticky={onCreateSticky} disabled={!editable} undoState={undoState} />
+      <Toolbar
+        tool={tool}
+        onToolChange={onToolChange}
+        onCreateSticky={onCreateSticky}
+        shapeKind={shapeKind}
+        onShapeKindChange={onShapeKindChange}
+        disabled={!editable}
+        undoState={undoState}
+      />
       <ZoomControls
         zoomPercent={zoomPercent(camera)}
         canZoomIn={canZoomIn(camera)}
@@ -90,6 +106,7 @@ function CameraBridge(props: { register(bridge: BoardBridge | null): void }): nu
       toWorld: (p) => screenToWorld(camera, p),
       viewportCentreWorld: () => screenToWorld(camera, { x: vw / 2, y: vh / 2 }),
       getCamera: () => camera,
+      getBoardRect: () => el?.getBoundingClientRect() ?? null,
     });
     return () => registerRef.current(null);
   }, [registerRef, camera]);
@@ -107,22 +124,39 @@ function BoardObjects(props: {
   onStartEdit(id: string): void;
   onEndEdit(next: 'selected' | 'unselected'): void;
   undo?: UndoController;
+  getCamera: () => Camera;
 }): JSX.Element {
   const { camera } = useBoardCamera();
   const { objects, doc, selection, readOnly } = props;
+
+  // Build rects map for connector endpoints
+  const rects = useMemo(() => {
+    const map = new Map<string, Rect>();
+    for (const o of objects) {
+      if (o.type !== 'connector') {
+        const w = o.width ?? 200;
+        const h = o.height ?? 200;
+        map.set(o.id, { x: o.x, y: o.y, width: w, height: h });
+      }
+    }
+    return map;
+  }, [objects]);
 
   return (
     <>
       {[...objects]
         .slice()
-        // Stable DOM order (by id) so React never reorders an element mid-drag
-        // (reordering can release pointer capture in Chromium). Stacking is the
-        // CSS z-index on each object.
         .sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0))
         .map((obj) => {
           const spec = getObjectType(obj.type);
           if (!spec) return null;
           const Component = spec.Component;
+          const extra: Record<string, unknown> = {};
+          if (obj.type === 'connector') {
+            extra.rects = rects;
+            extra.snapshot = objects;
+            extra.getCamera = props.getCamera;
+          }
           return (
             <Component
               key={obj.id}
@@ -136,6 +170,7 @@ function BoardObjects(props: {
               onStartEdit={props.onStartEdit}
               onEndEdit={props.onEndEdit}
               undo={props.undo}
+              {...extra}
             />
           );
         })}
@@ -144,38 +179,42 @@ function BoardObjects(props: {
 }
 
 /**
- * Board editing is refused while the server cannot load the board: writing to a
- * doc that never received the stored state would produce a board that conflicts
- * with whatever is on the server.
+ * Board editing is refused while the server cannot load the board.
  */
 export function canEdit(state: ConnectionState): boolean {
   return state !== 'load_failed';
 }
 
 /**
- * The board UI (stories 1–9). Mounted by BoardPage when the board exists.
+ * The board UI (stories 1–10). Mounted by BoardPage when the board exists.
  */
 export function App(props: { doc?: Y.Doc; boardId?: string } = {}) {
   const boardId = props.boardId ?? getBoardIdFromPath();
   const { doc, notes, connectionState } = useBoardDoc(props.doc, boardId);
   const canEditBoard = canEdit(connectionState);
 
-  // Story 8: one UndoController per board doc, destroyed on board change / unmount.
   const undoController = useMemo(() => createUndo(doc), [doc]);
   useEffect(() => () => undoController.destroy(), [undoController]);
 
   const undoState = useUndo(undoController, canEditBoard);
 
-  // Story 9: tool state
-  const { tool, setTool } = useTool(canEditBoard);
+  const selection = useSelection(notes);
+
+  const handleSelectForTool = useCallback((id: string) => {
+    selection.click(id);
+  }, [selection]);
+
+  const { tool, shapeKind, setTool, setShapeKind, toolCreated } = useActiveTool({
+    canEdit: canEditBoard,
+    onSelect: handleSelectForTool,
+  });
 
   const bridgeRef = useRef<BoardBridge | null>(null);
   const registerBridge = useCallback((b: BoardBridge | null) => {
     bridgeRef.current = b;
   }, []);
   const getCamera = useCallback(() => bridgeRef.current?.getCamera() ?? FALLBACK_CAMERA, []);
-
-  const selection = useSelection(notes);
+  const getBoardRect = useCallback(() => bridgeRef.current?.getBoardRect() ?? null, []);
 
   const gesture = useTransformGesture({
     doc,
@@ -239,7 +278,7 @@ export function App(props: { doc?: Y.Doc; boardId?: string } = {}) {
 
   const handleEmptyClick = useCallback(() => selection.clear(), [selection]);
 
-  // Story 9: when text tool is active, a board click creates text and returns to select
+  // Text tool click creates text and returns to select
   const handleTextToolClick = useCallback(
     (point: Point) => {
       if (!canEditBoard) return;
@@ -268,7 +307,6 @@ export function App(props: { doc?: Y.Doc; boardId?: string } = {}) {
     [canEditBoard, doc, selection, undoController],
   );
 
-  // Story 9: text size change
   const handleTextSize = useCallback(
     (size: TextSize) => {
       if (!canEditBoard || selection.ids.size !== 1) return;
@@ -280,17 +318,58 @@ export function App(props: { doc?: Y.Doc; boardId?: string } = {}) {
     [canEditBoard, doc, selection, undoController],
   );
 
-  // NoteToolbar (colour + delete) for a single selected sticky, not editing.
+  // Shape style change
+  const handleShapeFill = useCallback(
+    (c: FillColor) => {
+      if (!canEditBoard || selection.ids.size !== 1) return;
+      const [id] = [...selection.ids];
+      undoController.boundary();
+      setShapeStyle(doc, id, { fill: c });
+      undoController.boundary();
+    },
+    [canEditBoard, doc, selection, undoController],
+  );
+
+  const handleShapeStroke = useCallback(
+    (c: StrokeColor) => {
+      if (!canEditBoard || selection.ids.size !== 1) return;
+      const [id] = [...selection.ids];
+      undoController.boundary();
+      setShapeStyle(doc, id, { stroke: c });
+      undoController.boundary();
+    },
+    [canEditBoard, doc, selection, undoController],
+  );
+
+  // Tool-created callbacks
+  const handleShapeCreated = useCallback((id: string) => {
+    undoController.boundary();
+    toolCreated(id);
+  }, [undoController, toolCreated]);
+
+  const handleConnectorCreated = useCallback((id: string) => {
+    undoController.boundary();
+    toolCreated(id);
+  }, [undoController, toolCreated]);
+
+  // Selected toolbars
   const selectedSticky: ObjectSnapshot | null =
     canEditBoard && selection.ids.size === 1 && selection.editingId === null
       ? notes.find((n) => n.id === [...selection.ids][0] && n.type === 'sticky') ?? null
       : null;
 
-  // Story 9: TextToolbar for a single selected text object, not editing.
   const selectedText: ObjectSnapshot | null =
     canEditBoard && selection.ids.size === 1 && selection.editingId === null
       ? notes.find((n) => n.id === [...selection.ids][0] && n.type === 'text') ?? null
       : null;
+
+  const selectedShape: ObjectSnapshot | null =
+    canEditBoard && selection.ids.size === 1 && selection.editingId === null
+      ? notes.find((n) => n.id === [...selection.ids][0] && n.type === 'shape') ?? null
+      : null;
+
+  // Determine BoardViewport tool prop
+  const viewportTool = tool === 'text' ? 'text' : 'select';
 
   return (
     <div className="board-container">
@@ -298,7 +377,7 @@ export function App(props: { doc?: Y.Doc; boardId?: string } = {}) {
       <BoardViewport
         snapshot={notes}
         onMarqueeSelect={(ids, additive) => selection.setMany(ids, additive)}
-        tool={tool}
+        tool={viewportTool}
         onTextToolClick={handleTextToolClick}
         children={
           <>
@@ -312,6 +391,7 @@ export function App(props: { doc?: Y.Doc; boardId?: string } = {}) {
               onStartEdit={handleStartEdit}
               onEndEdit={handleEndEdit}
               undo={undoController}
+              getCamera={getCamera}
             />
           </>
         }
@@ -342,13 +422,43 @@ export function App(props: { doc?: Y.Doc; boardId?: string } = {}) {
                 onDelete={handleDeleteSelection}
               />
             )}
+            {selectedShape && (
+              <ShapeToolbar
+                fill={(selectedShape.fill as FillColor) ?? 'white'}
+                stroke={(selectedShape.stroke as StrokeColor) ?? 'dark'}
+                onFill={handleShapeFill}
+                onStroke={handleShapeStroke}
+              />
+            )}
             <BoardChrome
               connectionState={connectionState}
               tool={tool}
               onToolChange={setTool}
               onCreateSticky={handleCreateSticky}
+              shapeKind={shapeKind}
+              onShapeKindChange={setShapeKind}
               undoState={undoState}
             />
+            {tool === 'shape' && (
+              <ShapeTool
+                kind={shapeKind}
+                camera={getCamera()}
+                doc={doc}
+                canEdit={canEditBoard}
+                onCreated={handleShapeCreated}
+                getBoardRect={getBoardRect}
+              />
+            )}
+            {tool === 'connector' && (
+              <ConnectorTool
+                camera={getCamera()}
+                doc={doc}
+                snapshot={notes}
+                canEdit={canEditBoard}
+                onCreated={handleConnectorCreated}
+                getBoardRect={getBoardRect}
+              />
+            )}
           </>
         }
         onBoardDblClick={handleBoardDblClick}
