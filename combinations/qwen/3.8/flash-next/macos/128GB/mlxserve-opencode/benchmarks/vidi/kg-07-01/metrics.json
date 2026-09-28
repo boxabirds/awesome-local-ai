@@ -1381,6 +1381,14 @@
         },
         "heldout_floor": 0.25,
         "heldout_ok": true
+      },
+      "record": {
+        "committed": true,
+        "pushed": true,
+        "over_size_limit": [
+          "~/.spec-bench/awesome-local-ai/combinations/qwen/3.8/flash-next/macos/128GB/mlxserve-opencode/benchmarks/vidi/kg-07-01/server.log"
+        ],
+        "commit": "d11a3e87"
       }
     }
   },
