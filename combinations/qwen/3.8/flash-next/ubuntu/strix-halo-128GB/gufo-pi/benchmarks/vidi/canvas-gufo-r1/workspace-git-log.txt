@@ -1,3 +1,43 @@
+commit ba5b4c7d6f52cfa354673963f2708fbd54f12687
+vidi-agent  Mon Sep 28 11:22:08 2026 +0000
+
+    story 7: Select, move, resize and delete several objects at once
+
+
+ .dev.vars                               |   1 +
+ NOTES.md                                |  33 +++
+ src/client/BoardApp.tsx                 | 182 ++++++++++++----
+ src/client/board/Marquee.tsx            |  92 ++++++++
+ src/client/board/SelectionBar.tsx       |  52 +++++
+ src/client/board/SelectionOverlay.tsx   | 154 ++++++++++++++
+ src/client/board/useBoardDoc.ts         |  32 ++-
+ src/client/board/useBoardKeys.ts        | 102 +++++++++
+ src/client/board/useSelection.ts        | 143 +++++++++++--
+ src/client/board/useTransformGesture.ts | 302 ++++++++++++++++++++++++++
+ src/client/canvas/BoardViewport.tsx     |  94 ++++++--
+ src/client/canvas/testHooks.ts          |  11 +-
+ src/client/objects/StickyNote.tsx       | 214 +++----------------
+ src/client/objects/registry.tsx         |  59 +++++
+ src/shared/board-model.ts               | 231 +++++++++++++++++---
+ src/shared/config.ts                    |  17 ++
+ src/shared/geometry.ts                  | 189 +++++++++++++++++
+ src/worker/create-board.ts              |  10 +-
+ src/worker/index.ts                     |  30 ++-
+ src/worker/test-hooks.ts                |   6 +-
+ tests/component/Marquee.test.tsx        |  93 ++++++++
+ tests/component/SelectionBar.test.tsx   | 181 ++++++++++++++++
+ tests/component/StickyNote.test.tsx     |  36 +++-
+ tests/component/Transform.test.tsx      | 178 ++++++++++++++++
+ tests/e2e/helpers/board.ts              |   2 +
+ tests/e2e/helpers/participants.ts       |   6 +
+ tests/e2e/multi-select.spec.ts          | 366 ++++++++++++++++++++++++++++++++
+ tests/e2e/share-board.spec.ts           |  14 +-
+ tests/unit/board-model-group.test.ts    | 263 +++++++++++++++++++++++
+ tests/unit/geometry.test.ts             | 173 +++++++++++++++
+ tests/unit/registry.test.ts             |  74 +++++++
+ tests/unit/selection-reducer.test.ts    | 113 ++++++++++
+ wrangler.jsonc                          |   3 +-
+ 33 files changed, 3120 insertions(+), 336 deletions(-)
 commit 1dff5d4d4c9ad6bfd435118b0c13c1422e8b66a1
 vidi-agent  Mon Sep 28 10:29:19 2026 +0000
 
