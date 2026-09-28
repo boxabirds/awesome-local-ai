@@ -43,6 +43,8 @@ OPTIONS
    --dry-run          show what would be installed, then exit
    --yes              do not ask for confirmation
    --client <name>    which coding agent to make the default (pi, opencode)
+   --no-web-testing   don't install browsers for web testing (Playwright's Chromium);
+                      on by default, same as WEB_TESTING=0
    --help             this text
 
 Every client adapter is installed either way; --client only picks the default
@@ -119,6 +121,7 @@ pick_combination_interactive() {
 
 ACTION="install"
 ASSUME_YES=0
+WEB_TESTING="${WEB_TESTING:-1}"
 SELECTOR=""
 CLIENT_CHOICE=""
 
@@ -128,6 +131,7 @@ while (( $# )); do
     --list)     ACTION="list"; shift ;;
     --dry-run)  ACTION="dry-run"; shift ;;
     --yes|-y)   ASSUME_YES=1; shift ;;
+    --no-web-testing) WEB_TESTING=0; shift ;;
     --client)
       [[ $# -ge 2 ]] || { echo "install.sh: --client needs a name (e.g. pi, opencode)" >&2; exit 2; }
       CLIENT_CHOICE="$2"; shift 2 ;;
@@ -221,6 +225,7 @@ echo "Machine   ${HOST_OS_PRETTY} (${HOST_ARCH}), ${HOST_MEM_DESC}"
 echo "Selected  ${CHOSEN}"
 echo "          (${REASON})"
 echo "Installer ./${SCRIPT}"
+echo "Web testing  $([[ "$WEB_TESTING" == 0 ]] && echo off || echo on) (Playwright's Chromium, shared by every combination)"
 
 # Say what else was possible, so an automatic choice is never a silent one.
 others="$(candidates_for_host "${FAMILY:-}" | cut -d'|' -f2 | grep -vxF "$CHOSEN" || true)"
@@ -243,6 +248,15 @@ if (( ! ASSUME_YES )) && [[ -t 0 ]] && (( ! PICKED_VIA_MENU )); then
     [Nn]*) echo "Nothing was installed."; exit 0 ;;
   esac
 fi
+
+# Asked on a terminal unless already decided; the default is yes.
+if (( ! ASSUME_YES )) && [[ -t 0 && "$WEB_TESTING" != 0 ]]; then
+  read -r -p "My projects do web testing: install Playwright's browsers on this machine? [Y/n] " reply
+  case "${reply:-y}" in
+    [Nn]*) WEB_TESTING=0 ;;
+  esac
+fi
+export WEB_TESTING
 
 echo
 exec "${REPO_ROOT}/${SCRIPT}"

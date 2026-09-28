@@ -108,6 +108,11 @@ print_summary() {
         "$( [[ -n "${ACCEL_ARCH:-}" ]] && { [[ "$ACCEL" == "cuda" ]] && echo " sm_${ACCEL_ARCH}" || echo " ${ACCEL_ARCH}"; } )")"
   say "  Files in    ${INSTALL_ROOT}"
   say "  Commands    ${BIN_DIR}/${SERVER_CMD}, ${BIN_DIR}/${SESSION_CMD}"
+  case "${WEB_TESTING_STATUS:-}" in
+    present|installed|linked|updated) say "  Web testing Playwright's Chromium in $(playwright_home_cache)" ;;
+    off)    say "  Web testing not set up (WEB_TESTING=0)" ;;
+    failed) say "  Web testing ${YELLOW}Chromium not working${NC} -- see the warning above" ;;
+  esac
   say ""
 
   if [[ "${VERIFY_STATUS:-}" == "recovered" ]]; then

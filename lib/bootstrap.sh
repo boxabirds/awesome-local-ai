@@ -49,7 +49,7 @@ SESSION_CMD="${SESSION_CMD:-${INSTALL_ID}-${CLIENT}}"
 ROOT_ENV_VAR="${ROOT_ENV_VAR:-LOCAL_AI_ROOT}"
 
 # ---- modules --------------------------------------------------------------
-for m in os deps hf model launcher service smoke verify summary; do
+for m in os deps hf model launcher service smoke verify summary playwright; do
   # shellcheck source=/dev/null
   . "${LIB_DIR}/${m}.sh"
 done
@@ -138,6 +138,7 @@ main() {
   ensure_model
   install_runtime
   create_service
+  ensure_web_testing
 
   # Verification is a gate, not a footnote. The promise this repo makes is
   # that the configuration it installs is the right one for your hardware --

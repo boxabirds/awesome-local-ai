@@ -117,6 +117,11 @@ if [[ -d "$ACCEPTANCE/tests" ]]; then
   # Every run: the browser matching the suite's Playwright version (a no-op when it's already there).
   (cd "$ACCEPTANCE" && npx playwright install chromium >/dev/null) || { echo "playwright browser install failed" >&2; exit 1; }
   "$HARNESS/check-browser.sh" "$ACCEPTANCE" || { echo "the held-out suite can't launch its browser; not starting the run" >&2; exit 1; }
+  # The agents' own browsers (PLAYWRIGHT_BROWSERS_PATH in their sandbox, and linked from the default
+  # location in their sandbox home): seeded with the same Chromium, so no story starts without one.
+  AGENT_BROWSERS="$(cd "$HARNESS" && python3 -c 'import hostenv, pathlib; print(hostenv.agent_playwright_cache(pathlib.Path.home()))')"
+  (cd "$ACCEPTANCE" && PLAYWRIGHT_BROWSERS_PATH="$AGENT_BROWSERS" npx playwright install chromium >/dev/null) \
+    || { echo "playwright browser install for the agents ($AGENT_BROWSERS) failed" >&2; exit 1; }
 else
   echo "pack $SPEC_BENCH_PACK_NAME has no held-out suite: acceptance will be reported n/a"
 fi
