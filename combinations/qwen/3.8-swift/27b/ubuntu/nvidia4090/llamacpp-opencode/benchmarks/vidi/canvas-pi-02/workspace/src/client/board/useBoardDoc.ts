@@ -4,15 +4,15 @@
 
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import * as Y from 'yjs';
-import { initDoc, snapshot, type StickySnapshot } from '../../shared/board-model';
+import { initDoc, objectsSnapshot, type ObjectSnapshot } from '../../shared/board-model';
 import { connectBoard, type BoardConnection, type ConnectionState } from '../sync/connectBoard';
 
 export interface Board {
   /** The live Y.Doc (never shared across components). */
   doc: Y.Doc;
-  /** Immutable sticky-note snapshots, sorted by (z, id). Stable reference
-   *  between document changes. */
-  notes: readonly StickySnapshot[];
+  /** Immutable object snapshots (every board-schema type), sorted by
+   *  (z, id). Stable reference between document changes. */
+  objects: readonly ObjectSnapshot[];
   /** Live connection badge state (story 3). */
   connectionState: ConnectionState;
   /** The live provider connection, for test hooks (null before first mount). */
@@ -32,13 +32,13 @@ export function useBoardDoc(boardId: string): Board {
   // observeDeep callback) and stays the same reference until the next change,
   // as useSyncExternalStore requires. Remote updates re-render through the
   // same observeDeep subscription.
-  const cacheRef = useRef<readonly StickySnapshot[]>(snapshot(doc));
+  const cacheRef = useRef<readonly ObjectSnapshot[]>(objectsSnapshot(doc));
 
   const subscribe = useCallback(
     (onChange: () => void) => {
       const objects = doc.getMap('objects');
       const handler = (): void => {
-        cacheRef.current = snapshot(doc);
+        cacheRef.current = objectsSnapshot(doc);
         onChange();
       };
       objects.observeDeep(handler);
@@ -48,7 +48,7 @@ export function useBoardDoc(boardId: string): Board {
   );
 
   const getSnapshot = useCallback(() => cacheRef.current, [doc]);
-  const notes = useSyncExternalStore(subscribe, getSnapshot);
+  const objects = useSyncExternalStore(subscribe, getSnapshot);
 
   // Story 3: attach the y-websocket provider for this board and track the
   // badge state. Destroyed on unmount or when the board changes.
@@ -64,5 +64,5 @@ export function useBoardDoc(boardId: string): Board {
     };
   }, [doc, boardId]);
 
-  return { doc, notes, connectionState, connectionRef };
+  return { doc, objects, connectionState, connectionRef };
 }

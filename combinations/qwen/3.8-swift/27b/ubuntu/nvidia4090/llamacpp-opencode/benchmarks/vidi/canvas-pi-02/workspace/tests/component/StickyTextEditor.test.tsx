@@ -68,21 +68,22 @@ describe('sticky.text', () => {
     expect(notes()[0].text).toBe('a');
   });
 
-  it('TC-38: type text then click outside → editor unmounted, Y.Text has the text, Unselected', async () => {
+  it('TC-38: type text then blur → editor unmounted, Y.Text has the text, note stays Selected', async () => {
     await renderAppAt();
     fireEvent.click(screen.getByRole('button', { name: 'Sticky note' }));
     const ta = screen.getByTestId('sticky-editor-input');
     fireEvent.change(ta, { target: { value: 'abc' } });
 
-    // Clicking outside the note blurs the editor.
+    // Blurring the editor ends editing (story 7: blur keeps the selection,
+    // like Escape; a separate empty-board click is what clears it).
     act(() => {
       ta.blur();
     });
 
     expect(screen.queryByTestId('sticky-editor-input')).toBeNull();
     expect(notes()[0].text).toBe('abc');
-    // Blur → unselected: no blue outline, no toolbar.
-    expect(screen.getByTestId('sticky-note')).not.toHaveAttribute('data-selected');
-    expect(screen.queryByTestId('note-toolbar')).toBeNull();
+    // Blur → Selected: outline stays, and the single-sticky bar is the NoteToolbar.
+    expect(screen.getByTestId('sticky-note')).toHaveAttribute('data-selected', 'true');
+    expect(screen.getByTestId('note-toolbar')).toBeTruthy();
   });
 });

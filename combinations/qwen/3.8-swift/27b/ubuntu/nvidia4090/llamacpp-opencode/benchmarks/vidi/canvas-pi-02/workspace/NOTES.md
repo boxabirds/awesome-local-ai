@@ -351,8 +351,73 @@ under the 1000 ms budget, ~3600 propagations per run).
 (E2E TC numbers follow the story-4 spec; they overlap story 3's TC ids,
 which are scoped per story.)
 
+## Story 7: Select, move, resize and delete several objects at once
+
+### How it works
+
+Selection is **per-client local state** (a reducer in `useSelection`), never
+written to the Y.Doc; it is pruned against the live snapshot on every
+document change, so a remote deletion of a selected/edited object clears it
+locally (TC-35).
+
+- **Marquee** — Shift+drag on empty space (plain drag still pans). The rect
+  lives in *world* units (zoom-invariant), is drawn in the world layer, and
+  on release selects exactly the objects fully contained in it (additive
+  with the current selection). `useMarquee` is a pure state machine;
+  `BoardViewport` routes pointer events and the Escape-cancel.
+- **Group move/resize** — `useTransformGesture` drags one object (or a
+  resize handle) and writes *absolute* positions each frame:
+  `startRect + totalDelta` (per object, scaled by one uniform factor for
+  resize). Absolute writes make concurrent remote moves converge to the last
+  writer (TC-33, TC-36). Aspect-locked types scale uniformly
+  (`max(|dx|, |dy|)`); `clampScale` stops at the type's min size and the
+  global max. Starting a gesture raises the whole selection above
+  unselected objects (`bringObjectsToFront`), preserving relative order.
+- **Keyboard** — `useBoardKeys`: arrows nudge (Shift = ×10), Delete/Backspace
+  deletes the selection, Ctrl/Cmd+A selects all, Escape clears; all inert
+  while a text editor is open (the editor owns the keyboard).
+- **UI chrome** — `SelectionOverlay` (bounding box + 8 handles as real
+  buttons, visible only when the type is resizable and ≥1 selected) and
+  `SelectionBar` ("N selected" + Delete for ≥2; the story-3 NoteToolbar for
+  exactly one sticky).
+
+### Generic multi-type model
+
+`board-model.ts` gained type-agnostic group ops over an `objects` Y.Map:
+`objectsSnapshot`, `objectBounds` (implicit-size stickies fall back to
+`STICKY_SIZE_WORLD`), `objectsInRect`, `moveObjects`, `resizeObjects`,
+`bringObjectsToFront`, `deleteObjects`. `KNOWN_TYPES` + `registerBoardType`
+let the client registry (and tests) declare types with a min size and
+aspect lock; `tests/fixtures/testbox.tsx` exercises a second type end to
+end. `snapshot(): StickySnapshot[]` is unchanged (worker/integration compat).
+`geometry.ts` holds the pure resize/contain/scale math (unit-tested, no DOM).
+
+### Handle alignment gotcha
+
+`.selection-overlay` must not use a CSS **border**: the border insets the
+padding box, so absolutely-positioned handles land 1.5 px inside the true
+corners and drags come out ~0.3 % off (TC-33 caught it). The box is drawn
+with `outline`/`outline-offset: -1.5px` (layout-neutral) and the handle
+buttons are `box-sizing: border-box` so an 8 px button is centred exactly on
+the corner.
+
+### Test matrix (story 7)
+
+| Layer | Command | Added |
+| ----- | ------- | ----- |
+| Unit | `npm run test:unit` | 30: geometry TC-01…04 (+7), group ops TC-05…10 (+2), registry TC-11/12 (+3), selection reducer TC-13…15 (+2) |
+| Component | `npm run test:component` | 16: TC-16…31 (marquee, transform, bar, keys, overlay) |
+| E2E | `npm run test:e2e` | 5: TC-32 (marquee containment), TC-33 (group move/resize/clamp), TC-34 (nudge+Delete), TC-35 (remote-delete prunes selection), TC-36 (5-way concurrent convergence) |
+
+TC-36 is scoped to chromium by the spec ("All pass in chromium; TC-32 also
+in firefox and webkit"); it is skipped on the other two. Its drag distance
+is kept below the inter-group gap so concurrent drag paths never cross
+another group's marquee start point.
+
+Note: live-collab TC-23/TC-25 (chromium/webkit) fail identically on the
+pre-story-7 baseline — pre-existing timing flake, not a regression.
+
 ## Next story
 
-Story 5 (share a board with others using a link) builds on the same sync
-layer; persistence and the load-failure path are already in place.
-Presence/cursors (story 6) can ride the awareness channel.
+Story 6 (presence: cursors and "who's here") rides the same provider;
+the awareness channel is available on the BoardRoom connection.

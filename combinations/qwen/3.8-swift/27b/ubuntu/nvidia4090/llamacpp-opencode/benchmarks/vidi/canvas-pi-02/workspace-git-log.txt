@@ -1,3 +1,69 @@
+commit ff592c6329cc321b02f7278fe44a8f097a5ea3db
+vidi-agent  Mon Sep 28 08:31:25 2026 +0100
+
+    story 7: Select, move, resize and delete several objects at once
+
+
+ NOTES.md                                |  71 ++++-
+ src/client/board/useTransformGesture.ts |   4 +-
+ src/client/styles.css                   |   6 +-
+ tests/component/selection.test.tsx      | 445 ++++++++++++++++++++++++++++++++
+ tests/e2e/helpers/participants.ts       |   3 +
+ tests/e2e/multi-select.spec.ts          | 300 +++++++++++++++++++++
+ 6 files changed, 824 insertions(+), 5 deletions(-)
+commit 7fda1fafe415cc9d8b1549d71f9bc45d65675114
+vidi-agent  Mon Sep 28 07:43:53 2026 +0100
+
+    story 7: fix selection/gesture bugs; all unit+component tests green
+
+
+ src/client/board/useSelection.ts          | 12 +++++++++---
+ src/client/board/useTransformGesture.ts   |  7 +++++--
+ tests/component/StickyTextEditor.test.tsx | 11 ++++++-----
+ 3 files changed, 20 insertions(+), 10 deletions(-)
+commit ba4d5a18fbf075627873255662fa36f5633c69b2
+vidi-agent  Mon Sep 28 07:38:10 2026 +0100
+
+    story 7: implement geometry, group ops, registry, selection, gesture, marquee, keys, bar, overlay (tasks 2,8,10,11,12,13)
+
+
+ src/client/BoardPage.tsx                | 215 ++++++++++++--------
+ src/client/board/SelectionBar.tsx       |  75 +++++++
+ src/client/board/SelectionOverlay.tsx   | 116 +++++++++++
+ src/client/board/useBoardDoc.ts         |  16 +-
+ src/client/board/useBoardKeys.ts        |  94 +++++++++
+ src/client/board/useMarquee.tsx         |  95 +++++++++
+ src/client/board/useSelection.ts        |  90 ++++++++-
+ src/client/board/useTransformGesture.ts | 342 ++++++++++++++++++++++++++++++++
+ src/client/canvas/BoardViewport.tsx     |  45 +++++
+ src/client/canvas/testHooks.ts          |  56 +++++-
+ src/client/objects/StickyNote.tsx       | 184 ++++-------------
+ src/client/objects/StickyTextEditor.tsx |  30 ++-
+ src/client/objects/registry.tsx         |  35 +++-
+ src/client/styles.css                   |  71 +++++++
+ src/shared/geometry.ts                  | 122 +++++++++++-
+ tests/fixtures/testbox.tsx              |   2 +-
+ tests/unit/board-model-group.test.ts    |  10 +-
+ tests/unit/geometry.test.ts             |  35 ++--
+ tests/unit/registry.test.ts             |   3 +-
+ 19 files changed, 1333 insertions(+), 303 deletions(-)
+commit c5ed62bba0ed3c96894c00587afbae59b108d49f
+vidi-agent  Mon Sep 28 07:27:48 2026 +0100
+
+    story 7: add test-first unit tests for geometry, group ops, registry and selection reducer (tasks 6,7,9)
+
+
+ src/client/board/useSelection.ts     |  62 ++++-----
+ src/client/objects/registry.tsx      |  49 +++++++
+ src/shared/board-model.ts            | 251 +++++++++++++++++++++++++++++++----
+ src/shared/config.ts                 |  17 +++
+ src/shared/geometry.ts               |  56 ++++++++
+ tests/fixtures/testbox.tsx           |  64 +++++++++
+ tests/unit/board-model-group.test.ts | 200 ++++++++++++++++++++++++++++
+ tests/unit/geometry.test.ts          | 149 +++++++++++++++++++++
+ tests/unit/registry.test.ts          |  68 ++++++++++
+ tests/unit/selection.test.ts         |  79 +++++++++++
+ 10 files changed, 932 insertions(+), 63 deletions(-)
 commit fda1bfd875b93b43b393047ac2efd04f3674433f
 vidi-agent  Mon Sep 28 07:04:26 2026 +0100
 

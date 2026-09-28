@@ -7,13 +7,14 @@ import { useCallback, useEffect, useRef, type ReactElement } from 'react';
 import * as Y from 'yjs';
 import { LOCAL_ORIGIN } from '../../shared/board-model';
 import { STICKY_TEXT_MAX_CHARS } from '../../shared/config';
-import type { EditEnd } from '../board/useSelection';
 import { applyTextDiff, clampToLimit, counterVisible } from './StickyText';
 
 export interface StickyTextEditorProps {
   ytext: Y.Text;
   fontPx: number;
-  onEnd(next: EditEnd): void;
+  /** The editor has ended (Escape or blur); the caller decides the next
+   *  selection/editing state (story 7 keeps the selection on Escape). */
+  onEnd(): void;
 }
 
 export function StickyTextEditor(props: StickyTextEditorProps): ReactElement {
@@ -65,18 +66,15 @@ export function StickyTextEditor(props: StickyTextEditorProps): ReactElement {
     [ytext],
   );
 
-  const finish = useCallback(
-    (next: EditEnd) => {
-      if (endedRef.current) return;
-      endedRef.current = true;
-      // Defensive flush: every input event already committed, so this is a
-      // no-op in practice (guards an uncommitted value, e.g. IME).
-      const ta = taRef.current;
-      if (ta && ta.value !== lastRef.current) commit(ta.value);
-      onEnd(next);
-    },
-    [commit, onEnd],
-  );
+  const finish = useCallback(() => {
+    if (endedRef.current) return;
+    endedRef.current = true;
+    // Defensive flush: every input event already committed, so this is a
+    // no-op in practice (guards an uncommitted value, e.g. IME).
+    const ta = taRef.current;
+    if (ta && ta.value !== lastRef.current) commit(ta.value);
+    onEnd();
+  }, [commit, onEnd]);
 
   const length = ytext.toString().length;
 
@@ -102,11 +100,11 @@ export function StickyTextEditor(props: StickyTextEditorProps): ReactElement {
         onKeyDown={(e) => {
           if (e.key === 'Escape') {
             e.preventDefault();
-            finish('selected');
+            finish();
           }
           // Enter intentionally not intercepted: it inserts a new line.
         }}
-        onBlur={() => finish('unselected')}
+        onBlur={() => finish()}
       />
       {counterVisible(length) && (
         <span className="sticky-counter" data-testid="sticky-char-counter">

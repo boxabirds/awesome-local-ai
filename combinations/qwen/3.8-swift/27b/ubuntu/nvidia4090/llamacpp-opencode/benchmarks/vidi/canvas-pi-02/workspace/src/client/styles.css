@@ -536,3 +536,78 @@ body {
   font-size: 12px;
   color: #b91c1c;
 }
+
+/* --- Story 7: select, move, resize and delete several objects at once --- */
+
+/* Marquee rect (world layer, world units). */
+.marquee-rect {
+  border: 1px solid #2563eb;
+  background: rgba(37, 99, 235, 0.08);
+  pointer-events: none;
+}
+
+/* Selection bounding box (screen space). The per-object blue outline stays
+   on the object (data-selected); the box frames the whole selection. */
+.selection-overlay {
+  /* outline (not border): it does not change the box, so the absolutely
+     positioned handles land exactly on the bounds corners */
+  outline: 1.5px solid #2563eb;
+  outline-offset: -1.5px; /* draw inside the box */
+  border-radius: 2px;
+}
+
+/* The 8 resize handles. */
+.selection-handle {
+  box-sizing: border-box; /* the 8×8 box is centred exactly on the corner */
+  background: #ffffff;
+  border: 1.5px solid #2563eb;
+  border-radius: 2px;
+  padding: 0;
+}
+
+.selection-handle:focus-visible {
+  outline: 2px solid #2563eb;
+  outline-offset: 1px;
+}
+
+/* Selection bar (screen space, above the bounding box). */
+.selection-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.12);
+}
+
+.selection-bar-count {
+  color: #1f2937;
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+.selection-bar-delete {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: transparent;
+  color: #475569;
+  cursor: pointer;
+}
+
+.selection-bar-delete:hover:not(:disabled) {
+  background: #fef2f2;
+  color: #dc2626;
+}
+
+.selection-bar-delete:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}

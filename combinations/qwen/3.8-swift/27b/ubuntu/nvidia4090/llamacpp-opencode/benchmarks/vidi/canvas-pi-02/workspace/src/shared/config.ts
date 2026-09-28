@@ -127,3 +127,20 @@ export const BOARD_CHECK_RETRY_MAX_DELAY_MS = 5000;
  *  declared missing (share.check: an object-storage hiccup must not show
  *  "not found" for a board that exists). */
 export const BOARD_CHECK_MAX_RETRIES = 8;
+
+/* --- Story 7: select, move, resize and delete several objects at once --- */
+
+/** Screen-space size (px) of the 8 resize handles on the selection box. */
+export const HANDLE_SIZE_PX = 8;
+
+/** Minimum side length (world units) of a sticky note on resize. */
+export const STICKY_MIN_SIZE_WORLD = 50;
+
+/** No object may be resized larger than this (world units). */
+export const MAX_OBJECT_SIZE_WORLD = 20_000;
+
+/** Arrow-key nudge step (world units). */
+export const NUDGE_STEP_WORLD = 1;
+
+/** Shift+arrow nudge step (world units). */
+export const NUDGE_LARGE_STEP_WORLD = 10;

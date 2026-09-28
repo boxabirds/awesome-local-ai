@@ -10,8 +10,8 @@ import {
   deleteObject,
   getStickyText,
   moveObject,
+  objectsSnapshot,
   setStickyColor,
-  snapshot,
 } from '../../shared/board-model';
 import { STICKY_COLORS, type StickyColor } from '../../shared/config';
 
@@ -22,10 +22,25 @@ export interface Vidi6TestApi {
   setCamera(x: number, y: number, zoom: number): void;
   /** Creates a sticky centred on a world point; returns its id (or null). */
   createSticky(x: number, y: number, color?: string): string | null;
-  /** Current sticky snapshots (id, position, colour, text, stacking). */
-  getStickyNotes(): Array<{ id: string; x: number; y: number; color: string; text: string; z: number }>;
-  /** Id of the currently selected note, or null. */
+  /** Current sticky snapshots (id, position, size, colour, text, stacking).
+   *  width/height are null while the note keeps its implicit default size. */
+  getStickyNotes(): Array<{
+    id: string;
+    x: number;
+    y: number;
+    width: number | null;
+    height: number | null;
+    color: string;
+    text: string;
+    z: number;
+  }>;
+  /** Ids of all currently selected objects (empty when nothing is selected). */
+  getSelectedIds(): string[];
+  /** Id of the currently selected note, or null (only for a single note
+   *  selection; legacy helper kept for earlier stories' tests). */
   selectedStickyId(): string | null;
+  /** The current camera (x, y, zoom) in world units. */
+  getCamera(): { x: number; y: number; zoom: number };
   deleteSticky(id: string): boolean;
   moveSticky(id: string, x: number, y: number): boolean;
   bringStickyToFront(id: string): boolean;
@@ -38,6 +53,8 @@ export interface Vidi6TestApi {
   dropConnection(): void;
   /** Restores the network, letting the client reconnect. */
   restoreConnection(): void;
+  /** Transform-gesture start/end counts (story 7: TC-26). */
+  getGestureEvents(): { start: number; end: number };
 }
 
 declare global {
@@ -55,7 +72,8 @@ export function installTestHooks(
   getDoc: () => Y.Doc | null,
   getConnectionState: () => string,
   getConnection: () => BoardConnection | null,
-  getSelectedId: () => string | null,
+  getSelectedIds: () => string[],
+  getGestureEvents?: () => { start: number; end: number },
 ): void {
   if (import.meta.env.MODE !== 'test') return;
   (window as unknown as Record<string, unknown>).__vidi6Doc = getDoc();
@@ -75,10 +93,29 @@ export function installTestHooks(
     getStickyNotes() {
       const doc = getDoc();
       if (!doc) return [];
-      return snapshot(doc).map((n) => ({ id: n.id, x: n.x, y: n.y, color: n.color, text: n.text, z: n.z }));
+      return objectsSnapshot(doc)
+        .filter((o) => o.type === 'sticky')
+        .map((n) => ({
+          id: n.id,
+          x: n.x,
+          y: n.y,
+          width: n.width ?? null,
+          height: n.height ?? null,
+          color: n.color ?? 'yellow',
+          text: n.text,
+          z: n.z,
+        }));
+    },
+    getSelectedIds() {
+      return getSelectedIds();
     },
     selectedStickyId() {
-      return getSelectedId();
+      const ids = getSelectedIds();
+      return ids.length === 1 ? ids[0] : null;
+    },
+    getCamera() {
+      const c = getApi().camera;
+      return { x: c.x, y: c.y, zoom: c.zoom };
     },
     deleteSticky(id) {
       const doc = getDoc();
@@ -98,7 +135,7 @@ export function installTestHooks(
     },
     setStickyText(id, text) {
       const doc = getDoc();
-      if (doc === null || !snapshot(doc).some((n) => n.id === id)) return false;
+      if (doc === null || !objectsSnapshot(doc).some((n) => n.id === id)) return false;
       getStickyText(doc, id)?.insert(0, text);
       return true;
     },
@@ -110,6 +147,9 @@ export function installTestHooks(
     },
     restoreConnection() {
       getConnection()?.restoreNetwork?.();
+    },
+    getGestureEvents() {
+      return getGestureEvents?.() ?? { start: 0, end: 0 };
     },
   };
 }

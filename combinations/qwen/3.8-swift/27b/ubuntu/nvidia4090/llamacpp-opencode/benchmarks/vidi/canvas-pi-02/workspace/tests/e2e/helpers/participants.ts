@@ -10,6 +10,9 @@ export interface StickyNoteInfo {
   id: string;
   x: number;
   y: number;
+  /** Explicit size (story 7 group resize); null for implicit-size notes. */
+  width: number | null;
+  height: number | null;
   color: string;
   text: string;
   z: number;

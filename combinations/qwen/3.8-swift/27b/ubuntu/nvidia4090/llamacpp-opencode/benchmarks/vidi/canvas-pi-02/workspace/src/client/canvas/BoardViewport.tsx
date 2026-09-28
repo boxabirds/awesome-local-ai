@@ -4,6 +4,7 @@
 import { useEffect, useRef, useState, type ReactElement } from 'react';
 import { useCamera, type CameraApi } from './useCamera';
 import type { Point, Size } from './camera';
+import type { MarqueeApi } from '../board/useMarquee';
 import {
   GRID_SPACING_WORLD,
   WHEEL_DELTA_LINE_PX,
@@ -27,6 +28,12 @@ export interface BoardViewportProps {
   onDblClickEmpty?(point: Point): void;
   /** A click (press without drag) on empty board space. */
   onEmptyClick?(): void;
+  /**
+   * Shift+drag marquee (story 7, sel.marquee_ui). When present, Shift+drag
+   * on empty space drives this API instead of panning; a plain drag keeps
+   * panning (TC-21).
+   */
+  marquee?: MarqueeApi | null;
 }
 
 function positiveMod(value: number, modulus: number): number {
@@ -44,16 +51,34 @@ export function BoardViewport({
   camera: cameraProp,
   onDblClickEmpty,
   onEmptyClick,
+  marquee,
 }: BoardViewportProps): ReactElement {
   const containerRef = useRef<HTMLDivElement>(null);
   const worldRef = useRef<HTMLDivElement>(null);
   const [viewport, setViewport] = useState<Size>({ width: 0, height: 0 });
   const [panning, setPanning] = useState(false);
+  const [marqueeActive, setMarqueeActive] = useState(false);
   const panMovedRef = useRef(false);
+  const marqueeActiveRef = useRef(false);
+  const marqueeRef = useRef(marquee);
+  marqueeRef.current = marquee;
   const onEmptyClickRef = useRef(onEmptyClick);
   onEmptyClickRef.current = onEmptyClick;
   const onDblClickEmptyRef = useRef(onDblClickEmpty);
   onDblClickEmptyRef.current = onDblClickEmpty;
+
+  // Escape cancels a live marquee (story 7, sel.marquee_ui).
+  useEffect(() => {
+    if (!marqueeActive) return;
+    const onKeyDown = (e: KeyboardEvent): void => {
+      if (e.key !== 'Escape') return;
+      marqueeRef.current?.cancel();
+      marqueeActiveRef.current = false;
+      setMarqueeActive(false);
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [marqueeActive]);
 
   const ownCamera = useCamera(viewport);
   const camera: CameraApi = cameraProp ?? ownCamera;
@@ -144,18 +169,37 @@ export function BoardViewport({
   const onPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
     if (!onEmptySpace(e)) return;
     e.currentTarget.setPointerCapture(e.pointerId);
+    // Shift+drag on empty space starts the marquee (story 7); a plain drag
+    // keeps panning — the two never overlap (TC-21).
+    if (e.shiftKey && marqueeRef.current) {
+      marqueeActiveRef.current = true;
+      setMarqueeActive(true);
+      marqueeRef.current.begin(toLocal(e));
+      return;
+    }
     setPanning(true);
     panMovedRef.current = false;
     camera.beginPan(toLocal(e));
   };
 
   const onPointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (marqueeActiveRef.current) {
+      marqueeRef.current?.move(toLocal(e));
+      return;
+    }
     if (!panning) return;
     panMovedRef.current = true;
     camera.panMove(toLocal(e));
   };
 
   const finishPan = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (marqueeActiveRef.current) {
+      marqueeActiveRef.current = false;
+      setMarqueeActive(false);
+      if (e.type === 'pointercancel') marqueeRef.current?.cancel();
+      else marqueeRef.current?.end();
+      return;
+    }
     const wasClick = panning && !panMovedRef.current;
     if (e.currentTarget.hasPointerCapture(e.pointerId)) {
       e.currentTarget.releasePointerCapture(e.pointerId);
@@ -178,6 +222,7 @@ export function BoardViewport({
       className="board-viewport"
       data-testid="board-viewport"
       data-pan-state={panning ? 'panning' : 'idle'}
+      data-marquee-state={marqueeActive ? 'active' : 'idle'}
       style={{
         backgroundImage: `radial-gradient(circle, ${GRID_DOT_COLOR} ${GRID_DOT_RADIUS_PX}px, transparent ${GRID_DOT_RADIUS_PX + 0.5}px)`,
         backgroundSize: `${spacing}px ${spacing}px`,
