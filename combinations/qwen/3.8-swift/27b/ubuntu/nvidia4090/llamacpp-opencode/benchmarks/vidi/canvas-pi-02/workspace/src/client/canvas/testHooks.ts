@@ -25,6 +25,8 @@ export interface Vidi6TestApi {
   /** Current connection badge state (story 3): connecting | connected |
    *  reconnecting | confirmed. */
   readonly connectionState: string;
+  /** Story 12 (image.unavailable): this session's client id. */
+  readonly clientId: string;
   setCamera(x: number, y: number, zoom: number): void;
   /** Creates a sticky centred on a world point; returns its id (or null). */
   createSticky(x: number, y: number, color?: string): string | null;
@@ -162,12 +164,18 @@ export function installTestHooks(
   getConnection: () => BoardConnection | null,
   getSelectedIds: () => string[],
   getGestureEvents?: () => { start: number; end: number },
+  getClientId?: () => string,
 ): void {
   if (import.meta.env.MODE !== 'test') return;
   (window as unknown as Record<string, unknown>).__vidi6Doc = getDoc();
   window.__vidi6 = {
     get connectionState() {
       return getConnectionState();
+    },
+    // Story 12 (image.unavailable): the session client id, so tests can
+    // make an image's uploaderId match THIS client (uploader-only UI).
+    get clientId() {
+      return getClientId?.() ?? '';
     },
     setCamera(x, y, zoom) {
       getApi().setCamera({ x, y, zoom });

@@ -48,6 +48,7 @@ import { createText, setTextSize, textSnapshot } from '../shared/objects/text';
 import { shapeSnapshot, setShapeStyle } from '../shared/objects/shape';
 import { connectorSnapshot, setConnectorEndpoint, connectorResolved } from '../shared/objects/connector';
 import { strokeSnapshot } from '../shared/objects/stroke';
+import { imageSnapshot } from '../shared/objects/image';
 import { nearestSide, sideAnchor } from '../shared/geometry/connector-geometry';
 import { TEXT_FONT_FAMILY, type TextSize } from '../shared/config';
 import { remeasureTextObject } from './objects/useTextBoxSync';
@@ -59,7 +60,12 @@ import {
   BOARD_CHECK_MAX_RETRIES,
   BOARD_CHECK_RETRY_BASE_MS,
   BOARD_CHECK_RETRY_MAX_DELAY_MS,
+  IMAGE_UPLOAD_TICK_MS,
 } from '../shared/config';
+import { ToastStack, useToasts } from './board/Toast';
+import { DropHighlight } from './board/DropHighlight';
+import { useBoardImageDrop } from './board/useBoardImageDrop';
+import { useImageInsert } from './images/useImageInsert';
 import { canEdit } from './sync/connectBoard';
 import { isValidBoardId } from '../shared/board-id';
 import { checkBoard } from './api';
@@ -156,6 +162,67 @@ function Board({ boardId }: { boardId: string }): ReactElement {
   // reports a load failure; every edit path below checks this flag.
   const editable = canEdit(connectionState);
 
+  // Story 6 (creator identity) is out of scope: createdBy is a session-
+  // unique client id (see NOTES.md).
+  const clientIdRef = useRef('');
+  if (clientIdRef.current === '') clientIdRef.current = crypto.randomUUID();
+
+  // Story 12 (image.toasts): transient notices for rejections/network/rate.
+  const { toasts, showToast } = useToasts();
+
+  // Story 12 (image.drop/paste/picker/uploads): image insertion. Uploads
+  // complete via UPLOAD_ORIGIN (not an undo step); a drop's placeholders
+  // are ONE LOCAL_ORIGIN transaction (one undo step, story 8).
+  const imageInsert = useImageInsert({
+    boardId,
+    getDoc: () => docRef.current,
+    isConnected: () => connectionStateRef.current === 'connected' || connectionStateRef.current === 'confirmed',
+    clientId: clientIdRef.current,
+    onToast: showToast,
+    getCamera: () => cameraRef.current.camera,
+    getViewportSize: () => viewport,
+  });
+  const imageDrop = useBoardImageDrop({
+    onDrop: (files, point) => imageInsertRef.current.insertFiles(files, 'drop', point),
+    onPaste: (files) => imageInsertRef.current.insertFiles(files, 'paste'),
+    getRootEl: () => rootRef.current,
+  });
+  const imageInsertRef = useRef(imageInsert);
+  imageInsertRef.current = imageInsert;
+
+  // Story 12 (image.unfinished): while any image is uploading, tick the
+  // render clock so the derived `unfinished` state appears on its own.
+  const [imageNow, setImageNow] = useState<number>(() => Date.now());
+  useEffect(() => {
+    let uploading = false;
+    for (const o of objects) {
+      if (o.type !== 'image') continue;
+      const s = imageSnapshot(doc, o.id);
+      if (s !== null && s.status === 'uploading') {
+        uploading = true;
+        break;
+      }
+    }
+    if (!uploading) return;
+    setImageNow(Date.now());
+    const t = setInterval(() => setImageNow(Date.now()), IMAGE_UPLOAD_TICK_MS);
+    return () => clearInterval(t);
+  }, [doc, objects]);
+
+  // Story 12 (image.unavailable): the uploader's Retry / Remove actions on
+  // a failed upload.
+  const retryImage = useCallback((id: string): void => {
+    imageInsertRef.current.retryImage(id);
+  }, []);
+  const removeImage = useCallback((id: string): void => {
+    if (!canEdit(connectionStateRef.current)) return; // load-failed: locked
+    // Removing a failed placeholder is one undo step (undo.steps).
+    undoRef.current?.boundary();
+    deleteObjects(docRef.current, [id]);
+    undoRef.current?.boundary();
+    selectionRef.current.clear();
+  }, []);
+
   // Story 10 (tools.shortcuts): the active tool (select/text/shape/
   // connector), the Shape tool's kind, and the V/T/S/L/Escape shortcuts.
   // One-shot tools: creating an object reverts to Select (tools.one_shot).
@@ -163,17 +230,14 @@ function Board({ boardId }: { boardId: string }): ReactElement {
     canEdit: editable,
     isEditing: () => selectionRef.current.editingId !== null,
     select: (id) => selectionRef.current.selectCreated(id),
+    // Story 12 (image.picker): 'i' opens the picker (an action, not a tool).
+    onImageShortcut: () => imageInsertRef.current.openPicker(),
   });
 
   // Story 11 (pen.options): session-only pen colour/thickness; the choices
   // affect only SUBSEQUENT strokes (existing strokes keep their own).
   const penOptions = usePenOptions();
   const penToolRef = useRef<PenToolApi>(null);
-
-  // Story 6 (creator identity) is out of scope: createdBy is a session-
-  // unique client id (see NOTES.md).
-  const clientIdRef = useRef('');
-  if (clientIdRef.current === '') clientIdRef.current = crypto.randomUUID();
 
   // One shared canvas measurer for text layout (text.layout).
   const measurerRef = useRef<Measurer | null>(null);
@@ -248,6 +312,7 @@ function Board({ boardId }: { boardId: string }): ReactElement {
       () => connectionRef.current,
       () => [...selectionRef.current.ids],
       () => gestureEventsRef.current,
+      () => clientIdRef.current,
     );
   }, []);
 
@@ -390,7 +455,7 @@ function Board({ boardId }: { boardId: string }): ReactElement {
   });
 
   return (
-    <div className="board-root" ref={rootRef}>
+    <div className="board-root" ref={rootRef} {...imageDrop.handlers}>
       <div className="board-header">
         <ConnectionStatus state={connectionState} />
         <ShareButton onOpen={() => setShareOpen(true)} />
@@ -425,6 +490,8 @@ function Board({ boardId }: { boardId: string }): ReactElement {
         marquee={marquee}
       >
         <MarqueeRect rect={marquee.rect} camera={camera.camera} />
+        {/* Story 12 (image.drop): the drop highlight, above the objects. */}
+        <DropHighlight visible={imageDrop.dragging} />
         {visibleObjects.map((o) => {
           const spec = getObjectType(o.type);
           if (spec === undefined) return null; // unknown type: never rendered (D3)
@@ -451,6 +518,20 @@ function Board({ boardId }: { boardId: string }): ReactElement {
               shape={o.type === 'shape' ? shapeSnapshot(doc, o.id) ?? undefined : undefined}
               connector={o.type === 'connector' ? connectorSnapshot(doc, o.id) ?? undefined : undefined}
               stroke={o.type === 'stroke' ? strokeSnapshot(doc, o.id) ?? undefined : undefined}
+              image={o.type === 'image' ? imageSnapshot(doc, o.id) ?? undefined : undefined}
+              imageNow={o.type === 'image' ? imageNow : undefined}
+              imageIsUploader={
+                o.type === 'image'
+                  ? imageSnapshot(doc, o.id)?.uploaderId === clientIdRef.current
+                  : undefined
+              }
+              imageCanRetry={
+                o.type === 'image'
+                  ? editable && (connectionState === 'connected' || connectionState === 'confirmed')
+                  : undefined
+              }
+              onImageRetry={o.type === 'image' ? retryImage : undefined}
+              onImageRemove={o.type === 'image' ? removeImage : undefined}
               rects={rectsMap}
               onReattachEnd={onConnectorReattachEnd}
             />
@@ -553,8 +634,21 @@ function Board({ boardId }: { boardId: string }): ReactElement {
         shapeKind={shapeKind}
         onShapeKind={setShapeKind}
         onCreateSticky={createStickyAtCenter}
+        onAddImage={() => imageInsertRef.current.openPicker()}
         disabled={!editable}
         undo={undoApi}
+      />
+      {/* Story 12 (image.toasts): the transient toast stack. */}
+      <ToastStack toasts={toasts} />
+      {/* Story 12 (image.picker): the hidden file input. */}
+      <input
+        ref={imageInsert.fileInputRef}
+        type="file"
+        multiple
+        accept="image/png,image/jpeg,image/gif,image/webp"
+        style={{ display: 'none' }}
+        onChange={imageInsert.onFileInputChange}
+        data-testid="image-file-input"
       />
       {/* Story 11 (pen.options): pen colour/thickness next to the toolbar
           while the Pen tool is active. */}

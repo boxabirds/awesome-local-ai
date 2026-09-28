@@ -11,6 +11,10 @@
   "durable_objects": {
     "bindings": [{ "name": "BOARD_ROOM", "class_name": "BoardRoom" }]
   },
+  // Story 12 (assets.api): image storage. Keys are <boardId>/<assetId>
+  // (both 128-bit, unguessable); the serving route adds nosniff + CSP so a
+  // stored file can never execute.
+  "r2_buckets": [{ "binding": "ASSETS_BUCKET", "bucket_name": "vidi6-assets" }],
   // Story 5 (share.rate_limit): per-visitor board creation limit. limit and
   // period mirror BOARD_CREATE_LIMIT / BOARD_CREATE_PERIOD_SECONDS in
   // src/shared/config.ts (TC-03 asserts they cannot drift).
@@ -19,6 +23,14 @@
       "name": "BOARD_CREATE_LIMITER",
       "namespace_id": "local-stand-in",
       "simple": { "limit": 10, "period": 60 }
+    },
+    // Story 12 (image.rate_limit): per-visitor image uploads. limit and
+    // period mirror IMAGE_UPLOAD_LIMIT / IMAGE_UPLOAD_PERIOD_SECONDS in
+    // src/shared/config.ts (the integration test asserts they cannot drift).
+    {
+      "name": "ASSET_UPLOAD_LIMITER",
+      "namespace_id": "local-stand-in",
+      "simple": { "limit": 60, "period": 60 }
     }
   ],
   // SQLite-backed so story 4's persistence needs no class migration.

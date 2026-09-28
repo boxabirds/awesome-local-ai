@@ -37,6 +37,9 @@ export interface ActiveToolOptions {
   isEditing(): boolean;
   /** Selects a single object (toolCreated selects the new one). */
   select(id: string): void;
+  /** Story 12 (image.picker): the 'i' shortcut opens the image picker
+   *  (one-shot action, like 'n' for stickies — never a tool switch). */
+  onImageShortcut?(): void;
 }
 
 export interface ActiveToolApi {
@@ -101,6 +104,11 @@ export function useActiveTool(opts: ActiveToolOptions): ActiveToolApi {
       if (key === 'escape') {
         // Escape returns to Select from any creation tool (tools.shortcuts).
         setToolState((t) => (t === 'select' ? t : 'select'));
+        return;
+      }
+      // Story 12: 'i' opens the image picker (an action, not a tool).
+      if (key === 'i') {
+        if (optsRef.current.canEdit) optsRef.current.onImageShortcut?.();
         return;
       }
       const next = TOOL_SHORTCUTS[key];

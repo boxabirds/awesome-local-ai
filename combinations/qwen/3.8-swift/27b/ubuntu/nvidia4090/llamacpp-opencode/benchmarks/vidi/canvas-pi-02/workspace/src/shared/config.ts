@@ -262,3 +262,37 @@ export const STROKE_MAX_POINTS = 5000;
 export const STROKE_HIT_TOLERANCE_PX = 6;
 /** Minimum side length (world units) of a stroke's bbox on resize. */
 export const STROKE_MIN_SIZE_WORLD = 4;
+
+/* --- Story 12: drop images onto the board --- */
+
+/** The image MIME types accepted for board images (image.types). The
+ *  server re-checks by magic bytes; the client pre-filters by File.type. */
+export const IMAGE_ACCEPTED_TYPES = ['image/png', 'image/jpeg', 'image/gif', 'image/webp'] as const;
+/** Maximum upload size in bytes (10 MB) (image.size_limit). */
+export const IMAGE_MAX_BYTES = 10 * 1024 * 1024;
+/** Maximum files accepted in one add action (image.count_limit). */
+export const IMAGE_MAX_FILES_PER_ADD = 20;
+/** Longest-side cap (board units) an image is placed at (image.placement_size). */
+export const IMAGE_MAX_PLACE_SIZE_WORLD = 800;
+/** Minimum side length (board units) of an image on resize (image.aspect_resize). */
+export const IMAGE_MIN_SIZE_WORLD = 16;
+/** Gap (board units) between images laid out in a row (image.drop). */
+export const IMAGE_LAYOUT_GAP_WORLD = 24;
+/** An upload in flight longer than this (ms) renders as unfinished
+ *  (image.unfinished). */
+export const IMAGE_UPLOAD_STALE_MS = 5 * 60 * 1000;
+/** Auto-retry cadence (ms) for pending image uploads (image.uploads). */
+export const IMAGE_UPLOAD_RETRY_INTERVAL_MS = 5_000;
+/** PRD image.rate_limit: images one visitor may upload per period. */
+export const IMAGE_UPLOAD_LIMIT = 60;
+/** Upload rate-limit window in seconds. Must match the ASSET_UPLOAD_LIMITER
+ *  entry in wrangler.jsonc (the integration test asserts they cannot drift). */
+export const IMAGE_UPLOAD_PERIOD_SECONDS = 60;
+/** Cache-Control max-age (seconds) for served assets: keys are unguessable
+ *  and never change, so serve immutable (image.shared). */
+export const ASSET_CACHE_MAX_AGE_SECONDS = 31_536_000;
+/** Number of head bytes read for magic-byte type sniffing (image.types). */
+export const IMAGE_SNIFF_BYTES = 12;
+/** ImageObject re-render cadence (ms) while any image is uploading, so the
+ *  derived `unfinished` state appears without user interaction. */
+export const IMAGE_UPLOAD_TICK_MS = 30_000;

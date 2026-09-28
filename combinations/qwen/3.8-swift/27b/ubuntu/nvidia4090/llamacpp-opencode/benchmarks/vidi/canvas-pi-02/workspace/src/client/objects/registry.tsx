@@ -10,6 +10,7 @@ import { objectBounds, type ObjectSnapshot } from '../../shared/board-model';
 import type { Point, Rect } from '../../shared/geometry';
 import {
   CONNECTOR_HIT_TOLERANCE_PX,
+  IMAGE_MIN_SIZE_WORLD,
   SHAPE_MIN_SIZE_WORLD,
   STICKY_MIN_SIZE_WORLD,
   STROKE_MIN_SIZE_WORLD,
@@ -19,6 +20,7 @@ import type { TextSnapshot } from '../../shared/objects/text';
 import { ensureShapeType, type ShapeSnap } from '../../shared/objects/shape';
 import { ensureConnectorType, type ConnectorSnap } from '../../shared/objects/connector';
 import { ensureStrokeType, strokeHitsPoint, type StrokeSnap } from '../../shared/objects/stroke';
+import { ensureImageType, type ImageSnap } from '../../shared/objects/image';
 
 // Register the board types for THIS client at module load (story 10):
 // objectsSnapshot filters unknown types, so every client must know
@@ -30,6 +32,7 @@ import { ensureStrokeType, strokeHitsPoint, type StrokeSnap } from '../../shared
 ensureShapeType();
 ensureConnectorType();
 ensureStrokeType();
+ensureImageType();
 
 import type { UndoController } from '../board/undo';
 import { StickyNote } from './StickyNote';
@@ -37,6 +40,7 @@ import { TextObject } from './TextObject';
 import { ShapeObject } from './ShapeObject';
 import { ConnectorObject } from './ConnectorObject';
 import { StrokeObject } from './StrokeObject';
+import { ImageObject } from './ImageObject';
 
 /** Props every board object component receives from the generic renderer. */
 export interface ObjectProps {
@@ -74,6 +78,19 @@ export interface ObjectProps {
   /** Story 11: the stroke's extended snapshot (points/base size/colour/
    *  thickness); only stroke objects receive it. */
   stroke?: StrokeSnap;
+  /** Story 12: the image's extended snapshot (assetKey/status/…);
+   *  only image objects receive it. */
+  image?: ImageSnap;
+  /** Story 12: the render clock (BoardPage ticks while uploads are in
+   *  flight) so `unfinished` derives without user interaction. */
+  imageNow?: number;
+  /** Story 12: true when THIS client is the object's uploader (the
+   *  uploader gets Retry/Remove on a failed upload). */
+  imageIsUploader?: boolean;
+  /** Story 12: the uploader may retry (board connected). */
+  imageCanRetry?: boolean;
+  onImageRetry?: (id: string) => void;
+  onImageRemove?: (id: string) => void;
   /** Story 10: live world rects of the non-connector objects (connector
    *  endpoint resolution for rendering, conn.follow). */
   rects?: ReadonlyMap<string, Rect>;
@@ -189,4 +206,19 @@ registerObjectType('stroke', {
   minSize: STROKE_MIN_SIZE_WORLD,
   editableText: false,
   hitTest: (obj, p, zoom = 1) => strokeHitsPoint(obj, p, zoom),
+});
+
+// The image type (story 12, image.place / image.aspect_resize): resizable
+// with an ASPECT LOCK (the image scales proportionally; natural size is
+// stored separately), minimum side IMAGE_MIN_SIZE_WORLD.
+registerObjectType('image', {
+  Component: ImageObject,
+  resizable: true,
+  aspectLocked: true,
+  minSize: IMAGE_MIN_SIZE_WORLD,
+  editableText: false,
+  hitTest: (obj, p) => {
+    const b = objectBounds(obj);
+    return p.x >= b.x && p.x < b.x + b.width && p.y >= b.y && p.y < b.y + b.height;
+  },
 });

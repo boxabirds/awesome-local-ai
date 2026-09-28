@@ -23,6 +23,9 @@ export interface ToolbarProps {
   onShapeKind(kind: ShapeKind): void;
   /** Sticky note button: creates one note at the view centre. */
   onCreateSticky(): void;
+  /** Story 12 (image.picker): the Image button opens the file picker
+   *  (one-shot — it never becomes the active tool). */
+  onAddImage(): void;
   /** Non-editable board: the creation tools are disabled (selection stays). */
   disabled?: boolean;
   /** Personal undo/redo (story 8); null while unavailable. */
@@ -136,6 +139,23 @@ export function Toolbar(props: ToolbarProps): ReactElement {
             d="M4 16l1-4L13.5 3.5a1.8 1.8 0 012.5 0l.5.5a1.8 1.8 0 010 2.5L8 15l-4 1z"
             fill="currentColor"
           />
+        </svg>
+      </button>
+      {/* Story 12 (image.picker): the Image button — one-shot picker, not a tool. */}
+      <button
+        type="button"
+        className="toolbar-sticky"
+        aria-label="Image (I)"
+        title="Image – I"
+        disabled={props.disabled}
+        onClick={() => props.onAddImage()}
+        data-testid="toolbar-image"
+      >
+        {/* Picture glyph. */}
+        <svg width="20" height="20" viewBox="0 0 20 20" aria-hidden="true">
+          <rect x="3" y="4" width="14" height="12" fill="none" stroke="currentColor" strokeWidth="1.8" />
+          <circle cx="7.5" cy="8.5" r="1.6" fill="currentColor" />
+          <path d="M4 14l4-4 3 3 3-3 2.5 2.5" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" />
         </svg>
       </button>
       <button

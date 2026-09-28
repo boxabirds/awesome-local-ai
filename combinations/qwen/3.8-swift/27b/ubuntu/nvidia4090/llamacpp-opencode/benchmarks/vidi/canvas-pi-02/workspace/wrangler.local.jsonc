@@ -16,6 +16,8 @@
   "durable_objects": {
     "bindings": [{ "name": "BOARD_ROOM", "class_name": "BoardRoom" }]
   },
+  // Story 12 (assets.api): local Miniflare R2 (same bucket as production).
+  "r2_buckets": [{ "binding": "ASSETS_BUCKET", "bucket_name": "vidi6-assets" }],
   // SQLite-backed so story 4's persistence needs no class migration.
   "migrations": [{ "tag": "v1", "new_sqlite_classes": ["BoardRoom"] }]
 }
