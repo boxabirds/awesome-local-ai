@@ -1,12 +1,12 @@
-# Notes — Story 1: Pan and zoom around an infinite board
+# Notes — Stories 1 + 2
 
-Client-only infinite canvas. A pure camera module drives a DOM viewport whose
-world layer and dot grid are positioned with CSS transforms. React handles
-input (pointer drag, non-passive wheel, Safari `gesture*`, keyboard) and the
-zoom controls.
+Client-only infinite canvas with sticky notes. A pure camera module drives a DOM viewport whose
+world layer and dot grid are positioned with CSS transforms. Yjs provides the CRDT document
+model. React handles input (pointer drag, non-passive wheel, Safari `gesture*`, keyboard),
+the zoom controls, toolbar, and note interactions.
 
-`npm run build`, `npm run typecheck`, `npm run test:unit` (15),
-`npm run test:component` (18) and `npm run test:e2e` (7, Chromium) all pass.
+`npm run build`, `npm run typecheck`, `npm run test:unit` (42),
+`npm run test:component` (38) and `npm run test:e2e` (13, Chromium) all pass.
 
 ## Decisions & deviations from the design (all reasonable, none weaken tests)
 
@@ -88,3 +88,68 @@ zoom controls.
   (TC-23..28, TC-31).
 
 `@types/node` was added as a dev dependency for the Vite/Playwright config files.
+
+---
+
+# Notes — Story 2: Capture ideas on sticky notes and rearrange them
+
+Sticky notes are stored in a Yjs `Y.Map<Y.Map>` with `Y.Text` for text content.
+The client syncs via `useSyncExternalStore` with a cached snapshot pattern.
+
+## Decisions & deviations
+
+1. **Camera state via `useState` in App.** The design uses a `useRef` for camera
+   state in `App`, but refs don't trigger re-renders. When `BoardViewport`
+   re-renders (camera change), children created in `App`'s render pass retain
+   stale props. Fix: `App` holds camera in `useState` updated via
+   `onCameraChange`, ensuring `zoom` prop on `StickyNote` is always current.
+
+2. **`bringToFront` deferred to pointerup.** Calling `bringToFront` (which
+   changes z-order) during a drag causes React to reorder keyed children,
+   which moves the DOM element and releases pointer capture. Instead, a local
+   `dragZ` state overrides the z-index visually (zIndex: 10000) during the
+   drag, and `bringToFront` commits the model change on pointerup. User-facing
+   behaviour is identical: the dragged note visually floats above all others.
+
+3. **`onCameraChange` prop on `BoardViewport`.** Added as a new prop to inform
+   `App` of camera/viewport changes. This callback fires from a `useEffect`
+   after camera state changes, allowing `App` to position overlays correctly.
+
+4. **Y.Text delta is lazy.** In Yjs observer callbacks, `event.delta` is lazily
+   evaluated and cleared after the callback returns. Unit tests that inspect
+   the delta must `JSON.parse(JSON.stringify(e.delta))` inside the observer.
+
+5. **Standalone `Y.Text` requires a Doc.** `Y.Text.doc` is `null` when the
+   text isn't attached to a document. Tests must attach to a `Y.Doc` before
+   calling `applyTextDiff`.
+
+6. **Click-outside via microtask.** `StickyTextEditor` attaches a
+   `document.pointerdown` listener gated by `Promise.resolve().then()` to skip
+   the triggering event (the dblclick/Enter that started editing).
+
+## Files added/modified
+
+- `src/shared/board-model.ts` — Yjs schema, CRUD, move, color, text operations.
+- `src/shared/config.ts` — added STICKY_SIZE_WORLD, STICKY_COLORS, STICKY_TEXT_MAX,
+  DRAG_THRESHOLD_PX.
+- `src/client/board/useBoardDoc.ts` — Y.Doc lifecycle + snapshot via
+  `useSyncExternalStore`.
+- `src/client/board/useSelection.ts` — selection + editing state management.
+- `src/client/objects/StickyNote.tsx` — note component with state machine
+  (unselected/pressed/selected/dragging/editing), rAF-throttled drag.
+- `src/client/objects/StickyText.ts` — `applyTextDiff`, `clampToLimit`,
+  `fitFontSize` binary search, `counterVisible`.
+- `src/client/objects/StickyTextEditor.tsx` — textarea with Y.Text binding.
+- `src/client/objects/NoteToolbar.tsx` — 6 colour swatches + delete.
+- `src/client/board/Toolbar.tsx` — left-side sticky note creation button.
+- `src/client/canvas/BoardViewport.tsx` — added `onDblClickEmpty`,
+  `onEmptyClick`, `onCameraChange` props.
+- `src/client/App.tsx` — wiring, keyboard handlers, NoteToolbar positioning.
+- `src/client/styles.css` — toolbar, sticky, fade, and swatch styles.
+- Tests: `tests/unit/board-model.test.ts` (TC-01–12),
+  `tests/unit/sticky-text.test.ts` (TC-13–17),
+  `tests/component/StickyNote.test.tsx` (TC-18–26),
+  `tests/component/StickyTextEditor.test.tsx` (TC-19, 27–31),
+  `tests/component/Toolbars.test.tsx` (TC-32–36),
+  `tests/e2e/sticky-notes.spec.ts` (TC-30–34, golden path),
+  `tests/fixtures/texts.ts`.

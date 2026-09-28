@@ -20,3 +20,38 @@ export const GRID_SPACING_WORLD = 24;
 
 /** Pan distance (world units) the board must handle without edges or distortion. */
 export const UNBOUNDED_PAN_TESTED_EXTENT = 1_000_000;
+
+// ─── Story 2: Sticky notes ───────────────────────────────────────────────────
+
+/** Width and height of a sticky note in world units. */
+export const STICKY_SIZE_WORLD = 200;
+
+/** Maximum characters allowed in a sticky note's text. */
+export const STICKY_TEXT_MAX_CHARS = 1000;
+
+/** The character counter appears when remaining characters <= this value. */
+export const STICKY_COUNTER_THRESHOLD_CHARS = 50;
+
+/** Maximum font size for sticky note text (px at 100% zoom). */
+export const STICKY_FONT_MAX_PX = 24;
+
+/** Minimum font size for sticky note text (px at 100% zoom). */
+export const STICKY_FONT_MIN_PX = 10;
+
+/** Distance in screen pixels before a press becomes a drag. */
+export const DRAG_THRESHOLD_PX = 3;
+
+/** The six preset colours for sticky notes. */
+export const STICKY_COLORS = {
+  yellow: '#FFF59D',
+  orange: '#FFCC80',
+  green: '#C5E1A5',
+  blue: '#90CAF9',
+  pink: '#F48FB1',
+  violet: '#CE93D8',
+} as const;
+
+export type StickyColor = keyof typeof STICKY_COLORS;
+
+/** Default colour applied to newly created sticky notes. */
+export const DEFAULT_STICKY_COLOR: StickyColor = 'yellow';

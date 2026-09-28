@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import type { CSSProperties, ReactNode } from 'react';
-import { canZoomIn, canZoomOut, type Size, zoomPercent } from './camera';
+import { canZoomIn, canZoomOut, screenToWorld, type Size, zoomPercent } from './camera';
 import { useCamera, type CameraController } from './useCamera';
 import { ZoomControls } from './ZoomControls';
 import { NavigationHint } from './NavigationHint';
@@ -59,9 +59,12 @@ function isInsideControls(target: EventTarget | null): boolean {
 
 export interface BoardViewportProps {
   children?: ReactNode;
+  onDblClickEmpty?(worldPoint: { x: number; y: number }): void;
+  onEmptyClick?(): void;
+  onCameraChange?(camera: { x: number; y: number; zoom: number }, viewport: Size): void;
 }
 
-export function BoardViewport({ children }: BoardViewportProps) {
+export function BoardViewport({ children, onDblClickEmpty, onEmptyClick, onCameraChange }: BoardViewportProps) {
   const surfaceRef = useRef<HTMLDivElement>(null);
   const [viewport, setViewport] = useState<Size>({ width: 0, height: 0 });
   const [panning, setPanning] = useState(false);
@@ -70,6 +73,13 @@ export function BoardViewport({ children }: BoardViewportProps) {
   const controller: CameraController = useCamera(viewport);
   const controllerRef = useRef(controller);
   controllerRef.current = controller;
+
+  // Expose camera changes to parent
+  const onCameraChangeRef = useRef(onCameraChange);
+  onCameraChangeRef.current = onCameraChange;
+  useEffect(() => {
+    onCameraChangeRef.current?.(controller.camera, viewport);
+  }, [controller.camera, viewport]);
 
   // Track the viewport size; camera x,y,zoom are intentionally untouched here.
   useEffect(() => {
@@ -217,6 +227,55 @@ export function BoardViewport({ children }: BoardViewportProps) {
       el.removeEventListener('pointercancel', endPan as EventListener);
       el.removeEventListener('lostpointercapture', endPan as EventListener);
     };
+  }, []);
+
+  // Empty click (pointerdown + up on board surface without drag) clears selection
+  const emptyClickRef = useRef<{ x: number; y: number } | null>(null);
+  useEffect(() => {
+    const el = surfaceRef.current;
+    if (!el) return;
+    const onDown = (e: PointerLike) => {
+      if (!isBoardSurface(e.target, el)) return;
+      emptyClickRef.current = { x: e.clientX, y: e.clientY };
+    };
+    const onUp = (e: PointerLike) => {
+      const start = emptyClickRef.current;
+      emptyClickRef.current = null;
+      if (!start) return;
+      if (!isBoardSurface(e.target, el)) return;
+      const dx = e.clientX - start.x;
+      const dy = e.clientY - start.y;
+      if (Math.abs(dx) < 3 && Math.abs(dy) < 3) {
+        onEmptyClickRef.current?.();
+      }
+    };
+    el.addEventListener('pointerdown', onDown as EventListener, true);
+    el.addEventListener('pointerup', onUp as EventListener, true);
+    return () => {
+      el.removeEventListener('pointerdown', onDown as EventListener, true);
+      el.removeEventListener('pointerup', onUp as EventListener, true);
+    };
+  }, []);
+
+  const onEmptyClickRef = useRef(onEmptyClick);
+  onEmptyClickRef.current = onEmptyClick;
+
+  // Double-click on empty board space → create sticky
+  const onDblClickEmptyRef = useRef(onDblClickEmpty);
+  onDblClickEmptyRef.current = onDblClickEmpty;
+  useEffect(() => {
+    const el = surfaceRef.current;
+    if (!el) return;
+    const onDbl = (e: MouseEvent) => {
+      if (!isBoardSurface(e.target, el)) return;
+      const rect = el.getBoundingClientRect();
+      const screenPoint = { x: e.clientX - rect.left, y: e.clientY - rect.top };
+      const cam = controllerRef.current.camera;
+      const world = screenToWorld(cam, screenPoint);
+      onDblClickEmptyRef.current?.(world);
+    };
+    el.addEventListener('dblclick', onDbl);
+    return () => el.removeEventListener('dblclick', onDbl);
   }, []);
 
   const cam = controller.camera;
