@@ -22,5 +22,9 @@
       "src/*": ["src/*"]
     }
   },
-  "include": ["src", "tests"]
+  "include": ["src", "tests"],
+  // E2E specs run through Playwright (esbuild transpile, no tsc typecheck) and
+  // use Node built-ins (see helpers/wrangler-process.ts), so they are excluded
+  // from the Workers/browser typecheck.
+  "exclude": ["tests/e2e"]
 }

@@ -5,14 +5,19 @@
  * (assets path, no DO). TC-13/TC-17 exercise the room via direct instances
  * (real WebSockets + Yjs) to verify capacity and board isolation.
  */
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, afterEach } from 'vitest';
 import { SELF } from 'cloudflare:test';
 import worker from 'src/worker/index';
 import { newBoardId } from 'src/shared/board-id';
 import { MAX_CONCURRENT_EDITORS } from 'src/shared/config';
 import { createSticky } from 'src/shared/board-model';
-import { createRoom } from './helpers/room';
-import { connectRoomClient, type RoomClient } from './helpers/ws-client';
+import { connectRoomClient, settleBoards, type RoomClient } from './helpers/ws-client';
+
+// Local workerd's DO isolate overflows at ~11 live BoardRoom objects; evict
+// idle boards between tests so the live count stays under the limit.
+afterEach(async () => {
+  await settleBoards();
+});
 
 interface SpyResult {
   res: Response;
@@ -65,7 +70,7 @@ describe('sync.worker_entry routing', () => {
   });
 
   it('TC-13: MAX_CONCURRENT_EDITORS + 1 sockets all accepted; note reaches all others', async () => {
-    const room = createRoom();
+    const room = newBoardId();
     const n = MAX_CONCURRENT_EDITORS + 1;
     const clients: RoomClient[] = [];
     for (let i = 0; i < n; i++) clients.push(await connectRoomClient(room));
@@ -82,12 +87,12 @@ describe('sync.worker_entry routing', () => {
     }
     const ids = new Set(clients.map((c) => c.snapshot()[0].id));
     expect(ids.size).toBe(1);
-    for (const c of clients) c.close();
+    for (const c of clients) await c.close();
   });
 
   it('TC-17: updates do not cross boards (isolation)', async () => {
-    const room1 = createRoom();
-    const room2 = createRoom();
+    const room1 = newBoardId();
+    const room2 = newBoardId();
     const a = await connectRoomClient(room1);
     const b = await connectRoomClient(room2);
     await a.waitForSync();
@@ -99,7 +104,5 @@ describe('sync.worker_entry routing', () => {
     // B is on a different room: receives nothing, doc stays empty.
     await new Promise((r) => setTimeout(r, 200));
     expect(b.snapshot().length).toBe(0);
-    a.close();
-    b.close();
-  });
+    await a.close();    await b.close();  });
 });

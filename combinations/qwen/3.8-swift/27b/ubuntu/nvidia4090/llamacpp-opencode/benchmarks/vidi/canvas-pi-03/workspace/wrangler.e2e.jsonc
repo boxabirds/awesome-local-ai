@@ -1,0 +1,27 @@
+{
+  "name": "vidi6",
+  "main": "src/worker/index.ts",
+  "compatibility_date": "2024-12-01",
+  "assets": {
+    "directory": "dist/client",
+    "binding": "ASSETS",
+    "not_found_handling": "single-page-application"
+  },
+  "durable_objects": {
+    "bindings": [
+      {
+        "name": "BOARD_ROOM",
+        "class_name": "BoardRoom"
+      }
+    ]
+  },
+  "migrations": [
+    {
+      "tag": "v1",
+      "new_sqlite_classes": ["BoardRoom"]
+    }
+  ],
+  "vars": {
+    "TEST_HOOKS": "1"
+  }
+}

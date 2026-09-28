@@ -3,6 +3,8 @@ import { STICKY_COLORS, type StickyColor } from 'src/shared/config';
 
 export interface NoteToolbarProps {
   color: StickyColor;
+  /** When false (board `load_failed`) the colour and delete controls are disabled. */
+  editable?: boolean;
   onColor: (c: StickyColor) => void;
   onDelete: () => void;
 }
@@ -26,6 +28,7 @@ const COLOR_NAMES: Record<StickyColor, string> = {
  * (which would clear the selection).
  */
 export function NoteToolbar(props: NoteToolbarProps): JSX.Element {
+  const { editable = true } = props;
   return (
     <div
       role="toolbar"
@@ -54,6 +57,7 @@ export function NoteToolbar(props: NoteToolbarProps): JSX.Element {
           aria-pressed={props.color === c}
           title={`${COLOR_NAMES[c]} colour`}
           data-testid={`swatch-${c}`}
+          disabled={!editable}
           onClick={() => props.onColor(c)}
           style={{
             width: 20,
@@ -72,6 +76,7 @@ export function NoteToolbar(props: NoteToolbarProps): JSX.Element {
         aria-label="Delete note"
         title="Delete note"
         data-testid="delete-note-button"
+        disabled={!editable}
         onClick={props.onDelete}
         style={{
           width: 28,

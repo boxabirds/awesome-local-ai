@@ -2,6 +2,8 @@ import type { JSX } from 'react';
 
 export interface ToolbarProps {
   onCreateSticky: () => void;
+  /** When true (board `load_failed`) the Sticky note button is disabled. */
+  disabled?: boolean;
 }
 
 /**
@@ -38,6 +40,7 @@ export function Toolbar(props: ToolbarProps): JSX.Element {
         aria-label="Sticky note"
         title="Sticky note – or double-click the board"
         data-testid="sticky-note-button"
+        disabled={props.disabled}
         onClick={props.onCreateSticky}
         style={{
           width: 40,

@@ -1,9 +1,8 @@
 /**
  * Integration test helper: a real Y.Doc speaking y-websocket framing over a
- * real WebSocket, talking to a BoardRoom instance directly (the same framing
- * the browser provider uses). BoardRoom uses `WebSocketPair` (no DO storage),
- * so we can instantiate it in workerd without the durable-object namespace —
- * which avoids workerd writing per-object storage files.
+ * real WebSocket, talking to the board's BoardRoom Durable Object through the
+ * real worker route (`/api/rooms/<boardId>`). This exercises the full hibernation
+ * path: `ctx.acceptWebSocket` on the server, real sync/awareness, real SQLite.
  *
  * It tracks the server's state vector so `waitForSync()` resolves once this
  * client has applied everything the server has (robust for late joiners).
@@ -12,11 +11,28 @@ import * as Y from 'yjs';
 import * as syncProtocol from 'y-protocols/sync';
 import * as encoding from 'lib0/encoding';
 import * as decoding from 'lib0/decoding';
+import { SELF } from 'cloudflare:test';
 import { snapshot, type StickySnapshot } from 'src/shared/board-model';
 import { MESSAGE_SYNC } from 'src/shared/protocol';
-import type { BoardRoomCore } from 'src/worker/board-room';
 
 export type ReceivedType = 'sync' | 'awareness' | 'query-awareness' | 'unknown';
+
+/**
+ * Local workerd does not truly hibernate: every constructed BoardRoom keeps its
+ * Y.Doc + SQLite storage cache resident until the ~10 s idle eviction. The DO
+ * isolate's storage cache overflows at ~11 live objects, after which creating a
+ * new object hangs. So we cap how many boards are alive at once: once we've
+ * created `EVICTION_BATCH` boards (and their sockets are closed), we pause just
+ * past the idle-eviction timeout so the objects are released before the next is
+ * constructed. This keeps the live count safely under the limit.
+ */
+const EVICTION_BATCH = 7;
+const EVICTION_WAIT_MS = 12_000;
+// Unique boards constructed since the last eviction. A board with many clients
+// counts once, so a 101-socket test does not trigger spurious evictions. The
+// set is only ever cleared by an eviction, so it may slightly over-count
+// already-evicted boards — that just evicts a little early (safe).
+const liveBoardIds = new Set<string>();
 
 export interface RoomClient {
   doc: Y.Doc;
@@ -62,10 +78,6 @@ function frameSync(syncMessage: Uint8Array): Uint8Array {
 }
 
 /**
- * Connects a real Y.Doc client to a BoardRoomCore. We create a WebSocketPair,
- * hand the server half to the room, and drive the client half directly.
- */
-/**
  * A client is considered synced with the server's initial state once its own
  * state vector *covers* the server state vector captured at attach time: for
  * every (client, clock) the server reported, the client has that client at an
@@ -96,19 +108,57 @@ function decodeStateVector(sv: Uint8Array): Map<number, number> {
   return m;
 }
 
-export function connectRoomClient(room: BoardRoomCore): RoomClient {
-  const pair = new WebSocketPair();
-  const clientSocket = pair[0];
-  const server = pair[1];
-  server.accept();
-  room.attachSocket(server);
-  const ws = clientSocket;
+/**
+ * Connects a real Y.Doc client to the board's BoardRoom via the real worker
+ * route. The server (room) is the authority: it seeds the initial state. The
+ * client starts empty and syncs from the server — mirroring the real browser.
+ */
+/**
+ * Call from an `afterEach` hook (between tests, not mid-test): if we've
+ * constructed enough boards, pause just past the idle-eviction timeout so the
+ * workerd DO isolate releases them before the next test constructs more. This
+ * keeps the live-object count under the isolate limit without stalling a test.
+ */
+export async function settleBoards(): Promise<void> {
+  if (liveBoardIds.size >= EVICTION_BATCH) {
+    liveBoardIds.clear();
+    await new Promise((r) => setTimeout(r, EVICTION_WAIT_MS));
+  }
+}
+
+export async function connectRoomClient(
+  boardId: string,
+  existingDoc?: Y.Doc,
+): Promise<RoomClient> {
+  // Track unique boards constructed (used by settleBoards to schedule eviction).
+  liveBoardIds.add(boardId);
+
+  const res = await SELF.fetch(`http://localhost/api/rooms/${boardId}`, {
+    headers: { Upgrade: 'websocket', Connection: 'Upgrade' },
+  });
+  if (res.status !== 101 || !res.webSocket) {
+    throw new Error(`expected websocket upgrade, got ${res.status}`);
+  }
+  const ws = res.webSocket;
   ws.binaryType = 'arraybuffer';
   ws.accept();
 
-  // The server (room) is the authority: it seeds the initial state. The client
-  // starts empty and syncs from the server - mirroring the real browser client.
-  const doc = new Y.Doc();
+  // Sends from event handlers (message / doc-update) can fire after the socket
+  // closes. In workerd, `send()` on a closed socket THROWS; uncaught, it
+  // corrupts the whole runtime and every later Durable Object creation hangs.
+  // Guard every send with a readyState check + catch.
+  const safeSend = (data: Uint8Array | string) => {
+    if (ws.readyState !== ws.OPEN) return;
+    try {
+      ws.send(data);
+    } catch {
+      /* socket closed concurrently — safe to ignore */
+    }
+  };
+
+  // Reconnect can reuse an existing doc (preserving local/unsaved changes),
+  // mirroring the real browser which keeps its Y.Doc across reconnects.
+  const doc = existingDoc ?? new Y.Doc();
 
   let serverSV: Uint8Array | null = null;
   const heldUpdates: Uint8Array[] = [];
@@ -126,19 +176,19 @@ export function connectRoomClient(room: BoardRoomCore): RoomClient {
     remoteUpdates: 0,
     closed,
     serverSV: () => serverSV,
-    sendSync: (syncMessage) => ws.send(frameSync(syncMessage)),
-    sendRaw: (data) => ws.send(data),
+    sendSync: (syncMessage) => safeSend(frameSync(syncMessage)),
+    sendRaw: (data) => safeSend(data),
     sendUpdate: (update) => {
       const enc = encoding.createEncoder();
       encoding.writeVarUint(enc, MESSAGE_SYNC);
       syncProtocol.writeUpdate(enc, update);
-      ws.send(encoding.toUint8Array(enc));
+      safeSend(encoding.toUint8Array(enc));
     },
     sendAwareness: (bytes) => {
       const enc = encoding.createEncoder();
       encoding.writeVarUint(enc, 1); // MESSAGE_AWARENESS
       encoding.writeVarUint8Array(enc, bytes);
-      ws.send(encoding.toUint8Array(enc));
+      safeSend(encoding.toUint8Array(enc));
     },
     holding: false,
     heldUpdates,
@@ -149,7 +199,11 @@ export function connectRoomClient(room: BoardRoomCore): RoomClient {
     },
     snapshot: () => snapshot(doc),
     isConnected: () => ws.readyState === ws.OPEN,
-    close: (code = 1000) => ws.close(code),
+    // Fire-and-forget: with the hibernation API the close is deferred until the
+    // object is idle-evicted (~10 s), so awaiting it would stall every test.
+    close: (code = 1000) => {
+      ws.close(code);
+    },
     waitForSync: () =>
       client.waitFor(
         () =>
@@ -164,7 +218,7 @@ export function connectRoomClient(room: BoardRoomCore): RoomClient {
   const step1 = encoding.createEncoder();
   encoding.writeVarUint(step1, MESSAGE_SYNC);
   syncProtocol.writeSyncStep1(step1, doc);
-  ws.send(encoding.toUint8Array(step1));
+  safeSend(encoding.toUint8Array(step1));
 
   // Local edits -> send to the server (or queued when `holding`). Remote
   // updates are applied with origin 'remote' and are NOT echoed back.
@@ -198,10 +252,12 @@ export function connectRoomClient(room: BoardRoomCore): RoomClient {
         const sv = decoding.readVarUint8Array(svClone);
         if (serverSV === null) serverSV = sv;
       }
+
+      // Apply the sync message (SyncStep2 / update) to the local doc.
       const reply = encoding.createEncoder();
       syncProtocol.readSyncMessage(decoder, reply, doc, 'remote');
       if (encoding.length(reply) > 0) {
-        ws.send(frameSync(encoding.toUint8Array(reply)));
+        safeSend(frameSync(encoding.toUint8Array(reply)));
       }
     }
   });

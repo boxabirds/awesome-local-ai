@@ -11,6 +11,7 @@
     "test:component": "vitest run --project=component",
     "test:integration": "npm run build && vitest run --project=integration",
     "test:e2e": "playwright test --project=chromium --project=firefox --project=webkit",
+    "test:e2e:persistence": "playwright test -c playwright.persistence.config.ts --project=chromium-persistence",
     "test:e2e:nightly": "playwright test --project=nightly",
     "dev": "wrangler dev"
   },

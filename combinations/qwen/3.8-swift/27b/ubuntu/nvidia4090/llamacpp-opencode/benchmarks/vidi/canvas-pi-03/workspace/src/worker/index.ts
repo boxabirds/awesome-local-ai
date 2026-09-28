@@ -15,13 +15,26 @@ import { BoardRoom } from './board-room';
 export interface Env {
   BOARD_ROOM: DurableObjectNamespace<BoardRoom>;
   ASSETS: Fetcher;
+  /** '1' in test/e2e environments only; enables the /__test/ ops routes. */
+  TEST_HOOKS?: string;
 }
 
 const ROOMS_PREFIX = '/api/rooms/';
+const TEST_PREFIX = '/__test/boards/';
 
 export default {
   async fetch(req: Request, env: Env): Promise<Response> {
     const url = new URL(req.url);
+    if (env.TEST_HOOKS === '1' && url.pathname.startsWith(TEST_PREFIX)) {
+      // Route a test op to the board's Durable Object; it runs the op against
+      // its storage and returns JSON. Never enabled in production config.
+      const boardId = url.pathname.slice(TEST_PREFIX.length).split('/')[0];
+      if (!isValidBoardId(boardId)) {
+        return new Response('Bad Request', { status: 400 });
+      }
+      const stub = env.BOARD_ROOM.get(env.BOARD_ROOM.idFromName(boardId));
+      return stub.fetch(req);
+    }
     if (url.pathname.startsWith(ROOMS_PREFIX)) {
       const boardId = url.pathname.slice(ROOMS_PREFIX.length);
       if (!isValidBoardId(boardId)) {

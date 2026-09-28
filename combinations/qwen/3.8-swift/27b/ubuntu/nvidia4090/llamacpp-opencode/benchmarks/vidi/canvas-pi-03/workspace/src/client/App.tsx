@@ -7,6 +7,7 @@ import { useCamera } from './canvas/useCamera';
 import { useBoardDoc } from './board/useBoardDoc';
 import { useSelection } from './board/useSelection';
 import { ConnectionStatus } from './sync/ConnectionStatus';
+import { canEdit } from './sync/connectBoard';
 import { newBoardId } from 'src/shared/board-id';
 import { Toolbar } from './board/Toolbar';
 import { StickyNote } from './objects/StickyNote';
@@ -15,6 +16,7 @@ import {
   createSticky,
   setStickyColor,
   deleteObject,
+  getStickyText,
 } from 'src/shared/board-model';
 import { STICKY_SIZE_WORLD } from 'src/shared/config';
 
@@ -77,54 +79,89 @@ function Board({ boardId }: { boardId: string }): JSX.Element {
   const { doc, notes, connectionState, dropSocket, resumeSocket } = useBoardDoc(boardId);
   const sel = useSelection(notes);
   const [draggingId, setDraggingId] = useState<string | null>(null);
+  // A load-failed board is read-only (persist.client_status): every board-model
+  // mutation is a no-op and the create button is disabled.
+  const editable = canEdit(connectionState);
 
   // Test hook: story 1 exposes setCamera; story 2 additionally exposes the
   // board doc so tests can drive the model directly (e.g. TC-37).
   useEffect(() => {
     if (import.meta.env.MODE === 'test') {
+      // seedNotes creates `count` varied notes via the real board-model so the
+      // Yjs updates flow through the normal sync → store path (deterministic
+      // e2e seeding without 25× UI interactions).
+      const seedNotes = (count: number): string[] => {
+        const colors: Array<'yellow' | 'orange' | 'green' | 'blue' | 'pink' | 'violet'> = [
+          'yellow',
+          'orange',
+          'green',
+          'blue',
+          'pink',
+          'violet',
+        ];
+        const ids: string[] = [];
+        for (let i = 0; i < count; i++) {
+          const id = createSticky(
+            doc,
+            { x: (i % 5) * 120, y: Math.floor(i / 5) * 120 },
+            colors[i % colors.length],
+            `seed-${i}`,
+          );
+          if (id) {
+            getStickyText(doc, id)?.insert(0, `Note ${i}: the quick brown fox`);
+            ids.push(id);
+          }
+        }
+        return ids;
+      };
       (window as unknown as Record<string, unknown>).__vidi6 = {
         setCamera: cam.setCamera,
         doc,
         connectionState,
         dropSocket,
         resumeSocket,
+        seedNotes,
       };
     }
   }, [cam.setCamera, doc, connectionState, dropSocket, resumeSocket]);
 
   // Double-click on empty board space: create a note centred on the point,
-  // select it and start editing (sticky.create_dblclick).
+  // select it and start editing (sticky.create_dblclick). No-op when locked.
   const handleCreateStickyAt = useCallback(
     (world: { x: number; y: number }) => {
+      if (!editable) return;
       const id = createSticky(doc, world);
       if (id) sel.startEdit(id);
     },
-    [doc, sel],
+    [doc, sel, editable],
   );
 
   // Toolbar button: create a note at the centre of the visible board area
-  // (sticky.create_button) — works no matter where the board is panned.
+  // (sticky.create_button) — works no matter where the board is panned. No-op
+  // when locked.
   const handleCreateStickyCentred = useCallback(() => {
+    if (!editable) return;
     const centre = screenToWorld(cam.camera, {
       x: size.width / 2,
       y: size.height / 2,
     });
     const id = createSticky(doc, centre);
     if (id) sel.startEdit(id);
-  }, [cam.camera, size, doc, sel]);
+  }, [cam.camera, size, doc, sel, editable]);
 
   // Keyboard: Enter starts editing the selected note; Delete/Backspace delete
-  // it — only when not editing text and focus is not in a text control.
+  // it — only when not editing text, focus is not in a text control, and the
+  // board is editable (Enter is a no-op when locked; so is Delete).
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
       if (focusIsInTextControl(e.target)) return;
       if (e.key === 'Enter') {
-        if (sel.selectedId && !sel.editingId) {
+        if (editable && sel.selectedId && !sel.editingId) {
           e.preventDefault();
           sel.startEdit(sel.selectedId);
         }
       } else if (e.key === 'Delete' || e.key === 'Backspace') {
-        if (sel.selectedId && !sel.editingId) {
+        if (editable && sel.selectedId && !sel.editingId) {
           e.preventDefault();
           if (deleteObject(doc, sel.selectedId)) {
             sel.select(null);
@@ -134,7 +171,7 @@ function Board({ boardId }: { boardId: string }): JSX.Element {
     };
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [sel, doc]);
+  }, [sel, doc, editable]);
 
   // If the note being dragged disappears (deleted elsewhere), drop the flag.
   useEffect(() => {
@@ -192,6 +229,7 @@ function Board({ boardId }: { boardId: string }): JSX.Element {
             zoom={cam.camera.zoom}
             selected={sel.selectedId === n.id}
             editing={sel.editingId === n.id}
+            editable={editable}
             onSelect={sel.select}
             onStartEdit={sel.startEdit}
             onEndEdit={sel.endEdit}
@@ -199,11 +237,12 @@ function Board({ boardId }: { boardId: string }): JSX.Element {
           />
         ))}
       </BoardViewport>
-      <Toolbar onCreateSticky={handleCreateStickyCentred} />
+      <Toolbar onCreateSticky={handleCreateStickyCentred} disabled={!editable} />
       {showNoteToolbar && (
         <div style={noteToolbarStyle}>
           <NoteToolbar
             color={selectedNote.color}
+            editable={editable}
             onColor={(c) => setStickyColor(doc, selectedNote.id, c)}
             onDelete={() => {
               if (deleteObject(doc, selectedNote.id)) sel.select(null);

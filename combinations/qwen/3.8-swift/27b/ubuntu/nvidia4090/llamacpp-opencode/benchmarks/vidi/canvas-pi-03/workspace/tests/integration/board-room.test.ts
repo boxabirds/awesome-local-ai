@@ -3,8 +3,9 @@
  * through real WebSockets + real Yjs in workerd. Each test asserts both the
  * happy path and its error paths.
  */
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, afterEach } from 'vitest';
 import { MAX_CONCURRENT_EDITORS } from 'src/shared/config';
+import { newBoardId } from 'src/shared/board-id';
 import {
   createSticky,
   moveObject,
@@ -13,13 +14,18 @@ import {
   getStickyText,
   getStickyColor,
 } from 'src/shared/board-model';
-import { createRoom } from './helpers/room';
-import { connectRoomClient, type RoomClient } from './helpers/ws-client';
+import { connectRoomClient, settleBoards, type RoomClient } from './helpers/ws-client';
 import { randomOps } from './helpers/random-ops';
 
-async function pair(room = createRoom()): Promise<[RoomClient, RoomClient]> {
-  const a = await connectRoomClient(room);
-  const b = await connectRoomClient(room);
+// Local workerd's DO isolate overflows at ~11 live BoardRoom objects; evict
+// idle boards between tests so the live count stays under the limit.
+afterEach(async () => {
+  await settleBoards();
+});
+
+async function pair(boardId = newBoardId()): Promise<[RoomClient, RoomClient]> {
+  const a = await connectRoomClient(boardId);
+  const b = await connectRoomClient(boardId);
   await a.waitForSync();
   await b.waitForSync();
   return [a, b];
@@ -33,6 +39,15 @@ const sameNotes = (a: RoomClient, b: RoomClient): boolean =>
   JSON.stringify([...a.snapshot()].sort((x, y) => x.id.localeCompare(y.id))) ===
   JSON.stringify([...b.snapshot()].sort((x, y) => x.id.localeCompare(y.id)));
 
+/** Deterministic key over a client's notes (id-sorted). */
+const sortedKey = (c: RoomClient): string =>
+  JSON.stringify([...c.snapshot()].sort((x, y) => x.id.localeCompare(y.id)));
+
+// Local workerd evicts an idle Durable Object after ~10 s of inactivity
+// (miniflare). Waiting just past that guarantees the reconnect rebuilds the
+// room from storage, proving persistence rather than in-memory retention.
+const EVICTION_WAIT_MS = 11_000;
+
 describe('sync.board_room', () => {
   it('TC-07: create propagates to the second client (exactly one update)', async () => {
     const [a, b] = await pair();
@@ -43,9 +58,7 @@ describe('sync.board_room', () => {
     await b.waitFor(() => b.snapshot().length === 1);
     expect(b.snapshot()).toEqual(a.snapshot());
     expect(b.remoteUpdates).toBe(bRemoteBefore + 1);
-    a.close();
-    b.close();
-  });
+    await a.close();    await b.close();  });
 
   it('TC-08a: move propagates; no self-echo on A', async () => {
     const [a, b] = await pair();
@@ -56,9 +69,7 @@ describe('sync.board_room', () => {
     await b.waitFor(() => b.snapshot()[0]?.x === 42 && b.snapshot()[0]?.y === 7);
     expect(b.snapshot()).toEqual(a.snapshot());
     expect(a.remoteUpdates).toBe(aRemoteBefore);
-    a.close();
-    b.close();
-  });
+    await a.close();    await b.close();  });
 
   it('TC-08b: colour change propagates; no self-echo on A', async () => {
     const [a, b] = await pair();
@@ -70,9 +81,7 @@ describe('sync.board_room', () => {
     expect(getStickyColor(a.doc, nid)).toBe('blue');
     expect(b.snapshot()).toEqual(a.snapshot());
     expect(a.remoteUpdates).toBe(aRemoteBefore);
-    a.close();
-    b.close();
-  });
+    await a.close();    await b.close();  });
 
   it('TC-08c: text insert propagates; no self-echo on A', async () => {
     const [a, b] = await pair();
@@ -84,9 +93,7 @@ describe('sync.board_room', () => {
     await b.waitFor(() => textOf(b, nid) === 'hello world');
     expect(textOf(a, nid)).toBe('hello world');
     expect(a.remoteUpdates).toBe(aRemoteBefore);
-    a.close();
-    b.close();
-  });
+    await a.close();    await b.close();  });
 
   it('TC-08d: delete propagates; no self-echo on A', async () => {
     const [a, b] = await pair();
@@ -97,9 +104,7 @@ describe('sync.board_room', () => {
     await b.waitFor(() => b.snapshot().length === 0);
     expect(b.snapshot()).toEqual(a.snapshot());
     expect(a.remoteUpdates).toBe(aRemoteBefore);
-    a.close();
-    b.close();
-  });
+    await a.close();    await b.close();  });
 
   it('TC-09: concurrent text edits merge to the same string on both', async () => {
     const [a, b] = await pair();
@@ -117,9 +122,7 @@ describe('sync.board_room', () => {
     await a.waitFor(() => textOf(a, nid) === 'red green blue');
     await b.waitFor(() => textOf(b, nid) === 'red green blue');
     expect(textOf(a, nid)).toBe(textOf(b, nid));
-    a.close();
-    b.close();
-  });
+    await a.close();    await b.close();  });
 
   it('TC-10: concurrent position sets converge to the identical x on both', async () => {
     const [a, b] = await pair();
@@ -138,9 +141,7 @@ describe('sync.board_room', () => {
     const ax = a.snapshot().find((s) => s.id === nid)?.x;
     const bx = b.snapshot().find((s) => s.id === nid)?.x;
     expect(ax).toBe(bx);
-    a.close();
-    b.close();
-  });
+    await a.close();    await b.close();  });
 
   it('TC-11: delete concurrent with a text insert → note absent on both, no throw', async () => {
     const [a, b] = await pair();
@@ -158,12 +159,10 @@ describe('sync.board_room', () => {
     await a.waitFor(() => !a.snapshot().some((s) => s.id === nid) && b.snapshot().length === 0);
     expect(a.snapshot().some((s) => s.id === nid)).toBe(false);
     expect(b.snapshot().some((s) => s.id === nid)).toBe(false);
-    a.close();
-    b.close();
-  });
+    await a.close();    await b.close();  });
 
   it('TC-12: MAX clients x 200 seeded random ops converge to identical snapshots', async () => {
-    const room = createRoom();
+    const room = newBoardId();
     const seed = 20240311;
     const clients: RoomClient[] = [];
     for (let i = 0; i < MAX_CONCURRENT_EDITORS; i++) clients.push(await connectRoomClient(room));
@@ -178,11 +177,11 @@ describe('sync.board_room', () => {
     );
     for (const c of clients) expect(key(c)).toBe(key(clients[0]));
     console.log(`[TC-12] seed=${seed} ops=200 clients=${MAX_CONCURRENT_EDITORS} converged`);
-    for (const c of clients) c.close();
+    for (const c of clients) await c.close();
   }, 90000);
 
   it('TC-14: late joiner receives full state from scratch', async () => {
-    const room = createRoom();
+    const room = newBoardId();
     const [a, b] = await pair(room);
     for (let i = 0; i < 20; i++) createSticky(a.doc, { x: i, y: 0 });
     await b.waitFor(() => b.snapshot().length === 20);
@@ -191,10 +190,10 @@ describe('sync.board_room', () => {
     await c.waitForSync();
     await c.waitFor(() => c.snapshot().length === 20);
     expect(sameNotes(c, a)).toBe(true);
-    a.close();
-    b.close();
-    c.close();
-  });
+    await a.close();
+    await b.close();
+    await c.close();
+  }, 20000);
 
   it('TC-15: malformed traffic → A closed with 1003, B unaffected, room doc unchanged', async () => {
     const [a, b] = await pair();
@@ -209,8 +208,7 @@ describe('sync.board_room', () => {
     // B is still open and the room doc is unchanged.
     expect(b.isConnected()).toBe(true);
     expect(b.snapshot().some((s) => s.id === nid)).toBe(true);
-    b.close();
-  });
+    await b.close();  });
 
   it('TC-16: awareness bytes are relayed verbatim to both peers', async () => {
     const [a, b] = await pair();
@@ -222,37 +220,27 @@ describe('sync.board_room', () => {
     // (y-websocket length-prefixes awareness payloads), relayed byte-for-byte.
     expect(bGot[0]).toBe(1); // MESSAGE_AWARENESS
     expect(Array.from(bGot.slice(2))).toEqual(Array.from(awarenessBytes));
-    a.close();
-    b.close();
-  });
+    await a.close();    await b.close();  });
 
-  it('TC-18: restart simulation → new room instance converges from rejoiner', async () => {
-    const room1 = createRoom();
-    const [a, b] = await pair(room1);
+  it('TC-18: restart → board reloads from storage with all notes intact', async () => {
+    const boardId = newBoardId();
+    const [a, b] = await pair(boardId);
     for (let i = 0; i < 10; i++) createSticky(a.doc, { x: i, y: i });
     await b.waitFor(() => b.snapshot().length === 10);
+    const before = sortedKey(a);
 
-    // "Server restart": a new (empty) room instance.
-    a.close();
-    b.close();
-    await new Promise((r) => setTimeout(r, 50));
+    // Everyone leaves; the idle room is evicted and its in-memory doc discarded.
+    await a.close();    await b.close();    await new Promise((r) => setTimeout(r, EVICTION_WAIT_MS));
 
-    const room2 = createRoom();
-    const a2 = await connectRoomClient(room2);
+    // Reconnect: the room is rebuilt from storage and serves the same notes.
+    const a2 = await connectRoomClient(boardId);
     await a2.waitForSync();
-    for (let i = 0; i < 10; i++) createSticky(a2.doc, { x: i, y: i });
-    await a2.waitFor(() => a2.snapshot().length === 10);
-
-    const b2 = await connectRoomClient(room2);
-    await b2.waitForSync();
-    await b2.waitFor(() => b2.snapshot().length === 10);
-    expect(sameNotes(b2, a2)).toBe(true);
-    a2.close();
-    b2.close();
-  });
+    await a2.waitFor(() => a2.snapshot().length === 10, { timeout: 10000 });
+    expect(sortedKey(a2)).toBe(before);
+    await a2.close();  }, 45000);
 
   it('TC-31: abruptly closed peer does not break the room; later sockets receive', async () => {
-    const room = createRoom();
+    const room = newBoardId();
     const [a, b] = await pair(room);
 
     b.ws.close();
@@ -266,7 +254,5 @@ describe('sync.board_room', () => {
     await c.waitFor(() => c.snapshot().length === 1);
     // c must see the exact same note a created (stored top-left, not centre).
     expect(c.snapshot()).toEqual(a.snapshot());
-    a.close();
-    c.close();
-  });
+    await a.close();    await c.close();  });
 });

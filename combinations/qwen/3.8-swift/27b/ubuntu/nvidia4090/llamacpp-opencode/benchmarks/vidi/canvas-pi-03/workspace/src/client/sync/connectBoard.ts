@@ -16,8 +16,24 @@
 import * as Y from 'yjs';
 import { WebsocketProvider } from 'y-websocket';
 import { RECONNECT_MAX_BACKOFF_MS, CONNECTED_CONFIRMATION_MS } from 'src/shared/config';
+import { CLOSE_BOARD_LOAD_FAILED } from 'src/shared/protocol';
 
-export type ConnectionState = 'connecting' | 'connected' | 'reconnecting' | 'confirmed';
+export type ConnectionState =
+  | 'connecting'
+  | 'connected'
+  | 'reconnecting'
+  | 'confirmed'
+  | 'load_failed';
+
+/**
+ * Editing is allowed in every state except `load_failed`: a board that cannot
+ * be loaded from storage is read-only (no local edits, which would never be
+ * served). `reconnecting` keeps the board editable — unsaved changes are
+ * re-sent on reconnect.
+ */
+export function canEdit(state: ConnectionState): boolean {
+  return state !== 'load_failed';
+}
 
 export interface BoardConnection {
   destroy: () => void;
@@ -59,10 +75,14 @@ export function createConnectionStateMachine(
 ): {
   onStatus: (status: ProviderStatus) => void;
   onSync: (synced: boolean) => void;
+  onClose: (code: number | null) => void;
   destroy: () => void;
 } {
   let state: ConnectionState = 'connecting';
   let everSynced = false;
+  // Sticky: once the board fails to load (close 4500) we stay `load_failed` —
+  // showing the red badge and locking edits — until a successful sync.
+  let loadFailed = false;
   let confirmTimer: ReturnType<typeof setTimeout> | null = null;
 
   const set = (next: ConnectionState) => {
@@ -79,6 +99,9 @@ export function createConnectionStateMachine(
   };
 
   const onStatus = (status: ProviderStatus) => {
+    // A load-failed board keeps retrying in the background; the badge must
+    // stay red (and edits locked) until a sync succeeds, so ignore status.
+    if (loadFailed) return;
     if (status === 'disconnected') {
       clearConfirm();
       if (everSynced) set('reconnecting');
@@ -91,6 +114,7 @@ export function createConnectionStateMachine(
 
   const onSync = (synced: boolean) => {
     if (synced) {
+      loadFailed = false; // a successful sync clears the load-failure lock
       if (!everSynced) {
         everSynced = true;
         set('connected');
@@ -108,9 +132,29 @@ export function createConnectionStateMachine(
     }
   };
 
+  const onClose = (code: number | null) => {
+    // A `null` code is a local close (provider.disconnect / watchdog) — not a
+    // server signal, so it is handled by the `status` events.
+    if (code === null) return;
+    if (code === CLOSE_BOARD_LOAD_FAILED) {
+      loadFailed = true;
+      clearConfirm();
+      set('load_failed');
+      return;
+    }
+    // Storage failure (1011) and any other server close: the board is still
+    // readable and the provider reconnects, so map to `reconnecting`.
+    if (loadFailed) return; // do not override the load-failure lock
+    if (everSynced) {
+      clearConfirm();
+      set('reconnecting');
+    }
+  };
+
   return {
     onStatus,
     onSync,
+    onClose,
     destroy: () => clearConfirm(),
   };
 }
@@ -127,12 +171,21 @@ export function connectBoard(
     {
       maxBackoffTime: RECONNECT_MAX_BACKOFF_MS,
       disableBc: true,
+      // y-websocket treats 4400-4499 as a permanent close, which would stop the
+      // retries a load-failed board (4500) depends on to recover. Always retry:
+      // a failing board keeps reconnecting in the background until it loads.
+      shouldReconnect: () => true,
     },
   );
 
   const machine = createConnectionStateMachine(onState);
   provider.on('status', (e) => machine.onStatus(e.status));
   provider.on('sync', (s) => machine.onSync(s));
+  // Close code 4500 (board load failed) → `load_failed`; 1011 / other →
+  // `reconnecting`. `event` is null on a local close.
+  provider.on('connection-close', (event) => {
+    machine.onClose(event ? event.code : null);
+  });
 
   return {
     destroy: () => {

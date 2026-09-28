@@ -29,6 +29,11 @@ export interface StickyNoteProps {
   zoom: number;
   selected: boolean;
   editing: boolean;
+  /**
+   * When false (board `load_failed`) drag and text editing are no-ops — the
+   * note can still be selected, but it cannot be moved or edited.
+   */
+  editable?: boolean;
   onSelect: (id: string) => void;
   onStartEdit: (id: string) => void;
   onEndEdit: (next: 'selected' | 'unselected') => void;
@@ -59,7 +64,18 @@ interface DragState {
  * (Escape) / Unselected (click outside).
  */
 export function StickyNote(props: StickyNoteProps): JSX.Element {
-  const { note, doc, zoom, selected, editing, onSelect, onStartEdit, onEndEdit, onDragChange } = props;
+  const {
+    note,
+    doc,
+    zoom,
+    selected,
+    editing,
+    editable = true,
+    onSelect,
+    onStartEdit,
+    onEndEdit,
+    onDragChange,
+  } = props;
 
   const rootRef = useRef<HTMLDivElement>(null);
   const textRef = useRef<HTMLDivElement>(null);
@@ -118,6 +134,11 @@ export function StickyNote(props: StickyNoteProps): JSX.Element {
     if (e.button !== 0 || editing) return;
     // The board must not pan while a note is pressed (sticky.no_pan).
     e.stopPropagation();
+    if (!editable) {
+      // Selection is allowed (harmless); drag is not.
+      onSelect(note.id);
+      return;
+    }
     e.currentTarget.setPointerCapture(e.pointerId);
     dragRef.current = {
       startClientX: e.clientX,
@@ -185,7 +206,7 @@ export function StickyNote(props: StickyNoteProps): JSX.Element {
   const handleDblClick = (e: React.MouseEvent<HTMLDivElement>) => {
     // Dblclick on a note edits it; the board must not create a new note.
     e.stopPropagation();
-    if (!editing) onStartEdit(note.id);
+    if (!editing && editable) onStartEdit(note.id);
   };
 
   const color = STICKY_COLORS[note.color] ?? STICKY_COLORS.yellow;

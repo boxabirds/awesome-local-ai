@@ -2,15 +2,19 @@ import type { JSX } from 'react';
 import type { ConnectionState } from './connectBoard';
 
 /**
- * Story 3: connection status badge, top centre.
+ * Story 3/4: connection status badge, top centre.
  *
  * - `connecting`   → "Connecting…"  (shown while first loading)
  * - `reconnecting` → "Reconnecting…" (amber)
  * - `confirmed`    → "Connected"    (green, shown briefly after a reconnect)
+ * - `load_failed`  → red "This board couldn't be loaded. Retrying…"
  * - `connected`    → hidden (null)
  *
- * The board stays fully editable in every state; the badge is informational.
+ * The board is editable in every state except `load_failed` (locked by App via
+ * `canEdit`); the badge is informational and never intercepts pointer input.
  */
+export const LOAD_FAILED_MESSAGE = "This board couldn't be loaded. Retrying…";
+
 export function ConnectionStatus(props: { state: ConnectionState }): JSX.Element | null {
   const { state } = props;
   if (state === 'connected') return null;
@@ -20,7 +24,9 @@ export function ConnectionStatus(props: { state: ConnectionState }): JSX.Element
       ? 'Connecting…'
       : state === 'reconnecting'
         ? 'Reconnecting…'
-        : 'Connected';
+        : state === 'load_failed'
+          ? LOAD_FAILED_MESSAGE
+          : 'Connected';
 
   const style: React.CSSProperties = {
     position: 'fixed',
@@ -39,7 +45,9 @@ export function ConnectionStatus(props: { state: ConnectionState }): JSX.Element
       ? { background: '#F59E0B', color: '#1F1300' }
       : state === 'confirmed'
         ? { background: '#16A34A', color: '#FFFFFF' }
-        : { background: '#6B7280', color: '#FFFFFF' }),
+        : state === 'load_failed'
+          ? { background: '#DC2626', color: '#FFFFFF' }
+          : { background: '#6B7280', color: '#FFFFFF' }),
   };
 
   return (
