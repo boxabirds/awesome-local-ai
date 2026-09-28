@@ -7,6 +7,7 @@ import { useCallback, useEffect, useRef, type ReactElement } from 'react';
 import * as Y from 'yjs';
 import { LOCAL_ORIGIN } from '../../shared/board-model';
 import { STICKY_TEXT_MAX_CHARS } from '../../shared/config';
+import type { UndoController } from '../board/undo';
 import { applyTextDiff, clampToLimit, counterVisible } from './StickyText';
 
 export interface StickyTextEditorProps {
@@ -15,6 +16,10 @@ export interface StickyTextEditorProps {
   /** The editor has ended (Escape or blur); the caller decides the next
    *  selection/editing state (story 7 keeps the selection on Escape). */
   onEnd(): void;
+  /** Personal undo history (story 8, undo.boundaries): boundary() on edit
+   *  start/end and Ctrl/Cmd+Z inside the editor undoes typing via the
+   *  controller (never the browser's native textarea undo). */
+  undo?: UndoController;
 }
 
 export function StickyTextEditor(props: StickyTextEditorProps): ReactElement {
@@ -23,6 +28,8 @@ export function StickyTextEditor(props: StickyTextEditorProps): ReactElement {
   const composingRef = useRef(false);
   const endedRef = useRef(false);
   const lastRef = useRef('');
+  const undoRef = useRef(props.undo);
+  undoRef.current = props.undo;
 
   // On mount: value from Y.Text, focused, caret at the end of the text.
   // While editing, remote changes to the note's text are merged into the
@@ -46,6 +53,9 @@ export function StickyTextEditor(props: StickyTextEditorProps): ReactElement {
       ta.setSelectionRange(ta.value.length, ta.value.length);
     };
     ytext.observe(onRemoteChange);
+    // Edit start closes any in-flight capture window (undo.boundaries):
+    // typing in this note is one step, distinct from earlier actions.
+    undoRef.current?.boundary();
     return () => ytext.unobserve(onRemoteChange);
   }, [ytext]);
 
@@ -73,6 +83,9 @@ export function StickyTextEditor(props: StickyTextEditorProps): ReactElement {
     // no-op in practice (guards an uncommitted value, e.g. IME).
     const ta = taRef.current;
     if (ta && ta.value !== lastRef.current) commit(ta.value);
+    // Edit end closes the typing capture window (undo.boundaries): the
+    // typing burst is one step, and later actions start new steps.
+    undoRef.current?.boundary();
     onEnd();
   }, [commit, onEnd]);
 
@@ -101,6 +114,21 @@ export function StickyTextEditor(props: StickyTextEditorProps): ReactElement {
           if (e.key === 'Escape') {
             e.preventDefault();
             finish();
+            return;
+          }
+          // Ctrl/Cmd+Z (and redo variants) undo/redo via the personal
+          // history (undo.boundaries): preventDefault keeps the browser's
+          // native textarea undo from diverging from the Y.Text.
+          if ((e.ctrlKey || e.metaKey) && (e.key === 'z' || e.key === 'Z')) {
+            e.preventDefault();
+            if (e.shiftKey) undoRef.current?.redo();
+            else undoRef.current?.undo();
+            return;
+          }
+          if ((e.ctrlKey || e.metaKey) && (e.key === 'y' || e.key === 'Y')) {
+            e.preventDefault();
+            undoRef.current?.redo();
+            return;
           }
           // Enter intentionally not intercepted: it inserts a new line.
         }}

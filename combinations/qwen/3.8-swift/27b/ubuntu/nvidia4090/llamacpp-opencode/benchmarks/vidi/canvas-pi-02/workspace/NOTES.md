@@ -417,6 +417,65 @@ another group's marquee start point.
 Note: live-collab TC-23/TC-25 (chromium/webkit) fail identically on the
 pre-story-7 baseline — pre-existing timing flake, not a regression.
 
+## Story 8: Undo and redo my own changes without undoing anyone else's
+
+### How it works
+
+`createUndo(doc)` (in `src/client/board/undo.ts`) wraps yjs's `Y.UndoManager`
+over the `objects` map with `trackedOrigins = { LOCAL_ORIGIN }` and
+`captureTimeout = UNDO_CAPTURE_TIMEOUT_MS` (500 ms). Only this tab's own
+transactions are ever captured: remote (provider-origin) edits and story-4
+LOAD updates arrive under a different origin and are invisible to the stacks,
+so my undo/redo can never reverse a colleague's change (TC-01, TC-02, TC-03,
+and the e2e trio TC-22…24).
+
+- **Session only** — the controller lives in `BoardPage` for the life of one
+  board doc; it is destroyed on unmount/board change, so a reload starts with
+  empty stacks (TC-11).
+- **Step boundaries** — `boundary()` (a `stopCapturing()`) is called around
+  each user action so the model transactions of one gesture merge into one
+  step: transform gesture start/end (incl. pointercancel), sticky create,
+  delete, colour change, and text-editor mount/end. Inside the editor, the
+  Ctrl/Cmd+Z shortcuts are intercepted (`preventDefault`) and routed to the
+  controller so native textarea undo never diverges from Y.Text; typing bursts
+  within 500 ms merge, longer pauses split (TC-12…17).
+- **Redo clears on new work** (yjs default), `stack-item-added` trims to
+  `UNDO_MAX_STEPS` (200) and drives `onChange` (TC-09/TC-10).
+- **Safe no-ops** — undoing a step whose target was remotely deleted applies
+  an inverse that lands on nothing: yjs auto-consumes the (now empty) top
+  item and never throws; the next undo still works (TC-07, e2e TC-23).
+- **Controls** — `useUndo` exposes `canUndo`/`canRedo` (false when not
+  editable) plus `undo`/`redo`; `UndoButtons` render the toolbar pair
+  (`aria-label` Undo/Redo with shortcut tooltips); `useBoardKeys` binds
+  Ctrl/Cmd+Z, Ctrl/Cmd+Shift+Z and Ctrl+Y, ignored while typing in a non-board
+  input or editing a sticky (TC-18…21).
+
+### E2E gotchas
+
+- The camera centres the world origin on a 1280×800 viewport (screen = world
+  + (640, 400) at 100%), and off-screen notes are **culled from the DOM** —
+  seed/interact only inside the visible rect, and never `waitFor()` DOM for
+  a note that may be culled.
+- Marquee selection requires **full containment** (story 7): span the whole
+  viewport rather than guessing a tight rect.
+- `createSticky(x, y)` centres the note; the entry's x/y are the top-left
+  corner (center − `STICKY_SIZE_WORLD/2`).
+- For "history exhausted → Undo disabled", seed the fixture notes from the
+  *other* participant so the actor's only captured step is the delete.
+- Multi-participant final-state checks must **poll for convergence** within
+  `LIVE_UPDATE_LATENCY_BUDGET_MS`; a one-shot read races the last sync.
+
+### Test matrix (story 8)
+
+| Layer | Command | Added |
+| ----- | ------- | ----- |
+| Unit | `npm run test:unit` | 24: history TC-01…11 (+`peer.ts` RemotePeer), boundaries TC-12/13 + no-op |
+| Component | `npm run test:component` | 8: TC-14…17 (gesture/typing boundaries), TC-18…21 (shortcuts, buttons, edit lock) |
+| E2E | `npm run test:e2e` | 3: TC-22 (delete/undo/redo vs. colleague's note), TC-23 (colleague deleted my object), TC-24 (5-way concurrent move+type+2×undo → identical boards) |
+
+The e2e spec passes in chromium, firefox and webkit. The pre-existing
+live-collab TC-23/TC-25 flake is unchanged.
+
 ## Next story
 
 Story 6 (presence: cursors and "who's here") rides the same provider;

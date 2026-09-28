@@ -27,6 +27,8 @@ import { useTransformGesture } from './board/useTransformGesture';
 import { SelectionBar } from './board/SelectionBar';
 import { SelectionOverlay } from './board/SelectionOverlay';
 import { Toolbar } from './board/Toolbar';
+import { createUndo } from './board/undo';
+import { useUndo } from './board/useUndo';
 import { NOTE_TOOLBAR_GAP_PX } from './objects/NoteToolbar';
 import { getObjectType } from './objects/registry';
 import {
@@ -138,8 +140,21 @@ function Board({ boardId }: { boardId: string }): ReactElement {
   // reports a load failure; every edit path below checks this flag.
   const editable = canEdit(connectionState);
 
-  // Gesture event counters (test hooks; story 8 will own undo boundaries
-  // through the same onGestureStart/onGestureEnd pair).
+  // Story 8 (undo.history): one personal undo controller per board doc,
+  // tracking LOCAL_ORIGIN only. History is session-only: destroyed on
+  // unmount, a fresh controller after reload starts empty (undo.session_only).
+  const undoRef = useRef<ReturnType<typeof createUndo> | null>(null);
+  if (undoRef.current === null) undoRef.current = createUndo(doc);
+  const undoController = undoRef.current;
+  useEffect(() => {
+    return () => undoController.destroy();
+  }, [undoController]);
+  const undoApi = useUndo(undoController, editable);
+
+  // Gesture event counters (test hooks) and undo boundaries (story 8):
+  // a complete drag/resize is ONE undo step — boundary() at gesture start
+  // and end (incl. pointercancel) merges all rAF-frame writes inside it
+  // (undo.steps, undo.boundaries).
   const gestureEventsRef = useRef({ start: 0, end: 0 });
 
   // Generic transform gesture: group move + bounding-box resize (story 7,
@@ -152,9 +167,11 @@ function Board({ boardId }: { boardId: string }): ReactElement {
     canEdit: editable,
     onGestureStart: () => {
       gestureEventsRef.current.start += 1;
+      undoRef.current?.boundary();
     },
     onGestureEnd: () => {
       gestureEventsRef.current.end += 1;
+      undoRef.current?.boundary();
     },
     onDraggingChange: setDragging,
   });
@@ -162,9 +179,10 @@ function Board({ boardId }: { boardId: string }): ReactElement {
   // Shift+drag marquee on empty space (story 7, sel.marquee_ui).
   const marquee = useMarquee(camera.camera, objects, (ids) => selection.setMany(ids, true));
 
-  // Board keyboard shortcuts (story 7, sel.keyboard): Ctrl+A, Escape, arrows,
-  // Shift+arrows, Delete/Backspace, Enter.
-  useBoardKeys({ doc, selection, snapshot: objects, canEdit: editable });
+  // Board keyboard shortcuts (story 7, sel.keyboard + story 8 undo.shortcuts):
+  // Ctrl+A, Escape, arrows, Shift+arrows, Delete/Backspace, Enter, and
+  // Ctrl/Cmd+Z / Ctrl/Cmd+Shift+Z / Ctrl+Y undo and redo.
+  useBoardKeys({ doc, selection, snapshot: objects, canEdit: editable, undo: undoController });
 
   useEffect(() => {
     installTestHooks(
@@ -180,7 +198,11 @@ function Board({ boardId }: { boardId: string }): ReactElement {
   const createStickyAtScreen = (p: Point): void => {
     if (!canEdit(connectionStateRef.current)) return; // load-failed: locked
     const world = screenToWorld(cameraRef.current.camera, p);
+    // One note creation is one undo step (boundary before and after;
+    // the editor's mount boundary then separates typing, undo.steps).
+    undoRef.current?.boundary();
     const id = createSticky(doc, world);
+    undoRef.current?.boundary();
     if (id !== '') selectionRef.current.startEdit(id);
   };
 
@@ -192,7 +214,10 @@ function Board({ boardId }: { boardId: string }): ReactElement {
     if (!canEdit(connectionStateRef.current)) return; // load-failed: locked
     const ids = [...selectionRef.current.ids];
     if (ids.length === 0) return;
+    // One delete (of any number of objects) is one undo step (undo.steps).
+    undoRef.current?.boundary();
     deleteObjects(docRef.current, ids);
+    undoRef.current?.boundary();
     selectionRef.current.clear();
   }, []);
 
@@ -258,6 +283,7 @@ function Board({ boardId }: { boardId: string }): ReactElement {
               onSelect={selection.click}
               onStartEdit={selection.startEdit}
               onEndEdit={selection.endEdit}
+              undo={undoController}
             />
           );
         })}
@@ -287,12 +313,15 @@ function Board({ boardId }: { boardId: string }): ReactElement {
             onDelete={deleteSelection}
             onColor={(id, color) => {
               if (!canEdit(connectionStateRef.current)) return; // load-failed: locked
+              // One colour change is one undo step (undo.steps).
+              undoRef.current?.boundary();
               setStickyColor(doc, id, color);
+              undoRef.current?.boundary();
             }}
           />
         </div>
       )}
-      <Toolbar onCreateSticky={createStickyAtCenter} disabled={!editable} />
+      <Toolbar onCreateSticky={createStickyAtCenter} disabled={!editable} undo={undoApi} />
       <ZoomControls
         zoomPercent={zoomPercent(camera.camera)}
         canZoomIn={canZoomIn(camera.camera)}

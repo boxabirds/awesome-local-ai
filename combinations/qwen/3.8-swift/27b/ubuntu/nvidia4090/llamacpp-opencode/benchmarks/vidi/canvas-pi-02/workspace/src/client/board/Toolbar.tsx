@@ -2,12 +2,20 @@
 // button. Clicks never propagate to the viewport (which would pan/clear).
 
 import type { ReactElement } from 'react';
+import { UndoButtons } from './UndoButtons';
+import type { UndoApi } from './useUndo';
 
 export const STICKY_BUTTON_TOOLTIP = 'Sticky note – or double-click the board';
 
 const stop = (e: React.SyntheticEvent): void => e.stopPropagation();
 
-export function Toolbar(props: { onCreateSticky(): void; disabled?: boolean }): ReactElement {
+/** The left toolbar: the Sticky note tool, and below it the Undo and Redo
+ *  buttons (story 8, undo.buttons). */
+export function Toolbar(props: {
+  onCreateSticky(): void;
+  disabled?: boolean;
+  undo: UndoApi;
+}): ReactElement {
   return (
     <div
       className="toolbar"
@@ -30,6 +38,7 @@ export function Toolbar(props: { onCreateSticky(): void; disabled?: boolean }): 
           <path d="M12 17v-5h5" fill="none" stroke="#94a3b8" strokeWidth="1" />
         </svg>
       </button>
+      <UndoButtons {...props.undo} />
     </div>
   );
 }

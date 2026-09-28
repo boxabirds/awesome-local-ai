@@ -11,6 +11,7 @@ import { allObjectIds, deleteObjects, moveObjects, type ObjectSnapshot } from '.
 import { NUDGE_LARGE_STEP_WORLD, NUDGE_STEP_WORLD } from '../../shared/config';
 import type { Point } from '../../shared/geometry';
 import { getObjectType } from '../objects/registry';
+import type { UndoController } from './undo';
 import type { SelectionApi } from './useSelection';
 
 interface BoardKeysOptions {
@@ -18,6 +19,9 @@ interface BoardKeysOptions {
   selection: SelectionApi;
   snapshot: readonly ObjectSnapshot[];
   canEdit: boolean;
+  /** Personal undo history (story 8): undo/redo shortcuts and step
+   *  boundaries around the nudge/delete operations. */
+  undo?: UndoController;
 }
 
 function isTypingTarget(target: EventTarget | null): boolean {
@@ -35,7 +39,7 @@ export function useBoardKeys(opts: BoardKeysOptions): void {
 
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent): void => {
-      const { doc, selection, snapshot, canEdit } = ref.current;
+      const { doc, selection, snapshot, canEdit, undo } = ref.current;
 
       if (selection.editingId !== null) return; // the editor owns the keyboard
       if (isTypingTarget(e.target)) return;
@@ -53,26 +57,51 @@ export function useBoardKeys(opts: BoardKeysOptions): void {
         return;
       }
 
-      // Arrow nudge (Shift = large step).
+      // Undo (story 8, undo.shortcuts): Ctrl/Cmd+Z. Ignored while the board
+      // is locked (undo.not_editable) and when a note is being edited (the
+      // editor owns the keyboard and handles Ctrl/Cmd+Z itself).
+      if ((e.ctrlKey || e.metaKey) && (e.key === 'z' || e.key === 'Z')) {
+        if (!canEdit) return;
+        e.preventDefault();
+        if (e.shiftKey) undo?.redo();
+        else undo?.undo();
+        return;
+      }
+
+      // Redo: Ctrl/Cmd+Shift+Z is handled above; Ctrl/Cmd+Y here.
+      if ((e.ctrlKey || e.metaKey) && (e.key === 'y' || e.key === 'Y')) {
+        if (!canEdit) return;
+        e.preventDefault();
+        undo?.redo();
+        return;
+      }
+
+      // Arrow nudge (Shift = large step); one nudge is one undo step
+      // (boundary before and after, undo.steps).
       const step = e.shiftKey ? NUDGE_LARGE_STEP_WORLD : NUDGE_STEP_WORLD;
       const dx = e.key === 'ArrowRight' ? step : e.key === 'ArrowLeft' ? -step : 0;
       const dy = e.key === 'ArrowDown' ? step : e.key === 'ArrowUp' ? -step : 0;
       if (dx !== 0 || dy !== 0) {
         if (selection.ids.size === 0 || !canEdit) return;
         e.preventDefault();
+        undo?.boundary();
         const positions = new Map<string, Point>();
         for (const o of snapshot) {
           if (selection.ids.has(o.id)) positions.set(o.id, { x: o.x + dx, y: o.y + dy });
         }
         moveObjects(doc, positions);
+        undo?.boundary();
         return;
       }
 
-      // Delete / Backspace.
+      // Delete / Backspace: one delete (of any number of objects) is one
+      // undo step (boundary before and after, undo.steps).
       if (e.key === 'Delete' || e.key === 'Backspace') {
         if (selection.ids.size === 0 || !canEdit) return;
         e.preventDefault();
+        undo?.boundary();
         deleteObjects(doc, [...selection.ids]);
+        undo?.boundary();
         selection.clear();
         return;
       }

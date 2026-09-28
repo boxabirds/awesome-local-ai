@@ -236,6 +236,21 @@ body {
   outline-offset: 1px;
 }
 
+/* Story 8: Undo/Redo buttons below the tools. */
+.toolbar-undo {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  padding-top: 8px;
+  border-top: 1px solid #e2e8f0;
+}
+
+.toolbar-undo-button:disabled {
+  cursor: default;
+  color: #94a3b8;
+  background: #f8fafc;
+}
+
 /* Floating note toolbar (screen space, above the selected note). */
 .note-toolbar {
   display: flex;

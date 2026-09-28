@@ -76,7 +76,7 @@ export function StickyNote(props: ObjectProps): ReactElement {
       }}
     >
       {editing && ytext ? (
-        <StickyTextEditor ytext={ytext} fontPx={fit.fontPx} onEnd={() => props.onEndEdit()} />
+        <StickyTextEditor ytext={ytext} fontPx={fit.fontPx} onEnd={() => props.onEndEdit()} undo={props.undo} />
       ) : (
         <div
           ref={textElRef}

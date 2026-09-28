@@ -9,6 +9,7 @@ import type * as Y from 'yjs';
 import { objectBounds, type ObjectSnapshot } from '../../shared/board-model';
 import type { Point } from '../../shared/geometry';
 import { STICKY_MIN_SIZE_WORLD } from '../../shared/config';
+import type { UndoController } from '../board/undo';
 import { StickyNote } from './StickyNote';
 
 /** Props every board object component receives from the generic renderer. */
@@ -29,6 +30,9 @@ export interface ObjectProps {
   onSelect(id: string): void;
   onStartEdit(id: string): void;
   onEndEdit(): void;
+  /** Personal undo history (story 8): text editors use it for typing
+   *  boundaries and in-editor Ctrl/Cmd+Z. */
+  undo?: UndoController;
 }
 
 export interface ObjectTypeSpec {
