@@ -6,8 +6,9 @@ Model `qwen3.8-swift-27b`, scope `canvas`, effort `low`, client pi 0.86.0, host 
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
 | 1 | Pan and zoom around an infinite board | DONE | 24.8 | None | None | None | — | — | green | 6/6 |  | 0 / 0 | 1 | — | throttled 0%, server peak 18 GB |
 | 2 | Capture ideas on sticky notes and rearrange them | DONE | 32.2 | None | None | None | — | — | green | 16/20 |  | 0 / 0 | 1 | — | throttled 0%, server peak 24 GB |
+| 3 | See other people's edits appear live on the same board | DONE | 193.0 | None | None | None | — | — | green | 22/27 |  | 0 / 0 | 6 | — | throttled 0%, server peak 24 GB |
 
-**Totals:** 2 stories, 57 agent-minutes, 0 requests, 0 prompt / 0 completion tokens, gate green 2/2, final acceptance 16/20, stalled 0, partial 0, 3629 lines in src+tests.
+**Totals:** 3 stories, 250 agent-minutes, 0 requests, 0 prompt / 0 completion tokens, gate green 3/3, final acceptance 22/27, stalled 0, partial 0, 6106 lines in src+tests.
 
 ## How it happened
 
@@ -17,10 +18,12 @@ Each story's commits, and which story broke or fixed an earlier story's held-out
 |---|---|---|---|
 | 1 | 1 by the agent | 6386 / 0 | `useCamera.ts` (205), `BoardViewport.tsx` (178), `camera.ts` (126), `styles.css` (114), `NOTES.md` (91), `App.tsx` (52), +13 more |
 | 2 | 4 by the agent | 2349 / 65 | `board-model.ts` (259), `StickyNote.tsx` (192), `styles.css` (175), `App.tsx` (110), `StickyTextEditor.tsx` (104), `StickyText.ts` (101), +10 more |
+| 3 | 4 by the agent | 4285 / 321 | `board-room.ts` (240), `connectBoard.ts` (212), `NOTES.md` (124), `protocol.ts` (91), `board-id.ts` (48), `App.tsx` (41), +13 more |
 
 ### Earlier stories broken or fixed
 
-No story changed an earlier story's held-out results.
+- **Story 3 broke 0, fixed 1** earlier held-out tests (Story 3 (tasks 4, 7, 8, 9): y-websocket client sync + connection badge, live-collab e2e, and nightly soak; Story 3 (tasks 3, 5, 6): BoardRoom Durable Object relays y-protocols sync + awareness over real WebSockets, with full integration tests in workerd; story 3 (task 2): Worker entry routing + board-id/protocol implementation + wrangler config + vitest workers pool; story 3 (task 1): board id + protocol decode unit tests first (TC-01..TC-03), named settings). Source files it changed most: `board-room.ts` (240), `connectBoard.ts` (212), `NOTES.md` (124), `protocol.ts` (91), `board-id.ts` (48), `App.tsx` (41), +13 more.
+  - story 2: 6/10 → 7/10; fixed 1
 
 ### Interruptions and dead time
 

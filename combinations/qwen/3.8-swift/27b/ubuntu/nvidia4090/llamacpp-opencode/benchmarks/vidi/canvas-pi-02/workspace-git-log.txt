@@ -1,3 +1,76 @@
+commit ee6e5b88d28bfc2d1e0069f1862aa8d117c357e7
+vidi-agent  Mon Sep 28 01:49:14 2026 +0100
+
+    Story 3 (tasks 4, 7, 8, 9): y-websocket client sync + connection badge, live-collab e2e, and nightly soak
+
+
+ NOTES.md                                      | 124 ++++++++++-
+ package.json                                  |   3 +-
+ playwright.config.ts                          |  16 +-
+ src/client/App.tsx                            |  41 +++-
+ src/client/board/useBoardDoc.ts               |  36 +++-
+ src/client/canvas/testHooks.ts                |  30 ++-
+ src/client/objects/StickyTextEditor.tsx       |  14 ++
+ src/client/styles.css                         |  29 +++
+ src/client/sync/ConnectionStatus.tsx          |  29 +++
+ src/client/sync/connectBoard.ts               | 212 +++++++++++++++++++
+ src/shared/config.ts                          |   4 +
+ src/shared/protocol.ts                        |  33 ++-
+ src/worker/board-room.ts                      |  46 +++-
+ tests/component/ConnectionStatus.test.tsx     | 113 ++++++++++
+ tests/e2e/helpers/board.ts                    |  14 --
+ tests/e2e/helpers/participants.ts             | 103 +++++++++
+ tests/e2e/live-collab.spec.ts                 | 286 +++++++++++++++++++++++++
+ tests/e2e/nightly/live-collab.nightly.spec.ts | 288 ++++++++++++++++++++++++++
+ tests/integration/ws-client.ts                |  59 ++++--
+ tests/unit/protocol.test.ts                   |  53 +++--
+ 20 files changed, 1442 insertions(+), 91 deletions(-)
+commit 4b8e9905ebd3bd2e175cada9fd252529f861967f
+vidi-agent  Sun Sep 27 23:08:30 2026 +0100
+
+    Story 3 (tasks 3, 5, 6): BoardRoom Durable Object relays y-protocols sync + awareness over real WebSockets, with full integration tests in workerd
+
+
+ package.json                         |   2 +-
+ src/worker/board-room.ts             | 176 +++++++++++++++-
+ tests/fixtures/random-ops.ts         |  80 ++++++++
+ tests/integration/board-room.test.ts | 382 +++++++++++++++++++++++++++++++++++
+ tests/integration/env.d.ts           |   9 +
+ tests/integration/worker.test.ts     |  91 +++++++++
+ tests/integration/ws-client.ts       | 250 +++++++++++++++++++++++
+ tsconfig.json                        |   6 +-
+ vitest.config.ts                     |  23 +--
+ vitest.integration.config.ts         |  20 ++
+ 10 files changed, 1022 insertions(+), 17 deletions(-)
+commit fd9f75b6c0a0d2a371ef820dc26fbadfb7b265b2
+vidi-agent  Sun Sep 27 22:47:45 2026 +0100
+
+    story 3 (task 2): Worker entry routing + board-id/protocol implementation + wrangler config + vitest workers pool
+
+
+ package.json             |  2 ++
+ src/shared/board-id.ts   | 30 +++++++++++++++++++++++++++---
+ src/shared/protocol.ts   | 27 +++++++++++++++++++++++++--
+ src/worker/board-room.ts | 18 ++++++++++++++++++
+ src/worker/index.ts      | 36 ++++++++++++++++++++++++++++++++++++
+ tsconfig.json            |  2 +-
+ vitest.config.ts         | 11 +++++++++++
+ wrangler.jsonc           | 13 ++++++++++---
+ 8 files changed, 130 insertions(+), 9 deletions(-)
+commit dc572ee6e7c52dcc46ee442e42cd55a3ab40a273
+vidi-agent  Sun Sep 27 22:45:35 2026 +0100
+
+    story 3 (task 1): board id + protocol decode unit tests first (TC-01..TC-03), named settings
+
+
+ package-lock.json           | 1722 ++++++++++++++++++++++++++++++++++++++-----
+ package.json                |    7 +-
+ src/shared/board-id.ts      |   18 +
+ src/shared/config.ts        |   16 +
+ src/shared/protocol.ts      |   31 +
+ tests/unit/board-id.test.ts |   47 ++
+ tests/unit/protocol.test.ts |   54 ++
+ 7 files changed, 1691 insertions(+), 204 deletions(-)
 commit c0f2a7984e6031aeb19d313174fd821a8c6446e8
 vidi-agent  Sun Sep 27 22:35:46 2026 +0100
 
