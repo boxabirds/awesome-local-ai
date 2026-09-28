@@ -12,8 +12,9 @@ Model `mlxserve-flash-next-mixed-4-8bit`, scope `canvas`, effort `low`, client p
 | 7 | Select, move, resize and delete several objects at once | DONE, on partial 4 | 143.8 | None | None | None | — | — | green | 29/44 |  | 0 / 0 | 5 | — | throttled 87%, server peak 84 GB |
 | 8 | Undo and redo my own changes without undoing anyone else's | DONE, on partial 4 | 121.7 | None | None | None | — | — | green | 32/51 |  | 0 / 0 | 4 | — | throttled 94%, server peak 84 GB |
 | 9 | Write free text anywhere on the board | DONE, on partial 4 | 99.5 | None | None | None | — | — | green | 38/57 |  | 0 / 0 | 5 | — | throttled 97%, server peak 84 GB |
+| 10 | Draw shapes and connect them with arrows that follow when moved | DONE, on partial 4 | 107.5 | None | None | None | — | — | green | 43/65 |  | 0 / 0 | 5 | — | DEGRADED (power) throttled 97%, server peak 93 GB |
 
-**Totals:** 8 stories, 906 agent-minutes, 0 requests, 0 prompt / 0 completion tokens, gate green 8/8, final acceptance 38/57, stalled 0, partial 1, 22947 lines in src+tests.
+**Totals:** 9 stories, 1014 agent-minutes, 0 requests, 0 prompt / 0 completion tokens, gate green 9/9, final acceptance 43/65, stalled 0, partial 1, 28019 lines in src+tests.
 
 ### Stories ended early (PARTIAL) and what was built on them
 
@@ -22,6 +23,9 @@ Model `mlxserve-flash-next-mixed-4-8bit`, scope `canvas`, effort `low`, client p
 - Story 7, built on partial 4: held-out tests on the partial base 10/17; partial story's tests fixed 0, regressed 2; 0 stub-like lines added to src/.
 - Story 8, built on partial 4: held-out tests on the partial base 13/24; partial story's tests fixed 0, regressed 2; 0 stub-like lines added to src/.
 - Story 9, built on partial 4: held-out tests on the partial base 18/30; partial story's tests fixed 0, regressed 1; 0 stub-like lines added to src/.
+- Story 10, built on partial 4: held-out tests on the partial base 21/38; partial story's tests fixed 0, regressed 2; 0 stub-like lines added to src/.
+
+> Stories 10 ran partly on battery or in Low Power Mode. Their timings are not comparable; re-run them.
 
 ## How it happened
 
@@ -37,6 +41,7 @@ Each story's commits, and which story broke or fixed an earlier story's held-out
 | 7 | 1 by the agent | 5121 / 259 | `useTransformGesture.ts` (330), `board-model.ts` (295), `StickyNote.tsx` (260), `BoardApp.tsx` (219), `geometry.ts` (211), `useSelection.ts` (190), +11 more |
 | 8 | 4 by the agent | 2639 / 35 | `undo.ts` (214), `NOTES.md` (117), `BoardApp.tsx` (80), `UndoButtons.tsx` (72), `useUndo.ts` (60), `StickyTextEditor.tsx` (48), +5 more |
 | 9 | 1 by the agent | 2861 / 210 | `text.ts` (221), `textLayout.ts` (209), `TextEditor.tsx` (198), `StickyTextEditor.tsx` (173), `TextObject.tsx` (146), `TextToolbar.tsx` (97), +15 more |
+| 10 | 1 by the agent | 5324 / 99 | `ConnectorObject.tsx` (355), `ConnectorTool.tsx` (283), `ShapeObject.tsx` (248), `connector.ts` (239), `shape.ts` (198), `ShapeTool.tsx` (195), +14 more |
 
 ### Earlier stories broken or fixed
 
@@ -53,9 +58,23 @@ Each story's commits, and which story broke or fixed an earlier story's held-out
   - story 3: 2/7 → 3/7; fixed 1
   - story 4: 2/4 → 3/4; fixed 1
   - story 7: 1/8 → 3/8; fixed 2
+- **Story 10 broke 4, fixed 2** earlier held-out tests (story 10: Draw shapes and connect them with arrows that follow when moved). Source files it changed most: `ConnectorObject.tsx` (355), `ConnectorTool.tsx` (283), `ShapeObject.tsx` (248), `connector.ts` (239), `shape.ts` (198), `ShapeTool.tsx` (195), +14 more.
+  - story 3: 3/7 → 5/7; fixed 2
+  - story 4: 3/4 → 2/4; broke 1.
+  - story 5: 5/5 → 4/5; broke 1.
+  - story 7: 3/8 → 2/8; broke 1.
+  - story 8: 5/7 → 4/7; broke 1.
 
 ### Interruptions and dead time
 
 A gap in a story's agent events with a restart or a logged intervention inside it is dead time (the machine or the run was down), not agent time. *Active* is the story's event span minus that dead time, across every attempt. *Recorded* is the harness's agent time, which covers only the attempt after the last restart.
 
-No interruptions inside a story.
+**1 restart (no intervention logged); 3 min dead in total.**
+
+| Story | When (UTC) | Down for | Kind | Logged cause |
+|---|---|---|---|---|
+| 7 | 28 Sep 08:57 | 3 min | restart (no intervention logged) | — |
+
+| Story | Active | Dead | Recorded |
+|---|---|---|---|
+| 7 | 140 min | 3 min | 144 min |
