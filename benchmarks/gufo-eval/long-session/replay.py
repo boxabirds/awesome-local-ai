@@ -23,6 +23,7 @@ from pathlib import Path
 REQUEST_TIMEOUT_S = 1800
 LISTING_TIMEOUT_S = 10
 VARIANTS = {"as-is": {}, "effort-low": {"reasoning_effort": "low"}}
+TOOL_MARKUP = "<tool_call>"
 
 
 def served_model(url: str) -> str:
@@ -71,6 +72,8 @@ def replay(url: str, body: dict) -> dict:
             "prompt_tokens": usage.get("prompt_tokens"), "completion_tokens": usage.get("completion_tokens"),
             "reasoning_chars": len("".join(reasoning)), "content_chars": len("".join(content)),
             "tool_calls": [c["name"] for c in calls.values()],
+            # a tool call the server failed to parse comes back as its raw markup in the text
+            "tool_markup_in_content": TOOL_MARKUP in "".join(content),
             "tool_args_valid": all(parses(c["args"]) for c in calls.values()) if calls else None,
             "finish": finish}
 

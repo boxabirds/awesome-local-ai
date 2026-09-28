@@ -144,6 +144,37 @@ whole prompt; the next two reuse the cached prompt, as an agent turn does.
 - Output lengths vary a lot between repeats at 100k (606–3,221 tokens) on every setting, so these
   three repeats can't rank the variants on verbosity.
 
+### H7: the same stories as llama.cpp (stories 1–2, number order) — gufo scored 0, for two reasons, one of them gufo's
+
+Run `canvas-gufo-exp1` (gufo, default config, stories 1 and 2 on an empty repository, exactly as
+llama.cpp's canvas-vk-01/-02 built them):
+
+| Run | Story 1 | Story 2 | Held-out, cumulative |
+|---|---|---|---|
+| gufo, canvas-gufo-exp1 | 17 min, 42 calls, 41k out, **ended early** | 59 min, 172 calls, 125k out | **0/6, 0/20** |
+| llama.cpp, canvas-vk-01 | 78 min, 116 calls, 117k out | 98 min, 250 calls, 137k out | 6/6, 17/20 |
+| llama.cpp, canvas-vk-02 | 75 min, 109 calls, 110k out | 112 min, 157 calls, 136k out | 5/6, 17/20 |
+
+Two separate causes, found by reading the records:
+
+1. **gufo returned a tool call as text, and the agent stopped (gufo bug).** Story 1's last assistant
+   message is a complete, well-formed Qwen tool call (`<tool_call><function=edit>…`) delivered as
+   plain text with `finish_reason: stop` and no structured call (`leak-text.txt`). pi reads a text
+   reply with no tool call as "done", so the story ended after 17 minutes with only the camera maths
+   built (no zoom controls, no hint). The call's `edits` argument is a JSON array whose strings
+   contain raw line breaks, which strict JSON rejects; gufo's PR
+   [#284](https://github.com/gufo-org/gufo/pull/284) (in our build) says a non-string value that
+   still fails to parse is "rejected as before", and before #284 a rejected call was dropped
+   invisibly. Across every Strix Halo run: **1 such reply in ~510 gufo turns, 0 in ~4,400
+   llama.cpp turns** (`leaked_toolcalls.py`). Rare, but each one ends a story outright.
+2. **The held-out suite could not start the app (the agent's configuration, not gufo).** The
+   workspace's `wrangler.jsonc` declares an assets binding without a Worker script; `wrangler dev`,
+   which the held-out suite uses, refuses it ("Cannot use assets with a binding in an assets-only
+   Worker"), so all 26 held-out tests failed with `ERR_CONNECTION_REFUSED`. The agent's own browser
+   tests use `vite preview`, so they passed (story 2's gate was green). A diagnostic re-score with
+   that one line removed still scored 0/20 (not recorded): story 1's user interface was never
+   built, because of cause 1.
+
 ## Why published gufo results look great and ours looked bad — _pending_
 
 ## Recommended configuration — _pending_
