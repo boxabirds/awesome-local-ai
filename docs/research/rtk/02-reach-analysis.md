@@ -12,7 +12,7 @@ Before spending machine time on an A/B test, this checks how much of our agents'
    - gruntus, llama.cpp with Qwen3.8-Swift 27B, `canvas-pi-02`: all 11 stories, 3,692 calls.
 2. [`scripts/classify.py`](scripts/classify.py) ran each shell command through `rtk rewrite`, RTK's own rule for what its hook intercepts, and totalled the output characters by class. Output characters stand in for tokens.
 
-Note: `rtk rewrite` exits with code 3 when it rewrites a command, although its `--help` says 0. The first run of the classifier missed every rewrite because of this.
+Note: `rtk rewrite` exits with code 3 for an "advisory" rewrite, which is what it returned for every command here. Its `--help` only mentions 0, but the pi extension it installs documents 3 as a rewrite too. The first run of the classifier treated only 0 as a rewrite and missed every one.
 
 The totals are in [`results/reach-2026-09-28.json`](results/reach-2026-09-28.json).
 

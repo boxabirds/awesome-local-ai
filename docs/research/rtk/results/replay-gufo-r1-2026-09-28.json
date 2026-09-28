@@ -1,0 +1,1202 @@
+[
+ {
+  "cmd": "grep -A10 \"TC-29\\|TC-30\" spec/stories/003-see-other-people-s-edits-appear-live-on-the-same-b/tasks.md",
+  "rtk": "rtk grep -A10 \"TC-29\\|TC-30\" spec/stories/003-see-other-people-s-edits-appear-live-on-the-same-b/tasks.md",
+  "plain_chars": 110,
+  "rtk_chars": 110,
+  "plain_exit": 2,
+  "rtk_exit": 2
+ },
+ {
+  "cmd": "grep \"__vidi6\" src/client/board/useBoardDoc.ts src/client/sync/connectBoard.ts",
+  "rtk": "rtk grep \"__vidi6\" src/client/board/useBoardDoc.ts src/client/sync/connectBoard.ts",
+  "plain_chars": 235,
+  "rtk_chars": 235,
+  "plain_exit": 0,
+  "rtk_exit": 0
+ },
+ {
+  "cmd": "grep -n \"^export\" tests/fixtures/boards.ts",
+  "rtk": "rtk grep -n \"^export\" tests/fixtures/boards.ts",
+  "plain_chars": 351,
+  "rtk_chars": 351,
+  "plain_exit": 0,
+  "rtk_exit": 0
+ },
+ {
+  "cmd": "cat spec/README.md && echo \"---ENV---\" && node --version && npm --version && which npx && echo \"PI vars:\" && env | grep PI_ | head",
+  "rtk": "rtk read spec/README.md && echo \"---ENV---\" && node --version && npm --version && which npx && echo \"PI vars:\" && env | grep PI_ | head",
+  "plain_chars": 47,
+  "rtk_chars": 60,
+  "plain_exit": 1,
+  "rtk_exit": 1
+ },
+ {
+  "cmd": "grep -n \"TextEditor\" src/client/objects/TextObject.tsx",
+  "rtk": "rtk grep -n \"TextEditor\" src/client/objects/TextObject.tsx",
+  "plain_chars": 69,
+  "rtk_chars": 69,
+  "plain_exit": 0,
+  "rtk_exit": 0
+ },
+ {
+  "cmd": "grep -rn \"makeBoardId\\|gotoBoard\\|boardId = \" tests/e2e/*.spec.ts",
+  "rtk": "rtk grep -rn \"makeBoardId\\|gotoBoard\\|boardId = \" tests/e2e/*.spec.ts",
+  "plain_chars": 3094,
+  "rtk_chars": 3094,
+  "plain_exit": 0,
+  "rtk_exit": 0
+ },
+ {
+  "cmd": "grep \"sticky-textarea\" tests/component/StickyTextEditor.test.tsx | head -5",
+  "rtk": "rtk grep \"sticky-textarea\" tests/component/StickyTextEditor.test.tsx | head -5",
+  "plain_chars": 380,
+  "rtk_chars": 380,
+  "plain_exit": 0,
+  "rtk_exit": 0
+ },
+ {
+  "cmd": "ls",
+  "rtk": "rtk ls",
+  "plain_chars": 278,
+  "rtk_chars": 408,
+  "plain_exit": 0,
+  "rtk_exit": 0
+ },
+ {
+  "cmd": "npm run test:unit && echo \"UNIT: PASS\" && npm run test:component && echo \"COMPONENT: PASS\" && npm run test:integration && echo \"INTEGRATION: PASS\"",
+  "rtk": "rtk npm run test:unit && echo \"UNIT: PASS\" && rtk npm run test:component && echo \"COMPONENT: PASS\" && rtk npm run test:integration && echo \"INTEGRATION: PASS\"",
+  "plain_chars": 10625,
+  "rtk_chars": 10420,
+  "plain_exit": 1,
+  "rtk_exit": 1
+ },
+ {
+  "cmd": "grep -n \"shape-tool-overlay\\|position.*absolute\\|position.*fixed\" src/client/tools/ShapeTool.tsx | head -10",
+  "rtk": "rtk grep -n \"shape-tool-overlay\\|position.*absolute\\|position.*fixed\" src/client/tools/ShapeTool.tsx | head -10",
+  "plain_chars": 110,
+  "rtk_chars": 110,
+  "plain_exit": 0,
+  "rtk_exit": 0
+ },
+ {
+  "cmd": "cat src/shared/objects/shape.ts",
+  "rtk": "rtk read src/shared/objects/shape.ts",
+  "plain_chars": 4267,
+  "rtk_chars": 4267,
+  "plain_exit": 0,
+  "rtk_exit": 0
+ },
+ {
+  "cmd": "grep -n \"data-testid\\|data-note\" src/client/objects/StickyNote.tsx",
+  "rtk": "rtk grep -n \"data-testid\\|data-note\" src/client/objects/StickyNote.tsx",
+  "plain_chars": 162,
+  "rtk_chars": 162,
+  "plain_exit": 0,
+  "rtk_exit": 0
+ },
+ {
+  "cmd": "grep -n \"newBoardId()\" tests/integration/board-room.test.ts",
+  "rtk": "rtk grep -n \"newBoardId()\" tests/integration/board-room.test.ts",
+  "plain_chars": 30,
+  "rtk_chars": 30,
+  "plain_exit": 0,
+  "rtk_exit": 0
+ },
+ {
+  "cmd": "find src -name \"*.css\" | head -5",
+  "rtk": "rtk find src -name \"*.css\" | head -5",
+  "plain_chars": 22,
+  "rtk_chars": 18,
+  "plain_exit": 0,
+  "rtk_exit": 0
+ },
+ {
+  "cmd": "grep -n \"pointer-events\\|pointerEvents\" src/client/styles.css | head -10",
+  "rtk": "rtk grep -n \"pointer-events\\|pointerEvents\" src/client/styles.css | head -10",
+  "plain_chars": 194,
+  "rtk_chars": 194,
+  "plain_exit": 0,
+  "rtk_exit": 0
+ },
+ {
+  "cmd": "grep \"DurableObjectNamespace\" src/worker/*.ts",
+  "rtk": "rtk grep \"DurableObjectNamespace\" src/worker/*.ts",
+  "plain_chars": 422,
+  "rtk_chars": 422,
+  "plain_exit": 0,
+  "rtk_exit": 0
+ },
+ {
+  "cmd": "grep \"^import\" tests/integration/room-persist.test.ts",
+  "rtk": "rtk grep \"^import\" tests/integration/room-persist.test.ts",
+  "plain_chars": 567,
+  "rtk_chars": 567,
+  "plain_exit": 0,
+  "rtk_exit": 0
+ },
+ {
+  "cmd": "cat src/worker/index.ts",
+  "rtk": "rtk read src/worker/index.ts",
+  "plain_chars": 5479,
+  "rtk_chars": 5479,
+  "plain_exit": 0,
+  "rtk_exit": 0
+ },
+ {
+  "cmd": "head -5 src/client/sync/connectBoard.ts",
+  "rtk": "rtk read src/client/sync/connectBoard.ts --head-lines 5",
+  "plain_chars": 255,
+  "rtk_chars": 255,
+  "plain_exit": 0,
+  "rtk_exit": 0
+ },
+ {
+  "cmd": "grep -A 3 \"closePanel\" src/client/share/SharePanel.tsx | head -8",
+  "rtk": "rtk grep -A 3 \"closePanel\" src/client/share/SharePanel.tsx | head -8",
+  "plain_chars": 210,
+  "rtk_chars": 210,
+  "plain_exit": 0,
+  "rtk_exit": 0
+ },
+ {
+  "cmd": "grep -n \"toggleShapeMenu\\|shapeMenuOpen\" src/client/board/Toolbar.tsx | head -10",
+  "rtk": "rtk grep -n \"toggleShapeMenu\\|shapeMenuOpen\" src/client/board/Toolbar.tsx | head -10",
+  "plain_chars": 254,
+  "rtk_chars": 254,
+  "plain_exit": 0,
+  "rtk_exit": 0
+ },
+ {
+  "cmd": "grep \"window\" src/client/sync/connectBoard.ts",
+  "rtk": "rtk grep \"window\" src/client/sync/connectBoard.ts",
+  "plain_chars": 284,
+  "rtk_chars": 284,
+  "plain_exit": 0,
+  "rtk_exit": 0
+ },
+ {
+  "cmd": "grep -A 25 \"webSocketMessage\" src/worker/board-room.ts",
+  "rtk": "rtk grep -A 25 \"webSocketMessage\" src/worker/board-room.ts",
+  "plain_chars": 875,
+  "rtk_chars": 875,
+  "plain_exit": 0,
+  "rtk_exit": 0
+ },
+ {
+  "cmd": "grep \"CONNECTOR_MIN_LENGTH\" src/shared/config.ts",
+  "rtk": "rtk grep \"CONNECTOR_MIN_LENGTH\" src/shared/config.ts",
+  "plain_chars": 45,
+  "rtk_chars": 45,
+  "plain_exit": 0,
+  "rtk_exit": 0
+ },
+ {
+  "cmd": "grep -n \"WsClient\\|sendRaw\" tests/integration/room-persist.test.ts | grep -v \"^12:\"",
+  "rtk": "grep -n \"WsClient\\|sendRaw\" tests/integration/room-persist.test.ts | rtk grep -v \"^12:\"",
+  "plain_chars": 856,
+  "rtk_chars": 856,
+  "plain_exit": 0,
+  "rtk_exit": 0
+ },
+ {
+  "cmd": "grep -n \"BoardRoom\\|LOAD_ORIGIN\\|syncProtocol\\|decoding\\|encoding\\|MESSAGE_SYNC\" tests/integration/room-persist.test.ts",
+  "rtk": "rtk grep -n \"BoardRoom\\|LOAD_ORIGIN\\|syncProtocol\\|decoding\\|encoding\\|MESSAGE_SYNC\" tests/integration/room-persist.test.ts",
+  "plain_chars": 397,
+  "rtk_chars": 397,
+  "plain_exit": 0,
+  "rtk_exit": 0
+ },
+ {
+  "cmd": "grep -n \"BoardViewport\\|ShapeTool\\|ConnectorTool\" src/client/BoardApp.tsx | head -15",
+  "rtk": "rtk grep -n \"BoardViewport\\|ShapeTool\\|ConnectorTool\" src/client/BoardApp.tsx | head -15",
+  "plain_chars": 587,
+  "rtk_chars": 587,
+  "plain_exit": 0,
+  "rtk_exit": 0
+ },
+ {
+  "cmd": "head -20 tests/component/UndoBoundaries.test.tsx",
+  "rtk": "rtk read tests/component/UndoBoundaries.test.tsx --head-lines 20",
+  "plain_chars": 525,
+  "rtk_chars": 525,
+  "plain_exit": 0,
+  "rtk_exit": 0
+ },
+ {
+  "cmd": "grep -A20 \"emit(\" node_modules/lib0/observable.js | head -25",
+  "rtk": "rtk grep -A20 \"emit(\" node_modules/lib0/observable.js | head -25",
+  "plain_chars": 0,
+  "rtk_chars": 0,
+  "plain_exit": 0,
+  "rtk_exit": 0
+ },
+ {
+  "cmd": "grep -rn \"data-testid\" src/client/ | head -40",
+  "rtk": "rtk grep -rn \"data-testid\" src/client/ | head -40",
+  "plain_chars": 3156,
+  "rtk_chars": 3156,
+  "plain_exit": 0,
+  "rtk_exit": 0
+ },
+ {
+  "cmd": "cat tests/e2e/helpers/board.ts",
+  "rtk": "rtk read tests/e2e/helpers/board.ts",
+  "plain_chars": 2864,
+  "rtk_chars": 2864,
+  "plain_exit": 0,
+  "rtk_exit": 0
+ },
+ {
+  "cmd": "grep -n \"App\" tests/component/LoadFailure.test.tsx tests/component/StickyNote.test.tsx",
+  "rtk": "rtk grep -n \"App\" tests/component/LoadFailure.test.tsx tests/component/StickyNote.test.tsx",
+  "plain_chars": 350,
+  "rtk_chars": 350,
+  "plain_exit": 0,
+  "rtk_exit": 0
+ },
+ {
+  "cmd": "git log --oneline -3",
+  "rtk": "rtk git log --oneline -3",
+  "plain_chars": 17,
+  "rtk_chars": 17,
+  "plain_exit": 0,
+  "rtk_exit": 0
+ },
+ {
+  "cmd": "grep \"window.__vidi6\" src/client/sync/connectBoard.ts",
+  "rtk": "rtk grep \"window.__vidi6\" src/client/sync/connectBoard.ts",
+  "plain_chars": 0,
+  "rtk_chars": 0,
+  "plain_exit": 1,
+  "rtk_exit": 1
+ },
+ {
+  "cmd": "grep -n \"provider.ws\\|this.ws\\|ws =\\|\\.wsconnected\\|status.*disconnected\\|onclose\\|shouldConnect\" node_modules/y-websocket/src/y-websocket.js | head -30",
+  "rtk": "rtk grep -n \"provider.ws\\|this.ws\\|ws =\\|\\.wsconnected\\|status.*disconnected\\|onclose\\|shouldConnect\" node_modules/y-websocket/src/y-websocket.js | head -30",
+  "plain_chars": 1805,
+  "rtk_chars": 1217,
+  "plain_exit": 0,
+  "rtk_exit": 0
+ },
+ {
+  "cmd": "find src tests -type f | sort && cat package.json",
+  "rtk": "find src tests -type f | sort && rtk read package.json",
+  "plain_chars": 6281,
+  "rtk_chars": 6281,
+  "plain_exit": 0,
+  "rtk_exit": 0
+ },
+ {
+  "cmd": "grep -A 25 \"TC-08.*PERSIST_TESTED_NOTES\" tests/integration/board-store.test.ts",
+  "rtk": "rtk grep -A 25 \"TC-08.*PERSIST_TESTED_NOTES\" tests/integration/board-store.test.ts",
+  "plain_chars": 935,
+  "rtk_chars": 935,
+  "plain_exit": 0,
+  "rtk_exit": 0
+ },
+ {
+  "cmd": "grep -A 30 \"persist.client_status\" spec/stories/004-return-to-a-board-and-find-everything-as-it-was-le/design.md | head -40",
+  "rtk": "rtk grep -A 30 \"persist.client_status\" spec/stories/004-return-to-a-board-and-find-everything-as-it-was-le/design.md | head -40",
+  "plain_chars": 111,
+  "rtk_chars": 111,
+  "plain_exit": 0,
+  "rtk_exit": 0
+ },
+ {
+  "cmd": "grep -n \"zoom\" src/client/objects/ImageObject.tsx",
+  "rtk": "rtk grep -n \"zoom\" src/client/objects/ImageObject.tsx",
+  "plain_chars": 20,
+  "rtk_chars": 20,
+  "plain_exit": 0,
+  "rtk_exit": 0
+ },
+ {
+  "cmd": "ls tests/component/",
+  "rtk": "rtk ls tests/component/",
+  "plain_chars": 513,
+  "rtk_chars": 665,
+  "plain_exit": 0,
+  "rtk_exit": 0
+ },
+ {
+  "cmd": "grep -n \"emit.*status\" node_modules/y-websocket/src/y-websocket.js",
+  "rtk": "rtk grep -n \"emit.*status\" node_modules/y-websocket/src/y-websocket.js",
+  "plain_chars": 109,
+  "rtk_chars": 109,
+  "plain_exit": 0,
+  "rtk_exit": 0
+ },
+ {
+  "cmd": "grep -n \"note.type === 'stroke'\" src/client/BoardApp.tsx | head -5",
+  "rtk": "rtk grep -n \"note.type === 'stroke'\" src/client/BoardApp.tsx | head -5",
+  "plain_chars": 44,
+  "rtk_chars": 44,
+  "plain_exit": 0,
+  "rtk_exit": 0
+ },
+ {
+  "cmd": "grep -n \"data-handle\\|handle-nw\\|handle-se\" tests/e2e/pen.spec.ts",
+  "rtk": "rtk grep -n \"data-handle\\|handle-nw\\|handle-se\" tests/e2e/pen.spec.ts",
+  "plain_chars": 74,
+  "rtk_chars": 74,
+  "plain_exit": 0,
+  "rtk_exit": 0
+ },
+ {
+  "cmd": "grep -A 30 \"TC-11.*Failed compaction\" tests/integration/board-store.test.ts | head -40",
+  "rtk": "rtk grep -A 30 \"TC-11.*Failed compaction\" tests/integration/board-store.test.ts | head -40",
+  "plain_chars": 1175,
+  "rtk_chars": 1175,
+  "plain_exit": 0,
+  "rtk_exit": 0
+ },
+ {
+  "cmd": "git status --short | head -30",
+  "rtk": "rtk git status --short | head -30",
+  "plain_chars": 0,
+  "rtk_chars": 0,
+  "plain_exit": 0,
+  "rtk_exit": 0
+ },
+ {
+  "cmd": "grep -n \"snapshot(doc)\\[0\\]\" tests/component/StickyNote.test.tsx",
+  "rtk": "rtk grep -n \"snapshot(doc)\\[0\\]\" tests/component/StickyNote.test.tsx",
+  "plain_chars": 202,
+  "rtk_chars": 202,
+  "plain_exit": 0,
+  "rtk_exit": 0
+ },
+ {
+  "cmd": "cat src/client/canvas/useCamera.ts",
+  "rtk": "rtk read src/client/canvas/useCamera.ts",
+  "plain_chars": 4060,
+  "rtk_chars": 4060,
+  "plain_exit": 0,
+  "rtk_exit": 0
+ },
+ {
+  "cmd": "grep \"canEdit\" src/client/sync/connectBoard.ts",
+  "rtk": "rtk grep \"canEdit\" src/client/sync/connectBoard.ts",
+  "plain_chars": 59,
+  "rtk_chars": 59,
+  "plain_exit": 0,
+  "rtk_exit": 0
+ },
+ {
+  "cmd": "grep -r \"cleanup\\|autoCleanup\" vitest.config.ts tests/component/",
+  "rtk": "rtk grep -r \"cleanup\\|autoCleanup\" vitest.config.ts tests/component/",
+  "plain_chars": 3511,
+  "rtk_chars": 3511,
+  "plain_exit": 0,
+  "rtk_exit": 0
+ },
+ {
+  "cmd": "cat spec/stories/012-drop-images-onto-the-board/tasks.md",
+  "rtk": "rtk read spec/stories/012-drop-images-onto-the-board/tasks.md",
+  "plain_chars": 85,
+  "rtk_chars": 98,
+  "plain_exit": 1,
+  "rtk_exit": 1
+ },
+ {
+  "cmd": "grep -n \"makeBoardId\\|createBoard\" tests/e2e/nightly.spec.ts | head -5",
+  "rtk": "rtk grep -n \"makeBoardId\\|createBoard\" tests/e2e/nightly.spec.ts | head -5",
+  "plain_chars": 155,
+  "rtk_chars": 155,
+  "plain_exit": 0,
+  "rtk_exit": 0
+ },
+ {
+  "cmd": "grep -A20 \"export function applyTextDiff\" src/client/objects/StickyText.ts",
+  "rtk": "rtk grep -A20 \"export function applyTextDiff\" src/client/objects/StickyText.ts",
+  "plain_chars": 655,
+  "rtk_chars": 655,
+  "plain_exit": 0,
+  "rtk_exit": 0
+ },
+ {
+  "cmd": "grep \"CREATE_BUDGET\" src/shared/config.ts",
+  "rtk": "rtk grep \"CREATE_BUDGET\" src/shared/config.ts",
+  "plain_chars": 38,
+  "rtk_chars": 38,
+  "plain_exit": 0,
+  "rtk_exit": 0
+ },
+ {
+  "cmd": "ls tests/e2e/helpers/",
+  "rtk": "rtk ls tests/e2e/helpers/",
+  "plain_chars": 45,
+  "rtk_chars": 63,
+  "plain_exit": 0,
+  "rtk_exit": 0
+ },
+ {
+  "cmd": "grep -n \"inRoom\\|function inRoom\\|async function inRoom\" tests/integration/board-store.test.ts | head -5",
+  "rtk": "rtk grep -n \"inRoom\\|function inRoom\\|async function inRoom\" tests/integration/board-store.test.ts | head -5",
+  "plain_chars": 309,
+  "rtk_chars": 309,
+  "plain_exit": 0,
+  "rtk_exit": 0
+ },
+ {
+  "cmd": "grep -n \"connection-status\" src/client/styles.css",
+  "rtk": "rtk grep -n \"connection-status\" src/client/styles.css",
+  "plain_chars": 175,
+  "rtk_chars": 175,
+  "plain_exit": 0,
+  "rtk_exit": 0
+ },
+ {
+  "cmd": "grep \"build:test\\|build:client\\|vite build\" package.json",
+  "rtk": "rtk grep \"build:test\\|build:client\\|vite build\" package.json",
+  "plain_chars": 71,
+  "rtk_chars": 71,
+  "plain_exit": 0,
+  "rtk_exit": 0
+ },
+ {
+  "cmd": "grep -A 5 '\"exclude\"' tsconfig.json",
+  "rtk": "rtk grep -A 5 '\"exclude\"' tsconfig.json",
+  "plain_chars": 63,
+  "rtk_chars": 63,
+  "plain_exit": 0,
+  "rtk_exit": 0
+ },
+ {
+  "cmd": "grep -n \"disconnect\\b\" node_modules/y-websocket/src/y-websocket.js | head -10",
+  "rtk": "rtk grep -n \"disconnect\\b\" node_modules/y-websocket/src/y-websocket.js | head -10",
+  "plain_chars": 617,
+  "rtk_chars": 617,
+  "plain_exit": 0,
+  "rtk_exit": 0
+ },
+ {
+  "cmd": "head -15 tests/e2e/live-collaboration.spec.ts",
+  "rtk": "rtk read tests/e2e/live-collaboration.spec.ts --head-lines 15",
+  "plain_chars": 454,
+  "rtk_chars": 454,
+  "plain_exit": 0,
+  "rtk_exit": 0
+ },
+ {
+  "cmd": "tail -10 src/client/styles.css",
+  "rtk": "rtk read src/client/styles.css --tail-lines 10",
+  "plain_chars": 207,
+  "rtk_chars": 207,
+  "plain_exit": 0,
+  "rtk_exit": 0
+ },
+ {
+  "cmd": "grep -B2 -A50 \"function popStackItem\" node_modules/yjs/dist/yjs.mjs | head -70",
+  "rtk": "rtk grep -B2 -A50 \"function popStackItem\" node_modules/yjs/dist/yjs.mjs | head -70",
+  "plain_chars": 0,
+  "rtk_chars": 0,
+  "plain_exit": 0,
+  "rtk_exit": 0
+ },
+ {
+  "cmd": "grep -rn \"test.*mode\\|MODE\\|VITE_\" src/client/canvas/testHooks.ts src/client/sync/connectBoard.ts",
+  "rtk": "rtk grep -rn \"test.*mode\\|MODE\\|VITE_\" src/client/canvas/testHooks.ts src/client/sync/connectBoard.ts",
+  "plain_chars": 458,
+  "rtk_chars": 458,
+  "plain_exit": 0,
+  "rtk_exit": 0
+ },
+ {
+  "cmd": "git diff b65d6fe -- package.json",
+  "rtk": "rtk git diff b65d6fe -- package.json",
+  "plain_chars": 30,
+  "rtk_chars": 30,
+  "plain_exit": 128,
+  "rtk_exit": 128
+ },
+ {
+  "cmd": "grep -n \"penToolActive\\|panningRef\\|beginPointer\\|const beginPointer\" src/client/canvas/BoardViewport.tsx | head -15",
+  "rtk": "rtk grep -n \"penToolActive\\|panningRef\\|beginPointer\\|const beginPointer\" src/client/canvas/BoardViewport.tsx | head -15",
+  "plain_chars": 582,
+  "rtk_chars": 582,
+  "plain_exit": 0,
+  "rtk_exit": 0
+ },
+ {
+  "cmd": "ls -la; echo \"---\"; cat package.json | head -5",
+  "rtk": "rtk ls -la; echo \"---\"; cat package.json | head -5",
+  "plain_chars": 1527,
+  "rtk_chars": 591,
+  "plain_exit": 0,
+  "rtk_exit": 0
+ },
+ {
+  "cmd": "grep -A10 \"over.capacity\\|MAX_CONCURRENT\\|overCapacity\\|over_capacity\" src/worker/board-room.ts | head -20",
+  "rtk": "rtk grep -A10 \"over.capacity\\|MAX_CONCURRENT\\|overCapacity\\|over_capacity\" src/worker/board-room.ts | head -20",
+  "plain_chars": 0,
+  "rtk_chars": 0,
+  "plain_exit": 0,
+  "rtk_exit": 0
+ },
+ {
+  "cmd": "grep -n \"evaluate\\|seedPage\" tests/e2e/persistence.spec.ts | head -15",
+  "rtk": "rtk grep -n \"evaluate\\|seedPage\" tests/e2e/persistence.spec.ts | head -15",
+  "plain_chars": 550,
+  "rtk_chars": 550,
+  "plain_exit": 0,
+  "rtk_exit": 0
+ },
+ {
+  "cmd": "grep -n \"TC-26\" tests/integration/*.test.ts",
+  "rtk": "rtk grep -n \"TC-26\" tests/integration/*.test.ts",
+  "plain_chars": 123,
+  "rtk_chars": 123,
+  "plain_exit": 0,
+  "rtk_exit": 0
+ },
+ {
+  "cmd": "grep -rn \"__vidi6\" src/ | head -10",
+  "rtk": "rtk grep -rn \"__vidi6\" src/ | head -10",
+  "plain_chars": 630,
+  "rtk_chars": 630,
+  "plain_exit": 0,
+  "rtk_exit": 0
+ },
+ {
+  "cmd": "head -20 tests/unit/undo-history.test.ts",
+  "rtk": "rtk read tests/unit/undo-history.test.ts --head-lines 20",
+  "plain_chars": 652,
+  "rtk_chars": 652,
+  "plain_exit": 0,
+  "rtk_exit": 0
+ },
+ {
+  "cmd": "grep -A5 \"onDrop\\|onDrag\\|dragOver\\|dragenter\\|dragleave\" src/client/canvas/BoardViewport.tsx",
+  "rtk": "rtk grep -A5 \"onDrop\\|onDrag\\|dragOver\\|dragenter\\|dragleave\" src/client/canvas/BoardViewport.tsx",
+  "plain_chars": 0,
+  "rtk_chars": 0,
+  "plain_exit": 1,
+  "rtk_exit": 1
+ },
+ {
+  "cmd": "cat spec/stories/012-drop-images-onto-the-board/prd.md",
+  "rtk": "rtk read spec/stories/012-drop-images-onto-the-board/prd.md",
+  "plain_chars": 83,
+  "rtk_chars": 96,
+  "plain_exit": 1,
+  "rtk_exit": 1
+ },
+ {
+  "cmd": "grep \"^import\" tests/integration/board-store.test.ts",
+  "rtk": "rtk grep \"^import\" tests/integration/board-store.test.ts",
+  "plain_chars": 535,
+  "rtk_chars": 535,
+  "plain_exit": 0,
+  "rtk_exit": 0
+ },
+ {
+  "cmd": "grep -A 5 '\"include\"' tsconfig.json",
+  "rtk": "rtk grep -A 5 '\"include\"' tsconfig.json",
+  "plain_chars": 121,
+  "rtk_chars": 121,
+  "plain_exit": 0,
+  "rtk_exit": 0
+ },
+ {
+  "cmd": "grep -A 5 \"shouldReconnect\" node_modules/y-websocket/src/y-websocket.js | head -15",
+  "rtk": "rtk grep -A 5 \"shouldReconnect\" node_modules/y-websocket/src/y-websocket.js | head -15",
+  "plain_chars": 1290,
+  "rtk_chars": 1290,
+  "plain_exit": 0,
+  "rtk_exit": 0
+ },
+ {
+  "cmd": "grep -n \"LOAD_ORIGIN\\|export const\\|export class\\|export function\" src/worker/board-store.ts | head -10",
+  "rtk": "rtk grep -n \"LOAD_ORIGIN\\|export const\\|export class\\|export function\" src/worker/board-store.ts | head -10",
+  "plain_chars": 225,
+  "rtk_chars": 225,
+  "plain_exit": 0,
+  "rtk_exit": 0
+ },
+ {
+  "cmd": "grep -n \"transactionSync\\|snapshotThroughSeq\" src/worker/board-store.ts | head -10",
+  "rtk": "rtk grep -n \"transactionSync\\|snapshotThroughSeq\" src/worker/board-store.ts | head -10",
+  "plain_chars": 210,
+  "rtk_chars": 210,
+  "plain_exit": 0,
+  "rtk_exit": 0
+ },
+ {
+  "cmd": "grep -n \"export function deleteObjects\" src/shared/board-model.ts",
+  "rtk": "rtk grep -n \"export function deleteObjects\" src/shared/board-model.ts",
+  "plain_chars": 35,
+  "rtk_chars": 35,
+  "plain_exit": 0,
+  "rtk_exit": 0
+ },
+ {
+  "cmd": "grep -n \"ConnectorTool\" src/client/BoardApp.tsx",
+  "rtk": "rtk grep -n \"ConnectorTool\" src/client/BoardApp.tsx",
+  "plain_chars": 85,
+  "rtk_chars": 85,
+  "plain_exit": 0,
+  "rtk_exit": 0
+ },
+ {
+  "cmd": "grep -n \"CONNECTOR\" src/shared/config.ts",
+  "rtk": "rtk grep -n \"CONNECTOR\" src/shared/config.ts",
+  "plain_chars": 358,
+  "rtk_chars": 358,
+  "plain_exit": 0,
+  "rtk_exit": 0
+ },
+ {
+  "cmd": "grep -n \"noteC\" tests/unit/undo-history.test.ts | head -5",
+  "rtk": "rtk grep -n \"noteC\" tests/unit/undo-history.test.ts | head -5",
+  "plain_chars": 114,
+  "rtk_chars": 114,
+  "plain_exit": 0,
+  "rtk_exit": 0
+ },
+ {
+  "cmd": "cat node_modules/@cloudflare/vitest-pool-workers/dist/pool/config.d.ts | grep -i \"unsafe\\|ephemeral\\|isolated\\|storage\"",
+  "rtk": "cat node_modules/@cloudflare/vitest-pool-workers/dist/pool/config.d.ts | rtk grep -i \"unsafe\\|ephemeral\\|isolated\\|storage\"",
+  "plain_chars": 306,
+  "rtk_chars": 306,
+  "plain_exit": 0,
+  "rtk_exit": 0
+ },
+ {
+  "cmd": "git log --oneline -5",
+  "rtk": "rtk git log --oneline -5",
+  "plain_chars": 17,
+  "rtk_chars": 17,
+  "plain_exit": 0,
+  "rtk_exit": 0
+ },
+ {
+  "cmd": "grep -n \"board-viewport\\|board-surface\\|board-world\\|children\" src/client/canvas/BoardViewport.tsx | head -15",
+  "rtk": "rtk grep -n \"board-viewport\\|board-surface\\|board-world\\|children\" src/client/canvas/BoardViewport.tsx | head -15",
+  "plain_chars": 226,
+  "rtk_chars": 226,
+  "plain_exit": 0,
+  "rtk_exit": 0
+ },
+ {
+  "cmd": "grep -n \"emit.*sync\" node_modules/y-websocket/src/y-websocket.js | head -5",
+  "rtk": "rtk grep -n \"emit.*sync\" node_modules/y-websocket/src/y-websocket.js | head -5",
+  "plain_chars": 249,
+  "rtk_chars": 249,
+  "plain_exit": 0,
+  "rtk_exit": 0
+ },
+ {
+  "cmd": "grep -A20 \"class ObservableV2\" node_modules/lib0/observable.js | grep -A15 \"emit\"",
+  "rtk": "grep -A20 \"class ObservableV2\" node_modules/lib0/observable.js | rtk grep -A15 \"emit\"",
+  "plain_chars": 0,
+  "rtk_chars": 0,
+  "plain_exit": 1,
+  "rtk_exit": 1
+ },
+ {
+  "cmd": "grep -n \"const boardId = newBoardId()\" tests/integration/board-room.test.ts | head -30",
+  "rtk": "rtk grep -n \"const boardId = newBoardId()\" tests/integration/board-room.test.ts | head -30",
+  "plain_chars": 0,
+  "rtk_chars": 0,
+  "plain_exit": 0,
+  "rtk_exit": 0
+ },
+ {
+  "cmd": "grep -n \"editingId\\|editing\\|onStartEdit\\|onEndEdit\" src/client/board/BoardViewport.tsx | head -20",
+  "rtk": "rtk grep -n \"editingId\\|editing\\|onStartEdit\\|onEndEdit\" src/client/board/BoardViewport.tsx | head -20",
+  "plain_chars": 68,
+  "rtk_chars": 68,
+  "plain_exit": 0,
+  "rtk_exit": 0
+ },
+ {
+  "cmd": "grep -n \"shape-1\" tests/unit/board-model-group.test.ts",
+  "rtk": "rtk grep -n \"shape-1\" tests/unit/board-model-group.test.ts",
+  "plain_chars": 93,
+  "rtk_chars": 93,
+  "plain_exit": 0,
+  "rtk_exit": 0
+ },
+ {
+  "cmd": "grep \"pointer-events\" src/client/styles.css",
+  "rtk": "rtk grep \"pointer-events\" src/client/styles.css",
+  "plain_chars": 168,
+  "rtk_chars": 168,
+  "plain_exit": 0,
+  "rtk_exit": 0
+ },
+ {
+  "cmd": "grep -A 8 \"Force the DO to re-load\" tests/integration/room-persist.test.ts",
+  "rtk": "rtk grep -A 8 \"Force the DO to re-load\" tests/integration/room-persist.test.ts",
+  "plain_chars": 335,
+  "rtk_chars": 335,
+  "plain_exit": 0,
+  "rtk_exit": 0
+ },
+ {
+  "cmd": "cat src/client/board/useTool.ts",
+  "rtk": "rtk read src/client/board/useTool.ts",
+  "plain_chars": 646,
+  "rtk_chars": 646,
+  "plain_exit": 0,
+  "rtk_exit": 0
+ },
+ {
+  "cmd": "grep -n \"stopPropagation\\|preventDefault\\|capture\" src/client/canvas/BoardViewport.tsx | head -20",
+  "rtk": "rtk grep -n \"stopPropagation\\|preventDefault\\|capture\" src/client/canvas/BoardViewport.tsx | head -20",
+  "plain_chars": 593,
+  "rtk_chars": 593,
+  "plain_exit": 0,
+  "rtk_exit": 0
+ },
+ {
+  "cmd": "cat tests/component/setup.ts",
+  "rtk": "rtk read tests/component/setup.ts",
+  "plain_chars": 3055,
+  "rtk_chars": 3055,
+  "plain_exit": 0,
+  "rtk_exit": 0
+ },
+ {
+  "cmd": "grep -n \"MAX_CONCURRENT\\|capacity\\|sockets\\|webSocket\" src/worker/board-room.ts | head -20",
+  "rtk": "rtk grep -n \"MAX_CONCURRENT\\|capacity\\|sockets\\|webSocket\" src/worker/board-room.ts | head -20",
+  "plain_chars": 828,
+  "rtk_chars": 828,
+  "plain_exit": 0,
+  "rtk_exit": 0
+ },
+ {
+  "cmd": "grep -A 20 \"TC-07.*create propagates\" tests/integration/board-room.test.ts | head -25",
+  "rtk": "rtk grep -A 20 \"TC-07.*create propagates\" tests/integration/board-room.test.ts | head -25",
+  "plain_chars": 755,
+  "rtk_chars": 755,
+  "plain_exit": 0,
+  "rtk_exit": 0
+ },
+ {
+  "cmd": "grep -A30 \"## Acceptance\" spec/stories/003-see-other-people-s-edits-appear-live-on-the-same-b/prd.md | head -35",
+  "rtk": "rtk grep -A30 \"## Acceptance\" spec/stories/003-see-other-people-s-edits-appear-live-on-the-same-b/prd.md | head -35",
+  "plain_chars": 108,
+  "rtk_chars": 108,
+  "plain_exit": 0,
+  "rtk_exit": 0
+ },
+ {
+  "cmd": "grep -n -B 3 \"Y.encodeStateAsUpdate(doc)\" tests/integration/board-store.test.ts | grep -E \"for|append|createSticky|encode\"",
+  "rtk": "grep -n -B 3 \"Y.encodeStateAsUpdate(doc)\" tests/integration/board-store.test.ts | rtk grep -E \"for|append|createSticky|encode\"",
+  "plain_chars": 181,
+  "rtk_chars": 181,
+  "plain_exit": 0,
+  "rtk_exit": 0
+ },
+ {
+  "cmd": "grep -n \"Connector tool overlay\\|Selection overlay\\|pen-tool-overlay\\|PenTool\\|PenToolbar\" src/client/BoardApp.tsx",
+  "rtk": "rtk grep -n \"Connector tool overlay\\|Selection overlay\\|pen-tool-overlay\\|PenTool\\|PenToolbar\" src/client/BoardApp.tsx",
+  "plain_chars": 277,
+  "rtk_chars": 277,
+  "plain_exit": 0,
+  "rtk_exit": 0
+ },
+ {
+  "cmd": "tail -5 src/client/objects/registry.tsx",
+  "rtk": "rtk read src/client/objects/registry.tsx --tail-lines 5",
+  "plain_chars": 97,
+  "rtk_chars": 97,
+  "plain_exit": 0,
+  "rtk_exit": 0
+ },
+ {
+  "cmd": "grep -r \"truncatedUpdate\\|randomBytesOfSameLength\" tests/",
+  "rtk": "rtk grep -r \"truncatedUpdate\\|randomBytesOfSameLength\" tests/",
+  "plain_chars": 200,
+  "rtk_chars": 200,
+  "plain_exit": 0,
+  "rtk_exit": 0
+ },
+ {
+  "cmd": "grep -c \"BoardRoom\\|type WsClient\\|LOAD_ORIGIN\\|encoding\\|decoding\\|syncProtocol\\|MESSAGE_SYNC\" tests/integration/room-persist.test.ts",
+  "rtk": "rtk grep -c \"BoardRoom\\|type WsClient\\|LOAD_ORIGIN\\|encoding\\|decoding\\|syncProtocol\\|MESSAGE_SYNC\" tests/integration/room-persist.test.ts",
+  "plain_chars": 2,
+  "rtk_chars": 2,
+  "plain_exit": 0,
+  "rtk_exit": 0
+ },
+ {
+  "cmd": "grep -n \"snapshot.*notes\" src/client/BoardApp.tsx | grep -i connector",
+  "rtk": "grep -n \"snapshot.*notes\" src/client/BoardApp.tsx | rtk grep -i connector",
+  "plain_chars": 0,
+  "rtk_chars": 0,
+  "plain_exit": 1,
+  "rtk_exit": 1
+ },
+ {
+  "cmd": "grep -n \"TEST_HOOKS\" src/worker/*.ts",
+  "rtk": "rtk grep -n \"TEST_HOOKS\" src/worker/*.ts",
+  "plain_chars": 645,
+  "rtk_chars": 645,
+  "plain_exit": 0,
+  "rtk_exit": 0
+ },
+ {
+  "cmd": "grep \"PERSIST_TESTED_NOTES\" src/shared/config.ts",
+  "rtk": "rtk grep \"PERSIST_TESTED_NOTES\" src/shared/config.ts",
+  "plain_chars": 42,
+  "rtk_chars": 42,
+  "plain_exit": 0,
+  "rtk_exit": 0
+ },
+ {
+  "cmd": "grep -A 60 \"load(doc\" src/worker/board-store.ts | head -80",
+  "rtk": "rtk grep -A 60 \"load(doc\" src/worker/board-store.ts | head -80",
+  "plain_chars": 2348,
+  "rtk_chars": 2348,
+  "plain_exit": 0,
+  "rtk_exit": 0
+ },
+ {
+  "cmd": "grep -A 20 \"broadcastUpdate\" src/worker/board-room.ts",
+  "rtk": "rtk grep -A 20 \"broadcastUpdate\" src/worker/board-room.ts",
+  "plain_chars": 1104,
+  "rtk_chars": 1104,
+  "plain_exit": 0,
+  "rtk_exit": 0
+ },
+ {
+  "cmd": "cat spec/stories/011-sketch-freehand-with-a-pen/prd.md",
+  "rtk": "rtk read spec/stories/011-sketch-freehand-with-a-pen/prd.md",
+  "plain_chars": 83,
+  "rtk_chars": 96,
+  "plain_exit": 1,
+  "rtk_exit": 1
+ },
+ {
+  "cmd": "cat package.json | grep -A 5 '\"scripts\"'",
+  "rtk": "cat package.json | rtk grep -A 5 '\"scripts\"'",
+  "plain_chars": 209,
+  "rtk_chars": 209,
+  "plain_exit": 0,
+  "rtk_exit": 0
+ },
+ {
+  "cmd": "grep \"getUnixTime\\|time\" node_modules/lib0/time.js | head -20",
+  "rtk": "rtk grep \"getUnixTime\\|time\" node_modules/lib0/time.js | head -20",
+  "plain_chars": 294,
+  "rtk_chars": 294,
+  "plain_exit": 0,
+  "rtk_exit": 0
+ },
+ {
+  "cmd": "ls tests/e2e/*.spec.ts",
+  "rtk": "rtk ls tests/e2e/*.spec.ts",
+  "plain_chars": 354,
+  "rtk_chars": 430,
+  "plain_exit": 0,
+  "rtk_exit": 0
+ },
+ {
+  "cmd": "grep -n \"memo\\|React.memo\\|memo(\" src/client/canvas/BoardViewport.tsx | head -5",
+  "rtk": "rtk grep -n \"memo\\|React.memo\\|memo(\" src/client/canvas/BoardViewport.tsx | head -5",
+  "plain_chars": 0,
+  "rtk_chars": 0,
+  "plain_exit": 0,
+  "rtk_exit": 0
+ },
+ {
+  "cmd": "cat index.html",
+  "rtk": "rtk read index.html",
+  "plain_chars": 350,
+  "rtk_chars": 350,
+  "plain_exit": 0,
+  "rtk_exit": 0
+ },
+ {
+  "cmd": "grep -c \"vi\\.\" tests/component/LoadFailure.test.tsx",
+  "rtk": "rtk grep -c \"vi\\.\" tests/component/LoadFailure.test.tsx",
+  "plain_chars": 2,
+  "rtk_chars": 2,
+  "plain_exit": 0,
+  "rtk_exit": 0
+ },
+ {
+  "cmd": "grep -B5 -A10 \"now - this.lastChange\" node_modules/yjs/dist/yjs.mjs | head -30",
+  "rtk": "rtk grep -B5 -A10 \"now - this.lastChange\" node_modules/yjs/dist/yjs.mjs | head -30",
+  "plain_chars": 709,
+  "rtk_chars": 709,
+  "plain_exit": 0,
+  "rtk_exit": 0
+ },
+ {
+  "cmd": "grep -n \"pointerEvents\\|pointer-events\" src/client/objects/StickyNote.tsx | head -5",
+  "rtk": "rtk grep -n \"pointerEvents\\|pointer-events\" src/client/objects/StickyNote.tsx | head -5",
+  "plain_chars": 0,
+  "rtk_chars": 0,
+  "plain_exit": 0,
+  "rtk_exit": 0
+ },
+ {
+  "cmd": "cat src/client/sync/connectBoard.ts",
+  "rtk": "rtk read src/client/sync/connectBoard.ts",
+  "plain_chars": 4201,
+  "rtk_chars": 4201,
+  "plain_exit": 0,
+  "rtk_exit": 0
+ },
+ {
+  "cmd": "grep -r \"truncatedUpdate\\|randomBytesOfSameLength\" tests/integration/",
+  "rtk": "rtk grep -r \"truncatedUpdate\\|randomBytesOfSameLength\" tests/integration/",
+  "plain_chars": 0,
+  "rtk_chars": 0,
+  "plain_exit": 1,
+  "rtk_exit": 1
+ },
+ {
+  "cmd": "grep -A 20 \"makeBoardId\" tests/e2e/helpers/participants.ts | head -25",
+  "rtk": "rtk grep -A 20 \"makeBoardId\" tests/e2e/helpers/participants.ts | head -25",
+  "plain_chars": 862,
+  "rtk_chars": 862,
+  "plain_exit": 0,
+  "rtk_exit": 0
+ },
+ {
+  "cmd": "find node_modules/y-websocket -name \"*.js\" -o -name \"*.mjs\" -o -name \"*.cjs\" | head -10",
+  "rtk": "rtk find node_modules/y-websocket -name \"*.js\" -o -name \"*.mjs\" -o -name \"*.cjs\" | head -10",
+  "plain_chars": 90,
+  "rtk_chars": 90,
+  "plain_exit": 0,
+  "rtk_exit": 0
+ },
+ {
+  "cmd": "grep -n \"objectBounds\" src/shared/board-model.ts | head -20",
+  "rtk": "rtk grep -n \"objectBounds\" src/shared/board-model.ts | head -20",
+  "plain_chars": 104,
+  "rtk_chars": 104,
+  "plain_exit": 0,
+  "rtk_exit": 0
+ },
+ {
+  "cmd": "grep -n \"data-testid\\|data-\" src/client/objects/StickyTextEditor.tsx | head -10; echo \"---\"; grep -n \"data-testid\\|data-\" src/client/objects/NoteToolbar.tsx | head -10",
+  "rtk": "rtk grep -n \"data-testid\\|data-\" src/client/objects/StickyTextEditor.tsx | head -10; echo \"---\"; rtk grep -n \"data-testid\\|data-\" src/client/objects/NoteToolbar.tsx | head -10",
+  "plain_chars": 82,
+  "rtk_chars": 82,
+  "plain_exit": 0,
+  "rtk_exit": 0
+ },
+ {
+  "cmd": "grep -n \"shape-kind\" src/client/board/Toolbar.tsx",
+  "rtk": "rtk grep -n \"shape-kind\" src/client/board/Toolbar.tsx",
+  "plain_chars": 295,
+  "rtk_chars": 295,
+  "plain_exit": 0,
+  "rtk_exit": 0
+ },
+ {
+  "cmd": "cat src/client/styles.css && cat src/client/main.tsx && cat src/client/canvas/ZoomControls.tsx && cat src/client/canvas/NavigationHint.tsx",
+  "rtk": "rtk read src/client/styles.css && rtk read src/client/main.tsx && rtk read src/client/canvas/ZoomControls.tsx && rtk read src/client/canvas/NavigationHint.tsx",
+  "plain_chars": 13748,
+  "rtk_chars": 13748,
+  "plain_exit": 0,
+  "rtk_exit": 0
+ },
+ {
+  "cmd": "grep -n \"onSelect\\|onObjectPointerDown\\|pointerEvents\" src/client/objects/ShapeObject.tsx | head -10",
+  "rtk": "rtk grep -n \"onSelect\\|onObjectPointerDown\\|pointerEvents\" src/client/objects/ShapeObject.tsx | head -10",
+  "plain_chars": 449,
+  "rtk_chars": 449,
+  "plain_exit": 0,
+  "rtk_exit": 0
+ },
+ {
+  "cmd": "grep -rn \"add-sticky\\|add_note\\|add-note\" src/ tests/",
+  "rtk": "rtk grep -rn \"add-sticky\\|add_note\\|add-note\" src/ tests/",
+  "plain_chars": 0,
+  "rtk_chars": 0,
+  "plain_exit": 1,
+  "rtk_exit": 1
+ },
+ {
+  "cmd": "grep -n \"closeCode\\|onclose\\|close\" tests/integration/ws-client.ts | head -15",
+  "rtk": "rtk grep -n \"closeCode\\|onclose\\|close\" tests/integration/ws-client.ts | head -15",
+  "plain_chars": 254,
+  "rtk_chars": 254,
+  "plain_exit": 0,
+  "rtk_exit": 0
+ },
+ {
+  "cmd": "head -20 tests/integration/board-room.test.ts",
+  "rtk": "rtk read tests/integration/board-room.test.ts --head-lines 20",
+  "plain_chars": 1003,
+  "rtk_chars": 1003,
+  "plain_exit": 0,
+  "rtk_exit": 0
+ },
+ {
+  "cmd": "grep -A5 \"export function canEdit\" src/client/sync/connectBoard.ts",
+  "rtk": "rtk grep -A5 \"export function canEdit\" src/client/sync/connectBoard.ts",
+  "plain_chars": 204,
+  "rtk_chars": 204,
+  "plain_exit": 0,
+  "rtk_exit": 0
+ },
+ {
+  "cmd": "grep -n \"objectsMap\" src/shared/board-model.ts",
+  "rtk": "rtk grep -n \"objectsMap\" src/shared/board-model.ts",
+  "plain_chars": 373,
+  "rtk_chars": 373,
+  "plain_exit": 0,
+  "rtk_exit": 0
+ },
+ {
+  "cmd": "grep -rn \"truncatedUpdate\\|randomBytesOfSameLength\\|truncated\\|randomBytes\" tests/integration/",
+  "rtk": "rtk grep -rn \"truncatedUpdate\\|randomBytesOfSameLength\\|truncated\\|randomBytes\" tests/integration/",
+  "plain_chars": 129,
+  "rtk_chars": 129,
+  "plain_exit": 0,
+  "rtk_exit": 0
+ },
+ {
+  "cmd": "head -80 tests/e2e/shapes-connectors.spec.ts",
+  "rtk": "rtk read tests/e2e/shapes-connectors.spec.ts --head-lines 80",
+  "plain_chars": 3036,
+  "rtk_chars": 3036,
+  "plain_exit": 0,
+  "rtk_exit": 0
+ },
+ {
+  "cmd": "grep \"^import\" src/worker/board-room.ts | head -20",
+  "rtk": "rtk grep \"^import\" src/worker/board-room.ts | head -20",
+  "plain_chars": 501,
+  "rtk_chars": 501,
+  "plain_exit": 0,
+  "rtk_exit": 0
+ },
+ {
+  "cmd": "grep -A5 \"getUnixTime\" node_modules/lib0/dist/time.cjs | head -20",
+  "rtk": "rtk grep -A5 \"getUnixTime\" node_modules/lib0/dist/time.cjs | head -20",
+  "plain_chars": 124,
+  "rtk_chars": 124,
+  "plain_exit": 0,
+  "rtk_exit": 0
+ },
+ {
+  "cmd": "grep \"import.*cloudflare:test\" tests/integration/*.test.ts",
+  "rtk": "rtk grep \"import.*cloudflare:test\" tests/integration/*.test.ts",
+  "plain_chars": 832,
+  "rtk_chars": 832,
+  "plain_exit": 0,
+  "rtk_exit": 0
+ },
+ {
+  "cmd": "grep -A20 \"TC-13\" tests/integration/worker.test.ts | head -25",
+  "rtk": "rtk grep -A20 \"TC-13\" tests/integration/worker.test.ts | head -25",
+  "plain_chars": 643,
+  "rtk_chars": 643,
+  "plain_exit": 0,
+  "rtk_exit": 0
+ },
+ {
+  "cmd": "grep -n \"text\\|Y.Text\\|ytext\" src/shared/board-model.ts | head -30",
+  "rtk": "rtk grep -n \"text\\|Y.Text\\|ytext\" src/shared/board-model.ts | head -30",
+  "plain_chars": 1027,
+  "rtk_chars": 1027,
+  "plain_exit": 0,
+  "rtk_exit": 0
+ },
+ {
+  "cmd": "grep -r \"LOAD_ORIGIN\" --include=\"*.ts\" src/ tests/ | grep -v \"board-store.ts\"",
+  "rtk": "grep -r \"LOAD_ORIGIN\" --include=\"*.ts\" src/ tests/ | rtk grep -v \"board-store.ts\"",
+  "plain_chars": 738,
+  "rtk_chars": 738,
+  "plain_exit": 0,
+  "rtk_exit": 0
+ },
+ {
+  "cmd": "cat node_modules/@cloudflare/vitest-pool-workers/dist/config/index.d.ts",
+  "rtk": "rtk read node_modules/@cloudflare/vitest-pool-workers/dist/config/index.d.ts",
+  "plain_chars": 1640,
+  "rtk_chars": 1640,
+  "plain_exit": 0,
+  "rtk_exit": 0
+ },
+ {
+  "cmd": "grep -n \"handleDragEnter\\|onDragEnter\" src/client/BoardApp.tsx",
+  "rtk": "rtk grep -n \"handleDragEnter\\|onDragEnter\" src/client/BoardApp.tsx",
+  "plain_chars": 0,
+  "rtk_chars": 0,
+  "plain_exit": 1,
+  "rtk_exit": 1
+ },
+ {
+  "cmd": "git log --oneline | head -10",
+  "rtk": "rtk git log --oneline | head -10",
+  "plain_chars": 17,
+  "rtk_chars": 17,
+  "plain_exit": 0,
+  "rtk_exit": 0
+ },
+ {
+  "cmd": "grep -B3 \"const now = time.getUnixTime\" node_modules/yjs/dist/yjs.mjs | head -10; echo \"---\"; grep \"import.*time\" node_modules/yjs/dist/yjs.mjs | head -5",
+  "rtk": "rtk grep -B3 \"const now = time.getUnixTime\" node_modules/yjs/dist/yjs.mjs | head -10; echo \"---\"; rtk grep \"import.*time\" node_modules/yjs/dist/yjs.mjs | head -5",
+  "plain_chars": 160,
+  "rtk_chars": 160,
+  "plain_exit": 0,
+  "rtk_exit": 0
+ },
+ {
+  "cmd": "grep -rn \"__MOCK_BOARD_STATE__\\|mockBoard\\|mock.*board\" tests/ | head -10",
+  "rtk": "rtk grep -rn \"__MOCK_BOARD_STATE__\\|mockBoard\\|mock.*board\" tests/ | head -10",
+  "plain_chars": 305,
+  "rtk_chars": 305,
+  "plain_exit": 0,
+  "rtk_exit": 0
+ },
+ {
+  "cmd": "cat node_modules/@cloudflare/vitest-pool-workers/package.json | grep '\"version\"' && cat node_modules/vitest/package.json | grep '\"version\"' | head -1",
+  "rtk": "cat node_modules/@cloudflare/vitest-pool-workers/package.json | rtk grep '\"version\"' && cat node_modules/vitest/package.json | grep '\"version\"' | head -1",
+  "plain_chars": 45,
+  "rtk_chars": 45,
+  "plain_exit": 0,
+  "rtk_exit": 0
+ },
+ {
+  "cmd": "grep -n \"ResizeObserver\\|clientWidth\\|clientHeight\\|getBoundingClientRect\" tests/component/setup.ts",
+  "rtk": "rtk grep -n \"ResizeObserver\\|clientWidth\\|clientHeight\\|getBoundingClientRect\" tests/component/setup.ts",
+  "plain_chars": 678,
+  "rtk_chars": 678,
+  "plain_exit": 0,
+  "rtk_exit": 0
+ },
+ {
+  "cmd": "grep -n \"ObjectSnapshot\" src/shared/board-model.ts | head -5",
+  "rtk": "rtk grep -n \"ObjectSnapshot\" src/shared/board-model.ts | head -5",
+  "plain_chars": 324,
+  "rtk_chars": 324,
+  "plain_exit": 0,
+  "rtk_exit": 0
+ },
+ {
+  "cmd": "grep -n \"TC-28\" spec/stories/004-return-to-a-board-and-find-everything-as-it-was-le/design.md",
+  "rtk": "rtk grep -n \"TC-28\" spec/stories/004-return-to-a-board-and-find-everything-as-it-was-le/design.md",
+  "plain_chars": 111,
+  "rtk_chars": 111,
+  "plain_exit": 2,
+  "rtk_exit": 2
+ },
+ {
+  "cmd": "grep -n \"TC-26\\|TC-25\" tests/integration/*.test.ts",
+  "rtk": "rtk grep -n \"TC-26\\|TC-25\" tests/integration/*.test.ts",
+  "plain_chars": 344,
+  "rtk_chars": 344,
+  "plain_exit": 0,
+  "rtk_exit": 0
+ },
+ {
+  "cmd": "cat vitest.integration.config.ts",
+  "rtk": "rtk read vitest.integration.config.ts",
+  "plain_chars": 375,
+  "rtk_chars": 375,
+  "plain_exit": 0,
+  "rtk_exit": 0
+ }
+]
