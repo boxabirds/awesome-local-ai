@@ -13,7 +13,11 @@
     "skipLibCheck": true,
     "noUnusedLocals": true,
     "noUnusedParameters": true,
-    "types": ["vite/client"]
+    "types": [
+      "vite/client",
+      "@cloudflare/workers-types",
+      "@cloudflare/vitest-pool-workers/types"
+    ]
   },
   "include": ["src", "tests", "vite.config.ts", "vitest.config.ts", "playwright.config.ts"]
 }

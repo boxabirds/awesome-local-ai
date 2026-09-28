@@ -1,20 +1,25 @@
-// Owns the in-memory Y.Doc (the board's source of truth from day one, so
-// story 3 only attaches a provider and story 4 only persists) and exposes
-// an immutable snapshot of the objects to React via useSyncExternalStore.
+// Owns the Y.Doc (the board's source of truth from day one), attaches the
+// live-collaboration provider for `boardId` (story 3), and exposes an
+// immutable snapshot of the objects to React via useSyncExternalStore.
 
-import { useCallback, useRef, useSyncExternalStore } from 'react';
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import * as Y from 'yjs';
 import { initDoc, snapshot, type StickySnapshot } from '../../shared/board-model';
+import { connectBoard, type BoardConnection, type ConnectionState } from '../sync/connectBoard';
 
 export interface Board {
-  /** The live Y.Doc (never shared across components; story 3 attaches a provider). */
+  /** The live Y.Doc (never shared across components). */
   doc: Y.Doc;
   /** Immutable sticky-note snapshots, sorted by (z, id). Stable reference
    *  between document changes. */
   notes: readonly StickySnapshot[];
+  /** Live connection badge state (story 3). */
+  connectionState: ConnectionState;
+  /** The live provider connection, for test hooks (null before first mount). */
+  connectionRef: { current: BoardConnection | null };
 }
 
-export function useBoardDoc(): Board {
+export function useBoardDoc(boardId: string): Board {
   const docRef = useRef<Y.Doc | null>(null);
   if (docRef.current === null) {
     const doc = new Y.Doc();
@@ -25,7 +30,8 @@ export function useBoardDoc(): Board {
 
   // The snapshot is recomputed exactly once per document change (inside the
   // observeDeep callback) and stays the same reference until the next change,
-  // as useSyncExternalStore requires.
+  // as useSyncExternalStore requires. Remote updates re-render through the
+  // same observeDeep subscription.
   const cacheRef = useRef<readonly StickySnapshot[]>(snapshot(doc));
 
   const subscribe = useCallback(
@@ -44,5 +50,19 @@ export function useBoardDoc(): Board {
   const getSnapshot = useCallback(() => cacheRef.current, [doc]);
   const notes = useSyncExternalStore(subscribe, getSnapshot);
 
-  return { doc, notes };
+  // Story 3: attach the y-websocket provider for this board and track the
+  // badge state. Destroyed on unmount or when the board changes.
+  const [connectionState, setConnectionState] = useState<ConnectionState>('connecting');
+  const connectionRef = useRef<BoardConnection | null>(null);
+  useEffect(() => {
+    setConnectionState('connecting');
+    const connection = connectBoard(doc, boardId, setConnectionState);
+    connectionRef.current = connection;
+    return () => {
+      connectionRef.current = null;
+      connection.destroy();
+    };
+  }, [doc, boardId]);
+
+  return { doc, notes, connectionState, connectionRef };
 }

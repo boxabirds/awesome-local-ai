@@ -62,3 +62,23 @@ export const STICKY_COLORS = {
 export type StickyColor = keyof typeof STICKY_COLORS;
 /** Colour of a newly created sticky note. */
 export const DEFAULT_STICKY_COLOR: StickyColor = 'yellow';
+
+/* --- Story 3: live collaboration --- */
+
+/** Soft capacity: the number of simultaneous editors the board is designed
+ *  and tested for. Deliberately never enforced — a 6th person is never
+ *  refused (PRD live.capacity / live.over_capacity). */
+export const MAX_CONCURRENT_EDITORS = 5;
+/** PRD live.propagate: a change must appear on every other screen within this. */
+export const LIVE_UPDATE_LATENCY_BUDGET_MS = 1000;
+/** Maximum backoff (ms) between reconnection attempts, passed to the
+ *  WebsocketProvider as maxBackoffTime. */
+export const RECONNECT_MAX_BACKOFF_MS = 10_000;
+/** How long (ms) the green "Connected" badge stays visible after a reconnection. */
+export const CONNECTED_CONFIRMATION_MS = 2000;
+/** PRD live.catch_up: the outage length used by the catch-up verification. */
+export const CATCH_UP_TEST_OUTAGE_MS = 30_000;
+/** The room pings every open socket at this cadence (ms) so the y-websocket
+ *  30 s no-message watchdog never drops an idle connection. Must stay well
+ *  under the watchdog; 10 s leaves a 3x margin. */
+export const KEEP_ALIVE_INTERVAL_MS = 10_000;

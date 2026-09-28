@@ -160,10 +160,124 @@ npm run test:e2e     # builds a test-mode bundle, starts wrangler dev
 npm run build        # production build (hooks excluded)
 ```
 
+## Story 3: See other people's edits appear live on the same board
+
+### How it works
+
+Real-time sync is a Yjs CRDT relayed by a Cloudflare Durable Object (`BoardRoom`)
+over WebSockets. There is **no server-side document** — the room is a pure
+relay: it forwards y-protocols *sync* frames and *awareness* frames between the
+connected peers, and that's it. Every client holds a full `Y.Doc` and
+converges by exchanging updates; the room only shuttles bytes.
+
+- **Routing** — `GET /b/:boardId` serves the SPA; `GET /ws/:boardId` upgrades
+to a WebSocket and routes to the `BoardRoom` DO for that board. Board ids are
+22 base64url chars; an invalid id in the URL falls back to a fresh random one.
+- **Wire format (y-protocols, asymmetric framing)** — one uint8 type tag then
+  the payload:
+  - `0` = sync: `[varUint(0)][RAW inner sync message]` (the inner message is
+    itself `writeSyncStep1/Step2/Update` output, re-serialized raw — no length
+    prefix, because `readSyncMessage` consumes it from a decoder).
+  - `1` = awareness: `[varUint(1)][varBytes(update)]` (the awareness update is
+    length-prefixed, unlike sync).
+  Getting this asymmetry wrong is the single most likely way to break sync.
+- **BoardRoom relay** — on a sync frame it decodes with `readSyncMessage`
+  (catching invalid updates → close 1003) and re-broadcasts the raw frame to
+  every *other* socket; it also maintains a per-room `stateVector` so a newly
+  joined peer gets a `SyncStep2` catch-up. Awareness frames are relayed to all
+  peers (including the sender, to keep idle clients alive). Malformed traffic
+  never takes the room down.
+- **Client** — `connectBoard()` builds a `y-websocket` `WebsocketProvider`
+  (sync + awareness) pointed at `/ws/:boardId`. The existing `useBoardDoc`
+  `observeDeep` subscription then renders remote mutations with no other client
+  changes. A `ConnectionStatus` badge shows Connecting → Connected →
+  Reconnecting (the provider's `status` + a `CONNECTED_CONFIRMATION_MS` gate so
+  a brief connect doesn't flash "Connected" then immediately reconnect).
+
+### Gotchas learned (Story 3)
+
+- **workerd `webSocketMessage` lifecycle hook, not `ws.onmessage`** — in this
+  workerd version a server-side `ws.onmessage` handler never fires; you must use
+  the `export const BoardRoom = class ... { webSocketMessage(ws, message) }`
+  hook (plus `webSocketClose`/`webSocketError`), and `this.ctx.acceptWebSocket(ws)`
+  (new `workers-types` 5.x uses a protected `ctx`).
+- **Client-side `ws.accept()`** — the `WebSocketPair` client end must be
+  `accept()`ed before it will send (workerd quirk); y-websocket does this.
+- **`socket.send()` to the *triggering* socket is unreliable in workerd** — a
+  frame sent inside `webSocketMessage` to the same socket that fired the hook is
+  not reliably delivered. Relay to *other* sockets is fine. This is why an
+  idle single client would otherwise time out (its own awareness renewal never
+  comes back to it).
+- **Periodic keep-alive ping fixes idle-connection drops (TC-29)** — the room
+  runs a `setInterval` (`KEEP_ALIVE_INTERVAL_MS = 10 s`) that sends a no-op
+  awareness frame (type 1 + empty `varBytes`) to **all** sockets. It's
+  decoupled from message handling, so it always reaches every socket including
+  the sender, keeping y-websocket's 30 s `messageReconnectTimeout` watchdog
+  (and awareness `outdatedTimeout`) happy. This is what makes a 45 s idle client
+  stay "Connected".
+- **`RoomClient` must forward local doc updates** — the provider only broadcasts
+  remote-origin updates by default; the test harness's `RoomClient` (and the
+  real provider) rely on `doc.on('update', …)` with an origin check to push local
+  mutations into the room. Shared test fixtures use `doc.replicate()` so both
+  sides start from the same base.
+- **Always reply `SyncStep2` (even empty) to `SyncStep1`** — a peer that sends
+  `SyncStep1` expects a `SyncStep2`; skipping it stalls its sync.
+- **Component tests use `jsdom`** (not happy-dom) — required for the RTL +
+  `ConnectionStatus` tests; `env.d.ts` must be a global script (no top-level
+  imports) for the `Cloudflare.Env` module augmentation to apply.
+- **Integration runs in a separate vitest config** (`vitest.integration.config.ts`,
+  `pool: 'cloudflare'` via the `cloudflareTest()` vite plugin) — per-project pools
+  in the main config don't work with vitest 0.22's cloudflare pool; integration
+  tests use the real `BoardRoom` via `SELF.fetch`, a real `Y.Doc`, and real
+  WebSockets (no mocks), with `fileParallelism: false` (one workerd isolate).
+- **e2e `workers: 1`** — running 3 browsers in parallel on one wrangler server
+  causes CPU contention that makes the live-update latency budget flaky;
+  sequential execution is stable. `test:e2e` lists `--project=chromium
+  --project=firefox --project=webkit` explicitly to exclude the nightly project.
+- **y-websocket 3.1.0**: named export `import { WebsocketProvider } from
+  'y-websocket'`; `provider.disconnect()`/`connect()` (used by TC-27 to force a
+  clean reconnect without a DO restart); `status` is
+  `'connected' | 'disconnected' | 'connecting'`. `setOffline(true)` does NOT
+  close an existing WebSocket, so TC-27 uses disconnect/connect.
+
+### TC-30 (5-way capacity soak) — why it needed a deterministic grid
+
+The soak has 5 participants hammering one board for 60 s. The first attempt
+placed notes at random "empty" spots and used raw pointer drags for moves. That
+was flaky for two compounding reasons:
+
+- **Drag deltas are mismeasured under load** — with 4 concurrent browsers the
+  event loop is starved, so a +25 px drag registered as +5 px (the last
+  `requestAnimationFrame`-throttled step). So a move was asserted as "the note
+  moved" (not its exact position).
+- **Overlapping notes cause unresolvable z-order fighting** — a click selects
+  whatever note is topmost at that point; when two participants' notes overlap
+  and both call `bringStickyToFront` concurrently, each yanks the z-order back
+  before the other can click, so neither note can be selected. This was the
+  dominant failure mode.
+
+The fix is a **deterministic grid**: each participant owns one column; its notes
+occupy separate rows (5 columns × 2 rows, 240 px spacing, all on-screen at zoom
+1). Notes therefore **never overlap**, so a click always selects the intended
+note and there is no z-fighting. Moves relocate a note to the *other row of its
+own column* via the `moveSticky` doc hook (a real board mutation that propagates
+identically to a drag, but deterministic). Creates double-click the always-empty
+cell in their column. This made the soak stable (p50 ≈ 21 ms, p95 ≈ 90 ms, well
+under the 1000 ms budget, ~3600 propagations per run).
+
+### Test coverage (Story 3)
+
+| Layer                | Command                  | Count |
+| --------------------- | ------------------------ | ----- |
+| Unit (protocol/board-id) | `npm run test:unit`  | added: protocol framing, board-id validation |
+| Component (badge)      | `npm run test:component`| added: TC-19/20/21 `ConnectionStatus` |
+| Integration (worker)   | `npm run test:integration` | added: TC-04/05/06/13/17 routing + TC-07…TC-18, TC-31 BoardRoom relay |
+| E2E (live collab)      | `npm run test:e2e`       | added: TC-22…TC-28 (3 browsers) |
+| E2E nightly            | `npm run test:e2e:nightly` | TC-29 (idle 45 s), TC-30 (60 s 5-way soak) |
+
 ## Next story
 
-Story 3 (multi-client sync) adds a Yjs provider (Durable Object relay) around
-the same `board-model.ts` module; the client already treats the doc as the
-single source of truth, so remote mutations should flow through the existing
-`observeDeep` subscription without client changes. Selection/editing stay
-local.
+Story 4 builds on the live board: presence (cursors/selection over the awareness
+channel) and/or history/undo. The sync layer (BoardRoom + y-websocket provider)
+is in place, so new real-time features can ride the existing awareness channel
+without changing the relay.

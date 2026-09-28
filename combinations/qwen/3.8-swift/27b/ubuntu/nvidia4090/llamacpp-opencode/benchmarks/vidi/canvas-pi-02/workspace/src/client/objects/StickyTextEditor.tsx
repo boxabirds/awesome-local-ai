@@ -24,6 +24,10 @@ export function StickyTextEditor(props: StickyTextEditorProps): ReactElement {
   const lastRef = useRef('');
 
   // On mount: value from Y.Text, focused, caret at the end of the text.
+  // While editing, remote changes to the note's text are merged into the
+  // textarea (caret moved to the end) so a concurrent editor's characters are
+  // never deleted by this editor's next commit. Own commits (LOCAL_ORIGIN)
+  // are skipped: they are already reflected in the textarea.
   useEffect(() => {
     const ta = taRef.current;
     if (!ta) return;
@@ -32,6 +36,16 @@ export function StickyTextEditor(props: StickyTextEditorProps): ReactElement {
     ta.value = initial;
     ta.focus();
     ta.setSelectionRange(initial.length, initial.length);
+
+    const onRemoteChange = (_event: unknown, transaction: Y.Transaction): void => {
+      if (composingRef.current) return;
+      if (transaction.origin === LOCAL_ORIGIN) return;
+      ta.value = ytext.toString();
+      lastRef.current = ta.value;
+      ta.setSelectionRange(ta.value.length, ta.value.length);
+    };
+    ytext.observe(onRemoteChange);
+    return () => ytext.unobserve(onRemoteChange);
   }, [ytext]);
 
   const commit = useCallback(

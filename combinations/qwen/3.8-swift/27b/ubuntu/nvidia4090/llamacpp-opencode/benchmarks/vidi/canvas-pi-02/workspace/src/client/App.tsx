@@ -10,6 +10,8 @@ import { useCamera } from './canvas/useCamera';
 import { canZoomIn, canZoomOut, screenToWorld, worldToScreen, zoomPercent, type Point, type Size } from './canvas/camera';
 import { installTestHooks } from './canvas/testHooks';
 import { useBoardDoc } from './board/useBoardDoc';
+import { ConnectionStatus } from './sync/ConnectionStatus';
+import { newBoardId, BOARD_ID_PATTERN } from '../shared/board-id';
 import { useSelection } from './board/useSelection';
 import { Toolbar } from './board/Toolbar';
 import { NOTE_TOOLBAR_GAP_PX, NoteToolbar } from './objects/NoteToolbar';
@@ -32,11 +34,30 @@ function useViewportSize(ref: React.RefObject<HTMLDivElement | null>): Size {
   return size;
 }
 
+/**
+ * Board address from the URL: /b/<boardId>. On any other path (e.g. /) a
+ * fresh id is generated and the URL replaced. Story 5 replaces this with
+ * server-side board creation.
+ */
+const BOARD_PATH_PATTERN = new RegExp(`^/b/(${BOARD_ID_PATTERN.source.slice(1, -1)})$`);
+
+function useBoardId(): string {
+  const [id] = useState<string>(() => {
+    const match = window.location.pathname.match(BOARD_PATH_PATTERN);
+    if (match !== null) return match[1];
+    const fresh = newBoardId();
+    window.history.replaceState(null, '', `/b/${fresh}`);
+    return fresh;
+  });
+  return id;
+}
+
 export default function App(): ReactElement {
   const rootRef = useRef<HTMLDivElement>(null);
   const viewport = useViewportSize(rootRef);
   const camera = useCamera(viewport);
-  const { doc, notes } = useBoardDoc();
+  const boardId = useBoardId();
+  const { doc, notes, connectionState, connectionRef } = useBoardDoc(boardId);
   const { selectedId, editingId, select, startEdit, endEdit } = useSelection();
   const [dragging, setDragging] = useState(false);
 
@@ -44,16 +65,27 @@ export default function App(): ReactElement {
   cameraRef.current = camera;
   const docRef = useRef(doc);
   docRef.current = doc;
+  const connectionStateRef = useRef(connectionState);
+  connectionStateRef.current = connectionState;
+  const selectedIdRef = useRef(selectedId);
+  selectedIdRef.current = selectedId;
 
   useEffect(() => {
-    installTestHooks(() => cameraRef.current, () => docRef.current);
+    installTestHooks(
+      () => cameraRef.current,
+      () => docRef.current,
+      () => connectionStateRef.current,
+      () => connectionRef.current,
+      () => selectedIdRef.current,
+    );
   }, []);
 
   // A note deleted from under the selection (keyboard, toolbar, or a
-  // concurrent client once story 3 ships) clears selection and editing.
+  // concurrent client) clears selection and editing, ending any edit.
   useEffect(() => {
     if (selectedId !== null && !notes.some((n) => n.id === selectedId)) select(null);
-  }, [notes, selectedId, select]);
+    if (editingId !== null && !notes.some((n) => n.id === editingId)) endEdit('unselected');
+  }, [notes, selectedId, editingId, select, endEdit]);
 
   // Window keyboard: Enter starts editing the selected note; Delete/Backspace
   // delete it. Ignored while editing text (the textarea owns those keys) and
@@ -92,6 +124,7 @@ export default function App(): ReactElement {
 
   return (
     <div className="board-root" ref={rootRef}>
+      <ConnectionStatus state={connectionState} />
       <BoardViewport
         camera={camera}
         onDblClickEmpty={(p) => createStickyAtScreen(p)}

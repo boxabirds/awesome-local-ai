@@ -3,20 +3,6 @@
 import { expect, type Page } from '@playwright/test';
 import { GRID_SPACING_WORLD } from '../../../src/shared/config';
 
-declare global {
-  interface Window {
-    __vidi6?: {
-      setCamera(x: number, y: number, zoom: number): void;
-      createSticky(x: number, y: number, color?: string): string | null;
-      getStickyNotes(): Array<{ id: string; x: number; y: number; color: string; text: string; z: number }>;
-      deleteSticky(id: string): boolean;
-      moveSticky(id: string, x: number, y: number): boolean;
-      bringStickyToFront(id: string): boolean;
-      setStickyColor(id: string, color: string): boolean;
-    };
-  }
-}
-
 export async function originMarkerCenter(page: Page): Promise<{ x: number; y: number }> {
   const box = (await page.getByTestId('origin-marker').boundingBox())!;
   return { x: box.x + box.width / 2, y: box.y + box.height / 2 };

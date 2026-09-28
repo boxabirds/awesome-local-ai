@@ -287,3 +287,32 @@ body {
   outline: 2px solid #2563eb;
   outline-offset: 1px;
 }
+
+/* --- Story 3: connection status badge (top centre) --- */
+
+.connection-status {
+  position: fixed;
+  top: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 50;
+  padding: 4px 12px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.4;
+  pointer-events: none;
+  box-shadow: 0 1px 4px rgba(15, 23, 42, 0.15);
+}
+
+.connection-status.is-amber {
+  background: #fef3c7;
+  color: #92400e;
+  border: 1px solid #fcd34d;
+}
+
+.connection-status.is-green {
+  background: #dcfce7;
+  color: #166534;
+  border: 1px solid #86efac;
+}
