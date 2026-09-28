@@ -353,7 +353,9 @@ def per_story(run: Path) -> list[dict]:
                      "new_passed": sum(t.get("status") == "passed" for t in own), "new_total": len(own),
                      "regressions": regressions, "repairs": repairs,
                      "cumulative_passed": sum(t.get("status") == "passed" for t in tests.values()),
-                     "cumulative_total": len(tests), "fallbacks": sum(bool(t.get("setup_fallbacks")) for t in tests.values())})
+                     "cumulative_total": len(tests), "fallbacks": sum(bool(t.get("setup_fallbacks")) for t in tests.values()),
+                     "flaky": sum(len(set(t.get("statuses") or [])) > 1 for t in tests.values()),
+                     "scored_repeatedly": any(t.get("statuses") for t in tests.values())})
         prev = tests
     return rows
 
@@ -378,14 +380,20 @@ def render_per_story(run: Path) -> str:
              "than the new work: some earlier tests need a later story's feature and are skipped until it exists.", "",
              ]
     fb = any(r["fallbacks"] for r in rows)
+    fl = any(r["scored_repeatedly"] for r in rows)
+    if fl:
+        lines += ["A checkpoint with a failing test was scored three times; each test counts its majority result, and "
+                  "Flaky is how many tests changed result between the scorings (timing-dependent app code).", ""]
     if fb:
         lines += ["Setup fallbacks are held-out tests whose setup reached its state by the documented flow after an "
                   "undocumented alternate flow failed (rule 8); the failure is counted once, as a finding.", ""]
-    lines += ["| Story | New work | Regressions | Repairs | Cumulative |" + (" Setup fallbacks |" if fb else ""),
-              "|---|---|---|---|---|" + ("---|" if fb else "")]
+    lines += ["| Story | New work | Regressions | Repairs | Cumulative |" + (" Setup fallbacks |" if fb else "")
+              + (" Flaky |" if fl else ""),
+              "|---|---|---|---|---|" + ("---|" if fb else "") + ("---|" if fl else "")]
     for r in rows:
         lines.append(f"| {r['story']} | {r['new_passed']}/{r['new_total']} | {r['regressions']} | {r['repairs']} | "
-                     f"{r['cumulative_passed']}/{r['cumulative_total']} |" + (f" {r['fallbacks']} |" if fb else ""))
+                     f"{r['cumulative_passed']}/{r['cumulative_total']} |" + (f" {r['fallbacks']} |" if fb else "")
+                     + (f" {r['flaky']} |" if fl else ""))
     new_p = sum(r["new_passed"] for r in rows); new_t = sum(r["new_total"] for r in rows)
     lines += ["", f"**New work** {new_p}/{new_t}, **regressions** {sum(r['regressions'] for r in rows)}, "
                   f"**repairs** {sum(r['repairs'] for r in rows)}, **cumulative** "

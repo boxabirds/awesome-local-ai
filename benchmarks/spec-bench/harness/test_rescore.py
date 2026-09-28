@@ -32,3 +32,30 @@ def test_a_story_without_recorded_code_is_left_out(tmp_path):
 def test_rescores_go_beside_the_runs_own_scores(tmp_path):
     """Never over them: the original version's scores stay the record of what was measured then."""
     assert out_dir(tmp_path, "vidi-v1.2") == tmp_path / "rescore" / "vidi-v1.2"
+
+
+def _acc(results: dict) -> dict:
+    tests = [{"file": f, "title": t, "status": s, "setup_fallbacks": []} for (f, t), s in results.items()]
+    return {"passed": sum(s == "passed" for s in results.values()), "total": len(results), "tests": tests,
+            "by_story": {}, "setup_fallbacks": {"tests": 0, "by_owner": {}}}
+
+
+def test_majority_takes_each_tests_most_common_result_and_names_the_flaky_ones():
+    """Racy app code passes a test some of the time (canvas-mlx-02: 13 of 75 tests changed result
+    across three identical scorings; Opus run-3: none). Each test takes its majority result, and the
+    tests that changed are reported as flaky: a defect in the app, measured instead of left to chance."""
+    from rescore import majority
+    a, b, c = ("story-02.spec.ts", "a"), ("story-02.spec.ts", "b"), ("story-07.spec.ts", "c")
+    m = majority([_acc({a: "passed", b: "failed", c: "passed"}),
+                  _acc({a: "passed", b: "passed", c: "failed"}),
+                  _acc({a: "passed", b: "failed", c: "failed"})])
+    assert {t["title"]: t["status"] for t in m["tests"]} == {"a": "passed", "b": "failed", "c": "failed"}
+    assert (m["passed"], m["total"], m["scorings"], m["scores"]) == (1, 3, 3, [2, 2, 1])
+    assert sorted(m["flaky"]) == ["story-02.spec.ts: b", "story-07.spec.ts: c"]
+    assert m["by_story"] == {"02": {"passed": 1, "total": 2}, "07": {"passed": 0, "total": 1}}
+
+
+def test_a_single_clean_scoring_needs_no_repeats():
+    from rescore import needs_repeats
+    assert not needs_repeats({"tests": [{"status": "passed"}, {"status": "skipped"}]})
+    assert needs_repeats({"tests": [{"status": "passed"}, {"status": "failed"}]})
