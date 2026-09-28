@@ -1,3 +1,32 @@
+commit 27c515c992a351e19d744b84efb6a808aa968077
+vidi-agent  Mon Sep 28 19:25:32 2026 +0000
+
+    harness: snapshot after story 5 (uncommitted agent work)
+
+
+ index.html                                       |   1 +
+ src/client/App.tsx                               |  81 ++++---
+ src/client/api.ts                                |  56 +++++
+ src/client/main.tsx                              |  22 +-
+ src/client/pages/BoardPage.tsx                   |  79 ++++++
+ src/client/pages/HomePage.tsx                    |  48 ++++
+ src/client/pages/NotFoundPage.tsx                |  51 ++++
+ src/client/router.ts                             |  47 ++++
+ src/client/share/SharePanel.tsx                  | 154 ++++++++++++
+ src/shared/config.ts                             |  20 ++
+ src/worker/board-room.ts                         |  45 +++-
+ src/worker/board-store.ts                        |  89 ++++++-
+ src/worker/create-board.ts                       |  75 ++++++
+ src/worker/index.ts                              |  54 ++++-
+ tests/component/SharePanel.test.tsx              | 174 ++++++++++++++
+ tests/component/pages.test.tsx                   | 225 +++++++++++++++++
+ tests/integration/board-api.test.ts              | 292 +++++++++++++++++++++++
+ tests/integration/board-room-persistence.test.ts |   1 +
+ tests/integration/worker.test.ts                 |  15 +-
+ tests/integration/ws-client.ts                   |  27 +++
+ tests/unit/create-board.test.ts                  | 109 +++++++++
+ wrangler.jsonc                                   |  10 +
+ 22 files changed, 1616 insertions(+), 59 deletions(-)
 commit 253aa8c9bb9b9bfe7a19e99585c3d21b743ddb2d
 vidi-agent  Mon Sep 28 18:56:12 2026 +0000
 
