@@ -1,0 +1,195 @@
+{
+ "rtk": "0.49.0 (7efbaef)",
+ "stacks": {
+  "swift-llamacpp": {
+   "pi tool: read": {
+    "calls": 717,
+    "chars": 2769582
+   },
+   "bash, RTK rewrites": {
+    "calls": 852,
+    "chars": 853631
+   },
+   "pi tool: write": {
+    "calls": 221,
+    "chars": 22092
+   },
+   "bash, RTK leaves alone": {
+    "calls": 1195,
+    "chars": 932465
+   },
+   "pi tool: edit": {
+    "calls": 707,
+    "chars": 79305
+   }
+  },
+  "mlx-serve": {
+   "pi tool: read": {
+    "calls": 448,
+    "chars": 2526426
+   },
+   "bash, RTK rewrites": {
+    "calls": 577,
+    "chars": 1517457
+   },
+   "pi tool: write": {
+    "calls": 208,
+    "chars": 17727
+   },
+   "pi tool: edit": {
+    "calls": 282,
+    "chars": 38102
+   },
+   "bash, RTK leaves alone": {
+    "calls": 727,
+    "chars": 914534
+   }
+  },
+  "gufo": {
+   "bash, RTK rewrites": {
+    "calls": 463,
+    "chars": 551483
+   },
+   "pi tool: read": {
+    "calls": 407,
+    "chars": 1569961
+   },
+   "bash, RTK leaves alone": {
+    "calls": 620,
+    "chars": 520063
+   },
+   "pi tool: write": {
+    "calls": 249,
+    "chars": 12738
+   },
+   "pi tool: edit": {
+    "calls": 463,
+    "chars": 31732
+   }
+  }
+ },
+ "top_rewritten": [
+  [
+   "grep -n",
+   438489
+  ],
+  [
+   "grep -rn",
+   149170
+  ],
+  [
+   "sed -n",
+   128894
+  ],
+  [
+   "cd workspace",
+   125267
+  ],
+  [
+   "npm run",
+   107258
+  ],
+  [
+   "ls -la",
+   83840
+  ],
+  [
+   "find src",
+   59389
+  ],
+  [
+   "cd ~/.vidi-bench/work/qwen__3.8__flash-n",
+   56879
+  ],
+  [
+   "cat tests/e2e/helpers/board.ts",
+   53964
+  ],
+  [
+   "cat spec/stories/012-drop-images-onto-th",
+   53200
+  ],
+  [
+   "cat spec/stories/004-return-to-a-board-a",
+   51760
+  ],
+  [
+   "wc -l",
+   48097
+  ],
+  [
+   "cat src/shared/config.ts",
+   42849
+  ],
+  [
+   "cat spec/stories/007-select-move-resize-",
+   40865
+  ],
+  [
+   "cat spec/stories/010-draw-shapes-and-con",
+   38489
+  ]
+ ],
+ "top_not_rewritten": [
+  [
+   "sed -n",
+   507462
+  ],
+  [
+   "npm run",
+   354036
+  ],
+  [
+   "npx vitest",
+   268504
+  ],
+  [
+   "npx playwright",
+   193899
+  ],
+  [
+   "python3 -",
+   137358
+  ],
+  [
+   "find .",
+   107773
+  ],
+  [
+   "cat >",
+   89388
+  ],
+  [
+   "cd workspace",
+   75170
+  ],
+  [
+   "grep -n",
+   72626
+  ],
+  [
+   "npx tsc",
+   48050
+  ],
+  [
+   "cd \"$(pwd)\";",
+   30434
+  ],
+  [
+   "rm -f",
+   27143
+  ],
+  [
+   "cd ~/.vidi-bench/work/qwen__3.8__flash-n",
+   24600
+  ],
+  [
+   "cat node_modules/@cloudflare/vitest-pool",
+   15051
+  ],
+  [
+   "PLAYWRIGHT_BROWSERS_PATH=~/.cache/vidi-a",
+   13354
+  ]
+ ]
+}
