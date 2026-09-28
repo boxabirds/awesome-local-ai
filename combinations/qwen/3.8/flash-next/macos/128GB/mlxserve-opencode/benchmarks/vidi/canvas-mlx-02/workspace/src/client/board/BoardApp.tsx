@@ -15,6 +15,7 @@
 // deleting act on the whole Set through the board model; and a new object type
 // gets all of it by registering itself, without touching this file.
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import type * as Y from 'yjs';
 import { BoardViewportRoot, useBoardCamera } from '../canvas/BoardViewport.tsx';
 import { ZoomControls } from '../canvas/ZoomControls.tsx';
 import { NavigationHint } from '../canvas/NavigationHint.tsx';
@@ -26,6 +27,8 @@ import { useBoardKeys } from './useBoardKeys.ts';
 import { useMarquee } from './Marquee.tsx';
 import { SelectionOverlay } from './SelectionOverlay.tsx';
 import { SelectionBar } from './SelectionBar.tsx';
+import { createUndo, type UndoController } from './undo.ts';
+import { UndoContext, useUndo } from './useUndo.ts';
 import { ConnectionStatus } from '../collab/ConnectionStatus.tsx';
 import type { ConnectionState, ProviderFactory } from '../collab/connectBoard.ts';
 import { getObjectType } from '../objects/registry.tsx';
@@ -75,6 +78,27 @@ export default function BoardApp({ boardId, makeProvider }: BoardAppProps) {
   const connectionStateRef = useRef<ConnectionState>(board.connectionState);
   connectionStateRef.current = board.connectionState;
 
+  // This person's undo history, over the doc this board opened. It belongs to the
+  // doc rather than to a render: it has to exist before the first mutation happens
+  // (so no step is missed) and outlive every re-render (so no step is lost). A
+  // board whose doc is replaced starts with an empty history again, which is what
+  // a reload or a different board does (undo.session_only).
+  const undoRef = useRef<{ doc: Y.Doc; controller: UndoController } | null>(null);
+  if (undoRef.current === null || undoRef.current.doc !== doc) {
+    undoRef.current = { doc, controller: createUndo(doc) };
+  }
+  const undoController = undoRef.current.controller;
+  useEffect(() => {
+    return () => {
+      if (undoRef.current?.controller === undoController) undoRef.current = null;
+      undoController.destroy();
+    };
+  }, [undoController]);
+
+  // What the toolbar's Undo and Redo buttons show: the steps of this tab only,
+  // and none of them offered while the board cannot be edited.
+  const undoState = useUndo(undoController, editable);
+
   // The selection: a Set of ids owned by THIS client, never written to the doc.
   // It prunes itself as objects disappear (a remote delete), and so does the
   // text editor of an object that is no longer there.
@@ -87,17 +111,29 @@ export default function BoardApp({ boardId, makeProvider }: BoardAppProps) {
   const marquee = useMarquee(cam, objects, onSelectMarquee);
 
   // One gesture for every type: it moves or resizes whatever the selection
-  // holds, and it is the only place a grab turns into model writes.
-  const gesture = useTransformGesture({ doc, camera: cam, selection, snapshot: objects, canEdit: editable });
+  // holds, and it is the only place a grab turns into model writes. The two hooks
+  // are this tab's undo boundaries: every frame of one drag is captured as a
+  // single step, and a gesture never merges with the action before or after it.
+  // The same call runs on pointercancel, so an interrupted drag is one step too.
+  const gesture = useTransformGesture({
+    doc,
+    camera: cam,
+    selection,
+    snapshot: objects,
+    canEdit: editable,
+    onGestureStart: undoController.boundary,
+    onGestureEnd: undoController.boundary,
+  });
 
-  // Select all, clear, nudge, delete. Escape is the board's own shortcut unless
-  // a marquee is being drawn, in which case the viewport discards it and the
-  // selection stays as it is.
+  // Select all, clear, nudge, delete, and the undo/redo of this person's own
+  // changes. Escape is the board's own shortcut unless a marquee is being drawn,
+  // in which case the viewport discards it and the selection stays as it is.
   useBoardKeys({
     doc,
     selection,
     snapshot: objects,
     canEdit: editable,
+    undo: undoController,
     escapeBlocked: () => marquee.rect !== null,
   });
 
@@ -124,14 +160,18 @@ export default function BoardApp({ boardId, makeProvider }: BoardAppProps) {
     setPendingEdit(null);
   }, [pendingEdit, objects, startEdit]);
 
-  // Create a note centred on a world point and immediately edit it.
+  // Create a note centred on a world point and immediately edit it. The
+  // boundaries around the call make "a note was created" one undo step even when
+  // the very next keystroke types into it (story 8).
   const createAt = useCallback(
     (world: { x: number; y: number }) => {
       if (!canEdit(connectionStateRef.current)) return;
+      undoController.boundary();
       const id = createSticky(doc, world);
+      undoController.boundary();
       setPendingEdit(id);
     },
-    [doc],
+    [doc, undoController],
   );
 
   // Toolbar button creates at the centre of the visible board area.
@@ -150,19 +190,26 @@ export default function BoardApp({ boardId, makeProvider }: BoardAppProps) {
   const onColor = useCallback(
     (id: string, color: string) => {
       if (!canEdit(connectionStateRef.current)) return;
+      // One click on a colour is one step of its own.
+      undoController.boundary();
       setStickyColor(doc, id, color);
+      undoController.boundary();
     },
-    [doc],
+    [doc, undoController],
   );
 
-  // The selection bar's Delete: one transaction removes every selected object
-  // (one undo step in story 8), then the selection that referred to them is gone.
-  // A single object's delete is this same call with one id in the Set.
+  // The selection bar's Delete: one transaction removes every selected object -
+  // and that transaction is exactly one undo step, which is what makes an
+  // accidental box-select-and-delete recoverable in one press - then the selection
+  // that referred to them is gone. A single object's delete is the same call with
+  // one id in the Set.
   const onDeleteSelection = useCallback(() => {
     if (!canEdit(connectionStateRef.current)) return;
+    undoController.boundary();
     deleteObjects(doc, [...selection.ids]);
+    undoController.boundary();
     clear();
-  }, [doc, selection, clear]);
+  }, [doc, selection, clear, undoController]);
 
   // Board-level keyboard left over from story 2: Enter opens the text editor of
   // the one selected object, when its type has editable text. The rest of the
@@ -218,7 +265,10 @@ export default function BoardApp({ boardId, makeProvider }: BoardAppProps) {
   );
 
   return (
-    <>
+    // The history is reachable from inside the objects themselves (a sticky's text
+    // editor needs it) without every object type having to accept an undo prop:
+    // the provider is the board, and the objects are rendered by the registry.
+    <UndoContext.Provider value={undoController}>
       <BoardViewportRoot
         api={api}
         rootRef={rootRef}
@@ -231,7 +281,7 @@ export default function BoardApp({ boardId, makeProvider }: BoardAppProps) {
 
       <ConnectionStatus state={board.connectionState} />
 
-      <Toolbar onCreateSticky={onCreateSticky} disabled={!editable} />
+      <Toolbar onCreateSticky={onCreateSticky} disabled={!editable} undo={undoState} />
 
       <ZoomControls
         zoomPercent={zoomPercent(cam)}
@@ -263,6 +313,6 @@ export default function BoardApp({ boardId, makeProvider }: BoardAppProps) {
         onDelete={onDeleteSelection}
         onColor={(id: string, color: StickyColor) => onColor(id, color)}
       />
-    </>
+    </UndoContext.Provider>
   );
 }

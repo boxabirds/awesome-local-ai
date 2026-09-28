@@ -9,7 +9,7 @@ import { defineConfig, devices } from '@playwright/test';
 
 export default defineConfig({
   testDir: './tests/e2e',
-  testMatch: /.*(collaboration|connection|sized)\.spec\.ts/,
+  testMatch: /.*(collaboration|connection|sized|undo)\.spec\.ts/,
   fullyParallel: false,
   workers: 1,
   retries: 2,

@@ -2,9 +2,10 @@ import { defineConfig, devices } from '@playwright/test';
 
 export default defineConfig({
   testDir: './tests/e2e',
-  // The multi-context collaboration / outage specs, and the sized-board load,
-  // run under playwright.nightly.config.ts.
-  testIgnore: /.*(collaboration|connection|sized)\.spec\.ts/,
+  // The multi-context collaboration / outage specs, the sized-board load, and the
+  // undo scenarios - each of which opens a browser context per person and waits for
+  // every one of them to agree - run under playwright.nightly.config.ts.
+  testIgnore: /.*(collaboration|connection|sized|undo)\.spec\.ts/,
   fullyParallel: false,
   workers: 1,
   retries: 0,

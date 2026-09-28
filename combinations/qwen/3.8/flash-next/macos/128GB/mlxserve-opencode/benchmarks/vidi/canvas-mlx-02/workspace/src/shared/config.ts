@@ -156,3 +156,14 @@ export const NUDGE_STEP_WORLD = 1;
 
 // Shift+arrow nudges this many world units.
 export const NUDGE_LARGE_STEP_WORLD = 10;
+
+// --- Undo and redo (story 8) ------------------------------------------------
+
+// A typing pause of THIS many milliseconds ends a typing burst: the next
+// keystroke opens a new undo step. Shorter pauses merge into the current step,
+// so "one meaningful action" is one step and a burst of typing is one too.
+export const UNDO_CAPTURE_TIMEOUT_MS = 500;
+
+// How many undo steps one person's history keeps. The oldest step is discarded
+// when a new one arrives while the history is full.
+export const UNDO_MAX_STEPS = 200;

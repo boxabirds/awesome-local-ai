@@ -596,3 +596,120 @@ guides (the PRD's out-of-scope list), "move to front / move to back" buttons,
 rotation handles and a lasso, per-object nudging, marquee without Shift, marquee
 that intersects rather than encloses, and typing together into one note. Selection
 is local per client and is never written to the Y.Doc.
+
+# Notes — Story 8: Undo and redo my own changes, without undoing anyone else's
+
+Story 8 is complete: `npm run typecheck`, `npm run test:unit` (203), `npm run
+test:component` (148), `npm run test:integration` (65) and `npm run test:e2e` (58)
+pass, and the three new scenarios pass under the nightly config on Chromium and
+WebKit (`npm run test:e2e:nightly -- undo.spec.ts`, 6). The story itself is
+24 unit, 16 component and 3 end-to-end tests.
+
+## Decisions & deviations
+
+1. **"My changes only" is an origin filter, not a user filter.** The controller is
+   `new Y.UndoManager(doc.getMap('objects'), { trackedOrigins: new Set([LOCAL_ORIGIN]) })`.
+   `LOCAL_ORIGIN` is the `unique symbol` `board-model` wraps every local mutation in,
+   so a colleague's change (the provider's origin) and story 4's `LOAD_ORIGIN` (the
+   board as it was read back from storage) are outside the scope by construction —
+   there is no code path by which they could be stepped back. There is no user id
+   anywhere in the history: one tab is one person, five tabs are five histories.
+
+2. **The controller is created by `BoardApp`, not `App.tsx`.** The task's file list
+   puts it in `App.tsx`, but `App.tsx` never sees a `Y.Doc`: `useBoardDoc` opens the
+   doc, and the doc and the history over it have to be born and die together (the
+   controller holds listeners on the doc, and `destroy()` is what drops the history,
+   which is what makes it session-only). `BoardApp` creates one per doc in a ref
+   keyed by the doc identity, destroys it on unmount, and hands it down through
+   `UndoContext` — a context rather than a prop because `StickyTextEditor` needs it
+   and every object type would otherwise have to accept an `undo` prop it never uses.
+
+3. **The controller owns its capture window rather than trusting yjs's.** yjs merges
+   tracked transactions while the gap between them is under `captureTimeout`, which is
+   right for typing and wrong for two unrelated clicks half a second apart. The
+   controller passes the timeout through *and* rearms its own `setTimeout(closeWindow)`
+   on every captured change, so a window closes exactly `UNDO_CAPTURE_TIMEOUT_MS`
+   after the last write of a burst, and `boundary()` closes it now. TC-13 tests both
+   boundary values against the real clock: a pause of exactly `UNDO_CAPTURE_TIMEOUT_MS`
+   is two steps, one millisecond short is one. (`vi.useFakeTimers()` cannot be used
+   here: yjs's captureTimeout reads `lib0/time`'s `getUnixTime`, which is `Date.now`
+   by direct reference, so the tests wait real milliseconds — a whole test file takes
+   ~300 ms.)
+
+4. **The undo stack trims from the front on `stack-item-added`, not on pop.**
+   `while (undoStack.length > maxSteps) undoStack.shift()` — the oldest *action*
+   leaves and the board itself is untouched. The redo stack is left alone: it is
+   bounded by the undo stack it came from.
+
+5. **An undo that found nowhere to land is announced anyway, and that is a bug the
+   end-to-end test caught.** If a person moves a note and a colleague deletes that
+   note, the inverse of the move has nowhere to go: yjs pops stack items until one
+   performs a change, finds the last one deleted, and returns `null` **without firing
+   a single event** — no `stack-item-popped`, no `stack-cleared`. Every listener was
+   therefore left holding the state from before the press, and the toolbar's Undo
+   button stayed enabled, offering a step that no longer existed, for as long as the
+   person kept pressing it. `manager.undo()` is now followed by an unconditional
+   `notify()`, because the controller is the only place that knows the truth. Guarded
+   twice: `undo-history.test.ts` ("tells its listeners about the undo that found
+   nowhere to land") at the model, and `UndoControls.test.tsx` ("greys the control
+   once the step it offered has nowhere left to land") through the real keystroke and
+   the real button — the component test does fail when the `notify()` is removed.
+
+6. **`useUndo` keeps a version counter, not a snapshot of the stacks.** The stacks
+   live outside React; the hook subscribes to `onChange` and bumps a number, and
+   `canUndo`/`canRedo` are read at render time from the controller. A hook that stored
+   booleans would have to remember to update both, in both directions, on every one of
+   the five yjs events.
+
+7. **The boundaries wired in are before *and* after each single model call.**
+   `boundary()` is `stopCapturing()`: called before a call it closes the previous
+   window, called after it closes its own. This is why `useBoardKeys` wraps Delete and
+   the arrow nudge, `Toolbar` wraps create, `NoteToolbar` wraps colour and delete, and
+   `useTransformGesture` gets it as `onGestureStart`/`onGestureEnd` (including
+   `pointercancel`). The one that earns its keep is the boundary around Delete:
+   selecting eight notes is itself eight local writes (a click raises a note's `z`),
+   and without the boundary one Ctrl+Z would take back the delete *and* the clicking.
+
+8. **Typing into a note and creating that note are two steps, by design and by
+   accident.** `StickyTextEditor` calls `boundary()` on mount and on cleanup, and
+   intercepts Ctrl/Cmd+Z and Ctrl+Shift+Z inside the textarea so the browser's own
+   textarea undo never diverges from the `Y.Text`. TC-22 asserts the consequence on
+   two screens: a colleague's first Ctrl+Z empties the *words* of their note and the
+   second takes the *note*.
+
+9. **The e2e scenarios run under the nightly config.** They open 2 and 5 browser
+   contexts and assert convergence, like the story 3 specs, so `undo` was added to
+   `playwright.config.ts`'s `testIgnore` and to the nightly `testMatch`; the file sets
+   `test.setTimeout(180_000)` over the nightly's 60 s for the five-context case.
+
+10. **Fixture geometry is part of the test.** Every one of the twelve notes of
+    `buildRetroBoard()` (eight in a cluster, four scattered) lies wholly inside the
+    1280×800 viewport at the reset camera, and the notes the e2e creates are pinned at
+    x = 160, 560, 960 — short of the bottom-right corner, where `zoom-controls` sits
+    and would eat the double-click. `page.mouse.click(x, y)` with x past the viewport
+    does not fail, it does nothing, which turns a geometry mistake into "the delete
+    never happened" at 1 a.m. `tests/e2e/selection.spec.ts` already had this rule; the
+    undo spec follows it.
+
+11. **A note's screen position is not stable after a move, so the scenarios move
+    notes towards the middle.** TC-23 drags by (−160, +60) rather than the obvious
+    (+140, +40): a note pushed off the right edge is unclickable on the *other*
+    person's screen, and the assertion that fails is three actions later.
+
+12. **Reading one's own new note back needs the place it was made, not "whichever
+    note appeared".** With five people pinning notes at the same moment, the note that
+    appeared between two readings may be a colleague's that arrived from the server in
+    between. `onlyNew(before, after, at)` filters on the world coordinates of the spot
+    the page double-clicked, computed from `resetCam()` and `STICKY_SIZE_WORLD`.
+
+13. **`addScope` exists and is unused.** It is `manager.addToScope` for story 16's
+    comments map. The controller does not call it for anything today.
+
+## Not implemented (out of scope by instruction)
+
+Per-user identity in the history (origins do the work), undo of a *collaborative*
+change or of another person's change, cross-tab or cross-reload history, history
+persisted to storage, a history popover or a list of steps to jump to, undo of the
+camera or of selection (neither is in the Y.Doc at all), undo of cursors/presence
+(story 6, not in the objects map), and undo of comments (story 16, which is what
+`addScope` is waiting for).

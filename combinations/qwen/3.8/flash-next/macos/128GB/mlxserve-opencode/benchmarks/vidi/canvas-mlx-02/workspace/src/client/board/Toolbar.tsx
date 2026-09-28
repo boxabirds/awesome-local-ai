@@ -1,5 +1,7 @@
-// Left-side fixed toolbar (story 2) with the "Sticky note" creation button.
+// Left-side fixed toolbar (story 2) with the "Sticky note" creation button and,
+// under it, this person's own Undo / Redo (story 8).
 import type React from 'react';
+import { UndoButtons, type UndoButtonsProps } from './UndoButtons.tsx';
 
 export interface ToolbarProps {
   onCreateSticky(): void;
@@ -8,10 +10,15 @@ export interface ToolbarProps {
    * not load it). A disabled button is inert and says so to assistive tech.
    */
   disabled?: boolean;
+  /**
+   * This person's undo history, from `useUndo` on this tab's controller. Rendered
+   * as Undo / Redo; each of them can only ever step back what this tab did.
+   */
+  undo?: UndoButtonsProps;
 }
 
 export function Toolbar(props: ToolbarProps): React.JSX.Element {
-  const { onCreateSticky, disabled = false } = props;
+  const { onCreateSticky, disabled = false, undo } = props;
   return (
     <div
       data-testid="toolbar"
@@ -61,6 +68,18 @@ export function Toolbar(props: ToolbarProps): React.JSX.Element {
         {/* Simple sticky-note glyph. */}
         <span aria-hidden="true">🗒</span>
       </button>
+
+      {/* Undo / Redo of this person's own steps, kept apart from the creation
+          button by a rule so they do not read as a third tool. */}
+      {undo ? (
+        <>
+          <span
+            aria-hidden="true"
+            style={{ height: 1, margin: '2px 4px', background: '#e2e2e2' }}
+          />
+          <UndoButtons {...undo} />
+        </>
+      ) : null}
     </div>
   );
 }

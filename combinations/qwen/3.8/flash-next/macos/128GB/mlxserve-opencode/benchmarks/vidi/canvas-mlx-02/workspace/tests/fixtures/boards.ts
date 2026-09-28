@@ -14,7 +14,12 @@ import {
   setStickyColor,
   snapshot,
 } from '../../src/shared/board-model.ts';
-import { PERSIST_TESTED_NOTES, SNAPSHOT_CHUNK_BYTES, STICKY_COLORS } from '../../src/shared/config.ts';
+import {
+  PERSIST_TESTED_NOTES,
+  SNAPSHOT_CHUNK_BYTES,
+  STICKY_COLORS,
+  STICKY_SIZE_WORLD,
+} from '../../src/shared/config.ts';
 import { RETRO_ITEM, SHORT_PHRASE } from './texts.ts';
 
 const COLOR_NAMES = Object.keys(STICKY_COLORS) as (keyof typeof STICKY_COLORS)[];
@@ -120,4 +125,91 @@ export function sameBoard(a: readonly ReturnType<typeof snapshot>[number][], b: 
     }
   }
   return true;
+}
+
+/** One note of the retrospective board, in world units, top-left corner. */
+export interface RetroNote {
+  id: string;
+  x: number;
+  y: number;
+  text: string;
+}
+
+export interface RetroBoard {
+  /** The whole board as a single Yjs update, for the room's seed hook. */
+  update: Uint8Array;
+  /** The eight notes standing together in one cluster. */
+  cluster: RetroNote[];
+  /** The four standing away from it. */
+  scattered: RetroNote[];
+  /** All twelve, in the order they were pinned. */
+  notes: RetroNote[];
+}
+
+// Twelve things a team pins to a retrospective board.
+const RETRO_NOTES = [
+  'What went well',
+  'Ship the importer',
+  'Export path slips',
+  'Pair on the fix',
+  'Time-box the sprint',
+  'Clearer guidance',
+  'Shorter onboarding',
+  'Show the progress',
+  'Ask the new users',
+  'Fewer dashboards',
+  'Write it down',
+  'Review next week',
+];
+
+// World top-left of each note: eight in a cluster of three columns and three rows,
+// one space short of full the way a cluster usually is, and four spread out to the
+// right of it. The layout is meant for the camera the e2e helpers set - world (0,0)
+// at the middle of a 1280x800 screen, notes 200 units square - and it is laid out so
+// that every note lies WHOLLY inside that screen and no two of them overlap. Both
+// matter: a note a click is aimed at must be a note the click can reach, which is
+// what the undo scenarios are argued about.
+const CLUSTER_SPOTS: Array<[number, number]> = [
+  [-560, -360], [-340, -360], [-120, -360],
+  [-560, -140], [-340, -140], [-120, -140],
+  [-560, 80], [-340, 80],
+];
+
+const SCATTERED_SPOTS: Array<[number, number]> = [
+  [200, -360], [420, -140], [200, 100], [420, 120],
+];
+
+/**
+ * The board the undo scenarios are stated on: a retrospective board of twelve
+ * notes in varied colours, eight of them in one cluster so that "select the eight
+ * and delete them" is a thing a person can actually do, and four out of reach of
+ * the cluster so that a note belonging to someone else is plainly still there when
+ * the eight come back.
+ *
+ * It is built with the app's own model functions and handed over as one update,
+ * which is how a board a person opens arrives: content they were given, none of it
+ * something their own Undo could take back.
+ */
+export function buildRetroBoard(): RetroBoard {
+  const doc = new Y.Doc();
+  initDoc(doc);
+  const spots = [...CLUSTER_SPOTS, ...SCATTERED_SPOTS];
+  const notes: RetroNote[] = [];
+  spots.forEach(([x, y], i) => {
+    const id = createSticky(
+      doc,
+      { x: x + STICKY_SIZE_WORLD / 2, y: y + STICKY_SIZE_WORLD / 2 },
+      COLOR_NAMES[i % COLOR_NAMES.length],
+    );
+    const text = RETRO_NOTES[i % RETRO_NOTES.length];
+    getStickyText(doc, id)?.insert(0, text);
+    notes.push({ id, x, y, text });
+  });
+  const cluster = notes.slice(0, CLUSTER_SPOTS.length);
+  return {
+    update: Y.encodeStateAsUpdate(doc),
+    cluster,
+    scattered: notes.slice(CLUSTER_SPOTS.length),
+    notes,
+  };
 }

@@ -10,14 +10,16 @@ Model `mlxserve-flash-next-mixed-4-8bit`, scope `canvas`, effort `low`, client p
 | 4 | Return to a board and find everything as it was left | PARTIAL (amber) | 240.1 | None | None | None | — | — | green | 29/31 |  | 0 / 3 | 5 | — | throttled 64%, server peak 84 GB |
 | 5 | Share a board with others using a link | DONE, on partial 4 | 144.4 | None | None | None | — | — | green | 34/36 |  | 0 / 0 | 3 | — | throttled 71%, server peak 84 GB |
 | 7 | Select, move, resize and delete several objects at once | DONE, on partial 4 | 143.8 | None | None | None | — | — | green | 29/44 |  | 0 / 0 | 5 | — | throttled 87%, server peak 84 GB |
+| 8 | Undo and redo my own changes without undoing anyone else's | DONE, on partial 4 | 121.7 | None | None | None | — | — | green | 32/51 |  | 0 / 0 | 4 | — | throttled 94%, server peak 84 GB |
 
-**Totals:** 6 stories, 685 agent-minutes, 0 requests, 0 prompt / 0 completion tokens, gate green 6/6, final acceptance 29/44, stalled 0, partial 1, 17810 lines in src+tests.
+**Totals:** 7 stories, 807 agent-minutes, 0 requests, 0 prompt / 0 completion tokens, gate green 7/7, final acceptance 32/51, stalled 0, partial 1, 20296 lines in src+tests.
 
 ### Stories ended early (PARTIAL) and what was built on them
 
 - **Story 4 PARTIAL**, ended by the operator (harness (cap)): story cap: 4.0 h of agent time (cap 4.0 h). Verdict **amber**: gate green, tasks not verified [1, 2, 3, 4, 5, 6, 7, 8, 9] (implementation: [2, 4, 7]), held-out 4/4 (floor 0.25).
 - Story 5, built on partial 4: held-out tests on the partial base 9/9; partial story's tests fixed 0, regressed 0; 7 stub-like lines added to src/.
 - Story 7, built on partial 4: held-out tests on the partial base 10/17; partial story's tests fixed 0, regressed 2; 0 stub-like lines added to src/.
+- Story 8, built on partial 4: held-out tests on the partial base 13/24; partial story's tests fixed 0, regressed 2; 0 stub-like lines added to src/.
 
 ## How it happened
 
@@ -31,6 +33,7 @@ Each story's commits, and which story broke or fixed an earlier story's held-out
 | 4 | harness snapshot (agent left work uncommitted) | 3461 / 125 | `board-room.ts` (715), `board-store.ts` (396), `NOTES.md` (132), `room-state.ts` (108), `connectBoard.ts` (43), `index.ts` (43), +10 more |
 | 5 | 1 by the agent | 4138 / 238 | `SharePanel.tsx` (288), `App.tsx` (240), `BoardApp.tsx` (203), `styles.css` (196), `create-board.ts` (147), `board-store.ts` (145), +14 more |
 | 7 | 1 by the agent | 5121 / 259 | `useTransformGesture.ts` (330), `board-model.ts` (295), `StickyNote.tsx` (260), `BoardApp.tsx` (219), `geometry.ts` (211), `useSelection.ts` (190), +11 more |
+| 8 | 4 by the agent | 2639 / 35 | `undo.ts` (214), `NOTES.md` (117), `BoardApp.tsx` (80), `UndoButtons.tsx` (72), `useUndo.ts` (60), `StickyTextEditor.tsx` (48), +5 more |
 
 ### Earlier stories broken or fixed
 
@@ -39,6 +42,10 @@ Each story's commits, and which story broke or fixed an earlier story's held-out
   - story 2: 10/10 → 7/10; broke 3.
   - story 3: 5/7 → 3/7; broke 2.
   - story 4: 4/4 → 2/4; broke 2.
+- **Story 8 broke 3, fixed 1** earlier held-out tests (story 8: end-to-end undo with colleagues, and a fix for the button that lied; story 8: component tests for undo steps, controls and keys; story 8: wire undo boundaries, shortcuts and toolbar buttons into the board; story 8: per-person undo controller over Y.UndoManager, with unit tests). Source files it changed most: `undo.ts` (214), `NOTES.md` (117), `BoardApp.tsx` (80), `UndoButtons.tsx` (72), `useUndo.ts` (60), `StickyTextEditor.tsx` (48), +5 more.
+  - story 2: 7/10 → 8/10; fixed 1
+  - story 3: 3/7 → 2/7; broke 1.
+  - story 7: 3/8 → 1/8; broke 2.
 
 ### Interruptions and dead time
 

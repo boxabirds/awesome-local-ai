@@ -1,3 +1,56 @@
+commit 205946d33b66a331f4296e63117907d520bea080
+vidi-agent  Mon Sep 28 14:27:48 2026 +0100
+
+    story 8: end-to-end undo with colleagues, and a fix for the button that lied
+
+
+ NOTES.md                                | 117 ++++++++++
+ playwright.config.ts                    |   7 +-
+ playwright.nightly.config.ts            |   2 +-
+ src/client/board/undo.ts                |  13 +-
+ tests/component/UndoBoundaries.test.tsx |   5 -
+ tests/component/UndoControls.test.tsx   |  65 +++++-
+ tests/e2e/undo.spec.ts                  | 389 ++++++++++++++++++++++++++++++++
+ tests/fixtures/boards.ts                |  94 +++++++-
+ tests/unit/undo-boundaries.test.ts      |  33 +++
+ tests/unit/undo-history.test.ts         |  28 +++
+ 10 files changed, 740 insertions(+), 13 deletions(-)
+commit 0b7f19efec2d5fc9d0ca817a7534b25d5ac0f35e
+vidi-agent  Mon Sep 28 13:27:16 2026 +0100
+
+    story 8: component tests for undo steps, controls and keys
+
+
+ src/client/board/UndoButtons.tsx        |   4 +-
+ tests/component/UndoBoundaries.test.tsx | 349 ++++++++++++++++++++++++++++++++
+ tests/component/UndoControls.test.tsx   | 325 +++++++++++++++++++++++++++++
+ 3 files changed, 676 insertions(+), 2 deletions(-)
+commit d197bb35c66be7084bc42fc569f4c8fb35e78345
+vidi-agent  Mon Sep 28 13:04:46 2026 +0100
+
+    story 8: wire undo boundaries, shortcuts and toolbar buttons into the board
+
+
+ src/client/board/BoardApp.tsx           | 80 ++++++++++++++++++++++++++-------
+ src/client/board/Toolbar.tsx            | 23 +++++++++-
+ src/client/board/UndoButtons.tsx        | 68 ++++++++++++++++++++++++++++
+ src/client/board/useBoardKeys.ts        | 41 ++++++++++++++++-
+ src/client/board/useUndo.ts             | 60 +++++++++++++++++++++++++
+ src/client/objects/StickyTextEditor.tsx | 48 ++++++++++++++++++++
+ tests/unit/undo-history.test.ts         |  1 -
+ 7 files changed, 301 insertions(+), 20 deletions(-)
+commit cf6817148d3b705d78a37680157842e9e77ec493
+vidi-agent  Mon Sep 28 12:57:30 2026 +0100
+
+    story 8: per-person undo controller over Y.UndoManager, with unit tests
+
+
+ src/client/board/undo.ts           | 201 +++++++++++++++++++
+ src/shared/config.ts               |  11 ++
+ tests/unit/helpers/peer.ts         | 121 ++++++++++++
+ tests/unit/undo-boundaries.test.ts | 208 ++++++++++++++++++++
+ tests/unit/undo-history.test.ts    | 381 +++++++++++++++++++++++++++++++++++++
+ 5 files changed, 922 insertions(+)
 commit cfeab2123c18775e15fd07981e9c3ba579b62807
 vidi-agent  Mon Sep 28 12:20:22 2026 +0100
 
