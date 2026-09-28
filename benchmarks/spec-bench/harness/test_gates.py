@@ -237,3 +237,20 @@ def test_a_bun_lockfile_alone_marks_a_bun_workspace(tmp_path):
     (ws / "package.json").write_text("{}")
     (ws / "bun.lock").write_text("")
     assert gates.package_manager(ws) == "bun"
+
+
+def test_setup_fallbacks_are_kept_per_test_and_counted_once_per_owner():
+    """EVALUATION-POLICY rule 8: a held-out test whose setup fell back to the documented flow
+    records it (Playwright annotation 'setup-fallback'); the result keeps it with the test and
+    counts it against the story that owns the behaviour, not the story being checked."""
+    from gates import _walk, _fallback_summary
+    report = {"file": "story-07.spec.ts", "specs": [
+        {"title": "drag moves the selection", "tests": [{"annotations": [
+            {"type": "setup-fallback", "description": "createNote (partial); story 2; TC-35"}],
+            "results": [{"status": "passed", "annotations": [
+                {"type": "setup-fallback", "description": "createNote (partial); story 2; TC-35"}]}]}]},
+        {"title": "shift-click toggles", "tests": [{"annotations": [], "results": [{"status": "passed"}]}]}]}
+    tests = list(_walk(report))
+    assert tests[0]["setup_fallbacks"] == ["createNote (partial); story 2; TC-35"]
+    assert tests[1]["setup_fallbacks"] == []
+    assert _fallback_summary(tests) == {"tests": 1, "by_owner": {"2": 1}}

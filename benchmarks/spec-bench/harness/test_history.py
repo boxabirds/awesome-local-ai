@@ -239,3 +239,19 @@ def test_known_good_summary_says_it_is_diagnostic(tmp_path):
     assert "opus-5.5/run-3" in text and "abc1234" in text
     assert "not comparable with full runs" in text
     assert "spec was brought up to this pack's version" in text
+
+
+def test_per_story_counts_setup_fallbacks_and_shows_them_only_when_used(tmp_path):
+    """EVALUATION-POLICY rule 8: how many held-out tests needed a setup fallback at each checkpoint.
+    Runs scored without any (every v1.1 score) keep the table as it was."""
+    a1, b1 = ("story-01.spec.ts", "a1"), ("story-02.spec.ts", "b1")
+    _write_accept(tmp_path, 1, {a1: "passed"})
+    _write_accept(tmp_path, 2, {a1: "passed", b1: "passed"})
+    assert "Setup fallbacks" not in history.render_per_story(tmp_path)
+    f = tmp_path / "stories" / "02" / "accept.json"
+    doc = json.loads(f.read_text())
+    doc["tests"][1]["setup_fallbacks"] = ["createNote (partial); story 2; TC-35"]
+    f.write_text(json.dumps(doc))
+    rows = {r["story"]: r for r in history.per_story(tmp_path)}
+    assert (rows[1]["fallbacks"], rows[2]["fallbacks"]) == (0, 1)
+    assert "| Setup fallbacks |" in history.render_per_story(tmp_path)
