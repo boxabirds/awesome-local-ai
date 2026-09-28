@@ -11,6 +11,8 @@
 # Results land next to the combination:
 #   combinations/<COMBINATION>/benchmarks/<pack-name>/<run-id>/
 # Re-running with the same --run-id resumes at the first unfinished story.
+# BENCH_CONTEXT=<tokens> overrides the context (server and agent together); CLIENT_THINKING=<level>
+# makes pi send a reasoning effort (for servers that can't apply one).
 set -euo pipefail
 
 HARNESS="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -56,6 +58,12 @@ RUN_BASE="$(sed -n 's/^RUN_BASE="\(.*\)"/\1/p' "$ENV_FILE")"
 [[ -n "$RUN_BASE" ]] && CONFIG="$REPO_ROOT/$(sed -n 's/^CONFIG_FILE="\(.*\)"/\1/p' "$ENV_FILE")"
 . "$HARNESS/config-value.sh"
 CONTEXT_LIMIT="$(cfg CONTEXT_LIMIT "$CONFIG")"; OUTPUT_LIMIT="$(cfg OUTPUT_LIMIT "$CONFIG")"
+# BENCH_CONTEXT overrides the combination's context for this run, for the server (CTX) and the agent's
+# compaction limit together; changing only one would leave the other deciding when the agent compacts.
+if [[ -n "${BENCH_CONTEXT:-}" ]]; then
+  [[ "$BENCH_CONTEXT" =~ ^[0-9]+$ ]] || { echo "BENCH_CONTEXT must be a number of tokens" >&2; exit 1; }
+  CONTEXT_LIMIT="$BENCH_CONTEXT"; export CTX="$BENCH_CONTEXT"
+fi
 SERVER_CMD="$INSTALL_ID-server"
 # A cloud backend (BACKEND="anthropic" in install.env) has no local server: the client talks to the provider.
 CLOUD=0; [[ "$BACKEND" == anthropic ]] && CLOUD=1

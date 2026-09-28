@@ -81,3 +81,33 @@ def test_plan_runs_end_to_end_against_a_stub_server(tmp_path):
     s = json.loads((out / "summary.json").read_text())
     assert s["effort-silence"]["none"]["median_completion_tokens"] == 1000
     assert s["effort-silence"]["low"]["median_completion_tokens"] == 100
+
+
+def test_padding_reaches_the_target_and_keeps_the_conversation(tmp_path):
+    src = tmp_path / "spec.md"
+    src.write_text("word " * 1000)
+    body = {"messages": [{"role": "system", "content": "sys"}, {"role": "user", "content": "task"}]}
+    padded = mb.pad_request(body, target_tokens=50_000, sources=[src])
+    assert padded["messages"][0] == {"role": "system", "content": "sys"}
+    assert padded["messages"][-1] == {"role": "user", "content": "task"}
+    assert len(json.dumps(padded)) >= 50_000 * mb.CHARS_PER_TOKEN
+
+
+def test_long_context_probe_records_decode_speed_and_memory(tmp_path):
+    srv = HTTPServer(("127.0.0.1", 0), _Stub)
+    threading.Thread(target=srv.serve_forever, daemon=True).start()
+    req = tmp_path / "turn.json"
+    req.write_text(json.dumps({"model": "x", "messages": [{"role": "system", "content": "s"}, {"role": "user", "content": "hi"}], "tools": []}))
+    pad = tmp_path / "pad.md"; pad.write_text("text " * 500)
+    rows = list(mb.probe_long_context(f"http://127.0.0.1:{srv.server_port}",
+                                      {"request": str(req), "target_tokens": 2000, "pad_from": [str(pad)],
+                                       "server_process_match": "no-such-process-xyz"}))
+    srv.shutdown()
+    r = rows[0]
+    assert r["variant"] == "2000"
+    assert "decode_tok_s" in r and "peak_server_rss_mb" in r and "swap_growth_mb" in r
+
+
+def test_criteria_can_name_hyphenated_probes_with_underscores():
+    v = mb.verdict({"long-context": {"200000": {"errors": 0}}}, [{"name": "ok", "expr": "long_context['200000']['errors'] == 0"}])
+    assert v["passed"]
