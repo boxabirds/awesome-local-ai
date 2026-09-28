@@ -33,6 +33,8 @@ export interface BoardViewportProps {
   marquee?: Marquee;
   tool?: ToolId;
   onTextToolClick?(world: Point): void;
+  /** the Pen's surface, mounted inside the viewport (see BoardViewportHandleProps) */
+  toolSurface?: React.ReactNode;
 }
 
 export interface ViewportHandles {
@@ -118,6 +120,16 @@ export interface BoardViewportHandleProps {
    */
   tool?: ToolId;
   onTextToolClick?(world: Point): void;
+  /**
+   * The Pen's surface (story 11, pen.navigation) - and the reason it is mounted HERE,
+   * inside the viewport element rather than beside it the way the Shape and Connector
+   * tools are: it takes every press the way they do (it is the topmost thing on the
+   * board, so a stroke drawn across a sticky note is a stroke and not a note dragged
+   * out of the way), while a wheel over it still bubbles to this element's own wheel
+   * listener, so panning and Ctrl/Cmd+scroll zooming go on working with the pen in
+   * somebody's hand. Nothing else about the board changes while the tool is open.
+   */
+  toolSurface?: React.ReactNode;
 }
 
 export function BoardViewportRoot({
@@ -129,6 +141,7 @@ export function BoardViewportRoot({
   marquee,
   tool,
   onTextToolClick,
+  toolSurface,
 }: BoardViewportHandleProps): React.JSX.Element {
   const cam = api.camera;
   const dragRef = useRef(false);
@@ -422,6 +435,12 @@ export function BoardViewportRoot({
         data-x={origin.x}
         data-y={origin.y}
       />
+      {/* The Pen's surface, last so it is above the board it draws on - and inside it,
+          so the board's own wheel gestures still reach it (see the prop). A press the
+          pen takes is never seen by the pan, the marquee or an object: both of those
+          begin only when their target is the viewport itself, and the pen's surface is
+          what the pointer lands on instead. */}
+      {toolSurface}
     </div>
   );
 }
@@ -437,6 +456,7 @@ export function BoardViewport(props: BoardViewportProps): React.JSX.Element {
       marquee={props.marquee}
       tool={props.tool}
       onTextToolClick={props.onTextToolClick}
+      toolSurface={props.toolSurface}
     >
       {props.children}
     </BoardViewportRoot>

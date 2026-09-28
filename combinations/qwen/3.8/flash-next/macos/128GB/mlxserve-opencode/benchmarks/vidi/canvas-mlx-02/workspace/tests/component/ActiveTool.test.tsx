@@ -143,7 +143,8 @@ describe('tools.active_tool (component)', () => {
     const h = renderBoard7();
     const before = ids(h);
 
-    for (const key of ['p', 'i', 'c', 'n', 'x']) {
+    // 'p' is the Pen now (story 11), so it is not in this list: the Pen has a surface.
+    for (const key of ['i', 'c', 'n', 'x']) {
       h.key(key);
       await settle();
       expect(screen.queryByTestId('shape-tool')).toBeNull();
@@ -229,8 +230,11 @@ describe('tools.active_tool (component)', () => {
     expect(TOOL_SHORTCUTS['l']).toBe('connector');
     expect(TOOL_SHORTCUTS['v']).toBe('select');
     expect(TOOL_SHORTCUTS['t']).toBe('text');
-    expect(AVAILABLE_TOOLS).toEqual(['select', 'text', 'shape', 'connector']);
-    expect(isAvailableTool('pen')).toBe(false);
+    expect(AVAILABLE_TOOLS).toEqual(['select', 'text', 'shape', 'connector', 'pen']);
+    // The Pen became a tool in story 11; image and comment are still only a letter.
+    expect(isAvailableTool('pen')).toBe(true);
+    expect(isAvailableTool('image')).toBe(false);
+    expect(isAvailableTool('comment')).toBe(false);
     expect(isAvailableTool('shape')).toBe(true);
   });
 });

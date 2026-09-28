@@ -31,8 +31,9 @@ New work is the story's own held-out tests. Regressions are earlier stories' hel
 | 8 | Undo and redo my own changes without undoing anyone else's | DONE, on partial 4 | 121.7 | None | None | None | — | — | green | 32/51 |  | 0 / 0 | 4 | — | throttled 94%, server peak 84 GB |
 | 9 | Write free text anywhere on the board | DONE, on partial 4 | 99.5 | None | None | None | — | — | green | 38/57 |  | 0 / 0 | 5 | — | throttled 97%, server peak 84 GB |
 | 10 | Draw shapes and connect them with arrows that follow when moved | DONE, on partial 4 | 107.5 | None | None | None | — | — | green | 43/65 |  | 0 / 0 | 5 | — | DEGRADED (power) throttled 97%, server peak 93 GB |
+| 11 | Sketch freehand with a pen | DONE, on partial 4 | 121.3 | None | None | None | — | — | green | 49/70 |  | 0 / 0 | 5 | — | throttled 93%, server peak 94 GB |
 
-**Totals:** 9 stories, 1014 agent-minutes, 0 requests, 0 prompt / 0 completion tokens, gate green 9/9, final acceptance 43/65, stalled 0, partial 1, 28019 lines in src+tests.
+**Totals:** 10 stories, 1135 agent-minutes, 0 requests, 0 prompt / 0 completion tokens, gate green 10/10, final acceptance 49/70, stalled 0, partial 1, 31159 lines in src+tests.
 
 ### Stories ended early (PARTIAL) and what was built on them
 
@@ -42,6 +43,7 @@ New work is the story's own held-out tests. Regressions are earlier stories' hel
 - Story 8, built on partial 4: held-out tests on the partial base 13/24; partial story's tests fixed 0, regressed 2; 0 stub-like lines added to src/.
 - Story 9, built on partial 4: held-out tests on the partial base 18/30; partial story's tests fixed 0, regressed 1; 0 stub-like lines added to src/.
 - Story 10, built on partial 4: held-out tests on the partial base 21/38; partial story's tests fixed 0, regressed 2; 0 stub-like lines added to src/.
+- Story 11, built on partial 4: held-out tests on the partial base 30/43; partial story's tests fixed 0, regressed 1; 0 stub-like lines added to src/.
 
 > Stories 10 ran partly on battery or in Low Power Mode. Their timings are not comparable; re-run them.
 
@@ -60,6 +62,7 @@ Each story's commits, and which story broke or fixed an earlier story's held-out
 | 8 | 4 by the agent | 2639 / 35 | `undo.ts` (214), `NOTES.md` (117), `BoardApp.tsx` (80), `UndoButtons.tsx` (72), `useUndo.ts` (60), `StickyTextEditor.tsx` (48), +5 more |
 | 9 | 1 by the agent | 2861 / 210 | `text.ts` (221), `textLayout.ts` (209), `TextEditor.tsx` (198), `StickyTextEditor.tsx` (173), `TextObject.tsx` (146), `TextToolbar.tsx` (97), +15 more |
 | 10 | 1 by the agent | 5324 / 99 | `ConnectorObject.tsx` (355), `ConnectorTool.tsx` (283), `ShapeObject.tsx` (248), `connector.ts` (239), `shape.ts` (198), `ShapeTool.tsx` (195), +14 more |
+| 11 | 3 by the agent | 3340 / 14 | `PenTool.tsx` (298), `stroke.ts` (195), `NOTES.md` (186), `StrokeObject.tsx` (167), `simplify.ts` (146), `PenToolbar.tsx` (137), +8 more |
 
 ### Earlier stories broken or fixed
 
@@ -82,6 +85,13 @@ Each story's commits, and which story broke or fixed an earlier story's held-out
   - story 5: 5/5 → 4/5; broke 1.
   - story 7: 3/8 → 2/8; broke 1.
   - story 8: 5/7 → 4/7; broke 1.
+- **Story 11 broke 6, fixed 7** earlier held-out tests (story 11: end-to-end pen scenarios and the notes (TC-17..TC-20); story 11: the Pen tool, its toolbar, and the Stroke object (TC-09..TC-16, TC-21); story 11: stroke model - RDP simplify, splitPoints, smoothPath, createStroke/scaledPoints (TC-01..TC-08)). Source files it changed most: `PenTool.tsx` (298), `stroke.ts` (195), `NOTES.md` (186), `StrokeObject.tsx` (167), `simplify.ts` (146), `PenToolbar.tsx` (137), +8 more.
+  - story 2: 8/10 → 8/10; broke 1; fixed 1.
+  - story 3: 5/7 → 2/7; broke 3.
+  - story 4: 2/4 → 3/4; fixed 1
+  - story 5: 4/5 → 5/5; fixed 1
+  - story 7: 2/8 → 2/8; broke 1; fixed 1.
+  - story 8: 4/7 → 6/7; broke 1; fixed 3.
 
 ### Interruptions and dead time
 

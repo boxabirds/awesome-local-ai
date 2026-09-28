@@ -2,9 +2,9 @@
 //
 // The board has one active tool at a time. SELECT is its resting state; TEXT
 // turns a press into a new text; SHAPE turns a drag into a new shape of the
-// chosen kind; CONNECTOR turns a drag into a new arrow. The state belongs to
-// this tab, never to the doc: another client's cursor mode is not a fact about
-// the board.
+// chosen kind; CONNECTOR turns a drag into a new arrow; and the PEN (story 11)
+// turns a drag into a drawing. The state belongs to this tab, never to the doc:
+// another client's cursor mode is not a fact about the board.
 //
 // Three rules live here:
 //  * the tools a board can actually be put into (`AVAILABLE_TOOLS`) - a
@@ -51,7 +51,7 @@ export const TOOL_SHORTCUTS: Record<string, ToolId> = {
 };
 
 /** The tools this build has a surface for; the others are ignored, not errors. */
-export const AVAILABLE_TOOLS: readonly ToolId[] = ['select', 'text', 'shape', 'connector'];
+export const AVAILABLE_TOOLS: readonly ToolId[] = ['select', 'text', 'shape', 'connector', 'pen'];
 
 export function isAvailableTool(tool: ToolId): boolean {
   return AVAILABLE_TOOLS.includes(tool);
@@ -88,7 +88,7 @@ export function useActiveTool(options: ActiveToolOptions = {}): ActiveToolState 
   selectRef.current = options.onSelect;
 
   const setTool = useCallback((next: ToolId): void => {
-    if (!isAvailableTool(next)) return; // pen, image, comment, 'sticky' as a mode
+    if (!isAvailableTool(next)) return; // image, comment, 'sticky' as a mode
     if (next !== 'select' && !gate.current) return; // a read-only board has no creation tool
     setToolState(next);
   }, []);

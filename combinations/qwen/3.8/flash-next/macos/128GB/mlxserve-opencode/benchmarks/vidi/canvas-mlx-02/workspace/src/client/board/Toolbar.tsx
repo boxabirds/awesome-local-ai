@@ -1,5 +1,6 @@
 // Left-side fixed toolbar (story 2) with the tool buttons (story 9: Select and
-// Text; story 10: Shape and Connector), the "Sticky note" creation button and,
+// Text; story 10: Shape and Connector; story 11: the Pen), the "Sticky note"
+// creation button and,
 // under it, this person's own Undo / Redo (story 8).
 //
 // The tools are shown as the board's own state, not as three separate actions:
@@ -248,6 +249,26 @@ export function Toolbar(props: ToolbarProps): React.JSX.Element {
             style={toolButtonStyle(tool === 'connector', disabled)}
           >
             <span aria-hidden="true">↗</span>
+          </button>
+          {/* The Pen (story 11) is the fifth tool, and it is what the letter 'p' has
+              been routed to since story 9 - the keyboard's own tests have been asserting
+              that letter for two stories, so nothing about the shortcut changes here. Like
+              Shape and Connector it is a mode you stay in; unlike them it does not hand the
+              board back to Select after one drawing, because a person holding a pen draws
+              more than one line (pen.tool). Its two settings open next to the toolbar from
+              BoardApp, not from here. */}
+          <button
+            type="button"
+            aria-label="Pen (P)"
+            title="Pen – P"
+            data-testid="tool-pen"
+            disabled={disabled}
+            aria-disabled={disabled}
+            aria-pressed={tool === 'pen'}
+            onClick={disabled ? undefined : () => onTool('pen')}
+            style={toolButtonStyle(tool === 'pen', disabled)}
+          >
+            <span aria-hidden="true">✎</span>
           </button>
           <span
             aria-hidden="true"

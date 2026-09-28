@@ -270,3 +270,43 @@ export const CONNECTOR_ARROWHEAD_SIZE_WORLD = 10;
 // A connection dot's radius, in SCREEN pixels (the tool draws them in screen
 // space so they never shrink). 
 export const CONNECTOR_DOT_RADIUS_PX = 4;
+
+// --- Freehand pen (story 11) -------------------------------------------------
+
+// The six pen colours. The names are the product settings (they are what a
+// stroke stores and what the pen toolbar offers); the hex values may change
+// without touching anything else.
+export const PEN_COLORS = {
+  black: '#212121',
+  blue: '#1E88E5',
+  red: '#E53935',
+  green: '#43A047',
+  orange: '#FB8C00',
+  purple: '#8E24AA',
+} as const;
+export type PenColor = keyof typeof PEN_COLORS;
+
+// The three pen thicknesses, in WORLD units, so a stroke's line scales with the
+// board like every other object does.
+export const PEN_THICKNESS_WORLD = { thin: 2, medium: 4, thick: 8 } as const;
+export type PenThickness = keyof typeof PEN_THICKNESS_WORLD;
+
+// What a fresh page draws with (pen.options: remembered until the page reloads,
+// which is why they live in tool state and never in the doc).
+export const DEFAULT_PEN_COLOR: PenColor = 'black';
+export const DEFAULT_PEN_THICKNESS: PenThickness = 'medium';
+
+// How far the finished stroke may lie from the path that was drawn, in SCREEN
+// pixels: the Pen tool divides it by the zoom it drew at, so smoothing is as
+// faithful at 400% as at 100% (pen.smooth).
+export const STROKE_SIMPLIFY_TOLERANCE_PX = 1;
+
+// One stroke never keeps more than this many recorded points; a drag that goes
+// past it finishes the stroke and continues with a new one that starts on the
+// same point (pen.long_stroke).
+export const STROKE_MAX_POINTS = 5000;
+
+// Half the width of the band a click can hit a stroke on, in SCREEN pixels, and
+// the smallest a stroke may be resized to (world units).
+export const STROKE_HIT_TOLERANCE_PX = 6;
+export const STROKE_MIN_SIZE_WORLD = 4;

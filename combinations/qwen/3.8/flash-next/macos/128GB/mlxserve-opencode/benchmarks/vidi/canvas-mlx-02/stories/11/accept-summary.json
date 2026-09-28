@@ -1,0 +1,68 @@
+{
+  "skipped": false,
+  "build_exit": 0,
+  "runner_exit": 1,
+  "passed": 49,
+  "total": 70,
+  "on_partial": {
+    "passed": 30,
+    "total": 43
+  },
+  "by_story": {
+    "01": {
+      "passed": 9,
+      "total": 10
+    },
+    "02": {
+      "passed": 8,
+      "total": 10
+    },
+    "03": {
+      "passed": 2,
+      "total": 7
+    },
+    "04": {
+      "passed": 3,
+      "total": 4,
+      "on_partial_total": 4,
+      "on_partial_passed": 3
+    },
+    "05": {
+      "passed": 5,
+      "total": 5,
+      "on_partial_total": 5,
+      "on_partial_passed": 5
+    },
+    "07": {
+      "passed": 2,
+      "total": 8,
+      "on_partial_total": 8,
+      "on_partial_passed": 2
+    },
+    "08": {
+      "passed": 6,
+      "total": 7,
+      "on_partial_total": 7,
+      "on_partial_passed": 6
+    },
+    "09": {
+      "passed": 2,
+      "total": 6,
+      "on_partial_total": 6,
+      "on_partial_passed": 2
+    },
+    "10": {
+      "passed": 7,
+      "total": 8,
+      "on_partial_total": 8,
+      "on_partial_passed": 7
+    },
+    "11": {
+      "passed": 5,
+      "total": 5,
+      "on_partial_total": 5,
+      "on_partial_passed": 5
+    }
+  },
+  "harness_fault": null
+}

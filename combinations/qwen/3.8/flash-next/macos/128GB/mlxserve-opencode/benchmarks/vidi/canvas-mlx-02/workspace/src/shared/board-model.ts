@@ -12,11 +12,17 @@ import {
   DEFAULT_TEXT_SIZE,
   DEFAULT_SHAPE_FILL,
   DEFAULT_SHAPE_STROKE,
+  DEFAULT_PEN_COLOR,
+  DEFAULT_PEN_THICKNESS,
+  PEN_COLORS,
+  PEN_THICKNESS_WORLD,
   SHAPE_FILL_COLORS,
   SHAPE_KINDS,
   SHAPE_STROKE_COLORS,
   TEXT_SIZES,
   type FillColor,
+  type PenColor,
+  type PenThickness,
   type ShapeKind,
   type StrokeColor,
   type StickyColor,
@@ -38,11 +44,11 @@ export const LOCAL_ORIGIN: unique symbol = Symbol('vidi6.local');
 
 // Object types this build of the board model can read. Stories 2-7 ship
 // 'sticky', story 9 ships 'text' and story 10 ships 'shape' and 'connector';
-// any later object type becomes readable when its client registry entry is
-// registered (registerReadableType), and an object of a type nobody has
-// registered is invisible — forward compatibility, TC-12).
+// story 11 ships 'stroke'. Any later object type becomes readable when its
+// client registry entry is registered (registerReadableType), and an object of a
+// type nobody has registered is invisible — forward compatibility, TC-12).
 type ReadableType = string;
-const KNOWN_TYPES = new Set<ReadableType>(['sticky', 'text', 'shape', 'connector']);
+const KNOWN_TYPES = new Set<ReadableType>(['sticky', 'text', 'shape', 'connector', 'stroke']);
 
 // Mark a board object type as readable by the board model. Called by the
 // client object registry so ONE registration per type exists (stories 9-12
@@ -69,7 +75,7 @@ export interface ObjectSnapshot {
    *  objects carry them. */
   size?: TextSize;
   widthMode?: 'auto' | 'fixed';
-  color?: StickyColor;
+  color?: StickyColor | PenColor;
   text?: string;
   /** Shapes (story 10): kind plus the two colour keys and the label. */
   kind?: ShapeKind;
@@ -81,11 +87,22 @@ export interface ObjectSnapshot {
    *  story 7's marquee and selection act on a connector like on any rect. */
   from?: Endpoint;
   to?: Endpoint;
+  /** Strokes (story 11): the drawn path, flattened [x0, y0, x1, y1, ...] and
+   *  RELATIVE to (x, y), plus the size it was drawn at — the only way to know how
+   *  much a later resize stretched the drawing (scaledPoints multiplies the path by
+   *  width / baseWidth). `thickness` is a property of the pen, so it is stored by
+   *  name and never scaled. */
+  points?: readonly number[];
+  baseWidth?: number;
+  baseHeight?: number;
+  thickness?: PenThickness;
 }
 
 // Shapes and connectors (story 10).
 const SHAPE_TYPE = 'shape';
 const CONNECTOR_TYPE = 'connector';
+// The freehand stroke (story 11).
+const STROKE_TYPE = 'stroke';
 
 // A connector that resolves to a single point (both ends at the same place)
 // would have a box of exactly 0 and fall back to a sticky-sized rect in
@@ -329,7 +346,47 @@ function readObject(id: string, m: Y.Map<unknown>): ObjectSnapshot | null {
     obj.from = from;
     obj.to = to;
   }
+  if (type === STROKE_TYPE) {
+    // Story 11: a stroke whose path cannot be read is INVISIBLE rather than a box
+    // around nothing (the rule the connector's unreadable ends already follow).
+    const points = readStrokePoints(m.get('points'));
+    if (points === null) return null;
+    obj.points = points;
+    // A stroke that was never given a creation size scales by 1: the drawing stays
+    // exactly where it was drawn instead of collapsing onto the box origin.
+    const baseWidth = m.get('baseWidth');
+    const baseHeight = m.get('baseHeight');
+    obj.baseWidth = isSize(baseWidth) ? baseWidth : isSize(w) ? w : undefined;
+    obj.baseHeight = isSize(baseHeight) ? baseHeight : isSize(h) ? h : undefined;
+    const color = m.get('color');
+    obj.color = typeof color === 'string' && PEN_COLOR_NAMES.has(color) ? (color as PenColor) : DEFAULT_PEN_COLOR;
+    const thickness = m.get('thickness');
+    obj.thickness =
+      typeof thickness === 'string' && PEN_THICKNESS_NAMES.has(thickness)
+        ? (thickness as PenThickness)
+        : DEFAULT_PEN_THICKNESS;
+  }
   return obj;
+}
+
+// The pen's two style tables, read straight from the product settings in config so
+// this reader can never drift from what the pen toolbar offers.
+const PEN_COLOR_NAMES = new Set<string>(Object.keys(PEN_COLORS));
+const PEN_THICKNESS_NAMES = new Set<string>(Object.keys(PEN_THICKNESS_WORLD));
+
+// A stored stroke path: a non-empty, even-length list of finite numbers. A flat
+// array is what story 11 writes; a Yjs array is accepted too, because that is what
+// a client that wanted per-point merging would store. Anything else is not a path
+// and yields null, which makes the object invisible.
+function readStrokePoints(value: unknown): readonly number[] | null {
+  const raw = value instanceof Y.Array ? Array.from(value as Iterable<unknown>) : value;
+  if (!Array.isArray(raw) || raw.length === 0 || raw.length % 2 !== 0) return null;
+  const out: number[] = [];
+  for (const v of raw) {
+    if (typeof v !== 'number' || !Number.isFinite(v)) return null;
+    out.push(v);
+  }
+  return out;
 }
 
 // The three kinds and the palette keys, taken straight from the product settings

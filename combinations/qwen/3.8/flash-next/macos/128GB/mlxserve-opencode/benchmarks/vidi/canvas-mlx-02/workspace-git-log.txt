@@ -1,3 +1,44 @@
+commit e56c3d548aa9b60a509b3d41cac6182f0ffb6131
+vidi-agent  Mon Sep 28 20:23:50 2026 +0100
+
+    story 11: end-to-end pen scenarios and the notes (TC-17..TC-20)
+
+
+ NOTES.md                            | 186 +++++++++++++++
+ tests/e2e/pen-collaboration.spec.ts | 347 ++++++++++++++++++++++++++++
+ tests/e2e/pen.spec.ts               | 449 ++++++++++++++++++++++++++++++++++++
+ 3 files changed, 982 insertions(+)
+commit b55ffc3b7d1e92859a7ce724cf6869de42502491
+vidi-agent  Mon Sep 28 19:47:31 2026 +0100
+
+    story 11: the Pen tool, its toolbar, and the Stroke object (TC-09..TC-16, TC-21)
+
+
+ src/client/board/BoardApp.tsx       |  38 +++
+ src/client/board/Toolbar.tsx        |  23 +-
+ src/client/canvas/BoardViewport.tsx |  20 ++
+ src/client/objects/StrokeObject.tsx | 167 +++++++++++
+ src/client/objects/registry.tsx     |  40 +++
+ src/client/tools/PenTool.tsx        | 298 +++++++++++++++++++
+ src/client/tools/PenToolbar.tsx     | 137 +++++++++
+ src/client/tools/useActiveTool.ts   |  10 +-
+ src/client/tools/usePenOptions.ts   |  38 +++
+ tests/component/ActiveTool.test.tsx |  10 +-
+ tests/component/PenTool.test.tsx    | 561 ++++++++++++++++++++++++++++++++++++
+ 11 files changed, 1333 insertions(+), 9 deletions(-)
+commit 3682a076d09b22740d046dfba0688dc447ef7d34
+vidi-agent  Mon Sep 28 18:56:27 2026 +0100
+
+    story 11: stroke model - RDP simplify, splitPoints, smoothPath, createStroke/scaledPoints (TC-01..TC-08)
+
+
+ src/shared/board-model.ts       |  67 +++++-
+ src/shared/config.ts            |  40 ++++
+ src/shared/geometry/simplify.ts | 146 +++++++++++++
+ src/shared/objects/stroke.ts    | 195 +++++++++++++++++
+ tests/fixtures/pen-paths.ts     | 110 ++++++++++
+ tests/unit/stroke.test.ts       | 472 ++++++++++++++++++++++++++++++++++++++++
+ 6 files changed, 1025 insertions(+), 5 deletions(-)
 commit e499c437ea67c8f45d4a040e5f8930044d64aa26
 vidi-agent  Mon Sep 28 18:13:19 2026 +0100
 

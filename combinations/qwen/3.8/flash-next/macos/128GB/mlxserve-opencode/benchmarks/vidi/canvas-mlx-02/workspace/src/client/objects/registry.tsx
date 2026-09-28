@@ -20,11 +20,16 @@ import {
   TEXT_MIN_WIDTH_WORLD,
   SHAPE_MIN_SIZE_WORLD,
   CONNECTOR_HIT_TOLERANCE_PX,
+  PEN_THICKNESS_WORLD,
+  STROKE_HIT_TOLERANCE_PX,
+  STROKE_MIN_SIZE_WORLD,
 } from '../../shared/config.ts';
 import { StickyNote } from './StickyNote.tsx';
 import { TextObject } from './TextObject.tsx';
 import { ShapeObject } from './ShapeObject.tsx';
 import { ConnectorObject } from './ConnectorObject.tsx';
+import { StrokeObject } from './StrokeObject.tsx';
+import { isStrokeSnapshot, scaledPoints } from '../../shared/objects/stroke.ts';
 import { resolveEndpoints } from '../../shared/geometry/connector-geometry.ts';
 import { distanceToPolyline } from '../../shared/geometry/polyline.ts';
 import type { Rect } from '../../shared/geometry.ts';
@@ -181,5 +186,40 @@ registerObjectType('connector', {
     const w = obj.width ?? 0;
     const h = obj.height ?? 0;
     return point.x >= obj.x && point.x <= obj.x + w && point.y >= obj.y && point.y <= obj.y + h;
+  },
+});
+
+// A drawing somebody made with the Pen (story 11) is the fifth type: an ordinary box
+// object, resized with its proportions held like everything else - the BOX is what the
+// gesture drags and the path inside it follows (see stroke.ts's scaledPoints). It holds
+// no words, so no editor ever opens, and its hit test is the one a box's cannot be: the
+// box is mostly empty space, and only a band along the line is on the object.
+//
+// Selection, moving, resizing, marquee, delete and undo all come from the story 7
+// machinery through this entry alone - story 11 writes none of them.
+registerObjectType('stroke', {
+  Component: StrokeObject,
+  resizable: true,
+  // A drawing keeps its proportions: the picture a stroke is would be a different
+  // picture pulled out of shape, and story 7's uniform scale is already what the
+  // gesture does to anything aspect-locked.
+  aspectLocked: true,
+  // One stroke's own smallest size (see STROKE_MIN_SIZE_WORLD): as wide as its line is
+  // thick, so a drawing can never be pushed into a box smaller than its own weight.
+  minSize: STROKE_MIN_SIZE_WORLD,
+  // A stroke is a drawing, not words: double-clicking one selects it and nothing else
+  // (design.md: "double-click on a stroke -> select only").
+  editableText: false,
+  hitTest(obj: ObjectSnapshot, point: Point, ctx?: HitTestContext): boolean {
+    if (!isStrokeSnapshot(obj)) return false;
+    // The points as THIS box has made them - the same call this stroke's own component
+    // draws from, and the same width as the clickable band drawn under that line, so
+    // what is drawn and what is clickable cannot disagree about a click.
+    const points = scaledPoints(obj);
+    if (points.length === 0) return false;
+    const zoom = ctx?.zoom !== undefined && ctx.zoom > 0 ? ctx.zoom : 1;
+    const thicknessWorld = PEN_THICKNESS_WORLD[obj.thickness] ?? PEN_THICKNESS_WORLD.medium;
+    const tolerance = Math.max(thicknessWorld / 2, STROKE_HIT_TOLERANCE_PX / zoom);
+    return distanceToPolyline(points, point) <= tolerance;
   },
 });

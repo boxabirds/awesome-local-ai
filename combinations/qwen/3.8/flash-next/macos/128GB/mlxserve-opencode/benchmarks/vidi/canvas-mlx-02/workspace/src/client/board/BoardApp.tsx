@@ -27,6 +27,9 @@ import { useBoardKeys } from './useBoardKeys.ts';
 import { useActiveTool } from '../tools/useActiveTool.ts';
 import { ShapeTool } from '../tools/ShapeTool.tsx';
 import { ConnectorTool } from '../tools/ConnectorTool.tsx';
+import { PenTool } from '../tools/PenTool.tsx';
+import { PenToolbar } from '../tools/PenToolbar.tsx';
+import { usePenOptions } from '../tools/usePenOptions.ts';
 import { localIdentityId } from './localIdentity.ts';
 import { useMarquee } from './Marquee.tsx';
 import { SelectionOverlay } from './SelectionOverlay.tsx';
@@ -121,6 +124,13 @@ export default function BoardApp({ boardId, makeProvider }: BoardAppProps) {
   const [pendingSelect, setPendingSelect] = useState<string | null>(null);
   const tools = useActiveTool({ canEdit: editable, onSelect: (id: string) => setPendingSelect(id) });
   const { tool, shapeKind, setTool, setShapeKind, toolCreated } = tools;
+
+  // What the Pen draws with (story 11, pen.options): this tab's colour and weight,
+  // held for as long as the page is loaded and written nowhere. It is asked for
+  // unconditionally because a hook cannot be had only while a tool is open, and
+  // keeping it here means a stroke drawn, a tool left and a tool re-entered keeps the
+  // pen exactly as it was - which is what a person holding one would expect.
+  const pen = usePenOptions();
 
   useEffect(() => {
     if (pendingSelect === null) return;
@@ -373,6 +383,21 @@ export default function BoardApp({ boardId, makeProvider }: BoardAppProps) {
         marquee={marquee}
         tool={tool}
         onTextToolClick={onTextToolClick}
+        // The Pen is the one tool that is mounted INSIDE the viewport rather than above
+        // it: it owns presses the way the other two do, and still lets the board's own
+        // wheel gestures through, because the wheel listener is on the viewport element
+        // this renders into (pen.navigation).
+        toolSurface={
+          editable && tool === 'pen' ? (
+            <PenTool
+              camera={cam}
+              color={pen.color}
+              thickness={pen.thickness}
+              doc={doc}
+              identityId={localIdentityId()}
+            />
+          ) : null
+        }
       >
         {renderedObjects}
       </BoardViewportRoot>
@@ -402,6 +427,19 @@ export default function BoardApp({ boardId, makeProvider }: BoardAppProps) {
         shapeKind={shapeKind}
         onShapeKind={setShapeKind}
       />
+
+      {/* The Pen's two settings, open for exactly as long as the Pen is (pen.options).
+          Picking one changes nothing on the board - it is this tab's pen, not a fact
+          about the drawing - so there is no undo step, no doc write and no other
+          person's pen involved. */}
+      {tool === 'pen' ? (
+        <PenToolbar
+          color={pen.color}
+          thickness={pen.thickness}
+          onColor={pen.setColor}
+          onThickness={pen.setThickness}
+        />
+      ) : null}
 
       <ZoomControls
         zoomPercent={zoomPercent(cam)}

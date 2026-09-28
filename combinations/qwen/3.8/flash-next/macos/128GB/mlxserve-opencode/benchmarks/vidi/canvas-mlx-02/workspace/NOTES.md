@@ -866,3 +866,189 @@ star, image), rotation, snapping an end to a specific handle or side by hovering
 side, attaching an end to a *group*, resizing a shape from its handles while an arrow
 is attached (the arrow follows the box either way), z-order controls for arrows, and
 a connector that crosses another connector with a jump.
+
+# Notes — Story 11: Sketch freehand with a pen
+
+Story 11 is complete: `npm run build`, `npm run typecheck`, `npm run test:unit` (281),
+`npm run test:component` (212), `npm run test:e2e` (98, Chromium and WebKit — 49 per
+browser) and `npm run test:e2e:nightly` (34, both browsers, `--retries=0`) pass. The
+story itself is 21 unit, 13 component and 6 end-to-end scenarios (4 in the ordinary
+config, the two multi-context ones in the nightly one). The end-to-end ones run against
+a real room with `--retries=0`, and none of them is skipped, timed out around or
+`test.only`d.
+
+## Decisions & deviations
+
+1. **The box is decided before the path is written.** `createStroke` takes the points'
+   bounding box padded by half the line's thickness — a thick line's ink reaches past the
+   points it is made of, and a box that stopped at the points would clip the drawing —
+   then stores the points as offsets from the box origin in a flat `[x0, y0, x1, y1, …]`
+   rounded to two decimals, with `baseWidth`/`baseHeight` the box size at creation. A
+   press that never moved (less than `DRAG_THRESHOLD_PX`, the same threshold dragging
+   notes uses) becomes a dot whose box is exactly the thickness square, so it is
+   selectable and movable like any other object.
+
+2. **`scaledPoints` is the one function that says where a stroke is.** Draw
+   (`StrokeObject`), hit (`registry.tsx`), and assert (TC-20's e2e) all call it: stored
+   offsets turned back into world points at the object's current `x/y/width/height`. It
+   is why resizing needs no stroke-specific code and why "the hit test follows the
+   drawing it drew" is true rather than hoped: a resize writes only the box, and the
+   drawing that comes out of `scaledPoints` has grown with it. It returns `[]` for a
+   degenerate box (zero width or height, non-finite scale) rather than inventing points.
+
+3. **Ramer-Douglas-Peucker, with a stack instead of recursion.** `simplify(points, tol)`
+   keeps the first and last point and, between them, every point farther from the chord
+   than the tolerance. Recursion is the textbook shape and the wrong one here: at
+   `STROKE_MAX_POINTS` (5000) a wobbly line nests thousands of calls deep, in code that
+   runs on the pointer-up of anyone's pen. Tolerance is
+   `STROKE_SIMPLIFY_TOLERANCE_PX / zoom`, so the threshold is a fixed number of *screen*
+   pixels — TC-04 pins that reasoning (input in world units, the world-space error at the
+   chosen zoom must be within one screen pixel), and TC-05 is its converse: 2 px of world
+   error at zoom 4 is 8 px on screen and must survive.
+
+4. **`smoothPath` is the quadratic-midpoint curve**: move to the first point, one
+   quadratic per interior point with the control point at that point and the endpoint at
+   the midpoint toward the next, then a line to the last point. The curve passes through
+   the midpoints, so the sketch's own wobble stays and the sampling's corners go. TC-07
+   asserts the command sequence literally (`M`, n-2 × `Q`, `L`) and that every coordinate
+   in it is finite, because a `NaN` in a `d` string is an object that draws nothing and
+   blames the browser.
+
+5. **Nothing is copied per pointer move, and nothing is copied per frame either.** The
+   recording lives in a ref; the preview updates at most once per animation frame — the
+   pointer handler marks it dirty and asks for a frame, and the frame writes one `d`
+   string into one path element (`pen-preview-path`) with no React state in the loop. A
+   240 Hz mouse therefore does not mean 240 renders. `getCoalescedEvents()` is read where
+   the browser offers it, so a fast stroke's intermediate positions are recorded without
+   being drawn. TC-09 counts `d` writes during a burst of 30 moves against the frames
+   that elapsed; TC-10's "a stroke is committed once, not per move" is the same claim from
+   the other side, made by counting undo steps.
+
+6. **Everything that can end a drag ends it the same way.** `pointerup` (primary only),
+   `pointercancel` — the board's own pinch, a system gesture, a stylus erasing — and
+   `lostpointercapture` all go through one `finish()`: commit, clear, release. TC-14 fires
+   all three and asserts the same result each time: one stroke, nothing left on screen,
+   pen still selected. A drawing that disappears because the operating system took the
+   pointer is the worst failure available in this story, and the handler is the reason it
+   does not happen.
+
+7. **The pen is not given up after a stroke.** `onCreated` is deliberately not called, so
+   the next line starts with the next press instead of with a click on the toolbar; Escape
+   or `v` hands the board back, and `useBoardKeys`'s precedence already puts the active
+   tool's own Escape handler first. TC-10 asserts that, and asserts the tool buttons are
+   still `aria-pressed` while a drawing is selected — the other half of "you are still in
+   the pen".
+
+8. **A stroke longer than `STROKE_MAX_POINTS` is continued, not truncated.** On the move
+   that fills the last slot the recording is committed as it stands and a new one starts at
+   the point that ended it, so the two strokes join, a line is never quietly shortened and
+   a long scribble never refuses to finish. TC-13 tests the exact boundary (the limit, the
+   limit plus one, the limit plus forty) and asserts the join off the objects themselves —
+   the last world point of one against the first of the other.
+
+9. **Colour and weight belong to the pen, not to the board.** `usePenOptions` is session
+   `useState` in `BoardApp`, handed to the tool (to draw with) and `PenToolbar` (to show).
+   It is not in the doc, not in the camera, not persisted: reload and the pen is back to
+   black and medium, while every stroke already down keeps the colour it was drawn with,
+   because `color` and `thickness` are fields of the object. TC-16 is that pair. It is the
+   same call the shape tool makes, and it is a decision rather than an oversight — the
+   design's "kept for the session, not per board" is the sentence it answers.
+
+10. **The hit test is the polyline's, and what answers the pointer is the line, not the
+    box.** The registry entry calls story 10's `distanceToPolyline` with `scaledPoints`
+    and a threshold of `max(thickness / 2, STROKE_HIT_TOLERANCE_PX / zoom)` — the
+    connector's shape, in the connector's units (a screen-pixel tolerance divided by zoom,
+    so it stays a screen-pixel tolerance at any zoom). The empty inside a loop belongs to
+    nobody: TC-15 asserts the miss inside a 240×200 box whose line is 100 away, the hit at
+    5 px, the miss at 7 px, at zoom 0.5 and 2. In the DOM that is a second invisible path
+    at twice the tolerance with `pointer-events: stroke`; the visible path and the
+    container are `pointer-events: none`. Marquee selection stays a box test, as it is for
+    every other type — that is the board's "rub everything in the way" idiom, not a claim
+    about ink.
+
+11. **Malformed points make a stroke invisible, never half-drawn.** `readObject`'s stroke
+    branch returns `null` for a non-array, an odd-length array, a non-finite coordinate, a
+    `baseWidth`/`baseHeight` that is not a positive number, an unknown colour or an unknown
+    weight — the connector's and shape's pattern, which is what keeps one bad object from
+    taking the board down (story 9's lesson). `points: []` renders no path.
+
+12. **One stroke is one transaction, and a drag is silent.** `createStroke` opens the
+    `LOCAL_ORIGIN` transaction and closes it when it returns; during the drag nothing is
+    written, so a collaborator never receives a half-finished line and the whole stroke
+    undoes as one step. TC-18 holds the pen on one screen and polls the other through the
+    whole 1500 ms of a drag (zero strokes, no latency sample), then requires the stroke on
+    the other screen within `LIVE_UPDATE_LATENCY_BUDGET_MS` of the release. TC-20 drives
+    select-by-the-line, proportional resize, move and delete from the screen that did not
+    draw, checking each step on both.
+
+13. **`ObjectSnapshot.color` had to become `StickyColor | PenColor`,** because the stroke's
+    colour and the note's colour are different enumerations that share four names. Every
+    type guard is a list membership test against the config's own list (`isPenColor`,
+    `isPenThickness`), never a bare `string` — which is what makes the union cheap: a typo
+    in a colour is invisible on the board rather than a crash, and the guard is the place
+    that decides.
+
+14. **The undo step is closed with `boundary()`, not `stopCapturing()`.** `useUndo` exposes
+    `boundary()`; `stopCapturing` is the controller's own private method. TC-10 and TC-12
+    count `undo.getUndoStackSize()` across boundaries, which is the only way to tell "one
+    stroke is one step" apart from "one transaction happens to be one step".
+
+15. **`localIdentityId()` for `createdBy`,** as stories 7 and 10 do — which is what makes
+    the pen's strokes undoable by the person who drew them and invisible to nobody.
+
+## Things a later maintainer will want to know about the browser tests
+
+- **The pen surface is not findable from the outside until it exists.** The React app
+  mounts at `document.getElementById('root')`; there is no `[data-testid="board-root"]`. So
+  the e2e starts from a note's own element and walks up to the body looking for
+  `[data-testid="pen-tool"]` among its descendants — and every scenario makes its first
+  object with the board's own tools first, because with the pen unmounted there is no pen
+  surface to talk to.
+- **A real ctrl+wheel is Chromium's, not the page's.** Chromium takes ctrl+wheel as its own
+  page zoom: the app's camera does not move, and `defaultPrevented` is what tells you the
+  page got there first. That is why `tests/e2e/helpers/board.ts` has `dispatchCtrlWheel`,
+  and the pen test takes the same route — it dispatches a `WheelEvent` with `ctrlKey` over
+  *the pen surface*, which is the claim under test ("the pen does not hold the wheel"), and
+  asserts both that the board's listener stopped it and that the camera zoomed. The
+  unmodified wheel is left real (`page.mouse.wheel(0, 200)`), and the pan it owes is
+  `cam.y + 200 / zoom`, because the board pans with `panBy(cam, -deltaX, -deltaY)`.
+- **A double-click with the pen open is two dots.** Two press-release pairs, and a press
+  that never moved is a stroke: two strokes on the board, no note. The test says so, and it
+  is also why the double-click that must make a note (after the pen is given back) happens
+  in clear space — the two dots are objects now, and a hit band would take the click.
+- **Five thousand moves from the driver are not practical.** Every `page.mouse.move` is an
+  IPC round trip of milliseconds, so a 5000-point drag would spend tens of seconds driving
+  before asserting anything; the long recording is handed to the pen surface as
+  `PointerEvent`s in one `page.evaluate`. Two consequences worth knowing:
+  `setPointerCapture` throws for a synthetic pointer id (the pen catches it and carries on,
+  which is its own small robustness claim), and `getCoalescedEvents()` returns nothing for
+  synthetic events, so the pen records one point per event — the harder case for the limit,
+  which is the thing being tested.
+- **How often a drag redraws the preview is the browser's business.** In headless WebKit
+  120 driver moves produced four distinct preview paths; in headless Chromium, more. So the
+  end-to-end test asserts the frame-rate-independent half of "it follows the hand": the
+  preview exists while the pointer is down, changes at least three times, and its last path
+  is longer than its first — a line drawn once at the end cannot grow. The strict per-frame
+  bound is unit-tested instead (TC-09), where frames are counted rather than hoped for.
+- **A "nothing arrived" claim needs the room proved first.** TC-18 draws a warm-up stroke
+  and waits to see it on the other screen *before* measuring the silence during the next
+  drag. A room that was never shared shows the same beautiful emptiness.
+- **The board's geometry still applies.** Fixtures are placed on the page, not in the
+  world: the point of a drag is `screen → world` through `window.__vidi6.getCamera()`, the
+  zoom controls live at screen x ≥ 1015, y ≥ 650 so no scenario drags through them, and the
+  resize of a sketch that has been panned far off-screen would fail on the *handle* being
+  unreachable rather than on anything about strokes — so the resize scenario draws at the
+  origin.
+
+## Not implemented (out of scope by instruction)
+
+Pressure and tilt (a stroke has one thickness, chosen before the drag), erasing part of a
+stroke or erasing with the pen, a pen that draws on the board's grid or snaps to it,
+freehand shape recognition (a drawn circle stays a drawn circle), straight-line and
+shape-constrained drawing, more than one pen (highlighter, marker, pencil) or more than six
+colours and three weights, stroke edit tools — moving or deleting individual points,
+re-smoothing, changing a finished stroke's colour or weight (a stroke keeps what it was
+drawn with), rotation of a stroke, stroke z-order controls beyond what the board does for
+everything, persisting the pen's colour and weight per board or per person, a cursor that
+changes shape or size with the pen's settings, and a stroke that a second person can draw
+onto the same object.
