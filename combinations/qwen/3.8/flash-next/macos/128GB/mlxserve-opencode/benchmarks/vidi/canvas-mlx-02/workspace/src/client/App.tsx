@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { BoardViewportRoot, useBoardCamera } from './canvas/BoardViewport.tsx';
 import { ZoomControls } from './canvas/ZoomControls.tsx';
 import { NavigationHint } from './canvas/NavigationHint.tsx';
@@ -6,6 +6,7 @@ import { Toolbar } from './board/Toolbar.tsx';
 import { useBoardDoc } from './board/useBoardDoc.ts';
 import { useSelection } from './board/useSelection.ts';
 import { ConnectionStatus } from './collab/ConnectionStatus.tsx';
+import type { ConnectionState, ProviderFactory } from './collab/connectBoard.ts';
 import { StickyNote } from './objects/StickyNote.tsx';
 import { zoomPercent, canZoomIn, canZoomOut, screenToWorld } from './canvas/camera.ts';
 import { BOARD_ID_PATTERN, newBoardId } from '../shared/board-id.ts';
@@ -15,6 +16,14 @@ import {
   setStickyColor,
   type StickySnapshot,
 } from '../shared/board-model.ts';
+
+// True when the board can be mutated at all (story 4). Everything else about a
+// board stays usable while it is unloadable - you can pan, zoom and read it - so
+// this one predicate is the only gate on every mutation path: toolbar creation,
+// double-click creation, dragging, text editing, recolouring and deleting.
+export function canEdit(state: ConnectionState): boolean {
+  return state !== 'load_failed';
+}
 
 // Resolve the board id from the History-API route `/b/:boardId` (TC-26). A bare
 // '/' mints a fresh id and replaces the address so every board deep-links.
@@ -35,7 +44,11 @@ function isEditableFocus(): boolean {
   return tag === 'INPUT' || tag === 'TEXTAREA' || (el as HTMLElement).isContentEditable === true;
 }
 
-export default function App() {
+// App is the whole board for one route. `makeProvider` is an optional injection
+// seam for the component tests (TC-23 drives the read-only board); production
+// renders <App /> and gets the real y-websocket provider.
+export default function App(props: { makeProvider?: ProviderFactory }) {
+  const { makeProvider } = props;
   const [boardId, setBoardId] = useState(readBoardId);
   useEffect(() => {
     const onPop = () => setBoardId(readBoardId());
@@ -44,12 +57,18 @@ export default function App() {
   }, []);
 
   const { api, rootRef, viewport } = useBoardCamera();
-  const board = useBoardDoc(boardId);
+  const board = useBoardDoc(boardId, makeProvider);
   const { doc, notes } = board;
   const selection = useSelection();
   const cam = api.camera;
 
   const { select, startEdit, endEdit, selectedId, editingId } = selection;
+
+  // The single editing gate for this render (see canEdit). Held in a ref too so
+  // the mutation callbacks keep a stable identity when only the state changed.
+  const editable = canEdit(board.connectionState);
+  const connectionStateRef = useRef<ConnectionState>(board.connectionState);
+  connectionStateRef.current = board.connectionState;
 
   // A remote delete must not leave a phantom selection/editor: drop any selected
   // or edited id that has left the document (TC-25).
@@ -73,6 +92,7 @@ export default function App() {
   // Create a note centred on a world point and immediately edit it.
   const createAt = useCallback(
     (world: { x: number; y: number }) => {
+      if (!canEdit(connectionStateRef.current)) return;
       const id = createSticky(doc, world);
       startEdit(id);
     },
@@ -96,6 +116,7 @@ export default function App() {
 
   const onColor = useCallback(
     (id: string, color: string) => {
+      if (!canEdit(connectionStateRef.current)) return;
       setStickyColor(doc, id, color);
     },
     [doc],
@@ -103,6 +124,7 @@ export default function App() {
 
   const onDelete = useCallback(
     (id: string) => {
+      if (!canEdit(connectionStateRef.current)) return;
       deleteObject(doc, id);
       select(null);
     },
@@ -119,9 +141,11 @@ export default function App() {
       if (selectedId === null) return;
       if (e.key === 'Enter') {
         e.preventDefault();
+        if (!canEdit(connectionStateRef.current)) return;
         startEdit(selectedId);
       } else if (e.key === 'Delete' || e.key === 'Backspace') {
         e.preventDefault();
+        if (!canEdit(connectionStateRef.current)) return;
         deleteObject(doc, selectedId);
         select(null);
       }
@@ -140,6 +164,7 @@ export default function App() {
           zoom={cam.zoom}
           selected={note.id === selectedId}
           editing={note.id === editingId}
+          editable={editable}
           onSelect={select}
           onStartEdit={startEdit}
           onEndEdit={endEdit}
@@ -147,7 +172,9 @@ export default function App() {
           onDelete={onDelete}
         />
       )),
-    [notes, doc, cam.zoom, selectedId, editingId, select, startEdit, endEdit, onColor, onDelete],
+    // `editable` is a dependency so that a board which becomes uneditable (story 4)
+    // actually re-renders its notes as read-only.
+    [notes, doc, cam.zoom, selectedId, editingId, editable, select, startEdit, endEdit, onColor, onDelete],
   );
 
   return (
@@ -163,7 +190,7 @@ export default function App() {
 
       <ConnectionStatus state={board.connectionState} />
 
-      <Toolbar onCreateSticky={onCreateSticky} />
+      <Toolbar onCreateSticky={onCreateSticky} disabled={!editable} />
 
       <ZoomControls
         zoomPercent={zoomPercent(cam)}

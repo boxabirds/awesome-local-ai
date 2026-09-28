@@ -2,8 +2,9 @@ import { defineConfig, devices } from '@playwright/test';
 
 export default defineConfig({
   testDir: './tests/e2e',
-  // The multi-context collaboration / outage specs run under playwright.nightly.config.ts.
-  testIgnore: /.*(collaboration|connection)\.spec\.ts/,
+  // The multi-context collaboration / outage specs, and the sized-board load,
+  // run under playwright.nightly.config.ts.
+  testIgnore: /.*(collaboration|connection|sized)\.spec\.ts/,
   fullyParallel: false,
   workers: 1,
   retries: 0,
@@ -26,7 +27,7 @@ export default defineConfig({
   webServer: {
     // Serve the client (built in test mode, so the __vidi6 hook is present)
     // through the same static-asset path used in production: `wrangler dev`.
-    command: 'npm run build:test && npx wrangler dev --ip 127.0.0.1 --port 4173',
+    command: 'npm run build:test && npx wrangler dev --ip 127.0.0.1 --port 4173 --var TEST_HOOKS:1',
     url: 'http://localhost:4173',
     reuseExistingServer: !process.env.CI,
     timeout: 180_000,

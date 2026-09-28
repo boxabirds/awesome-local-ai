@@ -25,6 +25,13 @@ export interface StickyNoteProps {
   zoom: number;
   selected: boolean;
   editing: boolean;
+  /**
+   * False while the board cannot be edited (story 4: the room could not load it).
+   * A note then still renders and still lets the board be panned, but grabbing,
+   * dragging, editing, recolouring and deleting it do nothing at all - the
+   * model is never called.
+   */
+  editable?: boolean;
   onSelect(id: string): void;
   onStartEdit(id: string): void;
   onEndEdit(next: EndMode): void;
@@ -35,8 +42,19 @@ export interface StickyNoteProps {
 type DragState = 'none' | 'pressed' | 'dragging';
 
 export function StickyNote(props: StickyNoteProps): React.JSX.Element {
-  const { note, doc, zoom, selected, editing, onSelect, onStartEdit, onEndEdit, onColor, onDelete } =
-    props;
+  const {
+    note,
+    doc,
+    zoom,
+    selected,
+    editing,
+    editable = true,
+    onSelect,
+    onStartEdit,
+    onEndEdit,
+    onColor,
+    onDelete,
+  } = props;
 
   const elRef = useRef<HTMLDivElement | null>(null);
   const measureRef = useRef<HTMLDivElement | null>(null);
@@ -113,6 +131,9 @@ export function StickyNote(props: StickyNoteProps): React.JSX.Element {
 
   const onPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
     if (e.button !== 0) return;
+    // A read-only board does not swallow the press: panning over a note still
+    // works, and nothing below this line can reach the model.
+    if (!editable) return;
     // The board must never pan when a note is grabbed.
     e.stopPropagation();
     if (editing) return; // clicks inside the editor are handled there
@@ -182,6 +203,7 @@ export function StickyNote(props: StickyNoteProps): React.JSX.Element {
   };
 
   const onDoubleClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (!editable) return; // the viewport's own create is gated the same way
     e.stopPropagation();
     if (editing) return;
     onStartEdit(note.id);
@@ -215,6 +237,7 @@ export function StickyNote(props: StickyNoteProps): React.JSX.Element {
       aria-label="Sticky note"
       data-testid={`sticky-${note.id}`}
       data-selected={selected}
+      data-editable={editable}
       data-editing={editing}
       tabIndex={0}
       style={style}
@@ -269,7 +292,7 @@ export function StickyNote(props: StickyNoteProps): React.JSX.Element {
           overflow: 'hidden',
           fontSize: `${fit.fontPx}px`,
           lineHeight: 1.25,
-          visibility: editing ? 'hidden' : 'visible',
+          visibility: editing && editable ? 'hidden' : 'visible',
           // The note frame owns pointer interaction; the rendered text is display-only.
           pointerEvents: 'none',
         }}
@@ -277,12 +300,13 @@ export function StickyNote(props: StickyNoteProps): React.JSX.Element {
         {note.text}
       </div>
 
-      {editing && ytext && <StickyTextEditor ytext={ytext} fontPx={fit.fontPx} onEnd={onEndEdit} />}
-      {editing && <StickyCharCounter length={note.text.length} />}
+      {editing && editable && ytext && <StickyTextEditor ytext={ytext} fontPx={fit.fontPx} onEnd={onEndEdit} />}
+      {editing && editable && <StickyCharCounter length={note.text.length} />}
 
       {/* Colour / delete toolbar above the note, inverse-scaled so it stays a
-          constant screen size; hidden while dragging or editing. */}
-      {selected && !editing && !dragging && (
+          constant screen size; hidden while dragging or editing, and never shown
+          on a board that cannot be edited. */}
+      {selected && !editing && !dragging && editable && (
         <div
           style={{
             position: 'absolute',

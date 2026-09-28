@@ -193,6 +193,132 @@ after the client changes.
     fast main `test:e2e` run and matched only by `playwright.nightly.config.ts`.
 
 ## Not implemented (out of scope by instruction)
-Persistence (story 4), board creation/join UI (story 5), presence/cursors/avatars
-(story 6), hibernating sockets, cursors/awareness *display*, and any enforcement of
-the editor cap.
+Board creation/join UI (story 5), presence/cursors/avatars (story 6), cursors and
+awareness *display*, and any enforcement of the editor cap. (Persistence and
+hibernating sockets were added by story 4.)
+
+---
+
+# Notes — Story 4: Return to a board and find everything as it was left
+
+Story 4 is complete: `npm run typecheck`, `npm run test:unit` (93), `npm run
+test:component` (56), `npm run test:integration` (37) and `npm run test:e2e`
+(TC-19…TC-24 added) pass.
+
+## Decisions & deviations
+
+1. **SQL only — no key/value API at all.** A Durable Object has one storage
+   engine and mixing `storage.put/get` with `storage.sql.exec` throws, so the
+   update log, the snapshot chunks and the room meta are three tables
+   (`update_log`, `snapshot`, `meta`) and every read/write goes through
+   `ctx.storage.sql.exec`. That API is *synchronous*, which is why the
+   constructor does its load inside `ctx.blockConcurrencyWhile(...)`: the async
+   semantics of "the room is not ready until the board is read" come from the
+   constructor, not from the SQL calls. `sql.exec` hands BLOBs back as
+   `ArrayBuffer`, so the store normalises them at the boundary.
+
+2. **`BoardStore` depends on a structural `BoardStorage` interface** rather than
+   on `DurableObjectStorage`. The same file therefore typechecks under
+   `tsconfig.json` (which excludes `src/worker` and runs against DOM types) and
+   under `tsconfig.worker.json`, and `tests/unit/board-store.test.ts` drives the
+   real store - folding, chunk splitting, quarantine, meta - against a ~60 line
+   in-memory fake. `tests/unit/*` never imports `src/worker/board-room.ts`.
+
+3. **Atomicity is `ctx.storage.transactionSync`.** A client update is applied,
+   appended and (maybe) compacted inside one synchronous transaction, so "an
+   update reaches the wire only once it is in storage" holds by construction:
+   the broadcast happens after the transaction returns, and a throw inside it
+   rolls the append back. Compaction (fold + write chunks + trim + advance
+   `through_seq`) is one transaction too, so a fold can never lose an update.
+
+4. **`serving` includes the `compacting` state.** A client that arrives while
+   the room is folding its log must not be greeted with a document that is half
+   snapshot and half log; compaction is atomic with respect to appends (3), so
+   treating `compacting` as serving costs nothing. TC-14 caught the opposite
+   choice as a real hole: an update that arrived during the fold was broadcast
+   but never persisted.
+
+5. **Hibernation, with the API's actual shape.** `ctx.acceptWebSocket(ws,
+   [boardId])` on accept, `ctx.getWebSockets(tag)` to enumerate, and
+   `webSocketMessage` / `webSocketClose` / `webSocketError` as **instance**
+   methods (workerd finds them on the prototype - `static` handlers are silently
+   never called). There are no attachment objects in this runtime, so per-
+   connection bookkeeping is a plain `Map`; the room must therefore tolerate that
+   map being empty after a wake, which it does because the board comes from
+   storage rather than from the map.
+
+6. **4500 is chosen, not invented.** y-websocket treats close codes 4400-4499 as
+   permanent and never reconnects; 4500 is outside that band and outside the
+   range the browser reserves, so a board that could not be loaded is retried by
+   the client with no client-side retry code at all - which is what TC-24b
+   observes. Mid-session storage failures use 1011, also retryable. The design
+   document's note that the default backoff is 10s is not true of this
+   y-websocket version (its default `maxBackoffTime` is 2500ms), so
+   `RECONNECT_MAX_BACKOFF_MS = 10_000` is passed explicitly by the client config.
+
+7. **Log-row assertions are deltas.** A client's `SyncStep2` reply is a real Yjs
+   update (10-20 bytes carrying its clientID and clock), so it is appended as a
+   row like any edit. "One change, one row" is therefore measured as
+   `logRows` immediately before and after the change, never as an absolute count
+   of notes on the board.
+
+8. **After a storage failure only SQL numbers are trusted.** The in-memory
+   `updateCount` is intentionally left stale by a failed append (that *is* the
+   bug the test injects), so persistence tests assert `logRows`/`logBytes` from
+   `COUNT`/`SUM` over the real table rather than the counter.
+
+9. **The retry rate limit lives in the room** (`LOAD_RETRY_MIN_INTERVAL_MS =
+   5000`, measured per room, not per tab): fifty tabs dialing a board whose
+   storage is broken produce at most one load every five seconds. TC-24a asserts
+   the banner is a message and not a spinner over exactly that window.
+
+10. **Failure injection is arming a real failure, not mocking the store.**
+    `testFailNextAppend()` lets the `INSERT` run and throws *after* it, inside the
+    caller's transaction, so the test proves the rollback (the row is gone from
+    `COUNT(*)` and the client never gets an ack-and-broadcast for it);
+    `testPoisonLog()` appends a genuinely unreadable update row, which the next
+    load must quarantine - moved with its `seq` and the error text, deleted from
+    the log - while the rest of the board still loads. Both live on the DO as RPC
+    and are asserted in `tests/integration/durable.test.ts`; the room code under
+    test is the shipped code. `BoardStore.exec`/`transaction` are `protected` so a
+    subclass can aim at a specific statement if a future case needs it.
+
+11. **Test hooks are two-layer.** The DO methods (`testStats`, `testReload`,
+    `testCompact`, `testSeed`, `testPoisonLog`, `testFailNextAppend`,
+    `testCorruptSnapshot`, `testRepairSnapshot`) always exist - they are only
+    reachable by RPC, which no HTTP request can forge - while the HTTP routes in
+    `src/worker/index.ts` exist only when `env.TEST_HOOKS === '1'`, which the two
+    playwright configs pass with `--var TEST_HOOKS:1`. `wrangler.jsonc` does not
+    set it, so a deployed worker has no hook surface.
+
+12. **Room-side hook calls use Node's `fetch`, not Playwright's `request`
+    fixture.** The fixture's context is tied to the browser under test; a test
+    must still be able to read the server in its last seconds and after its tab
+    is gone (see 13). `tests/e2e/helpers/persistence.ts` is Node HTTP only.
+
+13. **TC-24 is two tests, and the "everything is on screen again" claim is
+    TC-19/TC-20's.** TC-24a covers the user-visible failure (banner wording and
+    state, disabled and genuinely inert tools, message rather than spinner).
+    TC-24b covers the recovery, asserted from the room: after the repair only the
+    client's own retry can produce `ready` + `serving`, and `sockets >= 1` proves
+    a browser is attached to the recovered room.
+    *Environment note, recorded because it cost the most time:* in this sandbox a
+    tab in a spec that runs more than roughly a minute while a client is
+    reconnecting stops answering *every* Playwright call - `page.evaluate`,
+    locators and the test's own `request` fixture all report "Target page, context
+    or browser has been closed", with no `page.on('crash')`, no navigation and a
+    flat 10MB JS heap before it - in Chromium and WebKit alike. The room is
+    healthy throughout the same sequence: run in the integration project (real DO
+    SQLite, real sockets) the corrupt → 4500 → repair → reconnect cycle closes
+    with 4500, replies with well formed frames, and the reconnected client's
+    document equals the stored one (`durable.test.ts`). Nothing in the client or
+    the room explains a tab dying on either engine, so the page-level assertion
+    that a board is fully restored is made by the specs that reload the page, and
+    TC-24b does not depend on its tab surviving.
+
+14. **TC-21's budget is applied to the room's cold read**, measured around the
+    first request after the room is dropped (`coldMs < BOARD_LOAD_BUDGET_MS =
+    3000`), not to the wall clock of a browser painting the board: the story is
+    about reading the board back from storage. The board is seeded through the
+    DO (`testSeed`) as one Yjs update, which is what makes a sized board
+    buildable in one call rather than one round trip per note.

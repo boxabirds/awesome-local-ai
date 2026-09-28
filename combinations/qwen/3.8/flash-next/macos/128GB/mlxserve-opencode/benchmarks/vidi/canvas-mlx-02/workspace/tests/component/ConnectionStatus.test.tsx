@@ -13,6 +13,10 @@ import {
 } from '../../src/client/collab/connectBoard.ts';
 import { ConnectionStatus } from '../../src/client/collab/ConnectionStatus.tsx';
 import { CONNECTED_CONFIRMATION_MS } from '../../src/shared/config.ts';
+import { CLOSE_BOARD_LOAD_FAILED } from '../../src/shared/protocol.ts';
+
+// The badge's own red. jsdom serialises the hex literal to rgb() in the CSSOM.
+const RED = 'rgb(198, 40, 40)';
 
 // A minimal fake matching the BoardProvider surface that connectBoard uses.
 class FakeProvider implements BoardProvider {
@@ -111,5 +115,111 @@ describe('ConnectionStatus badge', () => {
     // The cancelled confirmation timer must not later hide the badge.
     act(() => vi.advanceTimersByTime(CONNECTED_CONFIRMATION_MS + 1000));
     expect(screen.getByRole('status')).toHaveTextContent('Reconnecting');
+  });
+});
+
+/** Records every state connectBoard emits, in order. */
+function RecordingHarness({
+  provider,
+  states,
+}: {
+  provider: FakeProvider;
+  states: ConnectionState[];
+}): null {
+  useEffect(() => {
+    const factory: ProviderFactory = () => provider;
+    const conn = connectBoard(new Y.Doc(), 'test-board', (s) => states.push(s), factory);
+    return () => conn.destroy();
+  }, [provider, states]);
+  return null;
+}
+
+// TC-22: the load-failure message - its exact text, role=status, and red.
+describe('TC-22 load_failed badge', () => {
+  it('shows the load-failure message in red with role=status', () => {
+    const provider = new FakeProvider();
+    render(<Harness provider={provider} />);
+
+    act(() => provider.emit('connection-close', { code: CLOSE_BOARD_LOAD_FAILED }));
+
+    const badge = screen.getByRole('status');
+    expect(badge).toHaveTextContent("This board couldn't be loaded. Retrying…");
+    expect(badge).toHaveAttribute('data-state', 'load_failed');
+    // Red, and not the amber used for connectivity states.
+    expect(badge.style.color).toBe(RED);
+    expect(badge).not.toHaveStyle({ color: 'rgb(178, 106, 0)' });
+  });
+
+  it('is shown for a close code of exactly 4500 and nothing else', () => {
+    for (const code of [1006, 1011, 1013, 4400, 4499, 4501]) {
+      const provider = new FakeProvider();
+      const { unmount } = render(<Harness provider={provider} />);
+      act(() => provider.emit('connection-close', { code }));
+      const badge = screen.getByRole('status');
+      expect(badge, `code ${code}`).not.toHaveAttribute('data-state', 'load_failed');
+      unmount();
+    }
+  });
+
+  it('a locally closed socket (no CloseEvent) is never a load failure', () => {
+    const provider = new FakeProvider();
+    render(<Harness provider={provider} />);
+    act(() => provider.emit('connection-close', null));
+    const badge = screen.getByRole('status');
+    expect(badge).toHaveAttribute('data-state', 'connecting');
+  });
+});
+
+// TC-28: load_failed recovers on the first successful sync.
+describe('TC-28 load_failed recovery', () => {
+  it('goes straight back to connected - never to confirmed - on the first sync', () => {
+    const provider = new FakeProvider();
+    const states: ConnectionState[] = [];
+    render(<RecordingHarness provider={provider} states={states} />);
+
+    act(() => provider.emit('connection-close', { code: CLOSE_BOARD_LOAD_FAILED }));
+    expect(states).toEqual(['load_failed']);
+
+    // The background reconnect chatter must not overwrite the message.
+    act(() => provider.emit('status', { status: 'disconnected' }));
+    act(() => provider.emit('status', { status: 'connecting' }));
+    act(() => provider.emit('connection-close', { code: CLOSE_BOARD_LOAD_FAILED }));
+    expect(states).toEqual(['load_failed']);
+
+    act(() => provider.emit('sync', true));
+    expect(states).toEqual(['load_failed', 'connected']);
+    expect(states).not.toContain('confirmed');
+    expect(states).not.toContain('reconnecting');
+  });
+
+  it('a board that had synced before falling back to load_failed still returns to connected', () => {
+    const provider = new FakeProvider();
+    const states: ConnectionState[] = [];
+    render(<RecordingHarness provider={provider} states={states} />);
+
+    act(() => provider.emit('sync', true));
+    expect(states).toEqual(['connected']);
+
+    act(() => provider.emit('connection-close', { code: CLOSE_BOARD_LOAD_FAILED }));
+    expect(states).toEqual(['connected', 'load_failed']);
+
+    act(() => provider.emit('sync', true));
+    expect(states).toEqual(['connected', 'load_failed', 'connected']);
+  });
+
+  it('an ordinary drop after a load_failed recovery still confirms before hiding', () => {
+    vi.useFakeTimers();
+    const provider = new FakeProvider();
+    const states: ConnectionState[] = [];
+    render(<RecordingHarness provider={provider} states={states} />);
+
+    act(() => provider.emit('connection-close', { code: CLOSE_BOARD_LOAD_FAILED }));
+    act(() => provider.emit('sync', true)); // back to connected
+    act(() => provider.emit('status', { status: 'disconnected' }));
+    act(() => provider.emit('sync', true));
+    expect(states).toEqual(['load_failed', 'connected', 'reconnecting', 'confirmed']);
+
+    act(() => vi.advanceTimersByTime(CONNECTED_CONFIRMATION_MS));
+    expect(states[states.length - 1]).toBe('connected');
   });
 });

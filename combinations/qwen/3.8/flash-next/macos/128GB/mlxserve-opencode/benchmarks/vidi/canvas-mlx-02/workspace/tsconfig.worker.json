@@ -17,5 +17,5 @@
     "isolatedModules": true,
     "types": ["@cloudflare/workers-types/experimental", "@cloudflare/vitest-pool-workers"]
   },
-  "include": ["src/worker", "src/shared", "tests/integration"]
+  "include": ["src/worker", "src/shared", "tests/integration", "tests/fixtures"]
 }

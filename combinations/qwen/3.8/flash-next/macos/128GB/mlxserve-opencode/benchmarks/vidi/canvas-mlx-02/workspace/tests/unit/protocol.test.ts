@@ -4,11 +4,14 @@ import * as encoding from 'lib0/encoding';
 import * as awarenessProtocol from 'y-protocols/awareness';
 import * as syncProtocol from 'y-protocols/sync';
 import {
+  CLOSE_BOARD_LOAD_FAILED,
+  CLOSE_STORAGE_FAILURE,
+  CLOSE_UNSUPPORTED_DATA,
   decodeMessage,
   encodeSyncMessage,
-  MESSAGE_SYNC,
   MESSAGE_AWARENESS,
   MESSAGE_QUERY_AWARENESS,
+  MESSAGE_SYNC,
 } from '../../src/shared/protocol.ts';
 
 function bytesEq(a: Uint8Array, b: Uint8Array): boolean {
@@ -98,5 +101,26 @@ describe('decodeMessage', () => {
     const res = decodeMessage(frame.buffer as ArrayBuffer);
     expect(res.kind).toBe('sync');
     if (res.kind === 'sync') expect(bytesEq(res.payload, body)).toBe(true);
+  });
+});
+
+// TC-01: the close codes story 4 adds are named in the protocol module, so no
+// room or client code has to spell a bare 4500 / 1011.
+describe('close codes', () => {
+  it('names the board load failure 4500 and the storage failure 1011', () => {
+    expect(CLOSE_BOARD_LOAD_FAILED).toBe(4500);
+    expect(CLOSE_STORAGE_FAILURE).toBe(1011);
+    expect(CLOSE_UNSUPPORTED_DATA).toBe(1003);
+  });
+
+  it('4500 is outside y-websocket permanent 4400-4499 range, so clients retry', () => {
+    // y-websocket's default shouldReconnect treats 4400..4499 as terminal.
+    const permanent = (code: number) => code >= 4400 && code < 4500;
+    expect(permanent(CLOSE_BOARD_LOAD_FAILED)).toBe(false);
+  });
+
+  it('the codes are distinct from every other close code in the module', () => {
+    const codes = [CLOSE_UNSUPPORTED_DATA, CLOSE_BOARD_LOAD_FAILED, CLOSE_STORAGE_FAILURE];
+    expect(new Set(codes).size).toBe(codes.length);
   });
 });

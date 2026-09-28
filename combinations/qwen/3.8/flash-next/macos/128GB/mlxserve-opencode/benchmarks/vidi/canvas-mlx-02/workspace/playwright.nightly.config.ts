@@ -9,7 +9,7 @@ import { defineConfig, devices } from '@playwright/test';
 
 export default defineConfig({
   testDir: './tests/e2e',
-  testMatch: /.*(collaboration|connection)\.spec\.ts/,
+  testMatch: /.*(collaboration|connection|sized)\.spec\.ts/,
   fullyParallel: false,
   workers: 1,
   retries: 2,
@@ -28,7 +28,7 @@ export default defineConfig({
       : []),
   ],
   webServer: {
-    command: 'npm run build:test && npx wrangler dev --ip 127.0.0.1 --port 4173',
+    command: 'npm run build:test && npx wrangler dev --ip 127.0.0.1 --port 4173 --var TEST_HOOKS:1',
     url: 'http://localhost:4173',
     reuseExistingServer: !process.env.CI,
     timeout: 180_000,

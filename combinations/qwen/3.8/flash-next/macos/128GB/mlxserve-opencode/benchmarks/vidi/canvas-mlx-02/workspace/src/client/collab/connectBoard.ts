@@ -1,21 +1,36 @@
 // The browser's WebSocket + Yjs binding. Owns the y-websocket provider and maps
-// its `status` / `sync` events onto our small ConnectionState state machine. This
-// is the ONLY module that knows about the provider; useBoardDoc only sees
-// ConnectionState. The badge is HIDDEN in the steady 'connected' state, shown as
-// 'confirmed' ("Connected") for CONNECTED_CONFIRMATION_MS after a reconnect.
+// its `status` / `sync` / `connection-close` events onto our small ConnectionState
+// state machine. This is the ONLY module that knows about the provider; useBoardDoc
+// only sees ConnectionState. The badge is HIDDEN in the steady 'connected' state,
+// shown as 'confirmed' ("Connected") for CONNECTED_CONFIRMATION_MS after a
+// reconnect, and shown in red as 'load_failed' when the room closed the socket
+// with CLOSE_BOARD_LOAD_FAILED - the board exists but the server could not read
+// it, which reconnecting alone cannot fix.
 import type * as Y from 'yjs';
 import { WebsocketProvider } from 'y-websocket';
 import { CONNECTED_CONFIRMATION_MS, RECONNECT_MAX_BACKOFF_MS } from '../../shared/config.ts';
+import { CLOSE_BOARD_LOAD_FAILED } from '../../shared/protocol.ts';
 
-export type ConnectionState = 'connecting' | 'connected' | 'reconnecting' | 'confirmed';
+export type ConnectionState =
+  | 'connecting'
+  | 'connected'
+  | 'reconnecting'
+  | 'confirmed'
+  /** the room could not load this board from its storage; it keeps retrying */
+  | 'load_failed';
 
 // The subset of the y-websocket provider we depend on. WebsocketProvider matches
 // this, and tests can inject a fake event emitter instead of a real socket.
 export interface BoardProvider {
   on(event: 'status', cb: (s: { status: string }) => void): void;
   on(event: 'sync', cb: (synced: boolean) => void): void;
+  // Emitted by y-websocket just before `status: disconnected`, carrying the
+  // CloseEvent - or null when we closed the socket ourselves, which is never a
+  // server verdict about the board.
+  on(event: 'connection-close', cb: (event: { code: number } | null) => void): void;
   off?(event: 'status', cb: (s: { status: string }) => void): void;
   off?(event: 'sync', cb: (synced: boolean) => void): void;
+  off?(event: 'connection-close', cb: (event: { code: number } | null) => void): void;
   // Present on the real WebsocketProvider; used only by the test hook to force a
   // genuine socket drop/reconnect (the reconnect path then resyncs). Optional so
   // fake providers can omit them.
@@ -71,7 +86,17 @@ export function connectBoard(
     onState(next);
   };
 
+  provider.on('connection-close', (event) => {
+    // A close carrying the dedicated load-failure code is a verdict about THIS
+    // board ("the server cannot read it"), not a transport problem: say so, and
+    // let the provider keep retrying in the background.
+    if (event !== null && event.code === CLOSE_BOARD_LOAD_FAILED) emit('load_failed');
+  });
+
   provider.on('status', ({ status }) => {
+    // While the board is unloadable we stay on that message: the reconnect
+    // attempts the provider makes in the background are not news to the user.
+    if (state === 'load_failed') return;
     if (status === 'disconnected') {
       // Only a connection we previously established counts as a reconnect; a
       // socket that never synced is still "connecting".
@@ -86,6 +111,14 @@ export function connectBoard(
 
   provider.on('sync', (synced) => {
     if (!synced) return;
+    if (state === 'load_failed') {
+      // The room recovered and the board loaded: the message goes away. This is
+      // a return to steady state, not a reconnect confirmation.
+      everSynced = true;
+      reconnecting = false;
+      emit('connected');
+      return;
+    }
     if (!everSynced) {
       // First successful sync straight from 'connecting' → steady state (hidden).
       everSynced = true;

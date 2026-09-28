@@ -2,6 +2,7 @@
 import { render, screen, fireEvent, within } from '@testing-library/react';
 import type { RenderResult } from '@testing-library/react';
 import App from '../../src/client/App.tsx';
+import type { ProviderFactory } from '../../src/client/collab/connectBoard.ts';
 import { STICKY_COLORS } from '../../src/shared/config.ts';
 
 export interface AppHarness {
@@ -14,8 +15,8 @@ export interface AppHarness {
   editor(): HTMLElement | null;
 }
 
-export function renderBoard(): AppHarness {
-  const view = render(<App />);
+export function renderBoard(makeProvider?: ProviderFactory): AppHarness {
+  const view = render(<App makeProvider={makeProvider} />);
 
   const viewport = () => screen.getByTestId('viewport') as HTMLElement;
   const worldLayer = () => screen.getByTestId('world-layer') as HTMLElement;

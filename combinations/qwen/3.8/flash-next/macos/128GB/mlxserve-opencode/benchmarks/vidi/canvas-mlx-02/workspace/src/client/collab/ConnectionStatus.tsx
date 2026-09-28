@@ -1,4 +1,4 @@
-// The connection status badge. Presentational only — driven by ConnectionState.
+// The connection status badge. Presentational only - driven by ConnectionState.
 // Renders nothing in the steady 'connected' state so it never distracts.
 import type { ConnectionState } from './connectBoard.ts';
 
@@ -6,11 +6,23 @@ export interface ConnectionStatusProps {
   state: ConnectionState;
 }
 
+const AMBER = '#b26a00';
+const GREEN = '#1a7f37';
+// Red is reserved for the one message that is not about connectivity: the board
+// itself could not be read by the server (TC-22 asserts this colour).
+const RED = '#c62828';
+
+const LABELS: Record<Exclude<ConnectionState, 'connected'>, string> = {
+  connecting: 'Connecting…',
+  reconnecting: 'Reconnecting…',
+  confirmed: 'Connected',
+  load_failed: "This board couldn't be loaded. Retrying…",
+};
+
 export function ConnectionStatus({ state }: ConnectionStatusProps): React.JSX.Element | null {
   if (state === 'connected') return null;
-  const label =
-    state === 'connecting' ? 'Connecting…' : state === 'reconnecting' ? 'Reconnecting…' : 'Connected';
-  const color = state === 'confirmed' ? '#1a7f37' : '#b26a00';
+  const label = LABELS[state];
+  const color = state === 'confirmed' ? GREEN : state === 'load_failed' ? RED : AMBER;
   return (
     <div
       role="status"
@@ -28,6 +40,7 @@ export function ConnectionStatus({ state }: ConnectionStatusProps): React.JSX.El
         font: '500 13px/1 system-ui, sans-serif',
         boxShadow: '0 1px 3px rgba(0,0,0,0.15)',
         pointerEvents: 'none',
+        maxWidth: 320,
       }}
     >
       {label}

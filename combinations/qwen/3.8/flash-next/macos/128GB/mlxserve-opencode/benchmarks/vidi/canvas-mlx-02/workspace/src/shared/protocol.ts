@@ -16,6 +16,18 @@ export const MESSAGE_QUERY_AWARENESS = 3;
 // bytes, unknown type, or an update Yjs rejected). 1003 = Unsupported Data.
 export const CLOSE_UNSUPPORTED_DATA = 1003;
 
+// Close code sent when the room could not load the board from its own storage.
+// Deliberately 4500 - the 4400-4499 sub-range is 'reconnecting cannot fix this'
+// for y-websocket's default shouldReconnect, while 4500 is the matching
+// 'try again later' range: the client keeps retrying and the room retries the
+// load at most once per LOAD_RETRY_MIN_INTERVAL_MS. Never 1011, which would
+// look like a transport fault.
+export const CLOSE_BOARD_LOAD_FAILED = 4500;
+
+// Close code sent when a storage write failed after the connection was
+// accepted (1011 = Internal Error: an unexpected server-side condition).
+export const CLOSE_STORAGE_FAILURE = 1011;
+
 export type Decoded =
   | { kind: 'sync'; payload: Uint8Array }
   | { kind: 'awareness'; payload: Uint8Array }

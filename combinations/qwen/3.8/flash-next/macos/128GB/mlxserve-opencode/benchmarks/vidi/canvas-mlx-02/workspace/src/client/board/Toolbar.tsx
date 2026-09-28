@@ -3,10 +3,15 @@ import type React from 'react';
 
 export interface ToolbarProps {
   onCreateSticky(): void;
+  /**
+   * True only while the board cannot be edited at all (story 4: the room could
+   * not load it). A disabled button is inert and says so to assistive tech.
+   */
+  disabled?: boolean;
 }
 
 export function Toolbar(props: ToolbarProps): React.JSX.Element {
-  const { onCreateSticky } = props;
+  const { onCreateSticky, disabled = false } = props;
   return (
     <div
       data-testid="toolbar"
@@ -36,7 +41,9 @@ export function Toolbar(props: ToolbarProps): React.JSX.Element {
         aria-label="Sticky note"
         title="Sticky note – or double-click the board"
         data-testid="sticky-create"
-        onClick={onCreateSticky}
+        disabled={disabled}
+        aria-disabled={disabled}
+        onClick={disabled ? undefined : onCreateSticky}
         style={{
           width: 44,
           height: 44,
@@ -46,8 +53,9 @@ export function Toolbar(props: ToolbarProps): React.JSX.Element {
           borderRadius: 8,
           border: '1px solid #e0c84a',
           background: '#FFF59D',
-          cursor: 'pointer',
+          cursor: disabled ? 'not-allowed' : 'pointer',
           fontSize: 20,
+          opacity: disabled ? 0.5 : 1,
         }}
       >
         {/* Simple sticky-note glyph. */}

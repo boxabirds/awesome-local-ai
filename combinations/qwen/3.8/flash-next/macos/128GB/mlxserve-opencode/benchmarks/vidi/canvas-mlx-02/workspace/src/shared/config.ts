@@ -81,3 +81,34 @@ export const CONNECTED_CONFIRMATION_MS = 2000;
 // The outage length used by the live.catch_up verification (PRD): disconnect
 // one participant for this long while their page stays open.
 export const CATCH_UP_TEST_OUTAGE_MS = 30_000;
+
+// --- Persistence (story 4) --------------------------------------------------
+
+// Compaction trigger: this many update rows that are not yet folded into a
+// snapshot. Cross it and the room rewrites the snapshot in one transaction.
+export const COMPACTION_UPDATE_COUNT = 500;
+
+// Compaction trigger: this many bytes of un-compacted update log.
+export const COMPACTION_BYTES = 2 * 1024 * 1024;
+
+// The snapshot payload is stored as BLOB rows of at most this many bytes, so no
+// single row holds a whole large board (TC-08 asserts more than one row for a
+// board over this size).
+export const SNAPSHOT_CHUNK_BYTES = 512 * 1024;
+
+// A room that failed to load its board answers new connections with close code
+// 4500 until this long has passed since the failed read, so a client that
+// reconnects quickly cannot hammer the failing storage read.
+export const LOAD_RETRY_MIN_INTERVAL_MS = 5_000;
+
+// The load-duration assertion used by the tests (TC-21): a board seeded with
+// PERSIST_TESTED_NOTES notes must be fully rendered within this budget.
+export const BOARD_LOAD_BUDGET_MS = 3_000;
+
+// Number of notes the tested large board is seeded with.
+export const PERSIST_TESTED_NOTES = 2_000;
+
+// The storage layout version written by BoardStore.migrate(). Not the board's
+// data version (board-model's schemaVersion lives in the Y.Doc) and not the app
+// version.
+export const STORAGE_SCHEMA_VERSION = 1;
