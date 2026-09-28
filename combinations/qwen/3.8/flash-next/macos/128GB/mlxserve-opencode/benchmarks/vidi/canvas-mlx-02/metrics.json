@@ -11353,6 +11353,14 @@
           "fixed": 0,
           "regressed": 1
         }
+      },
+      "record": {
+        "committed": true,
+        "pushed": true,
+        "over_size_limit": [
+          "~/.spec-bench/awesome-local-ai/combinations/qwen/3.8/flash-next/macos/128GB/mlxserve-opencode/benchmarks/vidi/canvas-mlx-02/server.log"
+        ],
+        "commit": "61aee57f"
       }
     }
   },
