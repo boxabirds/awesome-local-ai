@@ -19,5 +19,6 @@
     "types": ["vite/client", "node"],
     "forceConsistentCasingInFileNames": true
   },
-  "include": ["src", "tests", "vite.config.ts", "vitest.config.ts", "playwright.config.ts"]
+  "include": ["src/client/**/*", "src/shared/**/*", "tests/unit/**/*", "tests/component/**/*", "tests/e2e/**/*", "vite.config.ts", "vitest.config.ts", "playwright.config.ts"],
+  "exclude": ["src/worker", "tests/integration", "vitest.integration.config.ts"]
 }

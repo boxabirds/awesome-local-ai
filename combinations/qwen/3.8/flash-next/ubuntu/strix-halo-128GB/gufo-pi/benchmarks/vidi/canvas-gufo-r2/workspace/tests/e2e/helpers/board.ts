@@ -62,7 +62,7 @@ export async function setCamera(page: Page, camera: Partial<Camera>): Promise<vo
       'window.__vidi6.setCamera is missing: e2e must run against a test-mode build (npm run build:test)',
     );
   }
-  await page.evaluate((value) => window.__vidi6?.setCamera(value), camera);
+  await page.evaluate((value) => window.__vidi6?.setCamera?.(value), camera);
   await page.waitForTimeout(50);
 }
 

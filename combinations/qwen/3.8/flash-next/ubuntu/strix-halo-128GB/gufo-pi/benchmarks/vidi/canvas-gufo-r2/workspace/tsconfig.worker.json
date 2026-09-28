@@ -1,0 +1,22 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["ESNext"],
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "strict": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noFallthroughCasesInSwitch": true,
+    "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
+    "skipLibCheck": true,
+    "noEmit": true,
+    "types": ["@cloudflare/workers-types/experimental"],
+    "paths": {
+      "cloudflare:test": ["./node_modules/@cloudflare/vitest-pool-workers/types/cloudflare-test.d.ts"]
+    }
+  },
+  "include": ["src/worker/**/*", "src/shared/**/*", "tests/integration/**/*"],
+  "references": []
+}

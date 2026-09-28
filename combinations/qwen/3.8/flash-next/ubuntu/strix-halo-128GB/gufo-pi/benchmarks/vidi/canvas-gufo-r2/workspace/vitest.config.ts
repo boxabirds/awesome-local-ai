@@ -1,6 +1,7 @@
 import { defineConfig } from 'vitest/config';
 
-// Two projects: pure node unit tests (camera maths) and jsdom component tests.
+// Two projects: pure node unit tests and jsdom component tests.
+// Integration tests run in workerd with a separate config (vitest.integration.config.ts).
 // E2E tests live in tests/e2e and run under Playwright, never Vitest.
 export default defineConfig({
   test: {

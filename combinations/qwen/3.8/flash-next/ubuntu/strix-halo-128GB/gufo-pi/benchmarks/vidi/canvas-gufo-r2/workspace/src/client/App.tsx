@@ -9,11 +9,13 @@ import { useSelection, type SelectionState } from './board/useSelection';
 import { Toolbar } from './board/Toolbar';
 import { StickyNote } from './objects/StickyNote';
 import { NoteToolbar } from './objects/NoteToolbar';
+import { ConnectionStatus } from './sync/ConnectionStatus';
 import {
   createSticky,
   deleteObject,
   setStickyColor,
 } from '../shared/board-model';
+
 import type { StickyColor } from '../shared/config';
 import type { Point } from './canvas/camera';
 
@@ -30,9 +32,10 @@ function BoardChrome(props: {
   doc: ReturnType<typeof useBoardDoc>['doc'];
   selectedColor: StickyColor | null;
   onCreateSticky(): void;
+  connectionState: ReturnType<typeof useBoardDoc>['connectionState'];
 }) {
   const { camera, hasNavigated, zoomStep, reset } = useBoardCamera();
-  const { selection, doc, selectedColor, onCreateSticky } = props;
+  const { selection, doc, selectedColor, onCreateSticky, connectionState } = props;
 
   const handleColor = useCallback(
     (color: StickyColor) => {
@@ -50,6 +53,7 @@ function BoardChrome(props: {
 
   return (
     <>
+      <ConnectionStatus state={connectionState} />
       <Toolbar onCreateSticky={onCreateSticky} />
       {selectedColor !== null && !selection.editingId && (
         <NoteToolbar color={selectedColor} onColor={handleColor} onDelete={handleDelete} />
@@ -125,17 +129,40 @@ function BoardObjects(props: {
   );
 }
 
+/** Extract board ID from /b/:boardId path. */
+function getBoardIdFromPath(): string | undefined {
+  const match = window.location.pathname.match(/^\/b\/([A-Za-z0-9_-]+)/);
+  return match?.[1];
+}
+
 /**
  * Top-level layout: the infinite board fills the window, sticky notes live in
  * the world layer, toolbars and controls in the overlay.
  */
 export function App(props: { doc?: Y.Doc } = {}) {
-  const { doc, notes } = useBoardDoc(props.doc);
+  const boardId = getBoardIdFromPath();
+  const { doc, notes, connectionState } = useBoardDoc(props.doc, boardId);
   const selection = useSelection();
   const bridgeRef = useRef<BoardBridge | null>(null);
   const registerBridge = useCallback((b: BoardBridge | null) => {
     bridgeRef.current = b;
   }, []);
+
+  // Watch for remote deletions that affect current selection/editing
+  useEffect(() => {
+    const objects = doc.getMap('objects');
+    const checkDeletion = () => {
+      if (selection.editingId && !objects.has(selection.editingId)) {
+        selection.endEdit('unselected');
+      }
+      if (selection.selectedId && !objects.has(selection.selectedId)) {
+        selection.select(null);
+      }
+    };
+    const observer = () => checkDeletion();
+    objects.observeDeep(observer);
+    return () => objects.unobserveDeep(observer);
+  }, [doc, selection]);
 
   // Keyboard handling: Enter -> start editing; Delete/Backspace -> delete note.
   useEffect(() => {
@@ -205,6 +232,7 @@ export function App(props: { doc?: Y.Doc } = {}) {
           doc={doc}
           selectedColor={selectedColor}
           onCreateSticky={handleCreateSticky}
+          connectionState={connectionState}
         />
       }
       onBoardDblClick={handleBoardDblClick}

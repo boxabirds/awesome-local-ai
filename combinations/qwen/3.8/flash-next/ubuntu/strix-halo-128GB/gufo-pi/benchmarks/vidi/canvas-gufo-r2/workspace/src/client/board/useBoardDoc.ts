@@ -1,17 +1,20 @@
 /**
  * Owns the Y.Doc, exposes an immutable snapshot via useSyncExternalStore.
- * Story 3 adds a network provider; story 4 adds persistence.
+ * Story 3: attaches WebsocketProvider for live sync; destroys on unmount.
  *
  * The snapshot array is memoised: useSyncExternalStore requires getSnapshot to
  * return a stable reference when nothing has changed, otherwise React loops.
  */
-import { useCallback, useMemo, useRef, useSyncExternalStore } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import * as Y from 'yjs';
 import { initDoc, snapshot, type StickySnapshot } from '../../shared/board-model';
+import { connectBoard, type ConnectionState, type BoardConnection } from '../sync/connectBoard';
+import { setConnectionState as _setConnectionState } from '../canvas/testHooks';
 
 export interface BoardDocState {
   doc: Y.Doc;
   notes: readonly StickySnapshot[];
+  connectionState: ConnectionState;
 }
 
 /** Create a board doc (optionally inject one for tests). */
@@ -21,11 +24,33 @@ export function makeBoardDoc(injected?: Y.Doc): Y.Doc {
   return d;
 }
 
-export function useBoardDoc(injectedDoc?: Y.Doc): BoardDocState {
+export function useBoardDoc(injectedDoc?: Y.Doc, boardId?: string): BoardDocState {
   // Create a single Y.Doc instance that persists across renders.
   const doc = useMemo(() => {
     return makeBoardDoc(injectedDoc);
   }, [injectedDoc]);
+
+  // Connection state
+  const [connectionState, setConnectionState] = useState<ConnectionState>(
+    boardId ? 'connecting' : 'connected'
+  );
+
+  // Attach provider when boardId is available
+  useEffect(() => {
+    if (!boardId) {
+      setConnectionState('connected');
+      return;
+    }
+    const conn: BoardConnection = connectBoard(doc, boardId, setConnectionState);
+    return () => {
+      conn.destroy();
+    };
+  }, [doc, boardId]);
+
+  // Expose connection state on window for e2e tests (TC-29)
+  useEffect(() => {
+    _setConnectionState(connectionState);
+  }, [connectionState]);
 
   // Cached snapshot: recomputed only when the doc's objects map changes.
   const cacheRef = useRef<{ doc: Y.Doc; value: readonly StickySnapshot[] } | null>(null);
@@ -54,5 +79,5 @@ export function useBoardDoc(injectedDoc?: Y.Doc): BoardDocState {
 
   const notes = useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
 
-  return { doc, notes };
+  return { doc, notes, connectionState };
 }

@@ -1,3 +1,57 @@
+commit 79b3590a43d6d3dfdc0ae7a71a6e6235d64dc68e
+vidi-agent  Mon Sep 28 16:49:32 2026 +0000
+
+    story 3: See other people's edits appear live on the same board
+
+
+ NOTES.md                          |  49 +++++++++++
+ src/client/canvas/testHooks.ts    |   2 +-
+ tests/e2e/nightly/nightly.spec.ts | 175 ++++++++++++++++++++------------------
+ 3 files changed, 143 insertions(+), 83 deletions(-)
+commit a588e73b15aded280898d08534b25dadaa4c738b
+vidi-agent  Mon Sep 28 16:41:34 2026 +0000
+
+    story 3: nightly tests (idle stability, capacity soak)
+
+
+ package.json                      |   4 +-
+ tests/e2e/nightly/nightly.spec.ts | 196 ++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 198 insertions(+), 2 deletions(-)
+commit 424ca9abee6c5a0a416df20bf02b598934c64c87
+vidi-agent  Mon Sep 28 16:39:42 2026 +0000
+
+    story 3: connection badge component tests and live collaboration e2e tests
+
+
+ package-lock.json                         | 1379 ++++++++++++++++++++++++++++-
+ package.json                              |   11 +-
+ src/client/App.tsx                        |   32 +-
+ src/client/board/useBoardDoc.ts           |   33 +-
+ src/client/canvas/testHooks.ts            |   30 +-
+ src/client/main.tsx                       |   20 +-
+ src/client/styles.css                     |   30 +
+ src/client/sync/ConnectionStatus.tsx      |   40 +
+ src/client/sync/connectBoard.ts           |  113 +++
+ src/shared/board-id.ts                    |   32 +
+ src/shared/config.ts                      |   17 +
+ src/shared/protocol.ts                    |   60 ++
+ src/worker/board-room.ts                  |  142 +++
+ src/worker/index.ts                       |   43 +
+ tests/component/ConnectionStatus.test.tsx |  103 +++
+ tests/e2e/helpers/board.ts                |    2 +-
+ tests/e2e/helpers/participants.ts         |   99 +++
+ tests/e2e/live-collaboration.spec.ts      |  401 +++++++++
+ tests/integration/board-room.test.ts      |  439 +++++++++
+ tests/integration/worker.test.ts          |   92 ++
+ tests/integration/ws-client.ts            |  169 ++++
+ tests/unit/board-id.test.ts               |   60 ++
+ tests/unit/protocol.test.ts               |  120 +++
+ tsconfig.json                             |    3 +-
+ tsconfig.worker.json                      |   22 +
+ vitest.config.ts                          |    3 +-
+ vitest.integration.config.ts              |   16 +
+ wrangler.jsonc                            |   20 +-
+ 28 files changed, 3503 insertions(+), 28 deletions(-)
 commit 0829385b659b960b55f1e126fc83caa9216e1d64
 vidi-agent  Mon Sep 28 16:10:38 2026 +0000
 

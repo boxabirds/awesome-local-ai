@@ -353,3 +353,33 @@ body {
   outline: 2px solid #2f6feb;
   outline-offset: 1px;
 }
+
+/* ---------------------------------------------------------------- connection status */
+
+.connection-status {
+  position: fixed;
+  top: 8px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 4px 12px;
+  border-radius: 12px;
+  font-size: 13px;
+  font-weight: 500;
+  z-index: 9999;
+  pointer-events: none;
+}
+
+.connection-status--connecting {
+  background: #e2e8f0;
+  color: #475569;
+}
+
+.connection-status--reconnecting {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.connection-status--confirmed {
+  background: #d1fae5;
+  color: #065f46;
+}
