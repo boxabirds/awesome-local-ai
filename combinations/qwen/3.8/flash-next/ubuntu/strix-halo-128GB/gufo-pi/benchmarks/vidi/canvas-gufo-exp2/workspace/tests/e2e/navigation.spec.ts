@@ -20,7 +20,6 @@ import {
   pageZoomState,
   resetButton,
   setCamera,
-  settledCamera,
   waitForRender,
   viewport,
   zoomInButton,
@@ -104,13 +103,17 @@ test.describe('workflow 1: first visit navigation', () => {
     expect(Math.abs(moved.y - marker.y)).toBeLessThanOrEqual(1);
 
     // Zooming back out around the same pointer restores the original camera.
+    // (Control must be held for this wheel too: a plain wheel pans the board.)
+    await page.keyboard.down('Control');
     await page.mouse.wheel(0, 100);
+    await page.keyboard.up('Control');
     await waitForRender(page);
     const restored = await originCentre(page);
     expect(Math.abs(restored.x - marker.x)).toBeLessThanOrEqual(1);
     expect(Math.abs(restored.y - marker.y)).toBeLessThanOrEqual(1);
     expect(await zoomPercentLabel(page)).toBe(PERCENT_PER_UNIT);
-    expect(before.zoom).toBe(PERCENT_PER_UNIT);
+    // `before.zoom` is a factor, the label is a percentage: compare like with like.
+    expect(before.zoom * PERCENT_PER_UNIT).toBe(PERCENT_PER_UNIT);
     await expectGridSpacingMatchesCamera(page);
   });
 

@@ -16,6 +16,9 @@ const WHEEL_DELTA_MODE_LINE_PX = 40;
 /** Pixels per wheel "page" tick (deltaMode === 2). */
 const WHEEL_DELTA_MODE_PAGE_PX = 800;
 
+/** Movement (screen px) that turns a press on the empty board into a pan. */
+const CLICK_DRAG_LIMIT_PX = 3;
+
 const DELTA_MODE_PIXELS = 0;
 const DELTA_MODE_LINE = 1;
 const DELTA_MODE_PAGE = 2;
@@ -72,6 +75,15 @@ function isTextEntry(target: EventTarget | null): boolean {
 
 export interface BoardViewportProps {
   children?: ReactNode;
+  /**
+   * Double-click on empty board space (never on an object): the point is in
+   * screen coordinates. Story 2 creates a sticky note centred here.
+   */
+  onCreateAtPoint?(point: Point): void;
+  /**
+   * A press on empty board space that did not move: clears the selection.
+   */
+  onClearSelection?(): void;
 }
 
 /**
@@ -79,12 +91,19 @@ export interface BoardViewportProps {
  * dot grid that moves with the camera, and a world layer holding board objects
  * in world coordinates.
  */
-export function BoardViewport({ children }: BoardViewportProps) {
+export function BoardViewport({
+  children,
+  onCreateAtPoint,
+  onClearSelection,
+}: BoardViewportProps) {
   const { camera, beginPan, panMove, endPan, wheel, zoomBy, zoomStep, reset } =
     useBoardCamera();
   const surfaceRef = useRef<HTMLDivElement | null>(null);
   const activePointerRef = useRef<number | null>(null);
   const gestureRef = useRef<{ lastScale: number } | null>(null);
+  // Press on empty space: remembered so a click without movement can clear the
+  // selection while a drag stays a pan.
+  const clickRef = useRef<{ x: number; y: number; moved: boolean } | null>(null);
   const [panning, setPanning] = useState(false);
 
   const startPan = useCallback(
@@ -100,6 +119,7 @@ export function BoardViewport({ children }: BoardViewportProps) {
         }
       }
       activePointerRef.current = e.pointerId;
+      clickRef.current = { x: e.clientX, y: e.clientY, moved: false };
       setPanning(true);
       beginPan({ x: e.clientX, y: e.clientY });
     },
@@ -109,6 +129,12 @@ export function BoardViewport({ children }: BoardViewportProps) {
   const movePan = useCallback(
     (e: ReactPointerEvent<HTMLDivElement>) => {
       if (activePointerRef.current !== e.pointerId) return;
+      const click = clickRef.current;
+      if (click && !click.moved) {
+        const dx = e.clientX - click.x;
+        const dy = e.clientY - click.y;
+        if (Math.hypot(dx, dy) >= CLICK_DRAG_LIMIT_PX) click.moved = true;
+      }
       panMove({ x: e.clientX, y: e.clientY });
     },
     [panMove],
@@ -121,6 +147,10 @@ export function BoardViewport({ children }: BoardViewportProps) {
       const surface = surfaceRef.current;
       const pointerId = activePointerRef.current;
       activePointerRef.current = null;
+      const click = clickRef.current;
+      clickRef.current = null;
+      // A press on the empty board that never moved is a click: deselect.
+      if (click && !click.moved) onClearSelection?.();
       if (surface) {
         try {
           surface.releasePointerCapture?.(pointerId);
@@ -132,7 +162,7 @@ export function BoardViewport({ children }: BoardViewportProps) {
       endPan();
       setPanning(false);
     },
-    [endPan],
+    [endPan, onClearSelection],
   );
 
   // Wheel: a non-passive native listener, because React's onWheel is passive
@@ -244,6 +274,12 @@ export function BoardViewport({ children }: BoardViewportProps) {
       onPointerUp={(e) => finishPan(e)}
       onPointerCancel={(e) => finishPan(e)}
       onLostPointerCapture={(e) => finishPan(e)}
+      onDoubleClick={(e) => {
+        // Only a double-click on the empty board creates something; a note
+        // stops propagation and starts editing instead.
+        if (!isBoardSurface(e.target)) return;
+        onCreateAtPoint?.({ x: e.clientX, y: e.clientY });
+      }}
     >
       <div
         data-testid="world-layer"

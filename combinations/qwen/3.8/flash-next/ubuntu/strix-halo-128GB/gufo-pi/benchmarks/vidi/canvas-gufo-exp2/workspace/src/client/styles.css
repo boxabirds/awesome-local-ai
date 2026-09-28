@@ -151,3 +151,229 @@ body {
   white-space: nowrap;
   pointer-events: none;
 }
+
+/* ------------------------------------------------------------- board toolbar */
+
+.board-toolbar {
+  position: fixed;
+  left: 16px;
+  top: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 6px;
+  background: var(--chrome-bg);
+  border: 1px solid var(--chrome-border);
+  border-radius: 10px;
+  box-shadow: 0 1px 4px rgba(15, 23, 42, 0.12);
+}
+
+.toolbar-button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font: inherit;
+  color: var(--chrome-text);
+  background: var(--chrome-bg);
+  border: 1px solid transparent;
+  border-radius: 8px;
+  padding: 6px 10px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.toolbar-button:hover {
+  background: #eef1f5;
+}
+
+.toolbar-button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.toolbar-icon {
+  font-size: 15px;
+  line-height: 1;
+}
+
+.toolbar-label {
+  font-size: 13px;
+}
+
+/* ------------------------------------------------------------- sticky notes */
+
+.sticky-note {
+  position: absolute;
+  box-sizing: border-box;
+  border-radius: 2px;
+  box-shadow: 0 2px 6px rgba(15, 23, 42, 0.22);
+  color: #1f2937;
+  /* Notes take their own pointer events; the world layer passes none. */
+  pointer-events: auto;
+  cursor: move;
+  overflow: visible;
+}
+
+.sticky-note[data-selected='true'] {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.sticky-note:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+/* Hidden twin of the text used only for auto-fit measurement. It has no
+   padding, so its scrollHeight is the pure text height and matches the text
+   element's content box (note size minus padding). */
+.sticky-note-measure {
+  position: absolute;
+  left: 0;
+  top: 0;
+  box-sizing: border-box;
+  visibility: hidden;
+  pointer-events: none;
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
+  line-height: 1.25;
+  padding: 0;
+}
+
+.sticky-note-text {
+  position: absolute;
+  inset: 0;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  line-height: 1.25;
+  user-select: none;
+}
+
+/* The text itself is a flex item: min-width 0 lets it shrink below the width
+   of its longest unbreakable run, so a long word wraps instead of spilling out
+   sideways (which is what overflow-wrap alone cannot do inside a flex box). */
+.sticky-note-text-run {
+  min-width: 0;
+  text-align: center;
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
+  word-break: normal;
+}
+
+/* Text past the minimum size: the bottom edge fades out. */
+.sticky-note--overflow .sticky-note-text {
+  align-items: flex-start;
+}
+
+.sticky-note-fade {
+  position: absolute;
+  left: 1px;
+  right: 1px;
+  bottom: 1px;
+  height: 26px;
+  pointer-events: none;
+  background: linear-gradient(to bottom, rgba(255, 255, 255, 0), rgba(255, 255, 255, 0.92));
+  border-bottom-left-radius: 2px;
+  border-bottom-right-radius: 2px;
+}
+
+.sticky-note-input {
+  position: absolute;
+  inset: 0;
+  box-sizing: border-box;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  border: none;
+  outline: none;
+  resize: none;
+  background: transparent;
+  color: #1f2937;
+  font-family: inherit;
+  line-height: 1.25;
+  text-align: center;
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
+  overflow: hidden;
+}
+
+.sticky-note-counter {
+  position: absolute;
+  right: 6px;
+  bottom: 4px;
+  font-size: 11px;
+  line-height: 1;
+  color: rgba(31, 41, 55, 0.65);
+  font-variant-numeric: tabular-nums;
+  pointer-events: none;
+}
+
+/* --------------------------------------------------------- note floating UI */
+
+.note-anchor {
+  position: absolute;
+  left: 0;
+  top: 0;
+  pointer-events: auto;
+}
+
+.note-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  width: 100%;
+  height: 100%;
+  box-sizing: border-box;
+  padding: 3px 5px;
+  background: var(--chrome-bg);
+  border: 1px solid var(--chrome-border);
+  border-radius: 8px;
+  box-shadow: 0 1px 4px rgba(15, 23, 42, 0.18);
+}
+
+.note-swatch {
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  border: 1px solid rgba(31, 41, 55, 0.35);
+  border-radius: 4px;
+  background: var(--swatch, #fff);
+  cursor: pointer;
+}
+
+.note-swatch:hover {
+  transform: scale(1.08);
+}
+
+.note-swatch[aria-pressed='true'] {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.note-swatch:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.note-delete {
+  margin-left: 2px;
+  padding: 0 4px;
+  border: 1px solid transparent;
+  border-radius: 5px;
+  background: transparent;
+  font-size: 13px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.note-delete:hover {
+  background: #fee2e2;
+}
+
+.note-delete:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
