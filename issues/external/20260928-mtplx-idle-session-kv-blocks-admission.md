@@ -1,6 +1,6 @@
 > **Draft**, not filed. The four sections below match the MTPLX bug report form's fields, in order, with the same names.
 
-**Title:** When memory is tight at compaction, an idle session's live KV can't be reclaimed, so a smaller new request can be refused (507) until restart
+**Title:** Near the memory limit, the admission shed can't evict an idle coding session's live KV, so a new request can be refused (507) on every retry
 
 ## Output of mtplx doctor --json
 
@@ -384,6 +384,8 @@ Apple M5 Max, 128 GB, macOS 26.4 (25E246). Default memory limit (`limit_bytes` =
 
 The form has no description field. Put this in the issue body if it allows free text, or as the first comment after filing.
 
+
+**In short:** this only happens when three things coincide: memory is already near MTPLX's limit, another session's KV is still resident and was active in the last 10 minutes, and that session is a coding-agent session (its requests carry tools). Then a new request, even a smaller one, is refused, and retrying doesn't help. We saw it deadlock 1 of 9 long agent tasks; 2 other tasks hit refusals and recovered.
 
 ### What happened
 
