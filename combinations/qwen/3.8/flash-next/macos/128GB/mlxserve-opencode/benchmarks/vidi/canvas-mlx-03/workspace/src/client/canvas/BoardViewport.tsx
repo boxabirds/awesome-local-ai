@@ -1,5 +1,5 @@
 import { useEffect, useRef, type ReactNode, type RefObject } from 'react';
-import type { Camera, Point } from './camera.ts';
+import { screenToWorld, type Camera, type Point } from './camera.ts';
 import type { CameraApi } from './useCamera.ts';
 import { GRID_SPACING_WORLD, WHEEL_LINE_HEIGHT_PX, WHEEL_PAGE_HEIGHT_PX } from '../../shared/config.ts';
 
@@ -8,6 +8,10 @@ export interface BoardViewportProps {
   viewportRef: RefObject<HTMLDivElement | null>;
   api: Pick<CameraApi, 'beginPan' | 'panMove' | 'endPan' | 'wheel' | 'gesture'>;
   children?: ReactNode;
+  /** A press on empty board space (world point). Used to clear selection. */
+  onBackgroundPointerDown?(world: Point): void;
+  /** A double-click on empty board space (world point). Used to create a note. */
+  onBackgroundDoubleClick?(world: Point): void;
 }
 
 interface GestureEventLike extends Event {
@@ -31,9 +35,15 @@ function wheelPixels(delta: number, deltaMode: number): number {
  * wheel (board-owned), and Safari gesture events. All input calls go through the
  * camera.math API so the board never zooms the page.
  */
-export function BoardViewport({ camera, viewportRef, api, children }: BoardViewportProps) {
+export function BoardViewport({ camera, viewportRef, api, children, onBackgroundPointerDown, onBackgroundDoubleClick }: BoardViewportProps) {
   const apiRef = useRef(api);
   apiRef.current = api;
+  const cameraRef = useRef(camera);
+  cameraRef.current = camera;
+  const bgDownRef = useRef(onBackgroundPointerDown);
+  bgDownRef.current = onBackgroundPointerDown;
+  const bgDblRef = useRef(onBackgroundDoubleClick);
+  bgDblRef.current = onBackgroundDoubleClick;
 
   // Non-passive wheel listener so we can always preventDefault over the board
   // (React's onWheel is passive and cannot stop page zoom / scroll).
@@ -102,10 +112,19 @@ export function BoardViewport({ camera, viewportRef, api, children }: BoardViewp
     // Only start a pan when the press is on the board surface itself (viewport /
     // grid / origin marker), never on a board object (later stories stopPropagation).
     if (e.target !== e.currentTarget) return;
+    const rect = e.currentTarget.getBoundingClientRect();
+    // Empty-space press: let the shell clear the current selection first.
+    bgDownRef.current?.(screenToWorld(cameraRef.current, pointFrom(e, rect)));
     e.currentTarget.setPointerCapture?.(e.pointerId);
     e.currentTarget.style.cursor = 'grabbing';
-    const rect = e.currentTarget.getBoundingClientRect();
     apiRef.current.beginPan(pointFrom(e, rect));
+  };
+  const onDoubleClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    // Create a note only when the double-click landed on empty board space; a
+    // double-click on a note is stopped by that note (starts editing instead).
+    if (e.target !== e.currentTarget) return;
+    const rect = e.currentTarget.getBoundingClientRect();
+    bgDblRef.current?.(screenToWorld(cameraRef.current, pointFrom(e, rect)));
   };
   const onPointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
     const rect = e.currentTarget.getBoundingClientRect();
@@ -136,6 +155,7 @@ export function BoardViewport({ camera, viewportRef, api, children }: BoardViewp
         cursor: 'grab',
       }}
       onPointerDown={onPointerDown}
+      onDoubleClick={onDoubleClick}
       onPointerMove={onPointerMove}
       onPointerUp={finish}
       onPointerCancel={finish}

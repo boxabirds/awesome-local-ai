@@ -1,3 +1,32 @@
+commit ed8c482576be3e87cfeec8fc0dd812e87c35d970
+vidi-agent  Tue Sep 29 00:56:06 2026 +0100
+
+    harness: snapshot after story 2 (uncommitted agent work)
+
+
+ README.md                                 |  41 ++++
+ package-lock.json                         |  51 ++++-
+ package.json                              |   3 +-
+ playwright.config.ts                      |  19 +-
+ src/client/App.tsx                        | 152 ++++++++++++++-
+ src/client/board/Toolbar.tsx              |  60 ++++++
+ src/client/board/useBoardDoc.ts           |  55 ++++++
+ src/client/board/useSelection.ts          |  40 ++++
+ src/client/canvas/BoardViewport.tsx       |  26 ++-
+ src/client/objects/NoteToolbar.tsx        |  87 +++++++++
+ src/client/objects/StickyNote.tsx         | 304 ++++++++++++++++++++++++++++++
+ src/client/objects/StickyText.ts          | 100 ++++++++++
+ src/client/objects/StickyTextEditor.tsx   | 140 ++++++++++++++
+ src/shared/board-model.ts                 | 186 ++++++++++++++++++
+ src/shared/config.ts                      |  27 +++
+ tests/component/StickyNote.test.tsx       | 199 +++++++++++++++++++
+ tests/component/StickyTextEditor.test.tsx | 113 +++++++++++
+ tests/component/Toolbars.test.tsx         |  68 +++++++
+ tests/e2e/sticky-notes.spec.ts            | 188 ++++++++++++++++++
+ tests/fixtures/texts.ts                   |  33 ++++
+ tests/unit/board-model.test.ts            | 233 +++++++++++++++++++++++
+ tests/unit/sticky-text.test.ts            |  89 +++++++++
+ 22 files changed, 2201 insertions(+), 13 deletions(-)
 commit f2d350e40084b266a4b6733a1411e5145da6f74f
 vidi-agent  Mon Sep 28 23:59:10 2026 +0100
 

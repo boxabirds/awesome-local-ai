@@ -26,7 +26,24 @@ export default defineConfig({
   },
   projects: [
     { name: 'chromium', use: { ...devices['Desktop Chrome'], viewport: { width: 1280, height: 800 } } },
-    { name: 'firefox', use: { ...devices['Desktop Firefox'], viewport: { width: 1280, height: 800 } } },
+    {
+      name: 'firefox',
+      use: {
+        ...devices['Desktop Firefox'],
+        viewport: { width: 1280, height: 800 },
+        // Firefox's nested OS sandbox cannot initialise inside some sandboxed
+        // CI hosts (macOS Seatbelt `sandbox_init` denial). Disabling the content
+        // sandbox is behaviour-neutral for these tests and lets the project run
+        // there; the vars are ignored on hosts that permit the sandbox.
+        launchOptions: {
+          env: {
+            ...process.env,
+            MOZ_DISABLE_CONTENT_SANDBOX: '1',
+            MOZ_DISABLE_GPU_SANDBOX: '1',
+          },
+        },
+      },
+    },
     { name: 'webkit', use: { ...devices['Desktop Safari'], viewport: { width: 1280, height: 800 } } },
   ],
 });
