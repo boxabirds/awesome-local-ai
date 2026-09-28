@@ -711,7 +711,7 @@ def time_split(events: Path, server_log: Path, t_from: float, t_to: float) -> di
 def run_agent(client, ws: Path, env: dict, model_id: str, prompt: str, events_path: Path,
               resume_from: str | None = None, fork: bool = True) -> dict:
     """Run (or resume) one sandboxed agent session; returns counts, session id, error and loop flag."""
-    cmd = sandboxed(client.command(model_id, prompt, resume_from, fork=fork), own_dir=ws.parent)
+    cmd = hostenv.oom_first(sandboxed(client.command(model_id, prompt, resume_from, fork=fork), own_dir=ws.parent))
     t0 = time.monotonic()
     full_env = {**os.environ, **env, **client.env()}
     for k in getattr(client, "env_remove", ()):  # e.g. an API key that would override subscription auth
