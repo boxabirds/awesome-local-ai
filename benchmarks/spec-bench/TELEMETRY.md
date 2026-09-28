@@ -58,7 +58,8 @@ pull records and failure reasons in `~/.dbench/jobs/` on the node (`dbench statu
 `seconds` (wall time of the attempt after the story's last restart only: work before a crash or restart is left out, and so is the dead time; the report's *Interruptions and dead time* gives the active time across every attempt), `steps` (model calls), `tool_calls`, `tool_interruptions`, `compactions`,
 `tokens` (`input`, `output`, `reasoning`, `cache_read`, `cache_write`, as the server reported them to
 the client), `exit`, `stalled` (the loop detector stopped it), `resumes` (after errors), `nudges`
-(after stopping without a commit), `errors`, `ended_by_operator`, `ended_in_error`, `sessions`.
+(after stopping without a commit), `toolcall_text_resumes` (continuations after the session ended on a
+tool call the engine returned as text instead of running it; see gufo-org/gufo#304), `errors`, `ended_by_operator`, `ended_in_error`, `sessions`.
 
 ### `time_split`: where the story's wall time went
 
