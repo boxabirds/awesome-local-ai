@@ -5,6 +5,11 @@ The same model as [`llamacpp-pi`](../llamacpp-pi/README.md), served by
 single-model inference engine for this chip (ROCm, its own kernels), shipped as a
 container image and run here with Podman.
 
+> **Why gufo reads prompts 4–7× faster than llama.cpp here, in plain English:**
+> [why-gufo-reads-prompts-fast.md](why-gufo-reads-prompts-fast.md). Known bug affecting long agent
+> runs: [gufo-org/gufo#304](https://github.com/gufo-org/gufo/issues/304) (a tool call is sometimes
+> returned as text; the harness continues the session when it happens).
+
 ## Why this combination exists
 
 On this machine, llama.cpp reads prompts at 170–350 tok/s: its Gated DeltaNet

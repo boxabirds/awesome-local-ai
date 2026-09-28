@@ -16,7 +16,7 @@ files UD-Q4_K_XL (explained below).
 ## The numbers
 
 Prompt reading speed, one request at a time, every prompt read from scratch
-([test A](20260926-gufo-vs-llamacpp-eval-plan.md), same weights and prompts for both; medians of 3; llama.cpp from
+([test A](../../../../../../../docs/20260926-gufo-vs-llamacpp-eval-plan.md), same weights and prompts for both; medians of 3; llama.cpp from
 its second pass, results `20260927-172049-tritus`, gufo from `20260927-181814-tritus`):
 
 | Conversation so far | llama.cpp | gufo | gufo faster by |
@@ -117,5 +117,5 @@ will arrive.
 - Speed measurements: test A on tritus, `benchmarks/gufo-eval/results/` (runs of 27 Sep 2026).
 - gufo's profile and experiment log: `docs/models/qwen3.8-flash-next/EXPERIMENTS.md` in
   [gufo-org/gufo](https://github.com/gufo-org/gufo) at `b722a61`.
-- Compaction times and real-request replays: [the long-session investigation](20260928-gufo-long-session-investigation.md).
-- llama.cpp's slow prefill on this chip: [the Strix Halo + llama.cpp findings](20260927-strix-halo-llamacpp-findings.md).
+- Compaction times and real-request replays: [the long-session investigation](../../../../../../../docs/20260928-gufo-long-session-investigation.md).
+- llama.cpp's slow prefill on this chip: [the Strix Halo + llama.cpp findings](../../../../../../../docs/20260927-strix-halo-llamacpp-findings.md).
