@@ -1,3 +1,73 @@
+commit 253aa8c9bb9b9bfe7a19e99585c3d21b743ddb2d
+vidi-agent  Mon Sep 28 18:56:12 2026 +0000
+
+    Name the restart helper as the design does and record the reason (story 4 task 6)
+
+
+ NOTES.md                                               | 12 +++++++++---
+ tests/e2e/helpers/{wrangler.ts => wrangler-process.ts} |  0
+ tests/e2e/persistence.spec.ts                          |  2 +-
+ 3 files changed, 10 insertions(+), 4 deletions(-)
+commit 219277a1cade163daeb39531a54a8265f4c92523
+vidi-agent  Mon Sep 28 18:54:18 2026 +0000
+
+    Add test-only storage hooks and story 4 persistence e2e (story 4 tasks 7-9)
+
+
+ NOTES.md                                         | 113 +++++++++
+ package.json                                     |   1 +
+ src/worker/board-room.ts                         | 122 +++++++++-
+ src/worker/index.ts                              |  15 ++
+ src/worker/test-hooks.ts                         | 120 ++++++++++
+ tests/e2e/helpers/wrangler.ts                    | 202 ++++++++++++++++
+ tests/e2e/persistence.spec.ts                    | 289 +++++++++++++++++++++++
+ tests/hooks/board-hooks.test.ts                  |  91 +++++++
+ tests/integration/board-room-persistence.test.ts |  15 ++
+ vitest.hooks.config.ts                           |  20 ++
+ wrangler.hooks.jsonc                             |  31 +++
+ 11 files changed, 1016 insertions(+), 3 deletions(-)
+commit 32089be8cc0555450e31616c62ce6706d5128860
+vidi-agent  Mon Sep 28 18:19:09 2026 +0000
+
+    Add load_failed client state, editing gate and align storage schema with the design (story 4 tasks 5-6)
+
+
+ src/client/App.tsx                               |  34 +++--
+ src/client/board/Toolbar.tsx                     |   3 +-
+ src/client/objects/StickyNote.tsx                |  10 +-
+ src/client/styles.css                            |   5 +
+ src/client/sync/ConnectionStatus.tsx             |  18 ++-
+ src/client/sync/connectBoard.ts                  |  44 +++++-
+ src/worker/board-store.ts                        |  54 ++++----
+ tests/component/BoardLoadFailed.test.tsx         | 163 +++++++++++++++++++++++
+ tests/integration/board-room-persistence.test.ts |  59 ++++++--
+ tests/integration/board-store.test.ts            | 147 ++++++++++++++++++--
+ 10 files changed, 468 insertions(+), 69 deletions(-)
+commit 17a2258450e8aa89551f4d6247140b6e8937f3f7
+vidi-agent  Mon Sep 28 18:02:45 2026 +0000
+
+    Persist board state in BoardRoom with hibernation, load-failure and storage-failure handling (story 4 task 4)
+
+
+ src/shared/protocol.ts                           |   9 +
+ src/worker/board-room.ts                         | 346 +++++++++++++++----
+ tests/integration/board-room-persistence.test.ts | 414 +++++++++++++++++++++++
+ tests/integration/ws-client.ts                   |  25 +-
+ 4 files changed, 717 insertions(+), 77 deletions(-)
+commit f7e1073af1839b70f1aeb156141080e8e7112738
+vidi-agent  Mon Sep 28 17:39:36 2026 +0000
+
+    Add BoardStore persistence layer with chunked snapshots, quarantine and rollback (story 4 tasks 1-3)
+
+
+ src/shared/config.ts                  |  27 ++
+ src/worker/board-store.ts             | 345 +++++++++++++++++++++++
+ src/worker/room-state.ts              | 100 +++++++
+ tests/fixtures/boards.ts              | 111 ++++++++
+ tests/integration/board-store.test.ts | 513 ++++++++++++++++++++++++++++++++++
+ tests/unit/board-store-chunks.test.ts |  92 ++++++
+ tests/unit/room-state.test.ts         | 137 +++++++++
+ 7 files changed, 1325 insertions(+)
 commit 79b3590a43d6d3dfdc0ae7a71a6e6235d64dc68e
 vidi-agent  Mon Sep 28 16:49:32 2026 +0000
 
