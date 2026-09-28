@@ -1,0 +1,17 @@
+{
+  "name": "effort-low",
+  "about": "Does asking for low reasoning effort shorten thinking on real agent turns without breaking tool calls? And which effort does the server apply when a request names none (pi's behaviour until CLIENT_THINKING)?",
+  "probes": [
+    {"probe": "effort-silence", "repeats": 2, "variants": ["none", "low", "xhigh"]},
+    {"probe": "replay", "variants": ["as-is", "effort-low"], "repeats": 1, "max_tokens": 8192,
+     "requests": ["requests/flash-next-pi/replay-30k.json", "requests/flash-next-pi/replay-60k.json", "requests/flash-next-pi/replay-100k.json"]}
+  ],
+  "criteria": [
+    {"name": "low effort thinks at least 30% less on real agent turns (median completion tokens)",
+     "expr": "ratio(replay['effort-low']['median_completion_tokens'], replay['as-is']['median_completion_tokens']) <= 0.7"},
+    {"name": "tool calls stay valid at least as often",
+     "expr": "replay['effort-low']['valid_tool_rate'] >= replay['as-is']['valid_tool_rate']"},
+    {"name": "no request errors with low effort",
+     "expr": "replay['effort-low']['errors'] == 0"}
+  ]
+}
