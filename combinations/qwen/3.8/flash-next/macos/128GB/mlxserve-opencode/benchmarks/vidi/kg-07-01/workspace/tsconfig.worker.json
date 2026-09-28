@@ -1,0 +1,18 @@
+{
+  // The Worker, the Durable Object and their workerd integration tests: Workers runtime types, no DOM.
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["ES2022"],
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "strict": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noFallthroughCasesInSwitch": true,
+    "isolatedModules": true,
+    "skipLibCheck": true,
+    "types": ["@cloudflare/workers-types", "@cloudflare/vitest-pool-workers/types"],
+    "noEmit": true
+  },
+  "include": ["src/worker", "src/shared", "tests/integration", "vitest.integration.config.ts"]
+}
