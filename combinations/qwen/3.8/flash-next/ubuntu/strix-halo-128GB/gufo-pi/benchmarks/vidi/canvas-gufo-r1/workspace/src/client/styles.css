@@ -313,3 +313,151 @@ body,
   background: #fee2e2;
   color: #991b1b;
 }
+
+/* Home page */
+.home-page {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  gap: 16px;
+  font-family: system-ui, sans-serif;
+}
+
+.home-page h1 {
+  font-size: 3rem;
+  margin: 0;
+}
+
+.home-page p {
+  color: #666;
+  margin: 0;
+}
+
+.home-page button {
+  padding: 12px 24px;
+  font-size: 1rem;
+  border: none;
+  border-radius: 8px;
+  background: #2563eb;
+  color: white;
+  cursor: pointer;
+}
+
+.home-page button:hover:not(:disabled) {
+  background: #1d4ed8;
+}
+
+.home-page button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* Board page */
+.board-page {
+  position: relative;
+  width: 100%;
+  height: 100vh;
+}
+
+/* Not found page */
+.not-found-page {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  gap: 12px;
+  font-family: system-ui, sans-serif;
+}
+
+.not-found-page h1 {
+  font-size: 2rem;
+  margin: 0;
+}
+
+.not-found-page button {
+  padding: 10px 20px;
+  font-size: 1rem;
+  border: none;
+  border-radius: 8px;
+  background: #2563eb;
+  color: white;
+  cursor: pointer;
+}
+
+.not-found-page button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* Share button */
+.share-button {
+  position: fixed;
+  top: 12px;
+  right: 12px;
+  z-index: 1001;
+  padding: 6px 14px;
+  font-size: 0.875rem;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  background: white;
+  cursor: pointer;
+}
+
+.share-button:hover {
+  background: #f3f4f6;
+}
+
+/* Share panel */
+.share-panel {
+  position: fixed;
+  top: 52px;
+  right: 12px;
+  z-index: 1001;
+  padding: 16px;
+  background: white;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+  width: 320px;
+  font-family: system-ui, sans-serif;
+}
+
+.share-panel input {
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid #d1d5db;
+  border-radius: 4px;
+  font-size: 0.85rem;
+  margin-bottom: 8px;
+  box-sizing: border-box;
+}
+
+.share-panel button {
+  padding: 6px 12px;
+  font-size: 0.85rem;
+  border: none;
+  border-radius: 4px;
+  background: #2563eb;
+  color: white;
+  cursor: pointer;
+}
+
+.share-note {
+  font-size: 0.8rem;
+  color: #666;
+  margin-top: 8px;
+}
+
+/* Loading/unreachable states */
+[data-testid="board-loading"],
+[data-testid="board-unreachable"] {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  font-family: system-ui, sans-serif;
+  color: #666;
+}

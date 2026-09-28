@@ -1,16 +1,25 @@
-import { SELF } from 'cloudflare:test';
+import { SELF, env } from 'cloudflare:test';
 import { describe, it, expect } from 'vitest';
 import { newBoardId, isValidBoardId } from '../../src/shared/board-id';
 import { createWsClient } from './ws-client';
 import { createSticky } from '../../src/shared/board-model';
 import { MAX_CONCURRENT_EDITORS } from '../../src/shared/config';
 
-describe('TC-04: invalid board id returns 400', () => {
+/** Helper: create a board by calling initialize() directly on the DO */
+async function createTestBoard(): Promise<string> {
+  const id = newBoardId();
+  const doId = env.BOARD_ROOM.idFromName(id);
+  const stub = env.BOARD_ROOM.get(doId) as unknown as { initialize(): Promise<'created' | 'exists'> };
+  await stub.initialize();
+  return id;
+}
+
+describe('TC-04: invalid board id returns 404', () => {
   it('rejects bad!id with Upgrade header', async () => {
     const response = await SELF.fetch('http://example.com/api/rooms/bad!id', {
       headers: { Upgrade: 'websocket' },
     });
-    expect(response.status).toBe(400);
+    expect(response.status).toBe(404);
   });
 });
 
@@ -34,21 +43,17 @@ describe('TC-06: SPA fallback for /b/:boardId', () => {
 
 describe('TC-13: over-capacity joiner is not refused', () => {
   it('accepts MAX_CONCURRENT_EDITORS + 1 sockets and propagates', async () => {
-    const boardId = newBoardId();
+    const boardId = await createTestBoard();
 
-    // Open first client and create a note
     const first = await createWsClient((url, init) => SELF.fetch(url, init), boardId);
     await first.waitForSync();
     createSticky(first.doc, { x: 10, y: 10 });
 
-    // Wait for the update to reach the DO
     await new Promise((r) => setTimeout(r, 100));
 
-    // Open the (MAX+1)th client
     const extra = await createWsClient((url, init) => SELF.fetch(url, init), boardId);
     await extra.waitForSync();
 
-    // The extra client should see the note created by first
     const snap = extra.snapshot();
     expect(snap.length).toBe(1);
 
@@ -59,8 +64,8 @@ describe('TC-13: over-capacity joiner is not refused', () => {
 
 describe('TC-17: board isolation', () => {
   it('updates do not cross between different boards', async () => {
-    const board1 = newBoardId();
-    const board2 = newBoardId();
+    const board1 = await createTestBoard();
+    const board2 = await createTestBoard();
 
     const client1 = await createWsClient((url, init) => SELF.fetch(url, init), board1);
     const client2 = await createWsClient((url, init) => SELF.fetch(url, init), board2);
@@ -71,7 +76,6 @@ describe('TC-17: board isolation', () => {
     createSticky(client1.doc, { x: 5, y: 5 });
     await new Promise((r) => setTimeout(r, 200));
 
-    // Client in board2 should not see anything from board1
     const snap2 = client2.snapshot();
     expect(snap2.length).toBe(0);
 

@@ -1,10 +1,12 @@
 import { isValidBoardId } from '../shared/board-id';
 import { BoardRoom } from './board-room';
 import { handleTestHook } from './test-hooks';
+import { createBoard, type Limiter } from './create-board';
 
 export interface Env {
   BOARD_ROOM: DurableObjectNamespace<BoardRoom>;
   ASSETS: Fetcher;
+  BOARD_CREATE_LIMITER: Limiter;
   TEST_HOOKS?: string;
 }
 
@@ -12,13 +14,71 @@ export default {
   async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
     const url = new URL(request.url);
 
+    // POST /api/boards — create a new board
+    if (url.pathname === '/api/boards' && request.method === 'POST') {
+      const visitorKey = request.headers.get('CF-Connecting-IP') || '127.0.0.1';
+      const result = await createBoard(env, visitorKey);
+      if (result.ok) {
+        return new Response(JSON.stringify({ id: result.id }), {
+          status: 201,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      }
+      if (result.reason === 'rate_limited') {
+        return new Response(JSON.stringify({ error: 'rate_limited' }), {
+          status: 429,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      }
+      return new Response(JSON.stringify({ error: 'create_failed' }), {
+        status: 500,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    }
+
+    // Other methods on /api/boards → 405
+    if (url.pathname === '/api/boards') {
+      return new Response(null, { status: 405 });
+    }
+
+    // GET /api/boards/:id — check board existence
+    if (url.pathname.startsWith('/api/boards/') && request.method === 'GET') {
+      const boardId = url.pathname.slice('/api/boards/'.length);
+
+      // Malformed ids get 404 without touching the DO namespace
+      if (!isValidBoardId(boardId)) {
+        return new Response(JSON.stringify({ error: 'not_found' }), {
+          status: 404,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      }
+
+      const doId = env.BOARD_ROOM.idFromName(boardId);
+      const stub = env.BOARD_ROOM.get(doId) as unknown as { exists(): Promise<boolean> };
+      const exists = await stub.exists();
+
+      if (exists) {
+        return new Response(JSON.stringify({ id: boardId }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      }
+      return new Response(JSON.stringify({ error: 'not_found' }), {
+        status: 404,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    }
+
     // Route /api/rooms/:boardId to the BoardRoom Durable Object
     if (url.pathname.startsWith('/api/rooms/')) {
       const boardId = url.pathname.slice('/api/rooms/'.length);
 
-      // Validate the board id
+      // Validate the board id — 404 for invalid (was 400 in story 3)
       if (!isValidBoardId(boardId)) {
-        return new Response('Bad Request: invalid board id', { status: 400 });
+        return new Response(JSON.stringify({ error: 'not_found' }), {
+          status: 404,
+          headers: { 'Content-Type': 'application/json' },
+        });
       }
 
       // Check for WebSocket upgrade header

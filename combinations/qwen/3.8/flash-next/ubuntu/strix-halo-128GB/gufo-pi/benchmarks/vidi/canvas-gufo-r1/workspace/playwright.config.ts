@@ -58,7 +58,7 @@ export default defineConfig({
   },
   projects: buildProjects(),
   webServer: {
-    command: `npm run build:test && npx wrangler dev --port ${PORT} --ip 127.0.0.1`,
+    command: `npm run build:test && TEST_HOOKS=1 npx wrangler dev --port ${PORT} --ip 127.0.0.1`,
     url: BASE_URL,
     reuseExistingServer: !process.env.CI,
     timeout: 180_000,

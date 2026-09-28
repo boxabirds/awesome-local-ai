@@ -15,6 +15,7 @@ export class BoardStore {
   private storage: DurableObjectStorage;
   private rowCount = 0;
   private rowBytes = 0;
+  private migrated = false;
 
   constructor(storage: DurableObjectStorage) {
     this.storage = storage;
@@ -27,7 +28,6 @@ export class BoardStore {
     this.sql.exec(`CREATE TABLE IF NOT EXISTS snapshot_chunks (idx INTEGER PRIMARY KEY, data BLOB NOT NULL)`);
     this.sql.exec(`CREATE TABLE IF NOT EXISTS quarantined_updates (seq INTEGER PRIMARY KEY, data BLOB NOT NULL, error TEXT NOT NULL, quarantined_at INTEGER NOT NULL)`);
 
-    // Set schema version if absent
     const existing = this.sql.exec<{ value: string }>(
       `SELECT value FROM storage_meta WHERE key = 'storage_schema_version'`,
     ).toArray();
@@ -37,9 +37,59 @@ export class BoardStore {
         String(STORAGE_SCHEMA_VERSION),
       );
     }
+    this.migrated = true;
+  }
+
+  /**
+   * Read-only existence check. Never writes. Returns false if no tables exist.
+   * A board exists if storage_meta has created_at, OR (legacy) has rows in updates/snapshot_chunks.
+   */
+  existsReadOnly(): boolean {
+    try {
+      const tables = this.sql.exec<{ name: string }>(
+        `SELECT name FROM sqlite_master WHERE type='table' AND name='storage_meta'`,
+      ).toArray();
+      if (tables.length === 0) return false;
+
+      // Check for created_at
+      try {
+        const meta = this.sql.exec<{ value: string }>(
+          `SELECT value FROM storage_meta WHERE key = 'created_at'`,
+        ).toArray();
+        if (meta.length > 0) return true;
+      } catch {
+        // storage_meta schema may be corrupt; tables exist so board exists
+        return true;
+      }
+
+      // Legacy check: any rows in updates or snapshot_chunks
+      try {
+        const updates = this.sql.exec<{ cnt: number }>(
+          `SELECT COUNT(*) as cnt FROM updates LIMIT 1`,
+        ).toArray();
+        if (updates[0]!.cnt > 0) return true;
+      } catch {
+        // table doesn't exist
+      }
+      try {
+        const snaps = this.sql.exec<{ cnt: number }>(
+          `SELECT COUNT(*) as cnt FROM snapshot_chunks LIMIT 1`,
+        ).toArray();
+        if (snaps[0]!.cnt > 0) return true;
+      } catch {
+        // table doesn't exist
+      }
+
+      return false;
+    } catch {
+      return false;
+    }
   }
 
   append(update: Uint8Array): void {
+    if (!this.migrated) {
+      this.migrate();
+    }
     this.sql.exec(
       `INSERT INTO updates (data, bytes) VALUES (?1, ?2)`,
       update,
@@ -51,6 +101,14 @@ export class BoardStore {
 
   load(doc: Y.Doc): LoadResult {
     try {
+      // If tables don't exist (never-initialized board), treat as empty
+      const tableCheck = this.sql.exec<{ name: string }>(
+        `SELECT name FROM sqlite_master WHERE type='table' AND name='storage_meta'`,
+      ).toArray();
+      if (tableCheck.length === 0) {
+        return { ok: true, quarantined: 0 };
+      }
+
       // Read snapshot_through_seq
       const metaRows = this.sql.exec<{ value: string }>(
         `SELECT value FROM storage_meta WHERE key = 'snapshot_through_seq'`,

@@ -6,9 +6,18 @@ export interface Participant {
   page: Page;
 }
 
-/** Generate a board ID in the test context (using client-side crypto). */
+/** Create a board via the API and return its ID. */
+export async function createBoard(page: Page): Promise<string> {
+  const res = await page.request.post('/api/boards');
+  if (!res.ok()) {
+    throw new Error(`POST /api/boards failed: ${res.status()}`);
+  }
+  const body = await res.json() as { id: string };
+  return body.id;
+}
+
+/** Generate a board ID in the test context (using client-side crypto). Deprecated: use createBoard(). */
 export function makeBoardId(): string {
-  // Generate a base64url string of 22 chars (matches BOARD_ID_PATTERN)
   const bytes = new Uint8Array(16);
   crypto.getRandomValues(bytes);
   let binary = '';

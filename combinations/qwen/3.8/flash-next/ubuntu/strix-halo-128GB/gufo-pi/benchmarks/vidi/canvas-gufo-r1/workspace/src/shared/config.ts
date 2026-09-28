@@ -95,3 +95,23 @@ export const BOARD_LOAD_BUDGET_MS = 3000;
 
 /** Storage schema version for the DO SQLite tables. */
 export const STORAGE_SCHEMA_VERSION = 1;
+
+// ─── Story 5: Share a board with others using a link ─────────────────────────
+
+/** Max boards a visitor may create per period. */
+export const BOARD_CREATE_LIMIT = 10;
+
+/** Rate-limit window for board creation, in seconds. Must match wrangler.jsonc ratelimits. */
+export const BOARD_CREATE_PERIOD_SECONDS = 60;
+
+/** Max id-generation attempts before giving up (collision retry). */
+export const CREATE_ID_MAX_ATTEMPTS = 3;
+
+/** PRD share.create: time budget from click to board visible (ms). */
+export const CREATE_BUDGET_MS = 2000;
+
+/** Duration the "Link copied" confirmation stays visible (ms). */
+export const LINK_COPIED_MS = 2000;
+
+/** Base backoff for board existence check retries (doubles up to RECONNECT_MAX_BACKOFF_MS). */
+export const BOARD_CHECK_RETRY_BASE_MS = 1000;

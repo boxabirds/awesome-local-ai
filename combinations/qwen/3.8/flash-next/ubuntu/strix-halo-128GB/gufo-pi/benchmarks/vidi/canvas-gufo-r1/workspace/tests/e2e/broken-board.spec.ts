@@ -15,12 +15,11 @@ import { LOAD_RETRY_MIN_INTERVAL_MS } from '../../src/shared/config';
  * Run with: npx playwright test --config playwright.persistence.config.ts
  */
 
-function makeBoardId(): string {
-  const bytes = new Uint8Array(16);
-  crypto.getRandomValues(bytes);
-  let binary = '';
-  for (const b of bytes) binary += String.fromCharCode(b);
-  return btoa(binary).replace(/\+/g, '-').replace(/=+$/, '');
+async function makeBoardId(serverUrl: string): Promise<string> {
+  const res = await fetch(`${serverUrl}/api/boards`, { method: 'POST' });
+  if (!res.ok) throw new Error(`POST /api/boards failed: ${res.status}`);
+  const body = await res.json() as { id: string };
+  return body.id;
 }
 
 async function corruptBoard(serverUrl: string, boardId: string): Promise<void> {
@@ -42,7 +41,7 @@ test.describe('TC-24: Broken board - honest failure, edit lock, recovery without
     test.setTimeout(120_000);
 
     const server: WranglerInstance = await startWrangler();
-    const boardId = makeBoardId();
+    const boardId = await makeBoardId(server.url);
 
     try {
       // Step 1: Create a board with some notes

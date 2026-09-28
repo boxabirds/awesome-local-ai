@@ -14,28 +14,65 @@ import {
 import { LOAD_RETRY_MIN_INTERVAL_MS } from '../shared/config';
 import { BoardStore, LOAD_ORIGIN, type LoadResult } from './board-store';
 import { nextRoomState, type RoomState, type RoomEvent } from './room-state';
-import { initDoc } from '../shared/board-model';
+import { initDoc, createSticky } from '../shared/board-model';
 
 export type Env = { BOARD_ROOM: DurableObjectNamespace<BoardRoom> };
 
 /** Internal request paths for test hooks (only handled when TEST_HOOKS is set) */
 const TEST_HOOK_CORRUPT = '__test/corrupt-snapshot';
 const TEST_HOOK_REPAIR = '__test/repair';
+const TEST_HOOK_SEED_LEGACY = '__test/seed-legacy';
 
 export class BoardRoom extends DurableObject<Env> {
   private doc: Y.Doc | null = null;
   private store: BoardStore | null = null;
   private state: RoomState = 'loading';
   private lastLoadFailedTime = 0;
+  /** Whether we've already loaded from storage in this session */
+  private loaded = false;
   /** Sockets that have not yet completed their initial sync handshake */
   private pendingSync = new WeakSet<WebSocket>();
 
   constructor(ctx: DurableObjectState, env: Env) {
     super(ctx, env);
+    this.store = new BoardStore(this.ctx.storage);
+  }
 
-    this.ctx.blockConcurrencyWhile(async () => {
-      await this.loadFromStorage();
-    });
+  /**
+   * RPC: initialize a board (create tables + set created_at).
+   * Returns 'created' on first call, 'exists' on subsequent calls.
+   */
+  async initialize(): Promise<'created' | 'exists'> {
+    const store = this.getStore();
+    store.migrate();
+
+    const rows = this.ctx.storage.sql.exec<{ value: string }>(
+      `SELECT value FROM storage_meta WHERE key = 'created_at'`,
+    ).toArray();
+    if (rows.length > 0) {
+      return 'exists';
+    }
+
+    this.ctx.storage.sql.exec(
+      `INSERT INTO storage_meta (key, value) VALUES ('created_at', ?1)`,
+      String(Date.now()),
+    );
+    return 'created';
+  }
+
+  /**
+   * RPC: check if a board exists (read-only, never writes).
+   */
+  async exists(): Promise<boolean> {
+    const store = this.getStore();
+    return store.existsReadOnly();
+  }
+
+  private getStore(): BoardStore {
+    if (!this.store) {
+      this.store = new BoardStore(this.ctx.storage);
+    }
+    return this.store;
   }
 
   private transition(event: RoomEvent): void {
@@ -47,20 +84,10 @@ export class BoardRoom extends DurableObject<Env> {
   }
 
   private async loadFromStorage(): Promise<boolean> {
-    const storage = this.ctx.storage;
-    const store = new BoardStore(storage);
-    this.store = store;
-
-    try {
-      store.migrate();
-    } catch (e) {
-      console.error(JSON.stringify({ event: 'migrate_failed', error: String(e) }));
-      this.transition({ type: 'load-failed' });
-      return false;
-    }
+    this.loaded = true;
+    const store = this.getStore();
 
     const doc = new Y.Doc();
-    // Initialize the server-side doc with schema before loading stored state.
     initDoc(doc);
     const loadResult: LoadResult = store.load(doc);
 
@@ -142,13 +169,30 @@ export class BoardRoom extends DurableObject<Env> {
   }
 
   async fetch(request: Request): Promise<Response> {
-    // Handle test hook requests (corrupt/repair storage)
+    // Handle test hook requests (corrupt/repair/seed-legacy storage)
     const url = new URL(request.url);
     if (url.pathname === `/${TEST_HOOK_CORRUPT}`) {
       return this.handleTestCorrupt();
     }
     if (url.pathname === `/${TEST_HOOK_REPAIR}`) {
       return this.handleTestRepair();
+    }
+    if (url.pathname === `/${TEST_HOOK_SEED_LEGACY}`) {
+      return this.handleTestSeedLegacy();
+    }
+
+    // Check existence before accepting WebSocket (story 5)
+    const store = this.getStore();
+    if (!store.existsReadOnly()) {
+      return new Response(JSON.stringify({ error: 'not_found' }), {
+        status: 404,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    }
+
+    // Lazy-load: ensure we've loaded from storage
+    if (!this.loaded) {
+      await this.loadFromStorage();
     }
 
     // Handle LoadFailed state
@@ -367,6 +411,34 @@ export class BoardRoom extends DurableObject<Env> {
       this.lastLoadFailedTime = 0;
 
       return new Response('Repaired', { status: 200 });
+    } catch (e) {
+      return new Response(`Error: ${String(e)}`, { status: 500 });
+    }
+  }
+
+  /**
+   * Test hook: seeds a legacy board (tables + update rows, no created_at).
+   * Simulates a board created before story 5's initialize() flow.
+   */
+  private handleTestSeedLegacy(): Response {
+    try {
+      const store = this.getStore();
+      store.migrate();
+      // Do NOT insert created_at — this is a "legacy" board
+
+      // Seed a Y.Doc with one sticky note, encode as an update, store it
+      const doc = new Y.Doc();
+      initDoc(doc);
+      createSticky(doc, { x: 100, y: 200 });
+      const update = Y.encodeStateAsUpdate(doc);
+      store.append(update);
+
+      // Reset in-memory state so next client reloads from storage
+      this.doc = null;
+      this.state = 'loading';
+      this.loaded = false;
+
+      return new Response('Seeded legacy board', { status: 200 });
     } catch (e) {
       return new Response(`Error: ${String(e)}`, { status: 500 });
     }

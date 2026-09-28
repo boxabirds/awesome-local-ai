@@ -2,7 +2,7 @@ import { test, expect } from '@playwright/test';
 import {
   openParticipants,
   closeParticipants,
-  makeBoardId,
+  createBoard,
   noteCountSelector,
 } from './helpers/participants';
 import { MAX_CONCURRENT_EDITORS, LIVE_UPDATE_LATENCY_BUDGET_MS } from '../../src/shared/config';
@@ -11,7 +11,7 @@ test.describe('Nightly: idle connection stability', () => {
   test('TC-29: idle connection stays connected for 45 s', async ({ browser }) => {
     test.setTimeout(120_000);
 
-    const boardId = makeBoardId();
+    const boardId = await createBoard((await browser.newPage()));
     const participants = await openParticipants(browser, boardId, 2);
     const [alex, sam] = [participants[0]!, participants[1]!];
     await new Promise((r) => setTimeout(r, 1000));
@@ -51,7 +51,7 @@ test.describe('Nightly: delivery at capacity', () => {
   test('TC-30: MAX_CONCURRENT_EDITORS make edits for 60s, all converge', async ({ browser }) => {
     test.setTimeout(180_000);
 
-    const boardId = makeBoardId();
+    const boardId = await createBoard((await browser.newPage()));
     const N = MAX_CONCURRENT_EDITORS;
     const participants = await openParticipants(browser, boardId, N);
     await new Promise((r) => setTimeout(r, 1000));

@@ -10,6 +10,14 @@ import { createWsClient } from './ws-client';
 
 const fetchWs = (url: string, init?: RequestInit) => SELF.fetch(url, init);
 
+async function initBoard(): Promise<string> {
+  const id = newBoardId();
+  const doId = env.BOARD_ROOM.idFromName(id);
+  const stub = env.BOARD_ROOM.get(doId) as unknown as { initialize(): Promise<'created' | 'exists'> };
+  await stub.initialize();
+  return id;
+}
+
 async function waitFor(fn: () => boolean, timeout = 3000): Promise<void> {
   const start = Date.now();
   while (!fn()) {
@@ -28,7 +36,7 @@ async function inRoom<T>(boardId: string, fn: (storage: DurableObjectStorage) =>
 
 describe('TC-12: Append before broadcast - durability', () => {
   it('note survives close/reconnect and is present in a fresh doc from storage', async () => {
-    const boardId = newBoardId();
+    const boardId = await initBoard();
     const A = await createWsClient(fetchWs, boardId);
     await A.waitForSync();
 
@@ -59,7 +67,7 @@ describe('TC-12: Append before broadcast - durability', () => {
 
 describe('TC-13: Reopen after everyone leaves', () => {
   it('new client on fresh room over same storage sees original state', async () => {
-    const boardId = newBoardId();
+    const boardId = await initBoard();
 
     // Phase 1: Create notes and disconnect all
     const A = await createWsClient(fetchWs, boardId);
@@ -88,7 +96,7 @@ describe('TC-13: Reopen after everyone leaves', () => {
 
 describe('TC-14: Storage failure → close 1011, recovery on reconnect', () => {
   it('A and B closed 1011; B never received update; A reconnect stores it', async () => {
-    const boardId = newBoardId();
+    const boardId = await initBoard();
     const A = await createWsClient(fetchWs, boardId);
     await A.waitForSync();
 
@@ -128,7 +136,7 @@ describe('TC-14: Storage failure → close 1011, recovery on reconnect', () => {
 
 describe('TC-15: LoadFailed → close 4500', () => {
   it('corrupt snapshot → client closed 4500, nothing stored', async () => {
-    const boardId = newBoardId();
+    const boardId = await initBoard();
 
     // Set up corrupt data and force DO into load-failed state
     await inRoom(boardId, (storage) => {
@@ -174,7 +182,7 @@ describe('TC-15: LoadFailed → close 4500', () => {
 
 describe('TC-16: Load retry after LOAD_RETRY_MIN_INTERVAL_MS', () => {
   it('connect before interval → 4500; repair + connect after interval → loads', async () => {
-    const boardId = newBoardId();
+    const boardId = await initBoard();
 
     // Insert a corrupt snapshot and force DO into load-failed
     await inRoom(boardId, (storage) => {
@@ -240,7 +248,7 @@ describe('TC-16: Load retry after LOAD_RETRY_MIN_INTERVAL_MS', () => {
 
 describe('TC-17: Garbage update → close 1003, not stored', () => {
   it('garbage sync message closes sender, no update row added', async () => {
-    const boardId = newBoardId();
+    const boardId = await initBoard();
     const A = await createWsClient(fetchWs, boardId);
     await A.waitForSync();
 
@@ -278,7 +286,7 @@ describe('TC-17: Garbage update → close 1003, not stored', () => {
 
 describe('TC-18: Hibernation path - getWebSockets after reconstruct', () => {
   it('messages delivered via ctx.getWebSockets after room reloads', async () => {
-    const boardId = newBoardId();
+    const boardId = await initBoard();
     const A = await createWsClient(fetchWs, boardId);
     await A.waitForSync();
 
@@ -306,7 +314,7 @@ describe('TC-18: Hibernation path - getWebSockets after reconstruct', () => {
 
 describe('TC-25: Never-edited board does not create rows', () => {
   it('opening an empty board only creates tables, no update rows', async () => {
-    const boardId = newBoardId();
+    const boardId = await initBoard();
 
     // Client connects to an empty board (triggers room construction, migrate)
     const A = await createWsClient(fetchWs, boardId);
@@ -326,7 +334,7 @@ describe('TC-25: Never-edited board does not create rows', () => {
 
 describe('TC-26: SQL read error during load → client closed with 4500', () => {
   it('SELECT in load throws → room closes clients with CLOSE_BOARD_LOAD_FAILED', async () => {
-    const boardId = newBoardId();
+    const boardId = await initBoard();
 
     // First, connect to trigger construction and migration (creates tables)
     const A = await createWsClient(fetchWs, boardId);

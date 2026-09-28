@@ -16,8 +16,9 @@ export async function handleTestHook(
 
   // POST /__test/boards/:id/corrupt-snapshot
   // POST /__test/boards/:id/repair
+  // POST /__test/boards/:id/seed-legacy
   const match = url.pathname.match(
-    /^\/__test\/boards\/([A-Za-z0-9_-]{22})\/(corrupt-snapshot|repair)$/,
+    /^\/__test\/boards\/([A-Za-z0-9_-]{22})\/(corrupt-snapshot|repair|seed-legacy)$/,
   );
   if (!match) return new Response('Not found', { status: 404 });
 

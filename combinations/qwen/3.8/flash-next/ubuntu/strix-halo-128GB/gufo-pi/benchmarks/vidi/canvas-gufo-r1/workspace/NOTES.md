@@ -1,50 +1,42 @@
-# Story 3 Implementation Notes
+# Implementation Notes
 
-## Status: Complete
+## Story 5: Share a board with others using a link
 
-All tasks 1–9 implemented and passing.
+### Key Decisions
 
-## Test Results (commit-blocking)
+1. **Board creation is server-side**: `POST /api/boards` → rate-limited → `createWithRetries(newBoardId, stub.initialize())`. The rate limiter is configured in `wrangler.jsonc` as a native Cloudflare Workers `ratelimits` binding (10 per 60 seconds, keyed by `CF-Connecting-IP`).
 
-| Suite | Tests | Status |
-|-------|-------|--------|
-| Unit | 58 | ✅ All pass |
-| Component | 43 | ✅ All pass |
-| Integration | 23 | ✅ All pass |
-| E2E | 20 | ✅ All pass |
-| Typecheck | — | ✅ Clean |
-| Build | — | ✅ Clean |
+2. **`BoardRoom.initialize()` RPC**: Creates SQLite tables via `store.migrate()`, then checks/inserts `created_at` in `storage_meta`. Returns `'created'` on first call, `'exists'` on subsequent calls. This is idempotent.
 
-## Key Architecture Decisions
+3. **`BoardRoom.exists()` RPC**: Calls `store.existsReadOnly()` which is a pure read — no writes. Checks: tables exist → `created_at` row → legacy rows in `updates`/`snapshot_chunks`.
 
-### Server (`src/worker/`)
-- `index.ts` — Router: validates board IDs → 400, checks Upgrade header → 426, WebSocket → DO, fallback to static assets
-- `board-room.ts` — BoardRoom Durable Object: holds a Y.Doc, relays sync/awareness messages between connected clients
+4. **Lazy loading**: `BoardRoom` no longer auto-loads in `constructor()`. Instead, `loaded` flag gates lazy `loadFromStorage()` in `fetch()`. This avoids creating tables for boards that are never initialized.
 
-### Client (`src/client/sync/`)
-- `connectBoard.ts` — Creates `WebsocketProvider`, maps provider status/sync events to `ConnectionState` ('connecting' | 'connected' | 'reconnecting' | 'confirmed')
-- `ConnectionStatus.tsx` — Badge component showing "Connecting…" / "Reconnecting…" / "Connected" (auto-hides after `CONNECTED_CONFIRMATION_MS`)
+5. **`fetch()` checks existence**: Before accepting WebSocket upgrade, `BoardRoom.fetch()` calls `existsReadOnly()`. Returns 404 for boards that don't exist. This prevents WebSocket connections to non-existent boards.
 
-### Shared (`src/shared/`)
-- `board-id.ts` — `isValidBoardId()`, `newBoardId()` (22-char base64url via crypto.getRandomValues)
-- `protocol.ts` — `decodeMessage()` for the y-websocket binary frame format (type byte + payload)
-- `config.ts` — Added `BOARD_ID_BYTES`, `MAX_CONCURRENT_EDITORS`, `LIVE_UPDATE_LATENCY_BUDGET_MS`, `CONNECTED_CONFIRMATION_MS`, `RECONNECT_MAX_BACKOFF_MS`
+6. **`BoardStore.load()` handles missing tables**: If `storage_meta` table doesn't exist in `sqlite_master`, returns `{ok: true, quarantined: 0}` without creating anything. This supports the lazy-load pattern.
 
-## Concurrent Text Editing
-Added remote-change observation to `StickyTextEditor` so that when a remote Y.Text change arrives, the textarea is updated and the caret is placed at the end. This ensures TC-23 (simultaneous typing merges) works correctly.
+7. **`BoardStore.append()` does lazy migrate**: If not yet migrated in this session, calls `migrate()` before inserting. This supports boards that receive updates before `initialize()`.
 
-## Nightly Tests (TC-29, TC-30)
-- **TC-29**: ✅ PASS — 45-second idle stability verified; connection stayed 'connected', badge never showed "Reconnecting…"
-- **TC-30**: ✅ PASS — 60-second capacity soak with MAX_CONCURRENT_EDITORS (4) contexts; all snapshots converged
-  - Latency stats (n=25): p50=151ms, p95=1058ms, max=1058ms
-  - Budget: 1000ms (p95 marginally exceeds under concurrent browser load; convergence still correct)
+8. **Malformed board IDs → 404** (was 400 in story 3): Both `/api/boards/:id` and `/api/rooms/:id` return 404 for invalid IDs.
 
-Nightly tests run via `npm run test:e2e:nightly`, excluded from default `npm run test:e2e`.
+9. **Client router**: History API-based, no library. Routes: `/` → Home, `/b/:id` → Board, anything else → NotFound. `useRoute()` hook listens to `popstate`.
 
-## Gotchas
+10. **Board page existence check**: `GET /api/boards/:id` on mount. States: `checking` (shows "Opening board…"), `not_found` (renders NotFoundPage), `unreachable` (shows "Couldn't reach vidi6. Retrying…" with exponential backoff capped at `RECONNECT_MAX_BACKOFF_MS`).
 
-1. **y-websocket protocol format**: Messages must use `syncProtocol.writeUpdate(encoder, update)` — raw bytes after the type byte cause "Unexpected end of array" errors
-2. **ObservableV2 emit**: `provider.emit(name, args)` calls `handler(...args)` — must pass `[value]` array
-3. **`provider.disconnect()`**: Cleanly closes the WebSocket and emits 'status: disconnected', but `shouldConnect` is already set to false, preventing reconnection. For reconnect: call `provider.connect()` which resets `shouldConnect` and reconnects
-4. **Worker DO test env**: `isolatedStorage: false` is needed in vitest config for DO tests, otherwise DO storage assertions fail
-5. **`decoding` import**: Required for `readSyncMessage` in test helpers that handle server→client messages
+11. **Share panel**: Opens on "Share" button click. Shows link input (read-only), "Copy link" button, note text. Clipboard API with fallback to manual copy (`select()` + "Press Ctrl+C" message). "✓ Link copied" shown for `LINK_COPIED_MS` (2000ms). Closes on Escape key or outside pointerdown.
+
+12. **`<meta name="referrer" content="no-referrer">`**: Added to `index.html` to prevent board IDs leaking via referrer headers.
+
+13. **`BoardApp` extracted from `App`**: The board UI (canvas, toolbars, notes) was extracted into `BoardApp.tsx` so `App.tsx` can be a thin router wrapper. Component tests (Toolbars) use `BoardApp` directly.
+
+### Gaps in Prior Stories
+
+- **Story 3 (real-time collaboration)**: Previously used `newBoardId()` on the client side to create rooms implicitly via WebSocket connection. Story 5 requires boards to be explicitly created first. Integration tests were updated to use `runInDurableObject` + `initialize()` instead of relying on implicit board creation through WebSocket.
+- **E2E tests**: Updated `gotoBoard()` and `makeBoardId()` helpers to create boards via `POST /api/boards` API before navigating.
+- **Test hooks**: Added `POST /__test/boards/:id/seed-legacy` hook to seed a legacy board (tables + update rows, no `created_at`) for testing story 5's existence check against pre-story-5 boards.
+
+### Rate Limiter in Tests
+
+- Integration tests use unique `CF-Connecting-IP` headers per test to avoid mutual rate-limit interference.
+- TC-13 specifically tests the limit boundary (10 from same IP → 201, 11th → 429).

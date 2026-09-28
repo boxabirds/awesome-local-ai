@@ -22,5 +22,15 @@
       "tag": "v1",
       "new_sqlite_classes": ["BoardRoom"]
     }
+  ],
+  "ratelimits": [
+    {
+      "name": "BOARD_CREATE_LIMITER",
+      "namespace_id": "board-create",
+      "simple": {
+        "limit": 10,
+        "period": 60
+      }
+    }
   ]
 }

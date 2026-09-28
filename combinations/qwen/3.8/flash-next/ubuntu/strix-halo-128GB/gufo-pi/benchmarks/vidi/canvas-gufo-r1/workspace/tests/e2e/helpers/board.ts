@@ -10,7 +10,11 @@ export interface Center {
 }
 
 export async function gotoBoard(page: Page): Promise<void> {
-  await page.goto('/');
+  // Create a board via API, then navigate to it
+  const res = await page.request.post('/api/boards');
+  if (!res.ok()) throw new Error('Failed to create board');
+  const { id } = await res.json() as { id: string };
+  await page.goto(`/b/${id}`);
   await expect(page.locator('[data-testid="board-viewport"]')).toBeVisible();
 }
 

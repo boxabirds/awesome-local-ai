@@ -1,13 +1,13 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
-import { App } from '../../src/client/App';
+import { BoardApp } from '../../src/client/BoardApp';
 
 afterEach(cleanup);
 
 describe('Toolbars', () => {
   // TC-27: Click Pink swatch → model colour pink, selection kept
   it('TC-27 clicking pink swatch changes note colour and keeps selection', () => {
-    render(<App />);
+    render(<BoardApp boardId={'A'.repeat(22)} />);
     const createBtn = screen.getByLabelText('Sticky note');
     fireEvent.click(createBtn);
 
@@ -30,7 +30,7 @@ describe('Toolbars', () => {
 
   // TC-28: Click Sticky note button → one note created, editing
   it('TC-28 clicking Sticky note button creates a note and starts editing', () => {
-    render(<App />);
+    render(<BoardApp boardId={'A'.repeat(22)} />);
     const createBtn = screen.getByLabelText('Sticky note');
     fireEvent.click(createBtn);
 
@@ -41,7 +41,7 @@ describe('Toolbars', () => {
 
   // TC-29: Click bin button → note removed, selection cleared
   it('TC-29 clicking delete button removes the note', () => {
-    render(<App />);
+    render(<BoardApp boardId={'A'.repeat(22)} />);
     const createBtn = screen.getByLabelText('Sticky note');
     fireEvent.click(createBtn);
 
@@ -64,7 +64,7 @@ describe('Toolbars', () => {
   });
 
   it('Toolbar button has correct tooltip text', () => {
-    render(<App />);
+    render(<BoardApp boardId={'A'.repeat(22)} />);
     const btn = screen.getByLabelText('Sticky note');
     expect(btn).toHaveAttribute(
       'title',
@@ -73,7 +73,7 @@ describe('Toolbars', () => {
   });
 
   it('Note toolbar shows 6 colour swatches', () => {
-    render(<App />);
+    render(<BoardApp boardId={'A'.repeat(22)} />);
     fireEvent.click(screen.getByLabelText('Sticky note'));
     // End editing
     fireEvent.keyDown(screen.getByTestId('sticky-textarea'), { key: 'Escape' });

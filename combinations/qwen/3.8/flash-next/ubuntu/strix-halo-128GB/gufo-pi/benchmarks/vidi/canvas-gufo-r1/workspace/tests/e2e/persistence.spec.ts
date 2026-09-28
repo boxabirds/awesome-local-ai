@@ -10,12 +10,11 @@ import { startWrangler, type WranglerInstance } from './helpers/wrangler-process
  * Run with: npx playwright test --config playwright.persistence.config.ts
  */
 
-function makeBoardId(): string {
-  const bytes = new Uint8Array(16);
-  crypto.getRandomValues(bytes);
-  let binary = '';
-  for (const b of bytes) binary += String.fromCharCode(b);
-  return btoa(binary).replace(/\+/g, '-').replace(/=+$/, '');
+async function makeBoardId(serverUrl: string): Promise<string> {
+  const res = await fetch(`${serverUrl}/api/boards`, { method: 'POST' });
+  if (!res.ok) throw new Error(`POST /api/boards failed: ${res.status}`);
+  const body = await res.json() as { id: string };
+  return body.id;
 }
 
 test.describe('TC-19: Overnight return - 25 notes survive process restart', () => {
@@ -23,7 +22,7 @@ test.describe('TC-19: Overnight return - 25 notes survive process restart', () =
     test.setTimeout(180_000);
 
     const server: WranglerInstance = await startWrangler();
-    const boardId = makeBoardId();
+    const boardId = await makeBoardId(server.url);
 
     try {
       // Phase 1: Create 25 notes
@@ -115,7 +114,7 @@ test.describe('TC-20: Leave immediately - append-before-broadcast', () => {
     test.setTimeout(180_000);
 
     const server: WranglerInstance = await startWrangler();
-    const boardId = makeBoardId();
+    const boardId = await makeBoardId(server.url);
 
     try {
       // Alex and Sam open the same board
@@ -176,7 +175,7 @@ test.describe('TC-21: Big board opens within budget', () => {
     const { PERSIST_TESTED_NOTES, BOARD_LOAD_BUDGET_MS } = await import('../../src/shared/config');
 
     const server: WranglerInstance = await startWrangler();
-    const boardId = makeBoardId();
+    const boardId = await makeBoardId(server.url);
 
     try {
       // Seed a large board using the doc API via page.evaluate

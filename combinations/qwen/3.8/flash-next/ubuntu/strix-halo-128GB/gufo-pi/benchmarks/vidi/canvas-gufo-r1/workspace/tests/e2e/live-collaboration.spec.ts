@@ -2,7 +2,7 @@ import { test, expect } from '@playwright/test';
 import {
   openParticipants,
   closeParticipants,
-  makeBoardId,
+  createBoard,
   noteCountSelector,
   type Participant,
 } from './helpers/participants';
@@ -13,7 +13,7 @@ test.describe('Live collaboration - Two-person workshop', () => {
   let boardId: string;
 
   test.beforeEach(async ({ browser }) => {
-    boardId = makeBoardId();
+    boardId = await createBoard((await browser.newPage()));
     participants = await openParticipants(browser, boardId, 2);
     // Wait a moment for both to be connected
     await new Promise((r) => setTimeout(r, 500));
@@ -198,7 +198,7 @@ test.describe('Live collaboration - Two-person workshop', () => {
 
 test.describe('Live collaboration - Full-capacity session', () => {
   test('TC-26: MAX_CONCURRENT_EDITORS contexts sync correctly', async ({ browser }) => {
-    const boardId = makeBoardId();
+    const boardId = await createBoard((await browser.newPage()));
     const N = MAX_CONCURRENT_EDITORS;
     const participants = await openParticipants(browser, boardId, N);
     await new Promise((r) => setTimeout(r, 500));
@@ -223,7 +223,7 @@ test.describe('Live collaboration - Full-capacity session', () => {
 
 test.describe('Live collaboration - Flaky Wi-Fi', () => {
   test('TC-27: offline edits catch up on reconnect', async ({ browser }) => {
-    const boardId = makeBoardId();
+    const boardId = await createBoard((await browser.newPage()));
     const participants = await openParticipants(browser, boardId, 2);
     const [alex, sam] = [participants[0]!, participants[1]!];
     await new Promise((r) => setTimeout(r, 500));

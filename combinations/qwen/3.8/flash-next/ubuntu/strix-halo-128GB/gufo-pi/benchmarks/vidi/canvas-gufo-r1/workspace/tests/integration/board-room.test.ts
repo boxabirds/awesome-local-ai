@@ -1,4 +1,4 @@
-import { SELF } from 'cloudflare:test';
+import { SELF, env } from 'cloudflare:test';
 import { describe, it, expect } from 'vitest';
 import * as Y from 'yjs';
 import * as encoding from 'lib0/encoding';
@@ -14,9 +14,17 @@ import { MAX_CONCURRENT_EDITORS } from '../../src/shared/config';
 
 const fetchWs = (url: string, init?: RequestInit) => SELF.fetch(url, init);
 
+async function initBoard(): Promise<string> {
+  const id = newBoardId();
+  const doId = env.BOARD_ROOM.idFromName(id);
+  const stub = env.BOARD_ROOM.get(doId) as unknown as { initialize(): Promise<'created' | 'exists'> };
+  await stub.initialize();
+  return id;
+}
+
 describe('TC-07: create propagates to other client', () => {
   it('client B sees sticky created by client A', async () => {
-    const boardId = newBoardId();
+    const boardId = await initBoard();
     const A = await createWsClient(fetchWs, boardId);
     const B = await createWsClient(fetchWs, boardId);
     await A.waitForSync();
@@ -44,7 +52,7 @@ describe('TC-07: create propagates to other client', () => {
 
 describe('TC-08: move, recolour, text insert, delete all propagate; no echo', () => {
   it('move propagates', async () => {
-    const boardId = newBoardId();
+    const boardId = await initBoard();
     const A = await createWsClient(fetchWs, boardId);
     const B = await createWsClient(fetchWs, boardId);
     await A.waitForSync();
@@ -62,7 +70,7 @@ describe('TC-08: move, recolour, text insert, delete all propagate; no echo', ()
   });
 
   it('recolour propagates', async () => {
-    const boardId = newBoardId();
+    const boardId = await initBoard();
     const A = await createWsClient(fetchWs, boardId);
     const B = await createWsClient(fetchWs, boardId);
     await A.waitForSync();
@@ -79,7 +87,7 @@ describe('TC-08: move, recolour, text insert, delete all propagate; no echo', ()
   });
 
   it('text insert propagates', async () => {
-    const boardId = newBoardId();
+    const boardId = await initBoard();
     const A = await createWsClient(fetchWs, boardId);
     const B = await createWsClient(fetchWs, boardId);
     await A.waitForSync();
@@ -97,7 +105,7 @@ describe('TC-08: move, recolour, text insert, delete all propagate; no echo', ()
   });
 
   it('delete propagates', async () => {
-    const boardId = newBoardId();
+    const boardId = await initBoard();
     const A = await createWsClient(fetchWs, boardId);
     const B = await createWsClient(fetchWs, boardId);
     await A.waitForSync();
@@ -114,7 +122,7 @@ describe('TC-08: move, recolour, text insert, delete all propagate; no echo', ()
   });
 
   it('A receives no echo of its own update', async () => {
-    const boardId = newBoardId();
+    const boardId = await initBoard();
     const A = await createWsClient(fetchWs, boardId);
     const B = await createWsClient(fetchWs, boardId);
     await A.waitForSync();
@@ -136,7 +144,7 @@ describe('TC-08: move, recolour, text insert, delete all propagate; no echo', ()
 
 describe('TC-09: concurrent text merges', () => {
   it('both converge to "red green blue"', async () => {
-    const boardId = newBoardId();
+    const boardId = await initBoard();
     const A = await createWsClient(fetchWs, boardId);
     await A.waitForSync();
 
@@ -174,7 +182,7 @@ describe('TC-09: concurrent text merges', () => {
 
 describe('TC-10: concurrent position changes converge', () => {
   it('both converge to same x value', async () => {
-    const boardId = newBoardId();
+    const boardId = await initBoard();
     const A = await createWsClient(fetchWs, boardId);
     await A.waitForSync();
 
@@ -205,7 +213,7 @@ describe('TC-10: concurrent position changes converge', () => {
 
 describe('TC-11: delete during edit', () => {
   it('deleted note is absent on both; text does not resurrect', async () => {
-    const boardId = newBoardId();
+    const boardId = await initBoard();
     const A = await createWsClient(fetchWs, boardId);
     const B = await createWsClient(fetchWs, boardId);
     await A.waitForSync();
@@ -235,7 +243,7 @@ describe('TC-11: delete during edit', () => {
 
 describe('TC-12: MAX_CONCURRENT_EDITORS clients with random ops converge', () => {
   it('all snapshots identical after concurrent edits', async () => {
-    const boardId = newBoardId();
+    const boardId = await initBoard();
     const N = MAX_CONCURRENT_EDITORS;
     const clients: WsClient[] = [];
 
@@ -267,7 +275,7 @@ describe('TC-12: MAX_CONCURRENT_EDITORS clients with random ops converge', () =>
 
 describe('TC-14: late joiner sees full state', () => {
   it('C sees 20 notes created by A and B', async () => {
-    const boardId = newBoardId();
+    const boardId = await initBoard();
     const A = await createWsClient(fetchWs, boardId);
     const B = await createWsClient(fetchWs, boardId);
     await A.waitForSync();
@@ -312,7 +320,7 @@ describe('TC-15: malformed traffic from one client', () => {
 
   for (const { name, send } of cases) {
     it(`${name} closes sender, B unaffected`, async () => {
-      const boardId = newBoardId();
+      const boardId = await initBoard();
       const A = await createWsClient(fetchWs, boardId);
       const B = await createWsClient(fetchWs, boardId);
       await A.waitForSync();
@@ -343,7 +351,7 @@ describe('TC-15: malformed traffic from one client', () => {
 
 describe('TC-16: awareness relay', () => {
   it('awareness bytes from A are relayed to all including A', async () => {
-    const boardId = newBoardId();
+    const boardId = await initBoard();
     const A = await createWsClient(fetchWs, boardId);
     const B = await createWsClient(fetchWs, boardId);
     await A.waitForSync();
@@ -383,7 +391,7 @@ describe('TC-16: awareness relay', () => {
 
 describe('TC-18: room restart simulation', () => {
   it('A reconnects to fresh room, then B converges', async () => {
-    const boardId = newBoardId();
+    const boardId = await initBoard();
 
     // Phase 1: A connects, creates note, then disconnects (simulates restart)
     const A1 = await createWsClient(fetchWs, boardId);
@@ -399,7 +407,7 @@ describe('TC-18: room restart simulation', () => {
 
     // Phase 2: "fresh room" - A reconnects with its local doc and repopulates
     // Simulate a fresh room by using a new boardId
-    const freshBoardId = newBoardId();
+    const freshBoardId = await initBoard();
     const doc = new Y.Doc();
     Y.applyUpdate(doc, savedState);
 
@@ -475,7 +483,7 @@ async function connectRaw(doc: Y.Doc, boardId: string): Promise<{ ws: WebSocket;
 
 describe('TC-31: dead socket does not crash room', () => {
   it('A sends update after B closes abruptly; room still works', async () => {
-    const boardId = newBoardId();
+    const boardId = await initBoard();
     const A = await createWsClient(fetchWs, boardId);
     const B = await createWsClient(fetchWs, boardId);
     await A.waitForSync();
