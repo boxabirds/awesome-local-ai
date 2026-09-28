@@ -1,4 +1,5 @@
 import type { Page, Locator } from '@playwright/test';
+import { openBoard } from './board.ts';
 
 export interface Cam {
   x: number;
@@ -11,9 +12,10 @@ export function screenToWorld(cam: Cam, p: { x: number; y: number }): { x: numbe
   return { x: p.x / cam.zoom + cam.x, y: p.y / cam.zoom + cam.y };
 }
 
-export async function gotoBoard(page: Page): Promise<void> {
-  await page.goto('/');
-  await page.waitForSelector('[data-testid="viewport"]');
+export async function gotoBoard(page: Page): Promise<string> {
+  // A board is opened at its own address now, and only a board the server knows is
+  // a board at all.
+  return openBoard(page);
 }
 
 export async function setCamera(page: Page, cam: Cam): Promise<void> {

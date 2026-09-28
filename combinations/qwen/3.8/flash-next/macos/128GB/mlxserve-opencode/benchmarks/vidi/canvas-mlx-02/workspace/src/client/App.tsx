@@ -1,206 +1,40 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { BoardViewportRoot, useBoardCamera } from './canvas/BoardViewport.tsx';
-import { ZoomControls } from './canvas/ZoomControls.tsx';
-import { NavigationHint } from './canvas/NavigationHint.tsx';
-import { Toolbar } from './board/Toolbar.tsx';
-import { useBoardDoc } from './board/useBoardDoc.ts';
-import { useSelection } from './board/useSelection.ts';
-import { ConnectionStatus } from './collab/ConnectionStatus.tsx';
-import type { ConnectionState, ProviderFactory } from './collab/connectBoard.ts';
-import { StickyNote } from './objects/StickyNote.tsx';
-import { zoomPercent, canZoomIn, canZoomOut, screenToWorld } from './canvas/camera.ts';
-import { BOARD_ID_PATTERN, newBoardId } from '../shared/board-id.ts';
-import {
-  createSticky,
-  deleteObject,
-  setStickyColor,
-  type StickySnapshot,
-} from '../shared/board-model.ts';
+// Which page the address asks for, and nothing else.
+//
+// The board grew a page of its own in story 5, so this is no longer the board - it
+// is the thing that decides whether an address is the start page, a board, or
+// nobody's board, and it renders one of those three. The route is read from the
+// History API and re-read on `popstate`, so the back button returns to a board
+// that is still there and a created board's address is the address in the bar
+// rather than a state variable that only looks like one.
+//
+// `makeProvider` passes straight through to the board: the component suite drives a
+// board whose collaboration it chooses, and this file has no opinion about that.
+import BoardPage from './pages/BoardPage.tsx';
+import { HomePage } from './pages/HomePage.tsx';
+import { NotFoundPage } from './pages/NotFoundPage.tsx';
+import { routeKey, useRoute } from './useRoute.ts';
+import type { ProviderFactory } from './collab/connectBoard.ts';
 
-// True when the board can be mutated at all (story 4). Everything else about a
-// board stays usable while it is unloadable - you can pan, zoom and read it - so
-// this one predicate is the only gate on every mutation path: toolbar creation,
-// double-click creation, dragging, text editing, recolouring and deleting.
-export function canEdit(state: ConnectionState): boolean {
-  return state !== 'load_failed';
+export interface AppProps {
+  makeProvider?: ProviderFactory;
 }
 
-// Resolve the board id from the History-API route `/b/:boardId` (TC-26). A bare
-// '/' mints a fresh id and replaces the address so every board deep-links.
-function readBoardId(): string {
-  const match = /^\/b\/([^/?#]+)/.exec(location.pathname);
-  if (match && BOARD_ID_PATTERN.test(match[1])) return match[1];
-  const fresh = newBoardId();
-  history.replaceState(null, '', `/b/${fresh}`);
-  return fresh;
-}
+export default function App({ makeProvider }: AppProps) {
+  const route = useRoute();
 
-// True when focus is inside a text control, so board keyboard shortcuts must
-// not hijack the keystroke.
-function isEditableFocus(): boolean {
-  const el = document.activeElement;
-  if (!el) return false;
-  const tag = el.tagName;
-  return tag === 'INPUT' || tag === 'TEXTAREA' || (el as HTMLElement).isContentEditable === true;
-}
-
-// App is the whole board for one route. `makeProvider` is an optional injection
-// seam for the component tests (TC-23 drives the read-only board); production
-// renders <App /> and gets the real y-websocket provider.
-export default function App(props: { makeProvider?: ProviderFactory }) {
-  const { makeProvider } = props;
-  const [boardId, setBoardId] = useState(readBoardId);
-  useEffect(() => {
-    const onPop = () => setBoardId(readBoardId());
-    window.addEventListener('popstate', onPop);
-    return () => window.removeEventListener('popstate', onPop);
-  }, []);
-
-  const { api, rootRef, viewport } = useBoardCamera();
-  const board = useBoardDoc(boardId, makeProvider);
-  const { doc, notes } = board;
-  const selection = useSelection();
-  const cam = api.camera;
-
-  const { select, startEdit, endEdit, selectedId, editingId } = selection;
-
-  // The single editing gate for this render (see canEdit). Held in a ref too so
-  // the mutation callbacks keep a stable identity when only the state changed.
-  const editable = canEdit(board.connectionState);
-  const connectionStateRef = useRef<ConnectionState>(board.connectionState);
-  connectionStateRef.current = board.connectionState;
-
-  // A remote delete must not leave a phantom selection/editor: drop any selected
-  // or edited id that has left the document (TC-25).
-  const liveIds = useMemo(() => new Set(notes.map((n) => n.id)), [notes]);
-  const pruneTo = selection.pruneTo;
-  useEffect(() => {
-    pruneTo(liveIds);
-  }, [liveIds, pruneTo]);
-
-  // Mirror the live connection state + socket controls onto the test-only hook
-  // for e2e reconnect assertions (TC-28/29/30); dead-code eliminated in prod.
-  const provider = board.provider;
-  useEffect(() => {
-    const hook = window.__vidi6;
-    if (import.meta.env.MODE !== 'test' || !hook) return;
-    hook.connectionState = board.connectionState;
-    hook.disconnect = () => provider?.disconnect?.();
-    hook.connect = () => provider?.connect?.();
-  }, [board.connectionState, provider]);
-
-  // Create a note centred on a world point and immediately edit it.
-  const createAt = useCallback(
-    (world: { x: number; y: number }) => {
-      if (!canEdit(connectionStateRef.current)) return;
-      const id = createSticky(doc, world);
-      startEdit(id);
-    },
-    [doc, startEdit],
-  );
-
-  // Toolbar button creates at the centre of the visible board area.
-  const onCreateSticky = useCallback(() => {
-    const centre = screenToWorld(cam, { x: viewport.width / 2, y: viewport.height / 2 });
-    createAt(centre);
-  }, [cam, viewport.width, viewport.height, createAt]);
-
-  // Empty-space double-click creates centred on the clicked point.
-  const onEmptyDoubleClick = useCallback((world: { x: number; y: number }) => createAt(world), [createAt]);
-
-  // Empty-space click clears the selection (and ends any edit as unselected).
-  const onEmptyClick = useCallback(() => {
-    if (editingId !== null) endEdit('unselected');
-    else select(null);
-  }, [editingId, endEdit, select]);
-
-  const onColor = useCallback(
-    (id: string, color: string) => {
-      if (!canEdit(connectionStateRef.current)) return;
-      setStickyColor(doc, id, color);
-    },
-    [doc],
-  );
-
-  const onDelete = useCallback(
-    (id: string) => {
-      if (!canEdit(connectionStateRef.current)) return;
-      deleteObject(doc, id);
-      select(null);
-    },
-    [doc, select],
-  );
-
-  // Board-level keyboard: Enter starts editing the selected note; Delete /
-  // Backspace delete it. Both are ignored while editing or while focus is in a
-  // text control (so Backspace edits text instead of deleting the note).
-  useEffect(() => {
-    const onKeyDown = (e: KeyboardEvent) => {
-      if (editingId !== null) return;
-      if (isEditableFocus()) return;
-      if (selectedId === null) return;
-      if (e.key === 'Enter') {
-        e.preventDefault();
-        if (!canEdit(connectionStateRef.current)) return;
-        startEdit(selectedId);
-      } else if (e.key === 'Delete' || e.key === 'Backspace') {
-        e.preventDefault();
-        if (!canEdit(connectionStateRef.current)) return;
-        deleteObject(doc, selectedId);
-        select(null);
-      }
-    };
-    window.addEventListener('keydown', onKeyDown);
-    return () => window.removeEventListener('keydown', onKeyDown);
-  }, [editingId, selectedId, doc, startEdit, select]);
-
-  const renderedNotes = useMemo(
-    () =>
-      notes.map((note: StickySnapshot) => (
-        <StickyNote
-          key={note.id}
-          note={note}
-          doc={doc}
-          zoom={cam.zoom}
-          selected={note.id === selectedId}
-          editing={note.id === editingId}
-          editable={editable}
-          onSelect={select}
-          onStartEdit={startEdit}
-          onEndEdit={endEdit}
-          onColor={onColor}
-          onDelete={onDelete}
-        />
-      )),
-    // `editable` is a dependency so that a board which becomes uneditable (story 4)
-    // actually re-renders its notes as read-only.
-    [notes, doc, cam.zoom, selectedId, editingId, editable, select, startEdit, endEdit, onColor, onDelete],
-  );
-
-  return (
-    <>
-      <BoardViewportRoot
-        api={api}
-        rootRef={rootRef}
-        onEmptyDoubleClick={onEmptyDoubleClick}
-        onEmptyClick={onEmptyClick}
-      >
-        {renderedNotes}
-      </BoardViewportRoot>
-
-      <ConnectionStatus state={board.connectionState} />
-
-      <Toolbar onCreateSticky={onCreateSticky} disabled={!editable} />
-
-      <ZoomControls
-        zoomPercent={zoomPercent(cam)}
-        canZoomIn={canZoomIn(cam)}
-        canZoomOut={canZoomOut(cam)}
-        onZoomIn={() => api.zoomStep('in')}
-        onZoomOut={() => api.zoomStep('out')}
-        onReset={api.reset}
-      />
-      <NavigationHint visible={!api.hasNavigated} />
-    </>
-  );
+  // One thing about this key: it is the code, so a different code is a new page
+  // with nothing left over from the board before it - not a check in flight, not a
+  // copy message, not a document.
+  switch (route.kind) {
+    case 'home':
+      return <HomePage />;
+    case 'board':
+      return (
+        <BoardPage key={routeKey(route)} boardId={route.boardId} makeProvider={makeProvider} />
+      );
+    case 'not_found':
+      // The page does not need the code it is missing: it says what to do about a
+      // link that is nobody's board, and offers a board of the visitor's own.
+      return <NotFoundPage />;
+  }
 }

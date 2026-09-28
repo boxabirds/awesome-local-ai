@@ -1,7 +1,8 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { render, screen, fireEvent, act } from '@testing-library/react';
 import { BoardViewport } from '../../src/client/canvas/BoardViewport.tsx';
-import App from '../../src/client/App.tsx';
+import BoardApp from '../../src/client/board/BoardApp.tsx';
+import { newBoardId } from '../../src/shared/board-id.ts';
 import {
   ZOOM_STEP_FACTOR,
   ZOOM_MAX,
@@ -201,7 +202,7 @@ describe('viewport keyboard shortcuts', () => {
 describe('wheel over the zoom controls', () => {
   // TC-30 (negative): Ctrl+wheel over the controls must not zoom the board.
   it('TC-30 does not zoom the board when ctrl+wheel is over the controls', () => {
-    render(<App />);
+    render(<BoardApp boardId={newBoardId()} />);
     const controls = screen.getByTestId('zoom-controls');
     const before = cam();
 

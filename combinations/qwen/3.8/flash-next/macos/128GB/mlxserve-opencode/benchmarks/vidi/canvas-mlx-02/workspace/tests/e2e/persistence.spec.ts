@@ -10,6 +10,7 @@
 import { test, expect } from '@playwright/test';
 import { newBoardId } from '../../src/shared/board-id.ts';
 import { openBoard, connectionBadge } from './helpers/room.ts';
+import { ensureBoard } from './helpers/board.ts';
 import { createNoteAt, typeText, notes } from './helpers/sticky.ts';
 import {
   forgetRoom,
@@ -83,6 +84,10 @@ test.describe('a worker that is stopped and started again', () => {
     // Two cold starts of a real `wrangler dev` are part of this test.
     test.setTimeout(600_000);
     const boardId = newBoardId();
+    // This worker is the one that has to know the board. A code it has never seen is
+    // answered as nobody's board rather than starting a room, and the board has to be
+    // caused to exist on *this* process's own storage, not on the shared worker's.
+    await ensureBoard(boardId, worker.origin);
     const page = await browser.newPage();
     await page.goto(`${worker.origin}/b/${boardId}`);
     await page.waitForSelector('[data-testid="viewport"]');

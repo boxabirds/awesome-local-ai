@@ -16,6 +16,18 @@
       }
     ]
   },
+  "ratelimits": [
+    {
+      "name": "BOARD_CREATE_LIMITER",
+      // A stable, unique namespace for this limiter's counters. It is a number
+      // because that is what the binding's own schema takes; the value is arbitrary
+      // as long as nothing else in this account counts into it.
+      "namespace_id": "1",
+      // Must mirror BOARD_CREATE_LIMIT / BOARD_CREATE_PERIOD_SECONDS in
+      // src/shared/config.ts (unit TC-03 asserts the equality).
+      "simple": { "limit": 10, "period": 60 }
+    }
+  ],
   "migrations": [
     {
       "tag": "v1",

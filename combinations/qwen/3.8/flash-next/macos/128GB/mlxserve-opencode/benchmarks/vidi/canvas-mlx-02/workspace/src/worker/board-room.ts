@@ -48,7 +48,8 @@ import {
   CLOSE_UNSUPPORTED_DATA,
 } from '../shared/protocol.ts';
 import { LOAD_RETRY_MIN_INTERVAL_MS } from '../shared/config.ts';
-import { BoardStore, errorMessage, LOAD_ORIGIN, type BoardStorage } from './board-store.ts';
+import type { InitializeResult } from './create-board.ts';
+import { BoardStore, errorMessage, LOAD_ORIGIN, type BoardStorage, type SqlBinding } from './board-store.ts';
 import {
   nextLifecycleState,
   roomState,
@@ -94,6 +95,11 @@ export class BoardRoom extends DurableObject<Env> {
   private lifecycle: LifecycleState = 'loading';
   /** When the current load failure happened (drives the retry rate limit). */
   private failedAt: number | null = null;
+  /**
+   * Once this instance has seen its board exist, it stays existing: boards are
+   * never deleted, and re-reading the catalogue on every reconnect buys nothing.
+   */
+  private existsNow = false;
   private loadError: string | null = null;
   /** Update chunks received for a socket but not yet applied + appended. */
   private pending = new Map<WebSocket, Uint8Array[]>();
@@ -152,7 +158,10 @@ export class BoardRoom extends DurableObject<Env> {
 
     let result: ReturnType<BoardStore['load']>;
     try {
-      this.store.migrate();
+      // No `migrate()` here. A room is constructed for a board that merely got a
+      // request - including a link that somebody mistyped - and laying the
+      // schema down at construct would turn every probe into a created board.
+      // `initialize()` (story 5) and the first `append()` are what create it.
       result = this.store.load(doc);
     } catch (err) {
       result = { ok: false as const, reason: 'sql-error' as const, error: errorMessage(err) };
@@ -213,6 +222,44 @@ export class BoardRoom extends DurableObject<Env> {
   // HTTP: WebSocket upgrades (and the test-only hooks)
   // ==========================================================================
 
+  // ==========================================================================
+  // Board existence and creation (story 5)
+  //
+  // These two are RPC: the Worker calls them on the board's stub and nothing
+  // else can. `initialize()` is the only thing in the whole system that brings a
+  // board into existence, and `exists()` is the only thing that answers whether
+  // a link belongs to one. `exists()` reads and writes nothing, which is what
+  // lets a mistyped or made-up link be answered without leaving a board behind
+  // (PRD share.not_found).
+  // ==========================================================================
+
+  /**
+   * Create this board if it does not already exist. Returns 'created' for the
+   * one call that actually created it and 'exists' for every call after that,
+   * so a code that is already somebody's board is never handed to a new board
+   * and never re-initialised (PRD share.unique).
+   */
+  async initialize(): Promise<InitializeResult> {
+    let created = false;
+    // One synchronous transaction: the stamp is read and written with nothing
+    // able to interleave, so two requests that raced each other for the same
+    // code cannot both be told they made a board.
+    this.ctx.storage.transactionSync(() => {
+      this.store.migrate();
+      created = this.store.setCreatedAtIfAbsent(Date.now());
+    });
+    this.existsNow = true;
+    return created ? 'created' : 'exists';
+  }
+
+  /** Whether this board exists. Read-only: never creates a table or a row. */
+  async exists(): Promise<boolean> {
+    if (this.existsNow) return true;
+    const exists = this.store.existsReadOnly();
+    if (exists) this.existsNow = true;
+    return exists;
+  }
+
   async fetch(request: Request): Promise<Response> {
     const url = new URL(request.url);
 
@@ -222,6 +269,14 @@ export class BoardRoom extends DurableObject<Env> {
 
     if (request.headers.get('Upgrade') !== 'websocket') {
       return new Response('Expected WebSocket upgrade', { status: 426 });
+    }
+
+    // A board that was never created is not served, and is not created by being
+    // asked: connecting to an unknown link is a 404, not an empty board. This is
+    // the rule that closes the story 3 hole where any address at all could start
+    // a board just by dialling it.
+    if (!(await this.exists())) {
+      return new Response('Board not found', { status: 404 });
     }
 
     const pair = new WebSocketPair();
@@ -575,6 +630,21 @@ export class BoardRoom extends DurableObject<Env> {
           await this.testSeed(body);
           return Response.json(await this.testStats());
         }
+        case 'ensure': {
+          return Response.json(await this.testEnsure());
+        }
+        case 'sql': {
+          // Body is {sql, bindings?}: an existence assertion that interpolated its
+          // key into the statement would not be an assertion about that key.
+          const body = (await request.json()) as { sql?: unknown; bindings?: unknown };
+          if (typeof body.sql !== 'string') return new Response('body.sql must be a string', { status: 400 });
+          const bindings: SqlBinding[] = [];
+          for (const value of Array.isArray(body.bindings) ? body.bindings : []) {
+            if (value === null || typeof value === 'number' || typeof value === 'string') bindings.push(value);
+            else return new Response('test SQL bindings must be null, numbers or strings', { status: 400 });
+          }
+          return Response.json({ rows: this.store.testQuery(body.sql, bindings) });
+        }
         default:
           return new Response('Unknown test hook', { status: 404 });
       }
@@ -623,6 +693,19 @@ export class BoardRoom extends DurableObject<Env> {
   /** Force a compaction, ignoring the thresholds. */
   async testCompact(): Promise<boolean> {
     return this.compactNow();
+  }
+
+  /**
+   * Bring a board into existence for a test, by id, without going through the
+   * create endpoint. This is the same `initialize()` the real create path calls -
+   * the same stamp, the same schema - so a board made this way is indistinguish-
+   * able from one a visitor created. The e2e suite uses it for the boards that
+   * are scenery for another story's assertion: without it every story 1-4 test
+   * would spend one of the ONE VISITOR creation quota and fail at random.
+   */
+  async testEnsure(): Promise<RoomStats> {
+    await this.initialize();
+    return this.testStats();
   }
 
   /**

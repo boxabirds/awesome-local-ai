@@ -75,6 +75,23 @@ export const SCHEMA_STATEMENTS: readonly string[] = [
 /** The meta keys this store owns. */
 export const META_SCHEMA_VERSION = 'storage_schema_version';
 export const META_SNAPSHOT_THROUGH_SEQ = 'snapshot_through_seq';
+/**
+ * The meta key that says this board was created. It is written by exactly one
+ * thing - `BoardRoom.initialize()`, which only the create path calls - and it is
+ * what makes a link either somebody's board or nobody's (story 5). A board that
+ * was here before that key existed is still a board: see `existsReadOnly()`.
+ */
+export const META_CREATED_AT = 'created_at';
+
+/** The tables this store owns, in creation order. */
+export const OWN_TABLES = [
+  'storage_meta',
+  'updates',
+  'snapshot_chunks',
+  'quarantined_updates',
+] as const;
+
+export type OwnTable = (typeof OWN_TABLES)[number];
 
 export function errorMessage(err: unknown): string {
   const e = err as { message?: unknown } | null | undefined;
@@ -143,6 +160,13 @@ export class BoardStore {
   private bytes = 0;
   private throughSeq = 0;
   /**
+   * Whether the tables are known to be here for THIS store instance. It is set
+   * by `migrate()` and by a `load()` that found them, so a board that has never
+   * been written can be read back as empty without ever being created - which is
+   * the whole reason a mistyped link leaves no storage behind.
+   */
+  private tablesConfirmed = false;
+  /**
    * Test-only: when positive, append() throws *after* its row has been written,
    * so a test can see whether the surrounding Durable Object transaction really
    * rolled the row back. Nothing in production code ever sets this.
@@ -178,7 +202,73 @@ export class BoardStore {
     this.storage.transactionSync(fn);
   }
 
-  /** Create the tables and record the storage layout version. Writes no update rows. */
+  /**
+   * Which of this store's tables actually exist, read out of the catalogue. The
+   * one query that is allowed to be asked before a board is known to exist, and
+   * the only reason `existsReadOnly()` can answer without laying down tables.
+   */
+  existingTables(): Set<string> {
+    const placeholders = OWN_TABLES.map(() => '?').join(', ');
+    const rows = this.exec<{ name: unknown }>(
+      `SELECT name FROM sqlite_master WHERE type = 'table' AND name IN (${placeholders})`,
+      ...OWN_TABLES,
+    );
+    return new Set(rows.map((row) => String(row.name)));
+  }
+
+  /**
+   * Does this board exist? Read-only, and it never creates anything: a board
+   * exists if it was created (`storage_meta.created_at`) OR - for a board that
+   * was already here before that key existed - if it has any content at all, one
+   * row in `updates` or `snapshot_chunks`. A code that was only ever probed has
+   * no tables, no key and no rows, and so stays nonexistent however often it is
+   * asked, which is what a mistyped or made-up link must meet (TC-06, TC-09).
+   */
+  existsReadOnly(): boolean {
+    const tables = this.existingTables();
+    if (tables.has('storage_meta')) {
+      const rows = this.exec<{ n: unknown }>(
+        `SELECT COUNT(*) AS n FROM storage_meta WHERE key = ?`,
+        META_CREATED_AT,
+      );
+      if (asNumber(rows[0]?.n, 0) > 0) return true;
+    }
+    if (tables.has('updates') && this.countRows('updates') > 0) return true;
+    if (tables.has('snapshot_chunks') && this.countRows('snapshot_chunks') > 0) return true;
+    return false;
+  }
+
+  /** When this board was created, or null when nothing created it. */
+  createdAt(): number | null {
+    if (!this.existingTables().has('storage_meta')) return null;
+    const rows = this.exec<{ value: unknown }>(
+      `SELECT value FROM storage_meta WHERE key = ?`,
+      META_CREATED_AT,
+    );
+    return rows.length === 0 ? null : asNumber(rows[0].value, 0);
+  }
+
+  /**
+   * Write the creation stamp unless the board already has one. Returns true only
+   * for the call that actually created the board, so the room can tell 'created'
+   * from 'exists' - and so two requests that raced each other cannot both be
+   * told they made a board. Call inside a transaction.
+   */
+  setCreatedAtIfAbsent(createdAtMs: number): boolean {
+    const existing = this.exec<{ value: unknown }>(
+      `SELECT value FROM storage_meta WHERE key = ?`,
+      META_CREATED_AT,
+    );
+    if (existing.length > 0) return false;
+    this.exec(`INSERT INTO storage_meta (key, value) VALUES (?, ?)`, META_CREATED_AT, String(createdAtMs));
+    return true;
+  }
+
+  /**
+   * Create the tables and record the storage layout version. Writes no update
+   * rows, and is only ever reached by a board being written for the first time
+   * (`initialize()`, or the first `append()` of a board that pre-dates the key).
+   */
   migrate(): void {
     for (const statement of SCHEMA_STATEMENTS) this.exec(statement);
     this.exec(
@@ -186,10 +276,16 @@ export class BoardStore {
       META_SCHEMA_VERSION,
       String(STORAGE_SCHEMA_VERSION),
     );
+    this.tablesConfirmed = true;
   }
 
-  /** The storage layout version, or null when migrate() has never run. */
+  /**
+   * The storage layout version, or null when migrate() has never run. A board that
+   * was only ever looked at has no layout to report, and asking for one is not a
+   * reason to create a table.
+   */
   schemaVersion(): string | null {
+    if (!this.existingTables().has('storage_meta')) return null;
     const rows = this.exec<{ value: unknown }>(
       `SELECT value FROM storage_meta WHERE key = ?`,
       META_SCHEMA_VERSION,
@@ -199,6 +295,9 @@ export class BoardStore {
 
   /** Append one Yjs update. Throws on a storage failure - the room resets on that. */
   append(update: Uint8Array): void {
+    // Laid down here rather than at construct, so a board that is only ever read
+    // - a link that was mistyped and merely checked - stays without a table.
+    if (!this.tablesConfirmed) this.migrate();
     this.exec(`INSERT INTO updates (bytes, data) VALUES (?, ?)`, update.length, asBinding(update));
     // Only after the write succeeded: a failed append must not inflate the log.
     this.rows += 1;
@@ -224,6 +323,21 @@ export class BoardStore {
    * reported - the board is NOT served.
    */
   load(doc: Y.Doc): LoadResult {
+    // A board that has never been written has no tables at all. That is an EMPTY
+    // board, not a schema to create: `migrate()` belongs to `initialize()` and to
+    // the first `append()`, never to a read, so checking whether a link exists
+    // cannot leave a board behind.
+    const tables = this.existingTables();
+    this.tablesConfirmed = OWN_TABLES.every((table) => tables.has(table));
+    if (tables.size === 0) return { ok: true, quarantined: 0 };
+    if (!this.tablesConfirmed) {
+      // Some but not all of the layout is there. Half a schema is a broken
+      // board, and reading it would be a guess, so it is reported as the failed
+      // read it is and nothing is written to "fix" it.
+      const missing = OWN_TABLES.filter((table) => !tables.has(table)).join(', ');
+      return { ok: false, reason: 'sql-error', error: `board storage is incomplete (missing ${missing})` };
+    }
+
     let snapshot: Uint8Array;
     try {
       const chunks: Uint8Array[] = [];
@@ -340,17 +454,43 @@ export class BoardStore {
 
   /** Highest seq currently in the update log (0 when the log is empty). */
   maxLogSeq(): number {
+    if (!this.hasTable('updates')) return 0;
     const rows = this.exec<{ m: unknown }>(`SELECT COALESCE(MAX(seq), 0) AS m FROM updates`);
     return asNumber(rows[0]?.m, 0);
   }
 
+  /**
+   * Rows in one of the store's tables. A table that was never created holds
+   * nothing, and saying so here is what lets every read below be asked about a
+   * board that does not exist without asking SQLite for a table that isn't there.
+   */
   countRows(table: 'updates' | 'snapshot_chunks' | 'quarantined_updates'): number {
+    if (!this.existingTables().has(table)) return 0;
     const rows = this.exec<{ n: unknown }>(`SELECT COUNT(*) AS n FROM ${table}`);
     return asNumber(rows[0]?.n, 0);
   }
 
+  /** Does this store's own tables exist yet? The catalogue, not an assumption. */
+  hasTable(table: OwnTable): boolean {
+    return this.existingTables().has(table);
+  }
+
+  /**
+   * Run one statement and hand back its rows, for a test that has to read the
+   * storage this store reads. Two doors reach it and neither is in the product:
+   * the room's TEST_HOOKS-gated `/__test/boards/:id/sql` route, and
+   * `runInDurableObject` inside the integration suite. Production code paths use
+   * the named methods above. Read counts and keys through it rather than BLOBs,
+   * and pass bindings separately rather than interpolating them, so an assertion
+   * about a meta key is an assertion about that key.
+   */
+  testQuery(sql: string, bindings: SqlBinding[] = []): Record<string, unknown>[] {
+    return this.exec(sql, ...bindings);
+  }
+
   /** Total bytes of the update log rows (independent of the in-memory counters). */
   logBytes(): number {
+    if (!this.hasTable('updates')) return 0;
     const rows = this.exec<{ n: unknown }>(`SELECT COALESCE(SUM(bytes), 0) AS n FROM updates`);
     return asNumber(rows[0]?.n, 0);
   }
@@ -361,6 +501,7 @@ export class BoardStore {
 
   /** Byte length of every snapshot chunk, in chunk order. */
   chunkSizes(): number[] {
+    if (!this.hasTable('snapshot_chunks')) return [];
     return this
       .exec<{ n: unknown }>(`SELECT bytes AS n FROM snapshot_chunks ORDER BY idx`)
       .map((row) => asNumber(row.n, 0));

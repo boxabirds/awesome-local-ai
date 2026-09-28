@@ -9,20 +9,23 @@ function upgradeHeaders(): HeadersInit {
   return { Upgrade: 'websocket', Connection: 'Upgrade' };
 }
 
-// TC-04 (negative): an invalid board id returns 400 and is short-circuited in
-// the Worker BEFORE any Durable Object is touched. The room only ever returns
-// 426 or 101, so a 400 (body "Invalid board id") proves no instance was created.
+// TC-04 (negative): an invalid board id is answered 404 and is short-circuited in
+// the Worker BEFORE any Durable Object is touched. Story 5 deliberately changed
+// this answer from story 3's 400: a malformed code and a code nobody ever created
+// get the same reply (`404 {"error":"not_found"}`), so probing links learns
+// nothing about what a real code looks like. The room itself still only ever
+// returns 426, 404 or 101.
 describe('TC-04 invalid board id', () => {
-  it('rejects with 400 without reaching a room', async () => {
+  it('rejects with 404 without reaching a room', async () => {
     const res = await SELF.fetch('http://placeholder/api/rooms/bad!id', {
       headers: upgradeHeaders(),
     });
-    expect(res.status).toBe(400);
+    expect(res.status).toBe(404);
     expect(res.webSocket).toBeFalsy();
-    expect(await res.text()).toMatch(/Invalid board id/i);
+    expect(await res.json()).toEqual({ error: 'not_found' });
   });
 
-  it('rejects empty id with 400', async () => {
+  it('rejects an empty id without creating a room', async () => {
     const res = await SELF.fetch('http://placeholder/api/rooms/', { headers: upgradeHeaders() });
     // Empty id => route regex does not match => falls through to assets (SPA),
     // not a room call. A 404/200 from assets still means no room was created.

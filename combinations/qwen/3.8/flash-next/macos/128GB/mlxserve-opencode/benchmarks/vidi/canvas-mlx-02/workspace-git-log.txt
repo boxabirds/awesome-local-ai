@@ -1,3 +1,52 @@
+commit 26465472f08ce59b72f108a4eab862b776b1de37
+vidi-agent  Mon Sep 28 06:14:03 2026 +0100
+
+    story 5: Share a board with others using a link
+
+
+ NOTES.md                               | 128 +++++++++
+ index.html                             |   6 +
+ src/client/App.tsx                     | 240 +++-------------
+ src/client/api.ts                      |  67 +++++
+ src/client/board/BoardApp.tsx          | 203 +++++++++++++
+ src/client/collab/ConnectionStatus.tsx |   4 +-
+ src/client/pages/BoardPage.tsx         | 114 ++++++++
+ src/client/pages/HomePage.tsx          |  58 ++++
+ src/client/pages/NotFoundPage.tsx      |  61 ++++
+ src/client/router.ts                   |  38 +++
+ src/client/share/SharePanel.tsx        | 288 +++++++++++++++++++
+ src/client/styles.css                  | 196 +++++++++++++
+ src/client/useCreateBoard.ts           |  94 +++++++
+ src/client/useRoute.ts                 |  48 ++++
+ src/shared/config.ts                   |  25 ++
+ src/worker/board-room.ts               |  87 +++++-
+ src/worker/board-store.ts              | 145 +++++++++-
+ src/worker/create-board.ts             | 147 ++++++++++
+ src/worker/index.ts                    |  86 +++++-
+ tests/component/App.test.tsx           | 215 ++++++++++++++
+ tests/component/BoardViewport.test.tsx |   5 +-
+ tests/component/CreateBoard.test.tsx   | 139 +++++++++
+ tests/component/SharePanel.test.tsx    | 222 +++++++++++++++
+ tests/component/stickyTestUtils.tsx    |   9 +-
+ tests/component/story5TestUtils.tsx    | 150 ++++++++++
+ tests/e2e/helpers/board.ts             |  35 ++-
+ tests/e2e/helpers/room.ts              |   7 +-
+ tests/e2e/helpers/sticky.ts            |   8 +-
+ tests/e2e/persistence.spec.ts          |   5 +
+ tests/e2e/share.spec.ts                | 299 ++++++++++++++++++++
+ tests/integration/api.test.ts          | 500 +++++++++++++++++++++++++++++++++
+ tests/integration/durable.test.ts      |  18 +-
+ tests/integration/helpers/room.ts      | 109 +++++++
+ tests/integration/helpers/ws-client.ts |  30 +-
+ tests/integration/worker.test.ts       |  17 +-
+ tests/unit/board-store.test.ts         |  15 +-
+ tests/unit/client-api.test.ts          |  92 ++++++
+ tests/unit/copy-wording.test.ts        |  53 ++++
+ tests/unit/create-board.test.ts        | 302 ++++++++++++++++++++
+ tests/unit/link-check-backoff.test.ts  |  36 +++
+ tests/unit/router.test.ts              |  63 +++++
+ wrangler.jsonc                         |  12 +
+ 42 files changed, 4138 insertions(+), 238 deletions(-)
 commit 7b4fcfb1692e9c9f20b657446dc52c8943db1b6a
 vidi-agent  Mon Sep 28 03:50:00 2026 +0100
 

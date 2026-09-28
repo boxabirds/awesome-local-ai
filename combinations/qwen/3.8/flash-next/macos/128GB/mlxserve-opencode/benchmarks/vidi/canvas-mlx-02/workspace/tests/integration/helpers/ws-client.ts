@@ -6,7 +6,7 @@ import * as syncProtocol from 'y-protocols/sync';
 import * as awarenessProtocol from 'y-protocols/awareness';
 import * as encoding from 'lib0/encoding';
 import * as decoding from 'lib0/decoding';
-import { SELF } from 'cloudflare:test';
+import { SELF, env } from 'cloudflare:test';
 import {
   decodeMessage,
   MESSAGE_SYNC,
@@ -14,10 +14,28 @@ import {
   MESSAGE_QUERY_AWARENESS,
 } from '../../../src/shared/protocol.ts';
 import { initDoc, snapshot, LOCAL_ORIGIN, type StickySnapshot } from '../../../src/shared/board-model.ts';
+// Type-only: the room class the namespace is declared against, so `initialize()`
+// is checked against the real RPC signature.
+import type { BoardRoom } from '../../../src/worker/index.ts';
 
 // A non-client origin used when applying remote updates so the local
 // doc.on('update') handler does not echo them back.
 const REMOTE: unique symbol = Symbol('remote');
+
+/**
+ * Bring a board into existence before a client dials it.
+ *
+ * Story 5 closed the door a test used to walk through: from now on a board that
+ * was never created is a 404, not an empty board, so a suite that wants a board
+ * has to say so. This is that saying-so - the very `initialize()` the create
+ * endpoint calls, with the same stamp and the same schema - so the connection
+ * under test is the real one. A test that wants the *absence* of a board (the
+ * 404 cases) calls SELF.fetch itself and never comes through here.
+ */
+export async function ensureBoard(boardId: string): Promise<void> {
+  const namespace = (env as unknown as { BOARD_ROOM: DurableObjectNamespace<BoardRoom> }).BOARD_ROOM;
+  await namespace.get(namespace.idFromName(boardId)).initialize();
+}
 
 export type ReceivedKind = 'sync-step1' | 'sync-step2' | 'update' | 'awareness' | 'query-awareness' | 'unknown';
 
@@ -80,12 +98,20 @@ export class TestClient {
       }
     }
     this.ws = null;
+    await ensureBoard(boardId);
     await this.openSocket(`/api/rooms/${boardId}`);
     this.startSync();
   }
 
-  static async connect(boardId: string): Promise<TestClient> {
+  /**
+   * Connect to a board. By default the board is created first, because that is
+   * what a test means when it says "a client opens this board". `create: false`
+   * dials the link as it stands, which is how a test asserts what a board that
+   * was never created does: it is refused.
+   */
+  static async connect(boardId: string, options: { create?: boolean } = {}): Promise<TestClient> {
     const c = new TestClient();
+    if (options.create !== false) await ensureBoard(boardId);
     await c.openSocket(`/api/rooms/${boardId}`);
     return c;
   }

@@ -483,16 +483,26 @@ describe('story 4: the board is durable', () => {
   );
 
   it(
-    'the schema is created by the first read of a brand new board',
+    'a brand new board is empty until something creates it, and creating it brings the schema up',
     async () => {
       const boardId = newBoardId();
-      // Instantiating the room at all - no client, no HTTP - must bring the
-      // schema up, because the load runs before any input is handled.
+      // Story 5 inverted this contract on purpose. Instantiating the room to LOOK
+      // at a board used to lay the schema down, which is how every mistyped link
+      // that was ever opened silently became a board. Looking is now an empty read
+      // that writes nothing: no tables, no layout version, no board.
       const stats = await statsOf(boardId);
       expect(stats.state).toBe('ready');
       expect(stats.logRows).toBe(0);
       expect(stats.chunks).toBe(0);
-      expect(await inRoom(boardId, (room) => room.testSchemaVersion())).toBe(String(STORAGE_SCHEMA_VERSION));
+      expect(await inRoom(boardId, (room) => room.testSchemaVersion())).toBeNull();
+      expect(await inRoom(boardId, (room) => room.exists())).toBe(false);
+
+      // Creation is the other call, and it is the only one that writes a schema.
+      expect(await inRoom(boardId, (room) => room.initialize())).toBe('created');
+      expect(await inRoom(boardId, (room) => room.testSchemaVersion())).toBe(
+        String(STORAGE_SCHEMA_VERSION),
+      );
+      expect(await inRoom(boardId, (room) => room.exists())).toBe(true);
     },
     30000,
   );

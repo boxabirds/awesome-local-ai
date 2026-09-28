@@ -203,6 +203,10 @@ class FakeStorage implements BoardStorage {
   private logRows = 0;
   private logBytes = 0;
   private seq = 0;
+  // Which tables this fake holds, the way SQLite's own schema table reports them:
+  // `CREATE TABLE` puts a name here and the store's `sqlite_master` read gets back
+  // exactly the names it has caused to be there.
+  private tables = new Set<string>();
 
   readonly sql = {
     exec: (sql: string, ...bindings: SqlBinding[]): Iterable<Record<string, unknown>> => {
@@ -222,6 +226,12 @@ class FakeStorage implements BoardStorage {
       if (/^SELECT COALESCE\(MAX\(seq\), 0\) AS m FROM updates/.test(trimmed)) {
         return [{ m: this.seq }];
       }
+      if (/^SELECT name FROM sqlite_master WHERE type = 'table' AND name IN \(\?/.test(trimmed)) {
+        return bindings
+          .map((binding) => String(binding))
+          .filter((name) => this.tables.has(name))
+          .map((name) => ({ name }));
+      }
       if (/^SELECT value FROM storage_meta WHERE key = /.test(trimmed)) {
         const v = this.meta.get(String(bindings[0]));
         return v === undefined ? [] : [{ value: v }];
@@ -234,7 +244,10 @@ class FakeStorage implements BoardStorage {
         if (!this.meta.has(String(bindings[0]))) this.meta.set(String(bindings[0]), String(bindings[1]));
         return [];
       }
-      // Everything else (DDL, snapshot chunk writes) is accepted and recorded.
+      const created = /^CREATE TABLE IF NOT EXISTS (\w+)/.exec(trimmed);
+      if (created) this.tables.add(created[1]);
+      // Everything else (snapshot chunk writes and the rest of the DDL) is accepted
+      // and recorded.
       return [];
     },
   };

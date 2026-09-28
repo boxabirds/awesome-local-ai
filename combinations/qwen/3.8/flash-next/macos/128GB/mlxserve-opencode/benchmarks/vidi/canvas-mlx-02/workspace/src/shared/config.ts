@@ -112,3 +112,28 @@ export const PERSIST_TESTED_NOTES = 2_000;
 // data version (board-model's schemaVersion lives in the Y.Doc) and not the app
 // version.
 export const STORAGE_SCHEMA_VERSION = 1;
+
+// --- Sharing by link (story 5) ----------------------------------------------
+
+// How many boards ONE visitor may create per BOARD_CREATE_PERIOD_SECONDS.
+// These two values are the product rule; `wrangler.jsonc`'s `ratelimits`
+// binding must mirror them (TC-03 asserts the equality, because a drift would
+// silently change the product rule while every test still passed).
+export const BOARD_CREATE_LIMIT = 10;
+export const BOARD_CREATE_PERIOD_SECONDS = 60;
+
+// How many candidate ids one board creation may try before giving up. A try is
+// only made against a code that is already taken (`share.unique`), so three is
+// ample for 128-bit codes and bounds the work a single request can do.
+export const CREATE_ID_MAX_ATTEMPTS = 3;
+
+// PRD share.create: a new board must be open within this many ms.
+export const CREATE_BUDGET_MS = 2000;
+
+// How long the Share panel's button reads "Link copied".
+export const LINK_COPIED_MS = 2000;
+
+// First retry interval for the board page's existence check. Each retry
+// doubles it, capped at RECONNECT_MAX_BACKOFF_MS (story 3), so a service that
+// comes back is picked up without the person reloading.
+export const BOARD_CHECK_RETRY_BASE_MS = 1000;

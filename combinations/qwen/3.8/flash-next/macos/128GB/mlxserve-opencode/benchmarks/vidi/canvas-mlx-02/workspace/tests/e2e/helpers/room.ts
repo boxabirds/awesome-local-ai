@@ -2,9 +2,14 @@
 // separate browser context (isolated storage/sockets) pointed at the SAME board
 // id via the /b/:boardId route.
 import type { Browser, Locator, Page } from '@playwright/test';
+import { ensureBoard } from './board.ts';
 
-// Open (or join) a board by id. The Durable Object spins up on first connect.
+/**
+ * Open (or join) a board by id. The board is caused to exist first: a code the
+ * server has never seen is a page that says so, not a room that starts up.
+ */
 export async function openBoard(page: Page, boardId: string): Promise<void> {
+  await ensureBoard(boardId);
   await page.goto(`/b/${boardId}`);
   await page.waitForSelector('[data-testid="viewport"]');
 }

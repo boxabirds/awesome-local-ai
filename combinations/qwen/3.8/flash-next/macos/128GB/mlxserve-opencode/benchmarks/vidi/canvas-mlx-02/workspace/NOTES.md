@@ -322,3 +322,131 @@ test:component` (56), `npm run test:integration` (37) and `npm run test:e2e`
     about reading the board back from storage. The board is seeded through the
     DO (`testSeed`) as one Yjs update, which is what makes a sized board
     buildable in one call rather than one round trip per note.
+
+---
+
+# Notes — Story 5: Share a board with others using a link
+
+Story 5 is complete: `npm run typecheck`, `npm run test:unit` (132),
+`npm run test:component` (80), `npm run test:integration` (65), `npm run test:e2e`
+(48 across Chromium + WebKit, share.spec 7 per browser) and
+`npm run test:e2e:nightly` (20) pass.
+
+## Decisions & deviations
+
+1. **A board exists when its storage says it exists.** `BoardStore.existsReadOnly()`
+   answers "is there a `created_at` in `meta`, or a row in `update_log` or
+   `snapshot_chunks`", reading `sqlite_master` first and never creating a table:
+   a check that could not help creating the board is the only check that can be run
+   against a link a stranger typed. The two limbs are not redundant — story 4's
+   boards have rows and no `created_at`, and an empty board made today has
+   `created_at` and no rows. `existsNow` on the room caches the answer once it has
+   been true, because boards are never deleted in this product, so re-reading
+   storage on every reconnect buys a read and nothing else.
+
+2. **Creation is an RPC that answers "created" or "exists", never both.**
+   `BoardRoom.initialize()` runs `migrate()` + `setCreatedAtIfAbsent()` inside one
+   `transactionSync`, so two requests for the same code cannot both be told they
+   made the board. `BoardStore.migrate()` no longer runs on construct: `load()`
+   treats missing tables as an empty board, `append()` migrates lazily. That is what
+   lets a board written before this story — rows, no `created_at` — still be a board
+   at its address (e2e TC-32 seeds exactly that shape through the `seed` hook, which
+   never writes `created_at`).
+
+3. **Room `fetch()` order: test hooks, 426, 404, accept.** The existence gate sits
+   *after* the Upgrade check so story 3's TC-05 (426 for a well-formed code that
+   nobody created, asked without an Upgrade header) still reads as it did: an
+   ordinary HTTP request to the room route is refused for being not-a-upgrade, not
+   for being unknown.
+
+4. **The rate limiter is the binding's real shape.** `wrangler.jsonc` carries
+   `binding:"BOARD_CREATE_LIMITER", simple:{limit:10, period:60}` — the `simple`
+   nesting, not a flat pair — and the visitor is `cf-connecting-ip` falling back to
+   `unknown-visitor`, because a local `wrangler dev` has no `cf` object and a test
+   that cannot choose its visitor cannot test a per-visitor limit (see 12).
+   Collision retries are bounded twice: `CREATE_ID_MAX_ATTEMPTS = 3` tries and
+   `CREATE_BUDGET_MS = 2000` of wall time, then a 500 that `createResponse()` turns
+   into the PRD's sentence.
+
+5. **`create-board.ts` declares its own structural types** (`RoomStub`,
+   `RoomNamespace`, `Limiter`) rather than importing `Env` from `./index.ts`, so
+   `tests/unit/create-board.test.ts` typechecks and runs under the DOM tsconfig
+   without worker globals in scope. The same reasoning as story 4's
+   `BoardStorage` interface: the shipped code is the code under test.
+
+6. **Navigation is the History API, not a reload.** The design's literal
+   `location.pathname =` was replaced with `history.pushState` plus a
+   `vidi6:navigate` event that `useRoute()` listens for. The address bar, the back
+   and forward buttons and a pasted link behave the way the acceptance criteria say
+   they must either way; a reload throws away the document to fetch a document that
+   is already running, and it cannot be asserted in jsdom. `routeKey()` keys the
+   board page by its code, so a different code is a new page with nothing left over
+   — no check in flight, no copy message, no Y.Doc.
+
+7. **PRD sentences are pinned character for character** in
+   `tests/unit/copy-wording.test.ts`, including the two that look interchangeable:
+   being told to wait is not being told the board could not be made, and a link
+   check that cannot reach the service says "Couldn't reach vidi6. Retrying…" rather
+   than anything about boards.
+
+8. **"Link copied" is the button's own text**, with the PRD's tick drawn by CSS on
+   `[data-copied]` (so the words the button says are exactly the PRD's words), and
+   the panel's message slot stays empty on success and holds only "Press Ctrl+C
+   (Cmd+C on Mac) to copy" after a clipboard that refused. The two sentences are
+   never both on screen: a checkmark over a link that never went anywhere is the
+   failure this story exists to avoid. `copyFeedbackMessage()` therefore returns null
+   for `copied`, and the component tests read `panelHarness().copyClaim()`, which
+   looks at whichever of the two is holding the claim.
+
+9. **A clipboard that refused hands the text over, and the panel is dismissed.**
+   `manual` focuses the field and selects the whole address, so the keystroke in the
+   sentence is enough; Escape and any pointerdown outside the panel close it, focus
+   returns to the Share button, and a note being edited keeps its own Escape
+   (`.sticky-editor` is exempted). A `generation` ref is bumped whenever the panel
+   closes or is shown another board, so a copy that answers afterwards is dropped
+   rather than drawn on a panel that no longer refers to it.
+
+10. **The not-found page's button is the create action**, per the design
+    ("reuses HomePage's create action"): the same `useCreateBoard` hook and the same
+    in-flight guard, so the page that says a link is nobody's board can make a board
+    that is somebody's, at a different address (e2e TC-30 clicks it). The page still
+    cannot join, retry into, or write anything at the link it is about.
+
+11. **`BoardApp` was cut out of `App`.** `src/client/App.tsx` is now only the router
+    (route → HomePage / BoardPage / NotFoundPage); the canvas, toolbar, zoom,
+    connection badge and Share panel live in `src/client/board/BoardApp.tsx`, which
+    the story 1–4 component tests drive directly. `ConnectionStatus` moved to
+    `right: 108px` so the Share button does not sit on it.
+
+12. **`POST /__test/boards/:id/ensure` is the e2e fixture for "a board at a code the
+    test chose".** The product's own endpoint returns a code the test is not told in
+    advance — right for a visitor, useless for a test that must point a second
+    browser, or a second worker process, at a board it already has an id for. All the
+    story 1–4 specs assumed a room spins up the moment someone dials a code, so
+    `openBoard()`/`gotoBoard()` ensure the board first; `persistence.spec`'s own
+    worker needs `ensureBoard(id, worker.origin)` — sending the ensure to the *shared*
+    worker left that spec waiting ten minutes for a board its own process had never
+    heard of, which is how the change was caught rather than hidden.
+
+13. **`route.continue({headers})` did not deliver the limiter's client address** in
+    Chromium; `route.fetch()` + `route.fulfill()` does. e2e TC-29 therefore sends the
+    page's own create request on with a visitor address of the test's choosing
+    (`203.0.113.x`), exhausts that visitor's minute with ten POSTs, and then asserts
+    the page's answer: the PRD's sentence in its slot, the button a button again, no
+    board, no board address, and — the part that is easy to get wrong — not the
+    not-found page either.
+
+14. **WebKit is told what is not being checked.** It grants neither
+    `clipboard-read` nor `clipboard-write` and offers no way to read the clipboard
+    back, so e2e TC-27 asserts the page's own claim (`[data-copied]`, and that the
+    field holds the address the page is standing at) and pushes a test annotation
+    saying the clipboard itself is unreadable there, instead of pretending.
+
+15. **Two naming constraints, recorded because they cost time.**
+    vitest-pool-workers does not resolve `extends` in a wrangler config, so the
+    integration project runs on the shipped `wrangler.jsonc` and reaches DO storage
+    through `runInDurableObject` (+ `store.testQuery()`, `room.testSeed()`) rather
+    than a duplicated test config that would drift. And the integration file is
+    `tests/integration/api.test.ts`: miniflare names a DO's storage directory after
+    the test file path plus class name, and macOS caps one path component at 255
+    bytes — a longer name fails to start the DO, with an error about filenames.

@@ -8,12 +8,14 @@ Model `mlxserve-flash-next-mixed-4-8bit`, scope `canvas`, effort `low`, client p
 | 2 | Capture ideas on sticky notes and rearrange them | DONE | 48.7 | None | None | None | — | — | green | 20/20 |  | 0 / 0 | 1 | — | throttled 98%, server peak 83 GB |
 | 3 | See other people's edits appear live on the same board | DONE | 79.7 | None | None | None | — | — | green | 25/27 |  | 0 / 0 | 2 | — | throttled 94%, server peak 84 GB |
 | 4 | Return to a board and find everything as it was left | PARTIAL (amber) | 240.1 | None | None | None | — | — | green | 29/31 |  | 0 / 3 | 5 | — | throttled 64%, server peak 84 GB |
+| 5 | Share a board with others using a link | DONE, on partial 4 | 144.4 | None | None | None | — | — | green | 34/36 |  | 0 / 0 | 3 | — | throttled 71%, server peak 84 GB |
 
-**Totals:** 4 stories, 397 agent-minutes, 0 requests, 0 prompt / 0 completion tokens, gate green 4/4, final acceptance 29/31, stalled 0, partial 1, 9345 lines in src+tests.
+**Totals:** 5 stories, 541 agent-minutes, 0 requests, 0 prompt / 0 completion tokens, gate green 5/5, final acceptance 34/36, stalled 0, partial 1, 13099 lines in src+tests.
 
 ### Stories ended early (PARTIAL) and what was built on them
 
 - **Story 4 PARTIAL**, ended by the operator (harness (cap)): story cap: 4.0 h of agent time (cap 4.0 h). Verdict **amber**: gate green, tasks not verified [1, 2, 3, 4, 5, 6, 7, 8, 9] (implementation: [2, 4, 7]), held-out 4/4 (floor 0.25).
+- Story 5, built on partial 4: held-out tests on the partial base 9/9; partial story's tests fixed 0, regressed 0; 7 stub-like lines added to src/.
 
 ## How it happened
 
@@ -25,6 +27,7 @@ Each story's commits, and which story broke or fixed an earlier story's held-out
 | 2 | 1 by the agent | 2602 / 12 | `StickyNote.tsx` (306), `board-model.ts` (193), `StickyTextEditor.tsx` (130), `App.tsx` (120), `StickyText.ts` (91), `NoteToolbar.tsx` (86), +9 more |
 | 3 | 1 by the agent | 3153 / 436 | `board-room.ts` (181), `connectBoard.ts` (115), `NOTES.md` (102), `protocol.ts` (58), `App.tsx` (45), `useBoardDoc.ts` (44), +13 more |
 | 4 | harness snapshot (agent left work uncommitted) | 3461 / 125 | `board-room.ts` (715), `board-store.ts` (396), `NOTES.md` (132), `room-state.ts` (108), `connectBoard.ts` (43), `index.ts` (43), +10 more |
+| 5 | 1 by the agent | 4138 / 238 | `SharePanel.tsx` (288), `App.tsx` (240), `BoardApp.tsx` (203), `styles.css` (196), `create-board.ts` (147), `board-store.ts` (145), +14 more |
 
 ### Earlier stories broken or fixed
 

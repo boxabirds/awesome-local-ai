@@ -29,8 +29,10 @@ export function ConnectionStatus({ state }: ConnectionStatusProps): React.JSX.El
       data-state={state}
       style={{
         position: 'fixed',
+        // Clear of the Share button, which owns the top-right corner from story 5
+        // on: two things fixed at the same corner would be one unreadable pile.
         top: 12,
-        right: 12,
+        right: 108,
         zIndex: 10,
         padding: '4px 10px',
         borderRadius: 6,

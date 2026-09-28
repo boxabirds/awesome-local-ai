@@ -1,8 +1,9 @@
 // Shared helpers for story 2 component tests (render App in jsdom).
 import { render, screen, fireEvent, within } from '@testing-library/react';
 import type { RenderResult } from '@testing-library/react';
-import App from '../../src/client/App.tsx';
+import BoardApp from '../../src/client/board/BoardApp.tsx';
 import type { ProviderFactory } from '../../src/client/collab/connectBoard.ts';
+import { newBoardId } from '../../src/shared/board-id.ts';
 import { STICKY_COLORS } from '../../src/shared/config.ts';
 
 export interface AppHarness {
@@ -15,8 +16,12 @@ export interface AppHarness {
   editor(): HTMLElement | null;
 }
 
+// The board is rendered for a code of the test's choosing, which is what
+// `BoardApp` takes; routing and link-checking are story 5's own tests.
+const TEST_BOARD_ID = newBoardId();
+
 export function renderBoard(makeProvider?: ProviderFactory): AppHarness {
-  const view = render(<App makeProvider={makeProvider} />);
+  const view = render(<BoardApp boardId={TEST_BOARD_ID} makeProvider={makeProvider} />);
 
   const viewport = () => screen.getByTestId('viewport') as HTMLElement;
   const worldLayer = () => screen.getByTestId('world-layer') as HTMLElement;

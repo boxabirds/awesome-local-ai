@@ -1,5 +1,9 @@
 import type { Page } from '@playwright/test';
 import { GRID_SPACING_WORLD } from '../../../src/shared/config.ts';
+import { newBoardId } from '../../../src/shared/board-id.ts';
+
+// The `wrangler dev` that playwright.config.ts starts, with TEST_HOOKS on.
+const SHARED_ORIGIN = process.env.E2E_BASE_URL ?? 'http://localhost:4173';
 
 export interface Cam {
   x: number;
@@ -9,9 +13,36 @@ export interface Cam {
 
 const VIEWPORT_SELECTOR = '[data-testid="viewport"]';
 
-export async function gotoBoard(page: Page): Promise<void> {
-  await page.goto('/');
+/**
+ * Cause a board to exist, by its code, through the room's test fixture.
+ *
+ * The board specs need a board at a code they already know, because they seed it,
+ * break it, or point a second browser at it before anyone has opened it. The
+ * product's own way to make a board hands out a code the test is not told in
+ * advance, which is the right behaviour and the wrong fixture, so the test asks
+ * the room to create the one it wants - and a mistyped code stays a board that was
+ * never created, which is what story 5's own tests then check.
+ */
+export async function ensureBoard(boardId: string, origin = SHARED_ORIGIN): Promise<void> {
+  const res = await fetch(`${origin}/__test/boards/${boardId}/ensure`, { method: 'POST' });
+  const body = await res.text();
+  if (!res.ok) throw new Error(`ensure board -> ${res.status}: ${body.slice(0, 200)}`);
+}
+
+/**
+ * Open a board at its own address, and wait for the canvas. A board the server has
+ * never heard of is now a page that says so rather than a board that spins up on
+ * arrival, so the board is caused to exist first.
+ */
+export async function openBoard(page: Page, boardId = newBoardId()): Promise<string> {
+  await ensureBoard(boardId);
+  await page.goto(`/b/${boardId}`);
   await page.waitForSelector(VIEWPORT_SELECTOR);
+  return boardId;
+}
+
+export async function gotoBoard(page: Page): Promise<string> {
+  return openBoard(page);
 }
 
 export async function setCamera(page: Page, cam: Cam): Promise<void> {
