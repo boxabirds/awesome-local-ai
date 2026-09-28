@@ -71,15 +71,13 @@ gufo does this scoring step efficiently, so its speed stays almost flat: 1,266 t
 
 ### 6. It only keeps speed-ups that don't change the output
 
-gufo's experiment log only accepts an optimisation if the model's output stays **bit-identical**, meaning exactly the same down to the last digit. The log lists plenty of faster ideas that were rejected because they changed the results.
+gufo keeps a log of every speed-up it has tried for this model, with the evidence for keeping or dropping it. An idea only counts if the model's output stays exactly the same (**bit-identical** to a trusted reference, meaning the same down to the last digit). Most ideas pass that check and are still dropped, because they weren't actually faster once measured end to end.
 
 ## What it costs
 
 It's not free though.
 
-**Every new quantisation needs more engineering.** Each way of storing the weights needs its own unpacking code inside the tuned routines, so a new quantisation isn't just a settings change. Choosing gufo also chooses your files for you: for this model it's UD-Q4_K_XL only.
-
-**New models need work too.** The batching, the matrix-unit code, the saving of conversations and the server all carry over to new models, and gufo already covers several: Qwen3.8 27B and Flash-Next, DeepSeek V4 Flash, MiniMax H3, and some image and speech models. But each new kind of layer, or even a new layer size, needs its own tuning. So when a new model is released, llama.cpp usually runs it within days (slowly), while gufo runs it fast once someone has done that work.
+**Every new model gufo supports likely needs some dedicated attention.** A lot carries over: the server, the model-file reader, the sampling and the batching all work across models, and similar models share code. gufo already covers several: Qwen3.8 27B and Flash-Next, DeepSeek V4 Flash, MiniMax H3, and some image and speech models. But the tuned maths routines are copied per model and then tuned for that model's layer sizes, and any new kind of layer needs new code. Even the same model stored a different way ("quantisation") needs its unpacking code added to those routines, which is why gufo only supports one set of files for this model (UD-Q4_K_XL). So when a new model is released, llama.cpp usually runs it within days (slowly), while gufo runs it fast once someone has done that work.
 
 **Part of the lead is temporary.** Processing the shortcut layers in parallel (point 2) is a general method that works on any chip, and llama.cpp already has that code written. Once it's merged, a large part of the gap should close. The chip- and model-specific parts (points 1, 3, 4 and 5) will stay. That will be the time to re-test llama.cpp on tritus.
 
@@ -89,11 +87,12 @@ It's not free though.
 
 llama.cpp started in March 2023 in much the same way. One person ported one model (Meta's original LLaMA) to plain C/C++ so it could run without PyTorch, and it was fast because it only had one job.
 
-It became so popular that it now supports almost every model on almost every chip, and that is exactly why it's slow on this chip with this model. gufo is doing what llama.cpp did at the start, and if it's successful it will face the same pressure to support everything.
+It became so popular that it now supports almost every model on almost every chip, and that is exactly why it's slow on this chip with this model. Some of gufo's fastest routines started life as llama.cpp code, copied and then tuned for one chip and one model. gufo is doing what llama.cpp did at the start, and if it's successful it will face the same pressure to support everything.
 
 ## Sources
 
 - Speed measurements: test A on tritus, in `benchmarks/gufo-eval/results/` (runs of 27 September 2026).
 - gufo's profile and experiment log: `docs/models/qwen3.8-flash-next/EXPERIMENTS.md` in [gufo-org/gufo](https://github.com/gufo-org/gufo) at `b722a61`.
+- gufo's routines adapted from llama.cpp: `src/models/qwen38_flash_next/kernels/rocm/mmq/VENDOR.md` in the same repository (DeepSeek V4 Flash has its own copy).
 - Compaction times and replays of real agent requests: [the long-session investigation](../../../../../../../docs/20260928-gufo-long-session-investigation.md).
 - Why llama.cpp is slow on Strix Halo: [the Strix Halo + llama.cpp findings](../../../../../../../docs/20260927-strix-halo-llamacpp-findings.md).
