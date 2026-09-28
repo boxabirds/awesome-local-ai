@@ -2,11 +2,14 @@ import { isValidBoardId } from '../shared/board-id';
 import { BoardRoom } from './board-room';
 import { handleTestHook } from './test-hooks';
 import { createBoard, type Limiter } from './create-board';
+import { handleUpload, handleServe } from './assets';
 
 export interface Env {
   BOARD_ROOM: DurableObjectNamespace<BoardRoom>;
   ASSETS: Fetcher;
+  ASSETS_BUCKET: R2Bucket;
   BOARD_CREATE_LIMITER?: Limiter;
+  ASSET_UPLOAD_LIMITER?: Limiter;
   TEST_HOOKS?: string;
 }
 
@@ -63,6 +66,18 @@ export default {
     // Other methods on /api/boards → 405
     if (url.pathname === '/api/boards') {
       return new Response(null, { status: 405 });
+    }
+
+    // POST /api/boards/:id/assets — upload image asset
+    if (url.pathname.match(/^\/api\/boards\/[^/]+\/assets$/) && request.method === 'POST') {
+      const boardId = url.pathname.split('/')[3];
+      return handleUpload(request, env, boardId);
+    }
+
+    // GET /api/assets/:boardId/:assetId — serve image asset
+    if (url.pathname.startsWith('/api/assets/') && request.method === 'GET') {
+      const parts = url.pathname.slice('/api/assets/'.length);
+      return handleServe(env, parts);
     }
 
     // GET /api/boards/:id — check board existence

@@ -15,6 +15,7 @@ export interface ToolbarProps {
   shapeKind?: ShapeKind;
   onActiveToolChange?(t: ToolId): void;
   onShapeKindChange?(k: ShapeKind): void;
+  onImagePick?(): void;
 }
 
 /**
@@ -24,6 +25,7 @@ export function Toolbar(props: ToolbarProps) {
   const {
     onCreateSticky, disabled, undoState, tool = 'select', onToolChange,
     activeTool, shapeKind = 'rect', onActiveToolChange, onShapeKindChange,
+    onImagePick,
   } = props;
 
   const [shapeMenuOpen, setShapeMenuOpen] = useState(false);
@@ -220,6 +222,22 @@ export function Toolbar(props: ToolbarProps) {
         </span>
         <span className="toolbar-btn-label">Sticky note</span>
       </button>
+      {onImagePick && (
+        <button
+          type="button"
+          aria-label="Image (I)"
+          title="Add image"
+          className="toolbar-btn"
+          data-testid="image-tool-btn"
+          onClick={onImagePick}
+          disabled={disabled}
+        >
+          <span className="toolbar-btn-icon" aria-hidden="true">
+            {'\u{1F5BC}'}
+          </span>
+          <span className="toolbar-btn-label">Image</span>
+        </button>
+      )}
       {undoState && <UndoButtons {...undoState} />}
     </div>
   );

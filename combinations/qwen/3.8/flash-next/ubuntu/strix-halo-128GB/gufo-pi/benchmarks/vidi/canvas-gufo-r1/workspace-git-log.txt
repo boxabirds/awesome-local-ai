@@ -1,3 +1,34 @@
+commit 780c9c5c5837d4791aa9306c1df4ab421d6af391
+vidi-agent  Mon Sep 28 14:22:04 2026 +0000
+
+    story 12: Drop images onto the board
+
+
+ src/client/BoardApp.tsx                 |  67 ++++++-
+ src/client/board/Toolbar.tsx            |  18 ++
+ src/client/images/DropHighlight.tsx     |  12 ++
+ src/client/images/uploadImage.ts        |  65 ++++++
+ src/client/images/useImageInsert.ts     | 297 +++++++++++++++++++++++++++
+ src/client/images/validateFiles.ts      |  50 +++++
+ src/client/objects/ImageObject.tsx      | 173 ++++++++++++++++
+ src/client/objects/registry.tsx         |  21 +-
+ src/client/styles.css                   | 130 ++++++++++++
+ src/client/tools/useActiveTool.ts       |  10 +-
+ src/client/ui/Toast.tsx                 |  53 +++++
+ src/shared/board-model.ts               |  28 ++-
+ src/shared/config.ts                    |  16 ++
+ src/shared/image-format.ts              |  51 +++++
+ src/shared/objects/image.ts             | 227 +++++++++++++++++++++
+ src/worker/assets.ts                    | 140 +++++++++++++
+ src/worker/index.ts                     |  15 ++
+ tests/component/ImageObject.test.tsx    | 189 ++++++++++++++++++
+ tests/component/useImageInsert.test.tsx | 342 ++++++++++++++++++++++++++++++++
+ tests/integration/assets.test.ts        | 261 ++++++++++++++++++++++++
+ tests/unit/image-format.test.ts         |  98 +++++++++
+ tests/unit/image-model.test.ts          | 264 ++++++++++++++++++++++++
+ tests/unit/validate-files.test.ts       |  90 +++++++++
+ wrangler.jsonc                          |  14 ++
+ 24 files changed, 2625 insertions(+), 6 deletions(-)
 commit 8465b14b7fa459e0a5a62d3c93ff621f0f7f8177
 vidi-agent  Mon Sep 28 13:46:19 2026 +0000
 

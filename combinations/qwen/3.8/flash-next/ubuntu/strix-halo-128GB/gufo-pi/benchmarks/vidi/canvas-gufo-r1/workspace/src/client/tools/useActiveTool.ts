@@ -32,6 +32,7 @@ function isEditingContext(target: EventTarget | null): boolean {
 export interface UseActiveToolOptions {
   onSelect?(id: string): void;
   canEdit?: boolean;
+  onImagePick?(): void;
 }
 
 /**
@@ -46,6 +47,8 @@ export function useActiveTool(opts: UseActiveToolOptions = {}): UseActiveToolRes
   onSelectRef.current = opts.onSelect;
   const canEditRef = useRef(opts.canEdit ?? true);
   canEditRef.current = opts.canEdit ?? true;
+  const onImagePickRef = useRef(opts.onImagePick);
+  onImagePickRef.current = opts.onImagePick;
   const toolRef = useRef(tool);
   toolRef.current = tool;
 
@@ -75,11 +78,16 @@ export function useActiveTool(opts: UseActiveToolOptions = {}): UseActiveToolRes
         return;
       }
 
-      // Handle shape, connector, pen and select (v) shortcuts
+      // Handle shape, connector, pen, image and select (v) shortcuts
       if (e.ctrlKey || e.metaKey || e.altKey) return;
       const key = e.key.toLowerCase();
       if (key === 'v') {
         setToolState('select');
+      } else if (key === 'i') {
+        // Image: trigger file picker, do not change tool
+        if (canEditRef.current) {
+          onImagePickRef.current?.();
+        }
       } else if (key === 's' || key === 'l' || key === 'p') {
         const targetTool = TOOL_SHORTCUTS[key];
         if (targetTool && canEditRef.current) {

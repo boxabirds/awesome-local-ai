@@ -2,7 +2,7 @@ import type { ComponentType } from 'react';
 import type { ObjectSnapshot } from '../../shared/board-model';
 import { objectBounds } from '../../shared/board-model';
 import type { Point } from '../../shared/geometry';
-import { STICKY_MIN_SIZE_WORLD, TEXT_MIN_WIDTH_WORLD, SHAPE_MIN_SIZE_WORLD, STROKE_MIN_SIZE_WORLD, PEN_THICKNESS_WORLD, STROKE_HIT_TOLERANCE_PX } from '../../shared/config';
+import { STICKY_MIN_SIZE_WORLD, TEXT_MIN_WIDTH_WORLD, SHAPE_MIN_SIZE_WORLD, STROKE_MIN_SIZE_WORLD, PEN_THICKNESS_WORLD, STROKE_HIT_TOLERANCE_PX, IMAGE_MIN_SIZE_WORLD } from '../../shared/config';
 import { distanceToPolyline } from '../../shared/geometry/polyline';
 import { scaledPoints } from '../../shared/objects/stroke';
 import type { StrokeSnap } from '../../shared/objects/stroke';
@@ -133,5 +133,24 @@ registerObjectType('stroke', {
     const pts = scaledPoints(snap);
     const tolerance = Math.max(PEN_THICKNESS_WORLD[snap.thickness] / 2, STROKE_HIT_TOLERANCE_PX / zoom);
     return distanceToPolyline(pts, worldPoint) <= tolerance;
+  },
+});
+
+// ─── Register image ───────────────────────────────────────────────────────────────────────
+
+registerObjectType('image', {
+  Component: () => null, // Rendered by BoardApp directly
+  resizable: true,
+  aspectLocked: true,
+  minSize: IMAGE_MIN_SIZE_WORLD,
+  editableText: false,
+  hitTest(obj: ObjectSnapshot, worldPoint: Point): boolean {
+    const bounds = objectBounds(obj);
+    return (
+      worldPoint.x >= bounds.x &&
+      worldPoint.x <= bounds.x + bounds.width &&
+      worldPoint.y >= bounds.y &&
+      worldPoint.y <= bounds.y + bounds.height
+    );
   },
 });

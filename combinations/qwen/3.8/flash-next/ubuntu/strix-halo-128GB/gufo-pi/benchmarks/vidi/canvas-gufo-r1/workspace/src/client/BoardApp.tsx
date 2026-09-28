@@ -17,6 +17,7 @@ import { TextObject } from './objects/TextObject';
 import { ShapeObject } from './objects/ShapeObject';
 import { ConnectorObject } from './objects/ConnectorObject';
 import { StrokeObject } from './objects/StrokeObject';
+import { ImageObject } from './objects/ImageObject';
 import { NoteToolbar } from './objects/NoteToolbar';
 import { TextToolbar } from './objects/TextToolbar';
 import { ShapeToolbar } from './objects/ShapeToolbar';
@@ -34,6 +35,7 @@ import {
   type StickySnapshot,
   type TextObjectSnapshot,
 } from '../shared/board-model';
+import type { ImageSnap } from '../shared/objects/image';
 import { createText, setTextSize, setTextBox } from '../shared/objects/text';
 import { setShapeStyle } from '../shared/objects/shape';
 import { createCanvasMeasurer, layoutText } from './objects/textLayout';
@@ -45,6 +47,9 @@ import { ConnectorTool } from './tools/ConnectorTool';
 import { PenTool } from './tools/PenTool';
 import { PenToolbar } from './tools/PenToolbar';
 import { usePenOptions } from './tools/usePenOptions';
+import { useImageInsert } from './images/useImageInsert';
+import { DropHighlight } from './images/DropHighlight';
+import { Toast, useToastState } from './ui/Toast';
 import type { Rect } from '../shared/geometry';
 
 // Generate a per-session identity for createdBy
@@ -63,6 +68,8 @@ export function BoardApp({ boardId }: { boardId: string }) {
   const selection = useSelection(notes);
   const editable = canEdit(connectionState);
   const toolState = useTool(editable);
+
+  const { toast, showToast } = useToastState();
 
   const activeToolState = useActiveTool({
     onSelect: (id) => selection.click(id),
@@ -101,6 +108,37 @@ export function BoardApp({ boardId }: { boardId: string }) {
     },
     [],
   );
+
+  // Image insert hook
+  const imageInsert = useImageInsert({
+    doc,
+    boardId,
+    camera: camState as any,
+    connection: connectionState,
+    identityId: getSessionId(),
+    showToast,
+  });
+
+  // Wire image picker to active tool (I key)
+  const handleImagePick = useCallback(() => {
+    imageInsert.openPicker();
+  }, [imageInsert]);
+
+  // Paste listener on window
+  useEffect(() => {
+    const handler = (e: ClipboardEvent) => imageInsert.onPaste(e);
+    window.addEventListener('paste', handler);
+    return () => window.removeEventListener('paste', handler);
+  }, [imageInsert]);
+
+  // Clock tick: re-render every 30s while any image is uploading (for 'unfinished' detection)
+  const [now, setNow] = useState(Date.now());
+  const hasUploading = notes.some((n) => n.type === 'image' && (n as ImageSnap).status === 'uploading');
+  useEffect(() => {
+    if (!hasUploading) return;
+    const iv = setInterval(() => setNow(Date.now()), 30_000);
+    return () => clearInterval(iv);
+  }, [hasUploading]);
 
   const handleCreateSticky = useCallback(() => {
     if (!editable) return;
@@ -350,8 +388,18 @@ export function BoardApp({ boardId }: { boardId: string }) {
     };
   }
 
+  const handleDragOver = useCallback((e: React.DragEvent) => {
+    imageInsert.onDragOver(e as unknown as DragEvent);
+  }, [imageInsert]);
+
+  const handleDrop = useCallback((e: React.DragEvent) => {
+    imageInsert.onDrop(e as unknown as DragEvent);
+  }, [imageInsert]);
+
   return (
-    <div onKeyDown={handleKeyDown} data-testid="app-root" tabIndex={-1}>
+    <div onKeyDown={handleKeyDown} data-testid="app-root" tabIndex={-1} onDragOver={handleDragOver} onDrop={handleDrop}>
+      {imageInsert.dragging && <DropHighlight />}
+      <Toast toast={toast} />
       <ConnectionStatus state={connectionState} />
       <Toolbar
         onCreateSticky={handleCreateSticky}
@@ -363,6 +411,7 @@ export function BoardApp({ boardId }: { boardId: string }) {
         shapeKind={activeToolState.shapeKind}
         onActiveToolChange={activeToolState.setTool}
         onShapeKindChange={activeToolState.setShapeKind}
+        onImagePick={handleImagePick}
       />
       <BoardViewport
         onDblClickEmpty={handleDblClickEmpty}
@@ -387,6 +436,22 @@ export function BoardApp({ boardId }: { boardId: string }) {
         ) : undefined}
       >
         {notes.map((note) => {
+          if (note.type === 'image') {
+            const img = note as ImageSnap;
+            return (
+              <ImageObject
+                key={note.id}
+                image={img}
+                isUploader={img.uploaderId === getSessionId()}
+                progress={imageInsert.progress.get(note.id)}
+                canRetry={imageInsert.canRetry(note.id)}
+                now={now}
+                zoom={zoom}
+                onRetry={() => imageInsert.retry(note.id)}
+                onRemove={() => { deleteObjects(doc, [note.id]); }}
+              />
+            );
+          }
           if (note.type === 'stroke') {
             return (
               <StrokeObject

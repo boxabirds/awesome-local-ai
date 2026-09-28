@@ -530,3 +530,133 @@ body,
 .text-toolbar-delete:hover {
   background: #fee2e2;
 }
+
+/* ─── Story 12: Image objects ──────────────────────────────────────────────── */
+
+.image-object {
+  cursor: pointer;
+  overflow: hidden;
+  border-radius: 2px;
+}
+
+.image-uploading {
+  background: #e0e0e0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 60px;
+}
+
+.image-progress-bar {
+  width: 80%;
+  height: 6px;
+  background: #bdbdbd;
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.image-progress-fill {
+  height: 100%;
+  background: #1976d2;
+  transition: width 0.2s ease;
+}
+
+.image-status-text {
+  font-size: 12px;
+  color: #616161;
+  white-space: nowrap;
+}
+
+.image-broken-icon {
+  font-size: 24px;
+  opacity: 0.6;
+}
+
+.image-failed {
+  background: #fff;
+  border: 2px solid #e53935;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 8px;
+}
+
+.image-failed .image-status-text {
+  color: #e53935;
+  font-weight: 500;
+}
+
+.image-failed-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.image-retry-btn,
+.image-remove-btn {
+  padding: 2px 8px;
+  font-size: 12px;
+  border: 1px solid #bdbdbd;
+  border-radius: 4px;
+  background: #fff;
+  cursor: pointer;
+}
+
+.image-retry-btn:hover {
+  background: #e3f2fd;
+  border-color: #1976d2;
+}
+
+.image-remove-btn:hover {
+  background: #ffebee;
+  border-color: #e53935;
+}
+
+.image-unfinished {
+  background: #e0e0e0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 8px;
+}
+
+.image-unavailable {
+  background: #e0e0e0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+}
+
+/* Drop highlight */
+.drop-highlight {
+  position: fixed;
+  inset: 0;
+  border: 3px dashed #1976d2;
+  background: rgba(25, 118, 210, 0.05);
+  z-index: 9999;
+  pointer-events: none;
+}
+
+/* Toast */
+.toast-message {
+  position: fixed;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #323232;
+  color: #fff;
+  padding: 12px 24px;
+  border-radius: 8px;
+  font-size: 14px;
+  z-index: 10000;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  max-width: 90vw;
+  text-align: center;
+}

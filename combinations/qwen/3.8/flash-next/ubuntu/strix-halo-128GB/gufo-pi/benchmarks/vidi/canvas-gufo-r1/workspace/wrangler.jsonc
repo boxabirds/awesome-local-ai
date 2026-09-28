@@ -24,12 +24,26 @@
       "new_sqlite_classes": ["BoardRoom"]
     }
   ],
+  "r2_buckets": [
+    {
+      "binding": "ASSETS_BUCKET",
+      "bucket_name": "vidi6-assets"
+    }
+  ],
   "ratelimits": [
     {
       "name": "BOARD_CREATE_LIMITER",
       "namespace_id": "board-create",
       "simple": {
         "limit": 10,
+        "period": 60
+      }
+    },
+    {
+      "name": "ASSET_UPLOAD_LIMITER",
+      "namespace_id": "asset-upload",
+      "simple": {
+        "limit": 60,
         "period": 60
       }
     }

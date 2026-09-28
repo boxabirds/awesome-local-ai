@@ -11,6 +11,7 @@ import {
   type PenColor,
   type PenThickness,
 } from './config';
+import type { ImageSnap, ImageStatus } from './objects/image';
 import { type Rect, rectContains } from './geometry';
 import {
   sideAnchor,
@@ -86,7 +87,7 @@ export interface StrokeObjectSnapshot {
 }
 
 /** Generic object snapshot - any type that can appear on the board */
-export type ObjectSnapshot = StickySnapshot | TextObjectSnapshot | ShapeObjectSnapshot | ConnectorObjectSnapshot | StrokeObjectSnapshot;
+export type ObjectSnapshot = StickySnapshot | TextObjectSnapshot | ShapeObjectSnapshot | ConnectorObjectSnapshot | StrokeObjectSnapshot | ImageSnap;
 
 export interface ConnectorObjectSnapshot {
   id: string;
@@ -280,6 +281,27 @@ export function snapshot(doc: Y.Doc): readonly ObjectSnapshot[] {
         text: '',
       };
       result.push(snap);
+    } else if (type === 'image') {
+      const snap: ImageSnap = {
+        id,
+        type: 'image',
+        x: obj.get('x') as number,
+        y: obj.get('y') as number,
+        width: obj.get('width') as number,
+        height: obj.get('height') as number,
+        z: obj.get('z') as number,
+        createdAt: obj.get('createdAt') as number,
+        createdBy: (obj.get('createdBy') as string) ?? '',
+        assetKey: (obj.get('assetKey') as string | null) ?? null,
+        contentType: (obj.get('contentType') as string) ?? '',
+        naturalWidth: obj.get('naturalWidth') as number,
+        naturalHeight: obj.get('naturalHeight') as number,
+        status: (obj.get('status') as ImageStatus) ?? 'uploading',
+        uploadStartedAt: obj.get('uploadStartedAt') as number,
+        uploaderId: (obj.get('uploaderId') as string) ?? '',
+        text: '',
+      };
+      result.push(snap);
     } else if (type === 'connector') {
       // Connector bbox derived from resolved endpoints - handled after loop
     }
@@ -342,7 +364,7 @@ export function objectBounds(obj: ObjectSnapshot): Rect {
   if (obj.type === 'text') {
     return { x: obj.x, y: obj.y, width: obj.width, height: obj.height };
   }
-  if (obj.type === 'shape' || obj.type === 'stroke') {
+  if (obj.type === 'shape' || obj.type === 'stroke' || obj.type === 'image') {
     return { x: obj.x, y: obj.y, width: obj.width, height: obj.height };
   }
   return {
@@ -376,7 +398,7 @@ export function objectsInRect(
 export function allObjectIds(
   snapshotArr: readonly ObjectSnapshot[],
 ): string[] {
-  const knownTypes = new Set(['sticky', 'text', 'shape', 'stroke']);  const result: string[] = [];
+  const knownTypes = new Set(['sticky', 'text', 'shape', 'stroke', 'image']);  const result: string[] = [];
   for (const obj of snapshotArr) {
     if (knownTypes.has(obj.type)) {
       result.push(obj.id);
