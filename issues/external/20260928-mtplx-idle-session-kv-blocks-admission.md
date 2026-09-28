@@ -1,12 +1,13 @@
-> **Draft**, not filed. Laid out to match the MTPLX bug report form: paste each section into the field of the same name.
+> **Draft**, not filed. The four sections below match the MTPLX bug report form's fields, in order, with the same names.
 
-## Title
+**Title:** An idle session's live KV can't be reclaimed by the admission shed, so a smaller new request is refused (507) until restart
 
-An idle session's live KV can't be reclaimed by the admission shed, so a smaller new request is refused (507) until restart
-
-## mtplx doctor --json
+## Output of mtplx doctor --json
 
 Captured on 28 Sep 2026 on the same machine and MTPLX version (2.12.0), with no MTPLX server running. The incident itself was on 24 Sep. Home-directory paths are shortened to `~`. `default_model` shows the 27B pack, doctor's default; the incident used the Flash-Next pack named in the command below.
+
+<details>
+<summary>mtplx doctor --json (335 lines)</summary>
 
 ```json
 {
@@ -347,7 +348,10 @@ Captured on 28 Sep 2026 on the same machine and MTPLX version (2.12.0), with no 
 }
 ```
 
+</details>
+
 ## Exact command
+
 
 ```
 python -m mtplx.server.openai --model ~/.mtplx/models/Youssofal--Qwen3.8-Flash-Next-MTPLX-Optimized-Speed \
@@ -366,15 +370,20 @@ The client was the pi coding agent, one conversation at a time. Its tools are ba
 
 ## Model path or repo id
 
+
 `~/.mtplx/models/Youssofal--Qwen3.8-Flash-Next-MTPLX-Optimized-Speed` (served as `mtplx-flash-next-optimized-speed`)
 
 ## Chip, RAM, macOS version
 
+
 Apple M5 Max, 128 GB, macOS 26.4 (25E246). Default memory limit (`limit_bytes` = 96.0 GiB in the guard events); `iogpu.wired_limit_mb` untouched.
 
-## Description
+---
 
-(Paste the rest of this section into the form's description field.)
+## What happened and why
+
+The form has no description field. Put this in the issue body if it allows free text, or as the first comment after filing.
+
 
 ### What happened
 
