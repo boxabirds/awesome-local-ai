@@ -4,6 +4,7 @@ import {
   STICKY_COLORS,
   STICKY_SIZE_WORLD,
   type StickyColor,
+  type TextSize,
 } from './config';
 import { type Rect, rectContains } from './geometry';
 
@@ -22,8 +23,23 @@ export interface StickySnapshot {
   createdAt: number;
 }
 
+export interface TextObjectSnapshot {
+  id: string;
+  type: 'text';
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  z: number;
+  createdAt: number;
+  createdBy: string;
+  text: string;
+  size: TextSize;
+  widthMode: 'auto' | 'fixed';
+}
+
 /** Generic object snapshot - any type that can appear on the board */
-export type ObjectSnapshot = StickySnapshot;
+export type ObjectSnapshot = StickySnapshot | TextObjectSnapshot;
 
 const COLOR_KEYS: Set<string> = new Set(Object.keys(STICKY_COLORS));
 
@@ -121,28 +137,46 @@ export function getStickyText(doc: Y.Doc, id: string): Y.Text | undefined {
   return obj.get('text') as Y.Text;
 }
 
-export function snapshot(doc: Y.Doc): readonly StickySnapshot[] {
+export function snapshot(doc: Y.Doc): readonly ObjectSnapshot[] {
   const objects = objectsMap(doc);
-  const result: StickySnapshot[] = [];
+  const result: ObjectSnapshot[] = [];
   objects.forEach((obj, id) => {
-    if (obj.get('type') !== 'sticky') return;
-    const snap: StickySnapshot = {
-      id,
-      type: 'sticky',
-      x: obj.get('x') as number,
-      y: obj.get('y') as number,
-      color: obj.get('color') as StickyColor,
-      text: (obj.get('text') as Y.Text).toString(),
-      z: obj.get('z') as number,
-      createdAt: obj.get('createdAt') as number,
-    };
-    const w = obj.get('width') as number | undefined;
-    const h = obj.get('height') as number | undefined;
-    if (w != null && h != null) {
-      snap.width = w;
-      snap.height = h;
+    const type = obj.get('type') as string;
+    if (type === 'sticky') {
+      const snap: StickySnapshot = {
+        id,
+        type: 'sticky',
+        x: obj.get('x') as number,
+        y: obj.get('y') as number,
+        color: obj.get('color') as StickyColor,
+        text: (obj.get('text') as Y.Text).toString(),
+        z: obj.get('z') as number,
+        createdAt: obj.get('createdAt') as number,
+      };
+      const w = obj.get('width') as number | undefined;
+      const h = obj.get('height') as number | undefined;
+      if (w != null && h != null) {
+        snap.width = w;
+        snap.height = h;
+      }
+      result.push(snap);
+    } else if (type === 'text') {
+      const snap: TextObjectSnapshot = {
+        id,
+        type: 'text',
+        x: obj.get('x') as number,
+        y: obj.get('y') as number,
+        width: obj.get('width') as number,
+        height: obj.get('height') as number,
+        z: obj.get('z') as number,
+        createdAt: obj.get('createdAt') as number,
+        createdBy: (obj.get('createdBy') as string) ?? '',
+        text: (obj.get('text') as Y.Text).toString(),
+        size: obj.get('size') as TextSize,
+        widthMode: obj.get('widthMode') as 'auto' | 'fixed',
+      };
+      result.push(snap);
     }
-    result.push(snap);
   });
   result.sort((a, b) => {
     if (a.z !== b.z) return a.z - b.z;
@@ -158,11 +192,14 @@ export function snapshot(doc: Y.Doc): readonly StickySnapshot[] {
  * for stickies without explicit width/height.
  */
 export function objectBounds(obj: ObjectSnapshot): Rect {
+  if (obj.type === 'text') {
+    return { x: obj.x, y: obj.y, width: obj.width, height: obj.height };
+  }
   return {
     x: obj.x,
     y: obj.y,
-    width: obj.width ?? STICKY_SIZE_WORLD,
-    height: obj.height ?? STICKY_SIZE_WORLD,
+    width: (obj as StickySnapshot).width ?? STICKY_SIZE_WORLD,
+    height: (obj as StickySnapshot).height ?? STICKY_SIZE_WORLD,
   };
 }
 
@@ -184,13 +221,12 @@ export function objectsInRect(
 }
 
 /**
- * Return all registered object ids (currently only 'sticky' is registered).
+ * Return all registered object ids (currently 'sticky' and 'text').
  */
 export function allObjectIds(
   snapshotArr: readonly ObjectSnapshot[],
 ): string[] {
-  // Only return objects with known types. Unknown types in the doc are excluded.
-  const knownTypes = new Set(['sticky']);
+  const knownTypes = new Set(['sticky', 'text']);
   const result: string[] = [];
   for (const obj of snapshotArr) {
     if (knownTypes.has(obj.type)) {

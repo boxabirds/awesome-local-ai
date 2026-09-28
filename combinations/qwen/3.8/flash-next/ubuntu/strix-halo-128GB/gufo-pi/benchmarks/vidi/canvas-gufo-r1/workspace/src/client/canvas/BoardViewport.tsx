@@ -67,6 +67,8 @@ export interface BoardViewportProps {
   onMarqueeMove?(screen: { x: number; y: number }): void;
   onMarqueeEnd?(): void;
   onMarqueeCancel?(): void;
+  textToolActive?: boolean;
+  onTextClick?(worldPoint: { x: number; y: number }): void;
 }
 
 export function BoardViewport({
@@ -78,6 +80,8 @@ export function BoardViewport({
   onMarqueeMove,
   onMarqueeEnd,
   onMarqueeCancel,
+  textToolActive,
+  onTextClick,
 }: BoardViewportProps) {
   const surfaceRef = useRef<HTMLDivElement>(null);
   const [viewport, setViewport] = useState<Size>({ width: 0, height: 0 });
@@ -344,6 +348,26 @@ export function BoardViewport({
     return () => el.removeEventListener('dblclick', onDbl);
   }, []);
 
+  // Text tool click handler
+  const onTextClickRef = useRef(onTextClick);
+  onTextClickRef.current = onTextClick;
+  const textToolActiveRef = useRef(textToolActive);
+  textToolActiveRef.current = textToolActive;
+  useEffect(() => {
+    const el = surfaceRef.current;
+    if (!el) return;
+    const onClick = (e: MouseEvent) => {
+      if (!textToolActiveRef.current) return;
+      const rect = el.getBoundingClientRect();
+      const screenPoint = { x: e.clientX - rect.left, y: e.clientY - rect.top };
+      const cam = controllerRef.current.camera;
+      const world = screenToWorld(cam, screenPoint);
+      onTextClickRef.current?.(world);
+    };
+    el.addEventListener('click', onClick, true);
+    return () => el.removeEventListener('click', onClick, true);
+  }, []);
+
   const cam = controller.camera;
   const zoom = cam.zoom;
   const spacingPx = GRID_SPACING_WORLD * zoom;
@@ -367,7 +391,7 @@ export function BoardViewport({
       className="board-viewport"
       data-testid="board-viewport"
       data-interaction={panning ? 'panning' : 'idle'}
-      style={{ cursor: panning ? 'grabbing' : 'grab' }}
+      style={{ cursor: textToolActive ? 'text' : panning ? 'grabbing' : 'grab' }}
     >
       <div
         className="board-grid"

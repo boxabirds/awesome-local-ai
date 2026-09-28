@@ -461,3 +461,72 @@ body,
   font-family: system-ui, sans-serif;
   color: #666;
 }
+
+/* Text tool active button state */
+.toolbar-btn-active {
+  background: #dbeafe;
+  border-color: #2563eb;
+}
+
+.toolbar-btn-active:hover {
+  background: #bfdbfe;
+}
+
+.toolbar-btn-label {
+  font-size: 11px;
+  color: #52525b;
+}
+
+/* Text object */
+.text-object {
+  transition: outline 0.1s;
+}
+
+.text-object.text-selected {
+  outline: 2px solid #2563eb;
+}
+
+/* Text toolbar */
+.text-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 6px;
+  background: var(--panel-bg);
+  border: 1px solid var(--panel-border);
+  border-radius: 6px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.12);
+}
+
+.text-toolbar-btn {
+  min-width: 28px;
+  height: 28px;
+  border: 1px solid var(--panel-border);
+  border-radius: 4px;
+  background: #fff;
+  color: var(--panel-fg);
+  cursor: pointer;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.text-toolbar-btn:hover {
+  background: #f4f4f5;
+}
+
+.text-toolbar-active {
+  background: #dbeafe;
+  border-color: #2563eb;
+}
+
+.text-toolbar-delete {
+  color: #dc2626;
+}
+
+.text-toolbar-delete:hover {
+  background: #fee2e2;
+}

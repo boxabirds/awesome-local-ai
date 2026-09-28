@@ -13,6 +13,7 @@ import {
   setStickyColor,
   initDoc,
   snapshot,
+  type StickySnapshot,
 } from '../../src/shared/board-model';
 
 afterEach(cleanup);
@@ -110,7 +111,7 @@ describe('TC-15: gesture boundary separates move from colour', () => {
     // Undo colour
     controller.undo();
     let snap = snapshot(doc);
-    expect(snap[0].color).not.toBe('blue');
+    expect((snap[0] as StickySnapshot).color).not.toBe('blue');
 
     // Undo move
     expect(controller.canUndo()).toBe(true);

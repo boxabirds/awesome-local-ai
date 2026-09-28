@@ -10,19 +10,37 @@ import { SelectionOverlay } from './board/SelectionOverlay';
 import { SelectionBar } from './board/SelectionBar';
 import { Toolbar } from './board/Toolbar';
 import { useUndo } from './board/useUndo';
+import { useTool } from './board/useTool';
 import { createUndo } from './board/undo';
 import { StickyNote } from './objects/StickyNote';
+import { TextObject } from './objects/TextObject';
 import { NoteToolbar } from './objects/NoteToolbar';
+import { TextToolbar } from './objects/TextToolbar';
 import { ConnectionStatus } from './sync/ConnectionStatus';
 import { canEdit } from './sync/connectBoard';
-import { createSticky, deleteObjects, setStickyColor, LOCAL_ORIGIN } from '../shared/board-model';
-import type { StickyColor } from '../shared/config';
+import { createSticky, deleteObjects, setStickyColor, LOCAL_ORIGIN, objectBounds } from '../shared/board-model';
+import type { StickySnapshot, TextObjectSnapshot } from '../shared/board-model';
+import { createText, setTextSize, setTextBox } from '../shared/objects/text';
+import { createCanvasMeasurer, layoutText } from './objects/textLayout';
+import type { StickyColor, TextSize } from '../shared/config';
 import { IS_TEST_MODE } from './canvas/testHooks';
+
+// Generate a per-session identity for createdBy
+let _sessionId: string | null = null;
+function getSessionId(): string {
+  if (!_sessionId) {
+    _sessionId = crypto.randomUUID();
+  }
+  return _sessionId;
+}
+
+const measure = createCanvasMeasurer();
 
 export function BoardApp({ boardId }: { boardId: string }) {
   const { doc, notes, connectionState } = useBoardDoc(boardId);
   const selection = useSelection(notes);
   const editable = canEdit(connectionState);
+  const toolState = useTool(editable);
 
   // Undo controller: one per board doc, destroyed on board change/unmount
   const undoController = useMemo(() => createUndo(doc), [doc]);
@@ -83,6 +101,20 @@ export function BoardApp({ boardId }: { boardId: string }) {
     selection.clear();
   }, [selection]);
 
+  // Text tool click handler
+  const handleTextClick = useCallback(
+    (worldPoint: { x: number; y: number }) => {
+      if (!editable) return;
+      undoController.boundary();
+      const id = createText(doc, worldPoint, getSessionId());
+      if (!id) return;
+      undoController.boundary();
+      toolState.setTool('select');
+      selection.startEdit(id);
+    },
+    [doc, selection, editable, undoController, toolState],
+  );
+
   // Marquee
   const handleMarqueeSelect = useCallback((ids: string[]) => {
     selection.setMany(ids, true);
@@ -124,9 +156,10 @@ export function BoardApp({ boardId }: { boardId: string }) {
     snapshot: notes,
     canEdit: editable,
     undoController,
+    toolState,
   });
 
-  // Enter to edit a single selected sticky
+  // Enter to edit a single selected object
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
       if (selection.editingId) return;
@@ -135,7 +168,7 @@ export function BoardApp({ boardId }: { boardId: string }) {
       if (selection.ids.size !== 1) return;
       const [id] = [...selection.ids];
       const note = notes.find((n) => n.id === id);
-      if (!note || note.type !== 'sticky') return;
+      if (!note) return;
       if (e.key === 'Enter') {
         if (!editable) return;
         e.preventDefault();
@@ -167,19 +200,43 @@ export function BoardApp({ boardId }: { boardId: string }) {
     selection.clear();
   }, [doc, selection, editable, undoController]);
 
+  const handleTextSize = useCallback(
+    (size: TextSize) => {
+      if (selection.ids.size !== 1) return;
+      if (!editable) return;
+      const [id] = [...selection.ids];
+      undoController.boundary();
+      setTextSize(doc, id, size);
+      // Remeasure the text box after size change
+      const objects = doc.getMap('objects') as unknown as import('yjs').Map<import('yjs').Map<unknown>>;
+      const obj = objects.get(id);
+      if (obj && obj.get('type') === 'text') {
+        const ytext = obj.get('text') as import('yjs').Text;
+        const widthMode = obj.get('widthMode') as 'auto' | 'fixed';
+        const storedWidth = obj.get('width') as number;
+        const fixedWidth = widthMode === 'fixed' ? storedWidth : null;
+        const result = layoutText(ytext.toString(), size, widthMode, fixedWidth, measure);
+        setTextBox(doc, id, { width: result.width, height: result.height });
+      }
+      undoController.boundary();
+    },
+    [doc, selection.ids, editable, undoController],
+  );
+
   const zoom = camState.zoom;
   const cam = camState;
 
-  // Determine if we show the single-note toolbar
-  const isSingleSticky = selection.ids.size === 1;
-  const selectedStickyId = isSingleSticky ? [...selection.ids][0] : null;
-  const selectedNote = selectedStickyId ? notes.find((n) => n.id === selectedStickyId) : null;
-  const showNoteToolbar = selectedNote && !selection.editingId && selectedNote.type === 'sticky';
+  // Determine if we show the single-note toolbar (sticky or text)
+  const isSingleSelected = selection.ids.size === 1;
+  const selectedId = isSingleSelected ? [...selection.ids][0] : null;
+  const selectedObj = selectedId ? notes.find((n) => n.id === selectedId) : null;
+  const showNoteToolbar = selectedObj && !selection.editingId && selectedObj.type === 'sticky';
+  const showTextToolbar = selectedObj && !selection.editingId && selectedObj.type === 'text';
 
   let noteToolbarStyle: React.CSSProperties | undefined;
-  if (selectedNote && showNoteToolbar) {
-    const noteW = selectedNote.width ?? 200;
-    const screenPt = worldToScreen(cam, { x: selectedNote.x + noteW / 2, y: selectedNote.y });
+  if (selectedObj && (showNoteToolbar || showTextToolbar)) {
+    const bounds = objectBounds(selectedObj);
+    const screenPt = worldToScreen(cam, { x: bounds.x + bounds.width / 2, y: bounds.y });
     noteToolbarStyle = {
       position: 'fixed' as const,
       left: screenPt.x,
@@ -192,14 +249,13 @@ export function BoardApp({ boardId }: { boardId: string }) {
   // Selection bar position (for 2+ selected)
   let selectionBarStyle: React.CSSProperties | undefined;
   if (selection.ids.size >= 2 && notes.length > 0) {
-    // Compute bounding box of selection in screen space
     let minX = Infinity, minY = Infinity, maxX = -Infinity;
     for (const note of notes) {
       if (!selection.ids.has(note.id)) continue;
-      const w = note.width ?? 200;
-      if (note.x < minX) minX = note.x;
-      if (note.y < minY) minY = note.y;
-      if (note.x + w > maxX) maxX = note.x + w;
+      const bounds = objectBounds(note);
+      if (bounds.x < minX) minX = bounds.x;
+      if (bounds.y < minY) minY = bounds.y;
+      if (bounds.x + bounds.width > maxX) maxX = bounds.x + bounds.width;
     }
     const topLeft = worldToScreen(cam, { x: minX, y: minY });
     const topRight = worldToScreen(cam, { x: maxX, y: minY });
@@ -215,7 +271,13 @@ export function BoardApp({ boardId }: { boardId: string }) {
   return (
     <div onKeyDown={handleKeyDown} data-testid="app-root" tabIndex={-1}>
       <ConnectionStatus state={connectionState} />
-      <Toolbar onCreateSticky={handleCreateSticky} disabled={!editable} undoState={undoState} />
+      <Toolbar
+        onCreateSticky={handleCreateSticky}
+        disabled={!editable}
+        undoState={undoState}
+        tool={toolState.tool}
+        onToolChange={toolState.setTool}
+      />
       <BoardViewport
         onDblClickEmpty={handleDblClickEmpty}
         onEmptyClick={handleEmptyClick}
@@ -224,24 +286,48 @@ export function BoardApp({ boardId }: { boardId: string }) {
         onMarqueeMove={handleMarqueeMove}
         onMarqueeEnd={handleMarqueeEnd}
         onMarqueeCancel={handleMarqueeCancel}
+        textToolActive={toolState.tool === 'text'}
+        onTextClick={handleTextClick}
       >
-        {notes.map((note) => (
-          <StickyNote
-            key={note.id}
-            note={note}
-            doc={doc}
-            zoom={zoom}
-            selected={selection.ids.has(note.id)}
-            editing={note.id === selection.editingId}
-            editable={editable}
-            onSelect={(id) => selection.click(id)}
-            onToggleSelect={(id) => selection.toggle(id)}
-            onStartEdit={(id) => selection.startEdit(id)}
-            onEndEdit={() => selection.endEdit()}
-            onObjectPointerDown={gesture.onObjectPointerDown}
-            undoController={undoController}
-          />
-        ))}
+        {notes.map((note) => {
+          if (note.type === 'text') {
+            return (
+              <TextObject
+                key={note.id}
+                obj={note as TextObjectSnapshot}
+                doc={doc}
+                zoom={zoom}
+                selected={selection.ids.has(note.id)}
+                editing={note.id === selection.editingId}
+                editable={editable}
+                onSelect={(id) => selection.click(id)}
+                onToggleSelect={(id) => selection.toggle(id)}
+                onStartEdit={(id) => selection.startEdit(id)}
+                onEndEdit={() => selection.endEdit()}
+                onObjectPointerDown={gesture.onObjectPointerDown}
+                onClearSelection={() => selection.clear()}
+                undoController={undoController}
+              />
+            );
+          }
+          return (
+            <StickyNote
+              key={note.id}
+              note={note as StickySnapshot}
+              doc={doc}
+              zoom={zoom}
+              selected={selection.ids.has(note.id)}
+              editing={note.id === selection.editingId}
+              editable={editable}
+              onSelect={(id) => selection.click(id)}
+              onToggleSelect={(id) => selection.toggle(id)}
+              onStartEdit={(id) => selection.startEdit(id)}
+              onEndEdit={() => selection.endEdit()}
+              onObjectPointerDown={gesture.onObjectPointerDown}
+              undoController={undoController}
+            />
+          );
+        })}
         <MarqueeRect rect={marquee.rect} camera={camState} />
       </BoardViewport>
 
@@ -267,9 +353,20 @@ export function BoardApp({ boardId }: { boardId: string }) {
       )}
 
       {/* Note toolbar for single sticky */}
-      {showNoteToolbar && selectedNote && (
+      {showNoteToolbar && selectedObj && (
         <div style={noteToolbarStyle}>
-          <NoteToolbar color={selectedNote.color} onColor={handleColor} onDelete={handleDelete} />
+          <NoteToolbar color={(selectedObj as StickySnapshot).color} onColor={handleColor} onDelete={handleDelete} />
+        </div>
+      )}
+
+      {/* Text toolbar for single text object */}
+      {showTextToolbar && selectedObj && (
+        <div style={noteToolbarStyle}>
+          <TextToolbar
+            size={(selectedObj as TextObjectSnapshot).size}
+            onSize={handleTextSize}
+            onDelete={handleDelete}
+          />
         </div>
       )}
     </div>

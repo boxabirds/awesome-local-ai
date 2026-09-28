@@ -1,3 +1,42 @@
+commit 47d66d786130c876f55da7f2f3a4102a89562fda
+vidi-agent  Mon Sep 28 12:26:26 2026 +0000
+
+    story 9: Write free text anywhere on the board
+
+
+ src/client/BoardApp.tsx                 | 171 +++++++++++++++++-----
+ src/client/board/SelectionBar.tsx       |   4 +-
+ src/client/board/SelectionOverlay.tsx   |  23 ++-
+ src/client/board/Toolbar.tsx            |  40 +++++-
+ src/client/board/useBoardDoc.ts         |   6 +-
+ src/client/board/useBoardKeys.ts        |  37 ++++-
+ src/client/board/useTool.ts             |  28 ++++
+ src/client/board/useTransformGesture.ts |  53 ++++++-
+ src/client/canvas/BoardViewport.tsx     |  26 +++-
+ src/client/objects/StickyText.ts        |  40 +-----
+ src/client/objects/StickyTextEditor.tsx | 166 +++------------------
+ src/client/objects/TextEditor.tsx       | 167 +++++++++++++++++++++
+ src/client/objects/TextObject.tsx       | 150 +++++++++++++++++++
+ src/client/objects/TextToolbar.tsx      |  50 +++++++
+ src/client/objects/registry.tsx         |  25 +++-
+ src/client/objects/textLayout.ts        | 133 +++++++++++++++++
+ src/client/objects/useTextBoxSync.ts    |  43 ++++++
+ src/client/styles.css                   |  69 +++++++++
+ src/shared/board-model.ts               |  86 +++++++----
+ src/shared/config.ts                    |  25 ++++
+ src/shared/objects/text.ts              | 163 +++++++++++++++++++++
+ src/shared/text-edit.ts                 |  52 +++++++
+ tests/component/StickyNote.test.tsx     |   6 +-
+ tests/component/TextBoxSync.test.tsx    | 121 ++++++++++++++++
+ tests/component/TextObject.test.tsx     | 169 ++++++++++++++++++++++
+ tests/component/ToolMode.test.tsx       |  99 +++++++++++++
+ tests/component/UndoBoundaries.test.tsx |   3 +-
+ tests/e2e/free-text.spec.ts             | 247 ++++++++++++++++++++++++++++++++
+ tests/unit/board-model.test.ts          |   9 +-
+ tests/unit/text-layout.test.ts          | 139 ++++++++++++++++++
+ tests/unit/text-model.test.ts           | 187 ++++++++++++++++++++++++
+ tests/unit/undo-history.test.ts         |   5 +-
+ 32 files changed, 2265 insertions(+), 277 deletions(-)
 commit c090748f070192279b56f36eadb141292b86bb4c
 vidi-agent  Mon Sep 28 11:53:13 2026 +0000
 

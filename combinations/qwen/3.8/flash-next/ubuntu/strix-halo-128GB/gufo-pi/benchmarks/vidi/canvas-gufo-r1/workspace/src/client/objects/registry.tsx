@@ -2,8 +2,9 @@ import type { ComponentType } from 'react';
 import type { ObjectSnapshot } from '../../shared/board-model';
 import { objectBounds } from '../../shared/board-model';
 import type { Point } from '../../shared/geometry';
-import { STICKY_MIN_SIZE_WORLD } from '../../shared/config';
+import { STICKY_MIN_SIZE_WORLD, TEXT_MIN_WIDTH_WORLD } from '../../shared/config';
 import { StickyNote } from './StickyNote';
+import { TextObject } from './TextObject';
 
 export interface ObjectProps {
   obj: ObjectSnapshot;
@@ -17,6 +18,7 @@ export interface ObjectTypeSpec {
   aspectLocked: boolean;
   minSize: number;
   editableText: boolean;
+  handles?: 'all' | 'horizontal';
   hitTest(obj: ObjectSnapshot, worldPoint: Point): boolean;
 }
 
@@ -47,6 +49,27 @@ registerObjectType('sticky', {
   aspectLocked: true,
   minSize: STICKY_MIN_SIZE_WORLD,
   editableText: true,
+  handles: 'all',
+  hitTest(obj: ObjectSnapshot, worldPoint: Point): boolean {
+    const bounds = objectBounds(obj);
+    return (
+      worldPoint.x >= bounds.x &&
+      worldPoint.x <= bounds.x + bounds.width &&
+      worldPoint.y >= bounds.y &&
+      worldPoint.y <= bounds.y + bounds.height
+    );
+  },
+});
+
+// ─── Register text object ───────────────────────────────────────────────────
+
+registerObjectType('text', {
+  Component: TextObject,
+  resizable: true,
+  aspectLocked: false,
+  minSize: TEXT_MIN_WIDTH_WORLD,
+  editableText: true,
+  handles: 'horizontal',
   hitTest(obj: ObjectSnapshot, worldPoint: Point): boolean {
     const bounds = objectBounds(obj);
     return (

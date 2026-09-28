@@ -1,8 +1,8 @@
-import type { StickySnapshot } from '../../shared/board-model';
+import type { ObjectSnapshot } from '../../shared/board-model';
 
 export interface SelectionBarProps {
   ids: ReadonlySet<string>;
-  snapshot: readonly StickySnapshot[];
+  snapshot: readonly ObjectSnapshot[];
   onDelete(): void;
 }
 

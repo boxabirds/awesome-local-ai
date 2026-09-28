@@ -5,59 +5,29 @@ import {
   STICKY_FONT_MIN_PX,
   STICKY_TEXT_MAX_CHARS,
 } from '../../shared/config';
+import { clampToLimit as _clampToLimit, applyTextDiff as _applyTextDiff } from '../../shared/text-edit';
 
 /**
  * Clamp a string to at most `max` characters (default STICKY_TEXT_MAX_CHARS).
+ * Re-exported from shared/text-edit for backward compatibility.
  */
 export function clampToLimit(
   next: string,
   max: number = STICKY_TEXT_MAX_CHARS,
 ): string {
-  return next.length <= max ? next : next.slice(0, max);
+  return _clampToLimit(next, max);
 }
 
 /**
  * Apply a minimal diff between the current Y.Text content and `next`.
- * Uses common prefix + common suffix to produce a single insert and/or delete
- * rather than replacing all content (preserves concurrent edits for story 3).
+ * Re-exported from shared/text-edit for backward compatibility.
  */
 export function applyTextDiff(
   ytext: Y.Text,
   next: string,
   origin: unknown,
 ): void {
-  const current = ytext.toString();
-  if (current === next) return;
-
-  // Find common prefix length
-  let prefix = 0;
-  const maxPrefix = Math.min(current.length, next.length);
-  while (prefix < maxPrefix && current[prefix] === next[prefix]) {
-    prefix++;
-  }
-
-  // Find common suffix length (after prefix)
-  let suffix = 0;
-  const maxSuffix = Math.min(current.length - prefix, next.length - prefix);
-  while (
-    suffix < maxSuffix &&
-    current[current.length - 1 - suffix] === next[next.length - 1 - suffix]
-  ) {
-    suffix++;
-  }
-
-  // Delete the old middle portion and insert the new middle portion
-  const deleteLen = current.length - prefix - suffix;
-  const insertStr = next.slice(prefix, next.length - suffix);
-
-  ytext.doc!.transact(() => {
-    if (deleteLen > 0) {
-      ytext.delete(prefix, deleteLen);
-    }
-    if (insertStr.length > 0) {
-      ytext.insert(prefix, insertStr);
-    }
-  }, origin);
+  _applyTextDiff(ytext, next, origin);
 }
 
 /**

@@ -11,8 +11,9 @@ Model `qwen3.8-flash-next-gufo`, scope `canvas`, effort `low`, client pi 0.87.1,
 | 5 | Share a board with others using a link | PARTIAL (red), on partial 3, 4 | 40.4 | None | None | None | — | — | red | 1/36 |  | 0 / 5 | 1 | — | throttled 0%, server peak 0 GB |
 | 7 | Select, move, resize and delete several objects at once | DONE, on partial 3, 4, 5 | 55.4 | None | None | None | — | — | green | 38/44 |  | 0 / 0 | 2 | — | throttled 0%, server peak 0 GB |
 | 8 | Undo and redo my own changes without undoing anyone else's | DONE, on partial 3, 4, 5 | 23.8 | None | None | None | — | — | green | 43/51 |  | 0 / 0 | 0 | — | throttled 0%, server peak 0 GB |
+| 9 | Write free text anywhere on the board | DONE, on partial 3, 4, 5 | 25.8 | None | None | None | — | — | green | 47/57 |  | 0 / 0 | 1 | — | throttled 0%, server peak 0 GB |
 
-**Totals:** 7 stories, 317 agent-minutes, 0 requests, 0 prompt / 0 completion tokens, gate green 6/7, final acceptance 43/51, stalled 0, partial 3, 14344 lines in src+tests.
+**Totals:** 8 stories, 343 agent-minutes, 0 requests, 0 prompt / 0 completion tokens, gate green 7/8, final acceptance 47/57, stalled 0, partial 3, 16332 lines in src+tests.
 
 ### Stories ended early (PARTIAL) and what was built on them
 
@@ -23,6 +24,7 @@ Model `qwen3.8-flash-next-gufo`, scope `canvas`, effort `low`, client pi 0.87.1,
 - Story 5, built on partial 3, 4: held-out tests on the partial base 1/16; partial story's tests fixed 0, regressed 7; 4 stub-like lines added to src/.
 - Story 7, built on partial 3, 4, 5: held-out tests on the partial base 20/24; partial story's tests fixed 4, regressed 0; 0 stub-like lines added to src/.
 - Story 8, built on partial 3, 4, 5: held-out tests on the partial base 25/31; partial story's tests fixed 4, regressed 0; 0 stub-like lines added to src/.
+- Story 9, built on partial 3, 4, 5: held-out tests on the partial base 29/37; partial story's tests fixed 4, regressed 0; 0 stub-like lines added to src/.
 
 ## How it happened
 
@@ -37,6 +39,7 @@ Each story's commits, and which story broke or fixed an earlier story's held-out
 | 5 | harness snapshot (agent left work uncommitted) | 1880 / 302 | `App.tsx` (187), `styles.css` (148), `BoardApp.tsx` (132), `SharePanel.tsx` (125), `board-room.ts` (106), `BoardPage.tsx` (72), +13 more |
 | 7 | 1 by the agent | 3120 / 336 | `useTransformGesture.ts` (302), `board-model.ts` (231), `StickyNote.tsx` (214), `geometry.ts` (189), `BoardApp.tsx` (182), `SelectionOverlay.tsx` (154), +15 more |
 | 8 | 1 by the agent | 1779 / 17 | `undo.ts` (99), `BoardApp.tsx` (51), `useUndo.ts` (49), `useBoardKeys.ts` (46), `NOTES.md` (44), `StickyTextEditor.tsx` (43), +5 more |
+| 9 | 1 by the agent | 2265 / 277 | `BoardApp.tsx` (171), `TextEditor.tsx` (167), `StickyTextEditor.tsx` (166), `text.ts` (163), `TextObject.tsx` (150), `textLayout.ts` (133), +16 more |
 
 ### Earlier stories broken or fixed
 

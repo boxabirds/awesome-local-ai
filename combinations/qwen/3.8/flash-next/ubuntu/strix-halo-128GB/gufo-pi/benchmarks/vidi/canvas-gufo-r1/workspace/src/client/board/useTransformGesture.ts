@@ -9,6 +9,7 @@ import {
   resizeObjects,
   bringObjectsToFront,
 } from '../../shared/board-model';
+import { setTextWidthFixed } from '../../shared/objects/text';
 import { getObjectType } from '../objects/registry';
 import { DRAG_THRESHOLD_PX, MAX_OBJECT_SIZE_WORLD } from '../../shared/config';
 import type { UseSelectionResult } from './useSelection';
@@ -164,7 +165,8 @@ export function useTransformGesture(opts: TransformGestureOptions): TransformGes
     const sel = selectionRef.current;
     const snap = snapshotRef.current;
 
-    // Check if any selected type is resizable
+    // Check if all selected objects are text (horizontal-only resize)
+    let allText = true;
     let anyResizable = false;
     let aspectLocked = false;
     const minSizes: number[] = [];
@@ -180,9 +182,58 @@ export function useTransformGesture(opts: TransformGestureOptions): TransformGes
         minSizes.push(spec.minSize);
         selectedRects.push(objectBounds(obj));
       }
+      if (obj.type !== 'text') allText = false;
     }
 
     if (!anyResizable) return;
+
+    // If single text object and horizontal handle: use setTextWidthFixed
+    if (allText && sel.ids.size === 1 && (handle === 'e' || handle === 'w')) {
+      const [id] = [...sel.ids];
+      const obj = snap.find((o) => o.id === id);
+      if (!obj) return;
+      const startBounds = objectBounds(obj);
+      phaseRef.current = 'resizing';
+      startPointRef.current = { x: e.clientX, y: e.clientY };
+      onGestureStartRef.current?.();
+
+      const onMove = (moveE: PointerEvent | globalThis.PointerEvent) => {
+        if (phaseRef.current !== 'resizing') return;
+        const start = startPointRef.current!;
+        const cam = cameraRef.current;
+        const worldDx = (moveE.clientX - start.x) / cam.zoom;
+        let newWidth: number;
+        if (handle === 'e') {
+          newWidth = startBounds.width + worldDx;
+        } else {
+          newWidth = startBounds.width - worldDx;
+        }
+        setTextWidthFixed(doc, id, newWidth);
+      };
+
+      const onUp = () => {
+        cleanup();
+        onGestureEndRef.current?.();
+        phaseRef.current = 'idle';
+      };
+
+      const onCancel = () => {
+        cleanup();
+        onGestureEndRef.current?.();
+        phaseRef.current = 'idle';
+      };
+
+      const cleanup = () => {
+        document.removeEventListener('pointermove', onMove);
+        document.removeEventListener('pointerup', onUp);
+        document.removeEventListener('pointercancel', onCancel);
+      };
+
+      document.addEventListener('pointermove', onMove);
+      document.addEventListener('pointerup', onUp);
+      document.addEventListener('pointercancel', onCancel);
+      return;
+    }
 
     // If Shift is held, lock aspect
     if (e.shiftKey) aspectLocked = true;

@@ -12,6 +12,7 @@ import {
   moveObjects,
   initDoc,
   snapshot,
+  type StickySnapshot,
 } from '../../src/shared/board-model';
 import { createPeer, applyWithLoadOrigin, REMOTE_ORIGIN } from './undo-peer';
 
@@ -86,7 +87,7 @@ describe('undo.history', () => {
     expect(noteA!.x).toBe(origAx);
     expect(noteA!.y).toBe(origAy);
     expect(noteD).toBeDefined();
-    expect(noteC!.color).toBe('blue');
+    expect((noteC as StickySnapshot).color).toBe('blue');
 
     peer.destroy();
   });
@@ -183,7 +184,7 @@ describe('undo.history', () => {
       expect(note).toBeDefined();
       expect(note!.x).toBe(i * 50 - 100); // createSticky centers: at.x - STICKY_SIZE_WORLD/2
       expect(note!.y).toBe(i * 50 - 100);
-      expect(note!.color).toBe('pink');
+      expect((note as StickySnapshot).color).toBe('pink');
       expect(note!.text).toBe(`text${i}`);
     }
   });

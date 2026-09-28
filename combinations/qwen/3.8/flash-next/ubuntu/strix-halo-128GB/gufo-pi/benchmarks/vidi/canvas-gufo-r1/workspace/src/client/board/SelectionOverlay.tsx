@@ -11,7 +11,7 @@ export interface SelectionOverlayProps {
   onHandlePointerDown(e: PointerEvent, handle: Handle): void;
 }
 
-const HANDLE_POSITIONS: Array<{ handle: Handle; label: string }> = [
+const ALL_HANDLES: Array<{ handle: Handle; label: string }> = [
   { handle: 'nw', label: 'Resize top-left' },
   { handle: 'n', label: 'Resize top' },
   { handle: 'ne', label: 'Resize top-right' },
@@ -22,9 +22,14 @@ const HANDLE_POSITIONS: Array<{ handle: Handle; label: string }> = [
   { handle: 'w', label: 'Resize left' },
 ];
 
+const HORIZONTAL_HANDLES: Array<{ handle: Handle; label: string }> = [
+  { handle: 'e', label: 'Resize right' },
+  { handle: 'w', label: 'Resize left' },
+];
+
 /**
- * Renders the bounding box and 8 resize handles around a selection in screen space.
- * Also renders outlines (via CSS) on selected objects (handled by object components using data-selected).
+ * Renders the bounding box and resize handles around a selection in screen space.
+ * Shows only e/w handles when all selected objects have handles: 'horizontal'.
  */
 export function SelectionOverlay(props: SelectionOverlayProps) {
   const { ids, snapshot, camera, onHandlePointerDown } = props;
@@ -38,15 +43,21 @@ export function SelectionOverlay(props: SelectionOverlayProps) {
 
   if (!bbox) return null;
 
-  // Check if any selected type is resizable
+  // Check if any selected type is resizable and determine handle mode
   let anyResizable = false;
+  let allHorizontal = true;
   for (const obj of selectedSnaps) {
     const spec = getObjectType(obj.type);
     if (spec && spec.resizable) {
       anyResizable = true;
-      break;
+    }
+    if (!spec || spec.handles !== 'horizontal') {
+      allHorizontal = false;
     }
   }
+
+  // Only show horizontal handles when ALL selected types are horizontal
+  const handles = allHorizontal ? HORIZONTAL_HANDLES : ALL_HANDLES;
 
   // Convert bbox to screen space
   const topLeft = worldToScreen(camera, { x: bbox.x, y: bbox.y });
@@ -91,7 +102,7 @@ export function SelectionOverlay(props: SelectionOverlayProps) {
         }}
       />
       {/* Resize handles */}
-      {anyResizable && HANDLE_POSITIONS.map(({ handle, label }) => {
+      {anyResizable && handles.map(({ handle, label }) => {
         const pos = handlePositions[handle];
         return (
           <button

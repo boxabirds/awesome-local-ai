@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { act, cleanup, render, screen } from '@testing-library/react';
 import * as Y from 'yjs';
 import { StickyNote } from '../../src/client/objects/StickyNote';
-import { createSticky, deleteObject, initDoc, snapshot } from '../../src/shared/board-model';
+import { createSticky, deleteObject, initDoc, snapshot, type StickySnapshot } from '../../src/shared/board-model';
 import { DRAG_THRESHOLD_PX } from '../../src/shared/config';
 
 afterEach(cleanup);
@@ -26,7 +26,7 @@ function mountNote(
   }> = {},
 ) {
   const id = createSticky(doc, { x: 200, y: 200 });
-  const note = snapshot(doc)[0];
+  const note = snapshot(doc)[0] as StickySnapshot;
   const props = {
     note,
     doc,
@@ -88,7 +88,7 @@ describe('StickyNote interaction', () => {
     const onSelect = vi.fn();
     const onObjectPointerDown = vi.fn();
     const id = createSticky(doc, { x: 200, y: 200 });
-    const note = snapshot(doc)[0];
+    const note = snapshot(doc)[0] as StickySnapshot;
     const props = {
       note,
       doc,

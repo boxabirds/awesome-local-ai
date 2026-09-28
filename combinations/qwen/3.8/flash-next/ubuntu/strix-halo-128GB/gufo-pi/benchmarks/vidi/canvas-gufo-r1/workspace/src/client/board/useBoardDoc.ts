@@ -1,12 +1,12 @@
 import { useEffect, useMemo, useState } from 'react';
 import * as Y from 'yjs';
-import { initDoc, snapshot, createSticky, type StickySnapshot } from '../../shared/board-model';
+import { initDoc, snapshot, createSticky, type ObjectSnapshot } from '../../shared/board-model';
 import { connectBoard, type ConnectionState } from '../sync/connectBoard';
 import { installDocHooks } from '../canvas/testHooks';
 
 export interface BoardDocState {
   doc: Y.Doc;
-  notes: readonly StickySnapshot[];
+  notes: readonly ObjectSnapshot[];
   connectionState: ConnectionState;
 }
 
@@ -28,7 +28,7 @@ export function useBoardDoc(boardId: string): BoardDocState {
     [doc],
   );
 
-  const [notes, setNotes] = useState<readonly StickySnapshot[]>(() => snapshot(doc));
+  const [notes, setNotes] = useState<readonly ObjectSnapshot[]>(() => snapshot(doc));
 
   useEffect(() => {
     const observer = () => {

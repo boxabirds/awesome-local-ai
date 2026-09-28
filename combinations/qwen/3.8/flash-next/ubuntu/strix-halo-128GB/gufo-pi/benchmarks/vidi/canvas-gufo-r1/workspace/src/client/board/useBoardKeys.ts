@@ -4,6 +4,7 @@ import { allObjectIds, deleteObjects, moveObjects, type ObjectSnapshot } from '.
 import { NUDGE_STEP_WORLD, NUDGE_LARGE_STEP_WORLD } from '../../shared/config';
 import type { UseSelectionResult } from './useSelection';
 import type { UndoController } from './undo';
+import type { UseToolResult } from './useTool';
 
 export interface UseBoardKeysOptions {
   doc: Y.Doc;
@@ -11,6 +12,7 @@ export interface UseBoardKeysOptions {
   snapshot: readonly ObjectSnapshot[];
   canEdit: boolean;
   undoController?: UndoController | null;
+  toolState?: UseToolResult;
 }
 
 function isEditingContext(target: EventTarget | null): boolean {
@@ -23,14 +25,16 @@ function isEditingContext(target: EventTarget | null): boolean {
 /**
  * Global keyboard commands for the board:
  * - Ctrl/Cmd+A: select all
- * - Escape: clear selection
+ * - Escape: clear selection, revert text tool to select
  * - Arrow keys: nudge selection
  * - Delete/Backspace: delete selection
  * - Ctrl/Cmd+Z: undo
  * - Ctrl/Cmd+Shift+Z or Ctrl+Y: redo
+ * - T: activate text tool (if not editing)
+ * - V: activate select tool
  */
 export function useBoardKeys(opts: UseBoardKeysOptions): void {
-  const { doc, selection, snapshot, canEdit, undoController } = opts;
+  const { doc, selection, snapshot, canEdit, undoController, toolState } = opts;
 
   const selectionRef = useRef(selection);
   selectionRef.current = selection;
@@ -40,6 +44,8 @@ export function useBoardKeys(opts: UseBoardKeysOptions): void {
   canEditRef.current = canEdit;
   const undoRef = useRef(undoController);
   undoRef.current = undoController;
+  const toolStateRef = useRef(toolState);
+  toolStateRef.current = toolState;
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
@@ -49,8 +55,6 @@ export function useBoardKeys(opts: UseBoardKeysOptions): void {
 
       // Undo/Redo shortcuts (handled before editing guards)
       if (isMod && e.key === 'z' && !e.shiftKey) {
-        // Ctrl/Cmd+Z: undo
-        // If editing in a sticky, let the editor handle it
         if (sel.editingId !== null) return;
         if (isEditingContext(e.target)) return;
         e.preventDefault();
@@ -61,7 +65,6 @@ export function useBoardKeys(opts: UseBoardKeysOptions): void {
       }
 
       if (isMod && e.key === 'z' && e.shiftKey) {
-        // Ctrl/Cmd+Shift+Z: redo
         if (sel.editingId !== null) return;
         if (isEditingContext(e.target)) return;
         e.preventDefault();
@@ -72,7 +75,6 @@ export function useBoardKeys(opts: UseBoardKeysOptions): void {
       }
 
       if (e.ctrlKey && !e.metaKey && !e.shiftKey && (e.key === 'y' || e.key === 'Y')) {
-        // Ctrl+Y: redo
         if (sel.editingId !== null) return;
         if (isEditingContext(e.target)) return;
         e.preventDefault();
@@ -94,8 +96,29 @@ export function useBoardKeys(opts: UseBoardKeysOptions): void {
         return;
       }
 
-      // Escape: clear selection
+      // Tool shortcuts (only when not in editing context, which is already handled above)
+      const tool = toolStateRef.current;
+      if (tool) {
+        // T: activate text tool (requires canEdit)
+        if (e.key === 't' || e.key === 'T') {
+          if (canEditRef.current) {
+            e.preventDefault();
+            tool.setTool('text');
+          }
+          return;
+        }
+
+        // V: activate select tool
+        if (e.key === 'v' || e.key === 'V') {
+          e.preventDefault();
+          tool.setTool('select');
+          return;
+        }
+      }
+
+      // Escape: clear selection, revert tool
       if (e.key === 'Escape') {
+        if (tool) tool.setTool('select');
         sel.clear();
         return;
       }
