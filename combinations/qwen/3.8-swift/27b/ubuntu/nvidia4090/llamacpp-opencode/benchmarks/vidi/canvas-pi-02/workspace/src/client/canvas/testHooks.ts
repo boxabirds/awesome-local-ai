@@ -10,11 +10,15 @@ import {
   deleteObject,
   getStickyText,
   moveObject,
+  objectBounds,
   objectsSnapshot,
   setStickyColor,
 } from '../../shared/board-model';
-import { STICKY_COLORS, type StickyColor } from '../../shared/config';
+import { SHAPE_DEFAULT_SIZE_WORLD, STICKY_COLORS, type ShapeKind, type StickyColor } from '../../shared/config';
 import { getTextContent, textSnapshot } from '../../shared/objects/text';
+import { createShape, shapeSnapshot } from '../../shared/objects/shape';
+import { connectorSnapshot, createConnector, connectorResolved, setConnectorEndpoint } from '../../shared/objects/connector';
+import { nearestSide, sideAnchor } from '../../shared/geometry/connector-geometry';
 
 export interface Vidi6TestApi {
   /** Current connection badge state (story 3): connecting | connected |
@@ -81,6 +85,48 @@ export interface Vidi6TestApi {
   restoreConnection(): void;
   /** Transform-gesture start/end counts (story 7: TC-26). */
   getGestureEvents(): { start: number; end: number };
+  /** Story 10: creates a shape (top-left at `x`,`y`, standard size, kind
+   *  defaults to 'rect'); returns the id (null when rejected). */
+  createShape(x: number, y: number, kind?: ShapeKind): string | null;
+  /** Story 10: the shapes (id, x, y, width, height, kind, fill, stroke,
+   *  label, z), world coordinates, ascending z. */
+  getShapes(): Array<{
+    id: string;
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+    kind: ShapeKind;
+    fill: string;
+    stroke: string;
+    label: string;
+    z: number;
+  }>;
+  /** Story 10: the connectors with their RAW stored endpoints plus the
+   *  RESOLVED world line points (ascending z). */
+  getConnectors(): Array<{
+    id: string;
+    z: number;
+    from: { kind: 'attached'; objectId: string } | { kind: 'free'; x: number; y: number };
+    to: { kind: 'attached'; objectId: string } | { kind: 'free'; x: number; y: number };
+    fromPoint: { x: number; y: number };
+    toPoint: { x: number; y: number };
+  }>;
+  /** Story 10: creates a connector between two objects (both ends
+   *  attached, anchors computed); returns the id (null when rejected). */
+  createConnectorBetween(fromId: string, toId: string): string | null;
+  /** Story 10: reattaches a connector end — to `targetId` (an object id,
+   *  anchor computed) or to a FREE point (`targetId` null, at x,y). Returns
+   *  false when rejected (the TC-27 concurrent-race test drives this). */
+  reattachConnectorEnd(id: string, end: 'from' | 'to', targetId: string | null, x: number, y: number): boolean;
+  /** Story 10: the checkout-flow fixture — 4 shapes in a row (Cart rect,
+   *  Paid? diamond, Verify ellipse, Shipped rect) with 3 attached
+   *  connectors between them and one connector whose second end is FREE.
+   *  Returns {shapes, connectors} (ids) or null when rejected. */
+  seedCheckoutFlow(): {
+    shapes: [string, string, string, string];
+    connectors: [string, string, string, string];
+  } | null;
 }
 
 declare global {
@@ -220,6 +266,136 @@ export function installTestHooks(
     },
     getGestureEvents() {
       return getGestureEvents?.() ?? { start: 0, end: 0 };
+    },
+    createShape(x, y, kind = 'rect') {
+      const doc = getDoc();
+      if (!doc) return null;
+      const id = createShape(doc, {
+        kind,
+        rect: { x, y, width: SHAPE_DEFAULT_SIZE_WORLD, height: SHAPE_DEFAULT_SIZE_WORLD },
+        at: { x, y },
+      }, 'test');
+      return id === null ? null : id;
+    },
+    getShapes() {
+      const doc = getDoc();
+      if (!doc) return [];
+      return objectsSnapshot(doc)
+        .filter((o) => o.type === 'shape')
+        .map((o) => {
+          const snap = shapeSnapshot(doc, o.id) ?? { kind: 'rect' as const, fill: 'white' as const, stroke: 'dark' as const, label: '' };
+          return {
+            id: o.id,
+            x: o.x,
+            y: o.y,
+            width: o.width ?? SHAPE_DEFAULT_SIZE_WORLD,
+            height: o.height ?? SHAPE_DEFAULT_SIZE_WORLD,
+            kind: snap.kind,
+            fill: snap.fill,
+            stroke: snap.stroke,
+            label: snap.label,
+            z: o.z,
+          };
+        });
+    },
+    getConnectors() {
+      const doc = getDoc();
+      if (!doc) return [];
+      const out: Array<{
+        id: string;
+        z: number;
+        from: { kind: 'attached'; objectId: string } | { kind: 'free'; x: number; y: number };
+        to: { kind: 'attached'; objectId: string } | { kind: 'free'; x: number; y: number };
+        fromPoint: { x: number; y: number };
+        toPoint: { x: number; y: number };
+      }> = [];
+      for (const o of objectsSnapshot(doc)) {
+        if (o.type !== 'connector') continue;
+        const snap = connectorSnapshot(doc, o.id);
+        const line = connectorResolved(doc, o.id);
+        if (snap === null || line === null) continue;
+        const raw = (e: { kind: 'attached'; objectId: string } | { kind: 'free'; x: number; y: number }) =>
+          e.kind === 'attached'
+            ? { kind: 'attached' as const, objectId: e.objectId }
+            : { kind: 'free' as const, x: e.x, y: e.y };
+        out.push({
+          id: o.id,
+          z: o.z,
+          from: raw(snap.from),
+          to: raw(snap.to),
+          fromPoint: line.from,
+          toPoint: line.to,
+        });
+      }
+      return out;
+    },
+    createConnectorBetween(fromId, toId) {
+      const doc = getDoc();
+      if (!doc) return null;
+      return createConnector(
+        doc,
+        { kind: 'attached', objectId: fromId, fallback: { x: 0, y: 0 } },
+        { kind: 'attached', objectId: toId, fallback: { x: 0, y: 0 } },
+        'test',
+      );
+    },
+    reattachConnectorEnd(id, end, targetId, x, y) {
+      const doc = getDoc();
+      if (!doc) return false;
+      if (targetId !== null) {
+        const target = objectsSnapshot(doc).find((o) => o.id === targetId && o.type !== 'connector');
+        if (target === undefined) return false;
+        const r = objectBounds(target);
+        const line = connectorResolved(doc, id);
+        const anchorFrom = line !== null ? (end === 'to' ? line.from : line.to) : { x, y };
+        return setConnectorEndpoint(doc, id, end, {
+          kind: 'attached',
+          objectId: targetId,
+          fallback: sideAnchor(r, nearestSide(r, anchorFrom)),
+        });
+      }
+      return setConnectorEndpoint(doc, id, end, { kind: 'free', x, y });
+    },
+    seedCheckoutFlow() {
+      const doc = getDoc();
+      if (!doc) return null;
+      const S = SHAPE_DEFAULT_SIZE_WORLD; // 160
+      // Four shapes in a row, 140px gaps (world): Cart (rect) x 0,
+      // Paid? (diamond) x 300, Verify (ellipse) x 600, Shipped (rect) x 900;
+      // all at y 0 (rects 160 wide → right edges 160/460/760/1060).
+      const cart = createShape(doc, { kind: 'rect', rect: { x: 0, y: 0, width: S, height: S }, at: { x: 0, y: 0 } }, 'test');
+      const paid = createShape(doc, { kind: 'diamond', rect: { x: 300, y: 0, width: S, height: S }, at: { x: 300, y: 0 } }, 'test');
+      const verify = createShape(doc, { kind: 'ellipse', rect: { x: 600, y: 0, width: S, height: S }, at: { x: 600, y: 0 } }, 'test');
+      const shipped = createShape(doc, { kind: 'rect', rect: { x: 900, y: 0, width: S, height: S }, at: { x: 900, y: 0 } }, 'test');
+      if (cart === null || paid === null || verify === null || shipped === null) return null;
+      const c1 = createConnector(
+        doc,
+        { kind: 'attached', objectId: cart, fallback: { x: 0, y: 0 } },
+        { kind: 'attached', objectId: paid, fallback: { x: 0, y: 0 } },
+        'test',
+      );
+      const c2 = createConnector(
+        doc,
+        { kind: 'attached', objectId: paid, fallback: { x: 0, y: 0 } },
+        { kind: 'attached', objectId: verify, fallback: { x: 0, y: 0 } },
+        'test',
+      );
+      const c3 = createConnector(
+        doc,
+        { kind: 'attached', objectId: verify, fallback: { x: 0, y: 0 } },
+        { kind: 'attached', objectId: shipped, fallback: { x: 0, y: 0 } },
+        'test',
+      );
+      // One connector whose second end is FREE: from Shipped's right anchor
+      // (1060, 80) to a free point further right (1200, 80).
+      const c4 = createConnector(
+        doc,
+        { kind: 'attached', objectId: shipped, fallback: { x: 1060, y: 80 } },
+        { kind: 'free', x: 1200, y: 80 },
+        'test',
+      );
+      if (c1 === null || c2 === null || c3 === null || c4 === null) return null;
+      return { shapes: [cart, paid, verify, shipped], connectors: [c1, c2, c3, c4] };
     },
   };
 }

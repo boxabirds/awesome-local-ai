@@ -60,6 +60,11 @@ export interface SelectionApi {
   readonly editingId: string | null;
   /** Select exactly this object (plain click). */
   click(id: string): void;
+  /** Select a just-created object WITHOUT the present-id guard: the caller
+   *  created it in the same tick (tool one-shot completion), so the
+   *  snapshot this render saw does not contain it yet (the prune effect
+   *  cleans up if it disappears — same rationale as startEdit). */
+  selectCreated(id: string): void;
   /** Add/remove this object (Shift+click). */
   toggle(id: string): void;
   /** Set the selection to `ids` (select-all) or add them (marquee). */
@@ -90,6 +95,10 @@ export function useSelection(snapshot: readonly ObjectSnapshot[]): SelectionApi 
     if (presentRef.current.has(id)) dispatch({ type: 'click', id });
   }, []);
 
+  const selectCreated = useCallback((id: string) => {
+    dispatch({ type: 'click', id });
+  }, []);
+
   const toggle = useCallback((id: string) => {
     if (presentRef.current.has(id)) dispatch({ type: 'toggle', id });
   }, []);
@@ -110,5 +119,5 @@ export function useSelection(snapshot: readonly ObjectSnapshot[]): SelectionApi 
 
   const endEdit = useCallback(() => dispatch({ type: 'edit', id: null }), []);
 
-  return { ids: state.ids, editingId: state.editingId, click, toggle, setMany, clear, startEdit, endEdit };
+  return { ids: state.ids, editingId: state.editingId, click, toggle, setMany, clear, startEdit, endEdit, selectCreated };
 }

@@ -792,3 +792,192 @@ body {
   cursor: default;
   opacity: 0.5;
 }
+
+/* Story 10: the Shape / Connector tools (screen-space overlays above the
+   board world, below the selection overlay / toolbar). */
+.shape-tool,
+.connector-tool {
+  position: absolute;
+  inset: 0;
+  z-index: 10;
+  cursor: crosshair;
+}
+
+.shape-tool svg,
+.connector-tool svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+/* The Shape tool's kind menu (next to the Shape button). */
+.toolbar-shape-wrap {
+  position: relative;
+}
+
+.shape-kind-menu {
+  position: absolute;
+  left: calc(100% + 8px);
+  top: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 4px;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  box-shadow: 0 4px 16px rgba(15, 23, 42, 0.12);
+  z-index: 30;
+}
+
+.shape-kind-menu-item {
+  border: none;
+  background: transparent;
+  padding: 5px 12px 5px 8px;
+  font-size: 13px;
+  text-align: left;
+  color: #334155;
+  cursor: pointer;
+  border-radius: 6px;
+  white-space: nowrap;
+}
+
+.shape-kind-menu-item:hover {
+  background: #f1f5f9;
+}
+
+.shape-kind-menu-item--active {
+  background: #e0edff;
+  color: #1d4ed8;
+  font-weight: 600;
+}
+
+.shape-kind-menu-item:focus-visible {
+  outline: 2px solid #2563eb;
+  outline-offset: 1px;
+}
+
+/* Story 10: shape objects (world layer). */
+.shape-object {
+  position: absolute;
+  box-sizing: border-box;
+}
+
+.shape-object .shape-svg {
+  display: block;
+  overflow: visible;
+}
+
+.shape-object--selected .shape-svg * {
+  filter: drop-shadow(0 0 3px rgba(37, 99, 235, 0.85));
+}
+
+.shape-label {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 0 12px;
+  box-sizing: border-box;
+  font-family: inherit;
+  color: #1f2937;
+  overflow: hidden;
+  word-break: break-word;
+  white-space: pre-wrap;
+  pointer-events: none;
+}
+
+.shape-label-editor-wrap {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 12px;
+  box-sizing: border-box;
+}
+
+.shape-label-editor-wrap .editor-input {
+  width: 100%;
+  height: 100%;
+  text-align: center;
+  background: transparent;
+  border: none;
+  outline: 2px solid #2563eb;
+  border-radius: 4px;
+  resize: none;
+  font-family: inherit;
+  color: #1f2937;
+  box-sizing: border-box;
+}
+
+/* Story 10: the shape toolbar (fill + outline swatches). */
+.shape-toolbar {
+  display: flex;
+  gap: 10px;
+  padding: 6px 8px;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  box-shadow: 0 4px 16px rgba(15, 23, 42, 0.12);
+}
+
+.shape-toolbar-group {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+}
+
+.shape-swatch {
+  width: 20px;
+  height: 20px;
+  border: 1px solid rgba(15, 23, 42, 0.25);
+  border-radius: 5px;
+  cursor: pointer;
+  padding: 0;
+}
+
+.shape-swatch[aria-pressed='true'] {
+  outline: 2px solid #2563eb;
+  outline-offset: 1px;
+}
+
+.shape-swatch:focus-visible {
+  outline: 2px solid #2563eb;
+  outline-offset: 1px;
+}
+
+.shape-swatch:disabled {
+  cursor: default;
+  opacity: 0.5;
+}
+
+/* Story 10: connectors (world layer). */
+.connector-object {
+  position: absolute;
+  pointer-events: none;
+}
+
+.connector-object svg {
+  overflow: visible;
+}
+
+.connector-dot {
+  fill: #ffffff;
+  stroke: #2563eb;
+  stroke-width: 1.5;
+}
+
+.connector-dot--highlighted {
+  fill: #2563eb;
+}
+
+.connector-dot--handle {
+  fill: #2563eb;
+  stroke: #ffffff;
+  stroke-width: 1.5;
+}

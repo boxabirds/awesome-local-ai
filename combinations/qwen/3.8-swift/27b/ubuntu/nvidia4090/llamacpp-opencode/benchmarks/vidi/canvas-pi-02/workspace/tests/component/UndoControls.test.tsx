@@ -25,6 +25,7 @@ function fakeSelection(): SelectionApi {
     clear() {},
     startEdit() {},
     endEdit() {},
+    selectCreated() {},
   };
 }
 
@@ -75,8 +76,6 @@ function KeysHarness({ controller, canEdit = true }: { controller: UndoControlle
     snapshot: objectsSnapshot(doc),
     canEdit,
     undo: controller,
-    tool: 'select',
-    setTool: () => {},
     onCreateStickyCenter: () => {},
   });
   return null;

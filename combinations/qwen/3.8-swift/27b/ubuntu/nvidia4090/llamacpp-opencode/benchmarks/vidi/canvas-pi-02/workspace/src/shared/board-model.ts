@@ -25,6 +25,8 @@ import {
   type StickyColor,
 } from './config';
 import { rectContains, type Point, type Rect } from './geometry';
+import { connectorBBox, resolveEndpoints } from './geometry/connector-geometry';
+import { detachConnectorsTo, readStoredEndpoint } from './objects/connector';
 
 /** Origin for local (this client's) transactions; undo (story 8) and
  *  echo-suppression (story 3) key off it. */
@@ -63,7 +65,9 @@ function isStickyColor(value: unknown): value is StickyColor {
   return typeof value === 'string' && value in STICKY_COLORS;
 }
 
-function objectsMap(doc: Y.Doc): Y.Map<Y.Map<unknown>> {
+/** The objects map (exported for the story 9+ object modules, which register
+ *  themselves via registerBoardType and mutate through this map). */
+export function objectsMap(doc: Y.Doc): Y.Map<Y.Map<unknown>> {
   return doc.getMap('objects');
 }
 
@@ -74,7 +78,8 @@ function stickyEntry(doc: Y.Doc, id: string): Y.Map<unknown> | undefined {
   return entry;
 }
 
-function maxZ(doc: Y.Doc): number {
+/** The highest z currently in the doc (0 when empty). */
+export function maxZ(doc: Y.Doc): number {
   let max = 0;
   for (const entry of objectsMap(doc).values()) {
     const z = entry.get('z');
@@ -195,13 +200,15 @@ export interface ObjectSnapshot {
 
 export function objectsSnapshot(doc: Y.Doc): readonly ObjectSnapshot[] {
   const objects: ObjectSnapshot[] = [];
+  const rects = new Map<string, Rect>();
+  const connectors: [string, Y.Map<unknown>][] = [];
   for (const [id, entry] of objectsMap(doc).entries()) {
     const type = entry.get('type');
     if (typeof type !== 'string' || !KNOWN_TYPES.has(type)) continue;
     const text = entry.get('text');
     const width = entry.get('width');
     const height = entry.get('height');
-    objects.push({
+    const snap: ObjectSnapshot = {
       id,
       type,
       x: entry.get('x') as number,
@@ -212,6 +219,42 @@ export function objectsSnapshot(doc: Y.Doc): readonly ObjectSnapshot[] {
       createdAt: entry.get('createdAt') as number,
       color: type === STICKY_TYPE ? (entry.get('color') as StickyColor) : undefined,
       text: text instanceof Y.Text ? text.toString() : '',
+    };
+    if (type === 'connector') {
+      // Story 10: a connector's bbox is DERIVED from its resolved endpoints
+      // (the stored x/y/width/height are always 0).
+      connectors.push([id, entry]);
+      continue;
+    }
+    objects.push(snap);
+    rects.set(id, objectBounds(snap));
+  }
+  for (const [id, entry] of connectors) {
+    const from = readStoredEndpoint(entry.get('from'));
+    const to = readStoredEndpoint(entry.get('to'));
+    let x = 0;
+    let y = 0;
+    let width = 0;
+    let height = 0;
+    if (from !== null && to !== null) {
+      const { from: pFrom, to: pTo } = resolveEndpoints({ from, to }, rects);
+      const bbox = connectorBBox(pFrom, pTo);
+      x = bbox.x;
+      y = bbox.y;
+      width = bbox.width;
+      height = bbox.height;
+    }
+    objects.push({
+      id,
+      type: 'connector',
+      x,
+      y,
+      width,
+      height,
+      z: entry.get('z') as number,
+      createdAt: entry.get('createdAt') as number,
+      color: undefined,
+      text: '',
     });
   }
   objects.sort((a, b) => a.z - b.z || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
@@ -367,6 +410,10 @@ export function deleteObjects(doc: Y.Doc, ids: readonly string[]): number {
   const present = ids.filter((id) => objects.get(id) !== undefined);
   if (present.length === 0) return 0;
   doc.transact(() => {
+    // Story 10: detach connectors to the deleted objects at their current
+    // anchors (connector.target_deleted) BEFORE the objects are removed,
+    // inside the same single transaction.
+    detachConnectorsTo(doc, present);
     for (const id of present) objects.delete(id);
   }, LOCAL_ORIGIN);
   return present.length;

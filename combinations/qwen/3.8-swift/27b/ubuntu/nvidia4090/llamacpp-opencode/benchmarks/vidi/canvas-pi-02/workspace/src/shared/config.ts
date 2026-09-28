@@ -177,3 +177,57 @@ export const TEXT_PADDING_WORLD = 4;
 /** Average glyph width as a fraction of the font size; the measurement
  *  fallback when no canvas is available (jsdom, workers). */
 export const TEXT_GLYPH_WIDTH_RATIO = 0.6;
+
+/* --- Story 10: shapes and connectors --- */
+
+/** The shape kinds the Shape tool can draw (shape.create_drag). */
+export const SHAPE_KINDS = ['rect', 'ellipse', 'diamond'] as const;
+export type ShapeKind = (typeof SHAPE_KINDS)[number];
+/** Size (world units, per side) of a shape created by a click or a drag
+ *  smaller than the minimum (shape.create_click). */
+export const SHAPE_DEFAULT_SIZE_WORLD = 160;
+/** Minimum drag size (world units, per dimension) that creates a
+ *  drag-sized shape; smaller drags are treated as clicks (shape.create_click). */
+export const SHAPE_MIN_SIZE_WORLD = 20;
+/** Maximum characters a shape label may hold (shape.label). */
+export const SHAPE_LABEL_MAX_CHARS = 500;
+/** Outline thickness (world units) of a shape (shape.style). */
+export const SHAPE_STROKE_WIDTH_WORLD = 2;
+/** Fill colours for the shape toolbar, incl. 'none' (six colours + no fill,
+ *  shape.style). */
+export const SHAPE_FILL_COLORS = {
+  none: 'transparent',
+  white: '#FFFFFF',
+  blue: '#BBDEFB',
+  green: '#C8E6C9',
+  yellow: '#FFF9C4',
+  pink: '#F8BBD0',
+  grey: '#E0E0E0',
+} as const;
+export type FillColor = keyof typeof SHAPE_FILL_COLORS;
+/** Outline colours for the shape toolbar (shape.style). */
+export const SHAPE_STROKE_COLORS = {
+  dark: '#263238',
+  blue: '#1E88E5',
+  green: '#43A047',
+  orange: '#FB8C00',
+  red: '#E53935',
+  grey: '#9E9E9E',
+} as const;
+export type StrokeColor = keyof typeof SHAPE_STROKE_COLORS;
+/** Fill of a newly created shape. */
+export const DEFAULT_SHAPE_FILL: FillColor = 'white';
+/** Outline colour of a newly created shape. */
+export const DEFAULT_SHAPE_STROKE: StrokeColor = 'dark';
+/** Minimum resolved length (world units) for a connector to be created
+ *  (connector.no_accidental). */
+export const CONNECTOR_MIN_LENGTH_WORLD = 8;
+/** Screen-pixel distance within which a click selects a connector
+ *  (connector.select). */
+export const CONNECTOR_HIT_TOLERANCE_PX = 6;
+/** Line thickness (world units) of a connector. */
+export const CONNECTOR_STROKE_WIDTH_WORLD = 2;
+/** Arrowhead size (world units) of a connector. */
+export const CONNECTOR_ARROWHEAD_SIZE_WORLD = 10;
+/** Screen-pixel radius of the connector's side dots and end handles. */
+export const CONNECTOR_DOT_RADIUS_PX = 4;

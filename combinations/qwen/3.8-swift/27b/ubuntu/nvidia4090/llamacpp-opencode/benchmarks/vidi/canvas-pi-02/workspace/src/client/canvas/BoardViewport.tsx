@@ -27,7 +27,10 @@ export interface BoardViewportProps {
   /** Double-click on empty board space (the grid), with the local point. */
   onDblClickEmpty?(point: Point): void;
   /** A click (press without drag) on empty board space. */
-  onEmptyClick?(): void;
+  /** A click (press without drag) on empty board space, with the
+   *  viewport-local screen point (story 10: the Board hit-tests connectors
+   *  under it — board.click_arrow). */
+  onEmptyClick?(point: Point): void;
   /**
    * Shift+drag marquee (story 7, sel.marquee_ui). When present, Shift+drag
    * on empty space drives this API instead of panning; a plain drag keeps
@@ -223,7 +226,7 @@ export function BoardViewport({
     }
     setPanning(false);
     camera.endPan();
-    if (wasClick) onEmptyClickRef.current?.();
+    if (wasClick) onEmptyClickRef.current?.(toLocal(e));
   };
 
   // Double-click on empty space creates a note (story 2); double-clicks on

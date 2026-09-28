@@ -6,9 +6,10 @@
 
 import type { ReactElement } from 'react';
 import type { ObjectSnapshot } from '../../shared/board-model';
-import type { StickyColor, TextSize } from '../../shared/config';
+import type { FillColor, StickyColor, StrokeColor, TextSize } from '../../shared/config';
 import { NoteToolbar } from '../objects/NoteToolbar';
 import { TextToolbar } from '../objects/TextToolbar';
+import { ShapeToolbar } from '../objects/ShapeToolbar';
 
 export interface SelectionBarProps {
   ids: ReadonlySet<string>;
@@ -20,6 +21,11 @@ export interface SelectionBarProps {
    *  TextToolbar); undefined when the selection is not a single text. */
   textSize?: TextSize;
   onTextSize?(id: string, size: TextSize): void;
+  /** Story 10: the fill/stroke of the single selected shape (drives the
+   *  ShapeToolbar); null when the selection is not a single shape. */
+  shapeStyle?: { fill: FillColor; stroke: StrokeColor } | null;
+  /** Story 10: change the selected shape's fill and/or stroke. */
+  onShapeStyle?(id: string, style: { fill?: FillColor; stroke?: StrokeColor }): void;
 }
 
 export function SelectionBar(props: SelectionBarProps): ReactElement | null {
@@ -51,7 +57,19 @@ export function SelectionBar(props: SelectionBarProps): ReactElement | null {
         />
       );
     }
-    // A single object of any other type gets no toolbar (stories 10-12).
+    // Story 10: a single shape gets the shape toolbar (fill + outline).
+    if (single.type === 'shape' && props.shapeStyle !== null && props.shapeStyle !== undefined && props.onShapeStyle !== undefined) {
+      return (
+        <ShapeToolbar
+          fill={props.shapeStyle.fill}
+          stroke={props.shapeStyle.stroke}
+          disabled={props.disabled}
+          onFill={(c) => props.onShapeStyle?.(single.id, { fill: c })}
+          onStroke={(c) => props.onShapeStyle?.(single.id, { stroke: c })}
+        />
+      );
+    }
+    // A single object of any other type gets no toolbar.
     return null;
   }
 

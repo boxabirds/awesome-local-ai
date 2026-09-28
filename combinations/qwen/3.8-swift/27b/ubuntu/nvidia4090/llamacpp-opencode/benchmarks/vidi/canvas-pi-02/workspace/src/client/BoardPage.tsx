@@ -23,7 +23,9 @@ import { useBoardDoc } from './board/useBoardDoc';
 import { ConnectionStatus } from './sync/ConnectionStatus';
 import { useSelection } from './board/useSelection';
 import { useBoardKeys } from './board/useBoardKeys';
-import { useTool } from './board/useTool';
+import { useActiveTool } from './tools/useActiveTool';
+import { ShapeTool } from './tools/ShapeTool';
+import { ConnectorTool } from './tools/ConnectorTool';
 import { useMarquee, MarqueeRect } from './board/useMarquee';
 import { useTransformGesture } from './board/useTransformGesture';
 import { SelectionBar } from './board/SelectionBar';
@@ -40,10 +42,14 @@ import {
   setStickyColor,
 } from '../shared/board-model';
 import { createText, setTextSize, textSnapshot } from '../shared/objects/text';
+import { shapeSnapshot, setShapeStyle } from '../shared/objects/shape';
+import { connectorSnapshot, setConnectorEndpoint, connectorResolved } from '../shared/objects/connector';
+import { nearestSide, sideAnchor } from '../shared/geometry/connector-geometry';
 import { TEXT_FONT_FAMILY, type TextSize } from '../shared/config';
 import { remeasureTextObject } from './objects/useTextBoxSync';
 import { createCanvasMeasurer, type Measurer } from './objects/textLayout';
-import { unionRects } from '../shared/geometry';
+import { unionRects, type Rect } from '../shared/geometry';
+import { connectorAtPoint, objectAtPoint } from './objects/hitTest';
 import {
   STICKY_SIZE_WORLD,
   BOARD_CHECK_MAX_RETRIES,
@@ -146,9 +152,14 @@ function Board({ boardId }: { boardId: string }): ReactElement {
   // reports a load failure; every edit path below checks this flag.
   const editable = canEdit(connectionState);
 
-  // Story 9 (text.tool): the active tool — 'select' (default) or 'text'
-  // (one-shot: creating a text reverts to select).
-  const { tool, setTool } = useTool(editable);
+  // Story 10 (tools.shortcuts): the active tool (select/text/shape/
+  // connector), the Shape tool's kind, and the V/T/S/L/Escape shortcuts.
+  // One-shot tools: creating an object reverts to Select (tools.one_shot).
+  const { tool, shapeKind, setTool, setShapeKind, toolCreated } = useActiveTool({
+    canEdit: editable,
+    isEditing: () => selectionRef.current.editingId !== null,
+    select: (id) => selectionRef.current.selectCreated(id),
+  });
 
   // Story 6 (creator identity) is out of scope: createdBy is a session-
   // unique client id (see NOTES.md).
@@ -270,17 +281,64 @@ function Board({ boardId }: { boardId: string }): ReactElement {
     undoRef.current?.boundary();
   };
 
-  // Board keyboard shortcuts (story 7, sel.keyboard + story 8 undo.shortcuts +
-  // story 9 tool shortcuts): Ctrl+A, Escape, arrows, Shift+arrows,
-  // Delete/Backspace, Enter, Ctrl/Cmd+Z etc. undo/redo, and V/T/N tools.
+  // Story 10 (shape.style): one fill/stroke change is one undo step.
+  const changeShapeStyle = (id: string, style: { fill?: import('../shared/config').FillColor; stroke?: import('../shared/config').StrokeColor }): void => {
+    if (!canEdit(connectionStateRef.current)) return; // load-failed: locked
+    undoRef.current?.boundary();
+    setShapeStyle(docRef.current, id, style);
+    undoRef.current?.boundary();
+  };
+
+  // Story 10 (conn.reattach): a connector end handle released at a client
+  // point — convert to world, hit-test (excluding the other end's target),
+  // attach to the hit object's nearest side or make a free endpoint.
+  const onConnectorReattachEnd = (id: string, end: 'from' | 'to', clientPoint: Point): void => {
+    if (!canEdit(connectionStateRef.current)) return; // load-failed: locked
+    const vpEl = rootRef.current?.querySelector<HTMLDivElement>('[data-testid="board-viewport"]');
+    if (vpEl === null || vpEl === undefined) return;
+    const rect = vpEl.getBoundingClientRect();
+    const world = screenToWorld(cameraRef.current.camera, { x: clientPoint.x - rect.left, y: clientPoint.y - rect.top });
+    const d = docRef.current;
+    // Exclude the object the OTHER end is attached to (no degenerate loop).
+    const snap = connectorSnapshot(d, id);
+    const otherEnd = snap === null ? null : end === 'to' ? snap.from : snap.to;
+    const excludeId = otherEnd !== null && otherEnd.kind === 'attached' ? otherEnd.objectId : null;
+    const hit = objectAtPoint(d, objects, world, cameraRef.current.camera.zoom);
+    const line = connectorResolved(d, id);
+    undoRef.current?.boundary();
+    let ok: boolean;
+    if (hit !== undefined && hit.id !== excludeId) {
+      const r = objectBounds(hit);
+      const anchorFrom = line !== null ? (end === 'to' ? line.from : line.to) : world;
+      ok = setConnectorEndpoint(d, id, end, {
+        kind: 'attached',
+        objectId: hit.id,
+        fallback: sideAnchor(r, nearestSide(r, anchorFrom)),
+      });
+    } else {
+      ok = setConnectorEndpoint(d, id, end, { kind: 'free', x: world.x, y: world.y });
+    }
+    undoRef.current?.boundary();
+    if (ok) selectionRef.current.click(id);
+  };
+
+  // Story 10: live world rects of the non-connector objects (connector
+  // endpoint resolution for rendering, conn.follow).
+  const rectsMap: Map<string, Rect> = new Map();
+  for (const o of objects) {
+    if (o.type !== 'connector') rectsMap.set(o.id, objectBounds(o));
+  }
+
+  // Board keyboard shortcuts (story 7, sel.keyboard + story 8 undo.shortcuts
+  // + story 2 N): Ctrl+A, Escape, arrows, Shift+arrows, Delete/Backspace,
+  // Enter, Ctrl/Cmd+Z etc. undo/redo, and N (sticky at view centre).
+  // (V/T/S/L/Escape tool switching lives in useActiveTool, story 10.)
   useBoardKeys({
     doc,
     selection,
     snapshot: objects,
     canEdit: editable,
     undo: undoController,
-    tool,
-    setTool,
     onCreateStickyCenter: createStickyAtCenter,
   });
 
@@ -334,9 +392,17 @@ function Board({ boardId }: { boardId: string }): ReactElement {
         textToolActive={tool === 'text'}
         onTextClick={createTextAtScreen}
         onDblClickEmpty={(p) => createStickyAtScreen(p)}
-        onEmptyClick={() => {
-          if (selection.editingId !== null) selection.endEdit();
-          else selection.clear();
+        onEmptyClick={(p) => {
+          if (selection.editingId !== null) {
+            selection.endEdit();
+            return;
+          }
+          // Story 10 (board.click_arrow): a click on an arrow (line within
+          // the screen tolerance) selects it.
+          const world = screenToWorld(cameraRef.current.camera, p);
+          const hit = connectorAtPoint(docRef.current, objects, world, cameraRef.current.camera.zoom);
+          if (hit !== undefined) selectionRef.current.click(hit.id);
+          else selectionRef.current.clear();
         }}
         marquee={marquee}
       >
@@ -362,10 +428,42 @@ function Board({ boardId }: { boardId: string }): ReactElement {
               onClearSelection={selection.clear}
               undo={undoController}
               note={o.type === 'text' ? textSnapshot(doc, o.id) ?? undefined : undefined}
+              shape={o.type === 'shape' ? shapeSnapshot(doc, o.id) ?? undefined : undefined}
+              connector={o.type === 'connector' ? connectorSnapshot(doc, o.id) ?? undefined : undefined}
+              rects={rectsMap}
+              onReattachEnd={onConnectorReattachEnd}
             />
           );
         })}
       </BoardViewport>
+      {/* Story 10: the Shape / Connector tools (screen-space overlays that
+          capture the pointer while their tool is active). */}
+      {tool === 'shape' && (
+        <ShapeTool
+          kind={shapeKind}
+          camera={camera.camera}
+          doc={doc}
+          createdBy={clientIdRef.current}
+          onBoundary={() => undoRef.current?.boundary()}
+          onCreated={(id) => {
+            undoRef.current?.boundary();
+            toolCreated(id);
+          }}
+        />
+      )}
+      {tool === 'connector' && (
+        <ConnectorTool
+          camera={camera.camera}
+          snapshot={objects}
+          doc={doc}
+          createdBy={clientIdRef.current}
+          onBoundary={() => undoRef.current?.boundary()}
+          onCreated={(id) => {
+            undoRef.current?.boundary();
+            toolCreated(id);
+          }}
+        />
+      )}
       <SelectionOverlay
         ids={selection.ids}
         snapshot={objects}
@@ -402,12 +500,23 @@ function Board({ boardId }: { boardId: string }): ReactElement {
                 : undefined
             }
             onTextSize={changeTextSize}
+            shapeStyle={
+              selectedObjects.length === 1 && selectedObjects[0].type === 'shape'
+                ? (() => {
+                    const s = shapeSnapshot(doc, selectedObjects[0].id);
+                    return s === null ? null : { fill: s.fill, stroke: s.stroke };
+                  })()
+                : null
+            }
+            onShapeStyle={changeShapeStyle}
           />
         </div>
       )}
       <Toolbar
         tool={tool}
         onTool={setTool}
+        shapeKind={shapeKind}
+        onShapeKind={setShapeKind}
         onCreateSticky={createStickyAtCenter}
         disabled={!editable}
         undo={undoApi}

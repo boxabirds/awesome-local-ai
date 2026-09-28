@@ -1,22 +1,29 @@
-// Left board toolbar (stories 1, 9): tool buttons (Select/Text) + the sticky
-// note button and undo/redo. The sticky note button is NOT a tool — it
-// creates one sticky and keeps the current tool (story 9 keeps V/T/Escape as
-// the only tool switches). The Text tool button is disabled on a non-
-// editable board (text.not_editable).
+// Left board toolbar (stories 1, 9, 10): tool buttons (Select / Text /
+// Shape / Connector) + the sticky note button and undo/redo. The sticky
+// note button is NOT a tool — it creates one sticky and keeps the current
+// tool. Creation tools are disabled on a non-editable board
+// (tools.not_editable). The Shape button opens a small kind menu
+// (Rectangle / Ellipse / Diamond) while the Shape tool is active.
 
 import type { ReactElement } from 'react';
-import type { Tool } from './useTool';
+import { SHAPE_KINDS, type ShapeKind } from '../../shared/config';
+import { SHAPE_KIND_LABELS } from '../objects/ShapeObject';
+import type { ToolId } from '../tools/useActiveTool';
 import { UndoButtons } from './UndoButtons';
 import type { UndoApi } from './useUndo';
 
 export interface ToolbarProps {
-  /** The active board tool (story 9). */
-  tool: Tool;
+  /** The active board tool (story 10). */
+  tool: ToolId;
   /** Switches the active tool. */
-  onTool(tool: Tool): void;
+  onTool(tool: ToolId): void;
+  /** The Shape tool's selected kind. */
+  shapeKind: ShapeKind;
+  /** Sets the Shape tool's kind. */
+  onShapeKind(kind: ShapeKind): void;
   /** Sticky note button: creates one note at the view centre. */
   onCreateSticky(): void;
-  /** Non-editable board: the Text tool button is disabled (selection stays). */
+  /** Non-editable board: the creation tools are disabled (selection stays). */
   disabled?: boolean;
   /** Personal undo/redo (story 8); null while unavailable. */
   undo: UndoApi | null;
@@ -55,9 +62,61 @@ export function Toolbar(props: ToolbarProps): ReactElement {
       >
         {/* "T" glyph. */}
         <svg width="20" height="20" viewBox="0 0 20 20" aria-hidden="true">
+          <path d="M4 4h12v3h-4.5v9h-3v-9H4V4z" fill="currentColor" />
+        </svg>
+      </button>
+      {/* Shape button + its kind menu (Rectangle / Ellipse / Diamond). */}
+      <div className="toolbar-shape-wrap">
+        <button
+          type="button"
+          className="toolbar-tool"
+          aria-label="Shape (S)"
+          title="Shape – S"
+          aria-pressed={props.tool === 'shape'}
+          disabled={props.disabled}
+          onClick={() => props.onTool('shape')}
+        >
+          {/* Rectangle glyph. */}
+          <svg width="20" height="20" viewBox="0 0 20 20" aria-hidden="true">
+            <rect x="3.5" y="5" width="13" height="10" fill="none" stroke="currentColor" strokeWidth="1.8" />
+          </svg>
+        </button>
+        {props.tool === 'shape' && (
+          <div className="shape-kind-menu" data-testid="shape-menu" role="menu" aria-label="Shape kind">
+            {SHAPE_KINDS.map((k) => (
+              <button
+                key={k}
+                type="button"
+                role="menuitemradio"
+                aria-checked={props.shapeKind === k}
+                aria-label={SHAPE_KIND_LABELS[k]}
+                className={props.shapeKind === k ? 'shape-kind-menu-item shape-kind-menu-item--active' : 'shape-kind-menu-item'}
+                onClick={() => props.onShapeKind(k)}
+              >
+                {SHAPE_KIND_LABELS[k]}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+      <button
+        type="button"
+        className="toolbar-tool"
+        aria-label="Connector (L)"
+        title="Connector – L"
+        aria-pressed={props.tool === 'connector'}
+        disabled={props.disabled}
+        onClick={() => props.onTool('connector')}
+      >
+        {/* Arrow glyph. */}
+        <svg width="20" height="20" viewBox="0 0 20 20" aria-hidden="true">
           <path
-            d="M4 4h12v3h-4.5v9h-3v-9H4V4z"
-            fill="currentColor"
+            d="M3.5 16.5h12m0 0l-4-4m4 4l-4 4"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.8"
+            strokeLinecap="round"
+            strokeLinejoin="round"
           />
         </svg>
       </button>

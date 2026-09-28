@@ -548,3 +548,82 @@ The e2e spec passes in chromium, firefox and webkit.
 
 Story 6 (presence: cursors and "who's here") rides the same provider;
 the awareness channel is available on the BoardRoom connection.
+
+## Story 10: Draw shapes and connect them with arrows that follow
+
+### Shape and connector model
+
+Both are plain entries in the `objects` Y.Map, registered with the board
+schema:
+
+- **Shape** — common fields plus `kind` (rect/ellipse/diamond), `fill`,
+  `stroke`, `label: Y.Text`. `createShape` normalises the dragged rect:
+  null or below `SHAPE_MIN_SIZE_WORLD` in either dimension becomes the
+  standard `SHAPE_DEFAULT_SIZE_WORLD` square centred on the click point;
+  `square` (Shift) anchors the larger dimension at the drag origin.
+- **Connector** — two `Endpoint` Y.Maps: `{kind:'attached', objectId,
+  fallback}` or `{kind:'free', x, y}`. Endpoints are never resolved when
+  stored; `resolveEndpoints` computes the live line from the LIVE
+  rectangles of the targets — an attached end sits on the side of its
+  object nearest the other end (`nearestSide`, a 45° switch in
+  normalised space), so moving/resizing a shape redraws its arrows
+  without any writes (conn.follow). A target that vanished
+  concurrently falls back to the stored `fallback` anchor.
+- **Delete** — `deleteObjects` detaches connectors to the deleted ids
+  inside its one transaction (`detachConnectorsTo`): the attached end
+  becomes free at the anchor nearest the OTHER end (the stored fallback
+  when the target is the only reference). A connector whose target is
+  deleted on one client while its other end is reattached on another
+  converges — the free end's exact point is order-dependent by design.
+
+### Type registration (viewer-client gotcha)
+
+`objectsSnapshot` filters entries by `isKnownBoardType`, and the board
+schema registration was lazy (inside each object module's entry points)
+because of the board-model ↔ connector import cycle (module-load-time
+registration would hit the TDZ on `KNOWN_TYPES`). Lazy is not enough:
+a client that only RECEIVES shapes/connectors (never creates them) never
+runs `ensureType`, and remote objects render as invisible. Fix: public
+`ensureShapeType()`/`ensureConnectorType()` seams, called at module load
+from `src/client/objects/registry.tsx` — that module evaluates after
+board-model, shape and connector, so the registration is TDZ-safe on
+every client before the first remote object can arrive.
+
+### Tools
+
+`useActiveTool` (replaces the story-7 `useTool`) owns V/T/S/L and
+Escape→Select; plain keys only, guarded by `canEdit` (creation tools) and
+`isEditing` (all keys). The creation tools are one-shot: the created
+object is selected and the tool reverts to Select. Selection of the
+just-created object uses `selection.selectCreated` — an unguarded click,
+because the guard (present-ids from the last snapshot) cannot know about
+an object created in the same tick (same rationale as `startEdit`).
+
+The Shape and Connector tools are screen-space overlay divs above the
+viewport (z 10, between the viewport and the selection overlay), so they
+block board gestures while active. The Connector tool shows the four
+side-midpoint dots of the hovered object; while dragging over a target,
+the TARGET's dots replace the start object's and the nearest side
+highlights. Free endpoints: release over empty board, or drag a
+ConnectorObject handle (its `onReattachEnd` gives BoardPage the client
+point; BoardPage hit-tests world objects excluding the other end's
+target, then attaches or leaves free).
+
+### Caveats
+
+- The pre-existing flakes (live-collab TC-23/TC-25, text TC-28 under
+  full-suite load; wrangler `500 Network connection lost` at
+  `openBoard`) are unchanged by this story — they fail identically on
+  the clean tree.
+- `seedCheckoutFlow`/`createConnectorBetween`/`reattachConnectorEnd`
+  test hooks are exposed by the `dev:test` build only.
+
+### Test matrix (story 10)
+
+| Layer | Command | Added |
+| ----- | ------- | ----- |
+| Unit | `npm run test:unit` | shape model (TC-01…06 + label clamp), connector model + geometry (TC-07…14, TC-29) |
+| Component | `npm run test:component` | ShapeTool (TC-15…17, TC-28), ConnectorTool (TC-18…21), useActiveTool (TC-22) |
+| E2E | `npm run test:e2e` | shapes.spec (TC-24…26), connectors.spec (TC-25, TC-27) |
+
+The e2e specs pass in chromium, firefox and webkit.
