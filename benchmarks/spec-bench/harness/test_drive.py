@@ -646,6 +646,38 @@ def test_sampler_aborts_when_free_memory_runs_out(monkeypatch):
     drive.RUN_ABORT.clear()
 
 
+
+def test_sampler_records_what_held_memory_at_its_lowest(monkeypatch):
+    """When free memory falls below MEM_SNAPSHOT_PCT, the processes holding it are recorded at the
+    lowest point, whether or not the guard then fires."""
+    import time, drive
+    monkeypatch.setattr(drive, "CONDITION_POLL_S", 0.01)
+    monkeypatch.setattr(drive, "swap_used_gb", lambda: 1.0)
+    readings = iter([50.0, drive.MEM_SNAPSHOT_PCT - 1, drive.MEM_SNAPSHOT_PCT - 5, drive.MEM_SNAPSHOT_PCT - 2])
+    monkeypatch.setattr(drive, "mem_free_pct", lambda: next(readings, drive.MEM_SNAPSHOT_PCT - 2))
+    monkeypatch.setattr(drive, "conditions", lambda: {"ac": True, "low_power": False, "thermal": "nominal"})
+    calls = []
+    monkeypatch.setattr(drive.hostenv, "memory_snapshot", lambda: calls.append(1) or {"processes": [len(calls)]})
+    s = drive.ConditionSampler()
+    s.start()
+    time.sleep(0.1)
+    res = s.stop()
+    assert res["memory_snapshot"]["free_pct"] == drive.MEM_SNAPSHOT_PCT - 5
+    assert res["memory_snapshot"]["processes"] == [2]   # taken at the second low, the lowest; not retaken after
+    assert not res["aborted_memory"]
+
+
+def test_sampler_records_nothing_when_memory_is_plentiful(monkeypatch):
+    import time, drive
+    monkeypatch.setattr(drive, "CONDITION_POLL_S", 0.01)
+    monkeypatch.setattr(drive, "swap_used_gb", lambda: 1.0)
+    monkeypatch.setattr(drive, "mem_free_pct", lambda: 60.0)
+    monkeypatch.setattr(drive, "conditions", lambda: {"ac": True, "low_power": False, "thermal": "nominal"})
+    s = drive.ConditionSampler()
+    s.start()
+    time.sleep(0.05)
+    assert s.stop()["memory_snapshot"] is None
+
 def test_unmonitored_thermal_is_fit_and_not_throttled():
     """A Linux host with no thermal source must neither block every story nor count as throttled."""
     from drive import conditions_ok, summarise_conditions

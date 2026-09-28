@@ -120,3 +120,40 @@ def test_an_nvidia_field_reported_as_na_does_not_kill_the_condition_sampler():
     import hostenv
     s = hostenv.parse_nvidia_gpu("97, 2520, 3105, [N/A], 64, 22622, 0x0000000000000000\n")
     assert s is not None and s["busy_pct"] == 97 and s["power_w"] is None and s["temp_c"] == 64.0
+
+
+PS_OUT = """  101 20971520 /home/u/.local/share/x/llama-server -m /home/u/models/m.gguf --api-key sk-secret123 --port 18010
+  202   524288 /usr/bin/gnome-shell
+  303  1048576 /opt/chrome/chrome --type=renderer
+  304  1048576 /opt/chrome/chrome --type=renderer
+  305   262144 node /home/u/.vidi-bench/work/x/workspace/node_modules/.bin/wrangler dev
+"""
+
+
+def test_memory_snapshot_ranks_processes_and_totals_by_program():
+    """What held the memory when free memory ran low (gruntus canvas-pi-03 story 5: about 28 GB we
+    couldn't attribute). Per-program totals catch many small processes, e.g. a dozen browsers."""
+    from hostenv import parse_memory_snapshot
+    snap = parse_memory_snapshot(PS_OUT, home="/home/u", top=3)
+    assert [p["pid"] for p in snap["processes"]] == [101, 303, 304]
+    assert snap["processes"][0]["rss_gb"] == 20.0
+    assert snap["by_program"][0] == {"program": "llama-server", "count": 1, "rss_gb": 20.0}
+    assert {"program": "chrome", "count": 2, "rss_gb": 2.0} in snap["by_program"]
+    assert snap["total_rss_gb"] == 22.75
+
+
+def test_memory_snapshot_hides_home_and_keys():
+    """Run folders are published: no home paths, no keys."""
+    from hostenv import parse_memory_snapshot
+    cmd = parse_memory_snapshot(PS_OUT, home="/home/u", top=1)["processes"][0]["command"]
+    assert "/home/u" not in cmd and cmd.startswith("~/.local/share/x/llama-server")
+    assert "sk-secret123" not in cmd and "--api-key ***" in cmd
+
+
+def test_memory_snapshot_names_programs_whose_path_has_spaces():
+    """macOS: "/Applications/Google Chrome.app/..." is one program, not "Google"."""
+    from hostenv import parse_memory_snapshot
+    args = "  7 1048576 /Applications/Google Chrome.app/Contents/MacOS/Google Chrome --flag\n"
+    comm = "  7 /Applications/Google Chrome.app/Contents/MacOS/Google Chrome\n"
+    snap = parse_memory_snapshot(args, home="/Users/u", comm_out=comm)
+    assert snap["by_program"][0]["program"] == "Google Chrome"
