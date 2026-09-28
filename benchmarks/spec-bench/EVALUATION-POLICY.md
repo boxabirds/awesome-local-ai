@@ -30,3 +30,7 @@ The held-out suite is the pack's acceptance tests, kept in the private repo and 
 
    The cumulative score is how usable the finished app is. The per-story parts show why, so that a single early bug doesn't hide what the rest of the run did.
 7. **Known-good mode is diagnostic.** Running one story from a known-good base (another run's code at the end of the previous story) measures that story on its own, with no earlier mistakes carried in. Its results are labelled as such and never combined with full runs.
+
+## Setting up held-out tests
+
+8. **A setup step that follows an undocumented alternate flow falls back to the documented flow.** Held-out tests put the app into the state their check needs (setup), then act and assert (the check). When a setup step reaches its state by a flow the spec implies should work but no design test case documents (an alternate flow: for example documented steps chained at machine speed, in an order no TC walks), it names its documented counterpart, the TC that reaches the same state. If the alternate flow fails, the step is redone by the documented flow and the resulting state is asserted to be exactly the intended one before the test goes on. The alternate-flow failure is recorded once, as a finding against the story that owns that behaviour, instead of failing every later test that merely passes through it. A step with no documented counterpart gets no fallback, and a test's own check never falls back. Added in vidi v1.2, after one such failure in story 7 of a run made most later tests fail in their setup.

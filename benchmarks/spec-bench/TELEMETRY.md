@@ -118,8 +118,10 @@ fetch a browser), `all_green`, `harness_fault`.
 ### `accept`: the held-out suite
 
 `skipped` (the pack has none: n/a, not 0/0), `build_exit`, `runner_exit`, `runner_tail`, `passed`,
-`total`, `on_partial` (tests built on PARTIAL stories), `by_story`, `harness_fault`, and `tests`
-(per test, in `accept.json` only).
+`total`, `on_partial` (tests built on PARTIAL stories), `by_story`, `setup_fallbacks` (from pack
+vidi-v1.2: `tests` whose setup fell back to the documented flow, and their count `by_owner`, the story
+that owns the behaviour; EVALUATION-POLICY rule 8), `harness_fault`, and `tests` (per test, in
+`accept.json` only, each with its own `setup_fallbacks` list).
 
 A `harness_fault` (`missing resources: …`) means the machine couldn't run the tests: the story's
 scores are void and the run stops with exit 3, which dbench reports without restarting.

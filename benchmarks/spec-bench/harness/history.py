@@ -353,7 +353,7 @@ def per_story(run: Path) -> list[dict]:
                      "new_passed": sum(t.get("status") == "passed" for t in own), "new_total": len(own),
                      "regressions": regressions, "repairs": repairs,
                      "cumulative_passed": sum(t.get("status") == "passed" for t in tests.values()),
-                     "cumulative_total": len(tests)})
+                     "cumulative_total": len(tests), "fallbacks": sum(bool(t.get("setup_fallbacks")) for t in tests.values())})
         prev = tests
     return rows
 
@@ -376,10 +376,16 @@ def render_per_story(run: Path) -> str:
              "passed before this story and fail after it; repairs the reverse. Cumulative is every held-out test "
              f"for the stories built so far ([evaluation policy]({policy_link(run)})). Cumulative can grow by more "
              "than the new work: some earlier tests need a later story's feature and are skipped until it exists.", "",
-             "| Story | New work | Regressions | Repairs | Cumulative |", "|---|---|---|---|---|"]
+             ]
+    fb = any(r["fallbacks"] for r in rows)
+    if fb:
+        lines += ["Setup fallbacks are held-out tests whose setup reached its state by the documented flow after an "
+                  "undocumented alternate flow failed (rule 8); the failure is counted once, as a finding.", ""]
+    lines += ["| Story | New work | Regressions | Repairs | Cumulative |" + (" Setup fallbacks |" if fb else ""),
+              "|---|---|---|---|---|" + ("---|" if fb else "")]
     for r in rows:
         lines.append(f"| {r['story']} | {r['new_passed']}/{r['new_total']} | {r['regressions']} | {r['repairs']} | "
-                     f"{r['cumulative_passed']}/{r['cumulative_total']} |")
+                     f"{r['cumulative_passed']}/{r['cumulative_total']} |" + (f" {r['fallbacks']} |" if fb else ""))
     new_p = sum(r["new_passed"] for r in rows); new_t = sum(r["new_total"] for r in rows)
     lines += ["", f"**New work** {new_p}/{new_t}, **regressions** {sum(r['regressions'] for r in rows)}, "
                   f"**repairs** {sum(r['repairs'] for r in rows)}, **cumulative** "

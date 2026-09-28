@@ -137,6 +137,29 @@ def _on_partial(test: dict, result: dict) -> str | None:
     return None
 
 
+SETUP_FALLBACK = "setup-fallback"
+FALLBACK_OWNER = re.compile(r"story (\d+)")
+
+
+def _setup_fallbacks(test: dict, result: dict) -> list[str]:
+    """Setup steps that fell back to their documented flow (EVALUATION-POLICY rule 8), once each."""
+    out: list[str] = []
+    for a in [*(test.get("annotations") or []), *(result.get("annotations") or [])]:
+        if a.get("type") == SETUP_FALLBACK and a.get("description") not in out:
+            out.append(a.get("description"))
+    return out
+
+
+def _fallback_summary(tests: list[dict]) -> dict:
+    """Tests that needed a setup fallback, and how many per story that owns the fallen-back behaviour."""
+    by_owner: dict[str, int] = {}
+    used = [t for t in tests if t.get("setup_fallbacks")]
+    for t in used:
+        for owner in {m.group(1) for d in t["setup_fallbacks"] if (m := FALLBACK_OWNER.search(d or ""))}:
+            by_owner[owner] = by_owner.get(owner, 0) + 1
+    return {"tests": len(used), "by_owner": by_owner}
+
+
 def _walk(suite: dict):
     for spec in suite.get("specs", []):
         for t in spec.get("tests", []):
@@ -144,7 +167,7 @@ def _walk(suite: dict):
             yield {"file": suite.get("file") or spec.get("file"), "title": spec["title"],
                    "status": res.get("status", "none"),
                    "error": (res.get("error") or {}).get("message", "")[:500],
-                   "on_partial": _on_partial(t, res)}
+                   "on_partial": _on_partial(t, res), "setup_fallbacks": _setup_fallbacks(t, res)}
     for child in suite.get("suites", []):
         yield from _walk(child)
 
@@ -277,6 +300,7 @@ def accept(ws: Path, processed: list, out: Path, acceptance: Path | None = ACCEP
         "on_partial": {"passed": sum(t["status"] == "passed" for t in applicable if t.get("on_partial") is not None),
                        "total": sum(t.get("on_partial") is not None for t in applicable)},
         "by_story": by_story,
+        "setup_fallbacks": _fallback_summary(applicable),
         "harness_fault": stopped or harness_fault(tests, run["tail"]),
         "tests": tests,
     }
