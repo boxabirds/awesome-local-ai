@@ -1,13 +1,17 @@
-# gufo achieves 320–600% prefill improvements primarily due to parallelisation of the model's linear-attention layers and a suite of model-specific hardware optimisations
+# gufo reads prompts 320–600% faster ("prefill") primarily by processing the model's shortcut reading layers many tokens at a time (parallelising its "linear attention"), plus a suite of hardware optimisations specific to this model
 
-28 Sep 2026. Qwen3.8 Flash-Next on tritus (AMD Ryzen AI MAX+ 395 "Strix Halo", 128 GB), gufo
-`b722a61` against llama.cpp (Vulkan, commit `6fcaa16`), both on the same weights (UD-Q4_K_XL).
+28 Sep 2026. Two programs that run AI models on your own computer ("inference engines"), gufo and
+llama.cpp, compared on one machine (tritus: an AMD Ryzen AI MAX+ 395 chip, known as "Strix Halo",
+with 128 GB of memory), running the same model (Qwen3.8 Flash-Next) from the same files. Exact
+versions: gufo `b722a61`; llama.cpp commit `6fcaa16`, using its Vulkan graphics interface; model
+files UD-Q4_K_XL (explained below).
 
-> **How sure we are.** The speed-up is measured (below). "Primarily due to parallelisation" is our
-> best reading of the evidence, not yet a measurement: gufo's own profile shows those layers are
-> cheap in gufo, and llama.cpp's issue tracker says its graphics-chip code for them works one token
-> at a time. We have not profiled llama.cpp to show that this is where most of its time goes; a
-> short llama.cpp profile on tritus would settle it.
+> **How sure we are.** The speed-up is measured (below). "Primarily" is our
+> best reading of the evidence, not yet a measurement: gufo's own timing breakdown of where its
+> time goes (a "profile") shows those layers are cheap in gufo, and llama.cpp's public bug and
+> change tracker says its graphics-chip code for them works one token at a time. We have not taken
+> the same timing breakdown of llama.cpp to show that this is where most of its time goes; a short
+> one on tritus would settle it.
 
 ## The numbers
 
