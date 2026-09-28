@@ -12,8 +12,9 @@ Model `qwen3.8-flash-next-gufo`, scope `canvas`, effort `low`, client pi 0.87.1,
 | 7 | Select, move, resize and delete several objects at once | DONE, on partial 5 | 65.6 | None | None | None | — | — | red | 39/44 |  | 0 / 0 | 2 | — | throttled 0%, server peak 0 GB |
 | 8 | Undo and redo my own changes without undoing anyone else's | DONE, on partial 5 | 29.6 | None | None | None | — | — | red | 46/51 |  | 0 / 0 | 1 | — | throttled 0%, server peak 0 GB |
 | 9 | Write free text anywhere on the board | DONE, on partial 5 | 63.2 | None | None | None | — | — | red | 48/57 |  | 0 / 0 | 2 | — | throttled 0%, server peak 0 GB |
+| 10 | Draw shapes and connect them with arrows that follow when moved | DONE, on partial 5 | 47.5 | None | None | None | — | — | red | 56/65 |  | 0 / 2 | 2 | — | throttled 0%, server peak 0 GB |
 
-**Totals:** 8 stories, 439 agent-minutes, 0 requests, 0 prompt / 0 completion tokens, gate green 4/8, final acceptance 48/57, stalled 0, partial 1, 17495 lines in src+tests.
+**Totals:** 9 stories, 486 agent-minutes, 0 requests, 0 prompt / 0 completion tokens, gate green 4/9, final acceptance 56/65, stalled 0, partial 1, 20683 lines in src+tests.
 
 ### Stories ended early (PARTIAL) and what was built on them
 
@@ -21,6 +22,7 @@ Model `qwen3.8-flash-next-gufo`, scope `canvas`, effort `low`, client pi 0.87.1,
 - Story 7, built on partial 5: held-out tests on the partial base 10/13; partial story's tests fixed 0, regressed 0; 0 stub-like lines added to src/.
 - Story 8, built on partial 5: held-out tests on the partial base 17/20; partial story's tests fixed 0, regressed 0; 0 stub-like lines added to src/.
 - Story 9, built on partial 5: held-out tests on the partial base 19/26; partial story's tests fixed 0, regressed 0; 0 stub-like lines added to src/.
+- Story 10, built on partial 5: held-out tests on the partial base 27/34; partial story's tests fixed 0, regressed 0; 0 stub-like lines added to src/.
 
 ## How it happened
 
@@ -36,10 +38,12 @@ Each story's commits, and which story broke or fixed an earlier story's held-out
 | 7 | 1 by the agent | 2710 / 403 | `useTransformGesture.ts` (319), `App.tsx` (274), `board-model.ts` (257), `StickyNote.tsx` (245), `geometry.ts` (209), `useSelection.ts` (131), +10 more |
 | 8 | 1 by the agent | 1479 / 21 | `undo.ts` (117), `UndoButtons.tsx` (71), `App.tsx` (46), `StickyTextEditor.tsx` (43), `useBoardKeys.ts` (42), `useUndo.ts` (39), +4 more |
 | 9 | 1 by the agent | 2356 / 238 | `TextEditor.tsx` (174), `text.ts` (164), `StickyTextEditor.tsx` (160), `textLayout.ts` (136), `TextObject.tsx` (125), `App.tsx` (86), +14 more |
+| 10 | 1 by the agent | 3218 / 30 | `ConnectorTool.tsx` (273), `ConnectorObject.tsx` (254), `connector.ts` (248), `ShapeObject.tsx` (170), `ShapeTool.tsx` (166), `shape.ts` (161), +10 more |
 
 ### Earlier stories broken or fixed
 
-No story changed an earlier story's held-out results.
+- **Story 10 broke 0, fixed 2** earlier held-out tests (story 10: Draw shapes and connect them with arrows that follow when moved). Source files it changed most: `ConnectorTool.tsx` (273), `ConnectorObject.tsx` (254), `connector.ts` (248), `ShapeObject.tsx` (170), `ShapeTool.tsx` (166), `shape.ts` (161), +10 more.
+  - story 9: 2/6 → 4/6; fixed 2
 
 ### Interruptions and dead time
 
