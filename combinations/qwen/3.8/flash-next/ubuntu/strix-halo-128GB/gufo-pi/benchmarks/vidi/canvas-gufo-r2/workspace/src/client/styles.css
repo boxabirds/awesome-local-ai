@@ -1,0 +1,154 @@
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  color: #1f2328;
+  background: #ffffff;
+  overflow: hidden;
+  -webkit-font-smoothing: antialiased;
+}
+
+.app {
+  position: fixed;
+  inset: 0;
+}
+
+/* ---------------------------------------------------------------- board */
+
+.board-viewport {
+  position: fixed;
+  inset: 0;
+  overflow: hidden;
+  background-color: #fdfdfd;
+  /* Dot grid: spacing and position are set inline from the camera so the grid
+     looks attached to the board. */
+  background-image: radial-gradient(circle, #c8cdd4 1.5px, transparent 1.5px);
+  background-repeat: repeat;
+  cursor: grab;
+  touch-action: none;
+  overscroll-behavior: none;
+  user-select: none;
+}
+
+.board-viewport[data-panning='true'] {
+  cursor: grabbing;
+}
+
+.board-world {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 0;
+  height: 0;
+  transform-origin: 0 0;
+  /* Board objects (story 2+) opt back in on themselves. */
+  pointer-events: none;
+}
+
+.board-overlay {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.origin-marker {
+  position: absolute;
+  width: 0;
+  height: 0;
+}
+
+.origin-marker span {
+  position: absolute;
+  background: #f2545b;
+}
+
+.origin-marker-h {
+  left: -8px;
+  top: -1px;
+  width: 16px;
+  height: 2px;
+}
+
+.origin-marker-v {
+  left: -1px;
+  top: -8px;
+  width: 2px;
+  height: 16px;
+}
+
+/* --------------------------------------------------------- zoom control */
+
+.zoom-controls {
+  position: fixed;
+  right: 16px;
+  bottom: 16px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px;
+  background: #ffffff;
+  border: 1px solid #d6dae1;
+  border-radius: 8px;
+  box-shadow: 0 1px 4px rgb(16 22 26 / 12%);
+  pointer-events: auto;
+}
+
+.zoom-controls button {
+  font: inherit;
+  min-width: 32px;
+  height: 32px;
+  padding: 0 8px;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+}
+
+.zoom-controls button:hover:not(:disabled) {
+  background: #eef1f4;
+}
+
+.zoom-controls button:disabled {
+  color: #a0a6ae;
+  cursor: default;
+}
+
+.zoom-controls button:focus-visible {
+  outline: 2px solid #2f6feb;
+  outline-offset: 1px;
+}
+
+.zoom-percent {
+  min-width: 52px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+.zoom-reset {
+  border-left: 1px solid #e2e6ea !important;
+  border-radius: 0 6px 6px 0 !important;
+  white-space: nowrap;
+}
+
+/* ------------------------------------------------------ navigation hint */
+
+.navigation-hint {
+  position: fixed;
+  left: 50%;
+  bottom: 20px;
+  transform: translateX(-50%);
+  padding: 8px 14px;
+  border-radius: 999px;
+  background: rgb(31 35 40 / 82%);
+  color: #ffffff;
+  font-size: 14px;
+  white-space: nowrap;
+  pointer-events: none;
+}
