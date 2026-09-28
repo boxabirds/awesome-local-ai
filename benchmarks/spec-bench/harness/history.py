@@ -323,3 +323,58 @@ def render_interruptions(h: dict) -> list[str]:
 
 if __name__ == "__main__":
     print(render(Path(sys.argv[1])))
+
+
+def per_story(run: Path) -> list[dict]:
+    """Per story (EVALUATION-POLICY rule 6): its own held-out tests (new work), earlier stories'
+    tests it broke (regressions) or repaired, and the cumulative score after it."""
+    sids = sorted(int(d.name) for d in (run / "stories").glob("[0-9]*") if (d / "accept.json").exists())
+    rows, prev = [], None
+    for sid in sids:
+        tests = _tests(run, str(sid))
+        own = [t for (f, _), t in tests.items() if str(f or "").startswith(f"story-{sid:02d}")]
+        earlier = {k: t for k, t in tests.items() if not str(k[0] or "").startswith(f"story-{sid:02d}")}
+        regressions = repairs = 0
+        if prev is not None:
+            for k, t in earlier.items():
+                before = prev.get(k, {}).get("status")
+                if before == "passed" and t.get("status") != "passed":
+                    regressions += 1
+                elif before is not None and before != "passed" and t.get("status") == "passed":
+                    repairs += 1
+        rows.append({"story": sid,
+                     "new_passed": sum(t.get("status") == "passed" for t in own), "new_total": len(own),
+                     "regressions": regressions, "repairs": repairs,
+                     "cumulative_passed": sum(t.get("status") == "passed" for t in tests.values()),
+                     "cumulative_total": len(tests)})
+        prev = tests
+    return rows
+
+
+POLICY = Path(__file__).resolve().parents[1] / "EVALUATION-POLICY.md"
+
+
+def policy_link(run: Path) -> str:
+    """The policy's path relative to the run folder, whatever its depth, where summary.md is written."""
+    import os
+    return os.path.relpath(POLICY, run.resolve())
+
+
+def render_per_story(run: Path) -> str:
+    rows = per_story(run)
+    if not rows:
+        return ""
+    lines = ["## Per story", "",
+             f"New work is the story's own held-out tests. Regressions are earlier stories' held-out tests that "
+             "passed before this story and fail after it; repairs the reverse. Cumulative is every held-out test "
+             f"for the stories built so far ([evaluation policy]({policy_link(run)})). Cumulative can grow by more "
+             "than the new work: some earlier tests need a later story's feature and are skipped until it exists.", "",
+             "| Story | New work | Regressions | Repairs | Cumulative |", "|---|---|---|---|---|"]
+    for r in rows:
+        lines.append(f"| {r['story']} | {r['new_passed']}/{r['new_total']} | {r['regressions']} | {r['repairs']} | "
+                     f"{r['cumulative_passed']}/{r['cumulative_total']} |")
+    new_p = sum(r["new_passed"] for r in rows); new_t = sum(r["new_total"] for r in rows)
+    lines += ["", f"**New work** {new_p}/{new_t}, **regressions** {sum(r['regressions'] for r in rows)}, "
+                  f"**repairs** {sum(r['repairs'] for r in rows)}, **cumulative** "
+                  f"{rows[-1]['cumulative_passed']}/{rows[-1]['cumulative_total']}."]
+    return "\n".join(lines) + "\n"
