@@ -7,13 +7,14 @@
  */
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import * as Y from 'yjs';
-import { initDoc, snapshot, type StickySnapshot } from '../../shared/board-model';
+import { initDoc, snapshotAll, type ObjectSnapshot } from '../../shared/board-model';
+import { getObjectType } from '../objects/registry';
 import { connectBoard, type ConnectionState, type BoardConnection } from '../sync/connectBoard';
 import { setConnectionState as _setConnectionState } from '../canvas/testHooks';
 
 export interface BoardDocState {
   doc: Y.Doc;
-  notes: readonly StickySnapshot[];
+  notes: readonly ObjectSnapshot[];
   connectionState: ConnectionState;
 }
 
@@ -53,12 +54,13 @@ export function useBoardDoc(injectedDoc?: Y.Doc, boardId?: string): BoardDocStat
   }, [connectionState]);
 
   // Cached snapshot: recomputed only when the doc's objects map changes.
-  const cacheRef = useRef<{ doc: Y.Doc; value: readonly StickySnapshot[] } | null>(null);
+  const cacheRef = useRef<{ doc: Y.Doc; value: readonly ObjectSnapshot[] } | null>(null);
 
-  const getSnapshot = useCallback((): readonly StickySnapshot[] => {
+  const getSnapshot = useCallback((): readonly ObjectSnapshot[] => {
     const cached = cacheRef.current;
     if (cached && cached.doc === doc) return cached.value;
-    const value = snapshot(doc);
+    // Unknown types are dropped here so they never render or become selectable.
+    const value = snapshotAll(doc).filter((o) => getObjectType(o.type) !== undefined);
     cacheRef.current = { doc, value };
     return value;
   }, [doc]);

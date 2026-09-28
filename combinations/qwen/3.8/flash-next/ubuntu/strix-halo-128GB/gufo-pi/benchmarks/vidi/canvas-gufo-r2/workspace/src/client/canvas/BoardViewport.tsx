@@ -16,6 +16,8 @@ import {
 import { worldToScreen, type Camera, type Point, type Size } from './camera';
 import { useCamera, type CameraController } from './useCamera';
 import { installBoardTestHooks } from './testHooks';
+import { useMarquee, MarqueeRect } from '../board/Marquee';
+import type { ObjectSnapshot } from '../../shared/board-model';
 
 export interface BoardViewportProps {
   /** Rendered in world coordinates (unscaled content layer). */
@@ -26,6 +28,10 @@ export interface BoardViewportProps {
   onBoardDblClick?: (point: { x: number; y: number }) => void;
   /** Called when the user clicks empty board space (short press, no drag). */
   onBoardEmptyClick?: () => void;
+  /** When provided, Shift+drag draws a marquee and selects fully-enclosed objects. */
+  snapshot?: readonly ObjectSnapshot[];
+  /** Called when a marquee completes with the ids fully inside it (always additive). */
+  onMarqueeSelect?: (ids: string[], additive: boolean) => void;
 }
 
 const BoardCameraContext = createContext<CameraController | null>(null);
@@ -81,11 +87,27 @@ function wheelPixels(e: WheelEvent, viewport: Size): { deltaX: number; deltaY: n
  * positioned with CSS from the camera. Handles drag-to-pan, scroll, Ctrl/Cmd
  * wheel + Safari pinch zoom, and the Ctrl/Cmd + = / - / 0 shortcuts.
  */
-export function BoardViewport({ children, overlay, onBoardDblClick, onBoardEmptyClick }: BoardViewportProps) {
+const EMPTY_SNAPSHOT: readonly ObjectSnapshot[] = [];
+
+export function BoardViewport(props: BoardViewportProps) {
+  const { children, overlay, onBoardDblClick, onBoardEmptyClick } = props;
   const boardRef = useRef<HTMLDivElement | null>(null);
   const [viewport, setViewport] = useState<Size>({ width: 0, height: 0 });
   const [isPanning, setIsPanning] = useState(false);
   const controller = useCamera(viewport);
+
+  // Marquee selection (Shift+drag over the board surface).
+  const marqueeSnapshot = props.snapshot ?? EMPTY_SNAPSHOT;
+  const marqueeSelectRef = useRef<((ids: string[]) => void) | null>(null);
+  marqueeSelectRef.current = props.onMarqueeSelect
+    ? (ids: string[]) => props.onMarqueeSelect?.(ids, true)
+    : null;
+  const marquee = useMarquee(controller.camera, marqueeSnapshot, (ids) =>
+    marqueeSelectRef.current?.(ids),
+  );
+  const marqueeRef = useRef(marquee);
+  marqueeRef.current = marquee;
+  const marqueeActiveRef = useRef(false);
 
   // Listeners are attached once and read the latest controller through a ref, so
   // re-rendering every frame never re-subscribes DOM events.
@@ -137,12 +159,22 @@ export function BoardViewport({ children, overlay, onBoardDblClick, onBoardEmpty
     const isBoardSurface = (target: EventTarget | null): boolean =>
       target === el || (target instanceof HTMLElement && target.dataset.boardSurface === 'true');
 
-    const endPan = (e?: PointerEvent) => {
+    const endPan = (e?: PointerEvent, cancelled = false) => {
       if (pointerId === null) return;
       const released = pointerId;
       pointerId = null;
       if (typeof el.releasePointerCapture === 'function' && el.hasPointerCapture?.(released)) {
         el.releasePointerCapture(released);
+      }
+      // A finished marquee selects enclosed objects; a cancelled one leaves the
+      // selection unchanged. Neither clears the selection via the empty-click path.
+      if (marqueeActiveRef.current) {
+        marqueeActiveRef.current = false;
+        if (cancelled) marqueeRef.current.cancel();
+        else marqueeRef.current.end();
+        api().endPan();
+        setIsPanning(false);
+        return;
       }
       // Detect a short click on empty board space (no drag) -> clear selection
       const down = downPosRef.current;
@@ -163,6 +195,21 @@ export function BoardViewport({ children, overlay, onBoardDblClick, onBoardEmpty
       const button = e.button as number | undefined;
       if (button !== undefined && button !== 0) return;
       if (!isBoardSurface(e.target)) return;
+      // Shift+drag on the board surface starts a marquee instead of a pan.
+      if (e.shiftKey && marqueeSelectRef.current) {
+        downPosRef.current = null;
+        pointerId = e.pointerId;
+        if (typeof el.setPointerCapture === 'function') {
+          try {
+            el.setPointerCapture(e.pointerId);
+          } catch {
+            // best effort
+          }
+        }
+        marqueeActiveRef.current = true;
+        marqueeRef.current.begin(pointerPoint(e));
+        return;
+      }
       downPosRef.current = pointerPoint(e);
       pointerId = e.pointerId;
       if (typeof el.setPointerCapture === 'function') {
@@ -182,6 +229,10 @@ export function BoardViewport({ children, overlay, onBoardDblClick, onBoardEmpty
       const p = pointerPoint(e);
       lastPointerRef.current = p;
       if (pointerId === null) return;
+      if (marqueeActiveRef.current) {
+        marqueeRef.current.move(p);
+        return;
+      }
       api().panMove(p);
     };
 
@@ -237,11 +288,13 @@ export function BoardViewport({ children, overlay, onBoardDblClick, onBoardEmpty
       }
     };
 
+    const onPointerCancelEv = (e: PointerEvent) => endPan(e, true);
+
     el.addEventListener('dblclick', onDblClick);
     el.addEventListener('pointerdown', onPointerDown);
     el.addEventListener('pointermove', onPointerMove);
     el.addEventListener('pointerup', endPan as EventListener);
-    el.addEventListener('pointercancel', endPan as EventListener);
+    el.addEventListener('pointercancel', onPointerCancelEv as EventListener);
     el.addEventListener('lostpointercapture', endPan);
     el.addEventListener('wheel', onWheel, { passive: false });
     el.addEventListener('gesturestart', onGestureStart as EventListener, { passive: false });
@@ -253,7 +306,7 @@ export function BoardViewport({ children, overlay, onBoardDblClick, onBoardEmpty
       el.removeEventListener('pointerdown', onPointerDown);
       el.removeEventListener('pointermove', onPointerMove);
       el.removeEventListener('pointerup', endPan as EventListener);
-      el.removeEventListener('pointercancel', endPan as EventListener);
+      el.removeEventListener('pointercancel', onPointerCancelEv as EventListener);
       el.removeEventListener('lostpointercapture', endPan);
       el.removeEventListener('wheel', onWheel);
       el.removeEventListener('gesturestart', onGestureStart as EventListener);
@@ -327,6 +380,7 @@ export function BoardViewport({ children, overlay, onBoardDblClick, onBoardEmpty
       >
         <div className="board-world" data-testid="board-world" style={worldStyle}>
           {children}
+          <MarqueeRect rect={marquee.rect} camera={controller.camera} />
         </div>
         <div className="board-overlay">
           <div

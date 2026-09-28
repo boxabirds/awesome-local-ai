@@ -220,7 +220,8 @@ describe('keyboard shortcuts', () => {
     const before = h.camera();
     expect(fireEvent.keyDown(window, { key: '=' })).toBe(true);
     expect(fireEvent.keyDown(window, { key: '0', altKey: true, ctrlKey: true })).toBe(true);
-    expect(fireEvent.keyDown(window, { key: 'a', ctrlKey: true })).toBe(true);
+    // Ctrl/Cmd + A is claim by story 7 (select all), so it is now default-prevented.
+    expect(fireEvent.keyDown(window, { key: 'a', ctrlKey: true })).toBe(false);
     flushFrames();
     expect(h.camera()).toEqual(before);
   });

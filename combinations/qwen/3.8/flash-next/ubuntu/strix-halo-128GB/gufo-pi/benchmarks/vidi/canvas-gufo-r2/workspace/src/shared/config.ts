@@ -135,3 +135,20 @@ export const LINK_COPIED_MS = 2000;
 
 /** Base delay for board existence check retries; doubles up to RECONNECT_MAX_BACKOFF_MS. */
 export const BOARD_CHECK_RETRY_BASE_MS = 1000;
+
+// ----------------------------------------------------------- selection & transforms (story 7)
+
+/** Resize-handle edge length in screen pixels (constant at any zoom). */
+export const HANDLE_SIZE_PX = 8;
+
+/** Smallest a sticky note may be resized to, in world units. */
+export const STICKY_MIN_SIZE_WORLD = 50;
+
+/** Largest any board object may be resized to, in world units. */
+export const MAX_OBJECT_SIZE_WORLD = 20_000;
+
+/** Arrow-key nudge distance in world units. */
+export const NUDGE_STEP_WORLD = 1;
+
+/** Shift+arrow nudge distance in world units. */
+export const NUDGE_LARGE_STEP_WORLD = 10;
