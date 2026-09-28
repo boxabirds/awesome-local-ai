@@ -1,6 +1,6 @@
 > **Draft**, not filed. The four sections below match the MTPLX bug report form's fields, in order, with the same names.
 
-**Title:** An idle session's live KV can't be reclaimed by the admission shed, so a smaller new request is refused (507) until restart
+**Title:** When memory is tight at compaction, an idle session's live KV can't be reclaimed, so a smaller new request can be refused (507) until restart
 
 ## Output of mtplx doctor --json
 
@@ -403,6 +403,12 @@ Meanwhile the long conversation kept being admitted, because its prefix was cach
 | 21:06:08 | the same 73,663-token compaction | 73,663 | 0 | ok | 83.9 GiB |
 
 The summary request is smaller than the conversation, so there was room for it if the idle conversation's KV had been released.
+
+### How often
+
+Not every time. It deadlocked 1 of the 9 agent tasks we ran on MTPLX 2.12.0, about an hour into that task. Two earlier tasks got 507 refusals (3 in all, one at 75,961 tokens) and recovered, because pi fell back to starting a fresh conversation from the same history. A later run on the same setup had 5 more refusals at 0.2–1.7 GiB over the limit.
+
+It depends on size. A refusal only happens when the memory already in use plus the new request's projection goes over the limit, and in the incident that was by 0.9 GiB. A shorter conversation or a smaller summary request fits and never meets the problem. But once it does happen, the idle session's memory can't be reclaimed (next section), so retrying doesn't help until restart.
 
 ### Why (our reading of the 2.12.0 source)
 
