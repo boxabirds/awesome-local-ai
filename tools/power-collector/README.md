@@ -22,14 +22,19 @@ per model request). One collector per machine, as a background service that star
    `~/.config/awesome-local-ai/tapo.env`, mode 600, or pass `--env-file` to the installer. In the
    Tapo app, Third-Party Compatibility must be on (Me, then Third-Party Services); for a plug added
    later, switch it off and on again.
-3. `tools/power-collector/install.sh` builds the binary, installs it to `~/.local/bin`, takes one
-   reading from every source, refuses to install if any fails, then installs a launchd agent (macOS)
-   or a systemd user service (Linux). On Linux, `sudo loginctl enable-linger $USER` keeps it running
+3. `tools/power-collector/install.sh` builds the binary, installs it to `~/.local/bin`, installs a
+   launchd agent (macOS) or a systemd user service (Linux), restarts it and waits (up to 3 minutes,
+   long enough to rediscover a plug) until the service has written a complete row for every source.
+   It fails, naming the source, if any didn't. The check reads the service's own output, not a
+   reading from the installer's shell: a firewall such as Little Snitch judges the process making the
+   connection, and a terminal can be refused where the service is allowed. On macOS the binary is
+   re-signed with a fixed identifier, so a rebuild doesn't look like a new program to the firewall. On Linux, `sudo loginctl enable-linger $USER` keeps it running
    without a login session. On a FileVault Mac, login happens at every boot, so the agent starts with
    the machine.
 
 ```bash
 power-collector once        # one reading from every source; exit 1 if any gave none
+power-collector verify      # wait until the running service records every source; exit 1 naming any that didn't
 power-collector run         # what the service runs
 ```
 

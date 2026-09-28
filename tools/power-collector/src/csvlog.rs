@@ -27,9 +27,14 @@ pub struct CsvLog {
     headers: HashMap<PathBuf, Vec<String>>,
 }
 
+/// The CSV a source writes a sample taken at `t` to.
+pub fn path(out: &Path, source: &str, t: f64) -> PathBuf {
+    out.join(format!("{source}-{}.csv", day(t)))
+}
+
 impl CsvLog {
     pub fn write(&mut self, out: &Path, source: &str, t: f64, values: &Values) -> std::io::Result<()> {
-        let path = out.join(format!("{source}-{}.csv", day(t)));
+        let path = path(out, source, t);
         let header = match self.headers.get(&path) {
             Some(h) => h.clone(),
             None => {
@@ -79,5 +84,55 @@ mod tests {
             text.lines().collect::<Vec<_>>(),
             vec!["ts_utc,system_w,on_ac", "2026-09-21T14:13:20.000Z,50,1", "2026-09-21T14:13:22.000Z,50,1"]
         );
+    }
+}
+
+/// Whether a source's CSV shows it working since `since` (epoch seconds): the last row is at or after
+/// `since` and every cell is filled. Err says why not.
+pub fn fresh(csv: &str, since: f64) -> Result<(), String> {
+    let mut lines = csv.lines();
+    let header: Vec<&str> = lines.next().ok_or("no file yet")?.split(',').skip(1).collect();
+    let last = lines.filter(|l| !l.trim().is_empty()).last().ok_or("no rows yet")?;
+    let mut cells = last.split(',');
+    let ts = cells.next().unwrap_or_default();
+    let at = chrono::DateTime::parse_from_rfc3339(ts).map_err(|e| format!("bad timestamp {ts}: {e}"))?;
+    if (at.timestamp_millis() as f64) / MS_PER_S < since {
+        return Err(format!("no row since {} (last {ts})", iso_ms(since)));
+    }
+    let cells: Vec<&str> = cells.collect();
+    match header.iter().enumerate().find(|(i, _)| cells.get(*i).is_none_or(|c| c.is_empty())) {
+        Some((_, col)) => Err(format!("no value for {col} at {ts}")),
+        None => Ok(()),
+    }
+}
+
+#[cfg(test)]
+mod fresh_tests {
+    use super::*;
+
+    const SINCE: f64 = 1_790_000_000.0; // 2026-09-21T14:13:20Z
+
+    #[test]
+    fn a_complete_row_after_since_is_fresh() {
+        let csv = "ts_utc,a,b\n2026-09-21T14:13:10.000Z,1,\n2026-09-21T14:13:22.000Z,1,2\n";
+        assert_eq!(fresh(csv, SINCE), Ok(()));
+    }
+
+    #[test]
+    fn a_row_with_an_empty_cell_is_not_fresh() {
+        let csv = "ts_utc,a,b\n2026-09-21T14:13:22.000Z,1,\n";
+        assert!(fresh(csv, SINCE).unwrap_err().contains("no value for b"));
+    }
+
+    #[test]
+    fn only_older_rows_is_not_fresh() {
+        let csv = "ts_utc,a\n2026-09-21T14:13:10.000Z,1\n";
+        assert!(fresh(csv, SINCE).unwrap_err().contains("no row since"));
+    }
+
+    #[test]
+    fn a_missing_file_or_header_only_is_not_fresh() {
+        assert!(fresh("", SINCE).is_err());
+        assert!(fresh("ts_utc,a\n", SINCE).is_err());
     }
 }
