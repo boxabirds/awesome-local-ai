@@ -8,8 +8,9 @@ Model `qwen3.8-swift-27b`, scope `canvas`, effort `low`, client pi 0.86.0, host 
 | 2 | Capture ideas on sticky notes and rearrange them | DONE | 32.2 | None | None | None | — | — | green | 16/20 |  | 0 / 0 | 1 | — | throttled 0%, server peak 24 GB |
 | 3 | See other people's edits appear live on the same board | DONE | 193.0 | None | None | None | — | — | green | 22/27 |  | 0 / 0 | 6 | — | throttled 0%, server peak 24 GB |
 | 4 | Return to a board and find everything as it was left | DONE | 211.0 | None | None | None | — | — | red | 26/31 |  | 0 / 0 | 7 | — | throttled 0%, server peak 24 GB |
+| 5 | Share a board with others using a link | DONE | 97.9 | None | None | None | — | — | red | 28/36 |  | 0 / 0 | 3 | — | throttled 0%, server peak 24 GB |
 
-**Totals:** 4 stories, 461 agent-minutes, 0 requests, 0 prompt / 0 completion tokens, gate green 3/4, final acceptance 26/31, stalled 0, partial 0, 8650 lines in src+tests.
+**Totals:** 5 stories, 559 agent-minutes, 0 requests, 0 prompt / 0 completion tokens, gate green 3/5, final acceptance 28/36, stalled 0, partial 0, 10684 lines in src+tests.
 
 ## How it happened
 
@@ -21,6 +22,7 @@ Each story's commits, and which story broke or fixed an earlier story's held-out
 | 2 | 4 by the agent | 2349 / 65 | `board-model.ts` (259), `StickyNote.tsx` (192), `styles.css` (175), `App.tsx` (110), `StickyTextEditor.tsx` (104), `StickyText.ts` (101), +10 more |
 | 3 | 4 by the agent | 4285 / 321 | `board-room.ts` (240), `connectBoard.ts` (212), `NOTES.md` (124), `protocol.ts` (91), `board-id.ts` (48), `App.tsx` (41), +13 more |
 | 4 | 2 by the agent | 2783 / 122 | `board-room.ts` (466), `board-store.ts` (311), `NOTES.md` (83), `room-state.ts` (80), `connectBoard.ts` (76), `test-hooks.ts` (48), +15 more |
+| 5 | 7 by the agent | 2774 / 655 | `BoardPage.tsx` (314), `App.tsx` (237), `styles.css` (214), `Share.tsx` (206), `board-room.ts` (147), `create-board.ts` (132), +16 more |
 
 ### Earlier stories broken or fixed
 
