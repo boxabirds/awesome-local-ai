@@ -1,3 +1,44 @@
+commit 1dff5d4d4c9ad6bfd435118b0c13c1422e8b66a1
+vidi-agent  Mon Sep 28 10:29:19 2026 +0000
+
+    harness: snapshot after story 5 (uncommitted agent work)
+
+
+ NOTES.md                               |  66 +++++-----
+ index.html                             |   1 +
+ playwright.config.ts                   |   2 +-
+ src/client/App.tsx                     | 187 ++-------------------------
+ src/client/BoardApp.tsx                | 132 +++++++++++++++++++
+ src/client/api.ts                      |  40 ++++++
+ src/client/pages/BoardPage.tsx         |  72 +++++++++++
+ src/client/pages/HomePage.tsx          |  39 ++++++
+ src/client/pages/NotFoundPage.tsx      |  42 ++++++
+ src/client/router.ts                   |  36 ++++++
+ src/client/share/SharePanel.tsx        | 125 ++++++++++++++++++
+ src/client/styles.css                  | 148 +++++++++++++++++++++
+ src/shared/config.ts                   |  20 +++
+ src/worker/board-room.ts               | 106 +++++++++++++---
+ src/worker/board-store.ts              |  60 ++++++++-
+ src/worker/create-board.ts             |  63 +++++++++
+ src/worker/index.ts                    |  64 +++++++++-
+ src/worker/test-hooks.ts               |   3 +-
+ tests/component/SharePanel.test.tsx    | 128 +++++++++++++++++++
+ tests/component/Toolbars.test.tsx      |  12 +-
+ tests/component/pages.test.tsx         | 160 +++++++++++++++++++++++
+ tests/e2e/broken-board.spec.ts         |  13 +-
+ tests/e2e/helpers/board.ts             |   6 +-
+ tests/e2e/helpers/participants.ts      |  13 +-
+ tests/e2e/live-collaboration.spec.ts   |   8 +-
+ tests/e2e/nightly.spec.ts              |   6 +-
+ tests/e2e/persistence.spec.ts          |  17 ++-
+ tests/e2e/share-board.spec.ts          | 189 +++++++++++++++++++++++++++
+ tests/integration/board-api.test.ts    | 226 +++++++++++++++++++++++++++++++++
+ tests/integration/board-room.test.ts   |  42 +++---
+ tests/integration/room-persist.test.ts |  26 ++--
+ tests/integration/worker.test.ts       |  26 ++--
+ tests/unit/create-board.test.ts        |  94 ++++++++++++++
+ wrangler.jsonc                         |  10 ++
+ 34 files changed, 1880 insertions(+), 302 deletions(-)
 commit 9778bf9f11be6017ae273ef14aa352b4a7c631bc
 vidi-agent  Mon Sep 28 09:38:20 2026 +0000
 
