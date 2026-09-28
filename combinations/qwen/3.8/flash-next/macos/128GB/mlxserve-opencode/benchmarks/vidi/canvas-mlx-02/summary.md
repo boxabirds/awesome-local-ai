@@ -2,6 +2,26 @@
 
 Model `mlxserve-flash-next-mixed-4-8bit`, scope `canvas`, effort `low`, client pi 0.86.0, host Apple M5 Max 128GB.
 
+## Per story
+
+New work is the story's own held-out tests. Regressions are earlier stories' held-out tests that passed before this story and fail after it; repairs the reverse. Cumulative is every held-out test for the stories built so far ([evaluation policy](../../../../../../../../../../benchmarks/spec-bench/EVALUATION-POLICY.md)). Cumulative can grow by more than the new work: some earlier tests need a later story's feature and are skipped until it exists.
+
+| Story | New work | Regressions | Repairs | Cumulative |
+|---|---|---|---|---|
+| 1 | 6/6 | 0 | 0 | 6/6 |
+| 2 | 10/10 | 0 | 0 | 20/20 |
+| 3 | 5/7 | 0 | 0 | 25/27 |
+| 4 | 4/4 | 0 | 0 | 29/31 |
+| 5 | 5/5 | 0 | 0 | 34/36 |
+| 7 | 3/8 | 8 | 0 | 29/44 |
+| 8 | 5/7 | 3 | 1 | 32/51 |
+| 9 | 2/6 | 0 | 4 | 38/57 |
+| 10 | 7/8 | 4 | 2 | 43/65 |
+| 11 | 5/5 | 6 | 7 | 49/70 |
+| 12 | 5/5 | 6 | 5 | 53/75 |
+
+**New work** 57/71, **regressions** 27, **repairs** 19, **cumulative** 53/75.
+
 | Story | Title | Status | Agent min | Requests | Prompt tok | Completion tok | TTFT med s | Decode tok/s med | Gate | Accept (cumulative) | Stalled | Resumes / nudges | Compactions | Max ctx | Conditions |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
 | 1 | Pan and zoom around an infinite board | DONE | 28.4 | None | None | None | — | — | green | 6/6 |  | 0 / 0 | 0 | — | throttled 73%, server peak 80 GB |
