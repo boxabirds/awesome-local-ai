@@ -102,6 +102,15 @@ MAX_STORY_AGENT_S = 4 * SECONDS_PER_HOUR
 MAX_NUDGES = 5
 RESUME_BACKOFF_S = 60
 RESUME_PROMPT = "Continue with the task from where you left off."
+# An engine can fail to parse a tool call and hand it back as plain text: gufo b722a61 did with an
+# `edit` whose JSON argument held raw newlines (gufo-org/gufo#304, 28 Sep). The agent then sees a
+# text reply with no tool call and stops as if finished, mid-work. If a session ends on a reply
+# that contains a tool call written as text, the harness continues it with this prompt (same rule
+# for every engine; llama.cpp never triggered it in ~4,400 turns), up to a cap, and logs each one.
+TOOLCALL_AS_TEXT_PROMPT = ("Your last reply contained a tool call written out as text, so it was not run and "
+                           "nothing in it was applied. Issue it again as a real tool call and carry on with the task.")
+TOOLCALL_TEXT_MARKERS = ("<tool_call>",)
+MAX_TOOLCALL_TEXT_RESUMES = 3
 # A reasoning model can end a turn with thinking only and no tool call; the agent then exits 0 as
 # if finished (canvas-pi-01 story 2: 3 minutes, one task in). If a session ends with no commit, the
 # harness continues the same session with RESUME_PROMPT, as a person would. Counted as nudges.
@@ -492,6 +501,29 @@ def needs_nudge(attempt: dict, commits: int) -> bool:
     return commits == 0 and not attempt["stalled"] and not attempt["error"] and bool(attempt["session"])
 
 
+def final_reply_text(events_path: Path) -> str:
+    """The text of the session's last assistant message ("" if there is none or no events file)."""
+    last = ""
+    try:
+        lines = events_path.read_text(errors="replace").splitlines()
+    except OSError:
+        return ""
+    for line in lines:
+        try:
+            message = (json.loads(line).get("message") or {})
+        except (ValueError, AttributeError):
+            continue
+        if message.get("role") != "assistant" or not isinstance(message.get("content"), list):
+            continue
+        last = "".join(c.get("text", "") for c in message["content"] if isinstance(c, dict) and c.get("type") == "text")
+    return last
+
+
+def tool_call_as_text(text: str) -> bool:
+    """A reply that carries a tool call as plain text: the engine couldn't parse it (see TOOLCALL_AS_TEXT_PROMPT)."""
+    return any(marker in text for marker in TOOLCALL_TEXT_MARKERS)
+
+
 def cap_reason(agent_s: float, nudges: int) -> str | None:
     """Why the story must end now, or None: over MAX_STORY_AGENT_S of agent time, or MAX_NUDGES given."""
     if agent_s >= MAX_STORY_AGENT_S:
@@ -653,7 +685,7 @@ def run_story_agent(client, ws: Path, env: dict, model_id: str, prompt: str, eve
                               resume_from=continue_session, fork=False)]
     else:
         attempts = [run_agent(client, ws, env, model_id, prompt, events_path)]
-    resumes = nudges = 0
+    resumes = nudges = toolcall_text_resumes = 0
     while not RUN_ABORT.is_set() and not STORY_SKIP.is_set():
         last = attempts[-1]
         if last["error"] and not last["stalled"] and last["session"] and resumes < MAX_AGENT_RESUMES:
@@ -662,6 +694,16 @@ def run_story_agent(client, ws: Path, env: dict, model_id: str, prompt: str, eve
             time.sleep(RESUME_BACKOFF_S)
             attempts.append(run_agent(client, ws, env, model_id, RESUME_PROMPT, events_path,
                                       resume_from=last["session"], fork=True))
+        elif (not last["error"] and not last["stalled"] and last["session"]
+              and toolcall_text_resumes < MAX_TOOLCALL_TEXT_RESUMES
+              and tool_call_as_text(final_reply_text(events_path))):
+            toolcall_text_resumes += 1
+            why = (f"story {events_path.parent.name}: the agent's last reply was a tool call written as text "
+                   f"(not run); continued the session ({toolcall_text_resumes}/{MAX_TOOLCALL_TEXT_RESUMES})")
+            print(f"    {why}", flush=True)
+            log_intervention(events_path.parent.parent.parent, why)
+            attempts.append(run_agent(client, ws, env, model_id, TOOLCALL_AS_TEXT_PROMPT, events_path,
+                                      resume_from=last["session"], fork=False))
         elif keep_nudging(last, commits_since(ws, head), nudges):
             if nudges >= MAX_NUDGES:
                 if on_cap:
@@ -678,7 +720,7 @@ def run_story_agent(client, ws: Path, env: dict, model_id: str, prompt: str, eve
     total["tool_interruptions"] = interruptions
     total["tokens"] = {k: sum(a["tokens"][k] for a in attempts) for k in attempts[0]["tokens"]}
     return {**total, "exit": attempts[-1]["exit"], "stalled": attempts[-1]["stalled"],
-            "resumes": resumes, "nudges": nudges, "errors": [a["error"] for a in attempts if a["error"]],
+            "resumes": resumes, "nudges": nudges, "toolcall_text_resumes": toolcall_text_resumes, "errors": [a["error"] for a in attempts if a["error"]],
             "ended_by_operator": STORY_SKIP.is_set(),
             "ended_in_error": bool(attempts[-1]["error"]), "sessions": [a["session"] for a in attempts]}
 
