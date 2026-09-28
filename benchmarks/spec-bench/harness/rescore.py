@@ -7,6 +7,9 @@ new ones go to <run>/rescore/<pack-version>/stories/NN/accept.json, beside a per
 
     uv run rescore.py <run-dir> --bundle <workspace.bundle> [--pack benchmarks/vidi]
 
+A checkpoint with any failing test is scored three times and each test takes its majority result;
+the tests whose result changed are listed as flaky (racy app code: see SCORINGS_IF_ANY_FAIL).
+
 Each story is scored in its own worktree (no branch: detached at the recorded commit) with its own
 dependencies and its own app port. --jobs above 1 runs several at once, but the extra load changes
 results (see DEFAULT_JOBS), so official re-scores run one at a time.
@@ -50,6 +53,40 @@ def checkpoints(run: Path) -> list[dict]:
     return out
 
 
+SCORINGS_IF_ANY_FAIL = 3   # racy code fails some tests only some of the time; Opus's code scored 74/75 x3
+
+
+def needs_repeats(acc: dict) -> bool:
+    """Only a checkpoint with a failure can be flaky; a clean one is scored once."""
+    return any(t.get("status") not in ("passed", "skipped") for t in acc.get("tests", []))
+
+
+def majority(accs: list[dict]) -> dict:
+    """Several scorings of one checkpoint combined: each test takes its most common result, and the
+    tests whose result changed between scorings are listed as flaky."""
+    import re
+    from collections import Counter
+    first = accs[0]
+    keyed = [{(t.get("file"), t.get("title")): t for t in a.get("tests", [])} for a in accs]
+    tests, flaky = [], []
+    for key, t in keyed[0].items():
+        statuses = [k[key]["status"] if key in k else "none" for k in keyed]
+        status = Counter(statuses).most_common(1)[0][0]
+        if len(set(statuses)) > 1:
+            flaky.append(f"{key[0]}: {key[1]}")
+        tests.append({**t, "status": status, "statuses": statuses})
+    applicable = [t for t in tests if t["status"] != "skipped"]
+    by_story: dict[str, dict] = {}
+    for t in applicable:
+        sid = re.search(r"story-(\d+)", t.get("file") or "")
+        agg = by_story.setdefault(sid.group(1) if sid else "?", {"passed": 0, "total": 0})
+        agg["total"] += 1
+        agg["passed"] += t["status"] == "passed"
+    return {**first, "passed": sum(t["status"] == "passed" for t in applicable), "total": len(applicable),
+            "by_story": by_story, "tests": tests, "scorings": len(accs),
+            "scores": [a.get("passed") for a in accs], "flaky": flaky}
+
+
 def out_dir(run: Path, version: str) -> Path:
     return run / "rescore" / version
 
@@ -69,10 +106,17 @@ def _score_one(cp: dict, base_repo: str, work_root: str, out: str, port: int, pa
                            timeout=NPM_CI_TIMEOUT_S)
         sdir = Path(out) / "stories" / f"{cp['story']:02d}"
         acc = gates.accept(ws, cp["processed"], sdir, drive.PK.acceptance)
+        if needs_repeats(acc) and not acc.get("harness_fault"):
+            accs = [acc]
+            for n in range(2, SCORINGS_IF_ANY_FAIL + 1):
+                drive.kill_strays(ws)
+                accs.append(gates.accept(ws, cp["processed"], sdir / f"scoring-{n}", drive.PK.acceptance))
+            acc = majority(accs)
         (sdir / "accept.json").write_text(json.dumps(acc, indent=2))
         drive.kill_strays(ws)
         return {"story": cp["story"], "passed": acc.get("passed"), "total": acc.get("total"),
                 "fallbacks": (acc.get("setup_fallbacks") or {}).get("tests", 0),
+                "scores": acc.get("scores", [acc.get("passed")]), "flaky": len(acc.get("flaky", [])),
                 "harness_fault": acc.get("harness_fault"), "seconds": round(time.time() - t0)}
     finally:
         subprocess.run(["git", "-C", base_repo, "worktree", "remove", "--force", str(ws)], capture_output=True)
@@ -85,6 +129,7 @@ def main() -> int:
     ap.add_argument("--jobs", type=int, default=DEFAULT_JOBS)
     ap.add_argument("--pack", default="benchmarks/vidi")
     ap.add_argument("--only", help="comma list of story ids (a partial re-score, e.g. to check the tool)")
+    ap.add_argument("--final", action="store_true", help="only the run's last checkpoint (the headline score)")
     a = ap.parse_args()
     import drive
     drive.set_pack(a.pack)
@@ -92,6 +137,8 @@ def main() -> int:
                              capture_output=True, text=True).stdout.strip()
     run = a.run.resolve()
     cps = checkpoints(run)
+    if a.final:
+        cps = cps[-1:]
     if a.only:
         wanted = {int(x) for x in a.only.split(",")}
         cps = [c for c in cps if c["story"] in wanted]
@@ -109,7 +156,8 @@ def main() -> int:
             for f in as_completed(futs):
                 r = f.result()
                 results.append(r)
-                print(f"  story {r['story']}: {r['passed']}/{r['total']}, fallbacks {r['fallbacks']}, "
+                print(f"  story {r['story']}: {r['passed']}/{r['total']} (scorings {r['scores']}, flaky {r['flaky']}), "
+                      f"fallbacks {r['fallbacks']}, "
                       f"{r['seconds']}s{'  FAULT ' + r['harness_fault'] if r['harness_fault'] else ''}", flush=True)
     finally:
         shutil.rmtree(tmp, ignore_errors=True)

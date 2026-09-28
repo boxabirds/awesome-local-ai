@@ -255,3 +255,16 @@ def test_per_story_counts_setup_fallbacks_and_shows_them_only_when_used(tmp_path
     rows = {r["story"]: r for r in history.per_story(tmp_path)}
     assert (rows[1]["fallbacks"], rows[2]["fallbacks"]) == (0, 1)
     assert "| Setup fallbacks |" in history.render_per_story(tmp_path)
+
+
+def test_per_story_shows_flaky_tests_when_a_checkpoint_was_scored_more_than_once(tmp_path):
+    a1, a2 = ("story-01.spec.ts", "a1"), ("story-01.spec.ts", "a2")
+    _write_accept(tmp_path, 1, {a1: "passed", a2: "failed"})
+    assert "Flaky" not in history.render_per_story(tmp_path)
+    f = tmp_path / "stories" / "01" / "accept.json"
+    doc = json.loads(f.read_text())
+    doc["tests"][0]["statuses"] = ["passed", "passed", "passed"]
+    doc["tests"][1]["statuses"] = ["failed", "passed", "failed"]
+    f.write_text(json.dumps(doc))
+    assert history.per_story(tmp_path)[0]["flaky"] == 1
+    assert "| Flaky |" in history.render_per_story(tmp_path)
