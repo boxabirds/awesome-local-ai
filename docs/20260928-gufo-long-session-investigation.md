@@ -254,7 +254,7 @@ evidence the model wrote raw line breaks there).
   1. In the harness: treat a final assistant message containing `<tool_call>` markup as an
      interrupted turn, and continue the session (as it already does after an error), recording it
      as an intervention. Cheap, engine-independent, visible in the records.
-  2. Upstream: report it to gufo with the leaked text and the parser path above (a string value
+  2. Upstream: reported as [gufo#304](https://github.com/gufo-org/gufo/issues/304) — with the leaked text and the parser path above (a string value
      inside a JSON-typed parameter, with raw line breaks, could be repaired by escaping control
      characters before parsing, as lenient JSON parsers do).
 - **`--preserve-thinking off`** cuts the prompt by 20–24% and would reduce compactions, but
@@ -266,7 +266,7 @@ evidence the model wrote raw line breaks there).
 
 1. Build the harness guard (option 1 above) before any further gufo runs? Without it, each gufo
    run carries a small chance per turn of ending a story early.
-2. Report the parser issue upstream to gufo (a public issue with the reproduction)?
+2. ~~Report the parser issue upstream to gufo~~ Done: filed as [gufo-org/gufo#304](https://github.com/gufo-org/gufo/issues/304) (28 Sep 2026), with a parser-level reproduction and a proposed patch.
 3. Keep gufo runs in journey order (story 5 first, as canvas-gufo-01) or number order (as the
    other stacks, like canvas-gufo-exp1/-exp2)? Only number order compares per story.
 4. The held-out suite gives 0 to an app that doesn't start under `wrangler dev`, whatever it does.
