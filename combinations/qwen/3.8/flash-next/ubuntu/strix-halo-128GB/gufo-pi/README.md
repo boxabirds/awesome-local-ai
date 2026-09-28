@@ -85,7 +85,7 @@ session commands, and smoke-tests the model.
 |---|---|---|---|---|---|---|
 | `coding` | 131,072 | 1 | 7 | 512 | 87,849 MiB | measured, test A |
 
-¹ gufo's : how many prompt tokens it reads between generation rounds *while another request is generating*. With one session it has no effect: a prompt is read in one go, through the model's own fixed 2,048-token prefill chunks ( in gufo's Flash-Next engine, chosen by a 512–4,096 sweep).
+¹ gufo's `--prefill-chunk`: how many prompt tokens it reads between generation rounds *while another request is generating*. With one session it has no effect: a prompt is read in one go, through the model's own fixed 2,048-token prefill chunks (`kPrefillChunkTokens` in gufo's Flash-Next engine, chosen by a 512–4,096 sweep).
 
 ## Runs
 
