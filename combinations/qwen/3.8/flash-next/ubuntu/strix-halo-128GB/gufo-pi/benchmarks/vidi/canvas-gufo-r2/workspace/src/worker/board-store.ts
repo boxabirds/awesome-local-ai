@@ -175,23 +175,94 @@ export class BoardStore {
   }
 
   /**
+   * Check whether the board exists in storage without creating any tables.
+   * Returns true if `storage_meta` has `created_at`, or if there are any rows
+   * in `updates` or `snapshot_chunks` (legacy boards).
+   */
+  existsReadOnly(): boolean {
+    try {
+      // Check if tables exist at all
+      const tables = this.storage.sql
+        .exec(
+          "SELECT name FROM sqlite_master WHERE type='table' AND name IN ('storage_meta','updates','snapshot_chunks')",
+        )
+        .toArray();
+      if (tables.length === 0) return false;
+
+      const hasMeta = tables.some((r) => r.name === 'storage_meta');
+      const hasUpdates = tables.some((r) => r.name === 'updates');
+      const hasSnapshot = tables.some((r) => r.name === 'snapshot_chunks');
+
+      // Check created_at in storage_meta
+      if (hasMeta) {
+        const rows = this.storage.sql
+          .exec("SELECT value FROM storage_meta WHERE key = 'created_at'")
+          .toArray();
+        if (rows.length > 0) return true;
+      }
+
+      // Legacy: any rows in updates or snapshot_chunks
+      if (hasUpdates) {
+        const rows = this.storage.sql
+          .exec('SELECT 1 FROM updates LIMIT 1')
+          .toArray();
+        if (rows.length > 0) return true;
+      }
+      if (hasSnapshot) {
+        const rows = this.storage.sql
+          .exec('SELECT 1 FROM snapshot_chunks LIMIT 1')
+          .toArray();
+        if (rows.length > 0) return true;
+      }
+
+      return false;
+    } catch {
+      return false;
+    }
+  }
+
+  /**
    * Rebuild `doc` from the snapshot plus every update written after it.
    * A row that fails to decode is quarantined and the load continues.
+   * Missing tables are treated as an empty board (no tables are created here).
    */
   load(doc: Y.Doc): LoadResult {
     let snapshotSeq = 0;
     let chunks: Uint8Array[] = [];
     let rows: { seq: number; data: Uint8Array }[] = [];
     try {
-      snapshotSeq = this.getSnapshotThroughSeq();
-      chunks = this.storage.sql
-        .exec('SELECT data FROM snapshot_chunks ORDER BY idx ASC')
-        .toArray()
-        .map((row) => toUint8(row.data));
-      rows = this.storage.sql
-        .exec('SELECT seq, data FROM updates WHERE seq > ? ORDER BY seq ASC', snapshotSeq)
-        .toArray()
-        .map((row) => ({ seq: Number(row.seq), data: toUint8(row.data) }));
+      // Check if tables exist; missing tables means empty board
+      const tables = this.storage.sql
+        .exec(
+          "SELECT name FROM sqlite_master WHERE type='table' AND name IN ('storage_meta','updates','snapshot_chunks')",
+        )
+        .toArray();
+      if (tables.length === 0) {
+        // No tables at all: empty board, nothing to load
+        this.pendingCount = 0;
+        this.pendingBytes = 0;
+        return { ok: true, quarantined: 0 };
+      }
+
+      const hasMeta = tables.some((r) => r.name === 'storage_meta');
+      const hasSnapshot = tables.some((r) => r.name === 'snapshot_chunks');
+      const hasUpdates = tables.some((r) => r.name === 'updates');
+
+      if (hasMeta) {
+        snapshotSeq = this.getSnapshotThroughSeq();
+      }
+      if (hasSnapshot) {
+        chunks = this.storage.sql
+          .exec('SELECT data FROM snapshot_chunks ORDER BY idx ASC')
+          .toArray()
+          .map((row) => toUint8(row.data));
+      }
+      if (hasUpdates) {
+        rows = this.storage.sql
+          .exec('SELECT seq, data FROM updates WHERE seq > ? ORDER BY seq ASC', snapshotSeq)
+          .toArray()
+          .map((row) => ({ seq: Number(row.seq), data: toUint8(row.data) }));
+      }
     } catch (e) {
       return { ok: false, reason: 'sql-error', error: errorMessage(e) };
     }

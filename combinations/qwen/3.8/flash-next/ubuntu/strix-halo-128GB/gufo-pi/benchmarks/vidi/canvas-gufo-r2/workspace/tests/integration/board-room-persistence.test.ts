@@ -97,6 +97,7 @@ async function seed(client: TestClient, count: number): Promise<void> {
 async function seedStorage(boardId: string, count: number): Promise<Note[]> {
   return runInDurableObject(stubFor(boardId), (room) => {
     const store = room.store;
+    store.migrate();
     const doc = new Y.Doc();
     for (let i = 0; i < count; i++) {
       const id = createSticky(doc, { x: i * 30, y: (i % 4) * 100 }, 'green');

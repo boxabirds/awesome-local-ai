@@ -9,13 +9,13 @@ import { connectRoom, type TestClient } from './ws-client';
 import { MAX_CONCURRENT_EDITORS } from '../../src/shared/config';
 import { createSticky } from '../../src/shared/board-model';
 
-describe('TC-04: invalid board ID → 400, no object instance created', () => {
+describe('TC-04: invalid board ID → 404, no object instance created', () => {
   it('rejects /api/rooms/bad!id with Upgrade header', async () => {
     const req = new Request('http://localhost/api/rooms/bad!id', {
       headers: { Upgrade: 'websocket' },
     });
     const res = await SELF.fetch(req);
-    expect(res.status).toBe(400);
+    expect(res.status).toBe(404);
   });
 });
 
@@ -41,7 +41,9 @@ describe('TC-06: GET /b/<valid> → 200 index.html (SPA fallback)', () => {
 
 describe('TC-13: over-capacity join not refused', () => {
   it('opens MAX_CONCURRENT_EDITORS + 1 sockets, all accepted', async () => {
-    const id = newBoardId();
+    // Create the board first
+    const createRes = await SELF.fetch('http://localhost/api/boards', { method: 'POST', headers: { 'CF-Connecting-IP': '10.0.0.1' } });
+    const { id } = await createRes.json() as { id: string };
     const clients: TestClient[] = [];
     const count = MAX_CONCURRENT_EDITORS + 1;
 
@@ -72,8 +74,11 @@ describe('TC-13: over-capacity join not refused', () => {
 
 describe('TC-17: board isolation', () => {
   it('changes in room1 do not appear in room2', async () => {
-    const room1Id = newBoardId();
-    const room2Id = newBoardId();
+    // Create both boards first
+    const res1 = await SELF.fetch('http://localhost/api/boards', { method: 'POST', headers: { 'CF-Connecting-IP': '10.0.1.1' } });
+    const { id: room1Id } = await res1.json() as { id: string };
+    const res2 = await SELF.fetch('http://localhost/api/boards', { method: 'POST', headers: { 'CF-Connecting-IP': '10.0.1.2' } });
+    const { id: room2Id } = await res2.json() as { id: string };
 
     const client1 = await connectRoom(room1Id);
     const client2 = await connectRoom(room2Id);

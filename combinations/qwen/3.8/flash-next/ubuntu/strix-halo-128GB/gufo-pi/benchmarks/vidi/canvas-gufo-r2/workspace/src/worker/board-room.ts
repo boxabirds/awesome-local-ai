@@ -41,6 +41,9 @@ export class BoardRoom extends DurableObject<Env> implements TestHookTarget {
   private pending: Uint8Array[] = [];
   private lifecycle: RoomLifecycleState = 'loading';
 
+  /** Whether tables have been created (migrate called). */
+  private migrated = false;
+
   constructor(ctx: DurableObjectState, env: Env) {
     super(ctx, env);
     this.store = this.createStore();
@@ -73,7 +76,6 @@ export class BoardRoom extends DurableObject<Env> implements TestHookTarget {
 
   private async load(): Promise<void> {
     this.transition({ type: 'wake' });
-    this.store.migrate();
     const doc = new Y.Doc();
     initDoc(doc);
     const result = this.readInto(doc);
@@ -118,9 +120,45 @@ export class BoardRoom extends DurableObject<Env> implements TestHookTarget {
     });
   }
 
+  // ---------------------------------------------------------------- RPC methods
+
+  /**
+   * Initialize this board: create tables and set created_at if absent.
+   * Returns 'created' on first call, 'exists' on subsequent calls.
+   */
+  async initialize(): Promise<'created' | 'exists'> {
+    this.store.migrate();
+    this.migrated = true;
+    const existing = this.store.metaValue('created_at');
+    if (existing !== undefined) {
+      return 'exists';
+    }
+    // Set created_at via direct SQL (not in the public store API)
+    const sql = this.ctx.storage.sql;
+    sql.exec(
+      "INSERT OR IGNORE INTO storage_meta (key, value) VALUES ('created_at', ?)",
+      String(Date.now()),
+    );
+    // Reload state after migration
+    await this.load();
+    return 'created';
+  }
+
+  /**
+   * Check if this board exists (read-only, no writes).
+   */
+  async exists(): Promise<boolean> {
+    return this.store.existsReadOnly();
+  }
+
   /** Write first, broadcast second; a failed write resets the room. */
   private persist(update: Uint8Array, origin: unknown): void {
     try {
+      // Ensure tables exist before first write (lazy migrate for legacy boards)
+      if (!this.migrated) {
+        this.store.migrate();
+        this.migrated = true;
+      }
       this.store.append(update);
     } catch (e) {
       this.storageFailed(e);
@@ -160,6 +198,11 @@ export class BoardRoom extends DurableObject<Env> implements TestHookTarget {
 
     if (request.headers.get('Upgrade') !== 'websocket') {
       return new Response('Expected WebSocket', { status: 426 });
+    }
+
+    // Reject WebSocket upgrades for boards that don't exist
+    if (!this.store.existsReadOnly()) {
+      return new Response('Not found', { status: 404 });
     }
 
     if (this.state === 'storage-failed') {

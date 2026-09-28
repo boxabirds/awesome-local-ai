@@ -8,8 +8,13 @@ Model `qwen3.8-flash-next-gufo`, scope `canvas`, effort `low`, client pi 0.87.1,
 | 2 | Capture ideas on sticky notes and rearrange them | DONE | 47.9 | None | None | None | — | — | green | 20/20 |  | 0 / 0 | 1 | — | throttled 0%, server peak 0 GB |
 | 3 | See other people's edits appear live on the same board | DONE | 40.2 | None | None | None | — | — | green | 25/27 |  | 0 / 0 | 1 | — | throttled 0%, server peak 0 GB |
 | 4 | Return to a board and find everything as it was left | DONE | 123.2 | None | None | None | — | — | green | 29/31 |  | 0 / 0 | 4 | — | throttled 0%, server peak 0 GB |
+| 5 | Share a board with others using a link | PARTIAL (red) | 20.5 | None | None | None | — | — | red | 33/36 |  | 0 / 5 | 0 | — | throttled 0%, server peak 0 GB |
 
-**Totals:** 4 stories, 260 agent-minutes, 0 requests, 0 prompt / 0 completion tokens, gate green 4/4, final acceptance 29/31, stalled 0, partial 0, 10066 lines in src+tests.
+**Totals:** 5 stories, 281 agent-minutes, 0 requests, 0 prompt / 0 completion tokens, gate green 4/5, final acceptance 33/36, stalled 0, partial 1, 11612 lines in src+tests.
+
+### Stories ended early (PARTIAL) and what was built on them
+
+- **Story 5 PARTIAL**, ended by the operator (harness (cap)): story cap: 5 nudges without committing (cap 5). Verdict **red**: gate red, tasks not verified [1, 2, 3, 4, 5, 6, 7] (implementation: [2, 4, 5]), held-out 4/5 (floor 1.0).
 
 ## How it happened
 
@@ -21,6 +26,7 @@ Each story's commits, and which story broke or fixed an earlier story's held-out
 | 2 | 1 by the agent | 2419 / 17 | `StickyNote.tsx` (255), `App.tsx` (202), `styles.css` (201), `board-model.ts` (165), `StickyText.ts` (124), `StickyTextEditor.tsx` (120), +6 more |
 | 3 | 3 by the agent | 3844 / 113 | `board-room.ts` (142), `connectBoard.ts` (113), `protocol.ts` (60), `NOTES.md` (49), `index.ts` (43), `ConnectionStatus.tsx` (40), +13 more |
 | 4 | 5 by the agent | 3536 / 153 | `board-room.ts` (468), `board-store.ts` (399), `NOTES.md` (125), `test-hooks.ts` (120), `room-state.ts` (100), `connectBoard.ts` (44), +11 more |
+| 5 | harness snapshot (agent left work uncommitted) | 1616 / 59 | `SharePanel.tsx` (154), `board-store.ts` (89), `App.tsx` (81), `BoardPage.tsx` (79), `create-board.ts` (75), `api.ts` (56), +9 more |
 
 ### Earlier stories broken or fixed
 

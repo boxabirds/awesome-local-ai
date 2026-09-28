@@ -19,6 +19,11 @@ import {
 
 import type { StickyColor } from '../shared/config';
 import type { Point } from './canvas/camera';
+import { useRoute } from './router';
+import { HomePage } from './pages/HomePage';
+import { BoardPage } from './pages/BoardPage';
+import { NotFoundPage } from './pages/NotFoundPage';
+import { SharePanel } from './share/SharePanel';
 
 /** Imperative bridge so callbacks defined inside the viewport can convert
  * screen points to world using the current camera and viewport size. */
@@ -135,12 +140,6 @@ function BoardObjects(props: {
   );
 }
 
-/** Extract board ID from /b/:boardId path. */
-function getBoardIdFromPath(): string | undefined {
-  const match = window.location.pathname.match(/^\/b\/([A-Za-z0-9_-]+)/);
-  return match?.[1];
-}
-
 /**
  * Board editing is refused while the server cannot load the board: writing to
  * a doc that never received the stored state would produce a board that
@@ -151,11 +150,10 @@ export function canEdit(state: ConnectionState): boolean {
 }
 
 /**
- * Top-level layout: the infinite board fills the window, sticky notes live in
- * the world layer, toolbars and controls in the overlay.
+ * The board UI from stories 1–4. Mounted by BoardPage when the board exists.
  */
-export function App(props: { doc?: Y.Doc } = {}) {
-  const boardId = getBoardIdFromPath();
+export function App(props: { doc?: Y.Doc; boardId?: string } = {}) {
+  const boardId = props.boardId ?? getBoardIdFromPath();
   const { doc, notes, connectionState } = useBoardDoc(props.doc, boardId);
   const selection = useSelection();
   const bridgeRef = useRef<BoardBridge | null>(null);
@@ -237,24 +235,49 @@ export function App(props: { doc?: Y.Doc } = {}) {
   const selectedColor: StickyColor | null = selectedNote ? selectedNote.color : null;
 
   return (
-    <BoardViewport
-      children={
-        <>
-          <CameraBridge register={registerBridge} />
-          <BoardObjects notes={notes} doc={doc} selection={selection} readOnly={!canEdit(connectionState)} />
-        </>
-      }
-      overlay={
-        <BoardChrome
-          selection={selection}
-          doc={doc}
-          selectedColor={selectedColor}
-          onCreateSticky={handleCreateSticky}
-          connectionState={connectionState}
-        />
-      }
-      onBoardDblClick={handleBoardDblClick}
-      onBoardEmptyClick={handleEmptyClick}
-    />
+    <div className="board-container">
+      {boardId && <SharePanel boardId={boardId} />}
+      <BoardViewport
+        children={
+          <>
+            <CameraBridge register={registerBridge} />
+            <BoardObjects notes={notes} doc={doc} selection={selection} readOnly={!canEdit(connectionState)} />
+          </>
+        }
+        overlay={
+          <BoardChrome
+            selection={selection}
+            doc={doc}
+            selectedColor={selectedColor}
+            onCreateSticky={handleCreateSticky}
+            connectionState={connectionState}
+          />
+        }
+        onBoardDblClick={handleBoardDblClick}
+        onBoardEmptyClick={handleEmptyClick}
+      />
+    </div>
   );
+}
+
+/** Extract board ID from /b/:boardId path. */
+function getBoardIdFromPath(): string | undefined {
+  const match = window.location.pathname.match(/^\/b\/([A-Za-z0-9_-]+)/);
+  return match?.[1];
+}
+
+/**
+ * Top-level router: renders home, board, or not-found based on route.
+ */
+export function RouterApp() {
+  const route = useRoute();
+
+  switch (route.name) {
+    case 'home':
+      return <HomePage />;
+    case 'board':
+      return <BoardPage id={route.id} />;
+    case 'not_found':
+      return <NotFoundPage />;
+  }
 }

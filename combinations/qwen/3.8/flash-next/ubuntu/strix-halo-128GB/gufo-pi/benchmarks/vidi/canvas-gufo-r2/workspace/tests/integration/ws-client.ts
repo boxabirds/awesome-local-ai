@@ -9,6 +9,29 @@ import * as syncProtocol from 'y-protocols/sync';
 import { SELF } from 'cloudflare:test';
 import { newBoardId } from '../../src/shared/board-id';
 
+/** Ensure a board exists by initializing it. Does not go through the rate limiter. */
+import { env } from 'cloudflare:test';
+export async function ensureBoardExists(id: string): Promise<void> {
+  const ns = (env as any).BOARD_ROOM as DurableObjectNamespace;
+  const doId = ns.idFromName(id);
+  const stub = ns.get(doId);
+  // RPC call to initialize
+  await (stub as any).initialize();
+}
+
+/** Create a board via the API and return its id. Each call uses a unique IP to avoid rate limiting. */
+let _ipCounter = 0;
+export async function createBoardViaApi(): Promise<string> {
+  _ipCounter++;
+  const ip = `10.99.${Math.floor(_ipCounter / 256) % 256}.${_ipCounter % 256}`;
+  const res = await SELF.fetch(
+    new Request('http://localhost/api/boards', { method: 'POST', headers: { 'CF-Connecting-IP': ip } }),
+  );
+  if (res.status !== 201) throw new Error(`Board creation failed: ${res.status}`);
+  const { id } = await res.json() as { id: string };
+  return id;
+}
+
 export interface TestClient {
   doc: Y.Doc;
   ws: WebSocket;
@@ -38,6 +61,10 @@ export interface ConnectOptions {
  */
 export async function connectRoom(boardId?: string, options: ConnectOptions = {}): Promise<TestClient> {
   const id = boardId ?? newBoardId();
+
+  // Ensure the board exists before connecting (idempotent)
+  await ensureBoardExists(id);
+
   const url = `http://localhost/api/rooms/${id}`;
 
   const req = new Request(url, {

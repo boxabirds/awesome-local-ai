@@ -17,6 +17,16 @@
       "new_sqlite_classes": ["BoardRoom"]
     }
   ],
+  "ratelimits": [
+    {
+      "name": "BOARD_CREATE_LIMITER",
+      "namespace_id": "board-create",
+      "simple": {
+        "limit": 10,
+        "period": 60
+      }
+    }
+  ],
   "assets": {
     "directory": "./dist/client",
     "not_found_handling": "single-page-application",

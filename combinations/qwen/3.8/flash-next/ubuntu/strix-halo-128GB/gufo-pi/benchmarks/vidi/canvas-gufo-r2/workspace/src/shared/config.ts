@@ -115,3 +115,23 @@ export const BOARD_LOAD_BUDGET_MS = 3000;
 
 /** Version recorded in `board_meta`; future migrations branch on it. */
 export const STORAGE_SCHEMA_VERSION = 1;
+
+// ----------------------------------------------------------- share / create (story 5)
+
+/** Maximum boards a visitor may create within BOARD_CREATE_PERIOD_SECONDS. */
+export const BOARD_CREATE_LIMIT = 10;
+
+/** Rate limit window in seconds; must match wrangler.jsonc ratelimits. */
+export const BOARD_CREATE_PERIOD_SECONDS = 60;
+
+/** Maximum ID collision retries when creating a board. */
+export const CREATE_ID_MAX_ATTEMPTS = 3;
+
+/** PRD share.create budget from click to board open (ms). */
+export const CREATE_BUDGET_MS = 2000;
+
+/** Duration "Link copied" is shown before reverting (ms). */
+export const LINK_COPIED_MS = 2000;
+
+/** Base delay for board existence check retries; doubles up to RECONNECT_MAX_BACKOFF_MS. */
+export const BOARD_CHECK_RETRY_BASE_MS = 1000;
