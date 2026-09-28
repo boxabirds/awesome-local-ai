@@ -3,7 +3,7 @@ import type React from 'react';
 import { useCamera, type CameraApi } from './useCamera.ts';
 import { worldToScreen, screenToWorld, type Camera, type Size, type Point } from './camera.ts';
 import { MarqueeRect, type Marquee } from '../board/Marquee.tsx';
-import type { Tool } from '../board/useTool.ts';
+import type { ToolId } from '../tools/useActiveTool.ts';
 import {
   GRID_SPACING_WORLD,
   WHEEL_DELTA_LINE_PX,
@@ -31,7 +31,7 @@ export interface BoardViewportProps {
   onEmptyDoubleClick?(world: Point): void;
   onEmptyClick?(): void;
   marquee?: Marquee;
-  tool?: Tool;
+  tool?: ToolId;
   onTextToolClick?(world: Point): void;
 }
 
@@ -116,7 +116,7 @@ export interface BoardViewportHandleProps {
    * empty space or on top of an object - neither pans nor marquees; a click
    * (a press with no movement) becomes `onTextToolClick` at that world point.
    */
-  tool?: Tool;
+  tool?: ToolId;
   onTextToolClick?(world: Point): void;
 }
 

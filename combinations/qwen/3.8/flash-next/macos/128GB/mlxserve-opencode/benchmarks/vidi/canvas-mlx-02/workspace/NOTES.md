@@ -713,3 +713,156 @@ persisted to storage, a history popover or a list of steps to jump to, undo of t
 camera or of selection (neither is in the Y.Doc at all), undo of cursors/presence
 (story 6, not in the objects map), and undo of comments (story 16, which is what
 `addScope` is waiting for).
+
+# Notes — Story 10: Draw shapes and connect them with arrows that follow when moved
+
+Story 10 is complete: `npm run typecheck`, `npm run test:unit` (260), `npm run
+test:component` (199), `npm run test:integration` (65) and `npm run test:e2e` (90,
+Chromium and WebKit) pass, and the two new collaboration scenarios pass under the
+nightly config (`npm run test:e2e:nightly`, 30; the one flake is the pre-existing
+outage spec, which passed on its retry). The story itself is 35 unit, 30 component
+and 12 end-to-end tests.
+
+## Decisions & deviations
+
+1. **An arrow stores the objects it joins, never their positions.** `from`/`to` are
+   `{kind:'attached', objectId, fallback}` or `{kind:'free', x, y}`, and the points
+   that get drawn are resolved from the live rectangles on every render
+   (`resolveEndpoints`). That is the whole "follows when moved" requirement, and it
+   costs nothing when a shape moves: no write, no update, no undo step, no sync —
+   the arrow was never a place. `TC-25` measures exactly this: the ends stay
+   `attached` across a drag of the shape, while the drawn line moves to the shape's
+   new side.
+
+2. **`fallback` is not a stale position, it is the anchor the end was last resolved
+   to** — written by `detachConnectorsTo` at delete time and used only when the
+   object it names is gone. Without it a detached end would have to be drawn at the
+   object's centre, which is inside where the shape used to be and reads as a mistake.
+
+3. **Detaching happens inside the same transaction as the delete.**
+   `deleteObjects` calls `detachConnectorsTo(doc, targets)` before `objects.delete(id)`
+   in its one `doc.transact`, so a delete of three shapes with four arrows on them is
+   one update event and one undo step. `TC-14`/`TC-29` assert both halves.
+
+4. **A connector's `x/y/width/height` are derived, not authored.** `objectsSnapshot`
+   runs `deriveConnectorBoxes()` over the snapshot after sorting: it resolves every
+   arrow's ends (up to four passes, so an arrow whose end sits on a shape that is
+   itself an arrow's reference settles), and writes the bounding box of the two
+   resolved points into the snapshot. This is what lets story 7's marquee, selection
+   overlay and nudge work on arrows with no arrow-specific code in any of them. A
+   perfectly horizontal arrow has zero height, which `isSize()` rejects, so
+   `CONNECTOR_EMPTY_AXIS_FLOOR = 1e-6` floors the empty axis rather than the box.
+
+5. **`HitTestContext` is the third argument of `hitTest`, and only arrows use it.**
+   `{zoom, rects}`: an arrow cannot decide "did that click hit me?" without knowing
+   the zoom (its tolerance is 6 px of *screen*) or where the objects its ends name
+   currently are. Sticky notes and text ignore the argument entirely.
+
+6. **`useActiveTool` owns tool state; `useBoardKeys` keeps owning the keyboard.** The
+   design had the hook bind S/L/V/Escape itself. It does not: the board has one
+   `window` keydown listener and one set of typing/read-only guards in
+   `useBoardKeys`, and a second listener would need its own copies of both. The hook
+   exports `TOOL_SHORTCUTS` and `isAvailableTool` and the key handler consults them,
+   so adding a tool means adding one table entry — which is what the design wanted —
+   without a second listener. Escape is now generic: any tool that is not Select is
+   given up, so the four tools that exist today close on one key without a list.
+
+7. **The hook takes `{canEdit, onSelect}`, where the design's hook took nothing.**
+   `canEdit` is story 4's read-only gate: on a board that cannot be mutated the
+   creation tools are not offered and the shortcuts do nothing, and the hook is not
+   the place to silently allow it. `onSelect` exists because creating an object
+   selects it, and the object does not exist yet at the moment the tool decides to
+   select it: `BoardApp` holds the id as `pendingSelect` and selects it on the render
+   where it appears. (This is why `TC-25`'s "the arrow is selected" assertion is a
+   retried one: the selection lands on the render after the one that created it, which
+   a real browser shows and a synchronous jsdom read does not.)
+
+8. **Tools are given `doc` as a prop.** There is no document context in this app —
+   every object component already receives `doc` the same way — so `ShapeTool` and
+   `ConnectorTool` take it rather than inventing a provider for two components.
+
+9. **`setShapeStyle(doc, id, {fill, stroke})` has an optional fourth `by` argument.**
+   The design's signature has none; `NoteToolbar`'s existing calls to the sticky-note
+   equivalent pass a `by`, and one test does too. Optional keeps the contract the
+   design wrote and the callers working.
+
+10. **A label is an HTML element beside the SVG, not a `<foreignObject>`.** Story 9
+    learned this with text: `foreignObject` children have their own layout viewport,
+    so a `position: fixed` textarea escapes to the page and Safari's focus model
+    disagrees with everyone else's. The label reuses `fitFontSize` and the measurer
+    from `StickyText.ts`, so a shape's words fit the same way a note's do, and
+    `SHAPE_LABEL_INSET_WORLD` is the same inset in world units.
+
+11. **The arrowhead is an explicit `<polygon>`, not an SVG `<marker>`.** A marker's
+    `markerUnits`/`orient` interaction with `vector-effect: non-scaling-stroke` is
+    browser-specific, and a polygon's points come out of the same resolved geometry
+    the line is drawn from, so an arrowhead is always the size and angle the arrow
+    actually has.
+
+12. **Two browser behaviours the e2e scenarios found, and neither jsdom could have.**
+    Both are recorded here because they were expensive to find and will not be:
+
+    * **`vector-effect: non-scaling-stroke` is not honoured for hit-testing.** The
+      invisible click line under the arrow was stroked at 12 units with that effect,
+      which draws 12 px wide at every zoom — and at 200% was clickable 12 px either
+      side of the line while the model's tolerance was 6 px. Measured in Chromium by
+      clicking outwards from the line at 50/100/200/400%: the band was 3/6/12/24 px
+      wide, exactly `6 × zoom`, not 6 px. (WebKit's numbers were not taken; it passes
+      the scenario written against the rule the model uses.) The click line
+      is now stroked at `CONNECTOR_HIT_TOLERANCE_PX * 2 / zoom`, so the pixels and the
+      hit test agree at every zoom; `TC-20` asserts the product, and the e2e scenario
+      asserts the behaviour with real clicks.
+    * **An element inside a `pointer-events: none` container receives nothing.** An
+      arrow's box must take no clicks — an arrow laid across a shape must not steal
+      that shape's clicks — so the container refuses them, and the end handles inherit
+      that refusal. A real pointer fell through the handle onto the line underneath:
+      `data-dragging` never went true and the end never moved. The handles now ask for
+      `pointerEvents: 'auto'`. jsdom fires an event straight at the element you hand
+      it, whatever its computed `pointer-events` says, so this class of bug is
+      invisible below the browser layer.
+
+13. **`createConnector` returns `null`, and refuses in the model as well as the
+    tool.** Same object at both ends, a self-connection, an end that names nothing,
+    and an arrow shorter than `CONNECTOR_MIN_LENGTH_WORLD` are all refused. The tool
+    has the same self-release guard, because a drag that starts and ends on one shape
+    should not even try. A drop onto the object the *other* end holds is refused by
+    `setConnectorEndpoint`, and the component writes nothing at all in that case: the
+    line is resolved from the model every render, so an unwritten end is already back
+    where it started, which is the snap-back the design asks for and one less write.
+
+14. **`SHAPE_FILL_COLORS.none` is the string `'transparent'`, and 'none' is an
+    ordinary palette member** — a shape with no fill is a shape. The outline palette
+    has no 'none' entry (the design's), so `isStrokeColor('none')` is false and the
+    swatch row has six entries, not seven. The 'none' swatch is drawn with a red
+    diagonal, and its `<line>` carries a `-slash` test id, which is why the e2e counts
+    `button[data-testid^="shape-fill-"]` rather than any element with that prefix.
+
+15. **Two existing unit tests used `'shape'` as an example of an unknown type.**
+    Story 10 made it a known one; they now use `'widget'`. Nothing else in them
+    changed.
+
+16. **The board's geometry is part of the scenario, and arrows made it stricter.**
+    An arrow's ends are placed by *clicking*, so every fixture point has to be on the
+    page at the camera the page opens with: `world(x, y)` is `screen(x + 640, y + 400)`
+    there, which puts anything at world y ≥ 400 below the page and anything at world
+    x ≥ 640 into the zoom controls. The e2e files say where each shape is and why. The
+    nightly delete-race scenario holds a pointer down across a 400 ms wait, which is
+    why `connectors.spec.ts` runs in the ordinary config and
+    `connector-collaboration.spec.ts` is matched by the nightly one.
+
+17. **Where two shapes look at each other along a diagonal, the tie goes to the
+    horizontal.** `nearestSide` calls a direction vertical when
+    `|dy| × width > |dx| × height`; for two equal squares placed on an exact diagonal
+    the two sides are equal and it falls through to left/right. The re-point scenario
+    lands on that tie and asserts the consequence: after an end is re-pointed up and
+    to the left, the *other* end has turned to leave the shape's left edge too.
+
+## Not implemented (out of scope by instruction)
+
+Multi-point or orthogonal arrows, elbow routing, arrowheads at both ends or none,
+curved arrows, arrow colour/thickness/ dashed styles (arrows use the config's stroke
+colour and width), a label on an arrow, shapes other than the three kinds (diamond,
+star, image), rotation, snapping an end to a specific handle or side by hovering a
+side, attaching an end to a *group*, resizing a shape from its handles while an arrow
+is attached (the arrow follows the box either way), z-order controls for arrows, and
+a connector that crosses another connector with a jump.

@@ -10,24 +10,39 @@ import {
   STICKY_SIZE_WORLD,
   DEFAULT_STICKY_COLOR,
   DEFAULT_TEXT_SIZE,
+  DEFAULT_SHAPE_FILL,
+  DEFAULT_SHAPE_STROKE,
+  SHAPE_FILL_COLORS,
+  SHAPE_KINDS,
+  SHAPE_STROKE_COLORS,
   TEXT_SIZES,
+  type FillColor,
+  type ShapeKind,
+  type StrokeColor,
   type StickyColor,
   type TextSize,
 } from './config.ts';
 import type { Point, Rect } from './geometry.ts';
 import { rectContains } from './geometry.ts';
+import {
+  connectorBBox,
+  isEndpoint,
+  resolveEndpoints,
+  type Endpoint,
+} from './geometry/connector-geometry.ts';
+import { detachConnectorsTo } from './objects/connector.ts';
 
 export const SCHEMA_VERSION = 1;
 
 export const LOCAL_ORIGIN: unique symbol = Symbol('vidi6.local');
 
 // Object types this build of the board model can read. Stories 2-7 ship
-// 'sticky' and story 9 ships 'text'; any later object type becomes readable
-// when its client registry entry is registered (registerReadableType), and an
-// object of a type nobody has registered is invisible — forward compatibility,
-// TC-12).
+// 'sticky', story 9 ships 'text' and story 10 ships 'shape' and 'connector';
+// any later object type becomes readable when its client registry entry is
+// registered (registerReadableType), and an object of a type nobody has
+// registered is invisible — forward compatibility, TC-12).
 type ReadableType = string;
-const KNOWN_TYPES = new Set<ReadableType>(['sticky', 'text']);
+const KNOWN_TYPES = new Set<ReadableType>(['sticky', 'text', 'shape', 'connector']);
 
 // Mark a board object type as readable by the board model. Called by the
 // client object registry so ONE registration per type exists (stories 9-12
@@ -56,7 +71,27 @@ export interface ObjectSnapshot {
   widthMode?: 'auto' | 'fixed';
   color?: StickyColor;
   text?: string;
+  /** Shapes (story 10): kind plus the two colour keys and the label. */
+  kind?: ShapeKind;
+  fill?: FillColor;
+  stroke?: StrokeColor;
+  label?: string;
+  /** Connectors (story 10): the two stored ends. `x`/`y`/`width`/`height` of a
+   *  connector are not stored but DERIVED from them (see objectsSnapshot), so
+   *  story 7's marquee and selection act on a connector like on any rect. */
+  from?: Endpoint;
+  to?: Endpoint;
 }
+
+// Shapes and connectors (story 10).
+const SHAPE_TYPE = 'shape';
+const CONNECTOR_TYPE = 'connector';
+
+// A connector that resolves to a single point (both ends at the same place)
+// would have a box of exactly 0 and fall back to a sticky-sized rect in
+// objectBounds; a floor of one millionth of a board unit is invisible at any
+// zoom and keeps the derived rect a real size.
+const CONNECTOR_BOX_FLOOR = 1e-6;
 
 export interface StickySnapshot extends ObjectSnapshot {
   type: 'sticky';
@@ -269,8 +304,39 @@ function readObject(id: string, m: Y.Map<unknown>): ObjectSnapshot | null {
         : DEFAULT_TEXT_SIZE;
     obj.widthMode = m.get('widthMode') === 'fixed' ? 'fixed' : 'auto';
   }
+  if (type === SHAPE_TYPE) {
+    // Story 10: the kind and the two colour keys are validated (a foreign value
+    // falls back to the default rather than drawing nothing) and the label is
+    // read as a string.
+    const kind = m.get('kind');
+    obj.kind =
+      typeof kind === 'string' && SHAPE_KIND_NAMES.has(kind) ? (kind as ShapeKind) : 'rect';
+    const fill = m.get('fill');
+    obj.fill = typeof fill === 'string' && SHAPE_FILL_NAMES.has(fill) ? (fill as FillColor) : DEFAULT_SHAPE_FILL;
+    const stroke = m.get('stroke');
+    obj.stroke =
+      typeof stroke === 'string' && SHAPE_STROKE_NAMES.has(stroke) ? (stroke as StrokeColor) : DEFAULT_SHAPE_STROKE;
+    const label = m.get('label');
+    obj.label = label instanceof Y.Text ? label.toString() : '';
+  }
+  if (type === CONNECTOR_TYPE) {
+    // Story 10: both ends must be well-formed or the arrow is invisible (a
+    // half-storable connector would draw a line to nowhere). Its box is filled
+    // in by deriveConnectorBoxes below.
+    const from = m.get('from');
+    const to = m.get('to');
+    if (!isEndpoint(from) || !isEndpoint(to)) return null;
+    obj.from = from;
+    obj.to = to;
+  }
   return obj;
 }
+
+// The three kinds and the palette keys, taken straight from the product settings
+// in config so this reader can never drift from the palette the toolbar offers.
+const SHAPE_KIND_NAMES = new Set<string>(SHAPE_KINDS);
+const SHAPE_FILL_NAMES = new Set<string>(Object.keys(SHAPE_FILL_COLORS));
+const SHAPE_STROKE_NAMES = new Set<string>(Object.keys(SHAPE_STROKE_COLORS));
 
 // Every readable object, sorted by (z, id) like `snapshot`.
 export function objectsSnapshot(doc: Y.Doc): readonly ObjectSnapshot[] {
@@ -280,7 +346,49 @@ export function objectsSnapshot(doc: Y.Doc): readonly ObjectSnapshot[] {
     if (o) out.push(o);
   });
   out.sort(order);
+  deriveConnectorBoxes(out);
   return out;
+}
+
+// Story 10: a connector stores no geometry - only which objects its ends are
+// attached to - so its box is derived here from the CURRENT rect of everything
+// else. Whatever anyone moves or resizes, the next snapshot carries the arrow's
+// new box and the arrow follows without a write (connector.follow). A connector
+// attached to another connector is resolved in a second pass; a cycle settles
+// at whatever the previous pass produced, so this always terminates.
+function deriveConnectorBoxes(items: ObjectSnapshot[]): void {
+  const rects = new Map<string, Rect>();
+  const connectors: ObjectSnapshot[] = [];
+  for (const obj of items) {
+    if (obj.type === CONNECTOR_TYPE) {
+      connectors.push(obj);
+      continue;
+    }
+    const r = objectBounds(obj);
+    if (r.width > 0 && r.height > 0) rects.set(obj.id, r);
+  }
+  if (connectors.length === 0) return;
+
+  const passes = Math.min(connectors.length + 1, 4);
+  for (let pass = 0; pass < passes; pass++) {
+    let changed = false;
+    for (const c of connectors) {
+      const ends = resolveEndpoints({ from: c.from!, to: c.to! }, rects);
+      const box = connectorBBox(ends.from, ends.to);
+      if (!(box.width > 0) || !(box.height > 0)) continue; // unresolvable: leave as stored
+      rects.set(c.id, box);
+      const floor = Math.max(box.width, CONNECTOR_BOX_FLOOR);
+      const ceil = Math.max(box.height, CONNECTOR_BOX_FLOOR);
+      if (c.x !== box.x || c.y !== box.y || c.width !== floor || c.height !== ceil) {
+        c.x = box.x;
+        c.y = box.y;
+        c.width = floor;
+        c.height = ceil;
+        changed = true;
+      }
+    }
+    if (!changed) break;
+  }
 }
 
 // The world-space bounds of an object. An object without persisted
@@ -450,6 +558,11 @@ export function deleteObjects(doc: Y.Doc, ids: readonly string[]): number {
   }
   if (targets.length === 0) return 0;
   doc.transact(() => {
+    // Story 10: arrows attached to anything about to be deleted are rewritten
+    // FIRST, while their rectangles still exist, so every detached end lands on
+    // the anchor the arrow was drawing at - and because it happens inside THIS
+    // transaction, the deletion and the detached ends arrive as one update.
+    detachConnectorsTo(doc, targets);
     for (const id of targets) objects.delete(id);
   }, LOCAL_ORIGIN);
   return targets.length;

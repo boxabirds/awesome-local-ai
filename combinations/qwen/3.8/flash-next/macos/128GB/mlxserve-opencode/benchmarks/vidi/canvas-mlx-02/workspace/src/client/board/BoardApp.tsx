@@ -24,7 +24,9 @@ import { useBoardDoc } from './useBoardDoc.ts';
 import { useSelection } from './useSelection.ts';
 import { useTransformGesture } from './useTransformGesture.ts';
 import { useBoardKeys } from './useBoardKeys.ts';
-import { useTool } from './useTool.ts';
+import { useActiveTool } from '../tools/useActiveTool.ts';
+import { ShapeTool } from '../tools/ShapeTool.tsx';
+import { ConnectorTool } from '../tools/ConnectorTool.tsx';
 import { localIdentityId } from './localIdentity.ts';
 import { useMarquee } from './Marquee.tsx';
 import { SelectionOverlay } from './SelectionOverlay.tsx';
@@ -43,6 +45,7 @@ import {
   type ObjectSnapshot,
 } from '../../shared/board-model.ts';
 import { createText, setTextSize } from '../../shared/objects/text.ts';
+import { setShapeStyle, type ShapeStyle } from '../../shared/objects/shape.ts';
 import type { StickyColor, TextSize } from '../../shared/config.ts';
 import type { Point } from '../canvas/camera.ts';
 
@@ -109,11 +112,22 @@ export default function BoardApp({ boardId, makeProvider }: BoardAppProps) {
   const selection = useSelection(objects);
   const { ids: selectedIds, editingId, setMany, clear, startEdit, endEdit } = selection;
 
-  // The board's tool (story 9): this tab's pointer meaning, never the doc's.
-  // The Text tool is a mutation door, so it is gated by the same `editable`
-  // as every other path - a board that cannot be edited cannot be put into it.
-  const tools = useTool(editable);
-  const { tool, setTool } = tools;
+  // The board's tool (stories 9-10): this tab's pointer meaning, never the doc's.
+  // Every creation tool is a mutation door, so it is gated by the same `editable`
+  // as every other path - a board that cannot be edited cannot be put into one,
+  // and loses the one it had open. `toolCreated` is how a tool hands the board
+  // back: the new object is selected (through the pending selection below, becau-
+  // se it is not in this render's snapshot yet) and the tool is Select again.
+  const [pendingSelect, setPendingSelect] = useState<string | null>(null);
+  const tools = useActiveTool({ canEdit: editable, onSelect: (id: string) => setPendingSelect(id) });
+  const { tool, shapeKind, setTool, setShapeKind, toolCreated } = tools;
+
+  useEffect(() => {
+    if (pendingSelect === null) return;
+    if (!objects.some((obj) => obj.id === pendingSelect)) return;
+    setMany([pendingSelect], false);
+    setPendingSelect(null);
+  }, [pendingSelect, objects, setMany]);
 
   // Shift+drag on empty space; `setMany(..., true)` so a marquee adds to the
   // selection instead of replacing it.
@@ -265,6 +279,34 @@ export default function BoardApp({ boardId, makeProvider }: BoardAppProps) {
     clear();
   }, [doc, selection, clear, undoController]);
 
+  // The shape palette's press: one step of its own, exactly like a note's colour
+  // or a text's size. Fill and outline are two names on the object; everything
+  // else about the shape - its label, its box, its place in the z-order and the
+  // selection - is left where it was (TC-20), and the arrows attached to it do not
+  // even need to be told, because they resolve their ends from this shape's box at
+  // the moment they draw.
+  const onShapeStyle = useCallback(
+    (id: string, style: Partial<ShapeStyle>) => {
+      if (!canEdit(connectionStateRef.current)) return;
+      undoController.boundary();
+      setShapeStyle(doc, id, style);
+      undoController.boundary();
+    },
+    [doc, undoController],
+  );
+
+  // A tool that finished creating: the new object becomes the selection and the
+  // board goes back to Select. The selection is parked (see pendingSelect) because
+  // the object was written this gesture and is not in the snapshot this render has.
+  const onToolCreated = useCallback(
+    (id: string) => {
+      tools.toolCreated(id);
+    },
+    // `tools` is a fresh object every render; only the stable callback is needed.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [toolCreated],
+  );
+
   // Board-level keyboard left over from story 2: Enter opens the text editor of
   // the one selected object, when its type has editable text. The rest of the
   // selection keyboard lives in useBoardKeys.
@@ -335,6 +377,20 @@ export default function BoardApp({ boardId, makeProvider }: BoardAppProps) {
         {renderedObjects}
       </BoardViewportRoot>
 
+      {/* The two creation tools of story 10 are not hints about the cursor, they
+          are the board's surface for as long as they are open: drawn above the
+          objects, taking every press, so a drag that starts on a shape draws a new
+          shape there instead of moving it, and no pan or marquee happens
+          underneath. They are mounted only while they are the tool, and only on a
+          board that can be edited - the hook guarantees both, and the conditions
+          here are the same facts stated twice rather than a third gate. */}
+      {editable && tool === 'shape' ? (
+        <ShapeTool kind={shapeKind} camera={cam} doc={doc} onCreated={onToolCreated} />
+      ) : null}
+      {editable && tool === 'connector' ? (
+        <ConnectorTool camera={cam} snapshot={objects} doc={doc} onCreated={onToolCreated} />
+      ) : null}
+
       <ConnectionStatus state={board.connectionState} />
 
       <Toolbar
@@ -343,6 +399,8 @@ export default function BoardApp({ boardId, makeProvider }: BoardAppProps) {
         undo={undoState}
         tool={tool}
         onTool={setTool}
+        shapeKind={shapeKind}
+        onShapeKind={setShapeKind}
       />
 
       <ZoomControls
@@ -375,6 +433,7 @@ export default function BoardApp({ boardId, makeProvider }: BoardAppProps) {
         onDelete={onDeleteSelection}
         onColor={(id: string, color: StickyColor) => onColor(id, color)}
         onTextSize={(id: string, size: TextSize) => onTextSize(id, size)}
+        onShapeStyle={onShapeStyle}
       />
     </UndoContext.Provider>
   );

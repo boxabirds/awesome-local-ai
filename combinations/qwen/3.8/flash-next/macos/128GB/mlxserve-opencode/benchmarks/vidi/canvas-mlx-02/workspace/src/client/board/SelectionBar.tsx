@@ -23,8 +23,11 @@ import { objectBounds, type ObjectSnapshot, type StickySnapshot } from '../../sh
 import { unionRects } from '../../shared/geometry.ts';
 import { NoteToolbar } from '../objects/NoteToolbar.tsx';
 import { TextToolbar } from '../objects/TextToolbar.tsx';
-import { DEFAULT_TEXT_SIZE } from '../../shared/config.ts';
+import { ShapeToolbar } from '../objects/ShapeToolbar.tsx';
+import { DEFAULT_TEXT_SIZE, DEFAULT_SHAPE_FILL, DEFAULT_SHAPE_STROKE } from '../../shared/config.ts';
 import type { StickyColor, TextSize } from '../../shared/config.ts';
+import type { FillColor, StrokeColor } from '../../shared/config.ts';
+import type { ShapeStyle } from '../../shared/objects/shape.ts';
 
 export interface SelectionBarProps {
   /** the selected ids; nothing is rendered while it is empty */
@@ -42,6 +45,12 @@ export interface SelectionBarProps {
    */
   onTextSize?(id: string, size: TextSize): void;
   /**
+   * shape-only (story 10): change the fill and/or the outline of the single
+   * selected shape. Like the colour and the size, the bar only asks; the caller
+   * owns the model call and its undo boundaries.
+   */
+  onShapeStyle?(id: string, style: Partial<ShapeStyle>): void;
+  /**
    * True while one of the selected objects has its text editor open. Story 2
    * kept its toolbar off a note being typed into; the bar stands down the same
    * way, so nothing floats over the words you are writing.
@@ -50,7 +59,7 @@ export interface SelectionBarProps {
 }
 
 export function SelectionBar(props: SelectionBarProps): React.JSX.Element | null {
-  const { ids, snapshot, camera, onDelete, onColor, onTextSize, editing } = props;
+  const { ids, snapshot, camera, onDelete, onColor, onTextSize, onShapeStyle, editing } = props;
   if (ids.size === 0 || editing) return null;
   const selected = snapshot.filter((obj) => ids.has(obj.id));
   if (selected.length === 0) return null; // every id is gone: the prune is on its way
@@ -93,6 +102,25 @@ export function SelectionBar(props: SelectionBarProps): React.JSX.Element | null
           <TextToolbar
             size={textObj.size ?? DEFAULT_TEXT_SIZE}
             onSize={(s: TextSize) => onTextSize?.(textObj.id, s)}
+            onDelete={onDelete}
+          />
+        </div>
+      </div>
+    );
+  }
+
+  // One shape selected (story 10): its palette takes the bar's place, on the
+  // same anchor and the same rules as the note's colours and the text's sizes.
+  if (selected.length === 1 && selected[0].type === 'shape') {
+    const shapeObj = selected[0];
+    return (
+      <div data-testid="selection-toolbar" style={wrapper}>
+        <div style={{ pointerEvents: 'auto' }}>
+          <ShapeToolbar
+            fill={shapeObj.fill ?? DEFAULT_SHAPE_FILL}
+            stroke={shapeObj.stroke ?? DEFAULT_SHAPE_STROKE}
+            onFill={(f: FillColor) => onShapeStyle?.(shapeObj.id, { fill: f })}
+            onStroke={(s: StrokeColor) => onShapeStyle?.(shapeObj.id, { stroke: s })}
             onDelete={onDelete}
           />
         </div>

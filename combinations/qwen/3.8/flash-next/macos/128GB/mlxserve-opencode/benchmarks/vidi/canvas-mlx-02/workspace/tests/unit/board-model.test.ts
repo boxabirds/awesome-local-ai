@@ -233,19 +233,21 @@ describe('board.model read', () => {
     const doc = newDoc();
     createSticky(doc, { x: 0, y: 0 });
     // Seed an unknown-typed object directly (forward compatibility test).
+    // Story 10 made 'shape' a type this build knows, so the unknown stand-in is
+    // a type no story has shipped.
     const obj = new Y.Map<unknown>();
-    obj.set('type', 'shape');
+    obj.set('type', 'widget');
     obj.set('x', 1);
     obj.set('y', 2);
     obj.set('z', 9);
-    objectsMap(doc).set('shape-1', obj);
+    objectsMap(doc).set('widget-1', obj);
 
     let snap: readonly { id: string }[] = [];
     expect(() => {
       snap = snapshot(doc);
     }).not.toThrow();
     expect(snap).toHaveLength(1);
-    expect(snap[0].id).not.toBe('shape-1');
+    expect(snap[0].id).not.toBe('widget-1');
   });
 
   // getStickyText returns the Y.Text for a note, undefined for a stale id.

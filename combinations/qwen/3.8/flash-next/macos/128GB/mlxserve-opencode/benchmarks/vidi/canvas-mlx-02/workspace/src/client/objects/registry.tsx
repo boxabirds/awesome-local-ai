@@ -14,9 +14,20 @@ import type * as Y from 'yjs';
 import type { ObjectSnapshot } from '../../shared/board-model.ts';
 import { registerReadableType } from '../../shared/board-model.ts';
 import type { Point } from '../../shared/geometry.ts';
-import { STICKY_MIN_SIZE_WORLD, STICKY_SIZE_WORLD, TEXT_MIN_WIDTH_WORLD } from '../../shared/config.ts';
+import {
+  STICKY_MIN_SIZE_WORLD,
+  STICKY_SIZE_WORLD,
+  TEXT_MIN_WIDTH_WORLD,
+  SHAPE_MIN_SIZE_WORLD,
+  CONNECTOR_HIT_TOLERANCE_PX,
+} from '../../shared/config.ts';
 import { StickyNote } from './StickyNote.tsx';
 import { TextObject } from './TextObject.tsx';
+import { ShapeObject } from './ShapeObject.tsx';
+import { ConnectorObject } from './ConnectorObject.tsx';
+import { resolveEndpoints } from '../../shared/geometry/connector-geometry.ts';
+import { distanceToPolyline } from '../../shared/geometry/polyline.ts';
+import type { Rect } from '../../shared/geometry.ts';
 import type { EndMode } from '../board/useSelection.ts';
 
 // The props every board object component receives. Selection, dragging and
@@ -40,13 +51,25 @@ export interface ObjectProps {
 
 // Re-exported type note: Y is imported type-only above.
 
+/**
+ * What a hit test may need beyond the object and the point (story 10). The two
+ * existing types ignore it; an arrow cannot, because "near the line" is a
+ * SCREEN distance and an attached end is a point on ANOTHER object.
+ */
+export interface HitTestContext {
+  /** the live zoom, so a tolerance in pixels can be turned into world units */
+  zoom?: number;
+  /** every object's current rectangle, for an end that points at one */
+  rects?: ReadonlyMap<string, Rect>;
+}
+
 export interface ObjectTypeSpec {
   Component: React.ComponentType<ObjectProps>;
   resizable: boolean;
   aspectLocked: boolean;
   minSize: number;
   editableText: boolean;
-  hitTest(obj: ObjectSnapshot, worldPoint: Point): boolean;
+  hitTest(obj: ObjectSnapshot, worldPoint: Point, ctx?: HitTestContext): boolean;
   /**
    * Which SelectionOverlay handles the type gets. 'all' (the default) is the
    * eight-direction box; 'horizontal' is the two side handles of a type whose
@@ -103,6 +126,59 @@ registerObjectType('text', {
   handles: 'horizontal',
   hitTest(obj: ObjectSnapshot, point: Point): boolean {
     const w = obj.width ?? TEXT_MIN_WIDTH_WORLD;
+    const h = obj.height ?? 0;
+    return point.x >= obj.x && point.x <= obj.x + w && point.y >= obj.y && point.y <= obj.y + h;
+  },
+});
+
+// The shape (story 10) is the third type: an ordinary box object - it is resized
+// freely (a shape keeps no proportion of its own), it has a label, and its hit
+// area is its rectangle. That is true for the diamond as well: hitting the empty
+// corner of a diamond's box selects it, which is the accepted trade of this story
+// (a point-in-polygon test would make a thin diamond almost impossible to grab).
+// Selection, moving, resizing, marquee, delete and undo all come from the story 7
+// machinery through this entry alone - story 10 writes none of them.
+registerObjectType('shape', {
+  Component: ShapeObject,
+  resizable: true,
+  aspectLocked: false,
+  minSize: SHAPE_MIN_SIZE_WORLD,
+  editableText: true,
+  hitTest(obj: ObjectSnapshot, point: Point): boolean {
+    const w = obj.width ?? SHAPE_MIN_SIZE_WORLD;
+    const h = obj.height ?? SHAPE_MIN_SIZE_WORLD;
+    return point.x >= obj.x && point.x <= obj.x + w && point.y >= obj.y && point.y <= obj.y + h;
+  },
+});
+
+// The connector (story 10) is the fourth type, and the first that cannot be
+// resized: its box is not a thing a person sets, it is whatever its two ends
+// happen to span. It has no text, so Enter does nothing and no editor opens.
+//
+// Its hit test is the only per-type one that is not a box, and it has to be: an
+// arrow's box is mostly empty space, and clicking inside it must not select the
+// arrow lying across it. A point hits when it is within CONNECTOR_HIT_TOLERANCE_PX
+// SCREEN pixels of the line - the zoom converts that into world units, so an arrow
+// is exactly as easy to hit at 500% as at 50%. When the ends cannot be resolved
+// at all (no rectangles given) the stored box stands in, so the call is total.
+const NO_RECTS: ReadonlyMap<string, Rect> = new Map();
+
+registerObjectType('connector', {
+  Component: ConnectorObject,
+  resizable: false,
+  aspectLocked: false,
+  minSize: 0,
+  editableText: false,
+  hitTest(obj: ObjectSnapshot, point: Point, ctx?: HitTestContext): boolean {
+    const zoom = ctx?.zoom ?? 1;
+    const tolerance = CONNECTOR_HIT_TOLERANCE_PX / (zoom > 0 ? zoom : 1);
+    const from = obj.from;
+    const to = obj.to;
+    if (from && to) {
+      const ends = resolveEndpoints({ from, to }, ctx?.rects ?? NO_RECTS);
+      return distanceToPolyline([ends.from, ends.to], point) <= tolerance;
+    }
+    const w = obj.width ?? 0;
     const h = obj.height ?? 0;
     return point.x >= obj.x && point.x <= obj.x + w && point.y >= obj.y && point.y <= obj.y + h;
   },

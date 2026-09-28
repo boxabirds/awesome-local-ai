@@ -202,3 +202,71 @@ export const UNDO_CAPTURE_TIMEOUT_MS = 500;
 // How many undo steps one person's history keeps. The oldest step is discarded
 // when a new one arrives while the history is full.
 export const UNDO_MAX_STEPS = 200;
+
+// --- Shapes and connectors (story 10) ---------------------------------------
+
+// The three shape kinds, in the order the Shape menu lists them.
+export const SHAPE_KINDS = ['rect', 'ellipse', 'diamond'] as const;
+export type ShapeKind = (typeof SHAPE_KINDS)[number];
+
+// A click, or a drag smaller than the minimum, lands a shape this wide and
+// this tall (world units).
+export const SHAPE_DEFAULT_SIZE_WORLD = 160;
+
+// A dragged area under this in either dimension counts as a click, and is also
+// the smallest a shape may be resized to (world units).
+export const SHAPE_MIN_SIZE_WORLD = 20;
+
+// Hard limit on the number of characters kept in a shape's label.
+export const SHAPE_LABEL_MAX_CHARS = 500;
+
+// A shape's outline, in world units, so it scales with zoom like everything else.
+export const SHAPE_STROKE_WIDTH_WORLD = 2;
+
+// The label's box inside a shape: this much world space is left on every side,
+// so words never run over the outline. Its line height is the text object's.
+export const SHAPE_LABEL_INSET_WORLD = 12;
+export const SHAPE_LINE_HEIGHT = 1.25;
+
+// The seven fill choices - six colours and 'no fill' - and the six outlines.
+// The names are the product settings; the hex values may change freely.
+export const SHAPE_FILL_COLORS = {
+  none: 'transparent',
+  white: '#FFFFFF',
+  blue: '#BBDEFB',
+  green: '#C8E6C9',
+  yellow: '#FFF9C4',
+  pink: '#F8BBD0',
+  grey: '#E0E0E0',
+} as const;
+export type FillColor = keyof typeof SHAPE_FILL_COLORS;
+
+export const SHAPE_STROKE_COLORS = {
+  dark: '#263238',
+  blue: '#1E88E5',
+  green: '#43A047',
+  orange: '#FB8C00',
+  red: '#E53935',
+  grey: '#9E9E9E',
+} as const;
+export type StrokeColor = keyof typeof SHAPE_STROKE_COLORS;
+
+export const DEFAULT_SHAPE_FILL: FillColor = 'white';
+export const DEFAULT_SHAPE_STROKE: StrokeColor = 'dark';
+
+// A connector whose resolved length is under this many world units is never
+// created (a connector drag of a few pixels is a mistake, not an arrow).
+export const CONNECTOR_MIN_LENGTH_WORLD = 8;
+
+// Half the width of the invisible band a click can hit an arrow on, in SCREEN
+// pixels: the registry hit test divides it by the zoom, so it is 6 px at every
+// zoom level.
+export const CONNECTOR_HIT_TOLERANCE_PX = 6;
+
+// The arrow's line, and the length of its arrowhead, in world units.
+export const CONNECTOR_STROKE_WIDTH_WORLD = 2;
+export const CONNECTOR_ARROWHEAD_SIZE_WORLD = 10;
+
+// A connection dot's radius, in SCREEN pixels (the tool draws them in screen
+// space so they never shrink). 
+export const CONNECTOR_DOT_RADIUS_PX = 4;

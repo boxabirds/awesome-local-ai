@@ -23,7 +23,8 @@ import { allObjectIds, deleteObjects, moveObjects } from '../../shared/board-mod
 import { NUDGE_STEP_WORLD, NUDGE_LARGE_STEP_WORLD } from '../../shared/config.ts';
 import type { useSelection } from './useSelection.ts';
 import type { UndoController } from './undo.ts';
-import type { ToolState } from './useTool.ts';
+import type { ActiveToolState } from '../tools/useActiveTool.ts';
+import { TOOL_SHORTCUTS } from '../tools/useActiveTool.ts';
 
 export interface BoardKeysOptions {
   doc: Y.Doc;
@@ -42,11 +43,12 @@ export interface BoardKeysOptions {
    */
   escapeBlocked?(): boolean;
   /**
-   * The board's tool state (story 9): V asks for Select, T asks for Text - a
-   * read-only board's setTool ignores that request itself - and Escape gives
-   * the tool back. Without it none of these keys are board commands at all.
+   * The board's tool state (stories 9-12): V asks for Select, T for Text, S for
+   * Shape and L for Connector - a read-only board's setTool ignores a creation
+   * tool by itself - and Escape gives the tool back. Without it none of these
+   * keys are board commands at all.
    */
-  tools?: ToolState;
+  tools?: ActiveToolState;
   /**
    * N keeps its story 2 behaviour: create a sticky note at the centre of the
    * view. The callback owns the editability gate; this one only routes the key.
@@ -76,11 +78,12 @@ export function useBoardKeys(opts: BoardKeysOptions): void {
         return;
       }
       if (key === 'Escape') {
-        // Escape is the board's to take once no text editor is open: with the
-        // Text tool open it gives the tool back first (story 9), and otherwise
-        // it gives up the selection (a dialog, if one ever opens, is not listening here).
+        // Escape is the board's to take once no text editor is open: with a
+        // creation tool open it gives the tool back first (a shape or a connector
+        // that was being dragged is simply not created), and otherwise it gives up
+        // the selection (a dialog, if one ever opens, is not listening here).
         e.preventDefault();
-        if (o.tools && o.tools.tool === 'text') {
+        if (o.tools && o.tools.tool !== 'select') {
           o.tools.setTool('select');
           return;
         }
@@ -105,25 +108,24 @@ export function useBoardKeys(opts: BoardKeysOptions): void {
         own.redo();
         return;
       }
-      // The tools (story 9), before the selection gate: they change what the
-      // next CLICK means, not what the selection holds, and a read-only board
-      // neither opens the Text tool (setTool refuses it) nor creates anything
-      // (N is left to the browser there, exactly like the creation button is inert).
+      // The tools, before the selection gate: they change what the next CLICK
+      // means, not what the selection holds. The letters come from the tool hook's
+      // own table, so a shortcut can never mean one thing here and another there.
+      // A read-only board opens no creation tool (setTool refuses it) and creates
+      // nothing (N is left to the browser there, exactly like the button is inert).
       const tools = o.tools;
       if (tools && !e.ctrlKey && !e.metaKey && !e.altKey) {
-        if (lower === 'v') {
-          e.preventDefault();
-          tools.setTool('select');
-          return;
-        }
-        if (lower === 't' && o.canEdit) {
-          e.preventDefault();
-          tools.setTool('text');
-          return;
-        }
-        if (lower === 'n' && o.canEdit) {
+        const shortcut = TOOL_SHORTCUTS[lower];
+        if (shortcut === 'sticky') {
+          // N keeps its story 2 behaviour: it creates a note, it is not a mode.
+          if (!o.canEdit) return;
           e.preventDefault();
           o.onCreateSticky?.();
+          return;
+        }
+        if (shortcut !== undefined) {
+          e.preventDefault();
+          tools.setTool(shortcut);
           return;
         }
       }

@@ -309,17 +309,17 @@ describe('board-model marquee and select-all reads (TC-07, TC-08)', () => {
   it('TC-08 allObjectIds excludes objects of unknown types', () => {
     const { doc, a, b, c } = seeded();
     const obj = new Y.Map<unknown>();
-    obj.set('type', 'shape'); // a type from a future story, unknown to this build
+    obj.set('type', 'widget'); // a type no story has shipped, unknown to this build
     obj.set('x', 1);
     obj.set('y', 2);
     obj.set('z', 9);
-    objectsMapOf(doc).set('shape-1', obj);
+    objectsMapOf(doc).set('widget-1', obj);
 
     const snap = objectsSnapshot(doc);
     const ids = allObjectIds(snap);
     expect(ids).toEqual(expect.arrayContaining([a, b, c]));
     expect(ids).toHaveLength(3);
-    expect(ids).not.toContain('shape-1');
+    expect(ids).not.toContain('widget-1');
   });
 
   it('allObjectIds on an empty board selects nothing', () => {
