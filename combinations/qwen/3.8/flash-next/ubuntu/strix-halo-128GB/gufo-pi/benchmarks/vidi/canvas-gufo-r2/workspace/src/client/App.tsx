@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef } from 'react';
+import { useCallback, useEffect, useMemo, useRef } from 'react';
 import type { JSX } from 'react';
 import type * as Y from 'yjs';
 import { canZoomIn, canZoomOut, screenToWorld, zoomPercent, type Camera } from './canvas/camera';
@@ -13,6 +13,8 @@ import { SelectionOverlay } from './board/SelectionOverlay';
 import { SelectionBar } from './board/SelectionBar';
 import { useTransformGesture } from './board/useTransformGesture';
 import { useBoardKeys } from './board/useBoardKeys';
+import { createUndo, type UndoController } from './board/undo';
+import { useUndo } from './board/useUndo';
 import { getObjectType } from './objects/registry';
 import { ConnectionStatus } from './sync/ConnectionStatus';
 import type { ConnectionState } from './sync/connectBoard';
@@ -44,15 +46,16 @@ const FALLBACK_CAMERA: Camera = { x: 0, y: 0, zoom: 1 };
 function BoardChrome(props: {
   connectionState: ReturnType<typeof useBoardDoc>['connectionState'];
   onCreateSticky(): void;
+  undoState: ReturnType<typeof useUndo>;
 }): JSX.Element {
   const { camera, hasNavigated, zoomStep, reset } = useBoardCamera();
-  const { connectionState, onCreateSticky } = props;
+  const { connectionState, onCreateSticky, undoState } = props;
   const editable = canEdit(connectionState);
 
   return (
     <>
       <ConnectionStatus state={connectionState} />
-      <Toolbar onCreateSticky={onCreateSticky} disabled={!editable} />
+      <Toolbar onCreateSticky={onCreateSticky} disabled={!editable} undoState={undoState} />
       <ZoomControls
         zoomPercent={zoomPercent(camera)}
         canZoomIn={canZoomIn(camera)}
@@ -97,6 +100,7 @@ function BoardObjects(props: {
   onObjectPointerDown: ReturnType<typeof useTransformGesture>['onObjectPointerDown'];
   onStartEdit(id: string): void;
   onEndEdit(next: 'selected' | 'unselected'): void;
+  undo?: UndoController;
 }): JSX.Element {
   const { camera } = useBoardCamera();
   const { objects, doc, selection, readOnly } = props;
@@ -125,6 +129,7 @@ function BoardObjects(props: {
               onObjectPointerDown={props.onObjectPointerDown}
               onStartEdit={props.onStartEdit}
               onEndEdit={props.onEndEdit}
+              undo={props.undo}
             />
           );
         })}
@@ -142,12 +147,18 @@ export function canEdit(state: ConnectionState): boolean {
 }
 
 /**
- * The board UI (stories 1–7). Mounted by BoardPage when the board exists.
+ * The board UI (stories 1–8). Mounted by BoardPage when the board exists.
  */
 export function App(props: { doc?: Y.Doc; boardId?: string } = {}) {
   const boardId = props.boardId ?? getBoardIdFromPath();
   const { doc, notes, connectionState } = useBoardDoc(props.doc, boardId);
   const canEditBoard = canEdit(connectionState);
+
+  // Story 8: one UndoController per board doc, destroyed on board change / unmount.
+  const undoController = useMemo(() => createUndo(doc), [doc]);
+  useEffect(() => () => undoController.destroy(), [undoController]);
+
+  const undoState = useUndo(undoController, canEditBoard);
 
   const bridgeRef = useRef<BoardBridge | null>(null);
   const registerBridge = useCallback((b: BoardBridge | null) => {
@@ -163,9 +174,11 @@ export function App(props: { doc?: Y.Doc; boardId?: string } = {}) {
     selection,
     snapshot: notes,
     canEdit: canEditBoard,
+    onGestureStart: undoController.boundary,
+    onGestureEnd: undoController.boundary,
   });
 
-  useBoardKeys({ doc, selection, snapshot: notes, canEdit: canEditBoard });
+  useBoardKeys({ doc, selection, snapshot: notes, canEdit: canEditBoard, undo: undoController });
 
   const handleStartEdit = useCallback(
     (id: string) => {
@@ -184,30 +197,36 @@ export function App(props: { doc?: Y.Doc; boardId?: string } = {}) {
 
   const handleDeleteSelection = useCallback(() => {
     if (!canEditBoard || selection.ids.size === 0) return;
+    undoController.boundary();
     deleteObjects(doc, [...selection.ids]);
+    undoController.boundary();
     selection.clear();
-  }, [canEditBoard, doc, selection]);
+  }, [canEditBoard, doc, selection, undoController]);
 
   const handleBoardDblClick = useCallback(
     (point: Point) => {
       if (!canEditBoard) return;
       const b = bridgeRef.current;
       const world = b ? b.toWorld(point) : point;
+      undoController.boundary();
       const id = createSticky(doc, world);
+      undoController.boundary();
       selection.click(id);
       selection.startEdit(id);
     },
-    [canEditBoard, doc, selection],
+    [canEditBoard, doc, selection, undoController],
   );
 
   const handleCreateSticky = useCallback(() => {
     if (!canEditBoard) return;
     const b = bridgeRef.current;
     const world = b ? b.viewportCentreWorld() : { x: 0, y: 0 };
+    undoController.boundary();
     const id = createSticky(doc, world);
+    undoController.boundary();
     selection.click(id);
     selection.startEdit(id);
-  }, [canEditBoard, doc, selection]);
+  }, [canEditBoard, doc, selection, undoController]);
 
   const handleEmptyClick = useCallback(() => selection.clear(), [selection]);
 
@@ -215,9 +234,11 @@ export function App(props: { doc?: Y.Doc; boardId?: string } = {}) {
     (color: StickyColor) => {
       if (!canEditBoard || selection.ids.size !== 1) return;
       const [id] = [...selection.ids];
+      undoController.boundary();
       setStickyColor(doc, id, color);
+      undoController.boundary();
     },
-    [canEditBoard, doc, selection],
+    [canEditBoard, doc, selection, undoController],
   );
 
   // NoteToolbar (colour + delete) for a single selected sticky, not editing.
@@ -243,6 +264,7 @@ export function App(props: { doc?: Y.Doc; boardId?: string } = {}) {
               onObjectPointerDown={gesture.onObjectPointerDown}
               onStartEdit={handleStartEdit}
               onEndEdit={handleEndEdit}
+              undo={undoController}
             />
           </>
         }
@@ -266,7 +288,11 @@ export function App(props: { doc?: Y.Doc; boardId?: string } = {}) {
                 onDelete={handleDeleteSelection}
               />
             )}
-            <BoardChrome connectionState={connectionState} onCreateSticky={handleCreateSticky} />
+            <BoardChrome
+              connectionState={connectionState}
+              onCreateSticky={handleCreateSticky}
+              undoState={undoState}
+            />
           </>
         }
         onBoardDblClick={handleBoardDblClick}

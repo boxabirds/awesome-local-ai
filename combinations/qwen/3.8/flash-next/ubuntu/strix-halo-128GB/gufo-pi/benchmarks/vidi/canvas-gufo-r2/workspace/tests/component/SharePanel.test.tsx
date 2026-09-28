@@ -2,7 +2,7 @@
  * Component tests for Share panel (TC-22 to TC-25).
  * Stubbed clipboard, fake timers.
  */
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor, act } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
@@ -154,7 +154,7 @@ describe('TC-25: Panel close behavior', () => {
     });
 
     const user = userEvent.setup();
-    const { container } = render(
+    render(
       <div>
         <div data-testid="outside">Outside content</div>
         <SharePanel boardId={TEST_BOARD_ID} />

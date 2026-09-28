@@ -13,6 +13,7 @@ import type * as Y from 'yjs';
 import { objectBounds, type ObjectSnapshot } from '../../shared/board-model';
 import { STICKY_MIN_SIZE_WORLD } from '../../shared/config';
 import { rectContains, type Point } from '../../shared/geometry';
+import type { UndoController } from '../board/undo';
 
 /** Props every board object component receives from the board renderer. */
 export interface ObjectProps {
@@ -27,6 +28,8 @@ export interface ObjectProps {
   onObjectPointerDown(e: ReactPointerEvent, id: string): void;
   onStartEdit(id: string): void;
   onEndEdit(next: 'selected' | 'unselected'): void;
+  /** Per-user undo controller (story 8). */
+  undo?: UndoController;
 }
 
 export interface ObjectTypeSpec {

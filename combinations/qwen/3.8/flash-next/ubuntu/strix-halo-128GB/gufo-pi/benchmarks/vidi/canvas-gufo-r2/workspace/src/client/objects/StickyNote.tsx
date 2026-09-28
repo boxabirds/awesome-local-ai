@@ -75,6 +75,7 @@ export function StickyNote(props: ObjectProps): JSX.Element {
           ytext={(doc.getMap('objects').get(obj.id) as Y.Map<unknown>)?.get('text') as Y.Text}
           fontPx={fontPx}
           onEnd={props.onEndEdit}
+          undo={props.undo}
         />
       ) : (
         <div

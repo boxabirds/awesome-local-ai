@@ -1,8 +1,15 @@
 import type { JSX } from 'react';
+import type { UseUndoResult } from './useUndo';
+import { UndoButtons } from './UndoButtons';
+
 /**
- * Left-side vertical toolbar with the Sticky note button.
+ * Left-side vertical toolbar with the Sticky note button and Undo/Redo buttons.
  */
-export function Toolbar(props: { onCreateSticky(): void; disabled?: boolean }): JSX.Element {
+export function Toolbar(props: {
+  onCreateSticky(): void;
+  disabled?: boolean;
+  undoState?: UseUndoResult;
+}): JSX.Element {
   return (
     <div className="toolbar" data-testid="toolbar">
       <button
@@ -20,6 +27,7 @@ export function Toolbar(props: { onCreateSticky(): void; disabled?: boolean }): 
           <line x1="5" y1="11" x2="12" y2="11" stroke="#8a8a5c" strokeWidth="1.5" />
         </svg>
       </button>
+      {props.undoState && <UndoButtons {...props.undoState} />}
     </div>
   );
 }

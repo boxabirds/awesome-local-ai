@@ -1,3 +1,27 @@
+commit 2a3b3d561f5e1d91577bdde04a1d7c03d244ac80
+vidi-agent  Mon Sep 28 21:06:58 2026 +0000
+
+    story 8: Undo and redo my own changes without undoing anyone else's
+
+
+ src/client/App.tsx                      |  46 +++--
+ src/client/board/Toolbar.tsx            |  12 +-
+ src/client/board/UndoButtons.tsx        |  71 ++++++++
+ src/client/board/undo.ts                | 117 ++++++++++++
+ src/client/board/useBoardKeys.ts        |  42 ++++-
+ src/client/board/useUndo.ts             |  39 ++++
+ src/client/objects/StickyNote.tsx       |   1 +
+ src/client/objects/StickyTextEditor.tsx |  43 ++++-
+ src/client/objects/registry.tsx         |   3 +
+ src/shared/config.ts                    |   8 +
+ tests/component/SharePanel.test.tsx     |   4 +-
+ tests/component/UndoBoundaries.test.tsx | 211 ++++++++++++++++++++++
+ tests/component/UndoControls.test.tsx   | 186 +++++++++++++++++++
+ tests/e2e/undo.spec.ts                  | 253 ++++++++++++++++++++++++++
+ tests/unit/peer.ts                      |  56 ++++++
+ tests/unit/undo-boundaries.test.ts      |  99 ++++++++++
+ tests/unit/undo-history.test.ts         | 309 ++++++++++++++++++++++++++++++++
+ 17 files changed, 1479 insertions(+), 21 deletions(-)
 commit 40097a1d000314d0aa27384e4e211fd5fe1519a4
 vidi-agent  Mon Sep 28 20:30:59 2026 +0000
 

@@ -152,3 +152,11 @@ export const NUDGE_STEP_WORLD = 1;
 
 /** Shift+arrow nudge distance in world units. */
 export const NUDGE_LARGE_STEP_WORLD = 10;
+
+// ----------------------------------------------------------- undo (story 8)
+
+/** Typing pause (ms) that ends an undo capture window (groups typing bursts). */
+export const UNDO_CAPTURE_TIMEOUT_MS = 500;
+
+/** Maximum number of undo steps retained per tab. */
+export const UNDO_MAX_STEPS = 200;
