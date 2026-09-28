@@ -63,11 +63,13 @@ an RTX 4090 with llama.cpp reads **1,870–2,220 tok/s**.
   Ours are the same or slightly better.
 - **The chip can do four times better:** gufo reads the same weights at about 1,230–1,270 tok/s
   from 32k to 120k on this machine (table above).
-- **The likely cause**, from the llama.cpp issue tracker (not verified by us): the model's
-  linear-attention (Gated DeltaNet) layers are processed token by token during prefill. A chunked
-  kernel exists for Vulkan ([#20377](https://github.com/ggml-org/llama.cpp/pull/20377)) and for ROCm
-  ([#29353](https://github.com/ggml-org/llama.cpp/pull/29353)) but is unmerged or switched off. That
-  matches what we see: the GPU is busy, the CPU idle, and speed falls steadily with context.
+- **Not the main cause (corrected 28 Sep):** the model's linear-attention (Gated DeltaNet) layers
+  are processed token by token during prefill, and a chunked kernel exists for Vulkan
+  ([#20377](https://github.com/ggml-org/llama.cpp/pull/20377)) and for CUDA/ROCm
+  ([#29353](https://github.com/ggml-org/llama.cpp/pull/29353)), unmerged. We first named this as the
+  likely cause. #29353 measures the chunked kernel at +6.8–7.0% prefill on Strix Halo, and Gated
+  DeltaNet cost per token doesn't grow with context, while our slowdown does. The cause of the
+  steady fall with context is still unmeasured; a per-operation profile of llama.cpp on tritus is next.
 - **Tuning won't close the gap.** Settings reported to help (IOMMU off, a newer Mesa, GPU clock
   pinned high, which ours already is) are worth tens of percent, not the 4× the chip allows. Larger
   micro-batches reportedly make Vulkan prefill worse at depth.

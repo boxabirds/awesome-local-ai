@@ -12,9 +12,10 @@ container image and run here with Podman.
 
 ## Why this combination exists
 
-On this machine, llama.cpp reads prompts at 170–350 tok/s: its Gated DeltaNet
-prefill runs token by token (the chunked kernel is not merged for Vulkan or
-ROCm). Every compaction or cache miss then costs 6–8 minutes, and agent runs hit
+On this machine, llama.cpp reads prompts at 170–350 tok/s, falling as the
+context grows (why is being profiled; the unmerged chunked Gated DeltaNet kernel
+is worth only about 7% here, see the [prefill guide](why-gufo-reads-prompts-fast.md)).
+Every compaction or cache miss then costs 6–8 minutes, and agent runs hit
 the 4-hour story cap. gufo reads the same prompts about 4–7× faster.
 
 Measured on tritus (Minisforum MS-S1 MAX, 128 GB), 27 Sep 2026,
