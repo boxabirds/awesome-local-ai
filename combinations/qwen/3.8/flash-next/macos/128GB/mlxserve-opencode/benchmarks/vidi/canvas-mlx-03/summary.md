@@ -9,14 +9,20 @@ New work is the story's own held-out tests. Regressions are earlier stories' hel
 | Story | New work | Regressions | Repairs | Cumulative |
 |---|---|---|---|---|
 | 1 | 6/6 | 0 | 0 | 6/6 |
+| 2 | 10/10 | 0 | 0 | 19/20 |
 
-**New work** 6/6, **regressions** 0, **repairs** 0, **cumulative** 6/6.
+**New work** 16/16, **regressions** 0, **repairs** 0, **cumulative** 19/20.
 
 | Story | Title | Status | Agent min | Requests | Prompt tok | Completion tok | TTFT med s | Decode tok/s med | Gate | Accept (cumulative) | Stalled | Resumes / nudges | Compactions | Max ctx | Conditions |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
 | 1 | Pan and zoom around an infinite board | DONE | 34.4 | None | None | None | — | — | green | 6/6 |  | 0 / 0 | 0 | — | throttled 75%, server peak 81 GB |
+| 2 | Capture ideas on sticky notes and rearrange them | PARTIAL (amber) | 53.0 | None | None | None | — | — | green | 19/20 |  | 0 / 5 | 1 | — | throttled 89%, server peak 91 GB |
 
-**Totals:** 1 stories, 34 agent-minutes, 0 requests, 0 prompt / 0 completion tokens, gate green 1/1, final acceptance 6/6, stalled 0, partial 0, 1516 lines in src+tests.
+**Totals:** 2 stories, 87 agent-minutes, 0 requests, 0 prompt / 0 completion tokens, gate green 2/2, final acceptance 19/20, stalled 0, partial 1, 3596 lines in src+tests.
+
+### Stories ended early (PARTIAL) and what was built on them
+
+- **Story 2 PARTIAL**, ended by the operator (harness (cap)): story cap: 5 nudges without committing (cap 5). Verdict **amber**: gate green, tasks not verified [1, 2, 3, 4, 5, 6, 7, 8] (implementation: [2, 4, 5, 6]), held-out 10/10 (floor 0.0).
 
 ## How it happened
 
@@ -25,6 +31,7 @@ Each story's commits, and which story broke or fixed an earlier story's held-out
 | Story | Commits | + / − lines | Most-changed source files (lines; tests and lockfiles left out) |
 |---|---|---|---|
 | 1 | 1 by the agent | 7691 / 0 | `BoardViewport.tsx` (198), `useCamera.ts` (173), `camera.ts` (129), `ZoomControls.tsx` (95), `NOTES.md` (83), `App.tsx` (52), +14 more |
+| 2 | harness snapshot (agent left work uncommitted) | 2201 / 13 | `StickyNote.tsx` (304), `board-model.ts` (186), `App.tsx` (152), `StickyTextEditor.tsx` (140), `StickyText.ts` (100), `NoteToolbar.tsx` (87), +8 more |
 
 ### Earlier stories broken or fixed
 
