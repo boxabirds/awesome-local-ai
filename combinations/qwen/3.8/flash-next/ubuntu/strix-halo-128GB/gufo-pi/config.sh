@@ -6,9 +6,9 @@
 # The sibling llamacpp-pi combination runs the same model with llama.cpp on
 # Vulkan. Measured on tritus (27 Sep 2026, benchmarks/gufo-eval test A, same
 # UD-Q4_K_XL weights and byte-identical prompts), gufo reads a prompt 4-7x
-# faster: 1,266 vs 302 tok/s at 32k, 1,228 vs 172 at 120k. llama.cpp's
-# Gated DeltaNet prefill runs token by token on this chip (its chunked kernel
-# is not merged), and that, not the chip, is what capped the llamacpp-pi runs.
+# faster: 1,266 vs 302 tok/s at 32k, 1,228 vs 172 at 120k. A per-operation
+# profile (28 Sep) puts most of llama.cpp's prefill time in its weight matrix
+# multiplications, with attention growing with depth; see why-gufo-reads-prompts-fast.md.
 #
 # DATA ONLY. All logic lives in lib/ (lib/gufo.sh, lib/runtime/server-gufo.sh).
 
