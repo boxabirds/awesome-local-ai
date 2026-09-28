@@ -12,6 +12,13 @@ export const STICKY_COUNTER_THRESHOLD_CHARS = 50; // counter shows when remainin
 export const STICKY_FONT_MAX_PX = 24;
 export const STICKY_FONT_MIN_PX = 10;
 export const DRAG_THRESHOLD_PX = 3;
+// Story 3: live collaboration
+export const MAX_CONCURRENT_EDITORS = 5; // soft capacity: design + test target, never enforced
+export const LIVE_UPDATE_LATENCY_BUDGET_MS = 1000; // PRD live.propagate
+export const RECONNECT_MAX_BACKOFF_MS = 10_000; // passed to WebsocketProvider maxBackoffTime
+export const CONNECTED_CONFIRMATION_MS = 2000; // green badge duration after reconnect
+export const CATCH_UP_TEST_OUTAGE_MS = 30_000; // PRD live.catch_up verification outage
+
 export const STICKY_COLORS = {
   yellow: '#FFF59D',
   orange: '#FFCC80',

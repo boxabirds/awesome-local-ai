@@ -12,6 +12,42 @@ export function clampToLimit(next: string, max: number = STICKY_TEXT_MAX_CHARS):
 }
 
 /**
+ * Re-map a local caret (a code-unit offset into the text as it was before a
+ * remote Y.Text update) through the update's `delta`, returning the caret
+ * offset in the new text. Used to keep a live editor's caret stable while
+ * remote characters are inserted/removed, so concurrent typing never loses
+ * characters.
+ *
+ * `delta` ops are exclusive: each has exactly one of `retain` / `insert` /
+ * `delete`.
+ */
+export type TextDeltaOp = {
+  retain?: number;
+  insert?: string | object;
+  delete?: number;
+};
+
+export function adjustCaret(caret: number, delta: readonly TextDeltaOp[]): number {
+  let pos = 0;
+  let next = caret;
+  for (const op of delta) {
+    if (op.retain !== undefined) {
+      pos += op.retain;
+    } else if (op.insert !== undefined) {
+      // Insertion lands at old position `pos`; if it is before the caret the
+      // caret shifts right by the inserted length. Y.Text inserts are strings.
+      const len = typeof op.insert === 'string' ? op.insert.length : 0;
+      if (pos < caret) next += len;
+    } else if (op.delete !== undefined) {
+      const end = pos + op.delete;
+      if (end <= caret) next -= op.delete;
+      else if (pos < caret) next = pos; // caret inside the deleted range
+    }
+  }
+  return Math.max(0, next);
+}
+
+/**
  * Applies the minimal change (common prefix + common suffix) that turns the
  * current Y.Text content into `next`: at most one delete and one insert in a
  * single transaction, surrogate-pair safe.

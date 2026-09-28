@@ -1,8 +1,15 @@
-import { expect, afterEach } from 'vitest';
+import { expect, afterEach, beforeEach } from 'vitest';
 import * as jestDom from '@testing-library/jest-dom/matchers';
 import { cleanup } from '@testing-library/react';
 
 expect.extend(jestDom);
+
+// Story 3 routes the board to `/b/<boardId>`. Component tests render <App/>
+// directly, so place them on a valid board URL so the board renders instead
+// of triggering the client-side redirect to a fresh board.
+beforeEach(() => {
+  window.history.pushState({}, '', '/b/abcdefghijklmnopqrstuv');
+});
 
 // No vitest globals: disable @testing-library/react's auto-cleanup, so clean
 // up manually between tests.
@@ -13,6 +20,7 @@ afterEach(() => {
 // Mock pointer capture for jsdom
 Element.prototype.setPointerCapture = Element.prototype.setPointerCapture || function() {};
 Element.prototype.releasePointerCapture = Element.prototype.releasePointerCapture || function() {};
+Element.prototype.hasPointerCapture = Element.prototype.hasPointerCapture || function() { return false; };
 
 // Mock ResizeObserver for jsdom (not implemented)
 if (typeof globalThis.ResizeObserver === 'undefined') {

@@ -6,6 +6,8 @@ import { canZoomIn, canZoomOut, zoomPercent, worldToScreen, screenToWorld } from
 import { useCamera } from './canvas/useCamera';
 import { useBoardDoc } from './board/useBoardDoc';
 import { useSelection } from './board/useSelection';
+import { ConnectionStatus } from './sync/ConnectionStatus';
+import { newBoardId } from 'src/shared/board-id';
 import { Toolbar } from './board/Toolbar';
 import { StickyNote } from './objects/StickyNote';
 import { NoteToolbar } from './objects/NoteToolbar';
@@ -26,7 +28,43 @@ function focusIsInTextControl(target: EventTarget | null): boolean {
   );
 }
 
+const BOARD_ROUTE = /^\/b\/(.+)$/;
+
+/** Reads the board id from the current path, or null when not on `/b/<id>`. */
+function boardIdFromPath(pathname: string): string | null {
+  const m = BOARD_ROUTE.exec(pathname);
+  return m ? m[1] : null;
+}
+
+/**
+ * Route: `/b/:boardId` renders the live board; any other path (notably `/`)
+ * redirects to a fresh board. Story 5 replaces this client-side redirect with
+ * server-side board creation.
+ */
 export function App(): JSX.Element {
+  // Soft client-side redirect: on a non-board path we replaceState to a fresh
+  // board URL and re-render in place. A hard `location.replace` would navigate
+  // (destroying the execution context) and race tests that read the page right
+  // after `goto('/')`.
+  const [boardId, setBoardId] = useState<string | null>(() =>
+    boardIdFromPath(window.location.pathname),
+  );
+
+  useEffect(() => {
+    if (boardId === null) {
+      const newId = newBoardId();
+      window.history.replaceState({}, '', `/b/${newId}`);
+      setBoardId(newId);
+    }
+  }, [boardId]);
+
+  if (boardId === null) {
+    return <div data-testid="board-redirect" style={{ display: 'none' }} />;
+  }
+  return <Board boardId={boardId} />;
+}
+
+function Board({ boardId }: { boardId: string }): JSX.Element {
   const [size, setSize] = useState({ width: window.innerWidth, height: window.innerHeight });
 
   useEffect(() => {
@@ -36,8 +74,8 @@ export function App(): JSX.Element {
   }, []);
 
   const cam = useCamera(size);
-  const { doc, notes } = useBoardDoc();
-  const sel = useSelection();
+  const { doc, notes, connectionState, dropSocket, resumeSocket } = useBoardDoc(boardId);
+  const sel = useSelection(notes);
   const [draggingId, setDraggingId] = useState<string | null>(null);
 
   // Test hook: story 1 exposes setCamera; story 2 additionally exposes the
@@ -47,9 +85,12 @@ export function App(): JSX.Element {
       (window as unknown as Record<string, unknown>).__vidi6 = {
         setCamera: cam.setCamera,
         doc,
+        connectionState,
+        dropSocket,
+        resumeSocket,
       };
     }
-  }, [cam.setCamera, doc]);
+  }, [cam.setCamera, doc, connectionState, dropSocket, resumeSocket]);
 
   // Double-click on empty board space: create a note centred on the point,
   // select it and start editing (sticky.create_dblclick).
@@ -123,6 +164,7 @@ export function App(): JSX.Element {
 
   return (
     <>
+      <ConnectionStatus state={connectionState} />
       <BoardViewport
         camera={cam.camera}
         beginPan={cam.beginPan}

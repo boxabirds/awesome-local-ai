@@ -73,9 +73,11 @@ export function createSticky(
   doc: Y.Doc,
   at: { x: number; y: number },
   color: StickyColor = DEFAULT_STICKY_COLOR,
+  // Optional caller-supplied id (defaults to a random UUID). Tests pass a
+  // deterministic id so identically-seeded runs create matching notes.
+  id: string = crypto.randomUUID(),
 ): string | null {
   if (!isFinitePoint(at) || !isValidColor(color)) return null;
-  const id = crypto.randomUUID();
   doc.transact(() => {
     const objects = objectsOf(doc);
     const obj = new Y.Map();
@@ -155,6 +157,14 @@ export function getStickyText(doc: Y.Doc, id: string): Y.Text | undefined {
   if (!obj) return undefined;
   const text = obj.get('text');
   return text instanceof Y.Text ? text : undefined;
+}
+
+/** Returns the note's colour, or undefined for a stale id. */
+export function getStickyColor(doc: Y.Doc, id: string): string | undefined {
+  const obj = stickyOf(doc, id);
+  if (!obj) return undefined;
+  const color = obj.get('color');
+  return typeof color === 'string' ? color : undefined;
 }
 
 /**

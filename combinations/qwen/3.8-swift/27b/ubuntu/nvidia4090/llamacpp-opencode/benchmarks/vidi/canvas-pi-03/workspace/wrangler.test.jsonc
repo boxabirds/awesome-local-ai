@@ -1,0 +1,19 @@
+{
+  // Test variant of wrangler.jsonc used by the integration (workerd) pool.
+  //
+  // The Durable Object binding and migrations are intentionally omitted: the
+  // integration tests exercise BoardRoom via direct instantiation (its
+  // `fetch` handler + real WebSockets + Yjs) and never touch the DO namespace,
+  // while the SPA/routing tests only use the ASSETS binding. Omitting the DO
+  // stops miniflare from creating a per-class storage directory whose name
+  // embeds this (deep) workspace path and exceeds the 255-char filesystem
+  // limit.
+  "name": "vidi6-test",
+  "main": "src/worker/index.ts",
+  "compatibility_date": "2024-12-01",
+  "assets": {
+    "directory": "dist/client",
+    "binding": "ASSETS",
+    "not_found_handling": "single-page-application"
+  }
+}

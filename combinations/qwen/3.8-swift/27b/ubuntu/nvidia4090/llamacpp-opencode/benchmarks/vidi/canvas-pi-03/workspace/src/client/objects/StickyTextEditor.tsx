@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type JSX } from 'react';
 import * as Y from 'yjs';
 import { STICKY_TEXT_MAX_CHARS } from 'src/shared/config';
-import { clampToLimit, applyTextDiff, counterVisible } from './StickyText';
+import { clampToLimit, applyTextDiff, adjustCaret, counterVisible } from './StickyText';
 import { LOCAL_ORIGIN } from 'src/shared/board-model';
 
 export interface StickyTextEditorProps {
@@ -32,6 +32,24 @@ export function StickyTextEditor(props: StickyTextEditorProps): JSX.Element {
     el.focus();
     el.setSelectionRange(el.value.length, el.value.length);
   }, []);
+  // Reflect REMOTE Y.Text changes into the (uncontrolled) textarea in real
+  // time, keeping the local caret stable. Without this, a subsequent local
+  // diff would be computed against a value that lacks the remote characters
+  // and would delete them — concurrent typing would lose characters.
+  useEffect(() => {
+    const onRemoteUpdate = (event: Y.YTextEvent, transaction: Y.Transaction) => {
+      if (transaction.origin === LOCAL_ORIGIN) return; // local changes are already in the DOM
+      const el = ref.current;
+      if (!el || endedRef.current) return;
+      const prevCaret = el.selectionStart ?? el.value.length;
+      const nextCaret = adjustCaret(prevCaret, event.delta);
+      el.value = ytext.toString();
+      el.setSelectionRange(nextCaret, nextCaret);
+      setLength(el.value.length);
+    };
+    ytext.observe(onRemoteUpdate);
+    return () => ytext.unobserve(onRemoteUpdate);
+  }, [ytext]);
 
   // A pointerdown anywhere outside the note ends editing as unselected.
   // Capture phase so this fires before the viewport/note handlers act.
