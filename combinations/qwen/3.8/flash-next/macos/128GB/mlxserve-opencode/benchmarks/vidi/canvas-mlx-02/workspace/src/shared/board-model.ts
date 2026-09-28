@@ -48,7 +48,7 @@ export const LOCAL_ORIGIN: unique symbol = Symbol('vidi6.local');
 // client registry entry is registered (registerReadableType), and an object of a
 // type nobody has registered is invisible — forward compatibility, TC-12).
 type ReadableType = string;
-const KNOWN_TYPES = new Set<ReadableType>(['sticky', 'text', 'shape', 'connector', 'stroke']);
+const KNOWN_TYPES = new Set<ReadableType>(['sticky', 'text', 'shape', 'connector', 'stroke', 'image']);
 
 // Mark a board object type as readable by the board model. Called by the
 // client object registry so ONE registration per type exists (stories 9-12
@@ -96,6 +96,20 @@ export interface ObjectSnapshot {
   baseWidth?: number;
   baseHeight?: number;
   thickness?: PenThickness;
+
+  /** Images (story 12): `boardId/assetId` once stored, null while still uploading. */
+  assetKey?: string | null;
+  /** Image: the sniffed content type the asset is served with. */
+  contentType?: string;
+  /** Image: intrinsic pixel size - the source of the box's aspect ratio. */
+  naturalWidth?: number;
+  naturalHeight?: number;
+  /** Image: 'uploading' | 'ready' | 'failed' (the placeholder's lifecycle). */
+  status?: 'uploading' | 'ready' | 'failed';
+  /** Image: wall clock (ms) the upload began, for the stale-placeholder sweep. */
+  uploadStartedAt?: number;
+  /** Image: clientId of the tab that uploaded it (whose progress to show). */
+  uploaderId?: string;
 }
 
 // Shapes and connectors (story 10).
@@ -103,6 +117,8 @@ const SHAPE_TYPE = 'shape';
 const CONNECTOR_TYPE = 'connector';
 // The freehand stroke (story 11).
 const STROKE_TYPE = 'stroke';
+// The image (story 12).
+const IMAGE_TYPE = 'image';
 
 // A connector that resolves to a single point (both ends at the same place)
 // would have a box of exactly 0 and fall back to a sticky-sized rect in
@@ -365,6 +381,25 @@ function readObject(id: string, m: Y.Map<unknown>): ObjectSnapshot | null {
       typeof thickness === 'string' && PEN_THICKNESS_NAMES.has(thickness)
         ? (thickness as PenThickness)
         : DEFAULT_PEN_THICKNESS;
+  }
+  if (type === IMAGE_TYPE) {
+    // Story 12: a placeholder whose core coordinates are sound is ALWAYS visible,
+    // even before an assetKey exists (an uploading image is seen, TC-21) and even
+    // when it failed (so it stays selectable to retry or remove). Its stored
+    // width/height are its box; the fields below drive what it draws.
+    const status = m.get('status');
+    obj.status =
+      status === 'ready' || status === 'failed' || status === 'uploading' ? status : 'uploading';
+    const assetKey = m.get('assetKey');
+    obj.assetKey = typeof assetKey === 'string' ? assetKey : null;
+    const contentType = m.get('contentType');
+    obj.contentType = typeof contentType === 'string' ? contentType : '';
+    obj.naturalWidth = isSize(m.get('naturalWidth')) ? (m.get('naturalWidth') as number) : 0;
+    obj.naturalHeight = isSize(m.get('naturalHeight')) ? (m.get('naturalHeight') as number) : 0;
+    const uploadStartedAt = m.get('uploadStartedAt');
+    obj.uploadStartedAt = typeof uploadStartedAt === 'number' && Number.isFinite(uploadStartedAt) ? uploadStartedAt : 0;
+    const uploaderId = m.get('uploaderId');
+    obj.uploaderId = typeof uploaderId === 'string' ? uploaderId : '';
   }
   return obj;
 }

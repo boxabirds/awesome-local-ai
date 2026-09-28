@@ -15,6 +15,12 @@ export interface Rect {
   readonly height: number;
 }
 
+/** A bare width/height pair, for anything sized but not positioned. */
+export interface Size {
+  readonly width: number;
+  readonly height: number;
+}
+
 // The eight resize handles of a bounding box: four corners, four edges.
 export type Handle = 'n' | 'ne' | 'e' | 'se' | 's' | 'sw' | 'w' | 'nw';
 

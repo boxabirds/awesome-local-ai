@@ -5,7 +5,7 @@ import {
   registerObjectType,
   getObjectType,
 } from '../../src/client/objects/registry.tsx';
-import { STICKY_MIN_SIZE_WORLD } from '../../src/shared/config.ts';
+import { STICKY_MIN_SIZE_WORLD, IMAGE_MIN_SIZE_WORLD } from '../../src/shared/config.ts';
 import type { ObjectSnapshot } from '../../src/shared/board-model.ts';
 import { TESTBOX_TYPE, TESTBOX_MIN_SIZE } from '../fixtures/testbox.tsx';
 
@@ -63,5 +63,39 @@ describe('object type registry', () => {
     expect(spec!.resizable).toBe(true);
     expect(spec!.aspectLocked).toBe(false);
     expect(spec!.minSize).toBe(TESTBOX_MIN_SIZE);
+  });
+
+  // Story 12: an image is an ordinary resizable box object whose proportions are
+  // locked (a photo resized smaller stays a photo, never a squashed one) and whose
+  // sides never go under IMAGE_MIN_SIZE_WORLD. Its hit area is its box, and it has no
+  // text to edit. TC-27 exercises the resize in the browser; this pins the registry
+  // declaration those gestures read.
+  it('registers image as aspect-locked, resizable, with the image minimum and no text', () => {
+    const spec = getObjectType('image');
+    expect(spec).toBeDefined();
+    expect(spec!.resizable).toBe(true);
+    expect(spec!.aspectLocked).toBe(true);
+    expect(spec!.minSize).toBe(IMAGE_MIN_SIZE_WORLD);
+    expect(spec!.editableText).toBe(false);
+    expect(typeof spec!.Component).toBe('function');
+
+    const image: ObjectSnapshot = {
+      id: 'i1',
+      type: 'image',
+      x: 100,
+      y: 100,
+      z: 1,
+      createdAt: 0,
+      width: 300,
+      height: 150,
+    };
+    // inside the box, and inclusive on its edges
+    expect(spec!.hitTest(image, { x: 250, y: 175 })).toBe(true);
+    expect(spec!.hitTest(image, { x: 100, y: 100 })).toBe(true);
+    expect(spec!.hitTest(image, { x: 400, y: 250 })).toBe(true);
+    // one unit outside each edge is not a hit
+    expect(spec!.hitTest(image, { x: 99, y: 175 })).toBe(false);
+    expect(spec!.hitTest(image, { x: 401, y: 175 })).toBe(false);
+    expect(spec!.hitTest(image, { x: 250, y: 251 })).toBe(false);
   });
 });

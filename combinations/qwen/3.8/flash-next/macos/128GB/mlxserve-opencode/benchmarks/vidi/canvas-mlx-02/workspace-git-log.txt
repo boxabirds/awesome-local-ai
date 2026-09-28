@@ -1,3 +1,76 @@
+commit 1ee10ccbd2d8ccdbd30351c6601149576080255e
+vidi-agent  Mon Sep 28 21:39:24 2026 +0100
+
+    Story 12: drop images onto the board
+
+
+ .../012-drop-images-onto-the-board/tasks.md        |  18 +-
+ src/client/board/BoardApp.tsx                      |  86 +++++
+ src/client/board/Toolbar.tsx                       |  25 +-
+ src/client/board/useBoardKeys.ts                   |  14 +
+ src/client/canvas/BoardViewport.tsx                |  17 +
+ src/client/images/DropHighlight.tsx                |  31 ++
+ src/client/images/ImageInsertContext.ts            |  32 ++
+ src/client/images/uploadImage.ts                   |  95 ++++++
+ src/client/images/useImageInsert.ts                | 352 +++++++++++++++++++++
+ src/client/images/validateFiles.ts                 |  74 +++++
+ src/client/objects/ImageObject.tsx                 | 290 +++++++++++++++++
+ src/client/objects/registry.tsx                    |  26 ++
+ src/client/ui/Toast.tsx                            |  81 +++++
+ src/shared/board-model.ts                          |  37 ++-
+ src/shared/config.ts                               |  53 ++++
+ src/shared/geometry.ts                             |   6 +
+ src/shared/image-format.ts                         |  75 +++++
+ src/shared/objects/image.ts                        | 265 ++++++++++++++++
+ src/worker/assets.ts                               | 273 ++++++++++++++++
+ src/worker/index.ts                                |  29 ++
+ tests/component/ImageObject.test.tsx               | 208 ++++++++++++
+ tests/component/useImageInsert.test.tsx            | 292 +++++++++++++++++
+ tests/e2e/helpers/images.ts                        | 134 ++++++++
+ tests/e2e/images.spec.ts                           | 150 +++++++++
+ tests/fixtures/images/count/img-00.png             | Bin 0 -> 72 bytes
+ tests/fixtures/images/count/img-01.png             | Bin 0 -> 73 bytes
+ tests/fixtures/images/count/img-02.png             | Bin 0 -> 73 bytes
+ tests/fixtures/images/count/img-03.png             | Bin 0 -> 73 bytes
+ tests/fixtures/images/count/img-04.png             | Bin 0 -> 73 bytes
+ tests/fixtures/images/count/img-05.png             | Bin 0 -> 73 bytes
+ tests/fixtures/images/count/img-06.png             | Bin 0 -> 73 bytes
+ tests/fixtures/images/count/img-07.png             | Bin 0 -> 73 bytes
+ tests/fixtures/images/count/img-08.png             | Bin 0 -> 73 bytes
+ tests/fixtures/images/count/img-09.png             | Bin 0 -> 73 bytes
+ tests/fixtures/images/count/img-10.png             | Bin 0 -> 73 bytes
+ tests/fixtures/images/count/img-11.png             | Bin 0 -> 73 bytes
+ tests/fixtures/images/count/img-12.png             | Bin 0 -> 73 bytes
+ tests/fixtures/images/count/img-13.png             | Bin 0 -> 73 bytes
+ tests/fixtures/images/count/img-14.png             | Bin 0 -> 73 bytes
+ tests/fixtures/images/count/img-15.png             | Bin 0 -> 73 bytes
+ tests/fixtures/images/count/img-16.png             | Bin 0 -> 73 bytes
+ tests/fixtures/images/count/img-17.png             | Bin 0 -> 73 bytes
+ tests/fixtures/images/count/img-18.png             | Bin 0 -> 73 bytes
+ tests/fixtures/images/count/img-19.png             | Bin 0 -> 73 bytes
+ tests/fixtures/images/count/img-20.png             | Bin 0 -> 73 bytes
+ tests/fixtures/images/count/img-21.png             | Bin 0 -> 73 bytes
+ tests/fixtures/images/count/img-22.png             | Bin 0 -> 73 bytes
+ tests/fixtures/images/count/img-23.png             | Bin 0 -> 73 bytes
+ tests/fixtures/images/count/img-24.png             | Bin 0 -> 73 bytes
+ tests/fixtures/images/diagram.svg                  |   1 +
+ tests/fixtures/images/huge.png                     | Bin 0 -> 11534405 bytes
+ tests/fixtures/images/notimage.txt                 |   1 +
+ tests/fixtures/images/photo.png                    | Bin 0 -> 390 bytes
+ tests/fixtures/images/second.png                   | Bin 0 -> 427 bytes
+ tests/fixtures/images/third.png                    | Bin 0 -> 238 bytes
+ tests/fixtures/images/tiny.gif                     | Bin 0 -> 46 bytes
+ tests/fixtures/images/tiny.jpg                     | Bin 0 -> 160 bytes
+ tests/fixtures/images/tiny.webp                    | Bin 0 -> 35 bytes
+ tests/fixtures/images/wide.png                     | Bin 0 -> 365 bytes
+ tests/fixtures/make-images.cjs                     | 127 ++++++++
+ tests/integration/assets.test.ts                   | 241 ++++++++++++++
+ tests/unit/image-format.test.ts                    | 100 ++++++
+ tests/unit/image-model.test.ts                     | 201 ++++++++++++
+ tests/unit/registry.test.ts                        |  36 ++-
+ tests/unit/validate-files.test.ts                  |  97 ++++++
+ wrangler.jsonc                                     |  14 +
+ 66 files changed, 3469 insertions(+), 12 deletions(-)
 commit e56c3d548aa9b60a509b3d41cac6182f0ffb6131
 vidi-agent  Mon Sep 28 20:23:50 2026 +0100
 

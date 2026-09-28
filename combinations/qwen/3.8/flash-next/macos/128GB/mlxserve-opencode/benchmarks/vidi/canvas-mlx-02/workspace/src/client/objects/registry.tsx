@@ -23,12 +23,14 @@ import {
   PEN_THICKNESS_WORLD,
   STROKE_HIT_TOLERANCE_PX,
   STROKE_MIN_SIZE_WORLD,
+  IMAGE_MIN_SIZE_WORLD,
 } from '../../shared/config.ts';
 import { StickyNote } from './StickyNote.tsx';
 import { TextObject } from './TextObject.tsx';
 import { ShapeObject } from './ShapeObject.tsx';
 import { ConnectorObject } from './ConnectorObject.tsx';
 import { StrokeObject } from './StrokeObject.tsx';
+import { ImageObjectView } from './ImageObject.tsx';
 import { isStrokeSnapshot, scaledPoints } from '../../shared/objects/stroke.ts';
 import { resolveEndpoints } from '../../shared/geometry/connector-geometry.ts';
 import { distanceToPolyline } from '../../shared/geometry/polyline.ts';
@@ -221,5 +223,29 @@ registerObjectType('stroke', {
     const thicknessWorld = PEN_THICKNESS_WORLD[obj.thickness] ?? PEN_THICKNESS_WORLD.medium;
     const tolerance = Math.max(thicknessWorld / 2, STROKE_HIT_TOLERANCE_PX / zoom);
     return distanceToPolyline(points, point) <= tolerance;
+  },
+});
+
+// An image somebody dropped, pasted or picked (story 12) is the sixth type. It is an
+// ordinary box object like a shape, but with its PROPORTIONS held and a floor: a
+// photo dragged smaller stays a photo, never a squashed one, and never smaller than
+// IMAGE_MIN_SIZE_WORLD a side. Its hit area is its box (an image is its box), and it
+// carries no editable text - double-clicking one only selects it.
+//
+// Selection, moving, resizing, marquee, delete and undo all come from the story 7
+// machinery through this entry alone - story 12 writes none of them.
+registerObjectType('image', {
+  Component: ImageObjectView,
+  resizable: true,
+  // The picture's aspect is locked from the moment it is placed: a resize is a
+  // uniform scale with a floor, so it can never be pulled out of shape.
+  aspectLocked: true,
+  minSize: IMAGE_MIN_SIZE_WORLD,
+  // An image is a picture, not words: no editor ever opens on it.
+  editableText: false,
+  hitTest(obj: ObjectSnapshot, point: Point): boolean {
+    const w = obj.width ?? IMAGE_MIN_SIZE_WORLD;
+    const h = obj.height ?? IMAGE_MIN_SIZE_WORLD;
+    return point.x >= obj.x && point.x <= obj.x + w && point.y >= obj.y && point.y <= obj.y + h;
   },
 });

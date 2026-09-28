@@ -310,3 +310,56 @@ export const STROKE_MAX_POINTS = 5000;
 // the smallest a stroke may be resized to (world units).
 export const STROKE_HIT_TOLERANCE_PX = 6;
 export const STROKE_MIN_SIZE_WORLD = 4;
+
+// --- Images (story 12) -------------------------------------------------------
+
+// The image formats the board accepts. The names are what a picker offers and
+// what the server accepts; the sniffing that decides a file's real type lives in
+// image-validation.ts and does not trust these strings when they come from a
+// client.
+export const IMAGE_ACCEPTED_TYPES = ['image/png', 'image/jpeg', 'image/gif', 'image/webp'] as const;
+export type AcceptedImageType = (typeof IMAGE_ACCEPTED_TYPES)[number];
+
+// Largest image file the board accepts (10 MB). Both the client check that keeps
+// a big file off the wire and the server check that is the actual boundary.
+export const IMAGE_MAX_BYTES = 10 * 1024 * 1024;
+
+// How many images one drop / paste / pick may add; anything past this is skipped
+// with a message naming the number.
+export const IMAGE_MAX_FILES_PER_ADD = 20;
+
+// The long side of the box a large image is fitted into when it lands; an image
+// already smaller than this is placed at its pixel size (images.footprint).
+export const IMAGE_MAX_PLACE_SIZE_WORLD = 800;
+
+// The smallest side an image may be resized to (world units). Its own minimum,
+// deliberately looser than a sticky's, because a picture is legible small.
+export const IMAGE_MIN_SIZE_WORLD = 16;
+
+// Gap between images landing from one multi-file add (world units): they step
+// down-right by the placed size plus this, so a pile is fanned not stacked.
+export const IMAGE_LAYOUT_GAP_WORLD = 24;
+
+// How long an image may sit in `uploading` before it is treated as never having
+// finished - the `unfinished` state, which offers a Remove (images.unfinished).
+// It is derived at render from `uploadStartedAt`, not a timer that fires a write.
+export const IMAGE_UPLOAD_STALE_MS = 5 * 60 * 1000;
+
+// How often an uploading image re-renders so its progress % moves and the
+// `unfinished` boundary is crossed within a reasonable time (a clock tick, not a
+// write - nothing is stored on a tick).
+export const IMAGE_UPLOAD_TICK_MS = 30 * 1000;
+
+// Image uploads per board per window. These two values are the product rule;
+// `wrangler.jsonc`'s `ratelimits` binding must mirror them (an integration test
+// asserts the equality, the way story 5's board-create limiter does).
+export const IMAGE_UPLOAD_LIMIT = 60;
+export const IMAGE_UPLOAD_PERIOD_SECONDS = 60;
+
+// Browser cache lifetime for a served asset (world). Content is immutable at its
+// key, so a year - the number is what the cache header carries and a test reads.
+export const ASSET_CACHE_MAX_AGE_SECONDS = 31_536_000;
+
+// How many leading bytes the format sniffer looks at. The widest magic-number
+// signature it matches (RIFF....WEBP) is twelve bytes; twelve is exactly enough.
+export const IMAGE_SNIFF_BYTES = 12;

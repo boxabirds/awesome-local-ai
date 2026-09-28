@@ -16,6 +16,13 @@
       }
     ]
   },
+  "r2_buckets": [
+    {
+      // Story 12: image bytes live here, addressed `<boardId>/<assetId>`.
+      "binding": "ASSETS_BUCKET",
+      "bucket_name": "vidi6-assets"
+    }
+  ],
   "ratelimits": [
     {
       "name": "BOARD_CREATE_LIMITER",
@@ -26,6 +33,13 @@
       // Must mirror BOARD_CREATE_LIMIT / BOARD_CREATE_PERIOD_SECONDS in
       // src/shared/config.ts (unit TC-03 asserts the equality).
       "simple": { "limit": 10, "period": 60 }
+    },
+    {
+      "name": "ASSET_UPLOAD_LIMITER",
+      // A second counter namespace so image uploads are limited apart from board
+      // creation. Must mirror IMAGE_UPLOAD_LIMIT / IMAGE_UPLOAD_PERIOD_SECONDS.
+      "namespace_id": "2",
+      "simple": { "limit": 60, "period": 60 }
     }
   ],
   "migrations": [

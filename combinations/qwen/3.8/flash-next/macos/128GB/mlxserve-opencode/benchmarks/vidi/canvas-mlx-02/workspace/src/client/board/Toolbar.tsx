@@ -38,6 +38,11 @@ export interface ToolbarProps {
   shapeKind?: ShapeKind;
   /** which kind to draw next; the Shape tool keeps it until the next pick */
   onShapeKind?(kind: ShapeKind): void;
+  /**
+   * The Image button (story 12): it opens the OS file picker and hands the board
+   * back to Select - it is not a mode you stay in, so it never reads `tool`.
+   */
+  onImage?(): void;
 }
 
 // The three kinds, in the order the menu lists them, with the words a person
@@ -69,7 +74,7 @@ function toolButtonStyle(active: boolean, disabled: boolean): React.CSSPropertie
 }
 
 export function Toolbar(props: ToolbarProps): React.JSX.Element {
-  const { onCreateSticky, disabled = false, undo, tool, onTool, shapeKind = 'rect', onShapeKind } = props;
+  const { onCreateSticky, disabled = false, undo, tool, onTool, shapeKind = 'rect', onShapeKind, onImage } = props;
   const [kindMenuOpen, setKindMenuOpen] = useState(false);
   const shapeRef = useRef<HTMLSpanElement | null>(null);
 
@@ -270,6 +275,24 @@ export function Toolbar(props: ToolbarProps): React.JSX.Element {
           >
             <span aria-hidden="true">✎</span>
           </button>
+          {/* The Image button (story 12) is not a mode: it opens the file picker and
+              the board stays on Select, so unlike the tools around it it is never
+              `aria-pressed` and never reads `tool`. It is a creation door, so it is
+              inert on a board this client cannot edit. */}
+          {onImage ? (
+            <button
+              type="button"
+              aria-label="Image (I)"
+              title="Image – I"
+              data-testid="tool-image"
+              disabled={disabled}
+              aria-disabled={disabled}
+              onClick={disabled ? undefined : onImage}
+              style={toolButtonStyle(false, disabled)}
+            >
+              <span aria-hidden="true">🖼</span>
+            </button>
+          ) : null}
           <span
             aria-hidden="true"
             style={{ height: 1, margin: '2px 4px', background: '#e2e2e2' }}

@@ -39,6 +39,11 @@ import { UndoContext, useUndo } from './useUndo.ts';
 import { ConnectionStatus } from '../collab/ConnectionStatus.tsx';
 import type { ConnectionState, ProviderFactory } from '../collab/connectBoard.ts';
 import { getObjectType } from '../objects/registry.tsx';
+import { useImageInsert } from '../images/useImageInsert.ts';
+import { ImageInsertContext, type ImageInsertValue } from '../images/ImageInsertContext.ts';
+import { DropHighlight } from '../images/DropHighlight.tsx';
+import { Toast } from '../ui/Toast.tsx';
+import { IMAGE_ACCEPTED_TYPES } from '../../shared/config.ts';
 import { zoomPercent, canZoomIn, canZoomOut, screenToWorld } from '../canvas/camera.ts';
 import { SharePanel } from '../share/SharePanel.tsx';
 import {
@@ -173,8 +178,63 @@ export default function BoardApp({ boardId, makeProvider }: BoardAppProps) {
     // N keeps its story 2 meaning; the callback is invoked long after this
     // render, when the const below is long since initialised.
     onCreateSticky: () => onCreateSticky(),
+    // I opens the image file picker and stays on Select (a momentary action, not a
+    // mode); the callback owns the editability gate, exactly as N's does.
+    onImage: () => openImagePicker(),
   });
 
+  // Adding images (story 12): the drop / paste / picker flow, its upload progress,
+  // its retry map and its toast queue all live in this hook - none of it in the
+  // Y.Doc. It is asked for unconditionally (a hook cannot be had only sometimes), and
+  // it reads the live connection so an offline add is refused at the source.
+  const identityId = localIdentityId();
+  const imageInsert = useImageInsert({
+    doc,
+    boardId,
+    camera: cam,
+    connection: board.connectionState,
+    identityId,
+    viewport,
+  });
+
+  // What the image objects reach back to through context: their own progress, and
+  // the two failure actions. Remove is story 7's delete under a step boundary, so
+  // clearing away a half-image is one undoable act like any other deletion.
+  const imageValue = useMemo<ImageInsertValue>(
+    () => ({
+      progress: (id: string) => imageInsert.progress.get(id),
+      canRetry: (id: string) => imageInsert.canRetry(id),
+      isRetrying: (id: string) => imageInsert.isRetrying(id),
+      retry: (id: string) => {
+        imageInsert.retry(id);
+      },
+      remove: (id: string) => {
+        if (!canEdit(connectionStateRef.current)) return;
+        undoController.boundary();
+        deleteObjects(doc, [id]);
+        undoController.boundary();
+      },
+    }),
+    // `imageInsert` changes identity whenever its progress or toasts change, which
+    // is exactly when the objects must re-read it.
+    [imageInsert, doc, undoController],
+  );
+
+  // The Image button and the I shortcut both open the OS picker and leave the board
+  // on Select; a board this client cannot edit opens nothing.
+  const openImagePicker = useCallback(() => {
+    if (!canEdit(connectionStateRef.current)) return;
+    imageInsert.openPicker();
+  }, [imageInsert]);
+
+  // A paste is a window-level event (a board has no focused input to receive it).
+  // The hook's handler ignores a paste while a text field or note editor has focus,
+  // so typing a `!` or pasting text is never mistaken for adding an image.
+  useEffect(() => {
+    const onWindowPaste = (e: ClipboardEvent) => imageInsert.onPaste(e);
+    window.addEventListener('paste', onWindowPaste);
+    return () => window.removeEventListener('paste', onWindowPaste);
+  }, [imageInsert]);
   // Mirror the live connection state + socket controls onto the test-only hook
   // for e2e reconnect assertions; dead-code eliminated in prod.
   const provider = board.provider;
@@ -375,6 +435,9 @@ export default function BoardApp({ boardId, makeProvider }: BoardAppProps) {
     // editor needs it) without every object type having to accept an undo prop:
     // the provider is the board, and the objects are rendered by the registry.
     <UndoContext.Provider value={undoController}>
+      {/* And so is an image's live insert state - progress, retry, remove - which
+          only the image component reads (image.insert). */}
+      <ImageInsertContext.Provider value={imageValue}>
       <BoardViewportRoot
         api={api}
         rootRef={rootRef}
@@ -383,6 +446,8 @@ export default function BoardApp({ boardId, makeProvider }: BoardAppProps) {
         marquee={marquee}
         tool={tool}
         onTextToolClick={onTextToolClick}
+        onDragOver={imageInsert.onDragOver}
+        onDrop={imageInsert.onDrop}
         // The Pen is the one tool that is mounted INSIDE the viewport rather than above
         // it: it owns presses the way the other two do, and still lets the board's own
         // wheel gestures through, because the wheel listener is on the viewport element
@@ -426,6 +491,7 @@ export default function BoardApp({ boardId, makeProvider }: BoardAppProps) {
         onTool={setTool}
         shapeKind={shapeKind}
         onShapeKind={setShapeKind}
+        onImage={openImagePicker}
       />
 
       {/* The Pen's two settings, open for exactly as long as the Pen is (pen.options).
@@ -473,6 +539,26 @@ export default function BoardApp({ boardId, makeProvider }: BoardAppProps) {
         onTextSize={(id: string, size: TextSize) => onTextSize(id, size)}
         onShapeStyle={onShapeStyle}
       />
+      </ImageInsertContext.Provider>
+
+      {/* The file picker the Image button and the I shortcut open: hidden, single
+          source of truth for "choose files", read by the picker-change handler. */}
+      <input
+        ref={imageInsert.inputRef}
+        type="file"
+        accept={IMAGE_ACCEPTED_TYPES.join(',')}
+        multiple
+        data-testid="image-picker"
+        aria-hidden="true"
+        tabIndex={-1}
+        onChange={imageInsert.onPickerChange}
+        style={{ position: 'fixed', left: -9999, top: 0, width: 1, height: 1, opacity: 0 }}
+      />
+
+      {/* The drag-over frame and the refusal toast - both draw nothing until there
+          is a drag or a message to show. */}
+      <DropHighlight active={imageInsert.dropActive} />
+      <Toast messages={imageInsert.toasts} onDismiss={imageInsert.dismissToast} />
     </UndoContext.Provider>
   );
 }

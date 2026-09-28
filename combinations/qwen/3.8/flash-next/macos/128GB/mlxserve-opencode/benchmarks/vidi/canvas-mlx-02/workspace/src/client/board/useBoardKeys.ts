@@ -54,6 +54,11 @@ export interface BoardKeysOptions {
    * view. The callback owns the editability gate; this one only routes the key.
    */
   onCreateSticky?(): void;
+  /**
+   * I opens the image file picker (story 12) - a momentary action like N, not a
+   * mode, so it never changes the tool. The callback owns the editability gate.
+   */
+  onImage?(): void;
 }
 
 // The handlers read their inputs through a ref so the window keydown listener is
@@ -121,6 +126,15 @@ export function useBoardKeys(opts: BoardKeysOptions): void {
           if (!o.canEdit) return;
           e.preventDefault();
           o.onCreateSticky?.();
+          return;
+        }
+        if (shortcut === 'image') {
+          // I opens the file picker and stays on Select (story 12): it is an action,
+          // not a mode, so it never reaches setTool - and it opens nothing that this
+          // client cannot edit.
+          if (!o.canEdit) return;
+          e.preventDefault();
+          o.onImage?.();
           return;
         }
         if (shortcut !== undefined) {

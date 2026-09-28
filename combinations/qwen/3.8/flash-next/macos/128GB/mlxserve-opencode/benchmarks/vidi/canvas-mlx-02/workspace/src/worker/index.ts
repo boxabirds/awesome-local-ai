@@ -17,6 +17,7 @@
 import { isValidBoardId } from '../shared/board-id.ts';
 import { createBoard, createResponse, notFoundResponse } from './create-board.ts';
 import { BoardRoom } from './board-room.ts';
+import { handleUpload, handleServe } from './assets.ts';
 
 export { BoardRoom };
 
@@ -28,6 +29,10 @@ export interface Env {
    */
   BOARD_CREATE_LIMITER: RateLimit;
   ASSETS: Fetcher;
+  /** Where image bytes live (story 12): one bucket, keys `<boardId>/<assetId>`. */
+  ASSETS_BUCKET: R2Bucket;
+  /** Uploads per visitor per period: mirrors IMAGE_UPLOAD_LIMIT in config. */
+  ASSET_UPLOAD_LIMITER: RateLimit;
   /**
    * '1' in the test worker and in `wrangler dev --var TEST_HOOKS:1` only.
    * Gates the /__test/... failure-injection routes; production never sets it,
@@ -39,6 +44,12 @@ export interface Env {
 const ROOM_ROUTE = /^\/api\/rooms\/([^/]+)\/?$/;
 const BOARDS_COLLECTION = /^\/api\/boards\/?$/;
 const BOARD_ITEM = /^\/api\/boards\/([^/]+)\/?$/;
+// Story 12: `POST /api/boards/:id/assets` (upload) and
+// `GET /api/assets/<boardId>/<assetId>` (serve). The serve key is the WHOLE rest
+// of the path, so a `../` probe or a missing half reaches `handleServe` and fails
+// ASSET_KEY_PATTERN there rather than being mistaken for a valid two-part key.
+const ASSET_UPLOAD_ROUTE = /^\/api\/boards\/([^/]+)\/assets\/?$/;
+const ASSET_SERVE_ROUTE = /^\/api\/assets\/(.+)$/;
 
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
@@ -53,6 +64,24 @@ export default {
 
     if (BOARDS_COLLECTION.test(path)) {
       return createBoardHandler(env, request);
+    }
+
+    // The upload route is matched before BOARD_ITEM, which would otherwise
+    // treat `/api/boards/<id>/assets` as an unknown board-item path.
+    const upload = ASSET_UPLOAD_ROUTE.exec(path);
+    if (upload) {
+      if (request.method !== 'POST') {
+        return new Response('Method not allowed', { status: 405, headers: { Allow: 'POST' } });
+      }
+      return handleUpload(request, env, upload[1]);
+    }
+
+    const serve = ASSET_SERVE_ROUTE.exec(path);
+    if (serve) {
+      if (request.method !== 'GET' && request.method !== 'HEAD') {
+        return new Response('Method not allowed', { status: 405, headers: { Allow: 'GET' } });
+      }
+      return handleServe(env, serve[1], request);
     }
 
     const board = BOARD_ITEM.exec(path);

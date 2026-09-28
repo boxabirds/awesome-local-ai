@@ -35,6 +35,10 @@ export interface BoardViewportProps {
   onTextToolClick?(world: Point): void;
   /** the Pen's surface, mounted inside the viewport (see BoardViewportHandleProps) */
   toolSurface?: React.ReactNode;
+  /** file drag over the board (story 12): accept the drop, reveal the highlight */
+  onDragOver?(e: React.DragEvent<HTMLDivElement>): void;
+  /** files dropped on the board (story 12) */
+  onDrop?(e: React.DragEvent<HTMLDivElement>): void;
 }
 
 export interface ViewportHandles {
@@ -121,6 +125,13 @@ export interface BoardViewportHandleProps {
   tool?: ToolId;
   onTextToolClick?(world: Point): void;
   /**
+   * File drag handling (story 12): `onDragOver` accepts a file drop and reveals the
+   * drop highlight, `onDrop` receives the files. They are separate from the pointer
+   * gestures a drag-and-drop never fires, so the pen, marquee and pan are untouched.
+   */
+  onDragOver?(e: React.DragEvent<HTMLDivElement>): void;
+  onDrop?(e: React.DragEvent<HTMLDivElement>): void;
+  /**
    * The Pen's surface (story 11, pen.navigation) - and the reason it is mounted HERE,
    * inside the viewport element rather than beside it the way the Shape and Connector
    * tools are: it takes every press the way they do (it is the topmost thing on the
@@ -142,6 +153,8 @@ export function BoardViewportRoot({
   tool,
   onTextToolClick,
   toolSurface,
+  onDragOver,
+  onDrop,
 }: BoardViewportHandleProps): React.JSX.Element {
   const cam = api.camera;
   const dragRef = useRef(false);
@@ -372,6 +385,8 @@ export function BoardViewportRoot({
         dragRef.current = false;
         api.endPan();
       }}
+      onDragOver={onDragOver}
+      onDrop={onDrop}
     >
       <div
         data-testid="world-layer"
@@ -457,6 +472,8 @@ export function BoardViewport(props: BoardViewportProps): React.JSX.Element {
       tool={props.tool}
       onTextToolClick={props.onTextToolClick}
       toolSurface={props.toolSurface}
+      onDragOver={props.onDragOver}
+      onDrop={props.onDrop}
     >
       {props.children}
     </BoardViewportRoot>
