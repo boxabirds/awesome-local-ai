@@ -1,3 +1,42 @@
+commit b84d8c42bb24edd6f86a12b20b768c09f6229240
+vidi-agent  Mon Sep 28 18:31:45 2026 +0100
+
+    story 4: Return to a board and find everything as it was
+
+
+ package.json                                     |   1 +
+ playwright.persistence.config.ts                 |  27 ++
+ src/client/App.tsx                               |  57 +++-
+ src/client/board/Toolbar.tsx                     |   3 +
+ src/client/objects/NoteToolbar.tsx               |   5 +
+ src/client/objects/StickyNote.tsx                |  25 +-
+ src/client/sync/ConnectionStatus.tsx             |  16 +-
+ src/client/sync/connectBoard.ts                  |  55 +++-
+ src/shared/config.ts                             |   8 +
+ src/shared/protocol.ts                           |  13 +
+ src/worker/board-room.ts                         | 294 ++++++++++++++-------
+ src/worker/board-store.ts                        | 323 +++++++++++++++++++++++
+ src/worker/index.ts                              |  13 +
+ src/worker/room-state.ts                         | 117 ++++++++
+ src/worker/test-ops.ts                           | 228 ++++++++++++++++
+ tests/component/load-failure.test.tsx            | 159 +++++++++++
+ tests/e2e/broken-board.spec.ts                   | 125 +++++++++
+ tests/e2e/helpers/wrangler-process.ts            | 135 ++++++++++
+ tests/e2e/persistence.spec.ts                    | 171 ++++++++++++
+ tests/fixtures/boards.ts                         | 121 +++++++++
+ tests/integration/board-room-persistence.test.ts | 248 +++++++++++++++++
+ tests/integration/board-room.test.ts             | 116 ++++----
+ tests/integration/board-store.test.ts            | 222 ++++++++++++++++
+ tests/integration/helpers/room.ts                |  10 -
+ tests/integration/helpers/ws-client.ts           | 108 ++++++--
+ tests/integration/worker.test.ts                 |  23 +-
+ tests/unit/board-store.test.ts                   |  85 ++++++
+ tests/unit/room-state.test.ts                    | 151 +++++++++++
+ tsconfig.json                                    |   6 +-
+ vitest.workspace.ts                              |   8 +
+ wrangler.e2e.jsonc                               |  27 ++
+ wrangler.test.jsonc                              |  26 +-
+ 32 files changed, 2700 insertions(+), 226 deletions(-)
 commit 2c378e8b10f68e58f7bfc8f587d22a2608dc6201
 vidi-agent  Mon Sep 28 16:14:27 2026 +0100
 
