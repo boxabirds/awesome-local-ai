@@ -10,7 +10,16 @@ Note: part of this lead is likely temporary, because of an upcoming change to ll
 
 ## Some background first
 
-Programs that run AI models on your own computer are called **inference engines**. llama.cpp is the one most people use. gufo is a newer one written specifically for AMD's Ryzen AI MAX+ 395 chip, better known as "Strix Halo". My test machine, tritus, has one of these chips and 128 GB of memory.
+Programs that run AI models on your own computer are called **inference engines**. llama.cpp is the one most people use, often without knowing it. Since it started in 2023 it has become the foundation of running AI at home:
+
+- It has about 130,000 stars on GitHub (a rough measure of popularity) and nearly 24,000 "forks", copies people have made to build on.
+- Its model file format, **GGUF**, is the standard way to share models for home use. Hugging Face, the main site for sharing AI models, lists over 200,000 models in that format.
+- Ollama, one of the most popular ways to run models at home (about 180,000 GitHub stars of its own), runs llama.cpp underneath.
+- It moves fast: it has put out more than 11,000 numbered releases since 2023.
+
+(Figures as of 28 September 2026.)
+
+gufo is a newer one written specifically for AMD's Ryzen AI MAX+ 395 chip, better known as "Strix Halo". My test machine, tritus, has one of these chips and 128 GB of memory.
 
 Before a model can write its reply, it has to read the whole conversation so far: every earlier message, every file it opened and every tool output. This reading step is called **prefill**. It's measured in **tokens**, which are small pieces of text (roughly ¾ of a word each). A coding agent's conversation is often 50,000–120,000 tokens long.
 
@@ -92,6 +101,8 @@ llama.cpp started in March 2023 in much the same way. One person ported one mode
 It became so popular that it now supports almost every model on almost every chip, and that is exactly why it's slow on this chip with this model. Some of gufo's fastest routines started life as llama.cpp code, copied and then tuned for one chip and one model. gufo is doing what llama.cpp did at the start, and if it's successful it will face the same pressure to support everything.
 
 ## Sources
+
+- llama.cpp's reach: the GitHub pages for [ggml-org/llama.cpp](https://github.com/ggml-org/llama.cpp) (stars, forks, latest release b11223) and [ollama/ollama](https://github.com/ollama/ollama) (its `LLAMA_CPP_VERSION` file pins llama.cpp), and the [GGUF model list on Hugging Face](https://huggingface.co/models?library=gguf), all on 28 September 2026.
 
 - Speed measurements: test A on tritus, in `benchmarks/gufo-eval/results/` (runs of 27 September 2026).
 - gufo's profile and experiment log: `docs/models/qwen3.8-flash-next/EXPERIMENTS.md` in [gufo-org/gufo](https://github.com/gufo-org/gufo) at `b722a61`.
