@@ -112,3 +112,27 @@ def test_claude_env_isolates_config_uses_the_token_and_drops_api_keys(tmp_path, 
     assert env["CLAUDE_CONFIG_DIR"].startswith(str(tmp_path / "work"))
     assert env["CLAUDE_CODE_OAUTH_TOKEN"] == "sk-ant-oat01-test"
     assert set(c.env_remove) >= {"ANTHROPIC_API_KEY", "ANTHROPIC_AUTH_TOKEN"}
+
+
+def test_pi_sends_a_thinking_level_when_the_server_cannot_apply_one(tmp_path):
+    """mlx-serve has no server-side effort: run.sh's REASONING_EFFORT=low reached its launcher and was
+    ignored, so canvas-mlx-02 ran at the chat template's default (xhigh) while recorded as "low".
+    With a client thinking level, pi sends reasoning_effort itself."""
+    c = PiClient(tmp_path, thinking="low")
+    c.write_config("http://127.0.0.1:1/v1", "m", 131072, 32768)
+    m = json.loads((tmp_path / "pi-agent" / "models.json").read_text())["providers"]["local"]["models"][0]
+    assert m["compat"]["supportsReasoningEffort"] is True
+    cmd = c.command("m", "do it")
+    assert cmd[cmd.index("--thinking") + 1] == "low"
+    assert cmd.index("--thinking") < cmd.index("--")
+
+
+def test_pi_sends_no_thinking_level_by_default(tmp_path):
+    c = PiClient(tmp_path)
+    assert "--thinking" not in c.command("m", "do it")
+
+
+def test_pi_refuses_an_unknown_thinking_level(tmp_path):
+    import pytest
+    with pytest.raises(ValueError):
+        PiClient(tmp_path, thinking="extreme")

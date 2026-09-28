@@ -35,7 +35,7 @@ import pack as packmod
 import packdir
 import progress
 from hostenv import IS_MAC, THERMAL_OK, mem_free_pct
-from clients import CLIENTS, empty_state
+from clients import CLIENTS, PI_THINKING_LEVELS, empty_state
 
 HARNESS = Path(__file__).resolve().parent
 REPO_ROOT = HARNESS.parent.parent.parent       # benchmarks/spec-bench/harness -> repo
@@ -1219,6 +1219,8 @@ def main() -> None:
     ap.add_argument("--context-limit", type=int, default=131072)
     ap.add_argument("--output-limit", type=int, default=32768)
     ap.add_argument("--compact-at", type=int, help="tokens of context at which the agent compacts (pi only)")
+    ap.add_argument("--client-thinking", choices=PI_THINKING_LEVELS,
+                    help="reasoning effort the agent sends with each request, for servers that can't apply one (pi only)")
     ap.add_argument("--only", help="comma list of story ids to run (smoke tests)")
     ap.add_argument("--record", action="store_true",
                     help="after each story, commit this run's directory and push (a per-story record)")
@@ -1253,11 +1255,13 @@ def main() -> None:
     (run / "work_dir.txt").write_text(str(work))
     spec_hash = tree_hash(ws / "spec")
     env = agent_env(work)
-    client = CLIENTS[a.client](work)
+    if a.client_thinking and a.client != "pi":
+        raise SystemExit("--client-thinking applies to pi only")
+    client = CLIENTS[a.client](work, thinking=a.client_thinking) if a.client_thinking else CLIENTS[a.client](work)
     client.write_config(a.base_url, a.model_id, a.context_limit, a.output_limit, compact_at=a.compact_at)
     metrics = load_metrics(run)
     metrics.update({"pack": PK.name, "scope": scope_label, "model_id": a.model_id, "client": a.client,
-                    "compact_at": a.compact_at})
+                    "compact_at": a.compact_at, "client_thinking": a.client_thinking})
     processed = load_processed(metrics, scope["stories"])
     metrics["processed"] = processed
     progress.write_progress(run, scope, stories, metrics, None)
