@@ -113,8 +113,17 @@ def stages(run: dict, job: dict | None, suite: str) -> dict:
     """Where the run is in build -> score -> judge, in words."""
     status = (job or {}).get("state", {}).get("status")
     if status == "running":
-        cur = (job.get("progress") or {}).get("current_story")
-        build = f"running: story {cur}" if cur else "running: starting"
+        prog = job.get("progress") or {}
+        cur = prog.get("current_story")
+        busy = next((st.get("id") for st in prog.get("stories") or [] if st.get("status") == "running"), None)
+        if cur:
+            build = f"running: story {cur}"
+        elif busy:
+            build = f"running: story {busy} (finishing)"     # agent done: gates, scoring, commit
+        elif prog.get("stories"):
+            build = "running: between stories"
+        else:
+            build = "running: starting"
     elif status == "queued":
         build = "queued"
     elif status == "failed":
@@ -139,6 +148,31 @@ def stages(run: dict, job: dict | None, suite: str) -> dict:
     else:
         judge = "ready"
     return {"build": build, "score": score, "judge": judge}
+
+
+def short_stack(combination: str) -> str:
+    """"qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-pi" -> "3.8-swift-1.5/27b": the model part."""
+    parts = combination.split("/")
+    return "/".join(parts[1:3]) if len(parts) >= 3 else combination
+
+
+def queue_positions(by_node: dict[str, list[dict]]) -> dict[str, dict]:
+    """Each queued job's place on its node and the jobs ahead of it. dbench runs one job at a time,
+    first in first out, except that a job being restarted after a failure goes to the front."""
+    out = {}
+    for jobs in by_node.values():
+        running = [j for j in jobs if (j.get("state") or {}).get("status") == "running"]
+        queued = [j for j in jobs if (j.get("state") or {}).get("status") == "queued"]
+        # dbench's own order: (submission time, job id); restarts first
+        queued.sort(key=lambda j: (0 if j.get("attempt", 0) else 1, j.get("submitted_at", 0), j.get("id", "")))
+        def label(j, suffix=""):
+            spec, prog = j.get("spec", {}), j.get("progress", {})
+            return f"{short_stack(prog.get('combination') or spec.get('install_id', ''))} {spec.get('run_id', '')}{suffix}"
+        ahead = [label(j, " (running)") for j in running]
+        for j in queued:
+            out[j["id"]] = {"position": len(ahead) + 1, "ahead": list(ahead)}
+            ahead.append(label(j))
+    return out
 
 
 def live_from_job(job: dict) -> dict:
@@ -305,6 +339,7 @@ class State:
     def snapshot(self) -> dict:
         with self.lock:
             rows = merge(self.runs, index_jobs(self.jobs))
+            queue = queue_positions(self.jobs)
             for row in rows:
                 suite = self.suites.get(row["pack"], "")
                 row["suite"] = suite
@@ -312,6 +347,8 @@ class State:
                 row["stages"] = stages(row, row["job"], suite)
                 job = row.pop("job")
                 row["live"] = live_from_job(job) if job else None
+                if row["live"] and row["live"]["job_id"] in queue:
+                    row["live"]["queue"] = queue[row["live"]["job_id"]]
             return {"now": time.time(), "fetched_at": self.fetched_at, "fetch_error": self.fetch_error,
                     "dbench_at": self.dbench_at, "dbench_error": self.dbench_error,
                     "suites": self.suites, "web": self.web, "judge_url": self.judge_url, "branch": BRANCH,
