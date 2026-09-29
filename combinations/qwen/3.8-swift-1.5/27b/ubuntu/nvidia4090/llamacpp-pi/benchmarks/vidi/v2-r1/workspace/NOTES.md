@@ -1,5 +1,23 @@
 # NOTES
 
+## Story 2: Capture ideas on sticky notes and rearrange them
+
+### Decisions made
+
+1. **Y.Text binding in unit tests**: Yjs `Y.Text` must be bound to a `Y.Doc` (via `doc.getText()`) for `observe` callbacks to fire. Standalone `new Y.Text()` does not trigger observers. Unit tests use `doc.getText('text')` to create properly bound text instances.
+
+2. **Yjs delta format**: The `observe` callback for `Y.Text` reports deltas as `[{retain: N}, {insert: '...'}]` or `[{retain: N}, {delete: N}]` — the retain prefix is always included. Tests assert the full delta structure including retain entries.
+
+3. **`applyTextDiff` with unbound Y.Text**: The `applyTextDiff` function handles both bound (with doc) and unbound Y.Text instances. When bound, it uses `doc.transact()` for atomicity. When unbound (edge case in tests), it applies operations directly.
+
+4. **Font fitting during editing**: A hidden measurement `div` is always rendered inside each `StickyNote` (regardless of editing state) to enable `fitFontSize` to work during text editing. The measurement div has the same width, font-family, and text as the visible content area.
+
+5. **`useSyncExternalStore` referential equality**: The `useBoardDoc` hook caches the snapshot in a ref and only updates it when the Yjs `observeDeep` callback fires. This prevents infinite re-render loops that would occur if `getSnapshot` returned a new array on every call.
+
+6. **E2E note spacing at high zoom**: At 200% zoom, notes are 400×400 screen pixels. E2E tests that create multiple notes must space them at least 400px apart to avoid double-clicking an existing note instead of empty space.
+
+7. **E2E browsers**: Only Chromium is tested in e2e because Firefox and WebKit system dependencies are not available in this environment. The task specification states "Chromium is sufficient if other browsers are not installed."
+
 ## Story 1: Pan and zoom around an infinite board
 
 ### Decisions made

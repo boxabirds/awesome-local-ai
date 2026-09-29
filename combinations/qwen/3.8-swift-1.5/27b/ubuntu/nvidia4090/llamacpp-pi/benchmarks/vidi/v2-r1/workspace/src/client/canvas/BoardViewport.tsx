@@ -12,6 +12,8 @@ interface BoardViewportProps {
   zoomStep: (dir: 'in' | 'out') => void;
   reset: () => void;
   isPanning: boolean;
+  onDoubleClickEmpty?: (screenPoint: Point) => void;
+  onPointerUpEmpty?: () => void;
   children?: ReactNode;
 }
 
@@ -28,6 +30,8 @@ export function BoardViewport({
   zoomStep,
   reset,
   isPanning,
+  onDoubleClickEmpty,
+  onPointerUpEmpty,
   children,
 }: BoardViewportProps) {
   const ref = useRef<HTMLDivElement>(null);
@@ -65,9 +69,23 @@ export function BoardViewport({
     endPan();
   }, [endPan]);
 
-  const onPointerUp = useCallback((_e: React.PointerEvent) => {
+  const onPointerUp = useCallback((e: React.PointerEvent) => {
     endDrag();
-  }, [endDrag]);
+    // If pointerup on empty space (not a note), clear selection
+    const target = e.target as HTMLElement;
+    if (target === ref.current || target.classList.contains('board-grid')) {
+      onPointerUpEmpty?.();
+    }
+  }, [endDrag, onPointerUpEmpty]);
+
+  const onDoubleClick = useCallback((e: React.MouseEvent) => {
+    // Only handle dblclick on empty space (viewport/grid), not on notes
+    const target = e.target as HTMLElement;
+    if (target !== ref.current && !target.classList.contains('board-grid')) return;
+    const rect = ref.current?.getBoundingClientRect();
+    if (!rect) return;
+    onDoubleClickEmpty?.({ x: e.clientX - rect.left, y: e.clientY - rect.top });
+  }, [onDoubleClickEmpty]);
 
   const onPointerCancel = useCallback((_e: React.PointerEvent) => {
     endDrag();
@@ -190,6 +208,7 @@ export function BoardViewport({
       onPointerUp={onPointerUp}
       onPointerCancel={onPointerCancel}
       onLostPointerCapture={onPointerCancel}
+      onDoubleClick={onDoubleClick}
     >
       <div
         className="board-grid"

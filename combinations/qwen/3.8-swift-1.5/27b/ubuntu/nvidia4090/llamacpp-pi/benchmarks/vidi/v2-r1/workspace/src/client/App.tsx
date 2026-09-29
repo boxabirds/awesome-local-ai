@@ -1,10 +1,19 @@
-import { useRef, useState, useEffect } from 'react';
+import { useRef, useState, useEffect, useCallback } from 'react';
 import { BoardViewport } from './canvas/BoardViewport';
 import { ZoomControls } from './canvas/ZoomControls';
 import { NavigationHint } from './canvas/NavigationHint';
 import { useCamera } from './canvas/useCamera';
+import { screenToWorld } from './canvas/camera';
 import { zoomPercent, canZoomIn, canZoomOut } from './canvas/camera';
 import { setupTestHooks } from './canvas/testHooks';
+import { useBoardDoc } from './board/useBoardDoc';
+import { useSelection } from './board/useSelection';
+import { Toolbar } from './board/Toolbar';
+import { StickyNote } from './objects/StickyNote';
+import { NoteToolbar } from './objects/NoteToolbar';
+import { createSticky, deleteObject, setStickyColor } from '@shared/board-model';
+import { STICKY_SIZE_WORLD } from '@shared/config';
+import type { Point } from './canvas/camera';
 
 export function App() {
   const viewportRef = useRef<HTMLDivElement>(null);
@@ -23,11 +32,94 @@ export function App() {
   }, []);
 
   const cam = useCamera(size);
+  const { doc, objects } = useBoardDoc();
+  const { selectedId, editingId, select, startEdit, endEdit } = useSelection();
 
-  // Set up test hooks in test mode
+  // Set up test hooks
   useEffect(() => {
     setupTestHooks(cam);
   }, [cam]);
+
+  // Create a sticky note at a world point
+  const createStickyAt = useCallback((worldPoint: Point) => {
+    const id = createSticky(doc, worldPoint);
+    if (id) {
+      startEdit(id);
+    }
+  }, [doc, startEdit]);
+
+  // Handle double-click on empty board space
+  const handleDoubleClickEmpty = useCallback((screenPoint: Point) => {
+    const worldPoint = screenToWorld(cam.camera, screenPoint);
+    createStickyAt(worldPoint);
+  }, [cam.camera, createStickyAt]);
+
+  // Handle click on Sticky note toolbar button
+  const handleCreateSticky = useCallback(() => {
+    const centre: Point = { x: size.width / 2, y: size.height / 2 };
+    const worldPoint = screenToWorld(cam.camera, centre);
+    createStickyAt(worldPoint);
+  }, [cam.camera, size, createStickyAt]);
+
+  // Handle clear selection (click on empty space)
+  const handlePointerUpEmpty = useCallback(() => {
+    select(null);
+  }, [select]);
+
+  // Keyboard handler for Enter, Delete, Backspace
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      // Don't handle keys when focus is in an input/textarea
+      const target = e.target as HTMLElement;
+      if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable) {
+        return;
+      }
+
+      if (e.key === 'Enter' && selectedId && !editingId) {
+        e.preventDefault();
+        startEdit(selectedId);
+      } else if ((e.key === 'Delete' || e.key === 'Backspace') && selectedId && !editingId) {
+        e.preventDefault();
+        deleteObject(doc, selectedId);
+        select(null);
+      }
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [selectedId, editingId, doc, select, startEdit]);
+
+  // Handle colour change from NoteToolbar
+  const handleColorChange = useCallback((color: string) => {
+    if (selectedId) {
+      setStickyColor(doc, selectedId, color);
+    }
+  }, [doc, selectedId]);
+
+  // Handle delete from NoteToolbar
+  const handleDelete = useCallback(() => {
+    if (selectedId) {
+      deleteObject(doc, selectedId);
+      select(null);
+    }
+  }, [doc, selectedId, select]);
+
+  // Find the selected note for NoteToolbar positioning
+  const selectedNote = objects.find(n => n.id === selectedId);
+
+  // Compute screen position for the NoteToolbar
+  let noteToolbarStyle: React.CSSProperties | null = null;
+  if (selectedNote && !editingId) {
+    const screenX = (selectedNote.x - cam.camera.x) * cam.camera.zoom;
+    const screenY = (selectedNote.y - cam.camera.y) * cam.camera.zoom;
+    const noteWidth = STICKY_SIZE_WORLD * cam.camera.zoom;
+    noteToolbarStyle = {
+      position: 'absolute',
+      left: screenX + noteWidth / 2,
+      top: screenY - 8,
+      transform: 'translate(-50%, -100%)',
+      zIndex: 1001,
+    };
+  }
 
   return (
     <div ref={viewportRef} style={{ width: '100vw', height: '100vh', overflow: 'hidden', position: 'relative' }}>
@@ -41,7 +133,33 @@ export function App() {
         zoomStep={cam.zoomStep}
         reset={cam.reset}
         isPanning={cam.isPanning}
-      />
+        onDoubleClickEmpty={handleDoubleClickEmpty}
+        onPointerUpEmpty={handlePointerUpEmpty}
+      >
+        {objects.map(note => (
+          <StickyNote
+            key={note.id}
+            note={note}
+            doc={doc}
+            zoom={cam.camera.zoom}
+            selected={selectedId === note.id}
+            editing={editingId === note.id}
+            onSelect={select}
+            onStartEdit={startEdit}
+            onEndEdit={endEdit}
+          />
+        ))}
+      </BoardViewport>
+      <Toolbar onCreateSticky={handleCreateSticky} />
+      {noteToolbarStyle && selectedNote && (
+        <div style={noteToolbarStyle}>
+          <NoteToolbar
+            color={selectedNote.color}
+            onColor={handleColorChange}
+            onDelete={handleDelete}
+          />
+        </div>
+      )}
       <ZoomControls
         zoomPercent={zoomPercent(cam.camera)}
         canZoomIn={canZoomIn(cam.camera)}
