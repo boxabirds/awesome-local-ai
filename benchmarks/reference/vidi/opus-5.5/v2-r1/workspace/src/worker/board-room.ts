@@ -50,7 +50,7 @@ export class BoardRoom extends DurableObject<Env> {
     const doc = new Y.Doc();
     let result;
     try {
-      this.store.migrate();
+      // Reads only: an unknown board's storage stays empty (tables are created on initialize/append).
       result = this.store.load(doc);
     } catch (e) {
       result = { ok: false as const, reason: 'sql-error' as const, error: String(e) };
@@ -97,10 +97,32 @@ export class BoardRoom extends DurableObject<Env> {
     for (const ws of this.ctx.getWebSockets()) this.close(ws, CLOSE_STORAGE_FAILURE, 'Storage failure');
   }
 
+  /** RPC: creates the board (tables and `created_at`) unless it already exists. */
+  async initialize(): Promise<'created' | 'exists'> {
+    return this.store.initialize();
+  }
+
+  /** RPC: whether the board exists (created, or saved before explicit creation). Reads only. */
+  async exists(): Promise<boolean> {
+    return this.store.existsReadOnly();
+  }
+
+  private existsForConnection(): boolean {
+    try {
+      return this.store.existsReadOnly();
+    } catch (e) {
+      // Storage unreadable: let the load-failed path explain it rather than "not found".
+      console.error(JSON.stringify({ event: 'board-room.exists-failed', error: String(e) }));
+      return true;
+    }
+  }
+
   async fetch(req: Request): Promise<Response> {
     if (req.headers.get('Upgrade')?.toLowerCase() !== 'websocket') {
       return new Response('Expected WebSocket upgrade', { status: 426 });
     }
+    // Connecting never creates a board.
+    if (!this.existsForConnection()) return new Response('Board not found', { status: 404 });
     const before = this.state;
     this.transition({ type: 'connection', at: Date.now() });
     if (this.state !== before && this.state.name === 'loading') this.load();
@@ -131,6 +153,18 @@ export class BoardRoom extends DurableObject<Env> {
     for (const ws of this.ctx.getWebSockets()) {
       this.close(ws, CLOSE_BOARD_LOAD_FAILED, "Board couldn't be loaded");
     }
+    return true;
+  }
+
+  /**
+   * Test builds only (TEST_HOOKS): stores `update` as a board saved before boards were created
+   * explicitly (update rows, no `created_at`) and reloads the room from storage.
+   */
+  async seedLegacy(update: Uint8Array): Promise<boolean> {
+    if (!testHooksEnabled(this.env)) return false;
+    this.store.migrate();
+    this.store.append(update);
+    this.load();
     return true;
   }
 

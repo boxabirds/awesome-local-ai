@@ -10,7 +10,6 @@ import {
   setStickyColor,
   snapshot,
 } from '../../src/shared/board-model';
-import { newBoardId } from '../../src/shared/board-id';
 import { MAX_CONCURRENT_EDITORS } from '../../src/shared/config';
 import {
   CLOSE_UNSUPPORTED_DATA,
@@ -21,7 +20,7 @@ import {
 } from '../../src/shared/protocol';
 import type { BoardRoom } from '../../src/worker/board-room';
 import { randomOp, seededRandom } from '../fixtures/random-ops';
-import { TestClient, openSocket, waitFor } from './ws-client';
+import { TestClient, openSocket, waitFor, createBoardId } from './ws-client';
 
 const open: TestClient[] = [];
 async function connect(boardId: string, doc?: Y.Doc) {
@@ -43,7 +42,7 @@ async function roomSnapshot(boardId: string) {
 }
 
 async function pair() {
-  const boardId = newBoardId();
+  const boardId = await createBoardId();
   const a = await connect(boardId);
   const b = await connect(boardId);
   return { boardId, a, b };
@@ -142,7 +141,7 @@ describe('sync.room merging', () => {
   it('TC-12 MAX_CONCURRENT_EDITORS clients x 200 seeded random ops converge', async () => {
     const seed = Date.now() % 1_000_000;
     console.log(`TC-12 random-ops seed: ${seed}`);
-    const boardId = newBoardId();
+    const boardId = await createBoardId();
     const clients: TestClient[] = [];
     for (let i = 0; i < MAX_CONCURRENT_EDITORS; i++) clients.push(await connect(boardId));
     const rands = clients.map((_, i) => seededRandom(seed + i));
@@ -226,7 +225,7 @@ describe('sync.room errors and relay', () => {
     // B keeps editing while disconnected.
     createSticky(b.doc, { x: 900, y: 0 }, 'blue');
 
-    const fresh = newBoardId();
+    const fresh = await createBoardId();
     // Story 4: a room loads its (here empty) saved board when constructed.
     expect((await roomSnapshot(fresh))?.notes).toEqual([]);
     const a2 = await connect(fresh, a.doc);
@@ -238,7 +237,7 @@ describe('sync.room errors and relay', () => {
   });
 
   it('TC-31 a dead socket does not break broadcasting to the others', async () => {
-    const boardId = newBoardId();
+    const boardId = await createBoardId();
     const a = await connect(boardId);
     const b = await connect(boardId);
     const c = await connect(boardId);
@@ -255,7 +254,7 @@ describe('sync.room errors and relay', () => {
 
 describe('sync.room handshake', () => {
   it('sends SyncStep1 to a newly accepted socket', async () => {
-    const { ws } = await openSocket(newBoardId());
+    const { ws } = await openSocket(await createBoardId());
     const first = await new Promise<Uint8Array>((resolve) =>
       ws.addEventListener('message', (e) => resolve(new Uint8Array(e.data as ArrayBuffer)), {
         once: true,

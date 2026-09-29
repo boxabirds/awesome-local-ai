@@ -1,5 +1,4 @@
 import { useEffect, useRef } from 'react';
-import { isValidBoardId, newBoardId } from '../shared/board-id';
 import { createSticky, deleteObject } from '../shared/board-model';
 import { Toolbar } from './board/Toolbar';
 import { useBoardDoc } from './board/useBoardDoc';
@@ -8,22 +7,25 @@ import { BoardViewport } from './canvas/BoardViewport';
 import { type Point, screenToWorld } from './canvas/camera';
 import { isEditableTarget } from './canvas/isEditableTarget';
 import { StickyNote } from './objects/StickyNote';
+import { BoardPage } from './pages/BoardPage';
+import { HomePage } from './pages/HomePage';
+import { NotFoundPage } from './pages/NotFoundPage';
+import { useRoute } from './router';
 import { ConnectionStatus } from './sync/ConnectionStatus';
 import type { ConnectionState } from './sync/connectBoard';
 import type * as Y from 'yjs';
 
-const BOARD_PATH = /^\/b\/([^/]+)\/?$/;
-
-/**
- * The board id from a `/b/:boardId` address. Any other address is replaced (without a new
- * history entry) by the address of a fresh board: temporary until story 5 creates boards.
- */
-export function boardIdFromLocation(location: Location = window.location): string {
-  const match = BOARD_PATH.exec(location.pathname);
-  if (match && isValidBoardId(match[1])) return match[1];
-  const boardId = newBoardId();
-  window.history.replaceState(null, '', `/b/${boardId}${location.search}${location.hash}`);
-  return boardId;
+/** The app: Home (`/`), a board (`/b/:id`) or Board not found (anything else). */
+export function Root() {
+  const route = useRoute();
+  switch (route.name) {
+    case 'home':
+      return <HomePage />;
+    case 'board':
+      return <BoardPage key={route.id} id={route.id} />;
+    case 'not_found':
+      return <NotFoundPage />;
+  }
 }
 
 /**
@@ -35,7 +37,7 @@ export function canEdit(state: ConnectionState): boolean {
 }
 
 /**
- * `boardId` connects the board to its live room; without it (component tests) the board is
+ * The board (stories 1–4). `boardId` connects the board to its live room; without it (component tests) the board is
  * local only. `doc` lets tests supply the board document; the app creates its own.
  */
 export function App(props: { boardId?: string; doc?: Y.Doc }) {

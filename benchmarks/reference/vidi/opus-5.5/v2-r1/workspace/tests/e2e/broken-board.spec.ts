@@ -1,12 +1,11 @@
 // persist.client_status end to end: a board whose saved snapshot is damaged (test hook) is shown
 // as broken, cannot be edited, and appears without a reload once it is repaired.
 import { expect, test } from '@playwright/test';
-import { newBoardId } from '../../src/shared/board-id';
 import { E2E_EVENTUAL_TIMEOUT_MS, LOAD_RETRY_MIN_INTERVAL_MS, RECONNECT_MAX_BACKOFF_MS } from '../../src/shared/config';
 import { retroBoard } from '../fixtures/boards';
 import { getNotes, notes } from './helpers/board';
 import { connectionBadge, connectionState } from './helpers/participants';
-import { seedBoard } from './helpers/seed';
+import { createBoardViaApi, seedBoard } from './helpers/seed';
 
 const LOAD_FAILED_TEXT = "This board couldn't be loaded. Retrying…";
 // The next retry comes within the provider's longest backoff; the room reloads at most every
@@ -16,7 +15,7 @@ const RECOVERY_TIMEOUT_MS = E2E_EVENTUAL_TIMEOUT_MS + RECONNECT_MAX_BACKOFF_MS +
 test.describe('Workflow: Broken board', () => {
   test('TC-24 honest failure, editing blocked, recovery without reload', async ({ page, request, baseURL }, testInfo) => {
     testInfo.setTimeout(RECOVERY_TIMEOUT_MS + 60_000);
-    const boardId = newBoardId();
+    const boardId = await createBoardViaApi(baseURL!);
     await seedBoard(baseURL!, boardId, retroBoard().updates);
     // Compacts the board into a snapshot, damages it and reloads the room.
     const corrupt = await request.post(`/__test/boards/${boardId}/corrupt-snapshot`);

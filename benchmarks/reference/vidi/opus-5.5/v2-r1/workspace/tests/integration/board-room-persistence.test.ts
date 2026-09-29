@@ -5,7 +5,6 @@ import * as syncProtocol from 'y-protocols/sync';
 import { afterEach, describe, expect, it } from 'vitest';
 import * as Y from 'yjs';
 import { createSticky, snapshot } from '../../src/shared/board-model';
-import { newBoardId } from '../../src/shared/board-id';
 import { LOAD_RETRY_MIN_INTERVAL_MS } from '../../src/shared/config';
 import {
   CLOSE_BOARD_LOAD_FAILED,
@@ -18,7 +17,7 @@ import type { BoardRoom } from '../../src/worker/board-room';
 import { BoardStore } from '../../src/worker/board-store';
 import { corruptSnapshotChunk, repairSnapshotChunk } from '../../src/worker/test-hooks';
 import { retroBoard } from '../fixtures/boards';
-import { TestClient, roomUrl, waitFor } from './ws-client';
+import { TestClient, roomUrl, waitFor, createBoardId } from './ws-client';
 
 const open: TestClient[] = [];
 async function connect(boardId: string, doc?: Y.Doc) {
@@ -109,7 +108,7 @@ function quietConsoleError() {
 
 describe('persist.room', () => {
   it('TC-12 a change another client has seen is already stored; storage alone restores it', async () => {
-    const boardId = newBoardId();
+    const boardId = await createBoardId();
     const a = await connect(boardId);
     const b = await connect(boardId);
     expect((await counts(boardId)).updates).toBe(0);
@@ -128,7 +127,7 @@ describe('persist.room', () => {
   });
 
   it('TC-13 everyone leaves; a new room instance over the same storage serves the same board', async () => {
-    const boardId = newBoardId();
+    const boardId = await createBoardId();
     const { doc: original, updates } = retroBoard();
     const a = await connect(boardId);
     for (const u of updates) Y.applyUpdate(a.doc, u);
@@ -148,7 +147,7 @@ describe('persist.room', () => {
   });
 
   it('TC-14 a failed write is not relayed; sockets close 1011; the change is saved once A reconnects', async () => {
-    const boardId = newBoardId();
+    const boardId = await createBoardId();
     const a = await connect(boardId);
     const b = await connect(boardId);
     await inRoom(boardId, (room) => {
@@ -183,7 +182,7 @@ describe('persist.room', () => {
   });
 
   it('TC-15 a board whose snapshot is unreadable closes clients with 4500 and stores nothing', async () => {
-    const boardId = newBoardId();
+    const boardId = await createBoardId();
     await brokenBoard(boardId);
     const before = await counts(boardId);
 
@@ -202,7 +201,7 @@ describe('persist.room', () => {
   });
 
   it('TC-16 retries loading only after LOAD_RETRY_MIN_INTERVAL_MS; a repaired board then syncs', async () => {
-    const boardId = newBoardId();
+    const boardId = await createBoardId();
     const { doc: original } = await brokenBoard(boardId);
     let loads = 0;
     await inRoom(boardId, (room) => {
@@ -233,7 +232,7 @@ describe('persist.room', () => {
   });
 
   it('TC-16 a retry that fails again restarts the interval', async () => {
-    const boardId = newBoardId();
+    const boardId = await createBoardId();
     await brokenBoard(boardId);
     await ageLoadFailure(boardId, LOAD_RETRY_MIN_INTERVAL_MS);
     const restore = quietConsoleError();
@@ -253,7 +252,7 @@ describe('persist.room', () => {
   });
 
   it('TC-17 a garbage update closes the socket 1003 and is not stored', async () => {
-    const boardId = newBoardId();
+    const boardId = await createBoardId();
     const a = await connect(boardId);
     createSticky(a.doc, { x: 0, y: 0 });
     await a.roundTrip();
@@ -270,7 +269,7 @@ describe('persist.room', () => {
   });
 
   it('TC-18 after hibernation a rebuilt room relays to sockets accepted before it', async () => {
-    const boardId = newBoardId();
+    const boardId = await createBoardId();
     const { updates } = retroBoard();
     const a = await connect(boardId);
     const b = await connect(boardId);
@@ -298,7 +297,7 @@ describe('persist.room', () => {
   });
 
   it('TC-26 a SQL error while loading makes the room close new sockets with 4500', async () => {
-    const boardId = newBoardId();
+    const boardId = await createBoardId();
     const a = await connect(boardId);
     createSticky(a.doc, { x: 0, y: 0 });
     await a.roundTrip();

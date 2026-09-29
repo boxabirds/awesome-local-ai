@@ -160,3 +160,47 @@ Decisions made while implementing without anyone to ask.
   `room-state`) are typechecked with `tsconfig.worker.json` (Workers types), as is `tests/fixtures`.
 - **Red-phase commit skipped** (task 1), as in earlier stories: one story commit.
 - **Firefox e2e** still cannot start in this environment; runs used `E2E_BROWSERS=chromium,webkit`.
+
+## Story 5 — Share a board with others using a link
+
+- **`App` stays the board; `Root` is the router.** The design says `App.tsx` "renders router". Component
+  tests from stories 2–4 render `App` as the board (with `boardId`/`doc` props), so `App` keeps that role
+  and `App.tsx` gains `Root` (Home / `BoardPage` keyed by id / Board not found), which `main.tsx`
+  renders. `BoardPage` mounts `App` + `SharePanel` only in the `ready` state. Story 3's
+  `boardIdFromLocation` redirect is deleted.
+- **Shared New board action.** `pages/useCreateBoard.ts` + `pages/NewBoardButton.tsx` are used by both
+  the Home and Board not found pages (the design's "reuses HomePage's create action"). A second click
+  while creating is ignored. The link back home reads "Go to the home page".
+- **`nextBoardPageState` has an optional 4th argument** (`boardId`) so `ready` can carry the id; the
+  retry delay is `retryDelayMs(attempt)` (base × 2^(attempt−1), capped at `RECONNECT_MAX_BACKOFF_MS`).
+  `checkBoard` treats any answer other than 200/404 as `unreachable`; `createBoardRequest` treats any
+  answer other than a 201 with a valid id as `failed`.
+- **Routes.** `/` home, `/b/:id` board (the id is validated by `BoardPage`, so `/b/bad` is Board not
+  found without a request), everything else (including `/b/<id>/extra`) Board not found.
+- **Worker.** `GET`/`HEAD` on `/api/boards/:id`, `POST` on `/api/boards`; other methods 405 (with
+  `Allow`). JSON answers are `Cache-Control: no-store`. A malformed id on `/api/rooms/` is now 404
+  (story 3's integration TC-04 updated from 400 to 404, as the design's HTTP contract says). The room's
+  own `fetch` answers 404 for a board that does not exist, before accepting a socket; if the existence
+  query itself throws, the room proceeds so the story 4 load-failed path explains the problem instead
+  of "not found".
+- **Storage.** `BoardStore.load()` no longer migrates: missing tables load as an empty board and are not
+  created. `migrate()` runs in `initialize()` and lazily before the first `append()` (also before a
+  quarantine or compaction). `existsReadOnly()` checks `sqlite_master` first. `created_at` is stored in
+  `storage_meta` (epoch ms).
+- **`compatibility_date` unchanged** (2026-08-15): Durable Object RPC needs 2024-04-03 or later.
+- **Existing tests create boards first.** Connecting no longer creates a board, so story 3/4
+  integration tests use `createBoardId()` (POST through the real Worker, `tests/integration/ws-client.ts`)
+  and e2e helpers create boards with New board (`openBoard`) or `createBoardViaApi` (participants,
+  persistence, broken board).
+- **Legacy seeding (e2e TC-31)** uses a new TEST_HOOKS-only route `POST /__test/boards/:id/seed-legacy`
+  (body: one Yjs update) that writes update rows without `created_at`; the "hooks absent in production"
+  e2e check covers it too. The fixture is story 4's retro board merged into one update.
+- **Share panel.** Focus returns to the Share button on Escape and on an outside click (TC-25). Escape and
+  outside pointerdown are handled in the capture phase while the panel is open. The tick in "Link
+  copied" is `aria-hidden`, so the button's accessible name is exactly "Link copied".
+- **TC-22's https link** is tested by giving the SharePanel test file a jsdom URL of
+  `https://vidi6.example/` (per-file environment options).
+- **E2E browsers.** TC-26, TC-28 and TC-31 run in Chromium only (TC-26 needs clipboard permissions);
+  TC-27 and TC-29 in every configured browser. Firefox still cannot start in this environment
+  (sandbox error); runs used `E2E_BROWSERS=chromium,webkit`.
+- **Red-phase commit skipped** (task 1), as in earlier stories: one story commit.

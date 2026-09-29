@@ -11,7 +11,7 @@ import { snapshot } from '../../src/shared/board-model';
 import { largeBoard } from '../fixtures/boards';
 import { boxOf, centreOf, drag, getNotes, noteEditor, notes, setCamera } from './helpers/board';
 import { waitForConnected } from './helpers/participants';
-import { seedBoard } from './helpers/seed';
+import { createBoardViaApi, seedBoard } from './helpers/seed';
 import { type WranglerProcess, wranglerProcess } from './helpers/wrangler-process';
 
 test.describe.configure({ mode: 'parallel', timeout: 240_000 });
@@ -49,7 +49,7 @@ test.describe('Workflow: Overnight return', () => {
     browser,
   }) => {
     const srv = await server();
-    const boardId = newBoardId();
+    const boardId = await createBoardViaApi(srv.baseURL);
     const alex = await openPage(browser, srv, boardId);
     const page = alex.page;
     await setCamera(page, { x: 0, y: 0, zoom: 0.5 });
@@ -100,7 +100,7 @@ test.describe('Workflow: Leave immediately', () => {
     browser,
   }) => {
     const srv = await server();
-    const boardId = newBoardId();
+    const boardId = await createBoardViaApi(srv.baseURL);
     const alex = await openPage(browser, srv, boardId);
     const sam = await openPage(browser, srv, boardId);
 
@@ -131,7 +131,7 @@ test.describe('Workflow: Big board open', () => {
     browser,
   }) => {
     const srv = await server();
-    const boardId = newBoardId();
+    const boardId = await createBoardViaApi(srv.baseURL);
     // One update per change: the log is compacted several times while seeding.
     const board = largeBoard(PERSIST_TESTED_NOTES, 2000, { oneTransaction: false });
     await seedBoard(srv.baseURL, boardId, board.updates);
@@ -162,7 +162,7 @@ test.describe('Workflow: Big board open', () => {
 test('test hook routes are absent without TEST_HOOKS (production configuration)', async () => {
   const srv = await server();
   const boardId = newBoardId();
-  for (const action of ['corrupt-snapshot', 'repair']) {
+  for (const action of ['corrupt-snapshot', 'repair', 'seed-legacy']) {
     const res = await fetch(`${srv.baseURL}/__test/boards/${boardId}/${action}`, { method: 'POST' });
     const body = await res.text();
     expect(body).not.toBe('ok');

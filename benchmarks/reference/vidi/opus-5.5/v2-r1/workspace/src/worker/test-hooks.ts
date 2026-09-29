@@ -1,4 +1,5 @@
-// Test-only routes that damage and repair a board's saved snapshot (e2e TC-24). The Worker
+// Test-only routes that damage and repair a board's saved snapshot (e2e TC-24) and seed a
+// board saved before boards were created explicitly (story 5 e2e TC-31). The Worker
 // routes them only when env.TEST_HOOKS === '1', which only the e2e `wrangler dev` sets
 // (`--var TEST_HOOKS:1`); the production config never does.
 import { isValidBoardId } from '../shared/board-id';
@@ -6,7 +7,7 @@ import type { Env } from './index';
 
 export type TestHookAction = 'corrupt-snapshot' | 'repair';
 
-const TEST_ROUTE = /^\/__test\/boards\/([^/]+)\/(corrupt-snapshot|repair)$/;
+const TEST_ROUTE = /^\/__test\/boards\/([^/]+)\/(corrupt-snapshot|repair|seed-legacy)$/;
 
 export function testHooksEnabled(env: Env): boolean {
   return env.TEST_HOOKS === '1';
@@ -20,7 +21,11 @@ export async function handleTestHook(req: Request, url: URL, env: Env): Promise<
   if (req.method !== 'POST') return new Response('Method not allowed', { status: 405 });
   if (!isValidBoardId(match[1])) return new Response('Invalid board id', { status: 400 });
   const room = env.BOARD_ROOM.get(env.BOARD_ROOM.idFromName(match[1]));
-  const ok = await room.testHook(match[2] as TestHookAction);
+  // seed-legacy: the body is one Yjs update, stored as update rows without `created_at`.
+  const ok =
+    match[2] === 'seed-legacy'
+      ? await room.seedLegacy(new Uint8Array(await req.arrayBuffer()))
+      : await room.testHook(match[2] as TestHookAction);
   return new Response(ok ? 'ok' : 'nothing to do', { status: ok ? 200 : 409 });
 }
 

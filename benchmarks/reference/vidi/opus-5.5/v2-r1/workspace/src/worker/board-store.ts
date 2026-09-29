@@ -1,7 +1,7 @@
 // A board's saved state in its Durable Object's SQLite database: an append-only log of Yjs
 // updates, periodically compacted into a snapshot split over several rows.
 //
-//   storage_meta        key → value (storage_schema_version, snapshot_through_seq)
+//   storage_meta        key → value (storage_schema_version, snapshot_through_seq, created_at)
 //   updates             one row per applied update, in order
 //   snapshot_chunks     the snapshot (Y.encodeStateAsUpdate) in SNAPSHOT_CHUNK_BYTES pieces
 //   quarantined_updates log rows that could not be read on load, kept for inspection
@@ -124,16 +124,57 @@ export class BoardStore {
       `INSERT OR IGNORE INTO storage_meta (key, value) VALUES ('storage_schema_version', ?)`,
       String(STORAGE_SCHEMA_VERSION),
     );
+    this.migrated = true;
+  }
+
+  private migrated = false;
+
+  private hasTable(name: string): boolean {
+    return (
+      this.sql
+        .exec(`SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = ?`, name)
+        .toArray().length > 0
+    );
+  }
+
+  /**
+   * Whether this board exists: it was created (`created_at`), or it is a board saved before
+   * boards were created explicitly (any update or snapshot row). Only reads; never creates tables.
+   */
+  existsReadOnly(): boolean {
+    if (
+      this.hasTable('storage_meta') &&
+      this.sql.exec(`SELECT 1 FROM storage_meta WHERE key = 'created_at'`).toArray().length
+    ) {
+      return true;
+    }
+    for (const table of ['updates', 'snapshot_chunks']) {
+      if (this.hasTable(table) && this.sql.exec(`SELECT 1 FROM ${table} LIMIT 1`).toArray().length) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  /** Records the board's creation time unless it has one: 'created', or 'exists' when it had. */
+  initialize(now = Date.now()): 'created' | 'exists' {
+    this.migrate();
+    const had = this.sql.exec(`SELECT 1 FROM storage_meta WHERE key = 'created_at'`).toArray().length;
+    if (had) return 'exists';
+    this.sql.exec(`INSERT INTO storage_meta (key, value) VALUES ('created_at', ?)`, String(now));
+    return 'created';
   }
 
   /** Stores one update at the end of the log. Throws when the write fails. */
   append(update: Uint8Array): void {
+    if (!this.migrated) this.migrate();
     this.sql.exec('INSERT INTO updates (data, bytes) VALUES (?, ?)', update, update.length);
     this.logCount += 1;
     this.logBytes += update.length;
   }
 
   private throughSeq(): number {
+    if (!this.hasTable('storage_meta')) return 0;
     const rows = this.sql
       .exec<{ value: string }>(`SELECT value FROM storage_meta WHERE key = 'snapshot_through_seq'`)
       .toArray();
@@ -143,10 +184,16 @@ export class BoardStore {
   /**
    * Applies the snapshot and then every later log row to `doc` (origin LOAD_ORIGIN). A log row
    * Yjs cannot read is moved to `quarantined_updates`; an unreadable snapshot or a SQL error
-   * fails the load without changing storage.
+   * fails the load without changing storage. Missing tables (a board never written) load as
+   * an empty board without being created.
    */
   load(doc: Y.Doc): LoadResult {
     try {
+      if (!this.hasTable('updates') || !this.hasTable('snapshot_chunks')) {
+        this.logCount = 0;
+        this.logBytes = 0;
+        return { ok: true, quarantined: 0 };
+      }
       const chunks = this.sql
         .exec<{ data: ArrayBuffer }>('SELECT data FROM snapshot_chunks ORDER BY idx')
         .toArray()
@@ -192,6 +239,7 @@ export class BoardStore {
   }
 
   private quarantine(seq: number, data: Uint8Array, error: string): void {
+    if (!this.migrated) this.migrate();
     this.storage.transactionSync(() => {
       this.sql.exec(
         'INSERT OR REPLACE INTO quarantined_updates (seq, data, error, quarantined_at) VALUES (?, ?, ?, ?)',
@@ -213,6 +261,7 @@ export class BoardStore {
   compactIfNeeded(doc: Y.Doc, force = false): boolean {
     if (!force && !shouldCompact(this.logCount, this.logBytes)) return false;
     try {
+      if (!this.migrated) this.migrate();
       const chunks = chunkBytes(Y.encodeStateAsUpdate(doc));
       this.storage.transactionSync(() => {
         const maxSeq =

@@ -1,7 +1,7 @@
 // Several people on one board: one isolated browser context per participant.
 import { type Browser, type BrowserContext, type Page, type TestInfo, expect } from '@playwright/test';
-import { newBoardId } from '../../../src/shared/board-id';
 import { E2E_EVENTUAL_TIMEOUT_MS, LIVE_UPDATE_LATENCY_BUDGET_MS } from '../../../src/shared/config';
+import { createBoardViaApi } from './seed';
 
 export interface Participant {
   name: string;
@@ -17,14 +17,15 @@ export interface Session {
   close(): Promise<void>;
 }
 
-/** Opens `names.length` isolated contexts on the same new board and waits until all are connected. */
+/** Opens `names.length` isolated contexts on the same board (a new one by default) and waits until all are connected. */
 export async function openParticipants(
   browser: Browser,
   testInfo: TestInfo,
   names: string[],
-  boardId = newBoardId(),
+  boardId?: string,
 ): Promise<Session> {
   const { baseURL, viewport } = testInfo.project.use;
+  const id = boardId ?? (await createBoardViaApi(baseURL!));
   const participants = await Promise.all(
     names.map(async (name) => {
       const context = await browser.newContext({ baseURL, viewport });
@@ -38,13 +39,13 @@ export async function openParticipants(
         problems.push(`dialog: ${dialog.message()}`);
         void dialog.dismiss();
       });
-      await page.goto(`/b/${boardId}`);
+      await page.goto(`/b/${id}`);
       await waitForConnected(page);
       return { name, context, page, problems };
     }),
   );
   return {
-    boardId,
+    boardId: id,
     participants,
     close: async () => {
       await Promise.all(participants.map((p) => p.context.close()));

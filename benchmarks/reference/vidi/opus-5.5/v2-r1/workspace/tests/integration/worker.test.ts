@@ -4,7 +4,7 @@ import { createSticky } from '../../src/shared/board-model';
 import { newBoardId } from '../../src/shared/board-id';
 import { MAX_CONCURRENT_EDITORS } from '../../src/shared/config';
 import worker from '../../src/worker/index';
-import { TestClient, roomUrl } from './ws-client';
+import { TestClient, roomUrl, createBoardId } from './ws-client';
 
 const open: TestClient[] = [];
 async function connect(boardId: string) {
@@ -17,7 +17,7 @@ afterEach(() => {
 });
 
 describe('sync.worker_entry routing', () => {
-  it('TC-04 rejects an invalid board id with 400 without touching the room namespace', async () => {
+  it('TC-04 rejects an invalid board id with 404 (story 5; was 400) without touching the room namespace', async () => {
     const calls: string[] = [];
     // The real namespace, wrapped to record every use.
     const spied = new Proxy(env.BOARD_ROOM, {
@@ -35,13 +35,13 @@ describe('sync.worker_entry routing', () => {
         new Request(roomUrl(bad), { headers: { Upgrade: 'websocket' } }),
         { ...env, BOARD_ROOM: spied },
       );
-      expect(res.status, bad).toBe(400);
+      expect(res.status, bad).toBe(404);
     }
     expect(calls).toEqual([]);
 
     // Same through the deployed entry point.
     const res = await SELF.fetch(roomUrl('bad!id'), { headers: { Upgrade: 'websocket' } });
-    expect(res.status).toBe(400);
+    expect(res.status).toBe(404);
   });
 
   it('TC-05 answers a valid board id without an Upgrade header with 426', async () => {
@@ -57,7 +57,7 @@ describe('sync.worker_entry routing', () => {
   });
 
   it('TC-13 accepts MAX_CONCURRENT_EDITORS + 1 sockets and the last one edits for everyone', async () => {
-    const boardId = newBoardId();
+    const boardId = await createBoardId();
     const clients: TestClient[] = [];
     for (let i = 0; i < MAX_CONCURRENT_EDITORS + 1; i++) clients.push(await connect(boardId));
     for (const c of clients) expect(c.status).toBe(101);
@@ -71,8 +71,8 @@ describe('sync.worker_entry routing', () => {
   });
 
   it('TC-17 keeps boards separate', async () => {
-    const room1 = newBoardId();
-    const room2 = newBoardId();
+    const room1 = await createBoardId();
+    const room2 = await createBoardId();
     const a = await connect(room1);
     const a2 = await connect(room1);
     const b = await connect(room2);

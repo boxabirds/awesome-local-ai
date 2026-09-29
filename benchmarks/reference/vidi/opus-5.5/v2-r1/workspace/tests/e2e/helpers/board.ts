@@ -7,8 +7,11 @@ export interface Camera {
   zoom: number;
 }
 
+/** Creates a new board from the home page (New board) and waits until it is shown. */
 export async function openBoard(page: Page) {
   await page.goto('/');
+  await page.getByRole('button', { name: 'New board' }).click();
+  await page.waitForURL(/\/b\/[A-Za-z0-9_-]{22}$/);
   await expect(originMarker(page)).toBeAttached();
   await page.waitForFunction(() => !!window.__vidi6?.getCamera && !!window.__vidi6?.getNotes);
 }

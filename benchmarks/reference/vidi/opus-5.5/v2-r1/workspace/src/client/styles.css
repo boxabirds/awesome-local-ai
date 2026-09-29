@@ -397,3 +397,164 @@ body,
   background: #fdd8d8;
   border-color: #e57373;
 }
+
+/* Home, Board not found and board-loading pages (story 5). */
+
+.page {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  height: 100%;
+  padding: 24px;
+  text-align: center;
+}
+
+.page-title {
+  margin: 0;
+  font-size: 40px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.page-text {
+  margin: 0;
+  font-size: 17px;
+  color: #57606a;
+}
+
+.new-board {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.primary-button {
+  min-width: 160px;
+  padding: 12px 24px;
+  font: inherit;
+  font-size: 17px;
+  font-weight: 600;
+  color: #fff;
+  background: #0969da;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.primary-button:hover:not(:disabled) {
+  background: #0550ae;
+}
+
+.primary-button:disabled {
+  cursor: progress;
+  opacity: 0.7;
+}
+
+.primary-button:focus-visible,
+.share-button:focus-visible,
+.share-copy:focus-visible,
+.page-link:focus-visible {
+  outline: 2px solid #0969da;
+  outline-offset: 2px;
+}
+
+.page-error {
+  min-height: 1.4em;
+  margin: 0;
+  color: #b3261e;
+}
+
+.page-link {
+  color: #0969da;
+}
+
+/* Share button and panel: top-right of the board. */
+
+.share {
+  position: fixed;
+  top: 12px;
+  right: 16px;
+  z-index: 30;
+}
+
+.share-button {
+  padding: 6px 16px;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  color: #fff;
+  background: #0969da;
+  border: none;
+  border-radius: 6px;
+  box-shadow: 0 1px 3px rgb(0 0 0 / 12%);
+  cursor: pointer;
+}
+
+.share-button:hover {
+  background: #0550ae;
+}
+
+.share-panel {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  width: 380px;
+  padding: 12px;
+  background: #fff;
+  border: 1px solid #d0d7de;
+  border-radius: 8px;
+  box-shadow: 0 4px 16px rgb(0 0 0 / 14%);
+  text-align: left;
+}
+
+.share-row {
+  display: flex;
+  gap: 8px;
+}
+
+.share-link {
+  flex: 1;
+  min-width: 0;
+  padding: 6px 8px;
+  font: inherit;
+  font-size: 13px;
+  color: #1f2328;
+  background: #f6f8fa;
+  border: 1px solid #d0d7de;
+  border-radius: 6px;
+}
+
+.share-copy {
+  flex: none;
+  min-width: 104px;
+  padding: 6px 12px;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  color: #1f2328;
+  background: #f6f8fa;
+  border: 1px solid #d0d7de;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.share-copy:hover {
+  background: #eaeef2;
+}
+
+.share-manual {
+  margin: 8px 0 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: #6b4200;
+}
+
+.share-note {
+  margin: 8px 0 0;
+  font-size: 13px;
+  color: #57606a;
+}

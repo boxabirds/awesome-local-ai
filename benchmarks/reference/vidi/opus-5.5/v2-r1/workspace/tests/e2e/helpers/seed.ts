@@ -11,9 +11,31 @@ function isSyncStep2(data: ArrayBuffer): boolean {
   return decoding.readVarUint(decoding.createDecoder(msg.payload)) === syncProtocol.messageYjsSyncStep2;
 }
 
+/** Node cannot reach `localhost` when wrangler listens on 127.0.0.1 only. */
+const ipv4 = (baseURL: string) => baseURL.replace('//localhost:', '//127.0.0.1:');
+
+/** Creates a board through the real API (POST /api/boards), as New board does; returns its id. */
+export async function createBoardViaApi(baseURL: string): Promise<string> {
+  const res = await fetch(`${ipv4(baseURL)}/api/boards`, { method: 'POST' });
+  if (res.status !== 201) throw new Error(`POST /api/boards answered ${res.status}`);
+  return ((await res.json()) as { id: string }).id;
+}
+
+/**
+ * Stores `update` as a board saved before boards were created explicitly (update rows, no
+ * created_at) through the TEST_HOOKS-only route.
+ */
+export async function seedLegacyBoard(baseURL: string, boardId: string, update: Uint8Array) {
+  const res = await fetch(`${ipv4(baseURL)}/__test/boards/${boardId}/seed-legacy`, {
+    method: 'POST',
+    body: update as Uint8Array<ArrayBuffer>,
+  });
+  if (res.status !== 200) throw new Error(`seed-legacy answered ${res.status}: ${await res.text()}`);
+}
+
 /** Sends every update to board `boardId` at `baseURL`, then waits for the room to answer. */
 export async function seedBoard(baseURL: string, boardId: string, updates: Uint8Array[]) {
-  const url = `${baseURL.replace(/^http/, 'ws').replace('//localhost:', '//127.0.0.1:')}/api/rooms/${boardId}`;
+  const url = `${ipv4(baseURL).replace(/^http/, 'ws')}/api/rooms/${boardId}`;
   const ws = new WebSocket(url);
   ws.binaryType = 'arraybuffer';
   await new Promise<void>((resolve, reject) => {

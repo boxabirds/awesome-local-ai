@@ -1,13 +1,13 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
-import { App, boardIdFromLocation } from './App';
+import { Root } from './App';
 import { installTestHooks } from './canvas/testHooks';
 import './styles.css';
 
 const root = createRoot(document.getElementById('root')!);
 root.render(
   <StrictMode>
-    <App boardId={boardIdFromLocation()} />
+    <Root />
   </StrictMode>,
 );
 

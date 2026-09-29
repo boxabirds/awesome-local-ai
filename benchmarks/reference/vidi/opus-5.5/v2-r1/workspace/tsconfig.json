@@ -21,6 +21,7 @@
     "src/worker",
     "tests/integration",
     "tests/unit/board-store-chunks.test.ts",
-    "tests/unit/room-state.test.ts"
+    "tests/unit/room-state.test.ts",
+    "tests/unit/create-board.test.ts"
   ]
 }

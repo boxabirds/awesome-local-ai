@@ -19,6 +19,13 @@ export function roomUrl(boardId: string): string {
   return `http://example.com/api/rooms/${boardId}`;
 }
 
+/** Creates a board through the real API (POST /api/boards) and returns its id. */
+export async function createBoardId(): Promise<string> {
+  const res = await SELF.fetch('http://example.com/api/boards', { method: 'POST' });
+  if (res.status !== 201) throw new Error(`POST /api/boards answered ${res.status}`);
+  return ((await res.json()) as { id: string }).id;
+}
+
 export async function openSocket(boardId: string): Promise<{ status: number; ws: WebSocket }> {
   const res = await SELF.fetch(roomUrl(boardId), { headers: { Upgrade: 'websocket' } });
   const ws = res.webSocket;
