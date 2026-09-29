@@ -123,3 +123,22 @@ test("a new build reloads the page only once that build can be loaded, never ont
   await expect.poll(() => loads, { timeout: 15_000 }).toBeGreaterThanOrEqual(2);
   await expect(page.locator("section").first()).toBeVisible();
 });
+
+test("a tab left in the background is not called stale, and is current as soon as it is shown", async ({ page }) => {
+  const setHidden = (hidden: boolean) => page.evaluate((h) => {
+    Object.defineProperty(document, "visibilityState", { configurable: true, get: () => (h ? "hidden" : "visible") });
+    Object.defineProperty(document, "hidden", { configurable: true, get: () => h });
+    document.dispatchEvent(new Event("visibilitychange"));
+  }, hidden);
+  await page.clock.install();
+  await page.goto("/");
+  await expect(page.locator("section").first()).toBeVisible();
+  await setHidden(true);
+  await page.clock.fastForward(90_000);
+  await expect(page.getByRole("alert")).toHaveCount(0);
+  const refetched = page.waitForRequest("**/api/state");
+  await setHidden(false);
+  await page.clock.fastForward(1_000);
+  await refetched; // shown: it fetches at once rather than waiting for the next poll
+  await expect(page.getByRole("alert")).toHaveCount(0);
+});

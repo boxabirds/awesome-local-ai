@@ -198,6 +198,11 @@ describe("machines", () => {
   const row = (stack: string, runId: string, node: string, status: string, story: string | null = null) =>
     ({ stack, runId, node, pack: "vidi", live: { status, currentStory: story, agentMinutes: 25 } }) as unknown as Row;
 
+  it("names the story being finished between stories, not \"starting\"", () => {
+    const r = { stack: SWIFT, runId: "v2-r1", node: "gruntus", pack: "vidi", live: { status: "running", currentStory: "", runningStory: "3", agentMinutes: 33 } } as unknown as Row;
+    expect(machines(["gruntus"], [r])[0].running).toMatchObject({ story: "3", finishing: true });
+  });
+
   it("says what each node runs now and how many wait, and names idle nodes", () => {
     const rows = [
       row(SWIFT, "v2-r1", "gruntus", "running", "3"),
@@ -206,7 +211,7 @@ describe("machines", () => {
       row(SWIFT, "smoke-v2-01", "gruntus", "done"),
     ];
     expect(machines(["tritus", "gruntus"], rows)).toEqual([
-      { node: "gruntus", running: { stack: SWIFT, short: "3.8-swift-1.5/27b llamacpp", runId: "v2-r1", story: "3", agentMinutes: 25 }, queued: 2 },
+      { node: "gruntus", running: { stack: SWIFT, short: "3.8-swift-1.5/27b llamacpp", runId: "v2-r1", story: "3", finishing: false, agentMinutes: 25 }, queued: 2 },
       { node: "tritus", running: null, queued: 0 },
     ]);
   });
