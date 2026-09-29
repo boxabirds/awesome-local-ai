@@ -59,3 +59,12 @@ def test_a_single_clean_scoring_needs_no_repeats():
     from rescore import needs_repeats
     assert not needs_repeats({"tests": [{"status": "passed"}, {"status": "skipped"}]})
     assert needs_repeats({"tests": [{"status": "passed"}, {"status": "failed"}]})
+
+
+def test_workers_follow_the_hosts_limits():
+    """Held-out workers are chosen from what the host has: cores and free memory, each worker costing
+    CORES_PER_WORKER and GB_PER_WORKER (calibrated), never fewer than one. Any host can score."""
+    from rescore import auto_workers, CORES_PER_WORKER, GB_PER_WORKER, MAX_WORKERS
+    assert auto_workers(cores=8 * CORES_PER_WORKER, free_gb=100) == min(8, MAX_WORKERS)
+    assert auto_workers(cores=64, free_gb=3 * GB_PER_WORKER) == min(3, MAX_WORKERS)
+    assert auto_workers(cores=1, free_gb=0.5) == 1
