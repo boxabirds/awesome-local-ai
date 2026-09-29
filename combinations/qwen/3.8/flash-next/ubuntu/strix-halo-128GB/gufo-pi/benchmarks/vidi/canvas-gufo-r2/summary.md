@@ -13,8 +13,9 @@ Model `qwen3.8-flash-next-gufo`, scope `canvas`, effort `low`, client pi 0.87.1,
 | 8 | Undo and redo my own changes without undoing anyone else's | DONE, on partial 5 | 29.6 | None | None | None | — | — | red | 46/51 |  | 0 / 0 | 1 | — | throttled 0%, server peak 0 GB |
 | 9 | Write free text anywhere on the board | DONE, on partial 5 | 63.2 | None | None | None | — | — | red | 48/57 |  | 0 / 0 | 2 | — | throttled 0%, server peak 0 GB |
 | 10 | Draw shapes and connect them with arrows that follow when moved | DONE, on partial 5 | 47.5 | None | None | None | — | — | red | 56/65 |  | 0 / 2 | 2 | — | throttled 0%, server peak 0 GB |
+| 11 | Sketch freehand with a pen | DONE, on partial 5 | 44.9 | None | None | None | — | — | red | 60/70 |  | 0 / 0 | 1 | — | throttled 0%, server peak 0 GB |
 
-**Totals:** 9 stories, 486 agent-minutes, 0 requests, 0 prompt / 0 completion tokens, gate green 4/9, final acceptance 56/65, stalled 0, partial 1, 20683 lines in src+tests.
+**Totals:** 10 stories, 531 agent-minutes, 0 requests, 0 prompt / 0 completion tokens, gate green 4/10, final acceptance 60/70, stalled 0, partial 1, 22621 lines in src+tests.
 
 ### Stories ended early (PARTIAL) and what was built on them
 
@@ -23,6 +24,7 @@ Model `qwen3.8-flash-next-gufo`, scope `canvas`, effort `low`, client pi 0.87.1,
 - Story 8, built on partial 5: held-out tests on the partial base 17/20; partial story's tests fixed 0, regressed 0; 0 stub-like lines added to src/.
 - Story 9, built on partial 5: held-out tests on the partial base 19/26; partial story's tests fixed 0, regressed 0; 0 stub-like lines added to src/.
 - Story 10, built on partial 5: held-out tests on the partial base 27/34; partial story's tests fixed 0, regressed 0; 0 stub-like lines added to src/.
+- Story 11, built on partial 5: held-out tests on the partial base 31/39; partial story's tests fixed 0, regressed 0; 0 stub-like lines added to src/.
 
 ## How it happened
 
@@ -39,11 +41,14 @@ Each story's commits, and which story broke or fixed an earlier story's held-out
 | 8 | 1 by the agent | 1479 / 21 | `undo.ts` (117), `UndoButtons.tsx` (71), `App.tsx` (46), `StickyTextEditor.tsx` (43), `useBoardKeys.ts` (42), `useUndo.ts` (39), +4 more |
 | 9 | 1 by the agent | 2356 / 238 | `TextEditor.tsx` (174), `text.ts` (164), `StickyTextEditor.tsx` (160), `textLayout.ts` (136), `TextObject.tsx` (125), `App.tsx` (86), +14 more |
 | 10 | 1 by the agent | 3218 / 30 | `ConnectorTool.tsx` (273), `ConnectorObject.tsx` (254), `connector.ts` (248), `ShapeObject.tsx` (170), `ShapeTool.tsx` (166), `shape.ts` (161), +10 more |
+| 11 | 1 by the agent | 1985 / 292 | `NOTES.md` (323), `PenTool.tsx` (219), `stroke.ts` (135), `simplify.ts` (123), `PenToolbar.tsx` (110), `StrokeObject.tsx` (99), +8 more |
 
 ### Earlier stories broken or fixed
 
 - **Story 10 broke 0, fixed 2** earlier held-out tests (story 10: Draw shapes and connect them with arrows that follow when moved). Source files it changed most: `ConnectorTool.tsx` (273), `ConnectorObject.tsx` (254), `connector.ts` (248), `ShapeObject.tsx` (170), `ShapeTool.tsx` (166), `shape.ts` (161), +10 more.
   - story 9: 2/6 → 4/6; fixed 2
+- **Story 11 broke 1, fixed 1** earlier held-out tests (story 11: Sketch freehand with a pen). Source files it changed most: `NOTES.md` (323), `PenTool.tsx` (219), `stroke.ts` (135), `simplify.ts` (123), `PenToolbar.tsx` (110), `StrokeObject.tsx` (99), +8 more.
+  - story 9: 4/6 → 4/6; broke 1; fixed 1.
 
 ### Interruptions and dead time
 
