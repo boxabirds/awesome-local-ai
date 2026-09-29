@@ -329,6 +329,9 @@ its own from another run's code ("known-good mode"), as a separately labelled di
   machine: `dbench serve` on each box keeps a queue, restarts and recovers after a reboot; the client
   submits, watches, cancels and reads events. Results arrive through git. Design:
   [docs/20260924-distributed-bench-design.md](docs/20260924-distributed-bench-design.md).
+- **[tools/benchmarker/](tools/benchmarker/)** is one page with the live status of every run: where it is
+  in build, score and judge, from dbench and the pushed run records, with links to each record, its
+  scores and the review page. Runs anywhere with a clone.
 - **[tools/power-collector/](tools/power-collector/)** records each machine's power every 2 seconds
   (a Tapo energy-monitoring plug at the wall, the Mac's own telemetry, NVIDIA board power, Apple
   Silicon die temperatures) so energy can be tied to a story or a single model request.
@@ -427,6 +430,7 @@ benchmarks/                   the harnesses behind every measured number
   vidi/  todoodle/            spec packs (held-out parts in the private repo)
   reference/                  the same packs run with a frontier model
 tools/dbench/                 runs those harnesses on remote machines (server + client, Rust)
+tools/benchmarker/            live status of every run: build, score, judge
 tools/power-collector/        power and temperature every 2 s, per machine
 tools/vidi-gallery/           scores, judging and the review page for every build
 tools/windows-bench-host/     one-time setup for a Windows GPU PC as a bench machine

@@ -1,0 +1,193 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Benchmarker</title>
+<style>
+:root {
+  --bg: #f7f7f5; --panel: #ffffff; --ink: #1d1d1b; --muted: #6b6b66; --line: #e3e2dd;
+  --ok: #1f8a4c; --part: #c98a0b; --bad: #c0392b; --run: #2f6fdb; --none: #d6d5cf;
+  --chip: #efeee9;
+}
+@media (prefers-color-scheme: dark) {
+  :root { --bg: #161615; --panel: #1f1f1d; --ink: #ecebe6; --muted: #9a9993; --line: #33332f;
+          --ok: #3fb872; --part: #e0a82e; --bad: #e0685a; --run: #6c9cf0; --none: #3a3a36; --chip: #2a2a27; }
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--ink);
+       font: 14px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+header { position: sticky; top: 0; z-index: 2; background: var(--bg); border-bottom: 1px solid var(--line);
+         padding: 12px 16px; display: flex; flex-wrap: wrap; gap: 12px 20px; align-items: center; }
+h1 { font-size: 17px; margin: 0; }
+.meta { color: var(--muted); font-size: 12px; }
+.err { color: var(--bad); font-size: 12px; }
+select, label { font: inherit; }
+select { background: var(--panel); color: var(--ink); border: 1px solid var(--line); border-radius: 6px; padding: 3px 6px; }
+main { padding: 12px 16px 40px; max-width: 1400px; }
+section { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; margin: 0 0 14px; overflow-x: auto; }
+section h2 { font-size: 13px; font-weight: 600; margin: 0; padding: 10px 12px; border-bottom: 1px solid var(--line);
+             font-family: ui-monospace, SFMono-Regular, Menlo, monospace; word-break: break-all; }
+table { border-collapse: collapse; width: 100%; min-width: 1080px; table-layout: fixed; }
+th, td { text-align: left; padding: 8px 12px; border-bottom: 1px solid var(--line); vertical-align: top; }
+th { font-size: 11px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); font-weight: 600; }
+tr:last-child td { border-bottom: none; }
+.run { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-weight: 600; }
+.chip { display: inline-block; background: var(--chip); border-radius: 999px; padding: 1px 8px; font-size: 12px; white-space: nowrap; }
+.s-running { color: var(--run); font-weight: 600; }
+.s-queued { color: var(--muted); }
+.s-failed, .s-stopped, .s-cancelled { color: var(--bad); font-weight: 600; }
+.s-finished { color: var(--ok); }
+.ready { color: var(--ok); font-weight: 600; }
+.wait { color: var(--muted); }
+.strip { display: flex; gap: 2px; }
+.cell { width: 14px; height: 14px; border-radius: 3px; background: var(--none); }
+.c-ok { background: var(--ok); } .c-part { background: var(--part); } .c-bad { background: var(--bad); }
+.c-run { background: var(--run); animation: pulse 1.4s ease-in-out infinite; }
+@keyframes pulse { 50% { opacity: .45; } }
+.small { font-size: 12px; color: var(--muted); }
+.log { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 11px; color: var(--muted);
+       max-width: 360px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+a { color: var(--run); text-decoration: none; } a:hover { text-decoration: underline; }
+.links a { margin-right: 10px; white-space: nowrap; }
+.empty { color: var(--muted); padding: 24px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Benchmarker</h1>
+  <label>Pack <select id="pack"></select></label>
+  <label>Version <select id="family"></select></label>
+  <span class="meta" id="meta"></span>
+  <span class="err" id="errs"></span>
+</header>
+<main id="main"><p class="empty">Loading…</p></main>
+<script>
+const $ = (id) => document.getElementById(id);
+let state = null;
+const saved = (() => { try { return JSON.parse(localStorage.getItem("benchmarker") || "{}"); } catch { return {}; } })();
+function save() { try { localStorage.setItem("benchmarker", JSON.stringify({ pack: $("pack").value, family: $("family").value })); } catch {} }
+
+const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
+const ago = (t) => { if (!t) return "never"; const s = Math.max(0, Math.round(Date.now() / 1000 - t));
+  return s < 60 ? `${s}s ago` : s < 3600 ? `${Math.round(s / 60)} min ago` : `${(s / 3600).toFixed(1)} h ago`; };
+const blob = (p) => state.web && p ? `${state.web}/blob/${state.branch}/${p}` : null;
+const tree = (p) => state.web && p ? `${state.web}/tree/${state.branch}/${p}` : null;
+
+function statusClass(build) {
+  const w = build.split(":")[0];
+  return "s-" + ({ running: "running", queued: "queued", failed: "failed", cancelled: "cancelled",
+                   finished: "finished", stopped: "stopped" }[w] || "queued");
+}
+
+function strip(row) {
+  const cur = row.live && row.live.status === "running" ? String(row.live.current_story) : null;
+  const cells = (row.stories || []).map((s) => {
+    let c = "";
+    if (s.total) c = s.passed === s.total ? "c-ok" : s.passed > 0 ? "c-part" : "c-bad";
+    return `<span class="cell ${c}" title="story ${esc(s.id)}: ${esc(s.title)} — ${esc(s.status)}${s.total ? `, held-out ${s.passed}/${s.total}` : ""}"></span>`;
+  });
+  if (cur && !(row.stories || []).some((s) => String(s.id) === cur)) cells.push(`<span class="cell c-run" title="story ${esc(cur)}: running"></span>`);
+  return `<div class="strip">${cells.join("") || '<span class="small">no stories yet</span>'}</div>`;
+}
+
+function liveScore(row) {
+  const done = (row.stories || []).filter((s) => s.total);
+  if (!done.length) return '<span class="wait">—</span>';
+  const last = done[done.length - 1];
+  return `${last.passed}/${last.total} <span class="small">after story ${esc(last.id)}</span>`;
+}
+
+function scores(row) {
+  const v = Object.entries(row.scores || {});
+  if (!v.length) return `<span class="wait">${esc(row.stages.score)}</span>`;
+  return v.map(([ver, s]) => {
+    const link = blob(`${row.dir}/rescore/${ver}/per-story.md`);
+    const txt = `${s.passed}/${s.total}${s.flaky ? ` <span class="small">${s.flaky} flaky</span>` : ""}`;
+    return `<div><span class="chip">${esc(ver)}</span> ${link ? `<a href="${link}" target="_blank" rel="noopener">${txt}</a>` : txt}</div>`;
+  }).join("");
+}
+
+function build(row) {
+  const cls = statusClass(row.stages.build);
+  let h = `<div class="${cls}">${esc(row.stages.build)}</div>`;
+  if (row.live && row.live.status === "running") {
+    const bits = [];
+    if (row.live.agent_minutes != null) bits.push(`${row.live.agent_minutes} agent-min`);
+    if (row.live.calls != null) bits.push(`${row.live.calls} calls`);
+    if (row.live.output_tokens != null) bits.push(`${Math.round(row.live.output_tokens / 1000)}k out`);
+    if (row.live.attempt > 1) bits.push(`attempt ${row.live.attempt}`);
+    if (bits.length) h += `<div class="small">${bits.join(" · ")}</div>`;
+    const tail = (row.live.log_tail || []).slice(-1)[0];
+    if (tail) h += `<div class="log" title="${esc(tail)}">${esc(tail)}</div>`;
+  } else if (row.state_at) {
+    h += `<div class="small">${esc(row.state_at.replace("T", " ").replace("Z", " UTC"))}</div>`;
+  }
+  return h;
+}
+
+function judge(row) {
+  if (row.stages.judge === "ready") return `<a class="ready" href="${esc(state.judge_url)}" target="_blank" rel="noopener">Judge →</a>`;
+  return `<span class="wait">${esc(row.stages.judge)}</span>`;
+}
+
+function links(row) {
+  if (!row.dir) return '<span class="small">no record yet</span>';
+  const out = [];
+  const t = tree(row.dir); if (t) out.push(`<a href="${t}" target="_blank" rel="noopener">record</a>`);
+  const s = blob(`${row.dir}/summary.md`); if (s && (row.state === "finished" || row.state === "stopped")) out.push(`<a href="${s}" target="_blank" rel="noopener">summary</a>`);
+  return `<span class="links">${out.join("")}</span>`;
+}
+
+function render() {
+  if (!state) return;
+  const packs = [...new Set(state.rows.map((r) => r.pack))].sort();
+  // default: the pack with live jobs, else the one with the most runs
+  const live = (p) => state.rows.filter((r) => r.pack === p && r.live && ["running", "queued"].includes(r.live.status)).length;
+  const busiest = [...packs].sort((a, b) => live(b) - live(a) || state.rows.filter((r) => r.pack === b).length - state.rows.filter((r) => r.pack === a).length)[0];
+  const pack = packs.includes($("pack").value) ? $("pack").value : (packs.includes(saved.pack) ? saved.pack : busiest);
+  $("pack").innerHTML = packs.map((p) => `<option ${p === pack ? "selected" : ""}>${esc(p)}</option>`).join("");
+  const inPack = state.rows.filter((r) => r.pack === pack);
+  const fams = [...new Set(inPack.map((r) => r.family).filter(Boolean))].sort().reverse();
+  const suiteFam = (state.suites[pack] || "").match(/^(.*?-v\d+)/)?.[1] || "";
+  const current = fams.includes(suiteFam) ? suiteFam : (fams[0] || "all");
+  let fam = $("family").value || saved.family || current;
+  if (fam !== "all" && !fams.includes(fam)) fam = current;
+  $("family").innerHTML = [...fams, "all"].map((f) => `<option value="${esc(f)}" ${f === fam ? "selected" : ""}>${esc(f === "all" ? "all versions" : f)}${f === suiteFam ? " (current)" : ""}</option>`).join("");
+  const rows = inPack.filter((r) => fam === "all" || r.family === fam);
+
+  const byStack = new Map();
+  for (const r of rows) { if (!byStack.has(r.stack)) byStack.set(r.stack, []); byStack.get(r.stack).push(r); }
+  const order = (r) => ({ running: 0, queued: 1 }[r.live?.status] ?? 2);
+  const stacks = [...byStack.entries()].sort((a, b) => Math.min(...a[1].map(order)) - Math.min(...b[1].map(order)) || a[0].localeCompare(b[0]));
+
+  $("main").innerHTML = stacks.length ? stacks.map(([stack, rs]) => {
+    rs.sort((a, b) => a.run_id.localeCompare(b.run_id, undefined, { numeric: true }));
+    return `<section><h2>${esc(stack)}</h2><table>
+      <colgroup><col style="width:120px"><col style="width:80px"><col style="width:300px"><col style="width:170px"><col style="width:130px"><col style="width:170px"><col style="width:150px"><col style="width:110px"></colgroup>
+      <thead><tr><th>Run</th><th>Node</th><th>Build</th><th>Stories</th><th>Live held-out</th><th>Score</th><th>Judge</th><th>Links</th></tr></thead>
+      <tbody>${rs.map((r) => `<tr>
+        <td class="run">${esc(r.run_id)}<div class="small">${esc(r.pack_version || state.suites[r.pack] || "")}</div></td>
+        <td>${esc(r.node || "—")}</td>
+        <td>${build(r)}</td>
+        <td>${strip(r)}</td>
+        <td>${liveScore(r)}</td>
+        <td>${scores(r)}</td>
+        <td>${judge(r)}</td>
+        <td>${links(r)}</td></tr>`).join("")}</tbody></table></section>`;
+  }).join("") : '<p class="empty">No runs for this pack and version.</p>';
+
+  $("meta").textContent = `repo fetched ${ago(state.fetched_at)} · dbench ${ago(state.dbench_at)} · suite ${state.suites[pack] || "?"}`;
+  $("errs").textContent = [state.fetch_error && `git: ${state.fetch_error}`, state.dbench_error && `dbench: ${state.dbench_error}`].filter(Boolean).join(" · ");
+}
+
+async function poll() {
+  try { state = await (await fetch("/api/state", { cache: "no-store" })).json(); render(); }
+  catch (e) { $("errs").textContent = `benchmarker server unreachable: ${e}`; }
+}
+$("pack").addEventListener("change", () => { $("family").value = ""; save(); render(); });
+$("family").addEventListener("change", () => { save(); render(); });
+poll(); setInterval(poll, 5000);
+</script>
+</body>
+</html>
