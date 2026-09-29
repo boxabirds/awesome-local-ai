@@ -1,6 +1,6 @@
 {
   "state": "failed",
   "reason": "exit 1: server exited; see ~/.spec-bench/awesome-local-ai/combinations/qwen/3.8/flash-next/macos/128GB/mlxserve-opencode/benchmarks/vidi/v2-r1/server.log",
-  "at": "2026-09-29T19:34:25Z",
+  "at": "2026-09-29T19:35:37Z",
   "host": "Quintus"
 }
