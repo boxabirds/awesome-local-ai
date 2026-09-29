@@ -1,0 +1,159 @@
+:root {
+  --grid-dot: #c4c6cf;
+  --board-bg: #fafafb;
+  --ink: #1d1f27;
+  --panel-bg: #ffffff;
+  --panel-border: #dcdfe6;
+  --accent: #2f5fe0;
+  --focus-ring: 2px solid var(--accent);
+  color-scheme: light;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  overflow: hidden;
+  background: var(--board-bg);
+  color: var(--ink);
+  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  font-size: 14px;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ---- board viewport ---- */
+
+.board-viewport {
+  position: fixed;
+  inset: 0;
+  overflow: hidden;
+  background-color: var(--board-bg);
+  /* the dot grid: spacing and position are set inline from the camera, so the
+     grid looks attached to the board */
+  background-image: radial-gradient(circle at center, var(--grid-dot) 1px, transparent 1.5px);
+  background-repeat: repeat;
+  cursor: grab;
+  /* the board owns these gestures: no browser page zoom, no touch scrolling */
+  touch-action: none;
+  overscroll-behavior: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+.board-viewport[data-panning='true'] {
+  cursor: grabbing;
+}
+
+.board-world {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 0;
+  height: 0;
+  transform-origin: 0 0;
+}
+
+.origin-marker {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 0;
+  height: 0;
+  /* purely a visual cue: drags that start here pan the board */
+  pointer-events: none;
+}
+
+.origin-marker__arm {
+  position: absolute;
+  background: #e0524f;
+  opacity: 0.55;
+}
+
+.origin-marker__arm--h {
+  left: -7px;
+  top: -0.5px;
+  width: 14px;
+  height: 1px;
+}
+
+.origin-marker__arm--v {
+  left: -0.5px;
+  top: -7px;
+  width: 1px;
+  height: 14px;
+}
+
+/* ---- zoom controls ---- */
+
+.zoom-controls {
+  position: fixed;
+  right: 16px;
+  bottom: 16px;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 4px;
+  background: var(--panel-bg);
+  border: 1px solid var(--panel-border);
+  border-radius: 8px;
+  box-shadow: 0 1px 4px rgb(20 22 30 / 12%);
+}
+
+.zoom-controls button {
+  min-width: 30px;
+  height: 28px;
+  padding: 0 8px;
+  background: transparent;
+  border: 0;
+  border-radius: 6px;
+  color: var(--ink);
+  font: inherit;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.zoom-controls button:hover:not(:disabled) {
+  background: #eef0f5;
+}
+
+.zoom-controls button:disabled {
+  color: #a8abb4;
+  cursor: default;
+}
+
+.zoom-controls button:focus-visible {
+  outline: var(--focus-ring);
+  outline-offset: -2px;
+}
+
+.zoom-controls__label {
+  min-width: 48px;
+  padding: 0 4px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+  margin: 0;
+}
+
+.zoom-controls__reset {
+  border-left: 1px solid var(--panel-border) !important;
+  border-radius: 0 6px 6px 0 !important;
+}
+
+/* ---- first-use navigation hint ---- */
+
+.navigation-hint {
+  position: fixed;
+  left: 50%;
+  bottom: 16px;
+  transform: translateX(-50%);
+  padding: 6px 12px;
+  background: rgb(29 31 39 / 82%);
+  color: #fff;
+  border-radius: 999px;
+  pointer-events: none;
+  white-space: nowrap;
+}
