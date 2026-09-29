@@ -1,3 +1,92 @@
+commit 4070c95d4cca91ffe0db6f1381c827be444f92bb
+vidi-agent  Tue Sep 29 04:58:35 2026 +0100
+
+    refactor(4): test hooks module + integration test that the damage routes are closed without the harness flag
+
+
+ src/worker/board-room.ts         | 22 ++++++++++----------
+ src/worker/index.ts              | 26 +++++++++++-------------
+ src/worker/test-hooks.ts         | 43 ++++++++++++++++++++++++++++++++++++++++
+ tests/integration/worker.test.ts | 23 +++++++++++++++++++++
+ 4 files changed, 88 insertions(+), 26 deletions(-)
+commit 3ac80984f7afc1069f0b17e196fb62260e352d7f
+vidi-agent  Tue Sep 29 04:51:05 2026 +0100
+
+    feat(4): TC-24 e2E broken board - test-only snapshot damage/repair endpoints, load failure and recovery without reload
+
+
+ src/worker/board-room.ts              | 57 +++++++++++++++++++++
+ src/worker/board-store.ts             | 55 ++++++++++++++++++++
+ src/worker/index.ts                   | 21 ++++++++
+ tests/e2e/helpers/wrangler-process.ts | 19 ++++++-
+ tests/e2e/persistence.spec.ts         | 94 ++++++++++++++++++++++++++++++++++-
+ 5 files changed, 242 insertions(+), 4 deletions(-)
+commit fe2c2c8706535da048a8699caaad9ec6a086b45d
+vidi-agent  Tue Sep 29 04:37:46 2026 +0100
+
+    feat(4): client load_failed state - close-code mapping, sticky badge, edit lock + component tests TC-22, TC-23
+
+
+ src/client/App.tsx                            |  32 +++-
+ src/client/board/ConnectionStatus.tsx         |   9 +-
+ src/client/board/Toolbar.tsx                  |   9 +-
+ src/client/board/connectBoard.ts              |  48 +++++-
+ src/client/board/useBoardDoc.ts               |  23 ++-
+ src/client/board/useConnectionBadge.ts        |  68 +++++++--
+ src/client/objects/StickyNote.tsx             |  17 ++-
+ src/client/styles.css                         |   7 +
+ tests/component/ConnectionLoadFailed.test.tsx | 149 +++++++++++++++++++
+ tests/component/EditLock.test.tsx             | 205 ++++++++++++++++++++++++++
+ tests/unit/connectBoard.test.ts               |  60 +++++++-
+ 11 files changed, 596 insertions(+), 31 deletions(-)
+commit 5e5764ddff6231aac27641f6b52445f32701cb14
+vidi-agent  Tue Sep 29 04:25:21 2026 +0100
+
+    test(4): e2E persistence on a real wrangler dev process (TC-19..TC-21) with per-test --persist-to, process-group kill, WAL recovery
+
+
+ package.json                          |   1 +
+ playwright.config.ts                  |   4 +-
+ playwright.persistence.config.ts      |  24 ++++
+ tests/e2e/helpers/build-client.ts     |  20 +++
+ tests/e2e/helpers/wrangler-process.ts | 199 ++++++++++++++++++++++++++++++
+ tests/e2e/persistence.spec.ts         | 221 ++++++++++++++++++++++++++++++++++
+ 6 files changed, 468 insertions(+), 1 deletion(-)
+commit 83eeb91d486c734e48d1335222660fc0025aa3ab
+vidi-agent  Tue Sep 29 03:50:26 2026 +0100
+
+    feat(4): persistent hibernating BoardRoom (store-before-broadcast, 4500/1011 paths) + integration tests TC-12..TC-18, TC-26
+
+
+ src/worker/board-room.ts                         | 294 ++++++++++++++++----
+ tests/integration/board-room-persistence.test.ts | 340 +++++++++++++++++++++++
+ tests/integration/helpers/room.ts                | 220 +++++++++++++++
+ tests/integration/helpers/ws-client.ts           |  55 ++--
+ 4 files changed, 833 insertions(+), 76 deletions(-)
+commit e8eac95b23a6959f3cc7fdade7a48d59c87d5b99
+vidi-agent  Tue Sep 29 03:28:08 2026 +0100
+
+    feat(4): BoardStore on SQLite storage with quarantine + chunked compaction, integration tests TC-03..TC-11, TC-25
+
+
+ src/worker/board-store.ts             | 278 ++++++++++++--
+ src/worker/room-state.ts              |  56 ++-
+ tests/fixtures/boards.ts              | 396 +++++++++++++++++++
+ tests/integration/board-store.test.ts | 690 ++++++++++++++++++++++++++++++++++
+ 4 files changed, 1378 insertions(+), 42 deletions(-)
+commit 5dc84906014b154e89327aa09ffaf07f540d488b
+vidi-agent  Tue Sep 29 02:55:56 2026 +0100
+
+    test(4): storage chunking/threshold + room-state unit tests first (TC-01, TC-02, TC-27)
+
+
+ src/shared/config.ts                  |  20 +++++
+ src/shared/protocol.ts                |  12 +++
+ src/worker/board-store.ts             | 114 ++++++++++++++++++++++++
+ src/worker/room-state.ts              |  79 +++++++++++++++++
+ tests/unit/board-store-chunks.test.ts |  87 +++++++++++++++++++
+ tests/unit/room-state.test.ts         | 158 ++++++++++++++++++++++++++++++++++
+ 6 files changed, 470 insertions(+)
 commit 9cfe8c5c405718fb97da3f05591e3ff7806709ff
 vidi-agent  Tue Sep 29 02:38:40 2026 +0100
 
