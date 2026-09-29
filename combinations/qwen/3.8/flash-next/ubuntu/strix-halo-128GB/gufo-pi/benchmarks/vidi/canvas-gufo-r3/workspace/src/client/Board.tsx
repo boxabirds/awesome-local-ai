@@ -1,5 +1,6 @@
 import React, { useRef, useEffect, useState, useCallback, useMemo } from 'react';
 import { Camera, Point, Size, canZoomIn, canZoomOut, zoomPercent, screenToWorld } from '@client/canvas/camera';
+import type { Rect } from '@shared/geometry';
 import { useCamera } from '@client/canvas/useCamera';
 import { BoardViewport } from '@client/canvas/BoardViewport';
 import { ZoomControls } from '@client/canvas/ZoomControls';
@@ -17,11 +18,18 @@ import { SelectionBar } from '@client/board/SelectionBar';
 import { Toolbar } from '@client/board/Toolbar';
 import { StickyNote } from '@client/objects/StickyNote';
 import { TextObject } from '@client/objects/TextObject';
+import { ShapeObject } from '@client/objects/ShapeObject';
+import { ConnectorObject } from '@client/objects/ConnectorObject';
+import { ShapeTool } from '@client/tools/ShapeTool';
+import { ConnectorTool } from '@client/tools/ConnectorTool';
+import { useActiveTool } from '@client/tools/useActiveTool';
 import { ConnectionStatus } from '@client/sync/ConnectionStatus';
 import { canEdit } from '@client/sync/connectBoard';
-import { createSticky, deleteObjects } from '@shared/board-model';
+import { createSticky, deleteObjects, getObjectRect, objectBounds } from '@shared/board-model';
 import { createText } from '@shared/objects/text';
-import { useTool, Tool } from '@client/board/useTool';
+import { SHAPE_MIN_SIZE_WORLD, CONNECTOR_HIT_TOLERANCE_PX } from '@shared/config';
+import { distanceToPolyline } from '@shared/geometry/polyline';
+import { resolveEndpoints } from '@shared/geometry/connector-geometry';
 
 // Register the sticky type at import time
 import { registerStickyType } from '@client/objects/registry';
@@ -49,6 +57,42 @@ registerObjectType('text', {
   },
 });
 
+// Register the shape type at import time
+registerObjectType('shape', {
+  Component: ShapeObject,
+  resizable: true,
+  aspectLocked: false,
+  minSize: SHAPE_MIN_SIZE_WORLD,
+  editableText: true,
+  hitTest(obj, worldPoint) {
+    const w = (obj as any).width ?? 160;
+    const h = (obj as any).height ?? 160;
+    return (
+      worldPoint.x >= obj.x &&
+      worldPoint.x <= obj.x + w &&
+      worldPoint.y >= obj.y &&
+      worldPoint.y <= obj.y + h
+    );
+  },
+});
+
+// Register the connector type at import time
+registerObjectType('connector', {
+  Component: ConnectorObject,
+  resizable: false,
+  aspectLocked: false,
+  minSize: 0,
+  editableText: false,
+  hitTest(obj, worldPoint) {
+    const from = (obj as any).from as Point;
+    const to = (obj as any).to as Point;
+    if (!from || !to) return false;
+    // 8px tolerance in world units is a reasonable default; the component uses zoom-adjusted hit lines
+    const tol = CONNECTOR_HIT_TOLERANCE_PX;
+    return distanceToPolyline([from, to], worldPoint) <= tol;
+  },
+});
+
 export function Board({ boardId }: { boardId: string }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [viewportSize, setViewportSize] = useState<Size>({ width: 1280, height: 800 });
@@ -69,7 +113,11 @@ export function Board({ boardId }: { boardId: string }) {
 
   const editable = canEdit(connectionState);
   const undoState = useUndo(undoController, editable);
-  const { tool, setTool } = useTool(editable);
+  const selectCreated = useCallback((id: string) => selection.click(id), [selection]);
+  const { tool, shapeKind, setTool, setShapeKind, toolCreated } = useActiveTool({
+    canEdit: editable,
+    onSelect: selectCreated,
+  });
 
   // ResizeObserver
   useEffect(() => {
@@ -189,26 +237,44 @@ export function Board({ boardId }: { boardId: string }) {
     [doc, editable, undoController, tool, setTool, selection],
   );
 
+  // Live rects for connector endpoint resolution and drop hit-testing
+  const objectRects = useMemo(() => {
+    const m = new Map<string, Rect>();
+    for (const o of allObjects) {
+      if (o.type === 'connector') continue;
+      const b = objectBounds(o);
+      m.set(o.id, b);
+    }
+    return m;
+  }, [allObjects]);
+
   // Check if any selected type has resizable handles
   const showHandles = selection.ids.size > 0 && editable;
 
   const renderOrder = [...allObjects].sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
 
-  const cursorStyle = tool === 'text' ? 'text' : 'grab';
+  const cursorStyle = tool === 'text' ? 'text' : tool === 'shape' || tool === 'connector' ? 'crosshair' : 'grab';
+
+  const activeToolOverlay =
+    tool === 'shape' ? (
+      <ShapeTool kind={shapeKind} camera={camera} doc={doc} onCreated={toolCreated} />
+    ) : tool === 'connector' ? (
+      <ConnectorTool camera={camera} doc={doc} snapshot={allObjects} onCreated={toolCreated} />
+    ) : null;
 
   return (
     <div ref={containerRef} style={{ width: '100%', height: '100%', position: 'relative' }}>
       <BoardViewport
         camera={camera}
         cursor={cursorStyle}
-        beginPan={tool === 'text' ? undefined : cameraState.beginPan}
+        beginPan={tool === 'text' || tool === 'shape' || tool === 'connector' ? undefined : cameraState.beginPan}
         panMove={cameraState.panMove}
         endPan={cameraState.endPan}
         wheel={wheel}
         gestureZoom={gestureZoom}
         onDoubleClickEmpty={handleDoubleClickEmpty}
         onClickEmpty={handleClickEmpty}
-        onMarqueeBegin={tool === 'text' ? undefined : marquee.begin}
+        onMarqueeBegin={tool === 'text' || tool === 'shape' || tool === 'connector' ? undefined : marquee.begin}
         onMarqueeMove={marquee.move}
         onMarqueeEnd={marquee.end}
         onMarqueeCancel={marquee.cancel}
@@ -230,6 +296,43 @@ export function Board({ boardId }: { boardId: string }) {
                 onStartEdit={selection.startEdit}
                 onEndEdit={selection.endEdit}
                 onObjectPointerDown={transform.onObjectPointerDown}
+                undoController={undoController}
+              />
+            );
+          }
+          if (obj.type === 'shape') {
+            return (
+              <ShapeObject
+                key={obj.id}
+                shape={obj}
+                doc={doc}
+                zoom={camera.zoom}
+                selected={selection.ids.has(obj.id)}
+                editing={obj.id === selection.editingId}
+                dragging={transform.draggingId === obj.id}
+                readOnly={!editable}
+                onSelect={selection.click}
+                onToggle={selection.toggle}
+                onStartEdit={selection.startEdit}
+                onEndEdit={selection.endEdit}
+                onObjectPointerDown={transform.onObjectPointerDown}
+                undoController={undoController}
+              />
+            );
+          }
+          if (obj.type === 'connector') {
+            return (
+              <ConnectorObject
+                key={obj.id}
+                connector={obj}
+                doc={doc}
+                zoom={camera.zoom}
+                camera={camera}
+                rects={objectRects}
+                selected={selection.ids.has(obj.id)}
+                readOnly={!editable}
+                onSelect={selection.click}
+                onToggle={selection.toggle}
                 undoController={undoController}
               />
             );
@@ -274,6 +377,8 @@ export function Board({ boardId }: { boardId: string }) {
         undoState={undoState}
         tool={tool}
         onToolChange={setTool}
+        shapeKind={shapeKind}
+        onShapeKindChange={setShapeKind}
       />
       <ZoomControls
         zoomPercent={zoomPercent(camera)}
@@ -285,6 +390,7 @@ export function Board({ boardId }: { boardId: string }) {
       />
       <NavigationHint visible={!hasNavigated} />
       <ConnectionStatus state={connectionState} />
+      {activeToolOverlay}
     </div>
   );
 }

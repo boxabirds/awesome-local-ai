@@ -10,7 +10,7 @@ import {
 } from '@shared/board-model';
 import { SelectionApi } from './useSelection';
 import type { UndoController } from './undo';
-import type { Tool } from './useTool';
+import type { ToolId } from '@client/tools/useActiveTool';
 
 export interface UseBoardKeysOpts {
   doc: Y.Doc;
@@ -18,8 +18,8 @@ export interface UseBoardKeysOpts {
   snapshot: readonly ObjectSnapshot[];
   canEdit: boolean;
   undoController?: UndoController | null;
-  tool?: Tool;
-  setTool?(t: Tool): void;
+  tool?: ToolId;
+  setTool?(t: ToolId): void;
 }
 
 function isTextInputTarget(target: EventTarget | null): boolean {
@@ -84,9 +84,8 @@ export function useBoardKeys(opts: UseBoardKeysOpts): void {
 
       // Escape: return to select tool or clear selection
       if (e.key === 'Escape' && !editing) {
-        if (toolRef.current === 'text') {
+        if (toolRef.current === 'text' || toolRef.current === 'shape' || toolRef.current === 'connector') {
           setToolRef.current?.('select');
-          return;
         }
         sel.clear();
         return;
@@ -166,7 +165,7 @@ export function useBoardKeys(opts: UseBoardKeysOpts): void {
         e.preventDefault();
         const id = [...sel.ids][0];
         const obj = snapshotRef.current.find((o) => o.id === id);
-        if (obj && (obj.type === 'sticky' || obj.type === 'text')) {
+        if (obj && (obj.type === 'sticky' || obj.type === 'text' || obj.type === 'shape')) {
           sel.startEdit(id);
         }
         return;

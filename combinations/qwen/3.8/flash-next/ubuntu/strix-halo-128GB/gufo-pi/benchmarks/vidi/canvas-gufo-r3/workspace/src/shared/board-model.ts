@@ -3,6 +3,12 @@ import { StickyColor, STICKY_COLORS, STICKY_SIZE_WORLD, DEFAULT_STICKY_COLOR } f
 import { Rect } from './geometry';
 import type { TextSnapshot } from './objects/text';
 import { snapshotText } from './objects/text';
+import type { ShapeSnap } from './objects/shape';
+import { snapshotShape } from './objects/shape';
+import type { ConnectorSnap } from './objects/connector';
+import { detachConnectorsTo, snapshotConnector } from './objects/connector';
+export type { ShapeSnap } from './objects/shape';
+export type { ConnectorSnap, Endpoint } from './objects/connector';
 
 export const LOCAL_ORIGIN: unique symbol = Symbol('local');
 
@@ -19,7 +25,7 @@ export interface StickySnapshot {
   height?: number;
 }
 
-export type ObjectSnapshot = StickySnapshot | TextSnapshot;
+export type ObjectSnapshot = StickySnapshot | TextSnapshot | ShapeSnap | ConnectorSnap;
 
 function objectsMap(doc: Y.Doc): Y.Map<Y.Map<unknown>> {
   return doc.getMap('objects');
@@ -120,11 +126,12 @@ export function setStickyColor(doc: Y.Doc, id: string, color: string): boolean {
   return true;
 }
 
-/** Removes the note from the board. */
+/** Removes the note from the board. Releases any connector attached to it (same transaction). */
 export function deleteObject(doc: Y.Doc, id: string): boolean {
   const m = getStickyMap(doc, id);
   if (!m) return false;
   doc.transact(() => {
+    detachConnectorsTo(doc, [id]);
     objectsMap(doc).delete(id);
   }, LOCAL_ORIGIN);
   return true;
@@ -276,6 +283,9 @@ export function deleteObjects(doc: Y.Doc, ids: readonly string[]): number {
   }
   if (existing.length === 0) return 0;
   doc.transact(() => {
+    // Release connectors attached to any deleted object first, inside the same
+    // transaction, so every participant sees the arrow detach rather than vanish.
+    detachConnectorsTo(doc, existing);
     for (const id of existing) {
       objectsMap(doc).delete(id);
     }
@@ -321,11 +331,32 @@ export function snapshot(doc: Y.Doc): readonly StickySnapshot[] {
   return result;
 }
 
-/** Immutable snapshot of all objects (stickies + text) sorted by (z, id). */
+/** Immutable snapshot of all objects (stickies + text + shapes + connectors) sorted by (z, id). */
 export function snapshotAll(doc: Y.Doc): readonly ObjectSnapshot[] {
   const stickies: readonly StickySnapshot[] = snapshot(doc);
   const texts: readonly TextSnapshot[] = snapshotText(doc);
-  const all = [...stickies, ...texts] as ObjectSnapshot[];
+  const shapes: readonly ShapeSnap[] = snapshotShape(doc);
+  const connectors: readonly ConnectorSnap[] = snapshotConnector(doc);
+  const all = [...stickies, ...texts, ...shapes, ...connectors] as ObjectSnapshot[];
   all.sort((a, b) => (a.z - b.z) || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
   return all;
+}
+
+/** Rect of any non-connector board object by id, or null when absent/degenerate. */
+export function getObjectRect(doc: Y.Doc, id: string): Rect | null {
+  const m = objectsMap(doc).get(id);
+  if (!(m instanceof Y.Map)) return null;
+  const x = m.get('x');
+  const y = m.get('y');
+  if (!isFiniteNumber(x) || !isFiniteNumber(y)) return null;
+  const type = m.get('type');
+  if (type === 'connector') return null;
+  let width = m.get('width');
+  let height = m.get('height');
+  if (type === 'sticky') {
+    if (!isFiniteNumber(width)) width = STICKY_SIZE_WORLD;
+    if (!isFiniteNumber(height)) height = STICKY_SIZE_WORLD;
+  }
+  if (!isFiniteNumber(width) || !isFiniteNumber(height)) return null;
+  return { x, y, width, height };
 }

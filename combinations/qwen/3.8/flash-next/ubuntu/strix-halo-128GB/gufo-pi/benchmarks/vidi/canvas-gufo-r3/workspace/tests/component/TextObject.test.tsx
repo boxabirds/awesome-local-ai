@@ -108,7 +108,7 @@ function makeHarness() {
             return (
               <StickyNote
                 key={o.id}
-                note={o}
+                note={o as import('@shared/board-model').StickySnapshot}
                 doc={d}
                 zoom={cameraState.camera.zoom}
                 selected={selection.ids.has(o.id)}

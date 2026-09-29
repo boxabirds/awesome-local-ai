@@ -12,6 +12,8 @@ export interface StickyTextEditorProps {
   padding: number;
   onEnd(next: 'selected' | 'unselected'): void;
   undoController?: UndoController | null;
+  /** Maximum character count enforced on commit; defaults to the sticky-note limit. */
+  maxChars?: number;
 }
 
 /**
@@ -19,7 +21,7 @@ export interface StickyTextEditorProps {
  * Every input event is written to the Y.Text immediately (minimal diff), so ending
  * editing needs no extra write and characters cannot be lost on unmount.
  */
-export function StickyTextEditor({ ytext, fontPx, padding, onEnd, undoController }: StickyTextEditorProps) {
+export function StickyTextEditor({ ytext, fontPx, padding, onEnd, undoController, maxChars = STICKY_TEXT_MAX_CHARS }: StickyTextEditorProps) {
   const ref = useRef<HTMLTextAreaElement | null>(null);
   const endedRef = useRef(false);
   const unmountedRef = useRef(false);
@@ -83,7 +85,7 @@ export function StickyTextEditor({ ytext, fontPx, padding, onEnd, undoController
   const commit = useCallback(() => {
     const el = ref.current;
     if (!el) return;
-    const clamped = clampToLimit(el.value, STICKY_TEXT_MAX_CHARS);
+    const clamped = clampToLimit(el.value, maxChars);
     if (clamped !== el.value) {
       el.value = clamped;
       const len = clamped.length;
