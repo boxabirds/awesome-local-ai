@@ -2715,6 +2715,366 @@
           "found": 6,
           "total": 6
         }
+      ],
+      "record": {
+        "committed": true,
+        "pushed": true,
+        "over_size_limit": [
+          "~/.dbench/repo/combinations/qwen/3.8-swift/27b/ubuntu/nvidia4090/llamacpp-opencode/benchmarks/vidi/canvas-pi-03/server.log"
+        ],
+        "commit": "780e7929"
+      }
+    },
+    "10": {
+      "title": "Draw shapes and connect them with arrows that follow when moved",
+      "conditions_start": {
+        "ac": true,
+        "low_power": false,
+        "thermal": "nominal"
+      },
+      "started": 1790640598.6427965,
+      "agent": {
+        "seconds": 6330.4,
+        "steps": 251,
+        "tool_calls": 273,
+        "compactions": 3,
+        "tool_interruptions": 2,
+        "tokens": {
+          "input": 240057,
+          "output": 157860,
+          "reasoning": 0,
+          "cache_read": 17462255,
+          "cache_write": 0
+        },
+        "exit": 0,
+        "stalled": false,
+        "resumes": 0,
+        "nudges": 0,
+        "toolcall_text_resumes": 0,
+        "errors": [],
+        "ended_by_operator": false,
+        "ended_in_error": false,
+        "sessions": [
+          "01a0ea7f-2f1b-73b2-b2a3-7b117a931415"
+        ]
+      },
+      "agent_finished": 1790646929.0780795,
+      "conditions": {
+        "samples": 208,
+        "degraded": false,
+        "throttled_share": 0.0,
+        "bad_samples": [],
+        "swap_start_gb": 1.61,
+        "swap_max_gb": 1.61,
+        "aborted_swap": false,
+        "aborted_memory": false,
+        "free_min_pct": 17.508593172881127,
+        "server_footprint_max_gb": 25.797008514404297,
+        "server_footprint_peak_gb": 25.840702056884766,
+        "gpu": {
+          "samples": 208,
+          "busy_mean_pct": 39.2,
+          "sclk_min_busy_mhz": 2520,
+          "sclk_max_mhz": 2760,
+          "power_mean_w": 193.1,
+          "power_max_w": 446.37,
+          "temp_max_c": 75.0,
+          "vram_max_gb": 23.41,
+          "throttled_samples": 116
+        }
+      },
+      "agent_commits": 1,
+      "gate": {
+        "steps": {
+          "install": {
+            "cmd": "npm ci",
+            "exit": 0,
+            "seconds": 2.5,
+            "tail": "\nadded 261 packages, and audited 262 packages in 2s\n\n52 packages are looking for funding\n  run `npm fund` for details\n\n11 vulnerabilities (3 moderate, 7 high, 1 critical)\n\nTo address issues that do not require attention, run:\n  npm audit fix\n\nTo address all issues (including breaking changes), run:\n  npm audit fix --force\n\nRun `npm audit` for details.\nnpm warn deprecated whatwg-encoding@3.1.1: Use @exodus/bytes instead for a more spec-conformant and faster implementation\n"
+          },
+          "build": {
+            "cmd": "npm run build",
+            "exit": 0,
+            "seconds": 0.8,
+            "tail": "\n> vidi6@0.1.0 build\n> vite build\n\n\u001b[36mvite v6.4.3 \u001b[32mbuilding for production...\u001b[36m\u001b[39m\ntransforming...\n\u001b[32m\u2713\u001b[39m 126 modules transformed.\nrendering chunks...\ncomputing gzip size...\n\u001b[2mdist/client/\u001b[22m\u001b[32mindex.html                \u001b[39m\u001b[1m\u001b[2m  0.68 kB\u001b[22m\u001b[1m\u001b[22m\u001b[2m \u2502 gzip:   0.43 kB\u001b[22m\n\u001b[2mdist/client/\u001b[22m\u001b[2massets/\u001b[22m\u001b[36mindex-BDJHV3HI.js  \u001b[39m\u001b[1m\u001b[2m400.38 kB\u001b[22m\u001b[1m\u001b[22m\u001b[2m \u2502 gzip: 123.74 kB\u001b[22m\n\u001b[32m\u2713 built in 676ms\u001b[39m\n",
+            "passed": null,
+            "failed": null
+          },
+          "typecheck": {
+            "cmd": "npm run typecheck",
+            "exit": 0,
+            "seconds": 1.2,
+            "tail": "\n> vidi6@0.1.0 typecheck\n> tsc --noEmit\n\n",
+            "passed": null,
+            "failed": null
+          },
+          "test:unit": {
+            "cmd": "npm run test:unit",
+            "exit": 0,
+            "seconds": 1.3,
+            "tail": "\n> vidi6@0.1.0 test:unit\n> vitest run --project=unit\n\n\n\u001b[1m\u001b[7m\u001b[36m RUN \u001b[39m\u001b[27m\u001b[22m \u001b[36mv2.1.9 \u001b[39m\u001b[90m~/.vidi-bench/work/qwen__3.8-swift__27b__ubuntu__nvidia4090__llamacpp-opencode__benchmarks__vidi__canvas-pi-03/workspace\u001b[39m\n\n \u001b[32m\u2713\u001b[39m \u001b[35m|unit|\u001b[39m tests/unit/text-layout.test.ts \u001b[2m(\u001b[22m\u001b[2m10 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[90m 4\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[35m|unit|\u001b[39m tests/unit/geometry.test.ts \u001b[2m(\u001b[22m\u001b[2m7 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[90m 5\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[35m|unit|\u001b[39m tests/unit/selection-reducer.test.ts \u001b[2m(\u001b[22m\u001b[2m7 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[90m 4\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[35m|unit|\u001b[39m tests/unit/room-state.test.ts \u001b[2m(\u001b[22m\u001b[2m22 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[90m 7\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[35m|unit|\u001b[39m tests/unit/camera.test.ts \u001b[2m(\u001b[22m\u001b[2m25 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[90m 30\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[35m|unit|\u001b[39m tests/unit/protocol.test.ts \u001b[2m(\u001b[22m\u001b[2m8 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[90m 4\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[35m|unit|\u001b[39m tests/unit/board-model-group.test.ts \u001b[2m(\u001b[22m\u001b[2m8 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[90m 16\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[35m|unit|\u001b[39m tests/unit/sticky-text.test.ts \u001b[2m(\u001b[22m\u001b[2m13 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[90m 11\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[35m|unit|\u001b[39m tests/unit/board-model.test.ts \u001b[2m(\u001b[22m\u001b[2m16 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[90m 18\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[35m|unit|\u001b[39m tests/unit/text-model.test.ts \u001b[2m(\u001b[22m\u001b[2m8 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[90m 6\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[35m|unit|\u001b[39m tests/unit/undo-boundaries.test.ts \u001b[2m(\u001b[22m\u001b[2m2 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[90m 11\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[35m|unit|\u001b[39m tests/unit/connector-model.test.ts \u001b[2m(\u001b[22m\u001b[2m11 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[90m 10\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[35m|unit|\u001b[39m tests/unit/shape-model.test.ts \u001b[2m(\u001b[22m\u001b[2m7 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[90m 13\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[35m|unit|\u001b[39m tests/unit/create-board.test.ts \u001b[2m(\u001b[22m\u001b[2m8 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[90m 129\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[35m|unit|\u001b[39m tests/unit/undo-history.test.ts \u001b[2m(\u001b[22m\u001b[2m11 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[90m 58\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[35m|unit|\u001b[39m tests/unit/registry.test.ts \u001b[2m(\u001b[22m\u001b[2m4 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[90m 4\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[35m|unit|\u001b[39m tests/unit/board-id.test.ts \u001b[2m(\u001b[22m\u001b[2m9 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[33m 376\u001b[2mms\u001b[22m\u001b[39m\n   \u001b[33m\u001b[2m\u2713\u001b[22m\u001b[39m board-id\u001b[2m > \u001b[22mTC-02: newBoardId\u001b[2m > \u001b[22mgenerates 10,000 ids that all match the pattern and are unique \u001b[33m372\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[35m|unit|\u001b[39m tests/unit/board-store.test.ts \u001b[2m(\u001b[22m\u001b[2m12 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[33m 590\u001b[2mms\u001b[22m\u001b[39m\n   \u001b[33m\u001b[2m\u2713\u001b[22m\u001b[39m persist.board_store chunking (TC-01)\u001b[2m > \u001b[22mjoinChunks round-trips byte-identical across the boundaries \u001b[33m585\u001b[2mms\u001b[22m\u001b[39m\n\n\u001b[2m Test Files \u001b[22m \u001b[1m\u001b[32m18 passed\u001b[39m\u001b[22m\u001b[90m (18)\u001b[39m\n\u001b[2m      Tests \u001b[22m \u001b[1m\u001b[32m188 passed\u001b[39m\u001b[22m\u001b[90m (188)\u001b[39m\n\u001b[2m   Start at \u001b[22m 02:55:36\n\u001b[2m   Duration \u001b[22m 1.01s\u001b[2m (transform 1.30s, setup 0ms, collect 3.78s, tests 1.30s, environment 3ms, prepare 872ms)\u001b[22m\n\n",
+            "passed": 188,
+            "failed": 0
+          },
+          "test:component": {
+            "cmd": "npm run test:component",
+            "exit": 0,
+            "seconds": 3.7,
+            "tail": "    at HTMLCanvasElement.getContext (~/.vidi-bench/work/qwen__3.8-swift__27b__ubuntu__nvidia4090__llamacpp-opencode__benchmarks__vidi__canvas-pi-03/workspace/node_modules/jsdom/lib/jsdom/living/generated/HTMLCanvasElement.js:131:58)\n    at probe (~/.vidi-bench/work/qwen__3.8-swift__27b__ubuntu__nvidia4090__llamacpp-opencode__benchmarks__vidi__canvas-pi-03/workspace/src/client/objects/textLayout.ts:125:52)\n    at ~/.vidi-bench/work/qwen__3.8-swift__27b__ubuntu__nvidia4090__llamacpp-opencode__benchmarks__vidi__canvas-pi-03/workspace/src/client/objects/textLayout.ts:134:15\n    at wrapLine (~/.vidi-bench/work/qwen__3.8-swift__27b__ubuntu__nvidia4090__llamacpp-opencode__benchmarks__vidi__canvas-pi-03/workspace/src/client/objects/textLayout.ts:34:7)\n    at Module.layoutText (~/.vidi-bench/work/qwen__3.8-swift__27b__ubuntu__nvidia4090__llamacpp-opencode__benchmarks__vidi__canvas-pi-03/workspace/src/client/objects/textLayout.ts:93:19)\n    at Module.remeasureTextBox (~/.vidi-bench/work/qwen__3.8-swift__27b__ubuntu__nvidia4090__llamacpp-opencode__benchmarks__vidi__canvas-pi-03/workspace/src/client/objects/useTextBoxSync.ts:46:15)\n    at Object.onSize (~/.vidi-bench/work/qwen__3.8-swift__27b__ubuntu__nvidia4090__llamacpp-opencode__benchmarks__vidi__canvas-pi-03/workspace/src/client/board/Board.tsx:495:15)\n    at onClick (~/.vidi-bench/work/qwen__3.8-swift__27b__ubuntu__nvidia4090__llamacpp-opencode__benchmarks__vidi__canvas-pi-03/workspace/src/client/objects/TextToolbar.tsx:46:32) \u001b[90mundefined\u001b[39m\n\n\u001b[90mstderr\u001b[2m | tests/component/TextObject.test.tsx\u001b[2m > \u001b[22m\u001b[2mtext.object (component)\u001b[2m > \u001b[22m\u001b[2mTC-21: only east/west handles render; dragging one sets a fixed width and keeps x/y\n\u001b[22m\u001b[39mError: Not implemented: HTMLCanvasElement.prototype.getContext (without installing the canvas npm package)\n    at module.exports (~/.vidi-bench/work/qwen__3.8-swift__27b__ubuntu__nvidia4090__llamacpp-opencode__benchmarks__vidi__canvas-pi-03/workspace/node_modules/jsdom/lib/jsdom/browser/not-implemented.js:9:17)\n    at HTMLCanvasElementImpl.getContext (~/.vidi-bench/work/qwen__3.8-swift__27b__ubuntu__nvidia4090__llamacpp-opencode__benchmarks__vidi__canvas-pi-03/workspace/node_modules/jsdom/lib/jsdom/living/nodes/HTMLCanvasElement-impl.js:42:5)\n    at HTMLCanvasElement.getContext (~/.vidi-bench/work/qwen__3.8-swift__27b__ubuntu__nvidia4090__llamacpp-opencode__benchmarks__vidi__canvas-pi-03/workspace/node_modules/jsdom/lib/jsdom/living/generated/HTMLCanvasElement.js:131:58)\n    at probe (~/.vidi-bench/work/qwen__3.8-swift__27b__ubuntu__nvidia4090__llamacpp-opencode__benchmarks__vidi__canvas-pi-03/workspace/src/client/objects/textLayout.ts:125:52)\n    at ~/.vidi-bench/work/qwen__3.8-swift__27b__ubuntu__nvidia4090__llamacpp-opencode__benchmarks__vidi__canvas-pi-03/workspace/src/client/objects/textLayout.ts:134:15\n    at wrapLine (~/.vidi-bench/work/qwen__3.8-swift__27b__ubuntu__nvidia4090__llamacpp-opencode__benchmarks__vidi__canvas-pi-03/workspace/src/client/objects/textLayout.ts:34:7)\n    at Module.layoutText (~/.vidi-bench/work/qwen__3.8-swift__27b__ubuntu__nvidia4090__llamacpp-opencode__benchmarks__vidi__canvas-pi-03/workspace/src/client/objects/textLayout.ts:93:19)\n    at Module.remeasureTextBox (~/.vidi-bench/work/qwen__3.8-swift__27b__ubuntu__nvidia4090__llamacpp-opencode__benchmarks__vidi__canvas-pi-03/workspace/src/client/objects/useTextBoxSync.ts:46:15)\n    at Object.onTextWidthResize (~/.vidi-bench/work/qwen__3.8-swift__27b__ubuntu__nvidia4090__llamacpp-opencode__benchmarks__vidi__canvas-pi-03/workspace/src/client/board/Board.tsx:112:7)\n    at applyFrame (~/.vidi-bench/work/qwen__3.8-swift__27b__ubuntu__nvidia4090__llamacpp-opencode__benchmarks__vidi__canvas-pi-03/workspace/src/client/board/useTransformGesture.ts:179:11) \u001b[90mundefined\u001b[39m\n\n",
+            "passed": null,
+            "failed": null
+          },
+          "test:integration": {
+            "cmd": "npm run test:integration",
+            "exit": 0,
+            "seconds": 125.9,
+            "tail": "e/vitest-pool-workers/node_modules/@cloudflare/workerd-linux-64/bin/workerd@2b0c9a2 ~/.vidi-bench/work/qwen__3.8-swift__27b__ubuntu__nvidia4090__llamacpp-opencode__benchmarks__vidi__canvas-pi-03/workspace/node_modules/@cloudflare/vitest-pool-workers/node_modules/@cloudflare/workerd-linux-64/bin/workerd@2b03b66 ~/.vidi-bench/work/qwen__3.8-swift__27b__ubuntu__nvidia4090__llamacpp-opencode__benchmarks__vidi__canvas-pi-03/workspace/node_modules/@cloudflare/vitest-pool-workers/node_modules/@cloudflare/workerd-linux-64/bin/workerd@2afe9c8 ~/.vidi-bench/work/qwen__3.8-swift__27b__ubuntu__nvidia4090__llamacpp-opencode__benchmarks__vidi__canvas-pi-03/workspace/node_modules/@cloudflare/vitest-pool-workers/node_modules/@cloudflare/workerd-linux-64/bin/workerd@2af6bad ~/.vidi-bench/work/qwen__3.8-swift__27b__ubuntu__nvidia4090__llamacpp-opencode__benchmarks__vidi__canvas-pi-03/workspace/node_modules/@cloudflare/vitest-pool-workers/node_modules/@cloudflare/workerd-linux-64/bin/workerd@2bfdb49 ~/.vidi-bench/work/qwen__3.8-swift__27b__ubuntu__nvidia4090__llamacpp-opencode__benchmarks__vidi__canvas-pi-03/workspace/node_modules/@cloudflare/vitest-pool-workers/node_modules/@cloudflare/workerd-linux-64/bin/workerd@2c01583 ~/.vidi-bench/work/qwen__3.8-swift__27b__ubuntu__nvidia4090__llamacpp-opencode__benchmarks__vidi__canvas-pi-03/workspace/node_modules/@cloudflare/vitest-pool-workers/node_modules/@cloudflare/workerd-linux-64/bin/workerd@2c012a1 ~/.vidi-bench/work/qwen__3.8-swift__27b__ubuntu__nvidia4090__llamacpp-opencode__benchmarks__vidi__canvas-pi-03/workspace/node_modules/@cloudflare/vitest-pool-workers/node_modules/@cloudflare/workerd-linux-64/bin/workerd@4ebd39a ~/.vidi-bench/work/qwen__3.8-swift__27b__ubuntu__nvidia4090__llamacpp-opencode__benchmarks__vidi__canvas-pi-03/workspace/node_modules/@cloudflare/vitest-pool-workers/node_modules/@cloudflare/workerd-linux-64/bin/workerd@2c01c90 ~/.vidi-bench/work/qwen__3.8-swift__27b__ubuntu__nvidia4090__llamacpp-opencode__benchmarks__vidi__canvas-pi-03/workspace/node_modules/@cloudflare/vitest-pool-workers/node_modules/@cloudflare/workerd-linux-64/bin/workerd@2b05300 ~/.vidi-bench/work/qwen__3.8-swift__27b__ubuntu__nvidia4090__llamacpp-opencode__benchmarks__vidi__canvas-pi-03/workspace/node_modules/@cloudflare/vitest-pool-workers/node_modules/@cloudflare/workerd-linux-64/bin/workerd@201aa70 ~/.vidi-bench/work/qwen__3.8-swift__27b__ubuntu__nvidia4090__llamacpp-opencode__benchmarks__vidi__canvas-pi-03/workspace/node_modules/@cloudflare/vitest-pool-workers/node_modules/@cloudflare/workerd-linux-64/bin/workerd@2cc9640\n\u001b[90mstderr\u001b[2m | tests/integration/board-store.test.ts\u001b[2m > \u001b[22m\u001b[2mpersist.board_store (real DO SQLite)\u001b[2m > \u001b[22m\u001b[2mTC-08: large board compaction \u2192 multiple chunks, reload identical\n\u001b[22m\u001b[39m{\"event\":\"board.load.snapshot_unreadable\",\"error\":\"Error: Integer out of Range\"}\n{\"event\":\"board.room.load_failed\",\"reason\":\"snapshot-unreadable\",\"error\":\"Error: Integer out of Range\"}\n\n\u001b[90mstderr\u001b[2m | tests/integration/board-store.test.ts\u001b[2m > \u001b[22m\u001b[2mpersist.board_store (real DO SQLite)\u001b[2m > \u001b[22m\u001b[2mTC-09: damaged log row \u2192 LoadResult ok with 1 quarantined, other notes intact\n\u001b[22m\u001b[39m{\"event\":\"board.load.quarantined\",\"seq\":11,\"error\":\"TypeError: contentRefs[(info & binary.BITS5)] is not a function\"}\n\n\u001b[90mstderr\u001b[2m | tests/integration/board-store.test.ts\u001b[2m > \u001b[22m\u001b[2mpersist.board_store (real DO SQLite)\u001b[2m > \u001b[22m\u001b[2mTC-10: corrupted snapshot chunk \u2192 snapshot-unreadable, nothing deleted\n\u001b[22m\u001b[39m{\"event\":\"board.load.snapshot_unreadable\",\"error\":\"Error: Integer out of Range\"}\n\n\u001b[90mstderr\u001b[2m | tests/integration/board-store.test.ts\u001b[2m > \u001b[22m\u001b[2mpersist.board_store (real DO SQLite)\u001b[2m > \u001b[22m\u001b[2mTC-10: corrupted snapshot chunk \u2192 snapshot-unreadable, nothing deleted\n\u001b[22m\u001b[39m{\"event\":\"board.load.snapshot_unreadable\",\"error\":\"Error: Integer out of Range\"}\n\n",
+            "passed": null,
+            "failed": null
+          },
+          "test:e2e": {
+            "cmd": "npm run test:e2e -- --project=chromium",
+            "exit": 1,
+            "seconds": 600.2,
+            "tail": "n/.vidi-bench/work/qwen__3.8-swift__27b__ubuntu__nvidia4090__llamacpp-opencode__benchmarks__vidi__canvas-pi-03/workspace/tests/e2e/helpers/participants.ts:60:52)\n        at ~/.vidi-bench/work/qwen__3.8-swift__27b__ubuntu__nvidia4090__llamacpp-opencode__benchmarks__vidi__canvas-pi-03/workspace/tests/e2e/live-collaboration.spec.ts:205:13\n\n    Error Context: test-results/live-collaboration-Workflo-e53d6-ate-5-move-5-\u2192-all-converge-firefox/error-context.md\n\n  2) [firefox] \u203a tests/e2e/text.spec.ts:101:3 \u203a Workflow: Free text on the board \u203a TC-27: dragging the east handle narrower rewraps the words, grows the height, and the box keeps only east/west handles \n\n    Error: board creation failed: HTTP 500\n\n       at helpers/board.ts:21\n\n      19 | export async function createBoardIdForPage(page: Page): Promise<string> {\n      20 |   const res = await page.request.post('/api/boards');\n    > 21 |   if (res.status() !== 201) throw new Error(`board creation failed: HTTP ${res.status()}`);\n         |                                   ^\n      22 |   const body = (await res.json()) as { id?: string };\n      23 |   if (!body.id) throw new Error('board creation returned no id');\n      24 |   return body.id;\n        at createBoardIdForPage (~/.vidi-bench/work/qwen__3.8-swift__27b__ubuntu__nvidia4090__llamacpp-opencode__benchmarks__vidi__canvas-pi-03/workspace/tests/e2e/helpers/board.ts:21:35)\n        at openBoard (~/.vidi-bench/work/qwen__3.8-swift__27b__ubuntu__nvidia4090__llamacpp-opencode__benchmarks__vidi__canvas-pi-03/workspace/tests/e2e/text.spec.ts:26:14)\n        at ~/.vidi-bench/work/qwen__3.8-swift__27b__ubuntu__nvidia4090__llamacpp-opencode__benchmarks__vidi__canvas-pi-03/workspace/tests/e2e/text.spec.ts:102:5\n\n    Error Context: test-results/text-Workflow-Free-text-on-bf13c-eeps-only-east-west-handles-firefox/error-context.md\n\n  3) [webkit] \u203a tests/e2e/text.spec.ts:205:3 \u203a Workflow: Free text on the board \u203a TC-30: MAX_CONCURRENT_EDITORS contexts each create a heading via the Text tool at once \u2192 all visible on every screen \n\n    Error: page.goto: Page crashed\n    Call log:\n      - navigating to \"http://localhost:8787/b/CI0gzSDwdKt7wX8328lqIA\", waiting until \"load\"\n\n\n       at helpers/participants.ts:36\n\n      34 |     const context = await browser.newContext();\n      35 |     const page = await context.newPage();\n    > 36 |     await page.goto(`/b/${boardId}`);\n         |                ^\n      37 |     await page.waitForFunction(() => (window as any).__vidi6?.doc != null, null, { timeout: 15000 });\n      38 |     // `connected` only after the first successful sync.\n      39 |     await page.waitForFunction(\n        at openParticipants (~/.vidi-bench/work/qwen__3.8-swift__27b__ubuntu__nvidia4090__llamacpp-opencode__benchmarks__vidi__canvas-pi-03/workspace/tests/e2e/helpers/participants.ts:36:16)\n        at ~/.vidi-bench/work/qwen__3.8-swift__27b__ubuntu__nvidia4090__llamacpp-opencode__benchmarks__vidi__canvas-pi-03/workspace/tests/e2e/text.spec.ts:206:19\n\n    Error Context: test-results/text-Workflow-Free-text-on-c0cc9-all-visible-on-every-screen-webkit/error-context.md\n\n  3 failed\n    [firefox] \u203a tests/e2e/live-collaboration.spec.ts:188:3 \u203a Workflow: Full-capacity session \u203a TC-26: 5 contexts each create 5 + move 5 \u2192 all converge \n    [firefox] \u203a tests/e2e/text.spec.ts:101:3 \u203a Workflow: Free text on the board \u203a TC-27: dragging the east handle narrower rewraps the words, grows the height, and the box keeps only east/west handles \n    [webkit] \u203a tests/e2e/text.spec.ts:205:3 \u203a Workflow: Free text on the board \u203a TC-30: MAX_CONCURRENT_EDITORS contexts each create a heading via the Text tool at once \u2192 all visible on every screen \n  1 skipped\n  140 passed (10.0m)\n[WebServer] \u2718 [ERROR] Error inside ProxyWorker (the affected request failed; the dev server continues): POST http://localhost:8787/api/boards (failed after 1 attempt): Network connection lost.\n[WebServer] \n[WebServer] \n",
+            "passed": 140,
+            "failed": 3
+          }
+        },
+        "all_green": false
+      },
+      "accept": {
+        "skipped": false,
+        "build_exit": 0,
+        "runner_exit": 1,
+        "passed": 60,
+        "total": 65,
+        "on_partial": {
+          "passed": 0,
+          "total": 0
+        },
+        "by_story": {
+          "01": {
+            "passed": 10,
+            "total": 10
+          },
+          "02": {
+            "passed": 9,
+            "total": 10
+          },
+          "03": {
+            "passed": 5,
+            "total": 7
+          },
+          "04": {
+            "passed": 4,
+            "total": 4
+          },
+          "05": {
+            "passed": 5,
+            "total": 5
+          },
+          "07": {
+            "passed": 7,
+            "total": 8
+          },
+          "08": {
+            "passed": 7,
+            "total": 7
+          },
+          "09": {
+            "passed": 5,
+            "total": 6
+          },
+          "10": {
+            "passed": 8,
+            "total": 8
+          }
+        },
+        "harness_fault": null
+      },
+      "commit": "f623f42470a4da7f65a2e7dbe14ab4ad714a6943",
+      "requests": {},
+      "time_split": {
+        "wall_s": 6330.4,
+        "model": {
+          "requests": 251,
+          "prefill_s": 222.7,
+          "prefill_tokens": 240057,
+          "prefill_tok_s": 1078.1,
+          "decode_s": 2085.9,
+          "decode_tokens": 157860,
+          "decode_tok_s": 75.7,
+          "draft_acceptance": 0.652,
+          "mean_accepted_len": 3.71
+        },
+        "tools_s": 3786.4,
+        "tools_by_kind": {
+          "e2e": 3465.1,
+          "unit": 304.5,
+          "build": 14.2,
+          "bash": 2.4,
+          "edit": 0.1,
+          "read": 0.1,
+          "write": 0.0
+        },
+        "compaction_s": 204.8,
+        "compactions": 3,
+        "other_s": 30.7
+      },
+      "loc": {
+        "files": 138,
+        "lines": 20629
+      },
+      "finished": 1790648069.8667688,
+      "status": "DONE",
+      "ended_by": "agent",
+      "partial_base": [],
+      "tasks": [
+        {
+          "n": 7,
+          "title": "Write shape model unit tests first (TC-01 to TC-06)",
+          "type": "test:unit",
+          "implements": [
+            "shape.model"
+          ],
+          "tcs": [
+            "TC-01",
+            "TC-02",
+            "TC-03",
+            "TC-04",
+            "TC-05",
+            "TC-06"
+          ],
+          "status": "verified",
+          "found": 6,
+          "total": 6
+        },
+        {
+          "n": 8,
+          "title": "Implement shape model: create by drag/click/Shift, style validation, label Y.Text",
+          "type": "implementation",
+          "implements": [
+            "shape.model"
+          ],
+          "tcs": [],
+          "status": "verified",
+          "found": null,
+          "total": null
+        },
+        {
+          "n": 9,
+          "title": "Write connector model and geometry unit tests first (TC-07 to TC-14, TC-29)",
+          "type": "test:unit",
+          "implements": [
+            "connector.model"
+          ],
+          "tcs": [
+            "TC-07",
+            "TC-08",
+            "TC-09",
+            "TC-10",
+            "TC-11",
+            "TC-12",
+            "TC-13",
+            "TC-14",
+            "TC-29"
+          ],
+          "status": "verified",
+          "found": 9,
+          "total": 9
+        },
+        {
+          "n": 10,
+          "title": "Implement connector model, geometry and detach-on-delete in board-model",
+          "type": "implementation",
+          "implements": [
+            "connector.model"
+          ],
+          "tcs": [],
+          "status": "verified",
+          "found": null,
+          "total": null
+        },
+        {
+          "n": 11,
+          "title": "Implement active tool hook with shortcuts and return-to-Select",
+          "type": "implementation",
+          "implements": [
+            "tools.active_tool"
+          ],
+          "tcs": [],
+          "status": "verified",
+          "found": null,
+          "total": null
+        },
+        {
+          "n": 12,
+          "title": "Implement Shape tool, ShapeObject with centred label, and ShapeToolbar",
+          "type": "implementation",
+          "implements": [
+            "shape.ui"
+          ],
+          "tcs": [],
+          "status": "committed",
+          "found": null,
+          "total": null
+        },
+        {
+          "n": 13,
+          "title": "Implement Connector tool with hover dots, ConnectorObject with arrowhead and re-attach handles",
+          "type": "implementation",
+          "implements": [
+            "connector.ui"
+          ],
+          "tcs": [],
+          "status": "committed",
+          "found": null,
+          "total": null
+        },
+        {
+          "n": 14,
+          "title": "Component tests for shape tool/object/toolbar, connector tool/object and active tool (TC-15 to TC-22, TC-28)",
+          "type": "test:ui-component",
+          "implements": [
+            "shape.ui",
+            "connector.ui",
+            "tools.active_tool"
+          ],
+          "tcs": [
+            "TC-15",
+            "TC-16",
+            "TC-17",
+            "TC-18",
+            "TC-19",
+            "TC-20",
+            "TC-21",
+            "TC-22",
+            "TC-28"
+          ],
+          "status": "verified",
+          "found": 9,
+          "total": 9
+        },
+        {
+          "n": 15,
+          "title": "E2E: draw a flow, collaborative rearrange, delete race (TC-23 to TC-27)",
+          "type": "test:e2e",
+          "implements": [
+            "shape.ui",
+            "connector.ui"
+          ],
+          "tcs": [
+            "TC-23",
+            "TC-24",
+            "TC-25",
+            "TC-26",
+            "TC-27"
+          ],
+          "status": "committed",
+          "found": 5,
+          "total": 5
+        }
       ]
     }
   },
@@ -5745,6 +6105,366 @@
           "accept": {
             "passed": 5,
             "total": 6
+          }
+        }
+      ]
+    },
+    {
+      "id": 10,
+      "title": "Draw shapes and connect them with arrows that follow when moved",
+      "status": "DONE",
+      "ended_by": "agent",
+      "started_at": 1790640598.6427965,
+      "ended_at": 1790646929.0780795,
+      "agent_minutes": 105.5,
+      "calls": 251,
+      "output_tokens": 157860,
+      "compactions": 3,
+      "last_commit_at": 1790646921.0,
+      "accept": {
+        "passed": 8,
+        "total": 8
+      },
+      "partial_base": [],
+      "tasks": [
+        {
+          "n": 7,
+          "title": "Write shape model unit tests first (TC-01 to TC-06)",
+          "type": "test:unit",
+          "implements": [
+            "shape.model"
+          ],
+          "tcs": [
+            "TC-01",
+            "TC-02",
+            "TC-03",
+            "TC-04",
+            "TC-05",
+            "TC-06"
+          ],
+          "status": "verified",
+          "found": 6,
+          "total": 6
+        },
+        {
+          "n": 8,
+          "title": "Implement shape model: create by drag/click/Shift, style validation, label Y.Text",
+          "type": "implementation",
+          "implements": [
+            "shape.model"
+          ],
+          "tcs": [],
+          "status": "verified",
+          "found": null,
+          "total": null
+        },
+        {
+          "n": 9,
+          "title": "Write connector model and geometry unit tests first (TC-07 to TC-14, TC-29)",
+          "type": "test:unit",
+          "implements": [
+            "connector.model"
+          ],
+          "tcs": [
+            "TC-07",
+            "TC-08",
+            "TC-09",
+            "TC-10",
+            "TC-11",
+            "TC-12",
+            "TC-13",
+            "TC-14",
+            "TC-29"
+          ],
+          "status": "verified",
+          "found": 9,
+          "total": 9
+        },
+        {
+          "n": 10,
+          "title": "Implement connector model, geometry and detach-on-delete in board-model",
+          "type": "implementation",
+          "implements": [
+            "connector.model"
+          ],
+          "tcs": [],
+          "status": "verified",
+          "found": null,
+          "total": null
+        },
+        {
+          "n": 11,
+          "title": "Implement active tool hook with shortcuts and return-to-Select",
+          "type": "implementation",
+          "implements": [
+            "tools.active_tool"
+          ],
+          "tcs": [],
+          "status": "verified",
+          "found": null,
+          "total": null
+        },
+        {
+          "n": 12,
+          "title": "Implement Shape tool, ShapeObject with centred label, and ShapeToolbar",
+          "type": "implementation",
+          "implements": [
+            "shape.ui"
+          ],
+          "tcs": [],
+          "status": "committed",
+          "found": null,
+          "total": null
+        },
+        {
+          "n": 13,
+          "title": "Implement Connector tool with hover dots, ConnectorObject with arrowhead and re-attach handles",
+          "type": "implementation",
+          "implements": [
+            "connector.ui"
+          ],
+          "tcs": [],
+          "status": "committed",
+          "found": null,
+          "total": null
+        },
+        {
+          "n": 14,
+          "title": "Component tests for shape tool/object/toolbar, connector tool/object and active tool (TC-15 to TC-22, TC-28)",
+          "type": "test:ui-component",
+          "implements": [
+            "shape.ui",
+            "connector.ui",
+            "tools.active_tool"
+          ],
+          "tcs": [
+            "TC-15",
+            "TC-16",
+            "TC-17",
+            "TC-18",
+            "TC-19",
+            "TC-20",
+            "TC-21",
+            "TC-22",
+            "TC-28"
+          ],
+          "status": "verified",
+          "found": 9,
+          "total": 9
+        },
+        {
+          "n": 15,
+          "title": "E2E: draw a flow, collaborative rearrange, delete race (TC-23 to TC-27)",
+          "type": "test:e2e",
+          "implements": [
+            "shape.ui",
+            "connector.ui"
+          ],
+          "tcs": [
+            "TC-23",
+            "TC-24",
+            "TC-25",
+            "TC-26",
+            "TC-27"
+          ],
+          "status": "committed",
+          "found": 5,
+          "total": 5
+        }
+      ],
+      "baselines": [
+        {
+          "source": "reference opus-5.5 run-1",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 22.5,
+          "calls": 69,
+          "output_tokens": 130294,
+          "accept": {
+            "passed": 8,
+            "total": 8
+          }
+        },
+        {
+          "source": "reference opus-5.5 run-2",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 28.5,
+          "calls": 68,
+          "output_tokens": 119648,
+          "accept": {
+            "passed": 8,
+            "total": 8
+          }
+        },
+        {
+          "source": "reference opus-5.5 run-3",
+          "status": "DONE",
+          "gate_green": false,
+          "agent_minutes": 17.5,
+          "calls": 62,
+          "output_tokens": 104833,
+          "accept": {
+            "passed": 8,
+            "total": 8
+          }
+        },
+        {
+          "source": "qwen/3.8/27b/ubuntu/nvidia4090/llamacpp-opencode canvas-pi-02",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 21.4,
+          "calls": 130,
+          "output_tokens": 84472,
+          "accept": {
+            "passed": 5,
+            "total": 8
+          }
+        },
+        {
+          "source": "qwen/3.8/27b/ubuntu/nvidia4090/llamacpp-opencode canvas-pi-03",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 86.6,
+          "calls": 303,
+          "output_tokens": 272385,
+          "accept": {
+            "passed": 5,
+            "total": 8
+          }
+        },
+        {
+          "source": "qwen/3.8/27b/ubuntu/nvidia4090/llamacpp-opencode canvas-pi-04",
+          "status": "DONE",
+          "gate_green": false,
+          "agent_minutes": 80.1,
+          "calls": 283,
+          "output_tokens": 263416,
+          "accept": {
+            "passed": 7,
+            "total": 8,
+            "on_partial_total": 8,
+            "on_partial_passed": 7
+          }
+        },
+        {
+          "source": "qwen/3.8/flash-next/macos/128GB/mlxserve-opencode canvas-mlx-02",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 107.5,
+          "calls": 274,
+          "output_tokens": 252095,
+          "accept": {
+            "passed": 7,
+            "total": 8,
+            "on_partial_total": 8,
+            "on_partial_passed": 7
+          }
+        },
+        {
+          "source": "qwen/3.8/flash-next/macos/128GB/mtplx-opencode canvas-pi-01",
+          "status": "DONE",
+          "gate_green": false,
+          "agent_minutes": 67.0,
+          "calls": 253,
+          "output_tokens": 132825,
+          "accept": {
+            "passed": 4,
+            "total": 8
+          }
+        },
+        {
+          "source": "qwen/3.8/flash-next/macos/128GB/mtplx-opencode canvas-pi-02",
+          "status": "DONE",
+          "gate_green": false,
+          "agent_minutes": 25.0,
+          "calls": 160,
+          "output_tokens": 74807,
+          "accept": {
+            "passed": 6,
+            "total": 8,
+            "on_partial_total": 8,
+            "on_partial_passed": 6
+          }
+        },
+        {
+          "source": "qwen/3.8/flash-next/macos/128GB/mtplx-opencode canvas-pi-03",
+          "status": "DONE",
+          "gate_green": false,
+          "agent_minutes": 105.7,
+          "calls": 296,
+          "output_tokens": 213837,
+          "accept": {
+            "passed": 5,
+            "total": 8,
+            "on_partial_total": 8,
+            "on_partial_passed": 5
+          }
+        },
+        {
+          "source": "qwen/3.8/flash-next/ubuntu/strix-halo-128GB/gufo-pi canvas-gufo-r1",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 42.1,
+          "calls": 228,
+          "output_tokens": 88130,
+          "accept": {
+            "passed": 7,
+            "total": 8,
+            "on_partial_total": 8,
+            "on_partial_passed": 7
+          }
+        },
+        {
+          "source": "qwen/3.8/flash-next/ubuntu/strix-halo-128GB/gufo-pi canvas-gufo-r2",
+          "status": "DONE",
+          "gate_green": false,
+          "agent_minutes": 47.5,
+          "calls": 215,
+          "output_tokens": 102958,
+          "accept": {
+            "passed": 6,
+            "total": 8,
+            "on_partial_total": 8,
+            "on_partial_passed": 6
+          }
+        },
+        {
+          "source": "qwen/3.8/flash-next/ubuntu/strix-halo-128GB/llamacpp-pi canvas-vk-01",
+          "status": "PARTIAL",
+          "gate_green": false,
+          "agent_minutes": 239.0,
+          "calls": 373,
+          "output_tokens": 227738,
+          "accept": {
+            "passed": 6,
+            "total": 8,
+            "on_partial_total": 8,
+            "on_partial_passed": 6
+          }
+        },
+        {
+          "source": "qwen/3.8-swift/27b/ubuntu/nvidia4090/llamacpp-opencode canvas-pi-01",
+          "status": "DONE",
+          "gate_green": false,
+          "agent_minutes": 99.5,
+          "calls": 384,
+          "output_tokens": 216195,
+          "accept": {
+            "passed": 8,
+            "total": 8
+          }
+        },
+        {
+          "source": "qwen/3.8-swift/27b/ubuntu/nvidia4090/llamacpp-opencode canvas-pi-02",
+          "status": "DONE",
+          "gate_green": false,
+          "agent_minutes": 54.8,
+          "calls": 211,
+          "output_tokens": 192449,
+          "accept": {
+            "passed": 8,
+            "total": 8
           }
         }
       ]

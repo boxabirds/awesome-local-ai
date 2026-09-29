@@ -22,10 +22,21 @@ import { canEdit } from '../sync/connectBoard';
 import { Toolbar } from './Toolbar';
 import { createUndo } from './undo';
 import { useUndo } from './useUndo';
-import { getObjectType } from '../objects/registry';
+import { getObjectType, hitConnectorAt } from '../objects/registry';
 import { NoteToolbar } from '../objects/NoteToolbar';
 import { TextToolbar } from '../objects/TextToolbar';
-import { useTool } from './useTool';
+import { ShapeToolbar } from '../objects/ShapeToolbar';
+import { useActiveTool } from '../tools/useActiveTool';
+import { ShapeTool } from '../tools/ShapeTool';
+import { ConnectorTool } from '../tools/ConnectorTool';
+import { BoardContext } from './context';
+import { seedCheckoutFlow as seedCheckoutFlowFixture } from '../../../tests/fixtures/checkout-flow';
+import {
+  getShapeKind,
+  getShapeStyle,
+  setShapeStyle,
+  type ShapeKind,
+} from 'src/shared/objects/shape';
 import { createCanvasMeasurer, type Measurer } from '../objects/textLayout';
 import { remeasureTextBox } from '../objects/useTextBoxSync';
 import {
@@ -74,8 +85,12 @@ export function Board({ boardId }: { boardId: string }): JSX.Element {
   }, [undoController]);
   const undoState = useUndo(undoController, editable);
 
-  // Story 9: board tool (Select / Text) — reverts to Select on a locked board.
-  const { tool, setTool } = useTool(editable);
+  // Story 10: the active board tool (Select / Text / Shape / Connector),
+  // generalising story 9's useTool — reverts to Select on a locked board.
+  const { tool, shapeKind, setTool, setShapeKind, toolCreated } = useActiveTool({
+    canEdit: editable,
+    select: sel.select,
+  });
   // Story 9: the canvas measurer shared by all text-box remeasures on this
   // tab (the probe is cached inside the measurer).
   const measurer = useMemo<Measurer>(() => createCanvasMeasurer(TEXT_FONT_FAMILY), []);
@@ -157,6 +172,11 @@ export function Board({ boardId }: { boardId: string }): JSX.Element {
         }
         return ids;
       };
+      // Story 10: the checkout-flow fixture (tests/fixtures/checkout-flow.ts,
+      // built with the real model calls) — 4 labelled shapes (rect, diamond,
+      // ellipse, rect), 3 attached connectors and 1 free-ended connector.
+      const seedCheckoutFlow = (): string[] => seedCheckoutFlowFixture(doc, identityId);
+
       (window as unknown as Record<string, unknown>).__vidi6 = {
         setCamera: cam.setCamera,
         doc,
@@ -164,6 +184,7 @@ export function Board({ boardId }: { boardId: string }): JSX.Element {
         dropSocket,
         resumeSocket,
         seedNotes,
+        seedCheckoutFlow,
         // Story 7: gesture bookkeeping (undo boundaries, story 8) + toolbar hiding.
         gestureStarts: () => gestureStartsRef.current,
         gestureEnds: () => gestureEndsRef.current,
@@ -172,7 +193,7 @@ export function Board({ boardId }: { boardId: string }): JSX.Element {
         undo: undoController,
       };
     }
-  }, [cam.setCamera, doc, connectionState, dropSocket, resumeSocket, dragging, undoController]);
+  }, [cam.setCamera, doc, connectionState, dropSocket, resumeSocket, dragging, undoController, identityId]);
 
   // Double-click on empty board space: create a note centred on the point,
   // select it and start editing (sticky.create_dblclick). No-op when locked.
@@ -254,6 +275,22 @@ export function Board({ boardId }: { boardId: string }): JSX.Element {
     [cam.camera, handleCreateTextAt],
   );
 
+  // Story 10 (connector.select): an empty-space click first hit-tests the
+  // connectors — a click within CONNECTOR_HIT_TOLERANCE_PX of an arrow
+  // selects it even though the pointer landed on the board background (the
+  // SVG's wide hit stroke covers the same case in real browsers). Shapes and
+  // stickies are NOT re-hit-tested here: in real browsers a click on one hits
+  // its own DOM, so only the (jsdom-invisible) connector strokes need the
+  // board-level test. Other empty clicks clear the selection (story 2).
+  const handleEmptyClick = useCallback(
+    (world: { x: number; y: number }) => {
+      const id = hitConnectorAt(doc, world, cam.camera.zoom);
+      if (id) sel.click(id);
+      else sel.clear();
+    },
+    [doc, cam.camera, sel],
+  );
+
   // Story 7: a group delete removes every selected object at once and clears
   // the selection (sel.delete_multi). No-op when the board is locked.
   // Story 8: the whole group delete is exactly one undo step.
@@ -285,6 +322,24 @@ export function Board({ boardId }: { boardId: string }): JSX.Element {
   const showTextToolbar =
     singleTextId !== undefined && sel.editingId === null && !dragging;
 
+  // Story 10: exactly one selected SHAPE → the shape colour toolbar
+  // (shape.style), placed like the other floating bars.
+  const singleShape: {
+    id: string;
+    kind: ShapeKind;
+    style: { fill: import('src/shared/objects/shape').FillColor; stroke: import('src/shared/objects/shape').StrokeColor };
+  } | undefined = (() => {
+    if (sel.ids.size !== 1) return undefined;
+    const obj = objects.find((o) => sel.ids.has(o.id) && o.type === 'shape');
+    if (!obj) return undefined;
+    const kind = getShapeKind(doc, obj.id);
+    const style = getShapeStyle(doc, obj.id);
+    if (!kind || !style) return undefined;
+    return { id: obj.id, kind, style };
+  })();
+  const showShapeToolbar =
+    singleShape !== undefined && sel.editingId === null && !dragging;
+
   // Floating-bar placement: above the selection's bounding box (screen space).
   const selBox = sel.ids.size > 0 ? selectionBounds(sel.ids, objects) : null;
   let barStyle: React.CSSProperties | undefined;
@@ -302,8 +357,17 @@ export function Board({ boardId }: { boardId: string }): JSX.Element {
     };
   }
 
+  // Story 10: the connector's board-level extras (camera, identity, and an
+  // ends-changed callback — doc updates already re-render, so a no-op is
+  // sufficient; kept for the contract).
+  const onEndsChanged = useCallback(() => {}, []);
+  const boardContext = useMemo(
+    () => ({ camera: cam.camera, identity: identityId, onEndsChanged }),
+    [cam.camera, identityId, onEndsChanged],
+  );
+
   return (
-    <>
+    <BoardContext.Provider value={boardContext}>
       <ConnectionStatus state={connectionState} />
       <BoardViewport
         camera={cam.camera}
@@ -316,7 +380,7 @@ export function Board({ boardId }: { boardId: string }): JSX.Element {
         reset={cam.reset}
         setCamera={cam.setCamera}
         onCreateStickyAt={handleCreateStickyAt}
-        onEmptyClick={() => sel.clear()}
+        onEmptyClick={handleEmptyClick}
         tool={tool}
         onCreateTextAt={handleCreateTextAt}
         marquee={{
@@ -361,12 +425,36 @@ export function Board({ boardId }: { boardId: string }): JSX.Element {
             );
           })}
       </BoardViewport>
+      {/* Story 10: the Shape and Connector tool layers capture every pointer
+          while active (a drag starting over an object creates, it never
+          moves that object — TC-28). */}
+      {tool === 'shape' && editable && (
+        <ShapeTool
+          kind={shapeKind}
+          camera={cam.camera}
+          doc={doc}
+          identity={identityId}
+          undo={undoController}
+          onCreated={toolCreated}
+        />
+      )}
+      {tool === 'connector' && editable && (
+        <ConnectorTool
+          camera={cam.camera}
+          doc={doc}
+          identity={identityId}
+          undo={undoController}
+          onCreated={toolCreated}
+        />
+      )}
       <Toolbar
         onCreateSticky={handleCreateStickyCentred}
         disabled={!editable}
         undo={undoState}
         tool={tool}
         onToolChange={setTool}
+        shapeKind={shapeKind}
+        onShapeKindChange={setShapeKind}
       />
       <SelectionOverlay
         ids={sel.ids}
@@ -421,6 +509,27 @@ export function Board({ boardId }: { boardId: string }): JSX.Element {
           <SelectionBar ids={sel.ids} disabled={!editable} onDelete={handleDeleteSelection} />
         </div>
       )}
+      {/* Story 10: exactly one selected shape → the colour toolbar. */}
+      {showShapeToolbar && singleShape && selBox && (
+        <div style={barStyle}>
+          <ShapeToolbar
+            fill={singleShape.style.fill}
+            stroke={singleShape.style.stroke}
+            onFill={(c) => {
+              // Story 8: one colour change is exactly one undo step
+              // (shape.style: label, size, position and selection unchanged).
+              undoController.boundary();
+              setShapeStyle(doc, singleShape.id, { fill: c });
+              undoController.boundary();
+            }}
+            onStroke={(c) => {
+              undoController.boundary();
+              setShapeStyle(doc, singleShape.id, { stroke: c });
+              undoController.boundary();
+            }}
+          />
+        </div>
+      )}
       <ZoomControls
         zoomPercent={zoomPercent(cam.camera)}
         canZoomIn={canZoomIn(cam.camera)}
@@ -430,6 +539,6 @@ export function Board({ boardId }: { boardId: string }): JSX.Element {
         onReset={cam.reset}
       />
       <NavigationHint visible={!cam.hasNavigated && notes.length === 0} />
-    </>
+    </BoardContext.Provider>
   );
 }

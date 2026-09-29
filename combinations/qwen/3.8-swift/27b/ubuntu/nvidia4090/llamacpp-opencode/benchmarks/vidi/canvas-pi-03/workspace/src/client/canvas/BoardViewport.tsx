@@ -2,6 +2,7 @@ import { useRef, useEffect, useCallback, type ReactNode, type JSX } from 'react'
 import type { Camera, Point } from './camera';
 import { screenToWorld } from './camera';
 import { GRID_SPACING_WORLD, WHEEL_ZOOM_SENSITIVITY } from '../../shared/config';
+import type { ToolId } from '../tools/useActiveTool';
 
 // Delta mode conversion constants
 const LINE_HEIGHT = 16;
@@ -26,8 +27,14 @@ export interface BoardViewportProps {
   setCamera: (cam: Camera) => void;
   /** Story 2: double-click on empty board space creates a sticky note centred on that world point. */
   onCreateStickyAt: (world: Point) => void;
-  /** Story 2: a click (press+release without movement) on empty board space clears the selection. */
-  onEmptyClick: () => void;
+  /**
+   * Story 2: a click (press+release without movement) on empty board space
+   * clears the selection. Story 10: the WORLD point is passed so the board
+   * can route it through the object registry's hit test first (a click
+   * within a connector's tolerance selects the arrow; jsdom DOM events on
+   * SVG strokes are unreliable, so the board hit-tests in world units).
+   */
+  onEmptyClick: (world: Point) => void;
   /**
    * Story 7: marquee selection. A Shift+drag on empty space is routed here
    * instead of to pan; Escape while `active` cancels it (the Escape keydown
@@ -35,8 +42,12 @@ export interface BoardViewportProps {
    * also fire).
    */
   marquee?: MarqueeController;
-  /** Story 9: the active board tool; 'text' changes cursor and click behaviour. */
-  tool?: 'select' | 'text';
+  /**
+   * The active board tool (story 9: 'text' changes cursor and click
+   * behaviour; story 10: 'shape'/'connector' show a crosshair — the full
+   * gestures are captured by the tool overlays above the viewport).
+   */
+  tool?: ToolId;
   /**
    * Story 9: a click (press+release without movement) with the Text tool
    * active creates a text object at that world point — empty space AND on
@@ -150,7 +161,10 @@ export function BoardViewport(props: BoardViewportProps): JSX.Element {
         camRef.current.onCreateTextAt?.(world);
         return;
       }
-      camRef.current.onEmptyClick();
+      const rect = containerRef.current!.getBoundingClientRect();
+      camRef.current.onEmptyClick(
+        screenToWorld(camRef.current.camera, { x: e.clientX - rect.left, y: e.clientY - rect.top }),
+      );
     }
   }, []);
 
@@ -293,8 +307,14 @@ export function BoardViewport(props: BoardViewportProps): JSX.Element {
         position: 'fixed',
         inset: 0,
         overflow: 'hidden',
-        // Story 9: the Text tool shows a text caret over the board.
-        cursor: props.tool === 'text' ? 'text' : 'grab',
+        // Story 9: the Text tool shows a text caret; story 10: Shape/Connector
+        // show a crosshair (the tool overlays sit above and capture presses).
+        cursor:
+          props.tool === 'text'
+            ? 'text'
+            : props.tool === 'shape' || props.tool === 'connector'
+              ? 'crosshair'
+              : 'grab',
         backgroundColor: '#f8f9fa',
         backgroundImage: 'radial-gradient(circle, #ccc 1px, transparent 1px)',
         backgroundSize: `${gridSpacing}px ${gridSpacing}px`,

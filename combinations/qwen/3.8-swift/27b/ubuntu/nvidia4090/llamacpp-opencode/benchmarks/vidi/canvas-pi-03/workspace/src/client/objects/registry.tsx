@@ -13,14 +13,29 @@ import type React from 'react';
 import type * as Y from 'yjs';
 import {
   objectBounds,
+  allObjects,
   registerKnownObjectType,
   type ObjectSnapshot,
 } from 'src/shared/board-model';
-import { STICKY_MIN_SIZE_WORLD } from 'src/shared/config';
+import { STICKY_MIN_SIZE_WORLD, CONNECTOR_HIT_TOLERANCE_PX } from 'src/shared/config';
+import { distanceToPolyline } from 'src/shared/geometry/polyline';
 import type { UndoController } from '../board/undo';
 import { StickyNote } from './StickyNote';
 import { TextObject } from './TextObject';
 import { TEXT_MIN_WIDTH_WORLD } from 'src/shared/config';
+import { ShapeObject } from './ShapeObject';
+import { ConnectorObject } from './ConnectorObject';
+import { useBoardContext } from '../board/context';
+
+/**
+ * Story 10: bridges the connector's board-level extras (camera, identity,
+ * onEndsChanged — carried in BoardContext, not ObjectProps) into the
+ * registered component.
+ */
+function ConnectorObjectBridge(props: ObjectProps): React.JSX.Element {
+  const { camera, identity, onEndsChanged } = useBoardContext();
+  return <ConnectorObject {...props} camera={camera} identity={identity} onEndsChanged={onEndsChanged} />;
+}
 
 /**
  * Common props handed to every registered object component. `onPointerDown`
@@ -61,8 +76,53 @@ export interface ObjectTypeSpec {
    * dimension; text.height).
    */
   handles?: 'all' | 'horizontal';
-  /** Point-in-object hit test (world units). */
-  hitTest: (obj: ObjectSnapshot, worldPoint: { x: number; y: number }) => boolean;
+  /**
+   * Point-in-object hit test (world units). Story 10: an optional `zoom` —
+   * screen-constant tolerances (the connector's CONNECTOR_HIT_TOLERANCE_PX)
+   * convert to world units with it. Default 1 keeps existing types exact.
+   */
+  hitTest: (obj: ObjectSnapshot, worldPoint: { x: number; y: number }, zoom?: number) => boolean;
+}
+
+/**
+ * Story 10: the topmost registered object whose hit test contains a world
+ * point (highest z first). Used for the empty-click selection path and the
+ * connector tool's attach-target lookup.
+ */
+export function hitObjectAt(
+  doc: Y.Doc,
+  worldPoint: { x: number; y: number },
+  zoom = 1,
+): string | null {
+  const objects = allObjects(doc);
+  for (let i = objects.length - 1; i >= 0; i--) {
+    const spec = specs.get(objects[i].type);
+    if (!spec) continue;
+    if (spec.hitTest(objects[i], worldPoint, zoom)) return objects[i].id;
+  }
+  return null;
+}
+
+/**
+ * The topmost CONNECTOR hit by a world point (connector.select, story 10).
+ * Empty-space board clicks are routed through this: in real browsers a click
+ * on a shape/sticky hits that object's own DOM, but a click within a
+ * connector's screen tolerance can land on the board background (the wide
+ * SVG hit stroke covers the real-browser case; jsdom cannot target SVG
+ * strokes, so the board hit-tests in world units).
+ */
+export function hitConnectorAt(
+  doc: Y.Doc,
+  worldPoint: { x: number; y: number },
+  zoom = 1,
+): string | null {
+  const objects = allObjects(doc);
+  for (let i = objects.length - 1; i >= 0; i--) {
+    if (objects[i].type !== 'connector') continue;
+    const spec = specs.get('connector');
+    if (spec && spec.hitTest(objects[i], worldPoint, zoom)) return objects[i].id;
+  }
+  return null;
 }
 
 const specs = new Map<string, ObjectTypeSpec>();
@@ -113,4 +173,35 @@ registerObjectType('text', {
   editableText: true,
   handles: 'horizontal',
   hitTest: stickyHitTest,
+});
+
+// Story 10: shapes — resizable, never aspect-locked (a shape's width/height
+// are independent), a generous min size (they are clicked into being),
+// editable label (the story 2 editor, SHAPE_LABEL_MAX_CHARS).
+registerObjectType('shape', {
+  Component: ShapeObject,
+  resizable: true,
+  aspectLocked: false,
+  minSize: 20,
+  editableText: true,
+  hitTest: stickyHitTest,
+});
+
+// Story 10: connectors (arrows) — not resizable (endpoints are moved via the
+// end handles, not scale handles), hit = within CONNECTOR_HIT_TOLERANCE_PX
+// (screen px) of the resolved line (polyline distance in world units).
+function connectorHitTest(obj: ObjectSnapshot, p: { x: number; y: number }, zoom = 1): boolean {
+  const ends = obj.ends;
+  if (!ends) return false;
+  const tolerance = CONNECTOR_HIT_TOLERANCE_PX / Math.max(zoom, 0.01);
+  return distanceToPolyline([ends.from, ends.to], p) <= tolerance;
+}
+
+registerObjectType('connector', {
+  Component: ConnectorObjectBridge,
+  resizable: false,
+  aspectLocked: false,
+  minSize: 1,
+  editableText: false,
+  hitTest: connectorHitTest,
 });

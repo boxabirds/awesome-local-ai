@@ -11,6 +11,7 @@
  * - Story 9: V → Select tool, T → Text tool (only when editable),
  *   Escape → Select tool (the selection is also cleared, as before),
  *   N → create a sticky note at the view centre (story 2 behaviour)
+ * - Story 10: S → Shape tool, L → Connector tool (only when editable)
  *
  * Shortcuts never fire while focus is inside a text input/textarea/content-
  * editable (typing a note), and never fire while an object is in editing
@@ -28,7 +29,7 @@ import { getObjectType } from '../objects/registry';
 import { NUDGE_STEP_WORLD, NUDGE_LARGE_STEP_WORLD } from 'src/shared/config';
 import type { Selection } from './useSelection';
 import type { UndoController } from './undo';
-import type { Tool } from './useTool';
+import type { ToolId } from '../tools/useActiveTool';
 
 /** True when the event target is a text-control-like element. */
 function focusIsInTextControl(target: EventTarget | null): boolean {
@@ -44,9 +45,9 @@ export interface BoardKeysOptions {
   canEdit: boolean;
   /** Story 8: per-user undo controller (undo/redo shortcuts + boundaries). */
   undo: UndoController;
-  /** Story 9: active board tool (V / T / Escape). */
-  tool: Tool;
-  setTool: (t: Tool) => void;
+  /** Story 9/10: active board tool (V / T / S / L / Escape). */
+  tool: ToolId;
+  setTool: (t: ToolId) => void;
   /** Story 9 (N): create a sticky note at the view centre (story 2). */
   onCreateStickyCentred: () => void;
 }
@@ -94,6 +95,19 @@ export function useBoardKeys(opts: BoardKeysOptions): void {
           if (!canEdit) return;
           e.preventDefault();
           onCreateStickyCentred();
+          return;
+        }
+        // Story 10: Shape and Connector tools (tools.shortcuts).
+        if (e.key === 's' || e.key === 'S') {
+          if (!canEdit) return;
+          e.preventDefault();
+          setTool('shape');
+          return;
+        }
+        if (e.key === 'l' || e.key === 'L') {
+          if (!canEdit) return;
+          e.preventDefault();
+          setTool('connector');
           return;
         }
       }

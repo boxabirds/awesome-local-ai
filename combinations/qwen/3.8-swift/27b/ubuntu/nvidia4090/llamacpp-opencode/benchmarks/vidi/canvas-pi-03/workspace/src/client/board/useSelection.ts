@@ -74,6 +74,12 @@ export interface Selection {
   editingId: string | null;
   /** Click: make `id` the only selected object (no-op for absent ids). */
   click: (id: string) => void;
+  /**
+   * Make `id` the only selected object WITHOUT a presence check — for ids
+   * created in the same tick (the return-to-Select rule): the doc write
+   * re-renders a tick later, and the prune effect keeps it once present.
+   */
+  select: (id: string) => void;
   /** Shift-click: add `id` if absent, remove it if selected (no-op for absent ids). */
   toggle: (id: string) => void;
   /** Marquee / select-all: `additive` unions with the current selection. */
@@ -127,6 +133,10 @@ export function useSelection(snapshot: readonly ObjectSnapshot[]): Selection {
     [snapshot],
   );
 
+  const select = useCallback((id: string) => {
+    dispatch({ type: 'click', id });
+  }, []);
+
   const clear = useCallback(() => dispatch({ type: 'clear' }), []);
 
   const startEdit = useCallback((id: string) => {
@@ -141,5 +151,5 @@ export function useSelection(snapshot: readonly ObjectSnapshot[]): Selection {
     if (next === 'unselected') dispatch({ type: 'clear' });
   }, []);
 
-  return { ids: state.ids, editingId: state.editingId, click, toggle, setMany, clear, startEdit, endEdit };
+  return { ids: state.ids, editingId: state.editingId, click, select, toggle, setMany, clear, startEdit, endEdit };
 }

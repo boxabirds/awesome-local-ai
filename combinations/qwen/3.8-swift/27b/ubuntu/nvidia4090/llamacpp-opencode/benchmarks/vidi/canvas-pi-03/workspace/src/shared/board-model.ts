@@ -1,5 +1,7 @@
 import * as Y from 'yjs';
-import { rectContains, type Rect } from './geometry';
+import { rectContains, type Point, type Rect } from './geometry';
+import { resolveEndpoints, connectorBBox, parseEndpoint } from './geometry/connector-geometry';
+import { detachConnectorsTo } from './objects/connector';
 import {
   STICKY_COLORS,
   STICKY_SIZE_WORLD,
@@ -26,6 +28,12 @@ export interface ObjectSnapshot {
   z: number;
   width?: number;
   height?: number;
+  /**
+   * Story 10: resolved connector endpoints (world points). Present only on
+   * `connector` snapshots, derived from the live object rectangles in
+   * `allObjects` — the registry hit test and the selection overlay use it.
+   */
+  ends?: { from: Point; to: Point };
 }
 
 export interface StickySnapshot extends ObjectSnapshot {
@@ -51,7 +59,11 @@ const SCHEMA_VERSION = 1;
 
 type ObjectMap = Y.Map<unknown>;
 
-function objectsOf(doc: Y.Doc): Y.Map<ObjectMap> {
+/**
+ * The doc's `objects` Y.Map (id → object map). Story 10 exports this so the
+ * client can hit-test attach targets directly (connector tools, selection).
+ */
+export function objectsOf(doc: Y.Doc): Y.Map<ObjectMap> {
   return doc.getMap<ObjectMap>('objects');
 }
 
@@ -221,9 +233,14 @@ export function snapshot(doc: Y.Doc): readonly StickySnapshot[] {
  * Immutable snapshot of EVERY object on the board (all types), sorted by
  * (z, id) like `snapshot`. Used by the client for rendering through the
  * object registry, multi-selection, marquee and select-all.
+ *
+ * Story 10: connectors store x/y/width/height = 0; their snapshot box is
+ * DERIVED here from the resolved endpoints (which follow object moves by
+ * anyone without writes). The resolved endpoints are carried on the snapshot
+ * (`ends`) for the registry hit test and the selection overlay.
  */
 export function allObjects(doc: Y.Doc): readonly ObjectSnapshot[] {
-  const out: ObjectSnapshot[] = [];
+  const raw: Array<ObjectSnapshot & { type: string }> = [];
   objectsOf(doc).forEach((obj, key) => {
     if (!(obj instanceof Y.Map)) return;
     const type = obj.get('type');
@@ -233,7 +250,7 @@ export function allObjects(doc: Y.Doc): readonly ObjectSnapshot[] {
     if (typeof x !== 'number' || typeof y !== 'number') return;
     const width = obj.get('width');
     const height = obj.get('height');
-    out.push({
+    raw.push({
       id: key as string,
       type,
       x,
@@ -243,6 +260,32 @@ export function allObjects(doc: Y.Doc): readonly ObjectSnapshot[] {
       ...(typeof height === 'number' && Number.isFinite(height) ? { height } : {}),
     });
   });
+
+  // Rects of the attach targets (non-connector objects) for endpoint
+  // resolution.
+  const rects = new Map<string, Rect>();
+  for (const o of raw) {
+    if (o.type === 'connector') continue;
+    rects.set(o.id, objectBounds(o));
+  }
+
+  const out: ObjectSnapshot[] = [];
+  for (const o of raw) {
+    if (o.type !== 'connector') {
+      out.push(o);
+      continue;
+    }
+    const obj = objectsOf(doc).get(o.id);
+    const from = obj instanceof Y.Map ? parseEndpoint(obj.get('from')) : null;
+    const to = obj instanceof Y.Map ? parseEndpoint(obj.get('to')) : null;
+    if (!from || !to) {
+      out.push(o); // malformed connector: render with the stored (zero) box
+      continue;
+    }
+    const { from: fp, to: tp } = resolveEndpoints({ from, to }, rects);
+    const box = connectorBBox(fp, tp);
+    out.push({ ...o, x: box.x, y: box.y, width: box.width, height: box.height, ends: { from: fp, to: tp } });
+  }
   out.sort((a, b) => {
     if (a.z !== b.z) return a.z - b.z;
     if (a.id < b.id) return -1;
@@ -415,6 +458,11 @@ export function deleteObjects(doc: Y.Doc, ids: readonly string[]): number {
   const present = ids.filter((id) => objects.get(id) instanceof Y.Map);
   if (present.length === 0) return 0;
   doc.transact(() => {
+    // Story 10 (connector.target_deleted): attached connector ends on the
+    // deleted objects become free at the CURRENT side anchor BEFORE the
+    // objects are removed, so the anchor is still computable. One
+    // transaction → one update → one undo step.
+    detachConnectorsTo(doc, present);
     for (const id of present) objects.delete(id);
   }, LOCAL_ORIGIN);
   return present.length;

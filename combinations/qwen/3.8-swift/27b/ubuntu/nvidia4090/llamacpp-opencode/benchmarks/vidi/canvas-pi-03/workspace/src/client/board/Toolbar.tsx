@@ -1,26 +1,36 @@
 import type { CSSProperties, JSX } from 'react';
 import { UndoButtons } from './UndoButtons';
 import type { UndoState } from './useUndo';
-import type { Tool } from './useTool';
+import type { ToolId } from '../tools/useActiveTool';
+import type { ShapeKind } from 'src/shared/objects/shape';
 
 export interface ToolbarProps {
   onCreateSticky: () => void;
-  /** When true (board `load_failed`) the Sticky note and Text buttons are disabled. */
+  /** When true (board `load_failed`) the Sticky note, Shape and Connector buttons are disabled. */
   disabled?: boolean;
   /** Story 8: undo/redo state for the toolbar buttons (below the tools). */
   undo?: UndoState;
-  /** Story 9: the active board tool (Select / Text buttons). */
-  tool: Tool;
-  onToolChange: (t: Tool) => void;
+  /** Story 9/10: the active board tool (Select / Text / Shape / Connector buttons). */
+  tool: ToolId;
+  onToolChange: (t: ToolId) => void;
+  /** Story 10: the Shape button's kind (Rectangle / Ellipse / Diamond). */
+  shapeKind: ShapeKind;
+  onShapeKindChange: (k: ShapeKind) => void;
 }
 
 /**
- * Fixed left-side toolbar with the Select / Text tool buttons (story 9),
- * the Sticky note button and, below the tools, the Undo / Redo buttons
- * (story 8). Stops pointer propagation so clicks never reach the viewport
- * (which would pan / clear the selection).
+ * Fixed left-side toolbar with the Select / Text (story 9) / Shape and
+ * Connector (story 10) tool buttons, the Sticky note button and, below the
+ * tools, the Undo / Redo buttons (story 8). Stops pointer propagation so
+ * clicks never reach the viewport (which would pan / clear the selection).
+ *
+ * Story 10: the Shape button carries a kind menu (Rectangle / Ellipse /
+ * Diamond) shown while the Shape tool is active; picking a kind keeps the
+ * tool active so the next drag draws that kind (prd "S … menu shows
+ * Rectangle, Ellipse, Diamond").
  */
 export function Toolbar(props: ToolbarProps): JSX.Element {
+  const shapeActive = props.tool === 'shape';
   return (
     <div
       data-testid="main-toolbar"
@@ -86,6 +96,80 @@ export function Toolbar(props: ToolbarProps): JSX.Element {
           T
         </span>
       </button>
+      {/* Story 10: Shape tool + kind menu. */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 4, alignItems: 'flex-start' }}>
+        <button
+          type="button"
+          aria-label="Shape (S)"
+          title="Shape – S, then drag (Shift squares)"
+          aria-pressed={shapeActive}
+          data-testid="shape-tool-button"
+          disabled={props.disabled}
+          onClick={() => props.onToolChange('shape')}
+          style={toolButtonStyle(shapeActive)}
+        >
+          {/* Rectangle glyph */}
+          <svg width="20" height="20" viewBox="0 0 20 20" aria-hidden="true">
+            <rect x="3" y="5" width="14" height="10" fill="none" stroke="#333" strokeWidth="1.5" />
+          </svg>
+        </button>
+        {shapeActive && (
+          <div
+            data-testid="shape-kind-menu"
+            aria-label="Shape kind"
+            role="menu"
+            style={{
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 4,
+              padding: 6,
+              backgroundColor: '#ffffff',
+              border: '1px solid #d0d7de',
+              borderRadius: 6,
+              boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
+            }}
+          >
+            <KindMenuItem
+              kind="rect"
+              label="Rectangle"
+              active={props.shapeKind === 'rect'}
+              onSelect={props.onShapeKindChange}
+              glyph={<rect x="3" y="5" width="14" height="10" fill="none" stroke="#333" strokeWidth="1.5" />}
+            />
+            <KindMenuItem
+              kind="ellipse"
+              label="Ellipse"
+              active={props.shapeKind === 'ellipse'}
+              onSelect={props.onShapeKindChange}
+              glyph={<ellipse cx="10" cy="10" rx="7" ry="5" fill="none" stroke="#333" strokeWidth="1.5" />}
+            />
+            <KindMenuItem
+              kind="diamond"
+              label="Diamond"
+              active={props.shapeKind === 'diamond'}
+              onSelect={props.onShapeKindChange}
+              glyph={<polygon points="10,3 17,10 10,17 3,10" fill="none" stroke="#333" strokeWidth="1.5" />}
+            />
+          </div>
+        )}
+      </div>
+      {/* Story 10: Connector tool. */}
+      <button
+        type="button"
+        aria-label="Connector (L)"
+        title="Connector – L, then drag between objects"
+        aria-pressed={props.tool === 'connector'}
+        data-testid="connector-tool-button"
+        disabled={props.disabled}
+        onClick={() => props.onToolChange('connector')}
+        style={toolButtonStyle(props.tool === 'connector')}
+      >
+        {/* Arrow glyph */}
+        <svg width="20" height="20" viewBox="0 0 20 20" aria-hidden="true">
+          <line x1="3" y1="15" x2="14" y2="5" stroke="#333" strokeWidth="1.5" />
+          <polyline points="9,4 15,4 15,10" fill="none" stroke="#333" strokeWidth="1.5" />
+        </svg>
+      </button>
       <button
         type="button"
         aria-label="Sticky note"
@@ -114,6 +198,43 @@ export function Toolbar(props: ToolbarProps): JSX.Element {
       </button>
       {props.undo && <UndoButtons {...props.undo} />}
     </div>
+  );
+}
+
+/** One row of the Shape kind menu (glyph + name). */
+function KindMenuItem(props: {
+  kind: ShapeKind;
+  label: string;
+  active: boolean;
+  onSelect: (k: ShapeKind) => void;
+  glyph: React.ReactNode;
+}): JSX.Element {
+  return (
+    <button
+      type="button"
+      role="menuitemradio"
+      aria-label={props.label}
+      aria-pressed={props.active}
+      data-testid={`shape-kind-${props.kind}`}
+      onClick={() => props.onSelect(props.kind)}
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: 8,
+        padding: '4px 8px',
+        backgroundColor: props.active ? '#D6E4FF' : '#FFFFFF',
+        border: `1px solid ${props.active ? '#1A73E8' : '#d0d7de'}`,
+        borderRadius: 4,
+        cursor: 'pointer',
+        fontSize: 12,
+        color: '#333',
+      }}
+    >
+      <svg width="20" height="20" viewBox="0 0 20 20" aria-hidden="true">
+        {props.glyph}
+      </svg>
+      {props.label}
+    </button>
   );
 }
 

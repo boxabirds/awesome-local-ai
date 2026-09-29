@@ -32,7 +32,11 @@ describe('object type registry', () => {
 
   it('TC-12: getObjectType of an unknown type is undefined', () => {
     expect(getObjectType('unknown')).toBeUndefined();
-    expect(getObjectType('shape')).toBeUndefined();
+    // Story 10: 'shape' and 'connector' are registered object types (this
+    // test originally used 'shape' as an example of an unregistered type).
+    expect(getObjectType('shape')).toBeDefined();
+    expect(getObjectType('connector')).toBeDefined();
+    expect(getObjectType('pen')).toBeUndefined();
   });
 
   it('duplicate registration throws (programming error path)', () => {
