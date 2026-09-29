@@ -1,3 +1,96 @@
+commit edcd7f6cfe286a49e8b56944681ebc42da1a3c34
+vidi-agent  Tue Sep 29 11:04:06 2026 +0100
+
+    feat(9): reflect remote Y.Text edits in TextEditor (fixes concurrent typing); e2e TC-26..31 across chromium/firefox/webkit + notes
+
+
+ NOTES.md                          |  50 +++++
+ src/client/objects/TextEditor.tsx |  16 ++
+ tests/e2e/free-text.spec.ts       | 408 ++++++++++++++++++++++++--------------
+ 3 files changed, 321 insertions(+), 153 deletions(-)
+commit e6685ba37a0bed52207b526d2ee67b6fc19b4e57
+vidi-agent  Tue Sep 29 10:50:14 2026 +0100
+
+    test(9): free text e2e (TC-26..31) + rawClient addText helper; box-sync writer/peer, size toolbar undo, limit hint, abandoned text
+
+
+ tests/e2e/free-text.spec.ts    | 231 +++++++++++++++++++++++++++++++++++++++++
+ tests/e2e/helpers/rawClient.ts |  25 +++++
+ 2 files changed, 256 insertions(+)
+commit 3af97a8f79b734c758b874fc45638cf8ce5193b6
+vidi-agent  Tue Sep 29 10:43:42 2026 +0100
+
+    test(9): text object component tests (TC-19..25) + text limit hint in generalised TextEditor
+
+
+ src/client/objects/TextEditor.tsx   |  33 +++++-
+ src/client/objects/TextObject.tsx   |   1 +
+ tests/component/TextObject.test.tsx | 230 ++++++++++++++++++++++++++++++++++++
+ 3 files changed, 262 insertions(+), 2 deletions(-)
+commit ca062db94640e276770b86d3331df3703a1656bb
+vidi-agent  Tue Sep 29 10:39:41 2026 +0100
+
+    test(9): tool mode (TC-14..18) + fix Toolbar canEdit gating and label collisions
+
+
+ src/client/board/BoardApp.tsx        |   1 +
+ src/client/board/Toolbar.tsx         |  10 ++-
+ tests/component/TextBoxSync.test.tsx |   1 -
+ tests/component/TextTool.test.tsx    | 141 +++++++++++++++++++++++++++++++++++
+ 4 files changed, 149 insertions(+), 4 deletions(-)
+commit f3f52b7efb8889f6ab3025a944aa65128dca7858
+vidi-agent  Tue Sep 29 10:32:02 2026 +0100
+
+    test(9): box sync single-writer — remote peer edit writes no local box, size/fixed remeasure once, no redundant writes (TC-12, TC-13)
+
+
+ tests/component/TextBoxSync.test.tsx | 160 +++++++++++++++++++++++++++++++++++
+ 1 file changed, 160 insertions(+)
+commit 44c2b924933444a5d8178b1e8336022980961a19
+vidi-agent  Tue Sep 29 10:22:24 2026 +0100
+
+    feat(9): text object — TextObject, generalised TextEditor (sticky wraps it), TextToolbar, useTool select/text, V/T/N/Escape shortcuts, click-to-create, horizontal-only handles + text width resize
+
+
+ src/client/board/BoardApp.tsx           |  33 ++++-
+ src/client/board/SelectionOverlay.tsx   |  27 +++-
+ src/client/board/Toolbar.tsx            |  81 +++++++++---
+ src/client/board/useBoardKeys.ts        |  34 +++++
+ src/client/board/useClientId.ts         |  12 ++
+ src/client/board/useTool.ts             |  32 +++++
+ src/client/board/useTransformGesture.ts |  33 ++++-
+ src/client/canvas/BoardViewport.tsx     |  37 +++++-
+ src/client/objects/StickyTextEditor.tsx | 213 ++++++--------------------------
+ src/client/objects/TextEditor.tsx       | 190 ++++++++++++++++++++++++++++
+ src/client/objects/TextObject.tsx       | 148 ++++++++++++++++++++++
+ src/client/objects/TextToolbar.tsx      |  95 ++++++++++++++
+ src/client/objects/measurer.ts          |  10 ++
+ src/client/objects/registry.tsx         |  24 +++-
+ src/client/objects/useTextBoxSync.ts    |  71 ++++-------
+ 15 files changed, 803 insertions(+), 237 deletions(-)
+commit 7ed30de4a5b010ee9aed8db0bf8d62da20b66813
+vidi-agent  Tue Sep 29 10:07:24 2026 +0100
+
+    feat(9): text layout and box sync — layoutText (auto/fixed, greedy wrap), createCanvasMeasurer estimate fallback, useTextBoxSync single-writer; unit TC-07..11, TC-32
+
+
+ src/client/objects/textLayout.ts     | 174 +++++++++++++++++++++++++++++++++++
+ src/client/objects/useTextBoxSync.ts |  54 +++++++++++
+ tests/unit/text-layout.test.ts       | 105 +++++++++++++++++++++
+ 3 files changed, 333 insertions(+)
+commit 58defbd8b611152b55dbe889109dd789c33d265d
+vidi-agent  Tue Sep 29 10:01:29 2026 +0100
+
+    feat(9): text object model — text.ts schema (create/size/width/box/empty) and shared text-edit.ts clamp+diff, with sticky-text re-export; unit TC-01..06
+
+
+ src/client/objects/StickyText.ts |  60 ++--------
+ src/shared/board-model.ts        |  11 ++
+ src/shared/config.ts             |  18 +++
+ src/shared/objects/text.ts       | 246 +++++++++++++++++++++++++++++++++++++++
+ src/shared/text-edit.ts          |  56 +++++++++
+ tests/unit/text-model.test.ts    | 191 ++++++++++++++++++++++++++++++
+ 6 files changed, 531 insertions(+), 51 deletions(-)
 commit e2e22c817ebc135a0308abe1e651d14ad53bd443
 vidi-agent  Tue Sep 29 09:47:25 2026 +0100
 
