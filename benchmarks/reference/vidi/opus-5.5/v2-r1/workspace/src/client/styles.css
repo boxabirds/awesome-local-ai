@@ -1,0 +1,132 @@
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  margin: 0;
+  height: 100%;
+  overflow: hidden;
+  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  color: #1f2328;
+  background: #fafafa;
+}
+
+.board {
+  position: fixed;
+  inset: 0;
+}
+
+.board-viewport {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+  background-color: #fafafa;
+  background-image: radial-gradient(circle, #c4c8cf 1px, transparent 1.5px);
+}
+
+.board-viewport.is-panning {
+  cursor: grabbing;
+}
+
+.world-layer {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 0;
+  height: 0;
+  transform-origin: 0 0;
+  pointer-events: none;
+}
+
+.world-layer > * {
+  pointer-events: auto;
+}
+
+.origin-marker {
+  position: absolute;
+  left: -8px;
+  top: -8px;
+  width: 16px;
+  height: 16px;
+  pointer-events: none;
+  background:
+    linear-gradient(#8a93a0, #8a93a0) center / 16px 1px no-repeat,
+    linear-gradient(#8a93a0, #8a93a0) center / 1px 16px no-repeat;
+}
+
+.world-layer > .origin-marker {
+  pointer-events: none;
+}
+
+.zoom-controls {
+  position: fixed;
+  right: 16px;
+  bottom: 16px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px;
+  background: #fff;
+  border: 1px solid #d0d7de;
+  border-radius: 8px;
+  box-shadow: 0 1px 4px rgb(0 0 0 / 8%);
+  font-size: 14px;
+}
+
+.zoom-controls button {
+  font: inherit;
+  min-width: 32px;
+  height: 32px;
+  padding: 0 8px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+}
+
+.zoom-controls button:hover:not(:disabled) {
+  background: #eef1f4;
+}
+
+.zoom-controls button:disabled {
+  color: #a0a7b0;
+  cursor: default;
+}
+
+.zoom-controls button:focus-visible {
+  outline: 2px solid #0969da;
+  outline-offset: 1px;
+}
+
+.zoom-button {
+  font-size: 18px !important;
+  line-height: 1;
+}
+
+.zoom-label {
+  min-width: 48px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+.navigation-hint {
+  position: fixed;
+  left: 50%;
+  bottom: 24px;
+  transform: translateX(-50%);
+  padding: 8px 14px;
+  border-radius: 999px;
+  background: rgb(31 35 40 / 80%);
+  color: #fff;
+  font-size: 14px;
+  white-space: nowrap;
+  pointer-events: none;
+}

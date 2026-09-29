@@ -1,0 +1,28 @@
+import { defineConfig, devices } from '@playwright/test';
+
+const PORT = 8788;
+const viewport = { width: 1280, height: 800 };
+// Comma-separated subset of browsers to run, e.g. E2E_BROWSERS=chromium,webkit (default: all three).
+const browsers = (process.env.E2E_BROWSERS ?? 'chromium,firefox,webkit').split(',');
+
+export default defineConfig({
+  testDir: 'tests/e2e',
+  fullyParallel: true,
+  reporter: 'list',
+  use: {
+    baseURL: `http://localhost:${PORT}`,
+    viewport,
+  },
+  projects: [
+    { name: 'chromium', use: { ...devices['Desktop Chrome'], viewport } },
+    { name: 'firefox', use: { ...devices['Desktop Firefox'], viewport } },
+    { name: 'webkit', use: { ...devices['Desktop Safari'], viewport } },
+  ].filter((p) => browsers.includes(p.name)),
+  webServer: {
+    // Test-mode build exposes window.__vidi6 (test hook); served the same way as production.
+    command: `npm run build:test && npx wrangler dev --port ${PORT} --ip 127.0.0.1`,
+    url: `http://localhost:${PORT}`,
+    reuseExistingServer: !process.env.CI,
+    timeout: 120_000,
+  },
+});
