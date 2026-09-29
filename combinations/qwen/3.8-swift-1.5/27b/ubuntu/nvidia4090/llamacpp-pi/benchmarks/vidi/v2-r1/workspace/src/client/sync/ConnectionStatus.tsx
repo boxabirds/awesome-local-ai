@@ -79,5 +79,29 @@ export function ConnectionStatus(props: { state: ConnectionState }) {
     );
   }
 
+  if (state === 'load_failed') {
+    return (
+      <div
+        role="status"
+        aria-label="Board load failed"
+        style={{
+          position: 'fixed',
+          top: 12,
+          left: '50%',
+          transform: 'translateX(-50%)',
+          padding: '4px 12px',
+          borderRadius: 4,
+          fontSize: 13,
+          fontFamily: 'system-ui, sans-serif',
+          background: '#f44336',
+          color: '#fff',
+          zIndex: 10000,
+        }}
+      >
+        This board couldn't be loaded. Retrying…
+      </div>
+    );
+  }
+
   return null;
 }

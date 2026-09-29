@@ -1,3 +1,34 @@
+commit 7800dc4b5af4baf23b0a4974bb8b2f1d1e51836b
+vidi-agent  Tue Sep 29 22:55:42 2026 +0100
+
+    story 4: Return to a board and find everything as it was left
+
+
+ src/client/App.tsx                         |  30 ++-
+ src/client/board/Toolbar.tsx               |   9 +-
+ src/client/sync/ConnectionStatus.tsx       |  24 ++
+ src/client/sync/connectBoard.ts            |  55 +++-
+ src/shared/config.ts                       |   8 +
+ src/shared/protocol.ts                     |   2 +
+ src/worker/board-room.ts                   | 365 +++++++++++++++++++++++++-
+ src/worker/board-store.ts                  | 231 +++++++++++++++++
+ src/worker/index.ts                        | 109 +++++++-
+ src/worker/room-state.ts                   |  56 ++++
+ src/worker/types.d.ts                      |  28 +-
+ tests/component/connection-status.test.tsx |  10 +
+ tests/component/load-failure.test.tsx      | 162 ++++++++++++
+ tests/e2e/broken-board.spec.ts             | 104 ++++++++
+ tests/e2e/helpers/port.ts                  |  19 ++
+ tests/e2e/helpers/wrangler-process.ts      |  81 ++++++
+ tests/e2e/persistence.spec.ts              | 142 ++++++++++
+ tests/fixtures/boards.ts                   | 121 +++++++++
+ tests/integration/board-store.test.ts      | 403 +++++++++++++++++++++++++++++
+ tests/integration/persistent-room.test.ts  | 206 +++++++++++++++
+ tests/unit/board-store-chunks.test.ts      |  82 ++++++
+ tests/unit/room-state.test.ts              | 114 ++++++++
+ vitest.workspace.ts                        |   4 +-
+ wrangler.jsonc                             |   3 +
+ 24 files changed, 2341 insertions(+), 27 deletions(-)
 commit ab70789a35d70c2b485f474c9e14f49567ae12f4
 vidi-agent  Tue Sep 29 22:16:44 2026 +0100
 

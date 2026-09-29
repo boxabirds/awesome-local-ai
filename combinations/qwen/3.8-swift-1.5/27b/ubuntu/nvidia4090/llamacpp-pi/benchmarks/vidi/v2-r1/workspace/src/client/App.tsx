@@ -12,6 +12,7 @@ import { Toolbar } from './board/Toolbar';
 import { StickyNote } from './objects/StickyNote';
 import { NoteToolbar } from './objects/NoteToolbar';
 import { ConnectionStatus } from './sync/ConnectionStatus';
+import { canEdit } from './sync/connectBoard';
 import { createSticky, deleteObject, setStickyColor } from '@shared/board-model';
 import { newBoardId } from '@shared/board-id';
 import { STICKY_SIZE_WORLD } from '@shared/config';
@@ -57,26 +58,31 @@ export function App() {
     setupTestHooks(cam);
   }, [cam]);
 
+  const editAllowed = canEdit(connectionState);
+
   // Create a sticky note at a world point
   const createStickyAt = useCallback((worldPoint: Point) => {
+    if (!canEdit(connectionState)) return;
     const id = createSticky(doc, worldPoint);
     if (id) {
       startEdit(id);
     }
-  }, [doc, startEdit]);
+  }, [doc, startEdit, connectionState]);
 
   // Handle double-click on empty board space
   const handleDoubleClickEmpty = useCallback((screenPoint: Point) => {
+    if (!canEdit(connectionState)) return;
     const worldPoint = screenToWorld(cam.camera, screenPoint);
     createStickyAt(worldPoint);
-  }, [cam.camera, createStickyAt]);
+  }, [cam.camera, createStickyAt, connectionState]);
 
   // Handle click on Sticky note toolbar button
   const handleCreateSticky = useCallback(() => {
+    if (!canEdit(connectionState)) return;
     const centre: Point = { x: size.width / 2, y: size.height / 2 };
     const worldPoint = screenToWorld(cam.camera, centre);
     createStickyAt(worldPoint);
-  }, [cam.camera, size, createStickyAt]);
+  }, [cam.camera, size, createStickyAt, connectionState]);
 
   // Handle clear selection (click on empty space)
   const handlePointerUpEmpty = useCallback(() => {
@@ -94,11 +100,13 @@ export function App() {
 
       if (e.key === 'Enter' && selectedId && !editingId) {
         e.preventDefault();
-        startEdit(selectedId);
+        if (canEdit(connectionState)) startEdit(selectedId);
       } else if ((e.key === 'Delete' || e.key === 'Backspace') && selectedId && !editingId) {
         e.preventDefault();
-        deleteObject(doc, selectedId);
-        select(null);
+        if (canEdit(connectionState)) {
+          deleteObject(doc, selectedId);
+          select(null);
+        }
       }
     };
     window.addEventListener('keydown', handler);
@@ -107,18 +115,18 @@ export function App() {
 
   // Handle colour change from NoteToolbar
   const handleColorChange = useCallback((color: string) => {
-    if (selectedId) {
+    if (selectedId && canEdit(connectionState)) {
       setStickyColor(doc, selectedId, color);
     }
-  }, [doc, selectedId]);
+  }, [doc, selectedId, connectionState]);
 
   // Handle delete from NoteToolbar
   const handleDelete = useCallback(() => {
-    if (selectedId) {
+    if (selectedId && canEdit(connectionState)) {
       deleteObject(doc, selectedId);
       select(null);
     }
-  }, [doc, selectedId, select]);
+  }, [doc, selectedId, select, connectionState]);
 
   // Clear selection/editing if the note was deleted remotely
   useEffect(() => {
@@ -175,7 +183,7 @@ export function App() {
           />
         ))}
       </BoardViewport>
-      <Toolbar onCreateSticky={handleCreateSticky} />
+      <Toolbar onCreateSticky={handleCreateSticky} disabled={!editAllowed} />
       {noteToolbarStyle && selectedNote && (
         <div style={noteToolbarStyle}>
           <NoteToolbar

@@ -1,8 +1,9 @@
 interface ToolbarProps {
   onCreateSticky: () => void;
+  disabled?: boolean;
 }
 
-export function Toolbar({ onCreateSticky }: ToolbarProps) {
+export function Toolbar({ onCreateSticky, disabled }: ToolbarProps) {
   const handlePointerDown = (e: React.PointerEvent) => {
     e.stopPropagation();
   };
@@ -31,17 +32,19 @@ export function Toolbar({ onCreateSticky }: ToolbarProps) {
         data-testid="create-sticky"
         title="Sticky note – or double-click the board"
         onClick={onCreateSticky}
+        disabled={disabled}
         style={{
           width: 40,
           height: 40,
           border: '1px solid rgba(0,0,0,0.1)',
           borderRadius: 6,
-          backgroundColor: '#FFF59D',
-          cursor: 'pointer',
+          backgroundColor: disabled ? '#e0e0e0' : '#FFF59D',
+          cursor: disabled ? 'not-allowed' : 'pointer',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
           fontSize: 20,
+          opacity: disabled ? 0.6 : 1,
         }}
       >
         +

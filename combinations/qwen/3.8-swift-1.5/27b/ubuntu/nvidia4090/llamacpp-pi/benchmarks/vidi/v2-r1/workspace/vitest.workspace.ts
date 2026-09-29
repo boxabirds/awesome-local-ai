@@ -38,8 +38,8 @@ export default defineWorkspace([
         workers: {
           main: 'src/worker/index.ts',
           compatibilityDate: '2024-01-01',
-          durableObjects: {
-            BOARD_ROOM: 'BoardRoom',
+          wrangler: {
+            configPath: 'wrangler.jsonc',
           },
         },
       },

@@ -26,3 +26,13 @@ describe('TC-19: connection badge', () => {
     expect(badge).toHaveTextContent('Connected');
   });
 });
+
+describe('TC-22: load-failure badge', () => {
+  it('load_failed state shows red "This board couldn\'t be loaded. Retrying…" with role=status', () => {
+    render(<ConnectionStatus state="load_failed" />);
+    const badge = screen.getByRole('status', { name: 'Board load failed' });
+    expect(badge).toHaveTextContent("This board couldn't be loaded. Retrying…");
+    // Verify it's red
+    expect(badge.style.background).toBe('rgb(244, 67, 54)');
+  });
+});

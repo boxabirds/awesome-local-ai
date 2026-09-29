@@ -3,7 +3,7 @@ declare module 'cloudflare:workers' {
     env: Env;
     ctx: DurableObjectState;
     constructor(ctx: DurableObjectState, env: Env);
-    fetch?(req: Request, env: Env, ctx: DurableObjectState): Promise<Response> | Response;
+    fetch?(req: Request, env?: Env, ctx?: DurableObjectState): Promise<Response> | Response;
   }
 
   export interface DurableObjectState {
@@ -13,6 +13,32 @@ declare module 'cloudflare:workers' {
     passThroughOnException(): void;
     readonly id: string;
     readonly columnName: string;
+    getWebSockets(): WorkersWebSocket[];
+    acceptWebSocket(ws: WorkersWebSocket): void;
+    storage: DurableObjectStorage;
+  }
+
+  export interface DurableObjectStorage {
+    sql: DurableObjectSQLite;
+    transactionSync(fn: () => void): void;
+    get<T = unknown>(key: string): Promise<T | null>;
+    set(key: string, value: unknown): Promise<void>;
+    delete(key: string): Promise<void>;
+    list<T = unknown>(options?: { prefix?: string; limit?: number }): Promise<{ key: string; value: T }[]>;
+  }
+
+  export interface DurableObjectSQLiteCursor {
+    toArray(): any[];
+    next(): { done: boolean; value?: any };
+    one(): any;
+    raw(): any;
+    columnNames: string[];
+    rowsRead: number;
+    rowsWritten: number;
+  }
+
+  export interface DurableObjectSQLite {
+    exec(query: string, ...params: any[]): DurableObjectSQLiteCursor;
   }
 }
 

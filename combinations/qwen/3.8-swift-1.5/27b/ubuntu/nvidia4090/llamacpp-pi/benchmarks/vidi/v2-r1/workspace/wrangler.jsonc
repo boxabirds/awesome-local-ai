@@ -7,6 +7,9 @@
       { "name": "BOARD_ROOM", "class_name": "BoardRoom" }
     ]
   },
+  "migrations": [
+    { "tag": "v1", "new_sqlite_classes": ["BoardRoom"] }
+  ],
   "assets": {
     "directory": "dist/client",
     "binding": "ASSETS",
