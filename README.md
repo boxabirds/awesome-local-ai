@@ -366,8 +366,9 @@ The bench machines are an RTX 4090, a Strix Halo and an M5 Max. These are the ga
 - **RTX 3090.** The most common 24 GB card for local models. The two SGLang rows above were written for
   it from someone else's recipe and have never been run through these installers; a 3090 owner can turn
   them into measured rows, and run the Qwen3.8-27B llama.cpp rows for comparison with the 4090.
-- **AMD Gorgon Halo builds**, running the stacks our Strix Halo box runs (llama.cpp with Vulkan or
-  ROCm, gufo), so the two generations can be compared on the same models.
+- **AMD Gorgon Halo (the 495 series) builds**, running the stacks our Strix Halo (Ryzen AI Max+ 395)
+  box runs (llama.cpp with Vulkan or ROCm, gufo), so the two generations can be compared on the same
+  models.
 
 Anything else with a combination worth measuring is welcome too; [horizon/](horizon/) lists engines and
 models we would like to see tried.
