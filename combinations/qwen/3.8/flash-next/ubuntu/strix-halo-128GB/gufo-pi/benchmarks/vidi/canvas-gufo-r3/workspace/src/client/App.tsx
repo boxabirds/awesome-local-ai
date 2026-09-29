@@ -10,6 +10,7 @@ import { useSelection } from '@client/board/useSelection';
 import { Toolbar } from '@client/board/Toolbar';
 import { StickyNote } from '@client/objects/StickyNote';
 import { ConnectionStatus } from '@client/sync/ConnectionStatus';
+import { canEdit } from '@client/sync/connectBoard';
 import { createSticky, deleteObject } from '@shared/board-model';
 import { newBoardId, isValidBoardId } from '@shared/board-id';
 
@@ -99,10 +100,31 @@ function Board({ boardId }: { boardId: string }) {
     setTestConnectionState(connectionState);
   }, [connectionState]);
 
-  // Board keyboard shortcuts (zoom)
+  // Board keyboard shortcuts (zoom and note operations)
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
-      if (!(e.ctrlKey || e.metaKey)) return;
+      if (!(e.ctrlKey || e.metaKey)) {
+        // Note keyboard shortcuts: Delete/Backspace removes the selected note.
+        if (e.key === 'Delete' || e.key === 'Backspace') {
+          if (!canEdit(connectionState)) return;
+          const { selectedId: sel, editingId: ed } = selectionRef.current;
+          if (ed !== null || sel === null) return;
+          if (isTextInputTarget(e.target)) return;
+          e.preventDefault();
+          deleteObject(doc, sel);
+          select(null);
+        }
+        // Enter starts editing the selected note
+        if (e.key === 'Enter') {
+          if (!canEdit(connectionState)) return;
+          const { selectedId: sel, editingId: ed } = selectionRef.current;
+          if (ed !== null || sel === null) return;
+          if (isTextInputTarget(e.target)) return;
+          e.preventDefault();
+          startEdit(sel);
+        }
+        return;
+      }
       if (e.key === '=' || e.key === '+') {
         e.preventDefault();
         zoomStep('in');
@@ -116,31 +138,9 @@ function Board({ boardId }: { boardId: string }) {
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [zoomStep, reset]);
+  }, [doc, startEdit, select, zoomStep, reset, connectionState]);
 
-  // Note keyboard shortcuts: Enter starts editing the selected note;
-  // Delete/Backspace removes it. Ignored while editing text or typing in a field.
-  useEffect(() => {
-    const handler = (e: KeyboardEvent) => {
-      const { selectedId: sel, editingId: ed } = selectionRef.current;
-      if (e.key === 'Enter') {
-        if (ed !== null || sel === null) return;
-        if (isTextInputTarget(e.target)) return;
-        e.preventDefault();
-        startEdit(sel);
-        return;
-      }
-      if (e.key === 'Delete' || e.key === 'Backspace') {
-        if (ed !== null || sel === null) return;
-        if (isTextInputTarget(e.target)) return;
-        e.preventDefault();
-        deleteObject(doc, sel);
-        select(null);
-      }
-    };
-    window.addEventListener('keydown', handler);
-    return () => window.removeEventListener('keydown', handler);
-  }, [doc, startEdit, select]);
+  // Note keyboard shortcuts are now handled in the combined handler above
 
   // If the selected or edited note disappears (deleted via its toolbar, or by another
   // client on the live board), drop the stale selection and end any edit silently.
@@ -150,21 +150,23 @@ function Board({ boardId }: { boardId: string }) {
   }, [notes, prune]);
 
   const createAtWorldCentre = useCallback(() => {
+    if (!canEdit(connectionState)) return;
     const cam = cameraRef.current;
     const centre: Point = { x: viewportSize.width / 2, y: viewportSize.height / 2 };
     const world = screenToWorld(cam, centre);
     const id = createSticky(doc, world);
     if (id) startEdit(id);
-  }, [doc, startEdit, viewportSize.width, viewportSize.height]);
+  }, [doc, startEdit, viewportSize.width, viewportSize.height, connectionState]);
 
   const handleDoubleClickEmpty = useCallback(
     (screenPoint: Point) => {
+      if (!canEdit(connectionState)) return;
       const cam = cameraRef.current;
       const world = screenToWorld(cam, screenPoint);
       const id = createSticky(doc, world);
       if (id) startEdit(id);
     },
-    [doc, startEdit],
+    [doc, startEdit, connectionState],
   );
 
   // Stable DOM order (by id) so a stacking change never moves a node in the DOM —
@@ -192,13 +194,14 @@ function Board({ boardId }: { boardId: string }) {
             zoom={camera.zoom}
             selected={note.id === selectedId}
             editing={note.id === editingId}
+            readOnly={!canEdit(connectionState)}
             onSelect={select}
             onStartEdit={startEdit}
             onEndEdit={endEdit}
           />
         ))}
       </BoardViewport>
-      <Toolbar onCreateSticky={createAtWorldCentre} />
+      <Toolbar onCreateSticky={createAtWorldCentre} disabled={!canEdit(connectionState)} />
       <ZoomControls
         zoomPercent={zoomPercent(camera)}
         canZoomIn={canZoomIn(camera)}

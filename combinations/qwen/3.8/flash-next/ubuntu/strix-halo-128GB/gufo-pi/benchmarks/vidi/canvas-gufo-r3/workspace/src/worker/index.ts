@@ -1,8 +1,10 @@
 import { isValidBoardId } from '../shared/board-id';
 import { BoardRoom } from './board-room';
+import { handleTestRoute } from './test-hooks';
 import type { Env } from './env';
 
 const ROOM_PREFIX = '/api/rooms/';
+const TEST_PREFIX = '/api/test/';
 
 /**
  * Worker entry. Routes the Yjs WebSocket endpoint `/api/rooms/:boardId` to that
@@ -16,6 +18,12 @@ const ROOM_PREFIX = '/api/rooms/';
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     const url = new URL(request.url);
+
+    // Test hooks (only in test mode)
+    if (env.TEST_HOOKS === '1' && url.pathname.startsWith(TEST_PREFIX)) {
+      const res = await handleTestRoute(request, env, url);
+      if (res) return res;
+    }
 
     if (url.pathname.startsWith(ROOM_PREFIX)) {
       const boardId = decodeURIComponent(url.pathname.slice(ROOM_PREFIX.length));

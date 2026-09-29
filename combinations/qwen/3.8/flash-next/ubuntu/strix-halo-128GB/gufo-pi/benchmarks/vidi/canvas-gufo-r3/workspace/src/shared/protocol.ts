@@ -20,6 +20,10 @@ const SYNC_UPDATE = 2;
 
 /** Close code for a frame the room cannot process (WebSocket "unsupported data"). */
 export const CLOSE_UNSUPPORTED_DATA = 1003;
+/** Close code sent when a board cannot be loaded (LoadFailed room). */
+export const CLOSE_BOARD_LOAD_FAILED = 4500;
+/** Close code sent when storage write fails (room resets). */
+export const CLOSE_STORAGE_FAILURE = 1011;
 
 export type Decoded =
   | { kind: 'sync'; payload: Uint8Array }

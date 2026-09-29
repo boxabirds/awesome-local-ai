@@ -18,6 +18,15 @@ export const RECONNECT_MAX_BACKOFF_MS = 10_000;      // passed to WebsocketProvi
 export const CONNECTED_CONFIRMATION_MS = 2000;       // green badge duration after reconnect
 export const CATCH_UP_TEST_OUTAGE_MS = 30_000;       // PRD live.catch_up verification outage
 
+// --- Story 4: persistence settings ---
+export const COMPACTION_UPDATE_COUNT = 500;          // compact when this many log rows exist
+export const COMPACTION_BYTES = 4 * 1024 * 1024;     // or when log bytes reach this
+export const SNAPSHOT_CHUNK_BYTES = 512 * 1024;      // keeps every row well under the platform per-row size limit
+export const LOAD_RETRY_MIN_INTERVAL_MS = 5000;      // LoadFailed room retries load at most this often
+export const PERSIST_TESTED_NOTES = 2000;            // PRD persist.large_board
+export const BOARD_LOAD_BUDGET_MS = 3000;            // PRD persist.large_board
+export const STORAGE_SCHEMA_VERSION = 1;
+
 export const STICKY_COLORS = {
   yellow: '#FFF59D', orange: '#FFCC80', green: '#C5E1A5',
   blue: '#90CAF9', pink: '#F48FB1', violet: '#CE93D8',

@@ -26,7 +26,7 @@ export default defineConfig({
     },
   ],
   webServer: {
-    command: 'npx wrangler dev --port 8787',
+    command: 'npx wrangler dev --port 8787 --var TEST_HOOKS:1',
     port: 8787,
     reuseExistingServer: !process.env.CI,
     timeout: 30000,

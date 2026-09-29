@@ -21,6 +21,9 @@ function badgeFor(state: ConnectionState): BadgeStyle | null {
     case 'confirmed':
       // Green: a reconnection just succeeded; shown for CONNECTED_CONFIRMATION_MS.
       return { text: 'Connected', background: '#A5D6A7', color: '#1B3A1D' };
+    case 'load_failed':
+      // Red: the board couldn't be loaded; editing is disabled.
+      return { text: 'This board couldn\'t be loaded. Retrying…', background: '#FFCDD2', color: '#B71C1C' };
     case 'connected':
     default:
       return null;

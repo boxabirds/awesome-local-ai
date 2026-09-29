@@ -25,6 +25,7 @@ export interface StickyNoteProps {
   zoom: number;
   selected: boolean;
   editing: boolean;
+  readOnly?: boolean;
   onSelect(id: string): void;
   onStartEdit(id: string): void;
   onEndEdit(next: 'selected' | 'unselected'): void;
@@ -36,6 +37,7 @@ export function StickyNote({
   zoom,
   selected,
   editing,
+  readOnly,
   onSelect,
   onStartEdit,
   onEndEdit,
@@ -123,6 +125,7 @@ export function StickyNote({
 
   const handlePointerDown = useCallback(
     (e: React.PointerEvent) => {
+      if (readOnly) return;
       if (e.button !== 0) return;
       // The board must not pan when a note is grabbed.
       e.stopPropagation();
@@ -152,6 +155,7 @@ export function StickyNote({
 
   const handlePointerMove = useCallback(
     (e: React.PointerEvent) => {
+      if (readOnly) return;
       if (pointerIdRef.current !== e.pointerId) return;
       e.stopPropagation();
       const origin = dragOriginRef.current;
@@ -170,6 +174,7 @@ export function StickyNote({
 
   const handlePointerUp = useCallback(
     (e: React.PointerEvent) => {
+      if (readOnly) return;
       if (pointerIdRef.current !== e.pointerId) return;
       e.stopPropagation();
       if (draggingRef.current && pendingRef.current) {
@@ -205,6 +210,7 @@ export function StickyNote({
 
   const handleDoubleClick = useCallback(
     (e: React.MouseEvent) => {
+      if (readOnly) return;
       // The viewport must not create a new note when a note is double-clicked.
       e.stopPropagation();
       if (editing) return;
@@ -223,14 +229,16 @@ export function StickyNote({
 
   const handleColor = useCallback(
     (c: StickyColor) => {
+      if (readOnly) return;
       setStickyColor(doc, note.id, c);
     },
-    [doc, note.id],
+    [doc, note.id, readOnly],
   );
 
   const handleDelete = useCallback(() => {
+    if (readOnly) return;
     deleteObject(doc, note.id);
-  }, [doc, note.id]);
+  }, [doc, note.id, readOnly]);
 
   const color = STICKY_COLORS[note.color];
   const showToolbar = selected && !editing && !dragging;

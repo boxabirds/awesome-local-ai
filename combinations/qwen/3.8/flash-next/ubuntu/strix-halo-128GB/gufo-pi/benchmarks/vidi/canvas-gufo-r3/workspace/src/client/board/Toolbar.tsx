@@ -2,10 +2,11 @@ import React from 'react';
 
 export interface ToolbarProps {
   onCreateSticky(): void;
+  disabled?: boolean;
 }
 
 /** Fixed left-side vertical toolbar. */
-export function Toolbar({ onCreateSticky }: ToolbarProps) {
+export function Toolbar({ onCreateSticky, disabled }: ToolbarProps) {
   return (
     <div
       data-testid="toolbar"
@@ -31,13 +32,15 @@ export function Toolbar({ onCreateSticky }: ToolbarProps) {
         title="Sticky note – or double-click the board"
         data-testid="create-sticky-button"
         onClick={onCreateSticky}
+        disabled={disabled}
         style={{
           width: '40px',
           height: '40px',
           border: 'none',
           borderRadius: '6px',
           background: '#FFF59D',
-          cursor: 'pointer',
+          cursor: disabled ? 'not-allowed' : 'pointer',
+          opacity: disabled ? 0.5 : 1,
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',

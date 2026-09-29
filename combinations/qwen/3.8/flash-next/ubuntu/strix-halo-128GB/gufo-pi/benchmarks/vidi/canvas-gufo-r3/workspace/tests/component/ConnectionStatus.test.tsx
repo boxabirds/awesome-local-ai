@@ -131,4 +131,37 @@ describe('sync.client — connection status badge', () => {
     }); // confirmed
     checkEnabled();
   });
+
+  it('TC-22: load_failed shows red badge with “couldn\'t be loaded. Retrying…” and role=status', () => {
+    render(<ConnectionStatus state="load_failed" />);
+    const b = screen.queryByRole('status');
+    expect(b).not.toBeNull();
+    expect(b?.textContent).toContain("couldn't be loaded");
+    expect(b?.textContent).toContain('Retrying');
+    // Should be red
+    expect(b).toHaveStyle({ background: 'rgb(255, 205, 210)' });
+  });
+
+  it('TC-22 recovery: load_failed → provider reconnects → syncs → connected (badge gone)', () => {
+    render(<Harness />);
+    drive(() => controller!.handleSync(true)); // connected
+    expect(badge()).toBeNull();
+
+    // Transition to load_failed via controller (simulating what the close handler does)
+    drive(() => {
+      controller!.setState('load_failed');
+    });
+    const lf = badge();
+    expect(lf).not.toBeNull();
+    expect(lf?.textContent).toContain("couldn't be loaded");
+
+    // Provider reconnects and syncs successfully
+    drive(() => {
+      controller!.handleStatus('connecting');
+      controller!.handleStatus('connected');
+      controller!.handleSync(true);
+    });
+    // Should show 'Connected' (confirmed) then hide
+    expect(badge()?.textContent).toContain('Connected');
+  });
 });

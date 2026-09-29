@@ -28,6 +28,7 @@
     "node_modules",
     "dist",
     "src/worker",
-    "tests/integration"
+    "tests/integration",
+    "tests/e2e"
   ]
 }

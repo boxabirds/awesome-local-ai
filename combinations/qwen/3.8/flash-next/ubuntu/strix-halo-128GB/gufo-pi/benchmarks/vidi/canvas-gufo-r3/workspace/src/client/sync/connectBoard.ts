@@ -1,8 +1,9 @@
 import * as Y from 'yjs';
 import { WebsocketProvider } from 'y-websocket';
 import { RECONNECT_MAX_BACKOFF_MS, CONNECTED_CONFIRMATION_MS } from '@shared/config';
+import { CLOSE_BOARD_LOAD_FAILED } from '@shared/protocol';
 
-export type ConnectionState = 'connecting' | 'connected' | 'reconnecting' | 'confirmed';
+export type ConnectionState = 'connecting' | 'connected' | 'reconnecting' | 'confirmed' | 'load_failed';
 
 /**
  * Pure state machine mapping y-websocket `status` + `sync` events onto the four
@@ -18,6 +19,7 @@ export type ConnectionState = 'connecting' | 'connected' | 'reconnecting' | 'con
 export interface ConnectionStateController {
   handleStatus(status: 'connecting' | 'connected' | 'disconnected'): void;
   handleSync(synced: boolean): void;
+  setState(state: ConnectionState): void;
   destroy(): void;
 }
 
@@ -36,6 +38,10 @@ export function createConnectionState(
   };
 
   return {
+    setState(state) {
+      clearConfirmation();
+      onState(state);
+    },
     handleStatus(status) {
       if (status === 'connecting') {
         // A fresh attempt after we have already been connected keeps the
@@ -72,6 +78,15 @@ export function createConnectionState(
   };
 }
 
+/**
+ * Returns false only for 'load_failed'. Editing is available in all other states
+ * (including 'reconnecting' where the board stays visible and unsaved changes are
+ * retried on reconnect).
+ */
+export function canEdit(state: ConnectionState): boolean {
+  return state !== 'load_failed';
+}
+
 export interface BoardConnection {
   provider: WebsocketProvider;
   destroy(): void;
@@ -102,12 +117,35 @@ export function connectBoard(
   const controller = createConnectionState(onState);
   onState('connecting');
 
-  const statusHandler = ({ status }: { status: 'connecting' | 'connected' | 'disconnected' }) =>
+  // Track whether we're in load_failed to prevent status events from overriding it.
+  let isLoadFailed = false;
+
+  const statusHandler = ({ status }: { status: 'connecting' | 'connected' | 'disconnected' }) => {
+    if (isLoadFailed) {
+      // Once the provider reconnects (status 'connecting' or 'connected'), clear the lock.
+      if (status === 'connected' || status === 'connecting') {
+        isLoadFailed = false;
+      } else {
+        return; // don't let 'disconnected' override load_failed
+      }
+    }
     controller.handleStatus(status);
+  };
   const syncHandler = (synced: boolean) => controller.handleSync(synced);
+  const closeHandler = (event: CloseEvent | null) => {
+    if (!event) return;
+    const code = event.code;
+    if (code === CLOSE_BOARD_LOAD_FAILED) {
+      isLoadFailed = true;
+      onState('load_failed');
+    }
+    // Other codes (including 1011 storage failure) map to 'reconnecting' via
+    // the status handler; the board is readable and unsaved changes re-sent.
+  };
 
   provider.on('status', statusHandler);
   provider.on('sync', syncHandler);
+  provider.on('connection-close', closeHandler);
   if (provider.synced) controller.handleSync(true);
 
   return {
@@ -116,6 +154,7 @@ export function connectBoard(
       controller.destroy();
       provider.off('status', statusHandler);
       provider.off('sync', syncHandler);
+      provider.off('connection-close', closeHandler);
       provider.destroy();
     },
   };
