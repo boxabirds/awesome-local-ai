@@ -331,7 +331,7 @@ its own from another run's code ("known-good mode"), as a separately labelled di
   [docs/20260924-distributed-bench-design.md](docs/20260924-distributed-bench-design.md).
 - **[tools/benchmarker/](tools/benchmarker/)** is one page with the live status of every run: where it is
   in build, score and judge, from dbench and the pushed run records, with links to each record, its
-  scores and the review page. Runs anywhere with a clone.
+  scores and the review page. A small React app; runs anywhere with a clone and Node 24.
 - **[tools/power-collector/](tools/power-collector/)** records each machine's power every 2 seconds
   (a Tapo energy-monitoring plug at the wall, the Mac's own telemetry, NVIDIA board power, Apple
   Silicon die temperatures) so energy can be tied to a story or a single model request.
