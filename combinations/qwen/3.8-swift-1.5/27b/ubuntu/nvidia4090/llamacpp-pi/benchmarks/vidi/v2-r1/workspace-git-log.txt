@@ -1,3 +1,48 @@
+commit 1ad1089aac3c6c3c6877fce674bdcf701fb2676d
+vidi-agent  Wed Sep 30 00:43:18 2026 +0100
+
+    story 5: Share a board with others using a link
+
+
+ NOTES.md                                |  93 +++++++++++++
+ index.html                              |   1 +
+ src/client/App.tsx                      | 218 ++-----------------------------
+ src/client/Board.tsx                    | 198 ++++++++++++++++++++++++++++
+ src/client/api.ts                       |  34 +++++
+ src/client/pages/BoardPage.tsx          | 107 +++++++++++++++
+ src/client/pages/HomePage.tsx           |  54 ++++++++
+ src/client/pages/NotFoundPage.tsx       |  69 ++++++++++
+ src/client/pages/state.ts               |  71 ++++++++++
+ src/client/router.ts                    |  56 ++++++++
+ src/client/share/SharePanel.tsx         | 193 +++++++++++++++++++++++++++
+ src/shared/config.ts                    |   5 +
+ src/shared/protocol.ts                  |  81 +++++++++---
+ src/worker/board-room.ts                | 166 +++++++++++++++++-------
+ src/worker/board-store.ts               |  65 +++++++++-
+ src/worker/create-board.ts              |  26 ++++
+ src/worker/index.ts                     |  80 +++++++++++-
+ src/worker/room-core.ts                 |  31 ++---
+ src/worker/test-hooks.ts                |  51 ++++++++
+ src/worker/types.d.ts                   |   5 +
+ tests/component/SharePanel.test.tsx     | 148 +++++++++++++++++++++
+ tests/component/pages.test.tsx          | 176 +++++++++++++++++++++++++
+ tests/e2e/broken-board.spec.ts          |  17 ++-
+ tests/e2e/helpers/board.ts              |  17 +++
+ tests/e2e/helpers/wrangler-process.ts   |  30 ++++-
+ tests/e2e/live-collaboration.spec.ts    |  57 ++++----
+ tests/e2e/navigation.spec.ts            |  16 +--
+ tests/e2e/nightly-collaboration.spec.ts |  29 +++--
+ tests/e2e/persistence.spec.ts           |  14 +-
+ tests/e2e/share.spec.ts                 | 194 +++++++++++++++++++++++++++
+ tests/e2e/sticky-notes.spec.ts          |  14 +-
+ tests/integration/board-api.test.ts     | 223 ++++++++++++++++++++++++++++++++
+ tests/integration/board-room.test.ts    |  33 ++---
+ tests/integration/worker.test.ts        |   6 +-
+ tests/unit/create-board.test.ts         |  35 +++++
+ tests/unit/protocol.test.ts             |  99 +++++++-------
+ vitest.workspace.ts                     |   2 +-
+ wrangler.jsonc                          |   2 +-
+ 38 files changed, 2282 insertions(+), 434 deletions(-)
 commit 7800dc4b5af4baf23b0a4974bb8b2f1d1e51836b
 vidi-agent  Tue Sep 29 22:55:42 2026 +0100
 
