@@ -21,7 +21,7 @@ export class BoardStore {
 
   /**
    * Create tables if they don't exist. Sets storage_schema_version if absent.
-   * Does NOT write any update rows (TC-25).
+   * Does NOT write any update rows.
    */
   migrate(): void {
     this.sql.exec(
@@ -48,7 +48,74 @@ export class BoardStore {
   }
 
   /**
+   * Set created_at in storage_meta if not already present.
+   * Returns 'created' if it was just set, 'exists' if already there.
+   * Assumes tables already exist (call after migrate()).
+   */
+  setCreatedAtIfAbsent(): 'created' | 'exists' {
+    const existing = this.sql.exec<{ value: string }>(
+      `SELECT value FROM storage_meta WHERE key = 'created_at'`,
+    ).next();
+    if (!existing.done) return 'exists';
+    this.sql.exec(
+      `INSERT INTO storage_meta (key, value) VALUES ('created_at', ?1)`,
+      String(Date.now()),
+    );
+    return 'created';
+  }
+
+  /**
+   * Read-only existence check. Does NOT create tables.
+   * A board exists if:
+   *   - storage_meta has created_at, OR
+   *   - (legacy) there is at least one row in updates or snapshot_chunks.
+   * If tables don't exist at all, the board does not exist.
+   */
+  existsReadOnly(): boolean {
+    try {
+      // Check if storage_meta table exists
+      const tableCheck = this.sql.exec<{ name: string }>(
+        `SELECT name FROM sqlite_master WHERE type='table' AND name='storage_meta'`,
+      ).next();
+      if (tableCheck.done) return false; // no tables at all
+
+      // Check created_at
+      const createdRow = this.sql.exec<{ value: string }>(
+        `SELECT value FROM storage_meta WHERE key = 'created_at'`,
+      ).next();
+      if (!createdRow.done) return true;
+
+      // Legacy check: does updates table exist and have rows?
+      const updatesTableCheck = this.sql.exec<{ name: string }>(
+        `SELECT name FROM sqlite_master WHERE type='table' AND name='updates'`,
+      ).next();
+      if (!updatesTableCheck.done) {
+        const countRow = this.sql.exec<{ cnt: number }>(
+          `SELECT COUNT(*) as cnt FROM updates`,
+        ).next();
+        if (!countRow.done && countRow.value.cnt > 0) return true;
+      }
+
+      // Legacy check: does snapshot_chunks table exist and have rows?
+      const snapshotTableCheck = this.sql.exec<{ name: string }>(
+        `SELECT name FROM sqlite_master WHERE type='table' AND name='snapshot_chunks'`,
+      ).next();
+      if (!snapshotTableCheck.done) {
+        const countRow = this.sql.exec<{ cnt: number }>(
+          `SELECT COUNT(*) as cnt FROM snapshot_chunks`,
+        ).next();
+        if (!countRow.done && countRow.value.cnt > 0) return true;
+      }
+
+      return false;
+    } catch {
+      return false;
+    }
+  }
+
+  /**
    * Append an update to the log. Throws on SQL failure (caller handles).
+   * Ensures tables exist before writing (lazy migrate for legacy boards).
    */
   append(update: Uint8Array): void {
     this.storage.transactionSync(() => {
@@ -64,9 +131,19 @@ export class BoardStore {
 
   /**
    * Load the document from snapshot + log updates.
+   * Treats missing tables as an empty board without creating them.
    */
   load(doc: Y.Doc): LoadResult {
     try {
+      // Check if tables exist; if not, treat as empty board
+      const tableCheck = this.sql.exec<{ name: string }>(
+        `SELECT name FROM sqlite_master WHERE type='table' AND name='updates'`,
+      ).next();
+      if (tableCheck.done) {
+        // No tables at all — empty board
+        return { ok: true, quarantined: 0 };
+      }
+
       // 1. Load snapshot chunks
       const chunkRows = this.sql.exec<{ idx: number; data: ArrayBuffer }>(
         `SELECT idx, data FROM snapshot_chunks ORDER BY idx`,
@@ -108,17 +185,13 @@ export class BoardStore {
           this.rowCount++;
           this.rowBytes += row.bytes;
         } catch (e) {
-          // Quarantine the damaged row
           const errorMsg = e instanceof Error ? e.message : String(e);
           console.error(`[board-store] quarantining update seq=${row.seq}: ${errorMsg}`);
           try {
             this.storage.transactionSync(() => {
               this.sql.exec(
                 `INSERT INTO quarantined_updates (seq, data, error, quarantined_at) VALUES (?1, ?2, ?3, ?4)`,
-                row.seq,
-                row.data,
-                errorMsg,
-                Date.now(),
+                row.seq, row.data, errorMsg, Date.now(),
               );
               this.sql.exec(`DELETE FROM updates WHERE seq = ?1`, row.seq);
             });
@@ -149,28 +222,22 @@ export class BoardStore {
       const encoded = Y.encodeStateAsUpdate(doc);
       const chunks = chunkBytes(encoded);
 
-      // Find the max seq currently in the log
       const maxRow = this.sql.exec<{ seq: number }>(
         `SELECT MAX(seq) as seq FROM updates`,
       ).next();
       const maxSeq = maxRow.done ? 0 : Number(maxRow.value.seq);
 
       this.storage.transactionSync(() => {
-        // Delete old snapshot chunks
         this.sql.exec(`DELETE FROM snapshot_chunks`);
-        // Insert new chunks
         for (let i = 0; i < chunks.length; i++) {
           this.sql.exec(
             `INSERT INTO snapshot_chunks (idx, data) VALUES (?1, ?2)`,
-            i,
-            chunks[i],
+            i, chunks[i],
           );
         }
-        // Delete log rows that are now covered by the snapshot
         if (maxSeq > 0) {
           this.sql.exec(`DELETE FROM updates WHERE seq <= ?1`, maxSeq);
         }
-        // Update snapshot_through_seq
         this.sql.exec(
           `INSERT OR REPLACE INTO storage_meta (key, value) VALUES ('snapshot_through_seq', ?1)`,
           String(maxSeq),

@@ -27,6 +27,14 @@ export const PERSIST_TESTED_NOTES = 2000;            // PRD persist.large_board
 export const BOARD_LOAD_BUDGET_MS = 3000;            // PRD persist.large_board
 export const STORAGE_SCHEMA_VERSION = 1;
 
+// --- Story 5: share settings ---
+export const BOARD_CREATE_LIMIT = 10;              // per visitor
+export const BOARD_CREATE_PERIOD_SECONDS = 60;     // must match wrangler.jsonc ratelimits
+export const CREATE_ID_MAX_ATTEMPTS = 3;
+export const CREATE_BUDGET_MS = 2000;              // PRD share.create
+export const LINK_COPIED_MS = 2000;
+export const BOARD_CHECK_RETRY_BASE_MS = 1000;     // backoff doubles up to RECONNECT_MAX_BACKOFF_MS
+
 export const STICKY_COLORS = {
   yellow: '#FFF59D', orange: '#FFCC80', green: '#C5E1A5',
   blue: '#90CAF9', pink: '#F48FB1', violet: '#CE93D8',

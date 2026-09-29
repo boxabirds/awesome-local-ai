@@ -16,7 +16,12 @@ test.describe('TC-24: Broken board — honest failure, edit lock, recovery', () 
   test('corrupt → load failure → repair → recovery without reload', async ({ browser }) => {
     const boardId = newE2eBoardId();
 
-    // Step 1: Open the board first (creates the DO), then seed via hook.
+    // Step 1: Create the board via test hook, then open to establish connection.
+    const seedRes = await fetch(`http://localhost:8787/api/test/${boardId}/seed?notes=25`, {
+      method: 'POST',
+    });
+    expect(seedRes.ok).toBe(true);
+
     const ctx = await browser.newContext({ viewport: { width: 1280, height: 800 } });
     const page = await ctx.newPage();
     await page.goto(`/b/${boardId}`);
@@ -28,14 +33,6 @@ test.describe('TC-24: Broken board — honest failure, edit lock, recovery', () 
     );
     // Close the browser
     await ctx.close();
-
-    // Step 1b: Seed notes via test hook
-    const seedRes = await fetch(`http://localhost:8787/api/test/${boardId}/seed?notes=25`, {
-      method: 'POST',
-    });
-    expect(seedRes.ok).toBe(true);
-    const seedBody = await seedRes.text();
-    console.log('seed response:', seedBody);
 
     // Step 2: Corrupt the snapshot
     const corruptRes = await fetch(`http://localhost:8787/api/test/${boardId}/corrupt-snapshot`, {

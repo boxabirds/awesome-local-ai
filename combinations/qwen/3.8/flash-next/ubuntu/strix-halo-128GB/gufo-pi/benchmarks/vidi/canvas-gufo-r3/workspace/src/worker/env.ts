@@ -6,5 +6,6 @@ import type { BoardRoom } from './board-room';
 export interface Env {
   BOARD_ROOM: DurableObjectNamespace<BoardRoom>;
   ASSETS: Fetcher;
+  BOARD_CREATE_LIMITER?: RateLimit;
   TEST_HOOKS?: string;
 }

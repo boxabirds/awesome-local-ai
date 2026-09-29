@@ -13,12 +13,13 @@ import {
   setCamera,
 } from './helpers/sticky';
 import { getViewport } from './helpers/board';
+import { createAndGotoBoard } from './helpers/create-board';
 import { STICKY_FONT_MAX_PX, STICKY_FONT_MIN_PX, STICKY_TEXT_MAX_CHARS, STICKY_SIZE_WORLD } from '@shared/config';
 import { SHORT_PHRASE, PROSE_1000 } from '../fixtures/texts';
 
 test.describe('Sticky notes', () => {
   test('TC-30: double-click creates a centred note that accepts typing', async ({ page }) => {
-    await page.goto('/');
+    await createAndGotoBoard(page);
 
     const id = await createNoteByDblclick(page, 400, 300);
     expect(id).toBeTruthy();
@@ -34,7 +35,7 @@ test.describe('Sticky notes', () => {
   });
 
   test('Workflow: brainstorm golden path (create, move at 50%, recolour, delete)', async ({ page }) => {
-    await page.goto('/');
+    await createAndGotoBoard(page);
 
     // TC-30 create + type
     const idA = await createNoteByDblclick(page, 400, 300);
@@ -92,7 +93,7 @@ test.describe('Sticky notes', () => {
   });
 
   test('TC-32: drag at 200% zoom moves half as many world units and stacks the note on top', async ({ page }) => {
-    await page.goto('/');
+    await createAndGotoBoard(page);
 
     await setCamera(page, { x: -640, y: -400, zoom: 2 });
     await page.waitForTimeout(50);
@@ -141,7 +142,7 @@ test.describe('Sticky notes', () => {
   });
 
   test('TC-33: text auto-fits, then clips with a bottom fade at the minimum size', async ({ page }) => {
-    await page.goto('/');
+    await createAndGotoBoard(page);
 
     const id = await createNoteByDblclick(page, 640, 400);
     await page.keyboard.type('Idea');
@@ -185,7 +186,7 @@ test.describe('Sticky notes', () => {
   });
 
   test('TC-34: toolbar creation is visible at the screen centre even when panned far away', async ({ page }) => {
-    await page.goto('/');
+    await createAndGotoBoard(page);
 
     await setCamera(page, { x: 120_000, y: -85_000, zoom: 1 });
     await page.waitForTimeout(50);
@@ -204,7 +205,7 @@ test.describe('Sticky notes', () => {
   });
 
   test('Pasting beyond the limit keeps exactly 1,000 characters and shows the counter', async ({ page }) => {
-    await page.goto('/');
+    await createAndGotoBoard(page);
 
     const id = await createNoteByDblclick(page, 640, 400);
     await page.keyboard.insertText(PROSE_1000 + 'overflowing tail of extra text');
@@ -218,7 +219,7 @@ test.describe('Sticky notes', () => {
   });
 
   test('Dragging a note never pans the board', async ({ page }) => {
-    await page.goto('/');
+    await createAndGotoBoard(page);
 
     const id = await createNoteByDblclick(page, 400, 300);
     await page.keyboard.type('Move me');
@@ -247,7 +248,7 @@ test.describe('Sticky notes', () => {
   });
 
   test('Edit end: clicking the board keeps typed text; clicking another note moves selection', async ({ page }) => {
-    await page.goto('/');
+    await createAndGotoBoard(page);
 
     const idA = await createNoteByDblclick(page, 400, 300);
     await page.keyboard.type('first idea');
@@ -271,7 +272,7 @@ test.describe('Sticky notes', () => {
   });
 
   test('Empty notes stay on the board and show no placeholder', async ({ page }) => {
-    await page.goto('/');
+    await createAndGotoBoard(page);
     const id = await createNoteByDblclick(page, 500, 400);
     await page.keyboard.press('Escape');
     await expect(getStickyNotes(page)).toHaveCount(1);
@@ -281,7 +282,7 @@ test.describe('Sticky notes', () => {
   });
 
   test('Accessibility: Tab reaches a note, Enter edits it, Backspace deletes it', async ({ page }) => {
-    await page.goto('/');
+    await createAndGotoBoard(page);
 
     // Tab from the page start until a sticky note has focus
     await getCreateStickyButton(page).click();

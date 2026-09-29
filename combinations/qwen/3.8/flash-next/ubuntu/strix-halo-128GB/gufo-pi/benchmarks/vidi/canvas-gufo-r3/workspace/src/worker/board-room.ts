@@ -22,28 +22,47 @@ import { initDoc, createSticky } from '@shared/board-model';
  * One BoardRoom per board. Holds the board's Y.Doc in memory, persists every
  * update to SQLite-backed Durable Object storage before broadcasting, and uses
  * the WebSocket hibernation API so idle boards cost no compute.
+ *
+ * Story 5: boards must be explicitly created via POST /api/boards before they
+ * exist. `initialize()` creates storage; `exists()` checks read-only. `fetch`
+ * rejects unknown boards with 404 before accepting WebSocket.
  */
 export class BoardRoom extends DurableObject<Env> {
   private store: BoardStore | null = null;
   private doc: Y.Doc | null = null;
-  private state: RoomState = 'loading';
+  private state: RoomState = 'uninitialized';
   private loadFailedAt = 0;
-  private readyPromise: Promise<void>;
+  private readyPromise: Promise<void> | null = null;
 
   constructor(ctx: DurableObjectState, env: Env) {
     super(ctx, env);
-    this.readyPromise = this.ctx.blockConcurrencyWhile(async () => {
-      this.performLoad();
-    });
+    // Do NOT load on construct — wait for initialize() or exists()/fetch().
   }
 
-  private performLoad(): void {
-    try {
-      const store = new BoardStore(this.ctx.storage);
-      store.migrate();
-      const doc = new Y.Doc();
+  /**
+   * RPC: Create this board's storage. Returns 'created' on first call,
+   * 'exists' if already initialized.
+   */
+  async initialize(): Promise<'created' | 'exists'> {
+    const store = new BoardStore(this.ctx.storage);
+    store.migrate();
+    const result = store.setCreatedAtIfAbsent();
+    // Load the doc (should be empty for a new board)
+    this.performLoadWithStore(store);
+    return result;
+  }
 
-      // Subscribe update handler before loading so load updates are skipped (LOAD_ORIGIN)
+  /**
+   * RPC: Read-only existence check. Does not create tables or write storage.
+   */
+  async exists(): Promise<boolean> {
+    const store = new BoardStore(this.ctx.storage);
+    return store.existsReadOnly();
+  }
+
+  private performLoadWithStore(store: BoardStore): void {
+    try {
+      const doc = new Y.Doc();
       doc.on('update', (update: Uint8Array, origin: unknown) => {
         if (origin === LOAD_ORIGIN) return;
         this.handleDocUpdate(update, origin);
@@ -71,19 +90,34 @@ export class BoardRoom extends DurableObject<Env> {
     }
   }
 
+  private performLoad(): void {
+    // Lazily create the store if we haven't yet; migrate only if tables don't exist (legacy path)
+    const store = new BoardStore(this.ctx.storage);
+    this.performLoadWithStore(store);
+  }
+
   private transition(event: RoomEvent): void {
     const result = nextRoomState(this.state, event);
     this.state = result.state;
   }
 
   async fetch(request: Request): Promise<Response> {
-    await this.readyPromise;
+    const path = new URL(request.url).pathname;
 
     // Test hooks: handle POST /test/* before WebSocket check
-    const path = new URL(request.url).pathname;
     if (path.startsWith('/test/') && request.method === 'POST') {
+      await this.ensureLoaded();
       return this.handleTest(path.slice(6), request);
     }
+
+    // Existence check: reject unknown boards before accepting WebSocket
+    const store = new BoardStore(this.ctx.storage);
+    if (!store.existsReadOnly()) {
+      return new Response('Not found', { status: 404 });
+    }
+
+    // Ensure loaded before handling WebSocket
+    await this.ensureLoaded();
 
     const upgrade = (request.headers.get('Upgrade') || '').toLowerCase();
     if (upgrade !== 'websocket') {
@@ -94,19 +128,15 @@ export class BoardRoom extends DurableObject<Env> {
     if (this.state === 'load-failed') {
       const elapsed = Date.now() - this.loadFailedAt;
       if (elapsed >= LOAD_RETRY_MIN_INTERVAL_MS) {
-        // Retry load
         this.performLoad();
         if ((this.state as RoomState) !== 'ready') {
-          // Still failed — accept and close with 4500
           const pair = new WebSocketPair();
           const [client, server] = Object.values(pair);
           this.ctx.acceptWebSocket(server);
           server.close(CLOSE_BOARD_LOAD_FAILED, 'board load failed');
           return new Response(null, { status: 101, webSocket: client });
         }
-        // Load succeeded this time, fall through to serve normally
       } else {
-        // Before retry interval — close immediately with 4500
         const pair = new WebSocketPair();
         const [client, server] = Object.values(pair);
         this.ctx.acceptWebSocket(server);
@@ -117,7 +147,6 @@ export class BoardRoom extends DurableObject<Env> {
 
     // Handle storage-failed state
     if (this.state === 'storage-failed') {
-      // Reload
       this.performLoad();
       if ((this.state as RoomState) !== 'ready') {
         const pair = new WebSocketPair();
@@ -143,8 +172,23 @@ export class BoardRoom extends DurableObject<Env> {
     return new Response(null, { status: 101, webSocket: client });
   }
 
+  /**
+   * Ensure the doc is loaded. Called lazily on first fetch/RPC that needs the doc.
+   */
+  private async ensureLoaded(): Promise<void> {
+    if (this.readyPromise) {
+      await this.readyPromise;
+      return;
+    }
+    if (this.state === 'uninitialized') {
+      this.readyPromise = this.ctx.blockConcurrencyWhile(async () => {
+        this.performLoad();
+      });
+      await this.readyPromise;
+    }
+  }
+
   webSocketMessage(ws: WebSocket, message: ArrayBuffer | string): void {
-    // State checks
     if (this.state === 'load-failed') {
       try { ws.close(CLOSE_BOARD_LOAD_FAILED, 'board load failed'); } catch { /* */ }
       return;
@@ -170,7 +214,6 @@ export class BoardRoom extends DurableObject<Env> {
     }
 
     if (decoded.kind === 'awareness') {
-      // Relay to all sockets including sender (keeps y-websocket clients alive)
       const frame = encoding.createEncoder();
       encoding.writeVarUint(frame, MESSAGE_AWARENESS);
       encoding.writeVarUint8Array(frame, decoded.payload);
@@ -181,7 +224,6 @@ export class BoardRoom extends DurableObject<Env> {
       return;
     }
 
-    // Sync sub-message
     const decoder = decoding.createDecoder(decoded.payload);
     const reply = encoding.createEncoder();
     encoding.writeVarUint(reply, MESSAGE_SYNC);
@@ -198,7 +240,7 @@ export class BoardRoom extends DurableObject<Env> {
   }
 
   webSocketClose(_ws: WebSocket, _code: number, _reason: string, _wasClean: boolean): void {
-    // Hibernation API: no state to clean up; ctx.getWebSockets() reflects current state.
+    // Hibernation API: no state to clean up.
   }
 
   webSocketError(_ws: WebSocket, _error: unknown): void {
@@ -208,13 +250,11 @@ export class BoardRoom extends DurableObject<Env> {
   private handleDocUpdate(update: Uint8Array, origin: unknown): void {
     if (this.state !== 'ready' || !this.store || !this.doc) return;
 
-    // Store before broadcast (write-before-broadcast)
     try {
       this.store.append(update);
     } catch (e) {
       console.error('[board-room] storage write failed:', e);
       this.state = 'storage-failed';
-      // Close all sockets with 1011
       for (const socket of this.ctx.getWebSockets()) {
         try { socket.close(CLOSE_STORAGE_FAILURE, 'storage failure'); } catch { /* */ }
       }
@@ -222,10 +262,7 @@ export class BoardRoom extends DurableObject<Env> {
       return;
     }
 
-    // Broadcast to all except origin
     this.broadcastUpdate(update, origin);
-
-    // Compact if needed
     this.store.compactIfNeeded(this.doc);
   }
 
@@ -255,32 +292,24 @@ export class BoardRoom extends DurableObject<Env> {
 
     if (action === 'corrupt-snapshot') {
       const storage = this.ctx.storage;
-      // Save original chunk 0, then overwrite with garbage
       const rows = storage.sql.exec<{ idx: number; data: ArrayBuffer }>(
         `SELECT idx, data FROM snapshot_chunks WHERE idx = 0`,
       );
       const first = rows.next();
       if (first.done) return new Response('No snapshot chunk 0 found', { status: 404 });
       const original = new Uint8Array(first.value.data);
-      // Store original in KV storage (not in SQL tables) so repair can restore
-      // Use transactionSync + put in a transaction to keep it atomic
       storage.transactionSync(() => {
         storage.sql.exec(
           `UPDATE snapshot_chunks SET data = ?1 WHERE idx = 0`,
           new Uint8Array([0xff, 0xfe, 0xfd, 0xfc, 0xfb, 0xfa, 0xf9, 0xf8]),
         );
       });
-      // KV put is async but can be called after the sync transaction
-      // We store in the sync transaction context via SQL in a helper table
-      // Actually we use DO list/KV: storage.put returns a promise but works in sync context
-      // Use a workaround: store in quarantined_updates with a special seq
       storage.transactionSync(() => {
         storage.sql.exec(
           `INSERT OR REPLACE INTO quarantined_updates (seq, data, error, quarantined_at) VALUES (-999, ?1, 'test_backup', 0)`,
           original,
         );
       });
-      // Force reload state to trigger failure on next connection
       this.state = 'load-failed';
       this.doc = null;
       this.loadFailedAt = Date.now() - LOAD_RETRY_MIN_INTERVAL_MS - 1000;
@@ -303,19 +332,18 @@ export class BoardRoom extends DurableObject<Env> {
     }
 
     if (action === 'seed') {
-      // Seed notes and compact to ensure snapshot_chunks exist
       const count = parseInt(url.searchParams.get('notes') || '25', 10);
       const doc = new Y.Doc();
       initDoc(doc);
       for (let i = 0; i < count; i++) {
         createSticky(doc, { x: i * 220, y: i * 100 });
       }
-      // Write state as a snapshot
+      // Always ensure tables exist for test seeding
       if (!this.store) {
         const store = new BoardStore(this.ctx.storage);
-        store.migrate();
         this.store = store;
       }
+      this.store.migrate();
       const encoded = Y.encodeStateAsUpdate(doc);
       const chunks = chunkBytes(encoded);
       const storage = this.ctx.storage;
@@ -329,12 +357,10 @@ export class BoardRoom extends DurableObject<Env> {
           '0',
         );
       });
-      // Reload into memory
       this.performLoad();
-      // Broadcast to connected sockets
       if (this.doc) {
         const enc = encoding.createEncoder();
-        encoding.writeVarUint(enc, 0); // MESSAGE_SYNC
+        encoding.writeVarUint(enc, 0);
         syncProtocol.writeUpdate(enc, encoded);
         const bytes = encoding.toUint8Array(enc);
         for (const socket of this.ctx.getWebSockets()) {
@@ -342,6 +368,40 @@ export class BoardRoom extends DurableObject<Env> {
         }
       }
       return new Response(`Seeded ${count} notes`, { status: 200 });
+    }
+
+    if (action === 'seed-legacy') {
+      // Create a legacy board: has updates rows but no created_at
+      const count = parseInt(url.searchParams.get('notes') || '3', 10);
+      const doc = new Y.Doc();
+      initDoc(doc);
+      for (let i = 0; i < count; i++) {
+        createSticky(doc, { x: i * 220, y: i * 100 });
+      }
+      const encoded = Y.encodeStateAsUpdate(doc);
+      const storage = this.ctx.storage;
+      // Create only updates table and insert a row; do NOT write created_at
+      storage.transactionSync(() => {
+        storage.sql.exec(
+          `CREATE TABLE IF NOT EXISTS storage_meta (key TEXT PRIMARY KEY, value TEXT NOT NULL)`,
+        );
+        storage.sql.exec(
+          `CREATE TABLE IF NOT EXISTS updates (seq INTEGER PRIMARY KEY AUTOINCREMENT, data BLOB NOT NULL, bytes INTEGER NOT NULL)`,
+        );
+        storage.sql.exec(
+          `CREATE TABLE IF NOT EXISTS snapshot_chunks (idx INTEGER PRIMARY KEY, data BLOB NOT NULL)`,
+        );
+        storage.sql.exec(
+          `CREATE TABLE IF NOT EXISTS quarantined_updates (seq INTEGER PRIMARY KEY, data BLOB NOT NULL, error TEXT NOT NULL, quarantined_at INTEGER NOT NULL)`,
+        );
+        storage.sql.exec(
+          `INSERT INTO updates (data, bytes) VALUES (?1, ?2)`,
+          encoded,
+          encoded.byteLength,
+        );
+      });
+      this.performLoad();
+      return new Response(`Seeded legacy board with ${count} notes`, { status: 200 });
     }
 
     return new Response('Unknown test action', { status: 404 });

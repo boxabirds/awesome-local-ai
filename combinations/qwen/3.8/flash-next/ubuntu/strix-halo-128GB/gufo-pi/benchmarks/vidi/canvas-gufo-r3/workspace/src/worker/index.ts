@@ -1,19 +1,19 @@
 import { isValidBoardId } from '../shared/board-id';
 import { BoardRoom } from './board-room';
+import { createBoard } from './create-board';
 import { handleTestRoute } from './test-hooks';
 import type { Env } from './env';
 
 const ROOM_PREFIX = '/api/rooms/';
+const BOARDS_PREFIX = '/api/boards';
 const TEST_PREFIX = '/api/test/';
 
 /**
- * Worker entry. Routes the Yjs WebSocket endpoint `/api/rooms/:boardId` to that
- * board's BoardRoom Durable Object and everything else to the static SPA assets.
- *
- * Each board gets its own object via `idFromName(boardId)` — that is what keeps
- * boards isolated (live.isolation). There is no participant counting anywhere:
- * capacity is soft (live.over_capacity), so more than MAX_CONCURRENT_EDITORS
- * people can always connect and edit.
+ * Worker entry. Routes:
+ *   POST /api/boards          → create a new board
+ *   GET  /api/boards/:id      → check board existence
+ *   /api/rooms/:id            → WebSocket to that board's Durable Object
+ *   everything else           → static SPA assets
  */
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
@@ -25,12 +25,46 @@ export default {
       if (res) return res;
     }
 
+    // POST /api/boards — create a board
+    if (url.pathname === '/api/boards') {
+      if (request.method !== 'POST') {
+        return Response.json({ error: 'method_not_allowed' }, { status: 405 });
+      }
+      const visitorKey = request.headers.get('CF-Connecting-IP') || '127.0.0.1';
+      const result = await createBoard(env, visitorKey);
+      if (result.ok) {
+        return Response.json({ id: result.id }, { status: 201 });
+      }
+      if (result.reason === 'rate_limited') {
+        return Response.json({ error: 'rate_limited' }, { status: 429 });
+      }
+      return Response.json({ error: 'create_failed' }, { status: 500 });
+    }
+
+    // GET /api/boards/:id — check existence
+    if (url.pathname.startsWith(BOARDS_PREFIX + '/')) {
+      if (request.method !== 'GET') {
+        return Response.json({ error: 'method_not_allowed' }, { status: 405 });
+      }
+      const boardId = decodeURIComponent(url.pathname.slice(BOARDS_PREFIX.length + 1));
+      if (!isValidBoardId(boardId)) {
+        return Response.json({ error: 'not_found' }, { status: 404 });
+      }
+      const id = env.BOARD_ROOM.idFromName(boardId);
+      const stub = env.BOARD_ROOM.get(id);
+      const exists = await stub.exists();
+      if (!exists) {
+        return Response.json({ error: 'not_found' }, { status: 404 });
+      }
+      return Response.json({ id: boardId }, { status: 200 });
+    }
+
     if (url.pathname.startsWith(ROOM_PREFIX)) {
       const boardId = decodeURIComponent(url.pathname.slice(ROOM_PREFIX.length));
       // Reject bad ids *before* touching the namespace: no object instance is
-      // created for an invalid id (negative scenario TC-04).
+      // created for an invalid id.
       if (!isValidBoardId(boardId)) {
-        return new Response('Invalid board id', { status: 400 });
+        return Response.json({ error: 'not_found' }, { status: 404 });
       }
       const upgrade = (request.headers.get('Upgrade') || '').toLowerCase();
       if (upgrade !== 'websocket') {

@@ -1,8 +1,21 @@
 {
   "name": "vidi6",
   "main": "src/worker/index.ts",
-  "compatibility_date": "2024-12-01",
+  "compatibility_date": "2025-02-01",
   "compatibility_flags": ["nodejs_compat"],
+  "vars": {
+    "TEST_HOOKS": "1"
+  },
+  "ratelimits": [
+    {
+      "name": "BOARD_CREATE_LIMITER",
+      "namespace_id": "board_create",
+      "simple": {
+        "limit": 10,
+        "period": 60
+      }
+    }
+  ],
   "assets": {
     "directory": "./dist/client",
     "binding": "ASSETS",

@@ -7,6 +7,8 @@ import * as Y from 'yjs';
 import type { Env } from './env';
 import { chunkBytes } from './board-store-pure';
 import { initDoc, createSticky } from '@shared/board-model';
+import { resetFallbackLimiter } from './create-board';
+import { newBoardId } from '@shared/board-id';
 
 /**
  * Handle test-only routes under /api/test/.
@@ -23,6 +25,21 @@ export async function handleTestRoute(
   const parts = url.pathname.slice(prefix.length).split('/');
   const boardId = parts[0];
   const action = parts[1];
+
+  // Handle global actions (no board ID required)
+  if (boardId === 'global' && action === 'reset-rate-limiter') {
+    resetFallbackLimiter();
+    return Response.json({ ok: true });
+  }
+
+  // Create a board without rate limiting (for test helpers)
+  if (boardId === '_create' && action === 'init') {
+    const id = newBoardId();
+    const doId = env.BOARD_ROOM.idFromName(id);
+    const stub = env.BOARD_ROOM.get(doId);
+    await stub.initialize();
+    return Response.json({ id });
+  }
 
   if (!boardId || !action) return new Response('Bad test request', { status: 400 });
 
@@ -42,6 +59,11 @@ export async function handleTestRoute(
 
     case 'seed':
       return stub.fetch(new Request('https://internal/test/seed?notes=' + (url.searchParams.get('notes') || '25'), {
+        method: 'POST',
+      }));
+
+    case 'seed-legacy':
+      return stub.fetch(new Request('https://internal/test/seed-legacy?notes=' + (url.searchParams.get('notes') || '3'), {
         method: 'POST',
       }));
 

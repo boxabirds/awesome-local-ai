@@ -3,7 +3,7 @@
  * Used by BoardRoom and unit-tested independently.
  */
 
-export type RoomState = 'loading' | 'ready' | 'compacting' | 'load-failed' | 'storage-failed' | 'hibernated';
+export type RoomState = 'uninitialized' | 'loading' | 'ready' | 'compacting' | 'load-failed' | 'storage-failed' | 'hibernated';
 
 export type RoomEvent =
   | { type: 'load-success'; quarantined: number }

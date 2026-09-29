@@ -1,4 +1,4 @@
-import { SELF } from 'cloudflare:test';
+import { SELF, env } from 'cloudflare:test';
 import * as Y from 'yjs';
 import * as encoding from 'lib0/encoding';
 import * as decoding from 'lib0/decoding';
@@ -9,6 +9,8 @@ import {
   MESSAGE_QUERY_AWARENESS,
 } from '@shared/protocol';
 import { snapshot, StickySnapshot } from '@shared/board-model';
+import type { Env } from '../../../src/worker/env';
+import type { BoardRoom } from '../../../src/worker/board-room';
 
 // Origin marker for updates applied from the wire, so our own sends don't echo.
 const REMOTE = Symbol('remote');
@@ -150,8 +152,17 @@ function toBytes(data: unknown): Uint8Array {
   throw new Error(`unexpected websocket payload: ${typeof data}`);
 }
 
+/** Ensure a board exists by calling the initialize RPC before opening a socket. */
+async function ensureBoard(boardId: string): Promise<void> {
+  const doEnv = env as unknown as Env;
+  const id = doEnv.BOARD_ROOM.idFromName(boardId);
+  const stub = doEnv.BOARD_ROOM.get(id) as DurableObjectStub<BoardRoom>;
+  await stub.initialize();
+}
+
 /** Open a websocket to the room for `boardId` through the worker entry. */
 export async function openRoomClient(boardId: string): Promise<YTestClient> {
+  await ensureBoard(boardId);
   const res = await SELF.fetch(`http://localhost/api/rooms/${boardId}`, {
     headers: { Upgrade: 'websocket', 'Connection': 'Upgrade' },
   });

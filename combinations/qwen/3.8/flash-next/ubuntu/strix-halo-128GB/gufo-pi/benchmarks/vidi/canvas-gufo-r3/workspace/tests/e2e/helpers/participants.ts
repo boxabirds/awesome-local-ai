@@ -45,6 +45,14 @@ async function waitConnected(page: Page): Promise<void> {
 }
 
 /**
+ * Initialize a board via the test hook so it exists before clients connect.
+ */
+async function ensureBoard(boardId: string): Promise<void> {
+  const res = await fetch(`http://localhost:8787/api/test/${boardId}/seed-legacy?notes=0`, { method: 'POST' });
+  if (!res.ok) throw new Error(`Failed to initialize board ${boardId}: ${res.status}`);
+}
+
+/**
  * Open `n` isolated browser contexts on the same /b/<boardId>. Each context has its
  * own provider and its own connection — the only way they can sync is through the
  * server (BroadcastChannel is disabled in the client).
@@ -54,6 +62,7 @@ export async function openParticipants(
   boardId: string,
   n: number,
 ): Promise<Participant[]> {
+  await ensureBoard(boardId);
   const participants: Participant[] = [];
   for (let i = 0; i < n; i++) {
     const ctx = await browser.newContext({ viewport: { width: 1280, height: 800 } });

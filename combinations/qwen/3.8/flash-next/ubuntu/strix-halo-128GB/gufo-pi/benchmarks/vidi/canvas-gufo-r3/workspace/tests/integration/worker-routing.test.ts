@@ -9,10 +9,10 @@ import { openRoomClient, waitFor, snapshotsMatch, YTestClient } from './helpers/
 const upgrade = { Upgrade: 'websocket', Connection: 'Upgrade' };
 
 describe('sync.worker_entry — URL routing decides what handles a request', () => {
-  it('TC-04: GET /api/rooms/bad!id with Upgrade → 400, and the room namespace is never touched', async () => {
+  it('TC-04: GET /api/rooms/bad!id with Upgrade → 404, and the room namespace is never touched', async () => {
     const idFromName = vi.spyOn((env as unknown as Env).BOARD_ROOM, 'idFromName');
     const res = await SELF.fetch('http://localhost/api/rooms/bad!id', { headers: upgrade });
-    expect(res.status).toBe(400);
+    expect(res.status).toBe(404);
     expect(idFromName).not.toHaveBeenCalled();
     idFromName.mockRestore();
   });
@@ -63,6 +63,11 @@ describe('sync.worker_entry — URL routing decides what handles a request', () 
 
   it('a valid upgrade opens a real, usable websocket that the room serves with sync', async () => {
     const board = newBoardId();
+    // Initialize the board first (required since story 5)
+    const doEnv = env as unknown as Env;
+    const doId = doEnv.BOARD_ROOM.idFromName(board);
+    const stub = doEnv.BOARD_ROOM.get(doId);
+    await stub.initialize();
     const res = await SELF.fetch(`http://localhost/api/rooms/${board}`, { headers: upgrade });
     expect(res.status).toBe(101);
     expect(res.webSocket).toBeTruthy();

@@ -17,6 +17,7 @@
     "noFallthroughCasesInSwitch": true,
     "forceConsistentCasingInFileNames": true,
     "resolveJsonModule": true,
+    "types": ["node"],
     "baseUrl": ".",
     "paths": {
       "@shared/*": ["src/shared/*"],

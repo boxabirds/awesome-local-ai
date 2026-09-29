@@ -12,11 +12,12 @@ import {
   setCamera,
   getWorldLayerData,
 } from './helpers/board';
+import { createAndGotoBoard } from './helpers/create-board';
 import { UNBOUNDED_PAN_TESTED_EXTENT, GRID_SPACING_WORLD, ZOOM_STEP_FACTOR, ZOOM_MAX, ZOOM_MIN } from '@shared/config';
 
 test.describe('Workflow 1: First visit navigation', () => {
   test('TC-28: hint visible then removed after drag', async ({ page }) => {
-    await page.goto('/');
+    await createAndGotoBoard(page);
     await expect(getNavigationHint(page)).toBeVisible();
 
     const viewport = getViewport(page);
@@ -28,7 +29,7 @@ test.describe('Workflow 1: First visit navigation', () => {
   });
 
   test('TC-23: drag moves origin marker exactly 200,100 px', async ({ page }) => {
-    await page.goto('/');
+    await createAndGotoBoard(page);
     await expect(getOriginMarker(page)).toBeVisible();
 
     const posBefore = await getMarkerScreenPos(page);
@@ -47,7 +48,7 @@ test.describe('Workflow 1: First visit navigation', () => {
   });
 
   test('TC-24: Ctrl+wheel zooms, dot stays under pointer', async ({ page }) => {
-    await page.goto('/');
+    await createAndGotoBoard(page);
 
     const posBefore = await getMarkerScreenPos(page);
     const markerX = posBefore.x;
@@ -75,7 +76,7 @@ test.describe('Workflow 1: First visit navigation', () => {
 
 test.describe('Workflow 2: Limits and recovery', () => {
   test('TC-25: zoom to max, button disables', async ({ page }) => {
-    await page.goto('/');
+    await createAndGotoBoard(page);
     await expect(getZoomLabel(page)).toHaveText('100%');
 
     // Click + many times
@@ -91,7 +92,7 @@ test.describe('Workflow 2: Limits and recovery', () => {
   });
 
   test('TC-26: reset returns to 100% centred', async ({ page }) => {
-    await page.goto('/');
+    await createAndGotoBoard(page);
 
     // Jump far away via test hook
     await setCamera(page, {
@@ -115,7 +116,7 @@ test.describe('Workflow 2: Limits and recovery', () => {
 
 test.describe('Workflow 3: Far travel', () => {
   test('TC-27: far location still pans exactly, grid spacing correct', async ({ page }) => {
-    await page.goto('/');
+    await createAndGotoBoard(page);
 
     // Jump far away
     await setCamera(page, {
@@ -150,7 +151,7 @@ test.describe('Workflow 3: Far travel', () => {
 
 test.describe('TC-31: page zoom unchanged', () => {
   test('after zoom gestures, visualViewport.scale and devicePixelRatio unchanged', async ({ page }) => {
-    await page.goto('/');
+    await createAndGotoBoard(page);
 
     const initialScale = await page.evaluate(() => window.visualViewport?.scale ?? 1);
     const initialDPR = await page.evaluate(() => window.devicePixelRatio);

@@ -22,6 +22,12 @@ async function waitForConnected(page: Page) {
   );
 }
 
+/** Initialize a board via test hook (creates storage_meta) without any notes */
+async function initBoard(boardId: string, serverUrl: string) {
+  const res = await fetch(`${serverUrl}/api/test/${boardId}/seed-legacy?notes=0`, { method: 'POST' });
+  if (!res.ok) throw new Error(`Failed to init board: ${res.status}`);
+}
+
 test.describe('E2E Persistence (TC-19 to TC-21)', () => {
   test('TC-19: overnight return — 25 notes survive process restart', async ({ browser }) => {
     let wp = await startWrangler(PERSIST_PORT);
@@ -31,6 +37,7 @@ test.describe('E2E Persistence (TC-19 to TC-21)', () => {
       // Open board, create 25 notes with distinct positions
       const ctx1 = await browser.newContext({ viewport: { width: 1280, height: 800 } });
       const page1 = await ctx1.newPage();
+      await initBoard(boardId, PERSIST_URL);
       await page1.goto(`${PERSIST_URL}/b/${boardId}`);
       await waitForConnected(page1);
 
@@ -104,6 +111,7 @@ test.describe('E2E Persistence (TC-19 to TC-21)', () => {
     try {
       const ctx1 = await browser.newContext({ viewport: { width: 1280, height: 800 } });
       const page1 = await ctx1.newPage();
+      await initBoard(boardId, PERSIST_URL);
       await page1.goto(`${PERSIST_URL}/b/${boardId}`);
       await waitForConnected(page1);
 
