@@ -1,3 +1,89 @@
+commit aaafac25389be4792b692eab4a093c4926aacdb3
+vidi-agent  Tue Sep 29 13:11:08 2026 +0100
+
+    test(10): e2e shape and connector stories, including the delete race
+
+
+ src/client/objects/ShapeObject.tsx |   1 +
+ tests/e2e/connectors.spec.ts       | 321 ++++++++++++++++++++++++++++++++
+ tests/e2e/shapes.spec.ts           | 208 +++++++++++++++++++++
+ tests/fixtures/checkout-flow.ts    | 364 +++++++++++++++++++++++++++++++++++++
+ 4 files changed, 894 insertions(+)
+commit 62035b4d178303f6b9856bee2fd4336b138895cf
+vidi-agent  Tue Sep 29 12:38:36 2026 +0100
+
+    test(10): component tests for the Shape tool, ShapeObject/toolbar, Connector tool and object, and the active tool hook (TC-15..TC-22, TC-28); the connector registry entry reads its component and hit test lazily, because its module reaches the registry through hitObjectAt
+
+
+ src/client/objects/registry.tsx        |  14 +-
+ src/client/tools/ConnectorTool.tsx     |  16 +-
+ src/client/tools/useActiveTool.ts      |   4 +-
+ tests/component/Connector.test.tsx     | 363 ++++++++++++++++++++++++++++++
+ tests/component/ShapeTool.test.tsx     | 396 +++++++++++++++++++++++++++++++++
+ tests/component/useActiveTool.test.tsx | 214 ++++++++++++++++++
+ 6 files changed, 1001 insertions(+), 6 deletions(-)
+commit f535d6f259fe15f194b3c24360afc9832e54bdda
+vidi-agent  Tue Sep 29 12:07:45 2026 +0100
+
+    feat(10): tools and UI — useActiveTool (V/T/S/L, shapeKind, return-to-Select), ShapeTool with preview, ShapeObject with centred wrapping label, ShapeToolbar swatches, ConnectorTool hover dots and drag preview, ConnectorObject arrowhead with re-attach handles, hitObjectAt, registry entries and Toolbar Shape/Connector buttons; tasks 11-13
+
+
+ src/client/board/BoardApp.tsx          |  69 ++++--
+ src/client/board/Toolbar.tsx           | 119 +++++++++--
+ src/client/board/useBoardKeys.ts       |  32 ++-
+ src/client/board/useTool.ts            |  32 ---
+ src/client/canvas/BoardViewport.tsx    |   9 +-
+ src/client/objects/ConnectorObject.tsx | 370 +++++++++++++++++++++++++++++++++
+ src/client/objects/ShapeObject.tsx     | 281 +++++++++++++++++++++++++
+ src/client/objects/ShapeToolbar.tsx    | 161 ++++++++++++++
+ src/client/objects/registry.tsx        |  61 +++++-
+ src/client/tools/ConnectorTool.tsx     | 259 +++++++++++++++++++++++
+ src/client/tools/ShapeTool.tsx         | 188 +++++++++++++++++
+ src/client/tools/hitTarget.ts          |  62 ++++++
+ src/client/tools/useActiveTool.ts      | 126 +++++++++++
+ tests/unit/registry.test.ts            |   6 +-
+ 14 files changed, 1692 insertions(+), 83 deletions(-)
+commit 02da2295048d296dd1e3f22b5ad59d675fcbf429
+vidi-agent  Tue Sep 29 11:47:00 2026 +0100
+
+    feat(10): connector model — connector.ts ends and anchors, side geometry, derived arrow boxes in objectSnapshots, detach-on-delete inside deleteObjects' transaction; unit TC-07..TC-14, TC-29
+
+
+ src/shared/board-model.ts          |  39 ++++++++++++
+ src/shared/objects/connector.ts    | 123 ++++++++++++++++++++++++++++++++-----
+ tests/unit/connector-model.test.ts |   9 ++-
+ 3 files changed, 152 insertions(+), 19 deletions(-)
+commit 0abd232b5922d6c8312c3259c0586245e6f1d911
+vidi-agent  Tue Sep 29 11:43:39 2026 +0100
+
+    test(10): connector model and geometry unit cases TC-07..TC-14, TC-29 + connector schema and side geometry draft
+
+
+ src/shared/board-model.ts                 |   5 +
+ src/shared/geometry/connector-geometry.ts | 104 ++++++++++
+ src/shared/geometry/polyline.ts           |  36 ++++
+ src/shared/objects/connector.ts           | 272 +++++++++++++++++++++++++
+ tests/unit/connector-model.test.ts        | 326 ++++++++++++++++++++++++++++++
+ 5 files changed, 743 insertions(+)
+commit f09e35c26023e533cc4463d2fd4a257626a644dc
+vidi-agent  Tue Sep 29 11:37:18 2026 +0100
+
+    feat(10): shape object model — shape.ts schema (drag/click/Shift sizing, style, label Y.Text) and shape fields in objectSnapshots; unit TC-01..TC-06
+
+
+ src/shared/board-model.ts   |  42 +++++++++++++++++-
+ src/shared/objects/shape.ts | 106 +++++++++++++++++++++++++++++---------------
+ 2 files changed, 111 insertions(+), 37 deletions(-)
+commit 87edebdb2433d9c5b0e7e069e8d076a7cd79bea4
+vidi-agent  Tue Sep 29 11:35:55 2026 +0100
+
+    test(10): shape model unit cases TC-01..TC-06 + shape schema draft and story 10 settings
+
+
+ src/shared/config.ts           |  48 +++++++++
+ src/shared/objects/shape.ts    | 221 +++++++++++++++++++++++++++++++++++++++++
+ tests/unit/shape-model.test.ts | 173 ++++++++++++++++++++++++++++++++
+ 3 files changed, 442 insertions(+)
 commit edcd7f6cfe286a49e8b56944681ebc42da1a3c34
 vidi-agent  Tue Sep 29 11:04:06 2026 +0100
 
