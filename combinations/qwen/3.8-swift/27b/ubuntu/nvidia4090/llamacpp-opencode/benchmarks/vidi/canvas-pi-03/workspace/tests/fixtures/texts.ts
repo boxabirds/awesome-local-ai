@@ -7,6 +7,20 @@ import { STICKY_TEXT_MAX_CHARS } from 'src/shared/config';
 
 export const SHORT_TEXT = 'Faster onboarding';
 
+/**
+ * A realistic 300-character English annotation (story 9 TC-26): long enough
+ * to exceed TEXT_MAX_AUTO_WIDTH_WORLD at every preset, short enough to type
+ * quickly in e2e.
+ */
+export const LONG_ANNOTATION =
+  'The release went out on Tuesday and the on-call channel stayed quiet all week, which the team treated as a small victory. The dashboard kept its green lights, the import job finished ahead of schedule, and the only incident was a flaky integration test that the platform team fixed by pinning the old';
+
+export function assertLongAnnotationLength(): void {
+  if (LONG_ANNOTATION.length !== 300) {
+    throw new Error(`LONG_ANNOTATION fixture must be exactly 300 chars, got ${LONG_ANNOTATION.length}`);
+  }
+}
+
 export const RETRO_TEXT = [
   'Daily sync keeps running long',
   'Agenda does not match the discussion',
@@ -23,3 +37,5 @@ export function assertLongTextLength(): void {
     );
   }
 }
+
+assertLongAnnotationLength();

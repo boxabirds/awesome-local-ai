@@ -34,9 +34,8 @@
  * trimmed to `maxSteps` (UNDO_MAX_STEPS) on every add (undo.limit).
  */
 import * as Y from 'yjs';
-import { LOCAL_ORIGIN, snapshot } from 'src/shared/board-model';
+import { LOCAL_ORIGIN } from 'src/shared/board-model';
 import { UNDO_CAPTURE_TIMEOUT_MS, UNDO_MAX_STEPS } from 'src/shared/config';
-import type { StickySnapshot } from 'src/shared/board-model';
 
 export interface UndoController {
   /**
@@ -120,17 +119,60 @@ function stepObjectIds(
 
 type GCLike = Y.GC | Y.Item;
 
-function sameContent(a: StickySnapshot, b: StickySnapshot): boolean {
+/**
+ * One object's full state for the post-check: generic across registered
+ * types (story 9 added text objects) — geometry, stacking, the sticky
+ * colour, and the Y.Text content (sticky notes AND text objects carry a
+ * `text` child; typing must count as a content change, TC-25).
+ */
+interface ObjectState {
+  id: string;
+  type: string;
+  x: number;
+  y: number;
+  z: number;
+  width: number | undefined;
+  height: number | undefined;
+  text: string | undefined;
+  color: string | undefined;
+}
+
+function objectStates(doc: Y.Doc): Map<string, ObjectState> {
+  const out = new Map<string, ObjectState>();
+  doc.getMap('objects').forEach((obj, key) => {
+    if (!(obj instanceof Y.Map) || typeof key !== 'string') return;
+    const x = obj.get('x');
+    const y = obj.get('y');
+    if (typeof x !== 'number' || typeof y !== 'number') return;
+    const width = obj.get('width');
+    const height = obj.get('height');
+    const text = obj.get('text');
+    const color = obj.get('color');
+    out.set(key, {
+      id: key,
+      type: typeof obj.get('type') === 'string' ? obj.get('type') : '',
+      x,
+      y,
+      z: typeof obj.get('z') === 'number' ? obj.get('z') : 0,
+      width: typeof width === 'number' ? width : undefined,
+      height: typeof height === 'number' ? height : undefined,
+      text: text instanceof Y.Text ? text.toString() : undefined,
+      color: typeof color === 'string' ? color : undefined,
+    });
+  });
+  return out;
+}
+
+function sameState(a: ObjectState, b: ObjectState): boolean {
   return (
+    a.type === b.type &&
     a.x === b.x &&
     a.y === b.y &&
-    a.color === b.color &&
-    a.text === b.text &&
     a.z === b.z &&
-    ('width' in a) === ('width' in b) &&
-    ('height' in a) === ('height' in b) &&
-    (a.width ?? 0) === (b.width ?? 0) &&
-    (a.height ?? 0) === (b.height ?? 0)
+    a.width === b.width &&
+    a.height === b.height &&
+    a.text === b.text &&
+    a.color === b.color
   );
 }
 
@@ -210,9 +252,8 @@ export function createUndo(
     const stackItem = stack[stack.length - 1];
     const { touched, created, deleted } = stepObjectIds(doc, stackItem);
 
-    const before = snapshot(doc);
-    const present = new Set(before.map((s) => s.id));
-    const missing = [...touched].filter((id) => !present.has(id));
+    const before = objectStates(doc);
+    const missing = [...touched].filter((id) => !before.has(id));
     if (missing.some((id) => !deleted.has(id))) {
       // The step targets a structure someone else deleted — no-op (discard).
       discardTop(dir);
@@ -221,26 +262,25 @@ export function createUndo(
 
     if (dir === 'undo') manager.undo();
     else manager.redo();
-    const after = snapshot(doc);
-    const afterMap = new Map(after.map((s) => [s.id, s]));
-    const beforeIds = new Set(before.map((s) => s.id));
+    const after = objectStates(doc);
+    const beforeIds = new Set(before.keys());
 
     let damaged = false;
-    for (const b of before) {
-      const a = afterMap.get(b.id);
+    for (const [id, b] of before) {
+      const a = after.get(id);
       if (a == null) {
         // Gone. Legitimate only when THIS step created it (undo of a create).
-        if (!created.has(b.id)) damaged = true;
-      } else if (!sameContent(b, a)) {
+        if (!created.has(id)) damaged = true;
+      } else if (!sameState(b, a)) {
         // Modified. Legitimate only for objects the step touched.
-        if (!touched.has(b.id)) damaged = true;
+        if (!touched.has(id)) damaged = true;
       }
     }
-    for (const a of after) {
-      if (!beforeIds.has(a.id)) {
+    for (const id of after.keys()) {
+      if (!beforeIds.has(id)) {
         // Appeared. Legitimate only when THIS step deleted it (undo of a
         // delete — restored with its content as of the delete).
-        if (!deleted.has(a.id)) damaged = true;
+        if (!deleted.has(id)) damaged = true;
       }
     }
 
@@ -252,7 +292,11 @@ export function createUndo(
       discardTop(dir);
       return false;
     }
-    return before.length !== after.length || before.some((b) => !sameContent(b, afterMap.get(b.id)!));
+    if (before.size !== after.size) return true;
+    for (const [id, b] of before) {
+      if (!sameState(b, after.get(id)!)) return true;
+    }
+    return false;
   };
 
   return {

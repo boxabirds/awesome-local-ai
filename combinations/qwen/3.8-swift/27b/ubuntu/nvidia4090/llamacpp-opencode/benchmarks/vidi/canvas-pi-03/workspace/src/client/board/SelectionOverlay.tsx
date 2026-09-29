@@ -75,7 +75,17 @@ export function SelectionOverlay(props: {
   const bottomRight = worldToScreen(camera, { x: worldBox.x + worldBox.width, y: worldBox.y + worldBox.height });
   const box: Rect = { x: topLeft.x, y: topLeft.y, width: bottomRight.x - topLeft.x, height: bottomRight.y - topLeft.y };
 
-  const resizable = snapshot.some((o) => ids.has(o.id) && getObjectType(o.type)?.resizable);
+  const selectedSpecs = snapshot
+    .filter((o) => ids.has(o.id))
+    .map((o) => getObjectType(o.type))
+    .filter((s): s is NonNullable<typeof s> => s !== undefined);
+  const resizable = selectedSpecs.some((s) => s.resizable);
+  // Story 9 (text.height / text.fixed_width): a selection of ONLY horizontal-
+  // handle types (text objects) shows only the e/w handles; mixed or other
+  // selections keep the full 8-handle set (TC-22, TC-23).
+  const horizontalOnly =
+    selectedSpecs.length > 0 && selectedSpecs.every((s) => s.handles === 'horizontal');
+  const visibleHandles = horizontalOnly ? HANDLES.filter((h) => h === 'e' || h === 'w') : HANDLES;
 
   return (
     <div
@@ -93,7 +103,7 @@ export function SelectionOverlay(props: {
       }}
     >
       {resizable &&
-        HANDLES.map((h) => {
+        visibleHandles.map((h) => {
           const p = handlePosition(h, box);
           return (
             <div

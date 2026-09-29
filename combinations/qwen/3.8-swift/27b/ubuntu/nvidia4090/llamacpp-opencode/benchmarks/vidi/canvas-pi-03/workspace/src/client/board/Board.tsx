@@ -24,6 +24,17 @@ import { createUndo } from './undo';
 import { useUndo } from './useUndo';
 import { getObjectType } from '../objects/registry';
 import { NoteToolbar } from '../objects/NoteToolbar';
+import { TextToolbar } from '../objects/TextToolbar';
+import { useTool } from './useTool';
+import { createCanvasMeasurer, type Measurer } from '../objects/textLayout';
+import { remeasureTextBox } from '../objects/useTextBoxSync';
+import {
+  createText,
+  setTextSize,
+  setTextWidthFixed,
+  getTextSize,
+} from 'src/shared/objects/text';
+import { TEXT_FONT_FAMILY, type TextSize } from 'src/shared/config';
 import {
   createSticky,
   setStickyColor,
@@ -63,17 +74,38 @@ export function Board({ boardId }: { boardId: string }): JSX.Element {
   }, [undoController]);
   const undoState = useUndo(undoController, editable);
 
+  // Story 9: board tool (Select / Text) — reverts to Select on a locked board.
+  const { tool, setTool } = useTool(editable);
+  // Story 9: the canvas measurer shared by all text-box remeasures on this
+  // tab (the probe is cached inside the measurer).
+  const measurer = useMemo<Measurer>(() => createCanvasMeasurer(TEXT_FONT_FAMILY), []);
+  // Story 9: this tab's identity for `createdBy` (a per-tab stable id; a
+  // full identity story is out of scope).
+  const identityId = useRef(crypto.randomUUID()).current;
+
   // Story 7: the generic transform gesture — group move (drag any selected
   // object), single-object drag, handle resize with aspect lock + size
   // limits. Works for every registered object type (sel.all_types).
   // Story 8: gesture start/end (including pointercancel) close undo capture
   // windows, so one drag is exactly one undo step (undo.boundaries).
+  // Story 9: side-handle drag on a SINGLE text object → fixed width +
+  // remeasure (text.fixed_width). One drag is one undo step via the
+  // gesture start/end boundaries below.
+  const handleTextWidthResize = useCallback(
+    (id: string, width: number) => {
+      setTextWidthFixed(doc, id, width);
+      remeasureTextBox(doc, id, measurer);
+    },
+    [doc, measurer],
+  );
+
   const gesture = useTransformGesture({
     doc,
     camera: cam.camera,
     selection: sel,
     snapshot: objects,
     canEdit: editable,
+    onTextWidthResize: editable ? handleTextWidthResize : undefined,
     onGestureStart: () => {
       gestureStartsRef.current += 1;
       undoController.boundary();
@@ -90,9 +122,6 @@ export function Board({ boardId }: { boardId: string }): JSX.Element {
   // unioned with the current selection (sel.marquee).
   const marquee = useMarquee(cam.camera, objects, (ids) => sel.setMany(ids, true));
 
-  // Story 7: Ctrl+A / Escape / arrows / Delete / Enter (sel.keyboard).
-  // Story 8: + Ctrl/Cmd+Z / Ctrl/Cmd+Shift+Z / Ctrl+Y undo and redo.
-  useBoardKeys({ doc, selection: sel, snapshot: objects, canEdit: editable, undo: undoController });
 
   // Test hook: story 1 exposes setCamera; story 2 additionally exposes the
   // board doc so tests can drive the model directly (e.g. TC-37).
@@ -175,6 +204,56 @@ export function Board({ boardId }: { boardId: string }): JSX.Element {
     if (id) sel.startEdit(id);
   }, [cam.camera, size, doc, sel, editable, undoController]);
 
+  // Story 7: Ctrl+A / Escape / arrows / Delete / Enter (sel.keyboard).
+  // Story 8: + Ctrl/Cmd+Z / Ctrl/Cmd+Shift+Z / Ctrl+Y undo and redo.
+  // Story 9: + V (Select tool), T (Text tool), N (sticky at centre),
+  // Escape (Select tool + clear selection). (Called after the create
+  // callbacks so N can reuse the centre-creation handler.)
+  useBoardKeys({
+    doc,
+    selection: sel,
+    snapshot: objects,
+    canEdit: editable,
+    undo: undoController,
+    tool,
+    setTool,
+    onCreateStickyCentred: handleCreateStickyCentred,
+  });
+
+  // Story 9: Text tool click (empty space OR on top of an object) → create a
+  // text object at the world point, switch back to Select, select it and
+  // start editing (text.tool_ui). No-op when locked.
+  const handleCreateTextAt = useCallback(
+    (world: { x: number; y: number }) => {
+      if (!editable) return;
+      // Story 8: one text creation is exactly one undo step (the edit session
+      // opens its own boundary in the editor).
+      undoController.boundary();
+      const id = createText(doc, world, identityId);
+      undoController.boundary();
+      setTool('select');
+      if (id) sel.startEdit(id);
+    },
+    [doc, sel, editable, undoController, identityId, setTool],
+  );
+
+  // Story 9: while the Text tool is active, presses on EXISTING objects
+  // create text on top at that point instead of selecting/dragging the
+  // object (text.tool_ui). The viewport is fixed inset-0, so client
+  // coordinates are screen coordinates relative to its origin.
+  const handleTextToolPress = useCallback(
+    (e: React.PointerEvent<HTMLElement>) => {
+      e.stopPropagation();
+      // Cancel the default focus too: a press on a focusable object (sticky,
+      // text) would focus it, and its onFocus→onSelect would run after the
+      // re-render and clear the just-started text editing (real browsers only
+      // — jsdom never focuses on pointerdown).
+      e.preventDefault();
+      handleCreateTextAt(screenToWorld(cam.camera, { x: e.clientX, y: e.clientY }));
+    },
+    [cam.camera, handleCreateTextAt],
+  );
+
   // Story 7: a group delete removes every selected object at once and clears
   // the selection (sel.delete_multi). No-op when the board is locked.
   // Story 8: the whole group delete is exactly one undo step.
@@ -194,6 +273,17 @@ export function Board({ boardId }: { boardId: string }): JSX.Element {
   const singleSticky: StickySnapshot | undefined =
     sel.ids.size === 1 ? notes.find((n) => sel.ids.has(n.id)) : undefined;
   const showNoteToolbar = singleSticky !== undefined && sel.editingId === null && !dragging;
+
+  // Story 9: the single selected TEXT object (text toolbar: sizes + delete).
+  // The live size comes from the doc (the generic snapshot has no `size`).
+  const singleTextId: string | undefined =
+    sel.ids.size === 1
+      ? (objects.find((o) => sel.ids.has(o.id) && o.type === 'text')?.id ?? undefined)
+      : undefined;
+  const singleTextSize: TextSize | undefined =
+    singleTextId !== undefined ? getTextSize(doc, singleTextId) : undefined;
+  const showTextToolbar =
+    singleTextId !== undefined && sel.editingId === null && !dragging;
 
   // Floating-bar placement: above the selection's bounding box (screen space).
   const selBox = sel.ids.size > 0 ? selectionBounds(sel.ids, objects) : null;
@@ -227,6 +317,8 @@ export function Board({ boardId }: { boardId: string }): JSX.Element {
         setCamera={cam.setCamera}
         onCreateStickyAt={handleCreateStickyAt}
         onEmptyClick={() => sel.clear()}
+        tool={tool}
+        onCreateTextAt={handleCreateTextAt}
         marquee={{
           active: marquee.rect !== null,
           begin: marquee.begin,
@@ -258,7 +350,9 @@ export function Board({ boardId }: { boardId: string }): JSX.Element {
                 selected={sel.ids.has(o.id)}
                 editing={sel.editingId === o.id}
                 editable={editable}
-                onPointerDown={gesture.onObjectPointerDown}
+                onPointerDown={
+                  tool === 'text' ? handleTextToolPress : gesture.onObjectPointerDown
+                }
                 onSelect={sel.click}
                 onStartEdit={sel.startEdit}
                 onEndEdit={sel.endEdit}
@@ -271,6 +365,8 @@ export function Board({ boardId }: { boardId: string }): JSX.Element {
         onCreateSticky={handleCreateStickyCentred}
         disabled={!editable}
         undo={undoState}
+        tool={tool}
+        onToolChange={setTool}
       />
       <SelectionOverlay
         ids={sel.ids}
@@ -293,6 +389,28 @@ export function Board({ boardId }: { boardId: string }): JSX.Element {
               // Story 8: one delete is exactly one undo step.
               undoController.boundary();
               if (deleteObject(doc, singleSticky.id)) sel.clear();
+              undoController.boundary();
+            }}
+          />
+        </div>
+      )}
+      {/* Story 9: exactly one selected text object → the text toolbar. */}
+      {showTextToolbar && singleTextId && singleTextSize !== undefined && selBox && (
+        <div style={barStyle}>
+          <TextToolbar
+            size={singleTextSize}
+            onSize={(s) => {
+              // Story 8: one size change is exactly one undo step. The
+              // remeasure keeps x/y and writes only width/height (text.size).
+              undoController.boundary();
+              setTextSize(doc, singleTextId, s);
+              remeasureTextBox(doc, singleTextId, measurer);
+              undoController.boundary();
+            }}
+            onDelete={() => {
+              undoController.boundary();
+              deleteObjects(doc, [singleTextId]);
+              sel.clear();
               undoController.boundary();
             }}
           />

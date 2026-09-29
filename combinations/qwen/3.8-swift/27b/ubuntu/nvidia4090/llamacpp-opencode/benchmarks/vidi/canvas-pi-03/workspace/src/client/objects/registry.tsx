@@ -19,6 +19,8 @@ import {
 import { STICKY_MIN_SIZE_WORLD } from 'src/shared/config';
 import type { UndoController } from '../board/undo';
 import { StickyNote } from './StickyNote';
+import { TextObject } from './TextObject';
+import { TEXT_MIN_WIDTH_WORLD } from 'src/shared/config';
 
 /**
  * Common props handed to every registered object component. `onPointerDown`
@@ -52,6 +54,13 @@ export interface ObjectTypeSpec {
   minSize: number;
   /** May the object's text be edited (Enter / double-click)? */
   editableText: boolean;
+  /**
+   * Story 9: which resize handles the selection overlay shows for a selection
+   * made up ONLY of this type — 'all' (the default: the 8 handles) or
+   * 'horizontal' (only e/w, for text objects whose width is the editable
+   * dimension; text.height).
+   */
+  handles?: 'all' | 'horizontal';
   /** Point-in-object hit test (world units). */
   hitTest: (obj: ObjectSnapshot, worldPoint: { x: number; y: number }) => boolean;
 }
@@ -91,5 +100,17 @@ registerObjectType('sticky', {
   aspectLocked: true,
   minSize: STICKY_MIN_SIZE_WORLD,
   editableText: true,
+  hitTest: stickyHitTest,
+});
+
+// Story 9: free text objects — resizable by width only (side handles), never
+// aspect-locked, never smaller than TEXT_MIN_WIDTH_WORLD, editable text.
+registerObjectType('text', {
+  Component: TextObject,
+  resizable: true,
+  aspectLocked: false,
+  minSize: TEXT_MIN_WIDTH_WORLD,
+  editableText: true,
+  handles: 'horizontal',
   hitTest: stickyHitTest,
 });

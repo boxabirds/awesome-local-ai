@@ -35,6 +35,16 @@ export const NUDGE_LARGE_STEP_WORLD = 10; // Shift+arrow nudge step
 // Story 8: per-user undo/redo
 export const UNDO_CAPTURE_TIMEOUT_MS = 500; // typing pause that ends a burst
 export const UNDO_MAX_STEPS = 200;          // per-user history length
+// Story 9: free text objects
+export const TEXT_MAX_AUTO_WIDTH_WORLD = 600; // auto-width text wraps beyond this
+export const TEXT_MIN_WIDTH_WORLD = 40; // side-handle fixed width floor
+export const TEXT_MAX_CHARS = 5000; // per-text-object length limit
+export const TEXT_SIZES = { S: 14, M: 20, L: 32, XL: 56 } as const; // font size presets (board units)
+export type TextSize = keyof typeof TEXT_SIZES;
+export const DEFAULT_TEXT_SIZE: TextSize = 'M';
+export const TEXT_LINE_HEIGHT = 1.3; // line height multiplier
+export const TEXT_FONT_FAMILY = 'Inter, system-ui, sans-serif';
+export const TEXT_AVG_GLYPH_WIDTH_RATIO = 0.6; // estimate fallback: avg glyph width in ems
 // Story 5: share a board with others using a link
 export const BOARD_CREATE_LIMIT = 10;              // per visitor, per period (PRD share.rate_limit)
 export const BOARD_CREATE_PERIOD_SECONDS = 60;     // must match wrangler.jsonc ratelimits (TC-03 asserts equality)

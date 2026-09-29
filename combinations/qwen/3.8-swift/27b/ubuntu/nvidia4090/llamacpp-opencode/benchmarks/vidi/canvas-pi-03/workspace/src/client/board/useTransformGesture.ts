@@ -60,6 +60,13 @@ export interface TransformGestureOptions {
   canEdit: boolean;
   onGestureStart?: () => void;
   onGestureEnd?: () => void;
+  /**
+   * Story 9: side-handle drag on a SINGLE horizontal-handle object (text):
+   * called with the object id and the new width (world units, ≥ its minSize)
+   * on every frame and on release. The board wires this to
+   * `setTextWidthFixed` + `remeasureTextBox` (text.fixed_width).
+   */
+  onTextWidthResize?: (id: string, width: number) => void;
 }
 
 type Gesture =
@@ -84,6 +91,19 @@ type Gesture =
       minSizes: number[];
       /** True when any selected spec is aspectLocked (checked at press). */
       aspectLocked: boolean;
+      raf: number;
+    }
+  | {
+      kind: 'textWidth';
+      id: string;
+      handle: 'e' | 'w';
+      startClient: Point;
+      lastClient: Point;
+      started: boolean;
+      /** The object's width at gesture start (world units). */
+      startWidth: number;
+      /** The object's minimum width (world units). */
+      minSize: number;
       raf: number;
     };
 
@@ -134,8 +154,13 @@ export function useTransformGesture(opts: TransformGestureOptions): {
     // apply still lands.
     const applyFrame = (g: Gesture): void => {
       const o = optsRef.current;
-      if (!anyObjectPresent(o.doc, g.startRects.keys())) {
-        endGesture(false); // the whole selection was deleted remotely
+      if (g.kind === 'move' || g.kind === 'resize') {
+        if (!anyObjectPresent(o.doc, g.startRects.keys())) {
+          endGesture(false); // the whole selection was deleted remotely
+          return;
+        }
+      } else if (!anyObjectPresent(o.doc, [g.id])) {
+        endGesture(false); // the text object was deleted remotely
         return;
       }
       if (g.kind === 'move') {
@@ -144,6 +169,14 @@ export function useTransformGesture(opts: TransformGestureOptions): {
         const positions = new Map<string, Point>();
         for (const [id, r] of g.startRects) positions.set(id, { x: r.x + dx, y: r.y + dy });
         moveObjects(o.doc, positions);
+        return;
+      }
+      if (g.kind === 'textWidth') {
+        // Story 9: a side handle on a single text object changes its width
+        // only (height follows content via the board's remeasure callback).
+        const dx = (g.lastClient.x - g.startClient.x) / o.camera.zoom;
+        const width = Math.max(g.startWidth + (g.handle === 'e' ? dx : -dx), g.minSize);
+        o.onTextWidthResize?.(g.id, width);
         return;
       }
       const dx = (g.lastClient.x - g.startClient.x) / o.camera.zoom;
@@ -214,6 +247,8 @@ export function useTransformGesture(opts: TransformGestureOptions): {
         // The whole selection rises above all unselected objects, keeping its
         // internal stacking order (key decision 4).
         bringObjectsToFront(o.doc, [...g.startRects.keys()]);
+      } else if (g.kind === 'textWidth') {
+        o.onGestureStart?.();
       } else {
         const box = unionRects([...g.startRects.values()]);
         if (!box) {
@@ -302,6 +337,36 @@ export function useTransformGesture(opts: TransformGestureOptions): {
       e.stopPropagation();
       const o = optsRef.current;
       if (!o.canEdit || o.selection.ids.size === 0) return;
+
+      // Story 9: a side handle on a SINGLE horizontal-handle object (text)
+      // starts the width-only gesture (text.fixed_width) instead of the
+      // generic proportional resize.
+      if (
+        (handle === 'e' || handle === 'w') &&
+        o.selection.ids.size === 1 &&
+        o.onTextWidthResize
+      ) {
+        const id = [...o.selection.ids][0];
+        const obj = o.snapshot.find((s) => s.id === id);
+        const spec = obj ? getObjectType(obj.type) : undefined;
+        if (obj && spec && spec.handles === 'horizontal' && spec.resizable) {
+          const r = objectBounds(obj);
+          gestureRef.current = {
+            kind: 'textWidth',
+            id,
+            handle,
+            startClient: { x: e.clientX, y: e.clientY },
+            lastClient: { x: e.clientX, y: e.clientY },
+            started: false,
+            startWidth: r.width,
+            minSize: spec.minSize,
+            raf: 0,
+          };
+          capturePointer(e);
+          attach();
+          return;
+        }
+      }
 
       const startRects = new Map<string, Rect>();
       const minSizes: number[] = [];

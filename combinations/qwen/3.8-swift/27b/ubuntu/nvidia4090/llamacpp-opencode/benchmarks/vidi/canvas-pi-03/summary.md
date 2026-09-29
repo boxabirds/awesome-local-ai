@@ -11,8 +11,9 @@ Model `qwen3.8-swift-27b`, scope `canvas`, effort `low`, client pi 0.86.0, host 
 | 5 | Share a board with others using a link | DONE | 99.9 | None | None | None | — | — | red | 35/36 |  | 0 / 0 (ended in error) | 3 | — | throttled 0%, server peak 26 GB MEMORY-ABORT |
 | 7 | Select, move, resize and delete several objects at once | DONE | 96.9 | None | None | None | — | — | green | 40/44 |  | 0 / 0 | 4 | — | throttled 0%, server peak 26 GB |
 | 8 | Undo and redo my own changes without undoing anyone else's | DONE | 77.5 | None | None | None | — | — | red | 47/51 |  | 0 / 0 | 3 | — | throttled 0%, server peak 26 GB |
+| 9 | Write free text anywhere on the board | DONE | 51.7 | None | None | None | — | — | red | 52/57 |  | 0 / 0 | 3 | — | throttled 0%, server peak 26 GB |
 
-**Totals:** 7 stories, 545 agent-minutes, 0 requests, 0 prompt / 0 completion tokens, gate green 3/7, final acceptance 47/51, stalled 0, partial 0, 14934 lines in src+tests.
+**Totals:** 8 stories, 596 agent-minutes, 0 requests, 0 prompt / 0 completion tokens, gate green 3/8, final acceptance 52/57, stalled 0, partial 0, 17167 lines in src+tests.
 
 ## How it happened
 
@@ -27,6 +28,7 @@ Each story's commits, and which story broke or fixed an earlier story's held-out
 | 5 | harness snapshot (agent left work uncommitted) | 2444 / 362 | `App.tsx` (276), `Board.tsx` (233), `SharePanel.tsx` (211), `create-board.ts` (108), `BoardPage.tsx` (89), `NotFoundPage.tsx` (72), +15 more |
 | 7 | 1 by the agent | 3219 / 328 | `useTransformGesture.ts` (343), `board-model.ts` (284), `geometry.ts` (211), `StickyNote.tsx` (207), `Board.tsx` (199), `useSelection.ts` (160), +8 more |
 | 8 | 1 by the agent | 1666 / 21 | `undo.ts` (280), `UndoButtons.tsx` (91), `Board.tsx` (71), `useUndo.ts` (39), `StickyTextEditor.tsx` (32), `useBoardKeys.ts` (30), +5 more |
+| 9 | 1 by the agent | 2565 / 332 | `TextEditor.tsx` (260), `StickyTextEditor.tsx` (229), `text.ts` (179), `textLayout.ts` (142), `TextObject.tsx` (129), `Board.tsx` (126), +13 more |
 
 ### Earlier stories broken or fixed
 

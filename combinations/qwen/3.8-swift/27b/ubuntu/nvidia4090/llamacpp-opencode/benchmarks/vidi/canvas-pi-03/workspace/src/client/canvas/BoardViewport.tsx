@@ -35,6 +35,16 @@ export interface BoardViewportProps {
    * also fire).
    */
   marquee?: MarqueeController;
+  /** Story 9: the active board tool; 'text' changes cursor and click behaviour. */
+  tool?: 'select' | 'text';
+  /**
+   * Story 9: a click (press+release without movement) with the Text tool
+   * active creates a text object at that world point — empty space AND on
+   * top of existing objects (the objects' presses are diverted by the
+   * board, so this fires for empty-space clicks; object clicks call it
+   * directly from the board).
+   */
+  onCreateTextAt?: (world: Point) => void;
 }
 
 export interface MarqueeController {
@@ -63,12 +73,18 @@ export function BoardViewport(props: BoardViewportProps): JSX.Element {
   camRef.current = props;
 
   // Tracks a press that started on empty board space, so a release without
-  // meaningful movement counts as a click (clears the selection, story 2).
+  // meaningful movement counts as a click (clears the selection, story 2;
+  // creates text with the Text tool, story 9).
   const emptyPressRef = useRef<{ x: number; y: number } | null>(null);
   // Story 7: a Shift+drag on empty space is a marquee, not a pan.
   const marqueeActiveRef = useRef(false);
   const marqueeRef = useRef<MarqueeController | undefined>(props.marquee);
   marqueeRef.current = props.marquee;
+
+  // Story 9: the Text tool — presses on empty space neither pan nor
+  // marquee; a click (release under 5 px) creates a text object there.
+  const textToolRef = useRef(false);
+  textToolRef.current = camRef.current.tool === 'text';
 
   // Pointer drag handlers
   const handlePointerDown = useCallback((e: React.PointerEvent) => {
@@ -77,6 +93,11 @@ export function BoardViewport(props: BoardViewportProps): JSX.Element {
     if (!container) return;
     if (target === container || target === worldRef.current) {
       container.setPointerCapture(e.pointerId);
+      if (textToolRef.current) {
+        // Text tool: no pan, no marquee — remember the press for the click.
+        emptyPressRef.current = { x: e.clientX, y: e.clientY };
+        return;
+      }
       const rect = container.getBoundingClientRect();
       const screen = { x: e.clientX - rect.left, y: e.clientY - rect.top };
       if (e.shiftKey && marqueeRef.current) {
@@ -93,6 +114,7 @@ export function BoardViewport(props: BoardViewportProps): JSX.Element {
   const handlePointerMove = useCallback((e: React.PointerEvent) => {
     const container = containerRef.current;
     if (!container) return;
+    if (textToolRef.current && !marqueeActiveRef.current) return; // no pan
     const rect = container.getBoundingClientRect();
     const screen = { x: e.clientX - rect.left, y: e.clientY - rect.top };
     if (marqueeActiveRef.current) {
@@ -117,6 +139,17 @@ export function BoardViewport(props: BoardViewportProps): JSX.Element {
     const press = emptyPressRef.current;
     emptyPressRef.current = null;
     if (press && Math.hypot(e.clientX - press.x, e.clientY - press.y) < 5) {
+      if (textToolRef.current) {
+        // Story 9: click with the Text tool creates a text object at the
+        // world point (text.tool_ui).
+        const rect = containerRef.current!.getBoundingClientRect();
+        const world = screenToWorld(camRef.current.camera, {
+          x: e.clientX - rect.left,
+          y: e.clientY - rect.top,
+        });
+        camRef.current.onCreateTextAt?.(world);
+        return;
+      }
       camRef.current.onEmptyClick();
     }
   }, []);
@@ -140,6 +173,9 @@ export function BoardViewport(props: BoardViewportProps): JSX.Element {
     const container = containerRef.current;
     if (!container) return;
     if (target !== container && target !== worldRef.current) return;
+    // Story 9: a double-click with the Text tool active is a no-op (the first
+    // click of the pair already created the text object).
+    if (camRef.current.tool === 'text') return;
     const rect = container.getBoundingClientRect();
     const world = screenToWorld(camRef.current.camera, {
       x: e.clientX - rect.left,
@@ -257,7 +293,8 @@ export function BoardViewport(props: BoardViewportProps): JSX.Element {
         position: 'fixed',
         inset: 0,
         overflow: 'hidden',
-        cursor: 'grab',
+        // Story 9: the Text tool shows a text caret over the board.
+        cursor: props.tool === 'text' ? 'text' : 'grab',
         backgroundColor: '#f8f9fa',
         backgroundImage: 'radial-gradient(circle, #ccc 1px, transparent 1px)',
         backgroundSize: `${gridSpacing}px ${gridSpacing}px`,

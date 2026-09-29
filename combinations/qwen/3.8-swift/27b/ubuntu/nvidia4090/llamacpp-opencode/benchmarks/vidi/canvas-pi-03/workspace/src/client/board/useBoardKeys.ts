@@ -8,6 +8,9 @@
  * - Delete/Backspace → delete the selected objects; the selection is cleared
  * - Enter       → start editing a single selected editable-text object
  *                 (the story 2 behavior, unchanged for sticky notes)
+ * - Story 9: V → Select tool, T → Text tool (only when editable),
+ *   Escape → Select tool (the selection is also cleared, as before),
+ *   N → create a sticky note at the view centre (story 2 behaviour)
  *
  * Shortcuts never fire while focus is inside a text input/textarea/content-
  * editable (typing a note), and never fire while an object is in editing
@@ -25,6 +28,7 @@ import { getObjectType } from '../objects/registry';
 import { NUDGE_STEP_WORLD, NUDGE_LARGE_STEP_WORLD } from 'src/shared/config';
 import type { Selection } from './useSelection';
 import type { UndoController } from './undo';
+import type { Tool } from './useTool';
 
 /** True when the event target is a text-control-like element. */
 function focusIsInTextControl(target: EventTarget | null): boolean {
@@ -40,6 +44,11 @@ export interface BoardKeysOptions {
   canEdit: boolean;
   /** Story 8: per-user undo controller (undo/redo shortcuts + boundaries). */
   undo: UndoController;
+  /** Story 9: active board tool (V / T / Escape). */
+  tool: Tool;
+  setTool: (t: Tool) => void;
+  /** Story 9 (N): create a sticky note at the view centre (story 2). */
+  onCreateStickyCentred: () => void;
 }
 
 export function useBoardKeys(opts: BoardKeysOptions): void {
@@ -48,7 +57,7 @@ export function useBoardKeys(opts: BoardKeysOptions): void {
 
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent): void => {
-      const { doc, selection, snapshot, canEdit } = optsRef.current;
+      const { doc, selection, snapshot, canEdit, setTool, onCreateStickyCentred } = optsRef.current;
       if (focusIsInTextControl(e.target)) return;
       if (selection.editingId !== null) return;
 
@@ -60,8 +69,33 @@ export function useBoardKeys(opts: BoardKeysOptions): void {
       }
 
       if (e.key === 'Escape') {
+        // Story 9: Escape also returns to the Select tool (text.tool_ui);
+        // clearing the selection keeps the story 2/7 behaviour.
+        setTool('select');
         selection.clear();
         return;
+      }
+
+      // Story 9: tool shortcuts (plain keys, no modifiers). V/Escape are
+      // allowed on locked boards; T and N require edit rights.
+      if (!e.ctrlKey && !e.metaKey && !e.altKey && !e.shiftKey) {
+        if (e.key === 'v' || e.key === 'V') {
+          e.preventDefault();
+          setTool('select');
+          return;
+        }
+        if (e.key === 't' || e.key === 'T') {
+          if (!canEdit) return;
+          e.preventDefault();
+          setTool('text');
+          return;
+        }
+        if (e.key === 'n' || e.key === 'N') {
+          if (!canEdit) return;
+          e.preventDefault();
+          onCreateStickyCentred();
+          return;
+        }
       }
 
       if (!canEdit) return;
