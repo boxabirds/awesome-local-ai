@@ -1,10 +1,12 @@
 import type { Row, State } from "../../shared/types.ts";
-import { BuildCell } from "./BuildCell.tsx";
+import { ActivityCell } from "./ActivityCell.tsx";
 import { JudgeCell } from "./JudgeCell.tsx";
 import { LinksCell } from "./LinksCell.tsx";
 import { LiveHeldOut } from "./LiveHeldOut.tsx";
 import { ScoreCell } from "./ScoreCell.tsx";
-import { StoriesStrip } from "./StoriesStrip.tsx";
+import { StatusCell } from "./StatusCell.tsx";
+import { StoryCell } from "./StoryCell.tsx";
+import { TimeCell } from "./TimeCell.tsx";
 
 interface Props { row: Row; state: State; serverNow: number | null }
 
@@ -17,8 +19,10 @@ export function RunRow({ row, state, serverNow }: Props) {
         <div className="run">{row.runId}</div>
         <div className="small mono">{row.packVersion || row.suite}</div>
       </td>
-      <td><BuildCell row={row} serverNow={serverNow} /></td>
-      <td><StoriesStrip row={row} /></td>
+      <td><StatusCell row={row} /></td>
+      <td><StoryCell row={row} /></td>
+      <td><TimeCell row={row} serverNow={serverNow} /></td>
+      <td><ActivityCell row={row} /></td>
       <td><LiveHeldOut stories={row.stories} /></td>
       <td><ScoreCell row={row} building={building} web={state.web} branch={state.branch} /></td>
       <td><JudgeCell judge={row.stages.judge} building={building} url={state.judgeUrl} /></td>

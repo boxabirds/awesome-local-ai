@@ -116,14 +116,16 @@
               "status": "DONE",
               "passed": 6,
               "total": 6,
-              "title": "Pan and zoom"
+              "title": "Pan and zoom",
+              "agent_minutes": 12.0
             },
             {
               "id": "2",
               "status": "DONE",
               "passed": 9,
               "total": 10,
-              "title": "Sticky notes"
+              "title": "Sticky notes",
+              "agent_minutes": 12.0
             },
             {
               "id": "3",
@@ -142,17 +144,20 @@
               ],
               "recent_activity": [
                 "write: /home/julian/.vidi-bench/work/x/workspace/src/shared/protocol.ts"
-              ]
+              ],
+              "title": "See other people's edits live"
             },
             {
               "id": "4",
-              "status": "pending"
+              "status": "pending",
+              "title": "Undo and redo"
             }
           ]
         },
         "state": {
           "status": "running",
-          "attempt": 1
+          "attempt": 1,
+          "started_at": 1790713020
         },
         "submitted_at": 100,
         "updated_at": 1790715296
@@ -204,6 +209,21 @@
         },
         "submitted_at": 200,
         "updated_at": 200
+      },
+      {
+        "id": "vidi-v2b-27b-r2",
+        "spec": {
+          "pack": "benchmarks/vidi",
+          "run_id": "v2-r2"
+        },
+        "seq": 3,
+        "progress": {
+          "combination": "qwen/3.8/27b/ubuntu/nvidia4090/llamacpp-pi"
+        },
+        "state": {
+          "status": "cancelled"
+        },
+        "submitted_at": 200
       }
     ],
     "quintus": [
@@ -235,6 +255,51 @@
         "updated_at": 1790715296
       }
     ],
-    "tritus": []
+    "tritus": [],
+    "macbook-air": [
+      {
+        "id": "vidi-v2-opus-r1",
+        "spec": {
+          "pack": "benchmarks/vidi",
+          "run_id": "v2-r1"
+        },
+        "seq": 1,
+        "progress": {
+          "combination": "reference/opus-5.5",
+          "current_story": "2",
+          "stories": [
+            {
+              "id": "1",
+              "status": "DONE",
+              "title": "Pan and zoom around an infinite board",
+              "passed": 6,
+              "total": 6,
+              "agent_minutes": 8.0
+            },
+            {
+              "id": "2",
+              "status": "running",
+              "title": "Capture ideas on sticky notes",
+              "agent_minutes": 5.0,
+              "calls": 0,
+              "output_tokens": 0,
+              "tasks": [
+                {
+                  "status": "committed"
+                },
+                {
+                  "status": "not-started"
+                }
+              ]
+            }
+          ]
+        },
+        "state": {
+          "status": "running",
+          "attempt": 1
+        },
+        "submitted_at": 400
+      }
+    ]
   }
 }

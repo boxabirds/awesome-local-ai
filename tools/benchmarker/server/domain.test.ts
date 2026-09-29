@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   findRuns, versionFamily, rowFamily, webBase, indexJobs, queuePositions, liveFromJob, storyEntry,
-  mergeStories, stages, mergeRows, machines, assignMachines, RECENT_S, type DbenchJob,
+  mergeStories, stages, mergeRows, machines, assignMachines, runStatus, RECENT_S, type DbenchJob,
 } from "./domain.ts";
 import type { Row } from "../shared/types.ts";
 
@@ -193,7 +193,7 @@ describe("merging runs and jobs", () => {
     expect(rows[0].stories).toEqual([]);
   });
 
-  it("a job that recorded nothing and was cancelled or finished isn't a run: hidden at once; a failure still shows", () => {
+  it("a job that finished without recording anything (a smoke test) isn't a run; a recent cancel or failure shows", () => {
     const now = 1_000_000;
     const jobs = indexJobs({
       n: [
@@ -202,7 +202,7 @@ describe("merging runs and jobs", () => {
         job({ id: "f", state: { status: "failed" }, spec: { pack: "benchmarks/vidi", run_id: "f" }, updated_at: now - 60 }),
       ],
     });
-    expect(mergeRows([], jobs, now).map((r) => r.runId)).toEqual(["f"]);
+    expect(mergeRows([], jobs, now).map((r) => r.runId).sort()).toEqual(["c", "f"]);
   });
 });
 
@@ -240,5 +240,24 @@ describe("assignMachines", () => {
       r("old", null, ""),
     ]);
     expect(rows.map((x) => x.machine)).toEqual(["quintus", "quintus", "Apple M2 16GB", "unknown machine"]);
+  });
+});
+
+describe("runStatus", () => {
+  const rec = (state: string) => ({ state });
+  const running = (progress: DbenchJob["progress"], attempt = 1) => job({ id: "j", state: { status: "running", attempt }, progress });
+
+  it("one word per run, from the dbench job when there is one, else the record", () => {
+    expect(runStatus(rec("started"), running({ current_story: "3" }))).toEqual({ status: "running", note: "" });
+    expect(runStatus(rec("started"), running({ current_story: "", stories: [{ id: 3, status: "running" }] }))).toEqual({ status: "running", note: "finishing story 3" });
+    expect(runStatus(rec(""), running({}, 2))).toEqual({ status: "running", note: "starting · attempt 2" });
+    expect(runStatus(rec(""), job({ id: "j", state: { status: "queued" } }))).toEqual({ status: "queued", note: "" });
+    expect(runStatus(rec(""), job({ id: "j", state: { status: "failed", reason: "exit 1" } }))).toEqual({ status: "failed", note: "exit 1" });
+    expect(runStatus(rec("stopped"), job({ id: "j", state: { status: "cancelled" } }))).toEqual({ status: "cancelled", note: "" });
+    expect(runStatus(rec("finished"), job({ id: "j", state: { status: "done" } }))).toEqual({ status: "finished", note: "" });
+    expect(runStatus(rec("finished"), null)).toEqual({ status: "finished", note: "" });
+    expect(runStatus(rec("failed"), null)).toEqual({ status: "failed", note: "" });
+    // The record says a story started but no job runs it any more: it stopped.
+    expect(runStatus(rec("started"), null)).toEqual({ status: "stopped", note: "no longer running" });
   });
 });

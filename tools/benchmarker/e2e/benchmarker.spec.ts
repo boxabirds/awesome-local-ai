@@ -22,12 +22,15 @@ test("each machine has one section, headed by what it runs now, with its queue i
   await expect(machine(page, "tritus").locator("h2")).toContainText("idle");
 });
 
-test("a running run shows its story, live numbers and latest action", async ({ page }) => {
-  const build = cell(page, SWIFT, "v2-r1", 1);
-  await expect(build).toContainText("running: story 3");
-  await expect(build).toContainText("4 agent-min · 41 calls · 12k out · tasks 1/2");
-  await expect(build).toContainText("write: src/shared/protocol.ts");
+test("a running run: status, story of the scope with its title, time, and activity each in its own column", async ({ page }) => {
   await expect(cell(page, SWIFT, "v2-r1", 0)).toContainText("3.8-swift-1.5/27b llamacpp");
+  await expect(cell(page, SWIFT, "v2-r1", 1)).toHaveText("running");
+  await expect(cell(page, SWIFT, "v2-r1", 2)).toContainText("story 3 of 4");
+  await expect(cell(page, SWIFT, "v2-r1", 2)).toContainText("See other people's edits live");
+  await expect(cell(page, SWIFT, "v2-r1", 3)).toContainText("4 min on this story");
+  await expect(cell(page, SWIFT, "v2-r1", 3)).toContainText(/run \d/);
+  await expect(cell(page, SWIFT, "v2-r1", 4)).toContainText("41 calls · 12k out · tasks 1/2");
+  await expect(cell(page, SWIFT, "v2-r1", 4)).toContainText("write: src/shared/protocol.ts");
 });
 
 test("stories: recorded, reported by dbench before git, and the running one", async ({ page }) => {
@@ -35,31 +38,55 @@ test("stories: recorded, reported by dbench before git, and the running one", as
   await expect(strip.locator("[data-story='1']")).toHaveClass(/c-ok/);
   await expect(strip.locator("[data-story='2']")).toHaveClass(/c-part/); // 9/10 own tests, from dbench
   await expect(strip.locator("[data-story='3']")).toHaveClass(/c-run/);
-  const held = cell(page, SWIFT, "v2-r1", 3);
+  const held = cell(page, SWIFT, "v2-r1", 5);
   await expect(held).toContainText("6/6 whole suite after story 1");
   await expect(held).toContainText("story 2: 9/10 own tests");
 });
 
-test("queued runs say their place on the node and what is ahead, in dbench's order", async ({ page }) => {
-  await expect(cell(page, SWIFT, "v2-r2", 1)).toContainText("queued: 2nd on gruntus");
-  await expect(cell(page, SWIFT, "v2-r2", 1)).toContainText("after 3.8-swift-1.5/27b v2-r1 (running)");
-  await expect(cell(page, SWIFT, "v2-r3", 1)).toContainText("queued: 3rd on gruntus");
-  await expect(cell(page, QWEN_27B, "v2-r1", 1)).toContainText("queued: 4th on gruntus");
-  await expect(cell(page, QWEN_27B, "v2-r1", 1)).toContainText("and 1 more");
-  for (const n of [2, 3, 4, 5, 6]) await expect(cell(page, SWIFT, "v2-r2", n)).toHaveText("—");
+test("queued runs say queued and their place on the node, in dbench's order, and nothing else", async ({ page }) => {
+  await expect(cell(page, SWIFT, "v2-r2", 1)).toHaveText("queued2nd on gruntus");
+  await expect(cell(page, SWIFT, "v2-r3", 1)).toContainText("3rd on gruntus");
+  await expect(cell(page, QWEN_27B, "v2-r1", 1)).toContainText("4th on gruntus");
+  for (const n of [2, 3, 4, 5, 6, 7, 8]) await expect(cell(page, SWIFT, "v2-r2", n)).toHaveText("—");
 });
 
 test("a story that has only just started says so instead of showing zeros", async ({ page }) => {
-  const build = cell(page, "qwen/3.8/flash-next/macos/128GB/mlxserve-pi", "v2-r1", 1);
-  await expect(build).toContainText(/started (just now|\d+ min ago); first numbers within a minute/);
-  await expect(build).not.toContainText("0 calls");
+  const activity = cell(page, "qwen/3.8/flash-next/macos/128GB/mlxserve-pi", "v2-r1", 4);
+  await expect(activity).toContainText("first numbers within a minute");
+  await expect(activity).not.toContainText("0 calls");
+});
+
+test("a Claude run, whose calls and tokens are only counted at the end of a story, shows no false zeros", async ({ page }) => {
+  const activity = cell(page, "reference/opus-5.5", "v2-r1", 4);
+  await expect(activity).toContainText("tasks 1/2");
+  await expect(activity).not.toContainText("0 calls");
+  await expect(activity).not.toContainText("0k out");
 });
 
 test("a finished, scored run with its bundle can be judged, and links to its record", async ({ page }) => {
-  await expect(cell(page, "reference/opus-5.5", "run-9", 4)).toContainText("vidi-v2.0-pre1 74/75");
-  await expect(cell(page, "reference/opus-5.5", "run-9", 5).getByRole("link", { name: "Judge →" })).toBeVisible();
-  const record = cell(page, "reference/opus-5.5", "run-9", 6).getByRole("link", { name: "record" });
+  await expect(cell(page, "reference/opus-5.5", "run-9", 1)).toContainText("finished");
+  await expect(cell(page, "reference/opus-5.5", "run-9", 6)).toContainText("vidi-v2.0-pre1 74/75");
+  await expect(cell(page, "reference/opus-5.5", "run-9", 7).getByRole("link", { name: "Judge →" })).toBeVisible();
+  const record = cell(page, "reference/opus-5.5", "run-9", 8).getByRole("link", { name: "record" });
   await expect(record).toHaveAttribute("href", "https://github.com/boxabirds/awesome-local-ai/tree/main/benchmarks/reference/vidi/opus-5.5/run-9");
+});
+
+test("the status filter: counts per status, cancelled hidden at first, one click to see only running", async ({ page }) => {
+  const filter = page.getByRole("group", { name: "Status" });
+  await expect(filter.getByRole("button", { name: /^running 3$/ })).toHaveAttribute("aria-pressed", "true");
+  await expect(filter.getByRole("button", { name: /^cancelled 1$/ })).toHaveAttribute("aria-pressed", "false");
+  await expect(row(page, QWEN_27B, "v2-r2")).toHaveCount(0);
+
+  await filter.getByRole("button", { name: /^cancelled/ }).click();
+  await expect(cell(page, QWEN_27B, "v2-r2", 1)).toHaveText("cancelled");
+
+  await filter.getByRole("button", { name: "only running" }).click();
+  const statuses = await page.locator("tbody tr td:nth-child(2) .status-word").allInnerTexts();
+  expect(new Set(statuses)).toEqual(new Set(["running"]));
+  await page.reload(); // the choice is remembered
+  await expect(filter.getByRole("button", { name: /^queued/ })).toHaveAttribute("aria-pressed", "false");
+  await filter.getByRole("button", { name: "all" }).click();
+  await expect(row(page, SWIFT, "v2-r2")).toBeVisible();
 });
 
 test("the version filter opens on the current version and can show all", async ({ page }) => {
@@ -69,7 +96,7 @@ test("the version filter opens on the current version and can show all", async (
   await expect(row(page, "qwen/3.8/flash-next/ubuntu/strix-halo-128GB/gufo-pi", "canvas-gufo-r3")).toBeVisible();
 });
 
-test("all seven columns fit at 1000 px", async ({ page }) => {
+test("all nine columns fit at 1000 px", async ({ page }) => {
   await page.setViewportSize({ width: 1000, height: 900 });
   const fits = await page.locator("section").evaluateAll((ss) => ss.every((s) => s.scrollWidth <= s.clientWidth + 1));
   expect(fits).toBe(true);

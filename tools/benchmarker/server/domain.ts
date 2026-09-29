@@ -1,5 +1,5 @@
 // Pure logic: from repo paths, run records and dbench jobs to the rows the page shows. No I/O here.
-import type { Live, Machine, QueuePlace, Row, Score, Stages, Story } from "../shared/types.ts";
+import type { Live, Machine, QueuePlace, Row, RunStatus, Score, Stages, Story } from "../shared/types.ts";
 
 /** A finished or cancelled job with no run record is shown this long (seconds). */
 export const RECENT_S = 24 * 3600;
@@ -29,7 +29,7 @@ export interface DbenchJob {
     log_tail?: string[];
     stories?: DbenchStory[];
   };
-  state: { status?: string; attempt?: number; reason?: string };
+  state: { status?: string; attempt?: number; reason?: string; started_at?: number };
   attempt?: number;
   seq?: number;
   submitted_at?: number;
@@ -180,6 +180,10 @@ export function liveFromJob(job: DbenchJob, queue: QueuePlace | undefined): Live
     tasksTotal: tasks.length || null,
     lastActivity: activity.at(-1) ?? null,
     storyStartedAt: story?.started_at ?? null,
+    storyTitle: story?.title ?? null,
+    storiesInScope: stories.length || null,
+    runStartedAt: job.state.started_at ?? null,
+    totalAgentMinutes: stories.some((s) => s.agent_minutes != null) ? stories.reduce((t, s) => t + (s.agent_minutes ?? 0), 0) : null,
     logTail: (prog.log_tail ?? []).slice(-3),
     queue: queue ?? null,
   };
@@ -249,6 +253,26 @@ export function stages(run: { state: string; rescores: string[]; hasBundle: bool
   return { build, score, judge };
 }
 
+/** One word for where a run is, and a note: the dbench job's state when there is a job, else the record's. */
+export function runStatus(run: { state: string }, job: DbenchJob | null): { status: RunStatus; note: string } {
+  const st = job?.state.status;
+  const attempt = (job?.state.attempt ?? 1) > 1 ? `attempt ${job!.state.attempt}` : "";
+  const join = (...parts: string[]) => parts.filter(Boolean).join(" · ");
+  if (st === "running") {
+    const prog = job!.progress ?? {};
+    const busy = (prog.stories ?? []).find((s) => s.status === "running")?.id;
+    const phase = prog.current_story ? "" : busy ? `finishing story ${busy}` : prog.stories?.length ? "between stories" : "starting";
+    return { status: "running", note: join(phase, attempt) };
+  }
+  if (st === "queued") return { status: "queued", note: "" };
+  if (st === "failed") return { status: "failed", note: job!.state.reason || "no reason given" };
+  if (st === "cancelled") return { status: "cancelled", note: "" };
+  const byRecord: Record<string, RunStatus> = { finished: "finished", failed: "failed", stopped: "stopped" };
+  if (byRecord[run.state]) return { status: byRecord[run.state], note: "" };
+  if (run.state === "started") return { status: "stopped", note: "no longer running" }; // started, but no job runs it now
+  return { status: st === "done" ? "finished" : "unknown", note: "" };
+}
+
 // ---------- rows ----------
 
 export interface MergedRow extends Omit<RunRecord, "dir"> {
@@ -262,7 +286,7 @@ const EMPTY_RECORD = {
 };
 
 /** One row per run record, plus one per dbench job that has no record yet: queued and running jobs
- * always, failed or stopped ones for RECENT_S; cancelled or finished ones never, as they left no run. */
+ * always, failed, stopped or cancelled ones for RECENT_S; finished ones never, as they left no run. */
 export function mergeRows(records: RunRecord[], jobs: Map<string, NodeJob>, now: number): MergedRow[] {
   const seen = new Set<string>();
   const rows: MergedRow[] = records.map((r) => {
@@ -273,8 +297,8 @@ export function mergeRows(records: RunRecord[], jobs: Map<string, NodeJob>, now:
   for (const [key, job] of jobs) {
     if (seen.has(key)) continue;
     const status = job.state.status;
-    // Without a record, a cancelled or finished job (a smoke test, a dropped combination) left no run.
-    if (status === "cancelled" || status === "done") continue;
+    // Without a record, a finished job (a smoke test) left no run.
+    if (status === "done") continue;
     if (status !== "queued" && status !== "running" && now - (job.updated_at ?? 0) >= RECENT_S) continue;
     const [stack, pack, runId] = key.split("\u0000");
     rows.push({ ...EMPTY_RECORD, pack, stack, runId, dir: null, job });
@@ -297,6 +321,7 @@ export function buildRows(records: RunRecord[], byNode: Record<string, DbenchJob
       suite,
       stories: job ? mergeStories(r.stories, job.progress?.stories) : r.stories,
       stages: stages(r, job, suite),
+      ...(({ status, note }) => ({ status, statusNote: note }))(runStatus(r, job)),
       live: job ? liveFromJob(job, queue.get(job.id)) : null,
     };
   }));

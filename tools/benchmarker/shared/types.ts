@@ -20,6 +20,10 @@ export interface QueuePlace {
   ahead: string[];
 }
 
+/** One word for where a run is. */
+export type RunStatus = "running" | "queued" | "finished" | "failed" | "stopped" | "cancelled" | "unknown";
+export const RUN_STATUSES: RunStatus[] = ["running", "queued", "finished", "failed", "stopped", "cancelled", "unknown"];
+
 /** A dbench job's live view. */
 export interface Live {
   jobId: string;
@@ -35,6 +39,14 @@ export interface Live {
   tasksTotal: number | null;
   lastActivity: string | null;
   storyStartedAt: number | null;
+  /** The running story's title. */
+  storyTitle: string | null;
+  /** Stories in the job's scope, done or not. */
+  storiesInScope: number | null;
+  /** When this attempt of the job started. */
+  runStartedAt: number | null;
+  /** Agent minutes over the job's stories so far. */
+  totalAgentMinutes: number | null;
   logTail: string[];
   queue: QueuePlace | null;
 }
@@ -70,6 +82,9 @@ export interface Row {
   suite: string;
   state: string;
   stateAt: string;
+  status: RunStatus;
+  /** Why or how: a failure's reason, "finishing story 3", "attempt 2"; "" if nothing to add. */
+  statusNote: string;
   stories: Story[];
   rescores: string[];
   scores: Record<string, Score>;

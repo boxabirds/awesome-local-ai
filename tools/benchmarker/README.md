@@ -41,13 +41,23 @@ queue in dbench's order, then finished runs. A run is filed under its dbench nod
 job (from before dbench, or aged out) goes under the node another run on the same host (run.json's
 `host`) ran on, else under the host itself. Each run shows its model and engine above its run id.
 
+## Filters
+
+Pack and version at the top, and a toggle per status with its count: running, queued, finished,
+failed, stopped, cancelled. Cancelled runs are hidden at first; **only running** and **all** are one
+click. The choice is remembered in the browser. A machine with nothing under the filter is left out,
+unless it is idle.
+
 ## What each column means
 
 | Column | From |
 |---|---|
-| Build | the dbench job (queued, running: story N, failed with its reason) or the record's `run-status.json`; for the running story, agent minutes, calls, output tokens, tasks written and the agent's latest action |
-| Stories | one square per finished story, coloured by its live held-out result (all passed, some, none); the running story pulses |
-| Live held-out | the latest story's held-out result as scored during the run (a progress signal; the score of record is the re-score) |
+| Run | model and engine, run id, spec version |
+| Status | one word from the dbench job, else the run record; below it the place in the node's queue, a failure's reason, "finishing story N" while a story is scored, or when the run ended |
+| Story | the running story out of the job's scope ("story 4 of 11") and its title; one square per story, coloured by its own held-out tests (all passed, some, none); the running one pulses |
+| Time | running: agent minutes on this story and how long the run has gone; otherwise agent time over its stories |
+| Activity | the running story's calls, output tokens and tasks, and the agent's latest action. Claude runs count calls and tokens only at the end of a story, so they show none mid-story rather than a false zero |
+| Held-out | the whole held-out suite after the latest recorded story, as scored during the run (a progress signal; the score of record is the re-score) |
 | Score | the run's re-scores (`rescore/<suite version>/`), each linking to its per-story table; otherwise what scoring is waiting for |
 | Judge | **Judge →** once the run is finished, re-scored with the pack's current version and has its `workspace.bundle`; otherwise what it is waiting for |
 | Links | the run's record and summary on GitHub |

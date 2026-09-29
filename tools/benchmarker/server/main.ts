@@ -88,6 +88,8 @@ function state(): State {
 if (args.fixture) {
   // Fixed inputs for tests: run records, dbench jobs and suites, timestamps made current.
   const f = JSON.parse(readFileSync(resolve(args.fixture), "utf8"));
+  // A job with no updated_at was just updated, so it counts as recent however old the fixture is.
+  for (const jobs of Object.values(f.jobs as Record<string, DbenchJob[]>)) for (const j of jobs) j.updated_at ??= now();
   Object.assign(src, { records: f.records, suites: f.suites, jobs: f.jobs, web: f.web ?? null, fetchedAt: now(), dbenchAt: now() });
 } else {
   const repo = resolve(args.repo!);
