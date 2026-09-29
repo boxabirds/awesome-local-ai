@@ -27,9 +27,14 @@ import { ConnectionStatus } from '@client/sync/ConnectionStatus';
 import { canEdit } from '@client/sync/connectBoard';
 import { createSticky, deleteObjects, getObjectRect, objectBounds } from '@shared/board-model';
 import { createText } from '@shared/objects/text';
-import { SHAPE_MIN_SIZE_WORLD, CONNECTOR_HIT_TOLERANCE_PX } from '@shared/config';
+import { SHAPE_MIN_SIZE_WORLD, CONNECTOR_HIT_TOLERANCE_PX, STROKE_HIT_TOLERANCE_PX, STROKE_MIN_SIZE_WORLD, PEN_THICKNESS_WORLD } from '@shared/config';
 import { distanceToPolyline } from '@shared/geometry/polyline';
 import { resolveEndpoints } from '@shared/geometry/connector-geometry';
+import { scaledPoints } from '@shared/objects/stroke';
+import { StrokeObject } from '@client/objects/StrokeObject';
+import { PenTool } from '@client/tools/PenTool';
+import { PenToolbar } from '@client/tools/PenToolbar';
+import { usePenOptions } from '@client/tools/usePenOptions';
 
 // Register the sticky type at import time
 import { registerStickyType } from '@client/objects/registry';
@@ -93,6 +98,22 @@ registerObjectType('connector', {
   },
 });
 
+// Register the stroke type at import time
+registerObjectType('stroke', {
+  Component: StrokeObject,
+  resizable: true,
+  aspectLocked: true,
+  minSize: STROKE_MIN_SIZE_WORLD,
+  editableText: false,
+  hitTest(obj, worldPoint, zoom = 1) {
+    const s = obj as any;
+    if (!s.points) return false;
+    const pts = scaledPoints(s);
+    const tol = Math.max((PEN_THICKNESS_WORLD as any)[s.thickness] / 2, STROKE_HIT_TOLERANCE_PX / zoom);
+    return distanceToPolyline(pts, worldPoint) <= tol;
+  },
+});
+
 export function Board({ boardId }: { boardId: string }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [viewportSize, setViewportSize] = useState<Size>({ width: 1280, height: 800 });
@@ -118,6 +139,7 @@ export function Board({ boardId }: { boardId: string }) {
     canEdit: editable,
     onSelect: selectCreated,
   });
+  const penOptions = usePenOptions();
 
   // ResizeObserver
   useEffect(() => {
@@ -253,13 +275,19 @@ export function Board({ boardId }: { boardId: string }) {
 
   const renderOrder = [...allObjects].sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
 
-  const cursorStyle = tool === 'text' ? 'text' : tool === 'shape' || tool === 'connector' ? 'crosshair' : 'grab';
+  const cursorStyle = tool === 'text' ? 'text' : tool === 'shape' || tool === 'connector' || tool === 'pen' ? 'crosshair' : 'grab';
+
+  const handlePenCommit = useCallback(() => {
+    undoController.boundary();
+  }, [undoController]);
 
   const activeToolOverlay =
     tool === 'shape' ? (
       <ShapeTool kind={shapeKind} camera={camera} doc={doc} onCreated={toolCreated} />
     ) : tool === 'connector' ? (
       <ConnectorTool camera={camera} doc={doc} snapshot={allObjects} onCreated={toolCreated} />
+    ) : tool === 'pen' ? (
+      <PenTool camera={camera} color={penOptions.color} thickness={penOptions.thickness} doc={doc} identityId="user" onCommit={handlePenCommit} wheel={wheel} gestureZoom={gestureZoom} />
     ) : null;
 
   return (
@@ -267,14 +295,14 @@ export function Board({ boardId }: { boardId: string }) {
       <BoardViewport
         camera={camera}
         cursor={cursorStyle}
-        beginPan={tool === 'text' || tool === 'shape' || tool === 'connector' ? undefined : cameraState.beginPan}
+        beginPan={tool === 'text' || tool === 'shape' || tool === 'connector' || tool === 'pen' ? undefined : cameraState.beginPan}
         panMove={cameraState.panMove}
         endPan={cameraState.endPan}
         wheel={wheel}
         gestureZoom={gestureZoom}
         onDoubleClickEmpty={handleDoubleClickEmpty}
         onClickEmpty={handleClickEmpty}
-        onMarqueeBegin={tool === 'text' || tool === 'shape' || tool === 'connector' ? undefined : marquee.begin}
+        onMarqueeBegin={tool === 'text' || tool === 'shape' || tool === 'connector' || tool === 'pen' ? undefined : marquee.begin}
         onMarqueeMove={marquee.move}
         onMarqueeEnd={marquee.end}
         onMarqueeCancel={marquee.cancel}
@@ -317,6 +345,20 @@ export function Board({ boardId }: { boardId: string }) {
                 onEndEdit={selection.endEdit}
                 onObjectPointerDown={transform.onObjectPointerDown}
                 undoController={undoController}
+              />
+            );
+          }
+          if (obj.type === 'stroke') {
+            return (
+              <StrokeObject
+                key={obj.id}
+                stroke={obj}
+                zoom={camera.zoom}
+                selected={selection.ids.has(obj.id)}
+                readOnly={!editable}
+                onSelect={selection.click}
+                onToggle={selection.toggle}
+                onObjectPointerDown={transform.onObjectPointerDown}
               />
             );
           }
@@ -390,6 +432,7 @@ export function Board({ boardId }: { boardId: string }) {
       />
       <NavigationHint visible={!hasNavigated} />
       <ConnectionStatus state={connectionState} />
+      {tool === 'pen' && <PenToolbar color={penOptions.color} thickness={penOptions.thickness} onColor={penOptions.setColor} onThickness={penOptions.setThickness} />}
       {activeToolOverlay}
     </div>
   );

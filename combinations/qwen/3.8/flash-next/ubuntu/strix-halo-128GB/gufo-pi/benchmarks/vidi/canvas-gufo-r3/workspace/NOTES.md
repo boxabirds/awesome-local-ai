@@ -1,126 +1,81 @@
-# Story 8 Implementation Notes
+# Story 11 — Sketch freehand with a pen
 
-## Decisions
+## What was built
 
-### 1. `captureTimeout` boundary condition
-Y.UndoManager uses `<` (strictly less than) for the merge window:
-`now - lastChange < captureTimeout`. With `captureTimeout = 500`:
-- Gap of 499ms → merges (499 < 500 → true)
-- Gap of 500ms → new step (500 < 500 → false)
+### Task 1: Unit tests (TC-01 to TC-08)
+- `tests/unit/stroke.test.ts` — 8 tests covering RDP simplification, point splitting, createStroke geometry, scaledPoints, stroke hit test, smoothPath, roundTrip snapshot
+- `tests/fixtures/pen-paths.ts` — straight line, closed loop (square), squiggle fixture
 
-This matches the PRD requirement: "without a pause of 500ms or more" continues the burst; a pause of exactly 500ms ends it.
+### Task 2: Stroke model and geometry
+- `src/shared/geometry/simplify.ts` — `simplify()` (iterative RDP), `splitPoints()`, `smoothPath()` (quadratic bezier through midpoints)
+- `src/shared/objects/stroke.ts` — `createStroke()` using `LOCAL_ORIGIN`, `scaledPoints()`, `snapshotStroke()`, `StrokeSnap` interface
+- `src/shared/config.ts` — PEN_COLORS, PEN_THICKNESS_WORLD, DEFAULT_PEN_COLOR, DEFAULT_PEN_THICKNESS, STROKE_SIMPLIFY_TOLERANCE_PX, STROKE_MAX_POINTS, STROKE_HIT_TOLERANCE_PX, STROKE_MIN_SIZE_WORLD
+- `src/shared/board-model.ts` — StrokeSnap added to ObjectSnapshot union, snapshotAll includes strokes
 
-### 2. `undoStackLength()` exposed on UndoController interface
-Not in the original design contract. Added for TC-09/TC-10 trimming tests which assert stack length.
+### Task 3: Pen tool, toolbar, options
+- `src/client/tools/PenTool.tsx` — pointer-capture overlay, coalesced events, rAF preview path, commit on up/cancel/max-points, wheel forwarding for pan/zoom while pen is active
+- `src/client/tools/PenToolbar.tsx` — 6 colour swatches, 3 thickness buttons with aria-labels
+- `src/client/tools/usePenOptions.ts` — session-only state hook for pen colour/thickness
+- `src/client/board/Toolbar.tsx` — Pen button with shortcut P
+- `src/client/tools/useActiveTool.ts` — Pen is a staying-active tool; Escape returns to select
+- `src/client/board/useBoardKeys.ts` — Escape handles pen→select transition
 
-### 3. `lib0/time.getUnixTime` is NOT mockable with vitest fake timers
-`lib0/time` exports `getUnixTime = Date.now` (function reference captured at import time). vitest's `vi.useFakeTimers()` replaces `Date.now` but cannot reach the captured reference. The TC-13 timing test uses real `setTimeout` delays (500ms range) instead of fake timers.
+### Task 4: StrokeObject and registry
+- `src/client/objects/StrokeObject.tsx` — SVG path rendered from scaledPoints + smoothPath, aspect-locked resize, selected stroke styling
+- `src/client/objects/registry.ts` — hitTest signature updated to accept optional `zoom` parameter
+- `src/client/Board.tsx` — stroke registered (aspectLocked, minSize, line-distance hitTest), PenTool overlay rendered, PenToolbar rendered, pen routing disables pan/marquee, stroke in object list
 
-### 4. Controller lives in Board.tsx (not App.tsx)
-The design says "created in App.tsx". In this codebase, `Board.tsx` is the board component that owns the Y.Doc lifecycle (via `useBoardDoc(boardId)`). `App.tsx` is a router. The controller is created in `Board.tsx` with `useMemo(() => createUndo(doc), [doc])` and destroyed on doc change — semantically equivalent to the design's intent.
+### Task 5: Component tests (TC-09 to TC-16, TC-21)
+- `tests/component/PenTool.test.tsx` — 9 tests: preview during drag, commit, color+thickness, tool stays active, cancel on pointer cancel, max-points split, toolbar swatches, toolbar thickness
+- `tests/component/StrokeObject.test.tsx` — 3 tests: render path, scaled points on resize, selection highlight
 
-### 5. UndoButtons rendered inside Toolbar
-The design mentions undo buttons on the toolbar. They are rendered as children of `<Toolbar>` via the `undoState` prop. The `undoState` prop is optional for backward compatibility with existing component tests that render `<Toolbar>` without undo.
+### Task 6: E2E tests (TC-17 to TC-20)
+- `tests/e2e/pen.spec.ts` — 4 tests: draw + preview + persist, other participant sees stroke after release only, wheel pans + sticky not moved, select+resize+move+delete
+- `tests/e2e/helpers/pen.ts` — locators and helpers for pen tool interaction
 
-### 6. Ctrl+Shift+Z case handling
-When Shift is held, `KeyboardEvent.key` is 'Z' (uppercase) in real browsers. The handler uses `e.key.toLowerCase() === 'z' && e.shiftKey` for the redo shortcut.
+## Key design decisions
 
-### 7. TC-26 (live-collaboration) is pre-existing flakiness
-The `MAX_CONCURRENT_EDITORS` convergence test fails intermittently under full-suite load. Verified identical behavior with and without story-8 changes (same test fails in the base commit when all tests run together). Passes reliably when run in isolation.
+1. **LOCAL_ORIGIN**: `createStroke` places strokes at `{x: 0, y: 0}` with `baseWidth/baseHeight` in LOCAL coordinates. The caller translates to world position via `updateBounds`. This avoids double-subtracting origin in `scaledPoints`.
 
-## Files created
-| Path | Purpose |
-|---|---|
-| `src/client/board/undo.ts` | `createUndo(doc, opts)` → `UndoController` |
-| `src/client/board/useUndo.ts` | React hook: canUndo, canRedo, undo, redo |
-| `src/client/board/UndoButtons.tsx` | Undo/Redo toolbar buttons |
-| `tests/unit/undo-history.test.ts` | TC-01 to TC-11 |
-| `tests/unit/undo-boundaries.test.ts` | TC-12, TC-13 |
-| `tests/component/UndoBoundaries.test.tsx` | TC-14 to TC-17 |
-| `tests/component/UndoControls.test.tsx` | TC-18 to TC-21 |
-| `tests/e2e/undo-redo.spec.ts` | TC-22, TC-23, TC-24 |
+2. **Aspect-locked resize**: Width/height change proportionally when a resize handle is dragged, preserving the aspect ratio (width/height = baseWidth/baseHeight). Thickness is unchanged.
 
-## Files modified
-| Path | Change |
-|---|---|
-| `src/shared/config.ts` | `UNDO_CAPTURE_TIMEOUT_MS = 500`, `UNDO_MAX_STEPS = 200` |
-| `src/client/Board.tsx` | Creates `UndoController`, passes to keys/editor/toolbar |
-| `src/client/board/useBoardKeys.ts` | Ctrl/Cmd+Z, Ctrl/Cmd+Shift+Z, Ctrl+Y shortcuts |
-| `src/client/board/Toolbar.tsx` | Renders `UndoButtons` via optional `undoState` prop |
-| `src/client/objects/StickyNote.tsx` | Passes `undoController` to editor; boundary around color/delete |
-| `src/client/objects/StickyTextEditor.tsx` | boundary() on start/end; Ctrl+Z intercepted for Y.Text undo |
+3. **Wheel forwarding**: The PenTool overlay sits on top of BoardViewport, so it intercepts wheel events. The PenTool has its own wheel listener that forwards to the camera's wheel handler, allowing pan/zoom while drawing mode is active.
 
+4. **Hit testing**: Stroke selection uses line-distance (tolerance = max(thickness/2, STROKE_HIT_TOLERANCE_PX/zoom)). Empty interior space does NOT hit the stroke.
 
----
+5. **Session-only pen options**: Color and thickness reset to defaults on page refresh — no localStorage persistence.
 
-# Story 9 — Write free text anywhere on the board
+6. **Smooth rendering**: Uses quadratic bezier through midpoints (`smoothPath`) for visually smooth strokes from simplified points.
 
-Adds a **Text tool** (`T`) that places plain-text objects anywhere on the board, with
-four sizes (S/M/L/XL), auto-width that grows to a max then wraps, a fixed-width mode
-driven by horizontal (E/W) resize handles, and standard object behaviours (select,
-move, delete, undo, live sharing).
+## Test results
 
-## Decisions & notable changes
+- Unit: 214 tests pass (20 files)
+- Component: 135 tests pass (20 files)
+- Integration: 48 tests pass
+- E2E: all pass including 4 new pen tests (TC-17 to TC-20); 1 pre-existing flaky test (TC-26 live-collaboration convergence)
 
-### 1. Shared text-edit helpers
-`clampToLimit` and `applyTextDiff` were extracted into `src/shared/text-edit.ts`.
-Sticky notes (`StickyText`) now thin-wrap these with `STICKY_TEXT_MAX_CHARS`; free
-text reuses them with `TEXT_MAX_CHARS`. One diff/clamp implementation for both.
+## Files created/modified
 
-### 2. `snapshot()` unchanged; added `snapshotAll()`
-`snapshot()` still returns `StickySnapshot[]` for backward compatibility with existing
-tests. `snapshotAll()` returns `ObjectSnapshot[]` (stickies + text, sorted by z/id) and
-is what `useBoardDoc`/`Board` render from. `ObjectSnapshot = StickySnapshot | TextSnapshot`.
+Created:
+- src/shared/geometry/simplify.ts
+- src/shared/objects/stroke.ts
+- src/client/tools/PenTool.tsx
+- src/client/tools/PenToolbar.tsx
+- src/client/tools/usePenOptions.ts
+- src/client/objects/StrokeObject.tsx
+- tests/unit/stroke.test.ts
+- tests/fixtures/pen-paths.ts
+- tests/component/PenTool.test.tsx
+- tests/component/StrokeObject.test.tsx
+- tests/e2e/pen.spec.ts
+- tests/e2e/helpers/pen.ts
 
-### 3. Box sync is local-only
-`useTextBoxSync` writes the measured width/height back to the doc only after a **local**
-edit (never on remote updates), so the author owns the layout and remote viewers do not
-fight over the box. `layoutText` auto-mode: width = min(longest line, TEXT_MAX_AUTO_WIDTH_WORLD),
-greedy word-wrap at that target, height = lines * fontPx * TEXT_LINE_HEIGHT (ceil).
-
-### 4. Canvas measurer fallback
-`createCanvasMeasurer` falls back to an estimate (`length * fontPx * 0.6`) when
-`getContext('2d')` is unavailable (jsdom), so unit/component tests run without the
-`canvas` package.
-
-### 5. Horizontal-only handles
-`ObjectTypeSpec` gained `handles?: 'all' | 'horizontal'`. `SelectionOverlay` renders
-only E/W handles when every selected object's spec is horizontal. Dragging a text E/W
-handle (`useTransformGesture`) sets a **fixed** width and re-wraps (recomputes height);
-font size is never changed by a handle.
-
-### 6. useBoardDoc bug fix (important)
-`useBoardDoc` previously used `useSyncExternalStore` with a hand-rolled snapshot cache.
-The combined `allObjects` snapshot **failed to commit** when a text object was added
-(the change did not also alter the sticky `notes` snapshot, so the combined snapshot's
-update was dropped). Rewritten to derive `notes` and `allObjects` with `useMemo` keyed
-on an `objects.observeDeep` version counter — reliably re-renders for local + remote
-edits. Sticky behaviour is unchanged.
-
-### 7. BoardViewport click even when panning is disabled
-When the Text tool is active, `beginPan` is undefined. The press-and-release click is
-now tracked regardless, so clicking empty space creates a text object (previously the
-pointerId guard short-circuited the click handler).
-
-### 8. Pre-existing TC-26 (live-collaboration full-capacity) failure
-`live-collaboration.spec.ts` › "Full-capacity session" still fails; verified it fails
-identically on the base `story 8` commit (with story 9 `src` stashed) — unrelated to
-this story. All other chromium e2e specs pass, including the new `free-text.spec.ts`.
-
-## Out of scope
-Stories 6 and 13–17 were not implemented. "Text tool click on top of an existing
-object creates text over it" is not wired; only clicking empty space creates text.
-
-## Files (key)
-| File | Role |
-|------|------|
-| `src/shared/objects/text.ts` | text object model + snapshotText |
-| `src/shared/text-edit.ts` | clampToLimit / applyTextDiff |
-| `src/client/objects/textLayout.ts` | layoutText + canvas measurer |
-| `src/client/objects/useTextBoxSync.ts` | local-only box writeback |
-| `src/client/objects/TextObject.tsx` / `TextToolbar.tsx` / `TextEditor.tsx` | rendering, S/M/L/XL toolbar, editor |
-| `src/client/board/useTool.ts` | Select/Text tool state |
-| `src/client/board/useBoardKeys.ts` | V/T/Escape/Enter |
-| `src/client/board/useTransformGesture.ts` | horizontal text resize → fixed width + rewrap |
-| `src/client/board/useBoardDoc.ts` | snapshot pipeline (bug fix) + allObjects |
-| `tests/e2e/free-text.spec.ts` (+ `helpers/text.ts`) | TC-26..TC-30 |
+Modified:
+- src/shared/config.ts
+- src/shared/board-model.ts
+- src/client/Board.tsx
+- src/client/board/Toolbar.tsx
+- src/client/board/useBoardKeys.ts
+- src/client/tools/useActiveTool.ts
+- src/client/objects/registry.ts
+- tests/e2e/helpers/sticky.ts (added seedSticky)

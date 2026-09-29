@@ -84,7 +84,7 @@ export function useBoardKeys(opts: UseBoardKeysOpts): void {
 
       // Escape: return to select tool or clear selection
       if (e.key === 'Escape' && !editing) {
-        if (toolRef.current === 'text' || toolRef.current === 'shape' || toolRef.current === 'connector') {
+        if (toolRef.current === 'text' || toolRef.current === 'shape' || toolRef.current === 'connector' || toolRef.current === 'pen') {
           setToolRef.current?.('select');
         }
         sel.clear();

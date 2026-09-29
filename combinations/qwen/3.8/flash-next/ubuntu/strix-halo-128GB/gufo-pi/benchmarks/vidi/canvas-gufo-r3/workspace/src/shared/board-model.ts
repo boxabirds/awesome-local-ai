@@ -7,8 +7,11 @@ import type { ShapeSnap } from './objects/shape';
 import { snapshotShape } from './objects/shape';
 import type { ConnectorSnap } from './objects/connector';
 import { detachConnectorsTo, snapshotConnector } from './objects/connector';
+import type { StrokeSnap } from './objects/stroke';
+import { snapshotStroke } from './objects/stroke';
 export type { ShapeSnap } from './objects/shape';
 export type { ConnectorSnap, Endpoint } from './objects/connector';
+export type { StrokeSnap } from './objects/stroke';
 
 export const LOCAL_ORIGIN: unique symbol = Symbol('local');
 
@@ -25,7 +28,7 @@ export interface StickySnapshot {
   height?: number;
 }
 
-export type ObjectSnapshot = StickySnapshot | TextSnapshot | ShapeSnap | ConnectorSnap;
+export type ObjectSnapshot = StickySnapshot | TextSnapshot | ShapeSnap | ConnectorSnap | StrokeSnap;
 
 function objectsMap(doc: Y.Doc): Y.Map<Y.Map<unknown>> {
   return doc.getMap('objects');
@@ -337,7 +340,8 @@ export function snapshotAll(doc: Y.Doc): readonly ObjectSnapshot[] {
   const texts: readonly TextSnapshot[] = snapshotText(doc);
   const shapes: readonly ShapeSnap[] = snapshotShape(doc);
   const connectors: readonly ConnectorSnap[] = snapshotConnector(doc);
-  const all = [...stickies, ...texts, ...shapes, ...connectors] as ObjectSnapshot[];
+  const strokes: readonly StrokeSnap[] = snapshotStroke(doc);
+  const all = [...stickies, ...texts, ...shapes, ...connectors, ...strokes] as ObjectSnapshot[];
   all.sort((a, b) => (a.z - b.z) || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
   return all;
 }

@@ -87,6 +87,11 @@ export function getNoteToolbarFor(page: Page, id: string): Locator {
   return page.locator(`[data-testid="sticky-note-wrapper"][data-note-id="${id}"] [data-testid="note-toolbar"]`);
 }
 
+/** Seed a sticky note by double-clicking the screen point. Returns the note id. */
+export async function seedSticky(page: Page, sx: number, sy: number): Promise<string> {
+  return createNoteByDblclick(page, sx, sy);
+}
+
 export async function setCamera(page: Page, cam: { x: number; y: number; zoom: number }) {
   await page.evaluate((c) => {
     (window as any).__vidi6?.setCamera(c);

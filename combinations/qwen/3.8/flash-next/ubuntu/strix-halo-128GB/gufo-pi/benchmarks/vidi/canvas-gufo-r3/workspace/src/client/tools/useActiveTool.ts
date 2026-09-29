@@ -96,15 +96,15 @@ export function useActiveTool(opts: UseActiveToolOptions = {}): UseActiveToolRes
       const el = e.target as HTMLElement | null;
       if (el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.isContentEditable)) return;
       if (!canEdit) return;
-      // Escape returns from a creation tool to Select
+      // Escape returns from a creation tool to Select (pen stays active until Escape)
       if (e.key === 'Escape') {
-        setToolState((cur) => (cur === 'shape' || cur === 'connector' || cur === 'text' ? 'select' : cur));
+        setToolState((cur) => (cur === 'shape' || cur === 'connector' || cur === 'text' || cur === 'pen' ? 'select' : cur));
         return;
       }
       const key = e.key.toLowerCase();
       const target = TOOL_SHORTCUTS[key];
       // Only tools actually implemented as overlays/selection act on their key.
-      if (target === 'select' || target === 'text' || target === 'shape' || target === 'connector') {
+      if (target === 'select' || target === 'text' || target === 'shape' || target === 'connector' || target === 'pen') {
         e.preventDefault();
         setToolState(target);
       }
