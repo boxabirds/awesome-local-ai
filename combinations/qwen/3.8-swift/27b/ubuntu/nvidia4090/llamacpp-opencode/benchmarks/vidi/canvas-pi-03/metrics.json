@@ -3763,7 +3763,15 @@
           "found": 4,
           "total": 4
         }
-      ]
+      ],
+      "record": {
+        "committed": true,
+        "pushed": true,
+        "over_size_limit": [
+          "~/.dbench/repo/combinations/qwen/3.8-swift/27b/ubuntu/nvidia4090/llamacpp-opencode/benchmarks/vidi/canvas-pi-03/server.log"
+        ],
+        "commit": "eb7566be"
+      }
     }
   },
   "pack": "vidi",
