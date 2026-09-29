@@ -38,6 +38,31 @@ export function StickyTextEditor({ ytext, fontPx, padding, onEnd }: StickyTextEd
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Reflect REMOTE changes (another client editing this note live) into the textarea.
+  // Without this, a local commit's minimal diff would recompute against a value that
+  // is missing the remote characters and erase them — concurrent typing would lose
+  // text. Local commits use LOCAL_ORIGIN and are ignored here. Caret goes to the end,
+  // which is the right behaviour for a short shared sticky.
+  useEffect(() => {
+    const handler = (_event: Y.YTextEvent, origin: unknown) => {
+      if (origin === LOCAL_ORIGIN) return;
+      const el = ref.current;
+      if (!el || composingRef.current) return;
+      const next = ytext.toString();
+      if (el.value !== next) {
+        el.value = next;
+        const len = next.length;
+        try {
+          el.setSelectionRange(len, len);
+        } catch {
+          /* caret placement is best-effort */
+        }
+      }
+    };
+    ytext.observe(handler);
+    return () => ytext.unobserve(handler);
+  }, [ytext]);
+
   // Runs before the DOM node is removed: a blur caused by unmounting must not
   // change selection (the caller has already moved selection elsewhere).
   useLayoutEffect(() => {

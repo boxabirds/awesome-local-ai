@@ -1,3 +1,42 @@
+commit e2bbd8c5367e02cfeac31fd92cd1ea6334df034b
+vidi-agent  Tue Sep 29 05:17:34 2026 +0000
+
+    story 3: See other people's edits appear live on the same board
+
+
+ NOTES.md                                  |  84 ++++
+ package-lock.json                         | 767 ++++++++++++++++++++++++++++++
+ package.json                              |  11 +-
+ playwright.config.ts                      |   8 +
+ src/client/App.tsx                        |  59 ++-
+ src/client/board/useBoardDoc.ts           |  37 +-
+ src/client/board/useSelection.ts          |  29 +-
+ src/client/canvas/testHooks.ts            |  10 +
+ src/client/objects/StickyTextEditor.tsx   |  25 +
+ src/client/sync/ConnectionStatus.tsx      |  66 +++
+ src/client/sync/connectBoard.ts           | 122 +++++
+ src/shared/board-id.ts                    |  28 ++
+ src/shared/config.ts                      |   7 +
+ src/shared/protocol.ts                    | 114 +++++
+ src/worker/board-room.ts                  | 151 ++++++
+ src/worker/env.ts                         |   9 +
+ src/worker/index.ts                       |  43 ++
+ tests/component/ConnectionStatus.test.tsx | 134 ++++++
+ tests/e2e/helpers/participants.ts         |  87 ++++
+ tests/e2e/helpers/sticky.ts               |  17 +
+ tests/e2e/live-collaboration.spec.ts      | 300 ++++++++++++
+ tests/e2e/nightly.spec.ts                 | 259 ++++++++++
+ tests/integration/board-room.test.ts      | 328 +++++++++++++
+ tests/integration/helpers/random-ops.ts   |  85 ++++
+ tests/integration/helpers/ws-client.ts    | 196 ++++++++
+ tests/integration/worker-routing.test.ts  |  76 +++
+ tests/unit/board-id.test.ts               |  64 +++
+ tests/unit/protocol.test.ts               | 103 ++++
+ tsconfig.json                             |   7 +-
+ tsconfig.worker.json                      |  26 +
+ vitest.workspace.ts                       |  23 +
+ wrangler.jsonc                            |  22 +-
+ 32 files changed, 3274 insertions(+), 23 deletions(-)
 commit 70fca65c66f154bd8117ebcbe7c655b0546f4588
 vidi-agent  Tue Sep 29 03:20:19 2026 +0000
 

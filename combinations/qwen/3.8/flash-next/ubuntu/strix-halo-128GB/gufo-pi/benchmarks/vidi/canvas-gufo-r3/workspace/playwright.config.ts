@@ -14,6 +14,14 @@ export default defineConfig({
   projects: [
     {
       name: 'chromium',
+      // The nightly soak/idle specs are slow and timing-sensitive; they run only
+      // via the `nightly` project (test:e2e:nightly), never on a normal commit run.
+      testIgnore: /.*nightly.*\.spec\.ts$/,
+      use: { ...devices['Desktop Chrome'], viewport: { width: 1280, height: 800 } },
+    },
+    {
+      name: 'nightly',
+      testMatch: /.*nightly.*\.spec\.ts$/,
       use: { ...devices['Desktop Chrome'], viewport: { width: 1280, height: 800 } },
     },
   ],

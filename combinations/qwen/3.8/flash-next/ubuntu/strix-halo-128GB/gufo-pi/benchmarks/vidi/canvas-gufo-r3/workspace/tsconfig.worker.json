@@ -1,16 +1,15 @@
 {
   "compilerOptions": {
-    "target": "ES2020",
-    "useDefineForClassFields": true,
-    "lib": ["ES2020", "DOM", "DOM.Iterable"],
+    "target": "ES2022",
+    "lib": ["ES2022"],
     "module": "ESNext",
-    "skipLibCheck": true,
     "moduleResolution": "bundler",
+    "types": ["@cloudflare/workers-types/experimental", "@cloudflare/vitest-pool-workers"],
+    "skipLibCheck": true,
     "allowImportingTsExtensions": true,
     "isolatedModules": true,
     "moduleDetection": "force",
     "noEmit": true,
-    "jsx": "react-jsx",
     "strict": true,
     "noUnusedLocals": false,
     "noUnusedParameters": false,
@@ -23,11 +22,5 @@
       "@client/*": ["src/client/*"]
     }
   },
-  "include": ["src/**/*", "tests/**/*"],
-  "exclude": [
-    "node_modules",
-    "dist",
-    "src/worker",
-    "tests/integration"
-  ]
+  "include": ["src/worker/**/*", "src/shared/**/*", "tests/integration/**/*"]
 }

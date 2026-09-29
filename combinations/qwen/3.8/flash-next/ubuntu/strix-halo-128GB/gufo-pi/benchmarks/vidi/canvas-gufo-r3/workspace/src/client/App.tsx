@@ -4,15 +4,49 @@ import { useCamera } from '@client/canvas/useCamera';
 import { BoardViewport } from '@client/canvas/BoardViewport';
 import { ZoomControls } from '@client/canvas/ZoomControls';
 import { NavigationHint } from '@client/canvas/NavigationHint';
-import { setupTestHooks } from '@client/canvas/testHooks';
+import { setupTestHooks, setTestConnectionState } from '@client/canvas/testHooks';
 import { useBoardDoc } from '@client/board/useBoardDoc';
 import { useSelection } from '@client/board/useSelection';
 import { Toolbar } from '@client/board/Toolbar';
 import { StickyNote } from '@client/objects/StickyNote';
+import { ConnectionStatus } from '@client/sync/ConnectionStatus';
 import { createSticky, deleteObject } from '@shared/board-model';
+import { newBoardId, isValidBoardId } from '@shared/board-id';
 
 export function App() {
-  return <Board />;
+  const boardId = useBoardRoute();
+  return <Board boardId={boardId} />;
+}
+
+/**
+ * Read the board id from `/b/:boardId`. A bare `/` mints a fresh id and updates
+ * the address bar (temporary: replaced by server-side board creation in story 5).
+ * An invalid id falls back to a fresh one.
+ */
+function useBoardRoute(): string {
+  const [boardId, setBoardId] = useState<string>(() => resolveBoardIdFromPath(window.location.pathname));
+
+  useEffect(() => {
+    const onPop = () => setBoardId(resolveBoardIdFromPath(window.location.pathname));
+    window.addEventListener('popstate', onPop);
+    return () => window.removeEventListener('popstate', onPop);
+  }, []);
+
+  // Normalise the address bar: `/` or an invalid path becomes `/b/<new>`.
+  useEffect(() => {
+    const expected = `/b/${boardId}`;
+    if (window.location.pathname !== expected) {
+      window.history.replaceState({}, '', expected);
+    }
+  }, [boardId]);
+
+  return boardId;
+}
+
+function resolveBoardIdFromPath(pathname: string): string {
+  const match = /^\/b\/([^/]+)\/?$/.exec(pathname);
+  if (match && isValidBoardId(match[1])) return match[1];
+  return newBoardId();
 }
 
 function isTextInputTarget(target: EventTarget | null): boolean {
@@ -21,15 +55,15 @@ function isTextInputTarget(target: EventTarget | null): boolean {
   return tag === 'INPUT' || tag === 'TEXTAREA' || target.isContentEditable;
 }
 
-function Board() {
+function Board({ boardId }: { boardId: string }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [viewportSize, setViewportSize] = useState<Size>({ width: 1280, height: 800 });
   const cameraState = useCamera(viewportSize);
   const { camera, hasNavigated, wheel, gestureZoom, zoomStep, reset, setCamera } = cameraState;
 
-  const { doc, notes } = useBoardDoc();
+  const { doc, notes, connectionState } = useBoardDoc(boardId);
   const selection = useSelection();
-  const { selectedId, editingId, select, startEdit, endEdit } = selection;
+  const { selectedId, editingId, select, startEdit, endEdit, prune } = selection;
 
   // Keep the latest selection reachable from stable window handlers.
   const selectionRef = useRef(selection);
@@ -59,6 +93,11 @@ function Board() {
   useEffect(() => {
     setupTestHooks(setCamera, () => cameraRef.current);
   }, [setCamera]);
+
+  // Expose the mapped connection state to e2e test hooks (test builds only).
+  useEffect(() => {
+    setTestConnectionState(connectionState);
+  }, [connectionState]);
 
   // Board keyboard shortcuts (zoom)
   useEffect(() => {
@@ -104,12 +143,11 @@ function Board() {
   }, [doc, startEdit, select]);
 
   // If the selected or edited note disappears (deleted via its toolbar, or by another
-  // client from story 3), drop the stale selection.
+  // client on the live board), drop the stale selection and end any edit silently.
   useEffect(() => {
-    if (selectedId !== null && !notes.some((n) => n.id === selectedId)) {
-      select(null);
-    }
-  }, [notes, selectedId, select]);
+    const present = new Set(notes.map((n) => n.id));
+    prune((id) => present.has(id));
+  }, [notes, prune]);
 
   const createAtWorldCentre = useCallback(() => {
     const cam = cameraRef.current;
@@ -170,6 +208,7 @@ function Board() {
         onReset={reset}
       />
       <NavigationHint visible={!hasNavigated} />
+      <ConnectionStatus state={connectionState} />
     </div>
   );
 }

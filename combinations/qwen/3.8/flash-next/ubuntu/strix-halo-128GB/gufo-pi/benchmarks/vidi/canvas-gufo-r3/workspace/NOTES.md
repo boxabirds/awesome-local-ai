@@ -55,3 +55,87 @@
 - `StickyTextEditor` is rendered as an overlay `<textarea>` on top of the note's text layer instead of making the text layer `contenteditable`; this keeps the caret, IME and clipboard behaviour native while still writing through `applyTextDiff`.
 - The note toolbar is positioned in world space and counter-scaled (`scale(1/zoom)`), which keeps it a constant pixel size above the note at any zoom without a portal or measuring pass.
 - e2e runs in Chromium only (unchanged from story 1: Firefox/WebKit binaries are present but cannot launch in this environment).
+
+## Story 3: See other people's edits appear live on the same board
+
+### Decisions made
+
+1. **Non-hibernating WebSockets in the Durable Object.** `BoardRoom` calls `server.accept()`
+   once and holds the accepted sockets with ordinary `message`/`close` listeners rather than
+   using `webSocketMessage` hibernation. Hibernation would let the DO evict while sockets stay
+   open, dropping the in-memory `Y.Doc` and losing merge state between updates — the opposite of
+   what a live relay needs. The cost (a warm isolate per active room) is the deliberate trade.
+
+2. **Awareness is relayed to *every* socket, including the sender.** Re-broadcasting the
+   30-second y-websocket keepalive/awareness frames to all peers is what stops an *idle* client's
+   no-message watchdog from dropping its connection (nightly TC-29). Query-awareness frames are
+   parsed and ignored; awareness bytes are forwarded verbatim.
+
+3. **`disableBc: true` on the client provider.** The client never uses `BroadcastChannel`, so
+   even two tabs on the same machine must round-trip through the server. This is what makes the
+   integration tests (Node `SELF.fetch` upgrade) and the multi-context e2e tests exercise the real
+   relay path instead of a same-origin shortcut.
+
+4. **`errorHandler` rethrows so invalid Yjs updates close 1003.** A malformed update must sever
+   only the offending socket (`close(1003, ...)`) and leave the room document and every other peer
+   untouched — TC-15 asserts four malformed variants close just the sender.
+
+5. **No participant cap is enforced.** `MAX_CONCURRENT_EDITORS` (5) is a soft design/test target;
+   over-capacity joiners are never refused. TC-13 opens `MAX + 5` sockets and TC-26/TC-30 run at
+   exactly `MAX` real browser contexts to prove convergence at the boundary and beyond.
+
+6. **`isolatedStorage: false` + `singleWorker: true` for the worker test pool.** `BoardRoom` keeps
+   an accepted WebSocket (and its SQLite object) alive across a test boundary, which per-test
+   isolated storage cannot unwind; shared storage with a unique board id per test keeps rooms from
+   colliding. `singleWorker` also avoids the "File name too long" DO storage-directory names that
+   the deep benchmark working directory otherwise produces.
+
+7. **Room routing = `idFromName(boardId)` per board.** `index.ts` routes `GET /api/rooms/:boardId`:
+   invalid id → `400`, valid id without an `Upgrade: websocket` → `426`, otherwise hand to
+   `env.BOARD_ROOM.get(idFromName(boardId)).fetch(req)`. Everything else falls through to
+   `env.ASSETS` with SPA `not_found_handling`. Two rooms are provably isolated (TC-17).
+
+8. **A single connection state machine drives the badge.** `createConnectionState()` maps the
+   provider's `connecting`/`connected`/`disconnected` callbacks plus a "did we ever sync" flag into
+   `connecting → connected → (idle 2 s) confirmed`, and to `reconnecting` on loss *after* the first
+   sync. The badge is hidden in `connected`, so a healthy board never shows chrome; `role="status"`
+   announces only genuine transitions. Board editing is never gated by connection state.
+
+9. **`prune()` drops stale local selection on remote deletion.** App calls `prune(id => present)`
+   whenever the note snapshot changes; if the selected or edited note vanished (a collaborator
+   deleted it mid-edit) the selection and editor are cleared without a throw (e2e TC-25).
+
+10. **Collaborative text now reflects remote edits in the open editor.** `StickyTextEditor` gained
+    a `ytext.observe` handler that, on a non-`LOCAL_ORIGIN` change, writes the merged text back into
+    the textarea and parks the caret at the end. Without this, a local commit's minimal diff would
+    recompute against a value missing the remote characters and erase them — the whole point of
+    `applyTextDiff`'s prefix/suffix design (story 2's forward-looking comment). Two users typing
+    into one note now keep every character (e2e TC-23). The observer is a no-op in single-user
+    jsdom tests (no remote origin), so the existing editor tests are unaffected.
+
+### Nightly result record (run once through `test:e2e:nightly`, Chromium, one machine)
+
+- **TC-29 idle stability:** PASS. Two contexts idle for 45 s; the mapped `ConnectionState` stayed
+  in {connected, confirmed} and the `role="status"` badge never rendered "Reconnecting…".
+- **TC-30 capacity soak:** PASS. `MAX_CONCURRENT_EDITORS` contexts, seeded continuous edits
+  (create/move/type/recolour/delete through the real UI) for 60 s. **seed=1234567, ops=174,
+  p50=2 ms, p95=3 ms, max=4 ms**, budget=1000 ms, 0 changes over budget, 0 badge violations, all
+  final board snapshots identical.
+
+Both are excluded from the default `test:e2e` (separate `nightly` Playwright project; `test:e2e`
+runs `--project chromium` only). They are timing-sensitive and were previously flaky under
+single-machine contention; the remaining flakiness was fixed in the *test harness* (non-waiting
+`querySelector` DOM reads and a short `actionTimeout` so a momentarily-absent element can never
+stall the soak loop), not by weakening the assertions.
+
+### Deviations from the design
+
+- e2e runs in Chromium only (as in stories 1–2; Firefox/WebKit cannot launch in this environment).
+  TC-22/TC-23 are the cross-browser candidates but are covered in Chromium here.
+- Integration tests are consolidated into two files (`worker-routing.test.ts`, `board-room.test.ts`)
+  rather than one file per concern; they still cover TC-04…TC-18 and TC-31 end to end.
+- `test:integration` runs `vite build` first so the `dist/client` assets exist for the SPA-fallback
+  assertion (TC-14 checks `text/html` served from the `ASSETS` binding).
+- e2e board ids are generated with the Web `crypto.getRandomValues` in the test helper (22-char
+  base64url, matching `BOARD_ID_PATTERN`) rather than importing the client module, so Playwright
+  specs need no source-path aliases.

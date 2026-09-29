@@ -1,18 +1,24 @@
-import { useCallback, useMemo, useRef, useSyncExternalStore } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import * as Y from 'yjs';
 import { initDoc, snapshot, StickySnapshot } from '@shared/board-model';
+import { connectBoard, type ConnectionState } from '@client/sync/connectBoard';
 
 export interface BoardDoc {
   doc: Y.Doc;
   notes: readonly StickySnapshot[];
+  connectionState: ConnectionState;
 }
 
 /**
- * Owns one Y.Doc in memory (story 3 attaches a network provider, story 4 persists it).
+ * Owns one Y.Doc and, when a `boardId` is supplied, a live network provider.
  * Exposes an immutable snapshot via useSyncExternalStore, recomputed on
- * objects.observeDeep (and on mount, so mutations made during render are seen).
+ * objects.observeDeep — which fires for both local edits and remote updates the
+ * provider applies, so other people's changes re-render this board too.
+ *
+ * Selection and editing state are deliberately NOT held here: they are local to
+ * each client and never written to the doc (live.local_selection).
  */
-export function useBoardDoc(): BoardDoc {
+export function useBoardDoc(boardId?: string): BoardDoc {
   const docRef = useRef<Y.Doc | null>(null);
   if (!docRef.current) {
     const doc = new Y.Doc();
@@ -22,14 +28,28 @@ export function useBoardDoc(): BoardDoc {
   const doc = docRef.current;
   const objects = doc.getMap('objects') as Y.Map<Y.Map<unknown>>;
 
+  const [connectionState, setConnectionState] = useState<ConnectionState>(
+    boardId ? 'connecting' : 'connected',
+  );
+
+  // Attach / detach the network provider when the board changes.
+  useEffect(() => {
+    if (!boardId) {
+      setConnectionState('connected');
+      return;
+    }
+    const conn = connectBoard(doc, boardId, setConnectionState);
+    return () => conn.destroy();
+  }, [doc, boardId]);
+
   const cacheRef = useRef<{ snap: readonly StickySnapshot[]; version: number }>({
     snap: [],
     version: -1,
   });
 
   const getSnapshot = useCallback((): readonly StickySnapshot[] => {
-    // Yjs emits a stable `_item` structure version per map change; fall back to
-    // comparing content so React never sees a changing reference for equal data.
+    // Fall back to comparing content so React never sees a changing reference for
+    // equal data (an unrelated remote update must not force a re-render loop).
     const next = snapshot(doc);
     const cache = cacheRef.current;
     if (cache.version === -1 || !snapshotsEqual(cache.snap, next)) {
@@ -49,7 +69,10 @@ export function useBoardDoc(): BoardDoc {
 
   const notes = useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
 
-  return useMemo(() => ({ doc, notes }), [doc, notes]);
+  return useMemo(
+    () => ({ doc, notes, connectionState }),
+    [doc, notes, connectionState],
+  );
 }
 
 function snapshotsEqual(a: readonly StickySnapshot[], b: readonly StickySnapshot[]): boolean {

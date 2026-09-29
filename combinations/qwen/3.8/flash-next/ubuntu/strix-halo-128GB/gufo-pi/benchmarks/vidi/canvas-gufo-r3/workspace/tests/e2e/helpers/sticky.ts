@@ -52,6 +52,23 @@ export async function createNoteByDblclick(page: Page, x: number, y: number): Pr
   return ids.find((id) => !before.includes(id))!;
 }
 
+/** Double-click the centre of an existing note to enter edit mode (textarea focused). */
+export async function startEditingNote(page: Page, id: string): Promise<void> {
+  const box = await getNoteScreenBox(page, id);
+  await page.mouse.dblclick(box.x + box.width / 2, box.y + box.height / 2);
+  await page.locator('[data-testid="sticky-textarea"]').waitFor({ state: 'attached' });
+}
+
+/** Type into the currently focused note editor. */
+export async function typeIntoEditor(page: Page, text: string): Promise<void> {
+  await page.keyboard.type(text, { delay: 15 });
+}
+
+/** Click empty canvas to end editing / deselect. */
+export async function clickEmptyCanvas(page: Page, x = 60, y = 60): Promise<void> {
+  await page.mouse.click(x, y);
+}
+
 export function getCreateStickyButton(page: Page): Locator {
   return page.locator('[aria-label="Sticky note"]');
 }
