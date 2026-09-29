@@ -69,7 +69,7 @@ export async function loadRuns(repo: string): Promise<{ records: RunRecord[]; su
   const blobs = await readBlobs(repo, wanted);
   const suites = Object.fromEntries(packs.map((p) => [p, json<{ pack_ref?: string }>(blobs.get(`benchmarks/${p}/bench.json`))?.pack_ref ?? ""]));
   const records = runs.map((r): RunRecord => {
-    const meta = json<{ pack_version?: string }>(blobs.get(`${r.dir}/run.json`)) ?? {};
+    const meta = json<{ pack_version?: string; host?: string }>(blobs.get(`${r.dir}/run.json`)) ?? {};
     const status = json<{ state?: string; at?: string }>(blobs.get(`${r.dir}/run-status.json`)) ?? {};
     const raw = json<{ stories?: Record<string, RawStory> | RawStory[] }>(blobs.get(`${r.dir}/metrics.json`))?.stories ?? {};
     // metrics.json keys stories by id ("1", "2", …); older records list them in order
@@ -83,7 +83,7 @@ export async function loadRuns(repo: string): Promise<{ records: RunRecord[]; su
       if (last) scores[v] = { passed: last.passed ?? null, total: last.total ?? null,
         flaky: (rs!.results ?? []).reduce((n, x) => n + (x.flaky ?? 0), 0), at: rs!.finished_at ?? "" };
     }
-    return { ...r, packVersion: meta.pack_version ?? "", state: status.state ?? "", stateAt: status.at ?? "",
+    return { ...r, host: meta.host ?? "", packVersion: meta.pack_version ?? "", state: status.state ?? "", stateAt: status.at ?? "",
       stories: pairs.map(([id, s]) => storyEntry(id, s)), scores };
   });
   return { records, suites };

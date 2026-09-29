@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   findRuns, versionFamily, rowFamily, webBase, indexJobs, queuePositions, liveFromJob, storyEntry,
-  mergeStories, stages, mergeRows, machines, RECENT_S, type DbenchJob,
+  mergeStories, stages, mergeRows, machines, assignMachines, RECENT_S, type DbenchJob,
 } from "./domain.ts";
 import type { Row } from "../shared/types.ts";
 
@@ -214,5 +214,19 @@ describe("machines", () => {
       { node: "gruntus", running: { stack: SWIFT, short: "3.8-swift-1.5/27b llamacpp", runId: "v2-r1", story: "3", finishing: false, agentMinutes: 25 }, queued: 2 },
       { node: "tritus", running: null, queued: 0 },
     ]);
+  });
+});
+
+describe("assignMachines", () => {
+  const r = (runId: string, node: string | null, host: string) => ({ runId, node, host }) as unknown as Row;
+
+  it("files a run by its dbench node, else by the node its host was seen on, else by its host", () => {
+    const rows = assignMachines([
+      r("v2-r1", "quintus", "Apple M5 Max 128GB"),
+      r("canvas-mlx-01", null, "Apple M5 Max 128GB"), // finished before dbench knew it: same host, so quintus
+      r("run-2", null, "Apple M2 16GB"),              // no node ever ran on this host
+      r("old", null, ""),
+    ]);
+    expect(rows.map((x) => x.machine)).toEqual(["quintus", "quintus", "Apple M2 16GB", "unknown machine"]);
   });
 });
