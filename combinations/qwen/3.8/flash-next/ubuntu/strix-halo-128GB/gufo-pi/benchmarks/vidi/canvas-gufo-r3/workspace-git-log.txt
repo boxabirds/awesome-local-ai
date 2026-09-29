@@ -1,3 +1,55 @@
+commit 70fca65c66f154bd8117ebcbe7c655b0546f4588
+vidi-agent  Tue Sep 29 03:20:19 2026 +0000
+
+    story 2: Capture ideas on sticky notes and rearrange them
+
+
+ NOTES.md                                  |  36 ++++
+ src/client/App.tsx                        |   9 +-
+ src/client/board/useBoardDoc.ts           |  53 +++--
+ src/client/board/useSelection.ts          |  11 +-
+ src/client/canvas/testHooks.ts            |   7 +-
+ src/client/objects/StickyNote.tsx         |  12 +-
+ tests/component/Scale.test.tsx            |  55 ++++++
+ tests/component/StickyNote.test.tsx       | 278 ++++++++++++++++++++++++++
+ tests/component/StickyTextEditor.test.tsx | 156 +++++++++++++++
+ tests/component/Toolbars.test.tsx         | 113 +++++++++++
+ tests/component/harness.tsx               | 175 +++++++++++++++++
+ tests/e2e/helpers/sticky.ts               |  77 ++++++++
+ tests/e2e/sticky-notes.spec.ts            | 316 ++++++++++++++++++++++++++++++
+ tests/fixtures/texts.ts                   |  34 ++++
+ 14 files changed, 1307 insertions(+), 25 deletions(-)
+commit 4e3f89d805a978e2d8e999e1656d3982eb0a7b09
+vidi-agent  Tue Sep 29 02:54:19 2026 +0000
+
+    story 2: board model, sticky note components, toolbars
+
+
+ src/client/App.tsx                      |  98 +++++++-
+ src/client/board/Toolbar.tsx            |  55 +++++
+ src/client/board/useBoardDoc.ts         |  47 ++++
+ src/client/board/useSelection.ts        |  40 ++++
+ src/client/canvas/BoardViewport.tsx     |  57 ++++-
+ src/client/objects/NoteToolbar.tsx      |  94 ++++++++
+ src/client/objects/StickyNote.tsx       | 380 ++++++++++++++++++++++++++++++++
+ src/client/objects/StickyText.ts        | 101 +++++++++
+ src/client/objects/StickyTextEditor.tsx | 133 +++++++++++
+ src/shared/board-model.ts               | 131 ++++++++++-
+ tests/unit/board-model.test.ts          |   2 +
+ tests/unit/sticky-text.test.ts          | 144 ++++++++++++
+ 12 files changed, 1257 insertions(+), 25 deletions(-)
+commit 4afbe095fc7c510a7702dfe4fb67132559797ff9
+vidi-agent  Tue Sep 29 02:36:50 2026 +0000
+
+    story 2: board model unit tests + config + stubs
+
+
+ package-lock.json              |  48 ++++++++-
+ package.json                   |   3 +-
+ src/shared/board-model.ts      |  47 +++++++++
+ src/shared/config.ts           |  13 +++
+ tests/unit/board-model.test.ts | 214 +++++++++++++++++++++++++++++++++++++++++
+ 5 files changed, 323 insertions(+), 2 deletions(-)
 commit a9d27d74c2fd96b02a903c5fab517a501aafbaa4
 vidi-agent  Tue Sep 29 02:33:59 2026 +0000
 

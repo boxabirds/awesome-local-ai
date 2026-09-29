@@ -15,6 +15,10 @@ export interface BoardViewportProps {
   endPan?(): void;
   wheel?(e: { deltaX: number; deltaY: number; ctrlOrMeta: boolean; point: Point }): void;
   gestureZoom?(scale: number, point: Point): void;
+  /** Double-click landed on empty board space (not on an object). */
+  onDoubleClickEmpty?(screenPoint: Point): void;
+  /** A press-and-release without dragging on empty board space. */
+  onClickEmpty?(): void;
 }
 
 export function BoardViewport({
@@ -25,10 +29,14 @@ export function BoardViewport({
   endPan,
   wheel,
   gestureZoom,
+  onDoubleClickEmpty,
+  onClickEmpty,
 }: BoardViewportProps) {
   const viewportRef = useRef<HTMLDivElement>(null);
   const isPanningRef = useRef(false);
   const pointerIdRef = useRef<number | null>(null);
+  const downPointRef = useRef<Point | null>(null);
+  const movedRef = useRef(false);
 
   // Wheel handler with passive: false
   useEffect(() => {
@@ -94,19 +102,25 @@ export function BoardViewport({
   }, [gestureZoom]);
 
   // Pointer events for panning
+  const isBoardBackground = (target: HTMLElement): boolean => {
+    const el = viewportRef.current;
+    if (!el) return false;
+    return (
+      target === el ||
+      target.classList.contains('board-world-layer') ||
+      target.classList.contains('board-grid') ||
+      !!target.closest('.board-grid')
+    );
+  };
+
   const handlePointerDown = useCallback((e: React.PointerEvent) => {
     const el = viewportRef.current;
-    if (!el || !beginPan) return;
-    const target = e.target as HTMLElement;
+    if (!el) return;
     // Only start pan if target is viewport or world layer or grid
-    if (
-      target !== el &&
-      !target.classList.contains('board-world-layer') &&
-      !target.classList.contains('board-grid') &&
-      !target.closest('.board-grid')
-    ) {
-      return;
-    }
+    if (!isBoardBackground(e.target as HTMLElement)) return;
+    downPointRef.current = { x: e.clientX, y: e.clientY };
+    movedRef.current = false;
+    if (!beginPan) return;
     e.preventDefault();
     el.setPointerCapture(e.pointerId);
     pointerIdRef.current = e.pointerId;
@@ -115,23 +129,43 @@ export function BoardViewport({
   }, [beginPan]);
 
   const handlePointerMove = useCallback((e: React.PointerEvent) => {
+    if (downPointRef.current) {
+      const dx = e.clientX - downPointRef.current.x;
+      const dy = e.clientY - downPointRef.current.y;
+      if (Math.hypot(dx, dy) > 0) movedRef.current = true;
+    }
     if (!isPanningRef.current || e.pointerId !== pointerIdRef.current) return;
     if (panMove) panMove({ x: e.clientX, y: e.clientY });
   }, [panMove]);
 
   const handlePointerUp = useCallback((e: React.PointerEvent) => {
+    if (downPointRef.current && !movedRef.current && isBoardBackground(e.target as HTMLElement)) {
+      if (onClickEmpty) onClickEmpty();
+    }
+    downPointRef.current = null;
+    movedRef.current = false;
+    if (e.pointerId !== pointerIdRef.current) return;
+    isPanningRef.current = false;
+    pointerIdRef.current = null;
+    if (endPan) endPan();
+  }, [endPan, onClickEmpty]);
+
+  const handlePointerCancel = useCallback((e: React.PointerEvent) => {
+    downPointRef.current = null;
+    movedRef.current = false;
     if (e.pointerId !== pointerIdRef.current) return;
     isPanningRef.current = false;
     pointerIdRef.current = null;
     if (endPan) endPan();
   }, [endPan]);
 
-  const handlePointerCancel = useCallback((e: React.PointerEvent) => {
-    if (e.pointerId !== pointerIdRef.current) return;
-    isPanningRef.current = false;
-    pointerIdRef.current = null;
-    if (endPan) endPan();
-  }, [endPan]);
+  const handleDoubleClick = useCallback((e: React.MouseEvent) => {
+    if (!isBoardBackground(e.target as HTMLElement)) return;
+    const el = viewportRef.current;
+    if (!el || !onDoubleClickEmpty) return;
+    const rect = el.getBoundingClientRect();
+    onDoubleClickEmpty({ x: e.clientX - rect.left, y: e.clientY - rect.top });
+  }, [onDoubleClickEmpty]);
 
   // Grid background computation
   const gridSpacingPx = GRID_SPACING_WORLD * camera.zoom;
@@ -175,6 +209,7 @@ export function BoardViewport({
       onPointerUp={handlePointerUp}
       onPointerCancel={handlePointerCancel}
       onLostPointerCapture={handlePointerUp}
+      onDoubleClick={handleDoubleClick}
     >
       <div className="board-grid" style={gridStyle} data-testid="board-grid" />
       <div
