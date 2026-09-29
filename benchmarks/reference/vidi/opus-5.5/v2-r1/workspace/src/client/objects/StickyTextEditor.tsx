@@ -2,7 +2,14 @@ import { type CSSProperties, useEffect, useLayoutEffect, useRef, useState } from
 import type * as Y from 'yjs';
 import { LOCAL_ORIGIN } from '../../shared/board-model';
 import { STICKY_TEXT_MAX_CHARS } from '../../shared/config';
-import { applyTextDiff, clampEdit, counterVisible } from './StickyText';
+import {
+  type TextDelta,
+  applyTextDiff,
+  applyTextEditOver,
+  clampEdit,
+  counterVisible,
+  transformIndex,
+} from './StickyText';
 
 /** True once the text (or the note containing it) has been deleted from the document. */
 function isDetached(type: Y.AbstractType<any>): boolean {
@@ -17,7 +24,9 @@ function isDetached(type: Y.AbstractType<any>): boolean {
 
 /**
  * Textarea editing a note's Y.Text. Each input is written immediately as a minimal diff,
- * so ending the edit needs no extra write.
+ * so ending the edit needs no extra write. Other people's changes to the text appear in the
+ * textarea as they arrive, with the caret kept in place (during IME composition they are
+ * applied once composition ends, so the composition is not disturbed).
  */
 export function StickyTextEditor(props: {
   ytext: Y.Text;
@@ -32,6 +41,10 @@ export function StickyTextEditor(props: {
   const [length, setLength] = useState(initial.length);
   const onEndRef = useRef(props.onEnd);
   onEndRef.current = props.onEnd;
+  /** The text the textarea's content is based on: the Y.Text as of the last sync. */
+  const shownRef = useRef(initial);
+  /** Remote changes received while composing, not yet shown in the textarea. */
+  const pendingRemoteRef = useRef<TextDelta[]>([]);
 
   useLayoutEffect(() => {
     const el = ref.current;
@@ -52,16 +65,57 @@ export function StickyTextEditor(props: {
     return () => document.removeEventListener('pointerdown', onPointerDown, true);
   }, []);
 
+  // Show other people's edits as they arrive.
+  useLayoutEffect(() => {
+    const el = ref.current;
+    if (el && !isDetached(ytext) && ytext.toString() !== shownRef.current) {
+      // Changed between the first render and subscribing.
+      el.value = ytext.toString();
+      shownRef.current = el.value;
+      setLength(el.value.length);
+    }
+    const onRemote = (event: Y.YTextEvent, tr: Y.Transaction) => {
+      const el = ref.current;
+      if (!el || tr.origin === LOCAL_ORIGIN) return;
+      const delta = event.delta as TextDelta;
+      if (composingRef.current) {
+        pendingRemoteRef.current.push(delta);
+        return;
+      }
+      const { selectionStart, selectionEnd, selectionDirection } = el;
+      el.value = ytext.toString();
+      shownRef.current = el.value;
+      el.setSelectionRange(
+        transformIndex(selectionStart, delta),
+        transformIndex(selectionEnd, delta),
+        selectionDirection,
+      );
+      setLength(el.value.length);
+    };
+    ytext.observe(onRemote);
+    return () => ytext.unobserve(onRemote);
+  }, [ytext]);
+
   const sync = () => {
     const el = ref.current;
     if (!el || composingRef.current || isDetached(ytext)) return;
-    const prev = ytext.toString();
+    const base = shownRef.current;
     if (el.value.length > STICKY_TEXT_MAX_CHARS) {
-      const { text, caret } = clampEdit(prev, el.value);
+      const { text, caret } = clampEdit(base, el.value);
       el.value = text;
       el.setSelectionRange(caret, caret);
     }
-    applyTextDiff(ytext, el.value, LOCAL_ORIGIN);
+    const remote = pendingRemoteRef.current;
+    pendingRemoteRef.current = [];
+    if (remote.length === 0) {
+      applyTextDiff(ytext, el.value, LOCAL_ORIGIN);
+    } else {
+      // Remote changes arrived during composition: merge the local edit over them.
+      const caret = applyTextEditOver(ytext, base, el.value, remote, LOCAL_ORIGIN);
+      el.value = ytext.toString();
+      el.setSelectionRange(caret, caret);
+    }
+    shownRef.current = el.value;
     setLength(el.value.length);
   };
 

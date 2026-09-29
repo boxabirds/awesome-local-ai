@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react';
+import { isValidBoardId, newBoardId } from '../shared/board-id';
 import { createSticky, deleteObject } from '../shared/board-model';
 import { Toolbar } from './board/Toolbar';
 import { useBoardDoc } from './board/useBoardDoc';
@@ -7,11 +8,29 @@ import { BoardViewport } from './canvas/BoardViewport';
 import { type Point, screenToWorld } from './canvas/camera';
 import { isEditableTarget } from './canvas/isEditableTarget';
 import { StickyNote } from './objects/StickyNote';
+import { ConnectionStatus } from './sync/ConnectionStatus';
 import type * as Y from 'yjs';
 
-/** `doc` lets tests supply the board document; the app creates its own. */
-export function App(props: { doc?: Y.Doc }) {
-  const { doc, notes } = useBoardDoc(props.doc);
+const BOARD_PATH = /^\/b\/([^/]+)\/?$/;
+
+/**
+ * The board id from a `/b/:boardId` address. Any other address is replaced (without a new
+ * history entry) by the address of a fresh board: temporary until story 5 creates boards.
+ */
+export function boardIdFromLocation(location: Location = window.location): string {
+  const match = BOARD_PATH.exec(location.pathname);
+  if (match && isValidBoardId(match[1])) return match[1];
+  const boardId = newBoardId();
+  window.history.replaceState(null, '', `/b/${boardId}${location.search}${location.hash}`);
+  return boardId;
+}
+
+/**
+ * `boardId` connects the board to its live room; without it (component tests) the board is
+ * local only. `doc` lets tests supply the board document; the app creates its own.
+ */
+export function App(props: { boardId?: string; doc?: Y.Doc }) {
+  const { doc, notes, connection } = useBoardDoc(props.boardId, props.doc);
   const selection = useSelection();
   const { select, startEdit, endEdit } = selection;
 
@@ -59,33 +78,36 @@ export function App(props: { doc?: Y.Doc }) {
   };
 
   return (
-    <BoardViewport
-      onEmptyDoubleClick={createAt}
-      onEmptyClick={() => select(null)}
-      overlay={({ camera, viewport }) => (
-        <Toolbar
-          onCreateSticky={() =>
-            createAt(screenToWorld(camera, { x: viewport.width / 2, y: viewport.height / 2 }))
-          }
-        />
-      )}
-    >
-      {({ camera }) =>
-        domOrder.map((note) => (
-          <StickyNote
-            key={note.id}
-            layer={layers.get(note.id)}
-            note={note}
-            doc={doc}
-            zoom={camera.zoom}
-            selected={note.id === selectedId}
-            editing={note.id === editingId}
-            onSelect={select}
-            onStartEdit={startEdit}
-            onEndEdit={endEdit}
+    <>
+      <BoardViewport
+        onEmptyDoubleClick={createAt}
+        onEmptyClick={() => select(null)}
+        overlay={({ camera, viewport }) => (
+          <Toolbar
+            onCreateSticky={() =>
+              createAt(screenToWorld(camera, { x: viewport.width / 2, y: viewport.height / 2 }))
+            }
           />
-        ))
-      }
-    </BoardViewport>
+        )}
+      >
+        {({ camera }) =>
+          domOrder.map((note) => (
+            <StickyNote
+              key={note.id}
+              layer={layers.get(note.id)}
+              note={note}
+              doc={doc}
+              zoom={camera.zoom}
+              selected={note.id === selectedId}
+              editing={note.id === editingId}
+              onSelect={select}
+              onStartEdit={startEdit}
+              onEndEdit={endEdit}
+            />
+          ))
+        }
+      </BoardViewport>
+      {props.boardId && <ConnectionStatus state={connection} />}
+    </>
   );
 }

@@ -15,5 +15,7 @@
     "types": ["vite/client", "node"],
     "noEmit": true
   },
-  "include": ["src", "tests", "vite.config.ts", "vitest.config.ts", "playwright.config.ts"]
+  "include": ["src", "tests", "vite.config.ts", "vitest.config.ts", "playwright.config.ts"],
+  // Worker code and its workerd tests use the Workers runtime types: see tsconfig.worker.json.
+  "exclude": ["src/worker", "tests/integration"]
 }

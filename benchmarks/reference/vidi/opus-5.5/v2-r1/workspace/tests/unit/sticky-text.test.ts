@@ -4,6 +4,9 @@ import { LOCAL_ORIGIN } from '../../src/shared/board-model';
 import { STICKY_TEXT_MAX_CHARS } from '../../src/shared/config';
 import {
   applyTextDiff,
+  applyTextEditOver,
+  transformIndex,
+  type TextDelta,
   clampEdit,
   clampToLimit,
   counterVisible,
@@ -111,5 +114,40 @@ describe('sticky.text length limit', () => {
     expect(counterVisible(950)).toBe(true);
     expect(counterVisible(951)).toBe(true);
     expect(counterVisible(1000)).toBe(true);
+  });
+});
+
+describe('sticky.text remote changes while editing (story 3)', () => {
+  it('transformIndex shifts an index by remote inserts and deletes before it', () => {
+    expect(transformIndex(5, [{ insert: 'red ' }])).toBe(9);
+    expect(transformIndex(5, [{ retain: 5 }, { insert: ' blue' }])).toBe(5);
+    expect(transformIndex(5, [{ retain: 6 }, { insert: 'x' }])).toBe(5);
+    expect(transformIndex(5, [{ retain: 1 }, { delete: 2 }])).toBe(3);
+    expect(transformIndex(5, [{ retain: 3 }, { delete: 10 }])).toBe(3);
+    expect(transformIndex(0, [{ insert: 'abc' }])).toBe(0);
+  });
+
+  it('applyTextEditOver keeps remote text typed during a local edit', () => {
+    const doc = new Y.Doc();
+    const ytext = doc.getText('t');
+    ytext.insert(0, 'green');
+    const deltas: TextDelta[] = [];
+    ytext.observe((e) => deltas.push(e.delta as TextDelta));
+    // Remote: "red " at the start; local (not yet written): " blue" at the end of "green".
+    ytext.insert(0, 'red ');
+    const caret = applyTextEditOver(ytext, 'green', 'green blue', deltas.slice(), LOCAL_ORIGIN);
+    expect(ytext.toString()).toBe('red green blue');
+    expect(caret).toBe('red green blue'.length);
+  });
+
+  it('applyTextEditOver maps a local replacement past a remote delete', () => {
+    const doc = new Y.Doc();
+    const ytext = doc.getText('t');
+    ytext.insert(0, 'one two three');
+    const deltas: TextDelta[] = [];
+    ytext.observe((e) => deltas.push(e.delta as TextDelta));
+    ytext.delete(0, 4); // remote removes "one "
+    applyTextEditOver(ytext, 'one two three', 'one 2 three', deltas.slice(), LOCAL_ORIGIN);
+    expect(ytext.toString()).toBe('2 three');
   });
 });

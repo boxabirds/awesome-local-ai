@@ -353,3 +353,34 @@ body,
   outline: 2px solid #0969da;
   outline-offset: 1px;
 }
+
+.connection-status {
+  position: fixed;
+  top: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 20;
+  padding: 4px 12px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 20px;
+  white-space: nowrap;
+  pointer-events: none;
+  color: #3d3f44;
+  background: #eceef1;
+  border: 1px solid #d0d4da;
+  box-shadow: 0 1px 3px rgb(0 0 0 / 12%);
+}
+
+.connection-status[data-state='reconnecting'] {
+  color: #6b4200;
+  background: #ffe0a3;
+  border-color: #f0b440;
+}
+
+.connection-status[data-state='confirmed'] {
+  color: #135c1f;
+  background: #c9efce;
+  border-color: #6cc37a;
+}

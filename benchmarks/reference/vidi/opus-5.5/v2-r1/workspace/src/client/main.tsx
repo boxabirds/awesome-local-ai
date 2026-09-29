@@ -1,10 +1,14 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
-import { App } from './App';
+import { App, boardIdFromLocation } from './App';
+import { installTestHooks } from './canvas/testHooks';
 import './styles.css';
 
-createRoot(document.getElementById('root')!).render(
+const root = createRoot(document.getElementById('root')!);
+root.render(
   <StrictMode>
-    <App />
+    <App boardId={boardIdFromLocation()} />
   </StrictMode>,
 );
+
+if (import.meta.env.MODE === 'test') installTestHooks({ unmount: () => root.unmount() });

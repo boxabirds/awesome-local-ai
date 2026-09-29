@@ -84,6 +84,59 @@ export function applyTextDiff(ytext: Y.Text, next: string, origin: unknown): voi
   else apply();
 }
 
+/** One Yjs text delta (`Y.YTextEvent.delta`). */
+export type TextDelta = ReadonlyArray<{ insert?: unknown; retain?: number; delete?: number }>;
+
+/**
+ * Maps an index (e.g. a caret) in the text before `delta` to the same place in the text after
+ * it. Text inserted exactly at `index` ends up after it: the index does not move past it.
+ */
+export function transformIndex(index: number, delta: TextDelta): number {
+  let oldPos = 0;
+  let result = index;
+  for (const op of delta) {
+    if (op.retain !== undefined) {
+      oldPos += op.retain;
+    } else if (op.insert !== undefined) {
+      if (oldPos < index) result += typeof op.insert === 'string' ? op.insert.length : 1;
+    } else if (op.delete !== undefined) {
+      if (index > oldPos) result -= Math.min(op.delete, index - oldPos);
+      oldPos += op.delete;
+    }
+    if (oldPos >= index && op.insert === undefined) break;
+  }
+  return result;
+}
+
+/**
+ * Writes the local edit `base` → `next` to `ytext` when `ytext` has meanwhile received the
+ * remote changes `remote` (in order) on top of `base`. Remote text is kept. Returns the caret
+ * position just after the local insert.
+ */
+export function applyTextEditOver(
+  ytext: Y.Text,
+  base: string,
+  next: string,
+  remote: readonly TextDelta[],
+  origin: unknown,
+): number {
+  const { prefix, suffix } = commonEnds(base, next);
+  let start = prefix;
+  let end = base.length - suffix;
+  for (const delta of remote) {
+    start = transformIndex(start, delta);
+    end = Math.max(start, transformIndex(end, delta));
+  }
+  const insert = next.slice(prefix, next.length - suffix);
+  const apply = () => {
+    if (end > start) ytext.delete(start, end - start);
+    if (insert.length > 0) ytext.insert(start, insert);
+  };
+  if (ytext.doc) ytext.doc.transact(apply, origin);
+  else apply();
+  return start + insert.length;
+}
+
 /** True when the character counter should show (remaining <= STICKY_COUNTER_THRESHOLD_CHARS). */
 export function counterVisible(length: number): boolean {
   return STICKY_TEXT_MAX_CHARS - length <= STICKY_COUNTER_THRESHOLD_CHARS;

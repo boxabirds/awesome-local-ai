@@ -5,8 +5,12 @@ const viewport = { width: 1280, height: 800 };
 // Comma-separated subset of browsers to run, e.g. E2E_BROWSERS=chromium,webkit (default: all three).
 const browsers = (process.env.E2E_BROWSERS ?? 'chromium,firefox,webkit').split(',');
 
+// Slow nightly suites (tests/e2e/nightly) run only via `npm run test:e2e:nightly`.
+const nightly = !!process.env.E2E_NIGHTLY;
+
 export default defineConfig({
   testDir: 'tests/e2e',
+  testIgnore: nightly ? [] : ['**/nightly/**'],
   fullyParallel: true,
   reporter: 'list',
   use: {

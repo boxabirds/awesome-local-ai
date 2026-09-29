@@ -1,6 +1,6 @@
-import { cleanup, fireEvent } from '@testing-library/react';
+import { act, cleanup, fireEvent } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { getStickyText } from '../../src/shared/board-model';
+import { deleteObject, getStickyText } from '../../src/shared/board-model';
 import { STICKY_TEXT_MAX_CHARS } from '../../src/shared/config';
 import { LONG_PROSE_1000, RETRO_ITEM, prose } from '../fixtures/texts';
 import { dispatchKey } from './helpers';
@@ -131,5 +131,63 @@ describe('sticky.text editing', () => {
     const { doc } = docWithNote(RETRO_ITEM);
     renderApp(doc);
     expect(document.querySelector('.sticky-text')?.textContent).toBe(RETRO_ITEM);
+  });
+});
+
+/** A change made by someone else (arrives with the provider, not LOCAL_ORIGIN, as origin). */
+const REMOTE = Symbol('remote');
+
+describe('sticky.text with other people editing (story 3)', () => {
+  it('shows remote text while editing, keeps the caret and keeps every character typed', async () => {
+    const { doc, id } = docWithNote('green');
+    const { user } = renderApp(doc);
+    selectNote();
+    dispatchKey({ key: 'Enter' });
+    const textarea = editor() as HTMLTextAreaElement;
+    const ytext = getStickyText(doc, id)!;
+
+    // Someone else types "red " at the start while the caret is at the end.
+    act(() => doc.transact(() => ytext.insert(0, 'red '), REMOTE));
+    expect(textarea.value).toBe('red green');
+    expect(textarea.selectionStart).toBe('red green'.length);
+
+    await user.keyboard(' blue');
+    expect(ytext.toString()).toBe('red green blue');
+
+    // Remote text after the caret does not move it.
+    act(() => doc.transact(() => ytext.insert(ytext.length, '!'), REMOTE));
+    expect(textarea.value).toBe('red green blue!');
+    expect(textarea.selectionStart).toBe('red green blue'.length);
+    await user.keyboard('s');
+    expect(ytext.toString()).toBe('red green blues!');
+  });
+
+  it('merges remote text that arrives during IME composition once it ends', () => {
+    const { doc, id } = docWithNote('green');
+    renderApp(doc);
+    selectNote();
+    dispatchKey({ key: 'Enter' });
+    const textarea = editor() as HTMLTextAreaElement;
+    const ytext = getStickyText(doc, id)!;
+
+    fireEvent.compositionStart(textarea);
+    textarea.value = 'green 青';
+    act(() => doc.transact(() => ytext.insert(0, 'red '), REMOTE));
+    expect(textarea.value).toBe('green 青'); // composition undisturbed
+    fireEvent.compositionEnd(textarea);
+    expect(ytext.toString()).toBe('red green 青');
+    expect(textarea.value).toBe('red green 青');
+  });
+
+  it('TC-25 (component) a note deleted by someone else while editing closes the editor silently', () => {
+    const { doc, id } = docWithNote('green');
+    renderApp(doc);
+    selectNote();
+    dispatchKey({ key: 'Enter' });
+    expect(editor()).not.toBeNull();
+    act(() => doc.transact(() => deleteObject(doc, id), REMOTE));
+    expect(editor()).toBeNull();
+    expect(notesOf(doc)).toEqual([]);
+    expect(document.querySelectorAll('[data-sticky-id]')).toHaveLength(0);
   });
 });
