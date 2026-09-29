@@ -9,12 +9,14 @@ import {
   objectBounds,
 } from '@shared/board-model';
 import { SelectionApi } from './useSelection';
+import type { UndoController } from './undo';
 
 export interface UseBoardKeysOpts {
   doc: Y.Doc;
   selection: SelectionApi;
   snapshot: readonly ObjectSnapshot[];
   canEdit: boolean;
+  undoController?: UndoController | null;
 }
 
 function isTextInputTarget(target: EventTarget | null): boolean {
@@ -32,11 +34,37 @@ export function useBoardKeys(opts: UseBoardKeysOpts): void {
   snapshotRef.current = opts.snapshot;
   const canEditRef = useRef(opts.canEdit);
   canEditRef.current = opts.canEdit;
+  const undoRef = useRef(opts.undoController);
+  undoRef.current = opts.undoController;
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       const sel = selectionRef.current;
       const editing = sel.editingId !== null;
+
+      // Ctrl/Cmd+Z: undo (only when not editing a textarea — editor handles it)
+      if ((e.ctrlKey || e.metaKey) && e.key === 'z' && !e.shiftKey) {
+        if (editing) return; // editor handles its own undo
+        if (isTextInputTarget(e.target)) return;
+        if (!canEditRef.current) return;
+        const ctrl = undoRef.current;
+        if (!ctrl) return;
+        e.preventDefault();
+        ctrl.undo();
+        return;
+      }
+
+      // Ctrl/Cmd+Shift+Z or Ctrl+Y: redo
+      if ((e.ctrlKey || e.metaKey) && ((e.key.toLowerCase() === 'z' && e.shiftKey) || e.key === 'y')) {
+        if (editing) return; // editor handles its own redo
+        if (isTextInputTarget(e.target)) return;
+        if (!canEditRef.current) return;
+        const ctrl = undoRef.current;
+        if (!ctrl) return;
+        e.preventDefault();
+        ctrl.redo();
+        return;
+      }
 
       // Ctrl/Cmd+A: select all
       if ((e.ctrlKey || e.metaKey) && e.key === 'a' && !editing) {
@@ -76,7 +104,10 @@ export function useBoardKeys(opts: UseBoardKeysOpts): void {
           }
         }
         if (positions.size > 0) {
+          const ctrl = undoRef.current;
+          ctrl?.boundary();
           moveObjects(docRef.current, positions);
+          ctrl?.boundary();
         }
         return;
       }
@@ -90,7 +121,10 @@ export function useBoardKeys(opts: UseBoardKeysOpts): void {
       ) {
         if (!canEditRef.current) return;
         e.preventDefault();
+        const ctrl = undoRef.current;
+        ctrl?.boundary();
         deleteObjects(docRef.current, [...sel.ids]);
+        ctrl?.boundary();
         sel.clear();
         return;
       }

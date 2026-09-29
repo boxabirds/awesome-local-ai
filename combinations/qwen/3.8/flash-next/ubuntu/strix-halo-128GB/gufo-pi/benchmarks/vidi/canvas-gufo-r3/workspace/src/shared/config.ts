@@ -42,6 +42,10 @@ export const MAX_OBJECT_SIZE_WORLD = 20_000;
 export const NUDGE_STEP_WORLD = 1;
 export const NUDGE_LARGE_STEP_WORLD = 10;
 
+// --- Story 8: undo settings ---
+export const UNDO_CAPTURE_TIMEOUT_MS = 500;   // typing pause that ends a burst
+export const UNDO_MAX_STEPS = 200;
+
 export const STICKY_COLORS = {
   yellow: '#FFF59D', orange: '#FFCC80', green: '#C5E1A5',
   blue: '#90CAF9', pink: '#F48FB1', violet: '#CE93D8',

@@ -19,6 +19,8 @@ export const NOTE_TOOLBAR_OFFSET = 44;
 
 type NoteInteraction = 'unselected' | 'pressed' | 'selected' | 'dragging' | 'editing';
 
+import type { UndoController } from '@client/board/undo';
+
 export interface StickyNoteProps {
   note: StickySnapshot;
   doc: Y.Doc;
@@ -32,6 +34,7 @@ export interface StickyNoteProps {
   onStartEdit(id: string): void;
   onEndEdit(next: 'selected' | 'unselected'): void;
   onObjectPointerDown?(e: React.PointerEvent, id: string): void;
+  undoController?: UndoController | null;
 }
 
 export function StickyNote({
@@ -47,6 +50,7 @@ export function StickyNote({
   onStartEdit,
   onEndEdit,
   onObjectPointerDown,
+  undoController,
 }: StickyNoteProps) {
   const rootRef = useRef<HTMLDivElement | null>(null);
   const measureRef = useRef<HTMLDivElement | null>(null);
@@ -113,15 +117,19 @@ export function StickyNote({
   const handleColor = useCallback(
     (c: StickyColor) => {
       if (readOnly) return;
+      undoController?.boundary();
       setStickyColor(doc, note.id, c);
+      undoController?.boundary();
     },
-    [doc, note.id, readOnly],
+    [doc, note.id, readOnly, undoController],
   );
 
   const handleDelete = useCallback(() => {
     if (readOnly) return;
+    undoController?.boundary();
     deleteObject(doc, note.id);
-  }, [doc, note.id, readOnly]);
+    undoController?.boundary();
+  }, [doc, note.id, readOnly, undoController]);
 
   const color = STICKY_COLORS[note.color];
   const showToolbar = selected && !editing;
@@ -251,6 +259,7 @@ export function StickyNote({
             fontPx={fontPx}
             padding={NOTE_PADDING}
             onEnd={onEndEdit}
+            undoController={undoController}
           />
         )}
       </div>

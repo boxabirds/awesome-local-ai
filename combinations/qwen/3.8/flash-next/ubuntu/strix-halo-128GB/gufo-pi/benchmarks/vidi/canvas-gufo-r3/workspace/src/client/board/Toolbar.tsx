@@ -1,12 +1,15 @@
 import React from 'react';
+import type { UseUndoResult } from './useUndo';
+import { UndoButtons } from './UndoButtons';
 
 export interface ToolbarProps {
   onCreateSticky(): void;
   disabled?: boolean;
+  undoState?: UseUndoResult;
 }
 
 /** Fixed left-side vertical toolbar. */
-export function Toolbar({ onCreateSticky, disabled }: ToolbarProps) {
+export function Toolbar({ onCreateSticky, disabled, undoState }: ToolbarProps) {
   return (
     <div
       data-testid="toolbar"
@@ -53,6 +56,7 @@ export function Toolbar({ onCreateSticky, disabled }: ToolbarProps) {
           <line x1="5" y1="11" x2="12" y2="11" stroke="#9E8F00" strokeWidth="1.2" />
         </svg>
       </button>
+      {undoState && <UndoButtons {...undoState} />}
     </div>
   );
 }

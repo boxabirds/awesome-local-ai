@@ -2,12 +2,14 @@ import React, { useCallback, useEffect, useLayoutEffect, useRef } from 'react';
 import * as Y from 'yjs';
 import { clampToLimit, applyTextDiff } from './StickyText';
 import { LOCAL_ORIGIN } from '@shared/board-model';
+import type { UndoController } from '@client/board/undo';
 
 export interface StickyTextEditorProps {
   ytext: Y.Text;
   fontPx: number;
   padding: number;
   onEnd(next: 'selected' | 'unselected'): void;
+  undoController?: UndoController | null;
 }
 
 /**
@@ -15,16 +17,20 @@ export interface StickyTextEditorProps {
  * Every input event is written to the Y.Text immediately (minimal diff), so ending
  * editing needs no extra write and characters cannot be lost on unmount.
  */
-export function StickyTextEditor({ ytext, fontPx, padding, onEnd }: StickyTextEditorProps) {
+export function StickyTextEditor({ ytext, fontPx, padding, onEnd, undoController }: StickyTextEditorProps) {
   const ref = useRef<HTMLTextAreaElement | null>(null);
   const endedRef = useRef(false);
   const unmountedRef = useRef(false);
   const composingRef = useRef(false);
   const onEndRef = useRef(onEnd);
   onEndRef.current = onEnd;
+  const undoRef = useRef(undoController);
+  undoRef.current = undoController;
 
   // Mount: seed the value, focus, caret at the end of the text.
   useEffect(() => {
+    // Boundary at edit start: prevents merging with the previous action
+    undoRef.current?.boundary();
     const el = ref.current;
     if (!el) return;
     el.value = ytext.toString();
@@ -93,27 +99,56 @@ export function StickyTextEditor({ ytext, fontPx, padding, onEnd }: StickyTextEd
     commit();
   }, [commit]);
 
+  const endEdit = useCallback((next: 'selected' | 'unselected') => {
+    // Boundary at edit end: prevents merging typing with the next action
+    undoRef.current?.boundary();
+    endedRef.current = true;
+    onEndRef.current(next);
+  }, []);
+
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+      // Ctrl/Cmd+Z inside editor: undo typing via controller (prevent browser native undo)
+      if ((e.ctrlKey || e.metaKey) && e.key === 'z' && !e.shiftKey) {
+        e.preventDefault();
+        e.stopPropagation();
+        commit();
+        undoRef.current?.undo();
+        // Sync textarea back to the ytext after undo
+        const el = ref.current;
+        if (el) {
+          el.value = ytext.toString();
+        }
+        return;
+      }
+      // Ctrl/Cmd+Shift+Z or Ctrl+Y inside editor: redo typing
+      if ((e.ctrlKey || e.metaKey) && ((e.key === 'z' && e.shiftKey) || e.key === 'y')) {
+        e.preventDefault();
+        e.stopPropagation();
+        undoRef.current?.redo();
+        const el = ref.current;
+        if (el) {
+          el.value = ytext.toString();
+        }
+        return;
+      }
       if (e.key === 'Escape') {
         e.preventDefault();
         e.stopPropagation();
-        endedRef.current = true;
         commit();
-        onEndRef.current('selected');
+        endEdit('selected');
       }
       // Enter is not intercepted: it inserts a newline.
       e.stopPropagation();
     },
-    [commit],
+    [commit, endEdit, ytext],
   );
 
   const handleBlur = useCallback(() => {
     commit();
     if (endedRef.current || unmountedRef.current) return;
-    endedRef.current = true;
-    onEndRef.current('unselected');
-  }, [commit]);
+    endEdit('unselected');
+  }, [commit, endEdit]);
 
   return (
     <textarea

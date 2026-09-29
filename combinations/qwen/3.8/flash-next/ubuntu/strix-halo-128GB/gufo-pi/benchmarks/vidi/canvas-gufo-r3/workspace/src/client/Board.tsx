@@ -1,4 +1,4 @@
-import React, { useRef, useEffect, useState, useCallback } from 'react';
+import React, { useRef, useEffect, useState, useCallback, useMemo } from 'react';
 import { Camera, Point, Size, canZoomIn, canZoomOut, zoomPercent, screenToWorld } from '@client/canvas/camera';
 import { useCamera } from '@client/canvas/useCamera';
 import { BoardViewport } from '@client/canvas/BoardViewport';
@@ -9,6 +9,8 @@ import { useBoardDoc } from '@client/board/useBoardDoc';
 import { useSelection } from '@client/board/useSelection';
 import { useTransformGesture } from '@client/board/useTransformGesture';
 import { useBoardKeys } from '@client/board/useBoardKeys';
+import { useUndo } from '@client/board/useUndo';
+import { createUndo, type UndoController } from '@client/board/undo';
 import { useMarquee, MarqueeRect } from '@client/board/Marquee';
 import { SelectionOverlay } from '@client/board/SelectionOverlay';
 import { SelectionBar } from '@client/board/SelectionBar';
@@ -33,6 +35,15 @@ export function Board({ boardId }: { boardId: string }) {
 
   const cameraRef = useRef<Camera>(camera);
   cameraRef.current = camera;
+
+  // Create one undo controller per board doc; destroy on board change/unmount
+  const undoController = useMemo(() => createUndo(doc), [doc]);
+  useEffect(() => {
+    return () => undoController.destroy();
+  }, [undoController]);
+
+  const editable = canEdit(connectionState);
+  const undoState = useUndo(undoController, editable);
 
   // ResizeObserver
   useEffect(() => {
@@ -61,13 +72,18 @@ export function Board({ boardId }: { boardId: string }) {
     setTestConnectionState(connectionState);
   }, [connectionState]);
 
-  // Transform gesture
+  // Transform gesture with undo boundaries
+  const onGestureStart = useCallback(() => { undoController.boundary(); }, [undoController]);
+  const onGestureEnd = useCallback(() => { undoController.boundary(); }, [undoController]);
+
   const transform = useTransformGesture({
     doc,
     camera,
     selection,
     snapshot: notes,
-    canEdit: canEdit(connectionState),
+    canEdit: editable,
+    onGestureStart,
+    onGestureEnd,
   });
 
   // Marquee
@@ -80,38 +96,45 @@ export function Board({ boardId }: { boardId: string }) {
     doc,
     selection,
     snapshot: notes,
-    canEdit: canEdit(connectionState),
+    canEdit: editable,
+    undoController,
   });
 
   // Delete selection callback
   const handleDeleteSelection = useCallback(() => {
-    if (!canEdit(connectionState)) return;
+    if (!editable) return;
+    undoController.boundary();
     deleteObjects(doc, [...selection.ids]);
+    undoController.boundary();
     selection.clear();
-  }, [doc, selection.ids, selection.clear, connectionState]);
+  }, [doc, selection.ids, selection.clear, editable, undoController]);
 
   const createAtWorldCentre = useCallback(() => {
-    if (!canEdit(connectionState)) return;
+    if (!editable) return;
+    undoController.boundary();
     const cam = cameraRef.current;
     const centre: Point = { x: viewportSize.width / 2, y: viewportSize.height / 2 };
     const world = screenToWorld(cam, centre);
     const id = createSticky(doc, world);
+    undoController.boundary();
     if (id) selection.startEdit(id);
-  }, [doc, viewportSize.width, viewportSize.height, connectionState]);
+  }, [doc, viewportSize.width, viewportSize.height, editable, undoController]);
 
   const handleDoubleClickEmpty = useCallback(
     (screenPoint: Point) => {
-      if (!canEdit(connectionState)) return;
+      if (!editable) return;
+      undoController.boundary();
       const cam = cameraRef.current;
       const world = screenToWorld(cam, screenPoint);
       const id = createSticky(doc, world);
+      undoController.boundary();
       if (id) selection.startEdit(id);
     },
-    [doc, connectionState],
+    [doc, editable, undoController],
   );
 
   // Check if any selected type has resizable handles
-  const showHandles = selection.ids.size > 0 && canEdit(connectionState);
+  const showHandles = selection.ids.size > 0 && editable;
 
   const renderOrder = [...notes].sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
 
@@ -140,12 +163,13 @@ export function Board({ boardId }: { boardId: string }) {
             selected={selection.ids.has(note.id)}
             editing={note.id === selection.editingId}
             dragging={transform.draggingId === note.id}
-            readOnly={!canEdit(connectionState)}
+            readOnly={!editable}
             onSelect={selection.click}
             onToggle={selection.toggle}
             onStartEdit={selection.startEdit}
             onEndEdit={selection.endEdit}
             onObjectPointerDown={transform.onObjectPointerDown}
+            undoController={undoController}
           />
         ))}
         <MarqueeRect rect={marquee.rect} camera={camera} />
@@ -163,7 +187,11 @@ export function Board({ boardId }: { boardId: string }) {
         camera={camera}
         onDelete={handleDeleteSelection}
       />
-      <Toolbar onCreateSticky={createAtWorldCentre} disabled={!canEdit(connectionState)} />
+      <Toolbar
+        onCreateSticky={createAtWorldCentre}
+        disabled={!editable}
+        undoState={undoState}
+      />
       <ZoomControls
         zoomPercent={zoomPercent(camera)}
         canZoomIn={canZoomIn(camera)}
