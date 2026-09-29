@@ -9,8 +9,9 @@ import type { ConnectionState } from './connectBoard';
  * - 'connected': hidden
  * - 'reconnecting': shows amber "Reconnecting…"
  * - 'confirmed': shows green "Connected" (briefly after reconnection)
+ * - 'load_failed': shows red "This board couldn't be loaded. Retrying…"
  *
- * The board stays fully editable in every state.
+ * The board stays editable except in 'load_failed' state.
  */
 export function ConnectionStatus(props: { state: ConnectionState }): JSX.Element | null {
   const { state } = props;
@@ -37,6 +38,14 @@ export function ConnectionStatus(props: { state: ConnectionState }): JSX.Element
     return (
       <div role="status" className="connection-status connection-status--confirmed">
         Connected
+      </div>
+    );
+  }
+
+  if (state === 'load_failed') {
+    return (
+      <div role="status" className="connection-status connection-status--load-failed">
+        This board couldn&apos;t be loaded. Retrying…
       </div>
     );
   }

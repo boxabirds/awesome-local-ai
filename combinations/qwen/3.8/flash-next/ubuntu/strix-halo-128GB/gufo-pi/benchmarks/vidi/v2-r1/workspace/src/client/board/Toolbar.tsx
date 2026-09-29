@@ -2,6 +2,7 @@ import type { JSX } from 'react';
 
 export interface ToolbarProps {
   onCreateSticky(): void;
+  disabled?: boolean;
 }
 
 /** The tooltip of the Sticky note button, exactly as the product names it. */
@@ -14,7 +15,7 @@ export const STICKY_BUTTON_TOOLTIP = 'Sticky note – or double-click the board'
  * Pointer events stop at the toolbar so clicking a tool never reaches the board
  * (which would pan it or clear the selection).
  */
-export function Toolbar({ onCreateSticky }: ToolbarProps): JSX.Element {
+export function Toolbar({ onCreateSticky, disabled }: ToolbarProps): JSX.Element {
   return (
     <div
       className="board-toolbar"
@@ -32,6 +33,7 @@ export function Toolbar({ onCreateSticky }: ToolbarProps): JSX.Element {
         aria-label="Sticky note"
         title={STICKY_BUTTON_TOOLTIP}
         onClick={onCreateSticky}
+        disabled={disabled}
       >
         <svg viewBox="0 0 20 20" width="18" height="18" aria-hidden="true" focusable="false">
           <path

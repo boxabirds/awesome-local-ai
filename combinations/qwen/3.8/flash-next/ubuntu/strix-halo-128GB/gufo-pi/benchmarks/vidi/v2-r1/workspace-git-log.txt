@@ -1,3 +1,35 @@
+commit c31eb1057d00bb6c21e7210716613c0a2faa608c
+vidi-agent  Tue Sep 29 23:20:10 2026 +0000
+
+    feat: story 4 — return to a board and find everything as it was left
+
+
+ playwright.config.ts                             |  16 +-
+ src/client/App.tsx                               |  26 +-
+ src/client/board/Toolbar.tsx                     |   4 +-
+ src/client/canvas/testHooks.ts                   |   4 +
+ src/client/styles.css                            |  16 +
+ src/client/sync/ConnectionStatus.tsx             |  11 +-
+ src/client/sync/connectBoard.ts                  |  23 +-
+ src/shared/config.ts                             |  17 +
+ src/shared/protocol.ts                           |   2 +
+ src/worker/board-room.ts                         | 393 ++++++++++++++++++----
+ src/worker/board-store.ts                        | 259 +++++++++++++++
+ src/worker/cloudflare-workers.d.ts               |   5 +-
+ src/worker/index.ts                              |   8 +
+ src/worker/room-state.ts                         |  84 +++++
+ src/worker/test-hooks.ts                         |  79 +++++
+ tests/component/ConnectionLoadFailed.test.tsx    |  68 ++++
+ tests/component/ToolbarDisabled.test.tsx         |  33 ++
+ tests/e2e/broken-board/broken-board.test.ts      |  87 +++++
+ tests/e2e/helpers/persistence.ts                 |  93 ++++++
+ tests/e2e/persistence/restart.test.ts            | 117 +++++++
+ tests/fixtures/boards.ts                         | 134 ++++++++
+ tests/integration/board-room-persistence.test.ts | 369 +++++++++++++++++++++
+ tests/integration/board-store.test.ts            | 400 +++++++++++++++++++++++
+ tests/unit/board-store-chunks.test.ts            |  73 +++++
+ tests/unit/room-state.test.ts                    | 182 +++++++++++
+ 25 files changed, 2420 insertions(+), 83 deletions(-)
 commit 0b57b6e39de68f2c4a873f925fc8e52f817b74c7
 vidi-agent  Tue Sep 29 22:31:19 2026 +0000
 

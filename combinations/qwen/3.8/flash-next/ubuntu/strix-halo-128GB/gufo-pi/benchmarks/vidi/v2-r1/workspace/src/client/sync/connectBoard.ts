@@ -2,9 +2,15 @@ import * as Y from 'yjs';
 import { WebsocketProvider } from 'y-websocket';
 
 import { CONNECTED_CONFIRMATION_MS, RECONNECT_MAX_BACKOFF_MS } from '../../shared/config';
+import { CLOSE_BOARD_LOAD_FAILED } from '../../shared/protocol';
 import { TEST_MODE } from '../canvas/testHooks';
 
-export type ConnectionState = 'connecting' | 'connected' | 'reconnecting' | 'confirmed';
+export type ConnectionState = 'connecting' | 'connected' | 'reconnecting' | 'confirmed' | 'load_failed';
+
+/** Returns false only for load_failed - the board is not editable. */
+export function canEdit(state: ConnectionState): boolean {
+  return state !== 'load_failed';
+}
 
 export interface BoardConnection {
   destroy(): void;
@@ -90,8 +96,22 @@ export function connectBoard(
     }
   };
 
+  // Provider connection-close event: map close codes to states
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const closeHandler = (event: any) => {
+    if (event === null || event === undefined) return;
+    if (event.code === CLOSE_BOARD_LOAD_FAILED) {
+      setState('load_failed');
+    } else {
+      // 1011 (storage failure), 1003, or any other code → reconnecting
+      clearConfirmationTimer();
+      setState('reconnecting');
+    }
+  };
+
   provider.on('status', statusHandler);
   provider.on('sync', syncHandler);
+  provider.on('connection-close', closeHandler);
 
   // Initial state
   setState('connecting');
@@ -101,6 +121,7 @@ export function connectBoard(
       clearConfirmationTimer();
       provider.off('status', statusHandler);
       provider.off('sync', syncHandler);
+      provider.off('connection-close', closeHandler);
       provider.destroy();
     },
   };

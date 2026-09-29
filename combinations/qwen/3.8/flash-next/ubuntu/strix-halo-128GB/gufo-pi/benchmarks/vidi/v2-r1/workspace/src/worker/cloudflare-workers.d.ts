@@ -32,9 +32,10 @@ declare module 'cloudflare:test' {
 interface DurableObjectState {
   id: DurableObjectId;
   storage: DurableObjectStorage;
-  blockConcurrencyWhile<T>(callback: () => Promise<T>): Promise<T>;
+  blockConcurrencyWhile<T>(callback: () => Promise<T> | T): Promise<T>;
   waitUntil(promise: Promise<unknown>): void;
   acceptWebSocket(ws: WebSocket, tags?: string[]): void;
+  getWebSockets(tags?: string[]): WebSocket[];
   getWebSocketAttachments<T = unknown>(): T | null;
   listWebSockets(query?: string, iterationOptions?: IterableIteratorOptions): IterableIterator<WebSocket>;
 }
@@ -45,6 +46,8 @@ interface DurableObjectId {
 }
 
 interface DurableObjectStorage {
+  sql: SqlStorage;
+  transactionSync<T>(closure: () => T): T;
   get<T = unknown>(key: string): Promise<T | undefined>;
   get<T = unknown>(keys: string[]): Promise<Map<string, T>>;
   list<T = unknown>(options?: {

@@ -15,7 +15,7 @@ const BASE_URL = `http://127.0.0.1:${PORT}`;
  */
 const serveCommand =
   `npm run build:test && ` +
-  `npx --no-install wrangler dev --local --ip 127.0.0.1 --port ${PORT}`;
+  `npx --no-install wrangler dev --local --ip 127.0.0.1 --port ${PORT} --var TEST_HOOKS:1`;
 
 const browsersRoot =
   process.env.PLAYWRIGHT_BROWSERS_PATH ?? path.join(os.homedir(), '.cache', 'ms-playwright');
@@ -50,7 +50,19 @@ export default defineConfig({
     baseURL: BASE_URL,
     viewport: { width: 1280, height: 800 },
   },
-  projects: projects.length > 0 ? projects : allProjects.slice(0, 1),
+  projects: [
+    ...(projects.length > 0 ? projects : allProjects.slice(0, 1)).map((p) => ({
+      ...p,
+      testIgnore: ['**/persistence/**', '**/broken-board/**'],
+    })),
+    {
+      name: 'restart-tests',
+      testMatch: ['**/persistence/**', '**/broken-board/**'],
+      use: { browserName: 'chromium' as const },
+      fullyParallel: false,
+      workers: 1,
+    },
+  ],
   webServer: {
     command: serveCommand,
     url: BASE_URL,

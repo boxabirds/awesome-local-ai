@@ -388,3 +388,19 @@ body {
   color: #2e7d32;
   border: 1px solid #a5d6a7;
 }
+
+.connection-status--load-failed {
+  background: #fdeceb;
+  color: #b3261e;
+  border: 1px solid #e57373;
+}
+
+/* Disabled toolbar button (load_failed state) */
+.board-toolbar__button:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.board-toolbar__button:disabled:hover {
+  background: transparent;
+}

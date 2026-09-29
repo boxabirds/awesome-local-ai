@@ -21,6 +21,10 @@ export interface Vidi6TestHooks {
    * deleted while it is being dragged).
    */
   getDoc?(): Y.Doc;
+  /** Returns the number of notes currently in the document. */
+  getNoteCount?(): number;
+  /** Adds n random sticky notes to the document. */
+  addRandomNotes?(n: number): void;
 }
 
 export function installTestHooks(hooks: Vidi6TestHooks | null): void {

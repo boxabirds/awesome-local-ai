@@ -11,6 +11,7 @@ import { useBoardDoc } from './board/useBoardDoc';
 import { isTextEntryTarget, useSelection } from './board/useSelection';
 import { StickyNote } from './objects/StickyNote';
 import { ConnectionStatus } from './sync/ConnectionStatus';
+import { canEdit } from './sync/connectBoard';
 import { createSticky, deleteObject, type StickySnapshot } from '../shared/board-model';
 import { newBoardId } from '../shared/board-id';
 
@@ -49,6 +50,7 @@ export function App() {
   const boardId = useBoardId();
   const { doc, notes, connectionState } = useBoardDoc(boardId);
   const selection = useSelection();
+  const editing = canEdit(connectionState);
 
   /** Latest camera, readable synchronously inside event handlers. */
   const cameraRef = useRef(camera);
@@ -60,17 +62,19 @@ export function App() {
    */
   const createAtScreenPoint = useCallback(
     (screen: Point) => {
+      if (!editing) return;
       const world = screenToWorld(cameraRef.current, screen);
       const id = createSticky(doc, world);
       if (id !== '') selection.startEdit(id);
     },
-    [doc, selection],
+    [doc, selection, editing],
   );
 
   /** Create a note in the middle of what the user can see, wherever they panned. */
   const createAtCentre = useCallback(() => {
+    if (!editing) return;
     createAtScreenPoint({ x: viewport.width / 2, y: viewport.height / 2 });
-  }, [createAtScreenPoint, viewport.height, viewport.width]);
+  }, [createAtScreenPoint, viewport.height, viewport.width, editing]);
 
   // Keyboard: Enter edits the selected note, Delete/Backspace removes it. While
   // a note is being edited - or while focus is in any field - these keys belong
@@ -106,12 +110,22 @@ export function App() {
   useEffect(() => {
     const hooks = TEST_MODE ? window.__vidi6 : undefined;
     if (!hooks) return undefined;
-    const previous = hooks.getDoc;
+    const prevGetDoc = hooks.getDoc;
+    const prevGetNoteCount = hooks.getNoteCount;
+    const prevAddRandomNotes = hooks.addRandomNotes;
     hooks.getDoc = () => doc;
-    return () => {
-      hooks.getDoc = previous;
+    hooks.getNoteCount = () => notes.length;
+    hooks.addRandomNotes = (n: number) => {
+      for (let i = 0; i < n; i++) {
+        createSticky(doc, { x: (i % 50) * 220, y: Math.floor(i / 50) * 220 });
+      }
     };
-  }, [doc]);
+    return () => {
+      hooks.getDoc = prevGetDoc;
+      hooks.getNoteCount = prevGetNoteCount;
+      hooks.addRandomNotes = prevAddRandomNotes;
+    };
+  }, [doc, notes.length]);
 
   /**
    * Notes are painted by CSS `z-index`, and rendered in a stable order. Sorting
@@ -143,7 +157,7 @@ export function App() {
           />
         ))}
       </BoardViewport>
-      <Toolbar onCreateSticky={createAtCentre} />
+      <Toolbar onCreateSticky={createAtCentre} disabled={!editing} />
       <ZoomControls
         zoomPercent={zoomPercent(camera)}
         canZoomIn={canZoomIn(camera)}
