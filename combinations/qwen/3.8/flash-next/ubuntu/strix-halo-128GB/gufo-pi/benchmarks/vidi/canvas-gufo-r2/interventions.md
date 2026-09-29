@@ -11,3 +11,7 @@ Every manual or automatic intervention in this run, oldest first. The run's numb
 - 2026-09-28T20:24:10Z story 07: the agent's last reply was a tool call written as text (not run); continued the session (1/3)
 - 2026-09-28T20:29:16Z story 07: the agent's last reply was a tool call written as text (not run); continued the session (2/3)
 - 2026-09-28T23:25:36Z story 11: the agent's last reply was a tool call written as text (not run); continued the session (1/3)
+- 2026-09-29T01:07:54Z story 12: the agent's last reply was a tool call written as text (not run); continued the session (1/3)
+- 2026-09-29T01:42:24Z story 12: the agent's last reply was a tool call written as text (not run); continued the session (2/3)
+- 2026-09-29T01:45:51Z story 12: the agent's last reply was a tool call written as text (not run); continued the session (3/3)
+- 2026-09-29T02:13:06Z story 12: ended by the operator (harness (cap)) after 102.0 agent-min, 278 calls: story cap: 5 nudges without committing (cap 5). Recorded PARTIAL. Verdict red: gate red, tasks not verified [1, 2, 3, 4, 5, 6, 7, 8, 9] (implementation: [3, 5, 6, 7]), held-out 5/5 (floor 0.0). The run continued with the next story.

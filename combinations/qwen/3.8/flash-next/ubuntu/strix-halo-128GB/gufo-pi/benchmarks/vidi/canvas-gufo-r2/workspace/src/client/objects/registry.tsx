@@ -65,7 +65,8 @@ import { TextObject } from './TextObject';
 import { ShapeObject } from './ShapeObject';
 import { ConnectorObject } from './ConnectorObject';
 import { StrokeObject } from './StrokeObject';
-import { TEXT_MIN_WIDTH_WORLD, SHAPE_MIN_SIZE_WORLD, CONNECTOR_HIT_TOLERANCE_PX, STROKE_HIT_TOLERANCE_PX, STROKE_MIN_SIZE_WORLD, PEN_THICKNESS_WORLD } from '../../shared/config';
+import { ImageBoardObject } from './ImageObject';
+import { TEXT_MIN_WIDTH_WORLD, SHAPE_MIN_SIZE_WORLD, CONNECTOR_HIT_TOLERANCE_PX, STROKE_HIT_TOLERANCE_PX, STROKE_MIN_SIZE_WORLD, PEN_THICKNESS_WORLD, IMAGE_MIN_SIZE_WORLD } from '../../shared/config';
 import { distanceToPolyline } from '../../shared/geometry/polyline';
 import { scaledPoints } from '../../shared/objects/stroke';
 import type { StrokeSnap } from '../../shared/objects/stroke';
@@ -155,5 +156,25 @@ registerObjectType('stroke', {
     }
     const dist = distanceToPolyline(pts, worldPoint);
     return dist <= Math.max(PEN_THICKNESS_WORLD[stroke.thickness] / 2, STROKE_HIT_TOLERANCE_PX / (zoom || 1));
+  },
+});
+
+registerObjectType('image', {
+  Component: ImageBoardObject,
+  resizable: true,
+  // Images always keep their proportions and never shrink below 16 units
+  // (PRD image.aspect_resize).
+  aspectLocked: true,
+  minSize: IMAGE_MIN_SIZE_WORLD,
+  editableText: false,
+  handles: 'all',
+  hitTest(obj, worldPoint) {
+    // Images are rectangles: a plain bounds test is exact.
+    return rectContains(objectBounds(obj), {
+      x: worldPoint.x,
+      y: worldPoint.y,
+      width: 0,
+      height: 0,
+    });
   },
 });

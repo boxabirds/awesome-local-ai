@@ -13,6 +13,8 @@ export function Toolbar(props: {
   onCreateSticky(): void;
   shapeKind: ShapeKind;
   onShapeKindChange(k: ShapeKind): void;
+  /** Opens the system file picker; adds images without changing the tool. */
+  onPickImages?(): void;
   disabled?: boolean;
   undoState?: UseUndoResult;
 }): JSX.Element {
@@ -126,6 +128,21 @@ export function Toolbar(props: {
       >
         <svg width="20" height="20" viewBox="0 0 20 20" aria-hidden="true">
           <path d="M3 17l2-6L14 2l4 4L9 15l-6 2z" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" />
+        </svg>
+      </button>
+      <button
+        type="button"
+        className="toolbar-button"
+        aria-label="Image"
+        title="Image – adds PNG, JPEG, GIF or WebP – or press I"
+        disabled={props.disabled === true}
+        onPointerDown={(e) => e.stopPropagation()}
+        onClick={() => props.onPickImages?.()}
+      >
+        <svg width="20" height="20" viewBox="0 0 20 20" aria-hidden="true">
+          <rect x="2" y="4" width="16" height="12" rx="2" fill="none" stroke="currentColor" strokeWidth="1.5" />
+          <circle cx="7" cy="9" r="1.4" fill="currentColor" />
+          <path d="M3 15l4.5-4.5L11 14l2.5-2 3.5 3" fill="none" stroke="currentColor" strokeWidth="1.5" />
         </svg>
       </button>
       {props.undoState && <UndoButtons {...props.undoState} />}

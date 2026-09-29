@@ -21,6 +21,16 @@ function parseRoute(pathname: string): Route {
 }
 
 /**
+ * Board id encoded in the current path (`/b/:id`), if any. Used by components
+ * that need to call the board API but are rendered by the generic object
+ * registry and therefore receive no board identity of their own.
+ */
+export function boardIdFromPath(pathname: string = window.location.pathname): string | undefined {
+  const match = pathname.match(/^\/b\/([A-Za-z0-9_-]+)/);
+  return match?.[1];
+}
+
+/**
  * Hook that returns the current route and re-renders on navigation.
  */
 export function useRoute(): Route {

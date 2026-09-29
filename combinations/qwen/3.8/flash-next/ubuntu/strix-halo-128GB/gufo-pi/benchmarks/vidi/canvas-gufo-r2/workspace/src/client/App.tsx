@@ -26,6 +26,9 @@ import { useUndo } from './board/useUndo';
 import { getObjectType } from './objects/registry';
 import { ConnectionStatus } from './sync/ConnectionStatus';
 import type { ConnectionState } from './sync/connectBoard';
+import { useImageInsert } from './images/useImageInsert';
+import { DropHighlight } from './images/DropHighlight';
+import { ToastHost } from './ui/Toast';
 import {
   createSticky,
   deleteObjects,
@@ -63,10 +66,11 @@ function BoardChrome(props: {
   onCreateSticky(): void;
   shapeKind: ShapeKind;
   onShapeKindChange(k: ShapeKind): void;
+  onPickImages(): void;
   undoState: ReturnType<typeof useUndo>;
 }): JSX.Element {
   const { camera, hasNavigated, zoomStep, reset } = useBoardCamera();
-  const { connectionState, tool, onToolChange, onCreateSticky, shapeKind, onShapeKindChange, undoState } = props;
+  const { connectionState, tool, onToolChange, onCreateSticky, shapeKind, onShapeKindChange, onPickImages, undoState } = props;
   const editable = canEdit(connectionState);
 
   return (
@@ -78,6 +82,7 @@ function BoardChrome(props: {
         onCreateSticky={onCreateSticky}
         shapeKind={shapeKind}
         onShapeKindChange={onShapeKindChange}
+        onPickImages={onPickImages}
         disabled={!editable}
         undoState={undoState}
       />
@@ -207,17 +212,34 @@ export function App(props: { doc?: Y.Doc; boardId?: string } = {}) {
     selection.click(id);
   }, [selection]);
 
-  const { tool, shapeKind, setTool, setShapeKind, toolCreated } = useActiveTool({
-    canEdit: canEditBoard,
-    onSelect: handleSelectForTool,
-  });
-
   const bridgeRef = useRef<BoardBridge | null>(null);
   const registerBridge = useCallback((b: BoardBridge | null) => {
     bridgeRef.current = b;
   }, []);
   const getCamera = useCallback(() => bridgeRef.current?.getCamera() ?? FALLBACK_CAMERA, []);
   const getBoardRect = useCallback(() => bridgeRef.current?.getBoardRect() ?? null, []);
+  const toWorldPoint = useCallback((p: Point) => bridgeRef.current?.toWorld(p) ?? p, []);
+  const viewportCentreWorld = useCallback(
+    () => bridgeRef.current?.viewportCentreWorld() ?? { x: 0, y: 0 },
+    [],
+  );
+
+  // Story 12: drop, paste and file-picker image insertion.
+  const images = useImageInsert({
+    doc,
+    boardId,
+    connection: connectionState,
+    toWorld: toWorldPoint,
+    viewportCentreWorld,
+    getBoardRect,
+    boundary: undoController.boundary,
+  });
+
+  const { tool, shapeKind, setTool, setShapeKind, toolCreated } = useActiveTool({
+    canEdit: canEditBoard,
+    onSelect: handleSelectForTool,
+    onImagePick: images.openPicker,
+  });
 
   const gesture = useTransformGesture({
     doc,
@@ -380,6 +402,7 @@ export function App(props: { doc?: Y.Doc; boardId?: string } = {}) {
   return (
     <div className="board-container">
       {boardId && <SharePanel boardId={boardId} />}
+      <ToastHost />
       <BoardViewport
         snapshot={notes}
         onMarqueeSelect={(ids, additive) => selection.setMany(ids, additive)}
@@ -443,8 +466,10 @@ export function App(props: { doc?: Y.Doc; boardId?: string } = {}) {
               onCreateSticky={handleCreateSticky}
               shapeKind={shapeKind}
               onShapeKindChange={setShapeKind}
+              onPickImages={images.openPicker}
               undoState={undoState}
             />
+            <DropHighlight visible={images.highlight} />
             {tool === 'shape' && (
               <ShapeTool
                 kind={shapeKind}

@@ -25,6 +25,22 @@
         "limit": 10,
         "period": 60
       }
+    },
+    {
+      // One drop can be 20 files, so uploads need a higher budget than board
+      // creation. Must stay in sync with IMAGE_UPLOAD_LIMIT / _PERIOD_SECONDS.
+      "name": "ASSET_UPLOAD_LIMITER",
+      "namespace_id": "asset-upload",
+      "simple": {
+        "limit": 60,
+        "period": 60
+      }
+    }
+  ],
+  "r2_buckets": [
+    {
+      "binding": "ASSETS_BUCKET",
+      "bucket_name": "vidi6-assets"
     }
   ],
   "assets": {

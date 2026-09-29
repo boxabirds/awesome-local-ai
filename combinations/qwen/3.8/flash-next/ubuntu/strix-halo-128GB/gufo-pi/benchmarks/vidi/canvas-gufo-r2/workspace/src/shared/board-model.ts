@@ -55,6 +55,14 @@ export interface ObjectSnapshot {
   baseWidth?: number;
   baseHeight?: number;
   thickness?: PenThickness;
+  /** Image-specific (story 12). */
+  assetKey?: string | null;
+  contentType?: string;
+  naturalWidth?: number;
+  naturalHeight?: number;
+  status?: string;
+  uploadStartedAt?: number;
+  uploaderId?: string;
 }
 
 export interface StickySnapshot extends Omit<ObjectSnapshot, 'type' | 'color' | 'text'> {
@@ -403,6 +411,17 @@ export function snapshotAll(doc: Y.Doc): readonly ObjectSnapshot[] {
       snap.baseHeight = obj.get('baseHeight') as number;
       snap.color = obj.get('color') as PenColor;
       snap.thickness = obj.get('thickness') as PenThickness;
+      snap.createdBy = obj.get('createdBy') as string | undefined;
+    } else if (type === 'image') {
+      // `assetKey` stays null until the upload completes.
+      const key = obj.get('assetKey');
+      snap.assetKey = typeof key === 'string' ? key : null;
+      snap.contentType = (obj.get('contentType') as string) ?? '';
+      snap.naturalWidth = obj.get('naturalWidth') as number;
+      snap.naturalHeight = obj.get('naturalHeight') as number;
+      snap.status = (obj.get('status') as string) ?? 'uploading';
+      snap.uploadStartedAt = (obj.get('uploadStartedAt') as number) ?? 0;
+      snap.uploaderId = (obj.get('uploaderId') as string) ?? '';
       snap.createdBy = obj.get('createdBy') as string | undefined;
     }
     result.push(snap);

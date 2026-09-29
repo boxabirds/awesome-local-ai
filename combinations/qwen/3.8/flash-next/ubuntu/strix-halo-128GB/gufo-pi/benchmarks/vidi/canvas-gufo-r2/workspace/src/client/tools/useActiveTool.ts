@@ -36,10 +36,13 @@ export interface UseActiveToolResult {
 /**
  * Manages the active tool and shape kind state.
  * Accepts `onSelect(id)` callback so it can drive the selection store externally.
+ * The Image tool has no board behaviour of its own: `I` opens the file picker and
+ * the tool stays Select (story 12, image.pick).
  */
 export function useActiveTool(opts?: {
   canEdit?: boolean;
   onSelect?(id: string): void;
+  onImagePick?(): void;
 }): UseActiveToolResult {
   const [tool, setToolState] = useState<ToolId>('select');
   const [shapeKind, setShapeKindState] = useState<ShapeKind>('rect');
@@ -47,6 +50,8 @@ export function useActiveTool(opts?: {
   const canEdit = opts?.canEdit ?? true;
   const onSelectRef = useRef(opts?.onSelect);
   onSelectRef.current = opts?.onSelect;
+  const onImagePickRef = useRef(opts?.onImagePick);
+  onImagePickRef.current = opts?.onImagePick;
 
   // If canEdit becomes false, revert to select
   useEffect(() => {
@@ -85,6 +90,11 @@ export function useActiveTool(opts?: {
       const lower = e.key.toLowerCase();
       const mapped = TOOL_SHORTCUTS[lower];
       if (mapped) {
+        if (mapped === 'image') {
+          if (canEdit) onImagePickRef.current?.();
+          setToolState('select');
+          return;
+        }
         // Only set tools we support
         if (mapped === 'shape' || mapped === 'connector' || mapped === 'select' || mapped === 'text' || mapped === 'sticky' || mapped === 'pen') {
           setTool(mapped);
@@ -100,7 +110,7 @@ export function useActiveTool(opts?: {
 
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [setTool]);
+  }, [setTool, canEdit]);
 
   return { tool, shapeKind, setTool, setShapeKind, toolCreated };
 }
