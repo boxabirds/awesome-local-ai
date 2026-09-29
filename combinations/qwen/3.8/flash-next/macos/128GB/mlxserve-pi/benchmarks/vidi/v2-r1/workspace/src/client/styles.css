@@ -53,3 +53,14 @@ button:focus-visible,
 [data-testid='navigation-hint'] {
   opacity: 0.95;
 }
+
+/* Sticky note text: display and editor share this class. Overflow adds a soft
+   fade at the bottom to signal text the note cannot show. */
+.sticky-note__text {
+  caret-color: #1f2328;
+}
+
+.sticky-note__text--overflow {
+  -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 24px), transparent);
+  mask-image: linear-gradient(to bottom, #000 calc(100% - 24px), transparent);
+}

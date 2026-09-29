@@ -6,11 +6,12 @@ import {
   useRef,
   useState,
   type CSSProperties,
+  type MouseEvent as ReactMouseEvent,
   type PointerEvent as ReactPointerEvent,
   type ReactNode,
 } from 'react';
-import { GRID_SPACING_WORLD } from '../../shared/config';
-import { worldToScreen, type Size } from './camera';
+import { DRAG_THRESHOLD_PX, GRID_SPACING_WORLD } from '../../shared/config';
+import { worldToScreen, type Point, type Size } from './camera';
 import { useCamera, type UseCameraResult } from './useCamera';
 
 /** Pixels per wheel `deltaMode === LINE` unit (Firefox reports lines). */
@@ -65,6 +66,10 @@ interface BoardViewportProps {
   children?: ReactNode;
   /** Screen-space UI chrome (zoom controls, hint) rendered above the board. */
   chrome?: ReactNode;
+  /** A press+release on empty board space that did not pan (clears selection). */
+  onEmptyClick?(point: Point): void;
+  /** A double-click on empty board space (creates a note at that point). */
+  onEmptyDoubleClick?(point: Point): void;
 }
 
 /**
@@ -73,10 +78,18 @@ interface BoardViewportProps {
  * plain scroll), zoom at the pointer (pinch, Ctrl/Cmd + wheel, Safari gesture)
  * and the keyboard shortcuts, and never lets the browser zoom the page.
  */
-export function BoardViewport({ children, chrome }: BoardViewportProps): ReactNode {
+export function BoardViewport({
+  children,
+  chrome,
+  onEmptyClick,
+  onEmptyDoubleClick,
+}: BoardViewportProps): ReactNode {
   const elementRef = useRef<HTMLDivElement | null>(null);
   const [size, setSize] = useState<Size>(measureWindow);
   const gestureBaseScaleRef = useRef<number | null>(null);
+  // Tracks a press that started on empty space so we can tell a click (clear
+  // selection) from a pan.
+  const emptyDownRef = useRef<{ x: number; y: number; moved: boolean } | null>(null);
 
   const {
     camera,
@@ -213,6 +226,7 @@ export function BoardViewport({ children, chrome }: BoardViewportProps): ReactNo
       if (event.target !== event.currentTarget) return;
       if (event.button !== 0) return;
       event.currentTarget.setPointerCapture?.(event.pointerId);
+      emptyDownRef.current = { x: event.clientX, y: event.clientY, moved: false };
       beginPan({ x: event.clientX, y: event.clientY });
     },
     [beginPan],
@@ -220,6 +234,12 @@ export function BoardViewport({ children, chrome }: BoardViewportProps): ReactNo
 
   const onPointerMove = useCallback(
     (event: ReactPointerEvent<HTMLDivElement>) => {
+      const down = emptyDownRef.current;
+      if (down) {
+        const dx = event.clientX - down.x;
+        const dy = event.clientY - down.y;
+        if (dx * dx + dy * dy >= DRAG_THRESHOLD_PX * DRAG_THRESHOLD_PX) down.moved = true;
+      }
       panMove({ x: event.clientX, y: event.clientY });
     },
     [panMove],
@@ -229,9 +249,24 @@ export function BoardViewport({ children, chrome }: BoardViewportProps): ReactNo
     (event: ReactPointerEvent<HTMLDivElement>) => {
       event.currentTarget.releasePointerCapture?.(event.pointerId);
       endPan();
+      const down = emptyDownRef.current;
+      emptyDownRef.current = null;
+      // A press+release on empty space that never panned clears the selection.
+      if (down && !down.moved) onEmptyClick?.({ x: event.clientX, y: event.clientY });
     },
-    [endPan],
+    [endPan, onEmptyClick],
   );
+
+  const onDoubleClick = useCallback(
+    (event: ReactMouseEvent<HTMLDivElement>) => {
+      // Only a double-click on empty board space creates a note; a note stops
+      // propagation and edits itself instead.
+      if (event.target !== event.currentTarget) return;
+      onEmptyDoubleClick?.({ x: event.clientX, y: event.clientY });
+    },
+    [onEmptyDoubleClick],
+  );
+
 
   const onPointerCancel = useCallback(() => {
     // A system interruption ends the drag; the board stays where it was.
@@ -292,6 +327,7 @@ export function BoardViewport({ children, chrome }: BoardViewportProps): ReactNo
         onPointerUp={onPointerEnd}
         onPointerCancel={onPointerCancel}
         onLostPointerCapture={onLostPointerCapture}
+        onDoubleClick={onDoubleClick}
       >
         <div data-testid="board-world" style={worldStyle}>
           <div
