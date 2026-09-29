@@ -1,3 +1,34 @@
+commit 0b57b6e39de68f2c4a873f925fc8e52f817b74c7
+vidi-agent  Tue Sep 29 22:31:19 2026 +0000
+
+    feat: story 3 — live collaboration via Cloudflare Worker Durable Object
+
+
+ package-lock.json                         | 1037 ++++++++++++++++++++++++++---
+ package.json                              |   10 +-
+ src/client/App.tsx                        |   34 +-
+ src/client/board/useBoardDoc.ts           |   28 +-
+ src/client/styles.css                     |   34 +
+ src/client/sync/ConnectionStatus.tsx      |   45 ++
+ src/client/sync/connectBoard.ts           |  107 +++
+ src/shared/board-id.ts                    |   33 +
+ src/shared/config.ts                      |   15 +
+ src/shared/protocol.ts                    |   51 ++
+ src/worker/board-room.ts                  |  272 ++++++++
+ src/worker/cloudflare-workers.d.ts        |  146 ++++
+ src/worker/index.ts                       |   33 +
+ tests/component/ConnectionStatus.test.tsx |   96 +++
+ tests/e2e/collaboration-nightly.spec.ts   |  271 ++++++++
+ tests/e2e/collaboration.spec.ts           |  415 ++++++++++++
+ tests/e2e/helpers/participants.ts         |  159 +++++
+ tests/integration/board-room.test.ts      |  511 ++++++++++++++
+ tests/integration/worker.test.ts          |   33 +
+ tests/integration/ws-client.ts            |  280 ++++++++
+ tests/unit/board-id.test.ts               |   72 ++
+ tests/unit/protocol.test.ts               |   97 +++
+ vitest.config.ts                          |   15 +-
+ wrangler.jsonc                            |   25 +-
+ 24 files changed, 3725 insertions(+), 94 deletions(-)
 commit 45d27ea56c21bf991e7cd120ca8ae1bccb8085cc
 vidi-agent  Tue Sep 29 21:45:40 2026 +0000
 
