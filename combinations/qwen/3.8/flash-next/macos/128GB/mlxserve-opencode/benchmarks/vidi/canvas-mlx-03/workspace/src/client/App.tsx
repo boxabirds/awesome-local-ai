@@ -9,6 +9,8 @@ import { NoteToolbar } from './objects/NoteToolbar.tsx';
 import { useCamera } from './canvas/useCamera.ts';
 import { useBoardDoc } from './board/useBoardDoc.ts';
 import { useSelection } from './board/useSelection.ts';
+import { ConnectionStatus } from './board/ConnectionStatus.tsx';
+import { isValidBoardId } from '../shared/board-id.ts';
 import {
   canZoomIn,
   canZoomOut,
@@ -34,6 +36,15 @@ function isEditable(el: EventTarget | null): boolean {
 export interface AppProps {
   /** Component tests inject their own document; production omits this. */
   doc?: Y.Doc;
+  /** Board id from the /b/:boardId route; component tests may omit it. */
+  boardId?: string | null;
+}
+
+/** Read the board id from a /b/<valid id> path, or null (local board). */
+export function boardIdFromPath(path: string): string | null {
+  const m = /^\/b\/([^/]+)/.exec(path);
+  const id = m?.[1];
+  return id && isValidBoardId(id) ? id : null;
 }
 
 /**
@@ -58,7 +69,8 @@ export default function App(props: AppProps = {}) {
   }, []);
 
   const cam = useCamera(viewport);
-  const { doc, notes } = useBoardDoc(props.doc);
+  const boardId = props.boardId ?? boardIdFromPath(window.location.pathname);
+  const { doc, notes, connection } = useBoardDoc(props.doc, boardId);
   const sel = useSelection();
   const selRef = useRef(sel);
   selRef.current = sel;
@@ -185,6 +197,7 @@ export default function App(props: AppProps = {}) {
         onReset={cam.reset}
       />
       <NavigationHint visible={!cam.hasNavigated} />
+      <ConnectionStatus status={connection} />
     </div>
   );
 }

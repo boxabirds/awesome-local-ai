@@ -8,17 +8,25 @@
     "build": "vite build",
     "build:test": "vite build --mode test",
     "preview": "vite preview",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "tsc -p tsconfig.client.json --noEmit && tsc -p tsconfig.worker.json --noEmit",
     "test:unit": "vitest run --project unit",
     "test:component": "vitest run --project component",
-    "test:e2e": "MOZ_DISABLE_CONTENT_SANDBOX=1 MOZ_DISABLE_GPU_SANDBOX=1 playwright test"
+    "test:integration": "vitest run --project integration",
+    "test": "vitest run --project unit --project component --project integration",
+    "test:e2e": "MOZ_DISABLE_CONTENT_SANDBOX=1 MOZ_DISABLE_GPU_SANDBOX=1 playwright test",
+  "test:e2e:nightly": "MOZ_DISABLE_CONTENT_SANDBOX=1 MOZ_DISABLE_GPU_SANDBOX=1 playwright test -c playwright.nightly.config.ts"
   },
   "dependencies": {
+    "lib0": "^0.2.119",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
+    "y-protocols": "^1.0.7",
+    "y-websocket": "^3.1.0",
     "yjs": "^13.6.33"
   },
   "devDependencies": {
+    "@cloudflare/vitest-pool-workers": "^0.7.8",
+    "@cloudflare/workers-types": "^4.20260702.1",
     "@playwright/test": "^1.49.0",
     "@testing-library/jest-dom": "^6.6.3",
     "@testing-library/react": "^16.1.0",

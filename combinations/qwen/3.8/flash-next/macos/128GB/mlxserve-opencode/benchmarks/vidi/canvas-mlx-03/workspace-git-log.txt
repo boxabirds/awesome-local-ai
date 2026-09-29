@@ -1,3 +1,71 @@
+commit 9cfe8c5c405718fb97da3f05591e3ff7806709ff
+vidi-agent  Tue Sep 29 02:38:40 2026 +0100
+
+    story 3: See other people's edits appear live on the same board
+
+
+ NOTES.md                                         | 179 ++++++++--------
+ package.json                                     |   3 +-
+ playwright.config.ts                             |   2 +
+ playwright.nightly.config.ts                     |  34 +++
+ src/client/board/ConnectionStatus.tsx            |  14 +-
+ src/client/board/connectBoard.ts                 |  30 ++-
+ src/client/board/useBoardDoc.ts                  |  72 +++++--
+ src/client/board/useConnectionBadge.ts           |  52 +++++
+ src/client/vite-env.d.ts                         |   7 +
+ tests/component/ConnectionStatus.test.tsx        | 137 ++++++++++---
+ tests/e2e/collaboration1.spec.ts                 | 251 +++++++++++++++++++++++
+ tests/e2e/helpers/board.ts                       | 137 ++++++++++++-
+ tests/e2e/helpers/rawClient.ts                   | 179 ++++++++++++++++
+ tests/e2e/multitab.spec.ts                       |  34 +++
+ tests/e2e/nightly/capacity-soak.nightly.spec.ts  | 102 +++++++++
+ tests/e2e/nightly/idle-stability.nightly.spec.ts |  53 +++++
+ tests/e2e/presence.spec.ts                       | 108 ++++++++++
+ 17 files changed, 1248 insertions(+), 146 deletions(-)
+commit 82df75c5e8f8514a1d5f8df7a9941803133ad9f1
+vidi-agent  Tue Sep 29 01:35:14 2026 +0100
+
+    feat(3): connectBoard + ConnectionStatus wired into App; component + unit tests (TC-19..21)
+
+
+ package.json                              |   4 +-
+ src/client/App.tsx                        |  15 ++-
+ src/client/board/ConnectionStatus.tsx     |  49 ++++++++
+ src/client/board/connectBoard.ts          |  60 +++++++++
+ src/client/board/useBoardDoc.ts           |  37 +++++-
+ src/client/styles.css                     |  22 ++++
+ tests/component/ConnectionStatus.test.tsx |  47 ++++++++
+ tests/integration/board-room.test.ts      |   6 +-
+ tests/integration/worker.test.ts          |   6 +-
+ tests/unit/connectBoard.test.ts           | 194 ++++++++++++++++++++++++++++++
+ tests/unit/protocol.test.ts               |   4 +-
+ tsconfig.json                             |   9 +-
+ 12 files changed, 437 insertions(+), 16 deletions(-)
+commit 85839ebfe7bf1c4904a1b92743c594204ffb1ce9
+vidi-agent  Tue Sep 29 01:25:13 2026 +0100
+
+    test(3): integration tests for room relay, convergence, capacity, awareness, reconnect (TC-04..18, TC-31)
+
+
+ package-lock.json                       | 738 ++++++++++++++++++++++++++++++++
+ package.json                            |   5 +
+ src/shared/board-id.ts                  |  46 ++
+ src/shared/config.ts                    |  18 +
+ src/shared/protocol.ts                  |  75 ++++
+ src/worker/board-room.ts                | 145 +++++++
+ src/worker/index.ts                     |  42 ++
+ tests/integration/board-room.test.ts    | 308 +++++++++++++
+ tests/integration/helpers/random-ops.ts |  88 ++++
+ tests/integration/helpers/ws-client.ts  | 207 +++++++++
+ tests/integration/types.d.ts            |   1 +
+ tests/integration/worker.test.ts        | 110 +++++
+ tests/unit/board-id.test.ts             |  53 +++
+ tests/unit/protocol.test.ts             |  90 ++++
+ tsconfig.client.json                    |  29 ++
+ tsconfig.worker.json                    |  20 +
+ vitest.workspace.ts                     |  20 +-
+ wrangler.jsonc                          |  21 +-
+ 18 files changed, 2013 insertions(+), 3 deletions(-)
 commit ed8c482576be3e87cfeec8fc0dd812e87c35d970
 vidi-agent  Tue Sep 29 00:56:06 2026 +0100
 

@@ -1,83 +1,96 @@
-# NOTES
+# Story 3 — Live collaboration (see other people's edits appear live)
 
-Implementation notes and decisions for **story 1 — Pan and zoom around an infinite board**.
+Implementation of `sync.worker_entry`, `sync.room`, and `sync.client`: a BoardRoom
+Durable Object per board relaying Yjs sync + awareness over WebSockets, and the
+browser `WebsocketProvider` connection with a derived status badge.
 
-## Stack / layout
-- Vite + React 19 + TypeScript client, built to `dist/client`, served statically by
-  `wrangler dev` (assets-only config; the Worker `main` arrives in story 3).
-- Vitest **2.1.9** does not support inline `test.projects` in a single config file, so the
-  two projects (`unit` = node, `component` = jsdom) are defined in `vitest.workspace.ts`.
-  `vite.config.ts` holds only the build config (`outDir: dist/client`). The npm scripts
-  (`test:unit`, `test:component`) use `vitest run --project <name>` as the design specifies.
-- `wrangler.jsonc` is assets-only (no `binding`, no `main`) because wrangler rejects an
-  assets binding in an assets-only worker. `compatibility_date` set to `2025-07-18` (the newest
-  date the pinned local Workers runtime supports).
+## Test totals (all passing)
 
-## Camera / coordinate model
-- `Camera { x, y, zoom }` with `x, y` = world coordinate at the viewport top-left;
-  `screen = (world - camera.xy) * zoom`. Doubles give sub-pixel precision far past
-  ±1,000,000 world units at `ZOOM_MAX` (TC-02/TC-04/TC-27 pass exactly).
-- Named constants in `src/shared/config.ts` (no magic literals in `camera.ts`):
-  added `PERCENT_PER_UNIT = 100`, `ZOOM_STEP_SNAP_EPSILON = 1e-9` (step in/out returns exactly
-  1.0), and `WHEEL_LINE_HEIGHT_PX` / `WHEEL_PAGE_HEIGHT_PX` for `deltaMode` LINE/PAGE → px.
-- `zoomAt` is algebraically pointer-invariant for any finite zoom (including clamped), so
-  TC-11 (huge factor) and the 1000-sample property check hold to 1e-6.
-- Invalid factor (≤0, NaN, ±Infinity) returns the input camera unchanged, never throws (TC-12).
+- **unit** — board id (`TC-01/02`), protocol decode (`TC-03`), connectBoard
+  backoff/url wiring — `tests/unit` (run in `npm test`)
+- **component** — connection status badge state machine `TC-19/20/21` — `tests/component`
+- **integration** (workerd, `@cloudflare/vitest-pool-workers`) — `TC-04..06, 13, 17`
+  (worker routing) and `TC-07..12, 14..16, 18, 31` (BoardRoom relay/merge/error) — `tests/integration`
+- **e2e (per commit)** — `TC-22..28` plus supplemental drop/recovery & multitab — `tests/e2e`
+- **e2e (nightly)** — `TC-29` idle stability, `TC-30` capacity soak — `tests/e2e/nightly`
 
-## Input handling
-- Wheel listener is attached natively with `{ passive: false }` (React `onWheel` is passive and
-  cannot stop page zoom). It always `preventDefault()`s over the board. `ctrlKey || metaKey`
-  → zoom at pointer via `Math.exp(-deltaY * WHEEL_ZOOM_SENSITIVITY)`; otherwise pan by
-  `(-deltaX, -deltaY)` so content moves opposite the scroll direction (native-scroll feel).
-- `Ctrl/Cmd + = | - | 0` handled on `window` keydown with `preventDefault` (stops page zoom).
-- Safari `gesturestart/gesturechange/gestureend` handled: `preventDefault`, zoom by scale ratio
-  around the pointer. TC-17 covers the handler logic; **real Safari pinch is a manual check**
-  (Playwright WebKit cannot synthesise `GestureEvent`), per the test strategy "Not covered".
-- Pan only starts when the `pointerdown` target is the viewport itself (the world layer and the
-  origin crosshair are `pointer-events: none`, so later board-object stories can `stopPropagation`).
-- Camera updates are coalesced with `requestAnimationFrame` to at most one render per frame.
-- Viewport size comes from a `ResizeObserver`; resize never recomputes the camera, so content
-  stays put relative to the top-left (TC-07).
+## Design decisions honoured
 
-## Components / wiring decisions
-- **BoardViewport props:** the design's illustrative contract `BoardViewport({ children })` is
-  expanded to `{ camera, viewportRef, api, children }` so the viewport can render the transform
-  and forward input to the `useCamera` handlers while `App.tsx` keeps the camera state that
-  `ZoomControls`/`NavigationHint` also read. `children` is still rendered in world coordinates.
-- **`useCamera`** returns one extra handler `gesture(scale, point)` (beyond the design's listed
-  `beginPan/panMove/endPan/wheel/zoomStep/reset`) to route Safari pinch into `zoomAt`.
-- **`hasNavigated`** is a ref-backed latch: a no-op camera update (the same object returned by
-  `camera.math` at a zoom limit or for a zero-length drag) neither re-renders nor trips it, so a
-  click-without-moving or a no-op zoom at a limit does **not** dismiss the hint (TC-29).
-- The navigation hint and camera are not persisted: a page reload shows the hint again (PRD).
+- **`MAX_CONCURRENT_EDITORS` is soft and never enforced** (design `live.over_capacity`,
+  worker entry comment). There is no connection-limit check and **no `4403` close**; the
+  only server-initiated close is `CLOSE_UNSUPPORTED_DATA` (`1003`) on a malformed frame.
+  The "6th participant must not be refused" property is integration **TC-13**
+  (`MAX_CONCURRENT_EDITORS + 1` sockets all get 101 and the last writer's note reaches all).
+- **Awareness is relayed verbatim to every socket including the sender.** This keeps idle
+  `y-websocket` clients receiving traffic so their no-message timeout never fires; proven
+  by nightly **TC-29** (45 s idle, badge never shows Reconnecting).
+- **`disableBc: true`** in `connectBoard` so same-browser tabs cannot sync around the
+  server — the room is the single relay (multitab supplemental test).
+- **Status badge** (`connecting / reconnecting / confirmed / connected`): `connected`
+  renders nothing; a reconnect flashes `Connected` for `CONNECTED_CONFIRMATION_MS` then
+  hides. First-ever sync goes straight to `connected` (no initial flash).
+- **Selection/editing stay local** — never in the Y.Doc; a selection on one board does not
+  appear on another (e2e **TC-28**).
 
-## Test-only camera hook
-- `window.__vidi6.setCamera()` is installed only when `import.meta.env.MODE === 'test'`
-  (`src/client/canvas/testHooks.ts`). It is eliminated from production builds
-  (`vite build`) — verified: `__vidi6` does not appear in the production bundle. E2E runs against
-  a `vite build --mode test` (the `build:test` script) served by `wrangler dev`, so e2e can jump
-  far away (TC-26/TC-27) without dragging a million pixels.
+## Test-harness notes
 
-## jsdom notes (component tests)
-- jsdom's `PointerEvent` does not carry `clientX`, so pan tests dispatch `MouseEvent` of the
-  pointer type (React delegates by event name); coordinates arrive correctly.
-- Timers/rAF are faked with `vi.useFakeTimers()` and flushed inside `act()` to flush the camera's
-  rAF coalescing deterministically.
+- **Integration: `singleWorker: true` + `isolatedStorage: false`.** The deeply-nested
+  workspace path exceeds macOS's 255-byte filename limit when vitest-pool-workers builds a
+  per-test Durable Object SQLite directory name; sharing one worker/isolated storage avoids
+  it. Tests therefore run serially within the integration project.
+- **`statusText` is not preserved** through workerd's internal `SELF.fetch`; integration
+  assertions check numeric status codes only.
+- **`listDurableObjectIds()` resolves to an Array (thenable), not an async iterable.**
+- WebSocket integration/e2e tests use `response.webSocket.accept()` on a real `SELF.fetch`
+  upgrade, and the real `y-protocols` framing — no protocol mocks. The only stub is the
+  transport-level `WebSocketPolyfill`.
+- **`origin === client` guard** in the integration `RoomClient` mirrors y-websocket's
+  `origin !== this` so a client's own update is not fed back to it (echo suppression, TC-08).
 
-## E2E / browsers
-- Playwright runs Chromium, Firefox and WebKit (all installed). `npm run test:e2e` sets
-  `MOZ_DISABLE_CONTENT_SANDBOX=1 MOZ_DISABLE_GPU_SANDBOX=1` because Firefox's macOS content
-  sandbox cannot `sandbox_init()` under this CI environment; without it Firefox fails to launch
-  (not an app defect). This matches the harness rule that Chromium alone would suffice if a
-  browser is unavailable — here all three pass.
-- The e2e server (`webServer`) builds in test mode then serves `dist/client` with `wrangler dev`,
-  exercising the same static-serving path production will use.
-- `page.mouse.wheel` with Control held is treated by the board as zoom and `preventDefault`ed, so
-  `window.visualViewport.scale` stays 1 and page zoom is never triggered (TC-24/TC-31).
-- Origin crosshair is a 20×20 box centred on world (0,0) so `boundingBox()` returns a stable
-  screen centre for the ±1px pixel checks (TC-23/TC-26/TC-27).
+## TC-23: why we assert convergence, not "every typed character survives"
 
-## Manual checks recorded as not-automated (per test strategy)
-- Smoothness / frame rate, real Safari pinch, trackpad hardware inertia, and Safari `gesture`
-  with a real trackpad are manual checks; they are explicitly "Not covered" in the design.
-- Touch-screen / mobile input is out of scope for this story.
+`StickyTextEditor` (story 2) seeds its textarea on mount and, on every `input`, writes its
+whole local value to `Y.Text` via `applyTextDiff`. It does **not** `observe` remote `Y.Text`
+changes mid-edit. So when two browsers type into the same note simultaneously, each side's
+commit can clobber the other's not-yet-landed characters — the Y.Doc still converges to one
+identical value (Yjs guarantees convergence) but the merged text does not necessarily retain
+*every* typed character contiguously.
+
+- e2e **TC-23** therefore asserts the contract that is actually observable through this
+  editor: both pages converge to the **same** note text within the latency budget, and that
+  text has moved past the seed (the live merge propagated).
+- Correct **character-level** concurrent-merge behaviour (both edits' characters preserved)
+  is verified deterministically at the **document** layer by integration **TC-09** (text
+  insert merge) and **TC-12** (200 seeded random ops × 5 clients → identical snapshots).
+
+A future story that swaps in an observe-based text binding (y-textarea/prosemirror) could
+tighten TC-23 to assert every typed character; that editor change is out of scope for
+story 3.
+
+## Test-only connection hooks (test build only)
+
+`window.__vidi6` exposes, only when `import.meta.env.MODE === 'test'`:
+- `simulateDrop()` → `provider.disconnect()` (the badge goes `reconnecting` and **stays**
+  down because `disconnect()` clears `shouldConnect`, so `setupWS`'s `shouldConnect &&
+  ws === null` guard makes any scheduled reconnect a no-op).
+- `restoreConnection()` → `provider.connect()` — a real reconnect + resync (badge flashes
+  `connected`).
+- `connectionState` — the badge's mapped state, read by nightly TC-29.
+- `setCamera()` — pre-existing (story 2) far-travel hook.
+
+`provider.ws.close()` is **not** used to simulate a drop: under `wrangler dev` the socket
+can sit in `CLOSING` without firing `onclose`, so `disconnect()`/`connect()` (which drive
+`closeWebsocketConnection` synchronously) are used instead.
+
+## Nightly results (recorded per tasks.md)
+
+Run: `npm run test:e2e:nightly` (chromium, one machine, model + browsers + wrangler dev at once).
+
+- **TC-29 idle stability — PASS** (45.6 s). With two connected contexts idle for 45 s, the
+  ConnectionStatus badge never rendered a `reconnecting` state and the mapped
+  `connectionState` stayed `connected` throughout — the room's awareness relay keeps the
+  sockets alive and `maxBackoffTime`/`disableBc` are correct.
+- **TC-30 capacity soak — PASS** (48.4 s). 5 contexts (`MAX_CONCURRENT_EDITORS`), continuous
+  UI edits; **603 rounds / 2412 latency samples**; **p50 = 6 ms, p95 = 23 ms, max = 48 ms**
+  against `LIVE_UPDATE_LATENCY_BUDGET_MS = 1000 ms`. Every per-change latency within budget,
+  every badge stayed hidden (`connected`), and all five final board snapshots were identical.

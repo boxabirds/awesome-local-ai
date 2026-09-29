@@ -8,6 +8,8 @@ const BASE_URL = `http://localhost:${PORT}`;
 // camera hook is available to jump far away (TC-26, TC-27).
 export default defineConfig({
   testDir: 'tests/e2e',
+  // Long-running nightly specs (TC-29, TC-30) run only via test:e2e:nightly.
+  testIgnore: /\.nightly\.spec\.ts$/,
   fullyParallel: false,
   workers: 1,
   reporter: [['list']],

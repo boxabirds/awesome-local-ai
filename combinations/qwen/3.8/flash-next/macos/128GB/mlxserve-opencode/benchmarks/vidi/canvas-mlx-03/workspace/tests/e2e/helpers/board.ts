@@ -1,4 +1,4 @@
-import { type Page, expect } from '@playwright/test';
+import { type Page, type Locator, expect } from '@playwright/test';
 
 export interface CameraState {
   x: number;
@@ -6,9 +6,58 @@ export interface CameraState {
   zoom: number;
 }
 
+export function baseUrl(): string {
+  return process.env.PLAYWRIGHT_BASE_URL ?? 'http://localhost:5178';
+}
+
+/** ws:// base for the room endpoint (mirrors the client's wsServerUrl()). */
+export function wsBaseUrl(): string {
+  return baseUrl().replace(/^http/, 'ws');
+}
+
 export async function openBoard(page: Page) {
   await page.goto('/');
   await expect(page.getByTestId('viewport')).toBeVisible();
+}
+
+/** Open a shared board (/b/<boardId>) and wait until it is connected. */
+export async function openSharedBoard(page: Page, boardId: string): Promise<void> {
+  await page.goto(`/b/${boardId}`);
+  // The viewport proves React mounted; the hidden badge proves the first sync.
+  await expect(page.getByTestId('viewport')).toBeVisible();
+  await waitForConnection(page);
+}
+
+export function connectionStatus(page: Page): Locator {
+  return page.getByTestId('connection-status');
+}
+
+/** Wait until the badge is hidden (stably connected). */
+export async function waitForConnection(page: Page): Promise<void> {
+  await expect(connectionStatus(page)).toBeHidden({ timeout: 20000 });
+}
+
+/** Force the client to disconnect from the room (test build only). The badge
+ *  goes to Reconnecting and stays down until restoreConnection(). */
+async function callBoardHook(page: Page, name: 'simulateDrop' | 'restoreConnection'): Promise<void> {
+  await page.waitForFunction((n) => !!(window).__vidi6?.[n], name, { timeout: 10000 });
+  await page.evaluate((n) => {
+    (window).__vidi6![n]!();
+  }, name);
+}
+
+export function simulateDrop(page: Page): Promise<void> {
+  return callBoardHook(page, 'simulateDrop');
+}
+
+/** Reconnect after simulateDrop(): real reconnect + resync. */
+export function restoreConnection(page: Page): Promise<void> {
+  return callBoardHook(page, 'restoreConnection');
+}
+
+/** The mapped connection state from the test hook (undefined if not present). */
+export function connectionState(page: Page): Promise<string | undefined> {
+  return page.evaluate(() => (window).__vidi6?.connectionState);
 }
 
 export function zoomLabel(page: Page) {
@@ -51,4 +100,90 @@ export async function setCamera(page: Page, cam: CameraState) {
     // Let the camera's requestAnimationFrame coalescing flush into the DOM.
     await new Promise((res) => requestAnimationFrame(() => requestAnimationFrame(res)));
   }, cam);
+}
+
+// ---------------------------------------------------------------------------
+// Collaboration helpers
+// ---------------------------------------------------------------------------
+
+export interface NoteInfo {
+  id: string;
+  x: number; // world left
+  y: number; // world top
+  z: number;
+  cx: number; // screen centre x
+  cy: number;
+  w: number;
+  h: number;
+}
+
+/** Read every sticky's id, world x/y, z, and screen centre. */
+export async function notes(page: Page): Promise<NoteInfo[]> {
+  return page.evaluate(() => {
+    const els = Array.from(
+      document.querySelectorAll('[role="group"][aria-label="Sticky note"]'),
+    ) as HTMLElement[];
+    return els.map((el) => {
+      const r = el.getBoundingClientRect();
+      return {
+        id: el.dataset.noteId ?? '',
+        x: parseFloat(el.style.left),
+        y: parseFloat(el.style.top),
+        z: parseFloat(el.style.zIndex),
+        cx: r.x + r.width / 2,
+        cy: r.y + r.height / 2,
+        w: r.width,
+        h: r.height,
+      };
+    });
+  });
+}
+
+export async function noteCount(page: Page): Promise<number> {
+  return (await notes(page)).length;
+}
+
+export async function noteIds(page: Page): Promise<string[]> {
+  return (await notes(page))
+    .map((n) => n.id)
+    .sort();
+}
+
+export async function noteTexts(page: Page): Promise<string[]> {
+  const t = await page
+    .getByTestId('sticky-text')
+    .allInnerTexts();
+  return t.map((s) => s.trim()).filter((s) => s.length > 0).sort();
+}
+
+/** Find the sticky showing `text`, or undefined. Matches the sticky-text label so
+ *  it is stable regardless of the note's other overlay text. */
+export async function noteByTest(page: Page, text: string): Promise<NoteInfo | undefined> {
+  return page.evaluate((needle) => {
+    const labels = Array.from(document.querySelectorAll('[data-testid="sticky-text"]'));
+    const hit = labels.find((el) => (el.textContent ?? '').trim() === needle);
+    const group = hit?.closest('[role="group"][aria-label="Sticky note"]') as HTMLElement | null;
+    if (!group) return undefined;
+    const r = group.getBoundingClientRect();
+    return {
+      id: group.dataset.noteId ?? '',
+      x: parseFloat(group.style.left),
+      y: parseFloat(group.style.top),
+      z: parseFloat(group.style.zIndex),
+      cx: r.x + r.width / 2,
+      cy: r.y + r.height / 2,
+      w: r.width,
+      h: r.height,
+    };
+  }, text);
+}
+
+/** Create a sticky by double-clicking the canvas at a screen point, then typing. */
+export async function createSticky(page: Page, x: number, y: number, text: string): Promise<void> {
+  await page.mouse.dblclick(x, y);
+  await page.waitForTimeout(80);
+  await page.keyboard.type(text);
+  await page.waitForTimeout(80);
+  await page.keyboard.press('Escape');
+  await page.waitForTimeout(80);
 }

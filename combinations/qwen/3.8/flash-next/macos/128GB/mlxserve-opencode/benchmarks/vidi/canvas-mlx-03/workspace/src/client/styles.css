@@ -20,3 +20,25 @@ button:focus-visible,
   outline: 2px solid #2f6fed;
   outline-offset: 1px;
 }
+
+.connection-status {
+  position: absolute;
+  top: 12px;
+  right: 16px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  color: #5b6472;
+  background: rgba(255, 255, 255, 0.8);
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  user-select: none;
+  pointer-events: none;
+}
+
+.connection-status[data-status='connected'] {
+  color: #1f7a3d;
+}
+
+.connection-status[data-status='reconnecting'] {
+  color: #b26a00;
+}
