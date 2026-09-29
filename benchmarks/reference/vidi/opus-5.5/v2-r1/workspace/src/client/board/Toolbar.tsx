@@ -1,11 +1,17 @@
 import type { SyntheticEvent } from 'react';
+import { UndoButtons } from './UndoButtons';
+import type { useUndo } from './useUndo';
 
 export const STICKY_BUTTON_TOOLTIP = 'Sticky note – or double-click the board';
 
 const stop = (e: SyntheticEvent) => e.stopPropagation();
 
-/** Fixed left-side toolbar. */
-export function Toolbar(props: { onCreateSticky(): void; disabled?: boolean }) {
+/** Fixed left-side toolbar: the tools, then Undo and Redo (story 8) when `undo` is given. */
+export function Toolbar(props: {
+  onCreateSticky(): void;
+  disabled?: boolean;
+  undo?: ReturnType<typeof useUndo>;
+}) {
   return (
     <div
       className="toolbar"
@@ -41,6 +47,7 @@ export function Toolbar(props: { onCreateSticky(): void; disabled?: boolean }) {
           />
         </svg>
       </button>
+      {props.undo && <UndoButtons {...props.undo} />}
     </div>
   );
 }

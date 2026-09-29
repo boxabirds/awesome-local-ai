@@ -2,6 +2,8 @@ import { type CSSProperties, useEffect, useLayoutEffect, useRef, useState } from
 import type * as Y from 'yjs';
 import { LOCAL_ORIGIN } from '../../shared/board-model';
 import { STICKY_TEXT_MAX_CHARS } from '../../shared/config';
+import { undoShortcut } from '../board/useBoardKeys';
+import { useUndoController } from '../board/useUndo';
 import {
   type TextDelta,
   applyTextDiff,
@@ -45,6 +47,14 @@ export function StickyTextEditor(props: {
   const shownRef = useRef(initial);
   /** Remote changes received while composing, not yet shown in the textarea. */
   const pendingRemoteRef = useRef<TextDelta[]>([]);
+  const history = useUndoController();
+
+  // Editing is its own run of undo steps: typing never merges with what came before or after.
+  useEffect(() => {
+    if (!history) return;
+    history.boundary();
+    return () => history.boundary();
+  }, [history]);
 
   useLayoutEffect(() => {
     const el = ref.current;
@@ -138,10 +148,22 @@ export function StickyTextEditor(props: {
           sync();
         }}
         onKeyDown={(e) => {
-          if (e.key !== 'Escape' || e.nativeEvent.isComposing) return;
+          if (e.nativeEvent.isComposing) return;
+          const shortcut = history ? undoShortcut(e.nativeEvent) : null;
+          if (history && shortcut) {
+            // The board's history, not the textarea's own, so the text never diverges from Y.Text.
+            e.preventDefault();
+            e.stopPropagation();
+            sync();
+            if (shortcut === 'undo') history.undo();
+            else history.redo();
+            return;
+          }
+          if (e.key !== 'Escape') return;
           e.preventDefault();
           e.stopPropagation();
           sync();
+          history?.boundary();
           props.onEnd('selected');
         }}
         onBlur={sync}

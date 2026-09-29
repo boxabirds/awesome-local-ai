@@ -1,5 +1,7 @@
 // Board keyboard commands (story 7): Ctrl/Cmd+A select all, Escape clear, arrows nudge,
-// Delete/Backspace delete, Enter edit a single selected note. Ignored while text is edited.
+// Delete/Backspace delete, Enter edit a single selected note; story 8: Ctrl/Cmd+Z undo,
+// Ctrl/Cmd+Shift+Z and Ctrl+Y redo. Ignored while text is edited (the note editor handles its own
+// undo) and in other text fields.
 import { useEffect, useRef } from 'react';
 import type * as Y from 'yjs';
 import {
@@ -13,7 +15,17 @@ import { NUDGE_LARGE_STEP_WORLD, NUDGE_STEP_WORLD } from '../../shared/config';
 import type { Point } from '../../shared/geometry';
 import { isEditableTarget } from '../canvas/isEditableTarget';
 import { getObjectType, isRegisteredType } from '../objects/registry';
+import type { UndoController } from './undo';
 import type { Selection } from './useSelection';
+
+/** 'undo', 'redo' or null for a keydown. */
+export function undoShortcut(e: KeyboardEvent): 'undo' | 'redo' | null {
+  if (e.altKey || !(e.ctrlKey || e.metaKey)) return null;
+  const key = e.key.toLowerCase();
+  if (key === 'z') return e.shiftKey ? 'redo' : 'undo';
+  if (key === 'y' && e.ctrlKey && !e.metaKey && !e.shiftKey) return 'redo';
+  return null;
+}
 
 const ARROWS: Record<string, Point> = {
   ArrowLeft: { x: -1, y: 0 },
@@ -27,14 +39,26 @@ export function useBoardKeys(opts: {
   selection: Selection;
   snapshot: readonly ObjectSnapshot[];
   canEdit: boolean;
+  /** This tab's undo history (story 8). */
+  undo?: UndoController | null;
 }): void {
   const optsRef = useRef(opts);
   optsRef.current = opts;
 
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
-      const { doc, selection, snapshot, canEdit } = optsRef.current;
+      const { doc, selection, snapshot, canEdit, undo } = optsRef.current;
       if (e.defaultPrevented || selection.editingId !== null || isEditableTarget(e.target)) return;
+      const shortcut = undoShortcut(e);
+      if (shortcut) {
+        // Nothing to undo on a board that could not be loaded; the browser's own undo stays away.
+        if (!canEdit || !undo) return;
+        e.preventDefault();
+        undo.boundary();
+        if (shortcut === 'undo') undo.undo();
+        else undo.redo();
+        return;
+      }
       if (e.altKey) return;
       if (e.ctrlKey || e.metaKey) {
         if (e.key === 'a' || e.key === 'A') {
@@ -61,17 +85,21 @@ export function useBoardKeys(opts: {
         const step = e.shiftKey ? NUDGE_LARGE_STEP_WORLD : NUDGE_STEP_WORLD;
         // Positions straight from the doc: key repeat can outpace rendering.
         const current = objectsSnapshot(doc).filter((o) => selection.ids.has(o.id));
+        undo?.boundary();
         moveObjects(
           doc,
           new Map(current.map((o) => [o.id, { x: o.x + arrow.x * step, y: o.y + arrow.y * step }])),
         );
+        undo?.boundary();
       } else if (e.key === 'Delete' || e.key === 'Backspace') {
         if (!canEdit) return;
         e.preventDefault();
+        undo?.boundary();
         deleteObjects(
           doc,
           selected.map((o) => o.id),
         );
+        undo?.boundary();
         selection.clear();
       } else if (e.key === 'Enter') {
         // Enter on a focused button activates the button instead.

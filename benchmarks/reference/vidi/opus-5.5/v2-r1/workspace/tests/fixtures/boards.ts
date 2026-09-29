@@ -7,6 +7,7 @@ import {
   getStickyText,
   initDoc,
   moveObject,
+  resizeObjects,
 } from '../../src/shared/board-model';
 import {
   PERSIST_TESTED_NOTES,
@@ -200,4 +201,33 @@ export function selectionBoard(): BoardFixture & { grid: string[][]; overlapping
     overlapping.push(id);
   }
   return { ...board, grid, overlapping };
+}
+
+/** Top-left of story 8's 8-note cluster (4 × 2 cells, `pitch` apart), world units. */
+export const UNDO_CLUSTER = { columns: 4, rows: 2, left: -1100, top: -700, pitch: 280 };
+
+/**
+ * Story 8's retro board: 12 notes in varied colours and sizes; 8 of them in one cluster
+ * (`cluster`, 4 × 2 cells) for the delete scenario and 4 more in a row below (`others`).
+ */
+export function undoBoard(): BoardFixture & { cluster: string[]; others: string[] } {
+  const board = recording();
+  const { doc } = board;
+  const sizes = [200, 240, 160, 220, 180, 240, 200, 170, 210, 190, 230, 200];
+  let n = 0;
+  const add = (x: number, y: number) => {
+    const size = sizes[n];
+    const id = createSticky(doc, { x: x + size / 2, y: y + size / 2 }, COLORS[n % COLORS.length]) as string;
+    if (size !== STICKY_SIZE_WORLD) resizeObjects(doc, new Map([[id, { x, y, width: size, height: size }]]));
+    getStickyText(doc, id)!.insert(0, CLUSTER_TEXTS[n]);
+    n++;
+    return id;
+  };
+  const { columns, rows, left, top, pitch } = UNDO_CLUSTER;
+  const cluster: string[] = [];
+  for (let r = 0; r < rows; r++) {
+    for (let c = 0; c < columns; c++) cluster.push(add(left + c * pitch, top + r * pitch));
+  }
+  const others = [0, 1, 2, 3].map((i) => add(-1000 + i * 350, 250));
+  return { ...board, cluster, others };
 }

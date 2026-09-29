@@ -180,6 +180,13 @@ body,
   outline-offset: 1px;
 }
 
+/* Separates the tools from Undo / Redo (story 8). */
+.toolbar-divider {
+  height: 1px;
+  margin: 2px 4px;
+  background: #d0d7de;
+}
+
 /* Sticky notes (world units: everything scales with the board zoom) */
 
 .sticky-note {

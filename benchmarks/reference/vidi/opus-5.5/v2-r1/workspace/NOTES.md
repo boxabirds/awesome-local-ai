@@ -261,3 +261,32 @@ Decisions made while implementing without anyone to ask.
 - **E2E browsers.** TC-32 runs in every configured browser, the rest in Chromium only. Firefox still
   cannot start in this environment; runs used `E2E_BROWSERS=chromium,webkit`.
 - **Red-phase commits skipped** (tasks 6, 7, 9), as in earlier stories: one story commit.
+
+## Story 8 — Undo and redo my own changes without undoing anyone else's
+
+- **Capture window timed by the controller.** lib0 (used by Y.UndoManager) keeps its own
+  reference to `Date.now`, so fake clocks cannot reach Yjs's `captureTimeout` (TC-13 could not be
+  tested exactly). `createUndo` therefore gives Yjs an effectively infinite capture timeout and
+  calls `stopCapturing()` itself before a LOCAL_ORIGIN transaction that starts
+  UNDO_CAPTURE_TIMEOUT_MS or more after the previous local one. Same semantics: a pause of exactly
+  UNDO_CAPTURE_TIMEOUT_MS starts a new step, one ms less merges.
+- **One press = one step, even when the step has no effect.** Y.UndoManager silently skips steps
+  that change nothing (a move of a note someone else deleted) and undoes the next one in the same
+  call. The PRD wants "nothing visible happens; the next undo continues normally", so `undo()` /
+  `redo()` expose only the top stack item to Yjs; a no-effect step is consumed on its own.
+- **Controller lifetime.** `App` creates the controller in an effect (StrictMode-safe) and
+  provides it through `UndoContext` (`useUndo.ts`), which is how `StickyTextEditor` (rendered by
+  the object registry) reaches it; `useUndo` therefore accepts `UndoController | null` (null
+  before the effect runs, and in isolated editor tests where the editor keeps native behaviour).
+- **Editor shortcuts.** Inside the note editor Ctrl/Cmd+Z undoes and Ctrl/Cmd+Shift+Z / Ctrl+Y
+  redo through the board history (so the textarea never diverges from the Y.Text); these steps are
+  whatever is on top of the person's history (normally the typing burst in that note).
+- **Shortcut rules.** `undoShortcut()` in `useBoardKeys.ts` is shared by the board and the editor.
+  Ctrl+Y is redo only with Ctrl (Cmd+Y is left to the browser). Shortcuts in other text fields
+  (share link) are left alone; on a load-failed board they are ignored without preventDefault.
+- **Boundaries.** Gesture start/end, edit start/end/Escape, and before and after create, colour,
+  delete (bar and key) and each arrow-key nudge (one nudge = one step).
+- **Fixture.** `undoBoard()` in `tests/fixtures/boards.ts`: 12 notes in varied colours and sizes,
+  8 in a 4 × 2 cluster.
+- **Red-phase commits skipped** (tasks 6, 7), as in earlier stories: one story commit. E2E runs
+  used `E2E_BROWSERS=chromium,webkit` (story 8 e2e is Chromium only; Firefox cannot start here).

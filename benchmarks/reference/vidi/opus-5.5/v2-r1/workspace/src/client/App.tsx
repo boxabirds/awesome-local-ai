@@ -1,4 +1,4 @@
-import { useCallback, useRef } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { createSticky, deleteObjects, setStickyColor } from '../shared/board-model';
 import { SelectionBar } from './board/SelectionBar';
 import { SelectionOverlay } from './board/SelectionOverlay';
@@ -7,6 +7,8 @@ import { useBoardDoc } from './board/useBoardDoc';
 import { useBoardKeys } from './board/useBoardKeys';
 import { useSelection } from './board/useSelection';
 import { useTransformGesture } from './board/useTransformGesture';
+import { type UndoController, createUndo } from './board/undo';
+import { UndoContext, useUndo } from './board/useUndo';
 import { BoardViewport } from './canvas/BoardViewport';
 import { type Camera, type Point, screenToWorld } from './canvas/camera';
 import { getObjectType } from './objects/registry';
@@ -53,6 +55,28 @@ export function App(props: { boardId?: string; doc?: Y.Doc }) {
   const cameraRef = useRef<Camera | null>(null);
   const getCamera = useCallback(() => cameraRef.current ?? INITIAL_CAMERA, []);
 
+  // One undo history per board document, for this tab only: gone on board change or reload.
+  const [history, setHistory] = useState<UndoController | null>(null);
+  useEffect(() => {
+    const controller = createUndo(doc);
+    setHistory(controller);
+    return () => {
+      controller.destroy();
+      setHistory(null);
+    };
+  }, [doc]);
+  const undo = useUndo(history, editable);
+  const boundary = useCallback(() => history?.boundary(), [history]);
+  /** Runs one user action as its own undo step. */
+  const step = <T,>(fn: () => T): T => {
+    boundary();
+    try {
+      return fn();
+    } finally {
+      boundary();
+    }
+  };
+
   // Objects of a registered type are shown; others (from newer clients) are left alone.
   const shown = objects.filter((o) => getObjectType(o.type) !== undefined);
   // Nothing is edited while the board is locked.
@@ -64,12 +88,14 @@ export function App(props: { boardId?: string; doc?: Y.Doc }) {
     selection,
     snapshot: shown,
     canEdit: editable,
+    onGestureStart: boundary,
+    onGestureEnd: boundary,
   });
-  useBoardKeys({ doc, selection, snapshot: shown, canEdit: editable });
+  useBoardKeys({ doc, selection, snapshot: shown, canEdit: editable, undo: history });
 
   const deleteSelection = () => {
     if (!editable) return;
-    deleteObjects(doc, [...selection.ids]);
+    step(() => deleteObjects(doc, [...selection.ids]));
     clear();
   };
 
@@ -81,12 +107,12 @@ export function App(props: { boardId?: string; doc?: Y.Doc }) {
 
   const createAt = (world: Point) => {
     if (!editable) return;
-    const id = createSticky(doc, world);
+    const id = step(() => createSticky(doc, world));
     if (id) startEdit(id);
   };
 
   return (
-    <>
+    <UndoContext.Provider value={history}>
       <BoardViewport
         cameraRef={cameraRef}
         onEmptyDoubleClick={createAt}
@@ -110,12 +136,13 @@ export function App(props: { boardId?: string; doc?: Y.Doc }) {
                 hidden={transform.gesture !== null || editingId !== null}
                 onDelete={deleteSelection}
                 onColor={(id, color) => {
-                  if (editable) setStickyColor(doc, id, color);
+                  if (editable) step(() => setStickyColor(doc, id, color));
                 }}
               />
             </div>
             <Toolbar
               disabled={!editable}
+              undo={undo}
               onCreateSticky={() =>
                 createAt(screenToWorld(camera, { x: viewport.width / 2, y: viewport.height / 2 }))
               }
@@ -147,6 +174,6 @@ export function App(props: { boardId?: string; doc?: Y.Doc }) {
         }
       </BoardViewport>
       {props.boardId && <ConnectionStatus state={connection} />}
-    </>
+    </UndoContext.Provider>
   );
 }
