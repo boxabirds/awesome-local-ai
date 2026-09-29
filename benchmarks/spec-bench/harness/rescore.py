@@ -56,6 +56,37 @@ def checkpoints(run: Path) -> list[dict]:
 SCORINGS_IF_ANY_FAIL = 3   # racy code fails some tests only some of the time; Opus's code scored 74/75 x3
 
 
+# What one held-out worker (a browser plus its own app server) costs, from the calibration on an
+# 8-core, 16 GB Mac (29 Sep 2026); MAX_WORKERS is the most the suite can use (one per test file).
+CORES_PER_WORKER = 2
+GB_PER_WORKER = 1.5
+MAX_WORKERS = 11
+
+
+def auto_workers(cores: int, free_gb: float) -> int:
+    """As many held-out workers as the host's cores and free memory allow, at least one."""
+    return max(1, min(cores // CORES_PER_WORKER, int(free_gb // GB_PER_WORKER), MAX_WORKERS))
+
+
+def host_workers() -> tuple[int, dict]:
+    import hostenv
+    cores = os.cpu_count() or 1
+    free_pct = hostenv.mem_free_pct() or 0.0
+    total_gb = _total_memory_gb()
+    free_gb = total_gb * free_pct / 100
+    return auto_workers(cores, free_gb), {"cores": cores, "memory_gb": round(total_gb, 1), "free_gb": round(free_gb, 1)}
+
+
+def _total_memory_gb() -> float:
+    if sys.platform == "darwin":
+        out = subprocess.run(["sysctl", "-n", "hw.memsize"], capture_output=True, text=True).stdout.strip()
+        return int(out) / 1024 ** 3 if out.isdigit() else 0.0
+    for line in open("/proc/meminfo"):
+        if line.startswith("MemTotal:"):
+            return int(line.split()[1]) / 1024 ** 2
+    return 0.0
+
+
 def needs_repeats(acc: dict) -> bool:
     """Only a checkpoint with a failure can be flaky; a clean one is scored once."""
     return any(t.get("status") not in ("passed", "skipped") for t in acc.get("tests", []))
@@ -130,11 +161,15 @@ def main() -> int:
     ap.add_argument("--pack", default="benchmarks/vidi")
     ap.add_argument("--only", help="comma list of story ids (a partial re-score, e.g. to check the tool)")
     ap.add_argument("--final", action="store_true", help="only the run's last checkpoint (the headline score)")
+    ap.add_argument("--workers", default="auto",
+                    help="held-out workers per scoring: a number, or auto (from the host's cores and free memory)")
     a = ap.parse_args()
     import drive
     drive.set_pack(a.pack)
     version = subprocess.run([str(HARNESS / "pack-version.sh"), str(drive.PK.dir), drive.PK.name],
                              capture_output=True, text=True).stdout.strip()
+    workers, host = host_workers() if a.workers == "auto" else (int(a.workers), {})
+    os.environ["ACCEPT_WORKERS"] = str(workers)
     run = a.run.resolve()
     cps = checkpoints(run)
     if a.final:
@@ -147,7 +182,8 @@ def main() -> int:
     tmp = Path(tempfile.mkdtemp(prefix="rescore-"))
     base = tmp / "base"
     subprocess.run(["git", "clone", "-q", "--no-checkout", str(a.bundle.resolve()), str(base)], check=True)
-    print(f"re-scoring {run.name}: {len(cps)} stories under {version}, {a.jobs} at a time", flush=True)
+    print(f"re-scoring {run.name}: {len(cps)} stories under {version}, {a.jobs} at a time, "
+          f"{workers} held-out workers each {host}", flush=True)
     results = []
     try:
         with ProcessPoolExecutor(max_workers=a.jobs) as pool:
@@ -165,7 +201,7 @@ def main() -> int:
     (out / "rescore.json").write_text(json.dumps({
         "pack_version": version, "harness_commit": subprocess.run(
             ["git", "-C", str(HARNESS), "rev-parse", "--short", "HEAD"], capture_output=True, text=True).stdout.strip(),
-        "host": os.uname().nodename, "finished_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+        "host": os.uname().nodename, "held_out_workers": workers, "host_limits": host, "finished_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
         "results": sorted(results, key=lambda r: r["story"])}, indent=2))
     import history
     (out / "per-story.md").write_text(history.render_per_story(out))
