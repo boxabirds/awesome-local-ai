@@ -1402,7 +1402,13 @@
           "found": 1,
           "total": 1
         }
-      ]
+      ],
+      "record": {
+        "committed": true,
+        "pushed": true,
+        "over_size_limit": [],
+        "commit": "cea9a3c7"
+      }
     }
   },
   "pack": "vidi",
