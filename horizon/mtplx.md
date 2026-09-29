@@ -31,5 +31,11 @@ evictable), then:
    120k tokens, including a compaction request near the limit, answered without 507 and with the cache kept.
 2. A one-story smoke test.
 
-**Last checked:** 29 Sep 2026 (installed version 2.12.0). **Recheck when:** a new MTPLX release, or a reply
-to the report; and once the issue draft is filed, when it closes.
+## Contact with the author
+
+The owner pinged Youssof (MTPLX's author) about the report; no reply yet as of 29 Sep 2026. Earlier he said he
+thinks 2.12 broke a few things and that **2.14** will be worth looking out for (the owner's account of that
+conversation; 2.12.0 is the version these reports are on).
+
+**Last checked:** 29 Sep 2026 (installed version 2.12.0). **Recheck when:** MTPLX 2.14 is released (then run
+the checks above on it), or Youssof replies; and once the issue draft is filed, when it closes.
