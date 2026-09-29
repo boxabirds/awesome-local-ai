@@ -1,3 +1,41 @@
+commit 7ecb860bed5a6b596a3a38c3635fef783ef1a016
+vidi-agent  Tue Sep 29 05:31:27 2026 +0100
+
+    story 12: Drop images onto the board
+
+
+ NOTES.md                                |  22 ++
+ src/client/board/Board.tsx              |  63 +++++-
+ src/client/board/Toolbar.tsx            |  30 +++
+ src/client/board/context.ts             |  10 +
+ src/client/board/useBoardKeys.ts        |  10 +
+ src/client/canvas/BoardViewport.tsx     |  13 ++
+ src/client/images/DropHighlight.tsx     |  43 ++++
+ src/client/images/ImageObject.tsx       | 201 +++++++++++++++++++
+ src/client/images/uploadImage.ts        |  74 +++++++
+ src/client/images/useImageInsert.ts     | 304 ++++++++++++++++++++++++++++
+ src/client/images/validateFiles.ts      |  52 +++++
+ src/client/objects/registry.tsx         |  63 ++++++
+ src/client/ui/Toast.tsx                 |  87 ++++++++
+ src/shared/board-model.ts               |  41 ++++
+ src/shared/config.ts                    |  14 ++
+ src/shared/image-format.ts              |  54 +++++
+ src/shared/objects/image.ts             | 201 +++++++++++++++++++
+ src/worker/assets.ts                    | 173 ++++++++++++++++
+ src/worker/index.ts                     |  29 +++
+ tests/component/ImageObject.test.tsx    | 111 ++++++++++
+ tests/component/useImageInsert.test.tsx | 345 ++++++++++++++++++++++++++++++++
+ tests/e2e/helpers/drop-files.ts         |  99 +++++++++
+ tests/e2e/images.spec.ts                | 227 +++++++++++++++++++++
+ tests/fixtures/images.ts                | 247 +++++++++++++++++++++++
+ tests/integration/assets.test.ts        | 306 ++++++++++++++++++++++++++++
+ tests/unit/image-format.test.ts         |  85 ++++++++
+ tests/unit/image-model.test.ts          | 232 +++++++++++++++++++++
+ tests/unit/validate-files.test.ts       |  74 +++++++
+ wrangler.e2e.jsonc                      |  11 +
+ wrangler.jsonc                          |  11 +
+ wrangler.test.jsonc                     |  11 +
+ 31 files changed, 3241 insertions(+), 2 deletions(-)
 commit 154c5575a2aac556cab50f727079512cd78cb05b
 vidi-agent  Tue Sep 29 03:50:22 2026 +0100
 
