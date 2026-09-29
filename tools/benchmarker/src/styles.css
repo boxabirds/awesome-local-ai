@@ -50,3 +50,8 @@ a { color: var(--run); text-decoration: none; } a:hover { text-decoration: under
 .empty { color: var(--muted); padding: 24px; }
 .stale-banner { background: var(--bad); color: #fff; padding: 8px 16px; font-weight: 600; }
 .stale main { opacity: .45; filter: grayscale(1); }
+.machines ul { list-style: none; margin: 0; padding: 6px 12px; }
+.machines li { display: flex; flex-wrap: wrap; gap: 4px 14px; align-items: baseline; padding: 4px 0; }
+.machine-name { font-weight: 600; min-width: 100px; }
+.idle { color: var(--part); font-weight: 600; }
+tr { scroll-margin-top: 70px; } /* clear the sticky header when a machine links to its row */

@@ -11,6 +11,16 @@ test.beforeEach(async ({ page }) => {
   await expect(page.locator("section").first()).toBeVisible();
 });
 
+test("the machines panel says what each node is doing, and idle ones say so", async ({ page }) => {
+  const m = page.getByRole("region", { name: "Machines" });
+  await expect(m.locator("[data-node='gruntus']")).toContainText("running 3.8-swift-1.5/27b llamacpp v2-r1 · story 3");
+  await expect(m.locator("[data-node='gruntus']")).toContainText("3 queued");
+  await expect(m.locator("[data-node='tritus']")).toContainText("idle");
+  await page.setViewportSize({ width: 1000, height: 400 });
+  await m.locator("[data-node='gruntus'] a").click();
+  await expect(row(page, SWIFT, "v2-r1")).toBeInViewport();
+});
+
 test("a running run shows its story, live numbers and latest action", async ({ page }) => {
   const build = cell(page, SWIFT, "v2-r1", 2);
   await expect(build).toContainText("running: story 3");

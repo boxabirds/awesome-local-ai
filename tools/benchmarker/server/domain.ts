@@ -1,5 +1,5 @@
 // Pure logic: from repo paths, run records and dbench jobs to the rows the page shows. No I/O here.
-import type { Live, QueuePlace, Row, Score, Stages, Story } from "../shared/types.ts";
+import type { Live, Machine, QueuePlace, Row, Score, Stages, Story } from "../shared/types.ts";
 
 /** A finished or cancelled job with no run record is shown this long (seconds). */
 export const RECENT_S = 24 * 3600;
@@ -291,6 +291,31 @@ export function buildRows(records: RunRecord[], byNode: Record<string, DbenchJob
       stories: job ? mergeStories(r.stories, job.progress?.stories) : r.stories,
       stages: stages(r, job, suite),
       live: job ? liveFromJob(job, queue.get(job.id)) : null,
+    };
+  });
+}
+
+// ---------- machines ----------
+
+/** A stack named for a one-line summary: model and engine, e.g. "3.8/flash-next gufo". */
+function machineLabel(stack: string): string {
+  const parts = stack.split("/");
+  if (parts.length < 3) return stack; // reference/opus-5.5
+  const engine = parts.at(-1)!.replace(/-(pi|opencode|claude)$/, "");
+  return `${shortStack(stack)} ${engine}`;
+}
+
+/** What each node is doing: its running job and the number queued, idle nodes included, by name. */
+export function machines(nodes: string[], rows: Row[]): Machine[] {
+  return nodes.toSorted().map((node) => {
+    const mine = rows.filter((r) => r.node === node);
+    const run = mine.find((r) => r.live?.status === "running");
+    return {
+      node,
+      running: run
+        ? { stack: run.stack, short: machineLabel(run.stack), runId: run.runId, story: run.live?.currentStory ?? null, agentMinutes: run.live?.agentMinutes ?? null }
+        : null,
+      queued: mine.filter((r) => r.live?.status === "queued").length,
     };
   });
 }

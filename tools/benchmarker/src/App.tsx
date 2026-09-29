@@ -1,6 +1,7 @@
 import { useState } from "react";
 import type { Row } from "../shared/types.ts";
 import { Header } from "./components/Header.tsx";
+import { MachinesPanel } from "./components/MachinesPanel.tsx";
 import { StaleBanner } from "./components/StaleBanner.tsx";
 import { StackSection } from "./components/StackSection.tsx";
 import { useBenchState } from "./useBenchState.ts";
@@ -91,6 +92,7 @@ export function App() {
       />
       <StaleBanner stale={stale} age={age} error={error} />
       <main>
+        <MachinesPanel machines={data.machines ?? []} />
         {shown.length === 0 ? (
           <p className="empty">No runs for this pack and version.</p>
         ) : (

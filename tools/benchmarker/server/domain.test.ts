@@ -1,8 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
   findRuns, versionFamily, rowFamily, webBase, indexJobs, queuePositions, liveFromJob, storyEntry,
-  mergeStories, stages, mergeRows, RECENT_S, type DbenchJob,
+  mergeStories, stages, mergeRows, machines, RECENT_S, type DbenchJob,
 } from "./domain.ts";
+import type { Row } from "../shared/types.ts";
 
 const SWIFT = "qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-pi";
 
@@ -190,5 +191,23 @@ describe("merging runs and jobs", () => {
     const rows = mergeRows([], jobs, now);
     expect(rows.map((r) => r.runId).sort()).toEqual(["f", "q", "r"]);
     expect(rows[0].stories).toEqual([]);
+  });
+});
+
+describe("machines", () => {
+  const row = (stack: string, runId: string, node: string, status: string, story: string | null = null) =>
+    ({ stack, runId, node, pack: "vidi", live: { status, currentStory: story, agentMinutes: 25 } }) as unknown as Row;
+
+  it("says what each node runs now and how many wait, and names idle nodes", () => {
+    const rows = [
+      row(SWIFT, "v2-r1", "gruntus", "running", "3"),
+      row(SWIFT, "v2-r2", "gruntus", "queued"),
+      row("qwen/3.8/27b/ubuntu/nvidia4090/llamacpp-pi", "v2-r1", "gruntus", "queued"),
+      row(SWIFT, "smoke-v2-01", "gruntus", "done"),
+    ];
+    expect(machines(["tritus", "gruntus"], rows)).toEqual([
+      { node: "gruntus", running: { stack: SWIFT, short: "3.8-swift-1.5/27b llamacpp", runId: "v2-r1", story: "3", agentMinutes: 25 }, queued: 2 },
+      { node: "tritus", running: null, queued: 0 },
+    ]);
   });
 });

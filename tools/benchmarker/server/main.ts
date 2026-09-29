@@ -7,7 +7,7 @@ import { createServer } from "node:http";
 import { extname, join, normalize, resolve } from "node:path";
 import { parseArgs } from "node:util";
 import type { State } from "../shared/types.ts";
-import { buildRows, webBase, type DbenchJob, type RunRecord } from "./domain.ts";
+import { buildRows, machines, webBase, type DbenchJob, type RunRecord } from "./domain.ts";
 import { BRANCH, git, loadJobs, loadRuns } from "./sources.ts";
 
 const HERE = import.meta.dirname;
@@ -77,10 +77,11 @@ function every(ms: number, fn: () => Promise<void>) {
 
 function state(): State {
   const t = now();
+  const rows = buildRows(src.records, src.jobs, src.suites, t);
   return {
     buildId: buildId(), now: t, fetchedAt: src.fetchedAt, fetchError: src.fetchError,
     dbenchAt: src.dbenchAt, dbenchError: src.dbenchError, suites: src.suites, web: src.web,
-    judgeUrl: args["judge-url"]!, branch: BRANCH, rows: buildRows(src.records, src.jobs, src.suites, t),
+    judgeUrl: args["judge-url"]!, branch: BRANCH, rows, machines: machines(Object.keys(src.jobs), rows),
   };
 }
 

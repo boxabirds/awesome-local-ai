@@ -33,6 +33,11 @@ turns records and jobs into rows (pure, unit-tested); `src/` is the page, one co
 
 The page itself refreshes every 5 seconds and says when the repo and dbench were last read. A running story's live numbers (agent minutes, calls, tokens, tasks) come from the harness, which writes them about once a minute, so they move in steps. When the benchmarker is rebuilt, open tabs reload themselves (each build has an id; the page reloads when the server's differs). If it can't refresh for 20 seconds (the server stopped, or an error), it greys out under a red bar saying how old the data is, so old data never passes for current.
 
+## Machines
+
+The top panel has one line per dbench node: the run it is on now (model, engine, run, story, agent
+minutes) and how many jobs wait behind it, or **idle**. Click a running line to jump to its row.
+
 ## What each column means
 
 | Column | From |
