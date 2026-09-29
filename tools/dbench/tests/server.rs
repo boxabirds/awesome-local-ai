@@ -957,3 +957,31 @@ async fn server_env_reaches_the_harness_and_is_checked() {
         assert_eq!(code, 400, "{bad} -> {body}");
     }
 }
+
+#[tokio::test(flavor = "multi_thread")]
+async fn jobs_submitted_in_the_same_second_keep_their_order_across_a_restart() {
+    let env = setup();
+    let mut a = start(&env, false);
+    assert_eq!(a.submit("long", &spec("slowpack", "run-l")).await.0, 201);
+    let v = a.wait_status("long", "running").await;
+    let pid = v["state"]["pid"].as_i64().unwrap() as i32;
+    // Submitted in this order within the same second; the ids sort the other way.
+    assert_eq!(a.submit("zz-first", &spec("slowpack", "run-z")).await.0, 201);
+    assert_eq!(a.submit("aa-second", &spec("slowpack", "run-a")).await.0, 201);
+    let first = a.get("/v1/jobs/zz-first").await;
+    let second = a.get("/v1/jobs/aa-second").await;
+    assert!(second["seq"].as_u64().unwrap() > first["seq"].as_u64().unwrap(), "{first} {second}");
+
+    a.child.kill().unwrap();
+    a.child.wait().unwrap();
+    let b = start(&env, false);
+    assert_eq!(b.cancel("long").await.0, 202);
+    b.wait_status("long", "cancelled").await;
+    wait_until("group gone", || !group_alive(pid)).await;
+    b.wait_status("zz-first", "running").await;
+    assert_eq!(b.get("/v1/jobs/aa-second").await["state"]["status"], "queued");
+    assert_eq!(b.cancel("zz-first").await.0, 202);
+    assert_eq!(b.cancel("aa-second").await.0, 200, "a queued job is cancelled at once");
+    b.wait_status("zz-first", "cancelled").await;
+    drop(env.root);
+}

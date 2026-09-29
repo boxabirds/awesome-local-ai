@@ -261,6 +261,10 @@ pub struct Job {
     /// How many times the harness has been started for this job.
     pub attempt: u32,
     pub submitted_at: u64,
+    /// Submission order on this node: jobs submitted in the same second keep their order, also
+    /// after a server restart (0 for jobs submitted before this field existed).
+    #[serde(default)]
+    pub seq: u64,
     pub updated_at: u64,
     #[serde(default)]
     pub cancel_requested: bool,
@@ -279,6 +283,7 @@ impl Job {
             state: JobState::Queued,
             attempt: 0,
             submitted_at: now,
+            seq: 0,
             updated_at: now,
             cancel_requested: false,
             last_pull: None,

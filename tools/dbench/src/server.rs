@@ -148,7 +148,7 @@ pub fn recover(cfg: ServerConfig, token: String) -> Result<(Arc<Shared>, Vec<Ado
     let boot_time = sys::boot_time();
     let now = now_secs();
     let mut jobs = store::load_jobs(&cfg.jobs_dir)?;
-    jobs.sort_by(|a, b| (a.submitted_at, &a.id).cmp(&(b.submitted_at, &b.id)));
+    jobs.sort_by(|a, b| (a.submitted_at, a.seq, &a.id).cmp(&(b.submitted_at, b.seq, &b.id)));
 
     let mut front: Vec<String> = Vec::new();
     let mut back: Vec<String> = Vec::new();
@@ -293,7 +293,7 @@ async fn node(State(st): State<Arc<Shared>>) -> Json<crate::node::NodeInfo> {
 
 async fn list_jobs(State(st): State<Arc<Shared>>) -> Json<Vec<JobView>> {
     let mut jobs: Vec<Job> = st.lock().jobs.values().cloned().collect();
-    jobs.sort_by(|a, b| (b.submitted_at, &b.id).cmp(&(a.submitted_at, &a.id)));
+    jobs.sort_by(|a, b| (b.submitted_at, b.seq, &b.id).cmp(&(a.submitted_at, a.seq, &a.id)));
     Json(jobs.into_iter().map(|j| st.view(j)).collect())
 }
 
@@ -389,7 +389,8 @@ async fn submit(
                 _ => (StatusCode::OK, Json(st.view(j))).into_response(),
             };
         }
-        let job = Job::new(id.clone(), spec, now_secs());
+        let mut job = Job::new(id.clone(), spec, now_secs());
+        job.seq = inner.jobs.values().map(|j| j.seq).max().unwrap_or(0) + 1;
         st.persist(&job);
         inner.jobs.insert(id.clone(), job.clone());
         inner.queue.push_back(id.clone());
