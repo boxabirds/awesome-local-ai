@@ -15,6 +15,7 @@ import argparse
 import json
 import os
 import re
+import signal
 import subprocess
 import sys
 import time
@@ -164,7 +165,7 @@ def _walk(suite: dict):
     for spec in suite.get("specs", []):
         for t in spec.get("tests", []):
             res = t["results"][-1] if t.get("results") else {}
-            yield {"file": suite.get("file") or spec.get("file"), "title": spec["title"],
+            yield {"file": suite.get("file") or spec.get("file"), "title": spec["title"], "line": spec.get("line"),
                    "status": res.get("status", "none"),
                    "error": (res.get("error") or {}).get("message", "")[:500],
                    "on_partial": _on_partial(t, res), "setup_fallbacks": _setup_fallbacks(t, res)}
@@ -249,18 +250,102 @@ def parse_processed(arg: str) -> list[dict]:
     return out
 
 
-def accept(ws: Path, processed: list, out: Path, acceptance: Path | None = ACCEPTANCE) -> dict:
+# ---------- app server lifetime ----------
+# The held-out suite starts its app servers detached (each in its own process group, so a restart test
+# can stop one) and stops them in Playwright's global teardown, which does not run if the scoring is
+# killed, crashes or times out. So the scoring owns them: each server records "<pgid> <port>" in
+# SERVERS_FILE in the scoring's artifacts, and the scoring kills those groups however it ends. A hard
+# kill (kill -9) runs no clean-up at all, so the next scoring also takes its ports back from its own
+# kind of leftover before starting.
+SERVERS_FILE = "servers.pids"
+DEFAULT_ACCEPT_PORT = 18787
+PORTS_PER_SLOT = 2
+STOP_GRACE_S = 3
+SCORING_PROCESS = re.compile(r"wrangler|workerd|playwright")
+
+
+def recorded_server_groups(artifacts: Path) -> set[int]:
+    try:
+        lines = (artifacts / SERVERS_FILE).read_text().splitlines()
+    except OSError:
+        return set()
+    return {int(l.split()[0]) for l in lines if l.split() and l.split()[0].isdigit()}
+
+
+def kill_groups(groups) -> None:
+    groups = set(groups)
+    for sig in (signal.SIGTERM, signal.SIGKILL):
+        for g in groups:
+            try:
+                os.killpg(g, sig)
+            except (ProcessLookupError, PermissionError):
+                pass
+        if sig == signal.SIGTERM and groups:
+            time.sleep(STOP_GRACE_S)
+
+
+def is_scoring_process(cmd: str) -> bool:
+    """An app server or test runner of ours, the only kind of process a scoring may take a port from."""
+    return bool(SCORING_PROCESS.search(cmd))
+
+
+def scoring_ports() -> list[int]:
+    base = int(os.environ.get("ACCEPT_PORT", DEFAULT_ACCEPT_PORT))
+    workers = max(1, int(os.environ.get("ACCEPT_WORKERS", 1)))
+    return [base + PORTS_PER_SLOT * slot + k for slot in range(workers) for k in (0, 1)]
+
+
+def reclaim_ports(ports: list[int]) -> list[str]:
+    """Kill our own leftovers (app servers, test runners) holding these ports; report anything else."""
+    notes = []
+    for port in ports:
+        pids = subprocess.run(["lsof", "-nP", f"-iTCP:{port}", "-sTCP:LISTEN", "-t"],
+                              capture_output=True, text=True).stdout.split()
+        for pid in pids:
+            cmd = subprocess.run(["ps", "-o", "command=", "-p", pid], capture_output=True, text=True).stdout.strip()
+            if is_scoring_process(cmd):
+                try:
+                    kill_groups({os.getpgid(int(pid))})
+                    notes.append(f"reclaimed port {port} from a leftover {cmd.split()[0].rsplit('/', 1)[-1]} (pid {pid})")
+                except ProcessLookupError:
+                    pass
+            else:
+                notes.append(f"port {port} is held by something else (pid {pid}: {cmd[:80]}); left alone")
+    return notes
+
+
+def _run_owned(cmd: list[str], cwd: Path, timeout: int, env: dict | None = None) -> dict:
+    """_run, in a process group of its own that is killed afterwards however the command ended, so the
+    browsers and anything else it started go with it."""
+    t0 = time.monotonic()
+    p = subprocess.Popen(cmd, cwd=cwd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True,
+                         errors="replace", env={**os.environ, "CI": "1", **(env or {})}, start_new_session=True)
+    try:
+        out, _ = p.communicate(timeout=timeout)
+        code = p.returncode
+    except subprocess.TimeoutExpired:
+        code, out = "timeout", ""
+    finally:
+        kill_groups({p.pid})
+    return {"cmd": " ".join(cmd), "exit": code, "seconds": round(time.monotonic() - t0, 1),
+            "tail": (out or "")[-OUTPUT_TAIL_CHARS:]}
+
+
+def accept(ws: Path, processed: list, out: Path, acceptance: Path | None = ACCEPTANCE, build: bool = True,
+           only: list[tuple[str, int]] | None = None) -> dict:
     """Build the workspace and run the held-out suite for every processed story.
 
     processed: the queue of processed stories ({"id", "status": DONE|PARTIAL}), or plain ids (all DONE).
     acceptance: the pack's suite; None for a pack without one, which is reported skipped ("n/a"),
-    not as 0 of 0 passed."""
+    not as 0 of 0 passed. build=False skips the app build (already built for an earlier scoring of the
+    same code); only=[(file, line)] runs just those tests (a repeat scoring of the ones that failed)."""
     out.mkdir(parents=True, exist_ok=True)
     if acceptance is None:
         return {"skipped": True, "build_exit": None, "runner_exit": None, "runner_tail": "", "passed": 0,
                 "total": 0, "on_partial": {"passed": 0, "total": 0}, "by_story": {}, "harness_fault": None,
                 "tests": []}
-    build = _run(["npm", "run", "build"], ws, STEP_TIMEOUT_S)
+    build = (_run(["npm", "run", "build"], ws, STEP_TIMEOUT_S) if build
+             else {"cmd": "", "exit": 0, "seconds": 0, "tail": "skipped: already built"})
     report = out / "accept-report.json"
     report.unlink(missing_ok=True)
     done = [p["id"] if isinstance(p, dict) else p for p in processed]
@@ -268,12 +353,19 @@ def accept(ws: Path, processed: list, out: Path, acceptance: Path | None = ACCEP
            "ACCEPT_JSON": str(report), "ACCEPT_ARTIFACTS": str(out / "artifacts"),
            "SHOT_DIR": str(out / "screenshots")}
     files = [f"tests/story-{s:02d}.spec.ts" for s in done if (acceptance / f"tests/story-{s:02d}.spec.ts").exists()]
-    for _ in range(ACCEPT_ATTEMPTS):
-        run = _run(["npx", "playwright", "test", *files], acceptance, ACCEPT_TIMEOUT_S, env)
-        stopped = interrupted(run, report) if files else None
-        if not stopped:
-            break
-        print(f"  {stopped}", file=sys.stderr, flush=True)
+    if only is not None:
+        files = [f"tests/{f}:{line}" for f, line in only]
+    for note in reclaim_ports(scoring_ports()):
+        print(f"  {note}", file=sys.stderr, flush=True)
+    try:
+        for _ in range(ACCEPT_ATTEMPTS):
+            run = _run_owned(["npx", "playwright", "test", *files], acceptance, ACCEPT_TIMEOUT_S, env)
+            stopped = interrupted(run, report) if files else None
+            if not stopped:
+                break
+            print(f"  {stopped}", file=sys.stderr, flush=True)
+    finally:
+        kill_groups(recorded_server_groups(out / "artifacts"))
     tests = []
     if report.exists():
         doc = json.loads(report.read_text())

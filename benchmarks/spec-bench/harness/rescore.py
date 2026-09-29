@@ -7,8 +7,9 @@ new ones go to <run>/rescore/<pack-version>/stories/NN/accept.json, beside a per
 
     uv run rescore.py <run-dir> --bundle <workspace.bundle> [--pack benchmarks/vidi]
 
-A checkpoint with any failing test is scored three times and each test takes its majority result;
-the tests whose result changed are listed as flaky (racy app code: see SCORINGS_IF_ANY_FAIL).
+A checkpoint with any failing test gets two more scorings of just the tests that failed (no rebuild),
+and each test takes its majority result; the tests whose result changed are listed as flaky (racy app
+code: see SCORINGS_IF_ANY_FAIL). A test that passed the first time is not rerun.
 
 Each story is scored in its own worktree (no branch: detached at the recorded commit) with its own
 dependencies and its own app port. --jobs above 1 runs several at once, but the extra load changes
@@ -20,6 +21,7 @@ import argparse
 import json
 import os
 import shutil
+import signal
 import subprocess
 import sys
 import tempfile
@@ -36,6 +38,7 @@ NPM_CI_TIMEOUT_S = 900
 # One at a time: held-out results are timing-sensitive. Scoring two stories side by side on one Mac
 # (canvas-mlx-02 story 7) failed 5 more tests than scoring it alone, keystrokes dropped under load.
 DEFAULT_JOBS = 1
+TERMINATED = 143   # the usual exit status after SIGTERM
 
 
 def checkpoints(run: Path) -> list[dict]:
@@ -92,6 +95,21 @@ def needs_repeats(acc: dict) -> bool:
     return any(t.get("status") not in ("passed", "skipped") for t in acc.get("tests", []))
 
 
+def failed_tests(acc: dict) -> list[tuple[str, int]]:
+    """(file, line) of each test that did not pass, for a repeat scoring of just those."""
+    return [(t.get("file"), t.get("line")) for t in acc.get("tests", [])
+            if t.get("status") not in ("passed", "skipped") and t.get("file") and t.get("line")]
+
+
+def overlay(first: dict, rerun: dict) -> dict:
+    """A repeat scoring that reran only some tests, completed with the first scoring's other results."""
+    again = {(t.get("file"), t.get("title")): t for t in rerun.get("tests", [])}
+    tests = [again.get((t.get("file"), t.get("title")), t) for t in first.get("tests", [])]
+    applicable = [t for t in tests if t.get("status") != "skipped"]
+    return {**first, "tests": tests, "passed": sum(t.get("status") == "passed" for t in applicable),
+            "total": len(applicable)}
+
+
 def majority(accs: list[dict]) -> dict:
     """Several scorings of one checkpoint combined: each test takes its most common result, and the
     tests whose result changed between scorings are listed as flaky."""
@@ -139,9 +157,12 @@ def _score_one(cp: dict, base_repo: str, work_root: str, out: str, port: int, pa
         acc = gates.accept(ws, cp["processed"], sdir, drive.PK.acceptance)
         if needs_repeats(acc) and not acc.get("harness_fault"):
             accs = [acc]
+            again = failed_tests(acc)
             for n in range(2, SCORINGS_IF_ANY_FAIL + 1):
                 drive.kill_strays(ws)
-                accs.append(gates.accept(ws, cp["processed"], sdir / f"scoring-{n}", drive.PK.acceptance))
+                rerun = gates.accept(ws, cp["processed"], sdir / f"scoring-{n}", drive.PK.acceptance,
+                                     build=False, only=again)
+                accs.append(overlay(acc, rerun))
             acc = majority(accs)
         (sdir / "accept.json").write_text(json.dumps(acc, indent=2))
         drive.kill_strays(ws)
@@ -164,6 +185,8 @@ def main() -> int:
     ap.add_argument("--workers", default="auto",
                     help="held-out workers per scoring: a number, or auto (from the host's cores and free memory)")
     a = ap.parse_args()
+    # SIGTERM ends the re-score like Ctrl-C, so every scoring's clean-up (its servers, its browsers) runs.
+    signal.signal(signal.SIGTERM, lambda signum, frame: sys.exit(TERMINATED))
     import drive
     drive.set_pack(a.pack)
     version = subprocess.run([str(HARNESS / "pack-version.sh"), str(drive.PK.dir), drive.PK.name],
@@ -186,7 +209,15 @@ def main() -> int:
           f"{workers} held-out workers each {host}", flush=True)
     results = []
     try:
-        with ProcessPoolExecutor(max_workers=a.jobs) as pool:
+        if a.jobs == 1:   # in this process, so the clean-up runs here when the re-score is stopped
+            for i, cp in enumerate(cps):
+                r = _score_one(cp, str(base), str(tmp), str(out), BASE_PORT, a.pack)
+                results.append(r)
+                print(f"  story {r['story']}: {r['passed']}/{r['total']} (scorings {r['scores']}, flaky {r['flaky']}), "
+                      f"fallbacks {r['fallbacks']}, "
+                      f"{r['seconds']}s{'  FAULT ' + r['harness_fault'] if r['harness_fault'] else ''}", flush=True)
+        else:
+          with ProcessPoolExecutor(max_workers=a.jobs) as pool:
             futs = {pool.submit(_score_one, cp, str(base), str(tmp), str(out),
                                 BASE_PORT + PORTS_PER_JOB * i, a.pack): cp for i, cp in enumerate(cps)}
             for f in as_completed(futs):

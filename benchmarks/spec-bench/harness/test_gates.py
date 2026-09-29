@@ -1,6 +1,8 @@
 """uv run --with pytest pytest harness/test_gates.py"""
 from pathlib import Path
 
+import pytest
+
 import gates
 
 
@@ -43,6 +45,8 @@ def test_the_gate_runs_the_agents_tests_against_the_agents_browsers(tmp_path: Pa
         seen[" ".join(cmd)] = env or {}
         return {"exit": 0, "tail": ""}
     monkeypatch.setattr(gates, "_run", fake_run)
+    monkeypatch.setattr(gates, "_run_owned", gates._run)
+    monkeypatch.setattr(gates, "reclaim_ports", lambda ports: [])
     gates.gate(ws, ["build", "test:e2e"])
     e2e = next(env for cmd, env in seen.items() if "test:e2e" in cmd)
     assert e2e.get("PLAYWRIGHT_BROWSERS_PATH") == str(hostenv.agent_playwright_cache(Path.home()))
@@ -67,6 +71,8 @@ def fake_gate(monkeypatch, e2e_tails, install_exit=0):
             return {"exit": install_exit, "tail": "download failed" if install_exit else ""}
         return {"exit": 0, "tail": ""}
     monkeypatch.setattr(gates, "_run", fake_run)
+    monkeypatch.setattr(gates, "_run_owned", gates._run)
+    monkeypatch.setattr(gates, "reclaim_ports", lambda ports: [])
     return ran
 
 
@@ -105,6 +111,8 @@ def test_the_held_out_suite_without_a_browser_is_missing_resources_even_with_no_
     (acc / "tests").mkdir(parents=True)
     (acc / "tests" / "story-01.spec.ts").write_text("")
     monkeypatch.setattr(gates, "_run", lambda cmd, cwd, timeout, env=None: {"exit": 1, "tail": BROWSER_MISSING})
+    monkeypatch.setattr(gates, "_run_owned", gates._run)
+    monkeypatch.setattr(gates, "reclaim_ports", lambda ports: [])
     res = gates.accept(tmp_path, [1], tmp_path / "out", acc)
     assert res["harness_fault"] and res["harness_fault"].startswith("missing resources:")
 
@@ -134,6 +142,8 @@ def test_a_suite_runner_killed_before_its_report_is_retried_once(tmp_path, monke
     killed = {"exit": -15, "tail": "\nRunning 84 tests using 1 worker\n\n"}
     run, calls = _runs(killed, {"exit": 0, "tail": ""})
     monkeypatch.setattr(gates, "_run", run)
+    monkeypatch.setattr(gates, "_run_owned", gates._run)
+    monkeypatch.setattr(gates, "reclaim_ports", lambda ports: [])
     res = gates.accept(tmp_path, [1], tmp_path / "out", acc)
     assert sum(c[:2] == ["npx", "playwright"] for c in calls) == 2
     assert res["harness_fault"] is None
@@ -143,6 +153,8 @@ def test_a_suite_runner_killed_every_time_is_a_harness_fault_not_a_score(tmp_pat
     acc = _suite_with_story_1(tmp_path)
     run, _ = _runs({"exit": -15, "tail": "Running 84 tests using 1 worker"})
     monkeypatch.setattr(gates, "_run", run)
+    monkeypatch.setattr(gates, "_run_owned", gates._run)
+    monkeypatch.setattr(gates, "reclaim_ports", lambda ports: [])
     res = gates.accept(tmp_path, [1], tmp_path / "out", acc)
     assert res["harness_fault"] and res["harness_fault"].startswith(gates.SCORING_INTERRUPTED)
     assert "signal 15" in res["harness_fault"]
@@ -152,6 +164,8 @@ def test_a_suite_runner_that_timed_out_without_a_report_is_a_harness_fault(tmp_p
     acc = _suite_with_story_1(tmp_path)
     run, _ = _runs({"exit": "timeout", "tail": ""})
     monkeypatch.setattr(gates, "_run", run)
+    monkeypatch.setattr(gates, "_run_owned", gates._run)
+    monkeypatch.setattr(gates, "reclaim_ports", lambda ports: [])
     res = gates.accept(tmp_path, [1], tmp_path / "out", acc)
     assert res["harness_fault"] and "timed out" in res["harness_fault"]
 
@@ -160,6 +174,8 @@ def test_a_suite_that_fails_normally_without_a_report_is_not_interrupted(tmp_pat
     acc = _suite_with_story_1(tmp_path)
     run, calls = _runs({"exit": 1, "tail": "Error: something in the app"})
     monkeypatch.setattr(gates, "_run", run)
+    monkeypatch.setattr(gates, "_run_owned", gates._run)
+    monkeypatch.setattr(gates, "reclaim_ports", lambda ports: [])
     res = gates.accept(tmp_path, [1], tmp_path / "out", acc)
     assert res["harness_fault"] is None
     assert sum(c[:2] == ["npx", "playwright"] for c in calls) == 1
@@ -211,6 +227,8 @@ def test_a_bun_workspace_is_installed_and_gated_with_bun(tmp_path, monkeypatch):
     # use the workspace's own package manager, or every build shows red for a tooling reason.
     ran = []
     monkeypatch.setattr(gates, "_run", lambda cmd, cwd, timeout, env=None: ran.append(cmd) or {"exit": 0, "tail": ""})
+    monkeypatch.setattr(gates, "_run_owned", gates._run)
+    monkeypatch.setattr(gates, "reclaim_ports", lambda ports: [])
     ws = tmp_path / "ws"
     ws.mkdir()
     (ws / "package.json").write_text('{"scripts": {"build": "x", "test:e2e": "x"}, "packageManager": "bun@1.2.0"}')
@@ -223,6 +241,8 @@ def test_a_bun_workspace_is_installed_and_gated_with_bun(tmp_path, monkeypatch):
 def test_an_npm_workspace_is_unchanged(tmp_path, monkeypatch):
     ran = []
     monkeypatch.setattr(gates, "_run", lambda cmd, cwd, timeout, env=None: ran.append(cmd) or {"exit": 0, "tail": ""})
+    monkeypatch.setattr(gates, "_run_owned", gates._run)
+    monkeypatch.setattr(gates, "reclaim_ports", lambda ports: [])
     ws = tmp_path / "ws"
     ws.mkdir()
     (ws / "package.json").write_text('{"scripts": {"build": "x"}}')
@@ -254,3 +274,76 @@ def test_setup_fallbacks_are_kept_per_test_and_counted_once_per_owner():
     assert tests[0]["setup_fallbacks"] == ["createNote (partial); story 2; TC-35"]
     assert tests[1]["setup_fallbacks"] == []
     assert _fallback_summary(tests) == {"tests": 1, "by_owner": {"2": 1}}
+
+
+def test_a_repeat_scoring_reruns_only_the_named_tests_without_rebuilding(tmp_path, monkeypatch):
+    """rescore.py's second and third scorings: the app is already built, and only the tests that
+    failed need another look, by file and line."""
+    import gates
+    calls = []
+    monkeypatch.setattr(gates, "_run", lambda cmd, cwd, timeout, env=None: calls.append(cmd) or
+                        {"cmd": " ".join(cmd), "exit": 0, "seconds": 0, "tail": ""})
+    monkeypatch.setattr(gates, "_run_owned", gates._run)
+    monkeypatch.setattr(gates, "reclaim_ports", lambda ports: [])
+    acc_dir = tmp_path / "acceptance"; (acc_dir / "tests").mkdir(parents=True)
+    for s in (1, 2):
+        (acc_dir / "tests" / f"story-{s:02d}.spec.ts").write_text("")
+    gates.accept(tmp_path, [1, 2], tmp_path / "out", acc_dir, build=False,
+                 only=[("story-02.spec.ts", 81), ("story-01.spec.ts", 12)])
+    assert not any(c[:3] == ["npm", "run", "build"] for c in calls)
+    assert calls[-1][:3] == ["npx", "playwright", "test"]
+    assert calls[-1][3:] == ["tests/story-02.spec.ts:81", "tests/story-01.spec.ts:12"]
+
+
+def test_each_test_result_keeps_its_line_so_it_can_be_rerun():
+    from gates import _walk
+    report = {"file": "story-02.spec.ts", "specs": [{"title": "t", "line": 81, "tests": [{"results": [{"status": "failed"}]}]}]}
+    assert list(_walk(report))[0]["line"] == 81
+
+
+# ---------- app server lifetime: the scoring owns the servers it starts ----------
+
+def test_recorded_servers_are_read_back_as_process_groups(tmp_path):
+    from gates import recorded_server_groups, SERVERS_FILE
+    (tmp_path / SERVERS_FILE).write_text("4101 18800\n4102 18802\n\nnot a line\n")
+    assert recorded_server_groups(tmp_path) == {4101, 4102}
+    assert recorded_server_groups(tmp_path / "missing") == set()
+
+
+def test_a_scoring_kills_the_servers_it_recorded_even_when_the_runner_fails(tmp_path, monkeypatch):
+    """Playwright's teardown stops the servers only if Playwright gets that far. The scoring itself
+    kills every server group recorded in its artifacts, however the runner ended."""
+    import gates
+    acc_dir = tmp_path / "acceptance"; (acc_dir / "tests").mkdir(parents=True)
+    (acc_dir / "tests" / "story-01.spec.ts").write_text("")
+    killed = []
+    monkeypatch.setattr(gates, "kill_groups", lambda groups: killed.append(set(groups)))
+    monkeypatch.setattr(gates, "reclaim_ports", lambda ports: [])
+    def run(cmd, cwd, timeout, env=None):
+        if cmd[:2] == ["npx", "playwright"]:
+            (tmp_path / "out" / "artifacts").mkdir(parents=True, exist_ok=True)
+            (tmp_path / "out" / "artifacts" / gates.SERVERS_FILE).write_text("777 18800\n")
+            raise KeyboardInterrupt  # the scoring is stopped mid-run
+        return {"cmd": " ".join(cmd), "exit": 0, "seconds": 0, "tail": ""}
+    monkeypatch.setattr(gates, "_run_owned", run)
+    monkeypatch.setattr(gates, "_run", run)
+    monkeypatch.setattr(gates, "_run_owned", gates._run)
+    monkeypatch.setattr(gates, "reclaim_ports", lambda ports: [])
+    import pytest
+    with pytest.raises(KeyboardInterrupt):
+        gates.accept(tmp_path, [1], tmp_path / "out", acc_dir)
+    assert {777} in killed
+
+
+@pytest.mark.parametrize("cmd,ours", [
+    ("node /x/node_modules/wrangler/wrangler-dist/cli.js dev --port 18800", True),
+    ("/x/node_modules/@cloudflare/workerd-darwin-arm64/bin/workerd serve --binary", True),
+    ("node /x/acceptance/node_modules/.bin/playwright test tests/story-01.spec.ts", True),
+    ("/usr/sbin/sshd -D", False),
+    ("python3 -m http.server 18800", False),
+])
+def test_only_our_own_leftovers_are_reclaimed_from_a_scoring_port(cmd, ours):
+    """A hard-killed scoring can leave a server on its port. The next scoring takes the port back
+    only from an app server or test runner, never from anything else."""
+    from gates import is_scoring_process
+    assert is_scoring_process(cmd) is ours
