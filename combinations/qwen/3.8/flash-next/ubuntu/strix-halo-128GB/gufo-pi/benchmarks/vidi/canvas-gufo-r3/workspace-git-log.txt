@@ -1,3 +1,36 @@
+commit e140162f48b4833fa158a3707bd97600e7b0ccc0
+vidi-agent  Tue Sep 29 12:52:17 2026 +0000
+
+    harness: snapshot after story 10 (uncommitted agent work)
+
+
+ src/client/Board.tsx                      | 118 ++++++++++-
+ src/client/board/Toolbar.tsx              | 116 ++++++++++-
+ src/client/board/useBoardKeys.ts          |  11 +-
+ src/client/canvas/testHooks.ts            |  20 ++
+ src/client/objects/ConnectorObject.tsx    | 225 +++++++++++++++++++++
+ src/client/objects/ShapeObject.tsx        | 248 ++++++++++++++++++++++++
+ src/client/objects/ShapeToolbar.tsx       | 126 ++++++++++++
+ src/client/objects/StickyTextEditor.tsx   |   6 +-
+ src/client/tools/ConnectorTool.tsx        | 215 ++++++++++++++++++++
+ src/client/tools/ShapeTool.tsx            | 147 ++++++++++++++
+ src/client/tools/useActiveTool.ts         | 117 +++++++++++
+ src/shared/board-model.ts                 |  39 +++-
+ src/shared/config.ts                      |  38 ++++
+ src/shared/geometry/connector-geometry.ts |  78 ++++++++
+ src/shared/geometry/polyline.ts           |  29 +++
+ src/shared/objects/connector.ts           | 268 +++++++++++++++++++++++++
+ src/shared/objects/shape.ts               | 203 +++++++++++++++++++
+ tests/component/TextObject.test.tsx       |   2 +-
+ tests/component/shape-connector.test.tsx  | 312 ++++++++++++++++++++++++++++++
+ tests/component/shapeHarness.tsx          | 173 +++++++++++++++++
+ tests/e2e/helpers/shape.ts                | 198 +++++++++++++++++++
+ tests/e2e/shapes-and-connectors.spec.ts   | 189 ++++++++++++++++++
+ tests/fixtures/checkout-flow.ts           |  61 ++++++
+ tests/unit/checkout-flow.test.ts          |  38 ++++
+ tests/unit/connector-model.test.ts        | 307 +++++++++++++++++++++++++++++
+ tests/unit/shape-model.test.ts            | 182 +++++++++++++++++
+ 26 files changed, 3443 insertions(+), 23 deletions(-)
 commit 8d2709a7350f39cc9d9fd89c9f4176ad0a32b46f
 vidi-agent  Tue Sep 29 11:23:18 2026 +0000
 
