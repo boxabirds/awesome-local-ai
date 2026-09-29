@@ -104,3 +104,24 @@ def test_old_finished_or_cancelled_jobs_without_a_record_are_left_out():
 def test_a_finished_job_reads_as_finished():
     s = B.stages({"state": "", "rescores": [], "has_bundle": False}, job={"state": {"status": "done"}, "progress": {}}, suite="x")
     assert s["build"] == "finished (not recorded)"
+
+
+def test_live_numbers_come_from_the_running_story_not_the_last_listed():
+    job = {"id": "j", "state": {"status": "running", "attempt": 1},
+           "progress": {"current_story": "1", "log_tail": ["[story 1] … agent starting"],
+                        "stories": [
+                            {"id": "1", "status": "running", "agent_minutes": 6.0, "calls": 32, "output_tokens": 36199,
+                             "last_task_change_at": 100.0,
+                             "tasks": [{"status": "written"}, {"status": "written"}, {"status": "not-started"}],
+                             "recent_activity": ["bash: npm run build 2>&1", "bash: npx vitest run 2>&1"]},
+                            {"id": "2", "status": "pending"},
+                            {"id": "12", "status": "pending"}]}}
+    live = B.live_from_job(job)
+    assert (live["current_story"], live["agent_minutes"], live["calls"], live["output_tokens"]) == ("1", 6.0, 32, 36199)
+    assert (live["tasks_written"], live["tasks_total"]) == (2, 3)
+    assert live["last_activity"] == "bash: npx vitest run 2>&1" and live["last_task_change_at"] == 100.0
+
+
+def test_a_job_between_stories_has_no_live_story():
+    job = {"id": "j", "state": {"status": "running"}, "progress": {"current_story": None, "stories": [{"id": "1", "status": "done"}]}}
+    assert B.live_from_job(job)["agent_minutes"] is None

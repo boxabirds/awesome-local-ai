@@ -20,13 +20,13 @@ Standard library only; it runs anywhere with a clone of this repo.
   (`~/.config/dbench/nodes.toml`): queued and running jobs, the current story, and the last log line.
   Without dbench the page shows the repo only.
 
-The page itself refreshes every 5 seconds and says when the repo and dbench were last read.
+The page itself refreshes every 5 seconds and says when the repo and dbench were last read. If it can't refresh for 20 seconds (the server stopped, or an error), it greys out under a red bar saying how old the data is, so old data never passes for current.
 
 ## What each column means
 
 | Column | From |
 |---|---|
-| Build | the dbench job (queued, running: story N, failed with its reason) or the record's `run-status.json` |
+| Build | the dbench job (queued, running: story N, failed with its reason) or the record's `run-status.json`; for the running story, agent minutes, calls, output tokens, tasks written and the agent's latest action |
 | Stories | one square per finished story, coloured by its live held-out result (all passed, some, none); the running story pulses |
 | Live held-out | the latest story's held-out result as scored during the run (a progress signal; the score of record is the re-score) |
 | Score | the run's re-scores (`rescore/<suite version>/`), each linking to its per-story table; otherwise what scoring is waiting for |
