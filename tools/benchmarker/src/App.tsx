@@ -1,6 +1,7 @@
 import { useState } from "react";
-import type { Row } from "../shared/types.ts";
+import { RUN_STATUSES, type Row, type RunStatus } from "../shared/types.ts";
 import { Header } from "./components/Header.tsx";
+import { StatusFilter } from "./components/StatusFilter.tsx";
 import { StaleBanner } from "./components/StaleBanner.tsx";
 import { MachineSection } from "./components/MachineSection.tsx";
 import { groupByMachine } from "../shared/grouping.ts";
@@ -8,6 +9,25 @@ import { useBenchState } from "./useBenchState.ts";
 
 const SAVED_KEY = "benchmarker:v2"; // versioned: selections saved by older builds are ignored
 const ALL = "all";
+const HIDDEN_KEY = "benchmarker:hidden-statuses:v1";
+const HIDDEN_AT_FIRST: RunStatus[] = ["cancelled"];
+
+function loadHidden(): Set<RunStatus> {
+  try {
+    const saved = localStorage.getItem(HIDDEN_KEY);
+    return new Set(saved === null ? HIDDEN_AT_FIRST : (JSON.parse(saved) as RunStatus[]));
+  } catch {
+    return new Set(HIDDEN_AT_FIRST);
+  }
+}
+
+function saveHidden(hidden: Set<RunStatus>) {
+  try {
+    localStorage.setItem(HIDDEN_KEY, JSON.stringify([...hidden]));
+  } catch {
+    // private window or blocked storage: the choice just isn't remembered
+  }
+}
 
 interface Selection { pack: string; family: string }
 
@@ -46,6 +66,7 @@ function pickFamily(families: string[], current: string, wanted: string | undefi
 export function App() {
   const { data, error, age, stale, serverNow } = useBenchState();
   const [choice, setChoice] = useState<Partial<Selection>>(loadSaved);
+  const [hidden, setHidden] = useState<Set<RunStatus>>(loadHidden);
 
   if (!data) {
     return (
@@ -61,7 +82,13 @@ export function App() {
   const families = [...new Set(inPack.map((r) => r.family).filter(Boolean))].toSorted().toReversed();
   const current = /^(.*?-v\d+)/.exec(data.suites[pack] ?? "")?.[1] ?? "";
   const family = pickFamily(families, current, choice.family);
-  const shown = inPack.filter((r) => family === ALL || r.family === family);
+  const inFamily = inPack.filter((r) => family === ALL || r.family === family);
+  const counts = RUN_STATUSES.map((st) => [st, inFamily.filter((r) => r.status === st).length] as [RunStatus, number]).filter(([, n]) => n > 0);
+  const shown = inFamily.filter((r) => !hidden.has(r.status));
+  const chooseHidden = (next: Set<RunStatus>) => {
+    setHidden(next);
+    saveHidden(next);
+  };
 
   const choose = (next: Selection) => {
     setChoice(next);
@@ -80,13 +107,18 @@ export function App() {
         currentFamily={current}
         onPack={(p) => choose({ pack: p, family: "" })}
         onFamily={(f) => choose({ pack, family: f })}
-      />
+      >
+        <StatusFilter counts={counts} hidden={hidden} onChange={chooseHidden} />
+      </Header>
       <StaleBanner stale={stale} age={age} error={error} />
       <main>
-        {groupByMachine(shown, data.machines ?? []).map((g) => (
+        {groupByMachine(shown, data.machines ?? [])
+          // A machine with nothing to show under this filter is left out, unless it is idle: that is news.
+          .filter((g) => g.rows.length > 0 || (g.info !== null && !g.info.running && g.info.queued === 0))
+          .map((g) => (
           <MachineSection key={g.machine} group={g} state={data} serverNow={serverNow} />
         ))}
-        {shown.length === 0 ? <p className="empty">No runs for this pack and version.</p> : null}
+        {shown.length === 0 ? <p className="empty">No runs for this pack, version and status.</p> : null}
       </main>
     </div>
   );

@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import type { State } from "../../shared/types.ts";
 import { ago } from "../format.ts";
 
@@ -11,9 +12,11 @@ interface Props {
   currentFamily: string;
   onPack(pack: string): void;
   onFamily(family: string): void;
+  /** The status filter, on its own line. */
+  children?: ReactNode;
 }
 
-export function Header({ state, serverNow, packs, pack, families, family, currentFamily, onPack, onFamily }: Props) {
+export function Header({ state, serverNow, packs, pack, families, family, currentFamily, onPack, onFamily, children }: Props) {
   const since = (t: number) => (t && serverNow !== null ? serverNow - t : null);
   const errors = [state.fetchError ? `git: ${state.fetchError}` : "", state.dbenchError ? `dbench: ${state.dbenchError}` : ""].filter(Boolean);
   return (
@@ -37,6 +40,7 @@ export function Header({ state, serverNow, packs, pack, families, family, curren
         repo fetched {ago(since(state.fetchedAt))} · dbench {ago(since(state.dbenchAt))} · suite {state.suites[pack] || "?"}
       </span>
       {errors.length > 0 ? <span className="err">{errors.join(" · ")}</span> : null}
+      {children}
     </header>
   );
 }
