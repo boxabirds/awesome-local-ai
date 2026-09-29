@@ -262,7 +262,7 @@ const EMPTY_RECORD = {
 };
 
 /** One row per run record, plus one per dbench job that has no record yet: queued and running jobs
- * always, finished, failed or cancelled ones for RECENT_S. */
+ * always, failed or stopped ones for RECENT_S; cancelled or finished ones never, as they left no run. */
 export function mergeRows(records: RunRecord[], jobs: Map<string, NodeJob>, now: number): MergedRow[] {
   const seen = new Set<string>();
   const rows: MergedRow[] = records.map((r) => {
@@ -273,6 +273,8 @@ export function mergeRows(records: RunRecord[], jobs: Map<string, NodeJob>, now:
   for (const [key, job] of jobs) {
     if (seen.has(key)) continue;
     const status = job.state.status;
+    // Without a record, a cancelled or finished job (a smoke test, a dropped combination) left no run.
+    if (status === "cancelled" || status === "done") continue;
     if (status !== "queued" && status !== "running" && now - (job.updated_at ?? 0) >= RECENT_S) continue;
     const [stack, pack, runId] = key.split("\u0000");
     rows.push({ ...EMPTY_RECORD, pack, stack, runId, dir: null, job });
