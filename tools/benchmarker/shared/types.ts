@@ -83,6 +83,9 @@ export interface Row {
   state: string;
   stateAt: string;
   status: RunStatus;
+  /** Hidden flows (held-out tests) in the run's whole scope for its suite version; null if unknown. */
+  flowsTotal: number | null;
+  flows: FlowsHealth;
   /** Why or how: a failure's reason, "finishing story 3", "attempt 2"; "" if nothing to add. */
   statusNote: string;
   stories: Story[];
@@ -99,6 +102,16 @@ export interface Machine {
   /** `finishing`: the agent is done with `story` and it is being scored and recorded. */
   running: { stack: string; short: string; runId: string; story: string | null; finishing: boolean; agentMinutes: number | null } | null;
   queued: number;
+}
+
+/** Whether the flows built so far work, from the whole-suite result after the latest recorded story. */
+export interface FlowsHealth {
+  state: "none" | "working" | "some failing" | "regressed" | "broken";
+  passed: number | null;
+  /** The story that result is after. */
+  after: string | null;
+  /** The best earlier result, when this one is lower. */
+  was: number | null;
 }
 
 export interface State {

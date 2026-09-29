@@ -25,7 +25,7 @@ test("each machine has one section, headed by what it runs now, with its queue i
 test("a running run: status, story of the scope with its title, time, and activity each in its own column", async ({ page }) => {
   await expect(cell(page, SWIFT, "v2-r1", 0)).toContainText("3.8-swift-1.5/27b llamacpp");
   await expect(cell(page, SWIFT, "v2-r1", 1)).toHaveText("running");
-  await expect(cell(page, SWIFT, "v2-r1", 2)).toContainText("story 3 of 4");
+  await expect(cell(page, SWIFT, "v2-r1", 2)).toContainText("story 3 of 11");
   await expect(cell(page, SWIFT, "v2-r1", 2)).toContainText("See other people's edits live");
   await expect(cell(page, SWIFT, "v2-r1", 3)).toContainText("4 min on this story");
   await expect(cell(page, SWIFT, "v2-r1", 3)).toContainText(/run \d/);
@@ -38,9 +38,10 @@ test("stories: recorded, reported by dbench before git, and the running one", as
   await expect(strip.locator("[data-story='1']")).toHaveClass(/c-ok/);
   await expect(strip.locator("[data-story='2']")).toHaveClass(/c-part/); // 9/10 own tests, from dbench
   await expect(strip.locator("[data-story='3']")).toHaveClass(/c-run/);
-  const held = cell(page, SWIFT, "v2-r1", 5);
-  await expect(held).toContainText("6/6 whole suite after story 1");
-  await expect(held).toContainText("story 2: 9/10 own tests");
+  const flows = cell(page, SWIFT, "v2-r1", 5);
+  await expect(flows).toContainText("6 of 75");
+  await expect(flows).toContainText("working");
+  await expect(flows.locator("[role=meter]")).toHaveAttribute("aria-valuemax", "75");
 });
 
 test("queued runs say queued and their place on the node, in dbench's order, and nothing else", async ({ page }) => {
@@ -54,6 +55,13 @@ test("a story that has only just started says so instead of showing zeros", asyn
   const activity = cell(page, "qwen/3.8/flash-next/macos/128GB/mlxserve-pi", "v2-r1", 4);
   await expect(activity).toContainText("first numbers within a minute");
   await expect(activity).not.toContainText("0 calls");
+});
+
+test("flows working: a fixed total for the whole scope, and a word for whether they still work", async ({ page }) => {
+  await expect(page.getByRole("columnheader", { name: "Flows working" }).first()).toBeVisible();
+  const opus = cell(page, "reference/opus-5.5", "run-9", 5);
+  await expect(opus).toContainText("19 of 75");
+  await expect(opus).toContainText("some failing");
 });
 
 test("a Claude run, whose calls and tokens are only counted at the end of a story, shows no false zeros", async ({ page }) => {

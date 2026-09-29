@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   findRuns, versionFamily, rowFamily, webBase, indexJobs, queuePositions, liveFromJob, storyEntry,
-  mergeStories, stages, mergeRows, machines, assignMachines, runStatus, RECENT_S, type DbenchJob,
+  mergeStories, stages, mergeRows, machines, assignMachines, runStatus, countTests, flowsHealth, RECENT_S, type DbenchJob,
 } from "./domain.ts";
 import type { Row } from "../shared/types.ts";
 
@@ -259,5 +259,36 @@ describe("runStatus", () => {
     expect(runStatus(rec("failed"), null)).toEqual({ status: "failed", note: "" });
     // The record says a story started but no job runs it any more: it stopped.
     expect(runStatus(rec("started"), null)).toEqual({ status: "stopped", note: "no longer running" });
+  });
+});
+
+describe("flows", () => {
+  it("counts a spec file's tests: test( and its variants, not describe blocks or loops inside tests", () => {
+    const src = [
+      "test.describe('story 3 @s3', () => {",
+      "  test('golden path @ref prd:x', async ({ page }) => {",
+      "    for (const p of [alex, sam]) {",
+      "      await expect(p).toBeVisible();",
+      "    }",
+      "  });",
+      "  test.fixme('later', async () => {});",
+      "  test.beforeEach(async () => {});",
+      "  test('second', async () => {});",
+      "});",
+    ].join("\n");
+    expect(countTests(src)).toBe(3);
+  });
+
+  const s = (id: string, passed: number | null, total: number | null) =>
+    ({ id, title: "", status: "DONE", passed, total, ownPassed: null, ownTotal: null });
+
+  it("says whether the flows built so far work", () => {
+    expect(flowsHealth([])).toEqual({ state: "none", passed: null, after: null, was: null });
+    expect(flowsHealth([s("1", 6, 6)])).toEqual({ state: "working", passed: 6, after: "1", was: null });
+    expect(flowsHealth([s("1", 6, 6), s("2", 19, 20)])).toEqual({ state: "some failing", passed: 19, after: "2", was: null });
+    expect(flowsHealth([s("1", 6, 6), s("2", 19, 20), s("3", 12, 27)])).toEqual({ state: "regressed", passed: 12, after: "3", was: 19 });
+    expect(flowsHealth([s("1", 6, 6), s("2", 19, 20), s("3", 0, 27)])).toEqual({ state: "broken", passed: 0, after: "3", was: 19 });
+    // A story dbench reports finished whose whole-suite result isn't recorded yet doesn't count.
+    expect(flowsHealth([s("1", 6, 6), s("2", null, null)])).toEqual({ state: "working", passed: 6, after: "1", was: null });
   });
 });

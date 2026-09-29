@@ -2,7 +2,7 @@
 import { execFile, spawn } from "node:child_process";
 import { promisify } from "node:util";
 import type { Score } from "../shared/types.ts";
-import { findRuns, storyEntry, type DbenchJob, type RunRecord } from "./domain.ts";
+import { countTests, findRuns, storyEntry, type DbenchJob, type RunRecord } from "./domain.ts";
 
 const run = promisify(execFile);
 export const REF = "origin/main";
@@ -94,4 +94,36 @@ export async function loadJobs(): Promise<Record<string, DbenchJob[]>> {
   const { stdout } = await run("dbench", ["status", "--json"], { timeout: DBENCH_TIMEOUT_MS, maxBuffer: MAX_BUFFER });
   const data = JSON.parse(stdout) as Record<string, unknown>;
   return Object.fromEntries(Object.entries(data).filter(([, v]) => Array.isArray(v))) as Record<string, DbenchJob[]>;
+}
+
+// ---------- flow counts from the private held-out suite ----------
+
+const STORY_FILE = /story-(\d+)\.spec\.ts$/;
+const flowCache = new Map<string, Record<string, number>>(); // "<pack>@<tag>": a tag's files never change
+
+/** Tests per story in the private suite at a version tag: {"1": 10, "2": 10, ...}; null if the tag isn't there. */
+async function flowCountsAt(privateRepo: string, pack: string, tag: string): Promise<Record<string, number> | null> {
+  const key = `${pack}@${tag}`;
+  const cached = flowCache.get(key);
+  if (cached) return cached;
+  const dir = `packs/${pack}/acceptance/tests`;
+  const files = (await git(privateRepo, "ls-tree", "-r", "--name-only", tag, "--", dir).catch(() => ""))
+    .split("\n").filter((f) => STORY_FILE.test(f));
+  if (!files.length) return null;
+  const counts: Record<string, number> = {};
+  for (const f of files) counts[String(Number(STORY_FILE.exec(f)![1]))] = countTests(await git(privateRepo, "show", `${tag}:${f}`));
+  flowCache.set(key, counts);
+  return counts;
+}
+
+/** Flow counts for every suite version the runs use, keyed by version. Unknown versions are left out. */
+export async function loadFlowCounts(privateRepo: string, versions: { pack: string; version: string }[]) {
+  await git(privateRepo, "fetch", "-q", "--tags").catch(() => ""); // offline: use the tags already here
+  const out: Record<string, Record<string, number>> = {};
+  for (const { pack, version } of versions) {
+    if (!version || out[version]) continue;
+    const counts = await flowCountsAt(privateRepo, pack, version);
+    if (counts) out[version] = counts;
+  }
+  return out;
 }
