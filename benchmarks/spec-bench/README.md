@@ -36,6 +36,8 @@ built from the same spec.
 
 While the agent works, the harness stops it if swap grows by more than 4 GB or free memory falls below 8%, and records which processes held the memory at the story's lowest point. On Linux the agent is also started with the highest OOM score (`oom_score_adj` 1000), which everything it runs inherits: its tests, dev servers and browsers. If memory runs out before the guard acts, the kernel kills one of those instead of the model server, which would otherwise be its first choice as the biggest process. Raising a score needs no root and lasts only as long as those processes; nothing on the machine changes.
 
+On Linux with a systemd user manager the agent also runs in its own scope (a cgroup) with a memory limit, so every process it starts stays visible to the harness even after its parent dies: what a tool call started is killed when the hang guard cuts the call off, old orphans go first when memory runs short, and the whole scope is emptied at the end of each story. Details and tests: [tools/agent-containment/PROPOSAL.md](../../tools/agent-containment/PROPOSAL.md).
+
 ## What gets recorded
 
 Every run and story records its configuration, what the agent did, where the time went (model

@@ -29,6 +29,7 @@ from urllib.parse import urlparse
 from collections import deque
 from pathlib import Path
 
+import containment
 import gates
 import history
 import hostenv
@@ -576,6 +577,8 @@ class ToolHangGuard(threading.Thread):
         while not self._halt.wait(TOOL_HANG_POLL_S):
             if tool_hang_check(self.events, self.ws):
                 self.interruptions += 1
+                if CONTAINMENT:
+                    CONTAINMENT.reap_interrupted()   # what the cut-off call started, incl. servers it detached
                 with self.log.open("a") as f:
                     f.write(f"{time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime())} {self.events.parent.name}: "
                             f"interrupted a tool call silent for {TOOL_HANG_S}s (killed processes under the workspace)\n")
@@ -708,16 +711,25 @@ def time_split(events: Path, server_log: Path, t_from: float, t_to: float) -> di
             "other_s": round(wall - tools_s - comp_s - model_s, 1)}
 
 
+# The running story's containment (containment.StoryContainment; tools/agent-containment/PROPOSAL.md):
+# the agent session, its tool calls, the hang guard and the conditions sampler all report to it.
+CONTAINMENT = None
+
+
 def run_agent(client, ws: Path, env: dict, model_id: str, prompt: str, events_path: Path,
               resume_from: str | None = None, fork: bool = True) -> dict:
     """Run (or resume) one sandboxed agent session; returns counts, session id, error and loop flag."""
     cmd = hostenv.oom_first(sandboxed(client.command(model_id, prompt, resume_from, fork=fork), own_dir=ws.parent))
+    if CONTAINMENT:
+        cmd = CONTAINMENT.wrap(cmd)
     t0 = time.monotonic()
     full_env = {**os.environ, **env, **client.env()}
     for k in getattr(client, "env_remove", ()):  # e.g. an API key that would override subscription auth
         full_env.pop(k, None)
     proc = subprocess.Popen(cmd, cwd=ws, env=full_env, stdin=subprocess.DEVNULL,
                             stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, start_new_session=True)
+    if CONTAINMENT:
+        CONTAINMENT.started(proc.pid)
     loops = LoopDetector()
     st = empty_state()
     stalled = False
@@ -729,6 +741,8 @@ def run_agent(client, ws: Path, env: dict, model_id: str, prompt: str, events_pa
                 e = json.loads(line)
             except json.JSONDecodeError:
                 continue
+            if CONTAINMENT and isinstance(e, dict) and e.get("type") == "tool_execution_start":
+                CONTAINMENT.note_tool_start()
             key = client.scan(e, st)
             if key is not None and loops.key(key):
                 stalled = True
@@ -992,6 +1006,7 @@ def wait_for_conditions() -> dict:
 SWAP_ABORT_GROWTH_GB = 4.0
 # Free memory below this share stops the run the same way (was an external watchdog loop).
 MEM_FREE_ABORT_PCT = 8
+MEM_REAP_PCT = 30           # below this, the agent's orphaned processes are reaped (containment.py)
 MEM_SNAPSHOT_PCT = 20       # below this, record which processes hold the memory, at each new low
 MIB_PER_GIB = 1024
 
@@ -1076,6 +1091,8 @@ class ConditionSampler(threading.Thread):
                 self.footprint_max = max(self.footprint_max or 0.0, fp)
                 self.footprint_peak = max(self.footprint_peak or 0.0, fp_peak or 0.0)
             free = mem_free_pct()
+            if free is not None and free < MEM_REAP_PCT and CONTAINMENT:
+                CONTAINMENT.reap_pressure()
             if free is not None:
                 if free < MEM_SNAPSHOT_PCT and (self.free_min_pct is None or free < self.free_min_pct):
                     self._snapshot(free)
@@ -1430,12 +1447,16 @@ def main() -> None:
             watcher.start()
             skipper = SkipWatcher(run, sid, ws)
             skipper.start()
+            global CONTAINMENT
+            CONTAINMENT = containment.StoryContainment(run.name, sid)
             rec["agent"] = run_story_agent(client, ws, env, a.model_id, prompt, events, continue_session=prior,
                                            on_cap=skipper.cap)
             rec["agent_finished"] = time.time()
             skip = skipper.stop()
             watcher.stop()
             rec["conditions"] = sampler.stop()
+            rec["containment"] = CONTAINMENT.finish()   # kills what is left in the story's scopes
+            CONTAINMENT = None
         if rec["conditions"]["aborted_swap"]:
             kill_strays(ws)
             (run / "current_story").write_text("")

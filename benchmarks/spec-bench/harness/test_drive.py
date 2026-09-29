@@ -1068,3 +1068,76 @@ def test_known_good_ignores_finder_files_when_comparing_specs(tmp_path):
     base = known_good_base(ref, 3)
     setup_workspace_from(tmp_path / "work" / "workspace", base, current)
     assert base["spec_updated"] is False
+
+
+class _RecordingContainment:
+    """Stands in for containment.StoryContainment: records what the harness asks of it."""
+    def __init__(self):
+        self.calls = []
+    def wrap(self, cmd):
+        self.calls.append("wrap")
+        return cmd
+    def started(self, pid):
+        self.calls.append("started")
+    def note_tool_start(self):
+        self.calls.append("tool_start")
+    def reap_interrupted(self):
+        self.calls.append("reap_interrupted")
+        return []
+    def reap_pressure(self):
+        self.calls.append("reap_pressure")
+        return []
+
+
+class _ScriptedClient:
+    """An 'agent' that prints pi-shaped events: one tool call, then the end of its turn."""
+    env_remove = ()
+    def command(self, model_id, prompt, resume_from=None, fork=True):
+        events = ['{"type":"session","id":"s1"}', '{"type":"tool_execution_start","toolCallId":"t1","toolName":"bash"}',
+                  '{"type":"tool_execution_end","toolCallId":"t1","toolName":"bash"}', '{"type":"agent_end"}']
+        return ["printf", "%s\\n", *events]
+    def env(self):
+        return {}
+    def scan(self, e, st):
+        return None
+
+
+def test_the_agent_runs_contained_and_each_tool_call_is_noted(tmp_path, monkeypatch):
+    """tools/agent-containment/PROPOSAL.md: the harness wraps the agent in its story's scope, tells it
+    the agent's pid, and snapshots the scope at every tool call so an interrupted call can be reaped."""
+    import drive, hostenv
+    monkeypatch.setattr(drive, "sandboxed", lambda cmd, own_dir: cmd)
+    monkeypatch.setattr(hostenv, "oom_first", lambda cmd: cmd)
+    rec = _RecordingContainment()
+    monkeypatch.setattr(drive, "CONTAINMENT", rec)
+    drive.run_agent(_ScriptedClient(), tmp_path, {}, "m", "p", tmp_path / "events.jsonl")
+    assert rec.calls == ["wrap", "started", "tool_start"]
+
+
+def test_the_hang_guard_reaps_what_the_interrupted_call_started(tmp_path, monkeypatch):
+    import time, drive
+    rec = _RecordingContainment()
+    monkeypatch.setattr(drive, "CONTAINMENT", rec)
+    monkeypatch.setattr(drive, "TOOL_HANG_POLL_S", 0.01)
+    monkeypatch.setattr(drive, "tool_hang_check", lambda events, ws: True)
+    g = drive.ToolHangGuard(tmp_path / "e.jsonl", tmp_path, tmp_path / "interventions.md")
+    g.start()
+    time.sleep(0.05)
+    g.stop()
+    assert "reap_interrupted" in rec.calls
+
+
+def test_memory_pressure_reaps_orphans_before_the_guard_stops_the_story(monkeypatch):
+    import time as _t, drive
+    rec = _RecordingContainment()
+    monkeypatch.setattr(drive, "CONTAINMENT", rec)
+    monkeypatch.setattr(drive, "CONDITION_POLL_S", 0.01)
+    monkeypatch.setattr(drive, "swap_used_gb", lambda: 1.0)
+    monkeypatch.setattr(drive, "mem_free_pct", lambda: drive.MEM_REAP_PCT - 1)
+    monkeypatch.setattr(drive, "conditions", lambda: {"ac": True, "low_power": False, "thermal": "nominal"})
+    monkeypatch.setattr(drive.hostenv, "memory_snapshot", lambda: {"processes": []})
+    s = drive.ConditionSampler()
+    s.start()
+    _t.sleep(0.05)
+    s.stop()
+    assert "reap_pressure" in rec.calls
