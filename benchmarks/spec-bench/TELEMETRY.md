@@ -42,7 +42,17 @@ harness passed to the server launcher; a server without server-side effort, such
 it), `client_thinking` (the effort pi itself sends with each request, empty when it sends none),
 `known_good_from` (known-good mode's reference run, empty for a full run), `context_limit`, `output_limit`, `compact_at` (the client's compaction threshold), `metered`
 (whether the Python proxy was on), `host` (CPU, RAM, GPU), `harness_commit`, `pack_version`,
-`started_at`.
+`started_at`, `identity`.
+
+`identity` is what the start actually ran, from [`harness/identity.py`](harness/identity.py), so runs can
+be compared as variations over time: `backend`; `install_manifest` (every setting in the install's
+`install.env`: engine settings, sampling, draft method and depth, model file names, pinned images and
+versions); `server_command` (the command line of the process serving the benchmark port, `$HOME` written
+as `~`); `engine_version` (what the serving binary prints for `--version`, e.g. llama.cpp's commit);
+`model_files` (per model file: `role`, `name`, `bytes`, and the Hugging Face `revision` and `sha256`
+saved when it was downloaded, or a pinned directory's verified revision); `drivers` (NVIDIA driver,
+Linux kernel); `os`. Anything it can't find is null; it never stops a run. Runs before 29 Sep 2026 have
+no `identity`.
 
 ## Per run: `metrics.json` top level
 

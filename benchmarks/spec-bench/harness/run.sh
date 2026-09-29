@@ -210,12 +210,17 @@ esac
 # A resumed run can change setup between stories (e.g. a memory limit); keep every start.
 # Effort is a setting of the local server; a cloud client runs at its own default (no flag is passed).
 EFFORT_RECORDED="$REASONING_EFFORT"; [[ "$CLOUD" == 1 ]] && EFFORT_RECORDED="client default"
+# What this start actually runs (engine build, server command line, model files, manifest): identity.py.
+IDENTITY_PORT="$BENCH_PORT"; [[ "$CLOUD" == 1 ]] && IDENTITY_PORT=0
+IDENTITY_JSON="$(python3 "$HARNESS/identity.py" --env-file "$ENV_FILE" --port "$IDENTITY_PORT" 2>/dev/null)" || IDENTITY_JSON=""
+[[ -n "$IDENTITY_JSON" ]] || IDENTITY_JSON=null
 [[ -f "$RUN_DIR/run.json" ]] && { tr -d '\n' < "$RUN_DIR/run.json"; echo; } >> "$RUN_DIR/run-history.jsonl"
 cat > "$RUN_DIR/run.json" <<JSON
 {"install_id": "$INSTALL_ID", "combination": "$COMBINATION", "model_id": "$MODEL_ID",
  "pack": "$SPEC_BENCH_PACK_NAME", "scope": "${SCOPE:-${EPIC:+epic:$EPIC}}", "metered": $METER, "reasoning_effort": "$EFFORT_RECORDED", "client_thinking": "${CLIENT_THINKING:-}", "known_good_from": "${FROM_RUN#"$REPO_ROOT"/}", "context_limit": $CONTEXT_LIMIT,
  "output_limit": $OUTPUT_LIMIT, "backend_version": "$( [[ "$BACKEND" == mtplx ]] && mtplx --version 2>/dev/null | awk '{print $NF}' )", "mtplx_memory_limit_bytes": "$( [[ "$BACKEND" == mtplx ]] && echo "${MTPLX_MEMORY_LIMIT_BYTES:-default}" )", "compact_at": "${COMPACT_AT:-client default}", "client": "$CLIENT_NAME", "client_version": "$CLIENT_VERSION", "backend": "$BACKEND", "host": "$HOST_DESC",
- "harness_commit": "$(git -C "$REPO_ROOT" rev-parse --short HEAD)", "pack_version": "$PACK_VERSION", "started_at": "$(date -u +%Y-%m-%dT%H:%M:%SZ)"}
+ "harness_commit": "$(git -C "$REPO_ROOT" rev-parse --short HEAD)", "pack_version": "$PACK_VERSION", "started_at": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+ "identity": $IDENTITY_JSON}
 JSON
 
 cd "$HARNESS"
