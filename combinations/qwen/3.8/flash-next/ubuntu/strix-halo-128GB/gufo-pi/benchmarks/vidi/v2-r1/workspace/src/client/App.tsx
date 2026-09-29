@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { BoardViewport } from './canvas/BoardViewport';
 import { NavigationHint } from './canvas/NavigationHint';
@@ -10,23 +10,44 @@ import { Toolbar } from './board/Toolbar';
 import { useBoardDoc } from './board/useBoardDoc';
 import { isTextEntryTarget, useSelection } from './board/useSelection';
 import { StickyNote } from './objects/StickyNote';
+import { ConnectionStatus } from './sync/ConnectionStatus';
 import { createSticky, deleteObject, type StickySnapshot } from '../shared/board-model';
+import { newBoardId } from '../shared/board-id';
 
 /**
- * The board: an infinite canvas (story 1) holding sticky notes (story 2).
+ * Extract board id from the URL path `/b/:boardId`, or redirect to a new board.
+ */
+function useBoardId(): string {
+  const [boardId, setBoardId] = useState(() => {
+    const match = window.location.pathname.match(/^\/b\/([A-Za-z0-9_-]{22})$/);
+    return match ? match[1] : '';
+  });
+
+  useEffect(() => {
+    if (boardId) return;
+    // Redirect / to /b/<newBoardId()>
+    const id = newBoardId();
+    window.history.replaceState(null, '', `/b/${id}`);
+    setBoardId(id);
+  }, [boardId]);
+
+  return boardId;
+}
+
+/**
+ * The board: an infinite canvas (story 1) holding sticky notes (story 2),
+ * shared live with others (story 3).
  *
  * The camera lives here so the viewport, the zoom controls and the navigation
  * hint share one camera; the document and the selection live here too, because
  * the toolbar, the notes and the keyboard shortcuts all act on them.
- *
- * Nothing is persisted yet: notes exist for this page only, and a reload starts
- * from an empty board (story 4 makes them durable, story 3 shares them live).
  */
 export function App() {
   const viewport = useViewportSize();
   const cameraApi = useCamera(viewport);
   const { camera, hasNavigated } = cameraApi;
-  const { doc, notes } = useBoardDoc();
+  const boardId = useBoardId();
+  const { doc, notes, connectionState } = useBoardDoc(boardId);
   const selection = useSelection();
 
   /** Latest camera, readable synchronously inside event handlers. */
@@ -102,6 +123,7 @@ export function App() {
 
   return (
     <>
+      <ConnectionStatus state={connectionState} />
       <BoardViewport
         camera={cameraApi}
         onEmptyClick={() => selection.select(null)}

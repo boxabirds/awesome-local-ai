@@ -1,13 +1,26 @@
 {
   // Cloudflare Worker configuration.
-  // Story 1 ships the static client only, so this is an assets-only Worker
-  // (no `binding`: wrangler rejects an asset binding without a Worker script).
-  // Story 3 adds `main` plus the `ASSETS` binding and Durable Objects.
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "vidi6",
-  "compatibility_date": "2026-09-17",
+  "compatibility_date": "2025-08-15",
+  "main": "src/worker/index.ts",
   "assets": {
     "directory": "./dist/client",
-    "not_found_handling": "single-page-application"
-  }
+    "not_found_handling": "single-page-application",
+    "binding": "ASSETS"
+  },
+  "durable_objects": {
+    "bindings": [
+      {
+        "name": "BOARD_ROOM",
+        "class_name": "BoardRoom"
+      }
+    ]
+  },
+  "migrations": [
+    {
+      "tag": "v1",
+      "new_sqlite_classes": ["BoardRoom"]
+    }
+  ]
 }

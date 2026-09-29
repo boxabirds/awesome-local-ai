@@ -18,6 +18,21 @@ export const GRID_SPACING_WORLD = 24;
 /** How far from the start panning is guaranteed (and tested) to work. */
 export const UNBOUNDED_PAN_TESTED_EXTENT = 1_000_000;
 
+// ---- Live collaboration (story 3: see other people's edits live) ----
+
+/** Soft capacity: design + test target for simultaneous editors, never enforced. */
+export const MAX_CONCURRENT_EDITORS = 5;
+/** PRD live.propagate: budget for a change to reach every other screen. */
+export const LIVE_UPDATE_LATENCY_BUDGET_MS = 1000;
+/** Passed to WebsocketProvider maxBackoffTime. */
+export const RECONNECT_MAX_BACKOFF_MS = 10_000;
+/** Green badge duration after a reconnection. */
+export const CONNECTED_CONFIRMATION_MS = 2000;
+/** PRD live.catch_up verification outage duration. */
+export const CATCH_UP_TEST_OUTAGE_MS = 30_000;
+/** Functional wait in e2e (all stories); latency is logged, not asserted. */
+export const E2E_EVENTUAL_TIMEOUT_MS = 15_000;
+
 /** Zoom step values are snapped to `ZOOM_STEP_FACTOR^n` within this epsilon. */
 export const ZOOM_STEP_SNAP_EPSILON = 1e-9;
 
