@@ -1,3 +1,36 @@
+commit ed371f6698865943030173318020c11c57d2460a
+vidi-agent  Tue Sep 29 06:08:17 2026 +0000
+
+    story 4: Return to a board and find everything as it was left
+
+
+ playwright.config.ts                             |   2 +-
+ src/client/App.tsx                               |  61 ++--
+ src/client/board/Toolbar.tsx                     |   7 +-
+ src/client/objects/StickyNote.tsx                |  12 +-
+ src/client/sync/ConnectionStatus.tsx             |   3 +
+ src/client/sync/connectBoard.ts                  |  43 ++-
+ src/shared/config.ts                             |   9 +
+ src/shared/protocol.ts                           |   4 +
+ src/worker/board-room.ts                         | 324 +++++++++++++++++----
+ src/worker/board-store-pure.ts                   |  40 +++
+ src/worker/board-store.ts                        | 188 ++++++++++++
+ src/worker/env.ts                                |   1 +
+ src/worker/index.ts                              |   8 +
+ src/worker/room-state.ts                         |  94 ++++++
+ src/worker/test-hooks.ts                         |  51 ++++
+ tests/component/ConnectionStatus.test.tsx        |  33 +++
+ tests/component/LoadFailure.test.tsx             | 130 +++++++++
+ tests/e2e/broken-board.spec.ts                   | 119 ++++++++
+ tests/e2e/helpers/wrangler-process.ts            |  86 ++++++
+ tests/e2e/persistence.spec.ts                    | 179 ++++++++++++
+ tests/fixtures/boards.ts                         | 114 ++++++++
+ tests/integration/board-room-persistence.test.ts | 351 +++++++++++++++++++++++
+ tests/integration/board-store.test.ts            | 309 ++++++++++++++++++++
+ tests/unit/board-store-chunks.test.ts            |  89 ++++++
+ tests/unit/room-state.test.ts                    | 183 ++++++++++++
+ tsconfig.json                                    |   3 +-
+ 26 files changed, 2343 insertions(+), 100 deletions(-)
 commit e2bbd8c5367e02cfeac31fd92cd1ea6334df034b
 vidi-agent  Tue Sep 29 05:17:34 2026 +0000
 
