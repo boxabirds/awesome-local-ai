@@ -53,7 +53,8 @@ story by story, and a held-out test suite it never sees scores the result. The
 [machines and tools](#the-bench-machines-and-their-tools) section covers how runs
 are driven across several machines and how their energy is measured, and
 [horizon/](#horizon-what-we-might-try-next) tracks the engines and models we
-might add next, and the ones ruled out.
+might add next, and the ones ruled out. If you have a DGX Spark, an RTX 3090 or a
+Gorgon Halo machine, see [Contributing](#contributing).
 
 ---
 
@@ -352,6 +353,62 @@ parked, eliminated) with the reason, the checks it must pass before a run, what 
 comparison, and when to look again. Blocked and eliminated ones stay there with their reasons (a
 known bug, a machine it can't fit), so nothing is tried twice for a reason already known. It is
 re-read periodically against each note's "recheck when".
+
+---
+
+## Contributing
+
+### Wanted: results on hardware we don't have
+
+The bench machines are an RTX 4090, a Strix Halo and an M5 Max. These are the gaps we most want filled:
+
+- **NVIDIA DGX Spark.** A different memory design from anything here: 128 GB shared between CPU and GPU.
+- **RTX 3090.** The most common 24 GB card for local models. The two SGLang rows above were written for
+  it from someone else's recipe and have never been run through these installers; a 3090 owner can turn
+  them into measured rows, and run the Qwen3.8-27B llama.cpp rows for comparison with the 4090.
+- **AMD Gorgon Halo builds**, running the stacks our Strix Halo box runs (llama.cpp with Vulkan or
+  ROCm, gufo), so the two generations can be compared on the same models.
+
+Anything else with a combination worth measuring is welcome too; [horizon/](horizon/) lists engines and
+models we would like to see tried.
+
+### Ways to contribute
+
+1. **Add a combination**: a model, machine and stack that installs and serves correctly.
+   [docs/adding-a-combination.md](docs/adding-a-combination.md) is the contract; one that reuses the
+   existing adapters is four files and no shell logic. Every number in it must be measured, or say
+   that it isn't.
+2. **Run the benchmark on your hardware.** Ask the repo owner (Julian Harris) for access to the private
+   repo with the held-out suites, clone it next to this one, run `setup-node.sh`, then `run.sh` or
+   dbench. Your run records (story by story, with the code the agent wrote) come back as a pull request
+   under your combination's `benchmarks/` folder. Three runs per stack, so run-to-run spread is visible.
+3. **Judge.** Watch the recordings of held-out tests and mark whether each scored pass or fail was
+   right. That is what tells us how far the scores can be trusted.
+4. **Suggest or rule out.** A note in [horizon/](horizon/) for an engine or model worth trying, or
+   evidence that one should be blocked. Bugs in other projects that we hit are drafted in
+   [issues/external/](issues/external/).
+
+### Why there is a held-out suite
+
+A coding agent builds the app from the spec, and its own tests pass because it wrote them. A score
+needs tests the agent has never seen: the held-out suite checks, in a real browser, that each story
+does what the spec says. It also protects the scores from contamination. A model that has read the
+spec (it is public, and in the agent's prompt anyway) still has to build an app that passes tests it
+has never seen. So the suites live in a private repo, the harness's sandbox hides them from the agent,
+and no result feeds anything from them back to the agent.
+
+People with access can read the tests, so a few rules keep results honest:
+
+- **Configurations are public** and contain **no task-specific instructions**: nothing in a
+  combination's settings, prompts or client configuration may name a pack or its features. A general
+  coding-agent setup is fine.
+- **Settings are fixed before the scored runs.** Try settings on anything but the held-out suite (the
+  agent's own tests, short smoke runs); then declare them and do three runs. A stack's result is its
+  runs together, not its best one.
+- **Every scored run is kept**, including the ones that did badly, so a result can be read with the
+  number of attempts behind it.
+- **Don't copy held-out tests** or anything derived from them into public places, issues or prompts.
+- Suites are **rotated**: a new version from time to time, and results are compared within a version.
 
 ---
 
