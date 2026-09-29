@@ -167,7 +167,7 @@ benchmarks/spec-bench/harness/judge-submit.sh vidi-v1 gpt-5.6 --transcript <sess
 # 3. On the machine with the key: check the rows and the transcript (any read outside the package is a peek), un-blind, compare.
 uv run benchmarks/spec-bench/harness/judge_collect.py vidi-v1 gpt-5.6 \
     --audit opus=benchmarks/reference/vidi/opus-5.5/run-1/audit.jsonl \
-    --audit flash-next=combinations/qwen/3.8/flash-next/macos/128GB/mtplx-opencode/benchmarks/vidi/canvas-pi-01/audit.jsonl
+    --audit flash-next=combinations/qwen/3.8/flash-next/macos/128GB/mtplx-pi/benchmarks/vidi/canvas-pi-01/audit.jsonl
 ```
 
 The judging folder is inside the private repo's checkout, which every harness version hides from

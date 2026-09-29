@@ -56,7 +56,7 @@ pick() { # os arch accel mem_mib family
 echo
 echo "selection by machine class"
 assert_eq "128GB Apple silicon takes Flash-Next" \
-  "qwen/3.8/flash-next/macos/128GB/mtplx-opencode" "$(pick macos arm64 metal 131072 qwen)"
+  "qwen/3.8/flash-next/macos/128GB/mtplx-pi" "$(pick macos arm64 metal 131072 qwen)"
 assert_eq "64GB Apple silicon takes the 27B" \
   "qwen/3.8/27b/macos/64GB/mtplx-opencode"         "$(pick macos arm64 metal 65536 qwen)"
 assert_eq "96GB cannot reach the 128GB tier" \
@@ -68,22 +68,22 @@ assert_eq "16GB Apple silicon: no qwen combination fits" \
 assert_eq "16GB Apple silicon takes MiMo when asked for the mimo family" \
   "mimo/2.6/9b/macos/16GB/mtplx-opencode"           "$(pick macos arm64 metal 16384 mimo)"
 assert_eq "128GB Apple silicon never gets MiMo as best fit across all families" \
-  "qwen/3.8/flash-next/macos/128GB/mtplx-opencode"  "$(pick macos arm64 metal 131072 '')"
+  "qwen/3.8/flash-next/macos/128GB/mtplx-pi"  "$(pick macos arm64 metal 131072 '')"
 assert_eq "an 8GB Mac matches nothing"     "" "$(pick macos arm64 metal 8192 '')"
 assert_eq "Intel Mac matches nothing"      "" "$(pick macos x86_64 none 0 qwen)"
 
 echo
 echo "nameplate memory is never exact"
 assert_eq "RTX 4090 reporting 24564 still qualifies for the 24GB tier" \
-  "qwen/3.8/27b/ubuntu/nvidia4090/llamacpp-opencode" "$(pick ubuntu x86_64 cuda 24564 qwen)"
+  "qwen/3.8/27b/ubuntu/nvidia4090/llamacpp-pi" "$(pick ubuntu x86_64 cuda 24564 qwen)"
 assert_eq "a 12GB card does not" "" "$(pick ubuntu x86_64 cuda 12282 qwen)"
 
 echo
 echo "unmeasured combinations (AUTO_SELECT=0) are never the silent pick"
 assert_eq "a 24GB NVIDIA card still defaults to the measured llama.cpp 27B, not SGLang" \
-  "qwen/3.8/27b/ubuntu/nvidia4090/llamacpp-opencode" "$(pick ubuntu x86_64 cuda 24576 qwen)"
+  "qwen/3.8/27b/ubuntu/nvidia4090/llamacpp-pi" "$(pick ubuntu x86_64 cuda 24576 qwen)"
 assert_eq "across all families too" \
-  "qwen/3.8/27b/ubuntu/nvidia4090/llamacpp-opencode" "$(pick ubuntu x86_64 cuda 24576 '')"
+  "qwen/3.8/27b/ubuntu/nvidia4090/llamacpp-pi" "$(pick ubuntu x86_64 cuda 24576 '')"
 HOST_OS=ubuntu; HOST_ARCH=x86_64; HOST_ACCEL=cuda; HOST_MEM_MIB=24576
 compat="$(candidates_for_host qwen | cut -d'|' -f2)"
 assert_ok "the SGLang 27B is still listed as compatible" \
@@ -97,7 +97,7 @@ assert_eq "an opted-out combination ranks last in its tier" \
 echo
 echo "OS families"
 assert_eq "Pop!_OS is offered the Ubuntu combination" \
-  "qwen/3.8/27b/ubuntu/nvidia4090/llamacpp-opencode" "$(pick pop x86_64 cuda 24564 qwen)"
+  "qwen/3.8/27b/ubuntu/nvidia4090/llamacpp-pi" "$(pick pop x86_64 cuda 24564 qwen)"
 assert_eq "Fedora is not (refuse rather than half-install)" \
   "" "$(pick fedora x86_64 cuda 24564 qwen)"
 assert_eq "a Mac is never offered an Ubuntu combination" \
@@ -113,7 +113,7 @@ assert_eq "...across all families too" \
 assert_eq "a 64GB Strix Halo cannot reach the 128GB tier" \
   "" "$(pick ubuntu x86_64 strix-halo 65024 qwen)"
 assert_eq "a 24GB CUDA card is never offered the Strix Halo row" \
-  "qwen/3.8/27b/ubuntu/nvidia4090/llamacpp-opencode" "$(pick ubuntu x86_64 cuda 24564 qwen)"
+  "qwen/3.8/27b/ubuntu/nvidia4090/llamacpp-pi" "$(pick ubuntu x86_64 cuda 24564 qwen)"
 HOST_OS=ubuntu; HOST_ARCH=x86_64; HOST_ACCEL=cuda; HOST_MEM_MIB=131072
 assert_fails "even a (hypothetical) 128GB CUDA device is not" \
   grep -qxF "$STRIX" <<< "$(candidates_for_host qwen | cut -d'|' -f2)"
@@ -145,7 +145,7 @@ assert_ok "a CUDA host is told the Strix Halo row needs a strix-halo accelerator
 echo
 echo "the menu names why a combination does not suit this machine"
 MAC="qwen/3.8/27b/macos/64GB/mtplx-opencode"
-N4090="qwen/3.8/27b/ubuntu/nvidia4090/llamacpp-opencode"
+N4090="qwen/3.8/27b/ubuntu/nvidia4090/llamacpp-pi"
 HOST_OS=ubuntu; HOST_ARCH=x86_64; HOST_ACCEL=strix-halo; HOST_MEM_MIB=126155
 assert_eq "tritus: its own row suits it"          ""                          "$(combo_misfit "$STRIX")"
 assert_eq "tritus: a macOS row needs a Mac"       "needs a Mac"               "$(combo_misfit "$MAC")"

@@ -68,4 +68,4 @@ On the thinking cap: in canvas-mlx-02 (uncapped, 1,857 requests) only 15 turns (
 - The article and its 13 comments, read on 28 September 2026.
 - Cache reuse figures: the mlx-serve server log of canvas-mlx-02 on quintus, and the [gufo long-session investigation](../../docs/20260928-gufo-long-session-investigation.md).
 - Thinking-cap figures: output tokens per request in canvas-mlx-02's server log.
-- mlx-serve options: the [mlxserve-opencode README](../../combinations/qwen/3.8/flash-next/macos/128GB/mlxserve-opencode/README.md).
+- mlx-serve options: the [mlxserve-pi README](../../combinations/qwen/3.8/flash-next/macos/128GB/mlxserve-pi/README.md).

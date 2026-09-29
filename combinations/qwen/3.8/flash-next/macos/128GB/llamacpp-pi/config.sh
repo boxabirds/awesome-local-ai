@@ -6,7 +6,7 @@
 # (ubuntu/strix-halo-128GB/llamacpp-pi) moved to a Mac: same llama.cpp branch and commit, same
 # weights, same MTP settings, same sampling and context. Only the GPU backend differs (Metal, not
 # Vulkan). It exists to separate the engine from the hardware when comparing against MTPLX on the
-# same Mac (qwen/3.8/flash-next/macos/128GB/mtplx-opencode).
+# same Mac (qwen/3.8/flash-next/macos/128GB/mtplx-pi).
 #
 # This file is DATA. All the logic lives in lib/ (lib/accel/metal.sh, lib/llamacpp.sh).
 

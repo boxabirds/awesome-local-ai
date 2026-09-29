@@ -15,7 +15,7 @@ import pack
 from drive import REPO_ROOT
 
 HARNESS = Path(__file__).resolve().parent
-RECORDED_RUN = (REPO_ROOT / "combinations/qwen/3.8/27b/ubuntu/nvidia4090/llamacpp-opencode/benchmarks/vidi"
+RECORDED_RUN = (REPO_ROOT / "combinations/qwen/3.8/27b/ubuntu/nvidia4090/llamacpp-pi/benchmarks/vidi"
                 / "canvas-pi-03")
 
 

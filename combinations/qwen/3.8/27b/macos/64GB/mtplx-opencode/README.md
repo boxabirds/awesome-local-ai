@@ -16,7 +16,7 @@ OpenCode. The smaller of this repo's two macOS combinations.
 capable local coding model that leaves most of the machine free.
 
 **You do not want this if** you have 128 GB — take
-[Flash-Next](../../../../flash-next/macos/128GB/mtplx-opencode/README.md) instead,
+[Flash-Next](../../../../flash-next/macos/128GB/mtplx-pi/README.md) instead,
 which measured roughly 1.9x faster on the same hardware. `./install.sh` will
 pick that for you automatically.
 
@@ -166,4 +166,4 @@ Nothing installed contains an absolute path or your username.
 ## Further reading
 
 - [docs/discovery-macos-mtplx.md](../../../../../../../docs/discovery-macos-mtplx.md)
-- [Flash-Next](../../../../flash-next/macos/128GB/mtplx-opencode/README.md) — the other arm of the A/B
+- [Flash-Next](../../../../flash-next/macos/128GB/mtplx-pi/README.md) — the other arm of the A/B

@@ -5,7 +5,7 @@
 
     uv run judge.py --name <name> \\
         --build opus=benchmarks/reference/vidi/opus-5.5/run-2 \\
-        --build pi03=combinations/qwen/3.8/27b/ubuntu/nvidia4090/llamacpp-opencode/benchmarks/vidi/canvas-pi-03 \\
+        --build pi03=combinations/qwen/3.8/27b/ubuntu/nvidia4090/llamacpp-pi/benchmarks/vidi/canvas-pi-03 \\
         --label codex-<model>-high --model <model> [--effort high] [--repeat 2]
 
 One command does the whole flow, so no human has to type an instruction to the judge:

@@ -405,7 +405,7 @@ mod tests {
     #[test]
     fn runs_are_discovered_in_combinations_and_reference_stacks() {
         let repo = tmp("discover");
-        let a = repo.join("combinations/qwen/3.8/flash-next/macos/128GB/mtplx-opencode/benchmarks/vidi/canvas-pi-01");
+        let a = repo.join("combinations/qwen/3.8/flash-next/macos/128GB/mtplx-pi/benchmarks/vidi/canvas-pi-01");
         let b = repo.join("benchmarks/reference/vidi/opus-5.5/run-1");
         let no_ws = repo.join("combinations/x/benchmarks/vidi/smoke");
         for d in [&a, &b] {
@@ -416,7 +416,7 @@ mod tests {
         let found = discover(&repo);
         assert_eq!(
             found.iter().map(|(s, r, _)| (s.as_str(), r.as_str())).collect::<Vec<_>>(),
-            vec![("qwen/3.8/flash-next/macos/128GB/mtplx-opencode", "canvas-pi-01"), ("reference/opus-5.5", "run-1")]
+            vec![("qwen/3.8/flash-next/macos/128GB/mtplx-pi", "canvas-pi-01"), ("reference/opus-5.5", "run-1")]
         );
     }
 

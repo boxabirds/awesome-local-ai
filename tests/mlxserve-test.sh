@@ -16,7 +16,7 @@ INSTALL_ROOT="$(mktemp -d)"
 
 WORK="$(mktemp -d)"
 trap 'rm -rf "$WORK" "$INSTALL_ROOT" "$LOG_FILE"' EXIT
-COMBO="qwen/3.8/flash-next/macos/128GB/mlxserve-opencode"
+COMBO="qwen/3.8/flash-next/macos/128GB/mlxserve-pi"
 CFG="$REPO_ROOT/combinations/$COMBO/config.sh"
 
 echo "a first install: looking for the pinned binary in a folder that doesn't exist yet"

@@ -52,8 +52,8 @@ The **path segments** are, in order:
 The root script's filename is those segments joined with `-`:
 
 ```
-combinations/qwen/3.8/27b/ubuntu/nvidia4090/llamacpp-opencode/
-        ->  install-qwen-3.8-27b-ubuntu-nvidia4090-llamacpp-opencode.sh
+combinations/qwen/3.8/27b/ubuntu/nvidia4090/llamacpp-pi/
+        ->  install-qwen-3.8-27b-ubuntu-nvidia4090-llamacpp-pi.sh
 ```
 
 The machine segment records where the numbers came from, not the only machine
@@ -81,7 +81,7 @@ If your combination is llama.cpp + CUDA + OpenCode on a Linux distro, you write
 ### 1. `combinations/<path>/config.sh`
 
 Data only. Copy
-[`combinations/qwen/3.8/27b/ubuntu/nvidia4090/llamacpp-opencode/config.sh`](../combinations/qwen/3.8/27b/ubuntu/nvidia4090/llamacpp-opencode/config.sh)
+[`combinations/qwen/3.8/27b/ubuntu/nvidia4090/llamacpp-pi/config.sh`](../combinations/qwen/3.8/27b/ubuntu/nvidia4090/llamacpp-pi/config.sh)
 and change the values. Required variables (`lib/bootstrap.sh` enforces these):
 
 | Variable | What it is |
@@ -223,7 +223,7 @@ which must merge into (never clobber) a config the user already has.
 ## Adding a macOS combination
 
 Two exist: `qwen/3.8/27b/macos/64GB/mtplx-opencode` and
-`qwen/3.8/flash-next/macos/128GB/mtplx-opencode`. What that took, so the next
+`qwen/3.8/flash-next/macos/128GB/mtplx-pi`. What that took, so the next
 one is cheaper:
 
 **`lib/accel/metal.sh`** implements the four-symbol contract. The part worth
@@ -348,7 +348,7 @@ mlx-serve backend below; `lib/sglang.sh` keeps its old names as aliases.
 
 `lib/mlxserve.sh` is the fourth backend: [mlx-serve](https://github.com/ddalcu/mlx-serve),
 a native Zig/MLX server for Apple silicon (not the PyPI package of the same
-name). One exists, `qwen/3.8/flash-next/macos/128GB/mlxserve-opencode`, and it
+name). One exists, `qwen/3.8/flash-next/macos/128GB/mlxserve-pi`, and it
 is **not yet measured by this repo**.
 
 A combination on this backend supplies, as data in `config.sh`:

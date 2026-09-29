@@ -59,7 +59,7 @@ requirements and its **must-nots**. Below, one row per finished build:
   `s` skip, `n` note (`Esc` to leave), `o` open the build, `[`/`]` story.
 
 **Labelled by default.** Each build is named by its combination and run (e.g.
-`qwen/3.8/27b/ubuntu/nvidia4090/llamacpp-opencode · canvas-pi-03`), so the reviewer sees what they
+`qwen/3.8/27b/ubuntu/nvidia4090/llamacpp-pi · canvas-pi-03`), so the reviewer sees what they
 judge. `--blind` hides them instead: "Build A", "Build B"…, shuffled each session, tabs with a grey
 "Build C" banner, and a story's names revealed once every path of every build has a verdict. The main
 page (`/`) shows every name, so don't open it during a blind review.

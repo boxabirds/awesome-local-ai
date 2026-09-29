@@ -49,4 +49,4 @@ At each review, re-read every note that is not adopted or eliminated: follow its
 | [llama.cpp Metal on quintus](llamacpp-metal-quintus.md) | parked | quintus | paused after canvas-metal-01 story 1 |
 | [Fable 5.1 reference](fable-5.1-reference.md) | parked | this Mac | a second frontier reference next to Opus 5.5; after the Opus v2 runs |
 | [DeepSeek V4.1](deepseek-v4.1.md) | eliminated | none | about 750B parameters in total; V4.1-Flash size not checked |
-| Swift 1.5 Qwen3.8-27B (llama.cpp) | adopted | gruntus | [combination](../combinations/qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-opencode/README.md) |
+| Swift 1.5 Qwen3.8-27B (llama.cpp) | adopted | gruntus | [combination](../combinations/qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-pi/README.md) |

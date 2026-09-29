@@ -174,7 +174,7 @@ def sandboxed(cmd: list[str], own_dir: Path) -> list[str]:
 
 
 def combination_label(run: Path) -> str:
-    """e.g. qwen/3.8/flash-next/macos/128GB/mtplx-opencode for a run under that combination."""
+    """e.g. qwen/3.8/flash-next/macos/128GB/mtplx-pi for a run under that combination."""
     try:
         rel = run.resolve().relative_to(REPO_ROOT / "combinations")
         return "/".join(rel.parts[:-3])  # drop benchmarks/<pack>/<run-id>

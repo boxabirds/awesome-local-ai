@@ -13,7 +13,7 @@ Reads gradings/<name>/results/<judge>/ from the private repo's origin/main (fetc
 
   uv run judge_collect.py vidi-v1 gpt-5.6 \\
       --audit opus=benchmarks/reference/vidi/opus-5.5/run-1/audit.jsonl \\
-      --audit flash-next=combinations/qwen/3.8/flash-next/macos/128GB/mtplx-opencode/benchmarks/vidi/canvas-pi-01/audit.jsonl
+      --audit flash-next=combinations/qwen/3.8/flash-next/macos/128GB/mtplx-pi/benchmarks/vidi/canvas-pi-01/audit.jsonl
 """
 from __future__ import annotations
 
