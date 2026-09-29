@@ -45,6 +45,7 @@ At each review, re-read every note that is not adopted or eliminated: follow its
 | [MTPLX](mtplx.md) | blocked | quintus | memory admission deadlocks long agent sessions (507); recheck on 2.14 |
 | [Strata](strata.md) | gated | gruntus | Flash-Next (125B MoE) on one 4090 by offloading experts to RAM |
 | [Prompt lookup (n-gram speculation)](ngram-speculation.md) | parked | gruntus (Ubuntu) | engine setting; test on the dense 27B; eliminated for sparse MoE |
+| [llama.cpp Vulkan on tritus](llamacpp-vulkan-tritus.md) | parked | tritus | dropped from v2: prompt reading 4-7x slower than gufo |
 | [llama.cpp Metal on quintus](llamacpp-metal-quintus.md) | parked | quintus | paused after canvas-metal-01 story 1 |
 | [Fable 5.1 reference](fable-5.1-reference.md) | parked | this Mac | a second frontier reference next to Opus 5.5; after the Opus v2 runs |
 | [DeepSeek V4.1](deepseek-v4.1.md) | eliminated | none | about 750B parameters in total; V4.1-Flash size not checked |
