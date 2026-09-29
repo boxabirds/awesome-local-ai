@@ -290,3 +290,58 @@ Decisions made while implementing without anyone to ask.
   8 in a 4 × 2 cluster.
 - **Red-phase commits skipped** (tasks 6, 7), as in earlier stories: one story commit. E2E runs
   used `E2E_BROWSERS=chromium,webkit` (story 8 e2e is Chromium only; Firefox cannot start here).
+
+## Story 9 — Write free text anywhere on the board
+
+- **Box width rules.** Auto width = longest line *before wrapping* (measured, rounded up) plus
+  `TEXT_CARET_SLACK_WORLD` (2) so the caret fits, at least `TEXT_MIN_WIDTH_WORLD`, at most
+  `TEXT_MAX_AUTO_WIDTH_WORLD`; once any line wraps the box is the full 600 (PRD verification: a
+  300-character sentence gives a 600-wide box). A line of exactly 600 does not wrap (TC-09). Heights
+  are rounded to 0.01 to keep float noise out of the stored box. Wrapping is greedy by words, spaces
+  hang at line ends (like CSS `pre-wrap`), and words longer than the box are broken by character.
+  The measurer falls back to `TEXT_AVG_GLYPH_WIDTH_RATIO` × font size per character without canvas
+  (both named settings added to `config.ts`). The DOM renders with `white-space: pre-wrap` at the
+  stored width; e2e checks that the browser shows as many lines as were measured.
+- **Resizing through the registry.** `ObjectTypeSpec` gained `handles`, plus two optional hooks so
+  the generic gesture stays type-agnostic: `resizeLimits(obj, widthOnly)` (text limits only a width
+  being set or already fixed; its height never limits) and `applyResize(doc, obj, rect, widthOnly)`
+  (text: move, `setTextWidthFixed` when side handles only or already fixed, re-measure). A resize
+  frame is now one transaction for all types. With only side handles shown, only e/w drags resize.
+- **Undo of new text.** The Text tool click closes the previous step but not the creation step, and
+  the editor skips its start boundary when the text is empty when editing starts, so creating and
+  first typing are one step: undo removes the new text entirely instead of leaving an empty,
+  invisible one. On edit end the empty-text removal runs before the closing boundary (in the step
+  of the last edit). Abandoning a new text without typing leaves one no-effect step (create +
+  remove), which story 8 allows ("nothing visible happens").
+- **Text tool clicks** are handled in the capture phase on the board surface (so a click on top of
+  a note creates text there instead of selecting the note); the text is created on release, at the
+  press point. `BoardViewport` gained `onPlace` and `viewportRef` props.
+- **Shortcuts.** V, T, N and Escape live in `useBoardKeys` (ignored while editing or typing in a
+  field, with Ctrl/Cmd/Alt, and with Shift). N prevents the key's default so the new note's editor
+  does not receive an "n". Escape with Text active returns to Select (and does not clear the
+  selection).
+- **`TextEditor`** takes `undo` as an optional prop (default: the `UndoContext` controller, as in
+  story 8) and adds `ariaLabel`, `className`, `boundaryOnStart` and `after(length)` (the sticky
+  counter) so `StickyTextEditor` is a thin wrapper. The outside-click check now uses
+  `[data-object-id]`.
+- **Accessible names.** Text objects are `role="group"` with `aria-roledescription="Text"` and the
+  content as the name ("Text" when empty); the editor is the textbox "Text". Size buttons show
+  S/M/L/XL and are named "Text size XL (Extra large)" etc.; the toolbar is "Text toolbar" and its
+  delete button "Delete text". Existing component tests now look up the renamed "Sticky note (N)"
+  button (and its new tooltip).
+- **`createdBy`.** Story 6 (identities) is not in this build, so each tab uses an anonymous
+  `g_<uuid>` id.
+- **Selection prune fix.** `useSelection` dispatched a no-op `prune` in a passive effect on every
+  snapshot change. When five people type at once, many remote updates arrive before React's
+  deferred render runs, and React counted those as a nested update loop ("Maximum update depth
+  exceeded" inside the Yjs update handler, found by TC-30). The effect now dispatches only when the
+  prune would change the state.
+- **Story 7 TC-36 grab point.** The left toolbar is taller now (Select and Text buttons) and covered
+  the grid note the fifth participant pressed at its centre (x≈65 px). The test now presses the
+  notes on their right half.
+- **Test hooks.** `window.__vidi6.getObjects()` returns every object (text included). jsdom has no
+  canvas: `tests/component/textHelpers.tsx` stubs `getContext` to return null (no "Not implemented"
+  noise), so component tests use the estimate measurer.
+- **E2E browsers.** All text e2e tests run in every configured browser. Firefox still cannot start
+  in this environment (sandbox error); runs used `E2E_BROWSERS=chromium,webkit`.
+- **Red-phase commits skipped** (tasks 1, 3), as in earlier stories: one story commit.

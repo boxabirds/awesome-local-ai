@@ -1,7 +1,8 @@
 // Board keyboard commands (story 7): Ctrl/Cmd+A select all, Escape clear, arrows nudge,
 // Delete/Backspace delete, Enter edit a single selected note; story 8: Ctrl/Cmd+Z undo,
-// Ctrl/Cmd+Shift+Z and Ctrl+Y redo. Ignored while text is edited (the note editor handles its own
-// undo) and in other text fields.
+// Ctrl/Cmd+Shift+Z and Ctrl+Y redo; story 9: V Select tool, T Text tool, N new sticky note,
+// Escape back to Select. Ignored while text is edited (the editor handles its own undo) and in
+// other text fields.
 import { useEffect, useRef } from 'react';
 import type * as Y from 'yjs';
 import {
@@ -16,6 +17,7 @@ import type { Point } from '../../shared/geometry';
 import { isEditableTarget } from '../canvas/isEditableTarget';
 import { getObjectType, isRegisteredType } from '../objects/registry';
 import type { UndoController } from './undo';
+import type { Tool } from './useTool';
 import type { Selection } from './useSelection';
 
 /** 'undo', 'redo' or null for a keydown. */
@@ -41,13 +43,17 @@ export function useBoardKeys(opts: {
   canEdit: boolean;
   /** This tab's undo history (story 8). */
   undo?: UndoController | null;
+  /** The active tool (story 9): enables V, T and Escape. */
+  tool?: { tool: Tool; setTool(t: Tool): void };
+  /** N: the same as the Sticky note button (story 9). */
+  onCreateSticky?(): void;
 }): void {
   const optsRef = useRef(opts);
   optsRef.current = opts;
 
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
-      const { doc, selection, snapshot, canEdit, undo } = optsRef.current;
+      const { doc, selection, snapshot, canEdit, undo, tool, onCreateSticky } = optsRef.current;
       if (e.defaultPrevented || selection.editingId !== null || isEditableTarget(e.target)) return;
       const shortcut = undoShortcut(e);
       if (shortcut) {
@@ -69,7 +75,26 @@ export function useBoardKeys(opts: {
         return;
       }
       if (e.key === 'Escape') {
-        if (selection.ids.size > 0) selection.clear();
+        if (tool && tool.tool !== 'select') tool.setTool('select');
+        else if (selection.ids.size > 0) selection.clear();
+        return;
+      }
+      if (!e.shiftKey && tool) {
+        const key = e.key.toLowerCase();
+        if (key === 'v') {
+          tool.setTool('select');
+          return;
+        }
+        if (key === 't') {
+          if (canEdit) tool.setTool('text');
+          return;
+        }
+      }
+      if (!e.shiftKey && onCreateSticky && e.key.toLowerCase() === 'n') {
+        if (canEdit) {
+          e.preventDefault();
+          onCreateSticky();
+        }
         return;
       }
       const selected = snapshot.filter(

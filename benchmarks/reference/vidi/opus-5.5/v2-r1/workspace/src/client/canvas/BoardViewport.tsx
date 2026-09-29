@@ -188,6 +188,14 @@ export interface BoardViewportProps {
   marquee?: { snapshot: readonly ObjectSnapshot[]; onSelect(ids: string[]): void };
   /** Kept up to date with the current camera (for gestures started outside the viewport). */
   cameraRef?: MutableRefObject<Camera | null>;
+  /** Kept up to date with the viewport size (story 9: N creates a note in the view centre). */
+  viewportRef?: MutableRefObject<Size | null>;
+  /**
+   * Set while a placing tool is active (story 9: Text): the board shows a text cursor and a
+   * click anywhere, on top of objects too, reports its world point instead of panning,
+   * selecting or starting a marquee.
+   */
+  onPlace?(world: Point): void;
 }
 
 const NO_OBJECTS: readonly ObjectSnapshot[] = [];
@@ -201,6 +209,8 @@ export function BoardViewport(props: BoardViewportProps) {
   const pressRef = useRef<Point | null>(null);
   const view: BoardView = { camera, viewport };
   if (props.cameraRef) props.cameraRef.current = camera;
+  if (props.viewportRef) props.viewportRef.current = viewport;
+  const placeRef = useRef<Point | null>(null);
   const marquee = useMarquee(
     camera,
     props.marquee?.snapshot ?? NO_OBJECTS,
@@ -211,6 +221,22 @@ export function BoardViewport(props: BoardViewportProps) {
   const localPoint = (e: { clientX: number; clientY: number }) => {
     const rect = surfaceRef.current!.getBoundingClientRect();
     return { x: e.clientX - rect.left, y: e.clientY - rect.top };
+  };
+
+  // Capture phase: a placing click never reaches objects or the pan/marquee handlers.
+  const onPointerDownCapture = (e: ReactPointerEvent<HTMLDivElement>) => {
+    if (!props.onPlace) return;
+    e.stopPropagation();
+    // No focus change and no text selection from the press.
+    e.preventDefault();
+    placeRef.current = e.button === PRIMARY_BUTTON ? localPoint(e) : null;
+  };
+  const onPointerUpCapture = (e: ReactPointerEvent<HTMLDivElement>) => {
+    const at = placeRef.current;
+    placeRef.current = null;
+    if (!props.onPlace || !at) return;
+    e.stopPropagation();
+    props.onPlace(screenToWorld(camera, at));
   };
 
   const onPointerDown = (e: ReactPointerEvent<HTMLDivElement>) => {
@@ -257,10 +283,18 @@ export function BoardViewport(props: BoardViewportProps) {
     <div className="board">
       <div
         ref={surfaceRef}
-        className={isPanning ? 'board-viewport is-panning' : 'board-viewport'}
+        className={
+          isPanning
+            ? 'board-viewport is-panning'
+            : props.onPlace
+              ? 'board-viewport is-placing-text'
+              : 'board-viewport'
+        }
         data-testid="board-viewport"
         data-state={isPanning ? 'panning' : 'idle'}
         style={gridStyle(camera)}
+        onPointerDownCapture={onPointerDownCapture}
+        onPointerUpCapture={onPointerUpCapture}
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}

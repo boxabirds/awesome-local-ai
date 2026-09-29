@@ -7,6 +7,8 @@ import { HANDLES, type Handle, unionRects } from '../../shared/geometry';
 import { type Camera, worldToScreen } from '../canvas/camera';
 import { getObjectType } from '../objects/registry';
 
+const HORIZONTAL_HANDLES: readonly Handle[] = ['e', 'w'];
+
 export const HANDLE_NAMES: Record<Handle, string> = {
   nw: 'top-left',
   n: 'top',
@@ -53,10 +55,13 @@ export function SelectionOverlay(props: {
 }) {
   const box = selectionScreenBox(props.ids, props.snapshot, props.camera);
   if (!box) return null;
-  const resizable = selectedObjects(props.ids, props.snapshot).some(
-    (o) => getObjectType(o.type)?.resizable,
-  );
+  const specs = selectedObjects(props.ids, props.snapshot).map((o) => getObjectType(o.type));
+  const resizable = specs.some((spec) => spec?.resizable);
   const showHandles = resizable && (props.interactive ?? true);
+  // Only side handles when every selected type's height follows its content (text, story 9).
+  const handles = specs.every((spec) => !spec?.resizable || spec.handles === 'horizontal')
+    ? HORIZONTAL_HANDLES
+    : HANDLES;
   const half = HANDLE_SIZE_PX / 2;
   const at = (h: Handle) => ({
     left: (h.includes('w') ? 0 : h.includes('e') ? box.width : box.width / 2) - half,
@@ -71,7 +76,7 @@ export function SelectionOverlay(props: {
       style={{ left: box.x, top: box.y, width: box.width, height: box.height }}
     >
       {showHandles &&
-        HANDLES.map((h) => (
+        handles.map((h) => (
           <div
             key={h}
             role="button"

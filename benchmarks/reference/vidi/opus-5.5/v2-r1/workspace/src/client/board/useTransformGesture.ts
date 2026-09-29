@@ -13,6 +13,7 @@ import {
 } from 'react';
 import type * as Y from 'yjs';
 import {
+  LOCAL_ORIGIN,
   type ObjectSnapshot,
   bringObjectsToFront,
   hasObject,
@@ -72,9 +73,13 @@ interface Session {
   // Resize only.
   handle?: Handle;
   box?: Rect;
-  /** Resizable ids and their type's minimum size. */
-  resizable?: Map<string, number>;
+  /** Resizable ids. */
+  resizable?: Set<string>;
+  /** Rects (an axis set to 0 does not limit) and minimum sizes that limit the resize. */
+  limits?: { rects: Rect[]; minSizes: number[] };
   aspectLocked?: boolean;
+  /** Only side handles are shown (every selected type has horizontal handles). */
+  widthOnly?: boolean;
   pending: { dx: number; dy: number; shift: boolean } | null;
   frame: number | null;
   target: Element | null;
@@ -138,25 +143,33 @@ export function useTransformGesture(opts: TransformGestureOptions): {
       }
       const box = s.box!;
       const aspect = s.aspectLocked! || p.shift;
-      const limited = present.filter((id) => s.resizable!.has(id));
       const wanted = handleScale(box, s.handle!, { x: dx, y: dy }, aspect);
       const scale = clampScale(
         wanted,
-        limited.map((id) => s.startRects.get(id)!),
-        limited.map((id) => s.resizable!.get(id)!),
+        s.limits!.rects,
+        s.limits!.minSizes,
         MAX_OBJECT_SIZE_WORLD,
         aspect,
       );
       const to = scaleFromHandle(box, s.handle!, scale);
       const rects = new Map<string, Rect>();
       const positions = new Map<string, Point>();
+      const custom: [ObjectSnapshot, Rect][] = [];
+      const byId = new Map(optsRef.current.snapshot.map((o) => [o.id, o]));
       for (const id of present) {
         const r = scaleWithin(s.startRects.get(id)!, box, to);
-        if (s.resizable!.has(id)) rects.set(id, r);
+        const obj = byId.get(id);
+        const spec = obj ? getObjectType(obj.type) : undefined;
+        if (obj && spec?.applyResize && s.resizable!.has(id)) custom.push([obj, r]);
+        else if (s.resizable!.has(id)) rects.set(id, r);
         else positions.set(id, { x: r.x, y: r.y });
       }
-      resizeObjects(doc, rects);
-      if (positions.size > 0) moveObjects(doc, positions);
+      // One transaction per frame, whatever the types involved.
+      doc.transact(() => {
+        resizeObjects(doc, rects);
+        if (positions.size > 0) moveObjects(doc, positions);
+        for (const [obj, r] of custom) getObjectType(obj.type)!.applyResize!(doc, obj, r, s.widthOnly!);
+      }, LOCAL_ORIGIN);
     },
     [finish],
   );
@@ -299,15 +312,31 @@ export function useTransformGesture(opts: TransformGestureOptions): {
       const { selection, snapshot, canEdit } = optsRef.current;
       if (!canEdit) return;
       const objects = snapshot.filter((o) => selection.ids.has(o.id));
-      const resizable = new Map<string, number>();
+      const resizable = new Set<string>();
       let aspectLocked = false;
-      for (const o of objects) {
-        const spec = getObjectType(o.type);
-        if (!spec?.resizable) continue;
-        resizable.set(o.id, spec.minSize);
+      const specs = objects.map((o) => getObjectType(o.type));
+      const widthOnly = specs.every((spec) => !spec?.resizable || spec.handles === 'horizontal');
+      const limits: { rects: Rect[]; minSizes: number[] } = { rects: [], minSizes: [] };
+      objects.forEach((o, i) => {
+        const spec = specs[i];
+        if (!spec?.resizable) return;
+        resizable.add(o.id);
         aspectLocked ||= spec.aspectLocked;
-      }
+        const limit = spec.resizeLimits
+          ? spec.resizeLimits(o, widthOnly)
+          : { width: spec.minSize, height: spec.minSize };
+        if (!limit || (limit.width === null && limit.height === null)) return;
+        const r = objectBounds(o);
+        limits.rects.push({
+          ...r,
+          width: limit.width === null ? 0 : r.width,
+          height: limit.height === null ? 0 : r.height,
+        });
+        limits.minSizes.push(limit.width ?? limit.height!);
+      });
       if (resizable.size === 0) return;
+      // Side handles only: the height is never resized.
+      if (widthOnly && handle !== 'e' && handle !== 'w') return;
       const ids = objects.map((o) => o.id);
       const startRects = startRectsOf(ids);
       const box = unionRects([...startRects.values()]);
@@ -321,7 +350,9 @@ export function useTransformGesture(opts: TransformGestureOptions): {
         handle,
         box,
         resizable,
+        limits,
         aspectLocked,
+        widthOnly,
       });
     },
     [begin],

@@ -29,3 +29,8 @@ export function prose(length: number): string {
   while (text.length < length) text += `${PROSE} `;
   return text.slice(0, length);
 }
+
+/** Story 9: a 300-character English annotation (longer than one line of free text). */
+export const ANNOTATION_300 = prose(300).trimEnd().padEnd(300, '.');
+/** Story 9: a pasted paragraph one character over the text limit (TEXT_MAX_CHARS + 1). */
+export const PASTE_5001 = prose(5001);

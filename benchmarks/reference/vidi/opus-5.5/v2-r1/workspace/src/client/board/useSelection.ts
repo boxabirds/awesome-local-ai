@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useReducer } from 'react';
+import { useCallback, useEffect, useMemo, useReducer, useRef } from 'react';
 import type { ObjectSnapshot } from '../../shared/board-model';
 
 /** Local selection and editing state. Never stored in the board document. */
@@ -100,8 +100,15 @@ export function useSelection(snapshot: readonly ObjectSnapshot[]): Selection {
     present: new Set(objects.map((o) => o.id)),
   }));
 
+  const stateRef = useRef(state);
+  stateRef.current = state;
+
+  // Dispatch only when the prune changes something: most snapshot changes are edits of existing
+  // objects, and a no-op dispatch per remote update makes React count a burst of updates (five
+  // people typing) as an update loop.
   useEffect(() => {
-    dispatch({ type: 'prune', presentIds: new Set(snapshot.map((o) => o.id)) });
+    const action: SelectionAction = { type: 'prune', presentIds: new Set(snapshot.map((o) => o.id)) };
+    if (selectionReducer(stateRef.current, action) !== stateRef.current) dispatch(action);
   }, [snapshot]);
 
   const click = useCallback((id: string) => dispatch({ type: 'click', id }), []);

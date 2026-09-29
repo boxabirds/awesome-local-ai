@@ -1,10 +1,12 @@
 // "N selected" bar with a Delete button above the selection, or the note toolbar when exactly one
-// sticky note is selected (story 7). The count is also announced to screen readers.
+// sticky note is selected (story 7), or the text toolbar when exactly one text is (story 9). The count is also announced to screen readers.
 import type { SyntheticEvent } from 'react';
 import { type ObjectSnapshot, isSticky } from '../../shared/board-model';
-import type { StickyColor } from '../../shared/config';
+import type { StickyColor, TextSize } from '../../shared/config';
+import { isText } from '../../shared/objects/text';
 import type { Camera } from '../canvas/camera';
 import { NoteToolbar } from '../objects/NoteToolbar';
+import { TextToolbar } from '../objects/TextToolbar';
 import { selectedObjects, selectionScreenBox } from './SelectionOverlay';
 
 const stop = (e: SyntheticEvent) => e.stopPropagation();
@@ -21,6 +23,8 @@ export function SelectionBar(props: {
   camera?: Camera;
   /** Colour change from the single-note toolbar. */
   onColor?(id: string, color: StickyColor): void;
+  /** Size change from the single-text toolbar (story 9). */
+  onTextSize?(id: string, size: TextSize): void;
   /** False while the board is locked: no note toolbar, Delete disabled. */
   editable?: boolean;
   /** Hides the bar (not the announcement) while dragging or editing. */
@@ -40,6 +44,17 @@ export function SelectionBar(props: {
         <NoteToolbar
           color={note.color}
           onColor={(c) => props.onColor?.(note.id, c)}
+          onDelete={props.onDelete}
+        />
+      </div>
+    );
+  } else if (!props.hidden && count === 1 && isText(objects[0]) && editable) {
+    const text = objects[0];
+    bar = (
+      <div className="selection-bar-anchor" style={anchorStyle}>
+        <TextToolbar
+          size={text.size}
+          onSize={(s) => props.onTextSize?.(text.id, s)}
           onDelete={props.onDelete}
         />
       </div>

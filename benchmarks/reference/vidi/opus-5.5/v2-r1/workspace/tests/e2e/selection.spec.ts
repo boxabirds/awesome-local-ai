@@ -29,6 +29,8 @@ const gridCorner = (r: number, c: number): World => ({
   y: SELECTION_GRID.top + r * SELECTION_GRID.pitch,
 });
 const noteCentre = (corner: World) => toPage({ x: corner.x + 100, y: corner.y + 100 });
+/** A point on the right half of a note: clear of the left toolbar for notes at the viewport's left edge. */
+const grabPoint = (corner: World) => toPage({ x: corner.x + 160, y: corner.y + 100 });
 
 const selectionBar = (page: Page) => page.getByRole('toolbar', { name: 'Selection' });
 const selectedNoteIds = (page: Page) =>
@@ -274,8 +276,8 @@ test.describe('Workflow: Full-capacity reorganisation', () => {
       await Promise.all(
         people.map(async (p, i) => {
           const [[r1, c1], [r2, c2]] = pairs[i];
-          const a = noteCentre(gridCorner(r1, c1));
-          const b = noteCentre(gridCorner(r2, c2));
+          const a = grabPoint(gridCorner(r1, c1));
+          const b = grabPoint(gridCorner(r2, c2));
           await p.page.mouse.click(a.x, a.y);
           await p.page.keyboard.down('Shift');
           await p.page.mouse.click(b.x, b.y);
@@ -289,7 +291,7 @@ test.describe('Workflow: Full-capacity reorganisation', () => {
       await Promise.all(
         people.map(async (p, i) => {
           const [[r1, c1]] = pairs[i];
-          const a = noteCentre(gridCorner(r1, c1));
+          const a = grabPoint(gridCorner(r1, c1));
           const off = offsets[i];
           for (let s = 1; s <= 8; s++) {
             await p.page.mouse.move(

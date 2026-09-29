@@ -61,7 +61,10 @@ export function useBoardDoc(
 
   useEffect(() => {
     if (import.meta.env.MODE !== 'test') return;
-    return installTestHooks({ getNotes: () => snapshot(store.doc) });
+    return installTestHooks({
+      getNotes: () => snapshot(store.doc),
+      getObjects: () => objectsSnapshot(store.doc),
+    });
   }, [store]);
 
   useEffect(() => {

@@ -1,17 +1,21 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { createSticky, deleteObjects, setStickyColor } from '../shared/board-model';
+import { createText, setTextSize } from '../shared/objects/text';
 import { SelectionBar } from './board/SelectionBar';
 import { SelectionOverlay } from './board/SelectionOverlay';
 import { Toolbar } from './board/Toolbar';
 import { useBoardDoc } from './board/useBoardDoc';
 import { useBoardKeys } from './board/useBoardKeys';
+import { useTool } from './board/useTool';
 import { useSelection } from './board/useSelection';
 import { useTransformGesture } from './board/useTransformGesture';
 import { type UndoController, createUndo } from './board/undo';
 import { UndoContext, useUndo } from './board/useUndo';
 import { BoardViewport } from './canvas/BoardViewport';
-import { type Camera, type Point, screenToWorld } from './canvas/camera';
+import { type Camera, type Point, type Size, screenToWorld } from './canvas/camera';
 import { getObjectType } from './objects/registry';
+import { syncTextBox } from './objects/useTextBoxSync';
+import { textMeasurer } from './objects/textLayout';
 import { BoardPage } from './pages/BoardPage';
 import { HomePage } from './pages/HomePage';
 import { NotFoundPage } from './pages/NotFoundPage';
@@ -21,6 +25,16 @@ import type { ConnectionState } from './sync/connectBoard';
 import type * as Y from 'yjs';
 
 const INITIAL_CAMERA: Camera = { x: 0, y: 0, zoom: 1 };
+
+let tabIdentity: string | null = null;
+/**
+ * Who creates objects in this tab (`createdBy`). Story 6 (people's identities) is not part of
+ * this build, so each tab has its own anonymous guest id.
+ */
+function localIdentity(): string {
+  tabIdentity ??= `g_${crypto.randomUUID()}`;
+  return tabIdentity;
+}
 
 /** The app: Home (`/`), a board (`/b/:id`) or Board not found (anything else). */
 export function Root() {
@@ -53,7 +67,9 @@ export function App(props: { boardId?: string; doc?: Y.Doc }) {
   const { startEdit, endEdit, click, setMany, clear } = selection;
   const editable = canEdit(connection);
   const cameraRef = useRef<Camera | null>(null);
+  const viewportRef = useRef<Size | null>(null);
   const getCamera = useCallback(() => cameraRef.current ?? INITIAL_CAMERA, []);
+  const tool = useTool(editable);
 
   // One undo history per board document, for this tab only: gone on board change or reload.
   const [history, setHistory] = useState<UndoController | null>(null);
@@ -91,7 +107,6 @@ export function App(props: { boardId?: string; doc?: Y.Doc }) {
     onGestureStart: boundary,
     onGestureEnd: boundary,
   });
-  useBoardKeys({ doc, selection, snapshot: shown, canEdit: editable, undo: history });
 
   const deleteSelection = () => {
     if (!editable) return;
@@ -110,11 +125,37 @@ export function App(props: { boardId?: string; doc?: Y.Doc }) {
     const id = step(() => createSticky(doc, world));
     if (id) startEdit(id);
   };
+  const createStickyInView = () => {
+    const viewport = viewportRef.current ?? { width: window.innerWidth, height: window.innerHeight };
+    createAt(screenToWorld(getCamera(), { x: viewport.width / 2, y: viewport.height / 2 }));
+  };
+  useBoardKeys({
+    doc,
+    selection,
+    snapshot: shown,
+    canEdit: editable,
+    undo: history,
+    tool,
+    onCreateSticky: createStickyInView,
+  });
+
+  // Text tool click: new text there, being edited; the tool returns to Select. No boundary after
+  // the creation: it forms one undo step with the first typing (and with the removal of text
+  // left empty), so undo never brings back an empty text.
+  const placeText = (world: Point) => {
+    tool.setTool('select');
+    if (!editable) return;
+    boundary();
+    const id = createText(doc, world, localIdentity());
+    if (id) startEdit(id);
+  };
 
   return (
     <UndoContext.Provider value={history}>
       <BoardViewport
         cameraRef={cameraRef}
+        viewportRef={viewportRef}
+        onPlace={tool.tool === 'text' ? placeText : undefined}
         onEmptyDoubleClick={createAt}
         onEmptyClick={clear}
         marquee={{ snapshot: shown, onSelect: (ids) => setMany(ids, true) }}
@@ -138,11 +179,20 @@ export function App(props: { boardId?: string; doc?: Y.Doc }) {
                 onColor={(id, color) => {
                   if (editable) step(() => setStickyColor(doc, id, color));
                 }}
+                onTextSize={(id, size) => {
+                  // The top-left stays; the box is re-measured in the same step.
+                  if (editable)
+                    step(() => {
+                      if (setTextSize(doc, id, size)) syncTextBox(doc, id, textMeasurer());
+                    });
+                }}
               />
             </div>
             <Toolbar
               disabled={!editable}
               undo={undo}
+              tool={tool.tool}
+              onTool={tool.setTool}
               onCreateSticky={() =>
                 createAt(screenToWorld(camera, { x: viewport.width / 2, y: viewport.height / 2 }))
               }

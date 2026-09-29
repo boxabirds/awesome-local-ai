@@ -46,9 +46,9 @@ describe('sticky.toolbar', () => {
 
   it('TC-28 the Sticky note button creates one note centred in the view, in edit mode', () => {
     const { doc } = renderApp();
-    const button = screen.getByRole('button', { name: 'Sticky note' });
+    const button = screen.getByRole('button', { name: 'Sticky note (N)' });
     expect(button.title).toBe(STICKY_BUTTON_TOOLTIP);
-    expect(STICKY_BUTTON_TOOLTIP).toBe('Sticky note – or double-click the board');
+    expect(STICKY_BUTTON_TOOLTIP).toBe('Sticky note (N) – or double-click the board');
     fireEvent.click(button);
     const notes = notesOf(doc);
     expect(notes).toHaveLength(1);
@@ -64,7 +64,7 @@ describe('sticky.toolbar', () => {
   it('new notes appear above existing ones', () => {
     const { doc } = docWithNote('first');
     renderApp(doc);
-    fireEvent.click(screen.getByRole('button', { name: 'Sticky note' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Sticky note (N)' }));
     const [first, second] = noteElements();
     expect(Number(second.style.zIndex)).toBeGreaterThan(Number(first.style.zIndex));
     expect(notesOf(doc).map((n) => n.z)).toEqual([1, 2]);

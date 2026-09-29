@@ -143,7 +143,7 @@ describe('sync.client keeps the board editable in every connection state', () =>
     const boardId = newBoardId();
     const doc = new Y.Doc();
     const { unmount } = render(<App boardId={boardId} doc={doc} />);
-    const create = () => fireEvent.click(screen.getByRole('button', { name: 'Sticky note' }));
+    const create = () => fireEvent.click(screen.getByRole('button', { name: 'Sticky note (N)' }));
 
     expect(badge()).toHaveProperty('textContent', 'Connecting…');
     const ws = FakeWebSocket.latest();

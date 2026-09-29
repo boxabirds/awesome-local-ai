@@ -58,7 +58,7 @@ const LOAD_FAILED_TEXT = "This board couldn't be loaded. Retrying…";
 
 // The zoom label (<output>) also has the status role, so find the badge by its class.
 const badge = () => document.querySelector<HTMLElement>('.connection-status');
-const stickyButton = () => screen.getByRole<HTMLButtonElement>('button', { name: 'Sticky note' });
+const stickyButton = () => screen.getByRole<HTMLButtonElement>('button', { name: 'Sticky note (N)' });
 const noteEl = () => screen.getByRole('group', { name: 'Sticky note' });
 
 /** Stands in for WebsocketProvider's `status`, `sync` and `connection-close` events. */

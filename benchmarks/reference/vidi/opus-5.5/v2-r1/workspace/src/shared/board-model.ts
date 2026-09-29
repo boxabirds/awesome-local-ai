@@ -4,11 +4,13 @@
 // Y.Doc
 //   meta:    Y.Map { schemaVersion: 1 }
 //   objects: Y.Map<id, Y.Map { type: 'sticky', x, y, width?, height?, color, text: Y.Text, z, createdAt }>
+//            (story 9 adds type 'text', see objects/text.ts)
 //
 // `width`/`height` (story 7) are optional: objects without them are STICKY_SIZE_WORLD square.
 import * as Y from 'yjs';
 import { DEFAULT_STICKY_COLOR, STICKY_COLORS, STICKY_SIZE_WORLD, type StickyColor } from './config';
 import { type Point, type Rect, isFiniteRect, rectContains } from './geometry';
+import { readTextFields } from './objects/text';
 
 /** Transaction origin of changes made by this client (used by undo and sync in later stories). */
 export const LOCAL_ORIGIN: unique symbol = Symbol('vidi6.local');
@@ -37,7 +39,7 @@ export interface StickySnapshot extends ObjectSnapshot {
 }
 
 /** Object types this model knows how to read. */
-export const MODEL_TYPES: ReadonlySet<string> = new Set(['sticky']);
+export const MODEL_TYPES: ReadonlySet<string> = new Set(['sticky', 'text']);
 
 type ObjectMap = Y.Map<unknown>;
 
@@ -160,6 +162,7 @@ function readObject(id: string, value: unknown): ObjectSnapshot | undefined {
     z: zOf(obj),
     createdAt: typeof createdAt === 'number' ? createdAt : 0,
   };
+  if (type === 'text') return Object.freeze({ ...base, type: 'text', ...readTextFields(obj) });
   if (type !== 'sticky') return Object.freeze(base);
   const color = obj.get('color');
   const text = obj.get('text');

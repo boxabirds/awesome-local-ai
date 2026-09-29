@@ -657,3 +657,79 @@ body,
   white-space: nowrap;
   border: 0;
 }
+
+/* Story 9: tools and text objects. */
+.toolbar-button[aria-pressed='true'] {
+  background: #ddf4ff;
+  color: #0969da;
+}
+
+.board-viewport.is-placing-text,
+.board-viewport.is-placing-text * {
+  cursor: text;
+}
+
+.text-object {
+  position: absolute;
+  color: #1f2328;
+  cursor: default;
+  touch-action: none;
+  outline: none;
+}
+
+.text-object:focus-visible,
+.text-object[data-selected='true'] {
+  outline: 1px dashed rgb(26 115 232 / 60%);
+}
+
+.text-object.is-editing {
+  outline: none;
+  cursor: text;
+}
+
+.text-content,
+.text-editor {
+  margin: 0;
+  padding: 0;
+  font: inherit;
+  line-height: inherit;
+  color: inherit;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  text-rendering: geometricPrecision;
+}
+
+.text-content {
+  width: 100%;
+}
+
+.text-editor {
+  display: block;
+  box-sizing: border-box;
+  border: none;
+  outline: none;
+  background: transparent;
+  resize: none;
+  overflow: hidden;
+}
+
+.text-size-button {
+  min-width: 28px;
+  height: 28px;
+  padding: 0 4px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: #1f2328;
+  font: 600 13px system-ui, sans-serif;
+  cursor: pointer;
+}
+
+.text-size-button:hover {
+  background: #eef1f4;
+}
+
+.text-size-button[aria-pressed='true'] {
+  background: #ddf4ff;
+  color: #0969da;
+}

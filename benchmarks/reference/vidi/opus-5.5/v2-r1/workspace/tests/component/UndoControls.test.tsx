@@ -143,7 +143,7 @@ describe('undo.controls', () => {
     const { doc } = renderApp();
     const objects = doc.getMap('objects');
     expect(undoButton().disabled).toBe(true);
-    fireEvent.click(screen.getByRole('button', { name: 'Sticky note' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Sticky note (N)' }));
     expect(objects.size).toBe(1);
     // Leave the editor so the board's shortcut handler is in charge.
     fireEvent.keyDown(screen.getByRole('textbox', { name: 'Note text' }), { key: 'Escape' });
