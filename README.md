@@ -46,6 +46,15 @@ this machine actually has — no arguments needed for the common case, and a
 clear prompt to choose when more than one combination is installed. (`run.sh`
 is kept as an alias.)
 
+The repo has two halves. The installers above give you a working setup. The
+[benchmark](#benchmarks-how-well-does-a-setup-build-real-software) measures how
+well each setup builds real software: a coding agent implements a full spec
+story by story, and a held-out test suite it never sees scores the result. The
+[machines and tools](#the-bench-machines-and-their-tools) section covers how runs
+are driven across several machines and how their energy is measured, and
+[horizon/](#horizon-what-we-might-try-next) tracks the engines and models we
+might add next, and the ones ruled out.
+
 ---
 
 ## Combinations
@@ -57,17 +66,18 @@ half-installing.
 | Model | OS | Memory | Stack | Context | Install | Details |
 |---|---|---|---|---|---|---|
 | Qwen3.8-27B | Ubuntu 22.04 | RTX 4090 (24GB) | llama.cpp + OpenCode | 128k | [`install-qwen-3.8-27b-ubuntu-nvidia4090-llamacpp-opencode.sh`](install-qwen-3.8-27b-ubuntu-nvidia4090-llamacpp-opencode.sh) | [README](combinations/qwen/3.8/27b/ubuntu/nvidia4090/llamacpp-opencode/README.md) |
-| Swift-Qwen3.8-27B | Ubuntu 22.04 | RTX 4090 (24GB) | llama.cpp + OpenCode | 128k | [`install-qwen-3.8-swift-27b-ubuntu-nvidia4090-llamacpp-opencode.sh`](install-qwen-3.8-swift-27b-ubuntu-nvidia4090-llamacpp-opencode.sh) | [README](combinations/qwen/3.8-swift/27b/ubuntu/nvidia4090/llamacpp-opencode/README.md) |
+| Swift 1.0 Qwen3.8-27B | Ubuntu 22.04 | RTX 4090 (24GB) | llama.cpp + OpenCode | 128k | [`install-qwen-3.8-swift-27b-ubuntu-nvidia4090-llamacpp-opencode.sh`](install-qwen-3.8-swift-27b-ubuntu-nvidia4090-llamacpp-opencode.sh) | [README](combinations/qwen/3.8-swift/27b/ubuntu/nvidia4090/llamacpp-opencode/README.md) |
 | Swift 1.5 Qwen3.8-27B | Ubuntu 22.04 | RTX 4090 (24GB) | llama.cpp + OpenCode | 128k | [`install-qwen-3.8-swift-1.5-27b-ubuntu-nvidia4090-llamacpp-opencode.sh`](install-qwen-3.8-swift-1.5-27b-ubuntu-nvidia4090-llamacpp-opencode.sh) | [README](combinations/qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-opencode/README.md) |
 | Qwen3.8-27B | macOS 26 | 64GB Apple silicon ¹ | MTPLX + OpenCode | 128k | [`install-qwen-3.8-27b-macos-64GB-mtplx-opencode.sh`](install-qwen-3.8-27b-macos-64GB-mtplx-opencode.sh) | [README](combinations/qwen/3.8/27b/macos/64GB/mtplx-opencode/README.md) |
 | Qwen3.8-Flash-Next ⁵ | macOS 26 | 128GB Apple silicon | MTPLX + OpenCode | 128k | [`install-qwen-3.8-flash-next-macos-128GB-mtplx-opencode.sh`](install-qwen-3.8-flash-next-macos-128GB-mtplx-opencode.sh) | [README](combinations/qwen/3.8/flash-next/macos/128GB/mtplx-opencode/README.md) |
 | Qwen3.8-Flash-Next mixed 4/8-bit ⁶ | macOS 26.2+ | 128GB Apple silicon | mlx-serve + OpenCode | 128k | [`install-qwen-3.8-flash-next-macos-128GB-mlxserve-opencode.sh`](install-qwen-3.8-flash-next-macos-128GB-mlxserve-opencode.sh) | [README](combinations/qwen/3.8/flash-next/macos/128GB/mlxserve-opencode/README.md) |
+| Qwen3.8-Flash-Next UD-IQ4_XS ¹⁰ | macOS 26 | 128GB Apple silicon | llama.cpp *(MTP branch, Metal)* + pi | 128k | [`install-qwen-3.8-flash-next-macos-128GB-llamacpp-pi.sh`](install-qwen-3.8-flash-next-macos-128GB-llamacpp-pi.sh) | [README](combinations/qwen/3.8/flash-next/macos/128GB/llamacpp-pi/README.md) |
 | Qwen3.8-Flash-Next ⁷ | Ubuntu 26.04 | Strix Halo 128GB (Ryzen AI Max+ 395) | llama.cpp *(MTP PR; Vulkan or ROCm)* + pi | 128k | [`install-qwen-3.8-flash-next-ubuntu-strix-halo-128GB-llamacpp-pi.sh`](install-qwen-3.8-flash-next-ubuntu-strix-halo-128GB-llamacpp-pi.sh) | [README](combinations/qwen/3.8/flash-next/ubuntu/strix-halo-128GB/llamacpp-pi/README.md) |
 | Qwen3.8-Flash-Next UD-Q4_K_XL ⁸ | Ubuntu 26.04 | Strix Halo 128GB (Ryzen AI Max+ 395) | gufo *(Podman, ROCm in the image)* + pi | 128k | [`install-qwen-3.8-flash-next-ubuntu-strix-halo-128GB-gufo-pi.sh`](install-qwen-3.8-flash-next-ubuntu-strix-halo-128GB-gufo-pi.sh) | [README](combinations/qwen/3.8/flash-next/ubuntu/strix-halo-128GB/gufo-pi/README.md) |
 | Ternary Bonsai 2 27B ² | Ubuntu 22.04 | RTX 4090 (24GB) | llama.cpp *(fork)* + OpenCode | 128k | [`install-bonsai-2-27b-ubuntu-nvidia4090-llamacpp-opencode.sh`](install-bonsai-2-27b-ubuntu-nvidia4090-llamacpp-opencode.sh) | [README](combinations/bonsai/2/27b/ubuntu/nvidia4090/llamacpp-opencode/README.md) |
 | MiMo-V2.6-Qwen-9B ³ | macOS 26 | 16GB Apple silicon, M3+ ⁴ | MTPLX + OpenCode | **20k**: too small for agentic coding ([tested](docs/20260924-mimo-9b-macbook-air-m2-16gb.md)) | [`install-mimo-2.6-9b-macos-16GB-mtplx-opencode.sh`](install-mimo-2.6-9b-macos-16GB-mtplx-opencode.sh) | [README](combinations/mimo/2.6/9b/macos/16GB/mtplx-opencode/README.md) |
-| Qwen3.8-27B EXL3 3.0bpw ⁵ | Ubuntu (Docker) | RTX 3090 (24GB, sm_86) | SGLang *(container)* + OpenCode | 262k | [`install-qwen-3.8-27b-ubuntu-nvidia3090-sglang-opencode.sh`](install-qwen-3.8-27b-ubuntu-nvidia3090-sglang-opencode.sh) | [README](combinations/qwen/3.8/27b/ubuntu/nvidia3090/sglang-opencode/README.md) |
-| Qwen3.6-35B-A3B EXL3 3.0bpw ⁵ | Ubuntu (Docker) | RTX 3090 (24GB, sm_86) | SGLang *(container)* + OpenCode | 262k | [`install-qwen-3.6-35b-a3b-ubuntu-nvidia3090-sglang-opencode.sh`](install-qwen-3.6-35b-a3b-ubuntu-nvidia3090-sglang-opencode.sh) | [README](combinations/qwen/3.6/35b-a3b/ubuntu/nvidia3090/sglang-opencode/README.md) |
+| Qwen3.8-27B EXL3 3.0bpw ⁹ | Ubuntu (Docker) | RTX 3090 (24GB, sm_86) | SGLang *(container)* + OpenCode | 262k | [`install-qwen-3.8-27b-ubuntu-nvidia3090-sglang-opencode.sh`](install-qwen-3.8-27b-ubuntu-nvidia3090-sglang-opencode.sh) | [README](combinations/qwen/3.8/27b/ubuntu/nvidia3090/sglang-opencode/README.md) |
+| Qwen3.6-35B-A3B EXL3 3.0bpw ⁹ | Ubuntu (Docker) | RTX 3090 (24GB, sm_86) | SGLang *(container)* + OpenCode | 262k | [`install-qwen-3.6-35b-a3b-ubuntu-nvidia3090-sglang-opencode.sh`](install-qwen-3.6-35b-a3b-ubuntu-nvidia3090-sglang-opencode.sh) | [README](combinations/qwen/3.6/35b-a3b/ubuntu/nvidia3090/sglang-opencode/README.md) |
 
 ² **The Bonsai row does not use upstream llama.cpp.** Bonsai 2 is Qwen3.8-27B
 re-quantised to ternary weights (~1.72 bits/weight, 6.7 GB), and its GGUF types
@@ -108,7 +118,7 @@ M3/M4/M5 only; it runs on M1/M2 but without native BF16, and the slowdown is
 unmeasured. `./install.sh` never picks it by default; name it:
 `./install.sh mimo`.
 
-⁵ **The two SGLang rows are unmeasured by this repo.** They transcribe a
+⁹ **The two SGLang rows are unmeasured by this repo.** They transcribe a
 merged recipe, [0xSero/local-ai-registry PR #83](https://github.com/0xSero/local-ai-registry/pull/83),
 whose numbers the recipe author measured on a *bare* RTX 3090: 262k context,
 MTP on, ~99 (27B) and ~252 (35B-A3B) tok/s prose decode. Nobody has run them
@@ -149,6 +159,12 @@ llama.cpp row's agent runs. Whether its code is as good is what its benchmark
 runs measure. It never installs unasked: `./install.sh` lists it but does not
 pick it.
 
+¹⁰ **The macOS llama.cpp row is the Strix Halo llama.cpp stack moved to Apple
+silicon**: the same branch, commit, weights, MTP settings and context, with Metal
+instead of Vulkan, so llama.cpp and the Mac's MLX engines can be compared on one
+machine. Not measured yet: its one benchmark run is paused after story 1. It is
+the row footnote ⁵ recommends over MTPLX.
+
 **Want one that isn't here?** See
 [docs/adding-a-combination.md](docs/adding-a-combination.md). A new combination
 that reuses the existing adapters costs four files and no shell logic.
@@ -187,7 +203,7 @@ one combination and is false now — so it is marked.
   Loading it costs 32k of context on a 24GB card (128k → 96k), which is why it
   is off outside the `vision` profiles — a VRAM trade, not a missing capability.
 
-**Swift-Qwen3.8-27B — Ubuntu 22.04 / RTX 4090 (24GB):**
+**Swift 1.0 Qwen3.8-27B — Ubuntu 22.04 / RTX 4090 (24GB):**
 
 - **The fast-of-the-two on identical hardware.** Measured against the baseline
   above on the same 4090, same binary and prompts: 1.37–1.51× faster end-to-end
@@ -195,11 +211,22 @@ one combination and is false now — so it is marked.
   ([A/B report](docs/20260921-swift-qwen38-27b-ab.md)). A retrained Qwen3.8-27B
   that thinks less, so routine agent turns come back sooner.
 - **MTP head baked into the weights.** Swift's draft head is Q8_0 inside the
-  GGUF (no separate 1.57 GiB sidecar, no `-md`), run at `--spec-draft-n-max 3`
+  GGUF (no separate 1.57 GiB sidecar, no `-md`), measured at
+  `--spec-draft-n-max 3` and now run at 4 (the mean accepted draft ran above 3)
   — which also leaves ~1.5 GiB more room for context than the baseline.
 - **The cut is deliberation, not capability.** The A/B measures speed and token
   count, not answer quality — the report says so, and it is the honest limit of
   this comparison.
+
+**Swift 1.5 Qwen3.8-27B — Ubuntu 22.04 / RTX 4090 (24GB):**
+
+- **UkisAI's second retrain, a different model from 1.0**, served exactly like
+  1.0 so the two compare directly. The vendor claims it is stronger on coding
+  and agentic work; this repo has not measured that yet.
+- **Same layout, lighter file:** the same MTP head position as 1.0, but its
+  projection is Q4_0 rather than Q8_0, and the file is 0.54 GiB smaller. The
+  install measured draft acceptance 0.80 on its smoke prompt; real-session
+  acceptance is not measured yet.
 
 **Ternary Bonsai 2 27B — Ubuntu 22.04 / RTX 4090 (24GB):**
 
@@ -232,6 +259,101 @@ one combination and is false now — so it is marked.
 
 ---
 
+## Benchmarks: how well does a setup build real software?
+
+Tokens per second say little on their own: a fast setup that writes broken code is not a good
+setup. The spec benchmark ([benchmarks/spec-bench/](benchmarks/spec-bench/)) measures what a
+setup actually produces. A coding agent (pi or OpenCode, on one combination) implements a real
+specification one story at a time, each story with a PRD, a technical design and ordered tasks,
+and every story is recorded: time, model calls, tokens, commits and the agent's own tests.
+
+**Spec packs:**
+
+| Pack | What it builds | Spec | Held-out suite |
+|---|---|---|---|
+| [Vidi](benchmarks/vidi/) | a Miro-style collaborative whiteboard: 17 stories; the `canvas` scope builds 11 (pan and zoom, sticky notes, live sync, saving, share links, selection, undo, text, shapes and arrows, pen, images) | private | private |
+| [Todoodle](benchmarks/todoodle/) | a to-do app with link-based workspaces, tasks and projects: 11 stories | public | private |
+
+Held-out material lives in a private repo (`awesome-local-ai-bench-private`) so it stays out of
+public training data and out of the agent's reach: the harness's sandbox hides it while the agent
+works. Everything else is public: the harness, the run records, the code each run wrote, and the
+scores. To run a pack on your own hardware, ask the repo owner for access.
+
+**Three stages, each owned by someone different:**
+
+| Stage | Who | What happens | Output |
+|---|---|---|---|
+| **Build** | the agent, on a bench machine | story by story: work, run the agent's own gate tests, commit; the harness guards the machine (below) | the run record under `combinations/<combination>/benchmarks/<pack>/<run>/`, including every story's code |
+| **Score** | the held-out suite | after the run, the app as it was after each story is tested with a pinned suite version (`rescore.py`), in parallel within the host's limits; failing checks run three times and the majority counts | per-story pass/fail, regressions, repairs and flaky tests in the run's `rescore/<suite-version>/` |
+| **Judge** | a person | watches a recording of each test and marks whether the app did what the path describes; compared with the suite's verdicts, this gives a confusion matrix that shows where the suite is too strict or too lenient | verdicts in the private repo |
+
+Scoring is automatic and repeatable; judging validates the scoring. The review page for judging
+is in [tools/vidi-gallery/](tools/vidi-gallery/) (to be generalised to every pack). Separately,
+[blinded AI graders](benchmarks/spec-bench/harness/judge.md) can compare two builds' code quality
+without knowing which setup made which.
+
+**The rules** are in [EVALUATION-POLICY.md](benchmarks/spec-bench/EVALUATION-POLICY.md): every
+held-out test checks something the spec states; a failure counts against the agent only if it could
+have found it with what it had; the agent gets no feedback from the held-out tests; a setup step
+that fails on an undocumented alternate flow falls back to the documented one and is counted once;
+specs carry no operational requirements such as rate limits. Every field a run records is in
+[TELEMETRY.md](benchmarks/spec-bench/TELEMETRY.md).
+
+**Versions.** A result names its spec version, its held-out suite version and the harness commit,
+and results are compared only within one version. Vidi is moving from v1.3 to v2: the v2 spec is in
+use for new builds, and every stack is being rebuilt on it.
+
+**Reference stacks.** The same packs run with a frontier model (Opus 5.5 through Claude Code) under
+[benchmarks/reference/](benchmarks/reference/), as the yardstick for local setups.
+
+**Protecting the machine.** A run shares its machine with the model server. The harness stops a
+story if memory runs short, makes the agent's processes the kernel's first choice if memory runs out,
+and on Linux runs the agent in its own cgroup so that nothing it starts can outlive it: a cut-off
+tool call loses what it started, and each story ends with the scope emptied
+([tools/agent-containment/](tools/agent-containment/PROPOSAL.md)). One story can also be run on
+its own from another run's code ("known-good mode"), as a separately labelled diagnostic.
+
+---
+
+## The bench machines and their tools
+
+| Machine | Hardware | Runs |
+|---|---|---|
+| tritus | Minisforum MS-S1 MAX: Strix Halo (Ryzen AI Max+ 395), 128 GB, Ubuntu | llama.cpp (Vulkan) and gufo, Qwen3.8 Flash-Next |
+| gruntus | RTX 4090 (24 GB), Ubuntu, and Windows 11 on the same disk | llama.cpp (CUDA): Qwen3.8 27B, Swift 1.0 and 1.5; Windows-only engines |
+| quintus | Apple M5 Max, 128 GB, macOS | mlx-serve and llama.cpp (Metal), Qwen3.8 Flash-Next |
+
+- **[tools/dbench/](tools/dbench/)** runs benchmark jobs on any number of machines, driven from any
+  machine: `dbench serve` on each box keeps a queue, restarts and recovers after a reboot; the client
+  submits, watches, cancels and reads events. Results arrive through git. Design:
+  [docs/20260924-distributed-bench-design.md](docs/20260924-distributed-bench-design.md).
+- **[tools/power-collector/](tools/power-collector/)** records each machine's power every 2 seconds
+  (a Tapo energy-monitoring plug at the wall, the Mac's own telemetry, NVIDIA board power, Apple
+  Silicon die temperatures) so energy can be tied to a story or a single model request.
+- **[tools/windows-bench-host/](tools/windows-bench-host/)** turns a Windows PC with an NVIDIA GPU
+  (a gaming PC is fine) into a bench machine in one script: Tailscale, an SSH server, WSL2 for the
+  Linux harness, and firewall rules that admit only Tailscale addresses.
+- **[tools/vidi-gallery/](tools/vidi-gallery/)** shows every build's scores, judging and cost on one
+  page, opens any build in its own window, and hosts the story-by-story review with a player for
+  each test's recording.
+- **[tools/agent-containment/](tools/agent-containment/PROPOSAL.md)**: why and how the harness keeps
+  every process the agent starts in a cgroup it owns.
+- **[benchmarks/gufo-eval/](benchmarks/gufo-eval/)** captures a real agent session's requests and
+  replays them against an engine, for engine comparisons without a full run.
+
+---
+
+## Horizon: what we might try next
+
+[horizon/](horizon/) has one note per engine, model or setting we have looked at and not (yet) turned
+into a combination: what it is, where it would run, its status (candidate, gated, blocked, queued,
+parked, eliminated) with the reason, the checks it must pass before a run, what would confound a
+comparison, and when to look again. Blocked and eliminated ones stay there with their reasons (a
+known bug, a machine it can't fit), so nothing is tried twice for a reason already known. It is
+re-read periodically against each note's "recheck when".
+
+---
+
 ## How the repo is laid out
 
 ```
@@ -242,7 +364,16 @@ lib/                          ALL the logic, shared by every combination
 combinations/<family>/<version>/<size>/<os>/<memory>/<stack>/
                               config.sh, profiles.tsv, help.txt, README.md
 benchmarks/                   the harnesses behind every measured number
+  spec-bench/                 the spec benchmark: harness, evaluation policy, telemetry
+  vidi/  todoodle/            spec packs (held-out parts in the private repo)
+  reference/                  the same packs run with a frontier model
 tools/dbench/                 runs those harnesses on remote machines (server + client, Rust)
+tools/power-collector/        power and temperature every 2 s, per machine
+tools/vidi-gallery/           scores, judging and the review page for every build
+tools/windows-bench-host/     one-time setup for a Windows GPU PC as a bench machine
+tools/agent-containment/      why the agent runs in a cgroup the harness owns
+horizon/                      engines and models we might try, and the ones ruled out
+issues/external/              bug reports for other projects, drafted before filing
 tests/                        the checks that need no hardware
 docs/                         measurements, methodology, contributor guide
 samples/                      things models built here, kept as worked examples
@@ -311,9 +442,9 @@ Three extension points, each one file with a small documented contract:
 - **[benchmarks/](benchmarks/)** — speed benchmarks ([perf/](benchmarks/perf/)), the Vidi build benchmark ([vidi/](benchmarks/vidi/)) and its reference stacks ([reference/](benchmarks/reference/)): the harnesses behind the numbers, so they can
   be re-derived rather than taken on trust. Results are stored with the
   combination they were measured on.
-- **[tools/dbench/](tools/dbench/)**: runs a benchmark harness remotely, on any number of machines, driven from any machine. `dbench serve` goes on each benchmark box; the client, from anywhere, submits, watches, cancels and reads events. Each node carries on by itself (restarts, recovery after reboot), and results arrive through git. The design is in [docs/20260924-distributed-bench-design.md](docs/20260924-distributed-bench-design.md).
-- **[tools/vidi-gallery/](tools/vidi-gallery/)**: one local page to review every Vidi build: held-out scores, judging and cost side by side, and any run's final build opened in its own window, labelled with its setup and run.
-- **[benchmarks/vidi/](benchmarks/vidi/)**: the Vidi build benchmark: a coding setup builds a real spec story by story, scored by a **held-out** suite. The spec and held-out suite are in a **private** repo; ask the owner for access to run it on your own hardware (a 3090, a DGX and so on). Details are in its README.
+- **The benchmark, the machines and horizon** have their own sections above;
+  [EVALUATION-POLICY.md](benchmarks/spec-bench/EVALUATION-POLICY.md) and
+  [TELEMETRY.md](benchmarks/spec-bench/TELEMETRY.md) are the rules and the record format.
 - **[samples/](samples/)** — a 3D game written end-to-end by the local model
   through OpenCode, in thinking and non-thinking variants. A worked example of
   what this setup produces, not maintained software.
