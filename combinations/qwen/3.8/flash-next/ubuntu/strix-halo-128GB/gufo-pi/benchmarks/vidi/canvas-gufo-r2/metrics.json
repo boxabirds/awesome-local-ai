@@ -3874,6 +3874,15 @@
         },
         "heldout_floor": 0.0,
         "heldout_ok": true
+      },
+      "record": {
+        "committed": true,
+        "pushed": true,
+        "over_size_limit": [
+          "~/expts/awesome-local-ai/combinations/qwen/3.8/flash-next/ubuntu/strix-halo-128GB/gufo-pi/benchmarks/vidi/canvas-gufo-r2/server.log",
+          "~/expts/awesome-local-ai/combinations/qwen/3.8/flash-next/ubuntu/strix-halo-128GB/gufo-pi/benchmarks/vidi/canvas-gufo-r2/workspace/tests/fixtures/images/screenshot.png"
+        ],
+        "commit": "b99c2140"
       }
     }
   },
