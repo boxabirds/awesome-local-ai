@@ -1,3 +1,41 @@
+commit f35087b6945f57d3bd746fcbef29b2578639ba4c
+vidi-agent  Tue Sep 29 13:52:32 2026 +0000
+
+    feat(story-12): Drop images onto the board
+
+
+ src/client/Board.tsx                    |  73 ++++++-
+ src/client/board/Toolbar.tsx            |  27 +++
+ src/client/images/DropHighlight.tsx     |  21 ++
+ src/client/images/uploadImage.ts        |  66 +++++++
+ src/client/images/useImageInsert.ts     | 327 ++++++++++++++++++++++++++++++++
+ src/client/images/validateFiles.ts      |  39 ++++
+ src/client/objects/ImageObject.tsx      | 251 ++++++++++++++++++++++++
+ src/client/tools/useActiveTool.ts       |   2 +-
+ src/client/ui/Toast.tsx                 |  79 ++++++++
+ src/shared/board-model.ts               |   8 +-
+ src/shared/config.ts                    |  13 ++
+ src/shared/image-format.ts              |  55 ++++++
+ src/shared/objects/image.ts             | 227 ++++++++++++++++++++++
+ src/worker/assets.ts                    | 130 +++++++++++++
+ src/worker/env.ts                       |   2 +
+ src/worker/index.ts                     |  32 +++-
+ tests/component/ImageObject.test.tsx    | 225 ++++++++++++++++++++++
+ tests/component/useImageInsert.test.tsx | 276 +++++++++++++++++++++++++++
+ tests/e2e/helpers/drop-files.ts         |  71 +++++++
+ tests/e2e/images.spec.ts                | 247 ++++++++++++++++++++++++
+ tests/fixtures/images/blue.png          | Bin 0 -> 262 bytes
+ tests/fixtures/images/fake.png          |   1 +
+ tests/fixtures/images/green.png         | Bin 0 -> 340 bytes
+ tests/fixtures/images/large_11mb.jpg    | Bin 0 -> 11534340 bytes
+ tests/fixtures/images/malicious.svg     |   1 +
+ tests/fixtures/images/red.png           | Bin 0 -> 180 bytes
+ tests/fixtures/images/tiny.png          | Bin 0 -> 67 bytes
+ tests/integration/assets.test.ts        | 210 ++++++++++++++++++++
+ tests/unit/image-format.test.ts         | 122 ++++++++++++
+ tests/unit/image-model.test.ts          | 213 +++++++++++++++++++++
+ wrangler.jsonc                          |  14 ++
+ 31 files changed, 2724 insertions(+), 8 deletions(-)
 commit fe5884e91410ee393a7396816d19217533119840
 vidi-agent  Tue Sep 29 13:21:20 2026 +0000
 
