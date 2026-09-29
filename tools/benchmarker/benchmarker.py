@@ -141,6 +141,27 @@ def stages(run: dict, job: dict | None, suite: str) -> dict:
     return {"build": build, "score": score, "judge": judge}
 
 
+def live_from_job(job: dict) -> dict:
+    """The live numbers of a job's running story: dbench lists every story of the run, so pick the one
+    that is running (or the current one), never simply the last."""
+    prog = job.get("progress") or {}
+    cur = prog.get("current_story")
+    stories = prog.get("stories") or []
+    story = next((st for st in stories if st.get("status") == "running"), None) or \
+        next((st for st in stories if cur is not None and str(st.get("id")) == str(cur)), None) or {}
+    tasks = story.get("tasks") or []
+    activity = story.get("recent_activity") or []
+    return {"job_id": job.get("id"), "status": (job.get("state") or {}).get("status"),
+            "attempt": (job.get("state") or {}).get("attempt"), "current_story": cur,
+            "agent_minutes": story.get("agent_minutes"), "calls": story.get("calls"),
+            "output_tokens": story.get("output_tokens"),
+            "tasks_written": sum(1 for t in tasks if t.get("status") not in (None, "not-started")) if tasks else None,
+            "tasks_total": len(tasks) or None,
+            "last_activity": activity[-1] if activity else None,
+            "last_task_change_at": story.get("last_task_change_at"),
+            "log_tail": (prog.get("log_tail") or [])[-3:]}
+
+
 def merge(runs: list[dict], jobs: dict[tuple, dict], now: float | None = None) -> list[dict]:
     """One row per run record, plus one per dbench job that has no record yet: queued and running jobs
     always, finished, failed or cancelled ones for RECENT_S."""
@@ -290,17 +311,7 @@ class State:
                 row["family"] = row_family(row, suite)
                 row["stages"] = stages(row, row["job"], suite)
                 job = row.pop("job")
-                if job:
-                    prog = job.get("progress") or {}
-                    live = (prog.get("stories") or [{}])[-1] if prog.get("stories") else {}
-                    row["live"] = {"job_id": job.get("id"), "status": job.get("state", {}).get("status"),
-                                   "attempt": job.get("state", {}).get("attempt"),
-                                   "current_story": prog.get("current_story"),
-                                   "agent_minutes": live.get("agent_minutes"), "calls": live.get("calls"),
-                                   "output_tokens": live.get("output_tokens"),
-                                   "log_tail": (prog.get("log_tail") or [])[-3:]}
-                else:
-                    row["live"] = None
+                row["live"] = live_from_job(job) if job else None
             return {"now": time.time(), "fetched_at": self.fetched_at, "fetch_error": self.fetch_error,
                     "dbench_at": self.dbench_at, "dbench_error": self.dbench_error,
                     "suites": self.suites, "web": self.web, "judge_url": self.judge_url, "branch": BRANCH,

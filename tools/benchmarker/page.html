@@ -51,6 +51,9 @@ tr:last-child td { border-bottom: none; }
 a { color: var(--run); text-decoration: none; } a:hover { text-decoration: underline; }
 .links a { margin-right: 10px; white-space: nowrap; }
 .empty { color: var(--muted); padding: 24px; }
+#stale { display: none; background: var(--bad); color: #fff; padding: 8px 16px; font-weight: 600; }
+body.stale #stale { display: block; }
+body.stale main { opacity: .45; filter: grayscale(1); }
 </style>
 </head>
 <body>
@@ -61,6 +64,7 @@ a { color: var(--run); text-decoration: none; } a:hover { text-decoration: under
   <span class="meta" id="meta"></span>
   <span class="err" id="errs"></span>
 </header>
+<div id="stale"></div>
 <main id="main"><p class="empty">Loading…</p></main>
 <script>
 const $ = (id) => document.getElementById(id);
@@ -112,14 +116,16 @@ function build(row) {
   const cls = statusClass(row.stages.build);
   let h = `<div class="${cls}">${esc(row.stages.build)}</div>`;
   if (row.live && row.live.status === "running") {
-    const bits = [];
-    if (row.live.agent_minutes != null) bits.push(`${row.live.agent_minutes} agent-min`);
-    if (row.live.calls != null) bits.push(`${row.live.calls} calls`);
-    if (row.live.output_tokens != null) bits.push(`${Math.round(row.live.output_tokens / 1000)}k out`);
-    if (row.live.attempt > 1) bits.push(`attempt ${row.live.attempt}`);
+    const L = row.live, bits = [];
+    if (L.agent_minutes != null) bits.push(`${L.agent_minutes} agent-min`);
+    if (L.calls != null) bits.push(`${L.calls} calls`);
+    if (L.output_tokens != null) bits.push(`${Math.round(L.output_tokens / 1000)}k out`);
+    if (L.tasks_total) bits.push(`tasks ${L.tasks_written}/${L.tasks_total}`);
+    if (L.attempt > 1) bits.push(`attempt ${L.attempt}`);
     if (bits.length) h += `<div class="small">${bits.join(" · ")}</div>`;
-    const tail = (row.live.log_tail || []).slice(-1)[0];
-    if (tail) h += `<div class="log" title="${esc(tail)}">${esc(tail)}</div>`;
+    // latest agent action, with workspace paths shortened; else the harness's last log line
+    const act = L.last_activity ? L.last_activity.replace(/\S*\/workspace\//g, "") : (L.log_tail || []).slice(-1)[0];
+    if (act) h += `<div class="log" title="${esc(act)}">${esc(act)}</div>`;
   } else if (row.state_at) {
     h += `<div class="small">${esc(row.state_at.replace("T", " ").replace("Z", " UTC"))}</div>`;
   }
@@ -177,17 +183,39 @@ function render() {
         <td>${links(r)}</td></tr>`).join("")}</tbody></table></section>`;
   }).join("") : '<p class="empty">No runs for this pack and version.</p>';
 
-  $("meta").textContent = `repo fetched ${ago(state.fetched_at)} · dbench ${ago(state.dbench_at)} · suite ${state.suites[pack] || "?"}`;
   $("errs").textContent = [state.fetch_error && `git: ${state.fetch_error}`, state.dbench_error && `dbench: ${state.dbench_error}`].filter(Boolean).join(" · ");
 }
 
+const STALE_S = 20;          // no successful refresh for this long: dim the page and say so
+let lastOk = 0, lastErr = "", skew = 0;
 async function poll() {
-  try { state = await (await fetch("/api/state", { cache: "no-store" })).json(); render(); }
-  catch (e) { $("errs").textContent = `benchmarker server unreachable: ${e}`; }
+  try {
+    const r = await fetch("/api/state", { cache: "no-store" });
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    state = await r.json();
+    skew = Date.now() / 1000 - state.now;       // server clock vs this browser's
+    render();
+    lastOk = Date.now(); lastErr = "";
+  } catch (e) { lastErr = String(e.message || e); }
+  tick();
+}
+function tick() {
+  const age = lastOk ? (Date.now() - lastOk) / 1000 : Infinity;
+  const stale = age > STALE_S || (lastErr && age > STALE_S / 2);
+  document.body.classList.toggle("stale", !!stale);
+  $("stale").textContent = stale ? (lastOk
+      ? `Stale: the last successful update was ${Math.round(age)} s ago${lastErr ? ` (${lastErr})` : ""}. Is the benchmarker server running?`
+      : `No data yet${lastErr ? `: ${lastErr}` : ""}. Is the benchmarker server running?`) : "";
+  if (state) {
+    const pack = $("pack").value;
+    // server timestamps, converted to this browser's clock, so the ages keep counting between polls
+    const age = (t) => (t ? t + skew : 0);
+    $("meta").textContent = `repo fetched ${ago(age(state.fetched_at))} · dbench ${ago(age(state.dbench_at))} · suite ${state.suites[pack] || "?"}`;
+  }
 }
 $("pack").addEventListener("change", () => { $("family").value = ""; save(); render(); });
 $("family").addEventListener("change", () => { save(); render(); });
-poll(); setInterval(poll, 5000);
+poll(); setInterval(poll, 5000); setInterval(tick, 1000);
 </script>
 </body>
 </html>
