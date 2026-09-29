@@ -92,7 +92,7 @@ function strip(row) {
     return `<span class="cell ${c}" title="story ${esc(s.id)}: ${esc(s.title)} — ${esc(s.status)}${s.total ? `, held-out ${s.passed}/${s.total}` : ""}"></span>`;
   });
   if (cur && !(row.stories || []).some((s) => String(s.id) === cur)) cells.push(`<span class="cell c-run" title="story ${esc(cur)}: running"></span>`);
-  return `<div class="strip">${cells.join("") || '<span class="small">no stories yet</span>'}</div>`;
+  return `<div class="strip">${cells.join("") || '<span class="wait">—</span>'}</div>`;
 }
 
 function liveScore(row) {
@@ -102,9 +102,10 @@ function liveScore(row) {
   return `${last.passed}/${last.total} <span class="small">after story ${esc(last.id)}</span>`;
 }
 
+const building = (row) => row.stages.score === "waiting for the build";
 function scores(row) {
   const v = Object.entries(row.scores || {});
-  if (!v.length) return `<span class="wait">${esc(row.stages.score)}</span>`;
+  if (!v.length) return `<span class="wait">${building(row) ? "—" : esc(row.stages.score)}</span>`;
   return v.map(([ver, s]) => {
     const link = blob(`${row.dir}/rescore/${ver}/per-story.md`);
     const txt = `${s.passed}/${s.total}${s.flaky ? ` <span class="small">${s.flaky} flaky</span>` : ""}`;
@@ -114,6 +115,14 @@ function scores(row) {
 
 function build(row) {
   const cls = statusClass(row.stages.build);
+  const q = row.live && row.live.queue;
+  if (row.live && row.live.status === "queued" && q) {
+    const nth = (n) => n + ({ 1: "st", 2: "nd", 3: "rd" }[n % 100 > 10 && n % 100 < 14 ? 0 : n % 10] || "th");
+    const ahead = q.ahead.length
+      ? `after ${q.ahead.slice(0, 2).map(esc).join(", ")}${q.ahead.length > 2 ? ` and ${q.ahead.length - 2} more` : ""}`
+      : "next to start";
+    return `<div class="${cls}">queued: ${nth(q.position)} on ${esc(row.node)}</div><div class="small">${ahead}</div>`;
+  }
   let h = `<div class="${cls}">${esc(row.stages.build)}</div>`;
   if (row.live && row.live.status === "running") {
     const L = row.live, bits = [];
@@ -134,11 +143,11 @@ function build(row) {
 
 function judge(row) {
   if (row.stages.judge === "ready") return `<a class="ready" href="${esc(state.judge_url)}" target="_blank" rel="noopener">Judge →</a>`;
-  return `<span class="wait">${esc(row.stages.judge)}</span>`;
+  return `<span class="wait">${building(row) ? "—" : esc(row.stages.judge)}</span>`;
 }
 
 function links(row) {
-  if (!row.dir) return '<span class="small">no record yet</span>';
+  if (!row.dir) return '<span class="wait">—</span>';
   const out = [];
   const t = tree(row.dir); if (t) out.push(`<a href="${t}" target="_blank" rel="noopener">record</a>`);
   const s = blob(`${row.dir}/summary.md`); if (s && (row.state === "finished" || row.state === "stopped")) out.push(`<a href="${s}" target="_blank" rel="noopener">summary</a>`);

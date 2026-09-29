@@ -125,3 +125,36 @@ def test_live_numbers_come_from_the_running_story_not_the_last_listed():
 def test_a_job_between_stories_has_no_live_story():
     job = {"id": "j", "state": {"status": "running"}, "progress": {"current_story": None, "stories": [{"id": "1", "status": "done"}]}}
     assert B.live_from_job(job)["agent_minutes"] is None
+
+
+def test_queued_jobs_know_their_place_and_what_is_ahead():
+    def job(i, status, run, t, stack="qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-pi"):
+        return {"id": i, "spec": {"pack": "benchmarks/vidi", "run_id": run}, "progress": {"combination": stack},
+                "state": {"status": status}, "submitted_at": t}
+    jobs = {"gruntus": [
+        job("s1", "running", "v2-r1", 1), job("s2", "queued", "v2-r2", 2), job("s3", "queued", "v2-r3", 3),
+        job("b1", "queued", "v2-r1", 4, "qwen/3.8/27b/ubuntu/nvidia4090/llamacpp-pi"),
+        job("old", "cancelled", "v2-r9", 0)]}
+    q = B.queue_positions(jobs)
+    assert q["b1"]["position"] == 4
+    assert q["b1"]["ahead"] == ["3.8-swift-1.5/27b v2-r1 (running)", "3.8-swift-1.5/27b v2-r2", "3.8-swift-1.5/27b v2-r3"]
+    assert q["s2"]["position"] == 2 and q["s2"]["ahead"] == ["3.8-swift-1.5/27b v2-r1 (running)"]
+    assert "s1" not in q and "old" not in q
+
+
+def test_jobs_submitted_in_the_same_second_keep_dbench_order_by_id():
+    def job(i, run, t):
+        return {"id": i, "spec": {"pack": "benchmarks/vidi", "run_id": run},
+                "progress": {"combination": "qwen/3.8-swift-1.5/27b/x/y/z"}, "state": {"status": "queued"}, "submitted_at": t}
+    q = B.queue_positions({"n": [job("vidi-v2b-swift15-r3", "v2-r3", 5), job("vidi-v2b-swift15-r2", "v2-r2", 5),
+                                 job("vidi-v2b-swift15-r1", "v2-r1", 5)]})
+    assert [q[f"vidi-v2b-swift15-r{i}"]["position"] for i in (1, 2, 3)] == [1, 2, 3]
+
+
+def test_between_stories_the_build_names_the_story_being_finished():
+    run = {"state": "started", "rescores": [], "has_bundle": False}
+    job = {"state": {"status": "running"},
+           "progress": {"current_story": None, "stories": [{"id": "1", "status": "running"}, {"id": "2", "status": "pending"}]}}
+    assert B.stages(run, job=job, suite="x")["build"] == "running: story 1 (finishing)"
+    job2 = {"state": {"status": "running"}, "progress": {"current_story": None, "stories": [{"id": "1", "status": "done"}]}}
+    assert B.stages(run, job=job2, suite="x")["build"] == "running: between stories"
