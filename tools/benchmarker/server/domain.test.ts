@@ -192,6 +192,18 @@ describe("merging runs and jobs", () => {
     expect(rows.map((r) => r.runId).sort()).toEqual(["f", "q", "r"]);
     expect(rows[0].stories).toEqual([]);
   });
+
+  it("a job that recorded nothing and was cancelled or finished isn't a run: hidden at once; a failure still shows", () => {
+    const now = 1_000_000;
+    const jobs = indexJobs({
+      n: [
+        job({ id: "c", state: { status: "cancelled" }, spec: { pack: "benchmarks/vidi", run_id: "c" }, updated_at: now - 60 }),
+        job({ id: "smoke", state: { status: "done" }, spec: { pack: "benchmarks/vidi", run_id: "smoke" }, updated_at: now - 60 }),
+        job({ id: "f", state: { status: "failed" }, spec: { pack: "benchmarks/vidi", run_id: "f" }, updated_at: now - 60 }),
+      ],
+    });
+    expect(mergeRows([], jobs, now).map((r) => r.runId)).toEqual(["f"]);
+  });
 });
 
 describe("machines", () => {
