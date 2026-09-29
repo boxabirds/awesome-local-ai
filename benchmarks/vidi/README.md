@@ -9,21 +9,30 @@ repo: *how does this setup implement Vidi?*
 The spec (`spec/`) is a Miro-style collaborative whiteboard ("vidi6"): 17 stories
 in 3 epics, each with a PRD, a technical design and ordered tasks.
 
-## Where the spec, the held-out suite and the other secrets are
+## What is public and what is private
 
-The specification, the **held-out acceptance suite** and the grading material are **not in this public repo**. They live in the private repo [`boxabirds/awesome-local-ai-bench-private`](https://github.com/boxabirds/awesome-local-ai-bench-private), so that they stay out of public training data and out of the agents' reach. That repo holds:
-- `packs/vidi/spec/`, `scope/`, `prompts/`;
+**The spec is public; the held-out parts are private**, as for [Todoodle](../todoodle/). The spec is
+in [`spec/`](spec/) here (a mirror of the private pack's copy, which is what the harness reads), and
+every run's code is public in its run record anyway. What must stay private is the **held-out
+acceptance suite**: it is the protection against contamination. A model that has memorised the spec
+still has to build an app that passes tests it has never seen, and the spec is in its prompt either
+way. So the private repo [`boxabirds/awesome-local-ai-bench-private`](https://github.com/boxabirds/awesome-local-ai-bench-private) holds:
 - `packs/vidi/acceptance/`: the held-out Playwright suite;
 - `packs/vidi/GRADING.md`: the independent grader's brief;
-- `gradings/`: blinded grading packages.
+- `gradings/`: blinded grading packages;
+- `packs/vidi/spec/`, `scope/`, `prompts/`: the copies the harness reads.
 
 Everything else is public: this harness, dbench, the audit method, and all run records and results.
 
-> **Transition note (25 Sep 2026):** copies of `spec/`, `acceptance/`, `scope/` and `prompts/` are still under `benchmarks/vidi/` here: they are bench **v1**, which was publicly exposed. They're removed once the runs that still read them have finished. The harness already prefers the private checkout when it sits next to this repo.
+> **The v1 held-out suite was publicly exposed**: it was committed here on 23 Sep 2026, and
+> `acceptance/` in this folder is still that v1 copy. The harness uses the private suite whenever the
+> private repo is checked out next to this one, and falls back to this copy only when it isn't. A model
+> trained after that date may have seen those tests, which is why the v2 held-out suite is written
+> fresh and kept only in the private repo.
 
 **Want to run the benchmark on your own hardware** (a 3090, a DGX, anything else)? Ask the repo owner (Julian Harris) for access to the private repo. With access:
 1. Clone it next to this repo.
-2. Run `benchmarks/spec-bench/harness/setup-node.sh`, which checks your tools, pins the pack to the current bench version (`vidi-v1`) and proves the sandbox hides the suite.
+2. Run `benchmarks/spec-bench/harness/setup-node.sh`, which checks your tools, pins the pack to the version named in `bench.json` (`pack_ref`, currently `vidi-v2.0-pre1`) and proves the sandbox hides the suite.
 3. Run your setup with `run.sh` or dbench.
 
 Results are only comparable within one bench version.
