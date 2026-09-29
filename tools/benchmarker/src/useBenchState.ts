@@ -7,6 +7,27 @@ const POLL_MS = 5_000;
 export const STALE_S = 20;
 const TICK_MS = 1_000;
 
+const SCRIPT_SRC = /<script[^>]+src="([^"]+)"/;
+let reloading = false;
+
+/** Reload onto the server's newer build, but only once its page and script both load: a reload
+ * while the server restarts or `vite build` rewrites dist/ lands on an error page that never retries. */
+async function reloadWhenLoadable() {
+  if (reloading) return;
+  reloading = true;
+  try {
+    const page = await fetch("/", { cache: "no-store" });
+    if (!page.ok) return;
+    const src = SCRIPT_SRC.exec(await page.text())?.[1];
+    if (!src || !(await fetch(src, { cache: "no-store" })).ok) return;
+    location.reload();
+  } catch {
+    // not loadable yet: the next poll tries again
+  } finally {
+    reloading = false;
+  }
+}
+
 async function fetchState(url: string): Promise<State> {
   const r = await fetch(url, { cache: "no-store" });
   if (!r.ok) throw new Error(`HTTP ${r.status}`);
@@ -22,7 +43,7 @@ export function useBenchState() {
     onSuccess(next) {
       lastOk.current = Date.now();
       // The server serves a newer build than this page: reload to run it.
-      if (next.buildId !== "dev" && next.buildId !== __BUILD_ID__) location.reload();
+      if (next.buildId !== "dev" && next.buildId !== __BUILD_ID__) void reloadWhenLoadable();
     },
   });
   const now = useNow();

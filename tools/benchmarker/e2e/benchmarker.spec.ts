@@ -102,3 +102,24 @@ test("a page reloads itself when the server serves a newer build", async ({ page
   await page.reload();
   await expect.poll(() => reloads, { timeout: 15_000 }).toBeGreaterThanOrEqual(2);
 });
+
+test("a new build reloads the page only once that build can be loaded, never onto an error page", async ({ page }) => {
+  let loads = 0;
+  page.on("load", () => loads++);
+  let serverDown = true; // the server is restarting: the page and its script can't be fetched yet
+  await page.route("**/api/state", async (r) => {
+    const res = await r.fetch();
+    const body = await res.json();
+    await r.fulfill({ response: res, json: { ...body, buildId: loads < 2 ? "a-newer-build" : body.buildId } });
+  });
+  await page.route((url) => url.pathname === "/" || url.pathname.startsWith("/assets/"), (r) =>
+    serverDown && r.request().resourceType() === "fetch" ? r.abort("connectionrefused") : r.continue());
+  await page.reload();
+  await expect(page.locator("section").first()).toBeVisible();
+  await page.waitForTimeout(12_000); // two polls see the newer build while it can't be fetched
+  expect(loads).toBe(1);
+  await expect(page.locator("section").first()).toBeVisible();
+  serverDown = false;
+  await expect.poll(() => loads, { timeout: 15_000 }).toBeGreaterThanOrEqual(2);
+  await expect(page.locator("section").first()).toBeVisible();
+});
