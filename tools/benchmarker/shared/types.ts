@@ -59,6 +59,12 @@ export interface Row {
   /** Repo path of the run record; null for a job with no record yet. */
   dir: string | null;
   node: string | null;
+  /** run.json's hardware description, e.g. "Apple M5 Max 128GB"; "" if the record has none. */
+  host: string;
+  /** The machine the run is filed under: its dbench node, else the node seen with its host, else the host. */
+  machine: string;
+  /** Model and engine, e.g. "3.8-swift-1.5/27b llamacpp". */
+  label: string;
   packVersion: string;
   family: string;
   suite: string;

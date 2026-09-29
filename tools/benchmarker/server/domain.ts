@@ -50,6 +50,7 @@ export interface RunRef {
 }
 
 export interface RunRecord extends RunRef {
+  host?: string;
   packVersion: string;
   state: string;
   stateAt: string;
@@ -256,7 +257,7 @@ export interface MergedRow extends Omit<RunRecord, "dir"> {
 }
 
 const EMPTY_RECORD = {
-  rescores: [] as string[], hasBundle: false, packVersion: "", state: "", stateAt: "",
+  rescores: [] as string[], hasBundle: false, host: "", packVersion: "", state: "", stateAt: "",
   stories: [] as Story[], scores: {} as Record<string, Score>,
 };
 
@@ -282,10 +283,13 @@ export function mergeRows(records: RunRecord[], jobs: Map<string, NodeJob>, now:
 /** Everything the page needs, per row. */
 export function buildRows(records: RunRecord[], byNode: Record<string, DbenchJob[]>, suites: Record<string, string>, now: number): Row[] {
   const queue = queuePositions(byNode);
-  return mergeRows(records, indexJobs(byNode), now).map(({ job, ...r }) => {
+  return assignMachines(mergeRows(records, indexJobs(byNode), now).map(({ job, ...r }) => {
     const suite = suites[r.pack] ?? "";
     return {
       ...r,
+      host: r.host ?? "",
+      machine: "",
+      label: machineLabel(r.stack),
       node: job?.node ?? null,
       family: rowFamily(r, suite),
       suite,
@@ -293,13 +297,23 @@ export function buildRows(records: RunRecord[], byNode: Record<string, DbenchJob
       stages: stages(r, job, suite),
       live: job ? liveFromJob(job, queue.get(job.id)) : null,
     };
-  });
+  }));
+}
+
+const UNKNOWN_MACHINE = "unknown machine";
+
+/** Files each row under a machine: its dbench node; else the node another run on the same host ran
+ * on (records from before dbench, or whose job has aged out); else the host itself. */
+export function assignMachines<R extends Pick<Row, "node" | "host">>(rows: R[]): (R & { machine: string })[] {
+  const nodeOfHost = new Map<string, string>();
+  for (const r of rows) if (r.node && r.host) nodeOfHost.set(r.host, r.node);
+  return rows.map((r) => ({ ...r, machine: r.node ?? nodeOfHost.get(r.host) ?? (r.host || UNKNOWN_MACHINE) }));
 }
 
 // ---------- machines ----------
 
 /** A stack named for a one-line summary: model and engine, e.g. "3.8/flash-next gufo". */
-function machineLabel(stack: string): string {
+export function machineLabel(stack: string): string {
   const parts = stack.split("/");
   if (parts.length < 3) return stack; // reference/opus-5.5
   const engine = parts.at(-1)!.replace(/-(pi|opencode|claude)$/, "");

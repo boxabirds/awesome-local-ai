@@ -1,9 +1,9 @@
 import { useState } from "react";
 import type { Row } from "../shared/types.ts";
 import { Header } from "./components/Header.tsx";
-import { MachinesPanel } from "./components/MachinesPanel.tsx";
 import { StaleBanner } from "./components/StaleBanner.tsx";
-import { StackSection } from "./components/StackSection.tsx";
+import { MachineSection } from "./components/MachineSection.tsx";
+import { groupByMachine } from "../shared/grouping.ts";
 import { useBenchState } from "./useBenchState.ts";
 
 const SAVED_KEY = "benchmarker:v2"; // versioned: selections saved by older builds are ignored
@@ -41,15 +41,6 @@ function pickPack(rows: Row[], wanted: string | undefined): string {
 function pickFamily(families: string[], current: string, wanted: string | undefined): string {
   if (wanted && (wanted === ALL || families.includes(wanted))) return wanted;
   return families.includes(current) ? current : families[0] ?? ALL;
-}
-
-function groupByStack(rows: Row[]): [string, Row[]][] {
-  const groups = new Map<string, Row[]>();
-  for (const r of rows) groups.set(r.stack, [...(groups.get(r.stack) ?? []), r]);
-  const rank = (rs: Row[]) => Math.min(...rs.map((r) => (r.live?.status === "running" ? 0 : r.live?.status === "queued" ? 1 : 2)));
-  return [...groups.entries()]
-    .map(([stack, rs]) => [stack, rs.toSorted((a, b) => a.runId.localeCompare(b.runId, undefined, { numeric: true }))] as [string, Row[]])
-    .toSorted((a, b) => rank(a[1]) - rank(b[1]) || a[0].localeCompare(b[0]));
 }
 
 export function App() {
@@ -92,12 +83,10 @@ export function App() {
       />
       <StaleBanner stale={stale} age={age} error={error} />
       <main>
-        <MachinesPanel machines={data.machines ?? []} />
-        {shown.length === 0 ? (
-          <p className="empty">No runs for this pack and version.</p>
-        ) : (
-          groupByStack(shown).map(([stack, rows]) => <StackSection key={stack} stack={stack} rows={rows} state={data} serverNow={serverNow} />)
-        )}
+        {groupByMachine(shown, data.machines ?? []).map((g) => (
+          <MachineSection key={g.machine} group={g} state={data} serverNow={serverNow} />
+        ))}
+        {shown.length === 0 ? <p className="empty">No runs for this pack and version.</p> : null}
       </main>
     </div>
   );

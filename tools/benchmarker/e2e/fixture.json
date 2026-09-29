@@ -25,7 +25,8 @@
           "ownTotal": 6
         }
       ],
-      "scores": {}
+      "scores": {},
+      "host": "Intel Core i9 + RTX 4090 64GB"
     },
     {
       "pack": "vidi",
@@ -66,7 +67,8 @@
           "flaky": 0,
           "at": "2026-09-29T11:00:00Z"
         }
-      }
+      },
+      "host": "Apple M2 16GB"
     },
     {
       "pack": "vidi",
@@ -89,7 +91,8 @@
           "ownTotal": 6
         }
       ],
-      "scores": {}
+      "scores": {},
+      "host": "AMD Ryzen AI Max+ 395 128GB"
     }
   ],
   "jobs": {

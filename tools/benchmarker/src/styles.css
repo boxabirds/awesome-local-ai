@@ -28,7 +28,6 @@ th, td { text-align: left; padding: 8px 12px; border-bottom: 1px solid var(--lin
 th { font-size: 11px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); font-weight: 600; }
 tr:last-child td { border-bottom: none; }
 .run { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-weight: 600; overflow-wrap: anywhere; }
-.node { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; overflow-wrap: normal; }
 .mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
 .small { font-size: 12px; color: var(--muted); }
 .log { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 11px; color: var(--muted);
@@ -50,8 +49,8 @@ a { color: var(--run); text-decoration: none; } a:hover { text-decoration: under
 .empty { color: var(--muted); padding: 24px; }
 .stale-banner { background: var(--bad); color: #fff; padding: 8px 16px; font-weight: 600; }
 .stale main { opacity: .45; filter: grayscale(1); }
-.machines ul { list-style: none; margin: 0; padding: 6px 12px; }
-.machines li { display: flex; flex-wrap: wrap; gap: 4px 14px; align-items: baseline; padding: 4px 0; }
-.machine-name { font-weight: 600; min-width: 100px; }
+h2 { display: flex; flex-wrap: wrap; gap: 4px 14px; align-items: baseline; }
+.machine-name { font-size: 15px; }
+.machine-status { display: inline-flex; flex-wrap: wrap; gap: 4px 14px; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; font-weight: 600; }
+.stack-label { font-size: 12px; color: var(--muted); overflow-wrap: anywhere; }
 .idle { color: var(--part); font-weight: 600; }
-tr { scroll-margin-top: 70px; } /* clear the sticky header when a machine links to its row */

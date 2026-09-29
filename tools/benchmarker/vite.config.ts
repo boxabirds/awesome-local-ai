@@ -22,5 +22,5 @@ export default defineConfig({
   plugins: [react(), writeBuildId()],
   define: { __BUILD_ID__: JSON.stringify(BUILD_ID) },
   server: { proxy: { "/api": "http://127.0.0.1:7760" } },
-  test: { include: ["server/**/*.test.ts"] },
+  test: { include: ["server/**/*.test.ts", "shared/**/*.test.ts"] },
 });

@@ -33,10 +33,13 @@ turns records and jobs into rows (pure, unit-tested); `src/` is the page, one co
 
 The page itself refreshes every 5 seconds and says when the repo and dbench were last read. A running story's live numbers (agent minutes, calls, tokens, tasks) come from the harness, which writes them about once a minute, so they move in steps. When the benchmarker is rebuilt, open tabs reload themselves (each build has an id; the page reloads when the server's differs). If it can't refresh for 20 seconds (the server stopped, or an error), it greys out under a red bar saying how old the data is, so old data never passes for current.
 
-## Machines
+## One section per machine
 
-The top panel has one line per dbench node: the run it is on now (model, engine, run, story, agent
-minutes) and how many jobs wait behind it, or **idle**. Click a running line to jump to its row.
+Each dbench node has one section, headed by its hardware and what it is running now (model and engine,
+run, story, agent minutes), or **idle**, and how many jobs wait. Inside it: the running run, then its
+queue in dbench's order, then finished runs. A run is filed under its dbench node; a record with no
+job (from before dbench, or aged out) goes under the node another run on the same host (run.json's
+`host`) ran on, else under the host itself. Each run shows its model and engine above its run id.
 
 ## What each column means
 
@@ -49,7 +52,7 @@ minutes) and how many jobs wait behind it, or **idle**. Click a running line to 
 | Judge | **Judge →** once the run is finished, re-scored with the pack's current version and has its `workspace.bundle`; otherwise what it is waiting for |
 | Links | the run's record and summary on GitHub |
 
-Runs are grouped by stack and filtered by pack and version family (`vidi-v2`, `vidi-v1`, …); results are
+Runs are filtered by pack and version family (`vidi-v2`, `vidi-v1`, …); results are
 compared only within one family. Records written before runs recorded a version show as "unversioned".
 
 **Scores appear only once they are pushed:** re-score results must be committed like the run records.

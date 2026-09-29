@@ -2,7 +2,6 @@ import type { Row, State } from "../../shared/types.ts";
 import { BuildCell } from "./BuildCell.tsx";
 import { JudgeCell } from "./JudgeCell.tsx";
 import { LinksCell } from "./LinksCell.tsx";
-import { rowAnchor } from "./MachinesPanel.tsx";
 import { LiveHeldOut } from "./LiveHeldOut.tsx";
 import { ScoreCell } from "./ScoreCell.tsx";
 import { StoriesStrip } from "./StoriesStrip.tsx";
@@ -12,12 +11,12 @@ interface Props { row: Row; state: State; serverNow: number | null }
 export function RunRow({ row, state, serverNow }: Props) {
   const building = row.stages.score === "waiting for the build";
   return (
-    <tr id={rowAnchor(row.stack, row.runId)} data-run={row.runId} data-node={row.node ?? ""}>
-      <td className="run">
-        {row.runId}
+    <tr data-stack={row.stack} data-run={row.runId}>
+      <td>
+        <div className="stack-label" title={row.stack}>{row.label}</div>
+        <div className="run">{row.runId}</div>
         <div className="small mono">{row.packVersion || row.suite}</div>
       </td>
-      <td className="node">{row.node ?? "—"}</td>
       <td><BuildCell row={row} serverNow={serverNow} /></td>
       <td><StoriesStrip row={row} /></td>
       <td><LiveHeldOut stories={row.stories} /></td>
