@@ -2,6 +2,26 @@
 
 Model `qwen3.8-flash-next-gufo`, scope `canvas`, effort `low`, client pi 0.87.1, host AMD RYZEN AI MAX+ 395 w/ Radeon 8060S 122GB.
 
+## Per story
+
+New work is the story's own held-out tests. Regressions are earlier stories' held-out tests that passed before this story and fail after it; repairs the reverse. Cumulative is every held-out test for the stories built so far ([evaluation policy](../../../../../../../../../../benchmarks/spec-bench/EVALUATION-POLICY.md)). Cumulative can grow by more than the new work: some earlier tests need a later story's feature and are skipped until it exists.
+
+| Story | New work | Regressions | Repairs | Cumulative |
+|---|---|---|---|---|
+| 1 | 6/6 | 0 | 0 | 6/6 |
+| 2 | 10/10 | 0 | 0 | 20/20 |
+| 3 | 5/7 | 0 | 0 | 25/27 |
+| 4 | 4/4 | 0 | 0 | 29/31 |
+| 5 | 4/5 | 0 | 0 | 33/36 |
+| 7 | 6/8 | 0 | 0 | 39/44 |
+| 8 | 7/7 | 0 | 0 | 46/51 |
+| 9 | 2/6 | 0 | 0 | 48/57 |
+| 10 | 6/8 | 0 | 2 | 56/65 |
+| 11 | 4/5 | 1 | 1 | 60/70 |
+| 12 | 5/5 | 0 | 0 | 65/75 |
+
+**New work** 59/71, **regressions** 1, **repairs** 3, **cumulative** 65/75.
+
 | Story | Title | Status | Agent min | Requests | Prompt tok | Completion tok | TTFT med s | Decode tok/s med | Gate | Accept (cumulative) | Stalled | Resumes / nudges | Compactions | Max ctx | Conditions |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
 | 1 | Pan and zoom around an infinite board | DONE | 48.8 | None | None | None | — | — | green | 6/6 |  | 0 / 0 | 1 | — | throttled 0%, server peak 0 GB |
