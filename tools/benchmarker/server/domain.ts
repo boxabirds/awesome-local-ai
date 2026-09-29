@@ -171,6 +171,7 @@ export function liveFromJob(job: DbenchJob, queue: QueuePlace | undefined): Live
     status: job.state.status ?? "",
     attempt: job.state.attempt ?? null,
     currentStory: cur,
+    runningStory: story ? String(story.id) : null,
     agentMinutes: story?.agent_minutes ?? null,
     calls: story?.calls ?? null,
     outputTokens: story?.output_tokens ?? null,
@@ -313,7 +314,12 @@ export function machines(nodes: string[], rows: Row[]): Machine[] {
     return {
       node,
       running: run
-        ? { stack: run.stack, short: machineLabel(run.stack), runId: run.runId, story: run.live?.currentStory ?? null, agentMinutes: run.live?.agentMinutes ?? null }
+        ? {
+            stack: run.stack, short: machineLabel(run.stack), runId: run.runId,
+            story: run.live?.currentStory || run.live?.runningStory || null,
+            finishing: !run.live?.currentStory && Boolean(run.live?.runningStory),
+            agentMinutes: run.live?.agentMinutes ?? null,
+          }
         : null,
       queued: mine.filter((r) => r.live?.status === "queued").length,
     };

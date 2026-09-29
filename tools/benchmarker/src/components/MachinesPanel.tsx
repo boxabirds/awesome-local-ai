@@ -15,7 +15,7 @@ export function MachinesPanel({ machines }: { machines: Machine[] }) {
             {m.running ? (
               <a className="s-running" href={`#${encodeURIComponent(rowAnchor(m.running.stack, m.running.runId))}`}>
                 running {m.running.short} {m.running.runId}
-                {m.running.story ? ` · story ${m.running.story}` : " · starting"}
+                {m.running.story ? ` · story ${m.running.story}${m.running.finishing ? " (finishing)" : ""}` : " · starting"}
                 {m.running.agentMinutes ? ` · ${Math.round(m.running.agentMinutes)} agent-min` : ""}
               </a>
             ) : (

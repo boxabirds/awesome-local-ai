@@ -26,6 +26,8 @@ export interface Live {
   status: string;
   attempt: number | null;
   currentStory: string | null;
+  /** The story progress.json marks running; set while current_story is blank between the agent and the gates. */
+  runningStory: string | null;
   agentMinutes: number | null;
   calls: number | null;
   outputTokens: number | null;
@@ -73,7 +75,8 @@ export interface Row {
 /** One dbench node: the job it runs now (null: idle) and how many wait behind it. */
 export interface Machine {
   node: string;
-  running: { stack: string; short: string; runId: string; story: string | null; agentMinutes: number | null } | null;
+  /** `finishing`: the agent is done with `story` and it is being scored and recorded. */
+  running: { stack: string; short: string; runId: string; story: string | null; finishing: boolean; agentMinutes: number | null } | null;
   queued: number;
 }
 

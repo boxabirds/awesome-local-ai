@@ -47,11 +47,27 @@ export function useBenchState() {
     },
   });
   const now = useNow();
+  const shownAt = useShownAt();
   const age = lastOk.current === null ? null : (now - lastOk.current) / 1000;
-  const stale = age === null ? Boolean(error) : age > STALE_S;
+  // A background tab doesn't poll, so old data there is expected, not a fault. Once shown, it
+  // refetches at once; it is stale only if that and the polls after it fail for STALE_S.
+  const failingFor = lastOk.current === null || shownAt === null ? null : (now - Math.max(lastOk.current, shownAt)) / 1000;
+  const stale = shownAt === null ? false : failingFor === null ? Boolean(error) : failingFor > STALE_S;
   // The server's clock now: its time when the state was made, plus how long ago that arrived here.
   const serverNow = data && lastOk.current !== null ? data.now + (now - lastOk.current) / 1000 : null;
   return { data, error: error ? String(error.message ?? error) : "", age, stale, serverNow };
+}
+
+/** When the tab was last shown (null while it is hidden). */
+function useShownAt(): number | null {
+  const visibleNow = () => (document.visibilityState === "visible" ? Date.now() : null);
+  const [shownAt, setShownAt] = useState(visibleNow);
+  useEffect(() => {
+    const onChange = () => setShownAt(visibleNow());
+    document.addEventListener("visibilitychange", onChange);
+    return () => document.removeEventListener("visibilitychange", onChange);
+  }, []);
+  return shownAt;
 }
 
 /** The current time, re-rendering every second so ages keep counting between polls. */
