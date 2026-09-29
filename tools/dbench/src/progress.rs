@@ -465,7 +465,8 @@ pub fn tail_lines(path: &Path, n: usize) -> Vec<String> {
 }
 
 /// The run dir of a job and the combination it is filed under: install.env's
-/// COMBINATION, then `run_dir`.
+/// COMBINATION, then `run_dir`; or, when install.env sets RUN_BASE (a reference
+/// stack), `<repo>/<RUN_BASE>/<run_id>`, as run.sh files it.
 pub fn resolve_run_dir(
     repo: &Path,
     share_dir: &Path,
@@ -480,7 +481,10 @@ pub fn resolve_run_dir(
     let Some(combination) = env.get("COMBINATION").cloned() else {
         return Err("install.env has no COMBINATION".into());
     };
-    let dir = run_dir(repo, &combination, spec);
+    let dir = match env.get("RUN_BASE").filter(|b| !b.is_empty()) {
+        Some(base) => repo.join(base).join(&spec.run_id),
+        None => run_dir(repo, &combination, spec),
+    };
     Ok((combination, dir))
 }
 
@@ -882,6 +886,28 @@ mod tests {
             p.error.as_deref().unwrap().starts_with("progress.json: "),
             "{p:?}"
         );
+    }
+
+    #[test]
+    fn a_reference_stack_runs_under_its_run_base_not_combinations() {
+        // benchmarks/reference/install-stack.sh writes RUN_BASE; run.sh then files the run at
+        // <repo>/<RUN_BASE>/<run_id>, so dbench must look there for progress.
+        let root = std::env::temp_dir().join(format!("dbench-runbase-{}", std::process::id()));
+        let (repo, share) = (root.join("repo"), root.join("share"));
+        std::fs::create_dir_all(share.join("claude-code-opus-5-5")).unwrap();
+        std::fs::write(
+            share.join("claude-code-opus-5-5").join("install.env"),
+            "INSTALL_ID=\"claude-code-opus-5-5\"\nCOMBINATION=\"reference/opus-5.5\"\nRUN_BASE=\"benchmarks/reference/vidi/opus-5.5\"\n",
+        )
+        .unwrap();
+        let spec: JobSpec = serde_json::from_str(
+            r#"{"install_id":"claude-code-opus-5-5","pack":"benchmarks/vidi","run_id":"v2-r1","client":"claude","record":true}"#,
+        )
+        .unwrap();
+        let (combination, dir) = resolve_run_dir(&repo, &share, &spec).unwrap();
+        std::fs::remove_dir_all(&root).unwrap();
+        assert_eq!(combination, "reference/opus-5.5");
+        assert_eq!(dir, repo.join("benchmarks/reference/vidi/opus-5.5/v2-r1"));
     }
 
     #[test]
