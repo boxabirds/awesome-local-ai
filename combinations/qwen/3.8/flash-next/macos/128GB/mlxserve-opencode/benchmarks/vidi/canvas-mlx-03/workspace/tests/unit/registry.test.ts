@@ -108,8 +108,10 @@ describe('sel.registry', () => {
     expect(spec!.hitTest(obj, { x: 801, y: 401 })).toBe(false);
     expect(registeredTypes().has(TESTBOX_TYPE)).toBe(true);
     // Both shipped and test types are known to the registry; a type nobody
-    // registered is not (TC-12).
+    // registered is not (TC-12). When this test was written 'connector' was still a
+    // future story's type; story 10 has registered it since, so the type that belongs
+    // to nobody is a made-up name instead.
     expect(registeredTypes().has('sticky')).toBe(true);
-    expect(getObjectType('connector')).toBeUndefined();
+    expect(getObjectType('unknown')).toBeUndefined();
   });
 });

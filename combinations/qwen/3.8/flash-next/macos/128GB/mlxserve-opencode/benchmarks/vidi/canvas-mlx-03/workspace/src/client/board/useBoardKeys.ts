@@ -23,6 +23,7 @@ import {
   NUDGE_LARGE_STEP_WORLD,
 } from '../../shared/config.ts';
 import { registeredTypes, getObjectType } from '../objects/registry.tsx';
+import { toolForShortcut, type ToolId } from '../tools/useActiveTool.ts';
 import type { Selection } from './useSelection.ts';
 import type { UndoController } from './undo.ts';
 
@@ -35,11 +36,11 @@ export interface BoardKeysOptions {
   /** This tab's undo history; absent means the board undoes nothing (TC-18). */
   undo?: UndoController;
   /**
-   * Story 9: the tool setter, so V/T/Escape switch the active tool. Ignored keys are
-   * those addressed to a text field (handled above). Omitting it leaves the board
-   * with no tool shortcuts.
+   * Story 9: the tool setter, so the tool shortcuts (V/T/S/L) and Escape switch the
+   * active tool. Ignored keys are those addressed to a text field (handled above).
+   * Omitting it leaves the board with no tool shortcuts.
    */
-  setTool?: (tool: 'select' | 'text') => void;
+  setTool?: (tool: ToolId) => void;
   /** Story 2's `N`: create a sticky at the view centre. */
   onCreateSticky?: () => void;
 }
@@ -115,22 +116,19 @@ export function useBoardKeys(opts: BoardKeysOptions): void {
         return;
       }
 
-      // Story 9 tool shortcuts, before the edit lock: choosing a tool changes no
-      // document, so T/V work even while the board is read-only — but T is refused
-      // when it cannot be edited (the tool itself reverts to Select).
+      // Tool shortcuts, before the edit lock: choosing a tool changes no document, so
+      // V/T/S/L reach the tool hook even while the board is read-only — and the hook
+      // itself refuses a creating tool there, so nothing happens on a locked board.
+      // `n` is the one letter that acts instead of arming: story 2's sticky at the
+      // view centre. A letter that belongs to no tool falls through untouched.
       if (!meta && !e.altKey && e.key.length === 1) {
-        const k = e.key.toLowerCase();
-        if (k === 'v') {
-          setToolRef.current?.('select');
-          return;
-        }
-        if (k === 't') {
-          if (canEditRef.current) setToolRef.current?.('text');
-          return;
-        }
-        if (k === 'n') {
-          // Story 2's sticky-at-centre, kept as a documented shortcut only.
+        const id = toolForShortcut(e.key);
+        if (id === 'sticky') {
           if (canEditRef.current) createStickyRef.current?.();
+          return;
+        }
+        if (id) {
+          setToolRef.current?.(id);
           return;
         }
       }

@@ -25,6 +25,11 @@ export interface BoardViewportProps {
    * instead of panning the board, and does not clear the current selection.
    */
   marquee?: MarqueeControls;
+  /**
+   * Story 10: the cursor the board surface shows while a drawing tool is armed
+   * (a crosshair for the Shape and Connector tools). Defaults to the board's grab.
+   */
+  cursor?: string;
 }
 
 interface GestureEventLike extends Event {
@@ -48,7 +53,7 @@ function wheelPixels(delta: number, deltaMode: number): number {
  * wheel (board-owned), and Safari gesture events. All input calls go through the
  * camera.math API so the board never zooms the page.
  */
-export function BoardViewport({ camera, viewportRef, api, children, onBackgroundPointerDown, onBackgroundDoubleClick, textPlacing, onPlaceText, marquee }: BoardViewportProps) {
+export function BoardViewport({ camera, viewportRef, api, children, onBackgroundPointerDown, onBackgroundDoubleClick, textPlacing, onPlaceText, marquee, cursor }: BoardViewportProps) {
   const apiRef = useRef(api);
   apiRef.current = api;
   const cameraRef = useRef(camera);
@@ -216,7 +221,7 @@ export function BoardViewport({ camera, viewportRef, api, children, onBackground
         backgroundImage: 'radial-gradient(circle, #b8bcc4 1px, transparent 1.2px)',
         backgroundSize: `${gridPx}px ${gridPx}px`,
         backgroundPosition: `${bgX}px ${bgY}px`,
-        cursor: textPlacing ? 'text' : 'grab',
+        cursor: textPlacing ? 'text' : (cursor ?? 'grab'),
       }}
       onPointerDown={onPointerDown}
       onDoubleClick={onDoubleClick}

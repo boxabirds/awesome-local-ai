@@ -187,3 +187,51 @@ export const DEFAULT_TEXT_SIZE: TextSize = 'M';
 export const TEXT_LINE_HEIGHT = 1.3;
 /** The font family text objects render and measure with. */
 export const TEXT_FONT_FAMILY = 'Inter, system-ui, sans-serif';
+
+// ---- Story 10: shapes and arrows -------------------------------------------
+
+/** The three shape kinds a user can draw (story 10 shape.create). */
+export const SHAPE_KINDS = ['rect', 'ellipse', 'diamond'] as const;
+export type ShapeKind = (typeof SHAPE_KINDS)[number];
+/** Size (board units) of a shape dropped by a click, or by a too-small drag. */
+export const SHAPE_DEFAULT_SIZE_WORLD = 160;
+/** Smallest shape side, in board units: a drag under it counts as a click. */
+export const SHAPE_MIN_SIZE_WORLD = 20;
+/** Maximum characters in a shape label. */
+export const SHAPE_LABEL_MAX_CHARS = 500;
+/** Outline thickness of a shape, in board units. */
+export const SHAPE_STROKE_WIDTH_WORLD = 2;
+/** The shape fill swatches: six colours plus "no fill". */
+export const SHAPE_FILL_COLORS = {
+  none: 'transparent',
+  white: '#FFFFFF',
+  blue: '#BBDEFB',
+  green: '#C8E6C9',
+  yellow: '#FFF9C4',
+  pink: '#F8BBD0',
+  grey: '#E0E0E0',
+} as const;
+/** The shape outline swatches (six colours). */
+export const SHAPE_STROKE_COLORS = {
+  dark: '#263238',
+  blue: '#1E88E5',
+  green: '#43A047',
+  orange: '#FB8C00',
+  red: '#E53935',
+  grey: '#9E9E9E',
+} as const;
+export type FillColor = keyof typeof SHAPE_FILL_COLORS;
+export type StrokeColor = keyof typeof SHAPE_STROKE_COLORS;
+/** The fill and outline a freshly drawn shape starts with. */
+export const DEFAULT_SHAPE_FILL: FillColor = 'white';
+export const DEFAULT_SHAPE_STROKE: StrokeColor = 'dark';
+/** Shortest arrow, in board units: a drag shorter than this creates nothing. */
+export const CONNECTOR_MIN_LENGTH_WORLD = 8;
+/** How close to an arrow's line (screen CSS px) a click still selects it. */
+export const CONNECTOR_HIT_TOLERANCE_PX = 6;
+/** Arrow line thickness, in board units. */
+export const CONNECTOR_STROKE_WIDTH_WORLD = 2;
+/** Arrowhead size, in board units. */
+export const CONNECTOR_ARROWHEAD_SIZE_WORLD = 10;
+/** Radius of a connection dot, in *screen* CSS pixels (it does not scale). */
+export const CONNECTOR_DOT_RADIUS_PX = 4;

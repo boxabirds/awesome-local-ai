@@ -24,10 +24,16 @@ import { Toolbar } from './Toolbar.tsx';
 import '../objects/StickyNote.tsx';
 // Story 9: registers the 'text' object type the same way.
 import '../objects/TextObject.tsx';
+// Story 10: registers the 'shape' and 'connector' object types the same way.
+import '../objects/ShapeObject.tsx';
+import '../objects/ConnectorObject.tsx';
 import { getObjectType } from '../objects/registry.tsx';
-import { useTool } from './useTool.ts';
+import { useActiveTool } from '../tools/useActiveTool.ts';
+import { ShapeTool } from '../tools/ShapeTool.tsx';
+import { ConnectorTool } from '../tools/ConnectorTool.tsx';
 import { useClientId } from './useClientId.ts';
 import { createText } from '../../shared/objects/text.ts';
+import { objectRectsOf } from '../../shared/objects/connector.ts';
 import { useCamera } from '../canvas/useCamera.ts';
 import { useBoardDoc } from './useBoardDoc.ts';
 import { useSelection } from './useSelection.ts';
@@ -159,21 +165,27 @@ export default function BoardApp(props: BoardAppProps = {}) {
     sel.endEdit('unselected');
   }, [sel]);
 
-  // Story 9: the Text tool. While it is active a click on the board (empty space or
-  // on top of an object) drops a text there, hands the tool back to Select and opens
-  // its editor with the caret at the end. The tool lives here (above the viewport)
-  // because placing a text also touches the selection.
-  const tool = useTool(editable);
+  // Story 9: the Text tool, and story 10's Shape and Connector tools: while one of
+  // them is armed the next gesture on the board belongs to the tool, and the tool that
+  // created something hands the board back to Select with the new object selected.
+  // The tools live here (above the viewport) because creating an object also touches
+  // the selection.
+  const active = useActiveTool({ canEdit: editable, select: (id) => sel.click(id) });
   const clientId = useClientId();
   const onPlaceText = useCallback(
     (world: Point) => {
       if (!editableRef.current) return;
       const id = createText(doc, world, clientId);
-      tool.setTool('select');
+      active.setTool('select');
       if (id) sel.startEdit(id);
     },
-    [doc, clientId, sel, tool],
+    [doc, clientId, sel, active],
   );
+
+  // The rectangles every arrow resolves its attached ends against, built once per
+  // render and handed to every object: an arrow follows a shape anybody moved because
+  // it reads this map, not because anything was written about it.
+  const rects = useMemo(() => objectRectsOf(objects), [objects]);
 
   // Shift+drag on empty space draws a box; what it fully encloses is added to the
   // selection (a box that catches nothing changes nothing).
@@ -204,7 +216,7 @@ export default function BoardApp(props: BoardAppProps = {}) {
     snapshot: objects,
     canEdit: editable,
     undo: undoController,
-    setTool: tool.setTool,
+    setTool: active.setTool,
     onCreateSticky,
   });
 
@@ -258,8 +270,9 @@ export default function BoardApp(props: BoardAppProps = {}) {
           marquee={marquee}
           onBackgroundPointerDown={onBackgroundPointerDown}
           onBackgroundDoubleClick={createAtWorld}
-          textPlacing={tool.tool === 'text'}
+          textPlacing={active.tool === 'text'}
           onPlaceText={onPlaceText}
+          cursor={active.tool === 'shape' || active.tool === 'connector' ? 'crosshair' : undefined}
         >
           {objects.map((obj) => {
             const spec = getObjectType(obj.type);
@@ -271,6 +284,9 @@ export default function BoardApp(props: BoardAppProps = {}) {
                 obj={obj}
                 doc={doc}
                 zoom={cam.camera.zoom}
+                camera={cam.camera}
+                rects={rects}
+                objects={objects}
                 selected={sel.ids.has(obj.id)}
                 editing={editable && sel.editingId === obj.id}
                 canEdit={editable}
@@ -293,9 +309,38 @@ export default function BoardApp(props: BoardAppProps = {}) {
           canEdit={editable}
           disabled={!editable}
           undo={undo}
-          tool={tool.tool}
-          onSelectTool={tool.setTool}
+          tool={active.tool}
+          onSelectTool={active.setTool}
+          shapeKind={active.shapeKind}
+          onSelectShapeKind={active.setShapeKind}
         />
+
+        {/* Story 10: the two tools that draw with a gesture. They render only their own
+            screen-space preview and take the board's pointer while they are armed; both
+            are mounted as neighbours of the viewport, never inside the zoomed layer, so
+            a preview keeps its size at any zoom. */}
+        {active.tool === 'shape' ? (
+          <ShapeTool
+            kind={active.shapeKind}
+            doc={doc}
+            by={clientId}
+            camera={cam.camera}
+            viewportRef={viewportRef}
+            canEdit={editable}
+            onCreated={active.toolCreated}
+          />
+        ) : null}
+        {active.tool === 'connector' ? (
+          <ConnectorTool
+            doc={doc}
+            by={clientId}
+            camera={cam.camera}
+            snapshot={objects}
+            viewportRef={viewportRef}
+            canEdit={editable}
+            onCreated={active.toolCreated}
+          />
+        ) : null}
 
         {showSoleToolbar && sole && SoleToolbar ? (
           <div

@@ -12,8 +12,17 @@ import {
   STICKY_COLORS,
   DEFAULT_STICKY_COLOR,
   DEFAULT_TEXT_SIZE,
+  SHAPE_FILL_COLORS,
+  SHAPE_KINDS,
+  SHAPE_STROKE_COLORS,
+  type FillColor,
+  type ShapeKind,
   type StickyColor,
+  type StrokeColor,
 } from './config.ts';
+import type { Endpoint } from './objects/connector.ts';
+import { MIN_DERIVED_EXTENT, decodeEndpoint, detachConnectorsTo } from './objects/connector.ts';
+import { connectorBBox, resolveEndpoints } from './geometry/connector-geometry.ts';
 import {
   rectContains,
   type Point,
@@ -49,6 +58,18 @@ export interface ObjectSnapshot {
   /** Story 9 text objects: the size preset key and the width mode. */
   size?: string;
   widthMode?: 'auto' | 'fixed';
+  /** Story 10 shape fields, present only for `shape` objects. Colours are the
+   * setting *names*; a name the palette does not know reads as undefined. */
+  kind?: ShapeKind;
+  fill?: FillColor;
+  stroke?: StrokeColor;
+  /** A shape's label as plain text, for rendering. The editable `Y.Text` is
+   * story 10's `getShapeLabel`. */
+  label?: string;
+  /** Story 10 connector ends, present only for `connector` objects. Their boxes are
+   * derived from these, so an arrow follows a shape nobody wrote to. */
+  from?: Endpoint;
+  to?: Endpoint;
 }
 
 export interface StickySnapshot extends ObjectSnapshot {
@@ -75,6 +96,18 @@ function metaMap(doc: Y.Doc): Y.Map<unknown> {
 
 function isStickyColor(value: unknown): value is StickyColor {
   return typeof value === 'string' && Object.prototype.hasOwnProperty.call(STICKY_COLORS, value);
+}
+
+function isShapeKind(value: unknown): value is ShapeKind {
+  return typeof value === 'string' && (SHAPE_KINDS as readonly string[]).includes(value);
+}
+
+function isFillColor(value: unknown): value is FillColor {
+  return typeof value === 'string' && Object.prototype.hasOwnProperty.call(SHAPE_FILL_COLORS, value);
+}
+
+function isStrokeColor(value: unknown): value is StrokeColor {
+  return typeof value === 'string' && Object.prototype.hasOwnProperty.call(SHAPE_STROKE_COLORS, value);
 }
 
 function finite(n: number): boolean {
@@ -362,6 +395,10 @@ export function deleteObjects(doc: Y.Doc, ids: readonly string[]): number {
   const present = ids.filter((id) => objects.has(id));
   if (present.length === 0) return 0;
   doc.transact(() => {
+    // Story 10 (connector.target_deleted): arrows that pointed at one of these keep
+    // existing, with the end that was welded to it pinned where it was. Done in this
+    // same transaction, so the detach and the delete are one update and one undo step.
+    detachConnectorsTo(doc, present);
     for (const id of present) objects.delete(id);
   }, LOCAL_ORIGIN);
   return present.length;
@@ -427,12 +464,19 @@ export function snapshot(doc: Y.Doc): readonly StickySnapshot[] {
 export function objectSnapshots(doc: Y.Doc): readonly ObjectSnapshot[] {
   const objects = objectsMap(doc);
   const out: ObjectSnapshot[] = [];
+  // Arrows are resolved in a second pass, once every other object's box is known.
+  const arrows: { base: ObjectSnapshot; from: Endpoint; to: Endpoint }[] = [];
   for (const [id, o] of objects.entries()) {
     const type = o.get('type');
     const width = positiveSize(o.get('width'));
     const height = positiveSize(o.get('height'));
     const colorVal = o.get('color');
     const textVal = o.get('text');
+    const labelVal = o.get('label');
+    const kindVal = o.get('kind');
+    const fillVal = o.get('fill');
+    const strokeVal = o.get('stroke');
+    const author = typeof o.get('createdBy') === 'string' ? (o.get('createdBy') as string) : '';
     const base: ObjectSnapshot = {
       id,
       type: typeof type === 'string' ? type : '',
@@ -450,12 +494,52 @@ export function objectSnapshots(doc: Y.Doc): readonly ObjectSnapshot[] {
       base.text = textVal instanceof Y.Text ? textVal.toString() : '';
       base.size = typeof o.get('size') === 'string' ? (o.get('size') as string) : DEFAULT_TEXT_SIZE;
       base.widthMode = o.get('widthMode') === 'fixed' ? 'fixed' : 'auto';
-      base.createdBy = typeof o.get('createdBy') === 'string' ? (o.get('createdBy') as string) : '';
+      base.createdBy = author;
       base.createdAt = asNumber(o.get('createdAt'));
+    } else if (base.type === 'shape') {
+      // Story 10: the shape's own fields. An unknown kind or colour name is left
+      // undefined rather than guessed at, so the renderer decides what to draw.
+      if (isShapeKind(kindVal)) base.kind = kindVal;
+      if (isFillColor(fillVal)) base.fill = fillVal;
+      if (isStrokeColor(strokeVal)) base.stroke = strokeVal;
+      base.label = labelVal instanceof Y.Text ? labelVal.toString() : '';
+      base.createdBy = author;
+      base.createdAt = asNumber(o.get('createdAt'));
+    } else if (base.type === 'connector') {
+      // Story 10: an arrow stores its two ends and no box of its own; the box below
+      // is derived from the objects it joins, every time the board is read.
+      base.createdBy = author;
+      base.createdAt = asNumber(o.get('createdAt'));
+      const from = decodeEndpoint(o.get('from'));
+      const to = decodeEndpoint(o.get('to'));
+      if (from && to) {
+        base.from = from;
+        base.to = to;
+        arrows.push({ base, from, to });
+      }
     } else if (textVal instanceof Y.Text) {
       base.text = textVal.toString();
     }
     out.push(base);
+  }
+  // Derive every arrow's box from the rectangles of what it joins. Because this runs
+  // on read, an object moved by anyone — locally or remotely — moves the arrow on
+  // every screen without a single write to the arrow itself (connector.follow), and
+  // an end whose object is missing keeps the fallback point it was attached at.
+  if (arrows.length > 0) {
+    const rects = new Map<string, Rect>();
+    for (const base of out) {
+      if (base.type === 'connector') continue;
+      rects.set(base.id, objectBounds(base));
+    }
+    for (const arrow of arrows) {
+      const ends = resolveEndpoints({ from: arrow.from, to: arrow.to }, rects);
+      const box = connectorBBox(ends.from, ends.to);
+      arrow.base.x = box.x;
+      arrow.base.y = box.y;
+      arrow.base.width = Math.max(box.width, MIN_DERIVED_EXTENT);
+      arrow.base.height = Math.max(box.height, MIN_DERIVED_EXTENT);
+    }
   }
   out.sort((a, b) => (a.z - b.z) || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
   return out;

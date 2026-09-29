@@ -14,10 +14,13 @@
 import type * as Y from 'yjs';
 import type { ComponentType, MouseEvent as ReactMouseEvent, PointerEvent as ReactPointerEvent } from 'react';
 import { objectBounds, type ObjectSnapshot } from '../../shared/board-model.ts';
-import type { Point } from '../../shared/geometry.ts';
-import { STICKY_MIN_SIZE_WORLD, TEXT_MIN_WIDTH_WORLD } from '../../shared/config.ts';
+import type { Point, Rect } from '../../shared/geometry.ts';
+import type { Camera } from '../canvas/camera.ts';
+import { STICKY_MIN_SIZE_WORLD, TEXT_MIN_WIDTH_WORLD, SHAPE_MIN_SIZE_WORLD } from '../../shared/config.ts';
 import { StickyNote, StickyNoteToolbar } from './StickyNote.tsx';
 import { TextObject, TextObjectToolbar } from './TextObject.tsx';
+import { ShapeObject, ShapeObjectToolbar } from './ShapeObject.tsx';
+import { ConnectorObject, connectorHitTest } from './ConnectorObject.tsx';
 
 /** What an object component needs in order to render and edit itself. */
 export interface ObjectProps {
@@ -30,6 +33,23 @@ export interface ObjectProps {
   selected: boolean;
   /** Whether this object is the one being text-edited locally. */
   editing: boolean;
+  /**
+   * The board's camera. A type that turns screen points back into board points during
+   * its own gesture (story 10's arrow end handles) needs the zoom *and* the pan; the
+   * ones that only render never look at it.
+   */
+  camera: Camera;
+  /**
+   * Story 10: the current rectangle of every other object on the board, which the board
+   * builds once per render. An arrow resolves its attached ends against these, which is
+   * why a shape anybody moved moves the arrow. Absent for a board with no arrows.
+   */
+  rects?: ReadonlyMap<string, Rect>;
+  /**
+   * Story 10: every object on the board, for a type that hit-tests its neighbours (an
+   * arrow's end handle asks what it is being dropped on).
+   */
+  objects?: readonly ObjectSnapshot[];
   /** False on a board that could not be loaded: render it, never edit it. */
   canEdit?: boolean;
   /**
@@ -68,8 +88,15 @@ export interface ObjectTypeSpec {
   minSize: number;
   /** Whether it takes part in text editing (Enter / double-click). */
   editableText: boolean;
-  /** Is this world point on the object? Frames test their border, not their area. */
-  hitTest(obj: ObjectSnapshot, worldPoint: Point): boolean;
+  /**
+   * Is this world point on the object? Frames test their border, not their area.
+   *
+   * Story 10 added the two optional arguments a type needs to measure a *distance*
+   * instead of an area: the camera zoom (so a tolerance given in screen pixels becomes
+   * board units) and the live rectangles of every object (so an attached end can be
+   * resolved before its line can be measured). A type that hits an area ignores both.
+   */
+  hitTest(obj: ObjectSnapshot, worldPoint: Point, zoom?: number, rects?: ReadonlyMap<string, Rect>): boolean;
   /**
    * The floating toolbar shown when exactly one object of this type is selected
    * (story 2's note toolbar), or nothing for types that have no per-object tools.
@@ -144,4 +171,40 @@ registerObjectType('text', {
   handles: 'horizontal',
   toolbar: TextObjectToolbar,
   hitTest: hitTestRect,
+});
+
+// Story 10: a drawn shape. It is an ordinary area object — resizable on all eight
+// handles, never aspect-locked, with editable text (its label) — so selection, move,
+// group resize, marquee, nudge, delete and undo all work on it unchanged.
+registerObjectType('shape', {
+  Component: ShapeObject,
+  resizable: true,
+  aspectLocked: false,
+  minSize: SHAPE_MIN_SIZE_WORLD,
+  editableText: true,
+  toolbar: ShapeObjectToolbar,
+  hitTest: hitTestRect,
+});
+
+// Story 10: an arrow between two objects. Nobody resizes it (its ends are moved, and
+// that is its own gesture) and it holds no text; it is hit where its line is, within the
+// click tolerance converted to board units at the current zoom, so an arrow whose
+// bounding box covers half the board still answers only a click near the line.
+//
+// `Component` and `hitTest` are read lazily, and deliberately so: the arrow's own module
+// asks this registry what is under the pointer (to re-attach an end), so the two modules
+// import each other. Which one is loaded first depends on the entry point, and the other
+// one's bindings may still be uninitialised while this line runs — by the time the board
+// renders, every module has finished, which is when these getters are read.
+registerObjectType('connector', {
+  get Component() {
+    return ConnectorObject;
+  },
+  get hitTest() {
+    return connectorHitTest;
+  },
+  resizable: false,
+  aspectLocked: false,
+  minSize: 0,
+  editableText: false,
 });
