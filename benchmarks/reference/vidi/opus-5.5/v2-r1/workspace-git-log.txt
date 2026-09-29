@@ -1,3 +1,48 @@
+commit 4a9e476adb9feb0441141b8af5fbdcb14f726d4a
+vidi-agent  Wed Sep 30 00:28:47 2026 +0100
+
+    story 9: Write free text anywhere on the board
+
+
+ NOTES.md                                  |  55 ++++++
+ src/client/App.tsx                        |  54 +++++-
+ src/client/board/SelectionBar.tsx         |  19 +-
+ src/client/board/SelectionOverlay.tsx     |  13 +-
+ src/client/board/Toolbar.tsx              |  57 +++++-
+ src/client/board/useBoardDoc.ts           |   5 +-
+ src/client/board/useBoardKeys.ts          |  33 +++-
+ src/client/board/useSelection.ts          |  11 +-
+ src/client/board/useTool.ts               |  23 +++
+ src/client/board/useTransformGesture.ts   |  59 +++++--
+ src/client/canvas/BoardViewport.tsx       |  36 +++-
+ src/client/canvas/testHooks.ts            |   4 +-
+ src/client/objects/StickyText.ts          |  56 +-----
+ src/client/objects/StickyTextEditor.tsx   | 187 +++-----------------
+ src/client/objects/TextEditor.tsx         | 190 ++++++++++++++++++++
+ src/client/objects/TextObject.tsx         | 127 ++++++++++++++
+ src/client/objects/TextToolbar.tsx        |  65 +++++++
+ src/client/objects/registry.tsx           |  53 +++++-
+ src/client/objects/textLayout.ts          | 134 ++++++++++++++
+ src/client/objects/useTextBoxSync.ts      |  37 ++++
+ src/client/styles.css                     |  76 ++++++++
+ src/shared/board-model.ts                 |   5 +-
+ src/shared/config.ts                      |  19 ++
+ src/shared/objects/text.ts                | 140 +++++++++++++++
+ src/shared/text-edit.ts                   |  56 ++++++
+ tests/component/ConnectionStatus.test.tsx |   2 +-
+ tests/component/LoadFailure.test.tsx      |   2 +-
+ tests/component/TextBoxSync.test.tsx      |  72 ++++++++
+ tests/component/TextObject.test.tsx       | 282 ++++++++++++++++++++++++++++++
+ tests/component/Tool.test.tsx             | 153 ++++++++++++++++
+ tests/component/Toolbars.test.tsx         |   6 +-
+ tests/component/UndoControls.test.tsx     |   2 +-
+ tests/component/textHelpers.tsx           |  37 ++++
+ tests/e2e/selection.spec.ts               |   8 +-
+ tests/e2e/text.spec.ts                    | 274 +++++++++++++++++++++++++++++
+ tests/fixtures/texts.ts                   |   5 +
+ tests/unit/text-layout.test.ts            |  92 ++++++++++
+ tests/unit/text-model.test.ts             | 173 ++++++++++++++++++
+ 38 files changed, 2361 insertions(+), 261 deletions(-)
 commit 1a3caa791919ed5828f9ad32cf4764ff73771683
 vidi-agent  Wed Sep 30 00:00:50 2026 +0100
 
