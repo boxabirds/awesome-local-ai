@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { render, act, screen, fireEvent } from '@testing-library/react';
 import * as Y from 'yjs';
-import App from '../../src/client/App.tsx';
+import BoardApp from '../../src/client/board/BoardApp.tsx';
 import { STICKY_SIZE_WORLD } from '../../src/shared/config.ts';
 import { initDoc, createSticky, snapshot } from '../../src/shared/board-model.ts';
 
@@ -31,7 +31,7 @@ describe('sticky.toolbar', () => {
     doc = new Y.Doc();
     initDoc(doc);
     id = createSticky(doc, { x: 400, y: 300 });
-    render(<App doc={doc} />);
+    render(<BoardApp doc={doc} />);
     selectNote();
     fireEvent.click(screen.getByRole('button', { name: 'Pink colour' }));
     expect(snapshot(doc).find((n) => n.id === id)!.color).toBe('pink');
@@ -43,7 +43,7 @@ describe('sticky.toolbar', () => {
   it('TC-28 the Sticky note button creates one note centred in the viewport, editing', () => {
     doc = new Y.Doc();
     initDoc(doc);
-    render(<App doc={doc} />);
+    render(<BoardApp doc={doc} />);
     fireEvent.click(screen.getByRole('button', { name: 'Sticky note' }));
     const notes = snapshot(doc);
     expect(notes).toHaveLength(1);
@@ -58,7 +58,7 @@ describe('sticky.toolbar', () => {
     doc = new Y.Doc();
     initDoc(doc);
     id = createSticky(doc, { x: 400, y: 300 });
-    render(<App doc={doc} />);
+    render(<BoardApp doc={doc} />);
     selectNote();
     expect(screen.getByTestId('note-toolbar')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Delete note' }));

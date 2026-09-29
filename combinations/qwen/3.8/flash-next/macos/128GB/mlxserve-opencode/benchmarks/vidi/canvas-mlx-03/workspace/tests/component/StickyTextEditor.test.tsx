@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { render, act, screen } from '@testing-library/react';
 import * as Y from 'yjs';
-import App from '../../src/client/App.tsx';
+import BoardApp from '../../src/client/board/BoardApp.tsx';
 import { initDoc, createSticky, snapshot, getStickyText } from '../../src/shared/board-model.ts';
 
 function firePointer(el: Element, type: string, x: number, y: number) {
@@ -36,7 +36,7 @@ function setup(initialText = '') {
   initDoc(doc);
   id = createSticky(doc, { x: 400, y: 300 });
   if (initialText) getStickyText(doc, id)!.insert(0, initialText);
-  render(<App doc={doc} />);
+  render(<BoardApp doc={doc} />);
 }
 function noteEl(): HTMLElement {
   return document.querySelector(`[data-note-id="${id}"]`) as HTMLElement;
@@ -88,7 +88,7 @@ describe('sticky.text (editor)', () => {
     setup('ab');
     selectAndEdit();
     const ev = fireKey('Backspace', editor());
-    expect(ev.defaultPrevented).toBe(false); // App must not intercept while editing
+    expect(ev.defaultPrevented).toBe(false); // BoardApp must not intercept while editing
     // Emulate the browser removing the character before the caret.
     const ta = editor();
     act(() => {

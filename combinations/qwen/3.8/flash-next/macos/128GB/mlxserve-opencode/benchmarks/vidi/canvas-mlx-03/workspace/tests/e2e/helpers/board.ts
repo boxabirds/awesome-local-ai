@@ -1,4 +1,5 @@
 import { type Page, type Locator, expect } from '@playwright/test';
+import { newBoardId } from '../../../src/shared/board-id.ts';
 
 export interface CameraState {
   x: number;
@@ -15,17 +16,70 @@ export function wsBaseUrl(): string {
   return baseUrl().replace(/^http/, 'ws');
 }
 
-export async function openBoard(page: Page) {
-  await page.goto('/');
-  await expect(page.getByTestId('viewport')).toBeVisible();
+/**
+ * Create a board for a test, through the test-only `initialize` hook
+ * (src/worker/test-hooks.ts).
+ *
+ * Why a hook and not `POST /api/boards`: that endpoint is rate limited per
+ * visitor (PRD share.rate_limit), and a suite creates far more than 10 boards a
+ * minute — the limit is exactly what story 5's own tests measure, so test setup
+ * must not consume it. The hook creates the same board the API would: the same
+ * `BoardRoom.initialize()` call, without the limiter in front of it.
+ *
+ * Safe to call on a board that already exists (creating is create-once), which is
+ * what lets a spec re-open a board after a server restart through the same path.
+ */
+export async function createBoardForTests(page: Page, boardId = newBoardId()): Promise<string> {
+  void page;
+  return ensureBoard(boardId);
 }
 
-/** Open a shared board (/b/<boardId>) and wait until it is connected. */
-export async function openSharedBoard(page: Page, boardId: string): Promise<void> {
-  await page.goto(`/b/${boardId}`);
-  // The viewport proves React mounted; the hidden badge proves the first sync.
+/**
+ * Create a board from the test worker itself, with no browser page involved: the
+ * same `/__test/boards/:id/initialize` call, the same `BoardRoom.initialize()`.
+ *
+ * A Node-side collaborator (`RawClient`) needs this before it can connect: since
+ * story 5 a link to a board that does not exist is a 404, and opening a socket no
+ * longer brings a board into existence. Worker-side on purpose — a browser request
+ * would be visible to `page.route()` interception, and test setup is not what those
+ * tests are measuring.
+ *
+ * `origin` names the server to create it on; the persistence suite starts its own
+ * `wrangler dev` per test, so it passes that server's address.
+ */
+export async function ensureBoard(
+  boardId = newBoardId(),
+  origin: string = baseUrl(),
+): Promise<string> {
+  const response = await fetch(`${origin}/__test/boards/${boardId}/initialize`, {
+    method: 'POST',
+  });
+  if (!response.ok) {
+    throw new Error(`test setup could not create board ${boardId}: HTTP ${response.status}`);
+  }
+  return boardId;
+}
+
+/**
+ * Open a board at its own link and wait until it is connected.
+ *
+ * Since story 5 a link only opens if a board exists behind it, so this creates the
+ * board first (idempotent) — that is the whole reason it takes an optional id and
+ * returns the one it used.
+ */
+export async function openSharedBoard(page: Page, boardId?: string): Promise<string> {
+  const id = await createBoardForTests(page, boardId ?? newBoardId());
+  await page.goto(`/b/${id}`);
+  // The viewport proves React mounted and the link check passed; the hidden badge
+  // proves the first sync.
   await expect(page.getByTestId('viewport')).toBeVisible();
   await waitForConnection(page);
+  return id;
+}
+
+/** A fresh board of the current run, opened at its own link. */
+export async function openBoard(page: Page): Promise<string> {
+  return openSharedBoard(page);
 }
 
 export function connectionStatus(page: Page): Locator {

@@ -72,6 +72,50 @@ export function storedBoard(boardId: string): Promise<readonly StickySnapshot[]>
 }
 
 /**
+ * Every non-internal table SQLite knows about, for the "probing a link writes
+ * nothing" assertions (TC-06, TC-09).
+ */
+export function tables(boardId: string): Promise<string[]> {
+  return query(boardId, (sql) =>
+    sql
+      .exec("SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%'")
+      .toArray()
+      .map((row) => String((row as { name: string }).name))
+      .sort(),
+  );
+}
+
+/** The board's `created_at` stamp, or null when it has none (TC-05, TC-11, TC-15). */
+export function createdAt(boardId: string): Promise<number | null> {
+  return inRoom(boardId, (room) => room.store.createdAt());
+}
+
+/**
+ * Make the next `migrate()` on this board's store throw, to exercise the
+ * "creating the board's storage failed" path (TC-12). Wrapping the store method
+ * on the live object is the design's injection style ("storage failures are
+ * injected by wrapping BoardStore methods to throw"); the exception surfaces to
+ * the caller through the `initialize()` RPC.
+ */
+export function failMigrate(boardId: string, times = 1): Promise<void> {
+  return inRoom(boardId, (room) => {
+    const store = room.store as {
+      migrate: () => void;
+      __realMigrate?: () => void;
+    };
+    if (!store.__realMigrate) store.__realMigrate = store.migrate.bind(store);
+    let left = times;
+    store.migrate = () => {
+      if (left > 0) {
+        left--;
+        throw new Error('injected initialize failure');
+      }
+      store.__realMigrate!();
+    };
+  });
+}
+
+/**
  * Replace the log with a snapshot of `doc` (a `Snapshotted` storage state), using
  * the store's own chunking. Then the room's counters are refreshed from storage
  * so the room agrees with what was just written.

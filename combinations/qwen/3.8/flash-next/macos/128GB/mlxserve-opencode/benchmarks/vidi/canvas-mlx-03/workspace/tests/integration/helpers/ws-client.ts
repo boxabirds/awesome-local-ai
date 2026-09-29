@@ -4,11 +4,12 @@
 // SELF.fetch WebSocket upgrade to the BoardRoom Durable Object. It wraps a real
 // Y.Doc and uses the real y-protocols + board-model, so it exercises exactly the
 // wire path the browser uses.
-import { SELF } from 'cloudflare:test';
+import { SELF, env, runInDurableObject } from 'cloudflare:test';
 import * as Y from 'yjs';
 import * as encoding from 'lib0/encoding';
 import * as decoding from 'lib0/decoding';
 import * as syncProtocol from 'y-protocols/sync';
+import type { BoardRoom } from '../../../src/worker/board-room.ts';
 import {
   initDoc,
   snapshot,
@@ -19,6 +20,18 @@ import {
   MESSAGE_AWARENESS,
   MESSAGE_QUERY_AWARENESS,
 } from '../../../src/shared/protocol.ts';
+
+/**
+ * Create a board for a test, through the same Durable Object RPC the board API
+ * uses (`BoardRoom.initialize`). Since story 5 a room is no longer created by
+ * connecting to it — an unknown link answers 404 — so tests that want a board
+ * first make one this way.
+ */
+export async function ensureBoard(boardId: string): Promise<'created' | 'exists'> {
+  const ns = (env as unknown as { BOARD_ROOM: DurableObjectNamespace<BoardRoom> }).BOARD_ROOM;
+  const stub = ns.get(ns.idFromName(boardId));
+  return runInDurableObject(stub, (room) => room.initialize());
+}
 
 function upgradeFetch(boardId: string): Promise<Response> {
   return SELF.fetch(`http://localhost/api/rooms/${boardId}`, {
@@ -50,6 +63,8 @@ export class RoomClient {
     // is carried in the first SyncStep1/SyncStep2 (models a client that held the
     // board across a room restart). Runs before the update-transmitter is wired.
     opts.prepopulate?.(client.doc);
+    // The board has to exist before anything can connect to it (story 5).
+    await ensureBoard(boardId);
     const res = await upgradeFetch(boardId);
     if (res.status !== 101) throw new Error(`upgrade failed with status ${res.status}`);
     const ws = (res as unknown as { webSocket?: WebSocket }).webSocket;

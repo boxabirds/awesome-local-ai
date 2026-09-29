@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { render, screen, cleanup, act, fireEvent } from '@testing-library/react';
 import { useState } from 'react';
 import { NavigationHint } from '../../src/client/canvas/NavigationHint.tsx';
-import App from '../../src/client/App.tsx';
+import BoardApp from '../../src/client/board/BoardApp.tsx';
 import { vi } from 'vitest';
 
 describe('nav.hint_display', () => {
@@ -19,7 +19,7 @@ describe('nav.hint_display', () => {
   });
 
   it('TC-22 visible -> hidden after first camera change -> stays hidden after second', () => {
-    // Mirror App's contract: visible = !hasNavigated, where hasNavigated latches
+    // Mirror BoardApp's contract: visible = !hasNavigated, where hasNavigated latches
     // true only on a camera change that produces a new object.
     function Harness() {
       const [navigated, setNavigated] = useState(false);
@@ -40,10 +40,10 @@ describe('nav.hint_display', () => {
     cleanup();
   });
 
-  it('TC-22 (App): drag hides the hint and it does not return on later navigation', () => {
+  it('TC-22 (BoardApp): drag hides the hint and it does not return on later navigation', () => {
     vi.useFakeTimers();
     const flush = () => act(() => void vi.advanceTimersByTime(32));
-    render(<App />);
+    render(<BoardApp />);
     expect(screen.getByTestId('nav-hint')).toBeInTheDocument();
     const vp = screen.getByTestId('viewport');
     act(() => vp.dispatchEvent(new MouseEvent('pointerdown', { clientX: 5, clientY: 5, bubbles: true, cancelable: true })));

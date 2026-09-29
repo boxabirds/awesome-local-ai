@@ -9,6 +9,7 @@ import { startDevServer, persistBoardId, type DevServer } from './helpers/wrangl
 import { RawClient } from './helpers/rawClient.ts';
 import {
   createSticky,
+  ensureBoard,
   waitForConnection,
   noteTexts,
   simulateDrop,
@@ -56,6 +57,13 @@ function byPosition(a: DomSpec, b: DomSpec): number {
 }
 
 async function openBoardAt(page: Page, url: string, boardId: string): Promise<void> {
+  // Story 5: a link only opens if a board exists behind it. This creates it through
+  // the test-only initialize hook — the same create-once BoardRoom.initialize() the
+  // board API runs, without the rate limit these specs would otherwise trip (they
+  // create far more than 10 boards a minute). Calling it again on a board that
+  // already exists, e.g. after a server restart, is a no-op.
+  const created = await page.request.post(`${url}/__test/boards/${boardId}/initialize`);
+  if (!created.ok()) throw new Error(`could not create board ${boardId}: HTTP ${created.status()}`);
   await page.goto(`${url}/b/${boardId}`);
   await expect(page.getByTestId('viewport')).toBeVisible();
   await waitForConnection(page);
@@ -180,8 +188,11 @@ test.describe('story 4 persistence (real wrangler dev process)', () => {
     expect(specs).toHaveLength(PERSIST_TESTED_NOTES);
 
     // Seed the board as a collaborator: one Yjs update per note, so the room
-    // really does hit its compaction thresholds on the way.
+    // really does hit its compaction thresholds on the way. A collaborator connects
+    // over a socket, and a socket no longer creates a board (story 5), so the board
+    // is created first — through the same create-once hook the page uses.
     const seedStart = Date.now();
+    await ensureBoard(boardId, server.url);
     const seeder = new RawClient(boardId);
     await seeder.connect();
     for (const spec of specs) {
@@ -231,6 +242,7 @@ test.describe('story 4 persistence (real wrangler dev process)', () => {
     // Seed a 25-note board and push it past the compaction threshold, so the board
     // really is in the Snapshotted dimension (design D1) before it breaks.
     const fixture = retroBoardWithEdits(COMPACTION_UPDATE_COUNT);
+    await ensureBoard(boardId, server.url);
     const seeder = new RawClient(boardId);
     await seeder.connect();
     for (const update of fixture.updates) Y.applyUpdate(seeder.doc, update);

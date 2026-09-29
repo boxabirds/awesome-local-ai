@@ -1,3 +1,74 @@
+commit ed5847ff051c524246310abdab4d6a2fdfe38133
+vidi-agent  Tue Sep 29 06:34:37 2026 +0100
+
+    docs(5): NOTES.md — test totals, why each suite creates boards the way it does, two product gaps the tests found, clipboard permissions on firefox/webkit, the socket-no-longer-creates rule
+
+
+ NOTES.md | 77 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 77 insertions(+)
+commit 10a213b6209977d0cf835d541d29d61675b3f28d
+vidi-agent  Tue Sep 29 06:31:58 2026 +0100
+
+    test(5): pages, share panel and end-to-end share workflows
+
+
+ playwright.config.ts                 |  10 +-
+ playwright.nightly.config.ts         |   7 +-
+ playwright.share.config.ts           |  53 ++++++
+ src/client/board/SharePanel.tsx      | 189 ++++++++++---------
+ src/client/pages/BoardPage.tsx       |  13 +-
+ src/client/pages/HomePage.tsx        |  29 +--
+ src/client/pages/NotFoundPage.tsx    |  21 ++-
+ src/client/pages/useCreateBoard.ts   |  48 +++++
+ src/shared/config.ts                 |   9 +-
+ src/worker/index.ts                  |   4 +-
+ tests/component/SharePanel.test.tsx  | 195 ++++++++++++++++++++
+ tests/component/helpers/appShell.tsx |  68 +++++++
+ tests/component/pages.test.tsx       | 200 ++++++++++++++++++++
+ tests/e2e/collaboration1.spec.ts     |   4 +-
+ tests/e2e/helpers/board.ts           |  70 ++++++-
+ tests/e2e/helpers/clipboard.ts       |  70 +++++++
+ tests/e2e/persistence.spec.ts        |  14 +-
+ tests/e2e/share.spec.ts              | 348 +++++++++++++++++++++++++++++++++++
+ tests/integration/board-api.test.ts  |  11 +-
+ 19 files changed, 1216 insertions(+), 147 deletions(-)
+commit 4fcc8ee2ecdec8b9237a1ba83150a33202ccb13c
+vidi-agent  Tue Sep 29 05:35:00 2026 +0100
+
+    feat(5): board API (POST/GET /api/boards), room creation + existence through the BoardRoom, link-only entry rules (404 without creating) + client router, board page check and Share panel
+
+
+ index.html                                |   3 +
+ package.json                              |   5 +-
+ src/client/App.tsx                        | 244 +++------------------------
+ src/client/api.ts                         |  52 ++++++
+ src/client/board/BoardApp.tsx             | 240 ++++++++++++++++++++++++++
+ src/client/board/SharePanel.tsx           | 157 +++++++++++++++++
+ src/client/board/clipboard.ts             |  36 ++++
+ src/client/pages/BoardPage.tsx            |  98 +++++++++++
+ src/client/pages/HomePage.tsx             |  58 +++++++
+ src/client/pages/NotFoundPage.tsx         |  38 +++++
+ src/client/router.ts                      |  48 ++++++
+ src/client/styles.css                     | 134 +++++++++++++++
+ src/shared/config.ts                      |  39 +++++
+ src/worker/board-room.ts                  |  83 ++++++++-
+ src/worker/board-store.ts                 |  91 ++++++++++
+ src/worker/create-board.ts                |  94 +++++++++++
+ src/worker/index.ts                       |  83 +++++++--
+ src/worker/test-hooks.ts                  |  21 ++-
+ tests/component/BoardViewport.test.tsx    |  20 +--
+ tests/component/EditLock.test.tsx         |   6 +-
+ tests/component/NavigationHint.test.tsx   |   8 +-
+ tests/component/StickyNote.test.tsx       |   6 +-
+ tests/component/StickyTextEditor.test.tsx |   6 +-
+ tests/component/Toolbars.test.tsx         |   8 +-
+ tests/integration/board-api.test.ts       | 271 ++++++++++++++++++++++++++++++
+ tests/integration/helpers/room.ts         |  44 +++++
+ tests/integration/helpers/ws-client.ts    |  17 +-
+ tests/integration/worker.test.ts          |   6 +-
+ tests/unit/create-board.test.ts           | 147 ++++++++++++++++
+ wrangler.jsonc                            |  20 +++
+ 30 files changed, 1809 insertions(+), 274 deletions(-)
 commit 4070c95d4cca91ffe0db6f1381c827be444f92bb
 vidi-agent  Tue Sep 29 04:58:35 2026 +0100
 

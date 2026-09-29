@@ -96,6 +96,35 @@ export class BoardRoom extends DurableObject<Env> {
     return this.ctx.getWebSockets().length;
   }
 
+  // --------------------------------------------------- creation and existence
+  //
+  // Both are RPC methods (share.board_api): the Worker calls them on the stub,
+  // so board creation and board existence are decided by the one object that
+  // owns the board's storage. `exists` only reads; only `initialize` writes.
+
+  /**
+   * Create this board: create the tables and stamp `created_at`.
+   *
+   * A board that already exists — created now or saved before story 5 — is
+   * returned as `exists` and is NOT re-initialised: no tables are recreated and
+   * the original `created_at` is never overwritten (share.unique, TC-11, TC-15).
+   */
+  async initialize(): Promise<'created' | 'exists'> {
+    await this.loaded;
+    if (this.store.existsReadOnly()) return 'exists';
+    this.store.migrate();
+    return this.store.markCreatedIfAbsent() ? 'created' : 'exists';
+  }
+
+  /**
+   * Whether this board exists, read-only: `created_at`, or (for a board saved
+   * before the create API) at least one stored row. Never writes (TC-06).
+   */
+  async exists(): Promise<boolean> {
+    await this.loaded;
+    return this.store.existsReadOnly();
+  }
+
   // ---------------------------------------------------------------- loading
 
   /** Read storage into a fresh document and move to `ready` or `load-failed`. */
@@ -105,7 +134,9 @@ export class BoardRoom extends DurableObject<Env> {
     this.wireDoc(doc);
     let result: LoadResult;
     try {
-      this.store.migrate();
+      // No `migrate()` here: reading storage must never create it. The tables
+      // are made by `initialize()` (creation) or lazily by the first `append()`
+      // (a board edited again), so a link that was never a board stays empty.
       result = this.store.load(doc);
     } catch (err) {
       // load() already turns SQL trouble into a load failure; this is the
@@ -158,7 +189,7 @@ export class BoardRoom extends DurableObject<Env> {
     if (path.startsWith('/__test/boards/')) {
       const hook = parseTestHook(path);
       if (!hook || !testHooksEnabled(this.env)) return testHookNotFound();
-      return this.handleTestHook(hook.action);
+      return this.handleTestHook(hook.action, request);
     }
 
     const upgrade = (request.headers.get('Upgrade') ?? '').toLowerCase();
@@ -167,6 +198,14 @@ export class BoardRoom extends DurableObject<Env> {
     }
 
     await this.loaded;
+
+    // A link that is not a board is not a board, and connecting to it must not
+    // make it one: this check reads only, so an unknown room answers 404 and
+    // leaves no storage behind (share.not_found, TC-09). Rooms can therefore no
+    // longer be created implicitly by connecting to them.
+    if (!this.store.existsReadOnly()) {
+      return new Response('board not found', { status: 404 });
+    }
 
     const pair = new WebSocketPair();
     const [client, server] = Object.values(pair);
@@ -265,10 +304,37 @@ export class BoardRoom extends DurableObject<Env> {
    * Sitting in `load-failed` here is a test injection of a state that production
    * can only reach through a failed load; the load itself is production code.
    */
-  private async handleTestHook(action: TestStorageAction): Promise<Response> {
+  private async handleTestHook(action: TestStorageAction, request: Request): Promise<Response> {
     // Let the constructor's load finish first: the tables must exist, and a
     // document loaded from the damaged state must not be kept alive.
     await this.loaded;
+
+    if (action === 'initialize') {
+      // Lets a test stand up a board without going through the rate-limited
+      // create endpoint (stories 1-4 e2E do not care about creation limits).
+      const outcome = await this.initialize();
+      return Response.json({ ok: true, action, outcome });
+    }
+
+    if (action === 'seed-legacy') {
+      // A board saved BEFORE the create API existed: real update rows, tables,
+      // and deliberately no `created_at` (PRD share.legacy_boards, TC-31).
+      const body = (await request.json()) as { updates?: string[] };
+      const rows = body.updates ?? [];
+      if (rows.length === 0) {
+        return Response.json({ ok: false, error: 'no updates to seed' }, { status: 400 });
+      }
+      this.store.migrate();
+      for (const row of rows) {
+        const bytes = Uint8Array.from(atob(row), (c) => c.charCodeAt(0));
+        this.store.append(bytes);
+      }
+      // The stored rows are not in this room's document, so the next connection
+      // must rebuild the board from storage rather than serve this empty one.
+      this.forgetDocument();
+      log('test-seed-legacy-board', { rows: rows.length });
+      return Response.json({ ok: true, action, rows: rows.length });
+    }
 
     const ok =
       action === 'corrupt-snapshot'
@@ -287,11 +353,16 @@ export class BoardRoom extends DurableObject<Env> {
       );
     }
 
+    this.forgetDocument();
+    log('test-storage-action', { action });
+    return Response.json({ ok: true, action });
+  }
+
+  /** Throw the in-memory document away and make the next connection reload. */
+  private forgetDocument(): void {
     this.doc = null;
     this.state = 'load-failed';
     this.loadFailedAt = Date.now() - LOAD_RETRY_MIN_INTERVAL_MS;
-    log('test-storage-action', { action });
-    return Response.json({ ok: true, action });
   }
 
   webSocketError(): void {
@@ -372,3 +443,5 @@ export class BoardRoom extends DurableObject<Env> {
     }
   }
 }
+
+// spike

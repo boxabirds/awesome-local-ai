@@ -11,11 +11,14 @@
     "typecheck": "tsc -p tsconfig.client.json --noEmit && tsc -p tsconfig.worker.json --noEmit",
     "test:unit": "vitest run --project unit",
     "test:component": "vitest run --project component",
+    "pretest:integration": "npm run build:test",
     "test:integration": "vitest run --project integration",
+    "pretest": "npm run build:test",
     "test": "vitest run --project unit --project component --project integration",
     "test:e2e": "MOZ_DISABLE_CONTENT_SANDBOX=1 MOZ_DISABLE_GPU_SANDBOX=1 playwright test",
     "test:e2e:persistence": "playwright test -c playwright.persistence.config.ts",
-  "test:e2e:nightly": "MOZ_DISABLE_CONTENT_SANDBOX=1 MOZ_DISABLE_GPU_SANDBOX=1 playwright test -c playwright.nightly.config.ts"
+    "test:e2e:share": "MOZ_DISABLE_CONTENT_SANDBOX=1 MOZ_DISABLE_GPU_SANDBOX=1 playwright test -c playwright.share.config.ts",
+    "test:e2e:nightly": "MOZ_DISABLE_CONTENT_SANDBOX=1 MOZ_DISABLE_GPU_SANDBOX=1 playwright test -c playwright.nightly.config.ts"
   },
   "dependencies": {
     "lib0": "^0.2.119",

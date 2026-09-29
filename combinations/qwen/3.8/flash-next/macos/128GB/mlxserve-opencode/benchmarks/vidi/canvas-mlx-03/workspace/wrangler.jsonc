@@ -1,5 +1,8 @@
 {
   "name": "vidi6",
+  // Story 5 needs Durable Object RPC (stub.initialize() / stub.exists()); this
+  // date is at or after the date the runtime enables RPC. The locally installed
+  // workerd clamps to its newest supported date, which still has RPC.
   "compatibility_date": "2025-07-18",
   "main": "src/worker/index.ts",
   "assets": {
@@ -12,6 +15,23 @@
       {
         "name": "BOARD_ROOM",
         "class_name": "BoardRoom"
+      }
+    ]
+  },
+  // Board creation rate limit (share.rate_limit). `limit` and `period` MUST
+  // mirror BOARD_CREATE_LIMIT and BOARD_CREATE_PERIOD_SECONDS in
+  // src/shared/config.ts; unit test TC-03 parses this file and asserts equality.
+  // Declared as an `unsafe` binding because the pinned wrangler (v3) only
+  // exposes the Rate Limiting API that way; wrangler v4 promotes it to a
+  // top-level `ratelimits` array with the same fields.
+  "unsafe": {
+    "bindings": [
+      {
+        "type": "ratelimit",
+        "name": "BOARD_CREATE_LIMITER",
+        "namespace_id": "1001",
+        "param_count": 1,
+        "simple": { "limit": 10, "period": 60 }
       }
     ]
   },

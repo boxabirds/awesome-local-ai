@@ -1,5 +1,6 @@
 import { test, expect, type Page } from '@playwright/test';
 import {
+  ensureBoard,
   openSharedBoard,
   createSticky,
   notes,
@@ -42,7 +43,7 @@ test.describe('TC-22 create + edit is visible to the other editor', () => {
 
 test.describe('TC-23 concurrent typing in the same note converges', () => {
   test('two contexts typing into one note end up identical', async ({ context }) => {
-    const id = newBoardId();
+    const id = await ensureBoard();
     // Seed one shared note via a raw collaborator, then open two editors.
     const seed = new RawClient(id);
     await seed.connect();
@@ -241,6 +242,7 @@ test.describe('TC-27 offline catch-up within 30 seconds', () => {
 });
 
 async function createStickyViaRaw(id: string, text: string): Promise<void> {
+  await ensureBoard(id);
   const rc = new RawClient(id);
   await rc.connect();
   rc.addSticky({ text, x: 0, y: 0 });

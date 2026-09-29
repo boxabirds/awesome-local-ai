@@ -1,227 +1,31 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
-import type * as Y from 'yjs';
-import { BoardViewport } from './canvas/BoardViewport.tsx';
-import { ZoomControls } from './canvas/ZoomControls.tsx';
-import { NavigationHint } from './canvas/NavigationHint.tsx';
-import { Toolbar } from './board/Toolbar.tsx';
-import { StickyNote } from './objects/StickyNote.tsx';
-import { NoteToolbar } from './objects/NoteToolbar.tsx';
-import { useCamera } from './canvas/useCamera.ts';
-import { useBoardDoc } from './board/useBoardDoc.ts';
-import { useSelection } from './board/useSelection.ts';
-import { ConnectionStatus, type ConnectionState } from './board/ConnectionStatus.tsx';
-import { isValidBoardId } from '../shared/board-id.ts';
-import {
-  canZoomIn,
-  canZoomOut,
-  zoomPercent,
-  screenToWorld,
-  worldToScreen,
-  type Size,
-  type Point,
-} from './canvas/camera.ts';
-import {
-  createSticky,
-  deleteObject,
-  setStickyColor,
-} from '../shared/board-model.ts';
-import type { StickyColor } from '../shared/config.ts';
+// The router shell (design "Routing"): `/` is the home page, `/b/:id` is a
+// board, anything else — including a `/b/…` whose id is malformed — is the
+// Board Not Found page. It holds no board state of its own: when the route
+// changes it swaps whole pages, so a board's Yjs doc, connection and rAF loops
+// mount and unmount with the page (share.open_link / share.not_found).
 
-function isEditable(el: EventTarget | null): boolean {
-  if (!(el instanceof HTMLElement)) return false;
-  const tag = el.tagName;
-  return tag === 'INPUT' || tag === 'TEXTAREA' || el.isContentEditable;
+import { useEffect, useState } from 'react';
+import HomePage from './pages/HomePage.tsx';
+import BoardPage from './pages/BoardPage.tsx';
+import NotFoundPage from './pages/NotFoundPage.tsx';
+import { parseRoute, type Route } from './router.ts';
+
+function currentRoute(): Route {
+  return parseRoute(window.location.pathname);
 }
 
-export interface AppProps {
-  /** Component tests inject their own document; production omits this. */
-  doc?: Y.Doc;
-  /** Board id from the /b/:boardId route; component tests may omit it. */
-  boardId?: string | null;
-  /** Component tests force a connection state (TC-23); production omits it. */
-  connection?: ConnectionState;
-}
-
-/**
- * Whether the board may be edited. Everything except a board whose storage could
- * not be read is editable: a reconnecting board still shows its last known state
- * and its changes are retried (persist.save_failure), while a board that failed to
- * load would silently write into an empty document.
- */
-export function canEdit(state: ConnectionState): boolean {
-  return state !== 'load_failed';
-}
-
-/** Read the board id from a /b/<valid id> path, or null (local board). */
-export function boardIdFromPath(path: string): string | null {
-  const m = /^\/b\/([^/]+)/.exec(path);
-  const id = m?.[1];
-  return id && isValidBoardId(id) ? id : null;
-}
-
-/**
- * Top-level board: camera (story 1) plus sticky notes (story 2). Wires the Y.Doc
- * snapshot, local selection, the left toolbar, the per-note toolbar and the
- * window-level Enter / Delete / Backspace shortcuts.
- */
-export default function App(props: AppProps = {}) {
-  const viewportRef = useRef<HTMLDivElement | null>(null);
-  const [viewport, setViewport] = useState<Size>({ width: 1280, height: 800 });
+export default function App() {
+  const [route, setRoute] = useState<Route>(currentRoute);
 
   useEffect(() => {
-    const el = viewportRef.current;
-    if (!el || typeof ResizeObserver === 'undefined') return;
-    const ro = new ResizeObserver((entries) => {
-      const r = entries[0]?.contentRect;
-      if (r) setViewport({ width: r.width, height: r.height });
-    });
-    ro.observe(el);
-    setViewport({ width: el.clientWidth, height: el.clientHeight });
-    return () => ro.disconnect();
+    // `navigateTo` in router.ts fires this for in-app navigations too, so there
+    // is one place where a path becomes a page.
+    const onPop = () => setRoute(currentRoute());
+    window.addEventListener('popstate', onPop);
+    return () => window.removeEventListener('popstate', onPop);
   }, []);
 
-  const cam = useCamera(viewport);
-  const boardId = props.boardId ?? boardIdFromPath(window.location.pathname);
-  const { doc, notes, connection } = useBoardDoc(props.doc, boardId, props.connection);
-  const sel = useSelection();
-  const selRef = useRef(sel);
-  selRef.current = sel;
-
-  // Editing gates read the state through a ref so the window-level handlers
-  // registered once can never act on a stale state.
-  const editable = canEdit(connection);
-  const editableRef = useRef(editable);
-  editableRef.current = editable;
-
-  const [dragId, setDragId] = useState<string | null>(null);
-
-  const onDragChange = useCallback((id: string, dragging: boolean) => {
-    setDragId((prev) => (dragging ? id : prev === id ? null : prev));
-  }, []);
-
-  // Create a note centred on a world point, then select + edit it.
-  const createAtWorld = useCallback(
-    (world: Point) => {
-      if (!editableRef.current) return; // a board we could not load is not editable
-      const id = createSticky(doc, world);
-      selRef.current.startEdit(id);
-    },
-    [doc],
-  );
-
-  // Toolbar button: centred in the visible board area.
-  const onCreateSticky = useCallback(() => {
-    const centre = { x: viewport.width / 2, y: viewport.height / 2 };
-    createAtWorld(screenToWorld(cam.camera, centre));
-  }, [createAtWorld, viewport.width, viewport.height, cam.camera]);
-
-  // Empty-space press clears selection (and any in-progress edit).
-  const onBackgroundPointerDown = useCallback(() => {
-    selRef.current.select(null);
-  }, []);
-
-  // Window shortcuts: Enter edits the selected note; Delete/Backspace deletes it.
-  useEffect(() => {
-    const onKeyDown = (e: KeyboardEvent) => {
-      const s = selRef.current;
-      if (e.key === 'Enter') {
-        if (!editableRef.current) return; // editing is locked while the board is unloadable
-        if (s.editingId != null || isEditable(e.target)) return;
-        if (s.selectedId) {
-          e.preventDefault();
-          s.startEdit(s.selectedId);
-        }
-      } else if (e.key === 'Delete' || e.key === 'Backspace') {
-        // While editing, these keys edit text — never delete the note.
-        if (s.editingId != null || isEditable(e.target)) return;
-        if (!editableRef.current) return; // deleting is an edit
-        if (s.selectedId) {
-          e.preventDefault();
-          deleteObject(doc, s.selectedId);
-          s.select(null);
-        }
-      }
-    };
-    window.addEventListener('keydown', onKeyDown);
-    return () => window.removeEventListener('keydown', onKeyDown);
-  }, [doc]);
-
-  const stop = (e: React.PointerEvent | React.MouseEvent | React.WheelEvent) =>
-    e.stopPropagation();
-
-  const selectedNote = notes.find((n) => n.id === sel.selectedId) ?? null;
-  const showNoteToolbar =
-    selectedNote != null &&
-    sel.editingId !== selectedNote.id &&
-    dragId !== selectedNote.id;
-
-  let noteToolbarStyle: React.CSSProperties = { position: 'fixed', left: -9999, top: -9999 };
-  if (selectedNote) {
-    const s = worldToScreen(cam.camera, { x: selectedNote.x, y: selectedNote.y });
-    noteToolbarStyle = { position: 'fixed', left: s.x, top: Math.max(4, s.y - 46), zIndex: 30 };
-  }
-
-  return (
-    <div data-testid="app" className="vidi6-root">
-      <BoardViewport
-        camera={cam.camera}
-        viewportRef={viewportRef}
-        api={cam}
-        onBackgroundPointerDown={onBackgroundPointerDown}
-        onBackgroundDoubleClick={createAtWorld}
-      >
-        {notes.map((n) => (
-          <StickyNote
-            key={n.id}
-            note={n}
-            doc={doc}
-            zoom={cam.camera.zoom}
-            selected={sel.selectedId === n.id}
-            editing={editable && sel.editingId === n.id}
-            canEdit={editable}
-            onSelect={sel.select}
-            onStartEdit={sel.startEdit}
-            onEndEdit={sel.endEdit}
-            onDragChange={onDragChange}
-          />
-        ))}
-      </BoardViewport>
-
-      <Toolbar onCreateSticky={onCreateSticky} disabled={!editable} />
-
-      {showNoteToolbar && selectedNote ? (
-        <div
-          data-testid="note-toolbar-anchor"
-          style={noteToolbarStyle}
-          onPointerDown={stop}
-          onDoubleClick={stop}
-          onWheel={stop}
-        >
-          <NoteToolbar
-            color={selectedNote.color}
-            onColor={(c: StickyColor) => {
-              if (!editable) return;
-              setStickyColor(doc, selectedNote.id, c); // keeps text/position/selection
-            }}
-            onDelete={() => {
-              if (!editable) return;
-              deleteObject(doc, selectedNote.id);
-              sel.select(null);
-            }}
-          />
-        </div>
-      ) : null}
-
-      <ZoomControls
-        zoomPercent={zoomPercent(cam.camera)}
-        canZoomIn={canZoomIn(cam.camera)}
-        canZoomOut={canZoomOut(cam.camera)}
-        onZoomIn={() => cam.zoomStep('in')}
-        onZoomOut={() => cam.zoomStep('out')}
-        onReset={cam.reset}
-      />
-      <NavigationHint visible={!cam.hasNavigated} />
-      <ConnectionStatus status={connection} />
-    </div>
-  );
+  if (route.kind === 'home') return <HomePage />;
+  if (route.kind === 'board') return <BoardPage key={route.boardId} boardId={route.boardId} />;
+  return <NotFoundPage boardId={route.boardId} />;
 }

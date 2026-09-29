@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { render, act, screen } from '@testing-library/react';
-import App from '../../src/client/App.tsx';
+import BoardApp from '../../src/client/board/BoardApp.tsx';
 import { ZOOM_STEP_FACTOR, ZOOM_MAX } from '../../src/shared/config.ts';
 
 function flush() {
@@ -51,7 +51,7 @@ afterEach(() => {
 
 describe('viewport.input', () => {
   it('TC-13 drag 200,100 moves the world layer by the camera delta', () => {
-    render(<App />);
+    render(<BoardApp />);
     const vp = screen.getByTestId('viewport');
     firePointer(vp, 'pointerdown', 20, 30);
     firePointer(vp, 'pointermove', 220, 130);
@@ -65,7 +65,7 @@ describe('viewport.input', () => {
   });
 
   it('TC-14 pointercancel freezes the camera; later moves ignored', () => {
-    render(<App />);
+    render(<BoardApp />);
     const vp = screen.getByTestId('viewport');
     firePointer(vp, 'pointerdown', 10, 10);
     firePointer(vp, 'pointermove', 110, 60);
@@ -82,7 +82,7 @@ describe('viewport.input', () => {
   });
 
   it('TC-15 plain wheel moves camera by delta/zoom and prevents default', () => {
-    render(<App />);
+    render(<BoardApp />);
     const vp = screen.getByTestId('viewport');
     const ev = new WheelEvent('wheel', {
       deltaY: 100,
@@ -101,7 +101,7 @@ describe('viewport.input', () => {
   });
 
   it('TC-16 ctrl wheel increases zoom and prevents default', () => {
-    render(<App />);
+    render(<BoardApp />);
     const vp = screen.getByTestId('viewport');
     const ev = new WheelEvent('wheel', {
       deltaY: -100,
@@ -119,7 +119,7 @@ describe('viewport.input', () => {
   });
 
   it('TC-17 Safari gesturechange scale 2 doubles zoom and prevents default', () => {
-    render(<App />);
+    render(<BoardApp />);
     const vp = screen.getByTestId('viewport');
     const start = new Event('gesturestart', { cancelable: true, bubbles: true }) as Event & { scale: number };
     start.scale = 1;
@@ -133,7 +133,7 @@ describe('viewport.input', () => {
   });
 
   it('TC-18 Ctrl+=, Ctrl+-, Ctrl+0 each preventDefault and step / reset zoom', () => {
-    render(<App />);
+    render(<BoardApp />);
     const key = (k: string) => {
       const ev = new KeyboardEvent('keydown', { key: k, ctrlKey: true, cancelable: true, bubbles: true });
       act(() => {
@@ -162,7 +162,7 @@ describe('viewport.input', () => {
   });
 
   it('TC-18b step in reaches ZOOM_MAX after many presses', () => {
-    render(<App />);
+    render(<BoardApp />);
     for (let i = 0; i < 20; i++) {
       const ev = new KeyboardEvent('keydown', { key: '=', ctrlKey: true, cancelable: true, bubbles: true });
       act(() => window.dispatchEvent(ev));
@@ -172,7 +172,7 @@ describe('viewport.input', () => {
   });
 
   it('TC-29 click without moving leaves camera unchanged and keeps the hint', () => {
-    render(<App />);
+    render(<BoardApp />);
     const vp = screen.getByTestId('viewport');
     firePointer(vp, 'pointerdown', 40, 40);
     firePointer(vp, 'pointerup', 40, 40);
@@ -185,7 +185,7 @@ describe('viewport.input', () => {
   });
 
   it('TC-30 ctrl wheel over the zoom control does not zoom the board', () => {
-    render(<App />);
+    render(<BoardApp />);
     const controls = screen.getByTestId('zoom-controls');
     const ev = new WheelEvent('wheel', { deltaY: -100, ctrlKey: true, cancelable: true, bubbles: true });
     fire(ev, controls);

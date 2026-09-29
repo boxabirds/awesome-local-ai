@@ -94,3 +94,80 @@ Run: `npm run test:e2e:nightly` (chromium, one machine, model + browsers + wrang
   UI edits; **603 rounds / 2412 latency samples**; **p50 = 6 ms, p95 = 23 ms, max = 48 ms**
   against `LIVE_UPDATE_LATENCY_BUDGET_MS = 1000 ms`. Every per-change latency within budget,
   every badge stayed hidden (`connected`), and all five final board snapshots were identical.
+
+---
+
+# Story 5 — Share a board with others using a link
+
+Implementation of `share.board_api`, `share.room`, `share.link_only_entry`,
+`share.client_routes`, `share.panel` and `share.abuse_guard`: `POST /api/boards` (create,
+with the creation rate limit in front of it), `GET /api/boards/:id` (existence, read-only),
+a 404 in front of every link that leads nowhere, a client router that decides the page
+from the URL, and a Share panel that puts the link on the clipboard.
+
+## Test totals (all passing)
+
+- **unit** (136) — `createBoard` retry ladder with a injected generator (`TC-01..04`),
+  the character set a board id comes from, and every link shape routed to which page.
+- **component** (62) — the real App rendered at a URL: creating / failed / limited /
+  bad-link / unreachable-then-open (`TC-16..21`), and the Share panel's copy, fallback,
+  focus and link contents (`TC-22..25`).
+- **integration** (58, workerd) — `TC-05..15`, `TC-32` plus the rate limit's boundary
+  (10 accepted, the 11th refused inside one period) and a period that resets.
+- **e2e** — `npm run test:e2e` 69 passed (chromium + firefox + webkit), `test:e2e:persistence`
+  4 passed, `test:e2e:share` 10 passed (6 chromium, plus `TC-27`/`TC-29` in firefox and
+  webkit), `test:e2e:nightly` 2 passed (unchanged).
+
+## Creating a board in a test: which path, and why
+
+`POST /api/boards` is the only production way to create a board, and it is metered at
+`BOARD_CREATE_LIMIT_PER_MINUTE = 10` **per Durable Object instance**, i.e. per `wrangler dev`
+process. So:
+
+- Component tests never touch a limiter: they intercept `fetch`.
+- Integration tests get a limiter of their own per test (`env.BOARD_CREATE_LIMITER = stub`),
+  because the design's TC-05..TC-11 are about the endpoint, not the guard.
+- E2E creates through the existing test-only hook — `POST /__test/boards/:id/initialize`,
+  which calls the same `BoardRoom.initialize()` the endpoint calls, minus the limiter. The
+  suites create far more than ten boards a minute between them, and a limiter that only
+  exists to be measured by TC-30 must not be spent by other tests.
+- **TC-30 runs against its own `wrangler dev` process** (started by the test, on its own
+  `--persist-to` directory), so ten creations are ten creations and the eleventh is the
+  eleventh. Same reason story 4's persistence suite owns its process.
+- TC-31's legacy board uses the second hook action, `seed-legacy`: content rows without
+  `created_at`, which is exactly the state a board created before this story was in.
+
+## Two gaps the tests found in the product
+
+1. **"Create a new board" on the Board-not-found page only went home.** The PRD asks the
+   page for a way to *create* a board, and the acceptance says the board opens. The home
+   page's create action was extracted into `src/client/pages/useCreateBoard.ts` and both
+   pages call it — one create path in the product, not two that can drift.
+2. **The Share panel did not give focus back.** Spec: after closing, focus goes back to the
+   Share button. The panel is now `role="dialog"` `aria-label="Share board"` and returns
+   focus on Escape *and* on outside click; the button is wrapped in a persistent element so
+   it is still mounted to receive focus.
+
+## Clipboard in Firefox and WebKit
+
+`context.grantPermissions(['clipboard-read', 'clipboard-write'])` throws on Firefox
+("Unknown permission") and WebKit — those engines have no such permission to hand out.
+`grantClipboardPermissions` swallows exactly that error and nothing else. Chromium remains
+the engine that reads a link back out of the real clipboard (TC-26); firefox/webkit run
+TC-27 and TC-29, and TC-29 deliberately makes `writeText` reject, which needs no permission.
+
+## A socket no longer creates a board (affects stories 1-4's tests)
+
+`BoardRoom.fetch` now answers 404 for a board that does not exist, before accepting the
+WebSocket. Consequence for existing suites: the Node-side `RawClient` collaborators that
+seed boards must create the board first. `tests/e2e/helpers/board.ts` gained
+`ensureBoard(boardId, origin?)` (a worker-side `fetch` to the test hook, so `page.route()`
+interception cannot see setup traffic), and the nightly webServer passes
+`--var VIDI_TEST_HOOKS:1` like the other configs. Future stories: a board is something you
+create, not something you connect to.
+
+## Board check backoff shares one ceiling
+
+`BOARD_CHECK_RETRY_BASE_MS` doubles up to `RECONNECT_MAX_BACKOFF_MS` — the spec names that
+constant. An earlier cut had a separate `BOARD_CHECK_RETRY_MAX_MS`; the second constant
+would only have existed to be configured out of sync with the first.

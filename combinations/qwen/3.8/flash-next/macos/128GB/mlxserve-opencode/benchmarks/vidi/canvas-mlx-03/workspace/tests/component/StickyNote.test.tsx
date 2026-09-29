@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { render, act, screen } from '@testing-library/react';
 import * as Y from 'yjs';
-import App from '../../src/client/App.tsx';
+import BoardApp from '../../src/client/board/BoardApp.tsx';
 import {
   initDoc,
   createSticky,
@@ -47,7 +47,7 @@ function setup(x = 400, y = 300) {
   doc = new Y.Doc();
   initDoc(doc);
   id = createSticky(doc, { x, y }); // top-left = (x-100, y-100)
-  render(<App doc={doc} />);
+  render(<BoardApp doc={doc} />);
 }
 
 function noteEl(): HTMLElement {
@@ -160,7 +160,7 @@ describe('sticky.interaction', () => {
   it('TC-36 Enter with nothing selected does nothing', () => {
     doc = new Y.Doc();
     initDoc(doc);
-    render(<App doc={doc} />);
+    render(<BoardApp doc={doc} />);
     fireKey('Enter');
     flush();
     expect(snapshot(doc)).toHaveLength(0);

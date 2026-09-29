@@ -29,14 +29,16 @@ beforeEach(() => {
 });
 
 describe('worker fetch handler', () => {
-  it('TC-04 rejects a malformed room id with 400 and creates no object instance', async () => {
+  it('TC-04 rejects a malformed room id with 404 and creates no object instance', async () => {
     const before = await roomObjectIds();
     const badIds = ['bad!id', 'short', 'a'.repeat(32), '$$$'];
     for (const bad of badIds) {
       const res = await SELF.fetch(`http://localhost/api/rooms/${bad}`, {
         headers: { Upgrade: 'websocket' },
       });
-      expect(res.status).toBe(400);
+      // Story 5 (share.not_found): a malformed id is not a board, so it answers
+      // like an unknown one — 404, with nothing about the format leaked.
+      expect(res.status).toBe(404);
       expect(isValidBoardId(bad)).toBe(false);
     }
     const after = await roomObjectIds();

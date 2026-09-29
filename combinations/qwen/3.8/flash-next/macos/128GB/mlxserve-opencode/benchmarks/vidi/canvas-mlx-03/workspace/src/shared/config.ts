@@ -102,3 +102,37 @@ export const PERSIST_TESTED_NOTES = 2000;
 export const BOARD_LOAD_BUDGET_MS = 3000;
 /** Version stamped into the storage tables so later stories can migrate them. */
 export const STORAGE_SCHEMA_VERSION = 1;
+
+// ---- Story 5: sharing a board by link --------------------------------------
+
+/**
+ * Boards one visitor may create per period (PRD share.rate_limit). Must match
+ * the `BOARD_CREATE_LIMITER` binding in wrangler.jsonc — unit test TC-03 parses
+ * that file and asserts equality so the two can never drift.
+ */
+export const BOARD_CREATE_LIMIT = 10;
+/** Length of the creation-rate-limit period, in seconds. Also mirrored in wrangler.jsonc. */
+export const BOARD_CREATE_PERIOD_SECONDS = 60;
+/**
+ * How many board ids one create request may mint before giving up (share.unique).
+ * A minted id that collides with an existing board is never handed out; the
+ * creator tries again with a fresh random id, at most this many times.
+ */
+export const CREATE_ID_MAX_ATTEMPTS = 3;
+/** Time budget for "create a board and open it" (PRD share.create), in ms. */
+export const CREATE_BUDGET_MS = 2000;
+/** How long the Share panel's button reads "Link copied", in ms (PRD share.copy). */
+export const LINK_COPIED_MS = 2000;
+/**
+ * How long to wait for the clipboard write before treating the browser as
+ * uncooperative (share.copy_fallback). A clipboard call that never resolves —
+ * some browsers leave it pending when the document lacks focus — must not leave
+ * the Share panel waiting forever.
+ */
+export const CLIPBOARD_WRITE_TIMEOUT_MS = 1500;
+/**
+ * First delay before re-checking a board link whose check could not reach the
+ * service (share.unreachable). Doubles per retry, capped at
+ * RECONNECT_MAX_BACKOFF_MS — the same ceiling the websocket reconnect uses.
+ */
+export const BOARD_CHECK_RETRY_BASE_MS = 1000;

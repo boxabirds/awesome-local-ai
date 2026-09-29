@@ -21,7 +21,12 @@ export default defineConfig({
     viewport: { width: 1280, height: 800 },
   },
   webServer: {
-    command: `npm run build:test && npx wrangler dev --port ${PORT}`,
+    // VIDI_TEST_HOOKS:1 lets the specs create their own boards through
+    // /__test/boards/:id/initialize. Since story 5 a socket to a board that does not
+    // exist is refused, and these specs need a board to sit in front of their link;
+    // the hook creates it without spending the creation rate limit (see
+    // playwright.config.ts for the same arrangement).
+    command: `npm run build:test && npx wrangler dev --port ${PORT} --var VIDI_TEST_HOOKS:1`,
     url: BASE_URL,
     reuseExistingServer: !process.env.CI,
     timeout: 120000,

@@ -60,6 +60,13 @@ export const LOAD_ORIGIN: unique symbol = Symbol('vidi6-load');
 /** `storage_meta` keys (design "Storage schema"). */
 const META_SCHEMA_KEY = 'storage_schema_version';
 const META_THROUGH_KEY = 'snapshot_through_seq';
+/**
+ * Set once, by `BoardRoom.initialize()`, when the board is created through the
+ * story 5 board API. It is the primary existence marker; a board saved before
+ * that feature has no `created_at` and is recognised by its rows instead
+ * (design "Existence rule", PRD share.legacy_boards).
+ */
+const META_CREATED_KEY = 'created_at';
 
 const CREATE_TABLES = [
   'CREATE TABLE IF NOT EXISTS storage_meta (key TEXT PRIMARY KEY, value TEXT NOT NULL)',
@@ -143,6 +150,10 @@ export class BoardStore {
    * Create the tables and stamp `storage_schema_version` when absent. Idempotent
    * and writes no update rows: a board that was merely opened but never edited
    * stays row-free (design persist.load_failure's "never-edited board").
+   *
+   * Only `initialize()` and the first `append()` ever call this, so merely
+   * checking or opening an unknown link leaves no storage behind
+   * (PRD share.not_found).
    */
   migrate(): void {
     for (const statement of CREATE_TABLES) this.db.exec(statement);
@@ -161,8 +172,13 @@ export class BoardStore {
   /**
    * Append one Yjs update to the log. SQL errors are rethrown — the room resets
    * itself in that case (design persist.save_failure).
+   *
+   * The tables are created lazily here (not on load): a board written before
+   * story 5's create API can still be edited, while a board that was only ever
+   * opened never gets a table.
    */
   append(update: Uint8Array): void {
+    if (!this.hasTable('updates')) this.migrate();
     const rows = this.db
       .exec(
         'INSERT INTO updates (data, bytes) VALUES (?, ?) RETURNING seq',
@@ -179,6 +195,9 @@ export class BoardStore {
   /**
    * Load the snapshot and the log rows after it into `doc`.
    *
+   * A board with no tables at all is an empty board: nothing is created, so a
+   * link that was never a board stays storage-free (PRD share.not_found).
+   *
    * A damaged log row is moved to `quarantined_updates` inside its own
    * transaction and counted; the rest of the board still loads. A damaged
    * snapshot (or any SQL failure) returns `ok: false` and leaves every row
@@ -186,6 +205,14 @@ export class BoardStore {
    */
   load(doc: Y.Doc): LoadResult {
     try {
+      if (!this.hasTable('updates')) {
+        this.logCount = 0;
+        this.logBytes = 0;
+        this.lastSeq = 0;
+        this.snapshotThrough = 0;
+        return { ok: true, quarantined: 0 };
+      }
+
       const through = this.readThroughSeq();
 
       const chunkRows = this.db
@@ -316,6 +343,70 @@ export class BoardStore {
       .exec('SELECT value FROM storage_meta WHERE key = ?', META_THROUGH_KEY)
       .toArray()[0];
     return typeof row?.value === 'string' ? Number(row.value) || 0 : 0;
+  }
+
+  // ------------------------------------------------------------ existence
+
+  /**
+   * Whether this board exists, by the design's existence rule: it was created
+   * through the board API (`storage_meta.created_at`), OR it is a board saved
+   * before that feature — at least one row in `updates` or `snapshot_chunks`
+   * (PRD share.legacy_boards).
+   *
+   * READ-ONLY: `sqlite_master` is consulted first and the tables are never
+   * created, so probing a made-up link writes nothing.
+   */
+  existsReadOnly(): boolean {
+    if (!this.hasTable('storage_meta')) return false;
+    const created = this.db
+      .exec('SELECT value FROM storage_meta WHERE key = ?', META_CREATED_KEY)
+      .toArray();
+    if (created.length > 0) return true;
+    if (this.hasTable('updates') && this.countRowsIn('updates') > 0) return true;
+    if (this.hasTable('snapshot_chunks') && this.countRowsIn('snapshot_chunks') > 0) return true;
+    return false;
+  }
+
+  /**
+   * Stamp `created_at` (epoch ms) the first time this board is created. Returns
+   * false when the stamp is already there, so `initialize()` can answer
+   * `exists` and never overwrite the original value (share.unique, TC-15).
+   */
+  markCreatedIfAbsent(): boolean {
+    const found = this.db
+      .exec('SELECT value FROM storage_meta WHERE key = ?', META_CREATED_KEY)
+      .toArray();
+    if (found.length > 0) return false;
+    this.db.exec(
+      'INSERT INTO storage_meta (key, value) VALUES (?, ?)',
+      META_CREATED_KEY,
+      String(Date.now()),
+    );
+    return true;
+  }
+
+  /** The creation stamp, or null when this board has none (legacy or unknown). */
+  createdAt(): number | null {
+    if (!this.hasTable('storage_meta')) return null;
+    const row = this.db
+      .exec('SELECT value FROM storage_meta WHERE key = ?', META_CREATED_KEY)
+      .toArray()[0];
+    const value = row?.value;
+    return typeof value === 'string' && value.length > 0 ? Number(value) : null;
+  }
+
+  /** Whether one of this store's tables exists (never creates anything). */
+  private hasTable(table: string): boolean {
+    return (
+      this.db
+        .exec("SELECT name FROM sqlite_master WHERE type = 'table' AND name = ?", table)
+        .toArray().length > 0
+    );
+  }
+
+  private countRowsIn(table: string): number {
+    const row = this.db.exec(`SELECT COUNT(*) AS n FROM ${table}`).toArray()[0];
+    return Number(row?.n ?? 0);
   }
 
   // ------------------------------------------------------- test-only storage

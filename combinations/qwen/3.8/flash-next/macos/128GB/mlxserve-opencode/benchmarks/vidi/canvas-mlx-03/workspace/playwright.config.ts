@@ -10,8 +10,9 @@ export default defineConfig({
   testDir: 'tests/e2e',
   // Long-running nightly specs (TC-29, TC-30) run only via test:e2e:nightly.
   // persistence.spec.ts owns its own `wrangler dev` process (see
-  // playwright.persistence.config.ts) and must not run against this webServer.
-  testIgnore: [/\.nightly\.spec\.ts$/, /persistence\.spec\.ts/],
+  // playwright.persistence.config.ts) and must not run against this webServer, and
+  // story 5's share.spec.ts owns one too (playwright.share.config.ts).
+  testIgnore: [/\.nightly\.spec\.ts$/, /persistence\.spec\.ts$/, /share\.spec\.ts$/],
   fullyParallel: false,
   workers: 1,
   reporter: [['list']],
@@ -21,7 +22,10 @@ export default defineConfig({
     viewport: { width: 1280, height: 800 },
   },
   webServer: {
-    command: `npm run build:test && npx wrangler dev --port ${PORT}`,
+    // VIDI_TEST_HOOKS:1 lets the specs create boards for themselves through
+    // /__test/boards/:id/initialize — the same BoardRoom.initialize() the board API
+    // calls, without spending the creation rate limit that story 5 tests measure.
+    command: `npm run build:test && npx wrangler dev --port ${PORT} --var VIDI_TEST_HOOKS:1`,
     url: BASE_URL,
     reuseExistingServer: !process.env.CI,
     timeout: 120000,

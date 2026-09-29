@@ -19,8 +19,8 @@ vi.mock('../../src/shared/board-model.ts', async (importOriginal) => {
   };
 });
 
-import App from '../../src/client/App.tsx';
-import { canEdit } from '../../src/client/App.tsx';
+import BoardApp from '../../src/client/board/BoardApp.tsx';
+import { canEdit } from '../../src/client/board/BoardApp.tsx';
 import {
   initDoc,
   createSticky,
@@ -72,7 +72,7 @@ function mount(connection: ConnectionState | undefined) {
     updates += 1;
   });
   render(
-    <App doc={doc} boardId={null} {...(connection === undefined ? {} : { connection })} />,
+    <BoardApp doc={doc} boardId={null} {...(connection === undefined ? {} : { connection })} />,
   );
   vi.clearAllMocks(); // only actions performed after setup may mutate
 }
