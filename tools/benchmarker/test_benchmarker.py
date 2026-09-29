@@ -2,21 +2,21 @@
 import benchmarker as B
 
 PATHS = [
-    "combinations/qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-opencode/benchmarks/vidi/v2-r1/run.json",
-    "combinations/qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-opencode/benchmarks/vidi/v2-r1/run-status.json",
-    "combinations/qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-opencode/benchmarks/vidi/v2-r1/stories/01/accept.json",
+    "combinations/qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-pi/benchmarks/vidi/v2-r1/run.json",
+    "combinations/qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-pi/benchmarks/vidi/v2-r1/run-status.json",
+    "combinations/qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-pi/benchmarks/vidi/v2-r1/stories/01/accept.json",
     "combinations/qwen/3.8/flash-next/ubuntu/strix-halo-128GB/gufo-pi/benchmarks/vidi/canvas-gufo-r3/run.json",
     "combinations/qwen/3.8/flash-next/ubuntu/strix-halo-128GB/gufo-pi/benchmarks/vidi/canvas-gufo-r3/rescore/vidi-v1.3.2/rescore.json",
     "combinations/qwen/3.8/flash-next/ubuntu/strix-halo-128GB/gufo-pi/benchmarks/vidi/canvas-gufo-r3/workspace.bundle",
     "benchmarks/reference/vidi/opus-5.5/run-3/run.json",
-    "combinations/qwen/3.8/27b/ubuntu/nvidia4090/llamacpp-opencode/benchmarks/perf/results.json",
+    "combinations/qwen/3.8/27b/ubuntu/nvidia4090/llamacpp-pi/benchmarks/perf/results.json",
 ]
 
 
 def test_runs_are_found_by_their_run_json_under_combinations_and_reference():
     runs = B.find_runs(PATHS)
     assert [(r["pack"], r["stack"], r["run_id"]) for r in runs] == [
-        ("vidi", "qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-opencode", "v2-r1"),
+        ("vidi", "qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-pi", "v2-r1"),
         ("vidi", "qwen/3.8/flash-next/ubuntu/strix-halo-128GB/gufo-pi", "canvas-gufo-r3"),
         ("vidi", "reference/opus-5.5", "run-3"),
     ]
@@ -40,13 +40,13 @@ def test_links_point_at_the_repo_on_github_whatever_the_remote_form():
 
 def test_dbench_jobs_are_matched_to_runs_by_stack_pack_and_run_id():
     jobs = {"gruntus": [{"id": "vidi-v2-swift15-r1", "spec": {"pack": "benchmarks/vidi", "run_id": "v2-r1"},
-                         "progress": {"combination": "qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-opencode"},
+                         "progress": {"combination": "qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-pi"},
                          "state": {"status": "running"}, "updated_at": 2},
                         {"id": "old", "spec": {"pack": "benchmarks/vidi", "run_id": "v2-r1"},
-                         "progress": {"combination": "qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-opencode"},
+                         "progress": {"combination": "qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-pi"},
                          "state": {"status": "failed"}, "updated_at": 1}]}
     idx = B.index_jobs(jobs)
-    job = idx[("qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-opencode", "vidi", "v2-r1")]
+    job = idx[("qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-pi", "vidi", "v2-r1")]
     assert job["id"] == "vidi-v2-swift15-r1" and job["node"] == "gruntus"   # the newest job wins
 
 
@@ -74,11 +74,11 @@ def test_stages_say_what_each_run_is_waiting_for():
 
 def test_jobs_without_a_run_record_yet_still_appear():
     jobs = {"quintus": [{"id": "vidi-v2-mlx-r3", "spec": {"pack": "benchmarks/vidi", "run_id": "v2-r3"},
-                         "progress": {"combination": "qwen/3.8/flash-next/macos/128GB/mlxserve-opencode"},
+                         "progress": {"combination": "qwen/3.8/flash-next/macos/128GB/mlxserve-pi"},
                          "state": {"status": "queued"}, "updated_at": 1}]}
     rows = B.merge(runs=[], jobs=B.index_jobs(jobs))
     assert [(r["stack"], r["run_id"], r["node"]) for r in rows] == [
-        ("qwen/3.8/flash-next/macos/128GB/mlxserve-opencode", "v2-r3", "quintus")]
+        ("qwen/3.8/flash-next/macos/128GB/mlxserve-pi", "v2-r3", "quintus")]
     assert rows[0]["stories"] == [] and rows[0]["scores"] == {} and rows[0]["state"] == ""
 
 

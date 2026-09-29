@@ -14,8 +14,8 @@ mac_only = pytest.mark.skipif(sys.platform != "darwin", reason="sandbox-exec is 
 
 
 def test_work_dir_name_drops_the_combinations_prefix():
-    assert judge.work_dir_name("combinations/qwen/3.8/27b/ubuntu/nvidia4090/llamacpp-opencode/benchmarks/vidi/canvas-pi-03") \
-        == "qwen__3.8__27b__ubuntu__nvidia4090__llamacpp-opencode__benchmarks__vidi__canvas-pi-03"
+    assert judge.work_dir_name("combinations/qwen/3.8/27b/ubuntu/nvidia4090/llamacpp-pi/benchmarks/vidi/canvas-pi-03") \
+        == "qwen__3.8__27b__ubuntu__nvidia4090__llamacpp-pi__benchmarks__vidi__canvas-pi-03"
     assert judge.work_dir_name("benchmarks/reference/vidi/opus-5.5/run-2") == "benchmarks__reference__vidi__opus-5.5__run-2"
 
 
@@ -89,7 +89,7 @@ def test_scorer_faults_are_caught_on_real_records(tmp_path):
 def test_scored_commit_is_the_last_recorded_story_commit(tmp_path):
     (tmp_path / "metrics.json").write_text(json.dumps({"stories": {"11": {"commit": "aaa"}, "12": {"commit": "bbb"}, "13": {}}}))
     assert judge.scored_commit(tmp_path) == "bbb"
-    real = judge.REPO / "combinations/qwen/3.8/27b/ubuntu/nvidia4090/llamacpp-opencode/benchmarks/vidi/canvas-pi-03"
+    real = judge.REPO / "combinations/qwen/3.8/27b/ubuntu/nvidia4090/llamacpp-pi/benchmarks/vidi/canvas-pi-03"
     assert judge.scored_commit(real).startswith("70f7075")
 
 
@@ -137,7 +137,7 @@ def test_a_snapshot_that_is_not_the_scored_commit_is_refused(tmp_path):
 
 def test_every_finished_record_snapshot_matches_its_scored_commit():
     for rec in ["benchmarks/reference/vidi/opus-5.5/run-1",
-                "combinations/qwen/3.8/27b/ubuntu/nvidia4090/llamacpp-opencode/benchmarks/vidi/canvas-pi-03"]:
+                "combinations/qwen/3.8/27b/ubuntu/nvidia4090/llamacpp-pi/benchmarks/vidi/canvas-pi-03"]:
         r = judge.REPO / rec
         head = (r / "workspace-git-log.txt").read_text().split("\n", 1)[0].split()[-1]
         assert head.startswith(judge.scored_commit(r)[:7])

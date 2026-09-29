@@ -36,5 +36,5 @@ EXAMPLES
 SEE ALSO
 
   docs/discovery-macos-mtplx.md   why these numbers are what they are
-  combinations/qwen/3.8/flash-next/macos/128GB/mtplx-opencode/
+  combinations/qwen/3.8/flash-next/macos/128GB/mtplx-pi/
                                   the other arm of the A/B, ~1.9x faster

@@ -548,7 +548,7 @@ mod tests {
 
     #[test]
     fn env_value_stops_at_the_closing_quote_or_whitespace() {
-        // The real line from combinations/qwen/3.8/27b/ubuntu/nvidia4090/llamacpp-opencode/config.sh.
+        // The real line from combinations/qwen/3.8/27b/ubuntu/nvidia4090/llamacpp-pi/config.sh.
         let env = parse_env(
             "INSTALL_ID=\"qwen38-27b\"                   # install dir, command prefix, service name\nBARE=word # note\nEMPTY=\n",
         );
@@ -561,7 +561,7 @@ mod tests {
     fn temp_repo(tag: &str) -> PathBuf {
         let root = std::env::temp_dir().join(format!("dbench-combo-{tag}-{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&root);
-        let combo = root.join("repo/combinations/qwen/3.8/27b/ubuntu/nvidia4090/llamacpp-opencode");
+        let combo = root.join("repo/combinations/qwen/3.8/27b/ubuntu/nvidia4090/llamacpp-pi");
         std::fs::create_dir_all(&combo).unwrap();
         std::fs::write(
             combo.join(COMBINATION_CONFIG),
@@ -583,13 +583,13 @@ mod tests {
         let root = temp_repo("ok");
         let repo = root.join("repo");
         let want = RepoCombination {
-            combination: "qwen/3.8/27b/ubuntu/nvidia4090/llamacpp-opencode".into(),
+            combination: "qwen/3.8/27b/ubuntu/nvidia4090/llamacpp-pi".into(),
             install_id: "qwen38-27b".into(),
         };
         for given in [
-            "qwen/3.8/27b/ubuntu/nvidia4090/llamacpp-opencode",
-            "qwen/3.8/27b/ubuntu/nvidia4090/llamacpp-opencode/",
-            "combinations/qwen/3.8/27b/ubuntu/nvidia4090/llamacpp-opencode/",
+            "qwen/3.8/27b/ubuntu/nvidia4090/llamacpp-pi",
+            "qwen/3.8/27b/ubuntu/nvidia4090/llamacpp-pi/",
+            "combinations/qwen/3.8/27b/ubuntu/nvidia4090/llamacpp-pi/",
         ] {
             assert_eq!(repo_combination(&repo, given), Ok(want.clone()), "{given}");
         }
@@ -697,7 +697,7 @@ mod tests {
              "status": "written", "found": 7, "total": 7}
           ],
           "baselines": [
-            {"source": "qwen/3.8/flash-next/macos/128GB/mtplx-opencode canvas-pi-01",
+            {"source": "qwen/3.8/flash-next/macos/128GB/mtplx-pi canvas-pi-01",
              "agent_minutes": 58.4, "calls": 236, "output_tokens": 163933, "status": "DONE"}
           ],
           "recent_activity": ["bash: npx playwright test --config=playwright.nightly.config.ts …"]

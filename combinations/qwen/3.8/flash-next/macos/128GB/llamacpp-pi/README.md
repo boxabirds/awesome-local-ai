@@ -8,7 +8,7 @@ moved to Apple silicon. It uses:
 
 Only the GPU backend differs: Metal instead of Vulkan.
 
-It exists for one comparison: llama.cpp against MTPLX ([`../mtplx-opencode`](../mtplx-opencode/)) on
+It exists for one comparison: llama.cpp against MTPLX ([`../mtplx-pi`](../mtplx-pi/)) on
 the same Mac, the same model family and the same client. That separates the engine from the
 hardware. See the MTPLX forensics for why the comparison is needed.
 

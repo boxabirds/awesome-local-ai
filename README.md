@@ -66,12 +66,12 @@ half-installing.
 
 | Model | OS | Memory | Stack | Context | Install | Details |
 |---|---|---|---|---|---|---|
-| Qwen3.8-27B | Ubuntu 22.04 | RTX 4090 (24GB) | llama.cpp + OpenCode | 128k | [`install-qwen-3.8-27b-ubuntu-nvidia4090-llamacpp-opencode.sh`](install-qwen-3.8-27b-ubuntu-nvidia4090-llamacpp-opencode.sh) | [README](combinations/qwen/3.8/27b/ubuntu/nvidia4090/llamacpp-opencode/README.md) |
-| Swift 1.0 Qwen3.8-27B | Ubuntu 22.04 | RTX 4090 (24GB) | llama.cpp + OpenCode | 128k | [`install-qwen-3.8-swift-27b-ubuntu-nvidia4090-llamacpp-opencode.sh`](install-qwen-3.8-swift-27b-ubuntu-nvidia4090-llamacpp-opencode.sh) | [README](combinations/qwen/3.8-swift/27b/ubuntu/nvidia4090/llamacpp-opencode/README.md) |
-| Swift 1.5 Qwen3.8-27B | Ubuntu 22.04 | RTX 4090 (24GB) | llama.cpp + OpenCode | 128k | [`install-qwen-3.8-swift-1.5-27b-ubuntu-nvidia4090-llamacpp-opencode.sh`](install-qwen-3.8-swift-1.5-27b-ubuntu-nvidia4090-llamacpp-opencode.sh) | [README](combinations/qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-opencode/README.md) |
+| Qwen3.8-27B | Ubuntu 22.04 | RTX 4090 (24GB) | llama.cpp + pi | 128k | [`install-qwen-3.8-27b-ubuntu-nvidia4090-llamacpp-pi.sh`](install-qwen-3.8-27b-ubuntu-nvidia4090-llamacpp-pi.sh) | [README](combinations/qwen/3.8/27b/ubuntu/nvidia4090/llamacpp-pi/README.md) |
+| Swift 1.0 Qwen3.8-27B | Ubuntu 22.04 | RTX 4090 (24GB) | llama.cpp + pi | 128k | [`install-qwen-3.8-swift-27b-ubuntu-nvidia4090-llamacpp-pi.sh`](install-qwen-3.8-swift-27b-ubuntu-nvidia4090-llamacpp-pi.sh) | [README](combinations/qwen/3.8-swift/27b/ubuntu/nvidia4090/llamacpp-pi/README.md) |
+| Swift 1.5 Qwen3.8-27B | Ubuntu 22.04 | RTX 4090 (24GB) | llama.cpp + pi | 128k | [`install-qwen-3.8-swift-1.5-27b-ubuntu-nvidia4090-llamacpp-pi.sh`](install-qwen-3.8-swift-1.5-27b-ubuntu-nvidia4090-llamacpp-pi.sh) | [README](combinations/qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-pi/README.md) |
 | Qwen3.8-27B | macOS 26 | 64GB Apple silicon ¹ | MTPLX + OpenCode | 128k | [`install-qwen-3.8-27b-macos-64GB-mtplx-opencode.sh`](install-qwen-3.8-27b-macos-64GB-mtplx-opencode.sh) | [README](combinations/qwen/3.8/27b/macos/64GB/mtplx-opencode/README.md) |
-| Qwen3.8-Flash-Next ⁵ | macOS 26 | 128GB Apple silicon | MTPLX + OpenCode | 128k | [`install-qwen-3.8-flash-next-macos-128GB-mtplx-opencode.sh`](install-qwen-3.8-flash-next-macos-128GB-mtplx-opencode.sh) | [README](combinations/qwen/3.8/flash-next/macos/128GB/mtplx-opencode/README.md) |
-| Qwen3.8-Flash-Next mixed 4/8-bit ⁶ | macOS 26.2+ | 128GB Apple silicon | mlx-serve + OpenCode | 128k | [`install-qwen-3.8-flash-next-macos-128GB-mlxserve-opencode.sh`](install-qwen-3.8-flash-next-macos-128GB-mlxserve-opencode.sh) | [README](combinations/qwen/3.8/flash-next/macos/128GB/mlxserve-opencode/README.md) |
+| Qwen3.8-Flash-Next ⁵ | macOS 26 | 128GB Apple silicon | MTPLX + pi | 128k | [`install-qwen-3.8-flash-next-macos-128GB-mtplx-pi.sh`](install-qwen-3.8-flash-next-macos-128GB-mtplx-pi.sh) | [README](combinations/qwen/3.8/flash-next/macos/128GB/mtplx-pi/README.md) |
+| Qwen3.8-Flash-Next mixed 4/8-bit ⁶ | macOS 26.2+ | 128GB Apple silicon | mlx-serve + pi | 128k | [`install-qwen-3.8-flash-next-macos-128GB-mlxserve-pi.sh`](install-qwen-3.8-flash-next-macos-128GB-mlxserve-pi.sh) | [README](combinations/qwen/3.8/flash-next/macos/128GB/mlxserve-pi/README.md) |
 | Qwen3.8-Flash-Next UD-IQ4_XS ¹⁰ | macOS 26 | 128GB Apple silicon | llama.cpp *(MTP branch, Metal)* + pi | 128k | [`install-qwen-3.8-flash-next-macos-128GB-llamacpp-pi.sh`](install-qwen-3.8-flash-next-macos-128GB-llamacpp-pi.sh) | [README](combinations/qwen/3.8/flash-next/macos/128GB/llamacpp-pi/README.md) |
 | Qwen3.8-Flash-Next ⁷ | Ubuntu 26.04 | Strix Halo 128GB (Ryzen AI Max+ 395) | llama.cpp *(MTP PR; Vulkan or ROCm)* + pi | 128k | [`install-qwen-3.8-flash-next-ubuntu-strix-halo-128GB-llamacpp-pi.sh`](install-qwen-3.8-flash-next-ubuntu-strix-halo-128GB-llamacpp-pi.sh) | [README](combinations/qwen/3.8/flash-next/ubuntu/strix-halo-128GB/llamacpp-pi/README.md) |
 | Qwen3.8-Flash-Next UD-Q4_K_XL ⁸ | Ubuntu 26.04 | Strix Halo 128GB (Ryzen AI Max+ 395) | gufo *(Podman, ROCm in the image)* + pi | 128k | [`install-qwen-3.8-flash-next-ubuntu-strix-halo-128GB-gufo-pi.sh`](install-qwen-3.8-flash-next-ubuntu-strix-halo-128GB-gufo-pi.sh) | [README](combinations/qwen/3.8/flash-next/ubuntu/strix-halo-128GB/gufo-pi/README.md) |
@@ -110,7 +110,7 @@ the client for a model served by a bigger machine instead.
 
 ⁵ **Not recommended at present (27 Sep 2026).** MTPLX 2.12.0 refuses or overruns memory at the
 agent's context compaction in long sessions: repeated Mac freezes, and stories that collapse after
-refused compactions. See the [combination README](combinations/qwen/3.8/flash-next/macos/128GB/mtplx-opencode/README.md).
+refused compactions. See the [combination README](combinations/qwen/3.8/flash-next/macos/128GB/mtplx-pi/README.md).
 On this Mac, use llama.cpp + pi (`combinations/qwen/3.8/flash-next/macos/128GB/llamacpp-pi`).
 
 ⁴ **Chip generation, not just memory.** MTPLX offers MiMo V2.6 Qwen 9B (a
@@ -447,7 +447,7 @@ A combination is data — a config file, a table of measured profiles, and its
 help text. Adding one does not add shell code:
 
 ```
-install-qwen-3.8-27b-ubuntu-nvidia4090-llamacpp-opencode.sh   ← 8 lines
+install-qwen-3.8-27b-ubuntu-nvidia4090-llamacpp-pi.sh   ← 8 lines
   └─ lib/bootstrap.sh          resolves the config, orders the install
        ├─ lib/os.sh            OS qualification
        ├─ lib/deps.sh          packages and build tools

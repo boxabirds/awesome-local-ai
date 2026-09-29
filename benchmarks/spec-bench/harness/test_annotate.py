@@ -83,7 +83,7 @@ def test_attempts_build_from_the_real_records(tmp_path):
     attempts = annotate.load_attempts(annotate.REPO, tmp_path / "cache.json", rebuild=True)
     ids = {a["id"] for a in attempts}
     assert len(ids) == len(attempts) and len(attempts) >= 100
-    pi03_s7 = next(a for a in attempts if a["id"].endswith("27b/ubuntu/nvidia4090/llamacpp-opencode/benchmarks/vidi/canvas-pi-03#07"))
+    pi03_s7 = next(a for a in attempts if a["id"].endswith("27b/ubuntu/nvidia4090/llamacpp-pi/benchmarks/vidi/canvas-pi-03#07"))
     assert pi03_s7["title"].startswith("Select") and pi03_s7["timeline"] and pi03_s7["commits"]
     assert pi03_s7["behaviour"]["own_total"] == 8
     # cached on the second load

@@ -39,7 +39,7 @@ workspace's HEAD or working tree changed. dbench returns it in its status view
          "status": "written", "found": 7, "total": 7}
       ],
       "baselines": [
-        {"source": "qwen/3.8/flash-next/macos/128GB/mtplx-opencode canvas-pi-01",
+        {"source": "qwen/3.8/flash-next/macos/128GB/mtplx-pi canvas-pi-01",
          "agent_minutes": 58.4, "calls": 236, "output_tokens": 163933, "status": "DONE"}
       ],
       "recent_activity": ["bash: npx playwright test --config=playwright.nightly.config.ts …"]

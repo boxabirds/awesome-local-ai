@@ -3,7 +3,7 @@
 **Status:** blocked (29 Sep 2026; retired from runs since late Sep 2026). Its memory admission can deadlock a
 long coding-agent conversation, and neither report has a fix yet.
 **Machine:** quintus (M5 Max). mlx-serve replaced it as the MLX engine; it is not used as a baseline.
-Three vidi runs exist under [mtplx-opencode](../combinations/qwen/3.8/flash-next/macos/128GB/mtplx-opencode/).
+Three vidi runs exist under [mtplx-pi](../combinations/qwen/3.8/flash-next/macos/128GB/mtplx-pi/).
 
 ## Why it's blocked
 

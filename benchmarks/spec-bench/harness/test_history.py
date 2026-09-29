@@ -11,7 +11,7 @@ import history
 import report
 from drive import REPO_ROOT
 
-GRUNTUS_RUN = (REPO_ROOT / "combinations/qwen/3.8/27b/ubuntu/nvidia4090/llamacpp-opencode/benchmarks/vidi"
+GRUNTUS_RUN = (REPO_ROOT / "combinations/qwen/3.8/27b/ubuntu/nvidia4090/llamacpp-pi/benchmarks/vidi"
                / "canvas-pi-03")
 
 LOG = """commit bbbb
@@ -116,7 +116,7 @@ def test_gruntus_story_7_is_found_as_the_story_that_broke_stories_1_to_5():
     assert "## How it happened" in report.summary(GRUNTUS_RUN)
 
 
-QUINTUS_RUN = (REPO_ROOT / "combinations/qwen/3.8/flash-next/macos/128GB/mtplx-opencode/benchmarks/vidi"
+QUINTUS_RUN = (REPO_ROOT / "combinations/qwen/3.8/flash-next/macos/128GB/mtplx-pi/benchmarks/vidi"
                / "canvas-pi-03")
 
 

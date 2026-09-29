@@ -7,7 +7,7 @@ from pathlib import Path
 
 import identity as I
 
-ENV = '''# Written by awesome-local-ai. Combination: qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-opencode
+ENV = '''# Written by awesome-local-ai. Combination: qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-pi
 INSTALL_ID="swift15-qwen38-27b"
 BACKEND="llamacpp"
 MODEL_SUBDIR="models"
