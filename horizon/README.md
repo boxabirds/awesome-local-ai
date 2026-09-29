@@ -42,9 +42,9 @@ At each review, re-read every note that is not adopted or eliminated: follow its
 |---|---|---|---|
 | [NInfer (Swift 1.5)](ninfer.md) | queued | gruntus (Windows) | Windows-only 4090 engine for Swift 1.5; waiting for the Windows setup |
 | [TensorFold](tensorfold.md) | blocked | quintus | MLX/CUDA exact speculative decoding; blocked on cache retention past ~100k |
+| [MTPLX](mtplx.md) | blocked | quintus | memory admission deadlocks long agent sessions (507); reported, no fix yet |
 | [Strata](strata.md) | gated | gruntus | Flash-Next (125B MoE) on one 4090 by offloading experts to RAM |
 | [Prompt lookup (n-gram speculation)](ngram-speculation.md) | parked | gruntus (Ubuntu) | engine setting; test on the dense 27B; eliminated for sparse MoE |
 | [llama.cpp Metal on quintus](llamacpp-metal-quintus.md) | parked | quintus | paused after canvas-metal-01 story 1 |
-| [MTPLX](mtplx.md) | eliminated | quintus | retired: compaction requests refused, conversations deadlock |
 | [DeepSeek V4.1](deepseek-v4.1.md) | eliminated | none | about 750B parameters in total; V4.1-Flash size not checked |
 | Swift 1.5 Qwen3.8-27B (llama.cpp) | adopted | gruntus | [combination](../combinations/qwen/3.8-swift-1.5/27b/ubuntu/nvidia4090/llamacpp-opencode/README.md) |
