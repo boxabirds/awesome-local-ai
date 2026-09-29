@@ -1,0 +1,31 @@
+{
+  "name": "benchmarker",
+  "private": true,
+  "type": "module",
+  "description": "Live status of every benchmark run: build, score, judge.",
+  "scripts": {
+    "build": "vite build",
+    "start": "node server/main.ts",
+    "dev": "vite",
+    "test": "vitest run",
+    "test:e2e": "playwright test"
+  },
+  "engines": {
+    "node": ">=22.18"
+  },
+  "dependencies": {
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0",
+    "swr": "^2.5.1"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.63.0",
+    "@types/node": "^26.6.3",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "@vitejs/plugin-react": "^6.1.1",
+    "typescript": "^7.0.2",
+    "vite": "^8.3.1",
+    "vitest": "^5.0.2"
+  }
+}

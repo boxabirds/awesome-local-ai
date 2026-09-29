@@ -3,12 +3,23 @@
 One page with the live status of every benchmark run: where each run is in **build → score → judge**,
 with links to its record, its scores and the review page.
 
+A React app (Vite, SWR) with a small Node server. Needs Node 24 or later, which runs the server's
+TypeScript directly.
+
 ```bash
-uv run tools/benchmarker/benchmarker.py          # then open http://127.0.0.1:7760
-uv run tools/benchmarker/benchmarker.py --repo /path/to/awesome-local-ai --port 7760 --judge-url http://127.0.0.1:7800/review
+cd tools/benchmarker
+npm install && npm run build
+npm start                                    # then open http://127.0.0.1:7760
+node server/main.ts --repo /path/to/awesome-local-ai --port 7760 --judge-url http://127.0.0.1:7800/review
 ```
 
-Standard library only; it runs anywhere with a clone of this repo.
+Tests: `npm test` (the domain logic, Vitest) and `npm run test:e2e` (Playwright against fixed data in
+`e2e/fixture.json`: running and queued rows, stories, the version filter, width at 1000 px, the stale
+warning, reload on a new build).
+
+Layout: `server/` reads git and dbench and serves `/api/state` plus the built page; `server/domain.ts`
+turns records and jobs into rows (pure, unit-tested); `src/` is the page, one component per column;
+`shared/types.ts` is the state both sides agree on.
 
 ## Where the data comes from
 
@@ -20,7 +31,7 @@ Standard library only; it runs anywhere with a clone of this repo.
   (`~/.config/dbench/nodes.toml`): queued and running jobs, the current story, and the last log line.
   Without dbench the page shows the repo only.
 
-The page itself refreshes every 5 seconds and says when the repo and dbench were last read. A running story's live numbers (agent minutes, calls, tokens, tasks) come from the harness, which writes them about once a minute, so they move in steps. When the benchmarker is updated, open tabs reload themselves. If it can't refresh for 20 seconds (the server stopped, or an error), it greys out under a red bar saying how old the data is, so old data never passes for current.
+The page itself refreshes every 5 seconds and says when the repo and dbench were last read. A running story's live numbers (agent minutes, calls, tokens, tasks) come from the harness, which writes them about once a minute, so they move in steps. When the benchmarker is rebuilt, open tabs reload themselves (each build has an id; the page reloads when the server's differs). If it can't refresh for 20 seconds (the server stopped, or an error), it greys out under a red bar saying how old the data is, so old data never passes for current.
 
 ## What each column means
 
