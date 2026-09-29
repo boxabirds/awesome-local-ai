@@ -153,5 +153,5 @@ Playwright tests against `wrangler dev` covering story 1's e2e cases and workflo
 `tests/e2e/helpers/board.ts`: locate origin marker, read zoom label, set camera via test hook.
 
 ## Done when
-All cases pass in all three browser projects; Safari pinch recorded as manual check per strategy "Not covered".
+All cases pass in all three browser projects. Safari pinch gestures are not tested in e2e (Playwright WebKit cannot synthesise them; TC-17 covers the handler), per strategy "Not covered".
 

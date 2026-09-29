@@ -336,10 +336,12 @@ export function applyTextDiff(ytext: Y.Text, next: string, origin: unknown): voi
 - **Side effects:** LOCAL_ORIGIN transactions; `createText` sets z above all objects and `createdBy` from identity.
 
 ## Implementation
-Text objects use story 7's generic `moveObjects`, `deleteObjects` and selection; nothing text-specific is added to those (text.consistent). Low reversibility: `size` stored as preset key and `widthMode` are persisted schema. `StickyText.ts` re-exports `clampToLimit`/`applyTextDiff` from `text-edit.ts` with STICKY_TEXT_MAX_CHARS so story 2 callers are unchanged.
+- **Placing text (text.create):** `createText(doc, at, createdBy)` creates a `text` object whose **top-left is `at`**, with `size: 'M'`, `widthMode: 'auto'`, empty Y.Text, and z above every other object, in one LOCAL_ORIGIN transaction, returning the new id. The Text tool (text.tool_ui) calls it on board click, then immediately starts editing that id and switches the active tool back to Select.
+- Text objects use story 7's generic `moveObjects`, `deleteObjects` and selection; nothing text-specific is added to those (text.consistent).
+- Low reversibility: `size` stored as preset key and `widthMode` are persisted schema. `StickyText.ts` re-exports `clampToLimit`/`applyTextDiff` from `text-edit.ts` with STICKY_TEXT_MAX_CHARS so story 2 callers are unchanged.
 
 ## Tests
-Unit TC-01 to TC-06 (`tests/unit/text-model.test.ts`).
+Unit TC-01 to TC-06 (`tests/unit/text-model.test.ts`); tool placement TC-14 to TC-18.
 
 ## Text layout and box sync
 
@@ -376,7 +378,7 @@ export type Tool = 'select' | 'text';   // stories 10-12 extend
 export function useTool(canEdit: boolean): { tool: Tool; setTool(t: Tool): void };
 ```
 - **Inputs:** keydown V, T, N, Escape (ignored while editing text or focus in inputs); Toolbar clicks; board click in `BoardViewport`.
-- **Outputs:** Toolbar `button[aria-label="Select (V)"]` and `button[aria-label="Text (T)"]` with `aria-pressed`; `cursor: text` over the board while Text active; board click with Text active → `createText(screenToWorld(point), identity.id)`, `setTool('select')`, start editing the new id. N keeps story 2 behaviour (create sticky at view centre).
+- **Outputs:** Toolbar `button[aria-label="Select (V)"]` and `button[aria-label="Text (T)"]` with `aria-pressed`; the story 2 Sticky note button's label becomes "Sticky note (N)"; `cursor: text` over the board while Text active; board click with Text active → `createText(screenToWorld(point), identity.id)`, `setTool('select')`, start editing the new id. N is introduced by this story and does the same as the story 2 Sticky note button (create a sticky at the view centre).
 - **Errors:** `canEdit` false → Text button disabled, T ignored, active Text reverts to Select.
 - **Side effects:** none persisted.
 

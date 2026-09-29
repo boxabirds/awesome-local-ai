@@ -182,6 +182,21 @@ No server changes; no integration tests.
 - **D4 Stack state:** empty, some, at UNDO_MAX_STEPS.
 - **D5 Edit lock:** editable, load failed.
 
+Classes in each dimension are exhaustive and non-overlapping: every change has exactly one origin, every undo step has exactly one kind, and every target, stack and board is in exactly one of the listed states.
+
+## Equivalence classes and boundary values per capability
+Within each capability the input and prior-state partitions below are exhaustive and non-overlapping: every input falls into exactly one class.
+
+| Capability | Input / prior state | Equivalence classes | Boundary values | TCs |
+|---|---|---|---|---|
+| undo.history | origin of a change | local (tracked); remote (untracked); load (untracked) | — | TC-01 / TC-02 / TC-03 |
+| undo.history | target state when an inverse is applied | present; deleted remotely; edited remotely | — | TC-04, TC-05 / TC-07 / TC-08 |
+| undo.history | stack length before a new step | 0; 1..UNDO_MAX_STEPS − 1; UNDO_MAX_STEPS | UNDO_MAX_STEPS − 1, UNDO_MAX_STEPS | TC-02 / TC-10 / TC-09 |
+| undo.boundaries | pause between keystrokes | below UNDO_CAPTURE_TIMEOUT_MS; at or above | UNDO_CAPTURE_TIMEOUT_MS − 1 ms, exactly | TC-12, TC-13 |
+| undo.boundaries | gesture outcome | completed; cancelled | — | TC-14 / TC-17 |
+| undo.controls | focus when shortcut pressed | board or note editor; other input | — | TC-19, TC-16 / TC-21 |
+| undo.controls | board edit state | editable; load failed | — | TC-19 / TC-20 |
+
 ## Coverage table
 | TC | Capability | D1 | D2 | D3 | D4 | D5 | Expected before → after | Level |
 |---|---|---|---|---|---|---|---|---|
@@ -249,6 +264,7 @@ No server changes; no integration tests.
 Retro board with 12 notes in varied colours and sizes; 8 of them in one cluster for the delete scenario.
 
 ## Not covered
+Deliberately not covered by automated tests:
 - Undo for object types from stories 9–12 and comments (story 16): covered by those stories' tests using this controller.
 - IME composition interaction with capture timeout (manual).
 

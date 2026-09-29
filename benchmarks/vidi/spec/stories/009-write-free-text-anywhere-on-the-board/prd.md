@@ -33,14 +33,14 @@ Pain points:
 7. Her colleague sees the heading appear, grow and move live.
 
 ### Structure
-- Left toolbar: Select (V) and Text (T) tool buttons join the existing Sticky note button (N); the active tool is highlighted.
+- Left toolbar: Select (V) and Text (T) tool buttons join the existing Sticky note button, which gains the shortcut N; the active tool is highlighted.
 - Text object: plain text, no background.
 - Text toolbar when exactly one text object is selected: S, M, L, XL size buttons (current one highlighted) and Delete.
 - Selected text shows left and right side handles only.
 
 ### Behaviour
 - Text tool: next click on the board creates text there; the tool returns to Select afterwards. Escape or V also returns to Select without creating.
-- N keeps its story 2 behaviour: creates a sticky note in the centre of the view.
+- N (new in this story) does the same as the story 2 Sticky note button: creates a sticky note in the centre of the view.
 - New text is size M.
 - Typing: Enter adds a new line; Escape or clicking elsewhere ends editing.
 - Auto width: the text box is as wide as its longest line, up to 600 board units, then lines wrap.

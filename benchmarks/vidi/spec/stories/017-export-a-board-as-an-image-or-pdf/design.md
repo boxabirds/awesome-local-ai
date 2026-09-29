@@ -5,7 +5,7 @@ Client-side export pipeline: pure planning (area bounds, raster size with clampi
 ## Overview
 
 ## Context
-Builds on: story 1 camera (`src/client/canvas/camera.ts`), story 2 snapshot/model (`src/shared/board-model.ts`, `STICKY_COLORS`), story 5 top bar (`SharePanel` placement in `BoardPage`), story 7 object registry and selection (`src/client/objects/registry.tsx`, `useSelection`), object types from stories 9–12 (`src/shared/objects/<type>.ts`), story 12 assets (`GET /api/assets/:key`), story 15 board name. Export runs entirely in the browser; **no server changes**.
+Builds on: story 1 camera (`src/client/canvas/camera.ts`), story 2 snapshot/model (`src/shared/board-model.ts`, `STICKY_COLORS`), story 5 top bar (`SharePanel` placement in `BoardPage`), story 7 object registry and selection (`src/client/objects/registry.tsx`, `useSelection`), object types from stories 9–12 (`src/shared/objects/<type>.ts`), story 12 assets (`GET /api/assets/:key`), story 15 board title (`displayTitle`, DEFAULT_BOARD_TITLE). Export runs entirely in the browser; **no server changes**.
 
 ## Decision: Canvas2D rasterisation, not SVG-to-canvas
 The convention says export renders "from the doc via the registry" with images embedded. Two browser techniques were considered: (a) build an SVG with images as data URLs and draw it onto a canvas; (b) draw directly onto a Canvas2D context from the doc snapshot. **(b) is chosen**: it avoids browser differences in rasterising SVG with embedded images and `foreignObject` text (a known source of tainted or blank canvases), keeps text wrapping under our control via `measureText`, and lets the pipeline yield between items for progress and cancellation. Images are still embedded in the output: they are fetched same-origin from `/api/assets/:key` and decoded to `ImageBitmap` (no data URL round-trip needed because the canvas is never tainted by same-origin blobs). PDF embeds the same PNG raster.
@@ -38,7 +38,6 @@ export const EXPORT_IMAGE_TIMEOUT_MS = 15_000;
 export const EXPORT_IMAGE_CONCURRENCY = 4;
 export const EXPORT_BACKGROUND_COLOR = '#FFFFFF';
 export const EXPORT_PLACEHOLDER_FILL = '#E0E0E0';
-export const EXPORT_FILENAME_FALLBACK = 'vidi6-board';
 export const EXPORT_PDF_POINTS_PER_PX = 0.75;      // 72 pt per inch / 96 px per inch
 export const EXPORT_PDF_MAX_PAGE_PT = 14_400;
 export const EXPORT_YIELD_EVERY_ITEMS = 50;
@@ -140,7 +139,7 @@ sequenceDiagram
             alt blob null
                 P-->>D: failed
             else
-                P->>U: download filename
+                P->>U: download board title plus date filename
                 P-->>D: downloaded reducedPercent missingImages
             end
         end
@@ -236,6 +235,8 @@ sequenceDiagram
 
 No request-handling code is added (the asset route belongs to story 12), so no integration-level tests; stated deliberately.
 
+Timing policy: export duration is **measured and logged** against EXPORT_BUDGET_MS but **not asserted**, because the model, the browser and the server share one machine and wall-clock timing there is not a reliable pass/fail signal. Deterministic timers (image timeout) are tested with fake timers.
+
 ## Dimensions crossed
 - **D1 Area:** whole, view, selection.
 - **D2 Format:** PNG, PDF.
@@ -255,7 +256,7 @@ Classes in each dimension are exhaustive and non-overlapping.
 | TC-05 | export.plan | whole | PNG | fits | not applicable | success | planRaster scale 1 and 2 | 2x dims exactly double 1x (ceil) | unit |
 | TC-06 | export.plan | whole | PNG | needs reduction | not applicable | success | width EXPORT_MAX_SIDE_PX + 1; area EXPORT_MAX_AREA_PX + 1 | fit < 1; sides ≤ max; area ≤ max; reducedPercent floor | unit |
 | TC-07 | export.plan | whole | PNG | too large | not applicable | success | effective exactly EXPORT_MIN_SCALE; just below | allowed ; too_large | unit |
-| TC-08 | export.plan | not applicable: naming | PNG, PDF | not applicable: naming | not applicable | success | names 'Q3/planning: v2', '', undefined; fake date 2026-09-17 local | 'Q3-planning- v2-2026-09-17.png', fallback names, .pdf | unit |
+| TC-08 | export.plan | not applicable: naming | PNG, PDF | not applicable: naming | not applicable | success | titles 'Q3/planning: v2' and 'Untitled board'; fake date 2026-09-17 local | 'Q3-planning- v2-2026-09-17.png'; 'Untitled board-2026-09-17.pdf' | unit |
 | TC-09 | export.plan | not applicable: page maths | PDF | fits / needs reduction | not applicable | success | pdfPageSize 1000x500 px; 40000x100 px | 750x375 pt ; longest side EXPORT_PDF_MAX_PAGE_PT, ratio kept | unit |
 | TC-10 | export.assets | whole | not applicable: format-independent | fits | all load | success | 10 image keys with deferred fetch | max 4 (EXPORT_IMAGE_CONCURRENCY) in flight; 10 bitmaps | unit |
 | TC-11 | export.assets | whole | not applicable | fits | 404, network error, timeout | success | fake timers 14,999 ms pending; 15,000 ms timed out | missing count 3; placeholders | unit |
@@ -275,7 +276,7 @@ Classes in each dimension are exhaustive and non-overlapping.
 ## Coverage table — ui-component and e2e
 | TC | Capability | Case | Expected | Level |
 |---|---|---|---|---|
-| TC-24 | export.dialog | open with nothing selected; switch to PDF | defaults PNG/Whole/2x; size hint text; Selection disabled with hint; Resolution hidden for PDF | ui-component |
+| TC-24 | export.dialog | open with nothing selected; switch to PDF | defaults PNG/Whole/2x; size hint text; Selection disabled with hint "Select items first"; Resolution hidden for PDF | ui-component |
 | TC-25 | export.dialog | plan empty | "Nothing to export — this area is empty."; Export disabled | ui-component |
 | TC-26 | export.dialog | plan too_large | too-large message; runExport not called | ui-component |
 | TC-27 | export.dialog | exporting then Cancel | progress bar + Cancel shown; abort called; returns to Options | ui-component |
@@ -289,7 +290,7 @@ Classes in each dimension are exhaustive and non-overlapping.
 | TC-35 | export.assets | e2e offline (`context.setOffline`) | download still happens; uncached images placeholders | e2e |
 | TC-36 | export.dialog | e2e far-apart fixture needing reduction; extreme fixture | reduced notice with percent; too-large message and no download event | e2e |
 | TC-37 | export.pipeline | e2e read-only: second context watching; exporter camera and selection before/after | no updates received; camera and selection identical | e2e |
-| TC-38 | export.pipeline | nightly: EXPORT_TESTED_ITEMS mixed board PNG 2x | duration ≤ EXPORT_BUDGET_MS logged | e2e |
+| TC-38 | export.pipeline | nightly: EXPORT_TESTED_ITEMS mixed board PNG 2x | export completes and downloads; PNG dimensions equal the plan; duration logged against EXPORT_BUDGET_MS, not asserted | e2e |
 
 ## Boundary values
 Scale EXPORT_MIN_SCALE exactly and just below (TC-07); side and area limits +1 (TC-06); timeout 14,999/15,000 ms (TC-11); concurrency exactly EXPORT_IMAGE_CONCURRENCY (TC-10); PDF page limit (TC-09); wrap width exact fit (TC-16); yield after EXPORT_YIELD_EVERY_ITEMS items (TC-22).
@@ -335,12 +336,14 @@ Scale EXPORT_MIN_SCALE exactly and just below (TC-07); side and area limits +1 (
 5. **Nobody notices** (TC-37): export has no side effects.
 
 ## Fixtures
-`tests/fixtures/export-boards.ts`: realistic retro board (12 stickies in 3 colours, 2 text blocks, 3 shapes with labels, 4 connectors, 2 pen strokes, 2 images from real small PNG assets); far-apart board (items 20,000 units apart) needing reduction; extreme board (items 400,000 units apart) too large; EXPORT_TESTED_ITEMS mixed board for nightly timing.
+`tests/fixtures/export-boards.ts`: realistic retro board titled "Q3 planning" (12 stickies in 3 colours, 2 text blocks, 3 shapes with labels, 4 connectors, 2 pen strokes, 2 images from real small PNG assets); far-apart board (items 20,000 units apart) needing reduction; extreme board (items 400,000 units apart) too large; EXPORT_TESTED_ITEMS mixed board for the nightly timing report.
 
 ## Not covered
-- Exact canvas size limits per browser (settings are conservative; manual check per browser).
+Deliberately not covered by automated tests:
+- Wall-clock export duration on a shared machine is reported, not asserted (TC-38 logs it against EXPORT_BUDGET_MS).
+- Exact canvas size limits per browser (settings are conservative).
 - Sub-pixel text rendering differences between DOM and canvas (tolerance-based pixel checks only).
-- Opening PDFs in third-party viewers beyond pdf-lib parsing (manual check in one viewer).
+- Opening PDFs in third-party viewers beyond pdf-lib parsing.
 - Mobile browsers (out of scope for the product).
 
 ## Export planning
@@ -355,19 +358,26 @@ export type BoundsResult = { kind: 'empty' } | { kind: 'ok'; rect: Rect; itemIds
 export function computeBounds(items: readonly ObjectSnapshot[], area: Area): BoundsResult;
 export type RasterPlan = { kind: 'too_large' } | { kind: 'ok'; widthPx: number; heightPx: number; effectiveScale: number; reducedPercent: number | null };
 export function planRaster(rect: Rect, scale: (typeof EXPORT_SCALES)[number]): RasterPlan;
-export function exportFilename(boardName: string | undefined, format: 'png' | 'pdf', now: Date): string;
+export function exportFilename(boardTitle: string, format: 'png' | 'pdf', now: Date): string;
 export function pdfPageSize(widthPx: number, heightPx: number): { widthPt: number; heightPt: number };
 ```
-- **Inputs:** immutable item snapshots with `x,y,width,height` (connector bbox derived per convention), area choice, scale, board name, clock.
-- **Outputs:** world rect + item ids, raster plan, sanitised filename, PDF page size.
-- **Errors:** no items → `empty`; effective scale < EXPORT_MIN_SCALE → `too_large`; non-finite rect → `empty`.
+- **Inputs:** immutable board-object snapshots with `x,y,width,height` (connector bbox derived per convention), area choice, scale, board title (story 15 `displayTitle`; DEFAULT_BOARD_TITLE "Untitled board" until renamed), clock.
+- **Outputs:** world rect + object ids, raster plan, sanitised filename, PDF page size.
+- **Errors:** no objects → `empty`; effective scale < EXPORT_MIN_SCALE → `too_large`; non-finite rect → `empty`.
 - **Side effects:** none.
 
 ## Implementation
-Whole/selection add EXPORT_MARGIN_WORLD; view uses exact `screenToWorld` of viewport corners and includes intersecting items. Filename replaces `/\:*?"<>|` with `-`, trims, falls back to EXPORT_FILENAME_FALLBACK, appends local `YYYY-MM-DD`. Maths per Overview. The dialog's size hint (export.open) uses `planRaster` output.
+- **Whole board (export.area_whole):** the union of every board object's bounds plus EXPORT_MARGIN_WORLD (40 board units) on each side, computed from the document regardless of the current camera.
+- **Current view (export.area_view):** exactly the world rectangle of the visible board area (`screenToWorld` of the viewport corners), no margin; objects crossing its edges are included and cut at the edge.
+- **Selection (export.area_selection):** the union of the selected objects plus EXPORT_MARGIN_WORLD; `itemIds` contains **only the selected ids** and is the sole list the drawing stage renders, so unselected objects inside that rectangle are never drawn. When nothing is selected the dialog disables the Selection option and shows the hint "Select items first", so this area is never computed for an empty selection.
+- **Resolution (export.scale):** 1× is one pixel per board unit; `widthPx = ceil(rect.width × scale)`, `heightPx = ceil(rect.height × scale)`, so 2× is exactly twice the width and twice the height of 1× for the same area.
+- **Automatic reduction (export.large_reduce):** `fit = min(1, EXPORT_MAX_SIDE_PX / w, EXPORT_MAX_SIDE_PX / h, sqrt(EXPORT_MAX_AREA_PX / (w × h)))`. When `fit < 1` the export uses `effectiveScale = scale × fit`, the largest scale that keeps both sides ≤ 8,192 px and the area within the maximum, and `reducedPercent = floor(fit × 100)`; after the download the dialog shows "Reduced to N% to fit the maximum image size."
+- **Too large (export.too_large):** when `effectiveScale` would fall below EXPORT_MIN_SCALE (25% of 1×) the plan is `too_large`; no canvas is created, nothing downloads, and the dialog shows "This board is too large to export. Export the current view or a selection instead."
+- **Empty area (export.empty):** when the chosen area contains no objects the plan is `empty`; nothing downloads and the dialog shows "Nothing to export — this area is empty." with Export disabled.
+- **File name (export.filename):** `exportFilename` takes the board's current title, replaces `/\:*?"<>|` with `-`, trims surrounding whitespace and appends `-YYYY-MM-DD` in local time and `.png` or `.pdf`. There is no fallback name: every board has a 1–100 character title ("Untitled board" until renamed).
 
 ## Tests
-unit: TC-01 to TC-09 (`tests/unit/export-plan.test.ts`). e2e: TC-32.
+unit: TC-01 to TC-09 (`tests/unit/export-plan.test.ts`). ui-component: TC-24 to TC-26. e2e: TC-32, TC-36.
 
 ## Export asset and font loading
 
@@ -381,13 +391,15 @@ export type LoadedAssets = { bitmaps: Map<string, ImageBitmap>; missing: Set<str
 export function loadAssets(assetKeys: readonly string[], signal: AbortSignal, deps: AssetDeps): Promise<LoadedAssets>;
 export function ensureFonts(fontSpecs: readonly string[], deps: AssetDeps): Promise<void>; // never rejects
 ```
-- **Inputs:** asset keys from `image` items in the export area, font specs (`<size>px <family>`) derived from text-bearing items.
+- **Inputs:** asset keys from image objects in the export area, font specs (`<size>px <family>`) derived from text-bearing objects.
 - **Outputs:** decoded bitmaps; set of missing keys.
 - **Errors:** non-2xx, network error (including offline), decode failure, or no response within EXPORT_IMAGE_TIMEOUT_MS → key added to `missing` (not thrown); `signal` aborted → all in-flight fetches aborted and `AbortError` thrown; font load rejection → logged, fallback font used.
 - **Side effects:** same-origin GETs to `/api/assets/:key` (story 12); at most EXPORT_IMAGE_CONCURRENCY in flight.
 
 ## Implementation
-Promise pool with per-request `AbortController` linked to the job signal and a timeout. `decode` defaults to `createImageBitmap`, falling back to `HTMLImageElement.decode()` where unsupported. Same-origin blobs keep the canvas untainted so `toBlob` succeeds.
+- Promise pool with per-request `AbortController` linked to the job signal and a timeout. `decode` defaults to `createImageBitmap`, falling back to `HTMLImageElement.decode()` where unsupported. Same-origin blobs keep the canvas untainted so `toBlob` succeeds.
+- **Missing images (export.images):** an image that cannot be loaded within EXPORT_IMAGE_TIMEOUT_MS (15 seconds) never fails the export: its key goes into `missing`, the drawing stage paints a labelled placeholder of the image's size (EXPORT_PLACEHOLDER_FILL, image icon, "Image unavailable"), the pipeline returns `missingImages = missing.size`, and the dialog reports "N images couldn't be included." after the download.
+- **Works offline (export.offline):** with no connection, fetches fail immediately and those images become placeholders exactly as above; nothing else in the export uses the network (drawing, encoding and download are local), so the export still completes and downloads.
 
 ## Tests
 unit: TC-10 to TC-13 (`tests/unit/export-assets.test.ts`). e2e: TC-34, TC-35.
@@ -406,13 +418,14 @@ export function drawExport(ctx: CanvasRenderingContext2D, items: readonly Object
 // src/client/export/draw/wrapText.ts
 export function wrapText(measure: (s: string) => number, text: string, maxWidth: number): string[];
 ```
-- **Inputs:** items (from the doc `objects` map only), world rect, effective scale, loaded assets.
-- **Outputs:** pixels on the canvas: background EXPORT_BACKGROUND_COLOR, then items sorted by `(z, id)` transformed by `scale` and `-rect.origin`.
+- **Inputs:** board objects (from the doc `objects` map only), world rect, effective scale, loaded assets.
+- **Outputs:** pixels on the canvas: background EXPORT_BACKGROUND_COLOR (white), then objects sorted by `(z, id)` transformed by `scale` and `-rect.origin`.
 - **Errors:** unknown `type` → skipped (counted in a debug log); image with missing bitmap → placeholder (EXPORT_PLACEHOLDER_FILL rect, image icon, "Image unavailable"); abort → throws at next yield.
-- **Side effects:** yields to the event loop every EXPORT_YIELD_EVERY_ITEMS items and reports progress.
+- **Side effects:** yields to the event loop every EXPORT_YIELD_EVERY_ITEMS objects and reports progress.
 
 ## Implementation
-Per type: sticky (fill colour from STICKY_COLORS, text fitted with the same min/max font sizes as story 2 using `measureText`); text (Y.Text string, fontSize, wrap to width); shape (rect/ellipse/diamond path, fill, stroke, centred label); connector (endpoints resolved via `src/shared/objects/connector.ts` from connected objects' side anchors, path + arrowhead); stroke (flattened points as polyline, round joins/caps, colour, thickness); image (`drawImage` bitmap into rect). Grid, cursors, selection outlines and comments are never inputs, so they cannot appear (export.excludes).
+- **Faithful drawing (export.fidelity):** objects are drawn in the same `(z, id)` stacking order the board uses, at their document positions and sizes, with the same colours and fonts. Per type: sticky note — fill from STICKY_COLORS, text fitted with story 2's min/max font sizes via `measureText`; text — Y.Text content, preset font size, wrapped to its width with the same line breaks; shape — rectangle/ellipse/diamond path with fill, outline and centred label; connector — endpoints resolved from connected objects' side anchors, line plus arrowhead; pen stroke — flattened points as a polyline with round joins and caps, colour and thickness; image — `drawImage` of the decoded bitmap into its rect. At 1× one board unit is one pixel, which matches the on-screen appearance at 100% zoom.
+- **Nothing but board objects (export.excludes):** the only input is the `objects` map. The dot grid, other people's cursors (awareness), selection outlines (local UI state) and comment markers (`comments` map) are never read, so they cannot appear in the output.
 
 ## Tests
 unit: TC-14 to TC-18 (`tests/unit/export-draw.test.ts`). e2e: TC-31.
@@ -424,7 +437,7 @@ unit: TC-14 to TC-18 (`tests/unit/export-draw.test.ts`). e2e: TC-31.
 ## Contract
 ```ts
 // src/client/export/pipeline.ts
-export interface ExportJob { format: 'png' | 'pdf'; area: Area; scale: (typeof EXPORT_SCALES)[number]; boardName?: string }
+export interface ExportJob { format: 'png' | 'pdf'; area: Area; scale: (typeof EXPORT_SCALES)[number]; boardTitle: string }
 export type ExportResult =
   | { kind: 'downloaded'; filename: string; reducedPercent: number | null; missingImages: number }
   | { kind: 'empty' } | { kind: 'too_large' } | { kind: 'cancelled' }
@@ -432,13 +445,18 @@ export type ExportResult =
 export interface PipelineDeps { createCanvas(w: number, h: number): HTMLCanvasElement; download(blob: Blob, filename: string): void; loadPdfLib(): Promise<typeof import('pdf-lib')>; assets: AssetDeps; now(): Date }
 export function runExport(doc: Y.Doc, job: ExportJob, deps: PipelineDeps, signal: AbortSignal, onProgress: (fraction: number) => void): Promise<ExportResult>;
 ```
-- **Inputs:** doc, job, dependencies, abort signal.
-- **Outputs:** one download (PNG `image/png` blob, or PDF from pdf-lib: `PDFDocument.create`, `embedPng`, one page sized by `pdfPageSize`, image drawn full-page) and a result.
+- **Inputs:** doc, job (including the board's current title), dependencies, abort signal.
+- **Outputs:** one download named by `exportFilename(job.boardTitle, …)`, and a result.
 - **Errors:** `getContext('2d')` null → `no-context`; `toBlob` yields null or throws → `encode-failed`; pdf-lib import or encoding throws → `pdf-failed`; abort at any stage → `cancelled`; plan empty/too_large returned before any canvas is created.
-- **Side effects:** download via object URL (revoked after click); **no doc transactions, camera or selection changes**; snapshot taken at start so concurrent remote edits do not alter the export.
+- **Side effects:** download via object URL (revoked after click).
 
 ## Implementation
-Stages Planning → LoadingAssets → Drawing → Encoding → Downloaded per state diagram; progress weights 20% assets, 70% drawing, 10% encoding. The module is loaded by dynamic import from the dialog; pdf-lib is imported only for PDF. Works offline because nothing but asset fetches touches the network.
+- **PNG (export.png):** after drawing (white background, export.draw), `canvas.toBlob('image/png')` produces the file, which is downloaded.
+- **PDF (export.pdf):** the same canvas is encoded to PNG, then pdf-lib (dynamic import) creates one document with **one page** sized by `pdfPageSize` (same proportions as the PNG) and draws the PNG across the full page, so the PDF looks exactly like the PNG.
+- **Browser failure (export.browser_failure):** a null 2D context, a null or throwing `toBlob`, or a pdf-lib failure returns `failed` before any download; the dialog shows "Export failed: your browser couldn't create a file this large. Try Current view or 1×." and stays open.
+- **Progress and cancel (export.cancel):** stages report progress (20% assets, 70% drawing, 10% encoding) for the dialog's progress bar. Cancel aborts the job's `AbortSignal`; asset fetches abort, drawing stops at its next yield, and encoding results are discarded — `cancelled` is returned and no file is downloaded.
+- **Export changes nothing (export.read_only):** the pipeline reads an immutable snapshot of `objects` taken at the start and never opens a doc transaction, never changes the camera or selection, and sends nothing to other people, so the board, the person's view and everyone else's screens are unchanged.
+- Stages Planning → LoadingAssets → Drawing → Encoding → Downloaded per the state diagram; works offline because only asset fetches touch the network.
 
 ## Tests
 unit: TC-19 to TC-23 (`tests/unit/export-pipeline.test.ts`). e2e: TC-33, TC-37, TC-38.
@@ -450,15 +468,17 @@ unit: TC-19 to TC-23 (`tests/unit/export-pipeline.test.ts`). e2e: TC-33, TC-37, 
 ## Contract
 ```tsx
 // src/client/export/ExportDialog.tsx
-export function ExportDialog(props: { doc: Y.Doc; open: boolean; onClose(): void; selection: ReadonlySet<string>; camera: Camera; viewport: Size; boardName?: string; run?: typeof runExport }): JSX.Element | null;
+export function ExportDialog(props: { doc: Y.Doc; open: boolean; onClose(): void; selection: ReadonlySet<string>; camera: Camera; viewport: Size; boardTitle: string; run?: typeof runExport }): JSX.Element | null;
 ```
-- **Inputs:** Export button click (BoardPage top bar), option changes, Export, Cancel, Close, Escape.
-- **Outputs:** `role=dialog aria-label="Export board"`; Format radios (PNG default), Area radios (Whole default; Selection disabled with hint "Select items first" when selection empty), Resolution radios (2× default, hidden for PDF), size hint from `planRaster` ("About W × H pixels"); during export: `progressbar` and Cancel; messages (`role=status`): empty, too large, "Reduced to N% to fit the maximum image size.", "N images couldn't be included.", failure text — exact PRD copy.
+- **Inputs:** Export button click (BoardPage top bar), option changes, Export, Cancel, Close, Escape; board title from story 15's `BoardTitle` state.
+- **Outputs:** dialog, options, progress, messages (exact PRD copy).
 - **Errors:** result `failed` → message, stays open; `empty`/`too_large` → message, Export disabled for that option set.
 - **Side effects:** creates an `AbortController` per job; captures the selection at Export click.
 
 ## Implementation
-State machine per Overview dialog diagram; clean success closes the dialog; results with notices return to Options with the notice visible. Escape closes only in Options.
+- **Open export options (export.open):** clicking Export (top-right, next to Share) opens `role=dialog aria-label="Export board"` with Format radios (PNG preselected, PDF), Area radios (Whole board preselected, Current view, Selection — disabled with the hint "Select items first" when the selection is empty) and, for PNG only, Resolution radios (1×, 2× with EXPORT_DEFAULT_SCALE 2× preselected). A size hint "About W × H pixels" shows the expected pixel size from `planRaster` and updates with every option change.
+- During export: `progressbar` and Cancel. Messages (`role=status`): empty, too large, "Reduced to N% to fit the maximum image size.", "N images couldn't be included.", failure text.
+- State machine per Overview dialog diagram; clean success closes the dialog; results with notices return to Options with the notice visible. Escape closes only in Options.
 
 ## Tests
 ui-component: TC-24 to TC-30 (`tests/component/ExportDialog.test.tsx`). e2e: TC-36.

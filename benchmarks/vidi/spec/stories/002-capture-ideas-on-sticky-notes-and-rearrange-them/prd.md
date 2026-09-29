@@ -151,7 +151,6 @@ IF the note is being edited THEN THE SYSTEM SHALL NOT remove the note when Delet
 
 ## Constraints
 
-- **Scale:** the board stays responsive (dragging follows the pointer without visible lag) with 500 notes on the board on a mid-range laptop. Checked by a scripted performance run, not a hard pass/fail gate in this story.
 - **Settings:** note size, colours, text limit and font size range are product settings defined in one place.
 - **Accessibility:** the Sticky note button, swatches and delete button have accessible names; colour swatches are distinguishable by name (tooltip and accessible label), not only by colour; notes are reachable with Tab and editable with Enter.
 - **Browsers:** same as story 1.

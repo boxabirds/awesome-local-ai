@@ -96,9 +96,9 @@ Implement text.tool_ui per contract.
 
 ## Approach
 - `useTool(canEdit)`: `tool: 'select' | 'text'`, `setTool`; when `canEdit` turns false an active Text tool reverts to Select.
-- Shortcuts in `useBoardKeys` (ignored while editing text or focus in inputs): V → select, T → text (only if canEdit), Escape → select, N → story 2 create-sticky-at-centre.
-- Toolbar: `button[aria-label="Select (V)"]`, `button[aria-label="Text (T)"]` with `aria-pressed`; Text disabled when `!canEdit`.
-- `BoardViewport`: while Text active, cursor `text`, empty-space pointerdown neither pans nor starts a marquee; click (also on top of objects) → `createText(screenToWorld(point), identity.id)`, `setTool('select')`, select and start editing the new id.
+- Shortcuts in `useBoardKeys` (ignored while editing text or focus in inputs): V → select, T → text (only if canEdit), Escape → select, N (new in this story) → same action as the story 2 Sticky note button: create a sticky at the view centre.
+- Toolbar: `button[aria-label="Select (V)"]`, `button[aria-label="Text (T)"]` with `aria-pressed`; the story 2 Sticky note button's label and tooltip gain "(N)"; Text disabled when `!canEdit`.
+- `BoardViewport`: while Text active, cursor `text`, empty-space pointerdown neither pans nor starts a marquee; click (also on top of objects) → `createText(screenToWorld(point), identity.id)` (size M, top-left at the click), `setTool('select')`, select and start editing the new id.
 
 ## Done when
 TC-14 to TC-18 pass.

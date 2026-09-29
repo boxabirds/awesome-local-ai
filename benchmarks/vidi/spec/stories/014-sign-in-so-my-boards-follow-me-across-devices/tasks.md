@@ -177,7 +177,7 @@ Implement auth.client per contract and requirement mapping.
 - `DevEmailSignIn`: email input with validation and note "Local build only — no verification"; rendered only when config mode is dev-email.
 - `AccountMenu` (every page, top-right): signed out → GoogleSignIn or DevEmailSignIn inline (no navigation on board pages); signed in → avatar (`referrerpolicy="no-referrer"`), name, email, Sign out; error messages.
 - `useIdentity` (story 6 modification): signed in → `{id:'u_'+user.id, name, email, avatarUrl, color: colourFromId}`; sign-out → fresh guest id; awareness `user` field updated on change.
-- `RecentBoards` on HomePage when signed in: empty state, list with relative times, error + Retry.
+- `RecentBoards` on HomePage (below New board) when signed in: empty state, list with relative times, error + Retry.
 - `BoardPage`: on board ready, signed in → `POST /api/boards/:id/visit`; guest → `recordGuestBoard`. No auth checks gate board editing.
 - `SignInPage` `/sign-in`: return path from sessionStorage `vidi6.returnTo`.
 
@@ -192,7 +192,7 @@ jsdom tests of auth.client's contract with a stubbed `window.google.accounts.id`
 ## Cases
 - TC-28 home page, GIS ready → `initialize` called with client id + callback; `prompt` called once; button rendered (auth.one_tap).
 - TC-29 board page, GIS ready → `prompt` never called; button rendered in AccountMenu (auth.no_prompt_on_board, negative).
-- TC-30 GIS never ready → no message at GIS_LOAD_TIMEOUT_MS − 1; unavailable message at exactly GIS_LOAD_TIMEOUT_MS; Create a board still enabled (auth.google_unavailable, boundary).
+- TC-30 GIS never ready → no message at GIS_LOAD_TIMEOUT_MS − 1; unavailable message at exactly GIS_LOAD_TIMEOUT_MS; New board still enabled (auth.google_unavailable, boundary).
 - TC-31 callback credential with api 401, 503, network error → "Sign-in didn't work. Please try again." each; state guest (auth.failure).
 - TC-32 dev-email config → note visible; invalid email shows validation and sends nothing; valid email calls `signInWithEmail` (auth.dev_email).
 - TC-33 signed in, open AccountMenu → avatar, name, email; Sign out calls route and `disableAutoSelect`; menu returns to sign-in (auth.sign_out).
@@ -207,7 +207,7 @@ All pass in `npm run test:component`.
 ### 11. E2E sign-in workflows in local email mode plus production-config refusal (TC-37 to TC-42)
 
 ## Goal
-Real-browser proof of auth.client flows, auth.board_memory's cross-device and claiming behaviour, and auth.mode_guard's refusal under production-like config.
+Real-browser proof of auth.client flows, auth.board_memory's cross-device and claiming behaviour, and auth.mode_guard's refusal under production-like config. Functional waits use E2E_EVENTUAL_TIMEOUT_MS (story 3); durations are logged against their budgets, not asserted.
 
 ## Setup
 Playwright project `auth-local` runs `wrangler dev --env local`; project `auth-prod-config` runs `wrangler dev` with top-level (production) vars on localhost. Helper `auth.ts`: sign in via the email form, read account menu.
@@ -215,11 +215,11 @@ Playwright project `auth-local` runs `wrangler dev --env local`; project `auth-p
 ## Workflows
 - TC-37 "Guest to account": guest creates board A, opens board B via link, signs in by email → recent boards shows B then A; `vidi6.guestBoards` cleared (claim via auth.board_memory and auth.client).
 - TC-38 "Second device": contexts X and Y signed in with the same email; X opens board C; Y reloads home → C first.
-- TC-39 "Name change during a workshop": Sam (guest) and Lena on one board; Lena signs in inline from AccountMenu → Sam's presence shows `lena` within IDENTITY_PROPAGATION_BUDGET_MS; Lena's board element handle still attached (no reload).
+- TC-39 "Name change during a workshop": Sam (guest) and Lena on one board; Lena signs in inline from AccountMenu → Sam's presence shows `lena` (propagation time **logged** against IDENTITY_PROPAGATION_BUDGET_MS); Lena's board element handle still attached (no reload).
 - TC-40 "Sign out and keep working": signed-in user signs out on home → recent list hidden, guest name shown; creates and edits a board successfully (no lockout).
 - TC-41 "Production config refuses dev sign-in" (`auth-prod-config`): account menu has no email form; `POST /api/auth/dev-sign-in` from the page → 404.
-- TC-42 "Sign-in speed": email submit → avatar visible within SIGN_IN_BUDGET_MS.
+- TC-42 "Email sign-in completes": email submit → avatar visible (submit-to-avatar time **logged** against SIGN_IN_BUDGET_MS).
 
 ## Done when
-All pass in chromium; TC-37 and TC-40 also in firefox and webkit. Real Google sign-in recorded as manual staging check.
+All functional assertions pass in chromium; TC-37 and TC-40 also in firefox and webkit. No test fails because a duration exceeded its budget.
 

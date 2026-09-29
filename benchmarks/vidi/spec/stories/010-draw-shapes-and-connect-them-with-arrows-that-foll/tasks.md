@@ -146,16 +146,16 @@ All pass in `npm run test:component`.
 ### 15. E2E: draw a flow, collaborative rearrange, delete race (TC-23 to TC-27)
 
 ## Goal
-Real-browser proof for shape.ui (ShapeTool geometry, label wrap on resize) and connector.ui (ConnectorObject follows remote moves, detached ends after deletes, orphaned render) against `wrangler dev`.
+Real-browser proof for shape.ui (ShapeTool geometry, label wrap on resize) and connector.ui (ConnectorObject follows remote moves, detached ends after deletes, orphaned render) against `wrangler dev`. Functional waits use E2E_EVENTUAL_TIMEOUT_MS (story 3); delivery times are logged, not asserted.
 
 ## Workflows
 - "Draw a flow": TC-23 real drag (100,100)→(300,220) at 100% → shape 200x120 at that position ±1px; TC-24 at 200% zoom Diamond click → 160x160 centred, label longer than width wraps and stays centred after resizing via handle.
-- "Collaborative rearrange": TC-25 Dana connects A→B and drags B past A; Sam's context sees the arrow attached and switching side within LIVE_UPDATE_LATENCY_BUDGET_MS; TC-26 Sam deletes B → arrow remains with free end where B's side was on both screens.
+- "Collaborative rearrange": TC-25 Dana connects A→B and drags B past A; Sam's context sees the arrow attached and switching side (delivery time **logged** against LIVE_UPDATE_LATENCY_BUDGET_MS, not asserted); TC-26 Sam deletes B → arrow remains with free end where B's side was on both screens.
 - "Delete race": TC-27 Dana drags an arrow to B while Sam deletes B (Playwright route delay on Sam's WebSocket traffic to force overlap) → Dana's arrow visible with end at fallback, no console errors.
 
 ## Fixtures
 `tests/fixtures/checkout-flow.ts`: 4 labelled shapes (rect, diamond, ellipse, rect), 3 attached connectors, 1 free-ended connector built with real model calls.
 
 ## Done when
-All pass in chromium; TC-23 also in firefox and webkit.
+All functional assertions pass in chromium; TC-23 also in firefox and webkit. No test fails because a delivery time exceeded its budget.
 

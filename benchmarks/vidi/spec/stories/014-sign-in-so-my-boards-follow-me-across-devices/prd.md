@@ -30,7 +30,7 @@ What does not change: anyone with a board link can still open and edit it withou
 ### Golden path (real service)
 1. Lena opens the vidi6 home page while signed into Google in her browser.
 2. A small Google prompt appears in the top-right corner: "Sign in to vidi6 as Lena Park" with her picture.
-3. She clicks Continue. Within a few seconds the prompt closes, her picture and first name appear in the top-right account menu, and a **Your recent boards** list appears under Create a board.
+3. She clicks Continue. Within a few seconds the prompt closes, her picture and first name appear in the top-right account menu, and a **Your recent boards** list appears under New board.
 4. The list already contains two boards she created as a guest earlier that day on this laptop.
 5. She opens one of them. Her teammates on the board see "Lena Park" instead of "Curious Otter".
 6. At home on her desktop she opens vidi6, clicks **Sign in with Google**, and sees the same recent boards.
@@ -42,7 +42,7 @@ What does not change: anyone with a board link can still open and edit it withou
 
 ### Structure
 - **Account menu (top-right, every page):** when signed out, a Sign in with Google button (or the local-build email form); when signed in, avatar + first name opening a menu with the full name, email and **Sign out**.
-- **Home page:** Create a board (story 5), then **Your recent boards** (signed in only): up to 10 boards with title and "Opened 2 hours ago", most recent first.
+- **Home page:** New board (story 5), then **Your recent boards** (signed in only): up to 10 boards with title and "Opened 2 hours ago", most recent first.
 - **Sign-in page (`Sign in` from a board):** a dedicated page with the Google button that returns the person to the board afterwards.
 - **Messages:** "Sign-in didn't work. Please try again."; "Google sign-in couldn't load. Check that accounts.google.com isn't blocked, then reload."; "You've been signed out. Sign in again to see your boards."
 

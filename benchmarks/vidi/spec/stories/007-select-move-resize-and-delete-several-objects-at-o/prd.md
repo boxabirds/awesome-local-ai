@@ -49,7 +49,7 @@ Pain points:
 - Objects cannot be made smaller than a minimum size (sticky notes: 50 board units) or larger than a maximum (20,000 board units).
 - Arrow keys nudge by 1 board unit; Shift+arrow by 10.
 - If someone else deletes an object I have selected, it simply drops out of my selection; the rest stay selected.
-- Other people see the objects move, resize and disappear live (story 3); they do not see my selection.
+- Other people see the objects move, resize and disappear live (story 3), and see every selected object outlined in my colour with my name (story 6 presence); my selection never changes theirs.
 
 ### Alternate flows
 - **Empty board:** Ctrl/Cmd+A selects nothing and nothing happens; Shift+drag draws a rectangle that selects nothing.
@@ -63,7 +63,6 @@ Pain points:
 - Does not group objects permanently (selection is temporary).
 - Does not copy, paste or duplicate.
 - Does not align or distribute objects automatically, and does not snap to guides.
-- Does not show other people's selections (story 6 may add presence cues).
 - Does not undo (story 8).
 
 ## Click selects one object
@@ -166,7 +165,6 @@ THE SYSTEM SHALL apply the same selection, move, resize, nudge and delete behavi
 
 ## Constraints
 
-- **Performance:** moving or resizing a selection of 200 notes follows the pointer without visible lag on a mid-range laptop (scripted check, not a CI gate).
 - **Collaboration:** moves and resizes are shared live as in story 3, including when up to the configured number of simultaneous editors (5) move different selections at once; the result must be identical on every screen.
 - **Settings:** handle size, nudge steps and size limits are named product settings.
 - **Accessibility:** "N selected" is announced to screen readers when the selection changes; handles have accessible names (e.g. "Resize top-left").
@@ -178,7 +176,8 @@ THE SYSTEM SHALL apply the same selection, move, resize, nudge and delete behavi
 - Permanent groups, locking objects.
 - Copy, paste, duplicate.
 - Alignment, distribution, snapping, smart guides.
-- Showing other people's selections.
 - Undo/redo (story 8).
 - Touch gestures.
+
+Other people's selections are shown by story 6 (presence), which publishes each person's selected ids; story 7's multi-object selection feeds it unchanged.
 

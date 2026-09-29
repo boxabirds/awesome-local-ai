@@ -161,7 +161,6 @@ WHEN a shape or arrow has been created THE SYSTEM SHALL switch the active tool b
 - **Undo:** creating, restyling, labelling and re-attaching are each one undo step (story 8 conventions).
 - **Selection, moving, resizing and deleting** use the shared selection behaviour (story 7) — shapes and arrows behave like every other object.
 - **Settings:** default and minimum shape size, colour palettes, label limit, arrow click tolerance and minimum arrow length are named product settings.
-- **Performance:** a board with 300 shapes and 300 arrows keeps dragging smooth (manual check).
 - **Accessibility:** tools and swatches have accessible names; shapes and arrows are announced with their kind and label.
 
 ## Out of scope

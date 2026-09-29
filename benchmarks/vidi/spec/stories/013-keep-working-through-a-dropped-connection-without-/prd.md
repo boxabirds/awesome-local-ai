@@ -13,7 +13,7 @@ Pain points:
 4. **Not knowing when it is safe to close** — after reconnecting, there is no signal that changes have actually reached everyone.
 5. **Devices that cannot store anything** — private browsing, blocked site data or a full disk silently remove the safety net, exactly when people rely on it.
 6. **Unbounded device storage** — keeping every board ever opened forever would fill disks on shared or small devices.
-7. **Orphaned copies coming back** — a board that no longer exists on the service (removed, or a mistyped local environment reset) could be silently recreated from an old copy on someone's laptop, confusing everyone.
+7. **Orphaned copies coming back** — the product never deletes boards (no current story does), but the service can still stop having a board: service-side data loss, an operator removing it, or a development/test environment being reset. A device copy of such a board could then be silently re-uploaded as if it were a new board at that address, confusing everyone.
 8. **Conflicting offline work** — two people (or two tabs) editing the same board offline must not overwrite each other when they reconnect.
 
 ## Solution
@@ -23,7 +23,7 @@ Pain points:
 - **False confidence → explicit status.** While offline the status says "Offline — changes saved on this device".
 - **When is it safe → syncing status.** After reconnecting, "Syncing…" shows until the service has confirmed every change, then the status disappears.
 - **Devices that cannot store → red warning and close protection.** People are told plainly that changes can't be saved on this device, and the browser asks before closing or reloading while changes are unsynced.
-- **Unbounded storage → bounded copies.** Copies of the 50 most recently opened boards are kept; when space runs short, copies of other boards are cleared first — never a copy with unsynced changes.
+- **Unbounded storage → bounded copies.** Copies of the 50 most recently opened boards are kept; a copy with unsynced changes is never removed.
 - **Orphaned copies → read-only, never re-uploaded.** If the service says the board doesn't exist, the device copy is shown read-only with a clear banner and a way to discard it.
 - **Conflicting offline work → automatic merge.** Offline changes from different people and tabs are combined on reconnection with nobody's changes lost, following the same merge behaviour as live editing (story 3).
 
@@ -48,7 +48,6 @@ Pain points:
 - Boards open from the device copy immediately, then connect; there is no blank loading board when a copy exists.
 - Changes made while offline appear to other people after reconnection without any action.
 - Up to 50 device copies (most recently opened) are kept; opening a 51st board removes the least recently opened copy that has no unsynced changes.
-- When the device reports storage nearly full, copies of other boards without unsynced changes are cleared, oldest first.
 - Closing or reloading a page with unsynced changes on a device that cannot store changes triggers the browser's own "Leave site?" confirmation. On devices that can store changes, closing is never blocked.
 - In the orphaned state the board cannot be edited, and nothing is sent to the service.
 
@@ -65,6 +64,7 @@ Pain points:
 - Does not create new boards while offline.
 - Does not show how many changes are unsynced or which ones.
 - Does not let people choose which boards are kept on the device.
+- Does not free device space based on the browser's storage quota; the 50-copy limit is the only bound.
 - Does not clear device copies on sign-out (decided in story 14).
 - Does not upload images added while offline (story 12).
 
@@ -126,12 +126,6 @@ WHEN a person closes or reloads a page that has unsynced changes on a device tha
 
 THE SYSTEM SHALL keep device copies of at most the 50 most recently opened boards, and IF the least recently opened copy has unsynced changes THEN THE SYSTEM SHALL NOT remove it and SHALL remove the least recently opened copy without unsynced changes instead.
 
-## Freeing space under storage pressure
-
-> Anchor: `offline.storage_pressure`
-
-WHEN the device reports storage use above 90% of its allowance THE SYSTEM SHALL remove device copies of boards other than the open one that have no unsynced changes, least recently opened first, until use falls below that level or no such copies remain.
-
 ## Orphaned copies are read-only and never re-uploaded
 
 > Anchor: `offline.orphaned_copy`
@@ -152,12 +146,11 @@ WHEN two or more people, or two or more tabs of the same board, made changes to 
 
 ## Constraints
 
-- **Settings:** device copy limit (50), storage pressure level (90%), offline status delay (2 s), offline open time (1 s) are named product settings used by tests.
+- **Settings:** device copy limit (50), offline status delay (2 s), offline open time (1 s) are named product settings used by tests.
 - **Privacy:** device copies contain full board content and remain readable to anyone with access to that browser profile; this matches the share-link access model and is stated in the privacy notes. Clearing on sign-out is decided in story 14.
 - **Compatibility:** boards opened before this story shipped have no device copy until next opened online; no migration needed. The device copy format must carry a version.
 - **Browsers:** same as story 1. Private browsing behaviour varies by browser and must degrade to the red warning rather than failing silently.
 - **Performance:** opening a device copy of a board with 2,000 notes (story 4 tested size) must meet the 1 second offline open target on a mid-range laptop.
-- **Service load:** confirmations of received changes must not noticeably increase traffic (at most one small confirmation per change message).
 
 ## Out of scope
 

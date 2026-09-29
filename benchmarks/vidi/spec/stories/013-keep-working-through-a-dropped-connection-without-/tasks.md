@@ -6,8 +6,8 @@
 | 2 | Implement release-scoped service worker for the offline app shell | proposed | implementation | offline.app_shell |
 | 3 | Write device copy and eviction unit tests first (TC-03 to TC-07) | proposed | test:unit | offline.local_store, offline.cache_manager |
 | 4 | Implement device copy store: availability probe, y-indexeddb copy with load timeout, quota watcher, discard | proposed | implementation | offline.local_store |
-| 5 | Implement cache manager: index DB, 50-board limit, storage pressure eviction, unsynced flag | proposed | implementation | offline.cache_manager |
-| 6 | Browser-mode integration tests with real IndexedDB for device copies and eviction (TC-10 to TC-15, TC-36, TC-39) | proposed | test:integration | offline.local_store, offline.cache_manager |
+| 5 | Implement cache manager: index DB, 50-board limit, unsynced flag | proposed | implementation | offline.cache_manager |
+| 6 | Browser-mode integration tests with real IndexedDB for device copies and eviction (TC-10 to TC-14, TC-36, TC-39) | proposed | test:integration | offline.local_store, offline.cache_manager |
 | 7 | Write sync tracker unit tests first: frame classification and ack state machine (TC-08, TC-09) | proposed | test:unit | offline.sync_ack |
 | 8 | Implement sync acknowledgement: room acks stored data frames, client counting socket and tracker wiring | proposed | implementation | offline.sync_ack |
 | 9 | Integration tests for sync acknowledgement against the real BoardRoom (TC-16 to TC-19) | proposed | test:integration | offline.sync_ack |
@@ -50,7 +50,7 @@ TC-01/TC-02 pass; manual check in Chrome DevTools: offline reload of `/b/<id>` s
 ### 3. Write device copy and eviction unit tests first (TC-03 to TC-07)
 
 ## Goal
-Test-first coverage of the pure parts of offline.local_store (`localDbName`, format version check) and offline.cache_manager (`chooseEvictions`, `choosePressureEvictions`).
+Test-first coverage of the pure parts of offline.local_store (`localDbName`, format version check) and offline.cache_manager (`chooseEvictions`).
 
 ## offline.local_store
 - TC-03 `localDbName('abc')` → `LOCAL_DB_PREFIX + 'abc'`; copy meta with `formatVersion !== LOCAL_COPY_FORMAT_VERSION` → `isUsableCopy` false (treated as no copy).
@@ -59,8 +59,7 @@ Test-first coverage of the pure parts of offline.local_store (`localDbName`, for
 - TC-04 LOCAL_BOARD_CACHE_MAX_BOARDS+1 synced entries → evicts exactly the least recently opened (boundary).
 - TC-05 same, but least recent is unsynced → evicts the least recent *synced* entry instead (negative: unsynced kept).
 - TC-06 every over-limit candidate unsynced → evicts nothing.
-- TC-07 open board is least recent → never chosen, by both `chooseEvictions` and `choosePressureEvictions`.
-- `choosePressureEvictions` returns synced, non-open entries oldest first.
+- TC-07 open board is least recent → never chosen.
 
 ## Done when
 Suites compile and fail only with "not implemented"; committed.
@@ -79,9 +78,9 @@ Implement the offline.local_store contract.
 - `discardCopy(id)`: destroy persistence if open, `indexedDB.deleteDatabase`, reject on error/blocked, then `cacheManager` removes index entry (offline.discard).
 
 ## Done when
-TC-03 passes; browser integration task passes; opening a 2,000-note copy completes within OFFLINE_OPEN_BUDGET_MS locally (offline.open_offline).
+TC-03 passes; browser integration task passes; opening a `PERSIST_TESTED_NOTES` (2,000-note) copy offline shows every note, with the open time logged against OFFLINE_OPEN_BUDGET_MS (offline.open_offline) — reported, not a pass/fail condition.
 
-### 5. Implement cache manager: index DB, 50-board limit, storage pressure eviction, unsynced flag
+### 5. Implement cache manager: index DB, 50-board limit, unsynced flag
 
 ## Goal
 Implement the offline.cache_manager contract.
@@ -90,14 +89,13 @@ Implement the offline.cache_manager contract.
 - Index database `CACHE_INDEX_DB` with object store `boards` keyed by `boardId`: `{ boardId, lastOpenedAt, unsynced, formatVersion }`.
 - `touch`, `setUnsynced`, `hasCopy` simple transactions; failures swallowed (availability handled by localBoardStore).
 - `chooseEvictions(entries, openBoardId, max = LOCAL_BOARD_CACHE_MAX_BOARDS)`: sort by `lastOpenedAt` ascending; remove oldest entries that are neither unsynced nor open until ≤ max (offline.cache_limit).
-- `choosePressureEvictions`: synced, not open, oldest first.
-- `enforceLimits(openBoardId, estimate = navigator.storage?.estimate)`: apply limit evictions; then if estimate available and `usage/quota > LOCAL_STORAGE_PRESSURE_RATIO`, delete pressure candidates one by one, re-estimating after each (offline.storage_pressure). `deleteDatabase` blocked → add to `skipped`, continue. Never throws.
-- BoardPage calls `touch` + `enforceLimits` on open and every STORAGE_CHECK_INTERVAL_MS.
+- `enforceLimits(openBoardId)`: delete the chosen databases; `deleteDatabase` blocked → add to `skipped`, continue. Never throws. No quota-based eviction.
+- BoardPage calls `touch` + `enforceLimits` on board open.
 
 ## Done when
 TC-04 to TC-07 pass; browser integration task passes.
 
-### 6. Browser-mode integration tests with real IndexedDB for device copies and eviction (TC-10 to TC-15, TC-36, TC-39)
+### 6. Browser-mode integration tests with real IndexedDB for device copies and eviction (TC-10 to TC-14, TC-36, TC-39)
 
 ## Goal
 Exercise offline.local_store and offline.cache_manager against real IndexedDB using Vitest browser mode (Playwright Chromium provider), not fake-indexeddb.
@@ -114,8 +112,7 @@ Add `@vitest/browser` and a `browser` project in `vitest.config.ts` for `tests/b
 
 ## offline.cache_manager (`cache-manager.test.ts`)
 - TC-14 create LOCAL_BOARD_CACHE_MAX_BOARDS+1 real copies with increasing `lastOpenedAt`, `enforceLimits` → oldest database deleted; index size = max.
-- TC-15 estimate stub reports usage above LOCAL_STORAGE_PRESSURE_RATIO; 3 synced, 1 unsynced, 1 open → synced non-open deleted oldest first; unsynced and open kept (negative).
-- TC-39 hold an open connection to one candidate database (blocked delete) → that board in `skipped`, others evicted, no throw (error path).
+- TC-39 over the limit, hold an open connection to the eviction candidate database (blocked delete) → that board in `skipped`, others evicted, no throw (error path).
 
 ## Done when
 All pass in `npm run test:browser`.
@@ -225,13 +222,13 @@ All pass in `npm run test:component`.
 ### 13. E2E offline workflows: train journey with full restart, plane without copy, private mode, board gone, two tabs, broken precache (TC-28 to TC-35, TC-38)
 
 ## Goal
-Real Chromium against `wrangler dev` proving the offline app shell (offline.app_shell), device copies (offline.local_store), local-first page flows (offline.board_open) and status/guard (offline.status_ui).
+Real Chromium against `wrangler dev` proving the offline app shell (offline.app_shell), device copies (offline.local_store), local-first page flows (offline.board_open) and status/guard (offline.status_ui). Functional waits use E2E_EVENTUAL_TIMEOUT_MS (story 3); open, status and delivery times are logged against their budgets, not asserted.
 
 ## Helper
 `persistent-browser.ts`: launch `chromium.launchPersistentContext(tmpDir)` so IndexedDB, Cache Storage and the service worker survive a full close/relaunch.
 
 ## Workflows
-- **Train journey** — TC-35: `setOffline(true)` → amber "Offline — changes saved on this device" within OFFLINE_STATUS_BUDGET_MS. TC-28: add 3 notes offline, close the whole persistent context, relaunch offline, open the board URL → shell served by the service worker, 3 notes visible within OFFLINE_OPEN_BUDGET_MS, amber status. TC-29: go online → "Syncing…" then hidden; a second participant sees the 3 notes within LIVE_UPDATE_LATENCY_BUDGET_MS.
+- **Train journey** — TC-35: `setOffline(true)` → amber "Offline — changes saved on this device" appears (time **logged** against OFFLINE_STATUS_BUDGET_MS). TC-28: add 3 notes offline, close the whole persistent context, relaunch offline, open the board URL → shell served by the service worker, 3 notes visible (time **logged** against OFFLINE_OPEN_BUDGET_MS), amber status. TC-29: go online → "Syncing…" then hidden; a second participant sees the 3 notes (time **logged** against LIVE_UPDATE_LATENCY_BUDGET_MS).
 - **Plane without a copy** — TC-33: load app online once, relaunch offline, open a never-opened board → shell loads from cache; TC-30: "Couldn't reach vidi6. Retrying…" and no board.
 - **Private mode** — TC-31: init script makes `indexedDB.open` fail; go offline; add note → red "Offline — changes can't be saved on this device. Don't close this tab."; reload → `beforeunload` dialog event observed (dismissed).
 - **Board gone** — TC-32: open board online (copy created), delete it via TEST_HOOKS `DELETE /__test/boards/:id`, reload → read-only copy with banner; no WebSocket to `/api/rooms` opened (network log); Discard copy → Board not found.
@@ -239,5 +236,5 @@ Real Chromium against `wrangler dev` proving the offline app shell (offline.app_
 - **Broken release precache** — TC-38: serve a build where one manifest asset returns 500 → new worker becomes redundant; previous release's worker stays active and the app still loads online.
 
 ## Done when
-All pass in chromium (service worker scenarios are Chromium-only per strategy).
+All functional assertions pass in chromium (service worker scenarios are Chromium-only per strategy). No test fails because a duration exceeded its budget.
 

@@ -16,7 +16,7 @@ Pain points:
 ## Solution
 
 - **Screenshots only → an Export dialog.** Choose what to export (whole board, current view, or selection) and how (PNG or PDF).
-- **Noise → clean output.** Exports contain only board items on a white background.
+- **Noise → clean output.** Exports contain only board objects on a white background.
 - **Big boards → resolution control and honest limits.** PNG exports at 1× or 2× resolution. If the result would exceed the maximum image size, resolution is reduced automatically and the person is told; if even the lowest readable resolution is too large, the person is told to export a view or selection instead.
 - **Formats → PNG and PDF.** Both look the same; PDF is a single page.
 - **Silent failure → visible outcomes.** Missing images become labelled placeholders with a warning; browser failures show an error; long exports show progress and can be cancelled.
@@ -27,17 +27,17 @@ Pain points:
 1. Ana clicks **Export** in the top-right bar (next to Share).
 2. The Export dialog opens with: **Format** (PNG selected, PDF), **Area** (Whole board selected, Current view, Selection — disabled with hint "Select items first" when nothing is selected), **Resolution** (1×, 2× selected; shown for PNG only) and a size hint ("About 4,820 × 3,260 pixels").
 3. Ana clicks **Export**. The dialog shows "Preparing export…" with a progress bar and **Cancel**.
-4. The browser downloads `Q3 planning-2026-09-17.png` (or `vidi6-board-2026-09-17.png` for boards without a name). The dialog closes.
+4. The browser downloads `Q3 planning-2026-09-17.png`, named after the board's title (a board never renamed downloads as `Untitled board-2026-09-17.png`). The dialog closes.
 
 ### Structure
 - Top bar: Export button (icon + "Export").
 - Export dialog: Format radio group, Area radio group, Resolution radio group (PNG only), size hint, notice area, Export and Close buttons; during export: progress bar and Cancel.
 
 ### Behaviour
-- Whole board = all items plus a small margin. Current view = exactly what is visible in the board area. Selection = the selected items plus a small margin.
+- Whole board = all board objects plus a small margin. Current view = exactly what is visible in the board area. Selection = the selected objects plus a small margin.
 - 2× produces an image twice as wide and twice as tall as 1×.
 - PDF uses the same rendering and produces a single page sized to the exported area's proportions.
-- Items appear with their on-screen colours, text, positions and stacking; the dot grid, cursors, selection outlines, comment markers and toolbars never appear.
+- Objects appear with their on-screen colours, text, positions and stacking; the dot grid, cursors, selection outlines, comment markers and toolbars never appear.
 - The board stays usable while exporting; other people see no change.
 
 ### Alternate flows
@@ -68,7 +68,7 @@ WHEN a person clicks Export THE SYSTEM SHALL open the Export dialog offering For
 
 WHEN a person exports as PNG THE SYSTEM SHALL download a PNG image of the chosen area on a white background.
 
-Verification: exporting a board with 10 items produces a PNG file that opens in an image viewer and shows all 10 items.
+Verification: exporting a board with 10 objects produces a PNG file that opens in an image viewer and shows all 10 objects.
 
 ## PDF export
 
@@ -80,19 +80,19 @@ WHEN a person exports as PDF THE SYSTEM SHALL download a single-page PDF whose p
 
 > Anchor: `export.area_whole`
 
-WHEN a person exports the Whole board THE SYSTEM SHALL include every item on the board plus a margin of 40 board units on each side, regardless of the current view.
+WHEN a person exports the Whole board THE SYSTEM SHALL include every board object plus a margin of 40 board units on each side, regardless of the current view.
 
 ## Current view area
 
 > Anchor: `export.area_view`
 
-WHEN a person exports the Current view THE SYSTEM SHALL include exactly the part of the board visible in the board area at that moment, cutting through items at its edges.
+WHEN a person exports the Current view THE SYSTEM SHALL include exactly the part of the board visible in the board area at that moment, cutting through objects at its edges.
 
 ## Selection area
 
 > Anchor: `export.area_selection`
 
-WHEN a person exports the Selection THE SYSTEM SHALL include the selected items plus a 40-unit margin and SHALL NOT draw unselected items, and IF nothing is selected THEN THE SYSTEM SHALL NOT offer the Selection option.
+WHEN a person exports the Selection THE SYSTEM SHALL include the selected board objects plus a 40-unit margin and SHALL NOT draw unselected objects, and IF nothing is selected THEN THE SYSTEM SHALL disable the Selection option and show the hint "Select items first".
 
 ## Resolution
 
@@ -106,9 +106,9 @@ WHEN a person exports PNG at 2× THE SYSTEM SHALL produce an image with twice th
 
 THE SYSTEM SHALL draw sticky notes, text, shapes, connectors, pen strokes and images in the export with the same colours, text content, line breaks, positions, sizes and stacking order as on screen at 100% zoom.
 
-Verification: sampled pixel colours at the centre of each item match on-screen colours; overlapping items appear in the same order.
+Verification: sampled pixel colours at the centre of each object match on-screen colours; overlapping objects appear in the same order.
 
-## Nothing but board items
+## Nothing but board objects
 
 > Anchor: `export.excludes`
 
@@ -136,7 +136,7 @@ IF fitting the chosen area would require less than 25% of 1× resolution THEN TH
 
 > Anchor: `export.empty`
 
-IF the chosen area contains no items THEN THE SYSTEM SHALL NOT download a file and SHALL show "Nothing to export — this area is empty."
+IF the chosen area contains no board objects THEN THE SYSTEM SHALL NOT download a file and SHALL show "Nothing to export — this area is empty."
 
 ## Browser failure
 
@@ -154,7 +154,7 @@ WHILE an export is being prepared THE SYSTEM SHALL show progress and a Cancel bu
 
 > Anchor: `export.filename`
 
-THE SYSTEM SHALL name the downloaded file "<board name>-<YYYY-MM-DD>.png" or ".pdf" using the local date, using "vidi6-board" when the board has no name and replacing characters not allowed in file names with "-".
+THE SYSTEM SHALL name the downloaded file "<board title>-<YYYY-MM-DD>.png" or ".pdf" using the board's current title (story 15; "Untitled board" until renamed) and the local date, replacing characters not allowed in file names with "-".
 
 ## Export changes nothing
 
@@ -172,10 +172,11 @@ WHILE the person has no connection THE SYSTEM SHALL still export the board, draw
 
 - **Client-side only:** exports are produced in the person's browser; no board content is sent to a server for export.
 - **Named product settings:** resolutions (1×, 2×), default resolution (2×), maximum side (8,192 px), maximum image area, minimum readable resolution (25% of 1×), margin (40 units), image load timeout (15 s).
-- **Performance:** a board of 500 mixed items exports as a 2× PNG within 10 seconds on a mid-range laptop (named tested size and budget; checked by a scripted run).
+- **Performance:** export time for EXPORT_TESTED_ITEMS objects is reported by a nightly run against a 10-second budget; it is not a pass/fail criterion.
 - **Fonts:** text in exports uses the same fonts as the board; export waits until those fonts are available.
 - **Browsers:** same as story 1. Maximum image sizes are chosen conservatively so they work in all supported browsers.
 - **Accessibility:** the dialog is keyboard operable; progress and outcome messages are announced.
+- **Terminology:** as in stories 7–12, the specification calls anything placed on the board a "board object". Text shown to people uses the everyday word "item" (e.g. the hint "Select items first").
 
 ## Out of scope
 

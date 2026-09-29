@@ -37,9 +37,12 @@ Boards are kept automatically.
 
 ### Behaviour
 - Saving happens continuously in the background as people edit.
-- A board with no notes that was never edited opens as an empty board, exactly as before.
 - A large board (up to 2,000 notes) opens and shows all its notes within 3 seconds on a typical broadband connection.
 - Boards are kept indefinitely; there is no automatic expiry.
+
+### Empty state
+- A board that was never edited opens as an empty board with story 1's navigation hint, exactly as before this story; no "nothing saved yet" message is shown.
+- A board whose notes were all deleted also opens empty; the deletions were saved like any other change.
 
 ### Alternate flows
 - **Everyone leaves immediately after a change:** the change is still there next time, provided it had appeared on another person's screen or the person who made it saw the board reconnect successfully.
@@ -51,7 +54,7 @@ Boards are kept automatically.
 
 ### Explicit non-behaviours
 - Does not offer version history or restoring older versions of a board.
-- Does not offer board deletion (later story).
+- Does not offer board deletion (not planned in any current story).
 - Does not show a "last saved" time.
 - Does not save anything the person did while their connection was down if they close the tab before reconnecting (story 13).
 - Does not save anyone's view position, selection or editing state.
@@ -112,10 +115,10 @@ IF the service cannot save a change THEN THE SYSTEM SHALL NOT show that change t
 
 ## Constraints
 
-- **Retention:** boards are kept indefinitely until a deletion feature exists.
+- **Retention:** boards are kept indefinitely; no current story deletes boards.
 - **Scale settings:** the tested board size (2,000 notes) and the open-time target (3 seconds) are named product settings used by tests.
 - **Cost:** idle boards (nobody connected) must not consume ongoing compute; storage cost only.
-- **Compatibility:** boards created before this story shipped have no saved state and simply open empty; no migration is needed. The saved format must carry a version so future stories can migrate it.
+- **Compatibility:** boards created before this story shipped have no saved state and simply open empty. Boards saved from this story on must keep opening, with their content intact, after later stories change what a board can contain.
 - **Privacy (interim):** saved boards are readable by anyone with the address, as in story 3.
 
 ## Out of scope

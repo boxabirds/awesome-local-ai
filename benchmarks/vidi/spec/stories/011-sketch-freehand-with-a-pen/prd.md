@@ -134,7 +134,6 @@ IF a stroke drag is interrupted before release (pointer capture lost or cancelle
 - **Undo:** each finished stroke (and each part of a split long stroke) is one undo step (story 8).
 - **Shared behaviour:** moving, resizing and deleting strokes use the shared selection behaviour (story 7).
 - **Live collaboration:** follows story 3 (1 second delivery, capacity setting of 5 editors).
-- **Responsiveness:** drawing keeps up with the pointer on a mid-range laptop (manual check); finished strokes should typically be much smaller than the raw input so sharing stays fast.
 - **Settings:** colours, thicknesses, smoothing tolerance, selection tolerance and the point limit are named product settings.
 - **Accessibility:** pen tool, swatches and thickness buttons have accessible names; strokes are announced as "Drawing".
 

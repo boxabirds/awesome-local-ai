@@ -55,7 +55,7 @@ Pain points:
 - **Signed out:** the dashboard shows "On this browser" boards (opened here while signed out) with titles, plus "Sign in to see your boards on every device" and the Sign in with Google button; if there are none, "Boards you open will appear here."
 - **List fails to load:** "Couldn't load your boards." with **Retry**; New board still works.
 - **Rename fails** (service error): previous title restored with "Couldn't rename the board. Please try again."
-- **Empty or too-long title:** "Titles need 1–100 characters."; the field stays open.
+- **Empty or too-long title:** "Titles must be 1–100 characters."; the field stays open.
 - **Offline on a board:** the title can't be edited; hovering shows "Renaming needs a connection."
 
 ### Explicit non-behaviours
@@ -111,7 +111,7 @@ IF a person is not signed in or did not create the board THEN THE SYSTEM SHALL N
 
 > Anchor: `dash.title_rules`
 
-IF a new title is empty or longer than 100 characters after removing leading and trailing spaces THEN THE SYSTEM SHALL NOT save it and SHALL show "Titles need 1–100 characters." with the field still open.
+IF a new title is empty or longer than 100 characters after removing leading and trailing spaces THEN THE SYSTEM SHALL NOT save it and SHALL show "Titles must be 1–100 characters." with the field still open.
 
 ## Title changes appear live
 

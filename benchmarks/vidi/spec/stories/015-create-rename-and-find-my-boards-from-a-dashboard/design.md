@@ -1,6 +1,6 @@
 # Technical Design
 
-D1 boards gain a normalised search column and a monotonically increasing title_version. GET /api/me/boards serves keyset-paginated, searchable lists; PATCH /api/boards/:id renames without authentication (link model), Origin-checked, then pushes (title, version) to the BoardRoom which writes meta.title into the Y.Doc so everyone sees it live; rooms self-heal from D1 on load. Client adds the My boards dashboard, inline board title editing, rename dialog, search with debounce and a signed-out view built from the browser's board list.
+D1 boards gain a normalised search column and a monotonically increasing title_version. GET /api/me/boards serves keyset-paginated, searchable lists; PATCH /api/boards/:id renames without authentication (link model, Origin-checked only), then pushes (title, version) to the BoardRoom which writes meta.title into the Y.Doc so everyone sees it live; rooms self-heal from D1 on load. The client adds the My boards dashboard, inline board title editing, a rename dialog, debounced search and a signed-out view built from the browser's board list.
 
 ## Overview
 
@@ -51,7 +51,7 @@ CREATE INDEX board_visits_page ON board_visits (user_id, last_opened_at DESC, bo
 ```
 
 ## Decisions
-1. **Rename is unauthenticated** (dash.rename_anyone): `PATCH /api/boards/:id` never reads the session. An `Origin` check (403) ensures other websites cannot rename via a visitor's browser.
+1. **Rename is unauthenticated** (dash.rename_anyone): `PATCH /api/boards/:id` never reads the session. An `Origin` check (403) stops other websites renaming via a visitor's browser.
 2. **D1 is the source of truth; the Y.Doc carries the live copy.** `UPDATE boards SET title=?, title_search=?, title_version = title_version + 1, updated_at=? WHERE id=? RETURNING title_version`. D1 serialises writes, so versions increase in commit order. The Worker then calls `BoardRoom.setTitle(title, version)` (up to `ROOM_TITLE_NOTIFY_ATTEMPTS`), which writes `meta.title` and `meta.titleVersion` in the doc with `SERVER_ORIGIN` only if `version > meta.titleVersion`. Story 4 stores and broadcasts it like any update, so every connected client sees it (dash.title_live). Concurrent renames converge because both stores keep the highest version.
 3. **Self-healing.** If the room notification fails, the PATCH still returns 200 (D1 saved). On every room load (story 4 construct) the room reads `title, title_version` from D1 and applies them if newer. Clients display `displayTitle(docMeta, fetched)` = the higher version, so a stale doc never wins.
 4. **Renames are not undoable.** `SERVER_ORIGIN` is not in story 8's `trackedOrigins`; clients never write `meta.title` themselves.
@@ -176,7 +176,7 @@ sequenceDiagram
     participant O as Other clients
     C->>C: validateTitle
     alt invalid
-        C-->>C: Titles need 1 to 100 characters stay open
+        C-->>C: Titles must be 1 to 100 characters stay open
     else valid
         C->>W: PATCH api boards id title with Origin
         alt foreign Origin
@@ -252,6 +252,8 @@ sequenceDiagram
 | dash.rename | unit, integration, e2e | Pure validation and version rule; real routes + D1 + real BoardRoom + WebSocket clients; real browsers | Live propagation and convergence across D1 and the room are only observable end to end |
 | dash.pages | unit, ui-component, e2e | Display-title rule; components with mocked api and fake timers; real browsers | Debounce, stale responses and editor states are deterministic in jsdom; wiring verified in browsers |
 
+Timing policy: integration tests with real sockets (TC-14) and e2e tests wait up to E2E_EVENTUAL_TIMEOUT_MS (story 3) for each functional outcome and log the measured time against the named budget (TITLE_LIVE_BUDGET_MS, SEARCH_RESULT_BUDGET_MS, DASHBOARD_LOAD_BUDGET_MS); budgets are reported, not asserted, because the model, browsers and server share one machine. SEARCH_DEBOUNCE_MS is exercised with fake timers (TC-23).
+
 ## Dimensions crossed
 - **D1 List size:** 0; 1; exactly DASHBOARD_PAGE_SIZE; DASHBOARD_PAGE_SIZE + 1; 2.4 × DASHBOARD_PAGE_SIZE.
 - **D2 Query:** none; ASCII match; case-different match; accented / full-width match; no match; too long.
@@ -262,11 +264,38 @@ sequenceDiagram
 
 Classes in each dimension are exhaustive for this story and non-overlapping.
 
+## Dimension crossing matrix
+Each row is a combination of classes that interact; the TC column names the existing case that exercises it. Combinations not listed are independent (e.g. D1 list size does not affect rename).
+
+| Crossing | D1 List size | D2 Query | D3 Actor | D4 Title input | D5 Room notification | D6 Connection | TC |
+|---|---|---|---|---|---|---|---|
+| D1 × D2 × D3 | 0 | none | signed-in creator | – | – | – | TC-06, TC-22 |
+| D1 × D2 × D3 | 1 | none | signed-in creator | – | – | – | TC-33 |
+| D1 × D2 × D3 | exactly page, page + 1 | none | signed-in creator | – | – | – | TC-08, TC-21, TC-32 |
+| D1 × D2 × D3 | 2.4 × page | none | signed-in creator | – | – | – | TC-07 |
+| D1 × D2 | > page (60) | ASCII, case-different, accented | signed-in creator | – | – | – | TC-09, TC-01 |
+| D1 × D2 | any | no match | signed-in creator | – | – | – | TC-23 |
+| D2 × D3 | any | too long | signed-in creator; signed-out guest | – | – | – | TC-10 |
+| D1 × D3 | 5 per user | none | two signed-in users (creator vs non-creator) | – | – | – | TC-11 |
+| D1 × D3 | 0, 2, GUEST_BOARDS_META_MAX + 1 | none | signed-out guest | – | – | – | TC-12, TC-28, TC-35 |
+| D3 × D4 × D5 | – | – | signed-out guest | valid | succeeds | connected | TC-14 |
+| D3 × D4 × D5 | – | – | signed-in non-creator | valid | succeeds | connected | TC-31 |
+| D3 × D4 × D5 | – | – | signed-in creator | valid | succeeds | connected | TC-30 |
+| D3 × D4 | – | – | signed-in non-creator | empty, max + 1, control characters | – | connected | TC-15, TC-02 |
+| D4 | – | – | – | exactly max, whitespace-padded max | – | – | TC-02 |
+| D3 × D4 | – | – | foreign website | valid | – | connected | TC-16 |
+| D3 × D5 | – | – | two signed-out guests concurrently | valid | succeeds, out of order | connected | TC-17 |
+| D4 × D5 | – | – | signed-in creator | valid | fails | connected | TC-18 |
+| D5 | – | – | – | valid | out of order | – | TC-05, TC-19, TC-04 |
+| D5 × display | – | – | – | – | succeeds (remote change) | connected | TC-27 |
+| D4 × D6 | – | – | any | valid, unchanged, invalid | – | connected | TC-25, TC-26 |
+| D4 × D6 | – | – | any | any | – | offline | TC-25, TC-34 |
+
 ## Coverage table — unit
 | TC | Capability | Dimensions | Case | Expected | Level |
 |---|---|---|---|---|---|
 | TC-01 | dash.boards_api | D2 case, accented, full-width | normaliseForSearch('  Q3 RETRO '), ('Équipe'), ('ＲＥＴＲＯ') | 'q3 retro', 'équipe', 'retro' | unit |
-| TC-02 | dash.rename | D4 all classes | validateTitle('', '   ', 'a', 100 chars, 101 chars, '  ' + 100 chars + '  ', 'a b') | invalid, invalid, ok, ok, invalid, ok trimmed, invalid | unit |
+| TC-02 | dash.rename | D4 all classes | validateTitle('', '   ', 'a', 100 chars, 101 chars, '  ' + 100 chars + '  ', 'ab') | invalid, invalid, ok, ok, invalid, ok trimmed, invalid | unit |
 | TC-03 | dash.boards_api | not applicable: codec | encodeCursor/decodeCursor round trip; tampered string; wrong shape JSON | equal; null; null | unit |
 | TC-04 | dash.pages | D5 | displayTitle(meta v3, fetched v5); (v5, v5); (none, v2); (v7, v2) | fetched; meta; fetched; meta | unit |
 | TC-05 | dash.rename | D5 out of order | applyTitleIfNewer(meta v4, incoming v3 / v4 / v5) | ignore / ignore / apply | unit |
@@ -282,7 +311,7 @@ Classes in each dimension are exhaustive for this story and non-overlapping.
 | TC-11 | dash.boards_api | 5 per user | none | two signed-in users | GET me boards for A | only A's visits; createdByMe true only where created_by = A | integration |
 | TC-12 | dash.boards_api | not applicable: meta lookup | none | signed-out | meta ids: existing, legacy without row, unknown, malformed; then GUEST_BOARDS_META_MAX + 1 ids | existing and legacy returned (legacy with default title), unknown and malformed omitted; 400 | integration |
 | TC-13 | dash.boards_api | not applicable: single board | none | signed-out | GET api boards id after rename | title and titleVersion returned | integration |
-| TC-14 | dash.rename | not applicable | not applicable | signed-out guest | PATCH valid title with no cookie while a WebSocket client is connected | 200; D1 title, title_search normalised, version 0 → 1; client doc meta.title updated within TITLE_LIVE_BUDGET_MS | integration |
+| TC-14 | dash.rename | not applicable | not applicable | signed-out guest | PATCH valid title with no cookie while a WebSocket client is connected | 200; D1 title, title_search normalised, version 0 → 1; client doc meta.title updated (delivery time logged against TITLE_LIVE_BUDGET_MS, not asserted) | integration |
 | TC-15 | dash.rename | not applicable | not applicable | signed-in non-creator | PATCH '', max + 1, control chars | 400 each; D1 row unchanged | integration |
 | TC-16 | dash.rename | not applicable | not applicable | foreign website, signed-in | PATCH unknown board; foreign Origin | 404; 403 with no change | integration |
 | TC-17 | dash.rename | not applicable | not applicable | two guests | concurrent PATCH 'Alpha' and 'Beta' | D1 final title has highest version; room meta equals D1; both WebSocket clients show that title | integration |
@@ -297,7 +326,7 @@ Classes in each dimension are exhaustive for this story and non-overlapping.
 | TC-22 | dash.pages | D1 = 0 | render | "No boards yet" and New board button | ui-component |
 | TC-23 | dash.pages | D2 | type 'ret' then 'retro' within SEARCH_DEBOUNCE_MS; resolve responses out of order; no-match response; Clear search | one request for 'retro' after debounce; stale response ignored; "No boards match “retro”"; full list restored | ui-component |
 | TC-24 | dash.pages | not applicable | api error on load | "Couldn't load your boards." with Retry; New board enabled; Retry reloads | ui-component |
-| TC-25 | dash.pages | D4, D6 | BoardTitle: click, Enter valid; Escape; blur valid; blur unchanged; invalid; api 500; offline | saving then new title; previous restored no request; saved; no request; message and stays open; previous restored with failure message; not editable with "Renaming needs a connection." | ui-component |
+| TC-25 | dash.pages | D4, D6 | BoardTitle: click, Enter valid; Escape; blur valid; blur unchanged; invalid; api 500; offline | saving then new title; previous restored no request; saved; no request; "Titles must be 1–100 characters." and stays open; previous restored with failure message; not editable with "Renaming needs a connection." | ui-component |
 | TC-26 | dash.pages | D4 | RenameDialog: opens with title selected; Save; Cancel; api 500 | row shows new title; no call; failure message and dialog stays with previous row title | ui-component |
 | TC-27 | dash.pages | D5 | doc meta.title changes remotely | BoardTitle text and document.title "<title> – vidi6" update | ui-component |
 | TC-28 | dash.pages | D3 signed-out | guest list with 2 boards; guest list empty; meta error | "On this browser" rows with titles and sign-in invitation; empty text; rows without titles and Retry | ui-component |
@@ -306,9 +335,9 @@ Classes in each dimension are exhaustive for this story and non-overlapping.
 ## Coverage table — e2e (Playwright, `wrangler dev --env local`, dev-email sign-in)
 | TC | Capability | Workflow | Expected | Level |
 |---|---|---|---|---|
-| TC-30 | dash.pages, dash.rename | Find and rename: sign in, create 3 boards, rename them "Q3 retro", "Retro – onboarding", "Roadmap"; search "retro"; open "Q3 retro"; rename on board to "Q3 retro – actions"; back to My boards | 2 results within SEARCH_RESULT_BUDGET_MS; renamed board first with new title | e2e |
-| TC-31 | dash.rename | Live rename by non-creator: Alex (signed in, creator) and Sam (guest) on the board; Sam renames | Alex's board title and tab title update within TITLE_LIVE_BUDGET_MS | e2e |
-| TC-32 | dash.pages | Seed DASHBOARD_PAGE_SIZE + 5 visits via test hook; open My boards; Show more | 50 rows within DASHBOARD_LOAD_BUDGET_MS; 55 after Show more; no duplicates | e2e |
+| TC-30 | dash.pages, dash.rename | Find and rename: sign in, create 3 boards, rename them "Q3 retro", "Retro – onboarding", "Roadmap"; search "retro"; open "Q3 retro"; rename on board to "Q3 retro – actions"; back to My boards | 2 results (search time logged against SEARCH_RESULT_BUDGET_MS, not asserted); renamed board first with new title | e2e |
+| TC-31 | dash.rename | Live rename by non-creator: Alex (signed in, creator) and Sam (guest) on the board; Sam renames | Alex's board title and tab title update (delivery time logged against TITLE_LIVE_BUDGET_MS, not asserted) | e2e |
+| TC-32 | dash.pages | Seed DASHBOARD_PAGE_SIZE + 5 visits via test hook; open My boards; Show more | 50 rows (load time logged against DASHBOARD_LOAD_BUDGET_MS, not asserted); 55 after Show more; no duplicates | e2e |
 | TC-33 | dash.pages | New board from dashboard; return to My boards | new board opened; first row "Untitled board" | e2e |
 | TC-34 | dash.pages | Board page with `context.setOffline(true)` | title not editable; hover text "Renaming needs a connection." | e2e |
 | TC-35 | dash.pages | Signed-out: open a board renamed "Design crit" from a link; visit My boards | "On this browser" lists "Design crit" with sign-in invitation | e2e |
@@ -360,9 +389,12 @@ Classes in each dimension are exhaustive for this story and non-overlapping.
 - Boards created through story 5's API; visits through story 14's routes; seed test hook only under `TEST_HOOKS=1`.
 
 ## Not covered
+Deliberately not covered by automated tests:
 - Search performance beyond a few thousand boards per person.
 - Locale-specific case rules beyond Unicode default lower-casing (e.g. Turkish dotless i).
+- Vandalism by people who have the link (access model is possession of the link; not addressed in this story).
 - Deleting or hiding boards (out of scope, flagged).
+- Wall-clock search, load and title-delivery times as pass/fail criteria: on a shared machine they are logged (TC-14, TC-30–TC-32), not asserted.
 
 ## Board list, search and title lookup API
 
@@ -413,13 +445,13 @@ export function applyTitleIfNewer(meta: Y.Map<unknown>, title: string, version: 
 ```
 - **Inputs:** raw title, board id, `Origin`. No session is read (dash.rename_anyone).
 - **Outputs:** D1 row updated (title, title_search, title_version + 1, updated_at); room doc `meta.title`/`meta.titleVersion` updated with `SERVER_ORIGIN` and broadcast to everyone on the board (dash.title_live).
-- **Errors:** invalid → 400 (dash.title_rules: client also validates first and keeps the field open); foreign Origin → 403; unknown → 404; D1 failure → 500. Every non-200 means the client restores the previous title with a message (dash.rename_failure). Room notification failure is not an error to the caller (self-heal decision 3).
+- **Errors:** invalid → 400 (dash.title_rules: client also validates first, shows "Titles must be 1–100 characters." and keeps the field open); foreign Origin → 403; unknown → 404; D1 failure → 500. Every non-200 means the client restores the previous title with a message (dash.rename_failure). Room notification failure is not an error to the caller (self-heal decision 3).
 - **Side effects:** D1 write; Yjs update stored and broadcast by story 4's room.
 
 ## Implementation
 - Handler order: Origin → `validateTitle` → existence (`boards` row or `exists()` RPC, inserting a row for legacy boards) → `UPDATE ... RETURNING title_version` → `setTitle` up to `ROOM_TITLE_NOTIFY_ATTEMPTS`.
 - Room load (story 4 modification) reads `title, title_version` from `env.DB` after storage load and calls `applyTitleIfNewer`.
-- Both entry points — inline board title (dash.rename_on_board) and dashboard dialog (dash.rename_from_dashboard) — call the same `api.renameBoard`.
+- Both entry points — inline board title (dash.rename_on_board) and dashboard dialog (dash.rename_from_dashboard) — call the same `api.renameBoard` only when the person confirms (Enter, click away, Save). Escape on the board title (or Cancel in the dialog) restores the previous title locally and sends no request.
 - Concurrency: highest D1 version wins in both D1 and doc (TC-17, TC-19).
 
 ## Tests

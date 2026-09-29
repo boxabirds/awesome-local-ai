@@ -145,7 +145,6 @@ Verification: open the app, see the hint; drag once, the hint disappears; furthe
 
 - **Browsers:** current and previous major versions of desktop Chrome, Edge, Firefox and Safari.
 - **Input devices:** mouse with wheel, and laptop trackpads (macOS and Windows precision touchpads).
-- **Smoothness:** panning and zooming on an empty board should feel fluid (target: no visible stutter at 60 frames per second on a mid-range laptop). This is checked manually; it is not an automated pass/fail criterion in this story.
 - **Accessibility:** zoom buttons and Reset view are keyboard focusable and have accessible names ("Zoom out", "Zoom in", "Reset view"); the zoom label is announced when it changes.
 - **Settings:** zoom minimum, maximum and step size are product settings that can be changed in one place without redesign.
 

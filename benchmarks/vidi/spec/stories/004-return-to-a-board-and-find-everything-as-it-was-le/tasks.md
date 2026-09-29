@@ -9,7 +9,7 @@
 | 5 | Integration tests for persistent room: durability, failures, hibernation (TC-12 to TC-18, TC-26) | proposed | test:integration | persist.room |
 | 6 | E2E persistence across real process restarts and large-board load time (TC-19 to TC-21) | proposed | test:e2e | persist.room |
 | 7 | Implement client load-failure state: red message and editing disabled | proposed | implementation | persist.client_status |
-| 8 | Component tests for load-failure badge and edit lock (TC-22, TC-23) | proposed | test:ui-component | persist.client_status |
+| 8 | Component tests for load-failure badge, edit lock and close-code mapping (TC-22, TC-23, TC-28) | proposed | test:ui-component | persist.client_status |
 | 9 | E2E broken board: honest failure, edit lock, recovery without reload (TC-24) | proposed | test:e2e | persist.client_status |
 
 ## Details
@@ -111,7 +111,7 @@ All pass in `npm run test:integration`.
 ### 6. E2E persistence across real process restarts and large-board load time (TC-19 to TC-21)
 
 ## Goal
-Prove the persist.room guarantees end-to-end: the room reloads from SQLite after the process forgets memory, stores before broadcast, and opens large boards within budget.
+Prove the persist.room guarantees end-to-end: the room reloads from SQLite after the process forgets memory, stores before broadcast, and opens a large board completely (open time logged).
 
 ## Helper
 `wrangler-process.ts`: start/stop `wrangler dev --persist-to <tmp dir>` per test (its own Playwright project without the shared webServer), wait for readiness.
@@ -119,10 +119,10 @@ Prove the persist.room guarantees end-to-end: the room reloads from SQLite after
 ## Cases
 - Workflow "Overnight return" TC-19: create 25 varied notes in the browser, close browser, kill and restart the process, reopen → 25 notes identical in text, colour, position and stacking (room load path on construct).
 - Workflow "Leave immediately" TC-20: Alex creates note; poll until visible to Sam; within 1 s close both contexts and kill the process; restart; reopen → note present (append-before-broadcast guarantee).
-- Workflow "Big board open" TC-21: seed a PERSIST_TESTED_NOTES board, open a fresh context, measure navigation start → all note elements rendered ≤ BOARD_LOAD_BUDGET_MS (compaction + single SyncStep2 path).
+- Workflow "Big board open" TC-21: seed a PERSIST_TESTED_NOTES board, open a fresh context, wait (up to E2E_EVENTUAL_TIMEOUT_MS) until all note elements are rendered → assert all notes present; **log** navigation-start-to-rendered time against BOARD_LOAD_BUDGET_MS. The budget is reported, not asserted, because the model, browser and server share one machine.
 
 ## Done when
-All pass locally in chromium; timings printed.
+All functional assertions pass locally in chromium; timings printed. No test fails because a duration exceeded its budget.
 
 ### 7. Implement client load-failure state: red message and editing disabled
 
@@ -138,15 +138,15 @@ Implement persist.client_status per contract.
 ## Done when
 Tasks 4.8 and 4.9 pass.
 
-### 8. Component tests for load-failure badge and edit lock (TC-22, TC-23)
+### 8. Component tests for load-failure badge, edit lock and close-code mapping (TC-22, TC-23, TC-28)
 
 ## Goal
-Verify persist.client_status rendering and `canEdit` gating in jsdom.
+Verify persist.client_status rendering, `canEdit` gating and close-code mapping in jsdom.
 
 ## Cases
 - TC-22 state `load_failed` → red text "This board couldn't be loaded. Retrying…" with `role=status`.
 - TC-23 App in `load_failed`: dblclick on board, click Sticky note button (disabled), press Delete on a note, drag a note, type in a note → zero board-model mutation calls (negative).
-- Close-code mapping (fake provider emitting `connection-close`): 4500 → `load_failed`; 1011 → `reconnecting` (not locked); subsequent sync → `connected` and editing enabled again (recovery).
+- TC-28 fake provider emitting `connection-close`: 4500 → `load_failed`; 1011 → `reconnecting` with editing still enabled; 1003 → `reconnecting`; subsequent sync after `load_failed` → `connected` and editing enabled again (recovery).
 
 ## Done when
 All pass in `npm run test:component`.

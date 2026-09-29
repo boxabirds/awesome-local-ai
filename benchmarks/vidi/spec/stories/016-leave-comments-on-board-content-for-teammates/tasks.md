@@ -2,14 +2,14 @@
 
 | # | Title | Status | Type | Implements |
 |---|-------|--------|------|------------|
-| 1 | Write comments model unit tests first on a real Y.Doc (TC-01 to TC-14) | proposed | test:unit | comments.model |
+| 1 | Write comments model unit tests first on a real Y.Doc (TC-01 to TC-14, TC-38, TC-39) | proposed | test:unit | comments.model |
 | 2 | Implement comments model: anchors, threads, replies, resolve, edit/delete rules | proposed | implementation | comments.model |
 | 3 | Implement Comment tool, screen-space markers and thread popover | proposed | implementation | comments.board_ui |
-| 4 | Component tests for Comment tool, markers and popover (TC-23 to TC-30) | proposed | test:ui-component | comments.board_ui |
+| 4 | Component tests for Comment tool, markers and popover (TC-23 to TC-30, TC-40 to TC-42) | proposed | test:ui-component | comments.board_ui |
 | 5 | E2E comment discussion and persistence (TC-35, TC-36) | proposed | test:e2e | comments.board_ui |
 | 6 | Ensure comments map in initDoc for sync and persistence | proposed | implementation | comments.sync_persist |
-| 7 | Integration tests: comments converge and persist through BoardRoom (TC-18 to TC-22) | proposed | test:integration | comments.sync_persist |
-| 8 | Write comment undo guard unit tests first (TC-15 to TC-17) | proposed | test:unit | comments.undo |
+| 7 | Integration tests: comments converge and persist through BoardRoom (TC-18 to TC-22, TC-44) | proposed | test:integration | comments.sync_persist |
+| 8 | Write comment undo guard unit tests first (TC-15 to TC-17, TC-43) | proposed | test:unit | comments.undo |
 | 9 | Extend undo to comments with foreign-reply guard | proposed | implementation | comments.undo |
 | 10 | Implement comments panel with Open/Resolved tabs and navigation | proposed | implementation | comments.panel_ui |
 | 11 | Component tests for comments panel and undo shortcut (TC-31 to TC-34) | proposed | test:ui-component | comments.panel_ui, comments.undo |
@@ -17,26 +17,28 @@
 
 ## Details
 
-### 1. Write comments model unit tests first on a real Y.Doc (TC-01 to TC-14)
+### 1. Write comments model unit tests first on a real Y.Doc (TC-01 to TC-14, TC-38, TC-39)
 
 ## Goal
-Test-first suite for comments.model against its contract (`anchorForClick`, `createThread`, `addReply`, `setResolved`, `editMessage`, `deleteMessage`, `resolveAnchorPosition`, `listThreads`, `openCount`) using a real Y.Doc. Stub exports throw "not implemented". Add COMMENT_BODY_MAX_CHARS, COMMENT_MARKER_SIZE_PX, COMMENT_PANEL_WIDTH_PX, COMMENT_TESTED_THREADS, COMMENT_TESTED_MESSAGES, COMMENT_NOTICE_MS, COMMENT_PREVIEW_CHARS to `config.ts`; add `tests/fixtures/comments.ts` (guest "Curious Otter", signed-in "Mira", realistic threads).
+Test-first suite for comments.model against its contract (`anchorForClick`, `createThread`, `addReply`, `setResolved`, `editMessage`, `deleteMessage`, `resolveAnchorPosition`, `listThreads`, `openCount`) using a real Y.Doc. Stub exports throw "not implemented". Add COMMENT_BODY_MAX_CHARS, COMMENT_MARKER_SIZE_PX, COMMENT_PANEL_WIDTH_PX, COMMENT_NOTICE_MS, COMMENT_PREVIEW_CHARS to `config.ts`; add `tests/fixtures/comments.ts` (guest "Curious Otter", signed-in "Mira", realistic threads).
 
 ## Cases (each mutation asserts update-event count: 1 on success, 0 on rejection)
 - TC-01 click at 75%/25% of a 200x200 sticky → object anchor relX 0.75 relY 0.25, fallback = click point, 1 message with authorName snapshot.
 - TC-02 point anchor (−300, 40) stored exactly.
 - TC-03 blank bodies '', '   ', '\n\t' → null (negative).
 - TC-04 body lengths 1, COMMENT_BODY_MAX_CHARS, +1 → stored 1, 2000, truncated 2000 (boundary).
-- TC-05 object anchor to missing object → null (error path).
+- TC-05 object anchor to missing object → null (negative).
 - TC-06 addReply appends in order; missing thread → false; blank → false.
 - TC-07 resolveAnchorPosition corners (0,0) and (1,1) after object moved +500 and doubled.
 - TC-08 object deleted → fallback + detached; restored same id → attached.
-- TC-09 setResolved true (resolvedBy set), true again (no update), false (cleared), missing thread (false).
-- TC-10 editMessage by author sets body+editedAt; by other id false; blank false.
+- TC-09 setResolved true on open (resolvedBy set), false on resolved (cleared), true on missing thread (false).
+- TC-10 editMessage by author sets body+editedAt; blank false.
 - TC-11 delete reply removed; root without replies → thread removed; root with replies → deleted true, body '', replies kept.
-- TC-12 deleteMessage by other author → false (negative).
+- TC-12 deleteMessage by other author → false, 0 updates (negative).
 - TC-13 listThreads filter + newest latest-message first; openCount.
 - TC-14 rename after posting: first message keeps old authorName, reply uses new name.
+- TC-38 setResolved(true) on an already-resolved thread → false, 0 updates (negative).
+- TC-39 editMessage by another author → false, 0 updates (negative).
 
 ## Done when
 Suite compiles and fails only with "not implemented"; committed.
@@ -72,20 +74,23 @@ Implement comments.board_ui per contract (`CommentLayer`, `ThreadPopover`).
 ## Done when
 Tasks 16.4 and 16.5 pass.
 
-### 4. Component tests for Comment tool, markers and popover (TC-23 to TC-30)
+### 4. Component tests for Comment tool, markers and popover (TC-23 to TC-30, TC-40 to TC-42)
 
 ## Goal
 jsdom tests of the comments.board_ui contract with a real Y.Doc, fixture identities and fake timers.
 
 ## Cases
 - TC-23 Comment tool click on a sticky → draft anchor with object fractions; click on empty board → point anchor.
-- TC-24 Post disabled when blank (negative), enabled with text; Enter inserts newline; Ctrl/Cmd+Enter calls createThread.
+- TC-24 Post disabled when blank, enabled with text; Enter inserts newline; Ctrl/Cmd+Enter calls createThread.
 - TC-25 paste 2,100 chars → textarea value length COMMENT_BODY_MAX_CHARS (boundary).
 - TC-26 marker at zoom ZOOM_MIN and ZOOM_MAX → width/height COMMENT_MARKER_SIZE_PX; badge "3"; accessible label text.
-- TC-27 resolved thread renders no marker; detached thread shows notice text.
-- TC-28 own message has Edit/Delete, other's has none (negative); edited shows "(edited)"; deleted root with replies shows placeholder.
+- TC-27 resolved thread renders no marker; detached thread shows "The item this comment was attached to was deleted.".
+- TC-28 own message has the ⋯ menu; edited shows "(edited)"; deleted root with replies shows "This comment was deleted" above the replies.
 - TC-29 remote delete while open → popover closes with notice; remote resolve while open → "Resolved by Mira" and Reopen.
-- TC-30 Escape with draft → no doc update; Escape in tool with no popover → Select tool; `canEdit` false → tool disabled (negative).
+- TC-30 Escape in the Comment tool with no popover open → Select tool.
+- TC-40 messages by another identity have no ⋯ menu (negative).
+- TC-41 type a draft, press Escape → 0 doc updates (negative).
+- TC-42 `canEdit` false → Comment tool disabled; click posts nothing, 0 updates (negative).
 
 ## Done when
 All pass in `npm run test:component`.
@@ -93,14 +98,14 @@ All pass in `npm run test:component`.
 ### 5. E2E comment discussion and persistence (TC-35, TC-36)
 
 ## Goal
-Prove comments.board_ui live behaviour through real browsers and the real `wrangler dev` path.
+Prove comments.board_ui live behaviour through real browsers and the real `wrangler dev` path. Functional waits use E2E_EVENTUAL_TIMEOUT_MS (story 3); delivery time is logged, not asserted.
 
 ## Workflows
-- TC-35 "Discussion on a note" (two contexts, fixture identities): Lee selects the Comment tool (C), clicks a sticky, posts "Is this in scope for Q3?" → Mira sees the screen-space marker within LIVE_UPDATE_LATENCY_BUDGET_MS, opens the ThreadPopover, replies → marker badge "2" on both; Lee moves and resizes the note → marker stays at the same relative spot (±1 px from expected); Mira resolves → marker hidden on both; Lee reopens from the Resolved tab → marker returns.
+- TC-35 "Discussion on a note" (two contexts, fixture identities): Lee selects the Comment tool (C), clicks a sticky, posts "Is this in scope for Q3?" → Mira sees the screen-space marker (delivery time **logged** against LIVE_UPDATE_LATENCY_BUDGET_MS), opens the ThreadPopover, replies → marker badge "2" on both; Lee moves and resizes the note → marker stays at the same relative spot (±1 px from expected); Mira resolves → marker hidden on both; Lee reopens from the Resolved tab → marker returns.
 - TC-36 "Come back tomorrow": Lee edits own message, Mira resolves another thread; close all contexts; reopen board → threads, "(edited)", resolved state and authorName snapshots identical.
 
 ## Done when
-Both pass in chromium.
+All functional assertions pass in chromium. No test fails because a delivery time exceeded its budget.
 
 ### 6. Ensure comments map in initDoc for sync and persistence
 
@@ -115,7 +120,7 @@ Implement comments.sync_persist per contract: `initDoc` also ensures `doc.getMap
 ## Done when
 Integration task TC-18..TC-22 passes.
 
-### 7. Integration tests: comments converge and persist through BoardRoom (TC-18 to TC-22)
+### 7. Integration tests: comments converge and persist through BoardRoom (TC-18 to TC-22, TC-44)
 
 ## Goal
 Verify comments.sync_persist with the real Worker, BoardRoom and SQLite (vitest-pool-workers), using story 3's `ws-client` helper and story 4's reload path.
@@ -126,11 +131,12 @@ Verify comments.sync_persist with the real Worker, BoardRoom and SQLite (vitest-
 - TC-20 concurrent: A deletes sole first message (thread removed) while B replies → both converge with thread absent; no exception (documented delete-wins).
 - TC-21 create, edit and resolve threads; all clients leave; room reloads from storage → threads, editedAt and resolved state identical.
 - TC-22 `initDoc` on a doc that already has meta and comments → zero update events (negative: opening a board never writes).
+- TC-44 A's delete of the whole thread is stored first, then B's reply update (created before it saw the delete) reaches the room → thread absent on A, B and after reload (negative: a deleted thread never reappears).
 
 ## Done when
 All pass in `npm run test:integration`.
 
-### 8. Write comment undo guard unit tests first (TC-15 to TC-17)
+### 8. Write comment undo guard unit tests first (TC-15 to TC-17, TC-43)
 
 ## Goal
 Test-first coverage of comments.undo: UndoManager scope `[objects, comments]` with `trackedOrigins {LOCAL_ORIGIN}`, `recordCreatedThreads` storing `meta.threadIds`, and `canUndoTop` guard. Uses two real Y.Docs synced by applying updates directly.
@@ -139,7 +145,7 @@ Test-first coverage of comments.undo: UndoManager scope `[objects, comments]` wi
 - TC-15 A posts a thread, undo → thread removed; redo → restored identical.
 - TC-16 A posts, B (other doc, other identity) replies, A calls undo through the guard → `canUndoTop` returns `{ok:false, reason:'foreign-replies'}`, stack item dropped, thread and B's reply intact, notice emitted (negative: never undo others' work).
 - TC-17 A resolves; B edits its own message; A undo → thread reopened, B's edit untouched (remote changes never tracked).
-- Empty stack → `{ok:false, reason:'empty'}`.
+- TC-43 empty history → `{ok:false, reason:'empty'}`, 0 updates, no notice (negative).
 
 ## Done when
 Suite compiles against stubs and fails with "not implemented"; committed.

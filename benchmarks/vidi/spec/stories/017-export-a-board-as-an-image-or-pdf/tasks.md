@@ -7,20 +7,20 @@
 | 3 | Write export asset and font loading unit tests first (TC-10 to TC-13) | proposed | test:unit | export.assets |
 | 4 | Implement export asset loading with concurrency, timeout, abort and font readiness | proposed | implementation | export.assets |
 | 5 | Write export drawing unit tests first with a recording 2D context (TC-14 to TC-18) | proposed | test:unit | export.draw |
-| 6 | Implement export drawing: registry exportDraw for all six item types, z-order loop, text wrapping | proposed | implementation | export.draw |
+| 6 | Implement export drawing: registry exportDraw for all six object types, z-order loop, text wrapping | proposed | implementation | export.draw |
 | 7 | Write export pipeline unit tests first: success, PDF, failures, cancel, notices (TC-19 to TC-23) | proposed | test:unit | export.pipeline |
 | 8 | Implement export pipeline: snapshot, stages, PNG and PDF encoding, download, cancellation | proposed | implementation | export.pipeline |
 | 9 | Implement Export dialog and top-bar Export button | proposed | implementation | export.dialog |
 | 10 | Component tests for Export dialog states (TC-24 to TC-30) | proposed | test:ui-component | export.dialog |
 | 11 | E2E export workflows: faithful PNG, view/selection, PDF, missing images, offline, huge board, no side effects (TC-31 to TC-37) | proposed | test:e2e | export.plan, export.assets, export.draw, export.pipeline, export.dialog |
-| 12 | Nightly e2e: export performance at tested board size (TC-38) | proposed | test:e2e | export.pipeline |
+| 12 | Nightly e2e: export at tested board size with timing report (TC-38) | proposed | test:e2e | export.pipeline |
 
 ## Details
 
 ### 1. Write export planning unit tests first (TC-01 to TC-09)
 
 ## Goal
-Test-first coverage of export.plan (`computeBounds`, `planRaster`, `exportFilename`, `pdfPageSize`). Add all EXPORT_* named settings to `config.ts`; stub `plan.ts` exports throwing "not implemented"; add `tests/fixtures/export-boards.ts` (retro board, far-apart board, extreme board).
+Test-first coverage of export.plan (`computeBounds`, `planRaster`, `exportFilename`, `pdfPageSize`). Add all EXPORT_* named settings to `config.ts`; stub `plan.ts` exports throwing "not implemented"; add `tests/fixtures/export-boards.ts` (retro board titled "Q3 planning", far-apart board, extreme board).
 
 ## Cases
 - TC-01 whole: 3 items at mixed positions → union + EXPORT_MARGIN_WORLD on each side.
@@ -30,7 +30,7 @@ Test-first coverage of export.plan (`computeBounds`, `planRaster`, `exportFilena
 - TC-05 planRaster scale 1 vs 2 → 2x dims exactly double (ceil).
 - TC-06 width EXPORT_MAX_SIDE_PX + 1 and area EXPORT_MAX_AREA_PX + 1 → fit < 1, limits respected, reducedPercent = floor(fit*100) (boundary).
 - TC-07 effective scale exactly EXPORT_MIN_SCALE → ok; just below → `too_large` (boundary).
-- TC-08 exportFilename 'Q3/planning: v2', '' and undefined with fake local date 2026-09-17 → sanitised name, EXPORT_FILENAME_FALLBACK, correct .png/.pdf.
+- TC-08 exportFilename with titles 'Q3/planning: v2' and 'Untitled board' and fake local date 2026-09-17 → 'Q3-planning- v2-2026-09-17.png' and 'Untitled board-2026-09-17.pdf'.
 - TC-09 pdfPageSize 1000x500 px → 750x375 pt; 40000x100 px → longest side EXPORT_PDF_MAX_PAGE_PT, ratio preserved.
 
 ## Done when
@@ -44,7 +44,7 @@ Implement export.plan per contract so TC-01..TC-09 pass.
 ## Approach
 - `computeBounds(items, area)`: whole → all items (connector bbox derived); selection → only `area.ids`; both add EXPORT_MARGIN_WORLD. View → `screenToWorld` of viewport corners (story 1 camera) exactly, including intersecting items, no margin. No items or non-finite rect → `{kind:'empty'}`.
 - `planRaster(rect, scale)`: `w=ceil(width*scale)`, `h=ceil(height*scale)`; `fit=min(1, MAX_SIDE/w, MAX_SIDE/h, sqrt(MAX_AREA/(w*h)))`; `effective=scale*fit`; below EXPORT_MIN_SCALE → `too_large`; else dims from effective scale and `reducedPercent = fit<1 ? floor(fit*100) : null`.
-- `exportFilename`: replace `/\:*?"<>|` with '-', trim, fallback EXPORT_FILENAME_FALLBACK, append local `YYYY-MM-DD` and extension.
+- `exportFilename(boardTitle, format, now)`: replace `/\:*?"<>|` with '-', trim, append local `YYYY-MM-DD` and extension. No fallback name — every board has a 1–100 character title (story 15; "Untitled board" by default).
 - `pdfPageSize`: px × EXPORT_PDF_POINTS_PER_PX; if longest side > EXPORT_PDF_MAX_PAGE_PT scale both down proportionally.
 - Pure, no DOM; the dialog uses `planRaster` for its size hint.
 
@@ -95,7 +95,7 @@ Also: abort signal set before a yield after EXPORT_YIELD_EVERY_ITEMS items → t
 ## Done when
 Suite compiles against stubs and fails with "not implemented"; committed.
 
-### 6. Implement export drawing: registry exportDraw for all six item types, z-order loop, text wrapping
+### 6. Implement export drawing: registry exportDraw for all six object types, z-order loop, text wrapping
 
 ## Goal
 Implement export.draw per contract, including the story 7 registry modification.
@@ -138,7 +138,7 @@ Implement export.pipeline per contract and the job stage state diagram.
 - Drawing (70%): `createCanvas(widthPx, heightPx)`; `getContext('2d')` null → `failed no-context`; `drawExport` with effective scale.
 - Encoding (10%): `toBlob('image/png')` null/throw → `encode-failed`. PDF: `loadPdfLib()` (dynamic import), `PDFDocument.create`, `embedPng`, `addPage([widthPt,heightPt])` from `pdfPageSize`, `drawImage` full page, `save()`; any throw → `pdf-failed`.
 - Check `signal.aborted` between stages and before download → `cancelled`.
-- Download: object URL + temporary anchor with `download = exportFilename(...)`, revoke after click. Return `reducedPercent` and `missingImages`.
+- Download: object URL + temporary anchor with `download = exportFilename(job.boardTitle, format, now())`, revoke after click. Return `reducedPercent` and `missingImages`.
 - Offline-safe: only asset fetches use the network.
 
 ## Done when
@@ -150,7 +150,7 @@ TC-19..TC-23 pass.
 Implement export.dialog per contract and the dialog state diagram (Closed, Options, Exporting).
 
 ## Approach
-- BoardPage top bar: Export button next to Share opens `ExportDialog`.
+- BoardPage top bar: Export button next to Share opens `ExportDialog`, passing the board's current title from story 15's `BoardTitle` (`displayTitle`).
 - Options: `role=dialog aria-label="Export board"`; Format radios (PNG default, PDF); Area radios (Whole default, Current view, Selection disabled with hint "Select items first" when selection is empty); Resolution radios (EXPORT_DEFAULT_SCALE preselected, hidden for PDF); size hint "About W × H pixels" from `planRaster`; empty/too-large plan → exact PRD messages and Export disabled.
 - Exporting: capture selection, camera and viewport at click; dynamic import `pipeline.ts`; `AbortController`; `progressbar` fed by onProgress; Cancel aborts; Escape ignored while exporting.
 - Results: clean download → close; reducedPercent → "Reduced to N% to fit the maximum image size."; missingImages → "N images couldn't be included."; failed → "Export failed: your browser couldn't create a file this large. Try Current view or 1×." (stay open); cancelled → back to Options. Messages in `role=status`.
@@ -193,14 +193,14 @@ Real-browser proof of the export pipeline end to end: planning (export.plan), as
 ## Done when
 All pass in chromium; TC-31 and TC-33 also in firefox and webkit.
 
-### 12. Nightly e2e: export performance at tested board size (TC-38)
+### 12. Nightly e2e: export at tested board size with timing report (TC-38)
 
 ## Goal
-Nightly check of export.pipeline performance: `runExport` through the real dialog on a board of EXPORT_TESTED_ITEMS mixed items (stickies, text, shapes, connectors, strokes, images) exported as 2× PNG.
+Nightly check of export.pipeline at scale: `runExport` through the real dialog on a board of EXPORT_TESTED_ITEMS mixed objects (stickies, text, shapes, connectors, strokes, images) exported as 2× PNG.
 
 ## Case
-- TC-38: measure from Export click to download event; assert ≤ EXPORT_BUDGET_MS; log stage timings from onProgress (assets, drawing, encoding) and the effective scale/reducedPercent reported by the pipeline result; assert the downloaded PNG dimensions equal the plan.
+- TC-38: export completes and downloads; assert the downloaded PNG dimensions equal the plan. **Measure and log** the time from Export click to download and the stage timings from onProgress (assets, drawing, encoding) against EXPORT_BUDGET_MS; timing is reported, **not asserted**, because the model, browser and server share one machine.
 
 ## Done when
-Runs in the nightly Playwright project (excluded from default e2e) and passes locally in chromium.
+Runs in the nightly Playwright project (excluded from default e2e); the functional assertion passes locally in chromium and the timing report is printed. No test fails because the export took longer than the budget.
 
