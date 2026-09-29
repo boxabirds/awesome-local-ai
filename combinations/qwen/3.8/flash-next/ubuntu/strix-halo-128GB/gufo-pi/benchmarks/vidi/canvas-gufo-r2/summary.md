@@ -14,8 +14,9 @@ Model `qwen3.8-flash-next-gufo`, scope `canvas`, effort `low`, client pi 0.87.1,
 | 9 | Write free text anywhere on the board | DONE, on partial 5 | 63.2 | None | None | None | — | — | red | 48/57 |  | 0 / 0 | 2 | — | throttled 0%, server peak 0 GB |
 | 10 | Draw shapes and connect them with arrows that follow when moved | DONE, on partial 5 | 47.5 | None | None | None | — | — | red | 56/65 |  | 0 / 2 | 2 | — | throttled 0%, server peak 0 GB |
 | 11 | Sketch freehand with a pen | DONE, on partial 5 | 44.9 | None | None | None | — | — | red | 60/70 |  | 0 / 0 | 1 | — | throttled 0%, server peak 0 GB |
+| 12 | Drop images onto the board | PARTIAL (red), on partial 5 | 102.0 | None | None | None | — | — | red | 65/75 |  | 0 / 5 | 4 | — | throttled 0%, server peak 0 GB |
 
-**Totals:** 10 stories, 531 agent-minutes, 0 requests, 0 prompt / 0 completion tokens, gate green 4/10, final acceptance 60/70, stalled 0, partial 1, 22621 lines in src+tests.
+**Totals:** 11 stories, 633 agent-minutes, 0 requests, 0 prompt / 0 completion tokens, gate green 4/11, final acceptance 65/75, stalled 0, partial 2, 67693 lines in src+tests.
 
 ### Stories ended early (PARTIAL) and what was built on them
 
@@ -25,6 +26,8 @@ Model `qwen3.8-flash-next-gufo`, scope `canvas`, effort `low`, client pi 0.87.1,
 - Story 9, built on partial 5: held-out tests on the partial base 19/26; partial story's tests fixed 0, regressed 0; 0 stub-like lines added to src/.
 - Story 10, built on partial 5: held-out tests on the partial base 27/34; partial story's tests fixed 0, regressed 0; 0 stub-like lines added to src/.
 - Story 11, built on partial 5: held-out tests on the partial base 31/39; partial story's tests fixed 0, regressed 0; 0 stub-like lines added to src/.
+- **Story 12 PARTIAL**, ended by the operator (harness (cap)): story cap: 5 nudges without committing (cap 5). Verdict **red**: gate red, tasks not verified [1, 2, 3, 4, 5, 6, 7, 8, 9] (implementation: [3, 5, 6, 7]), held-out 5/5 (floor 0.0).
+- Story 12, built on partial 5: held-out tests on the partial base 36/44; partial story's tests fixed 0, regressed 0; 28 stub-like lines added to src/.
 
 ## How it happened
 
@@ -42,6 +45,7 @@ Each story's commits, and which story broke or fixed an earlier story's held-out
 | 9 | 1 by the agent | 2356 / 238 | `TextEditor.tsx` (174), `text.ts` (164), `StickyTextEditor.tsx` (160), `textLayout.ts` (136), `TextObject.tsx` (125), `App.tsx` (86), +14 more |
 | 10 | 1 by the agent | 3218 / 30 | `ConnectorTool.tsx` (273), `ConnectorObject.tsx` (254), `connector.ts` (248), `ShapeObject.tsx` (170), `ShapeTool.tsx` (166), `shape.ts` (161), +10 more |
 | 11 | 1 by the agent | 1985 / 292 | `NOTES.md` (323), `PenTool.tsx` (219), `stroke.ts` (135), `simplify.ts` (123), `PenToolbar.tsx` (110), `StrokeObject.tsx` (99), +8 more |
+| 12 | harness snapshot (agent left work uncommitted) | 4307 / 10 | `useImageInsert.ts` (341), `ImageObject.tsx` (296), `image.ts` (228), `uploadQueue.ts` (185), `styles.css` (162), `assets.ts` (110), +16 more |
 
 ### Earlier stories broken or fixed
 

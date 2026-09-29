@@ -3419,6 +3419,461 @@
           "fixed": 0,
           "regressed": 0
         }
+      },
+      "record": {
+        "committed": true,
+        "pushed": true,
+        "over_size_limit": [
+          "~/expts/awesome-local-ai/combinations/qwen/3.8/flash-next/ubuntu/strix-halo-128GB/gufo-pi/benchmarks/vidi/canvas-gufo-r2/server.log"
+        ],
+        "commit": "fd17d8ea"
+      }
+    },
+    "12": {
+      "title": "Drop images onto the board",
+      "conditions_start": {
+        "ac": true,
+        "low_power": false,
+        "thermal": "unmonitored"
+      },
+      "started": 1790641237.2384512,
+      "agent": {
+        "seconds": 6117.0,
+        "steps": 278,
+        "tool_calls": 281,
+        "compactions": 4,
+        "tool_interruptions": 0,
+        "tokens": {
+          "input": 406729,
+          "output": 195332,
+          "reasoning": 0,
+          "cache_read": 18586754,
+          "cache_write": 0
+        },
+        "exit": 0,
+        "stalled": false,
+        "resumes": 0,
+        "nudges": 5,
+        "toolcall_text_resumes": 3,
+        "errors": [],
+        "ended_by_operator": true,
+        "ended_in_error": false,
+        "sessions": [
+          "01a0ea88-edf6-75b0-928c-b468e9467b28",
+          "01a0ea88-edf6-75b0-928c-b468e9467b28",
+          "01a0ea88-edf6-75b0-928c-b468e9467b28",
+          "01a0ea88-edf6-75b0-928c-b468e9467b28",
+          "01a0ea88-edf6-75b0-928c-b468e9467b28",
+          "01a0ea88-edf6-75b0-928c-b468e9467b28",
+          "01a0ea88-edf6-75b0-928c-b468e9467b28",
+          "01a0ea88-edf6-75b0-928c-b468e9467b28",
+          "01a0ea88-edf6-75b0-928c-b468e9467b28"
+        ]
+      },
+      "agent_finished": 1790647355.1238265,
+      "conditions": {
+        "samples": 203,
+        "degraded": false,
+        "throttled_share": 0.0,
+        "bad_samples": [],
+        "swap_start_gb": 0.87,
+        "swap_max_gb": 0.92,
+        "aborted_swap": false,
+        "aborted_memory": false,
+        "free_min_pct": 22.348579611773474,
+        "server_footprint_max_gb": 0.002277374267578125,
+        "server_footprint_peak_gb": 0.0166473388671875,
+        "gpu": {
+          "samples": 203,
+          "busy_mean_pct": 88.2,
+          "sclk_min_busy_mhz": 2813,
+          "sclk_max_mhz": 2900,
+          "power_mean_w": 101.2,
+          "power_max_w": 137.1,
+          "temp_max_c": 86.0,
+          "gtt_max_gb": 85.61,
+          "throttled_samples": 0
+        }
+      },
+      "agent_commits": 0,
+      "gate": {
+        "steps": {
+          "install": {
+            "cmd": "npm ci",
+            "exit": 0,
+            "seconds": 3.2,
+            "tail": "\nadded 249 packages, and audited 250 packages in 3s\n\n50 packages are looking for funding\n  run `npm fund` for details\n\n8 vulnerabilities (2 moderate, 6 high)\n\nTo address all issues (including breaking changes), run:\n  npm audit fix --force\n\nRun `npm audit` for details.\nnpm WARN deprecated whatwg-encoding@3.1.1: Use @exodus/bytes instead for a more spec-conformant and faster implementation\n"
+          },
+          "build": {
+            "cmd": "npm run build",
+            "exit": 0,
+            "seconds": 1.3,
+            "tail": "\n> vidi6@0.1.0 build\n> vite build\n\n\u001b[36mvite v7.3.6 \u001b[32mbuilding client environment for production...\u001b[36m\u001b[39m\ntransforming...\n\u001b[32m\u2713\u001b[39m 139 modules transformed.\nrendering chunks...\ncomputing gzip size...\n\u001b[2mdist/client/\u001b[22m\u001b[32mindex.html                 \u001b[39m\u001b[1m\u001b[2m  0.44 kB\u001b[22m\u001b[1m\u001b[22m\u001b[2m \u2502 gzip:   0.28 kB\u001b[22m\n\u001b[2mdist/client/\u001b[22m\u001b[2massets/\u001b[22m\u001b[35mindex-HVxntcl4.css  \u001b[39m\u001b[1m\u001b[2m  9.01 kB\u001b[22m\u001b[1m\u001b[22m\u001b[2m \u2502 gzip:   2.30 kB\u001b[22m\n\u001b[2mdist/client/\u001b[22m\u001b[2massets/\u001b[22m\u001b[36mindex-C_oYffcM.js   \u001b[39m\u001b[1m\u001b[2m416.96 kB\u001b[22m\u001b[1m\u001b[22m\u001b[2m \u2502 gzip: 128.61 kB\u001b[22m\n\u001b[32m\u2713 built in 950ms\u001b[39m\n",
+            "passed": null,
+            "failed": null
+          },
+          "typecheck": {
+            "cmd": "npm run typecheck",
+            "exit": 2,
+            "seconds": 2.2,
+            "tail": "on type 'BoardRoom'.\nsrc/worker/board-room.ts(193,14): error TS2339: Property 'env' does not exist on type 'BoardRoom'.\nsrc/worker/board-room.ts(221,22): error TS2552: Cannot find name 'WebSocketPair'. Did you mean 'WebSocket'?\nsrc/worker/board-room.ts(224,10): error TS2339: Property 'ctx' does not exist on type 'BoardRoom'.\nsrc/worker/board-room.ts(228,7): error TS18046: 'server' is of type 'unknown'.\nsrc/worker/board-room.ts(232,48): error TS2353: Object literal may only specify known properties, and 'webSocket' does not exist in type 'ResponseInit'.\nsrc/worker/board-room.ts(235,24): error TS2345: Argument of type 'unknown' is not assignable to parameter of type 'WebSocket'.\nsrc/worker/board-room.ts(236,46): error TS2353: Object literal may only specify known properties, and 'webSocket' does not exist in type 'ResponseInit'.\nsrc/worker/board-room.ts(332,31): error TS2339: Property 'ctx' does not exist on type 'BoardRoom'.\nsrc/worker/board-room.ts(346,31): error TS2339: Property 'ctx' does not exist on type 'BoardRoom'.\nsrc/worker/board-room.ts(361,40): error TS2339: Property 'ctx' does not exist on type 'BoardRoom'.\nsrc/worker/board-room.ts(374,31): error TS2339: Property 'ctx' does not exist on type 'BoardRoom'.\nsrc/worker/board-room.ts(429,22): error TS2339: Property 'ctx' does not exist on type 'BoardRoom'.\nsrc/worker/board-room.ts(456,22): error TS2339: Property 'ctx' does not exist on type 'BoardRoom'.\nsrc/worker/board-room.ts(478,21): error TS2339: Property 'ctx' does not exist on type 'BoardRoom'.\nsrc/worker/index.ts(18,15): error TS2304: Cannot find name 'DurableObjectNamespace'.\nsrc/worker/index.ts(19,11): error TS2304: Cannot find name 'Fetcher'.\nsrc/worker/index.ts(21,18): error TS2304: Cannot find name 'R2Bucket'.\ntests/component/ImageObject.test.tsx(268,16): error TS2345: Argument of type '{ kind: \"ok\"; assetKey: string; }' is not assignable to parameter of type 'UploadResult'.\n  Property 'contentType' is missing in type '{ kind: \"ok\"; assetKey: string; }' but required in type '{ kind: \"ok\"; assetKey: string; contentType: string; }'.\ntests/component/useImageInsert.test.tsx(251,26): error TS2345: Argument of type '{ kind: \"ok\"; assetKey: string; }' is not assignable to parameter of type 'UploadResult'.\n  Property 'contentType' is missing in type '{ kind: \"ok\"; assetKey: string; }' but required in type '{ kind: \"ok\"; assetKey: string; contentType: string; }'.\ntests/component/useImageInsert.test.tsx(351,24): error TS2345: Argument of type 'EventTarget' is not assignable to parameter of type 'Window | Document | Node | Element'.\n  Type 'EventTarget' is missing the following properties from type 'Element': attributes, classList, className, clientHeight, and 178 more.\ntests/e2e/helpers/drop-files.ts(91,47): error TS2345: Argument of type '(string | { name: string; mimeType: string | undefined; buffer: NonSharedBuffer; })[]' is not assignable to parameter of type 'string | readonly string[] | { name: string; mimeType: string; buffer: Buffer<ArrayBufferLike>; } | readonly { name: string; mimeType: string; buffer: Buffer<ArrayBufferLike>; }[]'.\n  Type '(string | { name: string; mimeType: string | undefined; buffer: NonSharedBuffer; })[]' is not assignable to type 'readonly { name: string; mimeType: string; buffer: Buffer<ArrayBufferLike>; }[]'.\n    Type 'string | { name: string; mimeType: string | undefined; buffer: NonSharedBuffer; }' is not assignable to type '{ name: string; mimeType: string; buffer: Buffer<ArrayBufferLike>; }'.\n      Type 'string' is not assignable to type '{ name: string; mimeType: string; buffer: Buffer<ArrayBufferLike>; }'.\ntests/e2e/helpers/drop-files.ts(156,49): error TS2339: Property 'complete' does not exist on type 'HTMLElement | SVGElement'.\n  Property 'complete' does not exist on type 'HTMLElement'.\ntests/e2e/helpers/drop-files.ts(156,64): error TS2339: Property 'naturalWidth' does not exist on type 'HTMLElement | SVGElement'.\n  Property 'naturalWidth' does not exist on type 'HTMLElement'.\n",
+            "passed": null,
+            "failed": null
+          },
+          "test:unit": {
+            "cmd": "npm run test:unit",
+            "exit": 0,
+            "seconds": 1.6,
+            "tail": "\n> vidi6@0.1.0 test:unit\n> vitest run --project unit\n\n\n\u001b[1m\u001b[46m RUN \u001b[49m\u001b[22m \u001b[36mv3.2.7 \u001b[39m\u001b[90m~/.vidi-bench/work/qwen__3.8__flash-next__ubuntu__strix-halo-128GB__gufo-pi__benchmarks__vidi__canvas-gufo-r2/workspace\u001b[39m\n\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[42m unit \u001b[49m\u001b[39m tests/unit/geometry.test.ts \u001b[2m(\u001b[22m\u001b[2m13 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 5\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[42m unit \u001b[49m\u001b[39m tests/unit/text-layout.test.ts \u001b[2m(\u001b[22m\u001b[2m6 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 4\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[42m unit \u001b[49m\u001b[39m tests/unit/image-format.test.ts \u001b[2m(\u001b[22m\u001b[2m15 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 7\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[42m unit \u001b[49m\u001b[39m tests/unit/protocol.test.ts \u001b[2m(\u001b[22m\u001b[2m7 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 5\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[42m unit \u001b[49m\u001b[39m tests/unit/room-state.test.ts \u001b[2m(\u001b[22m\u001b[2m12 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 8\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[42m unit \u001b[49m\u001b[39m tests/unit/undo-boundaries.test.ts \u001b[2m(\u001b[22m\u001b[2m4 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 12\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[42m unit \u001b[49m\u001b[39m tests/unit/selection-reducer.test.ts \u001b[2m(\u001b[22m\u001b[2m9 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 5\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[42m unit \u001b[49m\u001b[39m tests/unit/validate-files.test.ts \u001b[2m(\u001b[22m\u001b[2m10 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 28\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[42m unit \u001b[49m\u001b[39m tests/unit/board-model.test.ts \u001b[2m(\u001b[22m\u001b[2m16 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 17\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[42m unit \u001b[49m\u001b[39m tests/unit/board-model-group.test.ts \u001b[2m(\u001b[22m\u001b[2m8 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 14\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[42m unit \u001b[49m\u001b[39m tests/unit/image-model.test.ts \u001b[2m(\u001b[22m\u001b[2m14 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 16\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[42m unit \u001b[49m\u001b[39m tests/unit/camera.test.ts \u001b[2m(\u001b[22m\u001b[2m21 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 70\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[42m unit \u001b[49m\u001b[39m tests/unit/shape-model.test.ts \u001b[2m(\u001b[22m\u001b[2m7 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 16\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[42m unit \u001b[49m\u001b[39m tests/unit/board-id.test.ts \u001b[2m(\u001b[22m\u001b[2m8 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 102\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[42m unit \u001b[49m\u001b[39m tests/unit/connector-model.test.ts \u001b[2m(\u001b[22m\u001b[2m12 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 19\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[42m unit \u001b[49m\u001b[39m tests/unit/sticky-text.test.ts \u001b[2m(\u001b[22m\u001b[2m12 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 13\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[42m unit \u001b[49m\u001b[39m tests/unit/text-model.test.ts \u001b[2m(\u001b[22m\u001b[2m7 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 13\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[42m unit \u001b[49m\u001b[39m tests/unit/undo-history.test.ts \u001b[2m(\u001b[22m\u001b[2m11 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 31\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[42m unit \u001b[49m\u001b[39m tests/unit/stroke.test.ts \u001b[2m(\u001b[22m\u001b[2m8 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 38\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[42m unit \u001b[49m\u001b[39m tests/unit/create-board.test.ts \u001b[2m(\u001b[22m\u001b[2m4 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 226\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[42m unit \u001b[49m\u001b[39m tests/unit/registry.test.ts \u001b[2m(\u001b[22m\u001b[2m5 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 3\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m\u2713\u001b[39m \u001b[30m\u001b[42m unit \u001b[49m\u001b[39m tests/unit/board-store-chunks.test.ts \u001b[2m(\u001b[22m\u001b[2m11 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[33m 421\u001b[2mms\u001b[22m\u001b[39m\n   \u001b[33m\u001b[2m\u2713\u001b[22m\u001b[39m chunkBytes\u001b[2m > \u001b[22mround-trips a multi-megabyte input through joinChunks at the default size \u001b[33m 415\u001b[2mms\u001b[22m\u001b[39m\n\n\u001b[2m Test Files \u001b[22m \u001b[1m\u001b[32m22 passed\u001b[39m\u001b[22m\u001b[90m (22)\u001b[39m\n\u001b[2m      Tests \u001b[22m \u001b[1m\u001b[32m220 passed\u001b[39m\u001b[22m\u001b[90m (220)\u001b[39m\n\u001b[2m   Start at \u001b[22m 02:02:42\n\u001b[2m   Duration \u001b[22m 1000ms\u001b[2m (transform 1.51s, setup 0ms, collect 3.77s, tests 1.07s, environment 4ms, prepare 1.58s)\u001b[22m\n\n",
+            "passed": 220,
+            "failed": 0
+          },
+          "test:component": {
+            "cmd": "npm run test:component",
+            "exit": 1,
+            "seconds": 26.6,
+            "tail": "9m\u001b[39m tests/component/SharePanel.test.tsx\u001b[2m > \u001b[22mTC-24: Clipboard API missing\u001b[2m > \u001b[22mclipboard undefined \u2192 manual-copy message shown\n\u001b[31m\u001b[1mError\u001b[22m: Test timed out in 5000ms.\nIf this is a long-running test, pass a timeout value as the last argument or configure it globally with \"testTimeout\".\u001b[39m\n\u001b[36m \u001b[2m\u276f\u001b[22m tests/component/SharePanel.test.tsx:\u001b[2m106:3\u001b[22m\u001b[39m\n    \u001b[90m104| \u001b[39m// -------------------------------------------------------------------\u2026\n    \u001b[90m105| \u001b[39m\u001b[34mdescribe\u001b[39m(\u001b[32m'TC-24: Clipboard API missing'\u001b[39m\u001b[33m,\u001b[39m () \u001b[33m=>\u001b[39m {\n    \u001b[90m106| \u001b[39m  \u001b[34mit\u001b[39m(\u001b[32m'clipboard undefined \u2192 manual-copy message shown'\u001b[39m\u001b[33m,\u001b[39m \u001b[35masync\u001b[39m () \u001b[33m=>\u001b[39m {\n    \u001b[90m   | \u001b[39m  \u001b[31m^\u001b[39m\n    \u001b[90m107| \u001b[39m    \u001b[33mObject\u001b[39m\u001b[33m.\u001b[39m\u001b[34mdefineProperty\u001b[39m(navigator\u001b[33m,\u001b[39m \u001b[32m'clipboard'\u001b[39m\u001b[33m,\u001b[39m {\n    \u001b[90m108| \u001b[39m      value\u001b[33m:\u001b[39m undefined\u001b[33m,\u001b[39m\n\n\u001b[31m\u001b[2m\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af[3/6]\u23af\u001b[22m\u001b[39m\n\n\u001b[41m\u001b[1m FAIL \u001b[22m\u001b[49m \u001b[30m\u001b[45m component \u001b[49m\u001b[39m tests/component/SharePanel.test.tsx\u001b[2m > \u001b[22mTC-25: Panel close behavior\u001b[2m > \u001b[22mEscape closes the panel\n\u001b[31m\u001b[1mError\u001b[22m: Test timed out in 5000ms.\nIf this is a long-running test, pass a timeout value as the last argument or configure it globally with \"testTimeout\".\u001b[39m\n\u001b[36m \u001b[2m\u276f\u001b[22m tests/component/SharePanel.test.tsx:\u001b[2m130:3\u001b[22m\u001b[39m\n    \u001b[90m128| \u001b[39m// -------------------------------------------------------------------\u2026\n    \u001b[90m129| \u001b[39m\u001b[34mdescribe\u001b[39m(\u001b[32m'TC-25: Panel close behavior'\u001b[39m\u001b[33m,\u001b[39m () \u001b[33m=>\u001b[39m {\n    \u001b[90m130| \u001b[39m  \u001b[34mit\u001b[39m(\u001b[32m'Escape closes the panel'\u001b[39m\u001b[33m,\u001b[39m \u001b[35masync\u001b[39m () \u001b[33m=>\u001b[39m {\n    \u001b[90m   | \u001b[39m  \u001b[31m^\u001b[39m\n    \u001b[90m131| \u001b[39m    \u001b[33mObject\u001b[39m\u001b[33m.\u001b[39m\u001b[34mdefineProperty\u001b[39m(navigator\u001b[33m,\u001b[39m \u001b[32m'clipboard'\u001b[39m\u001b[33m,\u001b[39m {\n    \u001b[90m132| \u001b[39m      value\u001b[33m:\u001b[39m { writeText\u001b[33m:\u001b[39m vi\u001b[33m.\u001b[39m\u001b[34mfn\u001b[39m()\u001b[33m.\u001b[39m\u001b[34mmockResolvedValue\u001b[39m(undefined) }\u001b[33m,\u001b[39m\n\n\u001b[31m\u001b[2m\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af[4/6]\u23af\u001b[22m\u001b[39m\n\n\u001b[41m\u001b[1m FAIL \u001b[22m\u001b[49m \u001b[30m\u001b[45m component \u001b[49m\u001b[39m tests/component/SharePanel.test.tsx\u001b[2m > \u001b[22mTC-25: Panel close behavior\u001b[2m > \u001b[22moutside click closes the panel\n\u001b[31m\u001b[1mError\u001b[22m: Test timed out in 5000ms.\nIf this is a long-running test, pass a timeout value as the last argument or configure it globally with \"testTimeout\".\u001b[39m\n\u001b[36m \u001b[2m\u276f\u001b[22m tests/component/SharePanel.test.tsx:\u001b[2m150:3\u001b[22m\u001b[39m\n    \u001b[90m148| \u001b[39m  })\u001b[33m;\u001b[39m\n    \u001b[90m149| \u001b[39m\n    \u001b[90m150| \u001b[39m  \u001b[34mit\u001b[39m(\u001b[32m'outside click closes the panel'\u001b[39m\u001b[33m,\u001b[39m \u001b[35masync\u001b[39m () \u001b[33m=>\u001b[39m {\n    \u001b[90m   | \u001b[39m  \u001b[31m^\u001b[39m\n    \u001b[90m151| \u001b[39m    \u001b[33mObject\u001b[39m\u001b[33m.\u001b[39m\u001b[34mdefineProperty\u001b[39m(navigator\u001b[33m,\u001b[39m \u001b[32m'clipboard'\u001b[39m\u001b[33m,\u001b[39m {\n    \u001b[90m152| \u001b[39m      value\u001b[33m:\u001b[39m { writeText\u001b[33m:\u001b[39m vi\u001b[33m.\u001b[39m\u001b[34mfn\u001b[39m()\u001b[33m.\u001b[39m\u001b[34mmockResolvedValue\u001b[39m(undefined) }\u001b[33m,\u001b[39m\n\n\u001b[31m\u001b[2m\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af[5/6]\u23af\u001b[22m\u001b[39m\n\n\u001b[41m\u001b[1m FAIL \u001b[22m\u001b[49m \u001b[30m\u001b[45m component \u001b[49m\u001b[39m tests/component/pages.test.tsx\u001b[2m > \u001b[22mTC-21: BoardPage unreachable then exists\u001b[2m > \u001b[22mshows retry message, retries with backoff, then board renders\n\u001b[31m\u001b[1mError\u001b[22m: Test timed out in 5000ms.\nIf this is a long-running test, pass a timeout value as the last argument or configure it globally with \"testTimeout\".\u001b[39m\n\u001b[36m \u001b[2m\u276f\u001b[22m tests/component/pages.test.tsx:\u001b[2m175:3\u001b[22m\u001b[39m\n    \u001b[90m173| \u001b[39m// -------------------------------------------------------------------\u2026\n    \u001b[90m174| \u001b[39m\u001b[34mdescribe\u001b[39m(\u001b[32m'TC-21: BoardPage unreachable then exists'\u001b[39m\u001b[33m,\u001b[39m () \u001b[33m=>\u001b[39m {\n    \u001b[90m175| \u001b[39m  it('shows retry message, retries with backoff, then board renders', \u2026\n    \u001b[90m   | \u001b[39m  \u001b[31m^\u001b[39m\n    \u001b[90m176| \u001b[39m    vi\u001b[33m.\u001b[39m\u001b[34museFakeTimers\u001b[39m()\u001b[33m;\u001b[39m\n    \u001b[90m177| \u001b[39m\n\n\u001b[31m\u001b[2m\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af\u23af[6/6]\u23af\u001b[22m\u001b[39m\n\n",
+            "passed": null,
+            "failed": null
+          },
+          "test:integration": {
+            "cmd": "npm run test:integration",
+            "exit": 0,
+            "seconds": 26.3,
+            "tail": "e_modules/@cloudflare/workerd-linux-64/bin/workerd@2a8edc0 ~/.vidi-bench/work/qwen__3.8__flash-next__ubuntu__strix-halo-128GB__gufo-pi__benchmarks__vidi__canvas-gufo-r2/workspace/node_modules/@cloudflare/vitest-pool-workers/node_modules/@cloudflare/workerd-linux-64/bin/workerd@29a41b0 ~/.vidi-bench/work/qwen__3.8__flash-next__ubuntu__strix-halo-128GB__gufo-pi__benchmarks__vidi__canvas-gufo-r2/workspace/node_modules/@cloudflare/vitest-pool-workers/node_modules/@cloudflare/workerd-linux-64/bin/workerd@1f56a90\nworkerd/io/io-context.c++:389: info: uncaught exception; exception = workerd/jsg/_virtual_includes/iterator/workerd/jsg/value.h:1503: failed: broken.inputGateBroken; jsg.Error: ~/.vidi-bench/work/qwen__3.8__flash-next__ubuntu__strix-halo-128GB__gufo-pi__benchmarks__vidi__canvas-gufo-r2/workspace/src/worker/index.ts changed, invalidating this Durable Object. Please retry the `DurableObjectStub#fetch()` call.\nstack: ~/.vidi-bench/work/qwen__3.8__flash-next__ubuntu__strix-halo-128GB__gufo-pi__benchmarks__vidi__canvas-gufo-r2/workspace/node_modules/@cloudflare/vitest-pool-workers/node_modules/@cloudflare/workerd-linux-64/bin/workerd@3201ebd ~/.vidi-bench/work/qwen__3.8__flash-next__ubuntu__strix-halo-128GB__gufo-pi__benchmarks__vidi__canvas-gufo-r2/workspace/node_modules/@cloudflare/vitest-pool-workers/node_modules/@cloudflare/workerd-linux-64/bin/workerd@29abdfd ~/.vidi-bench/work/qwen__3.8__flash-next__ubuntu__strix-halo-128GB__gufo-pi__benchmarks__vidi__canvas-gufo-r2/workspace/node_modules/@cloudflare/vitest-pool-workers/node_modules/@cloudflare/workerd-linux-64/bin/workerd@29a2b12 ~/.vidi-bench/work/qwen__3.8__flash-next__ubuntu__strix-halo-128GB__gufo-pi__benchmarks__vidi__canvas-gufo-r2/workspace/node_modules/@cloudflare/vitest-pool-workers/node_modules/@cloudflare/workerd-linux-64/bin/workerd@299dcd8 ~/.vidi-bench/work/qwen__3.8__flash-next__ubuntu__strix-halo-128GB__gufo-pi__benchmarks__vidi__canvas-gufo-r2/workspace/node_modules/@cloudflare/vitest-pool-workers/node_modules/@cloudflare/workerd-linux-64/bin/workerd@2995c0e ~/.vidi-bench/work/qwen__3.8__flash-next__ubuntu__strix-halo-128GB__gufo-pi__benchmarks__vidi__canvas-gufo-r2/workspace/node_modules/@cloudflare/vitest-pool-workers/node_modules/@cloudflare/workerd-linux-64/bin/workerd@2a8a6c8 ~/.vidi-bench/work/qwen__3.8__flash-next__ubuntu__strix-halo-128GB__gufo-pi__benchmarks__vidi__canvas-gufo-r2/workspace/node_modules/@cloudflare/vitest-pool-workers/node_modules/@cloudflare/workerd-linux-64/bin/workerd@2a8e563 ~/.vidi-bench/work/qwen__3.8__flash-next__ubuntu__strix-halo-128GB__gufo-pi__benchmarks__vidi__canvas-gufo-r2/workspace/node_modules/@cloudflare/vitest-pool-workers/node_modules/@cloudflare/workerd-linux-64/bin/workerd@2a8e257 ~/.vidi-bench/work/qwen__3.8__flash-next__ubuntu__strix-halo-128GB__gufo-pi__benchmarks__vidi__canvas-gufo-r2/workspace/node_modules/@cloudflare/vitest-pool-workers/node_modules/@cloudflare/workerd-linux-64/bin/workerd@4d2c41f ~/.vidi-bench/work/qwen__3.8__flash-next__ubuntu__strix-halo-128GB__gufo-pi__benchmarks__vidi__canvas-gufo-r2/workspace/node_modules/@cloudflare/vitest-pool-workers/node_modules/@cloudflare/workerd-linux-64/bin/workerd@2a8edc0 ~/.vidi-bench/work/qwen__3.8__flash-next__ubuntu__strix-halo-128GB__gufo-pi__benchmarks__vidi__canvas-gufo-r2/workspace/node_modules/@cloudflare/vitest-pool-workers/node_modules/@cloudflare/workerd-linux-64/bin/workerd@29a41b0 ~/.vidi-bench/work/qwen__3.8__flash-next__ubuntu__strix-halo-128GB__gufo-pi__benchmarks__vidi__canvas-gufo-r2/workspace/node_modules/@cloudflare/vitest-pool-workers/node_modules/@cloudflare/workerd-linux-64/bin/workerd@1f56a90\nIoContext timed out due to inactivity, waitUntil tasks were cancelled without completing.\nIoContext timed out due to inactivity, waitUntil tasks were cancelled without completing.\n",
+            "passed": null,
+            "failed": null
+          },
+          "test:e2e": {
+            "cmd": "npm run test:e2e -- --project=chromium",
+            "exit": 1,
+            "seconds": 101.7,
+            "tail": "edits catch up on reconnect %0A    [chromium] \u203a tests/e2e/navigation.spec.ts:33:3 \u203a workflow 1: first visit navigation \u203a hint, drag to pan, scroll to pan, zoom around the pointer %0A    [chromium] \u203a tests/e2e/navigation.spec.ts:105:3 \u203a workflow 1: first visit navigation \u203a TC-31: board gestures never change the browser page zoom %0A    [chromium] \u203a tests/e2e/navigation.spec.ts:141:3 \u203a workflow 1: first visit navigation \u203a board content does not move relative to the top-left when the window is resized %0A    [chromium] \u203a tests/e2e/navigation.spec.ts:157:3 \u203a workflow 2: zoom limits and recovery \u203a step to the limits with the buttons, then reset %0A    [chromium] \u203a tests/e2e/navigation.spec.ts:202:3 \u203a workflow 2: zoom limits and recovery \u203a keyboard steps zoom about the centre of the board area %0A    [chromium] \u203a tests/e2e/navigation.spec.ts:232:3 \u203a workflow 3: far travel \u203a TC-27: at a million units the grid is even and the drag tracks the pointer %0A    [chromium] \u203a tests/e2e/pen-stroke.spec.ts:158:3 \u203a Shared sketch \u203a TC-18: stroke shared on finish, not during drag %0A    [chromium] \u203a tests/e2e/pen-stroke.spec.ts:229:3 \u203a Tidy up \u203a TC-20: select, resize, move, delete stroke across participants %0A    [chromium] \u203a tests/e2e/persistence.spec.ts:133:1 \u203a TC-19: notes with varied text, colour and position survive a process restart %0A    [chromium] \u203a tests/e2e/shapes-connectors.spec.ts:48:3 \u203a Draw a flow \u203a TC-23: drag creates shape with correct dimensions %0A    [chromium] \u203a tests/e2e/shapes-connectors.spec.ts:93:3 \u203a Draw a flow \u203a TC-24: Diamond click at 200% creates default size, label wraps %0A    [chromium] \u203a tests/e2e/shapes-connectors.spec.ts:148:3 \u203a Collaborative rearrange \u203a TC-25: Connector follows remote moves %0A    [chromium] \u203a tests/e2e/shapes-connectors.spec.ts:215:3 \u203a Collaborative rearrange \u203a TC-26: Delete attached shape detaches connector end %0A    [chromium] \u203a tests/e2e/shapes-connectors.spec.ts:273:3 \u203a Collaborative rearrange \u203a TC-27: Delete race with concurrent connector creation %0A    [chromium] \u203a tests/e2e/sticky-notes.spec.ts:51:3 \u203a sticky note creation and interaction \u203a TC-30: dblclick creates note centred at click, typing works %0A    [chromium] \u203a tests/e2e/sticky-notes.spec.ts:70:3 \u203a sticky note creation and interaction \u203a TC-31: drag note at 50% zoom \u2014 world delta is 2x screen delta %0A    [chromium] \u203a tests/e2e/sticky-notes.spec.ts:102:3 \u203a sticky note creation and interaction \u203a TC-32: drag at 200% zoom \u2014 world delta is half of screen delta; note ends on top %0A    [chromium] \u203a tests/e2e/sticky-notes.spec.ts:147:3 \u203a sticky note creation and interaction \u203a TC-33: long text fits then clips with fade %0A    [chromium] \u203a tests/e2e/sticky-notes.spec.ts:181:3 \u203a sticky note creation and interaction \u203a TC-34: create from toolbar while panned far away \u2014 note appears at screen centre %0A    [chromium] \u203a tests/e2e/sticky-notes.spec.ts:197:3 \u203a sticky note creation and interaction \u203a TC-35: text counter appears near the limit %0A    [chromium] \u203a tests/e2e/sticky-notes.spec.ts:214:3 \u203a sticky note creation and interaction \u203a TC-36: colour change via swatch keeps text and position; Delete removes note %0A    [chromium] \u203a tests/e2e/sticky-notes.spec.ts:243:3 \u203a sticky note creation and interaction \u203a TC-37: dragging a note does not pan the board %0A    [chromium] \u203a tests/e2e/text-workflows.spec.ts:236:3 \u203a story 9: concurrent text \u203a TC-29: concurrent typing merges without data loss %0A    [chromium] \u203a tests/e2e/text-workflows.spec.ts:291:3 \u203a story 9: concurrent text \u203a TC-30: concurrent heading creation \u2014 all visible on every screen %0A    [chromium] \u203a tests/e2e/undo.spec.ts:58:3 \u203a story 8: undo \u203a TC-22: undo accidental delete, colleague note intact %0A    [chromium] \u203a tests/e2e/undo.spec.ts:122:3 \u203a story 8: undo \u203a TC-23: undo move of note deleted by colleague \u2192 no error %0A    [chromium] \u203a tests/e2e/undo.spec.ts:173:3 \u203a story 8: undo \u203a TC-24: everyone undoing at once \u2014 each undoes only own moves %0A  3 did not run%0A  14 passed (1.7m)\n",
+            "passed": 14,
+            "failed": 0
+          }
+        },
+        "all_green": false
+      },
+      "accept": {
+        "skipped": false,
+        "build_exit": 0,
+        "runner_exit": 1,
+        "passed": 65,
+        "total": 75,
+        "on_partial": {
+          "passed": 36,
+          "total": 44
+        },
+        "by_story": {
+          "01": {
+            "passed": 10,
+            "total": 10
+          },
+          "02": {
+            "passed": 10,
+            "total": 10
+          },
+          "03": {
+            "passed": 5,
+            "total": 7
+          },
+          "04": {
+            "passed": 4,
+            "total": 4
+          },
+          "05": {
+            "passed": 4,
+            "total": 5,
+            "on_partial_total": 5,
+            "on_partial_passed": 4
+          },
+          "07": {
+            "passed": 6,
+            "total": 8,
+            "on_partial_total": 8,
+            "on_partial_passed": 6
+          },
+          "08": {
+            "passed": 7,
+            "total": 7,
+            "on_partial_total": 7,
+            "on_partial_passed": 7
+          },
+          "09": {
+            "passed": 4,
+            "total": 6,
+            "on_partial_total": 6,
+            "on_partial_passed": 4
+          },
+          "10": {
+            "passed": 6,
+            "total": 8,
+            "on_partial_total": 8,
+            "on_partial_passed": 6
+          },
+          "11": {
+            "passed": 4,
+            "total": 5,
+            "on_partial_total": 5,
+            "on_partial_passed": 4
+          },
+          "12": {
+            "passed": 5,
+            "total": 5,
+            "on_partial_total": 5,
+            "on_partial_passed": 5
+          }
+        },
+        "harness_fault": null
+      },
+      "commit": "55f85a87fb9efc5bc0b00ac414aa5623f9857195",
+      "requests": {},
+      "time_split": {
+        "wall_s": 6117.9,
+        "model": null,
+        "tools_s": 427.5,
+        "tools_by_kind": {
+          "unit": 226.8,
+          "e2e": 183.1,
+          "build": 14.8,
+          "bash": 2.4,
+          "edit": 0.2,
+          "read": 0.1,
+          "write": 0.0
+        },
+        "compaction_s": 543.8,
+        "compactions": 4,
+        "other_s": 5146.6
+      },
+      "loc": {
+        "files": 165,
+        "lines": 67693
+      },
+      "finished": 1790647986.424781,
+      "status": "PARTIAL",
+      "ended_by": "operator",
+      "partial_base": [
+        5
+      ],
+      "tasks": [
+        {
+          "n": 1,
+          "title": "Write image format sniffing and file validation unit tests first (TC-01, TC-02, TC-08, TC-09)",
+          "type": "test:unit",
+          "implements": [
+            "assets.api",
+            "image.insert"
+          ],
+          "tcs": [
+            "TC-01",
+            "TC-02",
+            "TC-08",
+            "TC-09"
+          ],
+          "status": "written",
+          "found": 4,
+          "total": 4
+        },
+        {
+          "n": 2,
+          "title": "Write image object model unit tests first (TC-03 to TC-07)",
+          "type": "test:unit",
+          "implements": [
+            "image.model"
+          ],
+          "tcs": [
+            "TC-03",
+            "TC-04",
+            "TC-05",
+            "TC-06",
+            "TC-07"
+          ],
+          "status": "written",
+          "found": 5,
+          "total": 5
+        },
+        {
+          "n": 3,
+          "title": "Implement asset API: R2 binding, upload with sniffing/limits/rate limit, immutable serving",
+          "type": "implementation",
+          "implements": [
+            "assets.api"
+          ],
+          "tcs": [],
+          "status": "written",
+          "found": null,
+          "total": null
+        },
+        {
+          "n": 4,
+          "title": "Integration tests for asset API with real R2 and BoardRoom (TC-10 to TC-16)",
+          "type": "test:integration",
+          "implements": [
+            "assets.api"
+          ],
+          "tcs": [
+            "TC-10",
+            "TC-11",
+            "TC-12",
+            "TC-13",
+            "TC-14",
+            "TC-15",
+            "TC-16"
+          ],
+          "status": "written",
+          "found": 7,
+          "total": 7
+        },
+        {
+          "n": 5,
+          "title": "Implement image object model: placement, row layout, placeholders, status updates with untracked origin",
+          "type": "implementation",
+          "implements": [
+            "image.model"
+          ],
+          "tcs": [],
+          "status": "written",
+          "found": null,
+          "total": null
+        },
+        {
+          "n": 6,
+          "title": "Implement adding images: drop highlight, paste, Image tool picker, validation toasts, XHR upload with progress, retry",
+          "type": "implementation",
+          "implements": [
+            "image.insert"
+          ],
+          "tcs": [],
+          "status": "written",
+          "found": null,
+          "total": null
+        },
+        {
+          "n": 7,
+          "title": "Implement ImageObject render states and aspect-locked registry entry",
+          "type": "implementation",
+          "implements": [
+            "image.object"
+          ],
+          "tcs": [],
+          "status": "written",
+          "found": null,
+          "total": null
+        },
+        {
+          "n": 8,
+          "title": "Component tests for image insert flows and ImageObject states (TC-17 to TC-24, TC-29)",
+          "type": "test:ui-component",
+          "implements": [
+            "image.insert",
+            "image.object"
+          ],
+          "tcs": [
+            "TC-17",
+            "TC-18",
+            "TC-19",
+            "TC-20",
+            "TC-21",
+            "TC-22",
+            "TC-23",
+            "TC-24",
+            "TC-29"
+          ],
+          "status": "written",
+          "found": 9,
+          "total": 9
+        },
+        {
+          "n": 9,
+          "title": "E2E image workflows: moodboard with colleague, mixed picker batch, resize and revisit, flaky upload (TC-25 to TC-28)",
+          "type": "test:e2e",
+          "implements": [
+            "assets.api",
+            "image.insert",
+            "image.object"
+          ],
+          "tcs": [
+            "TC-25",
+            "TC-26",
+            "TC-27",
+            "TC-28"
+          ],
+          "status": "written",
+          "found": 4,
+          "total": 4
+        }
+      ],
+      "stub_markers": [
+        "src/client/images/uploadImage.ts: * and the placeholder has to show a percentage while the bytes travel",
+        "src/client/images/uploadQueue.ts: * failed placeholder only offers Remove (PRD image.upload_failure).",
+        "src/client/images/uploadQueue.ts: // The doc is gone; the placeholder is somebody else's problem now.",
+        "src/client/images/uploadQueue.ts: * Upload the file for a freshly created placeholder. Fire and forget: the outcome",
+        "src/client/images/useImageInsert.ts: * upload queue directly, so a progress tick re-renders the placeholder instead of",
+        "src/client/images/useImageInsert.ts: // `isContentEditable` is not implemented everywhere (jsdom), so the attribute",
+        "src/client/objects/ImageObject.tsx: /** One shared 30 s heartbeat for every placeholder that is still waiting. */",
+        "src/client/objects/ImageObject.tsx: function Placeholder(props: {",
+        "src/client/objects/ImageObject.tsx: <div className={`image-placeholder ${props.className}`} data-testid={props.testid}>",
+        "src/client/objects/ImageObject.tsx: <div className=\"image-placeholder-body\">{props.children}</div>",
+        "src/client/objects/ImageObject.tsx: <Placeholder testid=\"image-uploading\" className=\"image-placeholder-self\">",
+        "src/client/objects/ImageObject.tsx: </Placeholder>",
+        "src/client/objects/ImageObject.tsx: <Placeholder testid=\"image-uploading-other\" className=\"image-placeholder-other\">",
+        "src/client/objects/ImageObject.tsx: </Placeholder>",
+        "src/client/objects/ImageObject.tsx: <Placeholder testid=\"image-failed\" className=\"image-placeholder-failed\">",
+        "src/client/objects/ImageObject.tsx: </Placeholder>",
+        "src/client/objects/ImageObject.tsx: <Placeholder testid=\"image-unavailable\" className=\"image-placeholder-unavailable\">",
+        "src/client/objects/ImageObject.tsx: </Placeholder>",
+        "src/client/objects/ImageObject.tsx: <Placeholder testid=\"image-unfinished\" className=\"image-placeholder-unfinished\">",
+        "src/client/objects/ImageObject.tsx: </Placeholder>",
+        "src/client/objects/ImageObject.tsx: <Placeholder testid=\"image-missing\" className=\"image-placeholder-unavailable\">",
+        "src/client/objects/ImageObject.tsx: </Placeholder>",
+        "src/client/styles.css: .image-placeholder {",
+        "src/client/styles.css: .image-placeholder-failed {",
+        "src/client/styles.css: .image-placeholder-body {",
+        "src/shared/objects/image.ts: * Create one placeholder per item in a single LOCAL_ORIGIN transaction \u2014 the one",
+        "src/worker/assets.ts: const stub = env.BOARD_ROOM.get(env.BOARD_ROOM.idFromName(boardId));",
+        "src/worker/assets.ts: const exists = await stub.exists();"
+      ],
+      "partial_heldout_changes": {
+        "5": {
+          "fixed": 0,
+          "regressed": 0
+        }
+      },
+      "skip": {
+        "story": 12,
+        "reason": "story cap: 5 nudges without committing (cap 5)",
+        "by": "harness (cap)",
+        "at": 1790647355.0738242
+      },
+      "verdict": {
+        "verdict": "red",
+        "gate_green": false,
+        "unverified_tasks": [
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8,
+          9
+        ],
+        "unverified_implementation_tasks": [
+          3,
+          5,
+          6,
+          7
+        ],
+        "heldout": {
+          "passed": 5,
+          "total": 5,
+          "on_partial_total": 5,
+          "on_partial_passed": 5
+        },
+        "heldout_floor": 0.0,
+        "heldout_ok": true
       }
     }
   },
@@ -7158,6 +7613,391 @@
           }
         }
       ]
+    },
+    {
+      "id": 12,
+      "title": "Drop images onto the board",
+      "status": "PARTIAL",
+      "ended_by": "operator",
+      "started_at": 1790641237.2384512,
+      "ended_at": 1790647355.1238265,
+      "agent_minutes": 102.0,
+      "calls": 278,
+      "output_tokens": 195332,
+      "compactions": 4,
+      "last_commit_at": null,
+      "accept": {
+        "passed": 5,
+        "total": 5,
+        "on_partial_total": 5,
+        "on_partial_passed": 5
+      },
+      "partial_base": [
+        5
+      ],
+      "tasks": [
+        {
+          "n": 1,
+          "title": "Write image format sniffing and file validation unit tests first (TC-01, TC-02, TC-08, TC-09)",
+          "type": "test:unit",
+          "implements": [
+            "assets.api",
+            "image.insert"
+          ],
+          "tcs": [
+            "TC-01",
+            "TC-02",
+            "TC-08",
+            "TC-09"
+          ],
+          "status": "written",
+          "found": 4,
+          "total": 4
+        },
+        {
+          "n": 2,
+          "title": "Write image object model unit tests first (TC-03 to TC-07)",
+          "type": "test:unit",
+          "implements": [
+            "image.model"
+          ],
+          "tcs": [
+            "TC-03",
+            "TC-04",
+            "TC-05",
+            "TC-06",
+            "TC-07"
+          ],
+          "status": "written",
+          "found": 5,
+          "total": 5
+        },
+        {
+          "n": 3,
+          "title": "Implement asset API: R2 binding, upload with sniffing/limits/rate limit, immutable serving",
+          "type": "implementation",
+          "implements": [
+            "assets.api"
+          ],
+          "tcs": [],
+          "status": "written",
+          "found": null,
+          "total": null
+        },
+        {
+          "n": 4,
+          "title": "Integration tests for asset API with real R2 and BoardRoom (TC-10 to TC-16)",
+          "type": "test:integration",
+          "implements": [
+            "assets.api"
+          ],
+          "tcs": [
+            "TC-10",
+            "TC-11",
+            "TC-12",
+            "TC-13",
+            "TC-14",
+            "TC-15",
+            "TC-16"
+          ],
+          "status": "written",
+          "found": 7,
+          "total": 7
+        },
+        {
+          "n": 5,
+          "title": "Implement image object model: placement, row layout, placeholders, status updates with untracked origin",
+          "type": "implementation",
+          "implements": [
+            "image.model"
+          ],
+          "tcs": [],
+          "status": "written",
+          "found": null,
+          "total": null
+        },
+        {
+          "n": 6,
+          "title": "Implement adding images: drop highlight, paste, Image tool picker, validation toasts, XHR upload with progress, retry",
+          "type": "implementation",
+          "implements": [
+            "image.insert"
+          ],
+          "tcs": [],
+          "status": "written",
+          "found": null,
+          "total": null
+        },
+        {
+          "n": 7,
+          "title": "Implement ImageObject render states and aspect-locked registry entry",
+          "type": "implementation",
+          "implements": [
+            "image.object"
+          ],
+          "tcs": [],
+          "status": "written",
+          "found": null,
+          "total": null
+        },
+        {
+          "n": 8,
+          "title": "Component tests for image insert flows and ImageObject states (TC-17 to TC-24, TC-29)",
+          "type": "test:ui-component",
+          "implements": [
+            "image.insert",
+            "image.object"
+          ],
+          "tcs": [
+            "TC-17",
+            "TC-18",
+            "TC-19",
+            "TC-20",
+            "TC-21",
+            "TC-22",
+            "TC-23",
+            "TC-24",
+            "TC-29"
+          ],
+          "status": "written",
+          "found": 9,
+          "total": 9
+        },
+        {
+          "n": 9,
+          "title": "E2E image workflows: moodboard with colleague, mixed picker batch, resize and revisit, flaky upload (TC-25 to TC-28)",
+          "type": "test:e2e",
+          "implements": [
+            "assets.api",
+            "image.insert",
+            "image.object"
+          ],
+          "tcs": [
+            "TC-25",
+            "TC-26",
+            "TC-27",
+            "TC-28"
+          ],
+          "status": "written",
+          "found": 4,
+          "total": 4
+        }
+      ],
+      "baselines": [
+        {
+          "source": "reference opus-5.5 run-1",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 30.0,
+          "calls": 78,
+          "output_tokens": 101448,
+          "accept": {
+            "passed": 3,
+            "total": 5
+          }
+        },
+        {
+          "source": "reference opus-5.5 run-2",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 17.8,
+          "calls": 83,
+          "output_tokens": 93796,
+          "accept": {
+            "passed": 5,
+            "total": 5
+          }
+        },
+        {
+          "source": "reference opus-5.5 run-3",
+          "status": "DONE",
+          "gate_green": false,
+          "agent_minutes": 13.0,
+          "calls": 69,
+          "output_tokens": 74042,
+          "accept": {
+            "passed": 5,
+            "total": 5
+          }
+        },
+        {
+          "source": "qwen/3.8/27b/ubuntu/nvidia4090/llamacpp-opencode canvas-pi-02",
+          "status": "DONE",
+          "gate_green": false,
+          "agent_minutes": 14.8,
+          "calls": 138,
+          "output_tokens": 48892,
+          "accept": {
+            "passed": 1,
+            "total": 5
+          }
+        },
+        {
+          "source": "qwen/3.8/27b/ubuntu/nvidia4090/llamacpp-opencode canvas-pi-03",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 60.0,
+          "calls": 236,
+          "output_tokens": 198884,
+          "accept": {
+            "passed": 5,
+            "total": 5
+          }
+        },
+        {
+          "source": "qwen/3.8/27b/ubuntu/nvidia4090/llamacpp-opencode canvas-pi-04",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 26.1,
+          "calls": 110,
+          "output_tokens": 64708,
+          "accept": {
+            "passed": 4,
+            "total": 5,
+            "on_partial_total": 5,
+            "on_partial_passed": 4
+          }
+        },
+        {
+          "source": "qwen/3.8/flash-next/macos/128GB/mlxserve-opencode canvas-mlx-02",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 66.2,
+          "calls": 288,
+          "output_tokens": 143113,
+          "accept": {
+            "passed": 5,
+            "total": 5,
+            "on_partial_total": 5,
+            "on_partial_passed": 5
+          }
+        },
+        {
+          "source": "qwen/3.8/flash-next/macos/128GB/mtplx-opencode canvas-pi-01",
+          "status": "DONE",
+          "gate_green": true,
+          "agent_minutes": 69.2,
+          "calls": 313,
+          "output_tokens": 155614,
+          "accept": {
+            "passed": 0,
+            "total": 5
+          }
+        },
+        {
+          "source": "qwen/3.8/flash-next/macos/128GB/mtplx-opencode canvas-pi-02",
+          "status": "DONE",
+          "gate_green": false,
+          "agent_minutes": 51.0,
+          "calls": 141,
+          "output_tokens": 103188,
+          "accept": {
+            "passed": 0,
+            "total": 5,
+            "on_partial_total": 5,
+            "on_partial_passed": 0
+          }
+        },
+        {
+          "source": "qwen/3.8/flash-next/macos/128GB/mtplx-opencode canvas-pi-03",
+          "status": "DONE",
+          "gate_green": false,
+          "agent_minutes": 28.2,
+          "calls": 88,
+          "output_tokens": 43319,
+          "accept": {
+            "passed": 0,
+            "total": 5,
+            "on_partial_total": 5,
+            "on_partial_passed": 0
+          }
+        },
+        {
+          "source": "qwen/3.8/flash-next/ubuntu/strix-halo-128GB/gufo-pi canvas-gufo-r1",
+          "status": "DONE",
+          "gate_green": false,
+          "agent_minutes": 26.7,
+          "calls": 155,
+          "output_tokens": 54493,
+          "accept": {
+            "passed": 1,
+            "total": 5,
+            "on_partial_total": 5,
+            "on_partial_passed": 1
+          }
+        },
+        {
+          "source": "qwen/3.8/flash-next/ubuntu/strix-halo-128GB/llamacpp-pi canvas-vk-01",
+          "status": "DONE",
+          "gate_green": false,
+          "agent_minutes": 216.8,
+          "calls": 304,
+          "output_tokens": 227481,
+          "accept": {
+            "passed": 5,
+            "total": 5,
+            "on_partial_total": 5,
+            "on_partial_passed": 5
+          }
+        },
+        {
+          "source": "qwen/3.8-swift/27b/ubuntu/nvidia4090/llamacpp-opencode canvas-pi-01",
+          "status": "DONE",
+          "gate_green": false,
+          "agent_minutes": 53.5,
+          "calls": 217,
+          "output_tokens": 144162,
+          "accept": {
+            "passed": 3,
+            "total": 5
+          }
+        },
+        {
+          "source": "qwen/3.8-swift/27b/ubuntu/nvidia4090/llamacpp-opencode canvas-pi-02",
+          "status": "DONE",
+          "gate_green": false,
+          "agent_minutes": 53.4,
+          "calls": 268,
+          "output_tokens": 151876,
+          "accept": {
+            "passed": 0,
+            "total": 5
+          }
+        }
+      ],
+      "reason": "story cap: 5 nudges without committing (cap 5)",
+      "by": "harness (cap)",
+      "requested_at": 1790647355.0738242,
+      "verdict": "red",
+      "health": {
+        "verdict": "red",
+        "gate_green": false,
+        "unverified_tasks": [
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8,
+          9
+        ],
+        "unverified_implementation_tasks": [
+          3,
+          5,
+          6,
+          7
+        ],
+        "heldout": {
+          "passed": 5,
+          "total": 5,
+          "on_partial_total": 5,
+          "on_partial_passed": 5
+        },
+        "heldout_floor": 0.0,
+        "heldout_ok": true
+      }
     }
   ]
 }
