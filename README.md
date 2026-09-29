@@ -271,11 +271,12 @@ and every story is recorded: time, model calls, tokens, commits and the agent's 
 
 | Pack | What it builds | Spec | Held-out suite |
 |---|---|---|---|
-| [Vidi](benchmarks/vidi/) | a Miro-style collaborative whiteboard: 17 stories; the `canvas` scope builds 11 (pan and zoom, sticky notes, live sync, saving, share links, selection, undo, text, shapes and arrows, pen, images) | private | private |
+| [Vidi](benchmarks/vidi/) | a Miro-style collaborative whiteboard: 17 stories; the `canvas` scope builds 11 (pan and zoom, sticky notes, live sync, saving, share links, selection, undo, text, shapes and arrows, pen, images) | public | private |
 | [Todoodle](benchmarks/todoodle/) | a to-do app with link-based workspaces, tasks and projects: 11 stories | public | private |
 
-Held-out material lives in a private repo (`awesome-local-ai-bench-private`) so it stays out of
-public training data and out of the agent's reach: the harness's sandbox hides it while the agent
+Specs are public. Held-out suites live in a private repo (`awesome-local-ai-bench-private`): they are
+what protects the scores from contamination, since a model that has seen the spec still has to pass
+tests it has never seen. They also stay out of the agent's reach: the harness's sandbox hides it while the agent
 works. Everything else is public: the harness, the run records, the code each run wrote, and the
 scores. To run a pack on your own hardware, ask the repo owner for access.
 
