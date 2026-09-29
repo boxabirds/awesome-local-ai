@@ -142,13 +142,17 @@ describe('story 10 active tool (TC-22)', () => {
     fireKey('v');
     expect(pressed('Select')).toBe('true');
     // Letters belonging to tools this build has no UI for arm nothing at all.
-    for (const key of ['k', 'p', 'i', 'c', 'x', '1']) {
+    // ('p' was in this list until story 11 gave it to the Pen; the Pen arming is
+    // asserted in tests/component/PenTool.test.tsx, and that the pen draws nothing is
+    // asserted here.)
+    for (const key of ['k', 'j', 'i', 'c', 'x', '1']) {
       fireKey(key);
       expect(pressed('Select')).toBe('true');
       expect(pressed('Shape')).toBe('false');
       expect(pressed('Connector')).toBe('false');
       expect(screen.queryByTestId('shape-tool-overlay')).toBeNull();
       expect(screen.queryByTestId('connector-tool-overlay')).toBeNull();
+      expect(screen.queryByTestId('pen-overlay')).toBeNull();
     }
     expect(shapes()).toBe(2);
     expect(arrows()).toBe(0);

@@ -42,14 +42,14 @@ export const TOOL_SHORTCUTS: Readonly<Record<string, ToolId>> = {
 };
 
 /** The tools this build actually implements; any other id is not armable. */
-export const AVAILABLE_TOOLS: readonly ToolId[] = ['select', 'text', 'shape', 'connector'];
+export const AVAILABLE_TOOLS: readonly ToolId[] = ['select', 'text', 'shape', 'connector', 'pen'];
 
 /**
  * The tools whose whole job is to create an object. `sticky` is in the list because
  * its button creates one immediately: none of them may be armed on a board that
  * cannot be edited.
  */
-const CREATING_TOOLS: readonly ToolId[] = ['sticky', 'text', 'shape', 'connector'];
+const CREATING_TOOLS: readonly ToolId[] = ['sticky', 'text', 'shape', 'connector', 'pen'];
 
 /** The tool a letter selects, or undefined for a letter that is no tool's. */
 export function toolForShortcut(key: string | undefined): ToolId | undefined {

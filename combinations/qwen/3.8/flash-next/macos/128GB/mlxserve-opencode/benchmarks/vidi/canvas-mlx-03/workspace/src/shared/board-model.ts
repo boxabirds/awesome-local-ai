@@ -15,7 +15,11 @@ import {
   SHAPE_FILL_COLORS,
   SHAPE_KINDS,
   SHAPE_STROKE_COLORS,
+  PEN_COLORS,
+  PEN_THICKNESS_WORLD,
   type FillColor,
+  type PenColor,
+  type PenThickness,
   type ShapeKind,
   type StickyColor,
   type StrokeColor,
@@ -51,7 +55,9 @@ export interface ObjectSnapshot {
   z: number;
   width?: number;
   height?: number;
-  color?: StickyColor;
+  /** The object's colour name, in its own type's vocabulary: a sticky names a sticky
+   * colour, a pen stroke a pen colour (story 11). Each type validates its own names. */
+  color?: StickyColor | PenColor;
   text?: string;
   createdAt?: number;
   createdBy?: string;
@@ -70,6 +76,14 @@ export interface ObjectSnapshot {
    * derived from these, so an arrow follows a shape nobody wrote to. */
   from?: Endpoint;
   to?: Endpoint;
+  /** Story 11 stroke fields, present only for `stroke` objects. `points` is the
+   * flattened [x0, y0, x1, y1, ...] the pen recorded, relative to (x, y) at the size
+   * the stroke was created at; `baseWidth`/`baseHeight` are that creation size, so
+   * `width / baseWidth` is the scale a proportional resize renders at. */
+  points?: readonly number[];
+  baseWidth?: number;
+  baseHeight?: number;
+  thickness?: PenThickness;
 }
 
 export interface StickySnapshot extends ObjectSnapshot {
@@ -94,7 +108,8 @@ function metaMap(doc: Y.Doc): Y.Map<unknown> {
   return doc.getMap<unknown>('meta');
 }
 
-function isStickyColor(value: unknown): value is StickyColor {
+/** Is this value one of the five sticky colour names? */
+export function isStickyColor(value: unknown): value is StickyColor {
   return typeof value === 'string' && Object.prototype.hasOwnProperty.call(STICKY_COLORS, value);
 }
 
@@ -108,6 +123,16 @@ function isFillColor(value: unknown): value is FillColor {
 
 function isStrokeColor(value: unknown): value is StrokeColor {
   return typeof value === 'string' && Object.prototype.hasOwnProperty.call(SHAPE_STROKE_COLORS, value);
+}
+
+/** Is this value one of the six pen colour names? */
+export function isPenColor(value: unknown): value is PenColor {
+  return typeof value === 'string' && Object.prototype.hasOwnProperty.call(PEN_COLORS, value);
+}
+
+/** Is this value one of the three pen thickness names? */
+export function isPenThickness(value: unknown): value is PenThickness {
+  return typeof value === 'string' && Object.prototype.hasOwnProperty.call(PEN_THICKNESS_WORLD, value);
 }
 
 function finite(n: number): boolean {
@@ -517,6 +542,22 @@ export function objectSnapshots(doc: Y.Doc): readonly ObjectSnapshot[] {
         base.to = to;
         arrows.push({ base, from, to });
       }
+    } else if (base.type === 'stroke') {
+      // Story 11: the stroke's own fields. `points` is stored as one plain array and
+      // is read back as it came; a stroke whose array is unusable renders nothing and
+      // hits nothing. The creation size (`baseWidth`/`baseHeight`) is what a
+      // proportional resize scales the points against.
+      if (isPenColor(colorVal)) base.color = colorVal;
+      const pts = o.get('points');
+      if (Array.isArray(pts)) base.points = pts as readonly number[];
+      const baseWidth = positiveSize(o.get('baseWidth'));
+      const baseHeight = positiveSize(o.get('baseHeight'));
+      if (baseWidth !== undefined) base.baseWidth = baseWidth;
+      if (baseHeight !== undefined) base.baseHeight = baseHeight;
+      const thicknessVal = o.get('thickness');
+      if (isPenThickness(thicknessVal)) base.thickness = thicknessVal;
+      base.createdBy = author;
+      base.createdAt = asNumber(o.get('createdAt'));
     } else if (textVal instanceof Y.Text) {
       base.text = textVal.toString();
     }

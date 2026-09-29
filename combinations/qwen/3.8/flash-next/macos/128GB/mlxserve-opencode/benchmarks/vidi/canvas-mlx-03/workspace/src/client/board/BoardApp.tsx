@@ -27,10 +27,15 @@ import '../objects/TextObject.tsx';
 // Story 10: registers the 'shape' and 'connector' object types the same way.
 import '../objects/ShapeObject.tsx';
 import '../objects/ConnectorObject.tsx';
+// Story 11: registers the 'stroke' object type the same way.
+import '../objects/StrokeObject.tsx';
 import { getObjectType } from '../objects/registry.tsx';
 import { useActiveTool } from '../tools/useActiveTool.ts';
 import { ShapeTool } from '../tools/ShapeTool.tsx';
 import { ConnectorTool } from '../tools/ConnectorTool.tsx';
+import { PenTool } from '../tools/PenTool.tsx';
+import { PenToolbar } from '../tools/PenToolbar.tsx';
+import { usePenOptions } from '../tools/usePenOptions.ts';
 import { useClientId } from './useClientId.ts';
 import { createText } from '../../shared/objects/text.ts';
 import { objectRectsOf } from '../../shared/objects/connector.ts';
@@ -182,6 +187,11 @@ export default function BoardApp(props: BoardAppProps = {}) {
     [doc, clientId, sel, active],
   );
 
+  // Story 11: what the pen draws with. Session state only — never shared, never kept
+  // for the next session (pen.options) — so it is not in the document and not in the
+  // undo history, and a reload starts the pen at its defaults.
+  const pen = usePenOptions();
+
   // The rectangles every arrow resolves its attached ends against, built once per
   // render and handed to every object: an arrow follows a shape anybody moved because
   // it reads this map, not because anything was written about it.
@@ -273,6 +283,7 @@ export default function BoardApp(props: BoardAppProps = {}) {
           textPlacing={active.tool === 'text'}
           onPlaceText={onPlaceText}
           cursor={active.tool === 'shape' || active.tool === 'connector' ? 'crosshair' : undefined}
+          penActive={active.tool === 'pen'}
         >
           {objects.map((obj) => {
             const spec = getObjectType(obj.type);
@@ -340,6 +351,41 @@ export default function BoardApp(props: BoardAppProps = {}) {
             canEdit={editable}
             onCreated={active.toolCreated}
           />
+        ) : null}
+
+        {/* Story 11: the Pen tool. Like the two above it it is mounted as a neighbour of
+            the viewport, never inside the zoomed layer, so the stroke in hand and the
+            round pointer are drawn in screen pixels and keep their size at any zoom; the
+            stroke it finishes is written into the document in board units. */}
+        {active.tool === 'pen' ? (
+          <PenTool
+            camera={cam.camera}
+            color={pen.color}
+            thickness={pen.thickness}
+            doc={doc}
+            identityId={clientId}
+            viewportRef={viewportRef}
+            canEdit={editable}
+          />
+        ) : null}
+
+        {/* The pen's own options, beside the board toolbar rather than above the board:
+            they belong to the tool, not to any object on the board (pen.options). */}
+        {active.tool === 'pen' ? (
+          <div
+            data-testid="pen-toolbar-anchor"
+            style={{ position: 'fixed', left: 84, top: '50%', transform: 'translateY(-50%)', zIndex: 30 }}
+            onPointerDown={stop}
+            onDoubleClick={stop}
+            onWheel={stop}
+          >
+            <PenToolbar
+              color={pen.color}
+              thickness={pen.thickness}
+              onColor={pen.setColor}
+              onThickness={pen.setThickness}
+            />
+          </div>
         ) : null}
 
         {showSoleToolbar && sole && SoleToolbar ? (

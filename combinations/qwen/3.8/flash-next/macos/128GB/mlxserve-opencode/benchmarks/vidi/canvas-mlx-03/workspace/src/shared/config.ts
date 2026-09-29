@@ -235,3 +235,44 @@ export const CONNECTOR_STROKE_WIDTH_WORLD = 2;
 export const CONNECTOR_ARROWHEAD_SIZE_WORLD = 10;
 /** Radius of a connection dot, in *screen* CSS pixels (it does not scale). */
 export const CONNECTOR_DOT_RADIUS_PX = 4;
+
+// ---- Story 11: sketching with a pen ----------------------------------------
+
+/** The six pen colours (name -> paint). */
+export const PEN_COLORS = {
+  black: '#212121',
+  blue: '#1E88E5',
+  red: '#E53935',
+  green: '#43A047',
+  orange: '#FB8C00',
+  purple: '#8E24AA',
+} as const;
+/** The six pen colours, as names. */
+export type PenColor = keyof typeof PEN_COLORS;
+/** Pen thicknesses in board (world) units, so a stroke scales with the zoom. */
+export const PEN_THICKNESS_WORLD = { thin: 2, medium: 4, thick: 8 } as const;
+/** The three pen thicknesses, as names. */
+export type PenThickness = keyof typeof PEN_THICKNESS_WORLD;
+/** The colour and thickness a fresh session starts with (never remembered). */
+export const DEFAULT_PEN_COLOR = 'black';
+export const DEFAULT_PEN_THICKNESS = 'medium';
+/**
+ * How far a finished stroke may deviate from the path that was drawn, in *screen*
+ * CSS pixels (pen.smooth). The Pen tool divides it by the camera zoom, so the
+ * tolerance is one screen pixel whatever the scale.
+ */
+export const STROKE_SIMPLIFY_TOLERANCE_PX = 1;
+/**
+ * Longest stroke one object may hold, in recorded points (pen.long_stroke). At it
+ * the stroke is finished and the drawing continues as a new stroke that starts at
+ * the same point, so the two join with no visible gap.
+ */
+export const STROKE_MAX_POINTS = 5000;
+/**
+ * How close to a stroke's line (screen CSS px) a click still selects it
+ * (pen.select). A click inside the stroke's bounding box but farther from its line
+ * falls through to whatever is underneath.
+ */
+export const STROKE_HIT_TOLERANCE_PX = 6;
+/** Smallest side a stroke may be resized to, in board units (pen.resize). */
+export const STROKE_MIN_SIZE_WORLD = 4;

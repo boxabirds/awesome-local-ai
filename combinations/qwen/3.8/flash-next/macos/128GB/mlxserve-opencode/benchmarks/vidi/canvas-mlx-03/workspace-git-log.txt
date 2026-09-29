@@ -1,3 +1,59 @@
+commit a2c7e968364c75ce4c2be52447bcae377cd9986c
+vidi-agent  Tue Sep 29 14:53:35 2026 +0100
+
+    test(11): pen e2e (TC-17..TC-20) and the Firefox drag that was stealing the pointer
+
+
+ NOTES.md                              | 122 +++++++++
+ src/client/objects/StrokeObject.tsx   |   5 +
+ tests/component/StrokeObject.test.tsx |  22 ++
+ tests/e2e/pen.spec.ts                 | 484 ++++++++++++++++++++++++++++++++++
+ 4 files changed, 633 insertions(+)
+commit de21f1b95a2fd1609538fe148e22cd36b04c9c21
+vidi-agent  Tue Sep 29 14:02:50 2026 +0100
+
+    test(11): component tests for the pen (TC-09..TC-14) and the stroke object (TC-15, TC-16, TC-21); interrupted pointer now finishes the stroke; pen option modules under tools/ per the design; task 5
+
+
+ src/client/board/BoardApp.tsx                |   4 +-
+ src/client/tools/PenTool.tsx                 |  42 +--
+ src/client/{board => tools}/PenToolbar.tsx   |   0
+ src/client/{board => tools}/usePenOptions.ts |   0
+ tests/component/PenTool.test.tsx             | 409 +++++++++++++++++++++++++++
+ tests/component/StrokeObject.test.tsx        | 316 +++++++++++++++++++++
+ 6 files changed, 749 insertions(+), 22 deletions(-)
+commit 69d4e60ecbcb6445ead7df86f83778100a94e05d
+vidi-agent  Tue Sep 29 13:50:37 2026 +0100
+
+    feat(11): pen UI — PenTool (capture-phase pointer, local screen-space preview, per-stroke commit, long-stroke split), usePenOptions, PenToolbar, StrokeObject, stroke registry entry, Pen tool button and penActive surface; tasks 3-4
+
+
+ src/client/board/BoardApp.tsx          |  46 +++++
+ src/client/board/PenToolbar.tsx        | 146 ++++++++++++++++
+ src/client/board/Toolbar.tsx           |   3 +
+ src/client/board/usePenOptions.ts      |  32 ++++
+ src/client/canvas/BoardViewport.tsx    |   9 +-
+ src/client/objects/StrokeObject.tsx    | 135 +++++++++++++++
+ src/client/objects/registry.tsx        |  20 ++-
+ src/client/styles.css                  |  11 ++
+ src/client/tools/PenTool.tsx           | 298 +++++++++++++++++++++++++++++++++
+ src/client/tools/useActiveTool.ts      |   4 +-
+ tests/component/useActiveTool.test.tsx |   6 +-
+ 11 files changed, 705 insertions(+), 5 deletions(-)
+commit 57075bef5985da403c42016bebbd945c2bad5be5
+vidi-agent  Tue Sep 29 13:43:25 2026 +0100
+
+    feat(11): stroke model — simplify (RDP), splitPoints, smoothPath, stroke schema in the objects map and objectSnapshots; unit TC-01..TC-08 + pen path fixtures; tasks 1-2
+
+
+ src/client/objects/StickyNote.tsx |   5 +-
+ src/shared/board-model.ts         |  45 +++-
+ src/shared/config.ts              |  41 ++++
+ src/shared/geometry/simplify.ts   | 157 +++++++++++++
+ src/shared/objects/stroke.ts      | 296 +++++++++++++++++++++++++
+ tests/fixtures/pen-paths.ts       | 121 ++++++++++
+ tests/unit/stroke.test.ts         | 453 ++++++++++++++++++++++++++++++++++++++
+ 7 files changed, 1115 insertions(+), 3 deletions(-)
 commit aaafac25389be4792b692eab4a093c4926aacdb3
 vidi-agent  Tue Sep 29 13:11:08 2026 +0100
 

@@ -199,6 +199,9 @@ export function Toolbar(props: ToolbarProps) {
         </div>
       ) : null}
       {hasTools ? toolButton('connector', 'Connector', '↗', 'Connector – drag from one object to another (L)', 'connector-tool') : null}
+      {/* Story 11: the Pen. Like every tool button it is named `Pen` — accessible name,
+          not hint text — so a stroke can be drawn by test, screen reader and mouse. */}
+      {hasTools ? toolButton('pen', 'Pen', '✎', 'Pen – draw freehand (P)', 'pen-tool') : null}
 
       <button
         type="button"

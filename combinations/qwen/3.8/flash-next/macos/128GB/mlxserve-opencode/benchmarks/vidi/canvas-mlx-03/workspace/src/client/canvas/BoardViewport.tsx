@@ -30,6 +30,12 @@ export interface BoardViewportProps {
    * (a crosshair for the Shape and Connector tools). Defaults to the board's grab.
    */
   cursor?: string;
+  /**
+   * Story 11: the Pen tool is armed. The board shows no cursor of its own — the tool
+   * draws a round one the size of the current thickness — and a pointer drag that
+   * somehow reaches the surface is not a pan: the pen owns the gesture (pen.ui).
+   */
+  penActive?: boolean;
 }
 
 interface GestureEventLike extends Event {
@@ -53,7 +59,7 @@ function wheelPixels(delta: number, deltaMode: number): number {
  * wheel (board-owned), and Safari gesture events. All input calls go through the
  * camera.math API so the board never zooms the page.
  */
-export function BoardViewport({ camera, viewportRef, api, children, onBackgroundPointerDown, onBackgroundDoubleClick, textPlacing, onPlaceText, marquee, cursor }: BoardViewportProps) {
+export function BoardViewport({ camera, viewportRef, api, children, onBackgroundPointerDown, onBackgroundDoubleClick, textPlacing, onPlaceText, marquee, cursor, penActive }: BoardViewportProps) {
   const apiRef = useRef(api);
   apiRef.current = api;
   const cameraRef = useRef(camera);
@@ -212,6 +218,7 @@ export function BoardViewport({ camera, viewportRef, api, children, onBackground
       ref={viewportRef}
       data-testid="viewport"
       className="vidi6-viewport"
+      data-pen={penActive ? 'true' : undefined}
       style={{
         position: 'absolute',
         inset: 0,

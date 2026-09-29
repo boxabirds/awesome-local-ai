@@ -346,3 +346,125 @@ marquee, undo and z-ordering all work on it unchanged. Its registry entry is `re
 aspect-locked, `minSize = TEXT_MIN_WIDTH_WORLD`, `handles: 'horizontal'`; `SelectionOverlay` shows
 only the e/w handles when every selected object is horizontal-only, and a single-text e/w drag is a
 `textwidth` write (`setTextWidthFixed` + one remeasure) rather than a free resize.
+
+# Story 11 — Sketch freehand with a pen (implementation notes)
+
+## Test totals (all passing)
+
+| Suite | Story 11 | Whole suite |
+|---|---|---|
+| `test:unit` (`tests/unit/stroke.test.ts`) | 27 (TC-01 to TC-08 plus boundary and edge cases) | 263 tests, 20 files |
+| `test:component` (`PenTool`, `StrokeObject`) | 28 (TC-09 to TC-16, TC-21 plus extras) | 213 tests, 25 files |
+| `npm run test` (unit + component + integration) | 55 | 534 tests, 50 files |
+| `test:e2e` (`tests/e2e/pen.spec.ts`, TC-17 to TC-20) | 5 per browser | 57 per browser, 171 total — chromium, firefox and webkit all green |
+| `npm run typecheck` | clean | clean |
+
+## Design decisions honoured
+
+- **Nothing in flight is ever sent.** The stroke in hand lives in component state as a
+  screen-space path and is drawn from an overlay; the one write to the document happens on
+  release (`createStroke`, `LOCAL_ORIGIN`). TC-18 measures this from a second browser: the
+  watching page holds no stroke and no preview while the drag lasts, and the whole stroke
+  inside `LIVE_UPDATE_LATENCY_BUDGET_MS` after release.
+- **`boundary()` around every stroke.** Yjs merges same-origin transactions inside
+  `UNDO_CAPTURE_TIMEOUT_MS`, so two strokes drawn a second apart would be one undo step. One
+  `stopCapturing()` before and after each `createStroke` makes it one stroke per step (TC-11).
+- **The pen stays armed.** No `toolCreated`, no return to Select: one click on the Pen buys
+  an unlimited number of strokes (TC-09, TC-17).
+- **An interrupted pointer finishes the stroke.** `pointercancel` and `lostpointercapture`
+  commit the points drawn so far — the PRD's "shall not discard". Only leaving the tool
+  (Escape, another tool) throws the stroke away, because that is a decision and an
+  interruption is not (TC-10).
+- **Session-only options.** `usePenOptions` is plain `useState`: colour and thickness are
+  neither persisted nor shared, and a reload comes back to `DEFAULT_PEN_COLOR` /
+  `DEFAULT_PEN_THICKNESS` (TC-13).
+- **`STROKE_SIMPLIFY_TOLERANCE_PX` is screen pixels**, so it is divided by the zoom before it
+  is handed to `simplify`: a squiggle drawn at 400% zoom is simplified in tenths of a board
+  unit, and the same gesture at 100% in whole ones.
+- **Aspect lock costs no stroke-specific resize code.** The stroke stores `points` relative
+  to its box plus the `baseWidth`/`baseHeight` it was created at; `scaledPoints` reads the
+  live `width`/`height` the generic story-7 resize already writes, and the registry's
+  `aspectLocked: true` does the rest (TC-20, at ±1%).
+- **The box is padded by half the thickness on every side**, so the painted line always lies
+  inside the box that selection, marquee and resize use. A stroke whose line touches the box
+  edge is not a special case anywhere else in the app.
+- **`strokeHitTest` takes the larger of half the thickness and `STROKE_HIT_TOLERANCE_PX /
+  zoom`** — a thick line is clickable on its own body at 100%, a thin one is clickable within
+  six screen pixels at any zoom, and the tolerance is screen pixels in both cases (TC-15).
+- **`pen` took the `p` shortcut** from the cross-story letter map (`TOOL_SHORTCUTS`), which
+  story 10's `useActiveTool` test had listed as "a letter no tool has yet"; the test moved
+  that assertion to `j` rather than losing it.
+
+## Deviations from the design's contracts, and why
+
+1. **`PenTool` takes two props the contract does not list**: `viewportRef` and `canEdit`.
+   The tool must put its `pointerdown` listener on the *drawing surface* in the capture phase
+   — that is the only way a stroke started on top of a sticky note belongs to the pen and not
+   to the note under it (TC-19) — and a component cannot hold a ref it does not own.
+   `canEdit` is the same rule every creating tool obeys: a board that cannot be edited does
+   not draw.
+2. **`StrokeObject` takes the registry's standard `ObjectProps`, not `{ stroke, selected }`.**
+   The generic world layer renders every object type through one interface, and only by
+   taking `onObjectPointerDown`, `zoom`, `camera` and `selected` from it does a drawing get
+   selection, move, resize, delete and z-ordering for free. It reads the stroke fields off
+   the snapshot with `strokeSnapshot`, so a corrupt object cannot crash the board (TC-16).
+3. **The accessible name carries the paint**: `aria-label="Drawing (Blue, Thick)"` rather
+   than the design's bare `"Drawing"`. A screen reader otherwise hears forty identical
+   "Drawing"s on a board full of them; the design's own toolbar spec names colour and
+   thickness for the buttons, and this is the same idea applied to the object.
+4. **`ObjectSnapshot.color` was widened to `StickyColor | PenColor`** instead of adding a
+   second colour field. One field means one write path, one sync path and one colour-aware
+   undo; each type validates its own palette (`isStickyColor`, `isPenColor`), and
+   `StickyNote` narrows at the point of use.
+5. **`points` is a flat `number[]` on the object map, not a `Y.Array`.** A stroke is created
+   once and never edited point by point; the whole array is replaced atomically by the
+   simplify-and-create step, which is exactly the shape a plain JSON field in a `Y.Map`
+   handles well. A `Y.Array` would offer per-point merge semantics nothing needs.
+
+## A real bug the e2e found: Firefox steals the pointer from an SVG stroke
+
+TC-20's body drag moved the drawing in Chromium and WebKit and *nothing* in Firefox. The
+trace shows why: Firefox begins a native drag the moment the pointer is pressed on an SVG
+element, and a pointer taken over by a drag is cancelled — `pointerdown@path#stroke-hit-area`
+immediately followed by `pointercancel@path#stroke-hit-area`, which ends the move gesture
+before its third pixel. `StrokeObject` now handles `onDragStart` and calls
+`preventDefault()` (plus `user-select: none`), which stops the drag before it claims the
+pointer; the e2e passes on all three engines. React's `SVGProps` has no `draggable`, and none
+is needed: cancelling `dragstart` is the whole fix. `tests/component/StrokeObject.test.tsx`
+asserts the prevention, because jsdom has no native drag to start and would otherwise regress
+silently.
+
+## Test-harness notes
+
+- **Vitest does not fake `requestAnimationFrame`.** `vi.useFakeTimers()` leaves it to jsdom,
+  so the pen's preview would never update under a component test that waited for a frame that
+  never came. `tests/component/PenTool.test.tsx` stubs it with a queue and flushes it by hand
+  (`nextFrame()`); commits are asserted where they really happen — synchronously, in the
+  pointer handler — not in a frame.
+- **The frame-by-frame promise is asserted in the browser, where it is real.** TC-17 installs
+  a sampler *inside the page* that records the preview's `d` on every animation frame for the
+  whole time the pointer is held down, and asserts the frames differ: a preview that only
+  redrew once per gesture would pass a "preview exists" test and fails this one.
+- **Dragging five thousand points is not an e2e concern.** The `STROKE_MAX_POINTS` split
+  (TC-12) is a question about how many points the tool recorded, and it is answered in
+  `tests/component/PenTool.test.tsx`. In a real browser each `page.mouse.move` costs a
+  round trip and delivers one point, so proving it there would spend minutes of a 30-second
+  budget to learn something the engine has no opinion about.
+- **Ask the browser where the line is.** TC-20 clicks "on the stroke" through
+  `path.getPointAtLength(path.getTotalLength() * f)` mapped out of the SVG's own `viewBox`
+  and client rect. A hand-computed point misses: the painted line is a *smoothed quadratic*
+  through the recorded points and does not pass through the points the pen went near, so
+  arithmetic about where the line "should" be lands several pixels off a six-pixel target.
+- **One batched `evaluate` per path, not one per point.** `onScreen()` in
+  `tests/e2e/pen.spec.ts` reads the origin marker and the zoom once and maps a hundred-point
+  fixture in a single trip; the per-point version (two trips each) blew the test timeout
+  before it drew anything.
+- **Re-pressing an armed tool's button puts the tool away** (story 10's rule in
+  `useActiveTool.setTool`), so `armPen()` in the e2e clicks the Pen only when it is not
+  already armed. This is also exactly what makes TC-09's "the pen stays armed" worth
+  asserting: a helper that clicked blindly would toggle the tool off mid-test.
+- **The pen's cursor is CSS and a circle.** `BoardViewport` gains `data-pen="true"` while the
+  tool is armed, `styles.css` turns the real cursor off for the viewport and everything under
+  it, and `PenTool` draws a dot of `thickness * zoom` at the pointer. The pen toolbar is
+  rendered as a sibling *outside* the viewport, so choosing a colour is never a stroke; the
+  capture handler ignores presses that begin on a button or a text editor all the same.

@@ -16,11 +16,13 @@ import type { ComponentType, MouseEvent as ReactMouseEvent, PointerEvent as Reac
 import { objectBounds, type ObjectSnapshot } from '../../shared/board-model.ts';
 import type { Point, Rect } from '../../shared/geometry.ts';
 import type { Camera } from '../canvas/camera.ts';
-import { STICKY_MIN_SIZE_WORLD, TEXT_MIN_WIDTH_WORLD, SHAPE_MIN_SIZE_WORLD } from '../../shared/config.ts';
+import { STICKY_MIN_SIZE_WORLD, TEXT_MIN_WIDTH_WORLD, SHAPE_MIN_SIZE_WORLD, STROKE_MIN_SIZE_WORLD } from '../../shared/config.ts';
 import { StickyNote, StickyNoteToolbar } from './StickyNote.tsx';
 import { TextObject, TextObjectToolbar } from './TextObject.tsx';
 import { ShapeObject, ShapeObjectToolbar } from './ShapeObject.tsx';
 import { ConnectorObject, connectorHitTest } from './ConnectorObject.tsx';
+import { StrokeObject } from './StrokeObject.tsx';
+import { strokeHitTest } from '../../shared/objects/stroke.ts';
 
 /** What an object component needs in order to render and edit itself. */
 export interface ObjectProps {
@@ -207,4 +209,20 @@ registerObjectType('connector', {
   aspectLocked: false,
   minSize: 0,
   editableText: false,
+});
+
+// Story 11: a drawn stroke. It holds no text and nobody drags its points about, but the
+// box story 7 gave every object is what its selection, marquee, nudge, delete and undo all
+// run on, and resizing it keeps its proportions — `scaledPoints` stretches the drawing into
+// whatever box the drag left, while the thickness stays the thickness it was drawn with
+// (pen.resize). It is hit where its line is, within the larger of half its thickness and
+// the click tolerance in board units at the current zoom, so a click inside a scribble's
+// box but off its line belongs to whatever is underneath (pen.select).
+registerObjectType('stroke', {
+  Component: StrokeObject,
+  resizable: true,
+  aspectLocked: true,
+  minSize: STROKE_MIN_SIZE_WORLD,
+  editableText: false,
+  hitTest: (obj, worldPoint, zoom) => strokeHitTest(obj, worldPoint, zoom ?? 1),
 });

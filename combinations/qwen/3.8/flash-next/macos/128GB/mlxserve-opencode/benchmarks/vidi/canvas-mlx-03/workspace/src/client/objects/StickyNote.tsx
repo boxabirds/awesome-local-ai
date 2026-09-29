@@ -14,6 +14,7 @@ import { useLayoutEffect, useRef, useState } from 'react';
 import type * as Y from 'yjs';
 import {
   getStickyText,
+  isStickyColor,
   objectBounds,
   setStickyColor,
   type StickySnapshot,
@@ -42,7 +43,9 @@ export interface StickyNoteProps extends ObjectProps {}
 export function StickyNote(props: StickyNoteProps) {
   const { obj, doc, selected, editing, onEndEdit } = props;
   const canEdit = props.canEdit ?? true;
-  const color = obj.color ?? DEFAULT_STICKY_COLOR;
+  // The generic snapshot's `color` is every type's vocabulary; a sticky reads its own
+  // names out of it and falls back to its own default for anything else.
+  const color = isStickyColor(obj.color) ? obj.color : DEFAULT_STICKY_COLOR;
   const text = obj.text ?? '';
   const bounds = objectBounds(obj);
   // The text box shrinks with the note, both axes (story 7 resize).
