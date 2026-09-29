@@ -4,7 +4,7 @@
 |---|-------|--------|------|------------|
 | 1 | Write image format sniffing and file validation unit tests first (TC-01, TC-02, TC-08, TC-09) | proposed | test:unit | assets.api, image.insert |
 | 2 | Write image object model unit tests first (TC-03 to TC-07) | proposed | test:unit | image.model |
-| 3 | Implement asset API: R2 binding, upload with sniffing/limits, immutable serving | proposed | implementation | assets.api |
+| 3 | Implement asset API: R2 binding, upload with sniffing and size limit, immutable serving | proposed | implementation | assets.api |
 | 4 | Integration tests for asset API with real R2 and BoardRoom (TC-10 to TC-13, TC-15, TC-16) | proposed | test:integration | assets.api |
 | 5 | Implement image object model: placement, row layout, placeholders, status updates with untracked origin | proposed | implementation | image.model |
 | 6 | Implement adding images: drop highlight, paste, Image tool picker, validation toasts, XHR upload with progress, retry | proposed | implementation | image.insert |
@@ -46,7 +46,7 @@ Test-first suite for image.model (`placementSize`, `layoutRow`, `createImagePlac
 ## Done when
 Suite compiles and fails only with "not implemented".
 
-### 3. Implement asset API: R2 binding, upload with sniffing/limits, immutable serving
+### 3. Implement asset API: R2 binding, upload with sniffing and size limit, immutable serving
 
 ## Goal
 Implement assets.api per contract and HTTP table.
@@ -59,7 +59,7 @@ Implement assets.api per contract and HTTP table.
 - `index.ts` routes `POST /api/boards/:id/assets`, `GET /api/assets/:boardId/:assetId`.
 
 ## Done when
-TC-01, TC-02 and integration TC-10..TC-13, TC-15, TC-16 pass.
+TC-01, TC-02 and integration TC-10 to TC-13, TC-15, TC-16 pass.
 
 ### 4. Integration tests for asset API with real R2 and BoardRoom (TC-10 to TC-13, TC-15, TC-16)
 
@@ -102,15 +102,15 @@ Implement image.insert per contract.
 - `validateFiles`: keep first IMAGE_MAX_FILES_PER_ADD ('count'), reject non-accepted `File.type` ('type') and size > IMAGE_MAX_BYTES ('size'); `REJECTION_MESSAGES` hold the exact PRD strings plus 'offline'.
 - `uploadImage`: XMLHttpRequest POST `/api/boards/:id/assets` with `upload.onprogress` → fraction; 201 → ok(assetKey); any other status or network error → failed; `abort()`.
 - `useImageInsert`:
-  - Offline gate: ConnectionState not `connected`/`confirmed` → offline toast, nothing created, no upload.
-  - Entry points: `onDragOver`/`onDrop` on BoardViewport (DropHighlight only for file drags; drop point → world, `top-left` layout); `onPaste` on window ignored when focus is in a textarea/input/contenteditable or clipboard has no image files (`centre` layout at view centre); `openPicker` via hidden `<input type=file multiple accept=...>` from the Image button / I shortcut, then tool returns to Select.
+  - Offline gate: ConnectionState not `connected`/`confirmed` → offline toast, nothing created, no upload, picker not opened.
+  - Entry points: `onDragOver`/`onDrop` on BoardViewport (DropHighlight only for file drags; drop point → world, `top-left` layout); `onPaste` on window ignored when focus is in a textarea/input/contenteditable or clipboard has no image files (`centre` layout at view centre); `openPicker` via hidden `<input type=file multiple accept=...>` from the Image button / I shortcut; the tool returns to Select after files are chosen or the picker is cancelled.
   - `createImageBitmap` per accepted file for natural size (reject → type toast, file skipped); `placementSize` + `layoutRow`; one `createImagePlaceholders` call.
   - Parallel uploads updating a `progress` map; ok → `markImageReady`; failed → `markImageFailed`.
   - In-memory `Map<id, File>` for `retry(id)` (`markImageRetrying` then re-upload) and `canRetry(id)`; lost on reload by design.
 - `Toast`: bottom-centre, `role=status`, auto-dismiss.
 
 ## Done when
-TC-17..TC-19, TC-29 and e2e TC-25, TC-26, TC-28 pass.
+TC-17 to TC-19, TC-29 and e2e TC-25, TC-26, TC-28 pass.
 
 ### 7. Implement ImageObject render states and aspect-locked registry entry
 
@@ -153,17 +153,17 @@ All pass in `npm run test:component`.
 ### 9. E2E image workflows: moodboard with colleague, mixed picker batch, resize and revisit, flaky upload (TC-25 to TC-28)
 
 ## Goal
-Real-browser proof across assets.api (real upload to local R2 and immutable serving), image.insert (drop via DataTransfer, picker via setInputFiles, validation toasts, failure and retry) and image.object (placeholders for others, aspect-locked resize, persistence after reload) against `wrangler dev`.
+Real-browser proof across assets.api (real upload to local R2 and immutable serving), image.insert (drop via DataTransfer, picker via setInputFiles, validation toasts, failure and retry) and image.object (placeholders for others, aspect-locked resize, persistence after reload) against `wrangler dev`. Functional waits use E2E_EVENTUAL_TIMEOUT_MS (story 3); delivery times are logged, not asserted.
 
 ## Helper
 `drop-files.ts`: builds a DataTransfer from fixture files inside the page and dispatches dragenter/dragover/drop at a board point.
 
 ## Workflows
-- "Moodboard with a colleague" TC-25: Leo drops 3 screenshots; Sam's context sees "Uploading…" placeholders, then all three images within LIVE_UPDATE_LATENCY_BUDGET_MS plus image load; GET responses carry immutable Cache-Control.
+- "Moodboard with a colleague" TC-25: Leo drops 3 screenshots; Sam's context sees "Uploading…" placeholders, then all three images (drop-to-visible time **logged** against LIVE_UPDATE_LATENCY_BUDGET_MS, not asserted); GET responses carry immutable Cache-Control.
 - "Mixed picker batch" TC-26: press I, `setInputFiles` with valid PNG + renamed PDF + 11 MB JPEG → one image added; type and size toasts with exact wording.
 - "Resize and revisit" TC-27: resize an image by a corner → aspect ratio within 1%; drag smaller than IMAGE_MIN_SIZE_WORLD stops at the floor; reload in a new context → image present.
 - "Flaky upload" TC-28: `page.route` aborts POST assets → "Upload failed" with Retry; restore route, click Retry → image ready on both screens.
 
 ## Done when
-All pass in chromium; TC-26 also in firefox and webkit.
+All functional assertions pass in chromium; TC-26 also in firefox and webkit. No test fails because a delivery time exceeded its budget.
 

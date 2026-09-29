@@ -14,7 +14,7 @@ Pain points:
 
 ## Solution
 
-- **No starting point → home page with Create a board.** One click creates a fresh board and opens it.
+- **No starting point → home page with New board.** One click creates a fresh board and opens it.
 - **Awkward inviting → Share button.** A Share button on every board copies the board's link, with a clear confirmation; if copying is blocked by the browser, the link is shown ready to copy manually.
 - **Guessable links → unguessable links.** Every board link contains a long random code that cannot practically be guessed or derived from another board's link. Anyone with the link can join and edit without signing in.
 - **Broken links → Board not found page.** Links to boards that don't exist show a clear message and an offer to create a new board; nothing is created at a mistyped address.
@@ -22,16 +22,16 @@ Pain points:
 ## User Experience
 
 ### Golden path
-1. Maya goes to the vidi6 home page. She sees the product name, one sentence ("A shared board for thinking together") and a prominent **Create a board** button.
+1. Maya goes to the vidi6 home page. She sees the product name, one sentence ("A shared board for thinking together") and a prominent **New board** button.
 2. She clicks it. The button shows "Creating…" briefly, then the new empty board opens (story 1 hint visible).
 3. She clicks **Share** in the top-right corner. A small panel opens showing the board link in a read-only field and a **Copy link** button.
 4. She clicks **Copy link**. The button changes to "Link copied" with a tick for 2 seconds.
 5. She pastes the link into her team chat. Colleagues click it and land directly on the same board, able to edit immediately (stories 2–4).
 
 ### Structure
-- **Home page:** product name, one-line description, Create a board button, space for an error message beneath the button.
+- **Home page:** product name, one-line description, New board button, space for an error message beneath the button.
 - **Board page:** Share button (top-right). Share panel: read-only link field, Copy link button, note "Anyone with this link can view and edit this board."
-- **Board not found page:** heading "Board not found", text "Check the link, or ask the person who shared it to send it again.", **Create a new board** button, link back to the home page.
+- **Board not found page:** heading "Board not found", text "Check the link, or ask the person who shared it to send it again.", **New board** button, link back to the home page.
 - **Loading state (board page):** "Opening board…" while checking the link.
 
 ### Behaviour
@@ -49,7 +49,7 @@ Pain points:
 - **Empty state:** a newly created board is empty; story 1's hint is the empty state.
 
 ### Explicit non-behaviours
-- Does not list a person's boards (story 15).
+- Does not list a person's boards (stories 14–15).
 - Does not support view-only links, link expiry, or revoking a link.
 - Does not require or offer sign-in (story 14).
 - Does not send invitations by email.
@@ -60,7 +60,7 @@ Pain points:
 
 > Anchor: `share.create`
 
-WHEN a person clicks Create a board on the home page THE SYSTEM SHALL create a new empty board and open it within 2 seconds on a typical broadband connection.
+WHEN a person clicks New board on the home page THE SYSTEM SHALL create a new empty board and open it within 2 seconds on a typical broadband connection.
 
 ## Open a shared link
 
@@ -88,25 +88,19 @@ IF the browser does not allow the link to be copied automatically THEN THE SYSTE
 
 THE SYSTEM SHALL give every board a link containing a random code of at least 128 bits of randomness, and THE SYSTEM SHALL NOT derive a board's link from its creation order, time, creator, or any other board's link.
 
-Verification: 10,000 created boards have distinct codes, all of the required length, with no shared prefixes beyond what chance predicts.
-
-## Links are never reused
-
-> Anchor: `share.unique`
-
-IF a newly generated link code is already used by an existing board THEN THE SYSTEM SHALL NOT give it to the new board; THE SYSTEM SHALL generate a different code instead.
+Verification: codes are produced from a cryptographic random source of at least 16 bytes, are 22 characters long, and 10,000 created boards have distinct codes.
 
 ## Board not found
 
 > Anchor: `share.not_found`
 
-WHEN a person opens a board link whose code does not belong to an existing board, or is not a valid code THE SYSTEM SHALL show the Board not found page with a Create a new board button, and THE SYSTEM SHALL NOT create a board at that link.
+WHEN a person opens a board link whose code does not belong to an existing board, or is not a valid code THE SYSTEM SHALL show the Board not found page with a New board button, and THE SYSTEM SHALL NOT create a board at that link.
 
 ## Creation failure is explained
 
 > Anchor: `share.create_failure`
 
-IF creating a board fails THEN THE SYSTEM SHALL keep the person on the home page and show "Couldn't create a board. Please try again." with the Create a board button available again.
+IF creating a board fails THEN THE SYSTEM SHALL keep the person on the home page and show "Couldn't create a board. Please try again." with the New board button available again.
 
 ## Service unreachable while opening a link
 
@@ -122,7 +116,7 @@ WHEN a person opens the address of a board that already has saved content from b
 
 ## Constraints
 
-- **Security model (interim, explicit):** possession of the link is the only access control. The Share panel must say so. This is acceptable until sign-in and permissions arrive (story 14).
+- **Security model (explicit):** possession of the link is the only access control. The Share panel must say so. Story 14 adds sign-in but no permissions, and no current story adds permissions, so this remains the access model for all current stories.
 - **Settings:** "Link copied" duration (2 seconds) and link code strength (128 bits) are named product settings.
 - **Links in chat apps:** links contain only characters that chat and email apps do not break or re-encode (letters, digits, hyphen, underscore).
 - **Privacy:** board links must not be sent to third-party analytics or referrer headers from the board page.
@@ -130,10 +124,11 @@ WHEN a person opens the address of a board that already has saved content from b
 
 ## Out of scope
 
-- Sign-in, ownership, permissions, view-only access (story 14 and later).
+- Sign-in (story 14).
+- Ownership, permissions and view-only access (not in any current story).
 - My boards list / dashboard, naming boards (story 15).
 - Revoking or rotating a board's link.
 - Email or in-app invitations.
-- Board deletion.
+- Board deletion (not in any current story).
 - Link previews (unfurl images) in chat apps.
 

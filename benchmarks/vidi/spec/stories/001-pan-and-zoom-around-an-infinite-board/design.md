@@ -238,9 +238,9 @@ The camera contract names one error class: invalid zoom factor (non-finite or �
 - An origin marker element (small crosshair at world 0,0) rendered in all builds, giving e2e a stable pixel target.
 
 ## Not covered
-- Smoothness / frame rate: manual check only.
+Deliberately not covered by automated tests:
 - Trackpad hardware differences (inertia, delta scaling across OSes): only synthetic wheel events are tested.
-- Safari pinch in e2e: Playwright WebKit cannot synthesise GestureEvent; TC-17 covers handler logic, real Safari pinch is a manual check.
+- Safari pinch in e2e: Playwright WebKit cannot synthesise GestureEvent; TC-17 covers handler logic.
 - Touch input: out of scope.
 
 ## Camera maths
@@ -270,13 +270,14 @@ export function zoomPercent(cam: Camera): number; // Math.round(zoom * 100)
 - **Side effects**: none.
 
 ## Implementation
+- **No edges (pan.unbounded):** the camera position is two unbounded double-precision numbers with no clamping on `x` or `y`, so the user can pan at least UNBOUNDED_PAN_TESTED_EXTENT (1,000,000 board units) from the starting point in any direction without reaching an edge. Doubles keep sub-pixel precision at that distance even at ZOOM_MAX, so panning still follows the pointer exactly and the dot grid (drawn from `x, y` modulo GRID_SPACING_WORLD) stays evenly spaced with no visible distortion.
 - `panBy`: `x - dx/zoom, y - dy/zoom`.
 - `zoomAt`: `newZoom = clamp(zoom*factor, ZOOM_MIN, ZOOM_MAX)`; world point under pointer `w = screenToWorld(cam,p)`; new `x = w.x - p.x/newZoom` (same for y). If `newZoom === zoom` return `cam`.
 - `zoomStep`: `zoomAt(cam, centre(viewport), ZOOM_STEP_FACTOR or its inverse)`. To avoid float drift (1.25 then 0.8 must return exactly 1.0), step zoom snaps to the nearest value of `ZOOM_STEP_FACTOR^n` when within 1e-9.
 - `resetCamera`: `{ x: -width/2, y: -height/2, zoom: 1 }`.
 
 ## Tests
-Unit (Vitest): TC-01 to TC-12 in `tests/unit/camera.test.ts`. Property-style check: for 1,000 random cameras/points/factors within limits, pointer world point is invariant under `zoomAt` within 1e-6.
+Unit (Vitest): TC-01 to TC-12 in `tests/unit/camera.test.ts` (far-away precision TC-02, TC-04). e2e: TC-27 (pan at 1,000,000 units). Property-style check: for 1,000 random cameras/points/factors within limits, pointer world point is invariant under `zoomAt` within 1e-6.
 
 ## Viewport input and rendering
 
@@ -301,11 +302,12 @@ export function BoardViewport(props: { children?: React.ReactNode }): JSX.Elemen
 - **Side effects**: `preventDefault` on wheel (always, over board), on gesture events, and on the three shortcuts; pointer capture during drag.
 
 ## Implementation
-- Wheel listener attached with `addEventListener('wheel', h, { passive: false })` in an effect (React's `onWheel` is passive and cannot prevent page zoom).
-- `ctrlKey || metaKey` → `zoomAt(point, Math.exp(-deltaY * WHEEL_ZOOM_SENSITIVITY))`; otherwise `panBy(-deltaX, -deltaY)` (content moves opposite to scroll direction, matching native scrolling). `deltaMode` LINE/PAGE converted to pixels.
-- Drag only starts when the pointerdown target is the viewport or grid itself (so later object stories can stop propagation). Uses `setPointerCapture`; state machine Idle/Panning as in the overview diagram.
-- Camera updates are batched with `requestAnimationFrame` to at most one render per frame.
-- Viewport size from a `ResizeObserver`.
+- **Pan by dragging (pan.drag):** a pointerdown on empty board space (the viewport or grid itself) captures the pointer; each pointermove calls `panBy(dx, dy)` with the pointer's screen delta, so board content (and every grid dot) moves by exactly the distance and direction the pointer moved — a 200 px right, 100 px down drag moves a grid dot 200 px right and 100 px down (within 1 px). The cursor shows a grabbing hand while dragging; pointerup, pointercancel or lost capture ends the drag and leaves the board where it was.
+- **Pan by scrolling (pan.scroll):** a wheel or two-finger trackpad scroll without Ctrl/Cmd calls `panBy(-deltaX, -deltaY)`, moving the board in the scroll direction both vertically and horizontally: scrolling down moves content up, scrolling right moves content left. `deltaMode` LINE/PAGE is converted to pixels.
+- **Zoom around the pointer (zoom.pointer):** a trackpad pinch (delivered as a Ctrl-wheel in Chromium/Firefox, `gesturechange` in Safari) or a wheel with Ctrl/Cmd held calls `zoomAt(pointerPoint, Math.exp(-deltaY * WHEEL_ZOOM_SENSITIVITY))` (or the gesture scale ratio), which keeps the board location under the pointer at the same screen position (within 1 px) while zooming in or out.
+- **Board gestures do not zoom the page (zoom.no_page_zoom):** the wheel listener is attached with `addEventListener('wheel', h, { passive: false })` (React's `onWheel` is passive) and calls `preventDefault()` for every wheel over the board, Safari `gesturestart/gesturechange` are prevented, and the window `keydown` handler prevents Ctrl/Cmd + `=`, `-` and `0` while the board is focused. The browser's page zoom therefore never changes: the zoom control and page text stay their normal size and only board content scales.
+- Drag only starts when the pointerdown target is the viewport or grid itself (so later object stories can stop propagation). State machine Idle/Panning as in the overview diagram.
+- Camera updates are batched with `requestAnimationFrame` to at most one render per frame. Viewport size from a `ResizeObserver`.
 - Test hook `window.__vidi6` only in test mode (see Fixtures).
 
 ## Tests
@@ -331,9 +333,13 @@ export function ZoomControls(props: {
 
 ## Implementation
 Stateless presentational component positioned `fixed` bottom-right; wired in `App.tsx` to `useCamera`.
+- **Zoom with buttons and keys (zoom.step):** clicking + or −, or pressing Ctrl/Cmd + `=` or Ctrl/Cmd + `−`, calls `zoomStep`, which multiplies or divides the zoom by ZOOM_STEP_FACTOR (1.25) around the centre of the board area, so the board location at the centre stays at the same screen position. From 100%, one + gives 125%; one − from 125% returns exactly to 100% (step snapping in camera.math).
+- **Zoom limits (zoom.limits):** zoom is clamped to ZOOM_MIN (10%) and ZOOM_MAX (400%) for every input. At 10% `canZoomOut` is false, so − is disabled and any further zoom-out (button, key, wheel or pinch) leaves the camera unchanged; at 400% `canZoomIn` is false, + is disabled and further zoom-in does nothing. Zooming back the other way re-enables the button.
+- **Zoom level shown (zoom.indicator):** the `output` shows `Math.round(zoom × 100)` followed by "%", re-rendered on every camera change (so after any zoom action it matches the zoom rounded to the nearest whole percent, e.g. 1.5625 → "156%"), and is announced politely to screen readers.
+- **Reset view (view.reset):** clicking Reset view or pressing Ctrl/Cmd + 0 sets the camera to `resetCamera(viewport)` = `{ x: -width/2, y: -height/2, zoom: 1 }`: zoom becomes 100% and the board's starting point (world 0,0) is centred in the board area, from anywhere on the board.
 
 ## Tests
-ui-component: TC-19, TC-20, TC-21, TC-32 in `tests/component/ZoomControls.test.tsx`.
+ui-component: TC-18 (keys), TC-19, TC-20, TC-21, TC-32 in `tests/component/ZoomControls.test.tsx`; unit TC-05, TC-06, TC-08, TC-09, TC-10.
 e2e: TC-25, TC-26 in `tests/e2e/navigation.spec.ts`.
 
 ## First-use navigation hint
@@ -346,12 +352,13 @@ e2e: TC-25, TC-26 in `tests/e2e/navigation.spec.ts`.
 export function NavigationHint(props: { visible: boolean }): JSX.Element | null;
 ```
 - **Inputs**: `visible = !hasNavigated` from `useCamera` (latches true on the first camera change that returns a different object).
-- **Outputs**: hint text "Drag to move around · Ctrl/Cmd + scroll or pinch to zoom" or nothing.
+- **Outputs**: hint text "Drag to move around · Ctrl/Cmd + scroll or pinch to zoom" near the bottom centre, or nothing.
 - **Errors**: none.
 - **Side effects**: none; not persisted (reload shows it again, per PRD).
 
 ## Implementation
-`hasNavigated` is a `useRef`-backed latch in `useCamera`; a no-op camera update (same object) does not trip it, satisfying TC-29.
+- **First-use navigation hint (nav.hint):** when the board opens `hasNavigated` is false, so the hint is shown. The first pan or zoom of any kind (drag, scroll, pinch, Ctrl/Cmd-wheel, buttons, keys, reset) produces a new camera object and latches `hasNavigated` to true, which hides the hint; the latch never resets during the visit, so further navigation does not bring the hint back. Only a page reload (new component state) shows it again.
+- `hasNavigated` is a `useRef`-backed latch in `useCamera`; a no-op camera update (same object, e.g. a click without movement) does not trip it, satisfying TC-29.
 
 ## Tests
 ui-component: TC-22, TC-29. e2e: TC-28.

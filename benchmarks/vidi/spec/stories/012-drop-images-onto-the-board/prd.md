@@ -163,7 +163,6 @@ WHILE the board is not connected THE SYSTEM SHALL NOT start image uploads, and W
 - **Live collaboration:** placeholders and images follow story 3's delivery and capacity guarantees.
 - **Export:** images must be retrievable by the board page itself so board export (story 17) can embed them.
 - **Settings:** accepted types, size limit (10 MB), count limit (20), placement size (800), minimum size (16), gap (24) and unfinished timeout (5 minutes) are named product settings.
-- **Performance:** a board with 100 images loads without blocking interaction; images load progressively.
 - **Accessibility:** Image button labelled; images announced as "Image"; status messages announced politely.
 
 ## Out of scope

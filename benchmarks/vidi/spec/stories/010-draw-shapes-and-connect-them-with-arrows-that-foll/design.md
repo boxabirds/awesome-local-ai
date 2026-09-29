@@ -239,6 +239,8 @@ sequenceDiagram
 
 No server code changes, so no integration tests; sync correctness is proven in story 3 and exercised here only in e2e.
 
+Timing policy: e2e tests wait up to E2E_EVENTUAL_TIMEOUT_MS (story 3) for remote changes to appear and log the measured delivery time against LIVE_UPDATE_LATENCY_BUDGET_MS; the budget is reported, not asserted, because the model, browsers and server share one machine.
+
 ## Dimensions crossed
 - **D1 Operation**: create shape (drag, click, Shift), label, style, create connector, re-attach, follow, delete target, select arrow.
 - **D2 Endpoint kind**: attached, free, orphaned (target missing).
@@ -274,7 +276,7 @@ D2 classes are exhaustive and non-overlapping for a given endpoint.
 | TC-22 | tools.active_tool | create | not applicable: tool state | not applicable: tool state | local | S then create; L then create; S then Escape; L then Escape | Select active after each; Escape creates nothing | ui-component |
 | TC-23 | shape.ui | create drag | not applicable: no endpoints | 100% | local | real drag (100,100)→(300,220) | shape 200x120 at that position ±1px | e2e |
 | TC-24 | shape.ui | create click and label | not applicable: no endpoints | 200% | local | Diamond click, type label longer than width, resize via handle | 160x160 centred; label wraps and stays centred after resize | e2e |
-| TC-25 | connector.ui | follow | attached | 100% | remote | Dana connects A to B, drags B past A; Sam's context | arrow stays attached and switches side on both screens within LIVE_UPDATE_LATENCY_BUDGET_MS | e2e |
+| TC-25 | connector.ui | follow | attached | 100% | remote | Dana connects A to B, drags B past A; Sam's context | arrow stays attached and switches side on both screens; delivery time to Sam logged against LIVE_UPDATE_LATENCY_BUDGET_MS (not asserted) | e2e |
 | TC-26 | connector.ui | delete target | attached | 100% | remote | Sam deletes B | arrow remains, end free where B's side was, on both screens | e2e |
 | TC-27 | connector.ui | create connector | orphaned | 100% | remote | Dana drags arrow to B while Sam deletes B (route delay to force overlap) | Dana's arrow visible with end at fallback; no console errors | e2e |
 
@@ -321,9 +323,10 @@ D2 classes are exhaustive and non-overlapping for a given endpoint.
 Checkout-flow board built with real model calls: 4 labelled shapes (rect, diamond, ellipse, rect), 3 attached connectors, 1 free-ended connector.
 
 ## Not covered
-- Smoothness with 300 shapes and 300 arrows (manual).
+Deliberately not covered by automated tests:
 - Story 7 resize handle internals (tested in story 7).
-- Screen-reader announcement wording (manual).
+- Screen-reader announcement wording.
+- Wall-clock delivery time as a pass/fail criterion: on a shared machine it is logged (TC-25), not asserted.
 
 ## Shape model
 
@@ -344,14 +347,14 @@ export function getShapeLabel(doc: Y.Doc, id: string): Y.Text | undefined;
 - **Side effects**: one `LOCAL_ORIGIN` transaction per success.
 
 ## Implementation
-- Drag creation (shape.create_drag) uses the rect as-is; rect null or smaller than `SHAPE_MIN_SIZE_WORLD` in either dimension becomes `SHAPE_DEFAULT_SIZE_WORLD` centred at `at` (shape.create_click).
-- `square` sets both sides to the larger dimension anchored at the drag origin (shape.constrain).
-- Label is a `Y.Text` edited with story 2's `StickyTextEditor`/`clampToLimit` using `SHAPE_LABEL_MAX_CHARS` (shape.label).
-- `setShapeStyle` validates against `SHAPE_FILL_COLORS`/`SHAPE_STROKE_COLORS` and touches only colour keys (shape.style).
+- **Draw by dragging (shape.create_drag):** with the Shape tool active, the drag's start and end screen points are converted with `screenToWorld` and `createShape` creates a shape of the chosen kind (rectangle, ellipse or diamond) exactly covering that world rectangle. At 100% zoom, dragging from (100,100) to (300,220) screen pixels creates a 200 × 120 board-unit shape at that position. The new shape is then selected (tools.return_to_select).
+- **Drop a standard shape by clicking (shape.create_click):** a click without dragging (rect null), or a drag smaller than SHAPE_MIN_SIZE_WORLD (20 board units) in either direction, creates a standard SHAPE_DEFAULT_SIZE_WORLD shape (160 × 160 board units) centred on the click point. A drag of exactly 20 × 20 is kept as drawn.
+- **Constrain with Shift (shape.constrain):** while Shift is held during the drag (`square: true`), width and height are both set to the larger of the two dragged dimensions, anchored at the drag origin (e.g. 200 × 120 becomes 200 × 200); the preview shows the same.
+- Label is a `Y.Text` (shape.label, shape.ui); `setShapeStyle` validates colours against the palettes (shape.style, shape.ui).
 - z = maxZ + 1, `createdBy` = identity id, `createdAt` epoch ms.
 
 ## Tests
-unit: TC-01 to TC-06 in `tests/unit/shape-model.test.ts`.
+unit: TC-01 to TC-06 in `tests/unit/shape-model.test.ts`. e2e: TC-23, TC-24.
 
 ## Connector model and geometry
 
@@ -377,16 +380,14 @@ export function distanceToPolyline(pts: readonly Point[], p: Point): number;
 - **Side effects**: one `LOCAL_ORIGIN` transaction per success; `detachConnectorsTo` writes inside the caller's transaction.
 
 ## Implementation
-- Attached/free creation (connector.create_attached, connector.create_free) stores endpoints with `fallback = sideAnchor(rect, nearestSide(rect, otherEnd))` at creation.
-- Rejection rules (connector.no_accidental) are evaluated before any write.
-- `resolveEndpoints` recomputes sides from current rects every snapshot, so local or remote moves redraw without writes (connector.follow); a missing target uses `fallback`.
-- `setConnectorEndpoint` implements handle re-attach/detach (connector.reattach).
-- Story 7's `deleteObjects` is modified to call `detachConnectorsTo` inside its transaction, converting ends to `free` at the current anchor (connector.target_deleted).
-- `nearestSide` compares the direction vector against the rect's diagonals; side anchors are side midpoints, which lie on the boundary of rect, ellipse and diamond alike.
-- `distanceToPolyline` backs the registry hit test (connector.select).
+- **Connect two objects (connector.create_attached):** when a Connector drag starts on board object A and is released over a different board object B, `createConnector` stores both ends as `attached` (A and B). Each end is drawn at the midpoint of the side of its object nearest the other end (`nearestSide` + `sideAnchor`); that anchor is also stored as `fallback`.
+- **Arrow to empty space (connector.create_free):** releasing over empty board space stores that end as `free` at the release board point; a drag that starts on empty space stores the start as `free` at that board point.
+- **No accidental arrows (connector.no_accidental):** before any write, `createConnector` returns null (nothing created) if the drag ends on the same object it started on, or if the pointer moved less than CONNECTOR_MIN_LENGTH_WORLD (8 board units).
+- **Deleting a connected object keeps arrows (connector.target_deleted):** story 7's `deleteObjects` calls `detachConnectorsTo` in the same transaction; every arrow end attached to a deleted object becomes `free` at the point where it was attached, so the arrow stays. If another person deletes the target at the same moment an arrow is being attached, the arrow is still created and `resolveEndpoints` draws that end at its stored `fallback` point, so the arrow is always shown.
+- `resolveEndpoints` recomputes sides from current rects every snapshot (connector.follow, connector.ui); `setConnectorEndpoint` backs handle re-attach (connector.reattach); `distanceToPolyline` backs the hit test (connector.select).
 
 ## Tests
-unit: TC-07 to TC-14, TC-29 in `tests/unit/connector-model.test.ts`.
+unit: TC-07 to TC-14, TC-29 in `tests/unit/connector-model.test.ts`. e2e: TC-26, TC-27.
 
 ## Shape tool, shape object and toolbar
 
@@ -402,12 +403,14 @@ export function ShapeObject(props: { shape: ShapeSnap; doc: Y.Doc; selected: boo
 export function ShapeToolbar(props: { fill: FillColor; stroke: StrokeColor; onFill(c: FillColor): void; onStroke(c: StrokeColor): void }): JSX.Element;
 ```
 - **Inputs**: pointer gesture in Shape tool (Shift state read on every move), dblclick on a shape, swatch clicks.
-- **Outputs**: screen-space dashed preview during drag; SVG `rect`/`ellipse`/`polygon` sized to the object with `SHAPE_STROKE_WIDTH_WORLD`; centred label in a `foreignObject` using story 2's text editor and font fit; toolbar with `button[aria-label="<colour> fill"]` and `button[aria-label="<colour> outline"]`; registry entry `{ Component: ShapeObject, resizable: true, aspectLocked: false, minSize: SHAPE_MIN_SIZE_WORLD, editableText: true, hitTest: bbox }`.
+- **Outputs**: screen-space dashed preview during drag; SVG `rect`/`ellipse`/`polygon` sized to the object with `SHAPE_STROKE_WIDTH_WORLD`; centred label; toolbar with `button[aria-label="<colour> fill"]` and `button[aria-label="<colour> outline"]`; registry entry `{ Component: ShapeObject, resizable: true, aspectLocked: false, minSize: SHAPE_MIN_SIZE_WORLD, editableText: true, hitTest: bbox }`.
 - **Errors**: model rejections leave the tool active and create nothing.
-- **Side effects**: `createShape` once on pointerup; `undoManager.stopCapturing()`; `onCreated` selects the id and switches to Select (tools.return_to_select).
+- **Side effects**: `createShape` once on pointerup; `undoManager.stopCapturing()`; `onCreated` selects the id and switches to Select.
 
 ## Implementation
-The tool captures the pointer so drags starting over existing objects never move them (TC-28). Label re-wrap on resize comes for free because the label box is the object's width/height.
+- **Label a shape (shape.label):** double-clicking a shape starts editing its `Y.Text` label in a `foreignObject` using story 2's text editor. The label is centred horizontally and vertically inside the shape and wraps within the shape's width; because the label box is the object's width and height, resizing the shape re-wraps the label and keeps it centred. `clampToLimit` with SHAPE_LABEL_MAX_CHARS stops typing or pasting beyond 500 characters.
+- **Colour a shape (shape.style):** when exactly one shape is selected, ShapeToolbar shows six fill swatches plus "no fill" and six outline swatches. Clicking one calls `setShapeStyle`, which changes only the `fill` or `stroke` key, so the shape's label, size, position and selection are unchanged.
+- The tool captures the pointer so drags starting over existing objects never move them (TC-28).
 
 ## Tests
 ui-component: TC-15 to TC-17, TC-28 in `tests/component/ShapeTool.test.tsx`. e2e: TC-23, TC-24 in `tests/e2e/shapes.spec.ts`.
@@ -424,14 +427,15 @@ export function ConnectorTool(props: { camera: Camera; snapshot: readonly Object
 export function ConnectorObject(props: { connector: ConnectorSnap; rects: ReadonlyMap<string, Rect>; doc: Y.Doc; selected: boolean; zoom: number }): JSX.Element;
 ```
 - **Inputs**: pointer over objects (hover), drag from object or empty space, end-handle drags on a selected arrow, snapshot rects.
-- **Outputs**: four `CONNECTOR_DOT_RADIUS_PX` dots at side midpoints of the hovered object; highlighted target dot during drag (connector.hover_points); SVG line with arrowhead marker sized `CONNECTOR_ARROWHEAD_SIZE_WORLD`; two end handles when selected; registry entry `{ Component: ConnectorObject, resizable: false, aspectLocked: false, editableText: false, hitTest: (p, zoom) => distanceToPolyline(ends, p) <= CONNECTOR_HIT_TOLERANCE_PX / zoom }` (connector.select).
-- **Errors**: rejected creation (connector.no_accidental) keeps the tool active; handle release on the opposite object snaps back; stale connector ends the interaction.
-- **Side effects**: `createConnector` / `setConnectorEndpoint`; `stopCapturing()`; `onCreated` selects the arrow and switches to Select (tools.return_to_select).
+- **Outputs**: side dots, highlighted target dot, SVG line with arrowhead sized `CONNECTOR_ARROWHEAD_SIZE_WORLD`, two end handles when selected; registry entry `{ Component: ConnectorObject, resizable: false, aspectLocked: false, editableText: false, hitTest: (p, zoom) => distanceToPolyline(ends, p) <= CONNECTOR_HIT_TOLERANCE_PX / zoom }`.
+- **Errors**: rejected creation keeps the tool active; handle release on the opposite object snaps back; stale connector ends the interaction.
+- **Side effects**: `createConnector` / `setConnectorEndpoint`; `stopCapturing()`; `onCreated` selects the arrow and switches to Select.
 
 ## Implementation
-- Creation releases over an object attach, over empty space leave a free end (connector.create_attached, connector.create_free).
-- `ConnectorObject` re-renders on every snapshot, so moves/resizes by anyone redraw attachments (connector.follow) and detached or orphaned ends draw at their stored points (connector.target_deleted).
-- Handle drags implement connector.reattach.
+- **Arrows follow objects (connector.follow):** attached ends store no side. When any person moves or resizes an object, story 3 delivers the change to every connected screen within 1 second, the snapshot recomputes, and `ConnectorObject` calls `resolveEndpoints`, which places each attached end at the midpoint of the object's side nearest the other end at its new position — switching sides as objects pass each other — on every screen, with no extra writes.
+- **Connection points are shown (connector.hover_points):** while the Connector tool is active and the pointer is over a board object, four dots of CONNECTOR_DOT_RADIUS_PX appear at the midpoints of its four sides; while dragging an arrow over a target object, the dot the arrow will attach to (its nearest side) is highlighted.
+- **Select an arrow precisely (connector.select):** with the Select tool, a click within 6 screen pixels (CONNECTOR_HIT_TOLERANCE_PX, divided by zoom to get board units) of the arrow's line selects it; a click farther than 6 screen pixels — even inside the arrow's bounding box — does not.
+- **Move an arrow's ends (connector.reattach):** dragging an end handle of a selected arrow and releasing over a board object calls `setConnectorEndpoint` to attach that end to the object; releasing over empty space detaches it and fixes it at the release point. Releasing over the object at the other end is rejected and the handle snaps back.
 
 ## Tests
 ui-component: TC-18 to TC-21 in `tests/component/Connector.test.tsx`. e2e: TC-25 to TC-27 in `tests/e2e/connectors.spec.ts`.
@@ -453,7 +457,8 @@ export function useActiveTool(): { tool: ToolId; shapeKind: ShapeKind; setTool(t
 - **Side effects**: none persisted.
 
 ## Implementation
-Created here if no earlier story (9–12) has added it; otherwise story 10 only adds `shape` and `connector` entries and `shapeKind`. Escape from Shape or Connector returns to Select without creating (tools.return_to_select).
+- **Return to Select after creating (tools.return_to_select):** when the Shape or Connector tool creates a shape or arrow, it calls `toolCreated(id)`, which makes the new item the only selected object and switches the active tool back to Select, so the item can be adjusted immediately. Pressing Escape while the Shape or Connector tool is active switches to Select and creates nothing (including during an unfinished drag).
+- Created here if no earlier story (9–12) has added it; otherwise story 10 only adds `shape` and `connector` entries and `shapeKind`.
 
 ## Tests
 ui-component: TC-22 in `tests/component/useActiveTool.test.tsx`.

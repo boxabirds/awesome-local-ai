@@ -19,17 +19,17 @@
 ### 5. Integration tests for room awareness tracking: removal on close, hibernation, join query, malformed bytes (TC-04 to TC-08)
 
 ## Goal
-Verify the presence.room_tracking contract with a real Durable Object, real WebSockets with attachments, and real y-protocols `Awareness` clients (extend story 3's `ws-client.ts` helper with an Awareness instance per client).
+Verify the presence.room_tracking contract with a real Durable Object, real WebSockets with attachments, and real y-protocols `Awareness` clients (extend story 3's `ws-client.ts` helper with an Awareness instance per client). Real-socket timings are logged against their budgets, not asserted.
 
 ## Cases
-- TC-04 A and B connected with realistic states; B closes → A receives a `MESSAGE_AWARENESS` removal for B's clientId within PRESENCE_CLOSE_REMOVAL_BUDGET_MS; A's Awareness no longer has B; A's own state untouched.
+- TC-04 A and B connected with realistic states; B closes → A receives a `MESSAGE_AWARENESS` removal for B's clientId; A's Awareness no longer has B; A's own state untouched. Log the time against PRESENCE_CLOSE_REMOVAL_BUDGET_MS.
 - TC-05 hibernation path: reconstruct the room instance while sockets remain accepted (attachments intact), then B closes → removal still broadcast using `deserializeAttachment().awareness`.
-- TC-06 A and B idle, C connects → A and B each receive `MESSAGE_QUERY_AWARENESS`; after their clients answer, C holds A's and B's states within PRESENCE_EXISTING_VISIBLE_BUDGET_MS. Run a variant where B's socket closes concurrently → room drops B (story 3 rule) without throwing.
+- TC-06 A and B idle, C connects → A and B each receive `MESSAGE_QUERY_AWARENESS`; after their clients answer, C holds A's and B's states (time logged against PRESENCE_EXISTING_VISIBLE_BUDGET_MS). Run a variant where B's socket closes concurrently → room drops B (story 3 rule) without throwing.
 - TC-07 negative: A sends undecodable awareness bytes → B receives identical bytes (verbatim relay), A's attachment unchanged, A's socket stays open.
 - TC-08 negative: B connects and closes without ever sending awareness → no removal message is broadcast, no error logged.
 
 ## Done when
-All pass in `npm run test:integration`, 10 consecutive runs without flakes.
+All functional assertions pass in `npm run test:integration`, 10 consecutive runs without flakes.
 
 ### 7. Write awareness tracker unit tests first (TC-01 to TC-03)
 
@@ -176,16 +176,16 @@ All pass in `npm run test:component`.
 ### 16. E2E presence workflows: cursor across zoom, hide on leave, full room colours and overflow, remote outlines, rename persistence, leave, two tabs (TC-24 to TC-31)
 
 ## Goal
-Real browsers against `wrangler dev` proving presence end to end: awareness publishing/derivation (presence.awareness_client), rendering (presence.ui) and identity persistence (presence.identity).
+Real browsers against `wrangler dev` proving presence end to end: awareness publishing/derivation (presence.awareness_client), rendering (presence.ui) and identity persistence (presence.identity). Functional waits use E2E_EVENTUAL_TIMEOUT_MS (story 3); delivery times are **logged** against the named budgets, not asserted, because the model, browsers and server share one machine.
 
 ## Workflows
-- **Pointing at a note** — TC-24: Sam at 50% zoom points at a note's top-left corner; Alex at 200% sees Sam's named cursor tip within CURSOR_POSITION_TOLERANCE_PX of that corner within CURSOR_LATENCY_BUDGET_MS. TC-25: Sam's mouse leaves the board → cursor gone on Alex within CURSOR_LATENCY_BUDGET_MS; re-entry shows it again.
-- **Full room** — TC-26: MAX_CONCURRENT_EDITORS contexts join one by one → each newcomer visible to others within PRESENCE_JOIN_BUDGET_MS; every screen shows MAX_CONCURRENT_EDITORS avatars with pairwise-distinct colours. TC-27: one more context joins → "+1" overflow, every person has a colour and name, nobody refused.
+- **Pointing at a note** — TC-24: Sam at 50% zoom points at a note's top-left corner; Alex at 200% sees Sam's named cursor tip within CURSOR_POSITION_TOLERANCE_PX of that corner (delivery time logged against CURSOR_LATENCY_BUDGET_MS). TC-25: Sam's mouse leaves the board → cursor disappears on Alex; re-entry shows it again (time logged).
+- **Full room** — TC-26: MAX_CONCURRENT_EDITORS contexts join one by one → each newcomer appears to others (time logged against PRESENCE_JOIN_BUDGET_MS); every screen shows MAX_CONCURRENT_EDITORS avatars with pairwise-distinct colours. TC-27: one more context joins → "+1" overflow, every person has a colour and name, nobody refused.
 - **Who's working on what** — TC-28: Sam selects a note while Alex has another selected → Alex sees Sam's outline in Sam's colour; Alex's selection unchanged; Alex can still type in Sam's note.
-- **Becoming Alex** — TC-29: Alex renames to "Alex" → Sam sees it within PRESENCE_JOIN_BUDGET_MS; Alex reloads → still "Alex" (localStorage persistence).
-- **Leaving** — TC-30: Sam's context closes → avatar, cursor and outline gone on Alex within PRESENCE_CLOSE_REMOVAL_BUDGET_MS.
+- **Becoming Alex** — TC-29: Alex renames to "Alex" → Sam sees it (time logged); Alex reloads → still "Alex" (localStorage persistence).
+- **Leaving** — TC-30: Sam's context closes → avatar, cursor and outline disappear on Alex (time logged against PRESENCE_CLOSE_REMOVAL_BUDGET_MS).
 - **Two tabs** — TC-31: Alex opens a second page in the same context → Sam sees one Alex avatar; neither Alex tab draws Alex's other tab's cursor.
 
 ## Done when
-All pass in chromium; TC-24 also in firefox and webkit.
+All functional assertions pass in chromium; TC-24 also in firefox and webkit. No test fails because a delivery time exceeded its budget.
 

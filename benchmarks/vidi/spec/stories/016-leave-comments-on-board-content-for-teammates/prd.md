@@ -15,8 +15,8 @@ Pain points:
 
 ## Solution
 
-- **Discussion pollutes content → comments live beside the board, not on it.** Comments appear as small markers that open into threads; they are never mistaken for board items and are not part of exports.
-- **Context lost → comments attach to items.** A comment placed on an item stays on that item when it is moved or resized. A comment can also be placed on an empty spot of the board.
+- **Discussion pollutes content → comments live beside the board, not on it.** Comments appear as small markers that open into threads; they are never mistaken for board objects and are not part of exports.
+- **Context lost → comments attach to objects.** A comment placed on a board object (sticky note, text, shape, drawing, image) stays on that object when it is moved or resized. A comment can also be placed on an empty spot of the board.
 - **Async conversation → threads with replies.** Anyone on the board can reply; threads are saved with the board and appear live for everyone connected.
 - **What's open → resolve, reopen and a comments panel.** Threads can be resolved (hidden from the board) and reopened; a panel lists open threads and jumps to each one.
 - **Who said what → names on every message.** Each message shows the writer's name (the guest's random editable name, or their account name) and when it was written.
@@ -40,9 +40,9 @@ Pain points:
 - Comments panel: filter tabs **Open** / **Resolved**, list of threads (first line of the first message, author name, reply count, time of latest activity), empty-state text.
 
 ### Behaviour
-- Clicking an item in comment mode attaches the thread to that spot on the item; clicking empty board attaches it to that board location.
+- Clicking a board object in comment mode attaches the thread to that spot on the object; clicking empty board attaches it to that board location.
 - Markers stay the same size on screen at any zoom level.
-- Markers follow their item when it is moved or resized, keeping the same relative spot on the item.
+- Markers follow their object when it is moved or resized, keeping the same relative spot on the object.
 - Clicking a marker opens its thread; clicking elsewhere or pressing Escape closes it. Escape in comment mode with no open thread returns to Select.
 - A draft that was never posted is discarded when the thread box is closed; nothing is saved for an empty or unposted comment.
 - Comments panel lists newest activity first; clicking a thread moves the view to centre the marker and opens the thread.
@@ -53,7 +53,7 @@ Pain points:
 
 ### Alternate flows
 - **Empty state (panel):** Open tab shows "No open comments. Use the Comment tool (C) to start a discussion."; Resolved tab shows "No resolved comments."
-- **Attached item deleted:** the marker stays where the item was first commented on, and the thread shows a note "The item this comment was attached to was deleted." If the deletion is undone, the comment is attached to the item again.
+- **Attached object deleted:** the marker stays where the object was first commented on, and the thread shows the on-screen note "The item this comment was attached to was deleted." If the deletion is undone, the comment is attached to the object again.
 - **Deleting my first message when there are replies:** the message is replaced by "This comment was deleted" and the replies stay. Deleting my first message when there are no replies removes the whole thread.
 - **Someone resolves a thread I have open:** the thread box stays open for me, shows "Resolved by Mira" and offers Reopen; after closing it the marker is gone.
 - **Someone deletes a thread I have open:** my thread box closes, any unposted reply text is lost, and a brief notice "This comment was deleted" appears.
@@ -68,11 +68,11 @@ Pain points:
 - Does not let people edit or delete other people's messages.
 - Does not update the author name on old messages when someone renames themselves.
 
-## Comment on an item
+## Comment on an object
 
 > Anchor: `comment.create_on_item`
 
-WHEN a person using the Comment tool clicks a board item THE SYSTEM SHALL open a new comment box attached to the clicked spot on that item.
+WHEN a person using the Comment tool clicks a board object THE SYSTEM SHALL open a new comment box attached to the clicked spot on that object.
 
 Verification: with the Comment tool, click the lower-right area of a sticky note; after posting, the marker appears at that spot on the note.
 
@@ -108,19 +108,19 @@ IF typing or pasting would make a message longer than 2,000 characters THEN THE 
 
 WHEN a person posts a reply in an open thread THE SYSTEM SHALL add it below the earlier messages, in time order, for everyone connected, and update the marker's message count.
 
-## Comments follow their item
+## Comments follow their object
 
 > Anchor: `comment.follow_item`
 
-WHEN an item with attached comments is moved or resized THE SYSTEM SHALL keep each attached marker at the same relative spot on the item.
+WHEN a board object with attached comments is moved or resized THE SYSTEM SHALL keep each attached marker at the same relative spot on the object.
 
-Verification: attach a comment at the item's top-right corner, move the item 500 units and double its size; the marker is still at its top-right corner.
+Verification: attach a comment at the object's top-right corner, move the object 500 units and double its size; the marker is still at its top-right corner.
 
-## Item deleted
+## Attached object deleted
 
 > Anchor: `comment.item_deleted`
 
-WHEN the item a thread is attached to is deleted THE SYSTEM SHALL keep the thread at the location where it was first attached and show "The item this comment was attached to was deleted.", and WHEN that item is restored THE SYSTEM SHALL attach the thread to it again.
+WHEN the board object a thread is attached to is deleted THE SYSTEM SHALL keep the thread at the location where it was first attached and show "The item this comment was attached to was deleted.", and WHEN that object is restored THE SYSTEM SHALL attach the thread to it again.
 
 ## Resolve a thread
 
@@ -192,12 +192,13 @@ THE SYSTEM SHALL draw comment markers at the same on-screen size at every zoom l
 
 ## Constraints
 
-- **Access model:** anyone with the board link can read, write, resolve and reopen comments (same as board editing). Hiding Edit/Delete for others' messages is an interface safeguard, not a security guarantee; this is acceptable until permissions arrive.
+- **Access model:** anyone with the board link can read, write, resolve and reopen comments (same as board editing). Hiding Edit/Delete for others' messages is an interface safeguard, not a security guarantee; no current story adds permissions, so this is the model for all current stories.
 - **Identity:** guests appear with their random editable name; signed-in people with their account name (story 14). A guest who later signs in cannot edit messages written as a guest.
-- **Scale:** a board with 200 threads and 2,000 messages total stays responsive (opening the panel and scrolling feel instant). Named product settings: message length limit (2,000), tested thread count (200), tested message count (2,000).
+- **Settings:** the message length limit (2,000 characters) is a named product setting.
 - **Live and offline:** comments behave like other board content for live delivery (story 3), saving (story 4) and offline editing (story 13).
 - **Accessibility:** the panel and thread box are keyboard operable; markers are focusable buttons with an accessible label ("Comment thread by Curious Otter, 2 messages").
 - **Browsers:** same as story 1.
+- **Terminology:** as in stories 7–12, the specification calls anything placed on the board a "board object". Text shown to people uses the everyday word "item" (e.g. "The item this comment was attached to was deleted.").
 
 ## Out of scope
 
@@ -207,5 +208,5 @@ THE SYSTEM SHALL draw comment markers at the same on-screen size at every zoom l
 - Comment permissions (owner-only resolve, moderation).
 - Comments in exports (story 17).
 - Searching comment text.
-- Moving a thread to a different item after creation.
+- Moving a thread to a different object after creation.
 

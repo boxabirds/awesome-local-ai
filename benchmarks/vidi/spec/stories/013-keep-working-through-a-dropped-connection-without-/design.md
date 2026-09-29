@@ -1,6 +1,6 @@
 # Technical Design
 
-Offline resilience in six parts: a release-scoped service worker caching the app shell; a y-indexeddb device copy per board with availability probing; a cache manager bounding copies (50, storage pressure) without evicting unsynced ones; a sync acknowledgement protocol (room acks each processed data frame after storage) with a persisted unsynced flag; local-first BoardPage flows including read-only orphaned copies and discard; and status badge states plus a beforeunload guard when the device cannot store changes.
+Offline resilience in six parts: a release-scoped service worker caching the app shell; a y-indexeddb device copy per board with availability probing; a cache manager keeping device copies of at most the 50 most recently opened boards (count limit only) and never evicting unsynced or open ones; a sync acknowledgement protocol (the room acks each processed data frame after storage) with a persisted unsynced flag; local-first BoardPage flows including read-only orphaned copies and discard; and status badge states plus a beforeunload guard when the device cannot store changes.
 
 ## Overview
 
@@ -15,7 +15,7 @@ Modifies story 3 (`connectBoard`, `ConnectionStatus`), story 4 (`BoardRoom.webSo
 | `build/vite-sw-manifest.ts` | added | Vite plugin injecting hashed asset list + release id into `sw.js` |
 | `public/_headers` | added | `Cache-Control: no-cache` for `/sw.js` |
 | `src/client/offline/localBoardStore.ts` | added | availability probe, open device copy (y-indexeddb), discard |
-| `src/client/offline/cacheManager.ts` | added | cache index DB, `chooseEvictions`, storage-pressure eviction |
+| `src/client/offline/cacheManager.ts` | added | cache index DB, `chooseEvictions` (50-copy limit) |
 | `src/client/offline/syncTracker.ts` | added | frame classification, sent/acked counters, unsynced flag |
 | `src/client/offline/leaveGuard.ts` | added | `beforeunload` guard |
 | `src/client/sync/connectBoard.ts` | modified | counting WebSocket wrapper, ack handler registration, `offline`/`online` events |
@@ -29,8 +29,6 @@ Modifies story 3 (`connectBoard`, `ConnectionStatus`), story 4 (`BoardRoom.webSo
 ## Named settings added
 ```ts
 export const LOCAL_BOARD_CACHE_MAX_BOARDS = 50;
-export const LOCAL_STORAGE_PRESSURE_RATIO = 0.9;
-export const STORAGE_CHECK_INTERVAL_MS = 60_000;
 export const OFFLINE_STATUS_BUDGET_MS = 2000;
 export const OFFLINE_OPEN_BUDGET_MS = 1000;
 export const LOCAL_LOAD_TIMEOUT_MS = 2000;       // stop waiting for IndexedDB and continue connected-only
@@ -51,6 +49,7 @@ export const MESSAGE_SYNC_ACK = 64;
 5. **Availability** = probe (open/put/get/delete in a probe store) succeeds and no `QuotaExceededError` has been observed. Quota errors from y-indexeddb writes are detected via `unhandledrejection` events whose reason is a `DOMException` named `QuotaExceededError`, switching availability to unavailable for the session.
 6. **Orphaned copy**: story 5 `checkBoard` returns not_found while a copy exists → read-only, provider never created. During a session, after ORPHAN_RECHECK_AFTER_FAILURES consecutive WebSocket failures the page re-runs `checkBoard`; not_found → orphaned.
 7. **Offline detection** uses provider close events and `window` `offline` events so the offline status appears within OFFLINE_STATUS_BUDGET_MS when the OS reports loss.
+8. **Only a count bound on device copies.** No eviction based on `navigator.storage.estimate`; a full disk surfaces as a quota error and the red "can't be saved" state (decision 5).
 
 ## Structure diagram
 ```mermaid
@@ -86,7 +85,7 @@ stateDiagram-v2
     NoCopy --> Synced : opened while connected and acked
     Synced --> Unsynced : local change
     Unsynced --> Synced : acked equals sent while connected
-    Synced --> Evicted : over limit or storage pressure and not open
+    Synced --> Evicted : over limit and not open
     Unsynced --> Unsynced : eviction skipped
     Synced --> Orphaned : service reports not found
     Unsynced --> Orphaned : service reports not found
@@ -229,26 +228,19 @@ sequenceDiagram
     SW->>SW: not intercepted pass through
 ```
 
-## Sequence: storage pressure and limit eviction
+## Sequence: limit eviction
 ```mermaid
 sequenceDiagram
-    participant P as BoardPage timer
+    participant P as BoardPage open
     participant C as cacheManager
-    participant E as navigator.storage
     participant I as IndexedDB
     P->>C: enforceLimits openBoardId
     C->>I: read index entries
-    C->>C: chooseEvictions over LOCAL_BOARD_CACHE_MAX_BOARDS
-    C->>I: delete chosen board databases
-    C->>E: estimate
-    alt estimate unsupported or throws
-        C->>C: skip pressure step
-    else usage over LOCAL_STORAGE_PRESSURE_RATIO
-        loop least recent synced copy not open
-            C->>I: delete database
-            alt delete blocked by another tab
-                C->>C: skip that board this round
-            end
+    C->>C: chooseEvictions over LOCAL_BOARD_CACHE_MAX_BOARDS skipping unsynced and open
+    loop each chosen board
+        C->>I: delete database
+        alt delete blocked by another tab
+            C->>C: skip that board until next open
         end
     end
 ```
@@ -296,11 +288,15 @@ sequenceDiagram
 | offline.board_open | ui-component, e2e | Page state machine with mocked store/api; real browser offline | User-visible flows need real network and storage |
 | offline.status_ui | ui-component, e2e | Badge + guard in jsdom; real `beforeunload` dialog | Browser dialog only observable in e2e |
 
+Timing policy: e2e tests wait up to E2E_EVENTUAL_TIMEOUT_MS (story 3) for each functional outcome and log the measured time against the named budget (OFFLINE_STATUS_BUDGET_MS, OFFLINE_OPEN_BUDGET_MS, LIVE_UPDATE_LATENCY_BUDGET_MS); budgets are reported, not asserted, because the model, browsers and server share one machine. LOCAL_LOAD_TIMEOUT_MS is exercised with fake timers (TC-36).
+
 ## Dimensions crossed
 - **D1 Device copy**: none, synced, unsynced, orphaned.
 - **D2 Service answer**: 200, 404, unreachable.
 - **D3 Device storage**: available, unavailable (probe fails), quota exceeded mid-session.
 - **D4 Page lifecycle**: stays open, reload, full browser restart, second tab.
+
+TC numbers are stable; removed cases leave gaps.
 
 ## Coverage table
 | TC | Capability | D1 | D2 | D3 | D4 | Action | Expected before → after | Level |
@@ -319,7 +315,6 @@ sequenceDiagram
 | TC-12 | offline.local_store | unsynced | not applicable | available | second tab | two docs on same db apply different updates, reopen third doc | contains both tabs' updates | integration |
 | TC-13 | offline.local_store | orphaned | not applicable | available | stays open | discardCopy | database gone; index entry removed | integration |
 | TC-14 | offline.cache_manager | synced | not applicable | available | not applicable | create LOCAL_BOARD_CACHE_MAX_BOARDS+1 real copies, enforceLimits | oldest database deleted, index size equals max | integration |
-| TC-15 | offline.cache_manager | synced | not applicable | quota exceeded mid-session | not applicable | stub estimate usage above ratio, 3 synced + 1 unsynced + open board | synced non-open copies deleted oldest first; unsynced and open kept | integration |
 | TC-16 | offline.sync_ack | unsynced | 200 | available | stays open | client sends 3 Update frames | receives acks 1,2,3; each after updates row exists | integration |
 | TC-17 | offline.sync_ack | unsynced | 200 | available | stays open | store.append throws once (story 4 injection) | no ack for that frame; socket closed 1011 | integration |
 | TC-18 | offline.sync_ack | synced | 200 | available | stays open | client sends SyncStep1 and awareness only | no ack sent | integration |
@@ -332,26 +327,24 @@ sequenceDiagram
 | TC-25 | offline.status_ui | unsynced | 200 | available | stays open | tracker Syncing then Synced | "Syncing…" then hidden | ui-component |
 | TC-26 | offline.status_ui | unsynced | unreachable | unavailable | stays open | availability unavailable while offline; then connected unsynced | offline red text; connected red "until they sync" text | ui-component |
 | TC-27 | offline.status_ui | synced | 200 | unavailable | reload | leaveGuard with unsynced false; then true with available storage; then true with unavailable | no preventDefault, no preventDefault, preventDefault + returnValue set | ui-component |
-| TC-28 | offline.local_store | unsynced | unreachable | available | full browser restart | e2e: go offline, add 3 notes, close browser context (persistent context dir), relaunch offline, open board URL | shell served by service worker; 3 notes shown within OFFLINE_OPEN_BUDGET_MS; amber status | e2e |
-| TC-29 | offline.board_open | unsynced | 200 | available | full browser restart | continue TC-28: go online | Syncing then hidden; second participant sees 3 notes within LIVE_UPDATE_LATENCY_BUDGET_MS | e2e |
+| TC-28 | offline.local_store | unsynced | unreachable | available | full browser restart | e2e: go offline, add 3 notes, close browser context (persistent context dir), relaunch offline, open board URL | shell served by service worker; 3 notes shown (open time logged against OFFLINE_OPEN_BUDGET_MS, not asserted); amber status | e2e |
+| TC-29 | offline.board_open | unsynced | 200 | available | full browser restart | continue TC-28: go online | Syncing then hidden; second participant sees 3 notes (delivery time logged against LIVE_UPDATE_LATENCY_BUDGET_MS, not asserted) | e2e |
 | TC-30 | offline.board_open | none | unreachable | available | stays open | open never-opened board offline | retry message, no board | e2e |
 | TC-31 | offline.status_ui | unsynced | unreachable | unavailable | reload | IndexedDB disabled via init script; offline; add note; reload | red warning visible; `beforeunload` dialog event fired and dismissed | e2e |
 | TC-32 | offline.board_open | synced | 404 | available | stays open | open board, then delete board server-side via TEST_HOOKS route, reload page | read-only copy with banner; no WebSocket to /api/rooms opened; discard → Board not found | e2e |
 | TC-33 | offline.app_shell | none | unreachable | available | full browser restart | load app once online, restart browser offline, open /b/<id> | app shell loads from cache (then TC-30 message since no copy) | e2e |
-| TC-34 | offline.local_store | unsynced | 200 | available | second tab | two contexts sharing a profile? not supported → two pages in one context, both offline, edit different notes, go online | all changes on both pages and on a third participant | e2e |
-| TC-35 | offline.status_ui | synced | unreachable | available | stays open | context.setOffline(true) | amber status within OFFLINE_STATUS_BUDGET_MS | e2e |
+| TC-34 | offline.local_store | unsynced | 200 | available | second tab | two pages in one context, both offline, edit different notes, go online | all changes on both pages and on a third participant | e2e |
+| TC-35 | offline.status_ui | synced | unreachable | available | stays open | context.setOffline(true) | amber status shown (time logged against OFFLINE_STATUS_BUDGET_MS, not asserted) | e2e |
 
 ## Boundary values
 - Cache limit: LOCAL_BOARD_CACHE_MAX_BOARDS and +1 (TC-04, TC-14).
-- Storage pressure: usage exactly at and just above LOCAL_STORAGE_PRESSURE_RATIO (TC-15 variants).
 - Ack counts: partial, equal, reset on new connection (TC-09, TC-19).
-- Timing budgets at named values: OFFLINE_STATUS_BUDGET_MS, OFFLINE_OPEN_BUDGET_MS (TC-28, TC-35).
 - Local load timeout at LOCAL_LOAD_TIMEOUT_MS (TC-36: stub y-indexeddb `whenSynced` never resolving → page continues to connect after timeout; integration).
 
 ## Negative scenarios
 | TC | Must not happen | Level |
 |---|---|---|
-| TC-05, TC-06, TC-07, TC-15 | unsynced or open copies must not be evicted | unit, integration |
+| TC-05, TC-06, TC-07 | unsynced or open copies must not be evicted | unit |
 | TC-17, TC-18 | ack must not be sent for unstored or non-data frames | integration |
 | TC-20, TC-32 | orphaned copy must not be sent to the service or be editable | ui-component, e2e |
 | TC-21, TC-30 | no empty editable board without a copy | ui-component, e2e |
@@ -366,7 +359,7 @@ sequenceDiagram
 | QuotaExceededError observed | TC-37: dispatch unhandledrejection with DOMException QuotaExceededError → availability unavailable, status red (ui-component) |
 | local load timeout | TC-36 |
 | precache fetch fails (service worker Redundant) | TC-38: install with one asset returning 500 → previous release remains active; app still works online (e2e) |
-| deleteDatabase blocked by another tab | TC-39: open second connection to a board db, run pressure eviction → board skipped, others evicted, no throw (integration) |
+| deleteDatabase blocked by another tab | TC-39: open second connection to an over-limit board db, run enforceLimits → board skipped, others evicted, no throw (integration) |
 | room load-failed/storage-failed → no ack | TC-17 |
 | discard deletion fails | TC-40: discardCopy rejects → banner kept with "Couldn't discard the copy. Try again." (ui-component) |
 
@@ -375,7 +368,6 @@ sequenceDiagram
 |---|---|---|
 | IndexedDB | Real (Vitest browser mode Chromium; Playwright e2e) | Store under test; fake-indexeddb would hide engine behaviour |
 | IndexedDB failure | Stubbed `indexedDB.open` rejection in browser mode and init script in e2e | Private-mode behaviour cannot be launched deterministically in CI |
-| `navigator.storage.estimate` | Stubbed values | Real quota cannot be filled in CI |
 | Service worker + Cache Storage | Real in Chromium e2e | Only real worker proves offline shell |
 | Durable Object + storage | Real (workerd) | Ack ordering after append |
 | localBoardStore / api in component tests | Mocked | Page state machine under test |
@@ -390,17 +382,19 @@ sequenceDiagram
 6. **Broken release precache** (TC-38).
 
 ## Fixtures
-- Boards created via `POST /api/boards` and filled with story 4's 25-note retro fixture; large-copy timing uses the `PERSIST_TESTED_NOTES` fixture.
+- Boards created via `POST /api/boards` and filled with story 4's 25-note retro fixture; the large-copy open uses the `PERSIST_TESTED_NOTES` fixture.
 - Persistent Chromium profile directory per test for restart scenarios.
 - TEST_HOOKS-only route `DELETE /__test/boards/:id` (story 4 hook module) to simulate a board missing on the service.
 
 ## Not covered
-- Real private browsing modes in Safari and Firefox (manual).
-- Real disk-full conditions (stubbed estimate and injected errors only).
+Deliberately not covered by automated tests:
+- Real private browsing modes in Safari and Firefox (injected IndexedDB failure only, TC-31).
+- Real disk-full conditions (injected QuotaExceededError only, TC-37).
 - OS tab discarding (restart and reload used as proxies).
 - Silent network hangs where the OS does not report offline: detection then relies on story 3's reconnect timeout, not OFFLINE_STATUS_BUDGET_MS.
 - The small window where a tab is killed after y-indexeddb stored a change but before the unsynced flag write completed; the change is still resent on next open, but that board's copy could be evicted while flagged synced.
-- Service worker behaviour in Firefox and WebKit e2e (Chromium only); manual check.
+- Service worker behaviour in Firefox and WebKit e2e (Chromium only).
+- Wall-clock open, status and delivery times as pass/fail criteria: on a shared machine they are logged (TC-28, TC-29, TC-35), not asserted.
 
 ## Offline application shell
 
@@ -455,7 +449,7 @@ export function onQuotaExceeded(listener: () => void): () => void;   // unhandle
 ## Tests
 unit: TC-03. integration: TC-10 to TC-13, TC-36 (`tests/browser/local-board-store.test.ts`). e2e: TC-28, TC-34.
 
-## Device copy limits and storage pressure
+## Device copy limits
 
 > Anchor: `offline.cache_manager`
 
@@ -464,22 +458,24 @@ unit: TC-03. integration: TC-10 to TC-13, TC-36 (`tests/browser/local-board-stor
 // src/client/offline/cacheManager.ts
 export interface CacheEntry { boardId: string; lastOpenedAt: number; unsynced: boolean; formatVersion: number }
 export function chooseEvictions(entries: CacheEntry[], openBoardId: string, max?: number): string[];
-export function choosePressureEvictions(entries: CacheEntry[], openBoardId: string): string[]; // synced, not open, oldest first
 export function touch(boardId: string): Promise<void>;
 export function setUnsynced(boardId: string, unsynced: boolean): Promise<void>;
 export function hasCopy(boardId: string): Promise<boolean>;
-export function enforceLimits(openBoardId: string, estimate?: () => Promise<StorageEstimate>): Promise<{ evicted: string[]; skipped: string[] }>;
+export function enforceLimits(openBoardId: string): Promise<{ evicted: string[]; skipped: string[] }>;
 ```
-- **Inputs**: cache index DB `CACHE_INDEX_DB`; `navigator.storage.estimate`.
+- **Inputs**: cache index DB `CACHE_INDEX_DB`.
 - **Outputs**: evicted board databases and index entries.
-- **Errors**: `estimate` unsupported/throws → pressure step skipped; `deleteDatabase` blocked (another tab open) → board added to `skipped`, retried next round; never throws.
+- **Errors**: `deleteDatabase` blocked (another tab open) → board added to `skipped`, retried on the next board open; never throws.
 - **Side effects**: IndexedDB deletions.
 
 ## Implementation
-`chooseEvictions` sorts by `lastOpenedAt` and removes the oldest entries that are neither unsynced nor open until at most `max` remain (offline.cache_limit). `enforceLimits` runs on board open and every STORAGE_CHECK_INTERVAL_MS; when `usage / quota > LOCAL_STORAGE_PRESSURE_RATIO` it deletes `choosePressureEvictions` one at a time, re-estimating after each (offline.storage_pressure).
+Owns: offline.cache_limit.
+
+- **Bounded device copies (offline.cache_limit):** at most the 50 most recently opened boards (LOCAL_BOARD_CACHE_MAX_BOARDS) keep a device copy. `chooseEvictions` sorts by `lastOpenedAt` and removes the least recently opened entries that are neither unsynced nor the board currently open, until at most 50 remain. If the least recently opened copy has unsynced changes it is never removed; the least recently opened copy without unsynced changes is removed instead.
+- `enforceLimits` runs on board open only. There is no quota-based eviction: the count limit is the only bound, and a quota error while writing is handled by the device copy store as "cannot store" (offline.storage_unavailable).
 
 ## Tests
-unit: TC-04 to TC-07 (`tests/unit/cache-manager.test.ts`). integration: TC-14, TC-15, TC-39 (`tests/browser/cache-manager.test.ts`).
+unit: TC-04 to TC-07 (`tests/unit/cache-manager.test.ts`). integration: TC-14, TC-39 (`tests/browser/cache-manager.test.ts`).
 
 ## Sync acknowledgement and unsynced tracking
 

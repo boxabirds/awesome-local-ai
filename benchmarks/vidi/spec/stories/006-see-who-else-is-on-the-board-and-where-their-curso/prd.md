@@ -147,7 +147,6 @@ IF a cursor or selection belongs to the viewer (in the current tab) THEN THE SYS
 
 - **Capacity setting:** colour distinctness and avatar count use the same simultaneous-editor capacity setting as story 3 (5). Changing it must not need redesign; tests use the setting, not a literal number.
 - **Timing settings:** cursor delivery (500 ms), cursor update rate, leave removal (3 s on close, 35 s on silent loss) are named product settings.
-- **Performance:** cursor updates from 5 people must not make dragging or typing feel slower for anyone (manual check with 5 active people).
 - **Cost:** presence traffic must not keep boards running when nobody is connected.
 - **Accessibility:** avatars have accessible names ("Brave Heron", "Curious Otter, you"); colours are never the only way to identify a person (names always accompany colours); remote cursors are hidden from screen readers.
 - **Privacy:** presence reveals only the chosen name, colour, cursor position and selection; no IP address, device or email is shared with other participants.

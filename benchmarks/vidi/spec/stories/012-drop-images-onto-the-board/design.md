@@ -132,6 +132,51 @@ sequenceDiagram
     end
 ```
 
+## Sequence: add images with the Image tool picker
+```mermaid
+sequenceDiagram
+    participant U as User
+    participant T as Toolbar or I key
+    participant I as useImageInsert
+    participant V as validateFiles
+    participant M as image.ts
+    participant X as uploadImage
+    participant W as Worker assets
+    U->>T: click Image or press I
+    alt connection not connected
+        T->>I: openPicker
+        I-->>U: offline toast picker not opened
+    else connected
+        T->>I: openPicker
+        I->>U: system file picker filtered to IMAGE_ACCEPTED_TYPES
+        alt picker cancelled
+            U-->>I: no files
+            I->>T: tool returns to Select nothing added
+        else files chosen
+            I->>V: validate type size count
+            alt no accepted files
+                I-->>U: toast messages nothing added
+            else some accepted
+                I->>I: createImageBitmap for natural size
+                alt decode fails
+                    I-->>U: types toast for that file
+                end
+                I->>M: createImagePlaceholders layoutRow centred in view
+                loop each accepted file
+                    I->>X: upload with progress
+                    X->>W: POST api boards id assets
+                    alt 201
+                        I->>M: markImageReady
+                    else 413 415 404 500 or network error
+                        I->>M: markImageFailed
+                    end
+                end
+            end
+            I->>T: tool returns to Select
+        end
+    end
+```
+
 ## Sequence: upload handler
 ```mermaid
 sequenceDiagram
@@ -217,6 +262,8 @@ sequenceDiagram
         I-->>U: default paste text unchanged
     else clipboard has no image files
         I-->>U: ignored
+    else connection not connected
+        I-->>U: offline toast nothing added
     else image files
         I->>I: same validation and upload as drop centred in view
     end
@@ -232,6 +279,8 @@ sequenceDiagram
 | image.insert | unit, ui-component, e2e | pure validation; hook with mocked upload in jsdom; real drop/paste/picker in browser | validation rules are pure; flows need DOM events; real file transfer needs a browser |
 | image.object | ui-component, e2e | render states in jsdom; real image loading | states are DOM; load errors and aspect resize need real layout |
 
+Timing policy: e2e tests wait up to E2E_EVENTUAL_TIMEOUT_MS (story 3) for images to appear for others and log the measured delivery time against LIVE_UPDATE_LATENCY_BUDGET_MS; the budget is reported, not asserted, because the model, browsers and server share one machine. IMAGE_UPLOAD_STALE_MS is exercised with fake clocks only (TC-06, TC-22).
+
 ## Dimensions crossed
 - **D1 Entry**: drop, paste, picker.
 - **D2 File class**: valid small, valid at limit, over limit, wrong type by content (renamed), SVG, corrupt image.
@@ -239,7 +288,7 @@ sequenceDiagram
 - **D4 Viewer**: uploader, other participant, later visitor.
 - **D5 Time**: before and after IMAGE_UPLOAD_STALE_MS.
 
-D2 and D3 classes are exhaustive and non-overlapping.
+D2 and D3 classes are exhaustive and non-overlapping. TC numbers are stable; removed cases leave gaps.
 
 ## Coverage table
 | TC | Capability | D1 | D2 | D3 | D4 | Action | Expected before → after | Level |
@@ -266,7 +315,7 @@ D2 and D3 classes are exhaustive and non-overlapping.
 | TC-22 | image.object | not applicable: render | valid small | not applicable | other participant | uploading with uploadStartedAt older than IMAGE_UPLOAD_STALE_MS | Image upload didn't finish + Remove; Remove deletes | ui-component |
 | TC-23 | image.object | not applicable: render | corrupt | not applicable | later visitor | img error event | Image unavailable box same size | ui-component |
 | TC-24 | image.object | not applicable: render | valid small | 500 | uploader | Retry after failure with file in memory; Retry after simulated reload | status uploading and upload called again; Retry hidden only Remove | ui-component |
-| TC-25 | image.insert | drop | valid small x3 | 201 | uploader and other participant | real drag-and-drop via DataTransfer of fixture images; Sam's context | Sam sees Uploading placeholders then images within LIVE_UPDATE_LATENCY_BUDGET_MS plus load | e2e |
+| TC-25 | image.insert | drop | valid small x3 | 201 | uploader and other participant | real drag-and-drop via DataTransfer of fixture images; Sam's context | Sam sees Uploading placeholders then all three images (drop-to-visible time logged against LIVE_UPDATE_LATENCY_BUDGET_MS, not asserted) | e2e |
 | TC-26 | image.insert | picker | valid small + renamed PDF + 11 MB | mixed | uploader | press I, setInputFiles | one image added; type and size toasts | e2e |
 | TC-27 | image.object | picker | valid small | 201 | later visitor | resize corner; reload in new context | aspect ratio preserved ±1%, min IMAGE_MIN_SIZE_WORLD enforced; image present after reload | e2e |
 | TC-28 | image.object | drop | valid small | network error | uploader | route abort POST assets, then Retry with route restored | Upload failed then image ready | e2e |
@@ -320,10 +369,10 @@ D2 and D3 classes are exhaustive and non-overlapping.
 - `tests/fixtures/images/`: real PNG screenshot (1440x900), JPEG photo (4032x3024, ~3 MB), animated GIF, WebP, SVG with script tag, PDF renamed to .png, corrupt PNG (truncated), generated 10 MB JPEG and 10 MB + 1 byte file.
 
 ## Not covered
-- Performance of boards with 100 images (manual).
 - Real R2 production latency and CDN caching behaviour.
-- Clipboard image paste in Firefox/WebKit e2e (Chromium only; manual elsewhere).
+- Clipboard image paste in Firefox/WebKit e2e (Chromium only).
 - Redo restoring the final `ready` state after undoing an insertion is asserted in TC-05's unit test only; UndoManager behaviour with untracked-origin updates must be confirmed during implementation.
+- Wall-clock delivery time as a pass/fail criterion: on a shared machine it is logged (TC-25), not asserted.
 
 ## Asset upload and serving API
 
@@ -346,13 +395,13 @@ export function handleServe(env: Env, key: string): Promise<Response>;
 - **Side effects**: one R2 put per accepted upload; nothing written on any error.
 
 ## Implementation
-- Order of checks: id pattern → `exists()` RPC → `Content-Length` > limit → read body → byte length > limit → sniff → put (image.size_limit, image.types).
-- Type is decided from content only, never from the client header (image.types).
-- Serving adds `nosniff` and `Content-Security-Policy: default-src 'none'` so a stored file can never execute; immutable caching because keys never change (image.shared).
-- 404 on serve lets the client show "Image unavailable" (image.unavailable); upload errors map to the failed state on the client (image.upload_failure).
+- **Only supported image types (image.types):** a file is added only if it is a PNG, JPEG, GIF or WebP image judged by its content. The browser rejects other files before uploading (`validateFiles`, image.insert) and shows "Only PNG, JPEG, GIF and WebP images can be added."; supported files from the same drop, paste or pick are still added. The server then decides the type from the first IMAGE_SNIFF_BYTES of the body only (magic bytes), never from the file name or `Content-Type`, so a renamed PDF or an SVG is refused with 415 and nothing is stored or added; the client shows the same message.
+- **Size limit (image.size_limit):** files larger than 10 MB (IMAGE_MAX_BYTES) are rejected in the browser before uploading with "Images must be 10 MB or smaller." and nothing is added for that file. The server re-checks `Content-Length` and then the actual byte length and answers 413 without storing anything, so an oversized file can never be uploaded or added.
+- Order of checks: id pattern → `exists()` RPC → `Content-Length` > limit → read body → byte length > limit → sniff → put.
+- Serving adds `nosniff` and `Content-Security-Policy: default-src 'none'` so a stored file can never execute; immutable caching because keys never change. A 201 returns the permanent `assetKey` used by image.model and image.object to show the image to everyone.
 
 ## Tests
-unit: TC-01, TC-02 in `tests/unit/image-format.test.ts`. integration: TC-10 to TC-13, TC-15, TC-16 in `tests/integration/assets.test.ts`. e2e: TC-25, TC-26, TC-28.
+unit: TC-01, TC-02 in `tests/unit/image-format.test.ts`; TC-08, TC-09 (client validation). integration: TC-10 to TC-13, TC-15, TC-16 in `tests/integration/assets.test.ts`. e2e: TC-25, TC-26, TC-28.
 
 ## Image object model
 
@@ -376,13 +425,12 @@ export function displayStatus(img: ImageSnap, now: number): DisplayStatus;
 - **Side effects**: `createImagePlaceholders` = one LOCAL_ORIGIN transaction for the whole add action (one undo step); status updates use UPLOAD_ORIGIN (no extra undo step).
 
 ## Implementation
-- `placementSize` scales so the longest side ≤ IMAGE_MAX_PLACE_SIZE_WORLD, never upscales (image.placement_size).
-- `layoutRow` places left to right with IMAGE_LAYOUT_GAP_WORLD; `top-left` anchor for drops (image.drop), `centre` anchor on the visible area centre for picker and paste (image.pick, image.paste).
-- Placeholder objects carry `status: 'uploading'`, `uploadStartedAt`, `uploaderId`, so every participant can render the uploading state (image.uploading); `markImageReady` sets `assetKey` for everyone (image.shared).
-- `displayStatus` derives `unfinished` when uploading longer than IMAGE_UPLOAD_STALE_MS (image.unfinished); `markImageFailed`/`markImageRetrying` back failure handling (image.upload_failure).
+- **Sensible placement size (image.placement_size):** an added image is sized to its natural pixel dimensions in board units (one pixel = one board unit). If its longest side is more than 800 board units (IMAGE_MAX_PLACE_SIZE_WORLD), `placementSize` scales both sides down by the same factor so the longest side is exactly 800 and the proportions are kept; smaller images keep their natural size and are never enlarged. Examples: 400×300 → 400×300; 1600×1200 → 800×600; 300×3200 → 75×800.
+- `layoutRow` places images left to right separated by IMAGE_LAYOUT_GAP_WORLD, from a `top-left` start (drop) or centred on the view (picker, paste).
+- Placeholder objects carry `status: 'uploading'`, `uploadStartedAt`, `uploaderId`; `markImageReady` sets `assetKey`; `displayStatus` derives `unfinished` after IMAGE_UPLOAD_STALE_MS; `markImageFailed`/`markImageRetrying` support failure handling (rendering in image.object).
 
 ## Tests
-unit: TC-03 to TC-07 in `tests/unit/image-model.test.ts`.
+unit: TC-03 (placement sizes) to TC-07 in `tests/unit/image-model.test.ts`.
 
 ## Adding images: drop, paste, picker, validation, upload
 
@@ -403,17 +451,19 @@ export function useImageInsert(a: { doc: Y.Doc; boardId: string; camera: Camera;
   progress: ReadonlyMap<string, number>; retry(id: string): boolean; canRetry(id: string): boolean;
 };
 ```
-- **Inputs**: DataTransfer files on drop, clipboard files on paste (ignored while focus is in a text editor/input), `<input type=file accept=IMAGE_ACCEPTED_TYPES multiple>` for the picker (I key / Image button), connection state from story 3.
+- **Inputs**: DataTransfer files on drop, clipboard files on paste, `<input type=file accept=IMAGE_ACCEPTED_TYPES multiple>` for the picker, connection state from story 3.
 - **Outputs**: toasts with exact PRD messages; placeholders via image.model; progress map (uploader only); ready/failed status updates.
-- **Errors**: invalid type (by `File.type` plus server sniff), size, count, decode failure, offline, other failures — all surfaced as messages or failed state; never thrown.
+- **Errors**: invalid type, size, count, decode failure, offline, upload failures — all surfaced as messages or failed state; never thrown.
 - **Side effects**: XHR uploads (fetch lacks upload progress); in-memory map id → File for Retry (lost on reload).
 
 ## Implementation
-- Offline gate first: if connection is not `connected`/`confirmed`, show offline toast and stop (image.offline).
-- `validateFiles` applies count (first IMAGE_MAX_FILES_PER_ADD), type and size (image.types, image.size_limit, image.count_limit); dimensions from `createImageBitmap` (decode failure → type message).
-- Placeholders created in one transaction; uploads start in parallel with progress feeding `progress` (image.uploading).
-- Result mapping: ok → `markImageReady`; failed → `markImageFailed` (image.upload_failure). Retry uses `markImageRetrying` then re-uploads the kept File.
-- Drop highlight shown between `dragenter` and `dragleave/drop` for file drags only (image.drop); paste and picker centre in view (image.paste, image.pick).
+- **Drop (image.drop):** while files are dragged over the board a dashed drop highlight is shown (between `dragenter` and `dragleave`/`drop`, file drags only). On drop the drop point is converted to world coordinates and `layoutRow(sizes, dropPoint, 'top-left')` places the first image's top-left corner at that point and the rest left to right in a row, each separated by 24 board units (IMAGE_LAYOUT_GAP_WORLD).
+- **Paste (image.paste):** a paste with image files while the board has focus and no text is being edited adds the images centred in the visible board area (`layoutRow(..., viewCentre, 'centre')`). If a note, text object, label or any input is being edited, the paste is left to the editor and no image is added.
+- **Pick (image.pick):** the Image button or the I key opens the system file picker filtered to IMAGE_ACCEPTED_TYPES (PNG, JPEG, GIF, WebP) with multiple selection; chosen files are added centred in the visible board area in a row; the tool then returns to Select.
+- **Count limit (image.count_limit):** if more than 20 supported files (IMAGE_MAX_FILES_PER_ADD) arrive in one drop, paste or pick, only the first 20 are added and the toast "Only 20 images can be added at once." is shown.
+- **Uploading (image.uploading):** all placeholders are created in one transaction, each already the image's final size and position. The uploader's placeholder shows upload progress as a percentage from XHR `upload.onprogress`. Because the placeholder is a normal document object with `status: 'uploading'`, story 3 delivers it to every other connected person within 1 second of the upload starting, where it renders as an "Uploading…" placeholder of the same size and position (image.object).
+- **Offline (image.offline):** if the connection is not `connected`/`confirmed`, no upload starts and nothing is added; the toast "You're offline — images can be added when you reconnect." is shown for drop, paste and picker alike.
+- `validateFiles` also applies the type and size checks (image.types, image.size_limit) before any upload; dimensions come from `createImageBitmap` (decode failure → type message). Upload results: ok → `markImageReady`; failed → `markImageFailed`; Retry uses `markImageRetrying` and re-uploads the kept File.
 
 ## Tests
 unit: TC-08, TC-09 in `tests/unit/validate-files.test.ts`. ui-component: TC-17 to TC-19, TC-29 in `tests/component/useImageInsert.test.tsx`. e2e: TC-25, TC-26, TC-28 in `tests/e2e/images.spec.ts`.
@@ -430,12 +480,17 @@ export function ImageObject(props: { image: ImageSnap; isUploader: boolean; prog
 image: { Component: ImageObject, resizable: true, aspectLocked: true, minSize: IMAGE_MIN_SIZE_WORLD, editableText: false, hitTest: bbox }
 ```
 - **Inputs**: ImageSnap, identity (uploader or not), progress, clock tick (re-render every 30 s while any image is uploading so `unfinished` appears).
-- **Outputs**: per `displayStatus`: uploading → grey box with progress % (uploader) or "Uploading…" (others); ready → `<img src="/api/assets/<assetKey>" draggable=false decoding=async loading=lazy alt="Image">` sized to the object; failed → uploader "Upload failed" + Retry (if `canRetry`) + Remove, others "Image unavailable"; unfinished → "Image upload didn't finish" + Remove; `img` error event → "Image unavailable" box.
+- **Outputs**: one rendering per `displayStatus` (below).
 - **Errors**: image load error handled locally, never propagates.
 - **Side effects**: Remove calls story 7 `deleteObjects`; Retry calls `useImageInsert.retry`.
 
 ## Implementation
-`aspectLocked: true` and `minSize: IMAGE_MIN_SIZE_WORLD` make story 7 resize proportional with a floor (image.aspect_resize). Remote placeholders render the uploading state from doc fields alone (image.uploading) and switch to the image as soon as `assetKey` arrives (image.shared). Failure, unfinished and unavailable states implement image.upload_failure, image.unfinished and image.unavailable.
+- **Uploaded images appear for everyone (image.shared):** when the upload completes the uploader's client calls `markImageReady(id, assetKey)`; story 3 delivers that update to every connected person within 1 second, and each ImageObject replaces its placeholder with `<img src="/api/assets/<assetKey>" draggable=false decoding=async loading=lazy alt="Image">` sized to the object, so the image shows after 1 second plus its download time. The update is stored with the board (story 4), so anyone who opens the board later sees the image.
+- **Failed uploads (image.upload_failure):** status `failed` renders, for the uploader, a red-bordered box "Upload failed" with Retry (while the file is still in memory) and Remove; everyone else sees "Image unavailable". Retry sets the placeholder back to uploading and uploads the same file again; Remove (available wherever the controls are shown) deletes the placeholder object.
+- **Abandoned uploads (image.unfinished):** when an image has been `uploading` for more than 5 minutes (IMAGE_UPLOAD_STALE_MS, e.g. the uploader reloaded or closed the page) `displayStatus` returns `unfinished` and everyone sees "Image upload didn't finish" with a Remove button, instead of a permanent "Uploading…".
+- **Proportional resizing (image.aspect_resize):** the registry entry declares `aspectLocked: true` and `minSize: IMAGE_MIN_SIZE_WORLD` (16), so story 7's resize always keeps the image's width-to-height ratio and stops before either side becomes smaller than 16 board units.
+- **Unloadable images (image.unavailable):** if the image request fails (404, network error, corrupt data) the `img` error event swaps in a grey "Image unavailable" box with a broken-image icon at the image's size and position; the error is handled inside the component, so the rest of the board is unaffected.
+- Uploading renders a grey box with progress % for the uploader and "Uploading…" for others.
 
 ## Tests
 ui-component: TC-21 to TC-24 in `tests/component/ImageObject.test.tsx`. e2e: TC-25, TC-27, TC-28.

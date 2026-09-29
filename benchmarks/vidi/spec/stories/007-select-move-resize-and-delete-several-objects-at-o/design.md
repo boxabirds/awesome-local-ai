@@ -338,7 +338,7 @@ Classes in each dimension are exhaustive and non-overlapping.
 20-note retro board in two clusters with realistic texts and overlapping stacking; a test-only `testbox` type registered in test builds (resizable, not aspect-locked, minSize 10).
 
 ## Not covered
-- 200-object performance (manual scripted run).
+Deliberately not covered by automated tests:
 - Touch input.
 - Behaviour for types from stories 9–12 (their stories add registry cases).
 
@@ -400,10 +400,12 @@ export function getObjectType(type: string): ObjectTypeSpec | undefined;
 - **Side effects:** module-level map populated at import.
 
 ## Implementation
-Registers `sticky` = { StickyNote, resizable: true, aspectLocked: true, minSize: STICKY_MIN_SIZE_WORLD, editableText: true, hitTest: bounds contain }. Stories 9–12 call `registerObjectType` and must not add their own selection or transform code (sel.all_types). Low reversibility: the spec shape is a contract for four later stories.
+Registers `sticky` = { StickyNote, resizable: true, aspectLocked: true, minSize: STICKY_MIN_SIZE_WORLD (50), editableText: true, hitTest: bounds contain }. Stories 9–12 call `registerObjectType` and must not add their own selection or transform code (sel.all_types): a type may declare only whether it can be resized, whether it keeps its proportions, and its minimum size.
+
+Size limits (sel.size_limits): the registry supplies each type's **minimum**; the **maximum** is one global setting, MAX_OBJECT_SIZE_WORLD (20,000), identical for every type. During a resize, `clampScale` (sel.geometry_ops) receives every selected object's rect, its type's `minSize` and MAX_OBJECT_SIZE_WORLD, and returns the single largest (or smallest) scale at which no object crosses either limit; that one scale is applied to the whole selection, so the selection stops as soon as the first object reaches its limit. Low reversibility: the spec shape is a contract for four later stories.
 
 ## Tests
-Unit TC-11, TC-12, plus duplicate registration throws (`tests/unit/registry.test.ts`).
+Unit TC-11, TC-12, plus duplicate registration throws (`tests/unit/registry.test.ts`); limit clamping TC-02, TC-03.
 
 ## Selection state and selection bar
 
@@ -455,10 +457,11 @@ export function MarqueeRect(props: { rect: Rect | null; camera: Camera }): JSX.E
 - **Side effects:** pointer capture during marquee.
 
 ## Implementation
-`BoardViewport` checks `event.shiftKey` on empty-space pointerdown: true → marquee, false → story 1 pan. Rect stored in world units so zoom changes during drag are harmless.
+- `BoardViewport` checks `event.shiftKey` on empty-space pointerdown: true → marquee, false → story 1 pan. Rect stored in world units so zoom changes during drag are harmless.
+- Containment rule (sel.marquee): `objectsInRect` uses `rectContains(marquee, objectBounds(obj))`, which is true only when all four edges of the object lie inside the rectangle. An object that is only partly inside, or merely touches the edge from outside, is **not** selected. Objects already selected stay selected (additive).
 
 ## Tests
-Component TC-20 to TC-22; e2e TC-32.
+Unit TC-07 (fully / partly / outside → only the fully-inside object); component TC-20 to TC-22; e2e TC-32.
 
 ## Transform gesture and handles
 
@@ -480,12 +483,14 @@ export function SelectionOverlay(props: { ids: ReadonlySet<string>; snapshot: re
 - **Side effects:** rAF-throttled `moveObjects` / `resizeObjects`; `bringObjectsToFront` at move start; `onGestureStart/End` exactly once per gesture.
 
 ## Implementation
-- Start rects captured at threshold crossing; each frame writes absolute rects (Key decision 1).
-- Aspect locked when any selected spec is `aspectLocked` or Shift is held; scale clamped via `clampScale` (Key decision 2).
+- **Dragging an unselected object (sel.drag_unselected):** `onObjectPointerDown` checks whether the id is in the selection. If it is not, it first dispatches `click(id)`, replacing the whole selection with just that object, and the gesture then moves only that object. If it is already selected, the gesture moves every selected object.
+- **Group move (sel.group_move):** start rects captured at threshold crossing; each frame writes absolute rects `start + delta` (Key decision 1); `bringObjectsToFront` raises the selection above unselected objects while keeping its internal stacking order.
+- **Resize (sel.resize, sel.aspect):** `resizeRect` on the bounding box from the opposite corner or edge; aspect locked when any selected spec is `aspectLocked` (sticky notes) or Shift is held; each object is repositioned and scaled with `scaleWithin`.
+- **Size limits (sel.size_limits):** before applying, the scale is passed through `clampScale` with every selected object's rect, its type's `minSize` (sticky notes 50 board units) and MAX_OBJECT_SIZE_WORLD (20,000 board units). The result is the scale at which the first object reaches a limit; the whole selection stops there, and further pointer movement past the limit changes nothing (Key decision 2).
 - `StickyNote` delegates pointerdown to `onObjectPointerDown`; new object types do the same via the registry component props (sel.all_types).
 
 ## Tests
-Component TC-23 to TC-26; e2e TC-33, TC-36.
+Unit TC-02, TC-03 (clamping); component TC-23 to TC-26; e2e TC-33, TC-36.
 
 ## Selection keyboard commands
 

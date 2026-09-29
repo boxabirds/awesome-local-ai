@@ -222,16 +222,19 @@ sequenceDiagram
 | Capability | Levels | Boundary exercised | Why sufficient |
 |---|---|---|---|
 | persist.board_store | unit, integration | Chunking maths in isolation; real SQLite storage inside a real Durable Object | Storage behaviour (transactions, blobs, ordering) must be exercised against the real engine |
-| persist.room | unit, integration, e2e | Real object + storage in workerd; real process restart in e2e | Only a real restart of `wrangler dev` with persisted local state proves data survives a process that forgets memory |
+| persist.room | unit, integration, e2e | Room state transitions in isolation; real object + storage in workerd; real process restart in e2e | Only a real restart of `wrangler dev` with persisted local state proves data survives a process that forgets memory |
 | persist.client_status | ui-component, e2e | Badge and edit gate; real close code path | Real browser proves users see the message and cannot edit |
 
-## Dimensions crossed
+Timing policy: e2e tests wait up to E2E_EVENTUAL_TIMEOUT_MS (story 3) for functional outcomes and log measured durations against their budgets (e.g. BOARD_LOAD_BUDGET_MS); wall-clock budgets are reported, not asserted, because the model, browsers and server share one machine.
+
+## Dimensions crossed (equivalence classes)
 - **D1 Stored state before operation**: Empty, LogOnly, Snapshotted, SnapshotPlusLog.
 - **D2 Damage**: none, one damaged log row, damaged snapshot, SQL error on read, SQL error on write.
 - **D3 Trigger**: load (wake/construct), append, compaction, client open.
 - **D4 Size**: 0 notes, 1 note, 25 notes, `PERSIST_TESTED_NOTES`.
+- **D5 Close code seen by the client**: none, `CLOSE_BOARD_LOAD_FAILED` (4500), `CLOSE_STORAGE_FAILURE` (1011), 1003.
 
-D1 and D2 classes are exhaustive and non-overlapping for this story.
+Every dimension's classes are exhaustive for this story and non-overlapping: each stored state, damage kind, trigger, size class and close code falls in exactly one class.
 
 ## Coverage table
 | TC | Capability | D1 | D2 | D3 | D4 | Action | Expected before → after | Level |
@@ -245,8 +248,8 @@ D1 and D2 classes are exhaustive and non-overlapping for this story.
 | TC-07 | persist.board_store | SnapshotPlusLog | none | load | 25 notes | 3 more updates after compaction, load | reload equals original plus 3 changes; only rows with seq > through_seq applied | integration |
 | TC-08 | persist.board_store | Snapshotted | none | compaction | `PERSIST_TESTED_NOTES` | compact large doc | chunks > 1 when encoded size > SNAPSHOT_CHUNK_BYTES; reload equal | integration |
 | TC-09 | persist.board_store | LogOnly | one damaged log row | load | 25 notes | overwrite row 7 data with truncated bytes, load | row 7 moved to quarantined_updates with error text; updates count -1; all other notes present | integration |
-| TC-10 | persist.board_store | Snapshotted | damaged snapshot | load | 25 notes | corrupt chunk 0, load | result LoadFailed; no rows deleted or quarantined | integration |
-| TC-11 | persist.board_store | SnapshotPlusLog | SQL error on write during compaction | compaction | 25 notes | inject failing statement after DELETE snapshot_chunks | transaction rolled back: previous chunks and log rows unchanged | integration |
+| TC-10 | persist.board_store | Snapshotted | damaged snapshot | load | 25 notes | corrupt chunk 0, load | result `ok:false` reason `snapshot-unreadable`; no rows deleted or quarantined | integration |
+| TC-11 | persist.board_store | SnapshotPlusLog | SQL error on write during compaction | compaction | 25 notes | inject failing statement after DELETE snapshot_chunks | transaction rolled back: previous chunks and log rows unchanged; compactIfNeeded returns false | integration |
 | TC-12 | persist.room | Empty | none | append | 1 note | client A creates note; client B receives it; then close both sockets and read storage via runInDurableObject | updates row exists before B's receipt is observed; fresh doc from storage contains note | integration |
 | TC-13 | persist.room | LogOnly | none | load | 25 notes | all clients disconnect; new client connects to a new room instance over the same storage | new client snapshot equals original | integration |
 | TC-14 | persist.room | LogOnly | SQL error on write | append | 1 note | stub store.append to throw once; A sends update | A and B closed 1011; B never received update; after reconnect of A (which still holds change) storage contains it and B receives it | integration |
@@ -256,15 +259,19 @@ D1 and D2 classes are exhaustive and non-overlapping for this story.
 | TC-18 | persist.room | LogOnly | none | load | 25 notes | hibernation path: handlers invoked via ctx.getWebSockets after reconstruct | broadcast reaches sockets accepted before reconstruct | integration |
 | TC-19 | persist.room | LogOnly | none | load | 25 notes | real `wrangler dev --persist-to` process: create notes in browser, close browser, kill and restart process, reopen | 25 notes identical (text, colour, position, stacking) | e2e |
 | TC-20 | persist.room | Empty | none | append | 1 note | Alex creates note; poll until visible to Sam; within 1 s close both contexts and kill process; restart; reopen | note present | e2e |
-| TC-21 | persist.room | Snapshotted | none | client open | `PERSIST_TESTED_NOTES` | seed board, open fresh context, measure navigation start → all note elements rendered | ≤ BOARD_LOAD_BUDGET_MS (local) | e2e |
+| TC-21 | persist.room | Snapshotted | none | client open | `PERSIST_TESTED_NOTES` | seed board, open fresh context, wait until all note elements are rendered | all `PERSIST_TESTED_NOTES` notes rendered; navigation-to-rendered time logged against BOARD_LOAD_BUDGET_MS (not asserted) | e2e |
 | TC-22 | persist.client_status | not applicable: component | not applicable: component | client open | not applicable | render with state load_failed | red text "This board couldn't be loaded. Retrying…"; role status | ui-component |
 | TC-23 | persist.client_status | not applicable: component | not applicable: component | client open | not applicable | App in load_failed: dblclick board, click Sticky note button, press Delete on a note | no model mutation calls | ui-component |
 | TC-24 | persist.client_status | Snapshotted | damaged snapshot | client open | 25 notes | e2e with test-only storage corruption endpoint enabled in test build | red message visible; board not editable; after repair endpoint, board loads without reload | e2e |
+| TC-25 | persist.board_store | Empty | none | client open | 0 notes | open a never-edited board | tables exist; zero rows in updates and snapshot_chunks | integration |
+| TC-26 | persist.room | LogOnly | SQL error on read | load | 25 notes | make SELECT throw via injected store | load returns `ok:false` reason `sql-error`; room closes new sockets with 4500 | integration |
+| TC-27 | persist.room | not applicable: pure function | not applicable | not applicable | not applicable | `nextRoomState(state, event)` for every edge of the room state diagram and every invalid event | expected next state for each edge; invalid events leave state unchanged | unit |
+| TC-28 | persist.client_status | not applicable: component | not applicable: component | client open | not applicable | provider closes with 1011, then with 1003 | state `reconnecting` (not `load_failed`), editing stays enabled; 1003 also `reconnecting` | ui-component |
 
 ## Boundary values
 - Compaction thresholds: COMPACTION_UPDATE_COUNT - 1 / exactly; COMPACTION_BYTES - 1 / exactly (TC-02, TC-06).
 - Chunking: 0, 1, SNAPSHOT_CHUNK_BYTES, SNAPSHOT_CHUNK_BYTES + 1 bytes (TC-01).
-- Board size: 0, 1, 25, `PERSIST_TESTED_NOTES` notes (TC-03, TC-04, TC-05, TC-08, TC-21).
+- Board size: 0, 1, 25, `PERSIST_TESTED_NOTES` notes (TC-03, TC-04, TC-05, TC-08, TC-21, TC-25).
 - Load retry: before and after LOAD_RETRY_MIN_INTERVAL_MS (TC-16).
 
 ## Negative scenarios
@@ -277,16 +284,21 @@ D1 and D2 classes are exhaustive and non-overlapping for this story.
 | TC-17 | rejected garbage must not be stored | integration |
 | TC-23 | load_failed board must not be editable | ui-component |
 | TC-25 | a never-edited board must not create storage rows just by being opened (only tables) | integration |
+| TC-28 | a storage failure must not be shown as "couldn't be loaded" or lock editing | ui-component |
 
 ## Error paths (every contract error has a case)
 | Contract error | TC |
 |---|---|
-| damaged log row → quarantine | TC-09 |
-| damaged snapshot → LoadFailed | TC-10, TC-15 |
-| SQL error on read → LoadFailed | TC-26: make SELECT throw via injected store; room closes 4500 (integration) |
-| SQL error on insert → StorageFailed, close 1011 | TC-14 |
-| compaction error → rollback | TC-11 |
+| `LoadResult` damaged log row → quarantine, `ok:true` with `quarantined` count | TC-09 |
+| `LoadResult` `snapshot-unreadable` | TC-10, TC-15 |
+| `LoadResult` `sql-error` | TC-26 |
+| `append` throws → room `storage-failed`, close 1011 | TC-14 |
+| `compactIfNeeded` error → rollback, returns false | TC-11 |
+| room `load-failed` → close 4500, retry only after LOAD_RETRY_MIN_INTERVAL_MS | TC-15, TC-16 |
 | garbage update → close 1003, not stored | TC-17 |
+| invalid room state transition | TC-27 |
+| client close 1011 / 1003 → `reconnecting`, not `load_failed` | TC-28 |
+| client close 4500 → `load_failed` | TC-22, TC-24 |
 
 ## Mock vs real boundaries
 | Dependency | Mocked? | Reason |
@@ -295,12 +307,13 @@ D1 and D2 classes are exhaustive and non-overlapping for this story.
 | Storage failures | Injected by wrapping `BoardStore` methods to throw (TC-11, TC-14, TC-26) | Real disk failures cannot be produced on demand; the wrapper sits outside SQLite so real transaction semantics still apply |
 | Damaged data | Real bytes overwritten in real tables via `runInDurableObject` | Exercises the real load path |
 | Process restart | Real `wrangler dev` restart with `--persist-to` (e2e) | Only way to prove memory loss does not lose data locally |
+| Provider close events (TC-28) | Simulated provider emitting `connection-close` with codes | Close-code mapping is the unit under test |
 | Output gate | Not mocked, not directly asserted | Platform guarantee; see Not covered |
 
 ## E2E workflows
 1. **Overnight return** (TC-19): work, leave, restart, return; asserts identical board.
 2. **Leave immediately** (TC-20): change seen by another person survives immediate exit and restart.
-3. **Big board open** (TC-21): large realistic board opens within budget.
+3. **Big board open** (TC-21): large realistic board opens completely; open time is logged against BOARD_LOAD_BUDGET_MS.
 4. **Broken board** (TC-24): honest failure message, editing blocked, recovery without reload.
 
 ## Fixtures
@@ -309,10 +322,11 @@ D1 and D2 classes are exhaustive and non-overlapping for this story.
 - Test-only storage corruption/repair endpoint compiled only when `env.TEST_HOOKS === '1'` (never set in production config).
 
 ## Not covered
+Deliberately not covered by automated tests:
 - Output-gate ordering (that broadcasts are held until writes are durable) is a platform guarantee; TC-12 shows the row exists by the time another client observes the change but cannot prove ordering under real disk latency.
-- Production eviction/hibernation timing and real Cloudflare restarts: verified manually after first deploy.
+- Production eviction/hibernation timing and real Cloudflare restarts.
 - Storage quota exhaustion at production limits.
-- Load time over real internet latency (TC-21 is local).
+- Wall-clock load time as a pass/fail criterion: on a shared machine it is logged (TC-21), not asserted; load time over real internet latency is not measured.
 - Boards larger than `PERSIST_TESTED_NOTES`.
 
 ## Board storage
@@ -344,7 +358,9 @@ export class BoardStore {
 ## Implementation
 - `migrate` runs `CREATE TABLE IF NOT EXISTS` statements and sets `storage_schema_version` if absent; it writes no update rows (TC-25).
 - Row counts and byte totals are tracked in memory after load to avoid `COUNT(*)` per write.
-- Compaction uses `Y.encodeStateAsUpdate(doc)` (the in-memory doc already contains snapshot + log) inside a single `transactionSync`.
+- Compaction uses `Y.encodeStateAsUpdate(doc)` (the in-memory doc already contains snapshot + log) inside a single `transactionSync`, so replay on the next load stays bounded (the load-time budget itself is owned by persist.room).
+- `load` never reports an empty board on failure: `ok:false` is returned to persist.room, which puts the room in LoadFailed; the user-facing message and retry live in persist.room and persist.client_status.
+- Every update is written by `append` as it happens, so nothing depends on anyone pressing save (persist.automatic), and all state lives in Durable Object storage, so it survives restarts with nobody connected (persist.restart, persist.reopen). One damaged log row is quarantined and the rest still load (persist.partial_damage).
 
 ## Tests
 unit: TC-01, TC-02 (`tests/unit/board-store-chunks.test.ts`). integration: TC-03 to TC-11, TC-25 (`tests/integration/board-store.test.ts`).
@@ -381,10 +397,10 @@ The time to show a board of `PERSIST_TESTED_NOTES` notes within `BOARD_LOAD_BUDG
 1. **Server load on wake**: compaction keeps the replay work bounded — at most one snapshot (read as `ceil(size / SNAPSHOT_CHUNK_BYTES)` sequential chunk rows, concatenated once) plus fewer than `COMPACTION_UPDATE_COUNT` log rows. Without compaction a long-lived board would replay every keystroke and drag frame ever made, growing without limit. Yjs garbage-collects deleted content (`gc: true`, the default) so the encoded snapshot tracks current board content, not history.
 2. **Transfer**: a joining client receives the whole board in one SyncStep2 message (story 3 handshake), not one message per note. The same encoded state is sent regardless of how the log is laid out.
 3. **Client render**: `useBoardDoc` (story 2) computes one snapshot per `observeDeep` batch, and a single SyncStep2 applies in one transaction, so a large board triggers one React render, not 2,000.
-If TC-21 exceeds the budget, the first escalation is lowering `COMPACTION_UPDATE_COUNT` (less replay) and the second is virtualising off-screen notes in the client; both are settings/client changes, not storage format changes.
+If the load time TC-21 logs is consistently over budget, the first escalation is lowering `COMPACTION_UPDATE_COUNT` (less replay) and the second is virtualising off-screen notes in the client; both are settings/client changes, not storage format changes.
 
 ## Tests
-integration: TC-12 to TC-18, TC-26 (`tests/integration/board-room-persistence.test.ts`); TC-08 proves compaction of a `PERSIST_TESTED_NOTES` board produces chunked snapshots that reload equal. e2e: TC-19 to TC-21 (`tests/e2e/persistence.spec.ts`, which controls the `wrangler dev` process lifecycle; TC-21 asserts `BOARD_LOAD_BUDGET_MS`). unit: room state transition function `nextRoomState(state, event)` tested for every edge in the room state diagram (`tests/unit/room-state.test.ts`, TC-27).
+integration: TC-12 to TC-18, TC-26 (`tests/integration/board-room-persistence.test.ts`); TC-08 proves compaction of a `PERSIST_TESTED_NOTES` board produces chunked snapshots that reload equal. e2e: TC-19 to TC-21 (`tests/e2e/persistence.spec.ts`, which controls the `wrangler dev` process lifecycle; TC-21 asserts all notes render and logs load time against `BOARD_LOAD_BUDGET_MS` without asserting it). unit: room state transition function `nextRoomState(state, event)` tested for every edge in the room state diagram (`tests/unit/room-state.test.ts`, TC-27).
 
 ## Client load-failure status
 
@@ -400,12 +416,13 @@ export function canEdit(state: ConnectionState): boolean; // false only for load
 ```
 - **Inputs**: provider `connection-close` events (close code), status and sync events.
 - **Outputs**: `load_failed` when the last close code was `CLOSE_BOARD_LOAD_FAILED`; badge text "This board couldn't be loaded. Retrying…" in red; board editing handlers (create, drag, edit, colour, delete) are no-ops and the Sticky note button is disabled while `!canEdit`.
-- **Errors**: close 1011 (storage failure) maps to `reconnecting`, not `load_failed`, because the board is readable and changes are retried on reconnection (persist.save_failure).
+- **Errors**: close 1011 (storage failure) and 1003 map to `reconnecting`, not `load_failed`, because the board is readable and changes are retried on reconnection.
 - **Side effects**: none beyond UI.
 
 ## Implementation
-The provider keeps retrying with story 3's backoff; the first successful sync switches back to `connected` and re-enables editing without a page reload.
+- **Load failure (persist.load_failure):** the provider keeps retrying with story 3's backoff; the board is never presented as an empty editable board, and the first successful sync switches back to `connected` and re-enables editing without a page reload.
+- **Save failure (persist.save_failure):** the room stores each update before broadcasting it (persist.room), so an update whose `append` fails is never sent to anyone else and nobody sees it as saved. The room closes every socket with 1011; this client shows "Reconnecting…" and keeps the change in its own in-memory Y.Doc (editing stays enabled). On reconnection story 3's handshake sends the client's full state (SyncStep2), the room appends it, and only then broadcasts it, so the change is saved and delivered once saving works again. Every other connected client does the same with its own unsaved changes.
 
 ## Tests
-ui-component: TC-22, TC-23. e2e: TC-24.
+ui-component: TC-22, TC-23, TC-28. integration: TC-14 (unsaved change not broadcast, saved and delivered after reconnect). e2e: TC-24.
 

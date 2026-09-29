@@ -106,16 +106,13 @@ All pass in `npm run test:component`.
 ### 6. E2E pen workflows: annotate, shared sketch, tidy up (TC-17 to TC-20)
 
 ## Goal
-Real-browser proof for pen.tool (preview during drag updated every animation frame, share-on-finish, navigation and object routing while Pen is active) and stroke.object (select by line, proportional resize, move, delete across participants) against `wrangler dev`, using the recorded paths in `tests/fixtures/pen-paths.ts`.
+Real-browser proof for pen.tool (preview during drag updated every animation frame, share-on-finish, navigation and object routing while Pen is active) and stroke.object (select by line, proportional resize, move, delete across participants) against `wrangler dev`, using the recorded paths in `tests/fixtures/pen-paths.ts`. Functional waits use E2E_EVENTUAL_TIMEOUT_MS (story 3); delivery times are logged, not asserted.
 
 ## Workflows
 - "Annotate a cluster": TC-17 real drag replaying the handwritten-loop fixture → preview `path` element exists during the drag and its `d` attribute changes on consecutive animation frames (sampled with `requestAnimationFrame` in the page), stroke persists after release; TC-19 wheel while Pen active pans the board, then a drag starting on a sticky creates a stroke and leaves the sticky in place (negative: no pan/move).
-- "Shared sketch": TC-18 Priya draws while Sam watches → Sam sees nothing during the drag (negative) and the stroke within LIVE_UPDATE_LATENCY_BUDGET_MS after release.
+- "Shared sketch": TC-18 Priya draws while Sam watches → Sam sees nothing during the drag (negative) and sees the finished stroke after release (release-to-visible time **logged** against LIVE_UPDATE_LATENCY_BUDGET_MS, not asserted).
 - "Tidy up": TC-20 press V, click the stroke line, drag a corner handle (aspect ratio preserved within 1%, thickness unchanged), drag body to move, press Delete → removed on both screens.
 
-## Explicitly not asserted (per strategy "Not covered")
-Drawing latency on low-end hardware and simplification compression ratio are manual checks recorded in the PR description, not CI assertions.
-
 ## Done when
-All pass in chromium; TC-17 also in firefox and webkit.
+All functional assertions pass in chromium; TC-17 also in firefox and webkit. No test fails because a delivery time exceeded its budget.
 

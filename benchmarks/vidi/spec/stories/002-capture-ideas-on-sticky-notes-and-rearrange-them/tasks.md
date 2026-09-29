@@ -2,7 +2,7 @@
 
 | # | Title | Status | Type | Implements |
 |---|-------|--------|------|------------|
-| 1 | Write board model unit tests first against a real Y.Doc (TC-01 to TC-12) | proposed | test:unit | board.model |
+| 1 | Write board model unit tests first against a real Y.Doc (TC-01 to TC-12, TC-39) | proposed | test:unit | board.model |
 | 2 | Implement Yjs board model and useBoardDoc snapshot hook | proposed | implementation | board.model |
 | 3 | Write sticky text logic unit tests first (TC-13 to TC-17) | proposed | test:unit | sticky.text |
 | 4 | Implement sticky text editing: start/end editing, minimal Y.Text diff, length limit, auto-fit font | proposed | implementation | sticky.text |
@@ -13,7 +13,7 @@
 
 ## Details
 
-### 1. Write board model unit tests first against a real Y.Doc (TC-01 to TC-12)
+### 1. Write board model unit tests first against a real Y.Doc (TC-01 to TC-12, TC-39)
 
 ## Goal
 Test-first suite for `src/shared/board-model.ts` (board.model contract) using a real `Y.Doc` (no mocks), plus the sticky named settings in `config.ts`.
@@ -28,7 +28,7 @@ Test-first suite for `src/shared/board-model.ts` (board.model contract) using a 
 - TC-02 create with existing z 1,2 → new z 3.
 - TC-03 moveObject → x,y updated, other fields unchanged.
 - TC-04 moveObject stale id → false, 0 updates (negative).
-- TC-05 setStickyColor green → applied.
+- TC-05 setStickyColor green → applied; text, x, y, z unchanged.
 - TC-06 setStickyColor 'teal' → false, unchanged, 0 updates (negative).
 - TC-07 deleteObject → removed.
 - TC-08 deleteObject stale id → false, 0 updates (negative).
@@ -36,7 +36,8 @@ Test-first suite for `src/shared/board-model.ts` (board.model contract) using a 
 - TC-10 bringToFront on topmost → no update (negative).
 - TC-11 equal z → snapshot sorted by id tie-break, stable.
 - TC-12 unknown object type in doc → skipped by snapshot, no throw.
-- Extra: non-finite coordinates rejected with 0 updates; `initDoc` sets `meta.schemaVersion` once.
+- TC-39 moveObject and createSticky with NaN / Infinity coordinates → false, 0 updates (negative).
+- Extra: `initDoc` sets `meta.schemaVersion` once.
 
 ## Done when
 Suite compiles and fails only on "not implemented"; committed.
