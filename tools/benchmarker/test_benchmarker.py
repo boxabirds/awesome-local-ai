@@ -158,3 +158,11 @@ def test_between_stories_the_build_names_the_story_being_finished():
     assert B.stages(run, job=job, suite="x")["build"] == "running: story 1 (finishing)"
     job2 = {"state": {"status": "running"}, "progress": {"current_story": None, "stories": [{"id": "1", "status": "done"}]}}
     assert B.stages(run, job=job2, suite="x")["build"] == "running: between stories"
+
+
+def test_dbench_sequence_numbers_decide_order_within_a_second():
+    def job(i, run, seq):
+        return {"id": i, "spec": {"pack": "benchmarks/vidi", "run_id": run}, "seq": seq,
+                "progress": {"combination": "qwen/3.8/27b/x/y/z"}, "state": {"status": "queued"}, "submitted_at": 5}
+    q = B.queue_positions({"n": [job("aa-late", "r2", 2), job("zz-early", "r1", 1)]})
+    assert q["zz-early"]["position"] == 1 and q["aa-late"]["position"] == 2

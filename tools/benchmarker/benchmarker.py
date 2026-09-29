@@ -163,8 +163,9 @@ def queue_positions(by_node: dict[str, list[dict]]) -> dict[str, dict]:
     for jobs in by_node.values():
         running = [j for j in jobs if (j.get("state") or {}).get("status") == "running"]
         queued = [j for j in jobs if (j.get("state") or {}).get("status") == "queued"]
-        # dbench's own order: (submission time, job id); restarts first
-        queued.sort(key=lambda j: (0 if j.get("attempt", 0) else 1, j.get("submitted_at", 0), j.get("id", "")))
+        # dbench's own order: (submission time, sequence, job id); restarts first
+        queued.sort(key=lambda j: (0 if j.get("attempt", 0) else 1, j.get("submitted_at", 0), j.get("seq", 0),
+                                   j.get("id", "")))
         def label(j, suffix=""):
             spec, prog = j.get("spec", {}), j.get("progress", {})
             return f"{short_stack(prog.get('combination') or spec.get('install_id', ''))} {spec.get('run_id', '')}{suffix}"
